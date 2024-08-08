@@ -2,7 +2,7 @@
 
 set -e
 
-if ( [ $# -gt 0 ] && ( [ "$1" == "-debug" ] || [ "$1" == "--debug" ] ) ) ; then
+if ([ $# -gt 0 ] && ([ "$1" == "-debug" ] || [ "$1" == "--debug" ])); then
   set -x
 fi
 
@@ -74,7 +74,7 @@ function printHelp() {
   echo "--help      Print out this help. Aliases: help , -help , -h , --h"
 }
 
-if ( [ $# -gt 0 ] && ( [ "$1" == "-help" ] || [ "$1" == "--help" ] || [ "$1" == "-h" ] ) ) ; then
+if ([ $# -gt 0 ] && ([ "$1" == "-help" ] || [ "$1" == "--help" ] || [ "$1" == "-h" ])); then
   printHelp
   exitWithSuccess
 fi
@@ -86,7 +86,10 @@ test -n "${project_number}" || export project_number=${DEFAULT_PROJECT_NUMBER}
 test -n "${zone}" || export zone=${DEFAULT_ZONE}
 test -n "${cluster_name}" || export cluster_name=${DEFAULT_CLUSTER_NAME}
 # test -n "${cluster_version}" || export cluster_version=${DEFAULT_CLUSTER_VERSION}
-test -z "${cluster_version}" || (echo "Setting cluster_version not supported."; exit 1)
+test -z "${cluster_version}" || (
+  echo "Setting cluster_version not supported."
+  exit 1
+)
 test -n "${node_pool}" || export node_pool=${DEFAULT_NODE_POOL}
 test -n "${machine_type}" || export machine_type=${DEFAULT_MACHINE_TYPE}
 test -n "${num_nodes}" || export num_nodes=${DEFAULT_NUM_NODES}
@@ -123,12 +126,12 @@ function printRunParameters() {
   echo "gcsfuse_src_dir=\"${gcsfuse_src_dir}\""
   echo "csi_src_dir=\"${csi_src_dir}\""
   echo "pod_wait_time_in_seconds=\"${pod_wait_time_in_seconds}\""
-  echo "${gcsfuse_mount_options}">gcsfuse_mount_options
+  echo "${gcsfuse_mount_options}" >gcsfuse_mount_options
 }
 
 # install dependencies
 function installDependencies() {
-  which helm || ( cd "${src_dir}" && (test -d "./helm" || git clone https://github.com/helm/helm.git) && cd helm && make && ls -lh bin/ && mkdir -pv ~/bin && cp -fv bin/helm ~/bin/ && chmod +x ~/bin/helm && export PATH=$PATH:$HOME/bin && echo $PATH && which helm && cd - && cd - )
+  which helm || (cd "${src_dir}" && (test -d "./helm" || git clone https://github.com/helm/helm.git) && cd helm && make && ls -lh bin/ && mkdir -pv ~/bin && cp -fv bin/helm ~/bin/ && chmod +x ~/bin/helm && export PATH=$PATH:$HOME/bin && echo $PATH && which helm && cd - && cd -)
   # install o
   which go || (version=1.22.4 && wget -O go_tar.tar.gz https://go.dev/dl/go${version}.linux-amd64.tar.gz && sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local && export PATH=${PATH}:/usr/local/go/bin && go version && rm -rfv go_tar.tar.gz && echo 'export PATH=${PATH}:/usr/local/go/bin' >>~/.bashrc)
   which python3 && sudo apt-get install python3-absl
@@ -140,8 +143,8 @@ function installDependencies() {
 # gcloud auth/config
 # Make sure you have access to the necessary GCP resources. The easiest way to enable it is to use <your-ldap>@google.com as active auth (sample below).
 if ${authChecks}; then
-  if ! $(gcloud auth list | grep -q ${USER}) ; then
-    gcloud auth application-default login --no-launch-browser && ( gcloud auth list | grep -q ${USER})
+  if ! $(gcloud auth list | grep -q ${USER}); then
+    gcloud auth application-default login --no-launch-browser && (gcloud auth list | grep -q ${USER})
   fi
   gcloud config set project ${project_id} && gcloud config list
 fi
@@ -152,14 +155,13 @@ function validateMachineConfig() {
   local num_nodes=${2}
   local num_ssd=${3}
   case "${machine_type}" in
-    "n2-standard-96")
-      if [ ${num_ssd} -ne 0 -a ${num_ssd} -ne 16 ]; then
-        echo "Unsupported num-ssd "${num_ssd}" with given machine-type "${machine_type}""
-        return 1
-      fi
-      ;;
-    *)
-      ;;
+  "n2-standard-96")
+    if [ ${num_ssd} -ne 0 -a ${num_ssd} -ne 16 ]; then
+      echo "Unsupported num-ssd "${num_ssd}" with given machine-type "${machine_type}""
+      return 1
+    fi
+    ;;
+  *) ;;
   esac
 
   return 0
@@ -169,7 +171,7 @@ function NodePoolExists() {
   local cluster_name=${1}
   local zone=${2}
   local node_pool=${3}
-  if [ $(gcloud container node-pools list --cluster=${cluster_name} --zone=${zone} | grep -ow ${node_pool} | wc -l) -gt 0 ] ; then
+  if [ $(gcloud container node-pools list --cluster=${cluster_name} --zone=${zone} | grep -ow ${node_pool} | wc -l) -gt 0 ]; then
     return 0
   else
     return 1
@@ -202,25 +204,25 @@ function CreateNodePool() {
   local machine_type=${4}
   local num_nodes=${5}
   local num_ssd=${6}
-  gcloud container node-pools create ${node_pool} --cluster ${cluster_name} --ephemeral-storage-local-ssd count=${num_ssd} --network-performance-configs=total-egress-bandwidth-tier=TIER_1  --machine-type ${machine_type} --zone ${zone} --num-nodes ${num_nodes}  --workload-metadata=GKE_METADATA
+  gcloud container node-pools create ${node_pool} --cluster ${cluster_name} --ephemeral-storage-local-ssd count=${num_ssd} --network-performance-configs=total-egress-bandwidth-tier=TIER_1 --machine-type ${machine_type} --zone ${zone} --num-nodes ${num_nodes} --workload-metadata=GKE_METADATA
 }
 
 function MachineTypeInCluster() {
   local cluster=${1}
   local node_pool=${2}
-  gcloud container node-pools describe --cluster=${cluster_name}  ${node_pool} | grep -w 'machineType' | tr -s '\t' ' ' | rev | cut -d' ' -f1 | rev
+  gcloud container node-pools describe --cluster=${cluster_name} ${node_pool} | grep -w 'machineType' | tr -s '\t' ' ' | rev | cut -d' ' -f1 | rev
 }
 
 function NumNodesInCluster() {
   local cluster=${1}
   local node_pool=${2}
-  gcloud container node-pools describe --cluster=${cluster_name}  ${node_pool} | grep -w 'initialNodeCount' | tr -s '\t' ' ' | rev | cut -d' ' -f1 | rev
+  gcloud container node-pools describe --cluster=${cluster_name} ${node_pool} | grep -w 'initialNodeCount' | tr -s '\t' ' ' | rev | cut -d' ' -f1 | rev
 }
 
 function NumLocalSSDsInCluster() {
   local cluster=${1}
   local node_pool=${2}
-  gcloud container node-pools describe --cluster=${cluster_name}  ${node_pool} | grep -w 'localSsdCount' | tr -s '\t' ' ' | rev | cut -d' ' -f1 | rev
+  gcloud container node-pools describe --cluster=${cluster_name} ${node_pool} | grep -w 'localSsdCount' | tr -s '\t' ' ' | rev | cut -d' ' -f1 | rev
 }
 
 function ClusterExists() {
@@ -231,7 +233,7 @@ function ClusterExists() {
 # Create and set up (or reconfigure) a GKE cluster.
 function prepareCluster() {
   echo "Creating/updating cluster ${cluster_name} ..."
-  if ClusterExists ${cluster_name} ; then
+  if ClusterExists ${cluster_name}; then
     gcloud container clusters update ${cluster_name} --location=${zone} --workload-pool=${project_id}.svc.id.goog
   else
     # gcloud container --project "${project_id}" clusters create ${cluster_name} --zone "${zone}" --cluster-version "${cluster_version}" --workload-pool=${project_id}.svc.id.goog
@@ -241,9 +243,9 @@ function prepareCluster() {
 
 function resizeNodePoolIfNeeded() {
   echo "Creating/updating node-pool ${node_pool} ..."
-  function createNodePool() { CreateNodePool ${cluster_name} ${zone} ${node_pool} ${machine_type} ${num_nodes} ${num_ssd} ; }
-  function deleteNodePool() { DeleteNodePool ${cluster_name} ${zone} ${node_pool} ; }
-  function recreateNodePool() { deleteNodePool && createNodePool ; }
+  function createNodePool() { CreateNodePool ${cluster_name} ${zone} ${node_pool} ${machine_type} ${num_nodes} ${num_ssd}; }
+  function deleteNodePool() { DeleteNodePool ${cluster_name} ${zone} ${node_pool}; }
+  function recreateNodePool() { deleteNodePool && createNodePool; }
 
   if NodePoolExists ${cluster_name} ${zone} ${node_pool}; then
 
@@ -251,17 +253,17 @@ function resizeNodePoolIfNeeded() {
     num_existing_SSDs=$(NumLocalSSDsInCluster ${cluster_name} ${node_pool})
     num_existing_nodes=$(NumNodesInCluster ${cluster_name} ${node_pool})
 
-    if [ "${existing_machine_type}" != "${machine_type}" ] ; then
+    if [ "${existing_machine_type}" != "${machine_type}" ]; then
       echo "cluster "${node_pool}" exists, but machine-type differs"
       recreateNodePool
-    elif [ ${num_existing_nodes} -ne ${num_nodes} ] ; then
+    elif [ ${num_existing_nodes} -ne ${num_nodes} ]; then
       echo "cluster "${node_pool}" exists, but number of nodes differs"
       ResizeNodePool ${cluster_name} ${zone} ${node_pool} ${num_nodes}
-    elif [ ${num_existing_SSDs} -ne ${num_ssd} ] ; then
+    elif [ ${num_existing_SSDs} -ne ${num_ssd} ]; then
       echo "cluster "${node_pool}" exists, but number of SSDs differs"
       recreateNodePool
     else
-      echo  "cluster "${node_pool}" already exists"
+      echo "cluster "${node_pool}" already exists"
     fi
   else
     createNodePool
@@ -273,8 +275,8 @@ function enableManagedCsiDriverIfNeeded() {
   # By default, disable the managed csi driver.
   if ${use_custom_csi_driver}; then
     # gcloud -q container clusters update ${cluster_name} \
-      # --update-addons GcsFuseCsiDriver=DISABLED \
-      # --location=${zone}
+    # --update-addons GcsFuseCsiDriver=DISABLED \
+    # --location=${zone}
     echo ""
   else
     gcloud -q container clusters update ${cluster_name} \
@@ -285,7 +287,7 @@ function enableManagedCsiDriverIfNeeded() {
 
 function dataLoaderBucketNames() {
   local workloadConfigFileNames="$@"
-  for workloadFileName in "${workloadConfigFileNames}" ; do
+  for workloadFileName in "${workloadConfigFileNames}"; do
     workloadConfigFilePath="$workloadFileName"
     if test -f "${workloadConfigFilePath}"; then
       grep -wh '\"bucket\"' "${workloadConfigFilePath}" | cut -d: -f2 | cut -d, -f1 | cut -d \" -f2 | sort | uniq | grep -v ' ' | sort | uniq
@@ -311,15 +313,15 @@ function createKSA() {
   log="$(kubectl create namespace ${appnamespace} 2>&1)" || [[ "$log" == *"already exists"* ]]
   log="$(kubectl create serviceaccount ${ksa} --namespace ${appnamespace} 2>&1)" || [[ "$log" == *"already exists"* ]]
 
-  for workloadFileName in fio/workloads.json dlio/workloads.json ; do
+  for workloadFileName in fio/workloads.json dlio/workloads.json; do
     workloadConfigFilePath="${gke_testing_dir}"/examples/$workloadFileName
     if test -f "${workloadConfigFilePath}"; then
-      grep -wh '\"bucket\"' "${workloadConfigFilePath}" | cut -d: -f2 | cut -d, -f1 | cut -d \" -f2 | sort | uniq | grep -v ' ' | \
-      while read workload_bucket ; do
-            gcloud storage buckets add-iam-policy-binding gs://${workload_bucket} \
-              --member "principal://iam.googleapis.com/projects/${project_number}/locations/global/workloadIdentityPools/${project_id}.svc.id.goog/subject/ns/${appnamespace}/sa/${ksa}" \
-              --role "roles/storage.objectUser"
-      done
+      grep -wh '\"bucket\"' "${workloadConfigFilePath}" | cut -d: -f2 | cut -d, -f1 | cut -d \" -f2 | sort | uniq | grep -v ' ' |
+        while read workload_bucket; do
+          gcloud storage buckets add-iam-policy-binding gs://${workload_bucket} \
+            --member "principal://iam.googleapis.com/projects/${project_number}/locations/global/workloadIdentityPools/${project_id}.svc.id.goog/subject/ns/${appnamespace}/sa/${ksa}" \
+            --role "roles/storage.objectUser"
+        done
     fi
   done
 
@@ -332,7 +334,7 @@ function createKSA() {
 function fetchGcsfuseCode() {
   echo "Ensuring we have gcsfuse code ..."
   # clone gcsfuse code if needed
-  if ! test -d "${gcsfuse_src_dir}" ; then
+  if ! test -d "${gcsfuse_src_dir}"; then
     cd $(dirname "${gcsfuse_src_dir}") && git clone ${gcsfuse_github_path} && cd -
   fi
 
@@ -353,7 +355,7 @@ function fetchCsiDriverCode() {
 
 function createCustomCsiDriverIfNeeded() {
   echo "Creating custom CSI driver ..."
-  if ${use_custom_csi_driver} ; then
+  if ${use_custom_csi_driver}; then
     # disable managed CSI driver.
     gcloud -q container clusters update ${cluster_name} --update-addons GcsFuseCsiDriver=DISABLED --location=${zone}
 
@@ -361,7 +363,7 @@ function createCustomCsiDriverIfNeeded() {
 
     # Create a bucket for storing custom-csi driver.
     test -n "${package_bucket}" || export package_bucket=${USER}-gcsfuse-binary-package
-    (gcloud storage buckets list | grep -wqo ${package_bucket}) || ( region=$(echo ${zone} | rev | cut -d- -f2- | rev) &&  gcloud storage buckets create gs://${package_bucket} --location=${region} )
+    (gcloud storage buckets list | grep -wqo ${package_bucket}) || (region=$(echo ${zone} | rev | cut -d- -f2- | rev) && gcloud storage buckets create gs://${package_bucket} --location=${region})
 
     # Build a new gcsfuse binary
     cd "${gcsfuse_src_dir}"
@@ -390,20 +392,17 @@ function createCustomCsiDriverIfNeeded() {
   fi
 }
 
-
 function deleteAllHelmCharts() {
   echo "Deleting all existing helm charts ..."
   # delete all current helm charts
   #
-  helm ls | tr -s '\t' ' ' | cut -d' ' -f1 | tail -n +2 | while read helmchart ; do helm uninstall ${helmchart} ; done
+  helm ls | tr -s '\t' ' ' | cut -d' ' -f1 | tail -n +2 | while read helmchart; do helm uninstall ${helmchart}; done
 }
-
 
 function deleteAllPods() {
   echo "Deleting all existing pods ..."
-  kubectl get pods | tail -n +2 | cut -d' ' -f1 | while read podname ; do kubectl delete pods/${podname} --grace-period=0 --force || true ; done
+  kubectl get pods | tail -n +2 | cut -d' ' -f1 | while read podname; do kubectl delete pods/${podname} --grace-period=0 --force || true; done
 }
-
 
 # exitWithSuccess
 
@@ -424,12 +423,12 @@ function deployAllDlioHelmCharts() {
 function waitForSomeTime() {
   local max_seconds_to_wait=${1}
   local num_steps_to_wait=${2}
-  local step_seconds_to_wait=$((max_seconds_to_wait/num_steps_to_wait))
+  local step_seconds_to_wait=$((max_seconds_to_wait / num_steps_to_wait))
   declare -i num_seconds_passed=0
-  while  [ ${num_seconds_passed} -lt ${max_seconds_to_wait} ] ; do
+  while [ ${num_seconds_passed} -lt ${max_seconds_to_wait} ]; do
     echo "Completed "${num_seconds_passed}"/"${max_seconds_to_wait}" seconds"
     sleep ${step_seconds_to_wait}
-    num_seconds_passed=$((num_seconds_passed+step_seconds_to_wait))
+    num_seconds_passed=$((num_seconds_passed + step_seconds_to_wait))
   done
 }
 
@@ -457,22 +456,22 @@ function listAllPods() {
 
 function waitTillPodsCompleteOrFail() {
   echo "Scanning and waiting till all pods complete or one of them fails ..."
-  while true ; do
+  while true; do
     printf "Checking pods' status at "$(date +%s)":\n-----------------------------------\n"
     podslist="$(kubectl get pods)"
     echo "${podslist}"
-    num_completed_pods=$(echo "${podslist}" | tail -n +2 |  grep -i 'completed\|succeeded' | wc -l)
-    if [ ${num_completed_pods} -gt 0 ] ; then
+    num_completed_pods=$(echo "${podslist}" | tail -n +2 | grep -i 'completed\|succeeded' | wc -l)
+    if [ ${num_completed_pods} -gt 0 ]; then
       printf ${num_completed_pods}" pod(s) completed.\n"
     fi
-    num_noncompleted_pods=$(echo "${podslist}" | tail -n +2 |  grep -i -v 'completed\|succeeded' | wc -l)
-    num_failed_pods=$(echo "${podslist}" | tail -n +2 |  grep -i 'failed' | wc -l)
-    if [ ${num_failed_pods} -gt 0 ] ; then
+    num_noncompleted_pods=$(echo "${podslist}" | tail -n +2 | grep -i -v 'completed\|succeeded' | wc -l)
+    num_failed_pods=$(echo "${podslist}" | tail -n +2 | grep -i 'failed' | wc -l)
+    if [ ${num_failed_pods} -gt 0 ]; then
       printf ${num_failed_pods}" pod(s) failed.\n\n"
       # printf ${num_failed_pods}" pod(s) failed, so stopping this run.\n\n"
       # exit 1
     fi
-    if [ ${num_noncompleted_pods} -eq 0  ] ; then
+    if [ ${num_noncompleted_pods} -eq 0 ]; then
       printf "All pods completed.\n\n"
       break
     else
@@ -495,7 +494,7 @@ function updateGcsfuseMountOptionsInPodConfigs() {
 
 function updatePodConfigs() {
   echo "Updating pod configs according to workloads ..."
-  for file in "${gke_testing_dir}"/examples/fio/loading-test/values.yaml "${gke_testing_dir}"/examples/dlio/unet3d-loading-test/values.yaml ; do
+  for file in "${gke_testing_dir}"/examples/fio/loading-test/values.yaml "${gke_testing_dir}"/examples/dlio/unet3d-loading-test/values.yaml; do
     test -f "${file}"
     cp -fv "${file}" "${file}.bak"
     updateMachineTypeInPodConfigs "${file}"
@@ -505,7 +504,7 @@ function updatePodConfigs() {
 
 function revertPodConfigsFilesAfterTestRuns() {
   echo "Reverting pod configs according to workloads ..."
-  for file in "${gke_testing_dir}"/examples/fio/loading-test/values.yaml "${gke_testing_dir}"/examples/dlio/unet3d-loading-test/values.yaml ; do
+  for file in "${gke_testing_dir}"/examples/fio/loading-test/values.yaml "${gke_testing_dir}"/examples/dlio/unet3d-loading-test/values.yaml; do
     ! test -f "${file}.bak" || mv -v "${file}.bak" "${file}"
   done
 }
@@ -513,25 +512,25 @@ function revertPodConfigsFilesAfterTestRuns() {
 function printOutputFioFilesList() {
   echo ""
   # echo "fio data-loader outputs:"
-  fioDataLoaderBucketNames | while read bucket ; do
+  fioDataLoaderBucketNames | while read bucket; do
     echo "${bucket}:"
-    gcloud storage ls -l gs://${bucket}/fio-output/*/* | ( grep -e 'json\|gcsfuse_mount_options' || true )
+    gcloud storage ls -l gs://${bucket}/fio-output/*/* | (grep -e 'json\|gcsfuse_mount_options' || true)
   done
 }
 
 function printOutputDlioFilesList() {
   echo ""
   # echo "dlio data-loader outputs:"
-  dlioDataLoaderBucketNames | while read bucket ; do
+  dlioDataLoaderBucketNames | while read bucket; do
     echo "${bucket}:"
-    gcloud storage ls -l gs://${bucket}/logs/*/*/* | (grep -e 'summary\.json\|per_epoch_stats\.json\|gcsfuse_mount_options' || true )
+    gcloud storage ls -l gs://${bucket}/logs/*/*/* | (grep -e 'summary\.json\|per_epoch_stats\.json\|gcsfuse_mount_options' || true)
   done
 }
 
 function archiveFioOutputs() {
   echo "Archiving existing fio outputs ..."
-  fioDataLoaderBucketNames | while read bucket ; do
-    log="$(gsutil -mq mv -r gs://${bucket}/fio-output/* gs://${bucket}/old-fio-output/ 2>&1)" || ( [[ "${log}" == *"No URLs matched"* ]] && echo "ignored error: ${log}" )
+  fioDataLoaderBucketNames | while read bucket; do
+    log="$(gsutil -mq mv -r gs://${bucket}/fio-output/* gs://${bucket}/old-fio-output/ 2>&1)" || ([[ "${log}" == *"No URLs matched"* ]] && echo "ignored error: ${log}")
   done
 
   # cd "${gke_testing_dir}"/examples/fio
@@ -544,8 +543,8 @@ function archiveFioOutputs() {
 
 function archiveDlioOutputs() {
   echo "Archiving existing dlio outputs ..."
-  dlioDataLoaderBucketNames | while read bucket ; do
-    log="$(gsutil -mq mv -r gs://${bucket}/logs/* gs://${bucket}/old-logs/ 2>&1)" || ( [[ "${log}" == *"No URLs matched"* ]]  && echo "ignored error: ${log}" )
+  dlioDataLoaderBucketNames | while read bucket; do
+    log="$(gsutil -mq mv -r gs://${bucket}/logs/* gs://${bucket}/old-logs/ 2>&1)" || ([[ "${log}" == *"No URLs matched"* ]] && echo "ignored error: ${log}")
   done
 
   # cd "${gke_testing_dir}"/examples/dlio
@@ -602,4 +601,3 @@ fetchAndParseFioOutputs
 fetchAndParseDlioOutputs
 archiveFioOutputs
 archiveDlioOutputs
-
