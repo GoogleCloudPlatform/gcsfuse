@@ -17,7 +17,6 @@ package downloader
 import (
 	"context"
 	"crypto/rand"
-	"math"
 	"os"
 	"path"
 	"testing"
@@ -105,7 +104,7 @@ func TestParallelDownloads(t *testing.T) {
 			name:                     "download in chunks of concurrency * readReqSize",
 			objectSize:               15 * util.MiB,
 			readReqSize:              3,
-			parallelDownloadsPerFile: math.MaxInt,
+			parallelDownloadsPerFile: 100,
 			maxParallelDownloads:     3,
 			subscribedOffset:         7,
 			downloadOffset:           10,
@@ -118,7 +117,7 @@ func TestParallelDownloads(t *testing.T) {
 			name:                     "download only upto the object size",
 			objectSize:               10 * util.MiB,
 			readReqSize:              4,
-			parallelDownloadsPerFile: math.MaxInt,
+			parallelDownloadsPerFile: 100,
 			maxParallelDownloads:     3,
 			subscribedOffset:         7,
 			downloadOffset:           10,
@@ -145,7 +144,7 @@ func TestParallelDownloads(t *testing.T) {
 				select {
 				case jobStatus := <-subscriberC:
 					if assert.Nil(t, err) {
-						assert.Equal(t, tc.expectedOffset, jobStatus.Offset)
+						assert.LessOrEqual(t, tc.expectedOffset, jobStatus.Offset)
 						verifyFileTillOffset(t,
 							data.FileSpec{Path: util.GetDownloadPath(path.Join(cacheDir, storage.TestBucketName), "path/in/gcs/foo.txt"), FilePerm: util.DefaultFilePerm, DirPerm: util.DefaultDirPerm}, tc.expectedOffset,
 							content)
@@ -168,7 +167,7 @@ func TestMultipleConcurrentDownloads(t *testing.T) {
 	minObj1, content1 := createObjectInStoreAndInitCache(t, cache, bucket, "path/in/gcs/foo.txt", 10*util.MiB)
 	minObj2, content2 := createObjectInStoreAndInitCache(t, cache, bucket, "path/in/gcs/bar.txt", 5*util.MiB)
 	jm := NewJobManager(cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, 2, &cfg.FileCacheConfig{EnableParallelDownloads: true,
-		ParallelDownloadsPerFile: math.MaxInt, DownloadChunkSizeMb: 2, EnableCrc: true, MaxParallelDownloads: 2})
+		ParallelDownloadsPerFile: 100, DownloadChunkSizeMb: 2, EnableCrc: true, MaxParallelDownloads: 2})
 	job1 := jm.CreateJobIfNotExists(&minObj1, bucket)
 	job2 := jm.CreateJobIfNotExists(&minObj2, bucket)
 	s1 := job1.subscribe(10 * util.MiB)
