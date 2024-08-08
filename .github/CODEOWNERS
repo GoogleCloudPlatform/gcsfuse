@@ -1,3 +1,5 @@
 # These owners will be the default owners for everything in
 # the repo.
 *           @GoogleCloudPlatform/gcsfuse-codeowners
+
+perfmetrics/scripts/ @tulsishah @GoogleCloudPlatform/gcsfuse-codeowners
