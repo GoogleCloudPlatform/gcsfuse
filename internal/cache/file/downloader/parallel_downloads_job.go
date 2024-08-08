@@ -16,6 +16,7 @@ package downloader
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -32,15 +33,15 @@ import (
 // GCS into given destination writer.
 //
 // This function doesn't take locks and can be executed parallely.
-func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, end int64) error {
+func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, end uint64) error {
 	newReader, err := job.bucket.NewReader(
 		ctx,
 		&gcs.ReadObjectRequest{
 			Name:       job.object.Name,
 			Generation: job.object.Generation,
 			Range: &gcs.ByteRange{
-				Start: uint64(start),
-				Limit: uint64(end),
+				Start: start,
+				Limit: end,
 			},
 			ReadCompressed: job.object.HasContentEncodingGzip(),
 		})
@@ -58,61 +59,104 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 		}
 	}()
 
-	monitor.CaptureGCSReadMetrics(ctx, util.Parallel, end-start)
+	monitor.CaptureGCSReadMetrics(ctx, util.Parallel, int64(end-start))
 
-	_, err = io.CopyN(dstWriter, newReader, end-start)
+	_, err = io.CopyN(dstWriter, newReader, int64(end-start))
 	if err != nil {
 		err = fmt.Errorf("downloadRange: error at the time of copying content to cache file %w", err)
 	}
 	return err
 }
 
+func (job *Job) downloadOffsets(ctx context.Context, cacheFile *os.File) func() error {
+	return func() error {
+		for {
+			// Read the offset to be downloaded from the channel.
+			offsetToDownload, ok := <-job.offsetChan
+			if !ok {
+				// In case channel is closed return.
+				return nil
+			}
+
+			offsetWriter := io.NewOffsetWriter(cacheFile, int64(offsetToDownload.start))
+			err := job.downloadRange(ctx, offsetWriter, offsetToDownload.start, offsetToDownload.end)
+			if err != nil {
+				return err
+			}
+		}
+	}
+}
+
 // parallelDownloadObjectToFile does parallel download of the backing GCS object
 // into given file handle using multiple NewReader method of gcs.Bucket running
 // in parallel. This function is canceled if job.cancelCtx is canceled.
 func (job *Job) parallelDownloadObjectToFile(cacheFile *os.File) (err error) {
-	var start, end int64
-	end = int64(job.object.Size)
-	var parallelReadRequestSize = int64(job.fileCacheConfig.DownloadChunkSizeMb) * cacheutil.MiB
+	job.offsetChan = make(chan offset, 2*job.fileCacheConfig.ParallelDownloadsPerFile)
+	var numGoRoutines int64
+	var start uint64
+	downloadChunkSize := uint64(job.fileCacheConfig.DownloadChunkSizeMb) * uint64(cacheutil.MiB)
+	downloadErrGroup, downloadErrGroupCtx := errgroup.WithContext(job.cancelCtx)
 
-	// Each iteration of this for loop downloads job.fileCacheConfig.DownloadChunkSizeMb * job.fileCacheConfig.ParallelDownloadsPerFile
-	// size of range of object from GCS into given file handle and updates the
-	// file info cache.
-	for start < end {
-		downloadErrGroup, downloadErrGroupCtx := errgroup.WithContext(job.cancelCtx)
+	// Start the goroutines as per the config and the availability.
+	for numGoRoutines = 0; (numGoRoutines < job.fileCacheConfig.ParallelDownloadsPerFile) && (start < job.object.Size); numGoRoutines++ {
+		// Respect max download parallelism only beyond first go routine.
+		if numGoRoutines > 0 && !job.maxParallelismSem.TryAcquire(1) {
+			break
+		}
 
-		for goRoutineIdx := int64(0); (goRoutineIdx < job.fileCacheConfig.ParallelDownloadsPerFile) && (start < end); goRoutineIdx++ {
-			rangeStart := start
-			rangeEnd := min(rangeStart+parallelReadRequestSize, end)
-			currGoRoutineIdx := goRoutineIdx
+		downloadErrGroup.Go(job.downloadOffsets(downloadErrGroupCtx, cacheFile))
+		start = start + downloadChunkSize
+	}
 
-			// Respect max download parallelism only beyond first go routine.
-			if currGoRoutineIdx > 0 && !job.maxParallelismSem.TryAcquire(1) {
-				break
+	for start = 0; start < job.object.Size; {
+		nextOffset := offset{
+			start: start,
+			end:   min(job.object.Size, start+downloadChunkSize),
+		}
+
+		select {
+		case job.offsetChan <- nextOffset:
+			start = nextOffset.end
+			// In case we haven't started the goroutines as per the config, checking
+			// if any goroutines are available now.
+			// This may not be the ideal way, but since we don't have any way of
+			// listening if goroutines from other jobs have freed up, checking it here.
+			for numGoRoutines < job.fileCacheConfig.ParallelDownloadsPerFile && job.maxParallelismSem.TryAcquire(1) {
+				downloadErrGroup.Go(job.downloadOffsets(downloadErrGroupCtx, cacheFile))
+				numGoRoutines++
 			}
-
-			downloadErrGroup.Go(func() error {
-				if currGoRoutineIdx > 0 {
-					defer job.maxParallelismSem.Release(1)
-				}
-				// Copy the contents from NewReader to cache file at appropriate offset.
-				offsetWriter := io.NewOffsetWriter(cacheFile, rangeStart)
-				return job.downloadRange(downloadErrGroupCtx, offsetWriter, rangeStart, rangeEnd)
-			})
-
-			start = rangeEnd
-		}
-
-		// If any of the go routines failed, consider the async job failed.
-		err = downloadErrGroup.Wait()
-		if err != nil {
-			return
-		}
-
-		err = job.updateStatusOffset(start)
-		if err != nil {
-			return err
+		case <-downloadErrGroupCtx.Done():
+			return job.handleJobCompletion(downloadErrGroupCtx, start, downloadErrGroup)
 		}
 	}
-	return
+
+	return job.handleJobCompletion(downloadErrGroupCtx, start, downloadErrGroup)
+}
+
+// Job can be success or failure. This method will handle all the scenarios and
+// return the appropriate error.
+func (job *Job) handleJobCompletion(ctx context.Context, start uint64, group *errgroup.Group) error {
+	// Close the channel since we are ending the job.
+	close(job.offsetChan)
+
+	// First check if the context has reported any error.
+	err := ctx.Err()
+	if err != nil {
+		// Also wait for all the goroutines to finish to ensure job is stopped.
+		waitErr := group.Wait()
+		return errors.Join(err, waitErr)
+	}
+
+	// If any of the go routines failed, consider the async job failed.
+	err = group.Wait()
+	if err != nil {
+		return err
+	}
+
+	err = job.updateStatusOffset(start)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

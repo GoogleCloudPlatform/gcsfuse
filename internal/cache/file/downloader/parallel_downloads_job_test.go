@@ -63,8 +63,8 @@ func (dt *parallelDownloaderTest) Test_downloadRange() {
 	file, err := util.CreateFile(data.FileSpec{Path: dt.job.fileSpec.Path,
 		FilePerm: os.FileMode(0600), DirPerm: os.FileMode(0700)}, os.O_TRUNC|os.O_RDWR)
 	AssertEq(nil, err)
-	verifyContentAtOffset := func(file *os.File, start, end int64) {
-		_, err = file.Seek(start, 0)
+	verifyContentAtOffset := func(file *os.File, start, end uint64) {
+		_, err = file.Seek(int64(start), 0)
 		AssertEq(nil, err)
 		buf := make([]byte, end-start)
 		_, err = file.Read(buf)
@@ -74,29 +74,29 @@ func (dt *parallelDownloaderTest) Test_downloadRange() {
 	}
 
 	// Download end 1MiB of object
-	start, end := int64(9*util.MiB), int64(10*util.MiB)
-	offsetWriter := io.NewOffsetWriter(file, start)
+	start, end := uint64(9*util.MiB), uint64(10*util.MiB)
+	offsetWriter := io.NewOffsetWriter(file, int64(start))
 	err = dt.job.downloadRange(context.Background(), offsetWriter, start, end)
 	AssertEq(nil, err)
 	verifyContentAtOffset(file, start, end)
 
 	// Download start 4MiB of object
-	start, end = int64(0*util.MiB), int64(4*util.MiB)
-	offsetWriter = io.NewOffsetWriter(file, start)
+	start, end = uint64(0*util.MiB), uint64(4*util.MiB)
+	offsetWriter = io.NewOffsetWriter(file, int64(start))
 	err = dt.job.downloadRange(context.Background(), offsetWriter, start, end)
 	AssertEq(nil, err)
 	verifyContentAtOffset(file, start, end)
 
 	// Download middle 1B of object
-	start, end = int64(5*util.MiB), int64(5*util.MiB+1)
-	offsetWriter = io.NewOffsetWriter(file, start)
+	start, end = uint64(5*util.MiB), uint64(5*util.MiB+1)
+	offsetWriter = io.NewOffsetWriter(file, int64(start))
 	err = dt.job.downloadRange(context.Background(), offsetWriter, start, end)
 	AssertEq(nil, err)
 	verifyContentAtOffset(file, start, end)
 
 	// Download 0B of object
-	start, end = int64(5*util.MiB), int64(5*util.MiB)
-	offsetWriter = io.NewOffsetWriter(file, start)
+	start, end = uint64(5*util.MiB), uint64(5*util.MiB)
+	offsetWriter = io.NewOffsetWriter(file, int64(start))
 	err = dt.job.downloadRange(context.Background(), offsetWriter, start, end)
 	AssertEq(nil, err)
 	verifyContentAtOffset(file, start, end)
