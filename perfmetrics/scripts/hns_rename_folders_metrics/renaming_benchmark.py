@@ -38,27 +38,6 @@ logging.basicConfig(
 log = logging.getLogger()
 
 
-def _extract_folder_name_prefix(folder_name) -> (str):
-  """
-  Extract the prefix from folder_name_for_ease of rename using regex matching.
-  Example: filename_0 must get renamed to filename_1.This function returns
-  the prefix excluding the iteration i.e. in this case , filename_ .
-
-  Args:
-    folder_name: String representing folder name.
-
-  Returns:
-    Prefix of folder_name which excludes the iteration.
-  """
-  try:
-    folder_prefix = re.search("(?s:.*)\_", folder_name).group()
-    return folder_prefix
-  except:
-    log.error("Folder name format is incorrect. Must be in the format prefix_0 \
-          to begin.Exiting...")
-    sys.exit()
-
-
 def _record_time_for_folder_rename(mount_point,folder,num_samples):
   """
   This function records the time of rename operation for folder,for num_samples
@@ -72,12 +51,18 @@ def _record_time_for_folder_rename(mount_point,folder,num_samples):
   Returns:
     A list containing time of rename operations in seconds.
   """
-  folder_prefix = _extract_folder_name_prefix(folder["name"])
-  folder_path_prefix = '{}/{}'.format(mount_point, folder_prefix)
+  folder_name= '{}/{}'.format(mount_point,folder["name"])
+  folder_rename = folder_name+"_renamed"
   time_op = []
   for iter in range(num_samples):
-    rename_from = '{}{}'.format(folder_path_prefix, iter%2)
-    rename_to = '{}{}'.format(folder_path_prefix, 1- iter%2)
+    # For the even iterations, we rename from folder_name to folder_name_renamed.
+    if iter %2==0:
+      rename_from = folder_name
+      rename_to = folder_rename
+    # For the odd iterations, we rename from folder_name_renamed to folder_name.
+    else:
+      rename_from = folder_rename
+      rename_to = folder_name
     start_time_sec = time.time()
     subprocess.call('mv ./{} ./{}'.format(rename_from, rename_to), shell=True)
     end_time_sec = time.time()
@@ -86,8 +71,8 @@ def _record_time_for_folder_rename(mount_point,folder,num_samples):
   # If the number of samples is odd, we need another unrecorded rename operation
   # to restore test data back to its original form.
   if num_samples % 2 == 1:
-    rename_from = '{}{}'.format(folder_path_prefix, num_samples%2)
-    rename_to = '{}{}'.format(folder_path_prefix, 1- num_samples%2)
+    rename_from = folder_rename
+    rename_to = folder_name
     subprocess.call('mv ./{} ./{}'.format(rename_from, rename_to), shell=True)
 
   return time_op
@@ -137,11 +122,11 @@ if __name__ == '__main__':
   exit_code = _check_for_config_file_inconsistency(dir_str)
   if exit_code != 0:
     log.error('Exited with code {}'.format(exit_code))
-    sys.exit()
+    sys.exit(1)
 
   # Check if test data exists.
   dir_structure_present = _check_if_dir_structure_exists(dir_str)
   if not dir_structure_present:
     log.error("Test data does not exist.To create test data, run : \
     python3 generate_folders_and_files.py <dir_config.json> ")
-    sys.exit()
+    sys.exit(1)
