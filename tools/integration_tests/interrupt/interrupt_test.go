@@ -68,7 +68,7 @@ func TestMain(m *testing.M) {
 		{"--config-file=" + setup.YAMLConfigFile(yamlContent2, "default_ignore_interrupts.yaml")}}
 
 	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
-		flags = append(flags, hnsFlagSet)
+		flags = [][]string{hnsFlagSet}
 	}
 
 

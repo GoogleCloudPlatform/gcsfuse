@@ -184,6 +184,10 @@ func TestMain(m *testing.M) {
 	mountConfigFlags := createMountConfigsAndEquivalentFlags()
 	flagsSet = append(flagsSet, mountConfigFlags...)
 
+	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
+		flagsSet = [][]string{hnsFlagSet}
+	}
+
 	// Only running static_mounting test for TPC.
 	if setup.TestOnTPCEndPoint() {
 		successCodeTPC := static_mounting.RunTests(flagsSet, m)

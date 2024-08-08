@@ -133,6 +133,11 @@ func TestMain(m *testing.M) {
 		flags = append(flags, []string{"--client-protocol=grpc", "--o=ro", "--implicit-dirs=true"})
 	}
 
+	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
+		hnsFlagSet = append(hnsFlagSet, "--o=ro")
+		flags = [][]string{hnsFlagSet}
+	}
+
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
 	if setup.TestBucket() == "" && setup.MountedDirectory() != "" {
