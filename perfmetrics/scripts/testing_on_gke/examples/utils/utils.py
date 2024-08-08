@@ -57,6 +57,8 @@ def get_memory(
   data_points_by_pod_container = result.stdout.strip().split("\n")
   for data_points in data_points_by_pod_container[1:]:
     data_points_split = data_points.split(",")
+    if len(data_points_split) < 6:
+      continue
     pn = data_points_split[4]
     container_name = data_points_split[5]
     if pn == pod_name and container_name == "gke-gcsfuse-sidecar":
@@ -101,6 +103,8 @@ def get_cpu(
   data_points_by_pod_container = result.stdout.split("\n")
   for data_points in data_points_by_pod_container[1:]:
     data_points_split = data_points.split(",")
+    if len(data_points_split) < 6:
+      continue
     pn = data_points_split[4]
     container_name = data_points_split[5]
     if pn == pod_name and container_name == "gke-gcsfuse-sidecar":
