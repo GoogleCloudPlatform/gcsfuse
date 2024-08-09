@@ -101,7 +101,7 @@ func (t *HNSBucketTests) TestDeleteFolder() {
 	assert.NotNil(t.T(), err)
 }
 
-func (t *HNSBucketTests) TestRenameFolderWithSrcDoesNotExist() {
+func (t *HNSBucketTests) TestRenameFolderWithSrcDirectoryDoesNotExist() {
 	oldDirPath := path.Join(mntDir, "foo_not_exist")
 	newDirPath := path.Join(mntDir, "foo_rename")
 
