@@ -2107,7 +2107,6 @@ func (fs *fileSystem) renameFolder(ctx context.Context, oldParent inode.DirInode
 		return fmt.Errorf("failed to rename folder: %w", err)
 	}
 
-	fs.releaseInodes(&pendingInodes)
 	return
 }
 
