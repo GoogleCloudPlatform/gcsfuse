@@ -16,7 +16,6 @@ package util
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"math"
 	"os"
@@ -73,16 +72,6 @@ func GetResolvedPath(filePath string) (resolvedPath string, err error) {
 	} else {
 		return filepath.Join(gcsfuseParentProcessDir, filePath), err
 	}
-}
-
-// Stringify marshals an object (only exported attribute) to a JSON string. If marshalling fails, it returns an empty string.
-func Stringify(input any) (string, error) {
-	inputBytes, err := json.Marshal(input)
-
-	if err != nil {
-		return "", fmt.Errorf("error in Stringify %w", err)
-	}
-	return string(inputBytes), nil
 }
 
 // MiBsToBytes returns the bytes equivalent
