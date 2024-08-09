@@ -36,6 +36,10 @@ def run_command(command: str):
 DEFAULT_GCSFUSE_MOUNT_OPTIONS = 'implicit-dirs'
 
 
+def escapeCommasInString(gcsfuseMountOptions: str) -> str:
+  return gcsfuseMountOptions.replace(',', '\,')
+
+
 def createHelmInstallCommands(
     dlioWorkloads: set,
     instanceId: str,
@@ -59,7 +63,10 @@ def createHelmInstallCommands(
           f'--set dlio.recordLength={dlioWorkload.recordLength}',
           f'--set dlio.batchSize={batchSize}',
           f'--set instanceId={instanceId}',
-          f'--set gcsfuse.mountOptions={gcsfuseMountOptions}',
+          (
+              '--set'
+              f' gcsfuse.mountOptions={escapeCommasInString(gcsfuseMountOptions)}'
+          ),
           f'--set nodeType={machineType}',
       ]
 
@@ -111,6 +118,7 @@ if __name__ == '__main__':
           'GCSFuse mount-options, in JSON stringified format, to be set for the'
           ' scenario gcsfuse-generic.'
       ),
+      required=True,
   )
   parser.add_argument(
       '--machine-type',
