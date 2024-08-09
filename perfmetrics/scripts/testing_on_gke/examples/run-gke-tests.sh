@@ -441,28 +441,28 @@ function listAllHelmCharts() {
   # # kubectl exec -it --stdin pods/${podname} --namespace=${appnamespace} -- /bin/bash
 # }
 
-function waitTillPodsCompleteOrFail() {
+function waitTillAllPodsComplete() {
   echo "Scanning and waiting till all pods complete or one of them fails ..."
   while true; do
-    printf "Checking pods' status at "$(date +%s)":\n-----------------------------------\n"
+    printf "Checking pods status at "$(date +%s)":\n-----------------------------------\n"
     podslist="$(kubectl get pods)"
     echo "${podslist}"
     num_completed_pods=$(echo "${podslist}" | tail -n +2 | grep -i 'completed\|succeeded' | wc -l)
     if [ ${num_completed_pods} -gt 0 ]; then
       printf ${num_completed_pods}" pod(s) completed.\n"
     fi
-    num_noncompleted_pods=$(echo "${podslist}" | tail -n +2 | grep -i -v 'completed\|succeeded' | wc -l)
+    num_noncompleted_pods=$(echo "${podslist}" | tail -n +2 | grep -i -v 'completed\|succeeded\|fail' | wc -l)
     num_failed_pods=$(echo "${podslist}" | tail -n +2 | grep -i 'failed' | wc -l)
     if [ ${num_failed_pods} -gt 0 ]; then
       printf ${num_failed_pods}" pod(s) failed.\n\n"
       # printf ${num_failed_pods}" pod(s) failed, so stopping this run.\n\n"
-      # exit 1
+      # exitWithFailure
     fi
     if [ ${num_noncompleted_pods} -eq 0 ]; then
       printf "All pods completed.\n\n"
       break
     else
-      printf "There are "${num_noncompleted_pods}" pod(s) are incomplete (either still pending or running, or have failed).\n\n"
+      printf "There are still "${num_noncompleted_pods}" pod(s) incomplete (either still pending or running). So, sleeping for now... will check again in "${pod_wait_time_in_seconds}" seconds.\n\n"
     fi
     sleep ${pod_wait_time_in_seconds}
     unset podslist # necessary to update the value of podslist every iteration
@@ -591,7 +591,7 @@ revertPodConfigsFilesAfterTestRuns
 
 # monitor pods
 listAllHelmCharts
-waitTillPodsCompleteOrFail
+waitTillAllPodsComplete
 
 # clean-up after run
 deleteAllPods
