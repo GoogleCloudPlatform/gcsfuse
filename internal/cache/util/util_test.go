@@ -473,13 +473,13 @@ func Test_GetMemoryAlignedBuffer(t *testing.T) {
 func Test_CopyUsingMemoryAlignedBuffer(t *testing.T) {
 	tbl := []struct {
 		name              string
-		bufferSize        uint64
-		contentSize       uint64
+		bufferSize        int64
+		contentSize       int64
 		useODIRECT        bool
 		cancelCtx         bool
-		writeOffset       uint64
+		writeOffset       int64
 		expectedErr       bool
-		expectedWriteSize uint64
+		expectedWriteSize int64
 	}{
 		{
 			name:              "buffer size less than 4096",
@@ -598,12 +598,12 @@ func Test_CopyUsingMemoryAlignedBuffer(t *testing.T) {
 				}
 			} else {
 				assert.NoError(t, err)
-				assert.Equal(t, int64(tc.expectedWriteSize), writeN)
+				assert.Equal(t, tc.expectedWriteSize, writeN)
 				fileStat, err := file.Stat()
 				require.NoError(t, err)
-				assert.Equal(t, int64(tc.writeOffset)+writeN, fileStat.Size())
+				assert.Equal(t, tc.writeOffset+writeN, fileStat.Size())
 				// Match only the content written.
-				sizeToMatch := min(int64(tc.contentSize), writeN, int64(tc.expectedWriteSize))
+				sizeToMatch := min(tc.contentSize, writeN, tc.expectedWriteSize)
 				buf := make([]byte, sizeToMatch)
 				// Open file again without O_DIRECT
 				readFile, err := os.OpenFile(randName, os.O_RDWR, 0600)
@@ -611,7 +611,7 @@ func Test_CopyUsingMemoryAlignedBuffer(t *testing.T) {
 				t.Cleanup(func() {
 					_ = readFile.Close()
 				})
-				_, err = readFile.ReadAt(buf, int64(tc.writeOffset))
+				_, err = readFile.ReadAt(buf, tc.writeOffset)
 				if err != nil && err != io.EOF {
 					t.Errorf("error (%v) while reading contents at the time of assertion for: %v", err, tc.name)
 				}
