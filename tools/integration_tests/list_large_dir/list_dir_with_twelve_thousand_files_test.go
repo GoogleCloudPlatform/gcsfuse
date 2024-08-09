@@ -17,7 +17,6 @@ package list_large_dir_test
 import (
 	"os"
 	"path"
-	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -177,17 +176,9 @@ func TestListDirectoryWithTwelveThousandFiles(t *testing.T) {
 
 	// Fetching data from the kernel for the second list will be faster.
 	assert.Less(t, secondListTime, firstListTime)
-	// Assert performance improvement for second directory listing, adjusting expectations based on CPU count.
-	if runtime.NumCPU() >= 32 {
-		// On systems with 32 or more CPUs, expect a 5x speedup for the second listing
-		// due to efficient kernel cache utilization.
-		assert.Less(t, 5*secondListTime, firstListTime)
-	} else {
-		// On systems with fewer than 32 CPUs, the cache benefit may be less pronounced.
-		// Expect a more conservative 2x speedup.
-		assert.Less(t, 2*secondListTime, firstListTime)
-	}
-
+	// The second directory listing should be 2 times better performant since it
+	// will be retrieved from the kernel cache.
+	assert.Less(t, 2*secondListTime, firstListTime)
 	// Clear the data after testing.
 	setup.RunScriptForTestData("testdata/delete_objects.sh", testDirPathOnBucket)
 }
@@ -222,16 +213,9 @@ func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T)
 
 	// Fetching data from the kernel for the second list will be faster.
 	assert.Less(t, secondListTime, firstListTime)
-	// Assert performance improvement for second directory listing, adjusting expectations based on CPU count.
-	if runtime.NumCPU() >= 32 {
-		// On systems with 32 or more CPUs, expect a 5x speedup for the second listing
-		// due to efficient kernel cache utilization.
-		assert.Less(t, 5*secondListTime, firstListTime)
-	} else {
-		// On systems with fewer than 32 CPUs, the cache benefit may be less pronounced.
-		// Expect a more conservative 2x speedup.
-		assert.Less(t, 2*secondListTime, firstListTime)
-	}
+	// The second directory listing should be 2 times better performant since it
+	// will be retrieved from the kernel cache.
+	assert.Less(t, 2*secondListTime, firstListTime)
 	// Clear the bucket after testing.
 	setup.RunScriptForTestData("testdata/delete_objects.sh", testDirPathOnBucket)
 }
@@ -268,16 +252,9 @@ func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImpl
 
 	// Fetching data from the kernel for the second list will be faster.
 	assert.Less(t, secondListTime, firstListTime)
-	// Assert performance improvement for second directory listing, adjusting expectations based on CPU count.
-	if runtime.NumCPU() >= 32 {
-		// On systems with 32 or more CPUs, expect a 5x speedup for the second listing
-		// due to efficient kernel cache utilization.
-		assert.Less(t, 5*secondListTime, firstListTime)
-	} else {
-		// On systems with fewer than 32 CPUs, the cache benefit may be less pronounced.
-		// Expect a more conservative 2x speedup.
-		assert.Less(t, 2*secondListTime, firstListTime)
-	}
+	// The second directory listing should be 2 times better performant since it
+	// will be retrieved from the kernel cache.
+	assert.Less(t, 2*secondListTime, firstListTime)
 	// Clear the bucket after testing.
 	setup.RunScriptForTestData("testdata/delete_objects.sh", testDirPathOnBucket)
 }
