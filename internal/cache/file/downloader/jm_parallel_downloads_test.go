@@ -100,7 +100,7 @@ func TestParallelDownloads(t *testing.T) {
 		subscribedOffset         int64
 	}{
 		{
-			name:                     "download in chunks of concurrency * readReqSize",
+			name:                     "download the entire object when object size > no of goroutines * readReqSize",
 			objectSize:               15 * util.MiB,
 			readReqSize:              3,
 			parallelDownloadsPerFile: 100,

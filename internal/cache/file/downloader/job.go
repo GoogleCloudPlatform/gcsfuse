@@ -94,7 +94,7 @@ type Job struct {
 
 	// Channel which is used by goroutines to know which offsets need to be
 	// downloaded when parallel download is enabled.
-	offsetChan chan offset
+	offsetChan chan data.ObjectRange
 }
 
 // JobStatus represents the status of job.
@@ -109,11 +109,6 @@ type JobStatus struct {
 type jobSubscriber struct {
 	notificationC    chan<- JobStatus
 	subscribedOffset int64
-}
-
-type offset struct {
-	start uint64
-	end   uint64
 }
 
 func NewJob(

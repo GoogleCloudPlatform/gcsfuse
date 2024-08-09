@@ -21,6 +21,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
 	cacheutil "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/monitor"
@@ -68,6 +69,12 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 	return err
 }
 
+// RangeMap maintains the ranges downloaded by the different goroutines. This
+// function takes a new range and merges with existng ranges if they are continuous.
+//
+// Eg:
+// Input: rangeMap entries 0-3, 5-6. New input 7-8.
+// Output: rangeMap entires 0-3, 5-8.
 func (job *Job) updateRangeMap(rangeMap map[uint64]uint64, offsetStart uint64, offsetEnd uint64) error {
 	// Check if the chunk downloaded completes a range [0, R) and find that
 	// R.
@@ -115,19 +122,19 @@ func (job *Job) downloadOffsets(ctx context.Context, goroutineIndex int64, cache
 
 		for {
 			// Read the offset to be downloaded from the channel.
-			offsetToDownload, ok := <-job.offsetChan
+			objectRange, ok := <-job.offsetChan
 			if !ok {
 				// In case channel is closed return.
 				return nil
 			}
 
-			offsetWriter := io.NewOffsetWriter(cacheFile, int64(offsetToDownload.start))
-			err := job.downloadRange(ctx, offsetWriter, offsetToDownload.start, offsetToDownload.end)
+			offsetWriter := io.NewOffsetWriter(cacheFile, int64(objectRange.Start))
+			err := job.downloadRange(ctx, offsetWriter, objectRange.Start, objectRange.End)
 			if err != nil {
 				return err
 			}
 
-			err = job.updateRangeMap(rangeMap, offsetToDownload.start, offsetToDownload.end)
+			err = job.updateRangeMap(rangeMap, objectRange.Start, objectRange.End)
 			if err != nil {
 				return err
 			}
@@ -140,7 +147,9 @@ func (job *Job) downloadOffsets(ctx context.Context, goroutineIndex int64, cache
 // in parallel. This function is canceled if job.cancelCtx is canceled.
 func (job *Job) parallelDownloadObjectToFile(cacheFile *os.File) (err error) {
 	rangeMap := make(map[uint64]uint64)
-	job.offsetChan = make(chan offset, 2*job.fileCacheConfig.ParallelDownloadsPerFile)
+	// Trying to keep the channel size greater than PrallelDownloadsPerFile to ensure
+	// that there is no goroutine waiting for data.
+	job.offsetChan = make(chan data.ObjectRange, 2*job.fileCacheConfig.ParallelDownloadsPerFile)
 	var numGoRoutines int64
 	var start uint64
 	downloadChunkSize := uint64(job.fileCacheConfig.DownloadChunkSizeMb) * uint64(cacheutil.MiB)
@@ -158,14 +167,14 @@ func (job *Job) parallelDownloadObjectToFile(cacheFile *os.File) (err error) {
 	}
 
 	for start = 0; start < job.object.Size; {
-		nextOffset := offset{
-			start: start,
-			end:   min(job.object.Size, start+downloadChunkSize),
+		nextRange := data.ObjectRange{
+			Start: start,
+			End:   min(job.object.Size, start+downloadChunkSize),
 		}
 
 		select {
-		case job.offsetChan <- nextOffset:
-			start = nextOffset.end
+		case job.offsetChan <- nextRange:
+			start = nextRange.End
 			// In case we haven't started the goroutines as per the config, checking
 			// if any goroutines are available now.
 			// This may not be the ideal way, but since we don't have any way of
@@ -175,23 +184,25 @@ func (job *Job) parallelDownloadObjectToFile(cacheFile *os.File) (err error) {
 				numGoRoutines++
 			}
 		case <-downloadErrGroupCtx.Done():
-			return job.handleJobCompletion(downloadErrGroupCtx, start, downloadErrGroup)
+			return job.handleJobCompletion(downloadErrGroupCtx, downloadErrGroup)
 		}
 	}
 
-	return job.handleJobCompletion(downloadErrGroupCtx, start, downloadErrGroup)
+	return job.handleJobCompletion(downloadErrGroupCtx, downloadErrGroup)
 }
 
 // Job can be success or failure. This method will handle all the scenarios and
 // return the appropriate error.
-func (job *Job) handleJobCompletion(ctx context.Context, offset uint64, group *errgroup.Group) error {
+func (job *Job) handleJobCompletion(ctx context.Context, group *errgroup.Group) error {
 	// Close the channel since we are ending the job.
 	close(job.offsetChan)
 
-	// First check if the context has reported any error.
+	// First check if the context has reported any error. This is to handle scenario
+	// where context is cancelled and no goroutines are running.
 	err := ctx.Err()
 	if err != nil {
-		// Also wait for all the goroutines to finish to ensure job is stopped.
+		// Ideally not required, but this is an additional check to ensure that
+		// no goroutines are running.
 		waitErr := group.Wait()
 		return errors.Join(err, waitErr)
 	}

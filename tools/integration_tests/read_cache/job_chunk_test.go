@@ -81,7 +81,6 @@ func createConfigFileForJobChunkTest(cacheSize int64, cacheFileForRangeRead bool
 
 func (s *jobChunkTest) TestJobChunkSizeForSingleFileReads(t *testing.T) {
 	var fileSize int64 = 24 * util.MiB
-	//chunkCount := math.Ceil(float64(fileSize) / float64(s.chunkSize))
 	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 
 	expectedOutcome := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, false, t)
@@ -96,6 +95,8 @@ func (s *jobChunkTest) TestJobChunkSizeForSingleFileReads(t *testing.T) {
 	for i := 1; i < len(structuredJobLogs[0].JobEntries); i++ {
 		offsetDiff := structuredJobLogs[0].JobEntries[i].Offset - structuredJobLogs[0].JobEntries[i-1].Offset
 		assert.Greater(t, offsetDiff, int64(0))
+		// This is true for all entries except last one.
+		// Will be true for last entry only if the fileSize is multiple of chunkSize.
 		assert.Equal(t, int64(0), offsetDiff%s.chunkSize)
 	}
 
@@ -143,6 +144,8 @@ func (s *jobChunkTest) TestJobChunkSizeForMultipleFileReads(t *testing.T) {
 		for entryIndex := 1; entryIndex < entriesLen; entryIndex++ {
 			offsetDiff := structuredJobLogs[fileIndex].JobEntries[entryIndex].Offset - structuredJobLogs[fileIndex].JobEntries[entryIndex-1].Offset
 			assert.Greater(t, offsetDiff, int64(0))
+			// This is true for all entries except last one.
+			// Will be true for last entry only if the fileSize is multiple of chunkSize.
 			assert.Equal(t, int64(0), offsetDiff%s.chunkSize)
 		}
 
