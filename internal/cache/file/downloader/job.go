@@ -430,7 +430,9 @@ func (job *Job) downloadObjectAsync() {
 		return
 	}
 
-	// Truncate as the parallel downloads can create file of size little higher.
+	// Truncate as the parallel downloads can create file with size little higher
+	// than the actual object size because writing with O_DIRECT happens in size
+	// multiple of cacheutil.MinimumAlignSizeForWriting.
 	err = cacheFile.Truncate(int64(job.object.Size))
 	if err != nil {
 		err = fmt.Errorf("downloadObjectAsync: error while truncating cache file: %w", err)
