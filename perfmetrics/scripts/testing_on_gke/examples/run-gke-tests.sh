@@ -478,6 +478,8 @@ function waitTillAllPodsComplete() {
       break
     else
       printf "There are still "${num_noncompleted_pods}" pod(s) incomplete (either still pending or running). So, sleeping for now... will check again in "${pod_wait_time_in_seconds}" seconds.\n\n"
+      printf "To ssh to any specific pod, use the following command: \n"
+      printf "     kubectl exec -it pods/<podname> -- /bin/bash \n\n"
     fi
     sleep ${pod_wait_time_in_seconds}
     unset podslist # necessary to update the value of podslist every iteration
