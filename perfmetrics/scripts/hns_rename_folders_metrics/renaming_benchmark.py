@@ -103,6 +103,37 @@ def _record_time_of_operation(mount_point, dir, num_samples):
 def _perform_testing(dir, test_type, num_samples, results):
   """
   This function performs rename operations and records time of operation .
+  Args:
+    dir: JSON object representing the structure of data in bucket.Example:
+      {
+      "name": "example-bucket" ,
+      "folders" : {
+        "num_folders": 1,
+        "folder_structure" : [
+          {
+            "name": "1k_files_folder" ,
+            "num_files": 1000 ,
+            "file_name_prefix": "file" ,
+            "file_size": "1kb"
+          }
+        ]
+        },
+       "nested_folders": {
+        "folder_name": "nested_folder",
+        "num_folders": 1,
+        "folder_structure" :  [
+          {
+            "name": "1k_files_nested_folder" ,
+            "num_files": 1000 ,
+            "file_name_prefix": "file" ,
+            "file_size": "1kb"
+          }
+          ]
+        }
+      }
+    test_type : flat or hns.
+    num_samples: Number of samples to collect for each test.
+    results: Dictionary to store the results corresponding to each test type
   """
   if test_type == "hns":
     # TODO add mount function for test type hns
@@ -110,10 +141,10 @@ def _perform_testing(dir, test_type, num_samples, results):
 
   # Mounting the gcs bucket.
   flat_mount_flags = "--implicit-dirs --rename-dir-limit=1000000"
-  flat_bucket = mount_gcs_bucket(dir["name"], flat_mount_flags, log)
+  flat_bucket_name = mount_gcs_bucket(dir["name"], flat_mount_flags, log)
 
   # Record time of operation and populate the results dict.
-  flat_results = _record_time_of_operation(flat_bucket, dir, num_samples)
+  flat_results = _record_time_of_operation(flat_bucket_name, dir, num_samples)
   results["flat"] = flat_results
 
   unmount_gcs_bucket(dir["name"], log)

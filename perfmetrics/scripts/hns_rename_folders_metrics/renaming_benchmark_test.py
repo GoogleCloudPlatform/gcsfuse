@@ -60,7 +60,6 @@ class TestRenamingBenchmark(unittest.TestCase):
             ]
         }
     }
-
     num_samples=2
     mock_time.side_effect = [1.0, 2.0, 3.0, 4.0,1.0, 2.0, 3.0, 4.0]
     expected_time_of_operation={'test_folder1':[1.0,1.0] ,'test_folder2':[1.0,1.0]}
@@ -100,9 +99,7 @@ class TestRenamingBenchmark(unittest.TestCase):
     mock_record_time_of_operation.return_value = {"test_folder": [0.1, 0.2, 0.3, 0.4]}
     expected_results = {"flat": {"test_folder": [0.1, 0.2, 0.3, 0.4]}}
 
-
     renaming_benchmark._perform_testing(dir, test_type, num_samples, results)
-
 
     self.assertEqual(results, expected_results)
     # Verify calls to other functions.
