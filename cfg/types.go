@@ -35,7 +35,7 @@ func (o *Octal) UnmarshalText(text []byte) error {
 	return nil
 }
 
-func (o Octal) MarshalText() (text []byte, _ error) {
+func (o Octal) MarshalText() ([]byte, error) {
 	return []byte(strconv.FormatInt(int64(o), 8)), nil
 }
 
