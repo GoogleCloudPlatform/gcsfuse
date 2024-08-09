@@ -24,8 +24,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -83,16 +81,6 @@ func JSONStringify(input any) (string, error) {
 
 	if err != nil {
 		return "", fmt.Errorf("error in JSONStringify %w", err)
-	}
-	return string(inputBytes), nil
-}
-
-// YAMLStringify marshals an object to a YAML string. If marshalling fails, it returns an error.
-func YAMLStringify(input any) (string, error) {
-	inputBytes, err := yaml.Marshal(input)
-
-	if err != nil {
-		return "", fmt.Errorf("error in YAMLStringify %w", err)
 	}
 	return string(inputBytes), nil
 }
