@@ -14,6 +14,13 @@
 
 package cfg
 
+import (
+	"math"
+	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+)
+
 const (
 	// Logging-level constants
 
@@ -25,6 +32,7 @@ const (
 	OFF     string = "OFF"
 )
 
+// Metadata-cache related constants.
 const (
 	// ExperimentalMetadataPrefetchOnMountDisabled is the mode without metadata-prefetch.
 	ExperimentalMetadataPrefetchOnMountDisabled = "disabled"
@@ -32,4 +40,63 @@ const (
 	ExperimentalMetadataPrefetchOnMountSynchronous = "sync"
 	// ExperimentalMetadataPrefetchOnMountAsynchronous is the prefetch-mode where mounting is marked complete once prefetch has started.
 	ExperimentalMetadataPrefetchOnMountAsynchronous = "async"
+	// DefaultStatOrTypeCacheTTL is the default value used for
+	// stat-cache-ttl or type-cache-ttl if they have not been set
+	// by the user.
+	DefaultStatOrTypeCacheTTL time.Duration = time.Minute
+	// DefaultStatCacheCapacity is the default value for stat-cache-capacity.
+	// This is equivalent of setting metadata-cache: stat-cache-max-size-mb.
+	DefaultStatCacheCapacity = 20460
+
+	// DefaultStatCacheMaxSizeMB is the default for stat-cache-max-size-mb
+	// and is to be used when neither stat-cache-max-size-mb nor
+	// stat-cache-capacity is set.
+	DefaultStatCacheMaxSizeMB = 32
+	// AverageSizeOfPositiveStatCacheEntry is the assumed size of each positive stat-cache-entry,
+	// meant for two purposes.
+	// 1. for conversion from stat-cache-capacity to stat-cache-max-size-mb.
+	// 2. internal testing.
+	AverageSizeOfPositiveStatCacheEntry uint64 = 1400
+	// AverageSizeOfNegativeStatCacheEntry is the assumed size of each negative stat-cache-entry,
+	// meant for two purposes..
+	// 1. for conversion from stat-cache-capacity to stat-cache-max-size-mb.
+	// 2. internal testing.
+	AverageSizeOfNegativeStatCacheEntry uint64 = 240
+
+	// TtlInSecsUnsetSentinel is the value internally
+	// set for metada-cache:ttl-secs
+	// when it is not set in the gcsfuse mount config file.
+	// The constant value has been chosen deliberately
+	// to be improbable for a user to explicitly set.
+	TtlInSecsUnsetSentinel int64 = math.MinInt64
+
+	// DefaultTypeCacheMaxSizeMB is the default value of type-cache max-size for every directory in MiBs.
+	// The value is set at the size needed for about 21k type-cache entries,
+	// each of which is about 200 bytes in size.
+	DefaultTypeCacheMaxSizeMB int = 4
+
+	// StatCacheMaxSizeMBUnsetSentinel is the value internally
+	// set for metada-cache:stat-cache-max-size-mb
+	// when it is not set in the gcsfuse mount config file.
+	StatCacheMaxSizeMBUnsetSentinel int64 = math.MinInt64
+
+	DefaultEnableEmptyManagedFoldersListing = false
+	DefaultGrpcConnPoolSize                 = 1
+	DefaultAnonymousAccess                  = false
+	DefaultEnableHNS                        = false
+	DefaultIgnoreInterrupts                 = true
+	DefaultPrometheusPort                   = 0
+
+	DefaultKernelListCacheTtlSeconds int64 = 0
+	DefaultMaxRetryAttempts                = int64(0)
+
+	// File Cache Config constants.
+
+	DefaultFileCacheMaxSizeMB       = -1
+	DefaultEnableCRC                = false
+	DefaultEnableParallelDownloads  = false
+	DefaultDownloadChunkSizeMB      = 50
+	DefaultParallelDownloadsPerFile = 16
+
+	MaxSupportedStatCacheMaxSizeMB = util.MaxMiBsInUint64
 )

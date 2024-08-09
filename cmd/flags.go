@@ -25,7 +25,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/urfave/cli"
@@ -228,25 +227,25 @@ func newApp() (app *cli.App) {
 
 			cli.IntFlag{
 				Name:  "stat-cache-capacity",
-				Value: mount.DefaultStatCacheCapacity,
+				Value: cfg.DefaultStatCacheCapacity,
 				Usage: "How many entries can the stat-cache hold (impacts memory consumption). This flag has been deprecated (starting v2.0) and in its place only metadata-cache:stat-cache-max-size-mb in the gcsfuse config-file will be supported. For now, the value of stat-cache-capacity will be translated to the next higher corresponding value of metadata-cache:stat-cache-max-size-mb (assuming stat-cache entry-size ~= 1640 bytes, including 1400 for positive entry and 240 for corresponding negative entry), when metadata-cache:stat-cache-max-size-mb is not set.",
 			},
 
 			cli.DurationFlag{
 				Name:  "stat-cache-ttl",
-				Value: mount.DefaultStatOrTypeCacheTTL,
+				Value: cfg.DefaultStatOrTypeCacheTTL,
 				Usage: "How long to cache StatObject results and inode attributes. This flag has been deprecated (starting v2.0) and in its place only metadata-cache:ttl-secs in the gcsfuse config-file will be supported. For now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the next higher multiple of a second, is used as ttl for both stat-cache and type-cache, when metadata-cache:ttl-secs is not set.",
 			},
 
 			cli.DurationFlag{
 				Name:  "type-cache-ttl",
-				Value: mount.DefaultStatOrTypeCacheTTL,
+				Value: cfg.DefaultStatOrTypeCacheTTL,
 				Usage: "How long to cache name -> file/dir mappings in directory inodes. This flag has been deprecated (starting v2.0) and in its place only metadata-cache:ttl-secs in the gcsfuse config-file will be supported. For now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the next higher multiple of a second, is used as ttl for both stat-cache and type-cache, when metadata-cache:ttl-secs is not set.",
 			},
 
 			cli.Int64Flag{
 				Name:  config.KernelListCacheTtlFlagName,
-				Value: config.DefaultKernelListCacheTtlSeconds,
+				Value: cfg.DefaultKernelListCacheTtlSeconds,
 				Usage: "How long the directory listing (output of ls <dir>) should be cached in the kernel page cache." +
 					"If a particular directory cache entry is kept by kernel for longer than TTL, then it will be sent for invalidation " +
 					"by gcsfuse on next opendir (comes in the start, as part of next listing) call. 0 means no caching. " +
@@ -279,7 +278,7 @@ func newApp() (app *cli.App) {
 
 			cli.StringFlag{
 				Name:  "client-protocol",
-				Value: string(mountpkg.HTTP1),
+				Value: string(cfg.HTTP1),
 				Usage: "The protocol used for communicating with the GCS backend. " +
 					"Value can be 'http1' (HTTP/1.1) or 'http2' (HTTP/2) or grpc.",
 			},
