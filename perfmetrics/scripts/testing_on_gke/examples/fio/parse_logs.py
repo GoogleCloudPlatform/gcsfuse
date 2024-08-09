@@ -128,7 +128,6 @@ if __name__ == "__main__":
   for root, _, files in os.walk(LOCAL_LOGS_LOCATION):
     for file in files:
       per_epoch_output = root + f"/{file}"
-      gcsfuse_mount_options = ""
       if not per_epoch_output.endswith(".json"):
         print(f"ignoring file {per_epoch_output} as it's not a json file")
         continue
