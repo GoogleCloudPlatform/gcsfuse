@@ -32,11 +32,11 @@ spec:
     image: {{ .Values.image }}
     resources:
       limits:
-        cpu: "100"
-        memory: 400Gi
+        cpu: {{ .Values.resourceLimits.cpu }}
+        memory: {{ .Values.resourceLimits.memory }}
       requests:
-        cpu: "50"
-        memory: 300Gi
+        cpu: {{ .Values.resourceRequests.cpu }}
+        memory: {{ .Values.resourceRequests.memory }}
     env:
       - name: RDMAV_FORK_SAFE
         value: "1"
@@ -86,6 +86,11 @@ spec:
         ++workload.reader.read_threads={{ .Values.dlio.readThreads }} \
         ++workload.output.folder=/logs/{{ .Values.dlio.numFilesTrain }}-{{ .Values.dlio.recordLength }}-{{ .Values.dlio.batchSize }}/{{ .Values.scenario }}
 
+        # dump the gcsfuse-mount-configuration to a file in output-directory.
+        {{ if eq .Values.scenario "gcsfuse-generic"}}
+        echo "{{ .Values.gcsfuse.mountOptions }}" > /logs/{{ .Values.dlio.numFilesTrain }}-{{ .Values.dlio.recordLength }}-{{ .Values.dlio.batchSize }}/{{ .Values.scenario }}/gcsfuse_mount_options
+        {{ end }}
+
         gsutil -m cp -R /logs gs://{{ .Values.bucketName }}/logs/$(date +"%Y-%m-%d-%H-%M")
     volumeMounts:
     - name: dshm
@@ -103,6 +108,12 @@ spec:
   - name: data-vol
   {{- if eq .Values.scenario "local-ssd" }}
     emptyDir: {}
+  {{- else if eq .Values.scenario "gcsfuse-generic" }}
+    csi:
+      driver: gcsfuse.csi.storage.gke.io
+      volumeAttributes:
+        bucketName: {{ .Values.bucketName }}
+        mountOptions: "{{ .Values.gcsfuse.mountOptions }}"
   {{- else if eq .Values.scenario "gcsfuse-file-cache" }}
     csi:
       driver: gcsfuse.csi.storage.gke.io
