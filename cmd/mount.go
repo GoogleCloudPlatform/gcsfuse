@@ -175,6 +175,9 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config, mountConfig *confi
 		// access two files under same directory parallely, then the lookups also
 		// happen parallely.
 		EnableParallelDirOps: !(mountConfig.FileSystemConfig.DisableParallelDirops),
+		// Symlink target is not mutable (removing and re-creating would cause a different
+		// inode to be created), so it's safe to enable symlink caching.
+		EnableSymlinkCaching: true,
 	}
 
 	mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse: ")
