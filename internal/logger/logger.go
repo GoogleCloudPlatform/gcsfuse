@@ -42,11 +42,11 @@ var (
 	defaultLogger        *slog.Logger
 )
 
-// Logger exports the slog logger.
+// SLogger exports the slog logger.
 // This allows one to use the full breadth of features provided by slog.
 //
 // TODO: export defaultLogger instead of using this function.
-func Logger() *slog.Logger {
+func SLogger() *slog.Logger {
 	return defaultLogger
 }
 

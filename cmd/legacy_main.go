@@ -292,7 +292,7 @@ func runCLIApp(c *cli.Context) (err error) {
 	// if these are already being logged into a log-file, otherwise
 	// there will be duplicate logs for these in both places (stdout and log-file).
 	if newConfig.Foreground || newConfig.Logging.FilePath == "" {
-		logger.Logger().Info("GCSFuse config", "config", newConfig)
+		logger.SLogger().Info("GCSFuse config", "config", newConfig)
 	}
 
 	// The following will not warn if the user explicitly passed the default value for StatCacheCapacity.
