@@ -32,7 +32,9 @@ def is_mash_installed() -> bool:
     return False
 
 
-def get_memory(pod_name: str, start: str, end: str) -> Tuple[int, int]:
+def get_memory(
+    pod_name: str, start: str, end: str, project_number: int
+) -> Tuple[int, int]:
   # for some reason, the mash filter does not always work, so we fetch all the metrics for all the pods and filter later.
   result = subprocess.run(
       [
@@ -42,7 +44,7 @@ def get_memory(pod_name: str, start: str, end: str) -> Tuple[int, int]:
           (
               "Query(Fetch(Raw('cloud.kubernetes.K8sContainer',"
               " 'kubernetes.io/container/memory/used_bytes'), {'project':"
-              " '641665282868', 'metric:memory_type': 'non-evictable'})|"
+              f" '{project_number}', 'metric:memory_type': 'non-evictable'}})|"
               " Window(Align('10m'))| GroupBy(['pod_name', 'container_name'],"
               f" Max()), TimeInterval('{start}', '{end}'), '5s')"
           ),
@@ -55,6 +57,8 @@ def get_memory(pod_name: str, start: str, end: str) -> Tuple[int, int]:
   data_points_by_pod_container = result.stdout.strip().split("\n")
   for data_points in data_points_by_pod_container[1:]:
     data_points_split = data_points.split(",")
+    if len(data_points_split) < 6:
+      continue
     pn = data_points_split[4]
     container_name = data_points_split[5]
     if pn == pod_name and container_name == "gke-gcsfuse-sidecar":
@@ -74,7 +78,9 @@ def get_memory(pod_name: str, start: str, end: str) -> Tuple[int, int]:
   )
 
 
-def get_cpu(pod_name: str, start: str, end: str) -> Tuple[float, float]:
+def get_cpu(
+    pod_name: str, start: str, end: str, project_number: int
+) -> Tuple[float, float]:
   # for some reason, the mash filter does not always work, so we fetch all the metrics for all the pods and filter later.
   result = subprocess.run(
       [
@@ -84,9 +90,9 @@ def get_cpu(pod_name: str, start: str, end: str) -> Tuple[float, float]:
           (
               "Query(Fetch(Raw('cloud.kubernetes.K8sContainer',"
               " 'kubernetes.io/container/cpu/core_usage_time'), {'project':"
-              " '641665282868'})| Window(Rate('10m'))| GroupBy(['pod_name',"
-              f" 'container_name'], Max()), TimeInterval('{start}', '{end}'),"
-              " '5s')"
+              f" '{project_number}'}})| Window(Rate('10m'))|"
+              " GroupBy(['pod_name', 'container_name'], Max()),"
+              f" TimeInterval('{start}', '{end}'), '5s')"
           ),
       ],
       capture_output=True,
@@ -97,6 +103,8 @@ def get_cpu(pod_name: str, start: str, end: str) -> Tuple[float, float]:
   data_points_by_pod_container = result.stdout.split("\n")
   for data_points in data_points_by_pod_container[1:]:
     data_points_split = data_points.split(",")
+    if len(data_points_split) < 6:
+      continue
     pn = data_points_split[4]
     container_name = data_points_split[5]
     if pn == pod_name and container_name == "gke-gcsfuse-sidecar":
