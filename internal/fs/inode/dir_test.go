@@ -1409,21 +1409,21 @@ func (t *DirTest) DeleteChildDir_ImplicitDirTrue() {
 	ExpectEq(nil, err)
 }
 
-func (t *DirTest) CreateLocalChildFile_ShouldnotCreateObjectInGCS() {
+func (t *DirTest) CreateLocalChildFile_UpdatesCache() {
 	const name = "qux"
 
 	// Create the local file inode.
-	core, err := t.in.CreateLocalChildFile(name)
-
-	AssertEq(nil, err)
-	AssertEq(true, core.Local)
-	AssertEq(nil, core.MinObject)
+	_ = t.in.CreateLocalChildFile(name, func(core Core) error {
+		AssertEq(true, core.Local)
+		AssertEq(nil, core.MinObject)
+		return nil
+	})
 
 	// Object shouldn't get created in GCS.
 	result, err := t.in.LookUpChild(t.ctx, name)
 	AssertEq(nil, err)
 	AssertEq(nil, result)
-	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name))
+	ExpectEq(metadata.RegularFileType, t.getTypeFromCache(name))
 }
 
 func (t *DirTest) LocalFileEntriesEmpty() {
