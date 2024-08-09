@@ -152,3 +152,82 @@ func (dt *parallelDownloaderTest) Test_parallelDownloadObjectToFile_CtxCancelled
 
 	AssertTrue(errors.Is(err, context.Canceled), fmt.Sprintf("didn't get context canceled error: %v", err))
 }
+
+func (dt *parallelDownloaderTest) Test_updateRangeMap_withNoEntries() {
+	rangeMap := make(map[uint64]uint64)
+
+	err := dt.job.updateRangeMap(rangeMap, 0, 10)
+
+	AssertEq(nil, err)
+	AssertEq(2, len(rangeMap))
+	AssertEq(10, rangeMap[0])
+	AssertEq(0, rangeMap[10])
+}
+
+func (dt *parallelDownloaderTest) Test_updateRangeMap_withInputContinuousWithEndOffset() {
+	rangeMap := make(map[uint64]uint64)
+	rangeMap[0] = 2
+	rangeMap[2] = 0
+	rangeMap[4] = 6
+	rangeMap[6] = 4
+
+	err := dt.job.updateRangeMap(rangeMap, 6, 8)
+
+	AssertEq(nil, err)
+	AssertEq(4, len(rangeMap))
+	AssertEq(2, rangeMap[0])
+	AssertEq(0, rangeMap[2])
+	AssertEq(8, rangeMap[4])
+	AssertEq(4, rangeMap[8])
+}
+
+func (dt *parallelDownloaderTest) Test_updateRangeMap_withInputContinuousWithStartOffset() {
+	rangeMap := make(map[uint64]uint64)
+	rangeMap[2] = 4
+	rangeMap[4] = 2
+	rangeMap[8] = 10
+	rangeMap[10] = 8
+
+	err := dt.job.updateRangeMap(rangeMap, 0, 2)
+
+	AssertEq(nil, err)
+	AssertEq(4, len(rangeMap))
+	AssertEq(4, rangeMap[0])
+	AssertEq(0, rangeMap[4])
+	AssertEq(10, rangeMap[8])
+	AssertEq(8, rangeMap[10])
+}
+
+func (dt *parallelDownloaderTest) Test_updateRangeMap_withInputFillingTheMissingRange() {
+	rangeMap := make(map[uint64]uint64)
+	rangeMap[0] = 4
+	rangeMap[4] = 0
+	rangeMap[6] = 8
+	rangeMap[8] = 6
+
+	err := dt.job.updateRangeMap(rangeMap, 4, 6)
+
+	AssertEq(nil, err)
+	AssertEq(2, len(rangeMap))
+	AssertEq(8, rangeMap[0])
+	AssertEq(0, rangeMap[8])
+}
+
+func (dt *parallelDownloaderTest) Test_updateRangeMap_withInputNotOverlappingWithAnyRanges() {
+	rangeMap := make(map[uint64]uint64)
+	rangeMap[0] = 4
+	rangeMap[4] = 0
+	rangeMap[12] = 14
+	rangeMap[14] = 12
+
+	err := dt.job.updateRangeMap(rangeMap, 8, 10)
+
+	AssertEq(nil, err)
+	AssertEq(6, len(rangeMap))
+	AssertEq(0, rangeMap[4])
+	AssertEq(4, rangeMap[0])
+	AssertEq(8, rangeMap[10])
+	AssertEq(10, rangeMap[8])
+	AssertEq(12, rangeMap[14])
+	AssertEq(14, rangeMap[12])
+}
