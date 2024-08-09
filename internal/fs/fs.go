@@ -2065,7 +2065,7 @@ func (fs *fileSystem) checkDirNotEmpty(dir inode.BucketOwnedDirInode, name strin
 	return nil
 }
 
-// Rename an old folder to a new folder in hierarchical bucket. If the new folder already
+// Rename an old folder to a new folder in a hierarchical bucket. If the new folder already
 // exists and is non-empty, return ENOTEMPTY.
 //
 // LOCKS_EXCLUDED(fs.mu)
@@ -2096,19 +2096,15 @@ func (fs *fileSystem) renameFolder(ctx context.Context, oldParent inode.DirInode
 
 	oldDirName := inode.NewDirName(oldParent.Name(), oldName)
 	newDirName := inode.NewDirName(newParent.Name(), newName)
-	if oldParent == newParent {
-		// If both parents are the same, lock once.
-		oldParent.Lock()
-		defer oldParent.Unlock()
-	} else {
-		oldParent.Lock()
-		defer oldParent.Unlock()
+	oldParent.Lock()
+	defer oldParent.Unlock()
 
+	if newParent != oldParent {
 		newParent.Lock()
 		defer newParent.Unlock()
 	}
 
-	// Rename old directory to the new directory, keeping both parent directory locked.
+	// Rename old directory to the new directory, keeping both parent directories locked.
 	_, err = oldParent.RenameFolder(ctx, oldDirName.GcsObjectName(), newDirName.GcsObjectName())
 	if err != nil {
 		return err
