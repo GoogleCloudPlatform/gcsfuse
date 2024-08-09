@@ -2069,26 +2069,29 @@ func (fs *fileSystem) checkDirNotEmpty(dir inode.BucketOwnedDirInode, name strin
 // LOCKS_EXCLUDED(oldParent)
 // LOCKS_EXCLUDED(newParent)
 func (fs *fileSystem) renameFolder(ctx context.Context, oldParent inode.DirInode, oldName string, newParent inode.DirInode, newName string) (err error) {
+	// Set up a function that throws away the lookup count increment from
+	// lookUpOrCreateChildInode (since the pending inodes are not sent back to
+	// the kernel) and unlocks the pending inodes, but only once.
 	var pendingInodes []inode.DirInode
 	defer fs.releaseInodes(&pendingInodes)
 
-	oldDir, err := fs.getBucketDirInode(ctx, oldParent, oldName)
+	oldDirInode, err := fs.getBucketDirInode(ctx, oldParent, oldName)
 	if err != nil {
 		return err
 	}
-	pendingInodes = append(pendingInodes, oldDir)
+	pendingInodes = append(pendingInodes, oldDirInode)
 
-	if err = fs.ensureNoOpenFilesInDirectory(oldDir, oldName); err != nil {
+	if err = fs.ensureNoOpenFilesInDirectory(oldDirInode, oldName); err != nil {
 		return err
 	}
 
-	newDir, err := fs.getBucketDirInode(ctx, newParent, newName)
+	newDirInode, err := fs.getBucketDirInode(ctx, newParent, newName)
 	if err == nil {
 		// If the directory exists, then check if it is empty or not.
-		if err = fs.checkDirNotEmpty(newDir, newName); err != nil {
+		if err = fs.checkDirNotEmpty(newDirInode, newName); err != nil {
 			return err
 		}
-		pendingInodes = append(pendingInodes, newDir)
+		pendingInodes = append(pendingInodes, newDirInode)
 	}
 
 	oldDirName := inode.NewDirName(oldParent.Name(), oldName)
