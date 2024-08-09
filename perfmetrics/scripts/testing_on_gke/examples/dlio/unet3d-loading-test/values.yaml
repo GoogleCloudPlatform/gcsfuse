@@ -21,6 +21,14 @@ image: jiaxun/dlio:v1.2.0
 bucketName: gke-dlio-test-data
 scenario: local-ssd
 nodeType: n2-standard-96
+instanceId: ldap-yyyymmdd-hhmmss
+
+resourceLimits:
+  cpu: 0
+  memory: 0
+resourceRequests:
+  cpu: 0
+  memory: 0
 
 dlio:
   numFilesTrain: 500000
@@ -34,3 +42,4 @@ gcsfuse:
   metadataTypeCacheCapacity: "-1"
   fileCacheCapacity: "-1"
   fileCacheForRangeRead: "true"
+  mountOptions: "implicit-dirs"
