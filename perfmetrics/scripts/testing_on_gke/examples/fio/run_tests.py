@@ -36,6 +36,10 @@ def run_command(command: str):
 DEFAULT_GCSFUSE_MOUNT_OPTIONS = 'implicit-dirs'
 
 
+def escapeCommasInString(gcsfuseMountOptions: str) -> str:
+  return gcsfuseMountOptions.replace(',', '\,')
+
+
 def createHelmInstallCommands(
     fioWorkloads: set,
     instanceId: str,
@@ -61,7 +65,10 @@ def createHelmInstallCommands(
           f'--set fio.filesPerThread={fioWorkload.filesPerThread}',
           f'--set fio.numThreads={fioWorkload.numThreads}',
           f'--set instanceId={instanceId}',
-          f'--set gcsfuse.mountOptions={gcsfuseMountOptions}',
+          (
+              '--set'
+              f' gcsfuse.mountOptions={escapeCommasInString(gcsfuseMountOptions)}'
+          ),
           f'--set nodeType={machineType}',
       ]
 
