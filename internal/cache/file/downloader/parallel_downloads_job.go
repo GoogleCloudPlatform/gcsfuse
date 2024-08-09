@@ -70,11 +70,11 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 }
 
 // RangeMap maintains the ranges downloaded by the different goroutines. This
-// function takes a new range and merges with existng ranges if they are continuous.
+// function takes a new range and merges with existing ranges if they are continuous.
 //
 // Eg:
 // Input: rangeMap entries 0-3, 5-6. New input 7-8.
-// Output: rangeMap entires 0-3, 5-8.
+// Output: rangeMap entries 0-3, 5-8.
 func (job *Job) updateRangeMap(rangeMap map[uint64]uint64, offsetStart uint64, offsetEnd uint64) error {
 	// Check if the chunk downloaded completes a range [0, R) and find that
 	// R.
