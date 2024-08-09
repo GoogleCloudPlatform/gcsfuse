@@ -17,6 +17,7 @@ package fs_test
 import (
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
@@ -107,7 +108,8 @@ func (t *HNSBucketTests) TestRenameFolderWithSrcDirectoryDoesNotExist() {
 
 	err = os.Rename(oldDirPath, newDirPath)
 
-	assert.NotNil(t.T(), err)
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
 	_, err = os.Stat(newDirPath)
 	assert.Error(t.T(), err)
 }
@@ -123,6 +125,7 @@ func (t *HNSBucketTests) TestRenameFolderWithDstDirectoryNotEmpty() {
 	err = os.Rename(oldDirPath, newDirPath)
 
 	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "file exists"))
 }
 
 func (t *HNSBucketTests) TestRenameFolderWithSameParent() {
@@ -135,7 +138,8 @@ func (t *HNSBucketTests) TestRenameFolderWithSameParent() {
 
 	assert.NoError(t.T(), err)
 	_, err = os.Stat(oldDirPath)
-	assert.NotNil(t.T(), err)
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
 	_, err = os.Stat(newDirPath)
 	assert.NoError(t.T(), err)
 	dirEntries, err := os.ReadDir(newDirPath)
@@ -172,7 +176,8 @@ func (t *HNSBucketTests) TestRenameFolderWithDifferentParents() {
 
 	assert.NoError(t.T(), err)
 	_, err = os.Stat(oldDirPath)
-	assert.NotNil(t.T(), err)
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
 	_, err = os.Stat(newDirPath)
 	assert.NoError(t.T(), err)
 	dirEntries, err := os.ReadDir(newDirPath)
