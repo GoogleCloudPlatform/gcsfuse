@@ -33,38 +33,6 @@ const (
 	MaxSupportedTtl          = time.Duration(MaxSupportedTtlInSeconds * int64(time.Second))
 )
 
-// cliContext is abstraction over the IsSet() method of cli.Context, Specially
-// added to keep OverrideWithIgnoreInterruptsFlag method's unit test simple.
-type cliContext interface {
-	IsSet(string) bool
-}
-
-// OverrideWithIgnoreInterruptsFlag overwrites the ignore-interrupts config with
-// the ignore-interrupts flag value if the flag is set.
-func OverrideWithIgnoreInterruptsFlag(c cliContext, mountConfig *MountConfig, ignoreInterruptsFlag bool) {
-	// If the ignore-interrupts flag is set, give it priority over the value in config file.
-	if c.IsSet(IgnoreInterruptsFlagName) {
-		mountConfig.FileSystemConfig.IgnoreInterrupts = ignoreInterruptsFlag
-	}
-}
-
-// OverrideWithAnonymousAccessFlag overwrites the anonymous-access config with
-// the anonymous-access flag value if the flag is set.
-func OverrideWithAnonymousAccessFlag(c cliContext, mountConfig *MountConfig, anonymousAccess bool) {
-	// If the  anonymous-access flag is set, give it priority over the value in config file.
-	if c.IsSet(AnonymousAccess) {
-		mountConfig.GCSAuth.AnonymousAccess = anonymousAccess
-	}
-}
-
-// OverrideWithKernelListCacheTtlFlag overwrites the kernel-list-cache-ttl-secs config
-// with the kernel-list-cache-ttl-secs cli-flag value if the cli-flag is set by user.
-func OverrideWithKernelListCacheTtlFlag(c cliContext, mountConfig *MountConfig, ttl int64) {
-	if c.IsSet(KernelListCacheTtlFlagName) {
-		mountConfig.FileSystemConfig.KernelListCacheTtlSeconds = ttl
-	}
-}
-
 // IsTtlInSecsValid return nil error if ttlInSecs is valid.
 func IsTtlInSecsValid(ttlInSecs int64) error {
 	if ttlInSecs < -1 {
