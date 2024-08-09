@@ -38,6 +38,7 @@ func validFileCacheConfig(t *testing.T) FileCacheConfig {
 		MaxParallelDownloads:     4,
 		MaxSizeMb:                -1,
 		ParallelDownloadsPerFile: 16,
+		WriteBufferSize:          4 * 1024 * 1024,
 	}
 }
 

@@ -57,6 +57,7 @@ func defaultFileCacheConfig(t *testing.T) cfg.FileCacheConfig {
 		MaxParallelDownloads:     int64(max(16, 2*runtime.NumCPU())),
 		MaxSizeMb:                -1,
 		ParallelDownloadsPerFile: 16,
+		WriteBufferSize:          4 * 1024 * 1024,
 	}
 }
 
@@ -230,6 +231,14 @@ func TestValidateConfigFile_FileCacheConfigUnsuccessful(t *testing.T) {
 			name:       "Invalid zero max parallel downloads",
 			configFile: "testdata/file_cache_config/invalid_zero_max_parallel_downloads.yaml",
 		},
+		{
+			name:       "Invalid zero write buffer size",
+			configFile: "testdata/file_cache_config/invalid_zero_write_buffer_size.yaml",
+		},
+		{
+			name:       "Invalid write buffer size",
+			configFile: "testdata/file_cache_config/invalid_write_buffer_size.yaml",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -266,6 +275,7 @@ func TestValidateConfigFile_FileCacheConfigSuccessful(t *testing.T) {
 					MaxParallelDownloads:     200,
 					MaxSizeMb:                40,
 					ParallelDownloadsPerFile: 10,
+					WriteBufferSize:          8192,
 				},
 			},
 		},
