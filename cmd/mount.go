@@ -49,16 +49,14 @@ func mountWithStorageHandle(
 	if newConfig.FileSystem.TempDir != "" {
 		logger.Infof("Creating a temporary directory at %q\n", newConfig.FileSystem.TempDir)
 		var f *os.File
-		f, err = fsutil.AnonymousFile(string(newConfig.FileSystem.TempDir))
-		f.Close()
-
-		if err != nil {
-			err = fmt.Errorf(
+		if f, err = fsutil.AnonymousFile(string(newConfig.FileSystem.TempDir)); err != nil {
+			return fmt.Errorf(
 				"Error writing to temporary directory (%q); are you sure it exists "+
 					"with the correct permissions?",
 				err.Error())
-			return
+
 		}
+		f.Close()
 	}
 
 	// Find the current process's UID and GID. If it was invoked as root and the
