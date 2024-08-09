@@ -195,24 +195,24 @@ func GetMemoryAlignedBuffer(bufferSize uint64, alignSize uint64) (buffer []byte,
 	}
 
 	// Create and align buffer
-	createAndAlignBuffer := func() {
-		buffer = make([]byte, bufferSize+alignSize)
-		l := uint64(uintptr(unsafe.Pointer(&buffer[0])) % uintptr(alignSize))
+	createAndAlignBuffer := func() ([]byte, error) {
+		newBuffer := make([]byte, bufferSize+alignSize)
+		l := uint64(uintptr(unsafe.Pointer(&newBuffer[0])) % uintptr(alignSize))
 		skipOffset := alignSize - l
-		buffer = buffer[skipOffset : skipOffset+bufferSize]
+		newBuffer = newBuffer[skipOffset : skipOffset+bufferSize]
 
 		// Check if buffer is aligned or not
-		l = uint64(uintptr(unsafe.Pointer(&buffer[0])) % uintptr(alignSize))
+		l = uint64(uintptr(unsafe.Pointer(&newBuffer[0])) % uintptr(alignSize))
 		if l != 0 {
-			buffer = nil
-			err = fmt.Errorf("failed to align buffer")
+			return nil, fmt.Errorf("failed to align buffer")
 		}
+		return newBuffer, nil
 	}
 
 	// Though we haven't seen any error while aligning buffer but still it is safer
 	// to attempt few times in case alignment fails.
 	for try := 0; try < 3; try++ {
-		createAndAlignBuffer()
+		buffer, err = createAndAlignBuffer()
 		if err == nil {
 			return buffer, err
 		}
