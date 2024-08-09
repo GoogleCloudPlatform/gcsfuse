@@ -89,26 +89,6 @@ func getUserAgent(appName string, config string) string {
 	}
 }
 
-func logNewConfiguration(newConfig *cfg.Config) {
-	logger.Logger().Info("GCSFuse config", "config", newConfig)
-}
-
-func logLegacyConfiguration(flags *flagStorage, mountConfig *config.MountConfig) {
-	flagsStringified, err := util.JSONStringify(*flags)
-	if err != nil {
-		logger.Warnf("failed to stringify cli flags: %v", err)
-	} else {
-		logger.Infof("GCSFuse mount command flags: %s", flagsStringified)
-	}
-
-	mountConfigStringified, err := util.JSONStringify(*mountConfig)
-	if err != nil {
-		logger.Warnf("failed to stringify config-file: %v", err)
-	} else {
-		logger.Infof("GCSFuse mount config flags: %s", mountConfigStringified)
-	}
-}
-
 func getConfigForUserAgent(mountConfig *cfg.Config) string {
 	// Minimum configuration details created in a bitset fashion. Right now, its restricted only to File Cache Settings.
 	isFileCacheEnabled := "0"
@@ -312,11 +292,7 @@ func runCLIApp(c *cli.Context) (err error) {
 	// if these are already being logged into a log-file, otherwise
 	// there will be duplicate logs for these in both places (stdout and log-file).
 	if newConfig.Foreground || newConfig.Logging.FilePath == "" {
-		if cfg.IsNewConfigEnabled() {
-			logNewConfiguration(newConfig)
-		} else {
-			logLegacyConfiguration(flags, mountConfig)
-		}
+		logger.Logger().Info("GCSFuse config", "config", newConfig)
 	}
 
 	// The following will not warn if the user explicitly passed the default value for StatCacheCapacity.
