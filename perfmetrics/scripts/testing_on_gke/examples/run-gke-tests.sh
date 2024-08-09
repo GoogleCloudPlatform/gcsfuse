@@ -74,6 +74,7 @@ function printHelp() {
   # Test runtime configuration
   echo "pod_wait_time_in_seconds=<number e.g. 60 for checking pod status every 1 min, default="${DEFAULT_POD_WAIT_TIME_IN_SECONDS}">"
   echo "instance_id=<string, not containing spaces, representing unique id for particular test-run e.g. "${DEFAULT_INSTANCE_ID}""
+  echo "workload_config=<path/to/workload/configuration/file e.g. /a/b/c.json >"
   echo ""
   echo ""
   echo ""
@@ -114,6 +115,11 @@ test -n "${gcsfuse_mount_options}" || export gcsfuse_mount_options="${DEFAULT_GC
 # Test runtime configuration
 test -n "${pod_wait_time_in_seconds}" || export pod_wait_time_in_seconds="${DEFAULT_POD_WAIT_TIME_IN_SECONDS}"
 test -n "${instance_id}" || export instance_id="${DEFAULT_INSTANCE_ID}"
+if test -n "${workload_config}"; then
+  test -f "${workload_config}"
+else
+    export workload_config="${gke_testing_dir}"/examples/workloads.json
+fi
 
 function printRunParameters() {
   echo "Running $0 with following parameters:"
@@ -141,6 +147,7 @@ function printRunParameters() {
   # Test runtime configuration
   echo "pod_wait_time_in_seconds=\"${pod_wait_time_in_seconds}\""
   echo "instance_id=\"${instance_id}\""
+  echo "workload_config=\"${workload_config}\""
   echo ""
   echo ""
   echo ""
@@ -307,11 +314,11 @@ function enableManagedCsiDriverIfNeeded() {
 # }
 #
 # function fioDataLoaderBucketNames() {
-  # dataLoaderBucketNames "${gke_testing_dir}"/examples/workloads.json
+  # dataLoaderBucketNames "${workload_config}"
 # }
 #
 # function dlioDataLoaderBucketNames() {
-  # dataLoaderBucketNames "${gke_testing_dir}"/examples/workloads.json
+  # dataLoaderBucketNames "${workload_config}"
 # }
 
 function activateCluster() {
@@ -329,7 +336,7 @@ function createKubernetesServiceAccountForCluster() {
 }
 
 function addGCSAccessPermissions() {
-  for workloadFileName in "${gke_testing_dir}"/examples/workloads.json; do
+  for workloadFileName in "${workload_config}"; do
     if test -f "${workloadFileName}"; then
       grep -wh '\"bucket\"' "${workloadFileName}" | cut -d: -f2 | cut -d, -f1 | cut -d \" -f2 | sort | uniq | grep -v ' ' |
         while read workload_bucket; do
@@ -412,12 +419,12 @@ function deleteAllPods() {
 
 function deployAllFioHelmCharts() {
   echo "Deploying all fio helm charts ..."
-  cd "${gke_testing_dir}"/examples/fio && python3 ./run_tests.py --workload-config "${gke_testing_dir}"/examples/workloads.json --instance-id ${instance_id} --gcsfuse-mount-options="${gcsfuse_mount_options}" --machine-type="${machine_type}" && cd -
+  cd "${gke_testing_dir}"/examples/fio && python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --gcsfuse-mount-options="${gcsfuse_mount_options}" --machine-type="${machine_type}" && cd -
 }
 
 function deployAllDlioHelmCharts() {
   echo "Deploying all dlio helm charts ..."
-  cd "${gke_testing_dir}"/examples/dlio && python3 ./run_tests.py --workload-config "${gke_testing_dir}"/examples/workloads.json --instance-id ${instance_id} --gcsfuse-mount-options="${gcsfuse_mount_options}" --machine-type="${machine_type}" && cd -
+  cd "${gke_testing_dir}"/examples/dlio && python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --gcsfuse-mount-options="${gcsfuse_mount_options}" --machine-type="${machine_type}" && cd -
 }
 
 function listAllHelmCharts() {
@@ -524,14 +531,14 @@ function waitTillAllPodsComplete() {
 function fetchAndParseFioOutputs() {
   echo "Fetching and parsing fio outputs ..."
   cd "${gke_testing_dir}"/examples/fio
-  python3 parse_logs.py --project-number=${project_number} --workload-config="${gke_testing_dir}"/examples/workloads.json --instance-id ${instance_id}
+  python3 parse_logs.py --project-number=${project_number} --workload-config "${workload_config}" --instance-id ${instance_id}
   cd -
 }
 
 function fetchAndParseDlioOutputs() {
   echo "Fetching and parsing dlio outputs ..."
   cd "${gke_testing_dir}"/examples/dlio
-  python3 parse_logs.py --project-number=${project_number} --workload-config="${gke_testing_dir}"/examples/workloads.json --instance-id ${instance_id}
+  python3 parse_logs.py --project-number=${project_number} --workload-config "${workload_config}" --instance-id ${instance_id}
   cd -
 }
 
