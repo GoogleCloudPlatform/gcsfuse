@@ -74,7 +74,8 @@ function printHelp() {
   # Test runtime configuration
   echo "pod_wait_time_in_seconds=<number e.g. 60 for checking pod status every 1 min, default="${DEFAULT_POD_WAIT_TIME_IN_SECONDS}">"
   echo "instance_id=<string, not containing spaces, representing unique id for particular test-run e.g. "${DEFAULT_INSTANCE_ID}""
-  echo "workload_config=<path/to/workload/configuration/file e.g. /a/b/c.json >"
+  echo "workload_config=</absolute/path/to/workload/configuration/file e.g. /a/b/c.json >"
+  echo "output_dir=</absolute/path/to/output/dir, output files will be written at output_dir/fio/output.csv and output_dir/dlio/output.csv>"
   echo ""
   echo ""
   echo ""
@@ -120,6 +121,11 @@ if test -n "${workload_config}"; then
 else
     export workload_config="${gke_testing_dir}"/examples/workloads.json
 fi
+if test -n "${output_dir}"; then
+  test -d "${output_dir}"
+else
+  export output_dir="${gke_testing_dir}"/examples
+fi
 
 function printRunParameters() {
   echo "Running $0 with following parameters:"
@@ -148,6 +154,7 @@ function printRunParameters() {
   echo "pod_wait_time_in_seconds=\"${pod_wait_time_in_seconds}\""
   echo "instance_id=\"${instance_id}\""
   echo "workload_config=\"${workload_config}\""
+  echo "output_dir=\"${output_dir}\""
   echo ""
   echo ""
   echo ""
@@ -531,14 +538,14 @@ function waitTillAllPodsComplete() {
 function fetchAndParseFioOutputs() {
   echo "Fetching and parsing fio outputs ..."
   cd "${gke_testing_dir}"/examples/fio
-  python3 parse_logs.py --project-number=${project_number} --workload-config "${workload_config}" --instance-id ${instance_id}
+  python3 parse_logs.py --project-number=${project_number} --workload-config "${workload_config}" --instance-id ${instance_id} --output-file "${output_dir}"/fio/output.csv
   cd -
 }
 
 function fetchAndParseDlioOutputs() {
   echo "Fetching and parsing dlio outputs ..."
   cd "${gke_testing_dir}"/examples/dlio
-  python3 parse_logs.py --project-number=${project_number} --workload-config "${workload_config}" --instance-id ${instance_id}
+  python3 parse_logs.py --project-number=${project_number} --workload-config "${workload_config}" --instance-id ${instance_id} --output-file "${output_dir}"/dlio/output.csv
   cd -
 }
 

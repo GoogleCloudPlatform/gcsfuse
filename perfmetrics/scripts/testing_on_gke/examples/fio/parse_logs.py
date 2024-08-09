@@ -17,6 +17,7 @@
 
 import argparse
 import json, os, pprint, subprocess
+from os.path import dirname
 import sys
 import fio_workload
 
@@ -46,13 +47,17 @@ record = {
 }
 
 
+def ensureDir(dirpath):
+  try:
+    os.makedirs(dirpath)
+  except FileExistsError:
+    pass
+
+
 def downloadFioOutputs(fioWorkloads: set, instanceId: str):
   for fioWorkload in fioWorkloads:
     dstDir = LOCAL_LOGS_LOCATION + "/" + instanceId + "/" + fioWorkload.fileSize
-    try:
-      os.makedirs(dstDir)
-    except FileExistsError:
-      pass
+    ensureDir(dstDir)
 
     print(f"Downloading FIO outputs from {fioWorkload.bucket}...")
     result = subprocess.run(
@@ -104,12 +109,16 @@ if __name__ == "__main__":
       help="unique string ID for current test-run",
       required=True,
   )
+  parser.add_argument(
+      "-o",
+      "--output-file",
+      metavar="Output file (CSV) path",
+      help="File path of the output metrics (in CSV format)",
+      default="output.csv",
+  )
   args = parser.parse_args()
 
-  try:
-    os.makedirs(LOCAL_LOGS_LOCATION)
-  except FileExistsError:
-    pass
+  ensureDir(LOCAL_LOGS_LOCATION)
 
   fioWorkloads = fio_workload.ParseTestConfigForFioWorkloads(
       args.workload_config
@@ -244,7 +253,9 @@ if __name__ == "__main__":
       "gcsfuse-file-cache",
   ]
 
-  output_file = open("./output.csv", "a")
+  output_file_path = args.output_file
+  ensureDir(os.path.dirname(output_file_path))
+  output_file = open(output_file_path, "a")
   output_file.write(
       "File Size,Read Type,Scenario,Epoch,Duration"
       " (s),Throughput (MB/s),IOPS,Throughput over Local SSD (%),GCSFuse Lowest"
