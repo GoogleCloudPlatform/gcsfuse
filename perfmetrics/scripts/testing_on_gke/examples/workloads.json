@@ -77,6 +77,39 @@
           "_bucket_alt3":"gke-fio-200gb-1"
         },
         {
+          "fioWorkload": {
+            "fileSize": "10G",
+            "filesPerThread": 16,
+            "numThreads": 1,
+            "blockSize": "1M",
+            "readTypes": ["read"]
+          },
+          "bucket":"fio-10g-500-us-west1",
+          "_bucket_alt2":"fio-10g-500-us-central1"
+        },
+        {
+          "fioWorkload": {
+            "fileSize": "10G",
+            "filesPerThread": 2,
+            "numThreads": 8,
+            "blockSize": "1M",
+            "readTypes": ["read"]
+          },
+          "bucket":"fio-10g-500-us-west1",
+          "_bucket_alt2":"fio-10g-500-us-central1"
+        },
+        {
+          "fioWorkload": {
+            "fileSize": "10G",
+            "filesPerThread": 1,
+            "numThreads": 96,
+            "blockSize": "1M",
+            "readTypes": ["read"]
+          },
+          "bucket":"fio-10g-500-us-west1",
+          "_bucket_alt2":"fio-10g-500-us-central1"
+        },
+        {
           "_description": "This is a dummy dlio workload (missing the 'dlioWorkload' field), purely standing as a header and does not execute any workload. For it to execute a dlio workload, it must have a valid 'dlioWorkload' object and a valid 'bucket' attribute.",
           "_dlioWorkload": {
             "_description": "Every dlioWorkload must have numFilesTrain, recordLength, and batchSizes fields. batchSizes is an array of integer values",
