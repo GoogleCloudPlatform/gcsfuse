@@ -412,12 +412,12 @@ function deleteAllPods() {
 
 function deployAllFioHelmCharts() {
   echo "Deploying all fio helm charts ..."
-  cd "${gke_testing_dir}"/examples/fio && python3 ./run_tests.py --workload-config ${gke_testing_dir}/examples/workloads.json --instance-id ${instance_id} && cd -
+  cd "${gke_testing_dir}"/examples/fio && python3 ./run_tests.py --workload-config "${gke_testing_dir}"/examples/workloads.json --instance-id ${instance_id} && cd -
 }
 
 function deployAllDlioHelmCharts() {
   echo "Deploying all dlio helm charts ..."
-  cd "${gke_testing_dir}"/examples/dlio && python3 ./run_tests.py --workload-config ${gke_testing_dir}/examples/workloads.json --instance-id ${instance_id} && cd -
+  cd "${gke_testing_dir}"/examples/dlio && python3 ./run_tests.py --workload-config "${gke_testing_dir}"/examples/workloads.json --instance-id ${instance_id} && cd -
 }
 
 function listAllHelmCharts() {
