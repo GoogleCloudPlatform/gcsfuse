@@ -22,97 +22,97 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestFsErrStrAndGroup(t *testing.T) {
+func TestFsErrStrAndType(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		fsErr          error
-		expectedErrStr string
-		expectedErrGrp string
+		fsErr           error
+		expectedErrStr  string
+		expectedErrType string
 	}{
 		{
-			fsErr:          fmt.Errorf("some random error"),
-			expectedErrStr: "input/output error",
-			expectedErrGrp: "input/output error",
+			fsErr:           fmt.Errorf("some random error"),
+			expectedErrStr:  "input/output error",
+			expectedErrType: "input/output error",
 		},
 		{
-			fsErr:          syscall.ENOTEMPTY,
-			expectedErrStr: "directory not empty",
-			expectedErrGrp: "directory not empty",
+			fsErr:           syscall.ENOTEMPTY,
+			expectedErrStr:  "directory not empty",
+			expectedErrType: "directory not empty",
 		},
 		{
-			fsErr:          syscall.EEXIST,
-			expectedErrStr: "file exists",
-			expectedErrGrp: "file exists",
+			fsErr:           syscall.EEXIST,
+			expectedErrStr:  "file exists",
+			expectedErrType: "file exists",
 		},
 		{
-			fsErr:          syscall.EINVAL,
-			expectedErrStr: "invalid argument",
-			expectedErrGrp: "invalid argument",
+			fsErr:           syscall.EINVAL,
+			expectedErrStr:  "invalid argument",
+			expectedErrType: "invalid argument",
 		},
 		{
-			fsErr:          syscall.EINTR,
-			expectedErrStr: "interrupted system call",
-			expectedErrGrp: "interrupt errors",
+			fsErr:           syscall.EINTR,
+			expectedErrStr:  "interrupted system call",
+			expectedErrType: "interrupt errors",
 		},
 		{
-			fsErr:          syscall.ENOSYS,
-			expectedErrStr: "function not implemented",
-			expectedErrGrp: "function not implemented",
+			fsErr:           syscall.ENOSYS,
+			expectedErrStr:  "function not implemented",
+			expectedErrType: "function not implemented",
 		},
 		{
-			fsErr:          syscall.ENOSPC,
-			expectedErrStr: "no space left on device",
-			expectedErrGrp: "process/resource management errors",
+			fsErr:           syscall.ENOSPC,
+			expectedErrStr:  "no space left on device",
+			expectedErrType: "process/resource management errors",
 		},
 		{
-			fsErr:          syscall.E2BIG,
-			expectedErrStr: "argument list too long",
-			expectedErrGrp: "invalid operation",
+			fsErr:           syscall.E2BIG,
+			expectedErrStr:  "argument list too long",
+			expectedErrType: "invalid operation",
 		},
 		{
-			fsErr:          syscall.EHOSTDOWN,
-			expectedErrStr: "host is down",
-			expectedErrGrp: "network errors",
+			fsErr:           syscall.EHOSTDOWN,
+			expectedErrStr:  "host is down",
+			expectedErrType: "network errors",
 		},
 		{
-			fsErr:          syscall.ENODATA,
-			expectedErrStr: "no data available",
-			expectedErrGrp: "miscellaneous errors",
+			fsErr:           syscall.ENODATA,
+			expectedErrStr:  "no data available",
+			expectedErrType: "miscellaneous errors",
 		},
 		{
-			fsErr:          syscall.ENODEV,
-			expectedErrStr: "no such device",
-			expectedErrGrp: "device errors",
+			fsErr:           syscall.ENODEV,
+			expectedErrStr:  "no such device",
+			expectedErrType: "device errors",
 		},
 		{
-			fsErr:          syscall.EISDIR,
-			expectedErrStr: "is a directory",
-			expectedErrGrp: "file/directory errors",
+			fsErr:           syscall.EISDIR,
+			expectedErrStr:  "is a directory",
+			expectedErrType: "file/directory errors",
 		},
 		{
-			fsErr:          syscall.ENOSYS,
-			expectedErrStr: "function not implemented",
-			expectedErrGrp: "function not implemented",
+			fsErr:           syscall.ENOSYS,
+			expectedErrStr:  "function not implemented",
+			expectedErrType: "function not implemented",
 		},
 		{
-			fsErr:          syscall.ENFILE,
-			expectedErrStr: "too many open files in system",
-			expectedErrGrp: "too many open files",
+			fsErr:           syscall.ENFILE,
+			expectedErrStr:  "too many open files in system",
+			expectedErrType: "too many open files",
 		},
 		{
-			fsErr:          syscall.EPERM,
-			expectedErrStr: "operation not permitted",
-			expectedErrGrp: "permission errors",
+			fsErr:           syscall.EPERM,
+			expectedErrStr:  "operation not permitted",
+			expectedErrType: "permission errors",
 		},
 	}
 
 	for idx, tc := range tests {
-		t.Run(fmt.Sprintf("fsErrStrAndGroup - case: %d", idx), func(t *testing.T) {
+		t.Run(fmt.Sprintf("fsErrStrAndType - case: %d", idx), func(t *testing.T) {
 			t.Parallel()
-			actualErrStr, actualErrGrp := fsErrStrAndGroup(tc.fsErr)
+			actualErrStr, actualErrGrp := fsErrStrAndType(tc.fsErr)
 
 			assert.Equal(t, tc.expectedErrStr, actualErrStr)
-			assert.Equal(t, tc.expectedErrGrp, actualErrGrp)
+			assert.Equal(t, tc.expectedErrType, actualErrGrp)
 		})
 	}
 }
