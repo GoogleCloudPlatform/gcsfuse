@@ -490,32 +490,6 @@ function waitTillAllPodsComplete() {
   done
 }
 
-function updateMachineTypeInPodConfigs() {
-  local file="${1}"
-  sed -i -E "s/nodeType: [0-9a-z_-]+$/nodeType: ${machine_type}/g" "${file}"
-}
-
-function updateGcsfuseMountOptionsInPodConfigs() {
-  local file="${1}"
-  sed -i -E "s/mountOptions:[ \t]*\"?[a-zA-Z0-9,:_-]+\"? *$/mountOptions: \"${gcsfuse_mount_options}\"/g" "${file}"
-}
-
-function updatePodConfigs() {
-  echo "Updating pod configs according to workloads ..."
-  for file in "${gke_testing_dir}"/examples/fio/loading-test/values.yaml "${gke_testing_dir}"/examples/dlio/unet3d-loading-test/values.yaml; do
-    test -f "${file}"
-    cp -fv "${file}" "${file}.bak"
-    updateMachineTypeInPodConfigs "${file}"
-    updateGcsfuseMountOptionsInPodConfigs "${file}"
-  done
-}
-
-function revertPodConfigsFilesAfterTestRuns() {
-  echo "Reverting pod configs according to workloads ..."
-  for file in "${gke_testing_dir}"/examples/fio/loading-test/values.yaml "${gke_testing_dir}"/examples/dlio/unet3d-loading-test/values.yaml; do
-    ! test -f "${file}.bak" || mv -v "${file}.bak" "${file}"
-  done
-}
 
 function fetchAndParseFioOutputs() {
   echo "Fetching and parsing fio outputs ..."
@@ -554,10 +528,8 @@ createCustomCsiDriverIfNeeded
 
 # Run latest workload configuration
 deleteAllPods
-updatePodConfigs
 deployAllFioHelmCharts
 deployAllDlioHelmCharts
-revertPodConfigsFilesAfterTestRuns
 
 # monitor pods
 listAllHelmCharts
