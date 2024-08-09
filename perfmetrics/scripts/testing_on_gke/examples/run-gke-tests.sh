@@ -47,9 +47,6 @@ readonly DEFAULT_GCSFUSE_MOUNT_OPTIONS="implicit-dirs"
 # Test runtime configuration
 readonly DEFAULT_POD_WAIT_TIME_IN_SECONDS=300
 
-readonly rebuildCustomCsiDriver=true
-readonly authChecks=true
-
 function printHelp() {
   echo "Usage guide: "
   echo "[ENV_OPTIONS] "${0}" [ARGS]"
@@ -158,12 +155,12 @@ function installDependencies() {
 
 # Ensure gcloud auth/config.
 # Make sure you have access to the necessary GCP resources. The easiest way to enable it is to use <your-ldap>@google.com as active auth (sample below).
-if ${authChecks}; then
+function ensureGcpAuthsAndConfig() {
   if ! $(gcloud auth list | grep -q ${USER}); then
     gcloud auth application-default login --no-launch-browser && (gcloud auth list | grep -q ${USER})
   fi
   gcloud config set project ${project_id} && gcloud config list
-fi
+}
 
 # Verify that the passed machine configuration parameters (machine-type, num-nodes, num-ssd) are compatible.
 function validateMachineConfig() {
@@ -588,6 +585,8 @@ function fetchAndParseDlioOutputs() {
 }
 
 printRunParameters
+ensureGcpAuthsAndConfig
+
 validateMachineConfig ${machine_type} ${num_nodes} ${num_ssd}
 installDependencies
 prepareCluster
