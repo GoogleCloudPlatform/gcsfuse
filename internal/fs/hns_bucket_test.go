@@ -98,7 +98,7 @@ func (t *HNSBucketTests) TestDeleteFolder() {
 
 	assert.NoError(t.T(), err)
 	_, err = os.Stat(dirPath)
-	assert.NotNil(t.T(), err)
+	assert.Error(t.T(), err)
 }
 
 func (t *HNSBucketTests) TestRenameFolderWithSrcDirectoryDoesNotExist() {
@@ -109,10 +109,10 @@ func (t *HNSBucketTests) TestRenameFolderWithSrcDirectoryDoesNotExist() {
 
 	assert.NotNil(t.T(), err)
 	_, err = os.Stat(newDirPath)
-	assert.NotNil(t.T(), err)
+	assert.Error(t.T(), err)
 }
 
-func (t *HNSBucketTests) TestRenameFolderWithDstDirectoryIsNotEmpty() {
+func (t *HNSBucketTests) TestRenameFolderWithDstDirectoryNotEmpty() {
 	oldDirPath := path.Join(mntDir, "foo")
 	_, err = os.Stat(oldDirPath)
 	assert.NoError(t.T(), err)
@@ -122,7 +122,7 @@ func (t *HNSBucketTests) TestRenameFolderWithDstDirectoryIsNotEmpty() {
 
 	err = os.Rename(oldDirPath, newDirPath)
 
-	assert.NotNil(t.T(), err)
+	assert.Error(t.T(), err)
 }
 
 func (t *HNSBucketTests) TestRenameFolderWithSameParent() {
@@ -162,7 +162,7 @@ func (t *HNSBucketTests) TestRenameFolderWithSameParent() {
 	}
 }
 
-func (t *HNSBucketTests) TestRenameFolderWithDifferentParent() {
+func (t *HNSBucketTests) TestRenameFolderWithDifferentParents() {
 	oldDirPath := path.Join(mntDir, "foo")
 	_, err = os.Stat(oldDirPath)
 	assert.NoError(t.T(), err)
