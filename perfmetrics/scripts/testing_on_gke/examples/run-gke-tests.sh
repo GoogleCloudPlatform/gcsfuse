@@ -345,10 +345,9 @@ function ensureGcsfuseCode() {
   echo "Ensuring we have gcsfuse code ..."
   # clone gcsfuse code if needed
   if ! test -d "${gcsfuse_src_dir}"; then
-    cd $(dirname "${gcsfuse_src_dir}") && git clone ${gcsfuse_github_path} && cd -
+    cd $(dirname "${gcsfuse_src_dir}") && git clone ${gcsfuse_github_path} && cd "${gcsfuse_src_dir}" && git switch ${gcsfuse_branch} && cd - && cd -
   fi
 
-  cd "${gcsfuse_src_dir}" && git switch ${gcsfuse_branch} && cd -
   test -d "${gke_testing_dir}" || (echo "${gke_testing_dir} does not exist" && exit 1)
 }
 
@@ -356,10 +355,8 @@ function ensureGcsFuseCsiDriverCode() {
   echo "Ensuring we have gcs-fuse-csi-driver code ..."
   # clone csi-driver code if needed
   if ! test -d "${csi_src_dir}"; then
-    cd $(dirname "${csi_src_dir}") && git clone ${csi_driver_github_path} && cd -
+    cd $(dirname "${csi_src_dir}") && git clone ${csi_driver_github_path} && cd "${csi_src_dir}" && git switch ${csi_driver_branch} && cd - && cd -
   fi
-
-  cd "${csi_src_dir}" && git switch ${csi_driver_branch} && cd -
 }
 
 function createCustomCsiDriverIfNeeded() {
