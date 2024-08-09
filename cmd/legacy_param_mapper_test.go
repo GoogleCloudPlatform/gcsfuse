@@ -251,6 +251,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 					MaxParallelDownloads:     6,
 					DownloadChunkSizeMB:      9,
 					EnableCRC:                true,
+					WriteBufferSize:          1024 * 1024,
 				},
 				CacheDir: "~/cache-dir",
 				MetadataCacheConfig: config.MetadataCacheConfig{
@@ -290,6 +291,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 					MaxParallelDownloads:     6,
 					DownloadChunkSizeMb:      9,
 					EnableCrc:                true,
+					WriteBufferSize:          1024 * 1024,
 				},
 				CacheDir: cfg.ResolvedPath(path.Join(os.Getenv("HOME"), "cache-dir")),
 				MetadataCache: cfg.MetadataCacheConfig{

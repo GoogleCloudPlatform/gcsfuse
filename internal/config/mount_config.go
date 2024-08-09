@@ -57,7 +57,7 @@ const (
 	DefaultEnableParallelDownloads  = false
 	DefaultDownloadChunkSizeMB      = 50
 	DefaultParallelDownloadsPerFile = 16
-	DefaultWriteBufferSize          = uint64(4 * util.MiB)
+	DefaultWriteBufferSize          = int64(4 * util.MiB)
 )
 
 type LogConfig struct {
@@ -101,14 +101,14 @@ type FileSystemConfig struct {
 }
 
 type FileCacheConfig struct {
-	MaxSizeMB                int64  `yaml:"max-size-mb"`
-	CacheFileForRangeRead    bool   `yaml:"cache-file-for-range-read"`
-	EnableParallelDownloads  bool   `yaml:"enable-parallel-downloads,omitempty"`
-	ParallelDownloadsPerFile int    `yaml:"parallel-downloads-per-file,omitempty"`
-	MaxParallelDownloads     int    `yaml:"max-parallel-downloads,omitempty"`
-	DownloadChunkSizeMB      int    `yaml:"download-chunk-size-mb,omitempty"`
-	EnableCRC                bool   `yaml:"enable-crc"`
-	WriteBufferSize          uint64 `yaml:"write-buffer-size,omitempty"`
+	MaxSizeMB                int64 `yaml:"max-size-mb"`
+	CacheFileForRangeRead    bool  `yaml:"cache-file-for-range-read"`
+	EnableParallelDownloads  bool  `yaml:"enable-parallel-downloads,omitempty"`
+	ParallelDownloadsPerFile int   `yaml:"parallel-downloads-per-file,omitempty"`
+	MaxParallelDownloads     int   `yaml:"max-parallel-downloads,omitempty"`
+	DownloadChunkSizeMB      int   `yaml:"download-chunk-size-mb,omitempty"`
+	EnableCRC                bool  `yaml:"enable-crc"`
+	WriteBufferSize          int64 `yaml:"write-buffer-size,omitempty"`
 }
 
 type MetadataCacheConfig struct {

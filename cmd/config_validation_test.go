@@ -59,7 +59,7 @@ func defaultFileCacheConfig(t *testing.T) cfg.FileCacheConfig {
 		MaxParallelDownloads:     int64(max(16, 2*runtime.NumCPU())),
 		MaxSizeMb:                -1,
 		ParallelDownloadsPerFile: 16,
-		WriteBufferSize:          2 * 1024 * 1024,
+		WriteBufferSize:          4 * 1024 * 1024,
 	}
 }
 
