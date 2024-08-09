@@ -113,7 +113,6 @@ def _get_values_to_export(dir, metrics, test_type):
   return metrics_data
 
 
-
 def _compute_metrics_from_time_of_operation(num_samples,results):
   """
    This function takes in a list containing the time of operation for num_samples

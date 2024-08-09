@@ -109,7 +109,6 @@ class TestRenamingBenchmark(unittest.TestCase):
     mock_unmount_gcs_bucket.assert_called_once_with(dir["name"], mock_log)
     mock_log.error.assert_not_called()  # No errors should be logged
 
-
   def test_compute_metrics_from_op_time(self):
     num_samples=2
     results=[1,1]
@@ -129,7 +128,6 @@ class TestRenamingBenchmark(unittest.TestCase):
     metrics=renaming_benchmark._compute_metrics_from_time_of_operation(num_samples,results)
 
     self.assertEqual(metrics,expected_metrics)
-
 
   def test_get_values_to_export(self):
     dir = {
@@ -166,7 +164,6 @@ class TestRenamingBenchmark(unittest.TestCase):
     values_to_export = renaming_benchmark._get_values_to_export(dir,metrics,test_type)
 
     self.assertEqual(values_to_export,expected_export_values)
-
 
   @patch('os.chdir')
   @patch('renaming_benchmark.log')
