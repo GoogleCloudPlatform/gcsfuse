@@ -175,7 +175,6 @@ spec:
       driver: gcsfuse.csi.storage.gke.io
       volumeAttributes:
         bucketName: {{ .Values.bucketName }}
-        gcsfuseLoggingSeverity: "info"
         mountOptions: "{{ .Values.gcsfuse.mountOptions }}"
   {{- else if eq .Values.scenario "gcsfuse-file-cache" }}
     csi:
