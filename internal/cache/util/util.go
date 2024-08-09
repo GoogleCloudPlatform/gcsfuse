@@ -227,32 +227,32 @@ func GetMemoryAlignedBuffer(bufferSize uint64, alignSize uint64) (buffer []byte,
 // written to dst writer is always in multiple of MinimumAlignSizeForWriting.
 // If contentSize is lesser than MinimumAlignSizeForWriting then extra null data
 // is written at the last.
-func CopyUsingMemoryAlignedBuffer(ctx context.Context, src io.Reader, dst io.Writer, contentSize, bufferSize uint64) (n int64, err error) {
-	var alignSize uint64 = MinimumAlignSizeForWriting
+func CopyUsingMemoryAlignedBuffer(ctx context.Context, src io.Reader, dst io.Writer, contentSize, bufferSize int64) (n int64, err error) {
+	var alignSize int64 = MinimumAlignSizeForWriting
 	if bufferSize < alignSize || ((bufferSize % alignSize) != 0) {
 		return 0, fmt.Errorf("buffer size (%v) should be a multiple of %v", bufferSize, alignSize)
 	}
 
-	calculateReqBufferSize := func(remainingContentSize uint64) uint64 {
+	calculateReqBufferSize := func(remainingContentSize int64) int64 {
 		numOfAlignSizeBlocks := math.Ceil(float64(min(bufferSize, remainingContentSize)) / float64(alignSize))
-		return uint64(numOfAlignSizeBlocks) * alignSize
+		return int64(numOfAlignSizeBlocks) * alignSize
 	}
 
 	reqBufferSize := calculateReqBufferSize(contentSize)
-	buffer, err := GetMemoryAlignedBuffer(reqBufferSize, alignSize)
+	buffer, err := GetMemoryAlignedBuffer(uint64(reqBufferSize), uint64(alignSize))
 
 	for {
 		select {
 		case <-ctx.Done():
 			return n, fmt.Errorf("copying cancelled: %w", ctx.Err())
 		default:
-			if n < int64(contentSize) {
-				remainingContentSize := contentSize - uint64(n)
+			if n < contentSize {
+				remainingContentSize := contentSize - n
 				reqBufferSize = calculateReqBufferSize(remainingContentSize)
 				buffer = buffer[:reqBufferSize]
 
 				readN, readErr := io.ReadFull(src, buffer)
-				expectedEOFError := uint64(len(buffer)) > remainingContentSize
+				expectedEOFError := int64(len(buffer)) > remainingContentSize
 
 				// Return error in case of ErrUnexpectedEOF only if it is not expected.
 				if readErr != nil && !errors.Is(readErr, io.EOF) && !(errors.Is(readErr, io.ErrUnexpectedEOF) && expectedEOFError) {
@@ -266,7 +266,7 @@ func CopyUsingMemoryAlignedBuffer(ctx context.Context, src io.Reader, dst io.Wri
 
 				// The last readN is smaller than writeN if file size is not multiple of
 				// MinimumAlignSizeForWriting.
-				if readN != writeN && !(expectedEOFError && (uint64(readN) == remainingContentSize)) {
+				if readN != writeN && !(expectedEOFError && (int64(readN) == remainingContentSize)) {
 					return n, fmt.Errorf("size of content read (%v) mismatch with content written (%v)", readN, writeN)
 				}
 

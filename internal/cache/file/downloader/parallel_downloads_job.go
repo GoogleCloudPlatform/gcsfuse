@@ -62,8 +62,8 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 
 	monitor.CaptureGCSReadMetrics(ctx, util.Parallel, end-start)
 
-	_, err = cacheutil.CopyUsingMemoryAlignedBuffer(ctx, newReader, dstWriter, uint64(end-start),
-		uint64(job.fileCacheConfig.WriteBufferSize))
+	_, err = cacheutil.CopyUsingMemoryAlignedBuffer(ctx, newReader, dstWriter, end-start,
+		job.fileCacheConfig.WriteBufferSize)
 	// If context is canceled while reading/writing in CopyUsingMemoryAlignedBuffer
 	// then it returns invalid argument error, and we need to report that error as
 	// context cancelled.
