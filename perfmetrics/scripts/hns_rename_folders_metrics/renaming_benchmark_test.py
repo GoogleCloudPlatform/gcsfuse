@@ -178,55 +178,5 @@ class TestRenamingBenchmark(unittest.TestCase):
     mock_log.error.assert_called_once_with('Empty spreadsheet id passed!')
 
 
-  def test_get_values_to_export(self):
-    dir = {
-        "name": "gcs_bucket",
-        "folders": {
-            "folder_structure": [
-                {
-                    'name': "test_folder1_0",
-                    "num_files": 1,
-                    "file_name_prefix": "file",
-                    "file_size": "1kb"
-                }
-            ]
-        }
-    }
-    metrics={
-        "test_folder1_0": {
-              'Number of samples':2,
-              'Mean':1.0,
-              'Median':1.0,
-              'Standard Dev':0,
-              'Min': 1.0,
-              'Max':1.0,
-              'Quantiles':{'0 %ile': 1.0, '20 %ile': 1.0, '50 %ile': 1.0,
-                           '90 %ile': 1.0, '95 %ile': 1.0, '98 %ile': 1.0,
-                           '99 %ile': 1.0, '99.5 %ile': 1.0, '99.9 %ile': 1.0,
-                           '100 %ile': 1.0}
-        }
-    }
-    test_type="flat"
-    expected_export_values=[['Renaming Operation','flat',1,1,2,1.0,1.0,0,1.0,1.0,
-                             1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0]]
-
-    values_to_export = renaming_benchmark._get_values_to_export(dir,metrics,test_type)
-
-    self.assertEqual(values_to_export,expected_export_values)
-
-
-  @patch('os.chdir')
-  @patch('renaming_benchmark.log')
-  def test_upload_to_gsheet_no_spreadsheet_id_passed(self,mock_log,mock_os):
-    worksheet='temp-worksheet'
-    data=['fake data']
-    spreadsheet_id=''
-
-    exit_code = renaming_benchmark._upload_to_gsheet(worksheet,data,spreadsheet_id)
-
-    self.assertEqual(exit_code,1)
-    mock_log.error.assert_called_once_with('Empty spreadsheet id passed!')
-
-
 if __name__ == '__main__':
   unittest.main()
