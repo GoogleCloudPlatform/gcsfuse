@@ -233,16 +233,13 @@ func CopyUsingMemoryAlignedBuffer(ctx context.Context, src io.Reader, dst io.Wri
 		return 0, fmt.Errorf("buffer size (%v) should be a multiple of %v", bufferSize, alignSize)
 	}
 
-	reqBufferSize := uint64(math.Ceil(float64(min(bufferSize, contentSize))/float64(alignSize))) * alignSize
+	calculateReqBufferSize := func(remainingContentSize uint64) uint64 {
+		numOfAlignSizeBlocks := math.Ceil(float64(min(bufferSize, remainingContentSize)) / float64(alignSize))
+		return uint64(numOfAlignSizeBlocks) * alignSize
+	}
+
+	reqBufferSize := calculateReqBufferSize(contentSize)
 	buffer, err := GetMemoryAlignedBuffer(reqBufferSize, alignSize)
-	// Try creating the memory aligned buffer two more times in case the first
-	// time faced any issue.
-	for try := 0; try < 2 && err != nil; try++ {
-		buffer, err = GetMemoryAlignedBuffer(reqBufferSize, alignSize)
-	}
-	if err != nil {
-		return n, fmt.Errorf("error while creating buffer: %w", err)
-	}
 
 	for {
 		select {
@@ -251,12 +248,13 @@ func CopyUsingMemoryAlignedBuffer(ctx context.Context, src io.Reader, dst io.Wri
 		default:
 			if n < int64(contentSize) {
 				remainingContentSize := contentSize - uint64(n)
-				reqBufferSize = uint64(math.Ceil(float64(min(bufferSize, remainingContentSize))/float64(alignSize))) * alignSize
+				reqBufferSize = calculateReqBufferSize(remainingContentSize)
 				buffer = buffer[:reqBufferSize]
 
 				readN, readErr := io.ReadFull(src, buffer)
 				expectedEOFError := uint64(len(buffer)) > remainingContentSize
 
+				// Return error in case of ErrUnexpectedEOF only if it is not expected.
 				if readErr != nil && !errors.Is(readErr, io.EOF) && !(errors.Is(readErr, io.ErrUnexpectedEOF) && expectedEOFError) {
 					return n, fmt.Errorf("error while reading to buffer: %w", readErr)
 				}
@@ -265,6 +263,9 @@ func CopyUsingMemoryAlignedBuffer(ctx context.Context, src io.Reader, dst io.Wri
 				if writeErr != nil {
 					return n, fmt.Errorf("error while writing from buffer: %w", writeErr)
 				}
+
+				// The last readN is smaller than writeN if file size is not multiple of
+				// MinimumAlignSizeForWriting.
 				if readN != writeN && !(expectedEOFError && (uint64(readN) == remainingContentSize)) {
 					return n, fmt.Errorf("size of content read (%v) mismatch with content written (%v)", readN, writeN)
 				}
