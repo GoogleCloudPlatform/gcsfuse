@@ -164,7 +164,7 @@ function ensureGcpAuthsAndConfig() {
 
 # Verify that the passed machine configuration parameters (machine-type, num-nodes, num-ssd) are compatible.
 function validateMachineConfig() {
-  echo "Validiting input parameters ..."
+  echo "Validating input machine configuration ..."
   local machine_type=${1}
   local num_nodes=${2}
   local num_ssd=${3}
@@ -181,37 +181,33 @@ function validateMachineConfig() {
   return 0
 }
 
-function NodePoolExists() {
+function doesNodePoolExist() {
   local cluster_name=${1}
   local zone=${2}
   local node_pool=${3}
-  if [ $(gcloud container node-pools list --cluster=${cluster_name} --zone=${zone} | grep -ow ${node_pool} | wc -l) -gt 0 ]; then
-    return 0
-  else
-    return 1
-  fi
+  gcloud container node-pools list --cluster=${cluster_name} --zone=${zone} | grep -owq ${node_pool}
 }
 
-function DeleteNodePool() {
+function deleteExistingNodePool() {
   local cluster_name=${1}
   local zone=${2}
   local node_pool=${3}
-  if NodePoolExists ${cluster_name} ${zone} ${node_pool}; then
+  if doesNodePoolExist ${cluster_name} ${zone} ${node_pool}; then
     gcloud -q container node-pools delete ${node_pool} --cluster ${cluster_name} --zone ${zone}
   fi
 }
 
-function ResizeNodePool() {
+function resizeExistingNodePool() {
   local cluster_name=${1}
   local zone=${2}
   local node_pool=${3}
   local num_nodes=${4}
-  if NodePoolExists ${cluster_name} ${zone} ${node_pool}; then
+  if doesNodePoolExist ${cluster_name} ${zone} ${node_pool}; then
     gcloud -q container clusters resize ${cluster_name} --node-pool=${node_pool} --num-nodes=${num_nodes} --zone ${zone}
   fi
 }
 
-function CreateNodePool() {
+function createNewNodePool() {
   local cluster_name=${1}
   local zone=${2}
   local node_pool=${3}
@@ -221,59 +217,59 @@ function CreateNodePool() {
   gcloud container node-pools create ${node_pool} --cluster ${cluster_name} --ephemeral-storage-local-ssd count=${num_ssd} --network-performance-configs=total-egress-bandwidth-tier=TIER_1 --machine-type ${machine_type} --zone ${zone} --num-nodes ${num_nodes} --workload-metadata=GKE_METADATA
 }
 
-function MachineTypeInCluster() {
+function getMachineTypeInNodePool() {
   local cluster=${1}
   local node_pool=${2}
   gcloud container node-pools describe --cluster=${cluster_name} ${node_pool} | grep -w 'machineType' | tr -s '\t' ' ' | rev | cut -d' ' -f1 | rev
 }
 
-function NumNodesInCluster() {
+function getNumNodesInNodePool() {
   local cluster=${1}
   local node_pool=${2}
   gcloud container node-pools describe --cluster=${cluster_name} ${node_pool} | grep -w 'initialNodeCount' | tr -s '\t' ' ' | rev | cut -d' ' -f1 | rev
 }
 
-function NumLocalSSDsInCluster() {
+function getNumLocalSSDsPerNodeInNodePool() {
   local cluster=${1}
   local node_pool=${2}
   gcloud container node-pools describe --cluster=${cluster_name} ${node_pool} | grep -w 'localSsdCount' | tr -s '\t' ' ' | rev | cut -d' ' -f1 | rev
 }
 
-function ClusterExists() {
+function doesClusterExist() {
   local cluster_name=${1}
   gcloud container clusters list | grep -woq ${cluster_name}
 }
 
 # Create and set up (or reconfigure) a GKE cluster.
-function prepareCluster() {
+function ensureGkeCluster() {
   echo "Creating/updating cluster ${cluster_name} ..."
-  if ClusterExists ${cluster_name}; then
+  if doesClusterExist ${cluster_name}; then
     gcloud container clusters update ${cluster_name} --location=${zone} --workload-pool=${project_id}.svc.id.goog
   else
     gcloud container --project "${project_id}" clusters create ${cluster_name} --zone "${zone}" --workload-pool=${project_id}.svc.id.goog --machine-type "${machine_type}" --image-type "COS_CONTAINERD" --num-nodes ${num_nodes} --ephemeral-storage-local-ssd count=${num_ssd}
   fi
 }
 
-function resizeNodePoolIfNeeded() {
+function ensureRequiredNodePoolConfiguration() {
   echo "Creating/updating node-pool ${node_pool} ..."
-  function createNodePool() { CreateNodePool ${cluster_name} ${zone} ${node_pool} ${machine_type} ${num_nodes} ${num_ssd}; }
-  function deleteNodePool() { DeleteNodePool ${cluster_name} ${zone} ${node_pool}; }
+  function createNodePool() { createNewNodePool ${cluster_name} ${zone} ${node_pool} ${machine_type} ${num_nodes} ${num_ssd}; }
+  function deleteNodePool() { deleteExistingNodePool ${cluster_name} ${zone} ${node_pool}; }
   function recreateNodePool() { deleteNodePool && createNodePool; }
 
-  if NodePoolExists ${cluster_name} ${zone} ${node_pool}; then
+  if doesNodePoolExist ${cluster_name} ${zone} ${node_pool}; then
 
-    existing_machine_type=$(MachineTypeInCluster ${cluster_name} ${node_pool}})
-    num_existing_SSDs=$(NumLocalSSDsInCluster ${cluster_name} ${node_pool})
-    num_existing_nodes=$(NumNodesInCluster ${cluster_name} ${node_pool})
+    existing_machine_type=$(getMachineTypeInNodePool ${cluster_name} ${node_pool}})
+    num_existing_localssd_per_node=$(getNumLocalSSDsPerNodeInNodePool ${cluster_name} ${node_pool})
+    num_existing_nodes=$(getNumNodesInNodePool ${cluster_name} ${node_pool})
 
     if [ "${existing_machine_type}" != "${machine_type}" ]; then
-      echo "cluster "${node_pool}" exists, but machine-type differs"
+      echo "cluster "${node_pool}" exists, but machine-type differs, so deleting and re-creating the node-pool."
       recreateNodePool
     elif [ ${num_existing_nodes} -ne ${num_nodes} ]; then
-      echo "cluster "${node_pool}" exists, but number of nodes differs"
-      ResizeNodePool ${cluster_name} ${zone} ${node_pool} ${num_nodes}
-    elif [ ${num_existing_SSDs} -ne ${num_ssd} ]; then
-      echo "cluster "${node_pool}" exists, but number of SSDs differs"
+      echo "cluster "${node_pool}" exists, but number of nodes differs, so resizing the node-pool."
+      resizeExistingNodePool ${cluster_name} ${zone} ${node_pool} ${num_nodes}
+    elif [ ${num_existing_localssd_per_node} -ne ${num_ssd} ]; then
+      echo "cluster "${node_pool}" exists, but number of SSDs differs, so deleting and re-creating the node-pool"
       recreateNodePool
     else
       echo "cluster "${node_pool}" already exists"
@@ -285,12 +281,10 @@ function resizeNodePoolIfNeeded() {
 
 function enableManagedCsiDriverIfNeeded() {
   echo "Enabling/disabling csi add-on ..."
-  # By default, disable the managed csi driver.
   if ${use_custom_csi_driver}; then
-    # gcloud -q container clusters update ${cluster_name} \
-    # --update-addons GcsFuseCsiDriver=DISABLED \
-    # --location=${zone}
-    echo ""
+    gcloud -q container clusters update ${cluster_name} \
+    --update-addons GcsFuseCsiDriver=DISABLED \
+    --location=${zone}
   else
     gcloud -q container clusters update ${cluster_name} \
       --update-addons GcsFuseCsiDriver=ENABLED \
@@ -298,34 +292,39 @@ function enableManagedCsiDriverIfNeeded() {
   fi
 }
 
-function dataLoaderBucketNames() {
-  local workloadConfigFileNames="$@"
-  for workloadFileName in "${workloadConfigFileNames}"; do
-    workloadConfigFilePath="$workloadFileName"
-    if test -f "${workloadConfigFilePath}"; then
-      grep -wh '\"bucket\"' "${workloadConfigFilePath}" | cut -d: -f2 | cut -d, -f1 | cut -d \" -f2 | sort | uniq | grep -v ' ' | sort | uniq
-    fi
-  done
-}
+# function dataLoaderBucketNames() {
+  # local workloadConfigFileNames="$@"
+  # for workloadFileName in "${workloadConfigFileNames}"; do
+    # workloadConfigFilePath="$workloadFileName"
+    # if test -f "${workloadConfigFilePath}"; then
+      # grep -wh '\"bucket\"' "${workloadConfigFilePath}" | cut -d: -f2 | cut -d, -f1 | cut -d \" -f2 | sort | uniq | grep -v ' ' | sort | uniq
+    # fi
+  # done
+# }
+# 
+# function fioDataLoaderBucketNames() {
+  # dataLoaderBucketNames "${gke_testing_dir}"/examples/workloads.json
+# }
+# 
+# function dlioDataLoaderBucketNames() {
+  # dataLoaderBucketNames "${gke_testing_dir}"/examples/workloads.json
+# }
 
-function fioDataLoaderBucketNames() {
-  dataLoaderBucketNames "${gke_testing_dir}"/examples/workloads.json
-}
-
-function dlioDataLoaderBucketNames() {
-  dataLoaderBucketNames "${gke_testing_dir}"/examples/workloads.json
-}
-
-function configureClusterCredentials() {
+function activateCluster() {
   echo "Configuring cluster credentials ..."
   gcloud container clusters get-credentials ${cluster_name} --location=${zone}
   kubectl config current-context
 }
 
-function createKSA() {
+function createKubernetesServiceAccountForCluster() {
   log="$(kubectl create namespace ${appnamespace} 2>&1)" || [[ "$log" == *"already exists"* ]]
   log="$(kubectl create serviceaccount ${ksa} --namespace ${appnamespace} 2>&1)" || [[ "$log" == *"already exists"* ]]
+  kubectl config set-context --current --namespace=${appnamespace}
+  # Validate it
+  kubectl config view --minify | grep namespace:
+}
 
+function addGCSAccessPermissions() {
   for workloadFileName in "${gke_testing_dir}"/examples/workloads.json; do
     if test -f "${workloadFileName}"; then
       grep -wh '\"bucket\"' "${workloadFileName}" | cut -d: -f2 | cut -d, -f1 | cut -d \" -f2 | sort | uniq | grep -v ' ' |
@@ -336,14 +335,9 @@ function createKSA() {
         done
     fi
   done
-
-  kubectl config set-context --current --namespace=${appnamespace}
-  # Validate it
-  kubectl config view --minify | grep namespace:
 }
 
-# set up gcsfuse code
-function fetchGcsfuseCode() {
+function ensureGcsfuseCode() {
   echo "Ensuring we have gcsfuse code ..."
   # clone gcsfuse code if needed
   if ! test -d "${gcsfuse_src_dir}"; then
@@ -354,8 +348,7 @@ function fetchGcsfuseCode() {
   test -d "${gke_testing_dir}" || (echo "${gke_testing_dir} does not exist" && exit 1)
 }
 
-# set up csi-driver code
-function fetchCsiDriverCode() {
+function ensureGcsFuseCsiDriverCode() {
   echo "Ensuring we have gcs-fuse-csi-driver code ..."
   # clone csi-driver code if needed
   if ! test -d "${csi_src_dir}"; then
@@ -406,8 +399,6 @@ function createCustomCsiDriverIfNeeded() {
 
 function deleteAllHelmCharts() {
   echo "Deleting all existing helm charts ..."
-  # delete all current helm charts
-  #
   helm ls | tr -s '\t' ' ' | cut -d' ' -f1 | tail -n +2 | while read helmchart; do helm uninstall ${helmchart}; done
 }
 
@@ -415,12 +406,6 @@ function deleteAllPods() {
   echo "Deleting all existing pods ..."
   kubectl get pods | tail -n +2 | cut -d' ' -f1 | while read podname; do kubectl delete pods/${podname} --grace-period=0 --force || true; done
 }
-
-# exitWithSuccess
-
-# # delete previous runs (no harm in running if no previous runs)
-# cd "${gke_testing_dir}"/examples/fio && python3 ./delete_tests.py && cd -
-# cd "${gke_testing_dir}"/examples/dlio && python3 ./delete_tests.py && cd -
 
 function deployAllFioHelmCharts() {
   echo "Deploying all fio helm charts ..."
@@ -589,13 +574,14 @@ ensureGcpAuthsAndConfig
 
 validateMachineConfig ${machine_type} ${num_nodes} ${num_ssd}
 installDependencies
-prepareCluster
-# resizeNodePoolIfNeed
+ensureGkeCluster
+# ensureRequiredNodePoolConfiguration
 enableManagedCsiDriverIfNeeded
-fetchGcsfuseCode
-fetchCsiDriverCode
-configureClusterCredentials
-createKSA
+ensureGcsfuseCode
+ensureGcsFuseCsiDriverCode
+activateCluster
+createKubernetesServiceAccountForCluster
+addGCSAccessPermissions
 createCustomCsiDriverIfNeeded
 updatePodConfigs
 deleteAllHelmCharts
