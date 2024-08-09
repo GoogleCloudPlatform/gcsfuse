@@ -42,6 +42,14 @@ var (
 	defaultLogger        *slog.Logger
 )
 
+// Logger exports the slog logger.
+// This allows one to use the full breadth of features provided by slog.
+//
+// TODO: export defaultLogger instead of using this function.
+func Logger() *slog.Logger {
+	return defaultLogger
+}
+
 // InitLogFile initializes the logger factory to create loggers that print to
 // a log file.
 // In case of empty file, it starts writing the log to syslog file, which

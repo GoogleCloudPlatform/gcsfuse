@@ -90,13 +90,9 @@ func getUserAgent(appName string, config string) string {
 }
 
 func logNewConfiguration(newConfig *cfg.Config) {
-	cfgStr, err := util.YAMLStringify(newConfig)
-	if err != nil {
-		logger.Warnf("failed to stringify configuration: %v", err)
-		return
-	}
-	logger.Infof("GCSFuse mount config: %s", cfgStr)
+	logger.Logger().Info("GCSFuse config", "config", newConfig)
 }
+
 func logLegacyConfiguration(flags *flagStorage, mountConfig *config.MountConfig) {
 	flagsStringified, err := util.JSONStringify(*flags)
 	if err != nil {

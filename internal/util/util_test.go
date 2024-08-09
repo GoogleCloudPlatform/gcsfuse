@@ -148,43 +148,6 @@ func (ts *UtilTest) ResolveWhenParentProcDirEnvSetAndAbsoluteFilePath() {
 	assert.Equal(ts.T(), "/var/dir/test.txt", resolvedPath)
 }
 
-func TestYAMLStringify(t *testing.T) {
-	tests := []struct {
-		name     string
-		obj      any
-		expected string
-	}{
-		{
-			name: "Test Map",
-			obj: map[string]int{
-				"1": 1,
-				"2": 2,
-				"3": 3,
-			},
-			expected: "\"1\": 1\n\"2\": 2\n\"3\": 3\n",
-		},
-		{
-			name: "Test Nested Map",
-			obj: map[string]any{
-				"1": 1,
-				"2": map[string]int{
-					"3": 1,
-				},
-			},
-			expected: "\"1\": 1\n\"2\":\n    \"3\": 1\n",
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			s, err := YAMLStringify(tc.obj)
-
-			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expected, s)
-			}
-		})
-	}
-}
 func (ts *UtilTest) TestStringifyShouldReturnAllFieldsPassedInCustomObjectAsMarshalledString() {
 	sampleMap := map[string]int{
 		"1": 1,
