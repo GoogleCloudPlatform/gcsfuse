@@ -1972,6 +1972,9 @@ func (fs *fileSystem) Rename(
 	}
 
 	if child.FullName.IsDir() {
+		if child.Bucket.BucketType() == gcs.Hierarchical {
+			return fs.renameFolder(ctx, oldParent, op.OldName, newParent, op.NewName)
+		}
 		return fs.renameDir(ctx, oldParent, op.OldName, newParent, op.NewName)
 	}
 	return fs.renameFile(ctx, oldParent, op.OldName, child.MinObject, newParent, op.NewName)
@@ -2056,6 +2059,58 @@ func (fs *fileSystem) checkDirNotEmpty(dir inode.BucketOwnedDirInode, name strin
 		return fuse.ENOTEMPTY
 	}
 	return nil
+}
+
+// Rename an old folder to a new folder in a hierarchical bucket. If the new folder already
+// exists and is non-empty, return ENOTEMPTY. If old directory have open files then return
+// ENOTSUP.
+//
+// LOCKS_EXCLUDED(fs.mu)
+// LOCKS_EXCLUDED(oldParent)
+// LOCKS_EXCLUDED(newParent)
+func (fs *fileSystem) renameFolder(ctx context.Context, oldParent inode.DirInode, oldName string, newParent inode.DirInode, newName string) (err error) {
+	// Set up a function that throws away the lookup count increment from
+	// lookUpOrCreateChildInode (since the pending inodes are not sent back to
+	// the kernel) and unlocks the pending inodes, but only once.
+	var pendingInodes []inode.DirInode
+	defer fs.releaseInodes(&pendingInodes)
+
+	oldDirInode, err := fs.getBucketDirInode(ctx, oldParent, oldName)
+	if err != nil {
+		return err
+	}
+	pendingInodes = append(pendingInodes, oldDirInode)
+
+	if err = fs.ensureNoOpenFilesInDirectory(oldDirInode, oldName); err != nil {
+		return err
+	}
+
+	newDirInode, err := fs.getBucketDirInode(ctx, newParent, newName)
+	if err == nil {
+		// If the directory exists, then check if it is empty or not.
+		if err = fs.checkDirNotEmpty(newDirInode, newName); err != nil {
+			return err
+		}
+		pendingInodes = append(pendingInodes, newDirInode)
+	}
+
+	oldDirName := inode.NewDirName(oldParent.Name(), oldName)
+	newDirName := inode.NewDirName(newParent.Name(), newName)
+	oldParent.Lock()
+	defer oldParent.Unlock()
+
+	if newParent != oldParent {
+		newParent.Lock()
+		defer newParent.Unlock()
+	}
+
+	// Rename old directory to the new directory, keeping both parent directories locked.
+	_, err = oldParent.RenameFolder(ctx, oldDirName.GcsObjectName(), newDirName.GcsObjectName())
+	if err != nil {
+		return fmt.Errorf("failed to rename folder: %w", err)
+	}
+
+	return
 }
 
 // Rename an old directory to a new directory. If the new directory already

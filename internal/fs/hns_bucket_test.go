@@ -17,6 +17,7 @@ package fs_test
 import (
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
@@ -59,7 +60,7 @@ func (t *HNSBucketTests) SetupTest() {
 	require.NoError(t.T(), err)
 }
 
-func (t *HNSBucketTests) TearDown() {
+func (t *HNSBucketTests) TearDownTest() {
 	t.fsTest.TearDown()
 }
 
@@ -98,5 +99,107 @@ func (t *HNSBucketTests) TestDeleteFolder() {
 
 	assert.NoError(t.T(), err)
 	_, err = os.Stat(dirPath)
-	assert.NotNil(t.T(), err)
+	assert.Error(t.T(), err)
+}
+
+func (t *HNSBucketTests) TestRenameFolderWithSrcDirectoryDoesNotExist() {
+	oldDirPath := path.Join(mntDir, "foo_not_exist")
+	newDirPath := path.Join(mntDir, "foo_rename")
+
+	err = os.Rename(oldDirPath, newDirPath)
+
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+	_, err = os.Stat(newDirPath)
+	assert.Error(t.T(), err)
+}
+
+func (t *HNSBucketTests) TestRenameFolderWithDstDirectoryNotEmpty() {
+	oldDirPath := path.Join(mntDir, "foo")
+	_, err = os.Stat(oldDirPath)
+	assert.NoError(t.T(), err)
+	newDirPath := path.Join(mntDir, "bar")
+	_, err = os.Stat(newDirPath)
+	assert.NoError(t.T(), err)
+
+	err = os.Rename(oldDirPath, newDirPath)
+
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "file exists"))
+}
+
+func (t *HNSBucketTests) TestRenameFolderWithSameParent() {
+	oldDirPath := path.Join(mntDir, "foo")
+	_, err = os.Stat(oldDirPath)
+	assert.NoError(t.T(), err)
+	newDirPath := path.Join(mntDir, "foo_rename")
+
+	err = os.Rename(oldDirPath, newDirPath)
+
+	assert.NoError(t.T(), err)
+	_, err = os.Stat(oldDirPath)
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+	_, err = os.Stat(newDirPath)
+	assert.NoError(t.T(), err)
+	dirEntries, err := os.ReadDir(newDirPath)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 5, len(dirEntries))
+	for i := 0; i < 5; i++ {
+		switch dirEntries[i].Name() {
+		case "test":
+			assert.Equal(t.T(), "test", dirEntries[i].Name())
+			assert.True(t.T(), dirEntries[i].IsDir())
+		case "test2":
+			assert.Equal(t.T(), "test2", dirEntries[i].Name())
+			assert.True(t.T(), dirEntries[i].IsDir())
+		case "file1.txt":
+			assert.Equal(t.T(), "file1.txt", dirEntries[i].Name())
+			assert.False(t.T(), dirEntries[i].IsDir())
+		case "file2.txt":
+			assert.Equal(t.T(), "file2.txt", dirEntries[i].Name())
+			assert.False(t.T(), dirEntries[i].IsDir())
+		case "implicit_dir":
+			assert.Equal(t.T(), "implicit_dir", dirEntries[i].Name())
+			assert.True(t.T(), dirEntries[i].IsDir())
+		}
+	}
+}
+
+func (t *HNSBucketTests) TestRenameFolderWithDifferentParents() {
+	oldDirPath := path.Join(mntDir, "foo")
+	_, err = os.Stat(oldDirPath)
+	assert.NoError(t.T(), err)
+	newDirPath := path.Join(mntDir, "bar", "foo_rename")
+
+	err = os.Rename(oldDirPath, newDirPath)
+
+	assert.NoError(t.T(), err)
+	_, err = os.Stat(oldDirPath)
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+	_, err = os.Stat(newDirPath)
+	assert.NoError(t.T(), err)
+	dirEntries, err := os.ReadDir(newDirPath)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 5, len(dirEntries))
+	for i := 0; i < len(dirEntries); i++ {
+		switch dirEntries[i].Name() {
+		case "test":
+			assert.Equal(t.T(), "test", dirEntries[i].Name())
+			assert.True(t.T(), dirEntries[i].IsDir())
+		case "test2":
+			assert.Equal(t.T(), "test2", dirEntries[i].Name())
+			assert.True(t.T(), dirEntries[i].IsDir())
+		case "file1.txt":
+			assert.Equal(t.T(), "file1.txt", dirEntries[i].Name())
+			assert.False(t.T(), dirEntries[i].IsDir())
+		case "file2.txt":
+			assert.Equal(t.T(), "file2.txt", dirEntries[i].Name())
+			assert.False(t.T(), dirEntries[i].IsDir())
+		case "implicit_dir":
+			assert.Equal(t.T(), "implicit_dir", dirEntries[i].Name())
+			assert.True(t.T(), dirEntries[i].IsDir())
+		}
+	}
 }
