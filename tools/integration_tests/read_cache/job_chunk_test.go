@@ -17,7 +17,6 @@ package read_cache
 import (
 	"context"
 	"log"
-	"math"
 	"path"
 	"sync"
 	"testing"
@@ -39,11 +38,10 @@ import (
 ////////////////////////////////////////////////////////////////////////
 
 type jobChunkTest struct {
-	flags                           []string
-	storageClient                   *storage.Client
-	ctx                             context.Context
-	chunkSize                       int64
-	isLimitedByMaxParallelDownloads bool
+	flags         []string
+	storageClient *storage.Client
+	ctx           context.Context
+	chunkSize     int64
 }
 
 func (s *jobChunkTest) Setup(t *testing.T) {
@@ -83,7 +81,6 @@ func createConfigFileForJobChunkTest(cacheSize int64, cacheFileForRangeRead bool
 
 func (s *jobChunkTest) TestJobChunkSizeForSingleFileReads(t *testing.T) {
 	var fileSize int64 = 24 * util.MiB
-	chunkCount := math.Ceil(float64(fileSize) / float64(s.chunkSize))
 	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 
 	expectedOutcome := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, false, t)
@@ -92,16 +89,23 @@ func (s *jobChunkTest) TestJobChunkSizeForSingleFileReads(t *testing.T) {
 	structuredJobLogs := read_logs.GetJobLogsSortedByTimestamp(setup.LogFile(), t)
 	assert.Equal(t, expectedOutcome.BucketName, structuredJobLogs[0].BucketName)
 	assert.Equal(t, expectedOutcome.ObjectName, structuredJobLogs[0].ObjectName)
-	require.EqualValues(t, chunkCount, len(structuredJobLogs[0].JobEntries))
-	for i := 0; int64(i) < int64(chunkCount); i++ {
-		offset := min(s.chunkSize*int64(i+1), fileSize)
-		assert.Equal(t, offset, structuredJobLogs[0].JobEntries[i].Offset)
+
+	// We need to check that downloadedOffset is always greater than the previous downloadedOffset
+	// and is in multiples of chunkSize.
+	for i := 1; i < len(structuredJobLogs[0].JobEntries); i++ {
+		offsetDiff := structuredJobLogs[0].JobEntries[i].Offset - structuredJobLogs[0].JobEntries[i-1].Offset
+		assert.Greater(t, offsetDiff, int64(0))
+		// This is true for all entries except last one.
+		// Will be true for last entry only if the fileSize is multiple of chunkSize.
+		assert.Equal(t, int64(0), offsetDiff%s.chunkSize)
 	}
+
+	// Validate that last downloadedOffset is same as fileSize.
+	assert.Equal(t, fileSize, structuredJobLogs[0].JobEntries[len(structuredJobLogs[0].JobEntries)-1].Offset)
 }
 
 func (s *jobChunkTest) TestJobChunkSizeForMultipleFileReads(t *testing.T) {
 	var fileSize int64 = 24 * util.MiB
-	chunkCount := fileSize / s.chunkSize
 	var testFileNames [2]string
 	var expectedOutcome [2]*Expected
 	testFileNames[0] = setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
@@ -129,22 +133,24 @@ func (s *jobChunkTest) TestJobChunkSizeForMultipleFileReads(t *testing.T) {
 		expectedOutcome[0], expectedOutcome[1] = expectedOutcome[1], expectedOutcome[0]
 		testFileNames[0], testFileNames[1] = testFileNames[1], testFileNames[0]
 	}
-	assert.Equal(t, expectedOutcome[0].BucketName, structuredJobLogs[0].BucketName)
-	assert.Equal(t, expectedOutcome[1].BucketName, structuredJobLogs[1].BucketName)
-	assert.Equal(t, expectedOutcome[0].ObjectName, structuredJobLogs[0].ObjectName)
-	assert.Equal(t, expectedOutcome[1].ObjectName, structuredJobLogs[1].ObjectName)
-	if s.isLimitedByMaxParallelDownloads {
-		require.LessOrEqual(t, chunkCount, int64(len(structuredJobLogs[0].JobEntries)))
-		for i := 0; int64(i) < int64(len(structuredJobLogs[0].JobEntries)); i++ {
-			offset := min(s.chunkSize*int64(i+1), fileSize)
-			assert.GreaterOrEqual(t, offset, structuredJobLogs[0].JobEntries[i].Offset)
+
+	for fileIndex := 0; fileIndex < 2; fileIndex++ {
+		assert.Equal(t, expectedOutcome[fileIndex].BucketName, structuredJobLogs[fileIndex].BucketName)
+		assert.Equal(t, expectedOutcome[fileIndex].ObjectName, structuredJobLogs[fileIndex].ObjectName)
+
+		// We need to check that downloadedOffset is always greater than the previous downloadedOffset
+		// and is in multiples of chunkSize.
+		entriesLen := len(structuredJobLogs[fileIndex].JobEntries)
+		for entryIndex := 1; entryIndex < entriesLen; entryIndex++ {
+			offsetDiff := structuredJobLogs[fileIndex].JobEntries[entryIndex].Offset - structuredJobLogs[fileIndex].JobEntries[entryIndex-1].Offset
+			assert.Greater(t, offsetDiff, int64(0))
+			// This is true for all entries except last one.
+			// Will be true for last entry only if the fileSize is multiple of chunkSize.
+			assert.Equal(t, int64(0), offsetDiff%s.chunkSize)
 		}
-	} else {
-		require.EqualValues(t, chunkCount, len(structuredJobLogs[0].JobEntries))
-		for i := 0; int64(i) < chunkCount; i++ {
-			offset := min(s.chunkSize*int64(i+1), fileSize)
-			assert.Equal(t, offset, structuredJobLogs[0].JobEntries[i].Offset)
-		}
+
+		// Validate that last downloadedOffset is same as fileSize.
+		assert.Equal(t, fileSize, structuredJobLogs[fileIndex].JobEntries[entriesLen-1].Offset)
 	}
 }
 
@@ -182,7 +188,7 @@ func TestJobChunkTest(t *testing.T) {
 	// with unlimited max parallel downloads.
 	ts.flags = []string{"--config-file=" +
 		createConfigFileForJobChunkTest(cacheSizeMB, false, "unlimitedMaxParallelDownloads", parallelDownloadsPerFile, maxParallelDownloads, downloadChunkSizeMB)}
-	ts.chunkSize = parallelDownloadsPerFile * downloadChunkSizeMB * util.MiB
+	ts.chunkSize = downloadChunkSizeMB * util.MiB
 	log.Printf("Running tests with flags: %s", ts.flags)
 	test_setup.RunTests(t, ts)
 
@@ -193,7 +199,7 @@ func TestJobChunkTest(t *testing.T) {
 	downloadChunkSizeMB := 3
 	ts.flags = []string{"--config-file=" +
 		createConfigFileForJobChunkTest(cacheSizeMB, false, "limitedMaxParallelDownloadsNotEffectingChunkSize", parallelDownloadsPerFile, maxParallelDownloads, downloadChunkSizeMB)}
-	ts.chunkSize = int64(parallelDownloadsPerFile) * int64(downloadChunkSizeMB) * util.MiB
+	ts.chunkSize = int64(downloadChunkSizeMB) * util.MiB
 	log.Printf("Running tests with flags: %s", ts.flags)
 	test_setup.RunTests(t, ts)
 
@@ -204,8 +210,7 @@ func TestJobChunkTest(t *testing.T) {
 	downloadChunkSizeMB = 3
 	ts.flags = []string{"--config-file=" +
 		createConfigFileForJobChunkTest(cacheSizeMB, false, "limitedMaxParallelDownloadsEffectingChunkSize", parallelDownloadsPerFile, maxParallelDownloads, downloadChunkSizeMB)}
-	ts.chunkSize = int64(maxParallelDownloads+1) * int64(downloadChunkSizeMB) * util.MiB
-	ts.isLimitedByMaxParallelDownloads = true
+	ts.chunkSize = int64(downloadChunkSizeMB) * util.MiB
 	log.Printf("Running tests with flags: %s", ts.flags)
 	test_setup.RunTests(t, ts)
 

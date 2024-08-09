@@ -63,8 +63,8 @@ func (dt *parallelDownloaderTest) Test_downloadRange() {
 	file, err := util.CreateFile(data.FileSpec{Path: dt.job.fileSpec.Path,
 		FilePerm: os.FileMode(0600), DirPerm: os.FileMode(0700)}, os.O_TRUNC|os.O_RDWR)
 	AssertEq(nil, err)
-	verifyContentAtOffset := func(file *os.File, start, end int64) {
-		_, err = file.Seek(start, 0)
+	verifyContentAtOffset := func(file *os.File, start, end uint64) {
+		_, err = file.Seek(int64(start), 0)
 		AssertEq(nil, err)
 		buf := make([]byte, end-start)
 		_, err = file.Read(buf)
@@ -74,29 +74,29 @@ func (dt *parallelDownloaderTest) Test_downloadRange() {
 	}
 
 	// Download end 1MiB of object
-	start, end := int64(9*util.MiB), int64(10*util.MiB)
-	offsetWriter := io.NewOffsetWriter(file, start)
+	start, end := uint64(9*util.MiB), uint64(10*util.MiB)
+	offsetWriter := io.NewOffsetWriter(file, int64(start))
 	err = dt.job.downloadRange(context.Background(), offsetWriter, start, end)
 	AssertEq(nil, err)
 	verifyContentAtOffset(file, start, end)
 
 	// Download start 4MiB of object
-	start, end = int64(0*util.MiB), int64(4*util.MiB)
-	offsetWriter = io.NewOffsetWriter(file, start)
+	start, end = uint64(0*util.MiB), uint64(4*util.MiB)
+	offsetWriter = io.NewOffsetWriter(file, int64(start))
 	err = dt.job.downloadRange(context.Background(), offsetWriter, start, end)
 	AssertEq(nil, err)
 	verifyContentAtOffset(file, start, end)
 
 	// Download middle 1B of object
-	start, end = int64(5*util.MiB), int64(5*util.MiB+1)
-	offsetWriter = io.NewOffsetWriter(file, start)
+	start, end = uint64(5*util.MiB), uint64(5*util.MiB+1)
+	offsetWriter = io.NewOffsetWriter(file, int64(start))
 	err = dt.job.downloadRange(context.Background(), offsetWriter, start, end)
 	AssertEq(nil, err)
 	verifyContentAtOffset(file, start, end)
 
 	// Download 0B of object
-	start, end = int64(5*util.MiB), int64(5*util.MiB)
-	offsetWriter = io.NewOffsetWriter(file, start)
+	start, end = uint64(5*util.MiB), uint64(5*util.MiB)
+	offsetWriter = io.NewOffsetWriter(file, int64(start))
 	err = dt.job.downloadRange(context.Background(), offsetWriter, start, end)
 	AssertEq(nil, err)
 	verifyContentAtOffset(file, start, end)
@@ -151,4 +151,83 @@ func (dt *parallelDownloaderTest) Test_parallelDownloadObjectToFile_CtxCancelled
 	err = dt.job.parallelDownloadObjectToFile(file)
 
 	AssertTrue(errors.Is(err, context.Canceled), fmt.Sprintf("didn't get context canceled error: %v", err))
+}
+
+func (dt *parallelDownloaderTest) Test_updateRangeMap_withNoEntries() {
+	rangeMap := make(map[uint64]uint64)
+
+	err := dt.job.updateRangeMap(rangeMap, 0, 10)
+
+	AssertEq(nil, err)
+	AssertEq(2, len(rangeMap))
+	AssertEq(10, rangeMap[0])
+	AssertEq(0, rangeMap[10])
+}
+
+func (dt *parallelDownloaderTest) Test_updateRangeMap_withInputContinuousWithEndOffset() {
+	rangeMap := make(map[uint64]uint64)
+	rangeMap[0] = 2
+	rangeMap[2] = 0
+	rangeMap[4] = 6
+	rangeMap[6] = 4
+
+	err := dt.job.updateRangeMap(rangeMap, 6, 8)
+
+	AssertEq(nil, err)
+	AssertEq(4, len(rangeMap))
+	AssertEq(2, rangeMap[0])
+	AssertEq(0, rangeMap[2])
+	AssertEq(8, rangeMap[4])
+	AssertEq(4, rangeMap[8])
+}
+
+func (dt *parallelDownloaderTest) Test_updateRangeMap_withInputContinuousWithStartOffset() {
+	rangeMap := make(map[uint64]uint64)
+	rangeMap[2] = 4
+	rangeMap[4] = 2
+	rangeMap[8] = 10
+	rangeMap[10] = 8
+
+	err := dt.job.updateRangeMap(rangeMap, 0, 2)
+
+	AssertEq(nil, err)
+	AssertEq(4, len(rangeMap))
+	AssertEq(4, rangeMap[0])
+	AssertEq(0, rangeMap[4])
+	AssertEq(10, rangeMap[8])
+	AssertEq(8, rangeMap[10])
+}
+
+func (dt *parallelDownloaderTest) Test_updateRangeMap_withInputFillingTheMissingRange() {
+	rangeMap := make(map[uint64]uint64)
+	rangeMap[0] = 4
+	rangeMap[4] = 0
+	rangeMap[6] = 8
+	rangeMap[8] = 6
+
+	err := dt.job.updateRangeMap(rangeMap, 4, 6)
+
+	AssertEq(nil, err)
+	AssertEq(2, len(rangeMap))
+	AssertEq(8, rangeMap[0])
+	AssertEq(0, rangeMap[8])
+}
+
+func (dt *parallelDownloaderTest) Test_updateRangeMap_withInputNotOverlappingWithAnyRanges() {
+	rangeMap := make(map[uint64]uint64)
+	rangeMap[0] = 4
+	rangeMap[4] = 0
+	rangeMap[12] = 14
+	rangeMap[14] = 12
+
+	err := dt.job.updateRangeMap(rangeMap, 8, 10)
+
+	AssertEq(nil, err)
+	AssertEq(6, len(rangeMap))
+	AssertEq(0, rangeMap[4])
+	AssertEq(4, rangeMap[0])
+	AssertEq(8, rangeMap[10])
+	AssertEq(10, rangeMap[8])
+	AssertEq(12, rangeMap[14])
+	AssertEq(14, rangeMap[12])
 }
