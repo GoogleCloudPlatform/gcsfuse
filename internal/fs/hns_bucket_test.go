@@ -59,7 +59,7 @@ func (t *HNSBucketTests) SetupTest() {
 	require.NoError(t.T(), err)
 }
 
-func (t *HNSBucketTests) TearDown() {
+func (t *HNSBucketTests) TearDownTest() {
 	t.fsTest.TearDown()
 }
 
@@ -103,7 +103,7 @@ func (t *HNSBucketTests) TestDeleteFolder() {
 
 func (t *HNSBucketTests) TestRenameFolderWithSrcDoesNotExist() {
 	oldDirPath := path.Join(mntDir, "foo_not_exist")
-	newDirPath := path.Join(mntDir, "foo_rename_2")
+	newDirPath := path.Join(mntDir, "foo_rename")
 
 	err = os.Rename(oldDirPath, newDirPath)
 
@@ -138,13 +138,35 @@ func (t *HNSBucketTests) TestRenameFolderWithSameParent() {
 	assert.NotNil(t.T(), err)
 	_, err = os.Stat(newDirPath)
 	assert.NoError(t.T(), err)
+	dirEntries, err := os.ReadDir(newDirPath)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 5, len(dirEntries))
+	for i := 0; i < 5; i++ {
+		switch dirEntries[i].Name() {
+		case "test":
+			assert.Equal(t.T(), "test", dirEntries[i].Name())
+			assert.True(t.T(), dirEntries[i].IsDir())
+		case "test2":
+			assert.Equal(t.T(), "test2", dirEntries[i].Name())
+			assert.True(t.T(), dirEntries[i].IsDir())
+		case "file1.txt":
+			assert.Equal(t.T(), "file1.txt", dirEntries[i].Name())
+			assert.False(t.T(), dirEntries[i].IsDir())
+		case "file2.txt":
+			assert.Equal(t.T(), "file2.txt", dirEntries[i].Name())
+			assert.False(t.T(), dirEntries[i].IsDir())
+		case "implicit_dir":
+			assert.Equal(t.T(), "implicit_dir", dirEntries[i].Name())
+			assert.True(t.T(), dirEntries[i].IsDir())
+		}
+	}
 }
 
 func (t *HNSBucketTests) TestRenameFolderWithDifferentParent() {
-	oldDirPath := path.Join(mntDir, "foo", "test")
+	oldDirPath := path.Join(mntDir, "foo")
 	_, err = os.Stat(oldDirPath)
 	assert.NoError(t.T(), err)
-	newDirPath := path.Join(mntDir, "bar", "test_rename")
+	newDirPath := path.Join(mntDir, "bar", "foo_rename")
 
 	err = os.Rename(oldDirPath, newDirPath)
 
@@ -153,4 +175,26 @@ func (t *HNSBucketTests) TestRenameFolderWithDifferentParent() {
 	assert.NotNil(t.T(), err)
 	_, err = os.Stat(newDirPath)
 	assert.NoError(t.T(), err)
+	dirEntries, err := os.ReadDir(newDirPath)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 5, len(dirEntries))
+	for i := 0; i < len(dirEntries); i++ {
+		switch dirEntries[i].Name() {
+		case "test":
+			assert.Equal(t.T(), "test", dirEntries[i].Name())
+			assert.True(t.T(), dirEntries[i].IsDir())
+		case "test2":
+			assert.Equal(t.T(), "test2", dirEntries[i].Name())
+			assert.True(t.T(), dirEntries[i].IsDir())
+		case "file1.txt":
+			assert.Equal(t.T(), "file1.txt", dirEntries[i].Name())
+			assert.False(t.T(), dirEntries[i].IsDir())
+		case "file2.txt":
+			assert.Equal(t.T(), "file2.txt", dirEntries[i].Name())
+			assert.False(t.T(), dirEntries[i].IsDir())
+		case "implicit_dir":
+			assert.Equal(t.T(), "implicit_dir", dirEntries[i].Name())
+			assert.True(t.T(), dirEntries[i].IsDir())
+		}
+	}
 }
