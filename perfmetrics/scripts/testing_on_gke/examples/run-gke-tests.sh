@@ -301,11 +301,11 @@ function enableManagedCsiDriverIfNeeded() {
     # fi
   # done
 # }
-# 
+#
 # function fioDataLoaderBucketNames() {
   # dataLoaderBucketNames "${gke_testing_dir}"/examples/workloads.json
 # }
-# 
+#
 # function dlioDataLoaderBucketNames() {
   # dataLoaderBucketNames "${gke_testing_dir}"/examples/workloads.json
 # }
@@ -403,6 +403,8 @@ function deleteAllHelmCharts() {
 }
 
 function deleteAllPods() {
+  deleteAllHelmCharts
+
   echo "Deleting all existing pods ..."
   kubectl get pods | tail -n +2 | cut -d' ' -f1 | while read podname; do kubectl delete pods/${podname} --grace-period=0 --force || true; done
 }
@@ -417,39 +419,27 @@ function deployAllDlioHelmCharts() {
   cd "${gke_testing_dir}"/examples/dlio && python3 ./run_tests.py && cd -
 }
 
-function waitForSomeTime() {
-  local max_seconds_to_wait=${1}
-  local num_steps_to_wait=${2}
-  local step_seconds_to_wait=$((max_seconds_to_wait / num_steps_to_wait))
-  declare -i num_seconds_passed=0
-  while [ ${num_seconds_passed} -lt ${max_seconds_to_wait} ]; do
-    echo "Completed "${num_seconds_passed}"/"${max_seconds_to_wait}" seconds"
-    sleep ${step_seconds_to_wait}
-    num_seconds_passed=$((num_seconds_passed + step_seconds_to_wait))
-  done
-}
-
 function listAllHelmCharts() {
   echo "Listing all helm charts ..."
   # monitor and debug pods
   helm ls | tr -s '\t' | cut -f1,5,6
+
+  # Sample output.
+  # NAME STATUS CHART \
+  # fio-loading-test-100m-randread-gcsfuse-file-cache deployed fio-loading-test-0.1.0
+  # gke-dlio-unet3d-100kb-500k-128-gcsfuse-file-cache deployed unet3d-loading-test-0.1.0
 }
 
-# Sample output.
-# NAME STATUS CHART \
-# fio-loading-test-100m-randread-gcsfuse-file-cache deployed fio-loading-test-0.1.0
-# gke-dlio-unet3d-100kb-500k-128-gcsfuse-file-cache deployed unet3d-loading-test-0.1.0
-
-function listAllPods() {
-  echo "Listing all pods ..."
-  kubectl get pods –-namespace=${appnamespace} || true
-  kubectl get pods
-}
-
-# Another useful command to list all your pods, which keep updating the live-status in the output.
-# kubectl get pods --watch --namespace=${appnamespace} || true
-# kubectl get pods --watch
-# kubectl exec -it --stdin pods/${podname} --namespace=${appnamespace} -- /bin/bash
+# function listAllPods() {
+  # echo "Listing all pods ..."
+  # kubectl get pods –-namespace=${appnamespace} || true
+  # kubectl get pods
+  #
+  # # Another useful command to list all your pods, which keep updating the live-status in the output.
+  # # kubectl get pods --watch --namespace=${appnamespace} || true
+  # # kubectl get pods --watch
+  # # kubectl exec -it --stdin pods/${podname} --namespace=${appnamespace} -- /bin/bash
+# }
 
 function waitTillPodsCompleteOrFail() {
   echo "Scanning and waiting till all pods complete or one of them fails ..."
@@ -506,57 +496,59 @@ function revertPodConfigsFilesAfterTestRuns() {
   done
 }
 
-function printOutputFioFilesList() {
-  echo ""
-  # echo "fio data-loader outputs:"
-  fioDataLoaderBucketNames | while read bucket; do
-    echo "${bucket}:"
-    gcloud storage ls -l gs://${bucket}/fio-output/*/* | (grep -e 'json\|gcsfuse_mount_options' || true)
-  done
-}
+# function printOutputFioFilesList() {
+  # echo ""
+  # fioDataLoaderBucketNames | while read bucket; do
+    # echo "${bucket}:"
+    # gcloud storage ls -l gs://${bucket}/fio-output/*/* | (grep -e 'json\|gcsfuse_mount_options' || true)
+  # done
+# }
+#
+# function printOutputDlioFilesList() {
+  # echo ""
+  # dlioDataLoaderBucketNames | while read bucket; do
+    # echo "${bucket}:"
+    # gcloud storage ls -l gs://${bucket}/logs/*/*/* | (grep -e 'summary\.json\|per_epoch_stats\.json\|gcsfuse_mount_options' || true)
+  # done
+# }
 
-function printOutputDlioFilesList() {
-  echo ""
-  # echo "dlio data-loader outputs:"
-  dlioDataLoaderBucketNames | while read bucket; do
-    echo "${bucket}:"
-    gcloud storage ls -l gs://${bucket}/logs/*/*/* | (grep -e 'summary\.json\|per_epoch_stats\.json\|gcsfuse_mount_options' || true)
-  done
-}
-
-function archiveFioOutputs() {
-  echo "Archiving existing fio outputs ..."
-  fioDataLoaderBucketNames | while read bucket; do
-    log="$(gsutil -mq mv -r gs://${bucket}/fio-output/* gs://${bucket}/old-fio-output/ 2>&1)" || ([[ "${log}" == *"No URLs matched"* ]] && echo "ignored error: ${log}")
-  done
-
-  # cd "${gke_testing_dir}"/examples/fio
-  mkdir -pv "${gke_testing_dir}"/bin/fio-logs "${gke_testing_dir}"/bin/old-fio-logs # backup to avoid failing the next commands
-  # log="$(rsync -avz --ignore-existing "${gke_testing_dir}"/bin/fio-logs/* "${gke_testing_dir}"/bin/old-fio-logs/ 2>&1)" || ( [[ "${log}" == *"some files/attributes were not transferred"* ]] && echo "ignored error: ${log}")
-  rm -rfv "${gke_testing_dir}"/bin/old-fio-logs/*
-  mv -v "${gke_testing_dir}"/bin/fio-logs/* "${gke_testing_dir}"/bin/old-fio-logs/ || true
+# function archiveFioOutputs() {
+  # echo "Archiving existing fio outputs ..."
+  # fioDataLoaderBucketNames | while read bucket; do
+    # log="$(gsutil -mq mv -r gs://${bucket}/fio-output/* gs://${bucket}/old-fio-output/ 2>&1)" || ([[ "${log}" == *"No URLs matched"* ]] && echo "ignored error: ${log}")
+  # done
+#
+  # # cd "${gke_testing_dir}"/examples/fio
+  # mkdir -pv "${gke_testing_dir}"/bin/fio-logs "${gke_testing_dir}"/bin/old-fio-logs # backup to avoid failing the next commands
+  # # log="$(rsync -avz --ignore-existing "${gke_testing_dir}"/bin/fio-logs/* "${gke_testing_dir}"/bin/old-fio-logs/ 2>&1)" || ( [[ "${log}" == *"some files/attributes were not transferred"* ]] && echo "ignored error: ${log}")
+  # rm -rfv "${gke_testing_dir}"/bin/old-fio-logs/*
+  # mv -v "${gke_testing_dir}"/bin/fio-logs/* "${gke_testing_dir}"/bin/old-fio-logs/ || true
+  # # cd -
+# }
+#
+# function archiveDlioOutputs() {
+  # echo "Archiving existing dlio outputs ..."
+  # dlioDataLoaderBucketNames | while read bucket; do
+    # log="$(gsutil -mq mv -r gs://${bucket}/logs/* gs://${bucket}/old-logs/ 2>&1)" || ([[ "${log}" == *"No URLs matched"* ]] && echo "ignored error: ${log}")
+  # done
+#
+  # # cd "${gke_testing_dir}"/examples/dlio
+  # mkdir -pv "${gke_testing_dir}"/bin/dlio-logs "${gke_testing_dir}"/bin/old-dlio-logs/ # backup to avoid failing the next commands
+  # # log="$(rsync -avz --ignore-existing "${gke_testing_dir}"/bin/dlio-logs/* "${gke_testing_dir}"/bin/old-dlio-logs/ 2>&1)" || ( [[ "${log}" == *"some files/attributes were not transferred"* ]] && echo "ignored error: ${log}")
+  # rm -rfv "${gke_testing_dir}"/bin/old-dlio-logs/*
+  # mv -v "${gke_testing_dir}"/bin/dlio-logs/* "${gke_testing_dir}"/bin/old-dlio-logs/ || true
+#
   # cd -
-}
+# }
 
-function archiveDlioOutputs() {
-  echo "Archiving existing dlio outputs ..."
-  dlioDataLoaderBucketNames | while read bucket; do
-    log="$(gsutil -mq mv -r gs://${bucket}/logs/* gs://${bucket}/old-logs/ 2>&1)" || ([[ "${log}" == *"No URLs matched"* ]] && echo "ignored error: ${log}")
-  done
-
-  # cd "${gke_testing_dir}"/examples/dlio
-  mkdir -pv "${gke_testing_dir}"/bin/dlio-logs "${gke_testing_dir}"/bin/old-dlio-logs/ # backup to avoid failing the next commands
-  # log="$(rsync -avz --ignore-existing "${gke_testing_dir}"/bin/dlio-logs/* "${gke_testing_dir}"/bin/old-dlio-logs/ 2>&1)" || ( [[ "${log}" == *"some files/attributes were not transferred"* ]] && echo "ignored error: ${log}")
-  rm -rfv "${gke_testing_dir}"/bin/old-dlio-logs/*
-  mv -v "${gke_testing_dir}"/bin/dlio-logs/* "${gke_testing_dir}"/bin/old-dlio-logs/ || true
-
-  # cd -
-}
+# function archiveExistingOutputFiles() {
+  # archiveFioOutputs
+  # archiveDlioOutputs
+# }
 
 function fetchAndParseFioOutputs() {
   echo "Fetching and parsing fio outputs ..."
   cd "${gke_testing_dir}"/examples/fio
-  # rm -rfv ../../bin/fio-logs/*
   python3 parse_logs.py --project-number=${project_number} --workload-config="${gke_testing_dir}"/examples/workloads.json
   cd -
 }
@@ -564,40 +556,49 @@ function fetchAndParseFioOutputs() {
 function fetchAndParseDlioOutputs() {
   echo "Fetching and parsing dlio outputs ..."
   cd "${gke_testing_dir}"/examples/dlio
-  # rm -rfv ../../bin/dlio-logs/*
   python3 parse_logs.py --project-number=${project_number} --workload-config="${gke_testing_dir}"/examples/workloads.json
   cd -
 }
 
+# prep
 printRunParameters
-ensureGcpAuthsAndConfig
-
 validateMachineConfig ${machine_type} ${num_nodes} ${num_ssd}
 installDependencies
+
+# GCP configuration
+ensureGcpAuthsAndConfig
 ensureGkeCluster
 # ensureRequiredNodePoolConfiguration
 enableManagedCsiDriverIfNeeded
-ensureGcsfuseCode
-ensureGcsFuseCsiDriverCode
 activateCluster
 createKubernetesServiceAccountForCluster
+
+# GCSFuse/CSI driver source code
+ensureGcsfuseCode
+ensureGcsFuseCsiDriverCode
+
+# GCP/GKE configuration dependent on GCSFuse/CSI driver source code
 addGCSAccessPermissions
 createCustomCsiDriverIfNeeded
-updatePodConfigs
-deleteAllHelmCharts
+
+# Run latest workload configuration
 deleteAllPods
-archiveFioOutputs
-archiveDlioOutputs
+# archiveExistingOutputFiles
+updatePodConfigs
 deployAllFioHelmCharts
 deployAllDlioHelmCharts
 revertPodConfigsFilesAfterTestRuns
+
+# monitor pods
 listAllHelmCharts
 waitTillPodsCompleteOrFail
+
+# clean-up after run
 deleteAllPods
 deleteAllHelmCharts
-printOutputFioFilesList
-printOutputDlioFilesList
+# printOutputFioFilesList
+# printOutputDlioFilesList
 fetchAndParseFioOutputs
 fetchAndParseDlioOutputs
-archiveFioOutputs
-archiveDlioOutputs
+# archiveFioOutputs
+# archiveDlioOutputs
