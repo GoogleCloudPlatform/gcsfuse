@@ -2107,7 +2107,7 @@ func (fs *fileSystem) renameFolder(ctx context.Context, oldParent inode.DirInode
 	// Rename old directory to the new directory, keeping both parent directories locked.
 	_, err = oldParent.RenameFolder(ctx, oldDirName.GcsObjectName(), newDirName.GcsObjectName())
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to rename folder: %w", err)
 	}
 
 	fs.releaseInodes(&pendingInodes)

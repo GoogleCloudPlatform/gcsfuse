@@ -994,7 +994,7 @@ func (d *dirInode) ShouldInvalidateKernelListCache(ttl time.Duration) bool {
 func (d *dirInode) RenameFolder(ctx context.Context, folderName string, destinationFolderName string) (*gcs.Folder, error) {
 	folder, err := d.bucket.RenameFolder(ctx, folderName, destinationFolderName)
 	if err != nil {
-		return nil, fmt.Errorf("RenameFolder: %w", err)
+		return nil, err
 	}
 
 	// TODO: Cache updates won't be necessary once type cache usage is removed from HNS.
