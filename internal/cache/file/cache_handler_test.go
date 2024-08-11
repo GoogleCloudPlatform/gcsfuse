@@ -199,8 +199,14 @@ func Test_cleanUpEvictedFile(t *testing.T) {
 		},
 		{
 			name: "Parallel downloads",
-			fileCacheConfig: cfg.FileCacheConfig{EnableCrc: true, EnableParallelDownloads: true,
-				ParallelDownloadsPerFile: 4, MaxParallelDownloads: 20, DownloadChunkSizeMb: 3, WriteBufferSize: 4 * 1024 * 1024},
+			fileCacheConfig: cfg.FileCacheConfig{
+				EnableCrc:                true,
+				EnableParallelDownloads:  true,
+				ParallelDownloadsPerFile: 4,
+				MaxParallelDownloads:     20,
+				DownloadChunkSizeMb:      3,
+				WriteBufferSize:          4 * 1024 * 1024,
+			},
 			cacheDir: path.Join(os.Getenv("HOME"), "CacheHandlerTest/dir"),
 		},
 	}
@@ -473,8 +479,14 @@ func Test_GetCacheHandle_WithEviction(t *testing.T) {
 		},
 		{
 			name: "Parallel downloads",
-			fileCacheConfig: cfg.FileCacheConfig{EnableCrc: true, EnableParallelDownloads: true,
-				ParallelDownloadsPerFile: 4, MaxParallelDownloads: 20, DownloadChunkSizeMb: 3, WriteBufferSize: 4 * 1024 * 1024},
+			fileCacheConfig: cfg.FileCacheConfig{
+				EnableCrc:                true,
+				EnableParallelDownloads:  true,
+				ParallelDownloadsPerFile: 4,
+				MaxParallelDownloads:     20,
+				DownloadChunkSizeMb:      3,
+				WriteBufferSize:          4 * 1024 * 1024,
+			},
 			cacheDir: path.Join(os.Getenv("HOME"), "CacheHandlerTest/dir"),
 		},
 	}
@@ -532,8 +544,14 @@ func Test_GetCacheHandle_CacheForRangeRead(t *testing.T) {
 		},
 		{
 			name: "Parallel downloads",
-			fileCacheConfig: cfg.FileCacheConfig{EnableCrc: true, EnableParallelDownloads: true,
-				ParallelDownloadsPerFile: 4, MaxParallelDownloads: 20, DownloadChunkSizeMb: 3, WriteBufferSize: 4 * 1024 * 1024},
+			fileCacheConfig: cfg.FileCacheConfig{
+				EnableCrc:                true,
+				EnableParallelDownloads:  true,
+				ParallelDownloadsPerFile: 4,
+				MaxParallelDownloads:     20,
+				DownloadChunkSizeMb:      3,
+				WriteBufferSize:          4 * 1024 * 1024,
+			},
 			cacheDir: path.Join(os.Getenv("HOME"), "CacheHandlerTest/dir"),
 		},
 	}
@@ -574,8 +592,14 @@ func Test_GetCacheHandle_ConcurrentSameFile(t *testing.T) {
 		},
 		{
 			name: "Parallel downloads",
-			fileCacheConfig: cfg.FileCacheConfig{EnableCrc: true, EnableParallelDownloads: true,
-				ParallelDownloadsPerFile: 1, MaxParallelDownloads: 20, DownloadChunkSizeMb: 3, WriteBufferSize: 4 * 1024 * 1024},
+			fileCacheConfig: cfg.FileCacheConfig{
+				EnableCrc:                true,
+				EnableParallelDownloads:  true,
+				ParallelDownloadsPerFile: 1,
+				MaxParallelDownloads:     20,
+				DownloadChunkSizeMb:      3,
+				WriteBufferSize:          4 * 1024 * 1024,
+			},
 			cacheDir: path.Join(os.Getenv("HOME"), "CacheHandlerTest/dir"),
 		},
 	}
@@ -699,8 +723,14 @@ func Test_InvalidateCache_Truncates(t *testing.T) {
 		},
 		{
 			name: "Parallel downloads",
-			fileCacheConfig: cfg.FileCacheConfig{EnableCrc: true, EnableParallelDownloads: true,
-				ParallelDownloadsPerFile: 4, MaxParallelDownloads: 20, DownloadChunkSizeMb: 3, WriteBufferSize: 4 * 1024 * 1024},
+			fileCacheConfig: cfg.FileCacheConfig{
+				EnableCrc:                true,
+				EnableParallelDownloads:  true,
+				ParallelDownloadsPerFile: 4,
+				MaxParallelDownloads:     20,
+				DownloadChunkSizeMb:      3,
+				WriteBufferSize:          4 * 1024 * 1024,
+			},
 			cacheDir: path.Join(os.Getenv("HOME"), "CacheHandlerTest/dir"),
 			// Error is expected in parallel downloads because the foreground reads
 			// doesn't wait for async job to download till the requested offset unlike
@@ -769,8 +799,14 @@ func Test_InvalidateCache_ConcurrentSameFile(t *testing.T) {
 		},
 		{
 			name: "Parallel downloads",
-			fileCacheConfig: cfg.FileCacheConfig{EnableCrc: true, EnableParallelDownloads: true,
-				ParallelDownloadsPerFile: 1, MaxParallelDownloads: 20, DownloadChunkSizeMb: 3, WriteBufferSize: 4 * 1024 * 1024},
+			fileCacheConfig: cfg.FileCacheConfig{
+				EnableCrc:                true,
+				EnableParallelDownloads:  true,
+				ParallelDownloadsPerFile: 1,
+				MaxParallelDownloads:     20,
+				DownloadChunkSizeMb:      3,
+				WriteBufferSize:          4 * 1024 * 1024,
+			},
 			cacheDir: path.Join(os.Getenv("HOME"), "CacheHandlerTest/dir"),
 		},
 	}
@@ -817,8 +853,14 @@ func Test_InvalidateCache_ConcurrentDifferentFiles(t *testing.T) {
 		},
 		{
 			name: "Parallel downloads",
-			fileCacheConfig: cfg.FileCacheConfig{EnableCrc: true, EnableParallelDownloads: true,
-				ParallelDownloadsPerFile: 1, MaxParallelDownloads: 20, DownloadChunkSizeMb: 3, WriteBufferSize: 4 * 1024 * 1024},
+			fileCacheConfig: cfg.FileCacheConfig{
+				EnableCrc:                true,
+				EnableParallelDownloads:  true,
+				ParallelDownloadsPerFile: 1,
+				MaxParallelDownloads:     20,
+				DownloadChunkSizeMb:      3,
+				WriteBufferSize:          4 * 1024 * 1024,
+			},
 			cacheDir: path.Join(os.Getenv("HOME"), "CacheHandlerTest/dir"),
 		},
 	}
@@ -862,8 +904,14 @@ func Test_InvalidateCache_GetCacheHandle_Concurrent(t *testing.T) {
 		},
 		{
 			name: "Parallel downloads",
-			fileCacheConfig: cfg.FileCacheConfig{EnableCrc: true, EnableParallelDownloads: true,
-				ParallelDownloadsPerFile: 1, MaxParallelDownloads: 20, DownloadChunkSizeMb: 3, WriteBufferSize: 4 * 1024 * 1024},
+			fileCacheConfig: cfg.FileCacheConfig{
+				EnableCrc:                true,
+				EnableParallelDownloads:  true,
+				ParallelDownloadsPerFile: 1,
+				MaxParallelDownloads:     20,
+				DownloadChunkSizeMb:      3,
+				WriteBufferSize:          4 * 1024 * 1024,
+			},
 			cacheDir: path.Join(os.Getenv("HOME"), "CacheHandlerTest/dir"),
 		},
 	}
@@ -923,8 +971,14 @@ func Test_Destroy(t *testing.T) {
 		},
 		{
 			name: "Parallel downloads",
-			fileCacheConfig: cfg.FileCacheConfig{EnableCrc: true, EnableParallelDownloads: true,
-				ParallelDownloadsPerFile: 4, MaxParallelDownloads: 20, DownloadChunkSizeMb: 3, WriteBufferSize: 4 * 1024 * 1024},
+			fileCacheConfig: cfg.FileCacheConfig{
+				EnableCrc:                true,
+				EnableParallelDownloads:  true,
+				ParallelDownloadsPerFile: 4,
+				MaxParallelDownloads:     20,
+				DownloadChunkSizeMb:      3,
+				WriteBufferSize:          4 * 1024 * 1024,
+			},
 			cacheDir: path.Join(os.Getenv("HOME"), "CacheHandlerTest/dir"),
 			// Error is expected in parallel downloads because the foreground reads
 			// doesn't wait for async job to download till the requested offset unlike
