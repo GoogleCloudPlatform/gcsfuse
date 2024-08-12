@@ -38,8 +38,7 @@ func Rationalize(c *Config) error {
 		return err
 	}
 
-	c.GcsAuth.TokenUrl, err = decodeURL(c.GcsAuth.TokenUrl)
-	if err != nil {
+	if c.GcsAuth.TokenUrl, err = decodeURL(c.GcsAuth.TokenUrl); err != nil {
 		return err
 	}
 
