@@ -479,7 +479,7 @@
   config-path: "file-cache.write-buffer-size"
   type: "int"
   usage: "Size of in-memory buffer that is used per goroutine in parallel downloads while writing to file-cache."
-  default: "4194304"
+  default: "4194304" # 4MiB
   hide-flag: true
 
 - flag-name: "cache-dir"

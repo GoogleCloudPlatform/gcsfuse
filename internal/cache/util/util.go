@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
-	"math"
 	"os"
 	"path"
 	"path/filepath"
@@ -234,8 +233,13 @@ func CopyUsingMemoryAlignedBuffer(ctx context.Context, src io.Reader, dst io.Wri
 	}
 
 	calculateReqBufferSize := func(remainingContentSize int64) int64 {
-		numOfAlignSizeBlocks := math.Ceil(float64(min(bufferSize, remainingContentSize)) / float64(alignSize))
-		return int64(numOfAlignSizeBlocks) * alignSize
+		reqBufferSize := min(bufferSize, remainingContentSize)
+		roundOffVal := alignSize - reqBufferSize%alignSize
+		// Only add roundOffVal if reqBufferSize is not multiple of alignSize
+		if roundOffVal != alignSize {
+			reqBufferSize = reqBufferSize + roundOffVal
+		}
+		return reqBufferSize
 	}
 
 	reqBufferSize := calculateReqBufferSize(contentSize)
