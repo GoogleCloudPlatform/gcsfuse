@@ -1,0 +1,93 @@
+{
+  "name": "hns-rename-benchmark-hns" ,
+  "folders" : {
+    "num_folders": 3,
+    "folder_structure" : [
+      {
+        "name": "1k_files_rename_test_0" ,
+        "num_files": 1000 ,
+        "file_name_prefix": "file" ,
+        "file_size": "1kb"
+      },
+      {
+        "name": "5k_files_rename_test_0" ,
+        "num_files": 5000 ,
+        "file_name_prefix": "file" ,
+        "file_size": "1kb"
+      },
+      {
+        "name": "10k_files_rename_test_0" ,
+        "num_files": 10000 ,
+        "file_name_prefix": "file" ,
+        "file_size": "1kb"
+      }
+    ]
+  },
+  "nested_folders": {
+    "folder_name": "nested_folder_rename_test",
+    "num_folders": 10,
+    "folder_structure" :  [
+      {
+        "name": "nested_folder_1_0" ,
+        "num_files": 1000 ,
+        "file_name_prefix": "file" ,
+        "file_size": "1kb"
+      },
+      {
+        "name": "nested_folder_2_0" ,
+        "num_files": 1000 ,
+        "file_name_prefix": "file" ,
+        "file_size": "1kb"
+      },
+      {
+        "name": "nested_folder_3_0" ,
+        "num_files": 1000 ,
+        "file_name_prefix": "file" ,
+        "file_size": "1kb"
+      },
+      {
+        "name": "nested_folder_4_0" ,
+        "num_files": 1000 ,
+        "file_name_prefix": "file" ,
+        "file_size": "1kb"
+      },
+      {
+        "name": "nested_folder_5_0" ,
+        "num_files": 1000 ,
+        "file_name_prefix": "file" ,
+        "file_size": "1kb"
+      },
+      {
+        "name": "nested_folder_6_0" ,
+        "num_files": 1000 ,
+        "file_name_prefix": "file" ,
+        "file_size": "1kb"
+      },
+      {
+        "name": "nested_folder_7_0" ,
+        "num_files": 1000 ,
+        "file_name_prefix": "file" ,
+        "file_size": "1kb"
+      },
+      {
+        "name": "nested_folder_8_0" ,
+        "num_files": 1000 ,
+        "file_name_prefix": "file" ,
+        "file_size": "1kb"
+      },
+      {
+        "name": "nested_folder_9_0" ,
+        "num_files": 1000 ,
+        "file_name_prefix": "file" ,
+        "file_size": "1kb"
+      },
+      {
+        "name": "nested_folder_10_0" ,
+        "num_files": 1000 ,
+        "file_name_prefix": "file" ,
+        "file_size": "1kb"
+      }
+    ]
+
+  }
+}
