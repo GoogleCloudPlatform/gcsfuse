@@ -97,9 +97,15 @@ func TestMain(m *testing.M) {
 
 	// Set up flags to run tests on.
 	// Not setting config file explicitly with 'create-empty-file: false' as it is default.
-	flagsSet := [][]string{
-		{"--implicit-dirs=true", "--rename-dir-limit=3"},
-		{"--implicit-dirs=false", "--rename-dir-limit=3"}}
+	//flagsSet := [][]string{
+	//	{"--implicit-dirs=true", "--rename-dir-limit=3"},
+	//	{"--implicit-dirs=false", "--rename-dir-limit=3"}}
+
+	var flagsSet [][]string
+
+	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
+		flagsSet = append(flagsSet, hnsFlagSet)
+	}
 
 	if !testing.Short() {
 		setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--client-protocol=grpc")
