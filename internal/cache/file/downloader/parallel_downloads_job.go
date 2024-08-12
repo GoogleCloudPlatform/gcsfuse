@@ -105,11 +105,11 @@ func (job *Job) updateRangeMap(rangeMap map[int64]int64, offsetStart int64, offs
 	rangeMap[finalEnd] = finalStart
 
 	if finalStart == 0 {
-		updateErr := job.updateStatusOffset(finalEnd)
-		if updateErr != nil {
+		if updateErr := job.updateStatusOffset(finalEnd); updateErr != nil {
 			return updateErr
 		}
 	}
+
 	return nil
 }
 
