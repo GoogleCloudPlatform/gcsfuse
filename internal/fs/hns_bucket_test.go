@@ -32,6 +32,19 @@ type HNSBucketTests struct {
 	fsTest
 }
 
+type DirEntry struct {
+	name  string
+	isDir bool
+}
+
+var expectedFooDirEntries = []DirEntry{
+	{name: "test", isDir: true},
+	{name: "test2", isDir: true},
+	{name: "file1.txt", isDir: false},
+	{name: "file2.txt", isDir: false},
+	{name: "implicit_dir", isDir: true},
+}
+
 func TestHNSBucketTests(t *testing.T) { suite.Run(t, new(HNSBucketTests)) }
 
 func (t *HNSBucketTests) SetupSuite() {
@@ -71,25 +84,14 @@ func (t *HNSBucketTests) TestReadDir() {
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), 5, len(dirEntries))
-	for i := 0; i < 5; i++ {
-		switch dirEntries[i].Name() {
-		case "test":
-			assert.Equal(t.T(), "test", dirEntries[i].Name())
-			assert.True(t.T(), dirEntries[i].IsDir())
-		case "test2":
-			assert.Equal(t.T(), "test2", dirEntries[i].Name())
-			assert.True(t.T(), dirEntries[i].IsDir())
-		case "file1.txt":
-			assert.Equal(t.T(), "file1.txt", dirEntries[i].Name())
-			assert.False(t.T(), dirEntries[i].IsDir())
-		case "file2.txt":
-			assert.Equal(t.T(), "file2.txt", dirEntries[i].Name())
-			assert.False(t.T(), dirEntries[i].IsDir())
-		case "implicit_dir":
-			assert.Equal(t.T(), "implicit_dir", dirEntries[i].Name())
-			assert.True(t.T(), dirEntries[i].IsDir())
-		}
+	actualDirEntries := []DirEntry{}
+	for _, dirEntry := range dirEntries {
+		actualDirEntries = append(actualDirEntries, DirEntry{
+			name:  dirEntry.Name(),
+			isDir: dirEntry.IsDir(),
+		})
 	}
+	assert.ElementsMatch(t.T(), actualDirEntries, expectedFooDirEntries)
 }
 
 func (t *HNSBucketTests) TestDeleteFolder() {
@@ -146,19 +148,7 @@ func (t *HNSBucketTests) TestRenameFolderWithSourceDirectoryHaveOpenFiles() {
 	assert.True(t.T(), strings.Contains(err.Error(), "operation not supported"))
 }
 
-type DirEntry struct {
-	name  string
-	isDir bool
-}
-
 func (t *HNSBucketTests) TestRenameFolderWithSameParent() {
-	expectedDirEntries := []DirEntry{
-		{name: "test", isDir: true},
-		{name: "test2", isDir: true},
-		{name: "file1.txt", isDir: false},
-		{name: "file2.txt", isDir: false},
-		{name: "implicit_dir", isDir: true},
-	}
 	oldDirPath := path.Join(mntDir, "foo")
 	_, err = os.Stat(oldDirPath)
 	assert.NoError(t.T(), err)
@@ -182,17 +172,10 @@ func (t *HNSBucketTests) TestRenameFolderWithSameParent() {
 			isDir: dirEntry.IsDir(),
 		})
 	}
-	assert.ElementsMatch(t.T(), actualDirEntries, expectedDirEntries)
+	assert.ElementsMatch(t.T(), actualDirEntries, expectedFooDirEntries)
 }
 
 func (t *HNSBucketTests) TestRenameFolderWithDifferentParents() {
-	expectedDirEntries := []DirEntry{
-		{name: "test", isDir: true},
-		{name: "test2", isDir: true},
-		{name: "file1.txt", isDir: false},
-		{name: "file2.txt", isDir: false},
-		{name: "implicit_dir", isDir: true},
-	}
 	oldDirPath := path.Join(mntDir, "foo")
 	_, err = os.Stat(oldDirPath)
 	assert.NoError(t.T(), err)
@@ -216,5 +199,5 @@ func (t *HNSBucketTests) TestRenameFolderWithDifferentParents() {
 			isDir: dirEntry.IsDir(),
 		})
 	}
-	assert.ElementsMatch(t.T(), actualDirEntries, expectedDirEntries)
+	assert.ElementsMatch(t.T(), actualDirEntries, expectedFooDirEntries)
 }
