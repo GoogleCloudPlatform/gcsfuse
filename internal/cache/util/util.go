@@ -240,6 +240,9 @@ func CopyUsingMemoryAlignedBuffer(ctx context.Context, src io.Reader, dst io.Wri
 
 	reqBufferSize := calculateReqBufferSize(contentSize)
 	buffer, err := GetMemoryAlignedBuffer(uint64(reqBufferSize), uint64(alignSize))
+	if err != nil {
+		return 0, fmt.Errorf("error in creating memory aligned buffer %w", err)
+	}
 
 	for {
 		select {
