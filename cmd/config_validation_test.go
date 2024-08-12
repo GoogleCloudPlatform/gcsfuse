@@ -19,7 +19,6 @@ import (
 	"os"
 	"path"
 	"runtime"
-	"strconv"
 	"testing"
 	"time"
 
@@ -419,14 +418,6 @@ func TestValidateConfigFile_GCSConnectionConfigSuccessful(t *testing.T) {
 }
 
 func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
-	defaultDirMode, err := strconv.ParseInt("0755", 8, 0)
-	require.NoError(t, err)
-	defaultFileMode, err := strconv.ParseInt("0644", 8, 0)
-	require.NoError(t, err)
-	fileMode666, err := strconv.ParseInt("0666", 8, 0)
-	require.NoError(t, err)
-	dirMode777, err := strconv.ParseInt("0777", 8, 0)
-	require.NoError(t, err)
 	hd, err := os.UserHomeDir()
 	require.NoError(t, err)
 	testCases := []struct {
@@ -439,9 +430,9 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 			configFile: "testdata/empty_file.yaml",
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					DirMode:                cfg.Octal(defaultDirMode),
+					DirMode:                0755,
 					DisableParallelDirops:  false,
-					FileMode:               cfg.Octal(defaultFileMode),
+					FileMode:               0644,
 					FuseOptions:            []string{},
 					Gid:                    -1,
 					IgnoreInterrupts:       true,
@@ -457,9 +448,9 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 			configFile: "testdata/file_system_config/unset_file_system_config.yaml",
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					DirMode:                cfg.Octal(defaultDirMode),
+					DirMode:                0755,
 					DisableParallelDirops:  false,
-					FileMode:               cfg.Octal(defaultFileMode),
+					FileMode:               0644,
 					FuseOptions:            []string{},
 					Gid:                    -1,
 					IgnoreInterrupts:       true,
@@ -475,9 +466,9 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 			configFile: "testdata/valid_config.yaml",
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					DirMode:                cfg.Octal(dirMode777),
+					DirMode:                0777,
 					DisableParallelDirops:  true,
-					FileMode:               cfg.Octal(fileMode666),
+					FileMode:               0666,
 					FuseOptions:            []string{"ro"},
 					Gid:                    7,
 					IgnoreInterrupts:       false,

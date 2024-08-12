@@ -18,7 +18,6 @@ import (
 	"os"
 	"path"
 	"runtime"
-	"strconv"
 	"testing"
 	"time"
 
@@ -565,14 +564,6 @@ func TestArgsParsing_GCSConnectionFlagsThrowsError(t *testing.T) {
 }
 
 func TestArgsParsing_FileSystemFlags(t *testing.T) {
-	defaultDirMode, err := strconv.ParseInt("0755", 8, 0)
-	require.NoError(t, err)
-	defaultFileMode, err := strconv.ParseInt("0644", 8, 0)
-	require.NoError(t, err)
-	fileMode666, err := strconv.ParseInt("0666", 8, 0)
-	require.NoError(t, err)
-	dirMode777, err := strconv.ParseInt("0777", 8, 0)
-	require.NoError(t, err)
 	hd, err := os.UserHomeDir()
 	require.NoError(t, err)
 	require.NoError(t, err)
@@ -586,9 +577,9 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--dir-mode=0777", "--disable-parallel-dirops", "--file-mode=0666", "--o", "ro", "--gid=7", "--ignore-interrupts=false", "--kernel-list-cache-ttl-secs=300", "--rename-dir-limit=10", "--temp-dir=~/temp", "--uid=8", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					DirMode:                cfg.Octal(dirMode777),
+					DirMode:                0777,
 					DisableParallelDirops:  true,
-					FileMode:               cfg.Octal(fileMode666),
+					FileMode:               0666,
 					FuseOptions:            []string{"ro"},
 					Gid:                    7,
 					IgnoreInterrupts:       false,
@@ -604,9 +595,9 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					DirMode:                cfg.Octal(defaultDirMode),
+					DirMode:                0755,
 					DisableParallelDirops:  false,
-					FileMode:               cfg.Octal(defaultFileMode),
+					FileMode:               0644,
 					FuseOptions:            []string{},
 					Gid:                    -1,
 					IgnoreInterrupts:       true,
