@@ -91,6 +91,10 @@ type Job struct {
 	// This semaphore is shared across all jobs spawned by the job manager and is
 	// used to limit the download concurrency.
 	maxParallelismSem *semaphore.Weighted
+
+	// Channel which is used by goroutines to know which ranges need to be
+	// downloaded when parallel download is enabled.
+	rangeChan chan data.ObjectRange
 }
 
 // JobStatus represents the status of job.
@@ -249,8 +253,9 @@ func (job *Job) updateStatusAndNotifySubscribers(statusName jobStatusName, statu
 }
 
 // updateStatusOffset updates the offset in job's status and in file info cache
-// with the given offset. If the the update is successful, this function also
+// with the given offset. If the update is successful, this function also
 // notify the subscribers.
+// Not concurrency safe and requires LOCK(job.mu)
 func (job *Job) updateStatusOffset(downloadedOffset int64) (err error) {
 	fileInfoKey := data.FileInfoKey{
 		BucketName: job.bucket.Name(),
@@ -267,8 +272,7 @@ func (job *Job) updateStatusOffset(downloadedOffset int64) (err error) {
 		Key: fileInfoKey, ObjectGeneration: job.object.Generation,
 		FileSize: job.object.Size, Offset: uint64(downloadedOffset),
 	}
-	job.mu.Lock()
-	defer job.mu.Unlock()
+
 	err = job.fileInfoCache.UpdateWithoutChangingOrder(fileInfoKeyName, updatedFileInfo)
 	if err == nil {
 		job.status.Offset = downloadedOffset
@@ -338,7 +342,9 @@ func (job *Job) downloadObjectToFile(cacheFile *os.File) (err error) {
 			newReader = nil
 		}
 
+		job.mu.Lock()
 		err = job.updateStatusOffset(start)
+		job.mu.Unlock()
 		if err != nil {
 			return err
 		}
