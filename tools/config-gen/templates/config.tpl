@@ -33,25 +33,21 @@ type {{ .TypeName}} struct {
 {{end}}
 
 func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
-  var err error
   {{range .FlagTemplateData}}
   flagSet.{{ .Fn}}("{{ .FlagName}}", "{{ .Shorthand}}", {{ .DefaultValue}}, {{ .Usage}})
   {{if .IsDeprecated}}
-  err = flagSet.MarkDeprecated("{{ .FlagName}}", "{{ .DeprecationWarning}}")
-  if err != nil {
+  if err := flagSet.MarkDeprecated("{{ .FlagName}}", "{{ .DeprecationWarning}}"); err != nil {
     return err
   }
   {{end}}
   {{if .HideFlag}}
-  err = flagSet.MarkHidden("{{ .FlagName}}")
-  if err != nil {
+  if err := flagSet.MarkHidden("{{ .FlagName}}"); err != nil {
     return err
   }
   {{end}}
   {{if .HideShorthand}}flagSet.ShorthandLookup("{{ .Shorthand}}").Hidden = true{{end}}
   {{if ne .ConfigPath ""}}
-  err = v.BindPFlag("{{ .ConfigPath}}", flagSet.Lookup("{{ .FlagName}}"))
-  if err != nil {
+  if err := v.BindPFlag("{{ .ConfigPath}}", flagSet.Lookup("{{ .FlagName}}")); err != nil {
     return err
   }
   {{end}}
