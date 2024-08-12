@@ -187,12 +187,12 @@ func (t *fsTest) SetUpTestSuite() {
 	mountCfg.OpContext = ctx
 
 	if mountCfg.ErrorLogger == nil {
-		mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse_errors: ")
-	}
+	mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse_errors: ")
+		}
 
 	if *fDebug {
-		mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelDebug, "fuse: ")
-	}
+	mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelInfo, "fuse: ")
+	 }
 
 	mfs, err = fuse.Mount(mntDir, server, &mountCfg)
 	AssertEq(nil, err)
