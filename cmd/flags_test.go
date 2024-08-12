@@ -298,41 +298,6 @@ func (t *FlagsTest) TestResolvePathForTheFlagsInContext() {
 	assert.Equal(t.T(), nil, err)
 }
 
-func (t *FlagsTest) TestValidateFlagsForZeroSequentialReadSize() {
-	flags := &flagStorage{
-		SequentialReadSizeMb:                0,
-		ExperimentalMetadataPrefetchOnMount: cfg.ExperimentalMetadataPrefetchOnMountDisabled,
-	}
-
-	err := validateFlags(flags)
-
-	assert.NotEqual(t.T(), nil, err)
-	assert.Equal(t.T(), "SequentialReadSizeMb should be less than 1024", err.Error())
-}
-
-func (t *FlagsTest) TestValidateFlagsForSequentialReadSizeGreaterThan1024() {
-	flags := &flagStorage{
-		SequentialReadSizeMb:                2048,
-		ExperimentalMetadataPrefetchOnMount: cfg.ExperimentalMetadataPrefetchOnMountDisabled,
-	}
-
-	err := validateFlags(flags)
-
-	assert.NotEqual(t.T(), nil, err)
-	assert.Equal(t.T(), "SequentialReadSizeMb should be less than 1024", err.Error())
-}
-
-func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSize() {
-	flags := &flagStorage{
-		SequentialReadSizeMb:                10,
-		ExperimentalMetadataPrefetchOnMount: cfg.ExperimentalMetadataPrefetchOnMountDisabled,
-	}
-
-	err := validateFlags(flags)
-
-	assert.Equal(t.T(), nil, err)
-}
-
 func (t *FlagsTest) TestValidateFlagsForSupportedExperimentalMetadataPrefetchOnMount() {
 	for _, input := range []string{
 		"disabled", "sync", "async",

@@ -20,6 +20,7 @@ import (
 	"path"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/stretchr/testify/assert"
@@ -340,6 +341,63 @@ func TestValidateConfigFile_GCSAuthConfigSuccessful(t *testing.T) {
 
 			if assert.NoError(t, err) {
 				assert.EqualValues(t, tc.expectedConfig.GcsAuth, gotConfig.GcsAuth)
+			}
+		})
+	}
+}
+
+func TestValidateConfigFile_GCSConnectionConfigSuccessful(t *testing.T) {
+	testCases := []struct {
+		name           string
+		configFile     string
+		expectedConfig *cfg.Config
+	}{
+		{
+			name:       "Empty config file [default values].",
+			configFile: "testdata/empty_file.yaml",
+			expectedConfig: &cfg.Config{
+				GcsConnection: cfg.GcsConnectionConfig{
+					BillingProject:             "",
+					ClientProtocol:             "http1",
+					CustomEndpoint:             "",
+					ExperimentalEnableJsonRead: false,
+					GrpcConnPoolSize:           1,
+					HttpClientTimeout:          0,
+					LimitBytesPerSec:           -1,
+					LimitOpsPerSec:             -1,
+					MaxConnsPerHost:            0,
+					MaxIdleConnsPerHost:        100,
+					SequentialReadSizeMb:       200,
+				},
+			},
+		},
+		{
+			name:       "Valid config file.",
+			configFile: "testdata/valid_config.yaml",
+			expectedConfig: &cfg.Config{
+				GcsConnection: cfg.GcsConnectionConfig{
+					BillingProject:             "abc",
+					ClientProtocol:             "http2",
+					CustomEndpoint:             "www.abc.com",
+					ExperimentalEnableJsonRead: true,
+					GrpcConnPoolSize:           200,
+					HttpClientTimeout:          400 * time.Second,
+					LimitBytesPerSec:           20,
+					LimitOpsPerSec:             30,
+					MaxConnsPerHost:            400,
+					MaxIdleConnsPerHost:        20,
+					SequentialReadSizeMb:       450,
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
+
+			if assert.NoError(t, err) {
+				assert.EqualValues(t, tc.expectedConfig.GcsConnection, gotConfig.GcsConnection)
 			}
 		})
 	}

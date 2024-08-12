@@ -52,7 +52,8 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
 				FileCache: validFileCacheConfig(t),
 				GcsConnection: GcsConnectionConfig{
-					CustomEndpoint: "https://bing.com/search?q=dotnet",
+					CustomEndpoint:       "https://bing.com/search?q=dotnet",
+					SequentialReadSizeMb: 200,
 				},
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "disabled",
@@ -65,7 +66,8 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
 				FileCache: validFileCacheConfig(t),
 				GcsConnection: GcsConnectionConfig{
-					CustomEndpoint: "https://j@ne:password@google.com",
+					CustomEndpoint:       "https://j@ne:password@google.com",
+					SequentialReadSizeMb: 200,
 				},
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "disabled",
@@ -80,6 +82,9 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "disabled",
 				},
+				GcsConnection: GcsConnectionConfig{
+					SequentialReadSizeMb: 200,
+				},
 			},
 		},
 		{
@@ -90,6 +95,9 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "async",
 				},
+				GcsConnection: GcsConnectionConfig{
+					SequentialReadSizeMb: 200,
+				},
 			},
 		},
 		{
@@ -97,6 +105,22 @@ func TestValidateConfigSuccessful(t *testing.T) {
 			config: &Config{
 				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
 				FileCache: validFileCacheConfig(t),
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+				GcsConnection: GcsConnectionConfig{
+					SequentialReadSizeMb: 200,
+				},
+			},
+		},
+		{
+			name: "Valid Sequential read size MB",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
+				GcsConnection: GcsConnectionConfig{
+					SequentialReadSizeMb: 10,
+				},
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "sync",
 				},
@@ -126,6 +150,9 @@ func TestValidateConfigUnsuccessful(t *testing.T) {
 				GcsConnection: GcsConnectionConfig{
 					CustomEndpoint: "a_b://abc",
 				},
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
 			},
 		},
 		{
@@ -144,6 +171,35 @@ func TestValidateConfigUnsuccessful(t *testing.T) {
 				FileCache: validFileCacheConfig(t),
 				GcsAuth: GcsAuthConfig{
 					TokenUrl: "a_b://abc",
+				},
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+			},
+		},
+		{
+			name: "Sequential read size MB more than 1024 (max permissible value)",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
+				GcsConnection: GcsConnectionConfig{
+					SequentialReadSizeMb: 2048,
+				},
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+			},
+		},
+		{
+			name: "Sequential read size MB more than 1024 (max permissible value)",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
+				GcsConnection: GcsConnectionConfig{
+					SequentialReadSizeMb: 0,
+				},
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "sync",
 				},
 			},
 		},

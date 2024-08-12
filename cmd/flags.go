@@ -31,11 +31,7 @@ import (
 	"github.com/urfave/cli"
 )
 
-// Defines the max value supported by sequential-read-size-mb flag.
 const (
-	// maxSequentialReadSizeMb is the max value supported by sequential-read-size-mb flag.
-	maxSequentialReadSizeMb = 1024
-
 	// ExperimentalMetadataPrefetchOnMountFlag is the name of the commandline flag for enabling
 	// metadata-prefetch mode aka 'ls -R' during mount.
 	ExperimentalMetadataPrefetchOnMountFlag = "experimental-metadata-prefetch-on-mount"
@@ -456,7 +452,8 @@ type flagStorage struct {
 	EgressBandwidthLimitBytesPerSecond float64
 
 	// Deprecated: Use the param from cfg/config.go
-	OpRateLimitHz        float64
+	OpRateLimitHz float64
+	// Deprecated: Use the param from cfg/config.go
 	SequentialReadSizeMb int32
 	// Deprecated: Use the param from cfg/config.go
 	AnonymousAccess bool
@@ -670,10 +667,6 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 }
 
 func validateFlags(flags *flagStorage) (err error) {
-	if flags.SequentialReadSizeMb < 1 || flags.SequentialReadSizeMb > maxSequentialReadSizeMb {
-		return fmt.Errorf("SequentialReadSizeMb should be less than %d", maxSequentialReadSizeMb)
-	}
-
 	if err = config.IsTtlInSecsValid(flags.KernelListCacheTtlSeconds); err != nil {
 		return fmt.Errorf("kernelListCacheTtlSeconds: %w", err)
 	}
