@@ -489,7 +489,11 @@ func ClearCacheControlOnGcsObject(gcsObjPath string) error {
 
 func CreateFile(filePath string, filePerms os.FileMode, t *testing.T) (f *os.File) {
 	// Creating a file shouldn't create file on GCS.
-	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, filePerms)
+	_ , err:= os.Stat(filePath)
+	if err != nil {
+		logger.Errorf("No dir", err)
+	}
+	f, err = os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, filePerms)
 	if err != nil {
 		t.Errorf("CreateFile(%s): %v", filePath, err)
 		logger.Errorf("Error in creating file: ", err)
