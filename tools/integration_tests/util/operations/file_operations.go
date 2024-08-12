@@ -30,8 +30,6 @@ import (
 	"syscall"
 	"testing"
 	"time"
-
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 )
 
 const (
@@ -488,18 +486,9 @@ func ClearCacheControlOnGcsObject(gcsObjPath string) error {
 }
 
 func CreateFile(filePath string, filePerms os.FileMode, t *testing.T) (f *os.File) {
-	log.Println("heeeeeeeeeeeeeeeeeee in log: ", filePath)
-	fmt.Println("heeeeeeeeeeeeeeeeeee in fmt: ", filePath)
 	// Creating a file shouldn't create file on GCS.
-	_ , err:= os.Stat(filePath)
+	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, filePerms)
 	if err != nil {
-		logger.Errorf("No dir", err)
-	}
-	f, err = os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, filePerms)
-	if err != nil {
-		t.Errorf("CreateFile(%s): %v", filePath, err)
-		log.Println("heeeeeeeeeeeeeeeeeee: ", filePath)
-		logger.Errorf("Error in creating file: ", err)
 		os.Exit(1)
 	}
 	return
