@@ -1924,6 +1924,7 @@ func (fs *fileSystem) Rename(
 	ctx context.Context,
 	op *fuseops.RenameOp) (err error) {
 	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
+		logger.Errorf("In Rename")
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
