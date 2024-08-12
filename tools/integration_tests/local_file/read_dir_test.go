@@ -23,6 +23,7 @@ import (
 	"strconv"
 	"sync"
 	"testing"
+	"time"
 
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
@@ -156,23 +157,23 @@ func TestRecursiveListingWithLocalFiles(t *testing.T) {
 		path.Join(ExplicitDirName, ExplicitFileName1), "", t)
 }
 
-//func TestReadDirWithSameNameLocalAndGCSFile(t *testing.T) {
-//	testDirPath = setup.SetupTestDirectory(testDirName)
-//	// Create local file.
-//	_, fh1 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
-//	// Create same name gcs file.
-//	time.Sleep(2 * time.Second)
-//	CreateObjectInGCSTestDir(ctx, storageClient, testDirName, FileName1, GCSFileContent, t)
-//
-//	// Attempt to list testDir.
-//	_, err := os.ReadDir(testDirPath)
-//	if err != nil {
-//		t.Fatalf("ReadDir err: %v", err)
-//	}
-//
-//	// Close the local file.
-//	operations.CloseFileShouldNotThrowError(fh1, t)
-//}
+func TestReadDirWithSameNameLocalAndGCSFile(t *testing.T) {
+	testDirPath = setup.SetupTestDirectory(testDirName)
+	// Create local file.
+	_, fh1 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
+	// Create same name gcs file.
+	time.Sleep(2 * time.Second)
+	CreateObjectInGCSTestDir(ctx, storageClient, testDirName, FileName1, GCSFileContent, t)
+
+	// Attempt to list testDir.
+	_, err := os.ReadDir(testDirPath)
+	if err != nil {
+		t.Fatalf("ReadDir err: %v", err)
+	}
+
+	// Close the local file.
+	operations.CloseFileShouldNotThrowError(fh1, t)
+}
 
 //func TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError(t *testing.T) {
 //	testDirPath = setup.SetupTestDirectory(testDirName)
