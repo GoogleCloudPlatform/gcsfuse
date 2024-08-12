@@ -126,6 +126,19 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Valid Sequential read size MB",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
+				GcsConnection: GcsConnectionConfig{
+					SequentialReadSizeMb: 10,
+				},
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -148,7 +161,8 @@ func TestValidateConfigUnsuccessful(t *testing.T) {
 				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
 				FileCache: validFileCacheConfig(t),
 				GcsConnection: GcsConnectionConfig{
-					CustomEndpoint: "a_b://abc",
+					CustomEndpoint:       "a_b://abc",
+					SequentialReadSizeMb: 200,
 				},
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "sync",
@@ -162,6 +176,9 @@ func TestValidateConfigUnsuccessful(t *testing.T) {
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "a",
 				},
+				GcsConnection: GcsConnectionConfig{
+					SequentialReadSizeMb: 200,
+				},
 			},
 		},
 		{
@@ -174,6 +191,9 @@ func TestValidateConfigUnsuccessful(t *testing.T) {
 				},
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+				GcsConnection: GcsConnectionConfig{
+					SequentialReadSizeMb: 200,
 				},
 			},
 		},
