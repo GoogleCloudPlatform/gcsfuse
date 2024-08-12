@@ -227,6 +227,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 			legacyFlagStorage: &flagStorage{
 				ClientProtocol:                      cfg.GRPC,
 				ExperimentalMetadataPrefetchOnMount: "disabled",
+				SequentialReadSizeMb:                200,
 			},
 			mockCLICtx: &mockCLIContext{isFlagSet: map[string]bool{}},
 			legacyMountConfig: &config.MountConfig{
@@ -302,8 +303,10 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 					EnableEmptyManagedFolders: true,
 				},
 				GcsConnection: cfg.GcsConnectionConfig{
-					GrpcConnPoolSize: 29,
-					ClientProtocol:   cfg.Protocol("grpc")},
+					GrpcConnPoolSize:     29,
+					ClientProtocol:       cfg.Protocol("grpc"),
+					SequentialReadSizeMb: 200,
+				},
 				GcsAuth:   cfg.GcsAuthConfig{AnonymousAccess: true},
 				EnableHns: true,
 				FileSystem: cfg.FileSystemConfig{
@@ -325,6 +328,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				MaxRetryAttempts:                    100,
 				ClientProtocol:                      cfg.HTTP2,
 				ExperimentalMetadataPrefetchOnMount: "disabled",
+				SequentialReadSizeMb:                200,
 			},
 			mockCLICtx: &mockCLIContext{
 				isFlagSet: map[string]bool{
@@ -398,7 +402,8 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 					ExperimentalMetadataPrefetchOnMount: "disabled",
 				},
 				GcsConnection: cfg.GcsConnectionConfig{
-					ClientProtocol: cfg.Protocol("http2"),
+					ClientProtocol:       cfg.Protocol("http2"),
+					SequentialReadSizeMb: 200,
 				},
 				GcsRetries: cfg.GcsRetriesConfig{
 					MaxRetryAttempts: 100,
@@ -616,6 +621,7 @@ func TestLogSeverityRationalization(t *testing.T) {
 			flags := &flagStorage{
 				ClientProtocol:                      mountpkg.ClientProtocol("http1"),
 				ExperimentalMetadataPrefetchOnMount: "disabled",
+				SequentialReadSizeMb:                200,
 				DebugFuse:                           tc.debugFuse,
 				DebugGCS:                            tc.debugGCS,
 				DebugMutex:                          tc.debugMutex,
@@ -672,6 +678,7 @@ func TestEnableEmptyManagedFoldersRationalization(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			flags := &flagStorage{
 				ClientProtocol:                      mountpkg.ClientProtocol("http1"),
+				SequentialReadSizeMb:                200,
 				ExperimentalMetadataPrefetchOnMount: "disabled",
 			}
 			c := config.NewMountConfig()
