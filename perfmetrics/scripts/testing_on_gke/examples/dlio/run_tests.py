@@ -34,7 +34,7 @@ def run_command(command: str):
   print(result.stderr)
 
 
-def createHelmInstallCommands(dlioWorkloads: list, instanceId: str):
+def createHelmInstallCommands(dlioWorkloads: set, instanceId: str):
   """Create helm install commands for the given set of dlioWorkload objects."""
   helm_commands = []
   for dlioWorkload in dlioWorkloads:

@@ -23,7 +23,7 @@ import dlio_workload
 sys.path.append("../")
 from utils.utils import get_memory, get_cpu, standard_timestamp, is_mash_installed
 
-_LOCAL_LOGS_LOCATION = "../../bin/dlio-logs"
+_LOCAL_LOGS_LOCATION = "../../bin/dlio-logs/logs"
 
 record = {
     "pod_name": "",
@@ -56,7 +56,7 @@ def downloadDlioOutputs(dlioWorkloads: set, instanceId: str):
             "-r",
             "--no-user-output-enabled",  # do not print names of files being copied
             f"gs://{dlioWorkload.bucket}/logs/{instanceId}",
-            _LOCAL_LOGS_LOCATION + "/logs",
+            _LOCAL_LOGS_LOCATION,
         ],
         capture_output=False,
         text=True,
@@ -100,7 +100,7 @@ if __name__ == "__main__":
   args = parser.parse_args()
 
   try:
-    os.makedirs(_LOCAL_LOGS_LOCATION + "/logs")
+    os.makedirs(_LOCAL_LOGS_LOCATION)
   except FileExistsError:
     pass
 
@@ -125,9 +125,7 @@ if __name__ == "__main__":
   if not mash_installed:
     print("Mash is not installed, will skip parsing CPU and memory usage.")
 
-  for root, _, files in os.walk(
-      _LOCAL_LOGS_LOCATION + "/logs/" + args.instance_id
-  ):
+  for root, _, files in os.walk(_LOCAL_LOGS_LOCATION + "/" + args.instance_id):
     if files:
       print(f"Parsing directory {root} ...")
       per_epoch_stats_file = root + "/per_epoch_stats.json"
