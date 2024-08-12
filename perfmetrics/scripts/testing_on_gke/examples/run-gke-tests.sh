@@ -163,10 +163,8 @@ function printRunParameters() {
 # Install dependencies.
 function installDependencies() {
   which helm || (cd "${src_dir}" && (test -d "./helm" || git clone https://github.com/helm/helm.git) && cd helm && make && ls -lh bin/ && mkdir -pv ~/bin && cp -fv bin/helm ~/bin/ && chmod +x ~/bin/helm && export PATH=$PATH:$HOME/bin && echo $PATH && which helm && cd - && cd -)
-  # install o
   which go || (version=1.22.4 && wget -O go_tar.tar.gz https://go.dev/dl/go${version}.linux-amd64.tar.gz && sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local && export PATH=${PATH}:/usr/local/go/bin && go version && rm -rfv go_tar.tar.gz && echo 'export PATH=${PATH}:/usr/local/go/bin' >>~/.bashrc)
   which python3 && sudo apt-get install python3-absl
-  # which kubectl || (gcloud components install kubectl && kubectl version --client && (gke-gcloud-auth-plugin --version || (gcloud components install gke-gcloud-auth-plugin && gke-gcloud-auth-plugin --version))) || (sudo apt-get update -y && sudo apt-get install -y kubectl)
   (which kubectl && kubectl version --client) || (gcloud components install kubectl && which kubectl && kubectl version --client) || (sudo apt-get update -y && sudo apt-get install -y kubectl && which kubectl && kubectl version --client)
   gke-gcloud-auth-plugin --version || (gcloud components install gke-gcloud-auth-plugin && gke-gcloud-auth-plugin --version) || (sudo apt-get update -y && sudo apt-get install -y google-cloud-cli-gke-gcloud-auth-plugin && gke-gcloud-auth-plugin --version)
 }
@@ -310,24 +308,6 @@ function enableManagedCsiDriverIfNeeded() {
   fi
 }
 
-# function dataLoaderBucketNames() {
-  # local workloadConfigFileNames="$@"
-  # for workloadFileName in "${workloadConfigFileNames}"; do
-    # workloadConfigFilePath="$workloadFileName"
-    # if test -f "${workloadConfigFilePath}"; then
-      # grep -wh '\"bucket\"' "${workloadConfigFilePath}" | cut -d: -f2 | cut -d, -f1 | cut -d \" -f2 | sort | uniq | grep -v ' ' | sort | uniq
-    # fi
-  # done
-# }
-#
-# function fioDataLoaderBucketNames() {
-  # dataLoaderBucketNames "${workload_config}"
-# }
-#
-# function dlioDataLoaderBucketNames() {
-  # dataLoaderBucketNames "${workload_config}"
-# }
-
 function activateCluster() {
   echo "Configuring cluster credentials ..."
   gcloud container clusters get-credentials ${cluster_name} --location=${zone}
@@ -446,17 +426,6 @@ function listAllHelmCharts() {
   # gke-dlio-unet3d-100kb-500k-128-gcsfuse-file-cache deployed unet3d-loading-test-0.1.0
 }
 
-# function listAllPods() {
-  # echo "Listing all pods ..."
-  # kubectl get pods –-namespace=${appnamespace} || true
-  # kubectl get pods
-  #
-  # # Another useful command to list all your pods, which keep updating the live-status in the output.
-  # # kubectl get pods --watch --namespace=${appnamespace} || true
-  # # kubectl get pods --watch
-  # # kubectl exec -it --stdin pods/${podname} --namespace=${appnamespace} -- /bin/bash
-# }
-
 function waitTillAllPodsComplete() {
   echo "Scanning and waiting till all pods complete or one of them fails ..."
   while true; do
@@ -486,57 +455,6 @@ function waitTillAllPodsComplete() {
     unset podslist # necessary to update the value of podslist every iteration
   done
 }
-
-
-# function printOutputFioFilesList() {
-  # echo ""
-  # fioDataLoaderBucketNames | while read bucket; do
-    # echo "${bucket}:"
-    # gcloud storage ls -l gs://${bucket}/fio-output/${instance_id}/*/*/* | (grep -e 'json\|gcsfuse_mount_options' || true)
-  # done
-# }
-#
-# function printOutputDlioFilesList() {
-  # echo ""
-  # dlioDataLoaderBucketNames | while read bucket; do
-    # echo "${bucket}:"
-    # gcloud storage ls -l gs://${bucket}/logs/${instance_id}/*/*/* | (grep -e 'summary\.json\|per_epoch_stats\.json\|gcsfuse_mount_options' || true)
-  # done
-# }
-
-# function archiveFioOutputs() {
-  # echo "Archiving existing fio outputs ..."
-  # fioDataLoaderBucketNames | while read bucket; do
-    # log="$(gsutil -mq mv -r gs://${bucket}/fio-output/* gs://${bucket}/old-fio-output/ 2>&1)" || ([[ "${log}" == *"No URLs matched"* ]] && echo "ignored error: ${log}")
-  # done
-#
-  # # cd "${gke_testing_dir}"/examples/fio
-  # mkdir -pv "${gke_testing_dir}"/bin/fio-logs "${gke_testing_dir}"/bin/old-fio-logs # backup to avoid failing the next commands
-  # # log="$(rsync -avz --ignore-existing "${gke_testing_dir}"/bin/fio-logs/* "${gke_testing_dir}"/bin/old-fio-logs/ 2>&1)" || ( [[ "${log}" == *"some files/attributes were not transferred"* ]] && echo "ignored error: ${log}")
-  # rm -rfv "${gke_testing_dir}"/bin/old-fio-logs/*
-  # mv -v "${gke_testing_dir}"/bin/fio-logs/* "${gke_testing_dir}"/bin/old-fio-logs/ || true
-  # # cd -
-# }
-#
-# function archiveDlioOutputs() {
-  # echo "Archiving existing dlio outputs ..."
-  # dlioDataLoaderBucketNames | while read bucket; do
-    # log="$(gsutil -mq mv -r gs://${bucket}/logs/* gs://${bucket}/old-logs/ 2>&1)" || ([[ "${log}" == *"No URLs matched"* ]] && echo "ignored error: ${log}")
-  # done
-#
-  # # cd "${gke_testing_dir}"/examples/dlio
-  # mkdir -pv "${gke_testing_dir}"/bin/dlio-logs "${gke_testing_dir}"/bin/old-dlio-logs/ # backup to avoid failing the next commands
-  # # log="$(rsync -avz --ignore-existing "${gke_testing_dir}"/bin/dlio-logs/* "${gke_testing_dir}"/bin/old-dlio-logs/ 2>&1)" || ( [[ "${log}" == *"some files/attributes were not transferred"* ]] && echo "ignored error: ${log}")
-  # rm -rfv "${gke_testing_dir}"/bin/old-dlio-logs/*
-  # mv -v "${gke_testing_dir}"/bin/dlio-logs/* "${gke_testing_dir}"/bin/old-dlio-logs/ || true
-#
-  # cd -
-# }
-
-# function archiveExistingOutputFiles() {
-  # archiveFioOutputs
-  # archiveDlioOutputs
-# }
 
 function fetchAndParseFioOutputs() {
   echo "Fetching and parsing fio outputs ..."
@@ -574,7 +492,6 @@ createCustomCsiDriverIfNeeded
 
 # Run latest workload configuration
 deleteAllPods
-# archiveExistingOutputFiles
 deployAllFioHelmCharts
 deployAllDlioHelmCharts
 
@@ -584,10 +501,5 @@ waitTillAllPodsComplete
 
 # clean-up after run
 deleteAllPods
-deleteAllHelmCharts
-# printOutputFioFilesList
-# printOutputDlioFilesList
 fetchAndParseFioOutputs
 fetchAndParseDlioOutputs
-# archiveFioOutputs
-# archiveDlioOutputs
