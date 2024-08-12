@@ -48,15 +48,6 @@ func OverrideWithIgnoreInterruptsFlag(c cliContext, mountConfig *MountConfig, ig
 	}
 }
 
-// OverrideWithAnonymousAccessFlag overwrites the anonymous-access config with
-// the anonymous-access flag value if the flag is set.
-func OverrideWithAnonymousAccessFlag(c cliContext, mountConfig *MountConfig, anonymousAccess bool) {
-	// If the  anonymous-access flag is set, give it priority over the value in config file.
-	if c.IsSet(AnonymousAccess) {
-		mountConfig.GCSAuth.AnonymousAccess = anonymousAccess
-	}
-}
-
 // OverrideWithKernelListCacheTtlFlag overwrites the kernel-list-cache-ttl-secs config
 // with the kernel-list-cache-ttl-secs cli-flag value if the cli-flag is set by user.
 func OverrideWithKernelListCacheTtlFlag(c cliContext, mountConfig *MountConfig, ttl int64) {

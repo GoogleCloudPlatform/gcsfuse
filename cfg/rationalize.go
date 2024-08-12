@@ -38,6 +38,11 @@ func Rationalize(c *Config) error {
 		return err
 	}
 
+	c.GcsAuth.TokenUrl, err = decodeURL(c.GcsAuth.TokenUrl)
+	if err != nil {
+		return err
+	}
+
 	if c.Debug.Fuse || c.Debug.Gcs || c.Debug.LogMutex {
 		c.Logging.Severity = "TRACE"
 	}

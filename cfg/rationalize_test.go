@@ -199,3 +199,64 @@ func TestLoggingSeverityRationalization(t *testing.T) {
 		}
 	}
 }
+
+func TestRationalize_TokenURLSuccessful(t *testing.T) {
+	testCases := []struct {
+		name             string
+		config           *Config
+		expectedTokenURL string
+	}{
+		{
+			name: "Valid Config where input and expected token url match.",
+			config: &Config{
+				GcsAuth: GcsAuthConfig{
+					TokenUrl: "https://bing.com/search?q=dotnet",
+				},
+			},
+			expectedTokenURL: "https://bing.com/search?q=dotnet",
+		},
+		{
+			name: "Valid Config where input and expected token url differ.",
+			config: &Config{
+				GcsAuth: GcsAuthConfig{
+					TokenUrl: "https://j@ne:password@google.com",
+				},
+			},
+			expectedTokenURL: "https://j%40ne:password@google.com",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualErr := Rationalize(tc.config)
+
+			assert.NoError(t, actualErr)
+			assert.Equal(t, tc.expectedTokenURL, tc.config.GcsAuth.TokenUrl)
+		})
+	}
+}
+
+func TestRationalize_TokenURLUnsuccessful(t *testing.T) {
+	testCases := []struct {
+		name   string
+		config *Config
+	}{
+		{
+			name: "Invalid Config",
+			config: &Config{
+				GcsAuth: GcsAuthConfig{
+					TokenUrl: "a_b://abc",
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualErr := Rationalize(tc.config)
+
+			assert.Error(t, actualErr)
+			assert.Equal(t, "", tc.config.GcsAuth.TokenUrl)
+		})
+	}
+}
