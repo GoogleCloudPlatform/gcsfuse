@@ -222,24 +222,3 @@ func (t *HNSBucketTests) TestRenameFolderWhereNewDirIsSubDirectoryOfOldDirectory
 	assert.Equal(t.T(), "file3.txt", dirEntries[0].Name())
 	assert.False(t.T(), dirEntries[0].IsDir())
 }
-
-func (t *HNSBucketTests) TestRenameFolderWhereNewDirIsSubDirectoryOfOldDirectory() {
-	oldDirPath := path.Join(mntDir, "foo", "test")
-	_, err = os.Stat(oldDirPath)
-	assert.NoError(t.T(), err)
-	newDirPath := path.Join(mntDir, "foo_rename")
-
-	err = os.Rename(oldDirPath, newDirPath)
-
-	assert.NoError(t.T(), err)
-	_, err = os.Stat(oldDirPath)
-	assert.Error(t.T(), err)
-	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
-	_, err = os.Stat(newDirPath)
-	assert.NoError(t.T(), err)
-	dirEntries, err := os.ReadDir(newDirPath)
-	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), 1, len(dirEntries))
-	assert.Equal(t.T(), "file3.txt", dirEntries[0].Name())
-	assert.False(t.T(), dirEntries[0].IsDir())
-}
