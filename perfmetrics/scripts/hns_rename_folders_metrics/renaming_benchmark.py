@@ -13,7 +13,8 @@
 
 # limitations under the License.
 # To run the script,run in terminal:
-# python3 renaming_benchmark.py <dir-config.json> [--upload_gs]  [--num_samples NUM_SAMPLES]
+# python3 renaming_benchmark.py [--flat_dir_config_file flat_dir-config.json] \
+# [--hns_dir_config_file hns_dir-config.json] [--upload_gs]  [--num_samples NUM_SAMPLES]
 # where dir-config.json file contains the directory structure details for the test.
 
 import os
@@ -372,6 +373,7 @@ def _run_rename_benchmark(test_type,dir_config,num_samples,results,upload_gs):
       log.error("Upload to gsheet failed!")
   else:
     print(upload_values)
+
 
 if __name__ == '__main__':
   argv = sys.argv

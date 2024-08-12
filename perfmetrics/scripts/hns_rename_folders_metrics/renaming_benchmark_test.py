@@ -13,7 +13,7 @@
 # limitations under the License.
 import unittest
 import renaming_benchmark
-from mock import patch, call
+from mock import patch, call, mock_open
 
 class TestRenamingBenchmark(unittest.TestCase):
 
@@ -176,6 +176,77 @@ class TestRenamingBenchmark(unittest.TestCase):
 
     self.assertEqual(exit_code,1)
     mock_log.error.assert_called_once_with('Empty spreadsheet id passed!')
+
+  @patch('builtins.open', new_callable=mock_open)
+  @patch('renaming_benchmark.log')
+  @patch('renaming_benchmark._check_for_config_file_inconsistency')
+  @patch('renaming_benchmark.json.load')
+  def test_run_rename_benchmark_error_config_inconsistency(self,mock_json,mock_inconsistency,mock_log,mock_open):
+    test_type="flat"
+    dir_config="test-config.json"
+    num_samples=10
+    results=dict()
+    upload_gs=True
+    mock_inconsistency.return_value=1
+    mock_json.return_value={}
+
+    with self.assertRaises(SystemExit):
+      renaming_benchmark._run_rename_benchmark(test_type,dir_config,num_samples,results,upload_gs)
+
+    mock_log.error.assert_called_once_with('Exited with code 1')
+
+  @patch('builtins.open', new_callable=mock_open)
+  @patch('renaming_benchmark.log')
+  @patch('renaming_benchmark._check_for_config_file_inconsistency')
+  @patch('renaming_benchmark._check_if_dir_structure_exists')
+  @patch('renaming_benchmark.json.load')
+  def test_run_rename_benchmark_error_dir_does_not_exist(self,mock_json,mock_check_dir_exists,mock_inconsistency,mock_log,mock_open):
+    test_type="flat"
+    dir_config="test-config.json"
+    num_samples=10
+    results=dict()
+    upload_gs=True
+    mock_inconsistency.return_value=0
+    mock_check_dir_exists.return_value=False
+    mock_json.return_value={}
+
+    with self.assertRaises(SystemExit) :
+      renaming_benchmark._run_rename_benchmark(test_type,dir_config,num_samples,results,upload_gs)
+
+    mock_log.error.assert_called_once_with("Test data does not exist.To create test data, run : \
+        python3 generate_folders_and_files.py {} ".format(dir_config))
+
+  @patch('renaming_benchmark.SPREADSHEET_ID','temp-gsheet-id')
+  @patch('renaming_benchmark.WORKSHEET_NAME_FLAT','flat-sheet')
+  @patch('builtins.open', new_callable=mock_open)
+  @patch('renaming_benchmark.log')
+  @patch('renaming_benchmark._check_for_config_file_inconsistency')
+  @patch('renaming_benchmark._check_if_dir_structure_exists')
+  @patch('renaming_benchmark._perform_testing')
+  @patch('renaming_benchmark._parse_results')
+  @patch('renaming_benchmark._get_values_to_export')
+  @patch('renaming_benchmark._upload_to_gsheet')
+  @patch('renaming_benchmark.json.load')
+  def test_run_rename_benchmark_upload_true(self,mock_json,mock_upload,mock_get_values,mock_parse_results,mock_perform_testing,mock_check_dir_exists,mock_inconsistency,mock_log,mock_open):
+    test_type="flat"
+    dir_config="test-config.json"
+    num_samples=10
+    results={'flat':''}
+    upload_gs=True
+    worksheet= 'flat-sheet'
+    spreadsheet_id='temp-gsheet-id'
+    mock_inconsistency.return_value=0
+    mock_check_dir_exists.return_value=True
+    mock_parse_results.return_value={'key':'val'}
+    mock_get_values.return_value=[['testdata','testdata2']]
+    mock_upload.return_value=0
+    mock_json.return_value={}
+
+
+    renaming_benchmark._run_rename_benchmark(test_type,dir_config,num_samples,results,upload_gs)
+
+    mock_log.info.assert_called_with('Uploading files to the Google Sheet\n')
+    mock_upload.assert_called_with(worksheet,[['testdata','testdata2']],spreadsheet_id)
 
 
 if __name__ == '__main__':
