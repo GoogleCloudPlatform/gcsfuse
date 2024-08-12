@@ -592,24 +592,6 @@ func (b *bucket) ListObjects(
 					continue
 				}
 
-				// In hierarchical buckets, a directory is represented both as a prefix and a folder.
-				// Consequently, if a folder entry is discovered, it indicates that it's exclusively a prefix entry.
-				//
-				// This check was incorporated because createFolder needs to add an entry to the objects, and
-				// we cannot distinguish from that entry whether it's solely a prefix.
-				//
-				// For example, mkdir test will create both a folder entry and a test/ prefix.
-				// In our createFolder fake bucket implementation, we created both a folder and an object for
-				// the given folderName. There, we can't define whether it's only a prefix and not an object.
-				// Hence, we added this check here.
-				//
-				// Note that in a real ListObject call, the entry will appear only as a prefix and not as an object.
-				folderIndex := b.folders.find(resultPrefix)
-				if folderIndex < len(b.folders) {
-					lastResultWasPrefix = true
-					continue
-				}
-
 				isTrailingDelimiter := (delimiterIndex == len(nameMinusQueryPrefix)-1)
 				if !isTrailingDelimiter || !req.IncludeTrailingDelimiter {
 					lastResultWasPrefix = true
