@@ -275,7 +275,7 @@ func (job *Job) updateStatusOffset(downloadedOffset int64) (err error) {
 
 	err = job.fileInfoCache.UpdateWithoutChangingOrder(fileInfoKeyName, updatedFileInfo)
 	if err == nil {
-		job.status.Offset = int64(downloadedOffset)
+		job.status.Offset = downloadedOffset
 		// Notify subscribers if file cache is updated.
 		logger.Tracef("Job:%p (%s:/%s) downloaded till %v offset.", job, job.bucket.Name(), job.object.Name, job.status.Offset)
 		job.notifySubscribers()

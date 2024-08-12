@@ -71,6 +71,7 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 
 // RangeMap maintains the ranges downloaded by the different goroutines. This
 // function takes a new range and merges with existing ranges if they are continuous.
+// If the start offset is 0, updates the job's status offset.
 //
 // Eg:
 // Input: rangeMap entries 0-3, 5-6. New input 7-8.
@@ -112,6 +113,8 @@ func (job *Job) updateRangeMap(rangeMap map[int64]int64, offsetStart int64, offs
 	return nil
 }
 
+// Reads the range input from the range channel continuously and downloads that
+// range from the GCS. If the range channel is closed, it will exit.
 func (job *Job) downloadOffsets(ctx context.Context, goroutineIndex int64, cacheFile *os.File, rangeMap map[int64]int64) func() error {
 	return func() error {
 		// Since we keep a goroutine for each job irrespective of the maxParallelism,
