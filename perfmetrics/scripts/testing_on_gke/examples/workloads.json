@@ -3,7 +3,7 @@
   "TestConfig": {
     "workloadConfig": {
       "_description": "workloadConfig has an optional field runOnSSD (default true if missing), and an array of workloads.",
-      "runOnSSD": false,
+      "runOnSSD": true,
       "workloads": [
         {
           "_description": "This is a dummy fio workload (missing the 'fioWorkload' field), purely standing as a header and does not execute any workload. For it to execute a fio workload, it must have a valid 'fioWorkload' object and a valid 'bucket' attribute.",
@@ -30,7 +30,7 @@
           "_bucket_alt3":"gke-fio-64k-1m"
         },
         {
-          "fioWorkload": {
+          "_fioWorkload": {
             "fileSize": "64k",
             "filesPerThread": 100,
             "numThreads": 20,
@@ -42,23 +42,24 @@
           "_bucket_alt3":"gke-fio-64k-1m"
         },
         {
-          "fioWorkload": {
+          "_fioWorkload": {
             "fileSize": "64k",
             "filesPerThread": 10,
             "numThreads": 100,
             "blockSize": "64K",
-            "readTypes": ["randread"]
+            "readTypes": ["read"]
           },
           "bucket":"fio-64k-1m-us-west1",
           "_bucket_alt2":"fio-64k-1m-us-central1",
           "_bucket_alt3":"gke-fio-64k-1m"
         },
         {
-          "fioWorkload": {
+          "_fioWorkload": {
             "fileSize": "64k",
             "filesPerThread": 10,
             "numThreads": 10,
-            "blockSize": "32K"
+            "blockSize": "32K",
+            "readTypes": ["randread"]
           },
           "bucket":"fio-64k-1m-us-west1",
           "_bucket_alt2":"fio-64k-1m-us-central1",
@@ -186,10 +187,10 @@
           "_bucket_alt3":"gke-dlio-unet3d-3mb-100k"
         },
         {
-          "_dlioWorkload": {
-            "numFilesTrain": 100,
+          "dlioWorkload": {
+            "numFilesTrain": 100000,
             "recordLength": 3145728,
-            "batchSizes": [100]
+            "batchSizes": [200]
           },
           "bucket":"dlio-unet3d-3mb-100k-us-west1",
           "_bucket_alt2":"dlio-unet3d-3mb-100k-us-central1",
