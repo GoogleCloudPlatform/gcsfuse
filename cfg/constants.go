@@ -35,6 +35,6 @@ const (
 )
 
 const (
-	// MaxSequentialReadSizeMb is the max value supported by sequential-read-size-mb flag.
-	MaxSequentialReadSizeMB = 1024
+	// maxSequentialReadSizeMb is the max value supported by sequential-read-size-mb flag.
+	maxSequentialReadSizeMB = 1024
 )

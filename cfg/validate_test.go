@@ -211,7 +211,7 @@ func TestValidateConfigUnsuccessful(t *testing.T) {
 			},
 		},
 		{
-			name: "Sequential read size MB more than 1024 (max permissible value)",
+			name: "Sequential read size MB less than 1 (min permissible value)",
 			config: &Config{
 				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
 				FileCache: validFileCacheConfig(t),
