@@ -374,8 +374,8 @@ function ensureGcsFuseCsiDriverCode() {
 }
 
 function createCustomCsiDriverIfNeeded() {
-  echo "Creating custom CSI driver ..."
   if ${use_custom_csi_driver}; then
+    echo "Creating custom CSI driver ..."
     # disable managed CSI driver.
     gcloud -q container clusters update ${cluster_name} --update-addons GcsFuseCsiDriver=DISABLED --location=${zone}
 
@@ -406,7 +406,7 @@ function createCustomCsiDriverIfNeeded() {
     # make uninstall
     cd -
   else
-    echo ""
+    echo "Enabling CSI Driver add-on ..."
     # enable managed CSI driver.
     gcloud -q container clusters update ${cluster_name} --update-addons GcsFuseCsiDriver=ENABLED --location=${zone}
   fi
