@@ -30,6 +30,10 @@ sys.path.insert(0, '..')
 from generate_folders_and_files import _check_for_config_file_inconsistency,_check_if_dir_structure_exists
 from utils.mount_unmount_util import mount_gcs_bucket, unmount_gcs_bucket
 from utils.checks_util import check_dependencies
+from gsheet import gsheet
+
+WORKSHEET_NAME_FLAT = 'rename_metrics_flat'
+SPREADSHEET_ID = '1UVEvsf49eaDJdTGLQU1rlNTIAxg8PZoNQCy_GX6Nw-A'
 
 logging.basicConfig(
     level=logging.INFO,
@@ -37,6 +41,76 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)],
 )
 log = logging.getLogger()
+
+
+def _upload_to_gsheet(worksheet, data, spreadsheet_id) -> (int):
+  """
+  Writes rename results to Google Spreadsheets.
+  Args:
+    worksheet (str): Google sheet name to which results will be uploaded.
+    data (list): metrics to be uploaded.
+    spreadsheet_id: Google spreadsheet id.
+  """
+  # Changing directory to comply with "cred.json" path in "gsheet.py".
+  os.chdir('..')
+  exit_code = 0
+  if spreadsheet_id == "":
+    log.error('Empty spreadsheet id passed!')
+    exit_code = 1
+  else:
+    gsheet.write_to_google_sheet(worksheet, data, spreadsheet_id)
+  # Changing the directory back to current directory.
+  os.chdir('./hns_rename_folders_metrics')
+  return exit_code
+
+
+def _get_values_to_export(dir, metrics, test_type):
+  """
+  This function takes in extracted metrics data, filters it, rearranges it,
+   and returns the modified data to export to Google Sheet.
+
+   Args:
+     dir: JSON object containing details of testing folders.
+     metrics: A dictionary containing all the result metrics for each
+              testing folder.
+     test_type: flat or hns ,which the metrics are related to.
+
+   Returns:
+     list: List of results to upload to GSheet.
+   """
+  metrics_data = []
+  # Getting values corrresponding to non nested folders.
+  for folder in dir["folders"]["folder_structure"]:
+    num_files = folder["num_files"]
+    num_folders = 1
+
+    row = [
+        'Renaming Operation',
+        test_type,
+        num_files,
+        num_folders,
+        metrics[folder["name"]]['Number of samples'],
+        metrics[folder["name"]]['Mean'],
+        metrics[folder["name"]]['Median'],
+        metrics[folder["name"]]['Standard Dev'],
+        metrics[folder["name"]]['Min'],
+        metrics[folder["name"]]['Max'],
+        metrics[folder["name"]]['Quantiles']['0 %ile'],
+        metrics[folder["name"]]['Quantiles']['20 %ile'],
+        metrics[folder["name"]]['Quantiles']['50 %ile'],
+        metrics[folder["name"]]['Quantiles']['90 %ile'],
+        metrics[folder["name"]]['Quantiles']['95 %ile'],
+        metrics[folder["name"]]['Quantiles']['98 %ile'],
+        metrics[folder["name"]]['Quantiles']['99 %ile'],
+        metrics[folder["name"]]['Quantiles']['99.5 %ile'],
+        metrics[folder["name"]]['Quantiles']['99.9 %ile'],
+        metrics[folder["name"]]['Quantiles']['100 %ile']
+
+    ]
+
+    metrics_data.append(row)
+
+  return metrics_data
 
 
 def _compute_metrics_from_time_of_operation(num_samples,results):
@@ -271,3 +345,14 @@ if __name__ == '__main__':
   results = dict()  # Dict object to store the results corresonding to the test types.
   _perform_testing(dir_str, "flat", args.num_samples, results)
   flat_parsed_metrics = _parse_results(dir_str, results['flat'], args.num_samples)
+  upload_values_flat = _get_values_to_export(dir_str, flat_parsed_metrics,
+                                             "flat")
+
+  if args.upload_gs:
+    log.info('Uploading files to the Google Sheet\n')
+    exit_code = _upload_to_gsheet(WORKSHEET_NAME_FLAT, upload_values_flat,
+                                  SPREADSHEET_ID)
+    if exit_code != 0:
+      log.error("Upload to gsheet failed!")
+  else:
+    print(upload_values_flat)
