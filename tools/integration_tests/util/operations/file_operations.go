@@ -490,6 +490,7 @@ func CreateFile(filePath string, filePerms os.FileMode, t *testing.T) (f *os.Fil
 	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, filePerms)
 	if err != nil {
 		t.Fatalf("CreateFile(%s): %v", filePath, err)
+		os.Exit(1)
 	}
 	return
 }
