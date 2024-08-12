@@ -73,7 +73,7 @@ func IsValidExperimentalMetadataPrefetchOnMount(mode string) error {
 }
 
 func isValidSequentialReadSizeMB(size int64) error {
-	if sequentialReadSizeMB < 1 || sequentialReadSizeMB > maxSequentialReadSizeMB {
+	if size < 1 || size > maxSequentialReadSizeMB {
 		return fmt.Errorf("sequential-read-size-mb should be between 1 and %d", maxSequentialReadSizeMB)
 	}
 	return nil
