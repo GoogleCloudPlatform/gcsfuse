@@ -717,7 +717,6 @@ func (d *dirInode) readObjects(
 				Bucket:    d.Bucket(),
 				FullName:  dirName,
 				Folder:    &folder,
-				MinObject: nil,
 			}
 			cores[dirName] = folderCore
 		} else {
@@ -760,7 +759,7 @@ func (d *dirInode) ReadEntries(
 			entry.Type = fuseutil.DT_Directory
 		}
 		entries = append(entries, entry)
-		logger.Infof("entry type %s and name %s: ", entry.Name, entry.Type)
+		logger.Infof("entry type %s and name %s: ", entry.Name, core.Type())
 	}
 
 	d.prevDirListingTimeStamp = d.cacheClock.Now()
