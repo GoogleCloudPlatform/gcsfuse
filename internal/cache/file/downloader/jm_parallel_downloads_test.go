@@ -17,7 +17,6 @@ package downloader
 import (
 	"context"
 	"crypto/rand"
-	"math"
 	"os"
 	"path"
 	"testing"
@@ -31,6 +30,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func createObjectInBucket(t *testing.T, objPath string, objSize int64, bucket gcs.Bucket) []byte {
@@ -98,31 +98,25 @@ func TestParallelDownloads(t *testing.T) {
 		parallelDownloadsPerFile int64
 		maxParallelDownloads     int64
 		downloadOffset           int64
-		expectedOffset           int64
 		subscribedOffset         int64
 	}{
 		{
-			name:                     "download in chunks of concurrency * readReqSize",
+			name:                     "download the entire object when object size > no of goroutines * readReqSize",
 			objectSize:               15 * util.MiB,
 			readReqSize:              3,
-			parallelDownloadsPerFile: math.MaxInt,
+			parallelDownloadsPerFile: 100,
 			maxParallelDownloads:     3,
 			subscribedOffset:         7,
 			downloadOffset:           10,
-			// Concurrency can go to (maxParallelDownloads + 1) in case
-			// parallelDownloadsPerFile > maxParallelDownloads because we always
-			// spawn a minimum of 1 go routine per async job.
-			expectedOffset: 12 * util.MiB,
 		},
 		{
 			name:                     "download only upto the object size",
 			objectSize:               10 * util.MiB,
 			readReqSize:              4,
-			parallelDownloadsPerFile: math.MaxInt,
+			parallelDownloadsPerFile: 100,
 			maxParallelDownloads:     3,
 			subscribedOffset:         7,
 			downloadOffset:           10,
-			expectedOffset:           10 * util.MiB,
 		},
 	}
 	for _, tc := range tbl {
@@ -145,9 +139,9 @@ func TestParallelDownloads(t *testing.T) {
 				select {
 				case jobStatus := <-subscriberC:
 					if assert.Nil(t, err) {
-						assert.Equal(t, tc.expectedOffset, jobStatus.Offset)
+						require.GreaterOrEqual(t, tc.objectSize, jobStatus.Offset)
 						verifyFileTillOffset(t,
-							data.FileSpec{Path: util.GetDownloadPath(path.Join(cacheDir, storage.TestBucketName), "path/in/gcs/foo.txt"), FilePerm: util.DefaultFilePerm, DirPerm: util.DefaultDirPerm}, tc.expectedOffset,
+							data.FileSpec{Path: util.GetDownloadPath(path.Join(cacheDir, storage.TestBucketName), "path/in/gcs/foo.txt"), FilePerm: util.DefaultFilePerm, DirPerm: util.DefaultDirPerm}, jobStatus.Offset,
 							content)
 					}
 					return
@@ -168,7 +162,7 @@ func TestMultipleConcurrentDownloads(t *testing.T) {
 	minObj1, content1 := createObjectInStoreAndInitCache(t, cache, bucket, "path/in/gcs/foo.txt", 10*util.MiB)
 	minObj2, content2 := createObjectInStoreAndInitCache(t, cache, bucket, "path/in/gcs/bar.txt", 5*util.MiB)
 	jm := NewJobManager(cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, 2, &cfg.FileCacheConfig{EnableParallelDownloads: true,
-		ParallelDownloadsPerFile: math.MaxInt, DownloadChunkSizeMb: 2, EnableCrc: true, MaxParallelDownloads: 2})
+		ParallelDownloadsPerFile: 100, DownloadChunkSizeMb: 2, EnableCrc: true, MaxParallelDownloads: 2})
 	job1 := jm.CreateJobIfNotExists(&minObj1, bucket)
 	job2 := jm.CreateJobIfNotExists(&minObj2, bucket)
 	s1 := job1.subscribe(10 * util.MiB)
