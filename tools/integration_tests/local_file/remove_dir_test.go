@@ -24,30 +24,30 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
-//func TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError_2(t *testing.T) {
-//	testDirPath = setup.SetupTestDirectory(testDirName)
-//	// Create explicit directory with one synced and one local file.
-//	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t)
-//	syncedFile := path.Join(ExplicitDirName, FileName1)
-//	localFile := path.Join(ExplicitDirName, FileName2)
-//	_, fh1 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, syncedFile, t)
-//	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh1, testDirName, syncedFile, "", t)
-//	_, fh2 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, localFile, t)
-//
-//	// Attempt to remove explicit directory.
-//	operations.RemoveDir(path.Join(testDirPath, ExplicitDirName))
-//
-//	// Verify that directory is removed.
-//	operations.ValidateNoFileOrDirError(path.Join(testDirPath, ExplicitDirName), t)
-//	// Validate writing content to unlinked local file does not throw error.
-//	operations.WriteWithoutClose(fh2, FileContents, t)
-//	// Validate flush file does not throw error and does not create object on GCS.
-//	operations.CloseFileShouldNotThrowError(fh2, t)
-//	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, localFile, t)
-//	// Validate synced files are also deleted.
-//	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, syncedFile, t)
-//	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, ExplicitDirName, t)
-//}
+func TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError_2(t *testing.T) {
+	testDirPath = setup.SetupTestDirectory(testDirName)
+	// Create explicit directory with one synced and one local file.
+	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t)
+	syncedFile := path.Join(ExplicitDirName, FileName1)
+	localFile := path.Join(ExplicitDirName, FileName2)
+	_, fh1 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, syncedFile, t)
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh1, testDirName, syncedFile, "", t)
+	_, fh2 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, localFile, t)
+
+	// Attempt to remove explicit directory.
+	operations.RemoveDir(path.Join(testDirPath, ExplicitDirName))
+
+	// Verify that directory is removed.
+	operations.ValidateNoFileOrDirError(path.Join(testDirPath, ExplicitDirName), t)
+	// Validate writing content to unlinked local file does not throw error.
+	operations.WriteWithoutClose(fh2, FileContents, t)
+	// Validate flush file does not throw error and does not create object on GCS.
+	operations.CloseFileShouldNotThrowError(fh2, t)
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, localFile, t)
+	// Validate synced files are also deleted.
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, syncedFile, t)
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, ExplicitDirName, t)
+}
 
 func TestRmDirOfDirectoryContainingOnlyLocalFiles(t *testing.T) {
 	testDirPath = setup.SetupTestDirectory(testDirName)
