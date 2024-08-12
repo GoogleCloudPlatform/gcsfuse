@@ -523,8 +523,8 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 }
 func TestArgsParsing_GCSConnectionFlagsThrowsError(t *testing.T) {
 	tests := []struct {
-		name           string
-		args           []string
+		name string
+		args []string
 	}{
 		{
 			name: "Invalid value for sequential read size flag 1",
