@@ -61,7 +61,7 @@ func CreateFile(fileSpec data.FileSpec, flag int) (file *os.File, err error) {
 	fileDir := filepath.Dir(fileSpec.Path)
 	err = os.MkdirAll(fileDir, fileSpec.DirPerm)
 	if err != nil {
-		err = fmt.Errorf(fmt.Sprintf("error in creating directory structure %s: %v", fileDir, err))
+		err = fmt.Errorf("error in creating directory structure %s: %w", fileDir, err)
 		return
 	}
 
@@ -71,13 +71,13 @@ func CreateFile(fileSpec data.FileSpec, flag int) (file *os.File, err error) {
 		if os.IsNotExist(err) {
 			flag = flag | os.O_CREATE
 		} else {
-			err = fmt.Errorf(fmt.Sprintf("error in stating file %s: %v", fileSpec.Path, err))
+			err = fmt.Errorf("error in stating file %s: %w", fileSpec.Path, err)
 			return
 		}
 	}
 	file, err = os.OpenFile(fileSpec.Path, flag, fileSpec.FilePerm)
 	if err != nil {
-		err = fmt.Errorf(fmt.Sprintf("error in creating file %s: %v", fileSpec.Path, err))
+		err = fmt.Errorf("error in creating file %s: %w", fileSpec.Path, err)
 		return
 	}
 	return
