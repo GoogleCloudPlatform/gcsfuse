@@ -55,7 +55,7 @@ func TestReadDirContainingUnlinkedLocalFiles(t *testing.T) {
 	operations.VerifyCountOfDirectoryEntries(2, len(entries), t)
 	operations.VerifyFileEntry(entries[0], FileName1, 0, t)
 	operations.VerifyFileEntry(entries[1], FileName2, 0, t)
-	t.Logf("entries: ", entries)
+	t.Log(entries)
 	// Close the local files and validate they are written to GCS.
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh1, testDirName,
 		FileName1, "", t)
