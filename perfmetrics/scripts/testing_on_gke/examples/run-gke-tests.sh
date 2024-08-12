@@ -45,8 +45,8 @@ readonly gcsfuse_branch=garnitin/add-gke-load-testing/v1
 # GCSFuse configuration related
 readonly DEFAULT_GCSFUSE_MOUNT_OPTIONS="implicit-dirs"
 # Test runtime configuration
-readonly DEFAULT_POD_WAIT_TIME_IN_SECONDS=300
 readonly DEFAULT_INSTANCE_ID=${USER}-$(date +%Y%m%d-%H%M%S)
+readonly DEFAULT_POD_WAIT_TIME_IN_SECONDS=300
 
 function printHelp() {
   echo "Usage guide: "
@@ -72,9 +72,9 @@ function printHelp() {
   # GCSFuse configuration related
   echo "gcsfuse_mount_options=<\"comma-separated-gcsfuse-mount-options\" e.g. \""${DEFAULT_GCSFUSE_MOUNT_OPTIONS}"\">"
   # Test runtime configuration
-  echo "pod_wait_time_in_seconds=<number e.g. 60 for checking pod status every 1 min, default="${DEFAULT_POD_WAIT_TIME_IN_SECONDS}">"
-  echo "instance_id=<string, not containing spaces, representing unique id for particular test-run e.g. "${DEFAULT_INSTANCE_ID}""
-  echo "workload_config=</absolute/path/to/workload/configuration/file e.g. /a/b/c.json >"
+  echo "pod_wait_time_in_seconds=<number e.g. 60 for checking pod status every 1 min, default=\"${DEFAULT_POD_WAIT_TIME_IN_SECONDS}\">"
+  echo "instance_id=<string, not containing spaces, representing unique id for particular test-run e.g. \"${DEFAULT_INSTANCE_ID}\""
+  echo "workload_config=<path/to/workload/configuration/file e.g. /a/b/c.json >"
   echo "output_dir=</absolute/path/to/output/dir, output files will be written at output_dir/fio/output.csv and output_dir/dlio/output.csv>"
   echo ""
   echo ""
