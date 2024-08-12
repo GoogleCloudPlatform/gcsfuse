@@ -32,12 +32,12 @@ type HNSBucketTests struct {
 	fsTest
 }
 
-type DirEntry struct {
+type dirEntry struct {
 	name  string
 	isDir bool
 }
 
-var expectedFooDirEntries = []DirEntry{
+var expectedFooDirEntries = []dirEntry{
 	{name: "test", isDir: true},
 	{name: "test2", isDir: true},
 	{name: "file1.txt", isDir: false},
@@ -84,11 +84,11 @@ func (t *HNSBucketTests) TestReadDir() {
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), 5, len(dirEntries))
-	actualDirEntries := []DirEntry{}
-	for _, dirEntry := range dirEntries {
-		actualDirEntries = append(actualDirEntries, DirEntry{
-			name:  dirEntry.Name(),
-			isDir: dirEntry.IsDir(),
+	actualDirEntries := []dirEntry{}
+	for _, d := range dirEntries {
+		actualDirEntries = append(actualDirEntries, dirEntry{
+			name:  d.Name(),
+			isDir: d.IsDir(),
 		})
 	}
 	assert.ElementsMatch(t.T(), actualDirEntries, expectedFooDirEntries)
@@ -115,6 +115,7 @@ func (t *HNSBucketTests) TestRenameFolderWithSrcDirectoryDoesNotExist() {
 	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
 	_, err = os.Stat(newDirPath)
 	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
 }
 
 func (t *HNSBucketTests) TestRenameFolderWithDstDirectoryNotEmpty() {
@@ -166,11 +167,11 @@ func (t *HNSBucketTests) TestRenameFolderWithSameParent() {
 	dirEntries, err := os.ReadDir(newDirPath)
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), 5, len(dirEntries))
-	actualDirEntries := []DirEntry{}
-	for _, dirEntry := range dirEntries {
-		actualDirEntries = append(actualDirEntries, DirEntry{
-			name:  dirEntry.Name(),
-			isDir: dirEntry.IsDir(),
+	actualDirEntries := []dirEntry{}
+	for _, d := range dirEntries {
+		actualDirEntries = append(actualDirEntries, dirEntry{
+			name:  d.Name(),
+			isDir: d.IsDir(),
 		})
 	}
 	assert.ElementsMatch(t.T(), actualDirEntries, expectedFooDirEntries)
@@ -193,11 +194,11 @@ func (t *HNSBucketTests) TestRenameFolderWithDifferentParents() {
 	dirEntries, err := os.ReadDir(newDirPath)
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), 5, len(dirEntries))
-	actualDirEntries := []DirEntry{}
-	for _, dirEntry := range dirEntries {
-		actualDirEntries = append(actualDirEntries, DirEntry{
-			name:  dirEntry.Name(),
-			isDir: dirEntry.IsDir(),
+	actualDirEntries := []dirEntry{}
+	for _, d:= range dirEntries {
+		actualDirEntries = append(actualDirEntries, dirEntry{
+			name:  d.Name(),
+			isDir: d.IsDir(),
 		})
 	}
 	assert.ElementsMatch(t.T(), actualDirEntries, expectedFooDirEntries)
