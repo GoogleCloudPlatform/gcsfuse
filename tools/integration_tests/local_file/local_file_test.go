@@ -96,7 +96,7 @@ func TestMain(m *testing.M) {
 	setup.SetUpTestDirForTestBucketFlag()
 
 	// Set up flags to run tests on.
-	// Not setting config file explicitly with 'create-empty-file: false' as it is default.
+	// Not setting config file explFicitly with 'create-empty-file: false' as it is default.
 	//flagsSet := [][]string{
 	//	{"--implicit-dirs=true", "--rename-dir-limit=3"},
 	//	{"--implicit-dirs=false", "--rename-dir-limit=3"}}
