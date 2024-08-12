@@ -33,8 +33,7 @@ func Rationalize(c *Config) error {
 	}
 
 	var err error
-	c.GcsConnection.CustomEndpoint, err = decodeURL(c.GcsConnection.CustomEndpoint)
-	if err != nil {
+	if c.GcsConnection.CustomEndpoint, err = decodeURL(c.GcsConnection.CustomEndpoint); err != nil {
 		return err
 	}
 

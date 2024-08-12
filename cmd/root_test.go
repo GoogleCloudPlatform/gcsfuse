@@ -173,7 +173,7 @@ func TestArgsParsing_MountOptions(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var mountOptions []string
-			cmd, err := NewRootCmd(func(cfg *cfg.Config, _ string, _ string) error {
+			cmd, err := NewRootCmd(func(cfg *cfg.Config, _, _ string) error {
 				mountOptions = cfg.FileSystem.FuseOptions
 				return nil
 			})
@@ -215,7 +215,7 @@ func TestArgsParsing_CreateEmptyFileFlag(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var createEmptyFile bool
-			cmd, err := NewRootCmd(func(cfg *cfg.Config, _ string, _ string) error {
+			cmd, err := NewRootCmd(func(cfg *cfg.Config, _, _ string) error {
 				createEmptyFile = cfg.Write.CreateEmptyFile
 				return nil
 			})
@@ -272,7 +272,7 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := NewRootCmd(func(cfg *cfg.Config, _ string, _ string) error {
+			cmd, err := NewRootCmd(func(cfg *cfg.Config, _, _ string) error {
 				gotConfig = cfg
 				return nil
 			})
@@ -324,7 +324,7 @@ func TestArgParsing_ExperimentalMetadataPrefetchFlag(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var experimentalMetadataPrefetch string
-			cmd, err := NewRootCmd(func(cfg *cfg.Config, _ string, _ string) error {
+			cmd, err := NewRootCmd(func(cfg *cfg.Config, _, _ string) error {
 				experimentalMetadataPrefetch = cfg.MetadataCache.ExperimentalMetadataPrefetchOnMount
 				return nil
 			})
@@ -357,7 +357,7 @@ func TestArgParsing_ExperimentalMetadataPrefetchFlag_Failed(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd, err := NewRootCmd(func(cfg *cfg.Config, _ string, _ string) error {
+			cmd, err := NewRootCmd(func(cfg *cfg.Config, _, _ string) error {
 				return nil
 			})
 			require.Nil(t, err)
@@ -407,7 +407,7 @@ func TestArgsParsing_GCSAuthFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := NewRootCmd(func(cfg *cfg.Config, _ string, _ string) error {
+			cmd, err := NewRootCmd(func(cfg *cfg.Config, _, _ string) error {
 				gotConfig = cfg
 				return nil
 			})
@@ -445,15 +445,13 @@ func TestArgsParsing_GCSAuthFlagsThrowsError(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd, err := NewRootCmd(func(cfg *cfg.Config, _ string, _ string) error {
+			cmd, err := NewRootCmd(func(cfg *cfg.Config, _, _ string) error {
 				return nil
 			})
 			require.Nil(t, err)
 			cmd.SetArgs(tc.args)
 
-			err = cmd.Execute()
-
-			assert.Error(t, err)
+			assert.Error(t, cmd.Execute())
 		})
 	}
 }

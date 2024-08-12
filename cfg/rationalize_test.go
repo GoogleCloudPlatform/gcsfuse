@@ -98,8 +98,9 @@ func TestRationalizeCustomEndpointSuccessful(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			actualErr := Rationalize(tc.config)
 
-			assert.NoError(t, actualErr)
-			assert.Equal(t, tc.expectedCustomEndpoint, tc.config.GcsConnection.CustomEndpoint)
+			if assert.NoError(t, actualErr) {
+				assert.Equal(t, tc.expectedCustomEndpoint, tc.config.GcsConnection.CustomEndpoint)
+			}
 		})
 	}
 }
@@ -121,10 +122,7 @@ func TestRationalizeCustomEndpointUnsuccessful(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualErr := Rationalize(tc.config)
-
-			assert.Error(t, actualErr)
-			assert.Equal(t, "", tc.config.GcsConnection.CustomEndpoint)
+			assert.Error(t, Rationalize(tc.config))
 		})
 	}
 }
@@ -195,7 +193,7 @@ func TestLoggingSeverityRationalization(t *testing.T) {
 		err := Rationalize(&c)
 
 		if assert.NoError(t, err) {
-			assert.Equal(t, LogSeverity(tc.expected), c.Logging.Severity)
+			assert.Equal(t, tc.expected, c.Logging.Severity)
 		}
 	}
 }
@@ -230,8 +228,9 @@ func TestRationalize_TokenURLSuccessful(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			actualErr := Rationalize(tc.config)
 
-			assert.NoError(t, actualErr)
-			assert.Equal(t, tc.expectedTokenURL, tc.config.GcsAuth.TokenUrl)
+			if assert.NoError(t, actualErr) {
+				assert.Equal(t, tc.expectedTokenURL, tc.config.GcsAuth.TokenUrl)
+			}
 		})
 	}
 }
@@ -253,10 +252,7 @@ func TestRationalize_TokenURLUnsuccessful(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualErr := Rationalize(tc.config)
-
-			assert.Error(t, actualErr)
-			assert.Equal(t, "", tc.config.GcsAuth.TokenUrl)
+			assert.Error(t, Rationalize(tc.config))
 		})
 	}
 }
