@@ -429,7 +429,8 @@ type flagStorage struct {
 	OnlyDir string
 
 	// Deprecated: Use the param from cfg/config.go
-	RenameDirLimit   int64
+	RenameDirLimit int64
+	// Deprecated: Use the param from cfg/config.go
 	IgnoreInterrupts bool
 
 	// GCS

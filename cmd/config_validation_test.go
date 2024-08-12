@@ -19,6 +19,7 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"strconv"
 	"testing"
 	"time"
 
@@ -246,6 +247,10 @@ func TestValidateConfigFile_InvalidConfigThrowsError(t *testing.T) {
 			name:       "Invalid write buffer size",
 			configFile: "testdata/file_cache_config/invalid_write_buffer_size.yaml",
 		},
+		{
+			name:       "Invalid value of ignore interrupts.",
+			configFile: "testdata/file_system_config/invalid_ignore_interrupts.yaml",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -408,6 +413,89 @@ func TestValidateConfigFile_GCSConnectionConfigSuccessful(t *testing.T) {
 
 			if assert.NoError(t, err) {
 				assert.EqualValues(t, tc.expectedConfig.GcsConnection, gotConfig.GcsConnection)
+			}
+		})
+	}
+}
+
+func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
+	defaultDirMode, err := strconv.ParseInt("0755", 8, 0)
+	require.NoError(t, err)
+	defaultFileMode, err := strconv.ParseInt("0644", 8, 0)
+	require.NoError(t, err)
+	fileMode666, err := strconv.ParseInt("0666", 8, 0)
+	require.NoError(t, err)
+	dirMode777, err := strconv.ParseInt("0777", 8, 0)
+	require.NoError(t, err)
+	hd, err := os.UserHomeDir()
+	require.NoError(t, err)
+	testCases := []struct {
+		name           string
+		configFile     string
+		expectedConfig *cfg.Config
+	}{
+		{
+			name:       "Empty config file [default values].",
+			configFile: "testdata/empty_file.yaml",
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					DirMode:                cfg.Octal(defaultDirMode),
+					DisableParallelDirops:  false,
+					FileMode:               cfg.Octal(defaultFileMode),
+					FuseOptions:            []string{},
+					Gid:                    -1,
+					IgnoreInterrupts:       true,
+					KernelListCacheTtlSecs: 0,
+					RenameDirLimit:         0,
+					TempDir:                "",
+					Uid:                    -1,
+				},
+			},
+		},
+		{
+			name:       "File system config unset.",
+			configFile: "testdata/file_system_config/unset_file_system_config.yaml",
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					DirMode:                cfg.Octal(defaultDirMode),
+					DisableParallelDirops:  false,
+					FileMode:               cfg.Octal(defaultFileMode),
+					FuseOptions:            []string{},
+					Gid:                    -1,
+					IgnoreInterrupts:       true,
+					KernelListCacheTtlSecs: 0,
+					RenameDirLimit:         0,
+					TempDir:                "",
+					Uid:                    -1,
+				},
+			},
+		},
+		{
+			name:       "Valid config file.",
+			configFile: "testdata/valid_config.yaml",
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					DirMode:                cfg.Octal(dirMode777),
+					DisableParallelDirops:  true,
+					FileMode:               cfg.Octal(fileMode666),
+					FuseOptions:            []string{"ro"},
+					Gid:                    7,
+					IgnoreInterrupts:       false,
+					KernelListCacheTtlSecs: 300,
+					RenameDirLimit:         10,
+					TempDir:                cfg.ResolvedPath(path.Join(hd, "temp")),
+					Uid:                    8,
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
+
+			if assert.NoError(t, err) {
+				assert.EqualValues(t, tc.expectedConfig.FileSystem, gotConfig.FileSystem)
 			}
 		})
 	}
