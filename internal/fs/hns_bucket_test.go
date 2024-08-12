@@ -132,7 +132,7 @@ func (t *HNSBucketTests) TestRenameFolderWithSourceDirectoryHaveOpenFiles() {
 	oldDirPath := path.Join(mntDir, "foo", "test")
 	_, err = os.Stat(oldDirPath)
 	assert.NoError(t.T(), err)
-	file, err := os.OpenFile(path.Join(oldDirPath, "file3.txt"), os.O_RDWR, 0600)
+	file, err := os.OpenFile(path.Join(oldDirPath, "file4.txt"), os.O_RDWR|os.O_CREATE, 0600)
 	assert.NoError(t.T(), err)
 	defer file.Close()
 	newDirPath := path.Join(mntDir, "bar", "foo_rename")
@@ -140,7 +140,10 @@ func (t *HNSBucketTests) TestRenameFolderWithSourceDirectoryHaveOpenFiles() {
 	err = os.Rename(oldDirPath, newDirPath)
 
 	assert.Error(t.T(), err)
-	assert.True(t.T(), strings.Contains(err.Error(), "file exists"))
+	// In the logs, we encountered the following error:
+	// "Rename: operation not supported, can't rename directory 'test' with open files: operation not supported."
+	// This was translated to an "operation not supported" error at the kernel level.
+	assert.True(t.T(), strings.Contains(err.Error(), "operation not supported"))
 }
 
 type DirEntry struct {

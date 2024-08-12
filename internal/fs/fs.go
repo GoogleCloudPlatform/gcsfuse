@@ -1924,7 +1924,6 @@ func (fs *fileSystem) Rename(
 	ctx context.Context,
 	op *fuseops.RenameOp) (err error) {
 	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
-		logger.Errorf("In Rename")
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
@@ -2111,7 +2110,7 @@ func (fs *fileSystem) renameFolder(ctx context.Context, oldParent inode.DirInode
 		return fmt.Errorf("failed to rename folder: %w", err)
 	}
 
-	return
+	return nil
 }
 
 // Rename an old directory to a new directory. If the new directory already
