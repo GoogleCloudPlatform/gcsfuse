@@ -19,6 +19,7 @@ import (
 	"path"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/stretchr/testify/assert"
@@ -440,6 +441,110 @@ func TestArgsParsing_GCSAuthFlagsThrowsError(t *testing.T) {
 		{
 			name: "Invalid value for token-url flag",
 			args: []string{"gcsfuse", "--token-url=a_b://abc", "abc", "pqr"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cmd, err := NewRootCmd(func(cfg *cfg.Config, _, _ string) error {
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(tc.args)
+
+			assert.Error(t, cmd.Execute())
+		})
+	}
+}
+
+func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
+	tests := []struct {
+		name           string
+		args           []string
+		expectedConfig *cfg.Config
+	}{
+		{
+			name: "Test gcs connection flags.",
+			args: []string{"gcsfuse", "--billing-project=abc", "--client-protocol=http2", "--custom-endpoint=www.abc.com", "--experimental-enable-json-read", "--experimental-grpc-conn-pool-size=20", "--http-client-timeout=20s", "--limit-bytes-per-sec=30", "--limit-ops-per-sec=10", "--max-conns-per-host=1000", "--max-idle-conns-per-host=20", "--sequential-read-size-mb=70", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				GcsConnection: cfg.GcsConnectionConfig{
+					BillingProject:             "abc",
+					ClientProtocol:             "http2",
+					CustomEndpoint:             "www.abc.com",
+					ExperimentalEnableJsonRead: true,
+					GrpcConnPoolSize:           20,
+					HttpClientTimeout:          20 * time.Second,
+					LimitBytesPerSec:           30,
+					LimitOpsPerSec:             10,
+					MaxConnsPerHost:            1000,
+					MaxIdleConnsPerHost:        20,
+					SequentialReadSizeMb:       70,
+				},
+			},
+		},
+		{
+			name: "Test default gcs connection flags.",
+			args: []string{"gcsfuse", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				GcsConnection: cfg.GcsConnectionConfig{
+					BillingProject:             "",
+					ClientProtocol:             "http1",
+					CustomEndpoint:             "",
+					ExperimentalEnableJsonRead: false,
+					GrpcConnPoolSize:           1,
+					HttpClientTimeout:          0,
+					LimitBytesPerSec:           -1,
+					LimitOpsPerSec:             -1,
+					MaxConnsPerHost:            0,
+					MaxIdleConnsPerHost:        100,
+					SequentialReadSizeMb:       200,
+				},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotConfig *cfg.Config
+			cmd, err := NewRootCmd(func(cfg *cfg.Config, _, _ string) error {
+				gotConfig = cfg
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(tc.args)
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedConfig.GcsConnection, gotConfig.GcsConnection)
+			}
+		})
+	}
+}
+func TestArgsParsing_GCSConnectionFlagsThrowsError(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{
+			name: "Invalid value for sequential read size flag 1",
+			args: []string{"gcsfuse", "--sequential-read-size-mb=2040", "abc", "pqr"},
+		},
+		{
+			name: "Invalid value for sequential read size flag 2",
+			args: []string{"gcsfuse", "--sequential-read-size-mb=0", "abc", "pqr"},
+		},
+		{
+			name: "Invalid value for client-protocol flag",
+			args: []string{"gcsfuse", "--client-protocol=http3", "abc", "pqr"},
+		},
+		{
+			name: "Invalid value for custom-endpoint flag",
+			args: []string{"gcsfuse", "--custom-endpoint=a_b://abc", "abc", "pqr"},
+		},
+		{
+			name: "Invalid value for http-client-timeout flag",
+			args: []string{"gcsfuse", "--http-client-timeout=200", "abc", "pqr"},
 		},
 	}
 

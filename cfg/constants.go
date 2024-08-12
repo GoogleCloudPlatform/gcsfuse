@@ -33,3 +33,8 @@ const (
 	// ExperimentalMetadataPrefetchOnMountAsynchronous is the prefetch-mode where mounting is marked complete once prefetch has started.
 	ExperimentalMetadataPrefetchOnMountAsynchronous = "async"
 )
+
+const (
+	// maxSequentialReadSizeMb is the max value supported by sequential-read-size-mb flag.
+	maxSequentialReadSizeMB = 1024
+)

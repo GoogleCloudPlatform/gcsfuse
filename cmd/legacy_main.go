@@ -166,7 +166,6 @@ func mountWithArgs(
 		bucketName,
 		mountPoint,
 		newConfig,
-		flags,
 		mountConfig,
 		storageHandle)
 

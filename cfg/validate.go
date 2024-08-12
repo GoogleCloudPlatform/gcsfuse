@@ -72,6 +72,13 @@ func IsValidExperimentalMetadataPrefetchOnMount(mode string) error {
 	}
 }
 
+func isValidSequentialReadSizeMB(size int64) error {
+	if size < 1 || size > maxSequentialReadSizeMB {
+		return fmt.Errorf("sequential-read-size-mb should be between 1 and %d", maxSequentialReadSizeMB)
+	}
+	return nil
+}
+
 // ValidateConfig returns a non-nil error if the config is invalid.
 func ValidateConfig(config *Config) error {
 	var err error
@@ -94,6 +101,10 @@ func ValidateConfig(config *Config) error {
 
 	if err = isValidURL(config.GcsAuth.TokenUrl); err != nil {
 		return fmt.Errorf("error parsing token-url config: %w", err)
+	}
+
+	if err = isValidSequentialReadSizeMB(config.GcsConnection.SequentialReadSizeMb); err != nil {
+		return fmt.Errorf("error parsing gcs-connection config: %w", err)
 	}
 
 	return nil
