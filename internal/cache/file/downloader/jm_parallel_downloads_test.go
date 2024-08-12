@@ -30,6 +30,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func createObjectInBucket(t *testing.T, objPath string, objSize int64, bucket gcs.Bucket) []byte {
@@ -138,7 +139,7 @@ func TestParallelDownloads(t *testing.T) {
 				select {
 				case jobStatus := <-subscriberC:
 					if assert.Nil(t, err) {
-						assert.GreaterOrEqual(t, tc.objectSize, jobStatus.Offset)
+						require.GreaterOrEqual(t, tc.objectSize, jobStatus.Offset)
 						verifyFileTillOffset(t,
 							data.FileSpec{Path: util.GetDownloadPath(path.Join(cacheDir, storage.TestBucketName), "path/in/gcs/foo.txt"), FilePerm: util.DefaultFilePerm, DirPerm: util.DefaultDirPerm}, jobStatus.Offset,
 							content)
