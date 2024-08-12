@@ -113,7 +113,8 @@ func createConfigFile(cacheSize int64, cacheFileForRangeRead bool, fileName stri
 			"download-chunk-size-mb":      downloadChunkSizeMB,
 			"enable-crc":                  enableCrcCheck,
 		},
-		"cache-dir": cacheDirPath,
+		"cache-dir":  cacheDirPath,
+		"enable-hns": true,
 	}
 	filePath := setup.YAMLConfigFile(mountConfig, fileName)
 	return filePath

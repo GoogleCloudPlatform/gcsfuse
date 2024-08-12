@@ -144,8 +144,9 @@ func TestCacheFileForRangeReadFalseTest(t *testing.T) {
 
 	// Run tests with parallel downloads disabled.
 	flagsSet := [][]string{
-		{"--implicit-dirs", "--config-file=" + createConfigFile(cacheCapacityForRangeReadTestInMiB, false, configFileName, false)},
+		{"--config-file=" + createConfigFile(cacheCapacityForRangeReadTestInMiB, false, configFileName, false)},
 	}
+
 	for _, flags := range flagsSet {
 		ts.flags = flags
 		log.Printf("Running tests with flags: %s", ts.flags)

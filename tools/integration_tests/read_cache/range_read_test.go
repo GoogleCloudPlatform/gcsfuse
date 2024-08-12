@@ -118,7 +118,7 @@ func TestRangeReadTest(t *testing.T) {
 
 	// Run tests with parallel downloads enabled.
 	flagsSet = [][]string{
-		{"--config-file=" + createConfigFile(largeFileCacheCapacity, true, configFileName+"2", false)},
+		{createConfigFile(largeFileCacheCapacity, true, configFileName+"2", false)},
 	}
 	for _, flags := range flagsSet {
 		ts.flags = flags
