@@ -140,7 +140,12 @@ func TestManagedFolders_FolderViewPermission(t *testing.T) {
 	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, ViewPermission, setup.TestBucket())
 	defer creds_tests.RevokePermission(serviceAccount, ViewPermission, setup.TestBucket())
 
-	flags := []string{"--implicit-dirs", "--key-file=" + localKeyFilePath, "--rename-dir-limit=3"}
+	var flags []string
+
+	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
+		hnsFlagSet = append(hnsFlagSet,  "--key-file=" + localKeyFilePath)
+		flags = hnsFlagSet
+	}
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 	defer setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 	setup.SetMntDir(mountDir)
