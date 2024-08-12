@@ -15,7 +15,6 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 	"path"
 	"runtime"
@@ -454,7 +453,6 @@ func TestArgsParsing_GCSAuthFlagsThrowsError(t *testing.T) {
 
 			err = cmd.Execute()
 
-			fmt.Println(err.Error())
 			assert.Error(t, err)
 		})
 	}
