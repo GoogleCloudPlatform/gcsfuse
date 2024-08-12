@@ -1,6 +1,6 @@
 package data
 
 type ObjectRange struct {
-	Start uint64
-	End   uint64
+	Start int64
+	End   int64
 }

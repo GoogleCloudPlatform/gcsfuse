@@ -34,15 +34,15 @@ import (
 // GCS into given destination writer.
 //
 // This function doesn't take locks and can be executed parallely.
-func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, end uint64) error {
+func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, end int64) error {
 	newReader, err := job.bucket.NewReader(
 		ctx,
 		&gcs.ReadObjectRequest{
 			Name:       job.object.Name,
 			Generation: job.object.Generation,
 			Range: &gcs.ByteRange{
-				Start: start,
-				Limit: end,
+				Start: uint64(start),
+				Limit: uint64(end),
 			},
 			ReadCompressed: job.object.HasContentEncodingGzip(),
 		})
@@ -60,9 +60,9 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 		}
 	}()
 
-	monitor.CaptureGCSReadMetrics(ctx, util.Parallel, int64(end-start))
+	monitor.CaptureGCSReadMetrics(ctx, util.Parallel, end-start)
 
-	_, err = io.CopyN(dstWriter, newReader, int64(end-start))
+	_, err = io.CopyN(dstWriter, newReader, end-start)
 	if err != nil {
 		err = fmt.Errorf("downloadRange: error at the time of copying content to cache file %w", err)
 	}
@@ -75,7 +75,7 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 // Eg:
 // Input: rangeMap entries 0-3, 5-6. New input 7-8.
 // Output: rangeMap entries 0-3, 5-8.
-func (job *Job) updateRangeMap(rangeMap map[uint64]uint64, offsetStart uint64, offsetEnd uint64) error {
+func (job *Job) updateRangeMap(rangeMap map[int64]int64, offsetStart int64, offsetEnd int64) error {
 	// Check if the chunk downloaded completes a range [0, R) and find that
 	// R.
 	job.mu.Lock()
@@ -112,7 +112,7 @@ func (job *Job) updateRangeMap(rangeMap map[uint64]uint64, offsetStart uint64, o
 	return nil
 }
 
-func (job *Job) downloadOffsets(ctx context.Context, goroutineIndex int64, cacheFile *os.File, rangeMap map[uint64]uint64) func() error {
+func (job *Job) downloadOffsets(ctx context.Context, goroutineIndex int64, cacheFile *os.File, rangeMap map[int64]int64) func() error {
 	return func() error {
 		// Since we keep a goroutine for each job irrespective of the maxParallelism,
 		// not releasing the default goroutine to the pool.
@@ -122,7 +122,7 @@ func (job *Job) downloadOffsets(ctx context.Context, goroutineIndex int64, cache
 
 		for {
 			// Read the offset to be downloaded from the channel.
-			objectRange, ok := <-job.offsetChan
+			objectRange, ok := <-job.rangeChan
 			if !ok {
 				// In case channel is closed return.
 				return nil
@@ -146,17 +146,17 @@ func (job *Job) downloadOffsets(ctx context.Context, goroutineIndex int64, cache
 // into given file handle using multiple NewReader method of gcs.Bucket running
 // in parallel. This function is canceled if job.cancelCtx is canceled.
 func (job *Job) parallelDownloadObjectToFile(cacheFile *os.File) (err error) {
-	rangeMap := make(map[uint64]uint64)
-	// Trying to keep the channel size greater than PrallelDownloadsPerFile to ensure
-	// that there is no goroutine waiting for data.
-	job.offsetChan = make(chan data.ObjectRange, 2*job.fileCacheConfig.ParallelDownloadsPerFile)
+	rangeMap := make(map[int64]int64)
+	// Trying to keep the channel size greater than ParallelDownloadsPerFile to ensure
+	// that there is no goroutine waiting for data(nextRange) to be published to channel.
+	job.rangeChan = make(chan data.ObjectRange, 2*job.fileCacheConfig.ParallelDownloadsPerFile)
 	var numGoRoutines int64
-	var start uint64
-	downloadChunkSize := uint64(job.fileCacheConfig.DownloadChunkSizeMb) * uint64(cacheutil.MiB)
+	var start int64
+	downloadChunkSize := job.fileCacheConfig.DownloadChunkSizeMb * cacheutil.MiB
 	downloadErrGroup, downloadErrGroupCtx := errgroup.WithContext(job.cancelCtx)
 
 	// Start the goroutines as per the config and the availability.
-	for numGoRoutines = 0; (numGoRoutines < job.fileCacheConfig.ParallelDownloadsPerFile) && (start < job.object.Size); numGoRoutines++ {
+	for numGoRoutines = 0; (numGoRoutines < job.fileCacheConfig.ParallelDownloadsPerFile) && (start < int64(job.object.Size)); numGoRoutines++ {
 		// Respect max download parallelism only beyond first go routine.
 		if numGoRoutines > 0 && !job.maxParallelismSem.TryAcquire(1) {
 			break
@@ -166,14 +166,14 @@ func (job *Job) parallelDownloadObjectToFile(cacheFile *os.File) (err error) {
 		start = start + downloadChunkSize
 	}
 
-	for start = 0; start < job.object.Size; {
+	for start = 0; start < int64(job.object.Size); {
 		nextRange := data.ObjectRange{
 			Start: start,
-			End:   min(job.object.Size, start+downloadChunkSize),
+			End:   min(int64(job.object.Size), start+downloadChunkSize),
 		}
 
 		select {
-		case job.offsetChan <- nextRange:
+		case job.rangeChan <- nextRange:
 			start = nextRange.End
 			// In case we haven't started the goroutines as per the config, checking
 			// if any goroutines are available now.
@@ -195,7 +195,7 @@ func (job *Job) parallelDownloadObjectToFile(cacheFile *os.File) (err error) {
 // return the appropriate error.
 func (job *Job) handleJobCompletion(ctx context.Context, group *errgroup.Group) error {
 	// Close the channel since we are ending the job.
-	close(job.offsetChan)
+	close(job.rangeChan)
 
 	// First check if the context has reported any error. This is to handle scenario
 	// where context is cancelled and no goroutines are running.

@@ -63,7 +63,7 @@ func (dt *parallelDownloaderTest) Test_downloadRange() {
 	file, err := util.CreateFile(data.FileSpec{Path: dt.job.fileSpec.Path,
 		FilePerm: os.FileMode(0600), DirPerm: os.FileMode(0700)}, os.O_TRUNC|os.O_RDWR)
 	AssertEq(nil, err)
-	verifyContentAtOffset := func(file *os.File, start, end uint64) {
+	verifyContentAtOffset := func(file *os.File, start, end int64) {
 		_, err = file.Seek(int64(start), 0)
 		AssertEq(nil, err)
 		buf := make([]byte, end-start)
@@ -74,29 +74,29 @@ func (dt *parallelDownloaderTest) Test_downloadRange() {
 	}
 
 	// Download end 1MiB of object
-	start, end := uint64(9*util.MiB), uint64(10*util.MiB)
-	offsetWriter := io.NewOffsetWriter(file, int64(start))
+	start, end := int64(9*util.MiB), int64(10*util.MiB)
+	offsetWriter := io.NewOffsetWriter(file, start)
 	err = dt.job.downloadRange(context.Background(), offsetWriter, start, end)
 	AssertEq(nil, err)
 	verifyContentAtOffset(file, start, end)
 
 	// Download start 4MiB of object
-	start, end = uint64(0*util.MiB), uint64(4*util.MiB)
-	offsetWriter = io.NewOffsetWriter(file, int64(start))
+	start, end = int64(0*util.MiB), int64(4*util.MiB)
+	offsetWriter = io.NewOffsetWriter(file, start)
 	err = dt.job.downloadRange(context.Background(), offsetWriter, start, end)
 	AssertEq(nil, err)
 	verifyContentAtOffset(file, start, end)
 
 	// Download middle 1B of object
-	start, end = uint64(5*util.MiB), uint64(5*util.MiB+1)
-	offsetWriter = io.NewOffsetWriter(file, int64(start))
+	start, end = int64(5*util.MiB), int64(5*util.MiB+1)
+	offsetWriter = io.NewOffsetWriter(file, start)
 	err = dt.job.downloadRange(context.Background(), offsetWriter, start, end)
 	AssertEq(nil, err)
 	verifyContentAtOffset(file, start, end)
 
 	// Download 0B of object
-	start, end = uint64(5*util.MiB), uint64(5*util.MiB)
-	offsetWriter = io.NewOffsetWriter(file, int64(start))
+	start, end = int64(5*util.MiB), int64(5*util.MiB)
+	offsetWriter = io.NewOffsetWriter(file, start)
 	err = dt.job.downloadRange(context.Background(), offsetWriter, start, end)
 	AssertEq(nil, err)
 	verifyContentAtOffset(file, start, end)
@@ -154,7 +154,7 @@ func (dt *parallelDownloaderTest) Test_parallelDownloadObjectToFile_CtxCancelled
 }
 
 func (dt *parallelDownloaderTest) Test_updateRangeMap_withNoEntries() {
-	rangeMap := make(map[uint64]uint64)
+	rangeMap := make(map[int64]int64)
 
 	err := dt.job.updateRangeMap(rangeMap, 0, 10)
 
@@ -165,7 +165,7 @@ func (dt *parallelDownloaderTest) Test_updateRangeMap_withNoEntries() {
 }
 
 func (dt *parallelDownloaderTest) Test_updateRangeMap_withInputContinuousWithEndOffset() {
-	rangeMap := make(map[uint64]uint64)
+	rangeMap := make(map[int64]int64)
 	rangeMap[0] = 2
 	rangeMap[2] = 0
 	rangeMap[4] = 6
@@ -182,7 +182,7 @@ func (dt *parallelDownloaderTest) Test_updateRangeMap_withInputContinuousWithEnd
 }
 
 func (dt *parallelDownloaderTest) Test_updateRangeMap_withInputContinuousWithStartOffset() {
-	rangeMap := make(map[uint64]uint64)
+	rangeMap := make(map[int64]int64)
 	rangeMap[2] = 4
 	rangeMap[4] = 2
 	rangeMap[8] = 10
@@ -199,7 +199,7 @@ func (dt *parallelDownloaderTest) Test_updateRangeMap_withInputContinuousWithSta
 }
 
 func (dt *parallelDownloaderTest) Test_updateRangeMap_withInputFillingTheMissingRange() {
-	rangeMap := make(map[uint64]uint64)
+	rangeMap := make(map[int64]int64)
 	rangeMap[0] = 4
 	rangeMap[4] = 0
 	rangeMap[6] = 8
@@ -214,7 +214,7 @@ func (dt *parallelDownloaderTest) Test_updateRangeMap_withInputFillingTheMissing
 }
 
 func (dt *parallelDownloaderTest) Test_updateRangeMap_withInputNotOverlappingWithAnyRanges() {
-	rangeMap := make(map[uint64]uint64)
+	rangeMap := make(map[int64]int64)
 	rangeMap[0] = 4
 	rangeMap[4] = 0
 	rangeMap[12] = 14
