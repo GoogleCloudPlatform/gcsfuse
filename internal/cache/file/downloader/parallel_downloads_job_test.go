@@ -1,4 +1,4 @@
-// Copyright 2024 Google Inc. All Rights Reserved.
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,9 +27,9 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	testutil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	. "github.com/jacobsa/ogletest"
 )
@@ -46,8 +46,8 @@ type parallelDownloaderTest struct {
 func init() { RegisterTestSuite(&parallelDownloaderTest{}) }
 
 func (dt *parallelDownloaderTest) SetUp(*TestInfo) {
-	dt.defaultFileCacheConfig = &config.FileCacheConfig{EnableParallelDownloads: true,
-		ParallelDownloadsPerFile: 3, DownloadChunkSizeMB: 3, EnableCRC: true}
+	dt.defaultFileCacheConfig = &cfg.FileCacheConfig{EnableParallelDownloads: true,
+		ParallelDownloadsPerFile: 3, DownloadChunkSizeMb: 3, EnableCrc: true}
 	dt.setupHelper()
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2024 Google Inc. All Rights Reserved.
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -109,10 +109,36 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				DebugInvariants:                     true,
 				DebugMutex:                          true,
 				ExperimentalMetadataPrefetchOnMount: "sync",
-				ClientProtocol:                      mountpkg.HTTP1,
+				ClientProtocol:                      cfg.HTTP1,
 			},
-			mockCLICtx:        &mockCLIContext{isFlagSet: map[string]bool{}},
-			legacyMountConfig: &config.MountConfig{},
+			mockCLICtx: &mockCLIContext{
+				isFlagSet: map[string]bool{
+					"log-file":                   true,
+					"log-format":                 true,
+					"kernel-list-cache-ttl-secs": true,
+					"max-retry-attempts":         true,
+					"prometheus-port":            true,
+				},
+			},
+			legacyMountConfig: &config.MountConfig{
+				FileCacheConfig: config.FileCacheConfig{
+					CacheFileForRangeRead:    false,
+					ParallelDownloadsPerFile: 16,
+					EnableCRC:                false,
+					EnableParallelDownloads:  false,
+					MaxParallelDownloads:     5,
+					MaxSizeMB:                -1,
+					DownloadChunkSizeMB:      50,
+				},
+				LogConfig: config.LogConfig{
+					Severity: "INFO",
+					LogRotateConfig: config.LogRotateConfig{
+						MaxFileSizeMB:   10,
+						BackupFileCount: 0,
+						Compress:        false,
+					},
+				},
+			},
 			expectedConfig: &cfg.Config{
 				AppName:    "vertex",
 				Foreground: false,
@@ -133,12 +159,12 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				CacheDir:     "",
 				FileCache: cfg.FileCacheConfig{
 					CacheFileForRangeRead:    false,
-					ParallelDownloadsPerFile: 0,
+					ParallelDownloadsPerFile: 16,
 					EnableCrc:                false,
 					EnableParallelDownloads:  false,
-					MaxParallelDownloads:     0,
-					MaxSizeMb:                0,
-					DownloadChunkSizeMb:      0,
+					MaxParallelDownloads:     5,
+					MaxSizeMb:                -1,
+					DownloadChunkSizeMb:      50,
 				},
 				GcsAuth: cfg.GcsAuthConfig{
 					KeyFile:           cfg.ResolvedPath(path.Join(os.Getenv("HOME"), "Documents/key-file")),
@@ -165,7 +191,13 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				},
 				Logging: cfg.LoggingConfig{
 					FilePath: cfg.ResolvedPath("/tmp/log-file.json"),
+					Severity: "TRACE", // Because debug fuse flag is set.
 					Format:   "json",
+					LogRotate: cfg.LogRotateLoggingConfig{
+						BackupFileCount: 0,
+						Compress:        false,
+						MaxFileSizeMb:   10,
+					},
 				},
 				MetadataCache: cfg.MetadataCacheConfig{
 					DeprecatedStatCacheCapacity:         200,
@@ -193,7 +225,8 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 		{
 			testName: "Test decode legacy config.",
 			legacyFlagStorage: &flagStorage{
-				ClientProtocol: mountpkg.GRPC,
+				ClientProtocol:                      cfg.GRPC,
+				ExperimentalMetadataPrefetchOnMount: "disabled",
 			},
 			mockCLICtx: &mockCLIContext{isFlagSet: map[string]bool{}},
 			legacyMountConfig: &config.MountConfig{
@@ -260,9 +293,10 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				},
 				CacheDir: cfg.ResolvedPath(path.Join(os.Getenv("HOME"), "cache-dir")),
 				MetadataCache: cfg.MetadataCacheConfig{
-					TtlSecs:            200,
-					TypeCacheMaxSizeMb: 7,
-					StatCacheMaxSizeMb: 4,
+					TtlSecs:                             200,
+					TypeCacheMaxSizeMb:                  7,
+					StatCacheMaxSizeMb:                  4,
+					ExperimentalMetadataPrefetchOnMount: "disabled",
 				},
 				List: cfg.ListConfig{
 					EnableEmptyManagedFolders: true,
@@ -283,13 +317,14 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 		{
 			testName: "Test overlapping flags and configs set.",
 			legacyFlagStorage: &flagStorage{
-				LogFile:                   "~/Documents/log-flag.txt",
-				LogFormat:                 "json",
-				IgnoreInterrupts:          false,
-				AnonymousAccess:           false,
-				KernelListCacheTtlSeconds: -1,
-				MaxRetryAttempts:          100,
-				ClientProtocol:            mountpkg.HTTP2,
+				LogFile:                             "~/Documents/log-flag.txt",
+				LogFormat:                           "json",
+				IgnoreInterrupts:                    false,
+				AnonymousAccess:                     false,
+				KernelListCacheTtlSeconds:           -1,
+				MaxRetryAttempts:                    100,
+				ClientProtocol:                      cfg.HTTP2,
+				ExperimentalMetadataPrefetchOnMount: "disabled",
 			},
 			mockCLICtx: &mockCLIContext{
 				isFlagSet: map[string]bool{
@@ -302,6 +337,15 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				},
 			},
 			legacyMountConfig: &config.MountConfig{
+				FileCacheConfig: config.FileCacheConfig{
+					CacheFileForRangeRead:    false,
+					ParallelDownloadsPerFile: 16,
+					EnableCRC:                false,
+					EnableParallelDownloads:  false,
+					MaxParallelDownloads:     5,
+					MaxSizeMB:                -1,
+					DownloadChunkSizeMB:      50,
+				},
 				LogConfig: config.LogConfig{
 					FilePath: "~/Documents/log-config.txt",
 					Format:   "text",
@@ -334,12 +378,24 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 						MaxFileSizeMb:   1,
 					},
 				},
+				FileCache: cfg.FileCacheConfig{
+					CacheFileForRangeRead:    false,
+					ParallelDownloadsPerFile: 16,
+					EnableCrc:                false,
+					EnableParallelDownloads:  false,
+					MaxParallelDownloads:     5,
+					MaxSizeMb:                -1,
+					DownloadChunkSizeMb:      50,
+				},
 				FileSystem: cfg.FileSystemConfig{
 					IgnoreInterrupts:       false,
 					KernelListCacheTtlSecs: -1,
 				},
 				GcsAuth: cfg.GcsAuthConfig{
 					AnonymousAccess: false,
+				},
+				MetadataCache: cfg.MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "disabled",
 				},
 				GcsConnection: cfg.GcsConnectionConfig{
 					ClientProtocol: cfg.Protocol("http2"),
@@ -397,7 +453,7 @@ func TestPopulateConfigFromLegacyFlags_KeyFileResolution(t *testing.T) {
 		t.Run(tc.testName, func(t *testing.T) {
 			mockCLICtx := &mockCLIContext{}
 			legacyFlagStorage := &flagStorage{
-				ClientProtocol: mountpkg.HTTP2,
+				ClientProtocol: cfg.HTTP2,
 				KeyFile:        tc.givenKeyFile,
 			}
 			legacyMountCfg := &config.MountConfig{}
@@ -445,7 +501,7 @@ func TestPopulateConfigFromLegacyFlags_LogFileResolution(t *testing.T) {
 		t.Run(tc.testName, func(t *testing.T) {
 			mockCLICtx := &mockCLIContext{}
 			legacyFlagStorage := &flagStorage{
-				ClientProtocol: mountpkg.HTTP2,
+				ClientProtocol: cfg.HTTP2,
 				LogFile:        tc.givenLogFile,
 			}
 			legacyMountCfg := &config.MountConfig{}
@@ -463,7 +519,7 @@ func TestCustomEndpointResolutionFromFlags(t *testing.T) {
 	u, err := url.Parse("http://abc.xyz")
 	require.Nil(t, err)
 	legacyFlagStorage := &flagStorage{
-		ClientProtocol: mountpkg.HTTP2,
+		ClientProtocol: cfg.HTTP2,
 		CustomEndpoint: u,
 	}
 
@@ -558,10 +614,11 @@ func TestLogSeverityRationalization(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			flags := &flagStorage{
-				ClientProtocol: mountpkg.ClientProtocol("http1"),
-				DebugFuse:      tc.debugFuse,
-				DebugGCS:       tc.debugGCS,
-				DebugMutex:     tc.debugMutex,
+				ClientProtocol:                      mountpkg.ClientProtocol("http1"),
+				ExperimentalMetadataPrefetchOnMount: "disabled",
+				DebugFuse:                           tc.debugFuse,
+				DebugGCS:                            tc.debugGCS,
+				DebugMutex:                          tc.debugMutex,
 			}
 			c := config.NewMountConfig()
 			c.Severity = tc.cfgSev
@@ -614,7 +671,8 @@ func TestEnableEmptyManagedFoldersRationalization(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			flags := &flagStorage{
-				ClientProtocol: mountpkg.ClientProtocol("http1"),
+				ClientProtocol:                      mountpkg.ClientProtocol("http1"),
+				ExperimentalMetadataPrefetchOnMount: "disabled",
 			}
 			c := config.NewMountConfig()
 			c.EnableHNS = tc.enableHns

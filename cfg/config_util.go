@@ -1,4 +1,4 @@
-// Copyright 2024 Google Inc. All Rights Reserved.
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,4 +18,8 @@ import "runtime"
 
 func DefaultMaxParallelDownloads() int {
 	return max(16, 2*runtime.NumCPU())
+}
+
+func IsFileCacheEnabled(mountConfig *Config) bool {
+	return mountConfig.FileCache.MaxSizeMb != 0 && string(mountConfig.CacheDir) != ""
 }

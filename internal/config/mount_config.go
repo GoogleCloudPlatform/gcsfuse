@@ -1,4 +1,4 @@
-// Copyright 2021 Google Inc. All Rights Reserved.
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -39,30 +39,23 @@ const (
 	// when it is not set in the gcsfuse mount config file.
 	StatCacheMaxSizeMBUnsetSentinel int64 = math.MinInt64
 
-	DefaultFileCacheMaxSizeMB               int64 = -1
-	DefaultEnableEmptyManagedFoldersListing       = false
-	DefaultGrpcConnPoolSize                       = 1
-	DefaultAnonymousAccess                        = false
-	DefaultEnableHNS                              = false
-	DefaultIgnoreInterrupts                       = true
-	DefaultPrometheusPort                         = 0
-
-	// ExperimentalMetadataPrefetchOnMountDisabled is the mode without metadata-prefetch.
-	ExperimentalMetadataPrefetchOnMountDisabled string = "disabled"
-	// ExperimentalMetadataPrefetchOnMountSynchronous is the prefetch-mode where mounting is not marked complete until prefetch is complete.
-	ExperimentalMetadataPrefetchOnMountSynchronous string = "sync"
-	// ExperimentalMetadataPrefetchOnMountAsynchronous is the prefetch-mode where mounting is marked complete once prefetch has started.
-	ExperimentalMetadataPrefetchOnMountAsynchronous string = "async"
-	// DefaultExperimentalMetadataPrefetchOnMount is default value of metadata-prefetch i.e. if not set by user; current it is ExperimentalMetadataPrefetchOnMountDisabled.
-	DefaultExperimentalMetadataPrefetchOnMount = ExperimentalMetadataPrefetchOnMountDisabled
+	DefaultEnableEmptyManagedFoldersListing = false
+	DefaultGrpcConnPoolSize                 = 1
+	DefaultAnonymousAccess                  = false
+	DefaultEnableHNS                        = false
+	DefaultIgnoreInterrupts                 = true
+	DefaultPrometheusPort                   = 0
 
 	DefaultKernelListCacheTtlSeconds int64 = 0
+	DefaultMaxRetryAttempts                = int64(0)
 
+	// File Cache Config constants.
+
+	DefaultFileCacheMaxSizeMB       = -1
 	DefaultEnableCRC                = false
 	DefaultEnableParallelDownloads  = false
 	DefaultDownloadChunkSizeMB      = 50
 	DefaultParallelDownloadsPerFile = 16
-	DefaultMaxRetryAttempts         = int64(0)
 )
 
 type LogConfig struct {

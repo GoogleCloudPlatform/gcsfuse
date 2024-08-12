@@ -1,4 +1,4 @@
-// Copyright 2024 Google Inc. All Rights Reserved.
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -89,14 +89,14 @@ func getUserAgent(appName string, config string) string {
 	}
 }
 
-func getConfigForUserAgent(mountConfig *config.MountConfig) string {
+func getConfigForUserAgent(mountConfig *cfg.Config) string {
 	// Minimum configuration details created in a bitset fashion. Right now, its restricted only to File Cache Settings.
 	isFileCacheEnabled := "0"
-	if config.IsFileCacheEnabled(mountConfig) {
+	if cfg.IsFileCacheEnabled(mountConfig) {
 		isFileCacheEnabled = "1"
 	}
 	isFileCacheForRangeReadEnabled := "0"
-	if mountConfig.FileCacheConfig.CacheFileForRangeRead {
+	if mountConfig.FileCache.CacheFileForRangeRead {
 		isFileCacheForRangeReadEnabled = "1"
 	}
 	return fmt.Sprintf("%s:%s", isFileCacheEnabled, isFileCacheForRangeReadEnabled)
@@ -150,7 +150,7 @@ func mountWithArgs(
 	// connection.
 	var storageHandle storage.StorageHandle
 	if bucketName != canned.FakeBucketName {
-		userAgent := getUserAgent(newConfig.AppName, getConfigForUserAgent(mountConfig))
+		userAgent := getUserAgent(newConfig.AppName, getConfigForUserAgent(newConfig))
 		logger.Info("Creating Storage handle...")
 		storageHandle, err = createStorageHandle(newConfig, mountConfig, userAgent)
 		if err != nil {
@@ -443,13 +443,13 @@ func runCLIApp(c *cli.Context) (err error) {
 			return err
 		}
 		if !isDynamicMount(bucketName) {
-			switch flags.ExperimentalMetadataPrefetchOnMount {
-			case config.ExperimentalMetadataPrefetchOnMountSynchronous:
+			switch newConfig.MetadataCache.ExperimentalMetadataPrefetchOnMount {
+			case cfg.ExperimentalMetadataPrefetchOnMountSynchronous:
 				if err = callListRecursive(mountPoint); err != nil {
 					markMountFailure(err)
 					return err
 				}
-			case config.ExperimentalMetadataPrefetchOnMountAsynchronous:
+			case cfg.ExperimentalMetadataPrefetchOnMountAsynchronous:
 				go func() {
 					if err := callListRecursive(mountPoint); err != nil {
 						logger.Errorf("Metadata-prefetch failed: %v", err)

@@ -1,4 +1,4 @@
-# Copyright 2023 Google Inc. All Rights Reserved.
+# Copyright 2023 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -503,7 +503,7 @@ if __name__ == '__main__':
 
   args = _parse_arguments(argv)
 
-  check_dependencies(['gsutil', 'gcsfuse'])
+  check_dependencies(['gsutil', 'gcsfuse'],log)
 
   with open(os.path.abspath(args.config_file)) as file:
     config_json = json.load(file)

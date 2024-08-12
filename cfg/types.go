@@ -1,4 +1,4 @@
-// Copyright 2024 Google Inc. All Rights Reserved.
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -43,9 +43,9 @@ func (o *Octal) String() string {
 type Protocol string
 
 const (
-	HTTP1 Protocol = "http1"
-	HTTP2 Protocol = "http2"
-	GRPC  Protocol = "grpc"
+	HTTP1 = "http1"
+	HTTP2 = "http2"
+	GRPC  = "grpc"
 )
 
 func (p *Protocol) UnmarshalText(text []byte) error {

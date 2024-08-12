@@ -1,4 +1,4 @@
-// Copyright 2021 Google Inc. All Rights Reserved.
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -143,36 +143,6 @@ func (t *YamlParserTest) TestReadConfigFile_InvalidLogConfig() {
 	_, err := ParseConfigFile("testdata/invalid_log_config.yaml")
 
 	assert.ErrorContains(t.T(), err, fmt.Sprintf(parseConfigFileErrMsgFormat, "log severity should be one of [trace, debug, info, warning, error, off]"))
-}
-
-func (t *YamlParserTest) TestReadConfigFile_InvalidFileCacheMaxSizeConfig() {
-	_, err := ParseConfigFile("testdata/file_cache_config/invalid_max_size_mb.yaml")
-
-	assert.ErrorContains(t.T(), err, FileCacheMaxSizeMBInvalidValueError)
-}
-
-func (t *YamlParserTest) TestReadConfigFile_InvalidMaxParallelDownloadsConfig() {
-	_, err := ParseConfigFile("testdata/file_cache_config/invalid_max_parallel_downloads.yaml")
-
-	assert.ErrorContains(t.T(), err, MaxParallelDownloadsInvalidValueError)
-}
-
-func (t *YamlParserTest) TestReadConfigFile_InvalidZeroMaxParallelDownloadsConfig() {
-	_, err := ParseConfigFile("testdata/file_cache_config/invalid_zero_max_parallel_downloads.yaml")
-
-	assert.ErrorContains(t.T(), err, "the value of max-parallel-downloads for file-cache must not be 0 when enable-parallel-downloads is true")
-}
-
-func (t *YamlParserTest) TestReadConfigFile_InvalidParallelDownloadsPerFileConfig() {
-	_, err := ParseConfigFile("testdata/file_cache_config/invalid_parallel_downloads_per_file.yaml")
-
-	assert.ErrorContains(t.T(), err, ParallelDownloadsPerFileInvalidValueError)
-}
-
-func (t *YamlParserTest) TestReadConfigFile_InvalidDownloadChunkSizeMBConfig() {
-	_, err := ParseConfigFile("testdata/file_cache_config/invalid_download_chunk_size_mb.yaml")
-
-	assert.ErrorContains(t.T(), err, DownloadChunkSizeMBInvalidValueError)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_InvalidTTL() {

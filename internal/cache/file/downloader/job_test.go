@@ -1,4 +1,4 @@
-// Copyright 2023 Google Inc. All Rights Reserved.
+// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -937,7 +937,7 @@ func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCRCIsFalse()
 	// Tamper the file
 	err = os.WriteFile(dt.fileSpec.Path, []byte("test"), 0644)
 	AssertEq(nil, err)
-	dt.job.fileCacheConfig.EnableCRC = false
+	dt.job.fileCacheConfig.EnableCrc = false
 
 	dt.job.cancelCtx, dt.job.cancelFunc = context.WithCancel(context.Background())
 	err = dt.job.validateCRC()

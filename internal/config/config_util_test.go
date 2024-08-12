@@ -1,4 +1,4 @@
-// Copyright 2023 Google Inc. All Rights Reserved.
+// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -48,35 +48,6 @@ func TestConfigSuite(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
-
-func (t *ConfigTest) TestIsFileCacheEnabled() {
-	mountConfig := &MountConfig{
-		CacheDir: "/tmp/folder/",
-		FileCacheConfig: FileCacheConfig{
-			MaxSizeMB: -1,
-		},
-	}
-	assert.True(t.T(), IsFileCacheEnabled(mountConfig))
-
-	mountConfig1 := &MountConfig{}
-	assert.False(t.T(), IsFileCacheEnabled(mountConfig1))
-
-	mountConfig2 := &MountConfig{
-		CacheDir: "",
-		FileCacheConfig: FileCacheConfig{
-			MaxSizeMB: -1,
-		},
-	}
-	assert.False(t.T(), IsFileCacheEnabled(mountConfig2))
-
-	mountConfig3 := &MountConfig{
-		CacheDir: "//tmp//folder//",
-		FileCacheConfig: FileCacheConfig{
-			MaxSizeMB: 0,
-		},
-	}
-	assert.False(t.T(), IsFileCacheEnabled(mountConfig3))
-}
 
 type TestCliContext struct {
 	isSet bool

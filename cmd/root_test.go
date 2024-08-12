@@ -1,4 +1,4 @@
-// Copyright 2024 Google Inc. All Rights Reserved.
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package cmd
 import (
 	"os"
 	"path"
+	"runtime"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
@@ -226,6 +227,145 @@ func TestArgsParsing_CreateEmptyFileFlag(t *testing.T) {
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedCreateEmptyFile, createEmptyFile)
 			}
+		})
+	}
+}
+
+func TestArgsParsing_FileCacheFlags(t *testing.T) {
+	tests := []struct {
+		name           string
+		args           []string
+		expectedConfig *cfg.Config
+	}{
+		{
+			name: "Test file cache flags.",
+			args: []string{"gcsfuse", "--cache-file-for-range-read", "--download-chunk-size-mb=20", "--enable-crc", "--enable-parallel-downloads", "--max-parallel-downloads=40", "--file-cache-max-size-mb=100", "--parallel-downloads-per-file=2", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileCache: cfg.FileCacheConfig{
+					CacheFileForRangeRead:    true,
+					DownloadChunkSizeMb:      20,
+					EnableCrc:                true,
+					EnableParallelDownloads:  true,
+					MaxParallelDownloads:     40,
+					MaxSizeMb:                100,
+					ParallelDownloadsPerFile: 2,
+				},
+			},
+		},
+		{
+			name: "Test default file cache flags.",
+			args: []string{"gcsfuse", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileCache: cfg.FileCacheConfig{
+					CacheFileForRangeRead:    false,
+					DownloadChunkSizeMb:      50,
+					EnableCrc:                false,
+					EnableParallelDownloads:  false,
+					MaxParallelDownloads:     int64(max(16, 2*runtime.NumCPU())),
+					MaxSizeMb:                -1,
+					ParallelDownloadsPerFile: 16,
+				},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotConfig *cfg.Config
+			cmd, err := NewRootCmd(func(cfg *cfg.Config, _ string, _ string) error {
+				gotConfig = cfg
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(tc.args)
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedConfig.FileCache, gotConfig.FileCache)
+			}
+		})
+	}
+}
+
+func TestArgParsing_ExperimentalMetadataPrefetchFlag(t *testing.T) {
+	tests := []struct {
+		name          string
+		args          []string
+		expectedValue string
+	}{
+		{
+			name:          "set to sync",
+			args:          []string{"gcsfuse", "--experimental-metadata-prefetch-on-mount=sync", "abc", "pqr"},
+			expectedValue: "sync",
+		},
+		{
+			name:          "set to async",
+			args:          []string{"gcsfuse", "--experimental-metadata-prefetch-on-mount=async", "abc", "pqr"},
+			expectedValue: "async",
+		},
+		{
+			name:          "set to async, space-separated",
+			args:          []string{"gcsfuse", "--experimental-metadata-prefetch-on-mount", "async", "abc", "pqr"},
+			expectedValue: "async",
+		},
+		{
+			name:          "set to disabled",
+			args:          []string{"gcsfuse", "--experimental-metadata-prefetch-on-mount=disabled", "abc", "pqr"},
+			expectedValue: "disabled",
+		},
+		{
+			name:          "Test default.",
+			args:          []string{"gcsfuse", "abc", "pqr"},
+			expectedValue: "disabled",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var experimentalMetadataPrefetch string
+			cmd, err := NewRootCmd(func(cfg *cfg.Config, _ string, _ string) error {
+				experimentalMetadataPrefetch = cfg.MetadataCache.ExperimentalMetadataPrefetchOnMount
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(tc.args)
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedValue, experimentalMetadataPrefetch)
+			}
+		})
+	}
+}
+
+func TestArgParsing_ExperimentalMetadataPrefetchFlag_Failed(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{
+			name: "Test invalid value 1",
+			args: []string{"gcsfuse", "--experimental-metadata-prefetch-on-mount=foo", "abc", "pqr"},
+		},
+		{
+			name: "Test invalid value 2",
+			args: []string{"gcsfuse", "--experimental-metadata-prefetch-on-mount=123", "abc", "pqr"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cmd, err := NewRootCmd(func(cfg *cfg.Config, _ string, _ string) error {
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(tc.args)
+
+			err = cmd.Execute()
+
+			assert.Error(t, err)
 		})
 	}
 }

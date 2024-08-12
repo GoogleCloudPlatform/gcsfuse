@@ -1,4 +1,4 @@
-// Copyright 2023 Google Inc. All Rights Reserved.
+// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -63,10 +63,6 @@ func OverrideWithKernelListCacheTtlFlag(c cliContext, mountConfig *MountConfig, 
 	if c.IsSet(KernelListCacheTtlFlagName) {
 		mountConfig.FileSystemConfig.KernelListCacheTtlSeconds = ttl
 	}
-}
-
-func IsFileCacheEnabled(mountConfig *MountConfig) bool {
-	return mountConfig.FileCacheConfig.MaxSizeMB != 0 && string(mountConfig.CacheDir) != ""
 }
 
 // IsTtlInSecsValid return nil error if ttlInSecs is valid.

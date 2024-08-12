@@ -1,4 +1,4 @@
-// Copyright 2024 Google Inc. All Rights Reserved.
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,4 +23,13 @@ const (
 	WARNING string = "WARNING"
 	ERROR   string = "ERROR"
 	OFF     string = "OFF"
+)
+
+const (
+	// ExperimentalMetadataPrefetchOnMountDisabled is the mode without metadata-prefetch.
+	ExperimentalMetadataPrefetchOnMountDisabled = "disabled"
+	// ExperimentalMetadataPrefetchOnMountSynchronous is the prefetch-mode where mounting is not marked complete until prefetch is complete.
+	ExperimentalMetadataPrefetchOnMountSynchronous = "sync"
+	// ExperimentalMetadataPrefetchOnMountAsynchronous is the prefetch-mode where mounting is marked complete once prefetch has started.
+	ExperimentalMetadataPrefetchOnMountAsynchronous = "async"
 )
