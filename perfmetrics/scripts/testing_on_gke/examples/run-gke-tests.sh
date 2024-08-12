@@ -399,6 +399,7 @@ function createCustomCsiDriverIfNeeded() {
     cd -
 
     # Build and install csi driver
+    ensureGcsFuseCsiDriverCode
     cd "${csi_src_dir}"
     make build-image-and-push-multi-arch REGISTRY=gcr.io/${project_id}/${USER} GCSFUSE_PATH=gs://${package_bucket}
     make install PROJECT=${project_id} REGISTRY=gcr.io/${project_id}/${USER}
@@ -564,9 +565,8 @@ enableManagedCsiDriverIfNeeded
 activateCluster
 createKubernetesServiceAccountForCluster
 
-# GCSFuse/CSI driver source code
+# GCSFuse driver source code
 ensureGcsfuseCode
-ensureGcsFuseCsiDriverCode
 
 # GCP/GKE configuration dependent on GCSFuse/CSI driver source code
 addGCSAccessPermissions
