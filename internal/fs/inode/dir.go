@@ -24,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/jacobsa/fuse/fuseops"
@@ -758,6 +759,7 @@ func (d *dirInode) ReadEntries(
 			entry.Type = fuseutil.DT_Directory
 		}
 		entries = append(entries, entry)
+		logger.Infof("entry type %s and name %s: ", entry.Name, entry.Type)
 	}
 
 	d.prevDirListingTimeStamp = d.cacheClock.Now()

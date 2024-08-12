@@ -30,6 +30,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 )
 
 const (
@@ -489,6 +491,7 @@ func CreateFile(filePath string, filePerms os.FileMode, t *testing.T) (f *os.Fil
 	// Creating a file shouldn't create file on GCS.
 	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, filePerms)
 	if err != nil {
+		logger.Errorf("Error in creating file: ", err)
 		os.Exit(1)
 	}
 	return
