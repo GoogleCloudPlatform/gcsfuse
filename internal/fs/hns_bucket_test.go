@@ -102,6 +102,7 @@ func (t *HNSBucketTests) TestDeleteFolder() {
 	assert.NoError(t.T(), err)
 	_, err = os.Stat(dirPath)
 	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
 }
 
 func (t *HNSBucketTests) TestRenameFolderWithSrcDirectoryDoesNotExist() {
