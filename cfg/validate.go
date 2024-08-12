@@ -92,5 +92,9 @@ func ValidateConfig(config *Config) error {
 		return fmt.Errorf("error parsing experimental-metadata-prefetch-on-mount: %w", err)
 	}
 
+	if err = isValidURL(config.GcsAuth.TokenUrl); err != nil {
+		return fmt.Errorf("error parsing token-url config: %w", err)
+	}
+
 	return nil
 }

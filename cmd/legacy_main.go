@@ -113,7 +113,7 @@ func createStorageHandle(newConfig *cfg.Config, mountConfig *config.MountConfig,
 		UserAgent:                  userAgent,
 		CustomEndpoint:             newConfig.GcsConnection.CustomEndpoint,
 		KeyFile:                    string(newConfig.GcsAuth.KeyFile),
-		AnonymousAccess:            mountConfig.GCSAuth.AnonymousAccess,
+		AnonymousAccess:            newConfig.GcsAuth.AnonymousAccess,
 		TokenUrl:                   newConfig.GcsAuth.TokenUrl,
 		ReuseTokenFromUrl:          newConfig.GcsAuth.ReuseTokenFromUrl,
 		ExperimentalEnableJsonRead: newConfig.GcsConnection.ExperimentalEnableJsonRead,
@@ -261,7 +261,6 @@ func runCLIApp(c *cli.Context) (err error) {
 	}
 
 	config.OverrideWithIgnoreInterruptsFlag(c, mountConfig, flags.IgnoreInterrupts)
-	config.OverrideWithAnonymousAccessFlag(c, mountConfig, flags.AnonymousAccess)
 	config.OverrideWithKernelListCacheTtlFlag(c, mountConfig, flags.KernelListCacheTtlSeconds)
 
 	// Ideally this call to SetLogFormat (which internally creates a new defaultLogger)
