@@ -2066,7 +2066,7 @@ func (fs *fileSystem) checkDirNotEmpty(dir inode.BucketOwnedDirInode, name strin
 }
 
 // Rename an old folder to a new folder in a hierarchical bucket. If the new folder already
-// exists and is non-empty, return ENOTEMPTY. If old directory have open files then return
+// exists and is non-empty, return ENOTEMPTY. If old folder have open files then return
 // ENOTSUP.
 //
 // LOCKS_EXCLUDED(fs.mu)
