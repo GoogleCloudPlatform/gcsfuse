@@ -489,7 +489,7 @@ func CreateFile(filePath string, filePerms os.FileMode, t *testing.T) (f *os.Fil
 	// Creating a file shouldn't create file on GCS.
 	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, filePerms)
 	if err != nil {
-		t.Fatalf("CreateFile(%s): %v", filePath, err)
+		t.Errorf("CreateFile(%s): %v", filePath, err)
 		os.Exit(1)
 	}
 	return
