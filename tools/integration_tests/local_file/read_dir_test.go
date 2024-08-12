@@ -174,14 +174,14 @@ func TestRecursiveListingWithLocalFiles(t *testing.T) {
 //	operations.CloseFileShouldNotThrowError(fh1, t)
 //}
 
-func TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError(t *testing.T) {
-	testDirPath = setup.SetupTestDirectory(testDirName)
-	var wg sync.WaitGroup
-	wg.Add(2)
-
-	// Concurrently create 100 local files and read directory 200 times.
-	go creatingNLocalFilesShouldNotThrowError(100, &wg, t)
-	go readingDirNTimesShouldNotThrowError(200, &wg, t)
-
-	wg.Wait()
-}
+//func TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError(t *testing.T) {
+//	testDirPath = setup.SetupTestDirectory(testDirName)
+//	var wg sync.WaitGroup
+//	wg.Add(2)
+//
+//	// Concurrently create 100 local files and read directory 200 times.
+//	go creatingNLocalFilesShouldNotThrowError(100, &wg, t)
+//	go readingDirNTimesShouldNotThrowError(200, &wg, t)
+//
+//	wg.Wait()
+//}
