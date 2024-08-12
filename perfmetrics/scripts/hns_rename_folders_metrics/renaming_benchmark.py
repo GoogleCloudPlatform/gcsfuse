@@ -353,6 +353,6 @@ if __name__ == '__main__':
     exit_code = _upload_to_gsheet(WORKSHEET_NAME_FLAT, upload_values_flat,
                                   SPREADSHEET_ID)
     if exit_code != 0:
-      log.error("Upload to gsheet unsuccessful!")
+      log.error("Upload to gsheet failed!")
   else:
     print(upload_values_flat)
