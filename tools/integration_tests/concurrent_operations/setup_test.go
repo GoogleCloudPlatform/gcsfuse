@@ -61,12 +61,12 @@ func TestMain(m *testing.M) {
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()
 
-	flagsSet := [][]string{
-		{"--kernel-list-cache-ttl-secs=-1"}, {"--kernel-list-cache-ttl-secs=0"},
-	}
+	var flagsSet [][]string
+		//{"--kernel-list-cache-ttl-secs=-1"}, {"--kernel-list-cache-ttl-secs=0"},
 
 	// Create storage client before running tests.
 	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
+		hnsFlagSet = append(hnsFlagSet, "--kernel-list-cache-ttl-secs=-1")
 		flagsSet = append(flagsSet, hnsFlagSet)
 	}
 
