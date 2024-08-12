@@ -2085,7 +2085,7 @@ func (fs *fileSystem) renameFolder(ctx context.Context, oldParent inode.DirInode
 		return err
 	}
 
-	// If new directory does not exist then we won't have inode for the same.
+	// If the call for getBucketDirInode fails it means directory does not exist.
 	newDirInode, err := fs.getBucketDirInode(ctx, newParent, newName)
 	if err == nil {
 		// If the directory exists, then check if it is empty or not.
@@ -2114,7 +2114,7 @@ func (fs *fileSystem) renameFolder(ctx context.Context, oldParent inode.DirInode
 	return nil
 }
 
-// Rename an old directory to a new directory. If the new directory already
+// Rename an old directory to a new directory in a non-hierarchical bucket. If the new directory already
 // exists and is non-empty, return ENOTEMPTY.
 //
 // LOCKS_EXCLUDED(fs.mu)
