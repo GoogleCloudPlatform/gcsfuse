@@ -16,10 +16,14 @@
 package rename_dir_limit_test
 
 import (
+	"context"
 	"log"
 	"os"
 	"testing"
+	"time"
 
+	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/persistent_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
@@ -41,7 +45,22 @@ const onlyDirMounted = "OnlyDirMountRenameDirLimit"
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	flags := [][]string{{"--rename-dir-limit=3", "--implicit-dirs"}, {"--rename-dir-limit=3"}}
+	// flags := [][]string{{"--rename-dir-limit=3", "--implicit-dirs"}, {"--rename-dir-limit=3"}}
+
+	var storageClient *storage.Client
+	ctx := context.Background()
+	closeStorageClient := client.CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*15)
+	defer func() {
+		err := closeStorageClient()
+		if err != nil {
+			log.Fatalf("closeStorageClient failed: %v", err)
+		}
+	}()
+	var flagsSet [][]string
+
+	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
+		flagsSet = append(flagsSet, hnsFlagSet)
+	}
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
@@ -56,14 +75,14 @@ func TestMain(m *testing.M) {
 	// Run tests for testBucket
 	setup.SetUpTestDirForTestBucketFlag()
 
-	successCode := static_mounting.RunTests(flags, m)
+	successCode := static_mounting.RunTests(flagsSet, m)
 
 	if successCode == 0 {
-		successCode = only_dir_mounting.RunTests(flags, onlyDirMounted, m)
+		successCode = only_dir_mounting.RunTests(flagsSet, onlyDirMounted, m)
 	}
 
 	if successCode == 0 {
-		successCode = persistent_mounting.RunTests(flags, m)
+		successCode = persistent_mounting.RunTests(flagsSet, m)
 	}
 
 	os.Exit(successCode)
