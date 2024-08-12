@@ -458,7 +458,8 @@ type flagStorage struct {
 	// Deprecated: Use the param from cfg/config.go
 	OpRateLimitHz        float64
 	SequentialReadSizeMb int32
-	AnonymousAccess      bool
+	// Deprecated: Use the param from cfg/config.go
+	AnonymousAccess bool
 
 	// Tuning
 	// Deprecated: Use the param from cfg/config.go

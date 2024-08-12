@@ -137,6 +137,16 @@ func TestValidateConfigUnsuccessful(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Invalid Config due to invalid token URL",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
+				GcsAuth: GcsAuthConfig{
+					TokenUrl: "a_b://abc",
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {

@@ -16,6 +16,8 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+	"path"
 	"runtime"
 	"testing"
 
@@ -205,7 +207,7 @@ func TestValidateConfigFile_WriteConfig(t *testing.T) {
 	}
 }
 
-func TestValidateConfigFile_FileCacheConfigUnsuccessful(t *testing.T) {
+func TestValidateConfigFile_InvalidConfigThrowsError(t *testing.T) {
 	testCases := []struct {
 		name       string
 		configFile string
@@ -229,6 +231,10 @@ func TestValidateConfigFile_FileCacheConfigUnsuccessful(t *testing.T) {
 		{
 			name:       "Invalid zero max parallel downloads",
 			configFile: "testdata/file_cache_config/invalid_zero_max_parallel_downloads.yaml",
+		},
+		{
+			name:       "Invalid value of anonymous access.",
+			configFile: "testdata/gcs_auth/invalid_anonymous_access.yaml",
 		},
 	}
 
@@ -277,6 +283,63 @@ func TestValidateConfigFile_FileCacheConfigSuccessful(t *testing.T) {
 
 			if assert.NoError(t, err) {
 				assert.EqualValues(t, tc.expectedConfig.FileCache, gotConfig.FileCache)
+			}
+		})
+	}
+}
+
+func TestValidateConfigFile_GCSAuthConfigSuccessful(t *testing.T) {
+	hd, err := os.UserHomeDir()
+	require.Nil(t, err)
+	testCases := []struct {
+		name           string
+		configFile     string
+		expectedConfig *cfg.Config
+	}{
+		{
+			name:       "Empty config file [default values].",
+			configFile: "testdata/empty_file.yaml",
+			expectedConfig: &cfg.Config{
+				GcsAuth: cfg.GcsAuthConfig{
+					AnonymousAccess:   false,
+					KeyFile:           "",
+					ReuseTokenFromUrl: true,
+					TokenUrl:          "",
+				},
+			},
+		},
+		{
+			name:       "Valid config file.",
+			configFile: "testdata/valid_config.yaml",
+			expectedConfig: &cfg.Config{
+				GcsAuth: cfg.GcsAuthConfig{
+					AnonymousAccess:   true,
+					KeyFile:           cfg.ResolvedPath(path.Join(hd, "key.file")),
+					ReuseTokenFromUrl: false,
+					TokenUrl:          "www.abc.com",
+				},
+			},
+		},
+		{
+			name:       "Valid config file with GCS Auth unset",
+			configFile: "testdata/gcs_auth/unset_anonymous_access.yaml",
+			expectedConfig: &cfg.Config{
+				GcsAuth: cfg.GcsAuthConfig{
+					AnonymousAccess:   false,
+					KeyFile:           "",
+					ReuseTokenFromUrl: true,
+					TokenUrl:          "",
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
+
+			if assert.NoError(t, err) {
+				assert.EqualValues(t, tc.expectedConfig.GcsAuth, gotConfig.GcsAuth)
 			}
 		})
 	}

@@ -173,7 +173,7 @@ func TestArgsParsing_MountOptions(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var mountOptions []string
-			cmd, err := NewRootCmd(func(cfg *cfg.Config, _ string, _ string) error {
+			cmd, err := NewRootCmd(func(cfg *cfg.Config, _, _ string) error {
 				mountOptions = cfg.FileSystem.FuseOptions
 				return nil
 			})
@@ -215,7 +215,7 @@ func TestArgsParsing_CreateEmptyFileFlag(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var createEmptyFile bool
-			cmd, err := NewRootCmd(func(cfg *cfg.Config, _ string, _ string) error {
+			cmd, err := NewRootCmd(func(cfg *cfg.Config, _, _ string) error {
 				createEmptyFile = cfg.Write.CreateEmptyFile
 				return nil
 			})
@@ -272,7 +272,7 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := NewRootCmd(func(cfg *cfg.Config, _ string, _ string) error {
+			cmd, err := NewRootCmd(func(cfg *cfg.Config, _, _ string) error {
 				gotConfig = cfg
 				return nil
 			})
@@ -324,7 +324,7 @@ func TestArgParsing_ExperimentalMetadataPrefetchFlag(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var experimentalMetadataPrefetch string
-			cmd, err := NewRootCmd(func(cfg *cfg.Config, _ string, _ string) error {
+			cmd, err := NewRootCmd(func(cfg *cfg.Config, _, _ string) error {
 				experimentalMetadataPrefetch = cfg.MetadataCache.ExperimentalMetadataPrefetchOnMount
 				return nil
 			})
@@ -357,7 +357,7 @@ func TestArgParsing_ExperimentalMetadataPrefetchFlag_Failed(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd, err := NewRootCmd(func(cfg *cfg.Config, _ string, _ string) error {
+			cmd, err := NewRootCmd(func(cfg *cfg.Config, _, _ string) error {
 				return nil
 			})
 			require.Nil(t, err)
@@ -366,6 +366,92 @@ func TestArgParsing_ExperimentalMetadataPrefetchFlag_Failed(t *testing.T) {
 			err = cmd.Execute()
 
 			assert.Error(t, err)
+		})
+	}
+}
+
+func TestArgsParsing_GCSAuthFlags(t *testing.T) {
+	wd, err := os.Getwd()
+	require.Nil(t, err)
+	tests := []struct {
+		name           string
+		args           []string
+		expectedConfig *cfg.Config
+	}{
+		{
+			name: "Test gcs auth flags.",
+			args: []string{"gcsfuse", "--anonymous-access", "--key-file=key.file", "--reuse-token-from-url", "--token-url=www.abc.com", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				GcsAuth: cfg.GcsAuthConfig{
+					AnonymousAccess:   true,
+					KeyFile:           cfg.ResolvedPath(path.Join(wd, "key.file")),
+					ReuseTokenFromUrl: true,
+					TokenUrl:          "www.abc.com",
+				},
+			},
+		},
+		{
+			name: "Test default gcs auth flags.",
+			args: []string{"gcsfuse", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				GcsAuth: cfg.GcsAuthConfig{
+					AnonymousAccess:   false,
+					KeyFile:           "",
+					ReuseTokenFromUrl: true,
+					TokenUrl:          "",
+				},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotConfig *cfg.Config
+			cmd, err := NewRootCmd(func(cfg *cfg.Config, _, _ string) error {
+				gotConfig = cfg
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(tc.args)
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedConfig.GcsAuth, gotConfig.GcsAuth)
+			}
+		})
+	}
+}
+
+func TestArgsParsing_GCSAuthFlagsThrowsError(t *testing.T) {
+	tests := []struct {
+		name           string
+		args           []string
+		expectedConfig *cfg.Config
+	}{
+		{
+			name: "Invalid value for anonymous-access flag",
+			args: []string{"gcsfuse", "--anonymous-access=a", "abc", "pqr"},
+		},
+		{
+			name: "Invalid value for reuse-token-from-url flag",
+			args: []string{"gcsfuse", "--reuse-token-from-url", "b", "abc", "pqr"},
+		},
+		{
+			name: "Invalid value for token-url flag",
+			args: []string{"gcsfuse", "--token-url=a_b://abc", "abc", "pqr"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cmd, err := NewRootCmd(func(cfg *cfg.Config, _, _ string) error {
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(tc.args)
+
+			assert.Error(t, cmd.Execute())
 		})
 	}
 }
