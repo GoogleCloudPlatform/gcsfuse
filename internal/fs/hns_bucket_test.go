@@ -195,7 +195,7 @@ func (t *HNSBucketTests) TestRenameFolderWithDifferentParents() {
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), 5, len(dirEntries))
 	actualDirEntries := []dirEntry{}
-	for _, d:= range dirEntries {
+	for _, d := range dirEntries {
 		actualDirEntries = append(actualDirEntries, dirEntry{
 			name:  d.Name(),
 			isDir: d.IsDir(),
