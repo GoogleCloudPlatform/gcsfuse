@@ -506,7 +506,7 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := NewRootCmd(func(cfg *cfg.Config, _ string, _ string) error {
+			cmd, err := NewRootCmd(func(cfg *cfg.Config, _, _ string) error {
 				gotConfig = cfg
 				return nil
 			})
