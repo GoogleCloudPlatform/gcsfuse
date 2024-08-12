@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
@@ -102,6 +103,7 @@ func CloseFileAndValidateContentFromGCS(ctx context.Context, storageClient *stor
 func CreateLocalFileInTestDir(ctx context.Context, storageClient *storage.Client,
 	testDirPath, fileName string, t *testing.T) (string, *os.File) {
 	filePath := path.Join(testDirPath, fileName)
+	logger.Infof("filePath: ", filePath)
 	fh := operations.CreateFile(filePath, FilePerms, t)
 	testDirName := GetDirName(testDirPath)
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, fileName, t)
