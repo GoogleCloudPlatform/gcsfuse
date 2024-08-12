@@ -714,9 +714,10 @@ func (d *dirInode) readObjects(
 			folder := gcs.Folder{Name: dirName.GcsObjectName()}
 
 			folderCore := &Core{
-				Bucket:   d.Bucket(),
-				FullName: dirName,
-				Folder:   &folder,
+				Bucket:    d.Bucket(),
+				FullName:  dirName,
+				Folder:    &folder,
+				MinObject: nil,
 			}
 			cores[dirName] = folderCore
 		} else {
