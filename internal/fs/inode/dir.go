@@ -711,7 +711,7 @@ func (d *dirInode) readObjects(
 		pathBase := path.Base(p)
 		dirName := NewDirName(d.Name(), pathBase)
 		if d.isBucketHierarchical() {
-			folder := gcs.Folder{Name: dirName.objectName}
+			folder := gcs.Folder{Name: dirName.GcsObjectName()}
 
 			folderCore := &Core{
 				Bucket:   d.Bucket(),
