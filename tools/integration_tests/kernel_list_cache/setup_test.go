@@ -19,6 +19,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -58,6 +59,24 @@ func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageCli
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 	setup.SetMntDir(mountDir)
 	testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
+	entries, err := os.ReadDir(testDirPath)
+	if err != nil {
+		// Handle error
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			err := os.RemoveAll(filepath.Join(testDirPath, entry.Name()))
+			if err != nil {
+				// Handle error
+			}
+		} else {
+			err := os.Remove(filepath.Join(testDirPath, entry.Name()))
+			if err != nil {
+				// Handle error
+			}
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////
