@@ -143,7 +143,7 @@ be interacting with the file system.`)
 	// Mount the file system.
 	logger.Infof("Mounting file system %q...", fsName)
 
-	mountCfg := getFuseMountConfig(fsName, newConfig, mountConfig)
+	mountCfg := getFuseMountConfig(fsName, newConfig)
 	mfs, err = fuse.Mount(mountPoint, server, mountCfg)
 	if err != nil {
 		err = fmt.Errorf("Mount: %w", err)
@@ -153,7 +153,7 @@ be interacting with the file system.`)
 	return
 }
 
-func getFuseMountConfig(fsName string, newConfig *cfg.Config, mountConfig *config.MountConfig) *fuse.MountConfig {
+func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig {
 	// Handle the repeated "-o" flag.
 	parsedOptions := make(map[string]string)
 	for _, o := range newConfig.FileSystem.FuseOptions {
@@ -173,7 +173,7 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config, mountConfig *confi
 		// users experience the performance gains. E.g. if a user workload tries to
 		// access two files under same directory parallely, then the lookups also
 		// happen parallely.
-		EnableParallelDirOps: !(mountConfig.FileSystemConfig.DisableParallelDirops),
+		EnableParallelDirOps: !(newConfig.FileSystem.DisableParallelDirops),
 	}
 
 	mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse: ")

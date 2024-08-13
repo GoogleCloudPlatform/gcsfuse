@@ -18,7 +18,6 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -51,7 +50,6 @@ func TestGetFuseMountConfig_MountOptionsFormattedCorrectly(t *testing.T) {
 	}
 
 	fsName := "mybucket"
-	mountConfig := &config.MountConfig{}
 	for _, tc := range testCases {
 		newConfig := &cfg.Config{
 			FileSystem: cfg.FileSystemConfig{
@@ -59,7 +57,7 @@ func TestGetFuseMountConfig_MountOptionsFormattedCorrectly(t *testing.T) {
 			},
 		}
 
-		fuseMountCfg := getFuseMountConfig(fsName, newConfig, mountConfig)
+		fuseMountCfg := getFuseMountConfig(fsName, newConfig)
 
 		assert.Equal(t, fsName, fuseMountCfg.FSName)
 		assert.Equal(t, "gcsfuse", fuseMountCfg.Subtype)
