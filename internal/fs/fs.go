@@ -815,8 +815,6 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 // UNLOCK_FUNCTION(fs.mu)
 // LOCK_FUNCTION(in)
 func (fs *fileSystem) createDirInode(ic inode.Core, inodes map[inode.Name]inode.DirInode) inode.Inode {
-	var in inode.Inode
-	var ok bool
 	if !ic.FullName.IsDir() {
 		panic(fmt.Sprintf("Unexpected name for a directory: %q", ic.FullName))
 	}
@@ -824,9 +822,10 @@ func (fs *fileSystem) createDirInode(ic inode.Core, inodes map[inode.Name]inode.
 	var maxTriesToCreateInode = 3
 
 	for n := 0; n < maxTriesToCreateInode; n++ {
-		in, ok = (inodes)[ic.FullName]
-		if !ok {
-			in = fs.mintInode(ic)
+		in, ok := (inodes)[ic.FullName]
+		fmt.Println("Unlink: ", in.UnLinkFolder)
+		if !ok || in.IsUnLinkFolder() {
+			in := fs.mintInode(ic)
 			(inodes)[in.Name()] = in.(inode.DirInode)
 			fmt.Println("Inodes in folder: ", inodes)
 			in.Lock()

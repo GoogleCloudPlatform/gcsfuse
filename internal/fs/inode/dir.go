@@ -157,6 +157,10 @@ type DirInode interface {
 
 	// RUnlock readonly unlock.
 	RUnlock()
+
+	IsUnLinkFolder() bool
+
+	UnLinkFolder()
 }
 
 // An inode that represents a directory from a GCS bucket.
@@ -211,6 +215,7 @@ type dirInode struct {
 	// enabled.
 	prevDirListingTimeStamp time.Time
 	isHNSEnabled            bool
+	unLinkFolder            bool
 }
 
 var _ DirInode = &dirInode{}
@@ -265,6 +270,7 @@ func NewDirInode(
 		attrs:                       attrs,
 		cache:                       metadata.NewTypeCache(typeCacheMaxSizeMB, typeCacheTTL),
 		isHNSEnabled:                isHNSEnabled,
+		unLinkFolder:                false,
 	}
 
 	typed.lc.Init(id)
@@ -492,6 +498,14 @@ func (d *dirInode) Destroy() (err error) {
 	return
 }
 
+func (d *dirInode) IsUnLinkFolder() bool {
+	return d.unLinkFolder
+}
+
+func (d *dirInode) UnLinkFolder() {
+	d.unLinkFolder = true
+}
+
 // LOCKS_REQUIRED(d)
 func (d *dirInode) Attributes(
 	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
@@ -714,9 +728,9 @@ func (d *dirInode) readObjects(
 			folder := gcs.Folder{Name: dirName.GcsObjectName()}
 
 			folderCore := &Core{
-				Bucket:    d.Bucket(),
-				FullName:  dirName,
-				Folder:    &folder,
+				Bucket:   d.Bucket(),
+				FullName: dirName,
+				Folder:   &folder,
 			}
 			cores[dirName] = folderCore
 		} else {
@@ -952,6 +966,7 @@ func (d *dirInode) DeleteChildDir(
 		return fmt.Errorf("DeleteFolder: %w", err)
 	}
 
+	d.UnLinkFolder()
 	d.cache.Erase(name)
 	return nil
 }
