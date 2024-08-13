@@ -16,6 +16,7 @@ package util
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"hash/crc32"
 	"io"
@@ -23,10 +24,10 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-
-	"github.com/jacobsa/fuse/fsutil"
+	"unsafe"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
+	"github.com/jacobsa/fuse/fsutil"
 )
 
 const (
@@ -38,15 +39,16 @@ const (
 	FallbackToGCSErrMsg                       = "read via gcs"
 	FileNotPresentInCacheErrMsg               = "file is not present in cache"
 	CacheHandleNotRequiredForRandomReadErrMsg = "cacheFileForRangeRead is false, read type random read and fileInfo entry is absent"
-	BufferSizeForCRC                          = 65536
 )
 
 const (
-	MiB             = 1024 * 1024
-	KiB             = 1024
-	DefaultFilePerm = os.FileMode(0600)
-	DefaultDirPerm  = os.FileMode(0700)
-	FileCache       = "gcsfuse-file-cache"
+	MiB                        = 1024 * 1024
+	KiB                        = 1024
+	DefaultFilePerm            = os.FileMode(0600)
+	DefaultDirPerm             = os.FileMode(0700)
+	FileCache                  = "gcsfuse-file-cache"
+	BufferSizeForCRC           = 65536
+	MinimumAlignSizeForWriting = 4096
 )
 
 // CreateFile creates file with given file spec i.e. permissions and returns
@@ -59,7 +61,7 @@ func CreateFile(fileSpec data.FileSpec, flag int) (file *os.File, err error) {
 	fileDir := filepath.Dir(fileSpec.Path)
 	err = os.MkdirAll(fileDir, fileSpec.DirPerm)
 	if err != nil {
-		err = fmt.Errorf(fmt.Sprintf("error in creating directory structure %s: %v", fileDir, err))
+		err = fmt.Errorf("error in creating directory structure %s: %w", fileDir, err)
 		return
 	}
 
@@ -69,13 +71,13 @@ func CreateFile(fileSpec data.FileSpec, flag int) (file *os.File, err error) {
 		if os.IsNotExist(err) {
 			flag = flag | os.O_CREATE
 		} else {
-			err = fmt.Errorf(fmt.Sprintf("error in stating file %s: %v", fileSpec.Path, err))
+			err = fmt.Errorf("error in stating file %s: %w", fileSpec.Path, err)
 			return
 		}
 	}
 	file, err = os.OpenFile(fileSpec.Path, flag, fileSpec.FilePerm)
 	if err != nil {
-		err = fmt.Errorf(fmt.Sprintf("error in creating file %s: %v", fileSpec.Path, err))
+		err = fmt.Errorf("error in creating file %s: %w", fileSpec.Path, err)
 		return
 	}
 	return
@@ -179,4 +181,106 @@ func TruncateAndRemoveFile(filePath string) error {
 		return err
 	}
 	return nil
+}
+
+// GetMemoryAlignedBuffer creates a buffer([]byte) of size bufferSize aligned to
+// memory address in multiple of alignSize.
+func GetMemoryAlignedBuffer(bufferSize int64, alignSize int64) (buffer []byte, err error) {
+	if bufferSize == 0 {
+		return make([]byte, 0), nil
+	}
+	if alignSize == 0 {
+		return make([]byte, bufferSize), nil
+	}
+
+	// Create and align buffer
+	createAndAlignBuffer := func() ([]byte, error) {
+		newBuffer := make([]byte, bufferSize+alignSize)
+		l := int64(uintptr(unsafe.Pointer(&newBuffer[0])) % uintptr(alignSize))
+		skipOffset := alignSize - l
+		newBuffer = newBuffer[skipOffset : skipOffset+bufferSize]
+
+		// Check if buffer is aligned or not
+		l = int64(uintptr(unsafe.Pointer(&newBuffer[0])) % uintptr(alignSize))
+		if l != 0 {
+			return nil, fmt.Errorf("failed to align buffer")
+		}
+		return newBuffer, nil
+	}
+
+	// Though we haven't seen any error while aligning buffer but still it is safer
+	// to attempt few times in case alignment fails.
+	for try := 0; try < 3; try++ {
+		buffer, err = createAndAlignBuffer()
+		if err == nil {
+			return buffer, err
+		}
+	}
+	return buffer, err
+}
+
+// CopyUsingMemoryAlignedBuffer copies content from src reader to dst writer
+// by staging content into a memory aligned buffer of size bufferSize and
+// aligned to multiple of MinimumAlignSizeForWriting. Note: The minimum write
+// size is MinimumAlignSizeForWriting which means the total size of content
+// written to dst writer is always in multiple of MinimumAlignSizeForWriting.
+// If contentSize is lesser than MinimumAlignSizeForWriting then extra null data
+// is written at the last.
+func CopyUsingMemoryAlignedBuffer(ctx context.Context, src io.Reader, dst io.Writer, contentSize, bufferSize int64) (n int64, err error) {
+	var alignSize int64 = MinimumAlignSizeForWriting
+	if bufferSize < alignSize || ((bufferSize % alignSize) != 0) {
+		return 0, fmt.Errorf("buffer size (%v) should be a multiple of %v", bufferSize, alignSize)
+	}
+
+	calculateReqBufferSize := func(remainingContentSize int64) int64 {
+		reqBufferSize := min(bufferSize, remainingContentSize)
+		roundOffVal := alignSize - reqBufferSize%alignSize
+		// Only add roundOffVal if reqBufferSize is not multiple of alignSize
+		if roundOffVal != alignSize {
+			reqBufferSize = reqBufferSize + roundOffVal
+		}
+		return reqBufferSize
+	}
+
+	reqBufferSize := calculateReqBufferSize(contentSize)
+	buffer, err := GetMemoryAlignedBuffer(reqBufferSize, alignSize)
+	if err != nil {
+		return 0, fmt.Errorf("error in creating memory aligned buffer %w", err)
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return n, fmt.Errorf("copying cancelled: %w", ctx.Err())
+		default:
+			if n < contentSize {
+				remainingContentSize := contentSize - n
+				reqBufferSize = calculateReqBufferSize(remainingContentSize)
+				buffer = buffer[:reqBufferSize]
+
+				readN, readErr := io.ReadFull(src, buffer)
+				expectedEOFError := int64(len(buffer)) > remainingContentSize
+
+				// Return error in case of ErrUnexpectedEOF only if it is not expected.
+				if readErr != nil && !errors.Is(readErr, io.EOF) && !(errors.Is(readErr, io.ErrUnexpectedEOF) && expectedEOFError) {
+					return n, fmt.Errorf("error while reading to buffer: %w", readErr)
+				}
+
+				writeN, writeErr := dst.Write(buffer)
+				if writeErr != nil {
+					return n, fmt.Errorf("error while writing from buffer: %w", writeErr)
+				}
+
+				// The last readN is smaller than writeN if file size is not multiple of
+				// MinimumAlignSizeForWriting.
+				if readN != writeN && !(expectedEOFError && (int64(readN) == remainingContentSize)) {
+					return n, fmt.Errorf("size of content read (%v) mismatch with content written (%v)", readN, writeN)
+				}
+
+				n = n + int64(writeN)
+			} else {
+				return n, err
+			}
+		}
+	}
 }

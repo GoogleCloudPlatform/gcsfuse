@@ -1018,3 +1018,27 @@ func (dt *downloaderTest) Test_When_Parallel_Download_Is_Disabled() {
 
 	AssertFalse(result)
 }
+
+func (dt *downloaderTest) Test_createCacheFile_WhenNonParallelDownloads() {
+	//Arrange - initJobTest is being called in setup of downloader.go
+	dt.job.fileCacheConfig.EnableParallelDownloads = false
+
+	cacheFile, err := dt.job.createCacheFile()
+
+	AssertEq(nil, err)
+	defer func() {
+		_ = cacheFile.Close()
+	}()
+}
+
+func (dt *downloaderTest) Test_createCacheFile_WhenParallelDownloads() {
+	//Arrange - initJobTest is being called in setup of downloader.go
+	dt.job.fileCacheConfig.EnableParallelDownloads = true
+
+	cacheFile, err := dt.job.createCacheFile()
+
+	AssertEq(nil, err)
+	defer func() {
+		_ = cacheFile.Close()
+	}()
+}

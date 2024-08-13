@@ -85,6 +85,8 @@ type FileCacheConfig struct {
 	MaxSizeMb int64 `yaml:"max-size-mb,omitempty"`
 
 	ParallelDownloadsPerFile int64 `yaml:"parallel-downloads-per-file,omitempty"`
+
+	WriteBufferSize int64 `yaml:"write-buffer-size,omitempty"`
 }
 
 type FileSystemConfig struct {
@@ -656,6 +658,16 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	flagSet.IntP("uid", "", -1, "UID owner of all inodes.")
 
 	if err := v.BindPFlag("file-system.uid", flagSet.Lookup("uid")); err != nil {
+		return err
+	}
+
+	flagSet.IntP("write-buffer-size", "", 4194304, "Size of in-memory buffer that is used per goroutine in parallel downloads while writing to file-cache.")
+
+	if err := flagSet.MarkHidden("write-buffer-size"); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-cache.write-buffer-size", flagSet.Lookup("write-buffer-size")); err != nil {
 		return err
 	}
 

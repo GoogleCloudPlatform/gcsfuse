@@ -15,19 +15,24 @@
 package util
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"reflect"
 	"strings"
 	"syscall"
 	"testing"
+	"unsafe"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
 	testutil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	. "github.com/jacobsa/ogletest"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 )
 
@@ -387,4 +392,231 @@ func Test_CreateCacheDirectoryIfNotPresentAt_ShouldReturnErrorWhenDirectoryDoesN
 
 	AssertNe(nil, err)
 	AssertTrue(strings.Contains(err.Error(), "error creating file at directory ("+dirPath+")"))
+}
+
+func Test_GetMemoryAlignedBuffer(t *testing.T) {
+	tbl := []struct {
+		name                string
+		bufferSize          int64
+		alignSize           int64
+		expectedBufferSize  int64
+		bufferPtrMultipleOf int64
+	}{
+		{
+			name:                "buffer size and align size 0",
+			bufferSize:          0,
+			alignSize:           0,
+			expectedBufferSize:  0,
+			bufferPtrMultipleOf: 1,
+		},
+		{
+			name:                "buffer size 0 and align size non 0",
+			bufferSize:          0,
+			alignSize:           4096,
+			expectedBufferSize:  0,
+			bufferPtrMultipleOf: 1,
+		},
+		{
+			name:                "buffer size non 0 and align size 0",
+			bufferSize:          4096,
+			alignSize:           0,
+			expectedBufferSize:  4096,
+			bufferPtrMultipleOf: 1,
+		},
+		{
+			name:                "buffer size and align size non 0",
+			bufferSize:          1024 * 1024,
+			alignSize:           4096,
+			expectedBufferSize:  1024 * 1024,
+			bufferPtrMultipleOf: 4096,
+		},
+		{
+			name:                "buffer size and align size power of 2",
+			bufferSize:          65536,
+			alignSize:           2048,
+			expectedBufferSize:  65536,
+			bufferPtrMultipleOf: 2048,
+		},
+		{
+			name:                "buffer size and align size odd",
+			bufferSize:          7,
+			alignSize:           13,
+			expectedBufferSize:  7,
+			bufferPtrMultipleOf: 13,
+		},
+		{
+			name:                "buffer size smaller than align size",
+			bufferSize:          200,
+			alignSize:           4096,
+			expectedBufferSize:  200,
+			bufferPtrMultipleOf: 4096,
+		},
+	}
+	for _, tc := range tbl {
+		t.Run(tc.name, func(t *testing.T) {
+			tc := tc
+			t.Parallel()
+
+			buffer, err := GetMemoryAlignedBuffer(tc.bufferSize, tc.alignSize)
+
+			assert.NoError(t, err)
+			assert.Equal(t, int(tc.expectedBufferSize), len(buffer))
+			if tc.expectedBufferSize == 0 {
+				assert.Equal(t, 0, len(buffer))
+			} else {
+				assert.Equal(t, uint64(0), uint64(uintptr(unsafe.Pointer(&buffer[0]))%uintptr(tc.bufferPtrMultipleOf)))
+			}
+		})
+	}
+}
+
+func Test_CopyUsingMemoryAlignedBuffer(t *testing.T) {
+	tbl := []struct {
+		name              string
+		bufferSize        int64
+		contentSize       int64
+		useODIRECT        bool
+		cancelCtx         bool
+		writeOffset       int64
+		expectedErr       bool
+		expectedWriteSize int64
+	}{
+		{
+			name:              "buffer size less than 4096",
+			bufferSize:        2048,
+			contentSize:       0,
+			useODIRECT:        true,
+			expectedErr:       true,
+			expectedWriteSize: 0,
+		},
+		{
+			name:              "buffer size not multiple of 4096",
+			bufferSize:        2048 * 3,
+			contentSize:       0,
+			useODIRECT:        true,
+			expectedErr:       true,
+			expectedWriteSize: 0,
+		},
+		{
+			name:              "buffer size and content size are equal",
+			bufferSize:        8192,
+			contentSize:       8192,
+			useODIRECT:        true,
+			expectedErr:       false,
+			expectedWriteSize: 8192,
+		},
+		{
+			name:              "content size multiple of 4096",
+			bufferSize:        4096,
+			contentSize:       1024 * 1024,
+			useODIRECT:        true,
+			writeOffset:       4096,
+			expectedErr:       false,
+			expectedWriteSize: 1024 * 1024,
+		},
+		{
+			name:              "content size not multiple of 4096",
+			bufferSize:        4096,
+			contentSize:       1024*1024 + 1,
+			useODIRECT:        true,
+			expectedErr:       false,
+			expectedWriteSize: 1024*1024 + 4096,
+		},
+		{
+			name:              "buffer size and content size are not equal",
+			bufferSize:        1024 * 1024,
+			contentSize:       1024*1024 - 10,
+			useODIRECT:        true,
+			expectedErr:       false,
+			expectedWriteSize: 1024 * 1024,
+		},
+		{
+			name:              "writer offset multiple of 4096",
+			bufferSize:        1024 * 1024,
+			contentSize:       2*1024*1024 - 10,
+			useODIRECT:        true,
+			writeOffset:       1024 * 1024,
+			expectedErr:       false,
+			expectedWriteSize: 2 * 1024 * 1024,
+		},
+		{
+			name:              "writer offset not multiple of 4096",
+			bufferSize:        1024 * 1024,
+			contentSize:       1024*1024 - 10,
+			useODIRECT:        true,
+			writeOffset:       1024*1024 - 1,
+			expectedErr:       true,
+			expectedWriteSize: 0,
+		},
+		{
+			name:              "not use O_DIRECT",
+			bufferSize:        1024 * 1024,
+			contentSize:       2*1024*1024 - 10,
+			useODIRECT:        false,
+			expectedErr:       false,
+			expectedWriteSize: 2 * 1024 * 1024,
+		},
+		{
+			name:              "context canceled",
+			bufferSize:        1024 * 1024,
+			contentSize:       2*1024*1024 - 10,
+			useODIRECT:        false,
+			cancelCtx:         true,
+			expectedErr:       true,
+			expectedWriteSize: 0,
+		},
+	}
+	for _, tc := range tbl {
+		t.Run(tc.name, func(t *testing.T) {
+			tc := tc
+			t.Parallel()
+			randName := string(testutil.GenerateRandomBytes(10))
+			flags := os.O_CREATE | os.O_TRUNC | os.O_RDWR
+			if tc.useODIRECT {
+				flags = flags | syscall.O_DIRECT
+			}
+			file, err := os.OpenFile(randName, flags, 0600)
+			require.NoError(t, err)
+			t.Cleanup(func() {
+				_ = file.Close()
+				_ = os.Remove(randName)
+			})
+			content := testutil.GenerateRandomBytes(int(tc.contentSize))
+			src := bytes.NewReader(content)
+			ctx, cancelCtx := context.WithCancel(context.Background())
+			if tc.cancelCtx {
+				cancelCtx()
+			}
+			dst := io.NewOffsetWriter(file, int64(tc.writeOffset))
+
+			writeN, err := CopyUsingMemoryAlignedBuffer(ctx, src, dst, tc.contentSize, tc.bufferSize)
+
+			if tc.expectedErr {
+				assert.NotNil(t, err)
+				if tc.cancelCtx {
+					assert.ErrorIs(t, err, context.Canceled)
+				}
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expectedWriteSize, writeN)
+				fileStat, err := file.Stat()
+				require.NoError(t, err)
+				assert.Equal(t, tc.writeOffset+writeN, fileStat.Size())
+				// Match only the content written.
+				sizeToMatch := min(tc.contentSize, writeN, tc.expectedWriteSize)
+				buf := make([]byte, sizeToMatch)
+				// Open file again without O_DIRECT
+				readFile, err := os.OpenFile(randName, os.O_RDWR, 0600)
+				require.NoError(t, err)
+				t.Cleanup(func() {
+					_ = readFile.Close()
+				})
+				_, err = readFile.ReadAt(buf, tc.writeOffset)
+				if err != nil && err != io.EOF {
+					t.Errorf("error (%v) while reading contents at the time of assertion for: %v", err, tc.name)
+				}
+				assert.True(t, reflect.DeepEqual(string(content[:sizeToMatch]), string(buf)))
+			}
+		})
+	}
 }
