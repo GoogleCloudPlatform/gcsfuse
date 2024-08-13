@@ -100,8 +100,10 @@ test -n "${node_pool}" || export node_pool=${DEFAULT_NODE_POOL}
 test -n "${machine_type}" || export machine_type=${DEFAULT_MACHINE_TYPE}
 test -n "${num_nodes}" || export num_nodes=${DEFAULT_NUM_NODES}
 test -n "${num_ssd}" || export num_ssd=${DEFAULT_NUM_SSD}
-test -n "${appnamespace}" || export appnamespace=${DEFAULT_APPNAMESPACE}
-test -n "${ksa}" || export ksa=${DEFAULT_KSA}
+# test -n "${appnamespace}" ||
+export appnamespace=${DEFAULT_APPNAMESPACE}
+# test -n "${ksa}" ||
+export ksa=${DEFAULT_KSA}
 test -n "${use_custom_csi_driver}" || export use_custom_csi_driver="${DEFAULT_USE_CUSTOM_CSI_DRIVER}"
 # GCSFuse/GKE GCSFuse CSI Driver source code related
 (test -n "${src_dir}" && src_dir="$(realpath "${src_dir}")") || export src_dir=${DEFAULT_SRC_DIR}
@@ -391,14 +393,14 @@ function createCustomCsiDriverIfNeeded() {
 
 function deleteAllHelmCharts() {
   echo "Deleting all existing helm charts ..."
-  helm ls | tr -s '\t' ' ' | cut -d' ' -f1 | tail -n +2 | while read helmchart; do helm uninstall ${helmchart}; done
+  helm ls --namespace=${appnamespace} | tr -s '\t' ' ' | cut -d' ' -f1 | tail -n +2 | while read helmchart; do helm uninstall ${helmchart} --namespace=${appnamespace}; done
 }
 
 function deleteAllPods() {
   deleteAllHelmCharts
 
   echo "Deleting all existing pods ..."
-  kubectl get pods | tail -n +2 | cut -d' ' -f1 | while read podname; do kubectl delete pods/${podname} --grace-period=0 --force || true; done
+  kubectl get pods --namespace=${appnamespace}  | tail -n +2 | cut -d' ' -f1 | while read podname; do kubectl delete pods/${podname} --namespace=${appnamespace} --grace-period=0 --force || true; done
 }
 
 function deployAllFioHelmCharts() {
@@ -414,7 +416,7 @@ function deployAllDlioHelmCharts() {
 function listAllHelmCharts() {
   echo "Listing all helm charts ..."
   # monitor and debug pods
-  helm ls | tr -s '\t' | cut -f1,5,6
+  helm ls --namespace=${appnamespace}  | tr -s '\t' | cut -f1,5,6
 
   # Sample output.
   # NAME STATUS CHART \
@@ -426,7 +428,7 @@ function waitTillAllPodsComplete() {
   echo "Scanning and waiting till all pods complete or one of them fails ..."
   while true; do
     printf "Checking pods status at "$(date +%s)":\n-----------------------------------\n"
-    podslist="$(kubectl get pods)"
+    podslist="$(kubectl get pods --namespace=${appnamespace} )"
     echo "${podslist}"
     num_completed_pods=$(echo "${podslist}" | tail -n +2 | grep -i 'completed\|succeeded' | wc -l)
     if [ ${num_completed_pods} -gt 0 ]; then
@@ -445,7 +447,7 @@ function waitTillAllPodsComplete() {
     else
       printf "There are still "${num_noncompleted_pods}" pod(s) incomplete (either still pending or running). So, sleeping for now... will check again in "${pod_wait_time_in_seconds}" seconds.\n\n"
       printf "To ssh to any specific pod, use the following command: \n"
-      printf "     kubectl exec -it pods/<podname> -- /bin/bash \n\n"
+      printf "  kubectl exec -it pods/<podname> --namespace=${appnamespace} -- /bin/bash \n\n"
     fi
     sleep ${pod_wait_time_in_seconds}
     unset podslist # necessary to update the value of podslist every iteration
