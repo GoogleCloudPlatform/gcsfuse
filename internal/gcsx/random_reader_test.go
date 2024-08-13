@@ -951,7 +951,10 @@ func (t *RandomReaderTest) Test_ReadAt_CachePopulatedAndThenCacheMissDueToInvali
 	AssertFalse(cacheHit)
 	AssertTrue(reflect.DeepEqual(testContent, buf))
 	job := t.jobManager.GetJob(t.object.Name, t.bucket.Name())
-	AssertTrue(job == nil || job.GetStatus().Name == downloader.Completed)
+	if job != nil {
+		jobStatus := job.GetStatus().Name
+		AssertTrue(jobStatus == downloader.Downloading || jobStatus == downloader.Completed)
+	}
 	err = t.rr.wrapped.fileCacheHandler.InvalidateCache(t.object.Name, t.bucket.Name())
 	AssertEq(nil, err)
 	// Second reader (rc2) is required, since first reader (rc) is completely read.

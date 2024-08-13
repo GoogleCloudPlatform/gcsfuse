@@ -19,9 +19,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"reflect"
 	"strings"
+	"syscall"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
@@ -371,6 +373,27 @@ func (job *Job) cleanUpDownloadAsyncJob() {
 	job.mu.Unlock()
 }
 
+// createCacheFile is a helper function which creates file in cache using
+// appropriate open file flags.
+func (job *Job) createCacheFile() (*os.File, error) {
+	// Create, open and truncate cache file for writing object into it.
+	openFileFlags := os.O_TRUNC | os.O_WRONLY
+	var cacheFile *os.File
+	var err error
+	// Try using O_DIRECT while opening file in case of parallel downloads.
+	if job.fileCacheConfig.EnableParallelDownloads {
+		cacheFile, err = cacheutil.CreateFile(job.fileSpec, openFileFlags|syscall.O_DIRECT)
+		if errors.Is(err, fs.ErrInvalid) || errors.Is(err, syscall.EINVAL) {
+			logger.Warnf("downloadObjectAsync: failure in opening file with O_DIRECT, falling back to without O_DIRECT")
+			cacheFile, err = cacheutil.CreateFile(job.fileSpec, openFileFlags)
+		}
+	} else {
+		cacheFile, err = cacheutil.CreateFile(job.fileSpec, openFileFlags)
+	}
+
+	return cacheFile, err
+}
+
 // downloadObjectAsync downloads the backing GCS object into a file as part of
 // file cache using NewReader method of gcs.Bucket.
 //
@@ -380,8 +403,7 @@ func (job *Job) downloadObjectAsync() {
 	// Cleanup the async job in all cases - completion/failure/invalidation.
 	defer job.cleanUpDownloadAsyncJob()
 
-	// Create, open and truncate cache file for writing object into it.
-	cacheFile, err := cacheutil.CreateFile(job.fileSpec, os.O_TRUNC|os.O_WRONLY)
+	cacheFile, err := job.createCacheFile()
 	if err != nil {
 		err = fmt.Errorf("downloadObjectAsync: error in creating cache file: %w", err)
 		job.handleError(err)
@@ -412,6 +434,16 @@ func (job *Job) downloadObjectAsync() {
 			job.updateStatusAndNotifySubscribers(Invalid, err)
 			return
 		}
+		job.handleError(err)
+		return
+	}
+
+	// Truncate as the parallel downloads can create file with size little higher
+	// than the actual object size because writing with O_DIRECT happens in size
+	// multiple of cacheutil.MinimumAlignSizeForWriting.
+	err = cacheFile.Truncate(int64(job.object.Size))
+	if err != nil {
+		err = fmt.Errorf("downloadObjectAsync: error while truncating cache file: %w", err)
 		job.handleError(err)
 		return
 	}

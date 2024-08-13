@@ -138,7 +138,17 @@ func (cht *cacheHandleTest) SetupTest() {
 	readLocalFileHandle, err := util.CreateFile(cht.fileSpec, os.O_RDONLY)
 	assert.Nil(cht.T(), err)
 
-	fileDownloadJob := downloader.NewJob(cht.object, cht.bucket, cht.cache, DefaultSequentialReadSizeMb, cht.fileSpec, func() {}, &cfg.FileCacheConfig{EnableCrc: true, EnableParallelDownloads: false}, semaphore.NewWeighted(math.MaxInt64))
+	fileCacheConfig := &cfg.FileCacheConfig{EnableCrc: true, EnableParallelDownloads: false}
+	fileDownloadJob := downloader.NewJob(
+		cht.object,
+		cht.bucket,
+		cht.cache,
+		DefaultSequentialReadSizeMb,
+		cht.fileSpec,
+		func() {},
+		fileCacheConfig,
+		semaphore.NewWeighted(math.MaxInt64),
+	)
 
 	cht.cacheHandle = NewCacheHandle(readLocalFileHandle, fileDownloadJob, cht.cache, false, 0)
 }
@@ -829,6 +839,13 @@ func (cht *cacheHandleTest) Test_SequentialRead_Parallel_Download_True() {
 	cht.cacheHandle.isSequential = true
 	cht.cacheHandle.prevOffset = offset - util.MiB
 	cht.cacheHandle.cacheFileForRangeRead = false
+	fileCacheConfig := &cfg.FileCacheConfig{
+		EnableCrc:                true,
+		EnableParallelDownloads:  true,
+		ParallelDownloadsPerFile: 2,
+		DownloadChunkSizeMb:      2,
+		WriteBufferSize:          4 * 1024 * 1024,
+	}
 	fileDownloadJob := downloader.NewJob(
 		cht.object,
 		cht.bucket,
@@ -836,7 +853,7 @@ func (cht *cacheHandleTest) Test_SequentialRead_Parallel_Download_True() {
 		DefaultSequentialReadSizeMb,
 		cht.fileSpec,
 		func() {},
-		&cfg.FileCacheConfig{EnableCrc: true, EnableParallelDownloads: true, ParallelDownloadsPerFile: 2, DownloadChunkSizeMb: 2},
+		fileCacheConfig,
 		semaphore.NewWeighted(math.MaxInt64),
 	)
 	cht.cacheHandle.fileDownloadJob = fileDownloadJob
@@ -856,6 +873,13 @@ func (cht *cacheHandleTest) Test_RandomRead_Parallel_Download_True() {
 	offset := int64(cht.object.Size - ReadContentSize)
 	cht.cacheHandle.isSequential = false
 	cht.cacheHandle.cacheFileForRangeRead = true
+	fileCacheConfig := &cfg.FileCacheConfig{
+		EnableCrc:                true,
+		EnableParallelDownloads:  true,
+		ParallelDownloadsPerFile: 5,
+		DownloadChunkSizeMb:      2,
+		WriteBufferSize:          4 * 1024 * 1024,
+	}
 	fileDownloadJob := downloader.NewJob(
 		cht.object,
 		cht.bucket,
@@ -863,7 +887,7 @@ func (cht *cacheHandleTest) Test_RandomRead_Parallel_Download_True() {
 		DefaultSequentialReadSizeMb,
 		cht.fileSpec,
 		func() {},
-		&cfg.FileCacheConfig{EnableCrc: true, EnableParallelDownloads: true, ParallelDownloadsPerFile: 5, DownloadChunkSizeMb: 2},
+		fileCacheConfig,
 		semaphore.NewWeighted(math.MaxInt64),
 	)
 	cht.cacheHandle.fileDownloadJob = fileDownloadJob
@@ -883,6 +907,13 @@ func (cht *cacheHandleTest) Test_RandomRead_CacheForRangeReadFalse_And_ParallelD
 	offset := int64(cht.object.Size - ReadContentSize)
 	cht.cacheHandle.isSequential = false
 	cht.cacheHandle.cacheFileForRangeRead = false
+	fileCacheConfig := &cfg.FileCacheConfig{
+		EnableCrc:                true,
+		EnableParallelDownloads:  true,
+		ParallelDownloadsPerFile: 5,
+		DownloadChunkSizeMb:      2,
+		WriteBufferSize:          4 * 1024 * 1024,
+	}
 	cht.cacheHandle.fileDownloadJob = downloader.NewJob(
 		cht.object,
 		cht.bucket,
@@ -890,7 +921,7 @@ func (cht *cacheHandleTest) Test_RandomRead_CacheForRangeReadFalse_And_ParallelD
 		DefaultSequentialReadSizeMb,
 		cht.fileSpec,
 		func() {},
-		&cfg.FileCacheConfig{EnableCrc: true, EnableParallelDownloads: true, ParallelDownloadsPerFile: 5, DownloadChunkSizeMb: 2},
+		fileCacheConfig,
 		semaphore.NewWeighted(math.MaxInt64),
 	)
 
