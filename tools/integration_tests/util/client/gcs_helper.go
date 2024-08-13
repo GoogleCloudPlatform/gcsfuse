@@ -41,7 +41,7 @@ const (
 	SizeOfFileContents = 10
 	GCSFileContent     = "GCSteststring"
 	GCSFileSize        = 13
-	FilePerms          = 0644
+	FilePerms          = 0777
 	SizeTruncate       = 5
 	NewFileName        = "newName"
 	NewDirName         = "newDirName"
