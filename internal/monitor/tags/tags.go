@@ -32,8 +32,8 @@ var (
 	// FSError annotates the file system failed operations with the error type
 	FSError = tag.MustNewKey("fs_error")
 
-	// FSErrorGroup reduces the cardinality of FSError by grouping errors together.
-	FSErrorGroup = tag.MustNewKey("fs_error_group")
+	// FSErrCategory reduces the cardinality of FSError by grouping errors together.
+	FSErrCategory = tag.MustNewKey("fs_error_category")
 
 	// ReadType annotates the read operation with the type - Sequential/Random
 	ReadType = tag.MustNewKey("read_type")
