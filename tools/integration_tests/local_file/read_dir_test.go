@@ -185,7 +185,6 @@ func TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError(t *testing.T
 	//	go readingDirNTimesShouldNotThrowError(2, &wg, t)
 
 	testDirPath = path.Join(setup.MntDir(), testDirName)
-	os.RemoveAll(testDirPath)
 
 	operations.CreateDirectory(testDirPath, t)
 	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t)
