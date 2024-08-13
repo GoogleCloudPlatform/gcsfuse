@@ -385,10 +385,9 @@ function createCustomCsiDriverIfNeeded() {
     # Build and install csi driver
     ensureGcsFuseCsiDriverCode
     cd "${csi_src_dir}"
+    make uninstall
     make build-image-and-push-multi-arch REGISTRY=gcr.io/${project_id}/${USER} GCSFUSE_PATH=gs://${package_bucket}
     make install PROJECT=${project_id} REGISTRY=gcr.io/${project_id}/${USER}
-    # If install fails, do the following and retry.
-    # make uninstall
     cd -
   else
     echo "Enabling CSI Driver add-on ..."
