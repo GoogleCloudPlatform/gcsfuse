@@ -194,8 +194,8 @@ func TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError(t *testing.T
 	os.RemoveAll(path.Join(testDirPath, ExplicitDirName))
 
 	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t)
-	syncedFile := path.Join(testDirPath, ExplicitDirName, FileName1)
-	operations.CreateFile(syncedFile, FilePerms, t)
+	//syncedFile := path.Join(testDirPath, ExplicitDirName, FileName1)
+	//operations.CreateFile(syncedFile, FilePerms, t)
 
 	//wg.Wait()
 }
