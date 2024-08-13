@@ -39,7 +39,7 @@ then
   UPLOAD_FLAGS="--upload_gs"
 fi
 
-func run_load_test_and_fetch_metrics(){
+run_load_test_and_fetch_metrics(){
   # Executing perf tests
   ./run_load_test_and_fetch_metrics.sh "$1" "$2" "$3" "$4" "$5"
 
@@ -47,7 +47,7 @@ func run_load_test_and_fetch_metrics(){
   LOG_FILE_LIST_TESTS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-list-logs-$6.txt
   GCSFUSE_LIST_FLAGS="$7 --log-file $LOG_FILE_LIST_TESTS"
   cd "./ls_metrics"
-  ./run_ls_benchmark.sh "$GCSFUSE_LIST_FLAGS" "$2" "$4"
+  ./run_ls_benchmark.sh "$GCSFUSE_LIST_FLAGS" "$2" "$4" "$8"
   cd "../"
 }
 
@@ -57,15 +57,17 @@ GCSFUSE_FIO_FLAGS="$GCSFUSE_FLAGS --log-file $LOG_FILE_FIO_TESTS --stackdriver-e
 BUCKET_NAME="periodic-perf-tests"
 SPREADSHEET_ID='1kvHv1OBCzr9GnFxRu9RTJC7jjQjc9M4rAiDnhyak2Sg'
 GSHEET_CREDENTIALS="gs://periodic-perf-tests/creds.json"
-run_load_test_and_fetch_metrics $GCSFUSE_FIO_FLAGS $UPLOAD_FLAGS $BUCKET_NAME $SPREADSHEET_ID $GSHEET_CREDENTIALS "flat" $GCSFUSE_FLAGS
+LIST_CONFIG_FILE="config.json"
+run_load_test_and_fetch_metrics "$GCSFUSE_FIO_FLAGS" "$UPLOAD_FLAGS" "$BUCKET_NAME" "$SPREADSHEET_ID" "$GSHEET_CREDENTIALS" "flat" "$GCSFUSE_FLAGS" "$LIST_CONFIG_FILE"
 
 touch config.yml
 echo "enable-hns: true" > config.yml
-GCSFUSE_FLAGS="--config-file=config.yml --implicit-dirs  --debug_fuse --debug_gcs --log-format \"text\" "
+GCSFUSE_FLAGS="--config-file=config.yml --stat-cache-ttl=0 --type-cache-ttl=0 --debug_fuse --debug_gcs --log-format \"text\" "
 LOG_FILE_FIO_TESTS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-hns.txt
 GCSFUSE_FIO_FLAGS="$GCSFUSE_FLAGS --log-file $LOG_FILE_FIO_TESTS --stackdriver-export-interval=30s"
 BUCKET_NAME="periodic-perf-tests-hns"
 SPREADSHEET_ID='1wXRGYyAWvasU8U4KaP7NGPHEvgiOSgMd1sCLxsQUwf0'
 GSHEET_CREDENTIALS="gs://periodic-perf-tests-hns/creds.json"
-run_load_test_and_fetch_metrics $GCSFUSE_FIO_FLAGS $UPLOAD_FLAGS $BUCKET_NAME $SPREADSHEET_ID $GSHEET_CREDENTIALS "hns" $GCSFUSE_FLAGS
+LIST_CONFIG_FILE="config-hns.json"
+run_load_test_and_fetch_metrics "$GCSFUSE_FIO_FLAGS" "$UPLOAD_FLAGS" "$BUCKET_NAME" "$SPREADSHEET_ID" "$GSHEET_CREDENTIALS" "flat" "$GCSFUSE_FLAGS" "$LIST_CONFIG_FILE"
 rm config.yml

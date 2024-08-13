@@ -25,4 +25,5 @@ echo Running script..
 GCSFUSE_FLAGS=$1
 UPLOAD_FLAGS=$2
 SPREADSHEET_ID=$3
-python3 listing_benchmark.py config.json --gcsfuse_flags "$GCSFUSE_FLAGS" $UPLOAD_FLAGS --command "ls -R" --num_samples 30 --message "Testing CT setup." --spreadsheet_id=$SPREADSHEET_ID
+CONFIG_FILE=$4
+python3 listing_benchmark.py $CONFIG_FILE --gcsfuse_flags "$GCSFUSE_FLAGS" $UPLOAD_FLAGS --command "ls -R" --num_samples 30 --message "Testing CT setup." --spreadsheet_id=$SPREADSHEET_ID
