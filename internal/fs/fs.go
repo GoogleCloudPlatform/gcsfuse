@@ -739,6 +739,7 @@ func (fs *fileSystem) createExplicitDirInode(inodeID fuseops.InodeID, ic inode.C
 func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 	// Choose an ID.
 	id := fs.nextInodeID
+	fmt.Println("ID: ", id)
 	fs.nextInodeID++
 
 	// Create the inode.
@@ -804,6 +805,7 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 	// Place it in our map of IDs to inodes.
 	fs.inodes[in.ID()] = in
 
+	fmt.Println("Inodes: ", fs.inodes)
 	return
 }
 
@@ -826,6 +828,7 @@ func (fs *fileSystem) createDirInode(ic inode.Core, inodes map[inode.Name]inode.
 		if !ok {
 			in = fs.mintInode(ic)
 			(inodes)[in.Name()] = in.(inode.DirInode)
+			fmt.Println("Inodes in folder: ", inodes)
 			in.Lock()
 			return in
 		}
@@ -882,6 +885,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 
 	// Handle implicit directories.
 	if ic.MinObject == nil {
+		fmt.Println("MinObject Is nil??", ic.MinObject, ic.Folder)
 		return fs.createDirInode(ic, fs.implicitDirInodes)
 	}
 
