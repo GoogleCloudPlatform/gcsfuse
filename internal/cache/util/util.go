@@ -185,7 +185,7 @@ func TruncateAndRemoveFile(filePath string) error {
 
 // GetMemoryAlignedBuffer creates a buffer([]byte) of size bufferSize aligned to
 // memory address in multiple of alignSize.
-func GetMemoryAlignedBuffer(bufferSize uint64, alignSize uint64) (buffer []byte, err error) {
+func GetMemoryAlignedBuffer(bufferSize int64, alignSize int64) (buffer []byte, err error) {
 	if bufferSize == 0 {
 		return make([]byte, 0), nil
 	}
@@ -196,12 +196,12 @@ func GetMemoryAlignedBuffer(bufferSize uint64, alignSize uint64) (buffer []byte,
 	// Create and align buffer
 	createAndAlignBuffer := func() ([]byte, error) {
 		newBuffer := make([]byte, bufferSize+alignSize)
-		l := uint64(uintptr(unsafe.Pointer(&newBuffer[0])) % uintptr(alignSize))
+		l := int64(uintptr(unsafe.Pointer(&newBuffer[0])) % uintptr(alignSize))
 		skipOffset := alignSize - l
 		newBuffer = newBuffer[skipOffset : skipOffset+bufferSize]
 
 		// Check if buffer is aligned or not
-		l = uint64(uintptr(unsafe.Pointer(&newBuffer[0])) % uintptr(alignSize))
+		l = int64(uintptr(unsafe.Pointer(&newBuffer[0])) % uintptr(alignSize))
 		if l != 0 {
 			return nil, fmt.Errorf("failed to align buffer")
 		}
@@ -243,7 +243,7 @@ func CopyUsingMemoryAlignedBuffer(ctx context.Context, src io.Reader, dst io.Wri
 	}
 
 	reqBufferSize := calculateReqBufferSize(contentSize)
-	buffer, err := GetMemoryAlignedBuffer(uint64(reqBufferSize), uint64(alignSize))
+	buffer, err := GetMemoryAlignedBuffer(reqBufferSize, alignSize)
 	if err != nil {
 		return 0, fmt.Errorf("error in creating memory aligned buffer %w", err)
 	}

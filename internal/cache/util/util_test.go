@@ -397,10 +397,10 @@ func Test_CreateCacheDirectoryIfNotPresentAt_ShouldReturnErrorWhenDirectoryDoesN
 func Test_GetMemoryAlignedBuffer(t *testing.T) {
 	tbl := []struct {
 		name                string
-		bufferSize          uint64
-		alignSize           uint64
-		expectedBufferSize  uint64
-		bufferPtrMultipleOf uint64
+		bufferSize          int64
+		alignSize           int64
+		expectedBufferSize  int64
+		bufferPtrMultipleOf int64
 	}{
 		{
 			name:                "buffer size and align size 0",
