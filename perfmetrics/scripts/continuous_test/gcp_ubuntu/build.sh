@@ -61,13 +61,16 @@ LIST_CONFIG_FILE="config.json"
 run_load_test_and_fetch_metrics "$GCSFUSE_FIO_FLAGS" "$UPLOAD_FLAGS" "$BUCKET_NAME" "$SPREADSHEET_ID" "$GSHEET_CREDENTIALS" "flat" "$GCSFUSE_FLAGS" "$LIST_CONFIG_FILE"
 
 touch config.yml
-echo "enable-hns: true" > config.yml
-GCSFUSE_FLAGS="--config-file=config.yml --stat-cache-ttl=0 --type-cache-ttl=0 --debug_fuse --debug_gcs --log-format \"text\" "
+echo "enable-hns: true
+metadata-cache:
+  ttl-secs: 0" > config.yml
+COMMON_MOUNT_FLAGS="--debug_fuse --debug_gcs --log-format \"text\""
+GCSFUSE_LS_FLAGS="--config-file=../config.yml $COMMON_MOUNT_FLAGS"
 LOG_FILE_FIO_TESTS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-hns.txt
-GCSFUSE_FIO_FLAGS="$GCSFUSE_FLAGS --log-file $LOG_FILE_FIO_TESTS --stackdriver-export-interval=30s"
+GCSFUSE_FIO_FLAGS="--config-file=config.yml $COMMON_MOUNT_FLAGS --log-file $LOG_FILE_FIO_TESTS --stackdriver-export-interval=30s"
 BUCKET_NAME="periodic-perf-tests-hns"
 SPREADSHEET_ID='1wXRGYyAWvasU8U4KaP7NGPHEvgiOSgMd1sCLxsQUwf0'
 GSHEET_CREDENTIALS="gs://periodic-perf-tests-hns/creds.json"
 LIST_CONFIG_FILE="config-hns.json"
-run_load_test_and_fetch_metrics "$GCSFUSE_FIO_FLAGS" "$UPLOAD_FLAGS" "$BUCKET_NAME" "$SPREADSHEET_ID" "$GSHEET_CREDENTIALS" "flat" "$GCSFUSE_FLAGS" "$LIST_CONFIG_FILE"
+run_load_test_and_fetch_metrics "$GCSFUSE_FIO_FLAGS" "$UPLOAD_FLAGS" "$BUCKET_NAME" "$SPREADSHEET_ID" "$GSHEET_CREDENTIALS" "hns" "$GCSFUSE_LS_FLAGS" "$LIST_CONFIG_FILE"
 rm config.yml
