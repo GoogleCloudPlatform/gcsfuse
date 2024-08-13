@@ -73,6 +73,8 @@ spec:
         sleep 300
         {{ end }}
 
+        outputDir=/logs/{{ .Values.instanceId }}/{{ .Values.dlio.numFilesTrain }}-{{ .Values.dlio.recordLength }}-{{ .Values.dlio.batchSize }}/{{ .Values.scenario }}
+
         echo "Testing {{ .Values.scenario }}"
         mpirun -np 8 dlio_benchmark workload=unet3d_a100 \
         ++workload.train.epochs=4 \
@@ -84,11 +86,11 @@ spec:
         ++workload.reader.batch_size={{ .Values.dlio.batchSize }} \
         ++workload.dataset.record_length={{ .Values.dlio.recordLength }} \
         ++workload.reader.read_threads={{ .Values.dlio.readThreads }} \
-        ++workload.output.folder=/logs/{{ .Values.instanceId }}/{{ .Values.dlio.numFilesTrain }}-{{ .Values.dlio.recordLength }}-{{ .Values.dlio.batchSize }}/{{ .Values.scenario }}
+        ++workload.output.folder=${outputDir}
 
         # dump the gcsfuse-mount-configuration to a file in output-directory.
         {{ if eq .Values.scenario "gcsfuse-generic"}}
-        echo "{{ .Values.gcsfuse.mountOptions }}" > /logs/{{ .Values.instanceId }}/{{ .Values.dlio.numFilesTrain }}-{{ .Values.dlio.recordLength }}-{{ .Values.dlio.batchSize }}/{{ .Values.scenario }}/gcsfuse_mount_options
+        echo "{{ .Values.gcsfuse.mountOptions }}" > ${outputDir}/gcsfuse_mount_options
         {{ end }}
 
         gsutil -m cp -R /logs/{{ .Values.instanceId }} gs://{{ .Values.bucketName }}/logs/{{ .Values.instanceId }}/$(date +"%Y-%m-%d-%H-%M")
