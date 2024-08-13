@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"golang.org/x/oauth2"
@@ -75,8 +74,6 @@ func ReadObjectFromGCS(ctx context.Context, client *storage.Client, object strin
 	// Create storage reader to read from GCS.
 	rc, err := client.Bucket(bucket).Object(object).NewReader(ctx)
 	if err != nil {
-		logger.Errorf("Error: ", err)
-		os.Exit(1)
 		return "", fmt.Errorf("Object(%q).NewReader: %w", object, err)
 	}
 	defer rc.Close()

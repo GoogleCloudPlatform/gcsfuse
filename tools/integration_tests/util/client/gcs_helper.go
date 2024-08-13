@@ -71,6 +71,7 @@ func ValidateObjectContentsFromGCS(ctx context.Context, storageClient *storage.C
 	gotContent, err := ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, fileName))
 	if err != nil {
 		t.Fatalf("Error while reading file from GCS, Err: %v", err)
+		os.Exit(1)
 	}
 
 	if expectedContent != gotContent {
