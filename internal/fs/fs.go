@@ -921,6 +921,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 		// that the inode is in the process of being destroyed and is unsafe to
 		// use. Go around and try again.
 		if fs.generationBackedInodes[ic.FullName] != existingInode {
+			fmt.Println("In side destroy check")
 			existingInode.Unlock()
 			continue
 		}
@@ -950,6 +951,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 		existingInode.Unlock()
 
 		in = fs.mintInode(ic)
+		fmt.Println("New Inode yoooo: ", in)
 		fs.generationBackedInodes[in.Name()] = in.(inode.GenerationBackedInode)
 
 		continue
