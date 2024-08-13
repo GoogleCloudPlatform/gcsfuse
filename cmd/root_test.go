@@ -566,7 +566,6 @@ func TestArgsParsing_GCSConnectionFlagsThrowsError(t *testing.T) {
 func TestArgsParsing_FileSystemFlags(t *testing.T) {
 	hd, err := os.UserHomeDir()
 	require.NoError(t, err)
-	require.NoError(t, err)
 	tests := []struct {
 		name           string
 		args           []string
