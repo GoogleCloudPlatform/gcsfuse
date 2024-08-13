@@ -966,7 +966,6 @@ func (d *dirInode) DeleteChildDir(
 		return fmt.Errorf("DeleteFolder: %w", err)
 	}
 
-	d.UnLinkFolder()
 	d.cache.Erase(name)
 	return nil
 }

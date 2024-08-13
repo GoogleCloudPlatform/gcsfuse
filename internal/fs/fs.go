@@ -1917,6 +1917,7 @@ func (fs *fileSystem) RmDir(
 	fs.mu.Unlock()
 	parent.Lock()
 	err = parent.DeleteChildDir(ctx, op.Name, isImplicitDir)
+	childDir.UnLinkFolder()
 	parent.Unlock()
 
 	if err != nil {
