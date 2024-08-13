@@ -39,17 +39,31 @@ then
   UPLOAD_FLAGS="--upload_gs"
 fi
 
+func run_load_test_and_fetch_metrics(){
+  # Executing perf tests
+  ./run_load_test_and_fetch_metrics.sh "$1" "$2" "$3" "$4"
+
+  # ls_metrics test. This test does gcsfuse mount with the passed flags first and then does the testing.
+  LOG_FILE_LIST_TESTS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-list-logs-$5.txt
+  GCSFUSE_LIST_FLAGS="$6 --log-file $LOG_FILE_LIST_TESTS"
+  cd "./ls_metrics"
+  ./run_ls_benchmark.sh "$GCSFUSE_LIST_FLAGS" "$2" "$4"
+  cd "../"
+}
+
 GCSFUSE_FLAGS="--implicit-dirs  --debug_fuse --debug_gcs --log-format \"text\" "
-LOG_FILE_FIO_TESTS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs.txt
+LOG_FILE_FIO_TESTS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-flat.txt
 GCSFUSE_FIO_FLAGS="$GCSFUSE_FLAGS --log-file $LOG_FILE_FIO_TESTS --stackdriver-export-interval=30s"
 BUCKET_NAME="periodic-perf-tests"
 SPREADSHEET_ID='1kvHv1OBCzr9GnFxRu9RTJC7jjQjc9M4rAiDnhyak2Sg'
+run_load_test_and_fetch_metrics "$GCSFUSE_FIO_FLAGS" "$UPLOAD_FLAGS" "$BUCKET_NAME" "$SPREADSHEET_ID" "flat" $GCSFUSE_FLAGS
 
-# Executing perf tests
-./run_load_test_and_fetch_metrics.sh "$GCSFUSE_FIO_FLAGS" "$UPLOAD_FLAGS" "$BUCKET_NAME" "$SPREADSHEET_ID"
-
-# ls_metrics test. This test does gcsfuse mount with the passed flags first and then does the testing.
-LOG_FILE_LIST_TESTS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-list-logs.txt
-GCSFUSE_LIST_FLAGS="$GCSFUSE_FLAGS --log-file $LOG_FILE_LIST_TESTS"
-cd "./ls_metrics"
-./run_ls_benchmark.sh "$GCSFUSE_LIST_FLAGS" "$UPLOAD_FLAGS" "$SPREADSHEET_ID"
+touch config.yml
+echo "enable-hns: true" > config.yml
+GCSFUSE_FLAGS="--config-file=config.yml --implicit-dirs  --debug_fuse --debug_gcs --log-format \"text\" "
+LOG_FILE_FIO_TESTS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-hns.txt
+GCSFUSE_FIO_FLAGS="$GCSFUSE_FLAGS --log-file $LOG_FILE_FIO_TESTS --stackdriver-export-interval=30s"
+BUCKET_NAME="periodic-perf-tests-hns"
+SPREADSHEET_ID='1wXRGYyAWvasU8U4KaP7NGPHEvgiOSgMd1sCLxsQUwf0'
+run_load_test_and_fetch_metrics "$GCSFUSE_FIO_FLAGS" "$UPLOAD_FLAGS" "$BUCKET_NAME" "$SPREADSHEET_ID" "hns" $GCSFUSE_FLAGS
+rm config.yml
