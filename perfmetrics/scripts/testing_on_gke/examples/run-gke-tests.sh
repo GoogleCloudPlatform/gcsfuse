@@ -299,12 +299,13 @@ function ensureRequiredNodePoolConfiguration() {
 }
 
 function enableManagedCsiDriverIfNeeded() {
-  echo "Enabling/disabling csi add-on ..."
   if ${use_custom_csi_driver}; then
+    echo "Disabling csi add-on ..."
     gcloud -q container clusters update ${cluster_name} \
     --update-addons GcsFuseCsiDriver=DISABLED \
     --location=${zone}
   else
+    echo "Enabling csi add-on ..."
     gcloud -q container clusters update ${cluster_name} \
       --update-addons GcsFuseCsiDriver=ENABLED \
       --location=${zone}
@@ -358,7 +359,7 @@ function ensureGcsFuseCsiDriverCode() {
 
 function createCustomCsiDriverIfNeeded() {
   if ${use_custom_csi_driver}; then
-    echo "Creating custom CSI driver ..."
+    echo "Disabling CSI driver add-on ..."
     # disable managed CSI driver.
     gcloud -q container clusters update ${cluster_name} --update-addons GcsFuseCsiDriver=DISABLED --location=${zone}
 
