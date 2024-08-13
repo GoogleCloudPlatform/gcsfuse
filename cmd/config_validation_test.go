@@ -496,3 +496,37 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateConfigFile_ListConfigSuccessful(t *testing.T) {
+	testCases := []struct {
+		name           string
+		configFile     string
+		expectedConfig *cfg.Config
+	}{
+		{
+			// Test default values.
+			name:       "empty_config_file",
+			configFile: "testdata/empty_file.yaml",
+			expectedConfig: &cfg.Config{
+				List: cfg.ListConfig{EnableEmptyManagedFolders: false},
+			},
+		},
+		{
+			name:       "valid_config_file",
+			configFile: "testdata/valid_config.yaml",
+			expectedConfig: &cfg.Config{
+				List: cfg.ListConfig{EnableEmptyManagedFolders: true},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
+
+			if assert.NoError(t, err) {
+				assert.EqualValues(t, tc.expectedConfig.List, gotConfig.List)
+			}
+		})
+	}
+}

@@ -645,6 +645,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 		})
 	}
 }
+
 func TestArgsParsing_FileSystemFlagsThrowsError(t *testing.T) {
 	tests := []struct {
 		name string
@@ -681,6 +682,47 @@ func TestArgsParsing_FileSystemFlagsThrowsError(t *testing.T) {
 			cmd.SetArgs(tc.args)
 
 			assert.Error(t, cmd.Execute())
+		})
+	}
+}
+
+func TestArgsParsing_ListFlags(t *testing.T) {
+	tests := []struct {
+		name           string
+		args           []string
+		expectedConfig *cfg.Config
+	}{
+		{
+			name: "normal",
+			args: []string{"gcsfuse", "--enable-empty-managed-folders", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				List: cfg.ListConfig{EnableEmptyManagedFolders: true},
+			},
+		},
+		{
+			name: "default",
+			args: []string{"gcsfuse", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				List: cfg.ListConfig{EnableEmptyManagedFolders: false},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotConfig *cfg.Config
+			cmd, err := NewRootCmd(func(cfg *cfg.Config, _, _ string) error {
+				gotConfig = cfg
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(tc.args)
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedConfig.List, gotConfig.List)
+			}
 		})
 	}
 }
