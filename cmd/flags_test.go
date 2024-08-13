@@ -298,23 +298,6 @@ func (t *FlagsTest) TestResolvePathForTheFlagsInContext() {
 	assert.Equal(t.T(), nil, err)
 }
 
-func (t *FlagsTest) TestValidateFlagsForSupportedExperimentalMetadataPrefetchOnMount() {
-	for _, input := range []string{
-		"disabled", "sync", "async",
-	} {
-		flags := &flagStorage{
-			// Unrelated fields, not being tested here, so set to sane values.
-			SequentialReadSizeMb: 200,
-			// The flag being tested.
-			ExperimentalMetadataPrefetchOnMount: input,
-		}
-
-		err := validateFlags(flags)
-
-		assert.Equal(t.T(), nil, err)
-	}
-}
-
 func (t *FlagsTest) Test_resolveConfigFilePaths() {
 	mountConfig := &config.MountConfig{}
 	mountConfig.CacheDir = "~/cache-dir"

@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -37,10 +38,12 @@ type KernelListCacheTestWithInfiniteTtl struct {
 
 func (t *KernelListCacheTestWithInfiniteTtl) SetupSuite() {
 	t.serverCfg.ImplicitDirectories = true
-	t.serverCfg.MountConfig = &config.MountConfig{
-		FileSystemConfig: config.FileSystemConfig{
-			KernelListCacheTtlSeconds: -1,
+	t.serverCfg.NewConfig = &cfg.Config{
+		FileSystem: cfg.FileSystemConfig{
+			KernelListCacheTtlSecs: -1,
 		},
+	}
+	t.serverCfg.MountConfig = &config.MountConfig{
 		MetadataCacheConfig: config.MetadataCacheConfig{
 			TtlInSeconds: 0,
 		},

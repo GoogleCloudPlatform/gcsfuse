@@ -140,6 +140,20 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Valid Kernel List Cache TTL",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
+				GcsConnection: GcsConnectionConfig{
+					SequentialReadSizeMb: 10,
+				},
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+				FileSystem: FileSystemConfig{KernelListCacheTtlSecs: 30},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -151,7 +165,7 @@ func TestValidateConfigSuccessful(t *testing.T) {
 	}
 }
 
-func TestValidateConfigUnsuccessful(t *testing.T) {
+func TestValidateConfig_ErrorScenarios(t *testing.T) {
 	testCases := []struct {
 		name   string
 		config *Config
@@ -222,6 +236,28 @@ func TestValidateConfigUnsuccessful(t *testing.T) {
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "sync",
 				},
+			},
+		},
+		{
+			name: "negative kernel list cache ttl",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+				FileSystem: FileSystemConfig{KernelListCacheTtlSecs: -2},
+			},
+		},
+		{
+			name: "large kernel list cache ttl",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+				FileSystem: FileSystemConfig{KernelListCacheTtlSecs: 88888888888888888},
 			},
 		},
 	}

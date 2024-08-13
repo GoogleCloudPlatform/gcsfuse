@@ -89,6 +89,14 @@ func isValidSequentialReadSizeMB(size int64) error {
 	return nil
 }
 
+func isValidKernelListCacheTTL(TTLSecs int64) error {
+	err := isTTLInSecsValid(TTLSecs)
+	if err != nil {
+		return fmt.Errorf("invalid kernelListCacheTtlSecs: %w", err)
+	}
+	return nil
+}
+
 // ValidateConfig returns a non-nil error if the config is invalid.
 func ValidateConfig(config *Config) error {
 	var err error
@@ -115,6 +123,10 @@ func ValidateConfig(config *Config) error {
 
 	if err = isValidSequentialReadSizeMB(config.GcsConnection.SequentialReadSizeMb); err != nil {
 		return fmt.Errorf("error parsing gcs-connection config: %w", err)
+	}
+
+	if err = isValidKernelListCacheTTL(config.FileSystem.KernelListCacheTtlSecs); err != nil {
+		return fmt.Errorf("error parsing kernel-list-cache-ttl-secs config: %w", err)
 	}
 
 	return nil

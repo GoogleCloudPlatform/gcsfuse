@@ -14,6 +14,11 @@
 
 package cfg
 
+import (
+	"math"
+	"time"
+)
+
 const (
 	// Logging-level constants
 
@@ -37,4 +42,10 @@ const (
 const (
 	// maxSequentialReadSizeMb is the max value supported by sequential-read-size-mb flag.
 	maxSequentialReadSizeMB = 1024
+)
+
+const (
+	// MaxSupportedTTLInSeconds represents maximum multiple of seconds representable by time.Duration.
+	MaxSupportedTTLInSeconds = math.MaxInt64 / int64(time.Second)
+	maxSupportedTTL          = time.Duration(MaxSupportedTTLInSeconds * int64(time.Second))
 )

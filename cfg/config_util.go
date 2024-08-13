@@ -14,7 +14,16 @@
 
 package cfg
 
-import "runtime"
+import (
+	"fmt"
+	"runtime"
+	"time"
+)
+
+const (
+	ttlInSecsInvalidValueError = "the value of ttl-secs can't be less than -1"
+	ttlInSecsTooHighError      = "the value of ttl-secs is too high to be supported. Max is 9223372036"
+)
 
 func DefaultMaxParallelDownloads() int {
 	return max(16, 2*runtime.NumCPU())
@@ -22,4 +31,31 @@ func DefaultMaxParallelDownloads() int {
 
 func IsFileCacheEnabled(mountConfig *Config) bool {
 	return mountConfig.FileCache.MaxSizeMb != 0 && string(mountConfig.CacheDir) != ""
+}
+
+// isTTLInSecsValid return nil error if ttlInSecs is valid.
+func isTTLInSecsValid(TTLInSecs int64) error {
+	if TTLInSecs < -1 {
+		return fmt.Errorf(ttlInSecsInvalidValueError)
+	}
+
+	if TTLInSecs > MaxSupportedTTLInSeconds {
+		return fmt.Errorf(ttlInSecsTooHighError)
+	}
+
+	return nil
+}
+
+// ListCacheTTLSecsToDuration converts TTL in seconds to time.Duration.
+func ListCacheTTLSecsToDuration(secs int64) time.Duration {
+	err := isTTLInSecsValid(secs)
+	if err != nil {
+		panic(fmt.Sprintf("invalid argument: %d, %v", secs, err))
+	}
+
+	if secs == -1 {
+		return maxSupportedTTL
+	}
+
+	return time.Duration(secs * int64(time.Second))
 }

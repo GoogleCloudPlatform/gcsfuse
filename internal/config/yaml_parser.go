@@ -56,7 +56,7 @@ func (metadataCacheConfig *MetadataCacheConfig) validate() error {
 		if metadataCacheConfig.TtlInSeconds < -1 {
 			return fmt.Errorf(MetadataCacheTtlSecsInvalidValueError)
 		}
-		if metadataCacheConfig.TtlInSeconds > MaxSupportedTtlInSeconds {
+		if metadataCacheConfig.TtlInSeconds > cfg.MaxSupportedTTLInSeconds {
 			return fmt.Errorf(MetadataCacheTtlSecsTooHighError)
 		}
 	}
@@ -78,14 +78,6 @@ func (metadataCacheConfig *MetadataCacheConfig) validate() error {
 func (grpcClientConfig *GCSConnection) validate() error {
 	if grpcClientConfig.GRPCConnPoolSize < 1 {
 		return fmt.Errorf("the value of conn-pool-size can't be less than 1")
-	}
-	return nil
-}
-
-func (fileSystemConfig *FileSystemConfig) validate() error {
-	err := IsTtlInSecsValid(fileSystemConfig.KernelListCacheTtlSeconds)
-	if err != nil {
-		return fmt.Errorf("invalid kernelListCacheTtlSecs: %w", err)
 	}
 	return nil
 }
@@ -128,10 +120,6 @@ func ParseConfigFile(fileName string) (mountConfig *MountConfig, err error) {
 
 	if err = mountConfig.GCSConnection.validate(); err != nil {
 		return mountConfig, fmt.Errorf("error parsing gcs-connection configs: %w", err)
-	}
-
-	if err = mountConfig.FileSystemConfig.validate(); err != nil {
-		return mountConfig, fmt.Errorf("error parsing file-system config: %w", err)
 	}
 
 	// The EnableEmptyManagedFolders flag must be set to true to enforce folder prefixes for Hierarchical buckets.

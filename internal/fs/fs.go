@@ -175,7 +175,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		enableNonexistentTypeCache: serverCfg.EnableNonexistentTypeCache,
 		inodeAttributeCacheTTL:     serverCfg.InodeAttributeCacheTTL,
 		dirTypeCacheTTL:            serverCfg.DirTypeCacheTTL,
-		kernelListCacheTTL:         config.ListCacheTtlSecsToDuration(serverCfg.MountConfig.KernelListCacheTtlSeconds),
+		kernelListCacheTTL:         cfg.ListCacheTTLSecsToDuration(serverCfg.NewConfig.FileSystem.KernelListCacheTtlSecs),
 		renameDirLimit:             serverCfg.RenameDirLimit,
 		sequentialReadSizeMb:       serverCfg.SequentialReadSizeMb,
 		uid:                        serverCfg.Uid,

@@ -15,7 +15,9 @@
 package cfg
 
 import (
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -73,4 +75,55 @@ func TestIsFileCacheEnabled(t *testing.T) {
 		})
 	}
 
+}
+
+func Test_IsTtlInSecsValid(t *testing.T) {
+	var testCases = []struct {
+		testName    string
+		ttlInSecs   int64
+		expectedErr error
+	}{
+		{"Negative", -5, fmt.Errorf(ttlInSecsInvalidValueError)},
+		{"Valid negative", -1, nil},
+		{"Positive", 8, nil},
+		{"Unsupported Large positive", 9223372037, fmt.Errorf(ttlInSecsTooHighError)},
+		{"Zero", 0, nil},
+		{"Valid upper limit", 9223372036, nil},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.testName, func(t *testing.T) {
+			assert.Equal(t, tc.expectedErr, isTTLInSecsValid(tc.ttlInSecs))
+		})
+	}
+}
+
+func Test_ListCacheTtlSecsToDuration(t *testing.T) {
+	var testCases = []struct {
+		testName         string
+		ttlInSecs        int64
+		expectedDuration time.Duration
+	}{
+		{"-1", -1, maxSupportedTTL},
+		{"0", 0, time.Duration(0)},
+		{"Max supported positive", 9223372036, maxSupportedTTL},
+		{"Positive", 1, time.Second},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.testName, func(t *testing.T) {
+			assert.Equal(t, tt.expectedDuration, ListCacheTTLSecsToDuration(tt.ttlInSecs))
+		})
+	}
+}
+
+func Test_ListCacheTtlSecsToDuration_InvalidCall(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("The code did not panic")
+		}
+	}()
+
+	// Calling with invalid argument to trigger panic.
+	ListCacheTTLSecsToDuration(-3)
 }
