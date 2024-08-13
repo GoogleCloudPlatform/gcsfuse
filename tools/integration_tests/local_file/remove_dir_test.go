@@ -24,7 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
-func TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError_2(t *testing.T) {
+func TestConcurrentReadDirAndCreationkkkkkOfLocalFiles_DoesNotThrowError_2(t *testing.T) {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create explicit directory with one synced and one local file.
 	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t)
