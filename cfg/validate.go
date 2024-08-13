@@ -101,8 +101,7 @@ func isTTLInSecsValid(secs int64) error {
 }
 
 func isValidKernelListCacheTTL(TTLSecs int64) error {
-	err := isTTLInSecsValid(TTLSecs)
-	if err != nil {
+	if err := isTTLInSecsValid(TTLSecs); err != nil {
 		return fmt.Errorf("invalid kernelListCacheTtlSecs: %w", err)
 	}
 	return nil
