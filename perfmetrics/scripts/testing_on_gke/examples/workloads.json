@@ -39,7 +39,20 @@
             "blockSize": "64K",
             "readTypes": ["randread"]
           },
-          "gcsfuseMountOptions": "implicit-dirs",
+          "gcsfuseMountOptions": "implicit-dirs,logging:format:text,logging:severity:info,metadata-cache:ttl-secs:-1,metadata-cache:type-cache-max-size-mb:-1,metadata-cache:stat-cache-max-size-mb:-1,file-cache:max-size-mb:-1,file-cache:cache-file-for-range-read:true,file-cache:enable-parallel-downloads:true,file-cache:max-parallel-downloads:96",
+          "bucket":"fio-64k-1m-us-west1",
+          "_bucket_alt2":"fio-64k-1m-us-central1",
+          "_bucket_alt3":"gke-fio-64k-1m"
+        },
+        {
+          "fioWorkload": {
+            "fileSize": "64K",
+            "filesPerThread": 100,
+            "numThreads": 20,
+            "blockSize": "64K",
+            "readTypes": ["randread"]
+          },
+          "gcsfuseMountOptions": "implicit-dirs,logging:format:text,logging:severity:info,metadata-cache:ttl-secs:-1,metadata-cache:type-cache-max-size-mb:-1,metadata-cache:stat-cache-max-size-mb:-1,file-cache:max-size-mb:-1,file-cache:cache-file-for-range-read:true,file-cache:enable-parallel-downloads:false",
           "bucket":"fio-64k-1m-us-west1",
           "_bucket_alt2":"fio-64k-1m-us-central1",
           "_bucket_alt3":"gke-fio-64k-1m"
@@ -197,7 +210,18 @@
             "recordLength": 3145728,
             "batchSizes": [200]
           },
-          "gcsfuseMountOptions": "implicit-dirs",
+          "gcsfuseMountOptions": "implicit-dirs,logging:format:text,logging:severity:info,metadata-cache:ttl-secs:-1,metadata-cache:type-cache-max-size-mb:-1,metadata-cache:stat-cache-max-size-mb:-1,file-cache:max-size-mb:-1,file-cache:cache-file-for-range-read:true,file-cache:enable-parallel-downloads:true,file-cache:max-parallel-downloads:96",
+          "bucket":"dlio-unet3d-3mb-100k-us-west1",
+          "_bucket_alt2":"dlio-unet3d-3mb-100k-us-central1",
+          "_bucket_alt3":"gke-dlio-unet3d-3mb-100k"
+        },
+        {
+          "dlioWorkload": {
+            "numFilesTrain": 1000,
+            "recordLength": 3145728,
+            "batchSizes": [200]
+          },
+          "gcsfuseMountOptions": "implicit-dirs,logging:format:text,logging:severity:info,metadata-cache:ttl-secs:-1,metadata-cache:type-cache-max-size-mb:-1,metadata-cache:stat-cache-max-size-mb:-1,file-cache:max-size-mb:-1,file-cache:cache-file-for-range-read:true,file-cache:enable-parallel-downloads:false",
           "bucket":"dlio-unet3d-3mb-100k-us-west1",
           "_bucket_alt2":"dlio-unet3d-3mb-100k-us-central1",
           "_bucket_alt3":"gke-dlio-unet3d-3mb-100k"
