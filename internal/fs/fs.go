@@ -823,11 +823,11 @@ func (fs *fileSystem) createDirInode(ic inode.Core, inodes map[inode.Name]inode.
 
 	for n := 0; n < maxTriesToCreateInode; n++ {
 		in, ok := (inodes)[ic.FullName]
-		fmt.Println("Inode: ", in)
+		fmt.Println("Inode: and ok", in, ok)
+		if in != nil {
+			fmt.Println("Unlink: ", in.IsUnLinkFolder())
+		}
 		if !ok || (in != nil && in.IsUnLinkFolder()) {
-			if in != nil {
-				fmt.Println("Unlink: ", in.IsUnLinkFolder())
-			}
 			in := fs.mintInode(ic)
 			(inodes)[in.Name()] = in.(inode.DirInode)
 			fmt.Println("Inodes in folder: ", inodes)
