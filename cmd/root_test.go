@@ -666,6 +666,10 @@ func TestArgsParsing_FileSystemFlagsThrowsError(t *testing.T) {
 			name: "invalid_file_mode_0888",
 			args: []string{"gcsfuse", "--file-mode=0888", "abc", "pqr"},
 		},
+		{
+			name: "invalid_disable_parallel_dirops",
+			args: []string{"gcsfuse", "--disable-parallel-dirops=abc", "abc", "pqr"},
+		},
 	}
 
 	for _, tc := range tests {
