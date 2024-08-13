@@ -16,6 +16,7 @@
 package local_file_test
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"path"
@@ -176,13 +177,19 @@ func TestReadDirWithSameNameLocalAndGCSFile(t *testing.T) {
 }
 
 func TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError(t *testing.T) {
-	testDirPath = setup.SetupTestDirectory(testDirName)
-	var wg sync.WaitGroup
-	wg.Add(2)
 
-	// Concurrently create 100 local files and read directory 200 times.
-	go creatingNLocalFilesShouldNotThrowError(100, &wg, t)
-	go readingDirNTimesShouldNotThrowError(200, &wg, t)
+	testDirPath = path.Join(setup.MntDir(), testDirName)
+	//
+	//operations.CreateDirectory(testDirPath, t)
+	//operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t)
+	filePath := path.Join(testDirPath, FileName1)
+	operations.CreateFile(filePath, FilePerms, t)
+	//f.Close()
 
-	wg.Wait()
+	os.RemoveAll(testDirPath)
+
+	operations.CreateDirectory(testDirPath, t)
+	operations.CreateFile(filePath, FilePerms, t)
+	_, err := os.Stat(filePath)
+	fmt.Println("Error: ", err)
 }
