@@ -181,7 +181,7 @@ func TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError(t *testing.T
 	//wg.Add(1)
 
 	// Concurrently create 100 local files and read directory 200 times.
-	//	go creatingNLocalFilesShouldNotThrowError(1, &wg, t)
+	// go creatingNLocalFilesShouldNotThrowError(1, &wg, t)
 	//	go readingDirNTimesShouldNotThrowError(2, &wg, t)
 
 	testDirPath = path.Join(setup.MntDir(), testDirName)
@@ -189,8 +189,8 @@ func TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError(t *testing.T
 	//operations.CreateDirectory(testDirPath, t)
 	//operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t)
 	filePath := path.Join(testDirPath, FileName1)
-	f := operations.CreateFile(filePath, FilePerms, t)
-	f.Close()
+	 operations.CreateFile(filePath, FilePerms, t)
+	//f.Close()
 
 	os.RemoveAll(testDirPath)
 
