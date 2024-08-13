@@ -20,30 +20,12 @@ import (
 	"time"
 )
 
-const (
-	ttlInSecsInvalidValueError = "the value of ttl-secs can't be less than -1"
-	ttlInSecsTooHighError      = "the value of ttl-secs is too high to be supported. Max is 9223372036"
-)
-
 func DefaultMaxParallelDownloads() int {
 	return max(16, 2*runtime.NumCPU())
 }
 
 func IsFileCacheEnabled(mountConfig *Config) bool {
 	return mountConfig.FileCache.MaxSizeMb != 0 && string(mountConfig.CacheDir) != ""
-}
-
-// isTTLInSecsValid return nil error if ttlInSecs is valid.
-func isTTLInSecsValid(TTLInSecs int64) error {
-	if TTLInSecs < -1 {
-		return fmt.Errorf(ttlInSecsInvalidValueError)
-	}
-
-	if TTLInSecs > MaxSupportedTTLInSeconds {
-		return fmt.Errorf(ttlInSecsTooHighError)
-	}
-
-	return nil
 }
 
 // ListCacheTTLSecsToDuration converts TTL in seconds to time.Duration.

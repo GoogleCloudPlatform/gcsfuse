@@ -255,11 +255,11 @@ func TestValidateConfigFile_InvalidConfigThrowsError(t *testing.T) {
 			configFile: "testdata/file_system_config/invalid_disable_parallel_dirops.yaml",
 		},
 		{
-			name:       "Negative kernel list cache TTL",
+			name:       "negative_kernel_list_cache_TTL",
 			configFile: "testdata/file_system_config/invalid_kernel_list_cache_ttl.yaml",
 		},
 		{
-			name:       "Unsupported large kernel list cache TTL",
+			name:       "unsupported_large_kernel_list_cache_TTL",
 			configFile: "testdata/file_system_config/unsupported_large_kernel_list_cache_ttl.yaml",
 		},
 	}

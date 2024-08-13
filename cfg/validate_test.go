@@ -141,7 +141,7 @@ func TestValidateConfigSuccessful(t *testing.T) {
 			},
 		},
 		{
-			name: "Valid Kernel List Cache TTL",
+			name: "valid_kernel_list_cache_TTL",
 			config: &Config{
 				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
 				FileCache: validFileCacheConfig(t),
@@ -239,7 +239,7 @@ func TestValidateConfig_ErrorScenarios(t *testing.T) {
 			},
 		},
 		{
-			name: "negative kernel list cache ttl",
+			name: "kernel_list_cache_TTL_negative",
 			config: &Config{
 				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
 				FileCache: validFileCacheConfig(t),
@@ -250,7 +250,7 @@ func TestValidateConfig_ErrorScenarios(t *testing.T) {
 			},
 		},
 		{
-			name: "large kernel list cache ttl",
+			name: "kernel_list_cache_TTL_too_large",
 			config: &Config{
 				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
 				FileCache: validFileCacheConfig(t),
@@ -264,9 +264,41 @@ func TestValidateConfig_ErrorScenarios(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualErr := ValidateConfig(tc.config)
+			assert.Error(t, ValidateConfig(tc.config))
+		})
+	}
+}
 
-			assert.Error(t, actualErr)
+func Test_IsTtlInSecsValid_ErrorScenarios(t *testing.T) {
+	var testCases = []struct {
+		testName  string
+		ttlInSecs int64
+	}{
+		{"negative", -5},
+		{"unsupported_large_positive", 9223372037},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.testName, func(t *testing.T) {
+			assert.Error(t, isTTLInSecsValid(tc.ttlInSecs))
+		})
+	}
+}
+
+func Test_IsTtlInSecsValid_ValidScenarios(t *testing.T) {
+	var testCases = []struct {
+		testName  string
+		ttlInSecs int64
+	}{
+		{"valid_negative", -1},
+		{"positive", 8},
+		{"zero", 0},
+		{"valid_upper_limit", 9223372036},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.testName, func(t *testing.T) {
+			assert.NoError(t, isTTLInSecsValid(tc.ttlInSecs))
 		})
 	}
 }
