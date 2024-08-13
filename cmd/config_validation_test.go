@@ -106,12 +106,12 @@ func TestValidateConfigFile(t *testing.T) {
 			wantErr:    true,
 		},
 		{
-			name:       "invalid logrotate config: test #1",
+			name:       "invalid_logrotate_1",
 			configFile: "testdata/invalid_log_rotate_config_1.yaml",
 			wantErr:    true,
 		},
 		{
-			name:       "invalid logrotate config: test #1",
+			name:       "invalid_logrotate_2",
 			configFile: "testdata/invalid_log_rotate_config_2.yaml",
 			wantErr:    true,
 		},
@@ -249,6 +249,10 @@ func TestValidateConfigFile_InvalidConfigThrowsError(t *testing.T) {
 		{
 			name:       "invalid_ignore_interrupts",
 			configFile: "testdata/file_system_config/invalid_ignore_interrupts.yaml",
+		},
+		{
+			name:       "invalid_disable_parallel_dirops",
+			configFile: "testdata/file_system_config/invalid_disable_parallel_dirops.yaml",
 		},
 	}
 
