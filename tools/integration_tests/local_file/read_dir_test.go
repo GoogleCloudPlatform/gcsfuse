@@ -176,7 +176,7 @@ func TestReadDirWithSameNameLocalAndGCSFile(t *testing.T) {
 }
 
 func TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError(t *testing.T) {
-	//testDirPath = setup.SetupTestDirectory(testDirName)
+	// testDirPath = setup.SetupTestDirectory(testDirName)
 	//var wg sync.WaitGroup
 	//wg.Add(1)
 
@@ -184,6 +184,7 @@ func TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError(t *testing.T
 	//	go creatingNLocalFilesShouldNotThrowError(1, &wg, t)
 	//	go readingDirNTimesShouldNotThrowError(2, &wg, t)
 
+	testDirPath = path.Join(setup.MntDir(), testDirName)
 	os.RemoveAll(testDirPath)
 
 	operations.CreateDirectory(testDirPath, t)
