@@ -177,23 +177,16 @@ func TestReadDirWithSameNameLocalAndGCSFile(t *testing.T) {
 	operations.CloseFileShouldNotThrowError(fh1, t)
 }
 
-func TestCX(t *testing.T) {
+func TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError(t *testing.T) {
+	testDirPath = setup.SetupTestDirectory(testDirName)
+	var wg sync.WaitGroup
+	wg.Add(2)
+
 	// Concurrently create 100 local files and read directory 200 times.
-	// go creatingNLocalFilesShouldNotThrowError(1, &wg, t)
-	//	go readingDirNTimesShouldNotThrowError(2, &wg, t)
+	go creatingNLocalFilesShouldNotThrowError(100, &wg, t)
+	go readingDirNTimesShouldNotThrowError(200, &wg, t)
 
-	testDirPath = path.Join(setup.MntDir(), testDirName)
-	//
-	//operations.CreateDirectory(testDirPath, t)
-	//operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t)
-	filePath := path.Join(testDirPath, FileName1)
-	operations.CreateFile(filePath, FilePerms, t)
-	//f.Close()
-
-	os.RemoveAll(testDirPath)
-
-	operations.CreateDirectory(testDirPath, t)
-	operations.CreateFile(filePath, FilePerms, t)
+	wg.Wait()
 }
 
 func TestStatLocalFileAfterRecreatingItWithSameName(t *testing.T) {
