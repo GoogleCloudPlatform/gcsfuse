@@ -88,13 +88,29 @@ func validateParam(param Param) error {
 	return nil
 }
 
+func isSorted(params []Param) error {
+	if len(params) == 0 {
+		return nil
+	}
+	prev := params[0]
+	for _, next := range params[1:] {
+		if (next.ConfigPath != "" && (prev.ConfigPath == "" || prev.ConfigPath > next.ConfigPath)) ||
+			(next.ConfigPath == "" && prev.ConfigPath == "" && prev.FlagName > next.FlagName) {
+			return fmt.Errorf("flag: %s is at an incorrect position. Params should be sorted first by config-path and then by flag-name", next.FlagName)
+		}
+		prev = next
+	}
+	return nil
+}
+
 func validateParams(params []Param) error {
-	err := validateForDuplicates(params, func(param Param) string { return param.FlagName })
-	if err != nil {
+	if err := isSorted(params); err != nil {
+		return fmt.Errorf("incorrect sorting order detected: %w", err)
+	}
+	if err := validateForDuplicates(params, func(param Param) string { return param.FlagName }); err != nil {
 		return fmt.Errorf("duplicate flag names found: %w", err)
 	}
-	err = validateForDuplicates(params, func(param Param) string { return param.ConfigPath })
-	if err != nil {
+	if err := validateForDuplicates(params, func(param Param) string { return param.ConfigPath }); err != nil {
 		return fmt.Errorf("duplicate config-paths found: %w", err)
 	}
 	for _, param := range params {
