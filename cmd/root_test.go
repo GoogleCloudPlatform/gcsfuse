@@ -562,3 +562,121 @@ func TestArgsParsing_GCSConnectionFlagsThrowsError(t *testing.T) {
 		})
 	}
 }
+
+func TestArgsParsing_FileSystemFlags(t *testing.T) {
+	hd, err := os.UserHomeDir()
+	require.NoError(t, err)
+	tests := []struct {
+		name           string
+		args           []string
+		expectedConfig *cfg.Config
+	}{
+		{
+			name: "normal",
+			args: []string{"gcsfuse", "--dir-mode=0777", "--disable-parallel-dirops", "--file-mode=0666", "--o", "ro", "--gid=7", "--ignore-interrupts=false", "--kernel-list-cache-ttl-secs=300", "--rename-dir-limit=10", "--temp-dir=~/temp", "--uid=8", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					DirMode:                0777,
+					DisableParallelDirops:  true,
+					FileMode:               0666,
+					FuseOptions:            []string{"ro"},
+					Gid:                    7,
+					IgnoreInterrupts:       false,
+					KernelListCacheTtlSecs: 300,
+					RenameDirLimit:         10,
+					TempDir:                cfg.ResolvedPath(path.Join(hd, "temp")),
+					Uid:                    8,
+				},
+			},
+		},
+		{
+			name: "mode_flags_without_0_prefix",
+			args: []string{"gcsfuse", "--dir-mode=777", "--file-mode=666", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					DirMode:                0777,
+					DisableParallelDirops:  false,
+					FileMode:               0666,
+					FuseOptions:            []string{},
+					Gid:                    -1,
+					IgnoreInterrupts:       true,
+					KernelListCacheTtlSecs: 0,
+					RenameDirLimit:         0,
+					TempDir:                "",
+					Uid:                    -1,
+				},
+			},
+		},
+		{
+			name: "default",
+			args: []string{"gcsfuse", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					DirMode:                0755,
+					DisableParallelDirops:  false,
+					FileMode:               0644,
+					FuseOptions:            []string{},
+					Gid:                    -1,
+					IgnoreInterrupts:       true,
+					KernelListCacheTtlSecs: 0,
+					RenameDirLimit:         0,
+					TempDir:                "",
+					Uid:                    -1,
+				},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotConfig *cfg.Config
+			cmd, err := NewRootCmd(func(cfg *cfg.Config, _, _ string) error {
+				gotConfig = cfg
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(tc.args)
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedConfig.FileSystem, gotConfig.FileSystem)
+			}
+		})
+	}
+}
+func TestArgsParsing_FileSystemFlagsThrowsError(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{
+			name: "invalid_dir_mode_999",
+			args: []string{"gcsfuse", "--dir-mode=999", "abc", "pqr"},
+		},
+		{
+			name: "invalid_dir_mode_0999",
+			args: []string{"gcsfuse", "--dir-mode=0999", "abc", "pqr"},
+		},
+		{
+			name: "invalid_file_mode_888",
+			args: []string{"gcsfuse", "--file-mode=888", "abc", "pqr"},
+		},
+		{
+			name: "invalid_file_mode_0888",
+			args: []string{"gcsfuse", "--file-mode=0888", "abc", "pqr"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cmd, err := NewRootCmd(func(cfg *cfg.Config, _, _ string) error {
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(tc.args)
+
+			assert.Error(t, cmd.Execute())
+		})
+	}
+}

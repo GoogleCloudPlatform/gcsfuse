@@ -39,15 +39,6 @@ type cliContext interface {
 	IsSet(string) bool
 }
 
-// OverrideWithIgnoreInterruptsFlag overwrites the ignore-interrupts config with
-// the ignore-interrupts flag value if the flag is set.
-func OverrideWithIgnoreInterruptsFlag(c cliContext, mountConfig *MountConfig, ignoreInterruptsFlag bool) {
-	// If the ignore-interrupts flag is set, give it priority over the value in config file.
-	if c.IsSet(IgnoreInterruptsFlagName) {
-		mountConfig.FileSystemConfig.IgnoreInterrupts = ignoreInterruptsFlag
-	}
-}
-
 // OverrideWithKernelListCacheTtlFlag overwrites the kernel-list-cache-ttl-secs config
 // with the kernel-list-cache-ttl-secs cli-flag value if the cli-flag is set by user.
 func OverrideWithKernelListCacheTtlFlag(c cliContext, mountConfig *MountConfig, ttl int64) {
