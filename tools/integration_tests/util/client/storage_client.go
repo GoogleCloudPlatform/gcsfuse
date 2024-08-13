@@ -74,6 +74,7 @@ func ReadObjectFromGCS(ctx context.Context, client *storage.Client, object strin
 	// Create storage reader to read from GCS.
 	rc, err := client.Bucket(bucket).Object(object).NewReader(ctx)
 	if err != nil {
+		os.Exit(1)
 		return "", fmt.Errorf("Object(%q).NewReader: %w", object, err)
 	}
 	defer rc.Close()
