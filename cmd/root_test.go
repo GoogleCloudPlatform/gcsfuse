@@ -591,7 +591,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			},
 		},
 		{
-			name: "mode flags without 0 prefix",
+			name: "mode_flags_without_0_prefix",
 			args: []string{"gcsfuse", "--dir-mode=777", "--file-mode=666", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
@@ -652,19 +652,19 @@ func TestArgsParsing_FileSystemFlagsThrowsError(t *testing.T) {
 		args []string
 	}{
 		{
-			name: "Invalid dir-mode 999",
+			name: "invalid_dir_mode_999",
 			args: []string{"gcsfuse", "--dir-mode=999", "abc", "pqr"},
 		},
 		{
-			name: "Invalid dir-mode 0999",
+			name: "invalid_dir_mode_0999",
 			args: []string{"gcsfuse", "--dir-mode=0999", "abc", "pqr"},
 		},
 		{
-			name: "Invalid file-mode 888",
+			name: "invalid_file_mode_888",
 			args: []string{"gcsfuse", "--file-mode=888", "abc", "pqr"},
 		},
 		{
-			name: "Invalid file-mode 0888",
+			name: "invalid_file_mode_0888",
 			args: []string{"gcsfuse", "--file-mode=0888", "abc", "pqr"},
 		},
 	}
