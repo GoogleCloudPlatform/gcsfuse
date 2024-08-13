@@ -6,7 +6,7 @@
       "runOnSSD": false,
       "workloads": [
         {
-          "_description": "This is a dummy fio workload (missing the 'fioWorkload' field), purely standing as a header and does not execute any workload. For it to execute a fio workload, it must have a valid 'fioWorkload' object and a valid 'bucket' attribute.",
+          "_description": "This is a dummy fio workload (missing the 'fioWorkload' field), purely standing as a header and does not execute any workload. For it to execute a fio workload, it must have a valid 'fioWorkload', a valid 'bucket' attribute, and a valid gcsfuseMountOption attribute.",
           "_fioWorkload": {
             "_description": "Every fioWorkload must have fileSize, filesPerThread, numThreads, and blockSize fields. readTypes is an array of string values 'read' and 'randread'. If readTypes is missing, then it defaults to [\"read\",\"randread\"].",
             "fileSize": "64K",
@@ -15,6 +15,7 @@
             "blockSize": "64K",
             "readTypes": ["read","randread"]
           },
+          "gcsfuseMountOptions": "implicit-dirs",
           "bucket":"The bucket must have objects with name Workload.{i}/{j} for every i,j where i:0-{numThreads}-1, j:0-{filesPerThread}-1, and each of these objects must be of size {fileSize}. The buckets gke-* are all in us-central1, are owned by GKE team and are in their GCP project(s)."
         },
         {
@@ -25,6 +26,7 @@
             "blockSize": "64K",
             "readTypes": ["read"]
           },
+          "gcsfuseMountOptions": "implicit-dirs",
           "bucket":"fio-64k-1m-us-west1",
           "_bucket_alt2":"fio-64k-1m-us-central1",
           "_bucket_alt3":"gke-fio-64k-1m"
@@ -37,6 +39,7 @@
             "blockSize": "64K",
             "readTypes": ["randread"]
           },
+          "gcsfuseMountOptions": "implicit-dirs",
           "bucket":"fio-64k-1m-us-west1",
           "_bucket_alt2":"fio-64k-1m-us-central1",
           "_bucket_alt3":"gke-fio-64k-1m"
@@ -49,6 +52,7 @@
             "blockSize": "64K",
             "readTypes": ["read"]
           },
+          "gcsfuseMountOptions": "implicit-dirs",
           "bucket":"fio-64k-1m-us-west1",
           "_bucket_alt2":"fio-64k-1m-us-central1",
           "_bucket_alt3":"gke-fio-64k-1m"
@@ -61,6 +65,7 @@
             "blockSize": "32K",
             "readTypes": ["randread"]
           },
+          "gcsfuseMountOptions": "implicit-dirs",
           "bucket":"fio-64k-1m-us-west1",
           "_bucket_alt2":"fio-64k-1m-us-central1",
           "_bucket_alt3":"gke-fio-64k-1m"
@@ -73,6 +78,7 @@
             "blockSize": "128K",
             "readTypes": ["randread"]
           },
+          "gcsfuseMountOptions": "implicit-dirs",
           "bucket":"fio-128k-1m-us-west1",
           "_bucket_alt2":"fio-128k-1m-us-central1",
           "_bucket_alt3":"gke-fio-128k-1m"
@@ -85,6 +91,7 @@
             "blockSize": "256K",
             "readTypes": ["read","randread"]
           },
+          "gcsfuseMountOptions": "implicit-dirs",
           "bucket":"fio-1mb-1m-us-west1",
           "_bucket_alt2":"fio-1mb-1m-us-central1",
           "_bucket_alt3":"gke-fio-1mb-1m"
@@ -96,6 +103,7 @@
             "numThreads": 50,
             "blockSize": "1M"
           },
+          "gcsfuseMountOptions": "implicit-dirs",
           "bucket":"fio-100mb-50k-us-west1",
           "_bucket_alt2":"fio-100mb-50k-us-central1",
           "_bucket_alt3":"gke-fio-100mb-50k"
@@ -109,6 +117,7 @@
             "blockSize": "1M",
             "readTypes": ["read"]
           },
+          "gcsfuseMountOptions": "implicit-dirs",
           "bucket":"fio-200gb-1-us-west1",
           "_bucket_alt2":"fio-200gb-1-us-central1",
           "_bucket_alt3":"gke-fio-200gb-1"
@@ -121,6 +130,7 @@
             "blockSize": "1M",
             "readTypes": ["read"]
           },
+          "gcsfuseMountOptions": "implicit-dirs",
           "bucket":"fio-10g-500-us-west1",
           "_bucket_alt2":"fio-10g-500-us-central1"
         },
@@ -132,6 +142,7 @@
             "blockSize": "1M",
             "readTypes": ["read"]
           },
+          "gcsfuseMountOptions": "implicit-dirs",
           "bucket":"fio-10g-500-us-west1",
           "_bucket_alt2":"fio-10g-500-us-central1"
         },
@@ -143,17 +154,19 @@
             "blockSize": "1M",
             "readTypes": ["read"]
           },
+          "gcsfuseMountOptions": "implicit-dirs",
           "bucket":"fio-10g-500-us-west1",
           "_bucket_alt2":"fio-10g-500-us-central1"
         },
         {
-          "_description": "This is a dummy dlio workload (missing the 'dlioWorkload' field), purely standing as a header and does not execute any workload. For it to execute a dlio workload, it must have a valid 'dlioWorkload' object and a valid 'bucket' attribute.",
+          "_description": "This is a dummy dlio workload (missing the 'dlioWorkload' field), purely standing as a header and does not execute any workload. For it to execute a dlio workload, it must have a valid 'dlioWorkload' object and a valid 'bucket' attribute, and a valid gcsfuseMountOption attribute.",
           "_dlioWorkload": {
             "_description": "Every dlioWorkload must have numFilesTrain, recordLength, and batchSizes fields. batchSizes is an array of integer values",
             "numFilesTrain": 500000,
             "recordLength": 102400,
             "batchSizes": [800,128]
           },
+          "gcsfuseMountOptions": "implicit-dirs",
           "bucket":"The bucket must have objects with name 'train/', 'valid/', and train/img_{i}_of_{numFilesTrain}.npz for every i where i:0-{numFilesTrain}-1 and each train/img_{i}_of_{numFilesTrain}.npz must be of size {recordLength} bytes. The buckets gke-* are all in us-central1, are owned by GKE team and are in their GCP project(s)."
         },
         {
@@ -162,6 +175,7 @@
             "recordLength": 102400,
             "batchSizes": [800,128]
           },
+          "gcsfuseMountOptions": "implicit-dirs",
           "bucket":"dlio-unet3d-100kb-500k-us-west1",
           "_bucket_alt2":"dlio-unet3d-100kb-500k-us-central1",
           "_bucket_alt3":"gke-dlio-unet3d-100kb-500k"
@@ -172,6 +186,7 @@
             "recordLength": 512000,
             "batchSizes": [800,128]
           },
+          "gcsfuseMountOptions": "implicit-dirs",
           "bucket":"dlio-unet3d-500kb-1m-us-west1",
           "_bucket_alt2":"dlio-unet3d-500kb-1m-us-central1",
           "_bucket_alt3":"gke-dlio-unet3d-500kb-1m"
@@ -182,6 +197,7 @@
             "recordLength": 3145728,
             "batchSizes": [200]
           },
+          "gcsfuseMountOptions": "implicit-dirs",
           "bucket":"dlio-unet3d-3mb-100k-us-west1",
           "_bucket_alt2":"dlio-unet3d-3mb-100k-us-central1",
           "_bucket_alt3":"gke-dlio-unet3d-3mb-100k"
@@ -192,6 +208,7 @@
             "recordLength": 3145728,
             "batchSizes": [200]
           },
+          "gcsfuseMountOptions": "implicit-dirs",
           "bucket":"dlio-unet3d-3mb-100k-us-west1",
           "_bucket_alt2":"dlio-unet3d-3mb-100k-us-central1",
           "_bucket_alt3":"gke-dlio-unet3d-3mb-100k"
@@ -202,6 +219,7 @@
             "recordLength": 3145728,
             "batchSizes": [50]
           },
+          "gcsfuseMountOptions": "implicit-dirs",
           "bucket":"dlio-unet3d-3mb-100k-us-west1",
           "_bucket_alt2":"dlio-unet3d-3mb-100k-us-central1",
           "_bucket_alt3":"gke-dlio-unet3d-3mb-100k"
@@ -212,6 +230,7 @@
             "recordLength": 157286400,
             "batchSizes": [4]
           },
+          "gcsfuseMountOptions": "implicit-dirs",
           "bucket":"dlio-unet3d-150mb-5k-us-west1",
           "_bucket_alt2":"dlio-unet3d-150mb-5k-us-central1",
           "_bucket_alt3":"gke-dlio-unet3d-150mb-5k"
