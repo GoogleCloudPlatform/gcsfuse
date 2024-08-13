@@ -192,6 +192,6 @@ func TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError(t *testing.T
 
 	operations.CreateDirectory(testDirPath, t)
 	operations.CreateFile(filePath, FilePerms, t)
-	_, err = os.Stat(filePath)
+	_, err := os.Stat(filePath)
 	fmt.Println("Error: ", err)
 }
