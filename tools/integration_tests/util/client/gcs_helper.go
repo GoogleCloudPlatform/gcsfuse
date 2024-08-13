@@ -40,7 +40,7 @@ const (
 	SizeOfFileContents = 10
 	GCSFileContent     = "GCSteststring"
 	GCSFileSize        = 13
-	FilePerms          = 0600
+	FilePerms          = 0666
 	SizeTruncate       = 5
 	NewFileName        = "newName"
 	NewDirName         = "newDirName"
@@ -70,8 +70,8 @@ func ValidateObjectContentsFromGCS(ctx context.Context, storageClient *storage.C
 	testDirName string, fileName string, expectedContent string, t *testing.T) {
 	gotContent, err := ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, fileName))
 	if err != nil {
-		t.Fatalf("Error while reading file from GCS, Err: %v", err)
 		os.Exit(1)
+		t.Fatalf("Error while reading file from GCS, Err: %v", err)
 	}
 
 	if expectedContent != gotContent {
