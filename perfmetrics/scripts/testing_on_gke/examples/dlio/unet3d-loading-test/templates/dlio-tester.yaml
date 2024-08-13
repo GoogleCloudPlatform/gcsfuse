@@ -16,7 +16,7 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: dlio-tester-{{ .Values.scenario }}-{{ .Values.dlio.numFilesTrain }}-{{ .Values.dlio.recordLength }}-{{ .Values.dlio.batchSize }}
+  name: {{ .Values.podName }}
   {{- if ne .Values.scenario "local-ssd" }}
   annotations:
     gke-gcsfuse/volumes: "true"
@@ -73,7 +73,7 @@ spec:
         sleep 300
         {{ end }}
 
-        outputDir=/logs/{{ .Values.instanceId }}/{{ .Values.dlio.numFilesTrain }}-{{ .Values.dlio.recordLength }}-{{ .Values.dlio.batchSize }}/{{ .Values.scenario }}
+        outputDir=/logs/{{ .Values.outputDirPrefix }}
 
         echo "Testing {{ .Values.scenario }}"
         mpirun -np 8 dlio_benchmark workload=unet3d_a100 \
@@ -93,7 +93,7 @@ spec:
         echo "{{ .Values.gcsfuse.mountOptions }}" > ${outputDir}/gcsfuse_mount_options
         {{ end }}
 
-        gsutil -m cp -R /logs/{{ .Values.instanceId }} gs://{{ .Values.bucketName }}/logs/{{ .Values.instanceId }}/$(date +"%Y-%m-%d-%H-%M")
+        gsutil -m cp -R /logs/* gs://{{ .Values.bucketName }}/logs/
     volumeMounts:
     - name: dshm
       mountPath: /dev/shm

@@ -43,20 +43,17 @@ def escapeCommasInString(gcsfuseMountOptions: str) -> str:
 def createHelmInstallCommands(
     fioWorkloads: set,
     instanceId: str,
-    gcsfuseMountOptions: str,
     machineType: str,
 ):
   """Create helm install commands for the given set of fioWorkload objects."""
   helm_commands = []
-  if not gcsfuseMountOptions:
-    gcsfuseMountOptions = DEFAULT_GCSFUSE_MOUNT_OPTIONS
   for fioWorkload in fioWorkloads:
     for readType in fioWorkload.readTypes:
+      chartName, podName, outputDirPrefix = fio_workload.FioChartNamePodName(
+          fioWorkload, instanceId, readType
+      )
       commands = [
-          (
-              'helm install'
-              f' fio-load-{fioWorkload.scenario}-{readType}-{fioWorkload.fileSize.lower()}-{fioWorkload.blockSize.lower()}-{fioWorkload.numThreads}-{fioWorkload.filesPerThread} loading-test'
-          ),
+          f'helm install {chartName} loading-test',
           f'--set bucketName={fioWorkload.bucket}',
           f'--set scenario={fioWorkload.scenario}',
           f'--set fio.readType={readType}',
@@ -67,9 +64,11 @@ def createHelmInstallCommands(
           f'--set instanceId={instanceId}',
           (
               '--set'
-              f' gcsfuse.mountOptions={escapeCommasInString(gcsfuseMountOptions)}'
+              f' gcsfuse.mountOptions={escapeCommasInString(fioWorkload.gcsfuseMountOptions)}'
           ),
           f'--set nodeType={machineType}',
+          f'--set podName={podName}',
+          f'--set outputDirPrefix={outputDirPrefix}',
       ]
 
       helm_command = ' '.join(commands)
@@ -84,7 +83,6 @@ def main(args) -> None:
   helmInstallCommands = createHelmInstallCommands(
       fioWorkloads,
       args.instance_id,
-      args.gcsfuse_mount_options,
       args.machine_type,
   )
   for helmInstallCommand in helmInstallCommands:
@@ -111,15 +109,6 @@ if __name__ == '__main__':
   parser.add_argument(
       '--instance-id',
       help='unique string ID for current test-run',
-      required=True,
-  )
-  parser.add_argument(
-      '--gcsfuse-mount-options',
-      metavar='GCSFuse mount options',
-      help=(
-          'GCSFuse mount-options, in JSON stringified format, to be set for the'
-          ' scenario gcsfuse-generic.'
-      ),
       required=True,
   )
   parser.add_argument(

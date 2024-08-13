@@ -69,8 +69,6 @@ function printHelp() {
   echo "src_dir=<\"directory/to/clone/github/repos/if/needed\", default=\"${DEFAULT_SRC_DIR}\">"
   echo "gcsfuse_src_dir=<\"/path/of/gcsfuse/src/to/use/if/available\", default=\"${DEFAULT_SRC_DIR}/gcsfuse\">"
   echo "csi_src_dir=<\"/path/of/gcs-fuse-csi-driver/to/use/if/available\", default=\"${DEFAULT_SRC_DIR}\"/gcs-fuse-csi-driver>"
-  # GCSFuse configuration related
-  echo "gcsfuse_mount_options=<\"comma-separated-gcsfuse-mount-options\" e.g. \""${DEFAULT_GCSFUSE_MOUNT_OPTIONS}"\">"
   # Test runtime configuration
   echo "pod_wait_time_in_seconds=<number e.g. 60 for checking pod status every 1 min, default=\"${DEFAULT_POD_WAIT_TIME_IN_SECONDS}\">"
   echo "instance_id=<string, not containing spaces, representing unique id for particular test-run e.g. \"${DEFAULT_INSTANCE_ID}\""
@@ -111,8 +109,6 @@ test -d "${src_dir}" || mkdir -pv "${src_dir}"
 (test -n "${gcsfuse_src_dir}" && gcsfuse_src_dir="$(realpath "${gcsfuse_src_dir}")") || export gcsfuse_src_dir="${src_dir}"/gcsfuse
 export gke_testing_dir="${gcsfuse_src_dir}"/perfmetrics/scripts/testing_on_gke
 (test -n "${csi_src_dir}" && csi_src_dir="$(realpath "${csi_src_dir}")") || export csi_src_dir="${src_dir}"/gcs-fuse-csi-driver
-# GCSFuse configuration related
-test -n "${gcsfuse_mount_options}" || export gcsfuse_mount_options="${DEFAULT_GCSFUSE_MOUNT_OPTIONS}"
 # Test runtime configuration
 test -n "${pod_wait_time_in_seconds}" || export pod_wait_time_in_seconds="${DEFAULT_POD_WAIT_TIME_IN_SECONDS}"
 test -n "${instance_id}" || export instance_id="${DEFAULT_INSTANCE_ID}"
@@ -149,9 +145,6 @@ function printRunParameters() {
   echo "src_dir=\"${src_dir}\""
   echo "gcsfuse_src_dir=\"${gcsfuse_src_dir}\""
   echo "csi_src_dir=\"${csi_src_dir}\""
-  # GCSFuse configuration related
-  echo "gcsfuse_mount_options=\"${gcsfuse_mount_options}\""
-  echo "${gcsfuse_mount_options}" >gcsfuse_mount_options
   # Test runtime configuration
   echo "pod_wait_time_in_seconds=\"${pod_wait_time_in_seconds}\""
   echo "instance_id=\"${instance_id}\""
@@ -410,12 +403,12 @@ function deleteAllPods() {
 
 function deployAllFioHelmCharts() {
   echo "Deploying all fio helm charts ..."
-  cd "${gke_testing_dir}"/examples/fio && python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --gcsfuse-mount-options="${gcsfuse_mount_options}" --machine-type="${machine_type}" && cd -
+  cd "${gke_testing_dir}"/examples/fio && python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" && cd -
 }
 
 function deployAllDlioHelmCharts() {
   echo "Deploying all dlio helm charts ..."
-  cd "${gke_testing_dir}"/examples/dlio && python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --gcsfuse-mount-options="${gcsfuse_mount_options}" --machine-type="${machine_type}" && cd -
+  cd "${gke_testing_dir}"/examples/dlio && python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" && cd -
 }
 
 function listAllHelmCharts() {

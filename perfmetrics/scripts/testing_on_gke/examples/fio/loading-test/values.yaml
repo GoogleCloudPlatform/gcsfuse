@@ -22,6 +22,8 @@ bucketName: gke-dlio-test-data
 scenario: local-ssd
 nodeType: n2-standard-96
 instanceId: ldap-yyyymmdd-hhmmss
+podName:
+outputDirPrefix:
 
 resourceLimits:
   cpu: 0

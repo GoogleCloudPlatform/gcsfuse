@@ -163,15 +163,13 @@ if __name__ == "__main__":
           continue
 
       for i in range(summary_data["epochs"]):
-        test_name = summary_data["hostname"]
-        part_list = test_name.split("-")
-        key = "-".join(part_list[2:5])
+        key = root.split("/")[-2]
 
         if key not in output:
           output[key] = {
-              "num_files_train": part_list[-3],
-              "mean_file_size": part_list[-2],
-              "batch_size": part_list[-1],
+              "num_files_train": key[-4],
+              "mean_file_size": key[-3],
+              "batch_size": key[-2],
               "records": {
                   "local-ssd": [],
                   "gcsfuse-generic": [],

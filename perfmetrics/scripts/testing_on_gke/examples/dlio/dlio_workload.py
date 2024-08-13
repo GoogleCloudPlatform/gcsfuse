@@ -8,13 +8,23 @@ import json
 
 def validateDlioWorkload(workload: dict, name: str):
   """Validates the given json workload object."""
-  if 'dlioWorkload' not in workload:
-    print(f"{name} does not have 'dlioWorkload' key in it.")
-    return False
-
-  if 'bucket' not in workload:
-    print(f"{name} does not have 'bucket' key in it.")
-    return False
+  for requiredWorkloadAttribute, expectedType in {
+      'bucket': str,
+      'gcsfuseMountOptions': str,
+      'dlioWorkload': dict,
+  }.items():
+    if requiredWorkloadAttribute not in workload:
+      print(f"{name} does not have '{requiredWorkloadAttribute}' key in it.")
+      return False
+    if not type(workload[requiredWorkloadAttribute]) is expectedType:
+      print(
+          f"In {name}, the type of '{requiredWorkloadAttribute}' is of type"
+          f" '{type(workload[requiredWorkloadAttribute])}', not {expectedType}"
+      )
+      return False
+    if expectedType == str and ' ' in workload[requiredWorkloadAttribute]:
+      print(f"{name} has space in the value of '{requiredWorkloadAttribute}'")
+      return False
 
   if 'fioWorkload' in workload:
     print(f"{name} has 'fioWorkload' key in it, which is unexpected.")
@@ -73,6 +83,8 @@ class DlioWorkload:
   4. bucket (str): Name of a GCS bucket to read input files from.
   5. batchSizes (set of ints): a set of ints representing multiple batchsize
   values to test.
+  6. gcsfuseMountOptions (str): gcsfuse mount options as a single
+  comma-separated string.
   """
 
   def __init__(
@@ -82,12 +94,14 @@ class DlioWorkload:
       recordLength: int,
       bucket: str,
       batchSizes: list,
+      gcsfuseMountOptions: str,
   ):
     self.scenario = scenario
     self.numFilesTrain = numFilesTrain
     self.recordLength = recordLength
     self.bucket = bucket
     self.batchSizes = set(batchSizes)
+    self.gcsfuseMountOptions = gcsfuseMountOptions
 
 
 def ParseTestConfigForDlioWorkloads(testConfigFileName: str):
@@ -119,6 +133,30 @@ def ParseTestConfigForDlioWorkloads(testConfigFileName: str):
                   dlioWorkload['recordLength'],
                   workload['bucket'],
                   dlioWorkload['batchSizes'],
+                  workload['gcsfuseMountOptions'],
               )
           )
   return dlioWorkloads
+
+
+def DlioChartNamePodName(
+    dlioWorkload: DlioWorkload, instanceID: str, batchSize: int
+) -> (str, str, str):
+  shortenScenario = {
+      'local-ssd': 'ssd',
+      'gcsfuse-generic': 'gcsfuse',
+  }
+  shortForScenario = (
+      shortenScenario[dlioWorkload.scenario]
+      if dlioWorkload.scenario in shortenScenario
+      else 'other'
+  )
+
+  hashOfWorkload = str(hash((instanceID, batchSize, dlioWorkload))).replace(
+      '-', ''
+  )
+  return (
+      f'dlio-unet3d-{shortForScenario}-{dlioWorkload.recordLength}-{hashOfWorkload}',
+      f'dlio-tester-{shortForScenario}-{dlioWorkload.recordLength}-{hashOfWorkload}',
+      f'{instanceID}/{dlioWorkload.numFilesTrain}-{dlioWorkload.recordLength}-{batchSize}-{hashOfWorkload}/{dlioWorkload.scenario}',
+  )

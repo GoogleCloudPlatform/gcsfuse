@@ -8,13 +8,23 @@ import json
 
 def validateFioWorkload(workload: dict, name: str):
   """Validates the given json workload object."""
-  if 'fioWorkload' not in workload:
-    print(f"{name} does not have 'fioWorkload' key in it.")
-    return False
-
-  if 'bucket' not in workload:
-    print(f"{name} does not have 'bucket' key in it.")
-    return False
+  for requiredWorkloadAttribute, expectedType in {
+      'bucket': str,
+      'gcsfuseMountOptions': str,
+      'fioWorkload': dict,
+  }.items():
+    if requiredWorkloadAttribute not in workload:
+      print(f"{name} does not have '{requiredWorkloadAttribute}' key in it.")
+      return False
+    if not type(workload[requiredWorkloadAttribute]) is expectedType:
+      print(
+          f"In {name}, the type of '{requiredWorkloadAttribute}' is of type"
+          f" '{type(workload[requiredWorkloadAttribute])}', not {expectedType}"
+      )
+      return False
+    if expectedType == str and ' ' in workload[requiredWorkloadAttribute]:
+      print(f"{name} has space in the value of '{requiredWorkloadAttribute}'")
+      return False
 
   if 'dlioWorkload' in workload:
     print(f"{name} has 'dlioWorkload' key in it, which is unexpected.")
@@ -84,6 +94,8 @@ class FioWorkload:
   6. bucket (string): Name of a GCS bucket to read input files from.
   7. readTypes (set of strings): a set containing multiple values out of
   'read', 'randread'.
+  8. gcsfuseMountOptions (str): gcsfuse mount options as a single
+  comma-separated string.
   """
 
   def __init__(
@@ -95,6 +107,7 @@ class FioWorkload:
       numThreads: int,
       bucket: str,
       readTypes: list,
+      gcsfuseMountOptions: str,
   ):
     self.scenario = scenario
     self.fileSize = fileSize
@@ -103,13 +116,15 @@ class FioWorkload:
     self.numThreads = numThreads
     self.bucket = bucket
     self.readTypes = set(readTypes)
+    self.gcsfuseMountOptions = gcsfuseMountOptions
 
   def PPrint(self):
     print(
         f'scenario:{self.scenario}, fileSize:{self.fileSize},'
         f' blockSize:{self.blockSize}, filesPerThread:{self.filesPerThread},'
         f' numThreads:{self.numThreads}, bucket:{self.bucket},'
-        f' readTypes:{self.readTypes}'
+        f' readTypes:{self.readTypes}, gcsfuseMountOptions:'
+        f' {gcsfuseMountOptions}'
     )
 
 
@@ -148,6 +163,36 @@ def ParseTestConfigForFioWorkloads(fioTestConfigFile: str):
                       if 'readTypes' in fioWorkload
                       else ['read', 'randread']
                   ),
+                  workload['gcsfuseMountOptions'],
               )
           )
   return fioWorkloads
+
+
+def FioChartNamePodName(
+    fioWorkload: FioWorkload, instanceID: str, readType: str
+) -> (str, str, str):
+  shortenScenario = {
+      'local-ssd': 'ssd',
+      'gcsfuse-generic': 'gcsfuse',
+  }
+  shortForScenario = (
+      shortenScenario[fioWorkload.scenario]
+      if fioWorkload.scenario in shortenScenario
+      else 'other'
+  )
+  readTypeToShortReadType = {'read': 'sr', 'randread': 'rr'}
+  shortForReadType = (
+      readTypeToShortReadType[readType]
+      if readType in readTypeToShortReadType
+      else 'ur'
+  )
+
+  hashOfWorkload = str(hash((fioWorkload, instanceID, readType))).replace(
+      '-', ''
+  )
+  return (
+      f'fio-load-{shortForScenario}-{shortForReadType}-{fioWorkload.fileSize.lower()}-{hashOfWorkload}',
+      f'fio-tester-{shortForScenario}-{shortForReadType}-{fioWorkload.fileSize.lower()}-{hashOfWorkload}',
+      f'{instanceID}/{fioWorkload.fileSize}-{fioWorkload.blockSize}-{fioWorkload.numThreads}-{fioWorkload.filesPerThread}-{hashOfWorkload}/{fioWorkload.scenario}/{readType}',
+  )
