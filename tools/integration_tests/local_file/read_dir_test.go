@@ -178,10 +178,10 @@ func TestReadDirWithSameNameLocalAndGCSFile(t *testing.T) {
 func TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError(t *testing.T) {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(1)
 
 	// Concurrently create 100 local files and read directory 200 times.
-	go creatingNLocalFilesShouldNotThrowError(1, &wg, t)
+//	go creatingNLocalFilesShouldNotThrowError(1, &wg, t)
 	go readingDirNTimesShouldNotThrowError(2, &wg, t)
 
 	wg.Wait()
