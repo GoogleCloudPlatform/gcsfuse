@@ -270,6 +270,7 @@ func NewDirInode(
 		attrs:                       attrs,
 		cache:                       metadata.NewTypeCache(typeCacheMaxSizeMB, typeCacheTTL),
 		isHNSEnabled:                isHNSEnabled,
+		unlinkFolder:                false,
 	}
 
 	typed.lc.Init(id)
