@@ -250,3 +250,11 @@ func (d *baseDirInode) RenameFolder(ctx context.Context, folderName string, dest
 	err = fuse.ENOSYS
 	return
 }
+
+func (d *baseDirInode) IsUnlinkFolder() bool {
+	return true
+}
+
+func (d *baseDirInode) UnLinkFolder() {
+	return
+}

@@ -1924,6 +1924,8 @@ func (fs *fileSystem) RmDir(
 		return err
 	}
 
+	childDir.UnLinkFolder()
+
 	return
 }
 

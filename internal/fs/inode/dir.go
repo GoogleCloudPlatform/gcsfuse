@@ -156,6 +156,10 @@ type DirInode interface {
 
 	// RUnlock readonly unlock.
 	RUnlock()
+
+	IsUnlinkFolder() bool
+
+	UnLinkFolder()
 }
 
 // An inode that represents a directory from a GCS bucket.
@@ -210,6 +214,8 @@ type dirInode struct {
 	// enabled.
 	prevDirListingTimeStamp time.Time
 	isHNSEnabled            bool
+
+	unlinkFolder bool
 }
 
 var _ DirInode = &dirInode{}
@@ -591,6 +597,14 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	}
 
 	return result, nil
+}
+
+func (d *dirInode) IsUnlinkFolder() bool {
+	return d.unlinkFolder
+}
+
+func (d *dirInode) UnLinkFolder() {
+	d.unlinkFolder = true
 }
 
 // LOCKS_REQUIRED(d)
