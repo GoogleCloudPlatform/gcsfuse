@@ -115,7 +115,7 @@ func TestMain(m *testing.M) {
 		successCode = only_dir_mounting.RunTests(flagsSet, onlyDirMounted, m)
 	}
 
-	if successCode == 0 {
+	if successCode == 0 && !setup.IsHierarchicalBucket(ctx, storageClient) {
 		successCode = dynamic_mounting.RunTests(ctx, storageClient, flagsSet, m)
 	}
 

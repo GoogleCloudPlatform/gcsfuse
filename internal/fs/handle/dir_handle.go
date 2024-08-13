@@ -203,6 +203,8 @@ func readAllEntries(
 	// below.
 	sort.Sort(sortedDirents(entries))
 
+	fmt.Println("Entries: ",entries)
+
 	// Fix name conflicts.
 	// When a local file is synced to GCS but not removed from the local file map,
 	// the entries list will have two duplicate entries.

@@ -237,6 +237,7 @@ func (b *bucket) mintObject(
 	md5Sum := md5.Sum(contents)
 	crc32c := crc32.Checksum(contents, crc32cTable)
 
+	fmt.Println("CreateObject: ", req.Name)
 	// Set up basic info.
 	b.prevGeneration++
 	o.metadata = gcs.Object{

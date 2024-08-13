@@ -130,7 +130,8 @@ type DirInode interface {
 	DeleteChildDir(
 		ctx context.Context,
 		name string,
-		isImplicitDir bool) (err error)
+		isImplicitDir bool,
+		dirInode DirInode) (err error)
 
 	// LocalFileEntries lists the local files present in the directory.
 	// Local means that the file is not yet present on GCS.
@@ -215,6 +216,7 @@ type dirInode struct {
 	prevDirListingTimeStamp time.Time
 	isHNSEnabled            bool
 
+	// Represents if folder has been unlinked in Hierarchical bucket.
 	unlinkFolder bool
 }
 
@@ -803,6 +805,7 @@ func (d *dirInode) CreateChildFile(ctx context.Context, name string) (*Core, err
 func (d *dirInode) CreateLocalChildFile(name string) (*Core, error) {
 	fullName := NewFileName(d.Name(), name)
 
+	fmt.Println("Local file: ", fullName)
 	return &Core{
 		Bucket:    d.Bucket(),
 		FullName:  fullName,
@@ -929,7 +932,8 @@ func (d *dirInode) DeleteChildFile(
 func (d *dirInode) DeleteChildDir(
 	ctx context.Context,
 	name string,
-	isImplicitDir bool) error {
+	isImplicitDir bool,
+	dirInode DirInode) error {
 	d.cache.Erase(name)
 
 	// if the directory is an implicit directory, then no backing object
@@ -963,6 +967,10 @@ func (d *dirInode) DeleteChildDir(
 	// The DeleteFolder operation handles removing empty folders.
 	if err = d.bucket.DeleteFolder(ctx, childName.GcsObjectName()); err != nil {
 		return fmt.Errorf("DeleteFolder: %w", err)
+	}
+
+	if d.isBucketHierarchical() {
+		dirInode.UnLinkFolder()
 	}
 
 	d.cache.Erase(name)

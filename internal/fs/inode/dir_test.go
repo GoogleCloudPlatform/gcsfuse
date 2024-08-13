@@ -1378,7 +1378,7 @@ func (t *DirTest) DeleteChildFile_TypeCaching() {
 func (t *DirTest) DeleteChildDir_DoesntExist() {
 	const name = "qux"
 
-	err := t.in.DeleteChildDir(t.ctx, name, false)
+	err := t.in.DeleteChildDir(t.ctx, name, false, t.in)
 	ExpectEq(nil, err)
 }
 
@@ -1393,7 +1393,7 @@ func (t *DirTest) DeleteChildDir_Exists() {
 	AssertEq(nil, err)
 
 	// Call the inode.
-	err = t.in.DeleteChildDir(t.ctx, name, false)
+	err = t.in.DeleteChildDir(t.ctx, name, false, t.in)
 	AssertEq(nil, err)
 
 	// Check the bucket.
@@ -1405,7 +1405,7 @@ func (t *DirTest) DeleteChildDir_Exists() {
 func (t *DirTest) DeleteChildDir_ImplicitDirTrue() {
 	const name = "qux"
 
-	err := t.in.DeleteChildDir(t.ctx, name, true)
+	err := t.in.DeleteChildDir(t.ctx, name, true, t.in)
 	ExpectEq(nil, err)
 }
 
