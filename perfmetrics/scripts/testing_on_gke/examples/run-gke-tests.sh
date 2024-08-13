@@ -435,6 +435,7 @@ function createCustomCsiDriverIfNeeded() {
 
     echo "Installing custom CSI driver ..."
     # Build and install csi driver
+    ensureGcsFuseCsiDriverCode
     cd "${csi_src_dir}"
     make uninstall || true
     make build-image-and-push-multi-arch REGISTRY=gcr.io/${project_id}/${USER} GCSFUSE_PATH=gs://${package_bucket}
@@ -508,7 +509,6 @@ function waitTillAllPodsComplete() {
   done
 }
 
-
 function fetchAndParseFioOutputs() {
   echo "Fetching and parsing fio outputs ..."
   cd "${gke_testing_dir}"/examples/fio
@@ -536,9 +536,8 @@ enableManagedCsiDriverIfNeeded
 activateCluster
 createKubernetesServiceAccountForCluster
 
-# GCSFuse/CSI driver source code
+# GCSFuse driver source code
 ensureGcsfuseCode
-ensureGcsFuseCsiDriverCode
 
 # GCP/GKE configuration dependent on GCSFuse/CSI driver source code
 addGCSAccessPermissions
@@ -555,6 +554,5 @@ waitTillAllPodsComplete
 
 # clean-up after run
 deleteAllPods
-deleteAllHelmCharts
 fetchAndParseFioOutputs
 fetchAndParseDlioOutputs
