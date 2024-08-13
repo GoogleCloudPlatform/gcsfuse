@@ -247,7 +247,7 @@ func TestValidateConfigFile_InvalidConfigThrowsError(t *testing.T) {
 			configFile: "testdata/file_cache_config/invalid_write_buffer_size.yaml",
 		},
 		{
-			name:       "Invalid value of ignore interrupts.",
+			name:       "Invalid ignore interrupts",
 			configFile: "testdata/file_system_config/invalid_ignore_interrupts.yaml",
 		},
 	}
@@ -426,7 +426,8 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 		expectedConfig *cfg.Config
 	}{
 		{
-			name:       "Empty config file [default values].",
+			// Test default values.
+			name:       "Empty config file",
 			configFile: "testdata/empty_file.yaml",
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
@@ -444,7 +445,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 			},
 		},
 		{
-			name:       "File system config unset.",
+			name:       "File system config unset",
 			configFile: "testdata/file_system_config/unset_file_system_config.yaml",
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
@@ -462,7 +463,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 			},
 		},
 		{
-			name:       "Valid config file.",
+			name:       "Valid config file",
 			configFile: "testdata/valid_config.yaml",
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{

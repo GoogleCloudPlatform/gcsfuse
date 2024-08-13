@@ -573,7 +573,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 		expectedConfig *cfg.Config
 	}{
 		{
-			name: "Test file system flags.",
+			name: "normal",
 			args: []string{"gcsfuse", "--dir-mode=0777", "--disable-parallel-dirops", "--file-mode=0666", "--o", "ro", "--gid=7", "--ignore-interrupts=false", "--kernel-list-cache-ttl-secs=300", "--rename-dir-limit=10", "--temp-dir=~/temp", "--uid=8", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
@@ -591,7 +591,25 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			},
 		},
 		{
-			name: "Test default file system flags.",
+			name: "mode flags without 0 prefix",
+			args: []string{"gcsfuse", "--dir-mode=777", "--file-mode=666", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					DirMode:                0777,
+					DisableParallelDirops:  false,
+					FileMode:               0666,
+					FuseOptions:            []string{},
+					Gid:                    -1,
+					IgnoreInterrupts:       true,
+					KernelListCacheTtlSecs: 0,
+					RenameDirLimit:         0,
+					TempDir:                "",
+					Uid:                    -1,
+				},
+			},
+		},
+		{
+			name: "default",
 			args: []string{"gcsfuse", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
@@ -634,12 +652,20 @@ func TestArgsParsing_FileSystemFlagsThrowsError(t *testing.T) {
 		args []string
 	}{
 		{
-			name: "Invalid value for dir-mode flag",
+			name: "Invalid dir-mode 999",
 			args: []string{"gcsfuse", "--dir-mode=999", "abc", "pqr"},
 		},
 		{
-			name: "Invalid value for file-mode flag",
+			name: "Invalid dir-mode 0999",
+			args: []string{"gcsfuse", "--dir-mode=0999", "abc", "pqr"},
+		},
+		{
+			name: "Invalid file-mode 888",
 			args: []string{"gcsfuse", "--file-mode=888", "abc", "pqr"},
+		},
+		{
+			name: "Invalid file-mode 0888",
+			args: []string{"gcsfuse", "--file-mode=0888", "abc", "pqr"},
 		},
 	}
 
