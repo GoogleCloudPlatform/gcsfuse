@@ -9,7 +9,7 @@
           "_description": "This is a dummy fio workload (missing the 'fioWorkload' field), purely standing as a header and does not execute any workload. For it to execute a fio workload, it must have a valid 'fioWorkload' object and a valid 'bucket' attribute.",
           "_fioWorkload": {
             "_description": "Every fioWorkload must have fileSize, filesPerThread, numThreads, and blockSize fields. readTypes is an array of string values 'read' and 'randread'. If readTypes is missing, then it defaults to [\"read\",\"randread\"].",
-            "fileSize": "64k",
+            "fileSize": "64K",
             "filesPerThread": 20000,
             "numThreads": 50,
             "blockSize": "64K",
@@ -19,7 +19,7 @@
         },
         {
           "_fioWorkload": {
-            "fileSize": "64k",
+            "fileSize": "64K",
             "filesPerThread": 20000,
             "numThreads": 50,
             "blockSize": "64K",
@@ -31,7 +31,7 @@
         },
         {
           "fioWorkload": {
-            "fileSize": "64k",
+            "fileSize": "64K",
             "filesPerThread": 100,
             "numThreads": 20,
             "blockSize": "64K",
@@ -42,8 +42,8 @@
           "_bucket_alt3":"gke-fio-64k-1m"
         },
         {
-          "fioWorkload": {
-            "fileSize": "64k",
+          "_fioWorkload": {
+            "fileSize": "64K",
             "filesPerThread": 10,
             "numThreads": 100,
             "blockSize": "64K",
@@ -54,8 +54,8 @@
           "_bucket_alt3":"gke-fio-64k-1m"
         },
         {
-          "fioWorkload": {
-            "fileSize": "64k",
+          "_fioWorkload": {
+            "fileSize": "64K",
             "filesPerThread": 10,
             "numThreads": 10,
             "blockSize": "32K",
@@ -177,7 +177,7 @@
           "_bucket_alt3":"gke-dlio-unet3d-500kb-1m"
         },
         {
-          "_dlioWorkload": {
+          "dlioWorkload": {
             "numFilesTrain": 1000,
             "recordLength": 3145728,
             "batchSizes": [200]
@@ -187,7 +187,7 @@
           "_bucket_alt3":"gke-dlio-unet3d-3mb-100k"
         },
         {
-          "dlioWorkload": {
+          "_dlioWorkload": {
             "numFilesTrain": 100000,
             "recordLength": 3145728,
             "batchSizes": [200]
