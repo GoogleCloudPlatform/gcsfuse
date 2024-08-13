@@ -1913,14 +1913,13 @@ func (fs *fileSystem) RmDir(
 	fs.mu.Unlock()
 	parent.Lock()
 	err = parent.DeleteChildDir(ctx, op.Name, isImplicitDir)
+	childDir.UnLinkFolder()
 	parent.Unlock()
 
 	if err != nil {
 		err = fmt.Errorf("DeleteChildDir: %w", err)
 		return err
 	}
-
-	childDir.UnLinkFolder()
 
 	return
 }
