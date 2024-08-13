@@ -172,7 +172,7 @@ func CloseFile(file *os.File) {
 func RemoveFile(filePath string) {
 	err := os.Remove(filePath)
 	if err != nil {
-		log.Printf("os.Remove(%s): %v", filePath, err)
+		log.Fatalf("os.Remove(%s): %v", filePath, err)
 	}
 }
 
