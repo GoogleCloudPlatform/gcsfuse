@@ -257,5 +257,4 @@ func (d *baseDirInode) IsUnlinkFolder() bool {
 }
 
 func (d *baseDirInode) UnLinkFolder() {
-	return
 }
