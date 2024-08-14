@@ -1675,7 +1675,11 @@ func (fs *fileSystem) createLocalFile(
 
 	fullName := inode.NewFileName(parent.Name(), name)
 	child, ok := fs.localFileInodes[fullName]
-	if !ok {
+	var fileInode *inode.FileInode
+	if child != nil {
+		fileInode = fs.fileInodeOrDie(child.ID())
+	}
+	if !ok || (fileInode != nil && fileInode.IsUnlinked()) {
 		var result *inode.Core
 		result, err = parent.CreateLocalChildFile(name)
 		if err != nil {
