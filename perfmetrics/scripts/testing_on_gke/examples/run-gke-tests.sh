@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This test is for running fio/dlio tests using GKE.
+# This script is for running fio/dlio tests using GKE.
 # This is a stand-alone script, and can be invoked directly by a user.
 # It takes in parameters through environment variables. For learning about them, run this script with `--help` argument.
 # For debugging, pass argument `--debug` which will print all the shell commands that runs.
