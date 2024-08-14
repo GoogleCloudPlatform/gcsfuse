@@ -28,6 +28,7 @@ import (
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -200,7 +201,9 @@ func TestCreateAndStatLocalFileInSamePathAfterDeletingParentDirectory(t *testing
 	operations.CreateDirectory(testDirPath, t)
 	operations.CreateFile(filePath, FilePerms, t)
 
-	_, err = os.Stat(filePath)
+	f, err := os.Stat(filePath)
 
-	require.NoError(t, err)
+	assert.NoError(t, err)
+	assert.Equal(t, filePath, f.Name())
+	assert.False(t, f.IsDir())
 }

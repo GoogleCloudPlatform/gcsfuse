@@ -858,7 +858,9 @@ func (t *LocalFileTest) TestCreateAndStatLocalFileInSamePathAfterDeletingParentD
 	AssertEq(nil, err)
 	defer AssertEq(nil, f2.Close())
 
-	_, err = os.Stat(filePath)
+	f, err := os.Stat(filePath)
 
 	AssertEq(nil, err)
+	ExpectEq(filePath, f.Name())
+	ExpectFalse(f.IsDir())
 }
