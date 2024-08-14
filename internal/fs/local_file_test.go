@@ -855,6 +855,7 @@ func (t *LocalFileTest) TestCreateAndStatLocalFileInSamePathAfterDeletingParentD
 	err = os.Mkdir(dirPath, dirPerms)
 	AssertEq(nil, err)
 	f2, err := os.Create(filePath)
+	AssertEq(nil, err)
 	defer AssertEq(nil, f2.Close())
 
 	_, err = os.Stat(filePath)
