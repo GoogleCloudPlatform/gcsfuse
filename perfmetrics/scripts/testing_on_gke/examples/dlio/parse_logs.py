@@ -23,7 +23,7 @@ import dlio_workload
 sys.path.append("../")
 from utils.utils import get_memory, get_cpu, standard_timestamp, is_mash_installed
 
-LOCAL_LOGS_LOCATION = "../../bin/dlio-logs"
+_LOCAL_LOGS_LOCATION = "../../bin/dlio-logs"
 
 record = {
     "pod_name": "",
@@ -49,13 +49,14 @@ def downloadDlioOutputs(dlioWorkloads):
     print(f"Downloading DLIO logs from the bucket {dlioWorkload.bucket}...")
     result = subprocess.run(
         [
-            "gsutil",
-            "-m",  # download multiple files parallelly
-            "-q",  # download silently without any logs
+            "gcloud",
+            "-q",  # ignore prompts
+            "storage",
             "cp",
             "-r",
+            "--no-user-output-enabled",  # do not print names of files being copied
             f"gs://{dlioWorkload.bucket}/logs",
-            LOCAL_LOGS_LOCATION,
+            _LOCAL_LOGS_LOCATION,
         ],
         capture_output=False,
         text=True,
@@ -68,11 +69,11 @@ if __name__ == "__main__":
   parser = argparse.ArgumentParser(
       prog="DLIO Unet3d test output parser",
       description=(
-          "This program takes in a json test-config file and parses it for"
-          " output buckets. From each output bucket, it downloads all the DLIO"
-          " output logs from gs://<bucket>/logs/ localy to"
-          f" {LOCAL_LOGS_LOCATION} and parses them for DLIO test runs and their"
-          " output metrics."
+          "This program takes in a json workload configuration file and parses"
+          " it for valid DLIO workloads and the locations of their test outputs"
+          " on GCS. It downloads each such output object locally to"
+          " {_LOCAL_LOGS_LOCATION} and parses them for DLIO test runs, and then"
+          " dumps their output metrics into a CSV report file."
       ),
   )
   parser.add_argument(
@@ -94,7 +95,7 @@ if __name__ == "__main__":
   args = parser.parse_args()
 
   try:
-    os.makedirs(LOCAL_LOGS_LOCATION)
+    os.makedirs(_LOCAL_LOGS_LOCATION)
   except FileExistsError:
     pass
 
@@ -119,7 +120,7 @@ if __name__ == "__main__":
   if not mash_installed:
     print("Mash is not installed, will skip parsing CPU and memory usage.")
 
-  for root, _, files in os.walk(LOCAL_LOGS_LOCATION):
+  for root, _, files in os.walk(_LOCAL_LOGS_LOCATION):
     if files:
       print(f"Parsing directory {root} ...")
       per_epoch_stats_file = root + "/per_epoch_stats.json"

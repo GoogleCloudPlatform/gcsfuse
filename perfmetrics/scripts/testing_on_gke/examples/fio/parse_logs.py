@@ -23,7 +23,7 @@ import fio_workload
 sys.path.append("../")
 from utils.utils import get_memory, get_cpu, unix_to_timestamp, is_mash_installed
 
-LOCAL_LOGS_LOCATION = "../../bin/fio-logs"
+_LOCAL_LOGS_LOCATION = "../../bin/fio-logs"
 
 record = {
     "pod_name": "",
@@ -49,20 +49,21 @@ record = {
 def downloadFioOutputs(fioWorkloads):
   for fioWorkload in fioWorkloads:
     try:
-      os.makedirs(LOCAL_LOGS_LOCATION + "/" + fioWorkload.fileSize)
+      os.makedirs(_LOCAL_LOGS_LOCATION + "/" + fioWorkload.fileSize)
     except FileExistsError:
       pass
 
     print(f"Downloading FIO outputs from {fioWorkload.bucket}...")
     result = subprocess.run(
         [
-            "gsutil",
-            "-m",  # download multiple files parallelly
-            "-q",  # download silently without any logs
+            "gcloud",
+            "-q",  # ignore prompts
+            "storage",
             "cp",
             "-r",
+            "--no-user-output-enabled",  # do not print names of objects being copied
             f"gs://{fioWorkload.bucket}/fio-output",
-            LOCAL_LOGS_LOCATION + "/" + fioWorkload.fileSize,
+            _LOCAL_LOGS_LOCATION + "/" + fioWorkload.fileSize,
         ],
         capture_output=False,
         text=True,
@@ -75,11 +76,11 @@ if __name__ == "__main__":
   parser = argparse.ArgumentParser(
       prog="DLIO Unet3d test output parser",
       description=(
-          "This program takes in a json test-config file and parses it for"
-          " output buckets. From each output bucket, it downloads all the FIO"
-          " output logs from gs://<bucket>/logs/ locally to"
-          f" {LOCAL_LOGS_LOCATION} and parses them for FIO test runs and their"
-          " output metrics."
+          "This program takes in a json workload configuration file and parses"
+          " it for valid FIO workloads and the locations of their test outputs"
+          " on GCS. It downloads each such output object locally to"
+          " {_LOCAL_LOGS_LOCATION} and parses them for FIO test runs, and then"
+          " dumps their output metrics into a CSV report file."
       ),
   )
   parser.add_argument(
@@ -101,7 +102,7 @@ if __name__ == "__main__":
   args = parser.parse_args()
 
   try:
-    os.makedirs(LOCAL_LOGS_LOCATION)
+    os.makedirs(_LOCAL_LOGS_LOCATION)
   except FileExistsError:
     pass
 
@@ -125,7 +126,7 @@ if __name__ == "__main__":
   if not mash_installed:
     print("Mash is not installed, will skip parsing CPU and memory usage.")
 
-  for root, _, files in os.walk(LOCAL_LOGS_LOCATION):
+  for root, _, files in os.walk(_LOCAL_LOGS_LOCATION):
     for file in files:
       per_epoch_output = root + f"/{file}"
       if not per_epoch_output.endswith(".json"):
