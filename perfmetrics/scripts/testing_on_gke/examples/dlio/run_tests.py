@@ -15,10 +15,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""This program takes in a json test-config file, finds out valid
+"""Generates and deploys helm charts for DLIO workloads.
 
+This program takes in a json test-config file, finds out valid
 DLIO workloads from it and generates and deploys a helm chart for
-each DLIO workload.
+each valid DLIO workload.
 """
 
 import argparse
@@ -33,8 +34,8 @@ def run_command(command: str):
   print(result.stderr)
 
 
-def createHelmInstallCommands(dlioWorkloads: set):
-  """Create helm install commands for the given set of dlioWorkload objects."""
+def createHelmInstallCommands(dlioWorkloads: set) -> list:
+  """Create helm install commands for the given dlioWorkload objects."""
   helm_commands = []
   for dlioWorkload in dlioWorkloads:
     for batchSize in dlioWorkload.batchSizes:
