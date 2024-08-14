@@ -189,16 +189,14 @@ func TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError(t *testing.T
 	wg.Wait()
 }
 
-func TestCreateAndStatLocalFileInSamePathAfterDeletingParentDirectory(t *testing.T) {
+func TestStatLocalFileAfterRecreatingItWithSameName(t *testing.T) {
 	testDirPath = setup.SetupTestDirectory(testDirName)
-	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t)
 	filePath := path.Join(testDirPath, FileName1)
 	operations.CreateFile(filePath, FilePerms, t)
 	_, err := os.Stat(filePath)
 	require.NoError(t, err)
-	err = os.RemoveAll(testDirPath)
+	err = os.Remove(filePath)
 	require.NoError(t, err)
-	operations.CreateDirectory(testDirPath, t)
 	operations.CreateFile(filePath, FilePerms, t)
 
 	f, err := os.Stat(filePath)

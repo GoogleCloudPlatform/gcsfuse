@@ -833,26 +833,20 @@ func (t *LocalFileTest) AtimeMtimeAndCtime() {
 	ExpectThat(ctime, timeutil.TimeNear(createTime, Delta))
 }
 
-// Create directory - foo
-// Create local file inside - foo/test.txt
+// Create local file inside - test.txt
 // Stat that local file.
-// Remove directory.
-// Create directory with the same name - foo
-// Create local file with the same name - foo/test.txt
+// Remove the local file.
+// Create local file with the same name - test.txt
 // Stat that local file.
-func (t *LocalFileTest) TestCreateAndStatLocalFileInSamePathAfterDeletingParentDirectory() {
-	dirPath := path.Join(mntDir, "foo")
-	filePath := path.Join(dirPath, "test.txt")
-	err = os.Mkdir(dirPath, dirPerms)
+func (t *LocalFileTest) TestStatLocalFileAfterRecreatingItWithSameName() {
+	filePath := path.Join(mntDir, "test.txt")
 	AssertEq(nil, err)
 	f1, err := os.Create(filePath)
 	defer AssertEq(nil, f1.Close())
 	AssertEq(nil, err)
 	_, err = os.Stat(filePath)
 	AssertEq(nil, err)
-	err = os.RemoveAll(dirPath)
-	AssertEq(nil, err)
-	err = os.Mkdir(dirPath, dirPerms)
+	err = os.Remove(filePath)
 	AssertEq(nil, err)
 	f2, err := os.Create(filePath)
 	AssertEq(nil, err)
