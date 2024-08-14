@@ -1,5 +1,3 @@
-
-
 # GCSFuse Metrics
 GCSFuse supports exporting custom metrics to Google cloud monitoring. 
 Metrics are collected using OpenCensus and exported via Stackdriver exporter.
@@ -126,6 +124,7 @@ fs_ops_count{fs_op="StatFS"} 10
 # TYPE fs_ops_error_count counter
 fs_ops_error_count{fs_error="function not implemented",fs_error_category="function not implemented",fs_op="GetXattr"} 1
 fs_ops_error_count{fs_error="function not implemented",fs_error_category="function not implemented",fs_op="ListXattr"} 1
+fs_ops_error_count{fs_error="interrupted system call",fs_error_category="interrupt errors",fs_op="LookUpInode"} 58
 fs_ops_error_count{fs_error="no such file or directory",fs_error_category="no such file or directory",fs_op="LookUpInode"} 6
 # HELP fs_ops_latency The cumulative distribution of file system operation latencies
 # TYPE fs_ops_latency histogram
