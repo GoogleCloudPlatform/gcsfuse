@@ -28,6 +28,7 @@ import (
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/require"
 )
 
 // //////////////////////////////////////////////////////////////////////
@@ -185,4 +186,22 @@ func TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError(t *testing.T
 	go readingDirNTimesShouldNotThrowError(200, &wg, t)
 
 	wg.Wait()
+}
+
+func TestCreateAndStatLocalFileInSamePathAfterDeletingParentDirectory(t *testing.T){
+	testDirPath = path.Join(setup.MntDir(), testDirName)
+	operations.CreateDirectory(testDirPath, t)
+	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t)
+	filePath := path.Join(testDirPath, FileName1)
+	operations.CreateFile(filePath, FilePerms, t)
+	_, err := os.Stat(filePath)
+	require.NoError(t, err)
+	err = os.RemoveAll(testDirPath)
+	require.NoError(t, err)
+	operations.CreateDirectory(testDirPath, t)
+	operations.CreateFile(filePath, FilePerms, t)
+
+	_, err = os.Stat(filePath)
+
+	require.NoError(t, err)
 }
