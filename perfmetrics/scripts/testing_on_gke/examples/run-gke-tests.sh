@@ -1,18 +1,19 @@
 #!/bin/bash
 
-# This is a top-level script which can work stand-alone.
+# This is a stand-alone script, and can be invoked directly by a user.
 # It takes in parameters through environment variables. For learning about them, run this script with `--help` argument.
-# For debugging, you can pass argument `--debug` which will print all the shell commands that runs.
-# It fetches GCSFuse and GKE GCSFuse CSI driver code if you don't provide it pre-existing clones of these directories.
-# It installs all the necessary depencies on its own.
-# It can create a GKE cluster and other GCP resources (if needed), based on a number of configuration parameters e.g. gcp-project-name/number, cluster-name, zone (for resource location), machine-type (of node), number of local SSDs.
+# For debugging, pass argument `--debug` which will print all the shell commands that runs.
+# It fetches GCSFuse and GKE GCSFuse CSI driver code from github, if you don't provide it pre-existing clones of them.
+# It installs all the necessary dependencies on its own.
+# It creates a GKE cluster and other GCP resources (as needed), based on a number of configuration parameters e.g. gcp-project-name/number, cluster-name, zone (for resource location), machine-type (of node), number of local SSDs.
 # It creates fio/dlio tests as helm charts, based on the provided JSON workload configuration file and deploys them on the GKE cluster.
 # A sample workload-configuration file is available at https://github.com/GoogleCloudPlatform/gcsfuse/blob/b2286ec3466dd285b2d5ea3be8636a809efbfb1b/perfmetrics/scripts/testing_on_gke/examples/workloads.json#L2 .
 
-# Fail script if any of the command fails.
+# Fail script if any of the commands fail.
 set -e
 
-# Print all shell commands if user passes argument `--debug`
+# Print all the shell commands if the user passes argument `--debug`. This is
+# useful for debugging the script.
 if ([ $# -gt 0 ] && ([ "$1" == "-debug" ] || [ "$1" == "--debug" ])); then
   set -x
 fi
@@ -41,7 +42,6 @@ readonly csi_driver_github_path=https://github.com/googlecloudplatform/gcs-fuse-
 readonly csi_driver_branch=main
 readonly gcsfuse_github_path=https://github.com/googlecloudplatform/gcsfuse
 readonly gcsfuse_branch=garnitin/add-gke-load-testing/v1
-# readonly gcsfuse_branch=master
 # GCSFuse configuration related
 readonly DEFAULT_GCSFUSE_MOUNT_OPTIONS="implicit-dirs"
 # Test runtime configuration
@@ -145,16 +145,13 @@ function printRunParameters() {
 # Install dependencies.
 function installDependencies() {
   which helm || (cd "${src_dir}" && (test -d "./helm" || git clone https://github.com/helm/helm.git) && cd helm && make && ls -lh bin/ && mkdir -pv ~/bin && cp -fv bin/helm ~/bin/ && chmod +x ~/bin/helm && export PATH=$PATH:$HOME/bin && echo $PATH && which helm && cd - && cd -)
-  # install o
   which go || (version=1.22.4 && wget -O go_tar.tar.gz https://go.dev/dl/go${version}.linux-amd64.tar.gz && sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local && export PATH=${PATH}:/usr/local/go/bin && go version && rm -rfv go_tar.tar.gz && echo 'export PATH=${PATH}:/usr/local/go/bin' >>~/.bashrc)
   which python3 && sudo apt-get install python3-absl
-  # which kubectl || (gcloud components install kubectl && kubectl version --client && (gke-gcloud-auth-plugin --version || (gcloud components install gke-gcloud-auth-plugin && gke-gcloud-auth-plugin --version))) || (sudo apt-get update -y && sudo apt-get install -y kubectl)
   (which kubectl && kubectl version --client) || (gcloud components install kubectl && which kubectl && kubectl version --client) || (sudo apt-get update -y && sudo apt-get install -y kubectl && which kubectl && kubectl version --client)
   gke-gcloud-auth-plugin --version || (gcloud components install gke-gcloud-auth-plugin && gke-gcloud-auth-plugin --version) || (sudo apt-get update -y && sudo apt-get install -y google-cloud-cli-gke-gcloud-auth-plugin && gke-gcloud-auth-plugin --version)
 }
 
-# Ensure gcloud auth/config.
-# Make sure you have access to the necessary GCP resources. The easiest way to enable it is to use <your-ldap>@google.com as active auth (sample below).
+# Make sure you have access to the necessary GCP resources. The easiest way to enable it is to use <your-ldap>@google.com as active auth.
 function ensureGcpAuthsAndConfig() {
   if ! $(gcloud auth list | grep -q ${USER}); then
     gcloud auth application-default login --no-launch-browser && (gcloud auth list | grep -q ${USER})
@@ -163,6 +160,8 @@ function ensureGcpAuthsAndConfig() {
 }
 
 # Verify that the passed machine configuration parameters (machine-type, num-nodes, num-ssd) are compatible.
+# This is to fail fast, right at the start of the script, rather than failing at
+# cluster/nodepool creation, which takes a lot longer.
 function validateMachineConfig() {
   echo "Validating input machine configuration ..."
   local machine_type=${1}
@@ -292,24 +291,6 @@ function enableManagedCsiDriverIfNeeded() {
   fi
 }
 
-# function dataLoaderBucketNames() {
-  # local workloadConfigFileNames="$@"
-  # for workloadFileName in "${workloadConfigFileNames}"; do
-    # workloadConfigFilePath="$workloadFileName"
-    # if test -f "${workloadConfigFilePath}"; then
-      # grep -wh '\"bucket\"' "${workloadConfigFilePath}" | cut -d: -f2 | cut -d, -f1 | cut -d \" -f2 | sort | uniq | grep -v ' ' | sort | uniq
-    # fi
-  # done
-# }
-#
-# function fioDataLoaderBucketNames() {
-  # dataLoaderBucketNames "${gke_testing_dir}"/examples/workloads.json
-# }
-#
-# function dlioDataLoaderBucketNames() {
-  # dataLoaderBucketNames "${gke_testing_dir}"/examples/workloads.json
-# }
-
 function activateCluster() {
   echo "Configuring cluster credentials ..."
   gcloud container clusters get-credentials ${cluster_name} --location=${zone}
@@ -359,9 +340,8 @@ function ensureGcsFuseCsiDriverCode() {
 }
 
 function createCustomCsiDriverIfNeeded() {
-  echo "Creating custom CSI driver ..."
   if ${use_custom_csi_driver}; then
-    # disable managed CSI driver.
+    echo "Disabling managed CSI driver ..."
     gcloud -q container clusters update ${cluster_name} --update-addons GcsFuseCsiDriver=DISABLED --location=${zone}
 
     echo "Building custom CSI driver ..."
@@ -375,24 +355,23 @@ function createCustomCsiDriverIfNeeded() {
     rm -rfv ./bin ./sbin
     go mod vendor
     GOOS=linux GOARCH=amd64 go run tools/build_gcsfuse/main.go . . v3
-    # copy the binary to a GCS bucket for csi driver build
+    # Copy the binary to a GCS bucket for csi driver build.
     gcloud storage -q cp ./bin/gcsfuse gs://${package_bucket}/linux/amd64/
-    # gcloud storage cp ./bin/gcsfuse gs://${package_bucket}/linux/arm64/ # needed as build on arm64 doesn't work on cloudtop.
     gcloud storage -q cp gs://${package_bucket}/linux/amd64/gcsfuse gs://${package_bucket}/linux/arm64/ # needed as build on arm64 doesn't work on cloudtop.
     # clean-up
     rm -rfv "${gcsfuse_src_dir}"/bin "${gcsfuse_src_dir}"/sbin
     cd -
 
+    echo "Installing custom CSI driver ..."
     # Build and install csi driver
     cd "${csi_src_dir}"
+    make uninstall || true
     make build-image-and-push-multi-arch REGISTRY=gcr.io/${project_id}/${USER} GCSFUSE_PATH=gs://${package_bucket}
     make install PROJECT=${project_id} REGISTRY=gcr.io/${project_id}/${USER}
-    # If install fails, do the following and retry.
-    # make uninstall
     cd -
   else
     echo ""
-    # enable managed CSI driver.
+    echo "Enabling managed CSI driver ..."
     gcloud -q container clusters update ${cluster_name} --update-addons GcsFuseCsiDriver=ENABLED --location=${zone}
   fi
 }
@@ -411,12 +390,12 @@ function deleteAllPods() {
 
 function deployAllFioHelmCharts() {
   echo "Deploying all fio helm charts ..."
-  cd "${gke_testing_dir}"/examples/fio && python3 ./run_tests.py && cd -
+  cd "${gke_testing_dir}"/examples/fio && python3 ./run_tests.py --workload-config "${gke_testing_dir}"/examples/workloads.json && cd -
 }
 
 function deployAllDlioHelmCharts() {
   echo "Deploying all dlio helm charts ..."
-  cd "${gke_testing_dir}"/examples/dlio && python3 ./run_tests.py && cd -
+  cd "${gke_testing_dir}"/examples/dlio && python3 ./run_tests.py --workload-config "${gke_testing_dir}"/examples/workloads.json && cd -
 }
 
 function listAllHelmCharts() {
@@ -430,19 +409,8 @@ function listAllHelmCharts() {
   # gke-dlio-unet3d-100kb-500k-128-gcsfuse-file-cache deployed unet3d-loading-test-0.1.0
 }
 
-# function listAllPods() {
-  # echo "Listing all pods ..."
-  # kubectl get pods –-namespace=${appnamespace} || true
-  # kubectl get pods
-  #
-  # # Another useful command to list all your pods, which keep updating the live-status in the output.
-  # # kubectl get pods --watch --namespace=${appnamespace} || true
-  # # kubectl get pods --watch
-  # # kubectl exec -it --stdin pods/${podname} --namespace=${appnamespace} -- /bin/bash
-# }
-
 function waitTillAllPodsComplete() {
-  echo "Scanning and waiting till all pods complete or one of them fails ..."
+  echo "Scanning and waiting till all pods either complete or fail ..."
   while true; do
     printf "Checking pods status at "$(date +%s)":\n-----------------------------------\n"
     podslist="$(kubectl get pods)"
@@ -455,8 +423,6 @@ function waitTillAllPodsComplete() {
     num_failed_pods=$(echo "${podslist}" | tail -n +2 | grep -i 'failed' | wc -l)
     if [ ${num_failed_pods} -gt 0 ]; then
       printf ${num_failed_pods}" pod(s) failed.\n\n"
-      # printf ${num_failed_pods}" pod(s) failed, so stopping this run.\n\n"
-      # exitWithFailure
     fi
     if [ ${num_noncompleted_pods} -eq 0 ]; then
       printf "All pods completed.\n\n"
@@ -496,56 +462,6 @@ function revertPodConfigsFilesAfterTestRuns() {
   done
 }
 
-# function printOutputFioFilesList() {
-  # echo ""
-  # fioDataLoaderBucketNames | while read bucket; do
-    # echo "${bucket}:"
-    # gcloud storage ls -l gs://${bucket}/fio-output/*/* | (grep -e 'json\|gcsfuse_mount_options' || true)
-  # done
-# }
-#
-# function printOutputDlioFilesList() {
-  # echo ""
-  # dlioDataLoaderBucketNames | while read bucket; do
-    # echo "${bucket}:"
-    # gcloud storage ls -l gs://${bucket}/logs/*/*/* | (grep -e 'summary\.json\|per_epoch_stats\.json\|gcsfuse_mount_options' || true)
-  # done
-# }
-
-# function archiveFioOutputs() {
-  # echo "Archiving existing fio outputs ..."
-  # fioDataLoaderBucketNames | while read bucket; do
-    # log="$(gsutil -mq mv -r gs://${bucket}/fio-output/* gs://${bucket}/old-fio-output/ 2>&1)" || ([[ "${log}" == *"No URLs matched"* ]] && echo "ignored error: ${log}")
-  # done
-#
-  # # cd "${gke_testing_dir}"/examples/fio
-  # mkdir -pv "${gke_testing_dir}"/bin/fio-logs "${gke_testing_dir}"/bin/old-fio-logs # backup to avoid failing the next commands
-  # # log="$(rsync -avz --ignore-existing "${gke_testing_dir}"/bin/fio-logs/* "${gke_testing_dir}"/bin/old-fio-logs/ 2>&1)" || ( [[ "${log}" == *"some files/attributes were not transferred"* ]] && echo "ignored error: ${log}")
-  # rm -rfv "${gke_testing_dir}"/bin/old-fio-logs/*
-  # mv -v "${gke_testing_dir}"/bin/fio-logs/* "${gke_testing_dir}"/bin/old-fio-logs/ || true
-  # # cd -
-# }
-#
-# function archiveDlioOutputs() {
-  # echo "Archiving existing dlio outputs ..."
-  # dlioDataLoaderBucketNames | while read bucket; do
-    # log="$(gsutil -mq mv -r gs://${bucket}/logs/* gs://${bucket}/old-logs/ 2>&1)" || ([[ "${log}" == *"No URLs matched"* ]] && echo "ignored error: ${log}")
-  # done
-#
-  # # cd "${gke_testing_dir}"/examples/dlio
-  # mkdir -pv "${gke_testing_dir}"/bin/dlio-logs "${gke_testing_dir}"/bin/old-dlio-logs/ # backup to avoid failing the next commands
-  # # log="$(rsync -avz --ignore-existing "${gke_testing_dir}"/bin/dlio-logs/* "${gke_testing_dir}"/bin/old-dlio-logs/ 2>&1)" || ( [[ "${log}" == *"some files/attributes were not transferred"* ]] && echo "ignored error: ${log}")
-  # rm -rfv "${gke_testing_dir}"/bin/old-dlio-logs/*
-  # mv -v "${gke_testing_dir}"/bin/dlio-logs/* "${gke_testing_dir}"/bin/old-dlio-logs/ || true
-#
-  # cd -
-# }
-
-# function archiveExistingOutputFiles() {
-  # archiveFioOutputs
-  # archiveDlioOutputs
-# }
-
 function fetchAndParseFioOutputs() {
   echo "Fetching and parsing fio outputs ..."
   cd "${gke_testing_dir}"/examples/fio
@@ -583,7 +499,6 @@ createCustomCsiDriverIfNeeded
 
 # Run latest workload configuration
 deleteAllPods
-# archiveExistingOutputFiles
 updatePodConfigs
 deployAllFioHelmCharts
 deployAllDlioHelmCharts
@@ -596,9 +511,5 @@ waitTillAllPodsComplete
 # clean-up after run
 deleteAllPods
 deleteAllHelmCharts
-# printOutputFioFilesList
-# printOutputDlioFilesList
 fetchAndParseFioOutputs
 fetchAndParseDlioOutputs
-# archiveFioOutputs
-# archiveDlioOutputs
