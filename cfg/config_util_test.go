@@ -16,6 +16,7 @@ package cfg
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -73,4 +74,34 @@ func TestIsFileCacheEnabled(t *testing.T) {
 		})
 	}
 
+}
+
+func Test_ListCacheTtlSecsToDuration(t *testing.T) {
+	var testCases = []struct {
+		testName         string
+		ttlInSecs        int64
+		expectedDuration time.Duration
+	}{
+		{"-1", -1, maxSupportedTTL},
+		{"0", 0, time.Duration(0)},
+		{"max_supported_positive", 9223372036, maxSupportedTTL},
+		{"positive", 1, time.Second},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.testName, func(t *testing.T) {
+			assert.Equal(t, tt.expectedDuration, ListCacheTTLSecsToDuration(tt.ttlInSecs))
+		})
+	}
+}
+
+func Test_ListCacheTtlSecsToDuration_InvalidCall(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("The code did not panic")
+		}
+	}()
+
+	// Calling with invalid argument to trigger panic.
+	ListCacheTTLSecsToDuration(-3)
 }

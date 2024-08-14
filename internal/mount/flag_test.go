@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -84,9 +85,9 @@ func (t *FlagTest) TestResolveMetadataCacheTTL() {
 			// Scenario where user sets only metadata-cache:ttl-secs and sets it to its highest supported value.
 			statCacheTTL: DefaultStatOrTypeCacheTTL,
 			typeCacheTTL: DefaultStatOrTypeCacheTTL,
-			ttlInSeconds: config.MaxSupportedTtlInSeconds,
+			ttlInSeconds: cfg.MaxSupportedTTLInSeconds,
 
-			expectedMetadataCacheTTL: time.Second * time.Duration(config.MaxSupportedTtlInSeconds),
+			expectedMetadataCacheTTL: time.Second * time.Duration(cfg.MaxSupportedTTLInSeconds),
 		},
 		{
 			// Scenario where user sets both the old flags and the metadata-cache:ttl-secs. Here ttl-secs overrides both flags. case 1.
