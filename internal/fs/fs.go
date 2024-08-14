@@ -1675,6 +1675,7 @@ func (fs *fileSystem) createLocalFile(
 
 	fullName := inode.NewFileName(parent.Name(), name)
 	child, ok := fs.localFileInodes[fullName]
+	// Create a new inode if a local file is unlinked and then recreated with the same name.
 	var fileInode *inode.FileInode
 	if child != nil {
 		fileInode = fs.fileInodeOrDie(child.ID())
