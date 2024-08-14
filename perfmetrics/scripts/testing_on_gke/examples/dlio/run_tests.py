@@ -27,6 +27,9 @@ import subprocess
 import dlio_workload
 
 
+_DEFAULT_GCSFUSE_MOUNT_OPTIONS = 'implicit-dirs'
+
+
 def run_command(command: str):
   """Runs the given string command as a subprocess."""
   result = subprocess.run(command.split(' '), capture_output=True, text=True)
@@ -34,11 +37,9 @@ def run_command(command: str):
   print(result.stderr)
 
 
-DEFAULT_GCSFUSE_MOUNT_OPTIONS = 'implicit-dirs'
-
-
-def escapeCommasInString(gcsfuseMountOptions: str) -> str:
-  return gcsfuseMountOptions.replace(',', '\,')
+def escapeCommasInString(unescapedStr: str) -> str:
+  """Returns equivalent string with ',' replaced with '\,' ."""
+  return unescapedStr.replace(',', '\,')
 
 
 def createHelmInstallCommands(
@@ -47,10 +48,10 @@ def createHelmInstallCommands(
     gcsfuseMountOptions: str,
     machineType: str,
 ):
-  """Create helm install commands for the given set of dlioWorkload objects."""
+  """Create helm install commands for the given dlioWorkload objects."""
   helm_commands = []
   if not gcsfuseMountOptions:
-    gcsfuseMountOptions = DEFAULT_GCSFUSE_MOUNT_OPTIONS
+    gcsfuseMountOptions = _DEFAULT_GCSFUSE_MOUNT_OPTIONS
   for dlioWorkload in dlioWorkloads:
     for batchSize in dlioWorkload.batchSizes:
       commands = [
@@ -109,7 +110,11 @@ if __name__ == '__main__':
   )
   parser.add_argument(
       '--instance-id',
-      help='unique string ID for current test-run',
+      metavar='A unique string ID to represent the test-run',
+      help=(
+          'Set to a unique string ID for current test-run. Do not put spaces'
+          ' in it.'
+      ),
       required=True,
   )
   parser.add_argument(
@@ -119,7 +124,7 @@ if __name__ == '__main__':
           'GCSFuse mount-options, in JSON stringified format, to be set for the'
           ' scenario gcsfuse-generic.'
       ),
-      required=True,
+      required=False,
   )
   parser.add_argument(
       '--machine-type',
@@ -136,5 +141,11 @@ if __name__ == '__main__':
           ' not actually run them.'
       ),
   )
+
   args = parser.parse_args()
+  if ' ' in args.instance_id:
+    raise Exception('Argument --instance-id contains space in it')
+  if len(args.machine_type) == 0 or str.isspace(args.machine_type):
+    raise Exception('Argument --machine-type is empty or only spaces')
+
   main(args)
