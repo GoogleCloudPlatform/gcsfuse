@@ -1,5 +1,20 @@
 #!/bin/bash
+#
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
+# This test is for running fio/dlio tests using GKE.
 # This is a stand-alone script, and can be invoked directly by a user.
 # It takes in parameters through environment variables. For learning about them, run this script with `--help` argument.
 # For debugging, pass argument `--debug` which will print all the shell commands that runs.
