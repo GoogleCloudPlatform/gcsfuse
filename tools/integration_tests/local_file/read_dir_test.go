@@ -204,6 +204,6 @@ func TestCreateAndStatLocalFileInSamePathAfterDeletingParentDirectory(t *testing
 	f, err := os.Stat(filePath)
 
 	assert.NoError(t, err)
-	assert.Equal(t, filePath, f.Name())
+	assert.Equal(t, FileName1, f.Name())
 	assert.False(t, f.IsDir())
 }
