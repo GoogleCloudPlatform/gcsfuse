@@ -190,7 +190,6 @@ func TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError(t *testing.T
 
 func TestCreateAndStatLocalFileInSamePathAfterDeletingParentDirectory(t *testing.T) {
 	testDirPath = setup.SetupTestDirectory(testDirName)
-	operations.CreateDirectory(testDirPath, t)
 	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t)
 	filePath := path.Join(testDirPath, FileName1)
 	operations.CreateFile(filePath, FilePerms, t)
