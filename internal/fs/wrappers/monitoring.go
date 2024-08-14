@@ -67,7 +67,7 @@ func init() {
 	}
 }
 
-// errStrAndCategory maps an error to an error string and an error group.
+// errStrAndCategory maps an error to an error string and an error category.
 // Uncommon errors are bucketed into categories to reduce the cardinality of the
 // error so that the metric is not rejected by Cloud Monarch.
 func errStrAndCategory(err error) (str string, category string) {
@@ -81,7 +81,7 @@ func errStrAndCategory(err error) (str string, category string) {
 	return errno.Error(), errCategory(errno)
 }
 
-// errCategory maps an error to an error-group.
+// errCategory maps an error to an error-category.
 // This helps reduce the cardinality of the labels to less than 30.
 // This lower number of errors allows the various errors to get piped to Cloud metrics without getting dropped.
 func errCategory(errno syscall.Errno) string {
@@ -268,13 +268,13 @@ func recordOp(ctx context.Context, method string, start time.Time, fsErr error) 
 
 	// Recording opErrorCount.
 	if fsErr != nil {
-		errStr, errGrp := errStrAndCategory(fsErr)
+		errStr, errCategory := errStrAndCategory(fsErr)
 		if err := stats.RecordWithTags(
 			ctx,
 			[]tag.Mutator{
 				tag.Upsert(tags.FSOp, method),
 				tag.Upsert(tags.FSError, errStr),
-				tag.Upsert(tags.FSErrCategory, errGrp),
+				tag.Upsert(tags.FSErrCategory, errCategory),
 			},
 			opsErrorCount.M(1),
 		); err != nil {
