@@ -15,10 +15,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""This program takes in a json test-config file, finds out valid FIO
+"""Generates and deploys helm charts for FIO workloads.
 
-workloads from it and generates and deploys a helm chart for each FIO
-workload.
+This program takes in a json test-config file, finds out valid FIO workloads in
+it and generates and deploys a helm chart for each valid FIO workload.
 """
 
 import argparse
@@ -33,8 +33,8 @@ def run_command(command: str):
   print(result.stderr)
 
 
-def createHelmInstallCommands(fioWorkloads):
-  """Create helm install commands for the given set of fioWorkload objects."""
+def createHelmInstallCommands(fioWorkloads: set) -> list:
+  """Create helm install commands for the given fioWorkload objects."""
   helm_commands = []
   for fioWorkload in fioWorkloads:
     for readType in fioWorkload.readTypes:
