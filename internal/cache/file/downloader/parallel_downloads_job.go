@@ -177,9 +177,15 @@ func (job *Job) parallelDownloadObjectToFile(cacheFile *os.File) (err error) {
 	}
 
 	for start = 0; start < int64(job.object.Size); {
+		end := min(int64(job.object.Size), start+downloadChunkSize)
+		firstChunk := int64(8 * 1024 * 1024)
+		if start == 0 {
+			end = min(int64(job.object.Size), start+firstChunk)
+		}
+
 		nextRange := data.ObjectRange{
 			Start: start,
-			End:   min(int64(job.object.Size), start+downloadChunkSize),
+			End:   end,
 		}
 
 		select {
