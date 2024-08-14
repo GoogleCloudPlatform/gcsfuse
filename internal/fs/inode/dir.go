@@ -805,7 +805,6 @@ func (d *dirInode) CreateChildFile(ctx context.Context, name string) (*Core, err
 func (d *dirInode) CreateLocalChildFile(name string) (*Core, error) {
 	fullName := NewFileName(d.Name(), name)
 
-	fmt.Println("Local file: ", fullName)
 	return &Core{
 		Bucket:    d.Bucket(),
 		FullName:  fullName,
