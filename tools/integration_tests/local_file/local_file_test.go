@@ -116,7 +116,8 @@ func TestMain(m *testing.M) {
 	}
 
 	// Dynamic mounting tests create a bucket and perform tests on that bucket,
-	// which is not a hierarchical bucket.
+	// which is not a hierarchical bucket. So we are not running those tests with
+	// hierarchical bucket.
 	if successCode == 0 && !setup.IsHierarchicalBucket(ctx, storageClient) {
 		successCode = dynamic_mounting.RunTests(ctx, storageClient, flagsSet, m)
 	}
