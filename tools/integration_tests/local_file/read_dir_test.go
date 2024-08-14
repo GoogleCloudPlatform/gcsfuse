@@ -177,7 +177,6 @@ func TestReadDirWithSameNameLocalAndGCSFile(t *testing.T) {
 }
 
 func TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError(t *testing.T) {
-
 	testDirPath = path.Join(setup.MntDir(), testDirName)
 	//
 	//operations.CreateDirectory(testDirPath, t)
