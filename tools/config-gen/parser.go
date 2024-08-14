@@ -96,7 +96,7 @@ func isSorted(params []Param) error {
 	for _, next := range params[1:] {
 		if (next.ConfigPath != "" && (prev.ConfigPath == "" || prev.ConfigPath > next.ConfigPath)) ||
 			(next.ConfigPath == "" && prev.ConfigPath == "" && prev.FlagName > next.FlagName) {
-			return fmt.Errorf("flag: %s is at an incorrect position. Params should be sorted first by config-path and then by flag-name", next.FlagName)
+			return fmt.Errorf("params.yaml is not sorted - flag: %s is at an incorrect position. Please refer to the documentation in params.yaml to know how to sort", next.FlagName)
 		}
 		prev = next
 	}
