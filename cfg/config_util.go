@@ -14,7 +14,13 @@
 
 package cfg
 
-import "runtime"
+import (
+	"fmt"
+	"os"
+	"runtime"
+	"strings"
+	"time"
+)
 
 func DefaultMaxParallelDownloads() int {
 	return max(16, 2*runtime.NumCPU())
