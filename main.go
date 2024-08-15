@@ -68,7 +68,7 @@ func main() {
 	defer logPanic()
 	// Make logging output better.
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
-	if cfg.IsNewConfigEnabled() {
+	if strings.ToLower(os.Getenv("ENABLE_GCSFUSE_VIPER_CONFIG")) == "true" {
 		// TODO: implement the mount logic instead of simply returning nil.
 		rootCmd, err := cmd.NewRootCmd(func(*cfg.Config, string, string) error { return nil })
 		if err != nil {

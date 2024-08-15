@@ -16,9 +16,7 @@ package cfg
 
 import (
 	"fmt"
-	"os"
 	"runtime"
-	"strings"
 	"time"
 )
 
@@ -42,8 +40,4 @@ func ListCacheTTLSecsToDuration(secs int64) time.Duration {
 	}
 
 	return time.Duration(secs * int64(time.Second))
-}
-
-func IsNewConfigEnabled() bool {
-	return strings.ToLower(os.Getenv("ENABLE_GCSFUSE_VIPER_CONFIG")) == "true"
 }
