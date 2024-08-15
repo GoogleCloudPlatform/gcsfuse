@@ -132,7 +132,7 @@ func (t *HNSBucketTests) TestRenameFolderWithDstDirectoryNotEmpty() {
 	assert.True(t.T(), strings.Contains(err.Error(), "file exists"))
 }
 
-func (t *HNSBucketTests) TestRenameFolderWithSourceDirectoryHaveOpenFiles() {
+func (t *HNSBucketTests) TestRenameFolderWithSourceDirectoryHaveLocalFiles() {
 	oldDirPath := path.Join(mntDir, "foo", "test")
 	_, err = os.Stat(oldDirPath)
 	assert.NoError(t.T(), err)
