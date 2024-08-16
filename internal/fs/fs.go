@@ -825,7 +825,8 @@ func (fs *fileSystem) createDirInode(ic inode.Core, inodes map[inode.Name]inode.
 
 	for n := 0; n < maxTriesToCreateInode; n++ {
 		in, ok := (inodes)[ic.FullName]
-		if !ok || (in != nil && in.IsUnlinkFolder()) {
+		// Create a new inode if a folder is unlinked and then recreated with the same name.
+		if !ok || in.IsUnlinkFolder() {
 			in := fs.mintInode(ic)
 			(inodes)[in.Name()] = in.(inode.DirInode)
 			in.Lock()
