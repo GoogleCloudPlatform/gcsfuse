@@ -203,3 +203,30 @@ func (t *HNSBucketTests) TestRenameFolderWithDifferentParents() {
 	}
 	assert.ElementsMatch(t.T(), actualDirEntries, expectedFooDirEntries)
 }
+
+func (t *HNSBucketTests) TestRenameFolderWithOpenGCSFile() {
+	oldDirPath := path.Join(mntDir, "bar")
+	_, err = os.Stat(oldDirPath)
+	assert.NoError(t.T(), err)
+	newDirPath := path.Join(mntDir, "bar_rename")
+	filePath := path.Join(oldDirPath, "file1.txt")
+	f, err := os.Open(filePath)
+	require.NoError(t.T(), err)
+
+	err = os.Rename(oldDirPath, newDirPath)
+
+	_, err = f.WriteString("test")
+	assert.Error(t.T(), err)
+  assert.True(t.T(), strings.Contains(err.Error(), "bad file descriptor"))
+	assert.NoError(t.T(), f.Close())
+	_, err = os.Stat(oldDirPath)
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+	_, err = os.Stat(newDirPath)
+	assert.NoError(t.T(), err)
+	dirEntries, err := os.ReadDir(newDirPath)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 1, len(dirEntries))
+	assert.Equal(t.T(), "file1.txt", dirEntries[0].Name())
+	assert.False(t.T(), dirEntries[0].IsDir())
+}
