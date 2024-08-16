@@ -40,14 +40,23 @@ then
 fi
 
 run_load_test_and_fetch_metrics(){
+  GCSFUSE_FIO_FLAGS=$1
+  UPLOAD_FLAGS=$2
+  BUCKET_NAME=$3
+  SPREADSHEET_ID=$4
+  GSHEET_CREDENTIALS=$5
+  TEST_TYPE=$6
+  GCSFUSE_LS_FLAGS=$7
+  LS_CONFIG_FILE=$8
+
   # Executing perf tests
-  ./run_load_test_and_fetch_metrics.sh "$1" "$2" "$3" "$4" "$5"
+  ./run_load_test_and_fetch_metrics.sh "$MOUNT_FLAGS" "$UPLOAD_FLAGS" "$BUCKET_NAME" "$SPREADSHEET_ID" "$GSHEET_CREDENTIALS"
 
   # ls_metrics test. This test does gcsfuse mount with the passed flags first and then does the testing.
-  LOG_FILE_LIST_TESTS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-list-logs-$6.txt
-  GCSFUSE_LIST_FLAGS="$7 --log-file $LOG_FILE_LIST_TESTS"
+  LOG_FILE_LIST_TESTS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-list-logs-$TEST_TYPE.txt
+  GCSFUSE_LIST_FLAGS="$GCSFUSE_LS_FLAGS --log-file $LOG_FILE_LIST_TESTS"
   cd "./ls_metrics"
-  ./run_ls_benchmark.sh "$GCSFUSE_LIST_FLAGS" "$2" "$4" "$8"
+  ./run_ls_benchmark.sh "$GCSFUSE_LIST_FLAGS" "$UPLOAD_FLAGS" "$SPREADSHEET_ID" "$LS_CONFIG_FILE"
   cd "../"
 }
 
