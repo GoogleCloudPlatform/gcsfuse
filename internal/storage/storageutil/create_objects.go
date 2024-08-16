@@ -16,8 +16,8 @@ package storageutil
 
 import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
+	"golang.org/x/sync/errgroup"
 )
 
 // Create multiple objects with some parallelism, with contents according to
@@ -26,7 +26,7 @@ func CreateObjects(
 	ctx context.Context,
 	bucket gcs.Bucket,
 	input map[string][]byte) (err error) {
-	bundle := syncutil.NewBundle(ctx)
+	group, derivedContext := errgroup.WithContext(ctx)
 
 	// Feed ObjectInfo records into a channel.
 	type record struct {
@@ -44,10 +44,10 @@ func CreateObjects(
 	// Create the objects in parallel.
 	const parallelism = 64
 	for i := 0; i < parallelism; i++ {
-		bundle.Add(func(ctx context.Context) (err error) {
+		group.Go(func() (err error) {
 			for r := range recordChan {
 				_, err = CreateObject(
-					ctx, bucket,
+					derivedContext, bucket,
 					r.name,
 					r.contents)
 
@@ -60,6 +60,6 @@ func CreateObjects(
 		})
 	}
 
-	err = bundle.Join()
+	err = group.Wait()
 	return
 }
