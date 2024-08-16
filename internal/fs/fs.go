@@ -1976,6 +1976,8 @@ func (fs *fileSystem) Rename(
 	}
 
 	if child.FullName.IsDir() {
+		// If 'enable-hns' flag is false, the bucket type is set to 'NonHierarchical' even for HNS buckets because the control client is nil.
+		// Therefore, an additional 'enable hns' check is not required here.
 		if child.Bucket.BucketType() == gcs.Hierarchical {
 			return fs.renameFolder(ctx, oldParent, op.OldName, newParent, op.NewName)
 		}
@@ -2098,6 +2100,8 @@ func (fs *fileSystem) renameFolder(ctx context.Context, oldParent inode.DirInode
 		}
 		pendingInodes = append(pendingInodes, newDirInode)
 	}
+
+	// The renameDirLimit is not utilized in the folder rename operation because there is no user-defined limit on new renames.
 
 	oldDirName := inode.NewDirName(oldParent.Name(), oldName)
 	newDirName := inode.NewDirName(newParent.Name(), newName)
