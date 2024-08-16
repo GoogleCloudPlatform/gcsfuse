@@ -1979,9 +1979,9 @@ func (fs *fileSystem) Rename(
 		// If 'enable-hns' flag is false, the bucket type is set to 'NonHierarchical' even for HNS buckets because the control client is nil.
 		// Therefore, an additional 'enable hns' check is not required here.
 		if child.Bucket.BucketType() == gcs.Hierarchical {
-			return fs.renameFolder(ctx, oldParent, op.OldName, newParent, op.NewName)
+			return fs.renameHierarchicalDir(ctx, oldParent, op.OldName, newParent, op.NewName)
 		}
-		return fs.renameDir(ctx, oldParent, op.OldName, newParent, op.NewName)
+		return fs.renameNonHierarchicalDir(ctx, oldParent, op.OldName, newParent, op.NewName)
 	}
 	return fs.renameFile(ctx, oldParent, op.OldName, child.MinObject, newParent, op.NewName)
 }
@@ -2074,7 +2074,7 @@ func (fs *fileSystem) checkDirNotEmpty(dir inode.BucketOwnedDirInode, name strin
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_EXCLUDED(oldParent)
 // LOCKS_EXCLUDED(newParent)
-func (fs *fileSystem) renameFolder(ctx context.Context, oldParent inode.DirInode, oldName string, newParent inode.DirInode, newName string) (err error) {
+func (fs *fileSystem) renameHierarchicalDir(ctx context.Context, oldParent inode.DirInode, oldName string, newParent inode.DirInode, newName string) (err error) {
 	// Set up a function that throws away the lookup count increment from
 	// lookUpOrCreateChildInode (since the pending inodes are not sent back to
 	// the kernel) and unlocks the pending inodes, but only once.
@@ -2128,7 +2128,7 @@ func (fs *fileSystem) renameFolder(ctx context.Context, oldParent inode.DirInode
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_EXCLUDED(oldParent)
 // LOCKS_EXCLUDED(newParent)
-func (fs *fileSystem) renameDir(
+func (fs *fileSystem) renameNonHierarchicalDir(
 	ctx context.Context,
 	oldParent inode.DirInode,
 	oldName string,
