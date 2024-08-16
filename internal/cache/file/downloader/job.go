@@ -382,7 +382,7 @@ func (job *Job) createCacheFile() (*os.File, error) {
 	var err error
 	// Try using O_DIRECT while opening file in case of parallel downloads.
 	if job.fileCacheConfig.EnableParallelDownloads {
-		cacheFile, err = cacheutil.CreateFile(job.fileSpec, openFileFlags|syscall.O_DIRECT)
+		cacheFile, err = cacheutil.CreateFile(job.fileSpec, openFileFlags)
 		if errors.Is(err, fs.ErrInvalid) || errors.Is(err, syscall.EINVAL) {
 			logger.Warnf("downloadObjectAsync: failure in opening file with O_DIRECT, falling back to without O_DIRECT")
 			cacheFile, err = cacheutil.CreateFile(job.fileSpec, openFileFlags)
