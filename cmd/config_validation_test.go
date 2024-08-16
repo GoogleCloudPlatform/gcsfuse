@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"path"
 	"runtime"
@@ -262,6 +263,26 @@ func TestValidateConfigFile_InvalidConfigThrowsError(t *testing.T) {
 		{
 			name:       "unsupported_large_kernel_list_cache_TTL",
 			configFile: "testdata/file_system_config/unsupported_large_kernel_list_cache_ttl.yaml",
+		},
+		{
+			name:       "negative_stat_cache_size",
+			configFile: "testdata/metadata_cache/metadata_cache_config_invalid_stat-cache-max-size-mb.yaml",
+		},
+		{
+			name:       "negative_ttl_secs",
+			configFile: "testdata/metadata_cache/metadata_cache_config_invalid_ttl.yaml",
+		},
+		{
+			name:       "negative_type_cache_size",
+			configFile: "testdata/metadata_cache/metadata_cache_config_invalid_type-cache-max-size-mb.yaml",
+		},
+		{
+			name:       "stat_cache_size_too_high",
+			configFile: "testdata/metadata_cache/metadata_cache_config_stat-cache-max-size-mb_too_high.yaml",
+		},
+		{
+			name:       "metadata_cache_size_too_high",
+			configFile: "testdata/metadata_cache/metadata_cache_config_ttl_too_high.yaml",
 		},
 	}
 
@@ -570,6 +591,58 @@ func TestValidateConfigFile_EnableHNSConfigSuccessful(t *testing.T) {
 
 			if assert.NoError(t, err) {
 				assert.EqualValues(t, tc.expectedConfig.EnableHns, gotConfig.EnableHns)
+			}
+		})
+	}
+}
+
+func TestValidateConfigFile_MetadataCacheConfigSuccessful(t *testing.T) {
+	testCases := []struct {
+		name           string
+		configFile     string
+		expectedConfig *cfg.Config
+	}{
+		{
+			// Test default values.
+			name:       "empty_config_file",
+			configFile: "testdata/empty_file.yaml",
+			expectedConfig: &cfg.Config{
+				MetadataCache: cfg.MetadataCacheConfig{
+					DeprecatedStatCacheCapacity:         20460,
+					DeprecatedStatCacheTtl:              60 * time.Second,
+					DeprecatedTypeCacheTtl:              60 * time.Second,
+					EnableNonexistentTypeCache:          false,
+					ExperimentalMetadataPrefetchOnMount: "disabled",
+					StatCacheMaxSizeMb:                  math.MinInt64,
+					TtlSecs:                             math.MinInt64,
+					TypeCacheMaxSizeMb:                  4,
+				},
+			},
+		},
+		{
+			name:       "valid_config_file",
+			configFile: "testdata/valid_config.yaml",
+			expectedConfig: &cfg.Config{
+				MetadataCache: cfg.MetadataCacheConfig{
+					DeprecatedStatCacheCapacity:         200,
+					DeprecatedStatCacheTtl:              30 * time.Second,
+					DeprecatedTypeCacheTtl:              20 * time.Second,
+					EnableNonexistentTypeCache:          true,
+					ExperimentalMetadataPrefetchOnMount: "sync",
+					StatCacheMaxSizeMb:                  40,
+					TtlSecs:                             100,
+					TypeCacheMaxSizeMb:                  10,
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
+
+			if assert.NoError(t, err) {
+				assert.EqualValues(t, tc.expectedConfig.MetadataCache, gotConfig.MetadataCache)
 			}
 		})
 	}

@@ -47,9 +47,9 @@ const (
 )
 
 const (
-	// MaxSupportedTTLInSeconds represents maximum multiple of seconds representable by time.Duration.
-	MaxSupportedTTLInSeconds = math.MaxInt64 / int64(time.Second)
-	maxSupportedTTL          = time.Duration(MaxSupportedTTLInSeconds * int64(time.Second))
+	// maxSupportedTTLInSeconds represents maximum multiple of seconds representable by time.Duration.
+	maxSupportedTTLInSeconds = math.MaxInt64 / int64(time.Second)
+	maxSupportedTTL          = time.Duration(maxSupportedTTLInSeconds * int64(time.Second))
 )
 
 const (
@@ -60,16 +60,11 @@ const (
 	// to be improbable for a user to explicitly set.
 	TtlInSecsUnsetSentinel = math.MinInt64
 
-	// DefaultTypeCacheMaxSizeMB is the default value of type-cache max-size for every directory in MiBs.
-	// The value is set at the size needed for about 21k type-cache entries,
-	// each of which is about 200 bytes in size.
-	DefaultTypeCacheMaxSizeMB = 4
-
 	// StatCacheMaxSizeMBUnsetSentinel is the value internally set for
 	// metadata-cache:stat-cache-max-size-mb when it is not set in the gcsfuse
 	// mount config file.
 	StatCacheMaxSizeMBUnsetSentinel = math.MinInt64
-	MaxSupportedStatCacheMaxSizeMB  = util.MaxMiBsInUint64
+	maxSupportedStatCacheMaxSizeMB  = util.MaxMiBsInUint64
 	// DefaultStatCacheCapacity is the default value for stat-cache-capacity.
 	// This is equivalent of setting metadata-cache: stat-cache-max-size-mb.
 	DefaultStatCacheCapacity = 20460
@@ -87,8 +82,4 @@ const (
 	// and is to be used when neither stat-cache-max-size-mb nor
 	// stat-cache-capacity is set.
 	defaultStatCacheMaxSizeMB = 32
-	// DefaultStatOrTypeCacheTTL is the default value used for
-	// stat-cache-ttl or type-cache-ttl if they have not been set
-	// by the user.
-	DefaultStatOrTypeCacheTTL time.Duration = time.Minute
 )

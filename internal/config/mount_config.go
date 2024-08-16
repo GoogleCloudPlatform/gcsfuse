@@ -39,6 +39,11 @@ const (
 	DefaultParallelDownloadsPerFile = 16
 	DefaultWriteBufferSize          = int64(4 * util.MiB)
 	DefaultDisableODirect           = true
+
+	// DefaultTypeCacheMaxSizeMB is the default value of type-cache max-size for every directory in MiBs.
+	// The value is set at the size needed for about 21k type-cache entries,
+	// each of which is about 200 bytes in size.
+	DefaultTypeCacheMaxSizeMB = 4
 )
 
 type LogConfig struct {
@@ -174,7 +179,7 @@ func NewMountConfig() *MountConfig {
 	}
 	mountConfig.MetadataCacheConfig = MetadataCacheConfig{
 		TtlInSeconds:       cfg.TtlInSecsUnsetSentinel,
-		TypeCacheMaxSizeMB: cfg.DefaultTypeCacheMaxSizeMB,
+		TypeCacheMaxSizeMB: DefaultTypeCacheMaxSizeMB,
 		StatCacheMaxSizeMB: cfg.StatCacheMaxSizeMBUnsetSentinel,
 	}
 	mountConfig.ListConfig = ListConfig{

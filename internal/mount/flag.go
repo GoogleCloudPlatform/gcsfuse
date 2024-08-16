@@ -16,6 +16,7 @@ package mount
 
 import (
 	"strings"
+	"time"
 )
 
 type ClientProtocol string
@@ -27,6 +28,11 @@ const (
 	HTTP2 ClientProtocol = "http2"
 	// Deprecated: Use the constant from cfg package
 	GRPC ClientProtocol = "grpc"
+
+	// DefaultStatOrTypeCacheTTL is the default value used for
+	// stat-cache-ttl or type-cache-ttl if they have not been set
+	// by the user.
+	DefaultStatOrTypeCacheTTL = time.Minute
 )
 
 func (cp ClientProtocol) IsValid() bool {

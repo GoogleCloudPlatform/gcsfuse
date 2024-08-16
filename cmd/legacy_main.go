@@ -34,6 +34,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/monitor"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/perf"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
@@ -132,7 +133,6 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string) (storageHandle
 func mountWithArgs(
 	bucketName string,
 	mountPoint string,
-	mountConfig *config.MountConfig,
 	newConfig *cfg.Config) (mfs *fuse.MountedFileSystem, err error) {
 	// Enable invariant checking if requested.
 	if newConfig.Debug.ExitOnInvariantViolation {
@@ -164,7 +164,6 @@ func mountWithArgs(
 		bucketName,
 		mountPoint,
 		newConfig,
-		mountConfig,
 		storageHandle)
 
 	if err != nil {
@@ -299,7 +298,7 @@ func runCLIApp(c *cli.Context) (err error) {
 	}
 
 	// The following will not warn if the user explicitly passed the default value for StatCacheTTL or TypeCacheTTL.
-	if newConfig.MetadataCache.DeprecatedStatCacheTtl != cfg.DefaultStatOrTypeCacheTTL || newConfig.MetadataCache.DeprecatedTypeCacheTtl != cfg.DefaultStatOrTypeCacheTTL {
+	if newConfig.MetadataCache.DeprecatedStatCacheTtl != mount.DefaultStatOrTypeCacheTTL || newConfig.MetadataCache.DeprecatedTypeCacheTtl != mount.DefaultStatOrTypeCacheTTL {
 		logger.Warnf("Deprecated flag stat-cache-ttl and/or type-cache-ttl used! Please switch to config parameter 'metadata-cache: ttl-secs' .")
 	}
 
@@ -393,7 +392,7 @@ func runCLIApp(c *cli.Context) (err error) {
 	// daemonize gives us and telling it about the outcome.
 	var mfs *fuse.MountedFileSystem
 	{
-		mfs, err = mountWithArgs(bucketName, mountPoint, mountConfig, newConfig)
+		mfs, err = mountWithArgs(bucketName, mountPoint, newConfig)
 
 		// This utility is to absorb the error
 		// returned by daemonize.SignalOutcome calls by simply

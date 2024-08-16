@@ -253,7 +253,7 @@ func NewDirInode(
 	bucket *gcsx.SyncerBucket,
 	mtimeClock timeutil.Clock,
 	cacheClock timeutil.Clock,
-	typeCacheMaxSizeMB int,
+	typeCacheMaxSizeMB int64,
 	isHNSEnabled bool,
 ) (d DirInode) {
 

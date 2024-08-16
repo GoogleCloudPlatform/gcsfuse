@@ -59,7 +59,6 @@ func ResolveMetadataCacheTTL(statCacheTTL, typeCacheTTL time.Duration, ttlInSeco
 	} else {
 		metadataCacheTTL = time.Second * time.Duration(uint64(math.Ceil(math.Min(statCacheTTL.Seconds(), typeCacheTTL.Seconds()))))
 	}
-
 	return
 }
 
@@ -67,7 +66,7 @@ func ResolveMetadataCacheTTL(statCacheTTL, typeCacheTTL time.Duration, ttlInSeco
 func ResolveStatCacheMaxSizeMB(mountConfigStatCacheMaxSizeMB int64, flagStatCacheCapacity int) (statCacheMaxSizeMB uint64, err error) {
 	if mountConfigStatCacheMaxSizeMB != StatCacheMaxSizeMBUnsetSentinel {
 		if mountConfigStatCacheMaxSizeMB == -1 {
-			statCacheMaxSizeMB = MaxSupportedStatCacheMaxSizeMB
+			statCacheMaxSizeMB = maxSupportedStatCacheMaxSizeMB
 		} else {
 			statCacheMaxSizeMB = uint64(mountConfigStatCacheMaxSizeMB)
 		}

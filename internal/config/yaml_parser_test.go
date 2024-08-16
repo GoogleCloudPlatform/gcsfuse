@@ -149,12 +149,6 @@ func (t *YamlParserTest) TestReadConfigFile_InvalidLogConfig() {
 	assert.ErrorContains(t.T(), err, fmt.Sprintf(parseConfigFileErrMsgFormat, "log severity should be one of [trace, debug, info, warning, error, off]"))
 }
 
-func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_InvalidTTL() {
-	_, err := ParseConfigFile("testdata/metadata_cache_config_invalid_ttl.yaml")
-
-	assert.ErrorContains(t.T(), err, MetadataCacheTtlSecsInvalidValueError)
-}
-
 func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_TtlNotSet() {
 	mountConfig, err := ParseConfigFile("testdata/metadata_cache_config_ttl-unset.yaml")
 
@@ -163,30 +157,12 @@ func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_TtlNotSet() {
 	assert.EqualValues(t.T(), cfg.TtlInSecsUnsetSentinel, mountConfig.MetadataCacheConfig.TtlInSeconds)
 }
 
-func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_TtlTooHigh() {
-	_, err := ParseConfigFile("testdata/metadata_cache_config_ttl_too_high.yaml")
-
-	assert.ErrorContains(t.T(), err, MetadataCacheTtlSecsTooHighError)
-}
-
-func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_InvalidTypeCacheMaxSize() {
-	_, err := ParseConfigFile("testdata/metadata_cache_config_invalid_type-cache-max-size-mb.yaml")
-
-	assert.ErrorContains(t.T(), err, TypeCacheMaxSizeMBInvalidValueError)
-}
-
 func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_TypeCacheMaxSizeNotSet() {
 	mountConfig, err := ParseConfigFile("testdata/metadata_cache_config_type-cache-max-size-mb_unset.yaml")
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), mountConfig)
-	assert.Equal(t.T(), cfg.DefaultTypeCacheMaxSizeMB, mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB)
-}
-
-func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_InvalidStatCacheSize() {
-	_, err := ParseConfigFile("testdata/metadata_cache_config_invalid_stat-cache-max-size-mb.yaml")
-
-	assert.ErrorContains(t.T(), err, StatCacheMaxSizeMBInvalidValueError)
+	assert.Equal(t.T(), DefaultTypeCacheMaxSizeMB, mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_StatCacheSizeNotSet() {
@@ -195,12 +171,6 @@ func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_StatCacheSizeNot
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), mountConfig)
 	assert.EqualValues(t.T(), cfg.StatCacheMaxSizeMBUnsetSentinel, mountConfig.MetadataCacheConfig.StatCacheMaxSizeMB)
-}
-
-func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_StatCacheSizeTooHigh() {
-	_, err := ParseConfigFile("testdata/metadata_cache_config_stat-cache-max-size-mb_too_high.yaml")
-
-	assert.ErrorContains(t.T(), err, StatCacheMaxSizeMBTooHighError)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_GrpcClientConfig_invalidConnPoolSize() {

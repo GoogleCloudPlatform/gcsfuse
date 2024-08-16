@@ -15,6 +15,7 @@
 package cmd
 
 import (
+	"math"
 	"os"
 	"path"
 	"runtime"
@@ -761,6 +762,65 @@ func TestArgsParsing_EnableHNSFlags(t *testing.T) {
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedEnableHNS, gotEnableHNS)
+			}
+		})
+	}
+}
+
+func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
+	tests := []struct {
+		name           string
+		args           []string
+		expectedConfig *cfg.Config
+	}{
+		{
+			name: "normal",
+			args: []string{"gcsfuse", "--stat-cache-capacity=2000", "--stat-cache-ttl=2m", "--type-cache-ttl=1m20s", "--enable-nonexistent-type-cache", "--experimental-metadata-prefetch-on-mount=async", "--stat-cache-max-size-mb=15", "--metadata-cache-ttl-secs=25", "--type-cache-max-size-mb=30", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				MetadataCache: cfg.MetadataCacheConfig{
+					DeprecatedStatCacheCapacity:         2000,
+					DeprecatedStatCacheTtl:              2 * time.Minute,
+					DeprecatedTypeCacheTtl:              80 * time.Second,
+					EnableNonexistentTypeCache:          true,
+					ExperimentalMetadataPrefetchOnMount: "async",
+					StatCacheMaxSizeMb:                  15,
+					TtlSecs:                             25,
+					TypeCacheMaxSizeMb:                  30,
+				},
+			},
+		},
+		{
+			name: "default",
+			args: []string{"gcsfuse", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				MetadataCache: cfg.MetadataCacheConfig{
+					DeprecatedStatCacheCapacity:         20460,
+					DeprecatedStatCacheTtl:              60 * time.Second,
+					DeprecatedTypeCacheTtl:              60 * time.Second,
+					EnableNonexistentTypeCache:          false,
+					ExperimentalMetadataPrefetchOnMount: "disabled",
+					StatCacheMaxSizeMb:                  math.MinInt64,
+					TtlSecs:                             math.MinInt64,
+					TypeCacheMaxSizeMb:                  4,
+				},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotConfig *cfg.Config
+			cmd, err := NewRootCmd(func(cfg *cfg.Config, _, _ string) error {
+				gotConfig = cfg
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(tc.args)
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedConfig.MetadataCache, gotConfig.MetadataCache)
 			}
 		})
 	}

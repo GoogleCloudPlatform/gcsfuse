@@ -19,7 +19,6 @@ import (
 	"os"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"golang.org/x/net/context"
@@ -40,7 +39,6 @@ func mountWithStorageHandle(
 	bucketName string,
 	mountPoint string,
 	newConfig *cfg.Config,
-	mountConfig *config.MountConfig,
 	storageHandle storage.StorageHandle) (mfs *fuse.MountedFileSystem, err error) {
 	// Sanity check: make sure the temporary directory exists and is writable
 	// currently. This gives a better user experience than harder to debug EIO
@@ -85,11 +83,11 @@ be interacting with the file system.`)
 		gid = uint32(newConfig.FileSystem.Gid)
 	}
 
-	metadataCacheTTL := cfg.ResolveMetadataCacheTTL(newConfig.MetadataCache.DeprecatedStatCacheTtl, newConfig.MetadataCache.DeprecatedTypeCacheTtl, mountConfig.MetadataCacheConfig.TtlInSeconds)
-	statCacheMaxSizeMB, err := cfg.ResolveStatCacheMaxSizeMB(mountConfig.StatCacheMaxSizeMB, int(newConfig.MetadataCache.DeprecatedStatCacheCapacity))
+	metadataCacheTTL := cfg.ResolveMetadataCacheTTL(newConfig.MetadataCache.DeprecatedStatCacheTtl, newConfig.MetadataCache.DeprecatedTypeCacheTtl, newConfig.MetadataCache.TtlSecs)
+	statCacheMaxSizeMB, err := cfg.ResolveStatCacheMaxSizeMB(newConfig.MetadataCache.StatCacheMaxSizeMb, int(newConfig.MetadataCache.DeprecatedStatCacheCapacity))
 	if err != nil {
-		return nil, fmt.Errorf("failed to calculate StatCacheMaxSizeMB from stat-cache-capacity=%v, metadata-cache:stat-cache-max-size-mb=%v: %w",
-			newConfig.MetadataCache.DeprecatedStatCacheCapacity, mountConfig.StatCacheMaxSizeMB, err)
+		return nil, fmt.Errorf("failed to calculate StatCacheMaxSizeMb from stat-cache-capacity=%v, metadata-cache:stat-cache-max-size-mb=%v: %w",
+			newConfig.MetadataCache.DeprecatedStatCacheCapacity, newConfig.MetadataCache.StatCacheMaxSizeMb, err)
 	}
 
 	bucketCfg := gcsx.BucketConfig{
@@ -123,7 +121,6 @@ be interacting with the file system.`)
 		RenameDirLimit:             newConfig.FileSystem.RenameDirLimit,
 		SequentialReadSizeMb:       int32(newConfig.GcsConnection.SequentialReadSizeMb),
 		EnableNonexistentTypeCache: newConfig.MetadataCache.EnableNonexistentTypeCache,
-		MountConfig:                mountConfig,
 		NewConfig:                  newConfig,
 	}
 
