@@ -215,6 +215,7 @@ func (t *HNSBucketTests) TestRenameFolderWithOpenGCSFile() {
 
 	err = os.Rename(oldDirPath, newDirPath)
 
+	require.NoError(t.T(), err)
 	_, err = f.WriteString("test")
 	assert.Error(t.T(), err)
 	assert.True(t.T(), strings.Contains(err.Error(), "bad file descriptor"))
