@@ -526,7 +526,7 @@ func (fs *fileSystem) checkInvariantsForLocalFileInodes() {
 	for _, in := range fs.inodes {
 		fileInode, ok := in.(*inode.FileInode)
 
-		if ok && fileInode.IsLocal() && !fileInode.IsUnlinked(){
+		if ok && fileInode.IsLocal() && !fileInode.IsUnlinked() {
 			if !(fs.localFileInodes[in.Name()] == in) {
 				panic(fmt.Sprintf(
 					"localFileInodes mismatch: %q %v %v",
