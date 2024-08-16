@@ -275,7 +275,7 @@ func makeRootForBucket(
 		fs.mtimeClock,
 		fs.cacheClock,
 		fs.mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB,
-		fs.mountConfig.EnableHNS,
+		fs.newConfig.EnableHns,
 	)
 }
 
@@ -731,7 +731,7 @@ func (fs *fileSystem) createExplicitDirInode(inodeID fuseops.InodeID, ic inode.C
 		fs.mtimeClock,
 		fs.cacheClock,
 		fs.mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB,
-		fs.mountConfig.EnableHNS)
+		fs.newConfig.EnableHns)
 
 	return in
 }
@@ -774,7 +774,7 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 			fs.mtimeClock,
 			fs.cacheClock,
 			fs.mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB,
-			fs.mountConfig.EnableHNS,
+			fs.newConfig.EnableHns,
 		)
 
 	case inode.IsSymlink(ic.MinObject):
@@ -1709,7 +1709,7 @@ func (fs *fileSystem) CreateFile(
 	}
 	// Create the child.
 	var child inode.Inode
-	if fs.mountConfig.CreateEmptyFile {
+	if fs.newConfig.Write.CreateEmptyFile {
 		child, err = fs.createFile(ctx, op.Parent, op.Name, op.Mode)
 	} else {
 		child, err = fs.createLocalFile(op.Parent, op.Name)
