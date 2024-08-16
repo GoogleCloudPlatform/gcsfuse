@@ -2101,7 +2101,7 @@ func (fs *fileSystem) renameFolder(ctx context.Context, oldParent inode.DirInode
 		pendingInodes = append(pendingInodes, newDirInode)
 	}
 
-	// The renameDirLimit is not utilized in the folder rename operation because there is no user-defined limit on new renames.
+	// Note:The renameDirLimit is not utilized in the folder rename operation because there is no user-defined limit on new renames.
 
 	oldDirName := inode.NewDirName(oldParent.Name(), oldName)
 	newDirName := inode.NewDirName(newParent.Name(), newName)
