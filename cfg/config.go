@@ -541,9 +541,9 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("metadata-cache-ttl", "", 60, "The ttl value in seconds to be used for expiring items in metadata-cache. It can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled metadata-cache. Any value set below -1 will throw an error.\"")
+	flagSet.IntP("metadata-cache-ttl-secs", "", TtlInSecsUnsetSentinel, "The ttl value in seconds to be used for expiring items in metadata-cache. It can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled metadata-cache. Any value set below -1 will throw an error.\"")
 
-	if err := v.BindPFlag("metadata-cache.ttl-secs", flagSet.Lookup("metadata-cache-ttl")); err != nil {
+	if err := v.BindPFlag("metadata-cache.ttl-secs", flagSet.Lookup("metadata-cache-ttl-secs")); err != nil {
 		return err
 	}
 
@@ -611,7 +611,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("stat-cache-max-size-mb", "", 32, "The maximum size of stat-cache in MiBs. It can also be set to -1 for no-size-limit, 0 for no cache. Values below -1 are not supported.")
+	flagSet.IntP("stat-cache-max-size-mb", "", StatCacheMaxSizeMBUnsetSentinel, "The maximum size of stat-cache in MiBs. It can also be set to -1 for no-size-limit, 0 for no cache. Values below -1 are not supported.")
 
 	if err := v.BindPFlag("metadata-cache.stat-cache-max-size-mb", flagSet.Lookup("stat-cache-max-size-mb")); err != nil {
 		return err

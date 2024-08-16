@@ -94,7 +94,7 @@ func isTTLInSecsValid(secs int64) error {
 	if secs < -1 {
 		return fmt.Errorf("the value of ttl-secs can't be less than -1")
 	}
-	if secs > MaxSupportedTTLInSeconds {
+	if secs > maxSupportedTTLInSeconds {
 		return fmt.Errorf("the value of ttl-secs is too high to be supported. Max is 9223372036")
 	}
 	return nil
@@ -103,6 +103,30 @@ func isTTLInSecsValid(secs int64) error {
 func isValidKernelListCacheTTL(TTLSecs int64) error {
 	if err := isTTLInSecsValid(TTLSecs); err != nil {
 		return fmt.Errorf("invalid kernelListCacheTtlSecs: %w", err)
+	}
+	return nil
+}
+
+func isValidMetadataCache(c MetadataCacheConfig) error {
+	if c.TtlSecs != TtlInSecsUnsetSentinel {
+		if c.TtlSecs < -1 {
+			return fmt.Errorf("the value of ttl-secs for metadata-cache can't be less than -1")
+		}
+		if c.TtlSecs > maxSupportedTTLInSeconds {
+			return fmt.Errorf("the value of ttl-secs in metadata-cache is too high to be supported. Max is 9223372036")
+		}
+	}
+	if c.TypeCacheMaxSizeMb < -1 {
+		return fmt.Errorf("the value of type-cache-max-size-mb for metadata-cache can't be less than -1")
+	}
+
+	if c.StatCacheMaxSizeMb != StatCacheMaxSizeMBUnsetSentinel {
+		if c.StatCacheMaxSizeMb < -1 {
+			return fmt.Errorf("the value of stat-cache-max-size-mb for metadata-cache can't be less than -1")
+		}
+		if c.StatCacheMaxSizeMb > int64(maxSupportedStatCacheMaxSizeMB) {
+			return fmt.Errorf("the value of stat-cache-max-size-mb for metadata-cache is too high! Max supported: 17592186044415")
+		}
 	}
 	return nil
 }
@@ -137,6 +161,10 @@ func ValidateConfig(config *Config) error {
 
 	if err = isValidKernelListCacheTTL(config.FileSystem.KernelListCacheTtlSecs); err != nil {
 		return fmt.Errorf("error parsing kernel-list-cache-ttl-secs config: %w", err)
+	}
+
+	if err = isValidMetadataCache(config.MetadataCache); err != nil {
+		return fmt.Errorf("error parsing metadata-cache config: %w", err)
 	}
 
 	return nil

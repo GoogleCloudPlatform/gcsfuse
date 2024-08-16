@@ -1,3 +1,17 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 #################################### DOCUMENTATION STARTS ######################
 # Params structure
 # flag-name: Name of the CLI flag.
@@ -460,16 +474,16 @@
   usage: >-
     The maximum size of stat-cache in MiBs. It can also be set to -1 for
     no-size-limit, 0 for no cache. Values below -1 are not supported.
-  default: "32"
+  default: StatCacheMaxSizeMBUnsetSentinel
 
 - config-path: "metadata-cache.ttl-secs"
-  flag-name: "metadata-cache-ttl"
+  flag-name: "metadata-cache-ttl-secs"
   type: "int"
   usage: >-
     The ttl value in seconds to be used for expiring items in metadata-cache. It
     can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled
     metadata-cache. Any value set below -1 will throw an error."
-  default: "60"
+  default: TtlInSecsUnsetSentinel
 
 - config-path: "metadata-cache.type-cache-max-size-mb"
   flag-name: "type-cache-max-size-mb"

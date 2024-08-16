@@ -82,7 +82,7 @@ func (t *ZeroTtlTypeCacheTest) SetUp(ti *TestInfo) {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func createNewTypeCache(maxSizeMB int, ttl time.Duration) *typeCache {
+func createNewTypeCache(maxSizeMB int64, ttl time.Duration) *typeCache {
 	tc := NewTypeCache(maxSizeMB, ttl)
 
 	AssertNe(nil, tc)
@@ -97,7 +97,7 @@ func createNewTypeCache(maxSizeMB int, ttl time.Duration) *typeCache {
 
 func (t *TypeCacheTest) TestNewTypeCache() {
 	input := []struct {
-		maxSizeMB          int
+		maxSizeMB          int64
 		ttl                time.Duration
 		entriesShouldBeNil bool
 	}{

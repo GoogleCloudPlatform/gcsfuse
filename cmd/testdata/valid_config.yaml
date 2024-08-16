@@ -41,3 +41,12 @@ file-system:
 list:
   enable-empty-managed-folders: true
 enable-hns: true
+metadata-cache:
+  deprecated-stat-cache-capacity: 200
+  deprecated-stat-cache-ttl: 30s
+  deprecated-type-cache-ttl: 20s
+  enable-nonexistent-type-cache: true
+  experimental-metadata-prefetch-on-mount: sync
+  stat-cache-max-size-mb: 40
+  ttl-secs: 100
+  type-cache-max-size-mb: 10

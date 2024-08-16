@@ -117,7 +117,7 @@ type MultiBucketStatCacheTest struct {
 }
 
 func (t *StatCacheTest) SetupTest() {
-	cache := lru.NewCache((cfg.AverageSizeOfPositiveStatCacheEntry + cfg.AverageSizeOfNegativeStatCacheEntry) * capacity)
+	cache := lru.NewCache(uint64((cfg.AverageSizeOfPositiveStatCacheEntry + cfg.AverageSizeOfNegativeStatCacheEntry) * capacity))
 	t.cache.wrapped = metadata.NewStatCacheBucketView(cache, "") // this demonstrates
 	t.statCache = metadata.NewStatCacheBucketView(cache, "")     // this demonstrates
 	// that if you are using a cache for a single bucket, then
@@ -125,7 +125,7 @@ func (t *StatCacheTest) SetupTest() {
 }
 
 func (t *MultiBucketStatCacheTest) SetupTest() {
-	sharedCache := lru.NewCache((cfg.AverageSizeOfPositiveStatCacheEntry + cfg.AverageSizeOfNegativeStatCacheEntry) * capacity)
+	sharedCache := lru.NewCache(uint64((cfg.AverageSizeOfPositiveStatCacheEntry + cfg.AverageSizeOfNegativeStatCacheEntry) * capacity))
 	t.multiBucketCache.fruits = testHelperCache{wrapped: metadata.NewStatCacheBucketView(sharedCache, "fruits")}
 	t.multiBucketCache.spices = testHelperCache{wrapped: metadata.NewStatCacheBucketView(sharedCache, "spices")}
 }

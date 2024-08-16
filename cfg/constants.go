@@ -47,9 +47,9 @@ const (
 )
 
 const (
-	// MaxSupportedTTLInSeconds represents maximum multiple of seconds representable by time.Duration.
-	MaxSupportedTTLInSeconds = math.MaxInt64 / int64(time.Second)
-	maxSupportedTTL          = time.Duration(MaxSupportedTTLInSeconds * int64(time.Second))
+	// maxSupportedTTLInSeconds represents maximum multiple of seconds representable by time.Duration.
+	maxSupportedTTLInSeconds = math.MaxInt64 / int64(time.Second)
+	maxSupportedTTL          = time.Duration(maxSupportedTTLInSeconds * int64(time.Second))
 )
 
 const (
@@ -69,7 +69,7 @@ const (
 	// metadata-cache:stat-cache-max-size-mb when it is not set in the gcsfuse
 	// mount config file.
 	StatCacheMaxSizeMBUnsetSentinel = math.MinInt64
-	MaxSupportedStatCacheMaxSizeMB  = util.MaxMiBsInUint64
+	maxSupportedStatCacheMaxSizeMB  = util.MaxMiBsInUint64
 	// DefaultStatCacheCapacity is the default value for stat-cache-capacity.
 	// This is equivalent of setting metadata-cache: stat-cache-max-size-mb.
 	DefaultStatCacheCapacity = 20460

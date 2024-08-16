@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -42,10 +41,8 @@ func (t *KernelListCacheTestWithInfiniteTtl) SetupSuite() {
 		FileSystem: cfg.FileSystemConfig{
 			KernelListCacheTtlSecs: -1,
 		},
-	}
-	t.serverCfg.MountConfig = &config.MountConfig{
-		MetadataCacheConfig: config.MetadataCacheConfig{
-			TtlInSeconds: 0,
+		MetadataCache: cfg.MetadataCacheConfig{
+			TtlSecs: 0,
 		},
 	}
 	t.serverCfg.RenameDirLimit = 10

@@ -157,9 +157,9 @@ func TestResolveMetadataCacheTTL(t *testing.T) {
 			name:         "metadata_cache_ttl_maximum",
 			statCacheTTL: DefaultStatOrTypeCacheTTL,
 			typeCacheTTL: DefaultStatOrTypeCacheTTL,
-			ttlInSeconds: MaxSupportedTTLInSeconds,
+			ttlInSeconds: maxSupportedTTLInSeconds,
 
-			expectedMetadataCacheTTL: time.Second * time.Duration(MaxSupportedTTLInSeconds),
+			expectedMetadataCacheTTL: time.Second * time.Duration(maxSupportedTTLInSeconds),
 		},
 		{
 			// Scenario where user sets both the old flags and the
@@ -249,7 +249,7 @@ func TestResolveStatCacheMaxSizeMB(t *testing.T) {
 			name:                          "stat_cache_size_mb_-1",
 			flagStatCacheCapacity:         DefaultStatCacheCapacity,
 			mountConfigStatCacheMaxSizeMB: -1,
-			expectedStatCacheMaxSizeMB:    MaxSupportedStatCacheMaxSizeMB,
+			expectedStatCacheMaxSizeMB:    maxSupportedStatCacheMaxSizeMB,
 		},
 		{
 			// Scenario where user sets only metadata-cache:stat-cache-max-size-mb and
@@ -272,8 +272,8 @@ func TestResolveStatCacheMaxSizeMB(t *testing.T) {
 			// sets it to its highest user-input value.
 			name:                          "stat_cache_size_mb_maximum",
 			flagStatCacheCapacity:         DefaultStatCacheCapacity,
-			mountConfigStatCacheMaxSizeMB: int64(MaxSupportedStatCacheMaxSizeMB),
-			expectedStatCacheMaxSizeMB:    MaxSupportedStatCacheMaxSizeMB,
+			mountConfigStatCacheMaxSizeMB: int64(maxSupportedStatCacheMaxSizeMB),
+			expectedStatCacheMaxSizeMB:    maxSupportedStatCacheMaxSizeMB,
 		},
 		{
 			// Scenario where user sets both stat-cache-capacity and the
@@ -291,7 +291,7 @@ func TestResolveStatCacheMaxSizeMB(t *testing.T) {
 			name:                          "both_stat_cache_size_mb_and_capacity_set_2",
 			flagStatCacheCapacity:         10000,
 			mountConfigStatCacheMaxSizeMB: -1,
-			expectedStatCacheMaxSizeMB:    MaxSupportedStatCacheMaxSizeMB,
+			expectedStatCacheMaxSizeMB:    maxSupportedStatCacheMaxSizeMB,
 		},
 		{
 			// Scenario where user sets both stat-cache-capacity and the
