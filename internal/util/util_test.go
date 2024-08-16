@@ -16,7 +16,6 @@ package util
 
 import (
 	"context"
-	"errors"
 	"math"
 	"os"
 	"path/filepath"
@@ -146,55 +145,6 @@ func (ts *UtilTest) ResolveWhenParentProcDirEnvSetAndAbsoluteFilePath() {
 
 	assert.Equal(ts.T(), nil, err)
 	assert.Equal(ts.T(), "/var/dir/test.txt", resolvedPath)
-}
-
-func (ts *UtilTest) TestStringifyShouldReturnAllFieldsPassedInCustomObjectAsMarshalledString() {
-	sampleMap := map[string]int{
-		"1": 1,
-		"2": 2,
-		"3": 3,
-	}
-	sampleNestedValue := nestedCustomType{
-		SomeField: 10,
-		SomeOther: sampleMap,
-	}
-	customObject := &customTypeForSuccess{
-		Value:       "test_value",
-		NestedValue: sampleNestedValue,
-	}
-
-	actual, _ := Stringify(customObject)
-
-	expected := "{\"Value\":\"test_value\",\"NestedValue\":{\"SomeField\":10,\"SomeOther\":{\"1\":1,\"2\":2,\"3\":3}}}"
-	assert.Equal(ts.T(), expected, actual)
-}
-
-func (ts *UtilTest) TestStringifyShouldReturnEmptyStringWhenMarshalErrorsOut() {
-	customInstance := customTypeForError{
-		value: "example",
-	}
-
-	actual, _ := Stringify(customInstance)
-
-	expected := ""
-	assert.Equal(ts.T(), expected, actual)
-}
-
-type customTypeForSuccess struct {
-	Value       string
-	NestedValue nestedCustomType
-}
-type nestedCustomType struct {
-	SomeField int
-	SomeOther map[string]int
-}
-type customTypeForError struct {
-	value string
-}
-
-// MarshalJSON returns an error to simulate a failure during JSON marshaling
-func (c customTypeForError) MarshalJSON() ([]byte, error) {
-	return nil, errors.New("intentional error during JSON marshaling")
 }
 
 func (ts *UtilTest) TestMiBsToBytes() {
