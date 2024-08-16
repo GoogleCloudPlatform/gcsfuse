@@ -726,3 +726,40 @@ func TestArgsParsing_ListFlags(t *testing.T) {
 		})
 	}
 }
+
+func TestArgsParsing_EnableHNSFlags(t *testing.T) {
+	tests := []struct {
+		name              string
+		args              []string
+		expectedEnableHNS bool
+	}{
+		{
+			name:              "normal",
+			args:              []string{"gcsfuse", "--enable-hns", "abc", "pqr"},
+			expectedEnableHNS: true,
+		},
+		{
+			name:              "default",
+			args:              []string{"gcsfuse", "abc", "pqr"},
+			expectedEnableHNS: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotEnableHNS bool
+			cmd, err := NewRootCmd(func(cfg *cfg.Config, _, _ string) error {
+				gotEnableHNS = cfg.EnableHns
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(tc.args)
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedEnableHNS, gotEnableHNS)
+			}
+		})
+	}
+}

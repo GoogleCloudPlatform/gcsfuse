@@ -19,7 +19,7 @@ import (
 	"path"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -34,7 +34,7 @@ type HNSBucketTests struct {
 func TestHNSBucketTests(t *testing.T) { suite.Run(t, new(HNSBucketTests)) }
 
 func (t *HNSBucketTests) SetupSuite() {
-	t.serverCfg.MountConfig = &config.MountConfig{EnableHNS: true}
+	t.serverCfg.NewConfig = &cfg.Config{EnableHns: true}
 	t.serverCfg.ImplicitDirectories = false
 	bucketType = gcs.Hierarchical
 	t.fsTest.SetUpTestSuite()
