@@ -66,7 +66,7 @@ func TestMain(m *testing.M) {
 
 	// Create storage client before running tests.
 	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
-		hnsFlagSet = append(hnsFlagSet, "--kernel-list-cache-ttl-secs=-1")
+		hnsFlagSet = append(hnsFlagSet, "--kernel-list-cache-ttl-secs=0")
 		flagsSet = append(flagsSet, hnsFlagSet)
 	}
 
