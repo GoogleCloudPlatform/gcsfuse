@@ -40,46 +40,47 @@ then
 fi
 
 run_load_test_and_fetch_metrics(){
-  gcsfuse_fio_flags=$1
-  upload_flags=$2
-  bucket_name=$3
-  spreadsheet_id=$4
-  gsheet_credentials=$5
-  test_type=$6
-  gcsfuse_ls_flags=$7
-  ls_config_file=$8
+  fio_flags=$1
+  gcsfuse_flags="$COMMON_MOUNT_FLAGS $fio_flags"
+  bucket_name=$2
+  spreadsheet_id=$3
 
   # Executing perf tests
-  ./run_load_test_and_fetch_metrics.sh "$gcsfuse_fio_flags" "$upload_flags" "$bucket_name" "$spreadsheet_id" "$gsheet_credentials"
+  ./run_load_test_and_fetch_metrics.sh "$gcsfuse_flags" "$UPLOAD_FLAGS" "$bucket_name" "$spreadsheet_id"
+}
 
-  # ls_metrics test. This test does gcsfuse mount with the passed flags first and then does the testing.
-  log_file_list_tests=${KOKORO_ARTIFACTS_DIR}/gcsfuse-list-logs-$test_type.txt
-  gcsfuse_list_flags="$gcsfuse_ls_flags --log-file $log_file_list_tests"
+run_ls_benchmark(){
+  ls_flags=$1
+  gcsfuse_flags="$COMMON_MOUNT_FLAGS $ls_flags"
+  spreadsheet_id="$2"
+  config_file="$3"
+
   cd "./ls_metrics"
-  ./run_ls_benchmark.sh "$gcsfuse_list_flags" "$upload_flags" "$spreadsheet_id" "$ls_config_file"
+  ./run_ls_benchmark.sh "$gcsfuse_flags" "$UPLOAD_FLAGS" "$spreadsheet_id" "$config_file"
   cd "../"
 }
 
-GCSFUSE_FLAGS="--implicit-dirs  --debug_fuse --debug_gcs --log-format \"text\" "
+COMMON_MOUNT_FLAGS="--debug_fuse --debug_gcs --log-format \"text\""
+
+# Testing for flat bucket.
 LOG_FILE_FIO_TESTS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-flat.txt
-GCSFUSE_FIO_FLAGS="$GCSFUSE_FLAGS --log-file $LOG_FILE_FIO_TESTS --stackdriver-export-interval=30s"
+GCSFUSE_FIO_FLAGS="--implicit-dirs --stackdriver-export-interval=30s --log-file $LOG_FILE_FIO_TESTS"
+GCSFUSE_LS_FLAGS="--implicit-dirs"
 BUCKET_NAME="periodic-perf-tests"
 SPREADSHEET_ID='1kvHv1OBCzr9GnFxRu9RTJC7jjQjc9M4rAiDnhyak2Sg'
-GSHEET_CREDENTIALS="gs://periodic-perf-tests/creds.json"
 LIST_CONFIG_FILE="config.json"
-run_load_test_and_fetch_metrics "$GCSFUSE_FIO_FLAGS" "$UPLOAD_FLAGS" "$BUCKET_NAME" "$SPREADSHEET_ID" "$GSHEET_CREDENTIALS" "flat" "$GCSFUSE_FLAGS" "$LIST_CONFIG_FILE"
+run_load_test_and_fetch_metrics "$GCSFUSE_FIO_FLAGS" "$BUCKET_NAME" "$SPREADSHEET_ID"
+run_ls_benchmark "$GCSFUSE_LS_FLAGS" "$SPREADSHEET_ID" "$LIST_CONFIG_FILE"
 
-touch config.yml
+# Testing for hns bucket.
 echo "enable-hns: true
 metadata-cache:
-  ttl-secs: 0" > config.yml
-COMMON_MOUNT_FLAGS="--debug_fuse --debug_gcs --log-format \"text\""
-GCSFUSE_LS_FLAGS="--config-file=../config.yml $COMMON_MOUNT_FLAGS"
+  ttl-secs: 0" > /tmp/config.yml
 LOG_FILE_FIO_TESTS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-hns.txt
-GCSFUSE_FIO_FLAGS="--config-file=config.yml $COMMON_MOUNT_FLAGS --log-file $LOG_FILE_FIO_TESTS --stackdriver-export-interval=30s"
+GCSFUSE_FIO_FLAGS="--config-file=/tmp/config.yml --stackdriver-export-interval=30s --log-file $LOG_FILE_FIO_TESTS"
+GCSFUSE_LS_FLAGS="--config-file=/tmp/config.yml"
 BUCKET_NAME="periodic-perf-tests-hns"
 SPREADSHEET_ID='1wXRGYyAWvasU8U4KaP7NGPHEvgiOSgMd1sCLxsQUwf0'
-GSHEET_CREDENTIALS="gs://periodic-perf-tests-hns/creds.json"
 LIST_CONFIG_FILE="config-hns.json"
-run_load_test_and_fetch_metrics "$GCSFUSE_FIO_FLAGS" "$UPLOAD_FLAGS" "$BUCKET_NAME" "$SPREADSHEET_ID" "$GSHEET_CREDENTIALS" "hns" "$GCSFUSE_LS_FLAGS" "$LIST_CONFIG_FILE"
-rm config.yml
+run_load_test_and_fetch_metrics "$GCSFUSE_FIO_FLAGS" "$BUCKET_NAME" "$SPREADSHEET_ID"
+run_ls_benchmark "$GCSFUSE_LS_FLAGS" "$SPREADSHEET_ID" "$LIST_CONFIG_FILE"
