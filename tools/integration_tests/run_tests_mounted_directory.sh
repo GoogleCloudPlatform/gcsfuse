@@ -325,27 +325,26 @@ sudo umount $MOUNT_DIR
 
 # Run read cache functional tests.
 function read_cache_test_setup() {
-  cache_size_mb=$1
-  enable_range_read_cache=$2
-  cache_ttl=$3
+    local cache_size_mb=$1
+    local enable_range_read_cache=$2
+    local cache_ttl=$3
+    local enable_parallel_downloads=$4
 
-  cleanup_test_environment
-  generate_config_file "$cache_size_mb" "$enable_range_read_cache" "$cache_ttl"
+    cleanup_test_environment
+    generate_config_file "$cache_size_mb" "$enable_range_read_cache" "$cache_ttl" "$enable_parallel_downloads"
 }
 
 function cleanup_test_environment() {
-  # Clean up any pre-existing log files.
-  rm -r /tmp/gcsfuse_read_cache_test_logs
-  mkdir /tmp/gcsfuse_read_cache_test_logs
-  # Clean up cache directory.
-  rm -r /tmp/cache-dir
-  mkdir /tmp/cache-dir
+    # Clean up any pre-existing log files and cache directory.
+    rm -rf /tmp/gcsfuse_read_cache_test_logs /tmp/cache-dir
+    mkdir -p /tmp/gcsfuse_read_cache_test_logs /tmp/cache-dir
 }
 
 function generate_config_file() {
-  cache_size_mb=$1
-  enable_range_read_cache=$2
-  cache_ttl=$3
+  local cache_size_mb=$1
+  local enable_range_read_cache=$2
+  local cache_ttl=$3
+  local enable_parallel_downloads=$4
 
   echo "logging:
   file-path: /tmp/gcsfuse_read_cache_test_logs/log.json
@@ -354,6 +353,11 @@ function generate_config_file() {
 file-cache:
   max-size-mb: $cache_size_mb
   cache-file-for-range-read: $enable_range_read_cache
+  enable-parallel-downloads: $enable_parallel_downloads
+  parallel-downloads-per-file: 4
+  max-parallel-downloads: -1
+  download-chunk-size-mb: 3
+  enable-crc: true
 metadata-cache:
   stat-cache-max-size-mb: 4
   ttl-secs: $cache_ttl
@@ -361,61 +365,78 @@ metadata-cache:
 cache-dir: /tmp/cache-dir" > /tmp/gcsfuse_config.yaml
 }
 
+function run_read_cache_test() {
+    local test_case=$1
+    local optional_flags=$2
+
+    if [ -n "$optional_flags" ]; then
+      gcsfuse "$optional_flags" --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
+    else
+      gcsfuse --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
+    fi
+    GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$test_case"
+    sudo umount "$MOUNT_DIR"
+    cleanup_test_environment
+}
+
 # Read-cache test with cache-file-for-range-read:false.
-read_cache_test_setup 50 false 3600
 test_cases=(
   "TestCacheFileForRangeReadFalseTest/TestRangeReadsWithCacheMiss"
   "TestCacheFileForRangeReadFalseTest/TestConcurrentReads_ReadIsTreatedNonSequentialAfterFileIsRemovedFromCache"
 )
+# 1. With disabled parallel downloads.
+read_cache_test_setup 50 false 3600 false
 for test_case in "${test_cases[@]}"; do
-  gcsfuse --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
-  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$test_case"
-  sudo umount "$MOUNT_DIR"
-  cleanup_test_environment
+  run_read_cache_test "$test_case"
 done
+# 2. With enabled parallel downloads.
+read_cache_test_setup 50 false 3600 true
+run_read_cache_test "${test_cases[0]}"
 
 # Read-cache test with cache-file-for-range-read:true.
-read_cache_test_setup 50 true 3600
 test_case="TestCacheFileForRangeReadTrueTest/TestRangeReadsWithCacheHit"
-gcsfuse --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$test_case"
-sudo umount "$MOUNT_DIR"
-cleanup_test_environment
-
+# 1. With disabled parallel downloads.
+read_cache_test_setup 50 true 3600 false
+run_read_cache_test "$test_case"
+# 2. With enabled parallel downloads.
+read_cache_test_setup 50 true 3600 true
+run_read_cache_test "$test_case"
 
 # Read-cache test with disabled cache ttl.
-read_cache_test_setup 9 false 0
 test_case="TestDisabledCacheTTLTest/TestReadAfterObjectUpdateIsCacheMiss"
-gcsfuse --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$test_case"
-sudo umount "$MOUNT_DIR"
-cleanup_test_environment
+# 1. With disabled parallel downloads.
+read_cache_test_setup 9 false 0 false
+run_read_cache_test "$test_case"
+# 2. With enabled parallel downloads.
+read_cache_test_setup 9 false 0 true
+run_read_cache_test "$test_case"
 
 # Read-cache test with local modification.
-read_cache_test_setup 9 false 3600
 test_case="TestLocalModificationTest/TestReadAfterLocalGCSFuseWriteIsCacheMiss"
-gcsfuse --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$test_case"
-sudo umount "$MOUNT_DIR"
-cleanup_test_environment
+# 1. With disabled parallel downloads.
+read_cache_test_setup 9 false 3600 false
+run_read_cache_test "$test_case"
+# 2. With enabled parallel downloads.
+read_cache_test_setup 9 false 3600 true
+run_read_cache_test "$test_case"
 
 # Read-cache tests for range reads.
 test_cases=(
   "TestRangeReadTest/TestRangeReadsWithinReadChunkSize"
   "TestRangeReadTest/TestRangeReadsBeyondReadChunkSizeWithChunkDownloaded"
 )
-run_range_read_test_with_read_cache() {
-  read_cache_test_setup 500 $1 3600
-  gcsfuse --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
-  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$2"
-  sudo umount "$MOUNT_DIR"
-}
 for test_case in "${test_cases[@]}"; do
-    # Run range read test with cache-file-for-range-read: false.
-    run_range_read_test_with_read_cache false "$test_case"
-    # Run range read test with cache-file-for-range-read: true.
-    run_range_read_test_with_read_cache true "$test_case"
+  # 1. With disabled parallel downloads.
+  read_cache_test_setup 500 false 3600 false
+  run_read_cache_test "$test_case"
+  read_cache_test_setup 500 true 3600 false
+  run_read_cache_test "$test_case"
 done
+# 2. With enabled parallel downloads.
+read_cache_test_setup 500 false 3600 true
+run_read_cache_test "${test_cases[1]}"
+read_cache_test_setup 500 true 3600 true
+run_read_cache_test "${test_cases[1]}"
 
 # Read cache tests on read only mount.
 test_cases=(
@@ -426,37 +447,36 @@ test_cases=(
   "TestReadOnlyTest/TestReadMultipleFilesWithinCacheLimit"
 )
 
-run_read_only_test_with_read_cache() {
-  read_cache_test_setup 9 $1 3600
-  gcsfuse --o=ro --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
-  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$2"
-  sudo umount "$MOUNT_DIR"
-}
-
 for test_case in "${test_cases[@]}"; do
-  # Run read only test with cache-file-for-range-read: false.
-  run_read_only_test_with_read_cache false "$test_case"
-  # Run read only test with cache-file-for-range-read: true.
-  run_read_only_test_with_read_cache true "$test_case"
+  # 1. With disabled parallel downloads.
+  read_cache_test_setup 9 false 3600 false
+  run_read_cache_test "$test_case" "--o=ro"
+  read_cache_test_setup 9 true 3600 false
+  run_read_cache_test "$test_case" "--o=ro"
+  # 2. With enabled parallel downloads.
+  read_cache_test_setup 9 false 3600 true
+  run_read_cache_test "$test_case" "--o=ro"
+  read_cache_test_setup 9 true 3600 true
+  run_read_cache_test "$test_case" "--o=ro"
 done
 
 # Read cache tests with small cache ttl.
-read_cache_test_setup 9 false 10
 test_cases=(
   "TestSmallCacheTTLTest/TestReadAfterUpdateAndCacheExpiryIsCacheMiss"
   "TestSmallCacheTTLTest/TestReadForLowMetaDataCacheTTLIsCacheHit"
 )
 for test_case in "${test_cases[@]}"; do
-  gcsfuse --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
-  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$test_case"
-  sudo umount "$MOUNT_DIR"
-  cleanup_test_environment
+  # 1. With disabled parallel downloads.
+  read_cache_test_setup 9 false 10 false
+  run_read_cache_test "$test_case"
+  # 2. With enabled parallel downloads.
+  read_cache_test_setup 9 false 10 true
+  run_read_cache_test "$test_case"
 done
 
+# Package managed_folders
 echo "list:
   enable-empty-managed-folders: true" > /tmp/gcsfuse_config.yaml
-
-# Package managed_folders
 # Empty managed folders listing test.
 # Run test with static mounting (flags: --implicit-dirs)
 gcsfuse --implicit-dirs --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
