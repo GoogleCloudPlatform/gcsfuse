@@ -85,8 +85,8 @@ be interacting with the file system.`)
 		gid = uint32(newConfig.FileSystem.Gid)
 	}
 
-	metadataCacheTTL := mount.ResolveMetadataCacheTTL(newConfig.MetadataCache.DeprecatedStatCacheTtl, newConfig.MetadataCache.DeprecatedTypeCacheTtl, mountConfig.MetadataCacheConfig.TtlInSeconds)
-	statCacheMaxSizeMB, err := mount.ResolveStatCacheMaxSizeMB(mountConfig.StatCacheMaxSizeMB, int(newConfig.MetadataCache.DeprecatedStatCacheCapacity))
+	metadataCacheTTL := cfg.ResolveMetadataCacheTTL(newConfig.MetadataCache.DeprecatedStatCacheTtl, newConfig.MetadataCache.DeprecatedTypeCacheTtl, mountConfig.MetadataCacheConfig.TtlInSeconds)
+	statCacheMaxSizeMB, err := cfg.ResolveStatCacheMaxSizeMB(mountConfig.StatCacheMaxSizeMB, int(newConfig.MetadataCache.DeprecatedStatCacheCapacity))
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate StatCacheMaxSizeMB from stat-cache-capacity=%v, metadata-cache:stat-cache-max-size-mb=%v: %w",
 			newConfig.MetadataCache.DeprecatedStatCacheCapacity, mountConfig.StatCacheMaxSizeMB, err)
