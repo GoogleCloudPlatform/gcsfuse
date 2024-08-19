@@ -122,6 +122,7 @@ func (t *HNSBucketTests) TestRenameFolderWithDstDirectoryNotEmpty() {
 	oldDirPath := path.Join(mntDir, "foo")
 	_, err = os.Stat(oldDirPath)
 	assert.NoError(t.T(), err)
+	// We have created file1.txt in bar directory in setup.
 	newDirPath := path.Join(mntDir, "bar")
 	_, err = os.Stat(newDirPath)
 	assert.NoError(t.T(), err)
@@ -132,11 +133,32 @@ func (t *HNSBucketTests) TestRenameFolderWithDstDirectoryNotEmpty() {
 	assert.True(t.T(), strings.Contains(err.Error(), "file exists"))
 }
 
+func (t *HNSBucketTests) TestRenameFolderWithEmptySourceDirectory() {
+	oldDirPath := path.Join(mntDir, "foo", "test2")
+	_, err = os.Stat(oldDirPath)
+	assert.NoError(t.T(), err)
+	newDirPath := path.Join(mntDir, "foo_rename")
+	_, err = os.Stat(newDirPath)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+
+	err = os.Rename(oldDirPath, newDirPath)
+
+	assert.NoError(t.T(), err)
+	_, err = os.Stat(oldDirPath)
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+	_, err = os.Stat(newDirPath)
+	assert.NoError(t.T(), err)
+	dirEntries, err := os.ReadDir(newDirPath)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 0, len(dirEntries))
+}
+
 func (t *HNSBucketTests) TestRenameFolderWithSourceDirectoryHaveLocalFiles() {
 	oldDirPath := path.Join(mntDir, "foo", "test")
 	_, err = os.Stat(oldDirPath)
 	assert.NoError(t.T(), err)
-	file, err := os.OpenFile(path.Join(oldDirPath, "file4.txt"), os.O_RDWR|os.O_CREATE, 0600)
+	file, err := os.OpenFile(path.Join(oldDirPath, "file4.txt"), os.O_RDWR|os.O_CREATE, filePerms)
 	assert.NoError(t.T(), err)
 	defer file.Close()
 	newDirPath := path.Join(mntDir, "bar", "foo_rename")
