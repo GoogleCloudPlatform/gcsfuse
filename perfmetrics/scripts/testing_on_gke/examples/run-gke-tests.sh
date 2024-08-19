@@ -195,7 +195,7 @@ function installDependencies() {
   which python3
   # Ensure that make is installed.
   which make || (sudo apt-get update && sudo apt-get install -y make time)
-  # Ensure that go is installed
+  # Ensure that go is installed.
   which go || (version=1.22.4 && wget -O go_tar.tar.gz https://go.dev/dl/go${version}.linux-amd64.tar.gz 1>/dev/null && sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz 1>/dev/null && sudo mv go /usr/local && echo $PATH && export PATH=$PATH:/usr/local/go/bin && echo $PATH && echo 'export PATH=$PATH:/usr/local/go/bin'>>~/.bashrc && go version)
   # for some reason, the above is unable to update the value of $PATH, so doing it explicitly below.
   export PATH=$PATH:/usr/local/go/bin
@@ -425,7 +425,7 @@ function createCustomCsiDriverIfNeeded() {
     echo "Building custom CSI driver ..."
 
     # Create a bucket for storing custom-csi driver.
-    test -n "${package_bucket}" || export package_bucket=${USER}-gcsfuse-binary-package
+    test -n "${package_bucket}" || export package_bucket=${USER/google/}-gcsfuse-binary-package
     (gcloud storage buckets list | grep -wqo ${package_bucket}) || (region=$(echo ${zone} | rev | cut -d- -f2- | rev) && gcloud storage buckets create gs://${package_bucket} --location=${region})
 
     # Build a new gcsfuse binary

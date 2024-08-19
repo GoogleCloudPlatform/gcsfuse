@@ -30,6 +30,8 @@ def is_mash_installed() -> bool:
     return True
   except subprocess.CalledProcessError:
     return False
+  except FileNotFoundError:
+    return False
 
 
 def get_memory(
