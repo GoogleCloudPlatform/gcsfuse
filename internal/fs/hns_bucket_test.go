@@ -122,7 +122,7 @@ func (t *HNSBucketTests) TestRenameFolderWithDstDirectoryNotEmpty() {
 	oldDirPath := path.Join(mntDir, "foo")
 	_, err = os.Stat(oldDirPath)
 	assert.NoError(t.T(), err)
-	// We have created file1.txt in bar directory in setup.
+	// In the setup phase, we created file1.txt within the bar directory.
 	newDirPath := path.Join(mntDir, "bar")
 	_, err = os.Stat(newDirPath)
 	assert.NoError(t.T(), err)
