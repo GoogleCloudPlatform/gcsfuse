@@ -253,7 +253,7 @@ func (d *baseDirInode) RenameFolder(ctx context.Context, folderName string, dest
 }
 
 func (d *baseDirInode) IsUnlinkFolder() bool {
-	return true
+	return false
 }
 
 func (d *baseDirInode) UnLinkFolder() {
