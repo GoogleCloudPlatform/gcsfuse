@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -44,7 +43,7 @@ func (t *MainTest) TestCreateStorageHandle() {
 		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"}}
 
 	userAgent := "AppName"
-	storageHandle, err := createStorageHandle(newConfig, &config.MountConfig{}, userAgent)
+	storageHandle, err := createStorageHandle(newConfig, userAgent)
 
 	assert.Equal(t.T(), nil, err)
 	assert.NotEqual(t.T(), nil, storageHandle)
@@ -57,7 +56,7 @@ func (t *MainTest) TestCreateStorageHandle_WithClientProtocolAsGRPC() {
 	}
 
 	userAgent := "AppName"
-	storageHandle, err := createStorageHandle(newConfig, &config.MountConfig{}, userAgent)
+	storageHandle, err := createStorageHandle(newConfig, userAgent)
 
 	assert.Equal(t.T(), nil, err)
 	assert.NotEqual(t.T(), nil, storageHandle)
