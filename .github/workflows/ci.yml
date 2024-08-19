@@ -26,7 +26,7 @@ jobs:
   linux-tests:
     strategy:
       matrix:
-        go: [ 1.22.x ]
+        go: [ 1.23.x ]
     runs-on: ubuntu-20.04
     timeout-minutes: 15
 
@@ -56,7 +56,7 @@ jobs:
     - name: Setup Go
       uses: actions/setup-go@v3
       with:
-        go-version: "1.22"
+        go-version: "1.23"
     - name: checkout code
       uses: actions/checkout@v3
     - name: golangci-lint
