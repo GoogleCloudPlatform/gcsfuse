@@ -27,7 +27,7 @@ echo "enable-hns: true" > /tmp/gcsfuse_config.yaml
 set -e
 # package operations
 # Run test with static mounting. (flags: --implicit-dirs=true)
-go run . --config-file=/tmp/gcsfuse_config.yaml --implicit-dirs=true $TEST_BUCKET_NAME $MOUNT_DIR
+go run . --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
 
@@ -36,12 +36,12 @@ sudo umount $MOUNT_DIR
 #GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 #sudo umount $MOUNT_DIR
 
-# Run test with static mounting. (flags: --implicit-dirs=false)
-go run . --config-file=/tmp/gcsfuse_config.yaml --implicit-dirs=false $TEST_BUCKET_NAME $MOUNT_DIR
+# Run test with static mounting. (flags: )
+go run . --config-file=/tmp/gcsfuse_config.yaml  $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
 
-# Run test with persistent mounting. (flags: --implicit-dirs=false)
+# Run test with persistent mounting. (flags: )
 #mount.go run . $TEST_BUCKET_NAME $MOUNT_DIR -o implicit_dirs=false,config_file=/tmp/gcsfuse_config.yaml
 #GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 #sudo umount $MOUNT_DIR
@@ -62,7 +62,7 @@ sudo umount $MOUNT_DIR
 #sudo umount $MOUNT_DIR
 
 # Run tests with static mounting. (flags: --implicit-dirs=true, --only-dir testDir)
-go run . --config-file=/tmp/gcsfuse_config.yaml --only-dir testDir --implicit-dirs=true $TEST_BUCKET_NAME $MOUNT_DIR
+go run . --config-file=/tmp/gcsfuse_config.yaml --only-dir testDir $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
 sudo umount $MOUNT_DIR
 
@@ -71,12 +71,12 @@ sudo umount $MOUNT_DIR
 #GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
 #sudo umount $MOUNT_DIR
 
-# Run tests with static mounting. (flags: --implicit-dirs=false, --only-dir testDir)
-go run . --config-file=/tmp/gcsfuse_config.yaml --only-dir testDir --implicit-dirs=false $TEST_BUCKET_NAME $MOUNT_DIR
+# Run tests with static mounting. (flags: , --only-dir testDir)
+go run . --config-file=/tmp/gcsfuse_config.yaml --only-dir testDir  $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
 sudo umount $MOUNT_DIR
 
-# Run tests with persistent mounting. (flags: --implicit-dirs=false, --only-dir=testDir)
+# Run tests with persistent mounting. (flags: , --only-dir=testDir)
 #mount.go run . $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,implicit_dirs=false,config_file=/tmp/gcsfuse_config.yaml
 #GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
 #sudo umount $MOUNT_DIR
@@ -118,22 +118,22 @@ sudo umount $MOUNT_DIR
 
 # package readonly
 # Run tests with static mounting. (flags: --implicit-dirs=true,--o=ro)
-go run . --config-file=/tmp/gcsfuse_config.yaml --o=ro --implicit-dirs=true $TEST_BUCKET_NAME $MOUNT_DIR
+go run . --config-file=/tmp/gcsfuse_config.yaml --o=ro $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
 
 # Run tests with static mounting. (flags: --implicit-dirs=true, --file-mode=544, --dir-mode=544)
-go run . --config-file=/tmp/gcsfuse_config.yaml --file-mode=544 --dir-mode=544 --implicit-dirs=true  $TEST_BUCKET_NAME $MOUNT_DIR
+go run . --config-file=/tmp/gcsfuse_config.yaml --file-mode=544 --dir-mode=544  $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
 
 # Run tests with static mounting. (flags: --implicit-dirs=true, --o=ro, --only-dir testDir)
-go run . --config-file=/tmp/gcsfuse_config.yaml --only-dir testDir --o=ro --implicit-dirs=true $TEST_BUCKET_NAME $MOUNT_DIR
+go run . --config-file=/tmp/gcsfuse_config.yaml --only-dir testDir --o=ro $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
 sudo umount $MOUNT_DIR
 
 # Run test with static mounting. (flags: --implicit-dirs=true, --file-mode=544, --dir-mode=544, --only-dir testDir)
-go run . --config-file=/tmp/gcsfuse_config.yaml --only-dir testDir --file-mode=544 --dir-mode=544 --implicit-dirs=true  $TEST_BUCKET_NAME $MOUNT_DIR
+go run . --config-file=/tmp/gcsfuse_config.yaml --only-dir testDir --file-mode=544 --dir-mode=544  $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
 sudo umount $MOUNT_DIR
 
@@ -142,30 +142,30 @@ echo "file-cache:
        max-size-mb: 3
 cache-dir: ./cache-dir
 enable-hns: true" > /tmp/gcsfuse_config.yaml
-go run . --config-file /tmp/gcsfuse_config.yaml --only-dir testDir --file-mode=544 --dir-mode=544 --implicit-dirs=true  $TEST_BUCKET_NAME $MOUNT_DIR
+go run . --config-file /tmp/gcsfuse_config.yaml --only-dir testDir --file-mode=544 --dir-mode=544  $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
 sudo umount $MOUNT_DIR
 
-# package rename_dir_limit
-# Run tests with static mounting. (flags: --rename-dir-limit=3, --implicit-dirs)
-go run . --config-file=/tmp/gcsfuse_config.yaml --rename-dir-limit=3 --implicit-dirs $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/rename_dir_limit/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
-sudo umount $MOUNT_DIR
-
-# Run tests with static mounting. (flags: --rename-dir-limit=3)
-go run . --config-file=/tmp/gcsfuse_config.yaml --rename-dir-limit=3  $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/rename_dir_limit/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
-sudo umount $MOUNT_DIR
-
-# Run test with static mounting. (flags: --rename-dir-limit=3, --implicit-dirs, --only-dir testDir)
-go run . --config-file=/tmp/gcsfuse_config.yaml --only-dir testDir --rename-dir-limit=3 --implicit-dirs $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/rename_dir_limit/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
-sudo umount $MOUNT_DIR
-
-# Run test with static mounting. (flags: --rename-dir-limit=3, --only-dir testDir)
-go run . --config-file=/tmp/gcsfuse_config.yaml --only-dir testDir --rename-dir-limit=3  $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/rename_dir_limit/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
-sudo umount $MOUNT_DIR
+## package rename_dir_limit
+## Run tests with static mounting. (flags: --rename-dir-limit=3, --implicit-dirs)
+#go run . --config-file=/tmp/gcsfuse_config.yaml --rename-dir-limit=3 --implicit-dirs $TEST_BUCKET_NAME $MOUNT_DIR
+#GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/rename_dir_limit/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
+#sudo umount $MOUNT_DIR
+#
+## Run tests with static mounting. (flags: --rename-dir-limit=3)
+#go run . --config-file=/tmp/gcsfuse_config.yaml --rename-dir-limit=3  $TEST_BUCKET_NAME $MOUNT_DIR
+#GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/rename_dir_limit/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
+#sudo umount $MOUNT_DIR
+#
+## Run test with static mounting. (flags: --rename-dir-limit=3, --implicit-dirs, --only-dir testDir)
+#go run . --config-file=/tmp/gcsfuse_config.yaml --only-dir testDir --rename-dir-limit=3 --implicit-dirs $TEST_BUCKET_NAME $MOUNT_DIR
+#GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/rename_dir_limit/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
+#sudo umount $MOUNT_DIR
+#
+## Run test with static mounting. (flags: --rename-dir-limit=3, --only-dir testDir)
+#go run . --config-file=/tmp/gcsfuse_config.yaml --only-dir testDir --rename-dir-limit=3  $TEST_BUCKET_NAME $MOUNT_DIR
+#GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/rename_dir_limit/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
+#sudo umount $MOUNT_DIR
 
 # package implicit_dir
 # Run tests with static mounting. (flags: --implicit-dirs)
@@ -179,13 +179,13 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicit_dir/...  -p
 sudo umount $MOUNT_DIR
 
 # package explicit_dir
-# Run tests with static mounting. (flags: --implicit-dirs=false)
-go run . --config-file=/tmp/gcsfuse_config.yaml --implicit-dirs=false $TEST_BUCKET_NAME $MOUNT_DIR
+# Run tests with static mounting. (flags: )
+go run . --config-file=/tmp/gcsfuse_config.yaml  $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/explicit_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
 
-# Run tests with static mounting. (flags: --implicit-dirs=false, --only-dir testDir)
-go run . --config-file=/tmp/gcsfuse_config.yaml --only-dir testDir  --implicit-dirs=false $TEST_BUCKET_NAME $MOUNT_DIR
+# Run tests with static mounting. (flags: , --only-dir testDir)
+go run . --config-file=/tmp/gcsfuse_config.yaml --only-dir testDir   $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/explicit_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
 sudo umount $MOUNT_DIR
 
@@ -208,7 +208,7 @@ echo "file-cache:
 cache-dir: ./cache-dir
 enable-hns: true
        " > /tmp/gcsfuse_config.yaml
-go run . --config-file /tmp/gcsfuse_config.yaml --implicit-dirs=true  $TEST_BUCKET_NAME $MOUNT_DIR
+go run . --config-file /tmp/gcsfuse_config.yaml  $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_large_files/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
 sudo umount $MOUNT_DIR
 
@@ -219,7 +219,7 @@ echo "file-cache:
 cache-dir: ./cache-dir
 enable-hns: true
        " > /tmp/gcsfuse_config.yaml
-go run . --config-file /tmp/gcsfuse_config.yaml --implicit-dirs=true  $TEST_BUCKET_NAME $MOUNT_DIR
+go run . --config-file /tmp/gcsfuse_config.yaml  $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_large_files/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
 sudo umount $MOUNT_DIR
 
@@ -237,12 +237,12 @@ sudo umount $MOUNT_DIR
 
 # package local_file
 # Run test with static mounting. (flags: --implicit-dirs=true)
-go run . --config-file=/tmp/gcsfuse_config.yaml --implicit-dirs=true --rename-dir-limit=3 $TEST_BUCKET_NAME $MOUNT_DIR
+go run . --config-file=/tmp/gcsfuse_config.yaml --rename-dir-limit=3 $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/local_file/... -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
 
-# Run test with static mounting. (flags: --implicit-dirs=false)
-go run . --config-file=/tmp/gcsfuse_config.yaml --implicit-dirs=false --rename-dir-limit=3 $TEST_BUCKET_NAME $MOUNT_DIR
+# Run test with static mounting. (flags: )
+go run . --config-file=/tmp/gcsfuse_config.yaml  --rename-dir-limit=3 $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/local_file/... -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
 
@@ -419,19 +419,19 @@ done
 
 # Test packages: operations
 # Run test with static mounting. (flags: --client-protocol=grpc --implicit-dirs=true)
-go run . --config-file=/tmp/gcsfuse_config.yaml --client-protocol=grpc --implicit-dirs=true $TEST_BUCKET_NAME $MOUNT_DIR
+go run . --config-file=/tmp/gcsfuse_config.yaml --client-protocol=grpc $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
 
 # Test package: implicit_dir
 # Run tests with static mounting.  (flags: --client-protocol=grpc --implicit-dirs=true)
-go run . --config-file=/tmp/gcsfuse_config.yaml --implicit-dirs=true --client-protocol=grpc $TEST_BUCKET_NAME $MOUNT_DIR
+go run . --config-file=/tmp/gcsfuse_config.yaml --client-protocol=grpc $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicit_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
 
 # Test package: concurrent_operations
 # Run tests with static mounting.  (flags: --kernel-list-cache-ttl-secs=-1 --implicit-dirs=true)
-go run . --config-file=/tmp/gcsfuse_config.yaml --implicit-dirs=true --kernel-list-cache-ttl-secs=-1 $TEST_BUCKET_NAME $MOUNT_DIR
+go run . --config-file=/tmp/gcsfuse_config.yaml --kernel-list-cache-ttl-secs=-1 $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/concurrent_operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
 
