@@ -216,7 +216,7 @@ type dirInode struct {
 	prevDirListingTimeStamp time.Time
 	isHNSEnabled            bool
 
-	// Represents if folder has been unlinked in Hierarchical bucket.
+	// Represents if folder has been unlinked in hierarchical bucket.
 	unlinkFolder bool
 }
 
