@@ -1680,7 +1680,7 @@ func (fs *fileSystem) createLocalFile(
 		return
 	}
 
-	// Create a new inode when a new file is created, or when a local file is unlinked and then recreated with the same name.
+	// Create a new inode when a file is created first time, or when a local file is unlinked and then recreated with the same name.
 	var result *inode.Core
 	result, err = parent.CreateLocalChildFile(name)
 	if err != nil {
