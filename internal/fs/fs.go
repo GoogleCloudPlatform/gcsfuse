@@ -526,7 +526,7 @@ func (fs *fileSystem) checkInvariantsForLocalFileInodes() {
 	for _, in := range fs.inodes {
 		fileInode, ok := in.(*inode.FileInode)
 
-		if ok && fileInode.IsLocal() {
+		if ok && fileInode.IsLocal() && !fileInode.IsUnlinked() {
 			if !(fs.localFileInodes[in.Name()] == in) {
 				panic(fmt.Sprintf(
 					"localFileInodes mismatch: %q %v %v",
@@ -1675,22 +1675,26 @@ func (fs *fileSystem) createLocalFile(
 
 	fullName := inode.NewFileName(parent.Name(), name)
 	child, ok := fs.localFileInodes[fullName]
-	if !ok {
-		var result *inode.Core
-		result, err = parent.CreateLocalChildFile(name)
-		if err != nil {
-			return
-		}
 
-		child = fs.mintInode(*result)
-		fs.localFileInodes[child.Name()] = child
+	if ok && !child.(*inode.FileInode).IsUnlinked() {
+		return
+	}
 
-		// Empty file is created to be able to set attributes on the file.
-		fileInode := child.(*inode.FileInode)
-		err = fileInode.CreateEmptyTempFile()
-		if err != nil {
-			return
-		}
+	// Create a new inode when a file is created first time, or when a local file is unlinked and then recreated with the same name.
+	var result *inode.Core
+	result, err = parent.CreateLocalChildFile(name)
+	if err != nil {
+		return
+	}
+
+	child = fs.mintInode(*result)
+	fs.localFileInodes[child.Name()] = child
+
+	// Empty file is created to be able to set attributes on the file.
+	fileInode := child.(*inode.FileInode)
+	err = fileInode.CreateEmptyTempFile()
+	if err != nil {
+		return
 	}
 
 	return

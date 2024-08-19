@@ -831,3 +831,29 @@ func (t *LocalFileTest) AtimeMtimeAndCtime() {
 	ExpectThat(atime, timeutil.TimeNear(createTime, Delta))
 	ExpectThat(ctime, timeutil.TimeNear(createTime, Delta))
 }
+
+// Create local file inside - test.txt
+// Stat that local file.
+// Remove the local file.
+// Create local file with the same name - test.txt
+// Stat that local file.
+func (t *LocalFileTest) TestStatLocalFileAfterRecreatingItWithSameName() {
+	filePath := path.Join(mntDir, "test.txt")
+	AssertEq(nil, err)
+	f1, err := os.Create(filePath)
+	defer AssertEq(nil, f1.Close())
+	AssertEq(nil, err)
+	_, err = os.Stat(filePath)
+	AssertEq(nil, err)
+	err = os.Remove(filePath)
+	AssertEq(nil, err)
+	f2, err := os.Create(filePath)
+	AssertEq(nil, err)
+	defer AssertEq(nil, f2.Close())
+
+	f, err := os.Stat(filePath)
+
+	AssertEq(nil, err)
+	ExpectEq("test.txt", f.Name())
+	ExpectFalse(f.IsDir())
+}

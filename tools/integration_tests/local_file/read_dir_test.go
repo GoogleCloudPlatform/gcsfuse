@@ -28,6 +28,8 @@ import (
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // //////////////////////////////////////////////////////////////////////
@@ -185,4 +187,21 @@ func TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError(t *testing.T
 	go readingDirNTimesShouldNotThrowError(200, &wg, t)
 
 	wg.Wait()
+}
+
+func TestStatLocalFileAfterRecreatingItWithSameName(t *testing.T) {
+	testDirPath = setup.SetupTestDirectory(testDirName)
+	filePath := path.Join(testDirPath, FileName1)
+	operations.CreateFile(filePath, FilePerms, t)
+	_, err := os.Stat(filePath)
+	require.NoError(t, err)
+	err = os.Remove(filePath)
+	require.NoError(t, err)
+	operations.CreateFile(filePath, FilePerms, t)
+
+	f, err := os.Stat(filePath)
+
+	assert.NoError(t, err)
+	assert.Equal(t, FileName1, f.Name())
+	assert.False(t, f.IsDir())
 }
