@@ -24,6 +24,7 @@ MOUNT_DIR=$2
 export CGO_ENABLED=0
 echo "enable-hns: true" > /tmp/gcsfuse_config.yaml
 
+set -e
 # package operations
 # Run test with static mounting. (flags: --implicit-dirs=true)
 gcsfuse --config-file=/tmp/gcsfuse_config.yaml --implicit-dirs=true $TEST_BUCKET_NAME $MOUNT_DIR
@@ -115,8 +116,7 @@ sudo umount $MOUNT_DIR
 echo "file-cache:
        max-size-mb: 3
 cache-dir: ./cache-dir
-enable-hns: true
-       " > /tmp/gcsfuse_config.yaml
+enable-hns: true" > /tmp/gcsfuse_config.yaml
 gcsfuse --config-file /tmp/gcsfuse_config.yaml --only-dir testDir --file-mode=544 --dir-mode=544 --implicit-dirs=true  $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
 sudo umount $MOUNT_DIR
