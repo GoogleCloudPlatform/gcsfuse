@@ -1,0 +1,72 @@
+{
+  "name": "list-benchmark-tests-hns" ,
+  "num_folders": 11 ,
+  "folders": [
+    {
+      "name": "1KB_1000files_0subdir" ,
+      "num_files": 1000 ,
+      "file_name_prefix": "file" ,
+      "file_size": "1kb"
+    } ,
+    {
+      "name": "1KB_2000files_0subdir" ,
+      "num_files": 2000 ,
+      "file_name_prefix": "file" ,
+      "file_size": "1kb"
+    } ,
+    {
+      "name": "1KB_3000files_0subdir" ,
+      "num_files": 3000 ,
+      "file_name_prefix": "file" ,
+      "file_size": "1kb"
+    } ,
+    {
+      "name": "1KB_5000files_0subdir" ,
+      "num_files": 5000 ,
+      "file_name_prefix": "file" ,
+      "file_size": "1kb"
+    } ,
+    {
+      "name": "1KB_10000files_0subdir" ,
+      "num_files": 10000 ,
+      "file_name_prefix": "file" ,
+      "file_size": "1kb"
+    } ,
+    {
+      "name": "1KB_25000files_0subdir" ,
+      "num_files": 25000 ,
+      "file_name_prefix": "file" ,
+      "file_size": "1kb"
+    } ,
+    {
+      "name": "1KB_35000files_0subdir" ,
+      "num_files": 35000 ,
+      "file_name_prefix": "file" ,
+      "file_size": "1kb"
+    } ,
+    {
+      "name": "1KB_50000files_0subdir" ,
+      "num_files": 50000 ,
+      "file_name_prefix": "file" ,
+      "file_size": "1kb"
+    } ,
+    {
+      "name": "1KB_75000files_0subdir" ,
+      "num_files": 75000 ,
+      "file_name_prefix": "file" ,
+      "file_size": "1kb"
+    } ,
+    {
+      "name": "1KB_100000files_0subdir" ,
+      "num_files": 100000 ,
+      "file_name_prefix": "file" ,
+      "file_size": "1kb"
+    } ,
+    {
+      "name": "1KB_200000files_0subdir" ,
+      "num_files": 200000 ,
+      "file_name_prefix": "file" ,
+      "file_size": "1kb"
+    }
+  ]
+}

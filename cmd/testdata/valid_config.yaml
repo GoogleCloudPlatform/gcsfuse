@@ -40,3 +40,4 @@ file-system:
   temp-dir: ~/temp
 list:
   enable-empty-managed-folders: true
+enable-hns: true
