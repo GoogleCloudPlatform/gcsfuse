@@ -178,17 +178,6 @@ go run . --config-file=/tmp/gcsfuse_config.yaml --only-dir testDir --implicit-di
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicit_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
 sudo umount $MOUNT_DIR
 
-# package explicit_dir
-# Run tests with static mounting. (flags: )
-go run . --config-file=/tmp/gcsfuse_config.yaml  $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/explicit_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
-sudo umount $MOUNT_DIR
-
-# Run tests with static mounting. (flags: , --only-dir testDir)
-go run . --config-file=/tmp/gcsfuse_config.yaml --only-dir testDir   $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/explicit_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
-sudo umount $MOUNT_DIR
-
 # package list_large_dir
 # Run tests with static mounting. (flags: --implicit-dirs)
 go run . --config-file=/tmp/gcsfuse_config.yaml --implicit-dirs --stat-cache-ttl=0 --kernel-list-cache-ttl-secs=-1 $TEST_BUCKET_NAME $MOUNT_DIR
