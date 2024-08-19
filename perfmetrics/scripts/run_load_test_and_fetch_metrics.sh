@@ -42,6 +42,9 @@ sudo umount $MOUNT_POINT
 
 echo Installing requirements..
 pip install --require-hashes -r requirements.txt --user
-gsutil cp $GSHEET_CREDENTIALS gsheet
+if [ ! -z "${GSHEET_CREDENTIALS}" ];
+then
+  gsutil cp $GSHEET_CREDENTIALS gsheet
+fi
 echo Fetching results..
 python3 fetch_and_upload_metrics.py "fio-output${EXPERIMENT_NUMBER}.json" $UPLOAD_FLAGS --spreadsheet_id=$SPREADSHEET_ID
