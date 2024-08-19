@@ -13,11 +13,11 @@
 # limitations under the License.
 
 # Run integration tests for mounted directory.
-# $1 testbucket.
+# $1 testbucket.(It should be hierarchical bucket.)
 # $2 Absolute path of mounted directory.
 # To run this script
 # cd gcsfuse
-# sh tools/integration_tests/run_tests_mounted_directory.sh <testbucket> <Absolute path of mounted directory>
+# sh tools/integration_tests/run_tests_mounted_directory_hns_bucket.sh <testbucket> <Absolute path of mounted directory>
 
 TEST_BUCKET_NAME=$1
 MOUNT_DIR=$2
@@ -68,7 +68,7 @@ sudo umount $MOUNT_DIR
 # Run tests with config "create-empty-file: true".
 echo "write:
        create-empty-file: true
-enable-hns: true " > /tmp/gcsfuse_config.yaml
+enable-hns: true" > /tmp/gcsfuse_config.yaml
 gcsfuse --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
@@ -77,7 +77,7 @@ sudo umount $MOUNT_DIR
 echo "file-cache:
        max-size-mb: 2
 cache-dir: ./cache-dir
-enable-hns:true " > /tmp/gcsfuse_config.yaml
+enable-hns:true" > /tmp/gcsfuse_config.yaml
 gcsfuse --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
@@ -85,7 +85,7 @@ sudo umount $MOUNT_DIR
 # Run tests with config "metadata-cache: ttl-secs: 0" static mounting.
 echo "metadata-cache:
        ttl-secs: 0
-enable-hns: true " > /tmp/gcsfuse_config.yaml
+enable-hns: true" > /tmp/gcsfuse_config.yaml
 gcsfuse --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
