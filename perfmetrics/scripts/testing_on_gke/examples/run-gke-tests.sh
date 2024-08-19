@@ -470,7 +470,7 @@ function createCustomCsiDriverIfNeeded() {
     echo "Building custom CSI driver ..."
 
     # Create a bucket for storing custom-csi driver.
-    test -n "${package_bucket}" || export package_bucket=${USER}-gcsfuse-binary-package
+    test -n "${package_bucket}" || export package_bucket=${USER/google/}-gcsfuse-binary-package
     (gcloud storage buckets list | grep -wqo ${package_bucket}) || (region=$(echo ${zone} | rev | cut -d- -f2- | rev) && gcloud storage buckets create gs://${package_bucket} --location=${region})
 
     # Build a new gcsfuse binary
