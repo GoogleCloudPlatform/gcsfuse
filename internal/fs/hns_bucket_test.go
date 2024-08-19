@@ -269,11 +269,13 @@ func (t *HNSBucketTests) TestCreateLocalFileInSamePathAfterDeletingParentDirecto
 	require.NoError(t.T(), err)
 	err = os.RemoveAll(dirPath)
 	assert.NoError(t.T(), err)
-	err = os.Mkdir(dirPath, 0755)
+	err = os.Mkdir(dirPath, dirPerms)
 	assert.NoError(t.T(), err)
 
 	f2, err := os.Create(filePath)
 	defer require.NoError(t.T(), f2.Close())
 
 	assert.NoError(t.T(), err)
+	_, err = os.Stat(filePath)
+	require.NoError(t.T(), err)
 }

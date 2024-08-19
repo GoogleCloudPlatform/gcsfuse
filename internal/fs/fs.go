@@ -1915,7 +1915,7 @@ func (fs *fileSystem) RmDir(
 	_, isImplicitDir := fs.implicitDirInodes[child.Name()]
 	fs.mu.Unlock()
 	parent.Lock()
-	err = parent.DeleteChildDir(ctx, op.Name, isImplicitDir)
+	err = parent.DeleteChildDir(ctx, op.Name, isImplicitDir, childDir)
 	parent.Unlock()
 
 	if err != nil {
@@ -2216,7 +2216,7 @@ func (fs *fileSystem) renameNonHierarchicalDir(
 	_, isImplicitDir := fs.implicitDirInodes[oldDir.Name()]
 	fs.mu.Unlock()
 	oldParent.Lock()
-	err = oldParent.DeleteChildDir(ctx, oldName, isImplicitDir)
+	err = oldParent.DeleteChildDir(ctx, oldName, isImplicitDir, oldDir)
 	oldParent.Unlock()
 	if err != nil {
 		return fmt.Errorf("DeleteChildDir: %w", err)
