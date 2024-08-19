@@ -78,7 +78,7 @@ sudo umount $MOUNT_DIR
 echo "file-cache:
        max-size-mb: 2
 cache-dir: ./cache-dir
-enable-hns:true" > /tmp/gcsfuse_config.yaml
+enable-hns: true" > /tmp/gcsfuse_config.yaml
 gcsfuse --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
