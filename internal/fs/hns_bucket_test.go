@@ -48,8 +48,13 @@ var expectedFooDirEntries = []dirEntry{
 func TestHNSBucketTests(t *testing.T) { suite.Run(t, new(HNSBucketTests)) }
 
 func (t *HNSBucketTests) SetupSuite() {
-	t.serverCfg.NewConfig = &cfg.Config{EnableHns: true}
 	t.serverCfg.ImplicitDirectories = false
+	t.serverCfg.NewConfig = &cfg.Config{
+		Write: cfg.WriteConfig{
+			CreateEmptyFile: false,
+		},
+		EnableHns: true,
+	}
 	bucketType = gcs.Hierarchical
 	t.fsTest.SetUpTestSuite()
 }
@@ -252,4 +257,23 @@ func (t *HNSBucketTests) TestRenameFolderWithOpenGCSFile() {
 	assert.Equal(t.T(), 1, len(dirEntries))
 	assert.Equal(t.T(), "file1.txt", dirEntries[0].Name())
 	assert.False(t.T(), dirEntries[0].IsDir())
+}
+
+func (t *HNSBucketTests) TestCreateLocalFileInSamePathAfterDeletingParentDirectory() {
+	dirPath := path.Join(mntDir, "foo", "test2")
+	filePath := path.Join(dirPath, "test.txt")
+	f1, err := os.Create(filePath)
+	defer require.NoError(t.T(), f1.Close())
+	require.NoError(t.T(), err)
+	_, err = os.Stat(filePath)
+	require.NoError(t.T(), err)
+	err = os.RemoveAll(dirPath)
+	assert.NoError(t.T(), err)
+	err = os.Mkdir(dirPath, 0755)
+	assert.NoError(t.T(), err)
+
+	f2, err := os.Create(filePath)
+	defer require.NoError(t.T(), f2.Close())
+
+	assert.NoError(t.T(), err)
 }
