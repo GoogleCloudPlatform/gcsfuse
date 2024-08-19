@@ -135,16 +135,17 @@ test -n "${pod_wait_time_in_seconds}" || export pod_wait_time_in_seconds="${DEFA
 test -n "${instance_id}" || export instance_id="${DEFAULT_INSTANCE_ID}"
 if test -n "${workload_config}"; then
   workload_config="$(realpath "${workload_config}")"
+  test -f "${workload_config}"
 else
     export workload_config="${gke_testing_dir}"/examples/workloads.json
 fi
-test -f "${workload_config}"
+
 if test -n "${output_dir}"; then
   output_dir="$(realpath "${output_dir}")"
+  test -d "${output_dir}"
 else
   export output_dir="${gke_testing_dir}"/examples
 fi
-test -d "${output_dir}"
 
 function printRunParameters() {
   echo "Running $0 with following parameters:"
@@ -383,15 +384,11 @@ function createKubernetesServiceAccountForCluster() {
 }
 
 function addGCSAccessPermissions() {
-  for workloadFileName in "${workload_config}"; do
-    if test -f "${workloadFileName}"; then
-      grep -wh '\"bucket\"' "${workloadFileName}" | cut -d: -f2 | cut -d, -f1 | cut -d \" -f2 | sort | uniq | grep -v ' ' |
-        while read workload_bucket; do
-          gcloud storage buckets add-iam-policy-binding gs://${workload_bucket} \
-            --member "principal://iam.googleapis.com/projects/${project_number}/locations/global/workloadIdentityPools/${project_id}.svc.id.goog/subject/ns/${appnamespace}/sa/${ksa}" \
-            --role "roles/storage.objectUser"
-        done
-    fi
+  test -f "${workload_config}"
+  grep -wh '\"bucket\"' "${workload_config}" | cut -d: -f2 | cut -d, -f1 | cut -d \" -f2 | sort | uniq | grep -v ' ' | while read workload_bucket; do
+    gcloud storage buckets add-iam-policy-binding gs://${workload_bucket} \
+      --member "principal://iam.googleapis.com/projects/${project_number}/locations/global/workloadIdentityPools/${project_id}.svc.id.goog/subject/ns/${appnamespace}/sa/${ksa}" \
+      --role "roles/storage.objectUser"
   done
 }
 
