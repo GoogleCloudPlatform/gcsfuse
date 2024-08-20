@@ -159,11 +159,50 @@ function printRunParameters() {
 
 # Install dependencies.
 function installDependencies() {
+  # Ensure that realpath is installed.
+  which realpath
+  # Ensure that python3 is installed.
+  which python3
+  # Ensure that make is installed.
+  which make || (sudo apt-get update && sudo apt-get install -y make time)
+  # Ensure that go is installed
+  which go || (version=1.22.4 && wget -O go_tar.tar.gz https://go.dev/dl/go${version}.linux-amd64.tar.gz 1>/dev/null && sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz 1>/dev/null && sudo mv go /usr/local && echo $PATH && export PATH=$PATH:/usr/local/go/bin && echo $PATH && echo 'export PATH=$PATH:/usr/local/go/bin'>>~/.bashrc && go version)
+  # for some reason, the above is unable to update the value of $PATH, so doing it explicitly below.
+  export PATH=$PATH:/usr/local/go/bin
+  which go
+  # Ensure that python-absl is installed.
+  sudo  apt-get update && sudo apt-get install -y pip && pip install absl-py
+  # Ensure that helm is installed
   which helm || (cd "${src_dir}" && (test -d "./helm" || git clone https://github.com/helm/helm.git) && cd helm && make && ls -lh bin/ && mkdir -pv ~/bin && cp -fv bin/helm ~/bin/ && chmod +x ~/bin/helm && export PATH=$PATH:$HOME/bin && echo $PATH && which helm && cd - && cd -)
-  which go || (version=1.22.4 && wget -O go_tar.tar.gz https://go.dev/dl/go${version}.linux-amd64.tar.gz && sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local && export PATH=${PATH}:/usr/local/go/bin && go version && rm -rfv go_tar.tar.gz && echo 'export PATH=${PATH}:/usr/local/go/bin' >>~/.bashrc)
-  which python3 && sudo apt-get install python3-absl
-  (which kubectl && kubectl version --client) || (gcloud components install kubectl && which kubectl && kubectl version --client) || (sudo apt-get update -y && sudo apt-get install -y kubectl && which kubectl && kubectl version --client)
+  # for some reason, the above is unable to update the value of $PATH, so doing it explicitly below.
+  export PATH=$PATH:$HOME/bin
+  which helm
+  # Ensure that kubectl is installed
+  if ! which kubectl; then
+    # full instructions at https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl .
+    #install the latest gcloud cli
+    sudo apt-get update &&  sudo apt-get install -y apt-transport-https ca-certificates gnupg curl
+    # Import the Google Cloud public key (Debian 9+ or Ubuntu 18.04+)
+    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
+    # Add the gcloud CLI distribution URI as a package source (Debian 9+ or Ubuntu 18.04+)
+    echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+    # Update and install the gcloud CLI
+    sudo apt-get update && sudo apt-get install -y google-cloud-cli
+    # install kubectl
+    (gcloud components install kubectl && kubectl version --client) || (sudo apt-get update && sudo apt-get install -y kubectl && kubectl version --client)
+  fi
   gke-gcloud-auth-plugin --version || (gcloud components install gke-gcloud-auth-plugin && gke-gcloud-auth-plugin --version) || (sudo apt-get update -y && sudo apt-get install -y google-cloud-cli-gke-gcloud-auth-plugin && gke-gcloud-auth-plugin --version)
+  # Ensure that docker is installed.
+  if ! which docker ; then
+    sudo apt-get update
+    sudo apt install apt-transport-https ca-certificates curl software-properties-common -y
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+    sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable"
+    apt-cache policy docker-ce
+    sudo apt install docker-ce -y
+  fi
+  # Ensure that mash is installed.
+  which mash || (sudo apt-get update && sudo apt-get install -y monarch-tools)
 }
 
 # Make sure you have access to the necessary GCP resources. The easiest way to enable it is to use <your-ldap>@google.com as active auth.
