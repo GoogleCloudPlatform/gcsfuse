@@ -93,7 +93,6 @@ def _calculate_num_files(folder_structure):
     count+=folder["num_files"]
   return count
 
-
 def _create_row_of_values(operation,test_type,num_files,num_folders,metrics):
   """
   Creates rows of values from the metrics dict to be uploaded to gsheet.
