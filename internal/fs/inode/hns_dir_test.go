@@ -325,7 +325,7 @@ func (t *HNSDirTest) TestDeleteChildDir_WhenImplicitDirFlagFalseAndNonHNSBucket_
 	t.mockBucket.AssertExpectations(t.T())
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), metadata.Type(0), t.typeCache.Get(t.fixedTime.Now(), dirName))
-	assert.False(t.T(), t.in.IsUnlinkHierarchicalBucketFolder())
+	assert.False(t.T(), t.in.IsUnlinkHNSFolder())
 }
 func (t *HNSDirTest) TestDeleteChildDir_WithImplicitDirFlagFalseAndNonHNSBucket_DeleteObjectThrowAnError() {
 	const name = "folder"
@@ -342,7 +342,7 @@ func (t *HNSDirTest) TestDeleteChildDir_WithImplicitDirFlagFalseAndNonHNSBucket_
 
 	t.mockBucket.AssertExpectations(t.T())
 	assert.NotNil(t.T(), err)
-	assert.False(t.T(), t.in.IsUnlinkHierarchicalBucketFolder())
+	assert.False(t.T(), t.in.IsUnlinkHNSFolder())
 }
 
 func (t *HNSDirTest) TestDeleteChildDir_WithImplicitDirFlagFalseAndBucketTypeIsHNS_DeleteObjectGiveSuccessDeleteFolderThrowAnError() {
@@ -361,7 +361,7 @@ func (t *HNSDirTest) TestDeleteChildDir_WithImplicitDirFlagFalseAndBucketTypeIsH
 
 	t.mockBucket.AssertExpectations(t.T())
 	assert.NotNil(t.T(), err)
-	assert.False(t.T(), t.in.IsUnlinkHierarchicalBucketFolder())
+	assert.False(t.T(), t.in.IsUnlinkHNSFolder())
 }
 
 func (t *HNSDirTest) TestDeleteChildDir_WithImplicitDirFlagFalseAndBucketTypeIsHNS_DeleteObjectThrowAnErrorDeleteFolderGiveSuccess() {
@@ -381,7 +381,7 @@ func (t *HNSDirTest) TestDeleteChildDir_WithImplicitDirFlagFalseAndBucketTypeIsH
 	t.mockBucket.AssertExpectations(t.T())
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), metadata.Type(0), t.typeCache.Get(t.fixedTime.Now(), dirName))
-	assert.True(t.T(), t.in.IsUnlinkHierarchicalBucketFolder())
+	assert.True(t.T(), t.in.IsUnlinkHNSFolder())
 }
 
 func (t *HNSDirTest) TestDeleteChildDir_WithImplicitDirFlagFalseAndBucketTypeIsHNS_DeleteObjectAndDeleteFolderThrowAnError() {
@@ -402,7 +402,7 @@ func (t *HNSDirTest) TestDeleteChildDir_WithImplicitDirFlagFalseAndBucketTypeIsH
 	assert.NotNil(t.T(), err)
 	// It will ignore the error that came from deleteObject.
 	assert.Equal(t.T(), err.Error(), "DeleteFolder: mock delete folder error")
-	assert.False(t.T(), t.in.IsUnlinkHierarchicalBucketFolder())
+	assert.False(t.T(), t.in.IsUnlinkHNSFolder())
 }
 
 func (t *HNSDirTest) TestCreateChildDirWhenBucketTypeIsHNSWithFailure() {

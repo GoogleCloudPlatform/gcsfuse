@@ -252,9 +252,9 @@ func (d *baseDirInode) RenameFolder(ctx context.Context, folderName string, dest
 	return
 }
 
-func (d *baseDirInode) IsUnlinkHierarchicalBucketFolder() bool {
+func (d *baseDirInode) IsUnlinkHNSFolder() bool {
 	return false
 }
 
-func (d *baseDirInode) UnlinkHierarchicalBucketFolder() {
+func (d *baseDirInode) UnlinkHNSFolder() {
 }

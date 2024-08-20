@@ -826,7 +826,7 @@ func (fs *fileSystem) createDirInode(ic inode.Core, inodes map[inode.Name]inode.
 	for n := 0; n < maxTriesToCreateInode; n++ {
 		in, ok := (inodes)[ic.FullName]
 		// Create a new inode when a folder is created first time, or when a folder is deleted and then recreated with the same name.
-		if !ok || in.IsUnlinkHierarchicalBucketFolder() {
+		if !ok || in.IsUnlinkHNSFolder() {
 			in := fs.mintInode(ic)
 			(inodes)[in.Name()] = in.(inode.DirInode)
 			in.Lock()

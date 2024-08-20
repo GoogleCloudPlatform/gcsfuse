@@ -158,9 +158,9 @@ type DirInode interface {
 	// RUnlock readonly unlock.
 	RUnlock()
 
-	IsUnlinkHierarchicalBucketFolder() bool
+	IsUnlinkHNSFolder() bool
 
-	UnlinkHierarchicalBucketFolder()
+	UnlinkHNSFolder()
 }
 
 // An inode that represents a directory from a GCS bucket.
@@ -217,7 +217,7 @@ type dirInode struct {
 	isHNSEnabled            bool
 
 	// Represents if folder has been unlinked in hierarchical bucket.
-	unlinkFolder bool
+	unlinkHNSFolder bool
 }
 
 var _ DirInode = &dirInode{}
@@ -272,7 +272,7 @@ func NewDirInode(
 		attrs:                       attrs,
 		cache:                       metadata.NewTypeCache(typeCacheMaxSizeMB, typeCacheTTL),
 		isHNSEnabled:                isHNSEnabled,
-		unlinkFolder:                false,
+		unlinkHNSFolder:             false,
 	}
 
 	typed.lc.Init(id)
@@ -602,12 +602,12 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	return result, nil
 }
 
-func (d *dirInode) IsUnlinkHierarchicalBucketFolder() bool {
-	return d.unlinkFolder
+func (d *dirInode) IsUnlinkHNSFolder() bool {
+	return d.unlinkHNSFolder
 }
 
-func (d *dirInode) UnlinkHierarchicalBucketFolder() {
-	d.unlinkFolder = true
+func (d *dirInode) UnlinkHNSFolder() {
+	d.unlinkHNSFolder = true
 }
 
 // LOCKS_REQUIRED(d)
@@ -969,7 +969,7 @@ func (d *dirInode) DeleteChildDir(
 	}
 
 	if d.isBucketHierarchical() {
-		dirInode.UnlinkHierarchicalBucketFolder()
+		dirInode.UnlinkHNSFolder()
 	}
 
 	d.cache.Erase(name)
