@@ -74,6 +74,7 @@ nohup /pytorch_dino/gcsfuse/gcsfuse --foreground \
         --config-file $config_filename \
       $TEST_BUCKET gcsfuse_data > "run_artifacts/gcsfuse.out" 2> "run_artifacts/gcsfuse.err" &
 
+sleep 1000
 # Update the pytorch library code to bypass the kernel-cache
 echo "Updating the pytorch library code to bypass the kernel-cache..."
 echo "
