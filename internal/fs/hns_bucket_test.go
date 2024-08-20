@@ -17,6 +17,7 @@ package fs_test
 import (
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
@@ -29,6 +30,19 @@ import (
 type HNSBucketTests struct {
 	suite.Suite
 	fsTest
+}
+
+type dirEntry struct {
+	name  string
+	isDir bool
+}
+
+var expectedFooDirEntries = []dirEntry{
+	{name: "test", isDir: true},
+	{name: "test2", isDir: true},
+	{name: "file1.txt", isDir: false},
+	{name: "file2.txt", isDir: false},
+	{name: "implicit_dir", isDir: true},
 }
 
 func TestHNSBucketTests(t *testing.T) { suite.Run(t, new(HNSBucketTests)) }
@@ -59,7 +73,7 @@ func (t *HNSBucketTests) SetupTest() {
 	require.NoError(t.T(), err)
 }
 
-func (t *HNSBucketTests) TearDown() {
+func (t *HNSBucketTests) TearDownTest() {
 	t.fsTest.TearDown()
 }
 
@@ -70,25 +84,14 @@ func (t *HNSBucketTests) TestReadDir() {
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), 5, len(dirEntries))
-	for i := 0; i < 5; i++ {
-		switch dirEntries[i].Name() {
-		case "test":
-			assert.Equal(t.T(), "test", dirEntries[i].Name())
-			assert.True(t.T(), dirEntries[i].IsDir())
-		case "test2":
-			assert.Equal(t.T(), "test2", dirEntries[i].Name())
-			assert.True(t.T(), dirEntries[i].IsDir())
-		case "file1.txt":
-			assert.Equal(t.T(), "file1.txt", dirEntries[i].Name())
-			assert.False(t.T(), dirEntries[i].IsDir())
-		case "file2.txt":
-			assert.Equal(t.T(), "file2.txt", dirEntries[i].Name())
-			assert.False(t.T(), dirEntries[i].IsDir())
-		case "implicit_dir":
-			assert.Equal(t.T(), "implicit_dir", dirEntries[i].Name())
-			assert.True(t.T(), dirEntries[i].IsDir())
-		}
+	actualDirEntries := []dirEntry{}
+	for _, d := range dirEntries {
+		actualDirEntries = append(actualDirEntries, dirEntry{
+			name:  d.Name(),
+			isDir: d.IsDir(),
+		})
 	}
+	assert.ElementsMatch(t.T(), actualDirEntries, expectedFooDirEntries)
 }
 
 func (t *HNSBucketTests) TestDeleteFolder() {
@@ -98,5 +101,155 @@ func (t *HNSBucketTests) TestDeleteFolder() {
 
 	assert.NoError(t.T(), err)
 	_, err = os.Stat(dirPath)
-	assert.NotNil(t.T(), err)
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+}
+
+func (t *HNSBucketTests) TestRenameFolderWithSrcDirectoryDoesNotExist() {
+	oldDirPath := path.Join(mntDir, "foo_not_exist")
+	newDirPath := path.Join(mntDir, "foo_rename")
+
+	err = os.Rename(oldDirPath, newDirPath)
+
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+	_, err = os.Stat(newDirPath)
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+}
+
+func (t *HNSBucketTests) TestRenameFolderWithDstDirectoryNotEmpty() {
+	oldDirPath := path.Join(mntDir, "foo")
+	_, err = os.Stat(oldDirPath)
+	assert.NoError(t.T(), err)
+	// In the setup phase, we created file1.txt within the bar directory.
+	newDirPath := path.Join(mntDir, "bar")
+	_, err = os.Stat(newDirPath)
+	assert.NoError(t.T(), err)
+
+	err = os.Rename(oldDirPath, newDirPath)
+
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "file exists"))
+}
+
+func (t *HNSBucketTests) TestRenameFolderWithEmptySourceDirectory() {
+	oldDirPath := path.Join(mntDir, "foo", "test2")
+	_, err = os.Stat(oldDirPath)
+	assert.NoError(t.T(), err)
+	newDirPath := path.Join(mntDir, "foo_rename")
+	_, err = os.Stat(newDirPath)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+
+	err = os.Rename(oldDirPath, newDirPath)
+
+	assert.NoError(t.T(), err)
+	_, err = os.Stat(oldDirPath)
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+	_, err = os.Stat(newDirPath)
+	assert.NoError(t.T(), err)
+	dirEntries, err := os.ReadDir(newDirPath)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 0, len(dirEntries))
+}
+
+func (t *HNSBucketTests) TestRenameFolderWithSourceDirectoryHaveLocalFiles() {
+	oldDirPath := path.Join(mntDir, "foo", "test")
+	_, err = os.Stat(oldDirPath)
+	assert.NoError(t.T(), err)
+	file, err := os.OpenFile(path.Join(oldDirPath, "file4.txt"), os.O_RDWR|os.O_CREATE, filePerms)
+	assert.NoError(t.T(), err)
+	defer file.Close()
+	newDirPath := path.Join(mntDir, "bar", "foo_rename")
+
+	err = os.Rename(oldDirPath, newDirPath)
+
+	assert.Error(t.T(), err)
+	// In the logs, we encountered the following error:
+	// "Rename: operation not supported, can't rename directory 'test' with open files: operation not supported."
+	// This was translated to an "operation not supported" error at the kernel level.
+	assert.True(t.T(), strings.Contains(err.Error(), "operation not supported"))
+}
+
+func (t *HNSBucketTests) TestRenameFolderWithSameParent() {
+	oldDirPath := path.Join(mntDir, "foo")
+	_, err = os.Stat(oldDirPath)
+	assert.NoError(t.T(), err)
+	newDirPath := path.Join(mntDir, "foo_rename")
+
+	err = os.Rename(oldDirPath, newDirPath)
+
+	assert.NoError(t.T(), err)
+	_, err = os.Stat(oldDirPath)
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+	_, err = os.Stat(newDirPath)
+	assert.NoError(t.T(), err)
+	dirEntries, err := os.ReadDir(newDirPath)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 5, len(dirEntries))
+	actualDirEntries := []dirEntry{}
+	for _, d := range dirEntries {
+		actualDirEntries = append(actualDirEntries, dirEntry{
+			name:  d.Name(),
+			isDir: d.IsDir(),
+		})
+	}
+	assert.ElementsMatch(t.T(), actualDirEntries, expectedFooDirEntries)
+}
+
+func (t *HNSBucketTests) TestRenameFolderWithDifferentParents() {
+	oldDirPath := path.Join(mntDir, "foo")
+	_, err = os.Stat(oldDirPath)
+	assert.NoError(t.T(), err)
+	newDirPath := path.Join(mntDir, "bar", "foo_rename")
+
+	err = os.Rename(oldDirPath, newDirPath)
+
+	assert.NoError(t.T(), err)
+	_, err = os.Stat(oldDirPath)
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+	_, err = os.Stat(newDirPath)
+	assert.NoError(t.T(), err)
+	dirEntries, err := os.ReadDir(newDirPath)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 5, len(dirEntries))
+	actualDirEntries := []dirEntry{}
+	for _, d := range dirEntries {
+		actualDirEntries = append(actualDirEntries, dirEntry{
+			name:  d.Name(),
+			isDir: d.IsDir(),
+		})
+	}
+	assert.ElementsMatch(t.T(), actualDirEntries, expectedFooDirEntries)
+}
+
+func (t *HNSBucketTests) TestRenameFolderWithOpenGCSFile() {
+	oldDirPath := path.Join(mntDir, "bar")
+	_, err = os.Stat(oldDirPath)
+	assert.NoError(t.T(), err)
+	newDirPath := path.Join(mntDir, "bar_rename")
+	filePath := path.Join(oldDirPath, "file1.txt")
+	f, err := os.Open(filePath)
+	require.NoError(t.T(), err)
+
+	err = os.Rename(oldDirPath, newDirPath)
+
+	require.NoError(t.T(), err)
+	_, err = f.WriteString("test")
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "bad file descriptor"))
+	assert.NoError(t.T(), f.Close())
+	_, err = os.Stat(oldDirPath)
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+	_, err = os.Stat(newDirPath)
+	assert.NoError(t.T(), err)
+	dirEntries, err := os.ReadDir(newDirPath)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 1, len(dirEntries))
+	assert.Equal(t.T(), "file1.txt", dirEntries[0].Name())
+	assert.False(t.T(), dirEntries[0].IsDir())
 }

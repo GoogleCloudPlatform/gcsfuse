@@ -1980,7 +1980,12 @@ func (fs *fileSystem) Rename(
 	}
 
 	if child.FullName.IsDir() {
-		return fs.renameDir(ctx, oldParent, op.OldName, newParent, op.NewName)
+		// If 'enable-hns' flag is false, the bucket type is set to 'NonHierarchical' even for HNS buckets because the control client is nil.
+		// Therefore, an additional 'enable hns' check is not required here.
+		if child.Bucket.BucketType() == gcs.Hierarchical {
+			return fs.renameHierarchicalDir(ctx, oldParent, op.OldName, newParent, op.NewName)
+		}
+		return fs.renameNonHierarchicalDir(ctx, oldParent, op.OldName, newParent, op.NewName)
 	}
 	return fs.renameFile(ctx, oldParent, op.OldName, child.MinObject, newParent, op.NewName)
 }
@@ -2043,7 +2048,7 @@ func (fs *fileSystem) getBucketDirInode(ctx context.Context, parent inode.DirIno
 	return dir, nil
 }
 
-func (fs *fileSystem) ensureNoOpenFilesInDirectory(dir inode.BucketOwnedDirInode, name string) error {
+func (fs *fileSystem) ensureNoLocalFilesInDirectory(dir inode.BucketOwnedDirInode, name string) error {
 	fs.mu.Lock()
 	entries := dir.LocalFileEntries(fs.localFileInodes)
 	fs.mu.Unlock()
@@ -2066,13 +2071,68 @@ func (fs *fileSystem) checkDirNotEmpty(dir inode.BucketOwnedDirInode, name strin
 	return nil
 }
 
-// Rename an old directory to a new directory. If the new directory already
+// Rename an old folder to a new folder in a hierarchical bucket. If the new folder already
+// exists and is non-empty, return ENOTEMPTY. If old folder have open files then return
+// ENOTSUP.
+//
+// LOCKS_EXCLUDED(fs.mu)
+// LOCKS_EXCLUDED(oldParent)
+// LOCKS_EXCLUDED(newParent)
+func (fs *fileSystem) renameHierarchicalDir(ctx context.Context, oldParent inode.DirInode, oldName string, newParent inode.DirInode, newName string) (err error) {
+	// Set up a function that throws away the lookup count increment from
+	// lookUpOrCreateChildInode (since the pending inodes are not sent back to
+	// the kernel) and unlocks the pending inodes, but only once.
+	var pendingInodes []inode.DirInode
+	defer fs.releaseInodes(&pendingInodes)
+
+	oldDirInode, err := fs.getBucketDirInode(ctx, oldParent, oldName)
+	if err != nil {
+		return err
+	}
+	pendingInodes = append(pendingInodes, oldDirInode)
+
+	if err = fs.ensureNoLocalFilesInDirectory(oldDirInode, oldName); err != nil {
+		return err
+	}
+
+	// If the call for getBucketDirInode fails it means directory does not exist.
+	newDirInode, err := fs.getBucketDirInode(ctx, newParent, newName)
+	if err == nil {
+		// If the directory exists, then check if it is empty or not.
+		if err = fs.checkDirNotEmpty(newDirInode, newName); err != nil {
+			return err
+		}
+		pendingInodes = append(pendingInodes, newDirInode)
+	}
+
+	// Note:The renameDirLimit is not utilized in the folder rename operation because there is no user-defined limit on new renames.
+
+	oldDirName := inode.NewDirName(oldParent.Name(), oldName)
+	newDirName := inode.NewDirName(newParent.Name(), newName)
+	oldParent.Lock()
+	defer oldParent.Unlock()
+
+	if newParent != oldParent {
+		newParent.Lock()
+		defer newParent.Unlock()
+	}
+
+	// Rename old directory to the new directory, keeping both parent directories locked.
+	_, err = oldParent.RenameFolder(ctx, oldDirName.GcsObjectName(), newDirName.GcsObjectName())
+	if err != nil {
+		return fmt.Errorf("failed to rename folder: %w", err)
+	}
+
+	return
+}
+
+// Rename an old directory to a new directory in a non-hierarchical bucket. If the new directory already
 // exists and is non-empty, return ENOTEMPTY.
 //
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_EXCLUDED(oldParent)
 // LOCKS_EXCLUDED(newParent)
-func (fs *fileSystem) renameDir(
+func (fs *fileSystem) renameNonHierarchicalDir(
 	ctx context.Context,
 	oldParent inode.DirInode,
 	oldName string,
@@ -2091,7 +2151,7 @@ func (fs *fileSystem) renameDir(
 	}
 	pendingInodes = append(pendingInodes, oldDir)
 
-	if err = fs.ensureNoOpenFilesInDirectory(oldDir, oldName); err != nil {
+	if err = fs.ensureNoLocalFilesInDirectory(oldDir, oldName); err != nil {
 		return err
 	}
 
