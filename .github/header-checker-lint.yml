@@ -39,3 +39,4 @@ ignoreFiles:
   - 'perfmetrics/scripts/load_tests/python/sample_tasks.yaml'
   - 'perfmetrics/scripts/ls_metrics/directory_pb2.py'
   - '*.json'
+  - '.github/**'
