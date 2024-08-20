@@ -50,7 +50,7 @@ func closeAll(files []*os.File) {
 func createFiles(
 	dir string,
 	numFiles int) (files []*os.File, err error) {
-	group, derivedContext := errgroup.WithContext(context.Background())
+	group, ctx := errgroup.WithContext(context.Background())
 
 	// Create files in parallel, and write them to a channel.
 	const parallelism = 128
@@ -81,8 +81,8 @@ func createFiles(
 				// Write it to the channel.
 				select {
 				case fileChan <- f:
-				case <-derivedContext.Done():
-					err = derivedContext.Err()
+				case <-ctx.Done():
+					err = ctx.Err()
 					return
 				}
 			}

@@ -163,7 +163,7 @@ func (t *StressTest) TruncateFileManyTimesInParallel() {
 	}
 
 	// Run several workers.
-	group, _ := errgroup.WithContext(ctx)
+	group := new(errgroup.Group)
 
 	const numWorkers = 16
 	finalSizes := make(chan int64, numWorkers)

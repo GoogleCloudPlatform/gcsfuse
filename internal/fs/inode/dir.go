@@ -520,24 +520,24 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		return d.lookUpConflicting(ctx, name)
 	}
 
-	group, derivedContext := errgroup.WithContext(ctx)
+	group, ctx := errgroup.WithContext(ctx)
 
 	var fileResult *Core
 	var dirResult *Core
 	lookUpFile := func() (err error) {
-		fileResult, err = findExplicitInode(derivedContext, d.Bucket(), NewFileName(d.Name(), name))
+		fileResult, err = findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name))
 		return
 	}
 	lookUpExplicitDir := func() (err error) {
-		dirResult, err = findExplicitInode(derivedContext, d.Bucket(), NewDirName(d.Name(), name))
+		dirResult, err = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name))
 		return
 	}
 	lookUpImplicitOrExplicitDir := func() (err error) {
-		dirResult, err = findDirInode(derivedContext, d.Bucket(), NewDirName(d.Name(), name))
+		dirResult, err = findDirInode(ctx, d.Bucket(), NewDirName(d.Name(), name))
 		return
 	}
 	lookUpHNSDir := func() (err error) {
-		dirResult, err = findExplicitFolder(derivedContext, d.Bucket(), NewDirName(d.Name(), name))
+		dirResult, err = findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name))
 		return
 	}
 

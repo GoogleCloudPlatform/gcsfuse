@@ -26,7 +26,7 @@ func CreateObjects(
 	ctx context.Context,
 	bucket gcs.Bucket,
 	input map[string][]byte) (err error) {
-	group, derivedContext := errgroup.WithContext(ctx)
+	group, ctx := errgroup.WithContext(ctx)
 
 	// Feed ObjectInfo records into a channel.
 	type record struct {
@@ -47,7 +47,7 @@ func CreateObjects(
 		group.Go(func() (err error) {
 			for r := range recordChan {
 				_, err = CreateObject(
-					derivedContext, bucket,
+					ctx, bucket,
 					r.name,
 					r.contents)
 

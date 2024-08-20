@@ -32,13 +32,13 @@ func garbageCollectOnce(
 	tmpObjectPrefix string,
 	bucket gcs.Bucket) (objectsDeleted uint64, err error) {
 	const stalenessThreshold = 30 * time.Minute
-	group, derivedContext := errgroup.WithContext(ctx)
+	group, ctx := errgroup.WithContext(ctx)
 
 	// List all objects with the temporary prefix.
 	objects := make(chan *gcs.Object, 100)
 	group.Go(func() (err error) {
 		defer close(objects)
-		err = storageutil.ListPrefix(derivedContext, bucket, tmpObjectPrefix, objects)
+		err = storageutil.ListPrefix(ctx, bucket, tmpObjectPrefix, objects)
 		if err != nil {
 			err = fmt.Errorf("ListPrefix: %w", err)
 			return
@@ -58,8 +58,8 @@ func garbageCollectOnce(
 			}
 
 			select {
-			case <-derivedContext.Done():
-				err = derivedContext.Err()
+			case <-ctx.Done():
+				err = ctx.Err()
 				return
 
 			case staleNames <- o.Name:
@@ -73,7 +73,7 @@ func garbageCollectOnce(
 	group.Go(func() (err error) {
 		for name := range staleNames {
 			err = bucket.DeleteObject(
-				derivedContext,
+				ctx,
 				&gcs.DeleteObjectRequest{
 					Name:       name,
 					Generation: 0, // Latest generation of stale object.

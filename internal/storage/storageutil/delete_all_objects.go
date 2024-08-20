@@ -25,13 +25,13 @@ import (
 func DeleteAllObjects(
 	ctx context.Context,
 	bucket gcs.Bucket) error {
-	group, derivedContext := errgroup.WithContext(ctx)
+	group, ctx := errgroup.WithContext(ctx)
 
 	// List all of the objects in the bucket.
 	objects := make(chan *gcs.Object, 100)
 	group.Go(func() error {
 		defer close(objects)
-		return ListPrefix(derivedContext, bucket, "", objects)
+		return ListPrefix(ctx, bucket, "", objects)
 	})
 
 	// Strip everything but the name.
@@ -40,8 +40,8 @@ func DeleteAllObjects(
 		defer close(objectNames)
 		for o := range objects {
 			select {
-			case <-derivedContext.Done():
-				err = derivedContext.Err()
+			case <-ctx.Done():
+				err = ctx.Err()
 				return
 
 			case objectNames <- o.Name:
@@ -57,7 +57,7 @@ func DeleteAllObjects(
 		group.Go(func() error {
 			for objectName := range objectNames {
 				err := bucket.DeleteObject(
-					derivedContext,
+					ctx,
 					&gcs.DeleteObjectRequest{
 						Name: objectName,
 					})

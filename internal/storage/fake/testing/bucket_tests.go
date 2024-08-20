@@ -248,7 +248,7 @@ func readMultiple(
 	ctx context.Context,
 	bucket gcs.Bucket,
 	reqs []*gcs.ReadObjectRequest) (contents [][]byte, errs []error) {
-	group, derivedContext := errgroup.WithContext(ctx)
+	group, ctx := errgroup.WithContext(ctx)
 
 	// Feed indices into a channel.
 	indices := make(chan int, len(reqs))
@@ -296,7 +296,7 @@ func readMultiple(
 	for i := 0; i < parallelsim; i++ {
 		group.Go(func() (err error) {
 			for i := range indices {
-				handleRequest(derivedContext, i)
+				handleRequest(ctx, i)
 			}
 
 			return
@@ -313,7 +313,7 @@ func forEachString(
 	ctx context.Context,
 	strings []string,
 	f func(context.Context, string) error) (err error) {
-	group, derivedContext := errgroup.WithContext(ctx)
+	group, ctx := errgroup.WithContext(ctx)
 
 	// Feed strings into a channel.
 	c := make(chan string, len(strings))
@@ -327,7 +327,7 @@ func forEachString(
 	for i := 0; i < parallelism; i++ {
 		group.Go(func() (err error) {
 			for s := range c {
-				err = f(derivedContext, s)
+				err = f(ctx, s)
 				if err != nil {
 					return
 				}
@@ -1659,7 +1659,7 @@ func (t *composeTest) createSources(
 	close(indices)
 
 	// Run a bunch of workers.
-	group, derivedContext := errgroup.WithContext(t.ctx)
+	group, ctx := errgroup.WithContext(t.ctx)
 
 	const parallelism = 128
 	for i := 0; i < parallelism; i++ {
@@ -1668,7 +1668,7 @@ func (t *composeTest) createSources(
 				// Create an object. Include some metadata; it should be ignored by
 				// ComposeObjects.
 				objs[i], err = t.bucket.CreateObject(
-					derivedContext,
+					ctx,
 					&gcs.CreateObjectRequest{
 						Name:            fmt.Sprint(i),
 						Contents:        strings.NewReader(contents[i]),
