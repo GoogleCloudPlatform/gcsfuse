@@ -27,7 +27,7 @@ import sys
 sys.path.append("../")
 import fio_workload
 from utils.utils import get_memory, get_cpu, unix_to_timestamp, is_mash_installed
-from utils.parse_logs_common import ensureDir, download_gcs_objects, parseLogParserArguments
+from utils.parse_logs_common import ensureDir, download_gcs_objects, parseLogParserArguments, SUPPORTED_SCENARIOS
 
 _LOCAL_LOGS_LOCATION = "../../bin/fio-logs"
 
@@ -82,6 +82,221 @@ def downloadFioOutputs(fioWorkloads: set, instanceId: str) -> int:
   return 0
 
 
+def createOutputScenariosFromDownloadedFiles(args: dict):
+  """Creates output records from the downloaded local files.
+
+  The following creates a dict called 'output'
+  from the downloaded fio output files, which are in the following format.
+
+    <_LOCAL_LOGS_LOCATION>/<instanceId>/<fileSize>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/<scenario>/<readType>/epoch[N].json
+    where N=1-4
+    <_LOCAL_LOGS_LOCATION>/<instanceId>/<fileSize>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/<scenario>/<readType>/pod_name
+    <_LOCAL_LOGS_LOCATION>/<instanceId>/<fileSize>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/gcsfuse-generic/<readType>/gcsfuse_mount_options
+
+    Output dict structure:
+    "{read_type}-{mean_file_size}-{bs}-{numjobs}-{nrfiles}":
+        "mean_file_size": str
+        "read_type": str
+        "records":
+            "local-ssd": [record1, record2, record3, record4]
+            "gcsfuse-generic": [record1, record2, record3, record4]
+            "gcsfuse-file-cache": [record1, record2, record3, record4]
+            "gcsfuse-no-file-cache": [record1, record2, record3, record4]
+  """
+
+  output = {}
+  for root, _, files in os.walk(_LOCAL_LOGS_LOCATION + "/" + args.instance_id):
+    print(f"Parsing directory {root} ...")
+    # If directory contains gcsfuse_mount_options file, then parse gcsfuse
+    # mount options from it in record.
+    gcsfuse_mount_options = ""
+    gcsfuse_mount_options_file = root + "/gcsfuse_mount_options"
+    if os.path.isfile(gcsfuse_mount_options_file):
+      with open(gcsfuse_mount_options_file) as f:
+        gcsfuse_mount_options = f.read().strip()
+        print(f"gcsfuse_mount_options={gcsfuse_mount_options}")
+
+    # If directory contains pod_name file, then pod-name from it in the record.
+    pod_name = ""
+    pod_name_file = root + "/pod_name"
+    with open(pod_name_file) as f:
+      pod_name = f.read().strip()
+    print(f"pod_name={pod_name}")
+
+    for file in files:
+      # Ignore non-json files to avoid unnecessary failure.
+      if not file.endswith(".json"):
+        continue
+
+      per_epoch_output = root + f"/{file}"
+      with open(per_epoch_output, "r") as f:
+        try:
+          per_epoch_output_data = json.load(f)
+        except:
+          print(f"failed to json-parse {per_epoch_output}, so skipping it.")
+          continue
+
+      # Confirm that the per_epoch_output_data has ["jobs"][0]["job options"]['"bs"]
+      # for determining blocksize.
+      if (
+          not "jobs" in per_epoch_output_data
+          or not per_epoch_output_data["jobs"]
+          or not "job options" in per_epoch_output_data["jobs"][0]
+          or not "bs" in per_epoch_output_data["jobs"][0]["job options"]
+      ):
+        print(
+            'Did not find "[jobs][0][job options][bs]" in'
+            f" {per_epoch_output}, so ignoring this file"
+        )
+        continue
+      # Confirm that the per_epoch_output_data has ["global options"] for
+      # determining nrfiles and numjobs in it.
+      if "global options" not in per_epoch_output_data:
+        print(f"field: 'global options' missing in {per_epoch_output}")
+        continue
+
+      # This print is for debugging in case something goes wrong.
+      print(f"Now parsing file {per_epoch_output} ...")
+
+      # Get fileSize, readType, echo number from the file path.
+      root_split = root.split("/")
+      mean_file_size = root_split[-4]
+      key = root_split[
+          -3
+      ]  # key is unique for a given combination of of fileSize,blockSize,numThreads(numjobs),filesPerThread(nrfiles).
+      scenario = root_split[-2]
+      read_type = root_split[-1]
+      epoch = int(file.split(".")[0][-1])
+
+      # Get nrfiles,numjobs, blocksize from ["global options"] and ["job options"].
+      global_options = per_epoch_output_data["global options"]
+      nrfiles = int(global_options["nrfiles"])
+      numjobs = int(global_options["numjobs"])
+      bs = per_epoch_output_data["jobs"][0]["job options"]["bs"]
+
+      # If the record for this key has not been added, create a new entry
+      # for it.
+      if key not in output:
+        output[key] = {
+            "mean_file_size": mean_file_size,
+            "read_type": read_type,
+            "records": {
+                "local-ssd": [],
+                "gcsfuse-generic": [],
+                "gcsfuse-file-cache": [],
+                "gcsfuse-no-file-cache": [],
+            },
+        }
+
+      # Create a record for this key.
+      r = record.copy()
+      bs = per_epoch_output_data["jobs"][0]["job options"]["bs"]
+      r["pod_name"] = pod_name
+      r["epoch"] = epoch
+      r["scenario"] = scenario
+      r["duration"] = int(
+          per_epoch_output_data["jobs"][0]["read"]["runtime"] / 1000
+      )
+      r["IOPS"] = int(per_epoch_output_data["jobs"][0]["read"]["iops"])
+      r["throughput_mb_per_second"] = int(
+          per_epoch_output_data["jobs"][0]["read"]["bw_bytes"] / (1024**2)
+      )
+      r["start"] = unix_to_timestamp(
+          per_epoch_output_data["jobs"][0]["job_start"]
+      )
+      r["end"] = unix_to_timestamp(per_epoch_output_data["timestamp_ms"])
+      if r["scenario"] != "local-ssd" and mash_installed:
+        r["lowest_memory"], r["highest_memory"] = get_memory(
+            r["pod_name"],
+            r["start"],
+            r["end"],
+            project_number=args.project_number,
+        )
+        r["lowest_cpu"], r["highest_cpu"] = get_cpu(
+            r["pod_name"],
+            r["start"],
+            r["end"],
+            project_number=args.project_number,
+        )
+        pass
+      r["gcsfuse_mount_options"] = gcsfuse_mount_options
+      r["blockSize"] = bs
+      r["filesPerThread"] = nrfiles
+      r["numThreads"] = numjobs
+
+      # This print is for debugging in case something goes wrong.
+      pprint.pprint(r)
+
+      # If a slot for record for this particular epoch has not been created yet,
+      # append enough empty records to make a slot.
+      while len(output[key]["records"][scenario]) < epoch:
+        output[key]["records"][scenario].append({})
+
+      # Insert the record at the appropriate slot.
+      output[key]["records"][scenario][epoch - 1] = r
+
+
+def writeRecordsToCsvOutputFile(output_file_path: str):
+  output_file_fwr = open(output_file_path, "a")
+  output_file_fwr.write(
+      "File Size,Read Type,Scenario,Epoch,Duration"
+      " (s),Throughput (MB/s),IOPS,Throughput over Local SSD (%),GCSFuse"
+      " Lowest"
+      " Memory (MB),GCSFuse Highest Memory (MB),GCSFuse Lowest CPU"
+      " (core),GCSFuse Highest CPU"
+      " (core),Pod,Start,End,GcsfuseMoutOptions,BlockSize,FilesPerThread,NumThreads,InstanceID\n"
+  )
+
+  for key in output:
+    record_set = output[key]
+
+    for scenario in record_set["records"]:
+      if scenario not in SUPPORTED_SCENARIOS:
+        print(f"Unknown scenario: {scenario}. Ignoring it...")
+        continue
+
+      for i in range(len(record_set["records"][scenario])):
+        if ("local-ssd" in record_set["records"]) and (
+            len(record_set["records"]["local-ssd"])
+            == len(record_set["records"][scenario])
+        ):
+          try:
+            r = record_set["records"][scenario][i]
+            r["throughput_over_local_ssd"] = round(
+                r["throughput_mb_per_second"]
+                / record_set["records"]["local-ssd"][i][
+                    "throughput_mb_per_second"
+                ]
+                * 100,
+                2,
+            )
+          except:
+            print(
+                "failed to parse record-set for throughput_over_local_ssd."
+                f" record: {r}"
+            )
+            continue
+          else:
+            output_file_fwr.write(
+                f"{record_set['mean_file_size']},{record_set['read_type']},{scenario},{r['epoch']},{r['duration']},{r['throughput_mb_per_second']},{r['IOPS']},{r['throughput_over_local_ssd']},{r['lowest_memory']},{r['highest_memory']},{r['lowest_cpu']},{r['highest_cpu']},{r['pod_name']},{r['start']},{r['end']},\"{r['gcsfuse_mount_options']}\",{r['blockSize']},{r['filesPerThread']},{r['numThreads']},{args.instance_id}\n"
+            )
+        else:
+          try:
+            r = record_set["records"][scenario][i]
+            r["throughput_over_local_ssd"] = "NA"
+          except:
+            print(
+                "failed to parse record-set for throughput_over_local_ssd."
+                f" record: {r}"
+            )
+            continue
+          else:
+            output_file_fwr.write(
+                f"{record_set['mean_file_size']},{record_set['read_type']},{scenario},{r['epoch']},{r['duration']},{r['throughput_mb_per_second']},{r['IOPS']},{r['throughput_over_local_ssd']},{r['lowest_memory']},{r['highest_memory']},{r['lowest_cpu']},{r['highest_cpu']},{r['pod_name']},{r['start']},{r['end']},\"{r['gcsfuse_mount_options']}\",{r['blockSize']},{r['filesPerThread']},{r['numThreads']},{args.instance_id}\n"
+            )
+  output_file_fwr.close()
+
+
 if __name__ == "__main__":
   args = parseLogParserArguments()
   ensureDir(_LOCAL_LOGS_LOCATION)
@@ -95,228 +310,7 @@ if __name__ == "__main__":
   if not mash_installed:
     print("Mash is not installed, will skip parsing CPU and memory usage.")
 
-  def createOutputScenariosFromDownloadedFiles():
-    """Creates output records from the downloaded local files.
-
-    The following creates a dict called 'output'
-    from the downloaded fio output files, which are in the following format.
-
-      <_LOCAL_LOGS_LOCATION>/<instanceId>/<fileSize>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/<scenario>/<readType>/epoch[N].json
-      where N=1-4
-      <_LOCAL_LOGS_LOCATION>/<instanceId>/<fileSize>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/<scenario>/<readType>/pod_name
-      <_LOCAL_LOGS_LOCATION>/<instanceId>/<fileSize>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/gcsfuse-generic/<readType>/gcsfuse_mount_options
-
-      Output dict structure:
-      "{read_type}-{mean_file_size}-{bs}-{numjobs}-{nrfiles}":
-          "mean_file_size": str
-          "read_type": str
-          "records":
-              "local-ssd": [record1, record2, record3, record4]
-              "gcsfuse-generic": [record1, record2, record3, record4]
-              "gcsfuse-file-cache": [record1, record2, record3, record4]
-              "gcsfuse-no-file-cache": [record1, record2, record3, record4]
-    """
-    output = {}
-    for root, _, files in os.walk(
-        _LOCAL_LOGS_LOCATION + "/" + args.instance_id
-    ):
-      print(f"Parsing directory {root} ...")
-      # If directory contains gcsfuse_mount_options file, then parse gcsfuse
-      # mount options from it in record.
-      gcsfuse_mount_options = ""
-      gcsfuse_mount_options_file = root + "/gcsfuse_mount_options"
-      if os.path.isfile(gcsfuse_mount_options_file):
-        with open(gcsfuse_mount_options_file) as f:
-          gcsfuse_mount_options = f.read().strip()
-          print(f"gcsfuse_mount_options={gcsfuse_mount_options}")
-
-      # If directory contains pod_name file, then pod-name from it in the record.
-      pod_name = ""
-      pod_name_file = root + "/pod_name"
-      with open(pod_name_file) as f:
-        pod_name = f.read().strip()
-      print(f"pod_name={pod_name}")
-
-      for file in files:
-        # Ignore non-json files to avoid unnecessary failure.
-        if not file.endswith(".json"):
-          continue
-
-        per_epoch_output = root + f"/{file}"
-        with open(per_epoch_output, "r") as f:
-          try:
-            per_epoch_output_data = json.load(f)
-          except:
-            print(f"failed to json-parse {per_epoch_output}, so skipping it.")
-            continue
-
-        # Confirm that the per_epoch_output_data has ["jobs"][0]["job options"]['"bs"]
-        # for determining blocksize.
-        if (
-            not "jobs" in per_epoch_output_data
-            or not per_epoch_output_data["jobs"]
-            or not "job options" in per_epoch_output_data["jobs"][0]
-            or not "bs" in per_epoch_output_data["jobs"][0]["job options"]
-        ):
-          print(
-              'Did not find "[jobs][0][job options][bs]" in'
-              f" {per_epoch_output}, so ignoring this file"
-          )
-          continue
-        # Confirm that the per_epoch_output_data has ["global options"] for
-        # determining nrfiles and numjobs in it.
-        if "global options" not in per_epoch_output_data:
-          print(f"field: 'global options' missing in {per_epoch_output}")
-          continue
-
-        # This print is for debugging in case something goes wrong.
-        print(f"Now parsing file {per_epoch_output} ...")
-
-        # Get fileSize, readType, echo number from the file path.
-        root_split = root.split("/")
-        mean_file_size = root_split[-4]
-        key = root_split[
-            -3
-        ]  # key is unique for a given combination of of fileSize,blockSize,numThreads(numjobs),filesPerThread(nrfiles).
-        scenario = root_split[-2]
-        read_type = root_split[-1]
-        epoch = int(file.split(".")[0][-1])
-
-        # Get nrfiles,numjobs, blocksize from ["global options"] and ["job options"].
-        global_options = per_epoch_output_data["global options"]
-        nrfiles = int(global_options["nrfiles"])
-        numjobs = int(global_options["numjobs"])
-        bs = per_epoch_output_data["jobs"][0]["job options"]["bs"]
-
-        # If the record for this key has not been added, create a new entry
-        # for it.
-        if key not in output:
-          output[key] = {
-              "mean_file_size": mean_file_size,
-              "read_type": read_type,
-              "records": {
-                  "local-ssd": [],
-                  "gcsfuse-generic": [],
-                  "gcsfuse-file-cache": [],
-                  "gcsfuse-no-file-cache": [],
-              },
-          }
-
-        # Create a record for this key.
-        r = record.copy()
-        bs = per_epoch_output_data["jobs"][0]["job options"]["bs"]
-        r["pod_name"] = pod_name
-        r["epoch"] = epoch
-        r["scenario"] = scenario
-        r["duration"] = int(
-            per_epoch_output_data["jobs"][0]["read"]["runtime"] / 1000
-        )
-        r["IOPS"] = int(per_epoch_output_data["jobs"][0]["read"]["iops"])
-        r["throughput_mb_per_second"] = int(
-            per_epoch_output_data["jobs"][0]["read"]["bw_bytes"] / (1024**2)
-        )
-        r["start"] = unix_to_timestamp(
-            per_epoch_output_data["jobs"][0]["job_start"]
-        )
-        r["end"] = unix_to_timestamp(per_epoch_output_data["timestamp_ms"])
-        if r["scenario"] != "local-ssd" and mash_installed:
-          r["lowest_memory"], r["highest_memory"] = get_memory(
-              r["pod_name"],
-              r["start"],
-              r["end"],
-              project_number=args.project_number,
-          )
-          r["lowest_cpu"], r["highest_cpu"] = get_cpu(
-              r["pod_name"],
-              r["start"],
-              r["end"],
-              project_number=args.project_number,
-          )
-          pass
-        r["gcsfuse_mount_options"] = gcsfuse_mount_options
-        r["blockSize"] = bs
-        r["filesPerThread"] = nrfiles
-        r["numThreads"] = numjobs
-
-        # This print is for debugging in case something goes wrong.
-        pprint.pprint(r)
-
-        # If a slot for record for this particular epoch has not been created yet,
-        # append enough empty records to make a slot.
-        while len(output[key]["records"][scenario]) < epoch:
-          output[key]["records"][scenario].append({})
-
-        # Insert the record at the appropriate slot.
-        output[key]["records"][scenario][epoch - 1] = r
-
-  createOutputScenariosFromDownloadedFiles()
-
-  supported_scenarios = [
-      "local-ssd",
-      "gcsfuse-generic",
-      "gcsfuse-no-file-cache",
-      "gcsfuse-file-cache",
-  ]
-
-  def writeRecordsToCsvOutputFile(output_file_path: str):
-    output_file_fwr = open(output_file_path, "a")
-    output_file_fwr.write(
-        "File Size,Read Type,Scenario,Epoch,Duration"
-        " (s),Throughput (MB/s),IOPS,Throughput over Local SSD (%),GCSFuse"
-        " Lowest"
-        " Memory (MB),GCSFuse Highest Memory (MB),GCSFuse Lowest CPU"
-        " (core),GCSFuse Highest CPU"
-        " (core),Pod,Start,End,GcsfuseMoutOptions,BlockSize,FilesPerThread,NumThreads,InstanceID\n"
-    )
-
-    for key in output:
-      record_set = output[key]
-
-      for scenario in record_set["records"]:
-        if scenario not in supported_scenarios:
-          print(f"Unknown scenario: {scenario}. Ignoring it...")
-          continue
-
-        for i in range(len(record_set["records"][scenario])):
-          if ("local-ssd" in record_set["records"]) and (
-              len(record_set["records"]["local-ssd"])
-              == len(record_set["records"][scenario])
-          ):
-            try:
-              r = record_set["records"][scenario][i]
-              r["throughput_over_local_ssd"] = round(
-                  r["throughput_mb_per_second"]
-                  / record_set["records"]["local-ssd"][i][
-                      "throughput_mb_per_second"
-                  ]
-                  * 100,
-                  2,
-              )
-            except:
-              print(
-                  "failed to parse record-set for throughput_over_local_ssd."
-                  f" record: {r}"
-              )
-              continue
-            else:
-              output_file_fwr.write(
-                  f"{record_set['mean_file_size']},{record_set['read_type']},{scenario},{r['epoch']},{r['duration']},{r['throughput_mb_per_second']},{r['IOPS']},{r['throughput_over_local_ssd']},{r['lowest_memory']},{r['highest_memory']},{r['lowest_cpu']},{r['highest_cpu']},{r['pod_name']},{r['start']},{r['end']},\"{r['gcsfuse_mount_options']}\",{r['blockSize']},{r['filesPerThread']},{r['numThreads']},{args.instance_id}\n"
-              )
-          else:
-            try:
-              r = record_set["records"][scenario][i]
-              r["throughput_over_local_ssd"] = "NA"
-            except:
-              print(
-                  "failed to parse record-set for throughput_over_local_ssd."
-                  f" record: {r}"
-              )
-              continue
-            else:
-              output_file_fwr.write(
-                  f"{record_set['mean_file_size']},{record_set['read_type']},{scenario},{r['epoch']},{r['duration']},{r['throughput_mb_per_second']},{r['IOPS']},{r['throughput_over_local_ssd']},{r['lowest_memory']},{r['highest_memory']},{r['lowest_cpu']},{r['highest_cpu']},{r['pod_name']},{r['start']},{r['end']},\"{r['gcsfuse_mount_options']}\",{r['blockSize']},{r['filesPerThread']},{r['numThreads']},{args.instance_id}\n"
-              )
-    output_file_fwr.close()
+  createOutputScenariosFromDownloadedFiles(args)
 
   output_file_path = args.output_file
   # Create the parent directory of output_file_path if doesn't

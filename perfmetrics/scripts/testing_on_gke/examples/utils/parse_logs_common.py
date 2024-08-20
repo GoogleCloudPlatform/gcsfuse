@@ -28,6 +28,13 @@ SUPPORTED_SCENARIOS = [
     "gcsfuse-file-cache",
 ]
 
+SUPPORTED_SCENARIOS = [
+    "local-ssd",
+    "gcsfuse-generic",
+    "gcsfuse-no-file-cache",
+    "gcsfuse-file-cache",
+]
+
 
 def ensureDir(dirpath: str):
   try:
