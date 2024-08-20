@@ -26,7 +26,8 @@ import sys
 # local library imports
 sys.path.append("../")
 import dlio_workload
-from utils.utils import get_memory, get_cpu, standard_timestamp, is_mash_installed, download_gcs_objects
+from utils.utils import get_memory, get_cpu, standard_timestamp, is_mash_installed
+from utils.parse_logs_common import ensureDir, download_gcs_objects, parseLogParserArguments
 
 _LOCAL_LOGS_LOCATION = "../../bin/dlio-logs/logs"
 
@@ -47,13 +48,6 @@ record = {
     "lowest_cpu": 0.0,
     "gcsfuse_mount_options": "",
 }
-
-
-def ensureDir(dirpath):
-  try:
-    os.makedirs(dirpath)
-  except FileExistsError:
-    pass
 
 
 def downloadDlioOutputs(dlioWorkloads: set, instanceId: str) -> int:
@@ -83,50 +77,8 @@ def downloadDlioOutputs(dlioWorkloads: set, instanceId: str) -> int:
   return 0
 
 
-def parseLogParserArguments() -> object:
-  parser = argparse.ArgumentParser(
-      prog="DLIO Unet3d test output parser",
-      description=(
-          "This program takes in a json workload configuration file and parses"
-          " it for valid DLIO workloads and the locations of their test outputs"
-          " on GCS. It downloads each such output object locally to"
-          " {_LOCAL_LOGS_LOCATION} and parses them for DLIO test runs, and then"
-          " dumps their output metrics into a CSV report file."
-      ),
-  )
-  parser.add_argument(
-      "--workload-config",
-      help=(
-          "A json configuration file to define workloads that were run to"
-          " generate the outputs that should be parsed."
-      ),
-      required=True,
-  )
-  parser.add_argument(
-      "--project-number",
-      help=(
-          "project-number (e.g. 93817472919) is needed to fetch the cpu/memory"
-          " utilization data from GCP."
-      ),
-      required=True,
-  )
-  parser.add_argument(
-      "--instance-id",
-      help="unique string ID for current test-run",
-      required=True,
-  )
-  parser.add_argument(
-      "-o",
-      "--output-file",
-      metavar="Output file (CSV) path",
-      help="File path of the output metrics (in CSV format)",
-      default="output.csv",
-  )
-  return parser.parse_args()
-
-
 if __name__ == "__main__":
-  parseLogParserArguments()
+  args = parseLogParserArguments()
   ensureDir(_LOCAL_LOGS_LOCATION)
 
   dlioWorkloads = dlio_workload.ParseTestConfigForDlioWorkloads(
