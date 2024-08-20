@@ -140,3 +140,23 @@ def unix_to_timestamp(unix_timestamp: int) -> str:
 
 def standard_timestamp(timestamp: int) -> str:
   return timestamp.split(".")[0].replace("T", " ") + " UTC"
+
+
+def download_gcs_objects(src: str, dst: str) -> tuple[int, str]:
+  result = subprocess.run(
+      [
+          "gcloud",
+          "-q",  # ignore prompts
+          "storage",
+          "cp",
+          "-r",
+          "--no-user-output-enabled",  # do not print names of objects being copied
+          src,
+          dst,
+      ],
+      capture_output=False,
+      text=True,
+  )
+  if result.returncode < 0:
+    return (result.returncode, f"error: {result.stderr}")
+  return result.returncode, ""
