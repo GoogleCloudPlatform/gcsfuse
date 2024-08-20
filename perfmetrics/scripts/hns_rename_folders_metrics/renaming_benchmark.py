@@ -65,11 +65,13 @@ def _upload_to_gsheet(worksheet, data, spreadsheet_id) -> (int):
   os.chdir('./hns_rename_folders_metrics')
   return exit_code
 
+
 def _calculate_num_files(folder_structure):
   count=0
   for folder in folder_structure:
     count+=folder["num_files"]
   return count
+
 
 def _create_row_of_values(operation,test_type,num_files,num_folders,metrics):
   row = [
@@ -96,6 +98,8 @@ def _create_row_of_values(operation,test_type,num_files,num_folders,metrics):
 
   ]
   return row
+
+
 def _get_values_to_export(dir, metrics, test_type):
   """
   This function takes in extracted metrics data, filters it, rearranges it,
@@ -123,7 +127,7 @@ def _get_values_to_export(dir, metrics, test_type):
   num_files= _calculate_num_files(dir["nested_folders"]["folder_structure"])
   num_folders=dir["nested_folders"]["num_folders"]
 
-  row=_create_row_of_values('Renaming Operation',test_type,num_files,num_folders,metrics[nested_folder_name])
+  row=_create_row_of_values('Renaming Operation Nested',test_type,num_files,num_folders,metrics[nested_folder_name])
   metrics_data.append(row)
 
   return metrics_data
@@ -188,7 +192,6 @@ def _parse_results(dir, results, num_samples):
     folder_name = folder["name"]
     metrics[folder_name] = _compute_metrics_from_time_of_operation(
         num_samples, results[folder_name])
-  #TODO add logic for metrics parsing for nested folder
   metrics[dir["nested_folders"]["folder_name"]]= _compute_metrics_from_time_of_operation(
       num_samples, results[dir["nested_folders"]["folder_name"]])
   return metrics
@@ -252,11 +255,13 @@ def _record_time_of_operation(mount_point, dir, num_samples):
   # Collecting metrics for non-nested folders.
   for folder in dir["folders"]["folder_structure"]:
     results[folder["name"]] = _record_time_for_folder_rename(mount_point,folder,num_samples)
-  #TODO Add metric collection logic for nested-folders
+
   results[dir["nested_folders"]["folder_name"]] = [0] * num_samples
   for folder in dir["nested_folders"]["folder_structure"]:
     parent_dir_path="{}/{}".format(mount_point,dir["nested_folders"]["folder_name"])
-    results[dir["nested_folders"]["folder_name"]] += _record_time_for_folder_rename(parent_dir_path,folder,num_samples)
+    time_curr_sample= _record_time_for_folder_rename(parent_dir_path,folder,num_samples)
+    time_prev_samples= results[dir["nested_folders"]["folder_name"]]
+    results[dir["nested_folders"]["folder_name"]] = [a+b for a,b in zip(time_curr_sample,time_prev_samples)]
   return results
 
 
