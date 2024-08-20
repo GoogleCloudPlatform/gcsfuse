@@ -110,7 +110,7 @@ func (t *HNSBucketTests) TestDeleteFolder() {
 	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
 }
 
-func (t *HNSBucketTests) TestDeleteImplicitFolder() {
+func (t *HNSBucketTests) TestDeleteImplicitDir() {
 	dirPath := path.Join(mntDir, "foo", "implicit_dir")
 
 	err = os.RemoveAll(dirPath)
