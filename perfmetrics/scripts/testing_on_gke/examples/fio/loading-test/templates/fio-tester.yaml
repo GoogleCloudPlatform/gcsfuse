@@ -36,8 +36,8 @@ spec:
         cpu: {{ .Values.resourceLimits.cpu }}
         memory: {{ .Values.resourceLimits.memory }}
       requests:
-        cpu: "30"
-        memory: 300Gi
+        cpu: {{ .Values.resourceRequests.cpu }}
+        memory: {{ .Values.resourceRequests.memory }}
     command:
       - "/bin/sh"
       - "-c"
@@ -110,7 +110,7 @@ spec:
         pause_in_seconds=20
         block_size={{ .Values.fio.blockSize }}
         file_size={{ .Values.fio.fileSize }}
-        num_of_threads=50
+        num_of_threads={{ .Values.fio.numThreads }}
         workload_dir=/data
 
         # Cleaning the pagecache, dentries and inode cache before the starting the workload.
@@ -126,6 +126,12 @@ spec:
 
         echo "Run fio tests..."
         mkdir -p /data/fio-output/{{ .Values.scenario }}/$read_type
+
+        # dump the gcsfuse-mount-configuration to a file in output-directory.
+        {{ if eq .Values.scenario "gcsfuse-generic" }}
+        echo "{{ .Values.gcsfuse.mountOptions }}" > /data/fio-output/{{ .Values.scenario }}/$read_type/gcsfuse_mount_options
+        {{ end }}
+
         for i in $(seq $epoch); do
 
           echo "[Epoch ${i}] start time:" `date +%s`
@@ -164,6 +170,12 @@ spec:
   - name: data-vol
   {{- if eq .Values.scenario "local-ssd" }}
     emptyDir: {}
+  {{- else if eq .Values.scenario "gcsfuse-generic" }}
+    csi:
+      driver: gcsfuse.csi.storage.gke.io
+      volumeAttributes:
+        bucketName: {{ .Values.bucketName }}
+        mountOptions: "{{ .Values.gcsfuse.mountOptions }}"
   {{- else if eq .Values.scenario "gcsfuse-file-cache" }}
     csi:
       driver: gcsfuse.csi.storage.gke.io
