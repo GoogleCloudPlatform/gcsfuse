@@ -275,7 +275,7 @@ func (t *HNSBucketTests) TestRenameFolderWithOpenGCSFile() {
 // Read new directory and validate.
 // Create old directory again with same name - foo
 // Stat the directory - foo
-// Read directory again validate it is empty.
+// Read directory again and validate it is empty.
 func (t *HNSBucketTests) TestCreateDirectoryWithSameNameAfterRename() {
 	oldDirPath := path.Join(mntDir, "foo")
 	_, err = os.Stat(oldDirPath)
