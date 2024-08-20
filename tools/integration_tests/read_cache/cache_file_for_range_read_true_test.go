@@ -102,7 +102,7 @@ func TestCacheFileForRangeReadTrueTest(t *testing.T) {
 		{"--implicit-dirs", "--config-file=" + createConfigFile(cacheCapacityForRangeReadTestInMiB, true, configFileName, false, getDefaultCacheDirPathForTests())},
 		{"--config-file=" + createConfigFile(cacheCapacityForRangeReadTestInMiB, true, configFileNameForParallelDownloadTests, true, getDefaultCacheDirPathForTests())},
 		{"--config-file=" + createConfigFile(cacheCapacityForRangeReadTestInMiB, true, configFileNameForParallelDownloadTests, true, ramCacheDir)},
-		{"--config-file=" + createConfigFile(cacheCapacityForRangeReadTestInMiB, true, configFileNameForParallelDownloadTests, false, ramCacheDir)},
+		{"--config-file=" + createConfigFile(cacheCapacityForRangeReadTestInMiB, true, configFileName, false, ramCacheDir)},
 	}
 
 	// Run tests.
