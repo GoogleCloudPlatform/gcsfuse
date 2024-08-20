@@ -40,5 +40,6 @@ RUN mkdir -p "run_artifacts"
 RUN mkdir -p "gcsfuse_data"
 
 ENV PYTORCH_VERSION="v2"
+ENV BUCKET_TYPE="non-hns"
 
-ENTRYPOINT ["/bin/bash", "-c", "./run_model.sh ${PYTORCH_VERSION}"]
+ENTRYPOINT ["/bin/bash", "-c", "./run_model.sh ${PYTORCH_VERSION} ${BUCKET_TYPE}"]

@@ -63,8 +63,6 @@ then
   DIR=${DIR}_${BUCKET_TYPE}
 fi
 
-echo "bucket name: "$TEST_BUCKET
-echo "Dir: " $DIR
 echo "Created config-file at "$config_filename
 
 echo "Mounting GCSFuse..."
