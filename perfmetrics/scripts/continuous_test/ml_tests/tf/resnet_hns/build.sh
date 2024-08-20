@@ -17,7 +17,7 @@
 set -e
 
 VM_NAME="tf-resnet-7d-hns"
-ZONE_NAME="us-west1-b"
+ZONE_NAME="us-central1-f"
 ARTIFACTS_BUCKET_PATH="gs://gcsfuse-ml-tests-logs/ci_artifacts/tf/resnet_hns"
 TEST_SCRIPT_PATH="github/gcsfuse/perfmetrics/scripts/ml_tests/tf/resnet/setup_host_and_run_model.sh"
 BUCKET_TYPE="hns"
