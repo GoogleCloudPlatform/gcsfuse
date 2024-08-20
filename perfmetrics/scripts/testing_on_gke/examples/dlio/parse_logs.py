@@ -77,7 +77,7 @@ def downloadDlioOutputs(dlioWorkloads: set, instanceId: str) -> int:
   return 0
 
 
-def createOutputScenariosFromDownloadedFiles(args: dict):
+def createOutputScenariosFromDownloadedFiles(args: dict) -> dict:
   """Creates output records from the downloaded local files.
 
   The following creates a dict called 'output'
@@ -197,8 +197,10 @@ def createOutputScenariosFromDownloadedFiles(args: dict):
         # Insert the record at the appropriate slot.
         output[key]["records"][r["scenario"]][i] = r
 
+  return output
 
-def writeRecordsToCsvOutputFile(output_file_path: str):
+
+def writeRecordsToCsvOutputFile(output: dict, output_file_path: str):
   output_file = open(output_file_path, "a")
   output_file.write(
       "File Size,File #,Total Size (GB),Batch Size,Scenario,Epoch,Duration"
@@ -273,10 +275,10 @@ if __name__ == "__main__":
   if not mash_installed:
     print("Mash is not installed, will skip parsing CPU and memory usage.")
 
-  createOutputScenariosFromDownloadedFiles(args)
+  output = createOutputScenariosFromDownloadedFiles(args)
 
   output_file_path = args.output_file
   # Create the parent directory of output_file_path if doesn't
   # exist already.
   ensureDir(os.path.dirname(output_file_path))
-  writeRecordsToCsvOutputFile(output_file_path)
+  writeRecordsToCsvOutputFile(output, output_file_path)

@@ -82,7 +82,7 @@ def downloadFioOutputs(fioWorkloads: set, instanceId: str) -> int:
   return 0
 
 
-def createOutputScenariosFromDownloadedFiles(args: dict):
+def createOutputScenariosFromDownloadedFiles(args: dict) -> dict:
   """Creates output records from the downloaded local files.
 
   The following creates a dict called 'output'
@@ -107,7 +107,12 @@ def createOutputScenariosFromDownloadedFiles(args: dict):
   output = {}
   for root, _, files in os.walk(_LOCAL_LOGS_LOCATION + "/" + args.instance_id):
     print(f"Parsing directory {root} ...")
-    # If directory contains gcsfuse_mount_options file, then parse gcsfuse
+
+    if not files:
+      # ignore intermediate directories.
+      continue
+
+    # if directory contains gcsfuse_mount_options file, then parse gcsfuse
     # mount options from it in record.
     gcsfuse_mount_options = ""
     gcsfuse_mount_options_file = root + "/gcsfuse_mount_options"
@@ -116,7 +121,8 @@ def createOutputScenariosFromDownloadedFiles(args: dict):
         gcsfuse_mount_options = f.read().strip()
         print(f"gcsfuse_mount_options={gcsfuse_mount_options}")
 
-    # If directory contains pod_name file, then pod-name from it in the record.
+    # if directory has files, it must also contain pod_name file,
+    # and we should extract pod-name from it in the record.
     pod_name = ""
     pod_name_file = root + "/pod_name"
     with open(pod_name_file) as f:
@@ -235,8 +241,10 @@ def createOutputScenariosFromDownloadedFiles(args: dict):
       # Insert the record at the appropriate slot.
       output[key]["records"][scenario][epoch - 1] = r
 
+  return output
 
-def writeRecordsToCsvOutputFile(output_file_path: str):
+
+def writeRecordsToCsvOutputFile(output: dict, output_file_path: str):
   output_file_fwr = open(output_file_path, "a")
   output_file_fwr.write(
       "File Size,Read Type,Scenario,Epoch,Duration"
@@ -310,10 +318,10 @@ if __name__ == "__main__":
   if not mash_installed:
     print("Mash is not installed, will skip parsing CPU and memory usage.")
 
-  createOutputScenariosFromDownloadedFiles(args)
+  output = createOutputScenariosFromDownloadedFiles(args)
 
   output_file_path = args.output_file
   # Create the parent directory of output_file_path if doesn't
   # exist already.
   ensureDir(os.path.dirname(output_file_path))
-  writeRecordsToCsvOutputFile(output_file_path)
+  writeRecordsToCsvOutputFile(output, output_file_path)
