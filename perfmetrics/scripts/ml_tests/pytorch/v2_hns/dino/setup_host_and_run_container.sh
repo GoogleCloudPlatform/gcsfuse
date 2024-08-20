@@ -16,11 +16,11 @@
 # This will stop execution when any command will have non-zero status.
 set -e
 
-VM_NAME="tf-resnet-7d"
-ZONE_NAME="us-west1-b"
-ARTIFACTS_BUCKET_PATH="gs://gcsfuse-ml-tests-logs/ci_artifacts/tf/resnet"
-TEST_SCRIPT_PATH="github/gcsfuse/perfmetrics/scripts/ml_tests/tf/resnet/setup_host_and_run_model.sh"
+cd "$HOME/github/gcsfuse/perfmetrics/scripts"
 
-cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/perfmetrics/scripts/continuous_test/ml_tests/"
+echo "Setting up the machine with Docker and Nvidia Driver"
+DRIVER_VERSION="450.172.01"
+source ml_tests/setup_host.sh $DRIVER_VERSION
 
-source run_and_manage_test.sh $VM_NAME $ZONE_NAME $ARTIFACTS_BUCKET_PATH $TEST_SCRIPT_PATH
+DIR="v2_hns"
+source ml_tests/pytorch/run_container.sh $DIR

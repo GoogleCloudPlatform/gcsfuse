@@ -51,6 +51,14 @@ metadata-cache:
   ttl-secs: 1728000
   stat-cache-max-size-mb: 3200
 EOF
+
+# Set the HNS bucket to run tests on the folder apis and pass the "enable-hns" flag with a value of "true".
+if [ ${BUCKET_TYPE} == "hns" ];
+then
+  TEST_BUCKET="gcsfuse-ml-data-hns-west1"
+  echo "enable-hns: true" >> $config_filename
+fi
+
 echo "Created config-file at "$config_filename
 
 echo "Mounting GCSFuse..."
