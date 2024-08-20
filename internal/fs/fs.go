@@ -1810,7 +1810,7 @@ func (fs *fileSystem) CreateSymlink(
 func (fs *fileSystem) RmDir(
 	// When rm -r or os.RemoveAll call is made, the following calls are made in order
 	//	 1. RmDir (only in the case of os.RemoveAll)
-	//	 2. Unlinked all nested files,
+	//	 2. Unlink all nested files,
 	//	 3. lookupInode call on implicit directory
 	//	 4. Rmdir on the directory.
 	//
@@ -2203,7 +2203,7 @@ func (fs *fileSystem) renameNonHierarchicalDir(
 		}
 
 		if err = fs.invalidateChildFileCacheIfExist(oldDir, o.Name); err != nil {
-			return fmt.Errorf("Unlinked: while invalidating cache for delete file: %w", err)
+			return fmt.Errorf("Unlink: while invalidating cache for delete file: %w", err)
 		}
 	}
 
@@ -2270,7 +2270,7 @@ func (fs *fileSystem) Unlink(
 	}
 
 	if err := fs.invalidateChildFileCacheIfExist(parent, fileName.GcsObjectName()); err != nil {
-		return fmt.Errorf("Unlinked: while invalidating cache for delete file: %w", err)
+		return fmt.Errorf("Unlink: while invalidating cache for delete file: %w", err)
 	}
 
 	return

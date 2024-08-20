@@ -285,9 +285,11 @@ func (t *HNSBucketTests) TestCreateDirectoryWithSameNameAfterRename() {
 	// Rename directory foo --> foo_rename
 	err = os.Rename(oldDirPath, newDirPath)
 	require.NoError(t.T(), err)
+	// Stat old directory.
 	_, err = os.Stat(oldDirPath)
 	require.Error(t.T(), err)
 	require.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+	// Stat new directory.
 	_, err = os.Stat(newDirPath)
 	require.NoError(t.T(), err)
 	// Read new directory and validate.
@@ -324,6 +326,7 @@ func (t *HNSBucketTests) TestCreateDirectoryWithSameNameAfterRename() {
 func (t *HNSBucketTests) TestCreateLocalFileInSamePathAfterDeletingParentDirectory() {
 	dirPath := path.Join(mntDir, "foo", "test2")
 	filePath := path.Join(dirPath, "test.txt")
+	// Create local file in side it.
 	f1, err := os.Create(filePath)
 	defer require.NoError(t.T(), f1.Close())
 	require.NoError(t.T(), err)
@@ -336,7 +339,7 @@ func (t *HNSBucketTests) TestCreateLocalFileInSamePathAfterDeletingParentDirecto
 	err = os.Mkdir(dirPath, dirPerms)
 	assert.NoError(t.T(), err)
 
-	// Create directory again.
+	// Create local file again.
 	f2, err := os.Create(filePath)
 	defer require.NoError(t.T(), f2.Close())
 
