@@ -17,6 +17,30 @@ from mock import patch, call, mock_open
 
 class TestRenamingBenchmark(unittest.TestCase):
 
+  def test_calculate_num_files(self):
+    dir = {
+        "folder_structure":[
+                {
+                  'name': "test_folder1",
+                  "num_files": 1,
+                  "file_name_prefix": "file",
+                  "file_size": "1kb"
+                },
+                {
+                  'name': "test_folder2",
+                  "num_files": 1,
+                  "file_name_prefix": "file",
+                  "file_size": "1kb"
+                }
+            ]
+        }
+
+    expected_count_of_files=2
+
+    num_files=renaming_benchmark._calculate_num_files(dir["folder_structure"])
+
+    self.assertEqual(num_files,expected_count_of_files)
+
   @patch('subprocess.call')
   @patch('time.time')
   def test_record_time_for_folder_rename(self,mock_time,mock_subprocess):
@@ -169,6 +193,34 @@ class TestRenamingBenchmark(unittest.TestCase):
     metrics=renaming_benchmark._compute_metrics_from_time_of_operation(num_samples,results)
 
     self.assertEqual(metrics,expected_metrics)
+
+  def test_create_row_of_values(self):
+    metrics={
+            'Number of samples':2,
+            'Mean':1.0,
+            'Median':1.0,
+            'Standard Dev':0,
+            'Min': 1.0,
+            'Max':1.0,
+            'Quantiles':{'0 %ile': 1.0, '20 %ile': 1.0, '50 %ile': 1.0,
+                         '90 %ile': 1.0, '95 %ile': 1.0, '98 %ile': 1.0,
+                         '99 %ile': 1.0, '99.5 %ile': 1.0, '99.9 %ile': 1.0,
+                         '100 %ile': 1.0}
+    }
+    operation="renaming test"
+    test_type="flat"
+    num_files=1
+    num_folders=1
+    expected_row=[
+        "renaming test",
+        "flat",
+        1,1,2,1.0,1.0,0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0
+    ]
+
+    row=renaming_benchmark._create_row_of_values(operation,test_type,num_files,num_folders,metrics)
+
+    self.assertEqual(row,expected_row)
+
 
   def test_get_values_to_export(self):
     dir = {
