@@ -1399,10 +1399,8 @@ func (t *DirTest) DeleteChildFile_TypeCaching() {
 func (t *DirTest) DeleteChildDir_DoesntExist() {
 	const name = "qux"
 
-	dirIn := t.createDirInode(name)
-	err := t.in.DeleteChildDir(t.ctx, name, false, dirIn)
+	err := t.in.DeleteChildDir(t.ctx, name, false, nil)
 	ExpectEq(nil, err)
-	ExpectFalse(dirIn.IsUnlinked())
 }
 
 func (t *DirTest) DeleteChildDir_Exists() {
@@ -1415,7 +1413,7 @@ func (t *DirTest) DeleteChildDir_Exists() {
 	_, err = storageutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
 	AssertEq(nil, err)
 
-	dirIn := t.createDirInode(name)
+	dirIn := t.createDirInode(objName)
 	// Call the inode.
 	err = t.in.DeleteChildDir(t.ctx, name, false, dirIn)
 	AssertEq(nil, err)
@@ -1429,8 +1427,9 @@ func (t *DirTest) DeleteChildDir_Exists() {
 
 func (t *DirTest) DeleteChildDir_ImplicitDirTrue() {
 	const name = "qux"
+	objName := path.Join(dirInodeName, name) + "/"
 
-	dirIn := t.createDirInode(name)
+	dirIn := t.createDirInode(objName)
 	err := t.in.DeleteChildDir(t.ctx, name, true, dirIn)
 
 	ExpectEq(nil, err)
