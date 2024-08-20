@@ -435,7 +435,7 @@ func (fs *monitoring) Unlink(
 	op *fuseops.UnlinkOp) error {
 	startTime := time.Now()
 	err := fs.wrapped.Unlink(ctx, op)
-	recordOp(ctx, "Unlink", startTime, err)
+	recordOp(ctx, "Unlinked", startTime, err)
 	return err
 }
 

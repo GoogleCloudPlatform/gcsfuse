@@ -252,9 +252,10 @@ func (d *baseDirInode) RenameFolder(ctx context.Context, folderName string, dest
 	return
 }
 
-func (d *baseDirInode) IsUnlink() bool {
+// This operation is not supported on base_dir.
+func (d *baseDirInode) IsUnlinked() bool {
 	return false
 }
 
-func (d *baseDirInode) Unlink() {
+func (d *baseDirInode) Unlinked() {
 }

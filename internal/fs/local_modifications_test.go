@@ -1264,7 +1264,7 @@ func (t *DirectoryTest) Rmdir_ThenRecreateWithSameName() {
 	err = os.Mkdir(path.Join(mntDir, "dir"), 0700)
 	AssertEq(nil, err)
 
-	// Unlink the directory.
+	// Unlinked the directory.
 	err = os.Remove(path.Join(mntDir, "dir"))
 	AssertEq(nil, err)
 
@@ -1846,7 +1846,7 @@ func (t *FileTest) UnlinkFile_Exists() {
 	err = ioutil.WriteFile(fileName, []byte("Hello, world!"), 0600)
 	AssertEq(nil, err)
 
-	// Unlink it.
+	// Unlinked it.
 	err = os.Remove(fileName)
 	AssertEq(nil, err)
 
@@ -1884,7 +1884,7 @@ func (t *FileTest) UnlinkFile_StillOpen() {
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
-	// Unlink it.
+	// Unlinked it.
 	err = os.Remove(fileName)
 	AssertEq(nil, err)
 
@@ -1952,7 +1952,7 @@ func (t *FileTest) UnlinkFile_FromSubDirectory() {
 	err = ioutil.WriteFile(fileName, []byte("Hello, world!"), 0600)
 	AssertEq(nil, err)
 
-	// Unlink it.
+	// Unlinked it.
 	err = os.Remove(fileName)
 	AssertEq(nil, err)
 
@@ -1976,7 +1976,7 @@ func (t *FileTest) UnlinkFile_ThenRecreateWithSameName() {
 	err = ioutil.WriteFile(fileName, []byte("Hello, world!"), 0600)
 	AssertEq(nil, err)
 
-	// Unlink it.
+	// Unlinked it.
 	err = os.Remove(fileName)
 	AssertEq(nil, err)
 

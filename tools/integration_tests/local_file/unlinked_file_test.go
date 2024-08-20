@@ -28,7 +28,7 @@ func TestStatOnUnlinkedLocalFile(t *testing.T) {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
 	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
-	// Unlink the local file.
+	// Unlinked the local file.
 	operations.RemoveFile(filePath)
 
 	// Stat the local file and validate error.
@@ -45,7 +45,7 @@ func TestReadDirContainingUnlinkedLocalFiles(t *testing.T) {
 	_, fh1 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
 	_, fh2 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName2, t)
 	filepath3, fh3 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName3, t)
-	// Unlink local file 3.
+	// Unlinked local file 3.
 	operations.RemoveFile(filepath3)
 
 	// Attempt to list testDir.

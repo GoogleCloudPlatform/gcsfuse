@@ -130,6 +130,27 @@ func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistent
 	t.in.Lock()
 }
 
+func (t *DirTest) createDirInode(dirInodeName string) DirInode {
+	return NewDirInode(
+		5,
+		NewDirName(NewRootName(""), dirInodeName),
+		fuseops.InodeAttributes{
+			Uid:  uid,
+			Gid:  gid,
+			Mode: dirMode,
+		},
+		false,
+		false,
+		true,
+		typeCacheTTL,
+		&t.bucket,
+		&t.clock,
+		&t.clock,
+		config.DefaultTypeCacheMaxSizeMB,
+		false,
+	)
+}
+
 func (t *DirTest) getTypeFromCache(name string) metadata.Type {
 	return t.tc.Get(t.in.(*dirInode).cacheClock.Now(), name)
 }
@@ -155,8 +176,8 @@ func (t *DirTest) readAllEntries() (entries []fuseutil.Dirent, err error) {
 }
 
 func (t *DirTest) setSymlinkTarget(
-	objName string,
-	target string) (err error) {
+		objName string,
+		target string) (err error) {
 	_, err = t.bucket.UpdateObject(
 		t.ctx,
 		&gcs.UpdateObjectRequest{
@@ -1378,7 +1399,8 @@ func (t *DirTest) DeleteChildFile_TypeCaching() {
 func (t *DirTest) DeleteChildDir_DoesntExist() {
 	const name = "qux"
 
-	err := t.in.DeleteChildDir(t.ctx, name, false, t.in)
+	dirIn := t.createDirInode(name)
+	err := t.in.DeleteChildDir(t.ctx, name, false, dirIn)
 	ExpectEq(nil, err)
 }
 
@@ -1392,8 +1414,9 @@ func (t *DirTest) DeleteChildDir_Exists() {
 	_, err = storageutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
 	AssertEq(nil, err)
 
+	dirIn := t.createDirInode(name)
 	// Call the inode.
-	err = t.in.DeleteChildDir(t.ctx, name, false, t.in)
+	err = t.in.DeleteChildDir(t.ctx, name, false, dirIn)
 	AssertEq(nil, err)
 
 	// Check the bucket.
@@ -1405,7 +1428,9 @@ func (t *DirTest) DeleteChildDir_Exists() {
 func (t *DirTest) DeleteChildDir_ImplicitDirTrue() {
 	const name = "qux"
 
-	err := t.in.DeleteChildDir(t.ctx, name, true, t.in)
+	dirIn := t.createDirInode(name)
+	err := t.in.DeleteChildDir(t.ctx, name, true, dirIn)
+
 	ExpectEq(nil, err)
 }
 
@@ -1469,7 +1494,7 @@ func (t *DirTest) LocalFileEntriesWithUnlinkedLocalChildFiles() {
 	in1 := t.createLocalFileInode(t.in.Name(), "1_localChildInode", 1)
 	in2 := t.createLocalFileInode(t.in.Name(), "2_localChildInode", 2)
 	in3 := t.createLocalFileInode(Name{bucketName: "abc", objectName: "def/"}, "3_localNonChildInode", 3)
-	// Unlink local file inode 2.
+	// Unlinked local file inode 2.
 	filein2, _ := in2.(*FileInode)
 	filein2.Unlink()
 	// Create local file inodes map.

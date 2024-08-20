@@ -50,9 +50,6 @@ func TestHNSBucketTests(t *testing.T) { suite.Run(t, new(HNSBucketTests)) }
 func (t *HNSBucketTests) SetupSuite() {
 	t.serverCfg.ImplicitDirectories = false
 	t.serverCfg.NewConfig = &cfg.Config{
-		Write: cfg.WriteConfig{
-			CreateEmptyFile: false,
-		},
 		EnableHns: true,
 	}
 	bucketType = gcs.Hierarchical
@@ -270,11 +267,22 @@ func (t *HNSBucketTests) TestRenameFolderWithOpenGCSFile() {
 	assert.False(t.T(), dirEntries[0].IsDir())
 }
 
+// Create directory foo.
+// Stat the directory foo.
+// Rename directory foo --> foo_rename
+// Stat the old directory.
+// Stat the new directory.
+// Read new directory and validate.
+// Create directory again foo
+// Create directory again with same name - foo
+// Stat the directory - foo
+// Read directory again validate it is empty.
 func (t *HNSBucketTests) TestCreateDirectoryWithSameNameAfterRename() {
 	oldDirPath := path.Join(mntDir, "foo")
 	_, err = os.Stat(oldDirPath)
 	require.NoError(t.T(), err)
 	newDirPath := path.Join(mntDir, "foo_rename")
+	// Rename directory foo --> foo_rename
 	err = os.Rename(oldDirPath, newDirPath)
 	require.NoError(t.T(), err)
 	_, err = os.Stat(oldDirPath)
@@ -282,6 +290,7 @@ func (t *HNSBucketTests) TestCreateDirectoryWithSameNameAfterRename() {
 	require.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
 	_, err = os.Stat(newDirPath)
 	require.NoError(t.T(), err)
+	// Read new directory and validate.
 	dirEntries, err := os.ReadDir(newDirPath)
 	require.NoError(t.T(), err)
 	require.Equal(t.T(), 5, len(dirEntries))
@@ -294,6 +303,7 @@ func (t *HNSBucketTests) TestCreateDirectoryWithSameNameAfterRename() {
 	}
 	require.ElementsMatch(t.T(), actualDirEntries, expectedFooDirEntries)
 
+	// Create old directory again.
 	err = os.Mkdir(oldDirPath, dirPerms)
 
 	assert.NoError(t.T(), err)
@@ -304,6 +314,13 @@ func (t *HNSBucketTests) TestCreateDirectoryWithSameNameAfterRename() {
 	assert.Equal(t.T(), 0, len(dirEntries))
 }
 
+// Create directory foo/test2
+// Create local file in directory foo/test2/test.txt
+// Stat the local file foo/test2/test.txt
+// Delete directory rm -r foo/test2
+// Create directory again foo/test2
+// Create local file with the same name in directory foo/test2/test.txt
+// Stat the local file foo/test2/test.txt
 func (t *HNSBucketTests) TestCreateLocalFileInSamePathAfterDeletingParentDirectory() {
 	dirPath := path.Join(mntDir, "foo", "test2")
 	filePath := path.Join(dirPath, "test.txt")
@@ -312,11 +329,14 @@ func (t *HNSBucketTests) TestCreateLocalFileInSamePathAfterDeletingParentDirecto
 	require.NoError(t.T(), err)
 	_, err = os.Stat(filePath)
 	require.NoError(t.T(), err)
+	// Delete directory rm -r foo/test2
 	err = os.RemoveAll(dirPath)
 	assert.NoError(t.T(), err)
+	// Create directory again foo/test2
 	err = os.Mkdir(dirPath, dirPerms)
 	assert.NoError(t.T(), err)
 
+	// Create directory again.
 	f2, err := os.Create(filePath)
 	defer require.NoError(t.T(), f2.Close())
 
