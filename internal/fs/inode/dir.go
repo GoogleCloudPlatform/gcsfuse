@@ -936,9 +936,9 @@ func (d *dirInode) DeleteChildDir(
 	dirInode DirInode) error {
 	d.cache.Erase(name)
 
-	// if the directory is an implicit directory, then no backing object
+	// If the directory is an implicit directory, then no backing object
 	// exists in the gcs bucket, so returning from here.
-	// Hierarchical buckets don't have implicit dirs.
+	// Hierarchical buckets don't have implicit dirs so this will be always false in hierarchical bucket case.
 	if isImplicitDir {
 		return nil
 	}
