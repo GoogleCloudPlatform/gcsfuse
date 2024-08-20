@@ -179,7 +179,7 @@ func TestJobChunkTest(t *testing.T) {
 
 	// Tests to validate chunk size when read cache parallel downloads are disabled.
 	var chunkSizeForReadCache int64 = 8
-	ts.flags = []string{"--config-file=" + createConfigFile(cacheSizeMB, true, configFileName, false)}
+	ts.flags = []string{"--config-file=" + createConfigFile(cacheSizeMB, true, configFileName, false, getDefaultCacheDirPathForTests())}
 	ts.chunkSize = chunkSizeForReadCache * util.MiB
 	log.Printf("Running tests with flags: %s", ts.flags)
 	test_setup.RunTests(t, ts)

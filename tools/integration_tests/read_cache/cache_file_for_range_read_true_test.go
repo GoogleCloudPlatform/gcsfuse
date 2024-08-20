@@ -17,6 +17,7 @@ package read_cache
 import (
 	"context"
 	"log"
+	"path"
 	"testing"
 	"time"
 
@@ -93,10 +94,15 @@ func TestCacheFileForRangeReadTrueTest(t *testing.T) {
 		return
 	}
 
+	// Run with cache directory pointing to RAM based dir
+	ramCacheDir := path.Join("/dev/shm", cacheDirName)
+
 	// Define flag set to run the tests.
 	flagsSet := [][]string{
-		{"--implicit-dirs", "--config-file=" + createConfigFile(cacheCapacityForRangeReadTestInMiB, true, configFileName, false)},
-		{"--config-file=" + createConfigFile(cacheCapacityForRangeReadTestInMiB, true, configFileNameForParallelDownloadTests, true)},
+		{"--implicit-dirs", "--config-file=" + createConfigFile(cacheCapacityForRangeReadTestInMiB, true, configFileName, false, getDefaultCacheDirPathForTests())},
+		{"--config-file=" + createConfigFile(cacheCapacityForRangeReadTestInMiB, true, configFileNameForParallelDownloadTests, true, getDefaultCacheDirPathForTests())},
+		{"--config-file=" + createConfigFile(cacheCapacityForRangeReadTestInMiB, true, configFileNameForParallelDownloadTests, true, ramCacheDir)},
+		{"--config-file=" + createConfigFile(cacheCapacityForRangeReadTestInMiB, true, configFileNameForParallelDownloadTests, false, ramCacheDir)},
 	}
 
 	// Run tests.

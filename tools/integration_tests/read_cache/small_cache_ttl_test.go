@@ -121,8 +121,8 @@ func TestSmallCacheTTLTest(t *testing.T) {
 
 	// Define flag set to run the tests.
 	flagsSet := [][]string{
-		{"--implicit-dirs", "--config-file=" + createConfigFile(cacheCapacityInMB, false, configFileName, false)},
-		{"--config-file=" + createConfigFile(cacheCapacityInMB, false, configFileNameForParallelDownloadTests, true)},
+		{"--implicit-dirs", "--config-file=" + createConfigFile(cacheCapacityInMB, false, configFileName, false, getDefaultCacheDirPathForTests())},
+		{"--config-file=" + createConfigFile(cacheCapacityInMB, false, configFileNameForParallelDownloadTests, true, getDefaultCacheDirPathForTests())},
 	}
 	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, fmt.Sprintf("--stat-cache-ttl=%ds", metadataCacheTTlInSec))
 
