@@ -52,11 +52,13 @@ metadata-cache:
   stat-cache-max-size-mb: 3200
 EOF
 
+DIR=${PYTORCH_VESRION}
 # Set the HNS bucket to run tests on the folder apis and pass the "enable-hns" flag with a value of "true".
 if [ ${BUCKET_TYPE} == "hns" ];
 then
   TEST_BUCKET="gcsfuse-ml-data-hns-central1"
   echo "enable-hns: true" >> $config_filename
+  DIR=${DIR}_${BUCKET_TYPE}
 fi
 
 echo "Created config-file at "$config_filename
@@ -192,7 +194,7 @@ dynamo_unsupported_distributed_c10d_ops = [
 ]" >> $distributed_c10d_file
 fi
 
-ARTIFACTS_BUCKET_PATH="gs://gcsfuse-ml-tests-logs/ci_artifacts/pytorch/${PYTORCH_VESRION}/dino"
+ARTIFACTS_BUCKET_PATH="gs://gcsfuse-ml-tests-logs/ci_artifacts/pytorch/${DIR}/dino"
 echo "Update status file"
 echo "RUNNING" > status.txt
 gsutil cp status.txt $ARTIFACTS_BUCKET_PATH/
