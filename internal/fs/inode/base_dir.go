@@ -252,9 +252,9 @@ func (d *baseDirInode) RenameFolder(ctx context.Context, folderName string, dest
 	return
 }
 
-func (d *baseDirInode) IsUnlinkHNSFolder() bool {
+func (d *baseDirInode) IsUnlink() bool {
 	return false
 }
 
-func (d *baseDirInode) UnlinkHNSFolder() {
+func (d *baseDirInode) Unlink() {
 }
