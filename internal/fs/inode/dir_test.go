@@ -1402,6 +1402,7 @@ func (t *DirTest) DeleteChildDir_DoesntExist() {
 	dirIn := t.createDirInode(name)
 	err := t.in.DeleteChildDir(t.ctx, name, false, dirIn)
 	ExpectEq(nil, err)
+	ExpectFalse(dirIn.IsUnlinked())
 }
 
 func (t *DirTest) DeleteChildDir_Exists() {
@@ -1423,6 +1424,7 @@ func (t *DirTest) DeleteChildDir_Exists() {
 	_, err = storageutil.ReadObject(t.ctx, t.bucket, objName)
 	var notFoundErr *gcs.NotFoundError
 	ExpectTrue(errors.As(err, &notFoundErr))
+	ExpectFalse(dirIn.IsUnlinked())
 }
 
 func (t *DirTest) DeleteChildDir_ImplicitDirTrue() {
@@ -1432,6 +1434,7 @@ func (t *DirTest) DeleteChildDir_ImplicitDirTrue() {
 	err := t.in.DeleteChildDir(t.ctx, name, true, dirIn)
 
 	ExpectEq(nil, err)
+	ExpectFalse(dirIn.IsUnlinked())
 }
 
 func (t *DirTest) CreateLocalChildFile_ShouldnotCreateObjectInGCS() {
@@ -1494,7 +1497,7 @@ func (t *DirTest) LocalFileEntriesWithUnlinkedLocalChildFiles() {
 	in1 := t.createLocalFileInode(t.in.Name(), "1_localChildInode", 1)
 	in2 := t.createLocalFileInode(t.in.Name(), "2_localChildInode", 2)
 	in3 := t.createLocalFileInode(Name{bucketName: "abc", objectName: "def/"}, "3_localNonChildInode", 3)
-	// Unlinked local file inode 2.
+	// Unlink local file inode 2.
 	filein2, _ := in2.(*FileInode)
 	filein2.Unlink()
 	// Create local file inodes map.

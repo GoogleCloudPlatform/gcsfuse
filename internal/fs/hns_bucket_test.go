@@ -273,8 +273,7 @@ func (t *HNSBucketTests) TestRenameFolderWithOpenGCSFile() {
 // Stat the old directory.
 // Stat the new directory.
 // Read new directory and validate.
-// Create directory again foo
-// Create directory again with same name - foo
+// Create old directory again with same name - foo
 // Stat the directory - foo
 // Read directory again validate it is empty.
 func (t *HNSBucketTests) TestCreateDirectoryWithSameNameAfterRename() {
@@ -316,13 +315,13 @@ func (t *HNSBucketTests) TestCreateDirectoryWithSameNameAfterRename() {
 	assert.Equal(t.T(), 0, len(dirEntries))
 }
 
-// Create directory foo/test2
-// Create local file in directory foo/test2/test.txt
-// Stat the local file foo/test2/test.txt
-// Delete directory rm -r foo/test2
-// Create directory again foo/test2
-// Create local file with the same name in directory foo/test2/test.txt
-// Stat the local file foo/test2/test.txt
+// Create directory - foo/test2
+// Create local file in directory - foo/test2/test.txt
+// Stat the local file - foo/test2/test.txt
+// Delete directory - rm -r foo/test2
+// Create directory again - foo/test2
+// Create local file with the same name in directory - foo/test2/test.txt
+// Stat the local file - foo/test2/test.txt
 func (t *HNSBucketTests) TestCreateLocalFileInSamePathAfterDeletingParentDirectory() {
 	dirPath := path.Join(mntDir, "foo", "test2")
 	filePath := path.Join(dirPath, "test.txt")

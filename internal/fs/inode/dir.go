@@ -160,7 +160,7 @@ type DirInode interface {
 
 	IsUnlinked() bool
 
-	Unlinked()
+	Unlink()
 }
 
 // An inode that represents a directory from a GCS bucket.
@@ -607,7 +607,7 @@ func (d *dirInode) IsUnlinked() bool {
 	return d.unlinked
 }
 
-func (d *dirInode) Unlinked() {
+func (d *dirInode) Unlink() {
 	d.unlinked = true
 }
 
@@ -970,7 +970,7 @@ func (d *dirInode) DeleteChildDir(
 	}
 
 	if d.isBucketHierarchical() {
-		dirInode.Unlinked()
+		dirInode.Unlink()
 	}
 
 	d.cache.Erase(name)

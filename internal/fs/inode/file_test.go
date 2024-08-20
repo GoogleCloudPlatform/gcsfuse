@@ -931,7 +931,7 @@ func (t *FileTest) UnlinkLocalFile() {
 	err = t.in.CreateEmptyTempFile()
 	AssertEq(nil, err)
 
-	// Unlinked.
+	// Unlink.
 	t.in.Unlink()
 
 	// Verify that fileInode is now unlinked

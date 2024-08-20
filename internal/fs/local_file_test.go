@@ -573,7 +573,7 @@ func (t *LocalFileTest) TestReadDirContainingUnlinkedLocalFiles() {
 	_, t.f1 = t.createLocalFile(FileName + "1")
 	_, t.f2 = t.createLocalFile(FileName + "2")
 	filepath3, t.f3 = t.createLocalFile(FileName + "3")
-	// Unlinked local file 3
+	// Unlink local file 3
 	err := os.Remove(filepath3)
 	AssertEq(nil, err)
 

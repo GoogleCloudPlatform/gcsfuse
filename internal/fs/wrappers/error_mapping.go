@@ -232,7 +232,7 @@ func (em *errorMapping) Unlink(
 	defer em.handlePanic()
 
 	err := em.wrapped.Unlink(ctx, op)
-	return em.mapError("Unlinked", err)
+	return em.mapError("Unlink", err)
 }
 
 func (em *errorMapping) OpenDir(

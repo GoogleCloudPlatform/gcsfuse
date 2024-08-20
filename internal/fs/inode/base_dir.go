@@ -257,5 +257,5 @@ func (d *baseDirInode) IsUnlinked() bool {
 	return false
 }
 
-func (d *baseDirInode) Unlinked() {
+func (d *baseDirInode) Unlink() {
 }
