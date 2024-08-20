@@ -57,10 +57,10 @@ def ensureDir(dirpath):
 
 
 def downloadDlioOutputs(dlioWorkloads: set, instanceId: str) -> int:
-  """Downloads instanceId-specific fio outputs for each fioWorkload locally.
+  """Downloads instanceId-specific dlio outputs for each dlioWorkload locally.
 
-  Outputs in the bucket are in the following sample object naming format
-  (details in ./loading-test/templates/fio-tester.yaml).
+  Outputs in the bucket are in the following object naming format
+  (details in ./unet3d-loading-test/templates/dlio-tester.yaml).
     gs://<bucket>/logs/<instanceId>/<numFilesTrain>-<recordLength>-<batchSize>-<hash>/<scenario>/per_epoch_stats.json
     gs://<bucket>/logs/<instanceId>/<numFilesTrain>-<recordLength>-<batchSize>-<hash>/<scenario>/summary.json
     gs://<bucket>/logs/<instanceId>/<numFilesTrain>-<recordLength>-<batchSize>-<hash>/gcsfuse-generic/gcsfuse_mount_options
@@ -70,6 +70,7 @@ def downloadDlioOutputs(dlioWorkloads: set, instanceId: str) -> int:
     <_LOCAL_LOGS_LOCATION>/<instanceId>/<numFilesTrain>-<recordLength>-<batchSize>-<hash>/<scenario>/summary.json
     <_LOCAL_LOGS_LOCATION>/<instanceId>/<numFilesTrain>-<recordLength>-<batchSize>-<hash>/gcsfuse-generic/gcsfuse_mount_options
   """
+
   for dlioWorkload in dlioWorkloads:
     srcObjects = f"gs://{dlioWorkload.bucket}/logs/{instanceId}"
     print(f"Downloading DLIO logs from the {srcObjects} ...")
@@ -141,7 +142,7 @@ if __name__ == "__main__":
     """Creates output records from the downloaded local files.
 
     The following creates a dict called 'output'
-    from the downloaded fio output files, which are in the following format.
+    from the downloaded dlio output files, which are in the following format.
 
     <_LOCAL_LOGS_LOCATION>/<instanceId>/<numFilesTrain>-<recordLength>-<batchSize>-<hash>/<scenario>/per_epoch_stats.json
     <_LOCAL_LOGS_LOCATION>/<instanceId>/<numFilesTrain>-<recordLength>-<batchSize>-<hash>/<scenario>/summary.json

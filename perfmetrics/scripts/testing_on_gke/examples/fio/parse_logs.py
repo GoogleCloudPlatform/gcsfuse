@@ -51,7 +51,7 @@ record = {
 }
 
 
-def ensureDir(dirpath):
+def ensureDir(dirpath: str):
   try:
     os.makedirs(dirpath)
   except FileExistsError:
@@ -61,7 +61,7 @@ def ensureDir(dirpath):
 def downloadFioOutputs(fioWorkloads: set, instanceId: str) -> int:
   """Downloads instanceId-specific fio outputs for each fioWorkload locally.
 
-  Outputs in the bucket are in the following sample object naming format
+  Outputs in the bucket are in the following object naming format
   (details in ./loading-test/templates/fio-tester.yaml).
     gs://<bucket>/fio-output/<instanceId>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/<scenario>/<readType>/epoch[N].json
     gs://<bucket>/fio-output/<instanceId>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/<scenario>/<readType>/pod_name
@@ -186,8 +186,8 @@ if __name__ == "__main__":
       print(f"pod_name={pod_name}")
 
       for file in files:
+        # Ignore non-json files to avoid unnecessary failure.
         if not file.endswith(".json"):
-          # Ignore non-json files.
           continue
 
         per_epoch_output = root + f"/{file}"
@@ -236,7 +236,7 @@ if __name__ == "__main__":
         numjobs = int(global_options["numjobs"])
         bs = per_epoch_output_data["jobs"][0]["job options"]["bs"]
 
-        # If this the record for this key has not been added, create a new entry
+        # If the record for this key has not been added, create a new entry
         # for it.
         if key not in output:
           output[key] = {
@@ -299,7 +299,7 @@ if __name__ == "__main__":
 
   createOutputScenariosFromDownloadedFiles()
 
-  scenario_order = [
+  supported_scenarios = [
       "local-ssd",
       "gcsfuse-generic",
       "gcsfuse-no-file-cache",
@@ -321,7 +321,7 @@ if __name__ == "__main__":
       record_set = output[key]
 
       for scenario in record_set["records"]:
-        if scenario not in scenario_order:
+        if scenario not in supported_scenarios:
           print(f"Unknown scenario: {scenario}. Ignoring it...")
           continue
 
