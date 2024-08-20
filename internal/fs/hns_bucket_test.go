@@ -259,6 +259,40 @@ func (t *HNSBucketTests) TestRenameFolderWithOpenGCSFile() {
 	assert.False(t.T(), dirEntries[0].IsDir())
 }
 
+func (t *HNSBucketTests) TestCreateDirectoryWithSameNameAfterRename() {
+	oldDirPath := path.Join(mntDir, "foo")
+	_, err = os.Stat(oldDirPath)
+	require.NoError(t.T(), err)
+	newDirPath := path.Join(mntDir, "foo_rename")
+	err = os.Rename(oldDirPath, newDirPath)
+	require.NoError(t.T(), err)
+	_, err = os.Stat(oldDirPath)
+	require.Error(t.T(), err)
+	require.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+	_, err = os.Stat(newDirPath)
+	require.NoError(t.T(), err)
+	dirEntries, err := os.ReadDir(newDirPath)
+	require.NoError(t.T(), err)
+	require.Equal(t.T(), 5, len(dirEntries))
+	actualDirEntries := []dirEntry{}
+	for _, d := range dirEntries {
+		actualDirEntries = append(actualDirEntries, dirEntry{
+			name:  d.Name(),
+			isDir: d.IsDir(),
+		})
+	}
+	require.ElementsMatch(t.T(), actualDirEntries, expectedFooDirEntries)
+
+	err = os.Mkdir(oldDirPath, dirPerms)
+
+	assert.NoError(t.T(), err)
+	_, err = os.Stat(oldDirPath)
+	assert.NoError(t.T(), err)
+	dirEntries, err = os.ReadDir(oldDirPath)
+	require.NoError(t.T(), err)
+	require.Equal(t.T(), 0, len(dirEntries))
+}
+
 func (t *HNSBucketTests) TestCreateLocalFileInSamePathAfterDeletingParentDirectory() {
 	dirPath := path.Join(mntDir, "foo", "test2")
 	filePath := path.Join(dirPath, "test.txt")
