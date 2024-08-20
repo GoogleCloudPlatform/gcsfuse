@@ -158,9 +158,9 @@ type DirInode interface {
 	// RUnlock readonly unlock.
 	RUnlock()
 
-	IsUnlinkFolder() bool
+	IsUnlinkHierarchicalBucketFolder() bool
 
-	UnLinkFolder()
+	UnlinkHierarchicalBucketFolder()
 }
 
 // An inode that represents a directory from a GCS bucket.
@@ -602,11 +602,11 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	return result, nil
 }
 
-func (d *dirInode) IsUnlinkFolder() bool {
+func (d *dirInode) IsUnlinkHierarchicalBucketFolder() bool {
 	return d.unlinkFolder
 }
 
-func (d *dirInode) UnLinkFolder() {
+func (d *dirInode) UnlinkHierarchicalBucketFolder() {
 	d.unlinkFolder = true
 }
 
@@ -969,7 +969,7 @@ func (d *dirInode) DeleteChildDir(
 	}
 
 	if d.isBucketHierarchical() {
-		dirInode.UnLinkFolder()
+		dirInode.UnlinkHierarchicalBucketFolder()
 	}
 
 	d.cache.Erase(name)
