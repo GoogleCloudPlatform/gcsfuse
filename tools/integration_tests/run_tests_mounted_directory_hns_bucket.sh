@@ -231,7 +231,8 @@ echo "logging:
           max-file-size-mb: 2
           backup-file-count: 3
           compress: true
-        enable-hns: true" > /tmp/gcsfuse_config.yaml
+      enable-hns: true
+       " > /tmp/gcsfuse_config.yaml
 go run . --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/log_rotation/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
 sudo umount $MOUNT_DIR
