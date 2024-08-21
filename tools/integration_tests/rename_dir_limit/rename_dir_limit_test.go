@@ -72,7 +72,7 @@ func TestMain(m *testing.M) {
 
 	// Don't pass --rename-dir-limit or --implicit-dirs flags for hierarchical bucket.
 	if setup.IsHierarchicalBucket(ctx, storageClient) {
-		flags = [][]string{{"''"}}
+		flags = [][]string{{}}
 	}
 
 	// Run tests for mountedDirectory only if --mountedDirectory flag is set.
