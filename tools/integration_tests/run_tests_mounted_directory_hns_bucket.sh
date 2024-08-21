@@ -19,8 +19,8 @@
 ## cd gcsfuse
 ## sh tools/integration_tests/run_tests_mounted_directory_hns_bucket.sh <testbucket> <Absolute path of mounted directory>
 #
-#TEST_BUCKET_NAME=$1
-#MOUNT_DIR=$2
+TEST_BUCKET_NAME=$1
+MOUNT_DIR=$2
 #export CGO_ENABLED=0
 #echo "enable-hns: true" > /tmp/gcsfuse_config.yaml
 #
