@@ -27,11 +27,6 @@ func decodeURL(u string) (string, error) {
 
 // Rationalize updates the config fields based on the values of other fields.
 func Rationalize(c *Config) error {
-	// The EnableEmptyManagedFolders flag must be set to true to enforce folder prefixes for Hierarchical buckets.
-	if c.EnableHns {
-		c.List.EnableEmptyManagedFolders = true
-	}
-
 	var err error
 	if c.GcsConnection.CustomEndpoint, err = decodeURL(c.GcsConnection.CustomEndpoint); err != nil {
 		return err
