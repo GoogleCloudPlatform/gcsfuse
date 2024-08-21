@@ -63,7 +63,7 @@ func TestMain(m *testing.M) {
 
 	// Don't pass --implicit-dirs flags for hierarchical bucket.
 	if setup.IsHierarchicalBucket(ctx, storageClient) {
-		flagsSet = [][]string{}
+		flagsSet = [][]string{{}}
 	}
 
 	successCode := implicit_and_explicit_dir_setup.RunTestsForImplicitDirAndExplicitDir(flagsSet, m)
