@@ -55,7 +55,7 @@ metadata-cache:
 EOF
 
 DIR=${PYTORCH_VERSION}
-# Set the HNS bucket to run tests on the folder apis and pass the "enable-hns" flag with a value of "true".
+# Enable the enable-hns flag to run tests on the folder APIs with an HNS bucket.
 if [ ${BUCKET_TYPE} == "hns" ];
 then
   TEST_BUCKET="gcsfuse-ml-data-hns-central1"
