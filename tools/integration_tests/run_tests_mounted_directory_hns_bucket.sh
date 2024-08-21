@@ -1,224 +1,224 @@
-# Copyright 2024 Google LLC
+## Copyright 2024 Google LLC
+##
+## Licensed under the Apache License, Version 2.0 (the "License");
+## you may not use this file except in compliance with the License.
+## You may obtain a copy of the License at
+##
+##	http://www.apache.org/licenses/LICENSE-2.0
+##
+## Unless required by applicable law or agreed to in writing, software
+## distributed under the License is distributed on an "AS IS" BASIS,
+## WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+## See the License for the specific language governing permissions and
+## limitations under the License.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+## Run integration tests for mounted directory.
+## $1 testbucket.(It should be hierarchical bucket.)
+## $2 Absolute path of mounted directory.
+## To run this script
+## cd gcsfuse
+## sh tools/integration_tests/run_tests_mounted_directory_hns_bucket.sh <testbucket> <Absolute path of mounted directory>
 #
-#	http://www.apache.org/licenses/LICENSE-2.0
+#TEST_BUCKET_NAME=$1
+#MOUNT_DIR=$2
+#export CGO_ENABLED=0
+#echo "enable-hns: true" > /tmp/gcsfuse_config.yaml
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-# Run integration tests for mounted directory.
-# $1 testbucket.(It should be hierarchical bucket.)
-# $2 Absolute path of mounted directory.
-# To run this script
-# cd gcsfuse
-# sh tools/integration_tests/run_tests_mounted_directory_hns_bucket.sh <testbucket> <Absolute path of mounted directory>
-
-TEST_BUCKET_NAME=$1
-MOUNT_DIR=$2
-export CGO_ENABLED=0
-echo "enable-hns: true" > /tmp/gcsfuse_config.yaml
-
-set -e
-# package operations
-# Run test with static mounting. (flags: =true)
-go run . --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
-sudo umount $MOUNT_DIR
-
-# Run test with persistent mounting. (flags: =true)
-#mount.go run . $TEST_BUCKET_NAME $MOUNT_DIR -o implicit_dirs=true,config_file=/tmp/gcsfuse_config.yaml
+#set -e
+## package operations
+## Run test with static mounting. (flags: =true)
+#go run . --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
 #GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 #sudo umount $MOUNT_DIR
-
-# Run test with static mounting. 
-go run . --config-file=/tmp/gcsfuse_config.yaml  $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
-sudo umount $MOUNT_DIR
-
-# Run test with persistent mounting. 
-#mount.go run . $TEST_BUCKET_NAME $MOUNT_DIR -o implicit_dirs=false,config_file=/tmp/gcsfuse_config.yaml
+#
+## Run test with persistent mounting. (flags: =true)
+##mount.go run . $TEST_BUCKET_NAME $MOUNT_DIR -o implicit_dirs=true,config_file=/tmp/gcsfuse_config.yaml
+##GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
+##sudo umount $MOUNT_DIR
+#
+## Run test with static mounting.
+#go run . --config-file=/tmp/gcsfuse_config.yaml  $TEST_BUCKET_NAME $MOUNT_DIR
 #GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 #sudo umount $MOUNT_DIR
-
-# Run test with static mounting. (flags: --experimental-enable-json-read)
-go run . --config-file=/tmp/gcsfuse_config.yaml --experimental-enable-json-read $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
-sudo umount $MOUNT_DIR
-
-# Run test with static mounting. (flags: --kernel-list-cache-ttl-secs=-1, =true)
-go run . --config-file=/tmp/gcsfuse_config.yaml --kernel-list-cache-ttl-secs=-1 $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
-sudo umount $MOUNT_DIR
-
-# Run test with persistent mounting. (flags: --experimental-enable-json-read, =true)
-#mount.go run . $TEST_BUCKET_NAME $MOUNT_DIR -o implicit_dirs=true,experimental_enable_json_read=true,config_file=/tmp/gcsfuse_config.yaml
+#
+## Run test with persistent mounting.
+##mount.go run . $TEST_BUCKET_NAME $MOUNT_DIR -o implicit_dirs=false,config_file=/tmp/gcsfuse_config.yaml
+##GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
+##sudo umount $MOUNT_DIR
+#
+## Run test with static mounting. (flags: --experimental-enable-json-read)
+#go run . --config-file=/tmp/gcsfuse_config.yaml --experimental-enable-json-read $TEST_BUCKET_NAME $MOUNT_DIR
 #GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 #sudo umount $MOUNT_DIR
-
-# Run tests with static mounting. (flags: =true, --only-dir testDir)
-go run . --config-file=/tmp/gcsfuse_config.yaml --only-dir testDir $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
-sudo umount $MOUNT_DIR
-
-# Run tests with persistent mounting. (flags: =true, --only-dir=testDir)
-#mount.go run . $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,implicit_dirs=true,config_file=/tmp/gcsfuse_config.yaml
+#
+## Run test with static mounting. (flags: --kernel-list-cache-ttl-secs=-1, =true)
+#go run . --config-file=/tmp/gcsfuse_config.yaml --kernel-list-cache-ttl-secs=-1 $TEST_BUCKET_NAME $MOUNT_DIR
+#GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
+#sudo umount $MOUNT_DIR
+#
+## Run test with persistent mounting. (flags: --experimental-enable-json-read, =true)
+##mount.go run . $TEST_BUCKET_NAME $MOUNT_DIR -o implicit_dirs=true,experimental_enable_json_read=true,config_file=/tmp/gcsfuse_config.yaml
+##GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
+##sudo umount $MOUNT_DIR
+#
+## Run tests with static mounting. (flags: =true, --only-dir testDir)
+#go run . --config-file=/tmp/gcsfuse_config.yaml --only-dir testDir $TEST_BUCKET_NAME $MOUNT_DIR
 #GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
 #sudo umount $MOUNT_DIR
-
-# Run tests with static mounting. (flags: , --only-dir testDir)
-go run . --config-file=/tmp/gcsfuse_config.yaml --only-dir testDir  $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
-sudo umount $MOUNT_DIR
-
-# Run tests with persistent mounting. (flags: , --only-dir=testDir)
-#mount.go run . $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,implicit_dirs=false,config_file=/tmp/gcsfuse_config.yaml
+#
+## Run tests with persistent mounting. (flags: =true, --only-dir=testDir)
+##mount.go run . $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,implicit_dirs=true,config_file=/tmp/gcsfuse_config.yaml
+##GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
+##sudo umount $MOUNT_DIR
+#
+## Run tests with static mounting. (flags: , --only-dir testDir)
+#go run . --config-file=/tmp/gcsfuse_config.yaml --only-dir testDir  $TEST_BUCKET_NAME $MOUNT_DIR
 #GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
 #sudo umount $MOUNT_DIR
-
-# Run tests with only-dir mounting. (flags: --experimental-enable-json-read, --only-dir testDir)
-go run . --config-file=/tmp/gcsfuse_config.yaml --experimental-enable-json-read --only-dir testDir $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
-sudo umount $MOUNT_DIR
-
-# Run tests with only-dir mounting. (flags: --kernel-list-cache-ttl-secs=-1, =true, --only-dir testDir)
-go run . --config-file=/tmp/gcsfuse_config.yaml --kernel-list-cache-ttl-secs=-1 --only-dir testDir $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
-sudo umount $MOUNT_DIR
-
-# Run tests with config "create-empty-file: true".
-echo "write:
-       create-empty-file: true
-enable-hns: true" > /tmp/gcsfuse_config.yaml
-go run . --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
-sudo umount $MOUNT_DIR
-
-# Run tests with config "file-cache: max-size-mb" static mounting.
-echo "file-cache:
-       max-size-mb: 2
-cache-dir: ./cache-dir
-enable-hns: true" > /tmp/gcsfuse_config.yaml
-go run . --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
-sudo umount $MOUNT_DIR
-
-# Run tests with config "metadata-cache: ttl-secs: 0" static mounting.
-echo "metadata-cache:
-       ttl-secs: 0
-enable-hns: true" > /tmp/gcsfuse_config.yaml
-go run . --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
-sudo umount $MOUNT_DIR
-
-# package readonly
-# Run tests with static mounting. (flags: --o=ro)
-go run . --config-file=/tmp/gcsfuse_config.yaml --o=ro $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
-sudo umount $MOUNT_DIR
-
-# Run tests with static mounting. (flags:  --file-mode=544, --dir-mode=544)
-go run . --config-file=/tmp/gcsfuse_config.yaml --file-mode=544 --dir-mode=544  $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
-sudo umount $MOUNT_DIR
-
-# Run tests with static mounting. (flags: --o=ro, --only-dir testDir)
-go run . --config-file=/tmp/gcsfuse_config.yaml --only-dir testDir --o=ro $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
-sudo umount $MOUNT_DIR
-
-# Run test with static mounting. (flags: =true, --file-mode=544, --dir-mode=544, --only-dir testDir)
-go run . --config-file=/tmp/gcsfuse_config.yaml --only-dir testDir --file-mode=544 --dir-mode=544  $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
-sudo umount $MOUNT_DIR
-
-# Run tests with config "file-cache: max-size-mb" static mounting.
-echo "file-cache:
-       max-size-mb: 3
-cache-dir: ./cache-dir
-enable-hns: true" > /tmp/gcsfuse_config.yaml
-go run . --config-file /tmp/gcsfuse_config.yaml --only-dir testDir --file-mode=544 --dir-mode=544  $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
-sudo umount $MOUNT_DIR
-
-# package rename_dir_limit
-# Run tests with static mounting.
-go run . --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/rename_dir_limit/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
-sudo umount $MOUNT_DIR
-
-# Run test with static mounting. (flags: --only-dir testDir)
-go run . --config-file=/tmp/gcsfuse_config.yaml --only-dir testDir $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/rename_dir_limit/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
-sudo umount $MOUNT_DIR
-
-# package implicit_dir
-# Run tests with static mounting. 
-go run . --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicit_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
-sudo umount $MOUNT_DIR
-
-# package list_large_dir
-# Run tests with static mounting. 
-go run . --config-file=/tmp/gcsfuse_config.yaml --stat-cache-ttl=0 --kernel-list-cache-ttl-secs=-1 $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/list_large_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
-sudo umount $MOUNT_DIR
-
-# package read_large_files
-# Run tests with static mounting.
-go run . $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_large_files/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
-sudo umount $MOUNT_DIR
-
-# Run tests with config "file-cache: max-size-mb, cache-file-for-range-read".
-echo "file-cache:
-       max-size-mb: 700
-       cache-file-for-range-read: true
-cache-dir: ./cache-dir
-enable-hns: true
-       " > /tmp/gcsfuse_config.yaml
-go run . --config-file /tmp/gcsfuse_config.yaml  $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_large_files/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
-sudo umount $MOUNT_DIR
-
-# Run tests with config "file-cache: max-size-mb".
-echo "file-cache:
-       max-size-mb: -1
-       cache-file-for-range-read: false
-cache-dir: ./cache-dir
-enable-hns: true
-       " > /tmp/gcsfuse_config.yaml
-go run . --config-file /tmp/gcsfuse_config.yaml  $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_large_files/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
-sudo umount $MOUNT_DIR
-
-# package write_large_files
-# Run tests with static mounting. 
-go run . --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/write_large_files/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
-sudo umount $MOUNT_DIR
-
-# package gzip
-# Run tests with static mounting. 
-go run . --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/gzip/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
-sudo umount $MOUNT_DIR
-
-# package local_file
-# Run test with static mounting.
-go run . --config-file=/tmp/gcsfuse_config.yaml  $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/local_file/... -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
-sudo umount $MOUNT_DIR
-
-# Run test with static mounting. 
-go run . --config-file=/tmp/gcsfuse_config.yaml   $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/local_file/... -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
-sudo umount $MOUNT_DIR
+#
+## Run tests with persistent mounting. (flags: , --only-dir=testDir)
+##mount.go run . $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,implicit_dirs=false,config_file=/tmp/gcsfuse_config.yaml
+##GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
+##sudo umount $MOUNT_DIR
+#
+## Run tests with only-dir mounting. (flags: --experimental-enable-json-read, --only-dir testDir)
+#go run . --config-file=/tmp/gcsfuse_config.yaml --experimental-enable-json-read --only-dir testDir $TEST_BUCKET_NAME $MOUNT_DIR
+#GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
+#sudo umount $MOUNT_DIR
+#
+## Run tests with only-dir mounting. (flags: --kernel-list-cache-ttl-secs=-1, =true, --only-dir testDir)
+#go run . --config-file=/tmp/gcsfuse_config.yaml --kernel-list-cache-ttl-secs=-1 --only-dir testDir $TEST_BUCKET_NAME $MOUNT_DIR
+#GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
+#sudo umount $MOUNT_DIR
+#
+## Run tests with config "create-empty-file: true".
+#echo "write:
+#       create-empty-file: true
+#enable-hns: true" > /tmp/gcsfuse_config.yaml
+#go run . --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
+#GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
+#sudo umount $MOUNT_DIR
+#
+## Run tests with config "file-cache: max-size-mb" static mounting.
+#echo "file-cache:
+#       max-size-mb: 2
+#cache-dir: ./cache-dir
+#enable-hns: true" > /tmp/gcsfuse_config.yaml
+#go run . --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
+#GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
+#sudo umount $MOUNT_DIR
+#
+## Run tests with config "metadata-cache: ttl-secs: 0" static mounting.
+#echo "metadata-cache:
+#       ttl-secs: 0
+#enable-hns: true" > /tmp/gcsfuse_config.yaml
+#go run . --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
+#GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
+#sudo umount $MOUNT_DIR
+#
+## package readonly
+## Run tests with static mounting. (flags: --o=ro)
+#go run . --config-file=/tmp/gcsfuse_config.yaml --o=ro $TEST_BUCKET_NAME $MOUNT_DIR
+#GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
+#sudo umount $MOUNT_DIR
+#
+## Run tests with static mounting. (flags:  --file-mode=544, --dir-mode=544)
+#go run . --config-file=/tmp/gcsfuse_config.yaml --file-mode=544 --dir-mode=544  $TEST_BUCKET_NAME $MOUNT_DIR
+#GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
+#sudo umount $MOUNT_DIR
+#
+## Run tests with static mounting. (flags: --o=ro, --only-dir testDir)
+#go run . --config-file=/tmp/gcsfuse_config.yaml --only-dir testDir --o=ro $TEST_BUCKET_NAME $MOUNT_DIR
+#GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
+#sudo umount $MOUNT_DIR
+#
+## Run test with static mounting. (flags: =true, --file-mode=544, --dir-mode=544, --only-dir testDir)
+#go run . --config-file=/tmp/gcsfuse_config.yaml --only-dir testDir --file-mode=544 --dir-mode=544  $TEST_BUCKET_NAME $MOUNT_DIR
+#GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
+#sudo umount $MOUNT_DIR
+#
+## Run tests with config "file-cache: max-size-mb" static mounting.
+#echo "file-cache:
+#       max-size-mb: 3
+#cache-dir: ./cache-dir
+#enable-hns: true" > /tmp/gcsfuse_config.yaml
+#go run . --config-file /tmp/gcsfuse_config.yaml --only-dir testDir --file-mode=544 --dir-mode=544  $TEST_BUCKET_NAME $MOUNT_DIR
+#GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
+#sudo umount $MOUNT_DIR
+#
+## package rename_dir_limit
+## Run tests with static mounting.
+#go run . --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
+#GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/rename_dir_limit/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
+#sudo umount $MOUNT_DIR
+#
+## Run test with static mounting. (flags: --only-dir testDir)
+#go run . --config-file=/tmp/gcsfuse_config.yaml --only-dir testDir $TEST_BUCKET_NAME $MOUNT_DIR
+#GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/rename_dir_limit/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
+#sudo umount $MOUNT_DIR
+#
+## package implicit_dir
+## Run tests with static mounting.
+#go run . --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
+#GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicit_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
+#sudo umount $MOUNT_DIR
+#
+## package list_large_dir
+## Run tests with static mounting.
+#go run . --config-file=/tmp/gcsfuse_config.yaml --stat-cache-ttl=0 --kernel-list-cache-ttl-secs=-1 $TEST_BUCKET_NAME $MOUNT_DIR
+#GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/list_large_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
+#sudo umount $MOUNT_DIR
+#
+## package read_large_files
+## Run tests with static mounting.
+#go run . $TEST_BUCKET_NAME $MOUNT_DIR
+#GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_large_files/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
+#sudo umount $MOUNT_DIR
+#
+## Run tests with config "file-cache: max-size-mb, cache-file-for-range-read".
+#echo "file-cache:
+#       max-size-mb: 700
+#       cache-file-for-range-read: true
+#cache-dir: ./cache-dir
+#enable-hns: true
+#       " > /tmp/gcsfuse_config.yaml
+#go run . --config-file /tmp/gcsfuse_config.yaml  $TEST_BUCKET_NAME $MOUNT_DIR
+#GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_large_files/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
+#sudo umount $MOUNT_DIR
+#
+## Run tests with config "file-cache: max-size-mb".
+#echo "file-cache:
+#       max-size-mb: -1
+#       cache-file-for-range-read: false
+#cache-dir: ./cache-dir
+#enable-hns: true
+#       " > /tmp/gcsfuse_config.yaml
+#go run . --config-file /tmp/gcsfuse_config.yaml  $TEST_BUCKET_NAME $MOUNT_DIR
+#GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_large_files/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
+#sudo umount $MOUNT_DIR
+#
+## package write_large_files
+## Run tests with static mounting.
+#go run . --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
+#GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/write_large_files/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
+#sudo umount $MOUNT_DIR
+#
+## package gzip
+## Run tests with static mounting.
+#go run . --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
+#GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/gzip/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
+#sudo umount $MOUNT_DIR
+#
+## package local_file
+## Run test with static mounting.
+#go run . --config-file=/tmp/gcsfuse_config.yaml  $TEST_BUCKET_NAME $MOUNT_DIR
+#GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/local_file/... -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
+#sudo umount $MOUNT_DIR
+#
+## Run test with static mounting.
+#go run . --config-file=/tmp/gcsfuse_config.yaml   $TEST_BUCKET_NAME $MOUNT_DIR
+#GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/local_file/... -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
+#sudo umount $MOUNT_DIR
 
 # Run tests with log rotation config.
 rm -r /tmp/gcsfuse_integration_test_logs
@@ -231,8 +231,7 @@ echo "logging:
           max-file-size-mb: 2
           backup-file-count: 3
           compress: true
-        enable-hns: true
-       " > /tmp/gcsfuse_config.yaml
+        enable-hns: true" > /tmp/gcsfuse_config.yaml
 go run . --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/log_rotation/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
 sudo umount $MOUNT_DIR
