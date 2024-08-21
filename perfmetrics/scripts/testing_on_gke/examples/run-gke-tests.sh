@@ -194,8 +194,6 @@ function installDependencies() {
   sudo apt-get install -y apt-transport-https ca-certificates gnupg curl
   # Ensure that realpath is installed.
   which realpath
-  # Ensure that python3 is installed.
-  which python3
   # Ensure that make is installed.
   which make || ( sudo apt-get install -y make time && which make )
   # Ensure that go is installed.
