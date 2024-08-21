@@ -460,7 +460,6 @@ function createCustomCsiDriverIfNeeded() {
     # Build a new gcsfuse binary
     cd "${gcsfuse_src_dir}"
     rm -rfv ./bin ./sbin
-    go mod vendor
     GOOS=linux GOARCH=amd64 go run tools/build_gcsfuse/main.go . . v3
     # Copy the binary to a GCS bucket for csi driver build.
     gcloud storage -q cp ./bin/gcsfuse gs://${package_bucket}/linux/amd64/
