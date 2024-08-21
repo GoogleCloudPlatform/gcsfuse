@@ -37,6 +37,13 @@ fi
 function exitWithSuccess() { exit 0; }
 function exitWithFailure() { exit 1; }
 
+# # Ignore redundant sudo prefix to commands.
+# sudo ()
+# {
+    # [[ $EUID = 0 ]] || set -- command sudo "$@"
+    # "$@"
+# }
+
 # Default values, to be used for parameters in case user does not specify them.
 # GCP related
 readonly DEFAULT_PROJECT_ID="gcs-fuse-test"
