@@ -23,8 +23,11 @@ it and generates and deploys a helm chart for each valid FIO workload.
 
 import argparse
 import subprocess
+import sys
 import fio_workload
 
+sys.path.append('../')
+from utils.utils import resource_limits, UnknownMachineTypeError
 
 def run_command(command: str):
   """Runs the given string command as a subprocess."""
@@ -45,6 +48,16 @@ def createHelmInstallCommands(
 ) -> list:
   """Creates helm install commands for the given fioWorkload objects."""
   helm_commands = []
+  try:
+    resourceLimits, resourceRequests = resource_limits(machineType)
+  except UnknownMachineTypeError:
+    print(
+        f'Found unknown machine-type: {machineType}, defaulting resource limits'
+        ' to cpu=0,memory=0'
+    )
+    resourceLimits = {'cpu': 0, 'memory': '0'}
+    resourceRequests = resourceLimits
+
   for fioWorkload in fioWorkloads:
     for readType in fioWorkload.readTypes:
       chartName, podName, outputDirPrefix = fio_workload.FioChartNamePodName(
@@ -67,6 +80,10 @@ def createHelmInstallCommands(
           f'--set nodeType={machineType}',
           f'--set podName={podName}',
           f'--set outputDirPrefix={outputDirPrefix}',
+          f"--set resourceLimits.cpu={resourceLimits['cpu']}",
+          f"--set resourceLimits.memory={resourceLimits['memory']}",
+          f"--set resourceRequests.cpu={resourceRequests['cpu']}",
+          f"--set resourceRequests.memory={resourceRequests['memory']}",
       ]
 
       helm_command = ' '.join(commands)

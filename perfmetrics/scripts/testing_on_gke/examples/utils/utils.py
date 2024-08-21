@@ -140,3 +140,29 @@ def unix_to_timestamp(unix_timestamp: int) -> str:
 
 def standard_timestamp(timestamp: int) -> str:
   return timestamp.split(".")[0].replace("T", " ") + " UTC"
+
+
+class UnknownMachineTypeError(Exception):
+  """Defines custom exception for unknown machine-type scenario.
+
+  It holds value of machineType as str.
+  """
+
+  def __init__(self, message, machineType: str):
+    super().__init__(message)
+    self.machineType = machineType
+
+
+def resource_limits(nodeType: str) -> Tuple[dict, dict]:
+  if nodeType == "n2-standard-96":
+    return {"cpu": 96, "memory": "384Gi"}, {"cpu": 90, "memory": "300Gi"}
+  elif nodeType == "n2-standard-48":
+    return {"cpu": 48, "memory": "192Gi"}, {"cpu": 45, "memory": "150Gi"}
+  elif nodeType == "n2-standard-32":
+    return {"cpu": 32, "memory": "128Gi"}, {"cpu": 30, "memory": "100Gi"}
+  else:
+    raise UnknownMachineTypeError(
+        f"Unsupported machine-type: {nodeType}. Unable to decide the"
+        " resource-limit for it.",
+        nodeType,
+    )
