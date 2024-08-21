@@ -857,3 +857,42 @@ func (t *LocalFileTest) TestStatLocalFileAfterRecreatingItWithSameName() {
 	ExpectEq("test.txt", f.Name())
 	ExpectFalse(f.IsDir())
 }
+
+func (t *LocalFileTest) TestStatSucceedsOnNewFile() {
+	t.serverCfg.NewConfig = &cfg.Config{
+		MetadataCache: cfg.MetadataCacheConfig{
+			TtlSecs:            -1,
+			TypeCacheMaxSizeMb: -1,
+			StatCacheMaxSizeMb: -1,
+		},
+		Logging: cfg.DefaultLoggingConfig(),
+	}
+	filePath := path.Join(mntDir, "test.txt")
+	AssertEq(nil, err)
+	f1, err := os.Create(filePath)
+	AssertEq(nil, err)
+	defer AssertEq(nil, f1.Close())
+	_, err = os.Stat(filePath)
+	AssertEq(nil, err)
+}
+
+func (t *LocalFileTest) TestStatFailsOnNewFileAfterDeletion() {
+	t.serverCfg.NewConfig = &cfg.Config{
+		MetadataCache: cfg.MetadataCacheConfig{
+			TtlSecs:            -1,
+			TypeCacheMaxSizeMb: -1,
+			StatCacheMaxSizeMb: -1,
+		},
+		Logging: cfg.DefaultLoggingConfig(),
+	}
+	filePath := path.Join(mntDir, "test.txt")
+	AssertEq(nil, err)
+	f1, err := os.Create(filePath)
+	AssertEq(nil, err)
+	defer AssertEq(nil, f1.Close())
+	AssertEq(nil, os.Remove(filePath))
+
+	_, err = os.Stat(filePath)
+
+	AssertNe(nil, err)
+}
