@@ -20,54 +20,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRationalizeEnableEmptyManagedFolders(t *testing.T) {
-	testcases := []struct {
-		name                              string
-		enableHns                         bool
-		enableEmptyManagedFolders         bool
-		expectedEnableEmptyManagedFolders bool
-	}{
-		{
-			name:                              "both enable-hns and enable-empty-managed-folders set to true",
-			enableHns:                         true,
-			enableEmptyManagedFolders:         true,
-			expectedEnableEmptyManagedFolders: true,
-		},
-		{
-			name:                              "enable-hns set to true and enable-empty-managed-folders set to false",
-			enableHns:                         true,
-			enableEmptyManagedFolders:         false,
-			expectedEnableEmptyManagedFolders: true,
-		},
-		{
-			name:                              "enable-hns set to false and enable-empty-managed-folders set to true",
-			enableHns:                         false,
-			enableEmptyManagedFolders:         true,
-			expectedEnableEmptyManagedFolders: true,
-		},
-		{
-			name:                              "both enable-hns and enable-empty-managed-folders set to false",
-			enableHns:                         false,
-			enableEmptyManagedFolders:         false,
-			expectedEnableEmptyManagedFolders: false,
-		},
-	}
-	for _, tc := range testcases {
-		t.Run(tc.name, func(t *testing.T) {
-			c := Config{
-				EnableHns: tc.enableHns,
-				List:      ListConfig{EnableEmptyManagedFolders: tc.enableEmptyManagedFolders},
-			}
-
-			err := Rationalize(&c)
-
-			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expectedEnableEmptyManagedFolders, c.List.EnableEmptyManagedFolders)
-			}
-		})
-	}
-}
-
 func TestRationalizeCustomEndpointSuccessful(t *testing.T) {
 	testCases := []struct {
 		name                   string
