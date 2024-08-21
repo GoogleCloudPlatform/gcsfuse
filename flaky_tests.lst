@@ -1,2 +1,8 @@
+# Each flaky test should be represented here in the following format:
+# b/<bug_id> (line must start with a '#' to indicate that it's a comment
+# FlakyTestName
+
+# List of flaky tests begins
+
 # b/361259658
 TestAppendObjectCreator
