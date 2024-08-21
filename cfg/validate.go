@@ -108,6 +108,7 @@ func isValidKernelListCacheTTL(TTLSecs int64) error {
 }
 
 func isValidMetadataCache(c MetadataCacheConfig) error {
+	// Validate ttl-secs.
 	if c.TtlSecs != TtlInSecsUnsetSentinel {
 		if c.TtlSecs < -1 {
 			return fmt.Errorf("the value of ttl-secs for metadata-cache can't be less than -1")
@@ -116,10 +117,13 @@ func isValidMetadataCache(c MetadataCacheConfig) error {
 			return fmt.Errorf("the value of ttl-secs in metadata-cache is too high to be supported. Max is 9223372036")
 		}
 	}
+
+	// Validate type-cache-max-size-mb.
 	if c.TypeCacheMaxSizeMb < -1 {
 		return fmt.Errorf("the value of type-cache-max-size-mb for metadata-cache can't be less than -1")
 	}
 
+	// Validate stat-cache-max-size-mb.
 	if c.StatCacheMaxSizeMb != StatCacheMaxSizeMBUnsetSentinel {
 		if c.StatCacheMaxSizeMb < -1 {
 			return fmt.Errorf("the value of stat-cache-max-size-mb for metadata-cache can't be less than -1")
@@ -128,6 +132,12 @@ func isValidMetadataCache(c MetadataCacheConfig) error {
 			return fmt.Errorf("the value of stat-cache-max-size-mb for metadata-cache is too high! Max supported: 17592186044415")
 		}
 	}
+
+	// [Deprecated] Validate stat-cache-capacity.
+	if c.DeprecatedStatCacheCapacity < 0 {
+		return fmt.Errorf("invalid value of stat-cache-capacity (%v), can't be less than 0", c.DeprecatedStatCacheCapacity)
+	}
+
 	return nil
 }
 

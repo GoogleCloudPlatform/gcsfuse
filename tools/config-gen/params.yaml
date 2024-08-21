@@ -481,7 +481,7 @@
   usage: >-
     The maximum size of stat-cache in MiBs. It can also be set to -1 for
     no-size-limit, 0 for no cache. Values below -1 are not supported.
-  default: StatCacheMaxSizeMBUnsetSentinel
+  default: "32"
 
 - config-path: "metadata-cache.ttl-secs"
   flag-name: "metadata-cache-ttl-secs"
@@ -490,7 +490,7 @@
     The ttl value in seconds to be used for expiring items in metadata-cache. It
     can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled
     metadata-cache. Any value set below -1 will throw an error."
-  default: TtlInSecsUnsetSentinel
+  default: "60"
 
 - config-path: "metadata-cache.type-cache-max-size-mb"
   flag-name: "type-cache-max-size-mb"

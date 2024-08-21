@@ -16,9 +16,16 @@ package cfg
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
+
+type mockIsSet struct{}
+
+func (*mockIsSet) IsSet(flag string) bool {
+	return false
+}
 
 func TestRationalizeCustomEndpointSuccessful(t *testing.T) {
 	testCases := []struct {
@@ -48,7 +55,7 @@ func TestRationalizeCustomEndpointSuccessful(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualErr := Rationalize(tc.config)
+			actualErr := Rationalize(&mockIsSet{}, tc.config)
 
 			if assert.NoError(t, actualErr) {
 				assert.Equal(t, tc.expectedCustomEndpoint, tc.config.GcsConnection.CustomEndpoint)
@@ -74,7 +81,7 @@ func TestRationalizeCustomEndpointUnsuccessful(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Error(t, Rationalize(tc.config))
+			assert.Error(t, Rationalize(&mockIsSet{}, tc.config))
 		})
 	}
 }
@@ -142,7 +149,7 @@ func TestLoggingSeverityRationalization(t *testing.T) {
 			},
 		}
 
-		err := Rationalize(&c)
+		err := Rationalize(&mockIsSet{}, &c)
 
 		if assert.NoError(t, err) {
 			assert.Equal(t, tc.expected, c.Logging.Severity)
@@ -178,7 +185,7 @@ func TestRationalize_TokenURLSuccessful(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualErr := Rationalize(tc.config)
+			actualErr := Rationalize(&mockIsSet{}, tc.config)
 
 			if assert.NoError(t, actualErr) {
 				assert.Equal(t, tc.expectedTokenURL, tc.config.GcsAuth.TokenUrl)
@@ -204,7 +211,87 @@ func TestRationalize_TokenURLUnsuccessful(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Error(t, Rationalize(tc.config))
+			assert.Error(t, Rationalize(&mockIsSet{}, tc.config))
+		})
+	}
+}
+
+// Implement the isSet interface
+type flagSet map[string]bool
+
+func (f flagSet) IsSet(key string) bool {
+	return f[key]
+}
+
+func TestRationalizeMetadataCache(t *testing.T) {
+	testCases := []struct {
+		name                  string
+		flags                 flagSet
+		config                *Config
+		expectedTTLSecs       int64
+		expectedStatCacheSize int64
+	}{
+		{
+			name:            "new_ttl_flag_set",
+			flags:           flagSet{"metadata-cache.ttl-secs": true},
+			config:          &Config{MetadataCache: MetadataCacheConfig{TtlSecs: 30}},
+			expectedTTLSecs: 30,
+		},
+		{
+			name:  "old_ttl_flags_set",
+			flags: flagSet{"metadata-cache.deprecated-stat-cache-ttl": true, "metadata-cache.deprecated-type-cache-ttl": true},
+			config: &Config{
+				MetadataCache: MetadataCacheConfig{
+					DeprecatedStatCacheTtl: 10 * time.Second,
+					DeprecatedTypeCacheTtl: 5 * time.Second,
+				},
+			},
+			expectedTTLSecs: 5,
+		},
+		{
+			name:                  "new_stat-cache-size-mb_flag_set",
+			flags:                 flagSet{"metadata-cache:stat-cache-size-mb": true},
+			config:                &Config{MetadataCache: MetadataCacheConfig{StatCacheMaxSizeMb: 0}},
+			expectedTTLSecs:       0, // Assuming no change to TtlSecs in this function
+			expectedStatCacheSize: 0, // Should remain unchanged
+		},
+		{
+			name:                  "old_stat-cache-capacity_flag_set",
+			flags:                 flagSet{"metadata-cache.deprecated-stat-cache-capacity": true},
+			config:                &Config{MetadataCache: MetadataCacheConfig{DeprecatedStatCacheCapacity: 1000}},
+			expectedTTLSecs:       0,
+			expectedStatCacheSize: 2,
+		},
+		{
+			name:                  "no_relevant_flags_set",
+			flags:                 flagSet{},
+			config:                &Config{MetadataCache: MetadataCacheConfig{DeprecatedStatCacheCapacity: 50}},
+			expectedTTLSecs:       0,
+			expectedStatCacheSize: 1,
+		},
+		{
+			name: "both_new_and_old_flags_set",
+			flags: flagSet{
+				"metadata-cache.stat-cache-max-size-mb": true,
+				"stat-cache-capacity":                   true,
+			},
+			config: &Config{
+				MetadataCache: MetadataCacheConfig{
+					StatCacheMaxSizeMb:          100,
+					DeprecatedStatCacheCapacity: 50,
+				},
+			},
+			expectedTTLSecs:       0,
+			expectedStatCacheSize: 100,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if assert.NoError(t, Rationalize(tc.flags, tc.config)) {
+				assert.Equal(t, tc.expectedTTLSecs, tc.config.MetadataCache.TtlSecs)
+				assert.Equal(t, tc.expectedStatCacheSize, tc.config.MetadataCache.StatCacheMaxSizeMb)
+			}
 		})
 	}
 }

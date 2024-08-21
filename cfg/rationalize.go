@@ -14,7 +14,19 @@
 
 package cfg
 
-import "net/url"
+import (
+	"math"
+	"net/url"
+
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+)
+
+// isSet interface is abstraction over the IsSet() method of viper, specially
+// added to keep rationalize method simple. IsSet will be used to resolve
+// conflicting deprecated flags and new configs.
+type isSet interface {
+	IsSet(string) bool
+}
 
 func decodeURL(u string) (string, error) {
 	// TODO: check if we can replace url.Parse with url.ParseRequestURI.
@@ -25,8 +37,37 @@ func decodeURL(u string) (string, error) {
 	return decodedURL.String(), nil
 }
 
+// resolveMetadataCacheTTL returns the ttl to be used for stat/type cache based
+// on the user flags/configs.
+func resolveMetadataCacheTTL(v isSet, c *MetadataCacheConfig) {
+	// If metadata-cache:ttl-secs has been set, then it overrides both
+	// stat-cache-ttl and type-cache-tll.
+	if v.IsSet("metadata-cache.ttl-secs") {
+		if c.TtlSecs == -1 {
+			c.TtlSecs = math.MaxInt64
+		}
+		return
+	}
+	// Else, use deprecated stat/type cache ttl to resolve metadataCacheTTL.
+	c.TtlSecs = int64(math.Ceil(math.Min(c.DeprecatedStatCacheTtl.Seconds(), c.DeprecatedTypeCacheTtl.Seconds())))
+}
+
+// resolveStatCacheMaxSizeMB returns the stat-cache size in MiBs based on the
+// user old and new flags/configs.
+func resolveStatCacheMaxSizeMB(v isSet, c *MetadataCacheConfig) {
+	// If metadata-cache:stat-cache-size-mb has been set, then it overrides
+	// stat-cache-capacity.
+	if v.IsSet("metadata-cache.stat-cache-max-size-mb") {
+		return
+	}
+	// Else, use deprecated stat-cache-capacity to resolve StatCacheMaxSizeMb.
+	avgTotalStatCacheEntrySize := AverageSizeOfPositiveStatCacheEntry + AverageSizeOfNegativeStatCacheEntry
+	c.StatCacheMaxSizeMb = int64(util.BytesToHigherMiBs(uint64(c.DeprecatedStatCacheCapacity) * avgTotalStatCacheEntrySize))
+	return
+}
+
 // Rationalize updates the config fields based on the values of other fields.
-func Rationalize(c *Config) error {
+func Rationalize(v isSet, c *Config) error {
 	var err error
 	if c.GcsConnection.CustomEndpoint, err = decodeURL(c.GcsConnection.CustomEndpoint); err != nil {
 		return err
@@ -39,6 +80,9 @@ func Rationalize(c *Config) error {
 	if c.Debug.Fuse || c.Debug.Gcs || c.Debug.LogMutex {
 		c.Logging.Severity = "TRACE"
 	}
+
+	resolveMetadataCacheTTL(v, &c.MetadataCache)
+	resolveStatCacheMaxSizeMB(v, &c.MetadataCache)
 
 	return nil
 }

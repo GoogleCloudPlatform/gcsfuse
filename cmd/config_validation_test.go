@@ -16,7 +16,6 @@ package cmd
 
 import (
 	"fmt"
-	"math"
 	"os"
 	"path"
 	"runtime"
@@ -613,8 +612,8 @@ func TestValidateConfigFile_MetadataCacheConfigSuccessful(t *testing.T) {
 					DeprecatedTypeCacheTtl:              60 * time.Second,
 					EnableNonexistentTypeCache:          false,
 					ExperimentalMetadataPrefetchOnMount: "disabled",
-					StatCacheMaxSizeMb:                  math.MinInt64,
-					TtlSecs:                             math.MinInt64,
+					StatCacheMaxSizeMb:                  32,
+					TtlSecs:                             60,
 					TypeCacheMaxSizeMb:                  4,
 				},
 			},

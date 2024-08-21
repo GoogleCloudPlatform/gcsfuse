@@ -17,6 +17,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
@@ -83,20 +84,13 @@ be interacting with the file system.`)
 		gid = uint32(newConfig.FileSystem.Gid)
 	}
 
-	metadataCacheTTL := cfg.ResolveMetadataCacheTTL(newConfig.MetadataCache.DeprecatedStatCacheTtl, newConfig.MetadataCache.DeprecatedTypeCacheTtl, newConfig.MetadataCache.TtlSecs)
-	statCacheMaxSizeMB, err := cfg.ResolveStatCacheMaxSizeMB(newConfig.MetadataCache.StatCacheMaxSizeMb, int(newConfig.MetadataCache.DeprecatedStatCacheCapacity))
-	if err != nil {
-		return nil, fmt.Errorf("failed to calculate StatCacheMaxSizeMb from stat-cache-capacity=%v, metadata-cache:stat-cache-max-size-mb=%v: %w",
-			newConfig.MetadataCache.DeprecatedStatCacheCapacity, newConfig.MetadataCache.StatCacheMaxSizeMb, err)
-	}
-
 	bucketCfg := gcsx.BucketConfig{
 		BillingProject:                     newConfig.GcsConnection.BillingProject,
 		OnlyDir:                            newConfig.OnlyDir,
 		EgressBandwidthLimitBytesPerSecond: newConfig.GcsConnection.LimitBytesPerSec,
 		OpRateLimitHz:                      newConfig.GcsConnection.LimitOpsPerSec,
-		StatCacheMaxSizeMB:                 statCacheMaxSizeMB,
-		StatCacheTTL:                       metadataCacheTTL,
+		StatCacheMaxSizeMB:                 uint64(newConfig.MetadataCache.StatCacheMaxSizeMb),
+		StatCacheTTL:                       time.Duration(newConfig.MetadataCache.TtlSecs) * time.Second,
 		EnableMonitoring:                   newConfig.Metrics.StackdriverExportInterval > 0 || newConfig.Metrics.PrometheusPort != 0,
 		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.
 		TmpObjectPrefix:                    ".gcsfuse_tmp/",
@@ -112,8 +106,8 @@ be interacting with the file system.`)
 		LocalFileCache:             false,
 		TempDir:                    string(newConfig.FileSystem.TempDir),
 		ImplicitDirectories:        newConfig.ImplicitDirs,
-		InodeAttributeCacheTTL:     metadataCacheTTL,
-		DirTypeCacheTTL:            metadataCacheTTL,
+		InodeAttributeCacheTTL:     time.Duration(newConfig.MetadataCache.TtlSecs) * time.Second,
+		DirTypeCacheTTL:            time.Duration(newConfig.MetadataCache.TtlSecs) * time.Second,
 		Uid:                        uid,
 		Gid:                        gid,
 		FilePerms:                  os.FileMode(newConfig.FileSystem.FileMode),

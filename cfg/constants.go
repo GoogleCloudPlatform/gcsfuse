@@ -78,8 +78,4 @@ const (
 	// 1. for conversion from stat-cache-capacity to stat-cache-max-size-mb.
 	// 2. internal testing.
 	AverageSizeOfNegativeStatCacheEntry uint64 = 240
-	// defaultStatCacheMaxSizeMB is the default for stat-cache-max-size-mb
-	// and is to be used when neither stat-cache-max-size-mb nor
-	// stat-cache-capacity is set.
-	defaultStatCacheMaxSizeMB = 32
 )
