@@ -735,13 +735,13 @@ func TestArgsParsing_EnableHNSFlags(t *testing.T) {
 	}{
 		{
 			name:              "normal",
-			args:              []string{"gcsfuse", "--enable-hns", "abc", "pqr"},
-			expectedEnableHNS: true,
+			args:              []string{"gcsfuse", "--enable-hns=false", "abc", "pqr"},
+			expectedEnableHNS: false,
 		},
 		{
 			name:              "default",
 			args:              []string{"gcsfuse", "abc", "pqr"},
-			expectedEnableHNS: false,
+			expectedEnableHNS: true,
 		},
 	}
 
