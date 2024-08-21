@@ -26,7 +26,6 @@ export PATH=$PATH:/usr/local/go/bin
 # Clone and build the gcsfuse master branch.
 git clone https://github.com/GoogleCloudPlatform/gcsfuse.git
 cd gcsfuse
-git checkout ai_ml_tests_on_hns_bucket
 CGO_ENABLED=0 go build .
 cd -
 
