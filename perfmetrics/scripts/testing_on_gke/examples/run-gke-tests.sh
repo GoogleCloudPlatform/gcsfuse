@@ -191,8 +191,6 @@ function printRunParameters() {
 function installDependencies() {
   # Ensure that realpath is installed.
   which realpath
-  # Ensure that python3 is installed.
-  which python3
   # Ensure that make is installed.
   which make || (sudo apt-get update && sudo apt-get install -y make time)
   # Ensure that go is installed.
