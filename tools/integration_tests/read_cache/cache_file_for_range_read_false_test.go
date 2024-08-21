@@ -17,6 +17,7 @@ package read_cache
 import (
 	"context"
 	"log"
+	"path"
 	"sync"
 	"testing"
 	"time"
@@ -142,9 +143,13 @@ func TestCacheFileForRangeReadFalseTest(t *testing.T) {
 		return
 	}
 
+	// Run with cache directory pointing to RAM based dir
+	ramCacheDir := path.Join("/dev/shm", cacheDirName)
+
 	// Run tests with parallel downloads disabled.
 	flagsSet := [][]string{
-		{"--implicit-dirs", "--config-file=" + createConfigFile(cacheCapacityForRangeReadTestInMiB, false, configFileName, false)},
+		{"--implicit-dirs", "--config-file=" + createConfigFile(cacheCapacityForRangeReadTestInMiB, false, configFileName, false, getDefaultCacheDirPathForTests())},
+		{"--config-file=" + createConfigFile(cacheCapacityForRangeReadTestInMiB, false, configFileName, false, ramCacheDir)},
 	}
 	for _, flags := range flagsSet {
 		ts.flags = flags
@@ -154,7 +159,8 @@ func TestCacheFileForRangeReadFalseTest(t *testing.T) {
 
 	// Run tests with parallel downloads enabled.
 	flagsSet = [][]string{
-		{"--config-file=" + createConfigFile(cacheCapacityForRangeReadTestInMiB, false, configFileNameForParallelDownloadTests, true)},
+		{"--config-file=" + createConfigFile(cacheCapacityForRangeReadTestInMiB, false, configFileNameForParallelDownloadTests, true, getDefaultCacheDirPathForTests())},
+		{"--config-file=" + createConfigFile(cacheCapacityForRangeReadTestInMiB, false, configFileNameForParallelDownloadTests, true, ramCacheDir)},
 	}
 	for _, flags := range flagsSet {
 		ts.flags = flags

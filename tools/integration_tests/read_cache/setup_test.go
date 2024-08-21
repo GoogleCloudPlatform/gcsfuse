@@ -99,8 +99,12 @@ func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageCli
 	testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
 }
 
-func createConfigFile(cacheSize int64, cacheFileForRangeRead bool, fileName string, enableParallelDownloads bool) string {
-	cacheDirPath = path.Join(setup.TestDir(), cacheDirName)
+func getDefaultCacheDirPathForTests() string {
+	return path.Join(setup.TestDir(), cacheDirName)
+}
+
+func createConfigFile(cacheSize int64, cacheFileForRangeRead bool, fileName string, enableParallelDownloads bool, customCacheDirPath string) string {
+	cacheDirPath = customCacheDirPath
 
 	// Set up config file for file cache.
 	mountConfig := map[string]interface{}{
