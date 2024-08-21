@@ -22,9 +22,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"golang.org/x/net/context"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
-	"github.com/jacobsa/syncutil"
 )
 
 func garbageCollectOnce(
@@ -32,11 +32,11 @@ func garbageCollectOnce(
 	tmpObjectPrefix string,
 	bucket gcs.Bucket) (objectsDeleted uint64, err error) {
 	const stalenessThreshold = 30 * time.Minute
-	b := syncutil.NewBundle(ctx)
+	group, ctx := errgroup.WithContext(ctx)
 
 	// List all objects with the temporary prefix.
 	objects := make(chan *gcs.Object, 100)
-	b.Add(func(ctx context.Context) (err error) {
+	group.Go(func() (err error) {
 		defer close(objects)
 		err = storageutil.ListPrefix(ctx, bucket, tmpObjectPrefix, objects)
 		if err != nil {
@@ -50,7 +50,7 @@ func garbageCollectOnce(
 	// Filter to the names of objects that are stale.
 	now := time.Now()
 	staleNames := make(chan string, 100)
-	b.Add(func(ctx context.Context) (err error) {
+	group.Go(func() (err error) {
 		defer close(staleNames)
 		for o := range objects {
 			if now.Sub(o.Updated) < stalenessThreshold {
@@ -70,7 +70,7 @@ func garbageCollectOnce(
 	})
 
 	// Delete those objects.
-	b.Add(func(ctx context.Context) (err error) {
+	group.Go(func() (err error) {
 		for name := range staleNames {
 			err = bucket.DeleteObject(
 				ctx,
@@ -90,7 +90,7 @@ func garbageCollectOnce(
 		return
 	})
 
-	err = b.Join()
+	err = group.Wait()
 	return
 }
 

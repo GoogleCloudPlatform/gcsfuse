@@ -28,9 +28,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
-	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
+	"golang.org/x/sync/errgroup"
 )
 
 // ListObjects call supports fetching upto 5000 results when projection is noAcl
@@ -530,26 +530,26 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		return d.lookUpConflicting(ctx, name)
 	}
 
+	group, ctx := errgroup.WithContext(ctx)
+
 	var fileResult *Core
 	var dirResult *Core
-	lookUpFile := func(ctx context.Context) (err error) {
+	lookUpFile := func() (err error) {
 		fileResult, err = findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name))
 		return
 	}
-	lookUpExplicitDir := func(ctx context.Context) (err error) {
+	lookUpExplicitDir := func() (err error) {
 		dirResult, err = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name))
 		return
 	}
-	lookUpImplicitOrExplicitDir := func(ctx context.Context) (err error) {
+	lookUpImplicitOrExplicitDir := func() (err error) {
 		dirResult, err = findDirInode(ctx, d.Bucket(), NewDirName(d.Name(), name))
 		return
 	}
-	lookUpHNSDir := func(ctx context.Context) (err error) {
+	lookUpHNSDir := func() (err error) {
 		dirResult, err = findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name))
 		return
 	}
-
-	b := syncutil.NewBundle(ctx)
 
 	cachedType := d.cache.Get(d.cacheClock.Now(), name)
 	switch cachedType {
@@ -561,29 +561,29 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		}
 	case metadata.ExplicitDirType:
 		if d.isBucketHierarchical() {
-			b.Add(lookUpHNSDir)
+			group.Go(lookUpHNSDir)
 		} else {
-			b.Add(lookUpExplicitDir)
+			group.Go(lookUpExplicitDir)
 		}
 	case metadata.RegularFileType, metadata.SymlinkType:
-		b.Add(lookUpFile)
+		group.Go(lookUpFile)
 	case metadata.NonexistentType:
 		return nil, nil
 	case metadata.UnknownType:
-		b.Add(lookUpFile)
+		group.Go(lookUpFile)
 		if d.isBucketHierarchical() {
-			b.Add(lookUpHNSDir)
+			group.Go(lookUpHNSDir)
 		} else {
 			if d.implicitDirs {
-				b.Add(lookUpImplicitOrExplicitDir)
+				group.Go(lookUpImplicitOrExplicitDir)
 			} else {
-				b.Add(lookUpExplicitDir)
+				group.Go(lookUpExplicitDir)
 			}
 		}
 
 	}
 
-	if err := b.Join(); err != nil {
+	if err := group.Wait(); err != nil {
 		return nil, err
 	}
 

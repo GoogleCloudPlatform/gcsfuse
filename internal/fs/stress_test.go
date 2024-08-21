@@ -24,11 +24,10 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/net/context"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/ogletest"
-	"github.com/jacobsa/syncutil"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -164,19 +163,19 @@ func (t *StressTest) TruncateFileManyTimesInParallel() {
 	}
 
 	// Run several workers.
-	b := syncutil.NewBundle(ctx)
+	group := new(errgroup.Group)
 
 	const numWorkers = 16
 	finalSizes := make(chan int64, numWorkers)
 
 	for i := 0; i < numWorkers; i++ {
-		b.Add(func(ctx context.Context) (err error) {
+		group.Go(func() (err error) {
 			err = worker(finalSizes)
 			return
 		})
 	}
 
-	err = b.Join()
+	err = group.Wait()
 	AssertEq(nil, err)
 
 	close(finalSizes)

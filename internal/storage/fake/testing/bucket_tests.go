@@ -36,8 +36,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
-	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/sys/unix"
 )
 
@@ -248,7 +248,7 @@ func readMultiple(
 	ctx context.Context,
 	bucket gcs.Bucket,
 	reqs []*gcs.ReadObjectRequest) (contents [][]byte, errs []error) {
-	b := syncutil.NewBundle(ctx)
+	group, ctx := errgroup.WithContext(ctx)
 
 	// Feed indices into a channel.
 	indices := make(chan int, len(reqs))
@@ -294,7 +294,7 @@ func readMultiple(
 	// Run several workers.
 	const parallelsim = 32
 	for i := 0; i < parallelsim; i++ {
-		b.Add(func(ctx context.Context) (err error) {
+		group.Go(func() (err error) {
 			for i := range indices {
 				handleRequest(ctx, i)
 			}
@@ -303,7 +303,7 @@ func readMultiple(
 		})
 	}
 
-	AssertEq(nil, b.Join())
+	AssertEq(nil, group.Wait())
 	return
 }
 
@@ -313,7 +313,7 @@ func forEachString(
 	ctx context.Context,
 	strings []string,
 	f func(context.Context, string) error) (err error) {
-	b := syncutil.NewBundle(ctx)
+	group, ctx := errgroup.WithContext(ctx)
 
 	// Feed strings into a channel.
 	c := make(chan string, len(strings))
@@ -325,7 +325,7 @@ func forEachString(
 	// Consume the strings.
 	const parallelism = 128
 	for i := 0; i < parallelism; i++ {
-		b.Add(func(ctx context.Context) (err error) {
+		group.Go(func() (err error) {
 			for s := range c {
 				err = f(ctx, s)
 				if err != nil {
@@ -336,7 +336,7 @@ func forEachString(
 		})
 	}
 
-	err = b.Join()
+	err = group.Wait()
 	return
 }
 
@@ -1659,11 +1659,11 @@ func (t *composeTest) createSources(
 	close(indices)
 
 	// Run a bunch of workers.
-	b := syncutil.NewBundle(t.ctx)
+	group, ctx := errgroup.WithContext(t.ctx)
 
 	const parallelism = 128
 	for i := 0; i < parallelism; i++ {
-		b.Add(func(ctx context.Context) (err error) {
+		group.Go(func() (err error) {
 			for i := range indices {
 				// Create an object. Include some metadata; it should be ignored by
 				// ComposeObjects.
@@ -1690,7 +1690,7 @@ func (t *composeTest) createSources(
 		})
 	}
 
-	err = b.Join()
+	err = group.Wait()
 	return
 }
 

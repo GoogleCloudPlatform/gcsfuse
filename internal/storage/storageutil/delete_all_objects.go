@@ -16,8 +16,8 @@ package storageutil
 
 import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
+	"golang.org/x/sync/errgroup"
 )
 
 // Delete all objects from the supplied bucket. Results are undefined if the
@@ -25,18 +25,18 @@ import (
 func DeleteAllObjects(
 	ctx context.Context,
 	bucket gcs.Bucket) error {
-	bundle := syncutil.NewBundle(ctx)
+	group, ctx := errgroup.WithContext(ctx)
 
 	// List all of the objects in the bucket.
 	objects := make(chan *gcs.Object, 100)
-	bundle.Add(func(ctx context.Context) error {
+	group.Go(func() error {
 		defer close(objects)
 		return ListPrefix(ctx, bucket, "", objects)
 	})
 
 	// Strip everything but the name.
 	objectNames := make(chan string, 10e3)
-	bundle.Add(func(ctx context.Context) (err error) {
+	group.Go(func() (err error) {
 		defer close(objectNames)
 		for o := range objects {
 			select {
@@ -54,7 +54,7 @@ func DeleteAllObjects(
 	// Delete the objects in parallel.
 	const parallelism = 64
 	for i := 0; i < parallelism; i++ {
-		bundle.Add(func(ctx context.Context) error {
+		group.Go(func() error {
 			for objectName := range objectNames {
 				err := bucket.DeleteObject(
 					ctx,
@@ -71,5 +71,5 @@ func DeleteAllObjects(
 		})
 	}
 
-	return bundle.Join()
+	return group.Wait()
 }
