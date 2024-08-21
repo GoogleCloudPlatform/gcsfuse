@@ -860,6 +860,7 @@ func (t *LocalFileTest) TestStatLocalFileAfterRecreatingItWithSameName() {
 
 func (t *LocalFileTest) TestStatSucceedsOnNewFile() {
 	t.serverCfg.NewConfig = &cfg.Config{
+		ImplicitDirs: true,
 		MetadataCache: cfg.MetadataCacheConfig{
 			TtlSecs:            -1,
 			TypeCacheMaxSizeMb: -1,
@@ -878,6 +879,7 @@ func (t *LocalFileTest) TestStatSucceedsOnNewFile() {
 
 func (t *LocalFileTest) TestStatFailsOnNewFileAfterDeletion() {
 	t.serverCfg.NewConfig = &cfg.Config{
+		ImplicitDirs: true,
 		MetadataCache: cfg.MetadataCacheConfig{
 			TtlSecs:            -1,
 			TypeCacheMaxSizeMb: -1,
