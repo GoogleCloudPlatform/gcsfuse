@@ -245,10 +245,11 @@ function installDependencies() {
 
 # Make sure you have access to the necessary GCP resources. The easiest way to enable it is to use <your-ldap>@google.com as active auth.
 function ensureGcpAuthsAndConfig() {
-  if ! $(gcloud auth list | grep -q ${USER}); then
-    gcloud auth application-default login --no-launch-browser && (gcloud auth list | grep -q ${USER})
-  fi
-  gcloud config set project ${project_id} && gcloud config list
+  # gcloud auth application-default login --no-launch-browser
+  gcloud auth list
+  # grep -q ${USER}
+  gcloud config set project ${project_id}
+  gcloud config list
 }
 
 # Verify that the passed machine configuration parameters (machine-type, num-nodes, num-ssd) are compatible.
