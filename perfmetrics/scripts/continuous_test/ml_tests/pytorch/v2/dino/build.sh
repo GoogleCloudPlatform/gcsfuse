@@ -21,7 +21,8 @@ ZONE_NAME="asia-northeast1-a"
 ARTIFACTS_BUCKET_PATH="gs://gcsfuse-ml-tests-logs/ci_artifacts/pytorch/v2/dino"
 TEST_SCRIPT_PATH="github/gcsfuse/perfmetrics/scripts/ml_tests/pytorch/v2/dino/setup_host_and_run_container.sh"
 PYTORCH_VERSION="v2"
+BUCKET_TYPE="non-hns"
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/perfmetrics/scripts/continuous_test/ml_tests/"
 
-source run_and_manage_test.sh $VM_NAME $ZONE_NAME $ARTIFACTS_BUCKET_PATH $TEST_SCRIPT_PATH $PYTORCH_VERSION
+source run_and_manage_test.sh $VM_NAME $ZONE_NAME $ARTIFACTS_BUCKET_PATH $TEST_SCRIPT_PATH $PYTORCH_VERSION $BUCKET_TYPE

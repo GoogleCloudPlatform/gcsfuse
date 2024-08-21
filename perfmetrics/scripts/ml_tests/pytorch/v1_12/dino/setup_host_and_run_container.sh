@@ -23,5 +23,5 @@ echo "Setting up the machine with Docker and Nvidia Driver"
 DRIVER_VERSION="450.172.01"
 source ml_tests/setup_host.sh $DRIVER_VERSION
 
-PYTORCH_VERSION="v1_12"
-source ml_tests/pytorch/run_container.sh $PYTORCH_VERSION
+DIR="v1_12"
+source ml_tests/pytorch/run_container.sh $DIR
