@@ -57,12 +57,13 @@ func TestMain(m *testing.M) {
 
 	flagsSet := [][]string{{"--implicit-dirs"}}
 
-	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
-		flagsSet = append(flagsSet, hnsFlagSet)
-	}
-
 	if !testing.Short() {
 		flagsSet = append(flagsSet, []string{"--client-protocol=grpc", "--implicit-dirs=true"})
+	}
+
+	// Don't pass --implicit-dirs flags for hierarchical bucket.
+	if setup.IsHierarchicalBucket(ctx, storageClient) {
+		flagsSet = [][]string{}
 	}
 
 	successCode := implicit_and_explicit_dir_setup.RunTestsForImplicitDirAndExplicitDir(flagsSet, m)

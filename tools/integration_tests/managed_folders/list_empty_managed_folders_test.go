@@ -166,6 +166,11 @@ func TestEnableEmptyManagedFoldersTrue(t *testing.T) {
 	configFile := setup.YAMLConfigFile(getMountConfigForEmptyManagedFolders(), "config.yaml")
 	flags := []string{"--implicit-dirs", "--config-file=" + configFile}
 
+	// Don't pass --rename-dir-limit or --implicit-dirs flags for hierarchical bucket.
+	if setup.IsHierarchicalBucket(ctx, storageClient) {
+		flags = []string{"--config-file=" + configFile}
+	}
+	
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 	defer func() {
 		setup.SetMntDir(rootDir)

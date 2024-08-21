@@ -63,9 +63,12 @@ func TestMain(m *testing.M) {
 	}
 	yamlContent2 := map[string]interface{}{} // test default
 	flags := [][]string{
-		{"--implicit-dirs=true"},
 		{"--config-file=" + setup.YAMLConfigFile(yamlContent1, "ignore_interrupts.yaml")},
 		{"--config-file=" + setup.YAMLConfigFile(yamlContent2, "default_ignore_interrupts.yaml")}}
+
+	if !setup.IsHierarchicalBucket(ctx, storageClient){
+		flags = append(flags, []string{"--implicit-dirs"})
+	}
 
 	successCode := static_mounting.RunTests(flags, m)
 

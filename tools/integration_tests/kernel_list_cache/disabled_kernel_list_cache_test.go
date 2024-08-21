@@ -100,7 +100,10 @@ func TestDisabledKernelListCacheTest(t *testing.T) {
 
 	// Define flag set to run the tests.
 	flagsSet := [][]string{
-		{"--kernel-list-cache-ttl-secs=0", "--stat-cache-ttl=0", "--rename-dir-limit=10"},
+		{"--kernel-list-cache-ttl-secs=0", "--stat-cache-ttl=0"},
+	}
+	if !setup.IsHierarchicalBucket(ctx, storageClient){
+		flagsSet[0] = append(flagsSet[0], "--rename-dir-limit=10")
 	}
 
 	// Run tests.

@@ -101,8 +101,9 @@ func TestMain(m *testing.M) {
 		{"--implicit-dirs=true", "--rename-dir-limit=3"},
 		{"--implicit-dirs=false", "--rename-dir-limit=3"}}
 
-	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
-		flagsSet = append(flagsSet, hnsFlagSet)
+	// Don't pass --rename-dir-limit or --implicit-dirs flags for hierarchical bucket.
+	if setup.IsHierarchicalBucket(ctx, storageClient) {
+		flagsSet = [][]string{}
 	}
 
 	if !testing.Short() {

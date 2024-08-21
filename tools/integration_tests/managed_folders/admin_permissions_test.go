@@ -194,6 +194,10 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, AdminPermission, setup.TestBucket())
 
 	flags := []string{"--implicit-dirs", "--key-file=" + localKeyFilePath, "--rename-dir-limit=5", "--stat-cache-ttl=0"}
+	// Don't pass --rename-dir-limit or --implicit-dirs flags for hierarchical bucket.
+	if setup.IsHierarchicalBucket(ctx, storageClient) {
+		flags = []string{"--key-file=" + localKeyFilePath, "--stat-cache-ttl=0"}
+	}
 
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 	defer setup.UnmountGCSFuseAndDeleteLogFile(rootDir)

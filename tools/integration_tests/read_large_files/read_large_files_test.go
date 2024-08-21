@@ -70,6 +70,7 @@ func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
 	flags := [][]string{{"--implicit-dirs"}}
+
 	mountConfigFlags := createMountConfigsAndEquivalentFlags()
 	flags = append(flags, mountConfigFlags...)
 

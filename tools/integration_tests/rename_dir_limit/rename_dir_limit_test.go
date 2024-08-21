@@ -16,10 +16,14 @@
 package rename_dir_limit_test
 
 import (
+	"context"
 	"log"
 	"os"
 	"testing"
+	"time"
 
+	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/persistent_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
@@ -38,6 +42,11 @@ const RenamedDirectory = "renamedDirectory"
 const PrefixTempFile = "temp"
 const onlyDirMounted = "OnlyDirMountRenameDirLimit"
 
+var (
+	storageClient *storage.Client
+	ctx           context.Context
+)
+
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
@@ -45,9 +54,25 @@ func TestMain(m *testing.M) {
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
-	if setup.TestBucket() != "" && setup.MountedDirectory() != "" {
-		log.Print("Both --testbucket and --mountedDirectory can't be specified at the same time.")
-		os.Exit(1)
+	// Create storage client before running tests.
+	ctx = context.Background()
+	closeStorageClient := client.CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*15)
+	defer func() {
+		err := closeStorageClient()
+		if err != nil {
+			log.Fatalf("closeStorageClient failed: %v", err)
+		}
+	}()
+
+	// To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	// flags to be set, as bucket name require to get bucket type.
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+		setup.RunTestsForMountedDirectoryFlag(m)
+	}
+
+	// Don't pass --rename-dir-limit or --implicit-dirs flags for hierarchical bucket.
+	if setup.IsHierarchicalBucket(ctx, storageClient) {
+		flags = [][]string{}
 	}
 
 	// Run tests for mountedDirectory only if --mountedDirectory flag is set.
