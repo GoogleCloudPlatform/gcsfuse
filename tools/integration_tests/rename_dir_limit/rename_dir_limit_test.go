@@ -16,10 +16,14 @@
 package rename_dir_limit_test
 
 import (
+	"context"
 	"log"
 	"os"
 	"testing"
+	"time"
 
+	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/persistent_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
@@ -38,10 +42,25 @@ const RenamedDirectory = "renamedDirectory"
 const PrefixTempFile = "temp"
 const onlyDirMounted = "OnlyDirMountRenameDirLimit"
 
+var (
+	storageClient *storage.Client
+	ctx           context.Context
+)
+
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
 	flags := [][]string{{"--rename-dir-limit=3", "--implicit-dirs"}, {"--rename-dir-limit=3"}}
+
+	// Create storage client before running tests.
+	ctx = context.Background()
+	closeStorageClient := client.CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*15)
+	defer func() {
+		err := closeStorageClient()
+		if err != nil {
+			log.Fatalf("closeStorageClient failed: %v", err)
+		}
+	}()
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
