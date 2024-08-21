@@ -409,7 +409,9 @@ func AreBothMountedDirectoryAndTestBucketFlagsSet() bool {
 }
 
 func IsHierarchicalBucket(ctx context.Context, storageClient *storage.Client) bool {
-	attrs, err := storageClient.Bucket(TestBucket()).Attrs(ctx)
+	// For only-dir mounting tests with mountedDirectory we pass test bucket name as testBucket/dir. Below function will fetch bucket name from the string.
+	bucket, _ := GetBucketAndObjectBasedOnTypeOfMount(TestBucket())
+	attrs, err := storageClient.Bucket(bucket).Attrs(ctx)
 	if err != nil {
 		return false
 	}
@@ -418,21 +420,6 @@ func IsHierarchicalBucket(ctx context.Context, storageClient *storage.Client) bo
 	}
 
 	return false
-}
-
-// Explicitly set the enable-hns config flag to true when running tests on the HNS bucket.
-func AddHNSFlagForHierarchicalBucket(ctx context.Context, storageClient *storage.Client) ([]string, error) {
-	if !IsHierarchicalBucket(ctx, storageClient) {
-		return nil, fmt.Errorf("Bucket is not Hierarchical")
-	}
-
-	var flags []string
-	mountConfig4 := map[string]interface{}{
-		"enable-hns": true,
-	}
-	filePath4 := YAMLConfigFile(mountConfig4, "config_hns.yaml")
-	flags = append(flags, "--config-file="+filePath4)
-	return flags, nil
 }
 
 func separateBucketAndObjectName(bucket, object string) (string, string) {

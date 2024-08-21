@@ -93,6 +93,7 @@ TEST_DIR_HNS_GROUP=(
   "implicit_dir"
   "operations"
   "local_file"
+  "rename_dir_limit"
 )
 
 # Create a temporary file to store the log file name.
@@ -256,13 +257,17 @@ function run_e2e_tests_for_hns_bucket(){
    echo "Hns Bucket Created: "$hns_bucket_name
 
    echo "Running tests for HNS bucket"
-   run_non_parallel_tests TEST_DIR_HNS_GROUP "$hns_bucket_name"
-   non_parallel_tests_hns_group_exit_code=$?
+   run_parallel_tests TEST_DIR_HNS_GROUP "$hns_bucket_name" &
+   parallel_tests_hns_group_pid=$?
+
+   # Wait for all tests to complete.
+   wait $parallel_tests_hns_group_pid
+   parallel_tests_hns_group_exit_code=$?
 
    hns_buckets=("$hns_bucket_name")
    clean_up hns_buckets
 
-   if [ $non_parallel_tests_hns_group_exit_code != 0 ];
+   if [ $parallel_tests_hns_group_exit_code != 0 ];
    then
      return 1
    fi
