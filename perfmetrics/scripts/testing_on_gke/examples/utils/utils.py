@@ -154,6 +154,7 @@ class UnknownMachineTypeError(Exception):
 
 
 def resource_limits(nodeType: str) -> Tuple[dict, dict]:
+  """Returns resource limits and requests for cpu/memory different machine types."""
   if nodeType == "n2-standard-96":
     return {"cpu": 96, "memory": "384Gi"}, {"cpu": 90, "memory": "300Gi"}
   elif nodeType == "n2-standard-48":
@@ -162,7 +163,7 @@ def resource_limits(nodeType: str) -> Tuple[dict, dict]:
     return {"cpu": 32, "memory": "128Gi"}, {"cpu": 30, "memory": "100Gi"}
   else:
     raise UnknownMachineTypeError(
-        f"Unsupported machine-type: {nodeType}. Unable to decide the"
-        " resource-limit for it.",
+        f"Unknown machine-type: {nodeType}. Unable to decide the"
+        " resource-limits for it.",
         nodeType,
     )
