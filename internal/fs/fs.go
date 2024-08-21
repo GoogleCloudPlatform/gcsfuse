@@ -817,8 +817,6 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 // UNLOCK_FUNCTION(fs.mu)
 // LOCK_FUNCTION(in)
 func (fs *fileSystem) createDirInode(ic inode.Core, inodes map[inode.Name]inode.DirInode) inode.Inode {
-	var in inode.Inode
-	var ok bool
 	if !ic.FullName.IsDir() {
 		panic(fmt.Sprintf("Unexpected name for a directory: %q", ic.FullName))
 	}
@@ -826,9 +824,10 @@ func (fs *fileSystem) createDirInode(ic inode.Core, inodes map[inode.Name]inode.
 	var maxTriesToCreateInode = 3
 
 	for n := 0; n < maxTriesToCreateInode; n++ {
-		in, ok = (inodes)[ic.FullName]
-		if !ok {
-			in = fs.mintInode(ic)
+		in, ok := (inodes)[ic.FullName]
+		// Create a new inode when a folder is created first time, or when a folder is deleted and then recreated with the same name.
+		if !ok || in.IsUnlinked() {
+			in := fs.mintInode(ic)
 			(inodes)[in.Name()] = in.(inode.DirInode)
 			in.Lock()
 			return in
@@ -1916,7 +1915,7 @@ func (fs *fileSystem) RmDir(
 	_, isImplicitDir := fs.implicitDirInodes[child.Name()]
 	fs.mu.Unlock()
 	parent.Lock()
-	err = parent.DeleteChildDir(ctx, op.Name, isImplicitDir)
+	err = parent.DeleteChildDir(ctx, op.Name, isImplicitDir, childDir)
 	parent.Unlock()
 
 	if err != nil {
@@ -2215,7 +2214,7 @@ func (fs *fileSystem) renameNonHierarchicalDir(
 	_, isImplicitDir := fs.implicitDirInodes[oldDir.Name()]
 	fs.mu.Unlock()
 	oldParent.Lock()
-	err = oldParent.DeleteChildDir(ctx, oldName, isImplicitDir)
+	err = oldParent.DeleteChildDir(ctx, oldName, isImplicitDir, oldDir)
 	oldParent.Unlock()
 	if err != nil {
 		return fmt.Errorf("DeleteChildDir: %w", err)

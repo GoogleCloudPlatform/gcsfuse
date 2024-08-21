@@ -130,6 +130,27 @@ func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistent
 	t.in.Lock()
 }
 
+func (t *DirTest) createDirInode(dirInodeName string) DirInode {
+	return NewDirInode(
+		5,
+		NewDirName(NewRootName(""), dirInodeName),
+		fuseops.InodeAttributes{
+			Uid:  uid,
+			Gid:  gid,
+			Mode: dirMode,
+		},
+		false,
+		false,
+		true,
+		typeCacheTTL,
+		&t.bucket,
+		&t.clock,
+		&t.clock,
+		config.DefaultTypeCacheMaxSizeMB,
+		false,
+	)
+}
+
 func (t *DirTest) getTypeFromCache(name string) metadata.Type {
 	return t.tc.Get(t.in.(*dirInode).cacheClock.Now(), name)
 }
@@ -1378,7 +1399,7 @@ func (t *DirTest) DeleteChildFile_TypeCaching() {
 func (t *DirTest) DeleteChildDir_DoesntExist() {
 	const name = "qux"
 
-	err := t.in.DeleteChildDir(t.ctx, name, false)
+	err := t.in.DeleteChildDir(t.ctx, name, false, nil)
 	ExpectEq(nil, err)
 }
 
@@ -1392,21 +1413,27 @@ func (t *DirTest) DeleteChildDir_Exists() {
 	_, err = storageutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
 	AssertEq(nil, err)
 
+	dirIn := t.createDirInode(objName)
 	// Call the inode.
-	err = t.in.DeleteChildDir(t.ctx, name, false)
+	err = t.in.DeleteChildDir(t.ctx, name, false, dirIn)
 	AssertEq(nil, err)
 
 	// Check the bucket.
 	_, err = storageutil.ReadObject(t.ctx, t.bucket, objName)
 	var notFoundErr *gcs.NotFoundError
 	ExpectTrue(errors.As(err, &notFoundErr))
+	ExpectFalse(dirIn.IsUnlinked())
 }
 
 func (t *DirTest) DeleteChildDir_ImplicitDirTrue() {
 	const name = "qux"
+	objName := path.Join(dirInodeName, name) + "/"
 
-	err := t.in.DeleteChildDir(t.ctx, name, true)
+	dirIn := t.createDirInode(objName)
+	err := t.in.DeleteChildDir(t.ctx, name, true, dirIn)
+
 	ExpectEq(nil, err)
+	ExpectFalse(dirIn.IsUnlinked())
 }
 
 func (t *DirTest) CreateLocalChildFile_ShouldnotCreateObjectInGCS() {

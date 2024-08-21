@@ -227,7 +227,8 @@ func (d *baseDirInode) DeleteChildFile(
 func (d *baseDirInode) DeleteChildDir(
 	ctx context.Context,
 	name string,
-	isImplicitDir bool) (err error) {
+	isImplicitDir bool,
+	dirInode DirInode) (err error) {
 	err = fuse.ENOSYS
 	return
 }
@@ -249,4 +250,12 @@ func (d *baseDirInode) InvalidateKernelListCache() {}
 func (d *baseDirInode) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (op *gcs.Folder, err error) {
 	err = fuse.ENOSYS
 	return
+}
+
+// This operation is not supported on base_dir.
+func (d *baseDirInode) IsUnlinked() bool {
+	return false
+}
+
+func (d *baseDirInode) Unlink() {
 }
