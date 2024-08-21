@@ -149,12 +149,12 @@ sudo umount $MOUNT_DIR
 # package rename_dir_limit
 # Run tests with static mounting.
 go run . --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/rename_dir_limit/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/rename_dir_limit/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
 
 # Run test with static mounting. (flags: --only-dir testDir)
 go run . --config-file=/tmp/gcsfuse_config.yaml --only-dir testDir $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/rename_dir_limit/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/rename_dir_limit/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
 sudo umount $MOUNT_DIR
 
 # package implicit_dir
