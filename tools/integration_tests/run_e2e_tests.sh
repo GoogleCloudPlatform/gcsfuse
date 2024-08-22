@@ -94,6 +94,19 @@ TEST_DIR_HNS_GROUP=(
   "operations"
   "local_file"
   "rename_dir_limit"
+  "log_rotation"
+    "mounting"
+    "read_cache"
+    "gzip"
+    "write_large_files"
+    "list_large_dir"
+    "read_large_files"
+    "implicit_dir"
+    "interrupt"
+    "operations"
+    "log_content"
+    "kernel_list_cache"
+    "concurrent_operations"
 )
 
 # Create a temporary file to store the log file name.
