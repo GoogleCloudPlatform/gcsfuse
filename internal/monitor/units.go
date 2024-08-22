@@ -19,6 +19,5 @@ import "go.opencensus.io/stats"
 const (
 	UnitDimensionless = stats.UnitDimensionless
 	UnitMicroseconds  = "us"
-
-	UnitBytes = stats.UnitBytes
+	UnitBytes         = stats.UnitBytes
 )
