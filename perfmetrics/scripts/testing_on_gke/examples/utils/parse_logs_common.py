@@ -17,7 +17,6 @@
 
 import argparse
 import os
-from os.path import dirname
 import subprocess
 from typing import Tuple
 

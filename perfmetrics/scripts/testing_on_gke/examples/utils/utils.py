@@ -195,7 +195,7 @@ def isRelevantMonitoringResult(
           hasattr(result, "resource")
           and hasattr(result.resource, "type")
           and result.resource.type == "k8s_container"
-          and hasattr(result.resource, "labels")
+          # and hasattr(result.resource, "labels")
           # and "cluster_name" in result.resource.labels
           # and result.resource.labels["cluster_name"] == cluster_name
           # and "pod_name" in result.resource.labels
