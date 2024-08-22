@@ -17,6 +17,7 @@ package monitor
 import (
 	"log"
 	"strconv"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/monitor/tags"
@@ -34,19 +35,19 @@ var (
 	// This metric captures only the requests made to GCS, not the subsequent page calls.
 	gcsReadCount = stats.Int64("gcs/read_count",
 		"Specifies the number of gcs reads made along with type - Sequential/Random",
-		stats.UnitDimensionless)
+		UnitDimensionless)
 	downloadBytesCount = stats.Int64("gcs/download_bytes_count",
 		"The cumulative number of bytes downloaded from GCS along with type - Sequential/Random",
-		stats.UnitBytes)
+		UnitBytes)
 	fileCacheReadCount = stats.Int64("file_cache/read_count",
 		"Specifies the number of read requests made via file cache along with type - Sequential/Random and cache hit - true/false",
-		stats.UnitDimensionless)
+		UnitDimensionless)
 	fileCacheReadBytesCount = stats.Int64("file_cache/read_bytes_count",
 		"The cumulative number of bytes read from file cache along with read type - Sequential/Random",
-		stats.UnitBytes)
-	fileCacheReadLatency = stats.Float64("file_cache/read_latency",
+		UnitBytes)
+	fileCacheReadLatency = stats.Int64("file_cache/read_latency",
 		"Latency of read from file cache along with cache hit - true/false",
-		stats.UnitMilliseconds)
+		UnitMicroseconds)
 )
 
 const NanosecondsInOneMillisecond = 1000000
@@ -120,7 +121,7 @@ func CaptureGCSReadMetrics(ctx context.Context, readType string, requestedDataSi
 	}
 }
 
-func CaptureFileCacheMetrics(ctx context.Context, readType string, readDataSize int, cacheHit bool, readLatencyNs int64) {
+func CaptureFileCacheMetrics(ctx context.Context, readType string, readDataSize int, cacheHit bool, readLatency time.Duration) {
 	if err := stats.RecordWithTags(
 		ctx,
 		[]tag.Mutator{
@@ -144,13 +145,12 @@ func CaptureFileCacheMetrics(ctx context.Context, readType string, readDataSize 
 		logger.Errorf("Cannot record fileCacheReadBytesCount %v", err)
 	}
 
-	readLatencyMs := float64(readLatencyNs) / float64(NanosecondsInOneMillisecond)
 	if err := stats.RecordWithTags(
 		ctx,
 		[]tag.Mutator{
 			tag.Upsert(tags.CacheHit, strconv.FormatBool(cacheHit)),
 		},
-		fileCacheReadLatency.M(readLatencyMs),
+		fileCacheReadLatency.M(readLatency.Microseconds()),
 	); err != nil {
 		// Error in recording fileCacheReadLatency.
 		logger.Errorf("Cannot record fileCacheReadLatency %v", err)
