@@ -13,7 +13,8 @@
 # The params must be kept sorted in ascending order.
 # The linear order between any two params, p1 and p2 is defined as following:
 # 1. If p1.config-path != "" && p2.config-path != "" then p1 < p2 iff p1.config-path < p2.config-path else p2 < p1
-# 2. If p1.config-path == "" && p2.config-path == "" then p1 < p2 iff p1.flag-name < p2.flag-name else p2 < p1
+# 2. If p1.config-path == ""
+  && p2.config-path == "" then p1 < p2 iff p1.flag-name < p2.flag-name else p2 < p1
 # 3. If p1.config-path != "" && p2.config-path == "" then p1 < p2 and vice versa.
 #
 ###################################### DOCUMENTATION ENDS ######################
