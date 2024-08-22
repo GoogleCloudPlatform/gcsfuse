@@ -345,7 +345,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("enable-hns", "", true, "Enables support for HNS buckets")
+	flagSet.BoolP("enable-hns", "", false, "Enables support for HNS buckets")
 
 	if err := v.BindPFlag("enable-hns", flagSet.Lookup("enable-hns")); err != nil {
 		return err
