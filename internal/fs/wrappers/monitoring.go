@@ -293,13 +293,12 @@ func recordOp(ctx context.Context, method string, start time.Time, fsErr error) 
 	}
 
 	// Recording opLatency.
-	latencyMicros := time.Since(start).Microseconds()
 	if err := stats.RecordWithTags(
 		ctx,
 		[]tag.Mutator{
 			tag.Upsert(tags.FSOp, method),
 		},
-		opsLatency.M(latencyMicros),
+		opsLatency.M(time.Since(start).Microseconds()),
 	); err != nil {
 		// Error in opLatency.
 		logger.Errorf("Cannot record file system operation latency: %v", err)
