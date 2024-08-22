@@ -13,8 +13,8 @@
 
 # limitations under the License.
 # To run the script,run in terminal:
-# python3 renaming_benchmark.py [--flat_dir_config_file flat_dir-config.json] \
-# [--hns_dir_config_file hns_dir-config.json] [--upload_gs]  [--num_samples NUM_SAMPLES]
+# python3 renaming_benchmark.py config.json bucket_type  [--upload_gs] \
+# [--num_samples NUM_SAMPLES]
 # where dir-config.json file contains the directory structure details for the test.
 
 import os
@@ -284,8 +284,8 @@ def _perform_testing(dir, test_type, num_samples, results):
     hns_bucket_name=mount_gcs_bucket(dir["name"], hns_mount_flags, log)
 
     # Record time of operation and populate the results dict.
-    flat_results = _record_time_of_operation(hns_bucket_name, dir, num_samples)
-    results["hns"] = flat_results
+    hns_results = _record_time_of_operation(hns_bucket_name, dir, num_samples)
+    results["hns"] = hns_results
 
     unmount_gcs_bucket(dir["name"], log)
     # Deleting config file for hns enabled mounting.
@@ -309,16 +309,15 @@ def _parse_arguments(argv):
   parser = argparse.ArgumentParser()
 
   parser.add_argument(
-      '--flat_dir_config_file',
-      help='Provide path of the config file for flat bucket.',
+      'config_file',
+      help='Provide path of the config file for GCS bucket.',
       action='store',
-      required=False,
   )
   parser.add_argument(
-      '--hns_dir_config_file',
-      help='Provide path of the config file for hns bucket.',
+      'bucket_type',
+      help='Provide bucket type - hns or flat ',
       action='store',
-      required=False,
+      choices=['hns','flat']
   )
   parser.add_argument(
       '--upload_gs',
@@ -380,20 +379,11 @@ if __name__ == '__main__':
   if len(argv) < 2:
     raise TypeError('Incorrect number of arguments.\n'
                     'Usage: '
-                    'python3 renaming_benchmark.py  [--upload_gs] [--num_samples NUM_SAMPLES] config_file ')
+                    'python3 renaming_benchmark.py  [--upload_gs] [--num_samples NUM_SAMPLES] config_file bucket_type')
 
   args = _parse_arguments(argv)
-  check_dependencies(['gcloud', 'gcsfuse'], log)
+  #check_dependencies(['gcloud', 'gcsfuse'], log)
   results = dict()  # Dict object to store the results corresonding to the test types.
 
-  # If the config file for flat bucket is provided, we will perform rename benchmark
-  # for flat bucket.
-  if args.flat_dir_config_file:
-    _run_rename_benchmark("flat", args.flat_dir_config_file, args.num_samples,
-                          results, args.upload_gs)
-
-  # If the config file for hns bucket is provided, we will perform rename benchmark
-  # for hns bucket.
-  if args.hns_dir_config_file:
-    _run_rename_benchmark("hns", args.hns_dir_config_file, args.num_samples,
+  _run_rename_benchmark(args.bucket_type, args.config_file, args.num_samples,
                           results, args.upload_gs)
