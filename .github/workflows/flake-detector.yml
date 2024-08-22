@@ -2,9 +2,6 @@ name: Flake detector
 on:
   # Enable triggering the workflow manually
   workflow_dispatch:
-  schedule:
-    # runs periodically on 2:00 UTC (7:30am IST) on weekdays
-    - cron: '0 2 * * 1-5'
   push:
     branches: [ "master" ]
 
