@@ -9,7 +9,7 @@
           "_description": "This is a dummy fio workload (missing the 'fioWorkload' field), purely standing as a header and does not execute any workload. For it to execute a fio workload, it must have a valid 'fioWorkload', a valid 'bucket' attribute, and a valid gcsfuseMountOption attribute.",
           "_fioWorkload": {
             "_description": "Every fioWorkload must have fileSize, filesPerThread, numThreads, and blockSize fields. readTypes is an array of string values 'read' and 'randread'. If readTypes is missing, then it defaults to [\"read\",\"randread\"].",
-            "fileSize": "64k",
+            "fileSize": "64K",
             "filesPerThread": 20000,
             "numThreads": 50,
             "blockSize": "64K",
@@ -20,7 +20,7 @@
         },
         {
           "fioWorkload": {
-            "fileSize": "64k",
+            "fileSize": "64K",
             "filesPerThread": 20000,
             "numThreads": 50,
             "blockSize": "64K",
