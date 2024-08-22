@@ -98,9 +98,44 @@ class TestRenamingBenchmark(unittest.TestCase):
     mount_flags = "--implicit-dirs --rename-dir-limit=1000000"
     mock_mount_gcs_bucket.return_value="flat_bucket"
     mock_record_time_of_operation.return_value = {"test_folder": [0.1, 0.2, 0.3, 0.4]}
-    expected_results = {"flat": {"test_folder": [0.1, 0.2, 0.3, 0.4]}}
+    expected_results = {"test_folder": [0.1, 0.2, 0.3, 0.4]}
 
-    renaming_benchmark._perform_testing(dir, test_type, num_samples, results)
+    results= renaming_benchmark._perform_testing(dir, test_type, num_samples)
+
+    self.assertEqual(results, expected_results)
+    # Verify calls to other functions.
+    mock_mount_gcs_bucket.assert_called_once_with(dir["name"], mount_flags, mock_log)
+    mock_record_time_of_operation.assert_called_once_with(mock_mount_gcs_bucket.return_value, dir, num_samples)
+    mock_unmount_gcs_bucket.assert_called_once_with(dir["name"], mock_log)
+    mock_log.error.assert_not_called()  # No errors should be logged
+
+  @patch('renaming_benchmark.unmount_gcs_bucket')
+  @patch('renaming_benchmark.mount_gcs_bucket')
+  @patch('renaming_benchmark._record_time_of_operation')
+  @patch('renaming_benchmark.log')
+  def test_perform_testing_hns(self, mock_log, mock_record_time_of_operation,
+      mock_mount_gcs_bucket, mock_unmount_gcs_bucket):
+    dir = {
+        "name":"hns_bucket",
+        "folders":{
+            "num_folders":1,
+            "folder_structure":{
+                'name': "test_folder",
+                "num_files": 1,
+                "file_name_prefix": "file",
+                "file_size": "1kb"
+            }
+        }
+    }
+    test_type = "hns"
+    num_samples = 4
+    results = {}
+    mount_flags = "--config-file=/tmp/config.yml"
+    mock_mount_gcs_bucket.return_value="hns_bucket"
+    mock_record_time_of_operation.return_value = {"test_folder": [0.1, 0.2, 0.3, 0.4]}
+    expected_results = {"test_folder": [0.1, 0.2, 0.3, 0.4]}
+
+    results= renaming_benchmark._perform_testing(dir, test_type, num_samples)
 
     self.assertEqual(results, expected_results)
     # Verify calls to other functions.
@@ -191,7 +226,7 @@ class TestRenamingBenchmark(unittest.TestCase):
     mock_json.return_value={}
 
     with self.assertRaises(SystemExit):
-      renaming_benchmark._run_rename_benchmark(test_type,dir_config,num_samples,results,upload_gs)
+      renaming_benchmark._run_rename_benchmark(test_type,dir_config,num_samples,upload_gs)
 
     mock_log.error.assert_called_once_with('Exited with code 1')
 
@@ -211,7 +246,7 @@ class TestRenamingBenchmark(unittest.TestCase):
     mock_json.return_value={}
 
     with self.assertRaises(SystemExit) :
-      renaming_benchmark._run_rename_benchmark(test_type,dir_config,num_samples,results,upload_gs)
+      renaming_benchmark._run_rename_benchmark(test_type,dir_config,num_samples,upload_gs)
 
     mock_log.error.assert_called_once_with("Test data does not exist.To create test data, run : \
         python3 generate_folders_and_files.py {} ".format(dir_config))
@@ -243,7 +278,7 @@ class TestRenamingBenchmark(unittest.TestCase):
     mock_json.return_value={}
 
 
-    renaming_benchmark._run_rename_benchmark(test_type,dir_config,num_samples,results,upload_gs)
+    renaming_benchmark._run_rename_benchmark(test_type,dir_config,num_samples,upload_gs)
 
     mock_log.info.assert_called_with('Uploading files to the Google Sheet\n')
     mock_upload.assert_called_with(worksheet,[['testdata','testdata2']],spreadsheet_id)

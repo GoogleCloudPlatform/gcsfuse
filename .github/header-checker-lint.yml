@@ -23,7 +23,6 @@ allowedLicenses:
 sourceFileExtensions:
   - 'go'
   - 'Makefile'
-  - 'json'
   - 'yml'
   - 'txt'
   - 'py'
