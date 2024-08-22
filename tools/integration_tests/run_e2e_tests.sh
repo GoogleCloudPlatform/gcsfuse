@@ -257,7 +257,7 @@ function run_e2e_tests_for_hns_bucket(){
    echo "Hns Bucket Created: "$hns_bucket_name
 
    echo "Running tests for HNS bucket"
-   run_parallel_tests TEST_DIR_HNS_GROUP "$hns_bucket_name" &
+   run_non_parallel_tests TEST_DIR_HNS_GROUP "$hns_bucket_name"
    parallel_tests_hns_group_pid=$?
 
    # Wait for all tests to complete.
