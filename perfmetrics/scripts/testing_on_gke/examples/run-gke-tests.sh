@@ -567,7 +567,6 @@ function waitTillAllPodsComplete() {
       printf "  kubectl get pods --namespace=${appnamespace} [-o wide] [--watch] \n"
       printf "\nTo output the configuration of all or one of the pods in this cluster/namespace (useful for debugging): \n"
       printf "  kubectl get [pods or pods/<podname>] --namespace=${appnamespace} -o yaml \n"
-
       printf "\n\n\n"
     fi
     sleep ${pod_wait_time_in_seconds}
@@ -591,34 +590,39 @@ function fetchAndParseDlioOutputs() {
 
 # prep
 printRunParameters
-validateMachineConfig ${machine_type} ${num_nodes} ${num_ssd}
 installDependencies
 
-# GCP configuration
-ensureGcpAuthsAndConfig
-ensureGkeCluster
-# ensureRequiredNodePoolConfiguration
-enableManagedCsiDriverIfNeeded
-activateCluster
-createKubernetesServiceAccountForCluster
+# if only_parse is not defined, then
+if test -z ${only_parse}; then
+  validateMachineConfig ${machine_type} ${num_nodes} ${num_ssd}
 
-# GCSFuse driver source code
-ensureGcsfuseCode
+  # GCP configuration
+  ensureGcpAuthsAndConfig
+  ensureGkeCluster
+  # ensureRequiredNodePoolConfiguration
+  enableManagedCsiDriverIfNeeded
+  activateCluster
+  createKubernetesServiceAccountForCluster
 
-# GCP/GKE configuration dependent on GCSFuse/CSI driver source code
-addGCSAccessPermissions
-createCustomCsiDriverIfNeeded
+  # GCSFuse driver source code
+  ensureGcsfuseCode
 
-# Run latest workload configuration
-deleteAllPods
-deployAllFioHelmCharts
-deployAllDlioHelmCharts
+  # GCP/GKE configuration dependent on GCSFuse/CSI driver source code
+  addGCSAccessPermissions
+  createCustomCsiDriverIfNeeded
+
+  # Run latest workload configuration
+  deleteAllPods
+  deployAllFioHelmCharts
+  deployAllDlioHelmCharts
+fi
 
 # monitor pods
-listAllHelmCharts
 waitTillAllPodsComplete
 
 # clean-up after run
 deleteAllPods
+
+# parse outputs
 fetchAndParseFioOutputs
 fetchAndParseDlioOutputs
