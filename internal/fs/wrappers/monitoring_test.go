@@ -33,66 +33,82 @@ func TestFsErrStrAndCategory(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		fsErr            error
+		expectedStr      string
 		expectedCategory string
 	}{
 		{
 			fsErr:            fmt.Errorf("some random error"),
+			expectedStr:      "input/output error",
 			expectedCategory: "input/output error",
 		},
 		{
 			fsErr:            syscall.ENOTEMPTY,
+			expectedStr:      "directory not empty",
 			expectedCategory: "directory not empty",
 		},
 		{
 			fsErr:            syscall.EEXIST,
+			expectedStr:      "file exists",
 			expectedCategory: "file exists",
 		},
 		{
 			fsErr:            syscall.EINVAL,
+			expectedStr:      "invalid argument",
 			expectedCategory: "invalid argument",
 		},
 		{
 			fsErr:            syscall.EINTR,
+			expectedStr:      "interrupted system call",
 			expectedCategory: "interrupt errors",
 		},
 		{
 			fsErr:            syscall.ENOSYS,
+			expectedStr:      "function not implemented",
 			expectedCategory: "function not implemented",
 		},
 		{
 			fsErr:            syscall.ENOSPC,
+			expectedStr:      "no space left on device",
 			expectedCategory: "process/resource management errors",
 		},
 		{
 			fsErr:            syscall.E2BIG,
+			expectedStr:      "argument list too long",
 			expectedCategory: "invalid operation",
 		},
 		{
 			fsErr:            syscall.EHOSTDOWN,
+			expectedStr:      "host is down",
 			expectedCategory: "network errors",
 		},
 		{
 			fsErr:            syscall.ENODATA,
+			expectedStr:      "no data available",
 			expectedCategory: "miscellaneous errors",
 		},
 		{
 			fsErr:            syscall.ENODEV,
+			expectedStr:      "no such device",
 			expectedCategory: "device errors",
 		},
 		{
 			fsErr:            syscall.EISDIR,
+			expectedStr:      "is a directory",
 			expectedCategory: "file/directory errors",
 		},
 		{
 			fsErr:            syscall.ENOSYS,
+			expectedStr:      "function not implemented",
 			expectedCategory: "function not implemented",
 		},
 		{
 			fsErr:            syscall.ENFILE,
+			expectedStr:      "too many open files in system",
 			expectedCategory: "too many open files",
 		},
 		{
 			fsErr:            syscall.EPERM,
+			expectedStr:      "operation not permitted",
 			expectedCategory: "permission errors",
 		},
 	}
@@ -101,7 +117,10 @@ func TestFsErrStrAndCategory(t *testing.T) {
 		t.Run(fmt.Sprintf("fsErrStrAndCategor_case_%d", idx), func(t *testing.T) {
 			t.Parallel()
 
-			assert.Equal(t, tc.expectedCategory, categorize(tc.fsErr))
+			actualErrStr, actualErrGrp := errStrAndCategory(tc.fsErr)
+
+			assert.Equal(t, tc.expectedStr, actualErrStr)
+			assert.Equal(t, tc.expectedCategory, actualErrGrp)
 		})
 	}
 }

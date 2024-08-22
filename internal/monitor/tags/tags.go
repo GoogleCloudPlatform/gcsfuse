@@ -29,6 +29,9 @@ var (
 	// FSOp annotates the file system op processed.
 	FSOp = tag.MustNewKey("fs_op")
 
+	// FSError annotates the file system failed operations with the error type
+	FSError = tag.MustNewKey("fs_error")
+
 	// FSErrCategory reduces the cardinality of FSError by grouping errors together.
 	FSErrCategory = tag.MustNewKey("fs_error_category")
 
