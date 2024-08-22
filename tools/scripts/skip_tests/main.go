@@ -26,8 +26,7 @@ func main() {
 	scanner.Split(bufio.ScanLines)
 	skipsList := make([]string, 0, 16)
 	for scanner.Scan() {
-		line := scanner.Text()
-		line = strings.TrimSpace(line)
+		line := strings.TrimSpace(scanner.Text())
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
