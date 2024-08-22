@@ -21,7 +21,6 @@ import (
 	"os"
 	"path"
 	"testing"
-	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
@@ -47,7 +46,7 @@ func TestMain(m *testing.M) {
 
 	// Create storage client before running tests.
 	ctx = context.Background()
-	closeStorageClient := client.CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*15)
+	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
 	defer func() {
 		err := closeStorageClient()
 		if err != nil {

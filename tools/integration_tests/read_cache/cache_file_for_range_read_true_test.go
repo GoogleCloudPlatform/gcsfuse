@@ -80,7 +80,7 @@ func (s *cacheFileForRangeReadTrueTest) TestRangeReadsWithCacheHit(t *testing.T)
 func TestCacheFileForRangeReadTrueTest(t *testing.T) {
 	ts := &cacheFileForRangeReadTrueTest{ctx: context.Background()}
 	// Create storage client before running tests.
-	closeStorageClient := client.CreateStorageClientWithTimeOut(&ts.ctx, &ts.storageClient, 15*time.Minute)
+	closeStorageClient := client.CreateStorageClientWithCancel(&ts.ctx, &ts.storageClient)
 	defer func() {
 		err := closeStorageClient()
 		if err != nil {

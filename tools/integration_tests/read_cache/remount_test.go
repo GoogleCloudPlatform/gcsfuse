@@ -138,7 +138,7 @@ func TestRemountTest(t *testing.T) {
 
 	// Create storage client before running tests.
 	ts := &remountTest{ctx: context.Background()}
-	closeStorageClient := client.CreateStorageClientWithTimeOut(&ts.ctx, &ts.storageClient, 15*time.Minute)
+	closeStorageClient := client.CreateStorageClientWithCancel(&ts.ctx, &ts.storageClient)
 	defer func() {
 		err := closeStorageClient()
 		if err != nil {

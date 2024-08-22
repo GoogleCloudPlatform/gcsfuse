@@ -21,7 +21,6 @@ import (
 	"os"
 	"path"
 	"testing"
-	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
@@ -88,7 +87,6 @@ const FileInDirThreeInCreateThreeLevelDirTest = "fileInDirThreeInCreateThreeLeve
 const ContentInFileInDirThreeInCreateThreeLevelDirTest = "Hello world!!"
 const Content = "line 1\nline 2\n"
 const onlyDirMounted = "OnlyDirMountOperations"
-const storageClientTimeout = time.Minute * 50
 
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 	cacheDirPath := path.Join(os.Getenv("HOME"), "operations-cache-dir")
@@ -141,7 +139,7 @@ func TestMain(m *testing.M) {
 	// Create storage client before running tests.
 	ctx := context.Background()
 	var storageClient *storage.Client
-	closeStorageClient := client.CreateStorageClientWithTimeOut(&ctx, &storageClient, storageClientTimeout)
+	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
 	defer func() {
 		err := closeStorageClient()
 		if err != nil {
