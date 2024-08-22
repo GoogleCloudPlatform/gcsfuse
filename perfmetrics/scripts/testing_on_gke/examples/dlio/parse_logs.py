@@ -178,40 +178,43 @@ def createOutputScenariosFromDownloadedFiles(args: dict) -> dict:
         )
         r["end"] = standard_timestamp(per_epoch_stats_data[str(i + 1)]["end"])
 
-        if r["scenario"] != "local-ssd":
-          if mash_installed:
-            r["lowest_memory"], r["highest_memory"] = get_memory(
-                r["pod_name"],
-                r["start"],
-                r["end"],
-                project_number=args.project_number,
-            )
-            r["lowest_cpu"], r["highest_cpu"] = get_cpu(
-                r["pod_name"],
-                r["start"],
-                r["end"],
-                project_number=args.project_number,
-            )
-          else:
-            r["lowest_memory"], r["highest_memory"] = (
-                get_memory_from_monitoring_api(
-                    pod_name=r["pod_name"],
-                    start_epoch=r["start_epoch"],
-                    end_epoch=r["end_epoch"],
-                    project_id=args.project_id,
-                    cluster_name=args.cluster_name,
-                    namespace_name=args.namespace_name,
-                )
-            )
-            r["lowest_cpu"], r["highest_cpu"] = get_cpu_from_monitoring_api(
-                pod_name=r["pod_name"],
-                start_epoch=r["start_epoch"],
-                end_epoch=r["end_epoch"],
-                project_id=args.project_id,
-                cluster_name=args.cluster_name,
-                namespace_name=args.namespace_name,
-            )
-        pass
+        def fetch_cpu_memory_data():
+          if r["scenario"] != "local-ssd":
+            if mash_installed:
+              r["lowest_memory"], r["highest_memory"] = get_memory(
+                  r["pod_name"],
+                  r["start"],
+                  r["end"],
+                  project_number=args.project_number,
+              )
+              r["lowest_cpu"], r["highest_cpu"] = get_cpu(
+                  r["pod_name"],
+                  r["start"],
+                  r["end"],
+                  project_number=args.project_number,
+              )
+            else:
+              r["lowest_memory"], r["highest_memory"] = (
+                  get_memory_from_monitoring_api(
+                      pod_name=r["pod_name"],
+                      start_epoch=r["start_epoch"],
+                      end_epoch=r["end_epoch"],
+                      project_id=args.project_id,
+                      cluster_name=args.cluster_name,
+                      namespace_name=args.namespace_name,
+                  )
+              )
+              r["lowest_cpu"], r["highest_cpu"] = get_cpu_from_monitoring_api(
+                  pod_name=r["pod_name"],
+                  start_epoch=r["start_epoch"],
+                  end_epoch=r["end_epoch"],
+                  project_id=args.project_id,
+                  cluster_name=args.cluster_name,
+                  namespace_name=args.namespace_name,
+              )
+          pass
+
+        fetch_cpu_memory_data()
 
         r["gcsfuse_mount_options"] = gcsfuse_mount_options
 
