@@ -57,7 +57,7 @@ func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageCli
 	}
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 	setup.SetMntDir(mountDir)
-	testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
+	testDirPath = setup.SetupTestDirectory(testDirName)
 }
 
 ////////////////////////////////////////////////////////////////////////
