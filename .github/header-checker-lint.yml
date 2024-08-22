@@ -24,7 +24,6 @@ sourceFileExtensions:
   - 'go'
   - 'Makefile'
   - 'json'
-  - 'yaml'
   - 'yml'
   - 'txt'
   - 'py'
