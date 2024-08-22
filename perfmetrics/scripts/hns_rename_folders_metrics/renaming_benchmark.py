@@ -34,7 +34,7 @@ from utils.checks_util import check_dependencies
 from gsheet import gsheet
 
 WORKSHEET_NAME_FLAT = 'rename_metrics_flat'
-WORKSHEET_NAME_GCS = 'rename_metrics_hns'
+WORKSHEET_NAME_HNS = 'rename_metrics_hns'
 SPREADSHEET_ID = '1UVEvsf49eaDJdTGLQU1rlNTIAxg8PZoNQCy_GX6Nw-A'
 
 logging.basicConfig(
@@ -241,7 +241,7 @@ def _record_time_of_operation(mount_point, dir, num_samples):
   return results
 
 
-def _perform_testing(dir, test_type, num_samples, results):
+def _perform_testing(dir, test_type, num_samples):
   """
   This function performs rename operations and records time of operation .
   Args:
@@ -274,34 +274,23 @@ def _perform_testing(dir, test_type, num_samples, results):
       }
     test_type : flat or hns.
     num_samples: Number of samples to collect for each test.
-    results: Dictionary to store the results corresponding to each test type
   """
   if test_type == "hns":
     # Creating config file for mounting with hns enabled.
-    with open("config.yml",'w') as mount_config:
+    with open("/tmp/config.yml",'w') as mount_config:
       mount_config.write("enable-hns: true")
-    hns_mount_flags="--config-file=config.yml"
-    hns_bucket_name=mount_gcs_bucket(dir["name"], hns_mount_flags, log)
-
-    # Record time of operation and populate the results dict.
-    hns_results = _record_time_of_operation(hns_bucket_name, dir, num_samples)
-    results["hns"] = hns_results
-
-    unmount_gcs_bucket(dir["name"], log)
-    # Deleting config file for hns enabled mounting.
-    os.remove("config.yml")
-
-    return
+    mount_flags="--config-file=/tmp/config.yml"
+  else :
+    mount_flags = "--implicit-dirs --rename-dir-limit=1000000"
 
   # Mounting the gcs bucket.
-  flat_mount_flags = "--implicit-dirs --rename-dir-limit=1000000"
-  flat_bucket_name = mount_gcs_bucket(dir["name"], flat_mount_flags, log)
-
+  bucket_name = mount_gcs_bucket(dir["name"], mount_flags, log)
   # Record time of operation and populate the results dict.
-  flat_results = _record_time_of_operation(flat_bucket_name, dir, num_samples)
-  results["flat"] = flat_results
-
+  results = _record_time_of_operation(bucket_name, dir, num_samples)
+  # Unmounting the bucket.
   unmount_gcs_bucket(dir["name"], log)
+
+  return results
 
 
 def _parse_arguments(argv):
@@ -338,7 +327,7 @@ def _parse_arguments(argv):
   return parser.parse_args(argv[1:])
 
 
-def _run_rename_benchmark(test_type,dir_config,num_samples,results,upload_gs):
+def _run_rename_benchmark(test_type,dir_config,num_samples,upload_gs):
   with open(os.path.abspath(dir_config)) as file:
     dir_str = json.load(file)
 
@@ -354,8 +343,8 @@ def _run_rename_benchmark(test_type,dir_config,num_samples,results,upload_gs):
         python3 generate_folders_and_files.py {} ".format(dir_config))
     sys.exit(1)
 
-  _perform_testing(dir_str, test_type, num_samples, results)
-  parsed_metrics = _parse_results(dir_str, results[test_type], num_samples)
+  results=_perform_testing(dir_str, test_type, num_samples)
+  parsed_metrics = _parse_results(dir_str, results, num_samples)
   upload_values = _get_values_to_export(dir_str, parsed_metrics,
                                              test_type)
 
@@ -364,7 +353,7 @@ def _run_rename_benchmark(test_type,dir_config,num_samples,results,upload_gs):
     if test_type == "flat":
       worksheet= WORKSHEET_NAME_FLAT
     else:
-      worksheet= WORKSHEET_NAME_GCS
+      worksheet= WORKSHEET_NAME_HNS
 
     exit_code = _upload_to_gsheet(worksheet, upload_values,
                                   SPREADSHEET_ID)
@@ -376,14 +365,12 @@ def _run_rename_benchmark(test_type,dir_config,num_samples,results,upload_gs):
 
 if __name__ == '__main__':
   argv = sys.argv
-  if len(argv) < 2:
+  if len(argv) < 3:
     raise TypeError('Incorrect number of arguments.\n'
                     'Usage: '
                     'python3 renaming_benchmark.py  [--upload_gs] [--num_samples NUM_SAMPLES] config_file bucket_type')
 
   args = _parse_arguments(argv)
-  #check_dependencies(['gcloud', 'gcsfuse'], log)
-  results = dict()  # Dict object to store the results corresonding to the test types.
-
+  check_dependencies(['gcloud', 'gcsfuse'], log)
   _run_rename_benchmark(args.bucket_type, args.config_file, args.num_samples,
-                          results, args.upload_gs)
+                          args.upload_gs)
