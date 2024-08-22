@@ -63,7 +63,7 @@ readonly DEFAULT_SRC_DIR="$(realpath .)/src"
 readonly csi_driver_github_path=https://github.com/googlecloudplatform/gcs-fuse-csi-driver
 readonly csi_driver_branch=main
 readonly gcsfuse_github_path=https://github.com/googlecloudplatform/gcsfuse
-readonly gcsfuse_branch=garnitin/add-gke-load-testing/v1
+readonly DEFAULT_GCSFUSE_BRANCH=garnitin/add-gke-load-testing/v1
 # GCSFuse configuration related
 readonly DEFAULT_GCSFUSE_MOUNT_OPTIONS="implicit-dirs"
 # Test runtime configuration
@@ -91,7 +91,8 @@ function printHelp() {
   echo "num_ssd=<number from 0-16, default=\"${DEFAULT_NUM_SSD}\">"
   echo "use_custom_csi_driver=<true|false, true means build and use a new custom csi driver using gcsfuse code, default=\"${DEFAULT_USE_CUSTOM_CSI_DRIVER}\">"
   # GCSFuse/GKE GCSFuse CSI Driver source code related
-  echo "src_dir=<\"directory/to/clone/github/repos/if/needed\", default=\"${DEFAULT_SRC_DIR}\">"
+  echo "src_dir=<\"directory/to/clone/github/repos/if/needed\", used for locally cloning in case gcsfuse_src_dir or csi_src_dir are not passed, default=\"${DEFAULT_SRC_DIR}\">"
+  echo "gcsfuse_branch=<name-of-gcsfuse-branch-for-cloning>, used for locally cloning, in case gcsfuse_src_dir has not been passed, default=\"${DEFAULT_GCSFUSE_BRANCH}\">"
   echo "gcsfuse_src_dir=<\"/path/of/gcsfuse/src/to/use/if/available\", default=\"${DEFAULT_SRC_DIR}/gcsfuse\">"
   echo "csi_src_dir=<\"/path/of/gcs-fuse-csi-driver/to/use/if/available\", default=\"${DEFAULT_SRC_DIR}\"/gcs-fuse-csi-driver>"
   # Test runtime configuration
@@ -131,12 +132,33 @@ export appnamespace=${DEFAULT_APPNAMESPACE}
 # test -n "${ksa}" ||
 export ksa=${DEFAULT_KSA}
 test -n "${use_custom_csi_driver}" || export use_custom_csi_driver="${DEFAULT_USE_CUSTOM_CSI_DRIVER}"
+test -n "${gcsfuse_branch}" || export gcsfuse_branch="${DEFAULT_GCSFUSE_BRANCH}"
+
 # GCSFuse/GKE GCSFuse CSI Driver source code related
-(test -n "${src_dir}" && src_dir="$(realpath "${src_dir}")") || export src_dir=${DEFAULT_SRC_DIR}
-test -d "${src_dir}" || mkdir -pv "${src_dir}"
-(test -n "${gcsfuse_src_dir}" && gcsfuse_src_dir="$(realpath "${gcsfuse_src_dir}")") || export gcsfuse_src_dir="${src_dir}"/gcsfuse
+if test -n "${src_dir}"; then
+  test -d "${src_dir}"
+  export src_dir="$(realpath "${src_dir}")"
+else
+  export src_dir=${DEFAULT_SRC_DIR}
+  mkdir -pv "${src_dir}"
+fi
+
+if test -n "${gcsfuse_src_dir}"; then
+  test -d "${gcsfuse_src_dir}"
+  export gcsfuse_src_dir="$(realpath "${gcsfuse_src_dir}")"
+else
+  export gcsfuse_src_dir="${src_dir}"/gcsfuse
+fi
+
 export gke_testing_dir="${gcsfuse_src_dir}"/perfmetrics/scripts/testing_on_gke
-(test -n "${csi_src_dir}" && csi_src_dir="$(realpath "${csi_src_dir}")") || export csi_src_dir="${src_dir}"/gcs-fuse-csi-driver
+
+if test -n "${csi_src_dir}"; then
+  test -d "${csi_src_dir}"
+  export csi_src_dir="$(realpath "${csi_src_dir}")"
+else
+  export csi_src_dir="${src_dir}"/gcs-fuse-csi-driver
+fi
+
 # GCSFuse configuration related
 test -z "${gcsfuse_mount_options}" || (echo "gcsfuse_mount_options set by user is a deprecated option. Please set gcsfuseMountOptions in workload objects in workload configuration file in its place." && exit 1)
 # Test runtime configuration
@@ -150,15 +172,15 @@ if [[ ${pod_timeout_in_seconds} -le ${pod_wait_time_in_seconds} ]]; then
 fi
 
 if test -n "${workload_config}"; then
-  workload_config="$(realpath "${workload_config}")"
   test -f "${workload_config}"
+  export workload_config="$(realpath "${workload_config}")"
 else
     export workload_config="${gke_testing_dir}"/examples/workloads.json
 fi
 
 if test -n "${output_dir}"; then
-  output_dir="$(realpath "${output_dir}")"
   test -d "${output_dir}"
+  export output_dir="$(realpath "${output_dir}")"
 else
   export output_dir="${gke_testing_dir}"/examples
 fi
@@ -183,6 +205,7 @@ function printRunParameters() {
   echo "src_dir=\"${src_dir}\""
   echo "gcsfuse_src_dir=\"${gcsfuse_src_dir}\""
   echo "csi_src_dir=\"${csi_src_dir}\""
+  echo "gke_testing_dir=\"${gke_testing_dir}\""
   # Test runtime configuration
   echo "pod_wait_time_in_seconds=\"${pod_wait_time_in_seconds}\""
   echo "pod_timeout_in_seconds=\"${pod_timeout_in_seconds}\""
@@ -196,6 +219,7 @@ function printRunParameters() {
 
 # Install dependencies.
 function installDependencies() {
+  printf "\nInstalling dependencies ...\n\n"
   # Refresh software repositories.
   sudo apt-get update
   # Get some common software dependencies.
@@ -393,12 +417,12 @@ function ensureRequiredNodePoolConfiguration() {
 
 function enableManagedCsiDriverIfNeeded() {
   if ${use_custom_csi_driver}; then
-    echo "Disabling csi add-on ..."
+    printf "\nDisabling csi add-on ...\n\n"
     gcloud -q container clusters update ${cluster_name} \
     --update-addons GcsFuseCsiDriver=DISABLED \
     --location=${zone}
   else
-    echo "Enabling csi add-on ..."
+    printf "\nEnabling csi add-on ...\n\n"
     gcloud -q container clusters update ${cluster_name} \
       --update-addons GcsFuseCsiDriver=ENABLED \
       --location=${zone}
@@ -406,12 +430,13 @@ function enableManagedCsiDriverIfNeeded() {
 }
 
 function activateCluster() {
-  echo "Configuring cluster credentials ..."
+  printf "\nConfiguring cluster credentials ...\n\n"
   gcloud container clusters get-credentials ${cluster_name} --location=${zone}
   kubectl config current-context
 }
 
 function createKubernetesServiceAccountForCluster() {
+  printf "\nCreating namespace and KSA ...\n\n"
   log="$(kubectl create namespace ${appnamespace} 2>&1)" || [[ "$log" == *"already exists"* ]]
   log="$(kubectl create serviceaccount ${ksa} --namespace ${appnamespace} 2>&1)" || [[ "$log" == *"already exists"* ]]
   kubectl config set-context --current --namespace=${appnamespace}
@@ -420,6 +445,7 @@ function createKubernetesServiceAccountForCluster() {
 }
 
 function addGCSAccessPermissions() {
+  printf "\nAdding storage.ObjectUser permissions to all the relevant buckets to ksa=${ksa} in namespace=${appnamespace} ...\n\n"
   test -f "${workload_config}"
   grep -wh '\"bucket\"' "${workload_config}" | cut -d: -f2 | cut -d, -f1 | cut -d \" -f2 | sort | uniq | grep -v ' ' | while read workload_bucket; do
     gcloud storage buckets add-iam-policy-binding gs://${workload_bucket} \
@@ -429,7 +455,7 @@ function addGCSAccessPermissions() {
 }
 
 function ensureGcsfuseCode() {
-  echo "Ensuring we have gcsfuse code ..."
+  printf "\nEnsuring we have gcsfuse code ...\n\n\n"
   # clone gcsfuse code if needed
   if ! test -d "${gcsfuse_src_dir}"; then
     cd $(dirname "${gcsfuse_src_dir}") && git clone ${gcsfuse_github_path} && cd "${gcsfuse_src_dir}" && git switch ${gcsfuse_branch} && cd - && cd -
@@ -439,7 +465,7 @@ function ensureGcsfuseCode() {
 }
 
 function ensureGcsFuseCsiDriverCode() {
-  echo "Ensuring we have gcs-fuse-csi-driver code ..."
+  printf "\nEnsuring we have gcs-fuse-csi-driver code ...\n\n"
   # clone csi-driver code if needed
   if ! test -d "${csi_src_dir}"; then
     cd $(dirname "${csi_src_dir}") && git clone ${csi_driver_github_path} && cd "${csi_src_dir}" && git switch ${csi_driver_branch} && cd - && cd -
@@ -451,13 +477,14 @@ function createCustomCsiDriverIfNeeded() {
     echo "Disabling managed CSI driver ..."
     gcloud -q container clusters update ${cluster_name} --update-addons GcsFuseCsiDriver=DISABLED --location=${zone}
 
-    echo "Building custom CSI driver ..."
+    printf "\nCreating a new custom CSI driver ...\n\n"
 
     # Create a bucket for storing custom-csi driver.
     test -n "${package_bucket}" || export package_bucket=${USER/google/}-gcsfuse-binary-package
     (gcloud storage buckets list | grep -wqo ${package_bucket}) || (region=$(echo ${zone} | rev | cut -d- -f2- | rev) && gcloud storage buckets create gs://${package_bucket} --location=${region})
 
     # Build a new gcsfuse binary
+    printf "\nBuilding a new GCSFuse binary from ${gcsfuse_src_dir} ...\n\n"
     cd "${gcsfuse_src_dir}"
     rm -rfv ./bin ./sbin
     GOOS=linux GOARCH=amd64 go run tools/build_gcsfuse/main.go . . v3
@@ -468,7 +495,6 @@ function createCustomCsiDriverIfNeeded() {
     rm -rfv "${gcsfuse_src_dir}"/bin "${gcsfuse_src_dir}"/sbin
     cd -
 
-    echo "Installing custom CSI driver ..."
     # Build and install csi driver
     ensureGcsFuseCsiDriverCode
     cd "${csi_src_dir}"
@@ -476,6 +502,7 @@ function createCustomCsiDriverIfNeeded() {
     make generate-spec-yaml
     printf "\nBuilding a new custom CSI driver using the above GCSFuse binary ...\n\n"
     make build-image-and-push-multi-arch REGISTRY=gcr.io/${project_id}/${USER} GCSFUSE_PATH=gs://${package_bucket}
+    printf "\nInstalling the new custom CSI driver built above ...\n\n"
     make install PROJECT=${project_id} REGISTRY=gcr.io/${project_id}/${USER}
     cd -
     # Wait some time after csi driver installation before deploying pods
@@ -491,36 +518,25 @@ function createCustomCsiDriverIfNeeded() {
 }
 
 function deleteAllHelmCharts() {
-  echo "Deleting all existing helm charts ..."
+  printf "\nDeleting all existing helm charts ...\n\n"
   helm ls --namespace=${appnamespace} | tr -s '\t' ' ' | cut -d' ' -f1 | tail -n +2 | while read helmchart; do helm uninstall ${helmchart} --namespace=${appnamespace}; done
 }
 
 function deleteAllPods() {
   deleteAllHelmCharts
 
-  echo "Deleting all existing pods ..."
+  printf "\nDeleting all existing pods ...\n\n"
   kubectl get pods --namespace=${appnamespace}  | tail -n +2 | cut -d' ' -f1 | while read podname; do kubectl delete pods/${podname} --namespace=${appnamespace} --grace-period=0 --force || true; done
 }
 
 function deployAllFioHelmCharts() {
-  echo "Deploying all fio helm charts ..."
+  printf "\nDeploying all fio helm charts ...\n\n"
   cd "${gke_testing_dir}"/examples/fio && python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" && cd -
 }
 
 function deployAllDlioHelmCharts() {
-  echo "Deploying all dlio helm charts ..."
+  printf "\nDeploying all dlio helm charts ...\n\n"
   cd "${gke_testing_dir}"/examples/dlio && python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" && cd -
-}
-
-function listAllHelmCharts() {
-  echo "Listing all helm charts ..."
-  # monitor and debug pods
-  helm ls --namespace=${appnamespace}  | tr -s '\t' | cut -f1,5,6
-
-  # Sample output.
-  # NAME STATUS CHART \
-  # fio-loading-test-100m-randread-gcsfuse-file-cache deployed fio-loading-test-0.1.0
-  # gke-dlio-unet3d-100kb-500k-128-gcsfuse-file-cache deployed unet3d-loading-test-0.1.0
 }
 
 function waitTillAllPodsComplete() {
@@ -543,7 +559,7 @@ function waitTillAllPodsComplete() {
     if [ ${num_completed_pods} -gt 0 ]; then
       printf ${num_completed_pods}" pod(s) completed.\n"
     fi
-    num_noncompleted_pods=$(echo "${podslist}" | tail -n +2 | grep -i -v 'completed\|succeeded\|fail' | wc -l)
+    num_noncompleted_pods=$(echo "${podslist}" | tail -n +2 | grep -i -v 'completed\|succeeded\|fail\|error' | wc -l)
     num_failed_pods=$(echo "${podslist}" | tail -n +2 | grep -i 'failed' | wc -l)
     if [ ${num_failed_pods} -gt 0 ]; then
       printf ${num_failed_pods}" pod(s) failed.\n\n"
@@ -574,14 +590,14 @@ function waitTillAllPodsComplete() {
 }
 
 function fetchAndParseFioOutputs() {
-  echo "Fetching and parsing fio outputs ..."
+  printf "\nFetching and parsing fio outputs ...\n\n"
   cd "${gke_testing_dir}"/examples/fio
   python3 parse_logs.py --project-number=${project_number} --workload-config "${workload_config}" --instance-id ${instance_id} --output-file "${output_dir}"/fio/output.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace}
   cd -
 }
 
 function fetchAndParseDlioOutputs() {
-  echo "Fetching and parsing dlio outputs ..."
+  printf "\nFetching and parsing dlio outputs ...\n\n"
   cd "${gke_testing_dir}"/examples/dlio
   python3 parse_logs.py --project-number=${project_number} --workload-config "${workload_config}" --instance-id ${instance_id} --output-file "${output_dir}"/dlio/output.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace}
   cd -
