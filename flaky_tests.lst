@@ -6,3 +6,6 @@
 
 # b/361259658
 TestAppendObjectCreator
+
+# b/361477653
+TestParallelDiropsTestSuite/TestParallelReadDirs
