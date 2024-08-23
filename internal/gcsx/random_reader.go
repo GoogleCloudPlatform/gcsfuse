@@ -202,7 +202,7 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 			readType = util.Sequential
 		}
 		// Capture file cache metrics to be exported via stackdriver
-		monitor.CaptureFileCacheMetrics(ctx, readType, n, cacheHit, executionTime.Nanoseconds())
+		monitor.CaptureFileCacheMetrics(ctx, readType, n, cacheHit, executionTime)
 	}()
 
 	// Create fileCacheHandle if not already.
