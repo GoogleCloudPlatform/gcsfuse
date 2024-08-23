@@ -130,7 +130,7 @@ func CreateObjectOnGCS(ctx context.Context, client *storage.Client, object, cont
 	return WriteToObject(ctx, client, object, content, storage.Conditions{DoesNotExist: true})
 }
 
-// CreateStorageClientWithTimeOut creates storage client with a configurable timeout and return a function to cancel the storage client
+// CreateStorageClientWithCancel creates a new storage client with a cancelable context and returns a function that can be used to cancel the client's operations
 func CreateStorageClientWithCancel(ctx *context.Context, storageClient **storage.Client) func() error {
 	var err error
 	var cancel context.CancelFunc
