@@ -1442,14 +1442,18 @@ func (t *DirTest) LocalChildFileCore() {
 	AssertEq(t.bucket.Name(), core.Bucket.Name())
 	AssertEq("foo/bar/qux", core.FullName.objectName)
 	AssertTrue(core.Local)
+	AssertEq(nil, core.MinObject)
+	result, err := t.in.LookUpChild(t.ctx, "qux")
+	AssertEq(nil, err)
+	AssertEq(nil, result)
+	ExpectEq(metadata.UnknownType, t.getTypeFromCache("qux"))
 }
 
 func (t *DirTest) InsertIntoTypeCache() {
 	t.in.InsertFileIntoTypeCache("abc")
+
 	d := t.in.(*dirInode)
-
 	tp := t.tc.Get(d.cacheClock.Now(), "abc")
-
 	AssertEq(2, tp)
 }
 
