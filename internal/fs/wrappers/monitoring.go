@@ -48,7 +48,7 @@ var (
 
 // Error categories
 const (
-	deviceErr         = "DEVICE_ERRORS"
+	deviceErr         = "DEVICE_ERROR"
 	dirNotEmptyErr    = "DIR_NOT_EMPTY"
 	fileExistsErr     = "FILE_EXISTS"
 	fileDirErr        = "FILE_DIR_ERROR"
