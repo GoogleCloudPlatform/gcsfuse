@@ -84,3 +84,9 @@ SPREADSHEET_ID='1wXRGYyAWvasU8U4KaP7NGPHEvgiOSgMd1sCLxsQUwf0'
 LIST_CONFIG_FILE="config-hns.json"
 run_load_test_and_fetch_metrics "$GCSFUSE_FIO_FLAGS" "$BUCKET_NAME" "$SPREADSHEET_ID"
 run_ls_benchmark "$GCSFUSE_LS_FLAGS" "$SPREADSHEET_ID" "$LIST_CONFIG_FILE"
+
+
+# TODO: Testing for hns bucket with client protocol set to grpc. To be done when
+#  includeFolderAsPrefixes is supported in grpc.
+# TODO: Testing for hns bucket with client protocol set to grpc with grpc-conn-pool-size
+# set to 4. To be done when includeFolderAsPrefixes is supported in grpc.
