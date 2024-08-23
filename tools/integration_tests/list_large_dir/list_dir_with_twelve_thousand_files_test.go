@@ -151,8 +151,7 @@ func createHundredExplicitDir(dirPath string, t *testing.T) {
 // Test with a bucket with twelve thousand files.
 func TestListDirectoryWithTwelveThousandFiles(t *testing.T) {
 	createTwelveThousandFilesAndUploadOnTestBucket(t)
-	testDirPath := path.Join(setup.MntDir(), DirectoryForListLargeFileTests)
-	setup.SetupTestDirectory(testDirPath)
+	testDirPath := setup.SetupTestDirectory(DirectoryForListLargeFileTests)
 	testDirPathOnBucket := path.Join(setup.TestBucket(), DirectoryForListLargeFileTests)
 	dirPath := path.Join(testDirPath, DirectoryWithTwelveThousandFiles)
 
@@ -187,8 +186,7 @@ func TestListDirectoryWithTwelveThousandFiles(t *testing.T) {
 // Test with a bucket with twelve thousand files and hundred explicit directories.
 func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
 	createTwelveThousandFilesAndUploadOnTestBucket(t)
-	testDirPath := path.Join(setup.MntDir(), DirectoryForListLargeFileTests)
-	setup.SetupTestDirectory(testDirPath)
+	testDirPath := setup.SetupTestDirectory(DirectoryForListLargeFileTests)
 	testDirPathOnBucket := path.Join(setup.TestBucket(), DirectoryForListLargeFileTests)
 	dirPath := path.Join(testDirPath, DirectoryWithTwelveThousandFiles)
 	// Create hundred explicit directories.
@@ -225,8 +223,7 @@ func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T)
 // Test with a bucket with twelve thousand files, hundred explicit directories, and hundred implicit directories.
 func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir(t *testing.T) {
 	createTwelveThousandFilesAndUploadOnTestBucket(t)
-	testDirPath := path.Join(setup.MntDir(), DirectoryForListLargeFileTests)
-	setup.SetupTestDirectory(testDirPath)
+	testDirPath := setup.SetupTestDirectory(DirectoryForListLargeFileTests)
 	testDirPathOnBucket := path.Join(setup.TestBucket(), DirectoryForListLargeFileTests)
 	dirPath := path.Join(testDirPath, DirectoryWithTwelveThousandFiles)
 	// Create hundred explicit directories.
