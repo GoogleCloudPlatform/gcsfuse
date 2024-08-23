@@ -77,7 +77,7 @@ func TestRenameDirectoryWithTwoFiles(t *testing.T) {
 // As --rename-directory-limit = 3, and the number of objects in the directory is two,
 // which is greater than the limit, the operation should get fail.
 func TestRenameDirectoryWithFourFiles(t *testing.T) {
-	if setup.IsHierarchicalBucket(ctx, storageClient){
+	if setup.IsHierarchicalBucket(ctx, storageClient) {
 		t.SkipNow()
 	}
 	testDir := setup.SetupTestDirectory(DirForRenameDirLimitTests)
@@ -131,7 +131,7 @@ func TestRenameDirectoryWithTwoFilesAndOneEmptyDirectory(t *testing.T) {
 // As --rename-directory-limit = 3, and the number of objects in the directory is Four,
 // which is greater than the limit, the operation should get fail.
 func TestRenameDirectoryWithTwoFilesAndOneNonEmptyDirectory(t *testing.T) {
-	if setup.IsHierarchicalBucket(ctx, storageClient){
+	if setup.IsHierarchicalBucket(ctx, storageClient) {
 		t.SkipNow()
 	}
 	testDir := setup.SetupTestDirectory(DirForRenameDirLimitTests)
