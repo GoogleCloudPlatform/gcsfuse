@@ -46,6 +46,26 @@ var (
 	tracer = otel.Tracer(name)
 )
 
+// Error categories
+const (
+	deviceErr         = "DEVICE_ERRORS"
+	dirNotEmptyErr    = "DIR_NOT_EMPTY"
+	fileExistsErr     = "FILE_EXISTS"
+	fileDirErr        = "FILE_DIR_ERROR"
+	notImplementedErr = "NOT_IMPLEMENTED"
+	ioErr             = "IO_ERROR"
+	intrErr           = "INTERRUPT_ERROR"
+	invalidArgErr     = "INVALID_ARGUMENT"
+	invalidOpErr      = "INVALID_OPERATION"
+	miscErr           = "MISC_ERROR"
+	nwErr             = "NETWORK_ERROR"
+	noFileOrDirErr    = "NO_FILE_OR_DIR"
+	notADirErr        = "NOT_A_DIR"
+	permError         = "PERM_ERROR"
+	processMgmtErr    = "PROCESS_RESOURCE_MGMT_ERROR"
+	tooManyFilesErr   = "TOO_MANY_OPEN_FILES"
+)
+
 // Initialize the metrics.
 func init() {
 
@@ -97,13 +117,13 @@ func categorize(err error) string {
 		syscall.EPROTO,
 		syscall.ERFKILL,
 		syscall.EXDEV:
-		return "device errors"
+		return deviceErr
 
 	case syscall.ENOTEMPTY:
-		return "directory not empty"
+		return dirNotEmptyErr
 
 	case syscall.EEXIST:
-		return "file exists"
+		return fileExistsErr
 
 	case syscall.EBADF,
 		syscall.EBADFD,
@@ -111,20 +131,20 @@ func categorize(err error) string {
 		syscall.EISDIR,
 		syscall.EISNAM,
 		syscall.ENOTBLK:
-		return "file/directory errors"
+		return fileDirErr
 
 	case syscall.ENOSYS:
-		return "function not implemented"
+		return notImplementedErr
 
 	case syscall.EIO:
-		return "input/output error"
+		return ioErr
 
 	case syscall.ECANCELED,
 		syscall.EINTR:
-		return "interrupt errors"
+		return intrErr
 
 	case syscall.EINVAL:
-		return "invalid argument"
+		return invalidArgErr
 
 	case syscall.E2BIG,
 		syscall.EALREADY,
@@ -137,7 +157,7 @@ func categorize(err error) string {
 		syscall.ENOTTY,
 		syscall.ERANGE,
 		syscall.ESPIPE:
-		return "invalid operation"
+		return invalidOpErr
 
 	case syscall.EADV,
 		syscall.EBADSLT,
@@ -171,7 +191,7 @@ func categorize(err error) string {
 		syscall.EUCLEAN,
 		syscall.EUNATCH,
 		syscall.EXFULL:
-		return "miscellaneous errors"
+		return miscErr
 
 	case syscall.EADDRINUSE,
 		syscall.EADDRNOTAVAIL,
@@ -211,13 +231,13 @@ func categorize(err error) string {
 		syscall.ESOCKTNOSUPPORT,
 		syscall.ESTRPIPE,
 		syscall.ETIMEDOUT:
-		return "network errors"
+		return nwErr
 
 	case syscall.ENOENT:
-		return "no such file or directory"
+		return noFileOrDirErr
 
 	case syscall.ENOTDIR:
-		return "not a directory"
+		return notADirErr
 
 	case syscall.EACCES,
 		syscall.EKEYEXPIRED,
@@ -227,7 +247,7 @@ func categorize(err error) string {
 		syscall.EPERM,
 		syscall.EROFS,
 		syscall.ETXTBSY:
-		return "permission errors"
+		return permError
 
 	case syscall.EAGAIN,
 		syscall.EBUSY,
@@ -244,13 +264,13 @@ func categorize(err error) string {
 		syscall.EOWNERDEAD,
 		syscall.ESRCH,
 		syscall.EUSERS:
-		return "process/resource management errors"
+		return processMgmtErr
 
 	case syscall.EMFILE,
 		syscall.ENFILE:
-		return "too many open files"
+		return tooManyFilesErr
 	}
-	return "miscellaneous errors"
+	return miscErr
 }
 
 // Records file system operation count, failed operation count and the operation latency.
