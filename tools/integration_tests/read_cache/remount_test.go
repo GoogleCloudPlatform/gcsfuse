@@ -131,11 +131,24 @@ func TestRemountTest(t *testing.T) {
 		t.SkipNow()
 	}
 	// Define flag set to run the tests.
-	flagsSet := [][]string{
-		{"--implicit-dirs=true", "--config-file=" + createConfigFile(cacheCapacityInMB, false, configFileName, false, getDefaultCacheDirPathForTests())},
-		{"--config-file=" + createConfigFile(cacheCapacityInMB, false, configFileNameForParallelDownloadTests, true, getDefaultCacheDirPathForTests())},
+	flagsSet := []gcsfuseTestFlags{
+		{
+			cliFlags:                []string{"--implicit-dirs"},
+			cacheSize:               cacheCapacityInMB,
+			cacheFileForRangeRead:   false,
+			fileName:                configFileName,
+			enableParallelDownloads: false,
+			cacheDirPath:            getDefaultCacheDirPathForTests(),
+		},
+		{
+			cliFlags:                nil,
+			cacheSize:               cacheCapacityInMB,
+			cacheFileForRangeRead:   false,
+			fileName:                configFileNameForParallelDownloadTests,
+			enableParallelDownloads: true,
+			cacheDirPath:            getDefaultCacheDirPathForTests(),
+		},
 	}
-
 	// Create storage client before running tests.
 	ts := &remountTest{ctx: context.Background()}
 	closeStorageClient := client.CreateStorageClientWithCancel(&ts.ctx, &ts.storageClient)
@@ -148,7 +161,11 @@ func TestRemountTest(t *testing.T) {
 
 	// Run tests.
 	for _, flags := range flagsSet {
-		ts.flags = flags
+		configFilePath := createConfigFile(&flags)
+		ts.flags = []string{"--config-file=" + configFilePath}
+		if flags.cliFlags != nil {
+			ts.flags = append(ts.flags, flags.cliFlags...)
+		}
 		log.Printf("Running tests with flags: %s", ts.flags)
 		test_setup.RunTests(t, ts)
 	}

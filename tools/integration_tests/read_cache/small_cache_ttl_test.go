@@ -120,15 +120,32 @@ func TestSmallCacheTTLTest(t *testing.T) {
 	}
 
 	// Define flag set to run the tests.
-	flagsSet := [][]string{
-		{"--implicit-dirs", "--config-file=" + createConfigFile(cacheCapacityInMB, false, configFileName, false, getDefaultCacheDirPathForTests())},
-		{"--config-file=" + createConfigFile(cacheCapacityInMB, false, configFileNameForParallelDownloadTests, true, getDefaultCacheDirPathForTests())},
+	flagsSet := []gcsfuseTestFlags{
+		{
+			cliFlags:                []string{fmt.Sprintf("--stat-cache-ttl=%ds", metadataCacheTTlInSec), "--implicit-dirs"},
+			cacheSize:               cacheCapacityInMB,
+			cacheFileForRangeRead:   false,
+			fileName:                configFileName,
+			enableParallelDownloads: false,
+			cacheDirPath:            getDefaultCacheDirPathForTests(),
+		},
+		{
+			cliFlags:                []string{fmt.Sprintf("--stat-cache-ttl=%ds", metadataCacheTTlInSec)},
+			cacheSize:               cacheCapacityInMB,
+			cacheFileForRangeRead:   false,
+			fileName:                configFileNameForParallelDownloadTests,
+			enableParallelDownloads: true,
+			cacheDirPath:            getDefaultCacheDirPathForTests(),
+		},
 	}
-	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, fmt.Sprintf("--stat-cache-ttl=%ds", metadataCacheTTlInSec))
 
 	// Run tests.
 	for _, flags := range flagsSet {
-		ts.flags = flags
+		configFilePath := createConfigFile(&flags)
+		ts.flags = []string{"--config-file=" + configFilePath}
+		if flags.cliFlags != nil {
+			ts.flags = append(ts.flags, flags.cliFlags...)
+		}
 		log.Printf("Running tests with flags: %s", ts.flags)
 		test_setup.RunTests(t, ts)
 	}

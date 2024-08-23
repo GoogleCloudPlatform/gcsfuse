@@ -146,23 +146,59 @@ func TestCacheFileForRangeReadFalseTest(t *testing.T) {
 	ramCacheDir := path.Join("/dev/shm", cacheDirName)
 
 	// Run tests with parallel downloads disabled.
-	flagsSet := [][]string{
-		{"--implicit-dirs", "--config-file=" + createConfigFile(cacheCapacityForRangeReadTestInMiB, false, configFileName, false, getDefaultCacheDirPathForTests())},
-		{"--config-file=" + createConfigFile(cacheCapacityForRangeReadTestInMiB, false, configFileName, false, ramCacheDir)},
+	flagsSet := []gcsfuseTestFlags{
+		{
+			cliFlags:                []string{"--implicit-dirs"},
+			cacheSize:               cacheCapacityForRangeReadTestInMiB,
+			cacheFileForRangeRead:   false,
+			fileName:                configFileName,
+			enableParallelDownloads: false,
+			cacheDirPath:            getDefaultCacheDirPathForTests(),
+		},
+		{
+			cliFlags:                nil,
+			cacheSize:               cacheCapacityForRangeReadTestInMiB,
+			cacheFileForRangeRead:   false,
+			fileName:                configFileName,
+			enableParallelDownloads: false,
+			cacheDirPath:            ramCacheDir,
+		},
 	}
 	for _, flags := range flagsSet {
-		ts.flags = flags
+		configFilePath := createConfigFile(&flags)
+		ts.flags = []string{"--config-file=" + configFilePath}
+		if flags.cliFlags != nil {
+			ts.flags = append(ts.flags, flags.cliFlags...)
+		}
 		log.Printf("Running tests with flags: %s", ts.flags)
 		test_setup.RunTests(t, ts)
 	}
 
 	// Run tests with parallel downloads enabled.
-	flagsSet = [][]string{
-		{"--config-file=" + createConfigFile(cacheCapacityForRangeReadTestInMiB, false, configFileNameForParallelDownloadTests, true, getDefaultCacheDirPathForTests())},
-		{"--config-file=" + createConfigFile(cacheCapacityForRangeReadTestInMiB, false, configFileNameForParallelDownloadTests, true, ramCacheDir)},
+	flagsSet = []gcsfuseTestFlags{
+		{
+			cliFlags:                nil,
+			cacheSize:               cacheCapacityForRangeReadTestInMiB,
+			cacheFileForRangeRead:   false,
+			fileName:                configFileNameForParallelDownloadTests,
+			enableParallelDownloads: true,
+			cacheDirPath:            getDefaultCacheDirPathForTests(),
+		},
+		{
+			cliFlags:                nil,
+			cacheSize:               cacheCapacityForRangeReadTestInMiB,
+			cacheFileForRangeRead:   false,
+			fileName:                configFileNameForParallelDownloadTests,
+			enableParallelDownloads: true,
+			cacheDirPath:            ramCacheDir,
+		},
 	}
 	for _, flags := range flagsSet {
-		ts.flags = flags
+		configFilePath := createConfigFile(&flags)
+		ts.flags = []string{"--config-file=" + configFilePath}
+		if flags.cliFlags != nil {
+			ts.flags = append(ts.flags, flags.cliFlags...)
+		}
 		ts.isParallelDownloadsEnabled = true
 		log.Printf("Running tests with flags: %s", ts.flags)
 		test_setup.RunTests(t, ts)
