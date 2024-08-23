@@ -22,7 +22,6 @@ import (
 	"os"
 	"reflect"
 	"testing"
-	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
@@ -131,11 +130,11 @@ func CreateObjectOnGCS(ctx context.Context, client *storage.Client, object, cont
 	return WriteToObject(ctx, client, object, content, storage.Conditions{DoesNotExist: true})
 }
 
-// CreateStorageClientWithTimeOut creates storage client with a configurable timeout and return a function to cancel the storage client
-func CreateStorageClientWithTimeOut(ctx *context.Context, storageClient **storage.Client, time time.Duration) func() error {
+// CreateStorageClientWithCancel creates a new storage client with a cancelable context and returns a function that can be used to cancel the client's operations
+func CreateStorageClientWithCancel(ctx *context.Context, storageClient **storage.Client) func() error {
 	var err error
 	var cancel context.CancelFunc
-	*ctx, cancel = context.WithTimeout(*ctx, time)
+	*ctx, cancel = context.WithCancel(*ctx)
 	*storageClient, err = CreateStorageClient(*ctx)
 	if err != nil {
 		log.Fatalf("client.CreateStorageClient: %v", err)
@@ -157,7 +156,7 @@ func DownloadObjectFromGCS(gcsFile string, destFileName string, t *testing.T) er
 
 	ctx := context.Background()
 	var storageClient *storage.Client
-	closeStorageClient := CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*5)
+	closeStorageClient := CreateStorageClientWithCancel(&ctx, &storageClient)
 	defer func() {
 		err := closeStorageClient()
 		if err != nil {
