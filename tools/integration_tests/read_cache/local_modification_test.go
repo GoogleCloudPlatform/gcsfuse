@@ -108,7 +108,7 @@ func TestLocalModificationTest(t *testing.T) {
 			cacheDirPath:            getDefaultCacheDirPathForTests(),
 		},
 		{
-			cliFlags:                []string{"--implicit-dirs"},
+			cliFlags:                nil,
 			cacheSize:               cacheCapacityInMB,
 			cacheFileForRangeRead:   false,
 			fileName:                configFileNameForParallelDownloadTests,
