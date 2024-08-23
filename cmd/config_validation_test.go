@@ -299,6 +299,7 @@ func TestValidateConfigFile_FileCacheConfigSuccessful(t *testing.T) {
 					MaxSizeMb:                40,
 					ParallelDownloadsPerFile: 10,
 					WriteBufferSize:          8192,
+					DisableODirect:           true,
 				},
 			},
 		},

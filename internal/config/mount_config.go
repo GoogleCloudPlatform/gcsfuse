@@ -58,6 +58,7 @@ const (
 	DefaultDownloadChunkSizeMB      = 50
 	DefaultParallelDownloadsPerFile = 16
 	DefaultWriteBufferSize          = int64(4 * util.MiB)
+	DefaultDisableODirect           = false
 )
 
 type LogConfig struct {
@@ -109,6 +110,7 @@ type FileCacheConfig struct {
 	DownloadChunkSizeMB      int   `yaml:"download-chunk-size-mb,omitempty"`
 	EnableCRC                bool  `yaml:"enable-crc"`
 	WriteBufferSize          int64 `yaml:"write-buffer-size,omitempty"`
+	DisableODirect           bool  `yaml:"disable-o-direct"`
 }
 
 type MetadataCacheConfig struct {
@@ -188,6 +190,7 @@ func NewMountConfig() *MountConfig {
 		DownloadChunkSizeMB:      DefaultDownloadChunkSizeMB,
 		EnableCRC:                DefaultEnableCRC,
 		WriteBufferSize:          DefaultWriteBufferSize,
+		DisableODirect:           DefaultDisableODirect,
 	}
 	mountConfig.MetadataCacheConfig = MetadataCacheConfig{
 		TtlInSeconds:       TtlInSecsUnsetSentinel,

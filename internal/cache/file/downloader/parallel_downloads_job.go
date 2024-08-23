@@ -62,14 +62,20 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 
 	monitor.CaptureGCSReadMetrics(ctx, util.Parallel, end-start)
 
-	_, err = cacheutil.CopyUsingMemoryAlignedBuffer(ctx, newReader, dstWriter, end-start,
-		job.fileCacheConfig.WriteBufferSize)
-	// If context is canceled while reading/writing in CopyUsingMemoryAlignedBuffer
-	// then it returns error different from context cancelled (invalid argument),
-	// and we need to report that error as context cancelled.
-	if !errors.Is(err, context.Canceled) && errors.Is(ctx.Err(), context.Canceled) {
-		err = errors.Join(err, ctx.Err())
+	// Use of memory aligned buffer is not required if use of O_DIRECT is disabled.
+	if job.fileCacheConfig.DisableODirect {
+		_, err = io.CopyN(dstWriter, newReader, end-start)
+	} else {
+		_, err = cacheutil.CopyUsingMemoryAlignedBuffer(ctx, newReader, dstWriter, end-start,
+			job.fileCacheConfig.WriteBufferSize)
+		// If context is canceled while reading/writing in CopyUsingMemoryAlignedBuffer
+		// then it returns error different from context cancelled (invalid argument),
+		// and we need to report that error as context cancelled.
+		if !errors.Is(err, context.Canceled) && errors.Is(ctx.Err(), context.Canceled) {
+			err = errors.Join(err, ctx.Err())
+		}
 	}
+
 	if err != nil {
 		err = fmt.Errorf("downloadRange: error at the time of copying content to cache file %w", err)
 	}
