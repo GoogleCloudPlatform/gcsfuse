@@ -174,8 +174,8 @@ func TestMain(m *testing.M) {
 
 	// HNS tests utilize the gRPC protocol, which is not supported by TPC.
 	if !setup.TestOnTPCEndPoint() {
-		if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
-			flagsSet = append(flagsSet, hnsFlagSet)
+		if setup.IsHierarchicalBucket(ctx, storageClient) {
+			flagsSet = [][]string{{"--experimental-enable-json-read=true"}}
 		}
 	}
 

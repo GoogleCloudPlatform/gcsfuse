@@ -16,10 +16,14 @@
 package rename_dir_limit_test
 
 import (
+	"context"
 	"log"
 	"os"
 	"testing"
+	"time"
 
+	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/persistent_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
@@ -38,15 +42,35 @@ const RenamedDirectory = "renamedDirectory"
 const PrefixTempFile = "temp"
 const onlyDirMounted = "OnlyDirMountRenameDirLimit"
 
+var (
+	storageClient *storage.Client
+	ctx           context.Context
+)
+
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	flags := [][]string{{"--rename-dir-limit=3", "--implicit-dirs"}, {"--rename-dir-limit=3"}}
+	var err error
+	ctx = context.Background()
 
+	ctx, cancel := context.WithTimeout(ctx, time.Minute*20)
+	storageClient, err = client.CreateStorageClient(ctx)
+	if err != nil {
+		log.Printf("Error creating storage client: %v\n", err)
+		os.Exit(1)
+	}
+
+	defer cancel()
+	defer storageClient.Close()
+
+	flags := [][]string{{"--rename-dir-limit=3", "--implicit-dirs"}, {"--rename-dir-limit=3"}}
+	if setup.IsHierarchicalBucket(ctx, storageClient){
+		flags = [][]string{{}}
+	}
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
-	if setup.TestBucket() != "" && setup.MountedDirectory() != "" {
-		log.Print("Both --testbucket and --mountedDirectory can't be specified at the same time.")
+	if setup.TestBucket() == "" && setup.MountedDirectory() != "" {
+		log.Print("Please pass the name of bucket mounted at mountedDirectory to --testBucket flag.")
 		os.Exit(1)
 	}
 
