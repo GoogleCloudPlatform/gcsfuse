@@ -69,6 +69,13 @@
   usage: "Whether to cache file for range reads."
   default: false
 
+- config-path: "file-cache.disable-o-direct"
+  flag-name: "disable-o-direct"
+  type: "bool"
+  usage: "Whether to disable using O_DIRECT while writing to file-cache in case of parallel downloads."
+  default: "false"
+  hide-flag: true
+
 - config-path: "file-cache.download-chunk-size-mb"
   flag-name: "download-chunk-size-mb"
   type: "int"
