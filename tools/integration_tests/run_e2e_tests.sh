@@ -106,7 +106,6 @@ TEST_DIR_HNS_PARALLEL_GROUP=(
 
 TEST_DIR_HNS_NON_PARALLEL=(
   "readonly"
-  "managed_folders"
   "readonly_creds"
 )
 
