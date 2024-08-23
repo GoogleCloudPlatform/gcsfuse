@@ -175,7 +175,7 @@ func TestReadOnlyTest(t *testing.T) {
 		{
 			cliFlags:                nil,
 			cacheSize:               cacheCapacityInMB,
-			cacheFileForRangeRead:   true,
+			cacheFileForRangeRead:   false,
 			fileName:                configFileNameForParallelDownloadTests,
 			enableParallelDownloads: true,
 			cacheDirPath:            getDefaultCacheDirPathForTests(),
@@ -191,7 +191,7 @@ func TestReadOnlyTest(t *testing.T) {
 		{
 			cliFlags:                []string{"--o=ro"},
 			cacheSize:               cacheCapacityInMB,
-			cacheFileForRangeRead:   true,
+			cacheFileForRangeRead:   false,
 			fileName:                configFileNameForParallelDownloadTests,
 			enableParallelDownloads: true,
 			cacheDirPath:            getDefaultCacheDirPathForTests(),
