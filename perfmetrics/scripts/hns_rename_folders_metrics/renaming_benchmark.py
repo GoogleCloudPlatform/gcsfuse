@@ -13,7 +13,8 @@
 
 # limitations under the License.
 # To run the script,run in terminal:
-# python3 renaming_benchmark.py <dir-config.json> [--upload_gs]  [--num_samples NUM_SAMPLES]
+# python3 renaming_benchmark.py config.json bucket_type  [--upload_gs] \
+# [--num_samples NUM_SAMPLES]
 # where dir-config.json file contains the directory structure details for the test.
 
 import os
@@ -33,6 +34,7 @@ from utils.checks_util import check_dependencies
 from gsheet import gsheet
 
 WORKSHEET_NAME_FLAT = 'rename_metrics_flat'
+WORKSHEET_NAME_HNS = 'rename_metrics_hns'
 SPREADSHEET_ID = '1UVEvsf49eaDJdTGLQU1rlNTIAxg8PZoNQCy_GX6Nw-A'
 
 logging.basicConfig(
@@ -239,7 +241,7 @@ def _record_time_of_operation(mount_point, dir, num_samples):
   return results
 
 
-def _perform_testing(dir, test_type, num_samples, results):
+def _perform_testing(dir, test_type, num_samples):
   """
   This function performs rename operations and records time of operation .
   Args:
@@ -272,21 +274,23 @@ def _perform_testing(dir, test_type, num_samples, results):
       }
     test_type : flat or hns.
     num_samples: Number of samples to collect for each test.
-    results: Dictionary to store the results corresponding to each test type
   """
   if test_type == "hns":
-    # TODO add mount function for test type hns
-    return
+    # Creating config file for mounting with hns enabled.
+    with open("/tmp/config.yml",'w') as mount_config:
+      mount_config.write("enable-hns: true")
+    mount_flags="--config-file=/tmp/config.yml"
+  else :
+    mount_flags = "--implicit-dirs --rename-dir-limit=1000000"
 
   # Mounting the gcs bucket.
-  flat_mount_flags = "--implicit-dirs --rename-dir-limit=1000000"
-  flat_bucket_name = mount_gcs_bucket(dir["name"], flat_mount_flags, log)
-
+  bucket_name = mount_gcs_bucket(dir["name"], mount_flags, log)
   # Record time of operation and populate the results dict.
-  flat_results = _record_time_of_operation(flat_bucket_name, dir, num_samples)
-  results["flat"] = flat_results
-
+  results = _record_time_of_operation(bucket_name, dir, num_samples)
+  # Unmounting the bucket.
   unmount_gcs_bucket(dir["name"], log)
+
+  return results
 
 
 def _parse_arguments(argv):
@@ -294,9 +298,15 @@ def _parse_arguments(argv):
   parser = argparse.ArgumentParser()
 
   parser.add_argument(
-      'dir_config_file',
-      help='Provide path of the config file.',
-      action='store'
+      'config_file',
+      help='Provide path of the config file for GCS bucket.',
+      action='store',
+  )
+  parser.add_argument(
+      'bucket_type',
+      help='Provide bucket type - hns or flat ',
+      action='store',
+      choices=['hns','flat']
   )
   parser.add_argument(
       '--upload_gs',
@@ -317,17 +327,8 @@ def _parse_arguments(argv):
   return parser.parse_args(argv[1:])
 
 
-if __name__ == '__main__':
-  argv = sys.argv
-  if len(argv) < 2:
-    raise TypeError('Incorrect number of arguments.\n'
-                    'Usage: '
-                    'python3 renaming_benchmark.py  [--upload_gs] [--num_samples NUM_SAMPLES] config_file ')
-
-  args = _parse_arguments(argv)
-  check_dependencies(['gcloud', 'gcsfuse'], log)
-
-  with open(os.path.abspath(args.dir_config_file)) as file:
+def _run_rename_benchmark(test_type,dir_config,num_samples,upload_gs):
+  with open(os.path.abspath(dir_config)) as file:
     dir_str = json.load(file)
 
   exit_code = _check_for_config_file_inconsistency(dir_str)
@@ -339,20 +340,37 @@ if __name__ == '__main__':
   dir_structure_present = _check_if_dir_structure_exists(dir_str)
   if not dir_structure_present:
     log.error("Test data does not exist.To create test data, run : \
-    python3 generate_folders_and_files.py <dir_config.json> ")
+        python3 generate_folders_and_files.py {} ".format(dir_config))
     sys.exit(1)
 
-  results = dict()  # Dict object to store the results corresonding to the test types.
-  _perform_testing(dir_str, "flat", args.num_samples, results)
-  flat_parsed_metrics = _parse_results(dir_str, results['flat'], args.num_samples)
-  upload_values_flat = _get_values_to_export(dir_str, flat_parsed_metrics,
-                                             "flat")
+  results=_perform_testing(dir_str, test_type, num_samples)
+  parsed_metrics = _parse_results(dir_str, results, num_samples)
+  upload_values = _get_values_to_export(dir_str, parsed_metrics,
+                                             test_type)
 
-  if args.upload_gs:
+  if upload_gs:
     log.info('Uploading files to the Google Sheet\n')
-    exit_code = _upload_to_gsheet(WORKSHEET_NAME_FLAT, upload_values_flat,
+    if test_type == "flat":
+      worksheet= WORKSHEET_NAME_FLAT
+    else:
+      worksheet= WORKSHEET_NAME_HNS
+
+    exit_code = _upload_to_gsheet(worksheet, upload_values,
                                   SPREADSHEET_ID)
     if exit_code != 0:
       log.error("Upload to gsheet failed!")
   else:
-    print(upload_values_flat)
+    print(upload_values)
+
+
+if __name__ == '__main__':
+  argv = sys.argv
+  if len(argv) < 3:
+    raise TypeError('Incorrect number of arguments.\n'
+                    'Usage: '
+                    'python3 renaming_benchmark.py  [--upload_gs] [--num_samples NUM_SAMPLES] config_file bucket_type')
+
+  args = _parse_arguments(argv)
+  check_dependencies(['gcloud', 'gcsfuse'], log)
+  _run_rename_benchmark(args.bucket_type, args.config_file, args.num_samples,
+                          args.upload_gs)
