@@ -92,7 +92,7 @@ func (p DirentSlice) Less(i, j int) bool { return p[i].Name < p[j].Name }
 func (p DirentSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
 // NOTE: A limitation in the fake bucket's API prevents the direct creation of managed folders.
-// This poses a challenge for writing unit tests for enableManagedFoldersListing.
+// This poses a challenge for writing unit tests for includeFoldersAsPrefixes.
 
 func (t *DirTest) resetInode(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing bool) {
 	t.resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing, config.DefaultTypeCacheMaxSizeMB, typeCacheTTL)

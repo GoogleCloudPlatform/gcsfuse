@@ -182,9 +182,9 @@ type dirInode struct {
 	// Constant data
 	/////////////////////////
 
-	id                          fuseops.InodeID
-	implicitDirs                bool
-	enableManagedFoldersListing bool
+	id                       fuseops.InodeID
+	implicitDirs             bool
+	includeFoldersAsPrefixes bool
 
 	enableNonexistentTypeCache bool
 
@@ -247,7 +247,7 @@ func NewDirInode(
 	name Name,
 	attrs fuseops.InodeAttributes,
 	implicitDirs bool,
-	enableManagedFoldersListing bool,
+	includeFoldersAsPrefixes bool,
 	enableNonexistentTypeCache bool,
 	typeCacheTTL time.Duration,
 	bucket *gcsx.SyncerBucket,
@@ -262,18 +262,18 @@ func NewDirInode(
 	}
 
 	typed := &dirInode{
-		bucket:                      bucket,
-		mtimeClock:                  mtimeClock,
-		cacheClock:                  cacheClock,
-		id:                          id,
-		implicitDirs:                implicitDirs,
-		enableManagedFoldersListing: enableManagedFoldersListing,
-		enableNonexistentTypeCache:  enableNonexistentTypeCache,
-		name:                        name,
-		attrs:                       attrs,
-		cache:                       metadata.NewTypeCache(typeCacheMaxSizeMB, typeCacheTTL),
-		isHNSEnabled:                isHNSEnabled,
-		unlinked:                    false,
+		bucket:                     bucket,
+		mtimeClock:                 mtimeClock,
+		cacheClock:                 cacheClock,
+		id:                         id,
+		implicitDirs:               implicitDirs,
+		includeFoldersAsPrefixes:   includeFoldersAsPrefixes,
+		enableNonexistentTypeCache: enableNonexistentTypeCache,
+		name:                       name,
+		attrs:                      attrs,
+		cache:                      metadata.NewTypeCache(typeCacheMaxSizeMB, typeCacheTTL),
+		isHNSEnabled:               isHNSEnabled,
+		unlinked:                   false,
 	}
 
 	typed.lc.Init(id)
@@ -654,6 +654,9 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 func (d *dirInode) readObjects(
 	ctx context.Context,
 	tok string) (cores map[Name]*Core, newTok string, err error) {
+	if d.isBucketHierarchical() {
+		d.includeFoldersAsPrefixes = true
+	}
 	// Ask the bucket to list some objects.
 	req := &gcs.ListObjectsRequest{
 		Delimiter:                "/",
@@ -664,7 +667,7 @@ func (d *dirInode) readObjects(
 		// Setting Projection param to noAcl since fetching owner and acls are not
 		// required.
 		ProjectionVal:            gcs.NoAcl,
-		IncludeFoldersAsPrefixes: d.enableManagedFoldersListing,
+		IncludeFoldersAsPrefixes: d.includeFoldersAsPrefixes,
 	}
 
 	listing, err := d.bucket.ListObjects(ctx, req)
