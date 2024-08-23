@@ -29,7 +29,7 @@ import (
 
 const OneMB = 1024 * 1024
 const FiveHundredMB = 500 * OneMB
-const FiveHundredMBFile = "fiveHundredMBFile.txt"
+var FiveHundredMBFile string = "fiveHundredMBFile" + setup.GenerateRandomString(5) + ".txt"
 const ChunkSize = 200 * OneMB
 const NumberOfRandomReadCalls = 200
 const MinReadableByteFromFile = 0

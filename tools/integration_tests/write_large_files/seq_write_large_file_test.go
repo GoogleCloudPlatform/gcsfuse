@@ -22,13 +22,15 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
+
 const (
 	FiveHundredMB                             = 500 * OneMiB
-	FiveHundredMBFile                         = "fiveHundredMBFile.txt"
 	ChunkSize                                 = 20 * OneMiB
 	DirForSeqWrite                            = "dirForSeqWrite"
 	FiveHundredMBFileForSeqWriteInLocalSystem = "fiveHundredMBFileForSeqWriteInLocalSystem"
 )
+
+var FiveHundredMBFile string = "fiveHundredMBFile" + setup.GenerateRandomString(5) + ".txt"
 
 func TestWriteLargeFileSequentially(t *testing.T) {
 	seqWriteDir := path.Join(setup.MntDir(), DirForSeqWrite)

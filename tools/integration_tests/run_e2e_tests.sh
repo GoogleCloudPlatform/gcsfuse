@@ -90,19 +90,18 @@ TEST_DIR_NON_PARALLEL=(
 
 
 TEST_DIR_HNS_PARALLEL_GROUP=(
+  "kernel_list_cache"
+  "concurrent_operations"
   "implicit_dir"
   "operations"
   "local_file"
   "rename_dir_limit"
   "gzip"
   "interrupt"
-  "kernel_list_cache"
   "log_content"
   "read_large_files"
   "write_large_files"
   "log_rotation"
-  "kernel_list_cache"
-  "concurrent_operations"
 )
 
 TEST_DIR_HNS_NON_PARALLEL=(
