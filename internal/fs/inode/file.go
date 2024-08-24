@@ -15,6 +15,7 @@
 package inode
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -88,6 +89,7 @@ type FileInode struct {
 
 	// Represents if local file has been unlinked.
 	unlinked bool
+	buffer   []byte
 }
 
 var _ Inode = &FileInode{}
@@ -127,6 +129,8 @@ func NewFileInode(
 		local:          localFile,
 		unlinked:       false,
 	}
+
+	f.buffer = make([]byte, 0)
 
 	f.lc.Init(id)
 
@@ -467,8 +471,9 @@ func (f *FileInode) Write(
 	ctx context.Context,
 	data []byte,
 	offset int64) (err error) {
+	f.buffer = append(f.buffer, data...)
 	// Make sure f.content != nil.
-	err = f.ensureContent(ctx)
+	/*err = f.ensureContent(ctx)
 	if err != nil {
 		err = fmt.Errorf("ensureContent: %w", err)
 		return
@@ -476,7 +481,7 @@ func (f *FileInode) Write(
 
 	// Write to the mutable content. Note that io.WriterAt guarantees it returns
 	// an error for short writes.
-	_, err = f.content.WriteAt(data, offset)
+	_, err = f.content.WriteAt(data, offset)*/
 
 	return
 }
@@ -566,30 +571,23 @@ func (f *FileInode) SetMtime(
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Sync(ctx context.Context) (err error) {
 	// If we have not been dirtied, there is nothing to do.
-	if f.content == nil {
+	if f.content == nil && len(f.buffer) == 0 {
 		return
 	}
 
-	// When listObjects call is made, we fetch data with projection set as noAcl
-	// which means acls and owner properties are not returned. So the f.src object
-	// here will not have acl information even though there are acls present on
-	// the gcsObject.
-	// Hence, we are making an explicit gcs stat call to fetch the latest
-	// properties and using that when object is synced below. StatObject by
-	// default sets the projection to full, which fetches all the object
-	// properties.
-	latestGcsObj, isClobbered, err := f.clobbered(ctx, true, true)
+	fmt.Printf(string(f.buffer))
 
-	// Clobbered is treated as being unlinked. There's no reason to return an
-	// error in that case. We simply return without syncing the object.
-	if err != nil || isClobbered {
-		return
+	metadataMap := make(map[string]string)
+
+	var req *gcs.CreateObjectRequest
+
+	req = &gcs.CreateObjectRequest{
+		Name:     f.Name().GcsObjectName(),
+		Contents: bytes.NewReader(f.buffer),
+		Metadata: metadataMap,
 	}
 
-	// Write out the contents if they are dirty.
-	// Object properties are also synced as part of content sync. Hence, passing
-	// the latest object fetched from gcs which has all the properties populated.
-	newObj, err := f.bucket.SyncObject(ctx, f.Name().GcsObjectName(), latestGcsObj, f.content)
+	newObj, err := f.bucket.CreateObject(ctx, req)
 
 	// Special case: a precondition error means we were clobbered, which we treat
 	// as being unlinked. There's no reason to return an error in that case.
@@ -617,7 +615,7 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 		if f.IsLocal() {
 			f.local = false
 		}
-		f.content.Destroy()
+		//f.content.Destroy()
 		f.content = nil
 	}
 
