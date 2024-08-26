@@ -73,7 +73,7 @@
   flag-name: "disable-o-direct"
   type: "bool"
   usage: "Whether to disable using O_DIRECT while writing to file-cache in case of parallel downloads."
-  default: "false"
+  default: "true"
   hide-flag: true
 
 - config-path: "file-cache.download-chunk-size-mb"
