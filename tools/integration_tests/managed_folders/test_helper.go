@@ -92,7 +92,7 @@ func revokePermissionToManagedFolder(bucket, managedFolderPath, serviceAccount, 
 
 	_, err := operations.ExecuteGcloudCommandf(gcloudRevokePermissionCmd)
 	if err != nil && !strings.Contains(err.Error(), "Policy binding with the specified principal, role, and condition not found!") && !strings.Contains(err.Error(), "The specified managed folder does not exists") {
-		t.Fatalf(fmt.Sprintf("Error in removing permission to managed folder: %v", err))
+		t.Fatalf(fmt.Sprintf("error in removing permission from managed folder: %v", err))
 	}
 }
 
