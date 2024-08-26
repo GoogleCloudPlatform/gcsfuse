@@ -44,11 +44,11 @@ jobs:
         go install ./tools/build_gcsfuse
         build_gcsfuse . /tmp ${GITHUB_SHA}
     - name: Test all except caching parallely
-      run: CGO_ENABLED=0 go test -count 1 -covermode=atomic -coverprofile=coverage.out -coverpkg=./... -v -skip `cat flaky_tests.lst | sed '/^$/d' | sed '/^#.*/d' | tr '\n' '|' |head -c -1 | cat - <(printf "\n")` `go list ./... | grep -v internal/cache/...`
+      run: CGO_ENABLED=0 go test -count 1 -covermode=atomic -coverprofile=coverage.out -coverpkg=./... -v -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./... | grep -v internal/cache/...`
     - name: Test caching
-      run: CGO_ENABLED=0 go test -p 1 -count 1 -covermode=atomic -coverprofile=coverage_cache.out -coverpkg=./... -v -skip `cat flaky_tests.lst | sed '/^$/d' | sed '/^#.*/d' | tr '\n' '|' |head -c -1 | cat - <(printf "\n")` ./internal/cache/...
+      run: CGO_ENABLED=0 go test -p 1 -count 1 -covermode=atomic -coverprofile=coverage_cache.out -coverpkg=./... -v -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` ./internal/cache/...
     - name: Cache RaceDetector Test
-      run: go test -p 1 -count 1 -v -race -skip `cat flaky_tests.lst | sed '/^$/d' | sed '/^#.*/d' | tr '\n' '|' |head -c -1 | cat - <(printf "\n")` ./internal/cache/...
+      run: go test -p 1 -count 1 -v -race -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` ./internal/cache/...
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v4.3.1
       timeout-minutes: 5
