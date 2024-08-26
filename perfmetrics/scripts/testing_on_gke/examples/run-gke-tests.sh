@@ -223,7 +223,7 @@ function installDependencies() {
   if ! which kubectl; then
     # Install the latest gcloud cli. Find full instructions at https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl .
     # Import the Google Cloud public key (Debian 9+ or Ubuntu 18.04+)
-    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
+    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --yes --dearmor -o /usr/share/keyrings/cloud.google.gpg
     # Add the gcloud CLI distribution URI as a package source (Debian 9+ or Ubuntu 18.04+)
     echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
     # Update and install the gcloud CLI
@@ -488,9 +488,17 @@ function createCustomCsiDriverIfNeeded() {
     ensureGcsFuseCsiDriverCode
     cd "${csi_src_dir}"
     make uninstall || true
+    which jq
+    make generate-spec-yaml
+    printf "\nBuilding a new custom CSI driver using the above GCSFuse binary ...\n\n"
     make build-image-and-push-multi-arch REGISTRY=gcr.io/${project_id}/${USER} GCSFUSE_PATH=gs://${package_bucket}
     make install PROJECT=${project_id} REGISTRY=gcr.io/${project_id}/${USER}
     cd -
+    # Wait some time after csi driver installation before deploying pods
+    # to avoid failures caused by 'the webhook failed to inject the
+    # sidecar container into the Pod spec' error.
+    printf "\nSleeping 30 seconds after csi custom driver installation before deploying pods ...\n\n"
+    sleep 30
   else
     echo ""
     echo "Enabling managed CSI driver ..."
