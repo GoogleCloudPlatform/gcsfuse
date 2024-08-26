@@ -19,7 +19,7 @@ set -e
 VM_NAME="pytorch2-dino-7d-a100-gpu-hns-bucket"
 ZONE_NAME="us-central1-f"
 ARTIFACTS_BUCKET_PATH="gs://gcsfuse-ml-tests-logs/ci_artifacts/pytorch/v2_hns/dino"
-TEST_SCRIPT_PATH="github/gcsfuse/perfmetrics/scripts/ml_tests/pytorch/v2_hns/dino/setup_host_and_run_container.sh"
+TEST_SCRIPT_PATH="github/gcsfuse/perfmetrics/scripts/ml_tests/pytorch/v2/dino/setup_host_and_run_container.sh"
 PYTORCH_VERSION="v2"
 BUCKET_TYPE="hns"
 

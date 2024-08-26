@@ -14,11 +14,12 @@
 # limitations under the License.
 set -e
 # pytorch version (e.g. v1_12, v2)
-DIR=$1
+PYTORCH_VERSION=$1
+BUCKET_TYPE=$2
 
 cd "$HOME/github/gcsfuse"
 echo "Building docker image containing all pytorch libraries..."
-sudo docker build . -f perfmetrics/scripts/ml_tests/pytorch/${DIR}/dino/Dockerfile --tag pytorch-gcsfuse
+sudo docker build . -f perfmetrics/scripts/ml_tests/pytorch/${PYTORCH_VERSION}/dino/Dockerfile --tag pytorch-gcsfuse --build-arg PYTORCH_VERSION="${PYTORCH_VERSION}" --build-arg BUCKET_TYPE="${BUCKET_TYPE}"
 
 mkdir -p container_artifacts
 
