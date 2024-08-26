@@ -83,7 +83,7 @@ func providePermissionToManagedFolder(bucket, managedFolderPath, serviceAccount,
 	gcloudProvidePermissionCmd := fmt.Sprintf("alpha storage managed-folders set-iam-policy gs://%s/%s %s", bucket, managedFolderPath, localIAMPolicyFilePath)
 	_, err = operations.ExecuteGcloudCommandf(gcloudProvidePermissionCmd)
 	if err != nil {
-		t.Fatalf(fmt.Sprintf("Error in providing permission to managed folder: %v", err))
+		t.Fatalf("error in removing permission from managed folder: %v", err)
 	}
 }
 
