@@ -1,4 +1,5 @@
 set -e
+sleep infinity
 git clone https://github.com/GoogleCloudPlatform/gcsfuse.git
 cd gcsfuse
 git checkout fix_e2e_tests_arm64_machine
