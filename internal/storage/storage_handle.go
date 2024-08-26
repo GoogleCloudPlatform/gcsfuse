@@ -168,7 +168,8 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	}
 
 	// TODO: We will implement an additional check for the HTTP control client protocol once the Go SDK supports HTTP.
-	if clientConfig.EnableHNS {
+	// TODO: Custom endpoints do not currently support gRPC. Remove this additional check once TPC(custom-endpoint) supports gRPC.
+	if clientConfig.EnableHNS && clientConfig.CustomEndpoint == "" {
 		clientOpts, err := createClientOptionForGRPCClient(&clientConfig)
 		if err != nil {
 			return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
