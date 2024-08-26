@@ -42,4 +42,6 @@ RUN mkdir -p "gcsfuse_data"
 ARG PYTORCH_VERSION
 ARG BUCKET_TYPE
 
+RUN echo ${PYTORCH_VERSION}
+RUN echo ${BUCKET_TYPE}
 ENTRYPOINT ["/bin/bash", "-c", "./run_model.sh ${PYTORCH_VERSION} ${BUCKET_TYPE}"]

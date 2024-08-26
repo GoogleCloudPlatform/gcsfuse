@@ -15,6 +15,10 @@
 
 PYTORCH_VERSION=$1
 BUCKET_TYPE=$2
+
+echo "Pytorch version in run model: " $PYTORCH_VERSION
+echo "Bucket typein run model: " $BUCKET_TYPE
+
 NUM_EPOCHS=80
 TEST_BUCKET="gcsfuse-ml-data"
 
