@@ -51,7 +51,7 @@ var (
 // levels apply additively (union) throughout the resource hierarchy.
 // Hence here managed folder will have admin permission throughout all the tests.
 type managedFoldersAdminPermission struct {
-	bucketPermission string
+	bucketPermission         string
 	managedFoldersPermission string
 }
 

@@ -22,11 +22,10 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
-
 const (
-	FiveHundredMB                             = 500 * OneMiB
-	ChunkSize                                 = 20 * OneMiB
-	DirForSeqWrite                            = "dirForSeqWrite"
+	FiveHundredMB  = 500 * OneMiB
+	ChunkSize      = 20 * OneMiB
+	DirForSeqWrite = "dirForSeqWrite"
 )
 
 var FiveHundredMBFile string = "fiveHundredMBFile" + setup.GenerateRandomString(5) + ".txt"
