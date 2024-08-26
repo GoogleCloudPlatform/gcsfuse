@@ -27,10 +27,10 @@ const (
 	FiveHundredMB                             = 500 * OneMiB
 	ChunkSize                                 = 20 * OneMiB
 	DirForSeqWrite                            = "dirForSeqWrite"
-	FiveHundredMBFileForSeqWriteInLocalSystem = "fiveHundredMBFileForSeqWriteInLocalSystem"
 )
 
 var FiveHundredMBFile string = "fiveHundredMBFile" + setup.GenerateRandomString(5) + ".txt"
+var FiveHundredMBFileForSeqWriteInLocalSystem string = "fiveHundredMBFileForSeqWriteInLocalSystem" + setup.GenerateRandomString(5)
 
 func TestWriteLargeFileSequentially(t *testing.T) {
 	seqWriteDir := path.Join(setup.MntDir(), DirForSeqWrite)

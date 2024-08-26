@@ -29,12 +29,13 @@ import (
 
 const OneMB = 1024 * 1024
 const FiveHundredMB = 500 * OneMB
-var FiveHundredMBFile string = "fiveHundredMBFile" + setup.GenerateRandomString(5) + ".txt"
 const ChunkSize = 200 * OneMB
 const NumberOfRandomReadCalls = 200
 const MinReadableByteFromFile = 0
 const MaxReadableByteFromFile = 500 * OneMB
 const DirForReadLargeFilesTests = "dirForReadLargeFilesTests"
+
+var FiveHundredMBFile string = "fiveHundredMBFile" + setup.GenerateRandomString(5) + ".txt"
 
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 	cacheDirPath := path.Join(os.Getenv("HOME"), "cache-dri")
