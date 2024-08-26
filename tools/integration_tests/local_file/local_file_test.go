@@ -33,10 +33,10 @@ import (
 )
 
 const (
-	testDirName    = "LocalFileTest"
+	testDirName = "LocalFileTest"
 )
-var onlyDirMounted = "OnlyDirMountLocalFiles" + setup.GenerateRandomString(5)
 
+var onlyDirMounted = "OnlyDirMountLocalFiles" + setup.GenerateRandomString(5)
 
 var (
 	testDirPath   string

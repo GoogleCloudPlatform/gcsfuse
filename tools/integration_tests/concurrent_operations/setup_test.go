@@ -30,8 +30,9 @@ import (
 )
 
 const (
-	testDirName    = "ConcurrentOperationsTest"
+	testDirName = "ConcurrentOperationsTest"
 )
+
 var onlyDirMounted = "OnlyDirConcurrentOperationsTest" + setup.GenerateRandomString(5)
 
 var (
