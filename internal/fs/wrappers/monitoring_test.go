@@ -37,63 +37,63 @@ func TestFsErrStrAndCategory(t *testing.T) {
 	}{
 		{
 			fsErr:            fmt.Errorf("some random error"),
-			expectedCategory: "input/output error",
+			expectedCategory: errIO,
 		},
 		{
 			fsErr:            syscall.ENOTEMPTY,
-			expectedCategory: "directory not empty",
+			expectedCategory: errDirNotEmpty,
 		},
 		{
 			fsErr:            syscall.EEXIST,
-			expectedCategory: "file exists",
+			expectedCategory: errFileExists,
 		},
 		{
 			fsErr:            syscall.EINVAL,
-			expectedCategory: "invalid argument",
+			expectedCategory: errInvalidArg,
 		},
 		{
 			fsErr:            syscall.EINTR,
-			expectedCategory: "interrupt errors",
+			expectedCategory: errInterrupt,
 		},
 		{
 			fsErr:            syscall.ENOSYS,
-			expectedCategory: "function not implemented",
+			expectedCategory: errNotImplemented,
 		},
 		{
 			fsErr:            syscall.ENOSPC,
-			expectedCategory: "process/resource management errors",
+			expectedCategory: errProcessMgmt,
 		},
 		{
 			fsErr:            syscall.E2BIG,
-			expectedCategory: "invalid operation",
+			expectedCategory: errInvalidOp,
 		},
 		{
 			fsErr:            syscall.EHOSTDOWN,
-			expectedCategory: "network errors",
+			expectedCategory: errNetwork,
 		},
 		{
 			fsErr:            syscall.ENODATA,
-			expectedCategory: "miscellaneous errors",
+			expectedCategory: errMisc,
 		},
 		{
 			fsErr:            syscall.ENODEV,
-			expectedCategory: "device errors",
+			expectedCategory: errDevice,
 		},
 		{
 			fsErr:            syscall.EISDIR,
-			expectedCategory: "file/directory errors",
+			expectedCategory: errFileDir,
 		},
 		{
 			fsErr:            syscall.ENOSYS,
-			expectedCategory: "function not implemented",
+			expectedCategory: errNotImplemented,
 		},
 		{
 			fsErr:            syscall.ENFILE,
-			expectedCategory: "too many open files",
+			expectedCategory: errTooManyFiles,
 		},
 		{
 			fsErr:            syscall.EPERM,
-			expectedCategory: "permission errors",
+			expectedCategory: errPerm,
 		},
 	}
 
