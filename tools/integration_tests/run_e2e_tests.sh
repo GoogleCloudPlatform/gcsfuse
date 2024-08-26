@@ -65,6 +65,7 @@ readonly RANDOM_STRING_LENGTH=5
 # Test directory arrays
 TEST_DIR_PARALLEL=(
   "concurrent_operations"
+  "kernel_list_cache"
   "local_file"
   "log_rotation"
   "mounting"
@@ -79,7 +80,6 @@ TEST_DIR_PARALLEL=(
   "interrupt"
   "operations"
   "log_content"
-  "kernel_list_cache"
 )
 
 # These tests never become parallel as it is changing bucket permissions.
@@ -90,7 +90,6 @@ TEST_DIR_NON_PARALLEL=(
 )
 
 TEST_DIR_HNS_PARALLEL_GROUP=(
-  "kernel_list_cache"
   "implicit_dir"
   "operations"
   "local_file"
@@ -110,6 +109,7 @@ TEST_DIR_HNS_NON_PARALLEL=(
   "readonly_creds"
   "managed_folders"
   "concurrent_operations"
+  "kernel_list_cache"
 )
 
 # Create a temporary file to store the log file name.
