@@ -60,13 +60,14 @@ const (
 	offsetForRangeReadWithin8MB            = 4 * util.MiB
 	offset10MiB                            = 10 * util.MiB
 	cacheCapacityForRangeReadTestInMiB     = 50
-	cacheDirName                           = "cache-dir"
 	logFileNameForMountedDirectoryTests    = "/tmp/gcsfuse_read_cache_test_logs/log.json"
 	parallelDownloadsPerFile               = 4
 	maxParallelDownloads                   = -1
 	downloadChunkSizeMB                    = 3
 	enableCrcCheck                         = true
 )
+
+var cacheDirName = "cache-dir" + setup.GenerateRandomString(5)
 
 var (
 	testDirPath  string
