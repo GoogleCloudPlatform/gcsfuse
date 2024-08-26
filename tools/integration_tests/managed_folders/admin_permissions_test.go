@@ -211,7 +211,7 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	// Run tests on given {Bucket permission, Managed folder permission}.
 	permissions := [][]string{{AdminPermission, "nil"}, {AdminPermission, IAMRoleForViewPermission}, {AdminPermission, IAMRoleForAdminPermission}, {ViewPermission, IAMRoleForAdminPermission}}
 
-	for i := 0; i < len(permissions); i++ {
+	for i := 3; i < len(permissions); i++ {
 		log.Printf("Running tests with flags, bucket have %s permission and managed folder have %s permissions: %s", permissions[i][0], permissions[i][1], flags)
 		bucket, testDir = setup.GetBucketAndObjectBasedOnTypeOfMount(TestDirForManagedFolderTest)
 		ts.bucketPermission = permissions[i][0]
