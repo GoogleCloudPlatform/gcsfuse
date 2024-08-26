@@ -24,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -287,6 +288,19 @@ func (testSuite *StorageHandleTest) TestCreateStorageHandleWithEnableHNSTrue() {
 	sh, err := NewStorageHandle(context.Background(), sc)
 
 	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), sh)
+}
+
+func (testSuite *StorageHandleTest) TestNewStorageHandleWithCustomEndpointAndEnableHNSTrue() {
+	url, err := url.Parse(storageutil.CustomEndpoint)
+	require.NoError(testSuite.T(), err)
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.CustomEndpoint = url.String()
+	sc.EnableHNS = true
+
+	sh, err := NewStorageHandle(context.Background(), sc)
+
+	assert.NoError(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), sh)
 }
 

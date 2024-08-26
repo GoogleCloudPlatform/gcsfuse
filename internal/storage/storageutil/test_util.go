@@ -41,6 +41,6 @@ func GetDefaultStorageClientConfig() (clientConfig StorageClientConfig) {
 		ReuseTokenFromUrl:          true,
 		ExperimentalEnableJsonRead: false,
 		AnonymousAccess:            true,
-		EnableHNS:                  true,
+		EnableHNS:                  false,
 	}
 }
