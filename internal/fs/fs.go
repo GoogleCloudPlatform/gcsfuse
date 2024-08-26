@@ -1650,7 +1650,7 @@ func (fs *fileSystem) createFile(
 // Creates localFileInode with the given name under the parent inode.
 // LOCKS_EXCLUDED(fs.mu)
 // UNLOCK_FUNCTION(fs.mu)
-// LOCK_FUNCTION(in)
+// LOCK_FUNCTION(child)
 func (fs *fileSystem) createLocalFile(
 	parentID fuseops.InodeID,
 	name string) (child inode.Inode, err error) {
@@ -1674,15 +1674,17 @@ func (fs *fileSystem) createLocalFile(
 	}()
 
 	fullName := inode.NewFileName(parent.Name(), name)
-	chld, ok := fs.localFileInodes[fullName]
-	child = chld
+	child, ok := fs.localFileInodes[fullName]
 
 	if ok && !child.(*inode.FileInode).IsUnlinked() {
 		return
 	}
 
 	// Create a new inode when a file is created first time, or when a local file is unlinked and then recreated with the same name.
-	core := parent.LocalChildFileCore(name)
+	core, err := parent.CreateLocalChildFileCore(name)
+	if err != nil {
+		return
+	}
 	child = fs.mintInode(core)
 	fs.localFileInodes[child.Name()] = child
 
@@ -1694,9 +1696,6 @@ func (fs *fileSystem) createLocalFile(
 	fs.mu.Unlock()
 	parent.Lock()
 	defer func() {
-		if err != nil {
-			parent.EraseFromTypeCache(name)
-		}
 		parent.Unlock()
 	}()
 	parent.InsertFileIntoTypeCache(name)

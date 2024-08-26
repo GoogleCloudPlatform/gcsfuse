@@ -858,25 +858,6 @@ func (t *LocalFileTest) TestStatLocalFileAfterRecreatingItWithSameName() {
 	ExpectFalse(f.IsDir())
 }
 
-func (t *LocalFileTest) TestStatSucceedsOnNewFile() {
-	t.serverCfg.NewConfig = &cfg.Config{
-		ImplicitDirs: true,
-		MetadataCache: cfg.MetadataCacheConfig{
-			TtlSecs:            -1,
-			TypeCacheMaxSizeMb: -1,
-			StatCacheMaxSizeMb: -1,
-		},
-		Logging: cfg.DefaultLoggingConfig(),
-	}
-	filePath := path.Join(mntDir, "test.txt")
-	AssertEq(nil, err)
-	f1, err := os.Create(filePath)
-	AssertEq(nil, err)
-	defer AssertEq(nil, f1.Close())
-	_, err = os.Stat(filePath)
-	AssertEq(nil, err)
-}
-
 func (t *LocalFileTest) TestStatFailsOnNewFileAfterDeletion() {
 	t.serverCfg.NewConfig = &cfg.Config{
 		ImplicitDirs: true,

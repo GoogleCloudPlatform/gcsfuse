@@ -92,13 +92,13 @@ type DirInode interface {
 	// Return the full name of the child and the GCS object it backs up.
 	CreateChildFile(ctx context.Context, name string) (*Core, error)
 
-	// LocalChildFileCore returns an empty local child file core.
-	LocalChildFileCore(name string) Core
+	// CreateLocalChildFileCore returns an empty local child file core.
+	CreateLocalChildFileCore(name string) (Core, error)
 
-	// InsertFileIntoTypeCache adds the given file-name to type-cache
+	// InsertFileIntoTypeCache adds the given name to type-cache
 	InsertFileIntoTypeCache(name string)
 
-	// EraseFromTypeCache removes the given file-name from type-cache
+	// EraseFromTypeCache removes the given name from type-cache
 	EraseFromTypeCache(name string)
 
 	// Like CreateChildFile, except clone the supplied source object instead of
@@ -811,13 +811,13 @@ func (d *dirInode) CreateChildFile(ctx context.Context, name string) (*Core, err
 	}, nil
 }
 
-func (d *dirInode) LocalChildFileCore(name string) Core {
+func (d *dirInode) CreateLocalChildFileCore(name string) (Core, error) {
 	return Core{
 		Bucket:    d.Bucket(),
 		FullName:  NewFileName(d.Name(), name),
 		MinObject: nil,
 		Local:     true,
-	}
+	}, nil
 }
 
 // LOCKS_REQUIRED(d)
