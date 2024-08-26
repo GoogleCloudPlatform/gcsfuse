@@ -211,7 +211,7 @@ function installDependencies() {
     #install the latest gcloud cli
     sudo apt-get update &&  sudo apt-get install -y apt-transport-https ca-certificates gnupg curl
     # Import the Google Cloud public key (Debian 9+ or Ubuntu 18.04+)
-    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
+    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --yes --dearmor -o /usr/share/keyrings/cloud.google.gpg
     # Add the gcloud CLI distribution URI as a package source (Debian 9+ or Ubuntu 18.04+)
     echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
     # Update and install the gcloud CLI
@@ -229,8 +229,18 @@ function installDependencies() {
     apt-cache policy docker-ce
     sudo apt install docker-ce -y
   fi
-  # Ensure that mash is installed.
-  which mash || (sudo apt-get update && sudo apt-get install -y monarch-tools)
+  # Install mash, as it is needed for fetching cpu/memory values for test runs
+  # in cloudtop. Even if mash installs, don't panic, go ahead and install
+  # google-cloud-monitoring as an alternative.
+  which mash || sudo apt-get install -y monarch-tools || true
+  # Ensure that gcloud monitoring tools are installed. This is alternative to
+  # mash on gce vm.
+  # pip install --upgrade google-cloud-storage
+  # pip install --ignore-installed --upgrade google-api-python-client
+  # pip install --ignore-installed --upgrade google-cloud
+  pip install --upgrade google-cloud-monitoring
+  # Ensure that jq is installed.
+  which jq || sudo apt-get install -y jq
 }
 
 # Make sure you have access to the necessary GCP resources. The easiest way to enable it is to use <your-ldap>@google.com as active auth.
@@ -443,9 +453,17 @@ function createCustomCsiDriverIfNeeded() {
     ensureGcsFuseCsiDriverCode
     cd "${csi_src_dir}"
     make uninstall || true
+    which jq
+    make generate-spec-yaml
+    printf "\nBuilding a new custom CSI driver using the above GCSFuse binary ...\n\n"
     make build-image-and-push-multi-arch REGISTRY=gcr.io/${project_id}/${USER} GCSFUSE_PATH=gs://${package_bucket}
     make install PROJECT=${project_id} REGISTRY=gcr.io/${project_id}/${USER}
     cd -
+    # Wait some time after csi driver installation before deploying pods
+    # to avoid failures caused by 'the webhook failed to inject the
+    # sidecar container into the Pod spec' error.
+    printf "\nSleeping 30 seconds after csi custom driver installation before deploying pods ...\n\n"
+    sleep 30
   else
     echo ""
     echo "Enabling managed CSI driver ..."
