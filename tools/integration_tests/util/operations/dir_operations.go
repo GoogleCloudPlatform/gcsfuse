@@ -100,7 +100,7 @@ func RenameDir(dirName string, newDirName string) (err error) {
 
 func CreateDirectoryWithNFiles(numberOfFiles int, dirPath string, prefix string, t *testing.T) {
 	err := os.Mkdir(dirPath, FilePermission_0777)
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), "file exists") {
 		t.Errorf("Error in creating directory: %v", err)
 	}
 
