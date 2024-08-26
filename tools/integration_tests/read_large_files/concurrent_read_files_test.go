@@ -26,9 +26,9 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-const FileOne = "fileOne.txt"
-const FileTwo = "fileTwo.txt"
-const FileThree = "fileThree.txt"
+var FileOne               = "fileOne" + setup.GenerateRandomString(5) + ".txt"
+var FileTwo               = "fileTwo" + setup.GenerateRandomString(5) + ".txt"
+var FileThree             = "fileThree" + setup.GenerateRandomString(5) + ".txt"
 const NumberOfFilesInLocalDiskForConcurrentRead = 3
 
 func readFile(fileInLocalDisk string, fileInMntDir string) error {
