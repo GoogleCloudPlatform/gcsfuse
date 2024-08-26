@@ -47,7 +47,8 @@ func errno(err error) error {
 	if errors.Is(err, context.Canceled) {
 		return syscall.EINTR
 	}
-	if errors.Is(err, storage.ErrObjectNotExist) {
+
+	if errors.Is(err, storage.ErrObjectNotExist) || strings.Contains(err.Error(), "NotFound") {
 		return syscall.ENOENT
 	}
 
@@ -56,8 +57,9 @@ func errno(err error) error {
 		return syscall.ECANCELED
 	}
 
-	// Cannot authenticate
-	if strings.Contains(err.Error(), "oauth2: cannot fetch token") {
+	// Cannot authenticate or Permission denied.
+	// The control client API returns an RPC error code instead of googleapi code.
+	if strings.Contains(err.Error(), "oauth2: cannot fetch token") || strings.Contains(err.Error(), "PermissionDenied") {
 		return syscall.EACCES
 	}
 
