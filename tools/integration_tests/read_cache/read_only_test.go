@@ -163,15 +163,48 @@ func TestReadOnlyTest(t *testing.T) {
 	}
 
 	// Define flag set to run the tests.
-	flagsSet := [][]string{
-		{"--implicit-dirs", "--config-file=" + createConfigFile(cacheCapacityInMB, true, configFileName, false, getDefaultCacheDirPathForTests())},
-		{"--config-file=" + createConfigFile(cacheCapacityInMB, false, configFileNameForParallelDownloadTests, true, getDefaultCacheDirPathForTests())},
+	flagsSet := []gcsfuseTestFlags{
+		{
+			cliFlags:                []string{"--implicit-dirs"},
+			cacheSize:               cacheCapacityInMB,
+			cacheFileForRangeRead:   true,
+			fileName:                configFileName,
+			enableParallelDownloads: false,
+			cacheDirPath:            getDefaultCacheDirPathForTests(),
+		},
+		{
+			cliFlags:                nil,
+			cacheSize:               cacheCapacityInMB,
+			cacheFileForRangeRead:   false,
+			fileName:                configFileNameForParallelDownloadTests,
+			enableParallelDownloads: true,
+			cacheDirPath:            getDefaultCacheDirPathForTests(),
+		},
+		{
+			cliFlags:                []string{"--implicit-dirs", "--o=ro"},
+			cacheSize:               cacheCapacityInMB,
+			cacheFileForRangeRead:   true,
+			fileName:                configFileName,
+			enableParallelDownloads: false,
+			cacheDirPath:            getDefaultCacheDirPathForTests(),
+		},
+		{
+			cliFlags:                []string{"--o=ro"},
+			cacheSize:               cacheCapacityInMB,
+			cacheFileForRangeRead:   false,
+			fileName:                configFileNameForParallelDownloadTests,
+			enableParallelDownloads: true,
+			cacheDirPath:            getDefaultCacheDirPathForTests(),
+		},
 	}
-	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--o=ro", "")
 
 	// Run tests.
 	for _, flags := range flagsSet {
-		ts.flags = flags
+		configFilePath := createConfigFile(&flags)
+		ts.flags = []string{"--config-file=" + configFilePath}
+		if flags.cliFlags != nil {
+			ts.flags = append(ts.flags, flags.cliFlags...)
+		}
 		log.Printf("Running tests with flags: %s", ts.flags)
 		test_setup.RunTests(t, ts)
 	}
