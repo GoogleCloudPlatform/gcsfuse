@@ -48,6 +48,7 @@ func errno(err error) error {
 		return syscall.EINTR
 	}
 
+	// The control client API returns an RPC error code instead of googleapi code.
 	if errors.Is(err, storage.ErrObjectNotExist) || strings.Contains(err.Error(), "NotFound") {
 		return syscall.ENOENT
 	}
