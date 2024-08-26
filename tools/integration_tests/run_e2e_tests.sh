@@ -102,6 +102,7 @@ TEST_DIR_HNS_PARALLEL_GROUP=(
   "read_large_files"
   "write_large_files"
   "log_rotation"
+  "read_cache"
 )
 
 TEST_DIR_HNS_NON_PARALLEL=(
