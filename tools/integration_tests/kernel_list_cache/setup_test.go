@@ -31,8 +31,9 @@ import (
 
 const (
 	testDirName    = "KernelListCacheTest"
-	onlyDirMounted = "OnlyDirMountKernelListCache"
 )
+var onlyDirMounted = "OnlyDirMountKernelListCache" + setup.GenerateRandomString(5)
+
 
 var (
 	testDirPath string

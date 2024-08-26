@@ -102,6 +102,7 @@ TEST_DIR_HNS_PARALLEL_GROUP=(
   "log_rotation"
   "read_cache"
   "list_large_dir"
+  "mounting"
 )
 
 TEST_DIR_HNS_NON_PARALLEL=(

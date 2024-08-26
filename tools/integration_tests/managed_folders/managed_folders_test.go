@@ -33,9 +33,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
-const (
-	onlyDirMounted = "TestManagedFolderOnlyDir"
-)
+var	onlyDirMounted = "TestManagedFolderOnlyDir" + setup.GenerateRandomString(5)
 
 var (
 	mountFunc func([]string) error

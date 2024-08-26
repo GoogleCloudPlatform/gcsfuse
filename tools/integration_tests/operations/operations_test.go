@@ -86,7 +86,7 @@ const PrefixFileInDirThreeInCreateThreeLevelDirTest = "fileInDirThreeInCreateThr
 const FileInDirThreeInCreateThreeLevelDirTest = "fileInDirThreeInCreateThreeLevelDirTest1"
 const ContentInFileInDirThreeInCreateThreeLevelDirTest = "Hello world!!"
 const Content = "line 1\nline 2\n"
-const onlyDirMounted = "OnlyDirMountOperations"
+var onlyDirMounted = "OnlyDirMountOperations" + setup.GenerateRandomString(5)
 
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 	cacheDirPath := path.Join(os.Getenv("HOME"), "operations-cache-dir"+setup.GenerateRandomString(5))

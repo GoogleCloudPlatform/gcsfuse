@@ -34,8 +34,9 @@ import (
 
 const (
 	testDirName    = "LocalFileTest"
-	onlyDirMounted = "OnlyDirMountLocalFiles"
 )
+var onlyDirMounted = "OnlyDirMountLocalFiles" + setup.GenerateRandomString(5)
+
 
 var (
 	testDirPath   string

@@ -31,8 +31,8 @@ import (
 
 const (
 	testDirName    = "ConcurrentOperationsTest"
-	onlyDirMounted = "OnlyDirConcurrentOperationsTest"
 )
+var onlyDirMounted = "OnlyDirConcurrentOperationsTest" + setup.GenerateRandomString(5)
 
 var (
 	storageClient *storage.Client

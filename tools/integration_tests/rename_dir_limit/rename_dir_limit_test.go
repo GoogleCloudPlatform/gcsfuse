@@ -40,7 +40,7 @@ const EmptySubDirectory = "emptySubDirectory"
 const NonEmptySubDirectory = "nonEmptySubDirectory"
 const RenamedDirectory = "renamedDirectory"
 const PrefixTempFile = "temp"
-const onlyDirMounted = "OnlyDirMountRenameDirLimit"
+var onlyDirMounted = "OnlyDirMountRenameDirLimit" + setup.GenerateRandomString(5)
 
 var (
 	storageClient *storage.Client
