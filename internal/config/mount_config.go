@@ -43,7 +43,7 @@ const (
 	DefaultEnableEmptyManagedFoldersListing = false
 	DefaultGrpcConnPoolSize                 = 1
 	DefaultAnonymousAccess                  = false
-	DefaultEnableHNS                        = true
+	DefaultEnableHNS                        = false
 	DefaultIgnoreInterrupts                 = true
 	DefaultPrometheusPort                   = 0
 

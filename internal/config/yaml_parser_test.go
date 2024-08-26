@@ -52,7 +52,7 @@ func validateDefaultConfig(t *testing.T, mountConfig *MountConfig) {
 	assert.Equal(t, false, mountConfig.FileCacheConfig.DisableODirect)
 	assert.Equal(t, 1, mountConfig.GCSConnection.GRPCConnPoolSize)
 	assert.False(t, mountConfig.GCSAuth.AnonymousAccess)
-	assert.True(t, bool(mountConfig.EnableHNS))
+	assert.False(t, bool(mountConfig.EnableHNS))
 	assert.True(t, mountConfig.FileSystemConfig.IgnoreInterrupts)
 	assert.False(t, mountConfig.FileSystemConfig.DisableParallelDirops)
 	assert.Equal(t, DefaultKernelListCacheTtlSeconds, mountConfig.KernelListCacheTtlSeconds)
