@@ -81,7 +81,7 @@ func executeTestsForOnlyDirMounting(flags [][]string, dirName string, m *testing
 	}
 
 	operations.CloseFile(f)
-	_, err = operations.ExecuteGcloudCommandf(fmt.Sprintf("storage mv %s gs://%s/",filePath, mountDirInBucket))
+	_, err = operations.ExecuteGcloudCommandf(fmt.Sprintf("storage mv %s gs://%s/", filePath, mountDirInBucket))
 	if err != nil {
 		log.Fatalf("Error in creating file: %v", err)
 	}
