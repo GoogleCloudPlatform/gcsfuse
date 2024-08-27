@@ -33,7 +33,7 @@ const (
 	testDirName = "KernelListCacheTest"
 )
 
-var onlyDirMounted = "OnlyDirMountKernelListCache" + setup.GenerateRandomString(5)
+var onlyDirMounted = "OnlyDirMountKernelListCache"
 
 var (
 	testDirPath string

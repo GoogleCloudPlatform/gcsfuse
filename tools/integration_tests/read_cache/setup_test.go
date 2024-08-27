@@ -67,7 +67,7 @@ const (
 )
 
 var cacheDirName = "cache-dir" + setup.GenerateRandomString(5)
-var onlyDirMounted = "OnlyDirMountReadCache" + setup.GenerateRandomString(5)
+var onlyDirMounted = "OnlyDirMountReadCache"
 
 var (
 	testDirPath  string

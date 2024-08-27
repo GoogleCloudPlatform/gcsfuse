@@ -33,7 +33,7 @@ const (
 	testDirName = "ConcurrentOperationsTest"
 )
 
-var onlyDirMounted = "OnlyDirConcurrentOperationsTest" + setup.GenerateRandomString(5)
+var onlyDirMounted = "OnlyDirConcurrentOperationsTest"
 
 var (
 	storageClient *storage.Client

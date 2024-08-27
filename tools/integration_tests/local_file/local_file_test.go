@@ -36,7 +36,7 @@ const (
 	testDirName = "LocalFileTest"
 )
 
-var onlyDirMounted = "OnlyDirMountLocalFiles" + setup.GenerateRandomString(5)
+var onlyDirMounted = "OnlyDirMountLocalFiles"
 
 var (
 	testDirPath   string
