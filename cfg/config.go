@@ -319,7 +319,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("disable-o-direct", "", false, "Whether to disable using O_DIRECT while writing to file-cache in case of parallel downloads.")
+	flagSet.BoolP("disable-o-direct", "", true, "Whether to disable using O_DIRECT while writing to file-cache in case of parallel downloads.")
 
 	if err := flagSet.MarkHidden("disable-o-direct"); err != nil {
 		return err

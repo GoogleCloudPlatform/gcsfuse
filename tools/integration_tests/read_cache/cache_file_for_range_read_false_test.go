@@ -153,6 +153,7 @@ func TestCacheFileForRangeReadFalseTest(t *testing.T) {
 			cacheFileForRangeRead:   false,
 			fileName:                configFileName,
 			enableParallelDownloads: false,
+			disableODirect:          true,
 			cacheDirPath:            getDefaultCacheDirPathForTests(),
 		},
 		{
@@ -161,6 +162,7 @@ func TestCacheFileForRangeReadFalseTest(t *testing.T) {
 			cacheFileForRangeRead:   false,
 			fileName:                configFileName,
 			enableParallelDownloads: false,
+			disableODirect:          true,
 			cacheDirPath:            ramCacheDir,
 		},
 	}
@@ -182,6 +184,7 @@ func TestCacheFileForRangeReadFalseTest(t *testing.T) {
 			cacheFileForRangeRead:   false,
 			fileName:                configFileNameForParallelDownloadTests,
 			enableParallelDownloads: true,
+			disableODirect:          true,
 			cacheDirPath:            getDefaultCacheDirPathForTests(),
 		},
 		{
@@ -190,6 +193,25 @@ func TestCacheFileForRangeReadFalseTest(t *testing.T) {
 			cacheFileForRangeRead:   false,
 			fileName:                configFileNameForParallelDownloadTests,
 			enableParallelDownloads: true,
+			disableODirect:          true,
+			cacheDirPath:            ramCacheDir,
+		},
+		{
+			cliFlags:                nil,
+			cacheSize:               cacheCapacityForRangeReadTestInMiB,
+			cacheFileForRangeRead:   false,
+			fileName:                configFileNameForParallelDownloadTests,
+			enableParallelDownloads: true,
+			disableODirect:          false,
+			cacheDirPath:            getDefaultCacheDirPathForTests(),
+		},
+		{
+			cliFlags:                nil,
+			cacheSize:               cacheCapacityForRangeReadTestInMiB,
+			cacheFileForRangeRead:   false,
+			fileName:                configFileNameForParallelDownloadTests,
+			enableParallelDownloads: true,
+			disableODirect:          false,
 			cacheDirPath:            ramCacheDir,
 		},
 	}

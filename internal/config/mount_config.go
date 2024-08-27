@@ -58,7 +58,7 @@ const (
 	DefaultDownloadChunkSizeMB      = 50
 	DefaultParallelDownloadsPerFile = 16
 	DefaultWriteBufferSize          = int64(4 * util.MiB)
-	DefaultDisableODirect           = false
+	DefaultDisableODirect           = true
 )
 
 type LogConfig struct {
