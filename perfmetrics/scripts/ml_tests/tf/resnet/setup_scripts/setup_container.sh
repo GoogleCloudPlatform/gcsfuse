@@ -41,7 +41,7 @@ echo "logging:
           compress: true
        " > /tmp/gcsfuse_config.yaml
 
-TEST_BUCKET=gcsfuse-ml-tf-data
+TEST_BUCKET="gcsfuse-ml-tf-data"
 DIR="resnet"
 # Enable the enable-hns flag to run tests on the folder APIs with an HNS bucket.
 if [ ${BUCKET_TYPE} == "hns" ];
