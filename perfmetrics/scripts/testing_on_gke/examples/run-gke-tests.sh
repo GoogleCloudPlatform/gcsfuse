@@ -587,7 +587,7 @@ function waitTillAllPodsComplete() {
       printf ${num_failed_pods}" pod(s) failed.\n\n"
     fi
     if [ ${num_noncompleted_pods} -eq 0 ]; then
-      printf "All pods completed.\n\n"
+      printf "\nAll pods completed.\n\n"
       break
     else
       printf "\n${num_noncompleted_pods} pod(s) is/are still pending or running (time till timeout=${time_till_timeout} seconds). Will check again in "${pod_wait_time_in_seconds}" seconds. Sleeping for now.\n\n"
