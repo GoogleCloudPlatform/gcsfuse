@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2023 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,12 +16,12 @@
 # This will stop execution when any command will have non-zero status.
 set -e
 
-VM_NAME="pytorch2-dino-7d-a100-gpu"
-ZONE_NAME="asia-northeast1-a"
-ARTIFACTS_BUCKET_PATH="gs://gcsfuse-ml-tests-logs/ci_artifacts/pytorch/v2/dino"
+VM_NAME="pytorch2-dino-7d-a100-gpu-hns-bucket"
+ZONE_NAME="us-central1-f"
+ARTIFACTS_BUCKET_PATH="gs://gcsfuse-ml-tests-logs/ci_artifacts/pytorch/v2_hns/dino"
 TEST_SCRIPT_PATH="github/gcsfuse/perfmetrics/scripts/ml_tests/pytorch/v2/dino/setup_host_and_run_container.sh"
 PYTORCH_VERSION="v2"
-BUCKET_TYPE="non-hns"
+BUCKET_TYPE="hns"
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/perfmetrics/scripts/continuous_test/ml_tests/"
 

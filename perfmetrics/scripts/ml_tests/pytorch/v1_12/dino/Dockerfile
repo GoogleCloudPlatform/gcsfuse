@@ -29,6 +29,9 @@ COPY perfmetrics/scripts/ml_tests/pytorch/run_model.sh ./
 RUN mkdir -p "run_artifacts"
 RUN mkdir -p "gcsfuse_data"
 
-ENV PYTORCH_VERSION="v1_12"
+ARG PYTORCH_VERSION
+ARG BUCKET_TYPE
+ENV PYTORCH_VERSION=${PYTORCH_VERSION}
+ENV BUCKET_TYPE=${BUCKET_TYPE}
 
-ENTRYPOINT ["/bin/bash", "-c", "./run_model.sh ${PYTORCH_VERSION}"]
+ENTRYPOINT ["/bin/bash", "-c", "./run_model.sh ${PYTORCH_VERSION} ${BUCKET_TYPE}"]

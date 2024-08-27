@@ -13,7 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-PYTORCH_VESRION=$1
+PYTORCH_VERSION=$1
+BUCKET_TYPE=$2
+
 NUM_EPOCHS=80
 TEST_BUCKET="gcsfuse-ml-data"
 
@@ -29,10 +31,10 @@ CGO_ENABLED=0 go build .
 cd -
 
 # Create a directory for gcsfuse logs
-mkdir  run_artifacts/gcsfuse_logs
+mkdir run_artifacts/gcsfuse_logs
 
 # We have created a bucket in the asia-northeast1 region to align with the location of our PyTorch 2.0 VM, which is also in asia-northeast1.
-if [ ${PYTORCH_VESRION} == "v2" ];
+if [ ${PYTORCH_VERSION} == "v2" ];
 then
   TEST_BUCKET="gcsfuse-ml-data-asia-northeast1"
 fi
@@ -51,6 +53,16 @@ metadata-cache:
   ttl-secs: 1728000
   stat-cache-max-size-mb: 3200
 EOF
+
+DIR=${PYTORCH_VERSION}
+# Enable the enable-hns flag to run tests on the folder APIs with an HNS bucket.
+if [ ${BUCKET_TYPE} == "hns" ];
+then
+  TEST_BUCKET="gcsfuse-ml-data-hns-central1"
+  echo "enable-hns: true" >> $config_filename
+  DIR=${DIR}_${BUCKET_TYPE}
+fi
+
 echo "Created config-file at "$config_filename
 
 echo "Mounting GCSFuse..."
@@ -87,7 +99,7 @@ python -c 'import torch;torch.hub.list("facebookresearch/xcit:main")'
 # (TulsiShah) TODO: Pytorch 2.0 compile mode has issues (https://github.com/pytorch/pytorch/issues/94599),
 # which is fixed in pytorch version 2.1.0 (https://github.com/pytorch/pytorch/pull/100071).
 # We'll remove this workaround once we update our Docker image to use Pytorch 2.1.0 or greater version.
-if [ ${PYTORCH_VESRION} == "v2" ];
+if [ ${PYTORCH_VERSION} == "v2" ];
 then
   allowed_functions_file="/opt/conda/lib/python3.10/site-packages/torch/_dynamo/allowed_functions.py"
   # Update the pytorch library code to bypass the kernel-cache
@@ -184,7 +196,7 @@ dynamo_unsupported_distributed_c10d_ops = [
 ]" >> $distributed_c10d_file
 fi
 
-ARTIFACTS_BUCKET_PATH="gs://gcsfuse-ml-tests-logs/ci_artifacts/pytorch/${PYTORCH_VESRION}/dino"
+ARTIFACTS_BUCKET_PATH="gs://gcsfuse-ml-tests-logs/ci_artifacts/pytorch/${DIR}/dino"
 echo "Update status file"
 echo "RUNNING" > status.txt
 gsutil cp status.txt $ARTIFACTS_BUCKET_PATH/

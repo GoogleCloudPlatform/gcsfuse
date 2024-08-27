@@ -24,4 +24,5 @@ DRIVER_VERSION="450.172.01"
 source ml_tests/setup_host.sh $DRIVER_VERSION
 
 PYTORCH_VERSION="v1_12"
-source ml_tests/pytorch/run_container.sh $PYTORCH_VERSION
+BUCKET_TYPE=$1
+source ml_tests/pytorch/run_container.sh $PYTORCH_VERSION $BUCKET_TYPE

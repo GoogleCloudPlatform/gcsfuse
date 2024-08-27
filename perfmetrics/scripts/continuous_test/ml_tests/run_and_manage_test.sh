@@ -29,6 +29,7 @@ ARTIFACTS_BUCKET_PATH=$3
 TEST_SCRIPT_PATH=$4
 # pytorch version
 PYTORCH_VERSION=$5
+BUCKET_TYPE=$6
 RESERVATION="projects/$GCP_PROJECT/reservations/ai-ml-tests-2gpus"
 
 function initialize_ssh_key () {
@@ -63,6 +64,11 @@ function delete_existing_vm_and_create_new () {
   if [ $PYTORCH_VERSION == "v2" ];
   then
     RESERVATION="projects/$GCP_PROJECT/reservations/ai-ml-tests-pytorch2-2gpu"
+  fi
+
+  if [ $BUCKET_TYPE == "hns" ];
+  then
+    RESERVATION="projects/$GCP_PROJECT/reservations/ai-ml-tests-hns-bucket"
   fi
 
   echo "Creating VM $VM_NAME in zone $ZONE_NAME"
@@ -155,7 +161,7 @@ then
   echo "Clone the gcsfuse repo on test VM"
   sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "mkdir github; cd github; git clone https://github.com/GoogleCloudPlatform/gcsfuse.git; cd gcsfuse; git checkout master;"
   echo "Trigger the build script on test VM"
-  sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "bash \$HOME/$TEST_SCRIPT_PATH 1> \$HOME/build.out 2> \$HOME/build.err &"
+  sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "bash \$HOME/$TEST_SCRIPT_PATH $BUCKET_TYPE 1> \$HOME/build.out 2> \$HOME/build.err &"
   echo "Wait for 15 minutes for test VM to setup for test and to change the status from START to RUNNING."
   sleep 900s
 
