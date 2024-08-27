@@ -26,6 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -536,7 +537,7 @@ func (s *concurrentListingTest) Test_ListWithMoveFile(t *testing.T) {
 
 	// Create file
 	err := os.WriteFile(path.Join(testDirPath, "move_file.txt"), []byte("Hello, world!"), setup.FilePermission_0600)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Goroutine 2: Move file
 	go func() {
@@ -582,7 +583,7 @@ func (s *concurrentListingTest) Test_ListWithMoveDir(t *testing.T) {
 		defer wg.Done()
 		for i := 0; i < iterationsForMediumOperations; i++ { // Adjust iteration count if needed
 			f, err := os.Open(targetDir)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			_, err = f.Readdirnames(-1)
 			assert.Nil(t, err)
@@ -592,7 +593,7 @@ func (s *concurrentListingTest) Test_ListWithMoveDir(t *testing.T) {
 	}()
 	// Create Dir
 	err := os.Mkdir(path.Join(testDirPath, "move_dir"), setup.DirPermission_0755)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Goroutine 2: Move Dir
 	go func() {
