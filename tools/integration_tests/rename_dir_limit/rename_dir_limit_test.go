@@ -40,7 +40,6 @@ const EmptySubDirectory = "emptySubDirectory"
 const NonEmptySubDirectory = "nonEmptySubDirectory"
 const RenamedDirectory = "renamedDirectory"
 const PrefixTempFile = "temp"
-
 var onlyDirMounted = "OnlyDirMountRenameDirLimit" + setup.GenerateRandomString(5)
 
 var (

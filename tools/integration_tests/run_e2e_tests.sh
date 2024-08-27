@@ -91,9 +91,9 @@ TEST_DIR_NON_PARALLEL=(
 
 TEST_DIR_HNS_PARALLEL_GROUP=(
   "implicit_dir"
+  "rename_dir_limit"
   "operations"
   "local_file"
-  "rename_dir_limit"
   "gzip"
   "interrupt"
   "log_content"

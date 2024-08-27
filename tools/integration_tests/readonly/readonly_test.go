@@ -93,7 +93,7 @@ func checkErrorForObjectNotExist(err error, t *testing.T) {
 }
 
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
-	cacheDirPath := path.Join(os.Getenv("HOME"), "cache-dir")
+	cacheDirPath := path.Join(os.Getenv("HOME"), "cache-dir" + setup.GenerateRandomString(5))
 
 	// Set up config file for file cache.
 	mountConfig := map[string]interface{}{
