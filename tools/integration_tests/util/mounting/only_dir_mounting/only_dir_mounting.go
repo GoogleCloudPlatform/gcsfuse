@@ -73,6 +73,7 @@ func executeTestsForOnlyDirMounting(flags [][]string, dirName string, m *testing
 		return
 	}
 
+	// Test scenario when only-dir-mounted directory pre-exists in bucket.
 	f, err := os.OpenFile(path.Join(setup.MntDir(), "a.txt"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, setup.FilePermission_0600)
 	if err != nil {
 		log.Fatalf("Error in creating file: %v", err)
@@ -83,8 +84,6 @@ func executeTestsForOnlyDirMounting(flags [][]string, dirName string, m *testing
 		log.Fatalf("Error in creating file: %v", err)
 	}
 
-	// Test scenario when only-dir-mounted directory pre-exists in bucket.
-	setup.RunScriptForTestData("../util/mounting/only_dir_mounting/testdata/create_objects.sh", mountDirInBucket)
 	successCode = mountGcsFuseForFlagsAndExecuteTests(flags, m)
 	setup.RunScriptForTestData("../util/mounting/only_dir_mounting/testdata/delete_objects.sh", mountDirInBucket)
 

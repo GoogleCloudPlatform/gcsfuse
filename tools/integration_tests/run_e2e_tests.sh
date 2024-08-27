@@ -103,14 +103,13 @@ TEST_DIR_HNS_PARALLEL_GROUP=(
   "read_cache"
   "list_large_dir"
   "mounting"
+  "kernel_list_cache"
 )
 
 TEST_DIR_HNS_NON_PARALLEL=(
   "readonly"
   "readonly_creds"
   "managed_folders"
-  "concurrent_operations"
-  "kernel_list_cache"
 )
 
 # Create a temporary file to store the log file name.
