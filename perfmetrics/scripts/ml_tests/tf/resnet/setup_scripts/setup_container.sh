@@ -26,7 +26,6 @@ export PATH=$PATH:/usr/local/go/bin
 # Clone the repo and build gcsfuse
 git clone "https://github.com/GoogleCloudPlatform/gcsfuse.git"
 cd gcsfuse
-git checkout tensor_flow_model_with_hns
 CGO_ENABLED=0 go build .
 cd -
 
