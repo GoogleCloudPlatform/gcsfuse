@@ -575,7 +575,7 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 		return
 	}
 
-	fmt.Printf(string(f.buffer))
+	//fmt.Printf(string(f.buffer))
 
 	metadataMap := make(map[string]string)
 
