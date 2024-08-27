@@ -59,15 +59,10 @@ const (
 	// The constant value has been chosen deliberately
 	// to be improbable for a user to explicitly set.
 	TtlInSecsUnsetSentinel = math.MinInt64
-
 	// StatCacheMaxSizeMBUnsetSentinel is the value internally set for
 	// metadata-cache:stat-cache-max-size-mb when it is not set in the gcsfuse
 	// mount config file.
 	StatCacheMaxSizeMBUnsetSentinel = math.MinInt64
-	maxSupportedStatCacheMaxSizeMB  = util.MaxMiBsInUint64
-	// DefaultStatCacheCapacity is the default value for stat-cache-capacity.
-	// This is equivalent of setting metadata-cache: stat-cache-max-size-mb.
-	DefaultStatCacheCapacity = 20460
 	// AverageSizeOfPositiveStatCacheEntry is the assumed size of each positive stat-cache-entry,
 	// meant for two purposes.
 	// 1. for conversion from stat-cache-capacity to stat-cache-max-size-mb.
@@ -78,4 +73,5 @@ const (
 	// 1. for conversion from stat-cache-capacity to stat-cache-max-size-mb.
 	// 2. internal testing.
 	AverageSizeOfNegativeStatCacheEntry uint64 = 240
+	maxSupportedStatCacheMaxSizeMB             = util.MaxMiBsInUint64
 )

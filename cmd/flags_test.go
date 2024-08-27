@@ -88,7 +88,7 @@ func (t *FlagsTest) TestDefaults() {
 	assert.False(t.T(), f.AnonymousAccess)
 
 	// Tuning
-	assert.Equal(t.T(), cfg.DefaultStatCacheCapacity, f.StatCacheCapacity)
+	assert.Equal(t.T(), mount.DefaultStatCacheCapacity, f.StatCacheCapacity)
 	assert.Equal(t.T(), mount.DefaultStatOrTypeCacheTTL, f.StatCacheTTL)
 	assert.Equal(t.T(), mount.DefaultStatOrTypeCacheTTL, f.TypeCacheTTL)
 	assert.EqualValues(t.T(), 0, f.HttpClientTimeout)

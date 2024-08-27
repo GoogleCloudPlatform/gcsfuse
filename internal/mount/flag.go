@@ -33,6 +33,9 @@ const (
 	// stat-cache-ttl or type-cache-ttl if they have not been set
 	// by the user.
 	DefaultStatOrTypeCacheTTL = time.Minute
+	// DefaultStatCacheCapacity is the default value for stat-cache-capacity.
+	// This is equivalent of setting metadata-cache: stat-cache-max-size-mb.
+	DefaultStatCacheCapacity = 20460
 )
 
 func (cp ClientProtocol) IsValid() bool {

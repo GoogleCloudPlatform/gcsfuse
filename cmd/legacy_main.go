@@ -293,7 +293,7 @@ func runCLIApp(c *cli.Context) (err error) {
 	}
 
 	// The following will not warn if the user explicitly passed the default value for StatCacheCapacity.
-	if newConfig.MetadataCache.DeprecatedStatCacheCapacity != cfg.DefaultStatCacheCapacity {
+	if newConfig.MetadataCache.DeprecatedStatCacheCapacity != mount.DefaultStatCacheCapacity {
 		logger.Warnf("Deprecated flag stat-cache-capacity used! Please switch to config parameter 'metadata-cache: stat-cache-max-size-mb'.")
 	}
 
