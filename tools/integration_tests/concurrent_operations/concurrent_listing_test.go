@@ -26,7 +26,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -120,7 +119,7 @@ func (s *concurrentListingTest) Test_OpenDirAndLookUp(t *testing.T) {
 	case <-done:
 		// Operation completed successfully before timeout.
 	case <-time.After(timeout):
-		require.FailNow(t, "Possible deadlock")
+		assert.FailNow(t, "Possible deadlock")
 	}
 }
 
@@ -170,7 +169,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndLookUp(t *testing.T) {
 	case <-done:
 		// Success: Both operations finished before timeout
 	case <-time.After(timeout):
-		require.FailNow(t, "Possible deadlock or race condition detected during Readdir and directory operations")
+		assert.FailNow(t, "Possible deadlock or race condition detected during Readdir and directory operations")
 	}
 }
 
@@ -215,7 +214,7 @@ func (s *concurrentListingTest) Test_MultipleConcurrentReadDir(t *testing.T) {
 	case <-done:
 		// Success: All Readdir operations finished before timeout
 	case <-time.After(timeout):
-		require.FailNow(t, "Possible deadlock or race condition detected during concurrent Readdir calls")
+		assert.FailNow(t, "Possible deadlock or race condition detected during concurrent Readdir calls")
 	}
 }
 
@@ -280,7 +279,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileOperations(t *testin
 	case <-done:
 		// Success: Both operations finished before timeout
 	case <-time.After(timeout):
-		require.FailNow(t, "Possible deadlock or race condition detected")
+		assert.FailNow(t, "Possible deadlock or race condition detected")
 	}
 }
 
@@ -342,7 +341,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndDirOperations(t *testing
 	case <-done:
 		// Success: Both operations finished before timeout
 	case <-time.After(timeout):
-		require.FailNow(t, "Possible deadlock or race condition detected during Readdir and directory operations")
+		assert.FailNow(t, "Possible deadlock or race condition detected during Readdir and directory operations")
 	}
 }
 
@@ -403,7 +402,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileEdit(t *testing.T) {
 	case <-done:
 		// Success: Both operations finished before timeout
 	case <-time.After(timeout):
-		require.FailNow(t, "Possible deadlock or race condition detected during Readdir and directory operations")
+		assert.FailNow(t, "Possible deadlock or race condition detected during Readdir and directory operations")
 	}
 }
 
@@ -506,7 +505,7 @@ func (s *concurrentListingTest) Test_MultipleConcurrentOperations(t *testing.T) 
 	case <-done:
 		// Success: Both operations finished before timeout
 	case <-time.After(timeout):
-		require.FailNow(t, "Possible deadlock or race condition detected during Readdir and directory operations")
+		assert.FailNow(t, "Possible deadlock or race condition detected during Readdir and directory operations")
 	}
 }
 
@@ -526,18 +525,18 @@ func (s *concurrentListingTest) Test_ListWithMoveFile(t *testing.T) {
 		defer wg.Done()
 		for i := 0; i < iterationsForMediumOperations; i++ { // Adjust iteration count if needed
 			f, err := os.Open(targetDir)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 
 			_, err = f.Readdirnames(-1)
 			assert.Nil(t, err)
 
-			require.NoError(t, f.Close())
+			assert.NoError(t, f.Close())
 		}
 	}()
 
 	// Create file
 	err := os.WriteFile(path.Join(testDirPath, "move_file.txt"), []byte("Hello, world!"), setup.FilePermission_0600)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	// Goroutine 2: Move file
 	go func() {
@@ -545,10 +544,10 @@ func (s *concurrentListingTest) Test_ListWithMoveFile(t *testing.T) {
 		for i := 0; i < iterationsForHeavyOperations; i++ { // Adjust iteration count if needed
 			// Move File in the target directory
 			err = operations.Move(path.Join(testDirPath, "move_file.txt"), path.Join(targetDir, "move_file.txt"))
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			// Move File out of the target directory
 			err = operations.Move(path.Join(targetDir, "move_file.txt"), path.Join(testDirPath, "move_file.txt"))
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		}
 	}()
 
@@ -563,7 +562,7 @@ func (s *concurrentListingTest) Test_ListWithMoveFile(t *testing.T) {
 	case <-done:
 		// Success: Both operations finished before timeout
 	case <-time.After(timeout):
-		require.FailNow(t, "Possible deadlock or race condition detected")
+		assert.FailNow(t, "Possible deadlock or race condition detected")
 	}
 }
 
@@ -583,17 +582,17 @@ func (s *concurrentListingTest) Test_ListWithMoveDir(t *testing.T) {
 		defer wg.Done()
 		for i := 0; i < iterationsForMediumOperations; i++ { // Adjust iteration count if needed
 			f, err := os.Open(targetDir)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 
 			_, err = f.Readdirnames(-1)
 			assert.Nil(t, err)
 
-			require.NoError(t, f.Close())
+			assert.NoError(t, f.Close())
 		}
 	}()
 	// Create Dir
 	err := os.Mkdir(path.Join(testDirPath, "move_dir"), setup.DirPermission_0755)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	// Goroutine 2: Move Dir
 	go func() {
@@ -601,10 +600,10 @@ func (s *concurrentListingTest) Test_ListWithMoveDir(t *testing.T) {
 		for i := 0; i < iterationsForHeavyOperations; i++ { // Adjust iteration count if needed
 			// Move Dir in the target dir
 			err = operations.Move(path.Join(testDirPath, "move_dir"), path.Join(targetDir, "move_dir"))
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			// Move Dir out of the target dir
 			err = operations.Move(path.Join(targetDir, "move_dir"), path.Join(testDirPath, "move_dir"))
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		}
 	}()
 
@@ -619,7 +618,7 @@ func (s *concurrentListingTest) Test_ListWithMoveDir(t *testing.T) {
 	case <-done:
 		// Success: Both operations finished before timeout
 	case <-time.After(timeout):
-		require.FailNow(t, "Possible deadlock or race condition detected")
+		assert.FailNow(t, "Possible deadlock or race condition detected")
 	}
 }
 
