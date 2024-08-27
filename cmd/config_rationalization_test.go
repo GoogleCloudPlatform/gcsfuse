@@ -15,7 +15,9 @@
 package cmd
 
 import (
+	"math"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -62,6 +64,12 @@ func TestRationalizeMetadataCache(t *testing.T) {
 			args:                  []string{"--metadata-cache-ttl-secs=30", "--stat-cache-ttl=10s", "--type-cache-ttl=5s", "--stat-cache-capacity=1000", "--stat-cache-max-size-mb=20"},
 			expectedTTLSecs:       30,
 			expectedStatCacheSize: 20,
+		},
+		{
+			name:                  "ttl_and_stat_cache_size_set_to_-1",
+			args:                  []string{"--metadata-cache-ttl-secs=-1", "--stat-cache-max-size-mb=-1"},
+			expectedTTLSecs:       math.MaxInt64 / int64(time.Second), // Max supported ttl in seconds.
+			expectedStatCacheSize: math.MaxUint64 >> 20,               // Max supported cache size in MiB.
 		},
 	}
 	for _, tc := range testCases {

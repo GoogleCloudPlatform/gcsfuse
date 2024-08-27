@@ -58,6 +58,9 @@ func resolveStatCacheMaxSizeMB(v isSet, c *MetadataCacheConfig) {
 	// If metadata-cache:stat-cache-size-mb has been set, then it overrides
 	// stat-cache-capacity.
 	if v.IsSet("metadata-cache.stat-cache-max-size-mb") {
+		if c.StatCacheMaxSizeMb == -1 {
+			c.StatCacheMaxSizeMb = int64(maxSupportedStatCacheMaxSizeMB)
+		}
 		return
 	}
 	// Else, use deprecated stat-cache-capacity to resolve StatCacheMaxSizeMb.

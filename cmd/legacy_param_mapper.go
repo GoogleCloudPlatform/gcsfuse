@@ -153,7 +153,7 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 	overrideWithFlag(c, "max-retry-attempts", &resolvedConfig.GcsRetries.MaxRetryAttempts, maxRetryAttempts)
 	overrideWithFlag(c, "prometheus-port", &resolvedConfig.Metrics.PrometheusPort, prometheusPort)
 
-	if err := cfg.ValidateConfig(resolvedConfig); err != nil {
+	if err := cfg.ValidateConfig(&isSet{resolvedConfig}, resolvedConfig); err != nil {
 		return nil, fmt.Errorf("cfg.ValidateConfig: %w", err)
 	}
 	if err := cfg.Rationalize(&isSet{resolvedConfig}, resolvedConfig); err != nil {
@@ -180,13 +180,9 @@ type isSet struct {
 func (i *isSet) IsSet(flag string) bool {
 	switch flag {
 	case "metadata-cache.ttl-secs":
-		if i.config.MetadataCache.TtlSecs != cfg.TtlInSecsUnsetSentinel {
-			return true
-		}
+		return i.config.MetadataCache.TtlSecs != cfg.TtlInSecsUnsetSentinel
 	case "metadata-cache.stat-cache-max-size-mb":
-		if i.config.MetadataCache.StatCacheMaxSizeMb != cfg.StatCacheMaxSizeMBUnsetSentinel {
-			return true
-		}
+		return i.config.MetadataCache.StatCacheMaxSizeMb != cfg.StatCacheMaxSizeMBUnsetSentinel
 	}
 	return false
 }

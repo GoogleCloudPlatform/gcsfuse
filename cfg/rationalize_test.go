@@ -15,6 +15,7 @@
 package cfg
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -283,6 +284,18 @@ func TestRationalizeMetadataCache(t *testing.T) {
 			},
 			expectedTTLSecs:       0,
 			expectedStatCacheSize: 100,
+		},
+		{
+			name:  "ttl_and_stat_cache_size_set_to_-1",
+			flags: flagSet{"metadata-cache.ttl-secs": true, "metadata-cache.stat-cache-max-size-mb": true},
+			config: &Config{
+				MetadataCache: MetadataCacheConfig{
+					TtlSecs:            -1,
+					StatCacheMaxSizeMb: -1,
+				},
+			},
+			expectedTTLSecs:       math.MaxInt64 / int64(time.Second), // Max supported ttl in seconds.
+			expectedStatCacheSize: math.MaxUint64 >> 20,               // Max supported cache size in MiB.
 		},
 	}
 

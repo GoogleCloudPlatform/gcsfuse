@@ -107,9 +107,9 @@ func isValidKernelListCacheTTL(TTLSecs int64) error {
 	return nil
 }
 
-func isValidMetadataCache(c MetadataCacheConfig) error {
+func isValidMetadataCache(v isSet, c *MetadataCacheConfig) error {
 	// Validate ttl-secs.
-	if c.TtlSecs != TtlInSecsUnsetSentinel {
+	if v.IsSet("metadata-cache.ttl-secs") {
 		if c.TtlSecs < -1 {
 			return fmt.Errorf("the value of ttl-secs for metadata-cache can't be less than -1")
 		}
@@ -124,7 +124,7 @@ func isValidMetadataCache(c MetadataCacheConfig) error {
 	}
 
 	// Validate stat-cache-max-size-mb.
-	if c.StatCacheMaxSizeMb != StatCacheMaxSizeMBUnsetSentinel {
+	if v.IsSet("metadata-cache.stat-cache-max-size-mb") {
 		if c.StatCacheMaxSizeMb < -1 {
 			return fmt.Errorf("the value of stat-cache-max-size-mb for metadata-cache can't be less than -1")
 		}
@@ -142,7 +142,7 @@ func isValidMetadataCache(c MetadataCacheConfig) error {
 }
 
 // ValidateConfig returns a non-nil error if the config is invalid.
-func ValidateConfig(config *Config) error {
+func ValidateConfig(v isSet, config *Config) error {
 	var err error
 
 	if err = isValidLogRotateConfig(&config.Logging.LogRotate); err != nil {
@@ -173,7 +173,7 @@ func ValidateConfig(config *Config) error {
 		return fmt.Errorf("error parsing kernel-list-cache-ttl-secs config: %w", err)
 	}
 
-	if err = isValidMetadataCache(config.MetadataCache); err != nil {
+	if err = isValidMetadataCache(v, &config.MetadataCache); err != nil {
 		return fmt.Errorf("error parsing metadata-cache config: %w", err)
 	}
 

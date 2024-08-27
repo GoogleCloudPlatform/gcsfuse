@@ -159,7 +159,7 @@ func TestValidateConfigSuccessful(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualErr := ValidateConfig(tc.config)
+			actualErr := ValidateConfig(&mockIsSet{}, tc.config)
 
 			assert.NoError(t, actualErr)
 		})
@@ -265,7 +265,7 @@ func TestValidateConfig_ErrorScenarios(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Error(t, ValidateConfig(tc.config))
+			assert.Error(t, ValidateConfig(&mockIsSet{}, tc.config))
 		})
 	}
 }
