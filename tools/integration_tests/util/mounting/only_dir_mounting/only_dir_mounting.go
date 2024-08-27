@@ -73,13 +73,15 @@ func executeTestsForOnlyDirMounting(flags [][]string, dirName string, m *testing
 		return
 	}
 
+	filePath := path.Join(setup.MntDir(), "a.txt")
 	// Test scenario when only-dir-mounted directory pre-exists in bucket.
-	f, err := os.OpenFile(path.Join(setup.MntDir(), "a.txt"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, setup.FilePermission_0600)
+	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, setup.FilePermission_0600)
 	if err != nil {
 		log.Fatalf("Error in creating file: %v", err)
 	}
+
 	operations.CloseFile(f)
-	_, err = operations.ExecuteGcloudCommandf(fmt.Sprintf("storage mv a.txt gs://%s/", mountDirInBucket))
+	_, err = operations.ExecuteGcloudCommandf(fmt.Sprintf("storage mv %s gs://%s/",filePath, mountDirInBucket))
 	if err != nil {
 		log.Fatalf("Error in creating file: %v", err)
 	}
