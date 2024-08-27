@@ -259,6 +259,7 @@ function installDependencies() {
     # Add the gcloud CLI distribution URI as a package source (Debian 9+ or Ubuntu 18.04+)
     echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
     # Update and install the gcloud CLI
+    sudo apt-get update
     sudo apt-get install -y google-cloud-cli
     # install kubectl
     (gcloud components install kubectl && kubectl version --client) || (sudo apt-get update && sudo apt-get install -y kubectl && kubectl version --client)
