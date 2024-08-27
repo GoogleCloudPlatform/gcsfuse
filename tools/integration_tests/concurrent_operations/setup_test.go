@@ -30,7 +30,7 @@ import (
 )
 
 const (
-	testDirName = "ConcurrentOperationsTest"
+	testDirName    = "ConcurrentOperationsTest"
 	onlyDirMounted = "OnlyDirConcurrentOperationsTest"
 )
 

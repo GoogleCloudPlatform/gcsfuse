@@ -30,10 +30,9 @@ import (
 )
 
 const (
-	testDirName = "KernelListCacheTest"
+	testDirName    = "KernelListCacheTest"
 	onlyDirMounted = "OnlyDirMountKernelListCache"
 )
-
 
 var (
 	testDirPath string
