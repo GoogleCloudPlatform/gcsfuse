@@ -304,30 +304,28 @@ def writeRecordsToCsvOutputFile(output: dict, output_file_path: str):
                 * 100,
                 2,
             )
-          except:
-            print(
-                "failed to parse record-set for throughput_over_local_ssd."
-                f" record: {r}"
-            )
-            continue
-          else:
             output_file_fwr.write(
                 f"{record_set['mean_file_size']},{record_set['read_type']},{scenario},{r['epoch']},{r['duration']},{r['throughput_mb_per_second']},{r['IOPS']},{r['throughput_over_local_ssd']},{r['lowest_memory']},{r['highest_memory']},{r['lowest_cpu']},{r['highest_cpu']},{r['pod_name']},{r['start']},{r['end']},\"{r['gcsfuse_mount_options']}\",{r['blockSize']},{r['filesPerThread']},{r['numThreads']},{args.instance_id}\n"
             )
+          except Exception as e:
+            print(
+                "Error: failed to parse/write record-set for"
+                f" scenario: {scenario}, i: {i}, record: {r}, exception: {e}"
+            )
+            continue
         else:
           try:
             r = record_set["records"][scenario][i]
             r["throughput_over_local_ssd"] = "NA"
-          except:
-            print(
-                "failed to parse record-set for throughput_over_local_ssd."
-                f" record: {r}"
-            )
-            continue
-          else:
             output_file_fwr.write(
                 f"{record_set['mean_file_size']},{record_set['read_type']},{scenario},{r['epoch']},{r['duration']},{r['throughput_mb_per_second']},{r['IOPS']},{r['throughput_over_local_ssd']},{r['lowest_memory']},{r['highest_memory']},{r['lowest_cpu']},{r['highest_cpu']},{r['pod_name']},{r['start']},{r['end']},\"{r['gcsfuse_mount_options']}\",{r['blockSize']},{r['filesPerThread']},{r['numThreads']},{args.instance_id}\n"
             )
+          except Exception as e:
+            print(
+                f"Error: failed to parse record-set for scenario: {scenario},i:"
+                f" {i}, record: {r}, exception: {e}"
+            )
+            continue
   output_file_fwr.close()
 
 
