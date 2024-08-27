@@ -48,7 +48,7 @@ DIR="resnet"
 if [ ${BUCKET_TYPE} == "hns" ];
 then
   TEST_BUCKET="gcsfuse-ml-data-hns-central1"
-  echo "enable-hns: true" >> $config_filename
+  echo "enable-hns: true" >> /tmp/gcsfuse_config.yaml
   DIR=${DIR}_${BUCKET_TYPE}
 fi
 
