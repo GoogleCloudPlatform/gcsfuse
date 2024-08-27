@@ -74,7 +74,7 @@ func executeTestsForOnlyDirMounting(flags [][]string, dirName string, m *testing
 	// Test scenario when only-dir-mounted directory does not pre-exist in bucket.
 	err = client.DeleteAllObjectsWithPrefix(ctx, storageClient, dirName)
 	if err != nil {
-		log.Println("Error deleting object on GCS: %v", err)
+		log.Println("Error deleting object on GCS: %w", err)
 	}
 	successCode = mountGcsFuseForFlagsAndExecuteTests(flags, m)
 	if successCode != 0 {
@@ -87,7 +87,7 @@ func executeTestsForOnlyDirMounting(flags [][]string, dirName string, m *testing
 	successCode = mountGcsFuseForFlagsAndExecuteTests(flags, m)
 	err = client.DeleteAllObjectsWithPrefix(ctx, storageClient, dirName)
 	if err != nil {
-		log.Println("Error deleting object on GCS: %v", err)
+		log.Println("Error deleting object on GCS: %w", err)
 	}
 
 	// Reset onlyDirMounted value to empty string after only dir mount tests are done.
