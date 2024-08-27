@@ -6,7 +6,7 @@ on:
     branches: [ "master" ]
 
 jobs:
-  codecov:
+  flake-detector:
     runs-on: ubuntu-latest
     timeout-minutes: 75
     steps:
