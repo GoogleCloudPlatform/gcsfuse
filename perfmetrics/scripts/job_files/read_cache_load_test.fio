@@ -1,7 +1,7 @@
 ; -- use nrfiles and rw to CLI args to control readtype and number of files --
 [global]
 ioengine=libaio
-direct=1
+direct=0
 fadvise_hint=0
 iodepth=64
 invalidate=1
