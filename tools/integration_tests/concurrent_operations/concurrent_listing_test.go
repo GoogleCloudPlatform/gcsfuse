@@ -25,7 +25,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -94,10 +93,10 @@ func (s *concurrentListingTest) Test_OpenDirAndLookUp(t *testing.T) {
 		defer wg.Done()
 		for i := 0; i < iterationsForLightOperations; i++ {
 			f, err := os.Open(targetDir)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			err = f.Close()
-			assert.Nil(t, err)
+			require.Nil(t, err)
 		}
 	}()
 
@@ -106,7 +105,7 @@ func (s *concurrentListingTest) Test_OpenDirAndLookUp(t *testing.T) {
 		defer wg.Done()
 		for i := 0; i < iterationsForLightOperations; i++ {
 			_, err := os.Stat(targetDir)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 		}
 	}()
 
@@ -120,7 +119,7 @@ func (s *concurrentListingTest) Test_OpenDirAndLookUp(t *testing.T) {
 	case <-done:
 		// Operation completed successfully before timeout.
 	case <-time.After(timeout):
-		assert.FailNow(t, "Possible deadlock")
+		require.FailNow(t, "Possible deadlock")
 	}
 }
 
@@ -140,13 +139,13 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndLookUp(t *testing.T) {
 		defer wg.Done()
 		for i := 0; i < iterationsForMediumOperations; i++ {
 			f, err := os.Open(targetDir)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			_, err = f.Readdirnames(-1)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			err = f.Close()
-			assert.Nil(t, err)
+			require.Nil(t, err)
 		}
 	}()
 
@@ -155,7 +154,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndLookUp(t *testing.T) {
 		defer wg.Done()
 		for i := 0; i < iterationsForLightOperations; i++ {
 			_, err := os.Stat(targetDir)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 		}
 	}()
 
@@ -170,7 +169,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndLookUp(t *testing.T) {
 	case <-done:
 		// Success: Both operations finished before timeout
 	case <-time.After(timeout):
-		assert.FailNow(t, "Possible deadlock or race condition detected during Readdir and directory operations")
+		require.FailNow(t, "Possible deadlock or race condition detected during Readdir and directory operations")
 	}
 }
 
@@ -193,13 +192,13 @@ func (s *concurrentListingTest) Test_MultipleConcurrentReadDir(t *testing.T) {
 
 			for j := 0; j < iterationsForMediumOperations; j++ {
 				f, err := os.Open(targetDir)
-				assert.Nil(t, err)
+				require.Nil(t, err)
 
 				_, err = f.Readdirnames(-1) // Read all directory entries
-				assert.Nil(t, err)
+				require.Nil(t, err)
 
 				err = f.Close()
-				assert.Nil(t, err)
+				require.Nil(t, err)
 			}
 		}()
 	}
@@ -215,7 +214,7 @@ func (s *concurrentListingTest) Test_MultipleConcurrentReadDir(t *testing.T) {
 	case <-done:
 		// Success: All Readdir operations finished before timeout
 	case <-time.After(timeout):
-		assert.FailNow(t, "Possible deadlock or race condition detected during concurrent Readdir calls")
+		require.FailNow(t, "Possible deadlock or race condition detected during concurrent Readdir calls")
 	}
 }
 
@@ -235,13 +234,13 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileOperations(t *testin
 		defer wg.Done()
 		for i := 0; i < iterationsForMediumOperations; i++ { // Adjust iteration count if needed
 			f, err := os.Open(targetDir)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			_, err = f.Readdirnames(-1)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			err = f.Close()
-			assert.Nil(t, err)
+			require.Nil(t, err)
 		}
 	}()
 
@@ -254,18 +253,18 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileOperations(t *testin
 
 			// Create
 			f, err := os.Create(filePath)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			err = f.Close()
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			// Rename
 			err = os.Rename(filePath, renamedFilePath)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			// Delete
 			err = os.Remove(renamedFilePath)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 		}
 	}()
 
@@ -280,7 +279,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileOperations(t *testin
 	case <-done:
 		// Success: Both operations finished before timeout
 	case <-time.After(timeout):
-		assert.FailNow(t, "Possible deadlock or race condition detected")
+		require.FailNow(t, "Possible deadlock or race condition detected")
 	}
 }
 
@@ -300,13 +299,13 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndDirOperations(t *testing
 		defer wg.Done()
 		for i := 0; i < iterationsForMediumOperations; i++ {
 			f, err := os.Open(targetDir)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			_, err = f.Readdirnames(-1)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			err = f.Close()
-			assert.Nil(t, err)
+			require.Nil(t, err)
 		}
 	}()
 
@@ -319,15 +318,15 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndDirOperations(t *testing
 
 			// Create
 			err := os.Mkdir(dirPath, 0755)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			// Rename
 			err = os.Rename(dirPath, renamedDirPath)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			// Delete
 			err = os.Remove(renamedDirPath)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 		}
 	}()
 
@@ -342,7 +341,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndDirOperations(t *testing
 	case <-done:
 		// Success: Both operations finished before timeout
 	case <-time.After(timeout):
-		assert.FailNow(t, "Possible deadlock or race condition detected during Readdir and directory operations")
+		require.FailNow(t, "Possible deadlock or race condition detected during Readdir and directory operations")
 	}
 }
 
@@ -362,13 +361,13 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileEdit(t *testing.T) {
 		defer wg.Done()
 		for i := 0; i < iterationsForMediumOperations; i++ {
 			f, err := os.Open(targetDir)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			_, err = f.Readdirnames(-1)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			err = f.Close()
-			assert.Nil(t, err)
+			require.Nil(t, err)
 		}
 	}()
 
@@ -380,15 +379,15 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileEdit(t *testing.T) {
 
 			// Create file
 			err := os.WriteFile(filePath, []byte("Hello, world!"), setup.FilePermission_0600)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			// Edit file (append some data)
 			f, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY, setup.FilePermission_0600)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 			_, err = f.Write([]byte("This is an edit."))
-			assert.Nil(t, err)
+			require.Nil(t, err)
 			err = f.Close()
-			assert.Nil(t, err)
+			require.Nil(t, err)
 		}
 	}()
 
@@ -403,7 +402,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileEdit(t *testing.T) {
 	case <-done:
 		// Success: Both operations finished before timeout
 	case <-time.After(timeout):
-		assert.FailNow(t, "Possible deadlock or race condition detected during Readdir and directory operations")
+		require.FailNow(t, "Possible deadlock or race condition detected during Readdir and directory operations")
 	}
 }
 
@@ -423,13 +422,13 @@ func (s *concurrentListingTest) Test_MultipleConcurrentOperations(t *testing.T) 
 		defer wg.Done()
 		for i := 0; i < iterationsForMediumOperations; i++ { // Adjust iteration count if needed
 			f, err := os.Open(targetDir)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			_, err = f.Readdirnames(-1)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			err = f.Close()
-			assert.Nil(t, err)
+			require.Nil(t, err)
 		}
 	}()
 
@@ -441,15 +440,15 @@ func (s *concurrentListingTest) Test_MultipleConcurrentOperations(t *testing.T) 
 
 			// Create file
 			err := os.WriteFile(filePath, []byte("Hello, world!"), setup.FilePermission_0600)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			// Edit file (append some data)
 			f, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY, setup.FilePermission_0600)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 			_, err = f.Write([]byte("This is an edit."))
-			assert.Nil(t, err)
+			require.Nil(t, err)
 			err = f.Close()
-			assert.Nil(t, err)
+			require.Nil(t, err)
 		}
 	}()
 
@@ -462,15 +461,15 @@ func (s *concurrentListingTest) Test_MultipleConcurrentOperations(t *testing.T) 
 
 			// Create
 			err := os.Mkdir(dirPath, 0755)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			// Rename
 			err = os.Rename(dirPath, renamedDirPath)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			// Delete
 			err = os.Remove(renamedDirPath)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 		}
 	}()
 
@@ -479,7 +478,7 @@ func (s *concurrentListingTest) Test_MultipleConcurrentOperations(t *testing.T) 
 		defer wg.Done()
 		for i := 0; i < iterationsForLightOperations; i++ {
 			_, err := os.Stat(targetDir)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 		}
 	}()
 
@@ -488,10 +487,10 @@ func (s *concurrentListingTest) Test_MultipleConcurrentOperations(t *testing.T) 
 		defer wg.Done()
 		for i := 0; i < iterationsForLightOperations; i++ {
 			f, err := os.Open(targetDir)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			err = f.Close()
-			assert.Nil(t, err)
+			require.Nil(t, err)
 		}
 	}()
 
@@ -506,7 +505,7 @@ func (s *concurrentListingTest) Test_MultipleConcurrentOperations(t *testing.T) 
 	case <-done:
 		// Success: Both operations finished before timeout
 	case <-time.After(timeout):
-		assert.FailNow(t, "Possible deadlock or race condition detected during Readdir and directory operations")
+		require.FailNow(t, "Possible deadlock or race condition detected during Readdir and directory operations")
 	}
 }
 
@@ -526,12 +525,12 @@ func (s *concurrentListingTest) Test_ListWithMoveFile(t *testing.T) {
 		defer wg.Done()
 		for i := 0; i < iterationsForMediumOperations; i++ { // Adjust iteration count if needed
 			f, err := os.Open(targetDir)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			_, err = f.Readdirnames(-1)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
-			assert.NoError(t, f.Close())
+			require.NoError(t, f.Close())
 		}
 	}()
 
@@ -545,10 +544,10 @@ func (s *concurrentListingTest) Test_ListWithMoveFile(t *testing.T) {
 		for i := 0; i < iterationsForHeavyOperations; i++ { // Adjust iteration count if needed
 			// Move File in the target directory
 			err = operations.Move(path.Join(testDirPath, "move_file.txt"), path.Join(targetDir, "move_file.txt"))
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			// Move File out of the target directory
 			err = operations.Move(path.Join(targetDir, "move_file.txt"), path.Join(testDirPath, "move_file.txt"))
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		}
 	}()
 
@@ -563,7 +562,7 @@ func (s *concurrentListingTest) Test_ListWithMoveFile(t *testing.T) {
 	case <-done:
 		// Success: Both operations finished before timeout
 	case <-time.After(timeout):
-		assert.FailNow(t, "Possible deadlock or race condition detected")
+		require.FailNow(t, "Possible deadlock or race condition detected")
 	}
 }
 
@@ -586,9 +585,9 @@ func (s *concurrentListingTest) Test_ListWithMoveDir(t *testing.T) {
 			require.NoError(t, err)
 
 			_, err = f.Readdirnames(-1)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
-			assert.NoError(t, f.Close())
+			require.NoError(t, f.Close())
 		}
 	}()
 	// Create Dir
@@ -601,10 +600,10 @@ func (s *concurrentListingTest) Test_ListWithMoveDir(t *testing.T) {
 		for i := 0; i < iterationsForHeavyOperations; i++ { // Adjust iteration count if needed
 			// Move Dir in the target dir
 			err = operations.Move(path.Join(testDirPath, "move_dir"), path.Join(targetDir, "move_dir"))
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			// Move Dir out of the target dir
 			err = operations.Move(path.Join(targetDir, "move_dir"), path.Join(testDirPath, "move_dir"))
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		}
 	}()
 
@@ -619,7 +618,7 @@ func (s *concurrentListingTest) Test_ListWithMoveDir(t *testing.T) {
 	case <-done:
 		// Success: Both operations finished before timeout
 	case <-time.After(timeout):
-		assert.FailNow(t, "Possible deadlock or race condition detected")
+		require.FailNow(t, "Possible deadlock or race condition detected")
 	}
 }
 
