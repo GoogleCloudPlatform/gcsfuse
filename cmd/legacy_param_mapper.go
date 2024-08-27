@@ -171,7 +171,7 @@ func overrideWithFlag[T any](c cliContext, flag string, toUpdate *T, updateValue
 	*toUpdate = updateValue
 }
 
-// isSet is used toh check if configs are explicitly set in the deprecated
+// isSet is used to check if configs are explicitly set in the deprecated
 // config file.
 type isSet struct {
 	config *cfg.Config

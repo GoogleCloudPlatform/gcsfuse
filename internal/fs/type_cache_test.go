@@ -85,6 +85,10 @@ func (t *typeCacheTestCommon) SetUpTestSuite() {
 
 	// Fill server-cfg from mount-config.
 	func(newConfig *cfg.Config, serverCfg *gcsfusefs.ServerConfig) {
+		if newConfig.MetadataCache.TtlSecs == -1 {
+			maxSupportedTTLInSecs := math.MaxInt64 / int64(time.Second)
+			newConfig.MetadataCache.TtlSecs = maxSupportedTTLInSecs
+		}
 		serverCfg.DirTypeCacheTTL = time.Duration(newConfig.MetadataCache.TtlSecs) * time.Second
 		serverCfg.InodeAttributeCacheTTL = serverCfg.DirTypeCacheTTL
 		// We can add more logic here to fill other fields in serverCfg

@@ -44,7 +44,7 @@ func resolveMetadataCacheTTL(v isSet, c *MetadataCacheConfig) {
 	// stat-cache-ttl and type-cache-tll.
 	if v.IsSet("metadata-cache.ttl-secs") {
 		if c.TtlSecs == -1 {
-			c.TtlSecs = math.MaxInt64
+			c.TtlSecs = maxSupportedTTLInSeconds
 		}
 		return
 	}
@@ -63,7 +63,6 @@ func resolveStatCacheMaxSizeMB(v isSet, c *MetadataCacheConfig) {
 	// Else, use deprecated stat-cache-capacity to resolve StatCacheMaxSizeMb.
 	avgTotalStatCacheEntrySize := AverageSizeOfPositiveStatCacheEntry + AverageSizeOfNegativeStatCacheEntry
 	c.StatCacheMaxSizeMb = int64(util.BytesToHigherMiBs(uint64(c.DeprecatedStatCacheCapacity) * avgTotalStatCacheEntrySize))
-	return
 }
 
 // Rationalize updates the config fields based on the values of other fields.

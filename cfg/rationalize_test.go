@@ -250,7 +250,7 @@ func TestRationalizeMetadataCache(t *testing.T) {
 		},
 		{
 			name:                  "new_stat-cache-size-mb_flag_set",
-			flags:                 flagSet{"metadata-cache:stat-cache-size-mb": true},
+			flags:                 flagSet{"metadata-cache.stat-cache-max-size-mb": true},
 			config:                &Config{MetadataCache: MetadataCacheConfig{StatCacheMaxSizeMb: 0}},
 			expectedTTLSecs:       0, // Assuming no change to TtlSecs in this function
 			expectedStatCacheSize: 0, // Should remain unchanged
