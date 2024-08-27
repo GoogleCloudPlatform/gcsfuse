@@ -17,10 +17,12 @@ package only_dir_mounting
 import (
 	"fmt"
 	"log"
+	"os"
 	"path"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
@@ -69,6 +71,16 @@ func executeTestsForOnlyDirMounting(flags [][]string, dirName string, m *testing
 	setup.RunScriptForTestData("../util/mounting/only_dir_mounting/testdata/delete_objects.sh", mountDirInBucket)
 	if successCode != 0 {
 		return
+	}
+
+	f, err := os.OpenFile(path.Join(setup.MntDir(), "a.txt"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, setup.FilePermission_0600)
+	if err != nil {
+		log.Fatalf("Error in creating file: %v", err)
+	}
+	operations.CloseFile(f)
+	_, err = operations.ExecuteGcloudCommandf(fmt.Sprintf("storage mv a.txt gs://%s/",mountDirInBucket))
+	if err != nil {
+		log.Fatalf("Error in creating file: %v", err)
 	}
 
 	// Test scenario when only-dir-mounted directory pre-exists in bucket.
