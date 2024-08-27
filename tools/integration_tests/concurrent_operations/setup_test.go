@@ -31,9 +31,8 @@ import (
 
 const (
 	testDirName = "ConcurrentOperationsTest"
+	onlyDirMounted = "OnlyDirConcurrentOperationsTest"
 )
-
-var onlyDirMounted = "OnlyDirConcurrentOperationsTest"
 
 var (
 	storageClient *storage.Client
