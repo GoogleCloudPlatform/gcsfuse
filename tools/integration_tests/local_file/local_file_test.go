@@ -33,7 +33,7 @@ import (
 )
 
 const (
-	testDirName = "LocalFileTest"
+	testDirName    = "LocalFileTest"
 	onlyDirMounted = "OnlyDirMountLocalFiles"
 )
 
