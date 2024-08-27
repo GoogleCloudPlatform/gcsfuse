@@ -616,6 +616,7 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 			f.local = false
 		}
 		//f.content.Destroy()
+		f.buffer = nil
 		f.content = nil
 	}
 
