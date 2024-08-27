@@ -91,9 +91,7 @@ func revokePermissionToManagedFolder(bucket, managedFolderPath, serviceAccount, 
 	gcloudRevokePermissionCmd := fmt.Sprintf("alpha storage managed-folders remove-iam-policy-binding  gs://%s/%s --member=%s --role=%s", bucket, managedFolderPath, serviceAccount, iamRole)
 
 	_, err := operations.ExecuteGcloudCommandf(gcloudRevokePermissionCmd)
-	if err != nil &&
-		!strings.Contains(err.Error(), "Policy binding with the specified principal, role, and condition not found!") &&
-		!strings.Contains(err.Error(), "The specified managed folder does not exist.") {
+	if err != nil && !strings.Contains(err.Error(), "Policy binding with the specified principal, role, and condition not found!") && !strings.Contains(err.Error(), "The specified managed folder does not exist.") {
 		t.Fatalf("Error in removing permission to managed folder: %v", err)
 	}
 }
