@@ -96,8 +96,8 @@ class TestRenamingBenchmark(unittest.TestCase):
     expected_time_of_operation={'test_folder1':[1.0,1.0] ,'nested_folder':[1.0,1.0]}
     expected_subprocess_calls=[call("mv ./gcs_bucket/test_folder1 ./gcs_bucket/test_folder1_renamed",shell=True),
                                call("mv ./gcs_bucket/test_folder1_renamed ./gcs_bucket/test_folder1",shell=True),
-                               call("mv ./gcs_bucket/nested_folder/test_nfolder1 ./gcs_bucket/nested_folder/test_nfolder1_renamed",shell=True),
-                               call("mv ./gcs_bucket/nested_folder/test_nfolder1_renamed ./gcs_bucket/nested_folder/test_nfolder1",shell=True),]
+                               call("mv ./gcs_bucket/nested_folder ./gcs_bucket/nested_folder_renamed",shell=True),
+                               call("mv ./gcs_bucket/nested_folder_renamed ./gcs_bucket/nested_folder",shell=True),]
 
     time_op=renaming_benchmark._record_time_of_operation(mount_point,dir,num_samples)
 

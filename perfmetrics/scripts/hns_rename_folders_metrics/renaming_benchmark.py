@@ -256,12 +256,10 @@ def _record_time_of_operation(mount_point, dir, num_samples):
   for folder in dir["folders"]["folder_structure"]:
     results[folder["name"]] = _record_time_for_folder_rename(mount_point,folder,num_samples)
 
-  results[dir["nested_folders"]["folder_name"]] = [0] * num_samples
-  for folder in dir["nested_folders"]["folder_structure"]:
-    parent_dir_path="{}/{}".format(mount_point,dir["nested_folders"]["folder_name"])
-    time_curr_sample= _record_time_for_folder_rename(parent_dir_path,folder,num_samples)
-    time_prev_samples= results[dir["nested_folders"]["folder_name"]]
-    results[dir["nested_folders"]["folder_name"]] = [a+b for a,b in zip(time_curr_sample,time_prev_samples)]
+  nested_folder={
+      "name": dir["nested_folders"]["folder_name"]
+  }
+  results[dir["nested_folders"]["folder_name"]] = _record_time_for_folder_rename(mount_point,nested_folder,num_samples)
   return results
 
 
