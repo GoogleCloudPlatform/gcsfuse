@@ -287,7 +287,7 @@ function run_e2e_tests_for_hns_bucket(){
    wait $non_parallel_tests_hns_group_pid
    non_parallel_tests_hns_group_exit_code=$?
 
-   # The concurrent_operations package, which experiences intermittent failures on presubmit tests, primarily due to parallel execution on the FLAT bucket, has been excluded. Despite functioning correctly in locally.
+   # The concurrent_operations package, which experiences intermittent failures on presubmit tests, primarily due to parallel execution on the FLAT bucket, has been executed.
    # Added it serially after all the tests are completed to avoid failures.
    local log_file="/tmp/concurrent_operation_${$hns_bucket_name_parallel_group}.log"
    echo $log_file >> $TEST_LOGS_FILE
