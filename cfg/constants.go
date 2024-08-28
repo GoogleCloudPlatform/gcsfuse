@@ -73,5 +73,11 @@ const (
 	// 1. for conversion from stat-cache-capacity to stat-cache-max-size-mb.
 	// 2. internal testing.
 	AverageSizeOfNegativeStatCacheEntry uint64 = 240
-	maxSupportedStatCacheMaxSizeMB             = util.MaxMiBsInUint64
+	// MetadataCacheTTLConfigKey is the Viper configuration key for the metadata
+	//cache's time-to-live (TTL) in seconds.
+	MetadataCacheTTLConfigKey = "metadata-cache.ttl-secs"
+	// StatCacheMaxSizeConfigKey is the Viper configuration key for the maximum
+	//size of the metadata stat cache in megabytes.
+	StatCacheMaxSizeConfigKey      = "metadata-cache.stat-cache-max-size-mb"
+	maxSupportedStatCacheMaxSizeMB = util.MaxMiBsInUint64
 )

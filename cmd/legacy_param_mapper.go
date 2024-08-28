@@ -179,9 +179,9 @@ type isSet struct {
 
 func (i *isSet) IsSet(flag string) bool {
 	switch flag {
-	case "metadata-cache.ttl-secs":
+	case cfg.MetadataCacheTTLConfigKey:
 		return i.config.MetadataCache.TtlSecs != cfg.TtlInSecsUnsetSentinel
-	case "metadata-cache.stat-cache-max-size-mb":
+	case cfg.StatCacheMaxSizeConfigKey:
 		return i.config.MetadataCache.StatCacheMaxSizeMb != cfg.StatCacheMaxSizeMBUnsetSentinel
 	}
 	return false

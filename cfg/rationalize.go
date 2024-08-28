@@ -42,7 +42,7 @@ func decodeURL(u string) (string, error) {
 func resolveMetadataCacheTTL(v isSet, c *MetadataCacheConfig) {
 	// If metadata-cache:ttl-secs has been set, then it overrides both
 	// stat-cache-ttl and type-cache-tll.
-	if v.IsSet("metadata-cache.ttl-secs") {
+	if v.IsSet(MetadataCacheTTLConfigKey) {
 		if c.TtlSecs == -1 {
 			c.TtlSecs = maxSupportedTTLInSeconds
 		}
@@ -57,7 +57,7 @@ func resolveMetadataCacheTTL(v isSet, c *MetadataCacheConfig) {
 func resolveStatCacheMaxSizeMB(v isSet, c *MetadataCacheConfig) {
 	// If metadata-cache:stat-cache-size-mb has been set, then it overrides
 	// stat-cache-capacity.
-	if v.IsSet("metadata-cache.stat-cache-max-size-mb") {
+	if v.IsSet(StatCacheMaxSizeConfigKey) {
 		if c.StatCacheMaxSizeMb == -1 {
 			c.StatCacheMaxSizeMb = int64(maxSupportedStatCacheMaxSizeMB)
 		}

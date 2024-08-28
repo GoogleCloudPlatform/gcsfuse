@@ -109,7 +109,7 @@ func isValidKernelListCacheTTL(TTLSecs int64) error {
 
 func isValidMetadataCache(v isSet, c *MetadataCacheConfig) error {
 	// Validate ttl-secs.
-	if v.IsSet("metadata-cache.ttl-secs") {
+	if v.IsSet(MetadataCacheTTLConfigKey) {
 		if c.TtlSecs < -1 {
 			return fmt.Errorf("the value of ttl-secs for metadata-cache can't be less than -1")
 		}
@@ -124,7 +124,7 @@ func isValidMetadataCache(v isSet, c *MetadataCacheConfig) error {
 	}
 
 	// Validate stat-cache-max-size-mb.
-	if v.IsSet("metadata-cache.stat-cache-max-size-mb") {
+	if v.IsSet(StatCacheMaxSizeConfigKey) {
 		if c.StatCacheMaxSizeMb < -1 {
 			return fmt.Errorf("the value of stat-cache-max-size-mb for metadata-cache can't be less than -1")
 		}
