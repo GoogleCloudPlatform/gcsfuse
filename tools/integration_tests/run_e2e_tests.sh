@@ -80,13 +80,13 @@ TEST_DIR_PARALLEL=(
   "interrupt"
   "operations"
   "log_content"
-  "managed_folders"
 )
 
 # These tests never become parallel as it is changing bucket permissions.
 TEST_DIR_NON_PARALLEL=(
   "readonly"
   "readonly_creds"
+  "managed_folders"
 )
 
 TEST_DIR_HNS_PARALLEL_GROUP=(
@@ -104,12 +104,12 @@ TEST_DIR_HNS_PARALLEL_GROUP=(
   "list_large_dir"
   "mounting"
   "kernel_list_cache"
-  "managed_folders"
 )
 
 TEST_DIR_HNS_NON_PARALLEL=(
   "readonly"
   "readonly_creds"
+  "managed_folders"
 )
 
 # Create a temporary file to store the log file name.
