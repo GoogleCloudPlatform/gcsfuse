@@ -573,18 +573,6 @@ func resolvePathForTheFlagsInContext(c *cli.Context) (err error) {
 	return
 }
 
-// resolveConfigFilePaths resolves the config file paths specified in the config file.
-func resolveConfigFilePaths(mountConfig *config.MountConfig) (err error) {
-	// Resolve cache-dir path
-	resolvedPath, err := resolveFilePath(string(mountConfig.CacheDir), "cache-dir")
-	mountConfig.CacheDir = resolvedPath
-	if err != nil {
-		return
-	}
-
-	return
-}
-
 // Add the flags accepted by run to the supplied flag set, returning the
 // variables into which the flags will parse.
 func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
