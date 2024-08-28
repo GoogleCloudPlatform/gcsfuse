@@ -406,9 +406,9 @@ function ensureRequiredNodePoolConfiguration() {
 
   if doesNodePoolExist ${cluster_name} ${zone} ${node_pool}; then
 
-    existing_machine_type=$(getMachineTypeInNodePool ${cluster_name} ${node_pool}})
-    num_existing_localssd_per_node=$(getNumLocalSSDsPerNodeInNodePool ${cluster_name} ${node_pool})
-    num_existing_nodes=$(getNumNodesInNodePool ${cluster_name} ${node_pool})
+    existing_machine_type=$(getMachineTypeInNodePool ${cluster_name} ${node_pool} ${zone})
+    num_existing_localssd_per_node=$(getNumLocalSSDsPerNodeInNodePool ${cluster_name} ${node_pool} ${zone})
+    num_existing_nodes=$(getNumNodesInNodePool ${cluster_name} ${node_pool} ${zone})
 
     if [ "${existing_machine_type}" != "${machine_type}" ]; then
       echo "cluster "${node_pool}" exists, but machine-type differs, so deleting and re-creating the node-pool."
