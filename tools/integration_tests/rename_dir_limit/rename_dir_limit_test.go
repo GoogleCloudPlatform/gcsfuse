@@ -64,8 +64,8 @@ func TestMain(m *testing.M) {
 	defer storageClient.Close()
 
 	flags := [][]string{{"--rename-dir-limit=3", "--implicit-dirs"}, {"--rename-dir-limit=3"}}
-	if setup.IsHierarchicalBucket(ctx, storageClient) {
-		flags = [][]string{{}}
+	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
+		flags = [][]string{hnsFlagSet}
 	}
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 

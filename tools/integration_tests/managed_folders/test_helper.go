@@ -37,12 +37,13 @@ const (
 	ManagedFolder1                                        = "managedFolder1"
 	ManagedFolder2                                        = "managedFolder2"
 	SimulatedFolderNonEmptyManagedFoldersTest             = "simulatedFolderNonEmptyManagedFoldersTes"
-	FileInNonEmptyManagedFoldersTest                      = "testFileInNonEmptyManagedFoldersTest"
 	IAMRoleForViewPermission                              = "roles/storage.objectViewer"
 	NumberOfObjectsInDirForNonEmptyManagedFoldersListTest = 4
 	AdminPermission                                       = "objectAdmin"
 	IAMRoleForAdminPermission                             = "roles/storage.objectAdmin"
 )
+
+var FileInNonEmptyManagedFoldersTest = "testFileInNonEmptyManagedFoldersTest" + setup.GenerateRandomString(5)
 
 type IAMPolicy struct {
 	Bindings []struct {
