@@ -51,15 +51,14 @@ func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
 	var err error
-	ctx = context.Background()
 
+	ctx = context.Background()
 	ctx, cancel := context.WithTimeout(ctx, time.Minute*20)
 	storageClient, err = client.CreateStorageClient(ctx)
 	if err != nil {
 		log.Printf("Error creating storage client: %v\n", err)
 		os.Exit(1)
 	}
-
 	defer cancel()
 	defer storageClient.Close()
 

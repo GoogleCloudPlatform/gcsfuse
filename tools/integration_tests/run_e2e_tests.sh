@@ -64,8 +64,6 @@ echo "Setting the integration test timeout to: $INTEGRATION_TEST_TIMEOUT"
 readonly RANDOM_STRING_LENGTH=5
 # Test directory arrays
 TEST_DIR_PARALLEL=(
-  "concurrent_operations"
-  "kernel_list_cache"
   "local_file"
   "log_rotation"
   "mounting"
@@ -80,13 +78,15 @@ TEST_DIR_PARALLEL=(
   "interrupt"
   "operations"
   "log_content"
+  "kernel_list_cache"
+  "concurrent_operations"
 )
 
 # These tests never become parallel as it is changing bucket permissions.
 TEST_DIR_NON_PARALLEL=(
   "readonly"
-  "readonly_creds"
   "managed_folders"
+  "readonly_creds"
 )
 
 TEST_DIR_HNS_PARALLEL_GROUP=(
