@@ -18,6 +18,7 @@
 # and epochs functionality, and runs the model
 
 # Install go lang
+BUCKET_TYPE=$1
 wget -O go_tar.tar.gz https://go.dev/dl/go1.23.0.linux-amd64.tar.gz -q
 sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
 export PATH=$PATH:/usr/local/go/bin
@@ -39,11 +40,22 @@ echo "logging:
           backup-file-count: 3
           compress: true
        " > /tmp/gcsfuse_config.yaml
+
+TEST_BUCKET="gcsfuse-ml-tf-data"
+DIR="resnet"
+# Enable the enable-hns flag to run tests on the folder APIs with an HNS bucket.
+if [ ${BUCKET_TYPE} == "hns" ];
+then
+  TEST_BUCKET="gcsfuse-ml-data-hns-central1"
+  echo "enable-hns: true" >> /tmp/gcsfuse_config.yaml
+  DIR=${DIR}_${BUCKET_TYPE}
+fi
+
 nohup gcsfuse/gcsfuse --foreground \
       --implicit-dirs \
       --stackdriver-export-interval 60s \
       --config-file /tmp/gcsfuse_config.yaml \
-      gcsfuse-ml-tf-data myBucket > /home/output/gcsfuse.out 2> /home/output/gcsfuse.err &
+     $TEST_BUCKET myBucket > /home/output/gcsfuse.out 2> /home/output/gcsfuse.err &
 
 # Install tensorflow model garden library
 pip3 install --user tf-models-official==2.13.2
@@ -190,7 +202,7 @@ sed -i "$lines"'d' $train_lib_file
 x=$((x-1))
 sed -i "$x"'r bypassed_code.py' $train_lib_file
 
-ARTIFACTS_BUCKET_PATH="gs://gcsfuse-ml-tests-logs/ci_artifacts/tf/resnet"
+ARTIFACTS_BUCKET_PATH="gs://gcsfuse-ml-tests-logs/ci_artifacts/tf/${DIR}"
 echo "Update status file"
 echo "RUNNING" > status.txt
 gsutil cp status.txt $ARTIFACTS_BUCKET_PATH/

@@ -31,5 +31,8 @@ WORKDIR "/tf_test/"
 COPY ./perfmetrics/scripts/ml_tests/tf/resnet/setup_scripts/setup_container.sh .
 COPY ./perfmetrics/scripts/ml_tests/tf/resnet/setup_scripts/resnet_runner.py .
 
+ARG BUCKET_TYPE
+ENV BUCKET_TYPE=${BUCKET_TYPE}
+
 RUN mkdir -p "myBucket"
-ENTRYPOINT ["/bin/bash", "-c", "./setup_container.sh"]
+ENTRYPOINT ["/bin/bash", "-c", "./setup_container.sh ${BUCKET_TYPE}"]
