@@ -81,6 +81,7 @@ TEST_DIR_PARALLEL=(
   "kernel_list_cache"
   "concurrent_operations"
 )
+
 # These tests never become parallel as it is changing bucket permissions.
 TEST_DIR_NON_PARALLEL=(
   "readonly"
@@ -88,11 +89,27 @@ TEST_DIR_NON_PARALLEL=(
   "readonly_creds"
 )
 
-
-TEST_DIR_HNS_GROUP=(
+TEST_DIR_HNS_PARALLEL_GROUP=(
   "implicit_dir"
+  "rename_dir_limit"
   "operations"
   "local_file"
+  "gzip"
+  "interrupt"
+  "log_content"
+  "read_large_files"
+  "write_large_files"
+  "log_rotation"
+  "read_cache"
+  "list_large_dir"
+  "mounting"
+  "kernel_list_cache"
+)
+
+TEST_DIR_HNS_NON_PARALLEL=(
+  "readonly"
+  "readonly_creds"
+  "managed_folders"
 )
 
 # Create a temporary file to store the log file name.
@@ -252,19 +269,30 @@ function run_e2e_tests_for_flat_bucket() {
 }
 
 function run_e2e_tests_for_hns_bucket(){
-   hns_bucket_name=$(create_hns_bucket)
-   echo "Hns Bucket Created: "$hns_bucket_name
+   hns_bucket_name_parallel_group=$(create_hns_bucket)
+   echo "Hns Bucket Created: "$hns_bucket_name_parallel_group
+
+   hns_bucket_name_non_parallel_group=$(create_hns_bucket)
+   echo "Hns Bucket Created: "$hns_bucket_name_non_parallel_group
 
    echo "Running tests for HNS bucket"
-   run_non_parallel_tests TEST_DIR_HNS_GROUP "$hns_bucket_name"
+   run_parallel_tests TEST_DIR_HNS_PARALLEL_GROUP "$hns_bucket_name_parallel_group" &
+   parallel_tests_hns_group_pid=$!
+   run_non_parallel_tests TEST_DIR_HNS_NON_PARALLEL "$hns_bucket_name_non_parallel_group" &
+   non_parallel_tests_hns_group_pid=$!
+
+   # Wait for all tests to complete.
+   wait $parallel_tests_hns_group_pid
+   parallel_tests_hns_group_exit_code=$?
+   wait $non_parallel_tests_hns_group_pid
    non_parallel_tests_hns_group_exit_code=$?
 
-   hns_buckets=("$hns_bucket_name")
+   hns_buckets=("$hns_bucket_name_parallel_group" "$hns_bucket_name_non_parallel_group")
    clean_up hns_buckets
 
-   if [ $non_parallel_tests_hns_group_exit_code != 0 ];
+   if [ $parallel_tests_hns_group_exit_code != 0 ] || [ $non_parallel_tests_hns_group_exit_code!= 0 ];
    then
-     return 1
+    return 1
    fi
    return 0
 }

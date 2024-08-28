@@ -26,11 +26,12 @@ import (
 )
 
 const (
-	NumberOfRandomWriteCalls                     = 20
-	DirForRandomWrite                            = "dirForRandomWrite"
-	MaxWritableByteFromFile                      = 500 * OneMiB
-	FiveHundredMBFileForRandomWriteInLocalSystem = "fiveHundredMBFileForRandomWriteInLocalSystem"
+	NumberOfRandomWriteCalls = 20
+	DirForRandomWrite        = "dirForRandomWrite"
+	MaxWritableByteFromFile  = 500 * OneMiB
 )
+
+var FiveHundredMBFileForRandomWriteInLocalSystem string = "fiveHundredMBFileForRandomWriteInLocalSystem" + setup.GenerateRandomString(5)
 
 func TestWriteLargeFileRandomly(t *testing.T) {
 	randomWriteDir := path.Join(setup.MntDir(), DirForRandomWrite)

@@ -27,11 +27,12 @@ import (
 )
 
 const (
-	FileOne               = "fileOne.txt"
-	FileTwo               = "fileTwo.txt"
-	FileThree             = "fileThree.txt"
 	DirForConcurrentWrite = "dirForConcurrentWrite"
 )
+
+var FileOne = "fileOne" + setup.GenerateRandomString(5) + ".txt"
+var FileTwo = "fileTwo" + setup.GenerateRandomString(5) + ".txt"
+var FileThree = "fileThree" + setup.GenerateRandomString(5) + ".txt"
 
 func writeFile(fileName string, fileSize int64, t *testing.T) error {
 	filePath := path.Join(setup.MntDir(), DirForConcurrentWrite, fileName)

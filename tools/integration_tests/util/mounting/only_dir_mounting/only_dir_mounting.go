@@ -17,11 +17,12 @@ package only_dir_mounting
 import (
 	"fmt"
 	"log"
-	"path"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"golang.org/x/net/context"
 )
 
 func MountGcsfuseWithOnlyDir(flags []string) (err error) {
@@ -58,23 +59,36 @@ func mountGcsFuseForFlagsAndExecuteTests(flags [][]string, m *testing.M) (succes
 }
 
 func executeTestsForOnlyDirMounting(flags [][]string, dirName string, m *testing.M) (successCode int) {
+	ctx := context.Background()
+	storageClient, err := client.CreateStorageClient(ctx)
+	if err != nil {
+		log.Fatalf("Error creating storage client: %v\n", err)
+	}
+
+	defer storageClient.Close()
+
 	// Set onlyDirMounted value to the directory being mounted.
 	setup.SetOnlyDirMounted(dirName)
-	mountDirInBucket := path.Join(setup.TestBucket(), dirName)
-	// Clean the bucket.
 
+	// Clean the bucket.
 	// Test scenario when only-dir-mounted directory does not pre-exist in bucket.
-	setup.RunScriptForTestData("../util/mounting/only_dir_mounting/testdata/delete_objects.sh", mountDirInBucket)
+	err = client.DeleteAllObjectsWithPrefix(ctx, storageClient, dirName)
+	if err != nil {
+		log.Println("Error deleting object on GCS: %w", err)
+	}
 	successCode = mountGcsFuseForFlagsAndExecuteTests(flags, m)
-	setup.RunScriptForTestData("../util/mounting/only_dir_mounting/testdata/delete_objects.sh", mountDirInBucket)
 	if successCode != 0 {
 		return
 	}
 
 	// Test scenario when only-dir-mounted directory pre-exists in bucket.
-	setup.RunScriptForTestData("../util/mounting/only_dir_mounting/testdata/create_objects.sh", mountDirInBucket)
+	client.SetupTestDirectory(ctx, storageClient, dirName)
+
 	successCode = mountGcsFuseForFlagsAndExecuteTests(flags, m)
-	setup.RunScriptForTestData("../util/mounting/only_dir_mounting/testdata/delete_objects.sh", mountDirInBucket)
+	err = client.DeleteAllObjectsWithPrefix(ctx, storageClient, dirName)
+	if err != nil {
+		log.Println("Error deleting object on GCS: %w", err)
+	}
 
 	// Reset onlyDirMounted value to empty string after only dir mount tests are done.
 	setup.SetOnlyDirMounted("")

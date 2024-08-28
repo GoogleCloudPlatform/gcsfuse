@@ -89,7 +89,7 @@ const Content = "line 1\nline 2\n"
 const onlyDirMounted = "OnlyDirMountOperations"
 
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
-	cacheDirPath := path.Join(os.Getenv("HOME"), "operations-cache-dir")
+	cacheDirPath := path.Join(os.Getenv("HOME"), "operations-cache-dir"+setup.GenerateRandomString(5))
 
 	// Set up config file with create-empty-file: true.
 	mountConfig1 := map[string]interface{}{
@@ -174,8 +174,8 @@ func TestMain(m *testing.M) {
 
 	// HNS tests utilize the gRPC protocol, which is not supported by TPC.
 	if !setup.TestOnTPCEndPoint() {
-		if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
-			flagsSet = append(flagsSet, hnsFlagSet)
+		if setup.IsHierarchicalBucket(ctx, storageClient) {
+			flagsSet = [][]string{{"--experimental-enable-json-read=true"}}
 		}
 	}
 

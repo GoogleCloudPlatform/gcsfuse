@@ -64,7 +64,7 @@ var (
 // First argument will be name of scipt script
 func RunScriptForTestData(args ...string) {
 	cmd := exec.Command("/bin/bash", args...)
-	out, err := cmd.Output()
+	out, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Printf("Error: %s", out)
 		panic(err)

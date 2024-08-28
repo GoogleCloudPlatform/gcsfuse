@@ -25,13 +25,14 @@ import (
 )
 
 const DirectoryForListLargeFileTests = "directoryForListLargeFileTests"
-const DirectoryWithTwelveThousandFiles = "directoryWithTwelveThousandFiles"
 const PrefixFileInDirectoryWithTwelveThousandFiles = "fileInDirectoryWithTwelveThousandFiles"
 const PrefixExplicitDirInLargeDirListTest = "explicitDirInLargeDirListTest"
 const PrefixImplicitDirInLargeDirListTest = "implicitDirInLargeDirListTest"
 const NumberOfFilesInDirectoryWithTwelveThousandFiles = 12000
 const NumberOfImplicitDirsInDirectoryWithTwelveThousandFiles = 100
 const NumberOfExplicitDirsInDirectoryWithTwelveThousandFiles = 100
+
+var DirectoryWithTwelveThousandFiles = "directoryWithTwelveThousandFiles" + setup.GenerateRandomString(5)
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()

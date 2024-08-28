@@ -37,12 +37,13 @@ const (
 	ManagedFolder1                                        = "managedFolder1"
 	ManagedFolder2                                        = "managedFolder2"
 	SimulatedFolderNonEmptyManagedFoldersTest             = "simulatedFolderNonEmptyManagedFoldersTes"
-	FileInNonEmptyManagedFoldersTest                      = "testFileInNonEmptyManagedFoldersTest"
 	IAMRoleForViewPermission                              = "roles/storage.objectViewer"
 	NumberOfObjectsInDirForNonEmptyManagedFoldersListTest = 4
 	AdminPermission                                       = "objectAdmin"
 	IAMRoleForAdminPermission                             = "roles/storage.objectAdmin"
 )
+
+var FileInNonEmptyManagedFoldersTest = "testFileInNonEmptyManagedFoldersTest" + setup.GenerateRandomString(5)
 
 type IAMPolicy struct {
 	Bindings []struct {
@@ -83,7 +84,7 @@ func providePermissionToManagedFolder(bucket, managedFolderPath, serviceAccount,
 	gcloudProvidePermissionCmd := fmt.Sprintf("alpha storage managed-folders set-iam-policy gs://%s/%s %s", bucket, managedFolderPath, localIAMPolicyFilePath)
 	_, err = operations.ExecuteGcloudCommandf(gcloudProvidePermissionCmd)
 	if err != nil {
-		t.Fatalf(fmt.Sprintf("Error in providing permission to managed folder: %v", err))
+		t.Fatalf("Error in providing permission to managed folder: %v", err)
 	}
 }
 
@@ -91,8 +92,8 @@ func revokePermissionToManagedFolder(bucket, managedFolderPath, serviceAccount, 
 	gcloudRevokePermissionCmd := fmt.Sprintf("alpha storage managed-folders remove-iam-policy-binding  gs://%s/%s --member=%s --role=%s", bucket, managedFolderPath, serviceAccount, iamRole)
 
 	_, err := operations.ExecuteGcloudCommandf(gcloudRevokePermissionCmd)
-	if err != nil && !strings.Contains(err.Error(), "Policy binding with the specified principal, role, and condition not found!") {
-		t.Fatalf(fmt.Sprintf("Error in providing permission to managed folder: %v", err))
+	if err != nil && !strings.Contains(err.Error(), "Policy binding with the specified principal, role, and condition not found!") && !strings.Contains(err.Error(), "The specified managed folder does not exist.") {
+		t.Fatalf("Error in removing permission to managed folder: %v", err)
 	}
 }
 
