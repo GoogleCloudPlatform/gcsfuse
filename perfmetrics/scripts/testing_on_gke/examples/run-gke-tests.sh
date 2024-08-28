@@ -609,7 +609,7 @@ printRunParameters
 installDependencies
 
 # if only_parse is not defined, then
-if test -z ${only_parse}; then
+if test -z ${only_parse} || ! ${only_parse} ; then
   validateMachineConfig ${machine_type} ${num_nodes} ${num_ssd}
 
   # GCP configuration
