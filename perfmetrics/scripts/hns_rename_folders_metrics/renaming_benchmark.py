@@ -244,6 +244,7 @@ def _record_time_for_folder_rename(parent_dir,folder,num_samples):
   """
   folder_name= '{}/{}'.format(parent_dir,folder["name"])
   folder_rename = folder_name+"_renamed"
+  time_intervals_list=[]
   time_op = []
   for iter in range(num_samples):
     # For the even iterations, we rename from folder_name to folder_name_renamed.
@@ -257,6 +258,7 @@ def _record_time_for_folder_rename(parent_dir,folder,num_samples):
     start_time_sec = time.time()
     subprocess.call('mv ./{} ./{}'.format(rename_from, rename_to), shell=True)
     end_time_sec = time.time()
+    time_intervals_list.append([start_time_sec,end_time_sec])
     time_op.append(end_time_sec - start_time_sec)
 
   # If the number of samples is odd, we need another unrecorded rename operation
@@ -266,7 +268,7 @@ def _record_time_for_folder_rename(parent_dir,folder,num_samples):
     rename_to = folder_name
     subprocess.call('mv ./{} ./{}'.format(rename_from, rename_to), shell=True)
 
-  return time_op
+  return time_op,time_intervals_list
 
 
 def _record_time_of_operation(mount_point, dir, num_samples):
@@ -284,15 +286,18 @@ def _record_time_of_operation(mount_point, dir, num_samples):
     corresponding to each folder.
   """
   results = dict()
+  time_interval_for_vm_metrics=[]
   # Collecting metrics for non-nested folders.
   for folder in dir["folders"]["folder_structure"]:
-    results[folder["name"]] = _record_time_for_folder_rename(mount_point,folder,num_samples)
+    results[folder["name"]],time_interval = _record_time_for_folder_rename(mount_point,folder,num_samples)
+    time_interval_for_vm_metrics.append([time_interval[0][0],time_interval[-1][-1]])
 
   nested_folder={
       "name": dir["nested_folders"]["folder_name"]
   }
-  results[dir["nested_folders"]["folder_name"]] = _record_time_for_folder_rename(mount_point,nested_folder,num_samples)
-  return results
+  results[dir["nested_folders"]["folder_name"]],time_interval = _record_time_for_folder_rename(mount_point,nested_folder,num_samples)
+  time_interval_for_vm_metrics.append([time_interval[0][0],time_interval[-1][-1]])
+  return results,time_interval_for_vm_metrics
 
 
 def _perform_testing(dir, test_type, num_samples):
@@ -340,11 +345,11 @@ def _perform_testing(dir, test_type, num_samples):
   # Mounting the gcs bucket.
   bucket_name = mount_gcs_bucket(dir["name"], mount_flags, log)
   # Record time of operation and populate the results dict.
-  results = _record_time_of_operation(bucket_name, dir, num_samples)
+  results,time_intervals = _record_time_of_operation(bucket_name, dir, num_samples)
   # Unmounting the bucket.
   unmount_gcs_bucket(dir["name"], log)
 
-  return results
+  return results,time_intervals
 
 
 def _parse_arguments(argv):
@@ -397,10 +402,12 @@ def _run_rename_benchmark(test_type,dir_config,num_samples,upload_gs):
         python3 generate_folders_and_files.py {} ".format(dir_config))
     sys.exit(1)
 
-  results=_perform_testing(dir_str, test_type, num_samples)
+  results,time_intervals=_perform_testing(dir_str, test_type, num_samples)
   parsed_metrics = _parse_results(dir_str, results, num_samples)
   upload_values = _get_values_to_export(dir_str, parsed_metrics,
                                              test_type)
+
+  #TODO Add logic to get vm metrics in the time intervals collected
 
   if upload_gs:
     log.info('Uploading files to the Google Sheet\n')
