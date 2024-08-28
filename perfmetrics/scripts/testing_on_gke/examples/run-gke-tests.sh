@@ -44,6 +44,56 @@ function exitWithFailure() { exit 1; }
     # "$@"
 # }
 
+function gcpProjectNumberFromProjectID() {
+  if [ $# -lt 1 ]; then
+    echo "no arguments passed to function gcpProjectNumberFromProjectID. Expected args: <gcp-project-id>"
+    return 1
+  fi
+  local project_id=$1
+  # gcloud projects describe ${project_id} | grep -ie 'project.*number' | tr -s ' ' | rev | cut -d' ' -f1 | rev
+  # $ gcloud projects describe gcs-fuse-test-ml | grep -ie 'project.*number' | tr -s ' ' | rev | cut -d' ' -f1 | rev
+  # '786757290066'
+  # $ gcloud projects describe gcs-fuse-test | grep -ie 'project.*number' | tr -s ' ' | rev | cut -d' ' -f1 | rev
+  # '927584127901'
+  case "${project_id}" in
+  "gcs-fuse-test-ml")
+      echo "786757290066"
+    ;;
+  "gcs-fuse-test")
+      echo "927584127901"
+    ;;
+  *)
+    echo "Unknown project_id: "{project_id}
+    return 1
+    ;;
+  esac
+}
+
+function gcpProjectIdFromProjectNumber() {
+  if [ $# -lt 1 ]; then
+    echo "no arguments passed to function gcpProjectIdFromProjectNumber. Expected args: <gcp-project-number>"
+    return 1
+  fi
+  local project_number=$1
+  # gcloud projects describe ${project_number} | grep -ie 'project.*id' | tr -s ' ' | rev | cut -d' ' -f1 | rev
+  # $ gcloud projects describe 786757290066 | grep -ie 'project.*id' | tr -s ' ' | rev | cut -d' ' -f1 | rev
+  # 'gcs-fuse-test-ml'
+  # $ gcloud projects describe 927584127901 | grep -ie 'project.*id' | tr -s ' ' | rev | cut -d' ' -f1 | rev
+  # 'gcs-fuse-test'
+  case "${project_number}" in
+  "786757290066")
+      echo "gcs-fuse-test-ml"
+    ;;
+  "927584127901")
+      echo "gcs-fuse-test"
+    ;;
+  *)
+    echo "Unknown project_number: "{project_number}
+    return 1
+    ;;
+  esac
+}
+
 # Default values, to be used for parameters in case user does not specify them.
 # GCP related
 readonly DEFAULT_PROJECT_ID="gcs-fuse-test"
