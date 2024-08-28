@@ -303,15 +303,34 @@ function ensureGcpAuthsAndConfig() {
 # Verify that the passed machine configuration parameters (machine-type, num-nodes, num-ssd) are compatible.
 # This is to fail fast, right at the start of the script, rather than failing at
 # cluster/nodepool creation, which takes a lot longer.
+# Source of constraints:
+# https://cloud.google.com/compute/docs/disks/local-ssd#lssd_disk_options .
 function validateMachineConfig() {
   echo "Validating input machine configuration ..."
   local machine_type=${1}
   local num_nodes=${2}
   local num_ssd=${3}
+
+  if test ${num_nodes} -le 0; then
+    echo "num_nodes is too low (minimium=1) at "${num_nodes}
+  fi
+
   case "${machine_type}" in
   "n2-standard-96")
-    if [ ${num_ssd} -ne 0 -a ${num_ssd} -ne 16 ]; then
-      echo "Unsupported num-ssd "${num_ssd}" with given machine-type "${machine_type}""
+    if [ ${num_ssd} -ne 0 -a ${num_ssd} -ne 16 -a ${num_ssd} -ne 24 ]; then
+      echo "Unsupported num-ssd "${num_ssd}" with given machine-type "${machine_type}". It should be 0, 16 or 24"
+      return 1
+    fi
+    ;;
+  "n2-standard-48")
+    if [ ${num_ssd} -ne 0 -a ${num_ssd} -ne 8 -a ${num_ssd} -ne 16 -a ${num_ssd} -ne 24 ]; then
+      echo "Unsupported num-ssd "${num_ssd}" with given machine-type "${machine_type}". It should be 0, 8, 16 or 24"
+      return 1
+    fi
+    ;;
+  "n2-standard-32")
+    if [ ${num_ssd} -ne 0 -a ${num_ssd} -ne 4 -a ${num_ssd} -ne 8 -a ${num_ssd} -ne 16 -a ${num_ssd} -ne 24 ]; then
+      echo "Unsupported num-ssd "${num_ssd}" with given machine-type "${machine_type}". It should be 0, 4, 8, 16 or 24"
       return 1
     fi
     ;;
