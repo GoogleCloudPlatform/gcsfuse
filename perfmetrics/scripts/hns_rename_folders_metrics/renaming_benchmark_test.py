@@ -58,12 +58,14 @@ class TestRenamingBenchmark(unittest.TestCase):
     num_samples=2
     mock_time.side_effect = [1.0, 2.0, 3.0, 4.0]
     expected_time_of_operation=[1.0,1.0]
+    expected_time_intervals = [[1.0,2.0],[3.0,4.0]]
     expected_subprocess_calls=[call("mv ./gcs_bucket/test_folder ./gcs_bucket/test_folder_renamed",shell=True),
                                call("mv ./gcs_bucket/test_folder_renamed ./gcs_bucket/test_folder",shell=True)]
 
-    time_op=renaming_benchmark._record_time_for_folder_rename(mount_point,folder,num_samples)
+    time_op,time_intervals=renaming_benchmark._record_time_for_folder_rename(mount_point,folder,num_samples)
 
     self.assertEqual(time_op,expected_time_of_operation)
+    self.assertEqual(time_intervals,expected_time_intervals)
     mock_subprocess.assert_has_calls(expected_subprocess_calls)
 
   @patch('subprocess.call')
@@ -98,14 +100,16 @@ class TestRenamingBenchmark(unittest.TestCase):
     num_samples=2
     mock_time.side_effect = [1.0, 2.0, 3.0, 4.0,1.0, 2.0, 3.0, 4.0]
     expected_time_of_operation={'test_folder1':[1.0,1.0] ,'nested_folder':[1.0,1.0]}
+    expected_time_interval=[[1.0,4.0],[1.0,4.0]]
     expected_subprocess_calls=[call("mv ./gcs_bucket/test_folder1 ./gcs_bucket/test_folder1_renamed",shell=True),
                                call("mv ./gcs_bucket/test_folder1_renamed ./gcs_bucket/test_folder1",shell=True),
                                call("mv ./gcs_bucket/nested_folder ./gcs_bucket/nested_folder_renamed",shell=True),
                                call("mv ./gcs_bucket/nested_folder_renamed ./gcs_bucket/nested_folder",shell=True),]
 
-    time_op=renaming_benchmark._record_time_of_operation(mount_point,dir,num_samples)
+    time_op,time_interval=renaming_benchmark._record_time_of_operation(mount_point,dir,num_samples)
 
     self.assertEqual(time_op,expected_time_of_operation)
+    self.assertEqual(time_interval,expected_time_interval)
     mock_subprocess.assert_has_calls(expected_subprocess_calls)
 
   @patch('renaming_benchmark.unmount_gcs_bucket')
@@ -131,12 +135,14 @@ class TestRenamingBenchmark(unittest.TestCase):
     results = {}
     mount_flags = "--implicit-dirs --rename-dir-limit=1000000"
     mock_mount_gcs_bucket.return_value="flat_bucket"
-    mock_record_time_of_operation.return_value = {"test_folder": [0.1, 0.2, 0.3, 0.4]}
+    mock_record_time_of_operation.return_value = [{"test_folder": [0.1, 0.2, 0.3, 0.4]},[[0.1,0.4]]]
     expected_results = {"test_folder": [0.1, 0.2, 0.3, 0.4]}
+    expected_time_intervals=[[0.1,0.4]]
 
-    results= renaming_benchmark._perform_testing(dir, test_type, num_samples)
+    results,time_intervals= renaming_benchmark._perform_testing(dir, test_type, num_samples)
 
     self.assertEqual(results, expected_results)
+    self.assertEqual(time_intervals,expected_time_intervals)
     # Verify calls to other functions.
     mock_mount_gcs_bucket.assert_called_once_with(dir["name"], mount_flags, mock_log)
     mock_record_time_of_operation.assert_called_once_with(mock_mount_gcs_bucket.return_value, dir, num_samples)
@@ -166,12 +172,14 @@ class TestRenamingBenchmark(unittest.TestCase):
     results = {}
     mount_flags = "--config-file=/tmp/config.yml"
     mock_mount_gcs_bucket.return_value="hns_bucket"
-    mock_record_time_of_operation.return_value = {"test_folder": [0.1, 0.2, 0.3, 0.4]}
+    mock_record_time_of_operation.return_value = [{"test_folder": [0.1, 0.2, 0.3, 0.4]},[[0.1,0.4]]]
     expected_results = {"test_folder": [0.1, 0.2, 0.3, 0.4]}
+    expected_time_intervals=[[0.1,0.4]]
 
-    results= renaming_benchmark._perform_testing(dir, test_type, num_samples)
+    results,time_intervals= renaming_benchmark._perform_testing(dir, test_type, num_samples)
 
     self.assertEqual(results, expected_results)
+    self.assertEqual(time_intervals,expected_time_intervals)
     # Verify calls to other functions.
     mock_mount_gcs_bucket.assert_called_once_with(dir["name"], mount_flags, mock_log)
     mock_record_time_of_operation.assert_called_once_with(mock_mount_gcs_bucket.return_value, dir, num_samples)
@@ -360,6 +368,7 @@ class TestRenamingBenchmark(unittest.TestCase):
     spreadsheet_id='temp-gsheet-id'
     mock_inconsistency.return_value=0
     mock_check_dir_exists.return_value=True
+    mock_perform_testing.return_value=[{'key':'val'},[[0.1,0.4]]]
     mock_parse_results.return_value={'key':'val'}
     mock_get_values.return_value=[['testdata','testdata2']]
     mock_upload.return_value=0
