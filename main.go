@@ -24,7 +24,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/cmd"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 )
@@ -68,9 +67,9 @@ func main() {
 	defer logPanic()
 	// Make logging output better.
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
-	if strings.ToLower(os.Getenv("ENABLE_GCSFUSE_VIPER_CONFIG")) == "true" {
+	if strings.ToLower(os.Getenv("ENABLE_GCSFUSE_VIPER_CONFIG")) == "false" {
 		// TODO: implement the mount logic instead of simply returning nil.
-		rootCmd, err := cmd.NewRootCmd(func(*cfg.Config, string, string) error { return nil })
+		rootCmd, err := cmd.NewRootCmd(cmd.Mount)
 		if err != nil {
 			log.Fatalf("Error occurred while creating the root command: %v", err)
 		}
