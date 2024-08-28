@@ -48,6 +48,7 @@ RECEIVED_BYTES_COUNT_METRIC_TYPE = 'compute.googleapis.com/instance/network/rece
 OPS_LATENCY_METRIC_TYPE = 'custom.googleapis.com/gcsfuse/fs/ops_latency'
 READ_BYTES_COUNT_METRIC_TYPE = 'custom.googleapis.com/gcsfuse/gcs/read_bytes_count'
 OPS_ERROR_COUNT_METRIC_TYPE = 'custom.googleapis.com/gcsfuse/fs/ops_error_count'
+MEMORY_UTIL_METRIC_TYPE='agent.googleapis.com/memory/percent_used'
 
 @dataclasses.dataclass
 class MetricPoint:
@@ -91,12 +92,18 @@ OPS_ERROR_COUNT = Metric(
     extra_filter=OPS_ERROR_COUNT_FILTER,
     reducer='REDUCE_SUM',
     group_fields=['metric.labels'])
+MEMORY_USAGE_PEAK=Metric(metric_type=MEMORY_UTIL_METRIC_TYPE, factor=1 / 100, aligner='ALIGN_MAX')
+MEMORY_USAGE_MEAN=Metric(metric_type=MEMORY_UTIL_METRIC_TYPE, factor=1 / 100, aligner='ALIGN_MEAN')
 
 METRICS_LIST = [
     CPU_UTI_PEAK, CPU_UTI_MEAN, REC_BYTES_PEAK, REC_BYTES_MEAN,
     READ_BYTES_COUNT, OPS_ERROR_COUNT
 ]
 
+RENAME_METRICS_LIST = [
+    CPU_UTI_PEAK, CPU_UTI_MEAN, REC_BYTES_PEAK, REC_BYTES_MEAN,
+    OPS_ERROR_COUNT, MEMORY_USAGE_PEAK,MEMORY_USAGE_MEAN
+]
 
 class NoValuesError(Exception):
   """API response values are missing."""
@@ -140,6 +147,11 @@ def _get_metric_filter(type, metric_type, instance, extra_filter):
         'metric.type = "{metric_type}" AND metric.labels.opencensus_task = '
         'ends_with("{instance_name}")').format(
             metric_type=metric_type, instance_name=instance)
+  elif (type == 'agent'):
+    metric_filter = (
+        'metric.type = "{metric_type}" AND metric.label.instance_name '
+        '={instance_name}').format(
+        metric_type=metric_type, instance_name=instance)
 
   if (extra_filter == ''):
     return metric_filter
@@ -218,6 +230,9 @@ class VmMetrics:
     elif (metric.metric_type[0:6] == 'custom'):
       metric_filter = _get_metric_filter('custom', metric.metric_type, instance,
                                          metric.extra_filter)
+    elif (metric.metric_type[0:5] == 'agent'):
+      metric_filter = _get_metric_filter('agent', metric.metric_type, instance,
+                                         metric.extra_filter)
     else:
       raise Exception('Unhandled metric type')
 
@@ -273,6 +288,9 @@ class VmMetrics:
     Returns:
       list[Metric]
     """
+    if test_type == "rename":
+      return list(RENAME_METRICS_LIST)
+
     # Getting the fs_op type from test_type:
     if test_type == 'read' or test_type == 'randread':
         fs_op = 'ReadFile'

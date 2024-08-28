@@ -18,6 +18,7 @@
 # where dir-config.json file contains the directory structure details for the test.
 
 import os
+import socket
 import sys
 import argparse
 import logging
@@ -32,10 +33,16 @@ from generate_folders_and_files import _check_for_config_file_inconsistency,_che
 from utils.mount_unmount_util import mount_gcs_bucket, unmount_gcs_bucket
 from utils.checks_util import check_dependencies
 from gsheet import gsheet
+from vm_metrics import vm_metrics
+
 
 WORKSHEET_NAME_FLAT = 'rename_metrics_flat'
 WORKSHEET_NAME_HNS = 'rename_metrics_hns'
+WORKSHEET_VM_METRICS_FLAT = 'vm_metrics_flat'
+WORKSHEET_VM_METRICS_HNS = 'vm_metrics_hns'
 SPREADSHEET_ID = '1UVEvsf49eaDJdTGLQU1rlNTIAxg8PZoNQCy_GX6Nw-A'
+INSTANCE=socket.gethostname()
+PERIOD_SEC=120
 
 logging.basicConfig(
     level=logging.INFO,
@@ -45,7 +52,7 @@ logging.basicConfig(
 log = logging.getLogger()
 
 
-def _upload_to_gsheet(worksheet, data, spreadsheet_id) -> (int):
+def _upload_to_gsheet(worksheet, data,vm_worksheet,vm_data, spreadsheet_id) -> (int):
   """
   Writes rename results to Google Spreadsheets.
   Args:
@@ -61,6 +68,7 @@ def _upload_to_gsheet(worksheet, data, spreadsheet_id) -> (int):
     exit_code = 1
   else:
     gsheet.write_to_google_sheet(worksheet, data, spreadsheet_id)
+    gsheet.write_to_google_sheet(vm_worksheet, vm_data, spreadsheet_id)
   # Changing the directory back to current directory.
   os.chdir('./hns_rename_folders_metrics')
   return exit_code
@@ -286,17 +294,17 @@ def _record_time_of_operation(mount_point, dir, num_samples):
     corresponding to each folder.
   """
   results = dict()
-  time_interval_for_vm_metrics=[]
+  time_interval_for_vm_metrics={}
   # Collecting metrics for non-nested folders.
   for folder in dir["folders"]["folder_structure"]:
     results[folder["name"]],time_interval = _record_time_for_folder_rename(mount_point,folder,num_samples)
-    time_interval_for_vm_metrics.append([time_interval[0][0],time_interval[-1][-1]])
+    time_interval_for_vm_metrics[folder["name"]]=[time_interval[0][0],time_interval[-1][-1]]
 
   nested_folder={
       "name": dir["nested_folders"]["folder_name"]
   }
   results[dir["nested_folders"]["folder_name"]],time_interval = _record_time_for_folder_rename(mount_point,nested_folder,num_samples)
-  time_interval_for_vm_metrics.append([time_interval[0][0],time_interval[-1][-1]])
+  time_interval_for_vm_metrics[dir["nested_folders"]["folder_name"]]=[time_interval[0][0],time_interval[-1][-1]]
   return results,time_interval_for_vm_metrics
 
 
@@ -338,7 +346,7 @@ def _perform_testing(dir, test_type, num_samples):
     # Creating config file for mounting with hns enabled.
     with open("/tmp/config.yml",'w') as mount_config:
       mount_config.write("enable-hns: true")
-    mount_flags="--config-file=/tmp/config.yml"
+    mount_flags="--config-file=/tmp/config.yml --stackdriver-export-interval=30s"
   else :
     mount_flags = "--implicit-dirs --rename-dir-limit=1000000"
 
@@ -385,6 +393,21 @@ def _parse_arguments(argv):
 
   return parser.parse_args(argv[1:])
 
+def _extract_vm_metrics(time_intervals_list,folders_list):
+  vm_metrics_obj = vm_metrics.VmMetrics()
+  vm_metrics_data = {}
+
+
+  for folder in folders_list:
+    start_time = time_intervals_list[folder][0]
+    end_time = time_intervals_list[folder][1]
+    vm_metrics_data[folder] = vm_metrics_obj.fetch_metrics(start_time,
+                                                                   end_time,
+                                                                   INSTANCE,
+                                                                   PERIOD_SEC,
+                                                                   'rename')
+
+  return vm_metrics_data
 
 def _run_rename_benchmark(test_type,dir_config,num_samples,upload_gs):
   with open(os.path.abspath(dir_config)) as file:
@@ -402,26 +425,47 @@ def _run_rename_benchmark(test_type,dir_config,num_samples,upload_gs):
         python3 generate_folders_and_files.py {} ".format(dir_config))
     sys.exit(1)
 
+  # Getting latency related metrics
   results,time_intervals=_perform_testing(dir_str, test_type, num_samples)
   parsed_metrics = _parse_results(dir_str, results, num_samples)
   upload_values = _get_values_to_export(dir_str, parsed_metrics,
                                              test_type)
 
-  #TODO Add logic to get vm metrics in the time intervals collected
+  print('Waiting for 360 seconds for metrics to be updated on VM...')
+  # It takes up to 240 seconds for sampled data to be visible on the VM metrics graph
+  # So, waiting for 360 seconds to ensure the returned metrics are not empty.
+  # Intermittently custom metrics are not available after 240 seconds, hence
+  # waiting for 360 secs instead of 240 secs
+  time.sleep(360)
+
+  # Getting VM related metrics
+  folders_list=[]
+  for folder in dir_str["folders"]["folder_structure"]:
+    folders_list.append(folder["name"])
+  folders_list.append(dir_str["nested_folders"]["folder_name"])
+
+  vm_metrics_data= _extract_vm_metrics(time_intervals,folders_list)
+
+
 
   if upload_gs:
     log.info('Uploading files to the Google Sheet\n')
     if test_type == "flat":
       worksheet= WORKSHEET_NAME_FLAT
+      vm_worksheet= WORKSHEET_VM_METRICS_FLAT
     else:
       worksheet= WORKSHEET_NAME_HNS
+      vm_worksheet= WORKSHEET_VM_METRICS_HNS
 
-    exit_code = _upload_to_gsheet(worksheet, upload_values,
+    exit_code = _upload_to_gsheet(worksheet, upload_values,vm_worksheet,vm_metrics_data,
                                   SPREADSHEET_ID)
-    if exit_code != 0:
+    if exit_code != 0 :
       log.error("Upload to gsheet failed!")
   else:
-    print(upload_values)
+    print('Latency related metrics: {}'.format(upload_values))
+    print('VM metrics: {}'.format(vm_metrics_data))
+
+
 
 
 if __name__ == '__main__':
