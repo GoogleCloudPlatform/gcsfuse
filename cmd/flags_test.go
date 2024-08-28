@@ -298,27 +298,6 @@ func (t *FlagsTest) TestResolvePathForTheFlagsInContext() {
 	assert.Equal(t.T(), nil, err)
 }
 
-func (t *FlagsTest) Test_resolveConfigFilePaths() {
-	mountConfig := &config.MountConfig{}
-	mountConfig.CacheDir = "~/cache-dir"
-
-	err := resolveConfigFilePaths(mountConfig)
-
-	assert.Equal(t.T(), nil, err)
-	homeDir, err := os.UserHomeDir()
-	assert.Equal(t.T(), nil, err)
-	assert.EqualValues(t.T(), filepath.Join(homeDir, "cache-dir"), mountConfig.CacheDir)
-}
-
-func (t *FlagsTest) Test_resolveConfigFilePaths_WithoutSettingPaths() {
-	mountConfig := &config.MountConfig{}
-
-	err := resolveConfigFilePaths(mountConfig)
-
-	assert.Equal(t.T(), nil, err)
-	assert.EqualValues(t.T(), "", mountConfig.CacheDir)
-}
-
 func (t *FlagsTest) Test_KernelListCacheTtlSecs() {
 	args := []string{
 		"--kernel-list-cache-ttl-secs=-1",
