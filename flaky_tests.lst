@@ -9,3 +9,6 @@ TestAppendObjectCreator
 
 # b/361477653
 TestParallelDiropsTestSuite/TestParallelReadDirs
+
+# b/362686470
+RandomReaderTest.Test_ReadAt_CacheMissDueToInvalidJob
