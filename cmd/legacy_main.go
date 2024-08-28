@@ -133,7 +133,6 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string) (storageHandle
 func mountWithArgs(
 	bucketName string,
 	mountPoint string,
-	mountConfig *config.MountConfig,
 	newConfig *cfg.Config) (mfs *fuse.MountedFileSystem, err error) {
 	// Enable invariant checking if requested.
 	if newConfig.Debug.ExitOnInvariantViolation {
@@ -165,7 +164,6 @@ func mountWithArgs(
 		bucketName,
 		mountPoint,
 		newConfig,
-		mountConfig,
 		storageHandle)
 
 	if err != nil {
@@ -394,7 +392,7 @@ func runCLIApp(c *cli.Context) (err error) {
 	// daemonize gives us and telling it about the outcome.
 	var mfs *fuse.MountedFileSystem
 	{
-		mfs, err = mountWithArgs(bucketName, mountPoint, mountConfig, newConfig)
+		mfs, err = mountWithArgs(bucketName, mountPoint, newConfig)
 
 		// This utility is to absorb the error
 		// returned by daemonize.SignalOutcome calls by simply

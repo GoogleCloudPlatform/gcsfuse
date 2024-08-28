@@ -22,19 +22,11 @@ import (
 	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"gopkg.in/yaml.v3"
 )
 
 const (
 	parseConfigFileErrMsgFormat = "error parsing config file: %v"
-
-	MetadataCacheTtlSecsInvalidValueError = "the value of ttl-secs for metadata-cache can't be less than -1"
-	MetadataCacheTtlSecsTooHighError      = "the value of ttl-secs in metadata-cache is too high to be supported. Max is 9223372036"
-	TypeCacheMaxSizeMBInvalidValueError   = "the value of type-cache-max-size-mb for metadata-cache can't be less than -1"
-	StatCacheMaxSizeMBInvalidValueError   = "the value of stat-cache-max-size-mb for metadata-cache can't be less than -1"
-	StatCacheMaxSizeMBTooHighError        = "the value of stat-cache-max-size-mb for metadata-cache is too high! Max supported: 17592186044415"
-	MaxSupportedStatCacheMaxSizeMB        = util.MaxMiBsInUint64
 )
 
 func IsValidLogSeverity(severity string) bool {
@@ -49,30 +41,6 @@ func IsValidLogSeverity(severity string) bool {
 		return true
 	}
 	return false
-}
-
-func (metadataCacheConfig *MetadataCacheConfig) validate() error {
-	if metadataCacheConfig.TtlInSeconds != TtlInSecsUnsetSentinel {
-		if metadataCacheConfig.TtlInSeconds < -1 {
-			return fmt.Errorf(MetadataCacheTtlSecsInvalidValueError)
-		}
-		if metadataCacheConfig.TtlInSeconds > cfg.MaxSupportedTTLInSeconds {
-			return fmt.Errorf(MetadataCacheTtlSecsTooHighError)
-		}
-	}
-	if metadataCacheConfig.TypeCacheMaxSizeMB < -1 {
-		return fmt.Errorf(TypeCacheMaxSizeMBInvalidValueError)
-	}
-
-	if metadataCacheConfig.StatCacheMaxSizeMB != StatCacheMaxSizeMBUnsetSentinel {
-		if metadataCacheConfig.StatCacheMaxSizeMB < -1 {
-			return fmt.Errorf(StatCacheMaxSizeMBInvalidValueError)
-		}
-		if metadataCacheConfig.StatCacheMaxSizeMB > int64(MaxSupportedStatCacheMaxSizeMB) {
-			return fmt.Errorf(StatCacheMaxSizeMBTooHighError)
-		}
-	}
-	return nil
 }
 
 func (grpcClientConfig *GCSConnection) validate() error {
@@ -112,10 +80,6 @@ func ParseConfigFile(fileName string) (mountConfig *MountConfig, err error) {
 	if !IsValidLogSeverity(mountConfig.LogConfig.Severity) {
 		err = fmt.Errorf("error parsing config file: log severity should be one of [trace, debug, info, warning, error, off]")
 		return
-	}
-
-	if err = mountConfig.MetadataCacheConfig.validate(); err != nil {
-		return mountConfig, fmt.Errorf("error parsing metadata-cache configs: %w", err)
 	}
 
 	if err = mountConfig.GCSConnection.validate(); err != nil {

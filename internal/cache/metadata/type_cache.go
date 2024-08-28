@@ -134,7 +134,7 @@ type typeCache struct {
 // When insertion of next entry would cause size of cache > maxSizeMB,
 // older entries are evicted according to the LRU-policy.
 // If either of TTL or maxSizeMB is zero, nothing is ever cached.
-func NewTypeCache(maxSizeMB int, ttl time.Duration) TypeCache {
+func NewTypeCache(maxSizeMB int64, ttl time.Duration) TypeCache {
 	if ttl > 0 && maxSizeMB != 0 {
 		var lruSizeInBytesToUse uint64 = math.MaxUint64 // default for when maxSizeMB = -1
 		if maxSizeMB > 0 {

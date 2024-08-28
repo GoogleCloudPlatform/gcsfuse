@@ -22,10 +22,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -98,7 +98,7 @@ func (t *DirTest) resetInode(implicitDirs, enableNonexistentTypeCache, enableMan
 	t.resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing, config.DefaultTypeCacheMaxSizeMB, typeCacheTTL)
 }
 
-func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing bool, typeCacheMaxSizeMB int, typeCacheTTL time.Duration) {
+func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing bool, typeCacheMaxSizeMB int64, typeCacheTTL time.Duration) {
 	if t.in != nil {
 		t.in.Unlock()
 	}
@@ -677,7 +677,7 @@ func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsEnabled() {
 
 func (t *DirTest) LookUpChild_TypeCacheEnabled() {
 	inputs := []struct {
-		typeCacheMaxSizeMB int
+		typeCacheMaxSizeMB int64
 		typeCacheTTL       time.Duration
 	}{{
 		typeCacheMaxSizeMB: config.DefaultTypeCacheMaxSizeMB,
@@ -710,7 +710,7 @@ func (t *DirTest) LookUpChild_TypeCacheEnabled() {
 
 func (t *DirTest) LookUpChild_TypeCacheDisabled() {
 	inputs := []struct {
-		typeCacheMaxSizeMB int
+		typeCacheMaxSizeMB int64
 		typeCacheTTL       time.Duration
 	}{{
 		typeCacheMaxSizeMB: 0,

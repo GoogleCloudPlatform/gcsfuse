@@ -17,6 +17,8 @@ package cfg
 import (
 	"math"
 	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 )
 
 const (
@@ -45,7 +47,37 @@ const (
 )
 
 const (
-	// MaxSupportedTTLInSeconds represents maximum multiple of seconds representable by time.Duration.
-	MaxSupportedTTLInSeconds = math.MaxInt64 / int64(time.Second)
-	maxSupportedTTL          = time.Duration(MaxSupportedTTLInSeconds * int64(time.Second))
+	// maxSupportedTTLInSeconds represents maximum multiple of seconds representable by time.Duration.
+	maxSupportedTTLInSeconds = math.MaxInt64 / int64(time.Second)
+	maxSupportedTTL          = time.Duration(maxSupportedTTLInSeconds * int64(time.Second))
+)
+
+const (
+	// TtlInSecsUnsetSentinel is the value internally
+	// set for metada-cache:ttl-secs
+	// when it is not set in the gcsfuse mount config file.
+	// The constant value has been chosen deliberately
+	// to be improbable for a user to explicitly set.
+	TtlInSecsUnsetSentinel = math.MinInt64
+	// StatCacheMaxSizeMBUnsetSentinel is the value internally set for
+	// metadata-cache:stat-cache-max-size-mb when it is not set in the gcsfuse
+	// mount config file.
+	StatCacheMaxSizeMBUnsetSentinel = math.MinInt64
+	// AverageSizeOfPositiveStatCacheEntry is the assumed size of each positive stat-cache-entry,
+	// meant for two purposes.
+	// 1. for conversion from stat-cache-capacity to stat-cache-max-size-mb.
+	// 2. internal testing.
+	AverageSizeOfPositiveStatCacheEntry uint64 = 1400
+	// AverageSizeOfNegativeStatCacheEntry is the assumed size of each negative stat-cache-entry,
+	// meant for two purposes.
+	// 1. for conversion from stat-cache-capacity to stat-cache-max-size-mb.
+	// 2. internal testing.
+	AverageSizeOfNegativeStatCacheEntry uint64 = 240
+	// MetadataCacheTTLConfigKey is the Viper configuration key for the metadata
+	//cache's time-to-live (TTL) in seconds.
+	MetadataCacheTTLConfigKey = "metadata-cache.ttl-secs"
+	// StatCacheMaxSizeConfigKey is the Viper configuration key for the maximum
+	//size of the metadata stat cache in megabytes.
+	StatCacheMaxSizeConfigKey      = "metadata-cache.stat-cache-max-size-mb"
+	maxSupportedStatCacheMaxSizeMB = util.MaxMiBsInUint64
 )

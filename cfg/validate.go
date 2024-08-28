@@ -94,7 +94,7 @@ func isTTLInSecsValid(secs int64) error {
 	if secs < -1 {
 		return fmt.Errorf("the value of ttl-secs can't be less than -1")
 	}
-	if secs > MaxSupportedTTLInSeconds {
+	if secs > maxSupportedTTLInSeconds {
 		return fmt.Errorf("the value of ttl-secs is too high to be supported. Max is 9223372036")
 	}
 	return nil
@@ -107,8 +107,42 @@ func isValidKernelListCacheTTL(TTLSecs int64) error {
 	return nil
 }
 
+func isValidMetadataCache(v isSet, c *MetadataCacheConfig) error {
+	// Validate ttl-secs.
+	if v.IsSet(MetadataCacheTTLConfigKey) {
+		if c.TtlSecs < -1 {
+			return fmt.Errorf("the value of ttl-secs for metadata-cache can't be less than -1")
+		}
+		if c.TtlSecs > maxSupportedTTLInSeconds {
+			return fmt.Errorf("the value of ttl-secs in metadata-cache is too high to be supported. Max is 9223372036")
+		}
+	}
+
+	// Validate type-cache-max-size-mb.
+	if c.TypeCacheMaxSizeMb < -1 {
+		return fmt.Errorf("the value of type-cache-max-size-mb for metadata-cache can't be less than -1")
+	}
+
+	// Validate stat-cache-max-size-mb.
+	if v.IsSet(StatCacheMaxSizeConfigKey) {
+		if c.StatCacheMaxSizeMb < -1 {
+			return fmt.Errorf("the value of stat-cache-max-size-mb for metadata-cache can't be less than -1")
+		}
+		if c.StatCacheMaxSizeMb > int64(maxSupportedStatCacheMaxSizeMB) {
+			return fmt.Errorf("the value of stat-cache-max-size-mb for metadata-cache is too high! Max supported: 17592186044415")
+		}
+	}
+
+	// [Deprecated] Validate stat-cache-capacity.
+	if c.DeprecatedStatCacheCapacity < 0 {
+		return fmt.Errorf("invalid value of stat-cache-capacity (%v), can't be less than 0", c.DeprecatedStatCacheCapacity)
+	}
+
+	return nil
+}
+
 // ValidateConfig returns a non-nil error if the config is invalid.
-func ValidateConfig(config *Config) error {
+func ValidateConfig(v isSet, config *Config) error {
 	var err error
 
 	if err = isValidLogRotateConfig(&config.Logging.LogRotate); err != nil {
@@ -137,6 +171,10 @@ func ValidateConfig(config *Config) error {
 
 	if err = isValidKernelListCacheTTL(config.FileSystem.KernelListCacheTtlSecs); err != nil {
 		return fmt.Errorf("error parsing kernel-list-cache-ttl-secs config: %w", err)
+	}
+
+	if err = isValidMetadataCache(v, &config.MetadataCache); err != nil {
+		return fmt.Errorf("error parsing metadata-cache config: %w", err)
 	}
 
 	return nil

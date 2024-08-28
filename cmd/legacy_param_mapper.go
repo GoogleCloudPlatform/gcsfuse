@@ -153,10 +153,10 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 	overrideWithFlag(c, "max-retry-attempts", &resolvedConfig.GcsRetries.MaxRetryAttempts, maxRetryAttempts)
 	overrideWithFlag(c, "prometheus-port", &resolvedConfig.Metrics.PrometheusPort, prometheusPort)
 
-	if err := cfg.ValidateConfig(resolvedConfig); err != nil {
+	if err := cfg.ValidateConfig(&isSet{resolvedConfig}, resolvedConfig); err != nil {
 		return nil, fmt.Errorf("cfg.ValidateConfig: %w", err)
 	}
-	if err := cfg.Rationalize(resolvedConfig); err != nil {
+	if err := cfg.Rationalize(&isSet{resolvedConfig}, resolvedConfig); err != nil {
 		return nil, fmt.Errorf("cfg.Rationalize: %w", err)
 	}
 	return resolvedConfig, nil
@@ -169,4 +169,20 @@ func overrideWithFlag[T any](c cliContext, flag string, toUpdate *T, updateValue
 		return
 	}
 	*toUpdate = updateValue
+}
+
+// isSet is used to check if configs are explicitly set in the deprecated
+// config file.
+type isSet struct {
+	config *cfg.Config
+}
+
+func (i *isSet) IsSet(flag string) bool {
+	switch flag {
+	case cfg.MetadataCacheTTLConfigKey:
+		return i.config.MetadataCache.TtlSecs != cfg.TtlInSecsUnsetSentinel
+	case cfg.StatCacheMaxSizeConfigKey:
+		return i.config.MetadataCache.StatCacheMaxSizeMb != cfg.StatCacheMaxSizeMBUnsetSentinel
+	}
+	return false
 }

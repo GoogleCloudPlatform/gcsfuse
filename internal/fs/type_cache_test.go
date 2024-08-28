@@ -27,10 +27,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	gcsfusefs "github.com/googlecloudplatform/gcsfuse/v2/internal/fs"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
@@ -68,7 +67,7 @@ var (
 	ttlInSeconds int64
 
 	// typeCacheMaxSizeMb is equivalent of metadata-cache:type-cache-max-entries in config-file.
-	typeCacheMaxSizeMb int
+	typeCacheMaxSizeMb int64
 
 	contentInBytes []byte
 
@@ -77,20 +76,23 @@ var (
 )
 
 func (t *typeCacheTestCommon) SetUpTestSuite() {
-	t.serverCfg.MountConfig = config.NewMountConfig()
-	t.serverCfg.MountConfig.MetadataCacheConfig = config.MetadataCacheConfig{
-		TypeCacheMaxSizeMB: typeCacheMaxSizeMb,
-		TtlInSeconds:       ttlInSeconds,
+	t.serverCfg.NewConfig = &cfg.Config{
+		MetadataCache: cfg.MetadataCacheConfig{
+			TypeCacheMaxSizeMb: typeCacheMaxSizeMb,
+			TtlSecs:            ttlInSeconds,
+		},
 	}
 
 	// Fill server-cfg from mount-config.
-	func(mountConfig *config.MountConfig, serverCfg *gcsfusefs.ServerConfig) {
-		serverCfg.DirTypeCacheTTL = mount.ResolveMetadataCacheTTL(mount.DefaultStatOrTypeCacheTTL, mount.DefaultStatOrTypeCacheTTL,
-			mountConfig.TtlInSeconds)
+	func(newConfig *cfg.Config, serverCfg *gcsfusefs.ServerConfig) {
+		if newConfig.MetadataCache.TtlSecs == -1 {
+			newConfig.MetadataCache.TtlSecs = math.MaxInt64 / int64(time.Second) //maxSupportedTTLInSecs
+		}
+		serverCfg.DirTypeCacheTTL = time.Duration(newConfig.MetadataCache.TtlSecs) * time.Second
 		serverCfg.InodeAttributeCacheTTL = serverCfg.DirTypeCacheTTL
-		// We can add more logic here to fill other fileds in serverCfg
+		// We can add more logic here to fill other fields in serverCfg
 		// from mountConfig here as needed.
-	}(t.serverCfg.MountConfig, &t.serverCfg)
+	}(t.serverCfg.NewConfig, &t.serverCfg)
 
 	// Call through.
 	t.fsTest.SetUpTestSuite()
