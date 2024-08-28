@@ -63,9 +63,10 @@ run_ls_benchmark(){
 COMMON_MOUNT_FLAGS="--debug_fuse --debug_gcs --log-format \"text\""
 
 # Testing for flat bucket.
-LOG_FILE_FIO_TESTS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-flat.txt
+LOG_FILE_FIO_TESTS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-fio-flat.txt
+LOG_FILE_LS_TESTS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-ls-flat.txt
 GCSFUSE_FIO_FLAGS="--implicit-dirs --stackdriver-export-interval=30s --log-file $LOG_FILE_FIO_TESTS"
-GCSFUSE_LS_FLAGS="--implicit-dirs"
+GCSFUSE_LS_FLAGS="--implicit-dirs --log-file $LOG_FILE_LS_TESTS"
 BUCKET_NAME="periodic-perf-tests"
 SPREADSHEET_ID='1kvHv1OBCzr9GnFxRu9RTJC7jjQjc9M4rAiDnhyak2Sg'
 LIST_CONFIG_FILE="config.json"
@@ -76,9 +77,10 @@ run_ls_benchmark "$GCSFUSE_LS_FLAGS" "$SPREADSHEET_ID" "$LIST_CONFIG_FILE"
 echo "enable-hns: true
 metadata-cache:
   ttl-secs: 0" > /tmp/config.yml
-LOG_FILE_FIO_TESTS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-hns.txt
+LOG_FILE_FIO_TESTS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-fio-hns.txt
+LOG_FILE_LS_TESTS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-ls-hns.txt
 GCSFUSE_FIO_FLAGS="--config-file=/tmp/config.yml --stackdriver-export-interval=30s --log-file $LOG_FILE_FIO_TESTS"
-GCSFUSE_LS_FLAGS="--config-file=/tmp/config.yml"
+GCSFUSE_LS_FLAGS="--config-file=/tmp/config.yml --log-file $LOG_FILE_LS_TESTS"
 BUCKET_NAME="periodic-perf-tests-hns"
 SPREADSHEET_ID='1wXRGYyAWvasU8U4KaP7NGPHEvgiOSgMd1sCLxsQUwf0'
 LIST_CONFIG_FILE="config-hns.json"
