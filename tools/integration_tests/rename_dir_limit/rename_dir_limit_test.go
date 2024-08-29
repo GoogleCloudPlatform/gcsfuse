@@ -20,7 +20,6 @@ import (
 	"log"
 	"os"
 	"testing"
-	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
@@ -53,13 +52,11 @@ func TestMain(m *testing.M) {
 	var err error
 
 	ctx = context.Background()
-	ctx, cancel := context.WithTimeout(ctx, time.Minute*20)
 	storageClient, err = client.CreateStorageClient(ctx)
 	if err != nil {
 		log.Printf("Error creating storage client: %v\n", err)
 		os.Exit(1)
 	}
-	defer cancel()
 	defer storageClient.Close()
 
 	flags := [][]string{{"--rename-dir-limit=3", "--implicit-dirs"}, {"--rename-dir-limit=3"}}

@@ -36,9 +36,10 @@ const MaxReadableByteFromFile = 500 * OneMB
 const DirForReadLargeFilesTests = "dirForReadLargeFilesTests"
 
 var FiveHundredMBFile string = "fiveHundredMBFile" + setup.GenerateRandomString(5) + ".txt"
-
+var cacheDir string = "cache-dir"
+var cacheDirHNS string = "cache-dir-hns"
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
-	cacheDirPath := path.Join(os.Getenv("HOME"), "cache-dri")
+	cacheDirPath := path.Join(os.Getenv("HOME"), cacheDir)
 
 	// Set up config file for file cache with cache-file-for-range-read: false
 	mountConfig1 := map[string]interface{}{

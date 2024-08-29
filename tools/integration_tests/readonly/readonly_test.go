@@ -52,6 +52,8 @@ const RenameDir = "rename"
 var (
 	storageClient *storage.Client
 	ctx           context.Context
+	cacheDir      = "cache-dir-readonly"
+	cacheDirHNS   = "cache-dir-readonly-hns"
 )
 
 func createTestDataForReadOnlyTests(ctx context.Context, storageClient *storage.Client) {
@@ -93,7 +95,10 @@ func checkErrorForObjectNotExist(err error, t *testing.T) {
 }
 
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
-	cacheDirPath := path.Join(os.Getenv("HOME"), "cache-dir"+setup.GenerateRandomString(5))
+	cacheDirPath := path.Join(os.Getenv("HOME"), cacheDir)
+	if setup.IsHierarchicalBucket(ctx, storageClient) {
+		cacheDirPath = path.Join(os.Getenv("HOME"), cacheDirHNS)
+	}
 
 	// Set up config file for file cache.
 	mountConfig := map[string]interface{}{

@@ -67,7 +67,7 @@ const (
 	enableCrcCheck                         = true
 )
 
-var cacheDirName = "cache-dir" + setup.GenerateRandomString(5)
+var cacheDirName = "cache-dir"
 
 var (
 	testDirPath  string
@@ -149,6 +149,10 @@ func TestMain(m *testing.M) {
 			log.Fatalf("closeStorageClient failed: %v", err)
 		}
 	}()
+
+	if setup.IsHierarchicalBucket(ctx, storageClient){
+		cacheDirName = "cache-dir-hns"
+	}
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 

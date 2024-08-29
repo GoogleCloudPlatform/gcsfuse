@@ -88,8 +88,18 @@ const ContentInFileInDirThreeInCreateThreeLevelDirTest = "Hello world!!"
 const Content = "line 1\nline 2\n"
 const onlyDirMounted = "OnlyDirMountOperations"
 
+var (
+	cacheDir      = "cache-dir-operations"
+	cacheDirHNS   = "cache-dir-operations-hns"
+	storageClient *storage.Client
+	ctx           context.Context
+)
+
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
-	cacheDirPath := path.Join(os.Getenv("HOME"), "operations-cache-dir"+setup.GenerateRandomString(5))
+	cacheDirPath := path.Join(os.Getenv("HOME"), cacheDir)
+	if setup.IsHierarchicalBucket(ctx, storageClient) {
+		cacheDirPath = path.Join(os.Getenv("HOME"), cacheDirHNS)
+	}
 
 	// Set up config file with create-empty-file: true.
 	mountConfig1 := map[string]interface{}{
