@@ -153,7 +153,7 @@ func TestCacheFileForRangeReadFalseTest(t *testing.T) {
 			cacheFileForRangeRead:   false,
 			fileName:                configFileName,
 			enableParallelDownloads: false,
-			enableODirect:           true,
+			enableODirect:           false,
 			cacheDirPath:            getDefaultCacheDirPathForTests(),
 		},
 		{
@@ -162,7 +162,7 @@ func TestCacheFileForRangeReadFalseTest(t *testing.T) {
 			cacheFileForRangeRead:   false,
 			fileName:                configFileName,
 			enableParallelDownloads: false,
-			enableODirect:           true,
+			enableODirect:           false,
 			cacheDirPath:            ramCacheDir,
 		},
 	}
