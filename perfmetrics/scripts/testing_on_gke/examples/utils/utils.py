@@ -174,7 +174,7 @@ def resource_limits(nodeType: str) -> Tuple[dict, dict]:
     return {"cpu": 48, "memory": "192Gi"}, {"cpu": 45, "memory": "150Gi"}
   elif nodeType == "n2-standard-32":
     return {"cpu": 32, "memory": "128Gi"}, {"cpu": 30, "memory": "100Gi"}
-  elif nodeType == "c3-standard-176":
+  elif nodeType == "c3-standard-176" or nodeType == "c3-standard-176-lssd":
     return {"cpu": 176, "memory": "704Gi"}, {"cpu": 100, "memory": "400Gi"}
   else:
     raise UnknownMachineTypeError(
