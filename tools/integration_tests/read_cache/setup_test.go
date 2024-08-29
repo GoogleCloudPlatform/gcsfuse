@@ -87,7 +87,7 @@ type gcsfuseTestFlags struct {
 	cacheFileForRangeRead   bool
 	fileName                string
 	enableParallelDownloads bool
-	useODirect              bool
+	enableODirect           bool
 	cacheDirPath            string
 }
 
@@ -126,7 +126,7 @@ func createConfigFile(flags *gcsfuseTestFlags) string {
 			"max-parallel-downloads":      maxParallelDownloads,
 			"download-chunk-size-mb":      downloadChunkSizeMB,
 			"enable-crc":                  enableCrcCheck,
-			"use-o-direct":                flags.useODirect,
+			"enable-o-direct":             flags.enableODirect,
 		},
 		"cache-dir": cacheDirPath,
 	}

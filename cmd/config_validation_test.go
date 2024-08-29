@@ -61,7 +61,7 @@ func defaultFileCacheConfig(t *testing.T) cfg.FileCacheConfig {
 		MaxSizeMb:                -1,
 		ParallelDownloadsPerFile: 16,
 		WriteBufferSize:          4 * 1024 * 1024,
-		UseODirect:               false,
+		EnableODirect:            false,
 	}
 }
 
@@ -320,7 +320,7 @@ func TestValidateConfigFile_FileCacheConfigSuccessful(t *testing.T) {
 					MaxSizeMb:                40,
 					ParallelDownloadsPerFile: 10,
 					WriteBufferSize:          8192,
-					UseODirect:               true,
+					EnableODirect:            true,
 				},
 			},
 		},

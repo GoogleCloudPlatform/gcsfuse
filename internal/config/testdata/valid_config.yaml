@@ -18,7 +18,7 @@ file-cache:
   download-chunk-size-mb: 100
   enable-crc: false
   write-buffer-size: 8192
-  use-o-direct: false
+  enable-o-direct: false
 metadata-cache:
   ttl-secs: 5
   type-cache-max-size-mb: 1

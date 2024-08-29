@@ -329,15 +329,15 @@ function read_cache_test_setup() {
     local enable_range_read_cache=$2
     local cache_ttl=$3
     local enable_parallel_downloads=$4
-    local use_o_direct=$5
-    if [ -n "$disable_o_direct" ]; then
-      use_o_direct=false
+    local enable_o_direct=$5
+    if [ -n "$enable_o_direct" ]; then
+      enable_o_direct=false
     else
-      use_o_direct=true
+      enable_o_direct=true
     fi
 
     cleanup_test_environment
-    generate_config_file "$cache_size_mb" "$enable_range_read_cache" "$cache_ttl" "$enable_parallel_downloads" "$use_o_direct"
+    generate_config_file "$cache_size_mb" "$enable_range_read_cache" "$cache_ttl" "$enable_parallel_downloads" "$enable_o_direct"
 }
 
 function cleanup_test_environment() {

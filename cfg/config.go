@@ -78,6 +78,8 @@ type FileCacheConfig struct {
 
 	EnableCrc bool `yaml:"enable-crc,omitempty" json:"enable-crc,omitempty"`
 
+	EnableODirect bool `yaml:"enable-o-direct,omitempty" json:"enable-o-direct,omitempty"`
+
 	EnableParallelDownloads bool `yaml:"enable-parallel-downloads,omitempty" json:"enable-parallel-downloads,omitempty"`
 
 	MaxParallelDownloads int64 `yaml:"max-parallel-downloads,omitempty" json:"max-parallel-downloads,omitempty"`
@@ -85,8 +87,6 @@ type FileCacheConfig struct {
 	MaxSizeMb int64 `yaml:"max-size-mb,omitempty" json:"max-size-mb,omitempty"`
 
 	ParallelDownloadsPerFile int64 `yaml:"parallel-downloads-per-file,omitempty" json:"parallel-downloads-per-file,omitempty"`
-
-	UseODirect bool `yaml:"use-o-direct,omitempty" json:"use-o-direct,omitempty"`
 
 	WriteBufferSize int64 `yaml:"write-buffer-size,omitempty" json:"write-buffer-size,omitempty"`
 }
@@ -356,6 +356,16 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("enable-nonexistent-type-cache", "", false, "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType will be created. This also means new file/dir created might not be seen. For example, if this flag is set, and metadata-cache-ttl-secs is set, then if we create the same file/node in the meantime using the same mount, since we are not refreshing the cache, it will still return nil.")
 
 	if err := v.BindPFlag("metadata-cache.enable-nonexistent-type-cache", flagSet.Lookup("enable-nonexistent-type-cache")); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("enable-o-direct", "", false, "Whether to use O_DIRECT while writing to file-cache in case of parallel downloads.")
+
+	if err := flagSet.MarkHidden("enable-o-direct"); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-cache.enable-o-direct", flagSet.Lookup("enable-o-direct")); err != nil {
 		return err
 	}
 
@@ -660,16 +670,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	flagSet.IntP("uid", "", -1, "UID owner of all inodes.")
 
 	if err := v.BindPFlag("file-system.uid", flagSet.Lookup("uid")); err != nil {
-		return err
-	}
-
-	flagSet.BoolP("use-o-direct", "", false, "Whether to use O_DIRECT while writing to file-cache in case of parallel downloads.")
-
-	if err := flagSet.MarkHidden("use-o-direct"); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("file-cache.use-o-direct", flagSet.Lookup("use-o-direct")); err != nil {
 		return err
 	}
 

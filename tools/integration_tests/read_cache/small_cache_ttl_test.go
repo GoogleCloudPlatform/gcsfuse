@@ -127,7 +127,7 @@ func TestSmallCacheTTLTest(t *testing.T) {
 			cacheFileForRangeRead:   false,
 			fileName:                configFileName,
 			enableParallelDownloads: false,
-			useODirect:              false,
+			enableODirect:           false,
 			cacheDirPath:            getDefaultCacheDirPathForTests(),
 		},
 		{
@@ -136,7 +136,7 @@ func TestSmallCacheTTLTest(t *testing.T) {
 			cacheFileForRangeRead:   false,
 			fileName:                configFileNameForParallelDownloadTests,
 			enableParallelDownloads: true,
-			useODirect:              false,
+			enableODirect:           false,
 			cacheDirPath:            getDefaultCacheDirPathForTests(),
 		},
 	}

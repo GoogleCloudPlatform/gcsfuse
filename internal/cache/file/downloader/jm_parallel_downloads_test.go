@@ -99,7 +99,7 @@ func TestParallelDownloads(t *testing.T) {
 		maxParallelDownloads     int64
 		downloadOffset           int64
 		subscribedOffset         int64
-		useODirect               bool
+		enableODirect            bool
 	}{
 		{
 			name:                     "download the entire object when object size > no of goroutines * readReqSize",
@@ -109,7 +109,7 @@ func TestParallelDownloads(t *testing.T) {
 			maxParallelDownloads:     3,
 			subscribedOffset:         7,
 			downloadOffset:           10,
-			useODirect:               true,
+			enableODirect:            true,
 		},
 		{
 			name:                     "download only upto the object size",
@@ -119,7 +119,7 @@ func TestParallelDownloads(t *testing.T) {
 			maxParallelDownloads:     3,
 			subscribedOffset:         7,
 			downloadOffset:           10,
-			useODirect:               true,
+			enableODirect:            true,
 		},
 		{
 			name:                     "download the entire object with O_DIRECT disabled.",
@@ -129,7 +129,7 @@ func TestParallelDownloads(t *testing.T) {
 			maxParallelDownloads:     3,
 			subscribedOffset:         7,
 			downloadOffset:           10,
-			useODirect:               false,
+			enableODirect:            false,
 		},
 	}
 	for _, tc := range tbl {
@@ -146,7 +146,7 @@ func TestParallelDownloads(t *testing.T) {
 				DownloadChunkSizeMb:      tc.readReqSize, EnableCrc: true,
 				MaxParallelDownloads: tc.maxParallelDownloads,
 				WriteBufferSize:      4 * 1024 * 1024,
-				UseODirect:           tc.useODirect,
+				EnableODirect:        tc.enableODirect,
 			}
 			jm := NewJobManager(cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, 2, fileCacheConfig)
 			job := jm.CreateJobIfNotExists(&minObj, bucket)

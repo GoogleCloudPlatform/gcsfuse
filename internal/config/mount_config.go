@@ -38,7 +38,7 @@ const (
 	DefaultDownloadChunkSizeMB      = 50
 	DefaultParallelDownloadsPerFile = 16
 	DefaultWriteBufferSize          = int64(4 * util.MiB)
-	DefaultUseODirect               = false
+	DefaultEnableODirect            = false
 
 	// DefaultTypeCacheMaxSizeMB is the default value of type-cache max-size for every directory in MiBs.
 	// The value is set at the size needed for about 21k type-cache entries,
@@ -95,7 +95,7 @@ type FileCacheConfig struct {
 	DownloadChunkSizeMB      int   `yaml:"download-chunk-size-mb,omitempty"`
 	EnableCRC                bool  `yaml:"enable-crc"`
 	WriteBufferSize          int64 `yaml:"write-buffer-size,omitempty"`
-	UseODirect               bool  `yaml:"use-o-direct"`
+	EnableODirect            bool  `yaml:"enable-o-direct"`
 }
 
 type MetadataCacheConfig struct {
@@ -175,7 +175,7 @@ func NewMountConfig() *MountConfig {
 		DownloadChunkSizeMB:      DefaultDownloadChunkSizeMB,
 		EnableCRC:                DefaultEnableCRC,
 		WriteBufferSize:          DefaultWriteBufferSize,
-		UseODirect:               DefaultUseODirect,
+		EnableODirect:            DefaultEnableODirect,
 	}
 	mountConfig.MetadataCacheConfig = MetadataCacheConfig{
 		TtlInSeconds:       cfg.TtlInSecsUnsetSentinel,

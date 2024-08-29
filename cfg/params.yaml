@@ -95,6 +95,13 @@
   usage: "Performs CRC to ensure that file is correctly downloaded into cache."
   default: false
 
+- config-path: "file-cache.enable-o-direct"
+  flag-name: "enable-o-direct"
+  type: "bool"
+  usage: "Whether to use O_DIRECT while writing to file-cache in case of parallel downloads."
+  default: "false"
+  hide-flag: true
+
 - config-path: "file-cache.enable-parallel-downloads"
   flag-name: "enable-parallel-downloads"
   type: "bool"
@@ -118,13 +125,6 @@
   type: "int"
   usage: "Number of concurrent download requests per file."
   default: "16"
-
-- config-path: "file-cache.use-o-direct"
-  flag-name: "use-o-direct"
-  type: "bool"
-  usage: "Whether to use O_DIRECT while writing to file-cache in case of parallel downloads."
-  default: "false"
-  hide-flag: true
 
 - config-path: "file-cache.write-buffer-size"
   flag-name: "write-buffer-size"

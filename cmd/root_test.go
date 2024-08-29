@@ -240,7 +240,7 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 	}{
 		{
 			name: "Test file cache flags.",
-			args: []string{"gcsfuse", "--cache-file-for-range-read", "--download-chunk-size-mb=20", "--enable-crc", "--enable-parallel-downloads", "--max-parallel-downloads=40", "--file-cache-max-size-mb=100", "--parallel-downloads-per-file=2", "--use-o-direct=false", "abc", "pqr"},
+			args: []string{"gcsfuse", "--cache-file-for-range-read", "--download-chunk-size-mb=20", "--enable-crc", "--enable-parallel-downloads", "--max-parallel-downloads=40", "--file-cache-max-size-mb=100", "--parallel-downloads-per-file=2", "--enable-o-direct=false", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileCache: cfg.FileCacheConfig{
 					CacheFileForRangeRead:    true,
@@ -251,7 +251,7 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 					MaxSizeMb:                100,
 					ParallelDownloadsPerFile: 2,
 					WriteBufferSize:          4 * 1024 * 1024,
-					UseODirect:               false,
+					EnableODirect:            false,
 				},
 			},
 		},
@@ -268,7 +268,7 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 					MaxSizeMb:                -1,
 					ParallelDownloadsPerFile: 16,
 					WriteBufferSize:          4 * 1024 * 1024,
-					UseODirect:               false,
+					EnableODirect:            false,
 				},
 			},
 		},
