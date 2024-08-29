@@ -49,7 +49,7 @@ func validateDefaultConfig(t *testing.T, mountConfig *MountConfig) {
 	assert.Equal(t, 50, mountConfig.FileCacheConfig.DownloadChunkSizeMB)
 	assert.False(t, mountConfig.FileCacheConfig.EnableCRC)
 	assert.Equal(t, int64(4*1024*1024), mountConfig.FileCacheConfig.WriteBufferSize)
-	assert.Equal(t, true, mountConfig.FileCacheConfig.DisableODirect)
+	assert.Equal(t, false, mountConfig.FileCacheConfig.UseODirect)
 	assert.Equal(t, 1, mountConfig.GCSConnection.GRPCConnPoolSize)
 	assert.False(t, mountConfig.GCSAuth.AnonymousAccess)
 	assert.False(t, bool(mountConfig.EnableHNS))
@@ -134,7 +134,7 @@ func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 	assert.Equal(t.T(), 100, mountConfig.DownloadChunkSizeMB)
 	assert.False(t.T(), mountConfig.FileCacheConfig.EnableCRC)
 	assert.Equal(t.T(), int64(8192), mountConfig.FileCacheConfig.WriteBufferSize)
-	assert.Equal(t.T(), false, mountConfig.FileCacheConfig.DisableODirect)
+	assert.Equal(t.T(), false, mountConfig.FileCacheConfig.UseODirect)
 
 	// gcs-retries
 	assert.Equal(t.T(), int64(6), mountConfig.GCSRetries.MaxRetryAttempts)

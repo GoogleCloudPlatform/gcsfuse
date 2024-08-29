@@ -83,13 +83,6 @@
   usage: "Whether to cache file for range reads."
   default: false
 
-- config-path: "file-cache.disable-o-direct"
-  flag-name: "disable-o-direct"
-  type: "bool"
-  usage: "Whether to disable using O_DIRECT while writing to file-cache in case of parallel downloads."
-  default: "true"
-  hide-flag: true
-
 - config-path: "file-cache.download-chunk-size-mb"
   flag-name: "download-chunk-size-mb"
   type: "int"
@@ -125,6 +118,13 @@
   type: "int"
   usage: "Number of concurrent download requests per file."
   default: "16"
+
+- config-path: "file-cache.use-o-direct"
+  flag-name: "use-o-direct"
+  type: "bool"
+  usage: "Whether to use O_DIRECT while writing to file-cache in case of parallel downloads."
+  default: "false"
+  hide-flag: true
 
 - config-path: "file-cache.write-buffer-size"
   flag-name: "write-buffer-size"

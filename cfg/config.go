@@ -74,8 +74,6 @@ type DebugConfig struct {
 type FileCacheConfig struct {
 	CacheFileForRangeRead bool `yaml:"cache-file-for-range-read,omitempty" json:"cache-file-for-range-read,omitempty"`
 
-	DisableODirect bool `yaml:"disable-o-direct,omitempty" json:"disable-o-direct,omitempty"`
-
 	DownloadChunkSizeMb int64 `yaml:"download-chunk-size-mb,omitempty" json:"download-chunk-size-mb,omitempty"`
 
 	EnableCrc bool `yaml:"enable-crc,omitempty" json:"enable-crc,omitempty"`
@@ -87,6 +85,8 @@ type FileCacheConfig struct {
 	MaxSizeMb int64 `yaml:"max-size-mb,omitempty" json:"max-size-mb,omitempty"`
 
 	ParallelDownloadsPerFile int64 `yaml:"parallel-downloads-per-file,omitempty" json:"parallel-downloads-per-file,omitempty"`
+
+	UseODirect bool `yaml:"use-o-direct,omitempty" json:"use-o-direct,omitempty"`
 
 	WriteBufferSize int64 `yaml:"write-buffer-size,omitempty" json:"write-buffer-size,omitempty"`
 }
@@ -316,16 +316,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	flagSet.StringP("dir-mode", "", "0755", "Permissions bits for directories, in octal.")
 
 	if err := v.BindPFlag("file-system.dir-mode", flagSet.Lookup("dir-mode")); err != nil {
-		return err
-	}
-
-	flagSet.BoolP("disable-o-direct", "", true, "Whether to disable using O_DIRECT while writing to file-cache in case of parallel downloads.")
-
-	if err := flagSet.MarkHidden("disable-o-direct"); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("file-cache.disable-o-direct", flagSet.Lookup("disable-o-direct")); err != nil {
 		return err
 	}
 
@@ -670,6 +660,16 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	flagSet.IntP("uid", "", -1, "UID owner of all inodes.")
 
 	if err := v.BindPFlag("file-system.uid", flagSet.Lookup("uid")); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("use-o-direct", "", false, "Whether to use O_DIRECT while writing to file-cache in case of parallel downloads.")
+
+	if err := flagSet.MarkHidden("use-o-direct"); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-cache.use-o-direct", flagSet.Lookup("use-o-direct")); err != nil {
 		return err
 	}
 

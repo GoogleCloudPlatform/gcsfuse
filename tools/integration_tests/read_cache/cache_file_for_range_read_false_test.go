@@ -153,7 +153,7 @@ func TestCacheFileForRangeReadFalseTest(t *testing.T) {
 			cacheFileForRangeRead:   false,
 			fileName:                configFileName,
 			enableParallelDownloads: false,
-			disableODirect:          true,
+			useODirect:              true,
 			cacheDirPath:            getDefaultCacheDirPathForTests(),
 		},
 		{
@@ -162,7 +162,7 @@ func TestCacheFileForRangeReadFalseTest(t *testing.T) {
 			cacheFileForRangeRead:   false,
 			fileName:                configFileName,
 			enableParallelDownloads: false,
-			disableODirect:          true,
+			useODirect:              true,
 			cacheDirPath:            ramCacheDir,
 		},
 	}
@@ -184,7 +184,7 @@ func TestCacheFileForRangeReadFalseTest(t *testing.T) {
 			cacheFileForRangeRead:   false,
 			fileName:                configFileNameForParallelDownloadTests,
 			enableParallelDownloads: true,
-			disableODirect:          true,
+			useODirect:              false,
 			cacheDirPath:            getDefaultCacheDirPathForTests(),
 		},
 		{
@@ -193,7 +193,7 @@ func TestCacheFileForRangeReadFalseTest(t *testing.T) {
 			cacheFileForRangeRead:   false,
 			fileName:                configFileNameForParallelDownloadTests,
 			enableParallelDownloads: true,
-			disableODirect:          true,
+			useODirect:              false,
 			cacheDirPath:            ramCacheDir,
 		},
 		{
@@ -202,7 +202,7 @@ func TestCacheFileForRangeReadFalseTest(t *testing.T) {
 			cacheFileForRangeRead:   false,
 			fileName:                configFileNameForParallelDownloadTests,
 			enableParallelDownloads: true,
-			disableODirect:          false,
+			useODirect:              true,
 			cacheDirPath:            getDefaultCacheDirPathForTests(),
 		},
 		{
@@ -211,7 +211,7 @@ func TestCacheFileForRangeReadFalseTest(t *testing.T) {
 			cacheFileForRangeRead:   false,
 			fileName:                configFileNameForParallelDownloadTests,
 			enableParallelDownloads: true,
-			disableODirect:          false,
+			useODirect:              true,
 			cacheDirPath:            ramCacheDir,
 		},
 	}

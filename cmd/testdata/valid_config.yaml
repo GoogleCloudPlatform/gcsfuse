@@ -10,7 +10,7 @@ file-cache:
   max-size-mb: 40
   parallel-downloads-per-file: 10
   write-buffer-size: 8192
-  disable-o-direct: true
+  use-o-direct: true
 gcs-auth:
   anonymous-access: true
   key-file: "~/key.file"

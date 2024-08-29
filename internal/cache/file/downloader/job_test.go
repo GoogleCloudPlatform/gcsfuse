@@ -1046,7 +1046,7 @@ func (dt *downloaderTest) Test_createCacheFile_WhenParallelDownloads() {
 func (dt *downloaderTest) Test_createCacheFile_WhenParallelDownloadsEnabledAndODirectDisabled() {
 	//Arrange - initJobTest is being called in setup of downloader.go
 	dt.job.fileCacheConfig.EnableParallelDownloads = true
-	dt.job.fileCacheConfig.DisableODirect = true
+	dt.job.fileCacheConfig.UseODirect = false
 
 	cacheFile, err := dt.job.createCacheFile()
 

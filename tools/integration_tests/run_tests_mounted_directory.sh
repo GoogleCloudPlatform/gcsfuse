@@ -329,15 +329,15 @@ function read_cache_test_setup() {
     local enable_range_read_cache=$2
     local cache_ttl=$3
     local enable_parallel_downloads=$4
-    local disable_o_direct=$5
+    local use_o_direct=$5
     if [ -n "$disable_o_direct" ]; then
-      disable_o_direct=true
+      use_o_direct=false
     else
-      disable_o_direct=false
+      use_o_direct=true
     fi
 
     cleanup_test_environment
-    generate_config_file "$cache_size_mb" "$enable_range_read_cache" "$cache_ttl" "$enable_parallel_downloads" "$disable_o_direct"
+    generate_config_file "$cache_size_mb" "$enable_range_read_cache" "$cache_ttl" "$enable_parallel_downloads" "$use_o_direct"
 }
 
 function cleanup_test_environment() {
@@ -398,8 +398,8 @@ done
 # 2. With enabled parallel downloads.
 read_cache_test_setup 50 false 3600 true
 run_read_cache_test "${test_cases[0]}"
-# 3. With enabled parallel downloads and disabled O_DIRECT
-read_cache_test_setup 50 false 3600 true false
+# 3. With enabled parallel downloads and enabled O_DIRECT
+read_cache_test_setup 50 false 3600 true true
 run_read_cache_test "${test_cases[0]}"
 
 # Read-cache test with cache-file-for-range-read:true.
@@ -410,8 +410,8 @@ run_read_cache_test "$test_case"
 # 2. With enabled parallel downloads.
 read_cache_test_setup 50 true 3600 true
 run_read_cache_test "$test_case"
-# 3. With enabled parallel downloads and disabled O_DIRECT
-read_cache_test_setup 50 true 3600 true false
+# 3. With enabled parallel downloads and enabled O_DIRECT
+read_cache_test_setup 50 true 3600 true true
 run_read_cache_test "$test_case"
 
 # Read-cache test with disabled cache ttl.
