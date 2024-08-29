@@ -1,6 +1,6 @@
 {
   "name": "list-benchmark-tests-hns" ,
-  "num_folders": 11 ,
+  "num_folders": 12 ,
   "folders": [
     {
       "name": "1KB_1000files_0subdir" ,
@@ -65,6 +65,12 @@
     {
       "name": "1KB_200000files_0subdir" ,
       "num_files": 200000 ,
+      "file_name_prefix": "file" ,
+      "file_size": "1kb"
+    },
+    {
+      "name": "1KB_1000000files_0subdir" ,
+      "num_files": 1000000 ,
       "file_name_prefix": "file" ,
       "file_size": "1kb"
     }
