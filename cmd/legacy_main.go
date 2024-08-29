@@ -35,7 +35,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/perf"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
@@ -473,11 +472,6 @@ func run() (err error) {
 }
 
 func ExecuteLegacyMain() {
-	// Set up profiling handlers.
-	go perf.HandleCPUProfileSignals()
-	go perf.HandleMemoryProfileSignals()
-
-	// Run.
 	err := run()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)

@@ -26,6 +26,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cmd"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/perf"
 )
 
 func logPanic() {
@@ -67,6 +68,9 @@ func main() {
 	defer logPanic()
 	// Make logging output better.
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
+	// Set up profiling handlers.
+	go perf.HandleCPUProfileSignals()
+	go perf.HandleMemoryProfileSignals()
 	if strings.ToLower(os.Getenv("ENABLE_GCSFUSE_VIPER_CONFIG")) == "true" {
 		// TODO: implement the mount logic instead of simply returning nil.
 		rootCmd, err := cmd.NewRootCmd(cmd.Mount)
