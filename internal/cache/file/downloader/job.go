@@ -402,7 +402,7 @@ func (job *Job) createCacheFile() (*os.File, error) {
 // Acquires and releases LOCK(job.mu)
 func (job *Job) downloadObjectAsync() {
 	// Cleanup the async job in all cases - completion/failure/invalidation.
-	defer job.cleanUpDownloadAsyncJob()
+	//defer job.cleanUpDownloadAsyncJob()
 
 	cacheFile, err := job.createCacheFile()
 	if err != nil {
