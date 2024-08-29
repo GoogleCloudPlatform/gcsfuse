@@ -63,6 +63,11 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 	monitor.CaptureGCSReadMetrics(ctx, util.Parallel, end-start)
 
 	go func() {
+		dupCacheFile, err := os.OpenFile(job.fileSpec.Path, os.O_RDWR, 0600)
+		defer func() {
+			_ = dupCacheFile.Close()
+		}()
+		dstWriter = io.NewOffsetWriter(dupCacheFile, start)
 		// Use of memory aligned buffer is not required if use of O_DIRECT is disabled.
 		if job.fileCacheConfig.DisableODirect {
 			_, err = io.CopyN(dstWriter, newReader, end-start)
