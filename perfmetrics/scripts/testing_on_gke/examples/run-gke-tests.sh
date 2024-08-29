@@ -227,14 +227,14 @@ function installDependencies() {
   # Ensure that realpath is installed.
   which realpath
   # Ensure that make is installed.
-  which make || sudo apt-get install -y make time
+  which make || ( sudo apt-get install -y make time && which make )
   # Ensure that go is installed.
   which go || (version=1.22.4 && wget -O go_tar.tar.gz https://go.dev/dl/go${version}.linux-amd64.tar.gz 1>/dev/null && sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz 1>/dev/null && sudo mv go /usr/local && echo $PATH && export PATH=$PATH:/usr/local/go/bin && echo $PATH && echo 'export PATH=$PATH:/usr/local/go/bin'>>~/.bashrc && go version)
   # for some reason, the above is unable to update the value of $PATH, so doing it explicitly below.
   export PATH=$PATH:/usr/local/go/bin
   which go
   # Ensure that python3 is installed.
-  which python3 || sudo apt-get install -y python3
+  which python3 || ( sudo apt-get install -y python3 && which python3 )
   # Install more python tools.
   sudo apt-get -y install python3-dev python3-venv python3-pip
   # Enable python virtual environment.
@@ -262,10 +262,11 @@ function installDependencies() {
     sudo apt-get update
     sudo apt-get install -y google-cloud-cli
     # install kubectl
-    (gcloud components install kubectl && kubectl version --client) || (sudo apt-get update && sudo apt-get install -y kubectl && kubectl version --client)
+    gcloud components install kubectl || sudo apt-get install -y kubectl
+    kubectl version --client
   fi
   # Ensure that gke-gcloud-auth-plugin is installed.
-  gke-gcloud-auth-plugin --version || (gcloud components install gke-gcloud-auth-plugin && gke-gcloud-auth-plugin --version) || (sudo apt-get install -y google-cloud-cli-gke-gcloud-auth-plugin && gke-gcloud-auth-plugin --version)
+  gke-gcloud-auth-plugin --version || ((gcloud components install gke-gcloud-auth-plugin || sudo apt-get install -y google-cloud-cli-gke-gcloud-auth-plugin) && gke-gcloud-auth-plugin --version)
   # Ensure that docker is installed.
   if ! which docker ; then
     sudo apt install apt-transport-https ca-certificates curl software-properties-common -y
@@ -286,6 +287,8 @@ function installDependencies() {
   pip install --upgrade google-cloud-monitoring
   # Ensure that jq is installed.
   which jq || sudo apt-get install -y jq
+  # # Ensure sudoless docker is installed.
+  # docker ps >/dev/null || (sudo addgroup docker && sudo usermod -aG docker $USER && newgrp docker)
 }
 
 # Make sure you have access to the necessary GCP resources. The easiest way to enable it is to use <your-ldap>@google.com as active auth.
