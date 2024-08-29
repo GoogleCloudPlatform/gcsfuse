@@ -12,3 +12,9 @@ TestParallelDiropsTestSuite/TestParallelReadDirs
 
 # b/362686470
 RandomReaderTest.Test_ReadAt_CacheMissDueToInvalidJob
+
+# b/362905593
+TestParallelDiropsWithoutCachesTestSuite/TestParallelReadDirsForDifferentDirs
+
+# b/362906103
+TestParallelDiropsWithoutCachesTestSuite/TestParallelReadDirs
