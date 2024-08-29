@@ -95,7 +95,7 @@ var (
 )
 
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
-	cacheDirPath := path.Join(os.Getenv("HOME"), cacheDir)
+	cacheDirPath := path.Join(os.TempDir(), cacheDir)
 
 	// Set up config file with create-empty-file: true.
 	mountConfig1 := map[string]interface{}{
@@ -143,15 +143,14 @@ func TestMain(m *testing.M) {
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
 	// Create storage client before running tests.
-	ctx := context.Background()
-	var storageClient *storage.Client
-	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
-	defer func() {
-		err := closeStorageClient()
-		if err != nil {
-			log.Fatalf("closeStorageClient failed: %v", err)
-		}
-	}()
+	var err error
+	ctx = context.Background()
+	storageClient, err = client.CreateStorageClient(ctx)
+	if err != nil {
+		log.Printf("Error creating storage client: %v\n", err)
+		os.Exit(1)
+	}
+	defer storageClient.Close()
 
 	if setup.IsHierarchicalBucket(ctx, storageClient) {
 		cacheDir = "cache-dir-operations-hns"

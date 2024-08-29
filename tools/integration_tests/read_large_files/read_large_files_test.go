@@ -46,7 +46,7 @@ var (
 )
 
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
-	cacheDirPath := path.Join(os.Getenv("HOME"), cacheDir)
+	cacheDirPath := path.Join(os.TempDir(), cacheDir)
 
 	// Set up config file for file cache with cache-file-for-range-read: false
 	mountConfig1 := map[string]interface{}{
