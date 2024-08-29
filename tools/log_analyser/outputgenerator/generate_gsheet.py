@@ -21,7 +21,7 @@ def get_top_file_gcscalls_stats(global_data, call_type):
     top_file_num = []
     top_files = []
     if call_type == "GCS":
-        call_len = 8
+        call_len = 12
     else:
         call_len = 10
     for i in range(call_len):
