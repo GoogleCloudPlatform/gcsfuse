@@ -22,10 +22,12 @@ import (
 	"syscall"
 
 	"cloud.google.com/go/storage"
+	"github.com/googleapis/gax-go/v2/apierror"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"google.golang.org/api/googleapi"
+	"google.golang.org/grpc/codes"
 )
 
 var (
@@ -48,8 +50,7 @@ func errno(err error) error {
 		return syscall.EINTR
 	}
 
-	// The control client API returns an RPC error code instead of googleapi code.
-	if errors.Is(err, storage.ErrObjectNotExist) || strings.Contains(err.Error(), "NotFound") {
+	if errors.Is(err, storage.ErrObjectNotExist) {
 		return syscall.ENOENT
 	}
 
@@ -59,16 +60,28 @@ func errno(err error) error {
 	}
 
 	// Cannot authenticate or Permission denied.
-	// The control client API returns an RPC error code instead of googleapi code.
-	if strings.Contains(err.Error(), "oauth2: cannot fetch token") || strings.Contains(err.Error(), "PermissionDenied") {
+	if strings.Contains(err.Error(), "oauth2: cannot fetch token") {
 		return syscall.EACCES
 	}
 
-	// Translate API errors into an em errno
-	var apiErr *googleapi.Error
+	// The control client API returns an RPC error code instead of googleapi code.
+	var apiErr *apierror.APIError
 	if errors.As(err, &apiErr) {
-		switch apiErr.Code {
-		case http.StatusForbidden:
+		switch apiErr.GRPCStatus().Code() {
+		case codes.Canceled:
+			return syscall.EINTR
+		case codes.PermissionDenied, codes.Unauthenticated:
+			return syscall.EACCES
+		case codes.NotFound:
+			return syscall.ENOENT
+		}
+	}
+
+	// Translate API errors into an em errno
+	var googleApiErr *googleapi.Error
+	if errors.As(err, &googleApiErr) {
+		switch googleApiErr.Code {
+		case http.StatusForbidden, http.StatusUnauthorized:
 			return syscall.EACCES
 		case http.StatusNotFound:
 			return syscall.ENOENT
