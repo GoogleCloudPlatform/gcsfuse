@@ -24,8 +24,10 @@ import (
 	"github.com/spf13/viper"
 )
 
+type mountFn func(c *cfg.Config, bucketName, mountPoint string) error
+
 // NewRootCmd accepts the mountFn that it executes with the parsed configuration
-func NewRootCmd(mountFn func(*cfg.Config, string, string) error) (*cobra.Command, error) {
+func NewRootCmd(m mountFn) (*cobra.Command, error) {
 	var (
 		configObj cfg.Config
 		cfgFile   string
@@ -48,7 +50,7 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 			if err != nil {
 				return fmt.Errorf("error occurred while extracting the bucket and mountPoint: %w", err)
 			}
-			return mountFn(&configObj, bucket, mountPoint)
+			return m(&configObj, bucket, mountPoint)
 		},
 	}
 	initConfig := func() {
