@@ -86,7 +86,7 @@ func TestMain(m *testing.M) {
 	}
 	defer storageClient.Close()
 
-	if setup.IsHierarchicalBucket(ctx, storageClient){
+	if setup.IsHierarchicalBucket(ctx, storageClient) {
 		cacheDir = "cache-dir-read-large-files-hns"
 	}
 

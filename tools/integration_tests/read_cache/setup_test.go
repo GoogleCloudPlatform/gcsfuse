@@ -150,7 +150,7 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
-	if setup.IsHierarchicalBucket(ctx, storageClient){
+	if setup.IsHierarchicalBucket(ctx, storageClient) {
 		cacheDirName = "cache-dir-hns"
 	}
 
