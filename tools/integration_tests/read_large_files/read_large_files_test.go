@@ -78,8 +78,9 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
+	var err error
 	ctx = context.Background()
-	storageClient, err := client.CreateStorageClient(ctx)
+	storageClient, err = client.CreateStorageClient(ctx)
 	if err != nil {
 		log.Printf("Error creating storage client: %v\n", err)
 		os.Exit(1)
