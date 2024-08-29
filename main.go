@@ -71,17 +71,18 @@ func main() {
 	// Set up profiling handlers.
 	go perf.HandleCPUProfileSignals()
 	go perf.HandleMemoryProfileSignals()
-	if strings.ToLower(os.Getenv("ENABLE_GCSFUSE_VIPER_CONFIG")) == "true" {
-		// TODO: implement the mount logic instead of simply returning nil.
-		rootCmd, err := cmd.NewRootCmd(cmd.Mount)
-		if err != nil {
-			log.Fatalf("Error occurred while creating the root command: %v", err)
-		}
-		rootCmd.SetArgs(convertToPosixArgs(os.Args))
-		if err := rootCmd.Execute(); err != nil {
-			log.Fatalf("Error occurred during command execution: %v", err)
-		}
+	if strings.ToLower(os.Getenv("ENABLE_GCSFUSE_VIPER_CONFIG")) == "false" {
+		cmd.ExecuteLegacyMain()
 		return
 	}
-	cmd.ExecuteLegacyMain()
+
+	rootCmd, err := cmd.NewRootCmd(cmd.Mount)
+	if err != nil {
+		log.Fatalf("Error occurred while creating the root command: %v", err)
+	}
+	rootCmd.SetArgs(convertToPosixArgs(os.Args))
+	if err := rootCmd.Execute(); err != nil {
+		log.Fatalf("Error occurred during command execution: %v", err)
+	}
+
 }
