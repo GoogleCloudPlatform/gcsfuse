@@ -16,12 +16,15 @@
 package read_large_files
 
 import (
+	"context"
 	"log"
 	"os"
 	"path"
 	"strconv"
 	"testing"
 
+	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
@@ -35,9 +38,13 @@ const MinReadableByteFromFile = 0
 const MaxReadableByteFromFile = 500 * OneMB
 const DirForReadLargeFilesTests = "dirForReadLargeFilesTests"
 
-var FiveHundredMBFile string = "fiveHundredMBFile" + setup.GenerateRandomString(5) + ".txt"
-var cacheDir string = "cache-dir"
-var cacheDirHNS string = "cache-dir-hns"
+var (
+	storageClient     *storage.Client
+	ctx               context.Context
+	FiveHundredMBFile = "fiveHundredMBFile" + setup.GenerateRandomString(5) + ".txt"
+	cacheDir          = "cache-dir-read-large-files"
+)
+
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 	cacheDirPath := path.Join(os.Getenv("HOME"), cacheDir)
 
@@ -70,6 +77,18 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
+
+	ctx = context.Background()
+	storageClient, err := client.CreateStorageClient(ctx)
+	if err != nil {
+		log.Printf("Error creating storage client: %v\n", err)
+		os.Exit(1)
+	}
+	defer storageClient.Close()
+
+	if setup.IsHierarchicalBucket(ctx, storageClient){
+		cacheDir = "cache-dir-read-large-files-hns"
+	}
 
 	flags := [][]string{{"--implicit-dirs"}}
 	mountConfigFlags := createMountConfigsAndEquivalentFlags()

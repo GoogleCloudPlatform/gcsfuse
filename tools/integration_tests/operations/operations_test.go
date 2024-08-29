@@ -90,16 +90,12 @@ const onlyDirMounted = "OnlyDirMountOperations"
 
 var (
 	cacheDir      = "cache-dir-operations"
-	cacheDirHNS   = "cache-dir-operations-hns"
 	storageClient *storage.Client
 	ctx           context.Context
 )
 
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 	cacheDirPath := path.Join(os.Getenv("HOME"), cacheDir)
-	if setup.IsHierarchicalBucket(ctx, storageClient) {
-		cacheDirPath = path.Join(os.Getenv("HOME"), cacheDirHNS)
-	}
 
 	// Set up config file with create-empty-file: true.
 	mountConfig1 := map[string]interface{}{
@@ -156,6 +152,11 @@ func TestMain(m *testing.M) {
 			log.Fatalf("closeStorageClient failed: %v", err)
 		}
 	}()
+
+	if setup.IsHierarchicalBucket(ctx, storageClient) {
+		cacheDir = "cache-dir-operations-hns"
+	}
+
 	// To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	// flags to be set, as operations tests validates content from the bucket.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {

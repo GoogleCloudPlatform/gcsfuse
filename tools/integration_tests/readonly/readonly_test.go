@@ -22,7 +22,6 @@ import (
 	"path"
 	"strings"
 	"testing"
-	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
@@ -53,7 +52,6 @@ var (
 	storageClient *storage.Client
 	ctx           context.Context
 	cacheDir      = "cache-dir-readonly"
-	cacheDirHNS   = "cache-dir-readonly-hns"
 )
 
 func createTestDataForReadOnlyTests(ctx context.Context, storageClient *storage.Client) {
@@ -96,9 +94,6 @@ func checkErrorForObjectNotExist(err error, t *testing.T) {
 
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 	cacheDirPath := path.Join(os.Getenv("HOME"), cacheDir)
-	if setup.IsHierarchicalBucket(ctx, storageClient) {
-		cacheDirPath = path.Join(os.Getenv("HOME"), cacheDirHNS)
-	}
 
 	// Set up config file for file cache.
 	mountConfig := map[string]interface{}{
@@ -120,17 +115,16 @@ func TestMain(m *testing.M) {
 
 	var err error
 	ctx = context.Background()
-	var cancel context.CancelFunc
-
-	ctx, cancel = context.WithTimeout(ctx, time.Minute*20)
 	storageClient, err = client.CreateStorageClient(ctx)
 	if err != nil {
 		log.Printf("Error creating storage client: %v\n", err)
 		os.Exit(1)
 	}
-
-	defer cancel()
 	defer storageClient.Close()
+
+	if setup.IsHierarchicalBucket(ctx, storageClient){
+		cacheDir = "cache-dir-readonly-hns"
+	}
 
 	flags := [][]string{{"--o=ro", "--implicit-dirs=true"}, {"--file-mode=544", "--dir-mode=544", "--implicit-dirs=true"}}
 
