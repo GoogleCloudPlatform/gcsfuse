@@ -148,10 +148,11 @@ def _get_metric_filter(type, metric_type, instance, extra_filter):
         'ends_with("{instance_name}")').format(
             metric_type=metric_type, instance_name=instance)
   elif (type == 'agent'):
+    #TODO get the instance id using curl http://metadata.google.internal/computeMetadata/v1/instance/id -H Metadata-Flavor:Google
+    instance_id="id"
     metric_filter = (
-        'metric.type = "{metric_type}" AND metric.label.instance_name '
-        '={instance_name}').format(
-        metric_type=metric_type, instance_name=instance)
+        'metric.type = "{metric_type}" AND resource.labels.instance_id = "{instance_id}" ' ).format(
+        metric_type=metric_type, instance_name=instance_id)
 
   if (extra_filter == ''):
     return metric_filter
