@@ -65,6 +65,8 @@ func errno(err error) error {
 	}
 
 	// The control client API returns an RPC error code instead of googleapi code.
+	// Currently, we only have gRPC control client APIs, so we are checking the gRPC status code.
+	// TODO: Add a check for the HTTP status code when the HTTP client is initiated for control client APIs.
 	var apiErr *apierror.APIError
 	if errors.As(err, &apiErr) {
 		switch apiErr.GRPCStatus().Code() {
