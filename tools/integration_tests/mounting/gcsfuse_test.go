@@ -22,7 +22,6 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-
 	//"runtime"
 	"syscall"
 	"testing"
@@ -114,13 +113,13 @@ func (t *GcsfuseTest) BadUsage() {
 		// Too many args
 		0: {
 			[]string{canned.FakeBucketName, "a", "b"},
-			"gcsfuse takes one or two arguments.",
+			"Error: accepts between 2 and 3 arg\\(s\\), received 4",
 		},
 
 		// Unknown flag
 		1: {
 			[]string{"--tweak_frobnicator", canned.FakeBucketName, "a"},
-			"not defined.*tweak_frobnicator",
+			"unknown flag: --tweak_frobnicator",
 		},
 	}
 
