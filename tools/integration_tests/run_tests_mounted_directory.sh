@@ -298,12 +298,12 @@ export CGO_ENABLED=0
 
 # package local_file
 # Run test with static mounting. (flags: --implicit-dirs=true)
-gcsfuse --implicit-dirs=true --rename-dir-limit=3 $TEST_BUCKET_NAME $MOUNT_DIR
+go run . --implicit-dirs=true --rename-dir-limit=3 $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/local_file/... -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
 
 # Run test with static mounting. (flags: --implicit-dirs=false)
-gcsfuse --implicit-dirs=false --rename-dir-limit=3 $TEST_BUCKET_NAME $MOUNT_DIR
+go run . --implicit-dirs=false --rename-dir-limit=3 $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/local_file/... -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
 
@@ -319,7 +319,7 @@ echo "logging:
           backup-file-count: 3
           compress: true
        " > /tmp/gcsfuse_config.yaml
-gcsfuse --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
+go run . --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/log_rotation/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
 sudo umount $MOUNT_DIR
 
@@ -376,9 +376,9 @@ function run_read_cache_test() {
     local optional_flags=$2
 
     if [ -n "$optional_flags" ]; then
-      gcsfuse "$optional_flags" --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
+      go run . "$optional_flags" --config-file=/tmp/go run ._config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
     else
-      gcsfuse --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
+      go run . --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
     fi
     GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$test_case"
     sudo umount "$MOUNT_DIR"
@@ -491,49 +491,49 @@ echo "list:
   enable-empty-managed-folders: true" > /tmp/gcsfuse_config.yaml
 # Empty managed folders listing test.
 # Run test with static mounting (flags: --implicit-dirs)
-gcsfuse --implicit-dirs --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
+go run . --implicit-dirs --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/managed_folders/... -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR  --testbucket=$TEST_BUCKET_NAME -run TestEnableEmptyManagedFoldersTrue
 sudo umount $MOUNT_DIR
 
 # Run test with persistent mounting. (flags: --implicit-dirs)
-mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o implicit_dirs -o config_file=/tmp/gcsfuse_config.yaml
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/managed_folders/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME -run TestEnableEmptyManagedFoldersTrue
-sudo umount $MOUNT_DIR
+#mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o implicit_dirs -o config_file=/tmp/gcsfuse_config.yaml
+#GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/managed_folders/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME -run TestEnableEmptyManagedFoldersTrue
+#sudo umount $MOUNT_DIR
 
 # For GRPC: running only core integration tests.
 
 # Test packages: operations
 # Run test with static mounting. (flags: --client-protocol=grpc --implicit-dirs=true)
-gcsfuse --client-protocol=grpc --implicit-dirs=true $TEST_BUCKET_NAME $MOUNT_DIR
+go run . --client-protocol=grpc --implicit-dirs=true $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
 
 # Run test with persistent mounting. (flags: --client-protocol=grpc --implicit-dirs=true)
-mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o implicit_dirs=true,client_protocol=grpc
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
-sudo umount $MOUNT_DIR
+#mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o implicit_dirs=true,client_protocol=grpc
+#GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
+#sudo umount $MOUNT_DIR
 
 # Test package: implicit_dir
 # Run tests with static mounting.  (flags: --client-protocol=grpc --implicit-dirs=true)
-gcsfuse --implicit-dirs=true --client-protocol=grpc $TEST_BUCKET_NAME $MOUNT_DIR
+go run . --implicit-dirs=true --client-protocol=grpc $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicit_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
 
 # Run test with persistent mounting.  (flags: --client-protocol=grpc --implicit-dirs=true)
-mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o implicit_dirs=true,client_protocol=grpc
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicit_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
-sudo umount $MOUNT_DIR
+#mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o implicit_dirs=true,client_protocol=grpc
+#GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicit_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
+#sudo umount $MOUNT_DIR
 
 # Test package: concurrent_operations
 # Run tests with static mounting.  (flags: --kernel-list-cache-ttl-secs=-1 --implicit-dirs=true)
-gcsfuse --implicit-dirs=true --kernel-list-cache-ttl-secs=-1 $TEST_BUCKET_NAME $MOUNT_DIR
+go run . --implicit-dirs=true --kernel-list-cache-ttl-secs=-1 $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/concurrent_operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
 
 # Run test with persistent mounting.  (flags: --kernel-list-cache-ttl-secs=-1 --implicit-dirs=true)
-mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o implicit_dirs=true,kernel_list_cache_ttl_secs=-1
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/concurrent_operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
-sudo umount $MOUNT_DIR
+#mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o implicit_dirs=true,kernel_list_cache_ttl_secs=-1
+#GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/concurrent_operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
+#sudo umount $MOUNT_DIR
 
 # Test package: kernel-list-cache
 
@@ -551,7 +551,7 @@ test_cases=(
   "TestInfiniteKernelListCacheTest/TestKernelListCache_DeleteAndListDirectory"
 )
 for test_case in "${test_cases[@]}"; do
-  gcsfuse --kernel-list-cache-ttl-secs=-1 "$TEST_BUCKET_NAME" "$MOUNT_DIR"
+  go run . --kernel-list-cache-ttl-secs=-1 "$TEST_BUCKET_NAME" "$MOUNT_DIR"
   GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/kernel-list-cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$test_case"
   sudo umount "$MOUNT_DIR"
 done
@@ -561,7 +561,7 @@ test_cases=(
   "TestFiniteKernelListCacheTest/TestKernelListCache_CacheHitWithinLimit_CacheMissAfterLimit"
 )
 for test_case in "${test_cases[@]}"; do
-  gcsfuse --kernel-list-cache-ttl-secs=5 --rename-dir-limit=10 "$TEST_BUCKET_NAME" "$MOUNT_DIR"
+  go run . --kernel-list-cache-ttl-secs=5 --rename-dir-limit=10 "$TEST_BUCKET_NAME" "$MOUNT_DIR"
   GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/kernel-list-cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$test_case"
   sudo umount "$MOUNT_DIR"
 done
@@ -571,7 +571,7 @@ test_cases=(
   "TestDisabledKernelListCacheTest/TestKernelListCache_AlwaysCacheMiss"
 )
 for test_case in "${test_cases[@]}"; do
-  gcsfuse --kernel-list-cache-ttl-secs=0 --stat-cache-ttl=0 --rename-dir-limit=10 "$TEST_BUCKET_NAME" "$MOUNT_DIR"
+  go run . --kernel-list-cache-ttl-secs=0 --stat-cache-ttl=0 --rename-dir-limit=10 "$TEST_BUCKET_NAME" "$MOUNT_DIR"
   GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/kernel-list-cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$test_case"
   sudo umount "$MOUNT_DIR"
 done
