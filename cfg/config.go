@@ -74,11 +74,11 @@ type DebugConfig struct {
 type FileCacheConfig struct {
 	CacheFileForRangeRead bool `yaml:"cache-file-for-range-read,omitempty" json:"cache-file-for-range-read,omitempty"`
 
-	DisableODirect bool `yaml:"disable-o-direct,omitempty" json:"disable-o-direct,omitempty"`
-
 	DownloadChunkSizeMb int64 `yaml:"download-chunk-size-mb,omitempty" json:"download-chunk-size-mb,omitempty"`
 
 	EnableCrc bool `yaml:"enable-crc,omitempty" json:"enable-crc,omitempty"`
+
+	EnableODirect bool `yaml:"enable-o-direct,omitempty" json:"enable-o-direct,omitempty"`
 
 	EnableParallelDownloads bool `yaml:"enable-parallel-downloads,omitempty" json:"enable-parallel-downloads,omitempty"`
 
@@ -319,16 +319,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("disable-o-direct", "", true, "Whether to disable using O_DIRECT while writing to file-cache in case of parallel downloads.")
-
-	if err := flagSet.MarkHidden("disable-o-direct"); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("file-cache.disable-o-direct", flagSet.Lookup("disable-o-direct")); err != nil {
-		return err
-	}
-
 	flagSet.BoolP("disable-parallel-dirops", "", false, "Specifies whether to allow parallel dir operations (lookups and readers)")
 
 	if err := flagSet.MarkHidden("disable-parallel-dirops"); err != nil {
@@ -366,6 +356,16 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("enable-nonexistent-type-cache", "", false, "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType will be created. This also means new file/dir created might not be seen. For example, if this flag is set, and metadata-cache-ttl-secs is set, then if we create the same file/node in the meantime using the same mount, since we are not refreshing the cache, it will still return nil.")
 
 	if err := v.BindPFlag("metadata-cache.enable-nonexistent-type-cache", flagSet.Lookup("enable-nonexistent-type-cache")); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("enable-o-direct", "", false, "Whether to use O_DIRECT while writing to file-cache in case of parallel downloads.")
+
+	if err := flagSet.MarkHidden("enable-o-direct"); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-cache.enable-o-direct", flagSet.Lookup("enable-o-direct")); err != nil {
 		return err
 	}
 

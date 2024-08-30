@@ -138,7 +138,7 @@ func TestRemountTest(t *testing.T) {
 			cacheFileForRangeRead:   false,
 			fileName:                configFileName,
 			enableParallelDownloads: false,
-			disableODirect:          true,
+			enableODirect:           false,
 			cacheDirPath:            getDefaultCacheDirPathForTests(),
 		},
 		{
@@ -147,7 +147,7 @@ func TestRemountTest(t *testing.T) {
 			cacheFileForRangeRead:   false,
 			fileName:                configFileNameForParallelDownloadTests,
 			enableParallelDownloads: true,
-			disableODirect:          true,
+			enableODirect:           false,
 			cacheDirPath:            getDefaultCacheDirPathForTests(),
 		},
 	}
