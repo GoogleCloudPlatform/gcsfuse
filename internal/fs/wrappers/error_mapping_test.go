@@ -72,7 +72,7 @@ func (testSuite *ErrorMapping) TestUnAuthenticatedGrpcApiError() {
 	assert.Equal(testSuite.T(), syscall.EACCES, fsErr)
 }
 
-func (testSuite *ErrorMapping) TestUnAuthenticatedGoogleApiHttpError() {
+func (testSuite *ErrorMapping) TestUnAuthenticatedHttpGoogleApiError() {
 	googleApiError := &googleapi.Error{Code: http.StatusUnauthorized}
 	googleApiError.Wrap(fmt.Errorf("UnAuthenticated error"))
 
