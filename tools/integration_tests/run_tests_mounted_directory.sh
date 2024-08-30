@@ -342,8 +342,8 @@ function read_cache_test_setup() {
 
 function cleanup_test_environment() {
     # Clean up any pre-existing log files and cache directory.
-    rm -rf /tmp/gcsfuse_read_cache_test_logs /tmp/cache-dir
-    mkdir -p /tmp/gcsfuse_read_cache_test_logs /tmp/cache-dir
+    rm -rf /tmp/gcsfuse_read_cache_test_logs /tmp/cache-dir-read-cache-hns-false
+    mkdir -p /tmp/gcsfuse_read_cache_test_logs /tmp/cache-dir-read-cache-hns-false
 }
 
 function generate_config_file() {
