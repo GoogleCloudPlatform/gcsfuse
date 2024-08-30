@@ -376,7 +376,7 @@ function run_read_cache_test() {
     local optional_flags=$2
 
     if [ -n "$optional_flags" ]; then
-      go run . "$optional_flags" --config-file=/tmp/go run ._config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
+      go run . "$optional_flags" --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
     else
       go run . --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
     fi
