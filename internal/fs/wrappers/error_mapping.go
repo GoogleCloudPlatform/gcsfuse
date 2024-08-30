@@ -78,7 +78,6 @@ func errno(err error) error {
 			return syscall.ENOENT
 		}
 	}
-
 	// Translate API errors into an em errno
 	var googleApiErr *googleapi.Error
 	if errors.As(err, &googleApiErr) {
