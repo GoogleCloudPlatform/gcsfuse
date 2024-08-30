@@ -80,4 +80,3 @@ func (testSuite *ErrorMapping) TestUnAuthenticatedGoogleApiHttpError() {
 
 	assert.Equal(testSuite.T(), syscall.EACCES, fsErr)
 }
-
