@@ -30,7 +30,7 @@ sourceFileExtensions:
   - 'sh'
   - 'cfg'
 ignoreFiles:
-- 'cmd/testdata/**'
+  - 'cmd/testdata/**'
   - 'internal/config/testdata/*'
   - 'internal/storage/caching/mock_gcscaching/mock_stat_cache.go'
   - 'internal/storage/mock_bucket.go'
