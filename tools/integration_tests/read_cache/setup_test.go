@@ -19,6 +19,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strconv"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -67,10 +68,9 @@ const (
 	enableCrcCheck                         = true
 )
 
-var cacheDirName = "cache-dir"
-
 var (
 	testDirPath  string
+	cacheDirName string
 	cacheDirPath string
 	mountFunc    func([]string) error
 	// mount directory is where our tests run.
@@ -150,9 +150,7 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
-	if setup.IsHierarchicalBucket(ctx, storageClient) {
-		cacheDirName = "cache-dir-hns"
-	}
+	cacheDirName = "cache-dir-read-cache-hns-" + strconv.FormatBool(setup.IsHierarchicalBucket(ctx, storageClient))
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 

@@ -20,6 +20,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strconv"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -89,7 +90,7 @@ const Content = "line 1\nline 2\n"
 const onlyDirMounted = "OnlyDirMountOperations"
 
 var (
-	cacheDir      = "cache-dir-operations"
+	cacheDir      string
 	storageClient *storage.Client
 	ctx           context.Context
 )
@@ -152,9 +153,8 @@ func TestMain(m *testing.M) {
 	}
 	defer storageClient.Close()
 
-	if setup.IsHierarchicalBucket(ctx, storageClient) {
-		cacheDir = "cache-dir-operations-hns"
-	}
+	cacheDir = "cache-dir-operations-hns-" + strconv.FormatBool(setup.IsHierarchicalBucket(ctx, storageClient))
+
 
 	// To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	// flags to be set, as operations tests validates content from the bucket.

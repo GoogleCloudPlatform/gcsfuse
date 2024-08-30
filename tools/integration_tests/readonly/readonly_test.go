@@ -20,6 +20,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -51,7 +52,7 @@ const RenameDir = "rename"
 var (
 	storageClient *storage.Client
 	ctx           context.Context
-	cacheDir      = "cache-dir-readonly"
+	cacheDir      string
 )
 
 func createTestDataForReadOnlyTests(ctx context.Context, storageClient *storage.Client) {
@@ -122,9 +123,7 @@ func TestMain(m *testing.M) {
 	}
 	defer storageClient.Close()
 
-	if setup.IsHierarchicalBucket(ctx, storageClient) {
-		cacheDir = "cache-dir-readonly-hns"
-	}
+	cacheDir = "cache-dir-readonly-hns-" + strconv.FormatBool(setup.IsHierarchicalBucket(ctx, storageClient))
 
 	flags := [][]string{{"--o=ro", "--implicit-dirs=true"}, {"--file-mode=544", "--dir-mode=544", "--implicit-dirs=true"}}
 

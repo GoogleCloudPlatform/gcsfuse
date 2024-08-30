@@ -42,7 +42,7 @@ var (
 	storageClient     *storage.Client
 	ctx               context.Context
 	FiveHundredMBFile = "fiveHundredMBFile" + setup.GenerateRandomString(5) + ".txt"
-	cacheDir          = "cache-dir-read-large-files"
+	cacheDir          string
 )
 
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
@@ -86,10 +86,7 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 	defer storageClient.Close()
-
-	if setup.IsHierarchicalBucket(ctx, storageClient) {
-		cacheDir = "cache-dir-read-large-files-hns"
-	}
+	cacheDir = "cache-dir-read-large-files-hns-" + strconv.FormatBool(setup.IsHierarchicalBucket(ctx, storageClient))
 
 	flags := [][]string{{"--implicit-dirs"}}
 	mountConfigFlags := createMountConfigsAndEquivalentFlags()
