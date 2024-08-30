@@ -36,7 +36,7 @@ func TestWithErrorMapping(testSuite *testing.T) {
 	suite.Run(testSuite, new(ErrorMapping))
 }
 
-func (testSuite *ErrorMapping) TestPermissionDeniedApiError() {
+func (testSuite *ErrorMapping) TestPermissionDeniedGrpcApiError() {
 	statusErr := status.New(codes.PermissionDenied, "Permission denied")
 	apiError, _ := apierror.FromError(statusErr.Err())
 
@@ -45,7 +45,7 @@ func (testSuite *ErrorMapping) TestPermissionDeniedApiError() {
 	assert.Equal(testSuite.T(), syscall.EACCES, fsErr)
 }
 
-func (testSuite *ErrorMapping) TestNotFoundApiError() {
+func (testSuite *ErrorMapping) TestNotFoundGrpcApiError() {
 	statusErr := status.New(codes.NotFound, "Not found")
 	apiError, _ := apierror.FromError(statusErr.Err())
 
@@ -54,7 +54,7 @@ func (testSuite *ErrorMapping) TestNotFoundApiError() {
 	assert.Equal(testSuite.T(), syscall.ENOENT, fsErr)
 }
 
-func (testSuite *ErrorMapping) TestCanceledApiError() {
+func (testSuite *ErrorMapping) TestCanceledGrpcApiError() {
 	statusErr := status.New(codes.Canceled, "Canceled error")
 	apiError, _ := apierror.FromError(statusErr.Err())
 
@@ -63,7 +63,7 @@ func (testSuite *ErrorMapping) TestCanceledApiError() {
 	assert.Equal(testSuite.T(), syscall.EINTR, fsErr)
 }
 
-func (testSuite *ErrorMapping) TestUnAuthenticatedApiError() {
+func (testSuite *ErrorMapping) TestUnAuthenticatedGrpcApiError() {
 	statusErr := status.New(codes.Unauthenticated, "UnAuthenticated error")
 	apiError, _ := apierror.FromError(statusErr.Err())
 
@@ -72,7 +72,7 @@ func (testSuite *ErrorMapping) TestUnAuthenticatedApiError() {
 	assert.Equal(testSuite.T(), syscall.EACCES, fsErr)
 }
 
-func (testSuite *ErrorMapping) TestUnAuthenticatedHttpError() {
+func (testSuite *ErrorMapping) TestUnAuthenticatedGoogleApiHttpError() {
 	googleApiError := &googleapi.Error{Code: http.StatusUnauthorized}
 	googleApiError.Wrap(fmt.Errorf("UnAuthenticated error"))
 
