@@ -1695,9 +1695,7 @@ func (fs *fileSystem) createLocalFile(
 	}
 	fs.mu.Unlock()
 	parent.Lock()
-	defer func() {
-		parent.Unlock()
-	}()
+	defer parent.Unlock()
 	parent.InsertFileIntoTypeCache(name)
 	// Even though there is no action here that requires locking, adding locking
 	// so that the defer call that unlocks the mutex doesn't fail.
