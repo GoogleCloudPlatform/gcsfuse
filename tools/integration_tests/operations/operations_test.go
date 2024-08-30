@@ -20,6 +20,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strconv"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -88,8 +89,14 @@ const ContentInFileInDirThreeInCreateThreeLevelDirTest = "Hello world!!"
 const Content = "line 1\nline 2\n"
 const onlyDirMounted = "OnlyDirMountOperations"
 
+var (
+	cacheDir      string
+	storageClient *storage.Client
+	ctx           context.Context
+)
+
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
-	cacheDirPath := path.Join(os.Getenv("HOME"), "operations-cache-dir"+setup.GenerateRandomString(5))
+	cacheDirPath := path.Join(os.TempDir(), cacheDir)
 
 	// Set up config file with create-empty-file: true.
 	mountConfig1 := map[string]interface{}{
@@ -137,15 +144,17 @@ func TestMain(m *testing.M) {
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
 	// Create storage client before running tests.
-	ctx := context.Background()
-	var storageClient *storage.Client
-	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
-	defer func() {
-		err := closeStorageClient()
-		if err != nil {
-			log.Fatalf("closeStorageClient failed: %v", err)
-		}
-	}()
+	var err error
+	ctx = context.Background()
+	storageClient, err = client.CreateStorageClient(ctx)
+	if err != nil {
+		log.Printf("Error creating storage client: %v\n", err)
+		os.Exit(1)
+	}
+	defer storageClient.Close()
+
+	cacheDir = "cache-dir-operations-hns-" + strconv.FormatBool(setup.IsHierarchicalBucket(ctx, storageClient))
+
 	// To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	// flags to be set, as operations tests validates content from the bucket.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {

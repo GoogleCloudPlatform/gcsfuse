@@ -16,12 +16,15 @@
 package read_large_files
 
 import (
+	"context"
 	"log"
 	"os"
 	"path"
 	"strconv"
 	"testing"
 
+	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
@@ -35,10 +38,15 @@ const MinReadableByteFromFile = 0
 const MaxReadableByteFromFile = 500 * OneMB
 const DirForReadLargeFilesTests = "dirForReadLargeFilesTests"
 
-var FiveHundredMBFile string = "fiveHundredMBFile" + setup.GenerateRandomString(5) + ".txt"
+var (
+	storageClient     *storage.Client
+	ctx               context.Context
+	FiveHundredMBFile = "fiveHundredMBFile" + setup.GenerateRandomString(5) + ".txt"
+	cacheDir          string
+)
 
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
-	cacheDirPath := path.Join(os.Getenv("HOME"), "cache-dri")
+	cacheDirPath := path.Join(os.TempDir(), cacheDir)
 
 	// Set up config file for file cache with cache-file-for-range-read: false
 	mountConfig1 := map[string]interface{}{
@@ -70,14 +78,24 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
+	var err error
+	ctx = context.Background()
+	storageClient, err = client.CreateStorageClient(ctx)
+	if err != nil {
+		log.Printf("Error creating storage client: %v\n", err)
+		os.Exit(1)
+	}
+	defer storageClient.Close()
+	cacheDir = "cache-dir-read-large-files-hns-" + strconv.FormatBool(setup.IsHierarchicalBucket(ctx, storageClient))
+
 	flags := [][]string{{"--implicit-dirs"}}
 	mountConfigFlags := createMountConfigsAndEquivalentFlags()
 	flags = append(flags, mountConfigFlags...)
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
-	if setup.TestBucket() != "" && setup.MountedDirectory() != "" {
-		log.Print("Both --testbucket and --mountedDirectory can't be specified at the same time.")
+	if setup.TestBucket() == "" && setup.MountedDirectory() != "" {
+		log.Print("Please pass the name of bucket mounted at mountedDirectory to --testBucket flag.")
 		os.Exit(1)
 	}
 
