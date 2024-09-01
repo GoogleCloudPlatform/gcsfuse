@@ -391,8 +391,10 @@ def kernel_call_parser(log, global_data):
         except ValueError as e:
             global_data.faulty_logs.append(message)
             return
-        if parent in global_data.inode_name_map:
+        if parent != 0 and parent != 1 and parent in global_data.inode_name_map:
             prefix = global_data.inode_name_map[parent] + "/"
+        elif parent == 1:
+            prefix = ""
         else:
             prefix = ""
             global_data.requests[req_id].is_valid = False

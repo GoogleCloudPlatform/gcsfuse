@@ -31,5 +31,7 @@ class UserInput:
         log_format = ""
         if log_type == "gke":
             log_format = input("Enter the format of the GKE logs (CSV/JSON): ")
+        else:
+            log_format = input("Enter the format of the gcsfuse logs (JSON/text {please refer README}):")
         logs = get_logs_obj.get_json_logs(files, log_type, [start_time, end_time], log_format)
         return logs
