@@ -15,13 +15,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# standard library imports
 import argparse
-import json, os, pprint, subprocess
-from os.path import dirname
+import json
+import os
+import pprint
+import subprocess
 import sys
-import dlio_workload
 
+# local library imports
 sys.path.append("../")
+import dlio_workload
 from utils.utils import get_memory, get_cpu, standard_timestamp, is_mash_installed
 
 _LOCAL_LOGS_LOCATION = "../../bin/dlio-logs/logs"
