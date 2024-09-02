@@ -26,6 +26,10 @@ import subprocess
 import fio_workload
 
 
+# The default value of gcsfuse-mount-options to be used
+# for "gcsfuse-generic" scenario.
+# For description of how to specify the value for this,
+# look at the description of the argparser argument for gcsfuse-mount-options.
 _DEFAULT_GCSFUSE_MOUNT_OPTIONS = 'implicit-dirs'
 
 
@@ -106,7 +110,7 @@ if __name__ == '__main__':
   parser.add_argument(
       '--workload-config',
       metavar='JSON workload configuration file path',
-      help='Runs FIO tests using this JSON workload configuration',
+      help='Runs FIO tests from this JSON workload configuration file.',
       required=True,
   )
   parser.add_argument(
@@ -122,8 +126,14 @@ if __name__ == '__main__':
       '--gcsfuse-mount-options',
       metavar='GCSFuse mount options',
       help=(
-          'GCSFuse mount-options, in JSON stringified format, to be set for the'
-          ' scenario gcsfuse-generic.'
+          'GCSFuse mount-options, in a compact stringified'
+          ' format, to be set for the '
+          ' scenario "gcsfuse-generic". The individual config/cli flag values'
+          ' should be separated by comma. Each cli flag should be of the form'
+          ' "<name>[=<value>]". Each config-file flag should be of form'
+          ' "<config>[:<subconfig>[:<subsubconfig>[...]]]:<value>". For'
+          ' example, a sample value would be:'
+          ' "implicit-dirs,file_mode=777,file-cache:enable-parallel-downloads:true,metadata-cache:ttl-secs:-1".'
       ),
       required=False,
   )
@@ -144,9 +154,19 @@ if __name__ == '__main__':
   )
 
   args = parser.parse_args()
-  if ' ' in args.instance_id:
-    raise Exception('Argument --instance-id contains space in it')
-  if len(args.machine_type) == 0 or str.isspace(args.machine_type):
-    raise Exception('Argument --machine-type is empty or only spaces')
+  for argument in ['instance_id', 'gcsfuse_mount_options', 'machine_type']:
+    value = getattr(args, argument)
+    if ' ' in value:
+      raise Exception(
+          f'Argument {argument} (value="{value}") contains space in it, which'
+          ' is not supported.'
+      )
+  for argument in ['machine_type', 'instance_id']:
+    value = getattr(args, argument)
+    if len(value) == 0 or str.isspace(value):
+      raise Exception(
+          f'Argument {argument} (value="{value}") is empty or contains only'
+          ' spaces.'
+      )
 
   main(args)
