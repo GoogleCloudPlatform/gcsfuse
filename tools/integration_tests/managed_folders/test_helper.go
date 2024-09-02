@@ -106,8 +106,11 @@ func createDirectoryStructureForNonEmptyManagedFolders(ctx context.Context, stor
 	// testBucket/NonEmptyManagedFoldersTest/SimulatedFolderNonEmptyManagedFoldersTest
 	// testBucket/NonEmptyManagedFoldersTest/SimulatedFolderNonEmptyManagedFoldersTest/testFile
 	// testBucket/NonEmptyManagedFoldersTest/testFile
-	client.SetupTestDirectory(ctx, storageClient, TestDirForManagedFolderTest)
 	bucket, testDir := setup.GetBucketAndObjectBasedOnTypeOfMount(TestDirForManagedFolderTest)
+	err := client.DeleteAllObjectsWithPrefix(ctx, storageClient, testDir)
+	if err != nil {
+		log.Printf("Failed to clean up test directory: %v", err)
+	}
 	operations.CreateManagedFoldersInBucket(path.Join(testDir, ManagedFolder1), bucket)
 	f := operations.CreateFile(path.Join("/tmp", FileInNonEmptyManagedFoldersTest), setup.FilePermission_0600, t)
 	defer operations.CloseFile(f)
