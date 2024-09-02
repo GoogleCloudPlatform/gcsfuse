@@ -539,15 +539,14 @@ if __name__ == '__main__':
 
   # If similar directory structure not found in the GCS bucket then delete all
   # the files in the bucket and make it from scratch.
-  print(directory_structure_present)
-  # if not directory_structure_present:
-  #   log.info(
-  #       """Similar directory structure not found in the GCS bucket.
-  #       Creating a new one.\n""")
-  #   log.info('Deleting previously present directories in the GCS bucket.\n')
-  #   subprocess.call(
-  #       'gsutil -m rm -r gs://{}/*'.format(directory_structure.name),
-  #       shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+  if not directory_structure_present:
+    log.info(
+        """Similar directory structure not found in the GCS bucket.
+        Creating a new one.\n""")
+    log.info('Deleting previously present directories in the GCS bucket.\n')
+    subprocess.call(
+        'gsutil -m rm -r gs://{}/*'.format(directory_structure.name),
+        shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
   # Creating a temp directory which will be needed by the generate_files
   # method to create files in batches.
