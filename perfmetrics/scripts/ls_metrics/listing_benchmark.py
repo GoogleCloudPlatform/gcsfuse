@@ -45,6 +45,8 @@ Typical usage example:
                           details of the tests.
 
 Note: This python script is dependent on generate_files.py.
+Note: This script currently skips folder with 1000000 files to facilitate periodic kokoro tests
+without timeout .To run that test case, comment out lines [124-126],[180-182],[259-261],[317-319],[377-379]
 """
 
 import argparse
@@ -119,6 +121,9 @@ def _get_values_to_export(folders, metrics, command) -> list:
 
   list_metrics_data = []
   for testing_folder in folders:
+    if testing_folder.name == "1KB_1000000files_0subdir":
+      # Excluding test case with 1m files from HNS in daily periodic tests.
+      continue
     num_files, num_folders = _count_number_of_files_and_folders(
         testing_folder, 0, 0)
     row = [
@@ -172,6 +177,9 @@ def _parse_results(folders, results_list, message, num_samples) -> dict:
   metrics = dict()
 
   for testing_folder in folders:
+    if testing_folder.name == "1KB_1000000files_0subdir":
+      # Excluding test case with 1m files from HNS in daily periodic tests.
+      continue
     metrics[testing_folder.name] = dict()
     metrics[testing_folder.name]['Test Desc.'] = message
     metrics[testing_folder.name]['Number of samples'] = num_samples
@@ -248,6 +256,10 @@ def _perform_testing(
   persistent_disk_results = {}
 
   for testing_folder in folders:
+    if testing_folder.name == "1KB_1000000files_0subdir":
+      # Excluding test case with 1m files from HNS in daily periodic tests.
+      continue
+
     log.info('Testing started for testing folder: %s\n', testing_folder.name)
     local_dir_path = './{}/{}/'.format(persistent_disk, testing_folder.name)
     gcs_bucket_path = './{}/{}/'.format(gcs_bucket, testing_folder.name)
@@ -302,6 +314,9 @@ def _create_directory_structure(
 
   result = 0
   for folder in directory_structure.folders:
+    if folder.name == "1KB_1000000files_0subdir":
+      # Excluding test case with 1m files from HNS in daily periodic tests.
+      continue
     result += _create_directory_structure(gcs_bucket_url + folder.name + '/',
                                           persistent_disk_url + folder.name + '/',
                                           folder, create_files_in_gcs)
@@ -359,6 +374,9 @@ def _compare_directory_structure(url, directory_structure) -> bool:
 
   result = True
   for folder in directory_structure.folders:
+    if folder.name == "1KB_1000000files_0subdir":
+      # Excluding test case with 1m files from HNS in daily periodic tests.
+      continue
     new_url = url + folder.name + '/'
     if new_url not in folders:
       return False
