@@ -27,6 +27,7 @@ import (
 	"testing"
 
 	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
@@ -97,7 +98,7 @@ func revokePermissionToManagedFolder(bucket, managedFolderPath, serviceAccount, 
 	}
 }
 
-func createDirectoryStructureForNonEmptyManagedFolders(t *testing.T) {
+func createDirectoryStructureForNonEmptyManagedFolders(ctx context.Context, storageClient *storage.Client, t *testing.T) {
 	// testBucket/NonEmptyManagedFoldersTest/managedFolder1
 	// testBucket/NonEmptyManagedFoldersTest/managedFolder1/testFile
 	// testBucket/NonEmptyManagedFoldersTest/managedFolder2
@@ -106,6 +107,7 @@ func createDirectoryStructureForNonEmptyManagedFolders(t *testing.T) {
 	// testBucket/NonEmptyManagedFoldersTest/SimulatedFolderNonEmptyManagedFoldersTest/testFile
 	// testBucket/NonEmptyManagedFoldersTest/testFile
 	bucket, testDir := setup.GetBucketAndObjectBasedOnTypeOfMount(TestDirForManagedFolderTest)
+	testDir = client.SetupTestDirectory(ctx, storageClient, TestDirForManagedFolderTest)
 	operations.CreateManagedFoldersInBucket(path.Join(testDir, ManagedFolder1), bucket)
 	f := operations.CreateFile(path.Join("/tmp", FileInNonEmptyManagedFoldersTest), setup.FilePermission_0600, t)
 	defer operations.CloseFile(f)
