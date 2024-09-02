@@ -41,7 +41,7 @@ file-system:
   temp-dir: ~/temp
 list:
   enable-empty-managed-folders: true
-enable-hns: true
+enable-hns: false
 metadata-cache:
   deprecated-stat-cache-capacity: 200
   deprecated-stat-cache-ttl: 30s

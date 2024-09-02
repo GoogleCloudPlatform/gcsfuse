@@ -75,7 +75,7 @@
   flag-name: "enable-hns"
   type: "bool"
   usage: "Enables support for HNS buckets"
-  default: false
+  default: true
 
 - config-path: "file-cache.cache-file-for-range-read"
   flag-name: "cache-file-for-range-read"
