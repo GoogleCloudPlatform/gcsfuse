@@ -15,7 +15,7 @@ Try mounting the gcsfuse with --implicit-dir flag. Read the [semantics](https://
 
 It comes when the bucket is already mounted in a folder, and we try to mount it again. You need to unmount first and then remount.
 
-### version `GLIBC_x.yz` not found
+### version GLIBC_x.yz not found
 
 GCSFuse should not be linking to glibc. Please either `export CGO_ENABLED=0` in your environment or prefix `CGO_ENABLED=0` to any <code>go build&#124;run&#124;test</code> commands that you're invoking.
 
@@ -75,9 +75,11 @@ Please refer [here](https://cloud.google.com/storage/docs/gcsfuse-mount#authenti
 
 This error is seen when the url used in /etc/apt/sources.list.d/gcsfuse.list file uses HTTP protocol instead of HTTPS protocol. Run the following commands to update /etc/apt/sources.list.d/gcsfuse.list file with the https:// url.<br/> <code>$ sudo rm /etc/apt/sources.list.d/gcsfuse.list</code> <br/> <code>$ export GCSFUSE_REPO=gcsfuse-$(lsb_release -c -s)</code> <br/> <code>$ echo "deb https://packages.cloud.google.com/apt $GCSFUSE_REPO main" &#124; sudo tee /etc/apt/sources.list.d/gcsfuse.list </code>
 
-### Repository changed 'Origin' and 'Label' error while running `apt-get update` command:
+### Repository changed 'Origin' and 'Label' error while running apt-get update command:
 
-<br/>`E: Repository 'http://packages.cloud.google.com/apt gcsfuse-focal InRelease' changed its 'Origin' value from 'gcsfuse-jessie' to 'namespaces/gcs-fuse-prod/repositories/gcsfuse-focal'`<br/>`E: Repository 'http://packages.cloud.google.com/apt gcsfuse-focal InRelease' changed its 'Label' value from 'gcsfuse-jessie' to 'namespaces/gcs-fuse-prod/repositories/gcsfuse-focal'`<br/>`N: This must be accepted explicitly before updates for this repository can be applied. See apt-secure(8) manpage for details. ` | Use one of the following commands to upgrade to latest GCSFuse version<br/> `sudo apt-get update --allow-releaseinfo-change `<br/>OR<br/>`sudo apt update -y && sudo apt-get update`
+<br/>`E: Repository 'http://packages.cloud.google.com/apt gcsfuse-focal InRelease' changed its 'Origin' value from 'gcsfuse-jessie' to 'namespaces/gcs-fuse-prod/repositories/gcsfuse-focal'`<br/>`E: Repository 'http://packages.cloud.google.com/apt gcsfuse-focal InRelease' changed its 'Label' value from 'gcsfuse-jessie' to 'namespaces/gcs-fuse-prod/repositories/gcsfuse-focal'`<br/>`N: This must be accepted explicitly before updates for this repository can be applied. See apt-secure(8) manpage for details. `
+
+Use one of the following commands to upgrade to latest GCSFuse version<br/> `sudo apt-get update --allow-releaseinfo-change `<br/>OR<br/>`sudo apt update -y && sudo apt-get update`
 
 ### Unable to unmount or stop GCSFuse
 
@@ -90,11 +92,11 @@ Unable to mount with the following error `daemonize.Run: readFromProcess: sub-pr
 
 Fuse package is not installed. It may throw this error. Run the following command to install fuse <br/> <code> sudo apt-get install fuse </code> for Debian/Ubuntu <br/> <code> sudo yum install fuse </code> for RHEL/CentOs/Rocky <br/>
 
-### ls: reading directory `<mountpath>/<path>`:  Input/output error
+### ls: reading directory \<mountpath>/\<path>:  Input/output error
 
 Find out if you have any object(s) with name/prefix having `//` in it or starting with `/`, in the mounted GCS bucket (use `gsutil ls gs://<bucket>/<path>` to find out). If yes, move/rename such objects to name/prefix not having `//` or starting with `/` (e.g. for object/prefix `A//B`, use `gsutil -m mv -r gs://<bucket>/A//* gs://<bucket>/A/`), or delete it (use `gsutil -m rm -r A//`). Refer [semantics](semantics.md#unsupported-object-names) for more details.
 
-### Experiencing hang while executing `ls` on a directory containing large number of files/directories.
+### Experiencing hang while executing "ls" on a directory containing large number of files/directories.
 
 By default `ls` does listing but sometimes additionally does `stat` for each list entry. Additional stat on each entry slows down the entire `ls` operation and may look like hang, but in reality is iterating one by one and slow. There are two ways to overcome this: <ul><li>**Get rid of `stat`:** Execute without coloring `ls --color=never` or `\ls` to remove the stat part of `ls`.</li> <li>**Improve the `stat` lookup time:** increase the metadata ([stat](https://cloud.google.com/storage/docs/gcsfuse-cache#stat-cache-overview) + [type](https://cloud.google.com/storage/docs/gcsfuse-cache#type-cache-overview)) cache ttl/capacity which is populated as part of listing and makes the `stat` lookup faster. Important to note here, `ls` will be faster from the first execution itself as cache is populated in listing phase, leading to quicker stat lookup for each entry.</li></ul>
 
@@ -107,10 +109,10 @@ Both these errors are expected and part of GCSFuse standard operating procedure.
 `StatObject(\"<object_name>") (<time>ms): gcs.NotFoundError: storage: object doesn't exist"`.
 This is an expected error. Please refer to **NOT_FOUND GetObjectMetadata** section [here](https://github.com/GoogleCloudPlatform/gcsfuse/discussions/2300#discussioncomment-10261838).
 
-### Empty directory doesn't obey `--kernel-list-cache-ttl-secs` ttl.
+### Empty directory doesn't obey "--kernel-list-cache-ttl-secs" ttl.
 
 In case a new file is added to the empty directory remotely, outside of the mount, the client will not be able to see the new file in listing even if ttl is expired.<br></br>Please don't use kernel-list-cache for multi node/mount-point file create scenario, this is recommended to be used only for read only workloads, e.g. for Serving and Training workloads. Or you need to create a new file/directory from the mount to see the newly added remote files.
 
 ### fuse: *fuseops.FallocateOp error: function not implemented or similar function not implemented errors
 
-This is an expected error for file operations unsupported in FUSE file system (details [here](https://github.com/GoogleCloudPlatform/gcsfuse/discussions/2386#discussioncomment-10417635)).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+This is an expected error for file operations unsupported in FUSE file system (details [here](https://github.com/GoogleCloudPlatform/gcsfuse/discussions/2386#discussioncomment-10417635)).
