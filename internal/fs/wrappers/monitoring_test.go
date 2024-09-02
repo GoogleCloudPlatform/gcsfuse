@@ -26,6 +26,7 @@ import (
 	"go.opentelemetry.io/otel"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func TestFsErrStrAndCategory(t *testing.T) {
@@ -245,5 +246,7 @@ func TestSpan(t *testing.T) {
 	require.NoError(t, err)
 
 	ss := ex.GetSpans()
-	require.Len(t, ss, 0)
+	require.Len(t, ss, 1)
+	assert.Equal(t, "StatFS", ss[0].Name)
+	assert.Equal(t, trace.SpanKindServer, ss[0].SpanKind)
 }

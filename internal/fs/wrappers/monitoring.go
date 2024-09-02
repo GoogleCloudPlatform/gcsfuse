@@ -30,6 +30,8 @@ import (
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 var (
@@ -327,8 +329,15 @@ func (fs *monitoring) Destroy() {
 type wrappedCall func() error
 
 func invokeWrapped(ctx context.Context, opName string, w wrappedCall) error {
+	ctx, span := monitor.StartSpan(ctx, opName, trace.WithSpanKind(trace.SpanKindServer))
+	defer span.End()
 	startTime := time.Now()
 	err := w()
+
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+	}
 
 	recordOp(ctx, opName, startTime, err)
 	return err
