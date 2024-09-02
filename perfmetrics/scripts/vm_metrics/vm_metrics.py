@@ -41,6 +41,7 @@ import google.cloud
 from google.cloud import monitoring_v3
 from gsheet import gsheet
 from typing import List
+import subprocess
 
 PROJECT_NAME = 'projects/gcs-fuse-test-ml'
 CPU_UTI_METRIC_TYPE = 'compute.googleapis.com/instance/cpu/utilization'
@@ -129,6 +130,19 @@ def _parse_metric_value_by_type(value, value_type) -> float:
   else:
     raise Exception('Unhandled Value type')
 
+
+def _get_instance_id():
+  command = ["curl", "http://metadata.google.internal/computeMetadata/v1/instance/id",
+             "-H", "Metadata-Flavor:Google"]
+
+  try:
+    instance_id = subprocess.check_output(command, text=True).strip()
+    return instance_id
+  except subprocess.CalledProcessError as e:
+    print(f"Error fetching instance ID: {e}")
+    return None
+
+
 def _get_metric_filter(type, metric_type, instance, extra_filter):
   """Getting the metrics filter string from metric type, instance name and extra filter.
 
@@ -148,11 +162,12 @@ def _get_metric_filter(type, metric_type, instance, extra_filter):
         'ends_with("{instance_name}")').format(
             metric_type=metric_type, instance_name=instance)
   elif (type == 'agent'):
-    #TODO get the instance id using curl http://metadata.google.internal/computeMetadata/v1/instance/id -H Metadata-Flavor:Google
-    instance_id="id"
+    # Fetch the instance ID here
+    instance_id = _get_instance_id()
     metric_filter = (
-        'metric.type = "{metric_type}" AND resource.labels.instance_id = "{instance_id}" ' ).format(
-        metric_type=metric_type, instance_name=instance_id)
+        'metric.type = "{metric_type}" AND resource.labels.instance_id '
+        '={instance_id}').format(
+        metric_type=metric_type, instance_id=instance_id)
 
   if (extra_filter == ''):
     return metric_filter
