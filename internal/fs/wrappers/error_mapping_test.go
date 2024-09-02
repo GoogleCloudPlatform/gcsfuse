@@ -16,11 +16,16 @@ package wrappers
 
 import (
 	"fmt"
+	"net/http"
 	"syscall"
 	"testing"
 
+	"github.com/googleapis/gax-go/v2/apierror"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/api/googleapi"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type ErrorMapping struct {
@@ -31,18 +36,47 @@ func TestWithErrorMapping(testSuite *testing.T) {
 	suite.Run(testSuite, new(ErrorMapping))
 }
 
-func (testSuite *ErrorMapping) TestPermissionDeniedError() {
-	err := fmt.Errorf("rpc error: code = PermissionDenied desc = xxx does not have storage.folders.create access to the Google Cloud Storage bucket. Permission denied on resource (or it may not exist).")
+func (testSuite *ErrorMapping) TestPermissionDeniedGrpcApiError() {
+	statusErr := status.New(codes.PermissionDenied, "Permission denied")
+	apiError, _ := apierror.FromError(statusErr.Err())
 
-	fsErr := errno(err)
+	fsErr := errno(apiError)
 
 	assert.Equal(testSuite.T(), syscall.EACCES, fsErr)
 }
 
-func (testSuite *ErrorMapping) TestNotFoundError() {
-	err := fmt.Errorf("rpc error: code = NotFound desc = The folder does not exist.")
+func (testSuite *ErrorMapping) TestNotFoundGrpcApiError() {
+	statusErr := status.New(codes.NotFound, "Not found")
+	apiError, _ := apierror.FromError(statusErr.Err())
 
-	fsErr := errno(err)
+	fsErr := errno(apiError)
 
 	assert.Equal(testSuite.T(), syscall.ENOENT, fsErr)
+}
+
+func (testSuite *ErrorMapping) TestCanceledGrpcApiError() {
+	statusErr := status.New(codes.Canceled, "Canceled error")
+	apiError, _ := apierror.FromError(statusErr.Err())
+
+	fsErr := errno(apiError)
+
+	assert.Equal(testSuite.T(), syscall.EINTR, fsErr)
+}
+
+func (testSuite *ErrorMapping) TestUnAuthenticatedGrpcApiError() {
+	statusErr := status.New(codes.Unauthenticated, "UnAuthenticated error")
+	apiError, _ := apierror.FromError(statusErr.Err())
+
+	fsErr := errno(apiError)
+
+	assert.Equal(testSuite.T(), syscall.EACCES, fsErr)
+}
+
+func (testSuite *ErrorMapping) TestUnAuthenticatedHttpGoogleApiError() {
+	googleApiError := &googleapi.Error{Code: http.StatusUnauthorized}
+	googleApiError.Wrap(fmt.Errorf("UnAuthenticated error"))
+
+	fsErr := errno(googleApiError)
+
+	assert.Equal(testSuite.T(), syscall.EACCES, fsErr)
 }
