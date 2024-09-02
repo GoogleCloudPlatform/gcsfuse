@@ -36,7 +36,7 @@ require (
 	golang.org/x/sys v0.24.0
 	golang.org/x/text v0.17.0
 	golang.org/x/time v0.6.0
-	google.golang.org/api v0.192.0
+	google.golang.org/api v0.195.0
 	google.golang.org/grpc v1.65.0
 	google.golang.org/protobuf v1.34.2
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
@@ -46,13 +46,13 @@ require (
 require (
 	cel.dev/expr v0.15.0 // indirect
 	cloud.google.com/go v0.115.1 // indirect
-	cloud.google.com/go/auth v0.8.1 // indirect
+	cloud.google.com/go/auth v0.9.1 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.4 // indirect
 	cloud.google.com/go/iam v1.1.13 // indirect
-	cloud.google.com/go/longrunning v0.5.11 // indirect
-	cloud.google.com/go/monitoring v1.20.3 // indirect
-	cloud.google.com/go/pubsub v1.41.0 // indirect
-	cloud.google.com/go/trace v1.10.11 // indirect
+	cloud.google.com/go/longrunning v0.5.12 // indirect
+	cloud.google.com/go/monitoring v1.20.4 // indirect
+	cloud.google.com/go/pubsub v1.42.0 // indirect
+	cloud.google.com/go/trace v1.10.12 // indirect
 	github.com/aws/aws-sdk-go v1.44.217 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/census-instrumentation/opencensus-proto v0.4.1 // indirect
@@ -105,9 +105,9 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.26.0 // indirect
 	golang.org/x/exp v0.0.0-20240530194437-404ba88c7ed0 // indirect
-	google.golang.org/genproto v0.0.0-20240814211410-ddb44dafa142 // indirect
+	google.golang.org/genproto v0.0.0-20240823204242-4ba0660f739c // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240814211410-ddb44dafa142 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240814211410-ddb44dafa142 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240823204242-4ba0660f739c // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
