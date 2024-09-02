@@ -39,3 +39,4 @@ ignoreFiles:
   - '*.json'
   - '.github/**'
   - '*.yaml'
+  - '**/requirements.txt'
