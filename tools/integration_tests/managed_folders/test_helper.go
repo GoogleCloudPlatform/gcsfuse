@@ -107,7 +107,7 @@ func createDirectoryStructureForNonEmptyManagedFolders(ctx context.Context, stor
 	// testBucket/NonEmptyManagedFoldersTest/SimulatedFolderNonEmptyManagedFoldersTest/testFile
 	// testBucket/NonEmptyManagedFoldersTest/testFile
 	bucket, testDir := setup.GetBucketAndObjectBasedOnTypeOfMount(TestDirForManagedFolderTest)
-	testDir = client.SetupTestDirectory(ctx, storageClient, TestDirForManagedFolderTest)
+	client.SetupTestDirectory(ctx, storageClient, testDir)
 	operations.CreateManagedFoldersInBucket(path.Join(testDir, ManagedFolder1), bucket)
 	f := operations.CreateFile(path.Join("/tmp", FileInNonEmptyManagedFoldersTest), setup.FilePermission_0600, t)
 	defer operations.CloseFile(f)
