@@ -50,6 +50,8 @@ OPS_LATENCY_METRIC_TYPE = 'custom.googleapis.com/gcsfuse/fs/ops_latency'
 READ_BYTES_COUNT_METRIC_TYPE = 'custom.googleapis.com/gcsfuse/gcs/read_bytes_count'
 OPS_ERROR_COUNT_METRIC_TYPE = 'custom.googleapis.com/gcsfuse/fs/ops_error_count'
 MEMORY_UTIL_METRIC_TYPE='agent.googleapis.com/memory/percent_used'
+SENT_BYTES_COUNT_METRIC_TYPE = 'compute.googleapis.com/instance/network/sent_bytes_count'
+LOAD_AVG_OS_THREADS_MEAN_METRIC_TYPE='agent.googleapis.com/cpu/load_1m'
 
 @dataclasses.dataclass
 class MetricPoint:
@@ -82,6 +84,14 @@ REC_BYTES_MEAN = Metric(
     metric_type=RECEIVED_BYTES_COUNT_METRIC_TYPE,
     factor=60,
     aligner='ALIGN_MEAN')
+SENT_BYTES_PEAK = Metric(
+    metric_type=SENT_BYTES_COUNT_METRIC_TYPE,
+    factor=60,
+    aligner='ALIGN_MAX')
+SENT_BYTES_MEAN = Metric(
+    metric_type=SENT_BYTES_COUNT_METRIC_TYPE,
+    factor=60,
+    aligner='ALIGN_MEAN')
 READ_BYTES_COUNT = Metric(
     metric_type=READ_BYTES_COUNT_METRIC_TYPE, factor=1, aligner='ALIGN_DELTA')
 
@@ -95,6 +105,9 @@ OPS_ERROR_COUNT = Metric(
     group_fields=['metric.labels'])
 MEMORY_USAGE_PEAK=Metric(metric_type=MEMORY_UTIL_METRIC_TYPE, factor=1 / 100, aligner='ALIGN_MAX')
 MEMORY_USAGE_MEAN=Metric(metric_type=MEMORY_UTIL_METRIC_TYPE, factor=1 / 100, aligner='ALIGN_MEAN')
+LOAD_AVG_OS_THREADS_MEAN = Metric(
+    metric_type=LOAD_AVG_OS_THREADS_MEAN_METRIC_TYPE, factor=1, aligner='ALIGN_MEAN')
+
 
 METRICS_LIST = [
     CPU_UTI_PEAK, CPU_UTI_MEAN, REC_BYTES_PEAK, REC_BYTES_MEAN,
@@ -102,8 +115,8 @@ METRICS_LIST = [
 ]
 
 RENAME_METRICS_LIST = [
-    CPU_UTI_PEAK, CPU_UTI_MEAN, REC_BYTES_PEAK, REC_BYTES_MEAN,
-    OPS_ERROR_COUNT, MEMORY_USAGE_PEAK,MEMORY_USAGE_MEAN
+    CPU_UTI_PEAK, CPU_UTI_MEAN, REC_BYTES_PEAK, REC_BYTES_MEAN,SENT_BYTES_PEAK,SENT_BYTES_MEAN,
+    OPS_ERROR_COUNT, MEMORY_USAGE_PEAK,MEMORY_USAGE_MEAN,LOAD_AVG_OS_THREADS_MEAN
 ]
 
 class NoValuesError(Exception):
