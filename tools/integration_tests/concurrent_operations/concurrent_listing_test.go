@@ -32,13 +32,13 @@ import (
 const (
 
 	// Used for operation like, creation, deletion, rename or edit of files/folders.
-	iterationsForHeavyOperations = 10
+	iterationsForHeavyOperations = 15
 
 	// Used for listing of directories.
-	iterationsForMediumOperations = 80
+	iterationsForMediumOperations = 120
 
 	// Used for Open of Stat.
-	iterationsForLightOperations = 40
+	iterationsForLightOperations = 60
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -526,12 +526,12 @@ func (s *concurrentListingTest) Test_ListWithMoveFile(t *testing.T) {
 		defer wg.Done()
 		for i := 0; i < iterationsForMediumOperations; i++ { // Adjust iteration count if needed
 			f, err := os.Open(targetDir)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			_, err = f.Readdirnames(-1)
 			require.Nil(t, err)
 
-			assert.NoError(t, f.Close())
+			require.NoError(t, f.Close())
 		}
 	}()
 
@@ -545,10 +545,10 @@ func (s *concurrentListingTest) Test_ListWithMoveFile(t *testing.T) {
 		for i := 0; i < iterationsForHeavyOperations; i++ { // Adjust iteration count if needed
 			// Move File in the target directory
 			err = operations.Move(path.Join(testDirPath, "move_file.txt"), path.Join(targetDir, "move_file.txt"))
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			// Move File out of the target directory
 			err = operations.Move(path.Join(targetDir, "move_file.txt"), path.Join(testDirPath, "move_file.txt"))
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		}
 	}()
 
@@ -588,7 +588,7 @@ func (s *concurrentListingTest) Test_ListWithMoveDir(t *testing.T) {
 			_, err = f.Readdirnames(-1)
 			require.Nil(t, err)
 
-			assert.NoError(t, f.Close())
+			require.NoError(t, f.Close())
 		}
 	}()
 	// Create Dir
@@ -601,10 +601,10 @@ func (s *concurrentListingTest) Test_ListWithMoveDir(t *testing.T) {
 		for i := 0; i < iterationsForHeavyOperations; i++ { // Adjust iteration count if needed
 			// Move Dir in the target dir
 			err = operations.Move(path.Join(testDirPath, "move_dir"), path.Join(targetDir, "move_dir"))
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			// Move Dir out of the target dir
 			err = operations.Move(path.Join(targetDir, "move_dir"), path.Join(testDirPath, "move_dir"))
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		}
 	}()
 
@@ -640,7 +640,7 @@ func (s *concurrentListingTest) Test_StatWithNewFileWrite(t *testing.T) {
 		for i := 0; i < iterationsForLightOperations; i++ {
 			_, err := os.Stat(targetDir)
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		}
 	}()
 
@@ -652,7 +652,7 @@ func (s *concurrentListingTest) Test_StatWithNewFileWrite(t *testing.T) {
 			filePath := path.Join(targetDir, fmt.Sprintf("tmp_file_%d.txt", i))
 			err := os.WriteFile(filePath, []byte("Hello, world!"), setup.FilePermission_0600)
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		}
 	}()
 
