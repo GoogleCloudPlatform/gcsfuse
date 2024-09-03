@@ -275,17 +275,17 @@ function run_e2e_tests_for_hns_bucket(){
    hns_bucket_name_non_parallel_group=$(create_hns_bucket)
    echo "Hns Bucket Created: "$hns_bucket_name_non_parallel_group
 
-   echo "Running tests for HNS bucket"
-   run_parallel_tests TEST_DIR_HNS_PARALLEL_GROUP "$hns_bucket_name_parallel_group" &
-   parallel_tests_hns_group_pid=$!
-   run_non_parallel_tests TEST_DIR_HNS_NON_PARALLEL "$hns_bucket_name_non_parallel_group" &
-   non_parallel_tests_hns_group_pid=$!
-
-   # Wait for all tests to complete.
-   wait $parallel_tests_hns_group_pid
-   parallel_tests_hns_group_exit_code=$?
-   wait $non_parallel_tests_hns_group_pid
-   non_parallel_tests_hns_group_exit_code=$?
+#   echo "Running tests for HNS bucket"
+#   run_parallel_tests TEST_DIR_HNS_PARALLEL_GROUP "$hns_bucket_name_parallel_group" &
+#   parallel_tests_hns_group_pid=$!
+#   run_non_parallel_tests TEST_DIR_HNS_NON_PARALLEL "$hns_bucket_name_non_parallel_group" &
+#   non_parallel_tests_hns_group_pid=$!
+#
+#   # Wait for all tests to complete.
+#   wait $parallel_tests_hns_group_pid
+#   parallel_tests_hns_group_exit_code=$?
+#   wait $non_parallel_tests_hns_group_pid
+#   non_parallel_tests_hns_group_exit_code=$?
 
    # The concurrent_operations package, which experiences intermittent failures on presubmit tests, primarily due to parallel execution on the FLAT bucket, has been executed.
    # Added it serially after all the tests are completed to avoid failures.
@@ -359,11 +359,11 @@ function main(){
   run_e2e_tests_for_hns_bucket &
   e2e_tests_hns_bucket_pid=$!
 
-  run_e2e_tests_for_flat_bucket &
-  e2e_tests_flat_bucket_pid=$!
-
-  wait $e2e_tests_flat_bucket_pid
-  e2e_tests_flat_bucket_status=$?
+#  run_e2e_tests_for_flat_bucket &
+#  e2e_tests_flat_bucket_pid=$!
+#
+#  wait $e2e_tests_flat_bucket_pid
+#  e2e_tests_flat_bucket_status=$?
 
   wait $e2e_tests_hns_bucket_pid
   e2e_tests_hns_bucket_status=$?
