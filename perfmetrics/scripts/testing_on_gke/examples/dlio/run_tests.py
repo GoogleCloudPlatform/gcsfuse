@@ -30,6 +30,7 @@ import dlio_workload
 sys.path.append('../')
 from utils.utils import resource_limits, UnknownMachineTypeError
 
+
 def run_command(command: str):
   """Runs the given string command as a subprocess."""
   result = subprocess.run(command.split(' '), capture_output=True, text=True)
