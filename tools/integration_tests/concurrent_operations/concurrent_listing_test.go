@@ -35,7 +35,7 @@ const (
 	iterationsForHeavyOperations = 10
 
 	// Used for listing of directories.
-	iterationsForMediumOperations = 50
+	iterationsForMediumOperations = 80
 
 	// Used for Open of Stat.
 	iterationsForLightOperations = 40
