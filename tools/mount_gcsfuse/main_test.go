@@ -36,7 +36,6 @@ func TestMakeGcsfuseArgs(t *testing.T) {
 			name: "TestMakeGcsfuseArgs for BooleanFlags with underscore",
 			opts: map[string]string{"implicit_dirs": "",
 				"foreground":                    "true",
-				"experimental_local_file_cache": "",
 				"reuse_token_from_url":          "false",
 				"enable_nonexistent_type_cache": "",
 				"experimental_enable_json_read": "true",
