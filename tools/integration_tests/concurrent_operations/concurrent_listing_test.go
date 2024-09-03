@@ -32,7 +32,7 @@ import (
 const (
 
 	// Used for operation like, creation, deletion, rename or edit of files/folders.
-	iterationsForHeavyOperations = 5
+	iterationsForHeavyOperations = 10
 
 	// Used for listing of directories.
 	iterationsForMediumOperations = 50
