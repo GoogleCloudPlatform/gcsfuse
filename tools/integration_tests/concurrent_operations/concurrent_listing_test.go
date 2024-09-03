@@ -80,7 +80,7 @@ func createDirectoryStructureForTestCase(t *testing.T, testCaseDir string) {
 // Test_OpenDirAndLookUp helps in detecting the deadlock when
 // OpenDir() and LookUpInode() request for same directory comes in parallel.
 func (s *concurrentListingTest) Test_OpenDirAndLookUp(t *testing.T) {
-// t.Parallel() // Mark the test parallelizable.
+	t.Parallel() // Mark the test parallelizable.
 	testCaseDir := "Test_OpenDirAndLookUp"
 	createDirectoryStructureForTestCase(t, testCaseDir)
 	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
@@ -127,7 +127,7 @@ func (s *concurrentListingTest) Test_OpenDirAndLookUp(t *testing.T) {
 // Test_Parallel_ReadDirAndLookUp tests for potential deadlocks or race conditions when
 // ReadDir() is called concurrently with LookUp of same dir.
 func (s *concurrentListingTest) Test_Parallel_ReadDirAndLookUp(t *testing.T) {
-// t.Parallel() // Mark the test parallelizable.
+	t.Parallel() // Mark the test parallelizable.
 	testCaseDir := "Test_Parallel_ReadDirAndLookUp"
 	createDirectoryStructureForTestCase(t, testCaseDir)
 	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
@@ -177,7 +177,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndLookUp(t *testing.T) {
 // Test_MultipleConcurrentReadDir tests for potential deadlocks or race conditions
 // when multiple goroutines call Readdir() concurrently on the same directory.
 func (s *concurrentListingTest) Test_MultipleConcurrentReadDir(t *testing.T) {
-// t.Parallel() // Mark the test parallelizable.
+	t.Parallel() // Mark the test parallelizable.
 	testCaseDir := "Test_MultipleConcurrentReadDir"
 	createDirectoryStructureForTestCase(t, testCaseDir)
 	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
@@ -193,10 +193,10 @@ func (s *concurrentListingTest) Test_MultipleConcurrentReadDir(t *testing.T) {
 
 			for j := 0; j < iterationsForMediumOperations; j++ {
 				f, err := os.Open(targetDir)
-				assert.Nil(t, err)
+				require.Nil(t, err)
 
 				_, err = f.Readdirnames(-1) // Read all directory entries
-				assert.Nil(t, err)
+				require.Nil(t, err)
 
 				err = f.Close()
 				assert.Nil(t, err)
@@ -222,7 +222,7 @@ func (s *concurrentListingTest) Test_MultipleConcurrentReadDir(t *testing.T) {
 // Test_Parallel_ReadDirAndFileOperations detects race conditions and deadlocks when one goroutine
 // performs Readdir() while another concurrently creates and deletes files in the same directory.
 func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileOperations(t *testing.T) {
-// t.Parallel() // Mark the test parallelizable.
+	t.Parallel() // Mark the test parallelizable.
 	testCaseDir := "Test_Parallel_ReadDirAndFileOperations"
 	createDirectoryStructureForTestCase(t, testCaseDir)
 	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
@@ -254,14 +254,14 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileOperations(t *testin
 
 			// Create
 			f, err := os.Create(filePath)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			err = f.Close()
 			assert.Nil(t, err)
 
 			// Rename
 			err = os.Rename(filePath, renamedFilePath)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			// Delete
 			err = os.Remove(renamedFilePath)
@@ -287,7 +287,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileOperations(t *testin
 // Test_Parallel_ReadDirAndDirOperations tests for potential deadlocks or race conditions when
 // ReadDir() is called concurrently with directory creation and deletion operations.
 func (s *concurrentListingTest) Test_Parallel_ReadDirAndDirOperations(t *testing.T) {
-// t.Parallel() // Mark the test parallelizable.
+	t.Parallel() // Mark the test parallelizable.
 	testCaseDir := "Test_Parallel_ReadDirAndDirOperations"
 	createDirectoryStructureForTestCase(t, testCaseDir)
 	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
@@ -300,7 +300,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndDirOperations(t *testing
 		defer wg.Done()
 		for i := 0; i < iterationsForMediumOperations; i++ {
 			f, err := os.Open(targetDir)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			_, err = f.Readdirnames(-1)
 			assert.Nil(t, err)
@@ -319,11 +319,11 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndDirOperations(t *testing
 
 			// Create
 			err := os.Mkdir(dirPath, 0755)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			// Rename
 			err = os.Rename(dirPath, renamedDirPath)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			// Delete
 			err = os.Remove(renamedDirPath)
@@ -349,7 +349,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndDirOperations(t *testing
 // Test_Parallel_ReadDirAndFileEdit tests for potential deadlocks or race conditions when
 // ReadDir() is called concurrently with modification of underneath file.
 func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileEdit(t *testing.T) {
-// t.Parallel() // Mark the test parallelizable.
+	t.Parallel() // Mark the test parallelizable.
 	testCaseDir := "Test_Parallel_ListDirAndFileEdit"
 	createDirectoryStructureForTestCase(t, testCaseDir)
 	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
@@ -362,10 +362,10 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileEdit(t *testing.T) {
 		defer wg.Done()
 		for i := 0; i < iterationsForMediumOperations; i++ {
 			f, err := os.Open(targetDir)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			_, err = f.Readdirnames(-1)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			err = f.Close()
 			assert.Nil(t, err)
@@ -384,11 +384,11 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileEdit(t *testing.T) {
 
 			// Edit file (append some data)
 			f, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY, setup.FilePermission_0600)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 			_, err = f.Write([]byte("This is an edit."))
-			assert.Nil(t, err)
+			require.Nil(t, err)
 			err = f.Close()
-			assert.Nil(t, err)
+			require.Nil(t, err)
 		}
 	}()
 
@@ -410,7 +410,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileEdit(t *testing.T) {
 // Test_MultipleConcurrentOperations tests for potential deadlocks or race conditions when
 // listing, file or folder operations, stat, opendir, file modifications happening concurrently.
 func (s *concurrentListingTest) Test_MultipleConcurrentOperations(t *testing.T) {
-// t.Parallel() // Mark the test parallelizable.
+	t.Parallel() // Mark the test parallelizable.
 	testCaseDir := "Test_MultipleConcurrentOperations"
 	createDirectoryStructureForTestCase(t, testCaseDir)
 	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
@@ -423,13 +423,13 @@ func (s *concurrentListingTest) Test_MultipleConcurrentOperations(t *testing.T) 
 		defer wg.Done()
 		for i := 0; i < iterationsForMediumOperations; i++ { // Adjust iteration count if needed
 			f, err := os.Open(targetDir)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			_, err = f.Readdirnames(-1)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			err = f.Close()
-			assert.Nil(t, err)
+			require.Nil(t, err)
 		}
 	}()
 
@@ -441,15 +441,15 @@ func (s *concurrentListingTest) Test_MultipleConcurrentOperations(t *testing.T) 
 
 			// Create file
 			err := os.WriteFile(filePath, []byte("Hello, world!"), setup.FilePermission_0600)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			// Edit file (append some data)
 			f, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY, setup.FilePermission_0600)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 			_, err = f.Write([]byte("This is an edit."))
-			assert.Nil(t, err)
+			require.Nil(t, err)
 			err = f.Close()
-			assert.Nil(t, err)
+			require.Nil(t, err)
 		}
 	}()
 
@@ -462,15 +462,15 @@ func (s *concurrentListingTest) Test_MultipleConcurrentOperations(t *testing.T) 
 
 			// Create
 			err := os.Mkdir(dirPath, 0755)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			// Rename
 			err = os.Rename(dirPath, renamedDirPath)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			// Delete
 			err = os.Remove(renamedDirPath)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 		}
 	}()
 
@@ -479,7 +479,7 @@ func (s *concurrentListingTest) Test_MultipleConcurrentOperations(t *testing.T) 
 		defer wg.Done()
 		for i := 0; i < iterationsForLightOperations; i++ {
 			_, err := os.Stat(targetDir)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 		}
 	}()
 
@@ -488,10 +488,10 @@ func (s *concurrentListingTest) Test_MultipleConcurrentOperations(t *testing.T) 
 		defer wg.Done()
 		for i := 0; i < iterationsForLightOperations; i++ {
 			f, err := os.Open(targetDir)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			err = f.Close()
-			assert.Nil(t, err)
+			require.Nil(t, err)
 		}
 	}()
 
@@ -513,7 +513,7 @@ func (s *concurrentListingTest) Test_MultipleConcurrentOperations(t *testing.T) 
 // Test_ListWithMoveFile tests for potential deadlocks or race conditions when
 // listing, file or folder operations, move file happening concurrently.
 func (s *concurrentListingTest) Test_ListWithMoveFile(t *testing.T) {
-// t.Parallel() // Mark the test parallelizable.
+	t.Parallel() // Mark the test parallelizable.
 	testCaseDir := "Test_ListWithMoveFile"
 	createDirectoryStructureForTestCase(t, testCaseDir)
 	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
@@ -529,7 +529,7 @@ func (s *concurrentListingTest) Test_ListWithMoveFile(t *testing.T) {
 			assert.NoError(t, err)
 
 			_, err = f.Readdirnames(-1)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			assert.NoError(t, f.Close())
 		}
@@ -570,7 +570,7 @@ func (s *concurrentListingTest) Test_ListWithMoveFile(t *testing.T) {
 // Test_ListWithMoveDir tests for potential deadlocks or race conditions when
 // listing, file or folder operations, move dir happening concurrently.
 func (s *concurrentListingTest) Test_ListWithMoveDir(t *testing.T) {
-// t.Parallel() // Mark the test parallelizable.
+	t.Parallel() // Mark the test parallelizable.
 	testCaseDir := "Test_ListWithMoveDir"
 	createDirectoryStructureForTestCase(t, testCaseDir)
 	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
@@ -586,7 +586,7 @@ func (s *concurrentListingTest) Test_ListWithMoveDir(t *testing.T) {
 			require.NoError(t, err)
 
 			_, err = f.Readdirnames(-1)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			assert.NoError(t, f.Close())
 		}
