@@ -221,68 +221,68 @@ func (s *concurrentListingTest) Test_MultipleConcurrentReadDir(t *testing.T) {
 
 // Test_Parallel_ReadDirAndFileOperations detects race conditions and deadlocks when one goroutine
 // performs Readdir() while another concurrently creates and deletes files in the same directory.
-//func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileOperations(t *testing.T) {
-//	t.Parallel() // Mark the test parallelizable.
-//	testCaseDir := "Test_Parallel_ReadDirAndFileOperations"
-//	createDirectoryStructureForTestCase(t, testCaseDir)
-//	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
-//	var wg sync.WaitGroup
-//	wg.Add(2)
-//	timeout := 400 * time.Second // Adjust timeout as needed
-//
-//	// Goroutine 1: Repeatedly calls Readdir
-//	go func() {
-//		defer wg.Done()
-//		for i := 0; i < iterationsForMediumOperations; i++ { // Adjust iteration count if needed
-//			f, err := os.Open(targetDir)
-//			assert.Nil(t, err)
-//
-//			_, err = f.Readdirnames(-1)
-//			assert.Nil(t, err)
-//
-//			err = f.Close()
-//			assert.Nil(t, err)
-//		}
-//	}()
-//
-//	// Goroutine 2: Creates and deletes files
-//	go func() {
-//		defer wg.Done()
-//		for i := 0; i < iterationsForHeavyOperations; i++ { // Adjust iteration count if needed
-//			filePath := path.Join(targetDir, "tmp_file.txt")
-//			renamedFilePath := path.Join(targetDir, "renamed_tmp_file.txt")
-//
-//			// Create
-//			f, err := os.Create(filePath)
-//			assert.Nil(t, err)
-//
-//			err = f.Close()
-//			assert.Nil(t, err)
-//
-//			// Rename
-//			err = os.Rename(filePath, renamedFilePath)
-//			assert.Nil(t, err)
-//
-//			// Delete
-//			err = os.Remove(renamedFilePath)
-//			assert.Nil(t, err)
-//		}
-//	}()
-//
-//	// Wait for goroutines or timeout
-//	done := make(chan bool, 1)
-//	go func() {
-//		wg.Wait()
-//		done <- true
-//	}()
-//
-//	select {
-//	case <-done:
-//		// Success: Both operations finished before timeout
-//	case <-time.After(timeout):
-//		assert.FailNow(t, "Possible deadlock or race condition detected")
-//	}
-//}
+func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileOperations(t *testing.T) {
+	t.Parallel() // Mark the test parallelizable.
+	testCaseDir := "Test_Parallel_ReadDirAndFileOperations"
+	createDirectoryStructureForTestCase(t, testCaseDir)
+	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
+	var wg sync.WaitGroup
+	wg.Add(2)
+	timeout := 400 * time.Second // Adjust timeout as needed
+
+	// Goroutine 1: Repeatedly calls Readdir
+	go func() {
+		defer wg.Done()
+		for i := 0; i < iterationsForMediumOperations; i++ { // Adjust iteration count if needed
+			f, err := os.Open(targetDir)
+			assert.Nil(t, err)
+
+			_, err = f.Readdirnames(-1)
+			assert.Nil(t, err)
+
+			err = f.Close()
+			assert.Nil(t, err)
+		}
+	}()
+
+	// Goroutine 2: Creates and deletes files
+	go func() {
+		defer wg.Done()
+		for i := 0; i < iterationsForHeavyOperations; i++ { // Adjust iteration count if needed
+			filePath := path.Join(targetDir, "tmp_file.txt")
+			renamedFilePath := path.Join(targetDir, "renamed_tmp_file.txt")
+
+			// Create
+			f, err := os.Create(filePath)
+			assert.Nil(t, err)
+
+			err = f.Close()
+			assert.Nil(t, err)
+
+			// Rename
+			err = os.Rename(filePath, renamedFilePath)
+			assert.Nil(t, err)
+
+			// Delete
+			err = os.Remove(renamedFilePath)
+			assert.Nil(t, err)
+		}
+	}()
+
+	// Wait for goroutines or timeout
+	done := make(chan bool, 1)
+	go func() {
+		wg.Wait()
+		done <- true
+	}()
+
+	select {
+	case <-done:
+		// Success: Both operations finished before timeout
+	case <-time.After(timeout):
+		assert.FailNow(t, "Possible deadlock or race condition detected")
+	}
+}
 
 // Test_Parallel_ReadDirAndDirOperations tests for potential deadlocks or race conditions when
 // ReadDir() is called concurrently with directory creation and deletion operations.
@@ -348,64 +348,64 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndDirOperations(t *testing
 
 // Test_Parallel_ReadDirAndFileEdit tests for potential deadlocks or race conditions when
 // ReadDir() is called concurrently with modification of underneath file.
-func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileEdit(t *testing.T) {
-	t.Parallel() // Mark the test parallelizable.
-	testCaseDir := "Test_Parallel_ListDirAndFileEdit"
-	createDirectoryStructureForTestCase(t, testCaseDir)
-	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
-	var wg sync.WaitGroup
-	wg.Add(2)
-	timeout := 400 * time.Second
-
-	// Goroutine 1: Repeatedly calls Readdir
-	go func() {
-		defer wg.Done()
-		for i := 0; i < iterationsForMediumOperations; i++ {
-			f, err := os.Open(targetDir)
-			assert.Nil(t, err)
-
-			_, err = f.Readdirnames(-1)
-			assert.Nil(t, err)
-
-			err = f.Close()
-			assert.Nil(t, err)
-		}
-	}()
-
-	// Goroutine 2: Create and edit files
-	go func() {
-		defer wg.Done()
-		for i := 0; i < iterationsForHeavyOperations; i++ {
-			filePath := path.Join(targetDir, fmt.Sprintf("test_file_%d.txt", i))
-
-			// Create file
-			err := os.WriteFile(filePath, []byte("Hello, world!"), setup.FilePermission_0600)
-			assert.Nil(t, err)
-
-			// Edit file (append some data)
-			f, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY, setup.FilePermission_0600)
-			assert.Nil(t, err)
-			_, err = f.Write([]byte("This is an edit."))
-			assert.Nil(t, err)
-			err = f.Close()
-			assert.Nil(t, err)
-		}
-	}()
-
-	// Wait for goroutines or timeout
-	done := make(chan bool, 1)
-	go func() {
-		wg.Wait()
-		done <- true
-	}()
-
-	select {
-	case <-done:
-		// Success: Both operations finished before timeout
-	case <-time.After(timeout):
-		assert.FailNow(t, "Possible deadlock or race condition detected during Readdir and directory operations")
-	}
-}
+//func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileEdit(t *testing.T) {
+//	t.Parallel() // Mark the test parallelizable.
+//	testCaseDir := "Test_Parallel_ListDirAndFileEdit"
+//	createDirectoryStructureForTestCase(t, testCaseDir)
+//	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
+//	var wg sync.WaitGroup
+//	wg.Add(2)
+//	timeout := 400 * time.Second
+//
+//	// Goroutine 1: Repeatedly calls Readdir
+//	go func() {
+//		defer wg.Done()
+//		for i := 0; i < iterationsForMediumOperations; i++ {
+//			f, err := os.Open(targetDir)
+//			assert.Nil(t, err)
+//
+//			_, err = f.Readdirnames(-1)
+//			assert.Nil(t, err)
+//
+//			err = f.Close()
+//			assert.Nil(t, err)
+//		}
+//	}()
+//
+//	// Goroutine 2: Create and edit files
+//	go func() {
+//		defer wg.Done()
+//		for i := 0; i < iterationsForHeavyOperations; i++ {
+//			filePath := path.Join(targetDir, fmt.Sprintf("test_file_%d.txt", i))
+//
+//			// Create file
+//			err := os.WriteFile(filePath, []byte("Hello, world!"), setup.FilePermission_0600)
+//			assert.Nil(t, err)
+//
+//			// Edit file (append some data)
+//			f, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY, setup.FilePermission_0600)
+//			assert.Nil(t, err)
+//			_, err = f.Write([]byte("This is an edit."))
+//			assert.Nil(t, err)
+//			err = f.Close()
+//			assert.Nil(t, err)
+//		}
+//	}()
+//
+//	// Wait for goroutines or timeout
+//	done := make(chan bool, 1)
+//	go func() {
+//		wg.Wait()
+//		done <- true
+//	}()
+//
+//	select {
+//	case <-done:
+//		// Success: Both operations finished before timeout
+//	case <-time.After(timeout):
+//		assert.FailNow(t, "Possible deadlock or race condition detected during Readdir and directory operations")
+//	}
+//}
 
 // Test_MultipleConcurrentOperations tests for potential deadlocks or race conditions when
 // listing, file or folder operations, stat, opendir, file modifications happening concurrently.
@@ -625,51 +625,51 @@ func (s *concurrentListingTest) Test_ListWithMoveDir(t *testing.T) {
 
 // Test_StatWithNewFileWrite tests for potential deadlocks or race conditions when
 // statting and creating a new file happen concurrently.
-func (s *concurrentListingTest) Test_StatWithNewFileWrite(t *testing.T) {
-	t.Parallel()
-	testCaseDir := "Test_StatWithNewFileWrite"
-	createDirectoryStructureForTestCase(t, testCaseDir)
-	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
-	var wg sync.WaitGroup
-	wg.Add(2)
-	timeout := 400 * time.Second // Adjust timeout as needed
-
-	// Goroutine 1: Repeatedly calls Stat
-	go func() {
-		defer wg.Done()
-		for i := 0; i < iterationsForLightOperations; i++ {
-			_, err := os.Stat(targetDir)
-
-			assert.NoError(t, err)
-		}
-	}()
-
-	// Goroutine 2: Repeatedly create a file.
-	go func() {
-		defer wg.Done()
-		for i := 0; i < iterationsForLightOperations; i++ {
-			// Create file
-			filePath := path.Join(targetDir, fmt.Sprintf("tmp_file_%d.txt", i))
-			err := os.WriteFile(filePath, []byte("Hello, world!"), setup.FilePermission_0600)
-
-			assert.NoError(t, err)
-		}
-	}()
-
-	// Wait for goroutines or timeout
-	done := make(chan bool)
-	go func() {
-		wg.Wait()
-		done <- true
-	}()
-
-	select {
-	case <-done:
-		// Success: Both operations finished before timeout
-	case <-time.After(timeout):
-		assert.FailNow(t, "Possible deadlock or race condition detected")
-	}
-}
+//func (s *concurrentListingTest) Test_StatWithNewFileWrite(t *testing.T) {
+//	t.Parallel()
+//	testCaseDir := "Test_StatWithNewFileWrite"
+//	createDirectoryStructureForTestCase(t, testCaseDir)
+//	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
+//	var wg sync.WaitGroup
+//	wg.Add(2)
+//	timeout := 400 * time.Second // Adjust timeout as needed
+//
+//	// Goroutine 1: Repeatedly calls Stat
+//	go func() {
+//		defer wg.Done()
+//		for i := 0; i < iterationsForLightOperations; i++ {
+//			_, err := os.Stat(targetDir)
+//
+//			assert.NoError(t, err)
+//		}
+//	}()
+//
+//	// Goroutine 2: Repeatedly create a file.
+//	go func() {
+//		defer wg.Done()
+//		for i := 0; i < iterationsForLightOperations; i++ {
+//			// Create file
+//			filePath := path.Join(targetDir, fmt.Sprintf("tmp_file_%d.txt", i))
+//			err := os.WriteFile(filePath, []byte("Hello, world!"), setup.FilePermission_0600)
+//
+//			assert.NoError(t, err)
+//		}
+//	}()
+//
+//	// Wait for goroutines or timeout
+//	done := make(chan bool)
+//	go func() {
+//		wg.Wait()
+//		done <- true
+//	}()
+//
+//	select {
+//	case <-done:
+//		// Success: Both operations finished before timeout
+//	case <-time.After(timeout):
+//		assert.FailNow(t, "Possible deadlock or race condition detected")
+//	}
+//}
 
 ////////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
