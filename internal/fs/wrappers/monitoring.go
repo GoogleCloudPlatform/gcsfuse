@@ -329,6 +329,7 @@ func (fs *monitoring) Destroy() {
 type wrappedCall func() error
 
 func invokeWrapped(ctx context.Context, opName string, w wrappedCall) error {
+	// SpanKind is server since Fuse is a server for Kernel requests.
 	ctx, span := monitor.StartSpan(ctx, opName, trace.WithSpanKind(trace.SpanKindServer))
 	defer span.End()
 	startTime := time.Now()
