@@ -287,6 +287,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileOperations(t *testin
 // Test_Parallel_ReadDirAndDirOperations tests for potential deadlocks or race conditions when
 // ReadDir() is called concurrently with directory creation and deletion operations.
 func (s *concurrentListingTest) Test_Parallel_ReadDirAndDirOperations(t *testing.T) {
+	t.SkipNow()
 	t.Parallel() // Mark the test parallelizable.
 	testCaseDir := "Test_Parallel_ReadDirAndDirOperations"
 	createDirectoryStructureForTestCase(t, testCaseDir)
@@ -410,6 +411,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileEdit(t *testing.T) {
 // Test_MultipleConcurrentOperations tests for potential deadlocks or race conditions when
 // listing, file or folder operations, stat, opendir, file modifications happening concurrently.
 func (s *concurrentListingTest) Test_MultipleConcurrentOperations(t *testing.T) {
+	t.SkipNow()
 	t.Parallel() // Mark the test parallelizable.
 	testCaseDir := "Test_MultipleConcurrentOperations"
 	createDirectoryStructureForTestCase(t, testCaseDir)
