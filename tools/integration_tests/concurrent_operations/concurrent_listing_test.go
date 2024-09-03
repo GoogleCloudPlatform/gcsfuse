@@ -94,10 +94,10 @@ func (s *concurrentListingTest) Test_OpenDirAndLookUp(t *testing.T) {
 		defer wg.Done()
 		for i := 0; i < iterationsForLightOperations; i++ {
 			f, err := os.Open(targetDir)
-			assert.Nil(t, err)
+			require.NoError(t, err)
 
 			err = f.Close()
-			assert.Nil(t, err)
+			require.NoError(t, err)
 		}
 	}()
 
@@ -106,7 +106,7 @@ func (s *concurrentListingTest) Test_OpenDirAndLookUp(t *testing.T) {
 		defer wg.Done()
 		for i := 0; i < iterationsForLightOperations; i++ {
 			_, err := os.Stat(targetDir)
-			assert.Nil(t, err)
+			require.NoError(t, err)
 		}
 	}()
 
@@ -140,13 +140,13 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndLookUp(t *testing.T) {
 		defer wg.Done()
 		for i := 0; i < iterationsForMediumOperations; i++ {
 			f, err := os.Open(targetDir)
-			assert.Nil(t, err)
+			require.NoError(t, err)
 
 			_, err = f.Readdirnames(-1)
-			assert.Nil(t, err)
+			require.NoError(t, err)
 
 			err = f.Close()
-			assert.Nil(t, err)
+			require.NoError(t, err)
 		}
 	}()
 
@@ -155,7 +155,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndLookUp(t *testing.T) {
 		defer wg.Done()
 		for i := 0; i < iterationsForLightOperations; i++ {
 			_, err := os.Stat(targetDir)
-			assert.Nil(t, err)
+			require.NoError(t, err)
 		}
 	}()
 
@@ -199,7 +199,7 @@ func (s *concurrentListingTest) Test_MultipleConcurrentReadDir(t *testing.T) {
 				require.Nil(t, err)
 
 				err = f.Close()
-				assert.Nil(t, err)
+				require.NoError(t, err)
 			}
 		}()
 	}
@@ -235,13 +235,13 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileOperations(t *testin
 		defer wg.Done()
 		for i := 0; i < iterationsForMediumOperations; i++ { // Adjust iteration count if needed
 			f, err := os.Open(targetDir)
-			assert.Nil(t, err)
+			require.NoError(t, err)
 
 			_, err = f.Readdirnames(-1)
-			assert.Nil(t, err)
+			require.NoError(t, err)
 
 			err = f.Close()
-			assert.Nil(t, err)
+			require.NoError(t, err)
 		}
 	}()
 
@@ -257,7 +257,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileOperations(t *testin
 			require.Nil(t, err)
 
 			err = f.Close()
-			assert.Nil(t, err)
+			require.Nil(t, err)
 
 			// Rename
 			err = os.Rename(filePath, renamedFilePath)
@@ -265,7 +265,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileOperations(t *testin
 
 			// Delete
 			err = os.Remove(renamedFilePath)
-			assert.Nil(t, err)
+			require.NoError(t, err)
 		}
 	}()
 
@@ -303,10 +303,10 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndDirOperations(t *testing
 			require.Nil(t, err)
 
 			_, err = f.Readdirnames(-1)
-			assert.Nil(t, err)
+			require.NoError(t, err)
 
 			err = f.Close()
-			assert.Nil(t, err)
+			require.NoError(t, err)
 		}
 	}()
 
@@ -327,7 +327,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndDirOperations(t *testing
 
 			// Delete
 			err = os.Remove(renamedDirPath)
-			assert.Nil(t, err)
+			require.NoError(t, err)
 		}
 	}()
 
@@ -368,7 +368,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileEdit(t *testing.T) {
 			require.Nil(t, err)
 
 			err = f.Close()
-			assert.Nil(t, err)
+			require.NoError(t, err)
 		}
 	}()
 
@@ -380,7 +380,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileEdit(t *testing.T) {
 
 			// Create file
 			err := os.WriteFile(filePath, []byte("Hello, world!"), setup.FilePermission_0600)
-			assert.Nil(t, err)
+			require.NoError(t, err)
 
 			// Edit file (append some data)
 			f, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY, setup.FilePermission_0600)
