@@ -39,9 +39,10 @@ import google.api_core
 from google.api_core.exceptions import GoogleAPICallError
 import google.cloud
 from google.cloud import monitoring_v3
-from gsheet import gsheet
 from typing import List
 import subprocess
+sys.path.insert(0, '..')
+from gsheet import gsheet
 
 PROJECT_NAME = 'projects/gcs-fuse-test-ml'
 CPU_UTI_METRIC_TYPE = 'compute.googleapis.com/instance/cpu/utilization'
@@ -49,7 +50,7 @@ RECEIVED_BYTES_COUNT_METRIC_TYPE = 'compute.googleapis.com/instance/network/rece
 OPS_LATENCY_METRIC_TYPE = 'custom.googleapis.com/gcsfuse/fs/ops_latency'
 READ_BYTES_COUNT_METRIC_TYPE = 'custom.googleapis.com/gcsfuse/gcs/read_bytes_count'
 OPS_ERROR_COUNT_METRIC_TYPE = 'custom.googleapis.com/gcsfuse/fs/ops_error_count'
-MEMORY_UTIL_METRIC_TYPE='agent.googleapis.com/memory/percent_used'
+MEMORY_UTIL_METRIC_TYPE='agent.googleapis.com/processes/rss_usage'
 SENT_BYTES_COUNT_METRIC_TYPE = 'compute.googleapis.com/instance/network/sent_bytes_count'
 LOAD_AVG_OS_THREADS_MEAN_METRIC_TYPE='agent.googleapis.com/cpu/load_1m'
 
@@ -127,7 +128,7 @@ def _parse_metric_value_by_type(value, value_type) -> float:
 
     Args:
       value (object): The value object from API response
-      value_type (int) : Integer representing the value type of the object, refer 
+      value_type (int) : Integer representing the value type of the object, refer
                         https://cloud.google.com/monitoring/api/ref_v3/rest/v3/TypedValue.
   """
   if value_type == 1:
@@ -145,6 +146,10 @@ def _parse_metric_value_by_type(value, value_type) -> float:
 
 
 def _get_instance_id():
+  """
+  For fetching the metrics with metric type agent*, we need instance id .Hence ,
+  this function returns the instance ID of the VM on which the benchmark is run.
+  """
   command = ["curl", "http://metadata.google.internal/computeMetadata/v1/instance/id",
              "-H", "Metadata-Flavor:Google"]
 
@@ -154,6 +159,16 @@ def _get_instance_id():
   except subprocess.CalledProcessError as e:
     print(f"Error fetching instance ID: {e}")
     return None
+
+
+def _get_gcsfuse_pid():
+  """
+  For fetching memory related metrics specific to gcsfuse process, we required
+  the pid returned by this function.
+  """
+  command= "ps -aux | grep -i \'gcsfuse\' | head -1"
+  result=subprocess.check_output(command,shell=True).split()
+  pid=result[1]
 
 
 def _get_metric_filter(type, metric_type, instance, extra_filter):
@@ -173,7 +188,7 @@ def _get_metric_filter(type, metric_type, instance, extra_filter):
     metric_filter = (
         'metric.type = "{metric_type}" AND metric.labels.opencensus_task = '
         'ends_with("{instance_name}")').format(
-            metric_type=metric_type, instance_name=instance)
+        metric_type=metric_type, instance_name=instance)
   elif (type == 'agent'):
     # Fetch the instance ID here
     instance_id = _get_instance_id()
@@ -260,6 +275,9 @@ class VmMetrics:
       metric_filter = _get_metric_filter('custom', metric.metric_type, instance,
                                          metric.extra_filter)
     elif (metric.metric_type[0:5] == 'agent'):
+      if metric.metric_type == MEMORY_UTIL_METRIC_TYPE:
+        gcsfuse_pid=_get_gcsfuse_pid()
+        metric.extra_filter= 'metric.pid == {}'.format(gcsfuse_pid)
       metric_filter = _get_metric_filter('agent', metric.metric_type, instance,
                                          metric.extra_filter)
     else:
@@ -273,7 +291,6 @@ class VmMetrics:
           'view': monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL,
           'aggregation': aggregation,
       })
-      
     except:
       raise GoogleAPICallError(('The request for API response of {} failed.'
                                 ).format(metric.metric_type))
@@ -308,7 +325,7 @@ class VmMetrics:
                           metric.metric_type)
 
     return metrics_data
-  
+
   def _add_new_metric_using_test_type(self, test_type):
     """Creates a copy of METRICS_LIST and appends new Metric objects to it for read
       and write tests. Returns the LISTING_TESTS_METRICS_LIST for list type.
@@ -347,7 +364,7 @@ class VmMetrics:
       start_time_sec (int): Epoch seconds
       end_time_sec (int): Epoch seconds
       instance (str): VM instance
-      period (float): Period over which the values are taken 
+      period (float): Period over which the values are taken
       test_type(str): The type of load test for which metrics are taken
 
     Returns:
@@ -356,7 +373,7 @@ class VmMetrics:
       OPS_MEAN_LATENCY]]
     """
     self._validate_start_end_times(start_time_sec, end_time_sec)
-    
+
     # Getting updated metrics list:
     updated_metrics_list = self._add_new_metric_using_test_type(test_type)
 
@@ -395,7 +412,7 @@ class VmMetrics:
       None
     """
     self._validate_start_end_times(start_time_sec, end_time_sec)
-    
+
     # Getting metrics data:
     metrics_data = self.fetch_metrics(start_time_sec, end_time_sec, instance,
                                       period, test_type)
