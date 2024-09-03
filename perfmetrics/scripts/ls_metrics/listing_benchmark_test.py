@@ -128,6 +128,28 @@ DIRECTORY_STRUCTURE3 = {
     ]
 }
 
+DIRECTORY_STRUCTURE4 = {
+    'name': 'fake_bucket',
+    'num_folders': 2,
+    'num_files': 1,
+    'file_size': '1kb',
+    'file_name_prefix': 'file',
+    'folders': [
+        {
+            'name': '2KB_3files_0subdir',
+            'num_files': 3,
+            'file_name_prefix': 'file',
+            'file_size': '2kb'
+        },
+        {
+            'name': '1KB_1000000files_0subdir',
+            'num_files': 1000000,
+            'file_size': '1kb',
+            'file_name_prefix': 'file'
+        }
+    ]
+}
+
 # List of latencies (msec) of list operation to test _parse_results method.
 METRICS1 = [1.234, 0.995, 0.121, 0.222, 0.01709]
 METRICS2 = [90.45, 1.95, 0.334, 7.090, 0.001]
@@ -206,6 +228,8 @@ DIRECTORY_STRUCTURE2 = ParseDict(
     DIRECTORY_STRUCTURE2, directory_proto.Directory())
 DIRECTORY_STRUCTURE3 = ParseDict(
     DIRECTORY_STRUCTURE3, directory_proto.Directory())
+DIRECTORY_STRUCTURE4 = ParseDict(
+    DIRECTORY_STRUCTURE4, directory_proto.Directory())
 
 WORKSHEET_NAME = 'ls_metrics_gcsfuse'
 
@@ -572,6 +596,41 @@ class ListingBenchmarkTest(unittest.TestCase):
     result = listing_benchmark._compare_directory_structure(
         'fake_bucket/', DIRECTORY_STRUCTURE3)
     self.assertFalse(result)
+
+  @patch('listing_benchmark.RUN_1M_TEST',False)
+  @patch('listing_benchmark._record_time_of_operation', return_value=[1])
+  def test_skip_1m_test_false(self, mock_record_time_of_operation):
+    mock_record_time_of_operation.return_value = [1, 1]
+    expected_calls=[call('ls -R','./fake_disk/2KB_3files_0subdir/',2),
+                    call('ls -R','./fake_bucket/2KB_3files_0subdir/',2)]
+
+    gcs_bucket_results, persistent_disk_results = listing_benchmark._perform_testing(
+        DIRECTORY_STRUCTURE4.folders, 'fake_bucket', 'fake_disk', 2, 'ls -R')
+
+    self.assertEqual(gcs_bucket_results, persistent_disk_results)
+    mock_record_time_of_operation.assert_has_calls(expected_calls)
+    self.assertEqual(gcs_bucket_results, {
+        '2KB_3files_0subdir': [1, 1],
+    })
+
+  @patch('listing_benchmark.RUN_1M_TEST',True)
+  @patch('listing_benchmark._record_time_of_operation', return_value=[1])
+  def test_skip_1m_test_true(self, mock_record_time_of_operation):
+    mock_record_time_of_operation.return_value = [1, 1]
+    expected_calls=[call('ls -R','./fake_disk/2KB_3files_0subdir/',2),
+                    call('ls -R','./fake_bucket/2KB_3files_0subdir/',2),
+                    call('ls -R','./fake_disk/1KB_1000000files_0subdir/',2),
+                    call('ls -R','./fake_bucket/1KB_1000000files_0subdir/',2),]
+
+    gcs_bucket_results, persistent_disk_results = listing_benchmark._perform_testing(
+        DIRECTORY_STRUCTURE4.folders, 'fake_bucket', 'fake_disk', 2, 'ls -R')
+
+    self.assertEqual(gcs_bucket_results, persistent_disk_results)
+    mock_record_time_of_operation.assert_has_calls(expected_calls)
+    self.assertEqual(gcs_bucket_results, {
+        '2KB_3files_0subdir': [1, 1],
+        '1KB_1000000files_0subdir' : [1,1]
+    })
 
 
 if __name__ == '__main__':
