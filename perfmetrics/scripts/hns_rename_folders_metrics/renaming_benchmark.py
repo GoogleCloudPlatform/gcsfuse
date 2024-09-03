@@ -67,6 +67,27 @@ def _upload_to_gsheet(worksheet, data, spreadsheet_id) -> (int):
 
 
 def _calculate_num_files(folder_structure):
+  """
+  Calculate the total number of files across folders specified in folder structure.
+  Args:
+    folder_structure: JSON list containing JSON objects representing folders.
+  Returns:
+    Total count of files.
+  Examples:
+    folder_structure:[
+      {
+      ...
+      num_files:1 ,
+      ...
+      },
+      {
+      ...
+      num_files:1,
+      ...
+      }
+    ]
+    For the above structure, the function returns 2.
+  """
   count=0
   for folder in folder_structure:
     count+=folder["num_files"]
@@ -74,6 +95,17 @@ def _calculate_num_files(folder_structure):
 
 
 def _create_row_of_values(operation,test_type,num_files,num_folders,metrics):
+  """
+  Creates rows of values from the metrics dict to be uploaded to gsheet.
+  Args:
+    operation: Type of rename operation (whether involves nested folders or not)
+    test_type: flat or hns
+    num_files: Total number of files involved in the rename operation(filepath got affected)
+    num_folders: Total number of folders renamed/folderpath got affected
+    metrics: Dict object containing metrics to be uploaded.
+  Returns:
+    A row containing values to be uploaded.
+  """
   row = [
       operation,
       test_type,

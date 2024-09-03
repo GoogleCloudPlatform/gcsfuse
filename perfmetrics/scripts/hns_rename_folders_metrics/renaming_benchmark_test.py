@@ -19,27 +19,31 @@ class TestRenamingBenchmark(unittest.TestCase):
 
   def test_calculate_num_files(self):
     dir = {
-        "folder_structure":[
+        "name": "gcs_bucket",
+        "nested_folders": {
+            "folder_name": "nested_folder",
+            "num_folders":2,
+            "folder_structure": [
                 {
-                  'name': "test_folder1",
-                  "num_files": 1,
-                  "file_name_prefix": "file",
-                  "file_size": "1kb"
+                    'name': "test_nfolder1",
+                    "num_files": 2,
+                    "file_name_prefix": "file",
+                    "file_size": "1kb"
                 },
                 {
-                  'name': "test_folder2",
-                  "num_files": 1,
-                  "file_name_prefix": "file",
-                  "file_size": "1kb"
+                    'name': "test_nfolder2",
+                    "num_files": 1,
+                    "file_name_prefix": "file",
+                    "file_size": "1kb"
                 }
             ]
         }
+    }
+    expected_count_of_files = 3
 
-    expected_count_of_files=2
+    num_files = renaming_benchmark._calculate_num_files(dir["nested_folders"]["folder_structure"])
 
-    num_files=renaming_benchmark._calculate_num_files(dir["folder_structure"])
-
-    self.assertEqual(num_files,expected_count_of_files)
+    self.assertEqual(num_files, expected_count_of_files)
 
   @patch('subprocess.call')
   @patch('time.time')
