@@ -100,7 +100,7 @@ class TestRenamingBenchmark(unittest.TestCase):
     num_samples=2
     mock_time.side_effect = [1.0, 2.0, 3.0, 4.0,1.0, 2.0, 3.0, 4.0]
     expected_time_of_operation={'test_folder1':[1.0,1.0] ,'nested_folder':[1.0,1.0]}
-    expected_time_interval=[[1.0,4.0],[1.0,4.0]]
+    expected_time_interval={'test_folder1':[1.0,4.0] ,'nested_folder':[1.0,4.0]}
     expected_subprocess_calls=[call("mv ./gcs_bucket/test_folder1 ./gcs_bucket/test_folder1_renamed",shell=True),
                                call("mv ./gcs_bucket/test_folder1_renamed ./gcs_bucket/test_folder1",shell=True),
                                call("mv ./gcs_bucket/nested_folder ./gcs_bucket/nested_folder_renamed",shell=True),
@@ -170,7 +170,7 @@ class TestRenamingBenchmark(unittest.TestCase):
     test_type = "hns"
     num_samples = 4
     results = {}
-    mount_flags = "--config-file=/tmp/config.yml"
+    mount_flags = "--config-file=/tmp/config.yml --stackdriver-export-interval=30s"
     mock_mount_gcs_bucket.return_value="hns_bucket"
     mock_record_time_of_operation.return_value = [{"test_folder": [0.1, 0.2, 0.3, 0.4]},[[0.1,0.4]]]
     expected_results = {"test_folder": [0.1, 0.2, 0.3, 0.4]}
@@ -300,10 +300,12 @@ class TestRenamingBenchmark(unittest.TestCase):
   @patch('renaming_benchmark.log')
   def test_upload_to_gsheet_no_spreadsheet_id_passed(self,mock_log,mock_os):
     worksheet='temp-worksheet'
+    vm_worksheet='temp-vm-worksheet'
     data=['fake data']
+    vm_data=['fake data']
     spreadsheet_id=''
 
-    exit_code = renaming_benchmark._upload_to_gsheet(worksheet,data,spreadsheet_id)
+    exit_code = renaming_benchmark._upload_to_gsheet(worksheet,data,vm_worksheet,vm_data,spreadsheet_id)
 
     self.assertEqual(exit_code,1)
     mock_log.error.assert_called_once_with('Empty spreadsheet id passed!')
@@ -347,38 +349,77 @@ class TestRenamingBenchmark(unittest.TestCase):
     mock_log.error.assert_called_once_with("Test data does not exist.To create test data, run : \
         python3 generate_folders_and_files.py {} ".format(dir_config))
 
+  @patch('renaming_benchmark._extract_vm_metrics')
+  @patch('time.sleep')
   @patch('renaming_benchmark.SPREADSHEET_ID','temp-gsheet-id')
   @patch('renaming_benchmark.WORKSHEET_NAME_FLAT','flat-sheet')
+  @patch('renaming_benchmark.WORKSHEET_VM_METRICS_FLAT','vm-sheet')
   @patch('builtins.open', new_callable=mock_open)
   @patch('renaming_benchmark.log')
   @patch('renaming_benchmark._check_for_config_file_inconsistency')
   @patch('renaming_benchmark._check_if_dir_structure_exists')
   @patch('renaming_benchmark._perform_testing')
-  @patch('renaming_benchmark._parse_results')
   @patch('renaming_benchmark._get_values_to_export')
   @patch('renaming_benchmark._upload_to_gsheet')
   @patch('renaming_benchmark.json.load')
-  def test_run_rename_benchmark_upload_true(self,mock_json,mock_upload,mock_get_values,mock_parse_results,mock_perform_testing,mock_check_dir_exists,mock_inconsistency,mock_log,mock_open):
+  def test_run_rename_benchmark_upload_true(self,mock_json,mock_upload,
+      mock_get_values,mock_perform_testing,mock_check_dir_exists,
+      mock_inconsistency,mock_log,mock_open,mock_time_sleep,mock_extract_vm_metrics):
     test_type="flat"
     dir_config="test-config.json"
-    num_samples=10
+    num_samples=3
     results={'flat':''}
     upload_gs=True
     worksheet= 'flat-sheet'
+    vm_worksheet= 'vm-sheet'
     spreadsheet_id='temp-gsheet-id'
     mock_inconsistency.return_value=0
     mock_check_dir_exists.return_value=True
-    mock_perform_testing.return_value=[{'key':'val'},[[0.1,0.4]]]
-    mock_parse_results.return_value={'key':'val'}
+    mock_perform_testing.return_value=[
+        {
+            'test_folder1_0':[1.0,1.0,1.0],
+            'nested_folder':[1.0,1.0,1.0]
+         },
+        {
+            'test_folder1_0':[0.1,0.4],
+            'nested_folder':[0.1,0.4]
+        }
+    ]
+    # mock_parse_results.return_value={'key':'val'}
     mock_get_values.return_value=[['testdata','testdata2']]
     mock_upload.return_value=0
-    mock_json.return_value={}
+    mock_json.return_value={
+        "name": "gcs_bucket",
+        "folders": {
+            "folder_structure": [
+                {
+                    'name': "test_folder1_0",
+                    "num_files": 1,
+                    "file_name_prefix": "file",
+                    "file_size": "1kb"
+                }
+            ]
+        },
+        "nested_folders": {
+            "folder_name": "nested_folder",
+            "num_folders":1,
+            "folder_structure": [
+                {
+                    'name': "test_nfolder1",
+                    "num_files": 1,
+                    "file_name_prefix": "file",
+                    "file_size": "1kb"
+                }
+            ]
+        }
+    }
+    mock_extract_vm_metrics.return_value=['some vm metrics']
 
 
     renaming_benchmark._run_rename_benchmark(test_type,dir_config,num_samples,upload_gs)
 
     mock_log.info.assert_called_with('Uploading files to the Google Sheet\n')
-    mock_upload.assert_called_with(worksheet,[['testdata','testdata2']],spreadsheet_id)
+    mock_upload.assert_called_with(worksheet,[['testdata','testdata2']],vm_worksheet,['some vm metrics'],spreadsheet_id)
 
 
 if __name__ == '__main__':
