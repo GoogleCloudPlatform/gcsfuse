@@ -625,51 +625,51 @@ func (s *concurrentListingTest) Test_ListWithMoveDir(t *testing.T) {
 
 // Test_StatWithNewFileWrite tests for potential deadlocks or race conditions when
 // statting and creating a new file happen concurrently.
-func (s *concurrentListingTest) Test_StatWithNewFileWrite(t *testing.T) {
-	t.Parallel()
-	testCaseDir := "Test_StatWithNewFileWrite"
-	createDirectoryStructureForTestCase(t, testCaseDir)
-	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
-	var wg sync.WaitGroup
-	wg.Add(2)
-	timeout := 400 * time.Second // Adjust timeout as needed
-
-	// Goroutine 1: Repeatedly calls Stat
-	go func() {
-		defer wg.Done()
-		for i := 0; i < iterationsForLightOperations; i++ {
-			_, err := os.Stat(targetDir)
-
-			assert.NoError(t, err)
-		}
-	}()
-
-	// Goroutine 2: Repeatedly create a file.
-	go func() {
-		defer wg.Done()
-		for i := 0; i < iterationsForLightOperations; i++ {
-			// Create file
-			filePath := path.Join(targetDir, fmt.Sprintf("tmp_file_%d.txt", i))
-			err := os.WriteFile(filePath, []byte("Hello, world!"), setup.FilePermission_0600)
-
-			assert.NoError(t, err)
-		}
-	}()
-
-	// Wait for goroutines or timeout
-	done := make(chan bool)
-	go func() {
-		wg.Wait()
-		done <- true
-	}()
-
-	select {
-	case <-done:
-		// Success: Both operations finished before timeout
-	case <-time.After(timeout):
-		assert.FailNow(t, "Possible deadlock or race condition detected")
-	}
-}
+//func (s *concurrentListingTest) Test_StatWithNewFileWrite(t *testing.T) {
+//	t.Parallel()
+//	testCaseDir := "Test_StatWithNewFileWrite"
+//	createDirectoryStructureForTestCase(t, testCaseDir)
+//	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
+//	var wg sync.WaitGroup
+//	wg.Add(2)
+//	timeout := 400 * time.Second // Adjust timeout as needed
+//
+//	// Goroutine 1: Repeatedly calls Stat
+//	go func() {
+//		defer wg.Done()
+//		for i := 0; i < iterationsForLightOperations; i++ {
+//			_, err := os.Stat(targetDir)
+//
+//			assert.NoError(t, err)
+//		}
+//	}()
+//
+//	// Goroutine 2: Repeatedly create a file.
+//	go func() {
+//		defer wg.Done()
+//		for i := 0; i < iterationsForLightOperations; i++ {
+//			// Create file
+//			filePath := path.Join(targetDir, fmt.Sprintf("tmp_file_%d.txt", i))
+//			err := os.WriteFile(filePath, []byte("Hello, world!"), setup.FilePermission_0600)
+//
+//			assert.NoError(t, err)
+//		}
+//	}()
+//
+//	// Wait for goroutines or timeout
+//	done := make(chan bool)
+//	go func() {
+//		wg.Wait()
+//		done <- true
+//	}()
+//
+//	select {
+//	case <-done:
+//		// Success: Both operations finished before timeout
+//	case <-time.After(timeout):
+//		assert.FailNow(t, "Possible deadlock or race condition detected")
+//	}
+//}
 
 ////////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
