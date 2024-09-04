@@ -104,6 +104,7 @@ TEST_DIR_HNS_PARALLEL_GROUP=(
   "list_large_dir"
   "mounting"
   "kernel_list_cache"
+  "concurrent_operations"
 )
 
 TEST_DIR_HNS_NON_PARALLEL=(
