@@ -626,7 +626,7 @@ func (s *concurrentListingTest) Test_ListWithMoveDir(t *testing.T) {
 // Test_StatWithNewFileWrite tests for potential deadlocks or race conditions when
 // statting and creating a new file happen concurrently.
 func (s *concurrentListingTest) Test_StatWithNewFileWrite(t *testing.T) {
-	t.Parallel()
+	//t.Parallel()
 	testCaseDir := "Test_StatWithNewFileWrite"
 	createDirectoryStructureForTestCase(t, testCaseDir)
 	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
