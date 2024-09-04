@@ -39,9 +39,14 @@ echo "logging:
           max-file-size-mb: 1024
           backup-file-count: 3
           compress: true
+      file-cache:
+        max-size-mb: -1
+        cache-for-range-read: true
+        enable-parallel-downloads: true
+      cache-dir: /mnt/disks/ssd/
        " > /tmp/gcsfuse_config.yaml
 
-TEST_BUCKET="gcsfuse-ml-tf-data"
+TEST_BUCKET="gcsfuse-ml-data-hns-central1"
 DIR="resnet"
 # Enable the enable-hns flag to run tests on the folder APIs with an HNS bucket.
 if [ ${BUCKET_TYPE} == "hns" ];
@@ -202,7 +207,7 @@ sed -i "$lines"'d' $train_lib_file
 x=$((x-1))
 sed -i "$x"'r bypassed_code.py' $train_lib_file
 
-ARTIFACTS_BUCKET_PATH="gs://gcsfuse-ml-tests-logs/ci_artifacts/tf/${DIR}"
+ARTIFACTS_BUCKET_PATH="gs://ayushsethi-working-dirs/ci_artifacts/tf/${DIR}"
 echo "Update status file"
 echo "RUNNING" > status.txt
 gsutil cp status.txt $ARTIFACTS_BUCKET_PATH/
