@@ -67,9 +67,19 @@ func TestPosixFlagsConversion(t *testing.T) {
 			expected: []string{"abc", "-v"},
 		},
 		{
-			name:     "negative_numbers_are_unchanged.",
+			name:     "negative_numbers_are_unchanged",
 			input:    []string{"abc", "-1", "-238", "-300.987"},
 			expected: []string{"abc", "-1", "-238", "-300.987"},
+		},
+		{
+			name:     "positive_numbers_are_unchanged",
+			input:    []string{"abc", "1", "238", "300.987"},
+			expected: []string{"abc", "1", "238", "300.987"},
+		},
+		{
+			name:     "numbers_are_unchanged_with_=_flag",
+			input:    []string{"abc", "-flag1=-1", "--flag2=-238", "-flag3=300.987", "-flag4=67"},
+			expected: []string{"abc", "--flag1=-1", "--flag2=-238", "--flag3=300.987", "--flag4=67"},
 		},
 	}
 	for _, tc := range data {
