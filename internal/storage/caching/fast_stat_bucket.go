@@ -129,6 +129,14 @@ func (b *fastStatBucket) insert(o *gcs.Object) {
 }
 
 // LOCKS_EXCLUDED(b.mu)
+func (b *fastStatBucket) insertFolder(f *gcs.Folder) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	b.cache.InsertFolder(f,  b.clock.Now().Add(b.ttl))
+}
+
+// LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) addNegativeEntry(name string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -386,7 +394,7 @@ func (b *fastStatBucket) GetFolder(
 	}
 
 	// Record the new folder.
-	b.cache.InsertFolder(folder, b.clock.Now().Add(b.ttl))
+	b.insertFolder(folder)
 	return folder, nil
 }
 
@@ -394,14 +402,13 @@ func (b *fastStatBucket) CreateFolder(ctx context.Context, folderName string) (f
 	// Throw away any existing record for this folder.
 	b.invalidate(folderName)
 
-	expiration := b.clock.Now().Add(b.ttl)
 	f, err = b.wrapped.CreateFolder(ctx, folderName)
 	if err != nil {
 		return
 	}
 
 	// Record the new folder.
-	b.cache.InsertFolder(f, expiration)
+	b.insertFolder(f)
 
 	return
 }
