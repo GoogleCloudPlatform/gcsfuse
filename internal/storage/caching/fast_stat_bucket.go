@@ -85,6 +85,7 @@ func (b *fastStatBucket) insertMultiple(objs []*gcs.Object) {
 	}
 }
 
+// LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) eraseEntriesWithGivenPrefix(folderName string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
