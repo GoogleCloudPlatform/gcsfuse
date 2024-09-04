@@ -105,3 +105,25 @@ func Test_ListCacheTtlSecsToDuration_InvalidCall(t *testing.T) {
 	// Calling with invalid argument to trigger panic.
 	ListCacheTTLSecsToDuration(-3)
 }
+
+func TestIsNegativeNumber(t *testing.T) {
+	testCases := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{"negative_integer", "-123", true},
+		{"positive_integer", "456", false},
+		{"negative_float", "-3.14", true},
+		{"zero", "0", false},
+		{"string", "abc", false},
+		{"invalid", "-12.34invalid", false},
+		{"negative_with_spaces", "  -5  ", true}, // Test with leading/trailing spaces
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, IsNegativeNumber(tc.input))
+		})
+	}
+}
