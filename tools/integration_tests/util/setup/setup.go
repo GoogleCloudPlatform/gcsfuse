@@ -376,7 +376,7 @@ func SetupTestDirectory(testDirName string) string {
 	if err != nil && !strings.Contains(err.Error(), "file exists") {
 		log.Printf("Error while setting up directory %s for testing: %v", testDirPath, err)
 	}
-	CleanUpDir(testDirPath)
+	// CleanUpDir(testDirPath)
 	return testDirPath
 }
 
