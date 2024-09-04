@@ -54,6 +54,8 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
+	testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
+
 	// If Mounted Directory flag is set, run tests for mounted directory.
 	setup.RunTestsForMountedDirectoryFlag(m)
 	// Else run tests for testBucket.
