@@ -66,6 +66,72 @@ def _upload_to_gsheet(worksheet, data, spreadsheet_id) -> (int):
   return exit_code
 
 
+def _calculate_num_files(folder_structure):
+  """
+  Calculate the total number of files across folders specified in folder structure.
+  Args:
+    folder_structure: JSON list containing JSON objects representing folders.
+  Returns:
+    Total count of files.
+  Examples:
+    folder_structure:[
+      {
+      ...
+      num_files:1 ,
+      ...
+      },
+      {
+      ...
+      num_files:1,
+      ...
+      }
+    ]
+    For the above structure, the function returns 2.
+  """
+  count=0
+  for folder in folder_structure:
+    count+=folder["num_files"]
+  return count
+
+
+def _create_row_of_values(operation,test_type,num_files,num_folders,metrics):
+  """
+  Creates rows of values from the metrics dict to be uploaded to gsheet.
+  Args:
+    operation: Type of rename operation (whether involves nested folders or not)
+    test_type: flat or hns
+    num_files: Total number of files involved in the rename operation(filepath got affected)
+    num_folders: Total number of folders renamed/folderpath got affected
+    metrics: Dict object containing metrics to be uploaded.
+  Returns:
+    A row containing values to be uploaded.
+  """
+  row = [
+      operation,
+      test_type,
+      num_files,
+      num_folders,
+      metrics['Number of samples'],
+      metrics['Mean'],
+      metrics['Median'],
+      metrics['Standard Dev'],
+      metrics['Min'],
+      metrics['Max'],
+      metrics['Quantiles']['0 %ile'],
+      metrics['Quantiles']['20 %ile'],
+      metrics['Quantiles']['50 %ile'],
+      metrics['Quantiles']['90 %ile'],
+      metrics['Quantiles']['95 %ile'],
+      metrics['Quantiles']['98 %ile'],
+      metrics['Quantiles']['99 %ile'],
+      metrics['Quantiles']['99.5 %ile'],
+      metrics['Quantiles']['99.9 %ile'],
+      metrics['Quantiles']['100 %ile']
+
+  ]
+  return row
+
+
 def _get_values_to_export(dir, metrics, test_type):
   """
   This function takes in extracted metrics data, filters it, rearranges it,
@@ -86,31 +152,15 @@ def _get_values_to_export(dir, metrics, test_type):
     num_files = folder["num_files"]
     num_folders = 1
 
-    row = [
-        'Renaming Operation',
-        test_type,
-        num_files,
-        num_folders,
-        metrics[folder["name"]]['Number of samples'],
-        metrics[folder["name"]]['Mean'],
-        metrics[folder["name"]]['Median'],
-        metrics[folder["name"]]['Standard Dev'],
-        metrics[folder["name"]]['Min'],
-        metrics[folder["name"]]['Max'],
-        metrics[folder["name"]]['Quantiles']['0 %ile'],
-        metrics[folder["name"]]['Quantiles']['20 %ile'],
-        metrics[folder["name"]]['Quantiles']['50 %ile'],
-        metrics[folder["name"]]['Quantiles']['90 %ile'],
-        metrics[folder["name"]]['Quantiles']['95 %ile'],
-        metrics[folder["name"]]['Quantiles']['98 %ile'],
-        metrics[folder["name"]]['Quantiles']['99 %ile'],
-        metrics[folder["name"]]['Quantiles']['99.5 %ile'],
-        metrics[folder["name"]]['Quantiles']['99.9 %ile'],
-        metrics[folder["name"]]['Quantiles']['100 %ile']
-
-    ]
-
+    row=_create_row_of_values('Renaming Operation',test_type,num_files,num_folders,metrics[folder["name"]])
     metrics_data.append(row)
+
+  nested_folder_name=dir["nested_folders"]["folder_name"]
+  num_files= _calculate_num_files(dir["nested_folders"]["folder_structure"])
+  num_folders=dir["nested_folders"]["num_folders"]
+
+  row=_create_row_of_values('Renaming Operation Nested',test_type,num_files,num_folders,metrics[nested_folder_name])
+  metrics_data.append(row)
 
   return metrics_data
 
@@ -174,25 +224,25 @@ def _parse_results(dir, results, num_samples):
     folder_name = folder["name"]
     metrics[folder_name] = _compute_metrics_from_time_of_operation(
         num_samples, results[folder_name])
-  #TODO add logic for metrics parsing for nested folder
-
+  metrics[dir["nested_folders"]["folder_name"]]= _compute_metrics_from_time_of_operation(
+      num_samples, results[dir["nested_folders"]["folder_name"]])
   return metrics
 
 
-def _record_time_for_folder_rename(mount_point,folder,num_samples):
+def _record_time_for_folder_rename(parent_dir,folder,num_samples):
   """
   This function records the time of rename operation for folder,for num_samples
   number of test runs.
 
   Args:
-    mount_point: Mount point for the GCS bucket.
+    parent_dir: Parent directory for the folder.
     folder: JSON object representing the folder being renamed.
     num_samples: Number of samples to collect for each test.
 
   Returns:
     A list containing time of rename operations in seconds.
   """
-  folder_name= '{}/{}'.format(mount_point,folder["name"])
+  folder_name= '{}/{}'.format(parent_dir,folder["name"])
   folder_rename = folder_name+"_renamed"
   time_op = []
   for iter in range(num_samples):
@@ -237,7 +287,11 @@ def _record_time_of_operation(mount_point, dir, num_samples):
   # Collecting metrics for non-nested folders.
   for folder in dir["folders"]["folder_structure"]:
     results[folder["name"]] = _record_time_for_folder_rename(mount_point,folder,num_samples)
-  #TODO Add metric collection logic for nested-folders
+
+  nested_folder={
+      "name": dir["nested_folders"]["folder_name"]
+  }
+  results[dir["nested_folders"]["folder_name"]] = _record_time_for_folder_rename(mount_point,nested_folder,num_samples)
   return results
 
 

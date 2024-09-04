@@ -17,6 +17,34 @@ from mock import patch, call, mock_open
 
 class TestRenamingBenchmark(unittest.TestCase):
 
+  def test_calculate_num_files(self):
+    dir = {
+        "name": "gcs_bucket",
+        "nested_folders": {
+            "folder_name": "nested_folder",
+            "num_folders":2,
+            "folder_structure": [
+                {
+                    'name': "test_nfolder1",
+                    "num_files": 2,
+                    "file_name_prefix": "file",
+                    "file_size": "1kb"
+                },
+                {
+                    'name': "test_nfolder2",
+                    "num_files": 1,
+                    "file_name_prefix": "file",
+                    "file_size": "1kb"
+                }
+            ]
+        }
+    }
+    expected_count_of_files = 3
+
+    num_files = renaming_benchmark._calculate_num_files(dir["nested_folders"]["folder_structure"])
+
+    self.assertEqual(num_files, expected_count_of_files)
+
   @patch('subprocess.call')
   @patch('time.time')
   def test_record_time_for_folder_rename(self,mock_time,mock_subprocess):
@@ -51,9 +79,15 @@ class TestRenamingBenchmark(unittest.TestCase):
                     "num_files": 1,
                     "file_name_prefix": "file",
                     "file_size": "1kb"
-                },
+                }
+            ]
+        },
+        "nested_folders": {
+            "folder_name": "nested_folder",
+            "num_folders":1,
+            "folder_structure": [
                 {
-                    'name': "test_folder2",
+                    'name': "test_nfolder1",
                     "num_files": 1,
                     "file_name_prefix": "file",
                     "file_size": "1kb"
@@ -63,11 +97,11 @@ class TestRenamingBenchmark(unittest.TestCase):
     }
     num_samples=2
     mock_time.side_effect = [1.0, 2.0, 3.0, 4.0,1.0, 2.0, 3.0, 4.0]
-    expected_time_of_operation={'test_folder1':[1.0,1.0] ,'test_folder2':[1.0,1.0]}
+    expected_time_of_operation={'test_folder1':[1.0,1.0] ,'nested_folder':[1.0,1.0]}
     expected_subprocess_calls=[call("mv ./gcs_bucket/test_folder1 ./gcs_bucket/test_folder1_renamed",shell=True),
                                call("mv ./gcs_bucket/test_folder1_renamed ./gcs_bucket/test_folder1",shell=True),
-                               call("mv ./gcs_bucket/test_folder2 ./gcs_bucket/test_folder2_renamed",shell=True),
-                               call("mv ./gcs_bucket/test_folder2_renamed ./gcs_bucket/test_folder2",shell=True),]
+                               call("mv ./gcs_bucket/nested_folder ./gcs_bucket/nested_folder_renamed",shell=True),
+                               call("mv ./gcs_bucket/nested_folder_renamed ./gcs_bucket/nested_folder",shell=True),]
 
     time_op=renaming_benchmark._record_time_of_operation(mount_point,dir,num_samples)
 
@@ -164,6 +198,34 @@ class TestRenamingBenchmark(unittest.TestCase):
 
     self.assertEqual(metrics,expected_metrics)
 
+  def test_create_row_of_values(self):
+    metrics={
+            'Number of samples':2,
+            'Mean':1.0,
+            'Median':1.0,
+            'Standard Dev':0,
+            'Min': 1.0,
+            'Max':1.0,
+            'Quantiles':{'0 %ile': 1.0, '20 %ile': 1.0, '50 %ile': 1.0,
+                         '90 %ile': 1.0, '95 %ile': 1.0, '98 %ile': 1.0,
+                         '99 %ile': 1.0, '99.5 %ile': 1.0, '99.9 %ile': 1.0,
+                         '100 %ile': 1.0}
+    }
+    operation="renaming test"
+    test_type="flat"
+    num_files=1
+    num_folders=1
+    expected_row=[
+        "renaming test",
+        "flat",
+        1,1,2,1.0,1.0,0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0
+    ]
+
+    row=renaming_benchmark._create_row_of_values(operation,test_type,num_files,num_folders,metrics)
+
+    self.assertEqual(row,expected_row)
+
+
   def test_get_values_to_export(self):
     dir = {
         "name": "gcs_bucket",
@@ -171,6 +233,18 @@ class TestRenamingBenchmark(unittest.TestCase):
             "folder_structure": [
                 {
                     'name': "test_folder1_0",
+                    "num_files": 1,
+                    "file_name_prefix": "file",
+                    "file_size": "1kb"
+                }
+            ]
+        },
+        "nested_folders": {
+            "folder_name": "nested_folder",
+            "num_folders":1,
+            "folder_structure": [
+                {
+                    'name': "test_nfolder1",
                     "num_files": 1,
                     "file_name_prefix": "file",
                     "file_size": "1kb"
@@ -190,10 +264,24 @@ class TestRenamingBenchmark(unittest.TestCase):
                            '90 %ile': 1.0, '95 %ile': 1.0, '98 %ile': 1.0,
                            '99 %ile': 1.0, '99.5 %ile': 1.0, '99.9 %ile': 1.0,
                            '100 %ile': 1.0}
+        },
+        "nested_folder": {
+            'Number of samples':2,
+            'Mean':1.0,
+            'Median':1.0,
+            'Standard Dev':0,
+            'Min': 1.0,
+            'Max':1.0,
+            'Quantiles':{'0 %ile': 1.0, '20 %ile': 1.0, '50 %ile': 1.0,
+                         '90 %ile': 1.0, '95 %ile': 1.0, '98 %ile': 1.0,
+                         '99 %ile': 1.0, '99.5 %ile': 1.0, '99.9 %ile': 1.0,
+                         '100 %ile': 1.0}
         }
     }
     test_type="flat"
     expected_export_values=[['Renaming Operation','flat',1,1,2,1.0,1.0,0,1.0,1.0,
+                             1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0],
+                            ['Renaming Operation Nested','flat',1,1,2,1.0,1.0,0,1.0,1.0,
                              1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0]]
 
     values_to_export = renaming_benchmark._get_values_to_export(dir,metrics,test_type)
