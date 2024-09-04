@@ -302,7 +302,7 @@ class TestRenamingBenchmark(unittest.TestCase):
     worksheet='temp-worksheet'
     vm_worksheet='temp-vm-worksheet'
     data=['fake data']
-    vm_data=['fake data']
+    vm_data= {'fake data':'fake data val'}
     spreadsheet_id=''
 
     exit_code = renaming_benchmark._upload_to_gsheet(worksheet,data,vm_worksheet,vm_data,spreadsheet_id)
@@ -412,12 +412,12 @@ class TestRenamingBenchmark(unittest.TestCase):
             ]
         }
     }
-    mock_extract_vm_metrics.return_value=['some vm metrics']
+    mock_extract_vm_metrics.return_value={'test key':['some vm metrics']}
 
     renaming_benchmark._run_rename_benchmark(test_type,dir_config,num_samples,upload_gs)
 
     mock_log.info.assert_called_with('Uploading files to the Google Sheet\n')
-    mock_upload.assert_called_with(worksheet,[['testdata','testdata2']],vm_worksheet,['some vm metrics'],spreadsheet_id)
+    mock_upload.assert_called_with(worksheet,[['testdata','testdata2']],vm_worksheet,[['test key','some vm metrics']],spreadsheet_id)
 
 
 if __name__ == '__main__':

@@ -392,10 +392,10 @@ def _parse_arguments(argv):
 
   return parser.parse_args(argv[1:])
 
+
 def _extract_vm_metrics(time_intervals_list,folders_list):
   vm_metrics_obj = vm_metrics.VmMetrics()
   vm_metrics_data = {}
-
 
   for folder in folders_list:
     start_time = time_intervals_list[folder][0]
@@ -404,9 +404,18 @@ def _extract_vm_metrics(time_intervals_list,folders_list):
                                                                    end_time,
                                                                    INSTANCE,
                                                                    PERIOD_SEC,
-                                                                   'rename')
+                                                                   'rename')[0]
 
   return vm_metrics_data
+
+
+def _get_upload_value_for_vm_metrics(vm_metrics):
+  upload_values = []
+  for key, values in vm_metrics.items():
+    row = [key] + values
+    upload_values.append(row)
+  return upload_values
+
 
 def _run_rename_benchmark(test_type,dir_config,num_samples,upload_gs):
   with open(os.path.abspath(dir_config)) as file:
@@ -444,6 +453,7 @@ def _run_rename_benchmark(test_type,dir_config,num_samples,upload_gs):
   folders_list.append(dir_str["nested_folders"]["folder_name"])
 
   vm_metrics_data= _extract_vm_metrics(time_intervals,folders_list)
+  upload_values_vm_metrics= _get_upload_value_for_vm_metrics(vm_metrics_data)
 
   if upload_gs:
     log.info('Uploading files to the Google Sheet\n')
@@ -454,13 +464,13 @@ def _run_rename_benchmark(test_type,dir_config,num_samples,upload_gs):
       worksheet= WORKSHEET_NAME_HNS
       vm_worksheet= WORKSHEET_VM_METRICS_HNS
 
-    exit_code = _upload_to_gsheet(worksheet, upload_values,vm_worksheet,vm_metrics_data,
+    exit_code = _upload_to_gsheet(worksheet, upload_values,vm_worksheet,upload_values_vm_metrics,
                                   SPREADSHEET_ID)
     if exit_code != 0 :
       log.error("Upload to gsheet failed!")
   else:
     print('Latency related metrics: {}'.format(upload_values))
-    print('VM metrics: {}'.format(vm_metrics_data))
+    print('VM metrics: {}'.format(upload_values_vm_metrics))
 
 
 if __name__ == '__main__':
