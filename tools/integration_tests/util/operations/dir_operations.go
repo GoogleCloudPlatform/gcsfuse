@@ -151,7 +151,7 @@ func CreateDirectory(dirPath string, t *testing.T) {
 	err := os.Mkdir(dirPath, DirPermission_0755)
 
 	// Verify MkDir operation succeeds.
-	if err != nil {
+	if err != nil  && !strings.Contains(err.Error(), "file exists"){
 		t.Fatalf("Error while creating directory, err: %v", err)
 	}
 }

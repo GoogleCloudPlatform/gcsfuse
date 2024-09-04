@@ -51,6 +51,7 @@ const (
 type concurrentListingTest struct{}
 
 func (s *concurrentListingTest) Setup(t *testing.T) {
+	testDirPath = setup.SetupTestDirectory(testDirName)
 }
 
 func (s *concurrentListingTest) Teardown(t *testing.T) {}
