@@ -15,6 +15,7 @@
 package client
 
 import (
+	"compress/gzip"
 	"context"
 	"fmt"
 	"io"
@@ -221,4 +222,60 @@ func StatObject(ctx context.Context, client *storage.Client, object string) (*st
 		return nil, err
 	}
 	return attrs, nil
+}
+
+func UploadGcsObject(localPath, bucketName, objectName string, uploadGzipEncoded bool) error {
+	ctx := context.Background()
+
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to create storage client: %v", err)
+	}
+	defer client.Close()
+
+	// Open the local file for reading
+	f, err := os.Open(localPath)
+	if err != nil {
+		return fmt.Errorf("failed to open local file: %v", err)
+	}
+	defer f.Close()
+
+	if err != nil {
+		return err
+	}
+
+	// Create a writer to upload the object
+	obj := client.Bucket(bucketName).Object(objectName)
+	w := obj.NewWriter(ctx)
+
+	// Set content encoding if gzip compression is needed
+	if uploadGzipEncoded {
+
+		// Create a gzip writer on top of the object writer
+		gw := gzip.NewWriter(w)
+		defer gw.Close()
+
+		// Copy the file contents to the gzip writer
+		if _, err := io.Copy(gw, f); err != nil {
+			return fmt.Errorf("failed to copy file to object: %v", err)
+		}
+
+		// Close the gzip writer to finalize compression
+		if err := gw.Close(); err != nil {
+			return fmt.Errorf("failed to close gzip writer: %v", err)
+		}
+	} else {
+		// Copy the file contents directly to the object writer (no compression)
+		if _, err := io.Copy(w, f); err != nil {
+			return fmt.Errorf("failed to copy file to object: %v", err)
+		}
+	}
+
+	// Close the writer to finalize the upload
+	if err := w.Close(); err != nil {
+		return fmt.Errorf("failed to close object writer: %v", err)
+	}
+
+	log.Printf("File %s uploaded to gs://%s/%s successfully", localPath, bucketName, objectName)
+	return nil
 }

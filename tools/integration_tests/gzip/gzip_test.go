@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/gzip/helpers"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
@@ -141,13 +142,14 @@ func setup_testdata(m *testing.M) error {
 		defer os.Remove(localFilePath)
 
 		// upload to the test-bucket for testing
-		gcsObjectPath := path.Join(setup.TestBucket(), TestBucketPrefixPath, fmd.filename)
+		objectPrefixPath := path.Join(TestBucketPrefixPath, fmd.filename)
 
-		err = operations.UploadGcsObject(localFilePath, gcsObjectPath, fmd.enableGzipContentEncoding)
+		err = client.UploadGcsObject(localFilePath, setup.TestBucket(), objectPrefixPath, fmd.enableGzipContentEncoding)
 		if err != nil {
 			return err
 		}
 
+		gcsObjectPath := path.Join(setup.TestBucket(), objectPrefixPath)
 		gcsObjectsToBeDeletedEventually = append(gcsObjectsToBeDeletedEventually, gcsObjectPath)
 
 		if !fmd.keepCacheControlNoTransform {
