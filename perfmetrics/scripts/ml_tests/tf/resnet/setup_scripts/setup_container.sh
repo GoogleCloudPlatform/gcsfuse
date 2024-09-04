@@ -31,20 +31,21 @@ cd -
 
 # Mount the bucket and run in background so that docker doesn't keep running after resnet_runner.py fails
 echo "Mounting the bucket"
-echo "logging:
-        file-path: /home/logs/gcsfuse.log
-        format: text
-        severity: trace
-        log-rotate:
-          max-file-size-mb: 1024
-          backup-file-count: 3
-          compress: true
-      file-cache:
-        max-size-mb: -1
-        cache-for-range-read: true
-        enable-parallel-downloads: true
-      cache-dir: /mnt/disks/ssd/
-       " > /tmp/gcsfuse_config.yaml
+echo """
+logging:
+  file-path: /home/logs/gcsfuse.log
+  format: text
+  severity: trace
+  log-rotate:
+    max-file-size-mb: 1024
+    backup-file-count: 3
+    compress: true
+cache-dir: /mnt/disks/ssd/
+file-cache:
+  max-size-mb: -1
+  cache-file-for-range-read: true
+  enable-parallel-downloads: true
+""" > /tmp/gcsfuse_config.yaml
 
 TEST_BUCKET="gcsfuse-ml-tf-data"
 DIR="resnet"
