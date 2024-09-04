@@ -24,6 +24,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/cmd"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/perf"
@@ -49,7 +50,7 @@ func convertToPosixArgs(args []string) []string {
 			pArgs = append(pArgs, "-v")
 		case a == "--h", a == "-h":
 			pArgs = append(pArgs, "-h")
-		case strings.HasPrefix(a, "-") && !strings.HasPrefix(a, "--"):
+		case strings.HasPrefix(a, "-") && !cfg.IsNegativeNumber(a) && !strings.HasPrefix(a, "--"):
 			pArgs = append(pArgs, "-"+a)
 		default:
 			pArgs = append(pArgs, a)
