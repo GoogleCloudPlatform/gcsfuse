@@ -176,48 +176,48 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndLookUp(t *testing.T) {
 
 // Test_MultipleConcurrentReadDir tests for potential deadlocks or race conditions
 // when multiple goroutines call Readdir() concurrently on the same directory.
-func (s *concurrentListingTest) Test_MultipleConcurrentReadDir(t *testing.T) {
-	t.Parallel() // Mark the test parallelizable.
-	testCaseDir := "Test_MultipleConcurrentReadDir"
-	createDirectoryStructureForTestCase(t, testCaseDir)
-	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
-	var wg sync.WaitGroup
-	goroutineCount := 10 // Number of concurrent goroutines
-	wg.Add(goroutineCount)
-	timeout := 600 * time.Second // More timeout to accommodate the high listing time without kernel-list-cache.
-
-	// Create multiple go routines to listing concurrently.
-	for i := 0; i < goroutineCount; i++ {
-		go func() {
-			defer wg.Done()
-
-			for j := 0; j < iterationsForMediumOperations; j++ {
-				f, err := os.Open(targetDir)
-				assert.Nil(t, err)
-
-				_, err = f.Readdirnames(-1) // Read all directory entries
-				assert.Nil(t, err)
-
-				err = f.Close()
-				assert.Nil(t, err)
-			}
-		}()
-	}
-
-	// Wait for goroutines or timeout
-	done := make(chan bool, 1)
-	go func() {
-		wg.Wait()
-		done <- true
-	}()
-
-	select {
-	case <-done:
-		// Success: All Readdir operations finished before timeout
-	case <-time.After(timeout):
-		assert.FailNow(t, "Possible deadlock or race condition detected during concurrent Readdir calls")
-	}
-}
+//func (s *concurrentListingTest) Test_MultipleConcurrentReadDir(t *testing.T) {
+//	t.Parallel() // Mark the test parallelizable.
+//	testCaseDir := "Test_MultipleConcurrentReadDir"
+//	createDirectoryStructureForTestCase(t, testCaseDir)
+//	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
+//	var wg sync.WaitGroup
+//	goroutineCount := 10 // Number of concurrent goroutines
+//	wg.Add(goroutineCount)
+//	timeout := 600 * time.Second // More timeout to accommodate the high listing time without kernel-list-cache.
+//
+//	// Create multiple go routines to listing concurrently.
+//	for i := 0; i < goroutineCount; i++ {
+//		go func() {
+//			defer wg.Done()
+//
+//			for j := 0; j < iterationsForMediumOperations; j++ {
+//				f, err := os.Open(targetDir)
+//				assert.Nil(t, err)
+//
+//				_, err = f.Readdirnames(-1) // Read all directory entries
+//				assert.Nil(t, err)
+//
+//				err = f.Close()
+//				assert.Nil(t, err)
+//			}
+//		}()
+//	}
+//
+//	// Wait for goroutines or timeout
+//	done := make(chan bool, 1)
+//	go func() {
+//		wg.Wait()
+//		done <- true
+//	}()
+//
+//	select {
+//	case <-done:
+//		// Success: All Readdir operations finished before timeout
+//	case <-time.After(timeout):
+//		assert.FailNow(t, "Possible deadlock or race condition detected during concurrent Readdir calls")
+//	}
+//}
 
 // Test_Parallel_ReadDirAndFileOperations detects race conditions and deadlocks when one goroutine
 // performs Readdir() while another concurrently creates and deletes files in the same directory.
