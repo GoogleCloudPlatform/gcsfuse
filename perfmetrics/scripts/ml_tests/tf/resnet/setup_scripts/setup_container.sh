@@ -46,7 +46,7 @@ echo "logging:
       cache-dir: /mnt/disks/ssd/
        " > /tmp/gcsfuse_config.yaml
 
-TEST_BUCKET="gcsfuse-ml-data-hns-central1"
+TEST_BUCKET="gcsfuse-ml-tf-data"
 DIR="resnet"
 # Enable the enable-hns flag to run tests on the folder APIs with an HNS bucket.
 if [ ${BUCKET_TYPE} == "hns" ];
