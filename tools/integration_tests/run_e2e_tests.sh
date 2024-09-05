@@ -104,6 +104,7 @@ TEST_DIR_HNS_PARALLEL_GROUP=(
   "list_large_dir"
   "mounting"
   "kernel_list_cache"
+  "concurrent_operations"
 )
 
 TEST_DIR_HNS_NON_PARALLEL=(
@@ -286,14 +287,6 @@ function run_e2e_tests_for_hns_bucket(){
    parallel_tests_hns_group_exit_code=$?
    wait $non_parallel_tests_hns_group_pid
    non_parallel_tests_hns_group_exit_code=$?
-
-   # TODO: The tests are currently flaky. Please unblock this after the issue is fixed.
-   # The concurrent_operations package, which experiences intermittent failures on presubmit tests, primarily due to parallel execution on the FLAT bucket, has been executed.
-   # Added it serially after all the tests are completed to avoid failures.
-  #   local log_file="/tmp/concurrent_operation_${hns_bucket_name_parallel_group}.log"
-  #   echo $log_file >> $TEST_LOGS_FILE
-  #   GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/concurrent_operations $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG -p 1 --integrationTest -v --testbucket=$hns_bucket_name_non_parallel_group --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1
-  #   non_parallel_tests_hns_group_exit_code_2=$?
 
    hns_buckets=("$hns_bucket_name_parallel_group" "$hns_bucket_name_non_parallel_group")
    clean_up hns_buckets
