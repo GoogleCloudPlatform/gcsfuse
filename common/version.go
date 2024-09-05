@@ -23,6 +23,7 @@ import (
 // by tools/build_gcsfuse. If not defined, we use "unknown" in getVersion.
 var gcsfuseVersion string
 
+// GetVersion returns the version of the GCSFuse binary
 func GetVersion() string {
 	v := gcsfuseVersion
 	if v == "" {
