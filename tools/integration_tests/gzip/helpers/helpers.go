@@ -15,7 +15,6 @@
 package helpers
 
 import (
-	"compress/gzip"
 	"context"
 	"fmt"
 	"io"
@@ -31,20 +30,9 @@ import (
 
 const (
 	TempFileStrLine = "This is a test file"
-	TmpDirectory    = "/tmp"
 )
 
-// Creates a temporary file (name-collision-safe) in /tmp with given content size in bytes.
-// If gzipCompress is true, output file is a gzip-compressed file.
-// contentSize is the size of the uncompressed content. In case gzipCompress is true, the actual output file size will be
-// different from contentSize (typically gzip-compressed file size < contentSize).
-// Caller is responsible for deleting the created file when done using it.
-// Failure cases:
-// 1. contentSize <= 0
-// 2. os.CreateTemp() returned error or nil handle
-// 3. gzip.NewWriter() returned nil handle
-// 4. Failed to write the content to the created temp file
-func CreateLocalTempFile(contentSize int, gzipCompress bool) (string, error) {
+func CreateDataOfSize(contentSize int) (string, error) {
 	// fail if contentSize <= 0
 	if contentSize <= 0 {
 		return "", fmt.Errorf("unsupported fileSize: %d", contentSize)
@@ -58,64 +46,27 @@ func CreateLocalTempFile(contentSize int, gzipCompress bool) (string, error) {
 	const tempStr = TempFileStrLine + "\n"
 
 	for ; contentSize >= len(tempStr); contentSize -= len(tempStr) {
-		contentBuilder.WriteString(tempStr)
+		n, err := contentBuilder.WriteString(tempStr)
+		if err != nil {
+			return "", fmt.Errorf("failed to write to string builder: %w", err)
+		}
+		if n != len(tempStr) {
+			return "", fmt.Errorf("unexpected number of bytes written: expected %d, got %d", len(tempStr), n)
+		}
 	}
 
 	if contentSize > 0 {
-		contentBuilder.WriteString(tempStr[0:contentSize])
+		n, err := contentBuilder.WriteString(tempStr[0:contentSize])
+		if err != nil {
+			return "", fmt.Errorf("failed to write to string builder: %w", err)
+		}
+		if n != contentSize {
+			return "", fmt.Errorf("unexpected number of bytes written: expected %d, got %d", contentSize, n)
+		}
 	}
-
-	// reset contentSize
-	contentSize = contentBuilder.Len()
-
-	// create appropriate name template for temp file
-	filenameTemplate := "testfile-*.txt"
-	if gzipCompress {
-		filenameTemplate += ".gz"
-	}
-
-	// create a temp file
-	f, err := os.CreateTemp(TmpDirectory, filenameTemplate)
-	if err != nil {
-		return "", err
-	} else if f == nil {
-		return "", fmt.Errorf("nil file handle returned from os.CreateTemp")
-	}
-	defer operations.CloseFile(f)
-	filepath := f.Name()
 
 	content := contentBuilder.String()
-
-	if gzipCompress {
-		w := gzip.NewWriter(f)
-		if w == nil {
-			return "", fmt.Errorf("failed to open a gzip writer handle")
-		}
-		defer func() {
-			err := w.Close()
-			if err != nil {
-				fmt.Printf("Failed to close file %s: %v", filepath, err)
-			}
-		}()
-
-		// write the content created above as gzip
-		n, err := w.Write([]byte(content))
-		if err != nil {
-			return "", err
-		} else if n != contentSize {
-			return "", fmt.Errorf("failed to write to gzip file %s. Content-size: %d bytes, wrote = %d bytes", filepath, contentSize, n)
-		}
-	} else {
-		// write the content created above as text
-		n, err := f.WriteString(content)
-		if err != nil {
-			return "", err
-		} else if n != contentSize {
-			return "", fmt.Errorf("failed to write to text file %s. Content-size: %d bytes, wrote = %d bytes", filepath, contentSize, n)
-		}
-	}
-
-	return filepath, nil
+	return content, nil
 }
 
 // Downloads given gzipped GCS object (with path without 'gs://') to local disk.
@@ -131,7 +82,11 @@ func DownloadGzipGcsObjectAsCompressed(bucketName, objPathInBucket string) (stri
 		return "", fmt.Errorf("failed to get size of gcs object %s: %w", gcsObjectPath, err)
 	}
 
-	tempfile, err := CreateLocalTempFile(1, false)
+	content, err := CreateDataOfSize(1)
+	if err != nil {
+		return "", fmt.Errorf("failed to create data: %w", err)
+	}
+	tempfile, err := operations.CreateLocalTempFile(content, false)
 	if err != nil {
 		return "", fmt.Errorf("failed to create tempfile for downloading gcs object: %w", err)
 	}

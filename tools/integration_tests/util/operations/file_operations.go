@@ -17,6 +17,7 @@ package operations
 
 import (
 	"bytes"
+	"compress/gzip"
 	"crypto/rand"
 	"fmt"
 	"hash/crc32"
@@ -41,7 +42,9 @@ const (
 	// TimeSlop The radius we use for "expect mtime is within"-style assertions as kernel
 	// time can be slightly out of sync of time.Now().
 	// Ref: https://github.com/golang/go/issues/33510
-	TimeSlop = 25 * time.Millisecond
+	TimeSlop        = 25 * time.Millisecond
+	TempFileStrLine = "This is a test file"
+	TmpDirectory    = "/tmp"
 )
 
 func copyFile(srcFileName, dstFileName string, allowOverwrite bool) (err error) {
@@ -324,7 +327,7 @@ func StatFile(file string) (*fs.FileInfo, error) {
 	return &fstat, nil
 }
 
-func openFileAsReadonly(filepath string) (*os.File, error) {
+func OpenFileAsReadonly(filepath string) (*os.File, error) {
 	f, err := os.OpenFile(filepath, os.O_RDONLY|syscall.O_DIRECT, FilePermission_0400)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file %s as readonly: %v", filepath, err)
@@ -379,14 +382,14 @@ func AreFilesIdentical(filepath1, filepath2 string) (bool, error) {
 		return true, nil
 	}
 
-	f1, err := openFileAsReadonly(filepath1)
+	f1, err := OpenFileAsReadonly(filepath1)
 	if err != nil {
 		return false, err
 	}
 
 	defer CloseFile(f1)
 
-	f2, err := openFileAsReadonly(filepath2)
+	f2, err := OpenFileAsReadonly(filepath2)
 	if err != nil {
 		return false, err
 	}
@@ -453,20 +456,6 @@ func DownloadGcsObject(gcsObjPath, localPath string) error {
 	}
 
 	return nil
-}
-
-// Uploads given local file to GCS object (with path without 'gs://').
-// Fails if the file doesn't exist or permission to write to object/bucket is not
-// available.
-func UploadGcsObject(localPath, gcsObjPath string, uploadGzipEncoded bool) error {
-	var err error
-	if uploadGzipEncoded {
-		_, err = ExecuteGcloudCommandf("storage cp -Z %s gs://%s", localPath, gcsObjPath)
-	} else {
-		_, err = ExecuteGcloudCommandf("storage cp %s gs://%s", localPath, gcsObjPath)
-	}
-
-	return err
 }
 
 // Deletes a given GCS object (with path without 'gs://').
@@ -641,4 +630,64 @@ func SizeOfFile(filepath string) (size int64, err error) {
 	}
 
 	return (*fstat).Size(), nil
+}
+
+// Creates a temporary file (name-collision-safe) in /tmp with given content.
+// If gzipCompress is true, output file is a gzip-compressed file.
+// contentSize is the size of the uncompressed content. In case gzipCompress is true, the actual output file size will be
+// different from contentSize (typically gzip-compressed file size < contentSize).
+// Caller is responsible for deleting the created file when done using it.
+// Failure cases:
+// 1. contentSize <= 0
+// 2. os.CreateTemp() returned error or nil handle
+// 3. gzip.NewWriter() returned nil handle
+// 4. Failed to write the content to the created temp file
+func CreateLocalTempFile(content string, gzipCompress bool) (string, error) {
+	contentSize := len(content)
+
+	// create appropriate name template for temp file
+	filenameTemplate := "testfile-*.txt"
+	if gzipCompress {
+		filenameTemplate += ".gz"
+	}
+
+	// create a temp file
+	f, err := os.CreateTemp(TmpDirectory, filenameTemplate)
+	if err != nil {
+		return "", err
+	} else if f == nil {
+		return "", fmt.Errorf("nil file handle returned from os.CreateTemp")
+	}
+	defer CloseFile(f)
+	filepath := f.Name()
+
+	if gzipCompress {
+		w := gzip.NewWriter(f)
+		if w == nil {
+			return "", fmt.Errorf("failed to create gzip writer for file %s", filepath)
+		}
+		defer func() {
+			if err := w.Close(); err != nil {
+				fmt.Printf("failed to close gzip writer for file %s: %v", filepath, err)
+			}
+		}()
+
+		// write the content created above as gzip
+		n, err := w.Write([]byte(content))
+		if err != nil {
+			return "", err
+		} else if n != contentSize {
+			return "", fmt.Errorf("failed to write to gzip file %s. Content-size: %d bytes, wrote = %d bytes", filepath, contentSize, n)
+		}
+	} else {
+		// write the content created above as text
+		n, err := f.WriteString(content)
+		if err != nil {
+			return "", err
+		} else if n != contentSize {
+			return "", fmt.Errorf("failed to write to text file %s. Content-size: %d bytes, wrote = %d bytes", filepath, contentSize, n)
+		}
+	}
+
+	return filepath, nil
 }

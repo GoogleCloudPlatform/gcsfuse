@@ -50,12 +50,17 @@ func verifyFullFileOverwrite(t *testing.T, filename string) {
 			mountedFilePath, (*fi).Size(), gcsObjectPath, gcsObjectSize)
 	}
 
+	content, err := helpers.CreateDataOfSize(OverwittenFileSize)
+	if err != nil {
+		t.Fatalf("Failed to create data: %v", err)
+	}
+
 	// No need to worry about gzipping the overwritten data, because it's
 	// expensive to invoke a gzip-writer and unnecessary in this case.
 	// All we are interested in testing is that the content of the overwritten
 	// gzip file matches in size with that of the source file that was used to
 	// overwrite it.
-	tempfile, err := helpers.CreateLocalTempFile(OverwittenFileSize, false)
+	tempfile, err := operations.CreateLocalTempFile(content, false)
 	if err != nil {
 		t.Fatalf("Failed to create local temp file for overwriting existing gzip object: %v", err)
 	}

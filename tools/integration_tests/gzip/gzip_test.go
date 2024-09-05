@@ -16,6 +16,7 @@
 package gzip_test
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -133,10 +134,13 @@ func setup_testdata(m *testing.M) error {
 	}
 
 	for _, fmd := range fmds {
-		var localFilePath string
-		localFilePath, err := helpers.CreateLocalTempFile(fmd.filesize, fmd.enableGzipEncodedContent)
+		content, err := helpers.CreateDataOfSize(fmd.filesize)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to create data: %w", err)
+		}
+		localFilePath, err := operations.CreateLocalTempFile(content, false)
+		if err != nil {
+			return fmt.Errorf("failed to create local file: %w", err)
 		}
 
 		defer os.Remove(localFilePath)
@@ -144,7 +148,9 @@ func setup_testdata(m *testing.M) error {
 		// upload to the test-bucket for testing
 		objectPrefixPath := path.Join(TestBucketPrefixPath, fmd.filename)
 
-		err = client.UploadGcsObject(localFilePath, setup.TestBucket(), objectPrefixPath, fmd.enableGzipContentEncoding)
+		ctx := context.Background()
+
+		err = client.UploadGcsObject(ctx, localFilePath, setup.TestBucket(), objectPrefixPath, fmd.enableGzipContentEncoding)
 		if err != nil {
 			return err
 		}

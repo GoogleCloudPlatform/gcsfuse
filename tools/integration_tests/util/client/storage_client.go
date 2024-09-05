@@ -15,7 +15,6 @@
 package client
 
 import (
-	"compress/gzip"
 	"context"
 	"fmt"
 	"io"
@@ -224,56 +223,51 @@ func StatObject(ctx context.Context, client *storage.Client, object string) (*st
 	return attrs, nil
 }
 
-func UploadGcsObject(localPath, bucketName, objectName string, uploadGzipEncoded bool) error {
-	ctx := context.Background()
-
+func UploadGcsObject(ctx context.Context, localPath, bucketName, objectName string, uploadGzipEncoded bool) error {
 	client, err := storage.NewClient(ctx)
+
 	if err != nil {
 		return fmt.Errorf("failed to create storage client: %v", err)
 	}
 	defer client.Close()
 
-	// Open the local file for reading
-	f, err := os.Open(localPath)
-	if err != nil {
-		return fmt.Errorf("failed to open local file: %v", err)
-	}
-	defer f.Close()
-
-	if err != nil {
-		return err
-	}
-
 	// Create a writer to upload the object
 	obj := client.Bucket(bucketName).Object(objectName)
 	w := obj.NewWriter(ctx)
+	defer func() {
+		err := w.Close()
+		if err != nil {
+			fmt.Printf("Failed to close GCS object gs://%s/%s: %v", bucketName, objectName, err)
+		}
+	}()
 
+	filePathToUpload := localPath
 	// Set content encoding if gzip compression is needed
 	if uploadGzipEncoded {
-
-		// Create a gzip writer on top of the object writer
-		gw := gzip.NewWriter(w)
-		defer gw.Close()
-
-		// Copy the file contents to the gzip writer
-		if _, err := io.Copy(gw, f); err != nil {
-			return fmt.Errorf("failed to copy file to object: %v", err)
+		data, err := os.ReadFile(localPath)
+		if err != nil {
+			return err
 		}
 
-		// Close the gzip writer to finalize compression
-		if err := gw.Close(); err != nil {
-			return fmt.Errorf("failed to close gzip writer: %v", err)
+		content := string(data)
+		filePathToUpload, err = operations.CreateLocalTempFile(content, true)
+		if err != nil {
+			return fmt.Errorf("failed to create local gzip file from %s for upload to bucket: %w", localPath, err)
 		}
-	} else {
-		// Copy the file contents directly to the object writer (no compression)
-		if _, err := io.Copy(w, f); err != nil {
-			return fmt.Errorf("failed to copy file to object: %v", err)
-		}
+		defer os.Remove(filePathToUpload)
+
 	}
 
-	// Close the writer to finalize the upload
-	if err := w.Close(); err != nil {
-		return fmt.Errorf("failed to close object writer: %v", err)
+	// Open the local file for reading
+	f, err := operations.OpenFileAsReadonly(filePathToUpload)
+	if err != nil {
+		return fmt.Errorf("failed to open local file %s: %v", filePathToUpload, err)
+	}
+	defer operations.CloseFile(f)
+
+	// Copy the file contents to the object writer
+	if _, err := io.Copy(w, f); err != nil {
+		return fmt.Errorf("failed to copy file %s to gs://%s/%s: %v", localPath, bucketName, objectName, err)
 	}
 
 	log.Printf("File %s uploaded to gs://%s/%s successfully", localPath, bucketName, objectName)
