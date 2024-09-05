@@ -92,14 +92,9 @@ type DirInode interface {
 	// Return the full name of the child and the GCS object it backs up.
 	CreateChildFile(ctx context.Context, name string) (*Core, error)
 
-	// CreateLocalChildFileCore returns an empty local child file core.
-	CreateLocalChildFileCore(name string) (Core, error)
-
-	// InsertFileIntoTypeCache adds the given name to type-cache
-	InsertFileIntoTypeCache(name string)
-
-	// EraseFromTypeCache removes the given name from type-cache
-	EraseFromTypeCache(name string)
+	// Create an empty local child file with the supplied (relative) name. Local
+	// file means the object is not yet created in GCS.
+	CreateLocalChildFile(name string) (*Core, error)
 
 	// Like CreateChildFile, except clone the supplied source object instead of
 	// creating an empty object.
@@ -811,23 +806,15 @@ func (d *dirInode) CreateChildFile(ctx context.Context, name string) (*Core, err
 	}, nil
 }
 
-func (d *dirInode) CreateLocalChildFileCore(name string) (Core, error) {
-	return Core{
+func (d *dirInode) CreateLocalChildFile(name string) (*Core, error) {
+	fullName := NewFileName(d.Name(), name)
+
+	return &Core{
 		Bucket:    d.Bucket(),
-		FullName:  NewFileName(d.Name(), name),
+		FullName:  fullName,
 		MinObject: nil,
 		Local:     true,
 	}, nil
-}
-
-// LOCKS_REQUIRED(d)
-func (d *dirInode) InsertFileIntoTypeCache(name string) {
-	d.cache.Insert(d.cacheClock.Now(), name, metadata.RegularFileType)
-}
-
-// LOCKS_REQUIRED(d)
-func (d *dirInode) EraseFromTypeCache(name string) {
-	d.cache.Erase(name)
 }
 
 // LOCKS_REQUIRED(d)

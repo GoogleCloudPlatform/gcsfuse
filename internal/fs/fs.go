@@ -1642,19 +1642,16 @@ func (fs *fileSystem) createFile(
 // Creates localFileInode with the given name under the parent inode.
 // LOCKS_EXCLUDED(fs.mu)
 // UNLOCK_FUNCTION(fs.mu)
-// LOCK_FUNCTION(child)
+// LOCK_FUNCTION(in)
 func (fs *fileSystem) createLocalFile(
 	parentID fuseops.InodeID,
 	name string) (child inode.Inode, err error) {
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(parentID)
+	fs.mu.Unlock()
 
 	defer func() {
-		if err != nil {
-			// fs.mu lock is already taken
-			delete(fs.localFileInodes, child.Name())
-		}
 		// We need to release the filesystem lock before acquiring the inode lock.
 		fs.mu.Unlock()
 
@@ -1665,6 +1662,8 @@ func (fs *fileSystem) createLocalFile(
 		}
 	}()
 
+	fs.mu.Lock()
+
 	fullName := inode.NewFileName(parent.Name(), name)
 	child, ok := fs.localFileInodes[fullName]
 
@@ -1673,26 +1672,23 @@ func (fs *fileSystem) createLocalFile(
 	}
 
 	// Create a new inode when a file is created first time, or when a local file is unlinked and then recreated with the same name.
-	core, err := parent.CreateLocalChildFileCore(name)
+	var result *inode.Core
+	result, err = parent.CreateLocalChildFile(name)
 	if err != nil {
 		return
 	}
-	child = fs.mintInode(core)
+
+	child = fs.mintInode(*result)
 	fs.localFileInodes[child.Name()] = child
 
 	// Empty file is created to be able to set attributes on the file.
 	fileInode := child.(*inode.FileInode)
-	if err := fileInode.CreateEmptyTempFile(); err != nil {
-		return nil, err
+	err = fileInode.CreateEmptyTempFile()
+	if err != nil {
+		return
 	}
-	fs.mu.Unlock()
-	parent.Lock()
-	defer parent.Unlock()
-	parent.InsertFileIntoTypeCache(name)
-	// Even though there is no action here that requires locking, adding locking
-	// so that the defer call that unlocks the mutex doesn't fail.
-	fs.mu.Lock()
-	return child, nil
+
+	return
 }
 
 // LOCKS_EXCLUDED(fs.mu)

@@ -199,12 +199,8 @@ func (d *baseDirInode) CreateChildFile(ctx context.Context, name string) (*Core,
 	return nil, fuse.ENOSYS
 }
 
-func (d *baseDirInode) InsertFileIntoTypeCache(_ string) {}
-
-func (d *baseDirInode) EraseFromTypeCache(_ string) {}
-
-func (d *baseDirInode) CreateLocalChildFileCore(_ string) (Core, error) {
-	return Core{}, fuse.ENOSYS
+func (d *baseDirInode) CreateLocalChildFile(name string) (*Core, error) {
+	return nil, fuse.ENOSYS
 }
 
 func (d *baseDirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.MinObject) (*Core, error) {

@@ -1436,36 +1436,21 @@ func (t *DirTest) DeleteChildDir_ImplicitDirTrue() {
 	ExpectFalse(dirIn.IsUnlinked())
 }
 
-func (t *DirTest) LocalChildFileCore() {
-	core, err := t.in.CreateLocalChildFileCore("qux")
+func (t *DirTest) CreateLocalChildFile_ShouldnotCreateObjectInGCS() {
+	const name = "qux"
+
+	// Create the local file inode.
+	core, err := t.in.CreateLocalChildFile(name)
 
 	AssertEq(nil, err)
-	AssertEq(t.bucket.Name(), core.Bucket.Name())
-	AssertEq("foo/bar/qux", core.FullName.objectName)
-	AssertTrue(core.Local)
+	AssertEq(true, core.Local)
 	AssertEq(nil, core.MinObject)
-	result, err := t.in.LookUpChild(t.ctx, "qux")
+
+	// Object shouldn't get created in GCS.
+	result, err := t.in.LookUpChild(t.ctx, name)
 	AssertEq(nil, err)
 	AssertEq(nil, result)
-	ExpectEq(metadata.UnknownType, t.getTypeFromCache("qux"))
-}
-
-func (t *DirTest) InsertIntoTypeCache() {
-	t.in.InsertFileIntoTypeCache("abc")
-
-	d := t.in.(*dirInode)
-	tp := t.tc.Get(d.cacheClock.Now(), "abc")
-	AssertEq(2, tp)
-}
-
-func (t *DirTest) EraseFromTypeCache() {
-	t.in.InsertFileIntoTypeCache("abc")
-
-	t.in.EraseFromTypeCache("abc")
-
-	d := t.in.(*dirInode)
-	tp := d.cache.Get(d.cacheClock.Now(), "abc")
-	AssertEq(0, tp)
+	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name))
 }
 
 func (t *DirTest) LocalFileEntriesEmpty() {
