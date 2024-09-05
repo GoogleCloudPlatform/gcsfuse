@@ -25,7 +25,7 @@ mkdir -p container_artifacts
 
 echo "Running the docker image build in the previous step..."
 sudo docker run --gpus all --name=pytorch_automation_container --privileged -d -v $HOME/github/gcsfuse/container_artifacts:/pytorch_dino/run_artifacts:rw,rshared \
---shm-size=128g pytorch-gcsfuse:latest
+-v /mnt/disks/ssd/:/home/ssd:rw,rshared --shm-size=128g pytorch-gcsfuse:latest
 
 # Wait for the script completion as well as logs output.
 sudo docker logs -f pytorch_automation_container

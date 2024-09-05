@@ -52,6 +52,11 @@ logging:
 metadata-cache:
   ttl-secs: 1728000
   stat-cache-max-size-mb: 3200
+file-cache:
+  max-size-mb:-1
+  cache-file-for-range-read:true
+  enable-parallel-downloads:true
+cache-dir:/home/ssd/
 EOF
 
 DIR=${PYTORCH_VERSION}
@@ -196,7 +201,7 @@ dynamo_unsupported_distributed_c10d_ops = [
 ]" >> $distributed_c10d_file
 fi
 
-ARTIFACTS_BUCKET_PATH="gs://gcsfuse-ml-tests-logs/ci_artifacts/pytorch/${DIR}/dino"
+ARTIFACTS_BUCKET_PATH="gs://ayushsethi-working-dirs/ci_artifacts/pytorch/${DIR}/dino"
 echo "Update status file"
 echo "RUNNING" > status.txt
 gsutil cp status.txt $ARTIFACTS_BUCKET_PATH/
