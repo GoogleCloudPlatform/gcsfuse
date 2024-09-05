@@ -444,7 +444,10 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	monitor.CloseOpenTelemetryCollectorExporter()
 	monitor.ClosePrometheusCollectorExporter()
 	if shutdownFn != nil {
-		shutdownFn(ctx)
+		shutdownErr := shutdownFn(ctx)
+		if shutdownErr != nil {
+			logger.Errorf("Error while shutting down trace exporter: %v", shutdownErr)
+		}
 	}
 
 	if err != nil {
