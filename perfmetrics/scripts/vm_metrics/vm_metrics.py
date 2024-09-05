@@ -286,7 +286,7 @@ class VmMetrics:
     ops_latency_mean = Metric(
         metric_type=OPS_LATENCY_METRIC_TYPE,
         extra_filter=ops_latency_filter,
-        factor=1,
+        factor=1000,
         aligner='ALIGN_DELTA')
 
     updated_metrics_list.append(ops_latency_mean)
