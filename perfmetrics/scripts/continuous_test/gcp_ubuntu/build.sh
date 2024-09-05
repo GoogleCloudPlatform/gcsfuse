@@ -87,6 +87,10 @@ LIST_CONFIG_FILE="config-hns.json"
 run_load_test_and_fetch_metrics "$GCSFUSE_FIO_FLAGS" "$BUCKET_NAME" "$SPREADSHEET_ID"
 run_ls_benchmark "$GCSFUSE_LS_FLAGS" "$SPREADSHEET_ID" "$LIST_CONFIG_FILE"
 
+#Running the rename benchmark script.
+cd "./hns_rename_folders_metrics"
+./run_rename_benchmark.sh $UPLOAD_FLAGS
+
 
 # TODO: Testing for hns bucket with client protocol set to grpc. To be done when
 #  includeFolderAsPrefixes is supported in grpc.
