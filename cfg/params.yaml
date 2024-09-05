@@ -520,6 +520,22 @@
   deprecated: true
   deprecation-warning: "Experimental flag: could be dropped even in a minor release."
 
+- config-path: "monitoring.experimental-tracing-mode"
+  flag-name: "experimental-tracing-mode"
+  type: "string"
+  usage: "Experimental: specify tracing mode"
+  default: ""
+  deprecated: true
+  deprecation-warning: "Experimental flag: could be dropped even in a minor release."
+
+- config-path: "monitoring.experimental-tracing-sampling-ratio"
+  flag-name: "experimental-tracing-sampling-ratio"
+  type: "float64"
+  usage: "Experimental: Trace sampling ratio"
+  default: 0
+  deprecated: true
+  deprecation-warning: "Experimental flag: could be dropped even in a minor release."
+
 - config-path: "only-dir"
   flag-name: "only-dir"
   type: "string"

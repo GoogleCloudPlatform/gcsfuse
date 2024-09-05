@@ -114,7 +114,7 @@ func newInMemoryExporter(t *testing.T) *tracetest.InMemoryExporter {
 		ex.Reset()
 	})
 	otel.SetTracerProvider(sdktrace.NewTracerProvider(sdktrace.WithSyncer(ex)))
-	monitor.ResetTracer()
+	monitor.InitializeTracer()
 	return ex
 }
 

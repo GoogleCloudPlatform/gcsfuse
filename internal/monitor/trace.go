@@ -18,16 +18,16 @@ import (
 	"context"
 	"sync"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
-	"go.opentelemetry.io/otel/trace/noop"
 )
 
 // TODO: name is subject to change.
 const name = "cloud.google.com/gcsfuse"
 
 var (
-	tracer = noop.NewTracerProvider().Tracer("noop")
+	tracer trace.Tracer
 	once   sync.Once
 )
 
@@ -35,11 +35,16 @@ var (
 func StartSpan(ctx context.Context, spanName string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
 	once.Do(func() {
 		// Expect that the tracer provider has been configured by the SDK before the first call to StartSpan is made.
-		ResetTracer()
+		InitializeTracer()
 	})
 	return tracer.Start(ctx, spanName, opts...)
 }
 
-func ResetTracer() {
-	tracer = otel.GetTracerProvider().Tracer(name)
+// InitializeTracer initializes/re-initializes the tracer with the one returned by otel.GetTracerProvider().
+// Its primary utility is to re-initialize the tracer in test cases.
+// In main code, the tracer is initialized once and never again but in test-code,
+// StartSpan can be called before the TracerProvider is set and therefore would have been set for
+// the entire test runs had there not been a way to reset it especially for tests that test tracing logic.
+func InitializeTracer() {
+	tracer = otel.Tracer(name, trace.WithInstrumentationVersion(common.GetVersion()))
 }

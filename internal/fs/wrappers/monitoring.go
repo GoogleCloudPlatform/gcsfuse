@@ -312,9 +312,10 @@ func recordOp(ctx context.Context, method string, start time.Time, fsErr error) 
 
 // WithMonitoring takes a FileSystem, returns a FileSystem with monitoring
 // on the counts of requests per API.
-func WithMonitoring(fs fuseutil.FileSystem) fuseutil.FileSystem {
+func WithMonitoring(fs fuseutil.FileSystem, tracer trace.Tracer) fuseutil.FileSystem {
 	return &monitoring{
 		wrapped: fs,
+		tracer:  tracer,
 	}
 }
 

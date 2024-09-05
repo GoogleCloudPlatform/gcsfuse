@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cmd
+package common
 
 import (
 	"fmt"
@@ -23,7 +23,7 @@ import (
 // by tools/build_gcsfuse. If not defined, we use "unknown" in getVersion.
 var gcsfuseVersion string
 
-func getVersion() string {
+func GetVersion() string {
 	v := gcsfuseVersion
 	if v == "" {
 		v = "unknown"

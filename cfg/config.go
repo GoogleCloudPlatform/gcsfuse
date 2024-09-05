@@ -203,6 +203,10 @@ type MetricsConfig struct {
 
 type MonitoringConfig struct {
 	ExperimentalOpentelemetryCollectorAddress string `yaml:"experimental-opentelemetry-collector-address,omitempty" json:"experimental-opentelemetry-collector-address,omitempty"`
+
+	ExperimentalTracingMode string `yaml:"experimental-tracing-mode,omitempty" json:"experimental-tracing-mode,omitempty"`
+
+	ExperimentalTracingSamplingRatio float64 `yaml:"experimental-tracing-sampling-ratio,omitempty" json:"experimental-tracing-sampling-ratio,omitempty"`
 }
 
 type WriteConfig struct {
@@ -412,6 +416,26 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("monitoring.experimental-opentelemetry-collector-address", flagSet.Lookup("experimental-opentelemetry-collector-address")); err != nil {
+		return err
+	}
+
+	flagSet.StringP("experimental-tracing-mode", "", "", "Experimental: specify tracing mode")
+
+	if err := flagSet.MarkDeprecated("experimental-tracing-mode", "Experimental flag: could be dropped even in a minor release."); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("monitoring.experimental-tracing-mode", flagSet.Lookup("experimental-tracing-mode")); err != nil {
+		return err
+	}
+
+	flagSet.Float64P("experimental-tracing-sampling-ratio", "", 0, "Experimental: Trace sampling ratio")
+
+	if err := flagSet.MarkDeprecated("experimental-tracing-sampling-ratio", "Experimental flag: could be dropped even in a minor release."); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("monitoring.experimental-tracing-sampling-ratio", flagSet.Lookup("experimental-tracing-sampling-ratio")); err != nil {
 		return err
 	}
 
