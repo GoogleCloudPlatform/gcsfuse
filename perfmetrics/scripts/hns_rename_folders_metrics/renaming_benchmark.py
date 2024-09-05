@@ -394,6 +394,21 @@ def _parse_arguments(argv):
 
 
 def _extract_vm_metrics(time_intervals_list,folders_list):
+  """
+  Function to extract the VM metrics given the timestamps from the rename operations.
+  Args:
+     time_intervals_list : List of time intervals for each folder on which rename
+      operation is performed, each interval contains [ start time for the first
+      sample , end time of the last sample]
+     folders_list : List of names of folders on which the rename operation is done.
+  Returns:
+      vm_metrics_data : Dictionary of  VM metrics. For examples:
+      {
+        'folder_name': [CPU_UTI_PEAK, CPU_UTI_MEAN,REC_BYTES_PEAK, REC_BYTES_MEAN,
+        SENT_BYTES_PEAK,SENT_BYTES_MEAN,OPS_ERROR_COUNT,MEMORY_USAGE_PEAK,
+        MEMORY_USAGE_MEAN,LOAD_AVG_OS_THREADS_MEAN]
+      }
+  """
   vm_metrics_obj = vm_metrics.VmMetrics()
   vm_metrics_data = {}
 
@@ -410,6 +425,15 @@ def _extract_vm_metrics(time_intervals_list,folders_list):
 
 
 def _get_upload_value_for_vm_metrics(vm_metrics):
+  """
+  Function to take input of dictionary of Vm metrics and returns a list of values
+  which can be uploaded to google sheet.
+  Args:
+    vm_metrics:  Dictionary of Vm metrics corresponding to each folder renamed.
+  Returns:
+    upload_values: List of values to upload .For example:
+    ['folder_name',CPU_UTI_PEAK, CPU_UTI_MEAN,REC_BYTES_PEAK,...etc.]
+  """
   upload_values = []
   for key, values in vm_metrics.items():
     row = [key] + values

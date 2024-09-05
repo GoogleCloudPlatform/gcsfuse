@@ -420,5 +420,17 @@ class TestRenamingBenchmark(unittest.TestCase):
     mock_upload.assert_called_with(worksheet,[['testdata','testdata2']],vm_worksheet,[['test key','some vm metrics']],spreadsheet_id)
 
 
+  def test_get_upload_value_for_vm_metrics(self):
+    vm_metrics = {
+        'test_folder1': [1,2,3],
+        'test_folder2': [1,2,3]
+    }
+    expected_values= [['test_folder1',1,2,3],['test_folder2',1,2,3]]
+
+    upload_values = renaming_benchmark._get_upload_value_for_vm_metrics(vm_metrics)
+
+    self.assertEqual(upload_values,expected_values)
+
+
 if __name__ == '__main__':
   unittest.main()
