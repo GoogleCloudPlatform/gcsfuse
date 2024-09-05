@@ -16,15 +16,23 @@ package monitor
 
 import (
 	"context"
+	"sync"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 )
 
 // TODO: name is subject to change.
 const name = "cloud.google.com/gcsfuse"
 
+var tracerProvider trace.TracerProvider = noop.NewTracerProvider()
+var once sync.Once
+
 // StartSpan creates a new span and returns it along with the context that's augmented with the newly-created span..
 func StartSpan(ctx context.Context, spanName string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
-	return otel.GetTracerProvider().Tracer(name).Start(ctx, spanName, opts...)
+	once.Do(func() {
+		tracerProvider = otel.GetTracerProvider()
+	})
+	return tracerProvider.Tracer(name).Start(ctx, spanName, opts...)
 }
