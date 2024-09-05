@@ -26,13 +26,20 @@ import (
 // TODO: name is subject to change.
 const name = "cloud.google.com/gcsfuse"
 
-var tracerProvider trace.TracerProvider = noop.NewTracerProvider()
-var once sync.Once
+var (
+	tracer = noop.NewTracerProvider().Tracer("noop")
+	once   sync.Once
+)
 
 // StartSpan creates a new span and returns it along with the context that's augmented with the newly-created span..
 func StartSpan(ctx context.Context, spanName string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
 	once.Do(func() {
-		tracerProvider = otel.GetTracerProvider()
+		// Expect that the tracer provider has been configured by the SDK before the first call to StartSpan is made.
+		ResetTracer()
 	})
-	return tracerProvider.Tracer(name).Start(ctx, spanName, opts...)
+	return tracer.Start(ctx, spanName, opts...)
+}
+
+func ResetTracer() {
+	tracer = otel.GetTracerProvider().Tracer(name)
 }

@@ -320,6 +320,7 @@ func WithMonitoring(fs fuseutil.FileSystem) fuseutil.FileSystem {
 
 type monitoring struct {
 	wrapped fuseutil.FileSystem
+	tracer  trace.Tracer
 }
 
 func (fs *monitoring) Destroy() {

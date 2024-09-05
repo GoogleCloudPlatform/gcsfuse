@@ -20,6 +20,7 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/monitor"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -113,6 +114,7 @@ func newInMemoryExporter(t *testing.T) *tracetest.InMemoryExporter {
 		ex.Reset()
 	})
 	otel.SetTracerProvider(sdktrace.NewTracerProvider(sdktrace.WithSyncer(ex)))
+	monitor.ResetTracer()
 	return ex
 }
 
@@ -236,8 +238,11 @@ func (d dummyFS) Fallocate(_ context.Context, _ *fuseops.FallocateOp) error {
 
 func (d dummyFS) Destroy() {}
 
-func TestSpan(t *testing.T) {
+func TestSpanCreation(t *testing.T) {
 	ex := newInMemoryExporter(t)
+	t.Cleanup(func() {
+		ex.Reset()
+	})
 	m := monitoring{
 		wrapped: dummyFS{},
 	}
