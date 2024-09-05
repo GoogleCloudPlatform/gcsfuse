@@ -40,7 +40,7 @@ logging:
     max-file-size-mb: 1024
     backup-file-count: 3
     compress: true
-cache-dir: /mnt/disks/ssd/
+cache-dir: /home/ssd/
 file-cache:
   max-size-mb: -1
   cache-file-for-range-read: true
