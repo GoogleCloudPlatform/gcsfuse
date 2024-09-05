@@ -168,7 +168,8 @@ def _get_gcsfuse_pid():
   """
   command= "ps -aux | grep -i \'gcsfuse\' | head -1"
   result=subprocess.check_output(command,shell=True).split()
-  pid=result[1]
+  pid=result[1].decode('utf-8')
+  return pid
 
 
 def _get_metric_filter(type, metric_type, instance, extra_filter):
@@ -277,7 +278,7 @@ class VmMetrics:
     elif (metric.metric_type[0:5] == 'agent'):
       if metric.metric_type == MEMORY_UTIL_METRIC_TYPE:
         gcsfuse_pid=_get_gcsfuse_pid()
-        metric.extra_filter= 'metric.pid == {}'.format(gcsfuse_pid)
+        metric.extra_filter= 'metric.labels.pid = {}'.format(gcsfuse_pid)
       metric_filter = _get_metric_filter('agent', metric.metric_type, instance,
                                          metric.extra_filter)
     else:
@@ -368,9 +369,13 @@ class VmMetrics:
       test_type(str): The type of load test for which metrics are taken
 
     Returns:
+      list[[period end time, interval end time,CPU_UTI_PEAK, CPU_UTI_MEAN,
+      REC_BYTES_PEAK, REC_BYTES_MEAN,SENT_BYTES_PEAK,SENT_BYTES_MEAN,OPS_ERROR_COUNT,
+      MEMORY_USAGE_PEAK,MEMORY_USAGE_MEAN,LOAD_AVG_OS_THREADS_MEAN]] in case of rename
+
       list[[period end time, interval end time, CPU_UTI_PEAK, CPU_UTI_MEAN,
       REC_BYTES_PEAK, REC_BYTES_MEAN, READ_BYTES_COUNT, OPS_ERROR_COUNT,
-      OPS_MEAN_LATENCY]]
+      OPS_MEAN_LATENCY]] otherwise
     """
     self._validate_start_end_times(start_time_sec, end_time_sec)
 
