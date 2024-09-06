@@ -94,7 +94,6 @@ be interacting with the file system.`)
 		EnableMonitoring:                   newConfig.Metrics.StackdriverExportInterval > 0 || newConfig.Metrics.PrometheusPort != 0,
 		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.
 		TmpObjectPrefix:                    ".gcsfuse_tmp/",
-		DebugGCS:                           newConfig.Debug.Gcs,
 	}
 	bm := gcsx.NewBucketManager(bucketCfg, storageHandle)
 

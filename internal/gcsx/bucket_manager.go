@@ -41,7 +41,6 @@ type BucketConfig struct {
 	StatCacheMaxSizeMB                 uint64
 	StatCacheTTL                       time.Duration
 	EnableMonitoring                   bool
-	DebugGCS                           bool
 
 	// Files backed by on object of length at least AppendThreshold that have
 	// only been appended to (i.e. none of the object's contents have been
