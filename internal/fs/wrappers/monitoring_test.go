@@ -20,7 +20,6 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/monitor"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -114,7 +113,6 @@ func newInMemoryExporter(t *testing.T) *tracetest.InMemoryExporter {
 		ex.Reset()
 	})
 	otel.SetTracerProvider(sdktrace.NewTracerProvider(sdktrace.WithSyncer(ex)))
-	monitor.InitializeTracer()
 	return ex
 }
 
@@ -245,6 +243,7 @@ func TestSpanCreation(t *testing.T) {
 	})
 	m := monitoring{
 		wrapped: dummyFS{},
+		tracer:  otel.Tracer("test"),
 	}
 
 	err := m.StatFS(context.Background(), nil)

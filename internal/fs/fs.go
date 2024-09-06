@@ -45,7 +45,6 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
-	"go.opentelemetry.io/otel/trace"
 )
 
 type ServerConfig struct {
@@ -125,8 +124,6 @@ type ServerConfig struct {
 
 	// NewConfig has all the config specified by the user using config-file or CLI flags.
 	NewConfig *cfg.Config
-
-	TracerProvider trace.TracerProvider
 }
 
 // Create a fuse file system server according to the supplied configuration.

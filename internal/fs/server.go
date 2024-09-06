@@ -20,6 +20,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/wrappers"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseutil"
+	"go.opentelemetry.io/otel"
 	"golang.org/x/net/context"
 )
 
@@ -31,6 +32,6 @@ func NewServer(ctx context.Context, cfg *ServerConfig) (fuse.Server, error) {
 	}
 
 	fs = wrappers.WithErrorMapping(fs)
-	fs = wrappers.WithMonitoring(fs, cfg.TracerProvider.Tracer("fs"))
+	fs = wrappers.WithMonitoring(fs, otel.Tracer("fs"))
 	return fuseutil.NewFileSystemServer(fs), nil
 }
