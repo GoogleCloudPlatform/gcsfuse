@@ -19,6 +19,7 @@ import (
 
 	cloudtrace "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -34,10 +35,15 @@ type ShutdownFn func(ctx context.Context) error
 // SetupTracing bootstraps the OpenTelemetry tracing pipeline.
 func SetupTracing(ctx context.Context, c *cfg.Config) ShutdownFn {
 	tp, shutdown, err := newTraceProvider(ctx, c)
-	if err == nil && tp != nil {
+	if err != nil {
+		logger.Errorf("error occurred while setting up tracing: %v", err)
+		return nil
+	}
+	if tp != nil {
 		otel.SetTracerProvider(tp)
 		return shutdown
 	}
+
 	return nil
 }
 
@@ -82,6 +88,7 @@ func newGCPCloudTraceExporter(ctx context.Context, c *cfg.Config) (*sdktrace.Tra
 	if err != nil {
 		return nil, nil, err
 	}
+
 	tp := sdktrace.NewTracerProvider(sdktrace.WithBatcher(exporter), sdktrace.WithResource(res), sdktrace.WithSampler(sdktrace.TraceIDRatioBased(c.Monitoring.ExperimentalTracingSamplingRatio)))
 
 	return tp, tp.Shutdown, nil

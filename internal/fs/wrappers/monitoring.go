@@ -30,9 +30,12 @@ import (
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
+
+const name = "cloud.google.com/gcsfuse"
 
 var (
 	opsCount      = stats.Int64("fs/ops_count", "The number of ops processed by the file system.", monitor.UnitDimensionless)
@@ -312,10 +315,10 @@ func recordOp(ctx context.Context, method string, start time.Time, fsErr error) 
 
 // WithMonitoring takes a FileSystem, returns a FileSystem with monitoring
 // on the counts of requests per API.
-func WithMonitoring(fs fuseutil.FileSystem, tracer trace.Tracer) fuseutil.FileSystem {
+func WithMonitoring(fs fuseutil.FileSystem) fuseutil.FileSystem {
 	return &monitoring{
 		wrapped: fs,
-		tracer:  tracer,
+		tracer:  otel.Tracer(name),
 	}
 }
 
@@ -331,7 +334,7 @@ func (fs *monitoring) Destroy() {
 type wrappedCall func() error
 
 func (fs *monitoring) invokeWrapped(ctx context.Context, opName string, w wrappedCall) error {
-	// SpanKind is server since Fuse is a server for Kernel requests.
+	// Span's SpanKid is set to trace.SpanKindServer since GCSFuse is like a server for the requests that the Kernel sends.
 	ctx, span := fs.tracer.Start(ctx, opName, trace.WithSpanKind(trace.SpanKindServer))
 	defer span.End()
 	startTime := time.Now()

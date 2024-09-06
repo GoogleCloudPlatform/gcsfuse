@@ -421,7 +421,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("experimental-tracing-mode", "", "", "Experimental: specify tracing mode")
 
-	if err := flagSet.MarkDeprecated("experimental-tracing-mode", "Experimental flag: could be dropped even in a minor release."); err != nil {
+	if err := flagSet.MarkHidden("experimental-tracing-mode"); err != nil {
 		return err
 	}
 
@@ -431,7 +431,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 
 	flagSet.Float64P("experimental-tracing-sampling-ratio", "", 0, "Experimental: Trace sampling ratio")
 
-	if err := flagSet.MarkDeprecated("experimental-tracing-sampling-ratio", "Experimental flag: could be dropped even in a minor release."); err != nil {
+	if err := flagSet.MarkHidden("experimental-tracing-sampling-ratio"); err != nil {
 		return err
 	}
 
