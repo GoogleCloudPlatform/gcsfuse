@@ -78,6 +78,7 @@ func newGCPCloudTraceExporter(ctx context.Context, c *cfg.Config) (*sdktrace.Tra
 		resource.WithAttributes(
 			semconv.ServiceName(appName),
 		),
+	)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -85,4 +86,3 @@ func newGCPCloudTraceExporter(ctx context.Context, c *cfg.Config) (*sdktrace.Tra
 
 	return tp, tp.Shutdown, nil
 }
-
