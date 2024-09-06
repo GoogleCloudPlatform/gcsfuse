@@ -22,6 +22,8 @@ from unittest import TestCase
 from google.cloud import monitoring_v3
 from google.api import distribution_pb2
 import os
+from mock import patch
+import subprocess
 
 TEST_PATH = './testdata'
 
@@ -30,11 +32,15 @@ RECEIVED_BYTES_COUNT_METRIC_TYPE = 'compute.googleapis.com/instance/network/rece
 OPS_ERROR_COUNT_METRIC_TYPE = 'custom.googleapis.com/gcsfuse/fs/ops_error_count'
 OPS_LATENCY_METRIC_TYPE = 'custom.googleapis.com/gcsfuse/fs/ops_latency'
 READ_BYTES_COUNT_METRIC_TYPE = 'custom.googleapis.com/gcsfuse/gcs/read_bytes_count'
+MEMORY_UTIL_METRIC_TYPE='agent.googleapis.com/memory/percent_used'
+SENT_BYTES_COUNT_METRIC_TYPE = 'compute.googleapis.com/instance/network/sent_bytes_count'
+LOAD_AVG_OS_THREADS_MEAN_METRIC_TYPE='agent.googleapis.com/cpu/load_1m'
 
 
 TEST_START_TIME_SEC = 1656300600
 TEST_END_TIME_SEC = 1656300960
 TEST_INSTANCE = 'drashti-load-test'
+TEST_INSTANCE_ID=5260009346344796582
 TEST_PERIOD = 120
 TEST_TYPE = 'ReadFile'
 
@@ -42,6 +48,8 @@ CPU_UTI_PEAK = vm_metrics.Metric(metric_type=CPU_UTI_METRIC_TYPE, factor=1/100, 
 CPU_UTI_MEAN = vm_metrics.Metric(metric_type=CPU_UTI_METRIC_TYPE, factor=1/100, aligner='ALIGN_MEAN')
 REC_BYTES_PEAK = vm_metrics.Metric(metric_type=RECEIVED_BYTES_COUNT_METRIC_TYPE, factor=60, aligner='ALIGN_MAX')
 REC_BYTES_MEAN = vm_metrics.Metric(metric_type=RECEIVED_BYTES_COUNT_METRIC_TYPE, factor=60, aligner='ALIGN_MEAN')
+SENT_BYTES_PEAK = vm_metrics.Metric(metric_type=SENT_BYTES_COUNT_METRIC_TYPE,factor=60,aligner='ALIGN_MAX')
+SENT_BYTES_MEAN = vm_metrics.Metric(metric_type=SENT_BYTES_COUNT_METRIC_TYPE,factor=60,aligner='ALIGN_MEAN')
 READ_BYTES_COUNT = vm_metrics.Metric(metric_type=READ_BYTES_COUNT_METRIC_TYPE, factor=1, aligner='ALIGN_DELTA')
 
 OPS_ERROR_COUNT_FILTER = 'metric.labels.fs_op != "GetXattr"'
@@ -52,7 +60,16 @@ OPS_LATENCY_FILTER = 'metric.labels.fs_op = "{}"'.format(TEST_TYPE)
 OPS_LATENCY_MEAN = vm_metrics.Metric(metric_type=OPS_LATENCY_METRIC_TYPE, extra_filter=OPS_LATENCY_FILTER, 
                             factor=1, aligner='ALIGN_DELTA')
 
+MEMORY_USAGE_PEAK=vm_metrics.Metric(metric_type=MEMORY_UTIL_METRIC_TYPE, factor=1 / 100, aligner='ALIGN_MAX')
+MEMORY_USAGE_MEAN=vm_metrics.Metric(metric_type=MEMORY_UTIL_METRIC_TYPE, factor=1 / 100, aligner='ALIGN_MEAN')
+LOAD_AVG_OS_THREADS_MEAN = vm_metrics.Metric(
+    metric_type=LOAD_AVG_OS_THREADS_MEAN_METRIC_TYPE, factor=1, aligner='ALIGN_MEAN')
+
 METRICS_LIST = [CPU_UTI_PEAK, CPU_UTI_MEAN, REC_BYTES_PEAK, REC_BYTES_MEAN, READ_BYTES_COUNT, OPS_ERROR_COUNT, OPS_LATENCY_FILTER]
+RENAME_METRICS_LIST = [
+    CPU_UTI_PEAK, CPU_UTI_MEAN, REC_BYTES_PEAK, REC_BYTES_MEAN,SENT_BYTES_PEAK,SENT_BYTES_MEAN,
+    OPS_ERROR_COUNT, MEMORY_USAGE_PEAK,MEMORY_USAGE_MEAN,LOAD_AVG_OS_THREADS_MEAN
+]
 
 REC_BYTES_MEAN_METRIC_POINT_1 = vm_metrics.MetricPoint(6566811.916666667, 1656300720, 1656300720)
 REC_BYTES_MEAN_METRIC_POINT_2 = vm_metrics.MetricPoint(6772270.541666667, 1656300840, 1656300840)
@@ -66,6 +83,18 @@ REC_BYTES_PEAK_METRIC_POINT_3 = vm_metrics.MetricPoint(6933473.3, 1656300960, 16
 EXPECTED_RECEIVED_BYTES_PEAK_DATA = [REC_BYTES_PEAK_METRIC_POINT_1, REC_BYTES_PEAK_METRIC_POINT_2,
                                     REC_BYTES_PEAK_METRIC_POINT_3]
 
+SENT_BYTES_MEAN_METRIC_POINT_1 = vm_metrics.MetricPoint(6566811.916666667, 1656300720, 1656300720)
+SENT_BYTES_MEAN_METRIC_POINT_2 = vm_metrics.MetricPoint(6772270.541666667, 1656300840, 1656300840)
+SENT_BYTES_MEAN_METRIC_POINT_3 = vm_metrics.MetricPoint(6918446.791666667, 1656300960, 1656300960)
+EXPECTED_SENT_BYTES_MEAN_DATA = [SENT_BYTES_MEAN_METRIC_POINT_1, SENT_BYTES_MEAN_METRIC_POINT_2,
+                                     SENT_BYTES_MEAN_METRIC_POINT_3]
+
+SENT_BYTES_PEAK_METRIC_POINT_1 = vm_metrics.MetricPoint(6685105.283333333, 1656300720, 1656300720)
+SENT_BYTES_PEAK_METRIC_POINT_2 = vm_metrics.MetricPoint(6803372.233333333, 1656300840, 1656300840)
+SENT_BYTES_PEAK_METRIC_POINT_3 = vm_metrics.MetricPoint(6933473.3, 1656300960, 1656300960)
+EXPECTED_SENT_BYTES_PEAK_DATA = [SENT_BYTES_PEAK_METRIC_POINT_1, SENT_BYTES_PEAK_METRIC_POINT_2,
+                                     SENT_BYTES_PEAK_METRIC_POINT_3]
+
 CPU_UTI_MEAN_METRIC_POINT_1 = vm_metrics.MetricPoint(22.022823358129244, 1656300720, 1656300720)
 CPU_UTI_MEAN_METRIC_POINT_2 = vm_metrics.MetricPoint(23.330100279029768, 1656300840, 1656300840)
 CPU_UTI_MEAN_METRIC_POINT_3 = vm_metrics.MetricPoint(23.58245408118819, 1656300960, 1656300960)
@@ -78,6 +107,18 @@ CPU_UTI_PEAK_METRIC_POINT_3 = vm_metrics.MetricPoint(23.810199799611127, 1656300
 EXPECTED_CPU_UTI_PEAK_DATA = [CPU_UTI_PEAK_METRIC_POINT_1, CPU_UTI_PEAK_METRIC_POINT_2, 
                             CPU_UTI_PEAK_METRIC_POINT_3]
 
+MEMORY_USAGE_MEAN_METRIC_POINT_1 = vm_metrics.MetricPoint(22.022823358129244, 1656300720, 1656300720)
+MEMORY_USAGE_MEAN_METRIC_POINT_2 = vm_metrics.MetricPoint(23.330100279029768, 1656300840, 1656300840)
+MEMORY_USAGE_MEAN_METRIC_POINT_3 = vm_metrics.MetricPoint(23.58245408118819, 1656300960, 1656300960)
+EXPECTED_MEMORY_UTI_MEAN_DATA = [MEMORY_USAGE_MEAN_METRIC_POINT_1, MEMORY_USAGE_MEAN_METRIC_POINT_2,
+                              MEMORY_USAGE_MEAN_METRIC_POINT_3]
+
+MEMORY_USAGE_PEAK_METRIC_POINT_1 = vm_metrics.MetricPoint(22.053231452171328, 1656300720, 1656300720)
+MEMORY_USAGE_PEAK_METRIC_POINT_2 = vm_metrics.MetricPoint(23.417254448480286, 1656300840, 1656300840)
+MEMORY_USAGE_PEAK_METRIC_POINT_3 = vm_metrics.MetricPoint(23.810199799611127, 1656300960, 1656300960)
+EXPECTED_MEMORY_UTI_PEAK_DATA = [MEMORY_USAGE_PEAK_METRIC_POINT_1, MEMORY_USAGE_PEAK_METRIC_POINT_2,
+                              MEMORY_USAGE_PEAK_METRIC_POINT_3]
+
 OPS_ERROR_COUNT_METRIC_POINT_1 = vm_metrics.MetricPoint(95.0, 1656300600, 1656300720)
 OPS_ERROR_COUNT_METRIC_POINT_2 = vm_metrics.MetricPoint(235.0, 1656300720, 1656300840)
 OPS_ERROR_COUNT_METRIC_POINT_3 = vm_metrics.MetricPoint(100.0, 1656300840, 1656300960)
@@ -89,6 +130,12 @@ READ_BYTES_COUNT_METRIC_POINT_2 = vm_metrics.MetricPoint(746803219.0, 1656300720
 READ_BYTES_COUNT_METRIC_POINT_3 = vm_metrics.MetricPoint(759282126.0, 1656300840, 1656300960)
 EXPECTED_READ_BYTES_COUNT_DATA = [READ_BYTES_COUNT_METRIC_POINT_1, READ_BYTES_COUNT_METRIC_POINT_2, 
                                 READ_BYTES_COUNT_METRIC_POINT_3]
+
+LOAD_AVG_OS_THREADS_MEAN_METRIC_POINT_1 = vm_metrics.MetricPoint(6685105.283333333, 1656300600, 1656300720)
+LOAD_AVG_OS_THREADS_MEAN_METRIC_POINT_2 = vm_metrics.MetricPoint(6803372.233333333, 1656300720, 1656300840)
+LOAD_AVG_OS_THREADS_MEAN_METRIC_POINT_3 = vm_metrics.MetricPoint(6933473.3, 1656300840, 1656300960)
+EXPECTED_LOAD_AVG_OS_THREADS_DATA = [LOAD_AVG_OS_THREADS_MEAN_METRIC_POINT_1, LOAD_AVG_OS_THREADS_MEAN_METRIC_POINT_2,
+                                     LOAD_AVG_OS_THREADS_MEAN_METRIC_POINT_3]
 
 OPS_LATENCY_MEAN_METRIC_POINT_1 = vm_metrics.MetricPoint(15.40791568806023, 1656300600, 1656300720)
 OPS_LATENCY_MEAN_METRIC_POINT_2 = vm_metrics.MetricPoint(14.968170482459712, 1656300720, 1656300840)
@@ -182,6 +229,29 @@ class TestVmmetricsTest(unittest.TestCase):
     super().setUp()
     self.vm_metrics_obj = vm_metrics.VmMetrics()
 
+  @patch('vm_metrics.subprocess.check_output')
+  def test_get_instance_id(self,mock_curl):
+    mock_curl.return_value="5260009346344796582"
+
+    instance_id=vm_metrics._get_instance_id()
+
+    self.assertEqual(instance_id,"5260009346344796582")
+
+  @patch('vm_metrics.print')
+  @patch('subprocess.check_output')
+  def test_get_instance_id_throws_error(self,mock_check_output,mock_print):
+    mock_check_output.side_effect = subprocess.CalledProcessError(
+        returncode=1,
+        cmd='curl http://metadata.google.internal/computeMetadata/v1/instance/id -H Metadata-Flavor:Google',
+        output=b'Error fetching instance ID')
+
+    output = vm_metrics._get_instance_id()
+
+    self.assertEqual(output, None)
+    mock_print.assert_called_with('Error fetching instance ID: Command \'curl '
+                                  'http://metadata.google.internal/computeMetadata/v1/instance/id '
+                                  '-H Metadata-Flavor:Google\' returned non-zero exit status 1.')
+
   def test_parse_metric_value_by_type_raises_exception(self):
     metric = get_response_from_filename('peak_cpu_utilization_response')
     value_object = metric.points[0].value
@@ -220,6 +290,15 @@ class TestVmmetricsTest(unittest.TestCase):
     extra_filter = "extra_filter"
     expected_metric_filter = 'metric.type = "{}" AND metric.labels.opencensus_task = ends_with("{}") AND {}'.format(metric_type, TEST_INSTANCE, extra_filter)
     self.assertEqual(vm_metrics._get_metric_filter('custom', metric_type, TEST_INSTANCE, extra_filter), expected_metric_filter)
+
+  @patch('vm_metrics._get_instance_id')
+  def test_get_metric_filter_agent(self,mock_get_instance_id):
+    mock_get_instance_id.return_value=5260009346344796582
+    metric_type = "metric_type"
+    extra_filter = "extra_filter"
+    expected_metric_filter = 'metric.type = "{}" AND resource.labels.instance_id ={} AND {}'.format(metric_type, TEST_INSTANCE_ID, extra_filter)
+    self.assertEqual(vm_metrics._get_metric_filter('agent', metric_type, TEST_INSTANCE, extra_filter), expected_metric_filter)
+
 
   def test_validate_start_end_times_with_start_time_greater_than_end_time(self):
     with self.assertRaises(ValueError):
@@ -267,6 +346,23 @@ class TestVmmetricsTest(unittest.TestCase):
                                        TEST_INSTANCE, TEST_PERIOD, REC_BYTES_MEAN)
 
   @mock.patch.object(vm_metrics.VmMetrics, '_get_api_response')
+  def test_get_metrics_for_sent_bytes_peak_throws_no_values_error(
+      self, mock_get_api_response):
+    mock_get_api_response.return_value = {}
+
+    with self.assertRaises(vm_metrics.NoValuesError):
+      self.vm_metrics_obj._get_metrics(TEST_START_TIME_SEC, TEST_END_TIME_SEC,
+                                       TEST_INSTANCE, TEST_PERIOD, SENT_BYTES_PEAK)
+
+  @mock.patch.object(vm_metrics.VmMetrics, '_get_api_response')
+  def test_get_metrics_for_sent_bytes_mean_throws_no_values_error(
+      self, mock_get_api_response):
+    mock_get_api_response.return_value = {}
+
+    with self.assertRaises(vm_metrics.NoValuesError):
+      self.vm_metrics_obj._get_metrics(TEST_START_TIME_SEC, TEST_END_TIME_SEC,
+                                       TEST_INSTANCE, TEST_PERIOD, SENT_BYTES_MEAN)
+  @mock.patch.object(vm_metrics.VmMetrics, '_get_api_response')
   def test_get_metrics_ops_latency_mean_throws_no_values_error(
       self, mock_get_api_response):
     mock_get_api_response.return_value = {}
@@ -284,6 +380,32 @@ class TestVmmetricsTest(unittest.TestCase):
       self.vm_metrics_obj._get_metrics(TEST_START_TIME_SEC, TEST_END_TIME_SEC,
                                        TEST_INSTANCE, TEST_PERIOD, READ_BYTES_COUNT)
 
+  @mock.patch.object(vm_metrics.VmMetrics, '_get_api_response')
+  def test_get_metrics_for_memory_usage_peak_throws_no_values_error(
+      self, mock_get_api_response):
+    mock_get_api_response.return_value = {}
+
+    with self.assertRaises(vm_metrics.NoValuesError):
+      self.vm_metrics_obj._get_metrics(TEST_START_TIME_SEC, TEST_END_TIME_SEC,
+                                       TEST_INSTANCE, TEST_PERIOD, MEMORY_USAGE_PEAK)
+
+  @mock.patch.object(vm_metrics.VmMetrics, '_get_api_response')
+  def test_get_metrics_for_memory_usage_mean_throws_no_values_error(
+      self, mock_get_api_response):
+    mock_get_api_response.return_value = {}
+
+    with self.assertRaises(vm_metrics.NoValuesError):
+      self.vm_metrics_obj._get_metrics(TEST_START_TIME_SEC, TEST_END_TIME_SEC,
+                                       TEST_INSTANCE, TEST_PERIOD, MEMORY_USAGE_MEAN)
+
+  @mock.patch.object(vm_metrics.VmMetrics, '_get_api_response')
+  def test_get_metrics_for_load_avg_os_threads_throws_no_values_error(
+      self, mock_get_api_response):
+    mock_get_api_response.return_value = {}
+
+    with self.assertRaises(vm_metrics.NoValuesError):
+      self.vm_metrics_obj._get_metrics(TEST_START_TIME_SEC, TEST_END_TIME_SEC,
+                                       TEST_INSTANCE, TEST_PERIOD, LOAD_AVG_OS_THREADS_MEAN)
   @mock.patch.object(vm_metrics.VmMetrics, '_get_api_response')
   def test_get_metrics_ops_error_count_returns_list_of_zeroes(
       self, mock_get_api_response):
@@ -319,6 +441,30 @@ class TestVmmetricsTest(unittest.TestCase):
     self.assertEqual(cpu_uti_mean_data, EXPECTED_CPU_UTI_MEAN_DATA)
 
   @mock.patch.object(vm_metrics.VmMetrics, '_get_api_response')
+  def test_get_metrics_for_memory_usage_peak(self, mock_get_api_response):
+    metrics_response = get_response_from_filename(
+        'peak_memory_usage_response')
+    mock_get_api_response.return_value = [metrics_response]
+
+    memory_uti_peak_data = self.vm_metrics_obj._get_metrics(TEST_START_TIME_SEC,
+                                                         TEST_END_TIME_SEC,
+                                                         TEST_INSTANCE, TEST_PERIOD, MEMORY_USAGE_PEAK)
+
+    self.assertEqual(memory_uti_peak_data, EXPECTED_MEMORY_UTI_PEAK_DATA)
+
+  @mock.patch.object(vm_metrics.VmMetrics, '_get_api_response')
+  def test_get_metrics_for_memory_usage_mean(self, mock_get_api_response):
+    metrics_response = get_response_from_filename(
+        'mean_memory_usage_response')
+    mock_get_api_response.return_value = [metrics_response]
+
+    memory_uti_mean_data = self.vm_metrics_obj._get_metrics(TEST_START_TIME_SEC,
+                                                         TEST_END_TIME_SEC,
+                                                         TEST_INSTANCE, TEST_PERIOD, MEMORY_USAGE_MEAN)
+
+    self.assertEqual(memory_uti_mean_data, EXPECTED_MEMORY_UTI_MEAN_DATA)
+
+  @mock.patch.object(vm_metrics.VmMetrics, '_get_api_response')
   def test_get_metrics_for_received_bytes_peak(self, mock_get_api_response):
     metrics_response = get_response_from_filename(
         'peak_received_bytes_count_response')
@@ -340,6 +486,27 @@ class TestVmmetricsTest(unittest.TestCase):
 
     self.assertEqual(rec_bytes_mean_data, EXPECTED_RECEIVED_BYTES_MEAN_DATA)
 
+  @mock.patch.object(vm_metrics.VmMetrics, '_get_api_response')
+  def test_get_metrics_for_sent_bytes_peak(self, mock_get_api_response):
+    metrics_response = get_response_from_filename(
+        'peak_sent_bytes_count_response')
+    mock_get_api_response.return_value = [metrics_response]
+
+    sent_bytes_peak_data = self.vm_metrics_obj._get_metrics(
+        TEST_START_TIME_SEC, TEST_END_TIME_SEC, TEST_INSTANCE, TEST_PERIOD, SENT_BYTES_PEAK)
+
+    self.assertEqual(sent_bytes_peak_data, EXPECTED_SENT_BYTES_PEAK_DATA)
+
+  @mock.patch.object(vm_metrics.VmMetrics, '_get_api_response')
+  def test_get_metrics_for_sent_bytes_mean(self, mock_get_api_response):
+    metrics_response = get_response_from_filename(
+        'mean_sent_bytes_count_response')
+    mock_get_api_response.return_value = [metrics_response]
+
+    sent_bytes_mean_data = self.vm_metrics_obj._get_metrics(
+        TEST_START_TIME_SEC, TEST_END_TIME_SEC, TEST_INSTANCE, TEST_PERIOD, SENT_BYTES_MEAN)
+
+    self.assertEqual(sent_bytes_mean_data, EXPECTED_SENT_BYTES_MEAN_DATA)
 
   @mock.patch.object(vm_metrics.VmMetrics, '_get_api_response')
   def test_get_metrics_for_ops_mean_latency(self, mock_get_api_response):
@@ -373,6 +540,18 @@ class TestVmmetricsTest(unittest.TestCase):
         TEST_START_TIME_SEC, TEST_END_TIME_SEC, TEST_INSTANCE, TEST_PERIOD, OPS_ERROR_COUNT)
 
     self.assertEqual(ops_error_count_data, EXPECTED_OPS_ERROR_COUNT_DATA)
+
+
+  @mock.patch.object(vm_metrics.VmMetrics, '_get_api_response')
+  def test_get_metrics_for_load_avg_os_threads(self, mock_get_api_response):
+    metrics_response = get_response_from_filename(
+        'load_avg_os_threads_mean_response')
+    mock_get_api_response.return_value = [metrics_response]
+
+    load_avg_data = self.vm_metrics_obj._get_metrics(
+        TEST_START_TIME_SEC, TEST_END_TIME_SEC, TEST_INSTANCE, TEST_PERIOD, LOAD_AVG_OS_THREADS_MEAN)
+
+    self.assertEqual(load_avg_data, EXPECTED_LOAD_AVG_OS_THREADS_DATA)
 
 if __name__ == '__main__':
   unittest.main()
