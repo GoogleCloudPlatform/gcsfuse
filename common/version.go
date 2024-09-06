@@ -19,7 +19,7 @@ import (
 	"runtime"
 )
 
-// Set with `-ldflags -X github.com/googlecloudplatform/gcsfuse/v2/cmd.gcsfuseVersion=1.2.3`
+// Set with `-ldflags -X github.com/googlecloudplatform/gcsfuse/v2/common.gcsfuseVersion=1.2.3`
 // by tools/build_gcsfuse. If not defined, we use "unknown" in getVersion.
 var gcsfuseVersion string
 
