@@ -270,7 +270,6 @@ func (c *Cache) UpdateWithoutChangingOrder(
 }
 
 func (c *Cache) EraseEntriesWithGivenPrefix(prefix string) {
-
 	for key := range c.index {
 		if strings.HasPrefix(key, prefix) {
 			c.Erase(key)
