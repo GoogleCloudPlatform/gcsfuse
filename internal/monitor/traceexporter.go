@@ -67,7 +67,17 @@ func newGCPCloudTraceExporter(ctx context.Context, c *cfg.Config) (*sdktrace.Tra
 	if err != nil {
 		return nil, nil, err
 	}
-	res, err := getResource(ctx, c.AppName)
+	appName := "gcsfuse"
+	if c.AppName != "" {
+		appName = c.AppName
+	}
+	res, err := resource.New(ctx,
+		// Use the GCP resource detector to detect information about the GCP platform
+		resource.WithDetectors(gcp.NewDetector()),
+		resource.WithTelemetrySDK(),
+		resource.WithAttributes(
+			semconv.ServiceName(appName),
+		),
 	if err != nil {
 		return nil, nil, err
 	}
@@ -76,15 +86,3 @@ func newGCPCloudTraceExporter(ctx context.Context, c *cfg.Config) (*sdktrace.Tra
 	return tp, tp.Shutdown, nil
 }
 
-func getResource(ctx context.Context, appName string) (*resource.Resource, error) {
-	return resource.New(ctx,
-		// Use the GCP resource detector to detect information about the GCP platform
-		resource.WithDetectors(gcp.NewDetector()),
-		// Keep the default detectors
-		resource.WithTelemetrySDK(),
-		// Add your own custom attributes to identify your application
-		resource.WithAttributes(
-			semconv.ServiceName(appName),
-		),
-	)
-}
