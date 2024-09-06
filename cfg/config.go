@@ -273,9 +273,9 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("debug_fuse", "", false, "This flag is unused. Debug fuse logs are now controlled by log-severity flag, please use log-severity trace to view the logs.")
+	flagSet.BoolP("debug_fuse", "", false, "Set logging threshold to trace in order to view the debug logs")
 
-	if err := flagSet.MarkDeprecated("debug_fuse", "debug fuse logs are now controlled by log-severity flag, please use log-severity trace to view the logs."); err != nil {
+	if err := flagSet.MarkDeprecated("debug_fuse", "This flag has been deprecated. Please use log-severity instead."); err != nil {
 		return err
 	}
 
@@ -289,9 +289,9 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("debug_gcs", "", false, "Debug GCS logs are now controlled by log-severity flag, please use log-severity trace to view the logs.")
+	flagSet.BoolP("debug_gcs", "", false, "Set logging threshold to trace in order to view the debug logs")
 
-	if err := flagSet.MarkDeprecated("debug_gcs", "This flag is currently unused."); err != nil {
+	if err := flagSet.MarkDeprecated("debug_gcs", "This flag has been deprecated. Please use log-severity instead."); err != nil {
 		return err
 	}
 
