@@ -269,6 +269,8 @@ func (rr *randomReader) ReadAt(
 	}
 	// Data was served from cache.
 	if cacheHit || n == len(p) || (n < len(p) && uint64(offset)+uint64(n) == rr.object.Size) {
+		_ = rr.closeReader()
+		rr.seeks++
 		return
 	}
 
@@ -295,9 +297,7 @@ func (rr *randomReader) ReadAt(
 		// If we have an existing reader but it's positioned at the wrong place,
 		// clean it up and throw it away.
 		if rr.reader != nil && rr.start != offset {
-			rr.reader.Close()
-			rr.reader = nil
-			rr.cancel = nil
+			_ = rr.closeReader()
 			rr.seeks++
 		}
 
@@ -326,9 +326,7 @@ func (rr *randomReader) ReadAt(
 			err = fmt.Errorf("Reader returned %d too many bytes", rr.start-rr.limit)
 
 			// Don't attempt to reuse the reader when it's behaving wackily.
-			rr.reader.Close()
-			rr.reader = nil
-			rr.cancel = nil
+			_ = rr.closeReader()
 			rr.start = -1
 			rr.limit = -1
 
@@ -337,9 +335,7 @@ func (rr *randomReader) ReadAt(
 
 		// Are we finished with this reader now?
 		if rr.start == rr.limit {
-			rr.reader.Close()
-			rr.reader = nil
-			rr.cancel = nil
+			_ = rr.closeReader()
 		}
 
 		// Handle errors.
@@ -373,9 +369,7 @@ func (rr *randomReader) Object() (o *gcs.MinObject) {
 func (rr *randomReader) Destroy() {
 	// Close out the reader, if we have one.
 	if rr.reader != nil {
-		err := rr.reader.Close()
-		rr.reader = nil
-		rr.cancel = nil
+		err := rr.closeReader()
 		if err != nil {
 			logger.Warnf("rr.Destroy(): while closing reader: %v", err)
 		}
@@ -389,6 +383,13 @@ func (rr *randomReader) Destroy() {
 		}
 		rr.fileCacheHandle = nil
 	}
+}
+
+func (rr *randomReader) closeReader() error {
+	err := rr.reader.Close()
+	rr.reader = nil
+	rr.cancel = nil
+	return err
 }
 
 // Like io.ReadFull, but deals with the cancellation issues.
