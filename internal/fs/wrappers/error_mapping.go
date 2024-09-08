@@ -17,7 +17,12 @@ package wrappers
 import (
 	"context"
 	"errors"
+	"io"
+	"log"
 	"net/http"
+	"os"
+	"os/exec"
+	"runtime/debug"
 	"strings"
 	"syscall"
 
@@ -104,6 +109,47 @@ type errorMapping struct {
 	wrapped fuseutil.FileSystem
 }
 
+func (em *errorMapping) monitor_crash() {
+	const monitorVar = "RUNTIME_DEBUG_MONITOR"
+	if os.Getenv(monitorVar) != "" {
+		// This is the monitor (child) process.
+		log.SetFlags(0)
+		log.SetPrefix("monitor: ")
+
+		crash, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			log.Fatalf("failed to read from input pipe: %v", err)
+		}
+		if len(crash) == 0 {
+			// Parent process terminated without reporting a crash.
+			os.Exit(0)
+		}
+
+		c := string(crash)
+		logger.Fatal(c)
+	}
+
+	// This is the application process.
+	// Fork+exec the same executable in monitor mode.
+	exe, err := os.Executable()
+	if err != nil {
+		log.Fatal(err)
+	}
+	cmd := exec.Command(exe, "-test.run=ExampleSetCrashOutput_monitor")
+	cmd.Env = append(os.Environ(), monitorVar+"=1")
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stderr
+	pipe, err := cmd.StdinPipe()
+	if err != nil {
+		logger.Fatal("StdinPipe: %v", err)
+	}
+	debug.SetCrashOutput(pipe.(*os.File), debug.CrashOptions{}) // (this conversion is safe)
+	if err := cmd.Start(); err != nil {
+		logger.Fatal("can't start monitor: %v", err)
+	}
+	// Now return and start the application proper...
+}
+
 func (em *errorMapping) handlePanic() {
 	// detect if panic occurred or not
 	a := recover()
@@ -129,6 +175,7 @@ func (em *errorMapping) Destroy() {
 func (em *errorMapping) StatFS(
 	ctx context.Context,
 	op *fuseops.StatFSOp) error {
+	em.monitor_crash()
 	defer em.handlePanic()
 
 	err := em.wrapped.StatFS(ctx, op)
@@ -138,6 +185,7 @@ func (em *errorMapping) StatFS(
 func (em *errorMapping) LookUpInode(
 	ctx context.Context,
 	op *fuseops.LookUpInodeOp) error {
+	em.monitor_crash()
 	defer em.handlePanic()
 
 	err := em.wrapped.LookUpInode(ctx, op)
@@ -147,6 +195,7 @@ func (em *errorMapping) LookUpInode(
 func (em *errorMapping) GetInodeAttributes(
 	ctx context.Context,
 	op *fuseops.GetInodeAttributesOp) error {
+	em.monitor_crash()
 	defer em.handlePanic()
 
 	err := em.wrapped.GetInodeAttributes(ctx, op)
@@ -156,6 +205,7 @@ func (em *errorMapping) GetInodeAttributes(
 func (em *errorMapping) SetInodeAttributes(
 	ctx context.Context,
 	op *fuseops.SetInodeAttributesOp) error {
+	em.monitor_crash()
 	defer em.handlePanic()
 
 	err := em.wrapped.SetInodeAttributes(ctx, op)
@@ -165,6 +215,7 @@ func (em *errorMapping) SetInodeAttributes(
 func (em *errorMapping) ForgetInode(
 	ctx context.Context,
 	op *fuseops.ForgetInodeOp) error {
+	em.monitor_crash()
 	defer em.handlePanic()
 
 	err := em.wrapped.ForgetInode(ctx, op)
@@ -174,6 +225,7 @@ func (em *errorMapping) ForgetInode(
 func (em *errorMapping) BatchForget(
 	ctx context.Context,
 	op *fuseops.BatchForgetOp) error {
+	em.monitor_crash()
 	defer em.handlePanic()
 
 	err := em.wrapped.BatchForget(ctx, op)
@@ -183,6 +235,7 @@ func (em *errorMapping) BatchForget(
 func (em *errorMapping) MkDir(
 	ctx context.Context,
 	op *fuseops.MkDirOp) error {
+	em.monitor_crash()
 	defer em.handlePanic()
 
 	err := em.wrapped.MkDir(ctx, op)
@@ -192,6 +245,7 @@ func (em *errorMapping) MkDir(
 func (em *errorMapping) MkNode(
 	ctx context.Context,
 	op *fuseops.MkNodeOp) error {
+	em.monitor_crash()
 	defer em.handlePanic()
 
 	err := em.wrapped.MkNode(ctx, op)
@@ -201,6 +255,7 @@ func (em *errorMapping) MkNode(
 func (em *errorMapping) CreateFile(
 	ctx context.Context,
 	op *fuseops.CreateFileOp) error {
+	em.monitor_crash()
 	defer em.handlePanic()
 
 	err := em.wrapped.CreateFile(ctx, op)
@@ -210,6 +265,7 @@ func (em *errorMapping) CreateFile(
 func (em *errorMapping) CreateLink(
 	ctx context.Context,
 	op *fuseops.CreateLinkOp) error {
+	em.monitor_crash()
 	defer em.handlePanic()
 
 	err := em.wrapped.CreateLink(ctx, op)
@@ -219,6 +275,7 @@ func (em *errorMapping) CreateLink(
 func (em *errorMapping) CreateSymlink(
 	ctx context.Context,
 	op *fuseops.CreateSymlinkOp) error {
+	em.monitor_crash()
 	defer em.handlePanic()
 
 	err := em.wrapped.CreateSymlink(ctx, op)
@@ -228,6 +285,7 @@ func (em *errorMapping) CreateSymlink(
 func (em *errorMapping) Rename(
 	ctx context.Context,
 	op *fuseops.RenameOp) error {
+	em.monitor_crash()
 	defer em.handlePanic()
 
 	err := em.wrapped.Rename(ctx, op)
@@ -237,6 +295,7 @@ func (em *errorMapping) Rename(
 func (em *errorMapping) RmDir(
 	ctx context.Context,
 	op *fuseops.RmDirOp) error {
+	em.monitor_crash()
 	defer em.handlePanic()
 
 	err := em.wrapped.RmDir(ctx, op)
@@ -246,6 +305,7 @@ func (em *errorMapping) RmDir(
 func (em *errorMapping) Unlink(
 	ctx context.Context,
 	op *fuseops.UnlinkOp) error {
+	em.monitor_crash()
 	defer em.handlePanic()
 
 	err := em.wrapped.Unlink(ctx, op)
@@ -255,6 +315,7 @@ func (em *errorMapping) Unlink(
 func (em *errorMapping) OpenDir(
 	ctx context.Context,
 	op *fuseops.OpenDirOp) error {
+	em.monitor_crash()
 	defer em.handlePanic()
 
 	err := em.wrapped.OpenDir(ctx, op)
@@ -264,6 +325,7 @@ func (em *errorMapping) OpenDir(
 func (em *errorMapping) ReadDir(
 	ctx context.Context,
 	op *fuseops.ReadDirOp) error {
+	em.monitor_crash()
 	defer em.handlePanic()
 
 	err := em.wrapped.ReadDir(ctx, op)
@@ -273,6 +335,7 @@ func (em *errorMapping) ReadDir(
 func (em *errorMapping) ReleaseDirHandle(
 	ctx context.Context,
 	op *fuseops.ReleaseDirHandleOp) error {
+	em.monitor_crash()
 	defer em.handlePanic()
 
 	err := em.wrapped.ReleaseDirHandle(ctx, op)
@@ -282,6 +345,7 @@ func (em *errorMapping) ReleaseDirHandle(
 func (em *errorMapping) OpenFile(
 	ctx context.Context,
 	op *fuseops.OpenFileOp) error {
+	em.monitor_crash()
 	defer em.handlePanic()
 
 	err := em.wrapped.OpenFile(ctx, op)
@@ -291,6 +355,7 @@ func (em *errorMapping) OpenFile(
 func (em *errorMapping) ReadFile(
 	ctx context.Context,
 	op *fuseops.ReadFileOp) error {
+	em.monitor_crash()
 	defer em.handlePanic()
 
 	err := em.wrapped.ReadFile(ctx, op)
@@ -300,6 +365,7 @@ func (em *errorMapping) ReadFile(
 func (em *errorMapping) WriteFile(
 	ctx context.Context,
 	op *fuseops.WriteFileOp) error {
+	em.monitor_crash()
 	defer em.handlePanic()
 
 	err := em.wrapped.WriteFile(ctx, op)
@@ -309,6 +375,7 @@ func (em *errorMapping) WriteFile(
 func (em *errorMapping) SyncFile(
 	ctx context.Context,
 	op *fuseops.SyncFileOp) error {
+	em.monitor_crash()
 	defer em.handlePanic()
 
 	err := em.wrapped.SyncFile(ctx, op)
@@ -318,6 +385,7 @@ func (em *errorMapping) SyncFile(
 func (em *errorMapping) FlushFile(
 	ctx context.Context,
 	op *fuseops.FlushFileOp) error {
+	em.monitor_crash()
 	defer em.handlePanic()
 
 	err := em.wrapped.FlushFile(ctx, op)
@@ -327,6 +395,7 @@ func (em *errorMapping) FlushFile(
 func (em *errorMapping) ReleaseFileHandle(
 	ctx context.Context,
 	op *fuseops.ReleaseFileHandleOp) error {
+	em.monitor_crash()
 	defer em.handlePanic()
 
 	err := em.wrapped.ReleaseFileHandle(ctx, op)
@@ -336,6 +405,7 @@ func (em *errorMapping) ReleaseFileHandle(
 func (em *errorMapping) ReadSymlink(
 	ctx context.Context,
 	op *fuseops.ReadSymlinkOp) error {
+	em.monitor_crash()
 	defer em.handlePanic()
 
 	err := em.wrapped.ReadSymlink(ctx, op)
@@ -345,6 +415,7 @@ func (em *errorMapping) ReadSymlink(
 func (em *errorMapping) RemoveXattr(
 	ctx context.Context,
 	op *fuseops.RemoveXattrOp) error {
+	em.monitor_crash()
 	defer em.handlePanic()
 
 	err := em.wrapped.RemoveXattr(ctx, op)
@@ -354,6 +425,7 @@ func (em *errorMapping) RemoveXattr(
 func (em *errorMapping) GetXattr(
 	ctx context.Context,
 	op *fuseops.GetXattrOp) error {
+	em.monitor_crash()
 	defer em.handlePanic()
 
 	err := em.wrapped.GetXattr(ctx, op)
@@ -363,6 +435,7 @@ func (em *errorMapping) GetXattr(
 func (em *errorMapping) ListXattr(
 	ctx context.Context,
 	op *fuseops.ListXattrOp) error {
+	em.monitor_crash()
 	defer em.handlePanic()
 
 	err := em.wrapped.ListXattr(ctx, op)
@@ -372,6 +445,7 @@ func (em *errorMapping) ListXattr(
 func (em *errorMapping) SetXattr(
 	ctx context.Context,
 	op *fuseops.SetXattrOp) error {
+	em.monitor_crash()
 	defer em.handlePanic()
 
 	err := em.wrapped.SetXattr(ctx, op)
@@ -381,6 +455,7 @@ func (em *errorMapping) SetXattr(
 func (em *errorMapping) Fallocate(
 	ctx context.Context,
 	op *fuseops.FallocateOp) error {
+	em.monitor_crash()
 	defer em.handlePanic()
 
 	err := em.wrapped.Fallocate(ctx, op)

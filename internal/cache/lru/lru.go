@@ -157,8 +157,8 @@ func (c *Cache) Insert(
 		return nil, errors.New(InvalidEntrySizeErrorMsg)
 	}
 
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	//c.mu.Lock()
+	//defer c.mu.Unlock()
 
 	e, ok := c.index[key]
 	if ok {
@@ -185,8 +185,8 @@ func (c *Cache) Insert(
 
 // Erase any entry for the supplied key, also returns the value of erased key.
 func (c *Cache) Erase(key string) (value ValueType) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	//c.mu.Lock()
+	//defer c.mu.Unlock()
 
 	e, ok := c.index[key]
 	if !ok {
