@@ -130,8 +130,8 @@ func (b *fastStatBucket) insert(o *gcs.Object) {
 
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) insertFolder(f *gcs.Folder) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
+	//b.mu.Lock()
+	//defer b.mu.Unlock()
 
 	b.cache.InsertFolder(f, b.clock.Now().Add(b.ttl))
 }
