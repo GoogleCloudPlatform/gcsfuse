@@ -75,8 +75,8 @@ type fastStatBucket struct {
 
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) insertMultiple(objs []*gcs.Object) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
+	//b.mu.Lock()
+	//defer b.mu.Unlock()
 
 	expiration := b.clock.Now().Add(b.ttl)
 	for _, o := range objs {
@@ -87,8 +87,8 @@ func (b *fastStatBucket) insertMultiple(objs []*gcs.Object) {
 
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) eraseEntriesWithGivenPrefix(folderName string) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
+	//b.mu.Lock()
+	//defer b.mu.Unlock()
 
 	b.cache.EraseEntriesWithGivenPrefix(folderName)
 }

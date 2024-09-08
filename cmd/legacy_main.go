@@ -21,11 +21,15 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"io/fs"
+	"log"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
@@ -471,7 +475,49 @@ func run() (err error) {
 	return
 }
 
+func monitor_crash() {
+	const monitorVar = "RUNTIME_DEBUG_MONITOR"
+	if os.Getenv(monitorVar) != "" {
+		// This is the monitor (child) process.
+		log.SetFlags(0)
+		log.SetPrefix("monitor: ")
+
+		crash, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			log.Fatalf("failed to read from input pipe: %v", err)
+		}
+		if len(crash) == 0 {
+			// Parent process terminated without reporting a crash.
+			os.Exit(0)
+		}
+
+		c := string(crash)
+		logger.Errorf(c)
+	}
+
+	// This is the application process.
+	// Fork+exec the same executable in monitor mode.
+	exe, err := os.Executable()
+	if err != nil {
+		log.Fatal(err)
+	}
+	cmd := exec.Command(exe, "-test.run=ExampleSetCrashOutput_monitor")
+	cmd.Env = append(os.Environ(), monitorVar+"=1")
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stderr
+	pipe, err := cmd.StdinPipe()
+	if err != nil {
+		logger.Fatal("StdinPipe: %v", err)
+	}
+	debug.SetCrashOutput(pipe.(*os.File), debug.CrashOptions{}) // (this conversion is safe)
+	if err := cmd.Start(); err != nil {
+		logger.Fatal("can't start monitor: %v", err)
+	}
+	// Now return and start the application proper...
+}
+
 func ExecuteLegacyMain() {
+	monitor_crash()
 	err := run()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
