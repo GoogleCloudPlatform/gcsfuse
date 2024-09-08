@@ -21,8 +21,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
-	"runtime/debug"
 	"strings"
 	"syscall"
 
@@ -124,30 +122,9 @@ func (em *errorMapping) monitor_crash() {
 			// Parent process terminated without reporting a crash.
 			os.Exit(0)
 		}
-
 		c := string(crash)
 		logger.Fatal(c)
 	}
-
-	// This is the application process.
-	// Fork+exec the same executable in monitor mode.
-	exe, err := os.Executable()
-	if err != nil {
-		log.Fatal(err)
-	}
-	cmd := exec.Command(exe, "-test.run=ExampleSetCrashOutput_monitor")
-	cmd.Env = append(os.Environ(), monitorVar+"=1")
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stderr
-	pipe, err := cmd.StdinPipe()
-	if err != nil {
-		logger.Fatal("StdinPipe: %v", err)
-	}
-	debug.SetCrashOutput(pipe.(*os.File), debug.CrashOptions{}) // (this conversion is safe)
-	if err := cmd.Start(); err != nil {
-		logger.Fatal("can't start monitor: %v", err)
-	}
-	// Now return and start the application proper...
 }
 
 func (em *errorMapping) handlePanic() {
