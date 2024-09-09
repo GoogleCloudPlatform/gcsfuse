@@ -23,7 +23,6 @@ import (
 	"path"
 	"path/filepath"
 
-	//"runtime"
 	"syscall"
 	"testing"
 	"time"
