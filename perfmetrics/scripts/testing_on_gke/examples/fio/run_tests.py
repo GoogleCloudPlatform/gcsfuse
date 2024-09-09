@@ -21,25 +21,19 @@ This program takes in a json test-config file, finds out valid FIO workloads in
 it and generates and deploys a helm chart for each valid FIO workload.
 """
 
+# system imports
 import argparse
+import os
 import subprocess
 import sys
+
+# local imports from other directories
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'utils'))
+from run_tests_common import escape_commas_in_string, parse_args, run_command, add_iam_role_for_buckets
+from utils import UnknownMachineTypeError, resource_limits
+
+# local imports from same directory
 import fio_workload
-
-sys.path.append('../')
-from utils.utils import resource_limits, UnknownMachineTypeError
-
-
-def run_command(command: str):
-  """Runs the given string command as a subprocess."""
-  result = subprocess.run(command.split(' '), capture_output=True, text=True)
-  print(result.stdout)
-  print(result.stderr)
-
-
-def escapeCommasInString(unescapedStr: str) -> str:
-  """Returns equivalent string with ',' replaced with '\,' ."""
-  return unescapedStr.replace(',', '\,')
 
 
 def createHelmInstallCommands(
@@ -76,7 +70,7 @@ def createHelmInstallCommands(
           f'--set instanceId={instanceId}',
           (
               '--set'
-              f' gcsfuse.mountOptions={escapeCommasInString(fioWorkload.gcsfuseMountOptions)}'
+              f' gcsfuse.mountOptions={escape_commas_in_string(fioWorkload.gcsfuseMountOptions)}'
           ),
           f'--set nodeType={machineType}',
           f'--set podName={podName}',
@@ -101,6 +95,16 @@ def main(args) -> None:
       args.instance_id,
       args.machine_type,
   )
+  buckets = (fioWorkload.bucket for fioWorkload in fioWorkloads)
+  role = 'roles/storage.objectUser'
+  add_iam_role_for_buckets(
+      buckets,
+      role,
+      args.project_id,
+      args.project_number,
+      args.namespace,
+      args.ksa,
+  )
   for helmInstallCommand in helmInstallCommands:
     print(f'{helmInstallCommand}')
     if not args.dry_run:
@@ -108,57 +112,5 @@ def main(args) -> None:
 
 
 if __name__ == '__main__':
-  parser = argparse.ArgumentParser(
-      prog='FIO test runner',
-      description=(
-          'This program takes in a json test-config file, finds out valid FIO'
-          ' workloads from it and generates and deploys a helm chart for each'
-          ' FIO workload.'
-      ),
-  )
-  parser.add_argument(
-      '--workload-config',
-      metavar='JSON workload configuration file path',
-      help='Runs FIO tests from this JSON workload configuration file.',
-      required=True,
-  )
-  parser.add_argument(
-      '--instance-id',
-      metavar='A unique string ID to represent the test-run',
-      help=(
-          'Set to a unique string ID for current test-run. Do not put spaces'
-          ' in it.'
-      ),
-      required=True,
-  )
-  parser.add_argument(
-      '--machine-type',
-      metavar='Machine-type of the GCE VM or GKE cluster node',
-      help='Machine-type of the GCE VM or GKE cluster node e.g. n2-standard-32',
-      required=True,
-  )
-  parser.add_argument(
-      '-n',
-      '--dry-run',
-      action='store_true',
-      help=(
-          'Only print out the test configurations that will run,'
-          ' not actually run them.'
-      ),
-  )
-
-  args = parser.parse_args()
-  for argument in ['instance_id', 'machine_type']:
-    value = getattr(args, argument)
-    if len(value) == 0 or str.isspace(value):
-      raise Exception(
-          f'Argument {argument} (value="{value}") is empty or contains only'
-          ' spaces.'
-      )
-    if ' ' in value:
-      raise Exception(
-          f'Argument {argument} (value="{value}") contains space in it, which'
-          ' is not supported.'
-      )
-
+  args = parse_args()
   main(args)
