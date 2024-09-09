@@ -23,7 +23,7 @@ jobs:
     - name: Install goimports
       run: go install golang.org/x/tools/cmd/goimports
     - name: CodeGen
-      run: make build buildTest
+      run: make fmt
     - name: Formatting diff
       run: go fmt ./... && git diff --exit-code --name-only
 
