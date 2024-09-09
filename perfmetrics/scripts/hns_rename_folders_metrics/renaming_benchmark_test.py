@@ -133,7 +133,7 @@ class TestRenamingBenchmark(unittest.TestCase):
     test_type = "flat"
     num_samples = 4
     results = {}
-    mount_flags = "--implicit-dirs --rename-dir-limit=1000000"
+    mount_flags = "--implicit-dirs --rename-dir-limit=1000000 --stackdriver-export-interval=30s"
     mock_mount_gcs_bucket.return_value="flat_bucket"
     mock_record_time_of_operation.return_value = [{"test_folder": [0.1, 0.2, 0.3, 0.4]},[[0.1,0.4]]]
     expected_results = {"test_folder": [0.1, 0.2, 0.3, 0.4]}
@@ -300,12 +300,10 @@ class TestRenamingBenchmark(unittest.TestCase):
   @patch('renaming_benchmark.log')
   def test_upload_to_gsheet_no_spreadsheet_id_passed(self,mock_log,mock_os):
     worksheet='temp-worksheet'
-    vm_worksheet='temp-vm-worksheet'
     data=['fake data']
-    vm_data= {'fake data':'fake data val'}
     spreadsheet_id=''
 
-    exit_code = renaming_benchmark._upload_to_gsheet(worksheet,data,vm_worksheet,vm_data,spreadsheet_id)
+    exit_code = renaming_benchmark._upload_to_gsheet(worksheet,data,spreadsheet_id)
 
     self.assertEqual(exit_code,1)
     mock_log.error.assert_called_once_with('Empty spreadsheet id passed!')
@@ -413,11 +411,13 @@ class TestRenamingBenchmark(unittest.TestCase):
         }
     }
     mock_extract_vm_metrics.return_value={'test key':['some vm metrics']}
+    expected_upload_calls= [call(worksheet,[['testdata','testdata2']],spreadsheet_id),
+                            call(vm_worksheet,[['test key','some vm metrics']],spreadsheet_id)]
 
     renaming_benchmark._run_rename_benchmark(test_type,dir_config,num_samples,upload_gs)
 
     mock_log.info.assert_called_with('Uploading files to the Google Sheet\n')
-    mock_upload.assert_called_with(worksheet,[['testdata','testdata2']],vm_worksheet,[['test key','some vm metrics']],spreadsheet_id)
+    mock_upload.assert_has_calls(expected_upload_calls)
 
 
   def test_get_upload_value_for_vm_metrics(self):

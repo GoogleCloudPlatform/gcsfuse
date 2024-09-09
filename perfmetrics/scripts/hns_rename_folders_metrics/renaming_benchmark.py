@@ -51,7 +51,7 @@ logging.basicConfig(
 log = logging.getLogger()
 
 
-def _upload_to_gsheet(worksheet, data,vm_worksheet,vm_data, spreadsheet_id) -> (int):
+def _upload_to_gsheet(worksheet, data, spreadsheet_id) -> (int):
   """
   Writes rename results to Google Spreadsheets.
   Args:
@@ -67,7 +67,6 @@ def _upload_to_gsheet(worksheet, data,vm_worksheet,vm_data, spreadsheet_id) -> (
     exit_code = 1
   else:
     gsheet.write_to_google_sheet(worksheet, data, spreadsheet_id)
-    gsheet.write_to_google_sheet(vm_worksheet, vm_data, spreadsheet_id)
   # Changing the directory back to current directory.
   os.chdir('./hns_rename_folders_metrics')
   return exit_code
@@ -488,8 +487,11 @@ def _run_rename_benchmark(test_type,dir_config,num_samples,upload_gs):
       worksheet= WORKSHEET_NAME_HNS
       vm_worksheet= WORKSHEET_VM_METRICS_HNS
 
-    exit_code = _upload_to_gsheet(worksheet, upload_values,vm_worksheet,upload_values_vm_metrics,
-                                  SPREADSHEET_ID)
+    exit_code = _upload_to_gsheet(worksheet, upload_values, SPREADSHEET_ID)
+    if exit_code != 0 :
+      log.error("Upload to gsheet failed!")
+
+    exit_code = _upload_to_gsheet(vm_worksheet, upload_values_vm_metrics, SPREADSHEET_ID)
     if exit_code != 0 :
       log.error("Upload to gsheet failed!")
   else:
