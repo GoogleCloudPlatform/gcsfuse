@@ -23,7 +23,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-// Create a fuse file system server according to the supplied configuration.
+// NewServer creates a fuse file system server according to the supplied configuration.
 func NewServer(ctx context.Context, cfg *ServerConfig) (fuse.Server, error) {
 	fs, err := NewFileSystem(ctx, cfg)
 	if err != nil {

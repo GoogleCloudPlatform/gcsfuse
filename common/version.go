@@ -12,19 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package monitor
+package common
 
 import (
-	"context"
-
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/trace"
+	"fmt"
+	"runtime"
 )
 
-// TODO: name is subject to change.
-const name = "cloud.google.com/gcsfuse"
+// Set with `-ldflags -X github.com/googlecloudplatform/gcsfuse/v2/common.gcsfuseVersion=1.2.3`
+// by tools/build_gcsfuse. If not defined, we use "unknown" in getVersion.
+var gcsfuseVersion string
 
-// StartSpan creates a new span and returns it along with the context that's augmented with the newly-created span..
-func StartSpan(ctx context.Context, spanName string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
-	return otel.GetTracerProvider().Tracer(name).Start(ctx, spanName, opts...)
+// GetVersion returns the version of the GCSFuse binary
+func GetVersion() string {
+	v := gcsfuseVersion
+	if v == "" {
+		v = "unknown"
+	}
+
+	return fmt.Sprintf("%s (Go version %s)", v, runtime.Version())
 }

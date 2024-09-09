@@ -29,6 +29,7 @@ import (
 	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/canned"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
@@ -79,12 +80,12 @@ func registerSIGINTHandler(mountPoint string) {
 func getUserAgent(appName string, config string) string {
 	gcsfuseMetadataImageType := os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE")
 	if len(gcsfuseMetadataImageType) > 0 {
-		userAgent := fmt.Sprintf("gcsfuse/%s %s (GPN:gcsfuse-%s) (Cfg:%s)", getVersion(), appName, gcsfuseMetadataImageType, config)
+		userAgent := fmt.Sprintf("gcsfuse/%s %s (GPN:gcsfuse-%s) (Cfg:%s)", common.GetVersion(), appName, gcsfuseMetadataImageType, config)
 		return strings.Join(strings.Fields(userAgent), " ")
 	} else if len(appName) > 0 {
-		return fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-%s) (Cfg:%s)", getVersion(), appName, config)
+		return fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-%s) (Cfg:%s)", common.GetVersion(), appName, config)
 	} else {
-		return fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse) (Cfg:%s)", getVersion(), config)
+		return fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse) (Cfg:%s)", common.GetVersion(), config)
 	}
 }
 
@@ -129,10 +130,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string) (storageHandle
 ////////////////////////////////////////////////////////////////////////
 
 // Mount the file system according to arguments in the supplied context.
-func mountWithArgs(
-	bucketName string,
-	mountPoint string,
-	newConfig *cfg.Config) (mfs *fuse.MountedFileSystem, err error) {
+func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config) (mfs *fuse.MountedFileSystem, err error) {
 	// Enable invariant checking if requested.
 	if newConfig.Debug.ExitOnInvariantViolation {
 		locker.EnableInvariantsCheck()
@@ -275,7 +273,7 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 		}
 	}
 
-	logger.Infof("Start gcsfuse/%s for app %q using mount point: %s\n", getVersion(), newConfig.AppName, mountPoint)
+	logger.Infof("Start gcsfuse/%s for app %q using mount point: %s\n", common.GetVersion(), newConfig.AppName, mountPoint)
 
 	// Log mount-config and the CLI flags in the log-file.
 	// If there is no log-file, then log these to stdout.
@@ -381,6 +379,8 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	_ = monitor.EnableStackdriverExporter(newConfig.Metrics.StackdriverExportInterval)
 	_ = monitor.EnableOpenTelemetryCollectorExporter(newConfig.Monitoring.ExperimentalOpentelemetryCollectorAddress)
 	_ = monitor.EnablePrometheusCollectorExporter(int(newConfig.Metrics.PrometheusPort))
+	ctx := context.Background()
+	shutdownFn := monitor.SetupTracing(ctx, newConfig)
 
 	// Mount, writing information about our progress to the writer that package
 	// daemonize gives us and telling it about the outcome.
@@ -438,11 +438,16 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	registerSIGINTHandler(mfs.Dir())
 
 	// Wait for the file system to be unmounted.
-	err = mfs.Join(context.Background())
+	err = mfs.Join(ctx)
 
 	monitor.CloseStackdriverExporter()
 	monitor.CloseOpenTelemetryCollectorExporter()
 	monitor.ClosePrometheusCollectorExporter()
+	if shutdownFn != nil {
+		if shutdownErr := shutdownFn(ctx); shutdownErr != nil {
+			logger.Errorf("Error while shutting down trace exporter: %v", shutdownErr)
+		}
+	}
 
 	if err != nil {
 		err = fmt.Errorf("MountedFileSystem.Join: %w", err)

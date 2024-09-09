@@ -26,6 +26,7 @@ import (
 	"go.opentelemetry.io/otel"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func TestFsErrStrAndCategory(t *testing.T) {
@@ -235,15 +236,21 @@ func (d dummyFS) Fallocate(_ context.Context, _ *fuseops.FallocateOp) error {
 
 func (d dummyFS) Destroy() {}
 
-func TestSpan(t *testing.T) {
+func TestSpanCreation(t *testing.T) {
 	ex := newInMemoryExporter(t)
+	t.Cleanup(func() {
+		ex.Reset()
+	})
 	m := monitoring{
 		wrapped: dummyFS{},
+		tracer:  otel.Tracer("test"),
 	}
 
 	err := m.StatFS(context.Background(), nil)
 	require.NoError(t, err)
 
 	ss := ex.GetSpans()
-	require.Len(t, ss, 0)
+	require.Len(t, ss, 1)
+	assert.Equal(t, "StatFS", ss[0].Name)
+	assert.Equal(t, trace.SpanKindServer, ss[0].SpanKind)
 }
