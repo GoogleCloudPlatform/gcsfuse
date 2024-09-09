@@ -22,10 +22,8 @@ jobs:
       run: go get golang.org/x/tools/cmd/goimports
     - name: Install goimports
       run: go install golang.org/x/tools/cmd/goimports
-    - name: CodeGen
-      run: make fmt
     - name: Formatting diff
-      run: go fmt ./... && git diff --exit-code --name-only
+      run: make fmt && git diff --exit-code --name-only
 
   linux-tests:
     strategy:
