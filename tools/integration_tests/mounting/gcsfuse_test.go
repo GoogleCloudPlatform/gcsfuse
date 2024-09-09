@@ -22,7 +22,6 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-
 	"syscall"
 	"testing"
 	"time"
