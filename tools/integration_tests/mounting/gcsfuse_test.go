@@ -16,7 +16,6 @@ package integration_test
 
 import (
 	"bytes"
-	
 	"fmt"
 	"io/ioutil"
 	"os"
