@@ -133,7 +133,7 @@ class TestRenamingBenchmark(unittest.TestCase):
     test_type = "flat"
     num_samples = 4
     results = {}
-    mount_flags = "--implicit-dirs --rename-dir-limit=1000000 --stackdriver-export-interval=30s"
+    mount_flags = "--config-file=/tmp/config.yml  --implicit-dirs --rename-dir-limit=1000000 --stackdriver-export-interval=30s"
     mock_mount_gcs_bucket.return_value="flat_bucket"
     mock_record_time_of_operation.return_value = [{"test_folder": [0.1, 0.2, 0.3, 0.4]},[[0.1,0.4]]]
     expected_results = {"test_folder": [0.1, 0.2, 0.3, 0.4]}
