@@ -314,3 +314,7 @@ if __name__ == "__main__":
   # exist already.
   ensureDir(os.path.dirname(output_file_path))
   writeRecordsToCsvOutputFile(output, output_file_path)
+  print(
+      "\n\nSuccessfully published outputs of DLIO test runs to"
+      f" {output_file_path} !!!\n\n"
+  )
