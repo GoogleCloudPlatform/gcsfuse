@@ -19,6 +19,7 @@ import (
 
 	cloudtrace "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
@@ -83,6 +84,7 @@ func newGCPCloudTraceExporter(ctx context.Context, c *cfg.Config) (*sdktrace.Tra
 		resource.WithTelemetrySDK(),
 		resource.WithAttributes(
 			semconv.ServiceName(appName),
+			semconv.ServiceVersion(common.GetVersion()),
 		),
 	)
 	if err != nil {
