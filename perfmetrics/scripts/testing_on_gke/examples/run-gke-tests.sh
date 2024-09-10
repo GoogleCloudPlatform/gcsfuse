@@ -61,8 +61,10 @@ readonly gcsfuse_branch=garnitin/add-gke-load-testing/v1
 readonly DEFAULT_GCSFUSE_MOUNT_OPTIONS="implicit-dirs"
 # Test runtime configuration
 readonly DEFAULT_INSTANCE_ID=${USER}-$(date +%Y%m%d-%H%M%S)
+# 5 minutes
 readonly DEFAULT_POD_WAIT_TIME_IN_SECONDS=300
-readonly DEFAULT_POD_TIMEOUT_IN_SECONDS=3600
+# 1 week
+readonly DEFAULT_POD_TIMEOUT_IN_SECONDS=604800
 
 function printHelp() {
   echo "Usage guide: "
