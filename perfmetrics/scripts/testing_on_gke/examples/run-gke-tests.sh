@@ -62,6 +62,7 @@ readonly DEFAULT_GCSFUSE_MOUNT_OPTIONS="implicit-dirs"
 # Test runtime configuration
 readonly DEFAULT_INSTANCE_ID=${USER}-$(date +%Y%m%d-%H%M%S)
 readonly DEFAULT_POD_WAIT_TIME_IN_SECONDS=300
+readonly DEFAULT_POD_TIMEOUT_IN_SECONDS=3600
 
 function printHelp() {
   echo "Usage guide: "
@@ -88,6 +89,7 @@ function printHelp() {
   echo "gcsfuse_mount_options=<\"comma-separated-gcsfuse-mount-options\" e.g. \""${DEFAULT_GCSFUSE_MOUNT_OPTIONS}"\">"
   # Test runtime configuration
   echo "pod_wait_time_in_seconds=<number e.g. 60 for checking pod status every 1 min, default=\"${DEFAULT_POD_WAIT_TIME_IN_SECONDS}\">"
+  echo "pod_timeout_in_seconds=<number e.g. 3600 for timing out pod runs, should be more than the value of pod_wait_time_in_seconds, default=\"${DEFAULT_POD_TIMEOUT_IN_SECONDS}\">"
   echo "instance_id=<string, not containing spaces, representing unique id for particular test-run e.g. \"${DEFAULT_INSTANCE_ID}\""
   echo "workload_config=<path/to/workload/configuration/file e.g. /a/b/c.json >"
   echo "output_dir=</absolute/path/to/output/dir, output files will be written at output_dir/fio/output.csv and output_dir/dlio/output.csv>"
@@ -132,7 +134,14 @@ export gke_testing_dir="${gcsfuse_src_dir}"/perfmetrics/scripts/testing_on_gke
 test -n "${gcsfuse_mount_options}" || export gcsfuse_mount_options="${DEFAULT_GCSFUSE_MOUNT_OPTIONS}"
 # Test runtime configuration
 test -n "${pod_wait_time_in_seconds}" || export pod_wait_time_in_seconds="${DEFAULT_POD_WAIT_TIME_IN_SECONDS}"
+test -n "${pod_timeout_in_seconds}" || export pod_timeout_in_seconds="${DEFAULT_POD_TIMEOUT_IN_SECONDS}"
 test -n "${instance_id}" || export instance_id="${DEFAULT_INSTANCE_ID}"
+
+if [[ ${pod_timeout_in_seconds} -le ${pod_wait_time_in_seconds} ]]; then
+  echo "pod_timeout_in_seconds (${pod_timeout_in_seconds}) <= pod_wait_time_in_seconds (${pod_wait_time_in_seconds})"
+  exitWithFailure
+fi
+
 if test -n "${workload_config}"; then
   workload_config="$(realpath "${workload_config}")"
   test -f "${workload_config}"
@@ -172,6 +181,7 @@ function printRunParameters() {
   echo "${gcsfuse_mount_options}" >gcsfuse_mount_options
   # Test runtime configuration
   echo "pod_wait_time_in_seconds=\"${pod_wait_time_in_seconds}\""
+  echo "pod_timeout_in_seconds=\"${pod_timeout_in_seconds}\""
   echo "instance_id=\"${instance_id}\""
   echo "workload_config=\"${workload_config}\""
   echo "output_dir=\"${output_dir}\""
@@ -482,10 +492,20 @@ function listAllHelmCharts() {
 }
 
 function waitTillAllPodsComplete() {
-  echo "Scanning and waiting till all pods either complete or fail ..."
+  start_epoch=$(date +%s)
+  printf "\nScanning and waiting till all pods either complete/fail, or time out (start-time epoch = ${start_epoch} seconds, timeout duration = ${pod_timeout_in_seconds} seconds) ...\n\n"
   while true; do
-    printf "Checking pods status at "$(date +%s)":\n-----------------------------------\n"
-    podslist="$(kubectl get pods --namespace=${appnamespace} )"
+    cur_epoch=$(date +%s)
+    time_till_timeout=$((start_epoch+pod_timeout_in_seconds-cur_epoch))
+    if [[ ${time_till_timeout} -lt 0 ]]; then
+      printf "\nPod-run timed out!\n\n"
+      printf "Clearing all pods created in this run...\n"
+      deleteAllPods
+      exitWithFailure
+    fi
+    printf "Checking pods status at ${cur_epoch} seconds:\n"
+    printf " -----------------------------------------\n"
+    podslist="$(kubectl get pods --namespace=${appnamespace} -o wide)"
     echo "${podslist}"
     num_completed_pods=$(echo "${podslist}" | tail -n +2 | grep -i 'completed\|succeeded' | wc -l)
     if [ ${num_completed_pods} -gt 0 ]; then
@@ -500,9 +520,22 @@ function waitTillAllPodsComplete() {
       printf "All pods completed.\n\n"
       break
     else
-      printf "There are still "${num_noncompleted_pods}" pod(s) incomplete (either still pending or running). So, sleeping for now... will check again in "${pod_wait_time_in_seconds}" seconds.\n\n"
-      printf "To ssh to any specific pod, use the following command: \n"
-      printf "  kubectl exec -it pods/<podname> --namespace=${appnamespace} -- /bin/bash \n\n"
+      printf "\n${num_noncompleted_pods} pod(s) is/are still pending or running (time till timeout=${time_till_timeout} seconds). Will check again in "${pod_wait_time_in_seconds}" seconds. Sleeping for now.\n\n"
+      printf "\nYou can take a break too if you want. Just kill this run and connect back to it later, for fetching and parsing outputs, using the following command: \n"
+      printf "   only_parse=true instance_id=${instance_id} project_id=${project_id} project_number=${project_number} zone=${zone} machine_type=${machine_type} use_custom_csi_driver=${use_custom_csi_driver} gcsfuse_src_dir=\"${gcsfuse_src_dir}\" csi_src_dir=\"${csi_src_dir}\" pod_wait_time_in_seconds=${pod_wait_time_in_seconds} workload_config=\"${workload_config}\" cluster_name=${cluster_name} output_dir=\"${output_dir}\" $0 \n"
+      printf "\nbut remember that this will reset the start-timer for pod timeout.\n\n"
+      printf "\nTo ssh to any specific pod, use the following command: \n"
+      printf "  gcloud container clusters get-credentials ${cluster_name} --location=${zone}\n"
+      printf "  kubectl config set-context --current --namespace=${appnamespace}\n"
+      printf "  kubectl exec -it pods/<podname> [-c {gke-gcsfuse-sidecar|fio-tester|dlio-tester}] --namespace=${appnamespace} -- /bin/bash \n"
+      printf "\nTo view cpu/memory usage of different pods/containers: \n"
+      printf "  kubectl top pod [<podname>] --namespace=${appnamespace} [--containers] \n"
+      printf "\nTo view the latest status of all the pods in this cluster/namespace: \n"
+      printf "  kubectl get pods --namespace=${appnamespace} [-o wide] [--watch] \n"
+      printf "\nTo output the configuration of all or one of the pods in this cluster/namespace (useful for debugging): \n"
+      printf "  kubectl get [pods or pods/<podname>] --namespace=${appnamespace} -o yaml \n"
+
+      printf "\n\n\n"
     fi
     sleep ${pod_wait_time_in_seconds}
     unset podslist # necessary to update the value of podslist every iteration
