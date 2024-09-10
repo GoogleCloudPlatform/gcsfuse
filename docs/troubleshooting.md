@@ -1,3 +1,4 @@
+
 # Troubleshooting for production issues
 
 This page enumerates some common user facing issues around GCSFuse and also
@@ -116,3 +117,8 @@ In case a new file is added to the empty directory remotely, outside of the moun
 ### fuse: *fuseops.FallocateOp error: function not implemented or similar function not implemented errors
 
 This is an expected error for file operations unsupported in FUSE file system (details [here](https://github.com/GoogleCloudPlatform/gcsfuse/discussions/2386#discussioncomment-10417635)).
+
+### transport endpoint is not connected
+
+**Solution:** Run the command `mount | grep "gcsfuse"`. If you find any entries, unmount the corresponding directory multiple times until all the entries got clear and then try to remount the bucket.
+It might be because if the previous mount get crashed or a mounted filesystem or device was abruptly disconnected or the mounting process fails unexpectedly, the system might not properly update its mount table. This leaves a "stale" entry referencing a resource that's no longer available.
