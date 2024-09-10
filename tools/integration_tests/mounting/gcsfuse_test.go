@@ -22,8 +22,6 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-
-	//"runtime"
 	"syscall"
 	"testing"
 	"time"
