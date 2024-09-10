@@ -121,4 +121,5 @@ This is an expected error for file operations unsupported in FUSE file system (d
 ### transport endpoint is not connected
 
 **Solution:** Run the command `mount | grep "gcsfuse"`. If you find any entries, unmount the corresponding directory multiple times until all the entries got clear and then try to remount the bucket.
+
 It might be because if a previously mounted filesystem or device crashes, is abruptly disconnected, or the mounting process fails unexpectedly, the system might not properly update its mount table. This leaves a "stale" entry referencing a resource that's no longer available.
