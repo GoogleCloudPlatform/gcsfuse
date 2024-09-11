@@ -116,3 +116,17 @@ In case a new file is added to the empty directory remotely, outside of the moun
 ### fuse: *fuseops.FallocateOp error: function not implemented or similar function not implemented errors
 
 This is an expected error for file operations unsupported in FUSE file system (details [here](https://github.com/GoogleCloudPlatform/gcsfuse/discussions/2386#discussioncomment-10417635)).
+
+### Error "transport endpoint is not connected"
+
+It is possible customer is seeing the error "transport endpoint is not connected" because if the previous mount crashed or a mounted filesystem or device was abruptly disconnected or the mounting process failed unexpectedly, the system might not properly update its mount table. This leaves a stale entry referencing a resource that's no longer available.
+
+**Solution:** Run the command `mount | grep "gcsfuse"`. If you find any entries, unmount the corresponding directory multiple times until all the entries cleared up and then try to remount the bucket.
+
+**Additional troubleshooting steps:**
+
+- Try to unmount and mount the mount-point using the command:
+   `umount -f /<mount point>` && `mount /<mount point>`
+- Try restarting/rebooting the VM Instance.
+
+If it's running on GKE, the issue could be caused by an Out-of-Memory (OOM) error. Consider increasing the memory allocated to the GKE sidecar container. For more info refer [here](https://github.com/GoogleCloudPlatform/gcs-fuse-csi-driver/blob/main/docs/known-issues.md#implications-of-the-sidecar-container-design).
