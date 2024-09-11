@@ -10,7 +10,7 @@ new param available in both the modes:
 1.  Declare the new param in
     [params.yaml](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/cfg/params.yaml#L4).
     Refer to the documentation at the top of the file for guidance.
-1.  Run `make build` to generate the required code.
+1.  Run `make build` from the project root to generate the required code.
 1.  Add validations on the param value in
     [validate.go](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/cfg/validate.go)
 1.  If there is any requirement to tweak the value of this param based on other
@@ -34,7 +34,3 @@ new param available in both the modes:
 1.  Unless it's a hidden or a deprecated flag, add the flag in Cloud docs for
     [CLI flags](https://cloud.google.com/storage/docs/gcsfuse-cli) and
     [config-file](https://cloud.google.com/storage/docs/gcsfuse-config-file).
-1.  If the feature that the new flag brings in needs documentation for customers
-    then add in the relevant doc under
-    [doc](https://github.com/GoogleCloudPlatform/gcsfuse/tree/master/docs)
-    directory.
