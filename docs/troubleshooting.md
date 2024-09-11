@@ -1,4 +1,3 @@
-
 # Troubleshooting for production issues
 
 This page enumerates some common user facing issues around GCSFuse and also
@@ -120,7 +119,7 @@ This is an expected error for file operations unsupported in FUSE file system (d
 
 ### Error "transport endpoint is not connected"
 
-It is possible customer is seeing the error "transport endpoint is not connected" because if the previous mount crashed or a mounted filesystem or device was abruptly disconnected or the mounting process fails unexpectedly, the system might not properly update its mount table. This leaves a stale entry referencing a resource that's no longer available.
+It is possible customer is seeing the error "transport endpoint is not connected" because if the previous mount crashed or a mounted filesystem or device was abruptly disconnected or the mounting process failed unexpectedly, the system might not properly update its mount table. This leaves a stale entry referencing a resource that's no longer available.
 
 **Solution:** Run the command `mount | grep "gcsfuse"`. If you find any entries, unmount the corresponding directory multiple times until all the entries cleared up and then try to remount the bucket.
 
