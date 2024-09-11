@@ -31,6 +31,3 @@ new param available in both the modes:
     [root_test.go](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/cmd/root_test.go)
 1.  Add the name of flag with underscores in
     [mount_gcsfuse/main.go](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/tools/mount_gcsfuse/main.go)
-1.  Unless it's a hidden or a deprecated flag, add the flag in Cloud docs for
-    [CLI flags](https://cloud.google.com/storage/docs/gcsfuse-cli) and
-    [config-file](https://cloud.google.com/storage/docs/gcsfuse-config-file).
