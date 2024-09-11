@@ -273,7 +273,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("debug_fuse", "", false, "Set logging threshold to trace in order to view the debug logs")
+	flagSet.BoolP("debug_fuse", "", false, "Enables debug logs.")
 
 	if err := flagSet.MarkDeprecated("debug_fuse", "Please set log-severity to TRACE instead."); err != nil {
 		return err
@@ -289,7 +289,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("debug_gcs", "", false, "Set logging threshold to trace in order to view the debug logs")
+	flagSet.BoolP("debug_gcs", "", false, "Enables debug logs.")
 
 	if err := flagSet.MarkDeprecated("debug_gcs", "Please set log-severity to TRACE instead."); err != nil {
 		return err
