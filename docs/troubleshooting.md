@@ -118,14 +118,14 @@ In case a new file is added to the empty directory remotely, outside of the moun
 
 This is an expected error for file operations unsupported in FUSE file system (details [here](https://github.com/GoogleCloudPlatform/gcsfuse/discussions/2386#discussioncomment-10417635)).
 
-### Error "transport endpoint is not connected".
+### Error "transport endpoint is not connected"
 
-It is possible customer is seeing the error "transport endpoint is not connected" because if the previous mount get crashed or a mounted filesystem or device was abruptly disconnected or the mounting process fails unexpectedly, the system might not properly update its mount table. This leaves a "stale" entry referencing a resource that's no longer available.
+It is possible customer is seeing the error "transport endpoint is not connected" because if the previous mount crashed or a mounted filesystem or device was abruptly disconnected or the mounting process fails unexpectedly, the system might not properly update its mount table. This leaves a stale entry referencing a resource that's no longer available.
 
-**Solution:** Run the command `mount | grep "gcsfuse"`. If you find any entries, unmount the corresponding directory multiple times until all the entries got clear and then try to remount the bucket.
+**Solution:** Run the command `mount | grep "gcsfuse"`. If you find any entries, unmount the corresponding directory multiple times until all the entries cleared up and then try to remount the bucket.
 
 **Additional troubleshooting steps:**
 
 - Try to unmount and mount the mount-point using the command:
-   `umount -f /<mount point>` & `mount /<mount point>`
+   `umount -f /<mount point>` && `mount /<mount point>`
 - Try restarting/rebooting the VM Instance.
