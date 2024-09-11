@@ -41,8 +41,9 @@ func NewRootCmd(m mountFn) (*cobra.Command, error) {
 		Long: `Cloud Storage FUSE is an open source FUSE adapter that lets you mount 
 and access Cloud Storage buckets as local file systems. For a technical overview
 of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
-		Version: common.GetVersion(),
-		Args:    cobra.RangeArgs(2, 3),
+		Version:      common.GetVersion(),
+		Args:         cobra.RangeArgs(2, 3),
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if cfgErr != nil {
 				return fmt.Errorf("error while parsing config: %w", cfgErr)
