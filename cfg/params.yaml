@@ -55,7 +55,7 @@
   usage: "Set logging threshold to trace in order to view the debug logs"
   default: false
   deprecated: true
-  deprecation-warning: "This flag has been deprecated. Please use log-severity instead."
+  deprecation-warning: "Please set log-severity to TRACE instead."
 
 - config-path: "debug.gcs"
   flag-name: "debug_gcs"
@@ -63,7 +63,7 @@
   usage: "Set logging threshold to trace in order to view the debug logs"
   default: false
   deprecated: true
-  deprecation-warning: "This flag has been deprecated. Please use log-severity instead."
+  deprecation-warning: "Please set log-severity to TRACE instead."
 
 - config-path: "debug.log-mutex"
   flag-name: "debug_mutex"
@@ -416,9 +416,7 @@
     entry and 240 for corresponding negative entry), if stat-cache-max-size-mb
     is not set."
   deprecated: true
-  deprecation-warning: >-
-    This flag has been deprecated (starting v2.0) in favor of
-    stat-cache-max-size-mb.
+  deprecation-warning: "Please use --stat-cache-max-size-mb instead."
   default: "20460"
 
 - config-path: "metadata-cache.deprecated-stat-cache-ttl"
@@ -554,7 +552,7 @@
   usage: "This flag is unused."
   default: false
   deprecated: true
-  deprecation-warning: "Debug fuse logs are now controlled by log-severity flag, please use log-severity trace to view the logs."
+  deprecation-warning: "This flag is currently unused."
 
 - flag-name: "debug_fuse_errors"
   type: "bool"

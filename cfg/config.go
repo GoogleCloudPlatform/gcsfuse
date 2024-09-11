@@ -269,13 +269,13 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("debug_fs", "", false, "This flag is unused.")
 
-	if err := flagSet.MarkDeprecated("debug_fs", "Debug fuse logs are now controlled by log-severity flag, please use log-severity trace to view the logs."); err != nil {
+	if err := flagSet.MarkDeprecated("debug_fs", "This flag is currently unused."); err != nil {
 		return err
 	}
 
 	flagSet.BoolP("debug_fuse", "", false, "Set logging threshold to trace in order to view the debug logs")
 
-	if err := flagSet.MarkDeprecated("debug_fuse", "This flag has been deprecated. Please use log-severity instead."); err != nil {
+	if err := flagSet.MarkDeprecated("debug_fuse", "Please set log-severity to TRACE instead."); err != nil {
 		return err
 	}
 
@@ -291,7 +291,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("debug_gcs", "", false, "Set logging threshold to trace in order to view the debug logs")
 
-	if err := flagSet.MarkDeprecated("debug_gcs", "This flag has been deprecated. Please use log-severity instead."); err != nil {
+	if err := flagSet.MarkDeprecated("debug_gcs", "Please set log-severity to TRACE instead."); err != nil {
 		return err
 	}
 
@@ -639,7 +639,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("stat-cache-capacity", "", 20460, "How many entries can the stat-cache hold (impacts memory consumption). This flag has been deprecated (starting v2.0) and in favor of stat-cache-max-size-mb. For now, the value of stat-cache-capacity will be translated to the next higher corresponding value of stat-cache-max-size-mb (assuming stat-cache entry-size ~= 1640 bytes, including 1400 for positive entry and 240 for corresponding negative entry), if stat-cache-max-size-mb is not set.\"")
 
-	if err := flagSet.MarkDeprecated("stat-cache-capacity", "This flag has been deprecated (starting v2.0) in favor of stat-cache-max-size-mb."); err != nil {
+	if err := flagSet.MarkDeprecated("stat-cache-capacity", "Please use --stat-cache-max-size-mb instead."); err != nil {
 		return err
 	}
 
