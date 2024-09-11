@@ -130,4 +130,4 @@ It is possible customer is seeing the error "transport endpoint is not connected
    `umount -f /<mount point>` && `mount /<mount point>`
 - Try restarting/rebooting the VM Instance.
 
-If it's running on GKE, the issue might be caused by an Out-of-Memory (OOM) error. Consider increasing the memory allocated to the GKE sidecar container. For more info refer [here](https://github.com/GoogleCloudPlatform/gcs-fuse-csi-driver/blob/main/docs/known-issues.md#implications-of-the-sidecar-container-design).
+If it's running on GKE, the issue could be caused by an Out-of-Memory (OOM) error. Consider increasing the memory allocated to the GKE sidecar container. For more info refer [here](https://github.com/GoogleCloudPlatform/gcs-fuse-csi-driver/blob/main/docs/known-issues.md#implications-of-the-sidecar-container-design).
