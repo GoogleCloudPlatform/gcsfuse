@@ -118,7 +118,7 @@ In case a new file is added to the empty directory remotely, outside of the moun
 
 This is an expected error for file operations unsupported in FUSE file system (details [here](https://github.com/GoogleCloudPlatform/gcsfuse/discussions/2386#discussioncomment-10417635)).
 
-### Unable to mount GCS Bucket using GCS Fuse after Patching the VM is giving an error "transport endpoint is not connected".
+### Error "transport endpoint is not connected".
 
 It is possible customer is seeing the error "transport endpoint is not connected" because if the previous mount get crashed or a mounted filesystem or device was abruptly disconnected or the mounting process fails unexpectedly, the system might not properly update its mount table. This leaves a "stale" entry referencing a resource that's no longer available.
 
