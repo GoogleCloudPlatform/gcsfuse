@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
@@ -94,4 +95,25 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 		return nil, fmt.Errorf("error while declaring/binding flags: %w", err)
 	}
 	return rootCmd, nil
+}
+
+// ConvertToPosixArgs converts a slice of commandline args and transforms them
+// into POSIX compliant args. All it does is that it converts flags specified
+// using a single-hyphen to double-hyphens. We are excluding "-v" because it's
+// reserved for showing version in Cobra.
+func ConvertToPosixArgs(args []string) []string {
+	pArgs := make([]string, 0, len(args))
+	for _, a := range args {
+		switch {
+		case a == "--v", a == "-v":
+			pArgs = append(pArgs, "-v")
+		case a == "--h", a == "-h":
+			pArgs = append(pArgs, "-h")
+		case strings.HasPrefix(a, "-") && !cfg.IsNegativeNumber(a) && !strings.HasPrefix(a, "--"):
+			pArgs = append(pArgs, "-"+a)
+		default:
+			pArgs = append(pArgs, a)
+		}
+	}
+	return pArgs
 }
