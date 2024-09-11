@@ -17,6 +17,7 @@ package main
 import (
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cmd"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -84,7 +85,7 @@ func TestPosixFlagsConversion(t *testing.T) {
 	}
 	for _, tc := range data {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.expected, convertToPosixArgs(tc.input))
+			assert.Equal(t, tc.expected, cmd.ConvertToPosixArgs(tc.input))
 		})
 	}
 }

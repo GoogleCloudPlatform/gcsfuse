@@ -37,7 +37,7 @@ func getConfigObject(t *testing.T, args []string) (*cfg.Config, error) {
 	require.Nil(t, err)
 	cmdArgs := append([]string{"gcsfuse"}, args...)
 	cmdArgs = append(cmdArgs, "a")
-	cmd.SetArgs(cmdArgs)
+	cmd.SetArgs(ConvertToPosixArgs(cmdArgs))
 	if err = cmd.Execute(); err != nil {
 		return nil, err
 	}
