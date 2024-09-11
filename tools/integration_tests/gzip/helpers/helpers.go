@@ -75,59 +75,75 @@ func CreateDataOfSize(contentSize int) (string, error) {
 // Uses go storage client library to download object. Use of gsutil/gcloud is not
 // possible as they both always read back objects with content-encoding: gzip as
 // uncompressed/decompressed irrespective of any argument passed.
-func DownloadGzipGcsObjectAsCompressed(bucketName, objPathInBucket string) (string, error) {
+func DownloadGzipGcsObjectAsCompressed(bucketName, objPathInBucket string) (tempfile string, err error) {
 	gcsObjectPath := path.Join(setup.TestBucket(), objPathInBucket)
 	gcsObjectSize, err := operations.GetGcsObjectSize(gcsObjectPath)
+
 	if err != nil {
-		return "", fmt.Errorf("failed to get size of gcs object %s: %w", gcsObjectPath, err)
+		err = fmt.Errorf("failed to get size of gcs object %s: %w", gcsObjectPath, err)
+		return
 	}
 
 	content, err := CreateDataOfSize(1)
 	if err != nil {
-		return "", fmt.Errorf("failed to create data: %w", err)
+		err = fmt.Errorf("failed to create data: %w", err)
+		return
 	}
-	tempfile, err := operations.CreateLocalTempFile(content, false)
+	tempfile, err = operations.CreateLocalTempFile(content, false)
 	if err != nil {
-		return "", fmt.Errorf("failed to create tempfile for downloading gcs object: %w", err)
+		err = fmt.Errorf("failed to create tempfile for downloading gcs object: %w", err)
+		return
 	}
+	defer func() {
+		if err != nil {
+			os.Remove(tempfile)
+		}
+	}()
 
 	ctx := context.Background()
 	client, err := client2.CreateStorageClient(ctx)
 	if err != nil || client == nil {
-		return "", fmt.Errorf("failed to create storage client: %w", err)
+		err = fmt.Errorf("failed to create storage client: %w", err)
+		return
 	}
 	defer client.Close()
 
 	bktName := setup.TestBucket()
 	bkt := client.Bucket(bktName)
 	if bkt == nil {
-		return "", fmt.Errorf("failed to access bucket %s: %w", bktName, err)
+		err = fmt.Errorf("failed to access bucket %s: %w", bktName, err)
+		return
 	}
 
 	obj := bkt.Object(objPathInBucket)
 	if obj == nil {
-		return "", fmt.Errorf("failed to access object %s from bucket %s: %w", objPathInBucket, bktName, err)
+		err = fmt.Errorf("failed to access object %s from bucket %s: %w", objPathInBucket, bktName, err)
+		return
 	}
 
 	obj = obj.ReadCompressed(true)
 	if obj == nil {
-		return "", fmt.Errorf("failed to access object %s from bucket %s as compressed: %w", objPathInBucket, bktName, err)
+		err = fmt.Errorf("failed to access object %s from bucket %s as compressed: %w", objPathInBucket, bktName, err)
+		return
 	}
 
 	r, err := obj.NewReader(ctx)
 	if r == nil || err != nil {
-		return "", fmt.Errorf("failed to read object %s from bucket %s: %w", objPathInBucket, bktName, err)
+		err = fmt.Errorf("failed to read object %s from bucket %s: %w", objPathInBucket, bktName, err)
+		return
 	}
 	defer r.Close()
 
 	gcsObjectData, err := io.ReadAll(r)
 	if len(gcsObjectData) < gcsObjectSize || err != nil {
-		return "", fmt.Errorf("failed to read object %s from bucket %s (expected read-size: %d, actual read-size: %d): %w", objPathInBucket, bktName, gcsObjectSize, len(gcsObjectData), err)
+		err = fmt.Errorf("failed to read object %s from bucket %s (expected read-size: %d, actual read-size: %d): %w", objPathInBucket, bktName, gcsObjectSize, len(gcsObjectData), err)
+		return
 	}
 
 	err = os.WriteFile(tempfile, gcsObjectData, fs.FileMode(os.O_CREATE|os.O_WRONLY|os.O_TRUNC))
 	if err != nil || client == nil {
-		return "", fmt.Errorf("failed to write to tempfile %s: %w", tempfile, err)
+		err = fmt.Errorf("failed to write to tempfile %s: %w", tempfile, err)
+		return
 	}
 
 	return tempfile, nil

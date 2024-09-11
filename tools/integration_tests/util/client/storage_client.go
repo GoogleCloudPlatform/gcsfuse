@@ -223,6 +223,8 @@ func StatObject(ctx context.Context, client *storage.Client, object string) (*st
 	return attrs, nil
 }
 
+// UploadGcsObject uploads a local file to a specified GCS bucket and object.
+// Handles gzip compression if requested.
 func UploadGcsObject(ctx context.Context, localPath, bucketName, objectName string, uploadGzipEncoded bool) error {
 	client, err := storage.NewClient(ctx)
 
@@ -231,7 +233,7 @@ func UploadGcsObject(ctx context.Context, localPath, bucketName, objectName stri
 	}
 	defer client.Close()
 
-	// Create a writer to upload the object
+	// Create a writer to upload the object.
 	obj := client.Bucket(bucketName).Object(objectName)
 	w := obj.NewWriter(ctx)
 	defer func() {
@@ -242,7 +244,7 @@ func UploadGcsObject(ctx context.Context, localPath, bucketName, objectName stri
 	}()
 
 	filePathToUpload := localPath
-	// Set content encoding if gzip compression is needed
+	// Set content encoding if gzip compression is needed.
 	if uploadGzipEncoded {
 		data, err := os.ReadFile(localPath)
 		if err != nil {
@@ -255,21 +257,18 @@ func UploadGcsObject(ctx context.Context, localPath, bucketName, objectName stri
 			return fmt.Errorf("failed to create local gzip file from %s for upload to bucket: %w", localPath, err)
 		}
 		defer os.Remove(filePathToUpload)
-
 	}
 
-	// Open the local file for reading
+	// Open the local file for reading.
 	f, err := operations.OpenFileAsReadonly(filePathToUpload)
 	if err != nil {
-		return fmt.Errorf("failed to open local file %s: %v", filePathToUpload, err)
+		return fmt.Errorf("failed to open local file %s: %w", filePathToUpload, err)
 	}
 	defer operations.CloseFile(f)
 
-	// Copy the file contents to the object writer
+	// Copy the file contents to the object writer.
 	if _, err := io.Copy(w, f); err != nil {
-		return fmt.Errorf("failed to copy file %s to gs://%s/%s: %v", localPath, bucketName, objectName, err)
+		return fmt.Errorf("failed to copy file %s to gs://%s/%s: %w", localPath, bucketName, objectName, err)
 	}
-
-	log.Printf("File %s uploaded to gs://%s/%s successfully", localPath, bucketName, objectName)
 	return nil
 }

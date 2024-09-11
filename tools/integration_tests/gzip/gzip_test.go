@@ -136,9 +136,9 @@ func setup_testdata(m *testing.M) error {
 	for _, fmd := range fmds {
 		content, err := helpers.CreateDataOfSize(fmd.filesize)
 		if err != nil {
-			return fmt.Errorf("failed to create data: %w", err)
+			return fmt.Errorf("failed to create content for testing: %w", err)
 		}
-		localFilePath, err := operations.CreateLocalTempFile(content, false)
+		localFilePath, err := operations.CreateLocalTempFile(content, fmd.enableGzipEncodedContent)
 		if err != nil {
 			return fmt.Errorf("failed to create local file: %w", err)
 		}
@@ -147,7 +147,6 @@ func setup_testdata(m *testing.M) error {
 
 		// upload to the test-bucket for testing
 		objectPrefixPath := path.Join(TestBucketPrefixPath, fmd.filename)
-
 		ctx := context.Background()
 
 		err = client.UploadGcsObject(ctx, localFilePath, setup.TestBucket(), objectPrefixPath, fmd.enableGzipContentEncoding)

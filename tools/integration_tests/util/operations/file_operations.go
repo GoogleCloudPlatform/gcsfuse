@@ -42,9 +42,10 @@ const (
 	// TimeSlop The radius we use for "expect mtime is within"-style assertions as kernel
 	// time can be slightly out of sync of time.Now().
 	// Ref: https://github.com/golang/go/issues/33510
-	TimeSlop        = 25 * time.Millisecond
-	TempFileStrLine = "This is a test file"
-	TmpDirectory    = "/tmp"
+	TimeSlop = 25 * time.Millisecond
+	// TmpDirectory specifies the directory where temporary files will be created.
+	// In this case, we are using the system's default temporary directory.
+	TmpDirectory = "/tmp"
 )
 
 func copyFile(srcFileName, dstFileName string, allowOverwrite bool) (err error) {
@@ -634,14 +635,11 @@ func SizeOfFile(filepath string) (size int64, err error) {
 
 // Creates a temporary file (name-collision-safe) in /tmp with given content.
 // If gzipCompress is true, output file is a gzip-compressed file.
-// contentSize is the size of the uncompressed content. In case gzipCompress is true, the actual output file size will be
-// different from contentSize (typically gzip-compressed file size < contentSize).
 // Caller is responsible for deleting the created file when done using it.
 // Failure cases:
-// 1. contentSize <= 0
-// 2. os.CreateTemp() returned error or nil handle
-// 3. gzip.NewWriter() returned nil handle
-// 4. Failed to write the content to the created temp file
+// 1. os.CreateTemp() returned error or nil handle
+// 2. gzip.NewWriter() returned nil handle
+// 3. Failed to write the content to the created temp file
 func CreateLocalTempFile(content string, gzipCompress bool) (string, error) {
 	contentSize := len(content)
 
@@ -654,7 +652,7 @@ func CreateLocalTempFile(content string, gzipCompress bool) (string, error) {
 	// create a temp file
 	f, err := os.CreateTemp(TmpDirectory, filenameTemplate)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to create tempfile for template %s: %w", filenameTemplate, err)
 	} else if f == nil {
 		return "", fmt.Errorf("nil file handle returned from os.CreateTemp")
 	}
@@ -675,7 +673,7 @@ func CreateLocalTempFile(content string, gzipCompress bool) (string, error) {
 		// write the content created above as gzip
 		n, err := w.Write([]byte(content))
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to write content to %s using gzip-writer: %w", filepath, err)
 		} else if n != contentSize {
 			return "", fmt.Errorf("failed to write to gzip file %s. Content-size: %d bytes, wrote = %d bytes", filepath, contentSize, n)
 		}
