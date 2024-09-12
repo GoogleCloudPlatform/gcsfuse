@@ -209,7 +209,7 @@ type AsyncHandler struct {
 }
 
 func NewAsyncHandler(writer io.Writer, levelVar *slog.LevelVar, prefix string) slog.Handler {
-	asyncHandler := AsyncHandler{handler: slog.NewJSONHandler(writer, getHandlerOptions(levelVar, prefix, "json")), records: make(chan slog.Record)}
+	asyncHandler := AsyncHandler{handler: slog.NewJSONHandler(writer, getHandlerOptions(levelVar, prefix, "json")), records: make(chan slog.Record, 10)}
 	go handleRecordsAsync(asyncHandler.records, asyncHandler.handler)
 	return &asyncHandler
 }
@@ -218,13 +218,13 @@ func (h *AsyncHandler) Enabled(ctx context.Context, level slog.Level) bool {
 }
 
 func (h *AsyncHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	newHandler := AsyncHandler{handler: h.handler.WithAttrs(attrs), records: make(chan slog.Record)}
+	newHandler := AsyncHandler{handler: h.handler.WithAttrs(attrs), records: make(chan slog.Record, 10)}
 	go handleRecordsAsync(newHandler.records, newHandler.handler)
 	return &newHandler
 }
 
 func (h *AsyncHandler) WithGroup(name string) slog.Handler {
-	newHandler := AsyncHandler{handler: h.handler.WithGroup(name), records: make(chan slog.Record)}
+	newHandler := AsyncHandler{handler: h.handler.WithGroup(name), records: make(chan slog.Record, 10)}
 	go handleRecordsAsync(newHandler.records, newHandler.handler)
 	return &newHandler
 }
