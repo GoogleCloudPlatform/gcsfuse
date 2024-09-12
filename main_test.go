@@ -762,3 +762,53 @@ func TestConfigPassing(t *testing.T) {
 		})
 	}
 }
+
+func TestPredefinedFlagThrowNoError(t *testing.T) {
+	testCases := []struct {
+		name string
+		args []string
+	}{
+		{
+			name: "help",
+			args: []string{"--help"},
+		},
+		{
+			name: "help_single_hyphen",
+			args: []string{"--help"},
+		},
+		{
+			name: "help_shorthand",
+			args: []string{"-h"},
+		},
+		{
+			name: "help_shorthand_two_hyphens",
+			args: []string{"--h"},
+		},
+		{
+			name: "version",
+			args: []string{"--help"},
+		},
+		{
+			name: "version_single_hyphen",
+			args: []string{"--help"},
+		},
+		{
+			name: "version_shorthand",
+			args: []string{"-v"},
+		},
+		{
+			name: "version_shorthand_two_hyphens",
+			args: []string{"--v"},
+		},
+	}
+	for _, tc := range testCases {
+		command, err := cmd.NewRootCmd(func(config *cfg.Config, _, _ string) error {
+			return nil
+		})
+		require.NoError(t, err)
+		cmdArgs := append([]string{"gcsfuse"}, tc.args...)
+		command.SetArgs(cmd.ConvertToPosixArgs(cmdArgs, command))
+
+		assert.NoError(t, command.Execute())
+	}
+}
