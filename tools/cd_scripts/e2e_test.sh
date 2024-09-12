@@ -139,8 +139,22 @@ git checkout $(sed -n 2p ~/details.txt) |& tee -a ~/logs.txt
 
 #run tests with testbucket flag
 set +e
-GODEBUG=asyncpreemptoff=1 CGO_ENABLED=0 go test ./tools/integration_tests/... -p 1 -short --integrationTest -v --testbucket=$(sed -n 3p ~/details.txt) --testInstalledPackage --timeout=60m &>> ~/logs.txt
+# TODO: Running both tests in parallel leads to more test failures. Since Louhi runs on a smaller machine, this does not significantly reduce execution time.
+# We can include this task as part of the parallel e2e test project in the Louhi pipeline.
 
+# Run tests on HNS bucket
+GODEBUG=asyncpreemptoff=1 CGO_ENABLED=0 go test ./tools/integration_tests/... -p 1 -short --integrationTest -v --testbucket=$(sed -n 3p ~/details.txt)-hns --timeout=60m &>> ~/logs-hns.txt
+if [ $? -ne 0 ];
+then
+    echo "Test failures detected" &>> ~/logs-hns.txt
+else
+    touch success-hns.txt
+    gsutil cp success-hns.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)-hns/
+fi
+gsutil cp ~/logs-hns.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)-hns/
+
+# Run tests on FLAT bucket
+GODEBUG=asyncpreemptoff=1 CGO_ENABLED=0 go test ./tools/integration_tests/... -p 1 -short --integrationTest -v --testbucket=$(sed -n 3p ~/details.txt) --timeout=60m &>> ~/logs.txt
 if [ $? -ne 0 ];
 then
     echo "Test failures detected" &>> ~/logs.txt
@@ -148,6 +162,5 @@ else
     touch success.txt
     gsutil cp success.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
 fi
-
 gsutil cp ~/logs.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
 '
