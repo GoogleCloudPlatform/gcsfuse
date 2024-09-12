@@ -59,7 +59,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error occurred while creating the root command: %v", err)
 	}
-	rootCmd.SetArgs(cmd.ConvertToPosixArgs(os.Args))
+	rootCmd.SetArgs(cmd.ConvertToPosixArgs(os.Args, rootCmd))
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatalf("Error occurred during command execution: %v", err)
 	}

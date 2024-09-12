@@ -1,0 +1,2 @@
+gcs-connection:
+  http-client-timeout: -1h15s

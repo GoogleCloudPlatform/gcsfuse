@@ -1,0 +1,2 @@
+gcs-connection:
+  client-protocol: "http2"

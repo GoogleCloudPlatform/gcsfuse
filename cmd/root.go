@@ -23,6 +23,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
@@ -102,16 +103,37 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 // into POSIX compliant args. All it does is that it converts flags specified
 // using a single-hyphen to double-hyphens. We are excluding "-v" because it's
 // reserved for showing version in Cobra.
-func ConvertToPosixArgs(args []string) []string {
+func ConvertToPosixArgs(args []string, c *cobra.Command) []string {
 	pArgs := make([]string, 0, len(args))
+	flagSet := make(map[string]bool)
+	c.PersistentFlags().VisitAll(func(f *pflag.Flag) {
+		flagSet[f.Name] = true
+	})
+	// Treat help and version like flags
+	flagSet["version"] = true
+	flagSet["help"] = true
 	for _, a := range args {
 		switch {
 		case a == "--v", a == "-v":
 			pArgs = append(pArgs, "-v")
 		case a == "--h", a == "-h":
 			pArgs = append(pArgs, "-h")
-		case strings.HasPrefix(a, "-") && !cfg.IsNegativeNumber(a) && !strings.HasPrefix(a, "--"):
-			pArgs = append(pArgs, "-"+a)
+		case strings.HasPrefix(a, "-") && !strings.HasPrefix(a, "--"):
+			// Remove the string post the "=" sign.
+			// This converts -a=b to -a.
+			flg, _, _ := strings.Cut(a, "=")
+			// Remove one hyphen from the beginning.
+			// This converts -a -> a.
+			flg, _ = strings.CutPrefix(flg, "-")
+
+			if flagSet[flg] {
+				// "a" is a full-form flag which has been specified with a single hyphen.
+				// So add another hyphen so that pflag processes it correctly.
+				pArgs = append(pArgs, "-"+a)
+			} else {
+				// "a" is a flag so, keep it as is.
+				pArgs = append(pArgs, a)
+			}
 		default:
 			pArgs = append(pArgs, a)
 		}
