@@ -45,7 +45,7 @@ var fReadSize = flag.Int64("read_size", 1<<20, "Size of each call to read(2).")
 
 func run() (err error) {
 	if *fDir == "" {
-		err = errors.New("You must set --dir.")
+		err = errors.New("you must set --dir")
 		return
 	}
 
@@ -70,14 +70,14 @@ func run() (err error) {
 	log.Printf("Writing %d random bytes.", *fFileSize)
 	_, err = io.Copy(f, io.LimitReader(rand.Reader, *fFileSize))
 	if err != nil {
-		err = fmt.Errorf("Copying random bytes: %w", err)
+		err = fmt.Errorf("copying random bytes: %w", err)
 		return
 	}
 
 	// Finish off the file.
 	err = f.Close()
 	if err != nil {
-		err = fmt.Errorf("Closing file: %w", err)
+		err = fmt.Errorf("closing file: %w", err)
 		return
 	}
 
@@ -93,7 +93,7 @@ func run() (err error) {
 		// Open the file for reading.
 		f, err = os.Open(path)
 		if err != nil {
-			err = fmt.Errorf("Opening file: %w", err)
+			err = fmt.Errorf("opening file: %w", err)
 			return
 		}
 
@@ -112,14 +112,14 @@ func run() (err error) {
 			err = nil
 
 		case err != nil:
-			err = fmt.Errorf("Reading: %w", err)
+			err = fmt.Errorf("reading: %w", err)
 			return
 		}
 
 		// Close the file.
 		err = f.Close()
 		if err != nil {
-			err = fmt.Errorf("Closing file after reading: %w", err)
+			err = fmt.Errorf("closing file after reading: %w", err)
 			return
 		}
 	}
