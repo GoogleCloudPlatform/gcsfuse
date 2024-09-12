@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package cmd
 
 import (
 	"fmt"
@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/cmd"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -575,14 +574,14 @@ func TestCLIFlagPassing(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			var c *cfg.Config
-			command, err := cmd.NewRootCmd(func(config *cfg.Config, _, _ string) error {
+			command, err := NewRootCmd(func(config *cfg.Config, _, _ string) error {
 				c = config
 				return nil
 			})
 			require.NoError(t, err)
 			cmdArgs := append([]string{"gcsfuse"}, tc.args...)
 			cmdArgs = append(cmdArgs, "a")
-			command.SetArgs(cmd.ConvertToPosixArgs(cmdArgs, command))
+			command.SetArgs(ConvertToPosixArgs(cmdArgs, command))
 
 			require.NoError(t, command.Execute())
 
@@ -748,13 +747,13 @@ func TestConfigPassing(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			var c *cfg.Config
-			command, err := cmd.NewRootCmd(func(config *cfg.Config, _, _ string) error {
+			command, err := NewRootCmd(func(config *cfg.Config, _, _ string) error {
 				c = config
 				return nil
 			})
 			require.NoError(t, err)
 			cmdArgs := append([]string{"gcsfuse", fmt.Sprintf("--config-file=testdata/%s", tc.file)}, "a")
-			command.SetArgs(cmd.ConvertToPosixArgs(cmdArgs, command))
+			command.SetArgs(ConvertToPosixArgs(cmdArgs, command))
 
 			require.NoError(t, command.Execute())
 
@@ -803,12 +802,12 @@ func TestPredefinedFlagThrowNoError(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			command, err := cmd.NewRootCmd(func(config *cfg.Config, _, _ string) error {
+			command, err := NewRootCmd(func(config *cfg.Config, _, _ string) error {
 				return nil
 			})
 			require.NoError(t, err)
 			cmdArgs := append([]string{"gcsfuse"}, tc.args...)
-			command.SetArgs(cmd.ConvertToPosixArgs(cmdArgs, command))
+			command.SetArgs(ConvertToPosixArgs(cmdArgs, command))
 
 			assert.NoError(t, command.Execute())
 		})
