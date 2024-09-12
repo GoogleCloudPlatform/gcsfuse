@@ -78,38 +78,39 @@
   default: true
 
 - config-path: "file-cache.cache-file-for-range-read"
-  flag-name: "cache-file-for-range-read"
+  flag-name: "file-cache-cache-file-for-range-read"
   type: "bool"
   usage: "Whether to cache file for range reads."
   default: false
 
 - config-path: "file-cache.download-chunk-size-mb"
-  flag-name: "download-chunk-size-mb"
+  flag-name: "file-cache-download-chunk-size-mb"
   type: "int"
   usage: "Size of chunks in MiB that each concurrent request downloads."
   default: "50"
 
 - config-path: "file-cache.enable-crc"
-  flag-name: "enable-crc"
+  flag-name: "file-cache-enable-crc"
   type: "bool"
   usage: "Performs CRC to ensure that file is correctly downloaded into cache."
   default: false
+  hide-flag: true
 
 - config-path: "file-cache.enable-o-direct"
-  flag-name: "enable-o-direct"
+  flag-name: "file-cache-enable-o-direct"
   type: "bool"
   usage: "Whether to use O_DIRECT while writing to file-cache in case of parallel downloads."
   default: "false"
   hide-flag: true
 
 - config-path: "file-cache.enable-parallel-downloads"
-  flag-name: "enable-parallel-downloads"
+  flag-name: "file-cache-enable-parallel-downloads"
   type: "bool"
   usage: "Enable parallel downloads."
   default: false
 
 - config-path: "file-cache.max-parallel-downloads"
-  flag-name: "max-parallel-downloads"
+  flag-name: "file-cache-max-parallel-downloads"
   type: "int"
   usage: "Sets an uber limit of number of concurrent file download requests that are made across all files."
   default: "DefaultMaxParallelDownloads()"
@@ -121,13 +122,13 @@
   default: "-1"
 
 - config-path: "file-cache.parallel-downloads-per-file"
-  flag-name: "parallel-downloads-per-file"
+  flag-name: "file-cache-parallel-downloads-per-file"
   type: "int"
   usage: "Number of concurrent download requests per file."
   default: "16"
 
 - config-path: "file-cache.write-buffer-size"
-  flag-name: "write-buffer-size"
+  flag-name: "file-cache-write-buffer-size"
   type: "int"
   usage: "Size of in-memory buffer that is used per goroutine in parallel downloads while writing to file-cache."
   default: "4194304" # 4MiB

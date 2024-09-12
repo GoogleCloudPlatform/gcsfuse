@@ -239,12 +239,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("cache-file-for-range-read", "", false, "Whether to cache file for range reads.")
-
-	if err := v.BindPFlag("file-cache.cache-file-for-range-read", flagSet.Lookup("cache-file-for-range-read")); err != nil {
-		return err
-	}
-
 	flagSet.StringP("client-protocol", "", "http1", "The protocol used for communicating with the GCS backend. Value can be 'http1' (HTTP/1.1), 'http2' (HTTP/2) or 'grpc'.")
 
 	if err := v.BindPFlag("gcs-connection.client-protocol", flagSet.Lookup("client-protocol")); err != nil {
@@ -333,18 +327,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("download-chunk-size-mb", "", 50, "Size of chunks in MiB that each concurrent request downloads.")
-
-	if err := v.BindPFlag("file-cache.download-chunk-size-mb", flagSet.Lookup("download-chunk-size-mb")); err != nil {
-		return err
-	}
-
-	flagSet.BoolP("enable-crc", "", false, "Performs CRC to ensure that file is correctly downloaded into cache.")
-
-	if err := v.BindPFlag("file-cache.enable-crc", flagSet.Lookup("enable-crc")); err != nil {
-		return err
-	}
-
 	flagSet.BoolP("enable-empty-managed-folders", "", false, "This handles the corner case in listing managed folders. There are two corner cases (a) empty managed folder (b) nested managed folder which doesn't contain any descendent as object. This flag always works in conjunction with --implicit-dirs flag. (a) If only ImplicitDirectories is true, all managed folders are listed other than above two mentioned cases. (b) If both ImplicitDirectories and EnableEmptyManagedFolders are true, then all the managed folders are listed including the above-mentioned corner case. (c) If ImplicitDirectories is false then no managed folders are listed irrespective of enable-empty-managed-folders flag.")
 
 	if err := v.BindPFlag("list.enable-empty-managed-folders", flagSet.Lookup("enable-empty-managed-folders")); err != nil {
@@ -360,22 +342,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("enable-nonexistent-type-cache", "", false, "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType will be created. This also means new file/dir created might not be seen. For example, if this flag is set, and metadata-cache-ttl-secs is set, then if we create the same file/node in the meantime using the same mount, since we are not refreshing the cache, it will still return nil.")
 
 	if err := v.BindPFlag("metadata-cache.enable-nonexistent-type-cache", flagSet.Lookup("enable-nonexistent-type-cache")); err != nil {
-		return err
-	}
-
-	flagSet.BoolP("enable-o-direct", "", false, "Whether to use O_DIRECT while writing to file-cache in case of parallel downloads.")
-
-	if err := flagSet.MarkHidden("enable-o-direct"); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("file-cache.enable-o-direct", flagSet.Lookup("enable-o-direct")); err != nil {
-		return err
-	}
-
-	flagSet.BoolP("enable-parallel-downloads", "", false, "Enable parallel downloads.")
-
-	if err := v.BindPFlag("file-cache.enable-parallel-downloads", flagSet.Lookup("enable-parallel-downloads")); err != nil {
 		return err
 	}
 
@@ -439,9 +405,69 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.BoolP("file-cache-cache-file-for-range-read", "", false, "Whether to cache file for range reads.")
+
+	if err := v.BindPFlag("file-cache.cache-file-for-range-read", flagSet.Lookup("file-cache-cache-file-for-range-read")); err != nil {
+		return err
+	}
+
+	flagSet.IntP("file-cache-download-chunk-size-mb", "", 50, "Size of chunks in MiB that each concurrent request downloads.")
+
+	if err := v.BindPFlag("file-cache.download-chunk-size-mb", flagSet.Lookup("file-cache-download-chunk-size-mb")); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("file-cache-enable-crc", "", false, "Performs CRC to ensure that file is correctly downloaded into cache.")
+
+	if err := flagSet.MarkHidden("file-cache-enable-crc"); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-cache.enable-crc", flagSet.Lookup("file-cache-enable-crc")); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("file-cache-enable-o-direct", "", false, "Whether to use O_DIRECT while writing to file-cache in case of parallel downloads.")
+
+	if err := flagSet.MarkHidden("file-cache-enable-o-direct"); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-cache.enable-o-direct", flagSet.Lookup("file-cache-enable-o-direct")); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("file-cache-enable-parallel-downloads", "", false, "Enable parallel downloads.")
+
+	if err := v.BindPFlag("file-cache.enable-parallel-downloads", flagSet.Lookup("file-cache-enable-parallel-downloads")); err != nil {
+		return err
+	}
+
+	flagSet.IntP("file-cache-max-parallel-downloads", "", DefaultMaxParallelDownloads(), "Sets an uber limit of number of concurrent file download requests that are made across all files.")
+
+	if err := v.BindPFlag("file-cache.max-parallel-downloads", flagSet.Lookup("file-cache-max-parallel-downloads")); err != nil {
+		return err
+	}
+
 	flagSet.IntP("file-cache-max-size-mb", "", -1, "Maximum size of the file-cache in MiBs")
 
 	if err := v.BindPFlag("file-cache.max-size-mb", flagSet.Lookup("file-cache-max-size-mb")); err != nil {
+		return err
+	}
+
+	flagSet.IntP("file-cache-parallel-downloads-per-file", "", 16, "Number of concurrent download requests per file.")
+
+	if err := v.BindPFlag("file-cache.parallel-downloads-per-file", flagSet.Lookup("file-cache-parallel-downloads-per-file")); err != nil {
+		return err
+	}
+
+	flagSet.IntP("file-cache-write-buffer-size", "", 4194304, "Size of in-memory buffer that is used per goroutine in parallel downloads while writing to file-cache.")
+
+	if err := flagSet.MarkHidden("file-cache-write-buffer-size"); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-cache.write-buffer-size", flagSet.Lookup("file-cache-write-buffer-size")); err != nil {
 		return err
 	}
 
@@ -553,12 +579,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("max-parallel-downloads", "", DefaultMaxParallelDownloads(), "Sets an uber limit of number of concurrent file download requests that are made across all files.")
-
-	if err := v.BindPFlag("file-cache.max-parallel-downloads", flagSet.Lookup("max-parallel-downloads")); err != nil {
-		return err
-	}
-
 	flagSet.IntP("max-retry-attempts", "", 0, "It sets a limit on the number of times an operation will be retried if it fails, preventing endless retry loops. The default value 0 indicates no limit.")
 
 	if err := v.BindPFlag("gcs-retries.max-retry-attempts", flagSet.Lookup("max-retry-attempts")); err != nil {
@@ -592,12 +612,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	flagSet.StringP("only-dir", "", "", "Mount only a specific directory within the bucket. See docs/mounting for more information")
 
 	if err := v.BindPFlag("only-dir", flagSet.Lookup("only-dir")); err != nil {
-		return err
-	}
-
-	flagSet.IntP("parallel-downloads-per-file", "", 16, "Number of concurrent download requests per file.")
-
-	if err := v.BindPFlag("file-cache.parallel-downloads-per-file", flagSet.Lookup("parallel-downloads-per-file")); err != nil {
 		return err
 	}
 
@@ -694,16 +708,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	flagSet.IntP("uid", "", -1, "UID owner of all inodes.")
 
 	if err := v.BindPFlag("file-system.uid", flagSet.Lookup("uid")); err != nil {
-		return err
-	}
-
-	flagSet.IntP("write-buffer-size", "", 4194304, "Size of in-memory buffer that is used per goroutine in parallel downloads while writing to file-cache.")
-
-	if err := flagSet.MarkHidden("write-buffer-size"); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("file-cache.write-buffer-size", flagSet.Lookup("write-buffer-size")); err != nil {
 		return err
 	}
 
