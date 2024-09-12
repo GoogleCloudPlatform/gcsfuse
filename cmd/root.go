@@ -16,7 +16,6 @@ package cmd
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
@@ -106,9 +105,9 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 // reserved for showing version in Cobra.
 func ConvertToPosixArgs(args []string, c *cobra.Command) []string {
 	pArgs := make([]string, 0, len(args))
-	flagList := make([]string, 0)
+	flagSet := make(map[string]bool)
 	c.PersistentFlags().VisitAll(func(f *pflag.Flag) {
-		flagList = append(flagList, f.Name)
+		flagSet[f.Name] = true
 	})
 	for _, a := range args {
 		switch {
@@ -117,13 +116,23 @@ func ConvertToPosixArgs(args []string, c *cobra.Command) []string {
 		case a == "--h", a == "-h":
 			pArgs = append(pArgs, "-h")
 		case strings.HasPrefix(a, "-"):
+			// Remove the string post the "=" sign.
+			// This converts -a=b to -a but an arg like --c would remain unchanged.
 			flg, _, _ := strings.Cut(a, "=")
+			// Remove one hyphen from the beginning.
+			// This converts --a -> -a and -a -> a.
+			// If no hyphen is found then leave it as is and found is set to false.
 			flg, found := strings.CutPrefix(flg, "-")
-			if !found || !slices.Contains(flagList, flg) {
+
+			if found && flagSet[flg] {
+				// "a" is a full-form flag which has been specified with a single hyphen.
+				// So add another hyphen so that pflag processes it correctly.
+				pArgs = append(pArgs, "-"+a)
+			} else {
+				// Either "a" is not a flag or "a" has been specified with two-hyphens already.
+				// So, keep it as is.
 				pArgs = append(pArgs, a)
-				continue
 			}
-			pArgs = append(pArgs, "-"+a)
 		default:
 			pArgs = append(pArgs, a)
 		}
