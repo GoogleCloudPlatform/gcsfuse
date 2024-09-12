@@ -191,11 +191,53 @@ func (f *loggerFactory) createJsonOrTextHandler(writer io.Writer, levelVar *slog
 
 func (f *loggerFactory) handler(levelVar *slog.LevelVar, prefix string) slog.Handler {
 	if f.fileWriter != nil {
-		return f.createJsonOrTextHandler(f.fileWriter, levelVar, prefix)
+		return NewAsyncHandler(f.fileWriter, levelVar, prefix)
+		//return f.createJsonOrTextHandler(f.fileWriter, levelVar, prefix)
 	}
 
 	if f.sysWriter != nil {
-		return f.createJsonOrTextHandler(f.sysWriter, levelVar, prefix)
+		return NewAsyncHandler(f.fileWriter, levelVar, prefix)
+		//return f.createJsonOrTextHandler(f.sysWriter, levelVar, prefix)
 	}
-	return f.createJsonOrTextHandler(os.Stdout, levelVar, prefix)
+	return NewAsyncHandler(os.Stdout, levelVar, prefix)
+	//return f.createJsonOrTextHandler(os.Stdout, levelVar, prefix)
+}
+
+type AsyncHandler struct {
+	handler slog.Handler
+	records chan slog.Record
+}
+
+func NewAsyncHandler(writer io.Writer, levelVar *slog.LevelVar, prefix string) slog.Handler {
+	asyncHandler := AsyncHandler{handler: slog.NewJSONHandler(writer, getHandlerOptions(levelVar, prefix, "json")), records: make(chan slog.Record)}
+	go handleRecordsAsync(asyncHandler.records, asyncHandler.handler)
+	return &asyncHandler
+}
+func (h *AsyncHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	return h.handler.Enabled(ctx, level)
+}
+
+func (h *AsyncHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	newHandler := AsyncHandler{handler: h.handler.WithAttrs(attrs), records: make(chan slog.Record)}
+	go handleRecordsAsync(newHandler.records, newHandler.handler)
+	return &newHandler
+}
+
+func (h *AsyncHandler) WithGroup(name string) slog.Handler {
+	newHandler := AsyncHandler{handler: h.handler.WithGroup(name), records: make(chan slog.Record)}
+	go handleRecordsAsync(newHandler.records, newHandler.handler)
+	return &newHandler
+}
+func (h *AsyncHandler) Handle(_ context.Context, r slog.Record) error {
+	h.records <- r
+	return nil
+}
+
+func handleRecordsAsync(record chan slog.Record, handler slog.Handler) {
+	defer close(record)
+	ctx := context.Background()
+	for r := range record {
+		r.Message = "ABHIGU " + r.Message
+		handler.Handle(ctx, r)
+	}
 }
