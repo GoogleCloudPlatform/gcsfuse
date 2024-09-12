@@ -119,7 +119,7 @@ func ConvertToPosixArgs(args []string, c *cobra.Command) []string {
 		case strings.HasPrefix(a, "-"):
 			flg, _, _ := strings.Cut(a, "=")
 			flg, found := strings.CutPrefix(flg, "-")
-			if found == false || !slices.Contains(flagList, flg) {
+			if !found || !slices.Contains(flagList, flg) {
 				pArgs = append(pArgs, a)
 				continue
 			}

@@ -753,8 +753,7 @@ func TestConfigPassing(t *testing.T) {
 				return nil
 			})
 			require.NoError(t, err)
-			cmdArgs := append([]string{"gcsfuse", fmt.Sprintf("--config-file=testdata/%s", tc.file)})
-			cmdArgs = append(cmdArgs, "a")
+			cmdArgs := append([]string{"gcsfuse", fmt.Sprintf("--config-file=testdata/%s", tc.file)}, "a")
 			command.SetArgs(cmd.ConvertToPosixArgs(cmdArgs, command))
 
 			require.NoError(t, command.Execute())
