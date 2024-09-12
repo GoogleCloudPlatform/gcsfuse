@@ -19,7 +19,6 @@ import (
 	"path"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/gzip/helpers"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
@@ -50,7 +49,7 @@ func verifyFullFileOverwrite(t *testing.T, filename string) {
 			mountedFilePath, (*fi).Size(), gcsObjectPath, gcsObjectSize)
 	}
 
-	content, err := helpers.CreateDataOfSize(OverwrittenFileSize)
+	content, err := createDataOfSize(OverwrittenFileSize)
 	if err != nil {
 		t.Fatalf("Failed to create data: %v", err)
 	}

@@ -653,7 +653,8 @@ func CreateLocalTempFile(content string, gzipCompress bool) (string, error) {
 	f, err := os.CreateTemp(TmpDirectory, filenameTemplate)
 	if err != nil {
 		return "", fmt.Errorf("failed to create tempfile for template %s: %w", filenameTemplate, err)
-	} else if f == nil {
+	}
+	if f == nil {
 		return "", fmt.Errorf("nil file handle returned from os.CreateTemp")
 	}
 	defer CloseFile(f)

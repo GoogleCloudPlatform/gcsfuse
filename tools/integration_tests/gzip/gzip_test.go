@@ -21,9 +21,9 @@ import (
 	"log"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/gzip/helpers"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
@@ -51,6 +51,7 @@ const (
 	GzipContentWithContentEncodingWithoutNoTransformToOverwrite = "GzipContentWithContentEncodingWithoutNoTransformToOverwrite.txt.gz"
 
 	TestBucketPrefixPath = "gzip"
+	TempFileStrLine      = "This is a test file"
 )
 
 var (
@@ -134,7 +135,7 @@ func setup_testdata(m *testing.M) error {
 	}
 
 	for _, fmd := range fmds {
-		content, err := helpers.CreateDataOfSize(fmd.filesize)
+		content, err := createDataOfSize(fmd.filesize)
 		if err != nil {
 			return fmt.Errorf("failed to create content for testing: %w", err)
 		}
@@ -177,6 +178,46 @@ func destroy_testdata(m *testing.M) error {
 	}
 
 	return nil
+}
+
+// createDataOfSize generates a string of the specified content size in bytes.
+// Failure cases:
+// 1. contentSize <= 0
+func createDataOfSize(contentSize int) (string, error) {
+	// fail if contentSize <= 0
+	if contentSize <= 0 {
+		return "", fmt.Errorf("unsupported fileSize: %d", contentSize)
+	}
+
+	// Create text-content of given size.
+	// strings.builder is used as opposed to string appends
+	// as this is much more efficient when multiple concatenations
+	// are required.
+	var contentBuilder strings.Builder
+	const tempStr = TempFileStrLine + "\n"
+
+	for ; contentSize >= len(tempStr); contentSize -= len(tempStr) {
+		n, err := contentBuilder.WriteString(tempStr)
+		if err != nil {
+			return "", fmt.Errorf("failed to write to string builder: %w", err)
+		}
+		if n != len(tempStr) {
+			return "", fmt.Errorf("unexpected number of bytes written: expected %d, got %d", len(tempStr), n)
+		}
+	}
+
+	if contentSize > 0 {
+		n, err := contentBuilder.WriteString(tempStr[0:contentSize])
+		if err != nil {
+			return "", fmt.Errorf("failed to write to string builder: %w", err)
+		}
+		if n != contentSize {
+			return "", fmt.Errorf("unexpected number of bytes written: expected %d, got %d", contentSize, n)
+		}
+	}
+
+	content := contentBuilder.String()
+	return content, nil
 }
 
 func TestMain(m *testing.M) {
