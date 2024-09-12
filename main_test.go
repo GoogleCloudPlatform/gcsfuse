@@ -790,7 +790,7 @@ func TestPredefinedFlagThrowNoError(t *testing.T) {
 		},
 		{
 			name: "version_single_hyphen",
-			args: []string{"--help"},
+			args: []string{"-version"},
 		},
 		{
 			name: "version_shorthand",
