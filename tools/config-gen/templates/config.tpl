@@ -27,7 +27,7 @@ import (
 {{range .TypeTemplateData}}
 type {{ .TypeName}} struct {
   {{- range $idx, $fld := .Fields}}
-  {{ $fld.FieldName}} {{ $fld.DataType}} {{$bt}}yaml:"{{$fld.ConfigPath}},omitempty" json:"{{$fld.ConfigPath}},omitempty"{{$bt}}
+  {{ $fld.FieldName}} {{ $fld.DataType}} {{$bt}}yaml:"{{$fld.ConfigPath}}"{{$bt}}
 {{end}}
 }
 {{end}}
