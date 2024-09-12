@@ -58,13 +58,14 @@ func newTokenSourceFromPath(ctx context.Context, path string, scope string) (oau
 		err = fmt.Errorf("JWTConfigFromJSON: %w", err)
 		return nil, err
 	}
-	// Create the token source.
-	ts := jwtConfig.TokenSource(ctx)
 
 	domain, err := getUniverseDomain(ctx, contents, scope)
 	if err != nil {
 		return nil, err
 	}
+
+	// By default, a standard OAuth 2.0 token source is created
+	ts := jwtConfig.TokenSource(ctx)
 
 	// For non-GDU universe domains, token exchange is impossible and services
 	// must support self-signed JWTs with scopes.
@@ -74,7 +75,7 @@ func newTokenSourceFromPath(ctx context.Context, path string, scope string) (oau
 		ts, err = google.JWTAccessTokenSourceWithScope(contents, scope)
 		if err != nil {
 			err = fmt.Errorf("JWTAccessTokenSourceWithScope: %w", err)
-			return ts, err
+			return nil, err
 		}
 	}
 	return ts, err
