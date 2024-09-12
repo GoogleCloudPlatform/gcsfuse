@@ -786,7 +786,7 @@ func TestPredefinedFlagThrowNoError(t *testing.T) {
 		},
 		{
 			name: "version",
-			args: []string{"--help"},
+			args: []string{"--version"},
 		},
 		{
 			name: "version_single_hyphen",

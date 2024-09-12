@@ -115,16 +115,15 @@ func ConvertToPosixArgs(args []string, c *cobra.Command) []string {
 			pArgs = append(pArgs, "-v")
 		case a == "--h", a == "-h":
 			pArgs = append(pArgs, "-h")
-		case strings.HasPrefix(a, "-"):
+		case strings.HasPrefix(a, "-") && !strings.HasPrefix(a, "--"):
 			// Remove the string post the "=" sign.
-			// This converts -a=b to -a but an arg like --c would remain unchanged.
+			// This converts -a=b to -a.
 			flg, _, _ := strings.Cut(a, "=")
 			// Remove one hyphen from the beginning.
-			// This converts --a -> -a and -a -> a.
-			// If no hyphen is found then leave it as is and found is set to false.
-			flg, found := strings.CutPrefix(flg, "-")
+			// This converts -a -> a.
+			flg, _ = strings.CutPrefix(flg, "-")
 
-			if found && flagSet[flg] {
+			if flagSet[flg] {
 				// "a" is a full-form flag which has been specified with a single hyphen.
 				// So add another hyphen so that pflag processes it correctly.
 				pArgs = append(pArgs, "-"+a)
