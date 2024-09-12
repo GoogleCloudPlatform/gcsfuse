@@ -774,7 +774,7 @@ func TestPredefinedFlagThrowNoError(t *testing.T) {
 		},
 		{
 			name: "help_single_hyphen",
-			args: []string{"--help"},
+			args: []string{"-help"},
 		},
 		{
 			name: "help_shorthand",
@@ -802,13 +802,15 @@ func TestPredefinedFlagThrowNoError(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		command, err := cmd.NewRootCmd(func(config *cfg.Config, _, _ string) error {
-			return nil
-		})
-		require.NoError(t, err)
-		cmdArgs := append([]string{"gcsfuse"}, tc.args...)
-		command.SetArgs(cmd.ConvertToPosixArgs(cmdArgs, command))
+		t.Run(tc.name, func(t *testing.T) {
+			command, err := cmd.NewRootCmd(func(config *cfg.Config, _, _ string) error {
+				return nil
+			})
+			require.NoError(t, err)
+			cmdArgs := append([]string{"gcsfuse"}, tc.args...)
+			command.SetArgs(cmd.ConvertToPosixArgs(cmdArgs, command))
 
-		assert.NoError(t, command.Execute())
+			assert.NoError(t, command.Execute())
+		})
 	}
 }

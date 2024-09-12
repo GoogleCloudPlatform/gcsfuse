@@ -109,6 +109,9 @@ func ConvertToPosixArgs(args []string, c *cobra.Command) []string {
 	c.PersistentFlags().VisitAll(func(f *pflag.Flag) {
 		flagSet[f.Name] = true
 	})
+	// Treat help and version like flags
+	flagSet["version"] = true
+	flagSet["help"] = true
 	for _, a := range args {
 		switch {
 		case a == "--v", a == "-v":
