@@ -131,8 +131,7 @@ func ConvertToPosixArgs(args []string, c *cobra.Command) []string {
 				// So add another hyphen so that pflag processes it correctly.
 				pArgs = append(pArgs, "-"+a)
 			} else {
-				// Either "a" is not a flag or "a" has been specified with two-hyphens already.
-				// So, keep it as is.
+				// Either "a" is a flag so, keep it as is.
 				pArgs = append(pArgs, a)
 			}
 		default:
