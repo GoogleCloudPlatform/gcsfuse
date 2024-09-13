@@ -216,5 +216,6 @@ func (sh *storageClient) BucketHandle(bucketName string, billingProject string) 
 		bucketName:    bucketName,
 		controlClient: sh.storageControlClient,
 	}
+
 	return
 }
