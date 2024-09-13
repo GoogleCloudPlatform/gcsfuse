@@ -44,6 +44,10 @@ const (
 	// The value is set at the size needed for about 21k type-cache entries,
 	// each of which is about 200 bytes in size.
 	DefaultTypeCacheMaxSizeMB = 4
+	DefaultMaxReadAheadKB     = 1024
+	// DefaultMaxReadPages defines the max number of pages to use when reading
+	// where single size of page is 4KiB.
+	DefaultMaxReadPages = 256
 )
 
 type LogConfig struct {
@@ -84,6 +88,8 @@ type FileSystemConfig struct {
 	IgnoreInterrupts          bool  `yaml:"ignore-interrupts"`
 	DisableParallelDirops     bool  `yaml:"disable-parallel-dirops"`
 	KernelListCacheTtlSeconds int64 `yaml:"kernel-list-cache-ttl-secs"`
+	MaxReadAheadKB            int   `yaml:"max-read-ahead-kb"`
+	MaxReadPages              int   `yaml:"max-read-pages"`
 }
 
 type FileCacheConfig struct {
@@ -195,6 +201,8 @@ func NewMountConfig() *MountConfig {
 
 	mountConfig.FileSystemConfig = FileSystemConfig{
 		KernelListCacheTtlSeconds: DefaultKernelListCacheTtlSeconds,
+		MaxReadAheadKB:            DefaultMaxReadAheadKB,
+		MaxReadPages:              DefaultMaxReadPages,
 	}
 
 	mountConfig.FileSystemConfig.IgnoreInterrupts = DefaultIgnoreInterrupts

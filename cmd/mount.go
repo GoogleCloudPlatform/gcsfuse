@@ -165,6 +165,8 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		// access two files under same directory parallely, then the lookups also
 		// happen parallely.
 		EnableParallelDirOps: !(newConfig.FileSystem.DisableParallelDirops),
+		MaxReadPages:         int(newConfig.FileSystem.MaxReadPages),
+		MaxReadAhead:         newConfig.FileSystem.MaxReadAheadKb * 1024,
 	}
 
 	mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse: ")

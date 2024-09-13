@@ -106,6 +106,10 @@ type FileSystemConfig struct {
 
 	KernelListCacheTtlSecs int64 `yaml:"kernel-list-cache-ttl-secs"`
 
+	MaxReadAheadKb int64 `yaml:"max-read-ahead-kb"`
+
+	MaxReadPages int64 `yaml:"max-read-pages"`
+
 	RenameDirLimit int64 `yaml:"rename-dir-limit"`
 
 	TempDir ResolvedPath `yaml:"temp-dir"`
@@ -448,6 +452,18 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	flagSet.StringP("file-mode", "", "0644", "Permissions bits for files, in octal.")
 
 	if err := v.BindPFlag("file-system.file-mode", flagSet.Lookup("file-mode")); err != nil {
+		return err
+	}
+
+	flagSet.IntP("file-system-max-read-ahead-kb", "", 1024, "Max read ahead in KiB while doing reads.")
+
+	if err := v.BindPFlag("file-system.max-read-ahead-kb", flagSet.Lookup("file-system-max-read-ahead-kb")); err != nil {
+		return err
+	}
+
+	flagSet.IntP("file-system-max-read-pages", "", 256, "Max read pages to use while doing reads.")
+
+	if err := v.BindPFlag("file-system.max-read-pages", flagSet.Lookup("file-system-max-read-pages")); err != nil {
 		return err
 	}
 

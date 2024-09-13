@@ -184,6 +184,18 @@
     will throw error.
   default: "0"
 
+- config-path: "file-system.max-read-ahead-kb"
+  flag-name: "file-system-max-read-ahead-kb"
+  type: "int"
+  usage: "Max read ahead in KiB while doing reads."
+  default: "1024"
+
+- config-path: "file-system.max-read-pages"
+  flag-name: "file-system-max-read-pages"
+  type: "int"
+  usage: "Max read pages to use while doing reads."
+  default: "256"
+
 - config-path: "file-system.rename-dir-limit"
   flag-name: "rename-dir-limit"
   type: "int"
