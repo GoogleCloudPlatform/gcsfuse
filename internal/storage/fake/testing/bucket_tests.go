@@ -286,7 +286,7 @@ func readMultiple(
 		// Close it.
 		err = rc.Close()
 		if err != nil {
-			err = fmt.Errorf("Close: %v", err)
+			err = fmt.Errorf("close: %v", err)
 			return
 		}
 	}
