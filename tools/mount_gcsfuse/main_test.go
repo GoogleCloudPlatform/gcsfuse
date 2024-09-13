@@ -103,7 +103,7 @@ func TestMakeGcsfuseArgs(t *testing.T) {
 		{
 			name:          "TestMakeGcsfuseArgs with DebugFlags",
 			opts:          map[string]string{"debug_fuse": "", "debug_gcs": ""},
-			expectedFlags: []string{"--debug_fuse", "--debug_gcs"},
+			expectedFlags: []string{"--debug_fuse=true", "--debug_gcs=true"},
 		},
 
 		// Test ignored options
@@ -124,7 +124,7 @@ func TestMakeGcsfuseArgs(t *testing.T) {
 			opts: map[string]string{
 				"implicit_dirs": "", "file_mode": "0644", "debug_fuse": "", "allow_other": "",
 			},
-			expectedFlags: []string{"--implicit-dirs=true", "--file-mode", "0644", "--debug_fuse", "-o", "allow_other"},
+			expectedFlags: []string{"--implicit-dirs=true", "--file-mode", "0644", "--debug_fuse=true", "-o", "allow_other"},
 		},
 	}
 	device := "gcsfuse"

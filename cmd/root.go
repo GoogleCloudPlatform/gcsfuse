@@ -95,8 +95,11 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 		"Refer to 'https://cloud.google.com/storage/docs/gcsfuse-cli#config-file' for possible configurations.")
 
 	// Add all the other flags.
+	if err := cfg.BuildFlagSet(rootCmd.PersistentFlags()); err != nil {
+		return nil, fmt.Errorf("error while declaring flags: %w", err)
+	}
 	if err := cfg.BindFlags(v, rootCmd.PersistentFlags()); err != nil {
-		return nil, fmt.Errorf("error while declaring/binding flags: %w", err)
+		return nil, fmt.Errorf("error while binding flags: %w", err)
 	}
 	return rootCmd, nil
 }
