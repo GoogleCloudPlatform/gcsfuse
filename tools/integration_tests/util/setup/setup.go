@@ -423,7 +423,7 @@ func IsHierarchicalBucket(ctx context.Context, storageClient *storage.Client) bo
 // Explicitly set the enable-hns config flag to true when running tests on the HNS bucket.
 func AddHNSFlagForHierarchicalBucket(ctx context.Context, storageClient *storage.Client) ([]string, error) {
 	if !IsHierarchicalBucket(ctx, storageClient) {
-		return nil, fmt.Errorf("Bucket is not Hierarchical")
+		return nil, fmt.Errorf("bucket is not Hierarchical")
 	}
 
 	var flags []string

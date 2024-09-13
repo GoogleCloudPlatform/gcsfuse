@@ -1632,7 +1632,7 @@ func (fs *fileSystem) createFile(
 	// (unlikely, so we're probably okay with failing here).
 	child = fs.lookUpOrCreateInodeIfNotStale(*result)
 	if child == nil {
-		err = fmt.Errorf("Newly-created record is already stale")
+		err = fmt.Errorf("newly-created record is already stale")
 		return
 	}
 
