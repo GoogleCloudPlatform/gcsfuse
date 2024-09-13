@@ -83,9 +83,6 @@ cd gcsfuse/tools/package_gcsfuse_docker/
 
 echo "Building docker for ${architecture} ..."
 sudo docker buildx build --load . -t gcsfuse-release-${architecture}:"$RELEASE_VERSION_TAG" --build-arg GCSFUSE_VERSION="$RELEASE_VERSION" --build-arg ARCHITECTURE=${architecture} --build-arg BRANCH_NAME="v$RELEASE_VERSION_TAG"
-
-# Below steps are taking less than one second, so we are not parallelising them.
-# Copy packages from docket container to disk.
 sudo docker run  -v $HOME/gcsfuse/release:/release gcsfuse-release-${architecture}:"$RELEASE_VERSION_TAG" cp -r /packages/. /release/v"$RELEASE_VERSION"
 
 echo "Upload files in the bucket ..."
