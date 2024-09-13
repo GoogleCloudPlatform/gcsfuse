@@ -143,7 +143,7 @@ func build(
 
 	err = os.Rename(path.Join(dir, "bin"), path.Join(dir, "usr/bin"))
 	if err != nil {
-		err = fmt.Errorf("Rename: %w", err)
+		err = fmt.Errorf("rename: %w", err)
 		return
 	}
 

@@ -33,7 +33,7 @@ import (
 func run(args []string) (err error) {
 	// Extract arguments.
 	if len(args) < 2 || len(args) > 3 {
-		err = fmt.Errorf("Usage: %s cache_dir bucket_name [prefix]", os.Args[0])
+		err = fmt.Errorf("usage: %s cache_dir bucket_name [prefix]", os.Args[0])
 		return
 	}
 

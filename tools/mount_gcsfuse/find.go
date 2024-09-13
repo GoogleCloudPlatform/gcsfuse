@@ -45,7 +45,7 @@ func findFusermount() (p string, err error) {
 		}
 	}
 
-	err = errors.New("Can't find a usable executable.")
+	err = errors.New("can't find a usable executable")
 	return
 }
 
@@ -71,6 +71,6 @@ func findGcsfuse() (p string, err error) {
 		}
 	}
 
-	err = errors.New("Can't find a usable executable.")
+	err = errors.New("can't find a usable executable")
 	return
 }

@@ -39,7 +39,7 @@ var fWriteSize = flag.Int64("write_size", 1<<20, "Size of each call to write(2).
 
 func run() (err error) {
 	if *fDir == "" {
-		err = errors.New("You must set --dir.")
+		err = errors.New("you must set --dir")
 		return
 	}
 
@@ -60,7 +60,7 @@ func run() (err error) {
 		os.Remove(path)
 	}()
 
-	// Write the configured number of zeroes to the file, measuing the time
+	// Write the configured number of zeroes to the file, measuring the time
 	// taken.
 	log.Println("Writing...")
 
@@ -79,7 +79,7 @@ func run() (err error) {
 		// Write them.
 		_, err = f.Write(buf)
 		if err != nil {
-			err = fmt.Errorf("Write: %w", err)
+			err = fmt.Errorf("write: %w", err)
 			return
 		}
 
@@ -96,7 +96,7 @@ func run() (err error) {
 	closeDuration := time.Since(start)
 
 	if err != nil {
-		err = fmt.Errorf("Close: %w", err)
+		err = fmt.Errorf("close: %w", err)
 		return
 	}
 

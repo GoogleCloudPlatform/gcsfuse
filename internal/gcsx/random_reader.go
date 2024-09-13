@@ -323,7 +323,7 @@ func (rr *randomReader) ReadAt(
 
 		// Sanity check.
 		if rr.start > rr.limit {
-			err = fmt.Errorf("Reader returned %d too many bytes", rr.start-rr.limit)
+			err = fmt.Errorf("reader returned %d too many bytes", rr.start-rr.limit)
 
 			// Don't attempt to reuse the reader when it's behaving wackily.
 			rr.reader.Close()
@@ -349,7 +349,7 @@ func (rr *randomReader) ReadAt(
 			// if the reader peters out early. That's fine, but it means we should
 			// have hit the limit above.
 			if rr.reader != nil {
-				err = fmt.Errorf("Reader returned %d too few bytes", rr.limit-rr.start)
+				err = fmt.Errorf("reader returned %d too few bytes", rr.limit-rr.start)
 				return
 			}
 
@@ -436,7 +436,7 @@ func (rr *randomReader) startRead(
 	// Make sure start and size are legal.
 	if start < 0 || uint64(start) > rr.object.Size || size < 0 {
 		err = fmt.Errorf(
-			"Range [%d, %d) is illegal for %d-byte object",
+			"range [%d, %d) is illegal for %d-byte object",
 			start,
 			start+size,
 			rr.object.Size)

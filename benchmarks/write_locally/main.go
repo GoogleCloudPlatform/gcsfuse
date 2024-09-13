@@ -40,16 +40,16 @@ var fWriteSize = flag.Int64("write_size", 1<<20, "Size of each call to write(2).
 
 func run() (err error) {
 	if *fDir == "" {
-		err = errors.New("You must set --dir.")
+		err = errors.New("you must set --dir")
 		return
 	}
 
 	// Create a temporary file.
-	log.Printf("Creating a temporary file in %s.", *fDir)
+	log.Printf("creating a temporary file in %s.", *fDir)
 
 	f, err := os.CreateTemp(*fDir, "write_locally")
 	if err != nil {
-		err = fmt.Errorf("TempFile: %w", err)
+		err = fmt.Errorf("tempFile: %w", err)
 		return
 	}
 
@@ -70,7 +70,7 @@ func run() (err error) {
 
 	err = f.Truncate(*fFileSize)
 	if err != nil {
-		err = fmt.Errorf("Truncate: %w", err)
+		err = fmt.Errorf("truncate: %w", err)
 		return
 	}
 
@@ -87,7 +87,7 @@ func run() (err error) {
 		// Seek to the beginning.
 		_, err = f.Seek(0, 0)
 		if err != nil {
-			err = fmt.Errorf("Seek: %w", err)
+			err = fmt.Errorf("seek: %w", err)
 			return
 		}
 
@@ -97,7 +97,7 @@ func run() (err error) {
 			var tmp int
 			tmp, err = f.Write(buf)
 			if err != nil {
-				err = fmt.Errorf("Write: %w", err)
+				err = fmt.Errorf("write: %w", err)
 				return
 			}
 

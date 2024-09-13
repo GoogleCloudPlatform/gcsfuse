@@ -130,11 +130,11 @@ type ServerConfig struct {
 func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileSystem, error) {
 	// Check permissions bits.
 	if serverCfg.FilePerms&^os.ModePerm != 0 {
-		return nil, fmt.Errorf("Illegal file perms: %v", serverCfg.FilePerms)
+		return nil, fmt.Errorf("illegal file perms: %v", serverCfg.FilePerms)
 	}
 
 	if serverCfg.DirPerms&^os.ModePerm != 0 {
-		return nil, fmt.Errorf("Illegal dir perms: %v", serverCfg.FilePerms)
+		return nil, fmt.Errorf("illegal dir perms: %v", serverCfg.FilePerms)
 	}
 
 	mtimeClock := timeutil.RealClock()
@@ -1465,7 +1465,7 @@ func (fs *fileSystem) SetInodeAttributes(
 	if isFile && op.Size != nil {
 		err = file.Truncate(ctx, int64(*op.Size))
 		if err != nil {
-			err = fmt.Errorf("Truncate: %w", err)
+			err = fmt.Errorf("truncate: %w", err)
 			return err
 		}
 	}
@@ -1538,7 +1538,7 @@ func (fs *fileSystem) MkDir(
 	// (unlikely, so we're probably okay with failing here).
 	child := fs.lookUpOrCreateInodeIfNotStale(*result)
 	if child == nil {
-		err = fmt.Errorf("Newly-created record is already stale")
+		err = fmt.Errorf("newly-created record is already stale")
 		return err
 	}
 
@@ -1783,7 +1783,7 @@ func (fs *fileSystem) CreateSymlink(
 	// (unlikely, so we're probably okay with failing here).
 	child := fs.lookUpOrCreateInodeIfNotStale(*result)
 	if child == nil {
-		err = fmt.Errorf("Newly-created record is already stale")
+		err = fmt.Errorf("newly-created record is already stale")
 		return err
 	}
 
@@ -2199,7 +2199,7 @@ func (fs *fileSystem) renameNonHierarchicalDir(
 		}
 
 		if err = fs.invalidateChildFileCacheIfExist(oldDir, o.Name); err != nil {
-			return fmt.Errorf("Unlink: while invalidating cache for delete file: %w", err)
+			return fmt.Errorf("unlink: while invalidating cache for delete file: %w", err)
 		}
 	}
 
@@ -2266,7 +2266,7 @@ func (fs *fileSystem) Unlink(
 	}
 
 	if err := fs.invalidateChildFileCacheIfExist(parent, fileName.GcsObjectName()); err != nil {
-		return fmt.Errorf("Unlink: while invalidating cache for delete file: %w", err)
+		return fmt.Errorf("unlink: while invalidating cache for delete file: %w", err)
 	}
 
 	return

@@ -96,7 +96,7 @@ func CopyFileAllowOverwrite(srcFileName, newFileName string) (err error) {
 func ReadFile(filePath string) (content []byte, err error) {
 	file, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, FilePermission_0600)
 	if err != nil {
-		err = fmt.Errorf("Error in the opening the file %v", err)
+		err = fmt.Errorf("error in the opening the file %v", err)
 		return
 	}
 
@@ -113,21 +113,21 @@ func ReadFile(filePath string) (content []byte, err error) {
 
 func RenameFile(fileName string, newFileName string) (err error) {
 	if _, err = os.Stat(newFileName); err == nil {
-		err = fmt.Errorf("Renamed file %s already present", newFileName)
+		err = fmt.Errorf("renamed file %s already present", newFileName)
 		return
 	}
 
 	if err = os.Rename(fileName, newFileName); err != nil {
-		err = fmt.Errorf("Rename unsuccessful: %v", err)
+		err = fmt.Errorf("rename unsuccessful: %v", err)
 		return
 	}
 
 	if _, err = os.Stat(fileName); err == nil {
-		err = fmt.Errorf("Original file %s still exists", fileName)
+		err = fmt.Errorf("original file %s still exists", fileName)
 		return
 	}
 	if _, err = os.Stat(newFileName); err != nil {
-		err = fmt.Errorf("Renamed file %s not found", newFileName)
+		err = fmt.Errorf("renamed file %s not found", newFileName)
 		return
 	}
 	return
@@ -136,7 +136,7 @@ func RenameFile(fileName string, newFileName string) (err error) {
 func WriteFileInAppendMode(fileName string, content string) (err error) {
 	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT, FilePermission_0600)
 	if err != nil {
-		err = fmt.Errorf("Open file for append: %v", err)
+		err = fmt.Errorf("open file for append: %v", err)
 		return
 	}
 
@@ -151,7 +151,7 @@ func WriteFileInAppendMode(fileName string, content string) (err error) {
 func WriteFile(fileName string, content string) (err error) {
 	f, err := os.OpenFile(fileName, os.O_RDWR|syscall.O_DIRECT, FilePermission_0600)
 	if err != nil {
-		err = fmt.Errorf("Open file for write at start: %v", err)
+		err = fmt.Errorf("open file for write at start: %v", err)
 		return
 	}
 
@@ -232,16 +232,16 @@ func WriteChunkOfRandomBytesToFile(file *os.File, chunkSize int, offset int64) e
 	// Write data in the file.
 	n, err := file.WriteAt(chunk, offset)
 	if err != nil {
-		return fmt.Errorf("Error in writing randomly in file: %v", err)
+		return fmt.Errorf("error in writing randomly in file: %v", err)
 	}
 
 	if n != chunkSize {
-		return fmt.Errorf("Incorrect number of bytes written in the file actual %d, expected %d", n, chunkSize)
+		return fmt.Errorf("incorrect number of bytes written in the file actual %d, expected %d", n, chunkSize)
 	}
 
 	err = file.Sync()
 	if err != nil {
-		return fmt.Errorf("Error in syncing file: %v", err)
+		return fmt.Errorf("error in syncing file: %v", err)
 	}
 
 	return nil
@@ -261,7 +261,7 @@ func WriteFileSequentially(filePath string, fileSize int64, chunkSize int64) (er
 	for offset < fileSize {
 		// Get random chunkSize or remaining filesize data into chunk.
 		if (fileSize - offset) < chunkSize {
-			chunkSize = (fileSize - offset)
+			chunkSize = fileSize - offset
 		}
 
 		err := WriteChunkOfRandomBytesToFile(file, int(chunkSize), offset)
