@@ -106,7 +106,7 @@ func makeGcsfuseArgs(
 	}
 
 	boolFlags, nonBoolFlags := flagTypes(&flagSet)
-	nonBoolFlags = append(nonBoolFlags, "config-file")
+	nonBoolFlags = append(nonBoolFlags, cfg.ConfigFileFlagName)
 	noopOptions := []string{"user", "nouser", "auto", "noauto", "_netdev", "no_netdev"}
 
 	// Deal with options.
