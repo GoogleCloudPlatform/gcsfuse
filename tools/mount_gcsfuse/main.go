@@ -125,10 +125,8 @@ func makeGcsfuseArgs(
 			args = append(args, fmt.Sprintf("--%s", flg), value)
 		} else {
 			// Pass through everything else
-			var formatted string
-			if value == "" {
-				formatted = name
-			} else {
+			formatted := name
+			if value != "" {
 				formatted = fmt.Sprintf("%s=%s", name, value)
 			}
 
