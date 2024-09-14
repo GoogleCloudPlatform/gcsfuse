@@ -84,10 +84,7 @@ func isEquiv(s1, s2 string) bool {
 
 func findEquivFlag(s string, lst []string) string {
 	idx := slices.IndexFunc(lst, func(e string) bool {
-		if isEquiv(s, e) {
-			return true
-		}
-		return false
+		return isEquiv(s, e)
 	})
 	if idx == -1 {
 		return ""
