@@ -24,6 +24,7 @@ import (
 	"strings"
 	"testing"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
@@ -56,6 +57,8 @@ const (
 
 var (
 	gcsObjectsToBeDeletedEventually []string
+	storageClient                   *storage.Client
+	ctx                             context.Context
 )
 
 func setup_testdata(m *testing.M) error {
@@ -135,7 +138,7 @@ func setup_testdata(m *testing.M) error {
 	}
 
 	for _, fmd := range fmds {
-		content, err := createDataOfSize(fmd.filesize)
+		content, err := createContentOfSize(fmd.filesize)
 		if err != nil {
 			return fmt.Errorf("failed to create content for testing: %w", err)
 		}
@@ -150,7 +153,7 @@ func setup_testdata(m *testing.M) error {
 		objectPrefixPath := path.Join(TestBucketPrefixPath, fmd.filename)
 		ctx := context.Background()
 
-		err = client.UploadGcsObject(ctx, localFilePath, setup.TestBucket(), objectPrefixPath, fmd.enableGzipContentEncoding)
+		err = client.UploadGcsObject(ctx, storageClient, localFilePath, setup.TestBucket(), objectPrefixPath, fmd.enableGzipContentEncoding)
 		if err != nil {
 			return err
 		}
@@ -180,10 +183,10 @@ func destroy_testdata(m *testing.M) error {
 	return nil
 }
 
-// createDataOfSize generates a string of the specified content size in bytes.
+// createContentOfSize generates a string of the specified content size in bytes.
 // Failure cases:
 // 1. contentSize <= 0
-func createDataOfSize(contentSize int) (string, error) {
+func createContentOfSize(contentSize int) (string, error) {
 	// fail if contentSize <= 0
 	if contentSize <= 0 {
 		return "", fmt.Errorf("unsupported fileSize: %d", contentSize)
@@ -223,6 +226,19 @@ func createDataOfSize(contentSize int) (string, error) {
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
+	var err error
+	ctx = context.Background()
+	storageClient, err = client.CreateStorageClient(ctx)
+	if err != nil {
+		log.Printf("Error creating storage client: %v\n", err)
+		os.Exit(1)
+	}
+	defer func() {
+		if err := storageClient.Close(); err != nil {
+			log.Printf("failed to close storage client: %v", err)
+		}
+	}()
+
 	commonFlags := []string{"--sequential-read-size-mb=" + fmt.Sprint(SeqReadSizeMb), "--implicit-dirs"}
 	flags := [][]string{commonFlags}
 
@@ -238,16 +254,16 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	err := setup_testdata(m)
+	err = setup_testdata(m)
 	if err != nil {
-		fmt.Printf("Failed to setup test data: %v", err)
+		log.Printf("Failed to setup test data: %v", err)
 		os.Exit(1)
 	}
 
 	defer func() {
 		err := destroy_testdata(m)
 		if err != nil {
-			fmt.Printf("Failed to destoy gzip test data: %v", err)
+			log.Printf("Failed to destoy gzip test data: %v", err)
 		}
 	}()
 

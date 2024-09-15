@@ -225,20 +225,14 @@ func StatObject(ctx context.Context, client *storage.Client, object string) (*st
 
 // UploadGcsObject uploads a local file to a specified GCS bucket and object.
 // Handles gzip compression if requested.
-func UploadGcsObject(ctx context.Context, localPath, bucketName, objectName string, uploadGzipEncoded bool) error {
-	client, err := storage.NewClient(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to create storage client: %v", err)
-	}
-	defer client.Close()
-
+func UploadGcsObject(ctx context.Context, client *storage.Client, localPath, bucketName, objectName string, uploadGzipEncoded bool) error {
 	// Create a writer to upload the object.
 	obj := client.Bucket(bucketName).Object(objectName)
 	w := obj.NewWriter(ctx)
 	defer func() {
 		err := w.Close()
 		if err != nil {
-			fmt.Printf("Failed to close GCS object gs://%s/%s: %v", bucketName, objectName, err)
+			log.Printf("Failed to close GCS object gs://%s/%s: %v", bucketName, objectName, err)
 		}
 	}()
 
@@ -258,7 +252,7 @@ func UploadGcsObject(ctx context.Context, localPath, bucketName, objectName stri
 		defer func() {
 			removeErr := os.Remove(filePathToUpload)
 			if removeErr != nil {
-				fmt.Printf("Error removing temporary gzip file %s: %v", filePathToUpload, removeErr)
+				log.Printf("Error removing temporary gzip file %s: %v", filePathToUpload, removeErr)
 			}
 		}()
 	}

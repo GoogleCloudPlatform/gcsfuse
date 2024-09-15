@@ -49,7 +49,7 @@ func verifyFullFileOverwrite(t *testing.T, filename string) {
 			mountedFilePath, (*fi).Size(), gcsObjectPath, gcsObjectSize)
 	}
 
-	content, err := createDataOfSize(OverwrittenFileSize)
+	content, err := createContentOfSize(OverwrittenFileSize)
 	if err != nil {
 		t.Fatalf("Failed to create data: %v", err)
 	}

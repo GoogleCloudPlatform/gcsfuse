@@ -667,7 +667,7 @@ func CreateLocalTempFile(content string, gzipCompress bool) (string, error) {
 		}
 		defer func() {
 			if err := w.Close(); err != nil {
-				fmt.Printf("failed to close gzip writer for file %s: %v", filepath, err)
+				log.Printf("failed to close gzip writer for file %s: %v", filepath, err)
 			}
 		}()
 
@@ -675,7 +675,8 @@ func CreateLocalTempFile(content string, gzipCompress bool) (string, error) {
 		n, err := w.Write([]byte(content))
 		if err != nil {
 			return "", fmt.Errorf("failed to write content to %s using gzip-writer: %w", filepath, err)
-		} else if n != contentSize {
+		}
+		if n != contentSize {
 			return "", fmt.Errorf("failed to write to gzip file %s. Content-size: %d bytes, wrote = %d bytes", filepath, contentSize, n)
 		}
 	} else {
@@ -683,7 +684,8 @@ func CreateLocalTempFile(content string, gzipCompress bool) (string, error) {
 		n, err := f.WriteString(content)
 		if err != nil {
 			return "", err
-		} else if n != contentSize {
+		}
+		if n != contentSize {
 			return "", fmt.Errorf("failed to write to text file %s. Content-size: %d bytes, wrote = %d bytes", filepath, contentSize, n)
 		}
 	}

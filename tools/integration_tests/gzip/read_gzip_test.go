@@ -127,7 +127,7 @@ func downloadGzipGcsObjectAsCompressed(t *testing.T, bucketName, objPathInBucket
 		return
 	}
 
-	content, err := createDataOfSize(1)
+	content, err := createContentOfSize(1)
 	if err != nil {
 		err = fmt.Errorf("failed to create data: %w", err)
 		return
