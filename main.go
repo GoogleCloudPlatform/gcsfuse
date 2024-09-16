@@ -50,18 +50,29 @@ func main() {
 	// Set up profiling handlers.
 	go perf.HandleCPUProfileSignals()
 	go perf.HandleMemoryProfileSignals()
+
+	// TODO: Clean this up after we gain enough confidence on CLI-Config Parity changes.
+	disableViperConfigFlag := "disable-viper-config"
+	var newOsArgs []string
+	for _, arg := range os.Args {
+		if arg == "-"+disableViperConfigFlag || arg == "--"+disableViperConfigFlag || arg == "-"+disableViperConfigFlag+"=true" || arg == "--"+disableViperConfigFlag+"=true" {
+			err := os.Setenv("ENABLE_GCSFUSE_VIPER_CONFIG", "false")
+			if err != nil {
+				logger.Infof("error while setting ENABLE_GCSFUSE_VIPER_CONFIG environment variable: %v", err)
+			}
+		}
+		if !strings.Contains(arg, disableViperConfigFlag) {
+			newOsArgs = append(newOsArgs, arg)
+		}
+	}
+	os.Args = newOsArgs
+
 	if strings.ToLower(os.Getenv("ENABLE_GCSFUSE_VIPER_CONFIG")) == "false" {
 		cmd.ExecuteLegacyMain()
 		return
 	}
 
-	rootCmd, err := cmd.NewRootCmd(cmd.Mount)
-	if err != nil {
-		log.Fatalf("Error occurred while creating the root command: %v", err)
-	}
-	rootCmd.SetArgs(cmd.ConvertToPosixArgs(os.Args, rootCmd))
-	if err := rootCmd.Execute(); err != nil {
-		log.Fatalf("Error occurred during command execution: %v", err)
-	}
+	cmd.ExecuteNewMain()
+	return
 
 }

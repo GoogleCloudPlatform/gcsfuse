@@ -16,6 +16,8 @@ package cmd
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
@@ -139,4 +141,15 @@ func ConvertToPosixArgs(args []string, c *cobra.Command) []string {
 		}
 	}
 	return pArgs
+}
+
+var ExecuteNewMain = func() {
+	rootCmd, err := NewRootCmd(Mount)
+	if err != nil {
+		log.Fatalf("Error occurred while creating the root command: %v", err)
+	}
+	rootCmd.SetArgs(ConvertToPosixArgs(os.Args, rootCmd))
+	if err := rootCmd.Execute(); err != nil {
+		log.Fatalf("Error occurred during command execution: %v", err)
+	}
 }

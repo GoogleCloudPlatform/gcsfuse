@@ -315,6 +315,10 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 			fmt.Sprintf("PATH=%s", os.Getenv("PATH")),
 		}
 
+		// Pass along ENABLE_GCSFUSE_VIPER_CONFIG environment variable, since we
+		// need to use Viper config if this environment variable is set.
+		env = append(env, fmt.Sprintf("ENABLE_GCSFUSE_VIPER_CONFIG=%s", os.Getenv("ENABLE_GCSFUSE_VIPER_CONFIG")))
+
 		// Pass along GOOGLE_APPLICATION_CREDENTIALS, since we document in
 		// mounting.md that it can be used for specifying a key file.
 		if p, ok := os.LookupEnv("GOOGLE_APPLICATION_CREDENTIALS"); ok {
@@ -476,7 +480,7 @@ func run() (err error) {
 	return
 }
 
-func ExecuteLegacyMain() {
+var ExecuteLegacyMain = func() {
 	err := run()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
