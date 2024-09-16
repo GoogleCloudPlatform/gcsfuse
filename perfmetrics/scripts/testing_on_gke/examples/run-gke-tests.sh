@@ -453,7 +453,6 @@ function createCustomCsiDriverIfNeeded() {
     ensureGcsFuseCsiDriverCode
     cd "${csi_src_dir}"
     make uninstall || true
-    which jq
     make generate-spec-yaml
     printf "\nBuilding a new custom CSI driver using the above GCSFuse binary ...\n\n"
     make build-image-and-push-multi-arch REGISTRY=gcr.io/${project_id}/${USER} GCSFUSE_PATH=gs://${package_bucket}
