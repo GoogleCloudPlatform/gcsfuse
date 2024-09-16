@@ -26,7 +26,8 @@ import sys
 # local library imports
 sys.path.append("../")
 import fio_workload
-from utils.utils import get_memory, get_cpu, standard_timestamp, is_mash_installed
+from utils.utils import get_memory, get_cpu, unix_to_timestamp, is_mash_installed
+from utils.parse_logs_common import ensureDir, download_gcs_objects, parseLogParserArguments, SUPPORTED_SCENARIOS
 
 _LOCAL_LOGS_LOCATION = "../../bin/fio-logs"
 
@@ -51,88 +52,48 @@ record = {
 }
 
 
-def ensureDir(dirpath):
-  try:
-    os.makedirs(dirpath)
-  except FileExistsError:
-    pass
+def downloadFioOutputs(fioWorkloads: set, instanceId: str) -> int:
+  """Downloads instanceId-specific fio outputs for each fioWorkload locally.
 
+  Outputs in the bucket are in the following object naming format
+  (details in ./loading-test/templates/fio-tester.yaml).
+    gs://<bucket>/fio-output/<instanceId>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/<scenario>/<readType>/epoch[N].json
+    gs://<bucket>/fio-output/<instanceId>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/<scenario>/<readType>/pod_name
+    gs://<bucket>/fio-output/<instanceId>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/gcsfuse-generic/<readType>/gcsfuse_mount_options
 
-def downloadFioOutputs(fioWorkloads: set, instanceId: str):
+  These are downloaded locally as:
+    <_LOCAL_LOGS_LOCATION>/<instanceId>/<fileSize>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/<scenario>/<readType>/epoch[N].json
+    <_LOCAL_LOGS_LOCATION>/<instanceId>/<fileSize>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/<scenario>/<readType>/pod_name
+    <_LOCAL_LOGS_LOCATION>/<instanceId>/<fileSize>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/gcsfuse-generic/<readType>/gcsfuse_mount_options
+  """
+
   for fioWorkload in fioWorkloads:
     dstDir = (
         _LOCAL_LOGS_LOCATION + "/" + instanceId + "/" + fioWorkload.fileSize
     )
     ensureDir(dstDir)
 
-    print(f"Downloading FIO outputs from {fioWorkload.bucket}...")
-    result = subprocess.run(
-        [
-            "gcloud",
-            "-q",  # ignore prompts
-            "storage",
-            "cp",
-            "-r",
-            "--no-user-output-enabled",  # do not print names of objects being copied
-            f"gs://{fioWorkload.bucket}/fio-output/{instanceId}/*",
-            dstDir,
-        ],
-        capture_output=False,
-        text=True,
-    )
-    if result.returncode < 0:
-      print(f"failed to fetch FIO output, error: {result.stderr}")
+    srcObjects = f"gs://{fioWorkload.bucket}/fio-output/{instanceId}/*"
+    print(f"Downloading FIO outputs from {srcObjects} ...")
+    returncode, errorStr = download_gcs_objects(srcObjects, dstDir)
+    if returncode < 0:
+      print(f"Failed to download FIO outputs from {srcObjects}: {errorStr}")
+      return returncode
+  return 0
 
 
-if __name__ == "__main__":
-  parser = argparse.ArgumentParser(
-      prog="DLIO Unet3d test output parser",
-      description=(
-          "This program takes in a json workload configuration file and parses"
-          " it for valid FIO workloads and the locations of their test outputs"
-          " on GCS. It downloads each such output object locally to"
-          " {_LOCAL_LOGS_LOCATION} and parses them for FIO test runs, and then"
-          " dumps their output metrics into a CSV report file."
-      ),
-  )
-  parser.add_argument(
-      "--workload-config",
-      help=(
-          "A json configuration file to define workloads that were run to"
-          " generate the outputs that should be parsed."
-      ),
-      required=True,
-  )
-  parser.add_argument(
-      "--project-number",
-      help=(
-          "project-number (e.g. 93817472919) is needed to fetch the cpu/memory"
-          " utilization data from GCP."
-      ),
-      required=True,
-  )
-  parser.add_argument(
-      "--instance-id",
-      help="unique string ID for current test-run",
-      required=True,
-  )
-  parser.add_argument(
-      "-o",
-      "--output-file",
-      metavar="Output file (CSV) path",
-      help="File path of the output metrics (in CSV format)",
-      default="output.csv",
-  )
-  args = parser.parse_args()
+def createOutputScenariosFromDownloadedFiles(args: dict) -> dict:
+  """Creates output records from the downloaded local files.
 
-  ensureDir(_LOCAL_LOGS_LOCATION)
+  The following creates a dict called 'output'
+  from the downloaded fio output files, which are in the following format.
 
-  fioWorkloads = fio_workload.ParseTestConfigForFioWorkloads(
-      args.workload_config
-  )
-  downloadFioOutputs(fioWorkloads, args.instance_id)
+    <_LOCAL_LOGS_LOCATION>/<instanceId>/<fileSize>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/<scenario>/<readType>/epoch[N].json
+    where N=1-4
+    <_LOCAL_LOGS_LOCATION>/<instanceId>/<fileSize>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/<scenario>/<readType>/pod_name
+    <_LOCAL_LOGS_LOCATION>/<instanceId>/<fileSize>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/gcsfuse-generic/<readType>/gcsfuse_mount_options
 
-  """
+    Output dict structure:
     "{read_type}-{mean_file_size}-{bs}-{numjobs}-{nrfiles}":
         "mean_file_size": str
         "read_type": str
@@ -141,33 +102,39 @@ if __name__ == "__main__":
             "gcsfuse-generic": [record1, record2, record3, record4]
             "gcsfuse-file-cache": [record1, record2, record3, record4]
             "gcsfuse-no-file-cache": [record1, record2, record3, record4]
-    """
-  output = {}
-  mash_installed = is_mash_installed()
-  if not mash_installed:
-    print("Mash is not installed, will skip parsing CPU and memory usage.")
+  """
 
+  output = {}
   for root, _, files in os.walk(_LOCAL_LOGS_LOCATION + "/" + args.instance_id):
+    print(f"Parsing directory {root} ...")
+
+    if not files:
+      # ignore intermediate directories.
+      continue
+
+    # if directory contains gcsfuse_mount_options file, then parse gcsfuse
+    # mount options from it in record.
+    gcsfuse_mount_options = ""
+    gcsfuse_mount_options_file = root + "/gcsfuse_mount_options"
+    if os.path.isfile(gcsfuse_mount_options_file):
+      with open(gcsfuse_mount_options_file) as f:
+        gcsfuse_mount_options = f.read().strip()
+        print(f"gcsfuse_mount_options={gcsfuse_mount_options}")
+
+    # if directory has files, it must also contain pod_name file,
+    # and we should extract pod-name from it in the record.
+    pod_name = ""
+    pod_name_file = root + "/pod_name"
+    with open(pod_name_file) as f:
+      pod_name = f.read().strip()
+    print(f"pod_name={pod_name}")
+
     for file in files:
-      print(f"Parsing directory {root} ...")
-      per_epoch_output = root + f"/{file}"
-      if not per_epoch_output.endswith(".json"):
-        print(f"ignoring file {per_epoch_output} as it's not a json file")
+      # Ignore non-json files to avoid unnecessary failure.
+      if not file.endswith(".json"):
         continue
 
-      gcsfuse_mount_options = ""
-      gcsfuse_mount_options_file = root + "/gcsfuse_mount_options"
-      if os.path.isfile(gcsfuse_mount_options_file):
-        with open(gcsfuse_mount_options_file) as f:
-          gcsfuse_mount_options = f.read().strip()
-          print(f"gcsfuse_mount_options={gcsfuse_mount_options}")
-
-      pod_name = ""
-      pod_name_file = root + "/pod_name"
-      with open(pod_name_file) as f:
-        pod_name = f.read().strip()
-      print(f"pod_name={pod_name}")
-
+      per_epoch_output = root + f"/{file}"
       with open(per_epoch_output, "r") as f:
         try:
           per_epoch_output_data = json.load(f)
@@ -175,6 +142,8 @@ if __name__ == "__main__":
           print(f"failed to json-parse {per_epoch_output}, so skipping it.")
           continue
 
+      # Confirm that the per_epoch_output_data has ["jobs"][0]["job options"]['"bs"]
+      # for determining blocksize.
       if (
           not "jobs" in per_epoch_output_data
           or not per_epoch_output_data["jobs"]
@@ -182,27 +151,37 @@ if __name__ == "__main__":
           or not "bs" in per_epoch_output_data["jobs"][0]["job options"]
       ):
         print(
-            f'Did not find "[jobs][0][job options][bs]" in {per_epoch_output},'
-            " so ignoring this file"
+            'Did not find "[jobs][0][job options][bs]" in'
+            f" {per_epoch_output}, so ignoring this file"
         )
         continue
+      # Confirm that the per_epoch_output_data has ["global options"] for
+      # determining nrfiles and numjobs in it.
+      if "global options" not in per_epoch_output_data:
+        print(f"field: 'global options' missing in {per_epoch_output}")
+        continue
 
+      # This print is for debugging in case something goes wrong.
       print(f"Now parsing file {per_epoch_output} ...")
+
+      # Get fileSize, readType, echo number from the file path.
       root_split = root.split("/")
       mean_file_size = root_split[-4]
+      key = root_split[
+          -3
+      ]  # key is unique for a given combination of of fileSize,blockSize,numThreads(numjobs),filesPerThread(nrfiles).
       scenario = root_split[-2]
       read_type = root_split[-1]
       epoch = int(file.split(".")[0][-1])
 
-      if "global options" not in per_epoch_output_data:
-        print(f"field: 'global options' missing in {per_epoch_output}")
-        continue
+      # Get nrfiles,numjobs, blocksize from ["global options"] and ["job options"].
       global_options = per_epoch_output_data["global options"]
       nrfiles = int(global_options["nrfiles"])
       numjobs = int(global_options["numjobs"])
       bs = per_epoch_output_data["jobs"][0]["job options"]["bs"]
 
-      key = root_split[-3]
+      # If the record for this key has not been added, create a new entry
+      # for it.
       if key not in output:
         output[key] = {
             "mean_file_size": mean_file_size,
@@ -215,6 +194,7 @@ if __name__ == "__main__":
             },
         }
 
+      # Create a record for this key.
       r = record.copy()
       bs = per_epoch_output_data["jobs"][0]["job options"]["bs"]
       r["pod_name"] = pod_name
@@ -231,45 +211,47 @@ if __name__ == "__main__":
           per_epoch_output_data["jobs"][0]["job_start"]
       )
       r["end"] = unix_to_timestamp(per_epoch_output_data["timestamp_ms"])
-      if r["scenario"] != "local-ssd" and mash_installed:
-        r["lowest_memory"], r["highest_memory"] = get_memory(
-            r["pod_name"],
-            r["start"],
-            r["end"],
-            project_number=args.project_number,
-        )
-        r["lowest_cpu"], r["highest_cpu"] = get_cpu(
-            r["pod_name"],
-            r["start"],
-            r["end"],
-            project_number=args.project_number,
-        )
-        pass
+
+      if r["scenario"] != "local-ssd":
+        if mash_installed:
+          r["lowest_memory"], r["highest_memory"] = get_memory(
+              r["pod_name"],
+              r["start"],
+              r["end"],
+              project_number=args.project_number,
+          )
+          r["lowest_cpu"], r["highest_cpu"] = get_cpu(
+              r["pod_name"],
+              r["start"],
+              r["end"],
+              project_number=args.project_number,
+          )
+
       r["gcsfuse_mount_options"] = gcsfuse_mount_options
       r["blockSize"] = bs
       r["filesPerThread"] = nrfiles
       r["numThreads"] = numjobs
 
+      # This print is for debugging in case something goes wrong.
       pprint.pprint(r)
 
+      # If a slot for record for this particular epoch has not been created yet,
+      # append enough empty records to make a slot.
       while len(output[key]["records"][scenario]) < epoch:
         output[key]["records"][scenario].append({})
 
+      # Insert the record at the appropriate slot.
       output[key]["records"][scenario][epoch - 1] = r
 
-  scenario_order = [
-      "local-ssd",
-      "gcsfuse-generic",
-      "gcsfuse-no-file-cache",
-      "gcsfuse-file-cache",
-  ]
+  return output
 
-  output_file_path = args.output_file
-  ensureDir(os.path.dirname(output_file_path))
-  output_file = open(output_file_path, "a")
-  output_file.write(
+
+def writeRecordsToCsvOutputFile(output: dict, output_file_path: str):
+  output_file_fwr = open(output_file_path, "a")
+  output_file_fwr.write(
       "File Size,Read Type,Scenario,Epoch,Duration"
-      " (s),Throughput (MB/s),IOPS,Throughput over Local SSD (%),GCSFuse Lowest"
+      " (s),Throughput (MB/s),IOPS,Throughput over Local SSD (%),GCSFuse"
+      " Lowest"
       " Memory (MB),GCSFuse Highest Memory (MB),GCSFuse Lowest CPU"
       " (core),GCSFuse Highest CPU"
       " (core),Pod,Start,End,GcsfuseMoutOptions,BlockSize,FilesPerThread,NumThreads,InstanceID\n"
@@ -278,8 +260,9 @@ if __name__ == "__main__":
   for key in output:
     record_set = output[key]
 
-    for scenario in scenario_order:
-      if not record_set["records"][scenario]:
+    for scenario in record_set["records"]:
+      if scenario not in SUPPORTED_SCENARIOS:
+        print(f"Unknown scenario: {scenario}. Ignoring it...")
         continue
 
       for i in range(len(record_set["records"][scenario])):
@@ -297,28 +280,52 @@ if __name__ == "__main__":
                 * 100,
                 2,
             )
-          except:
-            print(
-                "failed to parse record-set for throughput_over_local_ssd."
-                f" record: {r}"
-            )
-            continue
-          else:
-            output_file.write(
+            output_file_fwr.write(
                 f"{record_set['mean_file_size']},{record_set['read_type']},{scenario},{r['epoch']},{r['duration']},{r['throughput_mb_per_second']},{r['IOPS']},{r['throughput_over_local_ssd']},{r['lowest_memory']},{r['highest_memory']},{r['lowest_cpu']},{r['highest_cpu']},{r['pod_name']},{r['start']},{r['end']},\"{r['gcsfuse_mount_options']}\",{r['blockSize']},{r['filesPerThread']},{r['numThreads']},{args.instance_id}\n"
             )
+          except Exception as e:
+            print(
+                "Error: failed to parse/write record-set for"
+                f" scenario: {scenario}, i: {i}, record: {r}, exception: {e}"
+            )
+            continue
         else:
           try:
             r = record_set["records"][scenario][i]
             r["throughput_over_local_ssd"] = "NA"
-          except:
-            print(
-                "failed to parse record-set for throughput_over_local_ssd."
-                f" record: {r}"
-            )
-            continue
-          else:
-            output_file.write(
+            output_file_fwr.write(
                 f"{record_set['mean_file_size']},{record_set['read_type']},{scenario},{r['epoch']},{r['duration']},{r['throughput_mb_per_second']},{r['IOPS']},{r['throughput_over_local_ssd']},{r['lowest_memory']},{r['highest_memory']},{r['lowest_cpu']},{r['highest_cpu']},{r['pod_name']},{r['start']},{r['end']},\"{r['gcsfuse_mount_options']}\",{r['blockSize']},{r['filesPerThread']},{r['numThreads']},{args.instance_id}\n"
             )
-  output_file.close()
+          except Exception as e:
+            print(
+                f"Error: failed to parse record-set for scenario: {scenario},i:"
+                f" {i}, record: {r}, exception: {e}"
+            )
+            continue
+  output_file_fwr.close()
+
+
+if __name__ == "__main__":
+  args = parseLogParserArguments()
+  ensureDir(_LOCAL_LOGS_LOCATION)
+
+  fioWorkloads = fio_workload.ParseTestConfigForFioWorkloads(
+      args.workload_config
+  )
+  downloadFioOutputs(fioWorkloads, args.instance_id)
+
+  mash_installed = is_mash_installed()
+  if not mash_installed:
+    print("Mash is not installed, will skip parsing CPU and memory usage.")
+
+  output = createOutputScenariosFromDownloadedFiles(args)
+
+  output_file_path = args.output_file
+  # Create the parent directory of output_file_path if doesn't
+  # exist already.
+  ensureDir(os.path.dirname(output_file_path))
+  writeRecordsToCsvOutputFile(output, output_file_path)
+  print(
+      "\n\nSuccessfully published outputs of FIO test runs to"
+      f" {output_file_path} !!!\n\n"
+  )
