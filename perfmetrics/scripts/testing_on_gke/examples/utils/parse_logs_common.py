@@ -76,15 +76,6 @@ def parseLogParserArguments() -> object:
       required=True,
   )
   parser.add_argument(
-      "--project-id",
-      metavar="GCP Project ID/name",
-      help=(
-          "project-id (e.g. gcs-fuse-test) is needed to fetch the cpu/memory"
-          " utilization data from GCP."
-      ),
-      required=True,
-  )
-  parser.add_argument(
       "--project-number",
       metavar="GCP Project Number",
       help=(
@@ -96,16 +87,6 @@ def parseLogParserArguments() -> object:
   parser.add_argument(
       "--instance-id",
       help="unique string ID for current test-run",
-      required=True,
-  )
-  parser.add_argument(
-      "--cluster-name",
-      help="Name of GKE cluster where the current test was run",
-      required=True,
-  )
-  parser.add_argument(
-      "--namespace-name",
-      help="kubernestes namespace used for the current test-run",
       required=True,
   )
   parser.add_argument(
