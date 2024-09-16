@@ -738,13 +738,13 @@ func (t *createTest) IllegalNames() {
 			}
 
 			if name == "" {
-				if !strings.Contains(err.Error(), "Invalid") &&
-					!strings.Contains(err.Error(), "Required") {
+				if !strings.Contains(err.Error(), "invalid") &&
+					!strings.Contains(err.Error(), "required") {
 					err = fmt.Errorf("unexpected error for %q: %v", name, err)
 					return
 				}
 			} else {
-				if !strings.Contains(err.Error(), "Invalid") {
+				if !strings.Contains(err.Error(), "invalid") {
 					err = fmt.Errorf("unexpected error for %q: %v", name, err)
 					return
 				}
@@ -1495,13 +1495,13 @@ func (t *copyTest) IllegalNames() {
 			}
 
 			if name == "" {
-				if !strings.Contains(err.Error(), "Invalid") &&
-					!strings.Contains(err.Error(), "Not Found") {
+				if !strings.Contains(err.Error(), "invalid") &&
+					!strings.Contains(err.Error(), "not Found") {
 					err = fmt.Errorf("unexpected error for %q: %v", name, err)
 					return
 				}
 			} else {
-				if !strings.Contains(err.Error(), "Invalid") {
+				if !strings.Contains(err.Error(), "invalid") {
 					err = fmt.Errorf("unexpected error for %q: %v", name, err)
 					return
 				}
@@ -2623,13 +2623,13 @@ func (t *composeTest) IllegalNames() {
 			}
 
 			if name == "" {
-				if !strings.Contains(err.Error(), "Invalid") &&
-					!strings.Contains(err.Error(), "Not Found") {
+				if !strings.Contains(err.Error(), "invalid") &&
+					!strings.Contains(err.Error(), "not Found") {
 					err = fmt.Errorf("unexpected error for %q: %v", name, err)
 					return
 				}
 			} else {
-				if !strings.Contains(err.Error(), "Invalid") {
+				if !strings.Contains(err.Error(), "invalid") {
 					err = fmt.Errorf("unexpected error for %q: %v", name, err)
 					return
 				}
