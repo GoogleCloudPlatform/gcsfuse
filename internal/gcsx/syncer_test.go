@@ -490,7 +490,7 @@ func (t *SyncerTest) FullCreatorFails() {
 	// Call
 	_, err = t.call()
 
-	ExpectThat(err, Error(HasSubstr("Create")))
+	ExpectThat(err, Error(HasSubstr("create")))
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
@@ -556,7 +556,7 @@ func (t *SyncerTest) AppendCreatorFails() {
 	// Call
 	_, err = t.call()
 
-	ExpectThat(err, Error(HasSubstr("Create")))
+	ExpectThat(err, Error(HasSubstr("create")))
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 

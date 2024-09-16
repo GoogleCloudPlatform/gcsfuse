@@ -115,13 +115,13 @@ func (t *MountHelperTest) BadUsage() {
 		// Too many args
 		1: {
 			[]string{canned.FakeBucketName, "a", "b"},
-			"Unexpected arg 3",
+			"unexpected arg 3",
 		},
 
 		// Trailing -o
 		2: {
 			[]string{canned.FakeBucketName, "a", "-o"},
-			"Unexpected -o",
+			"unexpected -o",
 		},
 	}
 
