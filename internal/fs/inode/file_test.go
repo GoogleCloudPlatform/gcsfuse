@@ -628,7 +628,7 @@ func (t *FileTest) TestTruncateUpwardForLocalFileShouldUpdateLocalFileAttributes
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	_, _, err = t.bucket.StatObject(t.ctx, statReq)
 	AssertNe(nil, err)
-	AssertEq("gcs.NotFoundError: Object test not found", err.Error())
+	AssertEq("gcs.NotFoundError: object test not found", err.Error())
 }
 
 func (t *FileTest) TestTruncateDownwardForLocalFileShouldUpdateLocalFileAttributes() {
@@ -657,7 +657,7 @@ func (t *FileTest) TestTruncateDownwardForLocalFileShouldUpdateLocalFileAttribut
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	_, _, err = t.bucket.StatObject(t.ctx, statReq)
 	AssertNe(nil, err)
-	AssertEq("gcs.NotFoundError: Object test not found", err.Error())
+	AssertEq("gcs.NotFoundError: object test not found", err.Error())
 }
 
 func (t *FileTest) Sync_Clobbered() {
@@ -870,7 +870,7 @@ func (t *FileTest) TestSetMtimeForLocalFileShouldUpdateLocalFileAttributes() {
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	_, _, err = t.bucket.StatObject(t.ctx, statReq)
 	AssertNe(nil, err)
-	AssertEq("gcs.NotFoundError: Object test not found", err.Error())
+	AssertEq("gcs.NotFoundError: object test not found", err.Error())
 }
 
 func (t *FileTest) ContentEncodingGzip() {
@@ -940,5 +940,5 @@ func (t *FileTest) UnlinkLocalFile() {
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	_, _, err = t.bucket.StatObject(t.ctx, statReq)
 	AssertNe(nil, err)
-	AssertEq("gcs.NotFoundError: Object test not found", err.Error())
+	AssertEq("gcs.NotFoundError: object test not found", err.Error())
 }
