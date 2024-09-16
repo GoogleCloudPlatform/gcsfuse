@@ -82,10 +82,10 @@ class UtilsTest(unittest.TestCase):
     for input in inputs:
       self.assertEqual(dict, type(input))
       try:
-        resource_limits = utils.resource_limits(input['nodeType'])
+        resource_limits_requests = utils.resource_limits_requests(input['nodeType'])
         self.assertEqual(
             input['expected_limits_cpu'],
-            resource_limits[0]['cpu'],
+            resource_limits_requests[0]['cpu'],
         )
         self.assertFalse(input['expected_error'])
       except utils.UnknownMachineTypeError:

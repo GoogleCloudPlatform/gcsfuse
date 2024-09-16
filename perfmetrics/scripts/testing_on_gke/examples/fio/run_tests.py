@@ -30,7 +30,7 @@ import sys
 # local imports from other directories
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'utils'))
 from run_tests_common import escape_commas_in_string, parse_args, run_command, add_iam_role_for_buckets
-from utils import UnknownMachineTypeError, resource_limits
+from utils import UnknownMachineTypeError, resource_limits_requests
 
 # local imports from same directory
 import fio_workload
@@ -44,7 +44,7 @@ def createHelmInstallCommands(
   """Creates helm install commands for the given fioWorkload objects."""
   helm_commands = []
   try:
-    resourceLimits, resourceRequests = resource_limits(machineType)
+    resourceLimits, resourceRequests = resource_limits_requests(machineType)
   except UnknownMachineTypeError:
     print(
         f'Found unknown machine-type: {machineType}, defaulting resource limits'

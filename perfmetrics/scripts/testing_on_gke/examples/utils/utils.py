@@ -166,7 +166,7 @@ class UnknownMachineTypeError(Exception):
     self.machineType = machineType
 
 
-def resource_limits(nodeType: str) -> Tuple[dict, dict]:
+def resource_limits_requests(nodeType: str) -> Tuple[dict, dict]:
   """Returns resource limits and requests for cpu/memory for different machine types."""
   if nodeType == "n2-standard-96":
     return {"cpu": 96, "memory": "384Gi"}, {"cpu": 90, "memory": "300Gi"}
