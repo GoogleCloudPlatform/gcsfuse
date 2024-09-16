@@ -393,7 +393,7 @@
   default: "true"
 
 - config-path: "logging.log-rotate.max-file-size-mb"
-  flag-name: "log-rotate-max-log-file-size-mb"
+  flag-name: "log-rotate-max-file-size-mb"
   type: "int"
   usage: "The maximum size in megabytes that a log file can reach before it is rotated."
   default: "512"

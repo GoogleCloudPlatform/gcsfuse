@@ -529,9 +529,9 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("log-rotate-max-log-file-size-mb", "", 512, "The maximum size in megabytes that a log file can reach before it is rotated.")
+	flagSet.IntP("log-rotate-max-file-size-mb", "", 512, "The maximum size in megabytes that a log file can reach before it is rotated.")
 
-	if err := v.BindPFlag("logging.log-rotate.max-file-size-mb", flagSet.Lookup("log-rotate-max-log-file-size-mb")); err != nil {
+	if err := v.BindPFlag("logging.log-rotate.max-file-size-mb", flagSet.Lookup("log-rotate-max-file-size-mb")); err != nil {
 		return err
 	}
 
