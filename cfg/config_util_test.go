@@ -76,6 +76,59 @@ func TestIsFileCacheEnabled(t *testing.T) {
 
 }
 
+func TestIsParallelDownloadsEnabled(t *testing.T) {
+	testCases := []struct {
+		name                               string
+		config                             *Config
+		expectedIsParallelDownloadsEnabled bool
+	}{
+		{
+			name: "Config with file-cache enabled",
+			config: &Config{
+				CacheDir: "/tmp/folder/",
+				FileCache: FileCacheConfig{
+					MaxSizeMb: -1,
+				},
+			},
+			expectedIsParallelDownloadsEnabled: false,
+		},
+		{
+			name:                               "Empty Config.",
+			config:                             &Config{},
+			expectedIsParallelDownloadsEnabled: false,
+		},
+		{
+			name: "Config with file-cache disabled but enable parallel downloads is set.",
+			config: &Config{
+				CacheDir: "",
+				FileCache: FileCacheConfig{
+					MaxSizeMb:               -1,
+					EnableParallelDownloads: true,
+				},
+			},
+			expectedIsParallelDownloadsEnabled: false,
+		},
+		{
+			name: "Config with file-cache and parallel downloads enabled.",
+			config: &Config{
+				CacheDir: "//tmp//folder//",
+				FileCache: FileCacheConfig{
+					MaxSizeMb:               -1,
+					EnableParallelDownloads: true,
+				},
+			},
+			expectedIsParallelDownloadsEnabled: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expectedIsParallelDownloadsEnabled, IsParallelDownloadsEnabled(tc.config))
+		})
+	}
+
+}
+
 func Test_ListCacheTtlSecsToDuration(t *testing.T) {
 	var testCases = []struct {
 		testName         string

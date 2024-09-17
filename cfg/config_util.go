@@ -30,6 +30,10 @@ func IsFileCacheEnabled(mountConfig *Config) bool {
 	return mountConfig.FileCache.MaxSizeMb != 0 && string(mountConfig.CacheDir) != ""
 }
 
+func IsParallelDownloadsEnabled(mountConfig *Config) bool {
+	return IsFileCacheEnabled(mountConfig) && mountConfig.FileCache.EnableParallelDownloads
+}
+
 // ListCacheTTLSecsToDuration converts TTL in seconds to time.Duration.
 func ListCacheTTLSecsToDuration(secs int64) time.Duration {
 	err := isTTLInSecsValid(secs)
