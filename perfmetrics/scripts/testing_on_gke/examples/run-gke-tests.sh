@@ -193,11 +193,30 @@ test -n "${use_custom_csi_driver}" || export use_custom_csi_driver="${DEFAULT_US
 test -n "${gcsfuse_branch}" || export gcsfuse_branch="${DEFAULT_GCSFUSE_BRANCH}"
 
 # GCSFuse/GKE GCSFuse CSI Driver source code related
-(test -n "${src_dir}" && src_dir="$(realpath "${src_dir}")") || export src_dir=${DEFAULT_SRC_DIR}
-test -d "${src_dir}" || mkdir -pv "${src_dir}"
-(test -n "${gcsfuse_src_dir}" && gcsfuse_src_dir="$(realpath "${gcsfuse_src_dir}")") || export gcsfuse_src_dir="${src_dir}"/gcsfuse
+if test -n "${src_dir}"; then
+  test -d "${src_dir}"
+  export src_dir="$(realpath "${src_dir}")"
+else
+  export src_dir=${DEFAULT_SRC_DIR}
+  mkdir -pv "${src_dir}"
+fi
+
+if test -n "${gcsfuse_src_dir}"; then
+  test -d "${gcsfuse_src_dir}"
+  export gcsfuse_src_dir="$(realpath "${gcsfuse_src_dir}")"
+else
+  export gcsfuse_src_dir="${src_dir}"/gcsfuse
+fi
+
 export gke_testing_dir="${gcsfuse_src_dir}"/perfmetrics/scripts/testing_on_gke
-(test -n "${csi_src_dir}" && csi_src_dir="$(realpath "${csi_src_dir}")") || export csi_src_dir="${src_dir}"/gcs-fuse-csi-driver
+
+if test -n "${csi_src_dir}"; then
+  test -d "${csi_src_dir}"
+  export csi_src_dir="$(realpath "${csi_src_dir}")"
+else
+  export csi_src_dir="${src_dir}"/gcs-fuse-csi-driver
+fi
+
 # GCSFuse configuration related - deprecated. Will cause error.
 test -z "${gcsfuse_mount_options}" || (echo "gcsfuse_mount_options set by user is a deprecated option. Please set gcsfuseMountOptions in workload objects in workload configuration file in its place." && exit 1)
 # Test runtime configuration
@@ -211,15 +230,15 @@ if [[ ${pod_timeout_in_seconds} -le ${pod_wait_time_in_seconds} ]]; then
 fi
 
 if test -n "${workload_config}"; then
-  workload_config="$(realpath "${workload_config}")"
   test -f "${workload_config}"
+  export workload_config="$(realpath "${workload_config}")"
 else
     export workload_config="${gke_testing_dir}"/examples/workloads.json
 fi
 
 if test -n "${output_dir}"; then
-  output_dir="$(realpath "${output_dir}")"
   test -d "${output_dir}"
+  export output_dir="$(realpath "${output_dir}")"
 else
   export output_dir="${gke_testing_dir}"/examples
 fi
@@ -244,6 +263,7 @@ function printRunParameters() {
   echo "src_dir=\"${src_dir}\""
   echo "gcsfuse_src_dir=\"${gcsfuse_src_dir}\""
   echo "csi_src_dir=\"${csi_src_dir}\""
+  echo "gke_testing_dir=\"${gke_testing_dir}\""
   # Test runtime configuration
   echo "pod_wait_time_in_seconds=\"${pod_wait_time_in_seconds}\""
   echo "pod_timeout_in_seconds=\"${pod_timeout_in_seconds}\""
