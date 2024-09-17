@@ -433,15 +433,6 @@ function createKubernetesServiceAccountForCluster() {
   kubectl config view --minify | grep namespace:
 }
 
-function addGCSAccessPermissions() {
-  test -f "${workload_config}"
-  grep -wh '\"bucket\"' "${workload_config}" | cut -d: -f2 | cut -d, -f1 | cut -d \" -f2 | sort | uniq | grep -v ' ' | while read workload_bucket; do
-    gcloud storage buckets add-iam-policy-binding gs://${workload_bucket} \
-      --member "principal://iam.googleapis.com/projects/${project_number}/locations/global/workloadIdentityPools/${project_id}.svc.id.goog/subject/ns/${appnamespace}/sa/${ksa}" \
-      --role "roles/storage.objectUser"
-  done
-}
-
 function ensureGcsfuseCode() {
   echo "Ensuring we have gcsfuse code ..."
   # clone gcsfuse code if needed
@@ -519,12 +510,12 @@ function deleteAllPods() {
 
 function deployAllFioHelmCharts() {
   echo "Deploying all fio helm charts ..."
-  cd "${gke_testing_dir}"/examples/fio && python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" && cd -
+  cd "${gke_testing_dir}"/examples/fio && python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" --project-id=${project_id} --project-number=${project_number} --namespace=${appnamespace} --ksa=${ksa} && cd -
 }
 
 function deployAllDlioHelmCharts() {
   echo "Deploying all dlio helm charts ..."
-  cd "${gke_testing_dir}"/examples/dlio && python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" && cd -
+  cd "${gke_testing_dir}"/examples/dlio && python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" --project-id=${project_id} --project-number=${project_number} --namespace=${appnamespace} --ksa=${ksa} && cd -
 }
 
 function listAllHelmCharts() {
@@ -620,7 +611,6 @@ createKubernetesServiceAccountForCluster
 ensureGcsfuseCode
 
 # GCP/GKE configuration dependent on GCSFuse/CSI driver source code
-addGCSAccessPermissions
 createCustomCsiDriverIfNeeded
 
 # Run latest workload configuration
