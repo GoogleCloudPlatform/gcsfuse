@@ -271,11 +271,9 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	// the user-provided log-format.
 	logger.SetLogFormat(newConfig.Logging.Format)
 
-	if newConfig.Foreground {
-		err = logger.InitLogFile(newConfig.Logging)
-		if err != nil {
-			return fmt.Errorf("init log file: %w", err)
-		}
+	err = logger.InitLogFile(newConfig.Logging)
+	if err != nil {
+		return fmt.Errorf("init log file: %w", err)
 	}
 
 	logger.Infof("Start gcsfuse/%s for app %q using mount point: %s\n", common.GetVersion(), newConfig.AppName, mountPoint)
@@ -376,7 +374,7 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 		env = append(env, fmt.Sprintf("%s=true", logger.GCSFuseInBackgroundMode))
 
 		// Run.
-		err = daemonize.Run(path, args, env, os.Stdout)
+		err = daemonize.Run(path, args, env, os.Stdout, logger.LogFile())
 		if err != nil {
 			return fmt.Errorf("daemonize.Run: %w", err)
 		}
