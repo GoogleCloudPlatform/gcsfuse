@@ -73,6 +73,4 @@ func main() {
 	}
 
 	cmd.ExecuteNewMain()
-	return
-
 }
