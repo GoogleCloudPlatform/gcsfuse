@@ -49,6 +49,7 @@ import (
 const (
 	SuccessfulMountMessage         = "File system has been successfully mounted."
 	UnsuccessfulMountMessagePrefix = "Error while mounting gcsfuse"
+	EnableViperConfigEnvVariable   = "ENABLE_GCSFUSE_VIPER_CONFIG"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -317,7 +318,7 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 
 		// Pass along ENABLE_GCSFUSE_VIPER_CONFIG environment variable, since we
 		// need to use Viper config if this environment variable is set.
-		env = append(env, fmt.Sprintf("ENABLE_GCSFUSE_VIPER_CONFIG=%s", os.Getenv("ENABLE_GCSFUSE_VIPER_CONFIG")))
+		env = append(env, fmt.Sprintf(EnableViperConfigEnvVariable+"=%s", os.Getenv(EnableViperConfigEnvVariable)))
 
 		// Pass along GOOGLE_APPLICATION_CREDENTIALS, since we document in
 		// mounting.md that it can be used for specifying a key file.

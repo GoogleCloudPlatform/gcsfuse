@@ -56,9 +56,9 @@ func main() {
 	var newOsArgs []string
 	for _, arg := range os.Args {
 		if arg == "-"+disableViperConfigFlag || arg == "--"+disableViperConfigFlag || arg == "-"+disableViperConfigFlag+"=true" || arg == "--"+disableViperConfigFlag+"=true" {
-			err := os.Setenv("ENABLE_GCSFUSE_VIPER_CONFIG", "false")
+			err := os.Setenv(cmd.EnableViperConfigEnvVariable, "false")
 			if err != nil {
-				logger.Infof("error while setting ENABLE_GCSFUSE_VIPER_CONFIG environment variable: %v", err)
+				logger.Infof("error while setting"+cmd.EnableViperConfigEnvVariable+" environment variable: %v", err)
 			}
 		}
 		if !strings.Contains(arg, disableViperConfigFlag) {
@@ -67,7 +67,7 @@ func main() {
 	}
 	os.Args = newOsArgs
 
-	if strings.ToLower(os.Getenv("ENABLE_GCSFUSE_VIPER_CONFIG")) == "false" {
+	if strings.ToLower(os.Getenv(cmd.EnableViperConfigEnvVariable)) == "false" {
 		cmd.ExecuteLegacyMain()
 		return
 	}

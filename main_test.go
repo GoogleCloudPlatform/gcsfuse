@@ -22,18 +22,88 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestMainArgParsing(t *testing.T) {
+func TestLegacyMainExecution(t *testing.T) {
 	originalArgs := os.Args
 	originalEnvVar := os.Getenv("ENABLE_GCSFUSE_VIPER_CONFIG")
 	originalExecuteLegacyMain := cmd.ExecuteLegacyMain
+	defer func() {
+		// Restore original os.Args after the test.
+		os.Args = originalArgs
+		// Reset the environment variable.
+		_ = os.Setenv("ENABLE_GCSFUSE_VIPER_CONFIG", originalEnvVar)
+		// Restore original execute function.
+		cmd.ExecuteLegacyMain = originalExecuteLegacyMain
+	}()
+
+	tests := []struct {
+		name                  string
+		inputArgs             []string
+		inputEnvVariable      string
+		expectedEnvVar        string
+		expectedRemainingArgs []string
+	}{
+		{
+			name:                  "disable_viper_config_with_short_flag",
+			inputArgs:             []string{"gcsfuse", "-disable-viper-config", "bucket-name", "mount-point"},
+			expectedEnvVar:        "false",
+			expectedRemainingArgs: []string{"gcsfuse", "bucket-name", "mount-point"},
+		},
+		{
+			name:                  "disable_viper_config_with_posix_flag",
+			inputArgs:             []string{"gcsfuse", "--disable-viper-config", "bucket-name", "mount-point"},
+			expectedEnvVar:        "false",
+			expectedRemainingArgs: []string{"gcsfuse", "bucket-name", "mount-point"},
+		},
+		{
+			name:                  "disable_viper_config_with_short_flag_and_value",
+			inputArgs:             []string{"gcsfuse", "-disable-viper-config=true", "bucket-name", "mount-point"},
+			expectedEnvVar:        "false",
+			expectedRemainingArgs: []string{"gcsfuse", "bucket-name", "mount-point"},
+		},
+		{
+			name:                  "disable_viper_config_with_posix_flag_and_value",
+			inputArgs:             []string{"gcsfuse", "--disable-viper-config=true", "bucket-name", "mount-point"},
+			expectedEnvVar:        "false",
+			expectedRemainingArgs: []string{"gcsfuse", "bucket-name", "mount-point"},
+		},
+		{
+			name:                  "disable_via_env_variable",
+			inputArgs:             []string{"gcsfuse", "--implicit-dirs", "--debug_fuse", "bucket-name", "mount-point"},
+			inputEnvVariable:      "false",
+			expectedEnvVar:        "false",
+			expectedRemainingArgs: []string{"gcsfuse", "--implicit-dirs", "--debug_fuse", "bucket-name", "mount-point"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			os.Args = tt.inputArgs
+			err := os.Setenv("ENABLE_GCSFUSE_VIPER_CONFIG", tt.inputEnvVariable)
+			assert.NoError(t, err)
+			legacyMainCalled := false
+			cmd.ExecuteLegacyMain = func() {
+				legacyMainCalled = true
+			}
+
+			main()
+
+			assert.EqualValues(t, tt.expectedEnvVar, os.Getenv("ENABLE_GCSFUSE_VIPER_CONFIG"))
+			assert.EqualValues(t, tt.expectedRemainingArgs, os.Args)
+			assert.Equal(t, true, legacyMainCalled)
+		})
+	}
+}
+
+func TestNewMainExecution(t *testing.T) {
+	originalArgs := os.Args
+	originalEnvVar := os.Getenv("ENABLE_GCSFUSE_VIPER_CONFIG")
 	originalExecuteNewMain := cmd.ExecuteNewMain
 	defer func() {
 		// Restore original os.Args after the test.
 		os.Args = originalArgs
 		// Reset the environment variable.
 		_ = os.Setenv("ENABLE_GCSFUSE_VIPER_CONFIG", originalEnvVar)
-		// Restore original execute functions.
-		cmd.ExecuteLegacyMain = originalExecuteLegacyMain
+		// Restore original execute function.
 		cmd.ExecuteNewMain = originalExecuteNewMain
 	}()
 
@@ -43,57 +113,12 @@ func TestMainArgParsing(t *testing.T) {
 		inputEnvVariable      string
 		expectedEnvVar        string
 		expectedRemainingArgs []string
-		expectLegacyCall      bool
-		expectNewMainCall     bool
 	}{
-		{
-			name:                  "disable_viper_config_with_short_flag",
-			inputArgs:             []string{"gcsfuse", "-disable-viper-config", "bucket-name", "mount-point"},
-			expectedEnvVar:        "false",
-			expectedRemainingArgs: []string{"gcsfuse", "bucket-name", "mount-point"},
-			expectLegacyCall:      true,
-			expectNewMainCall:     false,
-		},
-		{
-			name:                  "disable_viper_config_with_posix_flag",
-			inputArgs:             []string{"gcsfuse", "--disable-viper-config", "bucket-name", "mount-point"},
-			expectedEnvVar:        "false",
-			expectedRemainingArgs: []string{"gcsfuse", "bucket-name", "mount-point"},
-			expectLegacyCall:      true,
-			expectNewMainCall:     false,
-		},
-		{
-			name:                  "disable_viper_config_with_short_flag_and_value",
-			inputArgs:             []string{"gcsfuse", "-disable-viper-config=true", "bucket-name", "mount-point"},
-			expectedEnvVar:        "false",
-			expectedRemainingArgs: []string{"gcsfuse", "bucket-name", "mount-point"},
-			expectLegacyCall:      true,
-			expectNewMainCall:     false,
-		},
-		{
-			name:                  "disable_viper_config_with_posix_flag_and_value",
-			inputArgs:             []string{"gcsfuse", "--disable-viper-config=true", "bucket-name", "mount-point"},
-			expectedEnvVar:        "false",
-			expectedRemainingArgs: []string{"gcsfuse", "bucket-name", "mount-point"},
-			expectLegacyCall:      true,
-			expectNewMainCall:     false,
-		},
 		{
 			name:                  "no_disable_flag",
 			inputArgs:             []string{"gcsfuse", "--implicit-dirs", "--debug_fuse", "bucket-name", "mount-point"},
 			expectedEnvVar:        "", // No change expected
 			expectedRemainingArgs: []string{"gcsfuse", "--implicit-dirs", "--debug_fuse", "bucket-name", "mount-point"},
-			expectLegacyCall:      false,
-			expectNewMainCall:     true,
-		},
-		{
-			name:                  "disable_via_env_variable",
-			inputArgs:             []string{"gcsfuse", "--implicit-dirs", "--debug_fuse", "bucket-name", "mount-point"},
-			inputEnvVariable:      "false",
-			expectedEnvVar:        "false",
-			expectedRemainingArgs: []string{"gcsfuse", "--implicit-dirs", "--debug_fuse", "bucket-name", "mount-point"},
-			expectLegacyCall:      true,
-			expectNewMainCall:     false,
 		},
 		{
 			name:                  "enable_via_env_variable",
@@ -101,8 +126,6 @@ func TestMainArgParsing(t *testing.T) {
 			inputEnvVariable:      "true",
 			expectedEnvVar:        "true",
 			expectedRemainingArgs: []string{"gcsfuse", "--flag1", "bucket-name", "mount-point"},
-			expectLegacyCall:      false,
-			expectNewMainCall:     true,
 		},
 	}
 
@@ -111,12 +134,6 @@ func TestMainArgParsing(t *testing.T) {
 			os.Args = tt.inputArgs
 			err := os.Setenv("ENABLE_GCSFUSE_VIPER_CONFIG", tt.inputEnvVariable)
 			assert.NoError(t, err)
-			// Mock cmd.ExecuteLegacyMain
-			legacyMainCalled := false
-			cmd.ExecuteLegacyMain = func() {
-				legacyMainCalled = true
-			}
-
 			newMainCalled := false
 			cmd.ExecuteNewMain = func() {
 				newMainCalled = true
@@ -126,8 +143,7 @@ func TestMainArgParsing(t *testing.T) {
 
 			assert.EqualValues(t, tt.expectedEnvVar, os.Getenv("ENABLE_GCSFUSE_VIPER_CONFIG"))
 			assert.EqualValues(t, tt.expectedRemainingArgs, os.Args)
-			assert.Equal(t, tt.expectLegacyCall, legacyMainCalled)
-			assert.Equal(t, tt.expectNewMainCall, newMainCalled)
+			assert.Equal(t, true, newMainCalled)
 		})
 	}
 }
