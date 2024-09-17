@@ -30,7 +30,7 @@ import sys
 
 # local imports from other directories
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'utils'))
-from run_tests_common import escape_commas_in_string, parse_args, run_command
+from run_tests_common import escape_commas_in_string, parse_args, run_command, add_iam_role_for_buckets
 
 # local imports from same directory
 import dlio_workload
@@ -78,6 +78,16 @@ def main(args) -> None:
       dlioWorkloads,
       args.instance_id,
       args.machine_type,
+  )
+  buckets = [dlioWorkload.bucket for dlioWorkload in dlioWorkloads]
+  role = 'roles/storage.objectUser'
+  add_iam_role_for_buckets(
+      buckets,
+      role,
+      args.project_id,
+      args.project_number,
+      args.namespace,
+      args.ksa,
   )
   for helmInstallCommand in helmInstallCommands:
     print(f'{helmInstallCommand}')
