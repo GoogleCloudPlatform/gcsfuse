@@ -106,7 +106,7 @@ readonly DEFAULT_SRC_DIR="$(realpath .)/src"
 readonly csi_driver_github_path=https://github.com/googlecloudplatform/gcs-fuse-csi-driver
 readonly csi_driver_branch=main
 readonly gcsfuse_github_path=https://github.com/googlecloudplatform/gcsfuse
-readonly gcsfuse_branch=garnitin/add-gke-load-testing/v1
+readonly DEFAULT_GCSFUSE_BRANCH=garnitin/add-gke-load-testing/v1
 # Test runtime configuration
 readonly DEFAULT_INSTANCE_ID=${USER}-$(date +%Y%m%d-%H%M%S)
 # 5 minutes
@@ -132,7 +132,8 @@ function printHelp() {
   echo "num_ssd=<number from 0-16, default=\"${DEFAULT_NUM_SSD}\">"
   echo "use_custom_csi_driver=<true|false, true means build and use a new custom csi driver using gcsfuse code, default=\"${DEFAULT_USE_CUSTOM_CSI_DRIVER}\">"
   # GCSFuse/GKE GCSFuse CSI Driver source code related
-  echo "src_dir=<\"directory/to/clone/github/repos/if/needed\", default=\"${DEFAULT_SRC_DIR}\">"
+  echo "src_dir=<\"directory/to/clone/github/repos/if/needed\", used for locally cloning in case gcsfuse_src_dir or csi_src_dir are not passed, default=\"${DEFAULT_SRC_DIR}\">"
+  echo "gcsfuse_branch=<name-of-gcsfuse-branch-for-cloning>, used for locally cloning, in case gcsfuse_src_dir has not been passed, default=\"${DEFAULT_GCSFUSE_BRANCH}\">"
   echo "gcsfuse_src_dir=<\"/path/of/gcsfuse/src/to/use/if/available\", default=\"${DEFAULT_SRC_DIR}/gcsfuse\">"
   echo "csi_src_dir=<\"/path/of/gcs-fuse-csi-driver/to/use/if/available\", default=\"${DEFAULT_SRC_DIR}\"/gcs-fuse-csi-driver>"
   # Test runtime configuration
@@ -189,6 +190,8 @@ export appnamespace=${DEFAULT_APPNAMESPACE}
 # test -n "${ksa}" ||
 export ksa=${DEFAULT_KSA}
 test -n "${use_custom_csi_driver}" || export use_custom_csi_driver="${DEFAULT_USE_CUSTOM_CSI_DRIVER}"
+test -n "${gcsfuse_branch}" || export gcsfuse_branch="${DEFAULT_GCSFUSE_BRANCH}"
+
 # GCSFuse/GKE GCSFuse CSI Driver source code related
 (test -n "${src_dir}" && src_dir="$(realpath "${src_dir}")") || export src_dir=${DEFAULT_SRC_DIR}
 test -d "${src_dir}" || mkdir -pv "${src_dir}"
