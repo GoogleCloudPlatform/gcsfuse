@@ -589,9 +589,10 @@ function createCustomCsiDriverIfNeeded() {
     make uninstall || true
     make generate-spec-yaml
     printf "\nBuilding a new custom CSI driver using the above GCSFuse binary ...\n\n"
-    make build-image-and-push-multi-arch REGISTRY=gcr.io/${project_id}/${USER} GCSFUSE_PATH=gs://${package_bucket}
+    registry=gcr.io/${project_id}/${USER}/${cluster_name}
+    make build-image-and-push-multi-arch REGISTRY=${registry} GCSFUSE_PATH=gs://${package_bucket}
     printf "\nInstalling the new custom CSI driver built above ...\n\n"
-    make install PROJECT=${project_id} REGISTRY=gcr.io/${project_id}/${USER}
+    make install PROJECT=${project_id} REGISTRY=${registry}
     cd -
     # Wait some time after csi driver installation before deploying pods
     # to avoid failures caused by 'the webhook failed to inject the
