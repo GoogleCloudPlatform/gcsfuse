@@ -693,32 +693,38 @@ function fetchAndParseDlioOutputs() {
 
 # prep
 printRunParameters
-validateMachineConfig ${machine_type} ${num_nodes} ${num_ssd}
 installDependencies
 
-# GCP configuration
-ensureGcpAuthsAndConfig
-ensureGkeCluster
-# ensureRequiredNodePoolConfiguration
-enableManagedCsiDriverIfNeeded
-activateCluster
-createKubernetesServiceAccountForCluster
+# if only_parse is not set or is set as false, then
+if test -z ${only_parse} || ! ${only_parse} ; then
+  validateMachineConfig ${machine_type} ${num_nodes} ${num_ssd}
 
-# GCSFuse driver source code
-ensureGcsfuseCode
+  # GCP configuration
+  ensureGcpAuthsAndConfig
+  ensureGkeCluster
+  # ensureRequiredNodePoolConfiguration
+  enableManagedCsiDriverIfNeeded
+  activateCluster
+  createKubernetesServiceAccountForCluster
 
-# GCP/GKE configuration dependent on GCSFuse/CSI driver source code
-createCustomCsiDriverIfNeeded
+  # GCSFuse driver source code
+  ensureGcsfuseCode
 
-# Run latest workload configuration
-deleteAllPods
-deployAllFioHelmCharts
-deployAllDlioHelmCharts
+  # GCP/GKE configuration dependent on GCSFuse/CSI driver source code
+  createCustomCsiDriverIfNeeded
+
+  # Run latest workload configuration
+  deleteAllPods
+  deployAllFioHelmCharts
+  deployAllDlioHelmCharts
+fi
 
 # monitor pods
 waitTillAllPodsComplete
 
 # clean-up after run
 deleteAllPods
+
+# parse outputs
 fetchAndParseFioOutputs
 fetchAndParseDlioOutputs
