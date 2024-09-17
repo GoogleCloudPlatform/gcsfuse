@@ -30,8 +30,7 @@ import sys
 
 # local imports from other directories
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'utils'))
-from run_tests_common import escape_commas_in_string, parse_args, run_command, add_iam_role_for_buckets
-from utils import UnknownMachineTypeError, resource_limits_requests
+from run_tests_common import escape_commas_in_string, parse_args, run_command
 
 # local imports from same directory
 import dlio_workload
