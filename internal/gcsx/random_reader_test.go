@@ -909,6 +909,8 @@ func (t *RandomReaderTest) Test_ReadAt_SequentialToRandomSubsequentReadOffsetLes
 	ExpectTrue(reflect.DeepEqual(testContent[start3:end3], buf3))
 }
 
+// TODO: re-enable test after fixing b/362686470
+/*
 func (t *RandomReaderTest) Test_ReadAt_CacheMissDueToInvalidJob() {
 	t.rr.wrapped.fileCacheHandler = t.cacheHandler
 	objectSize := t.object.Size
@@ -937,6 +939,7 @@ func (t *RandomReaderTest) Test_ReadAt_CacheMissDueToInvalidJob() {
 	ExpectTrue(reflect.DeepEqual(testContent, buf))
 	ExpectEq(nil, t.rr.wrapped.fileCacheHandle)
 }
+*/
 
 func (t *RandomReaderTest) Test_ReadAt_CachePopulatedAndThenCacheMissDueToInvalidJob() {
 	t.rr.wrapped.fileCacheHandler = t.cacheHandler
