@@ -464,6 +464,11 @@ function doesClusterExist() {
 function ensureGkeCluster() {
   echo "Creating/updating cluster ${cluster_name} ..."
   if doesClusterExist ${cluster_name}; then
+    existing_machine_type=$(getMachineTypeInNodePool ${cluster_name} ${node_pool} ${zone})
+    if [ "${existing_machine_type}" != "${machine_type}" ] ; then
+      echo "Internally changing machine-type from ${machine_type} to ${existing_machine_type} ..."
+      machine_type=${existing_machine_type}
+    fi
     gcloud container clusters update ${cluster_name} --project=${project_id} --location=${zone} --workload-pool=${project_id}.svc.id.goog
   else
     gcloud container --project "${project_id}" clusters create ${cluster_name} --project=${project_id} --zone "${zone}" --workload-pool=${project_id}.svc.id.goog --machine-type "${machine_type}" --image-type "COS_CONTAINERD" --num-nodes ${num_nodes} --ephemeral-storage-local-ssd count=${num_ssd}
