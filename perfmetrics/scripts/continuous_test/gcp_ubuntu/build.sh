@@ -74,13 +74,10 @@ run_load_test_and_fetch_metrics "$GCSFUSE_FIO_FLAGS" "$BUCKET_NAME" "$SPREADSHEE
 run_ls_benchmark "$GCSFUSE_LS_FLAGS" "$SPREADSHEET_ID" "$LIST_CONFIG_FILE"
 
 # Testing for hns bucket.
-echo "enable-hns: true
-metadata-cache:
-  ttl-secs: 0" > /tmp/config.yml
 LOG_FILE_FIO_TESTS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-fio-hns.txt
 LOG_FILE_LS_TESTS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-ls-hns.txt
-GCSFUSE_FIO_FLAGS="--config-file=/tmp/config.yml --stackdriver-export-interval=30s --log-file $LOG_FILE_FIO_TESTS"
-GCSFUSE_LS_FLAGS="--config-file=/tmp/config.yml --log-file $LOG_FILE_LS_TESTS"
+GCSFUSE_FIO_FLAGS="--stackdriver-export-interval=30s --log-file $LOG_FILE_FIO_TESTS"
+GCSFUSE_LS_FLAGS="--log-file $LOG_FILE_LS_TESTS"
 BUCKET_NAME="periodic-perf-tests-hns"
 SPREADSHEET_ID='1wXRGYyAWvasU8U4KaP7NGPHEvgiOSgMd1sCLxsQUwf0'
 LIST_CONFIG_FILE="config-hns.json"
