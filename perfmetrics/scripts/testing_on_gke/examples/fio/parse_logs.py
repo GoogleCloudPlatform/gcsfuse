@@ -26,7 +26,7 @@ import sys
 # local library imports
 sys.path.append("../")
 import fio_workload
-from utils.utils import get_memory, get_cpu, unix_to_timestamp, is_mash_installed
+from utils.utils import get_memory, get_cpu, unix_to_timestamp, is_mash_installed, get_memory_from_monitoring_api, get_cpu_from_monitoring_api
 from utils.parse_logs_common import ensureDir, download_gcs_objects, parseLogParserArguments, SUPPORTED_SCENARIOS
 
 _LOCAL_LOGS_LOCATION = "../../bin/fio-logs"
@@ -39,6 +39,8 @@ record = {
     "IOPS": 0,
     "throughput_mb_per_second": 0,
     "throughput_over_local_ssd": 0,
+    "start_epoch": "",
+    "end_epoch": "",
     "start": "",
     "end": "",
     "highest_memory": 0,
@@ -207,6 +209,8 @@ def createOutputScenariosFromDownloadedFiles(args: dict) -> dict:
       r["throughput_mb_per_second"] = int(
           per_epoch_output_data["jobs"][0]["read"]["bw_bytes"] / (1024**2)
       )
+      r["start_epoch"] = per_epoch_output_data["jobs"][0]["job_start"] // 1000
+      r["end_epoch"] = per_epoch_output_data["timestamp_ms"] // 1000
       r["start"] = unix_to_timestamp(
           per_epoch_output_data["jobs"][0]["job_start"]
       )
@@ -226,6 +230,26 @@ def createOutputScenariosFromDownloadedFiles(args: dict) -> dict:
               r["end"],
               project_number=args.project_number,
           )
+        else:
+          r["lowest_memory"], r["highest_memory"] = (
+              get_memory_from_monitoring_api(
+                  pod_name=r["pod_name"],
+                  start_epoch=r["start_epoch"],
+                  end_epoch=r["end_epoch"],
+                  project_id=args.project_id,
+                  cluster_name=args.cluster_name,
+                  namespace_name=args.namespace_name,
+              )
+          )
+          r["lowest_cpu"], r["highest_cpu"] = get_cpu_from_monitoring_api(
+              pod_name=r["pod_name"],
+              start_epoch=r["start_epoch"],
+              end_epoch=r["end_epoch"],
+              project_id=args.project_id,
+              cluster_name=args.cluster_name,
+              namespace_name=args.namespace_name,
+          )
+        pass
 
       r["gcsfuse_mount_options"] = gcsfuse_mount_options
       r["blockSize"] = bs

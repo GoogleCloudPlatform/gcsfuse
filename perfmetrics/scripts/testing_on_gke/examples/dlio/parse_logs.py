@@ -26,7 +26,7 @@ import sys
 # local library imports
 sys.path.append("../")
 import dlio_workload
-from utils.utils import get_memory, get_cpu, standard_timestamp, is_mash_installed
+from utils.utils import get_memory, get_cpu, unix_to_timestamp, standard_timestamp, is_mash_installed, get_memory_from_monitoring_api, get_cpu_from_monitoring_api, timestamp_to_epoch
 from utils.parse_logs_common import ensureDir, download_gcs_objects, parseLogParserArguments, SUPPORTED_SCENARIOS
 
 _LOCAL_LOGS_LOCATION = "../../bin/dlio-logs/logs"
@@ -40,6 +40,8 @@ record = {
     "train_throughput_samples_per_second": 0,
     "train_throughput_mb_per_second": 0,
     "throughput_over_local_ssd": 0,
+    "start_epoch": "",
+    "end_epoch": "",
     "start": "",
     "end": "",
     "highest_memory": 0,
@@ -165,6 +167,12 @@ def createOutputScenariosFromDownloadedFiles(args: dict) -> dict:
             * int(output[key]["mean_file_size"])
             / (1024**2)
         )
+        r["start_epoch"] = timestamp_to_epoch(
+            per_epoch_stats_data[str(i + 1)]["start"]
+        )
+        r["end_epoch"] = timestamp_to_epoch(
+            per_epoch_stats_data[str(i + 1)]["end"]
+        )
         r["start"] = standard_timestamp(
             per_epoch_stats_data[str(i + 1)]["start"]
         )
@@ -185,7 +193,26 @@ def createOutputScenariosFromDownloadedFiles(args: dict) -> dict:
                   r["end"],
                   project_number=args.project_number,
               )
-            pass
+            else:
+              r["lowest_memory"], r["highest_memory"] = (
+                  get_memory_from_monitoring_api(
+                      pod_name=r["pod_name"],
+                      start_epoch=r["start_epoch"],
+                      end_epoch=r["end_epoch"],
+                      project_id=args.project_id,
+                      cluster_name=args.cluster_name,
+                      namespace_name=args.namespace_name,
+                  )
+              )
+              r["lowest_cpu"], r["highest_cpu"] = get_cpu_from_monitoring_api(
+                  pod_name=r["pod_name"],
+                  start_epoch=r["start_epoch"],
+                  end_epoch=r["end_epoch"],
+                  project_id=args.project_id,
+                  cluster_name=args.cluster_name,
+                  namespace_name=args.namespace_name,
+              )
+          pass
 
         fetch_cpu_memory_data()
 
