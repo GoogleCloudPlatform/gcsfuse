@@ -31,6 +31,7 @@ import sys
 # local imports from other directories
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'utils'))
 from run_tests_common import escape_commas_in_string, parse_args, run_command, add_iam_role_for_buckets
+from utils import UnknownMachineTypeError, resource_limits
 
 # local imports from same directory
 import dlio_workload
@@ -43,6 +44,16 @@ def createHelmInstallCommands(
 ) -> list:
   """Creates helm install commands for the given dlioWorkload objects."""
   helm_commands = []
+  try:
+    resourceLimits, resourceRequests = resource_limits(machineType)
+  except UnknownMachineTypeError:
+    print(
+        f'Found unknown machine-type: {machineType}, defaulting resource limits'
+        ' to cpu=0,memory=0'
+    )
+    resourceLimits = {'cpu': 0, 'memory': '0'}
+    resourceRequests = resourceLimits
+
   for dlioWorkload in dlioWorkloads:
     for batchSize in dlioWorkload.batchSizes:
       chartName, podName, outputDirPrefix = dlio_workload.DlioChartNamePodName(
@@ -63,6 +74,10 @@ def createHelmInstallCommands(
           f'--set nodeType={machineType}',
           f'--set podName={podName}',
           f'--set outputDirPrefix={outputDirPrefix}',
+          f"--set resourceLimits.cpu={resourceLimits['cpu']}",
+          f"--set resourceLimits.memory={resourceLimits['memory']}",
+          f"--set resourceRequests.cpu={resourceRequests['cpu']}",
+          f"--set resourceRequests.memory={resourceRequests['memory']}",
       ]
 
       helm_command = ' '.join(commands)
