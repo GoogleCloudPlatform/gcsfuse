@@ -575,7 +575,6 @@ function createCustomCsiDriverIfNeeded() {
     printf "\nBuilding a new GCSFuse binary from ${gcsfuse_src_dir} ...\n\n"
     cd "${gcsfuse_src_dir}"
     rm -rfv ./bin ./sbin
-    go mod vendor
     GOOS=linux GOARCH=amd64 go run tools/build_gcsfuse/main.go . . v3
     # Copy the binary to a GCS bucket for csi driver build.
     gcloud storage -q cp ./bin/gcsfuse gs://${package_bucket}/linux/amd64/
@@ -626,17 +625,6 @@ function deployAllFioHelmCharts() {
 function deployAllDlioHelmCharts() {
   printf "\nDeploying all dlio helm charts ...\n\n"
   cd "${gke_testing_dir}"/examples/dlio && python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" --project-id=${project_id} --project-number=${project_number} --namespace=${appnamespace} --ksa=${ksa} && cd -
-}
-
-function listAllHelmCharts() {
-  echo "Listing all helm charts ..."
-  # monitor and debug pods
-  helm ls --namespace=${appnamespace}  | tr -s '\t' | cut -f1,5,6
-
-  # Sample output.
-  # NAME STATUS CHART \
-  # fio-loading-test-100m-randread-gcsfuse-file-cache deployed fio-loading-test-0.1.0
-  # gke-dlio-unet3d-100kb-500k-128-gcsfuse-file-cache deployed unet3d-loading-test-0.1.0
 }
 
 function waitTillAllPodsComplete() {
@@ -728,7 +716,6 @@ deployAllFioHelmCharts
 deployAllDlioHelmCharts
 
 # monitor pods
-listAllHelmCharts
 waitTillAllPodsComplete
 
 # clean-up after run
