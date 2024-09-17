@@ -118,6 +118,10 @@ func SetLogFormat(format string) {
 	defaultLogger = defaultLoggerFactory.newLogger(defaultLoggerFactory.level)
 }
 
+func LogFile() *os.File {
+	return defaultLoggerFactory.file
+}
+
 // Close closes the log file when necessary.
 func Close() {
 	if f := defaultLoggerFactory.file; f != nil {
