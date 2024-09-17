@@ -506,13 +506,13 @@ function ensureRequiredNodePoolConfiguration() {
 
 function enableManagedCsiDriverIfNeeded() {
   if ${use_custom_csi_driver}; then
-    echo "Disabling csi add-on ..."
+    printf "\nDisabling csi add-on ...\n\n"
     gcloud -q container clusters update ${cluster_name} \
     --project=${project_id} \
     --update-addons GcsFuseCsiDriver=DISABLED \
     --location=${zone}
   else
-    echo "Enabling csi add-on ..."
+    printf "\nEnabling csi add-on ...\n\n"
     gcloud -q container clusters update ${cluster_name} \
       --project=${project_id} \
       --update-addons GcsFuseCsiDriver=ENABLED \
@@ -521,12 +521,13 @@ function enableManagedCsiDriverIfNeeded() {
 }
 
 function activateCluster() {
-  echo "Configuring cluster credentials ..."
+  printf "\nConfiguring cluster credentials ...\n\n"
   gcloud container clusters get-credentials ${cluster_name} --project=${project_id} --location=${zone}
   kubectl config current-context
 }
 
 function createKubernetesServiceAccountForCluster() {
+  printf "\nCreating namespace and KSA ...\n\n"
   log="$(kubectl create namespace ${appnamespace} 2>&1)" || [[ "$log" == *"already exists"* ]]
   log="$(kubectl create serviceaccount ${ksa} --namespace ${appnamespace} 2>&1)" || [[ "$log" == *"already exists"* ]]
   kubectl config set-context --current --namespace=${appnamespace}
@@ -535,7 +536,7 @@ function createKubernetesServiceAccountForCluster() {
 }
 
 function ensureGcsfuseCode() {
-  echo "Ensuring we have gcsfuse code ..."
+  printf "\nEnsuring we have gcsfuse code ...\n\n\n"
   # clone gcsfuse code if needed
   if ! test -d "${gcsfuse_src_dir}"; then
     cd $(dirname "${gcsfuse_src_dir}") && git clone ${gcsfuse_github_path} && cd "${gcsfuse_src_dir}" && git switch ${gcsfuse_branch} && cd - && cd -
@@ -545,7 +546,7 @@ function ensureGcsfuseCode() {
 }
 
 function ensureGcsFuseCsiDriverCode() {
-  echo "Ensuring we have gcs-fuse-csi-driver code ..."
+  printf "\nEnsuring we have gcs-fuse-csi-driver code ...\n\n"
   # clone csi-driver code if needed
   if ! test -d "${csi_src_dir}"; then
     cd $(dirname "${csi_src_dir}") && git clone ${csi_driver_github_path} && cd "${csi_src_dir}" && git switch ${csi_driver_branch} && cd - && cd -
@@ -557,13 +558,14 @@ function createCustomCsiDriverIfNeeded() {
     echo "Disabling managed CSI driver ..."
     gcloud -q container clusters update ${cluster_name} --project=${project_id} --update-addons GcsFuseCsiDriver=DISABLED --location=${zone}
 
-    echo "Building custom CSI driver ..."
+    printf "\nCreating a new custom CSI driver ...\n\n"
 
     # Create a bucket for storing custom-csi driver.
     test -n "${package_bucket}" || export package_bucket=${USER/google/}-gcsfuse-binary-package
     (gcloud storage buckets list --project=${project_id} | grep -wqo ${package_bucket}) || (region=$(echo ${zone} | rev | cut -d- -f2- | rev) && gcloud storage buckets create gs://${package_bucket} --project=${project_id} --location=${region})
 
     # Build a new gcsfuse binary
+    printf "\nBuilding a new GCSFuse binary from ${gcsfuse_src_dir} ...\n\n"
     cd "${gcsfuse_src_dir}"
     rm -rfv ./bin ./sbin
     go mod vendor
@@ -582,6 +584,7 @@ function createCustomCsiDriverIfNeeded() {
     make generate-spec-yaml
     printf "\nBuilding a new custom CSI driver using the above GCSFuse binary ...\n\n"
     make build-image-and-push-multi-arch REGISTRY=gcr.io/${project_id}/${USER} GCSFUSE_PATH=gs://${package_bucket}
+    printf "\nInstalling the new custom CSI driver built above ...\n\n"
     make install PROJECT=${project_id} REGISTRY=gcr.io/${project_id}/${USER}
     cd -
     # Wait some time after csi driver installation before deploying pods
@@ -597,24 +600,24 @@ function createCustomCsiDriverIfNeeded() {
 }
 
 function deleteAllHelmCharts() {
-  echo "Deleting all existing helm charts ..."
+  printf "\nDeleting all existing helm charts ...\n\n"
   helm ls --namespace=${appnamespace} | tr -s '\t' ' ' | cut -d' ' -f1 | tail -n +2 | while read helmchart; do helm uninstall ${helmchart} --namespace=${appnamespace}; done
 }
 
 function deleteAllPods() {
   deleteAllHelmCharts
 
-  echo "Deleting all existing pods ..."
+  printf "\nDeleting all existing pods ...\n\n"
   kubectl get pods --namespace=${appnamespace}  | tail -n +2 | cut -d' ' -f1 | while read podname; do kubectl delete pods/${podname} --namespace=${appnamespace} --grace-period=0 --force || true; done
 }
 
 function deployAllFioHelmCharts() {
-  echo "Deploying all fio helm charts ..."
+  printf "\nDeploying all fio helm charts ...\n\n"
   cd "${gke_testing_dir}"/examples/fio && python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" --project-id=${project_id} --project-number=${project_number} --namespace=${appnamespace} --ksa=${ksa} && cd -
 }
 
 function deployAllDlioHelmCharts() {
-  echo "Deploying all dlio helm charts ..."
+  printf "\nDeploying all dlio helm charts ...\n\n"
   cd "${gke_testing_dir}"/examples/dlio && python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" --project-id=${project_id} --project-number=${project_number} --namespace=${appnamespace} --ksa=${ksa} && cd -
 }
 
@@ -655,7 +658,7 @@ function waitTillAllPodsComplete() {
       printf ${num_failed_pods}" pod(s) failed.\n\n"
     fi
     if [ ${num_noncompleted_pods} -eq 0 ]; then
-      printf "All pods completed.\n\n"
+      printf "\nAll pods completed.\n\n"
       break
     else
       printf "\n${num_noncompleted_pods} pod(s) is/are still pending or running (time till timeout=${time_till_timeout} seconds). Will check again in "${pod_wait_time_in_seconds}" seconds. Sleeping for now.\n\n"
@@ -672,7 +675,6 @@ function waitTillAllPodsComplete() {
       printf "  kubectl get pods --namespace=${appnamespace} [-o wide] [--watch] \n"
       printf "\nTo output the configuration of all or one of the pods in this cluster/namespace (useful for debugging): \n"
       printf "  kubectl get [pods or pods/<podname>] --namespace=${appnamespace} -o yaml \n"
-
       printf "\n\n\n"
     fi
     sleep ${pod_wait_time_in_seconds}
@@ -681,14 +683,14 @@ function waitTillAllPodsComplete() {
 }
 
 function fetchAndParseFioOutputs() {
-  echo "Fetching and parsing fio outputs ..."
+  printf "\nFetching and parsing fio outputs ...\n\n"
   cd "${gke_testing_dir}"/examples/fio
   python3 parse_logs.py --project-number=${project_number} --workload-config "${workload_config}" --instance-id ${instance_id} --output-file "${output_dir}"/fio/output.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace}
   cd -
 }
 
 function fetchAndParseDlioOutputs() {
-  echo "Fetching and parsing dlio outputs ..."
+  printf "\nFetching and parsing dlio outputs ...\n\n"
   cd "${gke_testing_dir}"/examples/dlio
   python3 parse_logs.py --project-number=${project_number} --workload-config "${workload_config}" --instance-id ${instance_id} --output-file "${output_dir}"/dlio/output.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace}
   cd -
