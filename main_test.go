@@ -20,6 +20,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cmd"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestLegacyMainExecution(t *testing.T) {
@@ -79,7 +80,7 @@ func TestLegacyMainExecution(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			os.Args = tt.inputArgs
 			err := os.Setenv("ENABLE_GCSFUSE_VIPER_CONFIG", tt.inputEnvVariable)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			legacyMainCalled := false
 			cmd.ExecuteLegacyMain = func() {
 				legacyMainCalled = true
@@ -133,7 +134,7 @@ func TestNewMainExecution(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			os.Args = tt.inputArgs
 			err := os.Setenv("ENABLE_GCSFUSE_VIPER_CONFIG", tt.inputEnvVariable)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			newMainCalled := false
 			cmd.ExecuteNewMain = func() {
 				newMainCalled = true

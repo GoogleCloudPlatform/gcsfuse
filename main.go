@@ -58,7 +58,7 @@ func main() {
 		if arg == "-"+disableViperConfigFlag || arg == "--"+disableViperConfigFlag || arg == "-"+disableViperConfigFlag+"=true" || arg == "--"+disableViperConfigFlag+"=true" {
 			err := os.Setenv(cmd.EnableViperConfigEnvVariable, "false")
 			if err != nil {
-				logger.Infof("error while setting"+cmd.EnableViperConfigEnvVariable+" environment variable: %v", err)
+				logger.Infof("error while setting "+cmd.EnableViperConfigEnvVariable+" environment variable: %v", err)
 			}
 		}
 		if !strings.Contains(arg, disableViperConfigFlag) {
