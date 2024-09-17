@@ -123,19 +123,16 @@ func downloadGzipGcsObjectAsCompressed(t *testing.T, bucketName, objPathInBucket
 	gcsObjectSize, err := operations.GetGcsObjectSize(gcsObjectPath)
 
 	if err != nil {
-		err = fmt.Errorf("failed to get size of gcs object %s: %w", gcsObjectPath, err)
-		return
+		return "", fmt.Errorf("failed to get size of gcs object %s: %w", gcsObjectPath, err)
 	}
 
 	content, err := createContentOfSize(1)
 	if err != nil {
-		err = fmt.Errorf("failed to create data: %w", err)
-		return
+		return "", fmt.Errorf("failed to create data: %w", err)
 	}
 	tempfile, err = operations.CreateLocalTempFile(content, false)
 	if err != nil {
-		err = fmt.Errorf("failed to create tempfile for downloading gcs object: %w", err)
-		return
+		return "", fmt.Errorf("failed to create tempfile for downloading gcs object: %w", err)
 	}
 	defer func() {
 		if err != nil {
@@ -149,50 +146,43 @@ func downloadGzipGcsObjectAsCompressed(t *testing.T, bucketName, objPathInBucket
 	ctx := context.Background()
 	client, err := client2.CreateStorageClient(ctx)
 	if err != nil || client == nil {
-		err = fmt.Errorf("failed to create storage client: %w", err)
-		return
+		return "", fmt.Errorf("failed to create storage client: %w", err)
 	}
 	defer client.Close()
 
 	bktName := setup.TestBucket()
 	bkt := client.Bucket(bktName)
 	if bkt == nil {
-		err = fmt.Errorf("failed to access bucket %s: %w", bktName, err)
-		return
+		return "", fmt.Errorf("failed to access bucket %s: %w", bktName, err)
 	}
 
 	obj := bkt.Object(objPathInBucket)
 	if obj == nil {
-		err = fmt.Errorf("failed to access object %s from bucket %s: %w", objPathInBucket, bktName, err)
-		return
+		return "", fmt.Errorf("failed to access object %s from bucket %s: %w", objPathInBucket, bktName, err)
 	}
 
 	obj = obj.ReadCompressed(true)
 	if obj == nil {
-		err = fmt.Errorf("failed to access object %s from bucket %s as compressed: %w", objPathInBucket, bktName, err)
-		return
+		return "", fmt.Errorf("failed to access object %s from bucket %s as compressed: %w", objPathInBucket, bktName, err)
 	}
 
 	r, err := obj.NewReader(ctx)
 	if r == nil || err != nil {
-		err = fmt.Errorf("failed to read object %s from bucket %s: %w", objPathInBucket, bktName, err)
-		return
+		return "", fmt.Errorf("failed to read object %s from bucket %s: %w", objPathInBucket, bktName, err)
 	}
 	defer r.Close()
 
 	gcsObjectData, err := io.ReadAll(r)
 	if len(gcsObjectData) < gcsObjectSize || err != nil {
-		err = fmt.Errorf("failed to read object %s from bucket %s (expected read-size: %d, actual read-size: %d): %w", objPathInBucket, bktName, gcsObjectSize, len(gcsObjectData), err)
-		return
+		return "", fmt.Errorf("failed to read object %s from bucket %s (expected read-size: %d, actual read-size: %d): %w", objPathInBucket, bktName, gcsObjectSize, len(gcsObjectData), err)
 	}
 
 	err = os.WriteFile(tempfile, gcsObjectData, fs.FileMode(os.O_CREATE|os.O_WRONLY|os.O_TRUNC))
 	if err != nil || client == nil {
-		err = fmt.Errorf("failed to write to tempfile %s: %w", tempfile, err)
-		return
+		return "", fmt.Errorf("failed to write to tempfile %s: %w", tempfile, err)
 	}
 
-	return
+	return tempfile, nil
 }
 
 func TestGzipEncodedTextFileWithNoTransformSizeAndFullFileRead(t *testing.T) {

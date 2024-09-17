@@ -52,16 +52,14 @@ const (
 	GzipContentWithContentEncodingWithoutNoTransformToOverwrite = "GzipContentWithContentEncodingWithoutNoTransformToOverwrite.txt.gz"
 
 	TestBucketPrefixPath = "gzip"
-	TempFileStrLine      = "This is a test file"
 )
 
 var (
 	gcsObjectsToBeDeletedEventually []string
 	storageClient                   *storage.Client
-	ctx                             context.Context
 )
 
-func setup_testdata(m *testing.M) error {
+func setup_testdata(m *testing.M, ctx context.Context) error {
 	fmds := []struct {
 		filename                    string
 		filesize                    int
@@ -151,8 +149,6 @@ func setup_testdata(m *testing.M) error {
 
 		// upload to the test-bucket for testing
 		objectPrefixPath := path.Join(TestBucketPrefixPath, fmd.filename)
-		ctx := context.Background()
-
 		err = client.UploadGcsObject(ctx, storageClient, localFilePath, setup.TestBucket(), objectPrefixPath, fmd.enableGzipContentEncoding)
 		if err != nil {
 			return err
@@ -183,11 +179,19 @@ func destroy_testdata(m *testing.M) error {
 	return nil
 }
 
+func writeString(contentBuilder *strings.Builder, s string) error {
+	n, err := contentBuilder.WriteString(s)
+	if err != nil {
+		return fmt.Errorf("failed to write to string builder: %w", err)
+	}
+	if n != len(s) {
+		return fmt.Errorf("unexpected number of bytes written: expected %d, got %d", len(s), n)
+	}
+	return nil
+}
+
 // createContentOfSize generates a string of the specified content size in bytes.
-// Failure cases:
-// 1. contentSize <= 0
 func createContentOfSize(contentSize int) (string, error) {
-	// fail if contentSize <= 0
 	if contentSize <= 0 {
 		return "", fmt.Errorf("unsupported fileSize: %d", contentSize)
 	}
@@ -197,41 +201,33 @@ func createContentOfSize(contentSize int) (string, error) {
 	// as this is much more efficient when multiple concatenations
 	// are required.
 	var contentBuilder strings.Builder
-	const tempStr = TempFileStrLine + "\n"
+	const tempStr = "This is a test file\n"
+	contentBuilder.Grow(contentSize)
 
 	for ; contentSize >= len(tempStr); contentSize -= len(tempStr) {
-		n, err := contentBuilder.WriteString(tempStr)
+		err := writeString(&contentBuilder, tempStr)
 		if err != nil {
-			return "", fmt.Errorf("failed to write to string builder: %w", err)
-		}
-		if n != len(tempStr) {
-			return "", fmt.Errorf("unexpected number of bytes written: expected %d, got %d", len(tempStr), n)
+			return "", err
 		}
 	}
 
 	if contentSize > 0 {
-		n, err := contentBuilder.WriteString(tempStr[0:contentSize])
+		err := writeString(&contentBuilder, tempStr[0:contentSize])
 		if err != nil {
-			return "", fmt.Errorf("failed to write to string builder: %w", err)
-		}
-		if n != contentSize {
-			return "", fmt.Errorf("unexpected number of bytes written: expected %d, got %d", contentSize, n)
+			return "", err
 		}
 	}
 
-	content := contentBuilder.String()
-	return content, nil
+	return contentBuilder.String(), nil
 }
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
 	var err error
-	ctx = context.Background()
-	storageClient, err = client.CreateStorageClient(ctx)
-	if err != nil {
-		log.Printf("Error creating storage client: %v\n", err)
-		os.Exit(1)
+	ctx := context.Background()
+	if storageClient, err = client.CreateStorageClient(ctx); err != nil {
+		log.Fatalf("Error creating storage client: %v\n", err)
 	}
 	defer func() {
 		if err := storageClient.Close(); err != nil {
@@ -254,9 +250,9 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	err = setup_testdata(m)
+	err = setup_testdata(m, ctx)
 	if err != nil {
-		log.Printf("Failed to setup test data: %v", err)
+		log.Fatalf("Failed to setup test data: %v", err)
 		os.Exit(1)
 	}
 
