@@ -401,7 +401,7 @@ function doesNodePoolExist() {
   local cluster_name=${1}
   local zone=${2}
   local node_pool=${3}
-  gcloud container node-pools list --cluster=${cluster_name} --zone=${zone} | grep -owq ${node_pool}
+  gcloud container node-pools list --project=${project_id} --cluster=${cluster_name} --zone=${zone} | grep -owq ${node_pool}
 }
 
 function deleteExistingNodePool() {
@@ -409,7 +409,7 @@ function deleteExistingNodePool() {
   local zone=${2}
   local node_pool=${3}
   if doesNodePoolExist ${cluster_name} ${zone} ${node_pool}; then
-    gcloud -q container node-pools delete ${node_pool} --cluster ${cluster_name} --zone ${zone}
+    gcloud -q container node-pools delete ${node_pool} --project=${project_id} --cluster ${cluster_name} --zone ${zone}
   fi
 }
 
@@ -419,7 +419,7 @@ function resizeExistingNodePool() {
   local node_pool=${3}
   local num_nodes=${4}
   if doesNodePoolExist ${cluster_name} ${zone} ${node_pool}; then
-    gcloud -q container clusters resize ${cluster_name} --node-pool=${node_pool} --num-nodes=${num_nodes} --zone ${zone}
+    gcloud -q container clusters resize ${cluster_name} --project=${project_id} --node-pool=${node_pool} --num-nodes=${num_nodes} --zone ${zone}
   fi
 }
 
@@ -430,39 +430,42 @@ function createNewNodePool() {
   local machine_type=${4}
   local num_nodes=${5}
   local num_ssd=${6}
-  gcloud container node-pools create ${node_pool} --cluster ${cluster_name} --ephemeral-storage-local-ssd count=${num_ssd} --network-performance-configs=total-egress-bandwidth-tier=TIER_1 --machine-type ${machine_type} --zone ${zone} --num-nodes ${num_nodes} --workload-metadata=GKE_METADATA
+  gcloud container node-pools create ${node_pool} --project=${project_id} --cluster ${cluster_name} --ephemeral-storage-local-ssd count=${num_ssd} --network-performance-configs=total-egress-bandwidth-tier=TIER_1 --machine-type ${machine_type} --zone ${zone} --num-nodes ${num_nodes} --workload-metadata=GKE_METADATA
 }
 
 function getMachineTypeInNodePool() {
   local cluster=${1}
   local node_pool=${2}
-  gcloud container node-pools describe --cluster=${cluster_name} ${node_pool} | grep -w 'machineType' | tr -s '\t' ' ' | rev | cut -d' ' -f1 | rev
+  local zone=${3}
+  gcloud container node-pools describe --project=${project_id} --cluster=${cluster_name} ${node_pool} --zone=${zone} | grep -w 'machineType' | tr -s '\t' ' ' | rev | cut -d' ' -f1 | rev
 }
 
 function getNumNodesInNodePool() {
   local cluster=${1}
   local node_pool=${2}
-  gcloud container node-pools describe --cluster=${cluster_name} ${node_pool} | grep -w 'initialNodeCount' | tr -s '\t' ' ' | rev | cut -d' ' -f1 | rev
+  local zone=${3}
+  gcloud container node-pools describe --project=${project_id} --cluster=${cluster_name} ${node_pool} --zone=${zone} | grep -w 'initialNodeCount' | tr -s '\t' ' ' | rev | cut -d' ' -f1 | rev
 }
 
 function getNumLocalSSDsPerNodeInNodePool() {
   local cluster=${1}
   local node_pool=${2}
-  gcloud container node-pools describe --cluster=${cluster_name} ${node_pool} | grep -w 'localSsdCount' | tr -s '\t' ' ' | rev | cut -d' ' -f1 | rev
+  local zone=${3}
+  gcloud container node-pools describe --project=${project_id} --cluster=${cluster_name} ${node_pool} --zone=${zone} | grep -w 'localSsdCount' | tr -s '\t' ' ' | rev | cut -d' ' -f1 | rev
 }
 
 function doesClusterExist() {
   local cluster_name=${1}
-  gcloud container clusters list | grep -woq ${cluster_name}
+  gcloud container clusters list --project=${project_id} | grep -woq ${cluster_name}
 }
 
 # Create and set up (or reconfigure) a GKE cluster.
 function ensureGkeCluster() {
   echo "Creating/updating cluster ${cluster_name} ..."
   if doesClusterExist ${cluster_name}; then
-    gcloud container clusters update ${cluster_name} --location=${zone} --workload-pool=${project_id}.svc.id.goog
+    gcloud container clusters update ${cluster_name} --project=${project_id} --location=${zone} --workload-pool=${project_id}.svc.id.goog
   else
-    gcloud container --project "${project_id}" clusters create ${cluster_name} --zone "${zone}" --workload-pool=${project_id}.svc.id.goog --machine-type "${machine_type}" --image-type "COS_CONTAINERD" --num-nodes ${num_nodes} --ephemeral-storage-local-ssd count=${num_ssd}
+    gcloud container --project "${project_id}" clusters create ${cluster_name} --project=${project_id} --zone "${zone}" --workload-pool=${project_id}.svc.id.goog --machine-type "${machine_type}" --image-type "COS_CONTAINERD" --num-nodes ${num_nodes} --ephemeral-storage-local-ssd count=${num_ssd}
   fi
 }
 
@@ -474,9 +477,9 @@ function ensureRequiredNodePoolConfiguration() {
 
   if doesNodePoolExist ${cluster_name} ${zone} ${node_pool}; then
 
-    existing_machine_type=$(getMachineTypeInNodePool ${cluster_name} ${node_pool}})
-    num_existing_localssd_per_node=$(getNumLocalSSDsPerNodeInNodePool ${cluster_name} ${node_pool})
-    num_existing_nodes=$(getNumNodesInNodePool ${cluster_name} ${node_pool})
+    existing_machine_type=$(getMachineTypeInNodePool ${cluster_name} ${node_pool} ${zone})
+    num_existing_localssd_per_node=$(getNumLocalSSDsPerNodeInNodePool ${cluster_name} ${node_pool} ${zone})
+    num_existing_nodes=$(getNumNodesInNodePool ${cluster_name} ${node_pool} ${zone})
 
     if [ "${existing_machine_type}" != "${machine_type}" ]; then
       echo "cluster "${node_pool}" exists, but machine-type differs, so deleting and re-creating the node-pool."
@@ -499,11 +502,13 @@ function enableManagedCsiDriverIfNeeded() {
   if ${use_custom_csi_driver}; then
     echo "Disabling csi add-on ..."
     gcloud -q container clusters update ${cluster_name} \
+    --project=${project_id} \
     --update-addons GcsFuseCsiDriver=DISABLED \
     --location=${zone}
   else
     echo "Enabling csi add-on ..."
     gcloud -q container clusters update ${cluster_name} \
+      --project=${project_id} \
       --update-addons GcsFuseCsiDriver=ENABLED \
       --location=${zone}
   fi
@@ -511,7 +516,7 @@ function enableManagedCsiDriverIfNeeded() {
 
 function activateCluster() {
   echo "Configuring cluster credentials ..."
-  gcloud container clusters get-credentials ${cluster_name} --location=${zone}
+  gcloud container clusters get-credentials ${cluster_name} --project=${project_id} --location=${zone}
   kubectl config current-context
 }
 
@@ -544,13 +549,13 @@ function ensureGcsFuseCsiDriverCode() {
 function createCustomCsiDriverIfNeeded() {
   if ${use_custom_csi_driver}; then
     echo "Disabling managed CSI driver ..."
-    gcloud -q container clusters update ${cluster_name} --update-addons GcsFuseCsiDriver=DISABLED --location=${zone}
+    gcloud -q container clusters update ${cluster_name} --project=${project_id} --update-addons GcsFuseCsiDriver=DISABLED --location=${zone}
 
     echo "Building custom CSI driver ..."
 
     # Create a bucket for storing custom-csi driver.
     test -n "${package_bucket}" || export package_bucket=${USER/google/}-gcsfuse-binary-package
-    (gcloud storage buckets list | grep -wqo ${package_bucket}) || (region=$(echo ${zone} | rev | cut -d- -f2- | rev) && gcloud storage buckets create gs://${package_bucket} --location=${region})
+    (gcloud storage buckets list --project=${project_id} | grep -wqo ${package_bucket}) || (region=$(echo ${zone} | rev | cut -d- -f2- | rev) && gcloud storage buckets create gs://${package_bucket} --project=${project_id} --location=${region})
 
     # Build a new gcsfuse binary
     cd "${gcsfuse_src_dir}"
@@ -564,7 +569,6 @@ function createCustomCsiDriverIfNeeded() {
     rm -rfv "${gcsfuse_src_dir}"/bin "${gcsfuse_src_dir}"/sbin
     cd -
 
-    echo "Installing custom CSI driver ..."
     # Build and install csi driver
     ensureGcsFuseCsiDriverCode
     cd "${csi_src_dir}"
@@ -582,7 +586,7 @@ function createCustomCsiDriverIfNeeded() {
   else
     echo ""
     echo "Enabling managed CSI driver ..."
-    gcloud -q container clusters update ${cluster_name} --update-addons GcsFuseCsiDriver=ENABLED --location=${zone}
+    gcloud -q container clusters update ${cluster_name} --project=${project_id} --update-addons GcsFuseCsiDriver=ENABLED --location=${zone}
   fi
 }
 
