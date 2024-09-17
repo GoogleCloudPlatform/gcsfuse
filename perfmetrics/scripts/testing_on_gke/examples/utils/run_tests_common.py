@@ -73,33 +73,6 @@ def parse_args():
       required=True,
   )
   parser.add_argument(
-      '--project-id',
-      metavar='project-id of the user gke cluster',
-      help='project-id of the user gke cluster e.g. gcs-fuse-test',
-      required=True,
-  )
-  parser.add_argument(
-      '--project-number',
-      metavar='project-number of the user gke cluster',
-      help='project-number of the user gke cluster e.g. 927584127901',
-      required=True,
-      type=int,
-  )
-  parser.add_argument(
-      '--namespace',
-      metavar='kubectl namespace of the user',
-      help='kubectl namespace of the user e.g. default',
-      required=False,
-      default='default',
-  )
-  parser.add_argument(
-      '--ksa',
-      metavar='kubernetes service account of the user',
-      help='kubernetest service account of the user e.g. default',
-      required=False,
-      default='default',
-  )
-  parser.add_argument(
       '-n',
       '--dry-run',
       action='store_true',
@@ -113,9 +86,6 @@ def parse_args():
   for argument in [
       'instance_id',
       'machine_type',
-      'project_id',
-      'namespace',
-      'ksa',
   ]:
     value = getattr(args, argument)
     if len(value) == 0 or str.isspace(value):
