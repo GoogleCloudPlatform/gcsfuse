@@ -187,19 +187,35 @@ function printRunParameters() {
 
 # Install dependencies.
 function installDependencies() {
+  printf "\nInstalling dependencies ...\n\n"
+  # Refresh software repositories.
+  sudo apt-get update
+  # Get some common software dependencies.
+  sudo apt-get install -y apt-transport-https ca-certificates gnupg curl
   # Ensure that realpath is installed.
   which realpath
   # Ensure that python3 is installed.
   which python3
   # Ensure that make is installed.
-  which make || (sudo apt-get update && sudo apt-get install -y make time)
-  # Ensure that go is installed
+  which make || ( sudo apt-get install -y make time && which make )
+  # Ensure that go is installed.
   which go || (version=1.22.4 && wget -O go_tar.tar.gz https://go.dev/dl/go${version}.linux-amd64.tar.gz 1>/dev/null && sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz 1>/dev/null && sudo mv go /usr/local && echo $PATH && export PATH=$PATH:/usr/local/go/bin && echo $PATH && echo 'export PATH=$PATH:/usr/local/go/bin'>>~/.bashrc && go version)
   # for some reason, the above is unable to update the value of $PATH, so doing it explicitly below.
   export PATH=$PATH:/usr/local/go/bin
   which go
+  # Ensure that python3 is installed.
+  which python3 || ( sudo apt-get install -y python3 && which python3 )
+  # Install more python tools.
+  sudo apt-get -y install python3-dev python3-venv python3-pip
+  # Enable python virtual environment.
+  python3 -m venv .venv
+  source .venv/bin/activate
+  # Ensure that pip is installed.
+  sudo apt-get install -y pip
+  # python3 -m pip install --upgrade pip
+  # python3 -m pip --version
   # Ensure that python-absl is installed.
-  sudo  apt-get update && sudo apt-get install -y pip && pip install absl-py
+  pip install absl-py
   # Ensure that helm is installed
   which helm || (cd "${src_dir}" && (test -d "./helm" || git clone https://github.com/helm/helm.git) && cd helm && make && ls -lh bin/ && mkdir -pv ~/bin && cp -fv bin/helm ~/bin/ && chmod +x ~/bin/helm && export PATH=$PATH:$HOME/bin && echo $PATH && which helm && cd - && cd -)
   # for some reason, the above is unable to update the value of $PATH, so doing it explicitly below.
@@ -207,22 +223,22 @@ function installDependencies() {
   which helm
   # Ensure that kubectl is installed
   if ! which kubectl; then
-    # full instructions at https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl .
-    #install the latest gcloud cli
-    sudo apt-get update &&  sudo apt-get install -y apt-transport-https ca-certificates gnupg curl
+    # Install the latest gcloud cli. Find full instructions at https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl .
     # Import the Google Cloud public key (Debian 9+ or Ubuntu 18.04+)
     curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
     # Add the gcloud CLI distribution URI as a package source (Debian 9+ or Ubuntu 18.04+)
     echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
     # Update and install the gcloud CLI
-    sudo apt-get update && sudo apt-get install -y google-cloud-cli
+    sudo apt-get update
+    sudo apt-get install -y google-cloud-cli
     # install kubectl
-    (gcloud components install kubectl && kubectl version --client) || (sudo apt-get update && sudo apt-get install -y kubectl && kubectl version --client)
+    gcloud components install kubectl || sudo apt-get install -y kubectl
+    kubectl version --client
   fi
-  gke-gcloud-auth-plugin --version || (gcloud components install gke-gcloud-auth-plugin && gke-gcloud-auth-plugin --version) || (sudo apt-get update -y && sudo apt-get install -y google-cloud-cli-gke-gcloud-auth-plugin && gke-gcloud-auth-plugin --version)
+  # Ensure that gke-gcloud-auth-plugin is installed.
+  gke-gcloud-auth-plugin --version || ((gcloud components install gke-gcloud-auth-plugin || sudo apt-get install -y google-cloud-cli-gke-gcloud-auth-plugin) && gke-gcloud-auth-plugin --version)
   # Ensure that docker is installed.
   if ! which docker ; then
-    sudo apt-get update
     sudo apt install apt-transport-https ca-certificates curl software-properties-common -y
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
     sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable"
@@ -244,15 +260,34 @@ function ensureGcpAuthsAndConfig() {
 # Verify that the passed machine configuration parameters (machine-type, num-nodes, num-ssd) are compatible.
 # This is to fail fast, right at the start of the script, rather than failing at
 # cluster/nodepool creation, which takes a lot longer.
+# Source of constraints:
+# https://cloud.google.com/compute/docs/disks/local-ssd#lssd_disk_options .
 function validateMachineConfig() {
   echo "Validating input machine configuration ..."
   local machine_type=${1}
   local num_nodes=${2}
   local num_ssd=${3}
+
+  if test ${num_nodes} -le 0; then
+    echo "num_nodes is too low (minimium=1) at "${num_nodes}
+  fi
+
   case "${machine_type}" in
   "n2-standard-96")
-    if [ ${num_ssd} -ne 0 -a ${num_ssd} -ne 16 ]; then
-      echo "Unsupported num-ssd "${num_ssd}" with given machine-type "${machine_type}""
+    if [ ${num_ssd} -ne 0 -a ${num_ssd} -ne 16 -a ${num_ssd} -ne 24 ]; then
+      echo "Unsupported num-ssd "${num_ssd}" with given machine-type "${machine_type}". It should be 0, 16 or 24"
+      return 1
+    fi
+    ;;
+  "n2-standard-48")
+    if [ ${num_ssd} -ne 0 -a ${num_ssd} -ne 8 -a ${num_ssd} -ne 16 -a ${num_ssd} -ne 24 ]; then
+      echo "Unsupported num-ssd "${num_ssd}" with given machine-type "${machine_type}". It should be 0, 8, 16 or 24"
+      return 1
+    fi
+    ;;
+  "n2-standard-32")
+    if [ ${num_ssd} -ne 0 -a ${num_ssd} -ne 4 -a ${num_ssd} -ne 8 -a ${num_ssd} -ne 16 -a ${num_ssd} -ne 24 ]; then
+      echo "Unsupported num-ssd "${num_ssd}" with given machine-type "${machine_type}". It should be 0, 4, 8, 16 or 24"
       return 1
     fi
     ;;
