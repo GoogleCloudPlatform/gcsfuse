@@ -57,8 +57,6 @@ readonly csi_driver_github_path=https://github.com/googlecloudplatform/gcs-fuse-
 readonly csi_driver_branch=main
 readonly gcsfuse_github_path=https://github.com/googlecloudplatform/gcsfuse
 readonly gcsfuse_branch=garnitin/add-gke-load-testing/v1
-# GCSFuse configuration related
-readonly DEFAULT_GCSFUSE_MOUNT_OPTIONS="implicit-dirs"
 # Test runtime configuration
 readonly DEFAULT_INSTANCE_ID=${USER}-$(date +%Y%m%d-%H%M%S)
 # 5 minutes
@@ -130,7 +128,7 @@ test -d "${src_dir}" || mkdir -pv "${src_dir}"
 (test -n "${gcsfuse_src_dir}" && gcsfuse_src_dir="$(realpath "${gcsfuse_src_dir}")") || export gcsfuse_src_dir="${src_dir}"/gcsfuse
 export gke_testing_dir="${gcsfuse_src_dir}"/perfmetrics/scripts/testing_on_gke
 (test -n "${csi_src_dir}" && csi_src_dir="$(realpath "${csi_src_dir}")") || export csi_src_dir="${src_dir}"/gcs-fuse-csi-driver
-# GCSFuse configuration related
+# GCSFuse configuration related - deprecated. Will cause error.
 test -z "${gcsfuse_mount_options}" || (echo "gcsfuse_mount_options set by user is a deprecated option. Please set gcsfuseMountOptions in workload objects in workload configuration file in its place." && exit 1)
 # Test runtime configuration
 test -n "${pod_wait_time_in_seconds}" || export pod_wait_time_in_seconds="${DEFAULT_POD_WAIT_TIME_IN_SECONDS}"
