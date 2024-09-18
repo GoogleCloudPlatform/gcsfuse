@@ -15,13 +15,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# standard library imports
 import argparse
-import json, os, pprint, subprocess
+import json
+import os
+import pprint
+import subprocess
 import sys
-import fio_workload
 
+# local library imports
 sys.path.append("../")
-from utils.utils import get_memory, get_cpu, unix_to_timestamp, is_mash_installed
+import fio_workload
+from utils.utils import get_memory, get_cpu, standard_timestamp, is_mash_installed
 
 _LOCAL_LOGS_LOCATION = "../../bin/fio-logs"
 
@@ -46,15 +51,19 @@ record = {
 }
 
 
+def ensureDir(dirpath):
+  try:
+    os.makedirs(dirpath)
+  except FileExistsError:
+    pass
+
+
 def downloadFioOutputs(fioWorkloads: set, instanceId: str):
   for fioWorkload in fioWorkloads:
     dstDir = (
         _LOCAL_LOGS_LOCATION + "/" + instanceId + "/" + fioWorkload.fileSize
     )
-    try:
-      os.makedirs(dstDir)
-    except FileExistsError:
-      pass
+    ensureDir(dstDir)
 
     print(f"Downloading FIO outputs from {fioWorkload.bucket}...")
     result = subprocess.run(
@@ -107,12 +116,16 @@ if __name__ == "__main__":
       help="unique string ID for current test-run",
       required=True,
   )
+  parser.add_argument(
+      "-o",
+      "--output-file",
+      metavar="Output file (CSV) path",
+      help="File path of the output metrics (in CSV format)",
+      default="output.csv",
+  )
   args = parser.parse_args()
 
-  try:
-    os.makedirs(_LOCAL_LOGS_LOCATION)
-  except FileExistsError:
-    pass
+  ensureDir(_LOCAL_LOGS_LOCATION)
 
   fioWorkloads = fio_workload.ParseTestConfigForFioWorkloads(
       args.workload_config
@@ -247,7 +260,9 @@ if __name__ == "__main__":
       "gcsfuse-file-cache",
   ]
 
-  output_file = open("./output.csv", "a")
+  output_file_path = args.output_file
+  ensureDir(os.path.dirname(output_file_path))
+  output_file = open(output_file_path, "a")
   output_file.write(
       "File Size,Read Type,Scenario,Epoch,Duration"
       " (s),Throughput (MB/s),IOPS,Throughput over Local SSD (%),GCSFuse Lowest"
