@@ -377,11 +377,7 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 
 		var logFile *os.File
 		if newConfig.Logging.FilePath != "" {
-			logFile, err = os.OpenFile(
-				string(newConfig.Logging.FilePath),
-				os.O_WRONLY|os.O_CREATE|os.O_APPEND,
-				0644,
-			)
+			logFile, err = os.OpenFile(string(newConfig.Logging.FilePath), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 			if err != nil {
 				return err
 			}
