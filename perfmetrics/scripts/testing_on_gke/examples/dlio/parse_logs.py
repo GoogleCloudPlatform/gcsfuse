@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # Copyright 2018 The Kubernetes Authors.
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -168,15 +168,14 @@ if __name__ == "__main__":
           continue
 
       for i in range(summary_data["epochs"]):
-        test_name = summary_data["hostname"]
-        part_list = test_name.split("-")
-        key = "-".join(part_list[2:5])
+        key = root.split("/")[-2]
+        key_split = key.split("-")
 
         if key not in output:
           output[key] = {
-              "num_files_train": part_list[-3],
-              "mean_file_size": part_list[-2],
-              "batch_size": part_list[-1],
+              "num_files_train": key_split[-4],
+              "mean_file_size": key_split[-3],
+              "batch_size": key_split[-2],
               "records": {
                   "local-ssd": [],
                   "gcsfuse-generic": [],

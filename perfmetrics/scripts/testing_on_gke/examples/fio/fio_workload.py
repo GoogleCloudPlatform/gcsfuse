@@ -1,3 +1,18 @@
+# Copyright 2018 The Kubernetes Authors.
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """This file defines a FioWorkload and provides utility for parsing a json
 
 test-config file for a list of them.
@@ -8,13 +23,23 @@ import json
 
 def validateFioWorkload(workload: dict, name: str):
   """Validates the given json workload object."""
-  if 'fioWorkload' not in workload:
-    print(f"{name} does not have 'fioWorkload' key in it.")
-    return False
-
-  if 'bucket' not in workload:
-    print(f"{name} does not have 'bucket' key in it.")
-    return False
+  for requiredWorkloadAttribute, expectedType in {
+      'bucket': str,
+      'gcsfuseMountOptions': str,
+      'fioWorkload': dict,
+  }.items():
+    if requiredWorkloadAttribute not in workload:
+      print(f"{name} does not have '{requiredWorkloadAttribute}' key in it.")
+      return False
+    if not type(workload[requiredWorkloadAttribute]) is expectedType:
+      print(
+          f"In {name}, the type of '{requiredWorkloadAttribute}' is of type"
+          f" '{type(workload[requiredWorkloadAttribute])}', not {expectedType}"
+      )
+      return False
+    if expectedType == str and ' ' in workload[requiredWorkloadAttribute]:
+      print(f"{name} has space in the value of '{requiredWorkloadAttribute}'")
+      return False
 
   if 'dlioWorkload' in workload:
     print(f"{name} has 'dlioWorkload' key in it, which is unexpected.")
@@ -84,6 +109,14 @@ class FioWorkload:
   6. bucket (string): Name of a GCS bucket to read input files from.
   7. readTypes (set of strings): a set containing multiple values out of
   'read', 'randread'.
+  8. gcsfuseMountOptions (str): gcsfuse mount options as a single
+  string in compact stringified format, to be used for the
+  test scenario "gcsfuse-generic". The individual config/cli flag values should
+  be separated by comma. Each cli flag should be of the form "<flag>[=<value>]",
+  while each config-file flag should be of form
+  "<config>[:<subconfig>[:<subsubconfig>[...]]]:<value>". For example, a legal
+  value would be:
+  "implicit-dirs,file_mode=777,file-cache:enable-parallel-downloads:true,metadata-cache:ttl-secs:true".
   """
 
   def __init__(
@@ -95,6 +128,7 @@ class FioWorkload:
       numThreads: int,
       bucket: str,
       readTypes: list,
+      gcsfuseMountOptions: str,
   ):
     self.scenario = scenario
     self.fileSize = fileSize
@@ -103,13 +137,15 @@ class FioWorkload:
     self.numThreads = numThreads
     self.bucket = bucket
     self.readTypes = set(readTypes)
+    self.gcsfuseMountOptions = gcsfuseMountOptions
 
   def PPrint(self):
     print(
         f'scenario:{self.scenario}, fileSize:{self.fileSize},'
         f' blockSize:{self.blockSize}, filesPerThread:{self.filesPerThread},'
         f' numThreads:{self.numThreads}, bucket:{self.bucket},'
-        f' readTypes:{self.readTypes}'
+        f' readTypes:{self.readTypes}, gcsfuseMountOptions:'
+        f' {gcsfuseMountOptions}'
     )
 
 
@@ -148,6 +184,36 @@ def ParseTestConfigForFioWorkloads(fioTestConfigFile: str):
                       if 'readTypes' in fioWorkload
                       else ['read', 'randread']
                   ),
+                  workload['gcsfuseMountOptions'],
               )
           )
   return fioWorkloads
+
+
+def FioChartNamePodName(
+    fioWorkload: FioWorkload, instanceID: str, readType: str
+) -> (str, str, str):
+  shortenScenario = {
+      'local-ssd': 'ssd',
+      'gcsfuse-generic': 'gcsfuse',
+  }
+  shortForScenario = (
+      shortenScenario[fioWorkload.scenario]
+      if fioWorkload.scenario in shortenScenario
+      else 'other'
+  )
+  readTypeToShortReadType = {'read': 'sr', 'randread': 'rr'}
+  shortForReadType = (
+      readTypeToShortReadType[readType]
+      if readType in readTypeToShortReadType
+      else 'ur'
+  )
+
+  hashOfWorkload = str(hash((fioWorkload, instanceID, readType))).replace(
+      '-', ''
+  )
+  return (
+      f'fio-load-{shortForScenario}-{shortForReadType}-{fioWorkload.fileSize.lower()}-{hashOfWorkload}',
+      f'fio-tester-{shortForScenario}-{shortForReadType}-{fioWorkload.fileSize.lower()}-{hashOfWorkload}',
+      f'{instanceID}/{fioWorkload.fileSize}-{fioWorkload.blockSize}-{fioWorkload.numThreads}-{fioWorkload.filesPerThread}-{hashOfWorkload}/{fioWorkload.scenario}/{readType}',
+  )

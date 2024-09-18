@@ -1,3 +1,18 @@
+# Copyright 2018 The Kubernetes Authors.
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """This file defines unit tests for functionalities in fio_workload.py"""
 
 import unittest
@@ -9,9 +24,20 @@ class FioWorkloadTest(unittest.TestCase):
   def test_validate_fio_workload_empty(self):
     self.assertFalse(validateFioWorkload(({}), "empty-fio-workload"))
 
-  def test_validate_fio_workload_invalid_no_bucket(self):
+  def test_validate_fio_workload_invalid_missing_bucket(self):
     self.assertFalse(
-        validateFioWorkload(({"fioWorkload": {}}), "invalid-fio-workload-1")
+        validateFioWorkload(
+            ({"fioWorkload": {}, "gcsfuseMountOptions": ""}),
+            "invalid-fio-workload-missing-bucket",
+        )
+    )
+
+  def test_validate_fio_workload_invalid_bucket_contains_space(self):
+    self.assertFalse(
+        validateFioWorkload(
+            ({"fioWorkload": {}, "gcsfuseMountOptions": "", "bucket": " "}),
+            "invalid-fio-workload-bucket-contains-space",
+        )
     )
 
   def test_validate_fio_workload_invalid_no_fioWorkloadSpecified(self):
@@ -22,7 +48,11 @@ class FioWorkloadTest(unittest.TestCase):
   def test_validate_fio_workload_invalid_commented_out_fioWorkload(self):
     self.assertFalse(
         validateFioWorkload(
-            ({"_fioWorkload": {}, "bucket": "dummy-bucket"}),
+            ({
+                "_fioWorkload": {},
+                "bucket": "dummy-bucket",
+                "gcsfuseMountOptions": "implicit-dirs,cache-max-size:-1",
+            }),
             "commented-out-fio-workload",
         )
     )
@@ -30,7 +60,12 @@ class FioWorkloadTest(unittest.TestCase):
   def test_validate_fio_workload_invalid_mixed_fioWorkload_dlioWorkload(self):
     self.assertFalse(
         validateFioWorkload(
-            ({"fioWorkload": {}, "dlioWorkload": {}, "bucket": "dummy-bucket"}),
+            ({
+                "fioWorkload": {},
+                "dlioWorkload": {},
+                "bucket": "dummy-bucket",
+                "gcsfuseMountOptions": "implicit-dirs,cache-max-size:-1",
+            }),
             "mixed-fio/dlio-workload",
         )
     )
@@ -43,6 +78,7 @@ class FioWorkloadTest(unittest.TestCase):
             "blockSize": "1kb",
         },
         "bucket": "dummy-bucket",
+        "gcsfuseMountOptions": "implicit-dirs,cache-max-size:-1",
     })
     self.assertFalse(
         validateFioWorkload(workload, "invalid-fio-workload-missing-fileSize")
@@ -58,6 +94,7 @@ class FioWorkloadTest(unittest.TestCase):
             "blockSize": "1kb",
         },
         "bucket": "dummy-bucket",
+        "gcsfuseMountOptions": "implicit-dirs,cache-max-size:-1",
     })
     self.assertFalse(
         validateFioWorkload(
@@ -74,6 +111,7 @@ class FioWorkloadTest(unittest.TestCase):
             "numThreads": 100,
         },
         "bucket": "dummy-bucket",
+        "gcsfuseMountOptions": "implicit-dirs,cache-max-size:-1",
     })
     self.assertFalse(
         validateFioWorkload(workload, "invalid-fio-workload-missing-blockSize")
@@ -89,6 +127,7 @@ class FioWorkloadTest(unittest.TestCase):
             "numThreads": 100,
         },
         "bucket": "dummy-bucket",
+        "gcsfuseMountOptions": "implicit-dirs,cache-max-size:-1",
     })
     self.assertFalse(
         validateFioWorkload(
@@ -105,6 +144,7 @@ class FioWorkloadTest(unittest.TestCase):
             "blockSize": "1kb",
         },
         "bucket": "dummy-bucket",
+        "gcsfuseMountOptions": "implicit-dirs,cache-max-size:-1",
     })
     self.assertFalse(
         validateFioWorkload(
@@ -122,6 +162,7 @@ class FioWorkloadTest(unittest.TestCase):
             "blockSize": "1kb",
         },
         "bucket": "dummy-bucket",
+        "gcsfuseMountOptions": "implicit-dirs,cache-max-size:-1",
     })
     self.assertFalse(
         validateFioWorkload(
@@ -138,6 +179,7 @@ class FioWorkloadTest(unittest.TestCase):
             "blockSize": "1kb",
         },
         "bucket": "dummy-bucket",
+        "gcsfuseMountOptions": "implicit-dirs,cache-max-size:-1",
     })
     self.assertFalse(
         validateFioWorkload(workload, "invalid-fio-workload-missing-numThreads")
@@ -153,10 +195,67 @@ class FioWorkloadTest(unittest.TestCase):
             "numThreads": "1k",
         },
         "bucket": "dummy-bucket",
+        "gcsfuseMountOptions": "implicit-dirs,cache-max-size:-1",
     })
     self.assertFalse(
         validateFioWorkload(
             workload, "invalid-fio-workload-unsupported-numThreads"
+        )
+    )
+    pass
+
+  def test_validate_fio_workload_invalid_missing_gcsfuseMountOptions(self):
+    workload = dict({
+        "fioWorkload": {
+            "fileSize": "1kb",
+            "filesPerThread": 2,
+            "blockSize": "1kb",
+            "numThreads": "1k",
+        },
+        "bucket": "dummy-bucket",
+    })
+    self.assertFalse(
+        validateFioWorkload(
+            workload, "invalid-fio-workload-missing-gcsfuseMountOptions"
+        )
+    )
+    pass
+
+  def test_validate_fio_workload_invalid_unsupported_gcsfuseMountOptions(self):
+    workload = dict({
+        "fioWorkload": {
+            "fileSize": "1kb",
+            "filesPerThread": 2,
+            "blockSize": "1kb",
+            "numThreads": "1k",
+        },
+        "bucket": "dummy-bucket",
+        "gcsfuseMountOptions": 100,
+    })
+    self.assertFalse(
+        validateFioWorkload(
+            workload, "invalid-fio-workload-unsupported-numThreads"
+        )
+    )
+    pass
+
+  def test_validate_fio_workload_invalid_gcsfuseMountOptions_contains_space(
+      self,
+  ):
+    workload = dict({
+        "fioWorkload": {
+            "fileSize": "1kb",
+            "filesPerThread": 2,
+            "blockSize": "1kb",
+            "numThreads": "1k",
+        },
+        "bucket": "dummy-bucket",
+        "gcsfuseMountOptions": "abc def",
+    })
+    self.assertFalse(
+        validateFioWorkload(
+            workload,
+            "invalid-fio-workload-unsupported-gcsfuseMountOptions-contains-space",
         )
     )
     pass
@@ -171,6 +270,7 @@ class FioWorkloadTest(unittest.TestCase):
             "readTypes": True,
         },
         "bucket": "dummy-bucket",
+        "gcsfuseMountOptions": "implicit-dirs,cache-max-size:-1",
     })
     self.assertFalse(
         validateFioWorkload(
@@ -189,6 +289,7 @@ class FioWorkloadTest(unittest.TestCase):
             "readTypes": ["read", 1],
         },
         "bucket": "dummy-bucket",
+        "gcsfuseMountOptions": "implicit-dirs,cache-max-size:-1",
     })
     self.assertFalse(
         validateFioWorkload(
@@ -207,6 +308,7 @@ class FioWorkloadTest(unittest.TestCase):
             "readTypes": ["read", "write"],
         },
         "bucket": "dummy-bucket",
+        "gcsfuseMountOptions": "implicit-dirs,cache-max-size:-1",
     })
     self.assertFalse(
         validateFioWorkload(
@@ -224,6 +326,7 @@ class FioWorkloadTest(unittest.TestCase):
             "blockSize": "1kb",
         },
         "bucket": "dummy-bucket",
+        "gcsfuseMountOptions": "implicit-dirs,cache-max-size:-1",
     })
     self.assertTrue(validateFioWorkload(workload, "valid-fio-workload-1"))
     pass
@@ -238,6 +341,7 @@ class FioWorkloadTest(unittest.TestCase):
             "readTypes": ["read", "randread"],
         },
         "bucket": "dummy-bucket",
+        "gcsfuseMountOptions": "implicit-dirs,cache-max-size:-1",
     })
     self.assertTrue(validateFioWorkload(workload, "valid-fio-workload-2"))
     pass
@@ -252,6 +356,7 @@ class FioWorkloadTest(unittest.TestCase):
             "readTypes": ["randread"],
         },
         "bucket": "dummy-bucket",
+        "gcsfuseMountOptions": "implicit-dirs,cache-max-size:-1",
     })
     self.assertTrue(validateFioWorkload(workload, "valid-fio-workload-2"))
     pass

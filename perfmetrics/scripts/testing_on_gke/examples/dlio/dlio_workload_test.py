@@ -1,3 +1,18 @@
+# Copyright 2018 The Kubernetes Authors.
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """This file defines unit tests for functionalities in dlio_workload.py"""
 
 import unittest
@@ -9,9 +24,20 @@ class DlioWorkloadTest(unittest.TestCase):
   def test_validate_dlio_workload_empty(self):
     self.assertFalse(validateDlioWorkload(({}), "empty-dlio-workload"))
 
-  def test_validate_dlio_workload_invalid_no_bucket(self):
+  def test_validate_dlio_workload_invalid_missing_bucket(self):
     self.assertFalse(
-        validateDlioWorkload(({"dlioWorkload": {}}), "invalid-dlio-workload-1")
+        validateDlioWorkload(
+            ({"dlioWorkload": {}, "gcsfuseMountOptions": ""}),
+            "invalid-dlio-workload-missing-bucket",
+        )
+    )
+
+  def test_validate_dlio_workload_invalid_bucket_contains_space(self):
+    self.assertFalse(
+        validateDlioWorkload(
+            ({"dlioWorkload": {}, "gcsfuseMountOptions": "", "bucket": " "}),
+            "invalid-dlio-workload-bucket-contains-space",
+        )
     )
 
   def test_validate_dlio_workload_invalid_no_dlioWorkloadSpecified(self):
@@ -22,7 +48,11 @@ class DlioWorkloadTest(unittest.TestCase):
   def test_validate_dlio_workload_invalid_commented_out_dlioWorkload(self):
     self.assertFalse(
         validateDlioWorkload(
-            ({"_dlioWorkload": {}, "bucket": "dummy-bucket"}),
+            ({
+                "_dlioWorkload": {},
+                "bucket": "dummy-bucket",
+                "gcsfuseMountOptions": "implicit-dirs,cache-max-size:-1",
+            }),
             "commented-out-dlio-workload",
         )
     )
@@ -34,6 +64,7 @@ class DlioWorkloadTest(unittest.TestCase):
                 "dlioWorkload": {},
                 "fioWorkload": {},
                 "bucket": "dummy-bucket",
+                "gcsfuseMountOptions": "implicit-dirs,cache-max-size:-1",
             }),
             "mixed-dlio/fio-workload",
         )
@@ -46,6 +77,7 @@ class DlioWorkloadTest(unittest.TestCase):
             "batchSizes": [100, 200],
         },
         "bucket": "dummy-bucket",
+        "gcsfuseMountOptions": "implicit-dirs,cache-max-size:-1",
     })
     self.assertFalse(
         validateDlioWorkload(
@@ -62,6 +94,7 @@ class DlioWorkloadTest(unittest.TestCase):
             "batchSizes": [100, 200],
         },
         "bucket": "dummy-bucket",
+        "gcsfuseMountOptions": "implicit-dirs,cache-max-size:-1",
     })
     self.assertFalse(
         validateDlioWorkload(
@@ -77,6 +110,7 @@ class DlioWorkloadTest(unittest.TestCase):
             "batchSizes": [100, 200],
         },
         "bucket": "dummy-bucket",
+        "gcsfuseMountOptions": "implicit-dirs,cache-max-size:-1",
     })
     self.assertFalse(
         validateDlioWorkload(
@@ -93,10 +127,66 @@ class DlioWorkloadTest(unittest.TestCase):
             "batchSizes": [100, 200],
         },
         "bucket": "dummy-bucket",
+        "gcsfuseMountOptions": "implicit-dirs,cache-max-size:-1",
     })
     self.assertFalse(
         validateDlioWorkload(
             workload, "invalid-dlio-workload-unsupported-recordLength"
+        )
+    )
+    pass
+
+  def test_validate_dlio_workload_invalid_missing_gcsfuseMountOptions(self):
+    workload = dict({
+        "dlioWorkload": {
+            "numFilesTrain": 1000,
+            "recordLength": 100,
+            "batchSizes": [100, 200],
+        },
+        "bucket": "dummy-bucket",
+    })
+    self.assertFalse(
+        validateDlioWorkload(
+            workload, "invalid-dlio-workload-missing-gcsfuseMountOptions"
+        )
+    )
+    pass
+
+  def test_validate_dlio_workload_invalid_unsupported_gcsfuseMountOptions(
+      self,
+  ):
+    workload = dict({
+        "dlioWorkload": {
+            "numFilesTrain": 1000,
+            "recordLength": 10000,
+            "batchSizes": [100, 200],
+        },
+        "bucket": "dummy-bucket",
+        "gcsfuseMountOptions": 100,
+    })
+    self.assertFalse(
+        validateDlioWorkload(
+            workload, "invalid-dlio-workload-unsupported-gcsfuseMountOptions1"
+        )
+    )
+    pass
+
+  def test_validate_dlio_workload_invalid_gcsfuseMountOptions_contains_space(
+      self,
+  ):
+    workload = dict({
+        "dlioWorkload": {
+            "numFilesTrain": 1000,
+            "recordLength": 10000,
+            "batchSizes": [100, 200],
+        },
+        "bucket": "dummy-bucket",
+        "gcsfuseMountOptions": "abc def",
+    })
+    self.assertFalse(
+        validateDlioWorkload(
+            workload,
+            "invalid-dlio-workload-unsupported-gcsfuseMountOptions-contains-space",
         )
     )
     pass
@@ -108,6 +198,7 @@ class DlioWorkloadTest(unittest.TestCase):
             "recordLength": 10000,
         },
         "bucket": "dummy-bucket",
+        "gcsfuseMountOptions": "implicit-dirs,cache-max-size:-1",
     })
     self.assertFalse(
         validateDlioWorkload(
@@ -124,6 +215,7 @@ class DlioWorkloadTest(unittest.TestCase):
             "batchSizes": ["100"],
         },
         "bucket": "dummy-bucket",
+        "gcsfuseMountOptions": "implicit-dirs,cache-max-size:-1",
     })
     self.assertFalse(
         validateDlioWorkload(
@@ -140,6 +232,7 @@ class DlioWorkloadTest(unittest.TestCase):
             "batchSizes": [0, -1],
         },
         "bucket": "dummy-bucket",
+        "gcsfuseMountOptions": "implicit-dirs,cache-max-size:-1",
     })
     self.assertFalse(
         validateDlioWorkload(
@@ -156,6 +249,7 @@ class DlioWorkloadTest(unittest.TestCase):
             "batchSizes": [100],
         },
         "bucket": "dummy-bucket",
+        "gcsfuseMountOptions": "implicit-dirs,cache-max-size:-1",
     })
     self.assertTrue(validateDlioWorkload(workload, "valid-dlio-workload-2"))
     pass
@@ -168,6 +262,7 @@ class DlioWorkloadTest(unittest.TestCase):
             "batchSizes": [100, 200],
         },
         "bucket": "dummy-bucket",
+        "gcsfuseMountOptions": "implicit-dirs,cache-max-size:-1",
     })
     self.assertTrue(validateDlioWorkload(workload, "valid-dlio-workload-2"))
     pass

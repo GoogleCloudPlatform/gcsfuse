@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # Copyright 2018 The Kubernetes Authors.
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,13 +27,6 @@ import subprocess
 import dlio_workload
 
 
-# The default value of gcsfuse-mount-options to be used
-# for "gcsfuse-generic" scenario.
-# For description of how to specify the value for this,
-# look at the description of the argparser argument for gcsfuse-mount-options.
-_DEFAULT_GCSFUSE_MOUNT_OPTIONS = 'implicit-dirs'
-
-
 def run_command(command: str):
   """Runs the given string command as a subprocess."""
   result = subprocess.run(command.split(' '), capture_output=True, text=True)
@@ -49,20 +42,17 @@ def escapeCommasInString(unescapedStr: str) -> str:
 def createHelmInstallCommands(
     dlioWorkloads: set,
     instanceId: str,
-    gcsfuseMountOptions: str,
     machineType: str,
 ) -> list:
   """Creates helm install commands for the given dlioWorkload objects."""
   helm_commands = []
-  if not gcsfuseMountOptions:
-    gcsfuseMountOptions = _DEFAULT_GCSFUSE_MOUNT_OPTIONS
   for dlioWorkload in dlioWorkloads:
     for batchSize in dlioWorkload.batchSizes:
+      chartName, podName, outputDirPrefix = dlio_workload.DlioChartNamePodName(
+          dlioWorkload, instanceId, batchSize
+      )
       commands = [
-          (
-              'helm install'
-              f' dlio-unet3d-{dlioWorkload.scenario}-{dlioWorkload.numFilesTrain}-{dlioWorkload.recordLength}-{batchSize} unet3d-loading-test'
-          ),
+          f'helm install {chartName} unet3d-loading-test',
           f'--set bucketName={dlioWorkload.bucket}',
           f'--set scenario={dlioWorkload.scenario}',
           f'--set dlio.numFilesTrain={dlioWorkload.numFilesTrain}',
@@ -71,9 +61,11 @@ def createHelmInstallCommands(
           f'--set instanceId={instanceId}',
           (
               '--set'
-              f' gcsfuse.mountOptions={escapeCommasInString(gcsfuseMountOptions)}'
+              f' gcsfuse.mountOptions={escapeCommasInString(dlioWorkload.gcsfuseMountOptions)}'
           ),
           f'--set nodeType={machineType}',
+          f'--set podName={podName}',
+          f'--set outputDirPrefix={outputDirPrefix}',
       ]
 
       helm_command = ' '.join(commands)
@@ -88,7 +80,6 @@ def main(args) -> None:
   helmInstallCommands = createHelmInstallCommands(
       dlioWorkloads,
       args.instance_id,
-      args.gcsfuse_mount_options,
       args.machine_type,
   )
   for helmInstallCommand in helmInstallCommands:
@@ -122,21 +113,6 @@ if __name__ == '__main__':
       required=True,
   )
   parser.add_argument(
-      '--gcsfuse-mount-options',
-      metavar='GCSFuse mount options',
-      help=(
-          'GCSFuse mount-options, in a compact stringified'
-          ' format, to be set for the '
-          ' scenario "gcsfuse-generic". The individual config/cli flag values'
-          ' should be separated by comma. Each cli flag should be of the form'
-          ' "<name>[=<value>]". Each config-file flag should be of form'
-          ' "<config>[:<subconfig>[:<subsubconfig>[...]]]:<value>". For'
-          ' example, a sample value would be:'
-          ' "implicit-dirs,file_mode=777,file-cache:enable-parallel-downloads:true,metadata-cache:ttl-secs:-1".'
-      ),
-      required=False,
-  )
-  parser.add_argument(
       '--machine-type',
       metavar='Machine-type of the GCE VM or GKE cluster node',
       help='Machine-type of the GCE VM or GKE cluster node e.g. n2-standard-32',
@@ -153,19 +129,17 @@ if __name__ == '__main__':
   )
 
   args = parser.parse_args()
-  for argument in ['instance_id', 'gcsfuse_mount_options', 'machine_type']:
-    value = getattr(args, argument)
-    if ' ' in value:
-      raise Exception(
-          f'Argument {argument} (value="{value}") contains space in it, which'
-          ' is not supported.'
-      )
-  for argument in ['machine_type', 'instance_id']:
+  for argument in ['instance_id', 'machine_type']:
     value = getattr(args, argument)
     if len(value) == 0 or str.isspace(value):
       raise Exception(
           f'Argument {argument} (value="{value}") is empty or contains only'
           ' spaces.'
+      )
+    if ' ' in value:
+      raise Exception(
+          f'Argument {argument} (value="{value}") contains space in it, which'
+          ' is not supported.'
       )
 
   main(args)

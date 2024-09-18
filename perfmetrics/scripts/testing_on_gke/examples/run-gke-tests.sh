@@ -57,8 +57,6 @@ readonly csi_driver_github_path=https://github.com/googlecloudplatform/gcs-fuse-
 readonly csi_driver_branch=main
 readonly gcsfuse_github_path=https://github.com/googlecloudplatform/gcsfuse
 readonly gcsfuse_branch=garnitin/add-gke-load-testing/v1
-# GCSFuse configuration related
-readonly DEFAULT_GCSFUSE_MOUNT_OPTIONS="implicit-dirs"
 # Test runtime configuration
 readonly DEFAULT_INSTANCE_ID=${USER}-$(date +%Y%m%d-%H%M%S)
 # 5 minutes
@@ -87,8 +85,6 @@ function printHelp() {
   echo "src_dir=<\"directory/to/clone/github/repos/if/needed\", default=\"${DEFAULT_SRC_DIR}\">"
   echo "gcsfuse_src_dir=<\"/path/of/gcsfuse/src/to/use/if/available\", default=\"${DEFAULT_SRC_DIR}/gcsfuse\">"
   echo "csi_src_dir=<\"/path/of/gcs-fuse-csi-driver/to/use/if/available\", default=\"${DEFAULT_SRC_DIR}\"/gcs-fuse-csi-driver>"
-  # GCSFuse configuration related
-  echo "gcsfuse_mount_options=<\"comma-separated-gcsfuse-mount-options\" e.g. \""${DEFAULT_GCSFUSE_MOUNT_OPTIONS}"\">"
   # Test runtime configuration
   echo "pod_wait_time_in_seconds=<number e.g. 60 for checking pod status every 1 min, default=\"${DEFAULT_POD_WAIT_TIME_IN_SECONDS}\">"
   echo "pod_timeout_in_seconds=<number e.g. 3600 for timing out pod runs, should be more than the value of pod_wait_time_in_seconds, default=\"${DEFAULT_POD_TIMEOUT_IN_SECONDS}\">"
@@ -132,8 +128,8 @@ test -d "${src_dir}" || mkdir -pv "${src_dir}"
 (test -n "${gcsfuse_src_dir}" && gcsfuse_src_dir="$(realpath "${gcsfuse_src_dir}")") || export gcsfuse_src_dir="${src_dir}"/gcsfuse
 export gke_testing_dir="${gcsfuse_src_dir}"/perfmetrics/scripts/testing_on_gke
 (test -n "${csi_src_dir}" && csi_src_dir="$(realpath "${csi_src_dir}")") || export csi_src_dir="${src_dir}"/gcs-fuse-csi-driver
-# GCSFuse configuration related
-test -n "${gcsfuse_mount_options}" || export gcsfuse_mount_options="${DEFAULT_GCSFUSE_MOUNT_OPTIONS}"
+# GCSFuse configuration related - deprecated. Will cause error.
+test -z "${gcsfuse_mount_options}" || (echo "gcsfuse_mount_options set by user is a deprecated option. Please set gcsfuseMountOptions in workload objects in workload configuration file in its place." && exit 1)
 # Test runtime configuration
 test -n "${pod_wait_time_in_seconds}" || export pod_wait_time_in_seconds="${DEFAULT_POD_WAIT_TIME_IN_SECONDS}"
 test -n "${pod_timeout_in_seconds}" || export pod_timeout_in_seconds="${DEFAULT_POD_TIMEOUT_IN_SECONDS}"
@@ -178,9 +174,6 @@ function printRunParameters() {
   echo "src_dir=\"${src_dir}\""
   echo "gcsfuse_src_dir=\"${gcsfuse_src_dir}\""
   echo "csi_src_dir=\"${csi_src_dir}\""
-  # GCSFuse configuration related
-  echo "gcsfuse_mount_options=\"${gcsfuse_mount_options}\""
-  echo "${gcsfuse_mount_options}" >gcsfuse_mount_options
   # Test runtime configuration
   echo "pod_wait_time_in_seconds=\"${pod_wait_time_in_seconds}\""
   echo "pod_timeout_in_seconds=\"${pod_timeout_in_seconds}\""
@@ -474,12 +467,12 @@ function deleteAllPods() {
 
 function deployAllFioHelmCharts() {
   echo "Deploying all fio helm charts ..."
-  cd "${gke_testing_dir}"/examples/fio && python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --gcsfuse-mount-options="${gcsfuse_mount_options}" --machine-type="${machine_type}" && cd -
+  cd "${gke_testing_dir}"/examples/fio && python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" && cd -
 }
 
 function deployAllDlioHelmCharts() {
   echo "Deploying all dlio helm charts ..."
-  cd "${gke_testing_dir}"/examples/dlio && python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --gcsfuse-mount-options="${gcsfuse_mount_options}" --machine-type="${machine_type}" && cd -
+  cd "${gke_testing_dir}"/examples/dlio && python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" && cd -
 }
 
 function listAllHelmCharts() {
