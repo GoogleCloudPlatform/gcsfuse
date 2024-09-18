@@ -19,13 +19,12 @@ import (
 	"path"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/gzip/helpers"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
 // Size of the overwritten content created in bytes.
-const OverwittenFileSize = 1000
+const overwrittenFileSize = 1000
 
 // Verify that the passed file exists on the GCS test-bucket and in the mounted bucket
 // and its size in the mounted directory matches that of the GCS object. Also verify
@@ -50,12 +49,17 @@ func verifyFullFileOverwrite(t *testing.T, filename string) {
 			mountedFilePath, (*fi).Size(), gcsObjectPath, gcsObjectSize)
 	}
 
+	content, err := createContentOfSize(overwrittenFileSize)
+	if err != nil {
+		t.Fatalf("Failed to create data: %v", err)
+	}
+
 	// No need to worry about gzipping the overwritten data, because it's
 	// expensive to invoke a gzip-writer and unnecessary in this case.
 	// All we are interested in testing is that the content of the overwritten
 	// gzip file matches in size with that of the source file that was used to
 	// overwrite it.
-	tempfile, err := helpers.CreateLocalTempFile(OverwittenFileSize, false)
+	tempfile, err := operations.CreateLocalTempFile(content, false)
 	if err != nil {
 		t.Fatalf("Failed to create local temp file for overwriting existing gzip object: %v", err)
 	}
@@ -71,8 +75,8 @@ func verifyFullFileOverwrite(t *testing.T, filename string) {
 		t.Fatalf("Failed to get size of gcs object %s: %v\n", gcsObjectPath, err)
 	}
 
-	if gcsObjectSize != OverwittenFileSize {
-		t.Fatalf("Size of overwritten gcs object (%s, %d) doesn't match that of the expected overwrite size (%s, %d)", gcsObjectPath, gcsObjectSize, tempfile, OverwittenFileSize)
+	if gcsObjectSize != overwrittenFileSize {
+		t.Fatalf("Size of overwritten gcs object (%s, %d) doesn't match that of the expected overwrite size (%s, %d)", gcsObjectPath, gcsObjectSize, tempfile, overwrittenFileSize)
 	}
 }
 

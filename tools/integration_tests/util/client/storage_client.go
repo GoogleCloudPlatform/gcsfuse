@@ -222,3 +222,48 @@ func StatObject(ctx context.Context, client *storage.Client, object string) (*st
 	}
 	return attrs, nil
 }
+
+// UploadGcsObject uploads a local file to a specified GCS bucket and object.
+// Handles gzip compression if requested.
+func UploadGcsObject(ctx context.Context, client *storage.Client, localPath, bucketName, objectName string, uploadGzipEncoded bool) error {
+	// Create a writer to upload the object.
+	obj := client.Bucket(bucketName).Object(objectName)
+	w := obj.NewWriter(ctx)
+	defer func() {
+		if err := w.Close(); err != nil {
+			log.Printf("Failed to close GCS object gs://%s/%s: %v", bucketName, objectName, err)
+		}
+	}()
+
+	filePathToUpload := localPath
+	// Set content encoding if gzip compression is needed.
+	if uploadGzipEncoded {
+		data, err := os.ReadFile(localPath)
+		if err != nil {
+			return err
+		}
+
+		content := string(data)
+		if filePathToUpload, err = operations.CreateLocalTempFile(content, true); err != nil {
+			return fmt.Errorf("failed to create local gzip file from %s for upload to bucket: %w", localPath, err)
+		}
+		defer func() {
+			if removeErr := os.Remove(filePathToUpload); removeErr != nil {
+				log.Printf("Error removing temporary gzip file %s: %v", filePathToUpload, removeErr)
+			}
+		}()
+	}
+
+	// Open the local file for reading.
+	f, err := operations.OpenFileAsReadonly(filePathToUpload)
+	if err != nil {
+		return fmt.Errorf("failed to open local file %s: %w", filePathToUpload, err)
+	}
+	defer operations.CloseFile(f)
+
+	// Copy the file contents to the object writer.
+	if _, err := io.Copy(w, f); err != nil {
+		return fmt.Errorf("failed to copy file %s to gs://%s/%s: %w", localPath, bucketName, objectName, err)
+	}
+	return nil
+}

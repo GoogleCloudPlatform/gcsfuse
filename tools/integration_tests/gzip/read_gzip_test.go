@@ -17,11 +17,15 @@ package gzip_test
 
 import (
 	"bytes"
+	"context"
+	"fmt"
+	"io"
+	"io/fs"
 	"os"
 	"path"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/gzip/helpers"
+	client2 "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
@@ -49,7 +53,7 @@ func verifyFileSizeAndFullFileRead(t *testing.T, filename string) {
 			mountedFilePath, (*fi).Size(), gcsObjectPath, gcsObjectSize)
 	}
 
-	localCopy, err := helpers.DownloadGzipGcsObjectAsCompressed(setup.TestBucket(), path.Join(TestBucketPrefixPath, filename))
+	localCopy, err := downloadGzipGcsObjectAsCompressed(t, setup.TestBucket(), path.Join(TestBucketPrefixPath, filename))
 	if err != nil {
 		t.Fatalf("failed to download gcs object (gs:/%s) to local-disk: %v", gcsObjectPath, err)
 	}
@@ -80,7 +84,7 @@ func verifyRangedRead(t *testing.T, filename string) {
 		t.Fatalf("Failed to open local mounted file %s: %v", mountedFilePath, err)
 	}
 
-	localCopy, err := helpers.DownloadGzipGcsObjectAsCompressed(setup.TestBucket(), path.Join(TestBucketPrefixPath, filename))
+	localCopy, err := downloadGzipGcsObjectAsCompressed(t, setup.TestBucket(), path.Join(TestBucketPrefixPath, filename))
 	if err != nil {
 		t.Fatalf("failed to download gcs object (gs:/%s) to local-disk: %v", gcsObjectPath, err)
 	}
@@ -106,6 +110,78 @@ func verifyRangedRead(t *testing.T, filename string) {
 			t.Fatalf("Read buffer (of size %d from offset %d) of %s doesn't match that of %s", int64(readSize), offsetMultiplier*int64(readOffset), mountedFilePath, localCopy)
 		}
 	}
+}
+
+// downloadGzipGcsObjectAsCompressed downloads given gzipped GCS object (with path without 'gs://') to local disk.
+// Fails if the object doesn't exist or permission to read object is not
+// available.
+// Uses go storage client library to download object. Use of gsutil/gcloud is not
+// possible as they both always read back objects with content-encoding: gzip as
+// uncompressed/decompressed irrespective of any argument passed.
+func downloadGzipGcsObjectAsCompressed(t *testing.T, bucketName, objPathInBucket string) (tempfile string, err error) {
+	gcsObjectPath := path.Join(setup.TestBucket(), objPathInBucket)
+	gcsObjectSize, err := operations.GetGcsObjectSize(gcsObjectPath)
+
+	if err != nil {
+		return "", fmt.Errorf("failed to get size of gcs object %s: %w", gcsObjectPath, err)
+	}
+
+	content, err := createContentOfSize(1)
+	if err != nil {
+		return "", fmt.Errorf("failed to create data: %w", err)
+	}
+	if tempfile, err = operations.CreateLocalTempFile(content, false); err != nil {
+		return "", fmt.Errorf("failed to create tempfile for downloading gcs object: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			removeErr := os.Remove(tempfile)
+			if removeErr != nil {
+				t.Logf("Error removing temporary file %s: %v", tempfile, removeErr)
+			}
+		}
+	}()
+
+	ctx := context.Background()
+	client, err := client2.CreateStorageClient(ctx)
+	if err != nil || client == nil {
+		return "", fmt.Errorf("failed to create storage client: %w", err)
+	}
+	defer client.Close()
+
+	bktName := setup.TestBucket()
+	bkt := client.Bucket(bktName)
+	if bkt == nil {
+		return "", fmt.Errorf("failed to access bucket %s: %w", bktName, err)
+	}
+
+	obj := bkt.Object(objPathInBucket)
+	if obj == nil {
+		return "", fmt.Errorf("failed to access object %s from bucket %s: %w", objPathInBucket, bktName, err)
+	}
+
+	obj = obj.ReadCompressed(true)
+	if obj == nil {
+		return "", fmt.Errorf("failed to access object %s from bucket %s as compressed: %w", objPathInBucket, bktName, err)
+	}
+
+	r, err := obj.NewReader(ctx)
+	if r == nil || err != nil {
+		return "", fmt.Errorf("failed to read object %s from bucket %s: %w", objPathInBucket, bktName, err)
+	}
+	defer r.Close()
+
+	gcsObjectData, err := io.ReadAll(r)
+	if len(gcsObjectData) < gcsObjectSize || err != nil {
+		return "", fmt.Errorf("failed to read object %s from bucket %s (expected read-size: %d, actual read-size: %d): %w", objPathInBucket, bktName, gcsObjectSize, len(gcsObjectData), err)
+	}
+
+	err = os.WriteFile(tempfile, gcsObjectData, fs.FileMode(os.O_CREATE|os.O_WRONLY|os.O_TRUNC))
+	if err != nil || client == nil {
+		return "", fmt.Errorf("failed to write to tempfile %s: %w", tempfile, err)
+	}
+
+	return tempfile, nil
 }
 
 func TestGzipEncodedTextFileWithNoTransformSizeAndFullFileRead(t *testing.T) {
