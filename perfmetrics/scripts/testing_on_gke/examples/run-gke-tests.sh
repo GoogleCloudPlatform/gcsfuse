@@ -245,8 +245,20 @@ function installDependencies() {
     apt-cache policy docker-ce
     sudo apt install docker-ce -y
   fi
-  # Ensure that mash is installed.
-  which mash || (sudo apt-get update && sudo apt-get install -y monarch-tools)
+  # Install mash, as it is needed for fetching cpu/memory values for test runs
+  # in cloudtop. Even if mash install fails, don't panic, go ahead and install
+  # google-cloud-monitoring as an alternative.
+  which mash || sudo apt-get install -y monarch-tools || true
+  # Ensure that gcloud monitoring tools are installed. This is alternative to
+  # mash on gce vm.
+  # pip install --upgrade google-cloud-storage
+  # pip install --ignore-installed --upgrade google-api-python-client
+  # pip install --ignore-installed --upgrade google-cloud
+  pip install --upgrade google-cloud-monitoring
+  # Ensure that jq is installed.
+  which jq || sudo apt-get install -y jq
+  # # Ensure sudoless docker is installed.
+  # docker ps >/dev/null || (sudo addgroup docker && sudo usermod -aG docker $USER && newgrp docker)
 }
 
 # Make sure you have access to the necessary GCP resources. The easiest way to enable it is to use <your-ldap>@google.com as active auth.
