@@ -248,6 +248,16 @@ However, implicit directories does have drawbacks:
 
 Alternatively, users can create a script which lists the buckets and creates the appropriate objects for the directories so that the ```--implicit-dirs``` flag is not used.
 
+**Using Cloud Storage Buckets with Hierarchical Namespaces Enabled :**
+
+Cloud Storage Fuse also offers seamless support for buckets with hierarchical namespaces enabled. Mounting an HNS-enabled bucket using gcsfuse works exactly like mounting a standard bucket, with no additional configuration required.
+
+HNS-enabled buckets offer several advantages over standard buckets when used with cloud storage fuse:
+
+- HNS-enabled buckets eliminates the need for --implicit-dirs flag. HNS buckets inherently understand directories, so gcsfuse no longer needs this flag to simulate directory structures. Users will see consistent directory listings with or without the flag.
+- In HNS buckets, renaming a folder and its child folders is an atomic operation, meaning all associated resources—including objects and managed folders—are renamed in a single step. This ensures data consistency and significantly improves operation performance.
+- HNS buckets treat folders as first-class entities, closely aligning with traditional file system semantics. Commands like mkdir now directly create folder resources within the bucket, unlike with traditional buckets where directories were simulated using prefixes and 0-byte objects.
+- The [Objects.list](https://cloud.google.com/storage/docs/json_api/v1/objects/list) api is replaced with more efficient [Folder:get](https://cloud.google.com/storage/docs/json_api/v1/folders/getfoldermetadata) api during lookup operations.
 # Generations
 
 With each record in Cloud Storage is stored object and metadata [generation numbers](https://cloud.google.com/storage/docs/generations-preconditions). These provide a total order on requests to modify an object's contents and metadata, compatible with causality. So if insert operation A happens before insert operation B, then the generation number resulting from A will be less than that resulting from B.
@@ -402,8 +412,8 @@ Transient errors can occur in distributed systems like Cloud Storage, such as ne
 ## Missing features
 
 Not all of the usual file system features are supported. Most prominently:
-- Renaming directories is by default not supported. A directory rename cannot be performed atomically in Cloud Storage and would therefore be arbitrarily expensive in terms of Cloud Storage operations, and for large directories would have high probability of failure, leaving the two directories in an inconsistent state.
-- However, if your application can tolerate the risks, you may enable renaming directories in a non-atomic way, by setting ```--rename-dir-limit```. If a directory contains fewer files than this limit and no subdirectory, it can be renamed.
+- Renaming directories is by default not supported in non-hierarchical buckets. A directory rename cannot be performed atomically in these buckets and would therefore be arbitrarily expensive in terms of Cloud Storage operations, and for large directories would have high probability of failure, leaving the two directories in an inconsistent state. This can be resolved using cloud storage buckets with hierarchical namespace enabled. HNS enabled buckets support atomic folder renames and are fully compatible with Cloud Storage FUSE, offering seamless integration.
+- However, if your application is using non-hierarchical buckets and can tolerate the risks, you may enable renaming directories in a non-atomic way, by setting ```--rename-dir-limit```. If a directory contains fewer files than this limit and no subdirectory, it can be renamed.
 - File and directory permissions and ownership cannot be changed. See the permissions section above.
 - Modification times are not tracked for any inodes except for files.
 - No other times besides modification time are tracked. For example, ctime and atime are not tracked (but will be set to something reasonable). Requests to change them will appear to succeed, but the results are unspecified.
