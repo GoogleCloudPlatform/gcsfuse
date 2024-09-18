@@ -86,7 +86,7 @@ def parse_args():
       'machine_type',
   ]:
     value = getattr(args, argument)
-    if len(value) == 0 or str.isspace(value):
+    if not value.strip():
       raise Exception(
           f'Argument {argument} (value="{value}") is empty or contains only'
           ' spaces.'
