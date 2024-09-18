@@ -18,10 +18,12 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"log/slog"
 	"log/syslog"
 	"os"
 	"runtime/debug"
+	"sync"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -208,6 +210,11 @@ type AsyncHandler struct {
 	records chan slog.Record
 }
 
+var (
+	count       = 0
+	count_mutex = sync.Mutex{}
+)
+
 func NewAsyncHandler(writer io.Writer, levelVar *slog.LevelVar, prefix string) slog.Handler {
 	asyncHandler := AsyncHandler{handler: slog.NewJSONHandler(writer, getHandlerOptions(levelVar, prefix, "json")), records: make(chan slog.Record, 10)}
 	go handleRecordsAsync(asyncHandler.records, asyncHandler.handler)
@@ -235,6 +242,10 @@ func (h *AsyncHandler) Handle(_ context.Context, r slog.Record) error {
 
 func handleRecordsAsync(record chan slog.Record, handler slog.Handler) {
 	defer close(record)
+	count_mutex.Lock()
+	count++
+	log.Println("ABHIGU Handler count is ", count)
+	count_mutex.Unlock()
 	ctx := context.Background()
 	for r := range record {
 		r.Message = "ABHIGU " + r.Message
