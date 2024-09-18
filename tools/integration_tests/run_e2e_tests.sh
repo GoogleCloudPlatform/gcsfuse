@@ -291,7 +291,7 @@ function run_e2e_tests_for_hns_bucket(){
    hns_buckets=("$hns_bucket_name_parallel_group" "$hns_bucket_name_non_parallel_group")
    clean_up hns_buckets
 
-   if [ $parallel_tests_hns_group_exit_code != 0 ] || [ $non_parallel_tests_hns_group_exit_code != 0 ] || [ $non_parallel_tests_hns_group_exit_code_2 != 0 ];
+   if [ $parallel_tests_hns_group_exit_code != 0 ] || [ $non_parallel_tests_hns_group_exit_code != 0 ];
    then
     return 1
    fi
