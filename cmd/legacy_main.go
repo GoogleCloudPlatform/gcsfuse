@@ -366,7 +366,7 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 		// programme is running as daemon process.
 		env = append(env, fmt.Sprintf("%s=true", logger.GCSFuseInBackgroundMode))
 
-		f, err := os.OpenFile(string(newConfig.Logging.FilePath), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644, )
+		f, err := os.OpenFile(string(newConfig.Logging.FilePath), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 		if err != nil {
 			return err
 		}
