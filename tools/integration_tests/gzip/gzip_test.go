@@ -179,46 +179,15 @@ func destroy_testdata(m *testing.M) error {
 	return nil
 }
 
-func writeString(contentBuilder *strings.Builder, s string) error {
-	n, err := contentBuilder.WriteString(s)
-	if err != nil {
-		return fmt.Errorf("failed to write to string builder: %w", err)
-	}
-	if n != len(s) {
-		return fmt.Errorf("unexpected number of bytes written: expected %d, got %d", len(s), n)
-	}
-	return nil
-}
-
 // createContentOfSize generates a string of the specified content size in bytes.
 func createContentOfSize(contentSize int) (string, error) {
 	if contentSize <= 0 {
 		return "", fmt.Errorf("unsupported fileSize: %d", contentSize)
 	}
-
-	// Create text-content of given size.
-	// strings.builder is used as opposed to string appends
-	// as this is much more efficient when multiple concatenations
-	// are required.
-	var contentBuilder strings.Builder
 	const tempStr = "This is a test file\n"
-	contentBuilder.Grow(contentSize)
-
-	for ; contentSize >= len(tempStr); contentSize -= len(tempStr) {
-		err := writeString(&contentBuilder, tempStr)
-		if err != nil {
-			return "", err
-		}
-	}
-
-	if contentSize > 0 {
-		err := writeString(&contentBuilder, tempStr[0:contentSize])
-		if err != nil {
-			return "", err
-		}
-	}
-
-	return contentBuilder.String(), nil
+	iter := (contentSize + len(tempStr) - 1) / len(tempStr)
+	str := strings.Repeat(tempStr, iter)
+	return str[:contentSize], nil
 }
 
 func TestMain(m *testing.M) {
@@ -246,14 +215,12 @@ func TestMain(m *testing.M) {
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
 	if setup.TestBucket() == "" && setup.MountedDirectory() != "" {
-		log.Print("Please pass the name of bucket mounted at mountedDirectory to --testBucket flag.")
-		os.Exit(1)
+		log.Fatal("Please pass the name of bucket mounted at mountedDirectory to --testBucket flag.")
 	}
 
 	err = setup_testdata(m, ctx)
 	if err != nil {
 		log.Fatalf("Failed to setup test data: %v", err)
-		os.Exit(1)
 	}
 
 	defer func() {

@@ -583,7 +583,7 @@ func SyncFile(fh *os.File, t *testing.T) {
 }
 
 func CreateFileWithContent(filePath string, filePerms os.FileMode,
-	content string, t *testing.T) {
+		content string, t *testing.T) {
 	fh := CreateFile(filePath, filePerms, t)
 	WriteAt(content, 0, fh, t)
 	CloseFile(fh)
@@ -690,12 +690,9 @@ func CreateLocalTempFile(content string, gzipCompress bool) (string, error) {
 		return "", fmt.Errorf("nil file handle returned from os.CreateTemp")
 	}
 	defer CloseFile(f)
-	filepath := f.Name()
-
-	contentSize := len(content)
 	if gzipCompress {
-		return writeGzipToFile(f, filepath, content, contentSize)
+		return writeGzipToFile(f, f.Name(), content, len(content))
 	}
 
-	return writeTextToFile(f, filepath, content, contentSize)
+	return writeTextToFile(f, f.Name(), content, len(content))
 }
