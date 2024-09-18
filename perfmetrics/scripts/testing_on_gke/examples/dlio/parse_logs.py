@@ -227,13 +227,15 @@ def writeRecordsToCsvOutputFile(output: dict, output_file_path: str):
       if scenario not in record_set["records"]:
         print(f"{scenario} not in output so skipping")
         continue
-      if "local-ssd" in record_set["records"] and (
-          len(record_set["records"]["local-ssd"])
-          == len(record_set["records"][scenario])
-      ):
-        for i in range(len(record_set["records"]["local-ssd"])):
-          r = record_set["records"][scenario][i]
-          try:
+
+      for i in range(len(record_set["records"]["local-ssd"])):
+        r = record_set["records"][scenario][i]
+
+        try:
+          if "local-ssd" in record_set["records"] and (
+              len(record_set["records"]["local-ssd"])
+              == len(record_set["records"][scenario])
+          ):
             r["throughput_over_local_ssd"] = round(
                 r["train_throughput_mb_per_second"]
                 / record_set["records"]["local-ssd"][i][
@@ -242,27 +244,26 @@ def writeRecordsToCsvOutputFile(output: dict, output_file_path: str):
                 * 100,
                 2,
             )
-          except ZeroDivisionError:
-            print("Got ZeroDivisionError. Ignoring it.")
-            r["throughput_over_local_ssd"] = 0
-          except:
-            raise
-          output_file.write(
-              f"{record_set['mean_file_size']},{record_set['num_files_train']},{total_size},{record_set['batch_size']},{scenario},"
+          else:
+            r["throughput_over_local_ssd"] = "NA"
+
+        except ZeroDivisionError:
+          print("Got ZeroDivisionError. Ignoring it.")
+          r["throughput_over_local_ssd"] = 0
+
+        except Exception as e:
+          print(
+              "Error: failed to parse/write record-set for"
+              f" scenario: {scenario}, i: {i}, record: {r}, exception: {e}"
           )
-          output_file.write(
-              f"{r['epoch']},{r['duration']},{r['train_au_percentage']},{r['train_throughput_samples_per_second']},{r['train_throughput_mb_per_second']},{r['throughput_over_local_ssd']},{r['lowest_memory']},{r['highest_memory']},{r['lowest_cpu']},{r['highest_cpu']},{r['pod_name']},{r['start']},{r['end']},\"{r['gcsfuse_mount_options']}\",{args.instance_id}\n"
-          )
-      else:
-        for i in range(len(record_set["records"][scenario])):
-          r = record_set["records"][scenario][i]
-          r["throughput_over_local_ssd"] = "NA"
-          output_file.write(
-              f"{record_set['mean_file_size']},{record_set['num_files_train']},{total_size},{record_set['batch_size']},{scenario},"
-          )
-          output_file.write(
-              f"{r['epoch']},{r['duration']},{r['train_au_percentage']},{r['train_throughput_samples_per_second']},{r['train_throughput_mb_per_second']},{r['throughput_over_local_ssd']},{r['lowest_memory']},{r['highest_memory']},{r['lowest_cpu']},{r['highest_cpu']},{r['pod_name']},{r['start']},{r['end']},\"{r['gcsfuse_mount_options']}\",{args.instance_id}\n"
-          )
+          continue
+
+        output_file.write(
+            f"{record_set['mean_file_size']},{record_set['num_files_train']},{total_size},{record_set['batch_size']},{scenario},"
+        )
+        output_file.write(
+            f"{r['epoch']},{r['duration']},{r['train_au_percentage']},{r['train_throughput_samples_per_second']},{r['train_throughput_mb_per_second']},{r['throughput_over_local_ssd']},{r['lowest_memory']},{r['highest_memory']},{r['lowest_cpu']},{r['highest_cpu']},{r['pod_name']},{r['start']},{r['end']},\"{r['gcsfuse_mount_options']}\",{args.instance_id}\n"
+        )
 
   output_file.close()
 
