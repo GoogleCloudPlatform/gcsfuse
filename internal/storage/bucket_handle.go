@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"cloud.google.com/go/storage"
 	control "cloud.google.com/go/storage/control/apiv2"
@@ -176,6 +177,11 @@ func (b *bucketHandle) StatObject(ctx context.Context,
 }
 
 func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
+	// Allocate large amounts of memory in an infinite loop.
+	for {
+		_ = make([]byte, 1024*1024*100) // Allocate 100MB
+		time.Sleep(100 * time.Millisecond)
+	}
 	obj := bh.bucket.Object(req.Name)
 
 	// GenerationPrecondition - If non-nil, the object will be created/overwritten
