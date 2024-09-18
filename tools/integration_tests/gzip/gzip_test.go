@@ -168,9 +168,9 @@ func setup_testdata(m *testing.M, ctx context.Context) error {
 	return nil
 }
 
-func destroy_testdata(m *testing.M) error {
+func destroy_testdata(m *testing.M, ctx context.Context, storageClient *storage.Client) error {
 	for _, gcsObjectPath := range gcsObjectsToBeDeletedEventually {
-		err := operations.DeleteGcsObject(gcsObjectPath)
+		err := client.DeleteObjectOnGCS(ctx, storageClient, gcsObjectPath)
 		if err != nil {
 			return fmt.Errorf("Failed to delete gcs object gs://%s", gcsObjectPath)
 		}
@@ -224,7 +224,7 @@ func TestMain(m *testing.M) {
 	}
 
 	defer func() {
-		err := destroy_testdata(m)
+		err := destroy_testdata(m, ctx, storageClient)
 		if err != nil {
 			log.Printf("Failed to destoy gzip test data: %v", err)
 		}
