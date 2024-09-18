@@ -681,7 +681,6 @@ func CreateLocalTempFile(content string, gzipCompress bool) (string, error) {
 		filenameTemplate += ".gz"
 	}
 
-	// create a temp file
 	f, err := os.CreateTemp(TmpDirectory, filenameTemplate)
 	if err != nil {
 		return "", fmt.Errorf("failed to create tempfile for template %s: %w", filenameTemplate, err)
