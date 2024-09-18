@@ -247,55 +247,56 @@ def createOutputScenariosFromDownloadedFiles(args: dict) -> dict:
 
 
 def writeRecordsToCsvOutputFile(output: dict, output_file_path: str):
-  output_file_fwr = open(output_file_path, "a")
-  output_file_fwr.write(
-      "File Size,Read Type,Scenario,Epoch,Duration"
-      " (s),Throughput (MB/s),IOPS,Throughput over Local SSD (%),GCSFuse"
-      " Lowest"
-      " Memory (MB),GCSFuse Highest Memory (MB),GCSFuse Lowest CPU"
-      " (core),GCSFuse Highest CPU"
-      " (core),Pod,Start,End,GcsfuseMoutOptions,BlockSize,FilesPerThread,NumThreads,InstanceID\n"
-  )
+  with open(output_file_path, "a") as output_file_fwr:
+    # Write a new header.
+    output_file_fwr.write(
+        "File Size,Read Type,Scenario,Epoch,Duration"
+        " (s),Throughput (MB/s),IOPS,Throughput over Local SSD (%),GCSFuse"
+        " Lowest"
+        " Memory (MB),GCSFuse Highest Memory (MB),GCSFuse Lowest CPU"
+        " (core),GCSFuse Highest CPU"
+        " (core),Pod,Start,End,GcsfuseMoutOptions,BlockSize,FilesPerThread,NumThreads,InstanceID\n"
+    )
 
-  for key in output:
-    record_set = output[key]
+    for key in output:
+      record_set = output[key]
 
-    for scenario in record_set["records"]:
-      if scenario not in SUPPORTED_SCENARIOS:
-        print(f"Unknown scenario: {scenario}. Ignoring it...")
-        continue
-
-      for i in range(len(record_set["records"][scenario])):
-        r = record_set["records"][scenario][i]
-
-        try:
-          if ("local-ssd" in record_set["records"]) and (
-              len(record_set["records"]["local-ssd"])
-              == len(record_set["records"][scenario])
-          ):
-            r["throughput_over_local_ssd"] = round(
-                r["throughput_mb_per_second"]
-                / record_set["records"]["local-ssd"][i][
-                    "throughput_mb_per_second"
-                ]
-                * 100,
-                2,
-            )
-          else:
-            r["throughput_over_local_ssd"] = "NA"
-
-        except Exception as e:
-          print(
-              "Error: failed to parse/write record-set for"
-              f" scenario: {scenario}, i: {i}, record: {r}, exception: {e}"
-          )
+      for scenario in record_set["records"]:
+        if scenario not in SUPPORTED_SCENARIOS:
+          print(f"Unknown scenario: {scenario}. Ignoring it...")
           continue
 
-        output_file_fwr.write(
-            f"{record_set['mean_file_size']},{record_set['read_type']},{scenario},{r['epoch']},{r['duration']},{r['throughput_mb_per_second']},{r['IOPS']},{r['throughput_over_local_ssd']},{r['lowest_memory']},{r['highest_memory']},{r['lowest_cpu']},{r['highest_cpu']},{r['pod_name']},{r['start']},{r['end']},\"{r['gcsfuse_mount_options']}\",{r['blockSize']},{r['filesPerThread']},{r['numThreads']},{args.instance_id}\n"
-        )
+        for i in range(len(record_set["records"][scenario])):
+          r = record_set["records"][scenario][i]
 
-  output_file_fwr.close()
+          try:
+            if ("local-ssd" in record_set["records"]) and (
+                len(record_set["records"]["local-ssd"])
+                == len(record_set["records"][scenario])
+            ):
+              r["throughput_over_local_ssd"] = round(
+                  r["throughput_mb_per_second"]
+                  / record_set["records"]["local-ssd"][i][
+                      "throughput_mb_per_second"
+                  ]
+                  * 100,
+                  2,
+              )
+            else:
+              r["throughput_over_local_ssd"] = "NA"
+
+          except Exception as e:
+            print(
+                "Error: failed to parse/write record-set for"
+                f" scenario: {scenario}, i: {i}, record: {r}, exception: {e}"
+            )
+            continue
+
+          output_file_fwr.write(
+              f"{record_set['mean_file_size']},{record_set['read_type']},{scenario},{r['epoch']},{r['duration']},{r['throughput_mb_per_second']},{r['IOPS']},{r['throughput_over_local_ssd']},{r['lowest_memory']},{r['highest_memory']},{r['lowest_cpu']},{r['highest_cpu']},{r['pod_name']},{r['start']},{r['end']},\"{r['gcsfuse_mount_options']}\",{r['blockSize']},{r['filesPerThread']},{r['numThreads']},{args.instance_id}\n"
+          )
+
+    output_file_fwr.close()
 
 
 if __name__ == "__main__":
