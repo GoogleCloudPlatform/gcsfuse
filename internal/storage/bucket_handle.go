@@ -25,7 +25,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"sync"
 
 	"cloud.google.com/go/storage"
 	control "cloud.google.com/go/storage/control/apiv2"
@@ -177,44 +176,6 @@ func (b *bucketHandle) StatObject(ctx context.Context,
 }
 
 func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
-	// Create a map and a wait group
-	data := make(map[int]int)
-	var wg sync.WaitGroup
-
-	// Function to update the map
-	updateMap := func(start, end int) {
-		defer wg.Done()
-		for i := start; i < end; i++ {
-			data[i] = i
-		}
-	}
-
-	// Function to iterate over the map
-	iterateMap := func() {
-		defer wg.Done()
-		for key, value := range data {
-			fmt.Printf("Key: %d, Value: %d\n", key, value)
-		}
-	}
-
-	// Launch goroutines to update the map concurrently
-	wg.Add(2)
-	go updateMap(0, 5000)
-	go updateMap(50, 100)
-
-	// Launch a goroutine to iterate over the map concurrently
-	wg.Add(1)
-	go iterateMap()
-
-	// Wait for all goroutines to complete
-	wg.Wait()
-
-	// Print final map contents
-	fmt.Println("Final map contents:")
-	for key, value := range data {
-		logger.Infof("Key: %d, Value: %d\n", key, value)
-	}
-
 	obj := bh.bucket.Object(req.Name)
 
 	// GenerationPrecondition - If non-nil, the object will be created/overwritten
