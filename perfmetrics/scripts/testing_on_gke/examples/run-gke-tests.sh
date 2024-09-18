@@ -100,7 +100,7 @@ readonly DEFAULT_NUM_NODES=8
 readonly DEFAULT_NUM_SSD=16
 readonly DEFAULT_APPNAMESPACE=default
 readonly DEFAULT_KSA=default
-readonly DEFAULT_USE_CUSTOM_CSI_DRIVER=false
+readonly DEFAULT_USE_CUSTOM_CSI_DRIVER=true
 # GCSFuse/GKE GCSFuse CSI Driver source code related
 readonly DEFAULT_SRC_DIR="$(realpath .)/src"
 readonly csi_driver_github_path=https://github.com/googlecloudplatform/gcs-fuse-csi-driver
