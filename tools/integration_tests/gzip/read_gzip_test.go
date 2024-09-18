@@ -130,8 +130,7 @@ func downloadGzipGcsObjectAsCompressed(t *testing.T, bucketName, objPathInBucket
 	if err != nil {
 		return "", fmt.Errorf("failed to create data: %w", err)
 	}
-	tempfile, err = operations.CreateLocalTempFile(content, false)
-	if err != nil {
+	if tempfile, err = operations.CreateLocalTempFile(content, false); err != nil {
 		return "", fmt.Errorf("failed to create tempfile for downloading gcs object: %w", err)
 	}
 	defer func() {

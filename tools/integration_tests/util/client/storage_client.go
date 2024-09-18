@@ -230,8 +230,7 @@ func UploadGcsObject(ctx context.Context, client *storage.Client, localPath, buc
 	obj := client.Bucket(bucketName).Object(objectName)
 	w := obj.NewWriter(ctx)
 	defer func() {
-		err := w.Close()
-		if err != nil {
+		if err := w.Close(); err != nil {
 			log.Printf("Failed to close GCS object gs://%s/%s: %v", bucketName, objectName, err)
 		}
 	}()
@@ -245,13 +244,11 @@ func UploadGcsObject(ctx context.Context, client *storage.Client, localPath, buc
 		}
 
 		content := string(data)
-		filePathToUpload, err = operations.CreateLocalTempFile(content, true)
-		if err != nil {
+		if filePathToUpload, err = operations.CreateLocalTempFile(content, true); err != nil {
 			return fmt.Errorf("failed to create local gzip file from %s for upload to bucket: %w", localPath, err)
 		}
 		defer func() {
-			removeErr := os.Remove(filePathToUpload)
-			if removeErr != nil {
+			if removeErr := os.Remove(filePathToUpload); removeErr != nil {
 				log.Printf("Error removing temporary gzip file %s: %v", filePathToUpload, removeErr)
 			}
 		}()

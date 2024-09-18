@@ -633,6 +633,40 @@ func SizeOfFile(filepath string) (size int64, err error) {
 	return (*fstat).Size(), nil
 }
 
+func writeGzipToFile(f *os.File, filepath, content string, contentSize int) (string, error) {
+	w := gzip.NewWriter(f)
+	if w == nil {
+		return "", fmt.Errorf("failed to create gzip writer for file %s", filepath)
+	}
+	defer func() {
+		if err := w.Close(); err != nil {
+			log.Printf("failed to close gzip writer for file %s: %v", filepath, err)
+		}
+	}()
+
+	n, err := w.Write([]byte(content))
+	if err != nil {
+		return "", fmt.Errorf("failed to write content to %s using gzip-writer: %w", filepath, err)
+	}
+	if n != contentSize {
+		return "", fmt.Errorf("failed to write to gzip file %s. Content-size: %d bytes, wrote = %d bytes", filepath, contentSize, n)
+	}
+
+	return filepath, nil
+}
+
+func writeTextToFile(f *os.File, filepath, content string, contentSize int) (string, error) {
+	n, err := f.WriteString(content)
+	if err != nil {
+		return "", err
+	}
+	if n != contentSize {
+		return "", fmt.Errorf("failed to write to text file %s. Content-size: %d bytes, wrote = %d bytes", filepath, contentSize, n)
+	}
+
+	return filepath, nil
+}
+
 // Creates a temporary file (name-collision-safe) in /tmp with given content.
 // If gzipCompress is true, output file is a gzip-compressed file.
 // Caller is responsible for deleting the created file when done using it.
@@ -641,8 +675,6 @@ func SizeOfFile(filepath string) (size int64, err error) {
 // 2. gzip.NewWriter() returned nil handle
 // 3. Failed to write the content to the created temp file
 func CreateLocalTempFile(content string, gzipCompress bool) (string, error) {
-	contentSize := len(content)
-
 	// create appropriate name template for temp file
 	filenameTemplate := "testfile-*.txt"
 	if gzipCompress {
@@ -660,35 +692,10 @@ func CreateLocalTempFile(content string, gzipCompress bool) (string, error) {
 	defer CloseFile(f)
 	filepath := f.Name()
 
+	contentSize := len(content)
 	if gzipCompress {
-		w := gzip.NewWriter(f)
-		if w == nil {
-			return "", fmt.Errorf("failed to create gzip writer for file %s", filepath)
-		}
-		defer func() {
-			if err := w.Close(); err != nil {
-				log.Printf("failed to close gzip writer for file %s: %v", filepath, err)
-			}
-		}()
-
-		// write the content created above as gzip
-		n, err := w.Write([]byte(content))
-		if err != nil {
-			return "", fmt.Errorf("failed to write content to %s using gzip-writer: %w", filepath, err)
-		}
-		if n != contentSize {
-			return "", fmt.Errorf("failed to write to gzip file %s. Content-size: %d bytes, wrote = %d bytes", filepath, contentSize, n)
-		}
-	} else {
-		// write the content created above as text
-		n, err := f.WriteString(content)
-		if err != nil {
-			return "", err
-		}
-		if n != contentSize {
-			return "", fmt.Errorf("failed to write to text file %s. Content-size: %d bytes, wrote = %d bytes", filepath, contentSize, n)
-		}
+		return writeGzipToFile(f, filepath, content, contentSize)
 	}
 
-	return filepath, nil
+	return writeTextToFile(f, filepath, content, contentSize)
 }
