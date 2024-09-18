@@ -29,6 +29,10 @@ echo "Installing Ops Agent on Vm"
 curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
 sudo bash add-google-cloud-ops-agent-repo.sh --also-install
 
+cd "../"
+./upgrade_gcloud.sh
+cd "hns_rename_folders_metrics"
+
 UPLOAD_FLAGS=$1
 gsutil cp gs://periodic-perf-tests/creds.json ../gsheet/
 
@@ -39,4 +43,5 @@ echo "Upgrading gcloud version"
 #python3 renaming_benchmark.py config-flat.json flat "$UPLOAD_FLAGS"
 
 echo "Running renaming benchmark on HNS bucket"
-python3 renaming_benchmark.py config-hns.json hns $UPLOAD_FLAGS
+LOG_FILE_HNS=$2
+python3 renaming_benchmark.py config-hns.json hns $UPLOAD_FLAGS --log_file $LOG_FILE_HNS

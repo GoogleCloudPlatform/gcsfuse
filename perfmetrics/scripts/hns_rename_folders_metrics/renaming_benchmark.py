@@ -40,6 +40,7 @@ WORKSHEET_NAME_HNS = 'rename_metrics_hns'
 WORKSHEET_VM_METRICS_FLAT = 'vm_metrics_flat'
 WORKSHEET_VM_METRICS_HNS = 'vm_metrics_hns'
 SPREADSHEET_ID = '1UVEvsf49eaDJdTGLQU1rlNTIAxg8PZoNQCy_GX6Nw-A'
+LOG_FILE='/tmp/gcsfuse-logs-rename.txt'
 INSTANCE=socket.gethostname()
 PERIOD_SEC=120
 
@@ -344,12 +345,12 @@ def _perform_testing(dir, test_type, num_samples):
     # Creating config file for mounting with hns enabled.
     with open("/tmp/config.yml",'w') as mount_config:
       mount_config.write("enable-hns: true")
-    mount_flags="--config-file=/tmp/config.yml --stackdriver-export-interval=30s"
+    mount_flags="--config-file=/tmp/config.yml --log-severity=trace --log-format \"text\" --log-file {} --stackdriver-export-interval=30s".format(LOG_FILE)
   else :
     # Creating config file for mounting with hns disabled.
     with open("/tmp/config.yml",'w') as mount_config:
       mount_config.write("enable-hns: false")
-    mount_flags = "--config-file=/tmp/config.yml  --implicit-dirs --rename-dir-limit=1000000 --stackdriver-export-interval=30s"
+    mount_flags = "--config-file=/tmp/config.yml --log-severity=trace --log-format \"text\" --log-file {}  --implicit-dirs --rename-dir-limit=1000000 --stackdriver-export-interval=30s".format(LOG_FILE)
 
   # Mounting the gcs bucket.
   bucket_name = mount_gcs_bucket(dir["name"], mount_flags, log)
@@ -390,6 +391,13 @@ def _parse_arguments(argv):
       default=10,
       required=False,
       type=int,
+  )
+  parser.add_argument(
+      '--log_file',
+      help='Provide the log file path',
+      action= 'store',
+      required=False,
+      type=str,
   )
 
   return parser.parse_args(argv[1:])
@@ -510,6 +518,8 @@ if __name__ == '__main__':
                     'python3 renaming_benchmark.py  [--upload_gs] [--num_samples NUM_SAMPLES] config_file bucket_type')
 
   args = _parse_arguments(argv)
+  if args.log_file :
+    LOG_FILE = args.log_file
   check_dependencies(['gcloud', 'gcsfuse'], log)
   _run_rename_benchmark(args.bucket_type, args.config_file, args.num_samples,
                           args.upload_gs)
