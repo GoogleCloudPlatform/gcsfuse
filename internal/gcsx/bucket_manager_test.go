@@ -146,7 +146,7 @@ func (t *BucketManagerTest) TestSetUpBucketMethodWhenBucketDoesNotExist() {
 
 	bucket, err := bm.SetUpBucket(context.Background(), invalidBucketName, false)
 
-	ExpectEq("Error in iterating through objects: storage: bucket doesn't exist", err.Error())
+	ExpectEq("error in iterating through objects: storage: bucket doesn't exist", err.Error())
 	ExpectNe(nil, bucket.Syncer)
 }
 
@@ -171,6 +171,6 @@ func (t *BucketManagerTest) TestSetUpBucketMethodWhenBucketDoesNotExist_IsMultiB
 
 	bucket, err := bm.SetUpBucket(context.Background(), invalidBucketName, true)
 
-	ExpectEq("Error in iterating through objects: storage: bucket doesn't exist", err.Error())
+	ExpectEq("error in iterating through objects: storage: bucket doesn't exist", err.Error())
 	ExpectNe(nil, bucket.Syncer)
 }

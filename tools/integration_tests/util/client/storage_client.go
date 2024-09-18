@@ -143,7 +143,7 @@ func CreateStorageClientWithCancel(ctx *context.Context, storageClient **storage
 	return func() error {
 		err := (*storageClient).Close()
 		if err != nil {
-			return fmt.Errorf("Failed to close storage client: %v", err)
+			return fmt.Errorf("failed to close storage client: %v", err)
 		}
 		defer cancel()
 		return nil

@@ -277,7 +277,7 @@ func (b *fastStatBucket) StatObject(
 		// Negative entries result in NotFoundError.
 		if entry == nil {
 			err = &gcs.NotFoundError{
-				Err: fmt.Errorf("Negative cache entry for %v", req.Name),
+				Err: fmt.Errorf("negative cache entry for %v", req.Name),
 			}
 
 			return

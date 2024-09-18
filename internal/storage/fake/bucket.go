@@ -182,18 +182,18 @@ type bucket struct {
 
 func checkName(name string) (err error) {
 	if len(name) == 0 || len(name) > 1024 {
-		err = errors.New("Invalid object name: length must be in [1, 1024]")
+		err = errors.New("invalid object name: length must be in [1, 1024]")
 		return
 	}
 
 	if !utf8.ValidString(name) {
-		err = errors.New("Invalid object name: not valid UTF-8")
+		err = errors.New("invalid object name: not valid UTF-8")
 		return
 	}
 
 	for _, r := range name {
 		if r == 0x0a || r == 0x0d {
-			err = errors.New("Invalid object name: must not contain CR or LF")
+			err = errors.New("invalid object name: must not contain CR or LF")
 			return
 		}
 	}
@@ -355,7 +355,7 @@ func (b *bucket) createObjectLocked(
 	if req.GenerationPrecondition != nil {
 		if *req.GenerationPrecondition == 0 && existingRecord != nil {
 			err = &gcs.PreconditionError{
-				Err: errors.New("Precondition failed: object exists"),
+				Err: errors.New("precondition failed: object exists"),
 			}
 
 			return
@@ -364,7 +364,7 @@ func (b *bucket) createObjectLocked(
 		if *req.GenerationPrecondition > 0 {
 			if existingRecord == nil {
 				err = &gcs.PreconditionError{
-					Err: errors.New("Precondition failed: object doesn't exist"),
+					Err: errors.New("precondition failed: object doesn't exist"),
 				}
 
 				return
@@ -374,7 +374,7 @@ func (b *bucket) createObjectLocked(
 			if existingGen != *req.GenerationPrecondition {
 				err = &gcs.PreconditionError{
 					Err: fmt.Errorf(
-						"Precondition failed: object has generation %v",
+						"precondition failed: object has generation %v",
 						existingGen),
 				}
 
@@ -386,7 +386,7 @@ func (b *bucket) createObjectLocked(
 	if req.MetaGenerationPrecondition != nil {
 		if existingRecord == nil {
 			err = &gcs.PreconditionError{
-				Err: errors.New("Precondition failed: object doesn't exist"),
+				Err: errors.New("precondition failed: object doesn't exist"),
 			}
 
 			return
@@ -396,7 +396,7 @@ func (b *bucket) createObjectLocked(
 		if existingMetaGen != *req.MetaGenerationPrecondition {
 			err = &gcs.PreconditionError{
 				Err: fmt.Errorf(
-					"Precondition failed: object has meta-generation %v",
+					"precondition failed: object has meta-generation %v",
 					existingMetaGen),
 			}
 
@@ -432,7 +432,7 @@ func (b *bucket) newReaderLocked(
 	index = b.objects.find(req.Name)
 	if index == len(b.objects) {
 		err = &gcs.NotFoundError{
-			Err: fmt.Errorf("Object %s not found", req.Name),
+			Err: fmt.Errorf("object %s not found", req.Name),
 		}
 
 		return
@@ -444,7 +444,7 @@ func (b *bucket) newReaderLocked(
 	if req.Generation != 0 && req.Generation != o.metadata.Generation {
 		err = &gcs.NotFoundError{
 			Err: fmt.Errorf(
-				"Object %s generation %v not found", req.Name, req.Generation),
+				"object %s generation %v not found", req.Name, req.Generation),
 		}
 
 		return
@@ -623,7 +623,7 @@ func (b *bucket) ListObjects(
 			// is no valid non-empty UTF-8 string that consists of entirely 0xff
 			// bytes.
 			if listing.ContinuationToken == "" {
-				err = errors.New("Unexpected empty string from prefixSuccessor")
+				err = errors.New("unexpected empty string from prefixSuccessor")
 				return
 			}
 		} else {
@@ -679,7 +679,7 @@ func (b *bucket) CopyObject(
 	srcIndex := b.objects.find(req.SrcName)
 	if srcIndex == len(b.objects) {
 		err = &gcs.NotFoundError{
-			Err: fmt.Errorf("Object %q not found", req.SrcName),
+			Err: fmt.Errorf("object %q not found", req.SrcName),
 		}
 
 		return
@@ -690,7 +690,7 @@ func (b *bucket) CopyObject(
 		b.objects[srcIndex].metadata.Generation != req.SrcGeneration {
 		err = &gcs.NotFoundError{
 			Err: fmt.Errorf(
-				"Object %s generation %d not found", req.SrcName, req.SrcGeneration),
+				"object %s generation %d not found", req.SrcName, req.SrcGeneration),
 		}
 
 		return
@@ -702,7 +702,7 @@ func (b *bucket) CopyObject(
 		if b.objects[srcIndex].metadata.MetaGeneration != p {
 			err = &gcs.PreconditionError{
 				Err: fmt.Errorf(
-					"Object %q has meta-generation %d",
+					"object %q has meta-generation %d",
 					req.SrcName,
 					b.objects[srcIndex].metadata.MetaGeneration),
 			}
@@ -742,12 +742,12 @@ func (b *bucket) ComposeObjects(
 
 	// GCS doesn't like too few or too many sources.
 	if len(req.Sources) < 1 {
-		err = errors.New("You must provide at least one source component")
+		err = errors.New("you must provide at least one source component")
 		return
 	}
 
 	if len(req.Sources) > gcs.MaxSourcesPerComposeRequest {
-		err = errors.New("You have provided too many source components")
+		err = errors.New("you have provided too many source components")
 		return
 	}
 
@@ -775,7 +775,7 @@ func (b *bucket) ComposeObjects(
 
 	// GCS doesn't like the component count to go too high.
 	if dstComponentCount > gcs.MaxComponentCount {
-		err = errors.New("Result would have too many components")
+		err = errors.New("result would have too many components")
 		return
 	}
 
@@ -822,7 +822,7 @@ func (b *bucket) StatObject(ctx context.Context,
 	index := b.objects.find(req.Name)
 	if index == len(b.objects) {
 		err = &gcs.NotFoundError{
-			Err: fmt.Errorf("Object %s not found", req.Name),
+			Err: fmt.Errorf("object %s not found", req.Name),
 		}
 
 		return
@@ -848,7 +848,7 @@ func (b *bucket) UpdateObject(
 	index := b.objects.find(req.Name)
 	if index == len(b.objects) {
 		err = &gcs.NotFoundError{
-			Err: fmt.Errorf("Object %s not found", req.Name),
+			Err: fmt.Errorf("object %s not found", req.Name),
 		}
 
 		return
@@ -860,7 +860,7 @@ func (b *bucket) UpdateObject(
 	if req.Generation != 0 && obj.Generation != req.Generation {
 		err = &gcs.NotFoundError{
 			Err: fmt.Errorf(
-				"Object %q generation %d not found",
+				"object %q generation %d not found",
 				req.Name,
 				req.Generation),
 		}
@@ -873,7 +873,7 @@ func (b *bucket) UpdateObject(
 		obj.MetaGeneration != *req.MetaGenerationPrecondition {
 		err = &gcs.PreconditionError{
 			Err: fmt.Errorf(
-				"Object %q has meta-generation %d",
+				"object %q has meta-generation %d",
 				obj.Name,
 				obj.MetaGeneration),
 		}
@@ -949,7 +949,7 @@ func (b *bucket) DeleteObject(
 		if b.objects[index].metadata.MetaGeneration != p {
 			err = &gcs.PreconditionError{
 				Err: fmt.Errorf(
-					"Object %q has meta-generation %d",
+					"object %q has meta-generation %d",
 					req.Name,
 					b.objects[index].metadata.MetaGeneration),
 			}
@@ -1001,7 +1001,7 @@ func (b *bucket) GetFolder(ctx context.Context, foldername string) (*gcs.Folder,
 	index := b.folders.find(foldername)
 	if index == len(b.folders) {
 		err := &gcs.NotFoundError{
-			Err: fmt.Errorf("Object %s not found", foldername),
+			Err: fmt.Errorf("object %s not found", foldername),
 		}
 		return nil, err
 	}
@@ -1066,7 +1066,7 @@ func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinatio
 	srcIndex := b.folders.find(folderName)
 	if srcIndex == len(b.folders) {
 		err = &gcs.NotFoundError{
-			Err: fmt.Errorf("Object %q not found", folderName),
+			Err: fmt.Errorf("object %q not found", folderName),
 		}
 		return nil, err
 	}

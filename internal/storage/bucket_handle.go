@@ -141,7 +141,7 @@ func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRe
 			if err == storage.ErrObjectNotExist {
 				err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
 			} else {
-				err = fmt.Errorf("Error in deleting object: %w", err)
+				err = fmt.Errorf("error in deleting object: %w", err)
 			}
 		}
 	}
@@ -161,7 +161,7 @@ func (b *bucketHandle) StatObject(ctx context.Context,
 		return
 	}
 	if err != nil {
-		err = fmt.Errorf("Error in fetching object attributes: %w", err)
+		err = fmt.Errorf("error in fetching object attributes: %w", err)
 		return
 	}
 
@@ -264,7 +264,7 @@ func (b *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectReques
 				err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
 			}
 		default:
-			err = fmt.Errorf("Error in copying object: %w", err)
+			err = fmt.Errorf("error in copying object: %w", err)
 		}
 		return
 	}
@@ -316,7 +316,7 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 			break
 		}
 		if err != nil {
-			err = fmt.Errorf("Error in iterating through objects: %w", err)
+			err = fmt.Errorf("error in iterating through objects: %w", err)
 			return
 		}
 
@@ -405,7 +405,7 @@ func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRe
 		if err == storage.ErrObjectNotExist {
 			err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
 		} else {
-			err = fmt.Errorf("Error in updating object: %w", err)
+			err = fmt.Errorf("error in updating object: %w", err)
 		}
 	}
 
@@ -460,7 +460,7 @@ func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjec
 				err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
 			}
 		default:
-			err = fmt.Errorf("Error in composing object: %w", err)
+			err = fmt.Errorf("error in composing object: %w", err)
 		}
 		return
 	}

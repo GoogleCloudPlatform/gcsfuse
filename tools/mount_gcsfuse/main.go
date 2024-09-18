@@ -189,7 +189,7 @@ func parseArgs(
 		// below.
 		case s == "-o":
 			if i == len(args)-1 {
-				err = fmt.Errorf("Unexpected -o at end of args.")
+				err = fmt.Errorf("unexpected -o at end of args")
 				return
 			}
 
@@ -218,13 +218,13 @@ func parseArgs(
 			positionalCount++
 
 		default:
-			err = fmt.Errorf("Unexpected arg %d: %q", i, s)
+			err = fmt.Errorf("unexpected arg %d: %q", i, s)
 			return
 		}
 	}
 
 	if positionalCount != 2 {
-		err = fmt.Errorf("Expected two positional arguments; got %d.", positionalCount)
+		err = fmt.Errorf("expected two positional arguments; got %d", positionalCount)
 		return
 	}
 

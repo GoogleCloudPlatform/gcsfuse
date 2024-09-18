@@ -44,7 +44,7 @@ func readRandom(
 	// Make sure the logic below for choosing offsets works.
 	if fileSize < int64(readSize) {
 		err = fmt.Errorf(
-			"File size of %d bytes not large enough for reads of %d bytes",
+			"file size of %d bytes not large enough for reads of %d bytes",
 			fileSize,
 			readSize)
 		return
@@ -112,12 +112,12 @@ func readSequential(
 		case err == io.EOF:
 			_, err = r.Seek(0, 0)
 			if err != nil {
-				err = fmt.Errorf("Seek: %w", err)
+				err = fmt.Errorf("seek: %w", err)
 				return
 			}
 
 		case err != nil:
-			err = fmt.Errorf("Read: %w", err)
+			err = fmt.Errorf("read: %w", err)
 		}
 
 		bytesRead += int64(n)
@@ -149,7 +149,7 @@ func readSequential(
 
 func run() (err error) {
 	if *fFile == "" {
-		err = errors.New("You must set --file.")
+		err = errors.New("you must set --file")
 		return
 	}
 
@@ -162,7 +162,7 @@ func run() (err error) {
 	// Find its size.
 	size, err := f.Seek(0, 2)
 	if err != nil {
-		err = fmt.Errorf("Seek: %w", err)
+		err = fmt.Errorf("seek: %w", err)
 		return
 	}
 

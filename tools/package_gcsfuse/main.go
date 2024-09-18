@@ -41,7 +41,7 @@ func run(args []string) (err error) {
 
 	// Extract arguments.
 	if len(args) < 2 || len(args) > 3 {
-		err = fmt.Errorf("Usage: %s dst_dir version [commit]", os.Args[0])
+		err = fmt.Errorf("usage: %s dst_dir version [commit]", os.Args[0])
 		return
 	}
 

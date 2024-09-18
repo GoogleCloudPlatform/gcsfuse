@@ -126,7 +126,7 @@ func setUpRateLimiting(
 		window)
 
 	if err != nil {
-		err = fmt.Errorf("Choosing operation token bucket capacity: %w", err)
+		err = fmt.Errorf("choosing operation token bucket capacity: %w", err)
 		return
 	}
 
@@ -135,7 +135,7 @@ func setUpRateLimiting(
 		window)
 
 	if err != nil {
-		err = fmt.Errorf("Choosing egress bandwidth token bucket capacity: %w", err)
+		err = fmt.Errorf("choosing egress bandwidth token bucket capacity: %w", err)
 		return
 	}
 
@@ -214,7 +214,7 @@ func (bm *bucketManager) SetUpBucket(
 
 	// Enable Syncer
 	if bm.config.TmpObjectPrefix == "" {
-		err = errors.New("You must set TmpObjectPrefix.")
+		err = errors.New("you must set TmpObjectPrefix")
 		return
 	}
 	sb = NewSyncerBucket(

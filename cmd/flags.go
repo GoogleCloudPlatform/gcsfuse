@@ -664,7 +664,7 @@ var _ cli.Generic = (*OctalInt)(nil)
 func (oi *OctalInt) Set(value string) (err error) {
 	tmp, err := strconv.ParseInt(value, 8, 32)
 	if err != nil {
-		err = fmt.Errorf("Parsing as octal: %w", err)
+		err = fmt.Errorf("parsing as octal: %w", err)
 		return
 	}
 

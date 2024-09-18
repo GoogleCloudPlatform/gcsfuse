@@ -192,7 +192,7 @@ func populateArgs(args []string) (
 
 	default:
 		err = fmt.Errorf(
-			"%s takes one or two arguments. Run `%s --help` for more info.",
+			"%s takes one or two arguments. Run `%s --help` for more info",
 			path.Base(os.Args[0]),
 			path.Base(os.Args[0]))
 
@@ -240,7 +240,7 @@ func isDynamicMount(bucketName string) bool {
 func runCLIApp(c *cli.Context) (err error) {
 	err = resolvePathForTheFlagsInContext(c)
 	if err != nil {
-		return fmt.Errorf("Resolving path: %w", err)
+		return fmt.Errorf("resolving path: %w", err)
 	}
 
 	flags, err := populateFlags(c)

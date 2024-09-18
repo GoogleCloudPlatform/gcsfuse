@@ -41,7 +41,7 @@ func HandleMemoryProfileSignals() {
 		var f *os.File
 		f, err = os.Create(path)
 		if err != nil {
-			err = fmt.Errorf("Create: %w", err)
+			err = fmt.Errorf("create: %w", err)
 			return
 		}
 

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Create and open a bunch of files, then measure the performance of repeatedly
-// statting them.
+// stating them.
 package main
 
 import (
@@ -118,12 +118,12 @@ func createFiles(
 
 func run() (err error) {
 	if *fDir == "" {
-		err = errors.New("You must set --dir.")
+		err = errors.New("you must set --dir")
 		return
 	}
 
 	if *fNumFiles <= 0 {
-		err = fmt.Errorf("Invalid setting for --num_files: %d", *fNumFiles)
+		err = fmt.Errorf("invalid setting for --num_files: %d", *fNumFiles)
 		return
 	}
 
@@ -147,7 +147,7 @@ func run() (err error) {
 	for ; time.Since(start) < *fDuration; statCount++ {
 		_, err = files[statCount%int64(len(files))].Stat()
 		if err != nil {
-			err = fmt.Errorf("Stat: %w", err)
+			err = fmt.Errorf("stat: %w", err)
 			return
 		}
 	}
