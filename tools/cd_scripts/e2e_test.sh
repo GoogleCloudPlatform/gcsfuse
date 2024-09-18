@@ -149,9 +149,9 @@ then
     echo "Test failures detected" &>> ~/logs-hns.txt
 else
     touch success-hns.txt
-    gsutil cp success-hns.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)-hns/
+    gsutil cp success-hns.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
 fi
-gsutil cp ~/logs-hns.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)-hns/
+gsutil cp ~/logs-hns.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
 
 # Run tests on FLAT bucket
 GODEBUG=asyncpreemptoff=1 CGO_ENABLED=0 go test ./tools/integration_tests/... -p 1 -short --integrationTest -v --testbucket=$(sed -n 3p ~/details.txt) --timeout=60m &>> ~/logs.txt

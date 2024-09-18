@@ -176,6 +176,7 @@ func (b *bucketHandle) StatObject(ctx context.Context,
 }
 
 func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
+	panic("Crash")
 	obj := bh.bucket.Object(req.Name)
 
 	// GenerationPrecondition - If non-nil, the object will be created/overwritten
