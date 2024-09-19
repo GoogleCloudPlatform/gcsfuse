@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+set -e
 sudo apt-get update
 # Upgrade gcloud version.
 # Kokoro machine's outdated gcloud version prevents the use of the "gcloud storage" feature.
