@@ -86,9 +86,12 @@ run_ls_benchmark "$GCSFUSE_LS_FLAGS" "$SPREADSHEET_ID" "$LIST_CONFIG_FILE"
 
 # Running the rename benchmark script.
 cd "./hns_rename_folders_metrics"
-# Rename perf tests are only performed daily on HNS bucket by default.Thus , creating log file with hns suffix only.
-LOG_FILE_RENAME_TESTS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-rename-hns.txt
-./run_rename_benchmark.sh $UPLOAD_FLAGS $LOG_FILE_RENAME_TESTS
+# Rename perf tests are only performed daily on HNS bucket by default.
+LOG_FILE_RENAME_TESTS_HNS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-rename-hns.txt
+LOG_FILE_RENAME_TESTS_FLAT=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-rename-flat.txt
+GCSFUSE_HNS_FLAGS="--log-severity=trace --log-format \"text\" --log-file $LOG_FILE_RENAME_TESTS_HNS --stackdriver-export-interval=30s"
+GCSFUSE_FLAT_FLAGS="--log-severity=trace --log-format \"text\" --log-file $LOG_FILE_RENAME_TESTS_FLAT --implicit-dirs --rename-dir-limit=1000000 --stackdriver-export-interval=30s"
+./run_rename_benchmark.sh $GCSFUSE_HNS_FLAGS $GCSFUSE_FLAT_FLAGS $UPLOAD_FLAGS
 
 
 # TODO: Testing for hns bucket with client protocol set to grpc. To be done when

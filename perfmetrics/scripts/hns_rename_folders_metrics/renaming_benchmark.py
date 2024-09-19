@@ -40,7 +40,6 @@ WORKSHEET_NAME_HNS = 'rename_metrics_hns'
 WORKSHEET_VM_METRICS_FLAT = 'vm_metrics_flat'
 WORKSHEET_VM_METRICS_HNS = 'vm_metrics_hns'
 SPREADSHEET_ID = '1UVEvsf49eaDJdTGLQU1rlNTIAxg8PZoNQCy_GX6Nw-A'
-LOG_FILE='/tmp/gcsfuse-logs-rename.txt'
 INSTANCE=socket.gethostname()
 PERIOD_SEC=120
 
@@ -307,7 +306,7 @@ def _record_time_of_operation(mount_point, dir, num_samples):
   return results,time_interval_for_vm_metrics
 
 
-def _perform_testing(dir, test_type, num_samples):
+def _perform_testing(dir, mount_flags, num_samples):
   """
   This function performs rename operations and records time of operation .
   Args:
@@ -341,17 +340,6 @@ def _perform_testing(dir, test_type, num_samples):
     test_type : flat or hns.
     num_samples: Number of samples to collect for each test.
   """
-  if test_type == "hns":
-    # Creating config file for mounting with hns enabled.
-    with open("/tmp/config.yml",'w') as mount_config:
-      mount_config.write("enable-hns: true")
-    mount_flags="--config-file=/tmp/config.yml --log-severity=trace --log-format \"text\" --log-file {} --stackdriver-export-interval=30s".format(LOG_FILE)
-  else :
-    # Creating config file for mounting with hns disabled.
-    with open("/tmp/config.yml",'w') as mount_config:
-      mount_config.write("enable-hns: false")
-    mount_flags = "--config-file=/tmp/config.yml --log-severity=trace --log-format \"text\" --log-file {}  --implicit-dirs --rename-dir-limit=1000000 --stackdriver-export-interval=30s".format(LOG_FILE)
-
   # Mounting the gcs bucket.
   bucket_name = mount_gcs_bucket(dir["name"], mount_flags, log)
   # Record time of operation and populate the results dict.
@@ -378,6 +366,13 @@ def _parse_arguments(argv):
       choices=['hns','flat']
   )
   parser.add_argument(
+      'gcsfuse_flags',
+      help='Gcsfuse flags for mounting the tests bucket.',
+      action='store',
+      nargs=1,
+      required=True,
+  )
+  parser.add_argument(
       '--upload_gs',
       help='Upload the results to the Google Sheet.',
       action='store_true',
@@ -391,13 +386,6 @@ def _parse_arguments(argv):
       default=10,
       required=False,
       type=int,
-  )
-  parser.add_argument(
-      '--log_file',
-      help='Provide the log file path',
-      action= 'store',
-      required=False,
-      type=str,
   )
 
   return parser.parse_args(argv[1:])
@@ -451,7 +439,7 @@ def _get_upload_value_for_vm_metrics(vm_metrics):
   return upload_values
 
 
-def _run_rename_benchmark(test_type,dir_config,num_samples,upload_gs):
+def _run_rename_benchmark(test_type,dir_config,mount_flags,num_samples,upload_gs):
   with open(os.path.abspath(dir_config)) as file:
     dir_str = json.load(file)
 
@@ -468,7 +456,7 @@ def _run_rename_benchmark(test_type,dir_config,num_samples,upload_gs):
     sys.exit(1)
 
   # Getting latency related metrics
-  results,time_intervals=_perform_testing(dir_str, test_type, num_samples)
+  results,time_intervals=_perform_testing(dir_str, mount_flags, num_samples)
   parsed_metrics = _parse_results(dir_str, results, num_samples)
   upload_values = _get_values_to_export(dir_str, parsed_metrics,
                                              test_type)
@@ -518,8 +506,6 @@ if __name__ == '__main__':
                     'python3 renaming_benchmark.py  [--upload_gs] [--num_samples NUM_SAMPLES] config_file bucket_type')
 
   args = _parse_arguments(argv)
-  if args.log_file :
-    LOG_FILE = args.log_file
   check_dependencies(['gcloud', 'gcsfuse'], log)
-  _run_rename_benchmark(args.bucket_type, args.config_file, args.num_samples,
+  _run_rename_benchmark(args.bucket_type, args.config_file,args.gcsfuse_flags, args.num_samples,
                           args.upload_gs)
