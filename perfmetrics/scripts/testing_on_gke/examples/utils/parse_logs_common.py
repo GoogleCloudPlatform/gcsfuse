@@ -36,9 +36,10 @@ def ensure_directory_exists(dirpath: str):
     pass
 
 
-def download_gcs_objects(src: str, dst: str) -> Tuple[int, str]:
-  result = subprocess.run(
-      [
+def download_gcs_objects(src: str, dst: str) -> int:
+  print(f"Downloading files from {src} to {os.path.abspath(dst)} ...")
+  returncode = run_command(
+      " ".join([
           "gcloud",
           "-q",  # ignore prompts
           "storage",
@@ -47,13 +48,9 @@ def download_gcs_objects(src: str, dst: str) -> Tuple[int, str]:
           "--no-user-output-enabled",  # do not print names of objects being copied
           src,
           dst,
-      ],
-      capture_output=False,
-      text=True,
+      ])
   )
-  if result.returncode < 0:
-    return (result.returncode, f"error: {result.stderr}")
-  return result.returncode, ""
+  return returncode
 
 
 def parse_arguments() -> object:
@@ -115,4 +112,46 @@ def parse_arguments() -> object:
       help="File path of the output metrics (in CSV format)",
       default="output.csv",
   )
+  parser.add_argument(
+      "--output-gsheet-id",
+      metavar="ID of a googlesheet for exporting output to.",
+      help=(
+          "File path of the output metrics (in CSV format). This is the id in"
+          " https://docs.google.com/spreadsheets/d/<id> ."
+      ),
+      required=True,
+      type=str,
+  )
+  parser.add_argument(
+      "--output-worksheet-name",
+      metavar=(
+          "Name of a worksheet (page) in the googlesheet specified by"
+          " --output-gsheet-id"
+      ),
+      help="File path of the output metrics (in CSV format)",
+      required=True,
+      type=str,
+  )
+  parser.add_argument(
+      "--output-gsheet-keyfile",
+      metavar=(
+          "Path of a GCS keyfile for read/write access to output google sheet."
+      ),
+      help=(
+          "For this to work, the google-sheet should be shared with the"
+          " client_email/service-account of the keyfile."
+      ),
+      required=True,
+      type=str,
+  )
+
   return parser.parse_args()
+
+
+def default_service_account_key_file(project_id: str) -> str:
+  if project_id == "gcs-fuse-test":
+    return "/usr/local/google/home/gargnitin/work/cloud/storage/client/gcsfuse/src/gcsfuse/perfmetrics/scripts/testing_on_gke/examples/20240919-gcs-fuse-test-bc1a2c0aac45.json"
+  elif project_id == "gcs-fuse-test-ml":
+    return "/usr/local/google/home/gargnitin/work/cloud/storage/client/gcsfuse/src/gcsfuse/perfmetrics/scripts/testing_on_gke/examples/20240919-gcs-fuse-test-ml-d6e0247b2cf1.json"
+  else:
+    raise Exception(f"Unknown project-id: {project_id}")
