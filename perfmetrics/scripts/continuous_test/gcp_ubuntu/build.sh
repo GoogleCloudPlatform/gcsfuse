@@ -60,7 +60,7 @@ run_ls_benchmark(){
   cd "../"
 }
 
-COMMON_MOUNT_FLAGS="--debug_fuse --debug_gcs --log-format \"text\""
+COMMON_MOUNT_FLAGS="--log-severity=trace --log-format \"text\""
 
 # Testing for flat bucket.
 LOG_FILE_FIO_TESTS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-fio-flat.txt
@@ -89,8 +89,8 @@ cd "./hns_rename_folders_metrics"
 # Rename perf tests are only performed daily on HNS bucket by default.
 LOG_FILE_RENAME_TESTS_HNS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-rename-hns.txt
 LOG_FILE_RENAME_TESTS_FLAT=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-rename-flat.txt
-GCSFUSE_HNS_FLAGS="--log-severity=trace --log-format \"text\" --log-file $LOG_FILE_RENAME_TESTS_HNS --stackdriver-export-interval=30s"
-GCSFUSE_FLAT_FLAGS="--log-severity=trace --log-format \"text\" --log-file $LOG_FILE_RENAME_TESTS_FLAT --implicit-dirs --rename-dir-limit=1000000 --stackdriver-export-interval=30s"
+GCSFUSE_HNS_FLAGS="$COMMON_MOUNT_FLAGS --log-file $LOG_FILE_RENAME_TESTS_HNS --stackdriver-export-interval=30s"
+GCSFUSE_FLAT_FLAGS="$COMMON_MOUNT_FLAGS --log-file $LOG_FILE_RENAME_TESTS_FLAT --implicit-dirs --rename-dir-limit=1000000 --stackdriver-export-interval=30s"
 ./run_rename_benchmark.sh $GCSFUSE_HNS_FLAGS $GCSFUSE_FLAT_FLAGS $UPLOAD_FLAGS
 
 

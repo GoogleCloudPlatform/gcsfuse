@@ -295,12 +295,14 @@ def _record_time_of_operation(mount_point, dir, num_samples):
   time_interval_for_vm_metrics={}
   # Collecting metrics for non-nested folders.
   for folder in dir["folders"]["folder_structure"]:
+    log.info("Testing started for {}".folder["name"])
     results[folder["name"]],time_interval = _record_time_for_folder_rename(mount_point,folder,num_samples)
     time_interval_for_vm_metrics[folder["name"]]=[time_interval[0][0],time_interval[-1][-1]]
 
   nested_folder={
       "name": dir["nested_folders"]["folder_name"]
   }
+  log.info("Testing started for {}".format(dir["nested_folders"]["folder_name"]))
   results[dir["nested_folders"]["folder_name"]],time_interval = _record_time_for_folder_rename(mount_point,nested_folder,num_samples)
   time_interval_for_vm_metrics[dir["nested_folders"]["folder_name"]]=[time_interval[0][0],time_interval[-1][-1]]
   return results,time_interval_for_vm_metrics
@@ -500,10 +502,10 @@ def _run_rename_benchmark(test_type,dir_config,mount_flags,num_samples,upload_gs
 
 if __name__ == '__main__':
   argv = sys.argv
-  if len(argv) < 3:
+  if len(argv) < 4:
     raise TypeError('Incorrect number of arguments.\n'
                     'Usage: '
-                    'python3 renaming_benchmark.py  [--upload_gs] [--num_samples NUM_SAMPLES] config_file bucket_type')
+                    'python3 renaming_benchmark.py  [--upload_gs] [--num_samples NUM_SAMPLES] config_file bucket_type mount_flags')
 
   args = _parse_arguments(argv)
   check_dependencies(['gcloud', 'gcsfuse'], log)

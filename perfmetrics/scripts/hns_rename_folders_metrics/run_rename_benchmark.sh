@@ -39,7 +39,7 @@ gsutil cp gs://periodic-perf-tests/creds.json ../gsheet/
 echo "Upgrading gcloud version"
 ../upgrade_gcloud.sh
 
-# Uncomment the following 2 lines to run the benchmark on flat bucket
+# Uncomment the following 2 lines to run the benchmark on flat bucket.
 #echo "Running renaming benchmark on flat bucket"
 #python3 renaming_benchmark.py config-flat.json flat "$GCSFUSE_FLAT_FLAGS" "$UPLOAD_FLAGS"
 
