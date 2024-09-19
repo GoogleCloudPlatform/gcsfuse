@@ -42,7 +42,8 @@ func TestMakeGcsfuseArgs(t *testing.T) {
 				"enable_hns":                    "",
 				"ignore_interrupts":             "",
 				"anonymous_access":              "false",
-				"log_rotate_compress":           "false"},
+				"log_rotate_compress":           "false",
+				"disable_viper_config":          "true"},
 			expectedFlags: []string{"--implicit-dirs=true",
 				"--foreground=true",
 				"--reuse-token-from-url=false",
@@ -51,7 +52,8 @@ func TestMakeGcsfuseArgs(t *testing.T) {
 				"--enable-hns=true",
 				"--ignore-interrupts=true",
 				"--anonymous-access=false",
-				"--log-rotate-compress=false"},
+				"--log-rotate-compress=false",
+				"--disable-viper-config=true"},
 		},
 
 		{
@@ -64,7 +66,8 @@ func TestMakeGcsfuseArgs(t *testing.T) {
 				"enable-hns":                    "",
 				"ignore-interrupts":             "",
 				"anonymous-access":              "false",
-				"log_rotate-compress":           "false"},
+				"log_rotate-compress":           "false",
+				"disable-viper-config":          "false"},
 			expectedFlags: []string{"--implicit-dirs=true",
 				"--foreground=true",
 				"--reuse-token-from-url=false",
@@ -73,7 +76,8 @@ func TestMakeGcsfuseArgs(t *testing.T) {
 				"--enable-hns=true",
 				"--ignore-interrupts=true",
 				"--anonymous-access=false",
-				"--log-rotate-compress=false"},
+				"--log-rotate-compress=false",
+				"--disable-viper-config=false"},
 		},
 
 		{
