@@ -12,67 +12,83 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Tuple
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
 _SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
-_DEFAULT_GSHEET_ID = '1UghIdsyarrV1HVNc6lugFZS1jJRumhdiWnPgoEC8Fe4'
 
 
 def _get_sheets_service_client(serviceAccountKeyFile):
   creds = service_account.Credentials.from_service_account_file(
       serviceAccountKeyFile, scopes=_SCOPES
   )
-  service = build('sheets', 'v4', credentials=creds)
-  return service
+  # Alternatively, use from_service_account_info for client-creation,
+  # documented at
+  # https://google-auth.readthedocs.io/en/master/reference/google.oauth2.service_account.html
+  # .
+  client = build('sheets', 'v4', credentials=creds)
+  return client
 
 
-def append_to_gsheet(
+def append_data_to_gsheet(
     serviceAccountKeyFile: str,
     worksheet: str,
-    data: list,
-    gsheet_id=_DEFAULT_GSHEET_ID,
+    data: dict,
+    gsheet_id: str,
+    repeat_header: bool = False,
 ) -> None:
   """Calls the API to append the given data at the end of the given worksheet in the given gsheet.
 
+  If the passed header matches the first row of the file, then the
+  header is not inserted again, unless repeat_header is passed as
+  True.
   Args:
+    serviceAccountKeyFile: Path of a service-account key-file for authentication
+      read/write from/to the given gsheet.
     worksheet: string, name of the worksheet to be edited appended by a "!"
-    data: list of tuples/lists, data to be added to the worksheet
+    data: Dictionary of {'header': tuple, 'values': list(tuples)}, to be added
+      to the worksheet.
+    gsheet_id: Unique ID to identify a gsheet.
+    repeat_header: Always add the passed header as a new row in the file.
 
   Raises:
     HttpError: For any Google Sheets API call related errors
   """
+  # Open a read-write gsheet client using
   client = _get_sheets_service_client(serviceAccountKeyFile)
 
-  gsheet_response = (
-      client.spreadsheets()
-      .values()
-      .get(spreadsheetId=gsheet_id, range='{}!A1:A'.format(worksheet))
-      .execute()
-  )
-  # )
-  print(gsheet_response)
-  entries = 0
-  if 'values' in gsheet_response:
-    entries = len(gsheet_response['values'])
-    print(entries)
-
-    # Clearing the occupied rows
-    request = (
+  def read_from_range(cell_range: str):
+    """Returns a list of list of values for the given range in the worksheet."""
+    gsheet_response = (
         client.spreadsheets()
         .values()
-        .clear(
-            spreadsheetId=gsheet_id,
-            range='{}!A{}'.format(worksheet, entries + 1),
-            body={},
-        )
+        .get(spreadsheetId=gsheet_id, range=f'{worksheet}!{cell_range}')
         .execute()
     )
+    return gsheet_response['values'] if 'values' in gsheet_response else []
 
-  # Appending new rows
-  client.spreadsheets().values().update(
-      spreadsheetId=gsheet_id,
-      valueInputOption='USER_ENTERED',
-      body={'majorDimension': 'ROWS', 'values': data},
-      range=f'{worksheet}!A{entries+1}',
-  ).execute()
+  def write_at(cell_address: str, data):
+    """Writes a list of tuple of values at the given cell_cell_address in the worksheet."""
+    client.spreadsheets().values().update(
+        spreadsheetId=gsheet_id,
+        valueInputOption='USER_ENTERED',
+        body={'majorDimension': 'ROWS', 'values': data},
+        range=f'{worksheet}!{cell_address}',
+    ).execute()
+
+  data_in_first_column = read_from_range('A1:A')
+  num_rows = len(data_in_first_column)
+  data_in_first_row = read_from_range('A1:1')
+  original_header = tuple(data_in_first_row[0]) if data_in_first_row else ()
+  new_header = data['header']
+
+  # Insert header in the file, if needed.
+  if not original_header or repeat_header or not original_header == new_header:
+    # Append header after last row.
+    write_at(f'A{num_rows+1}', [new_header])
+    num_rows = num_rows + 1
+
+  # Append given values after the last row.
+  write_at(f'A{num_rows+1}', data['values'])
+  num_rows = num_rows + 1

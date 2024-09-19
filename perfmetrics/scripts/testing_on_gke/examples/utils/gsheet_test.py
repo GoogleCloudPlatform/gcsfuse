@@ -15,38 +15,45 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import random
+from random import choices
+import string
 import unittest
-from gsheet import append_to_gsheet
-import utils
+from gsheet import append_data_to_gsheet
 
 
-def _default_service_account_key_file(project_id: str) -> str:
-  if project_id == 'gcs-fuse-test':
-    return '20240919-gcs-fuse-test-bc1a2c0aac45.json'
-  elif project_id == 'gcs-fuse-test-ml':
-    return '20240919-gcs-fuse-test-ml-d6e0247b2cf1.json'
-  else:
-    raise Exception(f'Unknown project-id: {project_id}')
-
-
-class UtilsTest(unittest.TestCase):
+class GsheetTest(unittest.TestCase):
 
   # @classmethod
   # def setUpClass(self):
   # self.project_id = 'gcs-fuse-test'
 
-  def test_append_to_gsheet(self):
-    project_ids = ['gcs-fuse-test', 'gcs-fuse-test-ml']
-    for project_id in project_ids:
-      serviceAccountKeyFile = _default_service_account_key_file(project_id)
-      append_to_gsheet(
-          worksheet='fio',
-          data=[
-              ('Column1', 'Column2', 'Column3', 'Column4'),
-              ('d', 2, 0.33, 'beta'),
-          ],
-          serviceAccountKeyFile=serviceAccountKeyFile,
-      )
+  def test_append_data_to_gsheet(self):
+    _DEFAULT_GSHEET_ID = '1UghIdsyarrV1HVNc6lugFZS1jJRumhdiWnPgoEC8Fe4'
+
+    def _default_service_account_key_file(project_id: str) -> str:
+      if project_id == 'gcs-fuse-test':
+        return '20240919-gcs-fuse-test-bc1a2c0aac45.json'
+      elif project_id == 'gcs-fuse-test-ml':
+        return '20240919-gcs-fuse-test-ml-d6e0247b2cf1.json'
+      else:
+        raise Exception(f'Unknown project-id: {project_id}')
+
+    for project_id in ['gcs-fuse-test', 'gcs-fuse-test-ml']:
+      for worksheet in ['fio', 'dlio']:
+        serviceAccountKeyFile = _default_service_account_key_file(project_id)
+        append_data_to_gsheet(
+            worksheet=worksheet,
+            data={
+                'header': ('Column1', 'Column2'),
+                'values': [(
+                    ''.join(random.choices(string.ascii_letters, k=9)),
+                    random.random(),
+                )],
+            },
+            serviceAccountKeyFile=serviceAccountKeyFile,
+            gsheet_id=_DEFAULT_GSHEET_ID,
+        )
 
 
 if __name__ == '__main__':
