@@ -22,12 +22,14 @@ import os
 import pprint
 import subprocess
 import sys
+from typing import List, Tuple
 
 # local library imports
 sys.path.append("../")
 import fio_workload
 from utils.utils import get_memory, get_cpu, unix_to_timestamp, is_mash_installed, get_memory_from_monitoring_api, get_cpu_from_monitoring_api
-from utils.parse_logs_common import ensure_directory_exists, download_gcs_objects, parse_arguments, SUPPORTED_SCENARIOS
+from utils.parse_logs_common import ensure_directory_exists, download_gcs_objects, parse_arguments, SUPPORTED_SCENARIOS, default_service_account_key_file
+from utils.gsheet import append_data_to_gsheet, url
 
 _LOCAL_LOGS_LOCATION = "../../bin/fio-logs"
 
@@ -53,6 +55,31 @@ record = {
     "numThreads": 0,
 }
 
+mash_installed = False
+
+_HEADER = (
+    "File Size",
+    "Read Type",
+    "Scenario",
+    "Epoch",
+    "Duration(s)",
+    "Throughput (MB/s)",
+    "IOPS",
+    "Throughput over Local SSD (%)",
+    "GCSFuse Lowest Memory (MB)",
+    "GCSFuse Highest Memory (MB)",
+    "GCSFuse Lowest CPU (core)",
+    "GCSFuse Highest CPU (core)",
+    "Pod-name",
+    "Start",
+    "End",
+    "GcsfuseMountOptions",
+    "BlockSize",
+    "FilesPerThread",
+    "NumThreads",
+    "InstanceID",
+)
+
 
 def downloadFioOutputs(fioWorkloads: set, instanceId: str) -> int:
   """Downloads instanceId-specific fio outputs for each fioWorkload locally.
@@ -77,9 +104,9 @@ def downloadFioOutputs(fioWorkloads: set, instanceId: str) -> int:
 
     srcObjects = f"gs://{fioWorkload.bucket}/fio-output/{instanceId}/*"
     print(f"Downloading FIO outputs from {srcObjects} ...")
-    returncode, errorStr = download_gcs_objects(srcObjects, dstDir)
+    returncode = download_gcs_objects(srcObjects, dstDir)
     if returncode < 0:
-      print(f"Failed to download FIO outputs from {srcObjects}: {errorStr}")
+      print(f"Failed to download FIO outputs from {srcObjects}: {returncode}")
       return returncode
   return 0
 
@@ -216,39 +243,42 @@ def createOutputScenariosFromDownloadedFiles(args: dict) -> dict:
       )
       r["end"] = unix_to_timestamp(per_epoch_output_data["timestamp_ms"])
 
-      if r["scenario"] != "local-ssd":
-        if mash_installed:
-          r["lowest_memory"], r["highest_memory"] = get_memory(
-              r["pod_name"],
-              r["start"],
-              r["end"],
-              project_number=args.project_number,
-          )
-          r["lowest_cpu"], r["highest_cpu"] = get_cpu(
-              r["pod_name"],
-              r["start"],
-              r["end"],
-              project_number=args.project_number,
-          )
-        else:
-          r["lowest_memory"], r["highest_memory"] = (
-              get_memory_from_monitoring_api(
-                  pod_name=r["pod_name"],
-                  start_epoch=r["start_epoch"],
-                  end_epoch=r["end_epoch"],
-                  project_id=args.project_id,
-                  cluster_name=args.cluster_name,
-                  namespace_name=args.namespace_name,
-              )
-          )
-          r["lowest_cpu"], r["highest_cpu"] = get_cpu_from_monitoring_api(
-              pod_name=r["pod_name"],
-              start_epoch=r["start_epoch"],
-              end_epoch=r["end_epoch"],
-              project_id=args.project_id,
-              cluster_name=args.cluster_name,
-              namespace_name=args.namespace_name,
-          )
+      def fetch_cpu_memory_data():
+        if r["scenario"] != "local-ssd":
+          if mash_installed:
+            r["lowest_memory"], r["highest_memory"] = get_memory(
+                r["pod_name"],
+                r["start"],
+                r["end"],
+                project_number=args.project_number,
+            )
+            r["lowest_cpu"], r["highest_cpu"] = get_cpu(
+                r["pod_name"],
+                r["start"],
+                r["end"],
+                project_number=args.project_number,
+            )
+          else:
+            r["lowest_memory"], r["highest_memory"] = (
+                get_memory_from_monitoring_api(
+                    pod_name=r["pod_name"],
+                    start_epoch=r["start_epoch"],
+                    end_epoch=r["end_epoch"],
+                    project_id=args.project_id,
+                    cluster_name=args.cluster_name,
+                    namespace_name=args.namespace_name,
+                )
+            )
+            r["lowest_cpu"], r["highest_cpu"] = get_cpu_from_monitoring_api(
+                pod_name=r["pod_name"],
+                start_epoch=r["start_epoch"],
+                end_epoch=r["end_epoch"],
+                project_id=args.project_id,
+                cluster_name=args.cluster_name,
+                namespace_name=args.namespace_name,
+            )
+
+      fetch_cpu_memory_data()
 
       r["gcsfuse_mount_options"] = gcsfuse_mount_options
       r["blockSize"] = bs
@@ -269,57 +299,120 @@ def createOutputScenariosFromDownloadedFiles(args: dict) -> dict:
   return output
 
 
-def writeRecordsToCsvOutputFile(output: dict, output_file_path: str):
-  with open(output_file_path, "a") as output_file_fwr:
-    # Write a new header.
-    output_file_fwr.write(
-        "File Size,Read Type,Scenario,Epoch,Duration"
-        " (s),Throughput (MB/s),IOPS,Throughput over Local SSD (%),GCSFuse"
-        " Lowest"
-        " Memory (MB),GCSFuse Highest Memory (MB),GCSFuse Lowest CPU"
-        " (core),GCSFuse Highest CPU"
-        " (core),Pod,Start,End,GcsfuseMoutOptions,BlockSize,FilesPerThread,NumThreads,InstanceID\n"
-    )
+def writeOutput(
+    output: dict,
+    args: dict,
+):
+  rows = []
 
-    for key in output:
-      record_set = output[key]
+  for key in output:
+    record_set = output[key]
 
-      for scenario in record_set["records"]:
-        if scenario not in SUPPORTED_SCENARIOS:
-          print(f"Unknown scenario: {scenario}. Ignoring it...")
+    for scenario in record_set["records"]:
+      if scenario not in SUPPORTED_SCENARIOS:
+        print(f"Unknown scenario: {scenario}. Ignoring it...")
+        continue
+
+      for i in range(len(record_set["records"][scenario])):
+        r = record_set["records"][scenario][i]
+
+        try:
+          if ("local-ssd" in record_set["records"]) and (
+              len(record_set["records"]["local-ssd"])
+              == len(record_set["records"][scenario])
+          ):
+            r["throughput_over_local_ssd"] = round(
+                r["throughput_mb_per_second"]
+                / record_set["records"]["local-ssd"][i][
+                    "throughput_mb_per_second"
+                ]
+                * 100,
+                2,
+            )
+          else:
+            r["throughput_over_local_ssd"] = "NA"
+
+        except Exception as e:
+          print(
+              "Error: failed to parse/write record-set for"
+              f" scenario: {scenario}, i: {i}, record: {r}, exception: {e}"
+          )
           continue
 
-        for i in range(len(record_set["records"][scenario])):
-          r = record_set["records"][scenario][i]
+        new_row = (
+            record_set["mean_file_size"],
+            record_set["read_type"],
+            scenario,
+            r["epoch"],
+            r["duration"],
+            r["throughput_mb_per_second"],
+            r["IOPS"],
+            r["throughput_over_local_ssd"],
+            r["lowest_memory"],
+            r["highest_memory"],
+            r["lowest_cpu"],
+            r["highest_cpu"],
+            r["pod_name"],
+            r["start"],
+            r["end"],
+            f'"{r["gcsfuse_mount_options"].strip()}"',  # need to wrap in quotes to encapsulate commas in the value.
+            r["blockSize"],
+            r["filesPerThread"],
+            r["numThreads"],
+            args.instance_id,
+        )
+        rows.append(new_row)
 
-          try:
-            if ("local-ssd" in record_set["records"]) and (
-                len(record_set["records"]["local-ssd"])
-                == len(record_set["records"][scenario])
-            ):
-              r["throughput_over_local_ssd"] = round(
-                  r["throughput_mb_per_second"]
-                  / record_set["records"]["local-ssd"][i][
-                      "throughput_mb_per_second"
-                  ]
-                  * 100,
-                  2,
-              )
-            else:
-              r["throughput_over_local_ssd"] = "NA"
+  def exportToCsvFile(output_file_path: str, header: str, rows: List):
+    if output_file_path and output_file_path.strip():
+      ensure_directory_exists(os.path.dirname(output_file_path))
+      with open(output_file_path, "a") as output_file_fwr:
+        # Write a new header.
+        output_file_fwr.write(f"{','.join(header)}\n")
+        for row in rows:
+          output_file_fwr.write(f"{','.join([f'{val}' for val in row])}\n")
+        output_file_fwr.close()
+        print(
+            "\nSuccessfully published outputs of FIO test runs to"
+            f" {output_file_path} !!!"
+        )
 
-          except Exception as e:
-            print(
-                "Error: failed to parse/write record-set for"
-                f" scenario: {scenario}, i: {i}, record: {r}, exception: {e}"
-            )
-            continue
+  exportToCsvFile(output_file_path=args.output_file, header=_HEADER, rows=rows)
 
-          output_file_fwr.write(
-              f"{record_set['mean_file_size']},{record_set['read_type']},{scenario},{r['epoch']},{r['duration']},{r['throughput_mb_per_second']},{r['IOPS']},{r['throughput_over_local_ssd']},{r['lowest_memory']},{r['highest_memory']},{r['lowest_cpu']},{r['highest_cpu']},{r['pod_name']},{r['start']},{r['end']},\"{r['gcsfuse_mount_options']}\",{r['blockSize']},{r['filesPerThread']},{r['numThreads']},{args.instance_id}\n"
-          )
+  def exportToGsheet(
+      header: str,
+      rows: List,
+      output_gsheet_id: str,
+      output_worksheet_name: str,
+      output_gsheet_keyfile: str,
+  ):
+    if (
+        output_gsheet_id
+        and output_gsheet_id.strip()
+        and output_worksheet_name
+        and output_worksheet_name.strip()
+    ):
+      append_data_to_gsheet(
+          data={"header": header, "values": rows},
+          worksheet=output_worksheet_name,
+          gsheet_id=output_gsheet_id,
+          serviceAccountKeyFile=output_gsheet_keyfile,
+          # default_service_account_key_file(
+          # args.project_id
+          # ),
+      )
+      print(
+          "\nSuccessfully published outputs of FIO test runs at worksheet"
+          f" '{args.output_worksheet_name}' in {url(args.output_gsheet_id)}"
+      )
 
-    output_file_fwr.close()
+  exportToGsheet(
+      output_gsheet_id=args.output_gsheet_id,
+      output_worksheet_name=args.output_worksheet_name,
+      output_gsheet_keyfile=args.output_gsheet_keyfile,
+      header=_HEADER,
+      rows=rows,
+  )
 
 
 if __name__ == "__main__":
@@ -329,20 +422,13 @@ if __name__ == "__main__":
   fioWorkloads = fio_workload.ParseTestConfigForFioWorkloads(
       args.workload_config
   )
-  downloadFioOutputs(fioWorkloads, args.instance_id)
+  ret = downloadFioOutputs(fioWorkloads, args.instance_id)
+  if ret != 0:
+    print(f"failed to download fio outputs: {ret}")
 
   mash_installed = is_mash_installed()
   if not mash_installed:
     print("Mash is not installed, will skip parsing CPU and memory usage.")
 
   output = createOutputScenariosFromDownloadedFiles(args)
-
-  output_file_path = args.output_file
-  # Create the parent directory of output_file_path if doesn't
-  # exist already.
-  ensure_directory_exists(os.path.dirname(output_file_path))
-  writeRecordsToCsvOutputFile(output, output_file_path)
-  print(
-      "\n\nSuccessfully published outputs of FIO test runs to"
-      f" {output_file_path} !!!\n\n"
-  )
+  writeOutput(output, args)
