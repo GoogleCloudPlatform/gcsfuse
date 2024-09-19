@@ -24,5 +24,5 @@ sudo /usr/local/google-cloud-sdk/install.sh
 export PATH=/usr/local/google-cloud-sdk/bin:$PATH
 echo 'export PATH=/usr/local/google-cloud-sdk/bin:$PATH' >> ~/.bashrc
 gcloud version && rm gcloud.tar.gz
-sudo gcloud components update
-sudo gcloud components install alpha
+sudo /usr/local/google-cloud-sdk/bin/gcloud components update
+sudo /usr/local/google-cloud-sdk/bin/gcloud components install alpha
