@@ -13,8 +13,8 @@
 
 # limitations under the License.
 # To run the script,run in terminal:
-# python3 renaming_benchmark.py config.json bucket_type  [--upload_gs] \
-# [--num_samples NUM_SAMPLES]
+# python3 renaming_benchmark.py dir-config.json bucket_type  gcsfuse_mount_flags \
+# [--upload_gs]  [--num_samples NUM_SAMPLES]
 # where dir-config.json file contains the directory structure details for the test.
 
 import os
@@ -295,7 +295,7 @@ def _record_time_of_operation(mount_point, dir, num_samples):
   time_interval_for_vm_metrics={}
   # Collecting metrics for non-nested folders.
   for folder in dir["folders"]["folder_structure"]:
-    log.info("Testing started for {}".folder["name"])
+    log.info("Testing started for {}".format(folder["name"]))
     results[folder["name"]],time_interval = _record_time_for_folder_rename(mount_point,folder,num_samples)
     time_interval_for_vm_metrics[folder["name"]]=[time_interval[0][0],time_interval[-1][-1]]
 
@@ -371,8 +371,6 @@ def _parse_arguments(argv):
       'gcsfuse_flags',
       help='Gcsfuse flags for mounting the tests bucket.',
       action='store',
-      nargs=1,
-      required=True,
   )
   parser.add_argument(
       '--upload_gs',

@@ -29,15 +29,13 @@ echo "Installing Ops Agent on Vm"
 curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
 sudo bash add-google-cloud-ops-agent-repo.sh --also-install
 
+echo "Upgrading gcloud version"
 ../upgrade_gcloud.sh
 
 GCSFUSE_HNS_FLAGS=$1
 GCSFUSE_FLAT_FLAGS=$2
 UPLOAD_FLAGS=$3
 gsutil cp gs://periodic-perf-tests/creds.json ../gsheet/
-
-echo "Upgrading gcloud version"
-../upgrade_gcloud.sh
 
 # Uncomment the following 2 lines to run the benchmark on flat bucket.
 #echo "Running renaming benchmark on flat bucket"
