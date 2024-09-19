@@ -680,17 +680,19 @@ function waitTillAllPodsComplete() {
   done
 }
 
+export output_gsheet='1UghIdsyarrV1HVNc6lugFZS1jJRumhdiWnPgoEC8Fe4'
+
 function fetchAndParseFioOutputs() {
   printf "\nFetching and parsing fio outputs ...\n\n"
   cd "${gke_testing_dir}"/examples/fio
-  python3 parse_logs.py --project-number=${project_number} --workload-config "${workload_config}" --instance-id ${instance_id} --output-file "${output_dir}"/fio/output.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace}
+  python3 parse_logs.py --project-number=${project_number} --workload-config "${workload_config}" --instance-id ${instance_id} --output-file "${output_dir}"/fio/output.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace} --output-gsheet-id=${output_gsheet} --output-worksheet-name=fio
   cd -
 }
 
 function fetchAndParseDlioOutputs() {
   printf "\nFetching and parsing dlio outputs ...\n\n"
   cd "${gke_testing_dir}"/examples/dlio
-  python3 parse_logs.py --project-number=${project_number} --workload-config "${workload_config}" --instance-id ${instance_id} --output-file "${output_dir}"/dlio/output.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace}
+  python3 parse_logs.py --project-number=${project_number} --workload-config "${workload_config}" --instance-id ${instance_id} --output-file "${output_dir}"/dlio/output.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace} --output-gsheet-id=${output_gsheet} --output-worksheet-name=dlio
   cd -
 }
 

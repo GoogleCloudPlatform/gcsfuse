@@ -40,7 +40,7 @@ class GsheetTest(unittest.TestCase):
         raise Exception(f'Unknown project-id: {project_id}')
 
     for project_id in ['gcs-fuse-test', 'gcs-fuse-test-ml']:
-      for worksheet in ['fio', 'dlio']:
+      for worksheet in ['fio-test', 'dlio-test']:
         serviceAccountKeyFile = _default_service_account_key_file(project_id)
         append_data_to_gsheet(
             worksheet=worksheet,

@@ -114,4 +114,24 @@ def parseLogParserArguments() -> object:
       help="File path of the output metrics (in CSV format)",
       default="output.csv",
   )
+  parser.add_argument(
+      "-o",
+      "--output-gsheet-id",
+      metavar="ID of a googlesheet for exporting output to.",
+      help="File path of the output metrics (in CSV format)",
+      required=True,
+      type=str,
+  )
+  parser.add_argument(
+      "-o",
+      "--output-worksheet-name",
+      metavar=(
+          "Name of a worksheet in the googlesheet specified by"
+          " --output-gsheet-id"
+      ),
+      help="File path of the output metrics (in CSV format)",
+      required=True,
+      type=str,
+  )
+
   return parser.parse_args()
