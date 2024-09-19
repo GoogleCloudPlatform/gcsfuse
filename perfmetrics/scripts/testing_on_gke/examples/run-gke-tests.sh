@@ -347,6 +347,8 @@ function installDependencies() {
   which jq || sudo apt-get install -y jq
   # # Ensure sudoless docker is installed.
   # docker ps >/dev/null || (sudo addgroup docker && sudo usermod -aG docker $USER && newgrp docker)
+  # Install python modules for gsheet.
+  python3 -m pip install google-api-python-client
 }
 
 # Make sure you have access to the necessary GCP resources. The easiest way to enable it is to use <your-ldap>@google.com as active auth.

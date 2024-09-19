@@ -15,34 +15,25 @@
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
-SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+_SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 _DEFAULT_GSHEET_ID = '1UghIdsyarrV1HVNc6lugFZS1jJRumhdiWnPgoEC8Fe4'
-
-
-def _default_service_account_key_file(project_id: str) -> str:
-  if project_id == 'gcs-fuse-test':
-    return '20240919-gcs-fuse-test-bc1a2c0aac45.json'
-  elif project_id == 'gcs-fuse-test-ml':
-    return '20240919-gcs-fuse-test-ml-d6e0247b2cf1.json'
-  else:
-    raise Exception(f'Unknown project-id: {project_id}')
 
 
 def _get_sheets_service_client(serviceAccountKeyFile):
   creds = service_account.Credentials.from_service_account_file(
-      serviceAccountKeyFile, scopes=SCOPES
+      serviceAccountKeyFile, scopes=_SCOPES
   )
   service = build('sheets', 'v4', credentials=creds)
   return service
 
 
 def append_to_gsheet(
-    project_id: str,
+    serviceAccountKeyFile: str,
     worksheet: str,
     data: list,
-    spreadsheet_id=_DEFAULT_GSHEET_ID,
+    gsheet_id=_DEFAULT_GSHEET_ID,
 ) -> None:
-  """Calls the API to insert the values into the given worksheet of a gsheet.
+  """Calls the API to append the given data at the end of the given worksheet in the given gsheet.
 
   Args:
     worksheet: string, name of the worksheet to be edited appended by a "!"
@@ -51,29 +42,27 @@ def append_to_gsheet(
   Raises:
     HttpError: For any Google Sheets API call related errors
   """
-  sheets_client = _get_sheets_service_client(
-      _default_service_account_key_file(project_id)
-  )
+  client = _get_sheets_service_client(serviceAccountKeyFile)
 
-  # Getting the index of the last occupied row in the sheet
-  spreadsheet_response = (
-      sheets_client.spreadsheets()
+  gsheet_response = (
+      client.spreadsheets()
       .values()
-      .get(spreadsheetId=spreadsheet_id, range='{}!A1:A'.format(worksheet))
+      .get(spreadsheetId=gsheet_id, range='{}!A1:A'.format(worksheet))
       .execute()
   )
-  print(spreadsheet_response)
+  # )
+  print(gsheet_response)
   entries = 0
-  if 'values' in spreadsheet_response:
-    entries = len(spreadsheet_response['values'])
+  if 'values' in gsheet_response:
+    entries = len(gsheet_response['values'])
     print(entries)
 
     # Clearing the occupied rows
     request = (
-        sheets_client.spreadsheets()
+        client.spreadsheets()
         .values()
         .clear(
-            spreadsheetId=spreadsheet_id,
+            spreadsheetId=gsheet_id,
             range='{}!A{}'.format(worksheet, entries + 1),
             body={},
         )
@@ -81,8 +70,8 @@ def append_to_gsheet(
     )
 
   # Appending new rows
-  sheets_client.spreadsheets().values().update(
-      spreadsheetId=spreadsheet_id,
+  client.spreadsheets().values().update(
+      spreadsheetId=gsheet_id,
       valueInputOption='USER_ENTERED',
       body={'majorDimension': 'ROWS', 'values': data},
       range=f'{worksheet}!A{entries+1}',

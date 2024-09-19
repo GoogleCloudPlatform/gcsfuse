@@ -20,21 +20,33 @@ from gsheet import append_to_gsheet
 import utils
 
 
+def _default_service_account_key_file(project_id: str) -> str:
+  if project_id == 'gcs-fuse-test':
+    return '20240919-gcs-fuse-test-bc1a2c0aac45.json'
+  elif project_id == 'gcs-fuse-test-ml':
+    return '20240919-gcs-fuse-test-ml-d6e0247b2cf1.json'
+  else:
+    raise Exception(f'Unknown project-id: {project_id}')
+
+
 class UtilsTest(unittest.TestCase):
 
-  @classmethod
-  def setUpClass(self):
-    self.project_id = 'gcs-fuse-test'
+  # @classmethod
+  # def setUpClass(self):
+  # self.project_id = 'gcs-fuse-test'
 
   def test_append_to_gsheet(self):
-    append_to_gsheet(
-        worksheet='fio',
-        data=[
-            ('Column1', 'Column2', 'Column3', 'Column4'),
-            ('d', 2, 0.33, 'beta'),
-        ],
-        project_id='gcs-fuse-test',
-    )
+    project_ids = ['gcs-fuse-test', 'gcs-fuse-test-ml']
+    for project_id in project_ids:
+      serviceAccountKeyFile = _default_service_account_key_file(project_id)
+      append_to_gsheet(
+          worksheet='fio',
+          data=[
+              ('Column1', 'Column2', 'Column3', 'Column4'),
+              ('d', 2, 0.33, 'beta'),
+          ],
+          serviceAccountKeyFile=serviceAccountKeyFile,
+      )
 
 
 if __name__ == '__main__':
