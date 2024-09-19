@@ -88,7 +88,8 @@ func makeGcsfuseArgs(
 			"enable_hns",
 			"ignore_interrupts",
 			"anonymous_access",
-			"log_rotate_compress":
+			"log_rotate_compress",
+			"disable_viper_config":
 			if value == "" {
 				value = "true"
 			}
