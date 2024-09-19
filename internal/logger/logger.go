@@ -248,7 +248,7 @@ func handleRecordsAsync(record chan slog.Record, handler slog.Handler) {
 	count_mutex.Unlock()
 	ctx := context.Background()
 	for r := range record {
-		r.Message = "ABHIGU " + r.Message
+		//r.Message = "ABHIGU " + r.Message
 		handler.Handle(ctx, r)
 	}
 }
