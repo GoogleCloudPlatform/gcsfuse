@@ -53,6 +53,7 @@ func main() {
 
 	// TODO: Clean this up after we gain enough confidence on CLI-Config Parity changes.
 	disableViperConfigFlag := "disable-viper-config"
+	_ = os.Setenv(cmd.EnableViperConfigEnvVariable, "false")
 	var newOsArgs []string
 	for _, arg := range os.Args {
 		if arg == "-"+disableViperConfigFlag || arg == "--"+disableViperConfigFlag || arg == "-"+disableViperConfigFlag+"=true" || arg == "--"+disableViperConfigFlag+"=true" {
@@ -72,13 +73,5 @@ func main() {
 		return
 	}
 
-	rootCmd, err := cmd.NewRootCmd(cmd.Mount)
-	if err != nil {
-		log.Fatalf("Error occurred while creating the root command: %v", err)
-	}
-	rootCmd.SetArgs(cmd.ConvertToPosixArgs(os.Args, rootCmd))
-	if err := rootCmd.Execute(); err != nil {
-		log.Fatalf("Error occurred during command execution: %v", err)
-	}
-
+	cmd.ExecuteNewMain()
 }
