@@ -17,7 +17,6 @@ package contentcache_test
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"sync"
 	"testing"
@@ -76,7 +75,7 @@ func TestReadWriteMetadataCheckpointFile(t *testing.T) {
 	metadataFileName, err := contentCache.WriteMetadataCheckpointFile(objectMetadata.ObjectName, &objectMetadata)
 	AssertEq(err, nil)
 	newObjectMetadata := contentcache.CacheFileObjectMetadata{}
-	contents, err := ioutil.ReadFile(metadataFileName)
+	contents, err := os.ReadFile(metadataFileName)
 	AssertEq(err, nil)
 	err = json.Unmarshal(contents, &newObjectMetadata)
 	AssertEq(err, nil)

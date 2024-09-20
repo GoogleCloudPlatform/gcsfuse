@@ -16,7 +16,6 @@ package fs_test
 
 import (
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path"
@@ -105,7 +104,7 @@ func (t *StressTest) CreateAndReadManyFilesInParallel() {
 	err = forEachName(
 		names,
 		func(n string) (err error) {
-			err = ioutil.WriteFile(path.Join(mntDir, n), []byte(n), 0400)
+			err = os.WriteFile(path.Join(mntDir, n), []byte(n), 0400)
 			return
 		})
 
@@ -115,7 +114,7 @@ func (t *StressTest) CreateAndReadManyFilesInParallel() {
 	err = forEachName(
 		names,
 		func(n string) (err error) {
-			contents, err := ioutil.ReadFile(path.Join(mntDir, n))
+			contents, err := os.ReadFile(path.Join(mntDir, n))
 			if err != nil {
 				err = fmt.Errorf("ReadFile: %w", err)
 				return

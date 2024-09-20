@@ -16,7 +16,6 @@ package integration_test
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -66,7 +65,7 @@ func (t *MountHelperTest) SetUp(_ *TestInfo) {
 	}
 
 	// Set up the temporary directory.
-	t.dir, err = ioutil.TempDir("", "mount_helper_test")
+	t.dir, err = os.MkdirTemp("", "mount_helper_test")
 	AssertEq(nil, err)
 }
 
@@ -199,7 +198,7 @@ func (t *MountHelperTest) ReadOnlyMode() {
 	defer util.Unmount(t.dir)
 
 	// Writing to the file system should fail.
-	err = ioutil.WriteFile(path.Join(t.dir, "blah"), []byte{}, 0400)
+	err = os.WriteFile(path.Join(t.dir, "blah"), []byte{}, 0400)
 	ExpectThat(err, Error(HasSubstr("read-only")))
 }
 
@@ -236,7 +235,7 @@ func (t *MountHelperTest) LinuxArgumentOrder() {
 	defer util.Unmount(t.dir)
 
 	// Writing to the file system should fail.
-	err = ioutil.WriteFile(path.Join(t.dir, "blah"), []byte{}, 0400)
+	err = os.WriteFile(path.Join(t.dir, "blah"), []byte{}, 0400)
 	ExpectThat(err, Error(HasSubstr("read-only")))
 }
 
