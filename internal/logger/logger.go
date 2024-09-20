@@ -118,6 +118,11 @@ func SetLogFormat(format string) {
 	defaultLogger = defaultLoggerFactory.newLogger(defaultLoggerFactory.level)
 }
 
+func SetLogSeverity(severity cfg.LogSeverity) {
+	defaultLoggerFactory.level = string(severity)
+	defaultLogger = defaultLoggerFactory.newLogger(defaultLoggerFactory.level)
+}
+
 // Close closes the log file when necessary.
 func Close() {
 	if f := defaultLoggerFactory.file; f != nil {
