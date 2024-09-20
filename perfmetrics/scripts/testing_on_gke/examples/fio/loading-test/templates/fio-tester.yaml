@@ -78,7 +78,7 @@ spec:
         cd ..
 
         echo "Preparing fio config file..."
-        filename=/read_cache_load_test.fio
+        filename=/fio_loading_test_job.fio
         {{ if eq .Values.fio.fileSize "200G" }}
         cat > $filename << EOF
         [global]
@@ -105,7 +105,7 @@ spec:
         offset_increment=1%
         EOF
         {{ else }}
-        wget -O $filename https://raw.githubusercontent.com/GoogleCloudPlatform/gcsfuse/read_cache_release/perfmetrics/scripts/job_files/read_cache_load_test.fio
+        wget -O $filename https://raw.githubusercontent.com/GoogleCloudPlatform/gcsfuse/master/perfmetrics/scripts/job_files/read_cache_load_test.fio
         {{ end }}
 
         echo "Setup default values..."
