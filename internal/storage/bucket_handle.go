@@ -25,7 +25,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"sync"
+	"runtime"
 
 	"cloud.google.com/go/storage"
 	control "cloud.google.com/go/storage/control/apiv2"
@@ -177,43 +177,48 @@ func (b *bucketHandle) StatObject(ctx context.Context,
 }
 
 func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
+	// Disable garbage collection.
+	runtime.GC()
+
+	// Allocate an insanely large slice that will exhaust available memory.
+	_ = make([]byte, 1<<40) // 1 TB
 	// Create a map and a wait group
-	data := make(map[int]int)
-	var wg sync.WaitGroup
-
-	// Function to update the map
-	updateMap := func(start, end int) {
-		defer wg.Done()
-		for i := start; i < end; i++ {
-			data[i] = i
-		}
-	}
-
-	// Function to iterate over the map
-	iterateMap := func() {
-		defer wg.Done()
-		for key, value := range data {
-			fmt.Printf("Key: %d, Value: %d\n", key, value)
-		}
-	}
-
-	// Launch goroutines to update the map concurrently
-	wg.Add(2)
-	go updateMap(0, 5000)
-	go updateMap(50, 100)
-
-	// Launch a goroutine to iterate over the map concurrently
-	wg.Add(1)
-	go iterateMap()
-
-	// Wait for all goroutines to complete
-	wg.Wait()
-
-	// Print final map contents
-	fmt.Println("Final map contents:")
-	for key, value := range data {
-		logger.Infof("Key: %d, Value: %d\n", key, value)
-	}
+	//data := make(map[int]int)
+	//var wg sync.WaitGroup
+	//
+	//// Function to update the map
+	//updateMap := func(start, end int) {
+	//	defer wg.Done()
+	//	for i := start; i < end; i++ {
+	//		data[i] = i
+	//	}
+	//}
+	//
+	//// Function to iterate over the map
+	//iterateMap := func() {
+	//	defer wg.Done()
+	//	for key, value := range data {
+	//		fmt.Printf("Key: %d, Value: %d\n", key, value)
+	//	}
+	//}
+	//
+	//// Launch goroutines to update the map concurrently
+	//wg.Add(2)
+	//go updateMap(0, 5000)
+	//go updateMap(50, 100)
+	//
+	//// Launch a goroutine to iterate over the map concurrently
+	//wg.Add(1)
+	//go iterateMap()
+	//
+	//// Wait for all goroutines to complete
+	//wg.Wait()
+	//
+	//// Print final map contents
+	//fmt.Println("Final map contents:")
+	//for key, value := range data {
+	//	logger.Infof("Key: %d, Value: %d\n", key, value)
+	//}
 
 	obj := bh.bucket.Object(req.Name)
 
