@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	control "cloud.google.com/go/storage/control/apiv2"
 	"github.com/googleapis/gax-go/v2"
@@ -26,7 +27,7 @@ import (
 )
 
 func storageControlClientRetryOptions(clientConfig *StorageClientConfig) []gax.CallOption {
-	return []gax.CallOption{gax.WithRetry(func() gax.Retryer {
+	return []gax.CallOption{gax.WithTimeout(120 * time.Second), gax.WithRetry(func() gax.Retryer {
 		return gax.OnErrorFunc(gax.Backoff{
 			Max:        clientConfig.MaxRetrySleep,
 			Multiplier: clientConfig.RetryMultiplier,
