@@ -22,21 +22,18 @@ DLIO workloads from it and generates and deploys a helm chart for
 each valid DLIO workload.
 """
 
+# system imports
 import argparse
+import os
 import subprocess
+import sys
+
+# local imports from other directories
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'utils'))
+from run_tests_common import escape_commas_in_string, parse_args, run_command
+
+# local imports from same directory
 import dlio_workload
-
-
-def run_command(command: str):
-  """Runs the given string command as a subprocess."""
-  result = subprocess.run(command.split(' '), capture_output=True, text=True)
-  print(result.stdout)
-  print(result.stderr)
-
-
-def escapeCommasInString(unescapedStr: str) -> str:
-  """Returns equivalent string with ',' replaced with '\,' ."""
-  return unescapedStr.replace(',', '\,')
 
 
 def createHelmInstallCommands(
@@ -61,7 +58,7 @@ def createHelmInstallCommands(
           f'--set instanceId={instanceId}',
           (
               '--set'
-              f' gcsfuse.mountOptions={escapeCommasInString(dlioWorkload.gcsfuseMountOptions)}'
+              f' gcsfuse.mountOptions={escape_commas_in_string(dlioWorkload.gcsfuseMountOptions)}'
           ),
           f'--set nodeType={machineType}',
           f'--set podName={podName}',
@@ -89,57 +86,5 @@ def main(args) -> None:
 
 
 if __name__ == '__main__':
-  parser = argparse.ArgumentParser(
-      prog='DLIO Unet3d test runner',
-      description=(
-          'This program takes in a json test-config file, finds out valid DLIO'
-          ' workloads from it and generates and deploys a helm chart for each'
-          ' DLIO workload.'
-      ),
-  )
-  parser.add_argument(
-      '--workload-config',
-      metavar='JSON workload configuration file path',
-      help='Runs DLIO Unet3d tests from this JSON workload configuration file.',
-      required=True,
-  )
-  parser.add_argument(
-      '--instance-id',
-      metavar='A unique string ID to represent the test-run',
-      help=(
-          'Set to a unique string ID for current test-run. Do not put spaces'
-          ' in it.'
-      ),
-      required=True,
-  )
-  parser.add_argument(
-      '--machine-type',
-      metavar='Machine-type of the GCE VM or GKE cluster node',
-      help='Machine-type of the GCE VM or GKE cluster node e.g. n2-standard-32',
-      required=True,
-  )
-  parser.add_argument(
-      '-n',
-      '--dry-run',
-      action='store_true',
-      help=(
-          'Only print out the test configurations that will run,'
-          ' not actually run them.'
-      ),
-  )
-
-  args = parser.parse_args()
-  for argument in ['instance_id', 'machine_type']:
-    value = getattr(args, argument)
-    if len(value) == 0 or str.isspace(value):
-      raise Exception(
-          f'Argument {argument} (value="{value}") is empty or contains only'
-          ' spaces.'
-      )
-    if ' ' in value:
-      raise Exception(
-          f'Argument {argument} (value="{value}") contains space in it, which'
-          ' is not supported.'
-      )
-
+  args = parse_args()
   main(args)
