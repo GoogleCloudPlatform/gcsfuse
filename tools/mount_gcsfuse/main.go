@@ -106,6 +106,11 @@ func makeGcsfuseArgs(
 	}
 
 	boolFlags, nonBoolFlags := flagTypes(&flagSet)
+	// Handle "o" by not treating it as a flag for persistent mounting.
+	nonBoolFlags = slices.DeleteFunc(nonBoolFlags, func(s string) bool {
+		return s == "o"
+	})
+
 	nonBoolFlags = append(nonBoolFlags, cfg.ConfigFileFlagName)
 	// TODO: Clean this up after we gain enough confidence on CLI-Config Parity changes.
 	boolFlags = append(boolFlags, "disable-viper-config")

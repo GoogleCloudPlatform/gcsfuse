@@ -126,6 +126,13 @@ func TestMakeGcsfuseArgs(t *testing.T) {
 			},
 			expectedFlags: []string{"--implicit-dirs=true", "--file-mode", "0644", "--debug_fuse=true", "-o", "allow_other"},
 		},
+		{
+			name: "TestMakeGcsfuseArgs with o as flag",
+			opts: map[string]string{
+				"o": "a", "allow_other": "",
+			},
+			expectedFlags: []string{"-o", "o=a", "-o", "allow_other"},
+		},
 	}
 	device := "gcsfuse"
 	mountPoint := "/mnt/gcs"
