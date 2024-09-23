@@ -138,7 +138,3 @@ func createFakeStorageServer(objects []fakestorage.Object) (*fakestorage.Server,
 		InitialObjects: objects,
 	})
 }
-
-func CreateObject(server *fakestorage.Server, object fakestorage.Object) {
-	server.CreateObject(object)
-}

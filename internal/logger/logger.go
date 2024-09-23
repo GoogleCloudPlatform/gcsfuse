@@ -118,14 +118,6 @@ func SetLogFormat(format string) {
 	defaultLogger = defaultLoggerFactory.newLogger(defaultLoggerFactory.level)
 }
 
-// Close closes the log file when necessary.
-func Close() {
-	if f := defaultLoggerFactory.file; f != nil {
-		f.Close()
-		defaultLoggerFactory.file = nil
-	}
-}
-
 // Tracef prints the message with TRACE severity in the specified format.
 func Tracef(format string, v ...interface{}) {
 	defaultLogger.Log(context.Background(), LevelTrace, fmt.Sprintf(format, v...))
