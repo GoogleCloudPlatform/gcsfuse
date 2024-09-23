@@ -81,3 +81,5 @@ const (
 	StatCacheMaxSizeConfigKey      = "metadata-cache.stat-cache-max-size-mb"
 	maxSupportedStatCacheMaxSizeMB = util.MaxMiBsInUint64
 )
+
+const ConfigFileFlagName = "config-file"
