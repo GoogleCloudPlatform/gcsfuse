@@ -71,9 +71,6 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 			}
 			v.SetConfigFile(cfgFile)
 			v.SetConfigType("yaml")
-			v.OnConfigChange(func(in fsnotify.Event) {
-
-			})
 			if err := v.ReadInConfig(); err != nil {
 				cfgErr = fmt.Errorf("error while reading the config: %w", err)
 				return
