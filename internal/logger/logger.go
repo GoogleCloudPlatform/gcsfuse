@@ -126,6 +126,10 @@ func Close() {
 	}
 }
 
+func File() io.Writer {
+	return defaultLoggerFactory.fileWriter
+}
+
 // Tracef prints the message with TRACE severity in the specified format.
 func Tracef(format string, v ...interface{}) {
 	defaultLogger.Log(context.Background(), LevelTrace, fmt.Sprintf(format, v...))
