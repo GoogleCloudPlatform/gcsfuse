@@ -1,0 +1,47 @@
+/tmp/gcsfuse_readwrite_test_321704610/bin/gcsfuse --sequential-read-size-mb=1 --implicit-dirs --debug_gcs --debug_fs --debug_fuse --log-file=/tmp/gcsfuse_readwrite_test_321704610/gcsfuse.log vipin-prac /tmp/gcsfuse_readwrite_test_321704610/mnt
+{"timestamp":{"seconds":1727169962,"nanos":874532741},"severity":"INFO","message":"Start gcsfuse/fake_version (Go version go1.23.0) for app \"\" using mount point: /tmp/gcsfuse_readwrite_test_321704610/mnt\n"}
+{"timestamp":{"seconds":1727169962,"nanos":874617961},"severity":"INFO","message":"GCSFuse config","config":{"AppName":"","CacheDir":"","Debug":{"ExitOnInvariantViolation":false,"Fuse":true,"Gcs":true,"LogMutex":false},"EnableHns":true,"FileCache":{"CacheFileForRangeRead":false,"DownloadChunkSizeMb":50,"EnableCrc":false,"EnableODirect":false,"EnableParallelDownloads":false,"MaxParallelDownloads":128,"MaxSizeMb":-1,"ParallelDownloadsPerFile":16,"WriteBufferSize":4194304},"FileSystem":{"DirMode":"755","DisableParallelDirops":false,"FileMode":"644","FuseOptions":[],"Gid":-1,"IgnoreInterrupts":true,"KernelListCacheTtlSecs":0,"RenameDirLimit":0,"TempDir":"","Uid":-1},"Foreground":true,"GcsAuth":{"AnonymousAccess":false,"KeyFile":"","ReuseTokenFromUrl":true,"TokenUrl":""},"GcsConnection":{"BillingProject":"","ClientProtocol":"http1","CustomEndpoint":"","ExperimentalEnableJsonRead":false,"GrpcConnPoolSize":1,"HttpClientTimeout":0,"LimitBytesPerSec":-1,"LimitOpsPerSec":-1,"MaxConnsPerHost":0,"MaxIdleConnsPerHost":100,"SequentialReadSizeMb":1},"GcsRetries":{"MaxRetryAttempts":0,"MaxRetrySleep":30000000000,"Multiplier":2},"ImplicitDirs":true,"List":{"EnableEmptyManagedFolders":false},"Logging":{"FilePath":"/tmp/gcsfuse_readwrite_test_321704610/gcsfuse.log","Format":"json","LogRotate":{"BackupFileCount":10,"Compress":true,"MaxFileSizeMb":512},"Severity":"TRACE"},"MetadataCache":{"DeprecatedStatCacheCapacity":20460,"DeprecatedStatCacheTtl":60000000000,"DeprecatedTypeCacheTtl":60000000000,"EnableNonexistentTypeCache":false,"ExperimentalMetadataPrefetchOnMount":"disabled","StatCacheMaxSizeMb":32,"TtlSecs":60,"TypeCacheMaxSizeMb":4},"Metrics":{"PrometheusPort":0,"StackdriverExportInterval":0},"Monitoring":{"ExperimentalOpentelemetryCollectorAddress":"","ExperimentalTracingMode":"","ExperimentalTracingSamplingRatio":0},"OnlyDir":"","Write":{"CreateEmptyFile":false}}}
+{"timestamp":{"seconds":1727169962,"nanos":874904411},"severity":"INFO","message":"Creating Storage handle..."}
+{"timestamp":{"seconds":1727169962,"nanos":874913941},"severity":"INFO","message":"UserAgent = gcsfuse/fake_version (Go version go1.23.0) (GPN:gcsfuse) (Cfg:0:0:0)\n"}
+{"timestamp":{"seconds":1727169962,"nanos":875346911},"severity":"INFO","message":"WARNING: DirectPath is misconfigured. Please set the EnableDirectPath option along with the EnableDirectPathXds option."}
+{"timestamp":{"seconds":1727169962,"nanos":875693151},"severity":"INFO","message":"Creating a mount at \"/tmp/gcsfuse_readwrite_test_321704610/mnt\"\n"}
+{"timestamp":{"seconds":1727169962,"nanos":875714701},"severity":"INFO","message":"Creating a new server...\n"}
+{"timestamp":{"seconds":1727169962,"nanos":875727801},"severity":"INFO","message":"Set up root directory for bucket vipin-prac"}
+{"timestamp":{"seconds":1727169963,"nanos":36243217},"severity":"TRACE","message":"gcs: Req              0x0: <- ListObjects(\"\")"}
+{"timestamp":{"seconds":1727169963,"nanos":157416259},"severity":"TRACE","message":"gcs: Req              0x0: -> ListObjects(\"\") (121.152312ms): OK"}
+{"timestamp":{"seconds":1727169963,"nanos":157489789},"severity":"INFO","message":"Mounting file system \"vipin-prac\"..."}
+{"timestamp":{"seconds":1727169963,"nanos":157524959},"severity":"TRACE","message":"fuse_debug: Beginning the mounting kickoff process"}
+{"timestamp":{"seconds":1727169963,"nanos":157531999},"severity":"TRACE","message":"fuse_debug: Parsing fuse file descriptor"}
+{"timestamp":{"seconds":1727169963,"nanos":157538109},"severity":"TRACE","message":"fuse_debug: Preparing for direct mounting"}
+{"timestamp":{"seconds":1727169963,"nanos":157566049},"severity":"TRACE","message":"fuse_debug: Successfully opened the /dev/fuse in blocking mode"}
+{"timestamp":{"seconds":1727169963,"nanos":157588099},"severity":"TRACE","message":"fuse_debug: Starting the unix mounting"}
+{"timestamp":{"seconds":1727169963,"nanos":157603509},"severity":"TRACE","message":"fuse_debug: Directmount failed. Trying fallback."}
+{"timestamp":{"seconds":1727169963,"nanos":157675139},"severity":"TRACE","message":"fuse_debug: Creating a socket pair"}
+{"timestamp":{"seconds":1727169963,"nanos":157698069},"severity":"TRACE","message":"fuse_debug: Creating files to wrap the sockets"}
+{"timestamp":{"seconds":1727169963,"nanos":157705949},"severity":"TRACE","message":"fuse_debug: Starting fusermount/os mount"}
+{"timestamp":{"seconds":1727169963,"nanos":160280799},"severity":"TRACE","message":"fuse_debug: Wrapping socket pair in a connection"}
+{"timestamp":{"seconds":1727169963,"nanos":160359689},"severity":"TRACE","message":"fuse_debug: Checking that we have a unix domain socket"}
+{"timestamp":{"seconds":1727169963,"nanos":160371879},"severity":"TRACE","message":"fuse_debug: Read a message from socket"}
+{"timestamp":{"seconds":1727169963,"nanos":160391079},"severity":"TRACE","message":"fuse_debug: Successfully read the socket message."}
+{"timestamp":{"seconds":1727169963,"nanos":160397039},"severity":"TRACE","message":"fuse_debug: Converting FD into os.File"}
+{"timestamp":{"seconds":1727169963,"nanos":160428089},"severity":"TRACE","message":"fuse_debug: Completed the mounting kickoff process"}
+{"timestamp":{"seconds":1727169963,"nanos":160433289},"severity":"TRACE","message":"fuse_debug: Creating a connection object"}
+{"timestamp":{"seconds":1727169963,"nanos":160546999},"severity":"TRACE","message":"fuse_debug: Op 0x00000002        connection.go:420] <- init"}
+{"timestamp":{"seconds":1727169963,"nanos":160564249},"severity":"TRACE","message":"fuse_debug: Op 0x00000002        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1727169963,"nanos":160580529},"severity":"TRACE","message":"fuse_debug: Successfully created the connection"}
+{"timestamp":{"seconds":1727169963,"nanos":160615709},"severity":"TRACE","message":"fuse_debug: Waiting for mounting process to complete"}
+{"timestamp":{"seconds":1727169963,"nanos":160623969},"severity":"INFO","message":"File system has been successfully mounted."}
+{"timestamp":{"seconds":1727169963,"nanos":160871209},"severity":"TRACE","message":"fuse_debug: Op 0x00000004        connection.go:420] <- GetInodeAttributes (inode 1, PID 790137)"}
+{"timestamp":{"seconds":1727169963,"nanos":161106549},"severity":"TRACE","message":"fuse_debug: Op 0x00000004        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1727169963,"nanos":161568009},"severity":"TRACE","message":"fuse_debug: Op 0x00000006        connection.go:420] <- LookUpInode (parent 1, name \".Trash\", PID 790137)"}
+{"timestamp":{"seconds":1727169963,"nanos":161739529},"severity":"TRACE","message":"gcs: Req              0x2: <- StatObject(\".Trash\")"}
+{"timestamp":{"seconds":1727169963,"nanos":161739489},"severity":"TRACE","message":"gcs: Req              0x1: <- ListObjects(\".Trash/\")"}
+{"timestamp":{"seconds":1727169963,"nanos":184321855},"severity":"TRACE","message":"gcs: Req              0x2: -> StatObject(\".Trash\") (22.581756ms): gcs.NotFoundError: storage: object doesn't exist"}
+{"timestamp":{"seconds":1727169963,"nanos":210717992},"severity":"TRACE","message":"gcs: Req              0x1: -> ListObjects(\".Trash/\") (48.997293ms): OK"}
+{"timestamp":{"seconds":1727169963,"nanos":210788542},"severity":"TRACE","message":"fuse_debug: Op 0x00000006        connection.go:515] -> Error: \"no such file or directory\""}
+{"timestamp":{"seconds":1727169963,"nanos":211038921},"severity":"TRACE","message":"fuse_debug: Op 0x00000008        connection.go:420] <- LookUpInode (parent 1, name \".Trash-1023749\", PID 790137)"}
+{"timestamp":{"seconds":1727169963,"nanos":211303241},"severity":"TRACE","message":"gcs: Req              0x3: <- ListObjects(\".Trash-1023749/\")"}
+{"timestamp":{"seconds":1727169963,"nanos":211326792},"severity":"TRACE","message":"gcs: Req              0x4: <- StatObject(\".Trash-1023749\")"}
+{"timestamp":{"seconds":1727169963,"nanos":234151658},"severity":"TRACE","message":"gcs: Req              0x3: -> ListObjects(\".Trash-1023749/\") (22.856357ms): OK"}
+{"timestamp":{"seconds":1727169963,"nanos":249654406},"severity":"TRACE","message":"gcs: Req              0x4: -> StatObject(\".Trash-1023749\") (38.321394ms): gcs.NotFoundError: storage: object doesn't exist"}
+{"timestamp":{"seconds":1727169963,"nanos":249745035},"severity":"TRACE","message":"fuse_debug: Op 0x00000008        connection.go:515] -> Error: \"no such file or directory\""}
