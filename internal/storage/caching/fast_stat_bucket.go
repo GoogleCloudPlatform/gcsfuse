@@ -385,7 +385,7 @@ func (b *fastStatBucket) GetFolder(ctx context.Context, prefix string) (*gcs.Fol
 	}
 
 	// Fetch the Folder from GCS
-	return b.wrapped.GetFolder(ctx, prefix)
+	return b.GetFolderFromGcs(ctx, prefix)
 }
 
 func (b *fastStatBucket) GetFolderFromGcs(ctx context.Context, prefix string) (*gcs.Folder, error) {

@@ -252,7 +252,7 @@ func (sc *statCacheBucketView) LookUpFolder(
 		return hit, entry.f
 	}
 
-	return true, nil
+	return false, nil
 }
 
 func (sc *statCacheBucketView) sharedCacheLookup(key string, now time.Time) (bool, *entry) {
