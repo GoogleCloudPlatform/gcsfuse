@@ -22,7 +22,7 @@ import random
 from random import choices
 import string
 import unittest
-from gsheet import append_data_to_gsheet, download_gcs_object_as_tempfile, url
+from gsheet import append_data_to_gsheet, download_gcs_object_locally, url
 
 
 class GsheetTest(unittest.TestCase):
@@ -32,42 +32,29 @@ class GsheetTest(unittest.TestCase):
   # self.project_id = 'gcs-fuse-test'
 
   def test_append_data_to_gsheet(self):
-    _DEFAULT_GSHEET_ID = '1UghIdsyarrV1HVNc6lugFZS1jJRumhdiWnPgoEC8Fe4'
+    _DEFAULT_GSHEET_ID = '1s9DCis6XZ_oHRIFTy0F8yVN93EGA2Koks_pzpCqAIS4'
 
-    def _default_service_account_key_file(
-        project_id: str, localfile: bool
-    ) -> str:
-      if localfile:
-        if project_id == 'gcs-fuse-test':
-          return '20240919-gcs-fuse-test-bc1a2c0aac45.json'
-        elif project_id == 'gcs-fuse-test-ml':
-          return '20240919-gcs-fuse-test-ml-d6e0247b2cf1.json'
-        else:
-          raise Exception(f'Unknown project-id: {project_id}')
+    def _default_service_account_key_file(project_id: str) -> str:
+      if project_id in ['gcs-fuse-test', 'gcs-fuse-test-ml']:
+        return f'gs://gcsfuse-aiml-test-outputs/creds/{project_id}.json'
       else:
-        if project_id in ['gcs-fuse-test', 'gcs-fuse-test-ml']:
-          return f'gs://gcsfuse-aiml-test-outputs/creds/{project_id}.json'
-        else:
-          raise Exception(f'Unknown project-id: {project_id}')
+        raise Exception(f'Unknown project-id: {project_id}')
 
     for project_id in ['gcs-fuse-test', 'gcs-fuse-test-ml']:
       for worksheet in ['fio-test', 'dlio-test']:
-        for localkeyfile in [False]:
-          serviceAccountKeyFile = _default_service_account_key_file(
-              project_id, localkeyfile
-          )
-          append_data_to_gsheet(
-              worksheet=worksheet,
-              data={
-                  'header': ('Column1', 'Column2'),
-                  'values': [(
-                      ''.join(random.choices(string.ascii_letters, k=9)),
-                      random.random(),
-                  )],
-              },
-              serviceAccountKeyFile=serviceAccountKeyFile,
-              gsheet_id=_DEFAULT_GSHEET_ID,
-          )
+        serviceAccountKeyFile = _default_service_account_key_file(project_id)
+        append_data_to_gsheet(
+            worksheet=worksheet,
+            data={
+                'header': ('Column1', 'Column2'),
+                'values': [(
+                    ''.join(random.choices(string.ascii_letters, k=9)),
+                    random.random(),
+                )],
+            },
+            serviceAccountKeyFile=serviceAccountKeyFile,
+            gsheet_id=_DEFAULT_GSHEET_ID,
+        )
 
   def test_gsheet_url(self):
     gsheet_id = ''.join(random.choices(string.ascii_letters, k=20))
@@ -75,18 +62,18 @@ class GsheetTest(unittest.TestCase):
     self.assertTrue(gsheet_id in gsheet_url)
     self.assertTrue(len(gsheet_id) < len(gsheet_url))
 
-  def test_download_gcs_object_as_tempfile(self):
+  def test_download_gcs_object_locally(self):
     gcs_object = 'gs://gcsfuse-aiml-test-outputs/creds/gcs-fuse-test.json'
-    localfile = download_gcs_object_as_tempfile(gcs_object)
+    localfile = download_gcs_object_locally(gcs_object)
     self.assertTrue(localfile)
     self.assertTrue(localfile.strip())
     os.stat(localfile)
     os.remove(localfile)
 
-  def test_download_gcs_object_as_tempfile_nonexistent(self):
+  def test_download_gcs_object_locally_nonexistent(self):
     gcs_object = 'gs://non/existing/gcs/object'
-    localfile = download_gcs_object_as_tempfile(gcs_object)
-    self.assertIsNone(localfile)
+    with self.assertRaises(Exception):
+      localfile = download_gcs_object_locally(gcs_object)
 
 
 if __name__ == '__main__':
