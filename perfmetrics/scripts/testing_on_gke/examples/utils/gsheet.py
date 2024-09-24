@@ -17,7 +17,7 @@ import tempfile
 from typing import Tuple
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
-from .run_tests_common import run_command
+from utils.utils import run_command
 
 _SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
@@ -53,7 +53,10 @@ def download_gcs_object_locally(gcsObjectUri: str) -> str:
     if returncode == 0:
       return fp.name
     else:
-      raise f'failed to copy gcs object {gcsObjectUri} to local-file {fp.name}: returncode={returncode}. Deleting tempfile {fp.name}...'
+      raise Exception(
+          f'failed to copy gcs object {gcsObjectUri} to local-file {fp.name}:'
+          f' returncode={returncode}. Deleting tempfile {fp.name}...'
+      )
       os.remove(fp.name)
 
 
