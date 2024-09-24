@@ -511,6 +511,8 @@ func (t *StatCacheTest) Test_ShouldReturnHitTrueWhenOnlyObjectAlreadyHasEntry() 
 
 	hit, entry := t.statCache.LookUpFolder(name, someTime)
 
+	// If object present then it counts negative entry for folder.
+	// If "A/" object and folder both exist then we only cache A/ folder and not object.
 	assert.True(t.T(), hit)
 	assert.Nil(t.T(), entry)
 }
