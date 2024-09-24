@@ -36,7 +36,7 @@ import (
 // GCS object.
 func verifyFileSizeAndFullFileRead(t *testing.T, filename string) {
 	mountedFilePath := path.Join(setup.MntDir(), TestBucketPrefixPath, filename)
-	gcsObjectPath := path.Join(setup.TestBucket(), TestBucketPrefixPath, filename)
+	gcsObjectPath := path.Join(TestBucketPrefixPath, filename)
 	gcsObjectAttr, err := client.StatObject(ctx, storageClient, gcsObjectPath)
 	if err != nil {
 		t.Fatalf("Failed to get size of gcs object %s: %v\n", gcsObjectPath, err)
@@ -69,7 +69,7 @@ func verifyFileSizeAndFullFileRead(t *testing.T, filename string) {
 // and its ranged read returns the same size as the requested read size.
 func verifyRangedRead(t *testing.T, filename string) {
 	mountedFilePath := path.Join(setup.MntDir(), TestBucketPrefixPath, filename)
-	gcsObjectPath := path.Join(setup.TestBucket(), TestBucketPrefixPath, filename)
+	gcsObjectPath := path.Join(TestBucketPrefixPath, filename)
 	gcsObjectAttr, err := client.StatObject(ctx, storageClient, gcsObjectPath)
 
 	if err != nil {
@@ -119,7 +119,7 @@ func verifyRangedRead(t *testing.T, filename string) {
 // possible as they both always read back objects with content-encoding: gzip as
 // uncompressed/decompressed irrespective of any argument passed.
 func downloadGzipGcsObjectAsCompressed(t *testing.T, bucketName, objPathInBucket string) (tempfile string, err error) {
-	gcsObjectPath := path.Join(setup.TestBucket(), objPathInBucket)
+	gcsObjectPath := path.Join(objPathInBucket)
 	gcsObjectAttr, err := client.StatObject(ctx, storageClient, gcsObjectPath)
 	gcsObjectSize := gcsObjectAttr.Size
 	if err != nil {

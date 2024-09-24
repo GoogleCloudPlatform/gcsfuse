@@ -34,12 +34,12 @@ const overwrittenFileSize = 1000
 // GCS object.
 func verifyFullFileOverwrite(t *testing.T, filename string) {
 	mountedFilePath := path.Join(setup.MntDir(), TestBucketPrefixPath, filename)
-	gcsObjectPath := path.Join(setup.TestBucket(), TestBucketPrefixPath, filename)
-	gcsobjectattr, err := client.StatObject(ctx, storageClient, gcsObjectPath)
+	gcsObjectPath := path.Join(TestBucketPrefixPath, filename)
+	gcsObjectAttr, err := client.StatObject(ctx, storageClient, gcsObjectPath)
 	if err != nil {
 		t.Fatalf("Failed to get size of gcs object %s: %v\n", gcsObjectPath, err)
 	}
-	gcsObjectSize := gcsobjectattr.Size
+	gcsObjectSize := gcsObjectAttr.Size
 
 	fi, err := operations.StatFile(mountedFilePath)
 	if err != nil || fi == nil {
@@ -72,11 +72,11 @@ func verifyFullFileOverwrite(t *testing.T, filename string) {
 		t.Fatalf("Failed to copy/overwrite temp file %s to existing gzip object/file %s: %v", tempfile, mountedFilePath, err)
 	}
 
-	gcsobjectattr, err = client.StatObject(ctx, storageClient, gcsObjectPath)
+	gcsObjectAttr, err = client.StatObject(ctx, storageClient, gcsObjectPath)
 	if err != nil {
 		t.Fatalf("Failed to get size of gcs object %s: %v\n", gcsObjectPath, err)
 	}
-	gcsObjectSize = gcsobjectattr.Size
+	gcsObjectSize = gcsObjectAttr.Size
 
 	if gcsObjectSize != overwrittenFileSize {
 		t.Fatalf("Size of overwritten gcs object (%s, %d) doesn't match that of the expected overwrite size (%s, %d)", gcsObjectPath, gcsObjectSize, tempfile, overwrittenFileSize)
