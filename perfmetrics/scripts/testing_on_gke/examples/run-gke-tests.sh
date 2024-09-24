@@ -113,6 +113,7 @@ readonly DEFAULT_INSTANCE_ID=${USER}-$(date +%Y%m%d-%H%M%S)
 readonly DEFAULT_POD_WAIT_TIME_IN_SECONDS=300
 # 1 week
 readonly DEFAULT_POD_TIMEOUT_IN_SECONDS=604800
+readonly DEFAULT_FORCE_UPDATE_GCSFUSE_CODE=false
 
 function printHelp() {
   echo "Usage guide: "
@@ -206,6 +207,10 @@ if test -n "${gcsfuse_src_dir}"; then
   export gcsfuse_src_dir="$(realpath "${gcsfuse_src_dir}")"
 else
   export gcsfuse_src_dir="${src_dir}"/gcsfuse
+fi
+
+if test -z "${force_update_gcsfuse_code}"; then
+  export force_update_gcsfuse_code=${DEFAULT_FORCE_UPDATE_GCSFUSE_CODE}
 fi
 
 export gke_testing_dir="${gcsfuse_src_dir}"/perfmetrics/scripts/testing_on_gke
@@ -540,6 +545,8 @@ function ensureGcsfuseCode() {
   # clone gcsfuse code if needed
   if ! test -d "${gcsfuse_src_dir}"; then
     cd $(dirname "${gcsfuse_src_dir}") && git clone ${gcsfuse_github_path} && cd "${gcsfuse_src_dir}" && git switch ${gcsfuse_branch} && cd - && cd -
+  elif ${force_update_gcsfuse_code}; then
+    cd ${gcsfuse_src_dir} && git reset --hard origin/${gcsfuse_branch} && cd -
   fi
 
   test -d "${gke_testing_dir}" || (echo "${gke_testing_dir} does not exist" && exit 1)
