@@ -369,9 +369,7 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
 	return
 }
 
-func (b *fastStatBucket) GetFolder(
-	ctx context.Context,
-	prefix string) (*gcs.Folder, error) {
+func (b *fastStatBucket) GetFolder(ctx context.Context, prefix string) (*gcs.Folder, error) {
 
 	if hit, entry := b.lookUpFolder(prefix); hit {
 		// Negative entries result in NotFoundError.
@@ -386,16 +384,24 @@ func (b *fastStatBucket) GetFolder(
 		return entry, nil
 	}
 
-	// Fetch the Folder
-	folder, error := b.wrapped.GetFolder(ctx, prefix)
+	// Fetch the Folder from GCS
+	return b.wrapped.GetFolder(ctx, prefix)
+}
 
-	if error != nil {
-		return nil, error
+func (b *fastStatBucket) GetFolderFromGcs(ctx context.Context, prefix string) (*gcs.Folder, error) {
+	f, err := b.wrapped.GetFolder(ctx, prefix)
+	if err != nil {
+		// Special case: NotFoundError -> negative entry.
+		if _, ok := err.(*gcs.NotFoundError); ok {
+			b.addNegativeEntryForFolder(prefix)
+		}
+		return nil, err
 	}
 
-	// Record the new folder.
-	b.insertFolder(folder)
-	return folder, nil
+	// Put the folder in cache.
+	b.insertFolder(f)
+
+	return f, nil
 }
 
 func (b *fastStatBucket) CreateFolder(ctx context.Context, folderName string) (f *gcs.Folder, err error) {
