@@ -924,7 +924,7 @@ func (t *RandomReaderTest) Test_ReadAt_CacheMissDueToInvalidJob() {
 	job := t.jobManager.GetJob(t.object.Name, t.bucket.Name())
 	if job != nil {
 		jobStatus := job.GetStatus().Name
-		AssertTrue(jobStatus == downloader.Downloading || jobStatus == downloader.Completed)
+		AssertTrue(jobStatus == downloader.Downloading || jobStatus == downloader.Completed, fmt.Sprintf("the actual status is %v", jobStatus))
 	}
 	err = t.rr.wrapped.fileCacheHandler.InvalidateCache(t.object.Name, t.bucket.Name())
 	AssertEq(nil, err)
@@ -956,7 +956,7 @@ func (t *RandomReaderTest) Test_ReadAt_CachePopulatedAndThenCacheMissDueToInvali
 	job := t.jobManager.GetJob(t.object.Name, t.bucket.Name())
 	if job != nil {
 		jobStatus := job.GetStatus().Name
-		AssertTrue(jobStatus == downloader.Downloading || jobStatus == downloader.Completed)
+		AssertTrue(jobStatus == downloader.Downloading || jobStatus == downloader.Completed, fmt.Sprintf("the actual status is %v", jobStatus))
 	}
 	err = t.rr.wrapped.fileCacheHandler.InvalidateCache(t.object.Name, t.bucket.Name())
 	AssertEq(nil, err)
