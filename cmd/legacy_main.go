@@ -375,18 +375,15 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 		// programme is running as daemon process.
 		env = append(env, fmt.Sprintf("%s=true", logger.GCSFuseInBackgroundMode))
 
-	//	var logFile *os.File
+		// logfile.dump will capture the standard error (stderr) output of the gcsfuse background process.
+		var crashFile *os.File
 		if newConfig.Logging.FilePath != "" {
-			//if logFile, err = os.OpenFile(string(newConfig.Logging.FilePath), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644); err != nil {
-			//	return err
-			//}
-			err = logger.InitLogFile(newConfig.Logging)
-			if err != nil {
-				return fmt.Errorf("init log file: %w", err)
+			if crashFile, err = os.OpenFile(string(newConfig.Logging.FilePath) + ".dump", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644); err != nil {
+				return err
 			}
 		}
 		// Run.
-		err = daemonize.Run(path, args, env, os.Stdout, logger.File())
+		err = daemonize.Run(path, args, env, os.Stdout, crashFile)
 		if err != nil {
 			return fmt.Errorf("daemonize.Run: %w", err)
 		}
