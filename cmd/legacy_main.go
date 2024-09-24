@@ -376,9 +376,10 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 		env = append(env, fmt.Sprintf("%s=true", logger.GCSFuseInBackgroundMode))
 
 		// logfile.dump will capture the standard error (stderr) output of the gcsfuse background process.
+		dumpFileName := string(newConfig.Logging.FilePath) + ".dump"
 		var dumpFile *os.File
 		if newConfig.Logging.FilePath != "" {
-			if dumpFile, err = os.OpenFile(string(newConfig.Logging.FilePath) + ".dump", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644); err != nil {
+			if dumpFile, err = os.OpenFile(dumpFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644); err != nil {
 				return err
 			}
 		}
