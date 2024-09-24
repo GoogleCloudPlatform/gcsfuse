@@ -17,7 +17,6 @@ package gzip_test
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"io/fs"
@@ -25,7 +24,7 @@ import (
 	"path"
 	"testing"
 
-	client2 "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
@@ -38,11 +37,11 @@ import (
 func verifyFileSizeAndFullFileRead(t *testing.T, filename string) {
 	mountedFilePath := path.Join(setup.MntDir(), TestBucketPrefixPath, filename)
 	gcsObjectPath := path.Join(setup.TestBucket(), TestBucketPrefixPath, filename)
-	gcsObjectSize, err := operations.GetGcsObjectSize(gcsObjectPath)
+	gcsObjectAttr, err := client.StatObject(ctx, storageClient, gcsObjectPath)
 	if err != nil {
 		t.Fatalf("Failed to get size of gcs object %s: %v\n", gcsObjectPath, err)
 	}
-
+	gcsObjectSize := gcsObjectAttr.Size
 	fi, err := operations.StatFile(mountedFilePath)
 	if err != nil || fi == nil {
 		t.Fatalf("Failed to get stat info of mounted file %s: %v\n", mountedFilePath, err)
@@ -70,12 +69,13 @@ func verifyFileSizeAndFullFileRead(t *testing.T, filename string) {
 // and its ranged read returns the same size as the requested read size.
 func verifyRangedRead(t *testing.T, filename string) {
 	mountedFilePath := path.Join(setup.MntDir(), TestBucketPrefixPath, filename)
-
 	gcsObjectPath := path.Join(setup.TestBucket(), TestBucketPrefixPath, filename)
-	gcsObjectSize, err := operations.GetGcsObjectSize(gcsObjectPath)
+	gcsObjectAttr, err := client.StatObject(ctx, storageClient, gcsObjectPath)
+
 	if err != nil {
 		t.Fatalf("Failed to get size of gcs object %s: %v\n", gcsObjectPath, err)
 	}
+	gcsObjectSize := gcsObjectAttr.Size
 
 	readSize := int64(gcsObjectSize / 10)
 	readOffset := int64(readSize / 10)
@@ -120,8 +120,8 @@ func verifyRangedRead(t *testing.T, filename string) {
 // uncompressed/decompressed irrespective of any argument passed.
 func downloadGzipGcsObjectAsCompressed(t *testing.T, bucketName, objPathInBucket string) (tempfile string, err error) {
 	gcsObjectPath := path.Join(setup.TestBucket(), objPathInBucket)
-	gcsObjectSize, err := operations.GetGcsObjectSize(gcsObjectPath)
-
+	gcsObjectAttr, err := client.StatObject(ctx, storageClient, gcsObjectPath)
+	gcsObjectSize := gcsObjectAttr.Size
 	if err != nil {
 		return "", fmt.Errorf("failed to get size of gcs object %s: %w", gcsObjectPath, err)
 	}
@@ -142,8 +142,7 @@ func downloadGzipGcsObjectAsCompressed(t *testing.T, bucketName, objPathInBucket
 		}
 	}()
 
-	ctx := context.Background()
-	client, err := client2.CreateStorageClient(ctx)
+	client, err := client.CreateStorageClient(ctx)
 	if err != nil || client == nil {
 		return "", fmt.Errorf("failed to create storage client: %w", err)
 	}
@@ -172,7 +171,7 @@ func downloadGzipGcsObjectAsCompressed(t *testing.T, bucketName, objPathInBucket
 	defer r.Close()
 
 	gcsObjectData, err := io.ReadAll(r)
-	if len(gcsObjectData) < gcsObjectSize || err != nil {
+	if len(gcsObjectData) < int(gcsObjectSize) || err != nil {
 		return "", fmt.Errorf("failed to read object %s from bucket %s (expected read-size: %d, actual read-size: %d): %w", objPathInBucket, bktName, gcsObjectSize, len(gcsObjectData), err)
 	}
 
