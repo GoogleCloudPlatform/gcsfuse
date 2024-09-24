@@ -362,3 +362,18 @@ def get_cpu_from_monitoring_api(
       ),
       5,  # round up to 5 decimal places.
   )
+
+
+def run_command(command: str) -> int:
+  """Runs the given string command as a subprocess.
+
+  Returns exit-code which would be non-zero for error.
+  """
+  result = subprocess.run(
+      [word for word in command.split(" ") if (word and not str.isspace(word))],
+      capture_output=True,
+      text=True,
+  )
+  print(result.stdout)
+  print(result.stderr)
+  return result.returncode
