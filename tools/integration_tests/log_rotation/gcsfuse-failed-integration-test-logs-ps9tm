@@ -1,0 +1,7 @@
+{"timestamp":{"seconds":1727193171,"nanos":90025049},"severity":"TRACE","message":"fuse_debug: Op 0x0001b5f0        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1727193171,"nanos":90479449},"severity":"TRACE","message":"fuse_debug: Op 0x0001b5f2        connection.go:420] <- ReleaseFileHandle (PID 0, handle 11176)"}
+{"timestamp":{"seconds":1727193171,"nanos":90494391},"severity":"TRACE","message":"fuse_debug: Op 0x0001b5f4        connection.go:420] <- FlushFile (inode 11, PID 301420)"}
+{"timestamp":{"seconds":1727193171,"nanos":90523482},"severity":"TRACE","message":"fuse_debug: Op 0x0001b5f2        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1727193171,"nanos":90554657},"severity":"TRACE","message":"fuse_debug: Op 0x0001b5f4        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1727193171,"nanos":90588217},"severity":"TRACE","message":"fuse_debug: Op 0x0001b5f6        connection.go:420] <- ReleaseFileHandle (PID 0, handle 11175)"}
+{"timestamp":{"seconds":1727193171,"nanos":90636174},"severity":"TRACE","message":"fuse_debug: Op 0x0001b5f6        connection.go:513] -> OK ()"}

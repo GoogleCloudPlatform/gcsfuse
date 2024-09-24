@@ -35,8 +35,9 @@ const (
 	logDirName         = "gcsfuse_integration_test_logs"
 	maxFileSizeMB      = 2
 	activeLogFileCount = 1
+	dumLogFileCount = 1
 	backupLogFileCount = 2
-	logFileCount       = activeLogFileCount + backupLogFileCount + 1 // Adding 1 for dump logs file
+	logFileCount       = activeLogFileCount + backupLogFileCount + dumLogFileCount // Adding 1 for dump logs file
 )
 
 var (
