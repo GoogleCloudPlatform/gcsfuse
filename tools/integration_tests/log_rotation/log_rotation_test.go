@@ -36,7 +36,7 @@ const (
 	maxFileSizeMB      = 2
 	activeLogFileCount = 1
 	backupLogFileCount = 2
-	logFileCount       = activeLogFileCount + backupLogFileCount
+	logFileCount       = activeLogFileCount + backupLogFileCount + 1 // Adding 1 for dump logs file
 )
 
 var (
