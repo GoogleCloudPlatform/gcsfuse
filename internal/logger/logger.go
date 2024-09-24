@@ -174,6 +174,7 @@ type loggerFactory struct {
 	format     string
 	level      string
 	logRotate  cfg.LogRotateLoggingConfig
+
 	fileWriter *lumberjack.Logger
 }
 

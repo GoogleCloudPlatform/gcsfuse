@@ -39,7 +39,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
-	"github.com/jacobsa/daemonize"
 	"github.com/jacobsa/fuse"
 	"github.com/kardianos/osext"
 	"github.com/urfave/cli"
@@ -374,25 +373,15 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 		// process and daemon process. If this environment variable set that means
 		// programme is running as daemon process.
 		env = append(env, fmt.Sprintf("%s=true", logger.GCSFuseInBackgroundMode))
-
-	//	var logFile *os.File
-		if newConfig.Logging.FilePath != "" {
-			//if logFile, err = os.OpenFile(string(newConfig.Logging.FilePath), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644); err != nil {
-			//	return err
-			//}
-			err = logger.InitLogFile(newConfig.Logging)
-			if err != nil {
-				return fmt.Errorf("init log file: %w", err)
-			}
-		}
-		// Run.
-		err = daemonize.Run(path, args, env, os.Stdout, logger.File())
+		writer := &CrashWriter{fileName: string(newConfig.Logging.FilePath)}
+		err = Run(path, args, env, os.Stdout, writer)
 		if err != nil {
 			return fmt.Errorf("daemonize.Run: %w", err)
 		}
 		logger.Infof(SuccessfulMountMessage)
 		return err
 	}
+
 
 	// The returned error is ignored as we do not enforce monitoring exporters
 	_ = monitor.EnableStackdriverExporter(newConfig.Metrics.StackdriverExportInterval)
@@ -411,7 +400,7 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 		// returned by daemonize.SignalOutcome calls by simply
 		// logging them as error logs.
 		callDaemonizeSignalOutcome := func(err error) {
-			if err2 := daemonize.SignalOutcome(err); err2 != nil {
+			if err2 := SignalOutcome(err); err2 != nil {
 				logger.Errorf("Failed to signal error to parent-process from daemon: %v", err2)
 			}
 		}
