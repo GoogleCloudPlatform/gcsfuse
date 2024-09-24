@@ -76,6 +76,7 @@
   type: "bool"
   usage: "Enables support for HNS buckets"
   default: true
+  hide-flag: true
 
 - config-path: "file-cache.cache-file-for-range-read"
   flag-name: "file-cache-cache-file-for-range-read"
@@ -362,6 +363,7 @@
     (b) If both ImplicitDirectories and EnableEmptyManagedFolders are true, then all the managed folders are listed including the above-mentioned corner case.
     (c) If ImplicitDirectories is false then no managed folders are listed irrespective of enable-empty-managed-folders flag.
   default: false
+  hide-flag: true
 
 - config-path: "logging.file-path"
   flag-name: "log-file"
@@ -502,6 +504,7 @@
   type: "int"
   usage: "Expose Prometheus metrics endpoint on this port and a path of /metrics."
   default: "0"
+  hide-flag: true
 
 - config-path: "metrics.stackdriver-export-interval"
   flag-name: "stackdriver-export-interval"
