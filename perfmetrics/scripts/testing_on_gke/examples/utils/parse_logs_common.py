@@ -19,6 +19,7 @@ import argparse
 import os
 import subprocess
 from typing import Tuple
+from utils.utils import run_command
 
 SUPPORTED_SCENARIOS = [
     "local-ssd",
