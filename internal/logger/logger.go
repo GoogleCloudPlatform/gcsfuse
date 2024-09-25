@@ -15,15 +15,15 @@
 package logger
 
 import (
-	"context"
 	"fmt"
-	"io"
-	"log/slog"
 	"log/syslog"
+	"net/url"
 	"os"
 	"runtime/debug"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
@@ -39,7 +39,7 @@ const (
 
 var (
 	defaultLoggerFactory *loggerFactory
-	defaultLogger        *slog.Logger
+	defaultLogger        *zap.Logger
 )
 
 // InitLogFile initializes the logger factory to create loggers that print to
@@ -128,7 +128,7 @@ func Close() {
 
 // Tracef prints the message with TRACE severity in the specified format.
 func Tracef(format string, v ...interface{}) {
-	defaultLogger.Log(context.Background(), LevelTrace, fmt.Sprintf(format, v...))
+	defaultLogger.Log(zap.DebugLevel, fmt.Sprintf(format, v...))
 }
 
 // Debugf prints the message with DEBUG severity in the specified format.
@@ -143,7 +143,7 @@ func Infof(format string, v ...interface{}) {
 
 // Info prints the message with info severity.
 func Info(message string, args ...any) {
-	defaultLogger.Info(message, args...)
+	defaultLogger.Log(zapcore.InfoLevel, fmt.Sprintf(message, args...))
 }
 
 // Warnf prints the message with WARNING severity in the specified format.
@@ -173,29 +173,60 @@ type loggerFactory struct {
 	fileWriter *lumberjack.Logger
 }
 
-func (f *loggerFactory) newLogger(level string) *slog.Logger {
+type lumberjackSink struct {
+	*lumberjack.Logger
+}
+
+func (lumberjackSink) Sync() error {
+	return nil
+}
+func (f *loggerFactory) newLogger(level string) *zap.Logger {
 	// create a new logger
-	var programLevel = new(slog.LevelVar)
-	logger := slog.New(f.handler(programLevel, ""))
-	slog.SetDefault(logger)
-	setLoggingLevel(level, programLevel)
+
+	// Return a zap logger
+	zap.RegisterSink("lumberjack", func(*url.URL) (zap.Sink, error) {
+		return lumberjackSink{
+			Logger: f.fileWriter,
+		}, nil
+	})
+
+	cfg := zap.NewProductionConfig()
+	if f.file != nil {
+		cfg.OutputPaths = []string{f.file.Name()}
+	}
+	cfg.Sampling = nil
+	var lvl zapcore.Level
+	lvl.Set(level)
+	cfg.Level.SetLevel(lvl)
+
+	logger := zap.Must(cfg.Build())
 	return logger
+
+	//var programLevel = new(slog.LevelVar)
+	//logger := slog.New(f.handler(programLevel, ""))
+	//slog.SetDefault(logger)
+	//setLoggingLevel(level, programLevel)
+	//return logger
 }
 
-func (f *loggerFactory) createJsonOrTextHandler(writer io.Writer, levelVar *slog.LevelVar, prefix string) slog.Handler {
-	if f.format == textFormat {
-		return slog.NewTextHandler(writer, getHandlerOptions(levelVar, prefix, f.format))
-	}
-	return slog.NewJSONHandler(writer, getHandlerOptions(levelVar, prefix, f.format))
-}
+//func (f *loggerFactory) createJsonOrTextHandler(writer io.Writer, levelVar *slog.LevelVar, prefix string) slog.Handler {
+//	if f.format == textFormat {
+//		return slog.NewTextHandler(writer, getHandlerOptions(levelVar, prefix, f.format))
+//	}
+//	return slog.NewJSONHandler(writer, getHandlerOptions(levelVar, prefix, f.format))
+//}
+//
+//func (f *loggerFactory) handler(levelVar *slog.LevelVar, prefix string) slog.Handler {
+//	if f.fileWriter != nil {
+//		return f.createJsonOrTextHandler(f.fileWriter, levelVar, prefix)
+//	}
+//
+//	if f.sysWriter != nil {
+//		return f.createJsonOrTextHandler(f.sysWriter, levelVar, prefix)
+//	}
+//	return f.createJsonOrTextHandler(os.Stdout, levelVar, prefix)
+//}
 
-func (f *loggerFactory) handler(levelVar *slog.LevelVar, prefix string) slog.Handler {
-	if f.fileWriter != nil {
-		return f.createJsonOrTextHandler(f.fileWriter, levelVar, prefix)
-	}
-
-	if f.sysWriter != nil {
-		return f.createJsonOrTextHandler(f.sysWriter, levelVar, prefix)
-	}
-	return f.createJsonOrTextHandler(os.Stdout, levelVar, prefix)
+func GetDefaultLogger() *zap.Logger {
+	return defaultLogger
 }
