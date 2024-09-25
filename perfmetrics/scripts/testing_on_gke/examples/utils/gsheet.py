@@ -62,24 +62,22 @@ def download_gcs_object_locally(gcsObjectUri: str) -> str:
 
 def append_data_to_gsheet(
     serviceAccountKeyFile: str,
+    gsheet_id: str,
     worksheet: str,
     data: dict,
-    gsheet_id: str,
-    repeat_header: bool = False,
 ) -> None:
   """Calls the API to append the given data at the end of the given worksheet in the given gsheet.
 
   If the passed header matches the first row of the file, then the
-  header is not inserted again, unless repeat_header is passed as
-  True.
+  header is not inserted again.
   Args:
     serviceAccountKeyFile: Path of a service-account key-file for authentication
-      read/write from/to the given gsheet.
+      read/write from/to the given gsheet. This can be a local filepath or a GCS
+      path starting with `gs:`
     worksheet: string, name of the worksheet to be edited appended by a "!"
     data: Dictionary of {'header': tuple, 'values': list(tuples)}, to be added
       to the worksheet.
     gsheet_id: Unique ID to identify a gsheet.
-    repeat_header: Always add the passed header as a new row in the file.
 
   Raises:
     HttpError: For any Google Sheets API call related errors
@@ -91,7 +89,7 @@ def append_data_to_gsheet(
       )
 
   def _using_local_service_key_file(localServiceAccountKeyFile: str):
-    # Open a read-write gsheet client using
+    # Open a read-write gsheet client.
     client = _get_sheets_service_client(localServiceAccountKeyFile)
 
     def _read_from_range(cell_range: str):
@@ -120,11 +118,7 @@ def append_data_to_gsheet(
     new_header = data['header']
 
     # Insert header in the file, if needed.
-    if (
-        not original_header
-        or repeat_header
-        or not original_header == new_header
-    ):
+    if not original_header or not original_header == new_header:
       # Append header after last row.
       _write_at_address(f'A{num_rows+1}', [new_header])
       num_rows = num_rows + 1
