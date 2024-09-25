@@ -203,7 +203,10 @@ else
 fi
 
 if test -n "${gcsfuse_src_dir}"; then
-  test -d "${gcsfuse_src_dir}"
+  if ! test -d "${gcsfuse_src_dir}"; then
+    echo "gcsfuse_src_dir \"${gcsfuse_src_dir}\" does not exist"
+    exitWithFailure
+  fi
   export gcsfuse_src_dir="$(realpath "${gcsfuse_src_dir}")"
 else
   export gcsfuse_src_dir="${src_dir}"/gcsfuse
@@ -216,7 +219,10 @@ fi
 export gke_testing_dir="${gcsfuse_src_dir}"/perfmetrics/scripts/testing_on_gke
 
 if test -n "${csi_src_dir}"; then
-  test -d "${csi_src_dir}"
+  if ! test -d "${csi_src_dir}"; then
+    echo "csi_src_dir \"${csi_src_dir}\" does not exist"
+    exitWithFailure
+  fi
   export csi_src_dir="$(realpath "${csi_src_dir}")"
 else
   export csi_src_dir="${src_dir}"/gcs-fuse-csi-driver
@@ -235,14 +241,20 @@ if [[ ${pod_timeout_in_seconds} -le ${pod_wait_time_in_seconds} ]]; then
 fi
 
 if test -n "${workload_config}"; then
-  test -f "${workload_config}"
+  if ! test -f "${workload_config}"; then
+    echo "workload_config \"${workload_config}\" does not exist"
+    exitWithFailure
+  fi
   export workload_config="$(realpath "${workload_config}")"
 else
     export workload_config="${gke_testing_dir}"/examples/workloads.json
 fi
 
 if test -n "${output_dir}"; then
-  test -d "${output_dir}"
+  if ! test -d "${output_dir}"; then
+    echo "output_dir \"${output_dir}\" does not exist"
+    exitWithFailure
+  fi
   export output_dir="$(realpath "${output_dir}")"
 else
   export output_dir="${gke_testing_dir}"/examples
