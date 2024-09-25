@@ -17,8 +17,6 @@ package cfg
 import (
 	"fmt"
 	"runtime"
-	"strconv"
-	"strings"
 	"time"
 )
 
@@ -51,13 +49,4 @@ func ListCacheTTLSecsToDuration(secs int64) time.Duration {
 	}
 
 	return time.Duration(secs * int64(time.Second))
-}
-
-func IsNegativeNumber(str string) bool {
-	str = strings.TrimSpace(str)
-	num, err := strconv.ParseFloat(str, 64)
-	if err != nil {
-		return false // Conversion failed; not a valid number
-	}
-	return num < 0
 }
