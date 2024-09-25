@@ -128,7 +128,7 @@ func TestLogRotation(t *testing.T) {
 			validateLogFileSize(t, dirEntries[i])
 		} else if strings.Contains(dirEntries[i].Name(), "txt.gz") {
 			rotatedCompressedFileCtr++
-		} else if !strings.Contains(dirEntries[i].Name(), ".dump") {
+		} else if !strings.Contains(dirEntries[i].Name(), ".stderr") {
 			rotatedUncompressedFileCtr++
 			validateLogFileSize(t, dirEntries[i])
 		}
