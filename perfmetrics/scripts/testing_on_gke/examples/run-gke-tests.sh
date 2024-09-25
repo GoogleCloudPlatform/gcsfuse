@@ -350,8 +350,14 @@ function installDependencies() {
   pip install --upgrade google-cloud-monitoring
   # Ensure that jq is installed.
   which jq || sudo apt-get install -y jq
-  # # Ensure sudoless docker is installed.
-  # docker ps >/dev/null || (sudo addgroup docker && sudo usermod -aG docker $USER && newgrp docker)
+  # Ensure sudoless docker is installed.
+  if ! docker ps 1>/dev/null ; then
+    >2 echo "sudoless docker is not installed on this machine ($(hostname)). Please install sudoless-docker using the following commands and re-run this script ($0)"
+    >2 echo "sudo addgroup docker && sudo usermod -aG docker $USER && newgrp docker"
+    return 1
+  fi
+  # Install python modules for gsheet.
+  python3 -m pip install google-api-python-client
 }
 
 # Make sure you have access to the necessary GCP resources. The easiest way to enable it is to use <your-ldap>@google.com as active auth.
