@@ -3,7 +3,7 @@
   "TestConfig": {
     "workloadConfig": {
       "_description": "workloadConfig has an optional field runOnSSD (default true if missing), and an array of workloads.",
-      "runOnSSD": true,
+      "runOnSSD": false,
       "workloads": [
         {
           "_description": "This is a dummy fio workload (missing the 'fioWorkload' field), purely standing as a header and does not execute any workload. For it to execute a fio workload, it must have a valid 'fioWorkload', a valid 'bucket' attribute, and a valid gcsfuseMountOption attribute.",
