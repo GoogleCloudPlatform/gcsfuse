@@ -546,7 +546,7 @@ function ensureGcsfuseCode() {
   if ! test -d "${gcsfuse_src_dir}"; then
     cd $(dirname "${gcsfuse_src_dir}") && git clone ${gcsfuse_github_path} && cd "${gcsfuse_src_dir}" && git switch ${gcsfuse_branch} && cd - && cd -
   elif ${force_update_gcsfuse_code}; then
-    cd ${gcsfuse_src_dir} && git reset --hard origin/${gcsfuse_branch} && cd -
+    cd ${gcsfuse_src_dir} && git fetch --all && git reset --hard origin/${gcsfuse_branch} && cd -
   fi
 
   test -d "${gke_testing_dir}" || (echo "${gke_testing_dir} does not exist" && exit 1)
