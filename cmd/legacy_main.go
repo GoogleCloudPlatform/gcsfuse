@@ -376,8 +376,6 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 		env = append(env, fmt.Sprintf("%s=true", logger.GCSFuseInBackgroundMode))
 
 		// logfile.stderr will capture the standard error (stderr) output of the gcsfuse background process.
-		// Default it will go on os.stderr if logfile not passed.
-		//stderrFile := os.Stderr
 		var stderrFile *os.File
 		if newConfig.Logging.FilePath != "" {
 			stderrFileName := string(newConfig.Logging.FilePath) + ".stderr"
