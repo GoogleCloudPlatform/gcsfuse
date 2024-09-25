@@ -155,11 +155,10 @@ func setup_testdata(m *testing.M) error {
 			return err
 		}
 
-		gcsObjectPath := path.Join(setup.TestBucket(), objectPrefixPath)
-		gcsObjectsToBeDeletedEventually = append(gcsObjectsToBeDeletedEventually, gcsObjectPath)
+		gcsObjectsToBeDeletedEventually = append(gcsObjectsToBeDeletedEventually, objectPrefixPath)
 
 		if !fmd.keepCacheControlNoTransform {
-			err = operations.ClearCacheControlOnGcsObject(gcsObjectPath)
+			err = client.ClearCacheControlOnGcsObject(ctx, storageClient, objectPrefixPath)
 			if err != nil {
 				return err
 			}

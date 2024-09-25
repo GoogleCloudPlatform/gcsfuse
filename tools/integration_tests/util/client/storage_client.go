@@ -276,3 +276,16 @@ func GetGcsObjectSize(ctx context.Context, client *storage.Client, object string
 	}
 	return attrs.Size, nil
 }
+
+// Clears cache-control attributes on given GCS object.
+// Fails if the object doesn't exist or permission to modify object's metadata is not
+// available.
+func ClearCacheControlOnGcsObject(ctx context.Context, client *storage.Client, object string) error {
+	attrs, err := StatObject(ctx, client, object)
+	if err != nil {
+		return err
+	}
+	attrs.CacheControl = ""
+
+	return nil
+}
