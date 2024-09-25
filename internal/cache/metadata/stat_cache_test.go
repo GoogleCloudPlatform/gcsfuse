@@ -511,6 +511,7 @@ func (t *StatCacheTest) Test_ShouldReturnHitTrueWhenOnlyObjectAlreadyHasEntry() 
 
 	hit, entry := t.statCache.LookUpFolder(name, someTime)
 
+	// If "key1" object exist then corresponding folder entry will be nil, but hit will be true as key have entry in the cache for object.
 	assert.True(t.T(), hit)
 	assert.Nil(t.T(), entry)
 }
