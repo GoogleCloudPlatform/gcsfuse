@@ -594,7 +594,11 @@ function createCustomCsiDriverIfNeeded() {
       >2 echo "package_bucket \"${package_bucket}\" is too long (should be <= 63)"
       return 1
     fi
-    (gcloud storage buckets list --project=${project_id} | grep -wqo ${package_bucket}) || (region=$(echo ${zone} | rev | cut -d- -f2- | rev) && gcloud storage buckets create gs://${package_bucket} --project=${project_id} --location=${region})
+    # If package_bucket does not already exist, create it.
+    if (! (gcloud storage buckets list --project=${project_id} | grep -wqo ${package_bucket}) ); then
+      region=$(echo ${zone} | rev | cut -d- -f2- | rev)
+      gcloud storage buckets create gs://${package_bucket} --project=${project_id} --location=${region}
+    fi
 
     # Build a new gcsfuse binary
     printf "\nBuilding a new GCSFuse binary from ${gcsfuse_src_dir} ...\n\n"
