@@ -367,6 +367,7 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
 }
 
 func (b *fastStatBucket) GetFolder(ctx context.Context, prefix string) (*gcs.Folder, error) {
+	fmt.Println("Prefix: ", prefix)
 	if hit, entry := b.lookUpFolder(prefix); hit {
 		// Negative entries result in NotFoundError.
 		if entry == nil {
@@ -415,11 +416,15 @@ func (b *fastStatBucket) CreateFolder(ctx context.Context, folderName string) (f
 	return
 }
 
-func (b *fastStatBucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (o *gcs.Folder, err error) {
-	o, err = b.wrapped.RenameFolder(ctx, folderName, destinationFolderId)
+func (b *fastStatBucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (*gcs.Folder, error) {
+	f, err := b.wrapped.RenameFolder(ctx, folderName, destinationFolderId)
+	if err != nil {
+		return nil, err
+	}
 
 	// Invalidate cache for old directory.
 	b.eraseEntriesWithGivenPrefix(folderName)
+	b.insertFolder(f)
 
-	return o, err
+	return f, err
 }
