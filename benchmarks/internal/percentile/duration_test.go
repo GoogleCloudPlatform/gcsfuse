@@ -15,20 +15,29 @@
 package percentile_test
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/benchmarks/internal/percentile"
-	"github.com/stretchr/testify/assert"
+	. "github.com/jacobsa/ogletest"
 )
+
+func TestDuration(t *testing.T) { RunTests(t) }
+
+////////////////////////////////////////////////////////////////////////
+// Boilerplate
+////////////////////////////////////////////////////////////////////////
+
+type DurationTest struct {
+}
+
+func init() { RegisterTestSuite(&DurationTest{}) }
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func TestOneObservation(t *testing.T) {
-	t.Parallel()
+func (t *DurationTest) OneObservation() {
 	vals := []time.Duration{
 		17,
 	}
@@ -46,18 +55,15 @@ func TestOneObservation(t *testing.T) {
 		{100, 17},
 	}
 
-	for idx, tc := range testCases {
-		tc := tc
-		t.Run(fmt.Sprintf("case_%d", idx), func(t *testing.T) {
-			t.Parallel()
-
-			assert.Equal(t, tc.expected, percentile.Duration(vals, tc.p), "p: %d", tc.p)
-		})
+	for _, tc := range testCases {
+		ExpectEq(
+			tc.expected,
+			percentile.Duration(vals, tc.p),
+			"p: %d", tc.p)
 	}
 }
 
-func TestTwoObservations(t *testing.T) {
-	t.Parallel()
+func (t *DurationTest) TwoObservations() {
 	vals := []time.Duration{
 		100,
 		200,
@@ -76,21 +82,15 @@ func TestTwoObservations(t *testing.T) {
 		{100, 200},
 	}
 
-	for idx, tc := range testCases {
-		tc := tc
-		t.Run(fmt.Sprintf("case_%d", idx), func(t *testing.T) {
-			t.Parallel()
-
-			assert.Equal(t,
-				tc.expected,
-				percentile.Duration(vals, tc.p),
-				"p: %d", tc.p)
-		})
+	for _, tc := range testCases {
+		ExpectEq(
+			tc.expected,
+			percentile.Duration(vals, tc.p),
+			"p: %d", tc.p)
 	}
 }
 
-func TestThreeObservations(t *testing.T) {
-	t.Parallel()
+func (t *DurationTest) ThreeObservations() {
 	vals := []time.Duration{
 		100,
 		200,
@@ -110,21 +110,15 @@ func TestThreeObservations(t *testing.T) {
 		{100, 300},
 	}
 
-	for idx, tc := range testCases {
-		tc := tc
-		t.Run(fmt.Sprintf("case_%d", idx), func(t *testing.T) {
-			t.Parallel()
-
-			assert.Equal(t,
-				tc.expected,
-				percentile.Duration(vals, tc.p),
-				"p: %d", tc.p)
-		})
+	for _, tc := range testCases {
+		ExpectEq(
+			tc.expected,
+			percentile.Duration(vals, tc.p),
+			"p: %d", tc.p)
 	}
 }
 
-func TestFiveObservations(t *testing.T) {
-	t.Parallel()
+func (t *DurationTest) FiveObservations() {
 	vals := []time.Duration{
 		100,
 		200,
@@ -163,14 +157,10 @@ func TestFiveObservations(t *testing.T) {
 		{100, 1000},
 	}
 
-	for idx, tc := range testCases {
-		t.Run(fmt.Sprintf("case_%d", idx), func(t *testing.T) {
-			t.Parallel()
-
-			assert.Equal(t,
-				tc.expected,
-				percentile.Duration(vals, tc.p),
-				"p: %d", tc.p)
-		})
+	for _, tc := range testCases {
+		ExpectEq(
+			tc.expected,
+			percentile.Duration(vals, tc.p),
+			"p: %d", tc.p)
 	}
 }
