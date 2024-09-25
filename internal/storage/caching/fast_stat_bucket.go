@@ -344,9 +344,6 @@ func (b *fastStatBucket) DeleteFolder(ctx context.Context, folderName string) er
 	if err != nil {
 		return err
 	}
-	// Add negative entry in the cache.
-	b.addNegativeEntryForFolder(folderName)
-
 	return err
 }
 
@@ -370,7 +367,6 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
 }
 
 func (b *fastStatBucket) GetFolder(ctx context.Context, prefix string) (*gcs.Folder, error) {
-
 	if hit, entry := b.lookUpFolder(prefix); hit {
 		// Negative entries result in NotFoundError.
 		if entry == nil {
