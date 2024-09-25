@@ -28,7 +28,7 @@ SUPPORTED_SCENARIOS = [
 ]
 
 
-def ensureDir(dirpath: str):
+def ensure_directory_exists(dirpath: str):
   try:
     os.makedirs(dirpath)
   except FileExistsError:
