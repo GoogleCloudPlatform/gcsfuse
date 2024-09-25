@@ -202,7 +202,7 @@ def get_memory_from_monitoring_api(
       "end_time": {"seconds": end_epoch, "nanos": 0},
   })
   aggregation = monitoring_v3.Aggregation({
-      "alignment_period": {"seconds": 60},  # 1 minute
+      "alignment_period": {"seconds": 600},  # 10 minutes
       "per_series_aligner": monitoring_v3.Aggregation.Aligner.ALIGN_MAX,
   })
 
@@ -260,7 +260,6 @@ def get_cpu_from_monitoring_api(
     project_id: str,
     cluster_name: str,
     pod_name: str,
-    # container_name: str,
     namespace_name: str,
     start_epoch: int,
     end_epoch: int,
@@ -274,7 +273,7 @@ def get_cpu_from_monitoring_api(
       "end_time": {"seconds": end_epoch, "nanos": 0},
   })
   aggregation = monitoring_v3.Aggregation({
-      "alignment_period": {"seconds": 60},  # 1 minute
+      "alignment_period": {"seconds": 600},  # 10 minutes
       "per_series_aligner": monitoring_v3.Aggregation.Aligner.ALIGN_RATE,
   })
 
