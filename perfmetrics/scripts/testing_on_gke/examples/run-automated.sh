@@ -31,6 +31,12 @@ set -x
 # Fail if any command fails.
 set -e
 
+# Environment variable USER must be defined.
+if test -z ${USER}; then
+  echo "USER has not been set"
+  exit 1
+fi
+
 # Define configuration parameters.
 if test -z ${project_id}; then
   echo "project_id has not been set."
