@@ -37,11 +37,11 @@ import (
 func verifyFileSizeAndFullFileRead(t *testing.T, filename string) {
 	mountedFilePath := path.Join(setup.MntDir(), TestBucketPrefixPath, filename)
 	gcsObjectPath := path.Join(TestBucketPrefixPath, filename)
-	gcsObjectAttr, err := client.StatObject(ctx, storageClient, gcsObjectPath)
+	gcsObjectSize, err := client.GetGcsObjectSize(ctx, storageClient, gcsObjectPath)
 	if err != nil {
 		t.Fatalf("Failed to get size of gcs object %s: %v\n", gcsObjectPath, err)
 	}
-	gcsObjectSize := gcsObjectAttr.Size
+
 	fi, err := operations.StatFile(mountedFilePath)
 	if err != nil || fi == nil {
 		t.Fatalf("Failed to get stat info of mounted file %s: %v\n", mountedFilePath, err)
@@ -70,12 +70,11 @@ func verifyFileSizeAndFullFileRead(t *testing.T, filename string) {
 func verifyRangedRead(t *testing.T, filename string) {
 	mountedFilePath := path.Join(setup.MntDir(), TestBucketPrefixPath, filename)
 	gcsObjectPath := path.Join(TestBucketPrefixPath, filename)
-	gcsObjectAttr, err := client.StatObject(ctx, storageClient, gcsObjectPath)
+	gcsObjectSize, err := client.GetGcsObjectSize(ctx, storageClient, gcsObjectPath)
 
 	if err != nil {
 		t.Fatalf("Failed to get size of gcs object %s: %v\n", gcsObjectPath, err)
 	}
-	gcsObjectSize := gcsObjectAttr.Size
 
 	readSize := int64(gcsObjectSize / 10)
 	readOffset := int64(readSize / 10)
@@ -119,11 +118,10 @@ func verifyRangedRead(t *testing.T, filename string) {
 // possible as they both always read back objects with content-encoding: gzip as
 // uncompressed/decompressed irrespective of any argument passed.
 func downloadGzipGcsObjectAsCompressed(t *testing.T, bucketName, objPathInBucket string) (tempfile string, err error) {
-	gcsObjectPath := path.Join(objPathInBucket)
-	gcsObjectAttr, err := client.StatObject(ctx, storageClient, gcsObjectPath)
-	gcsObjectSize := gcsObjectAttr.Size
+	gcsObjectSize, err := client.GetGcsObjectSize(ctx, storageClient, objPathInBucket)
+
 	if err != nil {
-		return "", fmt.Errorf("failed to get size of gcs object %s: %w", gcsObjectPath, err)
+		return "", fmt.Errorf("failed to get size of gcs object %s: %w", objPathInBucket, err)
 	}
 
 	content, err := createContentOfSize(1)
