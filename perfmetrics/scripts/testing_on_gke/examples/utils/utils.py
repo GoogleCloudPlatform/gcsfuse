@@ -21,6 +21,8 @@ import time
 from typing import Tuple
 from google.cloud import monitoring_v3
 
+_GCSFUSE_CONTAINER_NAME = "gke-gcsfuse-sidecar"
+
 
 def is_mash_installed() -> bool:
   try:
@@ -66,7 +68,7 @@ def get_memory(
       continue
     pn = data_points_split[4]
     container_name = data_points_split[5]
-    if pn == pod_name and container_name == "gke-gcsfuse-sidecar":
+    if pn == pod_name and container_name == _GCSFUSE_CONTAINER_NAME:
       try:
         data_points_int = [int(d) for d in data_points_split[7:]]
       except:
@@ -112,7 +114,7 @@ def get_cpu(
       continue
     pn = data_points_split[4]
     container_name = data_points_split[5]
-    if pn == pod_name and container_name == "gke-gcsfuse-sidecar":
+    if pn == pod_name and container_name == _GCSFUSE_CONTAINER_NAME:
       try:
         data_points_float = [float(d) for d in data_points_split[6:]]
       except:
@@ -159,7 +161,6 @@ def isRelevantMonitoringResult(
     result,
     cluster_name: str,
     pod_name: str,
-    # container_name: str,
     namespace_name: str,
 ) -> bool:
   return (
@@ -168,15 +169,16 @@ def isRelevantMonitoringResult(
           hasattr(result, "resource")
           and hasattr(result.resource, "type")
           and result.resource.type == "k8s_container"
-          # and hasattr(result.resource, "labels")
-          # and "cluster_name" in result.resource.labels
-          # and result.resource.labels["cluster_name"] == cluster_name
-          # and "pod_name" in result.resource.labels
-          # and result.resource.labels["pod_name"] == pod_name
-          # and "container_name" in result.resource.labels
-          # and result.resource.labels["container_name"] == container_name
-          # and "namespace_name" in result.resource.labels
-          # and result.resource.labels["namespace_name"] == namespace_name
+          and hasattr(result.resource, "labels")
+          and "cluster_name" in result.resource.labels
+          and result.resource.labels["cluster_name"] == cluster_name
+          and "pod_name" in result.resource.labels
+          and result.resource.labels["pod_name"] == pod_name
+          and "container_name" in result.resource.labels
+          and result.resource.labels["container_name"]
+          == _GCSFUSE_CONTAINER_NAME
+          and "namespace_name" in result.resource.labels
+          and result.resource.labels["namespace_name"] == namespace_name
           and hasattr(result, "points")
       )
       else False
@@ -187,7 +189,6 @@ def get_memory_from_monitoring_api(
     project_id: str,
     cluster_name: str,
     pod_name: str,
-    # container_name: str,
     namespace_name: str,
     start_epoch: int,
     end_epoch: int,
@@ -210,11 +211,10 @@ def get_memory_from_monitoring_api(
           "name": project_name,
           "filter": (
               'metric.type = "kubernetes.io/container/memory/used_bytes"'
-              # ' AND metric.memory_type = "non-evictable"' # for some reason,
-              # this throws error, so commented it out.
+              ' AND metric.labels.memory_type = "non-evictable"'
               f" AND resource.labels.cluster_name = {cluster_name}"
               f" AND resource.labels.pod_name = {pod_name}"
-              # f" AND resource.labels.container_name = {container_name}"
+              f" AND resource.labels.container_name = {_GCSFUSE_CONTAINER_NAME}"
               f" AND resource.labels.namespace_name = {namespace_name}"
           ),
           "interval": interval,
@@ -230,7 +230,6 @@ def get_memory_from_monitoring_api(
           result,
           cluster_name,
           pod_name,
-          # container_name,
           namespace_name,
       )
   ]
@@ -286,7 +285,7 @@ def get_cpu_from_monitoring_api(
               'metric.type = "kubernetes.io/container/cpu/core_usage_time"'
               f" AND resource.labels.cluster_name = {cluster_name}"
               f" AND resource.labels.pod_name = {pod_name}"
-              # f" AND resource.labels.container_name = {container_name}"
+              f" AND resource.labels.container_name = {_GCSFUSE_CONTAINER_NAME}"
               f" AND resource.labels.namespace_name = {namespace_name}"
           ),
           "interval": interval,
@@ -302,7 +301,6 @@ def get_cpu_from_monitoring_api(
           result,
           cluster_name,
           pod_name,
-          # container_name,
           namespace_name,
       )
   ]

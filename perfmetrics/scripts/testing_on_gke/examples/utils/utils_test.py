@@ -17,44 +17,60 @@
 
 import unittest
 import utils
-from utils import get_cpu_from_monitoring_api, get_memory_from_monitoring_api, timestamp_to_epoch
+from utils import get_cpu, get_cpu_from_monitoring_api, get_memory, get_memory_from_monitoring_api, timestamp_to_epoch
 
 
 class UtilsTest(unittest.TestCase):
 
   @classmethod
   def setUpClass(self):
-    self.project_id = 'gcs-fuse-test'
-    self.cluster_name = 'gargnitin-dryrun-us-west1-6'
-    self.pod_name = 'fio-tester-gcsfuse-rr-64k-1670041227260535313'
-    # self.container_name = "fio-tester"
+    self.project_id = 'gcs-fuse-test-ml'
+    self.project_number = 786757290066
+    self.cluster_name = 'gargnitin-gketesting-us-west1b'
+    self.pod_name = 'fio-tester-gcsfuse-rr-200g-5061221202711042867'
     self.namespace_name = 'default'
-    self.start_epoch = 1724233283
-    self.end_epoch = 1724233442
+    self.start_epoch = 1727245942
+    self.end_epoch = 1727247982
+    self.start = '2024-09-25 06:32:22 UTC'
+    self.end = '2024-09-25 07:06:22 UTC'
 
-  def test_get_memory_from_monitoring_api(self):
+  def test_get_memory_methods(self):
     print(
         get_memory_from_monitoring_api(
-            self.project_id,
-            self.cluster_name,
-            self.pod_name,
-            # self.container_name,
-            self.namespace_name,
-            self.start_epoch,
-            self.end_epoch,
+            project_id=self.project_id,
+            cluster_name=self.cluster_name,
+            pod_name=self.pod_name,
+            namespace_name=self.namespace_name,
+            start_epoch=self.start_epoch,
+            end_epoch=self.end_epoch,
+        )
+    )
+    print(
+        get_memory(
+            project_number=self.project_number,
+            pod_name=self.pod_name,
+            start=self.start,
+            end=self.end,
         )
     )
 
-  def test_get_cpu_from_monitoring_api(self):
+  def test_get_cpu_methods(self):
     print(
         get_cpu_from_monitoring_api(
-            self.project_id,
-            self.cluster_name,
-            self.pod_name,
-            # self.container_name,
-            self.namespace_name,
-            self.start_epoch,
-            self.end_epoch,
+            project_id=self.project_id,
+            cluster_name=self.cluster_name,
+            pod_name=self.pod_name,
+            namespace_name=self.namespace_name,
+            start_epoch=self.start_epoch,
+            end_epoch=self.end_epoch,
+        )
+    )
+    print(
+        get_cpu(
+            project_number=self.project_number,
+            pod_name=self.pod_name,
+            start=self.start,
+            end=self.end,
         )
     )
 
