@@ -27,7 +27,7 @@ import sys
 sys.path.append("../")
 import dlio_workload
 from utils.utils import get_memory, get_cpu, unix_to_timestamp, standard_timestamp, is_mash_installed, get_memory_from_monitoring_api, get_cpu_from_monitoring_api, timestamp_to_epoch
-from utils.parse_logs_common import ensureDir, download_gcs_objects, parseLogParserArguments, SUPPORTED_SCENARIOS
+from utils.parse_logs_common import ensureDir, download_gcs_objects, parse_arguments, SUPPORTED_SCENARIOS
 
 _LOCAL_LOGS_LOCATION = "../../bin/dlio-logs/logs"
 
@@ -296,7 +296,7 @@ def writeRecordsToCsvOutputFile(output: dict, output_file_path: str):
 
 
 if __name__ == "__main__":
-  args = parseLogParserArguments()
+  args = parse_arguments()
   ensureDir(_LOCAL_LOGS_LOCATION)
 
   dlioWorkloads = dlio_workload.ParseTestConfigForDlioWorkloads(
