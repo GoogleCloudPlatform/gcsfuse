@@ -501,4 +501,3 @@ var ExecuteLegacyMain = func() {
 		os.Exit(1)
 	}
 }
-
