@@ -267,3 +267,12 @@ func UploadGcsObject(ctx context.Context, client *storage.Client, localPath, buc
 	}
 	return nil
 }
+
+// Get the object size of the GCS object.
+func GetGcsObjectSize(ctx context.Context, client *storage.Client, object string) (int64, error) {
+	attrs, err := StatObject(ctx, client, object)
+	if err != nil {
+		return -1, err
+	}
+	return attrs.Size, nil
+}

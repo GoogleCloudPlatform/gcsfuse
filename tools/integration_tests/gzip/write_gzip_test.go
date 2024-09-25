@@ -19,6 +19,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
@@ -33,8 +34,8 @@ const overwrittenFileSize = 1000
 // GCS object.
 func verifyFullFileOverwrite(t *testing.T, filename string) {
 	mountedFilePath := path.Join(setup.MntDir(), TestBucketPrefixPath, filename)
-	gcsObjectPath := path.Join(setup.TestBucket(), TestBucketPrefixPath, filename)
-	gcsObjectSize, err := operations.GetGcsObjectSize(gcsObjectPath)
+	gcsObjectPath := path.Join(TestBucketPrefixPath, filename)
+	gcsObjectSize, err := client.GetGcsObjectSize(ctx, storageClient, gcsObjectPath)
 	if err != nil {
 		t.Fatalf("Failed to get size of gcs object %s: %v\n", gcsObjectPath, err)
 	}
@@ -70,7 +71,7 @@ func verifyFullFileOverwrite(t *testing.T, filename string) {
 		t.Fatalf("Failed to copy/overwrite temp file %s to existing gzip object/file %s: %v", tempfile, mountedFilePath, err)
 	}
 
-	gcsObjectSize, err = operations.GetGcsObjectSize(gcsObjectPath)
+	gcsObjectSize, err = client.GetGcsObjectSize(ctx, storageClient, gcsObjectPath)
 	if err != nil {
 		t.Fatalf("Failed to get size of gcs object %s: %v\n", gcsObjectPath, err)
 	}
