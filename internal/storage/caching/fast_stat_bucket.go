@@ -345,7 +345,7 @@ func (b *fastStatBucket) DeleteFolder(ctx context.Context, folderName string) er
 	if err != nil {
 		return err
 	}
-  b.invalidate(folderName)
+	b.invalidate(folderName)
 	return err
 }
 
