@@ -844,9 +844,10 @@ func (t *StatObjectTest) TestRenameFolder() {
 	var folder = &gcs.Folder{
 		Name: newName,
 	}
+
+	ExpectCall(t.wrapped, "RenameFolder")(Any(), name, newName).WillOnce(Return(folder, nil))
 	ExpectCall(t.cache, "EraseEntriesWithGivenPrefix")(name).WillOnce(Return())
 	ExpectCall(t.cache, "InsertFolder")(folder, Any()).WillOnce(Return())
-	ExpectCall(t.wrapped, "RenameFolder")(Any(), name, newName).WillOnce(Return(folder, nil))
 
 	result, err := t.bucket.RenameFolder(context.Background(), name, newName)
 

@@ -133,6 +133,8 @@ func (b *fastStatBucket) insertFolder(f *gcs.Folder) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
+	fmt.Println("In Insert")
+	fmt.Println("got: ", f)
 	b.cache.InsertFolder(f, b.clock.Now().Add(b.ttl))
 }
 
@@ -367,7 +369,6 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
 }
 
 func (b *fastStatBucket) GetFolder(ctx context.Context, prefix string) (*gcs.Folder, error) {
-	fmt.Println("Prefix: ", prefix)
 	if hit, entry := b.lookUpFolder(prefix); hit {
 		// Negative entries result in NotFoundError.
 		if entry == nil {
@@ -425,8 +426,6 @@ func (b *fastStatBucket) RenameFolder(ctx context.Context, folderName string, de
 	// Invalidate cache for old directory.
 	b.eraseEntriesWithGivenPrefix(folderName)
 	b.insertFolder(f)
-	fmt.Println("Old Folder Name: ", folderName)
-	fmt.Println("Folder Name: ", f.Name)
 
 	return f, err
 }
