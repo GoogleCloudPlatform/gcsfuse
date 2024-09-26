@@ -24,7 +24,6 @@ echo "This is from directory fileInImplicitDir1 file implicitDirectory" > fileIn
 gcloud storage cp fileInImplicitDir1 gs://${DirPath}/${ImplicitDirectory}/
 echo "This is from directory implicitDirectory/implicitSubDirectory file fileInImplicitDir2" > fileInImplicitDir2
 # bucket/implicitDirectory/implicitSubDirectory/fileInImplicitDir2
-gcloud storage cp fileInImplicitDir2 gs://$1/implicitDirectory/implicitSubDirectory/
+gcloud storage cp fileInImplicitDir2 gs://${DirPath}/${ImplicitDirectory}/${ImplicitSubDirectory}/
 cd ..
 rm -rf "$temp_dir"
-gcloud storage cp fileInImplicitDir2 gs://${DirPath}/${ImplicitDirectory}/${ImplicitSubDirectory}/
