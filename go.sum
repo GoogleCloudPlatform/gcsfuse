@@ -745,8 +745,8 @@ github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLf
 github.com/intel/goresctrl v0.2.0/go.mod h1:+CZdzouYFn5EsxgqAQTEzMfwKwuc0fVdMrT9FCCAVRQ=
 github.com/j-keck/arping v0.0.0-20160618110441-2cf9dc699c56/go.mod h1:ymszkNOg6tORTn+6F6j+Jc8TOr5osrynvN6ivFWZ2GA=
 github.com/j-keck/arping v1.0.2/go.mod h1:aJbELhR92bSk7tp79AWM/ftfc90EfEi2bQJrbBFOsPw=
-github.com/jacobsa/daemonize v0.0.0-20160101105449-e460293e890f h1:X+tnaqoCcBgAwSTJtoYW6p0qKiuPyMfofEHEFUf2kdU=
-github.com/jacobsa/daemonize v0.0.0-20160101105449-e460293e890f/go.mod h1:Ip4fOwzCrnDVuluHBd7FXIMb7SHOKfkt9/UDrYSZvqI=
+github.com/jacobsa/daemonize v0.0.0-20240917082746-f35568b6c3ec h1:xsRGrfdnjvJtEMD2ouh8gOGIeDF9LrgXjo+9Q69RVzI=
+github.com/jacobsa/daemonize v0.0.0-20240917082746-f35568b6c3ec/go.mod h1:Ip4fOwzCrnDVuluHBd7FXIMb7SHOKfkt9/UDrYSZvqI=
 github.com/jacobsa/fuse v0.0.0-20240607092844-7285af0d05b0 h1:IWVMQZZvWN+9FeRwWnZAINYNrsr3yyCWI2BcddQBDvk=
 github.com/jacobsa/fuse v0.0.0-20240607092844-7285af0d05b0/go.mod h1:JYi9iIxdYNgxmMgLwtSHO/hmVnP2kfX1oc+mtx+XWLA=
 github.com/jacobsa/oglematchers v0.0.0-20150720000706-141901ea67cd h1:9GCSedGjMcLZCrusBZuo4tyKLpKUPenUUqi34AkuFmA=
