@@ -133,8 +133,6 @@ func (b *fastStatBucket) insertFolder(f *gcs.Folder) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	fmt.Println("In Insert")
-	fmt.Println("got: ", f)
 	b.cache.InsertFolder(f, b.clock.Now().Add(b.ttl))
 }
 
