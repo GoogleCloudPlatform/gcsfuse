@@ -18,20 +18,31 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	control "cloud.google.com/go/storage/control/apiv2"
 	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"google.golang.org/api/option"
+	"google.golang.org/grpc/codes"
 )
 
 func storageControlClientRetryOptions(clientConfig *StorageClientConfig) []gax.CallOption {
-	return []gax.CallOption{gax.WithRetry(func() gax.Retryer {
-		return gax.OnErrorFunc(gax.Backoff{
-			Max:        clientConfig.MaxRetrySleep,
-			Multiplier: clientConfig.RetryMultiplier,
-		}, ShouldRetry)
-	})}
+	return []gax.CallOption{
+		gax.WithTimeout(300000 * time.Millisecond),
+		gax.WithRetry(func() gax.Retryer {
+			return gax.OnCodes([]codes.Code{
+				codes.ResourceExhausted,
+				codes.Unavailable,
+				codes.DeadlineExceeded,
+				codes.Internal,
+				codes.Unknown,
+			}, gax.Backoff{
+				Max:        clientConfig.MaxRetrySleep,
+				Multiplier: clientConfig.RetryMultiplier,
+			})
+		}),
+	}
 }
 
 func setRetryConfigForFolderAPIs(sc *control.StorageControlClient, clientConfig *StorageClientConfig) {
