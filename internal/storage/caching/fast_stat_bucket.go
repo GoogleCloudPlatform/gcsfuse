@@ -336,6 +336,7 @@ func (b *fastStatBucket) DeleteObject(
 	req *gcs.DeleteObjectRequest) (err error) {
 	b.invalidate(req.Name)
 	err = b.wrapped.DeleteObject(ctx, req)
+
 	return
 }
 
@@ -344,7 +345,7 @@ func (b *fastStatBucket) DeleteFolder(ctx context.Context, folderName string) er
 	if err != nil {
 		return err
 	}
-
+  b.invalidate(folderName)
 	return err
 }
 

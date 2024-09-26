@@ -865,6 +865,7 @@ func (t *DeleteFolderTest) Test_DeleteFolder_Success() {
 	const name = "some-name"
 	ExpectCall(t.wrapped, "DeleteFolder")(Any(), name).
 		WillOnce(Return(nil))
+	ExpectCall(t.cache, "Erase")(name).WillOnce(Return())
 
 	err := t.bucket.DeleteFolder(context.TODO(), name)
 
