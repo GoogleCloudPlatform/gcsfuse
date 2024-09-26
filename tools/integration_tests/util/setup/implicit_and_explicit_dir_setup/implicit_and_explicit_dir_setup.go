@@ -29,8 +29,6 @@ import (
 
 const ExplicitDirectory = "explicitDirectory"
 const ExplicitFile = "explicitFile"
-const ImplicitDirectory = "implicitDirectory"
-const ImplicitSubDirectory = "implicitSubDirectory"
 const NumberOfExplicitObjects = 2
 const NumberOfTotalObjects = 3
 const NumberOfFilesInExplicitDirectory = 2
@@ -41,6 +39,8 @@ const FirstFileInExplicitDirectory = "fileInExplicitDir1"
 const SecondFileInExplicitDirectory = "fileInExplicitDir2"
 const FileInImplicitDirectory = "fileInImplicitDir1"
 const FileInImplicitSubDirectory = "fileInImplicitDir2"
+var ImplicitDirectoryPrefix = "implicitDirectory"
+var ImplicitSubDirectoryPrefix = "implicitSubDirectory"
 
 func RunTestsForImplicitDirAndExplicitDir(flags [][]string, m *testing.M) int {
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
@@ -75,6 +75,8 @@ func RemoveAndCheckIfDirIsDeleted(dirPath string, dirName string, t *testing.T) 
 }
 
 func CreateImplicitDirectoryStructure(testDir string) {
+	ImplicitDirectoryPrefix = ImplicitDirectoryPrefix + setup.GenerateRandomString(5)
+	ImplicitSubDirectoryPrefix = ImplicitSubDirectoryPrefix + setup.GenerateRandomString(5)
 	// Implicit Directory Structure
 	// testBucket/testDir/implicitDirectory                                                  -- Dir
 	// testBucket/testDir/implicitDirectory/fileInImplicitDir1                               -- File
@@ -82,7 +84,7 @@ func CreateImplicitDirectoryStructure(testDir string) {
 	// testBucket/testDir/implicitDirectory/implicitSubDirectory/fileInImplicitDir2          -- File
 
 	// Create implicit directory in bucket for testing.
-	setup.RunScriptForTestData("../util/setup/implicit_and_explicit_dir_setup/testdata/create_objects.sh", path.Join(setup.TestBucket(), testDir))
+	setup.RunScriptForTestData("../util/setup/implicit_and_explicit_dir_setup/testdata/create_objects.sh", path.Join(setup.TestBucket(), testDir), ImplicitDirectoryPrefix, ImplicitSubDirectoryPrefix)
 }
 
 func CreateExplicitDirectoryStructure(testDir string, t *testing.T) {
@@ -105,6 +107,8 @@ func CreateExplicitDirectoryStructure(testDir string, t *testing.T) {
 }
 
 func CreateImplicitDirectoryInExplicitDirectoryStructure(testDir string, t *testing.T) {
+	ImplicitDirectoryPrefix = ImplicitDirectoryPrefix + setup.GenerateRandomString(5)
+	ImplicitSubDirectoryPrefix = ImplicitSubDirectoryPrefix + setup.GenerateRandomString(5)
 	// testBucket/testDir/explicitDirectory                                                                   -- Dir
 	// testBucket/testDir/explictFile                                                                         -- File
 	// testBucket/testDir/explicitDirectory/fileInExplicitDir1                                                -- File
@@ -116,5 +120,5 @@ func CreateImplicitDirectoryInExplicitDirectoryStructure(testDir string, t *test
 
 	CreateExplicitDirectoryStructure(testDir, t)
 	dirPathInBucket := path.Join(setup.TestBucket(), testDir, ExplicitDirectory)
-	setup.RunScriptForTestData("../util/setup/implicit_and_explicit_dir_setup/testdata/create_objects.sh", dirPathInBucket)
+	setup.RunScriptForTestData("../util/setup/implicit_and_explicit_dir_setup/testdata/create_objects.sh", dirPathInBucket, ImplicitDirectoryPrefix, ImplicitSubDirectoryPrefix)
 }

@@ -33,9 +33,9 @@ func TestDeleteNonEmptyImplicitDir(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForImplicitDirTests)
 	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure(DirForImplicitDirTests)
 
-	dirPath := path.Join(testDir, implicit_and_explicit_dir_setup.ImplicitDirectory)
+	dirPath := path.Join(testDir, implicit_and_explicit_dir_setup.ImplicitDirectoryPrefix)
 
-	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ImplicitDirectory, t)
+	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ImplicitDirectoryPrefix, t)
 }
 
 // Directory Structure
@@ -47,9 +47,9 @@ func TestDeleteNonEmptyImplicitSubDir(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForImplicitDirTests)
 	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure(DirForImplicitDirTests)
 
-	subDirPath := path.Join(testDir, implicit_and_explicit_dir_setup.ImplicitDirectory, implicit_and_explicit_dir_setup.ImplicitSubDirectory)
+	subDirPath := path.Join(testDir, implicit_and_explicit_dir_setup.ImplicitDirectoryPrefix, implicit_and_explicit_dir_setup.ImplicitSubDirectoryPrefix)
 
-	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(subDirPath, implicit_and_explicit_dir_setup.ImplicitSubDirectory, t)
+	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(subDirPath, implicit_and_explicit_dir_setup.ImplicitSubDirectoryPrefix, t)
 }
 
 // Directory Structure
@@ -63,13 +63,13 @@ func TestDeleteImplicitDirWithExplicitSubDir(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForImplicitDirTests)
 	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure(DirForImplicitDirTests)
 
-	explicitDirPath := path.Join(testDir, implicit_and_explicit_dir_setup.ImplicitDirectory, ExplicitDirInImplicitDir)
+	explicitDirPath := path.Join(testDir, implicit_and_explicit_dir_setup.ImplicitDirectoryPrefix, ExplicitDirInImplicitDir)
 
 	operations.CreateDirectoryWithNFiles(NumberOfFilesInExplicitDirInImplicitDir, explicitDirPath, PrefixFileInExplicitDirInImplicitDir, t)
 
-	dirPath := path.Join(testDir, implicit_and_explicit_dir_setup.ImplicitDirectory)
+	dirPath := path.Join(testDir, implicit_and_explicit_dir_setup.ImplicitDirectoryPrefix)
 
-	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ImplicitDirectory, t)
+	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ImplicitDirectoryPrefix, t)
 }
 
 // Directory Structure
@@ -82,13 +82,13 @@ func TestDeleteImplicitDirWithExplicitSubDir(t *testing.T) {
 func TestDeleteImplicitDirWithImplicitSubDirContainingExplicitDir(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForImplicitDirTests)
 	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure(DirForImplicitDirTests)
-	explicitDirPath := path.Join(testDir, implicit_and_explicit_dir_setup.ImplicitDirectory, implicit_and_explicit_dir_setup.ImplicitSubDirectory, ExplicitDirInImplicitSubDir)
+	explicitDirPath := path.Join(testDir, implicit_and_explicit_dir_setup.ImplicitDirectoryPrefix, implicit_and_explicit_dir_setup.ImplicitSubDirectoryPrefix, ExplicitDirInImplicitSubDir)
 
 	operations.CreateDirectoryWithNFiles(NumberOfFilesInExplicitDirInImplicitSubDir, explicitDirPath, PrefixFileInExplicitDirInImplicitSubDir, t)
 
-	dirPath := path.Join(testDir, implicit_and_explicit_dir_setup.ImplicitDirectory)
+	dirPath := path.Join(testDir, implicit_and_explicit_dir_setup.ImplicitDirectoryPrefix)
 
-	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ImplicitDirectory, t)
+	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ImplicitDirectoryPrefix, t)
 }
 
 // Directory Structure
@@ -104,9 +104,9 @@ func TestDeleteImplicitDirInExplicitDir(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForImplicitDirTests)
 	implicit_and_explicit_dir_setup.CreateImplicitDirectoryInExplicitDirectoryStructure(DirForImplicitDirTests, t)
 
-	dirPath := path.Join(testDir, implicit_and_explicit_dir_setup.ExplicitDirectory, implicit_and_explicit_dir_setup.ImplicitDirectory)
+	dirPath := path.Join(testDir, implicit_and_explicit_dir_setup.ExplicitDirectory, implicit_and_explicit_dir_setup.ImplicitDirectoryPrefix)
 
-	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ImplicitDirectory, t)
+	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ImplicitDirectoryPrefix, t)
 }
 
 // Directory Structure
