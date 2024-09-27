@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"path"
 	"runtime"
@@ -187,14 +188,25 @@ func TestValidateConfigFile_WriteConfig(t *testing.T) {
 			name:       "Empty config file [default values].",
 			configFile: "testdata/empty_file.yaml",
 			expectedConfig: &cfg.Config{
-				Write: cfg.WriteConfig{CreateEmptyFile: false},
+				Write: cfg.WriteConfig{
+					CreateEmptyFile:       false,
+					BlockSizeMb:           64,
+					EnableStreamingWrites: false,
+					GlobalMaxBlocks:       math.MaxInt64,
+					MaxBlocksPerFile:      math.MaxInt64},
 			},
 		},
 		{
 			name:       "Valid config file.",
 			configFile: "testdata/valid_config.yaml",
 			expectedConfig: &cfg.Config{
-				Write: cfg.WriteConfig{CreateEmptyFile: true},
+				Write: cfg.WriteConfig{
+					CreateEmptyFile:       false, // changed due to enabled streaming writes.
+					BlockSizeMb:           10,
+					EnableStreamingWrites: true,
+					GlobalMaxBlocks:       20,
+					MaxBlocksPerFile:      2,
+				},
 			},
 		},
 	}
@@ -282,6 +294,18 @@ func TestValidateConfigFile_InvalidConfigThrowsError(t *testing.T) {
 		{
 			name:       "metadata_cache_size_too_high",
 			configFile: "testdata/metadata_cache/metadata_cache_config_ttl_too_high.yaml",
+		},
+		{
+			name:       "write_block_size_0",
+			configFile: "testdata/write_config/invalid_write_config_due_to_0_block_size.yaml",
+		},
+		{
+			name:       "small_global_max_blocks",
+			configFile: "testdata/write_config/invalid_write_config_due_to_small_global_max_blocks.yaml",
+		},
+		{
+			name:       "small_max_blocks_per_file",
+			configFile: "testdata/write_config/invalid_write_config_due_to_small_max_blocks_per_file.yaml",
 		},
 	}
 

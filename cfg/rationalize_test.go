@@ -308,3 +308,66 @@ func TestRationalizeMetadataCache(t *testing.T) {
 		})
 	}
 }
+
+func TestRationalize_WriteConfig(t *testing.T) {
+	testCases := []struct {
+		name                     string
+		config                   *Config
+		expectedCreateEmptyFile  bool
+		expectedMaxBlocksPerFile int64
+	}{
+		{
+			name: "valid_config_streaming_writes_enabled",
+			config: &Config{
+				Write: WriteConfig{
+					BlockSizeMb:           10,
+					CreateEmptyFile:       true,
+					EnableStreamingWrites: true,
+					GlobalMaxBlocks:       -1,
+					MaxBlocksPerFile:      -1,
+				},
+			},
+			expectedCreateEmptyFile:  false,
+			expectedMaxBlocksPerFile: math.MaxInt64,
+		},
+		{
+			name: "valid_config_global_max_blocks_less_than_blocks_per_file",
+			config: &Config{
+				Write: WriteConfig{
+					BlockSizeMb:           10,
+					CreateEmptyFile:       true,
+					EnableStreamingWrites: true,
+					GlobalMaxBlocks:       10,
+					MaxBlocksPerFile:      20,
+				},
+			},
+			expectedCreateEmptyFile:  false,
+			expectedMaxBlocksPerFile: 10,
+		},
+		{
+			name: "valid_config_global_max_blocks_more_than_blocks_per_file",
+			config: &Config{
+				Write: WriteConfig{
+					BlockSizeMb:           10,
+					CreateEmptyFile:       true,
+					EnableStreamingWrites: true,
+					GlobalMaxBlocks:       20,
+					MaxBlocksPerFile:      10,
+				},
+			},
+			expectedCreateEmptyFile:  false,
+			expectedMaxBlocksPerFile: 10,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualErr := Rationalize(&mockIsSet{}, tc.config)
+
+			if assert.NoError(t, actualErr) {
+				assert.Equal(t, tc.expectedCreateEmptyFile, tc.config.Write.CreateEmptyFile)
+				assert.Equal(t, tc.expectedMaxBlocksPerFile, tc.config.Write.MaxBlocksPerFile)
+			}
+		})
+	}
+}

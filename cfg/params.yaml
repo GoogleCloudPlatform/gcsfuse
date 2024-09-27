@@ -490,7 +490,7 @@
   usage: >-
     The ttl value in seconds to be used for expiring items in metadata-cache. It
     can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled
-    metadata-cache. Any value set below -1 will throw an error."
+    metadata-cache. Any value set below -1 will throw an error.
   default: "60"
 
 - config-path: "metadata-cache.type-cache-max-size-mb"
@@ -542,6 +542,15 @@
   usage: "Mount only a specific directory within the bucket. See docs/mounting for more information"
   default: ""
 
+- config-path: "write.block-size-mb"
+  flag-name: "write-block-size-mb"
+  type: "int"
+  usage: >-
+    To configure the block size for streaming writes. The configured value 
+    should be more than 0.
+  default: 64 #TODO: revisit default value after perf testing.
+  hide-flag: true
+
 - config-path: "write.create-empty-file"
   flag-name: "create-empty-file"
   type: "bool"
@@ -550,6 +559,31 @@
   default: false
   deprecated: true
   deprecation-warning: "This flag will be deleted soon."
+
+- config-path: "write.enable-streaming-writes"
+  flag-name: "enable-streaming-writes"
+  type: "bool"
+  usage: "To enable streaming uploads during write file operation."
+  default: false
+  hide-flag: true
+
+- config-path: "write.global-max-blocks"
+  flag-name: "write-global-max-blocks"
+  type: "int"
+  usage: >-
+    To configure the maximum number of blocks to be used by all files for
+    streaming writes. Configured value should be >= 2 or -1 (for infinite blocks).
+  default: -1 #TODO: revisit default value after perf testing.
+  hide-flag: true
+
+- config-path: "write.max-blocks-per-file"
+  flag-name: "write-max-blocks-per-file"
+  type: "int"
+  usage: >-
+    To configure the maximum number of blocks to be used by a single file for 
+    streaming writes. Configured value should be >= 2 or -1 (for infinite blocks).
+  default: -1 #TODO: revisit default value after perf testing.
+  hide-flag: true
 
 - flag-name: "debug_fs"
   type: "bool"

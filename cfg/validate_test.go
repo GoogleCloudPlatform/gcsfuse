@@ -303,3 +303,122 @@ func Test_IsTtlInSecsValid_ValidScenarios(t *testing.T) {
 		})
 	}
 }
+
+func Test_isValidWriteConfig_ErrorScenarios(t *testing.T) {
+	var testCases = []struct {
+		testName    string
+		writeConfig WriteConfig
+	}{
+		{"zero_block_size", WriteConfig{
+			BlockSizeMb:           0,
+			CreateEmptyFile:       false,
+			EnableStreamingWrites: true,
+			GlobalMaxBlocks:       -1,
+			MaxBlocksPerFile:      -1,
+		}},
+		{"negative_block_size", WriteConfig{
+			BlockSizeMb:           -1,
+			CreateEmptyFile:       false,
+			EnableStreamingWrites: true,
+			GlobalMaxBlocks:       -1,
+			MaxBlocksPerFile:      -1,
+		}},
+		{"-2_global_max_blocks", WriteConfig{
+			BlockSizeMb:           10,
+			CreateEmptyFile:       false,
+			EnableStreamingWrites: true,
+			GlobalMaxBlocks:       -2,
+			MaxBlocksPerFile:      -1,
+		}},
+		{"0_global_max_blocks", WriteConfig{
+			BlockSizeMb:           10,
+			CreateEmptyFile:       false,
+			EnableStreamingWrites: true,
+			GlobalMaxBlocks:       0,
+			MaxBlocksPerFile:      -1,
+		}},
+		{"1_global_max_blocks", WriteConfig{
+			BlockSizeMb:           10,
+			CreateEmptyFile:       false,
+			EnableStreamingWrites: true,
+			GlobalMaxBlocks:       1,
+			MaxBlocksPerFile:      -1,
+		}},
+		{"-2_max_blocks_per_file", WriteConfig{
+			BlockSizeMb:           10,
+			CreateEmptyFile:       false,
+			EnableStreamingWrites: true,
+			GlobalMaxBlocks:       20,
+			MaxBlocksPerFile:      -2,
+		}},
+		{"0_max_blocks_per_file", WriteConfig{
+			BlockSizeMb:           10,
+			CreateEmptyFile:       false,
+			EnableStreamingWrites: true,
+			GlobalMaxBlocks:       20,
+			MaxBlocksPerFile:      0,
+		}},
+		{"1_max_blocks_per_file", WriteConfig{
+			BlockSizeMb:           10,
+			CreateEmptyFile:       false,
+			EnableStreamingWrites: true,
+			GlobalMaxBlocks:       20,
+			MaxBlocksPerFile:      1,
+		}},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.testName, func(t *testing.T) {
+			assert.Error(t, isValidWriteStreamingConfigs(&tc.writeConfig))
+		})
+	}
+}
+
+func Test_isValidWriteConfig_ValidScenarios(t *testing.T) {
+	var testCases = []struct {
+		testName    string
+		writeConfig WriteConfig
+	}{
+		{"streaming_writes_disabled", WriteConfig{
+			BlockSizeMb:           -1,
+			CreateEmptyFile:       false,
+			EnableStreamingWrites: false,
+			GlobalMaxBlocks:       -10,
+			MaxBlocksPerFile:      -10,
+		}},
+		{"valid_write_config_1", WriteConfig{
+			BlockSizeMb:           1,
+			CreateEmptyFile:       false,
+			EnableStreamingWrites: true,
+			GlobalMaxBlocks:       -1,
+			MaxBlocksPerFile:      -1,
+		}},
+		{"valid_write_config_2", WriteConfig{
+			BlockSizeMb:           10,
+			CreateEmptyFile:       false,
+			EnableStreamingWrites: true,
+			GlobalMaxBlocks:       20,
+			MaxBlocksPerFile:      -1,
+		}},
+		{"valid_write_config_3", WriteConfig{
+			BlockSizeMb:           10,
+			CreateEmptyFile:       false,
+			EnableStreamingWrites: true,
+			GlobalMaxBlocks:       20,
+			MaxBlocksPerFile:      20,
+		}},
+		{"valid_write_config_4", WriteConfig{
+			BlockSizeMb:           10,
+			CreateEmptyFile:       false,
+			EnableStreamingWrites: true,
+			GlobalMaxBlocks:       40,
+			MaxBlocksPerFile:      20,
+		}},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.testName, func(t *testing.T) {
+			assert.NoError(t, isValidWriteStreamingConfigs(&tc.writeConfig))
+		})
+	}
+}
