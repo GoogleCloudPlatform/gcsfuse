@@ -212,7 +212,6 @@ def createOutputScenariosFromDownloadedFiles(args: dict) -> dict:
                   cluster_name=args.cluster_name,
                   namespace_name=args.namespace_name,
               )
-          pass
 
         fetch_cpu_memory_data()
 

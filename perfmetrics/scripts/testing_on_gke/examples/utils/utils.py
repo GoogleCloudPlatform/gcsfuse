@@ -148,13 +148,16 @@ def standard_timestamp(timestamp: str) -> str:
 
 
 def timestamp_to_epoch(timestamp: str) -> int:
-  return int(
-      time.mktime(
-          time.strptime(
-              timestamp.split(".")[0].replace("T", " "), "%Y-%m-%d %H:%M:%S"
-          )
-      )
-  )
+  try:
+    return int(
+        datetime.datetime.strptime(
+            timestamp, "%Y-%m-%dT%H:%M:%S.%f"
+        ).timestamp()
+    )
+  except ValueError:
+    return int(
+        datetime.datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S").timestamp()
+    )
 
 
 def _is_relevant_monitoring_result(

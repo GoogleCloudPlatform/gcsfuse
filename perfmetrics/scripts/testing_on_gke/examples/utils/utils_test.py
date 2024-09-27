@@ -83,6 +83,11 @@ class UtilsTest(unittest.TestCase):
   def test_timestamp_to_epoch(self):
     self.assertEqual(timestamp_to_epoch('2024-08-21T19:20:25'), 1724268025)
 
+  def test_timestamp_to_epoch_with_nznano(self):
+    self.assertEqual(
+        timestamp_to_epoch('2024-08-21T19:20:25.547456'), 1724268025
+    )
+
 
 if __name__ == '__main__':
   unittest.main()

@@ -249,7 +249,6 @@ def createOutputScenariosFromDownloadedFiles(args: dict) -> dict:
               cluster_name=args.cluster_name,
               namespace_name=args.namespace_name,
           )
-        pass
 
       r["gcsfuse_mount_options"] = gcsfuse_mount_options
       r["blockSize"] = bs
