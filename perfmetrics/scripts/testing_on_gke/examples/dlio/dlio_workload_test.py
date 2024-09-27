@@ -84,7 +84,6 @@ class DlioWorkloadTest(unittest.TestCase):
             workload, "invalid-dlio-workload-missing-numFilesTrain"
         )
     )
-    pass
 
   def test_validate_dlio_workload_invalid_unsupported_numFilesTrain(self):
     workload = dict({
@@ -101,7 +100,6 @@ class DlioWorkloadTest(unittest.TestCase):
             workload, "invalid-dlio-workload-unsupported-numFilesTrain"
         )
     )
-    pass
 
   def test_validate_dlio_workload_invalid_missing_recordLength(self):
     workload = dict({
@@ -117,7 +115,6 @@ class DlioWorkloadTest(unittest.TestCase):
             workload, "invalid-dlio-workload-missing-recordLength"
         )
     )
-    pass
 
   def test_validate_dlio_workload_invalid_unsupported_recordLength(self):
     workload = dict({
@@ -134,7 +131,6 @@ class DlioWorkloadTest(unittest.TestCase):
             workload, "invalid-dlio-workload-unsupported-recordLength"
         )
     )
-    pass
 
   def test_validate_dlio_workload_invalid_missing_gcsfuseMountOptions(self):
     workload = dict({
@@ -150,7 +146,6 @@ class DlioWorkloadTest(unittest.TestCase):
             workload, "invalid-dlio-workload-missing-gcsfuseMountOptions"
         )
     )
-    pass
 
   def test_validate_dlio_workload_invalid_unsupported_gcsfuseMountOptions(
       self,
@@ -169,7 +164,6 @@ class DlioWorkloadTest(unittest.TestCase):
             workload, "invalid-dlio-workload-unsupported-gcsfuseMountOptions1"
         )
     )
-    pass
 
   def test_validate_dlio_workload_invalid_gcsfuseMountOptions_contains_space(
       self,
@@ -189,7 +183,6 @@ class DlioWorkloadTest(unittest.TestCase):
             "invalid-dlio-workload-unsupported-gcsfuseMountOptions-contains-space",
         )
     )
-    pass
 
   def test_validate_dlio_workload_invalid_missing_batchSizes(self):
     workload = dict({
@@ -205,7 +198,6 @@ class DlioWorkloadTest(unittest.TestCase):
             workload, "invalid-dlio-workload-missing-batchSizes"
         )
     )
-    pass
 
   def test_validate_dlio_workload_invalid_unsupported_batchSizes1(self):
     workload = dict({
@@ -222,7 +214,6 @@ class DlioWorkloadTest(unittest.TestCase):
             workload, "invalid-dlio-workload-unsupported-batchSizes1"
         )
     )
-    pass
 
   def test_validate_dlio_workload_invalid_unsupported_batchSizes2(self):
     workload = dict({
@@ -239,7 +230,6 @@ class DlioWorkloadTest(unittest.TestCase):
             workload, "invalid-dlio-workload-unsupported-batchSizes2"
         )
     )
-    pass
 
   def test_validate_dlio_workload_valid_single_batchSize(self):
     workload = dict({
@@ -252,7 +242,6 @@ class DlioWorkloadTest(unittest.TestCase):
         "gcsfuseMountOptions": "implicit-dirs,cache-max-size:-1",
     })
     self.assertTrue(validateDlioWorkload(workload, "valid-dlio-workload-2"))
-    pass
 
   def test_validate_dlio_workload_valid_multiple_batchSizes(self):
     workload = dict({
@@ -265,7 +254,6 @@ class DlioWorkloadTest(unittest.TestCase):
         "gcsfuseMountOptions": "implicit-dirs,cache-max-size:-1",
     })
     self.assertTrue(validateDlioWorkload(workload, "valid-dlio-workload-2"))
-    pass
 
 
 if __name__ == "__main__":

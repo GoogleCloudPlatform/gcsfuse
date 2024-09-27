@@ -143,7 +143,6 @@ def ParseTestConfigForDlioWorkloads(testConfigFileName: str):
       workload = workloads[i]
       if not validateDlioWorkload(workload, f'workload#{i}'):
         print(f'workloads#{i} is not a valid DLIO workload, so ignoring it.')
-        pass
       else:
         for scenario in scenarios:
           dlioWorkload = workload['dlioWorkload']
