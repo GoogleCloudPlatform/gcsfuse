@@ -35,7 +35,7 @@ def _get_sheets_service_client(localServiceAccountKeyFile):
 
 
 def download_gcs_object_locally(gcsObjectUri: str) -> str:
-  """Downloads the given gcs file-object locally (collision-file) and returns the full-path of the local-file.
+  """Downloads the given gcs file-object to a temporary local file (collision-free) and returns the full-path of this local-file.
 
   gcsObjectUri is of the form: gs://<bucket-name>/object-name .
   On failure, returned int will be non-zero.
