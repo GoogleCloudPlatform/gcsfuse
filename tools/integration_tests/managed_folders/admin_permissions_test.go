@@ -60,8 +60,8 @@ func (s *managedFoldersAdminPermission) Setup(t *testing.T) {
 	if s.managedFoldersPermission != "nil" {
 		providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, s.managedFoldersPermission, t)
 		providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, s.managedFoldersPermission, t)
-		// Waiting for 20 seconds for policy changes to propagate. This values we kept based on our experiments.
-		time.Sleep(20 * time.Second)
+		// Waiting for 60 seconds for policy changes to propagate. This values we kept based on our experiments.
+		time.Sleep(60 * time.Second)
 	}
 }
 
