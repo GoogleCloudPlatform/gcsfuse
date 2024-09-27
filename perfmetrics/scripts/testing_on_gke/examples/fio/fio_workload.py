@@ -167,7 +167,6 @@ def ParseTestConfigForFioWorkloads(fioTestConfigFile: str):
       workload = workloads[i]
       if not validateFioWorkload(workload, f'workload#{i}'):
         print(f'workloads#{i} is not a valid FIO workload, so ignoring it.')
-        pass
       else:
         for scenario in scenarios:
           fioWorkload = workload['fioWorkload']

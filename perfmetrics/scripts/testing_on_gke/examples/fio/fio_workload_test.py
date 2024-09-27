@@ -83,7 +83,6 @@ class FioWorkloadTest(unittest.TestCase):
     self.assertFalse(
         validateFioWorkload(workload, "invalid-fio-workload-missing-fileSize")
     )
-    pass
 
   def test_validate_fio_workload_invalid_unsupported_fileSize(self):
     workload = dict({
@@ -101,7 +100,6 @@ class FioWorkloadTest(unittest.TestCase):
             workload, "invalid-fio-workload-unsupported-fileSize"
         )
     )
-    pass
 
   def test_validate_fio_workload_invalid_missing_blockSize(self):
     workload = dict({
@@ -116,7 +114,6 @@ class FioWorkloadTest(unittest.TestCase):
     self.assertFalse(
         validateFioWorkload(workload, "invalid-fio-workload-missing-blockSize")
     )
-    pass
 
   def test_validate_fio_workload_invalid_unsupported_blockSize(self):
     workload = dict({
@@ -134,7 +131,6 @@ class FioWorkloadTest(unittest.TestCase):
             workload, "invalid-fio-workload-unsupported-blockSize"
         )
     )
-    pass
 
   def test_validate_fio_workload_invalid_missing_filesPerThread(self):
     workload = dict({
@@ -151,7 +147,6 @@ class FioWorkloadTest(unittest.TestCase):
             workload, "invalid-fio-workload-missing-filesPerThread"
         )
     )
-    pass
 
   def test_validate_fio_workload_invalid_unsupported_filesPerThread(self):
     workload = dict({
@@ -169,7 +164,6 @@ class FioWorkloadTest(unittest.TestCase):
             workload, "invalid-fio-workload-unsupported-filesPerThread"
         )
     )
-    pass
 
   def test_validate_fio_workload_invalid_missing_numThreads(self):
     workload = dict({
@@ -184,7 +178,6 @@ class FioWorkloadTest(unittest.TestCase):
     self.assertFalse(
         validateFioWorkload(workload, "invalid-fio-workload-missing-numThreads")
     )
-    pass
 
   def test_validate_fio_workload_invalid_unsupported_numThreads(self):
     workload = dict({
@@ -202,7 +195,6 @@ class FioWorkloadTest(unittest.TestCase):
             workload, "invalid-fio-workload-unsupported-numThreads"
         )
     )
-    pass
 
   def test_validate_fio_workload_invalid_missing_gcsfuseMountOptions(self):
     workload = dict({
@@ -219,7 +211,6 @@ class FioWorkloadTest(unittest.TestCase):
             workload, "invalid-fio-workload-missing-gcsfuseMountOptions"
         )
     )
-    pass
 
   def test_validate_fio_workload_invalid_unsupported_gcsfuseMountOptions(self):
     workload = dict({
@@ -237,7 +228,6 @@ class FioWorkloadTest(unittest.TestCase):
             workload, "invalid-fio-workload-unsupported-numThreads"
         )
     )
-    pass
 
   def test_validate_fio_workload_invalid_gcsfuseMountOptions_contains_space(
       self,
@@ -258,7 +248,6 @@ class FioWorkloadTest(unittest.TestCase):
             "invalid-fio-workload-unsupported-gcsfuseMountOptions-contains-space",
         )
     )
-    pass
 
   def test_validate_fio_workload_invalid_unsupported_readTypes_1(self):
     workload = dict({
@@ -277,7 +266,6 @@ class FioWorkloadTest(unittest.TestCase):
             workload, "invalid-fio-workload-unsupported-readTypes-1"
         )
     )
-    pass
 
   def test_validate_fio_workload_invalid_unsupported_readTypes_2(self):
     workload = dict({
@@ -296,7 +284,6 @@ class FioWorkloadTest(unittest.TestCase):
             workload, "invalid-fio-workload-unsupported-readTypes-2"
         )
     )
-    pass
 
   def test_validate_fio_workload_invalid_unsupported_readTypes_3(self):
     workload = dict({
@@ -315,7 +302,6 @@ class FioWorkloadTest(unittest.TestCase):
             workload, "invalid-fio-workload-unsupported-readTypes-3"
         )
     )
-    pass
 
   def test_validate_fio_workload_valid_without_readTypes(self):
     workload = dict({
@@ -329,7 +315,6 @@ class FioWorkloadTest(unittest.TestCase):
         "gcsfuseMountOptions": "implicit-dirs,cache-max-size:-1",
     })
     self.assertTrue(validateFioWorkload(workload, "valid-fio-workload-1"))
-    pass
 
   def test_validate_fio_workload_valid_with_readTypes(self):
     workload = dict({
@@ -344,7 +329,6 @@ class FioWorkloadTest(unittest.TestCase):
         "gcsfuseMountOptions": "implicit-dirs,cache-max-size:-1",
     })
     self.assertTrue(validateFioWorkload(workload, "valid-fio-workload-2"))
-    pass
 
   def test_validate_fio_workload_valid_with_single_readType(self):
     workload = dict({
@@ -359,7 +343,6 @@ class FioWorkloadTest(unittest.TestCase):
         "gcsfuseMountOptions": "implicit-dirs,cache-max-size:-1",
     })
     self.assertTrue(validateFioWorkload(workload, "valid-fio-workload-2"))
-    pass
 
 
 if __name__ == "__main__":
