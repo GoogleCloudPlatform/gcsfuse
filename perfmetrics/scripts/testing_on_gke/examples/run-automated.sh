@@ -83,7 +83,7 @@ fi
 git -C src/gcsfuse rev-parse HEAD > gcsfuse_commithash
 git -C src/gcs-fuse-csi-driver rev-parse HEAD > gcs_fuse_csi_driver_commithash
 # Fetch cloud-logs for this run. This has not been tested yet.
-# (gcloud logging read --project=${project_id} 'timestamp>="${start_time}"" AND timestamp<="end_time" AND resource.labels.cluster_name="${cluster_name}" ' --order=ASC --format=csv\(timestamp\,resource.labels.pod_name,resource.labels.container_name,"text_payload"\) > cloud_logs.txt) &
+# (gcloud logging read --project=${project_id} 'timestamp>="${start_time}"" AND timestamp<="${end_time}" AND resource.labels.cluster_name="${cluster_name}" ' --order=ASC --format=csv\(timestamp\,resource.labels.pod_name,resource.labels.container_name,"text_payload"\) > cloud_logs.txt) &
 
 # Upload outputs to GCS after the run.
 output_bucket=gcsfuse-aiml-test-outputs
