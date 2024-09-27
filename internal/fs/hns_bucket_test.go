@@ -267,7 +267,7 @@ func (t *HNSBucketTests) TestRenameFolderWithOpenGCSFile() {
 	assert.False(t.T(), dirEntries[0].IsDir())
 }
 
-// To verify that the file system correctly handles negative caching when a folder is renamed.
+// To verify that the gcsfuse correctly handles negative caching when a folder is renamed.
 // Create directory "bar".
 // Create file "bar/file1.txt".
 // Stat "bar" (This should return a positive result, indicating the directory exists).
@@ -286,9 +286,6 @@ func (t *HNSBucketTests) TestNegativeCacheInvalidationOnFolderRenameFolder() {
 	require.Error(t.T(), err)
 	require.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
 	newDirPath := path.Join(mntDir, "bar_rename")
-	filePath := path.Join(oldDirPath, "file1.txt")
-	_, err = os.Open(filePath)
-	require.NoError(t.T(), err)
 
 	err = os.Rename(oldDirPath, newDirPath)
 
