@@ -63,7 +63,7 @@ func (s *managedFoldersViewPermission) TestCreateObjectInManagedFolder(t *testin
 		t.Errorf("Error in creating file locally.")
 	}
 	t.Cleanup(func() {
-		err := file.Close()
+		err = file.Close()
 		operations.CheckErrorForReadOnlyFileSystem(err, t)
 	})
 }
