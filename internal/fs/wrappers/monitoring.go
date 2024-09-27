@@ -30,9 +30,6 @@ import (
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/trace"
 )
 
 const name = "cloud.google.com/gcsfuse"
@@ -318,13 +315,11 @@ func recordOp(ctx context.Context, method string, start time.Time, fsErr error) 
 func WithMonitoring(fs fuseutil.FileSystem) fuseutil.FileSystem {
 	return &monitoring{
 		wrapped: fs,
-		tracer:  otel.Tracer(name),
 	}
 }
 
 type monitoring struct {
 	wrapped fuseutil.FileSystem
-	tracer  trace.Tracer
 }
 
 func (fs *monitoring) Destroy() {
@@ -334,17 +329,8 @@ func (fs *monitoring) Destroy() {
 type wrappedCall func(ctx context.Context) error
 
 func (fs *monitoring) invokeWrapped(ctx context.Context, opName string, w wrappedCall) error {
-	// Span's SpanKid is set to trace.SpanKindServer since GCSFuse is like a server for the requests that the Kernel sends.
-	ctx, span := fs.tracer.Start(ctx, opName, trace.WithSpanKind(trace.SpanKindServer))
-	defer span.End()
 	startTime := time.Now()
 	err := w(ctx)
-
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-	}
-
 	recordOp(ctx, opName, startTime, err)
 	return err
 }
