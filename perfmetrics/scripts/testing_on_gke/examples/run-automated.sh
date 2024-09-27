@@ -64,7 +64,7 @@ fi
 export pod_wait_time_in_seconds=300
 export pod_timeout_in_seconds=64800
 # Pass instance_id from outside to continue previous run, if it got terminated
-# somehow (timeout of ssh etc.) 
+# somehow (timeout of ssh etc.)
 if test -z ${instance_id}; then
   export instance_id=$(echo ${USER} | sed 's/_google//' | sed 's/_com//')-$(date +%Y%m%d-%H%M%S)
 fi
@@ -110,7 +110,10 @@ git -C src/gcs-fuse-csi-driver rev-parse HEAD > gcs_fuse_csi_driver_commithash
 # (gcloud logging read --project=${project_id} 'timestamp>="${start_time}"" AND timestamp<="${end_time}" AND resource.labels.cluster_name="${cluster_name}" ' --order=ASC --format=csv\(timestamp\,resource.labels.pod_name,resource.labels.container_name,"text_payload"\) > cloud_logs.txt) &
 
 # Upload outputs to GCS after the run.
-output_bucket=gcsfuse-aiml-test-outputs
+if test -z "${output_bucket}"; then
+  echo "output_bucket has not been set."
+  exit 1
+fi
 output_path_uri=gs://${output_bucket}/outputs/${instance_id}
 for file in fio/output.csv dlio/output.csv log run-gke-tests.sh workloads.json gcsfuse_commithash gcs_fuse_csi_driver_commithash; do
   if test -f ${file} ; then
