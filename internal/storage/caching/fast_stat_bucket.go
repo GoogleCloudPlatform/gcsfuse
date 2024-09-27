@@ -383,10 +383,10 @@ func (b *fastStatBucket) GetFolder(ctx context.Context, prefix string) (*gcs.Fol
 	}
 
 	// Fetch the Folder from GCS
-	return b.GetFolderFromGcs(ctx, prefix)
+	return b.getFolderFromGCS(ctx, prefix)
 }
 
-func (b *fastStatBucket) GetFolderFromGcs(ctx context.Context, prefix string) (*gcs.Folder, error) {
+func (b *fastStatBucket) getFolderFromGCS(ctx context.Context, prefix string) (*gcs.Folder, error) {
 	f, err := b.wrapped.GetFolder(ctx, prefix)
 	if err != nil {
 		// Special case: NotFoundError -> negative entry.
@@ -425,7 +425,8 @@ func (b *fastStatBucket) RenameFolder(ctx context.Context, folderName string, de
 
 	// Invalidate cache for old directory.
 	b.eraseEntriesWithGivenPrefix(folderName)
-	b.insertFolder(f)
+	// Clean all the stale entries related to renamed folder.
+	b.eraseEntriesWithGivenPrefix(destinationFolderId)
 
 	return f, err
 }
