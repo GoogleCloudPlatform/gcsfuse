@@ -194,8 +194,6 @@ function installDependencies() {
   sudo apt-get install -y apt-transport-https ca-certificates gnupg curl
   # Ensure that realpath is installed.
   which realpath
-  # Ensure that python3 is installed.
-  which python3
   # Ensure that make is installed.
   which make || ( sudo apt-get install -y make time && which make )
   # Ensure that go is installed.
@@ -225,7 +223,7 @@ function installDependencies() {
   if ! which kubectl; then
     # Install the latest gcloud cli. Find full instructions at https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl .
     # Import the Google Cloud public key (Debian 9+ or Ubuntu 18.04+)
-    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
+    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --yes --dearmor -o /usr/share/keyrings/cloud.google.gpg
     # Add the gcloud CLI distribution URI as a package source (Debian 9+ or Ubuntu 18.04+)
     echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
     # Update and install the gcloud CLI
@@ -470,7 +468,7 @@ function createCustomCsiDriverIfNeeded() {
     echo "Building custom CSI driver ..."
 
     # Create a bucket for storing custom-csi driver.
-    test -n "${package_bucket}" || export package_bucket=${USER}-gcsfuse-binary-package
+    test -n "${package_bucket}" || export package_bucket=${USER/google/}-gcsfuse-binary-package
     (gcloud storage buckets list | grep -wqo ${package_bucket}) || (region=$(echo ${zone} | rev | cut -d- -f2- | rev) && gcloud storage buckets create gs://${package_bucket} --location=${region})
 
     # Build a new gcsfuse binary
@@ -490,9 +488,16 @@ function createCustomCsiDriverIfNeeded() {
     ensureGcsFuseCsiDriverCode
     cd "${csi_src_dir}"
     make uninstall || true
+    make generate-spec-yaml
+    printf "\nBuilding a new custom CSI driver using the above GCSFuse binary ...\n\n"
     make build-image-and-push-multi-arch REGISTRY=gcr.io/${project_id}/${USER} GCSFUSE_PATH=gs://${package_bucket}
     make install PROJECT=${project_id} REGISTRY=gcr.io/${project_id}/${USER}
     cd -
+    # Wait some time after csi driver installation before deploying pods
+    # to avoid failures caused by 'the webhook failed to inject the
+    # sidecar container into the Pod spec' error.
+    printf "\nSleeping 30 seconds after csi custom driver installation before deploying pods ...\n\n"
+    sleep 30
   else
     echo ""
     echo "Enabling managed CSI driver ..."
