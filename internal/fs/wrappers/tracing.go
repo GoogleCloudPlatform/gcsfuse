@@ -16,7 +16,6 @@ package wrappers
 
 import (
 	"context"
-	"time"
 
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -46,7 +45,6 @@ func (fs *tracing) invokeWrapped(ctx context.Context, opName string, w wrappedCa
 	// Span's SpanKid is set to trace.SpanKindServer since GCSFuse is like a server for the requests that the Kernel sends.
 	ctx, span := fs.tracer.Start(ctx, opName, trace.WithSpanKind(trace.SpanKindServer))
 	defer span.End()
-	startTime := time.Now()
 	err := w(ctx)
 
 	if err != nil {
@@ -54,7 +52,6 @@ func (fs *tracing) invokeWrapped(ctx context.Context, opName string, w wrappedCa
 		span.SetStatus(codes.Error, err.Error())
 	}
 
-	recordOp(ctx, opName, startTime, err)
 	return err
 }
 
