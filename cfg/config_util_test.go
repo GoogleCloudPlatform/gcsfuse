@@ -180,3 +180,26 @@ func TestIsNegativeNumber(t *testing.T) {
 		})
 	}
 }
+
+func TestIsTracingEnabled(t *testing.T) {
+	t.Parallel()
+	var testCases = []struct {
+		testName  string
+		traceMode string
+		expected  bool
+	}{
+		{"empty", "", false},
+		{"not_empty", "gcptrace", true},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.testName, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, tc.expected, IsTracingEnabled(&Config{Monitoring: MonitoringConfig{
+				ExperimentalTracingMode: tc.traceMode,
+			}}))
+		})
+	}
+}

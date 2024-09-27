@@ -162,7 +162,7 @@ func TestSpanCreation(t *testing.T) {
 	t.Cleanup(func() {
 		ex.Reset()
 	})
-	m := monitoring{
+	m := tracing{
 		wrapped: dummyFS{},
 		tracer:  otel.Tracer("test"),
 	}

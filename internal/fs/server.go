@@ -17,6 +17,7 @@ package fs
 import (
 	"fmt"
 
+	newcfg "github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/wrappers"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -31,6 +32,9 @@ func NewServer(ctx context.Context, cfg *ServerConfig) (fuse.Server, error) {
 	}
 
 	fs = wrappers.WithErrorMapping(fs)
+	if newcfg.IsTracingEnabled(cfg.NewConfig) {
+		fs = wrappers.WithTracing(fs)
+	}
 	fs = wrappers.WithMonitoring(fs)
 	return fuseutil.NewFileSystemServer(fs), nil
 }
