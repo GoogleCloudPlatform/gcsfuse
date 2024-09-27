@@ -157,7 +157,7 @@ def timestamp_to_epoch(timestamp: str) -> int:
   )
 
 
-def isRelevantMonitoringResult(
+def _is_relevant_monitoring_result(
     result,
     cluster_name: str,
     pod_name: str,
@@ -226,7 +226,7 @@ def get_memory_from_monitoring_api(
   relevant_results = [
       result
       for result in results
-      if isRelevantMonitoringResult(
+      if _is_relevant_monitoring_result(
           result,
           cluster_name,
           pod_name,
@@ -296,7 +296,7 @@ def get_cpu_from_monitoring_api(
   relevant_results = [
       result
       for result in results
-      if isRelevantMonitoringResult(
+      if _is_relevant_monitoring_result(
           result,
           cluster_name,
           pod_name,

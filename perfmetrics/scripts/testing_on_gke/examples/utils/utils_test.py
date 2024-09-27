@@ -75,10 +75,7 @@ class UtilsTest(unittest.TestCase):
     )
 
   def test_timestamp_to_epoch(self):
-    timestamp = '2024-08-21T19:20:25'
-    expected_epoch = 1724268025
-    self.assertEqual(timestamp_to_epoch(timestamp), expected_epoch)
-    pass
+    self.assertEqual(timestamp_to_epoch('2024-08-21T19:20:25'), 1724268025)
 
 
 if __name__ == '__main__':
