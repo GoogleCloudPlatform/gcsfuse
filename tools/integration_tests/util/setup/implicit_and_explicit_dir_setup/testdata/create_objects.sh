@@ -13,7 +13,6 @@
 # limitations under the License.
 
 # The directory name is generated with a random component to avoid collisions as we are running implicit_dir_test and explicit_dir test parallelly.
-set -e
 temp_dir=$(mktemp -d)
 cd "$temp_dir"
 # Here $1 refers to the testBucket argument
