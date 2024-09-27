@@ -32,17 +32,29 @@ set -x
 set -e
 
 # Define configuration parameters.
-export project_id=gcs-fuse-test-ml
-export project_number=786757290066
+if test -z ${project_id}; then
+  echo "project_id has not been set."
+  exit 1
+fi
+if test -z "${project_number}"; then
+  echo "project_number has not been set."
+  exit 1
+fi
 export zone=us-west1-b
-export cluster_name=gargnitin-gketesting-us-west1b
+if test -z "${cluster_name}"; then
+  echo "cluster_name has not been set."
+  exit 1
+fi
 export node_pool=default-pool
 export machine_type=n2-standard-96
 export num_nodes=7
 export num_ssd=16
 export use_custom_csi_driver=true
 export output_dir=.
-export gcsfuse_branch=garnitin/add-gke-load-testing/v1
+if test -z "${gcsfuse_branch}"; then
+  echo "gcsfuse_branch has not been set."
+  exit 1
+fi
 export pod_wait_time_in_seconds=300
 export pod_timeout_in_seconds=64800
 # Pass instance_id from outside to continue previous run, if it got terminated
@@ -50,8 +62,14 @@ export pod_timeout_in_seconds=64800
 if test -z ${instance_id}; then
   export instance_id=$(echo ${USER} | sed 's/_google//' | sed 's/_com//')-$(date +%Y%m%d-%H%M%S)
 fi
-export output_gsheet_id=1UghIdsyarrV1HVNc6lugFZS1jJRumhdiWnPgoEC8Fe4
-export output_gsheet_keyfile=gs://gcsfuse-aiml-test-outputs/creds/${project_id}.json
+if test -z "${output_gsheet_id}"; then
+  echo "output_gsheet_id has not been set."
+  exit 1
+fi
+if test -z "${output_gsheet_keyfile}"; then
+  echo "output_gsheet_keyfile has not been set."
+  exit 1
+fi
 export force_update_gcsfuse_code=true
 # Continue previous run if pods had been scheduled/completed already.
 test -n ${only_parse} || export only_parse=false
