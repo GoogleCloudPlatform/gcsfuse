@@ -42,7 +42,7 @@ func (fs *tracing) Destroy() {
 }
 
 func (fs *tracing) invokeWrapped(ctx context.Context, opName string, w wrappedCall) error {
-	// Span's SpanKid is set to trace.SpanKindServer since GCSFuse is like a server for the requests that the Kernel sends.
+	// Span's SpanKind is set to trace.SpanKindServer since GCSFuse is like a server for the requests that the Kernel sends.
 	ctx, span := fs.tracer.Start(ctx, opName, trace.WithSpanKind(trace.SpanKindServer))
 	defer span.End()
 	err := w(ctx)
