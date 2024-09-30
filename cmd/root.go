@@ -18,10 +18,13 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"reflect"
 	"strings"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
@@ -73,22 +76,25 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 				return
 			}
 		}
+		v.WatchConfig()
+		v.OnConfigChange(func(in fsnotify.Event) {
+			var newConfig cfg.Config
+			if err := parseConfig(v, &newConfig); err != nil {
+				logger.Errorf("Error while parsing config: %v", err)
+				return
+			}
+			// Currently, we only handle log-severity, so let's check if that works.
+			tempConfig := newConfig
+			tempConfig.Logging.Severity = configObj.Logging.Severity
+			if !reflect.DeepEqual(tempConfig, configObj) {
+				logger.Errorf("Irreconcilable differences exist between the old and the new configs. Please restart the app for them to take effect.")
+			}
+			configObj.Logging.Severity = newConfig.Logging.Severity
+			logger.SetLogSeverity(configObj.Logging.Severity)
 
-		if cfgErr = v.Unmarshal(&configObj, viper.DecodeHook(cfg.DecodeHook()), func(decoderConfig *mapstructure.DecoderConfig) {
-			// By default, viper supports mapstructure tags for unmarshalling. Override that to support yaml tag.
-			decoderConfig.TagName = "yaml"
-			// Reject the config file if any of the fields in the YAML don't map to the struct.
-			decoderConfig.ErrorUnused = true
-		},
-		); cfgErr != nil {
-			return
-		}
-		if cfgErr = cfg.ValidateConfig(v, &configObj); cfgErr != nil {
-			return
-		}
-		if cfgErr = cfg.Rationalize(v, &configObj); cfgErr != nil {
-			return
-		}
+		})
+		cfgErr = parseConfig(v, &configObj)
+
 	}
 	cobra.OnInitialize(initConfig)
 	rootCmd.PersistentFlags().StringVar(&cfgFile, cfg.ConfigFileFlagName, "", "The path to the config file where all gcsfuse related config needs to be specified. "+
@@ -102,6 +108,25 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 		return nil, fmt.Errorf("error while binding flags: %w", err)
 	}
 	return rootCmd, nil
+}
+
+func parseConfig(v *viper.Viper, c *cfg.Config) error {
+	if err := v.Unmarshal(c, viper.DecodeHook(cfg.DecodeHook()), func(decoderConfig *mapstructure.DecoderConfig) {
+		// By default, viper supports mapstructure tags for unmarshalling. Override that to support yaml tag.
+		decoderConfig.TagName = "yaml"
+		// Reject the config file if any of the fields in the YAML don't map to the struct.
+		decoderConfig.ErrorUnused = true
+	},
+	); err != nil {
+		return err
+	}
+	if err := cfg.ValidateConfig(v, c); err != nil {
+		return err
+	}
+	if err := cfg.Rationalize(v, c); err != nil {
+		return err
+	}
+	return nil
 }
 
 // ConvertToPosixArgs converts a slice of commandline args and transforms them
