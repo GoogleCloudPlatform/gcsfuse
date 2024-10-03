@@ -110,8 +110,19 @@ fi
 
 # Set environment variables.
 # GCP related
-test -n "${project_id}" || export project_id=${DEFAULT_PROJECT_ID}
-test -n "${project_number}" || export project_number=${DEFAULT_PROJECT_NUMBER}
+if test -n "${project_id}"; then
+  if test -z "${project_number}"; then
+    echo "Error: project_id was set, but not project_number. Either both should be specified, or neither."
+    exitWithFailure
+  fi
+elif test -n "${project_number}"; then
+    echo "Error: project_number was set, but not project_id. Either both should be specified, or neither."
+    exitWithFailure
+else
+  export project_id=${DEFAULT_PROJECT_ID}
+  export project_number=${DEFAULT_PROJECT_NUMBER}
+  echo "Neither project_id, nor project_number were set, so defaulting to project_id=${DEFAULT_PROJECT_ID}, project_number=${DEFAULT_PROJECT_NUMBER}"
+fi
 test -n "${zone}" || export zone=${DEFAULT_ZONE}
 # GKE cluster related
 test -n "${cluster_name}" || export cluster_name=${DEFAULT_CLUSTER_NAME}
