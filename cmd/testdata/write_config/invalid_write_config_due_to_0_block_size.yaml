@@ -1,4 +1,4 @@
 write:
   create-empty-file: true
-  enable-streaming-writes: true
+  experimental-enable-streaming-writes: true
   block-size-mb: 0

@@ -1,7 +1,7 @@
 app-name: hello
 write:
   create-empty-file: true
-  enable-streaming-writes: true
+  experimental-enable-streaming-writes: true
   global-max-blocks: 20
   block-size-mb: 10
   max-blocks-per-file: 2

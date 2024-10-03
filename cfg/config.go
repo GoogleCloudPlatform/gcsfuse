@@ -214,7 +214,7 @@ type WriteConfig struct {
 
 	CreateEmptyFile bool `yaml:"create-empty-file"`
 
-	EnableStreamingWrites bool `yaml:"enable-streaming-writes"`
+	ExperimentalEnableStreamingWrites bool `yaml:"experimental-enable-streaming-writes"`
 
 	GlobalMaxBlocks int64 `yaml:"global-max-blocks"`
 
@@ -297,15 +297,15 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("enable-nonexistent-type-cache", "", false, "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType will be created. This also means new file/dir created might not be seen. For example, if this flag is set, and metadata-cache-ttl-secs is set, then if we create the same file/node in the meantime using the same mount, since we are not refreshing the cache, it will still return nil.")
 
-	flagSet.BoolP("enable-streaming-writes", "", false, "To enable streaming uploads during write file operation.")
-
-	if err := flagSet.MarkHidden("enable-streaming-writes"); err != nil {
-		return err
-	}
-
 	flagSet.BoolP("experimental-enable-json-read", "", false, "By default, GCSFuse uses the GCS XML API to get and read objects. When this flag is specified, GCSFuse uses the GCS JSON API instead.\"")
 
 	if err := flagSet.MarkDeprecated("experimental-enable-json-read", "Experimental flag: could be dropped even in a minor release."); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("experimental-enable-streaming-writes", "", false, "To enable streaming uploads during write file operation.")
+
+	if err := flagSet.MarkHidden("experimental-enable-streaming-writes"); err != nil {
 		return err
 	}
 
@@ -552,11 +552,11 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("write.enable-streaming-writes", flagSet.Lookup("enable-streaming-writes")); err != nil {
+	if err := v.BindPFlag("gcs-connection.experimental-enable-json-read", flagSet.Lookup("experimental-enable-json-read")); err != nil {
 		return err
 	}
 
-	if err := v.BindPFlag("gcs-connection.experimental-enable-json-read", flagSet.Lookup("experimental-enable-json-read")); err != nil {
+	if err := v.BindPFlag("write.experimental-enable-streaming-writes", flagSet.Lookup("experimental-enable-streaming-writes")); err != nil {
 		return err
 	}
 
