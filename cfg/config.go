@@ -303,7 +303,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("experimental-enable-streaming-writes", "", false, "To enable streaming uploads during write file operation.")
+	flagSet.BoolP("experimental-enable-streaming-writes", "", false, "Enables streaming uploads during write file operation.")
 
 	if err := flagSet.MarkHidden("experimental-enable-streaming-writes"); err != nil {
 		return err
@@ -465,19 +465,19 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("uid", "", -1, "UID owner of all inodes.")
 
-	flagSet.IntP("write-block-size-mb", "", 64, "To configure the block size for streaming writes. The configured value  should be more than 0.")
+	flagSet.IntP("write-block-size-mb", "", 64, "Specifies the block size for streaming writes. The value should be more  than 0.")
 
 	if err := flagSet.MarkHidden("write-block-size-mb"); err != nil {
 		return err
 	}
 
-	flagSet.IntP("write-global-max-blocks", "", -1, "To configure the maximum number of blocks to be used by all files for streaming writes. Configured value should be >= 2 or -1 (for infinite blocks).")
+	flagSet.IntP("write-global-max-blocks", "", -1, "Specifies the maximum number of blocks to be used by all files for streaming writes. The value should be >= 2 or -1 (for infinite blocks).")
 
 	if err := flagSet.MarkHidden("write-global-max-blocks"); err != nil {
 		return err
 	}
 
-	flagSet.IntP("write-max-blocks-per-file", "", -1, "To configure the maximum number of blocks to be used by a single file for  streaming writes. Configured value should be >= 2 or -1 (for infinite blocks).")
+	flagSet.IntP("write-max-blocks-per-file", "", -1, "Specifies the maximum number of blocks to be used by a single file for  streaming writes. The value should be >= 2 or -1 (for infinite blocks).")
 
 	if err := flagSet.MarkHidden("write-max-blocks-per-file"); err != nil {
 		return err

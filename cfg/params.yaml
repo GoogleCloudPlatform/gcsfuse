@@ -546,8 +546,8 @@
   flag-name: "write-block-size-mb"
   type: "int"
   usage: >-
-    To configure the block size for streaming writes. The configured value 
-    should be more than 0.
+    Specifies the block size for streaming writes. The value should be more 
+    than 0.
   default: 64 #TODO: revisit default value after perf testing.
   hide-flag: true
 
@@ -563,7 +563,7 @@
 - config-path: "write.experimental-enable-streaming-writes"
   flag-name: "experimental-enable-streaming-writes"
   type: "bool"
-  usage: "To enable streaming uploads during write file operation."
+  usage: "Enables streaming uploads during write file operation."
   default: false
   hide-flag: true
 
@@ -571,8 +571,8 @@
   flag-name: "write-global-max-blocks"
   type: "int"
   usage: >-
-    To configure the maximum number of blocks to be used by all files for
-    streaming writes. Configured value should be >= 2 or -1 (for infinite blocks).
+    Specifies the maximum number of blocks to be used by all files for
+    streaming writes. The value should be >= 2 or -1 (for infinite blocks).
   default: -1 #TODO: revisit default value after perf testing.
   hide-flag: true
 
@@ -580,8 +580,8 @@
   flag-name: "write-max-blocks-per-file"
   type: "int"
   usage: >-
-    To configure the maximum number of blocks to be used by a single file for 
-    streaming writes. Configured value should be >= 2 or -1 (for infinite blocks).
+    Specifies the maximum number of blocks to be used by a single file for 
+    streaming writes. The value should be >= 2 or -1 (for infinite blocks).
   default: -1 #TODO: revisit default value after perf testing.
   hide-flag: true
 
