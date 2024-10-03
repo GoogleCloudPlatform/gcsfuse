@@ -298,10 +298,10 @@ function installDependencies() {
     sudo apt install docker-ce -y
   fi
   # Ensure that gcloud monitoring tools are installed.
-  # pip install --upgrade google-cloud-storage
-  # pip install --ignore-installed --upgrade google-api-python-client
-  # pip install --ignore-installed --upgrade google-cloud
-  pip install --upgrade google-cloud-monitoring
+  pip install --upgrade google-cloud-storage 1>/dev/null
+  pip install --ignore-installed --upgrade google-api-python-client 1>/dev/null
+  pip install --ignore-installed --upgrade google-cloud 1>/dev/null
+  pip install --upgrade google-cloud-monitoring 1>/dev/null
   # Ensure that jq is installed.
   which jq || sudo apt-get install -y jq
   # Ensure sudoless docker is installed.

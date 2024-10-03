@@ -34,8 +34,8 @@ class UtilsTest(unittest.TestCase):
     self.start = '2024-09-25 06:32:22 UTC'
     self.end = '2024-09-25 07:06:22 UTC'
 
-  def test_get_memory(self):
-    low1, high1 = get_memory_from_monitoring_api(
+  def test_get_memory_from_monitoring_api(self):
+    low, high = get_memory_from_monitoring_api(
         project_id=self.project_id,
         cluster_name=self.cluster_name,
         pod_name=self.pod_name,
@@ -43,11 +43,12 @@ class UtilsTest(unittest.TestCase):
         start_epoch=self.start_epoch,
         end_epoch=self.end_epoch,
     )
-    self.assertLessEqual(low1, high1)
-    self.assertGreater(high1, 0)
 
-  def test_get_cpu(self):
-    low1, high1 = get_cpu_from_monitoring_api(
+    self.assertLessEqual(low, high)
+    self.assertGreater(high, 0)
+
+  def test_get_cpu_from_monitoring_api(self):
+    low, high = get_cpu_from_monitoring_api(
         project_id=self.project_id,
         cluster_name=self.cluster_name,
         pod_name=self.pod_name,
@@ -55,8 +56,9 @@ class UtilsTest(unittest.TestCase):
         start_epoch=self.start_epoch,
         end_epoch=self.end_epoch,
     )
-    self.assertLessEqual(low1, high1)
-    self.assertGreater(high1, 0)
+
+    self.assertLessEqual(low, high)
+    self.assertGreater(high, 0)
 
   def test_timestamp_to_epoch(self):
     self.assertEqual(timestamp_to_epoch('2024-08-21T19:20:25'), 1724268025)
@@ -66,7 +68,7 @@ class UtilsTest(unittest.TestCase):
         timestamp_to_epoch('2024-08-21T19:20:25.547456'), 1724268025
     )
 
-  def test_resource_limit(self):
+  def test_resource_limits(self):
     inputs = [
         {
             'nodeType': 'n2-standard-32',
@@ -96,17 +98,20 @@ class UtilsTest(unittest.TestCase):
         {'nodeType': 'n2-standard-1', 'expected_error': True},
         {'nodeType': 'unknown-machine-type', 'expected_error': True},
     ]
+
     for input in inputs:
-      self.assertEqual(dict, type(input))
-      try:
+
+      if input['expected_error']:
+
+        with self.assertRaises(utils.UnknownMachineTypeError):
+          resource_limits = utils.resource_limits(input['nodeType'])
+      else:
         resource_limits = utils.resource_limits(input['nodeType'])
+
         self.assertEqual(
             input['expected_limits_cpu'],
             resource_limits[0]['cpu'],
         )
-        self.assertFalse(input['expected_error'])
-      except utils.UnknownMachineTypeError:
-        self.assertTrue(input['expected_error'])
 
 
 if __name__ == '__main__':
