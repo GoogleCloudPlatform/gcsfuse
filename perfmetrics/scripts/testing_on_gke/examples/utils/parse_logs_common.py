@@ -18,7 +18,8 @@
 import argparse
 import os
 import subprocess
-from typing import Tuple
+from typing import List, Tuple
+from utils.gsheet import append_data_to_gsheet, url
 from utils.utils import run_command
 
 SUPPORTED_SCENARIOS = [
@@ -155,3 +156,43 @@ def default_service_account_key_file(project_id: str) -> str:
     return "/usr/local/google/home/gargnitin/work/cloud/storage/client/gcsfuse/src/gcsfuse/perfmetrics/scripts/testing_on_gke/examples/20240919-gcs-fuse-test-ml-d6e0247b2cf1.json"
   else:
     raise Exception(f"Unknown project-id: {project_id}")
+
+
+def export_to_csv(output_file_path: str, header: str, rows: List):
+  if output_file_path and output_file_path.strip():
+    ensure_directory_exists(os.path.dirname(output_file_path))
+    with open(output_file_path, "a") as output_file_fwr:
+      # Write a new header.
+      output_file_fwr.write(f"{','.join(header)}\n")
+      for row in rows:
+        output_file_fwr.write(f"{','.join([f'{val}' for val in row])}\n")
+      output_file_fwr.close()
+      print(
+          "\nSuccessfully published outputs of test runs to"
+          f" {output_file_path} !!!"
+      )
+
+
+def export_to_gsheet(
+    header: str,
+    rows: List,
+    output_gsheet_id: str,
+    output_worksheet_name: str,
+    output_gsheet_keyfile: str,
+):
+  if (
+      output_gsheet_id
+      and output_gsheet_id.strip()
+      and output_worksheet_name
+      and output_worksheet_name.strip()
+  ):
+    append_data_to_gsheet(
+        data={"header": header, "values": rows},
+        worksheet=output_worksheet_name,
+        gsheet_id=output_gsheet_id,
+        serviceAccountKeyFile=output_gsheet_keyfile,
+    )
+    print(
+        "\nSuccessfully published outputs of test runs at worksheet"
+        f" '{output_worksheet_name}' in {url(output_gsheet_id)}"
+    )
