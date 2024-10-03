@@ -55,7 +55,7 @@ readonly DEFAULT_SRC_DIR="$(realpath .)/src"
 readonly csi_driver_github_path=https://github.com/googlecloudplatform/gcs-fuse-csi-driver
 readonly csi_driver_branch=main
 readonly gcsfuse_github_path=https://github.com/googlecloudplatform/gcsfuse
-readonly DEFAULT_GCSFUSE_BRANCH=garnitin/add-gke-load-testing/v1
+readonly DEFAULT_GCSFUSE_BRANCH=master
 # Test runtime configuration
 readonly DEFAULT_INSTANCE_ID=${USER}-$(date +%Y%m%d-%H%M%S)
 # 5 minutes
