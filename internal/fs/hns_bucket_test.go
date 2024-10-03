@@ -188,8 +188,11 @@ func (t *HNSBucketTests) TestRenameFolderWithSourceDirectoryHaveLocalFiles() {
 func (t *HNSBucketTests) TestRenameFolderWithSameParent() {
 	oldDirPath := path.Join(mntDir, "foo")
 	_, err = os.Stat(oldDirPath)
-	assert.NoError(t.T(), err)
+	require.NoError(t.T(), err)
 	newDirPath := path.Join(mntDir, "foo_rename")
+	_, err = os.Stat(newDirPath)
+	require.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
 
 	err = os.Rename(oldDirPath, newDirPath)
 
