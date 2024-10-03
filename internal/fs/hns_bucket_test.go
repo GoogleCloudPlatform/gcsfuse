@@ -275,17 +275,19 @@ func (t *HNSBucketTests) TestRenameFolderWithOpenGCSFile() {
 // Rename "bar" to "bar_rename".
 // Stat "bar" (This should now return a negative result, as "bar" no longer exists).
 // Stat "bar_rename" (This should return a positive result, confirming the rename).
-// Read "bar_rename/file1.txt" (This should successfully read the file, demonstrating that the negative cache entry for "file1.txt" was invalidated by the rename operation).
+// Stat "bar_rename/file1.txt" (This will return a "not exist" result because the results are coming from the negative cache, which was populated before rename.)
 func (t *HNSBucketTests) TestNegativeCacheInvalidationOnFolderRenameFolder() {
 	oldDirPath := path.Join(mntDir, "bar")
 	_, err = os.Stat(oldDirPath)
 	assert.NoError(t.T(), err)
+	newDirPath := path.Join(mntDir, "bar_rename")
+	_, err = os.Stat(newDirPath)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
 	// Populate negative stat cache for file1.txt
 	file := path.Join(mntDir, "bar_rename", "file1.txt")
 	_, err = os.Stat(file)
 	require.Error(t.T(), err)
 	require.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
-	newDirPath := path.Join(mntDir, "bar_rename")
 
 	err = os.Rename(oldDirPath, newDirPath)
 
