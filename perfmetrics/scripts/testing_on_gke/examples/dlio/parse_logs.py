@@ -28,8 +28,7 @@ from typing import List, Tuple
 sys.path.append("../")
 import dlio_workload
 from utils.utils import get_memory, get_cpu, unix_to_timestamp, standard_timestamp, is_mash_installed, get_memory_from_monitoring_api, get_cpu_from_monitoring_api, timestamp_to_epoch
-from utils.parse_logs_common import ensure_directory_exists, download_gcs_objects, parse_arguments, SUPPORTED_SCENARIOS, default_service_account_key_file
-from utils.gsheet import append_data_to_gsheet, url
+from utils.parse_logs_common import ensure_directory_exists, download_gcs_objects, parse_arguments, SUPPORTED_SCENARIOS, default_service_account_key_file, export_to_csv, export_to_gsheet
 
 _LOCAL_LOGS_LOCATION = "../../bin/dlio-logs/logs"
 
@@ -329,49 +328,7 @@ def writeOutput(
         )
         rows.append(new_row)
 
-  def export_to_csv(output_file_path: str, header: str, rows: List):
-    if output_file_path and output_file_path.strip():
-      ensure_directory_exists(os.path.dirname(output_file_path))
-      with open(output_file_path, "a") as output_file_fwr:
-        # Write a new header.
-        output_file_fwr.write(f"{','.join(header)}\n")
-        for row in rows:
-          output_file_fwr.write(f"{','.join([f'{val}' for val in row])}\n")
-        output_file_fwr.close()
-        print(
-            "\nSuccessfully published outputs of FIO test runs to"
-            f" {output_file_path} !!!"
-        )
-
   export_to_csv(output_file_path=args.output_file, header=_HEADER, rows=rows)
-
-  def export_to_gsheet(
-      header: str,
-      rows: List,
-      output_gsheet_id: str,
-      output_worksheet_name: str,
-      output_gsheet_keyfile: str,
-  ):
-    if (
-        output_gsheet_id
-        and output_gsheet_id.strip()
-        and output_worksheet_name
-        and output_worksheet_name.strip()
-    ):
-      append_data_to_gsheet(
-          data={"header": header, "values": rows},
-          worksheet=output_worksheet_name,
-          gsheet_id=output_gsheet_id,
-          serviceAccountKeyFile=output_gsheet_keyfile,
-          # default_service_account_key_file(
-          # args.project_id
-          # ),
-      )
-      print(
-          "\nSuccessfully published outputs of FIO test runs at worksheet"
-          f" '{args.output_worksheet_name}' in {url(args.output_gsheet_id)}"
-      )
-
   export_to_gsheet(
       output_gsheet_id=args.output_gsheet_id,
       output_worksheet_name=args.output_worksheet_name,
