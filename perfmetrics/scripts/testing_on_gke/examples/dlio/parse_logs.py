@@ -329,7 +329,7 @@ def writeOutput(
         )
         rows.append(new_row)
 
-  def exportToCsvFile(output_file_path: str, header: str, rows: List):
+  def export_to_csv(output_file_path: str, header: str, rows: List):
     if output_file_path and output_file_path.strip():
       ensure_directory_exists(os.path.dirname(output_file_path))
       with open(output_file_path, "a") as output_file_fwr:
@@ -343,9 +343,9 @@ def writeOutput(
             f" {output_file_path} !!!"
         )
 
-  exportToCsvFile(output_file_path=args.output_file, header=_HEADER, rows=rows)
+  export_to_csv(output_file_path=args.output_file, header=_HEADER, rows=rows)
 
-  def exportToGsheet(
+  def export_to_gsheet(
       header: str,
       rows: List,
       output_gsheet_id: str,
@@ -372,7 +372,7 @@ def writeOutput(
           f" '{args.output_worksheet_name}' in {url(args.output_gsheet_id)}"
       )
 
-  exportToGsheet(
+  export_to_gsheet(
       output_gsheet_id=args.output_gsheet_id,
       output_worksheet_name=args.output_worksheet_name,
       output_gsheet_keyfile=args.output_gsheet_keyfile,
