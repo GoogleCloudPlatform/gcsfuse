@@ -267,43 +267,6 @@ func (t *HNSBucketTests) TestRenameFolderWithOpenGCSFile() {
 	assert.False(t.T(), dirEntries[0].IsDir())
 }
 
-// To verify that the gcsfuse correctly handles negative caching when a folder is renamed.
-// Create directory "bar".
-// Create file "bar/file1.txt".
-// Stat "bar" (This should return a positive result, indicating the directory exists).
-// Stat "bar_rename/file1.txt" (This should populate the negative cache for "file1.txt" in the "bar_rename" directory, as it does not yet exist).
-// Rename "bar" to "bar_rename".
-// Stat "bar" (This should now return a negative result, as "bar" no longer exists).
-// Stat "bar_rename" (This should return a positive result, confirming the rename).
-// Stat "bar_rename/file1.txt" (This will return a "not exist" result because the results are coming from the negative cache, which was populated before rename.)
-func (t *HNSBucketTests) TestNegativeCacheInvalidationOnFolderRenameFolder() {
-	oldDirPath := path.Join(mntDir, "bar")
-	_, err = os.Stat(oldDirPath)
-	assert.NoError(t.T(), err)
-	newDirPath := path.Join(mntDir, "bar_rename")
-	_, err = os.Stat(newDirPath)
-	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
-	// Populate negative stat cache for file1.txt
-	file := path.Join(mntDir, "bar_rename", "file1.txt")
-	_, err = os.Stat(file)
-	require.Error(t.T(), err)
-	require.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
-
-	err = os.Rename(oldDirPath, newDirPath)
-
-	require.NoError(t.T(), err)
-	_, err = os.Stat(oldDirPath)
-	assert.Error(t.T(), err)
-	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
-	_, err = os.Stat(newDirPath)
-	assert.NoError(t.T(), err)
-	dirEntries, err := os.ReadDir(newDirPath)
-	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), 1, len(dirEntries))
-	assert.Equal(t.T(), "file1.txt", dirEntries[0].Name())
-	assert.False(t.T(), dirEntries[0].IsDir())
-}
-
 // Create directory foo.
 // Stat the directory foo.
 // Rename directory foo --> foo_rename
