@@ -79,7 +79,7 @@ func createConfigFileForJobChunkTest(cacheSize int64, cacheFileForRangeRead bool
 ////////////////////////////////////////////////////////////////////////
 
 func (s *jobChunkTest) TestJobChunkSizeForSingleFileReads(t *testing.T) {
-	var fileSize int64 = 24 * util.MiB
+	var fileSize int64 = 16 * util.MiB
 	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 
 	expectedOutcome := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, false, t)
@@ -104,7 +104,7 @@ func (s *jobChunkTest) TestJobChunkSizeForSingleFileReads(t *testing.T) {
 }
 
 func (s *jobChunkTest) TestJobChunkSizeForMultipleFileReads(t *testing.T) {
-	var fileSize int64 = 24 * util.MiB
+	var fileSize int64 = 16 * util.MiB
 	var testFileNames [2]string
 	var expectedOutcome [2]*Expected
 	testFileNames[0] = setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
@@ -195,7 +195,7 @@ func TestJobChunkTest(t *testing.T) {
 	// with go-routines not limited by max parallel downloads.
 	parallelDownloadsPerFile := 4
 	maxParallelDownloads := 9 // maxParallelDownloads > parallelDownloadsPerFile * number of files being accessed concurrently.
-	downloadChunkSizeMB := 3
+	downloadChunkSizeMB := 4
 	ts.flags = []string{"--config-file=" +
 		createConfigFileForJobChunkTest(cacheSizeMB, false, "limitedMaxParallelDownloadsNotEffectingChunkSize", parallelDownloadsPerFile, maxParallelDownloads, downloadChunkSizeMB)}
 	ts.chunkSize = int64(downloadChunkSizeMB) * util.MiB
@@ -206,7 +206,7 @@ func TestJobChunkTest(t *testing.T) {
 	// with go-routines limited by max parallel downloads.
 	parallelDownloadsPerFile = 4
 	maxParallelDownloads = 2
-	downloadChunkSizeMB = 3
+	downloadChunkSizeMB = 4
 	ts.flags = []string{"--config-file=" +
 		createConfigFileForJobChunkTest(cacheSizeMB, false, "limitedMaxParallelDownloadsEffectingChunkSize", parallelDownloadsPerFile, maxParallelDownloads, downloadChunkSizeMB)}
 	ts.chunkSize = int64(downloadChunkSizeMB) * util.MiB
