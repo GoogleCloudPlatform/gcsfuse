@@ -27,8 +27,8 @@ from typing import List, Tuple
 # local library imports
 sys.path.append("../")
 import dlio_workload
-from utils.utils import get_memory, get_cpu, unix_to_timestamp, standard_timestamp, is_mash_installed, get_memory_from_monitoring_api, get_cpu_from_monitoring_api, timestamp_to_epoch
 from utils.parse_logs_common import ensure_directory_exists, download_gcs_objects, parse_arguments, SUPPORTED_SCENARIOS, default_service_account_key_file, export_to_csv, export_to_gsheet
+from utils.utils import unix_to_timestamp, standard_timestamp, get_memory_from_monitoring_api, get_cpu_from_monitoring_api, timestamp_to_epoch
 
 _LOCAL_LOGS_LOCATION = "../../bin/dlio-logs/logs"
 
@@ -51,8 +51,6 @@ record = {
     "lowest_cpu": 0.0,
     "gcsfuse_mount_options": "",
 }
-
-mash_installed = False
 
 _HEADER = (
     "File Size",
@@ -204,38 +202,24 @@ def createOutputScenariosFromDownloadedFiles(args: dict) -> dict:
 
         def fetch_cpu_memory_data():
           if r["scenario"] != "local-ssd":
-            if mash_installed:
-              r["lowest_memory"], r["highest_memory"] = get_memory(
-                  r["pod_name"],
-                  r["start"],
-                  r["end"],
-                  project_number=args.project_number,
-              )
-              r["lowest_cpu"], r["highest_cpu"] = get_cpu(
-                  r["pod_name"],
-                  r["start"],
-                  r["end"],
-                  project_number=args.project_number,
-              )
-            else:
-              r["lowest_memory"], r["highest_memory"] = (
-                  get_memory_from_monitoring_api(
-                      pod_name=r["pod_name"],
-                      start_epoch=r["start_epoch"],
-                      end_epoch=r["end_epoch"],
-                      project_id=args.project_id,
-                      cluster_name=args.cluster_name,
-                      namespace_name=args.namespace_name,
-                  )
-              )
-              r["lowest_cpu"], r["highest_cpu"] = get_cpu_from_monitoring_api(
-                  pod_name=r["pod_name"],
-                  start_epoch=r["start_epoch"],
-                  end_epoch=r["end_epoch"],
-                  project_id=args.project_id,
-                  cluster_name=args.cluster_name,
-                  namespace_name=args.namespace_name,
-              )
+            r["lowest_memory"], r["highest_memory"] = (
+                get_memory_from_monitoring_api(
+                    pod_name=r["pod_name"],
+                    start_epoch=r["start_epoch"],
+                    end_epoch=r["end_epoch"],
+                    project_id=args.project_id,
+                    cluster_name=args.cluster_name,
+                    namespace_name=args.namespace_name,
+                )
+            )
+            r["lowest_cpu"], r["highest_cpu"] = get_cpu_from_monitoring_api(
+                pod_name=r["pod_name"],
+                start_epoch=r["start_epoch"],
+                end_epoch=r["end_epoch"],
+                project_id=args.project_id,
+                cluster_name=args.cluster_name,
+                namespace_name=args.namespace_name,
+            )
 
         fetch_cpu_memory_data()
 
@@ -361,10 +345,6 @@ if __name__ == "__main__":
   ret = downloadDlioOutputs(dlioWorkloads, args.instance_id)
   if ret != 0:
     print(f"failed to download dlio outputs: {ret}")
-
-  mash_installed = is_mash_installed()
-  if not mash_installed:
-    print("Mash is not installed, will skip parsing CPU and memory usage.")
 
   output = createOutputScenariosFromDownloadedFiles(args)
   writeOutput(output, args)
