@@ -41,7 +41,7 @@ var (
 	ctx           context.Context
 )
 
-func setupTestDir(dirName string) (string) {
+func setupTestDir(dirName string) string {
 	dir := setup.SetupTestDirectory(DirForImplicitDirTests)
 	dirPath := path.Join(dir, dirName)
 	err := os.Mkdir(dirPath, setup.DirPermission_0755)
