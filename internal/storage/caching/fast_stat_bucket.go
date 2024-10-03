@@ -336,7 +336,6 @@ func (b *fastStatBucket) DeleteObject(
 	req *gcs.DeleteObjectRequest) (err error) {
 	b.invalidate(req.Name)
 	err = b.wrapped.DeleteObject(ctx, req)
-
 	return
 }
 
