@@ -93,7 +93,7 @@ def parse_args():
   parser.add_argument(
       '--ksa',
       metavar='kubernetes service account of the user',
-      help='kubernetest service account of the user e.g. default',
+      help='kubernetes service account of the user e.g. default',
       required=False,
       default='default',
   )
@@ -154,5 +154,3 @@ def add_iam_role_for_buckets(
       raise Exception(
           f'Failed to add role {role} for {bucket}: exit-code={ret}'
       )
-
-  pass
