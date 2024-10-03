@@ -304,29 +304,36 @@ def writeOutput(
           )
           continue
 
-        new_row = (
-            record_set["mean_file_size"],
-            record_set["num_files_train"],
-            total_size,
-            record_set["batch_size"],
-            scenario,
-            r["epoch"],
-            r["duration"],
-            r["train_au_percentage"],
-            r["train_throughput_samples_per_second"],
-            r["train_throughput_mb_per_second"],
-            r["throughput_over_local_ssd"],
-            r["lowest_memory"],
-            r["highest_memory"],
-            r["lowest_cpu"],
-            r["highest_cpu"],
-            r["pod_name"],
-            r["start"],
-            r["end"],
-            f'"{r["gcsfuse_mount_options"].strip()}"',  # need to wrap in quotes to encapsulate commas in the value.
-            args.instance_id,
-        )
-        rows.append(new_row)
+        try:
+          new_row = (
+              record_set["mean_file_size"],
+              record_set["num_files_train"],
+              total_size,
+              record_set["batch_size"],
+              scenario,
+              r["epoch"],
+              r["duration"],
+              r["train_au_percentage"],
+              r["train_throughput_samples_per_second"],
+              r["train_throughput_mb_per_second"],
+              r["throughput_over_local_ssd"],
+              r["lowest_memory"],
+              r["highest_memory"],
+              r["lowest_cpu"],
+              r["highest_cpu"],
+              r["pod_name"],
+              r["start"],
+              r["end"],
+              f'"{r["gcsfuse_mount_options"].strip()}"',  # need to wrap in quotes to encapsulate commas in the value.
+              args.instance_id,
+          )
+          rows.append(new_row)
+        except Exception as e:
+          print(
+              f"Error while creating new output row for key={key},"
+              f" scenario={scenario}, epoch={i}, r={r}: {e}"
+          )
+          rows.append((("ERROR",) * len(_HEADER)))
 
   export_to_csv(output_file_path=args.output_file, header=_HEADER, rows=rows)
   export_to_gsheet(
