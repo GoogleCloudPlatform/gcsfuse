@@ -28,7 +28,7 @@ SUPPORTED_SCENARIOS = [
 ]
 
 
-def ensureDir(dirpath: str):
+def ensure_directory_exists(dirpath: str):
   try:
     os.makedirs(dirpath)
   except FileExistsError:
@@ -55,7 +55,7 @@ def download_gcs_objects(src: str, dst: str) -> Tuple[int, str]:
   return result.returncode, ""
 
 
-def parseLogParserArguments() -> object:
+def parse_arguments() -> object:
   parser = argparse.ArgumentParser(
       prog="DLIO Unet3d test output parser",
       description=(

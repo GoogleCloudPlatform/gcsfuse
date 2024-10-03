@@ -71,6 +71,33 @@ def parse_args():
       required=True,
   )
   parser.add_argument(
+      '--project-id',
+      metavar='project-id of the user gke cluster',
+      help='project-id of the user gke cluster e.g. gcs-fuse-test',
+      required=True,
+  )
+  parser.add_argument(
+      '--project-number',
+      metavar='project-number of the user gke cluster',
+      help='project-number of the user gke cluster e.g. 927584127901',
+      required=True,
+      type=int,
+  )
+  parser.add_argument(
+      '--namespace',
+      metavar='kubectl namespace of the user',
+      help='kubectl namespace of the user e.g. default',
+      required=False,
+      default='default',
+  )
+  parser.add_argument(
+      '--ksa',
+      metavar='kubernetes service account of the user',
+      help='kubernetes service account of the user e.g. default',
+      required=False,
+      default='default',
+  )
+  parser.add_argument(
       '-n',
       '--dry-run',
       action='store_true',
@@ -84,6 +111,9 @@ def parse_args():
   for argument in [
       'instance_id',
       'machine_type',
+      'project_id',
+      'namespace',
+      'ksa',
   ]:
     value = getattr(args, argument)
     if not value.strip():
@@ -98,3 +128,29 @@ def parse_args():
       )
 
   return args
+
+
+def add_iam_role_for_buckets(
+    buckets: set,
+    role: str,
+    project_id: str,
+    project_number: str,
+    namespace: str,
+    ksa: str,
+):
+  print(
+      f'Adding role {role} to all the relevant buckets to'
+      f' ksa={ksa} in namespace={namespace} ...\n\n'
+  )
+  for bucket in buckets:
+    command = (
+        f'gcloud storage buckets add-iam-policy-binding gs://{bucket} --member'
+        f' principal://iam.googleapis.com/projects/{project_number}/locations/global/workloadIdentityPools/{project_id}.svc.id.goog/subject/ns/{namespace}/sa/{ksa} --role'
+        f' {role}'
+    )
+    print(command)
+    ret = run_command(command)
+    if ret != 0:
+      raise Exception(
+          f'Failed to add role {role} for {bucket}: exit-code={ret}'
+      )

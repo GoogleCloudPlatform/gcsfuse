@@ -27,7 +27,7 @@ import sys
 sys.path.append("../")
 import dlio_workload
 from utils.utils import get_memory, get_cpu, unix_to_timestamp, standard_timestamp, is_mash_installed, get_memory_from_monitoring_api, get_cpu_from_monitoring_api, timestamp_to_epoch
-from utils.parse_logs_common import ensureDir, download_gcs_objects, parseLogParserArguments, SUPPORTED_SCENARIOS
+from utils.parse_logs_common import ensure_directory_exists, download_gcs_objects, parse_arguments, SUPPORTED_SCENARIOS
 
 _LOCAL_LOGS_LOCATION = "../../bin/dlio-logs/logs"
 
@@ -296,8 +296,8 @@ def writeRecordsToCsvOutputFile(output: dict, output_file_path: str):
 
 
 if __name__ == "__main__":
-  args = parseLogParserArguments()
-  ensureDir(_LOCAL_LOGS_LOCATION)
+  args = parse_arguments()
+  ensure_directory_exists(_LOCAL_LOGS_LOCATION)
 
   dlioWorkloads = dlio_workload.ParseTestConfigForDlioWorkloads(
       args.workload_config
@@ -313,7 +313,7 @@ if __name__ == "__main__":
   output_file_path = args.output_file
   # Create the parent directory of output_file_path if doesn't
   # exist already.
-  ensureDir(os.path.dirname(output_file_path))
+  ensure_directory_exists(os.path.dirname(output_file_path))
   writeRecordsToCsvOutputFile(output, output_file_path)
   print(
       "\n\nSuccessfully published outputs of DLIO test runs to"
