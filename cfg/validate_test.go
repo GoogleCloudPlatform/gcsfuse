@@ -304,7 +304,7 @@ func Test_IsTtlInSecsValid_ValidScenarios(t *testing.T) {
 	}
 }
 
-func Test_isValidWriteConfig_ErrorScenarios(t *testing.T) {
+func Test_isValidWriteStreamingConfig_ErrorScenarios(t *testing.T) {
 	var testCases = []struct {
 		testName    string
 		writeConfig WriteConfig
@@ -369,12 +369,12 @@ func Test_isValidWriteConfig_ErrorScenarios(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.testName, func(t *testing.T) {
-			assert.Error(t, isValidWriteStreamingConfigs(&tc.writeConfig))
+			assert.Error(t, isValidWriteStreamingConfig(&tc.writeConfig))
 		})
 	}
 }
 
-func Test_isValidWriteConfig_ValidScenarios(t *testing.T) {
+func Test_isValidWriteStreamingConfig_SuccessScenarios(t *testing.T) {
 	var testCases = []struct {
 		testName    string
 		writeConfig WriteConfig
@@ -418,7 +418,7 @@ func Test_isValidWriteConfig_ValidScenarios(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.testName, func(t *testing.T) {
-			assert.NoError(t, isValidWriteStreamingConfigs(&tc.writeConfig))
+			assert.NoError(t, isValidWriteStreamingConfig(&tc.writeConfig))
 		})
 	}
 }
