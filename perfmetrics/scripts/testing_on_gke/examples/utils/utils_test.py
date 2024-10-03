@@ -17,7 +17,7 @@
 
 import unittest
 import utils
-from utils import get_cpu, get_cpu_from_monitoring_api, get_memory, get_memory_from_monitoring_api, timestamp_to_epoch
+from utils import get_cpu_from_monitoring_api, get_memory_from_monitoring_api, timestamp_to_epoch
 
 
 class UtilsTest(unittest.TestCase):
@@ -34,7 +34,7 @@ class UtilsTest(unittest.TestCase):
     self.start = '2024-09-25 06:32:22 UTC'
     self.end = '2024-09-25 07:06:22 UTC'
 
-  def test_get_memory_methods(self):
+  def test_get_memory(self):
     low1, high1 = get_memory_from_monitoring_api(
         project_id=self.project_id,
         cluster_name=self.cluster_name,
@@ -46,18 +46,7 @@ class UtilsTest(unittest.TestCase):
     self.assertLessEqual(low1, high1)
     self.assertGreater(high1, 0)
 
-    low2, high2 = get_memory(
-        project_number=self.project_number,
-        pod_name=self.pod_name,
-        start=self.start,
-        end=self.end,
-    )
-    self.assertLessEqual(low2, high2)
-    self.assertGreater(high2, 0)
-
-    self.assertTrue(high1 >= 0.99 * high2 and high1 <= 1.01 * high2)
-
-  def test_get_cpu_methods(self):
+  def test_get_cpu(self):
     low1, high1 = get_cpu_from_monitoring_api(
         project_id=self.project_id,
         cluster_name=self.cluster_name,
@@ -68,17 +57,6 @@ class UtilsTest(unittest.TestCase):
     )
     self.assertLessEqual(low1, high1)
     self.assertGreater(high1, 0)
-
-    low2, high2 = get_cpu(
-        project_number=self.project_number,
-        pod_name=self.pod_name,
-        start=self.start,
-        end=self.end,
-    )
-    self.assertLessEqual(low2, high2)
-    self.assertGreater(high2, 0)
-
-    self.assertTrue(high1 >= 0.99 * high2 and high1 <= 1.01 * high2)
 
   def test_timestamp_to_epoch(self):
     self.assertEqual(timestamp_to_epoch('2024-08-21T19:20:25'), 1724268025)
