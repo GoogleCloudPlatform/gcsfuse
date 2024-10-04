@@ -529,7 +529,7 @@ function createCustomCsiDriverIfNeeded() {
 
     printf "\nCreating a new custom CSI driver ...\n\n"
 
-    # Create a bucket for storing custom-csi driver.
+    # Create a bucket (if needed) for storing GCSFuse binaries.
     if test -z "${package_bucket}"; then
       package_bucket=${project_id}-${cluster_name}-gcsfuse-bin
       package_bucket=${package_bucket/google/}
@@ -544,7 +544,7 @@ function createCustomCsiDriverIfNeeded() {
       gcloud storage buckets create gs://${package_bucket} --project=${project_id} --location=${region}
     fi
 
-    # Build a new gcsfuse binary
+    # Build new gcsfuse binaries.
     printf "\nBuilding a new GCSFuse binary from ${gcsfuse_src_dir} ...\n\n"
     cd "${gcsfuse_src_dir}"
     rm -rfv ./bin ./sbin
@@ -567,11 +567,13 @@ function createCustomCsiDriverIfNeeded() {
     printf "\nInstalling the new custom CSI driver built above ...\n\n"
     make install PROJECT=${project_id} REGISTRY=${registry}
     cd -
+
     # Wait some time after csi driver installation before deploying pods
     # to avoid failures caused by 'the webhook failed to inject the
     # sidecar container into the Pod spec' error.
     printf "\nSleeping 30 seconds after csi custom driver installation before deploying pods ...\n\n"
     sleep 30
+
   else
     echo ""
     echo "Enabling managed CSI driver ..."
