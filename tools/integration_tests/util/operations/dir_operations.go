@@ -60,14 +60,6 @@ func CopyObject(srcPath string, destPath string) (err error) {
 	return
 }
 
-func CopyDirWithRootPermission(srcDirPath string, destDirPath string) (err error) {
-	cmd := exec.Command("sudo", "cp", "--recursive", srcDirPath, destDirPath)
-
-	err = executeCommandForOperation(cmd)
-
-	return
-}
-
 func Move(srcPath string, destPath string) (err error) {
 	cmd := exec.Command("mv", srcPath, destPath)
 

@@ -99,20 +99,12 @@ func LogFile() string {
 	return logFile
 }
 
-func SetBinFile(binFileValue string) {
-	binFile = binFileValue
-}
-
 func BinFile() string {
 	return binFile
 }
 
 func SbinFile() string {
 	return sbinFile
-}
-
-func SetTestDir(testDirValue string) {
-	testDir = testDirValue
 }
 
 func TestDir() string {
@@ -361,11 +353,6 @@ func CleanUpDir(directoryPath string) {
 			log.Printf("Error in removing directory: %v", err)
 		}
 	}
-}
-
-// CleanMntDir cleans the mounted directory.
-func CleanMntDir() {
-	CleanUpDir(mntDir)
 }
 
 // SetupTestDirectory creates a testDirectory in the mounted directory and cleans up

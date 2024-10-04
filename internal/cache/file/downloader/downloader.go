@@ -66,7 +66,7 @@ func NewJobManager(fileInfoCache *lru.Cache, filePerm os.FileMode, dirPerm os.Fi
 	cacheDir string, sequentialReadSizeMb int32, c *cfg.FileCacheConfig) (jm *JobManager) {
 	maxParallelDownloads := int64(math.MaxInt64)
 	if c.MaxParallelDownloads > 0 {
-		maxParallelDownloads = int64(c.MaxParallelDownloads)
+		maxParallelDownloads = c.MaxParallelDownloads
 	}
 	jm = &JobManager{
 		fileInfoCache:        fileInfoCache,

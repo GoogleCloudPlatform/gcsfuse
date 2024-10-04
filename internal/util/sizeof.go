@@ -189,35 +189,6 @@ func contentSizeOfObjectAccessControlProjectTeam(oacpt *storagev1.ObjectAccessCo
 	return
 }
 
-func contentSizeOfObjectAccessControl(acl *storagev1.ObjectAccessControl) (size int) {
-	if acl == nil {
-		return
-	}
-
-	// Account for string members.
-	for _, strPtr := range []*string{
-		&acl.Bucket, &acl.Domain, &acl.Email, &acl.Entity,
-		&acl.EntityId, &acl.Etag, &acl.Id, &acl.Kind,
-		&acl.Object, &acl.Role, &acl.SelfLink} {
-		size += contentSizeOfString(strPtr)
-	}
-
-	// Account for integer-members - Generation.
-	// Nothing to be added here as described in the documentation at the top.
-
-	// Account for pointer-members.
-	size += emptyObjectAccessControlProjectTeamSize + contentSizeOfObjectAccessControlProjectTeam(acl.ProjectTeam)
-
-	// Account for other struct members.
-	size += contentSizeOfServerResponse(&acl.ServerResponse)
-
-	// Account for string-array members.
-	size += contentSizeOfArrayOfStrings(&acl.ForceSendFields)
-	size += contentSizeOfArrayOfStrings(&acl.NullFields)
-
-	return
-}
-
 // NestedSizeOfGcsMinObject returns the full nested memory size
 // of the gcs.MinObject pointed by the passed pointer.
 // Improvement scope: This can be generalized to a general-struct
