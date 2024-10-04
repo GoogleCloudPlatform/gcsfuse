@@ -141,6 +141,23 @@ func isValidMetadataCache(v isSet, c *MetadataCacheConfig) error {
 	return nil
 }
 
+func isValidWriteStreamingConfig(wc *WriteConfig) error {
+	if !wc.ExperimentalEnableStreamingWrites {
+		return nil
+	}
+
+	if wc.BlockSizeMb <= 0 {
+		return fmt.Errorf("invalid value of write-block-size-mb; can't be less than 1")
+	}
+	if !(wc.MaxBlocksPerFile == -1 || wc.MaxBlocksPerFile >= 2) {
+		return fmt.Errorf("invalid value of write-max-blocks-per-file: %d; should be >=2 or -1 (for infinite)", wc.MaxBlocksPerFile)
+	}
+	if !(wc.GlobalMaxBlocks == -1 || wc.GlobalMaxBlocks >= 2) {
+		return fmt.Errorf("invalid value of write-global-max-blocks: %d; should be >=2 or -1 (for infinite)", wc.GlobalMaxBlocks)
+	}
+	return nil
+}
+
 // ValidateConfig returns a non-nil error if the config is invalid.
 func ValidateConfig(v isSet, config *Config) error {
 	var err error
@@ -175,6 +192,10 @@ func ValidateConfig(v isSet, config *Config) error {
 
 	if err = isValidMetadataCache(v, &config.MetadataCache); err != nil {
 		return fmt.Errorf("error parsing metadata-cache config: %w", err)
+	}
+
+	if err = isValidWriteStreamingConfig(&config.Write); err != nil {
+		return fmt.Errorf("error parsing write config: %w", err)
 	}
 
 	return nil

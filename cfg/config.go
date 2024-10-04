@@ -210,7 +210,15 @@ type MonitoringConfig struct {
 }
 
 type WriteConfig struct {
+	BlockSizeMb int64 `yaml:"block-size-mb"`
+
 	CreateEmptyFile bool `yaml:"create-empty-file"`
+
+	ExperimentalEnableStreamingWrites bool `yaml:"experimental-enable-streaming-writes"`
+
+	GlobalMaxBlocks int64 `yaml:"global-max-blocks"`
+
+	MaxBlocksPerFile int64 `yaml:"max-blocks-per-file"`
 }
 
 func BuildFlagSet(flagSet *pflag.FlagSet) error {
@@ -292,6 +300,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("experimental-enable-json-read", "", false, "By default, GCSFuse uses the GCS XML API to get and read objects. When this flag is specified, GCSFuse uses the GCS JSON API instead.\"")
 
 	if err := flagSet.MarkDeprecated("experimental-enable-json-read", "Experimental flag: could be dropped even in a minor release."); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("experimental-enable-streaming-writes", "", false, "Enables streaming uploads during write file operation.")
+
+	if err := flagSet.MarkHidden("experimental-enable-streaming-writes"); err != nil {
 		return err
 	}
 
@@ -401,7 +415,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.DurationP("max-retry-sleep", "", 30000000000*time.Nanosecond, "The maximum duration allowed to sleep in a retry loop with exponential backoff for failed requests to GCS backend. Once the backoff duration exceeds this limit, the retry continues with this specified maximum value.")
 
-	flagSet.IntP("metadata-cache-ttl-secs", "", 60, "The ttl value in seconds to be used for expiring items in metadata-cache. It can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled metadata-cache. Any value set below -1 will throw an error.\"")
+	flagSet.IntP("metadata-cache-ttl-secs", "", 60, "The ttl value in seconds to be used for expiring items in metadata-cache. It can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled metadata-cache. Any value set below -1 will throw an error.")
 
 	flagSet.StringSliceP("o", "", []string{}, "Additional system-specific mount options. Multiple options can be passed as comma separated. For readonly, use --o ro")
 
@@ -450,6 +464,24 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	}
 
 	flagSet.IntP("uid", "", -1, "UID owner of all inodes.")
+
+	flagSet.IntP("write-block-size-mb", "", 64, "Specifies the block size for streaming writes. The value should be more  than 0.")
+
+	if err := flagSet.MarkHidden("write-block-size-mb"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("write-global-max-blocks", "", -1, "Specifies the maximum number of blocks to be used by all files for streaming writes. The value should be >= 2 or -1 (for infinite blocks).")
+
+	if err := flagSet.MarkHidden("write-global-max-blocks"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("write-max-blocks-per-file", "", -1, "Specifies the maximum number of blocks to be used by a single file for  streaming writes. The value should be >= 2 or -1 (for infinite blocks).")
+
+	if err := flagSet.MarkHidden("write-max-blocks-per-file"); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -521,6 +553,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("gcs-connection.experimental-enable-json-read", flagSet.Lookup("experimental-enable-json-read")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("write.experimental-enable-streaming-writes", flagSet.Lookup("experimental-enable-streaming-writes")); err != nil {
 		return err
 	}
 
@@ -725,6 +761,18 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.uid", flagSet.Lookup("uid")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("write.block-size-mb", flagSet.Lookup("write-block-size-mb")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("write.global-max-blocks", flagSet.Lookup("write-global-max-blocks")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("write.max-blocks-per-file", flagSet.Lookup("write-max-blocks-per-file")); err != nil {
 		return err
 	}
 
