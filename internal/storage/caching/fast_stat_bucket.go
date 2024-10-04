@@ -423,8 +423,8 @@ func (b *fastStatBucket) RenameFolder(ctx context.Context, folderName string, de
 
 	// Invalidate cache for old directory.
 	b.eraseEntriesWithGivenPrefix(folderName)
-	// Clean all the stale entries related to renamed folder.
-	b.eraseEntriesWithGivenPrefix(destinationFolderId)
+	// Insert destination folder.
+	b.insertFolder(f)
 
 	return f, err
 }
