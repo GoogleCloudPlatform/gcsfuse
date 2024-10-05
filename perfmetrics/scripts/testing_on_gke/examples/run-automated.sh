@@ -90,13 +90,13 @@ rm -rfv log fio/output.csv dlio/output.csv
 
 # Run the script.
 start_time=$(date +%Y-%m-%dT%H:%M:%SZ)
-echo 'Run started at ${start_time}'
+echo "Run started at ${start_time}"
 touch log
 (./run-gke-tests.sh --debug |& tee -a log) || true
 # Use the following if you want to run it in a tmux session instead.
 # tmux new-session -d -s ${instance_id} 'bash -c "(./run-gke-tests.sh --debug |& tee -a log); sleep 604800 "'
 end_time=$(date +%Y-%m-%dT%H:%M:%SZ)
-echo 'Run ended at ${end_time}'
+echo "Run ended at ${end_time}"
 
 # Some post-run steps to be taken for output collection.
 if test -n "${workload_config}"; then
