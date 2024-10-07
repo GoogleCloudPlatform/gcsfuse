@@ -59,6 +59,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -186,6 +187,10 @@ func parseArgs(
 		// Is this the device?
 		case positionalCount == 0:
 			device = s
+			if strings.Contains(device, "\\") {
+				// Get the last part of the path (bucket name)
+				device = filepath.Base(device)
+			}
 			positionalCount++
 
 		// Is this the mount point?
