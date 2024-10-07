@@ -100,6 +100,7 @@ func makeGcsfuseArgs(
 	device string,
 	mountPoint string,
 	opts map[string]string) (args []string, err error) {
+	fmt.Println("device = ", device, ", mountpoint = ", mountPoint, ", opts = ", opts)
 	var flagSet pflag.FlagSet
 	if err := cfg.BuildFlagSet(&flagSet); err != nil {
 		return nil, err
@@ -151,6 +152,8 @@ func parseArgs(
 	mountPoint string,
 	opts map[string]string,
 	err error) {
+
+	fmt.Println("args = ", args)
 	opts = make(map[string]string)
 
 	// Process each argument in turn.
@@ -285,6 +288,7 @@ func run(args []string) (err error) {
 }
 
 func main() {
+	fmt.Println("os args = ", os.Args)
 	err := run(os.Args)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
