@@ -27,10 +27,6 @@ from gsheet import append_data_to_gsheet, download_gcs_object_locally, url
 
 class GsheetTest(unittest.TestCase):
 
-  # @classmethod
-  # def setUpClass(self):
-  # self.project_id = 'gcs-fuse-test'
-
   def test_append_data_to_gsheet(self):
     _DEFAULT_GSHEET_ID = '1s9DCis6XZ_oHRIFTy0F8yVN93EGA2Koks_pzpCqAIS4'
 
