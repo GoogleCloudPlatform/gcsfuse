@@ -1884,6 +1884,8 @@ func (fs *fileSystem) RmDir(
 		return
 	}
 
+	//logger.Debugf("RmDir %q ... ", childDir.Name().GcsObjectName())
+
 	// Check for entries on GCS.
 	var tok string
 	for {
@@ -1902,8 +1904,23 @@ func (fs *fileSystem) RmDir(
 
 		// Are there any entries?
 		if len(entries) != 0 {
-			err = fuse.ENOTEMPTY
-			return
+			childDirObjectName := childDir.Name().GcsObjectName()
+			var hasNoSupportedObjectsInSubtree bool
+			hasNoSupportedObjectsInSubtree, err = childDir.HasNoSupportedObjectsInSubtree(ctx)
+			if err != nil {
+				err = fmt.Errorf("DeleteChildDir (%q): %w", childDirObjectName, err)
+				return
+			}
+			if !hasNoSupportedObjectsInSubtree {
+				logger.Warnf("Failed to delete %q as it still has GCS objects in it.", childDirObjectName)
+				err = fuse.ENOTEMPTY
+				return
+			} else {
+				logger.Warnf("Cannot completely delete %q as this directory has unsupported GCS objects (i.e. objects containing // in their names, which cannot be accessed through gcsfuse) in its sub-tree.", childDirObjectName)
+				//err = fuse.ENOTEMPTY
+				//return
+				break
+			}
 		}
 
 		// Are we done listing?
@@ -1914,6 +1931,8 @@ func (fs *fileSystem) RmDir(
 
 	// We are done with the child.
 	cleanUpAndUnlockChild()
+
+	//logger.Debugf("... RmDir %q", childDir.Name().GcsObjectName())
 
 	// Delete the backing object.
 	fs.mu.Lock()
@@ -2275,6 +2294,8 @@ func (fs *fileSystem) Unlink(
 		op.Name,
 		0,   // Latest generation
 		nil) // No meta-generation precondition
+
+	logger.Debugf("Unlinking %q from %q ...", op.Name, parent.Name().GcsObjectName())
 
 	if err != nil {
 		err = fmt.Errorf("DeleteChildFile: %w", err)
