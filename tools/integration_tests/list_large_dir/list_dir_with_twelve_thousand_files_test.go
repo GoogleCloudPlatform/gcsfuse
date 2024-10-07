@@ -118,7 +118,7 @@ func checkIfObjNameIsCorrect(objName string, prefix string, maxNumber int, t *te
 	objNumberStr := strings.ReplaceAll(objName, prefix, "")
 	objNumber, err := strconv.Atoi(objNumberStr)
 	if err != nil {
-		t.Errorf("Error in extracting file number.")
+		t.Errorf("Error in extracting file number: %v", err)
 	}
 	if objNumber < 1 || objNumber > maxNumber {
 		t.Errorf("Correct object does not exist.")
@@ -159,7 +159,7 @@ func TestListDirectoryWithTwelveThousandFiles(t *testing.T) {
 	startTime := time.Now()
 	objs, err := os.ReadDir(dirPath)
 	if err != nil {
-		t.Errorf("Error in listing directory.")
+		t.Errorf("Error in listing directory: %v", err)
 	}
 	endTime := time.Now()
 	validateDirectoryWithTwelveThousandFiles(objs, t)
@@ -168,7 +168,7 @@ func TestListDirectoryWithTwelveThousandFiles(t *testing.T) {
 	startTime = time.Now()
 	objs, err = os.ReadDir(dirPath)
 	if err != nil {
-		t.Errorf("Error in listing directory.")
+		t.Errorf("Error in listing directory: %v", err)
 	}
 	endTime = time.Now()
 	validateDirectoryWithTwelveThousandFiles(objs, t)
@@ -196,7 +196,7 @@ func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T)
 	startTime := time.Now()
 	objs, err := os.ReadDir(dirPath)
 	if err != nil {
-		t.Errorf("Error in listing directory.")
+		t.Errorf("Error in listing directory: %v", err)
 	}
 	endTime := time.Now()
 	validateDirectoryWithTwelveThousandFilesAndHundredExplicitDirectory(objs, t)
@@ -205,7 +205,7 @@ func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T)
 	startTime = time.Now()
 	objs, err = os.ReadDir(dirPath)
 	if err != nil {
-		t.Errorf("Error in listing directory.")
+		t.Errorf("Error in listing directory: %v", err)
 	}
 	endTime = time.Now()
 	validateDirectoryWithTwelveThousandFilesAndHundredExplicitDirectory(objs, t)
@@ -235,7 +235,7 @@ func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImpl
 	startTime := time.Now()
 	objs, err := os.ReadDir(dirPath)
 	if err != nil {
-		t.Errorf("Error in listing directory.")
+		t.Errorf("Error in listing directory: %v", err)
 	}
 	endTime := time.Now()
 	validateDirectoryWithTwelveThousandFilesHundredExplicitDirAndHundredImplicitDir(objs, t)
@@ -244,7 +244,7 @@ func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImpl
 	startTime = time.Now()
 	objs, err = os.ReadDir(dirPath)
 	if err != nil {
-		t.Errorf("Error in listing directory.")
+		t.Errorf("Error in listing directory: %v", err)
 	}
 	endTime = time.Now()
 	validateDirectoryWithTwelveThousandFilesHundredExplicitDirAndHundredImplicitDir(objs, t)
