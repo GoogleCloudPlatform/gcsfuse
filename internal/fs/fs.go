@@ -1893,7 +1893,18 @@ func (fs *fileSystem) RmDir(
 
 		// Are there any entries?
 		if len(entries) != 0 {
-			err = fuse.ENOTEMPTY
+			isThereAnySupportedObject := func(parent inode.DirInode, name string) bool {
+				// dummy implementation.. to be replaced with proper implementation.
+				return false
+			}
+
+			for i := range len(entries) {
+				if isThereAnySupportedObject(childDir, entries[i].Name) {
+					err = fuse.ENOTEMPTY
+				} else {
+					logger.Tracef("******* Ignored prefix %q which only has unsupported objects  *******", childDir.Name().GcsObjectName()+"/"+entries[i].Name)
+				}
+			}
 			return
 		}
 
