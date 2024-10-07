@@ -68,15 +68,14 @@ def append_data_to_gsheet(
 ) -> None:
   """Calls the API to append the given data at the end of the given worksheet in the given gsheet.
 
-  If the passed header matches the first row of the file, then the
-  header is not inserted again.
   Args:
     serviceAccountKeyFile: Path of a service-account key-file for authentication
       read/write from/to the given gsheet. This can be a local filepath or a GCS
       path starting with `gs:`
     worksheet: string, name of the worksheet to be edited appended by a "!"
     data: Dictionary of {'header': tuple, 'values': list(tuples)}, to be added
-      to the worksheet.
+      to the worksheet. If the passed header matches the first row of the
+      worksheet, then the header row is not inserted again.
     gsheet_id: Unique ID to identify a gsheet.
 
   Raises:
@@ -92,40 +91,40 @@ def append_data_to_gsheet(
     # Open a read-write gsheet client.
     client = _get_sheets_service_client(localServiceAccountKeyFile)
 
-    def _read_from_range(cell_range: str):
-      """Returns a list of list of values for the given range in the worksheet."""
-      gsheet_response = (
-          client.spreadsheets()
-          .values()
-          .get(spreadsheetId=gsheet_id, range=f'{worksheet}!{cell_range}')
-          .execute()
-      )
-      return gsheet_response['values'] if 'values' in gsheet_response else []
+  def _read_from_range(cell_range: str):
+    """Returns a list of list of values for the given range in the worksheet."""
+    gsheet_response = (
+        client.spreadsheets()
+        .values()
+        .get(spreadsheetId=gsheet_id, range=f'{worksheet}!{cell_range}')
+        .execute()
+    )
+    return gsheet_response['values'] if 'values' in gsheet_response else []
 
-    def _write_at_address(cell_address: str, data):
-      """Writes a list of tuple of values at the given cell_cell_address in the worksheet."""
-      client.spreadsheets().values().update(
-          spreadsheetId=gsheet_id,
-          valueInputOption='USER_ENTERED',
-          body={'majorDimension': 'ROWS', 'values': data},
-          range=f'{worksheet}!{cell_address}',
-      ).execute()
+  def _write_at_address(cell_address: str, data):
+    """Writes a list of tuple of values at the given cell_cell_address in the worksheet."""
+    client.spreadsheets().values().update(
+        spreadsheetId=gsheet_id,
+        valueInputOption='USER_ENTERED',
+        body={'majorDimension': 'ROWS', 'values': data},
+        range=f'{worksheet}!{cell_address}',
+    ).execute()
 
-    data_in_first_column = _read_from_range('A1:A')
-    num_rows = len(data_in_first_column)
-    data_in_first_row = _read_from_range('A1:1')
-    original_header = tuple(data_in_first_row[0]) if data_in_first_row else ()
-    new_header = data['header']
+  data_in_first_column = _read_from_range('A1:A')
+  num_rows = len(data_in_first_column)
+  data_in_first_row = _read_from_range('A1:1')
+  original_header = tuple(data_in_first_row[0]) if data_in_first_row else ()
+  new_header = data['header']
 
-    # Insert header in the file, if needed.
-    if not original_header or not original_header == new_header:
-      # Append header after last row.
-      _write_at_address(f'A{num_rows+1}', [new_header])
-      num_rows = num_rows + 1
-
-    # Append given values after the last row.
-    _write_at_address(f'A{num_rows+1}', data['values'])
+  # Insert header in the file, if needed.
+  if not original_header or not original_header == new_header:
+    # Append header after last row.
+    _write_at_address(f'A{num_rows+1}', [new_header])
     num_rows = num_rows + 1
+
+  # Append given values after the last row.
+  _write_at_address(f'A{num_rows+1}', data['values'])
+  num_rows = num_rows + 1
 
   if serviceAccountKeyFile.startswith('gs://'):
     localServiceAccountKeyFile = download_gcs_object_locally(
@@ -138,4 +137,5 @@ def append_data_to_gsheet(
 
 
 def url(gsheet_id: str) -> str:
+  """Returns the url corresponding to the given google sheet ID."""
   return f'https://docs.google.com/spreadsheets/d/{gsheet_id}'
