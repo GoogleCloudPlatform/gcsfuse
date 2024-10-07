@@ -370,7 +370,7 @@ def run_command(command: str) -> int:
   Returns exit-code which would be non-zero for error.
   """
   result = subprocess.run(
-      [word for word in command.split(" ") if (word and not str.isspace(word))],
+      [word for word in command.split(" ") if (word and word.strip())],
       capture_output=True,
       text=True,
   )
