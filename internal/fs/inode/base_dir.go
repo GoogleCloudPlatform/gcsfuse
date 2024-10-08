@@ -263,3 +263,9 @@ func (d *baseDirInode) IsUnlinked() bool {
 
 func (d *baseDirInode) Unlink() {
 }
+
+// HasNoSupportedObjectsInSubtree checks and returns true if this directory
+// only contains objects of the name-form a//b .
+func (d *baseDirInode) HasNoSupportedObjectsInSubtree(ctx context.Context) (yes bool, err error) {
+	return false, nil
+}
