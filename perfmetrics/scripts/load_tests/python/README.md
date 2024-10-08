@@ -120,7 +120,7 @@ description of files.
 ```
 read_tasks.yaml. 
 
-For more detials on the supported parameters in configs of predefined tasks, 
+For more details on the supported parameters in configs of predefined tasks, 
 please refer to [sample_tasks.yaml]
 * Run the following command:
 ```
