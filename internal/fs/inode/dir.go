@@ -900,9 +900,7 @@ func (d *dirInode) HasNoSupportedObjectsInSubtree(ctx context.Context) (hasNoSup
 			}
 
 			// Enqueue all supported prefixes for next level of BFS traversal.
-			for _, collapsedRun := range listing.CollapsedRuns {
-				dirNameBfsQueue = append(dirNameBfsQueue, collapsedRun)
-			}
+			dirNameBfsQueue = append(dirNameBfsQueue, listing.CollapsedRuns...)
 
 			if tok == "" {
 				break
