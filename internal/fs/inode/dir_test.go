@@ -1639,3 +1639,100 @@ func (t *DirTest) Test_InvalidateKernelListCache() {
 
 	AssertTrue(d.prevDirListingTimeStamp.IsZero())
 }
+
+func (t *DirTest) HasNoSupportedObjectsInSubtree_true_scenario1() {
+	var err error
+
+	// Enable implicit dirs.
+	t.resetInode(true, false, true)
+
+	// Set up contents.
+	objs := []string{
+		dirInodeName + "/a",
+		dirInodeName + "b//c",
+		dirInodeName + "d/e//f",
+		dirInodeName + "g/h//i/j",
+	}
+
+	err = storageutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
+
+	AssertEq(nil, err)
+
+	b, err := t.in.HasNoSupportedObjectsInSubtree(t.ctx)
+
+	AssertTrue(b)
+	AssertEq(nil, err)
+}
+
+func (t *DirTest) HasNoSupportedObjectsInSubtree_true_scenario2() {
+	var err error
+
+	// Enable implicit dirs.
+	t.resetInode(true, false, true)
+
+	// Set up contents.
+	objs := []string{}
+
+	err = storageutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
+
+	AssertEq(nil, err)
+
+	b, err := t.in.HasNoSupportedObjectsInSubtree(t.ctx)
+
+	AssertTrue(b)
+	AssertEq(nil, err)
+}
+
+func (t *DirTest) HasNoSupportedObjectsInSubtree_false_scenario1() {
+	var err error
+
+	// Enable implicit dirs.
+	t.resetInode(true, false, true)
+
+	// Set up contents.
+	objs := []string{
+		dirInodeName,
+		dirInodeName + "a",
+		dirInodeName + "b/c",
+		dirInodeName + "d/e/f",
+		dirInodeName + "g/",
+		dirInodeName + "/k",
+		dirInodeName + "l//m",
+		dirInodeName + "n/o//p",
+	}
+
+	err = storageutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
+
+	AssertEq(nil, err)
+
+	b, err := t.in.HasNoSupportedObjectsInSubtree(t.ctx)
+
+	AssertFalse(b)
+	AssertEq(nil, err)
+}
+
+func (t *DirTest) HasNoSupportedObjectsInSubtree_false_scenario2() {
+	var err error
+
+	// Enable implicit dirs.
+	t.resetInode(true, false, true)
+
+	// Set up contents.
+	objs := []string{
+		dirInodeName,
+		dirInodeName + "a",
+		dirInodeName + "b/c",
+		dirInodeName + "d/e/f",
+		dirInodeName + "g/",
+		dirInodeName + "/k",
+	}
+
+	err = storageutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
+
+	AssertEq(nil, err)
+
+	b, err := t.in.HasNoSupportedObjectsInSubtree(t.ctx)
+
+	AssertFalse(b)
+	AssertEq(nil, err)
+}
