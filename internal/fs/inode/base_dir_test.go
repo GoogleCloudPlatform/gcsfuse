@@ -16,9 +16,11 @@ package inode
 
 import (
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"golang.org/x/net/context"
@@ -125,88 +127,88 @@ func (t *BaseDirTest) resetInode() {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-// func (t *BaseDirTest) ID() {
-// 	ExpectEq(dirInodeID, t.in.ID())
-// }
-//
-// func (t *BaseDirTest) Name() {
-// 	ExpectEq("", t.in.Name().LocalName())
-// }
-//
-// func (t *BaseDirTest) LookupCount() {
-// 	// Increment thrice. The count should now be three.
-// 	t.in.IncrementLookupCount()
-// 	t.in.IncrementLookupCount()
-// 	t.in.IncrementLookupCount()
-//
-// 	// Decrementing twice shouldn't cause destruction. But one more should.
-// 	AssertFalse(t.in.DecrementLookupCount(2))
-// 	ExpectTrue(t.in.DecrementLookupCount(1))
-// }
-//
-// func (t *BaseDirTest) Attributes() {
-// 	attrs, err := t.in.Attributes(t.ctx)
-// 	AssertEq(nil, err)
-// 	ExpectEq(uid, attrs.Uid)
-// 	ExpectEq(gid, attrs.Gid)
-// 	ExpectEq(dirMode|os.ModeDir, attrs.Mode)
-// }
-//
-// func (t *BaseDirTest) LookUpChild_NonExistent() {
-// 	result, err := t.in.LookUpChild(t.ctx, "missing_bucket")
-//
-// 	ExpectNe(nil, err)
-// 	ExpectEq(nil, result)
-// 	ExpectEq(1, t.bm.SetUpTimes())
-// }
-//
-// func (t *BaseDirTest) LookUpChild_BucketFound() {
-// 	result, err := t.in.LookUpChild(t.ctx, "bucketA")
-//
-// 	AssertEq(nil, err)
-// 	AssertNe(nil, result)
-//
-// 	ExpectEq("bucketA", result.Bucket.Name())
-// 	ExpectTrue(result.FullName.IsBucketRoot())
-// 	ExpectEq("bucketA/", result.FullName.LocalName())
-// 	ExpectEq("", result.FullName.GcsObjectName())
-// 	ExpectEq(nil, result.MinObject)
-// 	ExpectEq(metadata.ImplicitDirType, result.Type())
-//
-// 	result, err = t.in.LookUpChild(t.ctx, "bucketB")
-//
-// 	AssertEq(nil, err)
-// 	AssertNe(nil, result)
-//
-// 	ExpectEq("bucketB", result.Bucket.Name())
-// 	ExpectTrue(result.FullName.IsBucketRoot())
-// 	ExpectEq("bucketB/", result.FullName.LocalName())
-// 	ExpectEq("", result.FullName.GcsObjectName())
-// 	ExpectEq(nil, result.MinObject)
-// 	ExpectEq(metadata.ImplicitDirType, result.Type())
-// }
-//
-// func (t *BaseDirTest) LookUpChild_BucketCached() {
-// 	_, _ = t.in.LookUpChild(t.ctx, "bucketA")
-// 	ExpectEq(1, t.bm.SetUpTimes())
-// 	_, _ = t.in.LookUpChild(t.ctx, "bucketA")
-// 	ExpectEq(1, t.bm.SetUpTimes())
-// 	_, _ = t.in.LookUpChild(t.ctx, "bucketB")
-// 	ExpectEq(2, t.bm.SetUpTimes())
-// 	_, _ = t.in.LookUpChild(t.ctx, "bucketB")
-// 	ExpectEq(2, t.bm.SetUpTimes())
-// 	_, _ = t.in.LookUpChild(t.ctx, "missing_bucket")
-// 	ExpectEq(3, t.bm.SetUpTimes())
-// }
-//
-// func (t *BaseDirTest) Test_ShouldInvalidateKernelListCache() {
-// 	ttl := time.Second
-// 	AssertEq(true, t.in.ShouldInvalidateKernelListCache(ttl))
-// }
-//
-// func (t *BaseDirTest) Test_ShouldInvalidateKernelListCache_TtlExpired() {
-// 	ttl := time.Second
-// 	t.clock.AdvanceTime(10 * time.Second)
-//
-// 	AssertEq(true, t.in.ShouldInvalidateKernelListCache(ttl))
-// }
+func (t *BaseDirTest) ID() {
+	ExpectEq(dirInodeID, t.in.ID())
+}
+
+func (t *BaseDirTest) Name() {
+	ExpectEq("", t.in.Name().LocalName())
+}
+
+func (t *BaseDirTest) LookupCount() {
+	// Increment thrice. The count should now be three.
+	t.in.IncrementLookupCount()
+	t.in.IncrementLookupCount()
+	t.in.IncrementLookupCount()
+
+	// Decrementing twice shouldn't cause destruction. But one more should.
+	AssertFalse(t.in.DecrementLookupCount(2))
+	ExpectTrue(t.in.DecrementLookupCount(1))
+}
+
+func (t *BaseDirTest) Attributes() {
+	attrs, err := t.in.Attributes(t.ctx)
+	AssertEq(nil, err)
+	ExpectEq(uid, attrs.Uid)
+	ExpectEq(gid, attrs.Gid)
+	ExpectEq(dirMode|os.ModeDir, attrs.Mode)
+}
+
+func (t *BaseDirTest) LookUpChild_NonExistent() {
+	result, err := t.in.LookUpChild(t.ctx, "missing_bucket")
+
+	ExpectNe(nil, err)
+	ExpectEq(nil, result)
+	ExpectEq(1, t.bm.SetUpTimes())
+}
+
+func (t *BaseDirTest) LookUpChild_BucketFound() {
+	result, err := t.in.LookUpChild(t.ctx, "bucketA")
+
+	AssertEq(nil, err)
+	AssertNe(nil, result)
+
+	ExpectEq("bucketA", result.Bucket.Name())
+	ExpectTrue(result.FullName.IsBucketRoot())
+	ExpectEq("bucketA/", result.FullName.LocalName())
+	ExpectEq("", result.FullName.GcsObjectName())
+	ExpectEq(nil, result.MinObject)
+	ExpectEq(metadata.ImplicitDirType, result.Type())
+
+	result, err = t.in.LookUpChild(t.ctx, "bucketB")
+
+	AssertEq(nil, err)
+	AssertNe(nil, result)
+
+	ExpectEq("bucketB", result.Bucket.Name())
+	ExpectTrue(result.FullName.IsBucketRoot())
+	ExpectEq("bucketB/", result.FullName.LocalName())
+	ExpectEq("", result.FullName.GcsObjectName())
+	ExpectEq(nil, result.MinObject)
+	ExpectEq(metadata.ImplicitDirType, result.Type())
+}
+
+func (t *BaseDirTest) LookUpChild_BucketCached() {
+	_, _ = t.in.LookUpChild(t.ctx, "bucketA")
+	ExpectEq(1, t.bm.SetUpTimes())
+	_, _ = t.in.LookUpChild(t.ctx, "bucketA")
+	ExpectEq(1, t.bm.SetUpTimes())
+	_, _ = t.in.LookUpChild(t.ctx, "bucketB")
+	ExpectEq(2, t.bm.SetUpTimes())
+	_, _ = t.in.LookUpChild(t.ctx, "bucketB")
+	ExpectEq(2, t.bm.SetUpTimes())
+	_, _ = t.in.LookUpChild(t.ctx, "missing_bucket")
+	ExpectEq(3, t.bm.SetUpTimes())
+}
+
+func (t *BaseDirTest) Test_ShouldInvalidateKernelListCache() {
+	ttl := time.Second
+	AssertEq(true, t.in.ShouldInvalidateKernelListCache(ttl))
+}
+
+func (t *BaseDirTest) Test_ShouldInvalidateKernelListCache_TtlExpired() {
+	ttl := time.Second
+	t.clock.AdvanceTime(10 * time.Second)
+
+	AssertEq(true, t.in.ShouldInvalidateKernelListCache(ttl))
+}
