@@ -24,8 +24,10 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
@@ -86,6 +88,16 @@ type DirInode interface {
 	ReadEntries(
 		ctx context.Context,
 		tok string) (entries []fuseutil.Dirent, newTok string, err error)
+
+	// HasNoSupportedObjectsInSubtree returns true if the GCS prefix corresponding
+	// to this directory contains only objects of the form `<a>//<b>` where <a> and
+	// <b> are proper path strings not containing a `//`.
+	// If there are no GCS objects for this prefix, then it will return false.
+	// Example: Input directory inode: "a/".
+	// If there is even one GCS object like "a/b" or "a/b/c" etc, then it will return false.
+	// If it contains only "a//b" or "a/b//c" or "a//b/c" etc. then it will return true.
+	// Note: This is a recursive method.
+	HasNoSupportedObjectsInSubtree(ctx context.Context) (hasNoSupportedObjects bool, err error)
 
 	// Create an empty child file with the supplied (relative) name, failing with
 	// *gcs.PreconditionError if a backing object already exists in GCS.
@@ -652,7 +664,24 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 			return descendants, nil
 		}
 	}
+}
 
+func logUnsupportedListings(removedListings *gcs.Listing) {
+	if removedListings != nil {
+		if len(removedListings.CollapsedRuns) > 0 {
+			logger.Warnf("Ignored following unsupported prefixes: %v", removedListings.CollapsedRuns)
+		}
+		if len(removedListings.Objects) > 0 {
+			objectNames := []string{}
+			for _, object := range removedListings.Objects {
+				if object != nil {
+					objectNames = append(objectNames, object.Name)
+				}
+			}
+
+			logger.Warnf("Ignored following unsupported objects: %v", objectNames)
+		}
+	}
 }
 
 // LOCKS_REQUIRED(d)
@@ -680,6 +709,12 @@ func (d *dirInode) readObjects(
 		err = fmt.Errorf("ListObjects: %w", err)
 		return
 	}
+
+	// Remove unsupported prefixes/objects such as those
+	// containing '//' in them.
+	var removedListings *gcs.Listing
+	listing, removedListings = util.RemoveUnsupportedObjectsFromListing(listing)
+	logUnsupportedListings(removedListings)
 
 	cores = make(map[Name]*Core)
 	defer func() {
@@ -787,6 +822,80 @@ func (d *dirInode) ReadEntries(
 	}
 
 	d.prevDirListingTimeStamp = d.cacheClock.Now()
+	return
+}
+
+// HasNoSupportedObjectsInSubtree returns true if the GCS prefix corresponding
+// to this directory contains only objects of the form `<a>//<b>` where <a> and
+// <b> are proper path strings not containing a `//`.
+// If there are no GCS objects for this prefix, then it will return false.
+// Example: Input directory inode: "a/".
+// If there is even one GCS object like "a/b" or "a/b/c" etc, then it will return false.
+// If it contains only "a//b" or "a/b//c" or "a//b/c" etc. then it will return true.
+// Note: This is a recursive method.
+func (d *dirInode) HasNoSupportedObjectsInSubtree(ctx context.Context) (hasNoSupportedObjects bool, err error) {
+	if d.isBucketHierarchical() {
+		d.includeFoldersAsPrefixes = true
+	}
+
+	// Do a BFS traversal of the GCS prefix corresponding to this directory,
+	// to find out if it has any supported GCS objects
+	// (i.e. GCS objects not containing // in its name) at all.
+	bucket := d.bucket
+	// Go does not have a queue structure in it, so using a slice in its place.
+	var dirNameBfsQueue []string
+	dirNameBfsQueue = append(dirNameBfsQueue, d.Name().GcsObjectName())
+
+	for len(dirNameBfsQueue) != 0 { // if queue is not empty
+		var tok string
+		var listing *gcs.Listing
+		// Dequeue the first entry (directory) in the queue.
+		name := dirNameBfsQueue[0]
+		dirNameBfsQueue = dirNameBfsQueue[1:]
+		// Get the list of all the objects/prefixes in it, until
+		// we find a GCS object which is supported.
+		for {
+			// Ask the bucket to list some objects.
+			req := &gcs.ListObjectsRequest{
+				Delimiter:                "/",
+				IncludeTrailingDelimiter: true,
+				Prefix:                   name,
+				ContinuationToken:        tok,
+				MaxResults:               MaxResultsForListObjectsCall,
+				// Setting Projection param to noAcl since fetching owner and acls are not
+				// required.
+				ProjectionVal:            gcs.NoAcl,
+				IncludeFoldersAsPrefixes: d.includeFoldersAsPrefixes,
+			}
+
+			listing, err = bucket.ListObjects(ctx, req)
+			if err != nil {
+				err = fmt.Errorf("ListObjects: %w", err)
+				return
+			}
+
+			// Remove unsupported prefixes/objects such as those
+			// containing '//' in them, or starting with '/'.
+			var removedListings *gcs.Listing
+			listing, removedListings = util.RemoveUnsupportedObjectsFromListing(listing)
+			logUnsupportedListings(removedListings)
+
+			// If there is any supported objects in it, then terminate.
+			if len(listing.Objects) > 0 {
+				hasNoSupportedObjects = false
+				return
+			}
+
+			// Enqueue all supported prefixes for next level of BFS traversal.
+			dirNameBfsQueue = append(dirNameBfsQueue, listing.CollapsedRuns...)
+
+			if tok == "" {
+				break
+			}
+		}
+	}
+
+	hasNoSupportedObjects = true
 	return
 }
 
