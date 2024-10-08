@@ -1875,8 +1875,6 @@ func (fs *fileSystem) RmDir(
 		return
 	}
 
-	//logger.Debugf("RmDir %q ... ", childDir.Name().GcsObjectName())
-
 	// Check for entries on GCS.
 	var tok string
 	for {
@@ -1922,8 +1920,6 @@ func (fs *fileSystem) RmDir(
 
 	// We are done with the child.
 	cleanUpAndUnlockChild()
-
-	//logger.Debugf("... RmDir %q", childDir.Name().GcsObjectName())
 
 	// Delete the backing object.
 	fs.mu.Lock()
@@ -2285,8 +2281,6 @@ func (fs *fileSystem) Unlink(
 		op.Name,
 		0,   // Latest generation
 		nil) // No meta-generation precondition
-
-	logger.Debugf("Unlinking %q from %q ...", op.Name, parent.Name().GcsObjectName())
 
 	if err != nil {
 		err = fmt.Errorf("DeleteChildFile: %w", err)
