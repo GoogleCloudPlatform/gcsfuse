@@ -139,6 +139,7 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(ctx context.Cont
 	serviceAccount, localKeyFilePath := CreateCredentials(ctx)
 	RevokeAllStoragePermission(ctx, storageClient, serviceAccount, setup.TestBucket())
 	ApplyPermissionToServiceAccount(ctx, storageClient, serviceAccount, permission, setup.TestBucket())
+	WaitForPermissionUpdate()
 	defer RevokePermission(ctx, storageClient, serviceAccount, permission, setup.TestBucket())
 
 	// Without –key-file flag and GOOGLE_APPLICATION_CREDENTIALS
