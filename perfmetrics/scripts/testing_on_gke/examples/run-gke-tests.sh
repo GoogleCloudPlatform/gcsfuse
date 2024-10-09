@@ -99,7 +99,7 @@ function printHelp() {
   echo "ARGS (all are optional) : "
   echo ""
   echo "--debug     Print out shell commands for debugging. Aliases: -debug "
-  echo "--help      Print out this help. Aliases: help , -help , -h , --h"
+  echo "--help      Print out this help. Aliases: -help, -h"
 }
 
 # Print out help if user passes argument `--help`
@@ -112,11 +112,11 @@ fi
 # GCP related
 if test -n "${project_id}"; then
   if test -z "${project_number}"; then
-    echo "Error: project_id was set, but not project_number. Either both should be specified, or neither."
+    >&2 echo "Error: project_id was set, but not project_number. Either both should be specified, or neither."
     exitWithFailure
   fi
 elif test -n "${project_number}"; then
-    echo "Error: project_number was set, but not project_id. Either both should be specified, or neither."
+    >&2 echo "Error: project_number was set, but not project_id. Either both should be specified, or neither."
     exitWithFailure
 else
   export project_id=${DEFAULT_PROJECT_ID}
@@ -148,7 +148,7 @@ fi
 
 if test -n "${gcsfuse_src_dir}"; then
   if ! test -d "${gcsfuse_src_dir}"; then
-    echo "Error: gcsfuse_src_dir \"${gcsfuse_src_dir}\" does not exist"
+    >&2 echo "Error: gcsfuse_src_dir \"${gcsfuse_src_dir}\" does not exist"
     exitWithFailure
   fi
   export gcsfuse_src_dir="$(realpath "${gcsfuse_src_dir}")"
@@ -164,7 +164,7 @@ export gke_testing_dir="${gcsfuse_src_dir}"/perfmetrics/scripts/testing_on_gke
 
 if test -n "${csi_src_dir}"; then
   if ! test -d "${csi_src_dir}"; then
-    echo "Error: csi_src_dir \"${csi_src_dir}\" does not exist"
+    >&2 echo "Error: csi_src_dir \"${csi_src_dir}\" does not exist"
     exitWithFailure
   fi
   export csi_src_dir="$(realpath "${csi_src_dir}")"
@@ -173,20 +173,20 @@ else
 fi
 
 # GCSFuse configuration related - deprecated. Will cause error.
-test -z "${gcsfuse_mount_options}" || (echo "Error: gcsfuse_mount_options set by user is a deprecated option. Please set gcsfuseMountOptions in workload objects in workload configuration file in its place." && exitWithFailure )
+test -z "${gcsfuse_mount_options}" || (>&2 echo "Error: gcsfuse_mount_options set by user is a deprecated option. Please set gcsfuseMountOptions in workload objects in workload configuration file in its place." && exitWithFailure )
 # Test runtime configuration
 test -n "${pod_wait_time_in_seconds}" || export pod_wait_time_in_seconds="${DEFAULT_POD_WAIT_TIME_IN_SECONDS}"
 test -n "${pod_timeout_in_seconds}" || export pod_timeout_in_seconds="${DEFAULT_POD_TIMEOUT_IN_SECONDS}"
 test -n "${instance_id}" || export instance_id="${DEFAULT_INSTANCE_ID}"
 
 if [[ ${pod_timeout_in_seconds} -le ${pod_wait_time_in_seconds} ]]; then
-  echo "Error: pod_timeout_in_seconds (${pod_timeout_in_seconds}) <= pod_wait_time_in_seconds (${pod_wait_time_in_seconds})"
+  >&2 echo "Error: pod_timeout_in_seconds (${pod_timeout_in_seconds}) <= pod_wait_time_in_seconds (${pod_wait_time_in_seconds})"
   exitWithFailure
 fi
 
 if test -n "${workload_config}"; then
   if ! test -f "${workload_config}"; then
-    echo "Error: workload_config \"${workload_config}\" does not exist"
+    >&2 echo "Error: workload_config \"${workload_config}\" does not exist"
     exitWithFailure
   fi
   export workload_config="$(realpath "${workload_config}")"
@@ -196,7 +196,7 @@ fi
 
 if test -n "${output_dir}"; then
   if ! test -d "${output_dir}"; then
-    echo "Error: output_dir \"${output_dir}\" does not exist"
+    >&2 echo "Error: output_dir \"${output_dir}\" does not exist"
     exitWithFailure
   fi
   export output_dir="$(realpath "${output_dir}")"
@@ -308,8 +308,8 @@ function installDependencies() {
   which jq || sudo apt-get install -y jq
   # Ensure sudoless docker is installed.
   if ! docker ps 1>/dev/null ; then
-    >2 echo "Error: sudoless docker is not installed on this machine ($(hostname)). Please install sudoless-docker using the following commands and re-run this script ($0)"
-    >2 echo "sudo addgroup docker && sudo usermod -aG docker $USER && newgrp docker"
+    >&2 echo "Error: sudoless docker is not installed on this machine ($(hostname)). Please install sudoless-docker using the following commands and re-run this script ($0)"
+    >&2 echo "sudo addgroup docker && sudo usermod -aG docker $USER && newgrp docker"
     return 1
   fi
   # Install python modules for gsheet.
@@ -343,19 +343,19 @@ function validateMachineConfig() {
   case "${machine_type}" in
   "n2-standard-96")
     if [ ${num_ssd} -ne 0 -a ${num_ssd} -ne 16 -a ${num_ssd} -ne 24 ]; then
-      echo "Error: Unsupported num-ssd "${num_ssd}" with given machine-type "${machine_type}". It should be 0, 16 or 24"
+      >&2 echo "Error: Unsupported num-ssd "${num_ssd}" with given machine-type "${machine_type}". It should be 0, 16 or 24"
       return 1
     fi
     ;;
   "n2-standard-48")
     if [ ${num_ssd} -ne 0 -a ${num_ssd} -ne 8 -a ${num_ssd} -ne 16 -a ${num_ssd} -ne 24 ]; then
-      echo "Error: Unsupported num-ssd "${num_ssd}" with given machine-type "${machine_type}". It should be 0, 8, 16 or 24"
+      >&2 echo "Error: Unsupported num-ssd "${num_ssd}" with given machine-type "${machine_type}". It should be 0, 8, 16 or 24"
       return 1
     fi
     ;;
   "n2-standard-32")
     if [ ${num_ssd} -ne 0 -a ${num_ssd} -ne 4 -a ${num_ssd} -ne 8 -a ${num_ssd} -ne 16 -a ${num_ssd} -ne 24 ]; then
-      echo "Error: Unsupported num-ssd "${num_ssd}" with given machine-type "${machine_type}". It should be 0, 4, 8, 16 or 24"
+      >&2 echo "Error: Unsupported num-ssd "${num_ssd}" with given machine-type "${machine_type}". It should be 0, 4, 8, 16 or 24"
       return 1
     fi
     ;;
@@ -511,7 +511,7 @@ function ensureGcsfuseCode() {
     cd ${gcsfuse_src_dir} && git fetch --all && git reset --hard origin/${gcsfuse_branch} && cd -
   fi
 
-  test -d "${gke_testing_dir}" || (echo "Error: ${gke_testing_dir} does not exist" && exitWithFailure )
+  test -d "${gke_testing_dir}" || (>&2 echo "Error: ${gke_testing_dir} does not exist" && exitWithFailure )
 }
 
 function ensureGcsFuseCsiDriverCode() {
@@ -535,7 +535,7 @@ function createCustomCsiDriverIfNeeded() {
       package_bucket=${package_bucket/google/}
     fi
     if [[ ${#package_bucket} -gt 63 ]] ; then
-      >2 echo "Error: package_bucket \"${package_bucket}\" is too long (should be <= 63)"
+      >&2 echo "Error: package_bucket \"${package_bucket}\" is too long (should be <= 63)"
       return 1
     fi
     # If package_bucket does not already exist, create it.
@@ -610,7 +610,7 @@ function waitTillAllPodsComplete() {
     cur_epoch=$(date +%s)
     time_till_timeout=$((start_epoch+pod_timeout_in_seconds-cur_epoch))
     if [[ ${time_till_timeout} -lt 0 ]]; then
-      printf "\nError: Pod-run timed out!\n\n"
+      >&2 printf "\nError: Pod-run timed out!\n\n"
       printf "Clearing all pods created in this run...\n"
       deleteAllPods
       exitWithFailure
