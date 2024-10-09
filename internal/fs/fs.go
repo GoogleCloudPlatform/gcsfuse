@@ -2090,6 +2090,9 @@ func (fs *fileSystem) renameHierarchicalDir(ctx context.Context, oldParent inode
 		return err
 	}
 
+	oldDirName := inode.NewDirName(oldParent.Name(), oldName)
+	newDirName := inode.NewDirName(newParent.Name(), newName)
+
 	// If the call for getBucketDirInode fails it means directory does not exist.
 	newDirInode, err := fs.getBucketDirInode(ctx, newParent, newName)
 	if err == nil {
@@ -2097,13 +2100,15 @@ func (fs *fileSystem) renameHierarchicalDir(ctx context.Context, oldParent inode
 		if err = fs.checkDirNotEmpty(newDirInode, newName); err != nil {
 			return err
 		}
+		// It refers empty dest directory
+		// Since RenameFolder APIis not allowing to rename existing empty directory. We are deleting it first and then doing rename.
+		newParent.Lock()
+		err = newParent.DeleteChildDir(ctx, newDirName.GcsObjectName(), false, newDirInode)
+		newParent.Unlock()
 		pendingInodes = append(pendingInodes, newDirInode)
 	}
 
 	// Note:The renameDirLimit is not utilized in the folder rename operation because there is no user-defined limit on new renames.
-
-	oldDirName := inode.NewDirName(oldParent.Name(), oldName)
-	newDirName := inode.NewDirName(newParent.Name(), newName)
 	oldParent.Lock()
 	defer oldParent.Unlock()
 
