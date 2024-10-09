@@ -344,6 +344,7 @@ func (b *fastStatBucket) DeleteFolder(ctx context.Context, folderName string) er
 	if err != nil {
 		return err
 	}
+	// TODO: Caching negative entries for both objects and folders will be implemented together due to test failures.
 	b.invalidate(folderName)
 	return err
 }
