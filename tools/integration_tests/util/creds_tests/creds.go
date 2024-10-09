@@ -79,7 +79,7 @@ func CreateCredentials() (serviceAccount, localKeyFilePath string) {
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error while creating credentials file %v", err))
 	}
-	_, err = io.WriteString(file, string(creds.Payload.Data))
+	_, err = io.Writer.Write(file, creds.Payload.Data)
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error while writing credentials to local file %v", err))
 	}
