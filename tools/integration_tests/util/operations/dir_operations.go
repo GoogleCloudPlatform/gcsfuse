@@ -17,7 +17,6 @@ package operations
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"log"
 	"os"
@@ -27,9 +26,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-
-	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 )
 
 const FilePermission_0400 = 0400
@@ -163,11 +159,4 @@ func DirSizeMiB(dirPath string) (dirSizeMB int64, err error) {
 	dirSizeMB = totalSize / MiB
 
 	return dirSizeMB, err
-}
-
-func CopyFileInBucket(ctx context.Context, storageClient *storage.Client, srcfilePath, destFilePath, bucket string, t *testing.T) {
-	err := client.UploadGcsObject(ctx, storageClient, srcfilePath, bucket, destFilePath, false)
-	if err != nil {
-		t.Fatalf(fmt.Sprintf("Error while copying file in bucket: %v", err))
-	}
 }

@@ -115,11 +115,11 @@ func createDirectoryStructureForNonEmptyManagedFolders(ctx context.Context, stor
 	client.CreateManagedFoldersInBucket(ctx, controlClient, path.Join(testDir, ManagedFolder1), bucket)
 	f := operations.CreateFile(path.Join("/tmp", FileInNonEmptyManagedFoldersTest), setup.FilePermission_0600, t)
 	defer operations.CloseFile(f)
-	operations.CopyFileInBucket(ctx, storageClient, path.Join("/tmp", FileInNonEmptyManagedFoldersTest), path.Join(testDir, ManagedFolder1), bucket, t)
+	client.CopyFileInBucket(ctx, storageClient, path.Join("/tmp", FileInNonEmptyManagedFoldersTest), path.Join(testDir, ManagedFolder1), bucket, t)
 	client.CreateManagedFoldersInBucket(ctx, controlClient, path.Join(testDir, ManagedFolder2), bucket)
-	operations.CopyFileInBucket(ctx, storageClient, path.Join("/tmp", FileInNonEmptyManagedFoldersTest), path.Join(testDir, ManagedFolder2), bucket, t)
-	operations.CopyFileInBucket(ctx, storageClient, path.Join("/tmp", FileInNonEmptyManagedFoldersTest), path.Join(testDir, SimulatedFolderNonEmptyManagedFoldersTest), bucket, t)
-	operations.CopyFileInBucket(ctx, storageClient, path.Join("/tmp", FileInNonEmptyManagedFoldersTest), testDir, bucket, t)
+	client.CopyFileInBucket(ctx, storageClient, path.Join("/tmp", FileInNonEmptyManagedFoldersTest), path.Join(testDir, ManagedFolder2), bucket, t)
+	client.CopyFileInBucket(ctx, storageClient, path.Join("/tmp", FileInNonEmptyManagedFoldersTest), path.Join(testDir, SimulatedFolderNonEmptyManagedFoldersTest), bucket, t)
+	client.CopyFileInBucket(ctx, storageClient, path.Join("/tmp", FileInNonEmptyManagedFoldersTest), testDir, bucket, t)
 }
 
 func cleanup(ctx context.Context, storageClient *storage.Client, controlClient *control.StorageControlClient, bucket, testDir, serviceAccount, iam_role string, t *testing.T) {
