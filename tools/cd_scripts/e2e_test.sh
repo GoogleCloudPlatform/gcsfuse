@@ -184,13 +184,6 @@ TEST_DIR_NON_PARALLEL=(
   "list_large_dir"
 )
 
-TEST_DIR_HNS_NON_PARALLEL=(
-  "readonly"
-  "readonly_creds"
-  "managed_folders"
-  "list_large_dir"
-)
-
 # Create a temporary file to store the log file name.
 TEST_LOGS_FILE=$(mktemp)
 
@@ -284,7 +277,7 @@ function run_e2e_tests_for_hns_bucket(){
    echo "Running tests for HNS bucket"
    run_parallel_tests TEST_DIR_HNS_PARALLEL_GROUP "$hns_bucket_name_parallel" &
    parallel_tests_hns_group_pid=$!
-   run_non_parallel_tests TEST_DIR_HNS_NON_PARALLEL "$hns_bucket_name_non_parallel" &
+   run_non_parallel_tests TEST_DIR_NON_PARALLEL "$hns_bucket_name_non_parallel" &
    non_parallel_tests_hns_group_pid=$!
 
    # Wait for all tests to complete.
