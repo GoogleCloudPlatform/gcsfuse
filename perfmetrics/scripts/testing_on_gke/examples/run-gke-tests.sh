@@ -139,7 +139,9 @@ test -n "${gcsfuse_branch}" || export gcsfuse_branch="${DEFAULT_GCSFUSE_BRANCH}"
 
 # GCSFuse/GKE GCSFuse CSI Driver source code related
 if test -n "${src_dir}"; then
-  test -d "${src_dir}"
+  if ! test -d "${src_dir}"; then
+    exitWithError "src_dir \"${src_dir}\" does not exist"
+  fi
   export src_dir="$(realpath "${src_dir}")"
 else
   export src_dir=${DEFAULT_SRC_DIR}
@@ -616,18 +618,18 @@ function waitTillAllPodsComplete() {
     echo "${podslist}"
     num_completed_pods=$(echo "${podslist}" | tail -n +2 | grep -i 'completed\|succeeded' | wc -l)
     if [ ${num_completed_pods} -gt 0 ]; then
-      printf ${num_completed_pods}" pod(s) completed.\n"
+      printf ${num_completed_pods}" pod(s) have completed.\n"
     fi
     num_noncompleted_pods=$(echo "${podslist}" | tail -n +2 | grep -i -v 'completed\|succeeded\|fail\|error' | wc -l)
     num_failed_pods=$(echo "${podslist}" | tail -n +2 | grep -i 'failed' | wc -l)
     if [ ${num_failed_pods} -gt 0 ]; then
-      printf ${num_failed_pods}" pod(s) failed.\n\n"
+      printf ${num_failed_pods}" pod(s) have failed.\n\n"
     fi
     if [ ${num_noncompleted_pods} -eq 0 ]; then
-      printf "\nAll pods completed.\n\n"
+      printf "\nAll pods have completed.\n\n"
       break
     else
-      printf "\n${num_noncompleted_pods} pod(s) is/are still pending or running (time till timeout=${time_till_timeout} seconds). Will check again in "${pod_wait_time_in_seconds}" seconds. Sleeping for now.\n\n"
+      printf "\n${num_noncompleted_pods} pod(s) is/are still pending/running (time till timeout=${time_till_timeout} seconds). Will check again in "${pod_wait_time_in_seconds}" seconds. Sleeping for now.\n\n"
       printf "\nYou can take a break too if you want. Just kill this run and connect back to it later, for fetching and parsing outputs, using the following command: \n"
       printf "   only_parse=true instance_id=${instance_id} project_id=${project_id} project_number=${project_number} zone=${zone} machine_type=${machine_type} use_custom_csi_driver=${use_custom_csi_driver} gcsfuse_src_dir=\"${gcsfuse_src_dir}\" csi_src_dir=\"${csi_src_dir}\" pod_wait_time_in_seconds=${pod_wait_time_in_seconds} pod_timeout_in_seconds=${pod_timeout_in_seconds} workload_config=\"${workload_config}\" cluster_name=${cluster_name} output_dir=\"${output_dir}\" $0 \n"
       printf "\nbut remember that this will reset the start-timer for pod timeout.\n\n"
