@@ -7,7 +7,6 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 )
 
@@ -48,7 +47,6 @@ func InitBufferedWriteHandler(objectName string, bucket gcs.Bucket) *BufferedWri
 func (wh *BufferedWriteHandler) Write(data []byte, offset int64) (err error) {
 	wh.mu.Lock()
 	defer wh.mu.Unlock()
-	logger.Debugf("Recieved data offset: %d, size: %d", offset, wh.totalSize)
 	dataWritten := int(0)
 
 	if offset != wh.totalSize {
