@@ -159,7 +159,7 @@ then
   delete_existing_vm_and_create_new
   
   echo "Clone the gcsfuse repo on test VM"
-  sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "mkdir github; cd github; git clone https://github.com/GoogleCloudPlatform/gcsfuse.git; cd gcsfuse; git checkout master;"
+  sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "mkdir github; cd github; git clone https://github.com/GoogleCloudPlatform/gcsfuse.git; cd gcsfuse; git checkout patch_v2.5.1;"
   echo "Trigger the build script on test VM"
   sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "bash \$HOME/$TEST_SCRIPT_PATH $BUCKET_TYPE 1> \$HOME/build.out 2> \$HOME/build.err &"
   echo "Wait for 15 minutes for test VM to setup for test and to change the status from START to RUNNING."
