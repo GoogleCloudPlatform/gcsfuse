@@ -159,7 +159,7 @@ func TestMain(m *testing.M) {
 
 	if successCode == 0 {
 		// Test for viewer permission on test bucket.
-		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flags, "objectViewer", m)
+		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(ctx, storageClient, flags, "objectViewer", m)
 	}
 
 	os.Exit(successCode)
