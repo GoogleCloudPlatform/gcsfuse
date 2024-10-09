@@ -41,6 +41,8 @@ import (
 const NameOfServiceAccount = "creds-integration-tests"
 const CredentialsSecretName = "gcsfuse-integration-tests"
 
+var Permissions = []string{"objectAdmin", "objectViewer"}
+
 var WhitelistedGcpProjects = []string{"gcs-fuse-test", "gcs-fuse-test-ml"}
 
 func CreateCredentials(ctx context.Context) (serviceAccount, localKeyFilePath string) {
@@ -89,8 +91,15 @@ func CreateCredentials(ctx context.Context) (serviceAccount, localKeyFilePath st
 	return
 }
 
+func WaitForPermissionUpdate() {
+	// Waiting for 2 minutes as it usually takes within 2 minutes for policy
+	// changes to propagate: https://cloud.google.com/iam/docs/access-change-propagation
+	time.Sleep(120 * time.Second)
+}
+
 func ApplyPermissionToServiceAccount(ctx context.Context, storageClient *storage.Client, serviceAccount, permission, bucket string) {
-	// Provide permission to service account for testing.
+	// Provide permission to service account for testing. If using independently, make sure to call creds_tests.WaitForPermissionUpdate
+	// to wait until policy changes propagate.
 	bucketHandle := storageClient.Bucket(bucket)
 	policy, err := bucketHandle.IAM().Policy(ctx)
 	if err != nil {
@@ -103,9 +112,6 @@ func ApplyPermissionToServiceAccount(ctx context.Context, storageClient *storage
 	if err := bucketHandle.IAM().SetPolicy(ctx, policy); err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error applying permission to service account: Bucket(%q).IAM().SetPolicy: %v", bucket, err))
 	}
-	// Waiting for 2 minutes as it usually takes within 2 minutes for policy
-	// changes to propagate: https://cloud.google.com/iam/docs/access-change-propagation
-	time.Sleep(120 * time.Second)
 }
 
 func RevokePermission(ctx context.Context, storageClient *storage.Client, serviceAccount, permission, bucket string) {
@@ -124,8 +130,14 @@ func RevokePermission(ctx context.Context, storageClient *storage.Client, servic
 	}
 }
 
+func RevokeAllStoragePermission(ctx context.Context, storageClient *storage.Client, serviceAccount, bucket string) {
+	for _, permission := range Permissions {
+		RevokePermission(ctx, storageClient, serviceAccount, permission, bucket)
+	}
+}
 func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(ctx context.Context, storageClient *storage.Client, testFlagSet [][]string, permission string, m *testing.M) (successCode int) {
 	serviceAccount, localKeyFilePath := CreateCredentials(ctx)
+	RevokeAllStoragePermission(ctx, storageClient, serviceAccount, setup.TestBucket())
 	ApplyPermissionToServiceAccount(ctx, storageClient, serviceAccount, permission, setup.TestBucket())
 	defer RevokePermission(ctx, storageClient, serviceAccount, permission, setup.TestBucket())
 

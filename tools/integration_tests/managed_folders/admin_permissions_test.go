@@ -24,8 +24,8 @@ import (
 	"os"
 	"path"
 	"testing"
-	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/creds_tests"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
@@ -56,25 +56,9 @@ type managedFoldersAdminPermission struct {
 }
 
 func (s *managedFoldersAdminPermission) Setup(t *testing.T) {
-	createDirectoryStructureForNonEmptyManagedFolders(ctx, storageClient, t)
-	if s.managedFoldersPermission != "nil" {
-		providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, s.managedFoldersPermission, t)
-		providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, s.managedFoldersPermission, t)
-		// Waiting for 60 seconds for policy changes to propagate. This values we kept based on our experiments.
-		time.Sleep(60 * time.Second)
-	}
 }
 
 func (s *managedFoldersAdminPermission) Teardown(t *testing.T) {
-	// Due to bucket view permissions, it prevents cleaning resources outside of managed folders. So we are cleaning managed folders resources only.
-	if s.bucketPermission == ViewPermission {
-		revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, s.managedFoldersPermission, t)
-		setup.CleanUpDir(path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1))
-		revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, s.managedFoldersPermission, t)
-		setup.CleanUpDir(path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder2))
-		return
-	}
-	setup.CleanUpDir(path.Join(setup.MntDir(), TestDirForManagedFolderTest))
 }
 
 func (s *managedFoldersAdminPermission) TestCreateObjectInManagedFolder(t *testing.T) {
@@ -201,6 +185,8 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	// Fetch credentials and apply permission on bucket.
 	serviceAccount, localKeyFilePath = creds_tests.CreateCredentials(ctx)
 	creds_tests.ApplyPermissionToServiceAccount(ctx, storageClient, serviceAccount, AdminPermission, setup.TestBucket())
+	creds_tests.WaitForPermissionUpdate()
+	defer creds_tests.RevokePermission(ctx, storageClient, serviceAccount, AdminPermission, setup.TestBucket())
 
 	flags := []string{"--implicit-dirs", "--key-file=" + localKeyFilePath, "--rename-dir-limit=5", "--stat-cache-ttl=0"}
 	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
@@ -219,17 +205,29 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 		log.Printf("Running tests with flags, bucket have %s permission and managed folder have %s permissions: %s", permissions[i][0], permissions[i][1], flags)
 		bucket, testDir = setup.GetBucketAndObjectBasedOnTypeOfMount(TestDirForManagedFolderTest)
 		ts.bucketPermission = permissions[i][0]
-		if ts.bucketPermission == ViewPermission {
-			creds_tests.RevokePermission(ctx, storageClient, serviceAccount, AdminPermission, setup.TestBucket())
-			creds_tests.ApplyPermissionToServiceAccount(ctx, storageClient, serviceAccount, ViewPermission, setup.TestBucket())
-			defer creds_tests.RevokePermission(ctx, storageClient, serviceAccount, ViewPermission, setup.TestBucket())
-		}
 		ts.managedFoldersPermission = permissions[i][1]
 
+		createDirectoryStructureForNonEmptyManagedFolders(ctx, storageClient, controlClient, t)
+
+		creds_tests.ApplyPermissionToServiceAccount(ctx, storageClient, serviceAccount, ts.bucketPermission, setup.TestBucket())
+		providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, ts.managedFoldersPermission, t)
+		providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, ts.managedFoldersPermission, t)
+		creds_tests.WaitForPermissionUpdate()
+
 		test_setup.RunTests(t, ts)
+
+		if ts.bucketPermission == ViewPermission {
+			setup.CleanUpDir(path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1))
+			setup.CleanUpDir(path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder2))
+		} else {
+			setup.CleanUpDir(path.Join(setup.MntDir(), TestDirForManagedFolderTest))
+		}
+
+		revokePermissionToManagedFolder(setup.TestBucket(), ManagedFolder1, serviceAccount, ts.managedFoldersPermission, t)
+		revokePermissionToManagedFolder(setup.TestBucket(), ManagedFolder2, serviceAccount, ts.managedFoldersPermission, t)
 	}
 	t.Cleanup(func() {
-		operations.DeleteManagedFoldersInBucket(path.Join(testDir, ManagedFolder1), setup.TestBucket())
-		operations.DeleteManagedFoldersInBucket(path.Join(testDir, ManagedFolder2), setup.TestBucket())
+		client.DeleteManagedFoldersInBucket(ctx, controlClient, path.Join(testDir, ManagedFolder1), setup.TestBucket())
+		client.DeleteManagedFoldersInBucket(ctx, controlClient, path.Join(testDir, ManagedFolder2), setup.TestBucket())
 	})
 }
