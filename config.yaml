@@ -1,0 +1,4 @@
+metadata-cache:
+  stat-cache-max-size-mb: 40
+  ttl-secs: 1000
+  type-cache-max-size-mb: 10
