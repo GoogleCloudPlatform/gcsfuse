@@ -433,7 +433,10 @@ func (c *Connection) ReadOp() (_ context.Context, op interface{}, _ error) {
 
 		// Set up a context that remembers information about this op.
 		ctx := c.beginOp(inMsg.Header().Opcode, inMsg.Header().Unique)
-		ctx = context.WithValue(ctx, ContextKey, opState{inMsg, outMsg, op})
+		ctxVal := ReplyCallback{
+			opState: &opState{inMsg, outMsg, op},
+		Callb: c.Reply}
+		ctx = context.WithValue(ctx, ContextKey, ctxVal)
 
 		// Return the op to the user.
 		return ctx, op, nil
@@ -487,11 +490,12 @@ func (c *Connection) Reply(ctx context.Context, opErr error) error {
 	var key interface{} = ContextKey
 	foo := ctx.Value(key)
 	rc, ok := foo.(ReplyCallback)
-	state := *rc.opState
+
 	if !ok {
 		panic(fmt.Sprintf("Reply called with invalid context: %#v", ctx))
 	}
 
+	state := *rc.opState
 	op := state.op
 	inMsg := state.inMsg
 	outMsg := state.outMsg

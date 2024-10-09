@@ -51,7 +51,7 @@ func (wh *BufferedWriteHandler) Write(data []byte, offset int64) (err error) {
 
 	if offset != wh.totalSize {
 		// TODO: We encountered a non-sequential write, finalize and throw a custom error.
-		return fmt.Errorf("non sequential writes")
+		return fmt.Errorf("non sequential writes, offset :%d, totalSize: %d", offset, wh.totalSize)
 	}
 
 	for dataWritten < len(data) {

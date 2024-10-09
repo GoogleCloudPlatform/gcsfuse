@@ -283,6 +283,7 @@ func (tf *tempFile) WriteAt(p []byte, offset int64) (int, error) {
 	newMtime := tf.clock.Now()
 	tf.mtime = &newMtime
 
+	fmt.Println("calling writeAt on file")
 	// Call through.
 	return tf.f.WriteAt(p, offset)
 }
