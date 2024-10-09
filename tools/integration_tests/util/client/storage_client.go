@@ -22,8 +22,11 @@ import (
 	"os"
 	"reflect"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/googleapis/gax-go/v2"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"golang.org/x/oauth2"
@@ -49,6 +52,18 @@ func CreateStorageClient(ctx context.Context) (client *storage.Client, err error
 	if err != nil {
 		return nil, fmt.Errorf("storage.NewClient: %w", err)
 	}
+	// RetryAlways causes all operations to be retried when the service returns
+	// transient error, regardless of idempotency considerations. Since the
+	// concurrent execution of our CI/CD tests (VMs, threads) doesn't share any
+	// cloud-storage resources, hence it's safe to disregard idempotency.
+	client.SetRetry(
+		storage.WithBackoff(gax.Backoff{
+			Max:        30 * time.Second,
+			Multiplier: 2,
+		}),
+		storage.WithPolicy(storage.RetryAlways),
+		storage.WithErrorFunc(storageutil.ShouldRetry),
+		storage.WithMaxAttempts(5))
 	return client, nil
 }
 
