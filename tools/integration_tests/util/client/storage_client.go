@@ -58,7 +58,8 @@ func CreateStorageClient(ctx context.Context) (client *storage.Client, err error
 			Multiplier: 2,
 		}),
 		storage.WithPolicy(storage.RetryAlways),
-		storage.WithErrorFunc(storageutil.ShouldRetry))
+		storage.WithErrorFunc(storageutil.ShouldRetry),
+		storage.WithMaxAttempts(5))
 	return client, nil
 }
 
