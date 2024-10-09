@@ -64,7 +64,7 @@ func TestMain(m *testing.M) {
 
 	// Test for viewer permission on test bucket.
 	flags := [][]string{{"--implicit-dirs=true"}, {"--implicit-dirs=false"}}
-	successCode := creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flags, "objectViewer", m)
+	successCode := creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(ctx, storageClient, flags, "objectViewer", m)
 
 	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
 	os.Exit(successCode)
