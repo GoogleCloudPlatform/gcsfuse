@@ -37,6 +37,7 @@ fi
 function exitWithSuccess() { exit 0; }
 function exitWithFailure() { exit 1; }
 function echoerror()  { >&2 echo "Error: "$@; }
+function exitWithError()  { echoerror $@ ; exitWithFailure ; }
 
 # Default values, to be used for parameters in case user does not specify them.
 # GCP related
@@ -113,12 +114,10 @@ fi
 # GCP related
 if test -n "${project_id}"; then
   if test -z "${project_number}"; then
-    echoerror "project_id was set, but not project_number. Either both should be specified, or neither."
-    exitWithFailure
+    exitWithError "project_id was set, but not project_number. Either both should be specified, or neither."
   fi
 elif test -n "${project_number}"; then
-    echoerror "project_number was set, but not project_id. Either both should be specified, or neither."
-    exitWithFailure
+    exitWithError "project_number was set, but not project_id. Either both should be specified, or neither."
 else
   export project_id=${DEFAULT_PROJECT_ID}
   export project_number=${DEFAULT_PROJECT_NUMBER}
@@ -149,8 +148,7 @@ fi
 
 if test -n "${gcsfuse_src_dir}"; then
   if ! test -d "${gcsfuse_src_dir}"; then
-    echoerror "gcsfuse_src_dir \"${gcsfuse_src_dir}\" does not exist"
-    exitWithFailure
+    exitWithError "gcsfuse_src_dir \"${gcsfuse_src_dir}\" does not exist"
   fi
   export gcsfuse_src_dir="$(realpath "${gcsfuse_src_dir}")"
 else
@@ -165,8 +163,7 @@ export gke_testing_dir="${gcsfuse_src_dir}"/perfmetrics/scripts/testing_on_gke
 
 if test -n "${csi_src_dir}"; then
   if ! test -d "${csi_src_dir}"; then
-    echoerror "csi_src_dir \"${csi_src_dir}\" does not exist"
-    exitWithFailure
+    exitWithError "csi_src_dir \"${csi_src_dir}\" does not exist"
   fi
   export csi_src_dir="$(realpath "${csi_src_dir}")"
 else
@@ -174,21 +171,19 @@ else
 fi
 
 # GCSFuse configuration related - deprecated. Will cause error.
-test -z "${gcsfuse_mount_options}" || (echoerror "gcsfuse_mount_options set by user is a deprecated option. Please set gcsfuseMountOptions in workload objects in workload configuration file in its place." && exitWithFailure )
+test -z "${gcsfuse_mount_options}" || (exitWithError "gcsfuse_mount_options set by user is a deprecated option. Please set gcsfuseMountOptions in workload objects in workload configuration file in its place." )
 # Test runtime configuration
 test -n "${pod_wait_time_in_seconds}" || export pod_wait_time_in_seconds="${DEFAULT_POD_WAIT_TIME_IN_SECONDS}"
 test -n "${pod_timeout_in_seconds}" || export pod_timeout_in_seconds="${DEFAULT_POD_TIMEOUT_IN_SECONDS}"
 test -n "${instance_id}" || export instance_id="${DEFAULT_INSTANCE_ID}"
 
 if [[ ${pod_timeout_in_seconds} -le ${pod_wait_time_in_seconds} ]]; then
-  echoerror "pod_timeout_in_seconds (${pod_timeout_in_seconds}) <= pod_wait_time_in_seconds (${pod_wait_time_in_seconds})"
-  exitWithFailure
+  exitWithError "pod_timeout_in_seconds (${pod_timeout_in_seconds}) <= pod_wait_time_in_seconds (${pod_wait_time_in_seconds})"
 fi
 
 if test -n "${workload_config}"; then
   if ! test -f "${workload_config}"; then
-    echoerror "workload_config \"${workload_config}\" does not exist"
-    exitWithFailure
+    exitWithError "workload_config \"${workload_config}\" does not exist"
   fi
   export workload_config="$(realpath "${workload_config}")"
 else
@@ -197,8 +192,7 @@ fi
 
 if test -n "${output_dir}"; then
   if ! test -d "${output_dir}"; then
-    echoerror "output_dir \"${output_dir}\" does not exist"
-    exitWithFailure
+    exitWithError "output_dir \"${output_dir}\" does not exist"
   fi
   export output_dir="$(realpath "${output_dir}")"
 else
@@ -512,7 +506,7 @@ function ensureGcsfuseCode() {
     cd ${gcsfuse_src_dir} && git fetch --all && git reset --hard origin/${gcsfuse_branch} && cd -
   fi
 
-  test -d "${gke_testing_dir}" || (echoerror "${gke_testing_dir} does not exist" && exitWithFailure )
+  test -d "${gke_testing_dir}" || (exitWithError "${gke_testing_dir} does not exist" )
 }
 
 function ensureGcsFuseCsiDriverCode() {
