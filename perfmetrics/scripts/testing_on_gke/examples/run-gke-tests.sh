@@ -22,7 +22,7 @@
 # It installs all the necessary dependencies on its own.
 # It creates a GKE cluster and other GCP resources (as needed), based on a number of configuration parameters e.g. gcp-project-name/number, cluster-name, zone (for resource location), machine-type (of node), number of local SSDs.
 # It creates fio/dlio tests as helm charts, based on the provided JSON workload configuration file and deploys them on the GKE cluster.
-# A sample workload-configuration file is available at https://github.com/GoogleCloudPlatform/gcsfuse/blob/b2286ec3466dd285b2d5ea3be8636a809efbfb1b/perfmetrics/scripts/testing_on_gke/examples/workloads.json#L2 .
+# A sample workload-configuration file is available at https://github.com/GoogleCloudPlatform/gcsfuse/blob/garnitin/add-gke-load-testing/v1/perfmetrics/scripts/testing_on_gke/examples/workloads.json .
 
 # Fail script if any of the commands fail.
 set -e
@@ -172,8 +172,6 @@ else
   export csi_src_dir="${src_dir}"/gcs-fuse-csi-driver
 fi
 
-# GCSFuse configuration related - deprecated. Will cause error.
-test -z "${gcsfuse_mount_options}" || (exitWithError "gcsfuse_mount_options set by user is a deprecated option. Please set gcsfuseMountOptions in workload objects in workload configuration file in its place." )
 # Test runtime configuration
 test -n "${pod_wait_time_in_seconds}" || export pod_wait_time_in_seconds="${DEFAULT_POD_WAIT_TIME_IN_SECONDS}"
 test -n "${pod_timeout_in_seconds}" || export pod_timeout_in_seconds="${DEFAULT_POD_TIMEOUT_IN_SECONDS}"
