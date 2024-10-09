@@ -52,9 +52,10 @@ func CreateStorageClient(ctx context.Context) (client *storage.Client, err error
 	if err != nil {
 		return nil, fmt.Errorf("storage.NewClient: %w", err)
 	}
-	//RetryAlways causes all operations to be retried when the service returns transient error,
-	//regardless of idempotency considerations. Since the concurrent execution of our CI/CD tests
-	//(VMs, threads) doesn't share any cloud-storage resources, hence it's safe to disregard idempotency.
+	// RetryAlways causes all operations to be retried when the service returns
+	// transient error, regardless of idempotency considerations. Since the
+	// concurrent execution of our CI/CD tests (VMs, threads) doesn't share any
+	// cloud-storage resources, hence it's safe to disregard idempotency.
 	client.SetRetry(
 		storage.WithBackoff(gax.Backoff{
 			Max:        30 * time.Second,
