@@ -844,7 +844,9 @@ func (t *StatObjectTest) TestRenameFolder() {
 	var folder = &gcs.Folder{
 		Name: newName,
 	}
+
 	ExpectCall(t.cache, "EraseEntriesWithGivenPrefix")(name).WillOnce(Return())
+	ExpectCall(t.cache, "InsertFolder")(folder, Any()).WillOnce(Return())
 	ExpectCall(t.wrapped, "RenameFolder")(Any(), name, newName).WillOnce(Return(folder, nil))
 
 	result, err := t.bucket.RenameFolder(context.Background(), name, newName)
@@ -861,10 +863,9 @@ func init() { RegisterTestSuite(&DeleteFolderTest{}) }
 
 func (t *DeleteFolderTest) Test_DeleteFolder_Success() {
 	const name = "some-name"
-	ExpectCall(t.cache, "AddNegativeEntryForFolder")(name, Any()).
-		WillOnce(Return())
 	ExpectCall(t.wrapped, "DeleteFolder")(Any(), name).
 		WillOnce(Return(nil))
+	ExpectCall(t.cache, "Erase")(name).WillOnce(Return())
 
 	err := t.bucket.DeleteFolder(context.TODO(), name)
 

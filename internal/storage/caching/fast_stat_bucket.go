@@ -344,9 +344,8 @@ func (b *fastStatBucket) DeleteFolder(ctx context.Context, folderName string) er
 	if err != nil {
 		return err
 	}
-	// Add negative entry in the cache.
-	b.addNegativeEntryForFolder(folderName)
-
+	// TODO: Caching negative entries for both objects and folders will be implemented together due to test failures.
+	b.invalidate(folderName)
 	return err
 }
 
@@ -369,10 +368,7 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
 	return
 }
 
-func (b *fastStatBucket) GetFolder(
-	ctx context.Context,
-	prefix string) (*gcs.Folder, error) {
-
+func (b *fastStatBucket) GetFolder(ctx context.Context, prefix string) (*gcs.Folder, error) {
 	if hit, entry := b.lookUpFolder(prefix); hit {
 		// Negative entries result in NotFoundError.
 		if entry == nil {
@@ -386,16 +382,23 @@ func (b *fastStatBucket) GetFolder(
 		return entry, nil
 	}
 
-	// Fetch the Folder
-	folder, error := b.wrapped.GetFolder(ctx, prefix)
+	// Fetch the Folder from GCS
+	return b.getFolderFromGCS(ctx, prefix)
+}
 
-	if error != nil {
-		return nil, error
+func (b *fastStatBucket) getFolderFromGCS(ctx context.Context, prefix string) (*gcs.Folder, error) {
+	f, err := b.wrapped.GetFolder(ctx, prefix)
+
+	if err == nil {
+		b.insertFolder(f)
+		return f, nil
 	}
 
-	// Record the new folder.
-	b.insertFolder(folder)
-	return folder, nil
+	// Special case: NotFoundError -> negative entry.
+	if _, ok := err.(*gcs.NotFoundError); ok {
+		b.addNegativeEntryForFolder(prefix)
+	}
+	return nil, err
 }
 
 func (b *fastStatBucket) CreateFolder(ctx context.Context, folderName string) (f *gcs.Folder, err error) {
@@ -413,11 +416,16 @@ func (b *fastStatBucket) CreateFolder(ctx context.Context, folderName string) (f
 	return
 }
 
-func (b *fastStatBucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (o *gcs.Folder, err error) {
-	o, err = b.wrapped.RenameFolder(ctx, folderName, destinationFolderId)
+func (b *fastStatBucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (*gcs.Folder, error) {
+	f, err := b.wrapped.RenameFolder(ctx, folderName, destinationFolderId)
+	if err != nil {
+		return nil, err
+	}
 
 	// Invalidate cache for old directory.
 	b.eraseEntriesWithGivenPrefix(folderName)
+	// Insert destination folder.
+	b.insertFolder(f)
 
-	return o, err
+	return f, err
 }

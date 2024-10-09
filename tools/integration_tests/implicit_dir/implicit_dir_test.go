@@ -41,6 +41,16 @@ var (
 	ctx           context.Context
 )
 
+func setupTestDir(dirName string) string {
+	dir := setup.SetupTestDirectory(DirForImplicitDirTests)
+	dirPath := path.Join(dir, dirName)
+	err := os.Mkdir(dirPath, setup.DirPermission_0755)
+	if err != nil {
+		log.Fatalf("Error while setting up directory %s for testing: %v", dirPath, err)
+	}
+
+	return dirPath
+}
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 

@@ -456,8 +456,9 @@ func TestRenameFolder(t *testing.T) {
 	_, err = wrapped.CreateFolder(ctx, name)
 	assert.Nil(t, err)
 
-	_, err = bucket.RenameFolder(ctx, old_suffix, new_suffix)
+	f, err := bucket.RenameFolder(ctx, old_suffix, new_suffix)
 	assert.Nil(t, err)
+	assert.Equal(t, new_suffix, f.Name)
 
 	// New folder should get created
 	_, err = bucket.GetFolder(ctx, new_suffix)
