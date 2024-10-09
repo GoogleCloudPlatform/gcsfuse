@@ -67,7 +67,7 @@ func CreateCredentials() (serviceAccount, localKeyFilePath string) {
 	}
 	defer client.Close()
 	req := &secretmanagerpb.AccessSecretVersionRequest{
-		Name: CredentialsSecretName,
+		Name: fmt.Sprintf("projects/%s/secrets/%s/versions/latest", id, CredentialsSecretName),
 	}
 	creds, err := client.AccessSecretVersion(ctx, req)
 	if err != nil {
