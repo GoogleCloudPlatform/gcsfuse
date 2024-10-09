@@ -2311,7 +2311,7 @@ func (fs *fileSystem) WriteFile(
 
 	// ideally we should add to a queue and process the request. This is just to check
 	// if callbacks work or not.
-	go fs.writeHandle(in, ctx, op)
+	fs.writeHandle(in, ctx, op)
 
 	return
 }
