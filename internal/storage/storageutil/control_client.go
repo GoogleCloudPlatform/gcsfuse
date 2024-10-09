@@ -49,6 +49,8 @@ func setRetryConfigForFolderAPIs(sc *control.StorageControlClient, clientConfig 
 	sc.CallOptions.RenameFolder = storageControlClientRetryOptions(clientConfig)
 	sc.CallOptions.GetFolder = storageControlClientRetryOptions(clientConfig)
 	sc.CallOptions.GetStorageLayout = storageControlClientRetryOptions(clientConfig)
+	sc.CallOptions.CreateFolder = storageControlClientRetryOptions(clientConfig)
+	sc.CallOptions.DeleteFolder = storageControlClientRetryOptions(clientConfig)
 }
 
 func CreateGRPCControlClient(ctx context.Context, clientOpts []option.ClientOption, clientConfig *StorageClientConfig) (controlClient *control.StorageControlClient, err error) {
