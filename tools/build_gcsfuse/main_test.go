@@ -39,12 +39,7 @@ func TestVersion(t *testing.T) {
 		expected string
 	}{
 		{
-			name:     "Version Flag without Viper config",
-			args:     "--version",
-			expected: "gcsfuse version 99.88.77",
-		},
-		{
-			name:     "Version Flag with Viper config",
+			name:     "Version Flag",
 			args:     "--version",
 			expected: "gcsfuse version 99.88.77",
 		},
@@ -63,6 +58,7 @@ func TestVersion(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Error running gcsfuse with args %v: %v", tc.args, err)
 			}
+
 			assert.Contains(t, string(output), tc.expected)
 		})
 	}

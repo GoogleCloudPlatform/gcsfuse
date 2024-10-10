@@ -49,5 +49,5 @@ func main() {
 	go perf.HandleCPUProfileSignals()
 	go perf.HandleMemoryProfileSignals()
 
-	cmd.ExecuteNewMain()
+	cmd.ExecuteMountCmd()
 }
