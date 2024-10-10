@@ -1,5 +1,0 @@
-write:
-  create-empty-file: true
-logging:
-  # The correct field is 'format'.
-  formats: text

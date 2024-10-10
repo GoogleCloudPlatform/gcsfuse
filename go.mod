@@ -4,6 +4,7 @@ go 1.23.0
 
 require (
 	cloud.google.com/go/compute/metadata v0.5.0
+	cloud.google.com/go/iam v1.1.13
 	cloud.google.com/go/secretmanager v1.13.5
 	cloud.google.com/go/storage v1.43.0
 	contrib.go.opencensus.io/exporter/ocagent v0.7.0
@@ -27,7 +28,6 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.9.0
-	github.com/urfave/cli v1.22.15
 	go.opencensus.io v0.24.0
 	go.opentelemetry.io/contrib/detectors/gcp v1.29.0
 	go.opentelemetry.io/otel v1.29.0
@@ -52,7 +52,6 @@ require (
 	cloud.google.com/go v0.115.1 // indirect
 	cloud.google.com/go/auth v0.8.1 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.4 // indirect
-	cloud.google.com/go/iam v1.1.13 // indirect
 	cloud.google.com/go/longrunning v0.5.11 // indirect
 	cloud.google.com/go/monitoring v1.20.3 // indirect
 	cloud.google.com/go/pubsub v1.41.0 // indirect
@@ -64,7 +63,6 @@ require (
 	github.com/census-instrumentation/opencensus-proto v0.4.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cncf/xds/go v0.0.0-20240423153145-555b57ec207b // indirect
-	github.com/cpuguy83/go-md2man/v2 v2.0.4 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/envoyproxy/go-control-plane v0.12.0 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.0.4 // indirect
@@ -97,7 +95,6 @@ require (
 	github.com/prometheus/prometheus v0.35.0 // indirect
 	github.com/prometheus/statsd_exporter v0.22.7 // indirect
 	github.com/rogpeppe/go-internal v1.12.0 // indirect
-	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
