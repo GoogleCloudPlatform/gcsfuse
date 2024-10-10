@@ -41,11 +41,8 @@ function exitWithError()  { echoerror $@ ; exitWithFailure ; }
 
 # Default values, to be used for parameters in case user does not specify them.
 # GCP related
-readonly DEFAULT_PROJECT_ID="gcs-fuse-test"
-readonly DEFAULT_PROJECT_NUMBER=927584127901
 readonly DEFAULT_ZONE="us-west1-b"
 # GKE cluster related
-readonly DEFAULT_CLUSTER_NAME="${USER}-testing-us-west1-1"
 readonly DEFAULT_NODE_POOL=default-pool
 readonly DEFAULT_MACHINE_TYPE="n2-standard-96"
 readonly DEFAULT_NUM_NODES=8
@@ -74,11 +71,11 @@ function printHelp() {
   echo "ENV_OPTIONS (all are optional): "
   echo ""
   # GCP related
-  echo "project_id=<project-id default=\"${DEFAULT_PROJECT_ID}\">"
-  echo "project_number=<number default=\"${DEFAULT_PROJECT_NUMBER}\">"
+  echo "project_id=<project-id>"
+  echo "project_number=<number>"
   echo "zone=<region-zone default=\"${DEFAULT_ZONE}\">"
   # GKE cluster related
-  echo "cluster_name=<cluster-name default=\"${DEFAULT_CLUSTER_NAME}\">"
+  echo "cluster_name=<cluster-name>"
   echo "node_pool=<pool-name default=\"${DEFAULT_NODE_POOL}\">"
   echo "machine_type=<machine-type default=\"${DEFAULT_MACHINE_TYPE}\">"
   echo "num_nodes=<number from 1-8, default=\"${DEFAULT_NUM_NODES}\">"
@@ -113,20 +110,17 @@ fi
 
 # Set environment variables.
 # GCP related
-if test -n "${project_id}"; then
-  if test -z "${project_number}"; then
-    exitWithError "project_id was set, but not project_number. Either both should be specified, or neither."
-  fi
-elif test -n "${project_number}"; then
-    exitWithError "project_number was set, but not project_id. Either both should be specified, or neither."
-else
-  export project_id=${DEFAULT_PROJECT_ID}
-  export project_number=${DEFAULT_PROJECT_NUMBER}
-  echo "Neither project_id, nor project_number were set, so defaulting to project_id=${DEFAULT_PROJECT_ID}, project_number=${DEFAULT_PROJECT_NUMBER}"
+if test -z "${project_id}"; then
+    exitWithError "project_id was not set"
+fi
+if test -z "${project_number}"; then
+    exitWithError "project_number was not set"
 fi
 test -n "${zone}" || export zone=${DEFAULT_ZONE}
 # GKE cluster related
-test -n "${cluster_name}" || export cluster_name=${DEFAULT_CLUSTER_NAME}
+if test -z "${cluster_name}"; then
+  exitWithError "${cluster_name} was not set."
+fi
 test -n "${node_pool}" || export node_pool=${DEFAULT_NODE_POOL}
 test -n "${machine_type}" || export machine_type=${DEFAULT_MACHINE_TYPE}
 test -n "${num_nodes}" || export num_nodes=${DEFAULT_NUM_NODES}
