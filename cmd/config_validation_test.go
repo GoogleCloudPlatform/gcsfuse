@@ -687,7 +687,7 @@ func TestValidateConfigFile_MetadataCacheConfigSuccessful(t *testing.T) {
 	}
 }
 
-func TestValidateConfigFile_EnableReadReqStallConfigSuccessful(t *testing.T) {
+func TestValidateConfigFile_ReadStallConfigSuccessful(t *testing.T) {
 	testCases := []struct {
 		name           string
 		configFile     string
@@ -717,8 +717,8 @@ func TestValidateConfigFile_EnableReadReqStallConfigSuccessful(t *testing.T) {
 				GcsRetries: cfg.GcsRetriesConfig{
 					ReadStall: cfg.ReadStallGcsRetriesConfig{
 						Enable:              true,
-						MinReqTimeout:       4 * time.Second,
-						MaxReqTimeout:       20 * time.Second,
+						MinReqTimeout:       10 * time.Second,
+						MaxReqTimeout:       200 * time.Second,
 						InitialReqTimeout:   20 * time.Second,
 						ReqTargetPercentile: 0.99,
 						ReqIncreaseRate:     15,
