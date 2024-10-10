@@ -16,12 +16,15 @@
 package rename_dir_limit_test
 
 import (
+	"fmt"
 	"os"
+	"os/exec"
 	"path"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/assert"
 )
 
 // As --rename-directory-limit = 3, and the number of objects in the directory is three,
@@ -159,4 +162,27 @@ func TestRenameDirectoryWithTwoFilesAndOneNonEmptyDirectory(t *testing.T) {
 	if err == nil {
 		t.Errorf("Renaming directory succeeded with objects greater than rename-dir-limit.")
 	}
+}
+
+func TestRenameDirectoryWithExistingEmptyDestDirectory(t *testing.T) {
+	testDir := setup.SetupTestDirectory(DirForRenameDirLimitTests)
+	// Creating directory structure
+	// testBucket/dirForRenameDirLimitTests/RenamedDirectory                                      -- Dir
+	// testBucket/dirForRenameDirLimitTests/RenamedDirectory/temp1.txt                            -- File
+	// testBucket/dirForRenameDirLimitTests/RenamedDirectory/temp2.txt                            -- File
+	// testBucket/dirForRenameDirLimitTests/RenamedDirectory/NonEmptySubDirectory                 -- Dir
+	// testBucket/dirForRenameDirLimitTests/RenamedDirectory/NonEmptySubDirectory/temp3.txt   		 -- File
+	oldDirPath := path.Join(testDir, SrcDirectory)
+	subDirPath := path.Join(oldDirPath, NonEmptySubDirectory)
+	operations.CreateDirectoryWithNFiles(2, oldDirPath, PrefixTempFile, t)
+	operations.CreateDirectoryWithNFiles(1, subDirPath, PrefixTempFile, t)
+	newDirPath := path.Join(testDir, EmptyDestDirectory)
+	operations.CreateDirectory(newDirPath, t)
+
+	// Go's Rename function does not support renaming a directory into an existing empty directory.
+	// To achieve this, we call a Python rename function as a workaround.
+	cmd := exec.Command("python", "-c", fmt.Sprintf("import os; os.rename('%s', '%s')", oldDirPath, newDirPath))
+	_, err := cmd.CombinedOutput()
+
+	assert.NoError(t, err)
 }
