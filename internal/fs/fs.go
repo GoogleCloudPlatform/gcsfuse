@@ -2100,12 +2100,13 @@ func (fs *fileSystem) renameHierarchicalDir(ctx context.Context, oldParent inode
 		if err = fs.checkDirNotEmpty(newDirInode, newName); err != nil {
 			return err
 		}
-		// It refers empty dest directory
-		// Since RenameFolder APIis not allowing to rename existing empty directory. We are deleting it first and then doing rename.
+
+		// This refers to an empty destination directory.
+		// The RenameFolder API does not allow renaming to an existing empty directory.
+		// As a workaround, we delete the directory first and then perform rename.
 		newParent.Lock()
 		err = newParent.DeleteChildDir(ctx, newDirName.GcsObjectName(), false, newDirInode)
 		newParent.Unlock()
-		pendingInodes = append(pendingInodes, newDirInode)
 	}
 
 	// Note:The renameDirLimit is not utilized in the folder rename operation because there is no user-defined limit on new renames.
