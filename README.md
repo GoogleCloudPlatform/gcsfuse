@@ -27,6 +27,9 @@ To learn about limitations and differences between Cloud Storage FUSE and POSIX 
 
 For information about pricing for Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse#charges.
 
+## Agreement on Flag Compatibility
+`Experimental` and `hidden` flags are subject to change at any time and should be used with caution.
+
 # CSI Driver
 
 Using the [Cloud Storage FUSE CSI driver](https://github.com/GoogleCloudPlatform/gcs-fuse-csi-driver), users get the declarative nature of Kubernetes
@@ -46,4 +49,3 @@ To see supported operating system and ML frameworks that have been validated wit
 You can get support, submit general questions, and request new features by [filing issues in GitHub](https://github.com/GoogleCloudPlatform/gcsfuse/issues). You can also get support by using one of [Google Cloud's official support channels](https://cloud.google.com/support-hub).
 
 See [Troubleshooting](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/troubleshooting.md) for common issue handling.
-
