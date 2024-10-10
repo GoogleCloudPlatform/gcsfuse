@@ -403,12 +403,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("implicit-dirs", "", false, "Implicitly define directories based on content. See files and directories in docs/semantics for more information")
 
-	flagSet.DurationP("initial-read-stall-req-timeout", "", 20000000000*time.Nanosecond, "Initial value of the read-request dynamic timeout.")
-
-	if err := flagSet.MarkHidden("initial-read-stall-req-timeout"); err != nil {
-		return err
-	}
-
 	flagSet.IntP("kernel-list-cache-ttl-secs", "", 0, "How long the directory listing (output of ls <dir>) should be cached in the kernel page cache. If a particular directory cache entry is kept by kernel for longer than TTL, then it will be sent for invalidation by gcsfuse on next opendir (comes in the start, as part of next listing) call. 0 means no caching. Use -1 to cache for lifetime (no ttl). Negative value other than -1 will throw error.")
 
 	flagSet.StringP("key-file", "", "", "Absolute path to JSON key file for use with GCS. (The default is none, Google application default credentials used)")
@@ -433,12 +427,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("max-idle-conns-per-host", "", 100, "The number of maximum idle connections allowed per server.")
 
-	flagSet.DurationP("max-read-stall-req-timeout", "", 1200000000000*time.Nanosecond, "Upper bound of the read-request dynamic timeout.")
-
-	if err := flagSet.MarkHidden("max-read-stall-req-timeout"); err != nil {
-		return err
-	}
-
 	flagSet.IntP("max-retry-attempts", "", 0, "It sets a limit on the number of times an operation will be retried if it fails, preventing endless retry loops. The default value 0 indicates no limit.")
 
 	flagSet.DurationP("max-retry-duration", "", 0*time.Nanosecond, "This is currently unused.")
@@ -451,12 +439,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("metadata-cache-ttl-secs", "", 60, "The ttl value in seconds to be used for expiring items in metadata-cache. It can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled metadata-cache. Any value set below -1 will throw an error.")
 
-	flagSet.DurationP("min-read-stall-req-timeout", "", 500000000*time.Nanosecond, "Lower bound of the read request dynamic timeout.")
-
-	if err := flagSet.MarkHidden("min-read-stall-req-timeout"); err != nil {
-		return err
-	}
-
 	flagSet.StringSliceP("o", "", []string{}, "Additional system-specific mount options. Multiple options can be passed as comma separated. For readonly, use --o ro")
 
 	flagSet.StringP("only-dir", "", "", "Mount only a specific directory within the bucket. See docs/mounting for more information")
@@ -467,7 +449,25 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.Float64P("read-stall-req-increase-rate", "", 15, "Rate to change the dynamic timeout if required.")
+	flagSet.DurationP("read-stall-initial-req-timeout", "", 20000000000*time.Nanosecond, "Initial value of the read-request dynamic timeout.")
+
+	if err := flagSet.MarkHidden("read-stall-initial-req-timeout"); err != nil {
+		return err
+	}
+
+	flagSet.DurationP("read-stall-max-req-timeout", "", 1200000000000*time.Nanosecond, "Upper bound of the read-request dynamic timeout.")
+
+	if err := flagSet.MarkHidden("read-stall-max-req-timeout"); err != nil {
+		return err
+	}
+
+	flagSet.DurationP("read-stall-min-req-timeout", "", 500000000*time.Nanosecond, "Lower bound of the read request dynamic timeout.")
+
+	if err := flagSet.MarkHidden("read-stall-min-req-timeout"); err != nil {
+		return err
+	}
+
+	flagSet.Float64P("read-stall-req-increase-rate", "", 15, "Determines how many increase calls it takes for dynamic timeout to double.")
 
 	if err := flagSet.MarkHidden("read-stall-req-increase-rate"); err != nil {
 		return err
@@ -696,10 +696,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("gcs-retries.read-stall.initial-req-timeout", flagSet.Lookup("initial-read-stall-req-timeout")); err != nil {
-		return err
-	}
-
 	if err := v.BindPFlag("file-system.kernel-list-cache-ttl-secs", flagSet.Lookup("kernel-list-cache-ttl-secs")); err != nil {
 		return err
 	}
@@ -748,10 +744,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("gcs-retries.read-stall.max-req-timeout", flagSet.Lookup("max-read-stall-req-timeout")); err != nil {
-		return err
-	}
-
 	if err := v.BindPFlag("gcs-retries.max-retry-attempts", flagSet.Lookup("max-retry-attempts")); err != nil {
 		return err
 	}
@@ -764,10 +756,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("gcs-retries.read-stall.min-req-timeout", flagSet.Lookup("min-read-stall-req-timeout")); err != nil {
-		return err
-	}
-
 	if err := v.BindPFlag("file-system.fuse-options", flagSet.Lookup("o")); err != nil {
 		return err
 	}
@@ -777,6 +765,18 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metrics.prometheus-port", flagSet.Lookup("prometheus-port")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("gcs-retries.read-stall.initial-req-timeout", flagSet.Lookup("read-stall-initial-req-timeout")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("gcs-retries.read-stall.max-req-timeout", flagSet.Lookup("read-stall-max-req-timeout")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("gcs-retries.read-stall.min-req-timeout", flagSet.Lookup("read-stall-min-req-timeout")); err != nil {
 		return err
 	}
 
