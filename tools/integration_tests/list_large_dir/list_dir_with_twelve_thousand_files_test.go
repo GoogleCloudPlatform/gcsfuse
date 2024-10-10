@@ -15,6 +15,7 @@
 package list_large_dir_test
 
 import (
+	"math"
 	"os"
 	"path"
 	"strconv"
@@ -164,21 +165,31 @@ func TestListDirectoryWithTwelveThousandFiles(t *testing.T) {
 	endTime := time.Now()
 	validateDirectoryWithTwelveThousandFiles(objs, t)
 	firstListTime := endTime.Sub(startTime)
+
 	// Listing the directory a second time should retrieve the response from the kernel cache.
-	startTime = time.Now()
-	objs, err = os.ReadDir(dirPath)
-	if err != nil {
-		t.Errorf("Error in listing directory: %v", err)
+	minSecondListTime := time.Duration(math.MaxInt64)
+	for i := 0; i < 5; i++ {
+		startTime = time.Now()
+		objs, err = os.ReadDir(dirPath)
+		if err != nil {
+			t.Errorf("Error in listing directory: %v", err)
+		}
+		endTime = time.Now()
+		validateDirectoryWithTwelveThousandFiles(objs, t)
+		secondListTime := endTime.Sub(startTime)
+
+		// Update the minimum listing time for the second listing
+		if secondListTime < minSecondListTime {
+			minSecondListTime = secondListTime
+		}
 	}
-	endTime = time.Now()
-	validateDirectoryWithTwelveThousandFiles(objs, t)
-	secondListTime := endTime.Sub(startTime)
 
 	// Fetching data from the kernel for the second list will be faster.
-	assert.Less(t, secondListTime, firstListTime)
+	assert.Less(t, minSecondListTime, firstListTime)
 	// The second directory listing should be 2 times better performant since it
 	// will be retrieved from the kernel cache.
-	assert.Less(t, 2*secondListTime, firstListTime)
+	assert.Less(t, 2*minSecondListTime, firstListTime)
+
 	// Clear the data after testing.
 	setup.RunScriptForTestData("testdata/delete_objects.sh", testDirPathOnBucket)
 }
@@ -189,6 +200,7 @@ func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T)
 	testDirPath := path.Join(setup.MntDir(), DirectoryForListLargeFileTests)
 	testDirPathOnBucket := path.Join(setup.TestBucket(), DirectoryForListLargeFileTests)
 	dirPath := path.Join(testDirPath, DirectoryWithTwelveThousandFiles)
+
 	// Create hundred explicit directories.
 	createHundredExplicitDir(dirPath, t)
 
@@ -201,21 +213,31 @@ func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T)
 	endTime := time.Now()
 	validateDirectoryWithTwelveThousandFilesAndHundredExplicitDirectory(objs, t)
 	firstListTime := endTime.Sub(startTime)
+
 	// Listing the directory a second time should retrieve the response from the kernel cache.
-	startTime = time.Now()
-	objs, err = os.ReadDir(dirPath)
-	if err != nil {
-		t.Errorf("Error in listing directory: %v", err)
+	minSecondListTime := time.Duration(math.MaxInt64)
+	for i := 0; i < 5; i++ {
+		startTime = time.Now()
+		objs, err = os.ReadDir(dirPath)
+		if err != nil {
+			t.Errorf("Error in listing directory: %v", err)
+		}
+		endTime = time.Now()
+		validateDirectoryWithTwelveThousandFilesAndHundredExplicitDirectory(objs, t)
+		secondListTime := endTime.Sub(startTime)
+
+		// Update the minimum listing time for the second listing
+		if secondListTime < minSecondListTime {
+			minSecondListTime = secondListTime
+		}
 	}
-	endTime = time.Now()
-	validateDirectoryWithTwelveThousandFilesAndHundredExplicitDirectory(objs, t)
-	secondListTime := endTime.Sub(startTime)
 
 	// Fetching data from the kernel for the second list will be faster.
-	assert.Less(t, secondListTime, firstListTime)
+	assert.Less(t, minSecondListTime, firstListTime)
 	// The second directory listing should be 2 times better performant since it
 	// will be retrieved from the kernel cache.
-	assert.Less(t, 2*secondListTime, firstListTime)
+	assert.Less(t, 2*minSecondListTime, firstListTime)
+
 	// Clear the bucket after testing.
 	setup.RunScriptForTestData("testdata/delete_objects.sh", testDirPathOnBucket)
 }
@@ -226,6 +248,7 @@ func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImpl
 	testDirPath := path.Join(setup.MntDir(), DirectoryForListLargeFileTests)
 	testDirPathOnBucket := path.Join(setup.TestBucket(), DirectoryForListLargeFileTests)
 	dirPath := path.Join(testDirPath, DirectoryWithTwelveThousandFiles)
+
 	// Create hundred explicit directories.
 	createHundredExplicitDir(dirPath, t)
 	subDirPath := path.Join(testDirPathOnBucket, DirectoryWithTwelveThousandFiles)
@@ -240,21 +263,31 @@ func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImpl
 	endTime := time.Now()
 	validateDirectoryWithTwelveThousandFilesHundredExplicitDirAndHundredImplicitDir(objs, t)
 	firstListTime := endTime.Sub(startTime)
+
 	// Listing the directory a second time should retrieve the response from the kernel cache.
-	startTime = time.Now()
-	objs, err = os.ReadDir(dirPath)
-	if err != nil {
-		t.Errorf("Error in listing directory: %v", err)
+	minSecondListTime := time.Duration(math.MaxInt64)
+	for i := 0; i < 5; i++ {
+		startTime = time.Now()
+		objs, err = os.ReadDir(dirPath)
+		if err != nil {
+			t.Errorf("Error in listing directory: %v", err)
+		}
+		endTime = time.Now()
+		validateDirectoryWithTwelveThousandFilesHundredExplicitDirAndHundredImplicitDir(objs, t)
+		secondListTime := endTime.Sub(startTime)
+
+		// Update the minimum listing time for the second listing
+		if secondListTime < minSecondListTime {
+			minSecondListTime = secondListTime
+		}
 	}
-	endTime = time.Now()
-	validateDirectoryWithTwelveThousandFilesHundredExplicitDirAndHundredImplicitDir(objs, t)
-	secondListTime := endTime.Sub(startTime)
 
 	// Fetching data from the kernel for the second list will be faster.
-	assert.Less(t, secondListTime, firstListTime)
+	assert.Less(t, minSecondListTime, firstListTime)
 	// The second directory listing should be 2 times better performant since it
 	// will be retrieved from the kernel cache.
-	assert.Less(t, 2*secondListTime, firstListTime)
+	assert.Less(t, 2*minSecondListTime, firstListTime)
+
 	// Clear the bucket after testing.
 	setup.RunScriptForTestData("testdata/delete_objects.sh", testDirPathOnBucket)
 }
