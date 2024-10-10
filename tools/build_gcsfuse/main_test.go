@@ -34,38 +34,29 @@ func TestVersion(t *testing.T) {
 		t.Fatalf("Error while building binary: %v", err)
 	}
 	testCases := []struct {
-		name              string
-		args              string
-		expected          string
-		enableViperConfig string
+		name     string
+		args     string
+		expected string
 	}{
 		{
-			name:              "Version Flag without Viper config",
-			args:              "--version",
-			expected:          "gcsfuse version 99.88.77",
-			enableViperConfig: "false",
+			name:     "Version Flag without Viper config",
+			args:     "--version",
+			expected: "gcsfuse version 99.88.77",
 		},
 		{
-			name:              "Version Flag with Viper config",
-			args:              "--version",
-			expected:          "gcsfuse version 99.88.77",
-			enableViperConfig: "true",
+			name:     "Version Flag with Viper config",
+			args:     "--version",
+			expected: "gcsfuse version 99.88.77",
 		},
 		{
-			name:              "Version Shorthand with Viper config",
-			args:              "-v",
-			expected:          "gcsfuse version 99.88.77",
-			enableViperConfig: "true",
+			name:     "Version Shorthand with Viper config",
+			args:     "-v",
+			expected: "gcsfuse version 99.88.77",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err = os.Setenv("ENABLE_GCSFUSE_VIPER_CONFIG", tc.enableViperConfig)
-			if err != nil {
-				t.Fatalf("Error while setting ENABLE_GCSFUSE_VIPER_CONFIG environment variable: %v", err)
-			}
-
 			cmd := exec.Command(path.Join(dir, "bin/gcsfuse"), tc.args)
 
 			output, err := cmd.CombinedOutput()
