@@ -159,23 +159,6 @@ TEST_DIR_PARALLEL=(
   "concurrent_operations"
 )
 
-TEST_DIR_HNS_PARALLEL_GROUP=(
-  "implicit_dir"
-  "rename_dir_limit"
-  "operations"
-  "local_file"
-  "gzip"
-  "interrupt"
-  "log_content"
-  "read_large_files"
-  "write_large_files"
-  "log_rotation"
-  "read_cache"
-  "mounting"
-  "kernel_list_cache"
-  "concurrent_operations"
-)
-
 # These tests never become parallel as they are changing bucket permissions.
 TEST_DIR_NON_PARALLEL=(
   "readonly"
@@ -275,7 +258,7 @@ function run_e2e_tests_for_hns_bucket(){
   echo "HNS Bucket name to run tests parallelly: "$hns_bucket_name_parallel
 
    echo "Running tests for HNS bucket"
-   run_parallel_tests TEST_DIR_HNS_PARALLEL_GROUP "$hns_bucket_name_parallel" &
+   run_parallel_tests TEST_DIR_PARALLEL "$hns_bucket_name_parallel" &
    parallel_tests_hns_group_pid=$!
    run_non_parallel_tests TEST_DIR_NON_PARALLEL "$hns_bucket_name_non_parallel" &
    non_parallel_tests_hns_group_pid=$!
@@ -330,7 +313,7 @@ gather_test_logs
 
 if [ $e2e_tests_flat_bucket_status != 0 ]
 then
-    echo "Test failures detected" &>> ~/logs.txt
+    echo "Test failures detected in flat bucket." &>> ~/logs.txt
 else
     touch success.txt
     gsutil cp success.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
@@ -339,7 +322,7 @@ gsutil cp ~/logs.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$
 
 if [ $e2e_tests_hns_bucket_status != 0 ];
 then
-    echo "Test failures detected" &>> ~/logs-hns.txt
+    echo "Test failures detected in HNS bucket." &>> ~/logs-hns.txt
 else
     touch success-hns.txt
     gsutil cp success-hns.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
