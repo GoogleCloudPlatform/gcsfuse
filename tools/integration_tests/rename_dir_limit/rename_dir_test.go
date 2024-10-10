@@ -189,7 +189,7 @@ func TestRenameDirectoryWithExistingEmptyDestDirectory(t *testing.T) {
 	dirEntries, err := os.ReadDir(newDirPath)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(dirEntries))
-	assert.Equal(t, "nonEmptySubDirectory", dirEntries[0].Name())
+	assert.Equal(t, NonEmptySubDirectory, dirEntries[0].Name())
 	assert.True(t, dirEntries[0].IsDir())
 	assert.Equal(t, "temp1", dirEntries[1].Name())
 	assert.False(t, dirEntries[1].IsDir())
