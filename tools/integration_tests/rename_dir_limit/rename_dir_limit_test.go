@@ -38,6 +38,8 @@ const DirectoryWithTwoFilesOneNonEmptyDirectory = "directoryWithTwoFilesOneNonEm
 const EmptySubDirectory = "emptySubDirectory"
 const NonEmptySubDirectory = "nonEmptySubDirectory"
 const RenamedDirectory = "renamedDirectory"
+const SrcDirectory = "srcDirectory"
+const EmptyDestDirectory = "emptyDestDirectory"
 const PrefixTempFile = "temp"
 const onlyDirMounted = "OnlyDirMountRenameDirLimit"
 
