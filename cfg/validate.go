@@ -158,15 +158,15 @@ func isValidWriteStreamingConfig(wc *WriteConfig) error {
 	return nil
 }
 
-func isValidReadStallGcsRetriesConfig(rsc *ReadStallGcsRetriesConfig) error {
-	if rsc == nil {
+func isValidReadStallGcsRetriesConfig(rsrc *ReadStallGcsRetriesConfig) error {
+	if rsrc == nil {
 		return nil
 	}
-	if rsc.ReqIncreaseRate <= 0 {
-		return fmt.Errorf("invalid value of increaseRate: %f, can't be 0 or negative", rsc.ReqIncreaseRate)
+	if rsrc.ReqIncreaseRate <= 0 {
+		return fmt.Errorf("invalid value of increaseRate: %f, can't be 0 or negative", rsrc.ReqIncreaseRate)
 	}
-	if rsc.ReqTargetPercentile <= 0 || rsc.ReqTargetPercentile >= 1 {
-		return fmt.Errorf("invalid value of targetPercentile: %f, should be greater than 0 and less than 1", rsc.ReqTargetPercentile)
+	if rsrc.ReqTargetPercentile <= 0 || rsrc.ReqTargetPercentile >= 1 {
+		return fmt.Errorf("invalid value of targetPercentile: %f, should be greater than 0 and less than 1", rsrc.ReqTargetPercentile)
 	}
 	return nil
 }
