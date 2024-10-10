@@ -356,21 +356,21 @@
   hide-flag: true
 
 - config-path: "gcs-retries.read-stall.initial-req-timeout"
-  flag-name: "initial-read-stall-req-timeout"
+  flag-name: "read-stall-initial-req-timeout"
   type: "duration"
   usage: Initial value of the read-request dynamic timeout.
   default: 20s
   hide-flag: true
 
 - config-path: "gcs-retries.read-stall.max-req-timeout"
-  flag-name: "max-read-stall-req-timeout"
+  flag-name: "read-stall-max-req-timeout"
   type: "duration"
   usage: Upper bound of the read-request dynamic timeout.
   default: 20m
   hide-flag: true
 
 - config-path: "gcs-retries.read-stall.min-req-timeout"
-  flag-name: "min-read-stall-req-timeout"
+  flag-name: "read-stall-min-req-timeout"
   type: "duration"
   usage: Lower bound of the read request dynamic timeout.
   default: 500ms
@@ -379,7 +379,7 @@
 - config-path: "gcs-retries.read-stall.req-increase-rate"
   flag-name: "read-stall-req-increase-rate"
   type: "float64"
-  usage: Rate to change the dynamic timeout if required.
+  usage: Determines how many increase calls it takes for dynamic timeout to double.
   default: 15
   hide-flag: true
 

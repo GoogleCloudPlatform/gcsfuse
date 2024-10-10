@@ -166,7 +166,7 @@ func isValidReadStallGcsRetriesConfig(rsrc *ReadStallGcsRetriesConfig) error {
 		return fmt.Errorf("invalid value of increaseRate: %f, can't be 0 or negative", rsrc.ReqIncreaseRate)
 	}
 	if rsrc.ReqTargetPercentile <= 0 || rsrc.ReqTargetPercentile >= 1 {
-		return fmt.Errorf("invalid value of targetPercentile: %f, should be greater than 0 and less than 1", rsrc.ReqTargetPercentile)
+		return fmt.Errorf("invalid value of targetPercentile: %f, should be in the range (0, 1)", rsrc.ReqTargetPercentile)
 	}
 	return nil
 }
