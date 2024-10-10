@@ -32,4 +32,4 @@ new param available in both the modes:
 1.  Add the name of flag with underscores in
     [mount_gcsfuse/main.go](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/tools/mount_gcsfuse/main.go)
 
-> NOTE: Flags marked as `experimental` or private are subject to change at any time and should be used with caution.
+> NOTE: Flags marked as `experimental` or `private` are subject to change at any time and should be used with caution.
