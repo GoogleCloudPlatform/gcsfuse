@@ -29,5 +29,3 @@ new param available in both the modes:
     [config_rationalization_test.go](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/cmd/config_rationalization_test.go)
     and
     [root_test.go](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/cmd/root_test.go)
-1.  Add the name of flag with underscores in
-    [mount_gcsfuse/main.go](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/tools/mount_gcsfuse/main.go)
