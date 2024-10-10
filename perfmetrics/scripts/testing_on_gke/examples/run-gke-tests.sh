@@ -41,11 +41,8 @@ function exitWithError()  { echoerror $@ ; exitWithFailure ; }
 
 # Default values, to be used for parameters in case user does not specify them.
 # GCP related
-readonly DEFAULT_PROJECT_ID="gcs-fuse-test"
-readonly DEFAULT_PROJECT_NUMBER=927584127901
 readonly DEFAULT_ZONE="us-west1-b"
 # GKE cluster related
-readonly DEFAULT_CLUSTER_NAME="${USER}-testing-us-west1-1"
 readonly DEFAULT_NODE_POOL=default-pool
 readonly DEFAULT_MACHINE_TYPE="n2-standard-96"
 readonly DEFAULT_NUM_NODES=8
@@ -74,11 +71,11 @@ function printHelp() {
   echo "ENV_OPTIONS (all are optional): "
   echo ""
   # GCP related
-  echo "project_id=<project-id default=\"${DEFAULT_PROJECT_ID}\">"
-  echo "project_number=<number default=\"${DEFAULT_PROJECT_NUMBER}\">"
+  echo "project_id=<project-id>"
+  echo "project_number=<number>"
   echo "zone=<region-zone default=\"${DEFAULT_ZONE}\">"
   # GKE cluster related
-  echo "cluster_name=<cluster-name default=\"${DEFAULT_CLUSTER_NAME}\">"
+  echo "cluster_name=<cluster-name>"
   echo "node_pool=<pool-name default=\"${DEFAULT_NODE_POOL}\">"
   echo "machine_type=<machine-type default=\"${DEFAULT_MACHINE_TYPE}\">"
   echo "num_nodes=<number from 1-8, default=\"${DEFAULT_NUM_NODES}\">"
@@ -95,6 +92,9 @@ function printHelp() {
   echo "instance_id=<string, not containing spaces, representing unique id for particular test-run e.g. \"${DEFAULT_INSTANCE_ID}\""
   echo "workload_config=<path/to/workload/configuration/file e.g. /a/b/c.json >"
   echo "output_dir=</absolute/path/to/output/dir, output files will be written at output_dir/fio/output.csv and output_dir/dlio/output.csv>"
+  echo "output_gsheet_id=<ID of a google-sheet i.e. <gsheet-id> in https://docs.google.com/spreadsheets/d/<gsheet-id>>"
+  echo "output_gsheet_keyfile=<local/GCS path of a service-account key-file to read/write output google sheet.>"
+  echo "force_update_gcsfuse_code=<true|false, to force-update the gcsfuse-code to given branch if gcsfuse_src_dir has been set. Default=\"${DEFAULT_FORCE_UPDATE_GCSFUSE_CODE}\">"
   echo ""
   echo ""
   echo ""
@@ -114,18 +114,18 @@ fi
 # GCP related
 if test -n "${project_id}"; then
   if test -z "${project_number}"; then
-    exitWithError "project_id was set, but not project_number. Either both should be specified, or neither."
+    exitWithError "project_id was set, but not project_number. Both are required."
   fi
 elif test -n "${project_number}"; then
-    exitWithError "project_number was set, but not project_id. Either both should be specified, or neither."
+    exitWithError "project_number was set, but not project_id. Both are required."
 else
-  export project_id=${DEFAULT_PROJECT_ID}
-  export project_number=${DEFAULT_PROJECT_NUMBER}
-  echo "Neither project_id, nor project_number were set, so defaulting to project_id=${DEFAULT_PROJECT_ID}, project_number=${DEFAULT_PROJECT_NUMBER}"
+    exitWithError "project_number and project_id have not been set, both are required."
 fi
 test -n "${zone}" || export zone=${DEFAULT_ZONE}
 # GKE cluster related
-test -n "${cluster_name}" || export cluster_name=${DEFAULT_CLUSTER_NAME}
+if test -z "${cluster_name}"; then
+  exitWithError "${cluster_name} has not been set."
+fi
 test -n "${node_pool}" || export node_pool=${DEFAULT_NODE_POOL}
 test -n "${machine_type}" || export machine_type=${DEFAULT_MACHINE_TYPE}
 test -n "${num_nodes}" || export num_nodes=${DEFAULT_NUM_NODES}
@@ -199,6 +199,14 @@ else
   export output_dir="${gke_testing_dir}"/examples
 fi
 
+# if output_gsheet_id is defined by this point,
+if test -n "${output_gsheet_id}"; then
+  # and output_gsheet_keyfile is not defined, then try the pre-defind keyfile at gs://gcsfuse-aiml-test-outputs/creds/${project_id}.json .
+  if test -z "${output_gsheet_keyfile}"; then
+    export output_gsheet_keyfile=gs://gcsfuse-aiml-test-outputs/creds/${project_id}.json
+  fi
+fi
+
 function printRunParameters() {
   echo "Running $0 with following parameters:"
   echo ""
@@ -226,6 +234,9 @@ function printRunParameters() {
   echo "instance_id=\"${instance_id}\""
   echo "workload_config=\"${workload_config}\""
   echo "output_dir=\"${output_dir}\""
+  echo "output_gsheet_id=\"${output_gsheet_id}\""
+  echo "output_gsheet_keyfile=\"${output_gsheet_keyfile}\""
+  echo "force_update_gcsfuse_code=\"${force_update_gcsfuse_code}\""
   echo ""
   echo ""
   echo ""
@@ -289,16 +300,11 @@ function installDependencies() {
     apt-cache policy docker-ce
     sudo apt install docker-ce -y
   fi
-  # Install mash, as it is needed for fetching cpu/memory values for test runs
-  # in cloudtop. Even if mash install fails, don't panic, go ahead and install
-  # google-cloud-monitoring as an alternative.
-  which mash || sudo apt-get install -y monarch-tools || true
-  # Ensure that gcloud monitoring tools are installed. This is alternative to
-  # mash on gce vm.
-  # pip install --upgrade google-cloud-storage
-  # pip install --ignore-installed --upgrade google-api-python-client
-  # pip install --ignore-installed --upgrade google-cloud
-  pip install --upgrade google-cloud-monitoring
+  # Ensure that gcloud monitoring tools are installed.
+  pip install --upgrade google-cloud-storage 1>/dev/null
+  pip install --ignore-installed --upgrade google-api-python-client 1>/dev/null
+  pip install --ignore-installed --upgrade google-cloud 1>/dev/null
+  pip install --upgrade google-cloud-monitoring 1>/dev/null
   # Ensure that jq is installed.
   which jq || sudo apt-get install -y jq
   # Ensure sudoless docker is installed.
@@ -618,10 +624,14 @@ function waitTillAllPodsComplete() {
     if [ ${num_completed_pods} -gt 0 ]; then
       printf ${num_completed_pods}" pod(s) have completed.\n"
     fi
-    num_noncompleted_pods=$(echo "${podslist}" | tail -n +2 | grep -i -v 'completed\|succeeded\|fail\|error' | wc -l)
+    num_noncompleted_pods=$(echo "${podslist}" | tail -n +2 | grep -i -v 'completed\|succeeded\|fail\|error\|unknown' | wc -l)
     num_failed_pods=$(echo "${podslist}" | tail -n +2 | grep -i 'failed' | wc -l)
     if [ ${num_failed_pods} -gt 0 ]; then
       printf ${num_failed_pods}" pod(s) have failed.\n\n"
+    fi
+    num_unknown_pods=$(echo "${podslist}" | tail -n +2 | grep -i 'unknown' | wc -l)
+    if [ ${num_unknown_pods} -gt 0 ]; then
+      printf ${num_unknown_pods}" pod(s) have status 'Unknown'.\n\n"
     fi
     if [ ${num_noncompleted_pods} -eq 0 ]; then
       printf "\nAll pods have completed.\n\n"
@@ -629,7 +639,7 @@ function waitTillAllPodsComplete() {
     else
       printf "\n${num_noncompleted_pods} pod(s) is/are still pending/running (time till timeout=${time_till_timeout} seconds). Will check again in "${pod_wait_time_in_seconds}" seconds. Sleeping for now.\n\n"
       printf "\nYou can take a break too if you want. Just kill this run and connect back to it later, for fetching and parsing outputs, using the following command: \n"
-      printf "   only_parse=true instance_id=${instance_id} project_id=${project_id} project_number=${project_number} zone=${zone} machine_type=${machine_type} use_custom_csi_driver=${use_custom_csi_driver} gcsfuse_src_dir=\"${gcsfuse_src_dir}\" csi_src_dir=\"${csi_src_dir}\" pod_wait_time_in_seconds=${pod_wait_time_in_seconds} pod_timeout_in_seconds=${pod_timeout_in_seconds} workload_config=\"${workload_config}\" cluster_name=${cluster_name} output_dir=\"${output_dir}\" $0 \n"
+      printf "   only_parse=true instance_id=${instance_id} project_id=${project_id} project_number=${project_number} zone=${zone} machine_type=${machine_type} use_custom_csi_driver=${use_custom_csi_driver} gcsfuse_src_dir=\"${gcsfuse_src_dir}\" csi_src_dir=\"${csi_src_dir}\" pod_wait_time_in_seconds=${pod_wait_time_in_seconds} pod_timeout_in_seconds=${pod_timeout_in_seconds} workload_config=\"${workload_config}\" cluster_name=${cluster_name} output_dir=\"${output_dir}\" output_gsheet_id=\"${output_gsheet_id}\" output_gsheet_keyfile=\"${output_gsheet_keyfile}\" $0 \n"
       printf "\nbut remember that this will reset the start-timer for pod timeout.\n\n"
       printf "\nTo ssh to any specific pod, use the following command: \n"
       printf "  gcloud container clusters get-credentials ${cluster_name} --location=${zone}\n"
@@ -651,14 +661,14 @@ function waitTillAllPodsComplete() {
 function fetchAndParseFioOutputs() {
   printf "\nFetching and parsing fio outputs ...\n\n"
   cd "${gke_testing_dir}"/examples/fio
-  python3 parse_logs.py --project-number=${project_number} --workload-config "${workload_config}" --instance-id ${instance_id} --output-file "${output_dir}"/fio/output.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace}
+  python3 parse_logs.py --project-number=${project_number} --workload-config "${workload_config}" --instance-id ${instance_id} --output-file "${output_dir}"/fio/output.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace} --output-gsheet-id=${output_gsheet_id} --output-worksheet-name=fio --output-gsheet-keyfile=${output_gsheet_keyfile}
   cd -
 }
 
 function fetchAndParseDlioOutputs() {
   printf "\nFetching and parsing dlio outputs ...\n\n"
   cd "${gke_testing_dir}"/examples/dlio
-  python3 parse_logs.py --project-number=${project_number} --workload-config "${workload_config}" --instance-id ${instance_id} --output-file "${output_dir}"/dlio/output.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace}
+  python3 parse_logs.py --project-number=${project_number} --workload-config "${workload_config}" --instance-id ${instance_id} --output-file "${output_dir}"/dlio/output.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace} --output-gsheet-id=${output_gsheet_id} --output-worksheet-name=dlio --output-gsheet-keyfile=${output_gsheet_keyfile}
   cd -
 }
 
