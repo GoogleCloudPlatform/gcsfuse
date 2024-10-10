@@ -177,9 +177,9 @@ func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config) 
 }
 
 func populateArgs(args []string) (
-	bucketName string,
-	mountPoint string,
-	err error) {
+		bucketName string,
+		mountPoint string,
+		err error) {
 	// Extract arguments.
 	switch len(args) {
 	case 1:
@@ -397,7 +397,9 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	_ = monitor.EnableOpenTelemetryCollectorExporter(newConfig.Monitoring.ExperimentalOpentelemetryCollectorAddress)
 	_ = monitor.EnablePrometheusCollectorExporter(int(newConfig.Metrics.PrometheusPort))
 	ctx := context.Background()
+	shutdownFns := make([]monitor.ShutdownFn, 0)
 	shutdownFn := monitor.SetupTracing(ctx, newConfig)
+	shutdownFns = append(shutdownFns, shutdownFn)
 
 	// Mount, writing information about our progress to the writer that package
 	// daemonize gives us and telling it about the outcome.
