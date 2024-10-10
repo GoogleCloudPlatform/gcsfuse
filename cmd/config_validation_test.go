@@ -307,6 +307,22 @@ func TestValidateConfigFile_InvalidConfigThrowsError(t *testing.T) {
 			name:       "small_max_blocks_per_file",
 			configFile: "testdata/write_config/invalid_write_config_due_to_small_max_blocks_per_file.yaml",
 		},
+		{
+			name:       "negative req_increase_rate",
+			configFile: "testdata/gcs_retries/read_stall/invalid_req_increase_rate_negative.yaml",
+		},
+		{
+			name:       "zero req_increase_rate",
+			configFile: "testdata/gcs_retries/read_stall/invalid_req_increase_rate_zero.yaml",
+		},
+		{
+			name:       "large req_target_percentile",
+			configFile: "testdata/gcs_retries/read_stall/invalid_req_target_percentile_large.yaml",
+		},
+		{
+			name:       "negative req_target_percentile",
+			configFile: "testdata/gcs_retries/read_stall/invalid_req_target_percentile_negative.yaml",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -666,6 +682,58 @@ func TestValidateConfigFile_MetadataCacheConfigSuccessful(t *testing.T) {
 
 			if assert.NoError(t, err) {
 				assert.EqualValues(t, tc.expectedConfig.MetadataCache, gotConfig.MetadataCache)
+			}
+		})
+	}
+}
+
+func TestValidateConfigFile_EnableReadReqStallConfigSuccessful(t *testing.T) {
+	testCases := []struct {
+		name           string
+		configFile     string
+		expectedConfig *cfg.Config
+	}{
+		{
+			// Test default values.
+			name:       "empty_config_file",
+			configFile: "testdata/empty_file.yaml",
+			expectedConfig: &cfg.Config{
+				GcsRetries: cfg.GcsRetriesConfig{
+					ReadStall: cfg.ReadStallGcsRetriesConfig{
+						Enable:              false,
+						MinReqTimeout:       500 * time.Millisecond,
+						MaxReqTimeout:       1200 * time.Second,
+						InitialReqTimeout:   20 * time.Second,
+						ReqTargetPercentile: 0.99,
+						ReqIncreaseRate:     15,
+					},
+				},
+			},
+		},
+		{
+			name:       "valid_config_file",
+			configFile: "testdata/valid_config.yaml",
+			expectedConfig: &cfg.Config{
+				GcsRetries: cfg.GcsRetriesConfig{
+					ReadStall: cfg.ReadStallGcsRetriesConfig{
+						Enable:              true,
+						MinReqTimeout:       4 * time.Second,
+						MaxReqTimeout:       20 * time.Second,
+						InitialReqTimeout:   20 * time.Second,
+						ReqTargetPercentile: 0.99,
+						ReqIncreaseRate:     15,
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
+
+			if assert.NoError(t, err) {
+				assert.EqualValues(t, tc.expectedConfig.GcsRetries.ReadStall, gotConfig.GcsRetries.ReadStall)
 			}
 		})
 	}

@@ -32,6 +32,14 @@ gcs-connection:
   max-conns-per-host: 400
   max-idle-conns-per-host: 20
   sequential-read-size-mb: 450
+gcs-retries:
+  read-stall:
+    enable: true
+    min-req-timeout: 10s
+    max-req-timeout: 200s
+    initial-req-timeout: 20s
+    req-increase-rate: 15
+    req-target-percentile: 0.99
 file-system:
   dir-mode: 0777
   disable-parallel-dirops: true
