@@ -261,6 +261,70 @@ func TestValidateConfig_ErrorScenarios(t *testing.T) {
 				FileSystem: FileSystemConfig{KernelListCacheTtlSecs: 88888888888888888},
 			},
 		},
+		{
+			name: "read_stall_req_increase_rate_negative",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+				GcsRetries: GcsRetriesConfig{
+					ReadStall: ReadStallGcsRetriesConfig{
+						Enable:          true,
+						ReqIncreaseRate: -1,
+					},
+				},
+			},
+		},
+		{
+			name: "read_stall_req_increase_rate_zero",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+				GcsRetries: GcsRetriesConfig{
+					ReadStall: ReadStallGcsRetriesConfig{
+						Enable:          true,
+						ReqIncreaseRate: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "read_stall_req_target_percentile_large",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+				GcsRetries: GcsRetriesConfig{
+					ReadStall: ReadStallGcsRetriesConfig{
+						Enable:              true,
+						ReqTargetPercentile: 4,
+					},
+				},
+			},
+		},
+		{
+			name: "read_stall_req_target_percentile_negative",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+				GcsRetries: GcsRetriesConfig{
+					ReadStall: ReadStallGcsRetriesConfig{
+						Enable:              true,
+						ReqTargetPercentile: -3,
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
