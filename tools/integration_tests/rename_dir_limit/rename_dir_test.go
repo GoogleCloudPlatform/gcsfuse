@@ -174,7 +174,7 @@ func TestRenameDirectoryWithExistingEmptyDestDirectory(t *testing.T) {
 	// testBucket/dirForRenameDirLimitTests/RenamedDirectory/NonEmptySubDirectory/temp3.txt   		 -- File
 	oldDirPath := path.Join(testDir, SrcDirectory)
 	subDirPath := path.Join(oldDirPath, NonEmptySubDirectory)
-	operations.CreateDirectoryWithNFiles(2, oldDirPath, PrefixTempFile, t)
+	operations.CreateDirectoryWithNFiles(1, oldDirPath, PrefixTempFile, t)
 	operations.CreateDirectoryWithNFiles(1, subDirPath, PrefixTempFile, t)
 	newDirPath := path.Join(testDir, EmptyDestDirectory)
 	operations.CreateDirectory(newDirPath, t)
