@@ -31,7 +31,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/canned"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/monitor"
@@ -42,7 +41,6 @@ import (
 	"github.com/jacobsa/daemonize"
 	"github.com/jacobsa/fuse"
 	"github.com/kardianos/osext"
-	"github.com/urfave/cli"
 	"golang.org/x/net/context"
 )
 
@@ -235,33 +233,6 @@ func callListRecursive(mountPoint string) (err error) {
 
 func isDynamicMount(bucketName string) bool {
 	return bucketName == "" || bucketName == "_"
-}
-
-func runCLIApp(c *cli.Context) (err error) {
-	err = resolvePathForTheFlagsInContext(c)
-	if err != nil {
-		return fmt.Errorf("resolving path: %w", err)
-	}
-
-	flags, err := populateFlags(c)
-	if err != nil {
-		return fmt.Errorf("parsing flags failed: %w", err)
-	}
-
-	mountConfig, err := config.ParseConfigFile(flags.ConfigFile)
-	if err != nil {
-		return fmt.Errorf("parsing config file failed: %w", err)
-	}
-
-	newConfig, err := PopulateNewConfigFromLegacyFlagsAndConfig(c, flags, mountConfig)
-	if err != nil {
-		return fmt.Errorf("error resolving flags and configs: %w", err)
-	}
-	var bucketName, mountPoint string
-	if bucketName, mountPoint, err = populateArgs(c.Args()); err != nil {
-		return err
-	}
-	return Mount(newConfig, bucketName, mountPoint)
 }
 
 func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
@@ -472,31 +443,4 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	}
 
 	return
-}
-
-func run() (err error) {
-	// Set up the app.
-	app := newApp()
-
-	var appErr error
-	app.Action = func(c *cli.Context) {
-		appErr = runCLIApp(c)
-	}
-
-	// Run it.
-	err = app.Run(os.Args)
-	if err != nil {
-		return
-	}
-
-	err = appErr
-	return
-}
-
-var ExecuteLegacyMain = func() {
-	err := run()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
 }

@@ -22,7 +22,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
@@ -95,7 +94,7 @@ func (p DirentSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 // This poses a challenge for writing unit tests for includeFoldersAsPrefixes.
 
 func (t *DirTest) resetInode(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing bool) {
-	t.resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing, config.DefaultTypeCacheMaxSizeMB, typeCacheTTL)
+	t.resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing, 4, typeCacheTTL)
 }
 
 func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing bool, typeCacheMaxSizeMB int64, typeCacheTTL time.Duration) {
@@ -146,7 +145,7 @@ func (t *DirTest) createDirInode(dirInodeName string) DirInode {
 		&t.bucket,
 		&t.clock,
 		&t.clock,
-		config.DefaultTypeCacheMaxSizeMB,
+		4,
 		false,
 	)
 }
@@ -680,7 +679,7 @@ func (t *DirTest) LookUpChild_TypeCacheEnabled() {
 		typeCacheMaxSizeMB int64
 		typeCacheTTL       time.Duration
 	}{{
-		typeCacheMaxSizeMB: config.DefaultTypeCacheMaxSizeMB,
+		typeCacheMaxSizeMB: 4,
 		typeCacheTTL:       time.Second,
 	}, {
 		typeCacheMaxSizeMB: -1,
@@ -716,7 +715,7 @@ func (t *DirTest) LookUpChild_TypeCacheDisabled() {
 		typeCacheMaxSizeMB: 0,
 		typeCacheTTL:       time.Second,
 	}, {
-		typeCacheMaxSizeMB: config.DefaultTypeCacheMaxSizeMB,
+		typeCacheMaxSizeMB: 4,
 		typeCacheTTL:       0,
 	}}
 

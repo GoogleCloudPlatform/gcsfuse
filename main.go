@@ -21,8 +21,6 @@ package main
 
 import (
 	"log"
-	"os"
-	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cmd"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
@@ -50,27 +48,6 @@ func main() {
 	// Set up profiling handlers.
 	go perf.HandleCPUProfileSignals()
 	go perf.HandleMemoryProfileSignals()
-
-	// TODO: Clean this up after we gain enough confidence on CLI-Config Parity changes.
-	disableViperConfigFlag := "disable-viper-config"
-	var newOsArgs []string
-	for _, arg := range os.Args {
-		if arg == "-"+disableViperConfigFlag || arg == "--"+disableViperConfigFlag || arg == "-"+disableViperConfigFlag+"=true" || arg == "--"+disableViperConfigFlag+"=true" {
-			err := os.Setenv(cmd.EnableViperConfigEnvVariable, "false")
-			if err != nil {
-				logger.Infof("error while setting "+cmd.EnableViperConfigEnvVariable+" environment variable: %v", err)
-			}
-		}
-		if !strings.Contains(arg, disableViperConfigFlag) {
-			newOsArgs = append(newOsArgs, arg)
-		}
-	}
-	os.Args = newOsArgs
-
-	if strings.ToLower(os.Getenv(cmd.EnableViperConfigEnvVariable)) == "false" {
-		cmd.ExecuteLegacyMain()
-		return
-	}
 
 	cmd.ExecuteNewMain()
 }
