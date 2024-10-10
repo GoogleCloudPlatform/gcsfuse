@@ -104,11 +104,11 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 	return rootCmd, nil
 }
 
-// ConvertToPosixArgs converts a slice of commandline args and transforms them
+// convertToPosixArgs converts a slice of commandline args and transforms them
 // into POSIX compliant args. All it does is that it converts flags specified
 // using a single-hyphen to double-hyphens. We are excluding "-v" because it's
 // reserved for showing version in Cobra.
-func ConvertToPosixArgs(args []string, c *cobra.Command) []string {
+func convertToPosixArgs(args []string, c *cobra.Command) []string {
 	pArgs := make([]string, 0, len(args))
 	flagSet := make(map[string]bool)
 	c.PersistentFlags().VisitAll(func(f *pflag.Flag) {
@@ -146,12 +146,12 @@ func ConvertToPosixArgs(args []string, c *cobra.Command) []string {
 	return pArgs
 }
 
-var ExecuteNewMain = func() {
+var ExecuteMountCmd = func() {
 	rootCmd, err := NewRootCmd(Mount)
 	if err != nil {
 		log.Fatalf("Error occurred while creating the root command: %v", err)
 	}
-	rootCmd.SetArgs(ConvertToPosixArgs(os.Args, rootCmd))
+	rootCmd.SetArgs(convertToPosixArgs(os.Args, rootCmd))
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatalf("Error occurred during command execution: %v", err)
 	}
