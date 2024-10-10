@@ -22,7 +22,7 @@
 # It installs all the necessary dependencies on its own.
 # It creates a GKE cluster and other GCP resources (as needed), based on a number of configuration parameters e.g. gcp-project-name/number, cluster-name, zone (for resource location), machine-type (of node), number of local SSDs.
 # It creates fio/dlio tests as helm charts, based on the provided JSON workload configuration file and deploys them on the GKE cluster.
-# A sample workload-configuration file is available at https://github.com/GoogleCloudPlatform/gcsfuse/blob/b2286ec3466dd285b2d5ea3be8636a809efbfb1b/perfmetrics/scripts/testing_on_gke/examples/workloads.json#L2 .
+# A sample workload-configuration file is available at https://github.com/GoogleCloudPlatform/gcsfuse/blob/garnitin/add-gke-load-testing/v1/perfmetrics/scripts/testing_on_gke/examples/workloads.json .
 
 # Fail script if any of the commands fail.
 set -e
@@ -36,6 +36,8 @@ fi
 # Utilities
 function exitWithSuccess() { exit 0; }
 function exitWithFailure() { exit 1; }
+function echoerror()  { >&2 echo "Error: "$@; }
+function exitWithError()  { echoerror $@ ; exitWithFailure ; }
 
 # Default values, to be used for parameters in case user does not specify them.
 # GCP related
@@ -50,19 +52,20 @@ readonly DEFAULT_NUM_NODES=8
 readonly DEFAULT_NUM_SSD=16
 readonly DEFAULT_APPNAMESPACE=default
 readonly DEFAULT_KSA=default
-readonly DEFAULT_USE_CUSTOM_CSI_DRIVER=false
+readonly DEFAULT_USE_CUSTOM_CSI_DRIVER=true
 # GCSFuse/GKE GCSFuse CSI Driver source code related
 readonly DEFAULT_SRC_DIR="$(realpath .)/src"
 readonly csi_driver_github_path=https://github.com/googlecloudplatform/gcs-fuse-csi-driver
 readonly csi_driver_branch=main
 readonly gcsfuse_github_path=https://github.com/googlecloudplatform/gcsfuse
-readonly gcsfuse_branch=garnitin/add-gke-load-testing/v1
+readonly DEFAULT_GCSFUSE_BRANCH=garnitin/add-gke-load-testing/v1
 # Test runtime configuration
 readonly DEFAULT_INSTANCE_ID=${USER}-$(date +%Y%m%d-%H%M%S)
 # 5 minutes
 readonly DEFAULT_POD_WAIT_TIME_IN_SECONDS=300
 # 1 week
 readonly DEFAULT_POD_TIMEOUT_IN_SECONDS=604800
+readonly DEFAULT_FORCE_UPDATE_GCSFUSE_CODE=false
 
 function printHelp() {
   echo "Usage guide: "
@@ -82,7 +85,8 @@ function printHelp() {
   echo "num_ssd=<number from 0-16, default=\"${DEFAULT_NUM_SSD}\">"
   echo "use_custom_csi_driver=<true|false, true means build and use a new custom csi driver using gcsfuse code, default=\"${DEFAULT_USE_CUSTOM_CSI_DRIVER}\">"
   # GCSFuse/GKE GCSFuse CSI Driver source code related
-  echo "src_dir=<\"directory/to/clone/github/repos/if/needed\", default=\"${DEFAULT_SRC_DIR}\">"
+  echo "src_dir=<\"directory/to/clone/github/repos/if/needed\", used for locally cloning in case gcsfuse_src_dir or csi_src_dir are not passed, default=\"${DEFAULT_SRC_DIR}\">"
+  echo "gcsfuse_branch=<name-of-gcsfuse-branch-for-cloning>, used for locally cloning, in case gcsfuse_src_dir has not been passed, default=\"${DEFAULT_GCSFUSE_BRANCH}\">"
   echo "gcsfuse_src_dir=<\"/path/of/gcsfuse/src/to/use/if/available\", default=\"${DEFAULT_SRC_DIR}/gcsfuse\">"
   echo "csi_src_dir=<\"/path/of/gcs-fuse-csi-driver/to/use/if/available\", default=\"${DEFAULT_SRC_DIR}\"/gcs-fuse-csi-driver>"
   # Test runtime configuration
@@ -97,7 +101,7 @@ function printHelp() {
   echo "ARGS (all are optional) : "
   echo ""
   echo "--debug     Print out shell commands for debugging. Aliases: -debug "
-  echo "--help      Print out this help. Aliases: help , -help , -h , --h"
+  echo "--help      Print out this help. Aliases: -help, -h"
 }
 
 # Print out help if user passes argument `--help`
@@ -108,8 +112,17 @@ fi
 
 # Set environment variables.
 # GCP related
-test -n "${project_id}" || export project_id=${DEFAULT_PROJECT_ID}
-test -n "${project_number}" || export project_number=${DEFAULT_PROJECT_NUMBER}
+if test -n "${project_id}"; then
+  if test -z "${project_number}"; then
+    exitWithError "project_id was set, but not project_number. Either both should be specified, or neither."
+  fi
+elif test -n "${project_number}"; then
+    exitWithError "project_number was set, but not project_id. Either both should be specified, or neither."
+else
+  export project_id=${DEFAULT_PROJECT_ID}
+  export project_number=${DEFAULT_PROJECT_NUMBER}
+  echo "Neither project_id, nor project_number were set, so defaulting to project_id=${DEFAULT_PROJECT_ID}, project_number=${DEFAULT_PROJECT_NUMBER}"
+fi
 test -n "${zone}" || export zone=${DEFAULT_ZONE}
 # GKE cluster related
 test -n "${cluster_name}" || export cluster_name=${DEFAULT_CLUSTER_NAME}
@@ -122,34 +135,66 @@ export appnamespace=${DEFAULT_APPNAMESPACE}
 # test -n "${ksa}" ||
 export ksa=${DEFAULT_KSA}
 test -n "${use_custom_csi_driver}" || export use_custom_csi_driver="${DEFAULT_USE_CUSTOM_CSI_DRIVER}"
+test -n "${gcsfuse_branch}" || export gcsfuse_branch="${DEFAULT_GCSFUSE_BRANCH}"
+
 # GCSFuse/GKE GCSFuse CSI Driver source code related
-(test -n "${src_dir}" && src_dir="$(realpath "${src_dir}")") || export src_dir=${DEFAULT_SRC_DIR}
-test -d "${src_dir}" || mkdir -pv "${src_dir}"
-(test -n "${gcsfuse_src_dir}" && gcsfuse_src_dir="$(realpath "${gcsfuse_src_dir}")") || export gcsfuse_src_dir="${src_dir}"/gcsfuse
+if test -n "${src_dir}"; then
+  if ! test -d "${src_dir}"; then
+    exitWithError "src_dir \"${src_dir}\" does not exist"
+  fi
+  export src_dir="$(realpath "${src_dir}")"
+else
+  export src_dir=${DEFAULT_SRC_DIR}
+  mkdir -pv "${src_dir}"
+fi
+
+if test -n "${gcsfuse_src_dir}"; then
+  if ! test -d "${gcsfuse_src_dir}"; then
+    exitWithError "gcsfuse_src_dir \"${gcsfuse_src_dir}\" does not exist"
+  fi
+  export gcsfuse_src_dir="$(realpath "${gcsfuse_src_dir}")"
+else
+  export gcsfuse_src_dir="${src_dir}"/gcsfuse
+fi
+
+if test -z "${force_update_gcsfuse_code}"; then
+  export force_update_gcsfuse_code=${DEFAULT_FORCE_UPDATE_GCSFUSE_CODE}
+fi
+
 export gke_testing_dir="${gcsfuse_src_dir}"/perfmetrics/scripts/testing_on_gke
-(test -n "${csi_src_dir}" && csi_src_dir="$(realpath "${csi_src_dir}")") || export csi_src_dir="${src_dir}"/gcs-fuse-csi-driver
-# GCSFuse configuration related - deprecated. Will cause error.
-test -z "${gcsfuse_mount_options}" || (echo "gcsfuse_mount_options set by user is a deprecated option. Please set gcsfuseMountOptions in workload objects in workload configuration file in its place." && exit 1)
+
+if test -n "${csi_src_dir}"; then
+  if ! test -d "${csi_src_dir}"; then
+    exitWithError "csi_src_dir \"${csi_src_dir}\" does not exist"
+  fi
+  export csi_src_dir="$(realpath "${csi_src_dir}")"
+else
+  export csi_src_dir="${src_dir}"/gcs-fuse-csi-driver
+fi
+
 # Test runtime configuration
 test -n "${pod_wait_time_in_seconds}" || export pod_wait_time_in_seconds="${DEFAULT_POD_WAIT_TIME_IN_SECONDS}"
 test -n "${pod_timeout_in_seconds}" || export pod_timeout_in_seconds="${DEFAULT_POD_TIMEOUT_IN_SECONDS}"
 test -n "${instance_id}" || export instance_id="${DEFAULT_INSTANCE_ID}"
 
 if [[ ${pod_timeout_in_seconds} -le ${pod_wait_time_in_seconds} ]]; then
-  echo "pod_timeout_in_seconds (${pod_timeout_in_seconds}) <= pod_wait_time_in_seconds (${pod_wait_time_in_seconds})"
-  exitWithFailure
+  exitWithError "pod_timeout_in_seconds (${pod_timeout_in_seconds}) <= pod_wait_time_in_seconds (${pod_wait_time_in_seconds})"
 fi
 
 if test -n "${workload_config}"; then
-  workload_config="$(realpath "${workload_config}")"
-  test -f "${workload_config}"
+  if ! test -f "${workload_config}"; then
+    exitWithError "workload_config \"${workload_config}\" does not exist"
+  fi
+  export workload_config="$(realpath "${workload_config}")"
 else
     export workload_config="${gke_testing_dir}"/examples/workloads.json
 fi
 
 if test -n "${output_dir}"; then
-  output_dir="$(realpath "${output_dir}")"
-  test -d "${output_dir}"
+  if ! test -d "${output_dir}"; then
+    exitWithError "output_dir \"${output_dir}\" does not exist"
+  fi
+  export output_dir="$(realpath "${output_dir}")"
 else
   export output_dir="${gke_testing_dir}"/examples
 fi
@@ -174,6 +219,7 @@ function printRunParameters() {
   echo "src_dir=\"${src_dir}\""
   echo "gcsfuse_src_dir=\"${gcsfuse_src_dir}\""
   echo "csi_src_dir=\"${csi_src_dir}\""
+  echo "gke_testing_dir=\"${gke_testing_dir}\""
   # Test runtime configuration
   echo "pod_wait_time_in_seconds=\"${pod_wait_time_in_seconds}\""
   echo "pod_timeout_in_seconds=\"${pod_timeout_in_seconds}\""
@@ -255,16 +301,23 @@ function installDependencies() {
   pip install --upgrade google-cloud-monitoring
   # Ensure that jq is installed.
   which jq || sudo apt-get install -y jq
-  # # Ensure sudoless docker is installed.
-  # docker ps >/dev/null || (sudo addgroup docker && sudo usermod -aG docker $USER && newgrp docker)
+  # Ensure sudoless docker is installed.
+  if ! docker ps 1>/dev/null ; then
+    echoerror "sudoless docker is not installed on this machine ($(hostname)). Please install sudoless-docker using the following commands and re-run this script ($0)"
+    echoerror "sudo addgroup docker && sudo usermod -aG docker $USER && newgrp docker"
+    return 1
+  fi
+  # Install python modules for gsheet.
+  python3 -m pip install google-api-python-client
 }
 
 # Make sure you have access to the necessary GCP resources. The easiest way to enable it is to use <your-ldap>@google.com as active auth.
 function ensureGcpAuthsAndConfig() {
-  if ! $(gcloud auth list | grep -q ${USER}); then
-    gcloud auth application-default login --no-launch-browser && (gcloud auth list | grep -q ${USER})
-  fi
-  gcloud config set project ${project_id} && gcloud config list
+  # gcloud auth application-default login --no-launch-browser
+  gcloud auth list
+  # grep -q ${USER}
+  gcloud config set project ${project_id}
+  gcloud config list
 }
 
 # Verify that the passed machine configuration parameters (machine-type, num-nodes, num-ssd) are compatible.
@@ -285,19 +338,19 @@ function validateMachineConfig() {
   case "${machine_type}" in
   "n2-standard-96")
     if [ ${num_ssd} -ne 0 -a ${num_ssd} -ne 16 -a ${num_ssd} -ne 24 ]; then
-      echo "Unsupported num-ssd "${num_ssd}" with given machine-type "${machine_type}". It should be 0, 16 or 24"
+      echoerror "Unsupported num-ssd "${num_ssd}" with given machine-type "${machine_type}". It should be 0, 16 or 24"
       return 1
     fi
     ;;
   "n2-standard-48")
     if [ ${num_ssd} -ne 0 -a ${num_ssd} -ne 8 -a ${num_ssd} -ne 16 -a ${num_ssd} -ne 24 ]; then
-      echo "Unsupported num-ssd "${num_ssd}" with given machine-type "${machine_type}". It should be 0, 8, 16 or 24"
+      echoerror "Unsupported num-ssd "${num_ssd}" with given machine-type "${machine_type}". It should be 0, 8, 16 or 24"
       return 1
     fi
     ;;
   "n2-standard-32")
     if [ ${num_ssd} -ne 0 -a ${num_ssd} -ne 4 -a ${num_ssd} -ne 8 -a ${num_ssd} -ne 16 -a ${num_ssd} -ne 24 ]; then
-      echo "Unsupported num-ssd "${num_ssd}" with given machine-type "${machine_type}". It should be 0, 4, 8, 16 or 24"
+      echoerror "Unsupported num-ssd "${num_ssd}" with given machine-type "${machine_type}". It should be 0, 4, 8, 16 or 24"
       return 1
     fi
     ;;
@@ -311,7 +364,7 @@ function doesNodePoolExist() {
   local cluster_name=${1}
   local zone=${2}
   local node_pool=${3}
-  gcloud container node-pools list --cluster=${cluster_name} --zone=${zone} | grep -owq ${node_pool}
+  gcloud container node-pools list --project=${project_id} --cluster=${cluster_name} --zone=${zone} | grep -owq ${node_pool}
 }
 
 function deleteExistingNodePool() {
@@ -319,7 +372,7 @@ function deleteExistingNodePool() {
   local zone=${2}
   local node_pool=${3}
   if doesNodePoolExist ${cluster_name} ${zone} ${node_pool}; then
-    gcloud -q container node-pools delete ${node_pool} --cluster ${cluster_name} --zone ${zone}
+    gcloud -q container node-pools delete ${node_pool} --project=${project_id} --cluster ${cluster_name} --zone ${zone}
   fi
 }
 
@@ -329,7 +382,7 @@ function resizeExistingNodePool() {
   local node_pool=${3}
   local num_nodes=${4}
   if doesNodePoolExist ${cluster_name} ${zone} ${node_pool}; then
-    gcloud -q container clusters resize ${cluster_name} --node-pool=${node_pool} --num-nodes=${num_nodes} --zone ${zone}
+    gcloud -q container clusters resize ${cluster_name} --project=${project_id} --node-pool=${node_pool} --num-nodes=${num_nodes} --zone ${zone}
   fi
 }
 
@@ -340,39 +393,47 @@ function createNewNodePool() {
   local machine_type=${4}
   local num_nodes=${5}
   local num_ssd=${6}
-  gcloud container node-pools create ${node_pool} --cluster ${cluster_name} --ephemeral-storage-local-ssd count=${num_ssd} --network-performance-configs=total-egress-bandwidth-tier=TIER_1 --machine-type ${machine_type} --zone ${zone} --num-nodes ${num_nodes} --workload-metadata=GKE_METADATA
+  gcloud container node-pools create ${node_pool} --project=${project_id} --cluster ${cluster_name} --ephemeral-storage-local-ssd count=${num_ssd} --network-performance-configs=total-egress-bandwidth-tier=TIER_1 --machine-type ${machine_type} --zone ${zone} --num-nodes ${num_nodes} --workload-metadata=GKE_METADATA
 }
 
 function getMachineTypeInNodePool() {
   local cluster=${1}
   local node_pool=${2}
-  gcloud container node-pools describe --cluster=${cluster_name} ${node_pool} | grep -w 'machineType' | tr -s '\t' ' ' | rev | cut -d' ' -f1 | rev
+  local zone=${3}
+  gcloud container node-pools describe --project=${project_id} --cluster=${cluster_name} ${node_pool} --zone=${zone} | grep -w 'machineType' | tr -s '\t' ' ' | rev | cut -d' ' -f1 | rev
 }
 
 function getNumNodesInNodePool() {
   local cluster=${1}
   local node_pool=${2}
-  gcloud container node-pools describe --cluster=${cluster_name} ${node_pool} | grep -w 'initialNodeCount' | tr -s '\t' ' ' | rev | cut -d' ' -f1 | rev
+  local zone=${3}
+  gcloud container node-pools describe --project=${project_id} --cluster=${cluster_name} ${node_pool} --zone=${zone} | grep -w 'initialNodeCount' | tr -s '\t' ' ' | rev | cut -d' ' -f1 | rev
 }
 
 function getNumLocalSSDsPerNodeInNodePool() {
   local cluster=${1}
   local node_pool=${2}
-  gcloud container node-pools describe --cluster=${cluster_name} ${node_pool} | grep -w 'localSsdCount' | tr -s '\t' ' ' | rev | cut -d' ' -f1 | rev
+  local zone=${3}
+  gcloud container node-pools describe --project=${project_id} --cluster=${cluster_name} ${node_pool} --zone=${zone} | grep -w 'localSsdCount' | tr -s '\t' ' ' | rev | cut -d' ' -f1 | rev
 }
 
 function doesClusterExist() {
   local cluster_name=${1}
-  gcloud container clusters list | grep -woq ${cluster_name}
+  gcloud container clusters list --project=${project_id} | grep -woq ${cluster_name}
 }
 
 # Create and set up (or reconfigure) a GKE cluster.
 function ensureGkeCluster() {
   echo "Creating/updating cluster ${cluster_name} ..."
   if doesClusterExist ${cluster_name}; then
-    gcloud container clusters update ${cluster_name} --location=${zone} --workload-pool=${project_id}.svc.id.goog
+    existing_machine_type=$(getMachineTypeInNodePool ${cluster_name} ${node_pool} ${zone})
+    if [ "${existing_machine_type}" != "${machine_type}" ] ; then
+      echo "Internally changing machine-type from ${machine_type} to ${existing_machine_type} ..."
+      machine_type=${existing_machine_type}
+    fi
+    gcloud container clusters update ${cluster_name} --project=${project_id} --location=${zone} --workload-pool=${project_id}.svc.id.goog
   else
-    gcloud container --project "${project_id}" clusters create ${cluster_name} --zone "${zone}" --workload-pool=${project_id}.svc.id.goog --machine-type "${machine_type}" --image-type "COS_CONTAINERD" --num-nodes ${num_nodes} --ephemeral-storage-local-ssd count=${num_ssd}
+    gcloud container clusters create ${cluster_name} --project=${project_id} --zone "${zone}" --workload-pool=${project_id}.svc.id.goog --machine-type "${machine_type}" --image-type "COS_CONTAINERD" --num-nodes ${num_nodes} --ephemeral-storage-local-ssd count=${num_ssd}
   fi
 }
 
@@ -384,9 +445,9 @@ function ensureRequiredNodePoolConfiguration() {
 
   if doesNodePoolExist ${cluster_name} ${zone} ${node_pool}; then
 
-    existing_machine_type=$(getMachineTypeInNodePool ${cluster_name} ${node_pool}})
-    num_existing_localssd_per_node=$(getNumLocalSSDsPerNodeInNodePool ${cluster_name} ${node_pool})
-    num_existing_nodes=$(getNumNodesInNodePool ${cluster_name} ${node_pool})
+    existing_machine_type=$(getMachineTypeInNodePool ${cluster_name} ${node_pool} ${zone})
+    num_existing_localssd_per_node=$(getNumLocalSSDsPerNodeInNodePool ${cluster_name} ${node_pool} ${zone})
+    num_existing_nodes=$(getNumNodesInNodePool ${cluster_name} ${node_pool} ${zone})
 
     if [ "${existing_machine_type}" != "${machine_type}" ]; then
       echo "cluster "${node_pool}" exists, but machine-type differs, so deleting and re-creating the node-pool."
@@ -407,25 +468,28 @@ function ensureRequiredNodePoolConfiguration() {
 
 function enableManagedCsiDriverIfNeeded() {
   if ${use_custom_csi_driver}; then
-    echo "Disabling csi add-on ..."
+    printf "\nDisabling csi add-on ...\n\n"
     gcloud -q container clusters update ${cluster_name} \
+    --project=${project_id} \
     --update-addons GcsFuseCsiDriver=DISABLED \
     --location=${zone}
   else
-    echo "Enabling csi add-on ..."
+    printf "\nEnabling csi add-on ...\n\n"
     gcloud -q container clusters update ${cluster_name} \
+      --project=${project_id} \
       --update-addons GcsFuseCsiDriver=ENABLED \
       --location=${zone}
   fi
 }
 
 function activateCluster() {
-  echo "Configuring cluster credentials ..."
-  gcloud container clusters get-credentials ${cluster_name} --location=${zone}
+  printf "\nConfiguring cluster credentials ...\n\n"
+  gcloud container clusters get-credentials ${cluster_name} --project=${project_id} --location=${zone}
   kubectl config current-context
 }
 
 function createKubernetesServiceAccountForCluster() {
+  printf "\nCreating namespace and KSA ...\n\n"
   log="$(kubectl create namespace ${appnamespace} 2>&1)" || [[ "$log" == *"already exists"* ]]
   log="$(kubectl create serviceaccount ${ksa} --namespace ${appnamespace} 2>&1)" || [[ "$log" == *"already exists"* ]]
   kubectl config set-context --current --namespace=${appnamespace}
@@ -434,17 +498,19 @@ function createKubernetesServiceAccountForCluster() {
 }
 
 function ensureGcsfuseCode() {
-  echo "Ensuring we have gcsfuse code ..."
+  printf "\nEnsuring we have gcsfuse code ...\n\n\n"
   # clone gcsfuse code if needed
   if ! test -d "${gcsfuse_src_dir}"; then
     cd $(dirname "${gcsfuse_src_dir}") && git clone ${gcsfuse_github_path} && cd "${gcsfuse_src_dir}" && git switch ${gcsfuse_branch} && cd - && cd -
+  elif ${force_update_gcsfuse_code}; then
+    cd ${gcsfuse_src_dir} && git fetch --all && git reset --hard origin/${gcsfuse_branch} && cd -
   fi
 
-  test -d "${gke_testing_dir}" || (echo "${gke_testing_dir} does not exist" && exit 1)
+  test -d "${gke_testing_dir}" || (exitWithError "${gke_testing_dir} does not exist" )
 }
 
 function ensureGcsFuseCsiDriverCode() {
-  echo "Ensuring we have gcs-fuse-csi-driver code ..."
+  printf "\nEnsuring we have gcs-fuse-csi-driver code ...\n\n"
   # clone csi-driver code if needed
   if ! test -d "${csi_src_dir}"; then
     cd $(dirname "${csi_src_dir}") && git clone ${csi_driver_github_path} && cd "${csi_src_dir}" && git switch ${csi_driver_branch} && cd - && cd -
@@ -454,18 +520,29 @@ function ensureGcsFuseCsiDriverCode() {
 function createCustomCsiDriverIfNeeded() {
   if ${use_custom_csi_driver}; then
     echo "Disabling managed CSI driver ..."
-    gcloud -q container clusters update ${cluster_name} --update-addons GcsFuseCsiDriver=DISABLED --location=${zone}
+    gcloud -q container clusters update ${cluster_name} --project=${project_id} --update-addons GcsFuseCsiDriver=DISABLED --location=${zone}
 
-    echo "Building custom CSI driver ..."
+    printf "\nCreating a new custom CSI driver ...\n\n"
 
-    # Create a bucket for storing custom-csi driver.
-    test -n "${package_bucket}" || export package_bucket=${USER/google/}-gcsfuse-binary-package
-    (gcloud storage buckets list | grep -wqo ${package_bucket}) || (region=$(echo ${zone} | rev | cut -d- -f2- | rev) && gcloud storage buckets create gs://${package_bucket} --location=${region})
+    # Create a bucket (if needed) for storing GCSFuse binaries.
+    if test -z "${package_bucket}"; then
+      package_bucket=${project_id}-${cluster_name}-gcsfuse-bin
+      package_bucket=${package_bucket/google/}
+    fi
+    if [[ ${#package_bucket} -gt 63 ]] ; then
+      echoerror "package_bucket \"${package_bucket}\" is too long (should be <= 63)"
+      return 1
+    fi
+    # If package_bucket does not already exist, create it.
+    if (! (gcloud storage buckets list --project=${project_id} | grep -wqo ${package_bucket}) ); then
+      region=$(echo ${zone} | rev | cut -d- -f2- | rev)
+      gcloud storage buckets create gs://${package_bucket} --project=${project_id} --location=${region}
+    fi
 
-    # Build a new gcsfuse binary
+    # Build new gcsfuse binaries.
+    printf "\nBuilding a new GCSFuse binary from ${gcsfuse_src_dir} ...\n\n"
     cd "${gcsfuse_src_dir}"
     rm -rfv ./bin ./sbin
-    go mod vendor
     GOOS=linux GOARCH=amd64 go run tools/build_gcsfuse/main.go . . v3
     # Copy the binary to a GCS bucket for csi driver build.
     gcloud storage -q cp ./bin/gcsfuse gs://${package_bucket}/linux/amd64/
@@ -474,59 +551,51 @@ function createCustomCsiDriverIfNeeded() {
     rm -rfv "${gcsfuse_src_dir}"/bin "${gcsfuse_src_dir}"/sbin
     cd -
 
-    echo "Installing custom CSI driver ..."
     # Build and install csi driver
     ensureGcsFuseCsiDriverCode
     cd "${csi_src_dir}"
     make uninstall || true
     make generate-spec-yaml
     printf "\nBuilding a new custom CSI driver using the above GCSFuse binary ...\n\n"
-    make build-image-and-push-multi-arch REGISTRY=gcr.io/${project_id}/${USER} GCSFUSE_PATH=gs://${package_bucket}
-    make install PROJECT=${project_id} REGISTRY=gcr.io/${project_id}/${USER}
+    registry=gcr.io/${project_id}/${USER}/${cluster_name}
+    make build-image-and-push-multi-arch REGISTRY=${registry} GCSFUSE_PATH=gs://${package_bucket}
+    printf "\nInstalling the new custom CSI driver built above ...\n\n"
+    make install PROJECT=${project_id} REGISTRY=${registry}
     cd -
+
     # Wait some time after csi driver installation before deploying pods
     # to avoid failures caused by 'the webhook failed to inject the
     # sidecar container into the Pod spec' error.
     printf "\nSleeping 30 seconds after csi custom driver installation before deploying pods ...\n\n"
     sleep 30
+
   else
     echo ""
     echo "Enabling managed CSI driver ..."
-    gcloud -q container clusters update ${cluster_name} --update-addons GcsFuseCsiDriver=ENABLED --location=${zone}
+    gcloud -q container clusters update ${cluster_name} --project=${project_id} --update-addons GcsFuseCsiDriver=ENABLED --location=${zone}
   fi
 }
 
 function deleteAllHelmCharts() {
-  echo "Deleting all existing helm charts ..."
+  printf "\nDeleting all existing helm charts ...\n\n"
   helm ls --namespace=${appnamespace} | tr -s '\t' ' ' | cut -d' ' -f1 | tail -n +2 | while read helmchart; do helm uninstall ${helmchart} --namespace=${appnamespace}; done
 }
 
 function deleteAllPods() {
   deleteAllHelmCharts
 
-  echo "Deleting all existing pods ..."
+  printf "\nDeleting all existing pods ...\n\n"
   kubectl get pods --namespace=${appnamespace}  | tail -n +2 | cut -d' ' -f1 | while read podname; do kubectl delete pods/${podname} --namespace=${appnamespace} --grace-period=0 --force || true; done
 }
 
 function deployAllFioHelmCharts() {
-  echo "Deploying all fio helm charts ..."
+  printf "\nDeploying all fio helm charts ...\n\n"
   cd "${gke_testing_dir}"/examples/fio && python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" --project-id=${project_id} --project-number=${project_number} --namespace=${appnamespace} --ksa=${ksa} && cd -
 }
 
 function deployAllDlioHelmCharts() {
-  echo "Deploying all dlio helm charts ..."
+  printf "\nDeploying all dlio helm charts ...\n\n"
   cd "${gke_testing_dir}"/examples/dlio && python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" --project-id=${project_id} --project-number=${project_number} --namespace=${appnamespace} --ksa=${ksa} && cd -
-}
-
-function listAllHelmCharts() {
-  echo "Listing all helm charts ..."
-  # monitor and debug pods
-  helm ls --namespace=${appnamespace}  | tr -s '\t' | cut -f1,5,6
-
-  # Sample output.
-  # NAME STATUS CHART \
-  # fio-loading-test-100m-randread-gcsfuse-file-cache deployed fio-loading-test-0.1.0
-  # gke-dlio-unet3d-100kb-500k-128-gcsfuse-file-cache deployed unet3d-loading-test-0.1.0
 }
 
 function waitTillAllPodsComplete() {
@@ -536,7 +605,7 @@ function waitTillAllPodsComplete() {
     cur_epoch=$(date +%s)
     time_till_timeout=$((start_epoch+pod_timeout_in_seconds-cur_epoch))
     if [[ ${time_till_timeout} -lt 0 ]]; then
-      printf "\nPod-run timed out!\n\n"
+      echoerror printf "\nPod-run timed out!\n\n"
       printf "Clearing all pods created in this run...\n"
       deleteAllPods
       exitWithFailure
@@ -547,20 +616,20 @@ function waitTillAllPodsComplete() {
     echo "${podslist}"
     num_completed_pods=$(echo "${podslist}" | tail -n +2 | grep -i 'completed\|succeeded' | wc -l)
     if [ ${num_completed_pods} -gt 0 ]; then
-      printf ${num_completed_pods}" pod(s) completed.\n"
+      printf ${num_completed_pods}" pod(s) have completed.\n"
     fi
-    num_noncompleted_pods=$(echo "${podslist}" | tail -n +2 | grep -i -v 'completed\|succeeded\|fail' | wc -l)
+    num_noncompleted_pods=$(echo "${podslist}" | tail -n +2 | grep -i -v 'completed\|succeeded\|fail\|error' | wc -l)
     num_failed_pods=$(echo "${podslist}" | tail -n +2 | grep -i 'failed' | wc -l)
     if [ ${num_failed_pods} -gt 0 ]; then
-      printf ${num_failed_pods}" pod(s) failed.\n\n"
+      printf ${num_failed_pods}" pod(s) have failed.\n\n"
     fi
     if [ ${num_noncompleted_pods} -eq 0 ]; then
-      printf "All pods completed.\n\n"
+      printf "\nAll pods have completed.\n\n"
       break
     else
-      printf "\n${num_noncompleted_pods} pod(s) is/are still pending or running (time till timeout=${time_till_timeout} seconds). Will check again in "${pod_wait_time_in_seconds}" seconds. Sleeping for now.\n\n"
+      printf "\n${num_noncompleted_pods} pod(s) is/are still pending/running (time till timeout=${time_till_timeout} seconds). Will check again in "${pod_wait_time_in_seconds}" seconds. Sleeping for now.\n\n"
       printf "\nYou can take a break too if you want. Just kill this run and connect back to it later, for fetching and parsing outputs, using the following command: \n"
-      printf "   only_parse=true instance_id=${instance_id} project_id=${project_id} project_number=${project_number} zone=${zone} machine_type=${machine_type} use_custom_csi_driver=${use_custom_csi_driver} gcsfuse_src_dir=\"${gcsfuse_src_dir}\" csi_src_dir=\"${csi_src_dir}\" pod_wait_time_in_seconds=${pod_wait_time_in_seconds} workload_config=\"${workload_config}\" cluster_name=${cluster_name} output_dir=\"${output_dir}\" $0 \n"
+      printf "   only_parse=true instance_id=${instance_id} project_id=${project_id} project_number=${project_number} zone=${zone} machine_type=${machine_type} use_custom_csi_driver=${use_custom_csi_driver} gcsfuse_src_dir=\"${gcsfuse_src_dir}\" csi_src_dir=\"${csi_src_dir}\" pod_wait_time_in_seconds=${pod_wait_time_in_seconds} pod_timeout_in_seconds=${pod_timeout_in_seconds} workload_config=\"${workload_config}\" cluster_name=${cluster_name} output_dir=\"${output_dir}\" $0 \n"
       printf "\nbut remember that this will reset the start-timer for pod timeout.\n\n"
       printf "\nTo ssh to any specific pod, use the following command: \n"
       printf "  gcloud container clusters get-credentials ${cluster_name} --location=${zone}\n"
@@ -572,7 +641,6 @@ function waitTillAllPodsComplete() {
       printf "  kubectl get pods --namespace=${appnamespace} [-o wide] [--watch] \n"
       printf "\nTo output the configuration of all or one of the pods in this cluster/namespace (useful for debugging): \n"
       printf "  kubectl get [pods or pods/<podname>] --namespace=${appnamespace} -o yaml \n"
-
       printf "\n\n\n"
     fi
     sleep ${pod_wait_time_in_seconds}
@@ -581,14 +649,14 @@ function waitTillAllPodsComplete() {
 }
 
 function fetchAndParseFioOutputs() {
-  echo "Fetching and parsing fio outputs ..."
+  printf "\nFetching and parsing fio outputs ...\n\n"
   cd "${gke_testing_dir}"/examples/fio
   python3 parse_logs.py --project-number=${project_number} --workload-config "${workload_config}" --instance-id ${instance_id} --output-file "${output_dir}"/fio/output.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace}
   cd -
 }
 
 function fetchAndParseDlioOutputs() {
-  echo "Fetching and parsing dlio outputs ..."
+  printf "\nFetching and parsing dlio outputs ...\n\n"
   cd "${gke_testing_dir}"/examples/dlio
   python3 parse_logs.py --project-number=${project_number} --workload-config "${workload_config}" --instance-id ${instance_id} --output-file "${output_dir}"/dlio/output.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace}
   cd -
@@ -596,33 +664,38 @@ function fetchAndParseDlioOutputs() {
 
 # prep
 printRunParameters
-validateMachineConfig ${machine_type} ${num_nodes} ${num_ssd}
 installDependencies
 
-# GCP configuration
-ensureGcpAuthsAndConfig
-ensureGkeCluster
-# ensureRequiredNodePoolConfiguration
-enableManagedCsiDriverIfNeeded
-activateCluster
-createKubernetesServiceAccountForCluster
+# if only_parse is not set or is set as false, then
+if test -z ${only_parse} || ! ${only_parse} ; then
+  validateMachineConfig ${machine_type} ${num_nodes} ${num_ssd}
 
-# GCSFuse driver source code
-ensureGcsfuseCode
+  # GCP configuration
+  ensureGcpAuthsAndConfig
+  ensureGkeCluster
+  # ensureRequiredNodePoolConfiguration
+  enableManagedCsiDriverIfNeeded
+  activateCluster
+  createKubernetesServiceAccountForCluster
 
-# GCP/GKE configuration dependent on GCSFuse/CSI driver source code
-createCustomCsiDriverIfNeeded
+  # GCSFuse driver source code
+  ensureGcsfuseCode
 
-# Run latest workload configuration
-deleteAllPods
-deployAllFioHelmCharts
-deployAllDlioHelmCharts
+  # GCP/GKE configuration dependent on GCSFuse/CSI driver source code
+  createCustomCsiDriverIfNeeded
+
+  # Run latest workload configuration
+  deleteAllPods
+  deployAllFioHelmCharts
+  deployAllDlioHelmCharts
+fi
 
 # monitor pods
-listAllHelmCharts
 waitTillAllPodsComplete
 
 # clean-up after run
 deleteAllPods
+
+# parse outputs
 fetchAndParseFioOutputs
 fetchAndParseDlioOutputs
