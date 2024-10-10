@@ -346,6 +346,49 @@
   usage: Param for exponential backoff algorithm, which is used to increase waiting time b/w two consecutive retries.
   default: 2
 
+- config-path: "gcs-retries.read-stall.enable"
+  flag-name: "enable-read-stall-retry"
+  type: "bool"
+  usage: >-
+    Enable/disable retry for stalled read-request based on dynamic timeout.
+  default: false
+  hide-flag: true
+
+- config-path: "gcs-retries.read-stall.initial-req-timeout"
+  flag-name: "initial-read-stall-req-timeout"
+  type: "duration"
+  usage: Initial value of the read-request dynamic timeout.
+  default: 20s
+  hide-flag: true
+
+- config-path: "gcs-retries.read-stall.max-req-timeout"
+  flag-name: "max-read-stall-req-timeout"
+  type: "duration"
+  usage: Upper bound of the read-request dynamic timeout.
+  default: 20m
+  hide-flag: true
+
+- config-path: "gcs-retries.read-stall.min-req-timeout"
+  flag-name: "min-read-stall-req-timeout"
+  type: "duration"
+  usage: Lower bound of the read request dynamic timeout.
+  default: 500ms
+  hide-flag: true
+
+- config-path: "gcs-retries.read-stall.req-increase-rate"
+  flag-name: "read-stall-req-increase-rate"
+  type: "float64"
+  usage: Rate to change the dynamic timeout if required.
+  default: 15
+  hide-flag: true
+
+- config-path: "gcs-retries.read-stall.req-target-percentile"
+  flag-name: "read-stall-req-target-percentile"
+  type: "float64"
+  usage: Retry the request which take more than p(targetPercentile * 100).
+  default: 0.99
+  hide-flag: true
+
 - config-path: "implicit-dirs"
   flag-name: "implicit-dirs"
   type: "bool"
