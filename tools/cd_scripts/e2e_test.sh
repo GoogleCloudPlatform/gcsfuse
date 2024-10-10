@@ -296,10 +296,11 @@ function gather_test_logs() {
   done
 }
 
-#run integration tests
+echo "Running integration tests for HNS bucket..."
 run_e2e_tests_for_hns_bucket &
 e2e_tests_hns_bucket_pid=$!
 
+echo "Running integration tests for FLAT bucket..."
 run_e2e_tests_for_flat_bucket &
 e2e_tests_flat_bucket_pid=$!
 
@@ -313,7 +314,7 @@ gather_test_logs
 
 if [ $e2e_tests_flat_bucket_status != 0 ]
 then
-    echo "Test failures detected in flat bucket." &>> ~/logs.txt
+    echo "Test failures detected in FLAT bucket." &>> ~/logs.txt
 else
     touch success.txt
     gsutil cp success.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
