@@ -2107,6 +2107,7 @@ func (fs *fileSystem) renameHierarchicalDir(ctx context.Context, oldParent inode
 		newParent.Lock()
 		err = newParent.DeleteChildDir(ctx, newDirName.GcsObjectName(), false, newDirInode)
 		newParent.Unlock()
+		pendingInodes = append(pendingInodes, newDirInode)
 	}
 
 	// Note:The renameDirLimit is not utilized in the folder rename operation because there is no user-defined limit on new renames.
