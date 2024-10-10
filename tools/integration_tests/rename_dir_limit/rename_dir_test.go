@@ -167,11 +167,10 @@ func TestRenameDirectoryWithTwoFilesAndOneNonEmptyDirectory(t *testing.T) {
 func TestRenameDirectoryWithExistingEmptyDestDirectory(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForRenameDirLimitTests)
 	// Creating directory structure
-	// testBucket/dirForRenameDirLimitTests/RenamedDirectory                                      -- Dir
-	// testBucket/dirForRenameDirLimitTests/RenamedDirectory/temp1.txt                            -- File
-	// testBucket/dirForRenameDirLimitTests/RenamedDirectory/temp2.txt                            -- File
-	// testBucket/dirForRenameDirLimitTests/RenamedDirectory/NonEmptySubDirectory                 -- Dir
-	// testBucket/dirForRenameDirLimitTests/RenamedDirectory/NonEmptySubDirectory/temp3.txt   		 -- File
+	// testBucket/dirForRenameDirLimitTests/srcDirectory                                      -- Dir
+	// testBucket/dirForRenameDirLimitTests/srcDirectory/temp1.txt                            -- File
+	// testBucket/dirForRenameDirLimitTests/srcDirectory/NonEmptySubDirectory                 -- Dir
+	// testBucket/dirForRenameDirLimitTests/srcDirectory/NonEmptySubDirectory/temp3.txt   		 -- File
 	oldDirPath := path.Join(testDir, SrcDirectory)
 	subDirPath := path.Join(oldDirPath, NonEmptySubDirectory)
 	operations.CreateDirectoryWithNFiles(1, oldDirPath, PrefixTempFile, t)
@@ -185,4 +184,13 @@ func TestRenameDirectoryWithExistingEmptyDestDirectory(t *testing.T) {
 	_, err := cmd.CombinedOutput()
 
 	assert.NoError(t, err)
+	_, err = os.Stat(newDirPath)
+	assert.NoError(t, err)
+	dirEntries, err := os.ReadDir(newDirPath)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(dirEntries))
+	assert.Equal(t, "nonEmptySubDirectory", dirEntries[0].Name())
+	assert.True(t, dirEntries[0].IsDir())
+	assert.Equal(t, "temp1", dirEntries[1].Name())
+	assert.False(t, dirEntries[1].IsDir())
 }
