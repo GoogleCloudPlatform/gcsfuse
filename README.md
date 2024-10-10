@@ -28,7 +28,7 @@ To learn about limitations and differences between Cloud Storage FUSE and POSIX 
 For information about pricing for Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse#charges.
 
 ## Agreement on Flag Compatibility
-`Experimental` and `hidden` flags are subject to change at any time and should be used with caution.
+`Experimental` and `hidden` flags are subject to changed/removed even across minor releases and have no SLA.
 
 # CSI Driver
 
