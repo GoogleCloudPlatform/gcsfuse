@@ -395,7 +395,6 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	// The returned error is ignored as we do not enforce monitoring exporters
 	_ = monitor.EnableStackdriverExporter(newConfig.Metrics.StackdriverExportInterval)
 	_ = monitor.EnableOpenTelemetryCollectorExporter(newConfig.Monitoring.ExperimentalOpentelemetryCollectorAddress)
-	//_ = monitor.EnablePrometheusCollectorExporter(int(newConfig.Metrics.PrometheusPort))
 	ctx := context.Background()
 	shutdownFn := monitor.SetupOTelSDK(ctx, newConfig)
 
@@ -459,7 +458,6 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 
 	monitor.CloseStackdriverExporter()
 	monitor.CloseOpenTelemetryCollectorExporter()
-	monitor.ClosePrometheusCollectorExporter()
 	if shutdownErr := shutdownFn(ctx); shutdownErr != nil {
 		logger.Errorf("Error while shutting down OTel exporters: %v", shutdownErr)
 	}

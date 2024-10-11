@@ -53,17 +53,17 @@ func SetupOTelSDK(ctx context.Context, c *cfg.Config) (shutdown ShutdownFn) {
 		return err
 	}
 
-	if shutdownFn := SetupTracing(ctx, c); shutdownFn != nil {
+	if shutdownFn := setupTracing(ctx, c); shutdownFn != nil {
 		shutdownFuncs = append(shutdownFuncs, shutdownFn)
 	}
 
-	if shutdownFn := SetupMetrics(ctx, c); shutdownFn != nil {
+	if shutdownFn := setupMetrics(ctx, c); shutdownFn != nil {
 		shutdownFuncs = append(shutdownFuncs, shutdownFn)
 	}
 	return shutdown
 }
 
-func SetupMetrics(_ context.Context, c *cfg.Config) ShutdownFn {
+func setupMetrics(_ context.Context, c *cfg.Config) ShutdownFn {
 	exporter, err := prometheus.New(prometheus.WithoutUnits(), prometheus.WithoutCounterSuffixes(), prometheus.WithoutScopeInfo(), prometheus.WithoutTargetInfo())
 	if err != nil {
 		logger.Errorf("Error while creating prometheus exporter")
@@ -74,15 +74,19 @@ func SetupMetrics(_ context.Context, c *cfg.Config) ShutdownFn {
 		metric.WithReader(exporter),
 	)
 	otel.SetMeterProvider(meterProvider)
-	go serveMetrics(c.Metrics.PrometheusPort)
-	return nil
+	ch := make(chan context.Context)
+	go serveMetrics(c.Metrics.PrometheusPort, ch)
+	return func(ctx context.Context) error {
+		ch <- ctx
+		return nil
+	}
 }
 
-func serveMetrics(port int64) {
+func serveMetrics(port int64, done <-chan context.Context) {
 	log.Printf("serving metrics at localhost:%d/metrics", port)
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
-	prometheusServer = &http.Server{
+	prometheusServer := &http.Server{
 		Addr:           fmt.Sprintf(":%d", port),
 		Handler:        mux,
 		ReadTimeout:    10 * time.Second,
@@ -91,16 +95,24 @@ func serveMetrics(port int64) {
 	}
 
 	go func() {
-		if err := prometheusServer.ListenAndServe(); err != nil {
+		if err := prometheusServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Errorf("Failed to start Prometheus server: %v", err)
 		}
+	}()
+
+	go func() {
+		ctx := <-done
+		if err := prometheusServer.Shutdown(ctx); err != nil {
+			logger.Errorf("Error while shutting down Prometheus exporter:%v", err)
+			return
+		}
+		logger.Info("Prometheus exporter shutdown")
 	}()
 
 	logger.Info("Prometheus collector exporter started")
 }
 
-// SetupTracing bootstraps the OpenTelemetry tracing pipeline.
-func SetupTracing(ctx context.Context, c *cfg.Config) ShutdownFn {
+func setupTracing(ctx context.Context, c *cfg.Config) ShutdownFn {
 	tp, shutdown, err := newTraceProvider(ctx, c)
 	if err != nil {
 		logger.Errorf("error occurred while setting up tracing: %v", err)
