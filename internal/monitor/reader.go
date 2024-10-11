@@ -40,7 +40,7 @@ var (
 	fileCacheReadBytesCount, _ = fileCacheMeter.Int64Counter("file_cache/read_bytes_count",
 		metric.WithDescription("The cumulative number of bytes read from file cache along with read type - Sequential/Random"),
 		metric.WithUnit("By"))
-	fileCacheReadLatency, _ = fileCacheMeter.Int64Histogram("file_cache/read_latency",
+	fileCacheReadLatency, _ = fileCacheMeter.Int64Histogram("file_cache/read_latencies",
 		metric.WithDescription("Latency of read from file cache along with cache hit - true/false"),
 		metric.WithUnit("us"),
 		common.DefaultLatencyDistribution)
