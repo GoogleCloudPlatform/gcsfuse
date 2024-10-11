@@ -16,13 +16,21 @@ package monitor
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"log"
+	"net/http"
+	"time"
 
 	cloudtrace "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/prometheus"
 	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
+	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
@@ -32,6 +40,64 @@ import (
 )
 
 type ShutdownFn func(ctx context.Context) error
+
+func SetupOTelSDK(ctx context.Context, c *cfg.Config) (shutdown ShutdownFn) {
+	var shutdownFuncs []func(context.Context) error
+
+	shutdown = func(ctx context.Context) error {
+		var err error
+		for _, fn := range shutdownFuncs {
+			err = errors.Join(err, fn(ctx))
+		}
+		shutdownFuncs = nil
+		return err
+	}
+
+	if shutdownFn := SetupTracing(ctx, c); shutdownFn != nil {
+		shutdownFuncs = append(shutdownFuncs, shutdownFn)
+	}
+
+	if shutdownFn := SetupMetrics(ctx, c); shutdownFn != nil {
+		shutdownFuncs = append(shutdownFuncs, shutdownFn)
+	}
+	return shutdown
+}
+
+func SetupMetrics(_ context.Context, c *cfg.Config) ShutdownFn {
+	exporter, err := prometheus.New(prometheus.WithoutUnits(), prometheus.WithoutCounterSuffixes(), prometheus.WithoutScopeInfo(), prometheus.WithoutTargetInfo())
+	if err != nil {
+		logger.Errorf("Error while creating prometheus exporter")
+		return nil
+	}
+
+	meterProvider := metric.NewMeterProvider(
+		metric.WithReader(exporter),
+	)
+	otel.SetMeterProvider(meterProvider)
+	go serveMetrics(c.Metrics.PrometheusPort)
+	return nil
+}
+
+func serveMetrics(port int64) {
+	log.Printf("serving metrics at localhost:%d/metrics", port)
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", promhttp.Handler())
+	prometheusServer = &http.Server{
+		Addr:           fmt.Sprintf(":%d", port),
+		Handler:        mux,
+		ReadTimeout:    10 * time.Second,
+		WriteTimeout:   10 * time.Second,
+		MaxHeaderBytes: 1 << 20,
+	}
+
+	go func() {
+		if err := prometheusServer.ListenAndServe(); err != nil {
+			logger.Errorf("Failed to start Prometheus server: %v", err)
+		}
+	}()
+
+	logger.Info("Prometheus collector exporter started")
+}
 
 // SetupTracing bootstraps the OpenTelemetry tracing pipeline.
 func SetupTracing(ctx context.Context, c *cfg.Config) ShutdownFn {

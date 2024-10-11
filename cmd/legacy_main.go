@@ -20,6 +20,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"io/fs"
 	"os"
@@ -43,7 +44,6 @@ import (
 	"github.com/jacobsa/fuse"
 	"github.com/kardianos/osext"
 	"github.com/urfave/cli"
-	"golang.org/x/net/context"
 )
 
 const (
@@ -177,9 +177,9 @@ func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config) 
 }
 
 func populateArgs(args []string) (
-		bucketName string,
-		mountPoint string,
-		err error) {
+	bucketName string,
+	mountPoint string,
+	err error) {
 	// Extract arguments.
 	switch len(args) {
 	case 1:
@@ -395,11 +395,9 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	// The returned error is ignored as we do not enforce monitoring exporters
 	_ = monitor.EnableStackdriverExporter(newConfig.Metrics.StackdriverExportInterval)
 	_ = monitor.EnableOpenTelemetryCollectorExporter(newConfig.Monitoring.ExperimentalOpentelemetryCollectorAddress)
-	_ = monitor.EnablePrometheusCollectorExporter(int(newConfig.Metrics.PrometheusPort))
+	//_ = monitor.EnablePrometheusCollectorExporter(int(newConfig.Metrics.PrometheusPort))
 	ctx := context.Background()
-	shutdownFns := make([]monitor.ShutdownFn, 0)
-	shutdownFn := monitor.SetupTracing(ctx, newConfig)
-	shutdownFns = append(shutdownFns, shutdownFn)
+	shutdownFn := monitor.SetupOTelSDK(ctx, newConfig)
 
 	// Mount, writing information about our progress to the writer that package
 	// daemonize gives us and telling it about the outcome.
@@ -462,10 +460,8 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	monitor.CloseStackdriverExporter()
 	monitor.CloseOpenTelemetryCollectorExporter()
 	monitor.ClosePrometheusCollectorExporter()
-	if shutdownFn != nil {
-		if shutdownErr := shutdownFn(ctx); shutdownErr != nil {
-			logger.Errorf("Error while shutting down trace exporter: %v", shutdownErr)
-		}
+	if shutdownErr := shutdownFn(ctx); shutdownErr != nil {
+		logger.Errorf("Error while shutting down OTel exporters: %v", shutdownErr)
 	}
 
 	if err != nil {
