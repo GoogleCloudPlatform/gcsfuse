@@ -338,6 +338,10 @@ def writeOutput(
           )
           continue
 
+        # The following try-catch is needed because the parsing
+        # may fail for some output files. So, rather than stopping
+        # parsing for the later files, it is important to record such files as
+        # errors and parse the next files.
         try:
           new_row = (
               record_set["mean_file_size"],
@@ -367,6 +371,8 @@ def writeOutput(
               f"Error while creating new output row for key={key},"
               f" scenario={scenario}, epoch={i}, r={r}: {e}"
           )
+          # Put "ERROR" in each field in the row to indicate that this data-row
+          # could not be parsed.
           rows.append((("ERROR",) * len(_HEADER)))
 
   export_to_csv(output_file_path=args.output_file, header=_HEADER, rows=rows)
