@@ -74,15 +74,19 @@ func SetupMetrics(_ context.Context, c *cfg.Config) ShutdownFn {
 		metric.WithReader(exporter),
 	)
 	otel.SetMeterProvider(meterProvider)
-	go serveMetrics(c.Metrics.PrometheusPort)
-	return nil
+	ch := make(chan context.Context)
+	go serveMetrics(c.Metrics.PrometheusPort, ch)
+	return func(ctx context.Context) error {
+		ch <- ctx
+		return nil
+	}
 }
 
-func serveMetrics(port int64) {
+func serveMetrics(port int64, done <-chan context.Context) {
 	log.Printf("serving metrics at localhost:%d/metrics", port)
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
-	prometheusServer = &http.Server{
+	prometheusServer := &http.Server{
 		Addr:           fmt.Sprintf(":%d", port),
 		Handler:        mux,
 		ReadTimeout:    10 * time.Second,
@@ -91,9 +95,15 @@ func serveMetrics(port int64) {
 	}
 
 	go func() {
-		if err := prometheusServer.ListenAndServe(); err != nil {
+		if err := prometheusServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Errorf("Failed to start Prometheus server: %v", err)
 		}
+	}()
+
+	go func() {
+		ctx := <-done
+		logger.Info("Prometheus collector exporter shutdown")
+		prometheusServer.Shutdown(ctx)
 	}()
 
 	logger.Info("Prometheus collector exporter started")
