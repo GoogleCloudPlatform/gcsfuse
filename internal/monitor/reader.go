@@ -15,144 +15,44 @@
 package monitor
 
 import (
-	"log"
-	"strconv"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/monitor/tags"
-	"go.opencensus.io/plugin/ochttp"
-	"go.opencensus.io/stats"
-	"go.opencensus.io/stats/view"
-	"go.opencensus.io/tag"
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"golang.org/x/net/context"
 )
 
 var (
+	gcsMeter       = otel.Meter("gcs")
+	fileCacheMeter = otel.Meter("file_cache")
 	// When a first read call is made by the user, we either fetch entire file or x number of bytes from GCS based on the request.
 	// Now depending on the pagesize multiple read calls will be issued by user to read the entire file. These
 	// requests will be served from the downloaded data.
 	// This metric captures only the requests made to GCS, not the subsequent page calls.
-	gcsReadCount = stats.Int64("gcs/read_count",
-		"Specifies the number of gcs reads made along with type - Sequential/Random",
-		UnitDimensionless)
-	downloadBytesCount = stats.Int64("gcs/download_bytes_count",
-		"The cumulative number of bytes downloaded from GCS along with type - Sequential/Random",
-		UnitBytes)
-	fileCacheReadCount = stats.Int64("file_cache/read_count",
-		"Specifies the number of read requests made via file cache along with type - Sequential/Random and cache hit - true/false",
-		UnitDimensionless)
-	fileCacheReadBytesCount = stats.Int64("file_cache/read_bytes_count",
-		"The cumulative number of bytes read from file cache along with read type - Sequential/Random",
-		UnitBytes)
-	fileCacheReadLatency = stats.Int64("file_cache/read_latency",
-		"Latency of read from file cache along with cache hit - true/false",
-		UnitMicroseconds)
+	gcsReadCount, _       = gcsMeter.Int64Counter("gcs/read_count", metric.WithDescription("Specifies the number of gcs reads made along with type - Sequential/Random"))
+	downloadBytesCount, _ = gcsMeter.Int64Counter("gcs/download_bytes_count",
+		metric.WithDescription("The cumulative number of bytes downloaded from GCS along with type - Sequential/Random"),
+		metric.WithUnit("By"))
+	fileCacheReadCount, _ = fileCacheMeter.Int64Counter("file_cache/read_count",
+		metric.WithDescription("Specifies the number of read requests made via file cache along with type - Sequential/Random and cache hit - true/false"))
+	fileCacheReadBytesCount, _ = fileCacheMeter.Int64Counter("file_cache/read_bytes_count",
+		metric.WithDescription("The cumulative number of bytes read from file cache along with read type - Sequential/Random"),
+		metric.WithUnit("By"))
+	fileCacheReadLatency, _ = fileCacheMeter.Int64Histogram("file_cache/read_latency",
+		metric.WithDescription("Latency of read from file cache along with cache hit - true/false"),
+		metric.WithUnit("us"),
+		common.DefaultLatencyDistribution)
 )
 
-const NanosecondsInOneMillisecond = 1000000
-
-// Initialize the metrics.
-func init() {
-	// GCS related metrics
-	if err := view.Register(
-		&view.View{
-			Name:        "gcs/read_count",
-			Measure:     gcsReadCount,
-			Description: "Specifies the number of gcs reads made along with type - Sequential/Random",
-			Aggregation: view.Sum(),
-			TagKeys:     []tag.Key{tags.ReadType},
-		},
-		&view.View{
-			Name:        "gcs/download_bytes_count",
-			Measure:     downloadBytesCount,
-			Description: "The cumulative number of bytes downloaded from GCS along with type - Sequential/Random",
-			Aggregation: view.Sum(),
-			TagKeys:     []tag.Key{tags.ReadType},
-		},
-		// File cache related metrics
-		&view.View{
-			Name:        "file_cache/read_count",
-			Measure:     fileCacheReadCount,
-			Description: "Specifies the number of read requests made via file cache along with type - Sequential/Random and cache hit - true/false",
-			Aggregation: view.Sum(),
-			TagKeys:     []tag.Key{tags.ReadType, tags.CacheHit},
-		},
-		&view.View{
-			Name:        "file_cache/read_bytes_count",
-			Measure:     fileCacheReadBytesCount,
-			Description: "The cumulative number of bytes read from file cache along with read type - Sequential/Random",
-			Aggregation: view.Sum(),
-			TagKeys:     []tag.Key{tags.ReadType},
-		},
-		&view.View{
-			Name:        "file_cache/read_latencies",
-			Measure:     fileCacheReadLatency,
-			Description: "The cumulative distribution of the file cache read latencies along with cache hit - true/false",
-			Aggregation: ochttp.DefaultLatencyDistribution,
-			TagKeys:     []tag.Key{tags.CacheHit},
-		},
-	); err != nil {
-		log.Fatalf("Failed to register the reader view: %v", err)
-	}
-}
-
 func CaptureGCSReadMetrics(ctx context.Context, readType string, requestedDataSize int64) {
-	if err := stats.RecordWithTags(
-		ctx,
-		[]tag.Mutator{
-			tag.Upsert(tags.ReadType, readType),
-		},
-		gcsReadCount.M(1),
-	); err != nil {
-		// Error in recording gcsReadCount.
-		logger.Errorf("Cannot record gcsReadCount %v", err)
-	}
-
-	if err := stats.RecordWithTags(
-		ctx,
-		[]tag.Mutator{
-			tag.Upsert(tags.ReadType, readType),
-		},
-		downloadBytesCount.M(requestedDataSize),
-	); err != nil {
-		// Error in recording downloadBytesCount.
-		logger.Errorf("Cannot record downloadBytesCount %v", err)
-	}
+	gcsReadCount.Add(ctx, 1, metric.WithAttributes(attribute.String("read_type", readType)))
+	downloadBytesCount.Add(ctx, requestedDataSize, metric.WithAttributes(attribute.String("read_type", readType)))
 }
 
 func CaptureFileCacheMetrics(ctx context.Context, readType string, readDataSize int, cacheHit bool, readLatency time.Duration) {
-	if err := stats.RecordWithTags(
-		ctx,
-		[]tag.Mutator{
-			tag.Upsert(tags.ReadType, readType),
-			tag.Upsert(tags.CacheHit, strconv.FormatBool(cacheHit)),
-		},
-		fileCacheReadCount.M(1),
-	); err != nil {
-		// Error in recording fileCacheReadCount.
-		logger.Errorf("Cannot record fileCacheReadCount %v", err)
-	}
-
-	if err := stats.RecordWithTags(
-		ctx,
-		[]tag.Mutator{
-			tag.Upsert(tags.ReadType, readType),
-		},
-		fileCacheReadBytesCount.M(int64(readDataSize)),
-	); err != nil {
-		// Error in recording fileCacheReadBytesCount.
-		logger.Errorf("Cannot record fileCacheReadBytesCount %v", err)
-	}
-
-	if err := stats.RecordWithTags(
-		ctx,
-		[]tag.Mutator{
-			tag.Upsert(tags.CacheHit, strconv.FormatBool(cacheHit)),
-		},
-		fileCacheReadLatency.M(readLatency.Microseconds()),
-	); err != nil {
-		// Error in recording fileCacheReadLatency.
-		logger.Errorf("Cannot record fileCacheReadLatency %v", err)
-	}
+	fileCacheReadCount.Add(ctx, 1, metric.WithAttributes(attribute.String("read_type", readType), attribute.Bool("cache_hit", cacheHit)))
+	fileCacheReadBytesCount.Add(ctx, int64(readDataSize), metric.WithAttributes(attribute.String("read_type", readType)))
+	fileCacheReadLatency.Record(ctx, readLatency.Microseconds(), metric.WithAttributes(attribute.Bool("cache_hit", cacheHit)))
 }
