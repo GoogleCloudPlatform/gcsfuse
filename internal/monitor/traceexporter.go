@@ -102,8 +102,11 @@ func serveMetrics(port int64, done <-chan context.Context) {
 
 	go func() {
 		ctx := <-done
-		logger.Info("Prometheus collector exporter shutdown")
-		prometheusServer.Shutdown(ctx)
+		if err := prometheusServer.Shutdown(ctx); err != nil {
+			logger.Errorf("Error while shutting down Prometheus exporter:%v", err)
+			return
+		}
+		logger.Info("Prometheus exporter shutdown")
 	}()
 
 	logger.Info("Prometheus collector exporter started")
