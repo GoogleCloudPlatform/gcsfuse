@@ -2103,9 +2103,9 @@ func (fs *fileSystem) renameHierarchicalDir(ctx context.Context, oldParent inode
 
 		// This refers to an empty destination directory.
 		// The RenameFolder API does not allow renaming to an existing empty directory.
-		// As a workaround, we delete the directory first and then perform rename.
+		// To make this work, we delete the empty directory first from gcsfuse and then perform rename.
 		newParent.Lock()
-		err = newParent.DeleteChildDir(ctx, newName, false, newDirInode)
+		_ = newParent.DeleteChildDir(ctx, newName, false, newDirInode)
 		newParent.Unlock()
 		pendingInodes = append(pendingInodes, newDirInode)
 	}
