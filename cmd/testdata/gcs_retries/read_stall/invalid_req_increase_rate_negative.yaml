@@ -1,0 +1,8 @@
+gcs-retries:
+  read-stall:
+    enable:true
+    min-req-timeout:10s
+    max-req-timeout:20s
+    initial-req-timeout:30s
+    req-increase-rate:-15
+    req-target-percentile:0.99

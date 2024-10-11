@@ -158,6 +158,21 @@ func isValidWriteStreamingConfig(wc *WriteConfig) error {
 	return nil
 }
 
+func isValidReadStallGcsRetriesConfig(rsrc *ReadStallGcsRetriesConfig) error {
+	if rsrc == nil {
+		return nil
+	}
+	if rsrc.Enable {
+		if rsrc.ReqIncreaseRate <= 0 {
+			return fmt.Errorf("invalid value of increaseRate: %f, can't be 0 or negative", rsrc.ReqIncreaseRate)
+		}
+		if rsrc.ReqTargetPercentile <= 0 || rsrc.ReqTargetPercentile >= 1 {
+			return fmt.Errorf("invalid value of targetPercentile: %f, should be in the range (0, 1)", rsrc.ReqTargetPercentile)
+		}
+	}
+	return nil
+}
+
 // ValidateConfig returns a non-nil error if the config is invalid.
 func ValidateConfig(v isSet, config *Config) error {
 	var err error
@@ -196,6 +211,10 @@ func ValidateConfig(v isSet, config *Config) error {
 
 	if err = isValidWriteStreamingConfig(&config.Write); err != nil {
 		return fmt.Errorf("error parsing write config: %w", err)
+	}
+
+	if err = isValidReadStallGcsRetriesConfig(&config.GcsRetries.ReadStall); err != nil {
+		return fmt.Errorf("error parsing read-stall-gcs-retries config: %w", err)
 	}
 
 	return nil
