@@ -53,17 +53,17 @@ func SetupOTelSDK(ctx context.Context, c *cfg.Config) (shutdown ShutdownFn) {
 		return err
 	}
 
-	if shutdownFn := SetupTracing(ctx, c); shutdownFn != nil {
+	if shutdownFn := setupTracing(ctx, c); shutdownFn != nil {
 		shutdownFuncs = append(shutdownFuncs, shutdownFn)
 	}
 
-	if shutdownFn := SetupMetrics(ctx, c); shutdownFn != nil {
+	if shutdownFn := setupMetrics(ctx, c); shutdownFn != nil {
 		shutdownFuncs = append(shutdownFuncs, shutdownFn)
 	}
 	return shutdown
 }
 
-func SetupMetrics(_ context.Context, c *cfg.Config) ShutdownFn {
+func setupMetrics(_ context.Context, c *cfg.Config) ShutdownFn {
 	exporter, err := prometheus.New(prometheus.WithoutUnits(), prometheus.WithoutCounterSuffixes(), prometheus.WithoutScopeInfo(), prometheus.WithoutTargetInfo())
 	if err != nil {
 		logger.Errorf("Error while creating prometheus exporter")
@@ -112,8 +112,7 @@ func serveMetrics(port int64, done <-chan context.Context) {
 	logger.Info("Prometheus collector exporter started")
 }
 
-// SetupTracing bootstraps the OpenTelemetry tracing pipeline.
-func SetupTracing(ctx context.Context, c *cfg.Config) ShutdownFn {
+func setupTracing(ctx context.Context, c *cfg.Config) ShutdownFn {
 	tp, shutdown, err := newTraceProvider(ctx, c)
 	if err != nil {
 		logger.Errorf("error occurred while setting up tracing: %v", err)
