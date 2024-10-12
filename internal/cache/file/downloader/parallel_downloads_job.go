@@ -63,7 +63,7 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 	monitor.CaptureGCSReadMetrics(ctx, util.Parallel, end-start)
 
 	// Use of memory aligned buffer is not required if use of O_DIRECT is disabled.
-	if job.fileCacheConfig.EnableODirect {
+	if !job.fileCacheConfig.EnableODirect {
 		for start < end {
 			writeSize := min(end-start, ReadChunkSize)
 			_, err = io.CopyN(dstWriter, newReader, writeSize)
