@@ -216,7 +216,7 @@ var (
 )
 
 func NewAsyncHandler(writer io.Writer, levelVar *slog.LevelVar, prefix string) slog.Handler {
-	asyncHandler := AsyncHandler{handler: slog.NewJSONHandler(writer, getHandlerOptions(levelVar, prefix, "json")), records: make(chan slog.Record, 10)}
+	asyncHandler := AsyncHandler{handler: slog.NewJSONHandler(writer, getHandlerOptions(levelVar, prefix, "json")), records: make(chan slog.Record, 10000)}
 	go handleRecordsAsync(asyncHandler.records, asyncHandler.handler)
 	return &asyncHandler
 }
