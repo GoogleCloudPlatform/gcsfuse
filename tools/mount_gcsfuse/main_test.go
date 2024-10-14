@@ -159,13 +159,19 @@ func TestParseArgs_DeviceIsParsedCorrectly(t *testing.T) {
 		{
 			name:           "device_bucket_name",
 			device:         "fake_bucket",
+			mountPoint:     "a/b/mnt/fake_bucket",
+			expectedDevice: "fake_bucket",
+		},
+		{
+			name:           "path_device_name",
+			device:         "/mnt/fake_bucket",
 			mountPoint:     "/mnt/fake_bucket",
 			expectedDevice: "fake_bucket",
 		},
 		{
-			name:           "device_bucket_name",
-			device:         "/mnt/fake_bucket",
-			mountPoint:     "/mnt/fake_bucket",
+			name:           "nested_path_device_name",
+			device:         "a/b/mnt/fake_bucket",
+			mountPoint:     "a/b/mnt/fake_bucket",
 			expectedDevice: "fake_bucket",
 		},
 	}
