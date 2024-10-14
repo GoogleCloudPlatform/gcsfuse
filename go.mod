@@ -4,7 +4,7 @@ go 1.23.2
 
 require (
 	cloud.google.com/go/compute/metadata v0.5.2
-	cloud.google.com/go/iam v1.2.0
+	cloud.google.com/go/iam v1.2.1
 	cloud.google.com/go/secretmanager v1.14.0
 	cloud.google.com/go/storage v1.43.0
 	contrib.go.opencensus.io/exporter/ocagent v0.7.0
@@ -113,7 +113,7 @@ require (
 	golang.org/x/crypto v0.28.0 // indirect
 	golang.org/x/exp v0.0.0-20240530194437-404ba88c7ed0 // indirect
 	google.golang.org/genproto v0.0.0-20240903143218-8af14fe29dc1 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20240827150818-7e3bb234dfed // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20240903143218-8af14fe29dc1 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240903143218-8af14fe29dc1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
