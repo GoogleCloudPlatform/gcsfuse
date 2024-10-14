@@ -62,8 +62,11 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 
 	monitor.CaptureGCSReadMetrics(ctx, util.Parallel, end-start)
 
-	// Use memory aligned buffer if O_DIRECT is enabled.
-	if job.fileCacheConfig.EnableODirect {
+	// Use standard copy function if O_DIRECT is disabled and memory aligned
+	// buffer otherwise.
+	if !job.fileCacheConfig.EnableODirect {
+		_, err = io.CopyN(dstWriter, newReader, end-start)
+	} else {
 		_, err = cacheutil.CopyUsingMemoryAlignedBuffer(ctx, newReader, dstWriter, end-start,
 			job.fileCacheConfig.WriteBufferSize)
 		// If context is canceled while reading/writing in CopyUsingMemoryAlignedBuffer
@@ -72,8 +75,6 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 		if !errors.Is(err, context.Canceled) && errors.Is(ctx.Err(), context.Canceled) {
 			err = errors.Join(err, ctx.Err())
 		}
-	} else {
-		_, err = io.CopyN(dstWriter, newReader, end-start)
 	}
 
 	if err != nil {
