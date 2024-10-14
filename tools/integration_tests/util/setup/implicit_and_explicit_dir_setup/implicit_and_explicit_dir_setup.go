@@ -159,5 +159,6 @@ func CreateImplicitDirectoryInExplicitDirectoryStructure(ctx context.Context, te
 	// testBucket/testDir/explicitDirectory/implicitDirectory/implicitSubDirectory/fileInImplicitDir2         -- File
 
 	CreateExplicitDirectoryStructure(testDir, t)
-	createObjectsInImplicitDir(ctx, path.Join(testDir, ExplicitDirectory), storageClient, t)
+	dirPathInBucket := path.Join(setup.TestBucket(), testDir, ExplicitDirectory)
+	createObjectsInImplicitDir(ctx, dirPathInBucket, storageClient, t)
 }
