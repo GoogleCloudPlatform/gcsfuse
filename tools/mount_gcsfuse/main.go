@@ -187,19 +187,16 @@ func parseArgs(
 		// Is this the device?
 		case positionalCount == 0:
 			device = s
-			fmt.Println("device before: ", device)
-			// Kernel might be converting bucket name to path if a directory with same
-			// name as bucket exists in the root folder from which mount command is
-			// executed.
-			// As of 10th Oct, 2024, bucket names don't support "/", so it is safe to
-			// convert received bucket name with "/" to it's base file name.
+			// The kernel might be converting the bucket name to a path if a directory with the
+			// same name as the bucket exists in the folder where the mount command is executed.
+			//
+			// As of October 10th, 2024, bucket names don't support "/", so it is safe to
+			// assume any received bucket name containing "/" is actually a path and
+			// extract the base file name.
 			if strings.Contains(device, "/") {
-				fmt.Println("Changing device..")
 				// Get the last part of the path (bucket name)
 				device = filepath.Base(device)
 			}
-			fmt.Println("device after: ", device)
-			fmt.Println("filepath.Base = ", filepath.Base(device))
 			positionalCount++
 
 		// Is this the mount point?
@@ -222,8 +219,6 @@ func parseArgs(
 }
 
 func run(args []string) (err error) {
-	fmt.Println("os.Args = ", args)
-
 	// If invoked with a single "--help" argument, print a usage message and exit
 	// successfully.
 	if len(args) == 2 && args[1] == "--help" {
