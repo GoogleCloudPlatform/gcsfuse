@@ -601,8 +601,6 @@
   usage: "For a new file, it creates an empty file in Cloud Storage bucket as a
   hold."
   default: false
-  deprecated: true
-  deprecation-warning: "This flag will be deleted soon."
 
 - config-path: "write.experimental-enable-streaming-writes"
   flag-name: "experimental-enable-streaming-writes"
