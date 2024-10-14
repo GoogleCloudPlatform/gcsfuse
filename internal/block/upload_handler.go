@@ -134,6 +134,10 @@ func (uh *UploadHandler) statusNotifier(bytesUploaded int64) {
 
 	// Upload next chunk if available.
 	if uh.chunks.Len() > 0 {
+		if uh.chunks.Len() == 1 && uh.status == ReadyToFinalize {
+			_ = uh.uploadFinalChunk()
+			return
+		}
 		err := uh.uploadChunk()
 		if err != nil {
 			return
@@ -169,6 +173,29 @@ func (uh *UploadHandler) uploadChunk() error {
 		if err != nil {
 			logger.Warnf("Upload failed: %v", err)
 			uh.status = Failed
+		}
+	}()
+	return nil
+}
+
+func (uh *UploadHandler) uploadFinalChunk() (err error) {
+	listEle := uh.chunks.Front()
+	if listEle == nil {
+		logger.Errorf("Got empty list in upload chunk")
+	}
+	uh.bufferInProgress = listEle.Value.(Block)
+	uh.chunks.Remove(listEle)
+
+	go func() {
+		err = uh.bucket.Upload(uh.writer, uh.bufferInProgress)
+		if err != nil {
+			logger.Warnf("Upload failed: %v", err)
+			uh.status = Failed
+			return
+		}
+		err = uh.Finalize()
+		if err != nil {
+			return
 		}
 	}()
 	return nil
