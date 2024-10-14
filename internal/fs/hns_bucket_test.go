@@ -15,7 +15,9 @@
 package fs_test
 
 import (
+	"fmt"
 	"os"
+	"os/exec"
 	"path"
 	"strings"
 	"testing"
@@ -213,6 +215,32 @@ func (t *HNSBucketTests) TestRenameFolderWithSameParent() {
 		})
 	}
 	assert.ElementsMatch(t.T(), actualDirEntries, expectedFooDirEntries)
+}
+
+func (t *HNSBucketTests) TestRenameFolderWithExistingEmptyDestDirectory() {
+	oldDirPath := path.Join(mntDir, "foo", "test")
+	_, err = os.Stat(oldDirPath)
+	require.NoError(t.T(), err)
+	newDirPath := path.Join(mntDir, "foo", "test2")
+	_, err = os.Stat(newDirPath)
+	require.NoError(t.T(), err)
+
+	// Go's Rename function does not support renaming a directory into an existing empty directory.
+	// To achieve this, we call a Python rename function as a workaround.
+	cmd := exec.Command("python", "-c", fmt.Sprintf("import os; os.rename('%s', '%s')", oldDirPath, newDirPath))
+	_, err = cmd.CombinedOutput()
+
+	assert.NoError(t.T(), err)
+	_, err = os.Stat(oldDirPath)
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+	_, err = os.Stat(newDirPath)
+	assert.NoError(t.T(), err)
+	dirEntries, err := os.ReadDir(newDirPath)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 1, len(dirEntries))
+	assert.Equal(t.T(), "file3.txt", dirEntries[0].Name())
+	assert.False(t.T(), dirEntries[0].IsDir())
 }
 
 func (t *HNSBucketTests) TestRenameFolderWithDifferentParents() {
