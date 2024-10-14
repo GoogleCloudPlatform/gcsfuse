@@ -180,7 +180,7 @@ func TestParseArgs_DeviceIsParsedCorrectly(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			gotDevice, _, _, err := parseArgs([]string{"/path_to_executable", tc.device, tc.mountPoint})
 
-			if assert.Nil(t, err) {
+			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedDevice, gotDevice)
 			}
 		})

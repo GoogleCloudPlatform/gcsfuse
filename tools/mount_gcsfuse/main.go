@@ -193,6 +193,7 @@ func parseArgs(
 			// As of October 10th, 2024, bucket names don't support "/", so it is safe to
 			// assume any received bucket name containing "/" is actually a path and
 			// extract the base file name.
+			// Ref: https://cloud.google.com/storage/docs/buckets#naming
 			if strings.Contains(device, "/") {
 				// Get the last part of the path (bucket name)
 				device = filepath.Base(device)
