@@ -26,10 +26,10 @@ var (
 	unsupportedObjectNames          = []string{""}
 )
 
-// isUnsupportedObjectName returns true if the passed
+// IsUnsupportedObjectName returns true if the passed
 // string is a valid GCS object name or prefix,
 // which is unsupported in GCSFuse.
-func isUnsupportedObjectName(name string) bool {
+func IsUnsupportedObjectName(name string) bool {
 	for _, substring := range unsupportedObjectNameSubstrings {
 		if strings.Contains(name, substring) {
 			return true
@@ -58,14 +58,14 @@ func RemoveUnsupportedObjectsFromListing(listing *gcs.Listing) (newListing *gcs.
 	newListing = &gcs.Listing{}
 	removedListing = &gcs.Listing{}
 	for _, collapsedRun := range listing.CollapsedRuns {
-		if !isUnsupportedObjectName(collapsedRun) {
+		if !IsUnsupportedObjectName(collapsedRun) {
 			newListing.CollapsedRuns = append(newListing.CollapsedRuns, collapsedRun)
 		} else {
 			removedListing.CollapsedRuns = append(removedListing.CollapsedRuns, collapsedRun)
 		}
 	}
 	for _, object := range listing.Objects {
-		if !isUnsupportedObjectName(object.Name) {
+		if !IsUnsupportedObjectName(object.Name) {
 			newListing.Objects = append(newListing.Objects, object)
 		} else {
 			removedListing.Objects = append(removedListing.Objects, object)
