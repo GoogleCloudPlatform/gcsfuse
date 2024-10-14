@@ -16,8 +16,6 @@ package util
 
 import (
 	"strings"
-
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 )
 
 var (
@@ -46,31 +44,4 @@ func IsUnsupportedObjectName(name string) bool {
 		}
 	}
 	return false
-}
-
-// RemoveUnsupportedObjectsFromListing is a utility to ignore unsupported
-// GCS object names such as those containing `//` in their names.
-// As an example, GCS can have two different objects a//b and a/b at the same time
-// in the same bucket. In linux FS however, both paths are same as a/b.
-// So, GCSFuse will ignore objects with names like a//b to avoid causing `input/output error` in
-// linux FS.
-func RemoveUnsupportedObjectsFromListing(listing *gcs.Listing) (newListing *gcs.Listing, removedListing *gcs.Listing) {
-	newListing = &gcs.Listing{}
-	removedListing = &gcs.Listing{}
-	for _, collapsedRun := range listing.CollapsedRuns {
-		if !IsUnsupportedObjectName(collapsedRun) {
-			newListing.CollapsedRuns = append(newListing.CollapsedRuns, collapsedRun)
-		} else {
-			removedListing.CollapsedRuns = append(removedListing.CollapsedRuns, collapsedRun)
-		}
-	}
-	for _, object := range listing.Objects {
-		if !IsUnsupportedObjectName(object.Name) {
-			newListing.Objects = append(newListing.Objects, object)
-		} else {
-			removedListing.Objects = append(removedListing.Objects, object)
-		}
-	}
-	newListing.ContinuationToken = listing.ContinuationToken
-	return newListing, removedListing
 }
