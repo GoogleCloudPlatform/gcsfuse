@@ -75,7 +75,7 @@ func (ts *GcsUtilTest) TestIsUnsupportedObjectName() {
 
 	for _, tc := range cases {
 		ts.Run(fmt.Sprintf("name=%s", tc.name), func() {
-			assert.Equal(ts.T(), tc.isUnsupported, isUnsupportedObjectName(tc.name))
+			assert.Equal(ts.T(), tc.isUnsupported, IsUnsupportedObjectName(tc.name))
 		})
 	}
 }
