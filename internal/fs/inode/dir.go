@@ -672,24 +672,6 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 	}
 }
 
-func logUnsupportedListings(removedListings *gcs.Listing) {
-	if removedListings != nil {
-		if len(removedListings.CollapsedRuns) > 0 {
-			logger.Warnf("Ignored following unsupported prefixes: %v", removedListings.CollapsedRuns)
-		}
-		if len(removedListings.MinObjects) > 0 {
-			objectNames := []string{}
-			for _, object := range removedListings.MinObjects {
-				if object != nil {
-					objectNames = append(objectNames, object.Name)
-				}
-			}
-
-			logger.Warnf("Ignored following unsupported objects: %v", objectNames)
-		}
-	}
-}
-
 // LOCKS_REQUIRED(d)
 func (d *dirInode) readObjects(
 	ctx context.Context,
