@@ -632,7 +632,6 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 	var tok string
 	descendants := make(map[Name]*Core)
 	for {
-		ignoredObjectListings := []string{}
 		listing, err := d.bucket.ListObjects(ctx, &gcs.ListObjectsRequest{
 			Delimiter:         "", // recursively
 			Prefix:            d.Name().GcsObjectName(),
@@ -643,17 +642,18 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 			return nil, fmt.Errorf("list objects: %w", err)
 		}
 
+		unsupportedObjects := []string{}
 		for _, o := range listing.MinObjects {
 			if len(descendants) >= limit {
 				return descendants, nil
 			}
-			// Skip object with unsupported name (containing // or starting with /)
-			if storageutil.IsUnsupportedObjectName(o.Name) {
-				ignoredObjectListings = append(ignoredObjectListings, o.Name)
-				continue
-			}
 			// skip the current directory
 			if o.Name == d.Name().GcsObjectName() {
+				continue
+			}
+			// Skip object with unsupported name (containing // or starting with /)
+			if storageutil.IsUnsupportedObjectName(o.Name) {
+				unsupportedObjects = append(unsupportedObjects, o.Name)
 				continue
 			}
 			name := NewDescendantName(d.Name(), o.Name)
@@ -663,7 +663,7 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 				MinObject: o,
 			}
 		}
-		logger.Debugf("Ignored unsupported objects: %v", ignoredObjectListings)
+		logger.Debugf("Ignored unsupported objects: %v", unsupportedObjects)
 
 		// Are we done listing?
 		if tok = listing.ContinuationToken; tok == "" {
@@ -715,12 +715,6 @@ func (d *dirInode) readObjects(
 		err = fmt.Errorf("ListObjects: %w", err)
 		return
 	}
-
-	//// Remove unsupported prefixes/objects such as those
-	//// containing '//' in them.
-	//var removedListings *gcs.Listing
-	//listing, removedListings = storageutil.RemoveUnsupportedObjectsFromListing(listing)
-	//logUnsupportedListings(removedListings)
 
 	cores = make(map[Name]*Core)
 	defer func() {
@@ -896,16 +890,11 @@ func (d *dirInode) HasNoSupportedObjectsInSubtree(ctx context.Context) (hasNoSup
 				return
 			}
 
-			// Remove unsupported prefixes/objects such as those
-			// containing '//' in them, or starting with '/'.
-			var removedListings *gcs.Listing
-			listing, removedListings = storageutil.RemoveUnsupportedObjectsFromListing(listing)
-			logUnsupportedListings(removedListings)
-
-			// If there is any supported objects in it, then terminate.
-			if len(listing.MinObjects) > 0 {
-				hasNoSupportedObjects = false
-				return
+			for _, object := range listing.MinObjects {
+				if !storageutil.IsUnsupportedObjectName(object.Name) {
+					hasNoSupportedObjects = false
+					return
+				}
 			}
 
 			// Enqueue all supported prefixes for next level of BFS traversal.
