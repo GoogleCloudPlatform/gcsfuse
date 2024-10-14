@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -78,36 +77,4 @@ func (ts *GcsUtilTest) TestIsUnsupportedObjectName() {
 			assert.Equal(ts.T(), tc.isUnsupported, IsUnsupportedObjectName(tc.name))
 		})
 	}
-}
-
-func (t *GcsUtilTest) Test_RemoveUnsupportedObjectsFromListing() {
-	createObject := func(name string) *gcs.Object {
-		return &gcs.Object{Name: name}
-	}
-	createObjects := func(names []string) []*gcs.Object {
-		objects := []*gcs.Object{}
-		for _, name := range names {
-			objects = append(objects, createObject(name))
-		}
-		return objects
-	}
-	origGcsListing := &gcs.Listing{
-		CollapsedRuns:     []string{"/", "a/", "b//", "c/d/", "e//f/", "g/h//"},
-		Objects:           createObjects([]string{"a", "/b", "c/d", "e//f", "g/h//i"}),
-		ContinuationToken: "hfdwefo",
-	}
-	expectedNewGcsListing := &gcs.Listing{
-		CollapsedRuns:     []string{"a/", "c/d/"},
-		Objects:           createObjects([]string{"a", "c/d"}),
-		ContinuationToken: "hfdwefo",
-	}
-	expectedRemovedGcsListing := &gcs.Listing{
-		CollapsedRuns: []string{"/", "b//", "e//f/", "g/h//"},
-		Objects:       createObjects([]string{"/b", "e//f", "g/h//i"}),
-	}
-
-	newGcsListing, removedGcsListing := RemoveUnsupportedObjectsFromListing(origGcsListing)
-
-	assert.Equal(t.T(), *expectedNewGcsListing, *newGcsListing)
-	assert.Equal(t.T(), *expectedRemovedGcsListing, *removedGcsListing)
 }
