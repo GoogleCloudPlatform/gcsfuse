@@ -632,6 +632,7 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 	var tok string
 	descendants := make(map[Name]*Core)
 	for {
+		ignoredObjectListings := []string{}
 		listing, err := d.bucket.ListObjects(ctx, &gcs.ListObjectsRequest{
 			Delimiter:         "", // recursively
 			Prefix:            d.Name().GcsObjectName(),
@@ -646,6 +647,11 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 			if len(descendants) >= limit {
 				return descendants, nil
 			}
+			// Skip object with unsupported name (containing // or starting with /)
+			if storageutil.IsUnsupportedObjectName(o.Name) {
+				ignoredObjectListings = append(ignoredObjectListings, o.Name)
+				continue
+			}
 			// skip the current directory
 			if o.Name == d.Name().GcsObjectName() {
 				continue
@@ -657,6 +663,7 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 				MinObject: o,
 			}
 		}
+		logger.Debugf("Ignored unsupported objects: %v", ignoredObjectListings)
 
 		// Are we done listing?
 		if tok = listing.ContinuationToken; tok == "" {
@@ -709,11 +716,11 @@ func (d *dirInode) readObjects(
 		return
 	}
 
-	// Remove unsupported prefixes/objects such as those
-	// containing '//' in them.
-	var removedListings *gcs.Listing
-	listing, removedListings = storageutil.RemoveUnsupportedObjectsFromListing(listing)
-	logUnsupportedListings(removedListings)
+	//// Remove unsupported prefixes/objects such as those
+	//// containing '//' in them.
+	//var removedListings *gcs.Listing
+	//listing, removedListings = storageutil.RemoveUnsupportedObjectsFromListing(listing)
+	//logUnsupportedListings(removedListings)
 
 	cores = make(map[Name]*Core)
 	defer func() {
@@ -731,6 +738,7 @@ func (d *dirInode) readObjects(
 		}
 		if storageutil.IsUnsupportedObjectName(o.Name) {
 			unsupportedObjects = append(unsupportedObjects, o.Name)
+			continue
 		}
 
 		nameBase := path.Base(o.Name) // ie. "bar" from "foo/bar/" or "foo/bar"
@@ -778,6 +786,7 @@ func (d *dirInode) readObjects(
 		pathBase := path.Base(p)
 		if storageutil.IsUnsupportedObjectName(p) {
 			unsupportedPrefixes = append(unsupportedPrefixes, p)
+			continue
 		}
 		dirName := NewDirName(d.Name(), pathBase)
 		if d.isBucketHierarchical() {
