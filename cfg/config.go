@@ -251,10 +251,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("create-empty-file", "", false, "For a new file, it creates an empty file in Cloud Storage bucket as a hold.")
 
-	if err := flagSet.MarkDeprecated("create-empty-file", "This flag will be deleted soon."); err != nil {
-		return err
-	}
-
 	flagSet.StringP("custom-endpoint", "", "", "Specifies an alternative custom endpoint for fetching data. Should only be used for testing.  The custom endpoint must support the equivalent resources and operations as the GCS  JSON endpoint, https://storage.googleapis.com/storage/v1. If a custom endpoint is not specified,  GCSFuse uses the global GCS JSON API endpoint, https://storage.googleapis.com/storage/v1.")
 
 	flagSet.BoolP("debug_fs", "", false, "This flag is unused.")
