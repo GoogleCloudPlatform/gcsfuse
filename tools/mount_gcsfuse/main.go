@@ -59,6 +59,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -186,6 +187,17 @@ func parseArgs(
 		// Is this the device?
 		case positionalCount == 0:
 			device = s
+			// The kernel might be converting the bucket name to a path if a directory with the
+			// same name as the bucket exists in the folder where the mount command is executed.
+			//
+			// As of October 10th, 2024, bucket names don't support "/", so it is safe to
+			// assume any received bucket name containing "/" is actually a path and
+			// extract the base file name.
+			// Ref: https://cloud.google.com/storage/docs/buckets#naming
+			if strings.Contains(device, "/") {
+				// Get the last part of the path (bucket name)
+				device = filepath.Base(device)
+			}
 			positionalCount++
 
 		// Is this the mount point?

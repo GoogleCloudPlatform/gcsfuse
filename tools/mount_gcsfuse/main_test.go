@@ -148,3 +148,41 @@ func TestMakeGcsfuseArgs(t *testing.T) {
 		})
 	}
 }
+
+func TestParseArgs_DeviceIsParsedCorrectly(t *testing.T) {
+	testCases := []struct {
+		name           string
+		device         string
+		mountPoint     string
+		expectedDevice string
+	}{
+		{
+			name:           "device_bucket_name",
+			device:         "fake_bucket",
+			mountPoint:     "a/b/mnt/fake_bucket",
+			expectedDevice: "fake_bucket",
+		},
+		{
+			name:           "path_device_name",
+			device:         "/mnt/fake_bucket",
+			mountPoint:     "/mnt/fake_bucket",
+			expectedDevice: "fake_bucket",
+		},
+		{
+			name:           "nested_path_device_name",
+			device:         "a/b/mnt/fake_bucket",
+			mountPoint:     "a/b/mnt/fake_bucket",
+			expectedDevice: "fake_bucket",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotDevice, _, _, err := parseArgs([]string{"/path_to_executable", tc.device, tc.mountPoint})
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedDevice, gotDevice)
+			}
+		})
+	}
+}
