@@ -54,7 +54,8 @@ func CreateControlClientWithCancel(ctx *context.Context, controlClient **control
 func DeleteManagedFoldersInBucket(ctx context.Context, client *control.StorageControlClient, managedFolderPath, bucket string) {
 	folderPath := fmt.Sprintf("projects/_/buckets/%v/managedFolders/%v/", bucket, managedFolderPath)
 	req := &controlpb.DeleteManagedFolderRequest{
-		Name: folderPath,
+		Name:          folderPath,
+		AllowNonEmpty: true,
 	}
 	if err := client.DeleteManagedFolder(ctx, req); err != nil && !strings.Contains(err.Error(), "The following URLs matched no objects or files") {
 		log.Fatalf("Error while deleting managed folder: %v", err)
