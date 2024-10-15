@@ -17,7 +17,6 @@ package logger
 import (
 	"fmt"
 	"log/syslog"
-	"net/url"
 	"os"
 	"runtime/debug"
 
@@ -180,7 +179,32 @@ type lumberjackSink struct {
 func (lumberjackSink) Sync() error {
 	return nil
 }
+
 func (f *loggerFactory) newLogger(level string) *zap.Logger {
+	var lvl zapcore.Level
+	lvl.Set(level)
+	ec := zap.NewProductionEncoderConfig()
+	ec.EncodeDuration = zapcore.NanosDurationEncoder
+	ec.EncodeTime = zapcore.EpochNanosTimeEncoder
+	enc := zapcore.NewJSONEncoder(ec)
+	var ws zapcore.WriteSyncer
+	if f.file != nil {
+		ll := lumberjack.Logger{
+			Filename: f.file.Name(),
+			MaxSize:  1024,
+		}
+		ws = zapcore.AddSync(&ll)
+	} else {
+		ws = os.Stdout
+	}
+	return zap.New(zapcore.NewCore(
+		enc,
+		ws,
+		lvl,
+	))
+}
+
+/*func (f *loggerFactory) newLogger(level string) *zap.Logger {
 	// create a new logger
 
 	// Return a zap logger
@@ -208,7 +232,7 @@ func (f *loggerFactory) newLogger(level string) *zap.Logger {
 	//setLoggingLevel(level, programLevel)
 	//return logger
 }
-
+*/
 //func (f *loggerFactory) createJsonOrTextHandler(writer io.Writer, levelVar *slog.LevelVar, prefix string) slog.Handler {
 //	if f.format == textFormat {
 //		return slog.NewTextHandler(writer, getHandlerOptions(levelVar, prefix, f.format))
@@ -227,6 +251,6 @@ func (f *loggerFactory) newLogger(level string) *zap.Logger {
 //	return f.createJsonOrTextHandler(os.Stdout, levelVar, prefix)
 //}
 
-func GetDefaultLogger() *zap.Logger {
-	return defaultLogger
+func GetLogger() *zap.Logger {
+	return defaultLoggerFactory.newLogger(defaultLoggerFactory.level)
 }

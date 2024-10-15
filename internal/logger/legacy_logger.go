@@ -29,5 +29,5 @@ import (
 // This method is created to support jacobsa/fuse loggers and will be removed
 // after slog support is added.
 func NewLegacyLogger(level slog.Level, prefix string) *zap.Logger {
-	return GetDefaultLogger()
+	return GetLogger()
 }
