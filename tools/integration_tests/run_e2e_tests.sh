@@ -138,7 +138,7 @@ function install_packages() {
   wget -O go_tar.tar.gz https://go.dev/dl/go1.23.2.linux-${architecture}.tar.gz -q
   sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
   export PATH=$PATH:/usr/local/go/bin
-  sudo apt-get install python3
+  sudo apt-get install -y python3
   # install python3-setuptools tools.
   sudo apt-get install -y gcc python3-dev python3-setuptools
   # Downloading composite object requires integrity checking with CRC32c in gsutil.
