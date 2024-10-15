@@ -20,8 +20,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
+	cloudmetric "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric"
 	cloudtrace "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
@@ -31,6 +33,8 @@ import (
 	"go.opentelemetry.io/otel/exporters/prometheus"
 	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
 	"go.opentelemetry.io/otel/sdk/metric"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
@@ -63,23 +67,66 @@ func SetupOTelSDK(ctx context.Context, c *cfg.Config) (shutdown ShutdownFn) {
 	return shutdown
 }
 
-func setupMetrics(_ context.Context, c *cfg.Config) ShutdownFn {
-	exporter, err := prometheus.New(prometheus.WithoutUnits(), prometheus.WithoutCounterSuffixes(), prometheus.WithoutScopeInfo(), prometheus.WithoutTargetInfo())
-	if err != nil {
-		logger.Errorf("Error while creating prometheus exporter")
-		return nil
-	}
+func setupMetrics(ctx context.Context, c *cfg.Config) ShutdownFn {
+	if c.Metrics.PrometheusPort != 0 {
+		exporter, err := prometheus.New(prometheus.WithoutUnits(), prometheus.WithoutCounterSuffixes(), prometheus.WithoutScopeInfo(), prometheus.WithoutTargetInfo())
+		if err != nil {
+			logger.Errorf("Error while creating prometheus exporter")
+			return nil
+		}
 
-	meterProvider := metric.NewMeterProvider(
-		metric.WithReader(exporter),
-	)
-	otel.SetMeterProvider(meterProvider)
-	ch := make(chan context.Context)
-	go serveMetrics(c.Metrics.PrometheusPort, ch)
-	return func(ctx context.Context) error {
-		ch <- ctx
-		return nil
+		meterProvider := metric.NewMeterProvider(
+			metric.WithReader(exporter),
+		)
+		otel.SetMeterProvider(meterProvider)
+		ch := make(chan context.Context)
+		go serveMetrics(c.Metrics.PrometheusPort, ch)
+		return func(ctx context.Context) error {
+			ch <- ctx
+			return nil
+		}
 	}
+	if c.Metrics.StackdriverExportInterval > 0 {
+		sdkmetric.WithInterval(c.Metrics.StackdriverExportInterval)
+		options := []cloudmetric.Option{
+			cloudmetric.WithMetricDescriptorTypeFormatter(metricFormatter),
+			cloudmetric.WithCreateServiceTimeSeries(),
+		}
+		exporter, err := cloudmetric.New(options...)
+		if err != nil {
+			logger.Errorf("Error while creating Google Cloud exporter:%v", err)
+			return nil
+		}
+		appName := "gcsfuse"
+		if c.AppName != "" {
+			appName = c.AppName
+		}
+		res, err := resource.New(ctx,
+			// Use the GCP resource detector to detect information about the GCP platform
+			resource.WithDetectors(gcp.NewDetector()),
+			resource.WithTelemetrySDK(),
+			resource.WithAttributes(
+				semconv.ServiceName(appName),
+				semconv.ServiceVersion(common.GetVersion()),
+			),
+		)
+		if err != nil {
+			logger.Errorf("error while creating resource object:%v", res)
+		}
+		r := sdkmetric.NewPeriodicReader(exporter, sdkmetric.WithInterval(c.Metrics.StackdriverExportInterval))
+		mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(r),
+			sdkmetric.WithResource(res))
+		return func(ctx context.Context) error { return mp.Shutdown(ctx) }
+	}
+	return nil
+}
+
+func metricFormatter(m metricdata.Metrics) string {
+	name := "custom.googleapis.com/gcsfuse/" + strings.ReplaceAll(m.Name, "_", " ")
+	if len(name) > 0 {
+		name = strings.ToUpper(name[:1]) + name[1:]
+	}
+	return name
 }
 
 func serveMetrics(port int64, done <-chan context.Context) {
@@ -170,6 +217,5 @@ func newGCPCloudTraceExporter(ctx context.Context, c *cfg.Config) (*sdktrace.Tra
 	}
 
 	tp := sdktrace.NewTracerProvider(sdktrace.WithBatcher(exporter), sdktrace.WithResource(res), sdktrace.WithSampler(sdktrace.TraceIDRatioBased(c.Monitoring.ExperimentalTracingSamplingRatio)))
-
 	return tp, tp.Shutdown, nil
 }

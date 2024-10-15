@@ -392,8 +392,6 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 		return err
 	}
 
-	// The returned error is ignored as we do not enforce monitoring exporters
-	_ = monitor.EnableStackdriverExporter(newConfig.Metrics.StackdriverExportInterval)
 	_ = monitor.EnableOpenTelemetryCollectorExporter(newConfig.Monitoring.ExperimentalOpentelemetryCollectorAddress)
 	ctx := context.Background()
 	shutdownFn := monitor.SetupOTelSDK(ctx, newConfig)
@@ -456,7 +454,6 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	// Wait for the file system to be unmounted.
 	err = mfs.Join(ctx)
 
-	monitor.CloseStackdriverExporter()
 	monitor.CloseOpenTelemetryCollectorExporter()
 	if shutdownErr := shutdownFn(ctx); shutdownErr != nil {
 		logger.Errorf("Error while shutting down OTel exporters: %v", shutdownErr)

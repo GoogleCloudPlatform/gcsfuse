@@ -16,62 +16,12 @@ package monitor
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"contrib.go.opencensus.io/exporter/ocagent"
-	"contrib.go.opencensus.io/exporter/stackdriver"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"go.opencensus.io/stats/view"
 )
-
-var stackdriverExporter *stackdriver.Exporter
-
-// EnableStackdriverExporter starts to collect monitoring metrics and exports
-// them to Stackdriver iff the given interval is positive.
-func EnableStackdriverExporter(interval time.Duration) error {
-	if interval <= 0 {
-		return nil
-	}
-
-	var err error
-	if stackdriverExporter, err = stackdriver.NewExporter(stackdriver.Options{
-		ReportingInterval: interval,
-		OnError: func(err error) {
-			logger.Errorf("Fail to send metric: %v", err)
-		},
-
-		// For a local metric "http_sent_bytes", the Stackdriver metric type
-		// would be "custom.googleapis.com/gcsfuse/http_sent_bytes", display
-		// name would be "Http sent bytes".
-		MetricPrefix: "custom.googleapis.com/gcsfuse/",
-		GetMetricDisplayName: func(view *view.View) string {
-			name := strings.ReplaceAll(view.Name, "_", " ")
-			if len(name) > 0 {
-				name = strings.ToUpper(name[:1]) + name[1:]
-			}
-			return name
-		},
-	}); err != nil {
-		return fmt.Errorf("create stackdriver exporter: %w", err)
-	}
-	if err = stackdriverExporter.StartMetricsExporter(); err != nil {
-		return fmt.Errorf("start stackdriver exporter: %w", err)
-	}
-
-	logger.Info("Stackdriver exporter started")
-	return nil
-}
-
-// CloseStackdriverExporter ensures all collected metrics are sent to
-// Stackdriver and closes the stackdriverExporter.
-func CloseStackdriverExporter() {
-	if stackdriverExporter != nil {
-		stackdriverExporter.StopMetricsExporter()
-		stackdriverExporter.Flush()
-	}
-	stackdriverExporter = nil
-}
 
 var ocExporter *ocagent.Exporter
 
