@@ -56,7 +56,7 @@ type managedFoldersAdminPermission struct {
 }
 
 func (s *managedFoldersAdminPermission) Setup(t *testing.T) {
-	createDirectoryStructureForNonEmptyManagedFolders(ctx, storageClient, t)
+	createDirectoryStructureForNonEmptyManagedFolders(ctx, storageClient, controlClient, t)
 	if s.managedFoldersPermission != "nil" {
 		providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, s.managedFoldersPermission, t)
 		providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, s.managedFoldersPermission, t)

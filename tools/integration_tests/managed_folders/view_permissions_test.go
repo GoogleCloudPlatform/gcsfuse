@@ -152,7 +152,7 @@ func TestManagedFolders_FolderViewPermission(t *testing.T) {
 
 	bucket, testDir = setup.GetBucketAndObjectBasedOnTypeOfMount(TestDirForManagedFolderTest)
 	// Create directory structure for testing.
-	createDirectoryStructureForNonEmptyManagedFolders(ctx, storageClient, t)
+	createDirectoryStructureForNonEmptyManagedFolders(ctx, storageClient, controlClient, t)
 	defer cleanup(ctx, storageClient, bucket, testDir, serviceAccount, IAMRoleForViewPermission, t)
 
 	// Run tests.

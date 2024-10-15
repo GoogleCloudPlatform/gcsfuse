@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
 
@@ -68,8 +69,8 @@ func createDirectoryStructureForEmptyManagedFoldersTest(t *testing.T) {
 	// testBucket/EmptyManagedFoldersTest/simulatedFolder
 	// testBucket/EmptyManagedFoldersTest/testFile
 	bucket, testDir := setup.GetBucketAndObjectBasedOnTypeOfMount(TestDirForEmptyManagedFoldersTest)
-	operations.CreateManagedFoldersInBucket(path.Join(testDir, EmptyManagedFolder1), bucket)
-	operations.CreateManagedFoldersInBucket(path.Join(testDir, EmptyManagedFolder2), bucket)
+	client.CreateManagedFoldersInBucket(ctx, controlClient, path.Join(testDir, EmptyManagedFolder1), bucket)
+	client.CreateManagedFoldersInBucket(ctx, controlClient, path.Join(testDir, EmptyManagedFolder2), bucket)
 	operations.CreateDirectory(path.Join(setup.MntDir(), TestDirForEmptyManagedFoldersTest, SimulatedFolder), t)
 	f := operations.CreateFile(path.Join(setup.MntDir(), TestDirForEmptyManagedFoldersTest, File), setup.FilePermission_0600, t)
 	operations.CloseFile(f)
