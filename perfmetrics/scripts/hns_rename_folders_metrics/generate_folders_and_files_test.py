@@ -200,7 +200,7 @@ class TestCheckIfDirStructureExists(unittest.TestCase):
   @patch("generate_folders_and_files._list_directory")
   def test_dir_already_exists_in_gcs_bucket(self, mock_list_directory):
     mock_list_directory.side_effect = [
-        ["gs://unit-test-mock-bkt/test_folder/", "gs://test-bucket/nested/"],
+        ["gs://unit-test-mock-bkt/test_folder/", "gs://unit-test-mock-bkt/nested/"],
         ["gs://unit-test-mock-bkt/test_folder/file_1.txt"],
         ["gs://unit-test-mock-bkt/nested/test_folder/"],
         ["gs://unit-test-mock-bkt/nested/test_folder/file_1.txt"]
@@ -240,7 +240,7 @@ class TestCheckIfDirStructureExists(unittest.TestCase):
   @patch("generate_folders_and_files._list_directory")
   def test_dir_does_not_exist_in_gcs_bucket(self, mock_list_directory):
     mock_list_directory.side_effect = [
-        ["gs://unit-test-mock-bkt/test_folder/", "gs://test-bucket/nested/"],
+        ["gs://unit-test-mock-bkt/test_folder/", "gs://unit-test-mock-bkt/nested/"],
         ["gs://unit-test-mock-bkt/test_folder/file_1.txt",
          "gs://unit-test-mock-bkt/test_folder/file_1.txt"],
         ["gs://unit-test-mock-bkt/nested/test_folder/"],
