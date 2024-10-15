@@ -116,6 +116,8 @@ func setupMetrics(ctx context.Context, c *cfg.Config) ShutdownFn {
 		r := sdkmetric.NewPeriodicReader(exporter, sdkmetric.WithInterval(c.Metrics.StackdriverExportInterval))
 		mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(r),
 			sdkmetric.WithResource(res))
+		otel.SetMeterProvider(mp)
+		logger.Info("gcp metrics exporter started")
 		return func(ctx context.Context) error { return mp.Shutdown(ctx) }
 	}
 	return nil
