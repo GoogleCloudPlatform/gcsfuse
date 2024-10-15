@@ -20,6 +20,7 @@ import (
 	"io"
 	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/monitor/tags"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -139,6 +140,13 @@ func (mb *monitoringBucket) CreateObject(
 	o, err := mb.wrapped.CreateObject(ctx, req)
 	recordRequest(ctx, "CreateObject", startTime)
 	return o, err
+}
+
+func (mb *monitoringBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (*storage.Writer, error) {
+	startTime := time.Now()
+	wc, err := mb.wrapped.CreateObjectChunkWriter(ctx, req, chunkSize, callBack)
+	recordRequest(ctx, "CreateObjectChunkWriter", startTime)
+	return wc, err
 }
 
 func (mb *monitoringBucket) CopyObject(

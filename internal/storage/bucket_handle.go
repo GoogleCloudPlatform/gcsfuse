@@ -237,6 +237,21 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	o = storageutil.ObjectAttrsToBucketObject(attrs)
 	return
 }
+func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (*storage.Writer, error) {
+	// For phase 1 of buffered writes, we are doing chunk uploads only for new
+	// file uploads so set DoesNotExist precondition true.
+	preconditions := storage.Conditions{}
+	preconditions.DoesNotExist = true
+	obj := bh.bucket.Object(req.Name)
+	obj = obj.If(preconditions)
+
+	wc := obj.NewWriter(ctx)
+	wc.ChunkSize = chunkSize
+	wc = storageutil.SetAttrsInWriter(wc, req)
+	wc.ProgressFunc = callBack
+
+	return wc, nil
+}
 
 func (bh *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
 	srcObj := bh.bucket.Object(req.SrcName)
