@@ -90,7 +90,7 @@ func setupMetrics(ctx context.Context, c *cfg.Config) ShutdownFn {
 		sdkmetric.WithInterval(c.Metrics.StackdriverExportInterval)
 		options := []cloudmetric.Option{
 			cloudmetric.WithMetricDescriptorTypeFormatter(metricFormatter),
-			cloudmetric.WithCreateServiceTimeSeries(),
+			//cloudmetric.WithCreateServiceTimeSeries(),
 		}
 		exporter, err := cloudmetric.New(options...)
 		if err != nil {
