@@ -27,7 +27,7 @@ class TestCheckForConfigFileInconsistency(unittest.TestCase):
 
   def test_missing_keys_from_folder(self):
     config = {
-        "name": "test-bucket-non-existent",
+        "name": "unit-test-mock-bkt",
         "folders": {}
     }
     result = generate_folders_and_files._check_for_config_file_inconsistency(
@@ -36,7 +36,7 @@ class TestCheckForConfigFileInconsistency(unittest.TestCase):
 
   def test_missing_keys_from_nested_folder(self):
     config = {
-        "name": "test-bucket-non-existent",
+        "name": "unit-test-mock-bkt",
         "nested_folders": {}
     }
     result = generate_folders_and_files._check_for_config_file_inconsistency(
@@ -45,7 +45,7 @@ class TestCheckForConfigFileInconsistency(unittest.TestCase):
 
   def test_folders_num_folder_mismatch(self):
     config = {
-        "name": "test-bucket-non-existent",
+        "name": "unit-test-mock-bkt",
         "folders": {
             "num_folders": 2,
             "folder_structure": [
@@ -64,7 +64,7 @@ class TestCheckForConfigFileInconsistency(unittest.TestCase):
 
   def test_nested_folders_num_folder_mismatch(self):
     config = {
-        "name": "test-bucket-non-existent",
+        "name": "unit-test-mock-bkt",
         "nested_folders": {
             "folder_name": "test_nested_folder",
             "num_folders": 2,
@@ -84,7 +84,7 @@ class TestCheckForConfigFileInconsistency(unittest.TestCase):
 
   def test_valid_config(self):
     config = {
-        "name": "test-bucket-non-existent",
+        "name": "unit-test-mock-bkt",
         "folders": {
             "num_folders": 1,
             "folder_structure": [
@@ -121,24 +121,24 @@ class TestListDirectory(unittest.TestCase):
   def test_listing_at_non_existent_path(self, mock_logmessage,mock_check_output):
     mock_check_output.side_effect = subprocess.CalledProcessError(
         returncode=1,
-        cmd="gcloud storage ls gs://fake-bkt-non-existent",
+        cmd="gcloud storage ls gs://unit-test-mock-bkt",
         output=b'Error while listing')
 
-    dir_list = generate_folders_and_files._list_directory("gs://fake-bkt-non-existent")
+    dir_list = generate_folders_and_files._list_directory("gs://unit-test-mock-bkt")
 
     self.assertEqual(dir_list, None)
     mock_logmessage.assert_called_once_with('Error while listing','error')
 
   @patch('subprocess.check_output')
   def test_listing_directory(self, mock_check_output):
-    mock_check_output.return_value = b'gs://fake-bkt-non-existent/fake_folder_0/\n' \
-                                     b'gs://fake-bkt-non-existent/fake_folder_1/\n' \
-                                     b'gs://fake-bkt-non-existent/nested_fake_folder/\n'
-    expected_dir_list = ["gs://fake-bkt-non-existent/fake_folder_0/",
-                         "gs://fake-bkt-non-existent/fake_folder_1/",
-                         "gs://fake-bkt-non-existent/nested_fake_folder/"]
+    mock_check_output.return_value = b'gs://unit-test-mock-bkt/fake_folder_0/\n' \
+                                     b'gs://unit-test-mock-bkt/fake_folder_1/\n' \
+                                     b'gs://unit-test-mock-bkt/nested_fake_folder/\n'
+    expected_dir_list = ["gs://unit-test-mock-bkt/fake_folder_0/",
+                         "gs://unit-test-mock-bkt/fake_folder_1/",
+                         "gs://unit-test-mock-bkt/nested_fake_folder/"]
 
-    dir_list = generate_folders_and_files._list_directory("gs://fake-bkt-non-existent")
+    dir_list = generate_folders_and_files._list_directory("gs://unit-test-mock-bkt")
 
     self.assertEqual(dir_list, expected_dir_list)
 
@@ -154,7 +154,7 @@ class TestCompareFolderStructure(unittest.TestCase):
         "file_name_prefix": "test_file",
         "file_size": "1kb"
     }
-    test_folder_url='gs://fake-bkt-non-existent'
+    test_folder_url='gs://unit-test-mock-bkt'
 
     match = generate_folders_and_files._compare_folder_structure(test_folder, test_folder_url)
 
@@ -169,7 +169,7 @@ class TestCompareFolderStructure(unittest.TestCase):
         "file_name_prefix": "test_file",
         "file_size": "1kb"
     }
-    test_folder_url='gs://fake-bkt-non-existent'
+    test_folder_url='gs://unit-test-mock-bkt'
 
     match = generate_folders_and_files._compare_folder_structure(test_folder, test_folder_url)
 
@@ -179,7 +179,7 @@ class TestCompareFolderStructure(unittest.TestCase):
   def test_folder_does_not_exist_in_gcs_bucket(self,mock_listdir):
     mock_listdir.side_effect=subprocess.CalledProcessError(
         returncode=1,
-        cmd="gcloud storage ls gs://fake-bkt-non-existent/folder_does_not_exist",
+        cmd="gcloud storage ls gs://unit-test-mock-bkt/folder_does_not_exist",
         output=b'Error while listing')
     test_folder={
         "name": "test_folder",
@@ -187,7 +187,7 @@ class TestCompareFolderStructure(unittest.TestCase):
         "file_name_prefix": "test_file",
         "file_size": "1kb"
     }
-    test_folder_url='gs://fake-bkt-non-existent/folder_does_not_exist'
+    test_folder_url='gs://unit-test-mock-bkt/folder_does_not_exist'
 
     match = generate_folders_and_files._compare_folder_structure(test_folder, test_folder_url)
 
@@ -200,13 +200,13 @@ class TestCheckIfDirStructureExists(unittest.TestCase):
   @patch("generate_folders_and_files._list_directory")
   def test_dir_already_exists_in_gcs_bucket(self, mock_list_directory):
     mock_list_directory.side_effect = [
-        ["gs://test-bucket-non-existent/test_folder/", "gs://test-bucket/nested/"],
-        ["gs://test-bucket-non-existent/test_folder/file_1.txt"],
-        ["gs://test-bucket-non-existent/nested/test_folder/"],
-        ["gs://test-bucket-non-existent/nested/test_folder/file_1.txt"]
+        ["gs://unit-test-mock-bkt/test_folder/", "gs://test-bucket/nested/"],
+        ["gs://unit-test-mock-bkt/test_folder/file_1.txt"],
+        ["gs://unit-test-mock-bkt/nested/test_folder/"],
+        ["gs://unit-test-mock-bkt/nested/test_folder/file_1.txt"]
     ]
     dir_config = {
-        "name": "test-bucket-non-existent",
+        "name": "unit-test-mock-bkt",
         "folders": {
             "num_folders": 1,
             "folder_structure": [
@@ -240,14 +240,14 @@ class TestCheckIfDirStructureExists(unittest.TestCase):
   @patch("generate_folders_and_files._list_directory")
   def test_dir_does_not_exist_in_gcs_bucket(self, mock_list_directory):
     mock_list_directory.side_effect = [
-        ["gs://test-bucket-non-existent/test_folder/", "gs://test-bucket/nested/"],
-        ["gs://test-bucket-non-existent/test_folder/file_1.txt",
-         "gs://test-bucket-non-existent/test_folder/file_1.txt"],
-        ["gs://test-bucket-non-existent/nested/test_folder/"],
-        ["gs://test-bucket-non-existent/nested/test_folder/file_1.txt"]
+        ["gs://unit-test-mock-bkt/test_folder/", "gs://test-bucket/nested/"],
+        ["gs://unit-test-mock-bkt/test_folder/file_1.txt",
+         "gs://unit-test-mock-bkt/test_folder/file_1.txt"],
+        ["gs://unit-test-mock-bkt/nested/test_folder/"],
+        ["gs://unit-test-mock-bkt/nested/test_folder/file_1.txt"]
     ]
     dir_config = {
-        "name": "test-bucket-non-existent",
+        "name": "unit-test-mock-bkt",
         "folders": {
             "num_folders": 1,
             "folder_structure": [
@@ -287,11 +287,11 @@ class TestDeleteExistingDataInGcsBucket(unittest.TestCase):
       mock_check_output):
     mock_check_output.side_effect = subprocess.CalledProcessError(
         returncode=1,
-        cmd="gcloud alpha storage rm -r gs://fake-bkt-non-existent",
+        cmd="gcloud alpha storage rm -r gs://unit-test-mock-bkt",
         output=b'Error while deleting')
 
     exit_code = generate_folders_and_files\
-      ._delete_existing_data_in_gcs_bucket("fake-bkt-non-existent")
+      ._delete_existing_data_in_gcs_bucket("unit-test-mock-bkt")
 
     self.assertEqual(exit_code, 1)
     mock_logmessage.assert_called_once_with('Error while deleting','error')
@@ -301,7 +301,7 @@ class TestDeleteExistingDataInGcsBucket(unittest.TestCase):
     mock_check_output.return_value = 0
 
     exit_code = generate_folders_and_files \
-      ._delete_existing_data_in_gcs_bucket("fake-bkt-non-existent")
+      ._delete_existing_data_in_gcs_bucket("unit-test-mock-bkt")
 
     self.assertEqual(exit_code, 0)
 
@@ -442,7 +442,7 @@ class TestParseAndGenerateDirStructure(unittest.TestCase):
   @patch('generate_folders_and_files._generate_files_and_upload_to_gcs_bucket')
   def test_valid_dir_str_with_folders(self, mock_generate, mock_log, mock_subprocess):
     dir_str = {
-        "name": "test-bucket-non-existent",
+        "name": "unit-test-mock-bkt",
         "folders": {
             "num_folders":1,
             "folder_structure": [
@@ -473,8 +473,8 @@ class TestParseAndGenerateDirStructure(unittest.TestCase):
         call(['rm', '-r', generate_folders_and_files.TEMPORARY_DIRECTORY])
     ]
     expected_generate_and_upload_calls = [
-        call( 'gs://test-bucket-non-existent/test_folder/',2,'kb',1,'file'),
-        call('gs://test-bucket-non-existent/test_nested/test_nested_folder1/',2,'kb',1,'file')
+        call( 'gs://unit-test-mock-bkt/test_folder/',2,'kb',1,'file'),
+        call('gs://unit-test-mock-bkt/test_nested/test_nested_folder1/',2,'kb',1,'file')
     ]
 
     exit_code = generate_folders_and_files._parse_and_generate_directory_structure(dir_str)
@@ -495,7 +495,7 @@ class TestParseAndGenerateDirStructure(unittest.TestCase):
   @patch('generate_folders_and_files._generate_files_and_upload_to_gcs_bucket')
   def test_create_folder_failure(self, mock_generate, mock_log, mock_subprocess):
     dir_str = {
-        "name": "test-bucket-non-existent",
+        "name": "unit-test-mock-bkt",
         "folders": {
             "num_folders":1,
             "folder_structure": [
@@ -513,7 +513,7 @@ class TestParseAndGenerateDirStructure(unittest.TestCase):
         call(['mkdir', '-p', generate_folders_and_files.TEMPORARY_DIRECTORY])
     ]
     expected_generate_and_upload_calls = [
-        call( 'gs://test-bucket-non-existent/test_folder/',2,'kb',1,'file')
+        call( 'gs://unit-test-mock-bkt/test_folder/',2,'kb',1,'file')
     ]
 
     exit_code = generate_folders_and_files._parse_and_generate_directory_structure(dir_str)
