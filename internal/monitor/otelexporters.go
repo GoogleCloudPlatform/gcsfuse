@@ -124,11 +124,7 @@ func setupMetrics(ctx context.Context, c *cfg.Config) ShutdownFn {
 }
 
 func metricFormatter(m metricdata.Metrics) string {
-	name := "custom.googleapis.com/gcsfuse/" + strings.ReplaceAll(m.Name, ".", "/")
-	if len(name) > 0 {
-		name = strings.ToUpper(name[:1]) + name[1:]
-	}
-	return name
+	return "custom.googleapis.com/gcsfuse/" + strings.ReplaceAll(m.Name, ".", "/")
 }
 
 func serveMetrics(port int64, done <-chan context.Context) {
