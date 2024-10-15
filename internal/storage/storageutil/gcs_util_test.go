@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package util
+package storageutil_test
 
 import (
 	"fmt"
 	"testing"
 
+	. "github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -68,6 +69,10 @@ func (ts *GcsUtilTest) TestIsUnsupportedObjectName() {
 		},
 		{
 			name:          "/",
+			isUnsupported: true,
+		},
+		{
+			name:          "",
 			isUnsupported: true,
 		},
 	}
