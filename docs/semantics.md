@@ -385,10 +385,10 @@ Instead, when a conflicting pair of foo and ```foo/``` objects both exist, it ap
 
 ### Unsupported object names
 
-Objects in GCS with double slashes '//' as a name or
-prefix are not supported in GCSfuse. Accessing a directory with such
-named files will cause an 'input/output error', as the Linux
-filesystem does not support files or directories named with a '/'.
+Objects in GCS with double slashes '//' in name or
+'/' as prefix in name are not supported in GCSfuse, as the Linux
+filesystem does not support files or directories with such name. These objects are
+ignored by GCSFuse during any file operations.
 The most common example of this is an object called, for example
 'A//C.txt' where 'A' indicates a directory and 'C.txt' indicates a
 file, and is missing directory 'B/' between 'A/' and 'C.txt'.
