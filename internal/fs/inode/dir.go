@@ -27,7 +27,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
@@ -653,7 +652,7 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 				continue
 			}
 			// Skip object with unsupported name (containing // or starting with /)
-			if util.IsUnsupportedObjectName(o.Name) {
+			if storageutil.IsUnsupportedObjectName(o.Name) {
 				unsupportedObjects = append(unsupportedObjects, o.Name)
 				continue
 			}
@@ -713,7 +712,7 @@ func (d *dirInode) readObjects(
 		if o.Name == d.Name().GcsObjectName() || o.Name == "" {
 			continue
 		}
-		if util.IsUnsupportedObjectName(o.Name) {
+		if storageutil.IsUnsupportedObjectName(o.Name) {
 			unsupportedObjects = append(unsupportedObjects, o.Name)
 			continue
 		}
@@ -759,7 +758,7 @@ func (d *dirInode) readObjects(
 	unsupportedPrefixes := []string{}
 	for _, p := range listing.CollapsedRuns {
 		pathBase := path.Base(p)
-		if util.IsUnsupportedObjectName(p) {
+		if storageutil.IsUnsupportedObjectName(p) {
 			unsupportedPrefixes = append(unsupportedPrefixes, p)
 			continue
 		}
@@ -870,7 +869,7 @@ func (d *dirInode) HasNoSupportedObjectsInSubtree(ctx context.Context) (hasNoSup
 			}
 
 			for _, object := range listing.Objects {
-				if !util.IsUnsupportedObjectName(object.Name) {
+				if !storageutil.IsUnsupportedObjectName(object.Name) {
 					hasNoSupportedObjects = false
 					return
 				}
