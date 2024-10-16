@@ -20,83 +20,25 @@ import (
 	"io"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/monitor/tags"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	"go.opencensus.io/plugin/ochttp"
-	"go.opencensus.io/stats"
-	"go.opencensus.io/stats/view"
-	"go.opencensus.io/tag"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 var (
+	meter = otel.Meter("gcs")
 	// OpenCensus measures
-	readBytesCount = stats.Int64("gcs/read_bytes_count", "The number of bytes read from GCS objects.", stats.UnitBytes)
-	readerCount    = stats.Int64("gcs/reader_count", "The number of GCS object readers opened or closed.", stats.UnitDimensionless)
-	requestCount   = stats.Int64("gcs/request_count", "The number of GCS requests processed.", stats.UnitDimensionless)
-	requestLatency = stats.Float64("gcs/request_latency", "The latency of a GCS request.", stats.UnitMilliseconds)
+	readBytesCount, _ = meter.Int64Counter("gcs/read_bytes_count", metric.WithDescription("The number of bytes read from GCS objects."), metric.WithUnit("By"))
+	readerCount, _    = meter.Int64Counter("gcs/reader_count", metric.WithDescription("The number of GCS object readers opened or closed."))
+	requestCount, _   = meter.Int64Counter("gcs/request_count", metric.WithDescription("The number of GCS requests processed."))
+	requestLatency, _ = meter.Int64Histogram("gcs/request_latencies", metric.WithDescription("The latency of a GCS request."), metric.WithUnit("ms"))
 )
-
-// Initialize the metrics.
-func init() {
-	// OpenCensus views (aggregated measures)
-	if err := view.Register(
-		&view.View{
-			Name:        "gcs/read_bytes_count",
-			Measure:     readBytesCount,
-			Description: "The cumulative number of bytes read from GCS objects.",
-			Aggregation: view.Sum(),
-		},
-		&view.View{
-			Name:        "gcs/reader_count",
-			Measure:     readerCount,
-			Description: "The cumulative number of GCS object readers opened or closed.",
-			Aggregation: view.Sum(),
-			TagKeys:     []tag.Key{tags.IOMethod},
-		},
-		&view.View{
-			Name:        "gcs/request_count",
-			Measure:     requestCount,
-			Description: "The cumulative number of GCS requests processed.",
-			Aggregation: view.Sum(),
-			TagKeys:     []tag.Key{tags.GCSMethod},
-		},
-		&view.View{
-			Name:        "gcs/request_latencies",
-			Measure:     requestLatency,
-			Description: "The cumulative distribution of the GCS request latencies.",
-			Aggregation: ochttp.DefaultLatencyDistribution,
-			TagKeys:     []tag.Key{tags.GCSMethod},
-		}); err != nil {
-		fmt.Printf("Failed to register OpenCensus metrics for GCS client library: %v", err)
-	}
-}
 
 // recordRequest records a request and its latency.
 func recordRequest(ctx context.Context, method string, start time.Time) {
-	if err := stats.RecordWithTags(
-		ctx,
-		[]tag.Mutator{
-			tag.Upsert(tags.GCSMethod, method),
-		},
-		requestCount.M(1),
-	); err != nil {
-		// The error should be caused by a bad tag
-		logger.Errorf("Cannot record request count: %v", err)
-	}
-
-	latencyUs := time.Since(start).Microseconds()
-	latencyMs := float64(latencyUs) / 1000.0
-	if err := stats.RecordWithTags(
-		ctx,
-		[]tag.Mutator{
-			tag.Upsert(tags.GCSMethod, method),
-		},
-		requestLatency.M(latencyMs),
-	); err != nil {
-		// The error should be caused by a bad tag
-		logger.Errorf("Cannot record request latency: %v", err)
-	}
+	requestCount.Add(ctx, 1, metric.WithAttributes(attribute.String("gcs_method", method)))
+	requestLatency.Record(ctx, time.Since(start).Milliseconds(), metric.WithAttributes(attribute.String("gcs_method", method)))
 }
 
 // NewMonitoringBucket returns a gcs.Bucket that exports metrics for monitoring
@@ -225,15 +167,7 @@ func (mb *monitoringBucket) RenameFolder(ctx context.Context, folderName string,
 
 // recordReader increments the reader count when it's opened or closed.
 func recordReader(ctx context.Context, ioMethod string) {
-	if err := stats.RecordWithTags(
-		ctx,
-		[]tag.Mutator{
-			tag.Upsert(tags.IOMethod, ioMethod),
-		},
-		readerCount.M(1),
-	); err != nil {
-		logger.Errorf("Cannot record a reader %v: %v", ioMethod, err)
-	}
+	readerCount.Add(ctx, 1, metric.WithAttributes(attribute.String("io_method", ioMethod)))
 }
 
 // Monitoring on the object reader
@@ -255,7 +189,7 @@ type monitoringReadCloser struct {
 func (mrc *monitoringReadCloser) Read(p []byte) (n int, err error) {
 	n, err = mrc.wrapped.Read(p)
 	if err == nil || err == io.EOF {
-		stats.Record(mrc.ctx, readBytesCount.M(int64(n)))
+		readBytesCount.Add(mrc.ctx, int64(n))
 	}
 	return
 }
