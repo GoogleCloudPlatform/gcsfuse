@@ -130,7 +130,7 @@ func resourceObj(ctx context.Context, appName string) (*resource.Resource, error
 }
 
 func metricFormatter(m metricdata.Metrics) string {
-	return "custom.googleapis.com/gcsfuse/" + strings.ReplaceAll(m.Name, ".", "/")
+	return "custom.googleapis.com/gcsfuse-test/" + strings.ReplaceAll(m.Name, ".", "/")
 }
 
 func serveMetrics(port int64, done <-chan context.Context) {
