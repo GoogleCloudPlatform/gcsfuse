@@ -139,9 +139,7 @@ function install_packages() {
   sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
   export PATH=$PATH:/usr/local/go/bin
   sudo apt-get install -y python3
-  export PATH=$PATH:/usr/local/python3/bin
-  echo "Python3 path"
-  which python3
+  export PATH=$PATH:/usr/bin/python3
   # install python3-setuptools tools.
   sudo apt-get install -y gcc python3-dev python3-setuptools
   # Downloading composite object requires integrity checking with CRC32c in gsutil.
