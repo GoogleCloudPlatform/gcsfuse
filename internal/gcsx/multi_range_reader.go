@@ -94,6 +94,7 @@ func (mrr *MultiRangeReader) ReadAt(
 		mrr.seekReaderToPosition(offset)
 
 		readType := util.Sequential
+		var tmp int
 		if mrr.seeks >= minSeeksForRandom {
 			readType = util.Random
 			if mrr.mrd == nil {
@@ -103,23 +104,23 @@ func (mrr *MultiRangeReader) ReadAt(
 					return
 				}
 			}
-
+			tmp, err = mrr.readFromRange(ctx, offset, mrr.limit, p)
 		}
 
 		// If we don't have a reader and read type is sequential, start a read operation for sequential.
-		if readType == util.Sequential && mrr.reader == nil {
-			err = mrr.startRead(ctx, offset, int64(len(p)))
-			if err != nil {
-				err = fmt.Errorf("startRead: %w", err)
-				return
+		if readType == util.Sequential {
+			if mrr.reader == nil {
+				err = mrr.startRead(ctx, offset, int64(len(p)))
+				if err != nil {
+					err = fmt.Errorf("startRead: %w", err)
+					return
+				}
 			}
+			tmp, err = mrr.readFull(ctx, p)
 		}
 
 		// Now we have a reader positioned at the correct place. Consume as much from
 		// it as possible.
-		var tmp int
-		tmp, err = mrr.readFull(ctx, p, readType)
-
 		n += tmp
 		p = p[tmp:]
 		mrr.start += int64(tmp)
@@ -180,70 +181,57 @@ func (mrr *MultiRangeReader) sanityCheck() bool {
 	return true
 }
 
-func (rr *MultiRangeReader) Object() (o *gcs.MinObject) {
-	o = rr.object
+func (mrr *MultiRangeReader) Object() (o *gcs.MinObject) {
+	o = mrr.object
 	return
 }
 
-func (rr *MultiRangeReader) Destroy() {
+func (mrr *MultiRangeReader) Destroy() {
 	// Close out the reader, if we have one.
-	if rr.reader != nil {
-		err := rr.reader.Close()
-		rr.reader = nil
-		rr.cancel = nil
+	if mrr.reader != nil {
+		err := mrr.reader.Close()
 		if err != nil {
 			logger.Warnf("rr.Destroy(): while closing reader: %v", err)
 		}
+		err = mrr.mrd.Close()
+		if err != nil {
+			logger.Warnf("rr.Destroy(): while closing multi range reader: %v", err)
+		}
+		mrr.reader = nil
+		mrr.cancel = nil
+
 	}
 
-	if rr.fileCacheHandle != nil {
-		logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", rr.fileCacheHandle, rr.bucket.Name(), rr.object.Name)
-		err := rr.fileCacheHandle.Close()
+	if mrr.fileCacheHandle != nil {
+		logger.Tracef(
+			"Closing cacheHandle:%p for object: %s:/%s",
+			mrr.fileCacheHandle,
+			mrr.bucket.Name(),
+			mrr.object.Name,
+		)
+		err := mrr.fileCacheHandle.Close()
 		if err != nil {
 			logger.Warnf("rr.Destroy(): while closing cacheFileHandle: %v", err)
 		}
-		rr.fileCacheHandle = nil
+		mrr.fileCacheHandle = nil
 	}
 }
 
 // Like io.ReadFull, but deals with the cancellation issues.
 //
 // REQUIRES: rr.reader != nil
-func (mrr *MultiRangeReader) readFull(
+
+func (mrr *MultiRangeReader) readFromRange(
 	ctx context.Context,
-	p []byte, readType string) (n int, err error) {
-	// Start a goroutine that will cancel the read operation we block on below if
-	// the calling context is cancelled, but only if this method has not already
-	// returned (to avoid souring the reader for the next read if this one is
-	// successful, since the calling context will eventually be cancelled).
-	readDone := make(chan struct{})
-	defer close(readDone)
+	start int64,
+	end int64,
+	p []byte) (int, error) {
 
-	go func() {
-		select {
-		case <-readDone:
-			return
-
-		case <-ctx.Done():
-			select {
-			case <-readDone:
-				return
-
-			default:
-				mrr.cancel()
-			}
-		}
-	}()
-
-	// Call through.
-	if readType == util.Random {
-		// download a range
-		//mrr.mrd.Add(p, start, end, callback)
-		return
-	}
-	n, err = io.ReadFull(mrr.reader, p)
-
-	return
+	//mrr.mrd.Add(writer, start, end, callback)
+	// wait till the callback
+	// copy the data from the writer into p
+	n := 10
+	return n, nil
 }
 
 func (mrr *MultiRangeReader) startRandomRead(ctx context.Context, start int64, size int64) error {
