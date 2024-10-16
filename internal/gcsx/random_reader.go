@@ -262,9 +262,14 @@ func (rr *randomReader) ReadAt(
 	// then the file cache behavior is write-through i.e. data is first read from
 	// GCS, cached in file and then served from that file. But the cacheHit is
 	// false in that case.
-	n, cacheHit, err, i, b, err2, done := rr.funcName(ctx, p, offset, n, cacheHit, err)
-	if done {
-		return i, b, err2
+	n, cacheHit, err = rr.tryReadingFromFileCache(ctx, p, offset)
+	if err != nil {
+		err = fmt.Errorf("ReadAt: while reading from cache: %w", err)
+		return
+	}
+	// Data was served from cache.
+	if cacheHit || n == len(p) || (n < len(p) && uint64(offset)+uint64(n) == rr.object.Size) {
+		return
 	}
 
 	for len(p) > 0 {
@@ -362,19 +367,6 @@ func (rr *randomReader) seekReaderToPosition(offset int64) {
 		rr.cancel = nil
 		rr.seeks++
 	}
-}
-
-func (rr *randomReader) funcName(ctx context.Context, p []byte, offset int64, n int, cacheHit bool, err error) (int, bool, error, int, bool, error, bool) {
-	n, cacheHit, err = rr.tryReadingFromFileCache(ctx, p, offset)
-	if err != nil {
-		err = fmt.Errorf("ReadAt: while reading from cache: %w", err)
-		return 0, false, nil, true
-	}
-	// Data was served from cache.
-	if cacheHit || n == len(p) || (n < len(p) && uint64(offset)+uint64(n) == rr.object.Size) {
-		return 0, false, nil, true
-	}
-	return n, cacheHit, err, 0, false, nil, false
 }
 
 func (rr *randomReader) Object() (o *gcs.MinObject) {
