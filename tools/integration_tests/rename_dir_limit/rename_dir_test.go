@@ -185,6 +185,8 @@ func TestRenameDirectoryWithExistingEmptyDestDirectory(t *testing.T) {
 	_, err := cmd.CombinedOutput()
 
 	assert.NoError(t, err)
+	_, err = os.Stat(oldDirPath)
+	assert.ErrorContains(t, err, "no such file or directory")
 	_, err = os.Stat(newDirPath)
 	assert.NoError(t, err)
 	dirEntries, err := os.ReadDir(newDirPath)
