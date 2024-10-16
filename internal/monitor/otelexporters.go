@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -90,6 +91,7 @@ func setupMetrics(ctx context.Context, c *cfg.Config) ShutdownFn {
 		sdkmetric.WithInterval(c.Metrics.StackdriverExportInterval)
 		options := []cloudmetric.Option{
 			cloudmetric.WithMetricDescriptorTypeFormatter(metricFormatter),
+			//cloudmetric.WithMonitoredResourceDescription(),
 			//cloudmetric.WithCreateServiceTimeSeries(),
 		}
 		exporter, err := cloudmetric.New(options...)
@@ -101,15 +103,7 @@ func setupMetrics(ctx context.Context, c *cfg.Config) ShutdownFn {
 		if c.AppName != "" {
 			appName = c.AppName
 		}
-		res, err := resource.New(ctx,
-			// Use the GCP resource detector to detect information about the GCP platform
-			resource.WithDetectors(gcp.NewDetector()),
-			resource.WithTelemetrySDK(),
-			resource.WithAttributes(
-				semconv.ServiceName(appName),
-				semconv.ServiceVersion(common.GetVersion()),
-			),
-		)
+		res, err := resourceObj(ctx, appName)
 		if err != nil {
 			logger.Errorf("error while creating resource object:%v", res)
 		}
@@ -121,6 +115,19 @@ func setupMetrics(ctx context.Context, c *cfg.Config) ShutdownFn {
 		return func(ctx context.Context) error { return mp.Shutdown(ctx) }
 	}
 	return nil
+}
+
+func resourceObj(ctx context.Context, appName string) (*resource.Resource, error) {
+	return resource.New(ctx,
+		// Use the GCP resource detector to detect information about the GCP platform
+		resource.WithDetectors(gcp.NewDetector()),
+		resource.WithTelemetrySDK(),
+		resource.WithAttributes(
+			semconv.ServiceName(appName),
+			semconv.ServiceVersion(common.GetVersion()),
+			semconv.ProcessPID(os.Getpid()),
+		),
+	)
 }
 
 func metricFormatter(m metricdata.Metrics) string {
@@ -201,15 +208,7 @@ func newGCPCloudTraceExporter(ctx context.Context, c *cfg.Config) (*sdktrace.Tra
 	if c.AppName != "" {
 		appName = c.AppName
 	}
-	res, err := resource.New(ctx,
-		// Use the GCP resource detector to detect information about the GCP platform
-		resource.WithDetectors(gcp.NewDetector()),
-		resource.WithTelemetrySDK(),
-		resource.WithAttributes(
-			semconv.ServiceName(appName),
-			semconv.ServiceVersion(common.GetVersion()),
-		),
-	)
+	res, err := resourceObj(ctx, appName)
 	if err != nil {
 		return nil, nil, err
 	}
