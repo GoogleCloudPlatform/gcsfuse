@@ -122,10 +122,10 @@ func resourceObj(ctx context.Context, appName string) (*resource.Resource, error
 		// Use the GCP resource detector to detect information about the GCP platform
 		resource.WithDetectors(gcp.NewDetector()),
 		resource.WithTelemetrySDK(),
+		resource.WithProcess()
 		resource.WithAttributes(
 			semconv.ServiceName(appName),
 			semconv.ServiceVersion(common.GetVersion()),
-			semconv.ProcessPID(os.Getpid()),
 		),
 	)
 }
