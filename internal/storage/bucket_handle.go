@@ -31,6 +31,7 @@ import (
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googleapis/gax-go/v2"
 	"github.com/googleapis/gax-go/v2/apierror"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/poc"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
@@ -550,6 +551,20 @@ func (b *bucketHandle) CreateFolder(ctx context.Context, folderName string) (*gc
 	folder := gcs.GCSFolder(b.bucketName, clientFolder)
 
 	return folder, nil
+}
+
+func (bh *bucketHandle) NewMultiRangeDownloader(
+	ctx context.Context,
+	objName string) (*poc.MultiRangeDownloader, error) {
+
+	// get object handle for new mrd
+	//bh.bucket.Object(objName)
+
+	// NewMultiRangeDownloader creates a "MultiRangeDownloader" which is not an io.ReadCloser
+	//mrd,_ := obj.NewMultiRangeDownloader(ctx)
+	// for poc purpose returning demo struct create inside gcsfuse
+	mrd, _ := poc.NewMultiRangeDownloader(ctx)
+	return mrd, nil
 }
 
 func isStorageConditionsNotEmpty(conditions storage.Conditions) bool {

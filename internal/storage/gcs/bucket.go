@@ -17,6 +17,7 @@ package gcs
 import (
 	"io"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/poc"
 	"golang.org/x/net/context"
 )
 
@@ -149,4 +150,8 @@ type Bucket interface {
 	RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (*Folder, error)
 
 	CreateFolder(ctx context.Context, folderName string) (*Folder, error)
+
+	NewMultiRangeDownloader(
+		ctx context.Context,
+		objName string) (*poc.MultiRangeDownloader, error)
 }

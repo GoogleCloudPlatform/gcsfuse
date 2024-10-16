@@ -262,14 +262,9 @@ func (rr *randomReader) ReadAt(
 	// then the file cache behavior is write-through i.e. data is first read from
 	// GCS, cached in file and then served from that file. But the cacheHit is
 	// false in that case.
-	n, cacheHit, err = rr.tryReadingFromFileCache(ctx, p, offset)
-	if err != nil {
-		err = fmt.Errorf("ReadAt: while reading from cache: %w", err)
-		return
-	}
-	// Data was served from cache.
-	if cacheHit || n == len(p) || (n < len(p) && uint64(offset)+uint64(n) == rr.object.Size) {
-		return
+	n, cacheHit, err, i, b, err2, done := rr.funcName(ctx, p, offset, n, cacheHit, err)
+	if done {
+		return i, b, err2
 	}
 
 	for len(p) > 0 {
@@ -285,21 +280,7 @@ func (rr *randomReader) ReadAt(
 		// re-use GCS connection and avoid throwing away already read data.
 		// For parallel sequential reads to a single file, not throwing away the connections
 		// is a 15-20x improvement in throughput: 150-200 MB/s instead of 10 MB/s.
-		if rr.reader != nil && rr.start < offset && offset-rr.start < maxReadSize {
-			bytesToSkip := int64(offset - rr.start)
-			p := make([]byte, bytesToSkip)
-			n, _ := io.ReadFull(rr.reader, p)
-			rr.start += int64(n)
-		}
-
-		// If we have an existing reader but it's positioned at the wrong place,
-		// clean it up and throw it away.
-		if rr.reader != nil && rr.start != offset {
-			rr.reader.Close()
-			rr.reader = nil
-			rr.cancel = nil
-			rr.seeks++
-		}
+		rr.seekReaderToPosition(offset)
 
 		// If we don't have a reader, start a read operation.
 		if rr.reader == nil {
@@ -363,6 +344,37 @@ func (rr *randomReader) ReadAt(
 	}
 
 	return
+}
+
+func (rr *randomReader) seekReaderToPosition(offset int64) {
+	if rr.reader != nil && rr.start < offset && offset-rr.start < maxReadSize {
+		bytesToSkip := int64(offset - rr.start)
+		p := make([]byte, bytesToSkip)
+		n, _ := io.ReadFull(rr.reader, p)
+		rr.start += int64(n)
+	}
+
+	// If we have an existing reader but it's positioned at the wrong place,
+	// clean it up and throw it away.
+	if rr.reader != nil && rr.start != offset {
+		rr.reader.Close()
+		rr.reader = nil
+		rr.cancel = nil
+		rr.seeks++
+	}
+}
+
+func (rr *randomReader) funcName(ctx context.Context, p []byte, offset int64, n int, cacheHit bool, err error) (int, bool, error, int, bool, error, bool) {
+	n, cacheHit, err = rr.tryReadingFromFileCache(ctx, p, offset)
+	if err != nil {
+		err = fmt.Errorf("ReadAt: while reading from cache: %w", err)
+		return 0, false, nil, true
+	}
+	// Data was served from cache.
+	if cacheHit || n == len(p) || (n < len(p) && uint64(offset)+uint64(n) == rr.object.Size) {
+		return 0, false, nil, true
+	}
+	return n, cacheHit, err, 0, false, nil, false
 }
 
 func (rr *randomReader) Object() (o *gcs.MinObject) {
@@ -458,28 +470,10 @@ func (rr *randomReader) startRead(
 	readType := util.Sequential
 	if rr.seeks >= minSeeksForRandom {
 		readType = util.Random
-		averageReadBytes := rr.totalReadBytes / rr.seeks
-		if averageReadBytes < maxReadSize {
-			randomReadSize := int64(((averageReadBytes / MB) + 1) * MB)
-			if randomReadSize < minReadSize {
-				randomReadSize = minReadSize
-			}
-			if randomReadSize > maxReadSize {
-				randomReadSize = maxReadSize
-			}
-			end = start + randomReadSize
-		}
-	}
-	if end > int64(rr.object.Size) {
-		end = int64(rr.object.Size)
+		end = rr.endOffsetForRandomRead(end, start)
 	}
 
-	// To avoid overloading GCS and to have reasonable latencies, we will only
-	// fetch data of max size defined by sequentialReadSizeMb.
-	maxSizeToReadFromGCS := int64(rr.sequentialReadSizeMb * MB)
-	if end-start > maxSizeToReadFromGCS {
-		end = start + maxSizeToReadFromGCS
-	}
+	end = rr.endOffsetWithinMaxLimit(end, start)
 
 	// Begin the read.
 	ctx, cancel := context.WithCancel(context.Background())
@@ -509,4 +503,33 @@ func (rr *randomReader) startRead(
 	monitor.CaptureGCSReadMetrics(ctx, readType, requestedDataSize)
 
 	return
+}
+
+func (rr *randomReader) endOffsetForRandomRead(end int64, start int64) int64 {
+	averageReadBytes := rr.totalReadBytes / rr.seeks
+	if averageReadBytes < maxReadSize {
+		randomReadSize := int64(((averageReadBytes / MB) + 1) * MB)
+		if randomReadSize < minReadSize {
+			randomReadSize = minReadSize
+		}
+		if randomReadSize > maxReadSize {
+			randomReadSize = maxReadSize
+		}
+		end = start + randomReadSize
+	}
+	return end
+}
+
+func (rr *randomReader) endOffsetWithinMaxLimit(end int64, start int64) int64 {
+	if end > int64(rr.object.Size) {
+		end = int64(rr.object.Size)
+	}
+
+	// To avoid overloading GCS and to have reasonable latencies, we will only
+	// fetch data of max size defined by sequentialReadSizeMb.
+	maxSizeToReadFromGCS := int64(rr.sequentialReadSizeMb * MB)
+	if end-start > maxSizeToReadFromGCS {
+		end = start + maxSizeToReadFromGCS
+	}
+	return end
 }
