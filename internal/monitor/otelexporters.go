@@ -30,6 +30,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/prometheus"
 	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
 	"go.opentelemetry.io/otel/sdk/metric"
@@ -90,6 +91,10 @@ func setupMetrics(ctx context.Context, c *cfg.Config) ShutdownFn {
 		sdkmetric.WithInterval(c.Metrics.StackdriverExportInterval)
 		options := []cloudmetric.Option{
 			cloudmetric.WithMetricDescriptorTypeFormatter(metricFormatter),
+			cloudmetric.WithFilteredResourceAttributes(func(kv attribute.KeyValue) bool {
+				return cloudmetric.DefaultResourceAttributesFilter(kv) ||
+					kv.Key == semconv.ProcessPIDKey
+			}),
 			//cloudmetric.WithMonitoredResourceDescription(),
 			//cloudmetric.WithCreateServiceTimeSeries(),
 		}
