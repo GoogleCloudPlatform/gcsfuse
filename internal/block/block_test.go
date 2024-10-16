@@ -1,13 +1,28 @@
+// Copyright 2024 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package block
 
 import (
-	"fmt"
 	"io"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
+
+const outOfCapacityError string = "received data more than capacity of the block"
 
 type MemoryBlockTest struct {
 	suite.Suite
@@ -44,7 +59,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockWriteWithDataGreaterThanCapacit
 	err := mb.Write(content)
 
 	assert.NotNil(testSuite.T(), err)
-	assert.EqualError(testSuite.T(), err, fmt.Sprintf("received data more than capacity of the block"))
+	assert.EqualError(testSuite.T(), err, outOfCapacityError)
 }
 
 func (testSuite *MemoryBlockTest) TestMemoryBlockWriteWithMultipleWrites() {
@@ -68,7 +83,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockWriteWith2ndWriteBeyondCapacity
 	err = mb.Write(content)
 
 	assert.NotNil(testSuite.T(), err)
-	assert.EqualError(testSuite.T(), err, fmt.Sprintf("received data more than capacity of the block"))
+	assert.EqualError(testSuite.T(), err, outOfCapacityError)
 }
 
 func (testSuite *MemoryBlockTest) TestMemoryBlockReuse() {
