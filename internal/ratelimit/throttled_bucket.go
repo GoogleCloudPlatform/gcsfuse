@@ -17,6 +17,7 @@ package ratelimit
 import (
 	"io"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/poc"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
@@ -44,6 +45,11 @@ type throttledBucket struct {
 	opThrottle     Throttle
 	egressThrottle Throttle
 	wrapped        gcs.Bucket
+}
+
+func (b *throttledBucket) NewMultiRangeDownloader(ctx context.Context, objName string) (*poc.MultiRangeDownloader, error) {
+	//TODO implement me
+	panic("implement me")
 }
 
 func (b *throttledBucket) Name() string {

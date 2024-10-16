@@ -61,6 +61,7 @@ type MultiRangeReader struct {
 	mrd *poc.MultiRangeDownloader
 	// read handle data type can be anything
 	readHandle string
+	localCache []byte //Can make 1 mb array
 }
 
 func (mrr *MultiRangeReader) ReadAt(
@@ -104,7 +105,7 @@ func (mrr *MultiRangeReader) ReadAt(
 					return
 				}
 			}
-			tmp, err = mrr.readFromRange(ctx, offset, mrr.limit, p)
+			tmp, err = mrr.readFromRange(ctx, offset, mrr.limit)
 		}
 
 		// If we don't have a reader and read type is sequential, start a read operation for sequential.
@@ -224,12 +225,11 @@ func (mrr *MultiRangeReader) Destroy() {
 func (mrr *MultiRangeReader) readFromRange(
 	ctx context.Context,
 	start int64,
-	end int64,
-	p []byte) (int, error) {
+	end int64) (int, error) {
 
 	//mrr.mrd.Add(writer, start, end, callback)
 	// wait till the callback
-	// copy the data from the writer into p
+	// copy the data from the writer into localCache
 	n := 10
 	return n, nil
 }
