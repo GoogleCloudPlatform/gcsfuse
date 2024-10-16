@@ -170,7 +170,8 @@ func TestRenameDirectoryWithExistingEmptyDestDirectory(t *testing.T) {
 	// testBucket/dirForRenameDirLimitTests/srcDirectory                                      -- Dir
 	// testBucket/dirForRenameDirLimitTests/srcDirectory/temp1.txt                            -- File
 	// testBucket/dirForRenameDirLimitTests/srcDirectory/NonEmptySubDirectory                 -- Dir
-	// testBucket/dirForRenameDirLimitTests/srcDirectory/NonEmptySubDirectory/temp3.txt   		 -- File
+	// testBucket/dirForRenameDirLimitTests/srcDirectory/NonEmptySubDirectory/temp3.txt   		-- File
+	// testBucket/dirForRenameDirLimitTests/emptyDestDirectory   		 													-- Dir
 	oldDirPath := path.Join(testDir, SrcDirectory)
 	subDirPath := path.Join(oldDirPath, NonEmptySubDirectory)
 	operations.CreateDirectoryWithNFiles(1, oldDirPath, PrefixTempFile, t)
@@ -180,7 +181,7 @@ func TestRenameDirectoryWithExistingEmptyDestDirectory(t *testing.T) {
 
 	// Go's Rename function does not support renaming a directory into an existing empty directory.
 	// To achieve this, we call a Python rename function as a workaround.
-	cmd := exec.Command("python", "-c", fmt.Sprintf("import os; os.rename('%s', '%s')", oldDirPath, newDirPath))
+	cmd := exec.Command("python3", "-c", fmt.Sprintf("import os; os.rename('%s', '%s')", oldDirPath, newDirPath))
 	_, err := cmd.CombinedOutput()
 
 	assert.NoError(t, err)
