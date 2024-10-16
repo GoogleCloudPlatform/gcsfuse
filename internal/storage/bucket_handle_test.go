@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -415,6 +416,148 @@ func (testSuite *BucketHandleTest) TestCreateObjectMethodWhenGivenGenerationObje
 
 	assert.Nil(testSuite.T(), obj)
 	assert.True(testSuite.T(), errors.As(err, &precondition))
+}
+
+func (testSuite *BucketHandleTest) TestBucketHandle_CreateObjectChunkWriter() {
+	var generation0 int64 = 0
+	var generationNon0 int64 = 786
+
+	tests := []struct {
+		name       string
+		generation *int64
+		expectErr  bool
+		objectName string
+		chunkSize  int
+	}{
+		{
+			name:       "NilGeneration",
+			generation: nil,
+			expectErr:  false,
+			objectName: "test_object_1",
+			chunkSize:  1024 * 1024,
+		},
+		{
+			name:       "GenerationAsZero",
+			generation: &generation0,
+			expectErr:  false,
+			objectName: "test_object_2",
+			chunkSize:  1024 * 1024,
+		},
+		{
+			name:       "NonZeroGeneration",
+			generation: &generationNon0,
+			expectErr:  true,
+			objectName: "",
+			chunkSize:  0,
+		},
+	}
+
+	for _, tt := range tests {
+		testSuite.T().Run(tt.name, func(t *testing.T) {
+			progressFunc := func(_ int64) {}
+			wr, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(),
+				&gcs.CreateObjectRequest{
+					Name:                   tt.objectName,
+					GenerationPrecondition: tt.generation,
+				},
+				tt.chunkSize,
+				progressFunc,
+			)
+
+			if tt.expectErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.objectName, wr.Name)
+				assert.Equal(t, tt.chunkSize, wr.ChunkSize)
+				assert.Equal(t, reflect.ValueOf(progressFunc).Pointer(), reflect.ValueOf(wr.ProgressFunc).Pointer())
+			}
+		})
+	}
+}
+
+func (testSuite *BucketHandleTest) TestBucketHandle_FinalizeUploadSuccess() {
+	var generation0 int64 = 0
+
+	tests := []struct {
+		name       string
+		generation *int64
+		objectName string
+		chunkSize  int
+	}{
+		{
+			name:       "NilGeneration",
+			generation: nil,
+			objectName: "test_object_1",
+			chunkSize:  1024 * 1024,
+		},
+		{
+			name:       "GenerationAsZero",
+			generation: &generation0,
+			objectName: "test_object_2",
+			chunkSize:  1024 * 100,
+		},
+	}
+
+	for _, tt := range tests {
+		testSuite.T().Run(tt.name, func(t *testing.T) {
+			progressFunc := func(_ int64) {}
+			wr, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(),
+				&gcs.CreateObjectRequest{
+					Name:                   tt.objectName,
+					GenerationPrecondition: tt.generation,
+				},
+				tt.chunkSize,
+				progressFunc,
+			)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.objectName, wr.Name)
+			assert.Equal(t, tt.chunkSize, wr.ChunkSize)
+			assert.Equal(t, reflect.ValueOf(progressFunc).Pointer(), reflect.ValueOf(wr.ProgressFunc).Pointer())
+
+			err = testSuite.bucketHandle.FinalizeUpload(context.Background(), wr)
+
+			assert.NoError(t, err)
+		})
+	}
+}
+
+func (testSuite *BucketHandleTest) createObject(objName string) {
+	testSuite.T().Helper()
+	var generation int64 = 0
+	wr, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(),
+		&gcs.CreateObjectRequest{
+			Name:                   objName,
+			GenerationPrecondition: &generation,
+		},
+		100,
+		func(_ int64) {})
+	assert.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), objName, wr.Name)
+
+	err = testSuite.bucketHandle.FinalizeUpload(context.Background(), wr)
+
+	assert.Nil(testSuite.T(), err)
+}
+
+func (testSuite *BucketHandleTest) TestFinalizeUploadWithGenerationAsZeroWhenObjectAlreadyExists() {
+	objName := "pre_created_test_object"
+	testSuite.createObject(objName)
+	// Create Object Writer again when object already exists.
+	var generation int64 = 0
+	wr, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(),
+		&gcs.CreateObjectRequest{
+			Name:                   objName,
+			GenerationPrecondition: &generation,
+		},
+		100,
+		func(_ int64) {})
+	assert.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), objName, wr.Name)
+
+	err = testSuite.bucketHandle.FinalizeUpload(context.Background(), wr)
+
+	assert.Error(testSuite.T(), err)
 }
 
 func (testSuite *BucketHandleTest) TestGetProjectValueWhenGcloudProjectionIsNoAcl() {

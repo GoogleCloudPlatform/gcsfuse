@@ -179,8 +179,8 @@ func (m *mockBucket) FinalizeUpload(p0 context.Context, p1 *storage.Writer) (o0 
 	}
 
 	// o0 error
-	if retVals[1] != nil {
-		o0 = retVals[1].(error)
+	if retVals[0] != nil {
+		o0 = retVals[0].(error)
 	}
 
 	return

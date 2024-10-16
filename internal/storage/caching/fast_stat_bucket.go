@@ -236,7 +236,7 @@ func (b *fastStatBucket) FinalizeUpload(ctx context.Context, writer *storage.Wri
 		b.insert(o)
 	}
 
-	return nil
+	return err
 }
 
 // LOCKS_EXCLUDED(b.mu)

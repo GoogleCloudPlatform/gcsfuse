@@ -147,27 +147,29 @@ type CreateObjectChunkWriterTest struct {
 
 func init() { RegisterTestSuite(&CreateObjectChunkWriterTest{}) }
 
-func (t *CreateObjectChunkWriterTest) CallsEraseAndWrapped() {
+func (t *CreateObjectChunkWriterTest) CallsWrapped() {
 	const name = "taco"
-	ctx := context.TODO()
+	// Wrapped
+	var wrappedReq *gcs.CreateObjectRequest
+	var wrappedChunkSize int
+	var wrappedCallback func(_ int64)
+	ExpectCall(t.wrapped, "CreateObjectChunkWriter")(Any(), Any(), Any(), Any()).
+		WillOnce(DoAll(SaveArg(1, &wrappedReq), SaveArg(2, &wrappedChunkSize), SaveArg(3, &wrappedCallback), Return(nil, errors.New(""))))
+	// Call
 	req := &gcs.CreateObjectRequest{
 		Name: name,
 	}
 	chunkSize := 1024
-	progressFunc := func(_ int64) {}
-	// Erase
-	ExpectCall(t.cache, "Erase")(name)
+	callback := func(_ int64) {
+		fmt.Println("callback called!")
+	}
 
-	// Wrapped
-	var wrappedReq *gcs.CreateObjectRequest
-	ExpectCall(t.wrapped, "CreateObjectChunkWriter")(ctx, req, chunkSize, progressFunc).
-		WillOnce(DoAll(SaveArg(1, &wrappedReq), Return(nil, errors.New(""))))
-
-	// Call
-	_, _ = t.bucket.CreateObjectChunkWriter(ctx, req, chunkSize, progressFunc)
+	_, _ = t.bucket.CreateObjectChunkWriter(context.TODO(), req, chunkSize, callback)
 
 	AssertNe(nil, wrappedReq)
 	ExpectEq(req, wrappedReq)
+	ExpectEq(chunkSize, wrappedChunkSize)
+	ExpectEq(callback, wrappedCallback)
 }
 
 func (t *CreateObjectChunkWriterTest) WrappedFails() {
@@ -176,12 +178,8 @@ func (t *CreateObjectChunkWriterTest) WrappedFails() {
 	ctx := context.TODO()
 	req := &gcs.CreateObjectRequest{}
 	var err error
-
-	// Erase
-	ExpectCall(t.cache, "Erase")(Any())
-
 	// Wrapped
-	ExpectCall(t.wrapped, "CreateObjectChunkWriter")(ctx, req, chunkSize, progressFunc).
+	ExpectCall(t.wrapped, "CreateObjectChunkWriter")(Any(), Any(), Any(), Any()).
 		WillOnce(Return(nil, errors.New("taco")))
 
 	// Call
@@ -196,26 +194,82 @@ func (t *CreateObjectChunkWriterTest) WrappedSucceeds() {
 	ctx := context.TODO()
 	req := &gcs.CreateObjectRequest{}
 	var err error
-	// Erase
-	ExpectCall(t.cache, "Erase")(Any())
-
 	// Wrapped
 	wr := &strg.Writer{
 		ChunkSize:    chunkSize,
 		ProgressFunc: progressFunc,
 	}
-
-	ExpectCall(t.wrapped, "CreateObjectChunkWriter")(ctx, req, chunkSize, progressFunc).
+	ExpectCall(t.wrapped, "CreateObjectChunkWriter")(Any(), Any(), Any(), Any()).
 		WillOnce(Return(wr, nil))
-
-	// Insert
-	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(ttl)))
 
 	// Call
 	gotWr, err := t.bucket.CreateObjectChunkWriter(ctx, req, chunkSize, progressFunc)
 
 	AssertEq(nil, err)
 	ExpectEq(wr, gotWr)
+}
+
+////////////////////////////////////////////////////////////////////////
+// FinalizeUpload
+////////////////////////////////////////////////////////////////////////
+
+type FinalizeUploadTest struct {
+	fastStatBucketTest
+}
+
+func init() { RegisterTestSuite(&FinalizeUploadTest{}) }
+
+func (t *FinalizeUploadTest) CallsEraseAndWrapped() {
+	const name = "taco"
+	writer := &strg.Writer{
+		ObjectAttrs: strg.ObjectAttrs{Name: name},
+	}
+	// Erase
+	ExpectCall(t.cache, "Erase")(name)
+	// Wrapped
+	var wrappedWriter *strg.Writer
+	ExpectCall(t.wrapped, "FinalizeUpload")(Any(), Any()).
+		WillOnce(DoAll(SaveArg(1, &wrappedWriter), Return(errors.New(""))))
+
+	// Call
+	_ = t.bucket.FinalizeUpload(context.TODO(), writer)
+
+	AssertNe(nil, wrappedWriter)
+	ExpectEq(writer, wrappedWriter)
+}
+
+func (t *FinalizeUploadTest) WrappedFails() {
+	var err error
+	// Erase
+	ExpectCall(t.cache, "Erase")(Any())
+	// Wrapped
+	ExpectCall(t.wrapped, "FinalizeUpload")(Any(), Any()).
+		WillOnce(Return(errors.New("taco")))
+
+	// Call
+	err = t.bucket.FinalizeUpload(context.TODO(), &strg.Writer{})
+
+	ExpectThat(err, Error(HasSubstr("taco")))
+}
+
+func (t *FinalizeUploadTest) WrappedSucceeds() {
+	const name = "taco"
+	writer := &strg.Writer{
+		ObjectAttrs: strg.ObjectAttrs{Name: name},
+	}
+	var err error
+	// Erase
+	ExpectCall(t.cache, "Erase")(Any())
+	// Wrapped
+	ExpectCall(t.wrapped, "FinalizeUpload")(Any(), Any()).
+		WillOnce(Return(nil))
+	// Insert
+	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(ttl)))
+
+	// Call
+	err = t.bucket.FinalizeUpload(context.TODO(), writer)
+
+	AssertEq(nil, err)
 }
 
 ////////////////////////////////////////////////////////////////////////

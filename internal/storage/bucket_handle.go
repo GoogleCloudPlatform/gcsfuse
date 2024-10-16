@@ -239,8 +239,12 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 }
 func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (*storage.Writer, error) {
 	// For phase 1 of buffered writes, we are doing chunk uploads only for new
-	// file uploads so set DoesNotExist precondition true.
+	// file uploads.
 	preconditions := storage.Conditions{}
+	if req.GenerationPrecondition != nil && *req.GenerationPrecondition != 0 {
+		return nil, fmt.Errorf("storage.Writer can only be created for new objects")
+	}
+
 	preconditions.DoesNotExist = true
 	obj := bh.bucket.Object(req.Name)
 	obj = obj.If(preconditions)
