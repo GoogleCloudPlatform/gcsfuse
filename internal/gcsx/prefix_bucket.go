@@ -112,6 +112,10 @@ func (b *prefixBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cre
 	return wc, err
 }
 
+func (b *prefixBucket) FinalizeUpload(ctx context.Context, w *storage.Writer) error {
+	return b.wrapped.FinalizeUpload(ctx, w)
+}
+
 func (b *prefixBucket) CopyObject(
 	ctx context.Context,
 	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {

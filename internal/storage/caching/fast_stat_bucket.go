@@ -218,12 +218,25 @@ func (b *fastStatBucket) CreateObject(
 	return
 }
 
-func (b *fastStatBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int,
-	callBack func(bytesUploadedSoFar int64)) (*storage.Writer, error) {
-
-	b.invalidate(req.Name)
-
+func (b *fastStatBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (*storage.Writer, error) {
 	return b.wrapped.CreateObjectChunkWriter(ctx, req, chunkSize, callBack)
+}
+
+func (b *fastStatBucket) FinalizeUpload(ctx context.Context, writer *storage.Writer) error {
+	name := writer.Name
+	attrs := writer.Attrs()
+	// Throw away any existing record for this object.
+	b.invalidate(name)
+
+	err := b.wrapped.FinalizeUpload(ctx, writer)
+
+	// Record the new object if err is nil.
+	if err == nil {
+		o := storageutil.ObjectAttrsToBucketObject(attrs)
+		b.insert(o)
+	}
+
+	return nil
 }
 
 // LOCKS_EXCLUDED(b.mu)

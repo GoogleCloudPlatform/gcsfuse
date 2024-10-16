@@ -149,6 +149,13 @@ func (mb *monitoringBucket) CreateObjectChunkWriter(ctx context.Context, req *gc
 	return wc, err
 }
 
+func (mb *monitoringBucket) FinalizeUpload(ctx context.Context, w *storage.Writer) error {
+	startTime := time.Now()
+	err := mb.wrapped.FinalizeUpload(ctx, w)
+	recordRequest(ctx, "FinalizeUpload", startTime)
+	return err
+}
+
 func (mb *monitoringBucket) CopyObject(
 	ctx context.Context,
 	req *gcs.CopyObjectRequest) (*gcs.Object, error) {

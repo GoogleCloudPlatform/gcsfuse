@@ -253,6 +253,10 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 	return wc, nil
 }
 
+func (bh *bucketHandle) FinalizeUpload(ctx context.Context, w *storage.Writer) error {
+	return w.Close()
+}
+
 func (bh *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
 	srcObj := bh.bucket.Object(req.SrcName)
 	dstObj := bh.bucket.Object(req.DstName)

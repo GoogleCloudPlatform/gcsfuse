@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	strg "cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/caching/mock_gcscaching"
@@ -134,6 +135,87 @@ func (t *CreateObjectTest) WrappedSucceeds() {
 
 	AssertEq(nil, err)
 	ExpectEq(obj, o)
+}
+
+////////////////////////////////////////////////////////////////////////
+// CreateObject
+////////////////////////////////////////////////////////////////////////
+
+type CreateObjectChunkWriterTest struct {
+	fastStatBucketTest
+}
+
+func init() { RegisterTestSuite(&CreateObjectChunkWriterTest{}) }
+
+func (t *CreateObjectChunkWriterTest) CallsEraseAndWrapped() {
+	const name = "taco"
+	ctx := context.TODO()
+	req := &gcs.CreateObjectRequest{
+		Name: name,
+	}
+	chunkSize := 1024
+	progressFunc := func(_ int64) {}
+	// Erase
+	ExpectCall(t.cache, "Erase")(name)
+
+	// Wrapped
+	var wrappedReq *gcs.CreateObjectRequest
+	ExpectCall(t.wrapped, "CreateObjectChunkWriter")(ctx, req, chunkSize, progressFunc).
+		WillOnce(DoAll(SaveArg(1, &wrappedReq), Return(nil, errors.New(""))))
+
+	// Call
+	_, _ = t.bucket.CreateObjectChunkWriter(ctx, req, chunkSize, progressFunc)
+
+	AssertNe(nil, wrappedReq)
+	ExpectEq(req, wrappedReq)
+}
+
+func (t *CreateObjectChunkWriterTest) WrappedFails() {
+	chunkSize := 1024
+	progressFunc := func(_ int64) {}
+	ctx := context.TODO()
+	req := &gcs.CreateObjectRequest{}
+	var err error
+
+	// Erase
+	ExpectCall(t.cache, "Erase")(Any())
+
+	// Wrapped
+	ExpectCall(t.wrapped, "CreateObjectChunkWriter")(ctx, req, chunkSize, progressFunc).
+		WillOnce(Return(nil, errors.New("taco")))
+
+	// Call
+	_, err = t.bucket.CreateObjectChunkWriter(ctx, req, chunkSize, progressFunc)
+
+	ExpectThat(err, Error(HasSubstr("taco")))
+}
+
+func (t *CreateObjectChunkWriterTest) WrappedSucceeds() {
+	chunkSize := 1024
+	progressFunc := func(_ int64) {}
+	ctx := context.TODO()
+	req := &gcs.CreateObjectRequest{}
+	var err error
+	// Erase
+	ExpectCall(t.cache, "Erase")(Any())
+
+	// Wrapped
+	wr := &strg.Writer{
+		ChunkSize:    chunkSize,
+		ProgressFunc: progressFunc,
+	}
+
+	ExpectCall(t.wrapped, "CreateObjectChunkWriter")(ctx, req, chunkSize, progressFunc).
+		WillOnce(Return(wr, nil))
+
+	// Insert
+	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(ttl)))
+
+	// Call
+	gotWr, err := t.bucket.CreateObjectChunkWriter(ctx, req, chunkSize, progressFunc)
+
+	AssertEq(nil, err)
+	ExpectEq(wr, gotWr)
 }
 
 ////////////////////////////////////////////////////////////////////////

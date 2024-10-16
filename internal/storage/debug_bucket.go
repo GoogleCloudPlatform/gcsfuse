@@ -172,6 +172,14 @@ func (b *debugBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.Crea
 	return
 }
 
+func (b *debugBucket) FinalizeUpload(ctx context.Context, w *storage.Writer) (err error) {
+	id, desc, start := b.startRequest("FinalizeUpload(%q)", w.Name)
+	defer b.finishRequest(id, desc, start, &err)
+
+	err = b.wrapped.FinalizeUpload(ctx, w)
+	return
+}
+
 func (b *debugBucket) CopyObject(
 	ctx context.Context,
 	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {

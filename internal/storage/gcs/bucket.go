@@ -88,6 +88,10 @@ type Bucket interface {
 	// writer is closed (object is finalised).
 	CreateObjectChunkWriter(ctx context.Context, req *CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (*storage.Writer, error)
 
+	// FinalizeUpload closes the storage.Writer which completes the write
+	// operation and creates an object on GCS.
+	FinalizeUpload(ctx context.Context, writer *storage.Writer) error
+
 	// Copy an object to a new name, preserving all metadata. Any existing
 	// generation of the destination name will be overwritten.
 	//

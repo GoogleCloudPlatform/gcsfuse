@@ -108,6 +108,19 @@ func (b *throttledBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.
 	return
 }
 
+func (b *throttledBucket) FinalizeUpload(ctx context.Context, w *storage.Writer) (err error) {
+	// Wait for permission to call through.
+	err = b.opThrottle.Wait(ctx, 1)
+	if err != nil {
+		return
+	}
+
+	// Call through.
+	err = b.wrapped.FinalizeUpload(ctx, w)
+
+	return
+}
+
 func (b *throttledBucket) CopyObject(
 	ctx context.Context,
 	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {

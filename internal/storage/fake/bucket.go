@@ -664,7 +664,13 @@ func (b *bucket) CreateObject(
 }
 
 func (b *bucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (*storage.Writer, error) {
+	// TODO: Implement CreateObjectChunkWriter for fake bucket.
 	return nil, nil
+}
+
+func (b *bucket) FinalizeUpload(ctx context.Context, w *storage.Writer) error {
+	// TODO: Implement FinalizeUpload for fake bucket.
+	return nil
 }
 
 // LOCKS_EXCLUDED(b.mu)
