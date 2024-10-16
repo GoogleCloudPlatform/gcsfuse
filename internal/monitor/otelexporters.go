@@ -96,7 +96,7 @@ func setupMetrics(ctx context.Context, c *cfg.Config) ShutdownFn {
 					kv.Key == semconv.ProcessPIDKey
 			}),
 			//cloudmetric.WithMonitoredResourceDescription(),
-			//cloudmetric.WithCreateServiceTimeSeries(),
+			cloudmetric.WithCreateServiceTimeSeries(),
 		}
 		exporter, err := cloudmetric.New(options...)
 		if err != nil {
