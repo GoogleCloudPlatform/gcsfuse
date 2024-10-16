@@ -304,3 +304,10 @@ func ClearCacheControlOnGcsObject(ctx context.Context, client *storage.Client, o
 
 	return nil
 }
+
+func CopyFileInBucket(ctx context.Context, storageClient *storage.Client, srcfilePath, destFilePath, bucket string) {
+	err := UploadGcsObject(ctx, storageClient, srcfilePath, bucket, destFilePath, false)
+	if err != nil {
+		log.Fatalf("Error while copying file in bucket: %v", err)
+	}
+}
