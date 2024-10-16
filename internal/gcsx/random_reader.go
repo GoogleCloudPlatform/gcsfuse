@@ -438,12 +438,8 @@ func (rr *randomReader) startRead(
 	start int64,
 	size int64) (err error) {
 	// Make sure start and size are legal.
-	if start < 0 || uint64(start) > rr.object.Size || size < 0 {
-		err = fmt.Errorf(
-			"range [%d, %d) is illegal for %d-byte object",
-			start,
-			start+size,
-			rr.object.Size)
+	err = rr.sanityCheckForOffset(start, size)
+	if err != nil {
 		return
 	}
 
@@ -460,6 +456,7 @@ func (rr *randomReader) startRead(
 	// (average read size in bytes rounded up to the next MB).
 	end := int64(rr.object.Size)
 	readType := util.Sequential
+	// This would be redundant in mrr
 	if rr.seeks >= minSeeksForRandom {
 		readType = util.Random
 		end = rr.endOffsetForRandomRead(end, start)
@@ -495,6 +492,18 @@ func (rr *randomReader) startRead(
 	monitor.CaptureGCSReadMetrics(ctx, readType, requestedDataSize)
 
 	return
+}
+
+func (rr *randomReader) sanityCheckForOffset(start int64, size int64) error {
+	if start < 0 || uint64(start) > rr.object.Size || size < 0 {
+		err := fmt.Errorf(
+			"range [%d, %d) is illegal for %d-byte object",
+			start,
+			start+size,
+			rr.object.Size)
+		return err
+	}
+	return nil
 }
 
 func (rr *randomReader) endOffsetForRandomRead(end int64, start int64) int64 {

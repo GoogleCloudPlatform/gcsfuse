@@ -37,7 +37,9 @@ func NewMultiRangeReader(
 	sequentialReadSizeMb int32,
 	fileCacheHandler *file.CacheHandler,
 	cacheFileForRangeRead bool,
+	ctx context.Context,
 ) *MultiRangeReader {
+	mrd, _ := poc.NewMultiRangeDownloader(ctx)
 	return &MultiRangeReader{
 		randomReader: randomReader{
 			object:                o,
@@ -50,12 +52,13 @@ func NewMultiRangeReader(
 			fileCacheHandler:      fileCacheHandler,
 			cacheFileForRangeRead: cacheFileForRangeRead,
 		},
+		mrd: mrd,
 	}
 }
 
 type MultiRangeReader struct {
 	randomReader
-	mrd poc.MultiRangeDownloader
+	mrd *poc.MultiRangeDownloader
 	// read handle data type can be anything
 	readHandle string
 }
@@ -88,18 +91,24 @@ func (mrr *MultiRangeReader) ReadAt(
 			return
 		}
 
-		// When the offset is AFTER the reader position, try to seek forward, within reason.
-		// This happens when the kernel page cache serves some data. It's very common for
-		// concurrent reads, often by only a few 128kB fuse read requests. The aim is to
-		// re-use GCS connection and avoid throwing away already read data.
-		// For parallel sequential reads to a single file, not throwing away the connections
-		// is a 15-20x improvement in throughput: 150-200 MB/s instead of 10 MB/s.
 		mrr.seekReaderToPosition(offset)
 
 		readType := util.Sequential
-		// If we don't have a reader, start a read operation.
-		if mrr.reader == nil {
-			readType, err = mrr.startRead(ctx, offset, int64(len(p)))
+		if mrr.seeks >= minSeeksForRandom {
+			readType = util.Random
+			if mrr.mrd == nil {
+				err = mrr.startRandomRead(ctx, offset, int64(len(p)))
+				if err != nil {
+					err = fmt.Errorf("startRead: %w", err)
+					return
+				}
+			}
+
+		}
+
+		// If we don't have a reader and read type is sequential, start a read operation for sequential.
+		if readType == util.Sequential && mrr.reader == nil {
+			err = mrr.startRead(ctx, offset, int64(len(p)))
 			if err != nil {
 				err = fmt.Errorf("startRead: %w", err)
 				return
@@ -237,78 +246,32 @@ func (mrr *MultiRangeReader) readFull(
 	return
 }
 
-// Ensure that rr.reader is set up for a range for which [start, start+size) is
-// a prefix. Irrespective of the size requested, we try to fetch more data
-// from GCS defined by sequentialReadSizeMb flag to serve future read requests.
-func (mrr *MultiRangeReader) startRead(
-	ctx context.Context,
-	start int64,
-	size int64) (readType string, err error) {
-	// Make sure start and size are legal.
-	if start < 0 || uint64(start) > mrr.object.Size || size < 0 {
-		err = fmt.Errorf(
-			"range [%d, %d) is illegal for %d-byte object",
-			start,
-			start+size,
-			mrr.object.Size)
-		return
+func (mrr *MultiRangeReader) startRandomRead(ctx context.Context, start int64, size int64) error {
+	err := mrr.sanityCheckForOffset(start, size)
+	if err != nil {
+		return err
 	}
-
-	// GCS requests are expensive. Prefer to issue read requests defined by
-	// sequentialReadSizeMb flag. Sequential reads will simply sip from the fire house
-	// with each call to ReadAt. In practice, GCS will fill the TCP buffers
-	// with about 6 MB of data. Requests from outside GCP will be charged
-	// about 6MB of egress data, even if less data is read. Inside GCP
-	// regions, GCS egress is free. This logic should limit the number of
-	// GCS read requests, which are not free.
-
-	// But if we notice random read patterns after a minimum number of seeks,
-	// optimise for random reads. Random reads will read data in chunks of
-	// (average read size in bytes rounded up to the next MB).
 	end := int64(mrr.object.Size)
-	readType = util.Sequential
-	if mrr.seeks >= minSeeksForRandom {
-		readType = util.Random
-		end = mrr.endOffsetForRandomRead(end, start)
-	}
-
+	end = mrr.endOffsetForRandomRead(end, start)
 	end = mrr.endOffsetWithinMaxLimit(end, start)
 
-	// Begin the read.
 	ctx, cancel := context.WithCancel(context.Background())
-	if readType == util.Random {
-		multiDownloader, err := mrr.bucket.NewMultiRangeDownloader(ctx, mrr.object.Name)
-		if err != nil {
-			err = fmt.Errorf("NewReader: %w", err)
-			return
-		}
-		mrr.mrd = *multiDownloader
-	} else {
-		rc, err := mrr.bucket.NewReader(
-			ctx,
-			&gcs.ReadObjectRequest{
-				Name:       mrr.object.Name,
-				Generation: mrr.object.Generation,
-				Range: &gcs.ByteRange{
-					Start: uint64(start),
-					Limit: uint64(end),
-				},
-				ReadCompressed: mrr.object.HasContentEncodingGzip(),
-			})
+	rc, err := mrr.bucket.NewMultiRangeDownloader(
+		ctx,
+		mrr.object.Name)
 
-		if err != nil {
-			err = fmt.Errorf("NewReader: %w", err)
-			return
-		}
-		mrr.reader = rc
+	if err != nil {
+		err = fmt.Errorf("New multi range downloader: %w", err)
+		return err
 	}
 
+	mrr.mrd = rc
 	mrr.cancel = cancel
 	mrr.start = start
 	mrr.limit = end
 
 	requestedDataSize := end - start
-	monitor.CaptureGCSReadMetrics(ctx, readType, requestedDataSize)
+	monitor.CaptureGCSReadMetrics(ctx, util.Random, requestedDataSize)
 
-	return
+	return nil
 }
