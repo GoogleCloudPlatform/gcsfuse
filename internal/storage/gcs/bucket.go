@@ -17,6 +17,7 @@ package gcs
 import (
 	"io"
 
+	"cloud.google.com/go/storage"
 	"golang.org/x/net/context"
 )
 
@@ -81,6 +82,11 @@ type Bucket interface {
 	CreateObject(
 		ctx context.Context,
 		req *CreateObjectRequest) (*Object, error)
+
+	// CreateObjectChunkWriter creates a *storage.Writer that can be used for
+	// resumable uploads. The new object will be available for reading after the
+	// writer is closed (object is finalised).
+	CreateObjectChunkWriter(ctx context.Context, req *CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (*storage.Writer, error)
 
 	// Copy an object to a new name, preserving all metadata. Any existing
 	// generation of the destination name will be overwritten.

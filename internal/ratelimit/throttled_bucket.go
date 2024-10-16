@@ -17,6 +17,7 @@ package ratelimit
 import (
 	"io"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
@@ -90,6 +91,19 @@ func (b *throttledBucket) CreateObject(
 
 	// Call through.
 	o, err = b.wrapped.CreateObject(ctx, req)
+
+	return
+}
+
+func (b *throttledBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (wc *storage.Writer, err error) {
+	// Wait for permission to call through.
+	err = b.opThrottle.Wait(ctx, 1)
+	if err != nil {
+		return
+	}
+
+	// Call through.
+	wc, err = b.wrapped.CreateObjectChunkWriter(ctx, req, chunkSize, callBack)
 
 	return
 }
