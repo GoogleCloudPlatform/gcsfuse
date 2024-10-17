@@ -19,13 +19,45 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
+	"github.com/googleapis/gax-go/v2"
+	"google.golang.org/grpc/codes"
 )
+
+func storageControlClientRetryOptions() []gax.CallOption {
+	return []gax.CallOption{
+		gax.WithTimeout(300000 * time.Millisecond),
+		gax.WithRetry(func() gax.Retryer {
+			return gax.OnCodes([]codes.Code{
+				codes.ResourceExhausted,
+				codes.Unavailable,
+				codes.DeadlineExceeded,
+				codes.Internal,
+				codes.Unknown,
+			}, gax.Backoff{
+				Max:        30 * time.Second,
+				Multiplier: 2,
+			})
+		}),
+	}
+}
 
 func CreateControlClient(ctx context.Context) (client *control.StorageControlClient, err error) {
 	client, err = control.NewStorageControlClient(ctx)
+
+	client.CallOptions.RenameFolder = storageControlClientRetryOptions()
+	client.CallOptions.GetFolder = storageControlClientRetryOptions()
+	client.CallOptions.GetStorageLayout = storageControlClientRetryOptions()
+	client.CallOptions.CreateFolder = storageControlClientRetryOptions()
+	client.CallOptions.DeleteFolder = storageControlClientRetryOptions()
+	client.CallOptions.CreateManagedFolder = storageControlClientRetryOptions()
+	client.CallOptions.DeleteManagedFolder = storageControlClientRetryOptions()
+	client.CallOptions.ListManagedFolders = storageControlClientRetryOptions()
+	client.CallOptions.GetManagedFolder = storageControlClientRetryOptions()
+
 	if err != nil {
 		return nil, fmt.Errorf("control.NewStorageControlClient: #{err}")
 	}
