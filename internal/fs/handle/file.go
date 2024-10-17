@@ -105,6 +105,8 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 		fh.inode.Unlock()
 
 		n, _, err = fh.reader.ReadAt(ctx, dst, offset)
+		// For Zonal buckets both seq and rand reads will happen with new mrr extending random_reader.go
+		n, _, err = fh.inode.MRR.ReadAt(ctx, dst, offset)
 		switch {
 		case err == io.EOF:
 			return

@@ -43,6 +43,7 @@ type FileInode struct {
 
 	bucket     *gcsx.SyncerBucket
 	mtimeClock timeutil.Clock
+	MRR        gcsx.MultiRangeReader
 
 	/////////////////////////
 	// Constant data
