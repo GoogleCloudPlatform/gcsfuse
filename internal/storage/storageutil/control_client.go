@@ -27,7 +27,7 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
-func StorageControlClientRetryOptions(clientConfig *StorageClientConfig) []gax.CallOption {
+func storageControlClientRetryOptions(clientConfig *StorageClientConfig) []gax.CallOption {
 	return []gax.CallOption{
 		gax.WithTimeout(300000 * time.Millisecond),
 		gax.WithRetry(func() gax.Retryer {
@@ -46,11 +46,11 @@ func StorageControlClientRetryOptions(clientConfig *StorageClientConfig) []gax.C
 }
 
 func setRetryConfigForFolderAPIs(sc *control.StorageControlClient, clientConfig *StorageClientConfig) {
-	sc.CallOptions.RenameFolder = StorageControlClientRetryOptions(clientConfig)
-	sc.CallOptions.GetFolder = StorageControlClientRetryOptions(clientConfig)
-	sc.CallOptions.GetStorageLayout = StorageControlClientRetryOptions(clientConfig)
-	sc.CallOptions.CreateFolder = StorageControlClientRetryOptions(clientConfig)
-	sc.CallOptions.DeleteFolder = StorageControlClientRetryOptions(clientConfig)
+	sc.CallOptions.RenameFolder = storageControlClientRetryOptions(clientConfig)
+	sc.CallOptions.GetFolder = storageControlClientRetryOptions(clientConfig)
+	sc.CallOptions.GetStorageLayout = storageControlClientRetryOptions(clientConfig)
+	sc.CallOptions.CreateFolder = storageControlClientRetryOptions(clientConfig)
+	sc.CallOptions.DeleteFolder = storageControlClientRetryOptions(clientConfig)
 }
 
 func CreateGRPCControlClient(ctx context.Context, clientOpts []option.ClientOption, clientConfig *StorageClientConfig) (controlClient *control.StorageControlClient, err error) {

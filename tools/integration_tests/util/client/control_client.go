@@ -23,22 +23,40 @@ import (
 
 	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
+	"github.com/googleapis/gax-go/v2"
+	"google.golang.org/grpc/codes"
 )
+
+func storageControlClientRetryOptions() []gax.CallOption {
+	return []gax.CallOption{
+		gax.WithTimeout(300000 * time.Millisecond),
+		gax.WithRetry(func() gax.Retryer {
+			return gax.OnCodes([]codes.Code{
+				codes.ResourceExhausted,
+				codes.Unavailable,
+				codes.DeadlineExceeded,
+				codes.Internal,
+				codes.Unknown,
+			}, gax.Backoff{
+				Max:        30 * time.Second,
+				Multiplier: 2,
+			})
+		}),
+	}
+}
 
 func CreateControlClient(ctx context.Context) (client *control.StorageControlClient, err error) {
 	client, err = control.NewStorageControlClient(ctx)
-	clientConfig := &storageutil.StorageClientConfig{MaxRetrySleep: 30 * time.Second, RetryMultiplier: 2}
 
-	client.CallOptions.RenameFolder = storageutil.StorageControlClientRetryOptions(clientConfig)
-	client.CallOptions.GetFolder = storageutil.StorageControlClientRetryOptions(clientConfig)
-	client.CallOptions.GetStorageLayout = storageutil.StorageControlClientRetryOptions(clientConfig)
-	client.CallOptions.CreateFolder = storageutil.StorageControlClientRetryOptions(clientConfig)
-	client.CallOptions.DeleteFolder = storageutil.StorageControlClientRetryOptions(clientConfig)
-	client.CallOptions.CreateManagedFolder = storageutil.StorageControlClientRetryOptions(clientConfig)
-	client.CallOptions.DeleteManagedFolder = storageutil.StorageControlClientRetryOptions(clientConfig)
-	client.CallOptions.ListManagedFolders = storageutil.StorageControlClientRetryOptions(clientConfig)
-	client.CallOptions.GetManagedFolder = storageutil.StorageControlClientRetryOptions(clientConfig)
+	client.CallOptions.RenameFolder = storageControlClientRetryOptions()
+	client.CallOptions.GetFolder = storageControlClientRetryOptions()
+	client.CallOptions.GetStorageLayout = storageControlClientRetryOptions()
+	client.CallOptions.CreateFolder = storageControlClientRetryOptions()
+	client.CallOptions.DeleteFolder = storageControlClientRetryOptions()
+	client.CallOptions.CreateManagedFolder = storageControlClientRetryOptions()
+	client.CallOptions.DeleteManagedFolder = storageControlClientRetryOptions()
+	client.CallOptions.ListManagedFolders = storageControlClientRetryOptions()
+	client.CallOptions.GetManagedFolder = storageControlClientRetryOptions()
 
 	if err != nil {
 		return nil, fmt.Errorf("control.NewStorageControlClient: #{err}")
