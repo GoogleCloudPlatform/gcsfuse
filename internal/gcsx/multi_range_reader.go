@@ -15,6 +15,7 @@
 package gcsx
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 
@@ -67,10 +68,10 @@ type MultiRangeReader struct {
 // TODO: Need to Change Signature here as buffer will be returned
 func (mrr *MultiRangeReader) ReadAt(
 	ctx context.Context,
-	bufferSize int64,
-	offset int64) (n int, p []byte, cacheHit bool, err error) {
+	offset int64,
+	bufferSize int) (n int, p []byte, cacheHit bool, err error) {
 
-	//point to a slice of larger local buffer to maintain single copy od data
+	//point to a slice of larger local buffer to maintain single copy of data
 	p = mrr.localCache[mrr.start:bufferSize]
 
 	if offset >= int64(mrr.object.Size) {
@@ -231,9 +232,12 @@ func (mrr *MultiRangeReader) readFromRange(
 	start int64,
 	end int64) (int, error) {
 
-	//mrr.mrd.Add(writer, start, end, callback)
 	// wait till the callback
-	// copy the data from the writer into localCache
+	// pass local cache as writer to maintain single copy in localCache
+	bufWriter := bytes.NewBuffer(mrr.localCache[0:])
+	mrr.mrd.Add(bufWriter, start, end, func(start int64, end int64) {
+		// Callback function
+	})
 	n := 10
 	return n, nil
 }
