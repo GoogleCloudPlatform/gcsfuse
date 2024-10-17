@@ -48,7 +48,6 @@ func storageControlClientRetryOptions(clientConfig *control.StorageControlClient
 
 func CreateControlClient(ctx context.Context) (client *control.StorageControlClient, err error) {
 	client, err = control.NewStorageControlClient(ctx)
-
 	opts := &control.StorageControlCallOptions{}
 
 	// Loop over all fields in the struct and assign retry options
