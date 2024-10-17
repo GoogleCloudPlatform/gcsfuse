@@ -95,6 +95,7 @@ func setupMetrics(ctx context.Context, c *cfg.Config) ShutdownFn {
 				return cloudmetric.DefaultResourceAttributesFilter(kv) ||
 					kv.Key == semconv.ProcessPIDKey
 			}),
+			cloudmetric.WithMonitoredResourceDescription("global", []string{"project_id"}),
 			//cloudmetric.WithMonitoredResourceDescription(),
 			//cloudmetric.WithCreateServiceTimeSeries(),
 		}
