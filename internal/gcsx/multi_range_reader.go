@@ -61,14 +61,17 @@ type MultiRangeReader struct {
 	mrd *poc.MultiRangeDownloader
 	// read handle data type can be anything
 	readHandle string
-	localCache []byte //Can make 1 mb array
+	localCache []byte //local cache will be initialised with 1 MB buffer at the time of MRD initialisation during file inode initialisation
 }
 
 // TODO: Need to Change Signature here as buffer will be returned
 func (mrr *MultiRangeReader) ReadAt(
 	ctx context.Context,
-	p []byte,
-	offset int64) (n int, cacheHit bool, err error) {
+	bufferSize int64,
+	offset int64) (n int, p []byte, cacheHit bool, err error) {
+
+	//point to a slice of larger local buffer to maintain single copy od data
+	p = mrr.localCache[mrr.start:bufferSize]
 
 	if offset >= int64(mrr.object.Size) {
 		err = io.EOF
