@@ -40,7 +40,6 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
 
-	"go.opentelemetry.io/contrib/detectors/gcp"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
 
@@ -125,7 +124,7 @@ func setupMetrics(ctx context.Context, c *cfg.Config) ShutdownFn {
 func resourceObj(ctx context.Context, appName string) (*resource.Resource, error) {
 	return resource.New(ctx,
 		// Use the GCP resource detector to detect information about the GCP platform
-		resource.WithDetectors(gcp.NewDetector()),
+		//resource.WithDetectors(gcp.NewDetector()),
 		resource.WithTelemetrySDK(),
 		resource.WithProcess(),
 		resource.WithAttributes(
