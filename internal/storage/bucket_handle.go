@@ -213,7 +213,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	}
 
 	// Method 2: Read into a byte slice
-	buf := make([]byte, 20 * 1024 * 1024)
+	buf := make([]byte, 20*1024*1024)
 	for {
 		_, err = req.Contents.Read(buf)
 		if err == io.EOF {
