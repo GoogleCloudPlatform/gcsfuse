@@ -663,23 +663,13 @@ func (b *bucket) CreateObject(
 }
 
 func (b *bucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
-	return NewFakeObjectWriter(b, req, chunkSize, callBack)
+	// TODO: will be implemented in a subsequent PR
+	return nil, nil
 }
 
 func (b *bucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.Object, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	err := w.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	fakeObjectWriter, ok := w.(*FakeObjectWriter)
-	if !ok {
-		return nil, fmt.Errorf("could not type assert gcs.Writer to FakeObjectWriter")
-	}
-	return fakeObjectWriter.Object, nil
+	//TODO: will be implemented in a subsequent PR.
+	return nil, nil
 }
 
 // LOCKS_EXCLUDED(b.mu)

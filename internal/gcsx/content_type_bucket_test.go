@@ -104,31 +104,6 @@ func TestContentTypeBucket_CreateObject(t *testing.T) {
 	}
 }
 
-func TestContentTypeBucket_CreateObjectChunkWriter(t *testing.T) {
-	for i, tc := range contentTypeBucketTestCases {
-		// Set up a bucket.
-		bucket := gcsx.NewContentTypeBucket(
-			fake.NewFakeBucket(timeutil.RealClock(), "", gcs.NonHierarchical))
-
-		// Create the object.
-		req := &gcs.CreateObjectRequest{
-			Name:        tc.name,
-			ContentType: tc.request,
-		}
-
-		w, err := bucket.CreateObjectChunkWriter(context.Background(), req, 0, func(_ int64) {})
-		if err != nil {
-			t.Fatalf("Test case %d: CreateObjectChunkWriter: %v", i, err)
-		}
-
-		// Check the content type.
-		writerImpl := w.(*fake.FakeObjectWriter)
-		if got, want := writerImpl.ContentType, tc.expected; got != want {
-			t.Errorf("Test case %d: o.ContentType is %q, want %q", i, got, want)
-		}
-	}
-}
-
 func TestContentTypeBucket_ComposeObjects(t *testing.T) {
 	var err error
 	ctx := context.Background()
