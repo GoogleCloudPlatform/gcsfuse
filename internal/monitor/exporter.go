@@ -48,7 +48,7 @@ func EnableStackdriverExporter(interval time.Duration) error {
 		// For a local metric "http_sent_bytes", the Stackdriver metric type
 		// would be "custom.googleapis.com/gcsfuse/http_sent_bytes", display
 		// name would be "Http sent bytes".
-		MetricPrefix: "custom.googleapis.com/gcsfuse/",
+		MetricPrefix: "custom.googleapis.com/gcsfuse-test-metric/",
 		GetMetricDisplayName: func(view *view.View) string {
 			name := strings.ReplaceAll(view.Name, "_", " ")
 			if len(name) > 0 {

@@ -23,9 +23,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/monitor/tags"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/stats"
-	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
 )
 
@@ -40,36 +38,37 @@ var (
 // Initialize the metrics.
 func init() {
 	// OpenCensus views (aggregated measures)
-	if err := view.Register(
-		&view.View{
-			Name:        "gcs/read_bytes_count",
-			Measure:     readBytesCount,
-			Description: "The cumulative number of bytes read from GCS objects.",
-			Aggregation: view.Sum(),
-		},
-		&view.View{
-			Name:        "gcs/reader_count",
-			Measure:     readerCount,
-			Description: "The cumulative number of GCS object readers opened or closed.",
-			Aggregation: view.Sum(),
-			TagKeys:     []tag.Key{tags.IOMethod},
-		},
-		&view.View{
-			Name:        "gcs/request_count",
-			Measure:     requestCount,
-			Description: "The cumulative number of GCS requests processed.",
-			Aggregation: view.Sum(),
-			TagKeys:     []tag.Key{tags.GCSMethod},
-		},
-		&view.View{
-			Name:        "gcs/request_latencies",
-			Measure:     requestLatency,
-			Description: "The cumulative distribution of the GCS request latencies.",
-			Aggregation: ochttp.DefaultLatencyDistribution,
-			TagKeys:     []tag.Key{tags.GCSMethod},
-		}); err != nil {
-		fmt.Printf("Failed to register OpenCensus metrics for GCS client library: %v", err)
-	}
+	/*
+		if err := view.Register(
+			&view.View{
+				Name:        "gcs/read_bytes_count",
+				Measure:     readBytesCount,
+				Description: "The cumulative number of bytes read from GCS objects.",
+				Aggregation: view.Sum(),
+			},
+			&view.View{
+				Name:        "gcs/reader_count",
+				Measure:     readerCount,
+				Description: "The cumulative number of GCS object readers opened or closed.",
+				Aggregation: view.Sum(),
+				TagKeys:     []tag.Key{tags.IOMethod},
+			},
+			&view.View{
+				Name:        "gcs/request_count",
+				Measure:     requestCount,
+				Description: "The cumulative number of GCS requests processed.",
+				Aggregation: view.Sum(),
+				TagKeys:     []tag.Key{tags.GCSMethod},
+			},
+			&view.View{
+				Name:        "gcs/request_latencies",
+				Measure:     requestLatency,
+				Description: "The cumulative distribution of the GCS request latencies.",
+				Aggregation: ochttp.DefaultLatencyDistribution,
+				TagKeys:     []tag.Key{tags.GCSMethod},
+			}); err != nil {
+			fmt.Printf("Failed to register OpenCensus metrics for GCS client library: %v", err)
+		}*/
 }
 
 // recordRequest records a request and its latency.

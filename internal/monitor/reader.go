@@ -15,15 +15,12 @@
 package monitor
 
 import (
-	"log"
 	"strconv"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/monitor/tags"
-	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/stats"
-	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
 	"golang.org/x/net/context"
 )
@@ -55,46 +52,48 @@ const NanosecondsInOneMillisecond = 1000000
 // Initialize the metrics.
 func init() {
 	// GCS related metrics
-	if err := view.Register(
-		&view.View{
-			Name:        "gcs/read_count",
-			Measure:     gcsReadCount,
-			Description: "Specifies the number of gcs reads made along with type - Sequential/Random",
-			Aggregation: view.Sum(),
-			TagKeys:     []tag.Key{tags.ReadType},
-		},
-		&view.View{
-			Name:        "gcs/download_bytes_count",
-			Measure:     downloadBytesCount,
-			Description: "The cumulative number of bytes downloaded from GCS along with type - Sequential/Random",
-			Aggregation: view.Sum(),
-			TagKeys:     []tag.Key{tags.ReadType},
-		},
-		// File cache related metrics
-		&view.View{
-			Name:        "file_cache/read_count",
-			Measure:     fileCacheReadCount,
-			Description: "Specifies the number of read requests made via file cache along with type - Sequential/Random and cache hit - true/false",
-			Aggregation: view.Sum(),
-			TagKeys:     []tag.Key{tags.ReadType, tags.CacheHit},
-		},
-		&view.View{
-			Name:        "file_cache/read_bytes_count",
-			Measure:     fileCacheReadBytesCount,
-			Description: "The cumulative number of bytes read from file cache along with read type - Sequential/Random",
-			Aggregation: view.Sum(),
-			TagKeys:     []tag.Key{tags.ReadType},
-		},
-		&view.View{
-			Name:        "file_cache/read_latencies",
-			Measure:     fileCacheReadLatency,
-			Description: "The cumulative distribution of the file cache read latencies along with cache hit - true/false",
-			Aggregation: ochttp.DefaultLatencyDistribution,
-			TagKeys:     []tag.Key{tags.CacheHit},
-		},
-	); err != nil {
-		log.Fatalf("Failed to register the reader view: %v", err)
-	}
+	/*
+		if err := view.Register(
+			&view.View{
+				Name:        "gcs/read_count",
+				Measure:     gcsReadCount,
+				Description: "Specifies the number of gcs reads made along with type - Sequential/Random",
+				Aggregation: view.Sum(),
+				TagKeys:     []tag.Key{tags.ReadType},
+			},
+			&view.View{
+				Name:        "gcs/download_bytes_count",
+				Measure:     downloadBytesCount,
+				Description: "The cumulative number of bytes downloaded from GCS along with type - Sequential/Random",
+				Aggregation: view.Sum(),
+				TagKeys:     []tag.Key{tags.ReadType},
+			},
+			// File cache related metrics
+			&view.View{
+				Name:        "file_cache/read_count",
+				Measure:     fileCacheReadCount,
+				Description: "Specifies the number of read requests made via file cache along with type - Sequential/Random and cache hit - true/false",
+				Aggregation: view.Sum(),
+				TagKeys:     []tag.Key{tags.ReadType, tags.CacheHit},
+			},
+			&view.View{
+				Name:        "file_cache/read_bytes_count",
+				Measure:     fileCacheReadBytesCount,
+				Description: "The cumulative number of bytes read from file cache along with read type - Sequential/Random",
+				Aggregation: view.Sum(),
+				TagKeys:     []tag.Key{tags.ReadType},
+			},
+			&view.View{
+				Name:        "file_cache/read_latencies",
+				Measure:     fileCacheReadLatency,
+				Description: "The cumulative distribution of the file cache read latencies along with cache hit - true/false",
+				Aggregation: ochttp.DefaultLatencyDistribution,
+				TagKeys:     []tag.Key{tags.CacheHit},
+			},
+		); err != nil {
+			log.Fatalf("Failed to register the reader view: %v", err)
+		}
+	*/
 }
 
 func CaptureGCSReadMetrics(ctx context.Context, readType string, requestedDataSize int64) {
