@@ -20,7 +20,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"golang.org/x/net/context"
@@ -164,7 +163,7 @@ func (b *debugBucket) CreateObject(
 	return
 }
 
-func (b *debugBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (wc *storage.Writer, err error) {
+func (b *debugBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (wc gcs.Writer, err error) {
 	id, desc, start := b.startRequest("CreateObjectChunkWriter(%q)", req.Name)
 	defer b.finishRequest(id, desc, start, &err)
 
@@ -172,11 +171,11 @@ func (b *debugBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.Crea
 	return
 }
 
-func (b *debugBucket) FinalizeUpload(ctx context.Context, w *storage.Writer) (err error) {
-	id, desc, start := b.startRequest("FinalizeUpload(%q)", w.Name)
+func (b *debugBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gcs.Object, err error) {
+	id, desc, start := b.startRequest("FinalizeUpload(%q)", w.ObjectName())
 	defer b.finishRequest(id, desc, start, &err)
 
-	err = b.wrapped.FinalizeUpload(ctx, w)
+	o, err = b.wrapped.FinalizeUpload(ctx, w)
 	return
 }
 

@@ -195,9 +195,8 @@ func (t *CreateObjectChunkWriterTest) WrappedSucceeds() {
 	req := &gcs.CreateObjectRequest{}
 	var err error
 	// Wrapped
-	wr := &strg.Writer{
-		ChunkSize:    chunkSize,
-		ProgressFunc: progressFunc,
+	wr := &storage.ObjectWriter{
+		Writer: &strg.Writer{ChunkSize: chunkSize, ProgressFunc: progressFunc},
 	}
 	ExpectCall(t.wrapped, "CreateObjectChunkWriter")(Any(), Any(), Any(), Any()).
 		WillOnce(Return(wr, nil))
@@ -221,18 +220,18 @@ func init() { RegisterTestSuite(&FinalizeUploadTest{}) }
 
 func (t *FinalizeUploadTest) CallsEraseAndWrapped() {
 	const name = "taco"
-	writer := &strg.Writer{
-		ObjectAttrs: strg.ObjectAttrs{Name: name},
+	writer := &storage.ObjectWriter{
+		Writer: &strg.Writer{ObjectAttrs: strg.ObjectAttrs{Name: name}},
 	}
 	// Erase
 	ExpectCall(t.cache, "Erase")(name)
 	// Wrapped
-	var wrappedWriter *strg.Writer
+	var wrappedWriter gcs.Writer
 	ExpectCall(t.wrapped, "FinalizeUpload")(Any(), Any()).
-		WillOnce(DoAll(SaveArg(1, &wrappedWriter), Return(errors.New(""))))
+		WillOnce(DoAll(SaveArg(1, &wrappedWriter), Return(&gcs.Object{}, errors.New(""))))
 
 	// Call
-	_ = t.bucket.FinalizeUpload(context.TODO(), writer)
+	_, _ = t.bucket.FinalizeUpload(context.TODO(), writer)
 
 	AssertNe(nil, wrappedWriter)
 	ExpectEq(writer, wrappedWriter)
@@ -244,18 +243,19 @@ func (t *FinalizeUploadTest) WrappedFails() {
 	ExpectCall(t.cache, "Erase")(Any())
 	// Wrapped
 	ExpectCall(t.wrapped, "FinalizeUpload")(Any(), Any()).
-		WillOnce(Return(errors.New("taco")))
+		WillOnce(Return(&gcs.Object{}, errors.New("taco")))
 
 	// Call
-	err = t.bucket.FinalizeUpload(context.TODO(), &strg.Writer{})
+	o, err := t.bucket.FinalizeUpload(context.TODO(), &storage.ObjectWriter{})
 
 	ExpectThat(err, Error(HasSubstr("taco")))
+	ExpectEq(o, &gcs.Object{})
 }
 
 func (t *FinalizeUploadTest) WrappedSucceeds() {
 	const name = "taco"
-	writer := &strg.Writer{
-		ObjectAttrs: strg.ObjectAttrs{Name: name},
+	writer := &storage.ObjectWriter{
+		Writer: &strg.Writer{ObjectAttrs: strg.ObjectAttrs{Name: name}},
 	}
 	var err error
 	// Erase
@@ -267,9 +267,10 @@ func (t *FinalizeUploadTest) WrappedSucceeds() {
 	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(ttl)))
 
 	// Call
-	err = t.bucket.FinalizeUpload(context.TODO(), writer)
+	o, err := t.bucket.FinalizeUpload(context.TODO(), writer)
 
 	AssertEq(nil, err)
+	AssertNe(o, nil)
 }
 
 ////////////////////////////////////////////////////////////////////////

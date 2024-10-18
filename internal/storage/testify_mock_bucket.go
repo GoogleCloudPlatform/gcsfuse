@@ -18,7 +18,6 @@ import (
 	"context"
 	"io"
 
-	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/stretchr/testify/mock"
 )
@@ -51,17 +50,17 @@ func (m *TestifyMockBucket) CreateObject(ctx context.Context, req *gcs.CreateObj
 	return args.Get(0).(*gcs.Object), nil
 }
 
-func (m *TestifyMockBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (wc *storage.Writer, err error) {
+func (m *TestifyMockBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (wc gcs.Writer, err error) {
 	args := m.Called(ctx, req)
 	if args.Get(1) != nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*storage.Writer), nil
+	return args.Get(0).(gcs.Writer), nil
 }
 
-func (m *TestifyMockBucket) FinalizeUpload(ctx context.Context, w *storage.Writer) error {
-	args := m.Called(ctx, w.Name)
-	return args.Error(0)
+func (m *TestifyMockBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.Object, error) {
+	args := m.Called(ctx, w.ObjectName())
+	return args.Get(0).(*gcs.Object), args.Error(1)
 }
 
 func (m *TestifyMockBucket) CopyObject(ctx context.Context, req *gcs.CopyObjectRequest) (*gcs.Object, error) {

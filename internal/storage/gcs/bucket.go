@@ -44,6 +44,12 @@ const (
 	ReqIdField string = "GcsReqId"
 )
 
+type Writer interface {
+	io.WriteCloser
+	ObjectName() string
+	Attrs() *storage.ObjectAttrs
+}
+
 // Bucket represents a GCS bucket, pre-bound with a bucket name and necessary
 // authorization information.
 //
@@ -86,11 +92,11 @@ type Bucket interface {
 	// CreateObjectChunkWriter creates a *storage.Writer that can be used for
 	// resumable uploads. The new object will be available for reading after the
 	// writer is closed (object is finalised).
-	CreateObjectChunkWriter(ctx context.Context, req *CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (*storage.Writer, error)
+	CreateObjectChunkWriter(ctx context.Context, req *CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (Writer, error)
 
 	// FinalizeUpload closes the storage.Writer which completes the write
 	// operation and creates an object on GCS.
-	FinalizeUpload(ctx context.Context, writer *storage.Writer) error
+	FinalizeUpload(ctx context.Context, writer Writer) (*Object, error)
 
 	// Copy an object to a new name, preserving all metadata. Any existing
 	// generation of the destination name will be overwritten.

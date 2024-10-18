@@ -468,9 +468,11 @@ func (testSuite *BucketHandleTest) TestBucketHandle_CreateObjectChunkWriter() {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
-				assert.Equal(t, tt.objectName, wr.Name)
-				assert.Equal(t, tt.chunkSize, wr.ChunkSize)
-				assert.Equal(t, reflect.ValueOf(progressFunc).Pointer(), reflect.ValueOf(wr.ProgressFunc).Pointer())
+				extWr, ok := (wr).(*ObjectWriter)
+				assert.True(t, ok)
+				assert.Equal(t, tt.objectName, extWr.ObjectName())
+				assert.Equal(t, tt.chunkSize, extWr.ChunkSize)
+				assert.Equal(t, reflect.ValueOf(progressFunc).Pointer(), reflect.ValueOf(extWr.ProgressFunc).Pointer())
 			}
 		})
 	}
@@ -511,13 +513,16 @@ func (testSuite *BucketHandleTest) TestBucketHandle_FinalizeUploadSuccess() {
 				progressFunc,
 			)
 			assert.NoError(t, err)
-			assert.Equal(t, tt.objectName, wr.Name)
-			assert.Equal(t, tt.chunkSize, wr.ChunkSize)
-			assert.Equal(t, reflect.ValueOf(progressFunc).Pointer(), reflect.ValueOf(wr.ProgressFunc).Pointer())
+			objWr, ok := (wr).(*ObjectWriter)
+			assert.True(t, ok)
+			assert.Equal(t, tt.objectName, objWr.ObjectName())
+			assert.Equal(t, tt.chunkSize, objWr.ChunkSize)
+			assert.Equal(t, reflect.ValueOf(progressFunc).Pointer(), reflect.ValueOf(objWr.ProgressFunc).Pointer())
 
-			err = testSuite.bucketHandle.FinalizeUpload(context.Background(), wr)
+			o, err := testSuite.bucketHandle.FinalizeUpload(context.Background(), wr)
 
 			assert.NoError(t, err)
+			assert.NotNil(testSuite.T(), o)
 		})
 	}
 }
@@ -533,11 +538,12 @@ func (testSuite *BucketHandleTest) createObject(objName string) {
 		100,
 		func(_ int64) {})
 	assert.NoError(testSuite.T(), err)
-	assert.Equal(testSuite.T(), objName, wr.Name)
+	assert.Equal(testSuite.T(), objName, wr.ObjectName())
 
-	err = testSuite.bucketHandle.FinalizeUpload(context.Background(), wr)
+	o, err := testSuite.bucketHandle.FinalizeUpload(context.Background(), wr)
 
-	assert.Nil(testSuite.T(), err)
+	assert.NoError(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), o)
 }
 
 func (testSuite *BucketHandleTest) TestFinalizeUploadWithGenerationAsZeroWhenObjectAlreadyExists() {
@@ -553,11 +559,12 @@ func (testSuite *BucketHandleTest) TestFinalizeUploadWithGenerationAsZeroWhenObj
 		100,
 		func(_ int64) {})
 	assert.NoError(testSuite.T(), err)
-	assert.Equal(testSuite.T(), objName, wr.Name)
+	assert.Equal(testSuite.T(), objName, wr.ObjectName())
 
-	err = testSuite.bucketHandle.FinalizeUpload(context.Background(), wr)
+	o, err := testSuite.bucketHandle.FinalizeUpload(context.Background(), wr)
 
 	assert.Error(testSuite.T(), err)
+	assert.Nil(testSuite.T(), o)
 }
 
 func (testSuite *BucketHandleTest) TestGetProjectValueWhenGcloudProjectionIsNoAcl() {

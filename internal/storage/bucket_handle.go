@@ -237,7 +237,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	o = storageutil.ObjectAttrsToBucketObject(attrs)
 	return
 }
-func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (*storage.Writer, error) {
+func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
 	// For phase 1 of buffered writes, we are doing chunk uploads only for new
 	// file uploads.
 	preconditions := storage.Conditions{}
@@ -249,16 +249,31 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 	obj := bh.bucket.Object(req.Name)
 	obj = obj.If(preconditions)
 
-	wc := obj.NewWriter(ctx)
+	wc := &ObjectWriter{obj.NewWriter(ctx)}
 	wc.ChunkSize = chunkSize
-	wc = storageutil.SetAttrsInWriter(wc, req)
+	wc.Writer = storageutil.SetAttrsInWriter(wc.Writer, req)
 	wc.ProgressFunc = callBack
 
 	return wc, nil
 }
 
-func (bh *bucketHandle) FinalizeUpload(ctx context.Context, w *storage.Writer) error {
-	return w.Close()
+func (bh *bucketHandle) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gcs.Object, err error) {
+	if err = w.Close(); err != nil {
+		var gErr *googleapi.Error
+		if errors.As(err, &gErr) {
+			if gErr.Code == http.StatusPreconditionFailed {
+				err = &gcs.PreconditionError{Err: err}
+				return
+			}
+		}
+		err = fmt.Errorf("error in closing writer : %w", err)
+		return
+	}
+
+	attrs := w.Attrs() // Retrieving the attributes of the created object.
+	// Converting attrs to type *Object.
+	o = storageutil.ObjectAttrsToBucketObject(attrs)
+	return
 }
 
 func (bh *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {

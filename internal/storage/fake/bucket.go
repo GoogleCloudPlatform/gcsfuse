@@ -29,7 +29,6 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/jacobsa/syncutil"
@@ -663,14 +662,24 @@ func (b *bucket) CreateObject(
 	return
 }
 
-func (b *bucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (*storage.Writer, error) {
-	// TODO: Implement CreateObjectChunkWriter for fake bucket.
-	return nil, nil
+func (b *bucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
+	return NewFakeObjectWriter(b, req, chunkSize, callBack)
 }
 
-func (b *bucket) FinalizeUpload(ctx context.Context, w *storage.Writer) error {
-	// TODO: Implement FinalizeUpload for fake bucket.
-	return nil
+func (b *bucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.Object, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	err := w.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	fakeObjectWriter, ok := w.(*FakeObjectWriter)
+	if !ok {
+		return nil, fmt.Errorf("could not type assert writer to FakeObjectWriter")
+	}
+	return fakeObjectWriter.Object, nil
 }
 
 // LOCKS_EXCLUDED(b.mu)

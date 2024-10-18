@@ -21,7 +21,6 @@ import (
 	"sync"
 	"time"
 
-	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -218,25 +217,23 @@ func (b *fastStatBucket) CreateObject(
 	return
 }
 
-func (b *fastStatBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (*storage.Writer, error) {
+func (b *fastStatBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
 	return b.wrapped.CreateObjectChunkWriter(ctx, req, chunkSize, callBack)
 }
 
-func (b *fastStatBucket) FinalizeUpload(ctx context.Context, writer *storage.Writer) error {
-	name := writer.Name
-	attrs := writer.Attrs()
+func (b *fastStatBucket) FinalizeUpload(ctx context.Context, writer gcs.Writer) (*gcs.Object, error) {
+	name := writer.ObjectName()
 	// Throw away any existing record for this object.
 	b.invalidate(name)
 
-	err := b.wrapped.FinalizeUpload(ctx, writer)
+	o, err := b.wrapped.FinalizeUpload(ctx, writer)
 
 	// Record the new object if err is nil.
 	if err == nil {
-		o := storageutil.ObjectAttrsToBucketObject(attrs)
 		b.insert(o)
 	}
 
-	return err
+	return o, err
 }
 
 // LOCKS_EXCLUDED(b.mu)

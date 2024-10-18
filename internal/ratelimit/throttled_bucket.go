@@ -17,7 +17,6 @@ package ratelimit
 import (
 	"io"
 
-	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
@@ -95,7 +94,7 @@ func (b *throttledBucket) CreateObject(
 	return
 }
 
-func (b *throttledBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (wc *storage.Writer, err error) {
+func (b *throttledBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (wc gcs.Writer, err error) {
 	// Wait for permission to call through.
 	err = b.opThrottle.Wait(ctx, 1)
 	if err != nil {
@@ -108,17 +107,15 @@ func (b *throttledBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.
 	return
 }
 
-func (b *throttledBucket) FinalizeUpload(ctx context.Context, w *storage.Writer) (err error) {
+func (b *throttledBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.Object, error) {
 	// Wait for permission to call through.
-	err = b.opThrottle.Wait(ctx, 1)
+	err := b.opThrottle.Wait(ctx, 1)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	// Call through.
-	err = b.wrapped.FinalizeUpload(ctx, w)
-
-	return
+	return b.wrapped.FinalizeUpload(ctx, w)
 }
 
 func (b *throttledBucket) CopyObject(
