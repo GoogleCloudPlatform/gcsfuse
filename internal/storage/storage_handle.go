@@ -80,7 +80,7 @@ func createClientOptionForGRPCClient(clientConfig *storageutil.StorageClientConf
 	clientOpts = append(clientOpts, option.WithUserAgent(clientConfig.UserAgent))
 	// Turning off the go-sdk metrics exporter to prevent any problems.
 	// TODO (kislaykishore) - to revisit here for monitoring support.
-	clientOpts = append(clientOpts, option.WithTelemetryDisabled())
+	clientOpts = append(clientOpts, storage.WithDisabledClientMetrics())
 	return
 }
 
@@ -143,10 +143,6 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	if clientConfig.CustomEndpoint != "" {
 		clientOpts = append(clientOpts, option.WithEndpoint(clientConfig.CustomEndpoint))
 	}
-
-	// Turning off the go-sdk metrics exporter to prevent any problems.
-	// TODO (kislaykishore) - to revisit here for monitoring support.
-	clientOpts = append(clientOpts, option.WithTelemetryDisabled())
 
 	return storage.NewClient(ctx, clientOpts...)
 }
