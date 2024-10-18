@@ -273,7 +273,7 @@ func (rr *randomReader) ReadAt(
 	}
 
 	// Try reading from New Reader
-	// If hit - false, read from MRR.
+	// If hit - false, read from MRR. MRR is created in inode and the instance is passed from fileHandle to randome_reader.go.
 	// open questions: how to update seeks across Newreader & MRR.
 
 	/**
