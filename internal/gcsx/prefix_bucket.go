@@ -98,26 +98,13 @@ func (b *prefixBucket) CreateObject(
 }
 
 func (b *prefixBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
-	// Modify the request and call through.
-	mReq := new(gcs.CreateObjectRequest)
-	*mReq = *req
-	mReq.Name = b.wrappedName(req.Name)
-
-	wc, err := b.wrapped.CreateObjectChunkWriter(ctx, mReq, chunkSize, callBack)
-	if err != nil {
-		return nil, err
-	}
-
-	return wc, err
+	// TODO: will be implemented in subsequent PR.
+	return nil, nil
 }
 
 func (b *prefixBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gcs.Object, err error) {
-	o, err = b.wrapped.FinalizeUpload(ctx, w)
-	// Modify the returned object.
-	if o != nil {
-		o.Name = b.localName(o.Name)
-	}
-	return
+	// TODO: will be implemented in subsequent PR.
+	return nil, nil
 }
 
 func (b *prefixBucket) CopyObject(

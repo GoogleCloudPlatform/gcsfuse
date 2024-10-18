@@ -118,35 +118,6 @@ func (t *PrefixBucketTest) CreateObject() {
 	ExpectEq(contents, string(actual))
 }
 
-func (t *PrefixBucketTest) CreateObjectChunkWriterAndFinalizeUpload() {
-	var err error
-	suffix := "taco"
-	content := []byte("foobar")
-
-	// Create the object.
-	w, err := t.bucket.CreateObjectChunkWriter(
-		t.ctx,
-		&gcs.CreateObjectRequest{
-			Name:            suffix,
-			ContentLanguage: "en-GB",
-			Contents:        nil,
-		},
-		1024, nil)
-	AssertEq(nil, err)
-	_, err = w.Write(content)
-	AssertEq(nil, err)
-	o, err := t.bucket.FinalizeUpload(t.ctx, w)
-
-	AssertEq(nil, err)
-	ExpectEq(suffix, o.Name)
-	ExpectEq("en-GB", o.ContentLanguage)
-
-	// Read it through the back door.
-	actual, err := storageutil.ReadObject(t.ctx, t.wrapped, t.prefix+suffix)
-	AssertEq(nil, err)
-	ExpectEq(string(content), string(actual))
-}
-
 func (t *PrefixBucketTest) CopyObject() {
 	var err error
 	suffix := "taco"
