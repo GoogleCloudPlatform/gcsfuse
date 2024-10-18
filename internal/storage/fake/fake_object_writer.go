@@ -78,7 +78,9 @@ func NewFakeObjectWriter(b *bucket, req *gcs.CreateObjectRequest, chunkSize int,
 		req:          req,
 		ChunkSize:    chunkSize,
 		ProgressFunc: callback,
-		ObjectAttrs:  storage.ObjectAttrs{},
+		ObjectAttrs: storage.ObjectAttrs{
+			Name: req.Name,
+		},
 	}
 	wr.ContentType = req.ContentType
 
