@@ -301,22 +301,7 @@ func (b *bucket) addFolderEntry(path string) {
 	sort.Sort(b.folders)
 }
 
-// LOCKS_REQUIRED(b.mu)
-func (b *bucket) createObjectLocked(
-	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
-	// Check that the name is legal.
-	err = checkName(req.Name)
-	if err != nil {
-		return
-	}
-
-	// Snarf the contents.
-	contents, err := io.ReadAll(req.Contents)
-	if err != nil {
-		err = fmt.Errorf("ReadAll: %v", err)
-		return
-	}
-
+func preconditionChecks(b *bucket, req *gcs.CreateObjectRequest, contents []byte) (err error) {
 	// Find any existing record for this name.
 	existingIndex := b.objects.find(req.Name)
 
@@ -399,16 +384,20 @@ func (b *bucket) createObjectLocked(
 					"precondition failed: object has meta-generation %v",
 					existingMetaGen),
 			}
-
 			return
 		}
 	}
 
+	return
+}
+
+func createOrUpdateFakeObject(b *bucket, req *gcs.CreateObjectRequest, contents []byte) (o *gcs.Object, err error) {
 	// Create an object record from the given attributes.
 	var fo fakeObject = b.mintObject(req, contents)
 	o = copyObject(&fo.metadata)
 
 	// Replace an entry in or add an entry to our list of objects.
+	existingIndex := b.objects.find(req.Name)
 	if existingIndex < len(b.objects) {
 		b.objects[existingIndex] = fo
 	} else {
@@ -420,6 +409,27 @@ func (b *bucket) createObjectLocked(
 		b.addFolderEntry(req.Name)
 	}
 	return
+}
+
+// LOCKS_REQUIRED(b.mu)
+func (b *bucket) createObjectLocked(
+	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
+	// Check that the name is legal.
+	err = checkName(req.Name)
+	if err != nil {
+		return
+	}
+
+	contents, err := io.ReadAll(req.Contents)
+	if err != nil {
+		err = fmt.Errorf("ReadAll: %v", err)
+		return
+	}
+	err = preconditionChecks(b, req, contents)
+	if err != nil {
+		return nil, err
+	}
+	return createOrUpdateFakeObject(b, req, contents)
 }
 
 // Create a reader based on the supplied request, also returning the index
@@ -663,13 +673,23 @@ func (b *bucket) CreateObject(
 }
 
 func (b *bucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
-	// TODO: will be implemented in a subsequent PR
-	return nil, nil
+	return NewFakeObjectWriter(b, req, chunkSize, callBack)
 }
 
 func (b *bucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.Object, error) {
-	//TODO: will be implemented in a subsequent PR.
-	return nil, nil
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	err := w.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	fakeObjectWriter, ok := w.(*FakeObjectWriter)
+	if !ok {
+		return nil, fmt.Errorf("could not type assert gcs.Writer to FakeObjectWriter")
+	}
+	return fakeObjectWriter.Object, nil
 }
 
 // LOCKS_EXCLUDED(b.mu)
