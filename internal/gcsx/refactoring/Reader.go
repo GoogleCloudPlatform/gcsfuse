@@ -7,6 +7,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 )
 
+// File Handle has this instance and will call its read method to read for any type of bucket
 // Reader is the main read orchestrator which will be orchestrating all flows for reading.
 // This holds the state for current reads, cache config and common buffer to be used for zonal as well as
 // non-zonal flows
