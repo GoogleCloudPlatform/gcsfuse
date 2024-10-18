@@ -81,7 +81,6 @@ func (nr *NewReader) Read(ctx context.Context, p []byte, offset int64, end int64
 			nr.reader.Close()
 			nr.reader = nil
 			nr.cancel = nil
-			nr.seeks++
 		}
 
 		// If we don't have a reader, start a read operation.

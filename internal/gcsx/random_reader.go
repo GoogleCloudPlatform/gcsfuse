@@ -284,6 +284,9 @@ func (rr *randomReader) ReadAt(
 		return
 	}
 
+	// If both of them can't serve the data either we dont have any local data or its random read
+	// Increment seeks here if current offset is not equal to last served offset end.
+
 	// Existing logic of sequential vs random
 	start := offset
 	end := int64(rr.object.Size)
