@@ -212,8 +212,20 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 		logger.Tracef("gcs: Req %#16x: -- CreateObject(%q): %20v bytes uploaded so far", ctx.Value(gcs.ReqIdField), req.Name, bytesUploadedSoFar)
 	}
 
+	// Method 2: Read into a byte slice
+	buf := make([]byte, 20 * 1024 * 1024)
+	for {
+		_, err = req.Contents.Read(buf)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	// Copy the contents to the writer.
-	if _, err = io.Copy(wc, req.Contents); err != nil {
+	if _, err = wc.Write(buf); err != nil {
 		err = fmt.Errorf("error in io.Copy: %w", err)
 		return
 	}

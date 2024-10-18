@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This code initializes a control client solely for the purpose of setting up test data for
+// end-to-end tests.
+// This client is not used in the application logic itself.
+
 package client
 
 import (
@@ -48,15 +52,8 @@ func storageControlClientRetryOptions() []gax.CallOption {
 func CreateControlClient(ctx context.Context) (client *control.StorageControlClient, err error) {
 	client, err = control.NewStorageControlClient(ctx)
 
-	client.CallOptions.RenameFolder = storageControlClientRetryOptions()
-	client.CallOptions.GetFolder = storageControlClientRetryOptions()
-	client.CallOptions.GetStorageLayout = storageControlClientRetryOptions()
-	client.CallOptions.CreateFolder = storageControlClientRetryOptions()
-	client.CallOptions.DeleteFolder = storageControlClientRetryOptions()
 	client.CallOptions.CreateManagedFolder = storageControlClientRetryOptions()
 	client.CallOptions.DeleteManagedFolder = storageControlClientRetryOptions()
-	client.CallOptions.ListManagedFolders = storageControlClientRetryOptions()
-	client.CallOptions.GetManagedFolder = storageControlClientRetryOptions()
 
 	if err != nil {
 		return nil, fmt.Errorf("control.NewStorageControlClient: #{err}")
