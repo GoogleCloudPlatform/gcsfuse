@@ -677,7 +677,7 @@ func (b *bucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.Object,
 
 	fakeObjectWriter, ok := w.(*FakeObjectWriter)
 	if !ok {
-		return nil, fmt.Errorf("could not type assert writer to FakeObjectWriter")
+		return nil, fmt.Errorf("could not type assert gcs.Writer to FakeObjectWriter")
 	}
 	return fakeObjectWriter.Object, nil
 }
