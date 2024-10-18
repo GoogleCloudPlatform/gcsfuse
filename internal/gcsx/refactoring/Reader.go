@@ -3,25 +3,22 @@ package refactoring
 import (
 	"context"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 )
 
 // Reader is the main read orchestrator which will be orchestrating all flows for reading.
 // This holds the state for current reads, cache config and common buffer to be used for zonal as well as
 // non-zonal flows
 type Reader struct {
-	currenReader     DataReader
-	currentReadState ReadStateAndReader
-	readerFactory    ReaderFactory
-	object           *gcs.MinObject
-	cacheConfig      CacheConfig
-}
-
-type CacheConfig struct {
-	fileCacheHandler      *file.CacheHandler
-	cacheFileForRangeRead bool
-	fileCacheHandle       *file.CacheHandle
+	// this field represents single range reader both with and without read handle
+	singleRangeReader *SingleRangeReader
+	currentReadState  ReadStateAndReader
+	readerFactory     ReaderFactory
+	object            *gcs.MinObject
+	cacheConfig       CacheConfig
+	bucket            gcs.Bucket
+	localBuffer       []byte
 }
 
 // This struct holds the current state as well as current reader
@@ -35,29 +32,57 @@ type ReadStateAndReader struct {
 }
 
 // Not passing buffer here to avoid side effect, the returned buffer has data and passed buffer dst can point to it
-func (reader *Reader) read(ctx context.Context, offset int64, dst []byte) {
+func (reader *Reader) read(ctx context.Context, offset int64, limit int) []byte {
 
-	// try to read from cache before trying to read from any kid of reader
-	reader.tryReadingFromFileCache(ctx, offset)
+	// check if data can be served from local buffer
+
+	// logic to read from cache is moved to separate file cache config
+	reader.cacheConfig.tryReadingFromFileCache(ctx, offset)
 
 	//readSize tell how much data is added in buffer to be returned to jacobsa,
 	// this will be same len(p) > 0, changed it to this to make the loop more intuitive
 	var readSize int = 0
-	for readSize < len(dst) {
+	for readSize < limit {
 
-		// If we don't have any current reader, start a read operation assuming sequential read.
-		if reader.currenReader == nil {
-			reader.currenReader = reader.readerFactory.GetReader("sequential")
+		// Check based on seek if its random or sequntial operation
 
+		// New read or in case of random read
+		if reader.singleRangeReader == nil {
+			end := -1
+			// Update end with same logic as rr
+			reader.singleRangeReader, _ = reader.readerFactory.NewSingleRangeReader(nil, int(offset), end)
+			//read from single rang reader
 		}
 
-		// rr.seekReaderToPosition(offset)
+		// SEQUENTIAL FLOW
+		// try to seek this single reader to current offset similar to rr.seekReaderToPosition(offset)
+		readType := util.Sequential
+		// read type will become  random based on seeks or if offset != current
+		//if rr.seeks >= minSeeksForRandom {
+		//	readType = util.Random
+		//	end = rr.endOffsetForRandomRead(end, start)
+		// reader.singleRangeReader = nil
+		//}
 
-		// read data here
+		if readType == "random" {
+			if string(reader.bucket.BucketType()) == "Zonal" {
+				reader.readerFactory.GetMultiRangeReader(nil)
+				//read data into localBuffer
+				//increase readSize by number of bytes read
+			} else {
+				// set end offset
+				end := -1
+				reader.singleRangeReader, _ = reader.readerFactory.NewSingleRangeReader(nil, int(offset), end)
+				//read data into localBuffer
+				//increase readSize by number of bytes read
+			}
+		} else {
+			// set end offset
+			end := -1
+			reader.singleRangeReader, _ = reader.readerFactory.NewSingleRangeReader(nil, int(offset), end)
+			//read data into localBuffer
+			//increase readSize by number of bytes read
+		}
 	}
-}
-
-func (reader *Reader) tryReadingFromFileCache(ctx context.Context, offset int64) (data []byte, cacheHit bool, err error) {
-	// try read from cache using cacheConfig and if cache hit true return data in data array
-	return
+	return reader.localBuffer
 }
