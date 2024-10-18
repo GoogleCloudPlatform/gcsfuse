@@ -62,6 +62,9 @@ func convertACLRuleToObjectAccessControl(element storage.ACLRule) *storagev1.Obj
 }
 
 func ObjectAttrsToBucketObject(attrs *storage.ObjectAttrs) *gcs.Object {
+	if attrs == nil {
+		return nil
+	}
 	// gcs.Object accepts []*storagev1.ObjectAccessControl instead of []ACLRule.
 	var acl []*storagev1.ObjectAccessControl
 	for _, element := range attrs.ACL {

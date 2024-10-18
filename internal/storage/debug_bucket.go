@@ -163,6 +163,22 @@ func (b *debugBucket) CreateObject(
 	return
 }
 
+func (b *debugBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (wc gcs.Writer, err error) {
+	id, desc, start := b.startRequest("CreateObjectChunkWriter(%q)", req.Name)
+	defer b.finishRequest(id, desc, start, &err)
+
+	wc, err = b.wrapped.CreateObjectChunkWriter(ctx, req, chunkSize, callBack)
+	return
+}
+
+func (b *debugBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gcs.Object, err error) {
+	id, desc, start := b.startRequest("FinalizeUpload(%q)", w.ObjectName())
+	defer b.finishRequest(id, desc, start, &err)
+
+	o, err = b.wrapped.FinalizeUpload(ctx, w)
+	return
+}
+
 func (b *debugBucket) CopyObject(
 	ctx context.Context,
 	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {

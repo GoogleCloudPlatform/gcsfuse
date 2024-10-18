@@ -94,6 +94,30 @@ func (b *throttledBucket) CreateObject(
 	return
 }
 
+func (b *throttledBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (wc gcs.Writer, err error) {
+	// Wait for permission to call through.
+	err = b.opThrottle.Wait(ctx, 1)
+	if err != nil {
+		return
+	}
+
+	// Call through.
+	wc, err = b.wrapped.CreateObjectChunkWriter(ctx, req, chunkSize, callBack)
+
+	return
+}
+
+func (b *throttledBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.Object, error) {
+	// Wait for permission to call through.
+	err := b.opThrottle.Wait(ctx, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	// Call through.
+	return b.wrapped.FinalizeUpload(ctx, w)
+}
+
 func (b *throttledBucket) CopyObject(
 	ctx context.Context,
 	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {

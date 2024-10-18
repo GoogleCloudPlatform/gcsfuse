@@ -662,6 +662,16 @@ func (b *bucket) CreateObject(
 	return
 }
 
+func (b *bucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
+	// TODO: will be implemented in a subsequent PR
+	return nil, nil
+}
+
+func (b *bucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.Object, error) {
+	//TODO: will be implemented in a subsequent PR.
+	return nil, nil
+}
+
 // LOCKS_EXCLUDED(b.mu)
 func (b *bucket) CopyObject(
 	ctx context.Context,

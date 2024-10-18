@@ -97,6 +97,16 @@ func (b *prefixBucket) CreateObject(
 	return
 }
 
+func (b *prefixBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
+	// TODO: will be implemented in subsequent PR.
+	return nil, nil
+}
+
+func (b *prefixBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gcs.Object, err error) {
+	// TODO: will be implemented in subsequent PR.
+	return nil, nil
+}
+
 func (b *prefixBucket) CopyObject(
 	ctx context.Context,
 	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
