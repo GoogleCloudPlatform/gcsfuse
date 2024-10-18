@@ -29,6 +29,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -455,7 +456,7 @@ func (testSuite *BucketHandleTest) TestBucketHandle_CreateObjectChunkWriter() {
 	for _, tt := range tests {
 		testSuite.T().Run(tt.name, func(t *testing.T) {
 			progressFunc := func(_ int64) {}
-			wr, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(),
+			w, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(),
 				&gcs.CreateObjectRequest{
 					Name:                   tt.objectName,
 					GenerationPrecondition: tt.generation,
@@ -467,12 +468,13 @@ func (testSuite *BucketHandleTest) TestBucketHandle_CreateObjectChunkWriter() {
 			if tt.expectErr {
 				assert.Error(t, err)
 			} else {
-				assert.NoError(t, err)
-				extWr, ok := (wr).(*ObjectWriter)
-				assert.True(t, ok)
-				assert.Equal(t, tt.objectName, extWr.ObjectName())
-				assert.Equal(t, tt.chunkSize, extWr.ChunkSize)
-				assert.Equal(t, reflect.ValueOf(progressFunc).Pointer(), reflect.ValueOf(extWr.ProgressFunc).Pointer())
+				require.NoError(t, err)
+				objWr, ok := (w).(*ObjectWriter)
+				require.True(t, ok)
+				require.NotNil(t, objWr)
+				assert.Equal(t, tt.objectName, objWr.ObjectName())
+				assert.Equal(t, tt.chunkSize, objWr.ChunkSize)
+				assert.Equal(t, reflect.ValueOf(progressFunc).Pointer(), reflect.ValueOf(objWr.ProgressFunc).Pointer())
 			}
 		})
 	}
@@ -512,9 +514,10 @@ func (testSuite *BucketHandleTest) TestBucketHandle_FinalizeUploadSuccess() {
 				tt.chunkSize,
 				progressFunc,
 			)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			objWr, ok := (wr).(*ObjectWriter)
-			assert.True(t, ok)
+			require.True(t, ok)
+			require.NotNil(t, objWr)
 			assert.Equal(t, tt.objectName, objWr.ObjectName())
 			assert.Equal(t, tt.chunkSize, objWr.ChunkSize)
 			assert.Equal(t, reflect.ValueOf(progressFunc).Pointer(), reflect.ValueOf(objWr.ProgressFunc).Pointer())
@@ -537,12 +540,12 @@ func (testSuite *BucketHandleTest) createObject(objName string) {
 		},
 		100,
 		func(_ int64) {})
-	assert.NoError(testSuite.T(), err)
+	require.NoError(testSuite.T(), err)
 	assert.Equal(testSuite.T(), objName, wr.ObjectName())
 
 	o, err := testSuite.bucketHandle.FinalizeUpload(context.Background(), wr)
 
-	assert.NoError(testSuite.T(), err)
+	require.NoError(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), o)
 }
 
@@ -558,7 +561,7 @@ func (testSuite *BucketHandleTest) TestFinalizeUploadWithGenerationAsZeroWhenObj
 		},
 		100,
 		func(_ int64) {})
-	assert.NoError(testSuite.T(), err)
+	require.NoError(testSuite.T(), err)
 	assert.Equal(testSuite.T(), objName, wr.ObjectName())
 
 	o, err := testSuite.bucketHandle.FinalizeUpload(context.Background(), wr)
