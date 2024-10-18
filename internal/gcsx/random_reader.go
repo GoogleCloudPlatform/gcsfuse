@@ -272,95 +272,18 @@ func (rr *randomReader) ReadAt(
 		return
 	}
 
-	for len(p) > 0 {
-		// Have we blown past the end of the object?
-		if offset >= int64(rr.object.Size) {
-			err = io.EOF
-			return
-		}
+	// Try reading from New Reader
+	// If hit - false, read from MRR.
+	// open questions: how to update seeks across Newreader & MRR.
 
-		// When the offset is AFTER the reader position, try to seek forward, within reason.
-		// This happens when the kernel page cache serves some data. It's very common for
-		// concurrent reads, often by only a few 128kB fuse read requests. The aim is to
-		// re-use GCS connection and avoid throwing away already read data.
-		// For parallel sequential reads to a single file, not throwing away the connections
-		// is a 15-20x improvement in throughput: 150-200 MB/s instead of 10 MB/s.
-		if rr.reader != nil && rr.start < offset && offset-rr.start < maxReadSize {
-			bytesToSkip := int64(offset - rr.start)
-			p := make([]byte, bytesToSkip)
-			n, _ := io.ReadFull(rr.reader, p)
-			rr.start += int64(n)
-		}
+	/**
+	option1:
+	    1. update seek in MRR if last end != current offset. We need to handle the cases where we are discarding the data.
+	    pass this information to random_reader as return type
+	    2. if NewReader says randomRead, update seek
+	    3. Pass seeks to NewReader for range computation.
 
-		// If we have an existing reader but it's positioned at the wrong place,
-		// clean it up and throw it away.
-		if rr.reader != nil && rr.start != offset {
-			rr.reader.Close()
-			rr.reader = nil
-			rr.cancel = nil
-			rr.seeks++
-		}
-
-		// If we don't have a reader, start a read operation.
-		if rr.reader == nil {
-			err = rr.startRead(ctx, offset, int64(len(p)))
-			if err != nil {
-				err = fmt.Errorf("startRead: %w", err)
-				return
-			}
-		}
-
-		// Now we have a reader positioned at the correct place. Consume as much from
-		// it as possible.
-		var tmp int
-		tmp, err = rr.readFull(ctx, p)
-
-		n += tmp
-		p = p[tmp:]
-		rr.start += int64(tmp)
-		offset += int64(tmp)
-		rr.totalReadBytes += uint64(tmp)
-
-		// Sanity check.
-		if rr.start > rr.limit {
-			err = fmt.Errorf("reader returned %d too many bytes", rr.start-rr.limit)
-
-			// Don't attempt to reuse the reader when it's behaving wackily.
-			rr.reader.Close()
-			rr.reader = nil
-			rr.cancel = nil
-			rr.start = -1
-			rr.limit = -1
-
-			return
-		}
-
-		// Are we finished with this reader now?
-		if rr.start == rr.limit {
-			rr.reader.Close()
-			rr.reader = nil
-			rr.cancel = nil
-		}
-
-		// Handle errors.
-		switch {
-		case err == io.EOF || err == io.ErrUnexpectedEOF:
-			// For a non-empty buffer, ReadFull returns EOF or ErrUnexpectedEOF only
-			// if the reader peters out early. That's fine, but it means we should
-			// have hit the limit above.
-			if rr.reader != nil {
-				err = fmt.Errorf("reader returned %d too few bytes", rr.limit-rr.start)
-				return
-			}
-
-			err = nil
-
-		case err != nil:
-			// Propagate other errors.
-			err = fmt.Errorf("readFull: %w", err)
-			return
-		}
-	}
+	*/
 
 	return
 }
