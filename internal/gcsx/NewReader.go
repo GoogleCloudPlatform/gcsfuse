@@ -34,7 +34,27 @@ type NewReader struct {
 	totalReadBytes uint64
 }
 
-func (nr *NewReader) TryRead(ctx context.Context, p []byte, offset int64, size int64) (hit bool, output []byte, n int64, readType string, err error) {
+func (nr *NewReader) TryServingFromNewReader(p []byte, offset int64, len int64) (bool, []byte) {
+	// No existing connection available to serve data.
+	if nr.reader == nil {
+		return false, nil
+	}
+
+	// nr.limit <= offset+len - This is a new condition to check if we can serve complete data using existing reader..
+	if nr.start < offset && nr.limit <= offset+len && offset-nr.start < maxReadSize {
+		bytesToSkip := int64(offset - nr.start)
+		p := make([]byte, bytesToSkip)
+		n, _ := io.ReadFull(nr.reader, p)
+		nr.start += int64(n)
+	}
+	// Other logic to read data and update all variables. We can reuse from Read method below
+
+	return true, p
+
+}
+
+// End tells what is the end offset when network call is made. Size is the actual size of data requested.
+func (nr *NewReader) Read(ctx context.Context, p []byte, offset int64, end int64, size int64) (output []byte, err error) {
 	for size > 0 {
 		// Have we blown past the end of the object?
 		if offset >= int64(nr.object.Size) {
@@ -67,7 +87,7 @@ func (nr *NewReader) TryRead(ctx context.Context, p []byte, offset int64, size i
 		// If we don't have a reader, start a read operation.
 		if nr.reader == nil {
 
-			err = nr.startRead(ctx, offset, int64(len(p)))
+			err = nr.startRead(ctx, offset, end)
 			if err != nil {
 				err = fmt.Errorf("startRead: %w", err)
 				return
@@ -130,40 +150,7 @@ func (nr *NewReader) TryRead(ctx context.Context, p []byte, offset int64, size i
 
 }
 
-func (nr *NewReader) checkIfNewReaderCanServe(start int64) (hit bool, readType string, start int64, end int64) {
-	end := int64(nr.object.Size)
-	readType := util.Sequential
-	if nr.seeks >= minSeeksForRandom {
-		readType = util.Random
-		averageReadBytes := nr.totalReadBytes / nr.seeks
-		if averageReadBytes < maxReadSize {
-			randomReadSize := int64(((averageReadBytes / MB) + 1) * MB)
-			if randomReadSize < minReadSize {
-				randomReadSize = minReadSize
-			}
-			if randomReadSize > maxReadSize {
-				randomReadSize = maxReadSize
-			}
-			end = start + randomReadSize
-		}
-	}
-	if end > int64(nr.object.Size) {
-		end = int64(nr.object.Size)
-	}
-
-	// To avoid overloading GCS and to have reasonable latencies, we will only
-	// fetch data of max size defined by sequentialReadSizeMb.
-	maxSizeToReadFromGCS := int64(nr.sequentialReadSizeMb * MB)
-	if end-start > maxSizeToReadFromGCS {
-		end = start + maxSizeToReadFromGCS
-	}
-
-	if readType == util.Random && end-start < maxReadSize {
-		//return hit as false
-	}
-}
-func (nr *NewReader) startRead(ctx context.Context, start int64, size int64) error {
-
+func (nr *NewReader) startRead(ctx context.Context, start int64, end int64) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	rc, err := nr.bucket.NewReader(
 		ctx,
@@ -192,6 +179,38 @@ func (nr *NewReader) startRead(ctx context.Context, start int64, size int64) err
 	return nil
 }
 
-func getEndOffsetForDownload() int64 {
-	// basically start+200MB or start+size whichever is less.
+// Copied from random_reader.go. No changes in code.
+// Like io.ReadFull, but deals with the cancellation issues.
+//
+// REQUIRES: rr.reader != nil
+func (rr *randomReader) readFull(
+	ctx context.Context,
+	p []byte) (n int, err error) {
+	// Start a goroutine that will cancel the read operation we block on below if
+	// the calling context is cancelled, but only if this method has not already
+	// returned (to avoid souring the reader for the next read if this one is
+	// successful, since the calling context will eventually be cancelled).
+	readDone := make(chan struct{})
+	defer close(readDone)
+
+	go func() {
+		select {
+		case <-readDone:
+			return
+
+		case <-ctx.Done():
+			select {
+			case <-readDone:
+				return
+
+			default:
+				rr.cancel()
+			}
+		}
+	}()
+
+	// Call through.
+	n, err = io.ReadFull(rr.reader, p)
+
+	return
 }

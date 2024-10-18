@@ -94,8 +94,10 @@ func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb i
 }
 
 type randomReader struct {
-	object *gcs.MinObject
-	bucket gcs.Bucket
+	object    *gcs.MinObject
+	bucket    gcs.Bucket
+	newReader NewReader
+	mrr       MRR
 
 	// If non-nil, an in-flight read request and a function for cancelling it.
 	//
@@ -272,111 +274,18 @@ func (rr *randomReader) ReadAt(
 		return
 	}
 
-	// Try reading from New Reader
-	// If hit - false, read from MRR. MRR is created in inode and the instance is passed from fileHandle to randome_reader.go.
-	// open questions: how to update seeks across Newreader & MRR.
-
-	/**
-	option1:
-	    1. update seek in MRR if last end != current offset. We need to handle the cases where we are discarding the data.
-	    pass this information to random_reader as return type
-	    2. if NewReader says randomRead, update seek
-	    3. Pass seeks to NewReader for range computation.
-
-	*/
-
-	return
-}
-
-func (rr *randomReader) Object() (o *gcs.MinObject) {
-	o = rr.object
-	return
-}
-
-func (rr *randomReader) Destroy() {
-	// Close out the reader, if we have one.
-	if rr.reader != nil {
-		err := rr.reader.Close()
-		rr.reader = nil
-		rr.cancel = nil
-		if err != nil {
-			logger.Warnf("rr.Destroy(): while closing reader: %v", err)
-		}
-	}
-
-	if rr.fileCacheHandle != nil {
-		logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", rr.fileCacheHandle, rr.bucket.Name(), rr.object.Name)
-		err := rr.fileCacheHandle.Close()
-		if err != nil {
-			logger.Warnf("rr.Destroy(): while closing cacheFileHandle: %v", err)
-		}
-		rr.fileCacheHandle = nil
-	}
-}
-
-// Like io.ReadFull, but deals with the cancellation issues.
-//
-// REQUIRES: rr.reader != nil
-func (rr *randomReader) readFull(
-	ctx context.Context,
-	p []byte) (n int, err error) {
-	// Start a goroutine that will cancel the read operation we block on below if
-	// the calling context is cancelled, but only if this method has not already
-	// returned (to avoid souring the reader for the next read if this one is
-	// successful, since the calling context will eventually be cancelled).
-	readDone := make(chan struct{})
-	defer close(readDone)
-
-	go func() {
-		select {
-		case <-readDone:
-			return
-
-		case <-ctx.Done():
-			select {
-			case <-readDone:
-				return
-
-			default:
-				rr.cancel()
-			}
-		}
-	}()
-
-	// Call through.
-	n, err = io.ReadFull(rr.reader, p)
-
-	return
-}
-
-// Ensure that rr.reader is set up for a range for which [start, start+size) is
-// a prefix. Irrespective of the size requested, we try to fetch more data
-// from GCS defined by sequentialReadSizeMb flag to serve future read requests.
-func (rr *randomReader) startRead(
-	ctx context.Context,
-	start int64,
-	size int64) (err error) {
-	// Make sure start and size are legal.
-	if start < 0 || uint64(start) > rr.object.Size || size < 0 {
-		err = fmt.Errorf(
-			"range [%d, %d) is illegal for %d-byte object",
-			start,
-			start+size,
-			rr.object.Size)
+	ishit, p := rr.newReader.TryServingFromNewReader(p, offset, len(p))
+	if ishit {
 		return
 	}
 
-	// GCS requests are expensive. Prefer to issue read requests defined by
-	// sequentialReadSizeMb flag. Sequential reads will simply sip from the fire house
-	// with each call to ReadAt. In practice, GCS will fill the TCP buffers
-	// with about 6 MB of data. Requests from outside GCP will be charged
-	// about 6MB of egress data, even if less data is read. Inside GCP
-	// regions, GCS egress is free. This logic should limit the number of
-	// GCS read requests, which are not free.
+	ishit, p = rr.mrr.TryServingFromMRR(offset, len(p))
+	if ishit {
+		return
+	}
 
-	// But if we notice random read patterns after a minimum number of seeks,
-	// optimise for random reads. Random reads will read data in chunks of
-	// (average read size in bytes rounded up to the next MB).
+	// Existing logic of sequential vs random
+	start := offset
 	end := int64(rr.object.Size)
 	readType := util.Sequential
 	if rr.seeks >= minSeeksForRandom {
@@ -404,32 +313,38 @@ func (rr *randomReader) startRead(
 		end = start + maxSizeToReadFromGCS
 	}
 
-	// Begin the read.
-	ctx, cancel := context.WithCancel(context.Background())
-	rc, err := rr.bucket.NewReader(
-		ctx,
-		&gcs.ReadObjectRequest{
-			Name:       rr.object.Name,
-			Generation: rr.object.Generation,
-			Range: &gcs.ByteRange{
-				Start: uint64(start),
-				Limit: uint64(end),
-			},
-			ReadCompressed: rr.object.HasContentEncodingGzip(),
-		})
-
-	if err != nil {
-		err = fmt.Errorf("NewReader: %w", err)
+	if readType == util.Random && end-start <= maxReadSize { // &&bucket is zonal
+		p, err = rr.mrr.GetData(start, end, len(p))
 		return
+
 	}
 
-	rr.reader = rc
-	rr.cancel = cancel
-	rr.start = start
-	rr.limit = end
-
-	requestedDataSize := end - start
-	monitor.CaptureGCSReadMetrics(ctx, readType, requestedDataSize)
-
+	p, err = rr.newReader.Read(ctx, p, start, end, len(p))
 	return
+}
+
+func (rr *randomReader) Object() (o *gcs.MinObject) {
+	o = rr.object
+	return
+}
+
+func (rr *randomReader) Destroy() {
+	// Close out the reader, if we have one.
+	if rr.reader != nil {
+		err := rr.reader.Close()
+		rr.reader = nil
+		rr.cancel = nil
+		if err != nil {
+			logger.Warnf("rr.Destroy(): while closing reader: %v", err)
+		}
+	}
+
+	if rr.fileCacheHandle != nil {
+		logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", rr.fileCacheHandle, rr.bucket.Name(), rr.object.Name)
+		err := rr.fileCacheHandle.Close()
+		if err != nil {
+			logger.Warnf("rr.Destroy(): while closing cacheFileHandle: %v", err)
+		}
+		rr.fileCacheHandle = nil
+	}
 }
