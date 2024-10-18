@@ -144,6 +144,10 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		clientOpts = append(clientOpts, option.WithEndpoint(clientConfig.CustomEndpoint))
 	}
 
+	// Turning off the go-sdk metrics exporter to prevent any problems.
+	// TODO (kislaykishore) - to revisit here for monitoring support.
+	clientOpts = append(clientOpts, option.WithTelemetryDisabled())
+
 	return storage.NewClient(ctx, clientOpts...)
 }
 
