@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This code initializes a control client solely for the purpose of setting up test data for
+// end-to-end tests.
+// This client is not used in the application logic itself.
+
 package client
 
 import (
@@ -19,13 +23,38 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
+	"github.com/googleapis/gax-go/v2"
+	"google.golang.org/grpc/codes"
 )
+
+func storageControlClientRetryOptions() []gax.CallOption {
+	return []gax.CallOption{
+		gax.WithTimeout(300000 * time.Millisecond),
+		gax.WithRetry(func() gax.Retryer {
+			return gax.OnCodes([]codes.Code{
+				codes.ResourceExhausted,
+				codes.Unavailable,
+				codes.DeadlineExceeded,
+				codes.Internal,
+				codes.Unknown,
+			}, gax.Backoff{
+				Max:        30 * time.Second,
+				Multiplier: 2,
+			})
+		}),
+	}
+}
 
 func CreateControlClient(ctx context.Context) (client *control.StorageControlClient, err error) {
 	client, err = control.NewStorageControlClient(ctx)
+
+	client.CallOptions.CreateManagedFolder = storageControlClientRetryOptions()
+	client.CallOptions.DeleteManagedFolder = storageControlClientRetryOptions()
+
 	if err != nil {
 		return nil, fmt.Errorf("control.NewStorageControlClient: #{err}")
 	}
