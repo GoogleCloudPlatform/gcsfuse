@@ -227,7 +227,7 @@ func (t *HNSBucketTests) TestRenameFolderWithExistingEmptyDestDirectory() {
 
 	// Go's Rename function does not support renaming a directory into an existing empty directory.
 	// To achieve this, we call a Python rename function as a workaround.
-	cmd := exec.Command("python", "-c", fmt.Sprintf("import os; os.rename('%s', '%s')", oldDirPath, newDirPath))
+	cmd := exec.Command("python3", "-c", fmt.Sprintf("import os; os.rename('%s', '%s')", oldDirPath, newDirPath))
 	_, err = cmd.CombinedOutput()
 
 	assert.NoError(t.T(), err)
