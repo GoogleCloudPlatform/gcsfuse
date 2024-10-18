@@ -66,7 +66,7 @@ type MultiRangeReader struct {
 }
 
 // TODO: Need to Change Signature here as buffer will be returned
-func (mrr *MultiRangeReader) ReadAt(
+func (mrr *MultiRangeReader) TryReadForZonal(
 	ctx context.Context,
 	offset int64,
 	bufferSize int) (n int, p []byte, cacheHit bool, err error) {
@@ -78,17 +78,7 @@ func (mrr *MultiRangeReader) ReadAt(
 		err = io.EOF
 		return
 	}
-
-	// TODO: refactor into single method for caching -----------------------
-	n, cacheHit, err = mrr.tryReadingFromFileCache(ctx, p, offset)
-	if err != nil {
-		err = fmt.Errorf("ReadAt: while reading from cache: %w", err)
-		return
-	}
-	// Data was served from cache.
-	if cacheHit || n == len(p) || (n < len(p) && uint64(offset)+uint64(n) == mrr.object.Size) {
-		return
-	}
+	// cache check is called here
 	// ---------------------------------------------------------------------------
 	for len(p) > 0 {
 		// Have we blown past the end of the object?

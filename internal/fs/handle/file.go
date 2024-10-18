@@ -104,9 +104,12 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 	if fh.reader != nil {
 		fh.inode.Unlock()
 
+		//if
+		// Non zonal
 		n, _, err = fh.reader.ReadAt(ctx, dst, offset)
+		//else
 		// For ZB both seq and rand reads will happen with new mrr extending random_reader.go
-		n, dst, _, err = fh.inode.MRR.ReadAt(ctx, offset, len(dst))
+		n, dst, _, err = fh.inode.MRR.TryReadForZonal(ctx, offset, len(dst))
 		switch {
 		case err == io.EOF:
 			return
