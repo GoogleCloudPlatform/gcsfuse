@@ -1,51 +1,23 @@
 package refactoring
 
 import (
-	"context"
-
-	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/poc"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 )
 
 // holds the responsibility of creating and maintaining single reader as well multi range reader instances
 type ReaderFactory struct {
-	bucket            gcs.Bucket
-	singleRangeReader *SingleRangeReader
-	mrr               *poc.MultiRangeDownloader
+	bucket                gcs.Bucket
+	readerInstanceMap     map[string]string
+	fileCacheHandler      *file.CacheHandler
+	cacheFileForRangeRead bool
+	fileCacheHandle       *file.CacheHandle
+	o                     *gcs.MinObject
+	sequentialReadSizeMb  int32
 }
 
-type SingleRangeReader struct {
-	rc         *storage.Reader // Range Reader instance
-	readHandle string          // field to hold the read handle (could be object name, etc.)
-	bucket     *storage.BucketHandle
-}
-
-// GetMultiRangeReader creates a new MRD instance with multi range reading capabilities
-func (r *ReaderFactory) GetMultiRangeReader(ctx context.Context) (*poc.MultiRangeDownloader, error) {
-	if r.mrr != nil {
-		return r.mrr, nil
-	}
-	// NewMultiRangeDownloader(ctx)
-
-	return r.mrr, nil
-}
-
-// NewSingleRangeReader creates a new SingleRangeReader instance with range reading capabilities
-func (r *ReaderFactory) NewSingleRangeReader(object *storage.ObjectHandle, start int, end int) (*SingleRangeReader, error) {
-	if r.singleRangeReader != nil {
-		return r.singleRangeReader, nil
-	}
-	//r.singleReader = r.bucket.NewReader(
-	//	ctx,
-	//	&gcs.ReadObjectRequest{
-	//		Name:      object.ObjectName(),
-	//		Generation: 0,
-	//		Range: &gcs.ByteRange{
-	//			Start: uint64(start),
-	//			Limit: uint64(end),
-	//		}
-	//	})
-
-	return r.singleRangeReader, nil
+func (rf *ReaderFactory) GetReader(readerType string) (*Reader, error) {
+	// return GCSRangeReader, Cache Reader pr adaptive prefetch reader based on type from readerInstanceMap
+	// if not present in map, add new corresponding instance in map and return the newly created instance
+	return nil, nil
 }
