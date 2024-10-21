@@ -254,16 +254,6 @@ func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_WithGRPCClientPro
 	assert.Contains(testSuite.T(), err.Error(), fmt.Sprintf("client-protocol requested is not HTTP1 or HTTP2: %s", cfg.GRPC))
 }
 
-func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_WithReadStallRetryEnabled() {
-	sc := storageutil.GetDefaultStorageClientConfig()
-	sc.EnableReadStallRetry = true
-
-	storageClient, err := createHTTPClientHandle(context.Background(), &sc)
-
-	assert.NotNil(testSuite.T(), err)
-	assert.Nil(testSuite.T(), storageClient)
-}
-
 func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_WithReadStallRetry() {
 	testCases := []struct {
 		name                 string
@@ -292,7 +282,7 @@ func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_WithReadStallRetr
 	}
 }
 
-func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_InitialReqTimeout() {
+func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_ReadStallInitialReqTimeout() {
 	testCases := []struct {
 		name              string
 		initialReqTimeout time.Duration
@@ -321,18 +311,18 @@ func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_InitialReqTimeout
 	}
 }
 
-func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_MinReqTimeout() {
+func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_ReadStallMinReqTimeout() {
 	testCases := []struct {
-		name              string
-		initialReqTimeout time.Duration
+		name          string
+		minReqTimeout time.Duration
 	}{
 		{
-			name:              "ShortTimeout",
-			initialReqTimeout: 1 * time.Millisecond,
+			name:          "ShortTimeout",
+			minReqTimeout: 1 * time.Millisecond,
 		},
 		{
-			name:              "LongTimeout",
-			initialReqTimeout: 10 * time.Second,
+			name:          "LongTimeout",
+			minReqTimeout: 10 * time.Second,
 		},
 	}
 
@@ -340,7 +330,7 @@ func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_MinReqTimeout() {
 		testSuite.Run(tc.name, func() {
 			sc := storageutil.GetDefaultStorageClientConfig()
 			sc.EnableReadStallRetry = true
-			sc.MinReqTimeout = tc.initialReqTimeout
+			sc.MinReqTimeout = tc.minReqTimeout
 
 			storageClient, err := createHTTPClientHandle(context.Background(), &sc)
 
@@ -350,7 +340,7 @@ func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_MinReqTimeout() {
 	}
 }
 
-func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_ReqIncreaseRate() {
+func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_ReadStallReqIncreaseRate() {
 	testCases := []struct {
 		name            string
 		reqIncreaseRate float64
@@ -392,7 +382,7 @@ func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_ReqIncreaseRate()
 	}
 }
 
-func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_TargetPercentile() {
+func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_ReadStallReqTargetPercentile() {
 	testCases := []struct {
 		name                string
 		reqTargetPercentile float64

@@ -39,6 +39,7 @@ import (
 
 const (
 	// Used to modify the hidden options in go-sdk for read stall retry.
+	// Ref: http://shortn/_DIoIm9dDT3
 	dynamicReadReqIncreaseRateEnv   = "DYNAMIC_READ_REQ_INCREASE_RATE"
 	dynamicReadReqInitialTimeoutEnv = "DYNAMIC_READ_REQ_INITIAL_TIMEOUT"
 )
@@ -169,7 +170,6 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 			TargetPercentile: clientConfig.ReqTargetPercentile,
 		}))
 	}
-
 	return storage.NewClient(ctx, clientOpts...)
 }
 
