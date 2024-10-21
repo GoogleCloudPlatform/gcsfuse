@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path"
 	"path/filepath"
@@ -237,6 +238,26 @@ func isDynamicMount(bucketName string) bool {
 	return bucketName == "" || bucketName == "_"
 }
 
+func increaseReadAhead(mountPoint string, readAheadKb int) error {
+	cmd := exec.Command("mountpoint", "-d", mountPoint)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		err = fmt.Errorf("error executing mountpoint command on target path %s: %v", mountPoint, err)
+		return err
+	}
+
+	outputStr := strings.TrimSpace(string(output))
+	cmd = exec.Command("sh", "-c", fmt.Sprintf("echo %d | sudo -n tee /sys/class/bdi/%s/read_ahead_kb", readAheadKb, outputStr), ">", "/dev/null")
+
+	_, err = cmd.CombinedOutput()
+	if err != nil {
+		err = fmt.Errorf("error increasing the read ahead on target path %s: %v", mountPoint, err)
+		return err
+	}
+
+	return nil
+}
+
 func runCLIApp(c *cli.Context) (err error) {
 	err = resolvePathForTheFlagsInContext(c)
 	if err != nil {
@@ -449,6 +470,13 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 			}
 		}
 		markSuccessfulMount()
+
+		err = increaseReadAhead(mountPoint, 1024)
+		if err != nil {
+			logger.Infof("Failed to increase the read ahead: %w", err)
+		} else {
+			logger.Infof("Read ahead increased")
+		}
 	}
 
 	// Let the user unmount with Ctrl-C (SIGINT).
