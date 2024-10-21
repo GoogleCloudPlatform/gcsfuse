@@ -53,6 +53,7 @@ func main() {
 
 	// TODO: Clean this up after we gain enough confidence on CLI-Config Parity changes.
 	disableViperConfigFlag := "disable-viper-config"
+	_ = os.Setenv(cmd.EnableViperConfigEnvVariable, "false")
 	var newOsArgs []string
 	for _, arg := range os.Args {
 		if arg == "-"+disableViperConfigFlag || arg == "--"+disableViperConfigFlag || arg == "-"+disableViperConfigFlag+"=true" || arg == "--"+disableViperConfigFlag+"=true" {
