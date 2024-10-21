@@ -55,6 +55,14 @@ type StorageClientConfig struct {
 
 	// Enabling new API flow for HNS bucket.
 	EnableHNS bool
+
+	// Parameters to define retry behavior for stalled read.
+	EnableReadStallRetry bool
+	InitialReqTimeout    time.Duration
+	MaxReqTimeout        time.Duration
+	MinReqTimeout        time.Duration
+	ReqIncreaseRate      float64
+	ReqTargetPercentile  float64
 }
 
 func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *http.Client, err error) {

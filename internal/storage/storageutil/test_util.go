@@ -42,5 +42,11 @@ func GetDefaultStorageClientConfig() (clientConfig StorageClientConfig) {
 		ExperimentalEnableJsonRead: false,
 		AnonymousAccess:            true,
 		EnableHNS:                  false,
+		EnableReadStallRetry:       false,
+		InitialReqTimeout:          20 * time.Second,
+		MaxReqTimeout:              120 * time.Hour,
+		MinReqTimeout:              500 * time.Millisecond,
+		ReqIncreaseRate:            15,
+		ReqTargetPercentile:        0.99,
 	}
 }

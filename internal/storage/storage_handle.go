@@ -18,9 +18,11 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 
 	"cloud.google.com/go/storage"
 	control "cloud.google.com/go/storage/control/apiv2"
+	"cloud.google.com/go/storage/experimental"
 	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
@@ -33,6 +35,12 @@ import (
 	// Side effect to run grpc client with direct-path on gcp machine.
 	_ "google.golang.org/grpc/balancer/rls"
 	_ "google.golang.org/grpc/xds/googledirectpath"
+)
+
+const (
+	// Used to modify the hidden options in go-sdk for read stall retry.
+	dynamicReadReqIncreaseRateEnv   = "DYNAMIC_READ_REQ_INCREASE_RATE"
+	dynamicReadReqInitialTimeoutEnv = "DYNAMIC_READ_REQ_INITIAL_TIMEOUT"
 )
 
 type StorageHandle interface {
@@ -142,6 +150,24 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	// Add Custom endpoint option.
 	if clientConfig.CustomEndpoint != "" {
 		clientOpts = append(clientOpts, option.WithEndpoint(clientConfig.CustomEndpoint))
+	}
+
+	if clientConfig.EnableReadStallRetry {
+		// Hidden way to modify the increase rate for dynamic delay algorithm in go-sdk.
+		// Ref: http://shortn/_417eTbNbKK
+		// Temporarily we kept an option to change the increase-rate, will be removed
+		// once we get a good default.
+		os.Setenv(dynamicReadReqIncreaseRateEnv, strconv.FormatFloat(clientConfig.ReqIncreaseRate, 'f', -1, 64))
+
+		// Hidden way to modify the initial-timeout of the dynamic delay algorithm in go-sdk.
+		// Ref: http://shortn/_xArUKvvGQZ
+		// Temporarily we kept an option to change the initial-timeout, will be removed
+		// once we get a good default.
+		os.Setenv(dynamicReadReqInitialTimeoutEnv, clientConfig.InitialReqTimeout.String())
+		clientOpts = append(clientOpts, experimental.WithReadStallTimeout(&experimental.ReadStallTimeoutConfig{
+			Min:              clientConfig.MinReqTimeout,
+			TargetPercentile: clientConfig.ReqTargetPercentile,
+		}))
 	}
 
 	return storage.NewClient(ctx, clientOpts...)
