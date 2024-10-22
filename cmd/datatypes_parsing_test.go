@@ -581,7 +581,7 @@ func TestCLIFlagPassing(t *testing.T) {
 			require.NoError(t, err)
 			cmdArgs := append([]string{"gcsfuse"}, tc.args...)
 			cmdArgs = append(cmdArgs, "a")
-			command.SetArgs(ConvertToPosixArgs(cmdArgs, command))
+			command.SetArgs(convertToPosixArgs(cmdArgs, command))
 
 			require.NoError(t, command.Execute())
 
@@ -753,7 +753,7 @@ func TestConfigPassing(t *testing.T) {
 			})
 			require.NoError(t, err)
 			cmdArgs := append([]string{"gcsfuse", fmt.Sprintf("--config-file=testdata/%s", tc.file)}, "a")
-			command.SetArgs(ConvertToPosixArgs(cmdArgs, command))
+			command.SetArgs(convertToPosixArgs(cmdArgs, command))
 
 			require.NoError(t, command.Execute())
 
@@ -807,7 +807,7 @@ func TestPredefinedFlagThrowNoError(t *testing.T) {
 			})
 			require.NoError(t, err)
 			cmdArgs := append([]string{"gcsfuse"}, tc.args...)
-			command.SetArgs(ConvertToPosixArgs(cmdArgs, command))
+			command.SetArgs(convertToPosixArgs(cmdArgs, command))
 
 			assert.NoError(t, command.Execute())
 		})
