@@ -21,6 +21,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/poc"
 	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
 )
@@ -45,6 +46,10 @@ type FileHandle struct {
 	// cacheFileForRangeRead is also valid for cache workflow, if true, object content
 	// will be downloaded for random reads as well too.
 	cacheFileForRangeRead bool
+
+	//Add file handle and MRR instance so it can be passed to Reader manager
+	mrd        poc.MultiRangeDownloader
+	readHandle string
 }
 
 func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool) (fh *FileHandle) {

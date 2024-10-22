@@ -2,6 +2,7 @@ package refactoring
 
 import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 )
 
@@ -14,6 +15,8 @@ type ReaderFactory struct {
 	fileCacheHandle       *file.CacheHandle
 	o                     *gcs.MinObject
 	sequentialReadSizeMb  int32
+	// inode is used for mrr and read handle
+	inode *inode.FileInode
 }
 
 func (rf *ReaderFactory) GetReader(readerType string) (*Reader, error) {

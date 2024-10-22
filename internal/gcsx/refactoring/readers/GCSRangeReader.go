@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/poc"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -46,7 +46,7 @@ const ReadOp = "readOp"
 
 // NewGCSRangeReader create a random reader for the supplied object record that
 // reads using the given bucket.
-func NewGCSRangeReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32) *GCSRangeReader {
+func NewGCSRangeReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, inode *inode.FileInode) *GCSRangeReader {
 	return &GCSRangeReader{
 		object:               o,
 		bucket:               bucket,
@@ -83,9 +83,8 @@ type GCSRangeReader struct {
 
 	sequentialReadSizeMb int32
 
-	// to be used for ZB
-	readHandle string
-	mrd        poc.MultiRangeDownloader
+	// MRD instance and read handle are maintained at inode to be used for ZB
+	inode *inode.FileInode
 }
 
 func (rr *GCSRangeReader) CheckInvariants() {

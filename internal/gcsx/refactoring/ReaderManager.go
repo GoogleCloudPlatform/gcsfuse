@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 )
 
@@ -16,7 +17,14 @@ type ReadManager struct {
 	readers []Reader
 }
 
-func NewReadManager(bucket gcs.Bucket, cacheHandler *file.CacheHandler, fileCacheHandle *file.CacheHandle, obj *gcs.MinObject, seqReadSizeMb int32) *ReadManager {
+func NewReadManager(
+	bucket gcs.Bucket,
+	cacheHandler *file.CacheHandler,
+	fileCacheHandle *file.CacheHandle,
+	obj *gcs.MinObject,
+	seqReadSizeMb int32,
+	inode *inode.FileInode,
+) *ReadManager {
 	// Initialize the readerFactory
 	readerFactory := ReaderFactory{
 		bucket:                bucket,
@@ -26,6 +34,7 @@ func NewReadManager(bucket gcs.Bucket, cacheHandler *file.CacheHandler, fileCach
 		fileCacheHandle:       fileCacheHandle,
 		o:                     obj,
 		sequentialReadSizeMb:  seqReadSizeMb,
+		inode:                 inode,
 	}
 
 	var readers []Reader
@@ -35,6 +44,12 @@ func NewReadManager(bucket gcs.Bucket, cacheHandler *file.CacheHandler, fileCach
 	if err != nil {
 		readers = append(readers, *cacheReader)
 	}
+	// in case adaptive prefetch flag is true, append it to list
+	readerFactory.GetReader("adaptivePrefetch")
+
+	// add the default reader
+	defaultReader, _ := readerFactory.GetReader("adaptivePrefetch")
+	readers = append(readers, *defaultReader)
 
 	// Instantiate ReadManager with an empty slice of Readers and the initialized factory
 	return &ReadManager{
