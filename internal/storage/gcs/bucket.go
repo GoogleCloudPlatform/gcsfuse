@@ -44,6 +44,9 @@ const (
 	ReqIdField string = "GcsReqId"
 )
 
+// Writer provides an abstraction for writing data to a storage location.
+// This interface allows for different implementations, particularly for testing
+// purposes, such as the fake implementation in fake/bucket.go.
 type Writer interface {
 	io.WriteCloser
 	ObjectName() string
