@@ -158,7 +158,7 @@ func (rr *GCSRangeReader) Read(
 
 		// Read from range reader in case bucket is non zonal and read from mrr if bucket is zonal
 		var tmp int
-		if readType == util.Sequential {
+		if readType == util.Sequential || string(rr.bucket.BucketType()) != "zonal" {
 			tmp, err = rr.readFull(ctx, p)
 			n += tmp
 			p = p[tmp:]
@@ -166,15 +166,19 @@ func (rr *GCSRangeReader) Read(
 			offset += int64(tmp)
 			rr.totalReadBytes += uint64(tmp)
 		} else {
-			// tmp, err = mrr.add()
-			//an 8 mb local buffer can be passed to mrr
-			// first try to read from buffer if not present then reset the buffer
+			//an 8 mb local buffer is maintained in this reader
+			// first try to read from buffer with previously calculated start offset and end offset
+			// if not present then reset the buffer
 			// read 8 mb range
+			// tmp = mrd.add(localBuffer)
 			// point p to slice of this local buffer
+			// p = p[tmp:]
+			//offset += int64(tmp)
+			//rr.totalReadBytes += uint64(tmp)
 		}
 
 		// Sanity check.
-		if rr.start > rr.limit {
+		if rr.reader != nil && rr.start > rr.limit {
 			err = fmt.Errorf("reader returned %d too many bytes", rr.start-rr.limit)
 
 			// Don't attempt to reuse the reader when it's behaving wackily.
@@ -188,7 +192,7 @@ func (rr *GCSRangeReader) Read(
 		}
 
 		// Are we finished with this reader now?
-		if rr.start == rr.limit {
+		if rr.reader != nil && rr.start == rr.limit {
 			rr.reader.Close()
 			rr.reader = nil
 			rr.cancel = nil
@@ -294,26 +298,14 @@ func (rr *GCSRangeReader) startRead(
 	ctx context.Context,
 	start int64,
 	size int64) (readType string, err error) {
-	// Make sure start and size are legal.
+
 	err = rr.sanityCheckForOffset(start, size)
 	if err != nil {
 		return
 	}
 
-	// GCS requests are expensive. Prefer to issue read requests defined by
-	// sequentialReadSizeMb flag. Sequential reads will simply sip from the fire house
-	// with each call to ReadAt. In practice, GCS will fill the TCP buffers
-	// with about 6 MB of data. Requests from outside GCP will be charged
-	// about 6MB of egress data, even if less data is read. Inside GCP
-	// regions, GCS egress is free. This logic should limit the number of
-	// GCS read requests, which are not free.
-
-	// But if we notice random read patterns after a minimum number of seeks,
-	// optimise for random reads. Random reads will read data in chunks of
-	// (average read size in bytes rounded up to the next MB).
 	end := int64(rr.object.Size)
 	readType = util.Sequential
-	// This would be redundant in mrr
 	if rr.seeks >= minSeeksForRandom {
 		readType = util.Random
 		end = rr.endOffsetForRandomRead(end, start)
@@ -321,8 +313,12 @@ func (rr *GCSRangeReader) startRead(
 
 	end = rr.endOffsetWithinMaxLimit(end, start)
 
-	//if readtype is random and bucket type is zonal
+	//Check bucket type here if readtype is random and bucket type is zonal
 	//create MRR and set in mrr of gcs range reader struct
+	if readType == util.Random && string(rr.bucket.BucketType()) == "Zonal" {
+		//rr.inode.MRD = rr.bucket.NewMultiRangeDownloader()
+		return
+	}
 
 	// if read handle is not nil pass read handle to create new range reader instance
 	ctx, cancel := context.WithCancel(context.Background())
