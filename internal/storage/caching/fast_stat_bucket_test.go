@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	strg "cloud.google.com/go/storage"
+	gostorage "cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/caching/mock_gcscaching"
@@ -196,7 +196,7 @@ func (t *CreateObjectChunkWriterTest) WrappedSucceeds() {
 	var err error
 	// Wrapped
 	wr := &storage.ObjectWriter{
-		Writer: &strg.Writer{ChunkSize: chunkSize, ProgressFunc: progressFunc},
+		Writer: &gostorage.Writer{ChunkSize: chunkSize, ProgressFunc: progressFunc},
 	}
 	ExpectCall(t.wrapped, "CreateObjectChunkWriter")(Any(), Any(), Any(), Any()).
 		WillOnce(Return(wr, nil))
@@ -221,7 +221,7 @@ func init() { RegisterTestSuite(&FinalizeUploadTest{}) }
 func (t *FinalizeUploadTest) CallsEraseAndWrapped() {
 	const name = "taco"
 	writer := &storage.ObjectWriter{
-		Writer: &strg.Writer{ObjectAttrs: strg.ObjectAttrs{Name: name}},
+		Writer: &gostorage.Writer{ObjectAttrs: gostorage.ObjectAttrs{Name: name}},
 	}
 	// Erase
 	ExpectCall(t.cache, "Erase")(name)
@@ -240,7 +240,7 @@ func (t *FinalizeUploadTest) CallsEraseAndWrapped() {
 func (t *FinalizeUploadTest) WrappedFails() {
 	var err error
 	writer := &storage.ObjectWriter{
-		Writer: &strg.Writer{ObjectAttrs: strg.ObjectAttrs{Name: "name"}},
+		Writer: &gostorage.Writer{ObjectAttrs: gostorage.ObjectAttrs{Name: "name"}},
 	}
 	// Erase
 	ExpectCall(t.cache, "Erase")(Any())
@@ -258,7 +258,7 @@ func (t *FinalizeUploadTest) WrappedFails() {
 func (t *FinalizeUploadTest) WrappedSucceeds() {
 	const name = "taco"
 	writer := &storage.ObjectWriter{
-		Writer: &strg.Writer{ObjectAttrs: strg.ObjectAttrs{Name: name}},
+		Writer: &gostorage.Writer{ObjectAttrs: gostorage.ObjectAttrs{Name: name}},
 	}
 	var err error
 	// Erase

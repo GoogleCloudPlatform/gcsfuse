@@ -422,34 +422,51 @@ func (testSuite *BucketHandleTest) TestCreateObjectMethodWhenGivenGenerationObje
 func (testSuite *BucketHandleTest) TestBucketHandle_CreateObjectChunkWriter() {
 	var generation0 int64 = 0
 	var generationNon0 int64 = 786
+	var metaGeneration0 int64 = 0
+	var metaGenerationNon0 int64 = 987
 
 	tests := []struct {
-		name       string
-		generation *int64
-		expectErr  bool
-		objectName string
-		chunkSize  int
+		name           string
+		generation     *int64
+		metageneration *int64
+		objectName     string
+		chunkSize      int
 	}{
 		{
 			name:       "NilGeneration",
 			generation: nil,
-			expectErr:  false,
 			objectName: "test_object_1",
 			chunkSize:  1024 * 1024,
 		},
 		{
 			name:       "GenerationAsZero",
 			generation: &generation0,
-			expectErr:  false,
 			objectName: "test_object_2",
 			chunkSize:  1024 * 1024,
 		},
 		{
 			name:       "NonZeroGeneration",
 			generation: &generationNon0,
-			expectErr:  true,
-			objectName: "",
-			chunkSize:  0,
+			objectName: "test_object_3",
+			chunkSize:  1000,
+		},
+		{
+			name:           "NilMetaGeneration",
+			metageneration: nil,
+			objectName:     "test_object_1",
+			chunkSize:      1024 * 1024,
+		},
+		{
+			name:           "MetaGenerationAsZero",
+			metageneration: &metaGeneration0,
+			objectName:     "test_object_2",
+			chunkSize:      1024 * 1024,
+		},
+		{
+			name:           "NonZeroMetaGeneration",
+			metageneration: &metaGenerationNon0,
+			objectName:     "test_object_3",
+			chunkSize:      1000,
 		},
 	}
 
@@ -458,24 +475,21 @@ func (testSuite *BucketHandleTest) TestBucketHandle_CreateObjectChunkWriter() {
 			progressFunc := func(_ int64) {}
 			w, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(),
 				&gcs.CreateObjectRequest{
-					Name:                   tt.objectName,
-					GenerationPrecondition: tt.generation,
+					Name:                       tt.objectName,
+					GenerationPrecondition:     tt.generation,
+					MetaGenerationPrecondition: tt.metageneration,
 				},
 				tt.chunkSize,
 				progressFunc,
 			)
 
-			if tt.expectErr {
-				assert.Error(t, err)
-			} else {
-				require.NoError(t, err)
-				objWr, ok := (w).(*ObjectWriter)
-				require.True(t, ok)
-				require.NotNil(t, objWr)
-				assert.Equal(t, tt.objectName, objWr.ObjectName())
-				assert.Equal(t, tt.chunkSize, objWr.ChunkSize)
-				assert.Equal(t, reflect.ValueOf(progressFunc).Pointer(), reflect.ValueOf(objWr.ProgressFunc).Pointer())
-			}
+			require.NoError(t, err)
+			objWr, ok := (w).(*ObjectWriter)
+			require.True(t, ok)
+			require.NotNil(t, objWr)
+			assert.Equal(t, tt.objectName, objWr.ObjectName())
+			assert.Equal(t, tt.chunkSize, objWr.ChunkSize)
+			assert.Equal(t, reflect.ValueOf(progressFunc).Pointer(), reflect.ValueOf(objWr.ProgressFunc).Pointer())
 		})
 	}
 }
@@ -567,6 +581,7 @@ func (testSuite *BucketHandleTest) TestFinalizeUploadWithGenerationAsZeroWhenObj
 	o, err := testSuite.bucketHandle.FinalizeUpload(context.Background(), wr)
 
 	assert.Error(testSuite.T(), err)
+	assert.IsType(testSuite.T(), &gcs.PreconditionError{}, err)
 	assert.Nil(testSuite.T(), o)
 }
 

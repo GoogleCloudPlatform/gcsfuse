@@ -175,7 +175,7 @@ func (bh *bucketHandle) StatObject(ctx context.Context,
 	return
 }
 
-func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
+func (bh *bucketHandle) getObjectHandleWithPreconditionsSet(req *gcs.CreateObjectRequest) *storage.ObjectHandle {
 	obj := bh.bucket.Object(req.Name)
 
 	// GenerationPrecondition - If non-nil, the object will be created/overwritten
@@ -203,6 +203,11 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	if isStorageConditionsNotEmpty(preconditions) {
 		obj = obj.If(preconditions)
 	}
+	return obj
+}
+
+func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
+	obj := bh.getObjectHandleWithPreconditionsSet(req)
 
 	// Creating a NewWriter with requested attributes, using Go Storage Client.
 	// Chuck size for resumable upload is default i.e. 16MB.
@@ -238,16 +243,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	return
 }
 func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
-	// For phase 1 of buffered writes, we are doing chunk uploads only for new
-	// file uploads.
-	preconditions := storage.Conditions{}
-	if req.GenerationPrecondition != nil && *req.GenerationPrecondition != 0 {
-		return nil, fmt.Errorf("storage.Writer can only be created for new objects")
-	}
-
-	preconditions.DoesNotExist = true
-	obj := bh.bucket.Object(req.Name)
-	obj = obj.If(preconditions)
+	obj := bh.getObjectHandleWithPreconditionsSet(req)
 
 	wc := &ObjectWriter{obj.NewWriter(ctx)}
 	wc.ChunkSize = chunkSize
