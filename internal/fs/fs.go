@@ -1902,6 +1902,13 @@ func (fs *fileSystem) RmDir(
 
 		// Are there any entries?
 		if len(entries) != 0 {
+			// We should not throw error if childDir has only
+			// unsupported objects such as a//b or /b in it in GCS, as
+			// these objects are ignored by GCSFuse, and thus can
+			// never be deleted by GCSFuse anyway. On the other hand,
+			// if childDir has even one supported object such as b, or a/b, then
+			// it is not empty wrt GCSFuse
+			// and deletion should fail.
 			childDirObjectName := childDir.Name().GcsObjectName()
 			var hasNoSupportedObjectsInSubtree bool
 			hasNoSupportedObjectsInSubtree, err = childDir.HasNoSupportedObjectsInSubtree(ctx)

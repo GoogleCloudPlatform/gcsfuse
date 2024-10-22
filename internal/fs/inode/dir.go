@@ -663,7 +663,7 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 				MinObject: o,
 			}
 		}
-		logger.Debugf("Ignored unsupported objects: %v", unsupportedObjects)
+		logger.Warnf("Ignored unsupported objects: %v", unsupportedObjects)
 
 		// Are we done listing?
 		if tok = listing.ContinuationToken; tok == "" {
