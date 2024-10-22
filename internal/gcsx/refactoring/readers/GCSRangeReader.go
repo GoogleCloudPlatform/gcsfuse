@@ -126,6 +126,9 @@ func (rr *GCSRangeReader) CheckInvariants() {
 // because Linux does not delete a file until open fileHandle count for a file is zero.
 
 // dst needs to point this returned buffer
+// MRD can be moved to a separate file if we ensure seeks can are passed and returned, currently that is only dependency
+// if we move it separate and we need to maintain seeks consistency among 2 files
+
 func (rr *GCSRangeReader) Read(
 	ctx context.Context,
 	p []byte,
@@ -158,22 +161,10 @@ func (rr *GCSRangeReader) Read(
 		var end int64 = -1
 		if rr.reader == nil {
 			readType, err, end = rr.getReadState(ctx, offset, int64(len(p)))
-			if readType == util.Sequential || string(rr.bucket.BucketType()) != "Zonal" {
-				rr.startRead(offset, end, readType)
-			} else {
-				//check if data can be served from local buffer, if no then call range in MRD
-				bufWriter := bytes.NewBuffer(rr.localCache[0:])
-				var tmp int
-				tmp = rr.inode.MRD.Add(bufWriter, offset, end, func(start int64, end int64) {
-					// Callback function
-				})
-				p = p[tmp:]
-				mrrBuffer := rr.localCache[offset:rr.limit]
-				rr.start += int64(tmp)
-				offset += int64(tmp)
-				rr.totalReadBytes += uint64(tmp)
-				return tmp, nil, mrrBuffer
+			if readType == util.Random || string(rr.bucket.BucketType()) == "Zonal" {
+				return rr.readFromMRD(offset, end, p)
 			}
+			rr.startRead(offset, end, readType)
 			if err != nil {
 				err = fmt.Errorf("startRead: %w", err)
 				return 0, err, nil
@@ -231,6 +222,22 @@ func (rr *GCSRangeReader) Read(
 
 	// return not needed as loop not needed
 	return 0, nil, p
+}
+
+func (rr *GCSRangeReader) readFromMRD(offset int64, end int64, p []byte) (int, error, []byte) {
+	//check if data can be served from local buffer, if no then call range in MRD
+	// Update seeks if data is not read from local buffer
+	bufWriter := bytes.NewBuffer(rr.localCache[0:])
+	var tmp int
+	tmp = rr.inode.MRD.Add(bufWriter, offset, end, func(start int64, end int64) {
+		// Callback function
+	})
+	p = p[tmp:]
+	mrrBuffer := rr.localCache[offset:rr.limit]
+	rr.start += int64(tmp)
+	offset += int64(tmp)
+	rr.totalReadBytes += uint64(tmp)
+	return tmp, nil, mrrBuffer
 }
 
 func (rr *GCSRangeReader) seekReaderToPosition(offset int64) {

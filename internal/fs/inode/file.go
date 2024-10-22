@@ -91,7 +91,7 @@ type FileInode struct {
 	// Represents if local file has been unlinked.
 	unlinked bool
 
-	// New fields for ZB
+	// New fields for ZB, a wrapper can be created on top go sdk MRD to avoid propagating go-sdk library dependency inside gcsfuse layer
 	MRD poc.MultiRangeDownloader
 }
 
