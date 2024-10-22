@@ -233,7 +233,7 @@ func (rr *GCSRangeReader) readFromMRD(offset int64, end int64, p []byte) (int, e
 		// Callback function
 	})
 	p = p[tmp:]
-	mrrBuffer := rr.localCache[offset:rr.limit]
+	mrrBuffer := rr.localCache[0:rr.limit]
 	rr.start += int64(tmp)
 	offset += int64(tmp)
 	rr.totalReadBytes += uint64(tmp)
