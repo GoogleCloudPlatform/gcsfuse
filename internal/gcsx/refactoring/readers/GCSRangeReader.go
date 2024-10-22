@@ -4,6 +4,7 @@ package readers
 //i.e. random and sequential read for zonal as well as non zonal buckets
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 
@@ -85,6 +86,9 @@ type GCSRangeReader struct {
 
 	// MRD instance and read handle are maintained at inode to be used for ZB
 	inode *inode.FileInode
+	//this is a 8 MB buffer
+	localCache []byte
+	readHandle []byte
 }
 
 func (rr *GCSRangeReader) CheckInvariants() {
@@ -121,21 +125,24 @@ func (rr *GCSRangeReader) CheckInvariants() {
 // fileHandle to file in cache. So, we will get the correct data from fileHandle
 // because Linux does not delete a file until open fileHandle count for a file is zero.
 
+// dst needs to point this returned buffer
 func (rr *GCSRangeReader) Read(
 	ctx context.Context,
 	p []byte,
-	offset int64) (n int, err error) {
+	offset int64) (int, error, []byte) {
 
+	var err error
 	if offset >= int64(rr.object.Size) {
 		err = io.EOF
-		return
+		return 0, err, p
 	}
 
+	// This loop is not needed anymore as data requested is always less than data fetched from GCS
 	for len(p) > 0 {
 		// Have we blown past the end of the object?
 		if offset >= int64(rr.object.Size) {
 			err = io.EOF
-			return
+			return 0, err, nil
 		}
 
 		// When the offset is AFTER the reader position, try to seek forward, within reason.
@@ -148,37 +155,41 @@ func (rr *GCSRangeReader) Read(
 
 		// If we don't have a reader, start a read operation.
 		readType := util.Sequential
+		var end int64 = -1
 		if rr.reader == nil {
-			readType, err = rr.startRead(ctx, offset, int64(len(p)))
+			readType, err, end = rr.getReadState(ctx, offset, int64(len(p)))
+			if readType == util.Sequential || string(rr.bucket.BucketType()) != "Zonal" {
+				rr.startRead(offset, end, readType)
+			} else {
+				//check if data can be served from local buffer, if no then call range in MRD
+				bufWriter := bytes.NewBuffer(rr.localCache[0:])
+				var tmp int
+				tmp = rr.inode.MRD.Add(bufWriter, offset, end, func(start int64, end int64) {
+					// Callback function
+				})
+				p = p[tmp:]
+				mrrBuffer := rr.localCache[offset:rr.limit]
+				rr.start += int64(tmp)
+				offset += int64(tmp)
+				rr.totalReadBytes += uint64(tmp)
+				return tmp, nil, mrrBuffer
+			}
 			if err != nil {
 				err = fmt.Errorf("startRead: %w", err)
-				return
+				return 0, err, nil
 			}
 		}
 
 		// Read from range reader in case bucket is non zonal and read from mrr if bucket is zonal
 		var tmp int
-		if readType == util.Sequential || string(rr.bucket.BucketType()) != "zonal" {
-			tmp, err = rr.readFull(ctx, p)
-			n += tmp
-			p = p[tmp:]
-			rr.start += int64(tmp)
-			offset += int64(tmp)
-			rr.totalReadBytes += uint64(tmp)
-		} else {
-			//an 8 mb local buffer is maintained in this reader
-			// first try to read from buffer with previously calculated start offset and end offset
-			// if not present then reset the buffer
-			// read 8 mb range
-			// tmp = mrd.add(localBuffer)
-			// point p to slice of this local buffer
-			// p = p[tmp:]
-			//offset += int64(tmp)
-			//rr.totalReadBytes += uint64(tmp)
-		}
+		tmp, err = rr.readFull(ctx, p)
+		p = p[tmp:]
+		rr.start += int64(tmp)
+		offset += int64(tmp)
+		rr.totalReadBytes += uint64(tmp)
 
 		// Sanity check.
-		if rr.reader != nil && rr.start > rr.limit {
+		if rr.start > rr.limit {
 			err = fmt.Errorf("reader returned %d too many bytes", rr.start-rr.limit)
 
 			// Don't attempt to reuse the reader when it's behaving wackily.
@@ -188,11 +199,11 @@ func (rr *GCSRangeReader) Read(
 			rr.start = -1
 			rr.limit = -1
 
-			return
+			return tmp, nil, p
 		}
 
 		// Are we finished with this reader now?
-		if rr.reader != nil && rr.start == rr.limit {
+		if rr.start == rr.limit {
 			rr.reader.Close()
 			rr.reader = nil
 			rr.cancel = nil
@@ -206,7 +217,7 @@ func (rr *GCSRangeReader) Read(
 			// have hit the limit above.
 			if rr.reader != nil {
 				err = fmt.Errorf("reader returned %d too few bytes", rr.limit-rr.start)
-				return
+				return tmp, err, p
 			}
 
 			err = nil
@@ -214,11 +225,12 @@ func (rr *GCSRangeReader) Read(
 		case err != nil:
 			// Propagate other errors.
 			err = fmt.Errorf("readFull: %w", err)
-			return
+			return tmp, err, p
 		}
 	}
 
-	return
+	// return not needed as loop not needed
+	return 0, nil, p
 }
 
 func (rr *GCSRangeReader) seekReaderToPosition(offset int64) {
@@ -231,12 +243,15 @@ func (rr *GCSRangeReader) seekReaderToPosition(offset int64) {
 
 	// If we have an existing reader but it's positioned at the wrong place,
 	// clean it up and throw it away.
+	// Add the check for limit here, check if current reader end <= limit provided, if not go inside if
 	if rr.reader != nil && rr.start != offset {
 		rr.reader.Close()
 		rr.reader = nil
 		rr.cancel = nil
 		rr.seeks++
 	}
+	// if reader is not closed in above step then its implicit MRD is not needed and
+	// new range reader is also not needed, data will served from existing reader
 }
 
 func (rr *GCSRangeReader) Object() (o *gcs.MinObject) {
@@ -294,34 +309,45 @@ func (rr *GCSRangeReader) readFull(
 // Ensure that rr.reader is set up for a range for which [start, start+size) is
 // a prefix. Irrespective of the size requested, we try to fetch more data
 // from GCS defined by sequentialReadSizeMb flag to serve future read requests.
-func (rr *GCSRangeReader) startRead(
+func (rr *GCSRangeReader) getReadState(
 	ctx context.Context,
 	start int64,
-	size int64) (readType string, err error) {
+	size int64) (readType string, err error, end int64) {
 
 	err = rr.sanityCheckForOffset(start, size)
 	if err != nil {
 		return
 	}
 
-	end := int64(rr.object.Size)
+	end = int64(rr.object.Size)
 	readType = util.Sequential
 	if rr.seeks >= minSeeksForRandom {
 		readType = util.Random
 		end = rr.endOffsetForRandomRead(end, start)
 	}
 
+	// If end - start > 8 MB and bucket is Zonal, change read type to Sequential
+
 	end = rr.endOffsetWithinMaxLimit(end, start)
 
 	//Check bucket type here if readtype is random and bucket type is zonal
-	//create MRR and set in mrr of gcs range reader struct
-	if readType == util.Random && string(rr.bucket.BucketType()) == "Zonal" {
-		//rr.inode.MRD = rr.bucket.NewMultiRangeDownloader()
-		return
-	}
+	//create MRD and set in mrr of gcs range reader struct
 
-	// if read handle is not nil pass read handle to create new range reader instance
+	//if readType == util.Random && string(rr.bucket.BucketType()) == "Zonal" {
+	//	//use inode MRD instance
+	//	// use calculated start and end for this MRD add
+	//	// use readType as random
+	//	return
+	//}
+
+	return
+}
+
+// for non-zonal buckets only
+func (rr *GCSRangeReader) startRead(start int64, end int64, readType string) {
+
 	ctx, cancel := context.WithCancel(context.Background())
+	//Pass ReadHandle to New Reader in case its not Nil
 	rc, err := rr.bucket.NewReader(
 		ctx,
 		&gcs.ReadObjectRequest{
@@ -347,7 +373,6 @@ func (rr *GCSRangeReader) startRead(
 	requestedDataSize := end - start
 	monitor.CaptureGCSReadMetrics(ctx, readType, requestedDataSize)
 
-	return
 }
 
 func (rr *GCSRangeReader) sanityCheckForOffset(start int64, size int64) error {

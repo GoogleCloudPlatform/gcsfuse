@@ -24,8 +24,9 @@ func NewMultiRangeDownloader(ctx context.Context) (*MultiRangeDownloader, error)
 	return mrd, nil
 }
 
-func (mrd *MultiRangeDownloader) Add(output io.Writer, offset, length int64, callback func(int64, int64)) {
+func (mrd *MultiRangeDownloader) Add(output io.Writer, offset, length int64, callback func(int64, int64)) int {
 	// Downloads the data and adds in output
+	return 0
 }
 
 func (mrd *MultiRangeDownloader) Close() error {
