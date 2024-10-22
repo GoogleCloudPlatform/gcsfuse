@@ -663,7 +663,7 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 				MinObject: storageutil.ConvertObjToMinObject(o),
 			}
 		}
-		logger.Debugf("Ignored unsupported objects: %v", unsupportedObjects)
+		logger.Warnf("Ignored unsupported objects: %v", unsupportedObjects)
 
 		// Are we done listing?
 		if tok = listing.ContinuationToken; tok == "" {
@@ -745,7 +745,7 @@ func (d *dirInode) readObjects(
 			cores[fileName] = file
 		}
 	}
-	logger.Debugf("Ignored unsupported objects: %v", unsupportedObjects)
+	logger.Warnf("Ignored unsupported objects: %v", unsupportedObjects)
 
 	// Return an appropriate continuation token, if any.
 	newTok = listing.ContinuationToken
@@ -785,7 +785,7 @@ func (d *dirInode) readObjects(
 			cores[dirName] = implicitDir
 		}
 	}
-	logger.Debugf("Ignored unsupported prefixes: %v", unsupportedPrefixes)
+	logger.Warnf("Ignored unsupported prefixes: %v", unsupportedPrefixes)
 	return
 }
 
