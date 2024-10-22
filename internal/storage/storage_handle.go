@@ -39,7 +39,7 @@ import (
 
 const (
 	// Used to modify the hidden options in go-sdk for read stall retry.
-	// Ref: http://shortn/_DIoIm9dDT3
+	// Ref: https://github.com/googleapis/google-cloud-go/blob/main/storage/option.go#L30
 	dynamicReadReqIncreaseRateEnv   = "DYNAMIC_READ_REQ_INCREASE_RATE"
 	dynamicReadReqInitialTimeoutEnv = "DYNAMIC_READ_REQ_INITIAL_TIMEOUT"
 )
@@ -155,7 +155,7 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 
 	if clientConfig.ReadStallRetryConfig.Enable {
 		// Hidden way to modify the increase rate for dynamic delay algorithm in go-sdk.
-		// Ref: http://shortn/_417eTbNbKK
+		// Ref: https://github.com/googleapis/google-cloud-go/blob/main/storage/option.go#L47
 		// Temporarily we kept an option to change the increase-rate, will be removed
 		// once we get a good default.
 		err = os.Setenv(dynamicReadReqIncreaseRateEnv, strconv.FormatFloat(clientConfig.ReadStallRetryConfig.ReqIncreaseRate, 'f', -1, 64))
@@ -164,7 +164,7 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		}
 
 		// Hidden way to modify the initial-timeout of the dynamic delay algorithm in go-sdk.
-		// Ref: http://shortn/_xArUKvvGQZ
+		// Ref: https://github.com/googleapis/google-cloud-go/blob/main/storage/option.go#L62
 		// Temporarily we kept an option to change the initial-timeout, will be removed
 		// once we get a good default.
 		err = os.Setenv(dynamicReadReqInitialTimeoutEnv, clientConfig.ReadStallRetryConfig.InitialReqTimeout.String())

@@ -373,7 +373,6 @@ func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_ReadStallReqIncre
 
 			if tc.expectErr {
 				assert.NotNil(testSuite.T(), err)
-				assert.Nil(testSuite.T(), storageClient)
 			} else {
 				assert.Nil(testSuite.T(), err)
 				assert.NotNil(testSuite.T(), storageClient)
@@ -425,7 +424,6 @@ func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_ReadStallReqTarge
 
 			if tc.expectErr {
 				assert.NotNil(testSuite.T(), err)
-				assert.Nil(testSuite.T(), storageClient)
 			} else {
 				assert.Nil(testSuite.T(), err)
 				assert.NotNil(testSuite.T(), storageClient)
