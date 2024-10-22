@@ -153,12 +153,12 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		clientOpts = append(clientOpts, option.WithEndpoint(clientConfig.CustomEndpoint))
 	}
 
-	if clientConfig.EnableReadStallRetry {
+	if clientConfig.ReadStallRetryConfig.Enable {
 		// Hidden way to modify the increase rate for dynamic delay algorithm in go-sdk.
 		// Ref: http://shortn/_417eTbNbKK
 		// Temporarily we kept an option to change the increase-rate, will be removed
 		// once we get a good default.
-		err = os.Setenv(dynamicReadReqIncreaseRateEnv, strconv.FormatFloat(clientConfig.ReqIncreaseRate, 'f', -1, 64))
+		err = os.Setenv(dynamicReadReqIncreaseRateEnv, strconv.FormatFloat(clientConfig.ReadStallRetryConfig.ReqIncreaseRate, 'f', -1, 64))
 		if err != nil {
 			logger.Warnf("Error while setting the env %s: %v", dynamicReadReqIncreaseRateEnv, err)
 		}
@@ -167,13 +167,13 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		// Ref: http://shortn/_xArUKvvGQZ
 		// Temporarily we kept an option to change the initial-timeout, will be removed
 		// once we get a good default.
-		err = os.Setenv(dynamicReadReqInitialTimeoutEnv, clientConfig.InitialReqTimeout.String())
+		err = os.Setenv(dynamicReadReqInitialTimeoutEnv, clientConfig.ReadStallRetryConfig.InitialReqTimeout.String())
 		if err != nil {
 			logger.Warnf("Error while setting the env %s: %v", dynamicReadReqInitialTimeoutEnv, err)
 		}
 		clientOpts = append(clientOpts, experimental.WithReadStallTimeout(&experimental.ReadStallTimeoutConfig{
-			Min:              clientConfig.MinReqTimeout,
-			TargetPercentile: clientConfig.ReqTargetPercentile,
+			Min:              clientConfig.ReadStallRetryConfig.MinReqTimeout,
+			TargetPercentile: clientConfig.ReadStallRetryConfig.ReqTargetPercentile,
 		}))
 	}
 	return storage.NewClient(ctx, clientOpts...)

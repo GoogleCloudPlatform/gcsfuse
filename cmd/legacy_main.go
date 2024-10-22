@@ -107,7 +107,6 @@ func getConfigForUserAgent(mountConfig *cfg.Config) string {
 	return fmt.Sprintf("%s:%s:%s", isFileCacheEnabled, isFileCacheForRangeReadEnabled, isParallelDownloadsEnabled)
 }
 func createStorageHandle(newConfig *cfg.Config, userAgent string) (storageHandle storage.StorageHandle, err error) {
-	readStallRetryConfig := newConfig.GcsRetries.ReadStall
 	storageClientConfig := storageutil.StorageClientConfig{
 		ClientProtocol:             newConfig.GcsConnection.ClientProtocol,
 		MaxConnsPerHost:            int(newConfig.GcsConnection.MaxConnsPerHost),
@@ -125,12 +124,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string) (storageHandle
 		ExperimentalEnableJsonRead: newConfig.GcsConnection.ExperimentalEnableJsonRead,
 		GrpcConnPoolSize:           int(newConfig.GcsConnection.GrpcConnPoolSize),
 		EnableHNS:                  newConfig.EnableHns,
-		EnableReadStallRetry:       readStallRetryConfig.Enable,
-		InitialReqTimeout:          readStallRetryConfig.InitialReqTimeout,
-		MaxReqTimeout:              readStallRetryConfig.MaxReqTimeout,
-		MinReqTimeout:              readStallRetryConfig.MinReqTimeout,
-		ReqIncreaseRate:            readStallRetryConfig.ReqIncreaseRate,
-		ReqTargetPercentile:        readStallRetryConfig.ReqTargetPercentile,
+		ReadStallRetryConfig:       newConfig.GcsRetries.ReadStall,
 	}
 	logger.Infof("UserAgent = %s\n", storageClientConfig.UserAgent)
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig)

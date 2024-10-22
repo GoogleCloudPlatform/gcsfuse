@@ -272,7 +272,7 @@ func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_WithReadStallRetr
 	for _, tc := range testCases {
 		testSuite.Run(tc.name, func() {
 			sc := storageutil.GetDefaultStorageClientConfig()
-			sc.EnableReadStallRetry = tc.enableReadStallRetry
+			sc.ReadStallRetryConfig.Enable = tc.enableReadStallRetry
 
 			storageClient, err := createHTTPClientHandle(context.Background(), &sc)
 
@@ -300,8 +300,8 @@ func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_ReadStallInitialR
 	for _, tc := range testCases {
 		testSuite.Run(tc.name, func() {
 			sc := storageutil.GetDefaultStorageClientConfig()
-			sc.EnableReadStallRetry = true
-			sc.InitialReqTimeout = tc.initialReqTimeout
+			sc.ReadStallRetryConfig.Enable = true
+			sc.ReadStallRetryConfig.InitialReqTimeout = tc.initialReqTimeout
 
 			storageClient, err := createHTTPClientHandle(context.Background(), &sc)
 
@@ -329,8 +329,8 @@ func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_ReadStallMinReqTi
 	for _, tc := range testCases {
 		testSuite.Run(tc.name, func() {
 			sc := storageutil.GetDefaultStorageClientConfig()
-			sc.EnableReadStallRetry = true
-			sc.MinReqTimeout = tc.minReqTimeout
+			sc.ReadStallRetryConfig.Enable = true
+			sc.ReadStallRetryConfig.MinReqTimeout = tc.minReqTimeout
 
 			storageClient, err := createHTTPClientHandle(context.Background(), &sc)
 
@@ -366,8 +366,8 @@ func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_ReadStallReqIncre
 	for _, tc := range testCases {
 		testSuite.Run(tc.name, func() {
 			sc := storageutil.GetDefaultStorageClientConfig()
-			sc.EnableReadStallRetry = true
-			sc.ReqIncreaseRate = tc.reqIncreaseRate
+			sc.ReadStallRetryConfig.Enable = true
+			sc.ReadStallRetryConfig.ReqIncreaseRate = tc.reqIncreaseRate
 
 			storageClient, err := createHTTPClientHandle(context.Background(), &sc)
 
@@ -418,8 +418,8 @@ func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_ReadStallReqTarge
 	for _, tc := range testCases {
 		testSuite.Run(tc.name, func() {
 			sc := storageutil.GetDefaultStorageClientConfig()
-			sc.EnableReadStallRetry = true
-			sc.ReqTargetPercentile = tc.reqTargetPercentile
+			sc.ReadStallRetryConfig.Enable = true
+			sc.ReadStallRetryConfig.ReqTargetPercentile = tc.reqTargetPercentile
 
 			storageClient, err := createHTTPClientHandle(context.Background(), &sc)
 
