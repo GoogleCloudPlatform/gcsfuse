@@ -158,13 +158,19 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		// Ref: http://shortn/_417eTbNbKK
 		// Temporarily we kept an option to change the increase-rate, will be removed
 		// once we get a good default.
-		os.Setenv(dynamicReadReqIncreaseRateEnv, strconv.FormatFloat(clientConfig.ReqIncreaseRate, 'f', -1, 64))
+		err = os.Setenv(dynamicReadReqIncreaseRateEnv, strconv.FormatFloat(clientConfig.ReqIncreaseRate, 'f', -1, 64))
+		if err != nil {
+			logger.Warnf("Error while setting the env %s: %v", dynamicReadReqIncreaseRateEnv, err)
+		}
 
 		// Hidden way to modify the initial-timeout of the dynamic delay algorithm in go-sdk.
 		// Ref: http://shortn/_xArUKvvGQZ
 		// Temporarily we kept an option to change the initial-timeout, will be removed
 		// once we get a good default.
-		os.Setenv(dynamicReadReqInitialTimeoutEnv, clientConfig.InitialReqTimeout.String())
+		err = os.Setenv(dynamicReadReqInitialTimeoutEnv, clientConfig.InitialReqTimeout.String())
+		if err != nil {
+			logger.Warnf("Error while setting the env %s: %v", dynamicReadReqInitialTimeoutEnv, err)
+		}
 		clientOpts = append(clientOpts, experimental.WithReadStallTimeout(&experimental.ReadStallTimeoutConfig{
 			Min:              clientConfig.MinReqTimeout,
 			TargetPercentile: clientConfig.ReqTargetPercentile,
