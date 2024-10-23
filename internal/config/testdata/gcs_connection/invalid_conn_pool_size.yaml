@@ -1,0 +1,3 @@
+gcs-connection:
+  grpc-conn-pool-size: 0
+
