@@ -132,6 +132,63 @@ func (m *mockBucket) CreateObject(p0 context.Context, p1 *gcs.CreateObjectReques
 	return
 }
 
+func (m *mockBucket) CreateObjectChunkWriter(p0 context.Context, p1 *gcs.CreateObjectRequest, p2 int, p3 func(bytesUploadedSoFar int64)) (o0 gcs.Writer, o1 error) {
+	// Get a file name and line number for the caller.
+	_, file, line, _ := runtime.Caller(1)
+
+	// Hand the call off to the controller, which does most of the work.
+	retVals := m.controller.HandleMethodCall(
+		m,
+		"CreateObjectChunkWriter",
+		file,
+		line,
+		[]interface{}{p0, p1, p2, p3})
+
+	if len(retVals) != 2 {
+		panic(fmt.Sprintf("mockBucket.CreateObjectChunkWriter: invalid return values: %v", retVals))
+	}
+
+	// o0 *storageWriter
+	if retVals[0] != nil {
+		o0 = retVals[0].(gcs.Writer)
+	}
+
+	// o1 error
+	if retVals[1] != nil {
+		o1 = retVals[1].(error)
+	}
+
+	return
+}
+
+func (m *mockBucket) FinalizeUpload(p0 context.Context, p1 gcs.Writer) (o0 *gcs.Object, o1 error) {
+	// Get a file name and line number for the caller.
+	_, file, line, _ := runtime.Caller(1)
+
+	// Hand the call off to the controller, which does most of the work.
+	retVals := m.controller.HandleMethodCall(
+		m,
+		"FinalizeUpload",
+		file,
+		line,
+		[]interface{}{p0, p1})
+
+	if len(retVals) != 2 {
+		panic(fmt.Sprintf("mockBucket.FinalizeUpload: invalid return values: %v", retVals))
+	}
+
+	// o0 *gcs.Object
+	if retVals[0] != nil {
+		o0 = retVals[0].(*gcs.Object)
+	}
+	// o1 error
+	if retVals[1] != nil {
+		o1 = retVals[1].(error)
+	}
+
+	return
+}
+
 func (m *mockBucket) DeleteObject(p0 context.Context, p1 *gcs.DeleteObjectRequest) (o0 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)

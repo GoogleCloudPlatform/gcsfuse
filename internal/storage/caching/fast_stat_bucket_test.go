@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	gostorage "cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/caching/mock_gcscaching"
@@ -134,6 +135,145 @@ func (t *CreateObjectTest) WrappedSucceeds() {
 
 	AssertEq(nil, err)
 	ExpectEq(obj, o)
+}
+
+////////////////////////////////////////////////////////////////////////
+// CreateObject
+////////////////////////////////////////////////////////////////////////
+
+type CreateObjectChunkWriterTest struct {
+	fastStatBucketTest
+}
+
+func init() { RegisterTestSuite(&CreateObjectChunkWriterTest{}) }
+
+func (t *CreateObjectChunkWriterTest) CallsWrappedWithExpectedParameters() {
+	const name = "taco"
+	// Wrapped
+	var wrappedReq *gcs.CreateObjectRequest
+	var wrappedChunkSize int
+	var wrappedCallback func(_ int64)
+	ExpectCall(t.wrapped, "CreateObjectChunkWriter")(Any(), Any(), Any(), Any()).
+		WillOnce(DoAll(SaveArg(1, &wrappedReq), SaveArg(2, &wrappedChunkSize), SaveArg(3, &wrappedCallback), Return(nil, errors.New(""))))
+	// Call
+	req := &gcs.CreateObjectRequest{
+		Name: name,
+	}
+	chunkSize := 1024
+	callback := func(_ int64) {
+		fmt.Println("callback called!")
+	}
+
+	_, _ = t.bucket.CreateObjectChunkWriter(context.TODO(), req, chunkSize, callback)
+
+	AssertNe(nil, wrappedReq)
+	ExpectEq(req, wrappedReq)
+	ExpectEq(chunkSize, wrappedChunkSize)
+	ExpectEq(callback, wrappedCallback)
+}
+
+func (t *CreateObjectChunkWriterTest) WrappedFails() {
+	chunkSize := 1024
+	progressFunc := func(_ int64) {}
+	ctx := context.TODO()
+	req := &gcs.CreateObjectRequest{}
+	var err error
+	// Wrapped
+	ExpectCall(t.wrapped, "CreateObjectChunkWriter")(Any(), Any(), Any(), Any()).
+		WillOnce(Return(nil, errors.New("taco")))
+
+	// Call
+	_, err = t.bucket.CreateObjectChunkWriter(ctx, req, chunkSize, progressFunc)
+
+	ExpectThat(err, Error(HasSubstr("taco")))
+}
+
+func (t *CreateObjectChunkWriterTest) WrappedSucceeds() {
+	chunkSize := 1024
+	progressFunc := func(_ int64) {}
+	ctx := context.TODO()
+	req := &gcs.CreateObjectRequest{}
+	var err error
+	// Wrapped
+	wr := &storage.ObjectWriter{
+		Writer: &gostorage.Writer{ChunkSize: chunkSize, ProgressFunc: progressFunc},
+	}
+	ExpectCall(t.wrapped, "CreateObjectChunkWriter")(Any(), Any(), Any(), Any()).
+		WillOnce(Return(wr, nil))
+
+	// Call
+	gotWr, err := t.bucket.CreateObjectChunkWriter(ctx, req, chunkSize, progressFunc)
+
+	AssertEq(nil, err)
+	ExpectEq(wr, gotWr)
+}
+
+////////////////////////////////////////////////////////////////////////
+// FinalizeUpload
+////////////////////////////////////////////////////////////////////////
+
+type FinalizeUploadTest struct {
+	fastStatBucketTest
+}
+
+func init() { RegisterTestSuite(&FinalizeUploadTest{}) }
+
+func (t *FinalizeUploadTest) CallsEraseAndWrappedWithExpectedParameter() {
+	const name = "taco"
+	writer := &storage.ObjectWriter{
+		Writer: &gostorage.Writer{ObjectAttrs: gostorage.ObjectAttrs{Name: name}},
+	}
+	// Erase
+	ExpectCall(t.cache, "Erase")(name)
+	// Wrapped
+	var wrappedWriter gcs.Writer
+	ExpectCall(t.wrapped, "FinalizeUpload")(Any(), Any()).
+		WillOnce(DoAll(SaveArg(1, &wrappedWriter), Return(&gcs.Object{}, errors.New(""))))
+
+	// Call
+	_, _ = t.bucket.FinalizeUpload(context.TODO(), writer)
+
+	AssertNe(nil, wrappedWriter)
+	ExpectEq(writer, wrappedWriter)
+}
+
+func (t *FinalizeUploadTest) WrappedFails() {
+	var err error
+	writer := &storage.ObjectWriter{
+		Writer: &gostorage.Writer{ObjectAttrs: gostorage.ObjectAttrs{Name: "name"}},
+	}
+	// Erase
+	ExpectCall(t.cache, "Erase")(Any())
+	// Wrapped
+	ExpectCall(t.wrapped, "FinalizeUpload")(Any(), Any()).
+		WillOnce(Return(&gcs.Object{}, errors.New("taco")))
+
+	// Call
+	o, err := t.bucket.FinalizeUpload(context.TODO(), writer)
+
+	ExpectThat(err, Error(HasSubstr("taco")))
+	ExpectNe(nil, o)
+}
+
+func (t *FinalizeUploadTest) WrappedSucceeds() {
+	const name = "taco"
+	writer := &storage.ObjectWriter{
+		Writer: &gostorage.Writer{ObjectAttrs: gostorage.ObjectAttrs{Name: name}},
+	}
+	var err error
+	// Erase
+	ExpectCall(t.cache, "Erase")(Any())
+	// Wrapped
+	ExpectCall(t.wrapped, "FinalizeUpload")(Any(), Any()).
+		WillOnce(Return(&gcs.Object{}, nil))
+	// Insert
+	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(ttl)))
+
+	// Call
+	o, err := t.bucket.FinalizeUpload(context.TODO(), writer)
+
+	AssertEq(nil, err)
+	ExpectNe(nil, o)
 }
 
 ////////////////////////////////////////////////////////////////////////

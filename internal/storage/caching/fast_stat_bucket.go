@@ -217,6 +217,25 @@ func (b *fastStatBucket) CreateObject(
 	return
 }
 
+func (b *fastStatBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
+	return b.wrapped.CreateObjectChunkWriter(ctx, req, chunkSize, callBack)
+}
+
+func (b *fastStatBucket) FinalizeUpload(ctx context.Context, writer gcs.Writer) (*gcs.Object, error) {
+	name := writer.ObjectName()
+	// Throw away any existing record for this object.
+	b.invalidate(name)
+
+	o, err := b.wrapped.FinalizeUpload(ctx, writer)
+
+	// Record the new object if err is nil.
+	if err == nil {
+		b.insert(o)
+	}
+
+	return o, err
+}
+
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) CopyObject(
 	ctx context.Context,

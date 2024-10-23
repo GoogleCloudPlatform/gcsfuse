@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -28,6 +29,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -425,6 +427,172 @@ func (testSuite *BucketHandleTest) TestCreateObjectMethodWhenGivenGenerationObje
 
 	assert.Nil(testSuite.T(), obj)
 	assert.True(testSuite.T(), errors.As(err, &precondition))
+}
+
+func (testSuite *BucketHandleTest) TestBucketHandle_CreateObjectChunkWriter() {
+	var generation0 int64 = 0
+	var generationNon0 int64 = 786
+	var metaGeneration0 int64 = 0
+	var metaGenerationNon0 int64 = 987
+
+	tests := []struct {
+		name           string
+		generation     *int64
+		metageneration *int64
+		objectName     string
+		chunkSize      int
+	}{
+		{
+			name:       "NilGeneration",
+			generation: nil,
+			objectName: "test_object_1",
+			chunkSize:  1024 * 1024,
+		},
+		{
+			name:       "GenerationAsZero",
+			generation: &generation0,
+			objectName: "test_object_2",
+			chunkSize:  1024 * 1024,
+		},
+		{
+			name:       "NonZeroGeneration",
+			generation: &generationNon0,
+			objectName: "test_object_3",
+			chunkSize:  1000,
+		},
+		{
+			name:           "NilMetaGeneration",
+			metageneration: nil,
+			objectName:     "test_object_1",
+			chunkSize:      1024 * 1024,
+		},
+		{
+			name:           "MetaGenerationAsZero",
+			metageneration: &metaGeneration0,
+			objectName:     "test_object_2",
+			chunkSize:      1024 * 1024,
+		},
+		{
+			name:           "NonZeroMetaGeneration",
+			metageneration: &metaGenerationNon0,
+			objectName:     "test_object_3",
+			chunkSize:      1000,
+		},
+	}
+
+	for _, tt := range tests {
+		testSuite.T().Run(tt.name, func(t *testing.T) {
+			progressFunc := func(_ int64) {}
+			w, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(),
+				&gcs.CreateObjectRequest{
+					Name:                       tt.objectName,
+					GenerationPrecondition:     tt.generation,
+					MetaGenerationPrecondition: tt.metageneration,
+				},
+				tt.chunkSize,
+				progressFunc,
+			)
+
+			require.NoError(t, err)
+			objWr, ok := (w).(*ObjectWriter)
+			require.True(t, ok)
+			require.NotNil(t, objWr)
+			assert.Equal(t, tt.objectName, objWr.ObjectName())
+			assert.Equal(t, tt.chunkSize, objWr.ChunkSize)
+			assert.Equal(t, reflect.ValueOf(progressFunc).Pointer(), reflect.ValueOf(objWr.ProgressFunc).Pointer())
+		})
+	}
+}
+
+func (testSuite *BucketHandleTest) TestBucketHandle_FinalizeUploadSuccess() {
+	var generation0 int64 = 0
+
+	tests := []struct {
+		name       string
+		generation *int64
+		objectName string
+		chunkSize  int
+	}{
+		{
+			name:       "NilGeneration",
+			generation: nil,
+			objectName: "test_object_1",
+			chunkSize:  1024 * 1024,
+		},
+		{
+			name:       "GenerationAsZero",
+			generation: &generation0,
+			objectName: "test_object_2",
+			chunkSize:  1024 * 100,
+		},
+	}
+
+	for _, tt := range tests {
+		testSuite.T().Run(tt.name, func(t *testing.T) {
+			progressFunc := func(_ int64) {}
+			wr, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(),
+				&gcs.CreateObjectRequest{
+					Name:                   tt.objectName,
+					GenerationPrecondition: tt.generation,
+				},
+				tt.chunkSize,
+				progressFunc,
+			)
+			require.NoError(t, err)
+			objWr, ok := (wr).(*ObjectWriter)
+			require.True(t, ok)
+			require.NotNil(t, objWr)
+			assert.Equal(t, tt.objectName, objWr.ObjectName())
+			assert.Equal(t, tt.chunkSize, objWr.ChunkSize)
+			assert.Equal(t, reflect.ValueOf(progressFunc).Pointer(), reflect.ValueOf(objWr.ProgressFunc).Pointer())
+
+			o, err := testSuite.bucketHandle.FinalizeUpload(context.Background(), wr)
+
+			assert.NoError(t, err)
+			assert.NotNil(testSuite.T(), o)
+		})
+	}
+}
+
+func (testSuite *BucketHandleTest) createObject(objName string) {
+	testSuite.T().Helper()
+	var generation int64 = 0
+	wr, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(),
+		&gcs.CreateObjectRequest{
+			Name:                   objName,
+			GenerationPrecondition: &generation,
+		},
+		100,
+		func(_ int64) {})
+	require.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), objName, wr.ObjectName())
+
+	o, err := testSuite.bucketHandle.FinalizeUpload(context.Background(), wr)
+
+	require.NoError(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), o)
+}
+
+func (testSuite *BucketHandleTest) TestFinalizeUploadWithGenerationAsZeroWhenObjectAlreadyExists() {
+	objName := "pre_created_test_object"
+	testSuite.createObject(objName)
+	// Create Object Writer again when object already exists.
+	var generation int64 = 0
+	wr, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(),
+		&gcs.CreateObjectRequest{
+			Name:                   objName,
+			GenerationPrecondition: &generation,
+		},
+		100,
+		func(_ int64) {})
+	require.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), objName, wr.ObjectName())
+
+	o, err := testSuite.bucketHandle.FinalizeUpload(context.Background(), wr)
+
+	assert.Error(testSuite.T(), err)
+	assert.IsType(testSuite.T(), &gcs.PreconditionError{}, err)
+	assert.Nil(testSuite.T(), o)
 }
 
 func (testSuite *BucketHandleTest) TestGetProjectValueWhenGcloudProjectionIsNoAcl() {
