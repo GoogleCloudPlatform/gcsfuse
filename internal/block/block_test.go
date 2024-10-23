@@ -84,6 +84,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockWriteWith2ndWriteBeyondCapacity
 
 func (testSuite *MemoryBlockTest) TestMemoryBlockReuse() {
 	mb, err := createBlock(12)
+	require.Nil(testSuite.T(), err)
 	content := []byte("hi")
 	err = mb.Write(content)
 	assert.Nil(testSuite.T(), err)
