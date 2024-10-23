@@ -121,6 +121,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string) (storageHandle
 		ExperimentalEnableJsonRead: newConfig.GcsConnection.ExperimentalEnableJsonRead,
 		GrpcConnPoolSize:           int(newConfig.GcsConnection.GrpcConnPoolSize),
 		EnableHNS:                  newConfig.EnableHns,
+		ReadStallRetryConfig:       newConfig.GcsRetries.ReadStall,
 	}
 	logger.Infof("UserAgent = %s\n", storageClientConfig.UserAgent)
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig)

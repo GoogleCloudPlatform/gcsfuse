@@ -55,6 +55,8 @@ type StorageClientConfig struct {
 
 	// Enabling new API flow for HNS bucket.
 	EnableHNS bool
+
+	ReadStallRetryConfig cfg.ReadStallGcsRetriesConfig
 }
 
 func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *http.Client, err error) {
