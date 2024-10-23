@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -119,4 +120,20 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockReaderForEmptyBlock() {
 	assert.Nil(testSuite.T(), err)
 	assert.Empty(testSuite.T(), output)
 	assert.Equal(testSuite.T(), int64(0), mb.Size())
+}
+
+func (testSuite *MemoryBlockTest) TestMemoryBlockDeAllocate() {
+	mb := createBlock(12)
+	content := []byte("hi")
+	err := mb.Write(content)
+	require.Nil(testSuite.T(), err)
+	output, err := io.ReadAll(mb.Reader())
+	require.Nil(testSuite.T(), err)
+	require.Equal(testSuite.T(), content, output)
+	require.Equal(testSuite.T(), int64(2), mb.Size())
+
+	err = mb.DeAllocate()
+
+	require.NotNil(testSuite.T(), err)
+	require.Nil(testSuite.T(), mb.(*memoryBlock).buffer)
 }

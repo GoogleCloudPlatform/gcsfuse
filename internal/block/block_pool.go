@@ -17,12 +17,14 @@ package block
 import (
 	"fmt"
 	"syscall"
+
+	"golang.org/x/sync/semaphore"
 )
 
 // BlockPool handles the creation of blocks as per the user configuration.
 type BlockPool struct {
 	// Channel holding free blocks.
-	blocksCh chan Block
+	freeBlocksCh chan Block
 
 	// Size of each block this pool holds.
 	blockSize int64
@@ -32,30 +34,35 @@ type BlockPool struct {
 
 	// Total number of blocks created so far.
 	totalBlocks int32
+
+	// Semaphore used to limit the total number of blocks created across
+	// different files.
+	globalMaxBlocksSem *semaphore.Weighted
 }
 
 // InitBlockPool initializes the blockPool based on the user configuration.
-func InitBlockPool(blockSize int64, maxBlocks int32) (bp *BlockPool, err error) {
+func InitBlockPool(blockSize int64, maxBlocks int32, globalMaxBlocksSem *semaphore.Weighted) (bp *BlockPool, err error) {
 	if blockSize <= 0 || maxBlocks <= 0 {
 		err = fmt.Errorf("invalid configuration provided for blockPool, blocksize: %d, maxBlocks: %d", blockSize, maxBlocks)
 		return
 	}
 
 	bp = &BlockPool{
-		blocksCh:    make(chan Block, maxBlocks),
-		blockSize:   blockSize,
-		maxBlocks:   maxBlocks,
-		totalBlocks: 0,
+		freeBlocksCh:       make(chan Block, maxBlocks),
+		blockSize:          blockSize,
+		maxBlocks:          maxBlocks,
+		totalBlocks:        0,
+		globalMaxBlocksSem: globalMaxBlocksSem,
 	}
 	return
 }
 
 // Get returns a block. It returns an existing block if it's ready for reuse or
 // creates a new one if required.
-func (ib *BlockPool) Get() (Block, error) {
+func (bp *BlockPool) Get() (Block, error) {
 	for {
 		select {
-		case b := <-ib.blocksCh:
+		case b := <-bp.freeBlocksCh:
 			// Reset the block for reuse.
 			b.Reuse()
 			return b, nil
@@ -63,23 +70,30 @@ func (ib *BlockPool) Get() (Block, error) {
 		default:
 			// No lock is required here since blockPool is per file and all write
 			// calls to a single file are serialized because of inode.lock().
-			if ib.totalBlocks < ib.maxBlocks {
-				b, err := ib.createBlock()
+			if bp.totalBlocks < bp.maxBlocks {
+				freeSlotsAvailable := bp.globalMaxBlocksSem.TryAcquire(1)
+				// We are allowed to create one block per file irrespective of free slots.
+				if bp.totalBlocks > 0 && !freeSlotsAvailable {
+					continue
+				}
+
+				b, err := bp.createBlock()
 				if err != nil {
 					return nil, err
 				}
 
-				ib.totalBlocks++
+				bp.totalBlocks++
 				return b, nil
+
 			}
 		}
 	}
 }
 
 // createBlock creates a new block.
-func (ib *BlockPool) createBlock() (Block, error) {
+func (bp *BlockPool) createBlock() (Block, error) {
 	prot, flags := syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_ANON|syscall.MAP_PRIVATE
-	addr, err := syscall.Mmap(-1, 0, int(ib.blockSize), prot, flags)
+	addr, err := syscall.Mmap(-1, 0, int(bp.blockSize), prot, flags)
 	if err != nil {
 		return nil, fmt.Errorf("mmap error: %v", err)
 	}
@@ -92,6 +106,24 @@ func (ib *BlockPool) createBlock() (Block, error) {
 }
 
 // BlockSize returns the block size used by the blockPool.
-func (ib *BlockPool) BlockSize() int64 {
-	return ib.blockSize
+func (bp *BlockPool) BlockSize() int64 {
+	return bp.blockSize
+}
+
+func (bp *BlockPool) ClearFreeBlockChannel() error {
+	for {
+		select {
+		case b := <-bp.freeBlocksCh:
+			err := b.DeAllocate()
+			if err != nil {
+				// if we get here, there is likely memory corruption.
+				return fmt.Errorf("munmap error: %v", err)
+			}
+			bp.totalBlocks--
+			bp.globalMaxBlocksSem.Release(1)
+		default:
+			// Return if there are no more blocks on the channel.
+			return nil
+		}
+	}
 }

@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"syscall"
 )
 
 // Block represents the buffer which holds the data.
@@ -35,6 +36,8 @@ type Block interface {
 	// Reader interface helps in copying the data directly to storage.writer
 	// while uploading to GCS.
 	Reader() io.Reader
+
+	DeAllocate() error
 }
 
 // TODO: check if we need offset or just storing end is sufficient. We might need
@@ -75,4 +78,19 @@ func (m *memoryBlock) Write(bytes []byte) error {
 
 func (m *memoryBlock) Reader() io.Reader {
 	return bytes.NewReader(m.buffer[0:m.offset.end])
+}
+
+func (m *memoryBlock) DeAllocate() error {
+	if m.buffer == nil {
+		return fmt.Errorf("invalid buffer")
+	}
+
+	err := syscall.Munmap(m.buffer)
+	m.buffer = nil
+	if err != nil {
+		// if we get here, there is likely memory corruption.
+		return fmt.Errorf("munmap error: %v", err)
+	}
+
+	return nil
 }
