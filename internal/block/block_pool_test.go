@@ -206,7 +206,6 @@ func (t *BlockPoolTest) validateGetBlockIsBlocked(bp *BlockPool) {
 	select {
 	case <-done:
 		assert.FailNow(t.T(), "Able to get/create a block when it is not allowed")
-		// Success: All Readdir operations finished before timeout
 	case <-time.After(1 * time.Second):
 	}
 }
