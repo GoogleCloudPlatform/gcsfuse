@@ -171,7 +171,6 @@ func (rr *GCSRangeReader) Read(
 			}
 		}
 
-		// Read from range reader in case bucket is non zonal and read from mrr if bucket is zonal
 		var tmp int
 		tmp, err = rr.readFull(ctx, p)
 		p = p[tmp:]
@@ -336,16 +335,6 @@ func (rr *GCSRangeReader) getReadState(
 	// If end - start > 8 MB and bucket is Zonal, change read type to Sequential
 
 	end = rr.endOffsetWithinMaxLimit(end, start)
-
-	//Check bucket type here if readtype is random and bucket type is zonal
-	//create MRD and set in mrr of gcs range reader struct
-
-	//if readType == util.Random && string(rr.bucket.BucketType()) == "Zonal" {
-	//	//use inode MRD instance
-	//	// use calculated start and end for this MRD add
-	//	// use readType as random
-	//	return
-	//}
 
 	return
 }
