@@ -41,7 +41,9 @@ func TestStorageHandleTestSuite(t *testing.T) {
 }
 
 func (testSuite *StorageHandleTest) SetupTest() {
+	var err error
 	testSuite.fakeStorage = NewFakeStorage()
+	assert.Nil(testSuite.T(), err)
 }
 
 func (testSuite *StorageHandleTest) TearDownTest() {
