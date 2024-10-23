@@ -147,7 +147,7 @@ type CreateObjectChunkWriterTest struct {
 
 func init() { RegisterTestSuite(&CreateObjectChunkWriterTest{}) }
 
-func (t *CreateObjectChunkWriterTest) CallsWrapped() {
+func (t *CreateObjectChunkWriterTest) CallsWrappedWithExpectedParameters() {
 	const name = "taco"
 	// Wrapped
 	var wrappedReq *gcs.CreateObjectRequest
@@ -218,7 +218,7 @@ type FinalizeUploadTest struct {
 
 func init() { RegisterTestSuite(&FinalizeUploadTest{}) }
 
-func (t *FinalizeUploadTest) CallsEraseAndWrapped() {
+func (t *FinalizeUploadTest) CallsEraseAndWrappedWithExpectedParameter() {
 	const name = "taco"
 	writer := &storage.ObjectWriter{
 		Writer: &gostorage.Writer{ObjectAttrs: gostorage.ObjectAttrs{Name: name}},
