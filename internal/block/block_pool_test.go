@@ -79,7 +79,8 @@ func (t *BlockPoolTest) TestGetWhenBlockIsAvailableForReuse() {
 	bp, err := InitBlockPool(1024, 10, semaphore.NewWeighted(10))
 	require.Nil(t.T(), err)
 	// Creating a block with some data and send it to blockCh.
-	b := createBlock(2)
+	b, err := createBlock(2)
+	require.Nil(t.T(), err)
 	content := []byte("hi")
 	err = b.Write(content)
 	require.Nil(t.T(), err)

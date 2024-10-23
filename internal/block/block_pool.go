@@ -16,7 +16,6 @@ package block
 
 import (
 	"fmt"
-	"syscall"
 
 	"golang.org/x/sync/semaphore"
 )
@@ -77,7 +76,7 @@ func (bp *BlockPool) Get() (Block, error) {
 					continue
 				}
 
-				b, err := bp.createBlock()
+				b, err := createBlock(bp.blockSize)
 				if err != nil {
 					return nil, err
 				}
@@ -88,21 +87,6 @@ func (bp *BlockPool) Get() (Block, error) {
 			}
 		}
 	}
-}
-
-// createBlock creates a new block.
-func (bp *BlockPool) createBlock() (Block, error) {
-	prot, flags := syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_ANON|syscall.MAP_PRIVATE
-	addr, err := syscall.Mmap(-1, 0, int(bp.blockSize), prot, flags)
-	if err != nil {
-		return nil, fmt.Errorf("mmap error: %v", err)
-	}
-
-	mb := memoryBlock{
-		buffer: addr,
-		offset: offset{0, 0},
-	}
-	return &mb, nil
 }
 
 // BlockSize returns the block size used by the blockPool.
