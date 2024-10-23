@@ -37,7 +37,7 @@ type Block interface {
 	// while uploading to GCS.
 	Reader() io.Reader
 
-	DeAllocate() error
+	Deallocate() error
 }
 
 // TODO: check if we need offset or just storing end is sufficient. We might need
@@ -80,7 +80,7 @@ func (m *memoryBlock) Reader() io.Reader {
 	return bytes.NewReader(m.buffer[0:m.offset.end])
 }
 
-func (m *memoryBlock) DeAllocate() error {
+func (m *memoryBlock) Deallocate() error {
 	if m.buffer == nil {
 		return fmt.Errorf("invalid buffer")
 	}

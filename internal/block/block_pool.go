@@ -114,7 +114,7 @@ func (bp *BlockPool) ClearFreeBlockChannel() error {
 	for {
 		select {
 		case b := <-bp.freeBlocksCh:
-			err := b.DeAllocate()
+			err := b.Deallocate()
 			if err != nil {
 				// if we get here, there is likely memory corruption.
 				return fmt.Errorf("munmap error: %v", err)

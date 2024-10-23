@@ -132,7 +132,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockDeAllocate() {
 	require.Equal(testSuite.T(), content, output)
 	require.Equal(testSuite.T(), int64(2), mb.Size())
 
-	err = mb.DeAllocate()
+	err = mb.Deallocate()
 
 	require.NotNil(testSuite.T(), err)
 	require.Nil(testSuite.T(), mb.(*memoryBlock).buffer)
