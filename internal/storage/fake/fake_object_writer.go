@@ -32,11 +32,9 @@ type FakeObjectWriter struct {
 	io.WriteCloser
 	buf bytes.Buffer
 	storage.ObjectAttrs
-	ChunkSize    int
-	ProgressFunc func(_ int64)
-	bkt          *bucket
-	req          *gcs.CreateObjectRequest
-	Object       *gcs.Object // Object created by writer
+	bkt    *bucket
+	req    *gcs.CreateObjectRequest
+	Object *gcs.Object // Object created by writer
 }
 
 func (w *FakeObjectWriter) Write(p []byte) (n int, err error) {
@@ -66,7 +64,7 @@ func (w *FakeObjectWriter) Attrs() *storage.ObjectAttrs {
 	return &w.ObjectAttrs
 }
 
-func NewFakeObjectWriter(b *bucket, req *gcs.CreateObjectRequest, chunkSize int, callback func(int64)) (w gcs.Writer, err error) {
+func NewFakeObjectWriter(b *bucket, req *gcs.CreateObjectRequest) (w gcs.Writer, err error) {
 	// Check that the name is legal.
 	err = checkName(req.Name)
 	if err != nil {
@@ -74,11 +72,9 @@ func NewFakeObjectWriter(b *bucket, req *gcs.CreateObjectRequest, chunkSize int,
 	}
 
 	wr := &FakeObjectWriter{
-		buf:          bytes.Buffer{},
-		bkt:          b,
-		req:          req,
-		ChunkSize:    chunkSize,
-		ProgressFunc: callback,
+		buf: bytes.Buffer{},
+		bkt: b,
+		req: req,
 		ObjectAttrs: storage.ObjectAttrs{
 			Name: req.Name,
 		},
