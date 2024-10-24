@@ -294,7 +294,7 @@ func (rr *randomReader) ReadAt(
 
 		// If we have an existing reader but it's positioned at the wrong place,
 		// clean it up and throw it away.
-		if rr.reader != nil && rr.start != offset {
+		if rr.reader != nil && (rr.start != offset || offset+int64(len(p)) > rr.limit) {
 			rr.reader.Close()
 			rr.reader = nil
 			rr.cancel = nil
