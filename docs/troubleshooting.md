@@ -5,7 +5,7 @@ discusses potential solutions to the same.
 
 ### Generic Mounting Issue
 
-Most of the common mount point issues are around permissions on both local mount point and the Cloud Storage bucket. It is highly recommended to retry with --foreground --debug_fuse --debug_fs --debug_gcs --debug_http flags which would provide much more detailed logs to understand the errors better and possibly provide a solution.
+Most of the common mount point issues are around permissions on both local mount point and the Cloud Storage bucket. It is highly recommended to retry with --foreground --log-severity=TRACE flags which would provide much more detailed logs to understand the errors better and possibly provide a solution.
 
 ### Mount successful but files not visible
 
@@ -52,7 +52,7 @@ Check the bucket name. Make sure the [service account](https://www.google.com/ur
 
 Log may look similar to this - ```daemonize.Run: readFromProcess: sub-process: mountWithArgs: mountWithStorageHandle: Mount: mount: running fusermount: exit status 1 stderr: /bin/fusermount: fuse device not found, try 'modprobe fuse' first```
 
-To run the container locally, add the --privilege flag to the docker run command: ```docker run --privileged  gcr.io/PROJECT/my-fs-app ``` <ul><li>You must create a local mount directory</li> <li>If you want all the logs from the mount process use the --foreground flag in combination with the mount command: ```gcsfuse --foreground --debug_gcs --debug_fuse $GCSFUSE_BUCKET $MNT_DIR ``` </li><li> Add --debug_http for HTTP request/response debug output.</li><li>Add --debug_fuse to enable fuse-related debugging output.</li><li>Add --debug_gcs to print GCS request and timing information.</li></ul>
+To run the container locally, add the --privilege flag to the docker run command: ```docker run --privileged  gcr.io/PROJECT/my-fs-app ``` <ul><li>You must create a local mount directory</li> <li>If you want all the logs from the mount process use the --foreground flag in combination with the mount command: ```gcsfuse --foreground --log-severity=TRACE $GCSFUSE_BUCKET $MNT_DIR ``` </li><li> Add --log-severity=TRACE for enabling debug logs</li></ul>
 
 ### Cloud Storage FUSE installation fails with an error at build time.
 
@@ -68,7 +68,7 @@ This happens when gcsfuse is mounted with http1 client (default) and the applica
 
 ### Permission Denied error.
 
-Please refer [here](https://cloud.google.com/storage/docs/gcsfuse-mount#authenticate_by_using_a_service_account) to know more about permissions.(e.g.  **Issue**:mkdir: cannot create directory ‘gcs/test’: Permission denied. User can check specific errors by enabling logs with --debug_fuse and --debug_gcs flags. **Solution**: Provide roles/storage.objectAdmin role on the bucket.)  <br/>
+Please refer [here](https://cloud.google.com/storage/docs/gcsfuse-mount#authenticate_by_using_a_service_account) to know more about permissions.(e.g.  **Issue**:mkdir: cannot create directory ‘gcs/test’: Permission denied. User can check specific errors by enabling logs with --log-severity=TRACE flags. **Solution**: Provide roles/storage.objectAdmin role on the bucket.)  <br/>
 
 ### Bad gateway error while installing/upgrading GCSFuse:
 `Err: http://packages.cloud.google.com/apt gcsfuse-focal/main amd64 gcsfuse amd64 1.2.0`<br/>`502  Bad Gateway [IP: xxx.xxx.xx.xxx 80]`

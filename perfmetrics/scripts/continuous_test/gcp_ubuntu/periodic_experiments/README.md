@@ -34,7 +34,7 @@ file located in the master branch. This synchronization is crucial for running t
 ### An example of the configuration object in the experiment_configuration array:
 ```
 "config_name": "TestConfiguration1"
-"gcsfuse_flags": "--implicit-dirs --max-conns-per-host 100 --enable-storage-client-library --debug_fuse --debug_gcs --stackdriver-export-interval=30s"
+"gcsfuse_flags": "--implicit-dirs --max-conns-per-host 100 --enable-storage-client-library --log-severity=TRACE --stackdriver-export-interval=30s"
 "branch": "master"
 "config_file_flags_as_json": {
     "write": {
