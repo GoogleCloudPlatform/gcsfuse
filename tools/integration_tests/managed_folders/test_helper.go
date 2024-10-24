@@ -76,14 +76,18 @@ func providePermissionToManagedFolder(bucket, managedFolderPath, serviceAccount,
 		t.Fatalf(fmt.Sprintf("Error in marshal the data into JSON format: %v", err))
 	}
 
-	localIAMPolicyFilePath := path.Join(os.Getenv("HOME"), "iam_policy.json")
+	f, err := os.CreateTemp(os.TempDir(), "iam-policy-*.json")
+	if err != nil {
+		t.Fatalf("error in creating file for iam-policy : %v", err)
+	}
+	defer operations.RemoveFile(f.Name())
 	// Write the JSON to a FileInNonEmptyManagedFoldersTest
-	err = os.WriteFile(localIAMPolicyFilePath, jsonData, setup.FilePermission_0600)
+	_, err = f.Write(jsonData)
 	if err != nil {
 		t.Fatalf(fmt.Sprintf("Error in writing iam policy in json FileInNonEmptyManagedFoldersTest : %v", err))
 	}
 
-	gcloudProvidePermissionCmd := fmt.Sprintf("alpha storage managed-folders set-iam-policy gs://%s/%s %s", bucket, managedFolderPath, localIAMPolicyFilePath)
+	gcloudProvidePermissionCmd := fmt.Sprintf("alpha storage managed-folders set-iam-policy gs://%s/%s %s", bucket, managedFolderPath, f.Name())
 	_, err = operations.ExecuteGcloudCommandf(gcloudProvidePermissionCmd)
 	if err != nil {
 		t.Fatalf("Error in providing permission to managed folder: %v", err)
