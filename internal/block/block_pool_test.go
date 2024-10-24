@@ -37,7 +37,7 @@ func TestBlockPoolTestSuite(t *testing.T) {
 }
 
 func (t *BlockPoolTest) TestInitBlockPool() {
-	bp, err := InitBlockPool(1024, 10, semaphore.NewWeighted(10))
+	bp, err := NewBlockPool(1024, 10, semaphore.NewWeighted(10))
 
 	require.Nil(t.T(), err)
 	require.NotNil(t.T(), bp)
@@ -47,28 +47,28 @@ func (t *BlockPoolTest) TestInitBlockPool() {
 }
 
 func (t *BlockPoolTest) TestInitBlockPoolForZeroBlockSize() {
-	_, err := InitBlockPool(0, 10, semaphore.NewWeighted(10))
+	_, err := NewBlockPool(0, 10, semaphore.NewWeighted(10))
 
 	require.NotNil(t.T(), err)
 	assert.Equal(t.T(), fmt.Errorf(invalidConfigError, 0, 10), err)
 }
 
 func (t *BlockPoolTest) TestInitBlockPoolForNegativeBlockSize() {
-	_, err := InitBlockPool(-1, 10, semaphore.NewWeighted(10))
+	_, err := NewBlockPool(-1, 10, semaphore.NewWeighted(10))
 
 	require.NotNil(t.T(), err)
 	assert.Equal(t.T(), fmt.Errorf(invalidConfigError, -1, 10), err)
 }
 
 func (t *BlockPoolTest) TestInitBlockPoolForZeroMaxBlocks() {
-	_, err := InitBlockPool(10, 0, semaphore.NewWeighted(10))
+	_, err := NewBlockPool(10, 0, semaphore.NewWeighted(10))
 
 	require.NotNil(t.T(), err)
 	assert.Equal(t.T(), fmt.Errorf(invalidConfigError, 10, 0), err)
 }
 
 func (t *BlockPoolTest) TestInitBlockPoolForNegativeMaxBlocks() {
-	_, err := InitBlockPool(10, -1, semaphore.NewWeighted(10))
+	_, err := NewBlockPool(10, -1, semaphore.NewWeighted(10))
 
 	require.NotNil(t.T(), err)
 	assert.Equal(t.T(), fmt.Errorf(invalidConfigError, 10, -1), err)
@@ -76,7 +76,7 @@ func (t *BlockPoolTest) TestInitBlockPoolForNegativeMaxBlocks() {
 
 // Represents when block is available on the freeBlocksCh.
 func (t *BlockPoolTest) TestGetWhenBlockIsAvailableForReuse() {
-	bp, err := InitBlockPool(1024, 10, semaphore.NewWeighted(10))
+	bp, err := NewBlockPool(1024, 10, semaphore.NewWeighted(10))
 	require.Nil(t.T(), err)
 	// Creating a block with some data and send it to blockCh.
 	b, err := createBlock(2)
@@ -101,7 +101,7 @@ func (t *BlockPoolTest) TestGetWhenBlockIsAvailableForReuse() {
 }
 
 func (t *BlockPoolTest) TestGetWhenTotalBlocksIsLessThanThanMaxBlocks() {
-	bp, err := InitBlockPool(1024, 10, semaphore.NewWeighted(10))
+	bp, err := NewBlockPool(1024, 10, semaphore.NewWeighted(10))
 	require.Nil(t.T(), err)
 
 	block, err := bp.Get()
@@ -113,7 +113,7 @@ func (t *BlockPoolTest) TestGetWhenTotalBlocksIsLessThanThanMaxBlocks() {
 
 func (t *BlockPoolTest) TestCreateBlockWithLargeSize() {
 	// Creating block of size 1TB
-	bp, err := InitBlockPool(1024*1024*1024*1024, 10, semaphore.NewWeighted(10))
+	bp, err := NewBlockPool(1024*1024*1024*1024, 10, semaphore.NewWeighted(10))
 	require.Nil(t.T(), err)
 
 	_, err = bp.Get()
@@ -123,14 +123,14 @@ func (t *BlockPoolTest) TestCreateBlockWithLargeSize() {
 }
 
 func (t *BlockPoolTest) TestBlockSize() {
-	bp, err := InitBlockPool(1024, 10, semaphore.NewWeighted(10))
+	bp, err := NewBlockPool(1024, 10, semaphore.NewWeighted(10))
 
 	require.Nil(t.T(), err)
 	require.Equal(t.T(), int64(1024), bp.BlockSize())
 }
 
 func (t *BlockPoolTest) TestClearFreeBlockChannel() {
-	bp, err := InitBlockPool(1024, 10, semaphore.NewWeighted(3))
+	bp, err := NewBlockPool(1024, 10, semaphore.NewWeighted(3))
 	require.Nil(t.T(), err)
 	b1, err := bp.Get()
 	require.Nil(t.T(), err)
@@ -159,7 +159,7 @@ func (t *BlockPoolTest) TestClearFreeBlockChannel() {
 }
 
 func (t *BlockPoolTest) TestGetWhenGlobalMaxBlocksIsZero() {
-	bp, err := InitBlockPool(1024, 10, semaphore.NewWeighted(0))
+	bp, err := NewBlockPool(1024, 10, semaphore.NewWeighted(0))
 	require.Nil(t.T(), err)
 
 	// First block is allowed even with globalMaxBlocks being zero.
@@ -171,7 +171,7 @@ func (t *BlockPoolTest) TestGetWhenGlobalMaxBlocksIsZero() {
 }
 
 func (t *BlockPoolTest) TestGetWhenTotalBlocksEqualToGlobalBlocks() {
-	bp, err := InitBlockPool(1024, 10, semaphore.NewWeighted(2))
+	bp, err := NewBlockPool(1024, 10, semaphore.NewWeighted(2))
 	require.Nil(t.T(), err)
 
 	// Create 1st block
@@ -188,7 +188,7 @@ func (t *BlockPoolTest) TestGetWhenTotalBlocksEqualToGlobalBlocks() {
 }
 
 func (t *BlockPoolTest) TestGetWhenTotalBlocksEqualToMaxBlocks() {
-	bp, err := InitBlockPool(1024, 10, semaphore.NewWeighted(2))
+	bp, err := NewBlockPool(1024, 10, semaphore.NewWeighted(2))
 	require.Nil(t.T(), err)
 	bp.totalBlocks = 10
 
