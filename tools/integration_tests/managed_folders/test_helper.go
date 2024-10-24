@@ -76,9 +76,13 @@ func providePermissionToManagedFolder(bucket, managedFolderPath, serviceAccount,
 		t.Fatalf(fmt.Sprintf("Error in marshal the data into JSON format: %v", err))
 	}
 
-	localIAMPolicyFilePath := path.Join(os.TempDir(), "iam_policy-"+setup.GenerateRandomString(5)+".json")
+	f, err := os.CreateTemp(os.TempDir(),"iam-policy-*.json")
+	if err != nil {
+		t.Fatalf(fmt.Sprintf("Error in creating file for iam-policy : %v", err))
+	}
+	defer operations.RemoveFile(f.Name())
 	// Write the JSON to a FileInNonEmptyManagedFoldersTest
-	err = os.WriteFile(localIAMPolicyFilePath, jsonData, setup.FilePermission_0600)
+	_, err = f.Write(jsonData)
 	if err != nil {
 		t.Fatalf(fmt.Sprintf("Error in writing iam policy in json FileInNonEmptyManagedFoldersTest : %v", err))
 	}
