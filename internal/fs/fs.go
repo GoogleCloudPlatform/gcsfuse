@@ -1893,8 +1893,30 @@ func (fs *fileSystem) RmDir(
 
 		// Are there any entries?
 		if len(entries) != 0 {
-			err = fuse.ENOTEMPTY
-			return
+			// We should not throw error if childDir has only
+			// unsupported objects such as a//b or /b in it in GCS, as
+			// these objects are ignored by GCSFuse, and thus can
+			// never be deleted by GCSFuse anyway. On the other hand,
+			// if childDir has even one supported object such as b, or a/b, then
+			// it is not empty wrt GCSFuse
+			// and deletion should fail.
+			childDirObjectName := childDir.Name().GcsObjectName()
+			var hasNoSupportedObjectsInSubtree bool
+			hasNoSupportedObjectsInSubtree, err = childDir.HasNoSupportedObjectsInSubtree(ctx)
+			if err != nil {
+				err = fmt.Errorf("DeleteChildDir (%q): %w", childDirObjectName, err)
+				return
+			}
+			if !hasNoSupportedObjectsInSubtree {
+				logger.Warnf("Failed to delete %q as it still has GCS objects in it.", childDirObjectName)
+				err = fuse.ENOTEMPTY
+				return
+			} else {
+				logger.Warnf("Cannot completely delete %q as this directory has unsupported GCS objects (i.e. objects containing // in their names, which cannot be accessed through gcsfuse) in its sub-tree.", childDirObjectName)
+				//err = fuse.ENOTEMPTY
+				//return
+				break
+			}
 		}
 
 		// Are we done listing?
