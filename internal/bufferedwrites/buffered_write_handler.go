@@ -73,7 +73,7 @@ func (wh *BufferedWriteHandler) Write(data []byte, offset int64) (err error) {
 		if wh.current == nil {
 			wh.current, err = wh.blockPool.Get()
 			if err != nil {
-				return
+				return fmt.Errorf("failed to get new block: %w", err)
 			}
 		}
 
@@ -103,13 +103,13 @@ func (wh *BufferedWriteHandler) Write(data []byte, offset int64) (err error) {
 // Sync uploads all the pending full buffers to GCS.
 func (wh *BufferedWriteHandler) Sync() (err error) {
 	// TODO: Will be added after uploadHandler changes are done.
-	return nil
+	return fmt.Errorf("not implemented")
 }
 
 // Flush finalizes the upload.
 func (wh *BufferedWriteHandler) Flush() (err error) {
 	// TODO: Will be added after uploadHandler changes are done.
-	return nil
+	return fmt.Errorf("not implemented")
 }
 
 // SetMtime stores the mtime with the bufferedWriteHandler.
@@ -117,7 +117,7 @@ func (wh *BufferedWriteHandler) SetMtime(mtime time.Time) {
 	wh.mtime = mtime
 }
 
-// WriteFileInfo return the file info i.e, how much data is buffered so far
+// WriteFileInfo returns the file info i.e, how much data has been buffered so far
 // and the mtime.
 func (wh *BufferedWriteHandler) WriteFileInfo() WriteFileInfo {
 	return WriteFileInfo{

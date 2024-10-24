@@ -57,6 +57,15 @@ func (testSuite *BufferedWriteTest) TestWrite() {
 	assert.Equal(testSuite.T(), int64(2), fileInfo.TotalSize)
 }
 
+func (testSuite *BufferedWriteTest) TestWriteWithEmptyBuffer() {
+	err := testSuite.bwh.Write([]byte{}, 0)
+
+	require.Nil(testSuite.T(), err)
+	fileInfo := testSuite.bwh.WriteFileInfo()
+	assert.Equal(testSuite.T(), testSuite.bwh.mtime, fileInfo.Mtime)
+	assert.Equal(testSuite.T(), int64(0), fileInfo.TotalSize)
+}
+
 func (testSuite *BufferedWriteTest) TestWriteEqualToBlockSize() {
 	size := 1024
 	data := strings.Repeat("A", size)
