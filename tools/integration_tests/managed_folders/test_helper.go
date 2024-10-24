@@ -78,7 +78,7 @@ func providePermissionToManagedFolder(bucket, managedFolderPath, serviceAccount,
 
 	f, err := os.CreateTemp(os.TempDir(), "iam-policy-*.json")
 	if err != nil {
-		t.Fatalf(fmt.Sprintf("Error in creating file for iam-policy : %v", err))
+		t.Fatalf("error in creating file for iam-policy : %v", err)
 	}
 	fileName := path.Join(os.TempDir(), f.Name())
 	defer operations.RemoveFile(fileName)
