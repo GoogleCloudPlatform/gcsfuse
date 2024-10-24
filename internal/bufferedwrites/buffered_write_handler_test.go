@@ -35,7 +35,7 @@ func TestBufferedWriteTestSuite(t *testing.T) {
 }
 
 func (testSuite *BufferedWriteTest) SetupTest() {
-	bwh, err := InitBWHandler(1024, 10, semaphore.NewWeighted(10))
+	bwh, err := NewBWHandler(1024, 10, semaphore.NewWeighted(10))
 	require.Nil(testSuite.T(), err)
 	testSuite.bwh = bwh
 }

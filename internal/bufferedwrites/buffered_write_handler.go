@@ -44,9 +44,9 @@ type WriteFileInfo struct {
 	Mtime     time.Time
 }
 
-// InitBWHandler initialises the bufferedWriteHandler struct.
-func InitBWHandler(blockSize int64, maxBlocks int32, globalMaxBlocksSem *semaphore.Weighted) (bwh *BufferedWriteHandler, err error) {
-	bp, err := block.InitBlockPool(blockSize, maxBlocks, globalMaxBlocksSem)
+// NewBWHandler creates the bufferedWriteHandler struct.
+func NewBWHandler(blockSize int64, maxBlocks int32, globalMaxBlocksSem *semaphore.Weighted) (bwh *BufferedWriteHandler, err error) {
+	bp, err := block.NewBlockPool(blockSize, maxBlocks, globalMaxBlocksSem)
 	if err != nil {
 		return
 	}

@@ -39,8 +39,8 @@ type BlockPool struct {
 	globalMaxBlocksSem *semaphore.Weighted
 }
 
-// InitBlockPool initializes the blockPool based on the user configuration.
-func InitBlockPool(blockSize int64, maxBlocks int32, globalMaxBlocksSem *semaphore.Weighted) (bp *BlockPool, err error) {
+// NewBlockPool creates the blockPool based on the user configuration.
+func NewBlockPool(blockSize int64, maxBlocks int32, globalMaxBlocksSem *semaphore.Weighted) (bp *BlockPool, err error) {
 	if blockSize <= 0 || maxBlocks <= 0 {
 		err = fmt.Errorf("invalid configuration provided for blockPool, blocksize: %d, maxBlocks: %d", blockSize, maxBlocks)
 		return
