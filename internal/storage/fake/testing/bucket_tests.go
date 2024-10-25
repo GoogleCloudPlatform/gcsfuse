@@ -425,6 +425,31 @@ func (t *bucketTest) matchesStartTime(start time.Time) Matcher {
 	return timeutil.TimeNear(start, slop)
 }
 
+// Given gcs.minObject and gcs.extendedObjectAttributes , assert on attributes of gcs.Object
+func (t *bucketTest) assertOnObjectAttributes(minObj *gcs.MinObject, extendedAttr *gcs.ExtendedObjectAttributes, o *gcs.Object) {
+	ExpectThat(minObj.Name, Equals(o.Name))
+	ExpectThat(minObj.Size, Equals(o.Size))
+	ExpectThat(minObj.Generation, Equals(o.Generation))
+	ExpectThat(minObj.MetaGeneration, Equals(o.MetaGeneration))
+	ExpectThat(minObj.Updated, DeepEquals(o.Updated))
+	ExpectThat(minObj.Metadata, DeepEquals(o.Metadata))
+	ExpectThat(minObj.ContentEncoding, Equals(o.ContentEncoding))
+	ExpectThat(minObj.CRC32C, Equals(o.CRC32C))
+	ExpectThat(extendedAttr.ContentType, Equals(o.ContentType))
+	ExpectThat(extendedAttr.ContentLanguage, Equals(o.ContentLanguage))
+	ExpectThat(extendedAttr.CacheControl, Equals(o.CacheControl))
+	ExpectThat(extendedAttr.Owner, Equals(o.Owner))
+	ExpectThat(extendedAttr.MD5, Equals(o.MD5))
+	ExpectThat(extendedAttr.MediaLink, Equals(o.MediaLink))
+	ExpectThat(extendedAttr.StorageClass, Equals(o.StorageClass))
+	ExpectThat(extendedAttr.Deleted, DeepEquals(o.Deleted))
+	ExpectThat(extendedAttr.ComponentCount, Equals(o.ComponentCount))
+	ExpectThat(extendedAttr.ContentDisposition, Equals(o.ContentDisposition))
+	ExpectThat(extendedAttr.CustomTime, Equals(o.CustomTime))
+	ExpectThat(extendedAttr.EventBasedHold, Equals(o.EventBasedHold))
+	ExpectThat(extendedAttr.Acl, DeepEquals(o.Acl))
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Create
 ////////////////////////////////////////////////////////////////////////
@@ -551,27 +576,7 @@ func (t *createTest) ObjectAttributes_Default() {
 			ReturnExtendedObjectAttributes: true})
 	AssertEq(nil, err)
 
-	ExpectThat(minObj.Name, Equals(o.Name))
-	ExpectThat(minObj.Size, Equals(o.Size))
-	ExpectThat(minObj.Generation, Equals(o.Generation))
-	ExpectThat(minObj.MetaGeneration, Equals(o.MetaGeneration))
-	ExpectThat(minObj.Updated, DeepEquals(o.Updated))
-	ExpectThat(minObj.Metadata, DeepEquals(o.Metadata))
-	ExpectThat(minObj.ContentEncoding, Equals(o.ContentEncoding))
-	ExpectThat(minObj.CRC32C, Equals(o.CRC32C))
-	ExpectThat(extendedAttr.ContentType, Equals(o.ContentType))
-	ExpectThat(extendedAttr.ContentLanguage, Equals(o.ContentLanguage))
-	ExpectThat(extendedAttr.CacheControl, Equals(o.CacheControl))
-	ExpectThat(extendedAttr.Owner, Equals(o.Owner))
-	ExpectThat(extendedAttr.MD5, Equals(o.MD5))
-	ExpectThat(extendedAttr.MediaLink, Equals(o.MediaLink))
-	ExpectThat(extendedAttr.StorageClass, Equals(o.StorageClass))
-	ExpectThat(extendedAttr.Deleted, DeepEquals(o.Deleted))
-	ExpectThat(extendedAttr.ComponentCount, Equals(o.ComponentCount))
-	ExpectThat(extendedAttr.ContentDisposition, Equals(o.ContentDisposition))
-	ExpectThat(extendedAttr.CustomTime, Equals(o.CustomTime))
-	ExpectThat(extendedAttr.EventBasedHold, Equals(o.EventBasedHold))
-	ExpectThat(extendedAttr.Acl, DeepEquals(o.Acl))
+	t.assertOnObjectAttributes(minObj, extendedAttr, o)
 }
 
 func (t *createTest) ObjectAttributes_Explicit() {
@@ -625,28 +630,7 @@ func (t *createTest) ObjectAttributes_Explicit() {
 			ReturnExtendedObjectAttributes: true})
 	AssertEq(nil, err)
 
-	ExpectThat(minObj.Name, Equals(o.Name))
-	ExpectThat(minObj.Size, Equals(o.Size))
-	ExpectThat(minObj.Generation, Equals(o.Generation))
-	ExpectThat(minObj.MetaGeneration, Equals(o.MetaGeneration))
-	ExpectThat(minObj.Updated, DeepEquals(o.Updated))
-	ExpectThat(minObj.Metadata, DeepEquals(o.Metadata))
-	ExpectThat(minObj.ContentEncoding, Equals(o.ContentEncoding))
-	ExpectThat(minObj.CRC32C, Equals(o.CRC32C))
-	ExpectThat(extendedAttr.ContentType, Equals(o.ContentType))
-	ExpectThat(extendedAttr.ContentLanguage, Equals(o.ContentLanguage))
-	ExpectThat(extendedAttr.CacheControl, Equals(o.CacheControl))
-	ExpectThat(extendedAttr.Owner, Equals(o.Owner))
-	ExpectThat(extendedAttr.MD5, Equals(o.MD5))
-	ExpectThat(extendedAttr.MediaLink, Equals(o.MediaLink))
-	ExpectThat(extendedAttr.StorageClass, Equals(o.StorageClass))
-	ExpectThat(extendedAttr.Deleted, DeepEquals(o.Deleted))
-	ExpectThat(extendedAttr.ComponentCount, Equals(o.ComponentCount))
-	ExpectThat(extendedAttr.ContentDisposition, Equals(o.ContentDisposition))
-	ExpectThat(extendedAttr.CustomTime, Equals(o.CustomTime))
-	ExpectThat(extendedAttr.EventBasedHold, Equals(o.EventBasedHold))
-	ExpectThat(extendedAttr.Acl, DeepEquals(o.Acl))
-
+	t.assertOnObjectAttributes(minObj, extendedAttr, o)
 }
 
 func (t *createTest) ErrorAfterPartialContents() {
@@ -3251,28 +3235,7 @@ func (t *updateTest) RemoveAllFields() {
 			ReturnExtendedObjectAttributes: true})
 	AssertEq(nil, err)
 
-	ExpectThat(minObj.Name, Equals(o.Name))
-	ExpectThat(minObj.Size, Equals(o.Size))
-	ExpectThat(minObj.Generation, Equals(o.Generation))
-	ExpectThat(minObj.MetaGeneration, Equals(o.MetaGeneration))
-	ExpectThat(minObj.Updated, DeepEquals(o.Updated))
-	ExpectThat(minObj.Metadata, DeepEquals(o.Metadata))
-	ExpectThat(minObj.ContentEncoding, Equals(o.ContentEncoding))
-	ExpectThat(minObj.CRC32C, Equals(o.CRC32C))
-	ExpectThat(extendedAttr.ContentType, Equals(o.ContentType))
-	ExpectThat(extendedAttr.ContentLanguage, Equals(o.ContentLanguage))
-	ExpectThat(extendedAttr.CacheControl, Equals(o.CacheControl))
-	ExpectThat(extendedAttr.Owner, Equals(o.Owner))
-	ExpectThat(extendedAttr.MD5, Equals(o.MD5))
-	ExpectThat(extendedAttr.MediaLink, Equals(o.MediaLink))
-	ExpectThat(extendedAttr.StorageClass, Equals(o.StorageClass))
-	ExpectThat(extendedAttr.Deleted, DeepEquals(o.Deleted))
-	ExpectThat(extendedAttr.ComponentCount, Equals(o.ComponentCount))
-	ExpectThat(extendedAttr.ContentDisposition, Equals(o.ContentDisposition))
-	ExpectThat(extendedAttr.CustomTime, Equals(o.CustomTime))
-	ExpectThat(extendedAttr.EventBasedHold, Equals(o.EventBasedHold))
-	ExpectThat(extendedAttr.Acl, DeepEquals(o.Acl))
-
+	t.assertOnObjectAttributes(minObj, extendedAttr, o)
 }
 
 func (t *updateTest) ModifyAllFields() {
@@ -3317,20 +3280,15 @@ func (t *updateTest) ModifyAllFields() {
 
 	ExpectThat(o.Metadata, DeepEquals(createReq.Metadata))
 
-	// Check that a listing agrees.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	// Make sure it matches when we stat object.
+	minObj, extendedAttr, err := t.bucket.StatObject(
+		t.ctx,
+		&gcs.StatObjectRequest{Name: o.Name,
+			ForceFetchFromGcs:              true,
+			ReturnExtendedObjectAttributes: true})
 	AssertEq(nil, err)
 
-	AssertThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
-
-	AssertEq(1, len(listing.Objects))
-	ExpectThat(listing.Objects[0].Name, Equals(o.Name))
-	ExpectThat(listing.Objects[0].Size, Equals(o.Size))
-	ExpectThat(listing.Objects[0].Generation, Equals(o.Generation))
-	ExpectThat(listing.Objects[0].MetaGeneration, Equals(o.MetaGeneration))
-	ExpectThat(listing.Objects[0].Updated, DeepEquals(o.Updated))
-	ExpectThat(listing.Objects[0].Metadata, DeepEquals(o.Metadata))
+	t.assertOnObjectAttributes(minObj, extendedAttr, o)
 }
 
 func (t *updateTest) MixedModificationsToFields() {
@@ -3375,20 +3333,15 @@ func (t *updateTest) MixedModificationsToFields() {
 
 	ExpectThat(o.Metadata, DeepEquals(createReq.Metadata))
 
-	// Check that a listing agrees.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	// Make sure it matches when we stat object.
+	minObj, extendedAttr, err := t.bucket.StatObject(
+		t.ctx,
+		&gcs.StatObjectRequest{Name: o.Name,
+			ForceFetchFromGcs:              true,
+			ReturnExtendedObjectAttributes: true})
 	AssertEq(nil, err)
 
-	AssertThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
-
-	AssertEq(1, len(listing.Objects))
-	ExpectThat(listing.Objects[0].Name, Equals(o.Name))
-	ExpectThat(listing.Objects[0].Size, Equals(o.Size))
-	ExpectThat(listing.Objects[0].Generation, Equals(o.Generation))
-	ExpectThat(listing.Objects[0].MetaGeneration, Equals(o.MetaGeneration))
-	ExpectThat(listing.Objects[0].Updated, DeepEquals(o.Updated))
-	ExpectThat(listing.Objects[0].Metadata, DeepEquals(o.Metadata))
+	t.assertOnObjectAttributes(minObj, extendedAttr, o)
 }
 
 func (t *updateTest) AddUserMetadata() {
@@ -3423,20 +3376,15 @@ func (t *updateTest) AddUserMetadata() {
 				"1": "burrito",
 			}))
 
-	// Check that a listing agrees.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	// Make sure it matches when we stat object.
+	minObj, extendedAttr, err := t.bucket.StatObject(
+		t.ctx,
+		&gcs.StatObjectRequest{Name: o.Name,
+			ForceFetchFromGcs:              true,
+			ReturnExtendedObjectAttributes: true})
 	AssertEq(nil, err)
 
-	AssertThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
-
-	AssertEq(1, len(listing.Objects))
-	ExpectThat(listing.Objects[0].Name, Equals(o.Name))
-	ExpectThat(listing.Objects[0].Size, Equals(o.Size))
-	ExpectThat(listing.Objects[0].Generation, Equals(o.Generation))
-	ExpectThat(listing.Objects[0].MetaGeneration, Equals(o.MetaGeneration))
-	ExpectThat(listing.Objects[0].Updated, DeepEquals(o.Updated))
-	ExpectThat(listing.Objects[0].Metadata, DeepEquals(o.Metadata))
+	t.assertOnObjectAttributes(minObj, extendedAttr, o)
 }
 
 func (t *updateTest) MixedModificationsToUserMetadata() {
@@ -3485,20 +3433,15 @@ func (t *updateTest) MixedModificationsToUserMetadata() {
 				"3": "updated",
 			}))
 
-	// Check that a listing agrees.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	// Make sure it matches when we stat object.
+	minObj, extendedAttr, err := t.bucket.StatObject(
+		t.ctx,
+		&gcs.StatObjectRequest{Name: o.Name,
+			ForceFetchFromGcs:              true,
+			ReturnExtendedObjectAttributes: true})
 	AssertEq(nil, err)
 
-	AssertThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
-
-	AssertEq(1, len(listing.Objects))
-	ExpectThat(listing.Objects[0].Name, Equals(o.Name))
-	ExpectThat(listing.Objects[0].Size, Equals(o.Size))
-	ExpectThat(listing.Objects[0].Generation, Equals(o.Generation))
-	ExpectThat(listing.Objects[0].MetaGeneration, Equals(o.MetaGeneration))
-	ExpectThat(listing.Objects[0].Updated, DeepEquals(o.Updated))
-	ExpectThat(listing.Objects[0].Metadata, DeepEquals(o.Metadata))
+	t.assertOnObjectAttributes(minObj, extendedAttr, o)
 }
 
 func (t *updateTest) UpdateTime() {
