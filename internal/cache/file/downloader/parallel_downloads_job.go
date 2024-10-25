@@ -189,7 +189,7 @@ func (job *Job) parallelDownloadObjectToFile(cacheFile *os.File) (err error) {
 	job.rangeChan = make(chan data.ObjectRange, 2*job.fileCacheConfig.ParallelDownloadsPerFile)
 	var numGoRoutines int64
 	var start int64
-	downloadChunkSize := job.fileCacheConfig.DownloadChunkSizeMb * cacheutil.MiB
+	downloadChunkSize := 4 * job.fileCacheConfig.DownloadChunkSizeMb * cacheutil.MiB
 	downloadErrGroup, downloadErrGroupCtx := errgroup.WithContext(job.cancelCtx)
 
 	// Start the goroutines as per the config and the availability.
