@@ -142,7 +142,6 @@ type MediaInfo struct {
 	size               int64 // mediaSize, if known.  Used only for calls to progressUpdater_.
 	progressUpdater    googleapi.ProgressUpdater
 	chunkRetryDeadline time.Duration
-	chunkTransferTimeout time.Duration
 }
 
 // NewInfoFromMedia should be invoked from the Media method of a call. It returns a
@@ -296,7 +295,6 @@ func (mi *MediaInfo) ResumableUpload(locURI string) *ResumableUpload {
 			}
 		},
 		ChunkRetryDeadline: mi.chunkRetryDeadline,
-		ChunkTransferTimeout: mi.chunkTransferTimeout,
 	}
 }
 

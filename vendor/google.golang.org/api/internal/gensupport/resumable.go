@@ -42,7 +42,6 @@ type ResumableUpload struct {
 	// ChunkRetryDeadline configures the per-chunk deadline after which no further
 	// retries should happen.
 	ChunkRetryDeadline time.Duration
-	ChunkTransferTimeout time.Duration
 
 	// Track current request invocation ID and attempt count for retry metrics
 	// and idempotency headers.
@@ -192,19 +191,12 @@ func (rx *ResumableUpload) Upload(ctx context.Context) (resp *http.Response, err
 	// Configure per-chunk retry deadline.
 	var retryDeadline time.Duration
 	if rx.ChunkRetryDeadline != 0 {
-		retryDeadline = rx.ChunkRetryDeadline
+		retryDeadline = 5 * time.Second
 	} else {
-		retryDeadline = defaultRetryDeadline
-		fmt.Println("Default: ", defaultRetryDeadline)
+		retryDeadline = 5 * time.Second
 	}
 
-	//var transferTimeout time.Duration
-	//if rx.ChunkTransferTimeout != 0 {
-	//	transferTimeout = rx.ChunkTransferTimeout
-	//} else {
-	//	transferTimeout = defaultTransferTimeout
-	//}
-
+	fmt.Println("RetryDeadline: ", retryDeadline)
 
 	// Send all chunks.
 	for {
@@ -221,7 +213,6 @@ func (rx *ResumableUpload) Upload(ctx context.Context) (resp *http.Response, err
 			pauseTimer := time.NewTimer(pause)
 			select {
 			case <-ctx.Done():
-				fmt.Println("In ctx")
 				quitAfterTimer.Stop()
 				pauseTimer.Stop()
 				if err == nil {
@@ -230,15 +221,10 @@ func (rx *ResumableUpload) Upload(ctx context.Context) (resp *http.Response, err
 				return prepareReturn(resp, err)
 			case <-pauseTimer.C:
 			case <-quitAfterTimer.C:
-				fmt.Println("Timer: ", quitAfterTimer.C)
 				pauseTimer.Stop()
 				return prepareReturn(resp, err)
 			}
 			pauseTimer.Stop()
-
-
-			//rCtx, cancel := context.WithTimeout(ctx, transferTimeout)
-			//defer cancel()
 
 			// Check for context cancellation or timeout once more. If more than one
 			// case in the select statement above was satisfied at the same time, Go
@@ -246,17 +232,13 @@ func (rx *ResumableUpload) Upload(ctx context.Context) (resp *http.Response, err
 			// That can cause an operation to go through even if the context was
 			// canceled before or the timeout was reached.
 			select {
-			//case <- rCtx.Done():
-			//  continue
 			case <-ctx.Done():
-				fmt.Println("In ctx")
 				quitAfterTimer.Stop()
 				if err == nil {
 					err = ctx.Err()
 				}
 				return prepareReturn(resp, err)
- 			case <-quitAfterTimer.C:
-				fmt.Println("Timer: ", quitAfterTimer.C)
+			case <-quitAfterTimer.C:
 				return prepareReturn(resp, err)
 			default:
 			}
@@ -288,6 +270,6 @@ func (rx *ResumableUpload) Upload(ctx context.Context) (resp *http.Response, err
 			continue
 		}
 
- 		return prepareReturn(resp, err)
+		return prepareReturn(resp, err)
 	}
 }

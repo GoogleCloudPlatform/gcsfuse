@@ -86,8 +86,7 @@ type Writer struct {
 	//
 	// To set a deadline on the entire upload, use context timeout or
 	// cancellation.
-	ChunkRetryDeadline   time.Duration
-	ChunkTransferTimeout time.Duration
+	ChunkRetryDeadline time.Duration
 
 	// ForceEmptyContentType is an optional parameter that is used to disable
 	// auto-detection of Content-Type. By default, if a blank Content-Type
@@ -189,7 +188,6 @@ func (w *Writer) openWriter() (err error) {
 		ctx:                   w.ctx,
 		chunkSize:             w.ChunkSize,
 		chunkRetryDeadline:    w.ChunkRetryDeadline,
-		chunkTransferTimeout:  w.ChunkTransferTimeout,
 		bucket:                w.o.bucket,
 		attrs:                 &w.ObjectAttrs,
 		conds:                 w.o.conds,
