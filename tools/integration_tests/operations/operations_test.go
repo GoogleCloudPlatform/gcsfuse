@@ -213,7 +213,7 @@ func TestMain(m *testing.M) {
 
 	if successCode == 0 {
 		// Test for admin permission on test bucket.
-		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flagsSet, "objectAdmin", m)
+		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(ctx, storageClient, flagsSet, "objectAdmin", m)
 	}
 
 	os.Exit(successCode)

@@ -393,7 +393,7 @@ func (f *FileInode) Attributes(
 		var sr gcsx.StatResult
 		sr, err = f.content.Stat()
 		if err != nil {
-			err = fmt.Errorf("Stat: %w", err)
+			err = fmt.Errorf("stat: %w", err)
 			return
 		}
 
@@ -492,7 +492,7 @@ func (f *FileInode) SetMtime(
 	if f.content != nil {
 		sr, err = f.content.Stat()
 		if err != nil {
-			err = fmt.Errorf("Stat: %w", err)
+			err = fmt.Errorf("stat: %w", err)
 			return
 		}
 	}

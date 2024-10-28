@@ -16,7 +16,7 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: fio-tester-{{ .Values.instanceId }}-{{ .Values.scenario }}-{{ .Values.fio.readType }}-{{ lower .Values.fio.fileSize }}-{{ lower .Values.fio.blockSize }}-{{ .Values.fio.numThreads }}-{{ .Values.fio.filesPerThread }}
+  name: {{ .Values.podName }}
   {{- if ne .Values.scenario "local-ssd" }}
   annotations:
     gke-gcsfuse/volumes: "true"
@@ -78,7 +78,7 @@ spec:
         cd ..
 
         echo "Preparing fio config file..."
-        filename=/read_cache_load_test.fio
+        filename=/fio_loading_test_job.fio
         {{ if eq .Values.fio.fileSize "200G" }}
         cat > $filename << EOF
         [global]
@@ -105,7 +105,7 @@ spec:
         offset_increment=1%
         EOF
         {{ else }}
-        wget -O $filename https://raw.githubusercontent.com/GoogleCloudPlatform/gcsfuse/read_cache_release/perfmetrics/scripts/job_files/read_cache_load_test.fio
+        wget -O $filename https://raw.githubusercontent.com/GoogleCloudPlatform/gcsfuse/master/perfmetrics/scripts/job_files/read_cache_load_test.fio
         {{ end }}
 
         echo "Setup default values..."
@@ -126,13 +126,14 @@ spec:
         time ls -R $workload_dir 1> /dev/null
 
         echo "Run fio tests..."
-        output_dir=/data/fio-output/{{ .Values.instanceId }}/${file_size}-{{ lower .Values.fio.blockSize}}-${num_of_threads}-${no_of_files_per_thread}/{{ .Values.scenario }}/$read_type
+        output_dir=/data/fio-output/{{ .Values.outputDirPrefix }}
         mkdir -p ${output_dir}
 
         # dump the gcsfuse-mount-configuration to a file in output-directory.
         {{ if eq .Values.scenario "gcsfuse-generic" }}
         echo "{{ .Values.gcsfuse.mountOptions }}" > ${output_dir}/gcsfuse_mount_options
         {{ end }}
+        echo "{{ .Values.podName }}" > ${output_dir}/pod_name
 
         for i in $(seq $epoch); do
           echo "[Epoch ${i}] start time:" `date +%s`
@@ -155,7 +156,7 @@ spec:
         done
         
         {{ if eq .Values.scenario "local-ssd" }}
-        gsutil -m cp -R /data/fio-output/{{ .Values.instanceId }}/* gs://{{ .Values.bucketName }}/fio-output/{{ .Values.instanceId }}/
+        gsutil -m cp -R /data/fio-output/* gs://{{ .Values.bucketName }}/fio-output/
         {{ end }}
         
         echo "fio job completed!"

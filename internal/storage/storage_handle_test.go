@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -41,9 +42,7 @@ func TestStorageHandleTestSuite(t *testing.T) {
 }
 
 func (testSuite *StorageHandleTest) SetupTest() {
-	var err error
 	testSuite.fakeStorage = NewFakeStorage()
-	assert.Nil(testSuite.T(), err)
 }
 
 func (testSuite *StorageHandleTest) TearDownTest() {
@@ -251,6 +250,184 @@ func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_WithGRPCClientPro
 	assert.NotNil(testSuite.T(), err)
 	assert.Nil(testSuite.T(), storageClient)
 	assert.Contains(testSuite.T(), err.Error(), fmt.Sprintf("client-protocol requested is not HTTP1 or HTTP2: %s", cfg.GRPC))
+}
+
+func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_WithReadStallRetry() {
+	testCases := []struct {
+		name                 string
+		enableReadStallRetry bool
+	}{
+		{
+			name:                 "ReadStallRetryEnabled",
+			enableReadStallRetry: true,
+		},
+		{
+			name:                 "ReadStallRetryDisabled",
+			enableReadStallRetry: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		testSuite.Run(tc.name, func() {
+			sc := storageutil.GetDefaultStorageClientConfig()
+			sc.ReadStallRetryConfig.Enable = tc.enableReadStallRetry
+
+			storageClient, err := createHTTPClientHandle(context.Background(), &sc)
+
+			assert.Nil(testSuite.T(), err)
+			assert.NotNil(testSuite.T(), storageClient)
+		})
+	}
+}
+
+func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_ReadStallInitialReqTimeout() {
+	testCases := []struct {
+		name              string
+		initialReqTimeout time.Duration
+	}{
+		{
+			name:              "ShortTimeout",
+			initialReqTimeout: 1 * time.Millisecond,
+		},
+		{
+			name:              "LongTimeout",
+			initialReqTimeout: 10 * time.Second,
+		},
+	}
+
+	for _, tc := range testCases {
+		testSuite.Run(tc.name, func() {
+			sc := storageutil.GetDefaultStorageClientConfig()
+			sc.ReadStallRetryConfig.Enable = true
+			sc.ReadStallRetryConfig.InitialReqTimeout = tc.initialReqTimeout
+
+			storageClient, err := createHTTPClientHandle(context.Background(), &sc)
+
+			assert.Nil(testSuite.T(), err)
+			assert.NotNil(testSuite.T(), storageClient)
+		})
+	}
+}
+
+func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_ReadStallMinReqTimeout() {
+	testCases := []struct {
+		name          string
+		minReqTimeout time.Duration
+	}{
+		{
+			name:          "ShortTimeout",
+			minReqTimeout: 1 * time.Millisecond,
+		},
+		{
+			name:          "LongTimeout",
+			minReqTimeout: 10 * time.Second,
+		},
+	}
+
+	for _, tc := range testCases {
+		testSuite.Run(tc.name, func() {
+			sc := storageutil.GetDefaultStorageClientConfig()
+			sc.ReadStallRetryConfig.Enable = true
+			sc.ReadStallRetryConfig.MinReqTimeout = tc.minReqTimeout
+
+			storageClient, err := createHTTPClientHandle(context.Background(), &sc)
+
+			assert.Nil(testSuite.T(), err)
+			assert.NotNil(testSuite.T(), storageClient)
+		})
+	}
+}
+
+func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_ReadStallReqIncreaseRate() {
+	testCases := []struct {
+		name            string
+		reqIncreaseRate float64
+		expectErr       bool
+	}{
+		{
+			name:            "NegativeRate",
+			reqIncreaseRate: -0.5,
+			expectErr:       true,
+		},
+		{
+			name:            "ZeroRate",
+			reqIncreaseRate: 0.0,
+			expectErr:       true,
+		},
+		{
+			name:            "PositiveRate",
+			reqIncreaseRate: 1.5,
+			expectErr:       false,
+		},
+	}
+
+	for _, tc := range testCases {
+		testSuite.Run(tc.name, func() {
+			sc := storageutil.GetDefaultStorageClientConfig()
+			sc.ReadStallRetryConfig.Enable = true
+			sc.ReadStallRetryConfig.ReqIncreaseRate = tc.reqIncreaseRate
+
+			storageClient, err := createHTTPClientHandle(context.Background(), &sc)
+
+			if tc.expectErr {
+				assert.NotNil(testSuite.T(), err)
+			} else {
+				assert.Nil(testSuite.T(), err)
+				assert.NotNil(testSuite.T(), storageClient)
+			}
+		})
+	}
+}
+
+func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_ReadStallReqTargetPercentile() {
+	testCases := []struct {
+		name                string
+		reqTargetPercentile float64
+		expectErr           bool
+	}{
+		{
+			name:                "LowPercentile",
+			reqTargetPercentile: 0.25, // 25th percentile
+			expectErr:           false,
+		},
+		{
+			name:                "MidPercentile",
+			reqTargetPercentile: 0.50, // 50th percentile
+			expectErr:           false,
+		},
+		{
+			name:                "HighPercentile",
+			reqTargetPercentile: 0.90, // 90th percentile
+			expectErr:           false,
+		},
+		{
+			name:                "InvalidPercentile-Low",
+			reqTargetPercentile: -0.5, // Invalid percentile
+			expectErr:           true,
+		},
+		{
+			name:                "InvalidPercentile-High",
+			reqTargetPercentile: 1.5, // Invalid percentile
+			expectErr:           true,
+		},
+	}
+
+	for _, tc := range testCases {
+		testSuite.Run(tc.name, func() {
+			sc := storageutil.GetDefaultStorageClientConfig()
+			sc.ReadStallRetryConfig.Enable = true
+			sc.ReadStallRetryConfig.ReqTargetPercentile = tc.reqTargetPercentile
+
+			storageClient, err := createHTTPClientHandle(context.Background(), &sc)
+
+			if tc.expectErr {
+				assert.NotNil(testSuite.T(), err)
+			} else {
+				assert.Nil(testSuite.T(), err)
+				assert.NotNil(testSuite.T(), storageClient)
+			}
+		})
+	}
 }
 
 func (testSuite *StorageHandleTest) TestNewStorageHandleWithGRPCClientWithCustomEndpointNilAndAuthEnabled() {

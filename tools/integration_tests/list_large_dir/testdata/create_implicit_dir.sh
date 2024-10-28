@@ -11,11 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+set -e
 # $1 testbucket
 # $2 PrefixImplicitDirInLargeDirListTest
 # $3 NumberOfImplicitDirsInDirectoryWithTwelveThousandFiles - 100
-
 TEST_BUCKET=$1
 IMPLICIT_DIR=$2
 NUMBER_OF_FILES=$3

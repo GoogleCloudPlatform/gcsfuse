@@ -130,11 +130,11 @@ type ServerConfig struct {
 func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileSystem, error) {
 	// Check permissions bits.
 	if serverCfg.FilePerms&^os.ModePerm != 0 {
-		return nil, fmt.Errorf("Illegal file perms: %v", serverCfg.FilePerms)
+		return nil, fmt.Errorf("illegal file perms: %v", serverCfg.FilePerms)
 	}
 
 	if serverCfg.DirPerms&^os.ModePerm != 0 {
-		return nil, fmt.Errorf("Illegal dir perms: %v", serverCfg.FilePerms)
+		return nil, fmt.Errorf("illegal dir perms: %v", serverCfg.FilePerms)
 	}
 
 	mtimeClock := timeutil.RealClock()
@@ -1465,7 +1465,7 @@ func (fs *fileSystem) SetInodeAttributes(
 	if isFile && op.Size != nil {
 		err = file.Truncate(ctx, int64(*op.Size))
 		if err != nil {
-			err = fmt.Errorf("Truncate: %w", err)
+			err = fmt.Errorf("truncate: %w", err)
 			return err
 		}
 	}
@@ -1538,7 +1538,7 @@ func (fs *fileSystem) MkDir(
 	// (unlikely, so we're probably okay with failing here).
 	child := fs.lookUpOrCreateInodeIfNotStale(*result)
 	if child == nil {
-		err = fmt.Errorf("Newly-created record is already stale")
+		err = fmt.Errorf("newly-created record is already stale")
 		return err
 	}
 
@@ -1632,7 +1632,7 @@ func (fs *fileSystem) createFile(
 	// (unlikely, so we're probably okay with failing here).
 	child = fs.lookUpOrCreateInodeIfNotStale(*result)
 	if child == nil {
-		err = fmt.Errorf("Newly-created record is already stale")
+		err = fmt.Errorf("newly-created record is already stale")
 		return
 	}
 
@@ -1783,7 +1783,7 @@ func (fs *fileSystem) CreateSymlink(
 	// (unlikely, so we're probably okay with failing here).
 	child := fs.lookUpOrCreateInodeIfNotStale(*result)
 	if child == nil {
-		err = fmt.Errorf("Newly-created record is already stale")
+		err = fmt.Errorf("newly-created record is already stale")
 		return err
 	}
 
@@ -2090,6 +2090,9 @@ func (fs *fileSystem) renameHierarchicalDir(ctx context.Context, oldParent inode
 		return err
 	}
 
+	oldDirName := inode.NewDirName(oldParent.Name(), oldName)
+	newDirName := inode.NewDirName(newParent.Name(), newName)
+
 	// If the call for getBucketDirInode fails it means directory does not exist.
 	newDirInode, err := fs.getBucketDirInode(ctx, newParent, newName)
 	if err == nil {
@@ -2097,13 +2100,17 @@ func (fs *fileSystem) renameHierarchicalDir(ctx context.Context, oldParent inode
 		if err = fs.checkDirNotEmpty(newDirInode, newName); err != nil {
 			return err
 		}
+
+		// This refers to an empty destination directory.
+		// The RenameFolder API does not allow renaming to an existing empty directory.
+		// To make this work, we delete the empty directory first from gcsfuse and then perform rename.
+		newParent.Lock()
+		_ = newParent.DeleteChildDir(ctx, newName, false, newDirInode)
+		newParent.Unlock()
 		pendingInodes = append(pendingInodes, newDirInode)
 	}
 
 	// Note:The renameDirLimit is not utilized in the folder rename operation because there is no user-defined limit on new renames.
-
-	oldDirName := inode.NewDirName(oldParent.Name(), oldName)
-	newDirName := inode.NewDirName(newParent.Name(), newName)
 	oldParent.Lock()
 	defer oldParent.Unlock()
 
@@ -2199,7 +2206,7 @@ func (fs *fileSystem) renameNonHierarchicalDir(
 		}
 
 		if err = fs.invalidateChildFileCacheIfExist(oldDir, o.Name); err != nil {
-			return fmt.Errorf("Unlink: while invalidating cache for delete file: %w", err)
+			return fmt.Errorf("unlink: while invalidating cache for delete file: %w", err)
 		}
 	}
 
@@ -2266,7 +2273,7 @@ func (fs *fileSystem) Unlink(
 	}
 
 	if err := fs.invalidateChildFileCacheIfExist(parent, fileName.GcsObjectName()); err != nil {
-		return fmt.Errorf("Unlink: while invalidating cache for delete file: %w", err)
+		return fmt.Errorf("unlink: while invalidating cache for delete file: %w", err)
 	}
 
 	return

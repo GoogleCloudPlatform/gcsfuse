@@ -39,7 +39,7 @@ func executeCommandForOperation(cmd *exec.Cmd) (err error) {
 	cmd.Stderr = &stderr
 	err = cmd.Run()
 	if err != nil {
-		err = fmt.Errorf("Command execution %s failed: %v", cmd, cmd.Stderr)
+		err = fmt.Errorf("command execution %s failed: %v", cmd, cmd.Stderr)
 	}
 	return
 }
@@ -60,14 +60,6 @@ func CopyObject(srcPath string, destPath string) (err error) {
 	return
 }
 
-func CopyDirWithRootPermission(srcDirPath string, destDirPath string) (err error) {
-	cmd := exec.Command("sudo", "cp", "--recursive", srcDirPath, destDirPath)
-
-	err = executeCommandForOperation(cmd)
-
-	return
-}
-
 func Move(srcPath string, destPath string) (err error) {
 	cmd := exec.Command("mv", srcPath, destPath)
 
@@ -78,21 +70,21 @@ func Move(srcPath string, destPath string) (err error) {
 
 func RenameDir(dirName string, newDirName string) (err error) {
 	if _, err = os.Stat(newDirName); err == nil {
-		err = fmt.Errorf("Renamed directory %s already present", newDirName)
+		err = fmt.Errorf("renamed directory %s already present", newDirName)
 		return
 	}
 
 	if err = os.Rename(dirName, newDirName); err != nil {
-		err = fmt.Errorf("Rename unsuccessful: %v", err)
+		err = fmt.Errorf("rename unsuccessful: %v", err)
 		return
 	}
 
 	if _, err = os.Stat(dirName); err == nil {
-		err = fmt.Errorf("Original directory %s still exists", dirName)
+		err = fmt.Errorf("original directory %s still exists", dirName)
 		return
 	}
 	if _, err = os.Stat(newDirName); err != nil {
-		err = fmt.Errorf("Renamed directory %s not found", newDirName)
+		err = fmt.Errorf("renamed directory %s not found", newDirName)
 		return
 	}
 	return

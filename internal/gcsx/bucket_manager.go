@@ -41,7 +41,6 @@ type BucketConfig struct {
 	StatCacheMaxSizeMB                 uint64
 	StatCacheTTL                       time.Duration
 	EnableMonitoring                   bool
-	DebugGCS                           bool
 
 	// Files backed by on object of length at least AppendThreshold that have
 	// only been appended to (i.e. none of the object's contents have been
@@ -126,7 +125,7 @@ func setUpRateLimiting(
 		window)
 
 	if err != nil {
-		err = fmt.Errorf("Choosing operation token bucket capacity: %w", err)
+		err = fmt.Errorf("choosing operation token bucket capacity: %w", err)
 		return
 	}
 
@@ -135,7 +134,7 @@ func setUpRateLimiting(
 		window)
 
 	if err != nil {
-		err = fmt.Errorf("Choosing egress bandwidth token bucket capacity: %w", err)
+		err = fmt.Errorf("choosing egress bandwidth token bucket capacity: %w", err)
 		return
 	}
 
@@ -214,7 +213,7 @@ func (bm *bucketManager) SetUpBucket(
 
 	// Enable Syncer
 	if bm.config.TmpObjectPrefix == "" {
-		err = errors.New("You must set TmpObjectPrefix.")
+		err = errors.New("you must set TmpObjectPrefix")
 		return
 	}
 	sb = NewSyncerBucket(

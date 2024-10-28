@@ -42,7 +42,7 @@ func ReadObject(
 	defer func() {
 		closeErr := rc.Close()
 		if closeErr != nil && err == nil {
-			err = fmt.Errorf("Close: %v", closeErr)
+			err = fmt.Errorf("close: %v", closeErr)
 		}
 	}()
 

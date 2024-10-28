@@ -52,8 +52,8 @@ func mountWithStorageHandle(
 
 		if err != nil {
 			err = fmt.Errorf(
-				"Error writing to temporary directory (%q); are you sure it exists "+
-					"with the correct permissions?",
+				"error writing to temporary directory (%q); are you sure it exists "+
+					"with the correct permissions",
 				err.Error())
 			return
 		}
@@ -94,7 +94,6 @@ be interacting with the file system.`)
 		EnableMonitoring:                   newConfig.Metrics.StackdriverExportInterval > 0 || newConfig.Metrics.PrometheusPort != 0,
 		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.
 		TmpObjectPrefix:                    ".gcsfuse_tmp/",
-		DebugGCS:                           newConfig.Debug.Gcs,
 	}
 	bm := gcsx.NewBucketManager(bucketCfg, storageHandle)
 
@@ -137,7 +136,7 @@ be interacting with the file system.`)
 	mountCfg := getFuseMountConfig(fsName, newConfig)
 	mfs, err = fuse.Mount(mountPoint, server, mountCfg)
 	if err != nil {
-		err = fmt.Errorf("Mount: %w", err)
+		err = fmt.Errorf("mount: %w", err)
 		return
 	}
 

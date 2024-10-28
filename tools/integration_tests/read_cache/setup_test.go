@@ -64,7 +64,7 @@ const (
 	logFileNameForMountedDirectoryTests    = "/tmp/gcsfuse_read_cache_test_logs/log.json"
 	parallelDownloadsPerFile               = 4
 	maxParallelDownloads                   = -1
-	downloadChunkSizeMB                    = 3
+	downloadChunkSizeMB                    = 4
 	enableCrcCheck                         = true
 )
 

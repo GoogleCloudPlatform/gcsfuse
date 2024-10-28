@@ -16,7 +16,7 @@ package gcsx_test
 
 import (
 	"errors"
-	"io/ioutil"
+	"io"
 	"strings"
 	"testing"
 
@@ -89,7 +89,7 @@ func (t *PrefixBucketTest) NewReader() {
 	AssertEq(nil, err)
 	defer rc.Close()
 
-	actual, err := ioutil.ReadAll(rc)
+	actual, err := io.ReadAll(rc)
 	AssertEq(nil, err)
 	ExpectEq(contents, string(actual))
 }
@@ -116,6 +116,34 @@ func (t *PrefixBucketTest) CreateObject() {
 	actual, err := storageutil.ReadObject(t.ctx, t.wrapped, t.prefix+suffix)
 	AssertEq(nil, err)
 	ExpectEq(contents, string(actual))
+}
+
+func (t *PrefixBucketTest) CreateObjectChunkWriterAndFinalizeUpload() {
+	var err error
+	suffix := "taco"
+	content := []byte("foobar")
+
+	// Create the object.
+	w, err := t.bucket.CreateObjectChunkWriter(
+		t.ctx,
+		&gcs.CreateObjectRequest{
+			Name:            suffix,
+			ContentLanguage: "en-GB",
+			Contents:        nil,
+		},
+		1024, nil)
+	AssertEq(nil, err)
+	_, err = w.Write(content)
+	AssertEq(nil, err)
+	o, err := t.bucket.FinalizeUpload(t.ctx, w)
+
+	AssertEq(nil, err)
+	ExpectEq(suffix, o.Name)
+	ExpectEq("en-GB", o.ContentLanguage)
+	// Read it through the back door.
+	actual, err := storageutil.ReadObject(t.ctx, t.wrapped, t.prefix+suffix)
+	AssertEq(nil, err)
+	ExpectEq(string(content), string(actual))
 }
 
 func (t *PrefixBucketTest) CopyObject() {
@@ -456,8 +484,9 @@ func TestRenameFolder(t *testing.T) {
 	_, err = wrapped.CreateFolder(ctx, name)
 	assert.Nil(t, err)
 
-	_, err = bucket.RenameFolder(ctx, old_suffix, new_suffix)
+	f, err := bucket.RenameFolder(ctx, old_suffix, new_suffix)
 	assert.Nil(t, err)
+	assert.Equal(t, new_suffix, f.Name)
 
 	// New folder should get created
 	_, err = bucket.GetFolder(ctx, new_suffix)

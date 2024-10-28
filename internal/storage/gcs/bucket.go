@@ -17,6 +17,7 @@ package gcs
 import (
 	"io"
 
+	"cloud.google.com/go/storage"
 	"golang.org/x/net/context"
 )
 
@@ -42,6 +43,15 @@ const (
 	// into the underlying bucket implementation.
 	ReqIdField string = "GcsReqId"
 )
+
+// Writer provides an abstraction for writing data to a storage location.
+// This interface allows for different implementations, particularly for testing
+// purposes, such as the fake implementation in fake/bucket.go.
+type Writer interface {
+	io.WriteCloser
+	ObjectName() string
+	Attrs() *storage.ObjectAttrs
+}
 
 // Bucket represents a GCS bucket, pre-bound with a bucket name and necessary
 // authorization information.
@@ -81,6 +91,15 @@ type Bucket interface {
 	CreateObject(
 		ctx context.Context,
 		req *CreateObjectRequest) (*Object, error)
+
+	// CreateObjectChunkWriter creates a *storage.Writer that can be used for
+	// resumable uploads. The new object will be available for reading after the
+	// writer is closed (object is finalised).
+	CreateObjectChunkWriter(ctx context.Context, req *CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (Writer, error)
+
+	// FinalizeUpload closes the storage.Writer which completes the write
+	// operation and creates an object on GCS.
+	FinalizeUpload(ctx context.Context, writer Writer) (*Object, error)
 
 	// Copy an object to a new name, preserving all metadata. Any existing
 	// generation of the destination name will be overwritten.

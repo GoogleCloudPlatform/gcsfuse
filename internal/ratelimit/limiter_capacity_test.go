@@ -38,7 +38,7 @@ func TestLimiterCapacitySuite(t *testing.T) {
 func rateLessThanOrEqualToZero(t *testing.T, rate float64) {
 	_, err := ChooseLimiterCapacity(rate, 30)
 
-	expectedError := fmt.Sprintf("Illegal rate: %f", rate)
+	expectedError := fmt.Sprintf("illegal rate: %f", rate)
 
 	assert.EqualError(t, err, expectedError)
 }
@@ -58,7 +58,7 @@ func (t *LimiterCapacityTest) TestRateEqualToZero() {
 func windowLessThanOrEqualToZero(t *testing.T, window time.Duration) {
 	_, err := ChooseLimiterCapacity(1, window)
 
-	expectedError := fmt.Sprintf("Illegal window: %v", window)
+	expectedError := fmt.Sprintf("illegal window: %v", window)
 
 	assert.EqualError(t, err, expectedError)
 }
@@ -82,7 +82,7 @@ func (t *LimiterCapacityTest) TestCapacityEqualToZero() {
 	capacity, err := ChooseLimiterCapacity(rate, window)
 
 	expectedError := fmt.Sprintf(
-		"Can't use a token bucket to limit to %f Hz over a window of %v (result is a capacity of %f)", rate, window, float64(capacity))
+		"can't use a token bucket to limit to %f Hz over a window of %v (result is a capacity of %f)", rate, window, float64(capacity))
 	assert.EqualError(t.T(), err, expectedError)
 }
 

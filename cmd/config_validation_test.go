@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"path"
 	"runtime"
@@ -37,7 +38,7 @@ func getConfigObject(t *testing.T, args []string) (*cfg.Config, error) {
 	require.Nil(t, err)
 	cmdArgs := append([]string{"gcsfuse"}, args...)
 	cmdArgs = append(cmdArgs, "a")
-	cmd.SetArgs(cmdArgs)
+	cmd.SetArgs(convertToPosixArgs(cmdArgs, cmd))
 	if err = cmd.Execute(); err != nil {
 		return nil, err
 	}
@@ -187,14 +188,25 @@ func TestValidateConfigFile_WriteConfig(t *testing.T) {
 			name:       "Empty config file [default values].",
 			configFile: "testdata/empty_file.yaml",
 			expectedConfig: &cfg.Config{
-				Write: cfg.WriteConfig{CreateEmptyFile: false},
+				Write: cfg.WriteConfig{
+					CreateEmptyFile:                   false,
+					BlockSizeMb:                       64,
+					ExperimentalEnableStreamingWrites: false,
+					GlobalMaxBlocks:                   math.MaxInt64,
+					MaxBlocksPerFile:                  math.MaxInt64},
 			},
 		},
 		{
 			name:       "Valid config file.",
 			configFile: "testdata/valid_config.yaml",
 			expectedConfig: &cfg.Config{
-				Write: cfg.WriteConfig{CreateEmptyFile: true},
+				Write: cfg.WriteConfig{
+					CreateEmptyFile:                   false, // changed due to enabled streaming writes.
+					BlockSizeMb:                       10,
+					ExperimentalEnableStreamingWrites: true,
+					GlobalMaxBlocks:                   20,
+					MaxBlocksPerFile:                  2,
+				},
 			},
 		},
 	}
@@ -282,6 +294,34 @@ func TestValidateConfigFile_InvalidConfigThrowsError(t *testing.T) {
 		{
 			name:       "metadata_cache_size_too_high",
 			configFile: "testdata/metadata_cache/metadata_cache_config_ttl_too_high.yaml",
+		},
+		{
+			name:       "write_block_size_0",
+			configFile: "testdata/write_config/invalid_write_config_due_to_0_block_size.yaml",
+		},
+		{
+			name:       "small_global_max_blocks",
+			configFile: "testdata/write_config/invalid_write_config_due_to_small_global_max_blocks.yaml",
+		},
+		{
+			name:       "small_max_blocks_per_file",
+			configFile: "testdata/write_config/invalid_write_config_due_to_small_max_blocks_per_file.yaml",
+		},
+		{
+			name:       "negative req_increase_rate",
+			configFile: "testdata/gcs_retries/read_stall/invalid_req_increase_rate_negative.yaml",
+		},
+		{
+			name:       "zero req_increase_rate",
+			configFile: "testdata/gcs_retries/read_stall/invalid_req_increase_rate_zero.yaml",
+		},
+		{
+			name:       "large req_target_percentile",
+			configFile: "testdata/gcs_retries/read_stall/invalid_req_target_percentile_large.yaml",
+		},
+		{
+			name:       "negative req_target_percentile",
+			configFile: "testdata/gcs_retries/read_stall/invalid_req_target_percentile_negative.yaml",
 		},
 	}
 
@@ -642,6 +682,58 @@ func TestValidateConfigFile_MetadataCacheConfigSuccessful(t *testing.T) {
 
 			if assert.NoError(t, err) {
 				assert.EqualValues(t, tc.expectedConfig.MetadataCache, gotConfig.MetadataCache)
+			}
+		})
+	}
+}
+
+func TestValidateConfigFile_ReadStallConfigSuccessful(t *testing.T) {
+	testCases := []struct {
+		name           string
+		configFile     string
+		expectedConfig *cfg.Config
+	}{
+		{
+			// Test default values.
+			name:       "empty_config_file",
+			configFile: "testdata/empty_file.yaml",
+			expectedConfig: &cfg.Config{
+				GcsRetries: cfg.GcsRetriesConfig{
+					ReadStall: cfg.ReadStallGcsRetriesConfig{
+						Enable:              false,
+						MinReqTimeout:       500 * time.Millisecond,
+						MaxReqTimeout:       1200 * time.Second,
+						InitialReqTimeout:   20 * time.Second,
+						ReqTargetPercentile: 0.99,
+						ReqIncreaseRate:     15,
+					},
+				},
+			},
+		},
+		{
+			name:       "valid_config_file",
+			configFile: "testdata/valid_config.yaml",
+			expectedConfig: &cfg.Config{
+				GcsRetries: cfg.GcsRetriesConfig{
+					ReadStall: cfg.ReadStallGcsRetriesConfig{
+						Enable:              true,
+						MinReqTimeout:       10 * time.Second,
+						MaxReqTimeout:       200 * time.Second,
+						InitialReqTimeout:   20 * time.Second,
+						ReqTargetPercentile: 0.99,
+						ReqIncreaseRate:     15,
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
+
+			if assert.NoError(t, err) {
+				assert.EqualValues(t, tc.expectedConfig.GcsRetries.ReadStall, gotConfig.GcsRetries.ReadStall)
 			}
 		})
 	}

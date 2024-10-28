@@ -22,8 +22,11 @@ import (
 	"os"
 	"reflect"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/googleapis/gax-go/v2"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"golang.org/x/oauth2"
@@ -49,6 +52,18 @@ func CreateStorageClient(ctx context.Context) (client *storage.Client, err error
 	if err != nil {
 		return nil, fmt.Errorf("storage.NewClient: %w", err)
 	}
+	// RetryAlways causes all operations to be retried when the service returns
+	// transient error, regardless of idempotency considerations. Since the
+	// concurrent execution of our CI/CD tests (VMs, threads) doesn't share any
+	// cloud-storage resources, hence it's safe to disregard idempotency.
+	client.SetRetry(
+		storage.WithBackoff(gax.Backoff{
+			Max:        30 * time.Second,
+			Multiplier: 2,
+		}),
+		storage.WithPolicy(storage.RetryAlways),
+		storage.WithErrorFunc(storageutil.ShouldRetry),
+		storage.WithMaxAttempts(5))
 	return client, nil
 }
 
@@ -143,7 +158,7 @@ func CreateStorageClientWithCancel(ctx *context.Context, storageClient **storage
 	return func() error {
 		err := (*storageClient).Close()
 		if err != nil {
-			return fmt.Errorf("Failed to close storage client: %v", err)
+			return fmt.Errorf("failed to close storage client: %v", err)
 		}
 		defer cancel()
 		return nil
@@ -221,4 +236,78 @@ func StatObject(ctx context.Context, client *storage.Client, object string) (*st
 		return nil, err
 	}
 	return attrs, nil
+}
+
+// UploadGcsObject uploads a local file to a specified GCS bucket and object.
+// Handles gzip compression if requested.
+func UploadGcsObject(ctx context.Context, client *storage.Client, localPath, bucketName, objectName string, uploadGzipEncoded bool) error {
+	// Create a writer to upload the object.
+	obj := client.Bucket(bucketName).Object(objectName)
+	w := obj.NewWriter(ctx)
+	defer func() {
+		if err := w.Close(); err != nil {
+			log.Printf("Failed to close GCS object gs://%s/%s: %v", bucketName, objectName, err)
+		}
+	}()
+
+	filePathToUpload := localPath
+	// Set content encoding if gzip compression is needed.
+	if uploadGzipEncoded {
+		data, err := os.ReadFile(localPath)
+		if err != nil {
+			return err
+		}
+
+		content := string(data)
+		if filePathToUpload, err = operations.CreateLocalTempFile(content, true); err != nil {
+			return fmt.Errorf("failed to create local gzip file from %s for upload to bucket: %w", localPath, err)
+		}
+		defer func() {
+			if removeErr := os.Remove(filePathToUpload); removeErr != nil {
+				log.Printf("Error removing temporary gzip file %s: %v", filePathToUpload, removeErr)
+			}
+		}()
+	}
+
+	// Open the local file for reading.
+	f, err := operations.OpenFileAsReadonly(filePathToUpload)
+	if err != nil {
+		return fmt.Errorf("failed to open local file %s: %w", filePathToUpload, err)
+	}
+	defer operations.CloseFile(f)
+
+	// Copy the file contents to the object writer.
+	if _, err := io.Copy(w, f); err != nil {
+		return fmt.Errorf("failed to copy file %s to gs://%s/%s: %w", localPath, bucketName, objectName, err)
+	}
+	return nil
+}
+
+// Get the object size of the GCS object.
+func GetGcsObjectSize(ctx context.Context, client *storage.Client, object string) (int64, error) {
+	attrs, err := StatObject(ctx, client, object)
+	if err != nil {
+		return -1, err
+	}
+	return attrs.Size, nil
+}
+
+// Clears cache-control attributes on given GCS object.
+// Fails if the object doesn't exist or permission to modify object's metadata is not
+// available.
+func ClearCacheControlOnGcsObject(ctx context.Context, client *storage.Client, object string) error {
+	attrs, err := StatObject(ctx, client, object)
+	if err != nil {
+		return err
+	}
+	attrs.CacheControl = ""
+
+	return nil
+}
+
+func CopyFileInBucket(ctx context.Context, storageClient *storage.Client, srcfilePath, destFilePath, bucket string) {
+	err := UploadGcsObject(ctx, storageClient, srcfilePath, bucket, destFilePath, false)
+	if err != nil {
+		log.Fatalf("Error while copying file in bucket: %v", err)
+	}
 }

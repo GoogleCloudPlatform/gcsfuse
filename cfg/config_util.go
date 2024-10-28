@@ -17,8 +17,6 @@ package cfg
 import (
 	"fmt"
 	"runtime"
-	"strconv"
-	"strings"
 	"time"
 )
 
@@ -28,6 +26,15 @@ func DefaultMaxParallelDownloads() int {
 
 func IsFileCacheEnabled(mountConfig *Config) bool {
 	return mountConfig.FileCache.MaxSizeMb != 0 && string(mountConfig.CacheDir) != ""
+}
+
+func IsParallelDownloadsEnabled(mountConfig *Config) bool {
+	return IsFileCacheEnabled(mountConfig) && mountConfig.FileCache.EnableParallelDownloads
+}
+
+// IsTracingEnabled returns true if tracing is enabled.
+func IsTracingEnabled(mountConfig *Config) bool {
+	return mountConfig.Monitoring.ExperimentalTracingMode != ""
 }
 
 // ListCacheTTLSecsToDuration converts TTL in seconds to time.Duration.
@@ -42,13 +49,4 @@ func ListCacheTTLSecsToDuration(secs int64) time.Duration {
 	}
 
 	return time.Duration(secs * int64(time.Second))
-}
-
-func IsNegativeNumber(str string) bool {
-	str = strings.TrimSpace(str)
-	num, err := strconv.ParseFloat(str, 64)
-	if err != nil {
-		return false // Conversion failed; not a valid number
-	}
-	return num < 0
 }

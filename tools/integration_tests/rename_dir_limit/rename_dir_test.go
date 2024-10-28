@@ -16,12 +16,15 @@
 package rename_dir_limit_test
 
 import (
+	"fmt"
 	"os"
+	"os/exec"
 	"path"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/assert"
 )
 
 // As --rename-directory-limit = 3, and the number of objects in the directory is three,
@@ -159,4 +162,38 @@ func TestRenameDirectoryWithTwoFilesAndOneNonEmptyDirectory(t *testing.T) {
 	if err == nil {
 		t.Errorf("Renaming directory succeeded with objects greater than rename-dir-limit.")
 	}
+}
+
+func TestRenameDirectoryWithExistingEmptyDestDirectory(t *testing.T) {
+	testDir := setup.SetupTestDirectory(DirForRenameDirLimitTests)
+	// Creating directory structure
+	// testBucket/dirForRenameDirLimitTests/srcDirectory                                      -- Dir
+	// testBucket/dirForRenameDirLimitTests/srcDirectory/temp1.txt                            -- File
+	// testBucket/dirForRenameDirLimitTests/srcDirectory/NonEmptySubDirectory                 -- Dir
+	// testBucket/dirForRenameDirLimitTests/srcDirectory/NonEmptySubDirectory/temp3.txt   		-- File
+	// testBucket/dirForRenameDirLimitTests/emptyDestDirectory   		 													-- Dir
+	oldDirPath := path.Join(testDir, SrcDirectory)
+	subDirPath := path.Join(oldDirPath, NonEmptySubDirectory)
+	operations.CreateDirectoryWithNFiles(1, oldDirPath, PrefixTempFile, t)
+	operations.CreateDirectoryWithNFiles(1, subDirPath, PrefixTempFile, t)
+	newDirPath := path.Join(testDir, EmptyDestDirectory)
+	operations.CreateDirectory(newDirPath, t)
+
+	// Go's Rename function does not support renaming a directory into an existing empty directory.
+	// To achieve this, we call a Python rename function as a workaround.
+	cmd := exec.Command("python3", "-c", fmt.Sprintf("import os; os.rename('%s', '%s')", oldDirPath, newDirPath))
+	_, err := cmd.CombinedOutput()
+
+	assert.NoError(t, err)
+	_, err = os.Stat(oldDirPath)
+	assert.ErrorContains(t, err, "no such file or directory")
+	_, err = os.Stat(newDirPath)
+	assert.NoError(t, err)
+	dirEntries, err := os.ReadDir(newDirPath)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(dirEntries))
+	assert.Equal(t, NonEmptySubDirectory, dirEntries[0].Name())
+	assert.True(t, dirEntries[0].IsDir())
+	assert.Equal(t, "temp1", dirEntries[1].Name())
+	assert.False(t, dirEntries[1].IsDir())
 }

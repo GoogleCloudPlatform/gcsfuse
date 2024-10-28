@@ -52,18 +52,18 @@
 - config-path: "debug.fuse"
   flag-name: "debug_fuse"
   type: "bool"
-  usage: "This flag is unused. Debug fuse logs are now controlled by log-severity flag, please use log-severity trace to view the logs."
+  usage: "Enables debug logs."
   default: false
   deprecated: true
-  deprecation-warning: "debug fuse logs are now controlled by log-severity flag, please use log-severity trace to view the logs."
+  deprecation-warning: "Please set log-severity to TRACE instead."
 
 - config-path: "debug.gcs"
   flag-name: "debug_gcs"
   type: "bool"
-  usage: "Debug GCS logs are now controlled by log-severity flag, please use log-severity trace to view the logs."
+  usage: "Enables debug logs."
   default: false
   deprecated: true
-  deprecation-warning: "This flag is currently unused."
+  deprecation-warning: "Please set log-severity to TRACE instead."
 
 - config-path: "debug.log-mutex"
   flag-name: "debug_mutex"
@@ -76,40 +76,42 @@
   type: "bool"
   usage: "Enables support for HNS buckets"
   default: true
+  hide-flag: true
 
 - config-path: "file-cache.cache-file-for-range-read"
-  flag-name: "cache-file-for-range-read"
+  flag-name: "file-cache-cache-file-for-range-read"
   type: "bool"
   usage: "Whether to cache file for range reads."
   default: false
 
 - config-path: "file-cache.download-chunk-size-mb"
-  flag-name: "download-chunk-size-mb"
+  flag-name: "file-cache-download-chunk-size-mb"
   type: "int"
   usage: "Size of chunks in MiB that each concurrent request downloads."
   default: "50"
 
 - config-path: "file-cache.enable-crc"
-  flag-name: "enable-crc"
+  flag-name: "file-cache-enable-crc"
   type: "bool"
   usage: "Performs CRC to ensure that file is correctly downloaded into cache."
   default: false
+  hide-flag: true
 
 - config-path: "file-cache.enable-o-direct"
-  flag-name: "enable-o-direct"
+  flag-name: "file-cache-enable-o-direct"
   type: "bool"
   usage: "Whether to use O_DIRECT while writing to file-cache in case of parallel downloads."
   default: "false"
   hide-flag: true
 
 - config-path: "file-cache.enable-parallel-downloads"
-  flag-name: "enable-parallel-downloads"
+  flag-name: "file-cache-enable-parallel-downloads"
   type: "bool"
   usage: "Enable parallel downloads."
   default: false
 
 - config-path: "file-cache.max-parallel-downloads"
-  flag-name: "max-parallel-downloads"
+  flag-name: "file-cache-max-parallel-downloads"
   type: "int"
   usage: "Sets an uber limit of number of concurrent file download requests that are made across all files."
   default: "DefaultMaxParallelDownloads()"
@@ -121,13 +123,13 @@
   default: "-1"
 
 - config-path: "file-cache.parallel-downloads-per-file"
-  flag-name: "parallel-downloads-per-file"
+  flag-name: "file-cache-parallel-downloads-per-file"
   type: "int"
   usage: "Number of concurrent download requests per file."
   default: "16"
 
 - config-path: "file-cache.write-buffer-size"
-  flag-name: "write-buffer-size"
+  flag-name: "file-cache-write-buffer-size"
   type: "int"
   usage: "Size of in-memory buffer that is used per goroutine in parallel downloads while writing to file-cache."
   default: "4194304" # 4MiB
@@ -344,6 +346,50 @@
   usage: Param for exponential backoff algorithm, which is used to increase waiting time b/w two consecutive retries.
   default: 2
 
+- config-path: "gcs-retries.read-stall.enable"
+  flag-name: "enable-read-stall-retry"
+  type: "bool"
+  usage: >-
+    To turn on/off retries for stalled read requests. This is based on a timeout
+    that changes depending on how long similar requests took in the past.
+  default: false
+  hide-flag: true
+
+- config-path: "gcs-retries.read-stall.initial-req-timeout"
+  flag-name: "read-stall-initial-req-timeout"
+  type: "duration"
+  usage: Initial value of the read-request dynamic timeout.
+  default: 20s
+  hide-flag: true
+
+- config-path: "gcs-retries.read-stall.max-req-timeout"
+  flag-name: "read-stall-max-req-timeout"
+  type: "duration"
+  usage: Upper bound of the read-request dynamic timeout.
+  default: 20m
+  hide-flag: true
+
+- config-path: "gcs-retries.read-stall.min-req-timeout"
+  flag-name: "read-stall-min-req-timeout"
+  type: "duration"
+  usage: Lower bound of the read request dynamic timeout.
+  default: 500ms
+  hide-flag: true
+
+- config-path: "gcs-retries.read-stall.req-increase-rate"
+  flag-name: "read-stall-req-increase-rate"
+  type: "float64"
+  usage: Determines how many increase calls it takes for dynamic timeout to double.
+  default: 15
+  hide-flag: true
+
+- config-path: "gcs-retries.read-stall.req-target-percentile"
+  flag-name: "read-stall-req-target-percentile"
+  type: "float64"
+  usage: Retry the request which take more than p(targetPercentile * 100) of past similar request.
+  default: 0.99
+  hide-flag: true
+
 - config-path: "implicit-dirs"
   flag-name: "implicit-dirs"
   type: "bool"
@@ -361,6 +407,7 @@
     (b) If both ImplicitDirectories and EnableEmptyManagedFolders are true, then all the managed folders are listed including the above-mentioned corner case.
     (c) If ImplicitDirectories is false then no managed folders are listed irrespective of enable-empty-managed-folders flag.
   default: false
+  hide-flag: true
 
 - config-path: "logging.file-path"
   flag-name: "log-file"
@@ -393,7 +440,7 @@
   default: "true"
 
 - config-path: "logging.log-rotate.max-file-size-mb"
-  flag-name: "log-rotate-max-log-file-size-mb"
+  flag-name: "log-rotate-max-file-size-mb"
   type: "int"
   usage: "The maximum size in megabytes that a log file can reach before it is rotated."
   default: "512"
@@ -416,9 +463,7 @@
     entry and 240 for corresponding negative entry), if stat-cache-max-size-mb
     is not set."
   deprecated: true
-  deprecation-warning: >-
-    This flag has been deprecated (starting v2.0) in favor of
-    stat-cache-max-size-mb.
+  deprecation-warning: "Please use --stat-cache-max-size-mb instead."
   default: "20460"
 
 - config-path: "metadata-cache.deprecated-stat-cache-ttl"
@@ -489,7 +534,7 @@
   usage: >-
     The ttl value in seconds to be used for expiring items in metadata-cache. It
     can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled
-    metadata-cache. Any value set below -1 will throw an error."
+    metadata-cache. Any value set below -1 will throw an error.
   default: "60"
 
 - config-path: "metadata-cache.type-cache-max-size-mb"
@@ -503,6 +548,7 @@
   type: "int"
   usage: "Expose Prometheus metrics endpoint on this port and a path of /metrics."
   default: "0"
+  hide-flag: true
 
 - config-path: "metrics.stackdriver-export-interval"
   flag-name: "stackdriver-export-interval"
@@ -540,21 +586,53 @@
   usage: "Mount only a specific directory within the bucket. See docs/mounting for more information"
   default: ""
 
+- config-path: "write.block-size-mb"
+  flag-name: "write-block-size-mb"
+  type: "int"
+  usage: >-
+    Specifies the block size for streaming writes. The value should be more 
+    than 0.
+  default: 64 #TODO: revisit default value after perf testing.
+  hide-flag: true
+
 - config-path: "write.create-empty-file"
   flag-name: "create-empty-file"
   type: "bool"
   usage: "For a new file, it creates an empty file in Cloud Storage bucket as a
   hold."
   default: false
-  deprecated: true
-  deprecation-warning: "This flag will be deleted soon."
+
+- config-path: "write.experimental-enable-streaming-writes"
+  flag-name: "experimental-enable-streaming-writes"
+  type: "bool"
+  usage: "Enables streaming uploads during write file operation."
+  default: false
+  hide-flag: true
+
+- config-path: "write.global-max-blocks"
+  flag-name: "write-global-max-blocks"
+  type: "int"
+  usage: >-
+    Specifies the maximum number of blocks to be used by all files for
+    streaming writes. The value should be >= 2 or -1 (for infinite blocks).
+  default: -1 #TODO: revisit default value after perf testing.
+  hide-flag: true
+
+- config-path: "write.max-blocks-per-file"
+  flag-name: "write-max-blocks-per-file"
+  type: "int"
+  usage: >-
+    Specifies the maximum number of blocks to be used by a single file for 
+    streaming writes. The value should be >= 2 or -1 (for infinite blocks).
+  default: -1 #TODO: revisit default value after perf testing.
+  hide-flag: true
 
 - flag-name: "debug_fs"
   type: "bool"
   usage: "This flag is unused."
   default: false
   deprecated: true
-  deprecation-warning: "Debug fuse logs are now controlled by log-severity flag, please use log-severity trace to view the logs."
+  deprecation-warning: "This flag is currently unused."
 
 - flag-name: "debug_fuse_errors"
   type: "bool"

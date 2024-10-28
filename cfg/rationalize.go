@@ -68,6 +68,24 @@ func resolveStatCacheMaxSizeMB(v isSet, c *MetadataCacheConfig) {
 	c.StatCacheMaxSizeMb = int64(util.BytesToHigherMiBs(uint64(c.DeprecatedStatCacheCapacity) * avgTotalStatCacheEntrySize))
 }
 
+func resolveStreamingWriteConfig(w *WriteConfig) {
+	if w.ExperimentalEnableStreamingWrites {
+		w.CreateEmptyFile = false
+	}
+
+	if w.GlobalMaxBlocks == -1 {
+		w.GlobalMaxBlocks = math.MaxInt64
+	}
+
+	if w.MaxBlocksPerFile == -1 {
+		w.MaxBlocksPerFile = math.MaxInt64
+	}
+
+	if w.GlobalMaxBlocks < w.MaxBlocksPerFile {
+		w.MaxBlocksPerFile = w.GlobalMaxBlocks
+	}
+}
+
 // Rationalize updates the config fields based on the values of other fields.
 func Rationalize(v isSet, c *Config) error {
 	var err error
@@ -83,6 +101,7 @@ func Rationalize(v isSet, c *Config) error {
 		c.Logging.Severity = "TRACE"
 	}
 
+	resolveStreamingWriteConfig(&c.Write)
 	resolveMetadataCacheTTL(v, &c.MetadataCache)
 	resolveStatCacheMaxSizeMB(v, &c.MetadataCache)
 

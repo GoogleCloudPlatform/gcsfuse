@@ -286,7 +286,7 @@ func readMultiple(
 		// Close it.
 		err = rc.Close()
 		if err != nil {
-			err = fmt.Errorf("Close: %v", err)
+			err = fmt.Errorf("close: %v", err)
 			return
 		}
 	}
@@ -648,7 +648,7 @@ func (t *createTest) InterestingNames() {
 		func(ctx context.Context, name string) (err error) {
 			err = t.createObject(name, name)
 			if err != nil {
-				err = fmt.Errorf("Failed to create %q: %v", name, err)
+				err = fmt.Errorf("failed to create %q: %v", name, err)
 				return
 			}
 
@@ -666,13 +666,13 @@ func (t *createTest) InterestingNames() {
 			contents, err := t.readObject(name)
 
 			if err != nil {
-				err = fmt.Errorf("Failed to read %q: %v", name, err)
+				err = fmt.Errorf("failed to read %q: %v", name, err)
 				return
 			}
 
 			if contents != name {
 				err = fmt.Errorf(
-					"Incorrect contents for %q: %q",
+					"incorrect contents for %q: %q",
 					name,
 					contents)
 
@@ -733,19 +733,19 @@ func (t *createTest) IllegalNames() {
 		func(ctx context.Context, name string) (err error) {
 			err = t.createObject(name, "")
 			if err == nil {
-				err = fmt.Errorf("Expected to not be able to create %q", name)
+				err = fmt.Errorf("expected to not be able to create %q", name)
 				return
 			}
 
 			if name == "" {
-				if !strings.Contains(err.Error(), "Invalid") &&
-					!strings.Contains(err.Error(), "Required") {
-					err = fmt.Errorf("Unexpected error for %q: %v", name, err)
+				if !strings.Contains(err.Error(), "invalid") &&
+					!strings.Contains(err.Error(), "required") {
+					err = fmt.Errorf("unexpected error for %q: %v", name, err)
 					return
 				}
 			} else {
-				if !strings.Contains(err.Error(), "Invalid") {
-					err = fmt.Errorf("Unexpected error for %q: %v", name, err)
+				if !strings.Contains(err.Error(), "invalid") {
+					err = fmt.Errorf("unexpected error for %q: %v", name, err)
 					return
 				}
 			}
@@ -1459,7 +1459,7 @@ func (t *copyTest) InterestingNames() {
 				})
 
 			if err != nil {
-				err = fmt.Errorf("Failed to copy %q: %v", name, err)
+				err = fmt.Errorf("failed to copy %q: %v", name, err)
 				return
 			}
 
@@ -1490,19 +1490,19 @@ func (t *copyTest) IllegalNames() {
 				})
 
 			if err == nil {
-				err = fmt.Errorf("Expected to not be able to copy to %q", name)
+				err = fmt.Errorf("expected to not be able to copy to %q", name)
 				return
 			}
 
 			if name == "" {
-				if !strings.Contains(err.Error(), "Invalid") &&
-					!strings.Contains(err.Error(), "Not Found") {
-					err = fmt.Errorf("Unexpected error for %q: %v", name, err)
+				if !strings.Contains(err.Error(), "invalid") &&
+					!strings.Contains(err.Error(), "not Found") {
+					err = fmt.Errorf("unexpected error for %q: %v", name, err)
 					return
 				}
 			} else {
-				if !strings.Contains(err.Error(), "Invalid") {
-					err = fmt.Errorf("Unexpected error for %q: %v", name, err)
+				if !strings.Contains(err.Error(), "invalid") {
+					err = fmt.Errorf("unexpected error for %q: %v", name, err)
 					return
 				}
 			}
@@ -2584,7 +2584,7 @@ func (t *composeTest) InterestingNames() {
 				})
 
 			if err != nil {
-				err = fmt.Errorf("Failed to compose to %q: %v", name, err)
+				err = fmt.Errorf("failed to compose to %q: %v", name, err)
 				return
 			}
 
@@ -2618,19 +2618,19 @@ func (t *composeTest) IllegalNames() {
 				})
 
 			if err == nil {
-				err = fmt.Errorf("Expected to not be able to compose to %q", name)
+				err = fmt.Errorf("expected to not be able to compose to %q", name)
 				return
 			}
 
 			if name == "" {
-				if !strings.Contains(err.Error(), "Invalid") &&
-					!strings.Contains(err.Error(), "Not Found") {
-					err = fmt.Errorf("Unexpected error for %q: %v", name, err)
+				if !strings.Contains(err.Error(), "invalid") &&
+					!strings.Contains(err.Error(), "not Found") {
+					err = fmt.Errorf("unexpected error for %q: %v", name, err)
 					return
 				}
 			} else {
-				if !strings.Contains(err.Error(), "Invalid") {
-					err = fmt.Errorf("Unexpected error for %q: %v", name, err)
+				if !strings.Contains(err.Error(), "invalid") {
+					err = fmt.Errorf("unexpected error for %q: %v", name, err)
 					return
 				}
 			}

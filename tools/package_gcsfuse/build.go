@@ -78,7 +78,7 @@ func build(
 		var output []byte
 		output, err = cmd.CombinedOutput()
 		if err != nil {
-			err = fmt.Errorf("Cloning: %w\nOutput:\n%s", err, output)
+			err = fmt.Errorf("cloning: %w\nOutput:\n%s", err, output)
 			return
 		}
 	}
@@ -105,7 +105,7 @@ func build(
 		var output []byte
 		output, err = cmd.CombinedOutput()
 		if err != nil {
-			err = fmt.Errorf("Building build_gcsfuse: %w\nOutput:\n%s", err, output)
+			err = fmt.Errorf("building build_gcsfuse: %w\nOutput:\n%s", err, output)
 			return
 		}
 	}
@@ -143,7 +143,7 @@ func build(
 
 	err = os.Rename(path.Join(dir, "bin"), path.Join(dir, "usr/bin"))
 	if err != nil {
-		err = fmt.Errorf("Rename: %w", err)
+		err = fmt.Errorf("rename: %w", err)
 		return
 	}
 

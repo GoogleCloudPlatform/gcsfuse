@@ -31,12 +31,12 @@ func ChooseLimiterCapacity(
 	window time.Duration) (capacity uint64, err error) {
 	// Check that the input is reasonable.
 	if rateHz <= 0 || math.IsInf(rateHz, 0) {
-		err = fmt.Errorf("Illegal rate: %f", rateHz)
+		err = fmt.Errorf("illegal rate: %f", rateHz)
 		return
 	}
 
 	if window <= 0 {
-		err = fmt.Errorf("Illegal window: %v", window)
+		err = fmt.Errorf("illegal window: %v", window)
 		return
 	}
 
@@ -68,7 +68,7 @@ func ChooseLimiterCapacity(
 	capacityFloat := math.Floor(w * rateHz / N)
 	if !(capacityFloat >= 1 && capacityFloat < float64(math.MaxUint64)) {
 		err = fmt.Errorf(
-			"Can't use a token bucket to limit to %f Hz over a window of %v "+
+			"can't use a token bucket to limit to %f Hz over a window of %v "+
 				"(result is a capacity of %f)",
 			rateHz,
 			window,

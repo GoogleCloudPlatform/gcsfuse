@@ -186,7 +186,7 @@ func (os *syncer) SyncObject(
 	// Stat the content.
 	sr, err := content.Stat()
 	if err != nil {
-		err = fmt.Errorf("Stat: %w", err)
+		err = fmt.Errorf("stat: %w", err)
 		return
 	}
 
@@ -207,7 +207,7 @@ func (os *syncer) SyncObject(
 	srcSize := int64(srcObject.Size)
 	if sr.DirtyThreshold > srcSize {
 		err = fmt.Errorf(
-			"Stat returned weird DirtyThreshold field: %d vs. %d",
+			"stat returned weird DirtyThreshold field: %d vs. %d",
 			sr.DirtyThreshold,
 			srcObject.Size)
 
@@ -224,7 +224,7 @@ func (os *syncer) SyncObject(
 	// Sanity check: the branch above should ensure that by the time we get here,
 	// the stat result's mtime is non-nil.
 	if sr.Mtime == nil {
-		err = fmt.Errorf("Wacky stat result: %#v", sr)
+		err = fmt.Errorf("wacky stat result: %#v", sr)
 		return
 	}
 
@@ -236,7 +236,7 @@ func (os *syncer) SyncObject(
 		srcObject.ComponentCount < gcs.MaxComponentCount {
 		_, err = content.Seek(srcSize, 0)
 		if err != nil {
-			err = fmt.Errorf("Seek: %w", err)
+			err = fmt.Errorf("seek: %w", err)
 			return
 		}
 
@@ -244,7 +244,7 @@ func (os *syncer) SyncObject(
 	} else {
 		_, err = content.Seek(0, 0)
 		if err != nil {
-			err = fmt.Errorf("Seek: %w", err)
+			err = fmt.Errorf("seek: %w", err)
 			return
 		}
 
@@ -253,7 +253,7 @@ func (os *syncer) SyncObject(
 
 	// Deal with errors.
 	if err != nil {
-		err = fmt.Errorf("Create: %w", err)
+		err = fmt.Errorf("create: %w", err)
 		return
 	}
 

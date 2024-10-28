@@ -15,6 +15,7 @@
 package cmd
 
 import (
+	"math"
 	"os"
 	"path"
 	"runtime"
@@ -33,7 +34,7 @@ func TestDefaultMaxParallelDownloads(t *testing.T) {
 		return nil
 	})
 	require.Nil(t, err)
-	cmd.SetArgs([]string{"abc", "pqr"})
+	cmd.SetArgs(convertToPosixArgs([]string{"abc", "pqr"}, cmd))
 
 	if assert.Nil(t, cmd.Execute()) {
 		assert.LessOrEqual(t, int64(16), actual.FileCache.MaxParallelDownloads)
@@ -72,7 +73,7 @@ func TestCobraArgsNumInRange(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			cmd, err := NewRootCmd(func(*cfg.Config, string, string) error { return nil })
 			require.Nil(t, err)
-			cmd.SetArgs(tc.args)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
 
@@ -131,7 +132,7 @@ func TestArgsParsing_MountPoint(t *testing.T) {
 				return nil
 			})
 			require.Nil(t, err)
-			cmd.SetArgs(tc.args)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
 
@@ -179,7 +180,7 @@ func TestArgsParsing_MountOptions(t *testing.T) {
 				return nil
 			})
 			require.Nil(t, err)
-			cmd.SetArgs(tc.args)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
 
@@ -190,43 +191,107 @@ func TestArgsParsing_MountOptions(t *testing.T) {
 	}
 }
 
-func TestArgsParsing_CreateEmptyFileFlag(t *testing.T) {
+func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 	tests := []struct {
-		name                    string
-		args                    []string
-		expectedCreateEmptyFile bool
+		name                          string
+		args                          []string
+		expectedCreateEmptyFile       bool
+		expectedEnableStreamingWrites bool
+		expectedWriteBlockSizeMB      int64
+		expectedWriteGlobalMaxBlocks  int64
+		expectedWriteMaxBlocksPerFile int64
 	}{
 		{
-			name:                    "Test create-empty-file flag true.",
-			args:                    []string{"gcsfuse", "--create-empty-file=true", "abc", "pqr"},
-			expectedCreateEmptyFile: true,
+			name:                          "Test create-empty-file flag true.",
+			args:                          []string{"gcsfuse", "--create-empty-file=true", "abc", "pqr"},
+			expectedCreateEmptyFile:       true,
+			expectedEnableStreamingWrites: false,
+			expectedWriteBlockSizeMB:      64,
+			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
+			expectedWriteMaxBlocksPerFile: math.MaxInt64,
 		},
 		{
-			name:                    "Test create-empty-file flag false.",
-			args:                    []string{"gcsfuse", "--create-empty-file=false", "abc", "pqr"},
-			expectedCreateEmptyFile: false,
+			name:                          "Test create-empty-file flag false.",
+			args:                          []string{"gcsfuse", "--create-empty-file=false", "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: false,
+			expectedWriteBlockSizeMB:      64,
+			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
+			expectedWriteMaxBlocksPerFile: math.MaxInt64,
 		},
 		{
-			name:                    "Test default create-empty-file flag.",
-			args:                    []string{"gcsfuse", "abc", "pqr"},
-			expectedCreateEmptyFile: false,
+			name:                          "Test default flags.",
+			args:                          []string{"gcsfuse", "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: false,
+			expectedWriteBlockSizeMB:      64,
+			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
+			expectedWriteMaxBlocksPerFile: math.MaxInt64,
+		},
+		{
+			name:                          "Test enable-streaming-writes flag true.",
+			args:                          []string{"gcsfuse", "--experimental-enable-streaming-writes", "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: true,
+			expectedWriteBlockSizeMB:      64,
+			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
+			expectedWriteMaxBlocksPerFile: math.MaxInt64,
+		},
+		{
+			name:                          "Test enable-streaming-writes flag false.",
+			args:                          []string{"gcsfuse", "--experimental-enable-streaming-writes=false", "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: false,
+			expectedWriteBlockSizeMB:      64,
+			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
+			expectedWriteMaxBlocksPerFile: math.MaxInt64,
+		},
+		{
+			name:                          "Test positive write-block-size-mb flag.",
+			args:                          []string{"gcsfuse", "--experimental-enable-streaming-writes", "--write-block-size-mb=10", "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: true,
+			expectedWriteBlockSizeMB:      10,
+			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
+			expectedWriteMaxBlocksPerFile: math.MaxInt64,
+		},
+		{
+			name:                          "Test positive write-global-max-blocks flag.",
+			args:                          []string{"gcsfuse", "--experimental-enable-streaming-writes", "--write-global-max-blocks=10", "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: true,
+			expectedWriteBlockSizeMB:      64,
+			expectedWriteGlobalMaxBlocks:  10,
+			expectedWriteMaxBlocksPerFile: math.MaxInt64,
+		},
+		{
+			name:                          "Test positive write-max-blocks-per-file flag.",
+			args:                          []string{"gcsfuse", "--experimental-enable-streaming-writes", "--write-max-blocks-per-file=10", "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: true,
+			expectedWriteBlockSizeMB:      64,
+			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
+			expectedWriteMaxBlocksPerFile: 10,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			var createEmptyFile bool
+			var wc cfg.WriteConfig
 			cmd, err := NewRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				createEmptyFile = cfg.Write.CreateEmptyFile
+				wc = cfg.Write
 				return nil
 			})
 			require.Nil(t, err)
-			cmd.SetArgs(tc.args)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
 
 			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expectedCreateEmptyFile, createEmptyFile)
+				assert.Equal(t, tc.expectedCreateEmptyFile, wc.CreateEmptyFile)
+				assert.Equal(t, tc.expectedEnableStreamingWrites, wc.ExperimentalEnableStreamingWrites)
+				assert.Equal(t, tc.expectedWriteBlockSizeMB, wc.BlockSizeMb)
+				assert.Equal(t, tc.expectedWriteGlobalMaxBlocks, wc.GlobalMaxBlocks)
 			}
 		})
 	}
@@ -240,7 +305,7 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 	}{
 		{
 			name: "Test file cache flags.",
-			args: []string{"gcsfuse", "--cache-file-for-range-read", "--download-chunk-size-mb=20", "--enable-crc", "--enable-parallel-downloads", "--max-parallel-downloads=40", "--file-cache-max-size-mb=100", "--parallel-downloads-per-file=2", "--enable-o-direct=false", "abc", "pqr"},
+			args: []string{"gcsfuse", "--file-cache-cache-file-for-range-read", "--file-cache-download-chunk-size-mb=20", "--file-cache-enable-crc", "--file-cache-enable-parallel-downloads", "--file-cache-max-parallel-downloads=40", "--file-cache-max-size-mb=100", "--file-cache-parallel-downloads-per-file=2", "--file-cache-enable-o-direct=false", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileCache: cfg.FileCacheConfig{
 					CacheFileForRangeRead:    true,
@@ -282,7 +347,7 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 				return nil
 			})
 			require.Nil(t, err)
-			cmd.SetArgs(tc.args)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
 
@@ -334,7 +399,7 @@ func TestArgParsing_ExperimentalMetadataPrefetchFlag(t *testing.T) {
 				return nil
 			})
 			require.Nil(t, err)
-			cmd.SetArgs(tc.args)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
 
@@ -366,7 +431,7 @@ func TestArgParsing_ExperimentalMetadataPrefetchFlag_Failed(t *testing.T) {
 				return nil
 			})
 			require.Nil(t, err)
-			cmd.SetArgs(tc.args)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
 
@@ -417,7 +482,7 @@ func TestArgsParsing_GCSAuthFlags(t *testing.T) {
 				return nil
 			})
 			require.Nil(t, err)
-			cmd.SetArgs(tc.args)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
 
@@ -454,7 +519,7 @@ func TestArgsParsing_GCSAuthFlagsThrowsError(t *testing.T) {
 				return nil
 			})
 			require.Nil(t, err)
-			cmd.SetArgs(tc.args)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			assert.Error(t, cmd.Execute())
 		})
@@ -515,7 +580,7 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 				return nil
 			})
 			require.Nil(t, err)
-			cmd.SetArgs(tc.args)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
 
@@ -558,7 +623,7 @@ func TestArgsParsing_GCSConnectionFlagsThrowsError(t *testing.T) {
 				return nil
 			})
 			require.Nil(t, err)
-			cmd.SetArgs(tc.args)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			assert.Error(t, cmd.Execute())
 		})
@@ -637,7 +702,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				return nil
 			})
 			require.Nil(t, err)
-			cmd.SetArgs(tc.args)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
 
@@ -681,7 +746,7 @@ func TestArgsParsing_FileSystemFlagsThrowsError(t *testing.T) {
 				return nil
 			})
 			require.Nil(t, err)
-			cmd.SetArgs(tc.args)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			assert.Error(t, cmd.Execute())
 		})
@@ -718,7 +783,7 @@ func TestArgsParsing_ListFlags(t *testing.T) {
 				return nil
 			})
 			require.Nil(t, err)
-			cmd.SetArgs(tc.args)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
 
@@ -755,7 +820,7 @@ func TestArgsParsing_EnableHNSFlags(t *testing.T) {
 				return nil
 			})
 			require.Nil(t, err)
-			cmd.SetArgs(tc.args)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
 
@@ -814,7 +879,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 				return nil
 			})
 			require.Nil(t, err)
-			cmd.SetArgs(tc.args)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
 

@@ -23,9 +23,8 @@ import (
 	"testing"
 
 	"cloud.google.com/go/storage"
+	control "cloud.google.com/go/storage/control/apiv2"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 
@@ -44,6 +43,7 @@ var (
 	// Root directory is the directory to be unmounted.
 	rootDir       string
 	storageClient *storage.Client
+	controlClient *control.StorageControlClient
 	ctx           context.Context
 )
 
@@ -56,10 +56,15 @@ func TestMain(m *testing.M) {
 
 	ctx = context.Background()
 	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
+	closeControlClient := client.CreateControlClientWithCancel(&ctx, &controlClient)
 	defer func() {
 		err := closeStorageClient()
 		if err != nil {
 			log.Fatalf("closeStorageClient failed: %v", err)
+		}
+		err = closeControlClient()
+		if err != nil {
+			log.Fatalf("closeControlClient failed: %v", err)
 		}
 	}()
 
@@ -85,8 +90,8 @@ func TestMain(m *testing.M) {
 	if successCode == 0 {
 		log.Println("Running only dir mounting tests...")
 		setup.SetOnlyDirMounted(onlyDirMounted + "/")
-		operations.CreateManagedFoldersInBucket(onlyDirMounted, setup.TestBucket())
-		defer operations.DeleteManagedFoldersInBucket(onlyDirMounted, setup.TestBucket())
+		client.CreateManagedFoldersInBucket(ctx, controlClient, onlyDirMounted, setup.TestBucket())
+		defer client.DeleteManagedFoldersInBucket(ctx, controlClient, onlyDirMounted, setup.TestBucket())
 		mountFunc = only_dir_mounting.MountGcsfuseWithOnlyDir
 		successCode = m.Run()
 		setup.SaveLogFileInCaseOfFailure(successCode)

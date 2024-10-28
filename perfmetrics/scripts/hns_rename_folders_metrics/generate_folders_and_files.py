@@ -97,8 +97,12 @@ def _list_directory(path) -> list:
   """
   try:
     contents = subprocess.check_output(
-        'gcloud storage ls {}'.format(path), shell=True)
+        'gcloud alpha storage ls {}'.format(path), shell=True)
     contents_url = contents.decode('utf-8').split('\n')[:-1]
+    # gcloud storage ls returns current directory with "/" suffix sometimes which can lead to
+    # false inconsistency when listing.
+    if contents_url and contents_url[0] == "{}/".format(path):
+      contents_url = contents_url[1:]
     return contents_url
   except subprocess.CalledProcessError as e:
     _logmessage(e.output.decode('utf-8'),LOG_ERROR)

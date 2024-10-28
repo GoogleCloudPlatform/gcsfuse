@@ -27,12 +27,12 @@ import (
 {{range .TypeTemplateData}}
 type {{ .TypeName}} struct {
   {{- range $idx, $fld := .Fields}}
-  {{ $fld.FieldName}} {{ $fld.DataType}} {{$bt}}yaml:"{{$fld.ConfigPath}},omitempty" json:"{{$fld.ConfigPath}},omitempty"{{$bt}}
+  {{ $fld.FieldName}} {{ $fld.DataType}} {{$bt}}yaml:"{{$fld.ConfigPath}}"{{$bt}}
 {{end}}
 }
 {{end}}
 
-func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
+func BuildFlagSet(flagSet *pflag.FlagSet) error {
   {{range .FlagTemplateData}}
   flagSet.{{ .Fn}}("{{ .FlagName}}", "{{ .Shorthand}}", {{ .DefaultValue}}, {{ .Usage}})
   {{if .IsDeprecated}}
@@ -46,6 +46,12 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
   }
   {{end}}
   {{if .HideShorthand}}flagSet.ShorthandLookup("{{ .Shorthand}}").Hidden = true{{end}}
+  {{end}}
+  return nil
+}
+
+func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
+  {{range .FlagTemplateData}}
   {{if ne .ConfigPath ""}}
   if err := v.BindPFlag("{{ .ConfigPath}}", flagSet.Lookup("{{ .FlagName}}")); err != nil {
     return err

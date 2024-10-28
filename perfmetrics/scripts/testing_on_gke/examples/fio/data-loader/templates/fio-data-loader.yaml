@@ -53,7 +53,7 @@ spec:
         cd ..
 
         echo "Generating data for file size: {{ .Values.fio.fileSize }}, file per thread: {{ .Values.fio.filesPerThread }} ..."
-        filename=/read_cache_load_test.fio
+        filename=/fio_dataloader_job.fio
         {{ if eq .Values.fio.fileSize "200G" }}
         cat > $filename << EOF
         [global]
@@ -80,7 +80,7 @@ spec:
         offset_increment=1%
         EOF
         {{ else }}
-        wget -O $filename https://raw.githubusercontent.com/GoogleCloudPlatform/gcsfuse/read_cache_release/perfmetrics/scripts/job_files/read_cache_load_test.fio
+        wget -O $filename https://raw.githubusercontent.com/GoogleCloudPlatform/gcsfuse/master/perfmetrics/scripts/job_files/read_cache_load_test.fio
         {{ end }}
         
         NUMJOBS=50 NRFILES={{ .Values.fio.filesPerThread }} FILE_SIZE={{ .Values.fio.fileSize }} BLOCK_SIZE={{ .Values.fio.blockSize }} READ_TYPE=read DIR=/data fio ${filename} --alloc-size=1048576

@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -28,6 +29,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -48,6 +50,16 @@ var ContentDisposition string = "ContentDisposition"
 // FakeGCSServer is not handling generation and metageneration checks for Delete flow and IncludeFoldersAsPrefixes check for ListObjects flow.
 // Hence, we are not writing tests for these flows.
 // https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/github.com/fsouza/fake-gcs-server/fakestorage/object.go#L515
+
+func objectsToObjectNames(objects []*gcs.Object) (objectNames []string) {
+	objectNames = make([]string, len(objects))
+	for i, object := range objects {
+		if object != nil {
+			objectNames[i] = object.Name
+		}
+	}
+	return
+}
 
 type BucketHandleTest struct {
 	suite.Suite
@@ -417,6 +429,172 @@ func (testSuite *BucketHandleTest) TestCreateObjectMethodWhenGivenGenerationObje
 	assert.True(testSuite.T(), errors.As(err, &precondition))
 }
 
+func (testSuite *BucketHandleTest) TestBucketHandle_CreateObjectChunkWriter() {
+	var generation0 int64 = 0
+	var generationNon0 int64 = 786
+	var metaGeneration0 int64 = 0
+	var metaGenerationNon0 int64 = 987
+
+	tests := []struct {
+		name           string
+		generation     *int64
+		metageneration *int64
+		objectName     string
+		chunkSize      int
+	}{
+		{
+			name:       "NilGeneration",
+			generation: nil,
+			objectName: "test_object_1",
+			chunkSize:  1024 * 1024,
+		},
+		{
+			name:       "GenerationAsZero",
+			generation: &generation0,
+			objectName: "test_object_2",
+			chunkSize:  1024 * 1024,
+		},
+		{
+			name:       "NonZeroGeneration",
+			generation: &generationNon0,
+			objectName: "test_object_3",
+			chunkSize:  1000,
+		},
+		{
+			name:           "NilMetaGeneration",
+			metageneration: nil,
+			objectName:     "test_object_1",
+			chunkSize:      1024 * 1024,
+		},
+		{
+			name:           "MetaGenerationAsZero",
+			metageneration: &metaGeneration0,
+			objectName:     "test_object_2",
+			chunkSize:      1024 * 1024,
+		},
+		{
+			name:           "NonZeroMetaGeneration",
+			metageneration: &metaGenerationNon0,
+			objectName:     "test_object_3",
+			chunkSize:      1000,
+		},
+	}
+
+	for _, tt := range tests {
+		testSuite.T().Run(tt.name, func(t *testing.T) {
+			progressFunc := func(_ int64) {}
+			w, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(),
+				&gcs.CreateObjectRequest{
+					Name:                       tt.objectName,
+					GenerationPrecondition:     tt.generation,
+					MetaGenerationPrecondition: tt.metageneration,
+				},
+				tt.chunkSize,
+				progressFunc,
+			)
+
+			require.NoError(t, err)
+			objWr, ok := (w).(*ObjectWriter)
+			require.True(t, ok)
+			require.NotNil(t, objWr)
+			assert.Equal(t, tt.objectName, objWr.ObjectName())
+			assert.Equal(t, tt.chunkSize, objWr.ChunkSize)
+			assert.Equal(t, reflect.ValueOf(progressFunc).Pointer(), reflect.ValueOf(objWr.ProgressFunc).Pointer())
+		})
+	}
+}
+
+func (testSuite *BucketHandleTest) TestBucketHandle_FinalizeUploadSuccess() {
+	var generation0 int64 = 0
+
+	tests := []struct {
+		name       string
+		generation *int64
+		objectName string
+		chunkSize  int
+	}{
+		{
+			name:       "NilGeneration",
+			generation: nil,
+			objectName: "test_object_1",
+			chunkSize:  1024 * 1024,
+		},
+		{
+			name:       "GenerationAsZero",
+			generation: &generation0,
+			objectName: "test_object_2",
+			chunkSize:  1024 * 100,
+		},
+	}
+
+	for _, tt := range tests {
+		testSuite.T().Run(tt.name, func(t *testing.T) {
+			progressFunc := func(_ int64) {}
+			wr, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(),
+				&gcs.CreateObjectRequest{
+					Name:                   tt.objectName,
+					GenerationPrecondition: tt.generation,
+				},
+				tt.chunkSize,
+				progressFunc,
+			)
+			require.NoError(t, err)
+			objWr, ok := (wr).(*ObjectWriter)
+			require.True(t, ok)
+			require.NotNil(t, objWr)
+			assert.Equal(t, tt.objectName, objWr.ObjectName())
+			assert.Equal(t, tt.chunkSize, objWr.ChunkSize)
+			assert.Equal(t, reflect.ValueOf(progressFunc).Pointer(), reflect.ValueOf(objWr.ProgressFunc).Pointer())
+
+			o, err := testSuite.bucketHandle.FinalizeUpload(context.Background(), wr)
+
+			assert.NoError(t, err)
+			assert.NotNil(testSuite.T(), o)
+		})
+	}
+}
+
+func (testSuite *BucketHandleTest) createObject(objName string) {
+	testSuite.T().Helper()
+	var generation int64 = 0
+	wr, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(),
+		&gcs.CreateObjectRequest{
+			Name:                   objName,
+			GenerationPrecondition: &generation,
+		},
+		100,
+		func(_ int64) {})
+	require.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), objName, wr.ObjectName())
+
+	o, err := testSuite.bucketHandle.FinalizeUpload(context.Background(), wr)
+
+	require.NoError(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), o)
+}
+
+func (testSuite *BucketHandleTest) TestFinalizeUploadWithGenerationAsZeroWhenObjectAlreadyExists() {
+	objName := "pre_created_test_object"
+	testSuite.createObject(objName)
+	// Create Object Writer again when object already exists.
+	var generation int64 = 0
+	wr, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(),
+		&gcs.CreateObjectRequest{
+			Name:                   objName,
+			GenerationPrecondition: &generation,
+		},
+		100,
+		func(_ int64) {})
+	require.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), objName, wr.ObjectName())
+
+	o, err := testSuite.bucketHandle.FinalizeUpload(context.Background(), wr)
+
+	assert.Error(testSuite.T(), err)
+	assert.IsType(testSuite.T(), &gcs.PreconditionError{}, err)
+	assert.Nil(testSuite.T(), o)
+}
+
 func (testSuite *BucketHandleTest) TestGetProjectValueWhenGcloudProjectionIsNoAcl() {
 	proj := getProjectionValue(gcs.NoAcl)
 
@@ -447,13 +625,9 @@ func (testSuite *BucketHandleTest) TestListObjectMethodWithPrefixObjectExist() {
 		})
 
 	assert.Nil(testSuite.T(), err)
-	assert.Equal(testSuite.T(), 4, len(obj.Objects))
-	assert.Equal(testSuite.T(), 1, len(obj.CollapsedRuns))
-	assert.Equal(testSuite.T(), TestObjectRootFolderName, obj.Objects[0].Name)
-	assert.Equal(testSuite.T(), TestObjectSubRootFolderName, obj.Objects[1].Name)
-	assert.Equal(testSuite.T(), TestObjectName, obj.Objects[2].Name)
+	assert.Equal(testSuite.T(), []string{TestObjectRootFolderName, TestObjectSubRootFolderName, TestObjectName, TestGzipObjectName}, objectsToObjectNames(obj.Objects))
 	assert.Equal(testSuite.T(), TestObjectGeneration, obj.Objects[0].Generation)
-	assert.Equal(testSuite.T(), TestObjectSubRootFolderName, obj.CollapsedRuns[0])
+	assert.Equal(testSuite.T(), []string{TestObjectSubRootFolderName}, obj.CollapsedRuns)
 }
 
 func (testSuite *BucketHandleTest) TestListObjectMethodWithPrefixObjectDoesNotExist() {
@@ -484,12 +658,8 @@ func (testSuite *BucketHandleTest) TestListObjectMethodWithIncludeTrailingDelimi
 		})
 
 	assert.Nil(testSuite.T(), err)
-	assert.Equal(testSuite.T(), 3, len(obj.Objects))
-	assert.Equal(testSuite.T(), 1, len(obj.CollapsedRuns))
-	assert.Equal(testSuite.T(), TestObjectRootFolderName, obj.Objects[0].Name)
-	assert.Equal(testSuite.T(), TestObjectName, obj.Objects[1].Name)
-	assert.Equal(testSuite.T(), TestGzipObjectName, obj.Objects[2].Name)
-	assert.Equal(testSuite.T(), TestObjectSubRootFolderName, obj.CollapsedRuns[0])
+	assert.Equal(testSuite.T(), []string{TestObjectRootFolderName, TestObjectName, TestGzipObjectName}, objectsToObjectNames(obj.Objects))
+	assert.Equal(testSuite.T(), []string{TestObjectSubRootFolderName}, obj.CollapsedRuns)
 }
 
 // If Delimiter is empty, all the objects will appear with same prefix.
@@ -505,12 +675,7 @@ func (testSuite *BucketHandleTest) TestListObjectMethodWithEmptyDelimiter() {
 		})
 
 	assert.Nil(testSuite.T(), err)
-	assert.Equal(testSuite.T(), 5, len(obj.Objects))
-	assert.Equal(testSuite.T(), TestObjectRootFolderName, obj.Objects[0].Name)
-	assert.Equal(testSuite.T(), TestObjectSubRootFolderName, obj.Objects[1].Name)
-	assert.Equal(testSuite.T(), TestSubObjectName, obj.Objects[2].Name)
-	assert.Equal(testSuite.T(), TestObjectName, obj.Objects[3].Name)
-	assert.Equal(testSuite.T(), TestGzipObjectName, obj.Objects[4].Name)
+	assert.Equal(testSuite.T(), []string{TestObjectRootFolderName, TestObjectSubRootFolderName, TestSubObjectName, TestObjectName, TestGzipObjectName}, objectsToObjectNames(obj.Objects))
 	assert.Equal(testSuite.T(), TestObjectGeneration, obj.Objects[0].Generation)
 	assert.Nil(testSuite.T(), obj.CollapsedRuns)
 }
@@ -539,12 +704,7 @@ func (testSuite *BucketHandleTest) TestListObjectMethodForMaxResult() {
 
 	// Validate that 5 objects are listed when MaxResults is passed 5.
 	assert.Nil(testSuite.T(), err)
-	assert.Equal(testSuite.T(), 5, len(fiveObj.Objects))
-	assert.Equal(testSuite.T(), TestObjectRootFolderName, fiveObj.Objects[0].Name)
-	assert.Equal(testSuite.T(), TestObjectSubRootFolderName, fiveObj.Objects[1].Name)
-	assert.Equal(testSuite.T(), TestSubObjectName, fiveObj.Objects[2].Name)
-	assert.Equal(testSuite.T(), TestObjectName, fiveObj.Objects[3].Name)
-	assert.Equal(testSuite.T(), TestGzipObjectName, fiveObj.Objects[4].Name)
+	assert.Equal(testSuite.T(), []string{TestObjectRootFolderName, TestObjectSubRootFolderName, TestSubObjectName, TestObjectName, TestGzipObjectName}, objectsToObjectNames(fiveObj.Objects))
 	assert.Nil(testSuite.T(), fiveObj.CollapsedRuns)
 
 	// Note: The behavior is different in real GCS storage JSON API. In real API,
@@ -554,10 +714,7 @@ func (testSuite *BucketHandleTest) TestListObjectMethodForMaxResult() {
 	// This is because fake storage doesn'testSuite support pagination and hence maxResults
 	// has no affect.
 	assert.Nil(testSuite.T(), err2)
-	assert.Equal(testSuite.T(), 3, len(threeObj.Objects))
-	assert.Equal(testSuite.T(), TestObjectRootFolderName, threeObj.Objects[0].Name)
-	assert.Equal(testSuite.T(), TestObjectName, threeObj.Objects[1].Name)
-	assert.Equal(testSuite.T(), TestGzipObjectName, threeObj.Objects[2].Name)
+	assert.Equal(testSuite.T(), []string{TestObjectRootFolderName, TestObjectName, TestGzipObjectName}, objectsToObjectNames(threeObj.Objects))
 	assert.Equal(testSuite.T(), 1, len(threeObj.CollapsedRuns))
 }
 
@@ -586,12 +743,7 @@ func (testSuite *BucketHandleTest) TestListObjectMethodWithMissingMaxResult() {
 
 	// Validate that all objects (5) are listed when MaxResults is not passed.
 	assert.Nil(testSuite.T(), err2)
-	assert.Equal(testSuite.T(), 5, len(fiveObjWithoutMaxResults.Objects))
-	assert.Equal(testSuite.T(), TestObjectRootFolderName, fiveObjWithoutMaxResults.Objects[0].Name)
-	assert.Equal(testSuite.T(), TestObjectSubRootFolderName, fiveObjWithoutMaxResults.Objects[1].Name)
-	assert.Equal(testSuite.T(), TestSubObjectName, fiveObjWithoutMaxResults.Objects[2].Name)
-	assert.Equal(testSuite.T(), TestObjectName, fiveObjWithoutMaxResults.Objects[3].Name)
-	assert.Equal(testSuite.T(), TestGzipObjectName, fiveObjWithoutMaxResults.Objects[4].Name)
+	assert.Equal(testSuite.T(), []string{TestObjectRootFolderName, TestObjectSubRootFolderName, TestSubObjectName, TestObjectName, TestGzipObjectName}, objectsToObjectNames(fiveObjWithoutMaxResults.Objects))
 	assert.Nil(testSuite.T(), fiveObjWithoutMaxResults.CollapsedRuns)
 }
 
@@ -622,12 +774,7 @@ func (testSuite *BucketHandleTest) TestListObjectMethodWithZeroMaxResult() {
 	// Validate that all objects (5) are listed when MaxResults is 0. This has
 	// same behavior as not passing MaxResults in request.
 	assert.Nil(testSuite.T(), err2)
-	assert.Equal(testSuite.T(), 5, len(fiveObjWithZeroMaxResults.Objects))
-	assert.Equal(testSuite.T(), TestObjectRootFolderName, fiveObjWithZeroMaxResults.Objects[0].Name)
-	assert.Equal(testSuite.T(), TestObjectSubRootFolderName, fiveObjWithZeroMaxResults.Objects[1].Name)
-	assert.Equal(testSuite.T(), TestSubObjectName, fiveObjWithZeroMaxResults.Objects[2].Name)
-	assert.Equal(testSuite.T(), TestObjectName, fiveObjWithZeroMaxResults.Objects[3].Name)
-	assert.Equal(testSuite.T(), TestGzipObjectName, fiveObjWithZeroMaxResults.Objects[4].Name)
+	assert.Equal(testSuite.T(), []string{TestObjectRootFolderName, TestObjectSubRootFolderName, TestSubObjectName, TestObjectName, TestGzipObjectName}, objectsToObjectNames(fiveObjWithZeroMaxResults.Objects))
 	assert.Nil(testSuite.T(), fiveObjWithZeroMaxResults.CollapsedRuns)
 }
 

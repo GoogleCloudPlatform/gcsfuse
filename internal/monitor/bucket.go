@@ -141,6 +141,20 @@ func (mb *monitoringBucket) CreateObject(
 	return o, err
 }
 
+func (mb *monitoringBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
+	startTime := time.Now()
+	wc, err := mb.wrapped.CreateObjectChunkWriter(ctx, req, chunkSize, callBack)
+	recordRequest(ctx, "CreateObjectChunkWriter", startTime)
+	return wc, err
+}
+
+func (mb *monitoringBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.Object, error) {
+	startTime := time.Now()
+	o, err := mb.wrapped.FinalizeUpload(ctx, w)
+	recordRequest(ctx, "FinalizeUpload", startTime)
+	return o, err
+}
+
 func (mb *monitoringBucket) CopyObject(
 	ctx context.Context,
 	req *gcs.CopyObjectRequest) (*gcs.Object, error) {

@@ -59,10 +59,39 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
+	"slices"
 	"strings"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
+	"github.com/spf13/pflag"
 )
+
+func flagTypes(flagSet *pflag.FlagSet) (boolFlags, nonBoolFlags []string) {
+	flagSet.VisitAll(func(flag *pflag.Flag) {
+		if flag.Value.Type() == "bool" {
+			boolFlags = append(boolFlags, flag.Name)
+		} else {
+			nonBoolFlags = append(nonBoolFlags, flag.Name)
+		}
+	})
+	return boolFlags, nonBoolFlags
+}
+
+func isEquiv(s1, s2 string) bool {
+	return strings.ReplaceAll(s1, "_", "-") == strings.ReplaceAll(s2, "_", "-")
+}
+
+func findEquivFlag(s string, lst []string) string {
+	idx := slices.IndexFunc(lst, func(e string) bool {
+		return isEquiv(s, e)
+	})
+	if idx == -1 {
+		return ""
+	}
+	return lst[idx]
+}
 
 // Turn mount-style options into gcsfuse arguments. Skip known detritus that
 // the mount command gives us.
@@ -72,88 +101,38 @@ func makeGcsfuseArgs(
 	device string,
 	mountPoint string,
 	opts map[string]string) (args []string, err error) {
+	var flagSet pflag.FlagSet
+	if err := cfg.BuildFlagSet(&flagSet); err != nil {
+		return nil, err
+	}
+	boolFlags, nonBoolFlags := flagTypes(&flagSet)
+	// Handle "o" by not treating it as a flag for persistent mounting.
+	nonBoolFlags = slices.DeleteFunc(nonBoolFlags, func(s string) bool {
+		return s == "o"
+	})
+	nonBoolFlags = append(nonBoolFlags, cfg.ConfigFileFlagName)
+	// TODO: Clean this up after we gain enough confidence on CLI-Config Parity changes.
+	boolFlags = append(boolFlags, "disable-viper-config")
+	noopOptions := []string{"user", "nouser", "auto", "noauto", "_netdev", "no_netdev"}
+
 	// Deal with options.
 	for name, value := range opts {
-		switch strings.ReplaceAll(name, "-", "_") {
-		// Don't pass through options that are relevant to mount(8) but not to
-		// gcsfuse, and that fusermount chokes on with "Invalid argument" on Linux.
-		case "user", "nouser", "auto", "noauto", "_netdev", "no_netdev":
-
-		// Special case: support mount-like formatting for gcsfuse bool flags.
-		case "implicit_dirs",
-			"foreground",
-			"reuse_token_from_url",
-			"enable_nonexistent_type_cache",
-			"experimental_enable_json_read",
-			"enable_hns",
-			"ignore_interrupts",
-			"anonymous_access",
-			"log_rotate_compress":
+		if flg := findEquivFlag(name, noopOptions); flg != "" {
+			// Don't pass through options that are relevant to mount(8) but not to
+			// gcsfuse, and that fusermount chokes on with "Invalid argument" on Linux.
+			continue
+		}
+		if flg := findEquivFlag(name, boolFlags); flg != "" {
 			if value == "" {
 				value = "true"
 			}
-			args = append(args, "--"+strings.ReplaceAll(name, "_", "-")+"="+value)
-
-		// Special case: support mount-like formatting for gcsfuse string flags.
-		case "dir_mode",
-			"file_mode",
-			"uid",
-			"gid",
-			"app_name",
-			"only_dir",
-			"billing_project",
-			"client_protocol",
-			"key_file",
-			"token_url",
-			"limit_bytes_per_sec",
-			"limit_ops_per_sec",
-			"rename_dir_limit",
-			"max_retry_sleep",
-			"max_retry_duration",
-			"retry_multiplier",
-			"stat_cache_capacity",
-			"stat_cache_ttl",
-			"type_cache_ttl",
-			"http_client_timeout",
-			"sequential_read_size_mb",
-			"temp_dir",
-			"max_conns_per_host",
-			"max_idle_conns_per_host",
-			"stackdriver_export_interval",
-			"experimental_opentelemetry_collector_address",
-			"log_format",
-			"log_file",
-			"custom_endpoint",
-			"config_file",
-			"experimental_metadata_prefetch_on_mount",
-			"kernel_list_cache_ttl_secs",
-			"stat_cache_max_size_mb",
-			"type_cache_max_size_mb",
-			"metadata_cache_ttl_secs",
-			"log_severity",
-			"log_rotate_max_file_size_mb",
-			"log_rotate_backup_file_count",
-			"file_cache_max_size_mb",
-			"experimental_grpc_conn_pool_size":
-
-			args = append(args, "--"+strings.ReplaceAll(name, "_", "-"), value)
-
-		// Special case: support mount-like formatting for gcsfuse debug flags.
-		case "debug_fuse",
-			"debug_fuse_errors",
-			"debug_fs",
-			"debug_gcs",
-			"debug_http",
-			"debug_invariants",
-			"debug_mutex":
-			args = append(args, "--"+name)
-
-		// Pass through everything else.
-		default:
-			var formatted string
-			if value == "" {
-				formatted = name
-			} else {
+			args = append(args, fmt.Sprintf("--%s=%s", flg, value))
+		} else if flg := findEquivFlag(name, nonBoolFlags); flg != "" {
+			args = append(args, fmt.Sprintf("--%s", flg), value)
+		} else {
+			// Pass through everything else
+			formatted := name
+			if value != "" {
 				formatted = fmt.Sprintf("%s=%s", name, value)
 			}
 
@@ -162,9 +141,7 @@ func makeGcsfuseArgs(
 	}
 
 	// Set the bucket and mount point.
-	args = append(args, device, mountPoint)
-
-	return
+	return append(args, device, mountPoint), nil
 }
 
 // Parse the supplied command-line arguments from a mount(8) invocation on OS X
@@ -189,7 +166,7 @@ func parseArgs(
 		// below.
 		case s == "-o":
 			if i == len(args)-1 {
-				err = fmt.Errorf("Unexpected -o at end of args.")
+				err = fmt.Errorf("unexpected -o at end of args")
 				return
 			}
 
@@ -210,6 +187,17 @@ func parseArgs(
 		// Is this the device?
 		case positionalCount == 0:
 			device = s
+			// The kernel might be converting the bucket name to a path if a directory with the
+			// same name as the bucket exists in the folder where the mount command is executed.
+			//
+			// As of October 10th, 2024, bucket names don't support "/", so it is safe to
+			// assume any received bucket name containing "/" is actually a path and
+			// extract the base file name.
+			// Ref: https://cloud.google.com/storage/docs/buckets#naming
+			if strings.Contains(device, "/") {
+				// Get the last part of the path (bucket name)
+				device = filepath.Base(device)
+			}
 			positionalCount++
 
 		// Is this the mount point?
@@ -218,13 +206,13 @@ func parseArgs(
 			positionalCount++
 
 		default:
-			err = fmt.Errorf("Unexpected arg %d: %q", i, s)
+			err = fmt.Errorf("unexpected arg %d: %q", i, s)
 			return
 		}
 	}
 
 	if positionalCount != 2 {
-		err = fmt.Errorf("Expected two positional arguments; got %d.", positionalCount)
+		err = fmt.Errorf("expected two positional arguments; got %d", positionalCount)
 		return
 	}
 

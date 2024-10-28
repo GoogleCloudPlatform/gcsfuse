@@ -43,16 +43,12 @@ func getUniverseDomain(ctx context.Context, contents []byte, scope string) (stri
 }
 
 // Create token source from the JSON file at the supplide path.
-func newTokenSourceFromPath(
-	ctx context.Context,
-	path string,
-	scope string,
-) (ts oauth2.TokenSource, err error) {
+func newTokenSourceFromPath(ctx context.Context, path string, scope string) (oauth2.TokenSource, error) {
 	// Read the file.
 	contents, err := os.ReadFile(path)
 	if err != nil {
 		err = fmt.Errorf("ReadFile(%q): %w", path, err)
-		return
+		return nil, err
 	}
 
 	// By default, a standard OAuth 2.0 token source is created
@@ -60,14 +56,16 @@ func newTokenSourceFromPath(
 	jwtConfig, err := google.JWTConfigFromJSON(contents, scope)
 	if err != nil {
 		err = fmt.Errorf("JWTConfigFromJSON: %w", err)
+		return nil, err
 	}
-	// Create the token source.
-	ts = jwtConfig.TokenSource(ctx)
 
 	domain, err := getUniverseDomain(ctx, contents, scope)
 	if err != nil {
-		return
+		return nil, err
 	}
+
+	// By default, a standard OAuth 2.0 token source is created
+	ts := jwtConfig.TokenSource(ctx)
 
 	// For non-GDU universe domains, token exchange is impossible and services
 	// must support self-signed JWTs with scopes.
@@ -77,10 +75,10 @@ func newTokenSourceFromPath(
 		ts, err = google.JWTAccessTokenSourceWithScope(contents, scope)
 		if err != nil {
 			err = fmt.Errorf("JWTAccessTokenSourceWithScope: %w", err)
-			return
+			return nil, err
 		}
 	}
-	return
+	return ts, err
 }
 
 // GetTokenSource generates the token-source for GCS endpoint by following oauth2.0 authentication

@@ -1,2 +1,0 @@
-file-system:
-  disable-parallel-dirops: -1

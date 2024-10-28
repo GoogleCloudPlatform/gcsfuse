@@ -1,0 +1,2 @@
+gcs-connection:
+  limit-bytes-per-sec: -12.5

@@ -29,6 +29,10 @@ func ValidateNoFileOrDirError(path string, t *testing.T) {
 }
 
 func CheckErrorForReadOnlyFileSystem(err error, t *testing.T) {
+	if err == nil {
+		t.Error("permission denied error expected but got nil error.")
+		return
+	}
 	if strings.Contains(err.Error(), "read-only file system") || strings.Contains(err.Error(), "permission denied") || strings.Contains(err.Error(), "Permission denied") {
 		return
 	}

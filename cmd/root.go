@@ -16,12 +16,16 @@ package cmd
 
 import (
 	"fmt"
+	"log"
+	"os"
+	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
@@ -41,8 +45,9 @@ func NewRootCmd(m mountFn) (*cobra.Command, error) {
 		Long: `Cloud Storage FUSE is an open source FUSE adapter that lets you mount 
 and access Cloud Storage buckets as local file systems. For a technical overview
 of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
-		Version: common.GetVersion(),
-		Args:    cobra.RangeArgs(2, 3),
+		Version:      common.GetVersion(),
+		Args:         cobra.RangeArgs(2, 3),
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if cfgErr != nil {
 				return fmt.Errorf("error while parsing config: %w", cfgErr)
@@ -86,12 +91,68 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 		}
 	}
 	cobra.OnInitialize(initConfig)
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config-file", "", "The path to the config file where all gcsfuse related config needs to be specified. "+
+	rootCmd.PersistentFlags().StringVar(&cfgFile, cfg.ConfigFileFlagName, "", "The path to the config file where all gcsfuse related config needs to be specified. "+
 		"Refer to 'https://cloud.google.com/storage/docs/gcsfuse-cli#config-file' for possible configurations.")
 
 	// Add all the other flags.
+	if err := cfg.BuildFlagSet(rootCmd.PersistentFlags()); err != nil {
+		return nil, fmt.Errorf("error while declaring flags: %w", err)
+	}
 	if err := cfg.BindFlags(v, rootCmd.PersistentFlags()); err != nil {
-		return nil, fmt.Errorf("error while declaring/binding flags: %w", err)
+		return nil, fmt.Errorf("error while binding flags: %w", err)
 	}
 	return rootCmd, nil
+}
+
+// convertToPosixArgs converts a slice of commandline args and transforms them
+// into POSIX compliant args. All it does is that it converts flags specified
+// using a single-hyphen to double-hyphens. We are excluding "-v" because it's
+// reserved for showing version in Cobra.
+func convertToPosixArgs(args []string, c *cobra.Command) []string {
+	pArgs := make([]string, 0, len(args))
+	flagSet := make(map[string]bool)
+	c.PersistentFlags().VisitAll(func(f *pflag.Flag) {
+		flagSet[f.Name] = true
+	})
+	// Treat help and version like flags
+	flagSet["version"] = true
+	flagSet["help"] = true
+	for _, a := range args {
+		switch {
+		case a == "--v", a == "-v":
+			pArgs = append(pArgs, "-v")
+		case a == "--h", a == "-h":
+			pArgs = append(pArgs, "-h")
+		case strings.HasPrefix(a, "-") && !strings.HasPrefix(a, "--"):
+			// Remove the string post the "=" sign.
+			// This converts -a=b to -a.
+			flg, _, _ := strings.Cut(a, "=")
+			// Remove one hyphen from the beginning.
+			// This converts -a -> a.
+			flg, _ = strings.CutPrefix(flg, "-")
+
+			if flagSet[flg] {
+				// "a" is a full-form flag which has been specified with a single hyphen.
+				// So add another hyphen so that pflag processes it correctly.
+				pArgs = append(pArgs, "-"+a)
+			} else {
+				// "a" is a flag so, keep it as is.
+				pArgs = append(pArgs, a)
+			}
+		default:
+			pArgs = append(pArgs, a)
+		}
+	}
+	return pArgs
+}
+
+var ExecuteMountCmd = func() {
+	rootCmd, err := NewRootCmd(Mount)
+	if err != nil {
+		log.Fatalf("Error occurred while creating the root command: %v", err)
+	}
+	rootCmd.SetArgs(convertToPosixArgs(os.Args, rootCmd))
+	if err := rootCmd.Execute(); err != nil {
+		log.Fatalf("Error occurred during command execution: %v", err)
+	}
 }

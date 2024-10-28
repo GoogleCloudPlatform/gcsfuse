@@ -62,7 +62,7 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 		for _, d := range dirs {
 			err = os.Mkdir(path.Join(dstDir, d), 0755)
 			if err != nil {
-				err = fmt.Errorf("Mkdir: %w", err)
+				err = fmt.Errorf("mkdir: %w", err)
 				return
 			}
 		}
@@ -102,7 +102,7 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 
 	err = os.Symlink(srcDir, gcsfuseDir)
 	if err != nil {
-		err = fmt.Errorf("Symlink: %w", err)
+		err = fmt.Errorf("symlink: %w", err)
 		return
 	}
 
@@ -180,7 +180,7 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 	if osys == "linux" {
 		err = os.Symlink("mount.gcsfuse", path.Join(dstDir, "sbin/mount.fuse.gcsfuse"))
 		if err != nil {
-			err = fmt.Errorf("Symlink: %w", err)
+			err = fmt.Errorf("symlink: %w", err)
 			return
 		}
 	}
@@ -192,7 +192,7 @@ func run() (err error) {
 	// Extract arguments.
 	args := flag.Args()
 	if len(args) < 3 {
-		err = fmt.Errorf("Usage: %s src_dir dst_dir version [build args]", os.Args[0])
+		err = fmt.Errorf("usage: %s src_dir dst_dir version [build args]", os.Args[0])
 		return
 	}
 

@@ -23,6 +23,7 @@ import (
 	"os"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/creds_tests"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
@@ -62,7 +63,7 @@ func (s *managedFoldersViewPermission) TestCreateObjectInManagedFolder(t *testin
 		t.Errorf("Error in creating file locally.")
 	}
 	t.Cleanup(func() {
-		err := file.Close()
+		err = file.Close()
 		operations.CheckErrorForReadOnlyFileSystem(err, t)
 	})
 }
@@ -136,9 +137,9 @@ func TestManagedFolders_FolderViewPermission(t *testing.T) {
 	ts := &managedFoldersViewPermission{}
 
 	// Fetch credentials and apply permission on bucket.
-	serviceAccount, localKeyFilePath := creds_tests.CreateCredentials()
-	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, ViewPermission, setup.TestBucket())
-	defer creds_tests.RevokePermission(serviceAccount, ViewPermission, setup.TestBucket())
+	serviceAccount, localKeyFilePath := creds_tests.CreateCredentials(ctx)
+	creds_tests.ApplyPermissionToServiceAccount(ctx, storageClient, serviceAccount, ViewPermission, setup.TestBucket())
+	defer creds_tests.RevokePermission(ctx, storageClient, serviceAccount, ViewPermission, setup.TestBucket())
 
 	flags := []string{"--implicit-dirs", "--key-file=" + localKeyFilePath, "--rename-dir-limit=3"}
 	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
@@ -151,8 +152,8 @@ func TestManagedFolders_FolderViewPermission(t *testing.T) {
 
 	bucket, testDir = setup.GetBucketAndObjectBasedOnTypeOfMount(TestDirForManagedFolderTest)
 	// Create directory structure for testing.
-	createDirectoryStructureForNonEmptyManagedFolders(ctx, storageClient, t)
-	defer cleanup(ctx, storageClient, bucket, testDir, serviceAccount, IAMRoleForViewPermission, t)
+	createDirectoryStructureForNonEmptyManagedFolders(ctx, storageClient, controlClient, t)
+	defer cleanup(ctx, storageClient, controlClient, bucket, testDir, serviceAccount, IAMRoleForViewPermission, t)
 
 	// Run tests.
 	log.Printf("Running tests with flags and managed folder have nil permissions: %s", flags)
@@ -161,6 +162,8 @@ func TestManagedFolders_FolderViewPermission(t *testing.T) {
 	// Provide storage.objectViewer role to managed folders.
 	providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, IAMRoleForViewPermission, t)
 	providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, IAMRoleForViewPermission, t)
+	// Waiting for 60 seconds for policy changes to propagate. This values we kept based on our experiments.
+	time.Sleep(60 * time.Second)
 
 	log.Printf("Running tests with flags and managed folder have view permissions: %s", flags)
 	test_setup.RunTests(t, ts)

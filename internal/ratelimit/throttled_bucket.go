@@ -94,6 +94,27 @@ func (b *throttledBucket) CreateObject(
 	return
 }
 
+func (b *throttledBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (wc gcs.Writer, err error) {
+	// Wait for permission to call through.
+	err = b.opThrottle.Wait(ctx, 1)
+	if err != nil {
+		return
+	}
+
+	// Call through.
+	wc, err = b.wrapped.CreateObjectChunkWriter(ctx, req, chunkSize, callBack)
+
+	return
+}
+
+func (b *throttledBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.Object, error) {
+	// FinalizeUpload is not throttled to prevent permanent data loss in case the
+	// limiter's burst size is exceeded.
+	// Note: CreateObjectChunkWriter, a prerequisite for FinalizeUpload,
+	// is throttled.
+	return b.wrapped.FinalizeUpload(ctx, w)
+}
+
 func (b *throttledBucket) CopyObject(
 	ctx context.Context,
 	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {

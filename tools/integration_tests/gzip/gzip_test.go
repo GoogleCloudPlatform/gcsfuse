@@ -16,13 +16,16 @@
 package gzip_test
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/gzip/helpers"
+	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
@@ -53,6 +56,8 @@ const (
 
 var (
 	gcsObjectsToBeDeletedEventually []string
+	storageClient                   *storage.Client
+	ctx                             context.Context
 )
 
 func setup_testdata(m *testing.M) error {
@@ -132,26 +137,28 @@ func setup_testdata(m *testing.M) error {
 	}
 
 	for _, fmd := range fmds {
-		var localFilePath string
-		localFilePath, err := helpers.CreateLocalTempFile(fmd.filesize, fmd.enableGzipEncodedContent)
+		content, err := createContentOfSize(fmd.filesize)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to create content for testing: %w", err)
+		}
+		localFilePath, err := operations.CreateLocalTempFile(content, fmd.enableGzipEncodedContent)
+		if err != nil {
+			return fmt.Errorf("failed to create local file: %w", err)
 		}
 
 		defer os.Remove(localFilePath)
 
 		// upload to the test-bucket for testing
-		gcsObjectPath := path.Join(setup.TestBucket(), TestBucketPrefixPath, fmd.filename)
-
-		err = operations.UploadGcsObject(localFilePath, gcsObjectPath, fmd.enableGzipContentEncoding)
+		objectPrefixPath := path.Join(TestBucketPrefixPath, fmd.filename)
+		err = client.UploadGcsObject(ctx, storageClient, localFilePath, setup.TestBucket(), objectPrefixPath, fmd.enableGzipContentEncoding)
 		if err != nil {
 			return err
 		}
 
-		gcsObjectsToBeDeletedEventually = append(gcsObjectsToBeDeletedEventually, gcsObjectPath)
+		gcsObjectsToBeDeletedEventually = append(gcsObjectsToBeDeletedEventually, objectPrefixPath)
 
 		if !fmd.keepCacheControlNoTransform {
-			err = operations.ClearCacheControlOnGcsObject(gcsObjectPath)
+			err = client.ClearCacheControlOnGcsObject(ctx, storageClient, objectPrefixPath)
 			if err != nil {
 				return err
 			}
@@ -161,9 +168,9 @@ func setup_testdata(m *testing.M) error {
 	return nil
 }
 
-func destroy_testdata(m *testing.M) error {
+func destroy_testdata(m *testing.M, storageClient *storage.Client) error {
 	for _, gcsObjectPath := range gcsObjectsToBeDeletedEventually {
-		err := operations.DeleteGcsObject(gcsObjectPath)
+		err := client.DeleteObjectOnGCS(ctx, storageClient, gcsObjectPath)
 		if err != nil {
 			return fmt.Errorf("Failed to delete gcs object gs://%s", gcsObjectPath)
 		}
@@ -172,8 +179,30 @@ func destroy_testdata(m *testing.M) error {
 	return nil
 }
 
+// createContentOfSize generates a string of the specified content size in bytes.
+func createContentOfSize(contentSize int) (string, error) {
+	if contentSize <= 0 {
+		return "", fmt.Errorf("unsupported fileSize: %d", contentSize)
+	}
+	const tempStr = "This is a test file\n"
+	iter := (contentSize + len(tempStr) - 1) / len(tempStr)
+	str := strings.Repeat(tempStr, iter)
+	return str[:contentSize], nil
+}
+
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
+
+	var err error
+	ctx = context.Background()
+	if storageClient, err = client.CreateStorageClient(ctx); err != nil {
+		log.Fatalf("Error creating storage client: %v\n", err)
+	}
+	defer func() {
+		if err := storageClient.Close(); err != nil {
+			log.Printf("failed to close storage client: %v", err)
+		}
+	}()
 
 	commonFlags := []string{"--sequential-read-size-mb=" + fmt.Sprint(SeqReadSizeMb), "--implicit-dirs"}
 	flags := [][]string{commonFlags}
@@ -186,20 +215,18 @@ func TestMain(m *testing.M) {
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
 	if setup.TestBucket() == "" && setup.MountedDirectory() != "" {
-		log.Print("Please pass the name of bucket mounted at mountedDirectory to --testBucket flag.")
-		os.Exit(1)
+		log.Fatal("Please pass the name of bucket mounted at mountedDirectory to --testBucket flag.")
 	}
 
-	err := setup_testdata(m)
+	err = setup_testdata(m)
 	if err != nil {
-		fmt.Printf("Failed to setup test data: %v", err)
-		os.Exit(1)
+		log.Fatalf("Failed to setup test data: %v", err)
 	}
 
 	defer func() {
-		err := destroy_testdata(m)
+		err := destroy_testdata(m, storageClient)
 		if err != nil {
-			fmt.Printf("Failed to destoy gzip test data: %v", err)
+			log.Printf("Failed to destoy gzip test data: %v", err)
 		}
 	}()
 

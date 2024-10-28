@@ -99,20 +99,12 @@ func LogFile() string {
 	return logFile
 }
 
-func SetBinFile(binFileValue string) {
-	binFile = binFileValue
-}
-
 func BinFile() string {
 	return binFile
 }
 
 func SbinFile() string {
 	return sbinFile
-}
-
-func SetTestDir(testDirValue string) {
-	testDir = testDirValue
 }
 
 func TestDir() string {
@@ -363,11 +355,6 @@ func CleanUpDir(directoryPath string) {
 	}
 }
 
-// CleanMntDir cleans the mounted directory.
-func CleanMntDir() {
-	CleanUpDir(mntDir)
-}
-
 // SetupTestDirectory creates a testDirectory in the mounted directory and cleans up
 // any content present in it.
 func SetupTestDirectory(testDirName string) string {
@@ -423,7 +410,7 @@ func IsHierarchicalBucket(ctx context.Context, storageClient *storage.Client) bo
 // Explicitly set the enable-hns config flag to true when running tests on the HNS bucket.
 func AddHNSFlagForHierarchicalBucket(ctx context.Context, storageClient *storage.Client) ([]string, error) {
 	if !IsHierarchicalBucket(ctx, storageClient) {
-		return nil, fmt.Errorf("Bucket is not Hierarchical")
+		return nil, fmt.Errorf("bucket is not Hierarchical")
 	}
 
 	var flags []string

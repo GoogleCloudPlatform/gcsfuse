@@ -261,6 +261,70 @@ func TestValidateConfig_ErrorScenarios(t *testing.T) {
 				FileSystem: FileSystemConfig{KernelListCacheTtlSecs: 88888888888888888},
 			},
 		},
+		{
+			name: "read_stall_req_increase_rate_negative",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+				GcsRetries: GcsRetriesConfig{
+					ReadStall: ReadStallGcsRetriesConfig{
+						Enable:          true,
+						ReqIncreaseRate: -1,
+					},
+				},
+			},
+		},
+		{
+			name: "read_stall_req_increase_rate_zero",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+				GcsRetries: GcsRetriesConfig{
+					ReadStall: ReadStallGcsRetriesConfig{
+						Enable:          true,
+						ReqIncreaseRate: 0,
+					},
+				},
+			},
+		},
+		{
+			name: "read_stall_req_target_percentile_large",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+				GcsRetries: GcsRetriesConfig{
+					ReadStall: ReadStallGcsRetriesConfig{
+						Enable:              true,
+						ReqTargetPercentile: 4,
+					},
+				},
+			},
+		},
+		{
+			name: "read_stall_req_target_percentile_negative",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+				GcsRetries: GcsRetriesConfig{
+					ReadStall: ReadStallGcsRetriesConfig{
+						Enable:              true,
+						ReqTargetPercentile: -3,
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -300,6 +364,125 @@ func Test_IsTtlInSecsValid_ValidScenarios(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.testName, func(t *testing.T) {
 			assert.NoError(t, isTTLInSecsValid(tc.ttlInSecs))
+		})
+	}
+}
+
+func Test_isValidWriteStreamingConfig_ErrorScenarios(t *testing.T) {
+	var testCases = []struct {
+		testName    string
+		writeConfig WriteConfig
+	}{
+		{"zero_block_size", WriteConfig{
+			BlockSizeMb:                       0,
+			CreateEmptyFile:                   false,
+			ExperimentalEnableStreamingWrites: true,
+			GlobalMaxBlocks:                   -1,
+			MaxBlocksPerFile:                  -1,
+		}},
+		{"negative_block_size", WriteConfig{
+			BlockSizeMb:                       -1,
+			CreateEmptyFile:                   false,
+			ExperimentalEnableStreamingWrites: true,
+			GlobalMaxBlocks:                   -1,
+			MaxBlocksPerFile:                  -1,
+		}},
+		{"-2_global_max_blocks", WriteConfig{
+			BlockSizeMb:                       10,
+			CreateEmptyFile:                   false,
+			ExperimentalEnableStreamingWrites: true,
+			GlobalMaxBlocks:                   -2,
+			MaxBlocksPerFile:                  -1,
+		}},
+		{"0_global_max_blocks", WriteConfig{
+			BlockSizeMb:                       10,
+			CreateEmptyFile:                   false,
+			ExperimentalEnableStreamingWrites: true,
+			GlobalMaxBlocks:                   0,
+			MaxBlocksPerFile:                  -1,
+		}},
+		{"1_global_max_blocks", WriteConfig{
+			BlockSizeMb:                       10,
+			CreateEmptyFile:                   false,
+			ExperimentalEnableStreamingWrites: true,
+			GlobalMaxBlocks:                   1,
+			MaxBlocksPerFile:                  -1,
+		}},
+		{"-2_max_blocks_per_file", WriteConfig{
+			BlockSizeMb:                       10,
+			CreateEmptyFile:                   false,
+			ExperimentalEnableStreamingWrites: true,
+			GlobalMaxBlocks:                   20,
+			MaxBlocksPerFile:                  -2,
+		}},
+		{"0_max_blocks_per_file", WriteConfig{
+			BlockSizeMb:                       10,
+			CreateEmptyFile:                   false,
+			ExperimentalEnableStreamingWrites: true,
+			GlobalMaxBlocks:                   20,
+			MaxBlocksPerFile:                  0,
+		}},
+		{"1_max_blocks_per_file", WriteConfig{
+			BlockSizeMb:                       10,
+			CreateEmptyFile:                   false,
+			ExperimentalEnableStreamingWrites: true,
+			GlobalMaxBlocks:                   20,
+			MaxBlocksPerFile:                  1,
+		}},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.testName, func(t *testing.T) {
+			assert.Error(t, isValidWriteStreamingConfig(&tc.writeConfig))
+		})
+	}
+}
+
+func Test_isValidWriteStreamingConfig_SuccessScenarios(t *testing.T) {
+	var testCases = []struct {
+		testName    string
+		writeConfig WriteConfig
+	}{
+		{"streaming_writes_disabled", WriteConfig{
+			BlockSizeMb:                       -1,
+			CreateEmptyFile:                   false,
+			ExperimentalEnableStreamingWrites: false,
+			GlobalMaxBlocks:                   -10,
+			MaxBlocksPerFile:                  -10,
+		}},
+		{"valid_write_config_1", WriteConfig{
+			BlockSizeMb:                       1,
+			CreateEmptyFile:                   false,
+			ExperimentalEnableStreamingWrites: true,
+			GlobalMaxBlocks:                   -1,
+			MaxBlocksPerFile:                  -1,
+		}},
+		{"valid_write_config_2", WriteConfig{
+			BlockSizeMb:                       10,
+			CreateEmptyFile:                   false,
+			ExperimentalEnableStreamingWrites: true,
+			GlobalMaxBlocks:                   20,
+			MaxBlocksPerFile:                  -1,
+		}},
+		{"valid_write_config_3", WriteConfig{
+			BlockSizeMb:                       10,
+			CreateEmptyFile:                   false,
+			ExperimentalEnableStreamingWrites: true,
+			GlobalMaxBlocks:                   20,
+			MaxBlocksPerFile:                  20,
+		}},
+		{"valid_write_config_4", WriteConfig{
+			BlockSizeMb:                       10,
+			CreateEmptyFile:                   false,
+			ExperimentalEnableStreamingWrites: true,
+			GlobalMaxBlocks:                   40,
+			MaxBlocksPerFile:                  20,
+		}},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.testName, func(t *testing.T) {
+			assert.NoError(t, isValidWriteStreamingConfig(&tc.writeConfig))
 		})
 	}
 }

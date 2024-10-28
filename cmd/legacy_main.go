@@ -31,7 +31,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/canned"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/monitor"
@@ -42,7 +41,6 @@ import (
 	"github.com/jacobsa/daemonize"
 	"github.com/jacobsa/fuse"
 	"github.com/kardianos/osext"
-	"github.com/urfave/cli"
 	"golang.org/x/net/context"
 )
 
@@ -99,7 +97,11 @@ func getConfigForUserAgent(mountConfig *cfg.Config) string {
 	if mountConfig.FileCache.CacheFileForRangeRead {
 		isFileCacheForRangeReadEnabled = "1"
 	}
-	return fmt.Sprintf("%s:%s", isFileCacheEnabled, isFileCacheForRangeReadEnabled)
+	isParallelDownloadsEnabled := "0"
+	if cfg.IsParallelDownloadsEnabled(mountConfig) {
+		isParallelDownloadsEnabled = "1"
+	}
+	return fmt.Sprintf("%s:%s:%s", isFileCacheEnabled, isFileCacheForRangeReadEnabled, isParallelDownloadsEnabled)
 }
 func createStorageHandle(newConfig *cfg.Config, userAgent string) (storageHandle storage.StorageHandle, err error) {
 	storageClientConfig := storageutil.StorageClientConfig{
@@ -119,6 +121,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string) (storageHandle
 		ExperimentalEnableJsonRead: newConfig.GcsConnection.ExperimentalEnableJsonRead,
 		GrpcConnPoolSize:           int(newConfig.GcsConnection.GrpcConnPoolSize),
 		EnableHNS:                  newConfig.EnableHns,
+		ReadStallRetryConfig:       newConfig.GcsRetries.ReadStall,
 	}
 	logger.Infof("UserAgent = %s\n", storageClientConfig.UserAgent)
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig)
@@ -187,7 +190,7 @@ func populateArgs(args []string) (
 
 	default:
 		err = fmt.Errorf(
-			"%s takes one or two arguments. Run `%s --help` for more info.",
+			"%s takes one or two arguments. Run `%s --help` for more info",
 			path.Base(os.Args[0]),
 			path.Base(os.Args[0]))
 
@@ -230,33 +233,6 @@ func callListRecursive(mountPoint string) (err error) {
 
 func isDynamicMount(bucketName string) bool {
 	return bucketName == "" || bucketName == "_"
-}
-
-func runCLIApp(c *cli.Context) (err error) {
-	err = resolvePathForTheFlagsInContext(c)
-	if err != nil {
-		return fmt.Errorf("Resolving path: %w", err)
-	}
-
-	flags, err := populateFlags(c)
-	if err != nil {
-		return fmt.Errorf("parsing flags failed: %w", err)
-	}
-
-	mountConfig, err := config.ParseConfigFile(flags.ConfigFile)
-	if err != nil {
-		return fmt.Errorf("parsing config file failed: %w", err)
-	}
-
-	newConfig, err := PopulateNewConfigFromLegacyFlagsAndConfig(c, flags, mountConfig)
-	if err != nil {
-		return fmt.Errorf("error resolving flags and configs: %w", err)
-	}
-	var bucketName, mountPoint string
-	if bucketName, mountPoint, err = populateArgs(c.Args()); err != nil {
-		return err
-	}
-	return Mount(newConfig, bucketName, mountPoint)
 }
 
 func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
@@ -366,8 +342,16 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 		// programme is running as daemon process.
 		env = append(env, fmt.Sprintf("%s=true", logger.GCSFuseInBackgroundMode))
 
+		// logfile.stderr will capture the standard error (stderr) output of the gcsfuse background process.
+		var stderrFile *os.File
+		if newConfig.Logging.FilePath != "" {
+			stderrFileName := string(newConfig.Logging.FilePath) + ".stderr"
+			if stderrFile, err = os.OpenFile(stderrFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644); err != nil {
+				return err
+			}
+		}
 		// Run.
-		err = daemonize.Run(path, args, env, os.Stdout)
+		err = daemonize.Run(path, args, env, os.Stdout, stderrFile)
 		if err != nil {
 			return fmt.Errorf("daemonize.Run: %w", err)
 		}
@@ -455,31 +439,4 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	}
 
 	return
-}
-
-func run() (err error) {
-	// Set up the app.
-	app := newApp()
-
-	var appErr error
-	app.Action = func(c *cli.Context) {
-		appErr = runCLIApp(c)
-	}
-
-	// Run it.
-	err = app.Run(os.Args)
-	if err != nil {
-		return
-	}
-
-	err = appErr
-	return
-}
-
-func ExecuteLegacyMain() {
-	err := run()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
 }

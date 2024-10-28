@@ -17,6 +17,7 @@
 package creds_tests
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -28,6 +29,10 @@ import (
 	"time"
 
 	"cloud.google.com/go/compute/metadata"
+	"cloud.google.com/go/iam"
+	secretmanager "cloud.google.com/go/secretmanager/apiv1"
+	"cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
@@ -38,7 +43,7 @@ const CredentialsSecretName = "gcsfuse-integration-tests"
 
 var WhitelistedGcpProjects = []string{"gcs-fuse-test", "gcs-fuse-test-ml"}
 
-func CreateCredentials() (serviceAccount, localKeyFilePath string) {
+func CreateCredentials(ctx context.Context) (serviceAccount, localKeyFilePath string) {
 	log.Println("Running credentials tests...")
 
 	// Fetching project-id to get service account id.
@@ -57,8 +62,15 @@ func CreateCredentials() (serviceAccount, localKeyFilePath string) {
 	localKeyFilePath = path.Join(os.Getenv("HOME"), "creds.json")
 
 	// Download credentials
-	gcloudSecretAccessCmd := fmt.Sprintf("secrets versions access latest --secret %s", CredentialsSecretName)
-	creds, err := operations.ExecuteGcloudCommandf(gcloudSecretAccessCmd)
+	client, err := secretmanager.NewClient(ctx)
+	if err != nil {
+		setup.LogAndExit(fmt.Sprintf("Failed to create secret manager client: %v", err))
+	}
+	defer client.Close()
+	req := &secretmanagerpb.AccessSecretVersionRequest{
+		Name: fmt.Sprintf("projects/%s/secrets/%s/versions/latest", id, CredentialsSecretName),
+	}
+	creds, err := client.AccessSecretVersion(ctx, req)
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error while fetching key file %v", err))
 	}
@@ -68,7 +80,7 @@ func CreateCredentials() (serviceAccount, localKeyFilePath string) {
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error while creating credentials file %v", err))
 	}
-	_, err = io.WriteString(file, string(creds))
+	_, err = io.Writer.Write(file, creds.Payload.Data)
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error while writing credentials to local file %v", err))
 	}
@@ -77,30 +89,45 @@ func CreateCredentials() (serviceAccount, localKeyFilePath string) {
 	return
 }
 
-func ApplyPermissionToServiceAccount(serviceAccount, permission, bucket string) {
+func ApplyPermissionToServiceAccount(ctx context.Context, storageClient *storage.Client, serviceAccount, permission, bucket string) {
 	// Provide permission to service account for testing.
-	_, err := operations.ExecuteGcloudCommandf(fmt.Sprintf("storage buckets add-iam-policy-binding gs://%s --member=serviceAccount:%s --role=roles/storage.%s", bucket, serviceAccount, permission))
+	bucketHandle := storageClient.Bucket(bucket)
+	policy, err := bucketHandle.IAM().Policy(ctx)
 	if err != nil {
-		setup.LogAndExit(fmt.Sprintf("Error while setting permissions to SA: %v", err))
+		setup.LogAndExit(fmt.Sprintf("Error fetching: Bucket(%q).IAM().Policy: %v", bucket, err))
+	}
+	identity := fmt.Sprintf("serviceAccount:%s", serviceAccount)
+	role := iam.RoleName(fmt.Sprintf("roles/storage.%s", permission))
+
+	policy.Add(identity, role)
+	if err := bucketHandle.IAM().SetPolicy(ctx, policy); err != nil {
+		setup.LogAndExit(fmt.Sprintf("Error applying permission to service account: Bucket(%q).IAM().SetPolicy: %v", bucket, err))
 	}
 	// Waiting for 2 minutes as it usually takes within 2 minutes for policy
 	// changes to propagate: https://cloud.google.com/iam/docs/access-change-propagation
 	time.Sleep(120 * time.Second)
 }
 
-func RevokePermission(serviceAccount, permission, bucket string) {
+func RevokePermission(ctx context.Context, storageClient *storage.Client, serviceAccount, permission, bucket string) {
 	// Revoke the permission to service account after testing.
-	cmd := fmt.Sprintf("storage buckets remove-iam-policy-binding gs://%s --member=serviceAccount:%s --role=roles/storage.%s", bucket, serviceAccount, permission)
-	_, err := operations.ExecuteGcloudCommandf(cmd)
+	bucketHandle := storageClient.Bucket(bucket)
+	policy, err := bucketHandle.IAM().Policy(ctx)
 	if err != nil {
-		setup.LogAndExit(fmt.Sprintf("Error in unsetting permissions to SA: %v", err))
+		setup.LogAndExit(fmt.Sprintf("Error fetching: Bucket(%q).IAM().Policy: %v", bucket, err))
+	}
+	identity := fmt.Sprintf("serviceAccount:%s", serviceAccount)
+	role := iam.RoleName(fmt.Sprintf("roles/storage.%s", permission))
+
+	policy.Remove(identity, role)
+	if err := bucketHandle.IAM().SetPolicy(ctx, policy); err != nil {
+		setup.LogAndExit(fmt.Sprintf("Error applying permission to service account: Bucket(%q).IAM().SetPolicy: %v", bucket, err))
 	}
 }
 
-func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]string, permission string, m *testing.M) (successCode int) {
-	serviceAccount, localKeyFilePath := CreateCredentials()
-	ApplyPermissionToServiceAccount(serviceAccount, permission, setup.TestBucket())
-	defer RevokePermission(serviceAccount, permission, setup.TestBucket())
+func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(ctx context.Context, storageClient *storage.Client, testFlagSet [][]string, permission string, m *testing.M) (successCode int) {
+	serviceAccount, localKeyFilePath := CreateCredentials(ctx)
+	ApplyPermissionToServiceAccount(ctx, storageClient, serviceAccount, permission, setup.TestBucket())
+	defer RevokePermission(ctx, storageClient, serviceAccount, permission, setup.TestBucket())
 
 	// Without –key-file flag and GOOGLE_APPLICATION_CREDENTIALS
 	// This case will not get covered as gcsfuse internally authenticates from a metadata server on GCE VM.

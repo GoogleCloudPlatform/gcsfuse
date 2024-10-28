@@ -1,3 +1,18 @@
+# Copyright 2018 The Kubernetes Authors.
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """This file defines a DlioWorkload (a DLIO Unet3d workload) and provides utility for parsing a json
 
 test-config file for a list of them.
@@ -8,13 +23,23 @@ import json
 
 def validateDlioWorkload(workload: dict, name: str):
   """Validates the given json workload object."""
-  if 'dlioWorkload' not in workload:
-    print(f"{name} does not have 'dlioWorkload' key in it.")
-    return False
-
-  if 'bucket' not in workload:
-    print(f"{name} does not have 'bucket' key in it.")
-    return False
+  for requiredWorkloadAttribute, expectedType in {
+      'bucket': str,
+      'gcsfuseMountOptions': str,
+      'dlioWorkload': dict,
+  }.items():
+    if requiredWorkloadAttribute not in workload:
+      print(f"{name} does not have '{requiredWorkloadAttribute}' key in it.")
+      return False
+    if not type(workload[requiredWorkloadAttribute]) is expectedType:
+      print(
+          f"In {name}, the type of '{requiredWorkloadAttribute}' is of type"
+          f" '{type(workload[requiredWorkloadAttribute])}', not {expectedType}"
+      )
+      return False
+    if expectedType == str and ' ' in workload[requiredWorkloadAttribute]:
+      print(f"{name} has space in the value of '{requiredWorkloadAttribute}'")
+      return False
 
   if 'fioWorkload' in workload:
     print(f"{name} has 'fioWorkload' key in it, which is unexpected.")
@@ -73,6 +98,14 @@ class DlioWorkload:
   4. bucket (str): Name of a GCS bucket to read input files from.
   5. batchSizes (set of ints): a set of ints representing multiple batchsize
   values to test.
+  6. gcsfuseMountOptions (str): gcsfuse mount options as a single
+  string in compact stringified format, to be used for the
+  test scenario "gcsfuse-generic". The individual config/cli flag values should
+  be separated by comma. Each cli flag should be of the form "<flag>[=<value>]",
+  while each config-file flag should be of form
+  "<config>[:<subconfig>[:<subsubconfig>[...]]]:<value>". For example, a legal
+  value would be:
+  "implicit-dirs,file_mode=777,file-cache:enable-parallel-downloads:true,metadata-cache:ttl-secs:true".
   """
 
   def __init__(
@@ -82,12 +115,14 @@ class DlioWorkload:
       recordLength: int,
       bucket: str,
       batchSizes: list,
+      gcsfuseMountOptions: str,
   ):
     self.scenario = scenario
     self.numFilesTrain = numFilesTrain
     self.recordLength = recordLength
     self.bucket = bucket
     self.batchSizes = set(batchSizes)
+    self.gcsfuseMountOptions = gcsfuseMountOptions
 
 
 def ParseTestConfigForDlioWorkloads(testConfigFileName: str):
@@ -108,7 +143,6 @@ def ParseTestConfigForDlioWorkloads(testConfigFileName: str):
       workload = workloads[i]
       if not validateDlioWorkload(workload, f'workload#{i}'):
         print(f'workloads#{i} is not a valid DLIO workload, so ignoring it.')
-        pass
       else:
         for scenario in scenarios:
           dlioWorkload = workload['dlioWorkload']
@@ -119,6 +153,30 @@ def ParseTestConfigForDlioWorkloads(testConfigFileName: str):
                   dlioWorkload['recordLength'],
                   workload['bucket'],
                   dlioWorkload['batchSizes'],
+                  workload['gcsfuseMountOptions'],
               )
           )
   return dlioWorkloads
+
+
+def DlioChartNamePodName(
+    dlioWorkload: DlioWorkload, instanceID: str, batchSize: int
+) -> (str, str, str):
+  shortenScenario = {
+      'local-ssd': 'ssd',
+      'gcsfuse-generic': 'gcsfuse',
+  }
+  shortForScenario = (
+      shortenScenario[dlioWorkload.scenario]
+      if dlioWorkload.scenario in shortenScenario
+      else 'other'
+  )
+
+  hashOfWorkload = str(hash((instanceID, batchSize, dlioWorkload))).replace(
+      '-', ''
+  )
+  return (
+      f'dlio-unet3d-{shortForScenario}-{dlioWorkload.recordLength}-{hashOfWorkload}',
+      f'dlio-tester-{shortForScenario}-{dlioWorkload.recordLength}-{hashOfWorkload}',
+      f'{instanceID}/{dlioWorkload.numFilesTrain}-{dlioWorkload.recordLength}-{batchSize}-{hashOfWorkload}/{dlioWorkload.scenario}',
+  )

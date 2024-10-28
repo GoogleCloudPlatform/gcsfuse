@@ -24,7 +24,8 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-	. "github.com/jacobsa/ogletest"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -134,8 +135,9 @@ func TestParseLogFileSuccessful(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			actual, err := read_logs.ParseReadLogsFromLogFile(tc.reader)
-			AssertEq(nil, err)
-			AssertTrue(reflect.DeepEqual(actual, tc.expected))
+
+			require.NoError(t, err)
+			assert.True(t, reflect.DeepEqual(actual, tc.expected))
 		})
 	}
 }
@@ -180,8 +182,9 @@ func TestParseLogFileUnsuccessful(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := read_logs.ParseReadLogsFromLogFile(tc.reader)
-			AssertNe(nil, err)
-			AssertTrue(strings.Contains(err.Error(), tc.errorString))
+
+			require.Error(t, err)
+			assert.True(t, strings.Contains(err.Error(), tc.errorString))
 		})
 	}
 }
