@@ -74,11 +74,11 @@ Here's how:
    library: This makes your tests more readable and easier to write.
 2. *Keep tests clear and focused:* Each test should focus on a single behavior.
    Don't be afraid of some repetition to improve readability.
-3. Structure tests with Arrange-Act-Assert (AAA): This helps organize your tests
-   and makes them easier to understand.
-   *Arrange:* Set up the test data and environment.
-   *Act:* Run the code you're testing.
-   *Assert:* Check that the results are what you expect.
+3. **Structure tests with Arrange-Act-Assert (AAA):** This helps organize your
+   tests and makes them easier to understand.
+   - **Arrange:** Set up the test data and environment.
+   - **Act:** Run the code you're testing.
+   - **Assert:** Check that the results are what you expect.
 4. Call setup code directly in each test: This prevents tests from interfering
    with each other.
 5. Write specific assertions: Avoid generic, parameterized assertions.
@@ -94,11 +94,11 @@ Here's how:
 2. When introducing a new file system level feature, composite tests must be
    added. (
    Ref: [Sample test file](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/internal/fs/hns_bucket_test.go))
-3. Structure tests with Arrange-Act-Assert (AAA): This helps organize your tests
-   and makes them easier to understand.
-   *Arrange:* Set up the test data and environment.
-   *Act:* Run the code you're testing.
-   *Assert:* Check that the results are what you expect.
+3. **Structure tests with Arrange-Act-Assert (AAA):** This helps organize your
+   tests and makes them easier to understand.
+    - **Arrange:** Set up the test data and environment.
+    - **Act:** Run the code you're testing.
+    - **Assert:** Check that the results are what you expect.
 
 ### How to write end-to-end tests
 
@@ -121,8 +121,7 @@ write end-to-end tests for GCSFuse.
       within the relevant package.
 
 2. **Structure tests with Arrange-Act-Assert (AAA):** This helps organize your
-   tests
-   and makes them easier to understand.\
+   tests and makes them easier to understand.
     - **Arrange:** Set up the test data and environment.
     - **Act:** Run the code you're testing.
     - **Assert:** Check that the results are what you expect.
