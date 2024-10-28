@@ -15,6 +15,23 @@ Rollout of any new feature should be done in 2 phases:
   help output.
 * This signals to users that the feature is in development and may change or be
   removed.
+* **Testing Requirements**:
+    * Thorough testing is a crucial requirement for any new features added to
+      GCSFuse even during the experimental phase. This helps ensure the
+      feature's stability, identify potential issues early, and prevent
+      regressions.
+    * Add unit tests for all new code written for the experimental feature. This
+      includes testing edge cases, boundary conditions, and error handling.
+    * Add composite tests to validate GCSFuse's end user functionality while
+      isolating the testing to the GCSFuse code itself. This allows for faster
+      and more controlled testing without relying on a real Google Cloud Storage
+      bucket.
+    * Add end-to-end tests for complete feature flows, simulating real-world use
+      with an actual Google Cloud Storage bucket.
+    * For more details on testing best practices, please refer to
+      the [testing guide](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/dev_guide.md#testing-of-new-features)
+      below.
+
 * After the feature development is complete, developers should open a GitHub
   issue (
   see [example](https://github.com/GoogleCloudPlatform/gcsfuse/issues/793)) to
@@ -23,9 +40,9 @@ Rollout of any new feature should be done in 2 phases:
 
 **2. Production Rollout:**
 
-* Once the feature has been thoroughly vetted in test environments for at least
-  a week and approved by the GCSFuse team, it will be rolled out for general
-  availability. The GCSFuse team will own this part.
+* Once the feature has been thoroughly vetted in test environments and approved
+  by the GCSFuse team, it will be rolled out for general availability. The
+  GCSFuse team will own this part.
 * This involves:
     * Removing the experimental prefix from the flag.
     * Updating the Google Cloud documentation to include the new feature.
@@ -76,9 +93,9 @@ Here's how:
    Don't be afraid of some repetition to improve readability.
 3. **Structure tests with Arrange-Act-Assert (AAA):** This helps organize your
    tests and makes them easier to understand.
-   - **Arrange:** Set up the test data and environment.
-   - **Act:** Run the code you're testing.
-   - **Assert:** Check that the results are what you expect.
+    - **Arrange:** Set up the test data and environment.
+    - **Act:** Run the code you're testing.
+    - **Assert:** Check that the results are what you expect.
 4. Call setup code directly in each test: This prevents tests from interfering
    with each other.
 5. Write specific assertions: Avoid generic, parameterized assertions.
