@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"syscall"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
@@ -30,6 +29,7 @@ import (
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
+	"golang.org/x/sys/unix"
 )
 
 const name = "cloud.google.com/gcsfuse"
@@ -97,171 +97,171 @@ func categorize(err error) string {
 	if err == nil {
 		return ""
 	}
-	var errno syscall.Errno
+	var errno unix.Errno
 	if !errors.As(err, &errno) {
 		errno = DefaultFSError
 	}
 	switch errno {
-	case syscall.ELNRNG,
-		syscall.ENODEV,
-		syscall.ENONET,
-		syscall.ENOSTR,
-		syscall.ENOTSOCK,
-		syscall.ENXIO,
-		syscall.EPROTO,
-		syscall.ERFKILL,
-		syscall.EXDEV:
+	case unix.ELNRNG,
+		unix.ENODEV,
+		unix.ENONET,
+		unix.ENOSTR,
+		unix.ENOTSOCK,
+		unix.ENXIO,
+		unix.EPROTO,
+		unix.ERFKILL,
+		unix.EXDEV:
 		return errDevice
 
-	case syscall.ENOTEMPTY:
+	case unix.ENOTEMPTY:
 		return errDirNotEmpty
 
-	case syscall.EEXIST:
+	case unix.EEXIST:
 		return errFileExists
 
-	case syscall.EBADF,
-		syscall.EBADFD,
-		syscall.EFBIG,
-		syscall.EISDIR,
-		syscall.EISNAM,
-		syscall.ENOTBLK:
+	case unix.EBADF,
+		unix.EBADFD,
+		unix.EFBIG,
+		unix.EISDIR,
+		unix.EISNAM,
+		unix.ENOTBLK:
 		return errFileDir
 
-	case syscall.ENOSYS:
+	case unix.ENOSYS:
 		return errNotImplemented
 
-	case syscall.EIO:
+	case unix.EIO:
 		return errIO
 
-	case syscall.ECANCELED,
-		syscall.EINTR:
+	case unix.ECANCELED,
+		unix.EINTR:
 		return errInterrupt
 
-	case syscall.EINVAL:
+	case unix.EINVAL:
 		return errInvalidArg
 
-	case syscall.E2BIG,
-		syscall.EALREADY,
-		syscall.EBADE,
-		syscall.EBADR,
-		syscall.EDOM,
-		syscall.EINPROGRESS,
-		syscall.ENOEXEC,
-		syscall.ENOTSUP,
-		syscall.ENOTTY,
-		syscall.ERANGE,
-		syscall.ESPIPE:
+	case unix.E2BIG,
+		unix.EALREADY,
+		unix.EBADE,
+		unix.EBADR,
+		unix.EDOM,
+		unix.EINPROGRESS,
+		unix.ENOEXEC,
+		unix.ENOTSUP,
+		unix.ENOTTY,
+		unix.ERANGE,
+		unix.ESPIPE:
 		return errInvalidOp
 
-	case syscall.EADV,
-		syscall.EBADSLT,
-		syscall.EBFONT,
-		syscall.ECHRNG,
-		syscall.EDOTDOT,
-		syscall.EIDRM,
-		syscall.EILSEQ,
-		syscall.ELIBACC,
-		syscall.ELIBBAD,
-		syscall.ELIBEXEC,
-		syscall.ELIBMAX,
-		syscall.ELIBSCN,
-		syscall.EMEDIUMTYPE,
-		syscall.ENAVAIL,
-		syscall.ENOANO,
-		syscall.ENOCSI,
-		syscall.ENODATA,
-		syscall.ENOMEDIUM,
-		syscall.ENOMSG,
-		syscall.ENOPKG,
-		syscall.ENOSR,
-		syscall.ENOTNAM,
-		syscall.ENOTRECOVERABLE,
-		syscall.EOVERFLOW,
-		syscall.ERESTART,
-		syscall.ESRMNT,
-		syscall.ESTALE,
-		syscall.ETIME,
-		syscall.ETOOMANYREFS,
-		syscall.EUCLEAN,
-		syscall.EUNATCH,
-		syscall.EXFULL:
+	case unix.EADV,
+		unix.EBADSLT,
+		unix.EBFONT,
+		unix.ECHRNG,
+		unix.EDOTDOT,
+		unix.EIDRM,
+		unix.EILSEQ,
+		unix.ELIBACC,
+		unix.ELIBBAD,
+		unix.ELIBEXEC,
+		unix.ELIBMAX,
+		unix.ELIBSCN,
+		unix.EMEDIUMTYPE,
+		unix.ENAVAIL,
+		unix.ENOANO,
+		unix.ENOCSI,
+		unix.ENODATA,
+		unix.ENOMEDIUM,
+		unix.ENOMSG,
+		unix.ENOPKG,
+		unix.ENOSR,
+		unix.ENOTNAM,
+		unix.ENOTRECOVERABLE,
+		unix.EOVERFLOW,
+		unix.ERESTART,
+		unix.ESRMNT,
+		unix.ESTALE,
+		unix.ETIME,
+		unix.ETOOMANYREFS,
+		unix.EUCLEAN,
+		unix.EUNATCH,
+		unix.EXFULL:
 		return errMisc
 
-	case syscall.EADDRINUSE,
-		syscall.EADDRNOTAVAIL,
-		syscall.EAFNOSUPPORT,
-		syscall.EBADMSG,
-		syscall.EBADRQC,
-		syscall.ECOMM,
-		syscall.ECONNABORTED,
-		syscall.ECONNREFUSED,
-		syscall.ECONNRESET,
-		syscall.EDESTADDRREQ,
-		syscall.EFAULT,
-		syscall.EHOSTDOWN,
-		syscall.EHOSTUNREACH,
-		syscall.EISCONN,
-		syscall.EL2HLT,
-		syscall.EL2NSYNC,
-		syscall.EL3HLT,
-		syscall.EL3RST,
-		syscall.EMSGSIZE,
-		syscall.EMULTIHOP,
-		syscall.ENETDOWN,
-		syscall.ENETRESET,
-		syscall.ENETUNREACH,
-		syscall.ENOLINK,
-		syscall.ENOPROTOOPT,
-		syscall.ENOTCONN,
-		syscall.ENOTUNIQ,
-		syscall.EPFNOSUPPORT,
-		syscall.EPIPE,
-		syscall.EPROTONOSUPPORT,
-		syscall.EPROTOTYPE,
-		syscall.EREMCHG,
-		syscall.EREMOTE,
-		syscall.EREMOTEIO,
-		syscall.ESHUTDOWN,
-		syscall.ESOCKTNOSUPPORT,
-		syscall.ESTRPIPE,
-		syscall.ETIMEDOUT:
+	case unix.EADDRINUSE,
+		unix.EADDRNOTAVAIL,
+		unix.EAFNOSUPPORT,
+		unix.EBADMSG,
+		unix.EBADRQC,
+		unix.ECOMM,
+		unix.ECONNABORTED,
+		unix.ECONNREFUSED,
+		unix.ECONNRESET,
+		unix.EDESTADDRREQ,
+		unix.EFAULT,
+		unix.EHOSTDOWN,
+		unix.EHOSTUNREACH,
+		unix.EISCONN,
+		unix.EL2HLT,
+		unix.EL2NSYNC,
+		unix.EL3HLT,
+		unix.EL3RST,
+		unix.EMSGSIZE,
+		unix.EMULTIHOP,
+		unix.ENETDOWN,
+		unix.ENETRESET,
+		unix.ENETUNREACH,
+		unix.ENOLINK,
+		unix.ENOPROTOOPT,
+		unix.ENOTCONN,
+		unix.ENOTUNIQ,
+		unix.EPFNOSUPPORT,
+		unix.EPIPE,
+		unix.EPROTONOSUPPORT,
+		unix.EPROTOTYPE,
+		unix.EREMCHG,
+		unix.EREMOTE,
+		unix.EREMOTEIO,
+		unix.ESHUTDOWN,
+		unix.ESOCKTNOSUPPORT,
+		unix.ESTRPIPE,
+		unix.ETIMEDOUT:
 		return errNetwork
 
-	case syscall.ENOENT:
+	case unix.ENOENT:
 		return errNoFileOrDir
 
-	case syscall.ENOTDIR:
+	case unix.ENOTDIR:
 		return errNotADir
 
-	case syscall.EACCES,
-		syscall.EKEYEXPIRED,
-		syscall.EKEYREJECTED,
-		syscall.EKEYREVOKED,
-		syscall.ENOKEY,
-		syscall.EPERM,
-		syscall.EROFS,
-		syscall.ETXTBSY:
+	case unix.EACCES,
+		unix.EKEYEXPIRED,
+		unix.EKEYREJECTED,
+		unix.EKEYREVOKED,
+		unix.ENOKEY,
+		unix.EPERM,
+		unix.EROFS,
+		unix.ETXTBSY:
 		return errPerm
 
-	case syscall.EAGAIN,
-		syscall.EBUSY,
-		syscall.ECHILD,
-		syscall.EDEADLK,
-		syscall.EDQUOT,
-		syscall.ELOOP,
-		syscall.EMLINK,
-		syscall.ENAMETOOLONG,
-		syscall.ENOBUFS,
-		syscall.ENOLCK,
-		syscall.ENOMEM,
-		syscall.ENOSPC,
-		syscall.EOWNERDEAD,
-		syscall.ESRCH,
-		syscall.EUSERS:
+	case unix.EAGAIN,
+		unix.EBUSY,
+		unix.ECHILD,
+		unix.EDEADLK,
+		unix.EDQUOT,
+		unix.ELOOP,
+		unix.EMLINK,
+		unix.ENAMETOOLONG,
+		unix.ENOBUFS,
+		unix.ENOLCK,
+		unix.ENOMEM,
+		unix.ENOSPC,
+		unix.EOWNERDEAD,
+		unix.ESRCH,
+		unix.EUSERS:
 		return errProcessMgmt
 
-	case syscall.EMFILE,
-		syscall.ENFILE:
+	case unix.EMFILE,
+		unix.ENFILE:
 		return errTooManyFiles
 	}
 	return errMisc
