@@ -75,13 +75,6 @@ func createClientOptionForGRPCClient(clientConfig *storageutil.StorageClientConf
 	} else {
 		if clientConfig.AnonymousAccess {
 			clientOpts = append(clientOpts, option.WithoutAuthentication())
-		} else {
-			tokenSrc, tokenCreationErr := storageutil.CreateTokenSource(clientConfig)
-			if tokenCreationErr != nil {
-				err = fmt.Errorf("while fetching tokenSource: %w", tokenCreationErr)
-				return
-			}
-			clientOpts = append(clientOpts, option.WithTokenSource(tokenSrc))
 		}
 	}
 
