@@ -102,6 +102,8 @@ type FileSystemConfig struct {
 
 	Gid int64 `yaml:"gid"`
 
+	HandleSigterm bool `yaml:"handle-sigterm"`
+
 	IgnoreInterrupts bool `yaml:"ignore-interrupts"`
 
 	KernelListCacheTtlSecs int64 `yaml:"kernel-list-cache-ttl-secs"`
@@ -393,6 +395,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("gid", "", -1, "GID owner of all inodes.")
 
+	flagSet.BoolP("handle-sigterm", "", false, "Instructs gcsfuse to handle SIGTERM to gracefully shutdown")
+
+	if err := flagSet.MarkHidden("handle-sigterm"); err != nil {
+		return err
+	}
+
 	flagSet.DurationP("http-client-timeout", "", 0*time.Nanosecond, "The time duration that http client will wait to get response from the server. The default value 0 indicates no timeout.")
 
 	flagSet.BoolP("ignore-interrupts", "", true, "Instructs gcsfuse to ignore system interrupt signals (like SIGINT, triggered by Ctrl+C). This prevents those signals from immediately terminating gcsfuse inflight operations. (default: true)")
@@ -677,6 +685,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.gid", flagSet.Lookup("gid")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.handle-sigterm", flagSet.Lookup("handle-sigterm")); err != nil {
 		return err
 	}
 
