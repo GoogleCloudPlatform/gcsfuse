@@ -23,7 +23,6 @@ import (
 	"os"
 	"reflect"
 	"strings"
-	"syscall"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
@@ -36,6 +35,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"golang.org/x/net/context"
 	"golang.org/x/sync/semaphore"
+	"golang.org/x/sys/unix"
 )
 
 type jobStatusName string
@@ -383,8 +383,8 @@ func (job *Job) createCacheFile() (*os.File, error) {
 	// Try using O_DIRECT while opening file when parallel downloads are enabled
 	// and O_DIRECT use is not disabled.
 	if job.fileCacheConfig.EnableParallelDownloads && job.fileCacheConfig.EnableODirect {
-		cacheFile, err = cacheutil.CreateFile(job.fileSpec, openFileFlags|syscall.O_DIRECT)
-		if errors.Is(err, fs.ErrInvalid) || errors.Is(err, syscall.EINVAL) {
+		cacheFile, err = cacheutil.CreateFile(job.fileSpec, openFileFlags|unix.O_DIRECT)
+		if errors.Is(err, fs.ErrInvalid) || errors.Is(err, unix.EINVAL) {
 			logger.Warnf("downloadObjectAsync: failure in opening file with O_DIRECT, falling back to without O_DIRECT")
 			cacheFile, err = cacheutil.CreateFile(job.fileSpec, openFileFlags)
 		}
