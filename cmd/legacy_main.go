@@ -27,6 +27,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
@@ -360,7 +361,7 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	}
 
 	// The returned error is ignored as we do not enforce monitoring exporters
-	_ = monitor.EnableStackdriverExporter(newConfig.Metrics.StackdriverExportInterval)
+	_ = monitor.EnableStackdriverExporter(time.Duration(newConfig.Metrics.CloudMetricsExportIntervalSecs) * time.Second)
 	_ = monitor.EnableOpenTelemetryCollectorExporter(newConfig.Monitoring.ExperimentalOpentelemetryCollectorAddress)
 	_ = monitor.EnablePrometheusCollectorExporter(int(newConfig.Metrics.PrometheusPort))
 	ctx := context.Background()

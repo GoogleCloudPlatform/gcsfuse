@@ -198,6 +198,8 @@ type MetadataCacheConfig struct {
 }
 
 type MetricsConfig struct {
+	CloudMetricsExportIntervalSecs int64 `yaml:"cloud-metrics-export-interval-secs"`
+
 	PrometheusPort int64 `yaml:"prometheus-port"`
 
 	StackdriverExportInterval time.Duration `yaml:"stackdriver-export-interval"`
@@ -248,6 +250,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.StringP("cache-dir", "", "", "Enables file-caching. Specifies the directory to use for file-cache.")
 
 	flagSet.StringP("client-protocol", "", "http1", "The protocol used for communicating with the GCS backend. Value can be 'http1' (HTTP/1.1), 'http2' (HTTP/2) or 'grpc'.")
+
+	flagSet.IntP("cloud-metrics-export-interval-secs", "", 0, "Specifies the interval at which the metrics are uploaded to cloud monitoring")
 
 	flagSet.BoolP("create-empty-file", "", false, "For a new file, it creates an empty file in Cloud Storage bucket as a hold.")
 
@@ -485,6 +489,10 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.DurationP("stackdriver-export-interval", "", 0*time.Nanosecond, "Export metrics to stackdriver with this interval. The default value 0 indicates no exporting.")
 
+	if err := flagSet.MarkDeprecated("stackdriver-export-interval", "Please use --cloud-metrics-export-interval-secs instead."); err != nil {
+		return err
+	}
+
 	flagSet.IntP("stat-cache-capacity", "", 20460, "How many entries can the stat-cache hold (impacts memory consumption). This flag has been deprecated (starting v2.0) and in favor of stat-cache-max-size-mb. For now, the value of stat-cache-capacity will be translated to the next higher corresponding value of stat-cache-max-size-mb (assuming stat-cache entry-size ~= 1640 bytes, including 1400 for positive entry and 240 for corresponding negative entry), if stat-cache-max-size-mb is not set.\"")
 
 	if err := flagSet.MarkDeprecated("stat-cache-capacity", "Please use --stat-cache-max-size-mb instead."); err != nil {
@@ -553,6 +561,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("gcs-connection.client-protocol", flagSet.Lookup("client-protocol")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("metrics.cloud-metrics-export-interval-secs", flagSet.Lookup("cloud-metrics-export-interval-secs")); err != nil {
 		return err
 	}
 

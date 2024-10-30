@@ -63,3 +63,6 @@ metadata-cache:
   stat-cache-max-size-mb: 40
   ttl-secs: 100
   type-cache-max-size-mb: 10
+
+metrics:
+  cloud-metrics-export-interval-secs: 10

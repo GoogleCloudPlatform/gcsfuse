@@ -738,3 +738,97 @@ func TestValidateConfigFile_ReadStallConfigSuccessful(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateCloudMetricsExportIntervalSecs(t *testing.T) {
+	testCases := []struct {
+		name    string
+		args    []string
+		wantErr bool
+	}{
+		{
+			name:    "valid_stackdriver_export_interval",
+			args:    []string{"--stackdriver-export-interval=30h"},
+			wantErr: false,
+		},
+		{
+			name:    "valid_metrics_export_interval",
+			args:    []string{"--cloud-metrics-export-interval-secs=30"},
+			wantErr: false,
+		},
+		{
+			name:    "neg_cloud_metrics_export_interval",
+			args:    []string{"--cloud-metrics-export-interval-secs=-50"},
+			wantErr: false,
+		},
+		{
+			name:    "both_set",
+			args:    []string{"--stackdriver-export-interval=1h", "--cloud-metrics-export-interval=20"},
+			wantErr: true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := getConfigObject(t, tc.args); tc.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestValidateConfigFile_MetricsConfigSuccessful(t *testing.T) {
+	testCases := []struct {
+		name           string
+		configFile     string
+		expectedConfig *cfg.MetricsConfig
+	}{
+		{
+			// Test default values.
+			name:       "empty_config_file",
+			configFile: "testdata/empty_file.yaml",
+			expectedConfig: &cfg.MetricsConfig{
+				StackdriverExportInterval:      0,
+				CloudMetricsExportIntervalSecs: 0,
+				PrometheusPort:                 0,
+			},
+		},
+		{
+			name:       "valid_config_file",
+			configFile: "testdata/valid_config.yaml",
+			expectedConfig: &cfg.MetricsConfig{
+				CloudMetricsExportIntervalSecs: 10,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
+
+			if assert.NoError(t, err) {
+				assert.EqualValues(t, tc.expectedConfig, &gotConfig.Metrics)
+			}
+		})
+	}
+}
+
+func TestValidateConfigFile_MetricsConfigInvalid(t *testing.T) {
+	testCases := []struct {
+		name       string
+		configFile string
+	}{
+		{
+			name:       "both_set",
+			configFile: "testdata/invalid_metrics_config_both_set.yaml",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := getConfigObjectWithConfigFile(t, tc.configFile)
+
+			assert.Error(t, err)
+		})
+	}
+}

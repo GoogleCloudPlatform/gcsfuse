@@ -1,0 +1,2 @@
+metrics:
+  cloud-metrics-export-interval-secs: 100
