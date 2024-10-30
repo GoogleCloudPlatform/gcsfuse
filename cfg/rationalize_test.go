@@ -371,3 +371,53 @@ func TestRationalize_WriteConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestRationalizeMetricsConfig(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name     string
+		config   *Config
+		expected int64
+	}{
+		{
+			name: "both_0",
+			config: &Config{
+				Metrics: MetricsConfig{
+					StackdriverExportInterval: 0,
+					ExportIntervalSecs:        0,
+				},
+			},
+			expected: 0,
+		},
+		{
+			name: "stackdriver_set",
+			config: &Config{
+				Metrics: MetricsConfig{
+					StackdriverExportInterval: 2 * time.Hour,
+					ExportIntervalSecs:        0,
+				},
+			},
+			expected: 7200,
+		},
+		{
+			name: "cloud_metrics_set",
+			config: &Config{
+				Metrics: MetricsConfig{
+					StackdriverExportInterval: 0,
+					ExportIntervalSecs:        10,
+				},
+			},
+			expected: 10,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if assert.NoError(t, Rationalize(&mockIsSet{}, tc.config)) {
+				assert.Equal(t, tc.expected, tc.config.Metrics.ExportIntervalSecs)
+			}
+		})
+	}
+}

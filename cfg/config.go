@@ -198,6 +198,8 @@ type MetadataCacheConfig struct {
 }
 
 type MetricsConfig struct {
+	ExportIntervalSecs int64 `yaml:"export-interval-secs"`
+
 	PrometheusPort int64 `yaml:"prometheus-port"`
 
 	StackdriverExportInterval time.Duration `yaml:"stackdriver-export-interval"`
@@ -435,6 +437,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("metadata-cache-ttl-secs", "", 60, "The ttl value in seconds to be used for expiring items in metadata-cache. It can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled metadata-cache. Any value set below -1 will throw an error.")
 
+	flagSet.IntP("metrics-export-interval-secs", "", 0, "Specifies the interval at which the metrics are uploaded to cloud monitoring")
+
+	if err := flagSet.MarkHidden("metrics-export-interval-secs"); err != nil {
+		return err
+	}
+
 	flagSet.StringSliceP("o", "", []string{}, "Additional system-specific mount options. Multiple options can be passed as comma separated. For readonly, use --o ro")
 
 	flagSet.StringP("only-dir", "", "", "Mount only a specific directory within the bucket. See docs/mounting for more information")
@@ -484,6 +492,10 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.IntP("sequential-read-size-mb", "", 200, "File chunk size to read from GCS in one call. Need to specify the value in MB. ChunkSize less than 1MB is not supported")
 
 	flagSet.DurationP("stackdriver-export-interval", "", 0*time.Nanosecond, "Export metrics to stackdriver with this interval. The default value 0 indicates no exporting.")
+
+	if err := flagSet.MarkDeprecated("stackdriver-export-interval", "Please use --cloud-metrics-upload-interval-secs instead."); err != nil {
+		return err
+	}
 
 	flagSet.IntP("stat-cache-capacity", "", 20460, "How many entries can the stat-cache hold (impacts memory consumption). This flag has been deprecated (starting v2.0) and in favor of stat-cache-max-size-mb. For now, the value of stat-cache-capacity will be translated to the next higher corresponding value of stat-cache-max-size-mb (assuming stat-cache entry-size ~= 1640 bytes, including 1400 for positive entry and 240 for corresponding negative entry), if stat-cache-max-size-mb is not set.\"")
 
@@ -749,6 +761,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metadata-cache.ttl-secs", flagSet.Lookup("metadata-cache-ttl-secs")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("metrics.export-interval-secs", flagSet.Lookup("metrics-export-interval-secs")); err != nil {
 		return err
 	}
 

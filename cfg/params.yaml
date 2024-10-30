@@ -543,6 +543,13 @@
   usage: "Max size of type-cache maps which are maintained at a per-directory level."
   default: "4"
 
+- config-path: "metrics.export-interval-secs"
+  flag-name: "metrics-export-interval-secs"
+  type: "int"
+  usage: "Specifies the interval at which the metrics are uploaded to cloud monitoring"
+  default: 0
+  hide-flag: true
+
 - config-path: "metrics.prometheus-port"
   flag-name: "prometheus-port"
   type: "int"
@@ -557,6 +564,8 @@
     Export metrics to stackdriver with this interval. The default value 0
     indicates no exporting.
   default: "0s"
+  deprecated: true
+  deprecation-warning: "Please use --cloud-metrics-upload-interval-secs instead."
 
 - config-path: "monitoring.experimental-opentelemetry-collector-address"
   flag-name: "experimental-opentelemetry-collector-address"

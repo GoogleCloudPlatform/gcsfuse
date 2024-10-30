@@ -86,6 +86,12 @@ func resolveStreamingWriteConfig(w *WriteConfig) {
 	}
 }
 
+func resolveCloudMetricsUploadIntervalSecs(m *MetricsConfig) {
+	if m.ExportIntervalSecs == 0 {
+		m.ExportIntervalSecs = int64(m.StackdriverExportInterval.Seconds())
+	}
+}
+
 // Rationalize updates the config fields based on the values of other fields.
 func Rationalize(v isSet, c *Config) error {
 	var err error
@@ -104,6 +110,7 @@ func Rationalize(v isSet, c *Config) error {
 	resolveStreamingWriteConfig(&c.Write)
 	resolveMetadataCacheTTL(v, &c.MetadataCache)
 	resolveStatCacheMaxSizeMB(v, &c.MetadataCache)
+	resolveCloudMetricsUploadIntervalSecs(&c.Metrics)
 
 	return nil
 }

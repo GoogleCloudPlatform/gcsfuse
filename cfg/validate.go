@@ -173,6 +173,20 @@ func isValidReadStallGcsRetriesConfig(rsrc *ReadStallGcsRetriesConfig) error {
 	return nil
 }
 
+func isValidMetricsConfig(m *MetricsConfig) error {
+	if m.StackdriverExportInterval != 0 && m.ExportIntervalSecs != 0 {
+		return fmt.Errorf("exactly one of stackdriver-export-interval and cloud-metrics-export-interval-secs must be specified")
+	}
+	if m.ExportIntervalSecs < 0 {
+		return fmt.Errorf("cloud-metrics-export-interval must not be less than 0 but the specified value is: %d", m.ExportIntervalSecs)
+	}
+
+	if m.StackdriverExportInterval < 0 {
+		return fmt.Errorf("stackdriver-export-interval must not be less than 0 but the specified value is: %d", m.ExportIntervalSecs)
+	}
+	return nil
+}
+
 // ValidateConfig returns a non-nil error if the config is invalid.
 func ValidateConfig(v isSet, config *Config) error {
 	var err error
@@ -215,6 +229,10 @@ func ValidateConfig(v isSet, config *Config) error {
 
 	if err = isValidReadStallGcsRetriesConfig(&config.GcsRetries.ReadStall); err != nil {
 		return fmt.Errorf("error parsing read-stall-gcs-retries config: %w", err)
+	}
+
+	if err = isValidMetricsConfig(&config.Metrics); err != nil {
+		return fmt.Errorf("error parsing metrics config: %w", err)
 	}
 
 	return nil

@@ -1,0 +1,3 @@
+metrics:
+  stackdriver-export-interval: 10s
+  export-interval-secs: 100

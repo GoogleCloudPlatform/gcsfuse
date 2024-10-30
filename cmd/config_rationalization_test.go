@@ -71,6 +71,12 @@ func TestRationalizeMetadataCache(t *testing.T) {
 			expectedTTLSecs:       math.MaxInt64 / int64(time.Second), // Max supported ttl in seconds.
 			expectedStatCacheSize: math.MaxUint64 >> 20,               // Max supported cache size in MiB.
 		},
+		{
+			name:                  "ttl_and_stat_cache_size_set_to_-1",
+			args:                  []string{"--metadata-cache-ttl-secs=-1", "--stat-cache-max-size-mb=-1"},
+			expectedTTLSecs:       math.MaxInt64 / int64(time.Second), // Max supported ttl in seconds.
+			expectedStatCacheSize: math.MaxUint64 >> 20,               // Max supported cache size in MiB.
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -79,6 +85,34 @@ func TestRationalizeMetadataCache(t *testing.T) {
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedTTLSecs, c.MetadataCache.TtlSecs)
 				assert.Equal(t, tc.expectedStatCacheSize, c.MetadataCache.StatCacheMaxSizeMb)
+			}
+		})
+	}
+}
+
+func TestRationalizeExportIntervalSecs(t *testing.T) {
+	testCases := []struct {
+		name     string
+		args     []string
+		expected int64
+	}{
+		{
+			name:     "stackdriver-export-interval-set",
+			args:     []string{"--stackdriver-export-interval=30h"},
+			expected: 30 * 3600,
+		},
+		{
+			name:     "metrics-export-interval-set",
+			args:     []string{"--metrics-export-interval-secs=3200"},
+			expected: 3200,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			c, err := getConfigObject(t, tc.args)
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expected, c.Metrics.ExportIntervalSecs)
 			}
 		})
 	}

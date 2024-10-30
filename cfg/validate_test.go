@@ -16,6 +16,7 @@ package cfg
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -483,6 +484,67 @@ func Test_isValidWriteStreamingConfig_SuccessScenarios(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.testName, func(t *testing.T) {
 			assert.NoError(t, isValidWriteStreamingConfig(&tc.writeConfig))
+		})
+	}
+}
+
+func validConfig(t *testing.T) Config {
+	return Config{
+		Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+		FileCache: validFileCacheConfig(t),
+		GcsConnection: GcsConnectionConfig{
+			CustomEndpoint:       "https://bing.com/search?q=dotnet",
+			SequentialReadSizeMb: 200,
+		},
+		MetadataCache: MetadataCacheConfig{
+			ExperimentalMetadataPrefetchOnMount: "disabled",
+		},
+	}
+}
+
+func TestValidateMetrics(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name          string
+		metricsConfig MetricsConfig
+		wantErr       bool
+	}{
+		{
+			name: "neg_cloud_metrics_export_interval",
+			metricsConfig: MetricsConfig{
+				ExportIntervalSecs: -1,
+			},
+			wantErr: true,
+		},
+		{
+			name: "neg_stackdriver_export_interval",
+			metricsConfig: MetricsConfig{
+				StackdriverExportInterval: -1 * time.Second,
+			},
+			wantErr: true,
+		},
+		{
+			name: "neg_cloud_metrics_export_interval",
+			metricsConfig: MetricsConfig{
+				ExportIntervalSecs: 10,
+			},
+			wantErr: false,
+		},
+	}
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			c := validConfig(t)
+			c.Metrics = tc.metricsConfig
+
+			err := ValidateConfig(&mockIsSet{}, &c)
+
+			if tc.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
 		})
 	}
 }

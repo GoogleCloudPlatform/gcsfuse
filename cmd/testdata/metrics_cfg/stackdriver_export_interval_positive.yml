@@ -1,0 +1,2 @@
+metrics:
+  stackdriver-export-interval: 12h
