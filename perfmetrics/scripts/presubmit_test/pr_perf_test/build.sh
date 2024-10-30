@@ -123,5 +123,5 @@ then
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
   echo "Running package build tests...."
-  ./perfmetrics/scripts/build_and_install_gcsfuse.sh "xxxx"
+  ./perfmetrics/scripts/build_and_install_gcsfuse.sh master
 fi
