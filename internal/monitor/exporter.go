@@ -16,7 +16,6 @@ package monitor
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -25,20 +24,56 @@ import (
 	"contrib.go.opencensus.io/exporter/ocagent"
 	"contrib.go.opencensus.io/exporter/prometheus"
 	"contrib.go.opencensus.io/exporter/stackdriver"
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"go.opencensus.io/stats/view"
 )
 
-var stackdriverExporter *stackdriver.Exporter
+func SetupOpenCensusExporters(c *cfg.Config) common.ShutdownFn {
+	var shutdownFuncs []common.ShutdownFn
 
-// EnableStackdriverExporter starts to collect monitoring metrics and exports
-// them to Stackdriver iff the given interval is positive.
-func EnableStackdriverExporter(interval time.Duration) error {
-	if interval <= 0 {
-		return nil
+	if c.Metrics.ExportIntervalSecs > 0 {
+		stackdriverExporter, err := enableStackdriverExporter(time.Duration(c.Metrics.ExportIntervalSecs) * time.Second)
+		if err != nil {
+			logger.Errorf("Unable to start stackdriver exporter: %v", err)
+		} else {
+			shutdownFuncs = append(shutdownFuncs, func(_ context.Context) error {
+				closeStackdriverExporter(stackdriverExporter)
+				return nil
+			})
+		}
 	}
+	if c.Metrics.PrometheusPort > 0 {
+		exporter, server, err := enablePrometheusCollectorExporter(c.Metrics.PrometheusPort)
+		if err != nil {
+			logger.Errorf("Unable to start Prometheus exporter: %v", err)
+		} else {
+			shutdownFuncs = append(shutdownFuncs, func(_ context.Context) error {
+				closePrometheusCollectorExporter(exporter, server)
+				return nil
+			})
+		}
+	}
+	if c.Monitoring.ExperimentalOpentelemetryCollectorAddress != "" {
+		ocExporter, err := enableOpenTelemetryCollectorExporter(c.Monitoring.ExperimentalOpentelemetryCollectorAddress)
+		if err != nil {
+			logger.Errorf("Unable to start OC Agent exporter: %v", err)
+		} else {
+			shutdownFuncs = append(shutdownFuncs, func(_ context.Context) error {
+				closeOpenTelemetryCollectorExporter(ocExporter)
+				return nil
+			})
+		}
+	}
+	return common.JoinShutdownFunc(shutdownFuncs...)
+}
 
+// enableStackdriverExporter starts to collect monitoring metrics and exports
+// them to Stackdriver iff the given interval is positive.
+func enableStackdriverExporter(interval time.Duration) (*stackdriver.Exporter, error) {
 	var err error
+	var stackdriverExporter *stackdriver.Exporter
 	if stackdriverExporter, err = stackdriver.NewExporter(stackdriver.Options{
 		ReportingInterval: interval,
 		OnError: func(err error) {
@@ -57,19 +92,19 @@ func EnableStackdriverExporter(interval time.Duration) error {
 			return name
 		},
 	}); err != nil {
-		return fmt.Errorf("create stackdriver exporter: %w", err)
+		return nil, fmt.Errorf("create stackdriver exporter: %w", err)
 	}
 	if err = stackdriverExporter.StartMetricsExporter(); err != nil {
-		return fmt.Errorf("start stackdriver exporter: %w", err)
+		return nil, fmt.Errorf("start stackdriver exporter: %w", err)
 	}
 
 	logger.Info("Stackdriver exporter started")
-	return nil
+	return stackdriverExporter, nil
 }
 
-// CloseStackdriverExporter ensures all collected metrics are sent to
+// closeStackdriverExporter ensures all collected metrics are sent to
 // Stackdriver and closes the stackdriverExporter.
-func CloseStackdriverExporter() {
+func closeStackdriverExporter(stackdriverExporter *stackdriver.Exporter) {
 	if stackdriverExporter != nil {
 		stackdriverExporter.StopMetricsExporter()
 		stackdriverExporter.Flush()
@@ -77,74 +112,50 @@ func CloseStackdriverExporter() {
 	stackdriverExporter = nil
 }
 
-var ocExporter *ocagent.Exporter
-
-// EnableOpenTelemetryCollectorExporter starts exporting monitoring metrics to
+// enableOpenTelemetryCollectorExporter starts exporting monitoring metrics to
 // the OpenTelemetry Collector at the given address.
 // Details: https://opentelemetry.io/docs/collector/
-func EnableOpenTelemetryCollectorExporter(address string) error {
-	if address == "" {
-		return nil
-	}
-
-	var err error
-	if ocExporter, err = ocagent.NewExporter(
+func enableOpenTelemetryCollectorExporter(address string) (*ocagent.Exporter, error) {
+	ocExporter, err := ocagent.NewExporter(
 		ocagent.WithAddress(address),
 		ocagent.WithServiceName("gcsfuse"),
 		ocagent.WithReconnectionPeriod(5*time.Second),
-	); err != nil {
-		return fmt.Errorf("create opentelementry collector exporter: %w", err)
+	)
+	if err != nil {
+		return nil, fmt.Errorf("create opentelementry collector exporter: %w", err)
 	}
 
 	view.RegisterExporter(ocExporter)
 	logger.Info("OpenTelemetry collector exporter started")
-	return nil
+	return ocExporter, nil
 }
 
-// CloseOpenTelemetryCollectorExporter ensures all collected metrics are sent to
+// closeOpenTelemetryCollectorExporter ensures all collected metrics are sent to
 // the OpenTelemetry Collect and closes the exporter.
-func CloseOpenTelemetryCollectorExporter() {
-	if ocExporter != nil {
-		ocExporter.Stop()
-		ocExporter.Flush()
-	}
-	ocExporter = nil
+func closeOpenTelemetryCollectorExporter(ocExporter *ocagent.Exporter) {
+	ocExporter.Stop()
+	ocExporter.Flush()
 }
 
-var prometheusExporter *prometheus.Exporter
-var prometheusServer *http.Server
-
-// EnablePrometheusCollectorExporter starts exporting monitoring metrics for
+// enablePrometheusCollectorExporter starts exporting monitoring metrics for
 // the Prometheus to scrape on the given port.
-func EnablePrometheusCollectorExporter(port int) error {
-	if port == 0 {
-		return nil
-	}
-
-	if prometheusServer != nil {
-		return errors.New("a Prometheus server is already running")
-	}
-
-	if prometheusExporter != nil {
-		return errors.New("a Prometheus exporter is already running")
-	}
-
-	var err error
-	if prometheusExporter, err = prometheus.NewExporter(
+func enablePrometheusCollectorExporter(port int64) (*prometheus.Exporter, *http.Server, error) {
+	prometheusExporter, err := prometheus.NewExporter(
 		prometheus.Options{
 			OnError: func(err error) {
 				logger.Errorf("Fail to collect metric: %v", err)
 			},
 		},
-	); err != nil {
-		return fmt.Errorf("create Prometheus collector exporter: %w", err)
+	)
+	if err != nil {
+		return nil, nil, fmt.Errorf("create Prometheus collector exporter: %w", err)
 	}
 
 	view.RegisterExporter(prometheusExporter)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/metrics", prometheusExporter.ServeHTTP)
-	prometheusServer = &http.Server{
+	prometheusServer := &http.Server{
 		Addr:           fmt.Sprintf(":%d", port),
 		Handler:        mux,
 		ReadTimeout:    10 * time.Second,
@@ -159,11 +170,11 @@ func EnablePrometheusCollectorExporter(port int) error {
 	}()
 
 	logger.Info("Prometheus collector exporter started")
-	return nil
+	return prometheusExporter, prometheusServer, nil
 }
 
-// ClosePrometheusCollectorExporter closes the Prometheus exporter.
-func ClosePrometheusCollectorExporter() {
+// closePrometheusCollectorExporter closes the Prometheus exporter.
+func closePrometheusCollectorExporter(prometheusExporter *prometheus.Exporter, prometheusServer *http.Server) {
 	if prometheusServer != nil {
 		if err := prometheusServer.Shutdown(context.Background()); err != nil {
 			logger.Errorf("Failed to shutdown Prometheus server: %v", err)
@@ -173,7 +184,4 @@ func ClosePrometheusCollectorExporter() {
 	if prometheusExporter != nil {
 		view.UnregisterExporter(prometheusExporter)
 	}
-
-	prometheusServer = nil
-	prometheusExporter = nil
 }
