@@ -832,42 +832,6 @@ func TestArgsParsing_EnableHNSFlags(t *testing.T) {
 	}
 }
 
-func TestArgsParsing_MetricsFlags(t *testing.T) {
-	tests := []struct {
-		name     string
-		args     []string
-		expected *cfg.MetricsConfig
-	}{
-		{
-			name:     "metrics-export-interval-secs-positive",
-			args:     []string{"gcsfuse", "--metrics-export-interval-secs=10", "abc", "pqr"},
-			expected: &cfg.MetricsConfig{ExportIntervalSecs: 10},
-		},
-		{
-			name:     "stackdriver-export-interval-positive",
-			args:     []string{"gcsfuse", "--stackdriver-export-interval=10h", "abc", "pqr"},
-			expected: &cfg.MetricsConfig{ExportIntervalSecs: 10 * 3600},
-		},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			var gotConfig *cfg.Config
-			cmd, err := NewRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				gotConfig = cfg
-				return nil
-			})
-			require.Nil(t, err)
-			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
-
-			err = cmd.Execute()
-
-			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expected, gotConfig.Metrics)
-			}
-		})
-	}
-}
-
 func TestArgsParsing_MetricsViewConfig(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -893,7 +857,7 @@ func TestArgsParsing_MetricsViewConfig(t *testing.T) {
 				return nil
 			})
 			require.Nil(t, err)
-			cmd.SetArgs(convertToPosixArgs([]string{"gcsfuse", fmt.Sprintf("--config-file=testdata/metrics_cfg/%s", tc.cfgFile), "abc", "pqr"}, cmd))
+			cmd.SetArgs(convertToPosixArgs([]string{"gcsfuse", fmt.Sprintf("--config-file=testdata/metrics_config/%s", tc.cfgFile), "abc", "pqr"}, cmd))
 
 			err = cmd.Execute()
 
@@ -958,6 +922,112 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedConfig.MetadataCache, gotConfig.MetadataCache)
+			}
+		})
+	}
+}
+
+func TestArgsParsing_MetricsFlags(t *testing.T) {
+	tests := []struct {
+		name     string
+		args     []string
+		expected *cfg.MetricsConfig
+	}{
+		{
+			name: "default",
+			args: []string{"gcsfuse", "abc", "pqr"},
+			expected: &cfg.MetricsConfig{
+				EnableOtel: false,
+			},
+		},
+		{
+			name: "normal",
+			args: []string{"gcsfuse", "--enable-otel", "abc", "pqr"},
+			expected: &cfg.MetricsConfig{
+				EnableOtel: true,
+			},
+		},
+		{
+			name: "false",
+			args: []string{"gcsfuse", "--enable-otel=false", "abc", "pqr"},
+			expected: &cfg.MetricsConfig{
+				EnableOtel: false,
+			},
+		},
+		{
+			name:     "metrics-export-interval-secs-positive",
+			args:     []string{"gcsfuse", "--metrics-export-interval-secs=10", "abc", "pqr"},
+			expected: &cfg.MetricsConfig{ExportIntervalSecs: 10},
+		},
+		{
+			name:     "stackdriver-export-interval-positive",
+			args:     []string{"gcsfuse", "--stackdriver-export-interval=10h", "abc", "pqr"},
+			expected: &cfg.MetricsConfig{ExportIntervalSecs: 10 * 3600, StackdriverExportInterval: 10 * time.Hour},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotConfig *cfg.Config
+			cmd, err := NewRootCmd(func(cfg *cfg.Config, _, _ string) error {
+				gotConfig = cfg
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expected, &gotConfig.Metrics)
+			}
+		})
+	}
+}
+
+func TestArgsParsing_MetricsFlagsViaConfig(t *testing.T) {
+	tests := []struct {
+		name           string
+		cfgFile        string
+		expectedConfig *cfg.MetricsConfig
+	}{
+		{
+			name:    "default",
+			cfgFile: "empty.yml",
+			expectedConfig: &cfg.MetricsConfig{
+				EnableOtel: false,
+			},
+		},
+		{
+			name:    "enable_otel_true",
+			cfgFile: "enable_otel_true.yml",
+			expectedConfig: &cfg.MetricsConfig{
+				EnableOtel: true,
+			},
+		},
+		{
+			name:    "enable_otel_false",
+			cfgFile: "enable_otel_false.yml",
+			expectedConfig: &cfg.MetricsConfig{
+				EnableOtel: false,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotConfig *cfg.Config
+			cmd, err := NewRootCmd(func(cfg *cfg.Config, _, _ string) error {
+				gotConfig = cfg
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs([]string{"gcsfuse", fmt.Sprintf("--config-file=testdata/metrics_config/%s", tc.cfgFile), "abc", "pqr"}, cmd))
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedConfig, &gotConfig.Metrics)
 			}
 		})
 	}

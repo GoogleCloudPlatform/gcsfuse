@@ -543,6 +543,12 @@
   usage: "Max size of type-cache maps which are maintained at a per-directory level."
   default: "4"
 
+- config-path: "metrics.enable-otel"
+  flag-name: "enable-otel"
+  type: "bool"
+  usage: "Specifies whether to use OTel for capturing and exporting metrics"
+  hide-flag: true
+
 - config-path: "metrics.export-interval-secs"
   flag-name: "metrics-export-interval-secs"
   type: "int"
