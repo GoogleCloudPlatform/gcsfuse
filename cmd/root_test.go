@@ -842,6 +842,27 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 		expected *cfg.MetricsConfig
 	}{
 		{
+			name: "default",
+			args: []string{"gcsfuse", "abc", "pqr"},
+			expected: &cfg.MetricsConfig{
+				EnableOtel: false,
+			},
+		},
+		{
+			name: "enable_otel_normal",
+			args: []string{"gcsfuse", "--enable-otel", "abc", "pqr"},
+			expected: &cfg.MetricsConfig{
+				EnableOtel: true,
+			},
+		},
+		{
+			name: "enable_otel_false",
+			args: []string{"gcsfuse", "--enable-otel=false", "abc", "pqr"},
+			expected: &cfg.MetricsConfig{
+				EnableOtel: false,
+			},
+		},
+		{
 			name:     "cloud-metrics-export-interval-secs-positive",
 			args:     []string{"gcsfuse", "--cloud-metrics-export-interval-secs=10", "abc", "pqr"},
 			expected: &cfg.MetricsConfig{CloudMetricsExportIntervalSecs: 10},
@@ -877,6 +898,27 @@ func TestArgsParsing_MetricsViewConfig(t *testing.T) {
 		cfgFile  string
 		expected *cfg.MetricsConfig
 	}{
+		{
+			name:    "default",
+			cfgFile: "empty.yml",
+			expected: &cfg.MetricsConfig{
+				EnableOtel: false,
+			},
+		},
+		{
+			name:    "enable_otel_true",
+			cfgFile: "enable_otel_true.yml",
+			expected: &cfg.MetricsConfig{
+				EnableOtel: true,
+			},
+		},
+		{
+			name:    "enable_otel_false",
+			cfgFile: "enable_otel_false.yml",
+			expected: &cfg.MetricsConfig{
+				EnableOtel: false,
+			},
+		},
 		{
 			name:     "cloud-metrics-export-interval-secs-positive",
 			cfgFile:  "metrics_export_interval_positive.yml",
