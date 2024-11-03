@@ -4,9 +4,9 @@ go 1.23.2
 
 require (
 	cloud.google.com/go/compute/metadata v0.5.2
-	cloud.google.com/go/secretmanager v1.14.2
 	cloud.google.com/go/iam v1.2.2
-	cloud.google.com/go/storage v1.45.0
+	cloud.google.com/go/secretmanager v1.14.2
+	cloud.google.com/go/storage v1.46.0
 	contrib.go.opencensus.io/exporter/ocagent v0.7.0
 	contrib.go.opencensus.io/exporter/prometheus v0.4.2
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.14
@@ -50,8 +50,8 @@ require (
 require (
 	cel.dev/expr v0.16.1 // indirect
 	cloud.google.com/go v0.116.0 // indirect
-	cloud.google.com/go/auth v0.9.9 // indirect
-	cloud.google.com/go/auth/oauth2adapt v0.2.4 // indirect
+	cloud.google.com/go/auth v0.10.0 // indirect
+	cloud.google.com/go/auth/oauth2adapt v0.2.5 // indirect
 	cloud.google.com/go/longrunning v0.6.1 // indirect
 	cloud.google.com/go/monitoring v1.21.1 // indirect
 	cloud.google.com/go/pubsub v1.44.0 // indirect
