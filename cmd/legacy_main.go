@@ -362,7 +362,7 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	// The returned error is ignored as we do not enforce monitoring exporters
 	shutdownMetricsFn := monitor.SetupOpenCensusExporters(newConfig)
 	ctx := context.Background()
-	shutdownTracingFn := monitor.SetupTracing(ctx, newConfig)
+	shutdownTracingFn := monitor.SetupOTelSDK(ctx, newConfig)
 	shutdownFn := common.JoinShutdownFunc(shutdownMetricsFn, shutdownTracingFn)
 
 	// Mount, writing information about our progress to the writer that package
