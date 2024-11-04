@@ -334,6 +334,12 @@ func (bh *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsReq
 		IncludeFoldersAsPrefixes: req.IncludeFoldersAsPrefixes,
 		//MaxResults: , (Field not present in storage.Query of Go Storage Library but present in ListObjectsQuery in Jacobsa code.)
 	}
+	defer func() {
+		logger.Errorf(req.Prefix)
+		if listing != nil {
+			logger.Errorf(req.Prefix, len(listing.Objects), len(listing.CollapsedRuns))
+		}
+	}()
 	itr := bh.bucket.Objects(ctx, query) // Returning iterator to the list of objects.
 	pi := itr.PageInfo()
 	pi.MaxSize = req.MaxResults
