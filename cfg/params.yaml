@@ -165,6 +165,14 @@
   default: -1
   usage: "GID owner of all inodes."
 
+- config-path: "file-system.handle-sigterm"
+  flag-name: "handle-sigterm"
+  type: "bool"
+  usage: >-
+    Instructs gcsfuse to handle SIGTERM to gracefully shutdown
+  default: true
+  hide-flag: true
+
 - config-path: "file-system.ignore-interrupts"
   flag-name: "ignore-interrupts"
   type: "bool"

@@ -28,6 +28,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/canned"
@@ -53,22 +55,32 @@ const (
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func registerSIGINTHandler(mountPoint string) {
+func registerTerminatingSignalHandler(mountPoint string, c *cfg.Config) {
 	// Register for SIGINT.
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt)
+	if c.FileSystem.HandleSigterm {
+		signal.Notify(signalChan, unix.SIGTERM)
+	}
 
 	// Start a goroutine that will unmount when the signal is received.
 	go func() {
 		for {
-			<-signalChan
-			logger.Info("Received SIGINT, attempting to unmount...")
+			sig := <-signalChan
+			sigName := "undefined"
+			switch sig {
+			case unix.SIGTERM:
+				sigName = "SIGTERM"
+			case os.Interrupt:
+				sigName = "SIGINT"
+			}
+			logger.Infof("Received %s, attempting to unmount...", sigName)
 
 			err := fuse.Unmount(mountPoint)
 			if err != nil {
-				logger.Errorf("Failed to unmount in response to SIGINT: %v", err)
+				logger.Errorf("Failed to unmount in response to %s: %v", sigName, err)
 			} else {
-				logger.Infof("Successfully unmounted in response to SIGINT.")
+				logger.Infof("Successfully unmounted in response to %s.", sigName)
 				return
 			}
 		}
@@ -419,7 +431,7 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	}
 
 	// Let the user unmount with Ctrl-C (SIGINT).
-	registerSIGINTHandler(mfs.Dir())
+	registerTerminatingSignalHandler(mfs.Dir(), newConfig)
 
 	// Wait for the file system to be unmounted.
 	err = mfs.Join(ctx)
