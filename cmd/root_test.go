@@ -863,6 +863,13 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 			},
 		},
 		{
+			name: "enable_otel_false",
+			args: []string{"gcsfuse", "--enable-otel=true", "abc", "pqr"},
+			expected: &cfg.MetricsConfig{
+				EnableOtel: true,
+			},
+		},
+		{
 			name:     "cloud-metrics-export-interval-secs-positive",
 			args:     []string{"gcsfuse", "--cloud-metrics-export-interval-secs=10", "abc", "pqr"},
 			expected: &cfg.MetricsConfig{CloudMetricsExportIntervalSecs: 10},
