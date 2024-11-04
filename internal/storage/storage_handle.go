@@ -246,7 +246,7 @@ func (sh *storageClient) BucketHandle(bucketName string, billingProject string) 
 	}
 
 	bh = &bucketHandle{
-		bucket:        storageBucketHandle,
+		bucket:        NewStorageBucketHandleWrapper(storageBucketHandle),
 		bucketName:    bucketName,
 		controlClient: sh.storageControlClient,
 	}

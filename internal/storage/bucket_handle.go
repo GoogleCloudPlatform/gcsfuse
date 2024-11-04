@@ -43,7 +43,7 @@ const FullBucketPathHNS = "projects/_/buckets/%s"
 
 type bucketHandle struct {
 	gcs.Bucket
-	bucket        *storage.BucketHandle
+	bucket        BucketHandleInterface
 	bucketName    string
 	bucketType    gcs.BucketType
 	controlClient StorageControlClient
