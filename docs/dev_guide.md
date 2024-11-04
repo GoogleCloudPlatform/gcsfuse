@@ -1,10 +1,14 @@
 # Dev Guide
 
-## Adding new features to GCSFuse
+## Contributing to GCSFuse
 
-**If you're interested in adding a new feature, please open a GitHub issue to
-discuss your proposal with the GCSFuse team first before making the
-contribution.**
+**If you're interested in contributing a new feature, enhancement, or bug fix,
+please open a GitHub issue to discuss your proposal with the GCSFuse team first
+before making the contribution.** Make sure to describe the use case (what are
+you trying to solve and why?), and the proposed solution in the GitHub issue.
+
+**Note:** We make no guarantees that contribution requests are accepted, or will
+be rolled out as a Generally Available (GA) feature
 
 Rollout of any new feature should be done in 2 phases:
 
@@ -31,21 +35,31 @@ Rollout of any new feature should be done in 2 phases:
     * For more details on testing best practices, please refer to
       the [testing guide](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/dev_guide.md#testing-of-new-features)
       below.
+      After the feature development is complete and the code is merged to the
+      mainline, the feature will roll out as an experimental feature in the next
+      GCSFuse release with the feature disabled by default.
 
-* After the feature development is complete, developers should open a GitHub
-  issue (
-  see [example](https://github.com/GoogleCloudPlatform/gcsfuse/issues/793)) to
-  track the feature's progress towards production readiness. This issue should
-  outline the motivation for the feature, its design, and any known limitations.
+* After the feature development is complete and the code is merged to the
+  mainline, the feature will roll out as an experimental feature in the next
+  GCSFuse release with the feature disabled by default.
 
-**2. Production Rollout:**
+* Developers should open a GitHub issue (
+  see [example](https://github.com/GoogleCloudPlatform/gcsfuse/issues/793))
+  to track the feature's progress towards GA readiness. This issue should
+  outline the motivation for the feature, its design, and any known
+  limitations.
+
+**2. General Availability (GA) Rollout:**
 
 * Once the feature has been thoroughly vetted in test environments and approved
-  by the GCSFuse team, it will be rolled out for general availability. The
-  GCSFuse team will own this part.
-* This involves:
+  by the GCSFuse team, it will be rolled out for general availability. **Note
+  that experimental features are not guaranteed to become generally available.**
+
+* The GCSFuse team will manage the GA rollout. This involves:
     * Removing the experimental prefix from the flag.
-    * Updating the Google Cloud documentation to include the new feature.
+    * Updating
+      the [Google Cloud documentation](https://cloud.google.com/storage/docs/gcsfuse-cli)
+      to include the new feature.
 
 ## Adding a new CLI Flag/Config to GCSFuse
 
@@ -156,9 +170,12 @@ write end-to-end tests for GCSFuse.
        export TEST_BUCKET_NAME=<Enter your bucket name here.>
        GODEBUG=asyncpreemptoff=1 CGO_ENABLED=0 go test ./tools/integration_tests/$TEST_PACKAGE_NAME/... -p 1 -short --integrationTest -v --testbucket=$TEST_BUCKET_NAME --timeout=60m -run $TEST_NAME
        ```
-4. **Run all tests as pre-submit:** You can run existing GCSFuse end-to-end
-   tests as a pre-submit by adding `execute-integration-tests` label to the pull
-   request.
+4. **Run all tests as pre-submit:** Existing GCSFuse end-to-end tests can be run
+   as a pre-submit check by adding the `execute-integration-tests` label to your
+   pull request. Ask one of your assigned code reviewers to apply
+   the `execute-integration-tests` label to your pull request to trigger the
+   tests.
+
 5. **Discuss test scenarios:** If you are unsure about how to test a specific
    feature or have questions about scenarios to test, please feel free to open a
    [discussion thread](https://github.com/GoogleCloudPlatform/gcsfuse/discussions)
