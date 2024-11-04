@@ -315,7 +315,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("enable-nonexistent-type-cache", "", false, "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType will be created. This also means new file/dir created might not be seen. For example, if this flag is set, and metadata-cache-ttl-secs is set, then if we create the same file/node in the meantime using the same mount, since we are not refreshing the cache, it will still return nil.")
 
-	flagSet.BoolP("enable-read-stall-retry", "", false, "To turn on/off retries for stalled read requests. This is based on a timeout that changes depending on how long similar requests took in the past.")
+	flagSet.BoolP("enable-read-stall-retry", "", true, "To turn on/off retries for stalled read requests. This is based on a timeout that changes depending on how long similar requests took in the past.")
 
 	if err := flagSet.MarkHidden("enable-read-stall-retry"); err != nil {
 		return err
@@ -469,7 +469,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.DurationP("read-stall-min-req-timeout", "", 500000000*time.Nanosecond, "Lower bound of the read request dynamic timeout.")
+	flagSet.DurationP("read-stall-min-req-timeout", "", 1500000000*time.Nanosecond, "Lower bound of the read request dynamic timeout.")
 
 	if err := flagSet.MarkHidden("read-stall-min-req-timeout"); err != nil {
 		return err
