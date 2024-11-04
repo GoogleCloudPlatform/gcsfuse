@@ -300,6 +300,10 @@ func (rr *randomReader) ReadAt(
 		// this will be a change for all buckets not just zonal but can be put behind bucket flag if required
 		// its perf tested, there is no perf impact - https://screenshot.googleplex.com/Ag4ZEfZvQtT5rpb
 		if rr.reader != nil && (rr.start != offset || offset+int64(len(p)) > rr.limit) {
+			if offset+int64(len(p)) > rr.limit {
+				logger.Info("************** Closing the reader in case cannot read full  **************")
+			}
+
 			rr.reader.Close()
 			rr.reader = nil
 			rr.cancel = nil
