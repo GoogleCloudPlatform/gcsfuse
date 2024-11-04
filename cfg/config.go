@@ -395,7 +395,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("gid", "", -1, "GID owner of all inodes.")
 
-	flagSet.BoolP("handle-sigterm", "", false, "Instructs gcsfuse to handle SIGTERM to gracefully shutdown")
+	flagSet.BoolP("handle-sigterm", "", true, "Instructs gcsfuse to handle SIGTERM to gracefully shutdown")
 
 	if err := flagSet.MarkHidden("handle-sigterm"); err != nil {
 		return err

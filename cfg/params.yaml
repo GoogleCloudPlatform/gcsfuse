@@ -170,7 +170,7 @@
   type: "bool"
   usage: >-
     Instructs gcsfuse to handle SIGTERM to gracefully shutdown
-  default: false
+  default: true
   hide-flag: true
 
 - config-path: "file-system.ignore-interrupts"

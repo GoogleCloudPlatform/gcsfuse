@@ -58,7 +58,7 @@ const (
 func registerTerminatingSignalHandler(mountPoint string, c *cfg.Config) {
 	// Register for SIGINT.
 	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, unix.SIGINT)
+	signal.Notify(signalChan, os.Interrupt)
 	if c.FileSystem.HandleSigterm {
 		signal.Notify(signalChan, unix.SIGTERM)
 	}
@@ -71,7 +71,7 @@ func registerTerminatingSignalHandler(mountPoint string, c *cfg.Config) {
 			switch sig {
 			case unix.SIGTERM:
 				sigName = "SIGTERM"
-			case unix.SIGINT:
+			case os.Interrupt:
 				sigName = "SIGINT"
 			}
 			logger.Infof("Received %s, attempting to unmount...", sigName)
