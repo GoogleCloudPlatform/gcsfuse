@@ -557,6 +557,13 @@
   usage: "Specifies the interval at which the metrics are uploaded to cloud monitoring"
   default: 0
 
+- config-path: "metrics.enable-otel"
+  flag-name: "enable-otel"
+  type: "bool"
+  usage: "Specifies whether to use OpenTelemetry for capturing and exporting metrics. If false, use OpenCensus."
+  default: false
+  hide-flag: true
+
 - config-path: "metrics.prometheus-port"
   flag-name: "prometheus-port"
   type: "int"

@@ -202,6 +202,8 @@ type MetadataCacheConfig struct {
 type MetricsConfig struct {
 	CloudMetricsExportIntervalSecs int64 `yaml:"cloud-metrics-export-interval-secs"`
 
+	EnableOtel bool `yaml:"enable-otel"`
+
 	PrometheusPort int64 `yaml:"prometheus-port"`
 
 	StackdriverExportInterval time.Duration `yaml:"stackdriver-export-interval"`
@@ -314,6 +316,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	}
 
 	flagSet.BoolP("enable-nonexistent-type-cache", "", false, "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType will be created. This also means new file/dir created might not be seen. For example, if this flag is set, and metadata-cache-ttl-secs is set, then if we create the same file/node in the meantime using the same mount, since we are not refreshing the cache, it will still return nil.")
+
+	flagSet.BoolP("enable-otel", "", false, "Specifies whether to use OpenTelemetry for capturing and exporting metrics. If false, use OpenCensus.")
+
+	if err := flagSet.MarkHidden("enable-otel"); err != nil {
+		return err
+	}
 
 	flagSet.BoolP("enable-read-stall-retry", "", true, "To turn on/off retries for stalled read requests. This is based on a timeout that changes depending on how long similar requests took in the past.")
 
@@ -617,6 +625,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metadata-cache.enable-nonexistent-type-cache", flagSet.Lookup("enable-nonexistent-type-cache")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("metrics.enable-otel", flagSet.Lookup("enable-otel")); err != nil {
 		return err
 	}
 
