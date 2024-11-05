@@ -31,10 +31,8 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
 
-type ShutdownFn func(ctx context.Context) error
-
 // SetupTracing bootstraps the OpenTelemetry tracing pipeline.
-func SetupTracing(ctx context.Context, c *cfg.Config) ShutdownFn {
+func SetupTracing(ctx context.Context, c *cfg.Config) common.ShutdownFn {
 	tp, shutdown, err := newTraceProvider(ctx, c)
 	if err != nil {
 		logger.Errorf("error occurred while setting up tracing: %v", err)
@@ -48,7 +46,7 @@ func SetupTracing(ctx context.Context, c *cfg.Config) ShutdownFn {
 	return nil
 }
 
-func newTraceProvider(ctx context.Context, c *cfg.Config) (trace.TracerProvider, ShutdownFn, error) {
+func newTraceProvider(ctx context.Context, c *cfg.Config) (trace.TracerProvider, common.ShutdownFn, error) {
 	switch c.Monitoring.ExperimentalTracingMode {
 	case "stdout":
 		return newStdoutTraceProvider()
@@ -58,7 +56,7 @@ func newTraceProvider(ctx context.Context, c *cfg.Config) (trace.TracerProvider,
 		return nil, nil, nil
 	}
 }
-func newStdoutTraceProvider() (trace.TracerProvider, ShutdownFn, error) {
+func newStdoutTraceProvider() (trace.TracerProvider, common.ShutdownFn, error) {
 	exporter, err := stdouttrace.New(
 		stdouttrace.WithPrettyPrint())
 	if err != nil {
@@ -69,7 +67,7 @@ func newStdoutTraceProvider() (trace.TracerProvider, ShutdownFn, error) {
 	return tp, tp.Shutdown, nil
 }
 
-func newGCPCloudTraceExporter(ctx context.Context, c *cfg.Config) (*sdktrace.TracerProvider, ShutdownFn, error) {
+func newGCPCloudTraceExporter(ctx context.Context, c *cfg.Config) (*sdktrace.TracerProvider, common.ShutdownFn, error) {
 	exporter, err := cloudtrace.New()
 	if err != nil {
 		return nil, nil, err
