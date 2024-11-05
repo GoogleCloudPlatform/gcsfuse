@@ -291,7 +291,7 @@ type Listing struct {
 	//
 	// Guaranteed to be strictly increasing under a lexicographical comparison on
 	// (name, generation) pairs.
-	Objects []*Object
+	MinObjects []*MinObject
 
 	// Collapsed entries for runs of names sharing a prefix followed by a
 	// delimiter. See notes on ListObjectsRequest.Delimiter.

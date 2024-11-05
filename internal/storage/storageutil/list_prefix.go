@@ -27,7 +27,7 @@ func ListPrefix(
 	ctx context.Context,
 	bucket gcs.Bucket,
 	prefix string,
-	objects chan<- *gcs.Object) (err error) {
+	minObjects chan<- *gcs.MinObject) (err error) {
 	req := &gcs.ListObjectsRequest{
 		Prefix: prefix,
 	}
@@ -43,9 +43,9 @@ func ListPrefix(
 		}
 
 		// Pass on each object.
-		for _, o := range listing.Objects {
+		for _, o := range listing.MinObjects {
 			select {
-			case objects <- o:
+			case minObjects <- o:
 
 				// Cancelled?
 			case <-ctx.Done():

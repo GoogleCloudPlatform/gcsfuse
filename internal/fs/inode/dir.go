@@ -411,7 +411,7 @@ func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*C
 		return nil, fmt.Errorf("list objects: %w", err)
 	}
 
-	if len(listing.Objects) == 0 {
+	if len(listing.MinObjects) == 0 {
 		return nil, nil
 	}
 
@@ -419,8 +419,8 @@ func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*C
 		Bucket:   bucket,
 		FullName: name,
 	}
-	if o := listing.Objects[0]; o.Name == name.GcsObjectName() {
-		result.MinObject = storageutil.ConvertObjToMinObject(o)
+	if o := listing.MinObjects[0]; o.Name == name.GcsObjectName() {
+		result.MinObject = o
 	}
 	return result, nil
 }
@@ -631,7 +631,7 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 			return nil, fmt.Errorf("list objects: %w", err)
 		}
 
-		for _, o := range listing.Objects {
+		for _, o := range listing.MinObjects {
 			if len(descendants) >= limit {
 				return descendants, nil
 			}
@@ -643,7 +643,7 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 			descendants[name] = &Core{
 				Bucket:    d.Bucket(),
 				FullName:  name,
-				MinObject: storageutil.ConvertObjToMinObject(o),
+				MinObject: o,
 			}
 		}
 
@@ -689,7 +689,7 @@ func (d *dirInode) readObjects(
 		}
 	}()
 
-	for _, o := range listing.Objects {
+	for _, o := range listing.MinObjects {
 		// Skip empty results or the directory object backing this inode.
 		if o.Name == d.Name().GcsObjectName() || o.Name == "" {
 			continue
@@ -709,7 +709,7 @@ func (d *dirInode) readObjects(
 				explicitDir := &Core{
 					Bucket:    d.Bucket(),
 					FullName:  dirName,
-					MinObject: storageutil.ConvertObjToMinObject(o),
+					MinObject: o,
 				}
 				cores[dirName] = explicitDir
 			}
@@ -718,7 +718,7 @@ func (d *dirInode) readObjects(
 			file := &Core{
 				Bucket:    d.Bucket(),
 				FullName:  fileName,
-				MinObject: storageutil.ConvertObjToMinObject(o),
+				MinObject: o,
 			}
 			cores[fileName] = file
 		}

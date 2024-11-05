@@ -193,7 +193,7 @@ func (b *prefixBucket) ListObjects(
 
 	// Modify the returned listing.
 	if l != nil {
-		for _, o := range l.Objects {
+		for _, o := range l.MinObjects {
 			o.Name = b.localName(o.Name)
 		}
 
