@@ -15,32 +15,36 @@
 package benchmark_setup_test
 
 import (
-	"fmt"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/benchmark_setup"
-	. "github.com/jacobsa/ogletest"
+	"github.com/stretchr/testify/assert"
 )
 
 type benchmarkStructure struct {
 	setupCtr, teardownCtr, bench1, bench2 int
 }
 
-func (b *benchmarkStructure) SetupB(*testing.B) {
-	fmt.Println("tes")
-	b.setupCtr++
+func (bs *benchmarkStructure) SetupB(*testing.B) {
+	bs.setupCtr++
 }
-func (b *benchmarkStructure) BenchmarkExample1(*testing.B) {
-	b.bench1++
-}
-
-func (b *benchmarkStructure) BenchmarkExample2(*testing.B) {
-	b.bench2++
+func (bs *benchmarkStructure) BenchmarkExample1(*testing.B) {
+	// This is to ensure, right reading in the first go. Otherwise, it calls
+	// the method multiple times with different value of b.N.
+	time.Sleep(time.Second)
+	bs.bench1++
 }
 
-func (b *benchmarkStructure) TeardownB(*testing.B) {
-	b.teardownCtr++
-	fmt.Println("test")
+func (bs *benchmarkStructure) BenchmarkExample2(*testing.B) {
+	// This is to ensure, right reading in the first go. Otherwise, it calls
+	// the method multiple times with different value of b.N.
+	time.Sleep(time.Second)
+	bs.bench2++
+}
+
+func (bs *benchmarkStructure) TeardownB(*testing.B) {
+	bs.teardownCtr++
 }
 
 func BenchmarkRunBenchmarks(b *testing.B) {
@@ -48,8 +52,8 @@ func BenchmarkRunBenchmarks(b *testing.B) {
 
 	benchmark_setup.RunBenchmarks(b, benchmarkStruct)
 
-	AssertEq(benchmarkStruct.setupCtr, 2)
-	AssertEq(benchmarkStruct.bench1, 1)
-	AssertEq(benchmarkStruct.bench2, 1)
-	AssertEq(benchmarkStruct.teardownCtr, 2)
+	assert.Equal(b, 2, benchmarkStruct.setupCtr)
+	assert.Equal(b, 1, benchmarkStruct.bench1)
+	assert.Equal(b, 1, benchmarkStruct.bench2)
+	assert.Equal(b, 2, benchmarkStruct.teardownCtr)
 }
