@@ -18,6 +18,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"path"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -51,7 +52,8 @@ func TestMain(m *testing.M) {
 	}()
 
 	// If Mounted Directory flag is set, run tests for mounted directory.
-	//setup.RunTestsForMountedDirectoryFlag(m)
+	setup.RunTestsForMountedDirectoryFlag(m)
+
 	// Else run tests for testBucket.
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()
@@ -62,19 +64,7 @@ func TestMain(m *testing.M) {
 	}
 	successCode := static_mounting.RunTests(flagsSet, m)
 
-	//if successCode == 0 {
-	//	successCode = only_dir_mounting.RunTests(flagsSet, onlyDirMounted, m)
-	//}
-	//
-	//if successCode == 0 {
-	//	successCode = persistent_mounting.RunTests(flagsSet, m)
-	//}
-	//
-	//if successCode == 0 {
-	//	successCode = dynamic_mounting.RunTests(ctx, storageClient, flagsSet, m)
-	//}
-
 	// Clean up test directory created.
-	//setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
+	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
 	os.Exit(successCode)
 }

@@ -15,10 +15,8 @@
 package benchmarking
 
 import (
-	"fmt"
 	"path"
 	"testing"
-	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/benchmark_setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
@@ -37,25 +35,24 @@ func (s *benchmarkStatTest) SetupB(t *testing.B) {
 
 func (s *benchmarkStatTest) TeardownB(t *testing.B) {}
 
+// createFilesToStat creates the below object in the bucket.
+// benchmarking/a.txt
+func createFilesToStat(t *testing.B) {
+	operations.CreateFileOfSize(5, path.Join(testDirPath, "a.txt"), t)
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
 func (s *benchmarkStatTest) Benchmark_Stat(b *testing.B) {
-	fmt.Println("Value of ", b.N)
+	createFilesToStat(b)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, err := operations.StatFile(path.Join(testDirPath, "a.txt"))
 		if err != nil {
 			b.Errorf("testing error: %v", err)
 		}
-		// Code to be benchmarked goes here
-		// For example:
-		x := 10
-		y := 20
-		z := x + y
-		time.Sleep(1 * time.Second)
-		fmt.Println("Addition: ", z)
 	}
 }
 

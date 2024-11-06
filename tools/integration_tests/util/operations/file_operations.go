@@ -463,7 +463,7 @@ func ClearCacheControlOnGcsObject(gcsObjPath string) error {
 	return err
 }
 
-func CreateFile(filePath string, filePerms os.FileMode, t *testing.T) (f *os.File) {
+func CreateFile(filePath string, filePerms os.FileMode, t testing.TB) (f *os.File) {
 	// Creating a file shouldn't create file on GCS.
 	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, filePerms)
 	if err != nil {
@@ -548,7 +548,7 @@ func WriteWithoutClose(fh *os.File, content string, t *testing.T) {
 	}
 }
 
-func WriteAt(content string, offset int64, fh *os.File, t *testing.T) {
+func WriteAt(content string, offset int64, fh *os.File, t testing.TB) {
 	_, err := fh.WriteAt([]byte(content), offset)
 	if err != nil {
 		t.Fatalf("%s.WriteAt(%s, %d): %v", fh.Name(), content, offset, err)
@@ -571,14 +571,14 @@ func SyncFile(fh *os.File, t *testing.T) {
 }
 
 func CreateFileWithContent(filePath string, filePerms os.FileMode,
-	content string, t *testing.T) {
+	content string, t testing.TB) {
 	fh := CreateFile(filePath, filePerms, t)
 	WriteAt(content, 0, fh, t)
 	CloseFile(fh)
 }
 
 // CreateFileOfSize creates a file of given size with random data.
-func CreateFileOfSize(fileSize int64, filePath string, t *testing.T) {
+func CreateFileOfSize(fileSize int64, filePath string, t testing.TB) {
 	randomData, err := GenerateRandomData(fileSize)
 	if err != nil {
 		t.Errorf("operations.GenerateRandomData: %v", err)

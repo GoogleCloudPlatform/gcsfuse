@@ -17,4 +17,4 @@
 
 # Use -benchtime=Nx to execute the BenchmarkXX N times.
 # Use --testbucket to pass the bucket on which benchmark has to be run.
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/benchmarking/... -bench=. -benchtime=3x --integrationTest -v --testbucket=princer-empty-bucket
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/benchmarking/... -bench=. -benchtime=5x --integrationTest -v --testbucket=princer-empty-bucket
