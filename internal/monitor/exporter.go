@@ -34,10 +34,12 @@ func maybeStartStackdriverExporter(exporterIntervalSecs int64) common.ShutdownFn
 	if exporterIntervalSecs <= 0 {
 		return nil
 	}
+	logger.Info("Starting Stackdriver exporter")
 	if stackdriverExporter, err := enableStackdriverExporter(time.Duration(exporterIntervalSecs) * time.Second); err != nil {
 		logger.Errorf("Unable to start stackdriver exporter: %v", err)
 		return nil
 	} else {
+		logger.Info("Stackdriver exporter started")
 		return func(_ context.Context) error {
 			closeStackdriverExporter(stackdriverExporter)
 			return nil
@@ -86,7 +88,6 @@ func SetupOpenCensusExporters(c *cfg.Config) common.ShutdownFn {
 // enableStackdriverExporter starts to collect monitoring metrics and exports
 // them to Stackdriver iff the given interval is positive.
 func enableStackdriverExporter(interval time.Duration) (*stackdriver.Exporter, error) {
-	logger.Info("Starting Stackdriver exporter")
 	var err error
 	var stackdriverExporter *stackdriver.Exporter
 	if stackdriverExporter, err = stackdriver.NewExporter(stackdriver.Options{
@@ -112,8 +113,6 @@ func enableStackdriverExporter(interval time.Duration) (*stackdriver.Exporter, e
 	if err = stackdriverExporter.StartMetricsExporter(); err != nil {
 		return nil, fmt.Errorf("start stackdriver exporter: %w", err)
 	}
-
-	logger.Info("Stackdriver exporter started")
 	return stackdriverExporter, nil
 }
 
