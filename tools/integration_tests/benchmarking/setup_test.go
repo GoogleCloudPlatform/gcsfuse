@@ -45,8 +45,7 @@ func TestMain(m *testing.M) {
 	ctx = context.Background()
 	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
 	defer func() {
-		err := closeStorageClient()
-		if err != nil {
+		if err := closeStorageClient(); err != nil {
 			log.Fatalf("closeStorageClient failed: %v", err)
 		}
 	}()

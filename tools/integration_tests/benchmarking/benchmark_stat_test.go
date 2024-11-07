@@ -49,8 +49,7 @@ func (s *benchmarkStatTest) Benchmark_Stat(b *testing.B) {
 	createFilesToStat(b)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := operations.StatFile(path.Join(testDirPath, "a.txt"))
-		if err != nil {
+		if _, err := operations.StatFile(path.Join(testDirPath, "a.txt")); err != nil {
 			b.Errorf("testing error: %v", err)
 		}
 	}
