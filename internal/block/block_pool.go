@@ -89,6 +89,10 @@ func (bp *BlockPool) Get() (Block, error) {
 	}
 }
 
+func (bp *BlockPool) FreeBlocksChannel() *chan Block {
+	return &bp.freeBlocksCh
+}
+
 // BlockSize returns the block size used by the blockPool.
 func (bp *BlockPool) BlockSize() int64 {
 	return bp.blockSize
