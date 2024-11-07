@@ -195,15 +195,14 @@ func (rx *ResumableUpload) Upload(ctx context.Context) (resp *http.Response, err
 		retryDeadline = rx.ChunkRetryDeadline
 	} else {
 		retryDeadline = defaultRetryDeadline
-		fmt.Println("Default: ", defaultRetryDeadline)
 	}
 
-	//var transferTimeout time.Duration
-	//if rx.ChunkTransferTimeout != 0 {
-	//	transferTimeout = rx.ChunkTransferTimeout
-	//} else {
-	//	transferTimeout = defaultTransferTimeout
-	//}
+	var transferTimeout time.Duration
+	if rx.ChunkTransferTimeout != 0 {
+		transferTimeout = rx.ChunkTransferTimeout
+	} else {
+		transferTimeout = defaultTransferTimeout
+	}
 
 
 	// Send all chunks.
@@ -221,7 +220,6 @@ func (rx *ResumableUpload) Upload(ctx context.Context) (resp *http.Response, err
 			pauseTimer := time.NewTimer(pause)
 			select {
 			case <-ctx.Done():
-				fmt.Println("In ctx")
 				quitAfterTimer.Stop()
 				pauseTimer.Stop()
 				if err == nil {
@@ -230,15 +228,14 @@ func (rx *ResumableUpload) Upload(ctx context.Context) (resp *http.Response, err
 				return prepareReturn(resp, err)
 			case <-pauseTimer.C:
 			case <-quitAfterTimer.C:
-				fmt.Println("Timer: ", quitAfterTimer.C)
 				pauseTimer.Stop()
 				return prepareReturn(resp, err)
 			}
 			pauseTimer.Stop()
 
 
-			//rCtx, cancel := context.WithTimeout(ctx, transferTimeout)
-			//defer cancel()
+			rCtx, cancel := context.WithTimeout(ctx, transferTimeout)
+			defer cancel()
 
 			// Check for context cancellation or timeout once more. If more than one
 			// case in the select statement above was satisfied at the same time, Go
@@ -246,17 +243,15 @@ func (rx *ResumableUpload) Upload(ctx context.Context) (resp *http.Response, err
 			// That can cause an operation to go through even if the context was
 			// canceled before or the timeout was reached.
 			select {
-			//case <- rCtx.Done():
-			//  continue
+			case <- rCtx.Done():
+			 continue
 			case <-ctx.Done():
-				fmt.Println("In ctx")
 				quitAfterTimer.Stop()
 				if err == nil {
 					err = ctx.Err()
 				}
 				return prepareReturn(resp, err)
  			case <-quitAfterTimer.C:
-				fmt.Println("Timer: ", quitAfterTimer.C)
 				return prepareReturn(resp, err)
 			default:
 			}
