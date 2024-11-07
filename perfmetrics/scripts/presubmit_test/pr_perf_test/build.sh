@@ -18,7 +18,7 @@ readonly EXECUTE_PERF_TEST_LABEL="execute-perf-test"
 readonly EXECUTE_INTEGRATION_TEST_LABEL="execute-integration-tests"
 readonly EXECUTE_PACKAGE_BUILD_TEST_LABEL="execute-package-build-tests"
 readonly RUN_E2E_TESTS_ON_INSTALLED_PACKAGE=false
-readonly SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=true
+readonly SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=false
 readonly BUCKET_LOCATION=us-west1
 readonly RUN_TEST_ON_TPC_ENDPOINT=false
 

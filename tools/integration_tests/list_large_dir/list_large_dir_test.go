@@ -39,7 +39,7 @@ func TestMain(m *testing.M) {
 
 	flags := [][]string{{"--implicit-dirs", "--stat-cache-ttl=0", "--kernel-list-cache-ttl-secs=-1"}}
 	if !testing.Short() {
-		flags = append(flags, []string{"--client-protocol=grpc", "--implicit-dirs=true", "--stat-cache-ttl=0"})
+		flags = append(flags, []string{"--client-protocol=grpc", "--implicit-dirs=true", "--stat-cache-ttl=0", "--kernel-list-cache-ttl-secs=-1"})
 	}
 
 	if setup.TestBucket() == "" && setup.MountedDirectory() != "" {
