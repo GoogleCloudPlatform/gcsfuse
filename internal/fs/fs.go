@@ -2360,6 +2360,9 @@ func (fs *fileSystem) ReleaseDirHandle(
 func (fs *fileSystem) OpenFile(
 	ctx context.Context,
 	op *fuseops.OpenFileOp) (err error) {
+	if fs.newConfig.FileSystem.ODirect {
+		op.UseDirectIO = true
+	}
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
