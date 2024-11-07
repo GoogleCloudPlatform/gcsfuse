@@ -30,8 +30,9 @@ import (
 	"go.opencensus.io/stats/view"
 )
 
-func maybeStartStackdriverExporter(exporterIntervalSecs int64) common.ShutdownFn {
+func startStackdriverExporter(exporterIntervalSecs int64) common.ShutdownFn {
 	if exporterIntervalSecs <= 0 {
+		logger.Info("Not starting the Stackdriver exporter since exporter-interval is not specified")
 		return nil
 	}
 	logger.Info("Starting Stackdriver exporter")
@@ -47,8 +48,9 @@ func maybeStartStackdriverExporter(exporterIntervalSecs int64) common.ShutdownFn
 	}
 }
 
-func maybeStartPrometheusCollectorExporter(port int64) common.ShutdownFn {
+func startPrometheusCollectorExporter(port int64) common.ShutdownFn {
 	if port <= 0 {
+		logger.Info("Not starting the Prometheus exporter since port is not specified")
 		return nil
 	}
 	if exporter, server, err := enablePrometheusCollectorExporter(port); err != nil {
@@ -62,8 +64,9 @@ func maybeStartPrometheusCollectorExporter(port int64) common.ShutdownFn {
 	}
 }
 
-func maybeStartOpenTelemetryCollectorExporter(address string) common.ShutdownFn {
+func startOpenTelemetryCollectorExporter(address string) common.ShutdownFn {
 	if address == "" {
+		logger.Info("Not starting the OTel exporter since collector address is not specified")
 		return nil
 	}
 	if ocExporter, err := enableOpenTelemetryCollectorExporter(address); err != nil {
@@ -79,9 +82,9 @@ func maybeStartOpenTelemetryCollectorExporter(address string) common.ShutdownFn 
 
 // SetupOpenCensusExporters starts the relevant OpenCensus exporters.
 func SetupOpenCensusExporters(c *cfg.Config) common.ShutdownFn {
-	stackdriverShutdownFn := maybeStartStackdriverExporter(c.Metrics.CloudMetricsExportIntervalSecs)
-	prometheusShutdownFn := maybeStartPrometheusCollectorExporter(c.Metrics.PrometheusPort)
-	oTelShutdownFn := maybeStartOpenTelemetryCollectorExporter(c.Monitoring.ExperimentalOpentelemetryCollectorAddress)
+	stackdriverShutdownFn := startStackdriverExporter(c.Metrics.CloudMetricsExportIntervalSecs)
+	prometheusShutdownFn := startPrometheusCollectorExporter(c.Metrics.PrometheusPort)
+	oTelShutdownFn := startOpenTelemetryCollectorExporter(c.Monitoring.ExperimentalOpentelemetryCollectorAddress)
 	return common.JoinShutdownFunc(stackdriverShutdownFn, prometheusShutdownFn, oTelShutdownFn)
 }
 
