@@ -104,7 +104,7 @@ func ObjectAttrsToBucketObject(attrs *storage.ObjectAttrs) *gcs.Object {
 	}
 }
 
-func ObjectAttrsToBucketMinObject(attrs *storage.ObjectAttrs) *gcs.MinObject {
+func ObjectAttrsToMinObject(attrs *storage.ObjectAttrs) *gcs.MinObject {
 	if attrs == nil {
 		return nil
 	}
