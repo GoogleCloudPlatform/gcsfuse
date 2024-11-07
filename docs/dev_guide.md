@@ -1,3 +1,4 @@
+
 # Dev Guide
 
 ## Adding a new param in GCSFuse
@@ -24,8 +25,7 @@ new param available in both the modes:
     [validate_test.go](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/cfg/validate_test.go)
     and
     [rationalize_test.go](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/cfg/rationalize_test.go)
-    and composite tests in
-    [config_validation_test.go](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/cmd/config_validation_test.go),
-    [config_rationalization_test.go](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/cmd/config_rationalization_test.go)
-    and
+1.  Add one test-case in
     [root_test.go](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/cmd/root_test.go)
+    to verify that the flag works - no need to test for different scenarios; a
+    single test for a happy-case is sufficient.
