@@ -135,13 +135,14 @@ func PrepareUpload(media io.Reader, chunkSize int) (r io.Reader, mb *MediaBuffer
 // code only.
 type MediaInfo struct {
 	// At most one of Media and MediaBuffer will be set.
-	media              io.Reader
-	buffer             *MediaBuffer
-	singleChunk        bool
-	mType              string
-	size               int64 // mediaSize, if known.  Used only for calls to progressUpdater_.
-	progressUpdater    googleapi.ProgressUpdater
-	chunkRetryDeadline time.Duration
+	media                io.Reader
+	buffer               *MediaBuffer
+	singleChunk          bool
+	mType                string
+	size                 int64 // mediaSize, if known.  Used only for calls to progressUpdater_.
+	progressUpdater      googleapi.ProgressUpdater
+	chunkRetryDeadline   time.Duration
+	chunkTransferTimeout time.Duration
 }
 
 // NewInfoFromMedia should be invoked from the Media method of a call. It returns a
@@ -295,6 +296,7 @@ func (mi *MediaInfo) ResumableUpload(locURI string) *ResumableUpload {
 			}
 		},
 		ChunkRetryDeadline: mi.chunkRetryDeadline,
+		ChunkTransferTimeout: mi.chunkTransferTimeout,
 	}
 }
 
