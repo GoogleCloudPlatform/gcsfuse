@@ -27,7 +27,6 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"golang.org/x/sys/unix"
 
@@ -372,12 +371,10 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 		return err
 	}
 
-	// The returned error is ignored as we do not enforce monitoring exporters
-	_ = monitor.EnableStackdriverExporter(time.Duration(newConfig.Metrics.CloudMetricsExportIntervalSecs) * time.Second)
-	_ = monitor.EnableOpenTelemetryCollectorExporter(newConfig.Monitoring.ExperimentalOpentelemetryCollectorAddress)
-	_ = monitor.EnablePrometheusCollectorExporter(int(newConfig.Metrics.PrometheusPort))
+	shutdownMetricsFn := monitor.SetupOpenCensusExporters(newConfig)
 	ctx := context.Background()
-	shutdownFn := monitor.SetupTracing(ctx, newConfig)
+	shutdownTracingFn := monitor.SetupTracing(ctx, newConfig)
+	shutdownFn := common.JoinShutdownFunc(shutdownMetricsFn, shutdownTracingFn)
 
 	// Mount, writing information about our progress to the writer that package
 	// daemonize gives us and telling it about the outcome.
@@ -435,21 +432,15 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	registerTerminatingSignalHandler(mfs.Dir(), newConfig)
 
 	// Wait for the file system to be unmounted.
-	err = mfs.Join(ctx)
+	if err = mfs.Join(ctx); err != nil {
+		err = fmt.Errorf("MountedFileSystem.Join: %w", err)
+	}
 
-	monitor.CloseStackdriverExporter()
-	monitor.CloseOpenTelemetryCollectorExporter()
-	monitor.ClosePrometheusCollectorExporter()
 	if shutdownFn != nil {
 		if shutdownErr := shutdownFn(ctx); shutdownErr != nil {
 			logger.Errorf("Error while shutting down trace exporter: %v", shutdownErr)
 		}
 	}
 
-	if err != nil {
-		err = fmt.Errorf("MountedFileSystem.Join: %w", err)
-		return
-	}
-
-	return
+	return err
 }
