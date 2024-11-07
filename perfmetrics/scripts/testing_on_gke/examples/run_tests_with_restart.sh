@@ -15,41 +15,41 @@ export output_dir=./
 
 gcloud container clusters delete --quiet --zone $zone $cluster_name
 export workload_config=$gcsfuse_src_dir/perfmetrics/scripts/testing_on_gke/examples/parallel_downloads/all_combo_normal.yaml
-export instance_id=
-export only_parse=""
-./run-gke-tests.sh --debug
-
-sleep 90s
-gcloud container clusters delete --quiet --zone $zone $cluster_name
-export workload_config=$gcsfuse_src_dir/perfmetrics/scripts/testing_on_gke/examples/parallel_downloads/all_combo_pd.yaml
-export instance_id=<your unique id 2>
+export instance_id=princer_combo_normal
 export only_parse=""
 ./run-gke-tests.sh --debug
 
 sleep 90s
 gcloud container clusters delete --quiet --zone $zone $cluster_name
 export workload_config=$gcsfuse_src_dir/perfmetrics/scripts/testing_on_gke/examples/parallel_downloads/all_combo_file_cache.yaml
-export instance_id=<your unique id 3>
+export instance_id=princer_combo_file_cache
+export only_parse=""
+./run-gke-tests.sh --debug
+
+sleep 90s
+gcloud container clusters delete --quiet --zone $zone $cluster_name
+export workload_config=$gcsfuse_src_dir/perfmetrics/scripts/testing_on_gke/examples/parallel_downloads/all_combo_pd.yaml
+export instance_id=princer_combo_pd
 export only_parse=""
 ./run-gke-tests.sh --debug
 
 sleep 90s
 gcloud container clusters delete --quiet --zone $zone $cluster_name
 export workload_config=$gcsfuse_src_dir/perfmetrics/scripts/testing_on_gke/examples/parallel_downloads/10g_normal.yaml
-export instance_id=<your unique id 4>
+export instance_id=princer_10g_normal
 export only_parse=""
 ./run-gke-tests.sh --debug
 
 sleep 90s
 gcloud container clusters delete --quiet --zone $zone $cluster_name
 export workload_config=$gcsfuse_src_dir/perfmetrics/scripts/testing_on_gke/examples/parallel_downloads/10g_file_cache.yaml
-export instance_id=<your unique id 5>
+export instance_id=princer_10g_file_cache
 export only_parse=""
 ./run-gke-tests.sh --debug
 
 sleep 90s
 gcloud container clusters delete --quiet --zone $zone $cluster_name
 export workload_config=$gcsfuse_src_dir/perfmetrics/scripts/testing_on_gke/examples/parallel_downloads/10g_pd.yaml
-export instance_id=<your unique id 6>
+export instance_id=princer_10g_pd
 export only_parse=""
 ./run-gke-tests.sh --debug
