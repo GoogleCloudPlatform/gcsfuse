@@ -155,7 +155,12 @@ func sendAndRetry(ctx context.Context, client *http.Client, req *http.Request, r
 
 	for {
 		t := time.NewTimer(pause)
+		rCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
+		defer cancel()
+
 		select {
+		case <-rCtx.Done():
+			continue
 		case <-ctx.Done():
 			t.Stop()
 			// If we got an error and the context has been canceled, return an error acknowledging
@@ -166,7 +171,6 @@ func sendAndRetry(ctx context.Context, client *http.Client, req *http.Request, r
 			return resp, ctx.Err()
 		case <-t.C:
 		}
-
 		if ctx.Err() != nil {
 			// Check for context cancellation once more. If more than one case in a
 			// select is satisfied at the same time, Go will choose one arbitrarily.
@@ -186,7 +190,7 @@ func sendAndRetry(ctx context.Context, client *http.Client, req *http.Request, r
 		req.Header.Set("X-Goog-Api-Client", xGoogHeader)
 		req.Header.Set("X-Goog-Gcs-Idempotency-Token", invocationID)
 
-		resp, err = client.Do(req.WithContext(ctx))
+		resp, err = client.Do(req.WithContext(rCtx))
 
 		var status int
 		if resp != nil {
@@ -202,7 +206,7 @@ func sendAndRetry(ctx context.Context, client *http.Client, req *http.Request, r
 		attempts++
 		var errBody error
 		req.Body, errBody = req.GetBody()
-		if errBody != nil {
+		if errBody != nil && rCtx.Err() != nil {
 			break
 		}
 
