@@ -425,6 +425,31 @@ func (t *bucketTest) matchesStartTime(start time.Time) Matcher {
 	return timeutil.TimeNear(start, slop)
 }
 
+// Given gcs.minObject and gcs.extendedObjectAttributes , assert on attributes of gcs.Object
+func (t *bucketTest) assertOnObjectAttributes(expectedMinObj *gcs.MinObject, expectedExtendedAttr *gcs.ExtendedObjectAttributes, o *gcs.Object) {
+	ExpectThat(expectedMinObj.Name, Equals(o.Name))
+	ExpectThat(expectedMinObj.Size, Equals(o.Size))
+	ExpectThat(expectedMinObj.Generation, Equals(o.Generation))
+	ExpectThat(expectedMinObj.MetaGeneration, Equals(o.MetaGeneration))
+	ExpectThat(expectedMinObj.Updated, DeepEquals(o.Updated))
+	ExpectThat(expectedMinObj.Metadata, DeepEquals(o.Metadata))
+	ExpectThat(expectedMinObj.ContentEncoding, Equals(o.ContentEncoding))
+	ExpectThat(expectedMinObj.CRC32C, Equals(o.CRC32C))
+	ExpectThat(expectedExtendedAttr.ContentType, Equals(o.ContentType))
+	ExpectThat(expectedExtendedAttr.ContentLanguage, Equals(o.ContentLanguage))
+	ExpectThat(expectedExtendedAttr.CacheControl, Equals(o.CacheControl))
+	ExpectThat(expectedExtendedAttr.Owner, Equals(o.Owner))
+	ExpectThat(expectedExtendedAttr.MD5, Equals(o.MD5))
+	ExpectThat(expectedExtendedAttr.MediaLink, Equals(o.MediaLink))
+	ExpectThat(expectedExtendedAttr.StorageClass, Equals(o.StorageClass))
+	ExpectThat(expectedExtendedAttr.Deleted, DeepEquals(o.Deleted))
+	ExpectThat(expectedExtendedAttr.ComponentCount, Equals(o.ComponentCount))
+	ExpectThat(expectedExtendedAttr.ContentDisposition, Equals(o.ContentDisposition))
+	ExpectThat(expectedExtendedAttr.CustomTime, Equals(o.CustomTime))
+	ExpectThat(expectedExtendedAttr.EventBasedHold, Equals(o.EventBasedHold))
+	ExpectThat(expectedExtendedAttr.Acl, DeepEquals(o.Acl))
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Create
 ////////////////////////////////////////////////////////////////////////
@@ -543,15 +568,15 @@ func (t *createTest) ObjectAttributes_Default() {
 	ExpectThat(o.Deleted, timeutil.TimeEq(time.Time{}))
 	ExpectThat(o.Updated, t.matchesStartTime(createTime))
 
-	// Make sure it matches what is in a listing.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	// Make sure it matches when we stat object.
+	minObj, extendedAttr, err := t.bucket.StatObject(
+		t.ctx,
+		&gcs.StatObjectRequest{Name: o.Name,
+			ForceFetchFromGcs:              true,
+			ReturnExtendedObjectAttributes: true})
 	AssertEq(nil, err)
 
-	AssertThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
-
-	AssertEq(1, len(listing.Objects))
-	ExpectThat(listing.Objects[0], DeepEquals(o))
+	t.assertOnObjectAttributes(minObj, extendedAttr, o)
 }
 
 func (t *createTest) ObjectAttributes_Explicit() {
@@ -597,15 +622,15 @@ func (t *createTest) ObjectAttributes_Explicit() {
 	ExpectThat(o.Deleted, timeutil.TimeEq(time.Time{}))
 	ExpectThat(o.Updated, t.matchesStartTime(createTime))
 
-	// Make sure it matches what is in a listing.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	// Make sure it matches when we stat object.
+	minObj, extendedAttr, err := t.bucket.StatObject(
+		t.ctx,
+		&gcs.StatObjectRequest{Name: o.Name,
+			ForceFetchFromGcs:              true,
+			ReturnExtendedObjectAttributes: true})
 	AssertEq(nil, err)
 
-	AssertThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
-
-	AssertEq(1, len(listing.Objects))
-	ExpectThat(listing.Objects[0], DeepEquals(o))
+	t.assertOnObjectAttributes(minObj, extendedAttr, o)
 }
 
 func (t *createTest) ErrorAfterPartialContents() {
@@ -3202,15 +3227,15 @@ func (t *updateTest) RemoveAllFields() {
 
 	ExpectThat(o.Metadata, DeepEquals(createReq.Metadata))
 
-	// Check that a listing agrees.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	// Make sure it matches when we stat object.
+	minObj, extendedAttr, err := t.bucket.StatObject(
+		t.ctx,
+		&gcs.StatObjectRequest{Name: o.Name,
+			ForceFetchFromGcs:              true,
+			ReturnExtendedObjectAttributes: true})
 	AssertEq(nil, err)
 
-	AssertThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
-
-	AssertEq(1, len(listing.Objects))
-	ExpectThat(listing.Objects[0], DeepEquals(o))
+	t.assertOnObjectAttributes(minObj, extendedAttr, o)
 }
 
 func (t *updateTest) ModifyAllFields() {
@@ -3255,15 +3280,15 @@ func (t *updateTest) ModifyAllFields() {
 
 	ExpectThat(o.Metadata, DeepEquals(createReq.Metadata))
 
-	// Check that a listing agrees.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	// Make sure it matches when we stat object.
+	minObj, extendedAttr, err := t.bucket.StatObject(
+		t.ctx,
+		&gcs.StatObjectRequest{Name: o.Name,
+			ForceFetchFromGcs:              true,
+			ReturnExtendedObjectAttributes: true})
 	AssertEq(nil, err)
 
-	AssertThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
-
-	AssertEq(1, len(listing.Objects))
-	ExpectThat(listing.Objects[0], DeepEquals(o))
+	t.assertOnObjectAttributes(minObj, extendedAttr, o)
 }
 
 func (t *updateTest) MixedModificationsToFields() {
@@ -3308,15 +3333,15 @@ func (t *updateTest) MixedModificationsToFields() {
 
 	ExpectThat(o.Metadata, DeepEquals(createReq.Metadata))
 
-	// Check that a listing agrees.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	// Make sure it matches when we stat object.
+	minObj, extendedAttr, err := t.bucket.StatObject(
+		t.ctx,
+		&gcs.StatObjectRequest{Name: o.Name,
+			ForceFetchFromGcs:              true,
+			ReturnExtendedObjectAttributes: true})
 	AssertEq(nil, err)
 
-	AssertThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
-
-	AssertEq(1, len(listing.Objects))
-	ExpectThat(listing.Objects[0], DeepEquals(o))
+	t.assertOnObjectAttributes(minObj, extendedAttr, o)
 }
 
 func (t *updateTest) AddUserMetadata() {
@@ -3351,15 +3376,15 @@ func (t *updateTest) AddUserMetadata() {
 				"1": "burrito",
 			}))
 
-	// Check that a listing agrees.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	// Make sure it matches when we stat object.
+	minObj, extendedAttr, err := t.bucket.StatObject(
+		t.ctx,
+		&gcs.StatObjectRequest{Name: o.Name,
+			ForceFetchFromGcs:              true,
+			ReturnExtendedObjectAttributes: true})
 	AssertEq(nil, err)
 
-	AssertThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
-
-	AssertEq(1, len(listing.Objects))
-	ExpectThat(listing.Objects[0], DeepEquals(o))
+	t.assertOnObjectAttributes(minObj, extendedAttr, o)
 }
 
 func (t *updateTest) MixedModificationsToUserMetadata() {
@@ -3408,15 +3433,15 @@ func (t *updateTest) MixedModificationsToUserMetadata() {
 				"3": "updated",
 			}))
 
-	// Check that a listing agrees.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	// Make sure it matches when we stat object.
+	minObj, extendedAttr, err := t.bucket.StatObject(
+		t.ctx,
+		&gcs.StatObjectRequest{Name: o.Name,
+			ForceFetchFromGcs:              true,
+			ReturnExtendedObjectAttributes: true})
 	AssertEq(nil, err)
 
-	AssertThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
-
-	AssertEq(1, len(listing.Objects))
-	ExpectThat(listing.Objects[0], DeepEquals(o))
+	t.assertOnObjectAttributes(minObj, extendedAttr, o)
 }
 
 func (t *updateTest) UpdateTime() {

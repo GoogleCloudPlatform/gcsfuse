@@ -334,6 +334,12 @@ func (bh *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsReq
 		IncludeFoldersAsPrefixes: req.IncludeFoldersAsPrefixes,
 		//MaxResults: , (Field not present in storage.Query of Go Storage Library but present in ListObjectsQuery in Jacobsa code.)
 	}
+	err = query.SetAttrSelection([]string{"Name", "Size", "Generation", "Metageneration", "Updated", "Metadata", "ContentEncoding", "CRC32C"})
+	if err != nil {
+		err = fmt.Errorf("error while setting attribute selection for List Object query :%w", err)
+		return
+	}
+
 	itr := bh.bucket.Objects(ctx, query) // Returning iterator to the list of objects.
 	pi := itr.PageInfo()
 	pi.MaxSize = req.MaxResults
