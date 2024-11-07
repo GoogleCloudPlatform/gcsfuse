@@ -41,7 +41,8 @@ type ResumableUpload struct {
 
 	// ChunkRetryDeadline configures the per-chunk deadline after which no further
 	// retries should happen.
-	ChunkRetryDeadline time.Duration
+	ChunkRetryDeadline   time.Duration
+	ChunkTransferTimeout time.Duration
 
 	// Track current request invocation ID and attempt count for retry metrics
 	// and idempotency headers.
@@ -195,8 +196,15 @@ func (rx *ResumableUpload) Upload(ctx context.Context) (resp *http.Response, err
 	} else {
 		retryDeadline = 5 * time.Second
 	}
+		retryDeadline = defaultRetryDeadline
+	}
 
-	fmt.Println("RetryDeadline: ", retryDeadline)
+	var transferTimeout time.Duration
+	if rx.ChunkTransferTimeout != 0 {
+		transferTimeout = rx.ChunkTransferTimeout
+	} else {
+		transferTimeout = defaultTransferTimeout
+	}
 
 	// Send all chunks.
 	for {
@@ -226,12 +234,17 @@ func (rx *ResumableUpload) Upload(ctx context.Context) (resp *http.Response, err
 			}
 			pauseTimer.Stop()
 
+			rCtx, cancel := context.WithTimeout(ctx, transferTimeout)
+			defer cancel()
+
 			// Check for context cancellation or timeout once more. If more than one
 			// case in the select statement above was satisfied at the same time, Go
 			// will choose one arbitrarily.
 			// That can cause an operation to go through even if the context was
 			// canceled before or the timeout was reached.
 			select {
+			case <-rCtx.Done():
+				continue
 			case <-ctx.Done():
 				quitAfterTimer.Stop()
 				if err == nil {
@@ -243,7 +256,7 @@ func (rx *ResumableUpload) Upload(ctx context.Context) (resp *http.Response, err
 			default:
 			}
 
-			resp, err = rx.transferChunk(ctx)
+			resp, err = rx.transferChunk(rCtx)
 
 			var status int
 			if resp != nil {
@@ -251,7 +264,7 @@ func (rx *ResumableUpload) Upload(ctx context.Context) (resp *http.Response, err
 			}
 
 			// Check if we should retry the request.
-			if !errorFunc(status, err) {
+			if !errorFunc(status, err) && rCtx.Err() != nil {
 				quitAfterTimer.Stop()
 				break
 			}
