@@ -22,6 +22,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/bufferedwrites"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -30,6 +32,7 @@ import (
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
+	"golang.org/x/sync/semaphore"
 )
 
 // A GCS object metadata key for file mtimes. mtimes are UTC, and are stored in
@@ -88,6 +91,10 @@ type FileInode struct {
 
 	// Represents if local file has been unlinked.
 	unlinked bool
+
+	bwh                *bufferedwrites.BufferedWriteHandler
+	writeConfig        *cfg.WriteConfig
+	globalMaxBlocksSem *semaphore.Weighted
 }
 
 var _ Inode = &FileInode{}
@@ -109,23 +116,27 @@ func NewFileInode(
 	localFileCache bool,
 	contentCache *contentcache.ContentCache,
 	mtimeClock timeutil.Clock,
-	localFile bool) (f *FileInode) {
+	localFile bool,
+	writeConfig *cfg.WriteConfig,
+	globalMaxBlocksSem *semaphore.Weighted) (f *FileInode) {
 	// Set up the basic struct.
 	var minObj gcs.MinObject
 	if m != nil {
 		minObj = *m
 	}
 	f = &FileInode{
-		bucket:         bucket,
-		mtimeClock:     mtimeClock,
-		id:             id,
-		name:           name,
-		attrs:          attrs,
-		localFileCache: localFileCache,
-		contentCache:   contentCache,
-		src:            minObj,
-		local:          localFile,
-		unlinked:       false,
+		bucket:             bucket,
+		mtimeClock:         mtimeClock,
+		id:                 id,
+		name:               name,
+		attrs:              attrs,
+		localFileCache:     localFileCache,
+		contentCache:       contentCache,
+		src:                minObj,
+		local:              localFile,
+		unlinked:           false,
+		writeConfig:        writeConfig,
+		globalMaxBlocksSem: globalMaxBlocksSem,
 	}
 
 	f.lc.Init(id)
@@ -439,6 +450,11 @@ func (f *FileInode) Read(
 	ctx context.Context,
 	dst []byte,
 	offset int64) (n int, err error) {
+	if f.IsLocal() && f.writeConfig.ExperimentalEnableStreamingWrites {
+		err = fmt.Errorf("cannot read a local file when upload in progress")
+		return
+	}
+
 	// Make sure f.content != nil.
 	err = f.ensureContent(ctx)
 	if err != nil {
@@ -467,6 +483,10 @@ func (f *FileInode) Write(
 	ctx context.Context,
 	data []byte,
 	offset int64) (err error) {
+	if f.local && f.writeConfig.ExperimentalEnableStreamingWrites {
+		return f.writeToBuffer(data, offset)
+	}
+
 	// Make sure f.content != nil.
 	err = f.ensureContent(ctx)
 	if err != nil {
@@ -658,5 +678,19 @@ func (f *FileInode) CreateEmptyTempFile() (err error) {
 	f.content, err = f.contentCache.NewTempFile(io.NopCloser(strings.NewReader("")))
 	// Setting the initial mtime to creation time.
 	f.content.SetMtime(f.mtimeClock.Now())
+	return
+}
+
+func (f *FileInode) writeToBuffer(data []byte, offset int64) (err error) {
+	// Initialize bufferedWriteHandler if not done already.
+	if f.bwh == nil {
+		f.bwh, err = bufferedwrites.NewBWHandler(f.writeConfig.BlockSizeMb, f.writeConfig.MaxBlocksPerFile, f.globalMaxBlocksSem)
+		if err != nil {
+			return fmt.Errorf("failed to create bufferedWriteHandler: %w", err)
+		}
+	}
+
+	err = f.bwh.Write(data, offset)
+
 	return
 }

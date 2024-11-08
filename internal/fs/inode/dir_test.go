@@ -16,13 +16,16 @@ package inode
 
 import (
 	"errors"
+	"math"
 	"os"
 	"path"
 	"sort"
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	"golang.org/x/sync/semaphore"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/contentcache"
@@ -203,7 +206,9 @@ func (t *DirTest) createLocalFileInode(parent Name, name string, id fuseops.Inod
 		false, // localFileCache
 		contentcache.New("", &t.clock),
 		&t.clock,
-		true) //localFile
+		true,
+		&cfg.WriteConfig{},
+		semaphore.NewWeighted(math.MaxInt64)) //localFile
 	return
 }
 

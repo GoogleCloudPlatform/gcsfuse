@@ -16,9 +16,11 @@ package handle
 
 import (
 	"context"
+	"math"
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
@@ -29,6 +31,7 @@ import (
 	"github.com/jacobsa/fuse/fuseutil"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
+	"golang.org/x/sync/semaphore"
 )
 
 func TestDirHandle(t *testing.T) { RunTests(t) }
@@ -102,7 +105,9 @@ func (t *DirHandleTest) createLocalFileInode(name string, id fuseops.InodeID) (i
 		false, // localFileCache
 		contentcache.New("", &t.clock),
 		&t.clock,
-		true) // localFile
+		true,
+		&cfg.WriteConfig{},
+		semaphore.NewWeighted(math.MaxInt64)) // localFile
 	return
 }
 
