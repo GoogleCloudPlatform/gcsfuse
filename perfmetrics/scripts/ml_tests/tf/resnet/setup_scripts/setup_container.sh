@@ -49,6 +49,12 @@ then
   TEST_BUCKET="gcsfuse-ml-data-hns-central1"
   echo "enable-hns: true" >> /tmp/gcsfuse_config.yaml
   DIR=${DIR}_${BUCKET_TYPE}
+elif [ ${BUCKET_TYPE} == "non-hns" ];
+then
+  #To validate the gRPC client, we have temporarily changed the non-HNS long haul test.
+  echo "gcs-connection:
+          client-protocol: grpc
+         " >> /tmp/gcsfuse_config.yaml
 fi
 
 nohup gcsfuse/gcsfuse --foreground \
