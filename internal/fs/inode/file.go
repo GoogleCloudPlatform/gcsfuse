@@ -681,6 +681,7 @@ func (f *FileInode) CreateEmptyTempFile() (err error) {
 	return
 }
 
+// writeToBuffer writes the given content to the in-memory buffer.
 func (f *FileInode) writeToBuffer(data []byte, offset int64) (err error) {
 	// Initialize bufferedWriteHandler if not done already.
 	if f.bwh == nil {

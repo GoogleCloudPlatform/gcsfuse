@@ -206,9 +206,9 @@ func (t *DirTest) createLocalFileInode(parent Name, name string, id fuseops.Inod
 		false, // localFileCache
 		contentcache.New("", &t.clock),
 		&t.clock,
-		true,
+		true, //localFile
 		&cfg.WriteConfig{},
-		semaphore.NewWeighted(math.MaxInt64)) //localFile
+		semaphore.NewWeighted(math.MaxInt64))
 	return
 }
 
