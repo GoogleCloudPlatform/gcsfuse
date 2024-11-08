@@ -51,6 +51,7 @@ then
   DIR=${DIR}_${BUCKET_TYPE}
 elif [ ${BUCKET_TYPE} == "non-hns" ];
 then
+  #To validate the gRPC client, we have temporarily changed the non-HNS long haul test.
   echo "gcs-connection:
           client-protocol: grpc
          " >> /tmp/gcsfuse_config.yaml
