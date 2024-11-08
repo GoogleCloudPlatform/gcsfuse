@@ -367,8 +367,8 @@ func (bh *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsReq
 			list.CollapsedRuns = append(list.CollapsedRuns, attrs.Prefix)
 		} else {
 			// Converting attrs to *Object type.
-			currObject := storageutil.ObjectAttrsToBucketObject(attrs)
-			list.Objects = append(list.Objects, currObject)
+			currMinObject := storageutil.ObjectAttrsToMinObject(attrs)
+			list.MinObjects = append(list.MinObjects, currMinObject)
 		}
 
 		// itr.next returns all the objects present in the bucket. Hence adding a

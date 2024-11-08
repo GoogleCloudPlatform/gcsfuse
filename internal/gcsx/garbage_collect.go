@@ -35,10 +35,10 @@ func garbageCollectOnce(
 	group, ctx := errgroup.WithContext(ctx)
 
 	// List all objects with the temporary prefix.
-	objects := make(chan *gcs.Object, 100)
+	minObjects := make(chan *gcs.MinObject, 100)
 	group.Go(func() (err error) {
-		defer close(objects)
-		err = storageutil.ListPrefix(ctx, bucket, tmpObjectPrefix, objects)
+		defer close(minObjects)
+		err = storageutil.ListPrefix(ctx, bucket, tmpObjectPrefix, minObjects)
 		if err != nil {
 			err = fmt.Errorf("ListPrefix: %w", err)
 			return
@@ -52,7 +52,7 @@ func garbageCollectOnce(
 	staleNames := make(chan string, 100)
 	group.Go(func() (err error) {
 		defer close(staleNames)
-		for o := range objects {
+		for o := range minObjects {
 			if now.Sub(o.Updated) < stalenessThreshold {
 				continue
 			}

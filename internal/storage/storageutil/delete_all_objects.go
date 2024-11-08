@@ -28,17 +28,17 @@ func DeleteAllObjects(
 	group, ctx := errgroup.WithContext(ctx)
 
 	// List all of the objects in the bucket.
-	objects := make(chan *gcs.Object, 100)
+	minObjects := make(chan *gcs.MinObject, 100)
 	group.Go(func() error {
-		defer close(objects)
-		return ListPrefix(ctx, bucket, "", objects)
+		defer close(minObjects)
+		return ListPrefix(ctx, bucket, "", minObjects)
 	})
 
 	// Strip everything but the name.
 	objectNames := make(chan string, 10e3)
 	group.Go(func() (err error) {
 		defer close(objectNames)
-		for o := range objects {
+		for o := range minObjects {
 			select {
 			case <-ctx.Done():
 				err = ctx.Err()

@@ -727,11 +727,11 @@ func (t *ListObjectsTest) EmptyListingForHNS() {
 
 func (t *ListObjectsTest) NonEmptyListing() {
 	// Wrapped
-	o0 := &gcs.Object{Name: "taco"}
-	o1 := &gcs.Object{Name: "burrito"}
+	o0 := &gcs.MinObject{Name: "taco"}
+	o1 := &gcs.MinObject{Name: "burrito"}
 
 	expected := &gcs.Listing{
-		Objects: []*gcs.Object{o0, o1},
+		MinObjects: []*gcs.MinObject{o0, o1},
 	}
 
 	ExpectCall(t.wrapped, "BucketType")().
@@ -752,11 +752,11 @@ func (t *ListObjectsTest) NonEmptyListing() {
 
 func (t *ListObjectsTest) NonEmptyListingForHNS() {
 	// wrapped
-	o0 := &gcs.Object{Name: "taco"}
-	o1 := &gcs.Object{Name: "burrito"}
+	o0 := &gcs.MinObject{Name: "taco"}
+	o1 := &gcs.MinObject{Name: "burrito"}
 
 	expected := &gcs.Listing{
-		Objects:       []*gcs.Object{o0, o1},
+		MinObjects:    []*gcs.MinObject{o0, o1},
 		CollapsedRuns: []string{"p0", "p1/"},
 	}
 

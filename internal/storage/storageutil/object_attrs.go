@@ -104,6 +104,27 @@ func ObjectAttrsToBucketObject(attrs *storage.ObjectAttrs) *gcs.Object {
 	}
 }
 
+func ObjectAttrsToMinObject(attrs *storage.ObjectAttrs) *gcs.MinObject {
+	if attrs == nil {
+		return nil
+	}
+
+	// Making a local copy of crc to avoid keeping a reference to attrs instance.
+	crc := attrs.CRC32C
+
+	// Setting the parameters in MinObject and doing conversions as necessary.
+	return &gcs.MinObject{
+		Name:            attrs.Name,
+		Size:            uint64(attrs.Size),
+		ContentEncoding: attrs.ContentEncoding,
+		CRC32C:          &crc,
+		Metadata:        attrs.Metadata,
+		Generation:      attrs.Generation,
+		MetaGeneration:  attrs.Metageneration,
+		Updated:         attrs.Updated,
+	}
+}
+
 // SetAttrsInWriter - for setting object-attributes filed in storage.Writer object.
 // These attributes will be assigned to the newly created or old object.
 func SetAttrsInWriter(wc *storage.Writer, req *gcs.CreateObjectRequest) *storage.Writer {

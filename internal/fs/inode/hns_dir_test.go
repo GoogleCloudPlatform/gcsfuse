@@ -508,15 +508,15 @@ func (t *HNSDirTest) TestReadEntriesInHierarchicalBucket() {
 		implicitDir = "implicitDir" // In Hierarchical bucket implicitDir will also become folder.
 	)
 	tok := ""
-	obj1 := gcs.Object{Name: path.Join(dirInodeName, folder1) + "/"}
-	obj2 := gcs.Object{Name: path.Join(dirInodeName, folder2) + "/"}
-	obj3 := gcs.Object{Name: path.Join(dirInodeName, folder2, file1)}
-	obj4 := gcs.Object{Name: path.Join(dirInodeName, file2)}
-	obj5 := gcs.Object{Name: path.Join(dirInodeName, implicitDir, file3)}
-	objects := []*gcs.Object{&obj1, &obj2, &obj3, &obj4, &obj5}
+	obj1 := gcs.MinObject{Name: path.Join(dirInodeName, folder1) + "/"}
+	obj2 := gcs.MinObject{Name: path.Join(dirInodeName, folder2) + "/"}
+	obj3 := gcs.MinObject{Name: path.Join(dirInodeName, folder2, file1)}
+	obj4 := gcs.MinObject{Name: path.Join(dirInodeName, file2)}
+	obj5 := gcs.MinObject{Name: path.Join(dirInodeName, implicitDir, file3)}
+	minObjects := []*gcs.MinObject{&obj1, &obj2, &obj3, &obj4, &obj5}
 	collapsedRuns := []string{path.Join(dirInodeName, folder1) + "/", path.Join(dirInodeName, folder2) + "/", path.Join(dirInodeName, implicitDir) + "/"}
 	listing := gcs.Listing{
-		Objects:       objects,
+		MinObjects:    minObjects,
 		CollapsedRuns: collapsedRuns,
 	}
 	listObjectReq := gcs.ListObjectsRequest{
