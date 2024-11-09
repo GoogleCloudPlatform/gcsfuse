@@ -14,36 +14,36 @@ export output_dir=./
 export only_parse=""
 
 gcloud container clusters delete --quiet --zone $zone $cluster_name
-export workload_config=$gcsfuse_src_dir/perfmetrics/scripts/testing_on_gke/examples/parallel_downloads/all_combo_normal.yaml
-export instance_id=princer_combo_normal
+export workload_config=$gcsfuse_src_dir/perfmetrics/scripts/testing_on_gke/examples/parallel_downloads_grpc/all_combo_normal.yaml
+export instance_id=princer_grpc_combo_normal
 ./run-gke-tests.sh --debug
 
 sleep 90s
 gcloud container clusters delete --quiet --zone $zone $cluster_name
-export workload_config=$gcsfuse_src_dir/perfmetrics/scripts/testing_on_gke/examples/parallel_downloads/all_combo_file_cache.yaml
-export instance_id=princer_combo_file_cache
+export workload_config=$gcsfuse_src_dir/perfmetrics/scripts/testing_on_gke/examples/parallel_downloads_grpc/all_combo_file_cache.yaml
+export instance_id=princer_grpc_combo_file_cache
 ./run-gke-tests.sh --debug
 
 sleep 90s
 gcloud container clusters delete --quiet --zone $zone $cluster_name
-export workload_config=$gcsfuse_src_dir/perfmetrics/scripts/testing_on_gke/examples/parallel_downloads/all_combo_pd.yaml
-export instance_id=princer_combo_pd
+export workload_config=$gcsfuse_src_dir/perfmetrics/scripts/testing_on_gke/examples/parallel_downloads_grpc/all_combo_pd.yaml
+export instance_id=princer_grpc_combo_pd
 ./run-gke-tests.sh --debug
 
 sleep 90s
 gcloud container clusters delete --quiet --zone $zone $cluster_name
-export workload_config=$gcsfuse_src_dir/perfmetrics/scripts/testing_on_gke/examples/parallel_downloads/10g_normal.yaml
-export instance_id=princer_10g_normal
+export workload_config=$gcsfuse_src_dir/perfmetrics/scripts/testing_on_gke/examples/parallel_downloads_grpc/10g_normal.yaml
+export instance_id=princer_grpc_10g_normal
 ./run-gke-tests.sh --debug
 
 sleep 90s
 gcloud container clusters delete --quiet --zone $zone $cluster_name
-export workload_config=$gcsfuse_src_dir/perfmetrics/scripts/testing_on_gke/examples/parallel_downloads/10g_file_cache.yaml
-export instance_id=princer_10g_file_cache
+export workload_config=$gcsfuse_src_dir/perfmetrics/scripts/testing_on_gke/examples/parallel_downloads_grpc/10g_file_cache.yaml
+export instance_id=princer_grpc_10g_file_cache
 ./run-gke-tests.sh --debug
 
 sleep 90s
 gcloud container clusters delete --quiet --zone $zone $cluster_name
-export workload_config=$gcsfuse_src_dir/perfmetrics/scripts/testing_on_gke/examples/parallel_downloads/10g_pd.yaml
-export instance_id=princer_10g_pd
+export workload_config=$gcsfuse_src_dir/perfmetrics/scripts/testing_on_gke/examples/parallel_downloads_grpc/10g_pd.yaml
+export instance_id=princer_grpc_10g_pd
 ./run-gke-tests.sh --debug
