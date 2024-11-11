@@ -72,7 +72,7 @@ func (t *UploadHandlerTest) TestMultipleBlockUpload() {
 	}
 
 	// Finalize.
-	err := t.uh.Finalize()
+	err := t.uh.Finalize(ctx)
 	require.NoError(t.T(), err)
 
 	// The blocks should be available on the free channel for reuse.
@@ -101,6 +101,9 @@ func (t *UploadHandlerTest) TestUploadError() {
 }
 
 func (t *UploadHandlerTest) TestFinalizeWithNoWriter() {
-	err := t.uh.Finalize()
-	assert.ErrorContains(t.T(), err, "unexpected nil writer")
+	writer := NewMockWriter("mockObject")
+	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
+
+	err := t.uh.Finalize(context.Background())
+	assert.NoError(t.T(), err)
 }

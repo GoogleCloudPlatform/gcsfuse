@@ -116,12 +116,16 @@ func (uh *UploadHandler) uploader() {
 }
 
 // Finalize finalizes the upload.
-func (uh *UploadHandler) Finalize() error {
+func (uh *UploadHandler) Finalize(ctx context.Context) error {
 	uh.wg.Wait()
 	close(uh.uploadCh)
 
 	if uh.writer == nil {
-		return fmt.Errorf("unexpected nil writer")
+		// Writer may not have been created for empty file creation flow.
+		err := uh.createObjectWriter(ctx)
+		if err != nil {
+			return fmt.Errorf("createObjectWriter: %w", err)
+		}
 	}
 
 	err := uh.writer.Close()
