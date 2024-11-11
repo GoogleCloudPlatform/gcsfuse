@@ -15,10 +15,14 @@
 package bufferedwrites
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -35,7 +39,8 @@ func TestBufferedWriteTestSuite(t *testing.T) {
 }
 
 func (testSuite *BufferedWriteTest) SetupTest() {
-	bwh, err := NewBWHandler(1024, 10, semaphore.NewWeighted(10))
+	bucket := fake.NewFakeBucket(timeutil.RealClock(), "FakeBucketName", gcs.NonHierarchical)
+	bwh, err := NewBWHandler("testObject", bucket, 1024, 10, semaphore.NewWeighted(10))
 	require.Nil(testSuite.T(), err)
 	testSuite.bwh = bwh
 }
@@ -49,7 +54,7 @@ func (testSuite *BufferedWriteTest) TestSetMTime() {
 }
 
 func (testSuite *BufferedWriteTest) TestWrite() {
-	err := testSuite.bwh.Write([]byte("hi"), 0)
+	err := testSuite.bwh.Write(context.Background(), []byte("hi"), 0)
 
 	require.Nil(testSuite.T(), err)
 	fileInfo := testSuite.bwh.WriteFileInfo()
@@ -58,7 +63,7 @@ func (testSuite *BufferedWriteTest) TestWrite() {
 }
 
 func (testSuite *BufferedWriteTest) TestWriteWithEmptyBuffer() {
-	err := testSuite.bwh.Write([]byte{}, 0)
+	err := testSuite.bwh.Write(context.Background(), []byte{}, 0)
 
 	require.Nil(testSuite.T(), err)
 	fileInfo := testSuite.bwh.WriteFileInfo()
@@ -69,7 +74,7 @@ func (testSuite *BufferedWriteTest) TestWriteWithEmptyBuffer() {
 func (testSuite *BufferedWriteTest) TestWriteEqualToBlockSize() {
 	size := 1024
 	data := strings.Repeat("A", size)
-	err := testSuite.bwh.Write([]byte(data), 0)
+	err := testSuite.bwh.Write(context.Background(), []byte(data), 0)
 
 	require.Nil(testSuite.T(), err)
 	fileInfo := testSuite.bwh.WriteFileInfo()
@@ -80,10 +85,32 @@ func (testSuite *BufferedWriteTest) TestWriteEqualToBlockSize() {
 func (testSuite *BufferedWriteTest) TestWriteDataSizeGreaterThanBlockSize() {
 	size := 2000
 	data := strings.Repeat("A", size)
-	err := testSuite.bwh.Write([]byte(data), 0)
+	err := testSuite.bwh.Write(context.Background(), []byte(data), 0)
 
 	require.Nil(testSuite.T(), err)
 	fileInfo := testSuite.bwh.WriteFileInfo()
 	assert.Equal(testSuite.T(), testSuite.bwh.mtime, fileInfo.Mtime)
 	assert.Equal(testSuite.T(), int64(size), fileInfo.TotalSize)
+}
+
+func (testSuite *BufferedWriteTest) TestFlushWithNonNilCurrentBlock() {
+	err := testSuite.bwh.Write(context.Background(), []byte("hi"), 0)
+	currentBlock := testSuite.bwh.current
+	require.Nil(testSuite.T(), err)
+
+	err = testSuite.bwh.Flush(context.Background())
+	require.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), nil, testSuite.bwh.current)
+	// The current block should be available on the free channel as flush triggers
+	// an upload before finalize.
+	freeCh := testSuite.bwh.blockPool.FreeBlocksChannel()
+	got := <-*freeCh
+	assert.Equal(testSuite.T(), &currentBlock, &got)
+}
+
+func (testSuite *BufferedWriteTest) TestFlushWithNilCurrentBlock() {
+	require.Nil(testSuite.T(), testSuite.bwh.current)
+
+	err := testSuite.bwh.Flush(context.Background())
+	assert.NoError(testSuite.T(), err)
 }
