@@ -33,11 +33,7 @@ import (
 )
 
 // SetupOTelMetricExporters sets up the metrics exporters
-func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config) common.ShutdownFn {
-	return setupMetrics(ctx, c)
-}
-
-func setupMetrics(ctx context.Context, c *cfg.Config) (shutdownFn common.ShutdownFn) {
+func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config) (shutdownFn common.ShutdownFn) {
 	options := make([]metric.Option, 0)
 	opts, shutdownFn := setupPrometheus(c.Metrics.PrometheusPort)
 	options = append(options, opts...)
