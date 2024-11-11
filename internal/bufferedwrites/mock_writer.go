@@ -12,11 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// For now, we are not writing the unit test, which requires multiple
-// version of same object. As this is not supported by fake-storage-server.
-// Although API is exposed to enable the object versioning for a bucket,
-// but it returns "method not allowed" when we call it.
-
 package bufferedwrites
 
 import (
@@ -27,6 +22,10 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 )
 
+// MockWriter implements io.WriteCloser and is used in unit tests to mock
+// the behavior of a GCS object writer. This is particular used with
+// storage.TestifyMockBucket implementation and allows for controlled testing of
+// interactions with the writer without relying on actual GCS operations.
 type MockWriter struct {
 	io.WriteCloser
 	buf bytes.Buffer
