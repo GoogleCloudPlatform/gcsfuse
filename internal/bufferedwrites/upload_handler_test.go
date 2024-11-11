@@ -23,6 +23,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/sync/semaphore"
 )
@@ -46,7 +47,7 @@ func (t *UploadHandlerTest) SetupTest() {
 	t.mockBucket = new(storage.TestifyMockBucket)
 	var err error
 	t.blockPool, err = block.NewBlockPool(blockSize, 5, semaphore.NewWeighted(5))
-	assert.NoError(t.T(), err)
+	require.NoError(t.T(), err)
 	t.uh = newUploadHandler("testObject", t.mockBucket, t.blockPool.FreeBlocksChannel(), blockSize)
 }
 
@@ -56,7 +57,7 @@ func (t *UploadHandlerTest) TestMultipleBlockUpload() {
 	var blocks []block.Block
 	for i := 0; i < 5; i++ {
 		b, err := t.blockPool.Get()
-		assert.NoError(t.T(), err)
+		require.NoError(t.T(), err)
 		blocks = append(blocks, b)
 	}
 
@@ -67,12 +68,12 @@ func (t *UploadHandlerTest) TestMultipleBlockUpload() {
 	// Upload the blocks.
 	for _, b := range blocks {
 		err := t.uh.Upload(ctx, b)
-		assert.Equal(t.T(), nil, err)
+		require.NoError(t.T(), err)
 	}
 
 	// Finalize.
 	err := t.uh.Finalize()
-	assert.Equal(t.T(), nil, err)
+	require.NoError(t.T(), err)
 
 	// The blocks should be available on the free channel for reuse.
 	for _, expect := range blocks {
@@ -88,7 +89,7 @@ func (t *UploadHandlerTest) TestUploadError() {
 	ctx := context.Background()
 	// Create a block.
 	b, err := t.blockPool.Get()
-	assert.NoError(t.T(), err)
+	require.NoError(t.T(), err)
 
 	// CreateObjectChunkWriter -- should be called once.
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("taco"))
