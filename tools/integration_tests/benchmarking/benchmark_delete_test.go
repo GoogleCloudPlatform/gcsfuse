@@ -15,6 +15,8 @@
 package benchmarking
 
 import (
+	"fmt"
+	"os"
 	"path"
 	"testing"
 
@@ -23,33 +25,31 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
-////////////////////////////////////////////////////////////////////////
-// Boilerplate
-////////////////////////////////////////////////////////////////////////
+type benchmarkDeleteTest struct{}
 
-type benchmarkStatTest struct{}
-
-func (s *benchmarkStatTest) SetupB(b *testing.B) {
+func (s *benchmarkDeleteTest) SetupB(b *testing.B) {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 }
 
-func (s *benchmarkStatTest) TeardownB(b *testing.B) {}
+func (s *benchmarkDeleteTest) TeardownB(b *testing.B) {}
 
-// createFilesToStat creates the below object in the bucket.
-// benchmarking/a.txt
-func createFilesToStat(b *testing.B) {
-	operations.CreateFileOfSize(5, path.Join(testDirPath, "a.txt"), b)
+// createFilesToDelete creates the below objects in the bucket.
+// benchmarking/a{i}.txt where i is a counter based on the benchtime value.
+func createFilesToDelete(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		operations.CreateFileOfSize(5, path.Join(testDirPath, fmt.Sprintf("a%d.txt", i)), b)
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *benchmarkStatTest) Benchmark_Stat(b *testing.B) {
-	createFilesToStat(b)
+func (s *benchmarkDeleteTest) Benchmark_Delete(b *testing.B) {
+	createFilesToDelete(b)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := operations.StatFile(path.Join(testDirPath, "a.txt")); err != nil {
+		if err := os.Remove(path.Join(testDirPath, fmt.Sprintf("a%d.txt", i))); err != nil {
 			b.Errorf("testing error: %v", err)
 		}
 	}
@@ -59,7 +59,7 @@ func (s *benchmarkStatTest) Benchmark_Stat(b *testing.B) {
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
 
-func Benchmark_Stat(b *testing.B) {
-	ts := &benchmarkStatTest{}
+func Benchmark_Delete(b *testing.B) {
+	ts := &benchmarkDeleteTest{}
 	benchmark_setup.RunBenchmarks(b, ts)
 }
