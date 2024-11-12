@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// A collection of tests for a file system where we do not attempt to write to
-// the file system at all. Rather we set up contents in a GCS bucket out of
-// band, wait for them to be available, and then read them via the file system.
-
 package fs_test
 
 import (
@@ -25,8 +21,10 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"testing"
 
-	. "github.com/jacobsa/ogletest"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -34,34 +32,44 @@ import (
 ////////////////////////////////////////////////////////////////////////
 
 type UnsupportedObjectsTest struct {
+	suite.Suite
 	fsTest
 }
 
-func init() {
-	RegisterTestSuite(&UnsupportedObjectsTest{})
-}
-
-func (t *UnsupportedObjectsTest) SetUpTestSuite() {
+func (t *UnsupportedObjectsTest) SetupSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.fsTest.SetUpTestSuite()
 }
 
-////////////////////////////////////////////////////////////////////////
-// Tests
-////////////////////////////////////////////////////////////////////////
+func (t *UnsupportedObjectsTest) TearDownTest() {
+	t.fsTest.TearDown()
+}
 
+func (t *UnsupportedObjectsTest) TearDownSuite() {
+	t.fsTest.TearDownTestSuite()
+}
+
+func TestUnsupportedObjectsTestSuite(t *testing.T) {
+	suite.Run(t, new(UnsupportedObjectsTest))
+}
+
+// //////////////////////////////////////////////////////////////////////
+// Tests
+// /////////////////////////////////////////////////////////////////////
 func verifyInvalidPath(t *UnsupportedObjectsTest, path string) {
+	t.T().Helper()
+
 	_, err := os.Stat(path)
 
-	AssertNe(nil, err, "Failed to get error in stat of %q", path)
+	assert.Errorf(t.T(), err, "Failed to get error in stat of %q", path)
 }
 
 // Create objects with unsupported object names and
 // verify the behavior of mount using os.Stat and WalkDir.
-func (t *UnsupportedObjectsTest) UnsupportedGcsObjectNames() {
+func (t *UnsupportedObjectsTest) Test_UnsupportedGcsObjectNames() {
 	// Set up contents.
-	AssertEq(
-		nil,
+	assert.NoError(
+		t.T(),
 		t.createObjects(
 			map[string]string{
 				"foo//0":   "", // unsupported
@@ -120,7 +128,7 @@ func (t *UnsupportedObjectsTest) UnsupportedGcsObjectNames() {
 	},
 	}
 
-	AssertEq(nil, filepath.WalkDir(mntDir, func(path string, d fs.DirEntry, err error) error {
+	assert.Nil(t.T(), filepath.WalkDir(mntDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -146,12 +154,9 @@ func (t *UnsupportedObjectsTest) UnsupportedGcsObjectNames() {
 	}))
 
 	for _, expectedWalkedEntry := range expectedWalkedEntries {
-		if !expectedWalkedEntry.found {
-			AddFailure("Missing walked entry: path=%s, name=%s, isDir=%v", expectedWalkedEntry.path, expectedWalkedEntry.name, expectedWalkedEntry.isDir)
-		}
+		assert.Truef(t.T(), expectedWalkedEntry.found,
+			"Missing walked entry: path=%s, name=%s, isDir=%v", expectedWalkedEntry.path, expectedWalkedEntry.name, expectedWalkedEntry.isDir)
 	}
 
-	err = os.RemoveAll(mntDir + "/*")
-
-	AssertEq(nil, err)
+	assert.NoError(t.T(), os.RemoveAll(mntDir+"/*"))
 }
