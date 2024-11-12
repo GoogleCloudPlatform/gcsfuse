@@ -126,16 +126,6 @@ func (b *debugBucket) Name() string {
 }
 
 func (b *debugBucket) BucketType() gcs.BucketType {
-	var err error
-
-	// BucketType internally calls  GetStorageLayout API from control client , hence
-	// logging this as a GetStorageLayout call.
-	id, desc, start := b.startRequest("GetStorageLayout(%q)", b.Name())
-	// In case getStorageLayout call returns error , the bucket type is set to unknown and
-	// underlying method does not panic.Since no error is returned here, gcs call is
-	// logged with error set to nil in this case.
-	defer b.finishRequest(id, desc, start, &err)
-
 	return b.wrapped.BucketType()
 }
 

@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"cloud.google.com/go/storage"
 	control "cloud.google.com/go/storage/control/apiv2"
@@ -64,15 +65,17 @@ func (bh *bucketHandle) BucketType() gcs.BucketType {
 			bh.bucketType = gcs.NonHierarchical
 			return bh.bucketType
 		}
-
+		startTime := time.Now()
+		logger.Infof("GetStorageLayout <- (%s)", bh.bucketName)
 		storageLayout, err := bh.getStorageLayout()
-
+		duration := time.Since(startTime)
 		// In case bucket does not exist, set type unknown instead of panic.
 		if err != nil {
 			bh.bucketType = gcs.Unknown
 			logger.Errorf("Error returned from GetStorageLayout: %v", err)
 			return bh.bucketType
 		}
+		logger.Infof("GetStorageLayout -> (%s) %v msec", bh.bucketName, duration.Milliseconds())
 
 		hierarchicalNamespace := storageLayout.GetHierarchicalNamespace()
 		if hierarchicalNamespace != nil && hierarchicalNamespace.Enabled {
