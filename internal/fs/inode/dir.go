@@ -24,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/jacobsa/fuse/fuseops"
@@ -732,8 +733,12 @@ func (d *dirInode) readObjects(
 	}
 
 	// Add implicit directories into the result.
+	unsupportedPrefixes := []string{}
 	for _, p := range listing.CollapsedRuns {
 		pathBase := path.Base(p)
+		if storageutil.IsUnsupportedObjectName(p) {
+			unsupportedPrefixes = append(unsupportedPrefixes, p)
+		}
 		dirName := NewDirName(d.Name(), pathBase)
 		if d.isBucketHierarchical() {
 			folder := gcs.Folder{Name: dirName.objectName}
@@ -756,6 +761,9 @@ func (d *dirInode) readObjects(
 			}
 			cores[dirName] = implicitDir
 		}
+	}
+	if len(unsupportedPrefixes) > 0 {
+		logger.Warnf("Encountered unsupported prefixes during listing: %v", unsupportedPrefixes)
 	}
 	return
 }
