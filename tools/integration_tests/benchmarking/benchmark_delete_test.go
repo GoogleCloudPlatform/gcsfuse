@@ -27,17 +27,17 @@ import (
 
 type benchmarkDeleteTest struct{}
 
-func (s *benchmarkDeleteTest) SetupB(t *testing.B) {
+func (s *benchmarkDeleteTest) SetupB(b *testing.B) {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 }
 
-func (s *benchmarkDeleteTest) TeardownB(t *testing.B) {}
+func (s *benchmarkDeleteTest) TeardownB(b *testing.B) {}
 
 // createFilesToDelete creates the below objects in the bucket.
 // benchmarking/a{i}.txt where i is a counter based on the benchtime value.
-func createFilesToDelete(t *testing.B) {
-	for i := 0; i < t.N; i++ {
-		operations.CreateFileOfSize(5, path.Join(testDirPath, fmt.Sprintf("a%d.txt", i)), t)
+func createFilesToDelete(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		operations.CreateFileOfSize(5, path.Join(testDirPath, fmt.Sprintf("a%d.txt", i)), b)
 	}
 }
 
@@ -45,12 +45,12 @@ func createFilesToDelete(t *testing.B) {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *benchmarkDeleteTest) Benchmark_Delete(t *testing.B) {
-	createFilesToDelete(t)
-	t.ResetTimer()
-	for i := 0; i < t.N; i++ {
+func (s *benchmarkDeleteTest) Benchmark_Delete(b *testing.B) {
+	createFilesToDelete(b)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
 		if err := os.Remove(path.Join(testDirPath, fmt.Sprintf("a%d.txt", i))); err != nil {
-			t.Errorf("testing error: %v", err)
+			b.Errorf("testing error: %v", err)
 		}
 	}
 }
@@ -59,7 +59,7 @@ func (s *benchmarkDeleteTest) Benchmark_Delete(t *testing.B) {
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
 
-func Benchmark_Delete(t *testing.B) {
+func Benchmark_Delete(b *testing.B) {
 	ts := &benchmarkDeleteTest{}
-	benchmark_setup.RunBenchmarks(t, ts)
+	benchmark_setup.RunBenchmarks(b, ts)
 }

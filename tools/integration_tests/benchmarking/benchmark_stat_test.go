@@ -29,16 +29,16 @@ import (
 
 type benchmarkStatTest struct{}
 
-func (s *benchmarkStatTest) SetupB(t *testing.B) {
+func (s *benchmarkStatTest) SetupB(b *testing.B) {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 }
 
-func (s *benchmarkStatTest) TeardownB(t *testing.B) {}
+func (s *benchmarkStatTest) TeardownB(b *testing.B) {}
 
 // createFilesToStat creates the below object in the bucket.
 // benchmarking/a.txt
-func createFilesToStat(t *testing.B) {
-	operations.CreateFileOfSize(5, path.Join(testDirPath, "a.txt"), t)
+func createFilesToStat(b *testing.B) {
+	operations.CreateFileOfSize(5, path.Join(testDirPath, "a.txt"), b)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -59,7 +59,7 @@ func (s *benchmarkStatTest) Benchmark_Stat(b *testing.B) {
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
 
-func Benchmark_Stat(t *testing.B) {
+func Benchmark_Stat(b *testing.B) {
 	ts := &benchmarkStatTest{}
-	benchmark_setup.RunBenchmarks(t, ts)
+	benchmark_setup.RunBenchmarks(b, ts)
 }
