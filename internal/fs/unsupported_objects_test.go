@@ -53,6 +53,18 @@ func TestUnsupportedObjectsTestSuite(t *testing.T) {
 	suite.Run(t, new(UnsupportedObjectsTest))
 }
 
+type UnsupportedObjectsTestWithoutImplicitDirs struct {
+	UnsupportedObjectsTest
+}
+
+func (t *UnsupportedObjectsTestWithoutImplicitDirs) SetupSuite() {
+	t.serverCfg.ImplicitDirectories = false
+	t.fsTest.SetUpTestSuite()
+}
+func TestUnsupportedObjectsWithoutImplicitDirsTestSuite(t *testing.T) {
+	suite.Run(t, new(UnsupportedObjectsTestWithoutImplicitDirs))
+}
+
 // //////////////////////////////////////////////////////////////////////
 // Helpers
 // /////////////////////////////////////////////////////////////////////
@@ -120,8 +132,6 @@ func (t *UnsupportedObjectsTest) testGcsObjects(objectNames map[string]string, i
 // //////////////////////////////////////////////////////////////////////
 // Tests
 // /////////////////////////////////////////////////////////////////////
-// Create objects with unsupported object names and
-// verify the behavior of mount using os.Stat and WalkDir.
 func (t *UnsupportedObjectsTest) Test_UnsupportedGcsObjectNames() {
 	// Set up contents.
 	objectNames :=
@@ -135,7 +145,6 @@ func (t *UnsupportedObjectsTest) Test_UnsupportedGcsObjectNames() {
 			"/7":       "", // unsupported
 			"/8/10":    "", // unsupported
 			"/":        "", // unsupported
-			"10/12":    "", // supported
 		}
 
 	// Verify that the unsupported objects fail os.Stat.
@@ -168,13 +177,51 @@ func (t *UnsupportedObjectsTest) Test_UnsupportedGcsObjectNames() {
 	}, {
 		path: path.Join(mntDir, "6"),
 		name: "6",
-	}, {
-		path:  path.Join(mntDir, "10"),
-		name:  "10",
+	},
+	}
+
+	t.testGcsObjects(objectNames, invalidPaths, expectedWalkedEntries)
+}
+
+func (t *UnsupportedObjectsTestWithoutImplicitDirs) Test_UnsupportedGcsObjectNames() {
+	// Set up contents.
+	objectNames :=
+		map[string]string{
+			"foo/":     "", //supported
+			"foo//0":   "", // unsupported
+			"foo/1":    "", // supported
+			"foo/2//4": "", // unsupported
+			"foo//2/5": "", // unsupported
+			"foo/2/6":  "", // supported
+			"6":        "", // supported
+			"/7":       "", // unsupported
+			"/8/10":    "", // unsupported
+			"/":        "", // unsupported
+		}
+
+	// Verify that the unsupported objects fail os.Stat.
+	invalidPaths := []string{
+		"foo//0",
+		"foo/2//4",
+		"foo//2/5",
+		"/7",
+		"/8/10"}
+
+	// Verify that the supported objects appear in WalkDir.
+	expectedWalkedEntries := []expectedWalkedEntry{{
+		path:  mntDir,
+		name:  mntDir[strings.LastIndex(mntDir, "/")+1:],
 		isDir: true,
 	}, {
-		path: path.Join(mntDir, "10/12"),
-		name: "12",
+		path:  path.Join(mntDir, "foo"),
+		name:  "foo",
+		isDir: true,
+	}, {
+		path: path.Join(mntDir, "foo/1"),
+		name: "1",
+	}, {
+		path: path.Join(mntDir, "6"),
+		name: "6",
 	},
 	}
 
