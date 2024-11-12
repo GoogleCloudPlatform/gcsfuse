@@ -690,10 +690,14 @@ func (d *dirInode) readObjects(
 		}
 	}()
 
+	unsupportedObjects := []string{}
 	for _, o := range listing.MinObjects {
 		// Skip empty results or the directory object backing this inode.
 		if o.Name == d.Name().GcsObjectName() || o.Name == "" {
 			continue
+		}
+		if storageutil.IsUnsupportedObjectName(o.Name) {
+			unsupportedObjects = append(unsupportedObjects, o.Name)
 		}
 
 		nameBase := path.Base(o.Name) // ie. "bar" from "foo/bar/" or "foo/bar"
@@ -723,6 +727,9 @@ func (d *dirInode) readObjects(
 			}
 			cores[fileName] = file
 		}
+	}
+	if len(unsupportedObjects) > 0 {
+		logger.Warnf("Encountered unsupported objects during listing: %v", unsupportedObjects)
 	}
 
 	// Return an appropriate continuation token, if any.
