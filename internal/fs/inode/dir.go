@@ -88,15 +88,15 @@ type DirInode interface {
 		ctx context.Context,
 		tok string) (entries []fuseutil.Dirent, newTok string, err error)
 
-	// HasNoSupportedObjectsInSubtree returns true if the GCS prefix corresponding
+	// HasSupportedObjectsInSubDirs returns false if the GCS prefix corresponding
 	// to this directory contains only objects of the form `<a>//<b>` where <a> and
 	// <b> are proper path strings not containing a `//`.
-	// If there are no GCS objects for this prefix, then it will return false.
+	// If there are no GCS objects for this prefix, then also it will return false.
 	// Example: Input directory inode: "a/".
-	// If there is even one GCS object like "a/b" or "a/b/c" etc, then it will return false.
-	// If it contains only "a//b" or "a/b//c" or "a//b/c" etc. then it will return true.
+	// If there is even one GCS object like "a/b" or "a/b/c", then it will return true.
+	// If it contains only "a//b" or "a/b//c" or "a//b/c" or is empty, then it will return false.
 	// Note: This is a recursive method.
-	HasNoSupportedObjectsInSubtree(ctx context.Context) (hasNoSupportedObjects bool, err error)
+	HasSupportedObjectsInSubDirs(ctx context.Context) (hasSupportedObjectsInSubDirs bool, err error)
 
 	// Create an empty child file with the supplied (relative) name, failing with
 	// *gcs.PreconditionError if a backing object already exists in GCS.
@@ -825,15 +825,15 @@ func (d *dirInode) ReadEntries(
 	return
 }
 
-// HasNoSupportedObjectsInSubtree returns true if the GCS prefix corresponding
+// HasSupportedObjectsInSubDirs returns false if the GCS prefix corresponding
 // to this directory contains only objects of the form `<a>//<b>` where <a> and
 // <b> are proper path strings not containing a `//`.
-// If there are no GCS objects for this prefix, then it will return false.
+// If there are no GCS objects for this prefix, then also it will return false.
 // Example: Input directory inode: "a/".
-// If there is even one GCS object like "a/b" or "a/b/c" etc, then it will return false.
-// If it contains only "a//b" or "a/b//c" or "a//b/c" etc. then it will return true.
+// If there is even one GCS object like "a/b" or "a/b/c" etc, then it will return true.
+// If it contains only "a//b" or "a/b//c" or "a//b/c" or is empty, then it will return false.
 // Note: This is a recursive method.
-func (d *dirInode) HasNoSupportedObjectsInSubtree(ctx context.Context) (hasNoSupportedObjects bool, err error) {
+func (d *dirInode) HasSupportedObjectsInSubDirs(ctx context.Context) (hasSupportedObjectsInSubDirs bool, err error) {
 	if d.isBucketHierarchical() {
 		d.includeFoldersAsPrefixes = true
 	}
@@ -876,7 +876,7 @@ func (d *dirInode) HasNoSupportedObjectsInSubtree(ctx context.Context) (hasNoSup
 
 			for _, object := range listing.MinObjects {
 				if !storageutil.IsUnsupportedObjectName(object.Name) {
-					hasNoSupportedObjects = false
+					hasSupportedObjectsInSubDirs = true
 					return
 				}
 			}
@@ -890,7 +890,7 @@ func (d *dirInode) HasNoSupportedObjectsInSubtree(ctx context.Context) (hasNoSup
 		}
 	}
 
-	hasNoSupportedObjects = true
+	hasSupportedObjectsInSubDirs = false
 	return
 }
 

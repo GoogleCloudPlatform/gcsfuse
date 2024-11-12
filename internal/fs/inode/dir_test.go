@@ -1640,7 +1640,7 @@ func (t *DirTest) Test_InvalidateKernelListCache() {
 	AssertTrue(d.prevDirListingTimeStamp.IsZero())
 }
 
-func (t *DirTest) HasNoSupportedObjectsInSubtree_true_scenario1() {
+func (t *DirTest) Test_HasSupportedObjectsInSubDirs_false_scenario1() {
 	var err error
 
 	// Enable implicit dirs.
@@ -1658,13 +1658,13 @@ func (t *DirTest) HasNoSupportedObjectsInSubtree_true_scenario1() {
 
 	AssertEq(nil, err)
 
-	b, err := t.in.HasNoSupportedObjectsInSubtree(t.ctx)
+	b, err := t.in.HasSupportedObjectsInSubDirs(t.ctx)
 
-	AssertTrue(b)
+	AssertFalse(b)
 	AssertEq(nil, err)
 }
 
-func (t *DirTest) HasNoSupportedObjectsInSubtree_true_scenario2() {
+func (t *DirTest) Test_HasSupportedObjectsInSubDirs_false_scenario2() {
 	var err error
 
 	// Enable implicit dirs.
@@ -1677,13 +1677,13 @@ func (t *DirTest) HasNoSupportedObjectsInSubtree_true_scenario2() {
 
 	AssertEq(nil, err)
 
-	b, err := t.in.HasNoSupportedObjectsInSubtree(t.ctx)
+	b, err := t.in.HasSupportedObjectsInSubDirs(t.ctx)
 
-	AssertTrue(b)
+	AssertFalse(b)
 	AssertEq(nil, err)
 }
 
-func (t *DirTest) HasNoSupportedObjectsInSubtree_false_scenario1() {
+func (t *DirTest) Test_HasSupportedObjectsInSubDirs_true_scenario1() {
 	var err error
 
 	// Enable implicit dirs.
@@ -1705,13 +1705,13 @@ func (t *DirTest) HasNoSupportedObjectsInSubtree_false_scenario1() {
 
 	AssertEq(nil, err)
 
-	b, err := t.in.HasNoSupportedObjectsInSubtree(t.ctx)
+	b, err := t.in.HasSupportedObjectsInSubDirs(t.ctx)
 
-	AssertFalse(b)
+	AssertTrue(b)
 	AssertEq(nil, err)
 }
 
-func (t *DirTest) HasNoSupportedObjectsInSubtree_false_scenario2() {
+func (t *DirTest) Test_HasSupportedObjectsInSubDirs_true_scenario2() {
 	var err error
 
 	// Enable implicit dirs.
@@ -1731,8 +1731,8 @@ func (t *DirTest) HasNoSupportedObjectsInSubtree_false_scenario2() {
 
 	AssertEq(nil, err)
 
-	b, err := t.in.HasNoSupportedObjectsInSubtree(t.ctx)
+	b, err := t.in.HasSupportedObjectsInSubDirs(t.ctx)
 
-	AssertFalse(b)
+	AssertTrue(b)
 	AssertEq(nil, err)
 }

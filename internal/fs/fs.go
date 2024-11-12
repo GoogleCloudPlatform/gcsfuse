@@ -1910,20 +1910,17 @@ func (fs *fileSystem) RmDir(
 			// it is not empty wrt GCSFuse
 			// and deletion should fail.
 			childDirObjectName := childDir.Name().GcsObjectName()
-			var hasNoSupportedObjectsInSubtree bool
-			hasNoSupportedObjectsInSubtree, err = childDir.HasNoSupportedObjectsInSubtree(ctx)
+			var hasSupportedObjectsInSubDirs bool
+			hasSupportedObjectsInSubDirs, err = childDir.HasSupportedObjectsInSubDirs(ctx)
 			if err != nil {
-				err = fmt.Errorf("DeleteChildDir (%q): %w", childDirObjectName, err)
+				err = fmt.Errorf("childDir.HasSupportedObjectsInSubDirs failed for %q: %w", childDirObjectName, err)
 				return
 			}
-			if !hasNoSupportedObjectsInSubtree {
-				logger.Warnf("Failed to delete %q as it still has GCS objects in it.", childDirObjectName)
+			if hasSupportedObjectsInSubDirs {
 				err = fuse.ENOTEMPTY
 				return
 			} else {
 				logger.Warnf("Cannot completely delete %q as this directory has unsupported GCS objects (i.e. objects containing // in their names, which cannot be accessed through gcsfuse) in its sub-tree.", childDirObjectName)
-				//err = fuse.ENOTEMPTY
-				//return
 				break
 			}
 		}
