@@ -1,6 +1,7 @@
 package benchmarking
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"testing"
@@ -18,10 +19,12 @@ func (s *benchmarkDeleteTest) SetupB(t *testing.B) {
 
 func (s *benchmarkDeleteTest) TeardownB(t *testing.B) {}
 
-// createFilesToDelete creates the below object in the bucket.
-// benchmarking/a.txt
+// createFilesToDelete creates the below objects in the bucket.
+// benchmarking/a{i}.txt where i is a counter based on the benchtime value.
 func createFilesToDelete(t *testing.B) {
-	operations.CreateFileOfSize(5, path.Join(testDirPath, "a.txt"), t)
+	for i := 0; i < t.N; i++ {
+		operations.CreateFileOfSize(5, path.Join(testDirPath, fmt.Sprintf("a%d.txt", i)), t)
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -29,10 +32,10 @@ func createFilesToDelete(t *testing.B) {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *benchmarkDeleteTest) Benchmark_Delete(t *testing.B) {
+	createFilesToDelete(t)
 	t.ResetTimer()
 	for i := 0; i < t.N; i++ {
-		createFilesToDelete(t)
-		if err := os.Remove(path.Join(testDirPath, "a.txt")); err != nil {
+		if err := os.Remove(path.Join(testDirPath, fmt.Sprintf("a%d.txt", i))); err != nil {
 			t.Errorf("testing error: %v", err)
 		}
 	}
