@@ -44,15 +44,14 @@ type UploadHandler struct {
 	bucket     gcs.Bucket
 	objectName string
 	blockSize  int64
-	ctx        context.Context
 }
 
 // newUploadHandler creates the UploadHandler struct.
-func newUploadHandler(objectName string, bucket gcs.Bucket, freeBlocksCh *chan block.Block, blockSize int64) *UploadHandler {
+func newUploadHandler(objectName string, bucket gcs.Bucket, freeBlocksCh chan block.Block, blockSize int64) *UploadHandler {
 	uh := &UploadHandler{
 		uploadCh:     make(chan block.Block),
 		wg:           sync.WaitGroup{},
-		freeBlocksCh: *freeBlocksCh,
+		freeBlocksCh: freeBlocksCh,
 		bucket:       bucket,
 		objectName:   objectName,
 		blockSize:    blockSize,
@@ -61,12 +60,12 @@ func newUploadHandler(objectName string, bucket gcs.Bucket, freeBlocksCh *chan b
 }
 
 // Upload adds a block to the upload queue.
-func (uh *UploadHandler) Upload(ctx context.Context, block block.Block) (err error) {
+func (uh *UploadHandler) Upload(block block.Block) error {
 	uh.wg.Add(1)
 
 	if uh.writer == nil {
 		// Lazily create the object writer.
-		err = uh.createObjectWriter(ctx)
+		err := uh.createObjectWriter()
 		if err != nil {
 			return fmt.Errorf("createObjectWriter: %w", err)
 		}
@@ -79,23 +78,17 @@ func (uh *UploadHandler) Upload(ctx context.Context, block block.Block) (err err
 }
 
 // createObjectWriter creates a GCS object writer.
-func (uh *UploadHandler) createObjectWriter(ctx context.Context) (err error) {
+func (uh *UploadHandler) createObjectWriter() (err error) {
 	var preCond int64
 	req := &gcs.CreateObjectRequest{
 		Name:                   uh.objectName,
 		GenerationPrecondition: &preCond,
 		Metadata:               make(map[string]string),
 	}
-	// We need to create a non-cancellable context, since the first writeFile()
-	// call will be done by the time total upload is done.
-	uh.ctx = context.WithoutCancel(ctx)
-	uh.writer, err = uh.bucket.CreateObjectChunkWriter(uh.ctx, req, int(uh.blockSize), uh.statusNotifier)
-	return err
-}
-
-// statusNotifier is a callback function called after every complete block is uploaded.
-func (uh *UploadHandler) statusNotifier(bytesUploaded int64) {
-	logger.Infof("gcs: Req %#16x: -- CreateObject(%q): %20v bytes uploaded so far", uh.ctx.Value(gcs.ReqIdField), uh.objectName, bytesUploaded)
+	// We need a new context here, since the first writeFile() call will be complete
+	// (and context will be cancelled) by the time complete upload is done.
+	uh.writer, err = uh.bucket.CreateObjectChunkWriter(context.Background(), req, int(uh.blockSize), nil)
+	return
 }
 
 // uploader is the single-threaded goroutine that uploads blocks.
@@ -110,19 +103,18 @@ func (uh *UploadHandler) uploader() {
 		uh.wg.Done()
 
 		// Put back the uploaded block on the freeBlocksChannel for re-use.
-		currBlock.Reuse()
 		uh.freeBlocksCh <- currBlock
 	}
 }
 
 // Finalize finalizes the upload.
-func (uh *UploadHandler) Finalize(ctx context.Context) error {
+func (uh *UploadHandler) Finalize() error {
 	uh.wg.Wait()
 	close(uh.uploadCh)
 
 	if uh.writer == nil {
 		// Writer may not have been created for empty file creation flow.
-		err := uh.createObjectWriter(ctx)
+		err := uh.createObjectWriter()
 		if err != nil {
 			return fmt.Errorf("createObjectWriter: %w", err)
 		}
@@ -131,7 +123,7 @@ func (uh *UploadHandler) Finalize(ctx context.Context) error {
 	err := uh.writer.Close()
 	if err != nil {
 		logger.Errorf("UploadHandler.Finalize(): %v", err)
-		return fmt.Errorf("writer.CLose: %w", err)
+		return fmt.Errorf("writer.Close: %w", err)
 	}
 	return nil
 }

@@ -15,12 +15,14 @@
 package bufferedwrites
 
 import (
-	"context"
 	"errors"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
+	storagemock "github.com/googlecloudplatform/gcsfuse/v2/internal/storage/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -52,7 +54,6 @@ func (t *UploadHandlerTest) SetupTest() {
 }
 
 func (t *UploadHandlerTest) TestMultipleBlockUpload() {
-	ctx := context.Background()
 	// Create some blocks.
 	var blocks []block.Block
 	for i := 0; i < 5; i++ {
@@ -60,50 +61,88 @@ func (t *UploadHandlerTest) TestMultipleBlockUpload() {
 		require.NoError(t.T(), err)
 		blocks = append(blocks, b)
 	}
-
 	// CreateObjectChunkWriter -- should be called once.
-	writer := NewMockWriter("mockObject")
+	writer := storagemock.NewMockWriter("mockObject", false, false)
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
 
 	// Upload the blocks.
 	for _, b := range blocks {
-		err := t.uh.Upload(ctx, b)
+		err := t.uh.Upload(b)
 		require.NoError(t.T(), err)
 	}
 
 	// Finalize.
-	err := t.uh.Finalize(ctx)
+	err := t.uh.Finalize()
 	require.NoError(t.T(), err)
-
 	// The blocks should be available on the free channel for reuse.
 	for _, expect := range blocks {
 		got := <-t.uh.freeBlocksCh
 		assert.Equal(t.T(), expect, got)
 	}
-
-	// All goroutines should have exited.
-	t.uh.wg.Wait()
+	// All goroutines for upload should have exited.
+	done := make(chan struct{})
+	go func() {
+		t.uh.wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(100 * time.Millisecond):
+		t.T().Error("Timeout waiting for WaitGroup")
+	}
 }
 
-func (t *UploadHandlerTest) TestUploadError() {
-	ctx := context.Background()
+func (t *UploadHandlerTest) TestUpload_CreateObjectWriterFails() {
 	// Create a block.
 	b, err := t.blockPool.Get()
 	require.NoError(t.T(), err)
-
 	// CreateObjectChunkWriter -- should be called once.
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("taco"))
 
 	// Upload the block.
-	err = t.uh.Upload(ctx, b)
+	err = t.uh.Upload(b)
+
 	assert.ErrorContains(t.T(), err, "createObjectWriter")
 	assert.ErrorContains(t.T(), err, "taco")
 }
 
-func (t *UploadHandlerTest) TestFinalizeWithNoWriter() {
-	writer := NewMockWriter("mockObject")
-	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
+func (t *UploadHandlerTest) TestFinalizeWithWriterAlreadyPresent() {
+	writer := storagemock.NewMockWriter("mockObject", false, false)
+	t.uh.writer = writer
 
-	err := t.uh.Finalize(context.Background())
+	err := t.uh.Finalize()
+
 	assert.NoError(t.T(), err)
+}
+
+func (t *UploadHandlerTest) TestFinalizeWithNoWriter() {
+	writer := storagemock.NewMockWriter("mockObject", false, false)
+	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
+	assert.Nil(t.T(), t.uh.writer)
+
+	err := t.uh.Finalize()
+
+	assert.NoError(t.T(), err)
+}
+
+func (t *UploadHandlerTest) TestFinalizeWithNoWriter_CreateObjectWriterFails() {
+	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("taco"))
+	assert.Nil(t.T(), t.uh.writer)
+
+	err := t.uh.Finalize()
+
+	assert.Error(t.T(), err)
+	assert.ErrorContains(t.T(), err, "taco")
+	assert.ErrorContains(t.T(), err, "createObjectWriter")
+}
+
+func (t *UploadHandlerTest) TestFinalize_WriterCloseFails() {
+	writer := storagemock.NewMockWriter("mockObject", false, true)
+	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
+	assert.Nil(t.T(), t.uh.writer)
+
+	err := t.uh.Finalize()
+
+	assert.Error(t.T(), err)
+	assert.ErrorContains(t.T(), err, "writer.Close")
 }

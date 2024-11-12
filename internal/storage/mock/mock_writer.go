@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package bufferedwrites
+package mock
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 
 	"cloud.google.com/go/storage"
@@ -30,13 +31,21 @@ type MockWriter struct {
 	io.WriteCloser
 	buf bytes.Buffer
 	storage.ObjectAttrs
+	errorOnClose bool
+	errorOnWrite bool
 }
 
 func (w *MockWriter) Write(p []byte) (n int, err error) {
+	if w.errorOnWrite {
+		return 0, fmt.Errorf("error while writing")
+	}
 	return w.buf.Write(p)
 }
 
 func (w *MockWriter) Close() error {
+	if w.errorOnClose {
+		return fmt.Errorf("error while closing writer")
+	}
 	return nil
 }
 
@@ -47,9 +56,11 @@ func (w *MockWriter) Attrs() *storage.ObjectAttrs {
 	return &w.ObjectAttrs
 }
 
-func NewMockWriter(objName string) gcs.Writer {
+func NewMockWriter(objName string, errorOnWrite, errorOnClose bool) gcs.Writer {
 	wr := &MockWriter{
-		buf: bytes.Buffer{},
+		buf:          bytes.Buffer{},
+		errorOnWrite: errorOnWrite,
+		errorOnClose: errorOnClose,
 		ObjectAttrs: storage.ObjectAttrs{
 			Name: objName,
 		},

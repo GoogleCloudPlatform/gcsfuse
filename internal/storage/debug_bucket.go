@@ -167,7 +167,7 @@ func (b *debugBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.Crea
 	id, desc, start := b.startRequest("CreateObjectChunkWriter(%q)", req.Name)
 	defer b.finishRequest(id, desc, start, &err)
 
-	wc, err = b.wrapped.CreateObjectChunkWriter(ctx, req, chunkSize, callBack)
+	wc, err = b.wrapped.CreateObjectChunkWriter(context.WithValue(ctx, gcs.ReqIdField, id), req, chunkSize, callBack)
 	return
 }
 
