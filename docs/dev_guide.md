@@ -14,9 +14,10 @@ Rollout of any new feature should be done in 2 phases:
 
 **1. Experimental Phase:**
 
-* New features should initially be introduced behind an experimental flag. These
-  flags should be prefixed with `--experimental-` and marked as hidden in the
-  help output.
+* New features should initially be introduced behind
+  an [experimental flag](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/dev_guide.md#adding-a-new-cli-flagconfig-to-gcsfuse).
+  These flags should be prefixed with `--experimental-` and marked as hidden in
+  the help output.
 * This signals to users that the feature is in development and may change or be
   removed.
 * **Testing Requirements**:
@@ -24,13 +25,16 @@ Rollout of any new feature should be done in 2 phases:
       GCSFuse even during the experimental phase. This helps ensure the
       feature's stability, identify potential issues early, and prevent
       regressions.
-    * Add unit tests for all new code written for the experimental feature. This
-      includes testing edge cases, boundary conditions, and error handling.
-    * Add composite tests to validate GCSFuse's end user functionality while
-      isolating the testing to the GCSFuse code itself. This allows for faster
+    * [Add unit tests](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/dev_guide.md#testing-of-new-features#how-to-write-unit-tests)
+      for all new code written for the experimental feature. This includes
+      testing edge cases, boundary conditions, and error handling.
+    * [Add composite tests](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/dev_guide.md#testing-of-new-features#how-to-write-composite-tests)
+      to validate GCSFuse's end user functionality while isolating the testing
+      to the GCSFuse code itself. This allows for faster
       and more controlled testing without relying on a real Google Cloud Storage
       bucket.
-    * Add end-to-end tests for complete feature flows, simulating real-world use
+    * [Add end-to-end tests](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/dev_guide.md#testing-of-new-features#how-to-write-end-to-end-tests)
+      for complete feature flows, simulating real-world use
       with an actual Google Cloud Storage bucket.
     * For more details on testing best practices, please refer to
       the [testing guide](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/dev_guide.md#testing-of-new-features)
@@ -43,7 +47,7 @@ Rollout of any new feature should be done in 2 phases:
   mainline, the feature will roll out as an experimental feature in the next
   GCSFuse release with the feature disabled by default.
 
-* Developers should open a GitHub issue (
+* Developers should open a new GitHub issue (
   see [example](https://github.com/GoogleCloudPlatform/gcsfuse/issues/793))
   to track the feature's progress towards GA readiness. This issue should
   outline the motivation for the feature, its design, and any known
@@ -68,27 +72,27 @@ config file; the only exception being *--config-file* which is supported only as
 a CLI flag for obvious reasons. Please follow the steps below in order to make a
 new param available in both the modes:
 
-1.  Declare the new param in
-    [params.yaml](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/cfg/params.yaml#L4).
-    Refer to the documentation at the top of the file for guidance.
-1.  Run `make build` from the project root to generate the required code.
-1.  Add validations on the param value in
-    [validate.go](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/cfg/validate.go)
-1.  If there is any requirement to tweak the value of this param based on other
-    param values or other param values based on this one, such a logic should be
-    added in
-    [rationalize.go](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/cfg/rationalize.go).
-    If we want that when an int param is set to -1 it should be replaced with
-    `math.MaxInt64`, rationalize.go is the appropriate candidate for such a
-    logic.
-1.  Add unit tests in
-    [validate_test.go](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/cfg/validate_test.go)
-    and
-    [rationalize_test.go](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/cfg/rationalize_test.go)
-1.  Add one test-case in
-    [root_test.go](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/cmd/root_test.go)
-    to verify that the flag works - no need to test for different scenarios; a
-    single test for a happy-case is sufficient.
+1. Declare the new param in
+   [params.yaml](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/cfg/params.yaml#L4).
+   Refer to the documentation at the top of the file for guidance.
+2. Run `make build` from the project root to generate the required code.
+3. Add validations on the param value in
+   [validate.go](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/cfg/validate.go)
+4. If there is any requirement to tweak the value of this param based on other
+   param values or other param values based on this one, such a logic should be
+   added in
+   [rationalize.go](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/cfg/rationalize.go).
+   If we want that when an int param is set to -1 it should be replaced with
+   `math.MaxInt64`, rationalize.go is the appropriate candidate for such a
+   logic.
+5. Add unit tests in
+   [validate_test.go](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/cfg/validate_test.go)
+   and
+   [rationalize_test.go](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/cfg/rationalize_test.go)
+6. Add one test-case in
+   [root_test.go](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/cmd/root_test.go)
+   to verify that the flag works - no need to test for different scenarios; a
+   single test for a happy-case is sufficient.
 
 ## Testing of new features
 
@@ -172,9 +176,9 @@ write end-to-end tests for GCSFuse.
        ```
 4. **Run all tests as pre-submit:** Existing GCSFuse end-to-end tests can be run
    as a pre-submit check by adding the `execute-integration-tests` label to your
-   pull request. Ask one of your assigned code reviewers to apply
-   the `execute-integration-tests` label to your pull request to trigger the
-   tests.
+   pull request. Ask one of your assigned code reviewers to apply this label,
+   which will trigger the tests. Your reviewer will share any test failure
+   details on the pull request.
 
 5. **Discuss test scenarios:** If you are unsure about how to test a specific
    feature or have questions about scenarios to test, please feel free to open a
