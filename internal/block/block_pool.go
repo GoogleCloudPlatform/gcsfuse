@@ -29,10 +29,10 @@ type BlockPool struct {
 	blockSize int64
 
 	// Max number of blocks this blockPool can create.
-	maxBlocks int32
+	maxBlocks int64
 
 	// Total number of blocks created so far.
-	totalBlocks int32
+	totalBlocks int64
 
 	// Semaphore used to limit the total number of blocks created across
 	// different files.
@@ -40,7 +40,7 @@ type BlockPool struct {
 }
 
 // NewBlockPool creates the blockPool based on the user configuration.
-func NewBlockPool(blockSize int64, maxBlocks int32, globalMaxBlocksSem *semaphore.Weighted) (bp *BlockPool, err error) {
+func NewBlockPool(blockSize int64, maxBlocks int64, globalMaxBlocksSem *semaphore.Weighted) (bp *BlockPool, err error) {
 	if blockSize <= 0 || maxBlocks <= 0 {
 		err = fmt.Errorf("invalid configuration provided for blockPool, blocksize: %d, maxBlocks: %d", blockSize, maxBlocks)
 		return

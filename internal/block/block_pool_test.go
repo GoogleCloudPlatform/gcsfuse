@@ -42,8 +42,8 @@ func (t *BlockPoolTest) TestInitBlockPool() {
 	require.Nil(t.T(), err)
 	require.NotNil(t.T(), bp)
 	assert.Equal(t.T(), int64(1024), bp.blockSize)
-	assert.Equal(t.T(), int32(10), bp.maxBlocks)
-	assert.Equal(t.T(), int32(0), bp.totalBlocks)
+	assert.Equal(t.T(), int64(10), bp.maxBlocks)
+	assert.Equal(t.T(), int64(0), bp.totalBlocks)
 }
 
 func (t *BlockPoolTest) TestInitBlockPoolForZeroBlockSize() {
@@ -144,12 +144,12 @@ func (t *BlockPoolTest) TestClearFreeBlockChannel() {
 	// Adding 2 blocks to freeBlocksCh
 	bp.freeBlocksCh <- b1
 	bp.freeBlocksCh <- b2
-	require.Equal(t.T(), int32(3), bp.totalBlocks)
+	require.Equal(t.T(), int64(3), bp.totalBlocks)
 
 	err = bp.ClearFreeBlockChannel()
 
 	require.Nil(t.T(), err)
-	require.Equal(t.T(), int32(1), bp.totalBlocks)
+	require.Equal(t.T(), int64(1), bp.totalBlocks)
 	require.Nil(t.T(), b1.(*memoryBlock).buffer)
 	require.Nil(t.T(), b2.(*memoryBlock).buffer)
 	require.NotNil(t.T(), b3.(*memoryBlock).buffer)
@@ -182,7 +182,7 @@ func (t *BlockPoolTest) TestGetWhenTotalBlocksEqualToGlobalBlocks() {
 	b2, err := bp.Get()
 	require.Nil(t.T(), err)
 	require.NotNil(t.T(), b2)
-	require.Equal(t.T(), int32(2), bp.totalBlocks)
+	require.Equal(t.T(), int64(2), bp.totalBlocks)
 
 	t.validateGetBlockIsBlocked(bp)
 }
