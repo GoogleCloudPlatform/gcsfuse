@@ -137,10 +137,10 @@ func (t *UnsupportedObjectsTest) Test_UnsupportedGcsObjectNames() {
 	objectNames :=
 		map[string]string{
 			"foo//0":   "", // unsupported
-			"foo/1":    "", // supported
+			"foo/1":    "", // supported, implicit path
 			"foo/2//4": "", // unsupported
 			"foo//2/5": "", // unsupported
-			"foo/2/6":  "", // supported
+			"foo/2/6":  "", // supported, implicit path
 			"6":        "", // supported
 			"/7":       "", // unsupported
 			"/8/10":    "", // unsupported
@@ -189,10 +189,10 @@ func (t *UnsupportedObjectsTestWithoutImplicitDirs) Test_UnsupportedGcsObjectNam
 		map[string]string{
 			"foo/":     "", //supported
 			"foo//0":   "", // unsupported
-			"foo/1":    "", // supported
+			"foo/1":    "", // supported, explicit path
 			"foo/2//4": "", // unsupported
 			"foo//2/5": "", // unsupported
-			"foo/2/6":  "", // supported
+			"foo/2/6":  "", // supported, implicit path
 			"6":        "", // supported
 			"/7":       "", // unsupported
 			"/8/10":    "", // unsupported
