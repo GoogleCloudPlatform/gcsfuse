@@ -54,7 +54,7 @@ func TestUnsupportedObjectsTestSuite(t *testing.T) {
 }
 
 // //////////////////////////////////////////////////////////////////////
-// Tests
+// Helpers
 // /////////////////////////////////////////////////////////////////////
 func verifyInvalidPath(t *UnsupportedObjectsTest, path string) {
 	t.T().Helper()
@@ -64,70 +64,26 @@ func verifyInvalidPath(t *UnsupportedObjectsTest, path string) {
 	assert.Errorf(t.T(), err, "Failed to get error in stat of %q", path)
 }
 
+type expectedWalkedEntry struct {
+	path  string
+	name  string
+	isDir bool
+	found bool
+}
+
 // Create objects with unsupported object names and
 // verify the behavior of mount using os.Stat and WalkDir.
-func (t *UnsupportedObjectsTest) Test_UnsupportedGcsObjectNames() {
+func (t *UnsupportedObjectsTest) testGcsObjects(objectNames map[string]string, invalidPaths []string, expectedWalkedEntries []expectedWalkedEntry) {
 	// Set up contents.
 	assert.NoError(
-		t.T(),
-		t.createObjects(
-			map[string]string{
-				"foo//0":   "", // unsupported
-				"foo/1":    "", // supported
-				"foo/2//4": "", // unsupported
-				"foo//2/5": "", // unsupported
-				"foo/2/6":  "", // supported
-				"6":        "", // supported
-				"/7":       "", // unsupported
-				"/8/10":    "", // unsupported
-				"/":        "", // unsupported
-				"10/12":    "", // supported
-			}))
+		t.T(), t.createObjects(objectNames))
 
 	// Verify that the unsupported objects fail os.Stat.
-	verifyInvalidPath(t, path.Join(mntDir, "foo//0"))
-	verifyInvalidPath(t, path.Join(mntDir, "foo/2//4"))
-	verifyInvalidPath(t, path.Join(mntDir, "foo//2/5"))
-	verifyInvalidPath(t, path.Join(mntDir, "/7"))
-	verifyInvalidPath(t, path.Join(mntDir, "/8/10"))
-
-	// Verify that the supported objects appear in WalkDir.
-	expectedWalkedEntries := []struct {
-		path  string
-		name  string
-		isDir bool
-		found bool
-	}{{
-		path:  mntDir,
-		name:  mntDir[strings.LastIndex(mntDir, "/")+1:],
-		isDir: true,
-	}, {
-		path:  path.Join(mntDir, "foo"),
-		name:  "foo",
-		isDir: true,
-	}, {
-		path: path.Join(mntDir, "foo/1"),
-		name: "1",
-	}, {
-		path:  path.Join(mntDir, "foo/2"),
-		name:  "2",
-		isDir: true,
-	}, {
-		path: path.Join(mntDir, "foo/2/6"),
-		name: "6",
-	}, {
-		path: path.Join(mntDir, "6"),
-		name: "6",
-	}, {
-		path:  path.Join(mntDir, "10"),
-		name:  "10",
-		isDir: true,
-	}, {
-		path: path.Join(mntDir, "10/12"),
-		name: "12",
-	},
+	for _, invalidPath := range invalidPaths {
+		verifyInvalidPath(t, path.Join(mntDir, invalidPath))
 	}
 
+	// Verify that the supported objects appear in WalkDir.
 	assert.Nil(t.T(), filepath.WalkDir(mntDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -159,4 +115,68 @@ func (t *UnsupportedObjectsTest) Test_UnsupportedGcsObjectNames() {
 	}
 
 	assert.NoError(t.T(), os.RemoveAll(mntDir+"/*"))
+}
+
+// //////////////////////////////////////////////////////////////////////
+// Tests
+// /////////////////////////////////////////////////////////////////////
+// Create objects with unsupported object names and
+// verify the behavior of mount using os.Stat and WalkDir.
+func (t *UnsupportedObjectsTest) Test_UnsupportedGcsObjectNames() {
+	// Set up contents.
+	objectNames :=
+		map[string]string{
+			"foo//0":   "", // unsupported
+			"foo/1":    "", // supported
+			"foo/2//4": "", // unsupported
+			"foo//2/5": "", // unsupported
+			"foo/2/6":  "", // supported
+			"6":        "", // supported
+			"/7":       "", // unsupported
+			"/8/10":    "", // unsupported
+			"/":        "", // unsupported
+			"10/12":    "", // supported
+		}
+
+	// Verify that the unsupported objects fail os.Stat.
+	invalidPaths := []string{
+		"foo//0",
+		"foo/2//4",
+		"foo//2/5",
+		"/7",
+		"/8/10"}
+
+	// Verify that the supported objects appear in WalkDir.
+	expectedWalkedEntries := []expectedWalkedEntry{{
+		path:  mntDir,
+		name:  mntDir[strings.LastIndex(mntDir, "/")+1:],
+		isDir: true,
+	}, {
+		path:  path.Join(mntDir, "foo"),
+		name:  "foo",
+		isDir: true,
+	}, {
+		path: path.Join(mntDir, "foo/1"),
+		name: "1",
+	}, {
+		path:  path.Join(mntDir, "foo/2"),
+		name:  "2",
+		isDir: true,
+	}, {
+		path: path.Join(mntDir, "foo/2/6"),
+		name: "6",
+	}, {
+		path: path.Join(mntDir, "6"),
+		name: "6",
+	}, {
+		path:  path.Join(mntDir, "10"),
+		name:  "10",
+		isDir: true,
+	}, {
+		path: path.Join(mntDir, "10/12"),
+		name: "12",
+	},
+	}
+
+	t.testGcsObjects(objectNames, invalidPaths, expectedWalkedEntries)
 }
