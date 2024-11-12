@@ -664,7 +664,7 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 			}
 		}
 		if len(unsupportedObjects) > 0 {
-			logger.Errorf("Encountered unsupported objects: %v", unsupportedObjects)
+			logger.Errorf("Ignored following unsupported objects: %v", unsupportedObjects)
 		}
 
 		// Are we done listing?
@@ -748,7 +748,7 @@ func (d *dirInode) readObjects(
 		}
 	}
 	if len(unsupportedObjects) > 0 {
-		logger.Warnf("Encountered unsupported objects during listing: %v", unsupportedObjects)
+		logger.Errorf("Ignored following unsupported objects: %v", unsupportedObjects)
 	}
 
 	// Return an appropriate continuation token, if any.
@@ -790,7 +790,7 @@ func (d *dirInode) readObjects(
 		}
 	}
 	if len(unsupportedPrefixes) > 0 {
-		logger.Errorf("Encountered unsupported prefixes during listing: %v", unsupportedPrefixes)
+		logger.Errorf("Ignored following unsupported prefixes: %v", unsupportedPrefixes)
 	}
 	return
 }
