@@ -15,7 +15,6 @@
 package bufferedwrites
 
 import (
-	"context"
 	"strings"
 	"testing"
 	"time"
@@ -47,6 +46,7 @@ func (testSuite *BufferedWriteTest) SetupTest() {
 
 func (testSuite *BufferedWriteTest) TestSetMTime() {
 	testTime := time.Now()
+
 	testSuite.bwh.SetMtime(testTime)
 
 	assert.Equal(testSuite.T(), testTime, testSuite.bwh.WriteFileInfo().Mtime)
@@ -54,7 +54,7 @@ func (testSuite *BufferedWriteTest) TestSetMTime() {
 }
 
 func (testSuite *BufferedWriteTest) TestWrite() {
-	err := testSuite.bwh.Write(context.Background(), []byte("hi"), 0)
+	err := testSuite.bwh.Write([]byte("hi"), 0)
 
 	require.Nil(testSuite.T(), err)
 	fileInfo := testSuite.bwh.WriteFileInfo()
@@ -63,7 +63,7 @@ func (testSuite *BufferedWriteTest) TestWrite() {
 }
 
 func (testSuite *BufferedWriteTest) TestWriteWithEmptyBuffer() {
-	err := testSuite.bwh.Write(context.Background(), []byte{}, 0)
+	err := testSuite.bwh.Write([]byte{}, 0)
 
 	require.Nil(testSuite.T(), err)
 	fileInfo := testSuite.bwh.WriteFileInfo()
@@ -74,7 +74,8 @@ func (testSuite *BufferedWriteTest) TestWriteWithEmptyBuffer() {
 func (testSuite *BufferedWriteTest) TestWriteEqualToBlockSize() {
 	size := 1024
 	data := strings.Repeat("A", size)
-	err := testSuite.bwh.Write(context.Background(), []byte(data), 0)
+
+	err := testSuite.bwh.Write([]byte(data), 0)
 
 	require.Nil(testSuite.T(), err)
 	fileInfo := testSuite.bwh.WriteFileInfo()
@@ -85,7 +86,8 @@ func (testSuite *BufferedWriteTest) TestWriteEqualToBlockSize() {
 func (testSuite *BufferedWriteTest) TestWriteDataSizeGreaterThanBlockSize() {
 	size := 2000
 	data := strings.Repeat("A", size)
-	err := testSuite.bwh.Write(context.Background(), []byte(data), 0)
+
+	err := testSuite.bwh.Write([]byte(data), 0)
 
 	require.Nil(testSuite.T(), err)
 	fileInfo := testSuite.bwh.WriteFileInfo()
@@ -94,23 +96,25 @@ func (testSuite *BufferedWriteTest) TestWriteDataSizeGreaterThanBlockSize() {
 }
 
 func (testSuite *BufferedWriteTest) TestFlushWithNonNilCurrentBlock() {
-	err := testSuite.bwh.Write(context.Background(), []byte("hi"), 0)
+	err := testSuite.bwh.Write([]byte("hi"), 0)
 	currentBlock := testSuite.bwh.current
 	require.Nil(testSuite.T(), err)
 
-	err = testSuite.bwh.Flush(context.Background())
+	err = testSuite.bwh.Flush()
+
 	require.NoError(testSuite.T(), err)
 	assert.Equal(testSuite.T(), nil, testSuite.bwh.current)
 	// The current block should be available on the free channel as flush triggers
 	// an upload before finalize.
 	freeCh := testSuite.bwh.blockPool.FreeBlocksChannel()
-	got := <-*freeCh
+	got := <-freeCh
 	assert.Equal(testSuite.T(), &currentBlock, &got)
 }
 
 func (testSuite *BufferedWriteTest) TestFlushWithNilCurrentBlock() {
 	require.Nil(testSuite.T(), testSuite.bwh.current)
 
-	err := testSuite.bwh.Flush(context.Background())
+	err := testSuite.bwh.Flush()
+
 	assert.NoError(testSuite.T(), err)
 }

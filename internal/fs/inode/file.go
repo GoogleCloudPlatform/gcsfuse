@@ -685,7 +685,7 @@ func (f *FileInode) CreateEmptyTempFile() (err error) {
 func (f *FileInode) writeToBuffer(data []byte, offset int64) (err error) {
 	// Initialize bufferedWriteHandler if not done already.
 	if f.bwh == nil {
-		f.bwh, err = bufferedwrites.NewBWHandler(f.writeConfig.BlockSizeMb, f.writeConfig.MaxBlocksPerFile, f.globalMaxBlocksSem)
+		f.bwh, err = bufferedwrites.NewBWHandler(f.name.GcsObjectName(), f.bucket, f.writeConfig.BlockSizeMb, f.writeConfig.MaxBlocksPerFile, f.globalMaxBlocksSem)
 		if err != nil {
 			return fmt.Errorf("failed to create bufferedWriteHandler: %w", err)
 		}

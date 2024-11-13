@@ -15,7 +15,6 @@
 package bufferedwrites
 
 import (
-	"context"
 	"fmt"
 	"math"
 	"time"
@@ -48,7 +47,7 @@ type WriteFileInfo struct {
 }
 
 // NewBWHandler creates the bufferedWriteHandler struct.
-func NewBWHandler(blockSize int64, maxBlocks int64, globalMaxBlocksSem *semaphore.Weighted) (bwh *BufferedWriteHandler, err error) {
+func NewBWHandler(objectName string, bucket gcs.Bucket, blockSize int64, maxBlocks int64, globalMaxBlocksSem *semaphore.Weighted) (bwh *BufferedWriteHandler, err error) {
 	bp, err := block.NewBlockPool(blockSize, maxBlocks, globalMaxBlocksSem)
 	if err != nil {
 		return
@@ -92,7 +91,7 @@ func (wh *BufferedWriteHandler) Write(data []byte, offset int64) (err error) {
 		dataWritten += bytesToCopy
 
 		if wh.current.Size() == wh.blockPool.BlockSize() {
-			err := wh.uploadHandler.Upload(ctx, wh.current)
+			err := wh.uploadHandler.Upload(wh.current)
 			if err != nil {
 				return err
 			}
@@ -111,15 +110,15 @@ func (wh *BufferedWriteHandler) Sync() (err error) {
 }
 
 // Flush finalizes the upload.
-func (wh *BufferedWriteHandler) Flush(ctx context.Context) (err error) {
+func (wh *BufferedWriteHandler) Flush() (err error) {
 	if wh.current != nil {
-		err := wh.uploadHandler.Upload(ctx, wh.current)
+		err := wh.uploadHandler.Upload(wh.current)
 		if err != nil {
 			return err
 		}
 		wh.current = nil
 	}
-	return wh.uploadHandler.Finalize(ctx)
+	return wh.uploadHandler.Finalize()
 }
 
 // SetMtime stores the mtime with the bufferedWriteHandler.
