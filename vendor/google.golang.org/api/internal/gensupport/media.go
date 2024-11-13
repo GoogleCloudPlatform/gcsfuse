@@ -158,6 +158,7 @@ func NewInfoFromMedia(r io.Reader, options []googleapi.MediaOption) *MediaInfo {
 		}
 	}
 	mi.chunkRetryDeadline = opts.ChunkRetryDeadline
+	mi.chunkTransferTimeout = opts.ChunkTransferTimeout
 	mi.media, mi.buffer, mi.singleChunk = PrepareUpload(r, opts.ChunkSize)
 	return mi
 }
@@ -283,6 +284,7 @@ func readerFunc(r io.Reader) func() io.Reader {
 // ResumableUpload returns an appropriately configured ResumableUpload value if the
 // upload is resumable, or nil otherwise.
 func (mi *MediaInfo) ResumableUpload(locURI string) *ResumableUpload {
+	fmt.Println("Mi chunk: ", mi.chunkTransferTimeout)
 	if mi == nil || mi.singleChunk {
 		return nil
 	}
@@ -295,7 +297,7 @@ func (mi *MediaInfo) ResumableUpload(locURI string) *ResumableUpload {
 				mi.progressUpdater(curr, mi.size)
 			}
 		},
-		ChunkRetryDeadline: mi.chunkRetryDeadline,
+		ChunkRetryDeadline:   mi.chunkRetryDeadline,
 		ChunkTransferTimeout: mi.chunkTransferTimeout,
 	}
 }
