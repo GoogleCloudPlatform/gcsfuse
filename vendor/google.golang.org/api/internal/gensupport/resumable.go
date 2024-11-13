@@ -197,11 +197,7 @@ func (rx *ResumableUpload) Upload(ctx context.Context) (resp *http.Response, err
 	}
 
 	var transferTimeout time.Duration
-	if rx.ChunkTransferTimeout != 0 {
-		transferTimeout = rx.ChunkTransferTimeout
-	} else {
-		transferTimeout = defaultTransferTimeout
-	}
+	transferTimeout = rx.ChunkTransferTimeout
 
 	// Send all chunks.
 	for {
@@ -231,17 +227,12 @@ func (rx *ResumableUpload) Upload(ctx context.Context) (resp *http.Response, err
 			}
 			pauseTimer.Stop()
 
-			rCtx, cancel := context.WithTimeout(ctx, transferTimeout)
-			defer cancel()
-
 			// Check for context cancellation or timeout once more. If more than one
 			// case in the select statement above was satisfied at the same time, Go
 			// will choose one arbitrarily.
 			// That can cause an operation to go through even if the context was
 			// canceled before or the timeout was reached.
 			select {
-			case <-rCtx.Done():
-				continue
 			case <-ctx.Done():
 				quitAfterTimer.Stop()
 				if err == nil {
@@ -253,6 +244,14 @@ func (rx *ResumableUpload) Upload(ctx context.Context) (resp *http.Response, err
 			default:
 			}
 
+			var rCtx context.Context
+			var cancel context.CancelFunc
+
+			rCtx = ctx
+			if transferTimeout != 0 {
+				rCtx, cancel = context.WithTimeout(ctx, transferTimeout)
+			}
+
 			resp, err = rx.transferChunk(rCtx)
 
 			var status int
@@ -260,8 +259,19 @@ func (rx *ResumableUpload) Upload(ctx context.Context) (resp *http.Response, err
 				status = resp.StatusCode
 			}
 
+			// The upload should be retried if the rCtx is canceled due to a timeout.
+			select {
+			case <-rCtx.Done():
+				if rCtx.Err() == context.DeadlineExceeded {
+					// Cancel the context for rCtx
+					cancel()
+					continue
+				}
+			default:
+			}
+
 			// Check if we should retry the request.
-			if !errorFunc(status, err) && rCtx.Err() != nil {
+			if !errorFunc(status, err) {
 				quitAfterTimer.Stop()
 				break
 			}

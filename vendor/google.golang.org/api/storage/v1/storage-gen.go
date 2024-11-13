@@ -10705,6 +10705,8 @@ func (c *ObjectsInsertCall) Do(opts ...googleapi.CallOption) (*Object, error) {
 		if ctx == nil {
 			ctx = context.TODO()
 		}
+		fmt.Println("Media transfer timeout: ", rx.ChunkTransferTimeout)
+		fmt.Println("Media retry deadline: ", rx.ChunkRetryDeadline)
 		res, err = rx.Upload(ctx)
 		if err != nil {
 			return nil, err
