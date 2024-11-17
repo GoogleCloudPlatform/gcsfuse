@@ -86,7 +86,8 @@ func TestBucketHandleTestSuite(testSuite *testing.T) {
 func (testSuite *BucketHandleTest) SetupTest() {
 	testSuite.fakeStorage = NewFakeStorage()
 	testSuite.storageHandle = testSuite.fakeStorage.CreateStorageHandle()
-	testSuite.bucketHandle = testSuite.storageHandle.BucketHandle(TestBucketName, "")
+	ctx := context.Background()
+	testSuite.bucketHandle = testSuite.storageHandle.BucketHandle(ctx, TestBucketName, "")
 	testSuite.mockClient = new(MockStorageControlClient)
 	testSuite.bucketHandle.controlClient = testSuite.mockClient
 
