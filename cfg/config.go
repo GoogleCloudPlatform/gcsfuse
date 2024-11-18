@@ -323,7 +323,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("enable-read-stall-retry", "", true, "To turn on/off retries for stalled read requests. This is based on a timeout that changes depending on how long similar requests took in the past.")
+	flagSet.BoolP("enable-read-stall-retry", "", false, "To turn on/off retries for stalled read requests. This is based on a timeout that changes depending on how long similar requests took in the past.")
 
 	if err := flagSet.MarkHidden("enable-read-stall-retry"); err != nil {
 		return err

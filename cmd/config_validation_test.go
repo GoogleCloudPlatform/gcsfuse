@@ -703,7 +703,7 @@ func TestValidateConfigFile_ReadStallConfigSuccessful(t *testing.T) {
 			expectedConfig: &cfg.Config{
 				GcsRetries: cfg.GcsRetriesConfig{
 					ReadStall: cfg.ReadStallGcsRetriesConfig{
-						Enable:              true,
+						Enable:              false,
 						MinReqTimeout:       1500 * time.Millisecond,
 						MaxReqTimeout:       1200 * time.Second,
 						InitialReqTimeout:   20 * time.Second,
