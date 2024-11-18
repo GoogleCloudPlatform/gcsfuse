@@ -57,6 +57,7 @@ type storageClient struct {
 	client               *storage.Client
 	storageControlClient *control.StorageControlClient
 	storageClientOpts    []option.ClientOption
+	clientProtocol       string
 }
 
 // Return clientOpts for both gRPC client and control client.
@@ -91,7 +92,6 @@ func createClientOptionForGRPCClient(clientConfig *storageutil.StorageClientConf
 	// Turning off the go-sdk metrics exporter to prevent any problems.
 	// TODO (kislaykishore) - to revisit here for monitoring support.
 	clientOpts = append(clientOpts, storage.WithDisabledClientMetrics())
-
 	return
 }
 
@@ -237,7 +237,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		sc.SetRetry(storage.WithMaxAttempts(clientConfig.MaxRetryAttempts))
 	}
 
-	sh = &storageClient{client: sc, storageControlClient: controlClient, storageClientOpts: clientOpts}
+	sh = &storageClient{client: sc, storageControlClient: controlClient, storageClientOpts: clientOpts, clientProtocol: string(clientConfig.ClientProtocol)}
 	return
 }
 
@@ -254,10 +254,10 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 		controlClient: sh.storageControlClient,
 	}
 
-	if err := storage.CheckDirectConnectivitySupported(ctx, bucketName, sh.storageClientOpts...); err == nil {
-		logger.Infof("Direct connectivity available for %s", bucketName)
-	} else {
-		logger.Infof("%w", err)
+	if sh.clientProtocol == "grpc" {
+		if err := storage.CheckDirectConnectivitySupported(ctx, bucketName, sh.storageClientOpts...); err != nil {
+			logger.Warnf("Direct connectivity unavailable for %s, error : %s", bucketName, err)
+		}
 	}
 
 	return

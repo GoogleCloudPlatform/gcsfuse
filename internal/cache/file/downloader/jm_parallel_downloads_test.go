@@ -196,7 +196,6 @@ func TestMultipleConcurrentDownloads(t *testing.T) {
 	job2 := jm.CreateJobIfNotExists(&minObj2, bucket)
 	s1 := job1.subscribe(10 * util.MiB)
 	s2 := job2.subscribe(5 * util.MiB)
-	ctx := context.Background()
 
 	_, err1 := job1.Download(ctx, 10*util.MiB, false)
 	_, err2 := job2.Download(ctx, 5*util.MiB, false)
