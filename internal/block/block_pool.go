@@ -89,6 +89,7 @@ func (bp *BlockPool) Get() (Block, error) {
 	}
 }
 
+// FreeBlocksChannel returns the freeBlocksCh being used by the block pool.
 func (bp *BlockPool) FreeBlocksChannel() chan Block {
 	return bp.freeBlocksCh
 }

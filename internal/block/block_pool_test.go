@@ -210,3 +210,15 @@ func (t *BlockPoolTest) validateGetBlockIsBlocked(bp *BlockPool) {
 	case <-time.After(1 * time.Second):
 	}
 }
+
+func (t *BlockPoolTest) TestBlockPool_FreeBlocksChannel() {
+	freeBlocksCh := make(chan Block)
+	bp := &BlockPool{
+		freeBlocksCh: freeBlocksCh,
+	}
+
+	ch := bp.FreeBlocksChannel()
+
+	assert.NotNil(t.T(), ch)
+	assert.Equal(t.T(), freeBlocksCh, ch)
+}
