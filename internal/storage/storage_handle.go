@@ -50,7 +50,7 @@ type StorageHandle interface {
 	// to that project rather than to the bucket's owning project.
 	//
 	// A user-project is required for all operations on Requester Pays buckets.
-	BucketHandle(context context.Context, bucketName string, billingProject string) (bh *bucketHandle)
+	BucketHandle(ctx context.Context, bucketName string, billingProject string) (bh *bucketHandle)
 }
 
 type storageClient struct {
@@ -63,12 +63,11 @@ type gRPCDirectPathDetector struct {
 	clientOptions []option.ClientOption
 }
 
-func (pd *gRPCDirectPathDetector) isDirectPathPossible(ctx context.Context, bucketName string) bool {
-	if err := storage.CheckDirectConnectivitySupported(ctx, bucketName, pd.clientOptions...); err != nil {
-		logger.Warnf("Direct Path connectivity unavailable for %s, reason : %s", bucketName, err)
-		return false
-	}
-	return true
+// isDirectPathPossible checks if gRPC direct connectivity is available for a specific bucket
+// from the environment where the client is running. A `nil` error represents Direct Connectivity was
+// detected.
+func (pd *gRPCDirectPathDetector) isDirectPathPossible(ctx context.Context, bucketName string) error {
+	return storage.CheckDirectConnectivitySupported(ctx, bucketName, pd.clientOptions...)
 }
 
 // Return clientOpts for both gRPC client and control client.
@@ -270,7 +269,9 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 		controlClient: sh.storageControlClient,
 	}
 	if sh.directPathDetector != nil {
-		sh.directPathDetector.isDirectPathPossible(ctx, bucketName)
+		if err := sh.directPathDetector.isDirectPathPossible(ctx, bucketName); err != nil {
+			logger.Warnf("Direct path connectivity unavailable for %s, reason: %s", bucketName, err)
+		}
 	}
 	return
 }
