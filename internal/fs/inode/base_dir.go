@@ -263,3 +263,7 @@ func (d *baseDirInode) IsUnlinked() bool {
 
 func (d *baseDirInode) Unlink() {
 }
+
+func (d *baseDirInode) HasSupportedObjectsInSubDirs(ctx context.Context) (yes bool, err error) {
+	return true, nil
+}
