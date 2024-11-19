@@ -763,7 +763,7 @@ func (d *dirInode) readObjects(
 		}
 	}
 	if len(unsupportedPrefixes) > 0 {
-		logger.Warnf("Encountered unsupported prefixes during listing: %v", unsupportedPrefixes)
+		logger.Errorf("Encountered unsupported prefixes during listing: %v", unsupportedPrefixes)
 	}
 	return
 }
