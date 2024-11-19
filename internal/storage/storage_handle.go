@@ -56,8 +56,19 @@ type StorageHandle interface {
 type storageClient struct {
 	client               *storage.Client
 	storageControlClient *control.StorageControlClient
-	storageClientOpts    []option.ClientOption
-	clientProtocol       string
+	directPathDetector   *gRPCDirectPathDetector
+}
+
+type gRPCDirectPathDetector struct {
+	clientOptions []option.ClientOption
+}
+
+func (pd *gRPCDirectPathDetector) isDirectPathPossible(ctx context.Context, bucketName string) bool {
+	if err := storage.CheckDirectConnectivitySupported(ctx, bucketName, pd.clientOptions...); err != nil {
+		logger.Warnf("Direct Path connectivity unavailable for %s, reason : %s", bucketName, err)
+		return false
+	}
+	return true
 }
 
 // Return clientOpts for both gRPC client and control client.
@@ -191,8 +202,13 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	// gcsfuse will initially mirror this behavior due to the client's lack of HTTP support.
 	var controlClient *control.StorageControlClient
 	var clientOpts []option.ClientOption
+	var directPathDetector *gRPCDirectPathDetector
 	if clientConfig.ClientProtocol == cfg.GRPC {
 		sc, err = createGRPCClientHandle(ctx, &clientConfig)
+		if err == nil {
+			clientOpts, err = createClientOptionForGRPCClient(&clientConfig)
+			directPathDetector = &gRPCDirectPathDetector{clientOptions: clientOpts}
+		}
 	} else if clientConfig.ClientProtocol == cfg.HTTP1 || clientConfig.ClientProtocol == cfg.HTTP2 {
 		sc, err = createHTTPClientHandle(ctx, &clientConfig)
 	} else {
@@ -237,7 +253,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		sc.SetRetry(storage.WithMaxAttempts(clientConfig.MaxRetryAttempts))
 	}
 
-	sh = &storageClient{client: sc, storageControlClient: controlClient, storageClientOpts: clientOpts, clientProtocol: string(clientConfig.ClientProtocol)}
+	sh = &storageClient{client: sc, storageControlClient: controlClient, directPathDetector: directPathDetector}
 	return
 }
 
@@ -253,12 +269,8 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 		bucketName:    bucketName,
 		controlClient: sh.storageControlClient,
 	}
-
-	if sh.clientProtocol == "grpc" {
-		if err := storage.CheckDirectConnectivitySupported(ctx, bucketName, sh.storageClientOpts...); err != nil {
-			logger.Warnf("Direct connectivity unavailable for %s, error : %s", bucketName, err)
-		}
+	if sh.directPathDetector != nil {
+		sh.directPathDetector.isDirectPathPossible(ctx, bucketName)
 	}
-
 	return
 }
