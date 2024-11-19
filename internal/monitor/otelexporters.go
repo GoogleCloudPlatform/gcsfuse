@@ -54,7 +54,7 @@ func setupPrometheus(port int64) ([]metric.Option, common.ShutdownFn) {
 	}
 	exporter, err := prometheus.New(prometheus.WithoutUnits(), prometheus.WithoutCounterSuffixes(), prometheus.WithoutScopeInfo(), prometheus.WithoutTargetInfo())
 	if err != nil {
-		logger.Errorf("Error while creating prometheus exporter")
+		logger.Errorf("Error while creating prometheus exporter:%v", err)
 		return nil, nil
 	}
 	shutdownCh := make(chan context.Context)
@@ -62,7 +62,9 @@ func setupPrometheus(port int64) ([]metric.Option, common.ShutdownFn) {
 	go serveMetrics(port, shutdownCh, done)
 	return []metric.Option{metric.WithReader(exporter)}, func(ctx context.Context) error {
 		shutdownCh <- ctx
+		close(shutdownCh)
 		<-done
+		close(done)
 		return nil
 	}
 }
