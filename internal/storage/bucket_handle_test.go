@@ -514,6 +514,28 @@ func (testSuite *BucketHandleTest) TestBucketHandle_CreateObjectChunkWriter() {
 	}
 }
 
+func (testSuite *BucketHandleTest) TestBucketHandle_CreateObjectChunkWriterWithNilCallback() {
+	var metaGeneration0 int64 = 0
+	objectName := "test_object_1"
+	chunkSize := 1024 * 1024
+
+	w, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(),
+		&gcs.CreateObjectRequest{
+			Name:                       objectName,
+			GenerationPrecondition:     nil,
+			MetaGenerationPrecondition: &metaGeneration0,
+		},
+		chunkSize,
+		nil,
+	)
+
+	require.NoError(testSuite.T(), err)
+	objWr, ok := (w).(*ObjectWriter)
+	require.True(testSuite.T(), ok)
+	require.NotNil(testSuite.T(), objWr)
+	assert.NotNil(testSuite.T(), objWr.ProgressFunc)
+}
+
 func (testSuite *BucketHandleTest) TestBucketHandle_FinalizeUploadSuccess() {
 	var generation0 int64 = 0
 
