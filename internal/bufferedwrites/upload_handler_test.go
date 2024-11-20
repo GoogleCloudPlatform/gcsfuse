@@ -17,12 +17,17 @@ package bufferedwrites
 import (
 	"errors"
 	"fmt"
+	"io"
+	"os"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/block"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	storagemock "github.com/googlecloudplatform/gcsfuse/v2/internal/storage/mock"
+	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -37,7 +42,7 @@ const (
 type UploadHandlerTest struct {
 	uh         *UploadHandler
 	blockPool  *block.BlockPool
-	mockBucket *storage.TestifyMockBucket
+	mockBucket *storagemock.TestifyMockBucket
 	suite.Suite
 }
 
@@ -46,11 +51,12 @@ func TestUploadHandlerTestSuite(t *testing.T) {
 }
 
 func (t *UploadHandlerTest) SetupTest() {
-	t.mockBucket = new(storage.TestifyMockBucket)
+	var maxBlocks int64 = 5
+	t.mockBucket = new(storagemock.TestifyMockBucket)
 	var err error
-	t.blockPool, err = block.NewBlockPool(blockSize, 5, semaphore.NewWeighted(5))
+	t.blockPool, err = block.NewBlockPool(blockSize, maxBlocks, semaphore.NewWeighted(5))
 	require.NoError(t.T(), err)
-	t.uh = newUploadHandler("testObject", t.mockBucket, t.blockPool.FreeBlocksChannel(), blockSize)
+	t.uh = newUploadHandler("testObject", t.mockBucket, maxBlocks, t.blockPool.FreeBlocksChannel(), blockSize)
 }
 
 func (t *UploadHandlerTest) TestMultipleBlockUpload() {
@@ -62,8 +68,9 @@ func (t *UploadHandlerTest) TestMultipleBlockUpload() {
 		blocks = append(blocks, b)
 	}
 	// CreateObjectChunkWriter -- should be called once.
-	writer := storagemock.NewMockWriter("mockObject", false, false)
+	writer := &storagemock.Writer{}
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
+	writer.On("Close").Return(nil)
 
 	// Upload the blocks.
 	for _, b := range blocks {
@@ -107,7 +114,8 @@ func (t *UploadHandlerTest) TestUpload_CreateObjectWriterFails() {
 }
 
 func (t *UploadHandlerTest) TestFinalizeWithWriterAlreadyPresent() {
-	writer := storagemock.NewMockWriter("mockObject", false, false)
+	writer := &storagemock.Writer{}
+	writer.On("Close").Return(nil)
 	t.uh.writer = writer
 
 	err := t.uh.Finalize()
@@ -116,9 +124,10 @@ func (t *UploadHandlerTest) TestFinalizeWithWriterAlreadyPresent() {
 }
 
 func (t *UploadHandlerTest) TestFinalizeWithNoWriter() {
-	writer := storagemock.NewMockWriter("mockObject", false, false)
+	writer := &storagemock.Writer{}
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
 	assert.Nil(t.T(), t.uh.writer)
+	writer.On("Close").Return(nil)
 
 	err := t.uh.Finalize()
 
@@ -137,12 +146,161 @@ func (t *UploadHandlerTest) TestFinalizeWithNoWriter_CreateObjectWriterFails() {
 }
 
 func (t *UploadHandlerTest) TestFinalize_WriterCloseFails() {
-	writer := storagemock.NewMockWriter("mockObject", false, true)
+	writer := &storagemock.Writer{}
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
 	assert.Nil(t.T(), t.uh.writer)
+	writer.On("Close").Return(fmt.Errorf("taco"))
 
 	err := t.uh.Finalize()
 
 	assert.Error(t.T(), err)
 	assert.ErrorContains(t.T(), err, "writer.Close")
+	select {
+	case <-t.uh.signalNonRecoverableFailure:
+		break
+	case <-time.After(200 * time.Millisecond):
+		t.T().Error("no signal received for non recoverable failure")
+	}
+}
+
+func (t *UploadHandlerTest) TestUploadHandler_singleBlock_ErrorInCopy() {
+	// Create a block with test data.
+	b, err := t.blockPool.Get()
+	require.NoError(t.T(), err)
+	err = b.Write([]byte("test data"))
+	require.NoError(t.T(), err)
+	// CreateObjectChunkWriter -- should be called once.
+	writer := &storagemock.Writer{}
+	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
+	// First write will be an error and Close will be successful.
+	writer.
+		On("Write", mock.Anything).Return(0, fmt.Errorf("taco")).Once().
+		On("Close").Return(nil)
+
+	// Upload the block.
+	err = t.uh.Upload(b)
+	require.NoError(t.T(), err)
+
+	// Expect an error on the signalUploadFailure channel.
+	select {
+	case err := <-t.uh.signalUploadFailure:
+		require.Error(t.T(), err)
+	case <-time.After(200 * time.Millisecond):
+		t.T().Error("Expected an error on signalUploadFailure channel")
+	}
+	// send temp file via the temp file channel
+	tempFile, err := gcsx.NewTempFile(stringToReader(""), os.TempDir(), &timeutil.SimulatedClock{})
+	require.NoError(t.T(), err)
+	require.NotNil(t.T(), tempFile)
+	t.uh.tempFile <- tempFile
+	// Expect no error on the signalNonRecoverableFailure channel.
+	select {
+	case <-t.uh.signalNonRecoverableFailure:
+		t.T().Error("Unexpected non recoverable failure")
+	case <-time.After(200 * time.Millisecond):
+		break
+	}
+	data, err := readAll(tempFile, 9)
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), "test data", string(data))
+}
+
+func (t *UploadHandlerTest) TestUploadHandler_multipleBlocks_ErrorInCopy() {
+	// Create some blocks.
+	var blocks []block.Block
+	for i := 0; i < 4; i++ {
+		b, err := t.blockPool.Get()
+		require.NoError(t.T(), err)
+		err = b.Write([]byte("testdata" + strconv.Itoa(i) + " "))
+		require.NoError(t.T(), err)
+		blocks = append(blocks, b)
+	}
+	// CreateObjectChunkWriter -- should be called once.
+	writer := &storagemock.Writer{}
+	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
+	// Second write will be an error and rest of the operations will be successful.
+	writer.
+		On("Write", mock.Anything).Return(10, nil).Once().
+		On("Write", mock.Anything).Return(0, fmt.Errorf("taco")).
+		On("Close").Return(nil)
+
+	// Upload the blocks.
+	for _, b := range blocks {
+		err := t.uh.Upload(b)
+		require.NoError(t.T(), err)
+	}
+
+	// Expect an error on the signalUploadFailure channel.
+	select {
+	case err := <-t.uh.signalUploadFailure:
+		require.Error(t.T(), err)
+	case <-time.After(200 * time.Millisecond):
+		t.T().Error("Expected an error on signalUploadFailure channel")
+	}
+	// send temp file via the temp file channel
+	tempFile, err := gcsx.NewTempFile(stringToReader("testdata0 "), os.TempDir(), &timeutil.SimulatedClock{})
+	require.NoError(t.T(), err)
+	require.NotNil(t.T(), tempFile)
+	t.uh.tempFile <- tempFile
+	// Expect no error on the signalNonRecoverableFailure channel.
+	select {
+	case <-t.uh.signalNonRecoverableFailure:
+		t.T().Error("Unexpected non recoverable failure")
+	case <-time.After(200 * time.Millisecond):
+		break
+	}
+	data, err := readAll(tempFile, 40)
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), "testdata0 testdata1 testdata2 testdata3 ", string(data))
+}
+
+func (t *UploadHandlerTest) TestUploadHandler_NilTempFile() {
+	// Create a block with test data.
+	b, err := t.blockPool.Get()
+	require.NoError(t.T(), err)
+	err = b.Write([]byte("test data"))
+	require.NoError(t.T(), err)
+	// CreateObjectChunkWriter -- should be called once.
+	writer := &storagemock.Writer{}
+	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
+	assert.Nil(t.T(), t.uh.writer)
+	// First write will be an error and rest of the operations will be successful.
+	writer.
+		On("Write", mock.Anything).Return(0, fmt.Errorf("taco")).Once().
+		On("Close").Return(nil).
+		On("Write", mock.Anything).Return(9, nil)
+
+	// Upload the block.
+	err = t.uh.Upload(b)
+	require.NoError(t.T(), err)
+
+	// Expect an error on the signalUploadFailure channel.
+	select {
+	case <-t.uh.signalUploadFailure:
+		break
+	case <-time.After(300 * time.Millisecond):
+		t.T().Error("Expected an error on signalUploadFailure channel")
+	}
+	// send nil temp file via the temp file channel
+	t.uh.tempFile <- nil
+	// Expect no error on the signalNonRecoverableFailure channel.
+	select {
+	case <-t.uh.signalNonRecoverableFailure:
+		break
+	case <-time.After(200 * time.Millisecond):
+		t.T().Error("Expected an error on signalNonRecoverableFailure channel")
+	}
+}
+
+func stringToReader(s string) io.ReadCloser {
+	return io.NopCloser(strings.NewReader(s))
+}
+
+func readAll(reader io.ReaderAt, size int64) ([]byte, error) {
+	buf := make([]byte, size)
+	_, err := reader.ReadAt(buf, 0)
+	if err != nil && err != io.EOF {
+		return nil, err
+	}
+	return buf, nil
 }

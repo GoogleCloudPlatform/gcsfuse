@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/block"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"golang.org/x/sync/semaphore"
 )
@@ -56,7 +57,7 @@ func NewBWHandler(objectName string, bucket gcs.Bucket, blockSize int64, maxBloc
 	bwh = &BufferedWriteHandler{
 		current:       nil,
 		blockPool:     bp,
-		uploadHandler: newUploadHandler(objectName, bucket, bp.FreeBlocksChannel(), blockSize),
+		uploadHandler: newUploadHandler(objectName, bucket, maxBlocks, bp.FreeBlocksChannel(), blockSize),
 		totalSize:     0,
 		mtime:         time.Now(),
 	}
@@ -133,4 +134,16 @@ func (wh *BufferedWriteHandler) WriteFileInfo() WriteFileInfo {
 		TotalSize: wh.totalSize,
 		Mtime:     wh.mtime,
 	}
+}
+
+func (wh *BufferedWriteHandler) SignalNonRecoverableFailure() chan error {
+	return wh.uploadHandler.signalNonRecoverableFailure
+}
+
+func (wh *BufferedWriteHandler) SignalUploadFailure() chan error {
+	return wh.uploadHandler.signalUploadFailure
+}
+
+func (wh *BufferedWriteHandler) TempFileChannel() chan gcsx.TempFile {
+	return wh.uploadHandler.tempFile
 }

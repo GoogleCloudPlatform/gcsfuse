@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/jacobsa/timeutil"
@@ -117,4 +118,46 @@ func (testSuite *BufferedWriteTest) TestFlushWithNilCurrentBlock() {
 	err := testSuite.bwh.Flush()
 
 	assert.NoError(testSuite.T(), err)
+}
+
+func TestBufferedWriteHandler_SignalNonRecoverableFailure(t *testing.T) {
+	mockSignalNonRecoverableFailure := make(chan error)
+	mockUploadHandler := &UploadHandler{
+		signalNonRecoverableFailure: mockSignalNonRecoverableFailure,
+	}
+	wh := &BufferedWriteHandler{
+		uploadHandler: mockUploadHandler,
+	}
+
+	actualChannel := wh.SignalNonRecoverableFailure()
+
+	assert.Equal(t, mockSignalNonRecoverableFailure, actualChannel)
+}
+
+func TestBufferedWriteHandler_SignalUploadFailure(t *testing.T) {
+	mockSignalUploadFailure := make(chan error)
+	mockUploadHandler := &UploadHandler{
+		signalUploadFailure: mockSignalUploadFailure,
+	}
+	wh := &BufferedWriteHandler{
+		uploadHandler: mockUploadHandler,
+	}
+
+	actualChannel := wh.SignalUploadFailure()
+
+	assert.Equal(t, mockSignalUploadFailure, actualChannel)
+}
+
+func TestBufferedWriteHandler_TempFileWriter(t *testing.T) {
+	mockTempFile := make(chan gcsx.TempFile)
+	mockUploadHandler := &UploadHandler{
+		tempFile: mockTempFile,
+	}
+	wh := &BufferedWriteHandler{
+		uploadHandler: mockUploadHandler,
+	}
+
+	actualChannel := wh.TempFileChannel()
+
+	assert.Equal(t, mockTempFile, actualChannel)
 }
