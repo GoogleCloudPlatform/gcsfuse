@@ -14,7 +14,9 @@
 
 package storageutil
 
-import "net/http"
+import (
+	"net/http"
+)
 
 // WithUserAgent returns a ClientOption that sets the User-Agent. This option is incompatible with the WithHTTPClient option.
 // As we are using http-client, we will need to add this header via RoundTripper middleware.
@@ -26,6 +28,8 @@ type userAgentRoundTripper struct {
 
 func (ug *userAgentRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 	r.Header.Set("User-Agent", ug.UserAgent)
-	r.Header.Set("x-retry-test-id", "32ddf0c1e8244f369b270c53a810c332")
+	//r.Header.Set("x-retry-test-id", "59193ff7d439473c8fcca2399b4fdeb6")
+
+	//fmt.Println("retry id: ", r.Header.Get("x-retry-test-id"))
 	return ug.wrapped.RoundTrip(r)
 }
