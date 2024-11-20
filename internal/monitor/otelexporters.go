@@ -32,12 +32,14 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
 
+const serviceName = "gcsfuse"
+
 // SetupOTelMetricExporters sets up the metrics exporters
 func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config) (shutdownFn common.ShutdownFn) {
 	options := make([]metric.Option, 0)
 	opts, shutdownFn := setupPrometheus(c.Metrics.PrometheusPort)
 	options = append(options, opts...)
-	res, err := getResource(ctx, c)
+	res, err := getResource(ctx)
 	if err != nil {
 		logger.Errorf("Error while fetching resource: %v", err)
 	} else {
@@ -98,21 +100,13 @@ func serveMetrics(port int64, shutdownCh <-chan context.Context, done chan<- int
 	logger.Info("Prometheus collector exporter started")
 }
 
-func getAppName(c *cfg.Config) string {
-	appName := "gcsfuse"
-	if c.AppName != "" {
-		appName = c.AppName
-	}
-	return appName
-}
-
-func getResource(ctx context.Context, c *cfg.Config) (*resource.Resource, error) {
+func getResource(ctx context.Context) (*resource.Resource, error) {
 	return resource.New(ctx,
 		// Use the GCP resource detector to detect information about the GCP platform
 		resource.WithDetectors(gcp.NewDetector()),
 		resource.WithTelemetrySDK(),
 		resource.WithAttributes(
-			semconv.ServiceName(getAppName(c)),
+			semconv.ServiceName(serviceName),
 			semconv.ServiceVersion(common.GetVersion()),
 		),
 	)
