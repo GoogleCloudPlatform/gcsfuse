@@ -257,6 +257,7 @@ func (rx *ResumableUpload) Upload(ctx context.Context) (resp *http.Response, err
 			startTime := time.Now()
 			resp, err = rx.transferChunk(rCtx)
 			endTime := time.Now()
+			fmt.Println(endTime.Sub(startTime))
 
 			var status int
 			if resp != nil {
@@ -269,6 +270,7 @@ func (rx *ResumableUpload) Upload(ctx context.Context) (resp *http.Response, err
 			case <-rCtx.Done():
 				if errors.Is(rCtx.Err(), context.DeadlineExceeded) {
 					// Cancel the context for rCtx
+					fmt.Println("Chunk retried...")
 					cancel()
 					continue
 				}
@@ -276,7 +278,6 @@ func (rx *ResumableUpload) Upload(ctx context.Context) (resp *http.Response, err
 			}
 
 			numChunk++
-			fmt.Println(endTime.Sub(startTime))
 
 			// Check if we should retry the request.
 			if !errorFunc(status, err) {
