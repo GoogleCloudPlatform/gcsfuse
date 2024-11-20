@@ -177,8 +177,9 @@ func isValidMetricsConfig(m *MetricsConfig) error {
 	if m.StackdriverExportInterval != 0 && m.CloudMetricsExportIntervalSecs != 0 {
 		return fmt.Errorf("exactly one of stackdriver-export-interval and cloud-metrics-export-interval-secs must be specified")
 	}
-	if m.PrometheusPort > 65535 {
-		return fmt.Errorf("prometheus-port must not be higher than the maximum allowed port number: 65535")
+	const maxPortNumber = 65535
+	if m.PrometheusPort > maxPortNumber {
+		return fmt.Errorf("prometheus-port must not be higher than the maximum allowed port number: 65535 but received: %d instead", m.PrometheusPort)
 	}
 	return nil
 }
