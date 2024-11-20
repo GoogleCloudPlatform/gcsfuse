@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/googleapis/gax-go/v2/apierror"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/api/googleapi"
@@ -79,4 +80,13 @@ func (testSuite *ErrorMapping) TestUnAuthenticatedHttpGoogleApiError() {
 	fsErr := errno(googleApiError)
 
 	assert.Equal(testSuite.T(), syscall.EACCES, fsErr)
+}
+
+func (testSuite *ErrorMapping) TestFileClobberedError() {
+	clobberedErr := &gcsfuse_errors.FileClobberedError{
+		Err: fmt.Errorf("object doesn't exist"),
+	}
+
+	gotErrno := errno(clobberedErr)
+	assert.Equal(testSuite.T(), ErrStaleFileHandle, gotErrno)
 }

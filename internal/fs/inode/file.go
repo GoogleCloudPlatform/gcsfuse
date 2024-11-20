@@ -22,9 +22,11 @@ import (
 	"strings"
 	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/bufferedwrites"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/contentcache"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
@@ -212,6 +214,12 @@ func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool, inclu
 		return
 	}
 
+	// For localFile, if object exists in GCS then it means file is clobbered.
+	if f.IsLocal() {
+		b = true
+		return
+	}
+
 	// We are clobbered iff the generation doesn't match our source generation.
 	oGen := Generation{o.Generation, o.MetaGeneration}
 	b = f.SourceGeneration().Compare(oGen) != 0
@@ -228,7 +236,16 @@ func (f *FileInode) openReader(ctx context.Context) (io.ReadCloser, error) {
 			Generation:     f.src.Generation,
 			ReadCompressed: f.src.HasContentEncodingGzip(),
 		})
-	if err != nil {
+
+	// If a file handle is open locally, but the corresponding object doesn't exist
+	// in GCS, it indicates a file clobbering scenario. This likely occurred because:
+	//  - The file was deleted in GCS while a local handle was still open.
+	//  - The file content was modified leading to different generation number.
+	if errors.Is(err, storage.ErrObjectNotExist) {
+		err = &gcsfuse_errors.FileClobberedError{
+			Err: fmt.Errorf("NewReader: %w", err),
+		}
+	} else if err != nil {
 		err = fmt.Errorf("NewReader: %w", err)
 	}
 	return rc, err
@@ -576,8 +593,7 @@ func (f *FileInode) SetMtime(
 }
 
 // Sync writes out contents to GCS. If this fails due to the generation having been
-// clobbered, treat it as a non-error (simulating the inode having been
-// unlinked).
+// clobbered, failure is propagated back to the calling function as an error.
 //
 // After this method succeeds, SourceGeneration will return the new generation
 // by which this inode should be known (which may be the same as before). If it
@@ -600,9 +616,14 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 	// properties.
 	latestGcsObj, isClobbered, err := f.clobbered(ctx, true, true)
 
-	// Clobbered is treated as being unlinked. There's no reason to return an
-	// error in that case. We simply return without syncing the object.
-	if err != nil || isClobbered {
+	if err != nil {
+		return
+	}
+
+	if isClobbered {
+		err = &gcsfuse_errors.FileClobberedError{
+			Err: err,
+		}
 		return
 	}
 
@@ -611,11 +632,11 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 	// the latest object fetched from gcs which has all the properties populated.
 	newObj, err := f.bucket.SyncObject(ctx, f.Name().GcsObjectName(), latestGcsObj, f.content)
 
-	// Special case: a precondition error means we were clobbered, which we treat
-	// as being unlinked. There's no reason to return an error in that case.
 	var preconditionErr *gcs.PreconditionError
 	if errors.As(err, &preconditionErr) {
-		err = nil
+		err = &gcsfuse_errors.FileClobberedError{
+			Err: fmt.Errorf("SyncObject: %w", err),
+		}
 		return
 	}
 

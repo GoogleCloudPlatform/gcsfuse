@@ -561,6 +561,17 @@ func CloseFileShouldNotThrowError(file *os.File, t *testing.T) {
 	}
 }
 
+func CloseFileShouldThrowError(file *os.File, t *testing.T) {
+	err := file.Close()
+	if err == nil {
+		t.Fatalf("expected error when closing file %s, but got nil", file.Name())
+	}
+
+	if !strings.Contains(err.Error(), "stale NFS file handle") {
+		t.Fatalf("expected 'stale NFS file handle' error when closing file %s, but got: %v", file.Name(), err)
+	}
+}
+
 func SyncFile(fh *os.File, t *testing.T) {
 	err := fh.Sync()
 

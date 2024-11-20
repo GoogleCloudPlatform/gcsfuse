@@ -174,7 +174,7 @@ func TestReadDirWithSameNameLocalAndGCSFile(t *testing.T) {
 	}
 
 	// Close the local file.
-	operations.CloseFileShouldNotThrowError(fh1, t)
+	operations.CloseFileShouldThrowError(fh1, t)
 }
 
 func TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError(t *testing.T) {

@@ -27,11 +27,13 @@ import (
 	"testing/iotest"
 	"time"
 
+	storage2 "cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	testutil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
@@ -1202,6 +1204,16 @@ func (t *RandomReaderTest) Test_Destroy_NonNilCacheHandle() {
 	t.rr.wrapped.Destroy()
 
 	ExpectEq(nil, t.rr.wrapped.fileCacheHandle)
+}
+
+func (t *RandomReaderTest) TestNewReader_FileClobbered() {
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(Return(nil, storage2.ErrObjectNotExist))
+
+	err := t.rr.wrapped.startRead(t.rr.ctx, 0, 1)
+
+	var clobberedErr *gcsfuse_errors.FileClobberedError
+	AssertTrue(errors.As(err, &clobberedErr))
 }
 
 // TODO (raj-prince) - to add unit tests for failed scenario while reading via cache.
