@@ -18,16 +18,20 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
+	cloudmetric "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric"
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/detectors/gcp"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/prometheus"
 	"go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
@@ -36,9 +40,16 @@ const serviceName = "gcsfuse"
 
 // SetupOTelMetricExporters sets up the metrics exporters
 func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config) (shutdownFn common.ShutdownFn) {
+	shutdownFns := make([]common.ShutdownFn, 0)
 	options := make([]metric.Option, 0)
 	opts, shutdownFn := setupPrometheus(c.Metrics.PrometheusPort)
 	options = append(options, opts...)
+	shutdownFns = append(shutdownFns, shutdownFn)
+
+	opts, shutdownFn = setupCloudMonitoring(c.Metrics.CloudMetricsExportIntervalSecs)
+	options = append(options, opts...)
+	shutdownFns = append(shutdownFns, shutdownFn)
+
 	res, err := getResource(ctx)
 	if err != nil {
 		logger.Errorf("Error while fetching resource: %v", err)
@@ -46,10 +57,36 @@ func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config) (shutdownFn co
 		options = append(options, metric.WithResource(res))
 	}
 	meterProvider := metric.NewMeterProvider(options...)
+	shutdownFns = append(shutdownFns, meterProvider.Shutdown)
 	otel.SetMeterProvider(meterProvider)
-	return common.JoinShutdownFunc(meterProvider.Shutdown, shutdownFn)
+
+	return common.JoinShutdownFunc(shutdownFns...)
 }
 
+func setupCloudMonitoring(secs int64) ([]metric.Option, common.ShutdownFn) {
+	if secs <= 0 {
+		return nil, nil
+	}
+	options := []cloudmetric.Option{
+		cloudmetric.WithMetricDescriptorTypeFormatter(metricFormatter),
+		cloudmetric.WithFilteredResourceAttributes(func(kv attribute.KeyValue) bool {
+			return cloudmetric.DefaultResourceAttributesFilter(kv) ||
+				kv.Key == semconv.ProcessPIDKey
+		}),
+	}
+	exporter, err := cloudmetric.New(options...)
+	if err != nil {
+		logger.Errorf("Error while creating Google Cloud exporter:%v", err)
+		return nil, nil
+	}
+
+	r := metric.NewPeriodicReader(exporter, metric.WithInterval(time.Duration(secs)*time.Second))
+	return []metric.Option{metric.WithReader(r)}, r.Shutdown
+}
+
+func metricFormatter(m metricdata.Metrics) string {
+	return "custom.googleapis.com/gcsfuse/" + strings.ReplaceAll(m.Name, ".", "/")
+}
 func setupPrometheus(port int64) ([]metric.Option, common.ShutdownFn) {
 	if port <= 0 {
 		return nil, nil
