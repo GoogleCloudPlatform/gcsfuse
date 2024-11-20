@@ -371,10 +371,15 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 		return err
 	}
 
-	shutdownMetricsFn := monitor.SetupOpenCensusExporters(newConfig)
 	ctx := context.Background()
+	var metricExporterShutdownFn common.ShutdownFn
+	if newConfig.Metrics.EnableOtel {
+		metricExporterShutdownFn = monitor.SetupOTelMetricExporters(ctx, newConfig)
+	} else {
+		metricExporterShutdownFn = monitor.SetupOpenCensusExporters(newConfig)
+	}
 	shutdownTracingFn := monitor.SetupTracing(ctx, newConfig)
-	shutdownFn := common.JoinShutdownFunc(shutdownMetricsFn, shutdownTracingFn)
+	shutdownFn := common.JoinShutdownFunc(metricExporterShutdownFn, shutdownTracingFn)
 
 	// Mount, writing information about our progress to the writer that package
 	// daemonize gives us and telling it about the outcome.
