@@ -16,6 +16,7 @@ package cfg
 
 import (
 	"fmt"
+	"math"
 
 	cacheutil "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 )
@@ -177,9 +178,9 @@ func isValidMetricsConfig(m *MetricsConfig) error {
 	if m.StackdriverExportInterval != 0 && m.CloudMetricsExportIntervalSecs != 0 {
 		return fmt.Errorf("exactly one of stackdriver-export-interval and cloud-metrics-export-interval-secs must be specified")
 	}
-	const maxPortNumber = 65535
+	const maxPortNumber = math.MaxUint16
 	if m.PrometheusPort > maxPortNumber {
-		return fmt.Errorf("prometheus-port must not be higher than the maximum allowed port number: 65535 but received: %d instead", m.PrometheusPort)
+		return fmt.Errorf("prometheus-port must not be higher than the maximum allowed port number: %d but received: %d instead", maxPortNumber, m.PrometheusPort)
 	}
 	return nil
 }
