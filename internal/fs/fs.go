@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
@@ -125,6 +126,8 @@ type ServerConfig struct {
 
 	// NewConfig has all the config specified by the user using config-file or CLI flags.
 	NewConfig *cfg.Config
+
+	MetricHandle common.MetricHandle
 }
 
 // Create a fuse file system server according to the supplied configuration.
@@ -190,6 +193,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		fileCacheHandler:           fileCacheHandler,
 		cacheFileForRangeRead:      serverCfg.NewConfig.FileCache.CacheFileForRangeRead,
 		globalMaxBlocksSem:         semaphore.NewWeighted(serverCfg.NewConfig.Write.GlobalMaxBlocks),
+		metricHandle:               serverCfg.MetricHandle,
 	}
 
 	// Set up root bucket
@@ -199,7 +203,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		root = makeRootForAllBuckets(fs)
 	} else {
 		logger.Info("Set up root directory for bucket " + serverCfg.BucketName)
-		syncerBucket, err := fs.bucketManager.SetUpBucket(ctx, serverCfg.BucketName, false)
+		syncerBucket, err := fs.bucketManager.SetUpBucket(ctx, serverCfg.BucketName, false, fs.metricHandle)
 		if err != nil {
 			return nil, fmt.Errorf("SetUpBucket: %w", err)
 		}
@@ -242,7 +246,7 @@ func createFileCacheHandler(serverCfg *ServerConfig) (fileCacheHandler *file.Cac
 		return nil, fmt.Errorf("createFileCacheHandler: while creating file cache directory: %w", cacheDirErr)
 	}
 
-	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir, serverCfg.SequentialReadSizeMb, &serverCfg.NewConfig.FileCache)
+	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir, serverCfg.SequentialReadSizeMb, &serverCfg.NewConfig.FileCache, serverCfg.MetricHandle)
 	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager, cacheDir, filePerm, dirPerm)
 	return
 }
@@ -291,6 +295,7 @@ func makeRootForAllBuckets(fs *fileSystem) inode.DirInode {
 			Mtime: fs.mtimeClock.Now(),
 		},
 		fs.bucketManager,
+		fs.metricHandle,
 	)
 }
 
@@ -479,6 +484,8 @@ type fileSystem struct {
 	cacheFileForRangeRead bool
 
 	globalMaxBlocksSem *semaphore.Weighted
+
+	metricHandle common.MetricHandle
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -1735,7 +1742,7 @@ func (fs *fileSystem) CreateFile(
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
-	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead)
+	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle)
 	op.Handle = handleID
 
 	fs.mu.Unlock()
@@ -2379,7 +2386,7 @@ func (fs *fileSystem) OpenFile(
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
-	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead)
+	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle)
 	op.Handle = handleID
 
 	// When we observe object generations that we didn't create, we assign them

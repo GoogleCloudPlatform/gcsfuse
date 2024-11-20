@@ -17,15 +17,16 @@ package gcsx
 import (
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	cacheutil "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/jacobsa/fuse/fuseops"
@@ -79,7 +80,7 @@ type RandomReader interface {
 
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
-func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool) RandomReader {
+func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle) RandomReader {
 	return &randomReader{
 		object:                o,
 		bucket:                bucket,
@@ -90,6 +91,7 @@ func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb i
 		sequentialReadSizeMb:  sequentialReadSizeMb,
 		fileCacheHandler:      fileCacheHandler,
 		cacheFileForRangeRead: cacheFileForRangeRead,
+		metricHandle:          metricHandle,
 	}
 }
 
@@ -129,6 +131,7 @@ type randomReader struct {
 	// fileCacheHandle is used to read from the cached location. It is created on the fly
 	// using fileCacheHandler for the given object and bucket.
 	fileCacheHandle *file.CacheHandle
+	metricHandle    common.MetricHandle
 }
 
 func (rr *randomReader) CheckInvariants() {
@@ -201,8 +204,7 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 		if isSeq {
 			readType = util.Sequential
 		}
-		// Capture file cache metrics to be exported via stackdriver
-		monitor.CaptureFileCacheMetrics(ctx, readType, n, cacheHit, executionTime)
+		captureFileCacheMetrics(ctx, rr.metricHandle, readType, n, cacheHit, executionTime)
 	}()
 
 	// Create fileCacheHandle if not already.
@@ -246,6 +248,16 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 	err = nil
 
 	return
+}
+
+func captureFileCacheMetrics(ctx context.Context, metricHandle common.MetricHandle, readType string, readDataSize int, cacheHit bool, readLatency time.Duration) {
+	metricHandle.FileCacheReadCount(ctx, 1, []common.Attr{
+		{Key: common.ReadType, Value: readType},
+		{Key: common.CacheHit, Value: strconv.FormatBool(cacheHit)},
+	})
+
+	metricHandle.FileCacheReadBytesCount(ctx, int64(readDataSize), []common.Attr{{Key: common.ReadType, Value: readType}})
+	metricHandle.FileCacheReadLatency(ctx, float64(readLatency.Microseconds()), []common.Attr{{Key: common.CacheHit, Value: strconv.FormatBool(cacheHit)}})
 }
 
 func (rr *randomReader) ReadAt(
@@ -506,7 +518,7 @@ func (rr *randomReader) startRead(
 	rr.limit = end
 
 	requestedDataSize := end - start
-	monitor.CaptureGCSReadMetrics(ctx, readType, requestedDataSize)
+	common.CaptureGCSReadMetrics(ctx, rr.metricHandle, readType, requestedDataSize)
 
 	return
 }
