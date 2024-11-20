@@ -18,6 +18,11 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 )
 
+type SyncerBucketInterface interface {
+	gcs.Bucket
+	Syncer
+}
+
 type SyncerBucket struct {
 	gcs.Bucket
 	Syncer

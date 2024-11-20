@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/block"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	storagemock "github.com/googlecloudplatform/gcsfuse/v2/internal/storage/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -37,7 +36,7 @@ const (
 type UploadHandlerTest struct {
 	uh         *UploadHandler
 	blockPool  *block.BlockPool
-	mockBucket *storage.TestifyMockBucket
+	mockBucket *storagemock.TestifyMockBucket
 	suite.Suite
 }
 
@@ -46,7 +45,7 @@ func TestUploadHandlerTestSuite(t *testing.T) {
 }
 
 func (t *UploadHandlerTest) SetupTest() {
-	t.mockBucket = new(storage.TestifyMockBucket)
+	t.mockBucket = new(storagemock.TestifyMockBucket)
 	var err error
 	t.blockPool, err = block.NewBlockPool(blockSize, 5, semaphore.NewWeighted(5))
 	require.NoError(t.T(), err)

@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storage
+package mock
 
 import (
 	"context"
 	"io"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/stretchr/testify/mock"
 )
@@ -121,6 +122,14 @@ func (m *TestifyMockBucket) CreateFolder(ctx context.Context, folderName string)
 	args := m.Called(ctx, folderName)
 	if args.Get(0) != nil {
 		return args.Get(0).(*gcs.Folder), nil
+	}
+	return nil, args.Error(1)
+}
+
+func (m *TestifyMockBucket) SyncObject(ctx context.Context, fileName string, srcObject *gcs.Object, content gcsx.TempFile) (o *gcs.Object, err error) {
+	args := m.Called(ctx, fileName, srcObject, content)
+	if args.Get(0) != nil {
+		return args.Get(0).(*gcs.Object), nil
 	}
 	return nil, args.Error(1)
 }
