@@ -20,7 +20,7 @@ BUCKET_TYPE=$1
 cd "$HOME/github/gcsfuse/perfmetrics/scripts"
 
 echo "Setting up the machine with Docker and Nvidia Driver..."
-DRIVER_VERSION="520.61.05"
+DRIVER_VERSION="550.127.05"
 source ml_tests/setup_host.sh $DRIVER_VERSION
 
 cd "$HOME/github/gcsfuse/"
