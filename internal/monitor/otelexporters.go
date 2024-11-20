@@ -70,7 +70,7 @@ func setupPrometheus(port int64) ([]metric.Option, common.ShutdownFn) {
 }
 
 func serveMetrics(port int64, shutdownCh <-chan context.Context, done chan<- interface{}) {
-	logger.Infof("serving metrics at localhost:%d/metrics", port)
+	logger.Infof("Serving metrics at localhost:%d/metrics", port)
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
 	prometheusServer := &http.Server{
