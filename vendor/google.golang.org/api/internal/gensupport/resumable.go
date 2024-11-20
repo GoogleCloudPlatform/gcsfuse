@@ -61,6 +61,8 @@ func (rx *ResumableUpload) Progress() int64 {
 // size is the number of bytes in data.
 // final specifies whether data is the final chunk to be uploaded.
 func (rx *ResumableUpload) doUploadRequest(ctx context.Context, data io.Reader, off, size int64, final bool) (*http.Response, error) {
+
+	//fmt.Println("URL: ", rx.URI)
 	req, err := http.NewRequest("POST", rx.URI, data)
 	if err != nil {
 		return nil, err
@@ -198,11 +200,10 @@ func (rx *ResumableUpload) Upload(ctx context.Context) (resp *http.Response, err
 
 	var transferTimeout time.Duration
 	transferTimeout = rx.ChunkTransferTimeout
-
+	var numChunk = 0
 	// Send all chunks.
 	for {
 		var pause time.Duration
-
 		// Each chunk gets its own initialized-at-zero backoff and invocation ID.
 		bo := rx.Retry.backoff()
 		quitAfterTimer := time.NewTimer(retryDeadline)
@@ -252,23 +253,30 @@ func (rx *ResumableUpload) Upload(ctx context.Context) (resp *http.Response, err
 				rCtx, cancel = context.WithTimeout(ctx, transferTimeout)
 			}
 
+			//fmt.Println("In resumable uploads..")
+			startTime := time.Now()
 			resp, err = rx.transferChunk(rCtx)
+			endTime := time.Now()
 
 			var status int
 			if resp != nil {
 				status = resp.StatusCode
 			}
 
+			//fmt.Println("Error: ", rCtx.Err())
 			// The upload should be retried if the rCtx is canceled due to a timeout.
 			select {
 			case <-rCtx.Done():
-				if rCtx.Err() == context.DeadlineExceeded {
+				if errors.Is(rCtx.Err(), context.DeadlineExceeded) {
 					// Cancel the context for rCtx
 					cancel()
 					continue
 				}
 			default:
 			}
+
+			numChunk++
+			fmt.Println(endTime.Sub(startTime))
 
 			// Check if we should retry the request.
 			if !errorFunc(status, err) {
