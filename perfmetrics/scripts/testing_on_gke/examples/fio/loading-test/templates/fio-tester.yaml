@@ -19,7 +19,11 @@ metadata:
   name: {{ .Values.podName }}
   annotations:
     gke-gcsfuse/volumes: "true"
+    gke-gcsfuse/cpu-limit: "0"
+    gke-gcsfuse/memory-limit: "0"
+    gke-gcsfuse/ephemeral-storage-limit: "0"
 spec:
+  activeDeadlineSeconds: 5000
   restartPolicy: Never
   nodeSelector:
     cloud.google.com/gke-tpu-topology: 2x2
@@ -35,11 +39,6 @@ spec:
     resources:
       limits:
         google.com/tpu: 4
-        cpu: {{ .Values.resourceLimits.cpu }}
-        memory: {{ .Values.resourceLimits.memory }}
-      requests:
-        cpu: {{ .Values.resourceRequests.cpu }}
-        memory: {{ .Values.resourceRequests.memory }}
     command:
       - "/bin/sh"
       - "-c"
@@ -169,14 +168,11 @@ spec:
       mountPath: /data
   volumes:
   - name: gke-gcsfuse-cache
-    emptyDir:
-      medium: Memory
+    emptyDir: {}
   - name: gke-gcsfuse-buffer
-    emptyDir:
-      medium: Memory
+    emptyDir: {}
   - name: gke-gcsfuse-tmp
-    emptyDir:
-      medium: Memory
+    emptyDir: {}
   - name: dshm
     emptyDir:
       medium: Memory
@@ -191,4 +187,4 @@ spec:
         fileCacheCapacity: "{{ .Values.gcsfuse.fileCacheCapacity }}"
         fileCacheForRangeRead: "true"
         gcsfuseLoggingSeverity: "info"
-        mountOptions: implicit-dirs
+        mountOptions: "{{ .Values.gcsfuse.mountOptions }}"
