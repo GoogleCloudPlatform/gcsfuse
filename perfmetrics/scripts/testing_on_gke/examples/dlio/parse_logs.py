@@ -255,7 +255,7 @@ def writeRecordsToCsvOutputFile(output: dict, output_file_path: str):
           print(f"{scenario} not in output so skipping")
           continue
 
-        for i in range(len(record_set["records"]["local-ssd"])):
+        for i in range(len(record_set["records"][scenario])):
           r = record_set["records"][scenario][i]
 
           try:
