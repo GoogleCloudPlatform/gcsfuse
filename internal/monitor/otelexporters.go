@@ -37,6 +37,7 @@ import (
 )
 
 const serviceName = "gcsfuse"
+const cloudMonitoringMetricPrefix = "custom.googleapis.com/gcsfuse/"
 
 // SetupOTelMetricExporters sets up the metrics exporters
 func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config) (shutdownFn common.ShutdownFn) {
@@ -89,7 +90,7 @@ func setupCloudMonitoring(secs int64) ([]metric.Option, common.ShutdownFn) {
 }
 
 func metricFormatter(m metricdata.Metrics) string {
-	return "custom.googleapis.com/gcsfuse/" + strings.ReplaceAll(m.Name, ".", "/")
+	return cloudMonitoringMetricPrefix + strings.ReplaceAll(m.Name, ".", "/")
 }
 func setupPrometheus(port int64) ([]metric.Option, common.ShutdownFn) {
 	if port <= 0 {
