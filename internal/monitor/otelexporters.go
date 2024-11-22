@@ -73,7 +73,7 @@ func setupCloudMonitoring(secs int64) ([]metric.Option, common.ShutdownFn) {
 	options := []cloudmetric.Option{
 		cloudmetric.WithMetricDescriptorTypeFormatter(metricFormatter),
 		cloudmetric.WithFilteredResourceAttributes(func(kv attribute.KeyValue) bool {
-			// Ensure that PID is available as a metric label on metrics explorer as it'll help distinguish between different mounts.
+			// Ensure that PID is available as a metric label on metrics explorer as it'll help distinguish between different mounts on the same node.
 			return cloudmetric.DefaultResourceAttributesFilter(kv) ||
 				kv.Key == semconv.ProcessPIDKey
 		}),
