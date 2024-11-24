@@ -93,7 +93,7 @@ func TestSyncOnUnlinkedLocalFile(t *testing.T) {
 	// Verify unlink operation succeeds.
 	operations.ValidateNoFileOrDirError(path.Join(testDirPath, FileName1), t)
 	// Validate sync operation does not write to GCS after unlink.
-	operations.SyncFile(fh, t)
+	operations.SyncFileShouldThrowError(fh, t)
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t)
 	// Close the local file and validate it is not present on GCS.
 	operations.CloseFileShouldThrowError(fh, t)
