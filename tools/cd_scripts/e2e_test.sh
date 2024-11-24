@@ -18,8 +18,18 @@ set -x
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
-#details.txt file contains the release version and commit hash of the current release.
-gsutil cp  gs://gcsfuse-release-packages/version-detail/details.txt .
+if `grep -iq suse /etc/os-release`; then
+  sudo echo """[google-cloud-cli]
+name=Google Cloud CLI
+baseurl=https://packages.cloud.google.com/yum/repos/cloud-sdk-el9-x86_64
+enabled=1
+gpgcheck=1
+repo_gpgcheck=0
+gpgkey=https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg""" > /etc/zypp/repos.d/google-cloud-sdk.repo
+
+  sudo zypper --gpg-auto-import-keys -n refresh
+fi
+
 # Writing VM instance name to details.txt (Format: release-test-<os-name>)
 curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google" >> details.txt
 
@@ -28,6 +38,9 @@ if grep -q ubuntu details.txt || grep -q debian details.txt;
 then
 #  For ubuntu and debian os
     sudo adduser --ingroup google-sudoers --disabled-password --home=/home/starterscriptuser --gecos "" starterscriptuser
+elif grep -q suse details.txt || grep -q sles details.txt;
+then
+    sudo useradd -m -g google-sudoers --home-dir=/home/starterscriptuser starterscriptuser
 else
 #  For rhel and centos
     sudo adduser -g google-sudoers --home-dir=/home/starterscriptuser starterscriptuser
@@ -40,9 +53,49 @@ set -e
 # Print commands and their arguments as they are executed.
 set -x
 
-#Copy details.txt to starterscriptuser home directory and create logs.txt
+if `grep -iq suse /etc/os-release`; then
+  # uname can be aarch or x86_64
+  uname=$(uname -i)
+  if [[ $uname == "x86_64" ]]; then
+    architecture="amd64"
+  elif [[ $uname == "aarch64" ]]; then
+    architecture="arm64"
+  fi
+
+  if [[ $architecture == "arm64" ]]; then
+    # Create a temporary expect script
+    expect_script=$(mktemp)
+    cat <<EOF > "$expect_script"
+#!/usr/bin/expect -f
+
+spawn sudo zypper --gpg-auto-import-keys install google-cloud-sdk
+expect "Choose from above solutions by number or cancel \[1\/2\/c\/d\/\?\] \(c\): "
+send "2\r"
+expect "Continue? \[y\/n\/v\/...? shows all options\] (y): "
+send "y\r"
+expect eof
+EOF
+
+    # Make the expect script executable
+    sudo chmod +x "$expect_script"
+
+    # Run the expect script using expect
+    sudo expect "$expect_script"
+
+    # Remove the temporary expect script
+    sudo rm "$expect_script"
+  else
+    sudo zypper --gpg-auto-import-keys install -y google-cloud-sdk
+  fi
+fi
+
 cd ~/
-cp /details.txt .
+#details.txt file contains the release version and commit hash of the current release.
+gsutil cp  gs://gcsfuse-release-packages/version-detail/details.txt .
+
+curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google" >> details.txt
+
+cat details.txt
 touch logs.txt
 touch logs-hns.txt
 
@@ -51,7 +104,7 @@ echo Current Working Directory: $(pwd)  &>> ~/logs.txt
 
 # Based on the os type in detail.txt, run the following commands for setup
 
-if grep -q ubuntu details.txt || grep -q debian details.txt;
+if grep -iq ubuntu details.txt || grep -q debian details.txt;
 then
 #  For Debian and Ubuntu os
     # architecture can be amd64 or arm64
@@ -80,6 +133,36 @@ then
 
     #install build-essentials
     sudo apt install -y build-essential
+elif grep -q suse details.txt || grep -q sles details.txt;
+then
+#  For rhel and centos
+    # uname can be aarch or x86_64
+    uname=$(uname -i)
+
+    if [[ $uname == "x86_64" ]]; then
+      architecture="amd64"
+    elif [[ $uname == "aarch64" ]]; then
+      architecture="arm64"
+    fi
+
+    sudo zypper refresh
+
+    #Install fuse
+    sudo zypper install -y fuse
+
+    #download and install gcsfuse rpm package
+    gsutil cp gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/gcsfuse-$(sed -n 1p details.txt)-1.${uname}.rpm .
+    sudo zypper --no-gpg-checks install -y gcsfuse-$(sed -n 1p details.txt)-1.${uname}.rpm
+    sudo cp /usr/bin/gcsfuse /bin/gcsfuse
+
+    #install wget
+    sudo zypper install -y wget
+
+    #install git
+    sudo zypper install -y git
+
+    #install Development tools
+    sudo zypper install -y gcc gcc-c++ make
 else
 #  For rhel and centos
     # uname can be aarch or x86_64
@@ -112,7 +195,7 @@ else
 fi
 
 # install go
-wget -O go_tar.tar.gz https://go.dev/dl/go1.23.3.linux-${architecture}.tar.gz
+wget -O go_tar.tar.gz https://go.dev/dl/go1.23.2.linux-${architecture}.tar.gz
 sudo tar -C /usr/local -xzf go_tar.tar.gz
 export PATH=${PATH}:/usr/local/go/bin
 #Write gcsfuse and go version to log file
@@ -121,7 +204,7 @@ go version |& tee -a ~/logs.txt
 
 # Clone and checkout gcsfuse repo
 export PATH=${PATH}:/usr/local/go/bin
-git clone https://github.com/googlecloudplatform/gcsfuse |& tee -a ~/logs.txt
+git clone https://github.com/vipnydav/gcsfuse |& tee -a ~/logs.txt
 cd gcsfuse
 
 # Installation of crcmod is working through pip only on rhel and centos.
@@ -131,6 +214,14 @@ then
     # install python3-setuptools tools and python3-pip
     sudo yum -y install gcc python3-devel python3-setuptools redhat-rpm-config
     sudo yum -y install python3-pip
+    # Downloading composite object requires integrity checking with CRC32c in gsutil.
+    # it requires to install crcmod.
+    pip3 install --require-hashes -r tools/cd_scripts/requirements.txt --user
+elif grep -q suse details.txt || grep -q sles details.txt;
+then
+    # install python3-setuptools tools and python3-pip
+    sudo zypper install -y gcc python3-devel python3-setuptools redhat-rpm-config
+    sudo zypper install -y python3-pip
     # Downloading composite object requires integrity checking with CRC32c in gsutil.
     # it requires to install crcmod.
     pip3 install --require-hashes -r tools/cd_scripts/requirements.txt --user
@@ -170,6 +261,7 @@ TEST_DIR_NON_PARALLEL=(
 # Create a temporary file to store the log file name.
 TEST_LOGS_FILE=$(mktemp)
 
+GO_TEST_SHORT_FLAG="-short"
 INTEGRATION_TEST_TIMEOUT=180m
 
 function run_non_parallel_tests() {
@@ -184,7 +276,7 @@ function run_non_parallel_tests() {
     local log_file="/tmp/${test_dir_np}_${BUCKET_NAME}.log"
     echo $log_file >> $TEST_LOGS_FILE
     # Executing integration tests
-    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 --integrationTest -v --testbucket=$BUCKET_NAME --testInstalledPackage=true -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1
+    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 $GO_TEST_SHORT_FLAG --integrationTest -v --testbucket=$BUCKET_NAME --testInstalledPackage=true -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1
     exit_code_non_parallel=$?
     if [ $exit_code_non_parallel != 0 ]; then
       exit_code=$exit_code_non_parallel
@@ -206,7 +298,7 @@ function run_parallel_tests() {
     local log_file="/tmp/${test_dir_p}_${BUCKET_NAME}.log"
     echo $log_file >> $TEST_LOGS_FILE
     # Executing integration tests
-    GODEBUG=asyncpreemptoff=1 go test $test_path_parallel -p 1 --integrationTest -v --testbucket=$BUCKET_NAME --testInstalledPackage=true -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1 &
+    GODEBUG=asyncpreemptoff=1 go test $test_path_parallel $GO_TEST_SHORT_FLAG -p 1 --integrationTest -v --testbucket=$BUCKET_NAME --testInstalledPackage=true -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1 &
     pid=$!  # Store the PID of the background process
     pids+=("$pid")  # Optionally add the PID to an array for later
   done
