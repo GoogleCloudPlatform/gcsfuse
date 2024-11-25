@@ -112,6 +112,8 @@ type FileSystemConfig struct {
 
 	TempDir ResolvedPath `yaml:"temp-dir"`
 
+	ThrowErrorOnWriteFailure bool `yaml:"throw-error-on-write-failure"`
+
 	Uid int64 `yaml:"uid"`
 }
 
@@ -523,7 +525,9 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.StringP("temp-dir", "", "", "Path to the temporary directory where writes are staged prior to upload to Cloud Storage. (default: system default, likely /tmp)\"")
+	flagSet.StringP("temp-dir", "", "", "Path to the temporary directory where writes are staged prior to upload to Cloud Storage. (default: system default, likely /tmp)")
+
+	flagSet.BoolP("throw-error-on-write-failure", "", true, "Throws clobbered error messages in case of write failures so users don’t  suffer from silent data loss or data corruption.")
 
 	flagSet.StringP("token-url", "", "", "A url for getting an access token when the key-file is absent.")
 
@@ -853,6 +857,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.temp-dir", flagSet.Lookup("temp-dir")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.throw-error-on-write-failure", flagSet.Lookup("throw-error-on-write-failure")); err != nil {
 		return err
 	}
 

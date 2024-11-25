@@ -205,8 +205,16 @@
   type: "resolvedPath"
   usage: >-
     Path to the temporary directory where writes are staged prior to upload to
-    Cloud Storage. (default: system default, likely /tmp)"
+    Cloud Storage. (default: system default, likely /tmp)
   default: ""
+
+- config-path: "file-system.throw-error-on-write-failure"
+  flag-name: "throw-error-on-write-failure"
+  type: "bool"
+  usage: >-
+    Throws clobbered error messages in case of write failures so users don’t 
+    suffer from silent data loss or data corruption.
+  default: true
 
 - config-path: "file-system.uid"
   flag-name: "uid"
