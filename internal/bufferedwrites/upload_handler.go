@@ -21,7 +21,6 @@ import (
 	"sync"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/block"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 )
@@ -42,16 +41,8 @@ type UploadHandler struct {
 	writer io.WriteCloser
 
 	// signalUploadFailure channel will propagate the upload error to file
-	// inode so that it can trigger temp file flow and flush any current buffer.
+	// inode. This signals permanent failure in the buffered write job.
 	signalUploadFailure chan error
-
-	// signalNonRecoverableFailure channel will propagate non recoverable failure
-	// to file inode.
-	signalNonRecoverableFailure chan error
-
-	// tempFile channel will receive the temporary file writer where all the
-	// non uploaded blocks will be written in case of failure.
-	tempFile chan gcsx.TempFile
 
 	// Parameters required for creating a new GCS chunk writer.
 	bucket     gcs.Bucket
@@ -62,15 +53,13 @@ type UploadHandler struct {
 // newUploadHandler creates the UploadHandler struct.
 func newUploadHandler(objectName string, bucket gcs.Bucket, maxBlocks int64, freeBlocksCh chan block.Block, blockSize int64) *UploadHandler {
 	uh := &UploadHandler{
-		uploadCh:                    make(chan block.Block, maxBlocks),
-		wg:                          sync.WaitGroup{},
-		freeBlocksCh:                freeBlocksCh,
-		bucket:                      bucket,
-		objectName:                  objectName,
-		blockSize:                   blockSize,
-		signalUploadFailure:         make(chan error, 1),
-		signalNonRecoverableFailure: make(chan error, 1),
-		tempFile:                    make(chan gcsx.TempFile, 1),
+		uploadCh:            make(chan block.Block, maxBlocks),
+		wg:                  sync.WaitGroup{},
+		freeBlocksCh:        freeBlocksCh,
+		bucket:              bucket,
+		objectName:          objectName,
+		blockSize:           blockSize,
+		signalUploadFailure: make(chan error, 1),
 	}
 	return uh
 }
@@ -112,28 +101,15 @@ func (uh *UploadHandler) createObjectWriter() (err error) {
 // uploader is the single-threaded goroutine that uploads blocks.
 func (uh *UploadHandler) uploader() {
 	for currBlock := range uh.uploadCh {
-		currBlockReader := currBlock.Reader()
-		_, err := io.Copy(uh.writer, currBlockReader)
+		_, err := io.Copy(uh.writer, currBlock.Reader())
 		if err != nil {
 			logger.Errorf("buffered write upload failed: error in io.Copy: %v", err)
+			// close the channel to signal upload failure
+			close(uh.signalUploadFailure)
 
 			// Close the writer to finalize the object creation on GCS.
 			if closeErr := uh.writer.Close(); closeErr != nil {
-				logger.Errorf("Error closing writer: %v", closeErr)
-				close(uh.signalNonRecoverableFailure)
-				return
-			}
-
-			// Signal the upload failure to the caller so that it falls back to edit
-			// flow and flushes the current buffer.
-			logger.Warnf("Error while uploading: %v", err)
-			uh.signalUploadFailure <- fmt.Errorf("error while uploading: %w", err)
-
-			// Trigger the failure handler and get the temp file path.
-			handlerErr := uh.handleUploadFailure(currBlockReader)
-			if handlerErr != nil {
-				logger.Errorf("Error while handling upload failure: %v", handlerErr)
-				close(uh.signalNonRecoverableFailure)
+				logger.Errorf("Error in finalizing object: %v", closeErr)
 				return
 			}
 			return
@@ -162,60 +138,8 @@ func (uh *UploadHandler) Finalize() error {
 	err := uh.writer.Close()
 	if err != nil {
 		logger.Errorf("UploadHandler.Finalize(): %v", err)
-		close(uh.signalNonRecoverableFailure)
+		close(uh.signalUploadFailure)
 		return fmt.Errorf("writer.Close: %w", err)
 	}
 	return nil
-}
-
-// handleUploadFailure handles the upload failure by writing
-// non-uploaded blocks to the temporary file writer provided by the caller.
-// This function assumes that the temporary file has already been created
-// and populated with existing GCS content by the caller.
-func (uh *UploadHandler) handleUploadFailure(failedBlockReader io.Reader) error {
-	tmpFile := <-uh.tempFile
-	if tmpFile == nil {
-		return fmt.Errorf("no temp file provided")
-	}
-
-	// get size of temp file created.
-	statResult, err := tmpFile.Stat()
-	if err != nil {
-		return fmt.Errorf("stat failed on temp file")
-	}
-	size := statResult.Size
-
-	// Write the failed block to the temporary file.
-	n, err := writeBlockToTempFile(size, failedBlockReader, tmpFile)
-	if err != nil {
-		return fmt.Errorf("failed to write failed block to temp file: %w", err)
-	}
-	size += int64(n)
-	uh.wg.Done()
-
-	// Drain the upload channel and write remaining blocks to the temporary file.
-	// Do not put back channel for re-use. Any following write calls will be
-	// redirected to temp file.
-	for currBlock := range uh.uploadCh {
-		n, err := writeBlockToTempFile(size, currBlock.Reader(), tmpFile)
-		if err != nil {
-			return fmt.Errorf("failed to write block to temp file: %w", err)
-		}
-		size += int64(n)
-		uh.wg.Done()
-	}
-
-	return nil
-}
-
-func writeBlockToTempFile(offset int64, reader io.Reader, tmpFile gcsx.TempFile) (int, error) {
-	remainingCurrBlockContent, err := io.ReadAll(reader)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get data from block reader")
-	}
-	n, err := tmpFile.WriteAt(remainingCurrBlockContent, offset)
-	if err != nil {
-		return 0, fmt.Errorf("error writing block to temp file: %w", err)
-	}
-	return n, nil
 }

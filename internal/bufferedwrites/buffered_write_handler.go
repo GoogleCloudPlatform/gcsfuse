@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/block"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"golang.org/x/sync/semaphore"
 )
@@ -136,14 +135,6 @@ func (wh *BufferedWriteHandler) WriteFileInfo() WriteFileInfo {
 	}
 }
 
-func (wh *BufferedWriteHandler) SignalNonRecoverableFailure() chan error {
-	return wh.uploadHandler.signalNonRecoverableFailure
-}
-
 func (wh *BufferedWriteHandler) SignalUploadFailure() chan error {
 	return wh.uploadHandler.signalUploadFailure
-}
-
-func (wh *BufferedWriteHandler) TempFileChannel() chan gcsx.TempFile {
-	return wh.uploadHandler.tempFile
 }

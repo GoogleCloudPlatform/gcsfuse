@@ -17,17 +17,12 @@ package bufferedwrites
 import (
 	"errors"
 	"fmt"
-	"io"
-	"os"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/block"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	storagemock "github.com/googlecloudplatform/gcsfuse/v2/internal/storage/mock"
-	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -156,7 +151,7 @@ func (t *UploadHandlerTest) TestFinalize_WriterCloseFails() {
 	assert.Error(t.T(), err)
 	assert.ErrorContains(t.T(), err, "writer.Close")
 	select {
-	case <-t.uh.signalNonRecoverableFailure:
+	case <-t.uh.signalUploadFailure:
 		break
 	case <-time.After(200 * time.Millisecond):
 		t.T().Error("no signal received for non recoverable failure")
@@ -181,28 +176,13 @@ func (t *UploadHandlerTest) TestUploadHandler_singleBlock_ErrorInCopy() {
 	err = t.uh.Upload(b)
 	require.NoError(t.T(), err)
 
-	// Expect an error on the signalUploadFailure channel.
+	// Expect an error on the signalUploadFailure channel due to error while copying content to GCS writer.
 	select {
-	case err := <-t.uh.signalUploadFailure:
-		require.Error(t.T(), err)
+	case <-t.uh.signalUploadFailure:
+		break
 	case <-time.After(200 * time.Millisecond):
 		t.T().Error("Expected an error on signalUploadFailure channel")
 	}
-	// send temp file via the temp file channel
-	tempFile, err := gcsx.NewTempFile(stringToReader(""), os.TempDir(), &timeutil.SimulatedClock{})
-	require.NoError(t.T(), err)
-	require.NotNil(t.T(), tempFile)
-	t.uh.tempFile <- tempFile
-	// Expect no error on the signalNonRecoverableFailure channel.
-	select {
-	case <-t.uh.signalNonRecoverableFailure:
-		t.T().Error("Unexpected non recoverable failure")
-	case <-time.After(200 * time.Millisecond):
-		break
-	}
-	data, err := readAll(tempFile, 9)
-	require.NoError(t.T(), err)
-	assert.Equal(t.T(), "test data", string(data))
 }
 
 func (t *UploadHandlerTest) TestUploadHandler_multipleBlocks_ErrorInCopy() {
@@ -232,75 +212,9 @@ func (t *UploadHandlerTest) TestUploadHandler_multipleBlocks_ErrorInCopy() {
 
 	// Expect an error on the signalUploadFailure channel.
 	select {
-	case err := <-t.uh.signalUploadFailure:
-		require.Error(t.T(), err)
-	case <-time.After(200 * time.Millisecond):
-		t.T().Error("Expected an error on signalUploadFailure channel")
-	}
-	// send temp file via the temp file channel
-	tempFile, err := gcsx.NewTempFile(stringToReader("testdata0 "), os.TempDir(), &timeutil.SimulatedClock{})
-	require.NoError(t.T(), err)
-	require.NotNil(t.T(), tempFile)
-	t.uh.tempFile <- tempFile
-	// Expect no error on the signalNonRecoverableFailure channel.
-	select {
-	case <-t.uh.signalNonRecoverableFailure:
-		t.T().Error("Unexpected non recoverable failure")
-	case <-time.After(200 * time.Millisecond):
-		break
-	}
-	data, err := readAll(tempFile, 40)
-	require.NoError(t.T(), err)
-	assert.Equal(t.T(), "testdata0 testdata1 testdata2 testdata3 ", string(data))
-}
-
-func (t *UploadHandlerTest) TestUploadHandler_NilTempFile() {
-	// Create a block with test data.
-	b, err := t.blockPool.Get()
-	require.NoError(t.T(), err)
-	err = b.Write([]byte("test data"))
-	require.NoError(t.T(), err)
-	// CreateObjectChunkWriter -- should be called once.
-	writer := &storagemock.Writer{}
-	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
-	assert.Nil(t.T(), t.uh.writer)
-	// First write will be an error and rest of the operations will be successful.
-	writer.
-		On("Write", mock.Anything).Return(0, fmt.Errorf("taco")).Once().
-		On("Close").Return(nil).
-		On("Write", mock.Anything).Return(9, nil)
-
-	// Upload the block.
-	err = t.uh.Upload(b)
-	require.NoError(t.T(), err)
-
-	// Expect an error on the signalUploadFailure channel.
-	select {
 	case <-t.uh.signalUploadFailure:
 		break
-	case <-time.After(300 * time.Millisecond):
+	case <-time.After(200 * time.Millisecond):
 		t.T().Error("Expected an error on signalUploadFailure channel")
 	}
-	// send nil temp file via the temp file channel
-	t.uh.tempFile <- nil
-	// Expect no error on the signalNonRecoverableFailure channel.
-	select {
-	case <-t.uh.signalNonRecoverableFailure:
-		break
-	case <-time.After(200 * time.Millisecond):
-		t.T().Error("Expected an error on signalNonRecoverableFailure channel")
-	}
-}
-
-func stringToReader(s string) io.ReadCloser {
-	return io.NopCloser(strings.NewReader(s))
-}
-
-func readAll(reader io.ReaderAt, size int64) ([]byte, error) {
-	buf := make([]byte, size)
-	_, err := reader.ReadAt(buf, 0)
-	if err != nil && err != io.EOF {
-		return nil, err
-	}
-	return buf, nil
 }

@@ -483,8 +483,8 @@ func (f *FileInode) Write(
 	ctx context.Context,
 	data []byte,
 	offset int64) (err error) {
-	if f.shouldWriteToBuffer() {
-		return f.handleBufferedWrite(ctx, data, offset)
+	if f.local && f.writeConfig.ExperimentalEnableStreamingWrites {
+		return f.writeToBuffer(data, offset)
 	}
 
 	// Make sure f.content != nil.
@@ -499,33 +499,6 @@ func (f *FileInode) Write(
 	_, err = f.content.WriteAt(data, offset)
 
 	return
-}
-
-func (f *FileInode) handleBufferedWrite(ctx context.Context, data []byte, offset int64) error {
-	if err := f.ensureBufferedWriteHandler(); err != nil {
-		return err
-	}
-
-	select {
-	case <-f.bwh.SignalNonRecoverableFailure():
-		return fmt.Errorf("buffered writes: non-recoverable failure while writing")
-	case <-f.bwh.SignalUploadFailure():
-		return f.fallbackToTempFile(ctx, data, offset)
-	default:
-		return f.bwh.Write(data, offset)
-	}
-}
-
-func (f *FileInode) fallbackToTempFile(ctx context.Context, data []byte, offset int64) error {
-	if f.content == nil {
-		if err := f.ensureContent(ctx); err != nil {
-			return fmt.Errorf("ensureContent: %w", err)
-		}
-		f.bwh.TempFileChannel() <- f.content
-	}
-
-	_, err := f.content.WriteAt(data, offset)
-	return err
 }
 
 // Set the mtime for this file. May involve a round trip to GCS.
@@ -720,9 +693,16 @@ func (f *FileInode) ensureBufferedWriteHandler() (err error) {
 	return
 }
 
-func (f *FileInode) shouldWriteToBuffer() bool {
-	// buffered writes are only enabled if:
-	// 1. Write is for a new file created via GCSFuse.
-	// 2. Streaming writes are enabled.
-	return f.local && f.writeConfig.ExperimentalEnableStreamingWrites
+// writeToBuffer writes the given content to the in-memory buffer.
+func (f *FileInode) writeToBuffer(data []byte, offset int64) error {
+	if err := f.ensureBufferedWriteHandler(); err != nil {
+		return err
+	}
+
+	select {
+	case <-f.bwh.SignalUploadFailure():
+		return fmt.Errorf("buffered writes: error while writing")
+	default:
+		return f.bwh.Write(data, offset)
+	}
 }
