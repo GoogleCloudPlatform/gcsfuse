@@ -68,7 +68,14 @@ This happens when gcsfuse is mounted with http1 client (default) and the applica
 
 ### Permission Denied error.
 
-Please refer [here](https://cloud.google.com/storage/docs/gcsfuse-mount#authenticate_by_using_a_service_account) to know more about permissions.(e.g.  **Issue**:mkdir: cannot create directory ‘gcs/test’: Permission denied. User can check specific errors by enabling logs with --log-severity=TRACE flags. **Solution**: Provide roles/storage.objectAdmin role on the bucket.)  <br/>
+Please refer [here](https://cloud.google.com/storage/docs/gcsfuse-mount#authenticate_by_using_a_service_account) to know more about permissions
+(e.g.  **Issue**:mkdir: cannot create directory ‘gcs/test’: Permission denied. User can check specific errors by enabling logs with --log-severity=TRACE flags.  
+**Solution** - depending upon the use-case, you can choose one of the following options.
+* Explicitly provide the service account roles/storage.objectAdmin role on the bucket.
+* Set the VM's scope to storage-full or read-write to give the VM write-access to the cloud-storage buckets. For this:
+  * Turn-off the instance
+  * Change the VM's scope either using the GCPconsole or by executing  `gcloud beta compute instances set-scopes INSTANCE_NAME --scopes=storage-full`
+  * Start the instance
 
 ### Bad gateway error while installing/upgrading GCSFuse:
 `Err: http://packages.cloud.google.com/apt gcsfuse-focal/main amd64 gcsfuse amd64 1.2.0`<br/>`502  Bad Gateway [IP: xxx.xxx.xx.xxx 80]`
