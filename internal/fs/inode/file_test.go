@@ -1006,6 +1006,23 @@ func (t *FileTest) MultipleWritesToLocalFileWhenStreamingWritesAreEnabled() {
 	AssertEq(7, t.in.bwh.WriteFileInfo().TotalSize)
 }
 
+func (t *FileTest) LocalFileInodeClobberedByGCSObject() {
+	// Create a local file inode.
+	t.createInodeWithLocalParam("test", true)
+	// Clobber the local object.
+	_, err := storageutil.CreateObject(
+		t.ctx,
+		t.bucket,
+		"test",
+		[]byte("burrito"))
+	AssertEq(nil, err)
+
+	_, clobbered, err := t.in.clobbered(t.ctx, true, false)
+
+	AssertEq(nil, err)
+	ExpectTrue(clobbered, "Clobbered should be true")
+}
+
 func getWriteConfig() *cfg.WriteConfig {
 	return &cfg.WriteConfig{
 		MaxBlocksPerFile:                  10,
