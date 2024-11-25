@@ -26,11 +26,11 @@ import (
 
 // recordRequest records a request and its latency.
 func recordRequest(ctx context.Context, metricHandle common.MetricHandle, method string, start time.Time) {
-	metricHandle.GCSRequestCount(ctx, 1, []common.Attr{{Key: common.GCSMethod, Value: method}})
+	metricHandle.GCSRequestCount(ctx, 1, []common.MetricAttr{{Key: common.GCSMethod, Value: method}})
 
 	latencyUs := time.Since(start).Microseconds()
 	latencyMs := float64(latencyUs) / 1000.0
-	metricHandle.GCSRequestLatency(ctx, latencyMs, []common.Attr{{Key: common.GCSMethod, Value: method}})
+	metricHandle.GCSRequestLatency(ctx, latencyMs, []common.MetricAttr{{Key: common.GCSMethod, Value: method}})
 }
 
 // NewMonitoringBucket returns a gcs.Bucket that exports metrics for monitoring
@@ -175,7 +175,7 @@ func (mb *monitoringBucket) RenameFolder(ctx context.Context, folderName string,
 
 // recordReader increments the reader count when it's opened or closed.
 func recordReader(ctx context.Context, metricHandle common.MetricHandle, ioMethod string) {
-	metricHandle.GCSReaderCount(ctx, 1, []common.Attr{{Key: common.IOMethod, Value: ioMethod}})
+	metricHandle.GCSReaderCount(ctx, 1, []common.MetricAttr{{Key: common.IOMethod, Value: ioMethod}})
 }
 
 // Monitoring on the object reader

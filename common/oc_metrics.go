@@ -73,56 +73,56 @@ type ocMetrics struct {
 	fileCacheReadLatency    *stats.Float64Measure
 }
 
-func attrsToTags(attrs []Attr) []tag.Mutator {
+func attrsToTags(attrs []MetricAttr) []tag.Mutator {
 	mutators := make([]tag.Mutator, 0, len(attrs))
 	for _, attr := range attrs {
 		mutators = append(mutators, tag.Upsert(tag.MustNewKey(attr.Key), attr.Value))
 	}
 	return mutators
 }
-func (o *ocMetrics) GCSReadBytesCount(ctx context.Context, inc int64, attrs []Attr) {
+func (o *ocMetrics) GCSReadBytesCount(ctx context.Context, inc int64, attrs []MetricAttr) {
 	recordOCMetric(ctx, o.gcsReadBytesCount, inc, attrs, "GCS read bytes count")
 }
 
-func (o *ocMetrics) GCSReaderCount(ctx context.Context, inc int64, attrs []Attr) {
+func (o *ocMetrics) GCSReaderCount(ctx context.Context, inc int64, attrs []MetricAttr) {
 	recordOCMetric(ctx, o.gcsReaderCount, inc, attrs, "GCS reader count")
 }
 
-func (o *ocMetrics) GCSRequestCount(ctx context.Context, inc int64, attrs []Attr) {
+func (o *ocMetrics) GCSRequestCount(ctx context.Context, inc int64, attrs []MetricAttr) {
 	recordOCMetric(ctx, o.gcsRequestCount, inc, attrs, "GCS request count")
 }
 
-func (o *ocMetrics) GCSRequestLatency(ctx context.Context, value float64, attrs []Attr) {
+func (o *ocMetrics) GCSRequestLatency(ctx context.Context, value float64, attrs []MetricAttr) {
 	recordOCLatencyMetric(ctx, o.gcsRequestLatency, value, attrs, "GCS request latency")
 }
-func (o *ocMetrics) GCSReadCount(ctx context.Context, inc int64, attrs []Attr) {
+func (o *ocMetrics) GCSReadCount(ctx context.Context, inc int64, attrs []MetricAttr) {
 	recordOCMetric(ctx, o.gcsReadCount, inc, attrs, "GCS read count")
 }
-func (o *ocMetrics) GCSDownloadBytesCount(ctx context.Context, inc int64, attrs []Attr) {
+func (o *ocMetrics) GCSDownloadBytesCount(ctx context.Context, inc int64, attrs []MetricAttr) {
 	recordOCMetric(ctx, o.gcsDownloadBytesCount, inc, attrs, "GCS download bytes count")
 }
 
-func (o *ocMetrics) OpsCount(ctx context.Context, inc int64, attrs []Attr) {
+func (o *ocMetrics) OpsCount(ctx context.Context, inc int64, attrs []MetricAttr) {
 	recordOCMetric(ctx, o.opsCount, inc, attrs, "file system op count")
 }
-func (o *ocMetrics) OpsLatency(ctx context.Context, value float64, attrs []Attr) {
+func (o *ocMetrics) OpsLatency(ctx context.Context, value float64, attrs []MetricAttr) {
 	recordOCLatencyMetric(ctx, o.opsLatency, value, attrs, "file system op latency")
 }
-func (o *ocMetrics) OpsErrorCount(ctx context.Context, inc int64, attrs []Attr) {
+func (o *ocMetrics) OpsErrorCount(ctx context.Context, inc int64, attrs []MetricAttr) {
 	recordOCMetric(ctx, o.opsErrorCount, inc, attrs, "file system op error count")
 }
 
-func (o *ocMetrics) FileCacheReadCount(ctx context.Context, inc int64, attrs []Attr) {
+func (o *ocMetrics) FileCacheReadCount(ctx context.Context, inc int64, attrs []MetricAttr) {
 	recordOCMetric(ctx, o.fileCacheReadCount, inc, attrs, "file cache read count")
 }
-func (o *ocMetrics) FileCacheReadBytesCount(ctx context.Context, inc int64, attrs []Attr) {
+func (o *ocMetrics) FileCacheReadBytesCount(ctx context.Context, inc int64, attrs []MetricAttr) {
 	recordOCMetric(ctx, o.fileCacheReadBytesCount, inc, attrs, "file cache read bytes count")
 }
-func (o *ocMetrics) FileCacheReadLatency(ctx context.Context, value float64, attrs []Attr) {
+func (o *ocMetrics) FileCacheReadLatency(ctx context.Context, value float64, attrs []MetricAttr) {
 	recordOCLatencyMetric(ctx, o.fileCacheReadLatency, value, attrs, "file cache read latency")
 }
 
-func recordOCMetric(ctx context.Context, m *stats.Int64Measure, inc int64, attrs []Attr, metricStr string) {
+func recordOCMetric(ctx context.Context, m *stats.Int64Measure, inc int64, attrs []MetricAttr, metricStr string) {
 	if err := stats.RecordWithTags(
 		ctx,
 		attrsToTags(attrs),
@@ -132,7 +132,7 @@ func recordOCMetric(ctx context.Context, m *stats.Int64Measure, inc int64, attrs
 	}
 }
 
-func recordOCLatencyMetric(ctx context.Context, m *stats.Float64Measure, inc float64, attrs []Attr, metricStr string) {
+func recordOCLatencyMetric(ctx context.Context, m *stats.Float64Measure, inc float64, attrs []MetricAttr, metricStr string) {
 	if err := stats.RecordWithTags(
 		ctx,
 		attrsToTags(attrs),

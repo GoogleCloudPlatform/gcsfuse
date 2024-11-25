@@ -36,33 +36,34 @@ func JoinShutdownFunc(shutdownFns ...ShutdownFn) ShutdownFn {
 	}
 }
 
-type Attr struct {
+// MetricAttr represents the attributes associated with a metric.
+type MetricAttr struct {
 	Key, Value string
 }
 
-func (a *Attr) String() string {
+func (a *MetricAttr) String() string {
 	return fmt.Sprintf("Key: %s, Value: %s", a.Key, a.Value)
 }
 
 type GCSMetricHandle interface {
-	GCSReadBytesCount(ctx context.Context, inc int64, attrs []Attr)
-	GCSReaderCount(ctx context.Context, inc int64, attrs []Attr)
-	GCSRequestCount(ctx context.Context, inc int64, attrs []Attr)
-	GCSRequestLatency(ctx context.Context, value float64, attrs []Attr)
-	GCSReadCount(ctx context.Context, inc int64, attrs []Attr)
-	GCSDownloadBytesCount(ctx context.Context, inc int64, attrs []Attr)
+	GCSReadBytesCount(ctx context.Context, inc int64, attrs []MetricAttr)
+	GCSReaderCount(ctx context.Context, inc int64, attrs []MetricAttr)
+	GCSRequestCount(ctx context.Context, inc int64, attrs []MetricAttr)
+	GCSRequestLatency(ctx context.Context, value float64, attrs []MetricAttr)
+	GCSReadCount(ctx context.Context, inc int64, attrs []MetricAttr)
+	GCSDownloadBytesCount(ctx context.Context, inc int64, attrs []MetricAttr)
 }
 
 type OpsMetricHandle interface {
-	OpsCount(ctx context.Context, inc int64, attrs []Attr)
-	OpsLatency(ctx context.Context, value float64, attrs []Attr)
-	OpsErrorCount(ctx context.Context, inc int64, attrs []Attr)
+	OpsCount(ctx context.Context, inc int64, attrs []MetricAttr)
+	OpsLatency(ctx context.Context, value float64, attrs []MetricAttr)
+	OpsErrorCount(ctx context.Context, inc int64, attrs []MetricAttr)
 }
 
 type FileCacheMetricHandle interface {
-	FileCacheReadCount(ctx context.Context, inc int64, attrs []Attr)
-	FileCacheReadBytesCount(ctx context.Context, inc int64, attrs []Attr)
-	FileCacheReadLatency(ctx context.Context, value float64, attrs []Attr)
+	FileCacheReadCount(ctx context.Context, inc int64, attrs []MetricAttr)
+	FileCacheReadBytesCount(ctx context.Context, inc int64, attrs []MetricAttr)
+	FileCacheReadLatency(ctx context.Context, value float64, attrs []MetricAttr)
 }
 type MetricHandle interface {
 	GCSMetricHandle
@@ -71,6 +72,6 @@ type MetricHandle interface {
 }
 
 func CaptureGCSReadMetrics(ctx context.Context, metricHandle MetricHandle, readType string, requestedDataSize int64) {
-	metricHandle.GCSReadCount(ctx, 1, []Attr{{Key: ReadType, Value: readType}})
-	metricHandle.GCSDownloadBytesCount(ctx, requestedDataSize, []Attr{{Key: ReadType, Value: readType}})
+	metricHandle.GCSReadCount(ctx, 1, []MetricAttr{{Key: ReadType, Value: readType}})
+	metricHandle.GCSDownloadBytesCount(ctx, requestedDataSize, []MetricAttr{{Key: ReadType, Value: readType}})
 }
