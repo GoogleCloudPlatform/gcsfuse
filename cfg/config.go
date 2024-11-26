@@ -108,11 +108,11 @@ type FileSystemConfig struct {
 
 	KernelListCacheTtlSecs int64 `yaml:"kernel-list-cache-ttl-secs"`
 
+	PreconditionErrors bool `yaml:"precondition-errors"`
+
 	RenameDirLimit int64 `yaml:"rename-dir-limit"`
 
 	TempDir ResolvedPath `yaml:"temp-dir"`
-
-	ThrowErrorOnWriteFailure bool `yaml:"throw-error-on-write-failure"`
 
 	Uid int64 `yaml:"uid"`
 }
@@ -461,6 +461,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("only-dir", "", "", "Mount only a specific directory within the bucket. See docs/mounting for more information")
 
+	flagSet.BoolP("precondition-errors", "", true, "Throw Stale NFS file handle error in case the object being synced or read  from is modified by some other concurrent process. This helps prevent  silent data loss or data corruption.")
+
+	if err := flagSet.MarkHidden("precondition-errors"); err != nil {
+		return err
+	}
+
 	flagSet.IntP("prometheus-port", "", 0, "Expose Prometheus metrics endpoint on this port and a path of /metrics.")
 
 	if err := flagSet.MarkHidden("prometheus-port"); err != nil {
@@ -526,8 +532,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	}
 
 	flagSet.StringP("temp-dir", "", "", "Path to the temporary directory where writes are staged prior to upload to Cloud Storage. (default: system default, likely /tmp)")
-
-	flagSet.BoolP("throw-error-on-write-failure", "", true, "Throws clobbered error messages in case of write failures so users don’t  suffer from silent data loss or data corruption.")
 
 	flagSet.StringP("token-url", "", "", "A url for getting an access token when the key-file is absent.")
 
@@ -800,6 +804,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("file-system.precondition-errors", flagSet.Lookup("precondition-errors")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("metrics.prometheus-port", flagSet.Lookup("prometheus-port")); err != nil {
 		return err
 	}
@@ -857,10 +865,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.temp-dir", flagSet.Lookup("temp-dir")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("file-system.throw-error-on-write-failure", flagSet.Lookup("throw-error-on-write-failure")); err != nil {
 		return err
 	}
 
