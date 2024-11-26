@@ -496,7 +496,17 @@ func (f *FileInode) Write(
 		return
 	}
 	if bwEnabled {
-		return f.bwh.Write(data, offset)
+		err = f.bwh.Write(data, offset)
+		// In case of an error from buffered write handler, finalize the object and
+		// fall back to temp file flow next write onwards.
+		if err != nil && f.local {
+			obj, err := f.bwh.Flush()
+			if err != nil {
+				return fmt.Errorf("SyncObject: %w", err)
+			}
+			f.updateInodeStateAfterSync(obj)
+		}
+		return
 	}
 
 	// Make sure f.content != nil.
@@ -606,6 +616,15 @@ func (f *FileInode) SetMtime(
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Sync(ctx context.Context) (err error) {
+	if f.local && f.writeConfig.ExperimentalEnableStreamingWrites {
+		obj, err := f.bwh.Flush()
+		if err != nil {
+			return fmt.Errorf("SyncObject: %w", err)
+		}
+
+		f.updateInodeStateAfterSync(obj)
+	}
+
 	// If we have not been dirtied, there is nothing to do.
 	if f.content == nil {
 		return
@@ -647,6 +666,12 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 	}
 
 	// If we wrote out a new object, we need to update our state.
+	f.updateInodeStateAfterSync(newObj)
+	return
+}
+
+func (f *FileInode) updateInodeStateAfterSync(newObj *gcs.Object) {
+	// If we wrote out a new object, we need to update our state.
 	if newObj != nil && !f.localFileCache {
 		var minObj gcs.MinObject
 		minObjPtr := storageutil.ConvertObjToMinObject(newObj)
@@ -658,10 +683,11 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 		if f.IsLocal() {
 			f.local = false
 		}
-		f.content.Destroy()
-		f.content = nil
+		if f.content != nil {
+			f.content.Destroy()
+			f.content = nil
+		}
 	}
-
 	return
 }
 

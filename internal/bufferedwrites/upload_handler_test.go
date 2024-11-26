@@ -74,7 +74,7 @@ func (t *UploadHandlerTest) TestMultipleBlockUpload() {
 	}
 
 	// Finalize.
-	err := t.uh.Finalize()
+	_, err := t.uh.Finalize()
 	require.NoError(t.T(), err)
 	// The blocks should be available on the free channel for reuse.
 	for _, expect := range blocks {
@@ -114,7 +114,7 @@ func (t *UploadHandlerTest) TestFinalizeWithWriterAlreadyPresent() {
 	writer.On("Close").Return(nil)
 	t.uh.writer = writer
 
-	err := t.uh.Finalize()
+	_, err := t.uh.Finalize()
 
 	assert.NoError(t.T(), err)
 }
@@ -125,7 +125,7 @@ func (t *UploadHandlerTest) TestFinalizeWithNoWriter() {
 	assert.Nil(t.T(), t.uh.writer)
 	writer.On("Close").Return(nil)
 
-	err := t.uh.Finalize()
+	_, err := t.uh.Finalize()
 
 	assert.NoError(t.T(), err)
 }
@@ -134,7 +134,7 @@ func (t *UploadHandlerTest) TestFinalizeWithNoWriter_CreateObjectWriterFails() {
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("taco"))
 	assert.Nil(t.T(), t.uh.writer)
 
-	err := t.uh.Finalize()
+	_, err := t.uh.Finalize()
 
 	require.Error(t.T(), err)
 	assert.ErrorContains(t.T(), err, "taco")
@@ -147,7 +147,7 @@ func (t *UploadHandlerTest) TestFinalize_WriterCloseFails() {
 	assert.Nil(t.T(), t.uh.writer)
 	writer.On("Close").Return(fmt.Errorf("taco"))
 
-	err := t.uh.Finalize()
+	_, err := t.uh.Finalize()
 
 	require.Error(t.T(), err)
 	assert.ErrorContains(t.T(), err, "writer.Close")
