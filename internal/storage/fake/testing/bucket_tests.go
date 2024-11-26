@@ -75,9 +75,9 @@ func init() {
 ////////////////////////////////////////////////////////////////////////
 
 func createEmpty(
-	ctx context.Context,
-	bucket gcs.Bucket,
-	objectNames []string) error {
+		ctx context.Context,
+		bucket gcs.Bucket,
+		objectNames []string) error {
 	err := storageutil.CreateEmptyObjects(ctx, bucket, objectNames)
 	return err
 }
@@ -247,9 +247,9 @@ func listDifference(a []string, b []string) (res []string) {
 
 // Issue all of the supplied read requests with some degree of parallelism.
 func readMultiple(
-	ctx context.Context,
-	bucket gcs.Bucket,
-	reqs []*gcs.ReadObjectRequest) (contents [][]byte, errs []error) {
+		ctx context.Context,
+		bucket gcs.Bucket,
+		reqs []*gcs.ReadObjectRequest) (contents [][]byte, errs []error) {
 	group, ctx := errgroup.WithContext(ctx)
 
 	// Feed indices into a channel.
@@ -312,9 +312,9 @@ func readMultiple(
 // Invoke the supplied function for each string, with some degree of
 // parallelism.
 func forEachString(
-	ctx context.Context,
-	strings []string,
-	f func(context.Context, string) error) (err error) {
+		ctx context.Context,
+		strings []string,
+		f func(context.Context, string) error) (err error) {
 	group, ctx := errgroup.WithContext(ctx)
 
 	// Feed strings into a channel.
@@ -766,7 +766,7 @@ func (t *createTest) IllegalNames() {
 
 			if name == "" {
 				if !strings.Contains(err.Error(), "invalid") &&
-					!strings.Contains(err.Error(), "required") {
+						!strings.Contains(err.Error(), "required") {
 					err = fmt.Errorf("unexpected error for %q: %v", name, err)
 					return
 				}
@@ -1523,7 +1523,7 @@ func (t *copyTest) IllegalNames() {
 
 			if name == "" {
 				if !strings.Contains(err.Error(), "invalid") &&
-					!strings.Contains(err.Error(), "not Found") {
+						!strings.Contains(err.Error(), "not Found") {
 					err = fmt.Errorf("unexpected error for %q: %v", name, err)
 					return
 				}
@@ -1675,7 +1675,7 @@ type composeTest struct {
 }
 
 func (t *composeTest) createSources(
-	contents []string) (objs []*gcs.Object, err error) {
+		contents []string) (objs []*gcs.Object, err error) {
 	objs = make([]*gcs.Object, len(contents))
 
 	// Write indices into a channel.
@@ -2651,7 +2651,7 @@ func (t *composeTest) IllegalNames() {
 
 			if name == "" {
 				if !strings.Contains(err.Error(), "invalid") &&
-					!strings.Contains(err.Error(), "not Found") {
+						!strings.Contains(err.Error(), "not Found") {
 					err = fmt.Errorf("unexpected error for %q: %v", name, err)
 					return
 				}
@@ -3140,7 +3140,7 @@ func (t *statTest) StatAfterUpdating() {
 	ExpectTrue(
 		orig.Updated.Before(o2.Updated),
 		"orig.Updated: %v\n"+
-			"o2.Updated:   %v",
+				"o2.Updated:   %v",
 		orig.Updated,
 		o2.Updated)
 
@@ -3471,7 +3471,7 @@ func (t *updateTest) UpdateTime() {
 	ExpectTrue(
 		o.Updated.Before(o2.Updated),
 		"o.Updated:  %v\n"+
-			"o2.Updated: %v",
+				"o2.Updated: %v",
 		o.Updated,
 		o2.Updated)
 }
