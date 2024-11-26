@@ -110,17 +110,17 @@ var _ Inode = &FileInode{}
 // REQUIRES: len(m.Name) > 0
 // REQUIRES: m.Name[len(m.Name)-1] != '/'
 func NewFileInode(
-		id fuseops.InodeID,
-		name Name,
-		m *gcs.MinObject,
-		attrs fuseops.InodeAttributes,
-		bucket *gcsx.SyncerBucket,
-		localFileCache bool,
-		contentCache *contentcache.ContentCache,
-		mtimeClock timeutil.Clock,
-		localFile bool,
-		writeConfig *cfg.WriteConfig,
-		globalMaxBlocksSem *semaphore.Weighted) (f *FileInode) {
+	id fuseops.InodeID,
+	name Name,
+	m *gcs.MinObject,
+	attrs fuseops.InodeAttributes,
+	bucket *gcsx.SyncerBucket,
+	localFileCache bool,
+	contentCache *contentcache.ContentCache,
+	mtimeClock timeutil.Clock,
+	localFile bool,
+	writeConfig *cfg.WriteConfig,
+	globalMaxBlocksSem *semaphore.Weighted) (f *FileInode) {
 	// Set up the basic struct.
 	var minObj gcs.MinObject
 	if m != nil {
@@ -388,7 +388,7 @@ func (f *FileInode) Destroy() (err error) {
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Attributes(
-		ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
+	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
 	attrs = f.attrs
 
 	// Obtain default information from the source object.
@@ -461,9 +461,9 @@ func (f *FileInode) Bucket() *gcsx.SyncerBucket {
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Read(
-		ctx context.Context,
-		dst []byte,
-		offset int64) (n int, err error) {
+	ctx context.Context,
+	dst []byte,
+	offset int64) (n int, err error) {
 	if f.IsLocal() && f.writeConfig.ExperimentalEnableStreamingWrites {
 		err = fmt.Errorf("cannot read a local file when upload in progress")
 		return
@@ -494,9 +494,9 @@ func (f *FileInode) Read(
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Write(
-		ctx context.Context,
-		data []byte,
-		offset int64) (err error) {
+	ctx context.Context,
+	data []byte,
+	offset int64) (err error) {
 	if f.local && f.writeConfig.ExperimentalEnableStreamingWrites {
 		return f.writeToBuffer(data, offset)
 	}
@@ -519,8 +519,8 @@ func (f *FileInode) Write(
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) SetMtime(
-		ctx context.Context,
-		mtime time.Time) (err error) {
+	ctx context.Context,
+	mtime time.Time) (err error) {
 	// If we have a local temp file, stat it.
 	var sr gcsx.StatResult
 	if f.content != nil {
@@ -666,8 +666,8 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Truncate(
-		ctx context.Context,
-		size int64) (err error) {
+	ctx context.Context,
+	size int64) (err error) {
 	// Make sure f.content != nil.
 	err = f.ensureContent(ctx)
 	if err != nil {
