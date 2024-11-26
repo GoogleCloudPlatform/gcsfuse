@@ -214,12 +214,6 @@ func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool, inclu
 		return
 	}
 
-	// For localFile, if object exists in GCS then it means file is clobbered.
-	if f.IsLocal() {
-		b = true
-		return
-	}
-
 	// We are clobbered iff the generation doesn't match our source generation.
 	oGen := Generation{o.Generation, o.MetaGeneration}
 	b = f.SourceGeneration().Compare(oGen) != 0
@@ -245,7 +239,10 @@ func (f *FileInode) openReader(ctx context.Context) (io.ReadCloser, error) {
 		err = &gcsfuse_errors.FileClobberedError{
 			Err: fmt.Errorf("NewReader: %w", err),
 		}
-	} else if err != nil {
+		return rc, err
+	}
+
+	if err != nil {
 		err = fmt.Errorf("NewReader: %w", err)
 	}
 	return rc, err
@@ -616,14 +613,14 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 	// properties.
 	latestGcsObj, isClobbered, err := f.clobbered(ctx, true, true)
 
-	if err != nil {
-		return
-	}
-
 	if isClobbered {
 		err = &gcsfuse_errors.FileClobberedError{
 			Err: err,
 		}
+		return
+	}
+
+	if err != nil {
 		return
 	}
 

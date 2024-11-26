@@ -32,8 +32,7 @@ import (
 )
 
 var (
-	DefaultFSError     = syscall.EIO
-	ErrStaleFileHandle = syscall.Errno(116)
+	DefaultFSError = syscall.EIO
 )
 
 func errno(err error) error {
@@ -55,7 +54,7 @@ func errno(err error) error {
 	// The object is modified or deleted by a concurrent process
 	var clobberedErr *gcsfuse_errors.FileClobberedError
 	if errors.As(err, &clobberedErr) {
-		return ErrStaleFileHandle
+		return syscall.ESTALE
 	}
 
 	if errors.Is(err, storage.ErrObjectNotExist) {
