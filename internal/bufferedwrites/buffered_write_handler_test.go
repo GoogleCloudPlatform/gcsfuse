@@ -112,26 +112,28 @@ func (testSuite *BufferedWriteTest) TestWrite_SignalUploadFailureInBetween() {
 
 func (testSuite *BufferedWriteTest) TestFlushWithNonNilCurrentBlock() {
 	err := testSuite.bwh.Write([]byte("hi"), 0)
-	currentBlock := testSuite.bwh.current
 	require.Nil(testSuite.T(), err)
 
-	err = testSuite.bwh.Flush()
+	obj, err := testSuite.bwh.Flush()
 
 	require.NoError(testSuite.T(), err)
 	assert.Equal(testSuite.T(), nil, testSuite.bwh.current)
-	// The current block should be available on the free channel as flush triggers
-	// an upload before finalize.
-	freeCh := testSuite.bwh.blockPool.FreeBlocksChannel()
-	got := <-freeCh
-	assert.Equal(testSuite.T(), &currentBlock, &got)
+	// Validate object.
+	assert.NotNil(testSuite.T(), obj)
+	assert.Equal(testSuite.T(), uint64(2), obj.Size)
+	// Validate that all blocks have been freed up.
+	assert.Equal(testSuite.T(), 0, len(testSuite.bwh.blockPool.FreeBlocksChannel()))
 }
 
 func (testSuite *BufferedWriteTest) TestFlushWithNilCurrentBlock() {
 	require.Nil(testSuite.T(), testSuite.bwh.current)
 
-	err := testSuite.bwh.Flush()
+	obj, err := testSuite.bwh.Flush()
 
 	assert.NoError(testSuite.T(), err)
+	// Validate empty object created.
+	assert.NotNil(testSuite.T(), obj)
+	assert.Equal(testSuite.T(), uint64(0), obj.Size)
 }
 
 func (testSuite *BufferedWriteTest) TestFlush_SignalUploadFailureDuringWrite() {
@@ -141,7 +143,8 @@ func (testSuite *BufferedWriteTest) TestFlush_SignalUploadFailureDuringWrite() {
 	// Close the channel to simulate failure in uploader.
 	close(testSuite.bwh.uploadHandler.SignalUploadFailure())
 
-	err = testSuite.bwh.Flush()
+	obj, err := testSuite.bwh.Flush()
 	require.Error(testSuite.T(), err)
 	assert.ErrorContains(testSuite.T(), err, "file cannot be finalized: error while uploading object to GCS")
+	assert.Nil(testSuite.T(), obj)
 }
