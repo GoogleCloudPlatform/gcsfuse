@@ -71,11 +71,13 @@ This happens when gcsfuse is mounted with http1 client (default) and the applica
 Please refer [here](https://cloud.google.com/storage/docs/gcsfuse-mount#authenticate_by_using_a_service_account) to know more about permissions
 (e.g.  **Issue**:mkdir: cannot create directory ‘gcs/test’: Permission denied. User can check specific errors by enabling logs with --log-severity=TRACE flags.  
 **Solution** - depending upon the use-case, you can choose one of the following options.
-* Explicitly provide the service account roles/storage.objectAdmin role on the bucket.
-* Set the VM's scope to storage-full or read-write to give the VM write-access to the cloud-storage buckets. For this:
-  * Turn-off the instance
-  * Change the VM's scope either using the GCPconsole or by executing  `gcloud beta compute instances set-scopes INSTANCE_NAME --scopes=storage-full`
-  * Start the instance
+* If you are explicitly authenticating for a specific service account by providing say a key-file, then make sure that the service account has appropriate IAM role for the operation e.g. roles/storage.objectAdmin, roles/storage.objectUser
+* If you are using the default service account i.e. not specifying a key-file, then ensure that
+  * The VM's service account has got the required IAM roles for the operation e.g. roles/storage.objectUser to allow read-write access.
+  * The VM's scope has been appropriately set. You can set the scope to storage-full to give the VM full-access to the cloud-storage buckets. For this:
+    * Turn-off the instance
+    * Change the VM's scope either by using the GCP console or by executing  `gcloud beta compute instances set-scopes INSTANCE_NAME --scopes=storage-full`
+    * Start the instance
 
 ### Bad gateway error while installing/upgrading GCSFuse:
 `Err: http://packages.cloud.google.com/apt gcsfuse-focal/main amd64 gcsfuse amd64 1.2.0`<br/>`502  Bad Gateway [IP: xxx.xxx.xx.xxx 80]`
