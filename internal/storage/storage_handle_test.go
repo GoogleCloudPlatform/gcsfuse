@@ -203,6 +203,32 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithInvalidClientProtoco
 	assert.Contains(testSuite.T(), err.Error(), "invalid client-protocol requested: test-protocol")
 }
 
+func (testSuite *StorageHandleTest) TestNewStorageHandleWithNonNilDirectPathDetector() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.ExperimentalEnableJsonRead = true
+	sc.ClientProtocol = "grpc"
+
+	handleCreated, err := NewStorageHandle(testSuite.ctx, sc)
+	storageClient, _ := handleCreated.(*storageClient)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), handleCreated)
+	assert.NotNil(testSuite.T(), storageClient.directPathDetector)
+}
+
+func (testSuite *StorageHandleTest) TestNewStorageHandleWithNilDirectPathDetector() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.ExperimentalEnableJsonRead = true
+	sc.ClientProtocol = "http1"
+
+	handleCreated, err := NewStorageHandle(testSuite.ctx, sc)
+	storageClient, _ := handleCreated.(*storageClient)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), handleCreated)
+	assert.Nil(testSuite.T(), storageClient.directPathDetector)
+}
+
 func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ClientProtocol = cfg.GRPC
