@@ -88,5 +88,5 @@ func (testSuite *ErrorMapping) TestFileClobberedError() {
 	}
 
 	gotErrno := errno(clobberedErr)
-	assert.Equal(testSuite.T(), ErrStaleFileHandle, gotErrno)
+	assert.Equal(testSuite.T(), syscall.ESTALE, gotErrno)
 }
