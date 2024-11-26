@@ -119,16 +119,17 @@ func (testSuite *BufferedWriteTest) TestFlushWithNilCurrentBlock() {
 	assert.NoError(testSuite.T(), err)
 }
 
-func TestBufferedWriteHandler_SignalUploadFailure(t *testing.T) {
-	mockSignalUploadFailure := make(chan error)
-	mockUploadHandler := &UploadHandler{
-		signalUploadFailure: mockSignalUploadFailure,
-	}
-	wh := &BufferedWriteHandler{
-		uploadHandler: mockUploadHandler,
-	}
+func (testSuite *BufferedWriteTest) TestWriteToLocalFile_StreamingWritesEnabled_SignalUploadFailure() {
+	err := testSuite.bwh.Write([]byte("hello"), 0)
+	require.Nil(testSuite.T(), err)
+	fileInfo := testSuite.bwh.WriteFileInfo()
+	assert.Equal(testSuite.T(), testSuite.bwh.mtime, fileInfo.Mtime)
+	assert.Equal(testSuite.T(), int64(5), fileInfo.TotalSize)
 
-	actualChannel := wh.SignalUploadFailure()
+	// Close the channel to simulate failure in uploader.
+	close(testSuite.bwh.uploadHandler.SignalUploadFailure())
 
-	assert.Equal(t, mockSignalUploadFailure, actualChannel)
+	err = testSuite.bwh.Write([]byte("hello"), 5)
+	require.Error(testSuite.T(), err)
+	assert.ErrorContains(testSuite.T(), err, "BufferedWriteHandler.Write(): error while uploading object to GCS")
 }

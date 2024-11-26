@@ -71,6 +71,14 @@ func (wh *BufferedWriteHandler) Write(data []byte, offset int64) (err error) {
 		return fmt.Errorf("non sequential writes")
 	}
 
+	// Fail early if the uploadHandler has failed.
+	select {
+	case <-wh.uploadHandler.SignalUploadFailure():
+		return fmt.Errorf("BufferedWriteHandler.Write(): error while uploading object to GCS")
+	default:
+		break
+	}
+
 	dataWritten := 0
 	for dataWritten < len(data) {
 		if wh.current == nil {
@@ -133,8 +141,4 @@ func (wh *BufferedWriteHandler) WriteFileInfo() WriteFileInfo {
 		TotalSize: wh.totalSize,
 		Mtime:     wh.mtime,
 	}
-}
-
-func (wh *BufferedWriteHandler) SignalUploadFailure() chan error {
-	return wh.uploadHandler.signalUploadFailure
 }

@@ -476,7 +476,7 @@ func (f *FileInode) Read(
 	return
 }
 
-// Serve write for this file with semantics matching fuseops.WriteFileOp.
+// Serve a write for this file with semantics matching fuseops.WriteFileOp.
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Write(
@@ -681,8 +681,8 @@ func (f *FileInode) CreateEmptyTempFile() (err error) {
 	return
 }
 
-// ensureBufferedWriteHandler ensures that buffered write handler is non nil.
-func (f *FileInode) ensureBufferedWriteHandler() (err error) {
+// writeToBuffer writes the given content to the in-memory buffer.
+func (f *FileInode) writeToBuffer(data []byte, offset int64) (err error) {
 	// Initialize bufferedWriteHandler if not done already.
 	if f.bwh == nil {
 		f.bwh, err = bufferedwrites.NewBWHandler(f.name.GcsObjectName(), f.bucket, f.writeConfig.BlockSizeMb, f.writeConfig.MaxBlocksPerFile, f.globalMaxBlocksSem)
@@ -690,19 +690,8 @@ func (f *FileInode) ensureBufferedWriteHandler() (err error) {
 			return fmt.Errorf("failed to create bufferedWriteHandler: %w", err)
 		}
 	}
+
+	err = f.bwh.Write(data, offset)
+
 	return
-}
-
-// writeToBuffer writes the given content to the in-memory buffer.
-func (f *FileInode) writeToBuffer(data []byte, offset int64) error {
-	if err := f.ensureBufferedWriteHandler(); err != nil {
-		return err
-	}
-
-	select {
-	case <-f.bwh.SignalUploadFailure():
-		return fmt.Errorf("buffered writes: error while writing")
-	default:
-		return f.bwh.Write(data, offset)
-	}
 }

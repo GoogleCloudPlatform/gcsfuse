@@ -1006,23 +1006,6 @@ func (t *FileTest) MultipleWritesToLocalFileWhenStreamingWritesAreEnabled() {
 	AssertEq(7, t.in.bwh.WriteFileInfo().TotalSize)
 }
 
-func (t *FileTest) TestWriteToLocalFile_StreamingWritesEnabled_SignalUploadFailure() {
-	// Create a local file inode.
-	t.createInodeWithLocalParam("test", true)
-	t.in.writeConfig = getWriteConfig()
-	AssertEq(nil, t.in.bwh)
-	err := t.in.Write(context.Background(), []byte("hello"), 0)
-	AssertEq(nil, err)
-	AssertNe(nil, t.in.bwh)
-
-	// Close the channel to simulate a signal
-	close(t.in.bwh.SignalUploadFailure())
-
-	err = t.in.Write(context.Background(), []byte("hello"), 5)
-	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(), "buffered writes: error while writing"))
-}
-
 func getWriteConfig() *cfg.WriteConfig {
 	return &cfg.WriteConfig{
 		MaxBlocksPerFile:                  10,

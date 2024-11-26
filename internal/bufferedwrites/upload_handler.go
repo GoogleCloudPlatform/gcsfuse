@@ -74,7 +74,7 @@ func (uh *UploadHandler) Upload(block block.Block) error {
 		if err != nil {
 			// createObjectWriter can only fail here due to throttling, so we will not
 			// handle this error explicitly or fall back to temp file flow.
-			return fmt.Errorf("createObjectWriter failed: %w", err)
+			return fmt.Errorf("createObjectWriter failed for object %s: %w", uh.objectName, err)
 		}
 		// Start the uploader goroutine.
 		go uh.uploader()
@@ -103,13 +103,13 @@ func (uh *UploadHandler) uploader() {
 	for currBlock := range uh.uploadCh {
 		_, err := io.Copy(uh.writer, currBlock.Reader())
 		if err != nil {
-			logger.Errorf("buffered write upload failed: error in io.Copy: %v", err)
-			// close the channel to signal upload failure
+			logger.Errorf("buffered write upload failed for object %s: error in io.Copy: %v", uh.objectName, err)
+			// Close the channel to signal upload failure.
 			close(uh.signalUploadFailure)
 
 			// Close the writer to finalize the object creation on GCS.
 			if closeErr := uh.writer.Close(); closeErr != nil {
-				logger.Errorf("Error in finalizing object: %v", closeErr)
+				logger.Errorf("Error in finalizing object %s: %v", uh.objectName, closeErr)
 				return
 			}
 			return
@@ -131,15 +131,19 @@ func (uh *UploadHandler) Finalize() error {
 		// small writes of size less than 1 block.
 		err := uh.createObjectWriter()
 		if err != nil {
-			return fmt.Errorf("createObjectWriter: %w", err)
+			return fmt.Errorf("createObjectWriter failed for object %s: %w", uh.objectName, err)
 		}
 	}
 
 	err := uh.writer.Close()
 	if err != nil {
-		logger.Errorf("UploadHandler.Finalize(): %v", err)
+		logger.Errorf("UploadHandler.Finalize(%s): %v", uh.objectName, err)
 		close(uh.signalUploadFailure)
-		return fmt.Errorf("writer.Close: %w", err)
+		return fmt.Errorf("writer.Close failed for object %s: %w", uh.objectName, err)
 	}
 	return nil
+}
+
+func (uh *UploadHandler) SignalUploadFailure() chan error {
+	return uh.signalUploadFailure
 }

@@ -150,12 +150,7 @@ func (t *UploadHandlerTest) TestFinalize_WriterCloseFails() {
 
 	assert.Error(t.T(), err)
 	assert.ErrorContains(t.T(), err, "writer.Close")
-	select {
-	case <-t.uh.signalUploadFailure:
-		break
-	case <-time.After(200 * time.Millisecond):
-		t.T().Error("no signal received for non recoverable failure")
-	}
+	assertUploadFailureSignal(t.T(), t.uh)
 }
 
 func (t *UploadHandlerTest) TestUploadHandler_singleBlock_ErrorInCopy() {
@@ -174,15 +169,10 @@ func (t *UploadHandlerTest) TestUploadHandler_singleBlock_ErrorInCopy() {
 
 	// Upload the block.
 	err = t.uh.Upload(b)
-	require.NoError(t.T(), err)
 
+	require.NoError(t.T(), err)
 	// Expect an error on the signalUploadFailure channel due to error while copying content to GCS writer.
-	select {
-	case <-t.uh.signalUploadFailure:
-		break
-	case <-time.After(200 * time.Millisecond):
-		t.T().Error("Expected an error on signalUploadFailure channel")
-	}
+	assertUploadFailureSignal(t.T(), t.uh)
 }
 
 func (t *UploadHandlerTest) TestUploadHandler_multipleBlocks_ErrorInCopy() {
@@ -210,11 +200,27 @@ func (t *UploadHandlerTest) TestUploadHandler_multipleBlocks_ErrorInCopy() {
 		require.NoError(t.T(), err)
 	}
 
-	// Expect an error on the signalUploadFailure channel.
+	assertUploadFailureSignal(t.T(), t.uh)
+}
+
+func assertUploadFailureSignal(t *testing.T, handler *UploadHandler) {
+	t.Helper()
+
 	select {
-	case <-t.uh.signalUploadFailure:
+	case <-handler.signalUploadFailure:
 		break
 	case <-time.After(200 * time.Millisecond):
-		t.T().Error("Expected an error on signalUploadFailure channel")
+		t.Error("Expected an error on signalUploadFailure channel")
 	}
+}
+
+func TestBufferedWriteHandler_SignalUploadFailure(t *testing.T) {
+	mockSignalUploadFailure := make(chan error)
+	uploadHandler := &UploadHandler{
+		signalUploadFailure: mockSignalUploadFailure,
+	}
+
+	actualChannel := uploadHandler.SignalUploadFailure()
+
+	assert.Equal(t, mockSignalUploadFailure, actualChannel)
 }
