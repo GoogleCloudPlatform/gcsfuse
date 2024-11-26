@@ -66,6 +66,8 @@ const (
 	maxParallelDownloads                   = -1
 	downloadChunkSizeMB                    = 4
 	enableCrcCheck                         = true
+	http1ClientProtocol                    = "http1"
+	grpcClientProtocol                     = "grpc"
 )
 
 var (
@@ -89,6 +91,7 @@ type gcsfuseTestFlags struct {
 	enableParallelDownloads bool
 	enableODirect           bool
 	cacheDirPath            string
+	clientProtocol          string
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -129,9 +132,25 @@ func createConfigFile(flags *gcsfuseTestFlags) string {
 			"enable-o-direct":             flags.enableODirect,
 		},
 		"cache-dir": cacheDirPath,
+		"gcs-connection": map[string]interface{}{
+			"client-protocol": flags.clientProtocol,
+		},
 	}
 	filePath := setup.YAMLConfigFile(mountConfig, flags.fileName)
 	return filePath
+}
+
+func appendClientProtocolConfigToFlagSet(testFlagSet []gcsfuseTestFlags) (testFlagsWithHttpAndGrpc []gcsfuseTestFlags) {
+	for _, testFlags := range testFlagSet {
+		testFlagsWithHttp := testFlags
+		testFlagsWithHttp.clientProtocol = http1ClientProtocol
+		testFlagsWithHttpAndGrpc = append(testFlagsWithHttpAndGrpc, testFlagsWithHttp)
+
+		testFlagsWithGrpc := testFlags
+		testFlagsWithGrpc.clientProtocol = grpcClientProtocol
+		testFlagsWithHttpAndGrpc = append(testFlagsWithHttpAndGrpc, testFlagsWithGrpc)
+	}
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
