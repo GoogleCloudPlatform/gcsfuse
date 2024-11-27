@@ -31,6 +31,7 @@ import (
 
 type ErrorMapping struct {
 	suite.Suite
+	preconditionErr bool
 }
 
 func TestWithErrorMapping(testSuite *testing.T) {
@@ -41,7 +42,7 @@ func (testSuite *ErrorMapping) TestPermissionDeniedGrpcApiError() {
 	statusErr := status.New(codes.PermissionDenied, "Permission denied")
 	apiError, _ := apierror.FromError(statusErr.Err())
 
-	fsErr := errno(apiError)
+	fsErr := errno(apiError, testSuite.preconditionErr)
 
 	assert.Equal(testSuite.T(), syscall.EACCES, fsErr)
 }
@@ -50,7 +51,7 @@ func (testSuite *ErrorMapping) TestNotFoundGrpcApiError() {
 	statusErr := status.New(codes.NotFound, "Not found")
 	apiError, _ := apierror.FromError(statusErr.Err())
 
-	fsErr := errno(apiError)
+	fsErr := errno(apiError, testSuite.preconditionErr)
 
 	assert.Equal(testSuite.T(), syscall.ENOENT, fsErr)
 }
@@ -59,7 +60,7 @@ func (testSuite *ErrorMapping) TestCanceledGrpcApiError() {
 	statusErr := status.New(codes.Canceled, "Canceled error")
 	apiError, _ := apierror.FromError(statusErr.Err())
 
-	fsErr := errno(apiError)
+	fsErr := errno(apiError, testSuite.preconditionErr)
 
 	assert.Equal(testSuite.T(), syscall.EINTR, fsErr)
 }
@@ -68,7 +69,7 @@ func (testSuite *ErrorMapping) TestUnAuthenticatedGrpcApiError() {
 	statusErr := status.New(codes.Unauthenticated, "UnAuthenticated error")
 	apiError, _ := apierror.FromError(statusErr.Err())
 
-	fsErr := errno(apiError)
+	fsErr := errno(apiError, testSuite.preconditionErr)
 
 	assert.Equal(testSuite.T(), syscall.EACCES, fsErr)
 }
@@ -77,7 +78,7 @@ func (testSuite *ErrorMapping) TestUnAuthenticatedHttpGoogleApiError() {
 	googleApiError := &googleapi.Error{Code: http.StatusUnauthorized}
 	googleApiError.Wrap(fmt.Errorf("UnAuthenticated error"))
 
-	fsErr := errno(googleApiError)
+	fsErr := errno(googleApiError, testSuite.preconditionErr)
 
 	assert.Equal(testSuite.T(), syscall.EACCES, fsErr)
 }
@@ -87,6 +88,7 @@ func (testSuite *ErrorMapping) TestFileClobberedError() {
 		Err: fmt.Errorf("object doesn't exist"),
 	}
 
-	gotErrno := errno(clobberedErr)
+	gotErrno := errno(clobberedErr, testSuite.preconditionErr)
+
 	assert.Equal(testSuite.T(), syscall.ESTALE, gotErrno)
 }

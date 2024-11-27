@@ -35,7 +35,7 @@ var (
 	DefaultFSError = syscall.EIO
 )
 
-func errno(err error) error {
+func errno(err error, preconditionErr bool) error {
 	if err == nil {
 		return nil
 	}
@@ -54,6 +54,9 @@ func errno(err error) error {
 	// The object is modified or deleted by a concurrent process
 	var clobberedErr *gcsfuse_errors.FileClobberedError
 	if errors.As(err, &clobberedErr) {
+		if preconditionErr {
+			return nil
+		}
 		return syscall.ESTALE
 	}
 
@@ -101,14 +104,16 @@ func errno(err error) error {
 
 // WithErrorMapping wraps a FileSystem, processing the returned errors, and
 // mapping them into syscall.Errno that can be understood by FUSE.
-func WithErrorMapping(wrapped fuseutil.FileSystem) fuseutil.FileSystem {
+func WithErrorMapping(wrapped fuseutil.FileSystem, preconditionError bool) fuseutil.FileSystem {
 	return &errorMapping{
-		wrapped: wrapped,
+		wrapped:           wrapped,
+		preconditionError: preconditionError,
 	}
 }
 
 type errorMapping struct {
-	wrapped fuseutil.FileSystem
+	wrapped           fuseutil.FileSystem
+	preconditionError bool
 }
 
 func (em *errorMapping) handlePanic() {
@@ -120,7 +125,7 @@ func (em *errorMapping) handlePanic() {
 }
 
 func (em *errorMapping) mapError(op string, err error) error {
-	fsErr := errno(err)
+	fsErr := errno(err, em.preconditionError)
 	if err != nil && fsErr != nil && err != fsErr {
 		logger.Errorf("%s: %v, %v", op, fsErr, err)
 	}

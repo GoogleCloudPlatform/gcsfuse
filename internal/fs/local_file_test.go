@@ -33,7 +33,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/jacobsa/fuse/fusetesting"
-	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
 )
@@ -245,11 +244,9 @@ func (t *LocalFileTest) StatOnUnlinkedLocalFile() {
 	// Stat the local file and validate error.
 	t.validateNoFileOrDirError(FileName)
 
-	// Validate that flushing local unlinked file throws stale NFS file handle
-	// error and the object is not created on GCS.
+	// Close the file and validate that file is not created on GCS.
 	err = t.closeLocalFile(&t.f1)
-	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
+	AssertEq(nil, err)
 	t.validateObjectNotFoundErr(FileName)
 }
 
@@ -590,11 +587,9 @@ func (t *LocalFileTest) TestReadDirContainingUnlinkedLocalFiles() {
 	// Close the local files.
 	t.closeFileAndValidateObjectContents(&t.f1, FileName+"1", "")
 	t.closeFileAndValidateObjectContents(&t.f2, FileName+"2", "")
-	// Validate flushing unlinked local file throws stale NFS file handle error.
-	err = t.closeLocalFile(&t.f3)
-	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
 	// Verify unlinked file is not written to GCS
+	err = t.closeLocalFile(&t.f3)
+	AssertEq(nil, err)
 	t.validateObjectNotFoundErr(FileName + "3")
 }
 
@@ -609,11 +604,9 @@ func (t *LocalFileTest) TestUnlinkOfLocalFile() {
 	// Verify unlink operation succeeds.
 	AssertEq(nil, err)
 	t.validateNoFileOrDirError(FileName)
-	// Validate flushing unlinked local file throws stale NFS file handle error.
 	err = t.closeLocalFile(&t.f1)
-	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
-	// Verify unlinked is not present on GCS.
+	AssertEq(nil, err)
+	// Validate file it is not present on GCS.
 	t.validateObjectNotFoundErr(FileName)
 }
 
@@ -629,11 +622,11 @@ func (t *LocalFileTest) TestWriteOnUnlinkedLocalFileSucceeds() {
 	// Write to unlinked local file.
 	_, err = t.f1.WriteString(FileContents)
 	AssertEq(nil, err)
-	// Validate flushing unlinked local file throws stale NFS file handle error.
 	err = t.closeLocalFile(&t.f1)
-	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
-	// Verify unlinked file is not written to GCS
+
+	// Validate flush file does not throw error.
+	AssertEq(nil, err)
+	// Validate unlinked file is not written to GCS
 	t.validateObjectNotFoundErr(FileName)
 }
 
@@ -648,17 +641,13 @@ func (t *LocalFileTest) TestSyncOnUnlinkedLocalFile() {
 	// Verify unlink operation succeeds.
 	AssertEq(nil, err)
 	t.validateNoFileOrDirError(FileName)
-	// Validate sync operation throws stale NFS file handle error
-	// and does not write to GCS after unlink.
+	// Validate sync operation does not write to GCS after unlink.
 	err = t.f1.Sync()
-	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
+	AssertEq(nil, err)
 	t.validateObjectNotFoundErr(FileName)
-	// Validate flushing unlinked local file throws stale NFS file handle error.
+	// Close the local file and validate it is not present on GCS.
 	err = t.closeLocalFile(&t.f1)
-	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
-	// Verify unlinked file is not present on GCS.
+	AssertEq(nil, err)
 	t.validateObjectNotFoundErr(FileName)
 }
 
@@ -700,11 +689,9 @@ func (t *LocalFileTest) TestRmDirOfDirectoryContainingGCSAndLocalFiles() {
 	// Validate writing content to unlinked local file does not throw error
 	_, err = t.f1.WriteString(FileContents)
 	AssertEq(nil, err)
-	// Validate flush file throws stale NFS file handle error and does not create
-	// object on GCS.
+	// Validate flush file throws IO error and does not create object on GCS
 	err = t.closeLocalFile(&t.f1)
-	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
+	AssertEq(nil, err)
 	t.validateObjectNotFoundErr("explicit/" + explicitLocalFileName)
 	// Validate synced files are also deleted.
 	t.validateObjectNotFoundErr("explicit/foo")
@@ -726,15 +713,12 @@ func (t *LocalFileTest) TestRmDirOfDirectoryContainingOnlyLocalFiles() {
 	t.validateNoFileOrDirError("explicit/" + explicitLocalFileName)
 	t.validateNoFileOrDirError("explicit/" + FileName)
 	t.validateNoFileOrDirError("explicit")
-	// Validate flushing local unlinked files throw stale NFS file handle errors
-	// and do not create objects on GCS.
+	// Close the local files and validate they are not present on GCS.
 	err = t.closeLocalFile(&t.f1)
-	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
+	AssertEq(nil, err)
 	t.validateObjectNotFoundErr("explicit/" + explicitLocalFileName)
 	err = t.closeLocalFile(&t.f2)
-	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
+	AssertEq(nil, err)
 	t.validateObjectNotFoundErr("explicit/" + FileName)
 	// Validate directory is also deleted.
 	t.validateObjectNotFoundErr("explicit/")
@@ -807,16 +791,11 @@ func (t *LocalFileTest) TestReadSymlinkForDeletedLocalFile() {
 	AssertEq(nil, err)
 	ExpectEq(filePath, target)
 
-	// Attempt to unlink local file.
+	// Remove filePath and then close the fileHandle to avoid syncing to GCS.
 	err = os.Remove(filePath)
-	// Verify unlink operation succeeds.
 	AssertEq(nil, err)
-
-	// Validate flushing local unlinked file throws stale NFS file handle error
-	// and does not create object on GCS.
 	err = t.closeLocalFile(&t.f1)
-	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
+	AssertEq(nil, err)
 	t.validateObjectNotFoundErr(FileName)
 
 	// Reading symlink should fail.

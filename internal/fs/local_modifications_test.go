@@ -2177,17 +2177,15 @@ func (t *FileTest) Sync_Clobbered() {
 
 	AssertEq(nil, err)
 
-	// Attempt to sync the file should result in clobbered error.
+	// Attempt to sync the file. This may result in an error if the OS has
+	// decided to hold back the writes from above until now (in which case the
+	// inode will fail to load the source object), or it may fail silently.
+	// Either way, this should not result in a new generation being created.
 	err = t.f1.Sync()
-	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
-	// Closing file should also give error
-	err = t.f1.Close()
-	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
-	// Make f1 nil, so that another attempt is not taken in TearDown to close the
-	// file
-	t.f1 = nil
+	if err != nil {
+		ExpectThat(err, Error(HasSubstr("input/output error")))
+	}
+
 	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
 	AssertEq(nil, err)
 	ExpectEq("foobar", string(contents))
