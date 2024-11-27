@@ -51,6 +51,7 @@ file-system:
   kernel-list-cache-ttl-secs: 300
   rename-dir-limit: 10
   temp-dir: ~/temp
+  precondition-errors: false
 list:
   enable-empty-managed-folders: true
 enable-hns: false

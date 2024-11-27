@@ -197,7 +197,7 @@ func TestReadOnlyTest(t *testing.T) {
 			cacheDirPath:            getDefaultCacheDirPathForTests(),
 		},
 	}
-
+	flagsSet = appendClientProtocolConfigToFlagSet(flagsSet)
 	// Run tests.
 	for _, flags := range flagsSet {
 		configFilePath := createConfigFile(&flags)

@@ -47,7 +47,7 @@ func TestMain(m *testing.M) {
 	// No explicit flags need to be set. Only debugs log are to be enabled,
 	// which are enabled by default by static_mounting.RunTests
 	// and by the above call to set log-file.
-	flagsSet := [][]string{{}}
+	flagsSet := [][]string{{}, {"--client-protocol=grpc"}}
 
 	successCode := 0
 	if successCode == 0 {

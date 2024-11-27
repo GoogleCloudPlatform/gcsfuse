@@ -2755,8 +2755,8 @@ func (t *readTest) ParticularGeneration_NeverExisted() {
 		_, err = rc.Read(make([]byte, 1))
 	}
 
-	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
-	ExpectThat(err, Error(MatchesRegexp("(?i)not found|404")))
+	AssertThat(err, HasSameTypeAs(storage.ErrObjectNotExist))
+	ExpectThat(err, Error(MatchesRegexp("(?i)object doesn't exist")))
 }
 
 func (t *readTest) ParticularGeneration_HasBeenDeleted() {
@@ -2857,8 +2857,8 @@ func (t *readTest) ParticularGeneration_ObjectHasBeenOverwritten() {
 		_, err = rc.Read(make([]byte, 1))
 	}
 
-	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
-	ExpectThat(err, Error(MatchesRegexp("(?i)not found|404")))
+	AssertThat(err, HasSameTypeAs(storage.ErrObjectNotExist))
+	ExpectThat(err, Error(MatchesRegexp("(?i)object doesn't exist")))
 
 	// Reading by the new generation should work.
 	req.Generation = o2.Generation

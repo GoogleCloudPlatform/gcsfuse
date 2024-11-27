@@ -194,6 +194,16 @@
     will throw error.
   default: "0"
 
+- config-path: "file-system.precondition-errors"
+  flag-name: "precondition-errors"
+  type: "bool"
+  usage: >-
+    Throw Stale NFS file handle error in case the object being synced or read 
+    from is modified by some other concurrent process. This helps prevent 
+    silent data loss or data corruption.
+  hide-flag: true
+  default: true
+
 - config-path: "file-system.rename-dir-limit"
   flag-name: "rename-dir-limit"
   type: "int"
@@ -205,7 +215,7 @@
   type: "resolvedPath"
   usage: >-
     Path to the temporary directory where writes are staged prior to upload to
-    Cloud Storage. (default: system default, likely /tmp)"
+    Cloud Storage. (default: system default, likely /tmp)
   default: ""
 
 - config-path: "file-system.uid"
