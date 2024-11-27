@@ -15,7 +15,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/spf13/viper"
@@ -47,13 +46,13 @@ func parseConfigFile(configPath string) (*Config, error) {
 	}
 
 	// Access the values from the struct
-	fmt.Println("Target Host:", config.TargetHost)
+	log.Println("Target Host:", config.TargetHost)
 	for _, retry := range config.RetryConfig {
-		fmt.Println("Method:", retry.Method)
-		fmt.Println("File Name:", retry.FileName)
-		fmt.Println("Retry instructions:", retry.RetryInstruction)
-		fmt.Println("Retry Count:", retry.RetryCount)
-		fmt.Println("Skip Count:", retry.SkipCount)
+		log.Println("Method:", retry.Method)
+		log.Println("File Name:", retry.FileName)
+		log.Println("Retry instructions:", retry.RetryInstruction)
+		log.Println("Retry Count:", retry.RetryCount)
+		log.Println("Skip Count:", retry.SkipCount)
 	}
 
 	return &config, nil

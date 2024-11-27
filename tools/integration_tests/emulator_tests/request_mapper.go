@@ -15,7 +15,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
@@ -39,7 +39,6 @@ const (
 func deduceRequestType(r *http.Request) RequestType {
 	path := r.URL.Path
 	method := r.Method
-	fmt.Println("Method: ", method)
 
 	// Generic JSON API format:
 	// https://storage.googleapis.com/storage/v1/b/)<bucket-name>/o/<object-name>
@@ -83,17 +82,13 @@ func handleJsonWrite(r *http.Request) error {
 }
 
 func handleRequest(requestType RequestType, r *http.Request) error {
-	fmt.Println("Method: ", r.Method, requestType)
 	switch requestType {
 	case XmlRead:
 		return handleXMLRead(r)
 	case JsonCreate:
 		return handleJsonWrite(r)
-	case JsonStat:
-		fmt.Println("No handling for...json stat")
-		return nil
 	default:
-		fmt.Println("No handling for unknown operation")
+		log.Println("No handling for unknown operation")
 		return nil
 	}
 }
