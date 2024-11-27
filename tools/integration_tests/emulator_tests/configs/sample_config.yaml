@@ -1,0 +1,10 @@
+targetHost: test9090
+retryConfig:
+- method: stat
+  fileName: test
+  retryInstruction: test1
+  retryCount: 3
+- method: read
+  fileName: tes
+  retryInstruction: test2
+  retryCount: 1
