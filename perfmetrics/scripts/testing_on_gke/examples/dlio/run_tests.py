@@ -55,33 +55,37 @@ def createHelmInstallCommands(
     resourceRequests = resourceLimits
 
   for dlioWorkload in dlioWorkloads:
-    for batchSize in dlioWorkload.batchSizes:
-      chartName, podName, outputDirPrefix = dlio_workload.DlioChartNamePodName(
-          dlioWorkload, instanceId, batchSize
-      )
-      commands = [
-          f'helm install {chartName} unet3d-loading-test',
-          f'--set bucketName={dlioWorkload.bucket}',
-          f'--set scenario={dlioWorkload.scenario}',
-          f'--set dlio.numFilesTrain={dlioWorkload.numFilesTrain}',
-          f'--set dlio.recordLength={dlioWorkload.recordLength}',
-          f'--set dlio.batchSize={batchSize}',
-          f'--set instanceId={instanceId}',
-          (
-              '--set'
-              f' gcsfuse.mountOptions={escape_commas_in_string(dlioWorkload.gcsfuseMountOptions)}'
-          ),
-          f'--set nodeType={machineType}',
-          f'--set podName={podName}',
-          f'--set outputDirPrefix={outputDirPrefix}',
-          f"--set resourceLimits.cpu={resourceLimits['cpu']}",
-          f"--set resourceLimits.memory={resourceLimits['memory']}",
-          f"--set resourceRequests.cpu={resourceRequests['cpu']}",
-          f"--set resourceRequests.memory={resourceRequests['memory']}",
-      ]
+    if dlioWorkload.numEpochs > 0:
+      for batchSize in dlioWorkload.batchSizes:
+        chartName, podName, outputDirPrefix = (
+            dlio_workload.DlioChartNamePodName(
+                dlioWorkload, instanceId, batchSize
+            )
+        )
+        commands = [
+            f'helm install {chartName} unet3d-loading-test',
+            f'--set bucketName={dlioWorkload.bucket}',
+            f'--set scenario={dlioWorkload.scenario}',
+            f'--set dlio.numFilesTrain={dlioWorkload.numFilesTrain}',
+            f'--set dlio.recordLength={dlioWorkload.recordLength}',
+            f'--set dlio.batchSize={batchSize}',
+            f'--set instanceId={instanceId}',
+            (
+                '--set'
+                f' gcsfuse.mountOptions={escape_commas_in_string(dlioWorkload.gcsfuseMountOptions)}'
+            ),
+            f'--set nodeType={machineType}',
+            f'--set podName={podName}',
+            f'--set outputDirPrefix={outputDirPrefix}',
+            f"--set resourceLimits.cpu={resourceLimits['cpu']}",
+            f"--set resourceLimits.memory={resourceLimits['memory']}",
+            f"--set resourceRequests.cpu={resourceRequests['cpu']}",
+            f"--set resourceRequests.memory={resourceRequests['memory']}",
+            f'--set numEpochs={dlioWorkload.numEpochs}',
+        ]
 
-      helm_command = ' '.join(commands)
-      helm_commands.append(helm_command)
+        helm_command = ' '.join(commands)
+        helm_commands.append(helm_command)
   return helm_commands
 
 

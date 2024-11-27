@@ -25,6 +25,7 @@ nodeType: n2-standard-96
 instanceId: ldap-yyyymmdd-hhmmss
 podName:
 outputDirPrefix:
+numEpochs: 4
 
 resourceLimits:
   cpu: 0
