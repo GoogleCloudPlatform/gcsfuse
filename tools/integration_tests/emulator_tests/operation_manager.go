@@ -65,7 +65,7 @@ func (om *OperationManager) retrieveOperation(requestType RequestType) string {
 func (om *OperationManager) addRetryConfig(rc RetryConfig) {
 	rt := RequestType(rc.Method)
 	println(rt)
-	if _, ok := om.retryConfigs[rt]; ok {
+	if om.retryConfigs[rt] != nil {
 		// Key exists, append the new retryConfig to the existing list
 		om.retryConfigs[rt] = append(om.retryConfigs[rt], rc)
 	} else {

@@ -62,7 +62,7 @@ func (ph ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	err = handleRequest(requestType, req)
 	if err != nil {
-		fmt.Printf("Error in handling the request: %v", err)
+		log.Printf("Error in handling the request: %v", err)
 	}
 
 	// Send the request to the target server
@@ -98,7 +98,10 @@ func (ph ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Copy the response body
 	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
+	_, err = io.Copy(w, resp.Body)
+	if err != nil {
+		log.Printf("Error in coping response body: %v", err)
+	}
 }
 
 // ProxyServer represents a simple proxy server
