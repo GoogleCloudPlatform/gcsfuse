@@ -203,6 +203,51 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithInvalidClientProtoco
 	assert.Contains(testSuite.T(), err.Error(), "invalid client-protocol requested: test-protocol")
 }
 
+func (testSuite *StorageHandleTest) TestNewStorageHandleDirectPathDetector() {
+	testCases := []struct {
+		name                     string
+		clientProtocol           cfg.Protocol
+		expectDirectPathDetector bool
+	}{
+		{
+			name:                     "grpcWithNonNilDirectPathDetector",
+			clientProtocol:           cfg.GRPC,
+			expectDirectPathDetector: true,
+		},
+		{
+			name:                     "http1WithNilDirectPathDetector",
+			clientProtocol:           cfg.HTTP1,
+			expectDirectPathDetector: false,
+		},
+		{
+			name:                     "http2WithNilDirectPathDetector",
+			clientProtocol:           cfg.HTTP2,
+			expectDirectPathDetector: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		testSuite.Run(tc.name, func() {
+			sc := storageutil.GetDefaultStorageClientConfig()
+			sc.ExperimentalEnableJsonRead = true
+			sc.ClientProtocol = tc.clientProtocol
+
+			handleCreated, err := NewStorageHandle(testSuite.ctx, sc)
+			assert.Nil(testSuite.T(), err)
+			assert.NotNil(testSuite.T(), handleCreated)
+
+			storageClient, ok := handleCreated.(*storageClient)
+			assert.True(testSuite.T(), ok)
+
+			if tc.expectDirectPathDetector {
+				assert.NotNil(testSuite.T(), storageClient.directPathDetector)
+			} else {
+				assert.Nil(testSuite.T(), storageClient.directPathDetector)
+			}
+		})
+	}
+}
+
 func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ClientProtocol = cfg.GRPC
