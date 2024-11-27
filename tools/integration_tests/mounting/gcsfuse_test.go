@@ -21,6 +21,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -219,6 +220,17 @@ func (t *GcsfuseTest) KeyFile() {
 		ExpectThat(err, Error(HasSubstr("exit status")), "case %d", i)
 		ExpectThat(string(output), HasSubstr(nonexistent), "case %d", i)
 		ExpectThat(string(output), HasSubstr("no such file"), "case %d", i)
+	}
+}
+
+func (t *GcsfuseTest) Version() {
+	for _, arg := range []string{"-v", "--v", "--version", "-version"} {
+		cmd := t.gcsfuseCommand([]string{arg}, nil)
+
+		output, err := cmd.CombinedOutput()
+
+		AssertEq(nil, err)
+		AssertTrue(strings.Contains(string(output), "fake_version"))
 	}
 }
 
