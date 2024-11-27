@@ -203,29 +203,45 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithInvalidClientProtoco
 	assert.Contains(testSuite.T(), err.Error(), "invalid client-protocol requested: test-protocol")
 }
 
-func (testSuite *StorageHandleTest) TestNewStorageHandleWithNonNilDirectPathDetector() {
+func (testSuite *StorageHandleTest) TestNewStorageHandleWithNonNilDirectPathDetectorWithGRPC() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ExperimentalEnableJsonRead = true
 	sc.ClientProtocol = "grpc"
 
 	handleCreated, err := NewStorageHandle(testSuite.ctx, sc)
-	storageClient, _ := handleCreated.(*storageClient)
+	storageClient, ok := handleCreated.(*storageClient)
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), handleCreated)
+	assert.True(testSuite.T(), ok)
 	assert.NotNil(testSuite.T(), storageClient.directPathDetector)
 }
 
-func (testSuite *StorageHandleTest) TestNewStorageHandleWithNilDirectPathDetector() {
+func (testSuite *StorageHandleTest) TestNewStorageHandleWithNilDirectPathDetectorWithHttp1() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ExperimentalEnableJsonRead = true
 	sc.ClientProtocol = "http1"
 
 	handleCreated, err := NewStorageHandle(testSuite.ctx, sc)
-	storageClient, _ := handleCreated.(*storageClient)
+	storageClient, ok := handleCreated.(*storageClient)
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), handleCreated)
+	assert.True(testSuite.T(), ok)
+	assert.Nil(testSuite.T(), storageClient.directPathDetector)
+}
+
+func (testSuite *StorageHandleTest) TestNewStorageHandleWithNilDirectPathDetectorWithHttp2() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.ExperimentalEnableJsonRead = true
+	sc.ClientProtocol = "http2"
+
+	handleCreated, err := NewStorageHandle(testSuite.ctx, sc)
+	storageClient, ok := handleCreated.(*storageClient)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), handleCreated)
+	assert.True(testSuite.T(), ok)
 	assert.Nil(testSuite.T(), storageClient.directPathDetector)
 }
 
