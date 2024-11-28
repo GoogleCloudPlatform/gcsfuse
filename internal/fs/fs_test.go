@@ -154,7 +154,6 @@ func (t *fsTest) SetUpTestSuite() {
 	}
 	t.serverCfg.RenameDirLimit = RenameDirLimit
 	t.serverCfg.SequentialReadSizeMb = SequentialReadSizeMb
-	t.serverCfg.NewConfig.FileSystem.PreconditionErrors = false
 
 	if t.serverCfg.NewConfig == nil {
 		t.serverCfg.NewConfig = &cfg.Config{
@@ -167,6 +166,8 @@ func (t *fsTest) SetUpTestSuite() {
 			},
 		}
 	}
+
+	t.serverCfg.NewConfig.FileSystem.PreconditionErrors = false
 
 	// Set up ownership.
 	t.serverCfg.Uid, t.serverCfg.Gid, err = perms.MyUserAndGroup()

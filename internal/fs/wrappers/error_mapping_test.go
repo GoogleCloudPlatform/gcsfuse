@@ -85,10 +85,10 @@ func (testSuite *ErrorMapping) TestUnAuthenticatedHttpGoogleApiError() {
 
 func (testSuite *ErrorMapping) TestFileClobberedError() {
 	clobberedErr := &gcsfuse_errors.FileClobberedError{
-		Err: fmt.Errorf("object doesn't exist"),
+		Err: fmt.Errorf("some error"),
 	}
 
-	gotErrno := errno(clobberedErr, testSuite.preconditionErr)
+	gotErrno := errno(clobberedErr, true)
 
 	assert.Equal(testSuite.T(), syscall.ESTALE, gotErrno)
 }
