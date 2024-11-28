@@ -119,6 +119,14 @@ func (wh *BufferedWriteHandler) Sync() (err error) {
 
 // Flush finalizes the upload.
 func (wh *BufferedWriteHandler) Flush() (err error) {
+	// Fail early if the uploadHandler has failed.
+	select {
+	case <-wh.uploadHandler.SignalUploadFailure():
+		return fmt.Errorf("file cannot be finalized: error while uploading object to GCS")
+	default:
+		break
+	}
+
 	if wh.current != nil {
 		err := wh.uploadHandler.Upload(wh.current)
 		if err != nil {

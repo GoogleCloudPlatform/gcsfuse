@@ -138,7 +138,6 @@ func (uh *UploadHandler) Finalize() error {
 	err := uh.writer.Close()
 	if err != nil {
 		logger.Errorf("UploadHandler.Finalize(%s): %v", uh.objectName, err)
-		close(uh.signalUploadFailure)
 		return fmt.Errorf("writer.Close failed for object %s: %w", uh.objectName, err)
 	}
 	return nil

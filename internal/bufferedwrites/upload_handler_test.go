@@ -104,6 +104,7 @@ func (t *UploadHandlerTest) TestUpload_CreateObjectWriterFails() {
 	// Upload the block.
 	err = t.uh.Upload(b)
 
+	require.Error(t.T(), err)
 	assert.ErrorContains(t.T(), err, "createObjectWriter")
 	assert.ErrorContains(t.T(), err, "taco")
 }
@@ -135,7 +136,7 @@ func (t *UploadHandlerTest) TestFinalizeWithNoWriter_CreateObjectWriterFails() {
 
 	err := t.uh.Finalize()
 
-	assert.Error(t.T(), err)
+	require.Error(t.T(), err)
 	assert.ErrorContains(t.T(), err, "taco")
 	assert.ErrorContains(t.T(), err, "createObjectWriter")
 }
@@ -148,9 +149,8 @@ func (t *UploadHandlerTest) TestFinalize_WriterCloseFails() {
 
 	err := t.uh.Finalize()
 
-	assert.Error(t.T(), err)
+	require.Error(t.T(), err)
 	assert.ErrorContains(t.T(), err, "writer.Close")
-	assertUploadFailureSignal(t.T(), t.uh)
 }
 
 func (t *UploadHandlerTest) TestUploadHandler_singleBlock_ErrorInCopy() {

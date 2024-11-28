@@ -95,6 +95,21 @@ func (testSuite *BufferedWriteTest) TestWriteDataSizeGreaterThanBlockSize() {
 	assert.Equal(testSuite.T(), int64(size), fileInfo.TotalSize)
 }
 
+func (testSuite *BufferedWriteTest) TestWrite_SignalUploadFailureInBetween() {
+	err := testSuite.bwh.Write([]byte("hello"), 0)
+	require.Nil(testSuite.T(), err)
+	fileInfo := testSuite.bwh.WriteFileInfo()
+	assert.Equal(testSuite.T(), testSuite.bwh.mtime, fileInfo.Mtime)
+	assert.Equal(testSuite.T(), int64(5), fileInfo.TotalSize)
+
+	// Close the channel to simulate failure in uploader.
+	close(testSuite.bwh.uploadHandler.SignalUploadFailure())
+
+	err = testSuite.bwh.Write([]byte("hello"), 5)
+	require.Error(testSuite.T(), err)
+	assert.ErrorContains(testSuite.T(), err, "BufferedWriteHandler.Write(): error while uploading object to GCS")
+}
+
 func (testSuite *BufferedWriteTest) TestFlushWithNonNilCurrentBlock() {
 	err := testSuite.bwh.Write([]byte("hi"), 0)
 	currentBlock := testSuite.bwh.current
@@ -119,17 +134,14 @@ func (testSuite *BufferedWriteTest) TestFlushWithNilCurrentBlock() {
 	assert.NoError(testSuite.T(), err)
 }
 
-func (testSuite *BufferedWriteTest) TestWriteToLocalFile_StreamingWritesEnabled_SignalUploadFailure() {
-	err := testSuite.bwh.Write([]byte("hello"), 0)
+func (testSuite *BufferedWriteTest) TestFlush_SignalUploadFailureDuringWrite() {
+	err := testSuite.bwh.Write([]byte("hi"), 0)
 	require.Nil(testSuite.T(), err)
-	fileInfo := testSuite.bwh.WriteFileInfo()
-	assert.Equal(testSuite.T(), testSuite.bwh.mtime, fileInfo.Mtime)
-	assert.Equal(testSuite.T(), int64(5), fileInfo.TotalSize)
 
 	// Close the channel to simulate failure in uploader.
 	close(testSuite.bwh.uploadHandler.SignalUploadFailure())
 
-	err = testSuite.bwh.Write([]byte("hello"), 5)
+	err = testSuite.bwh.Flush()
 	require.Error(testSuite.T(), err)
-	assert.ErrorContains(testSuite.T(), err, "BufferedWriteHandler.Write(): error while uploading object to GCS")
+	assert.ErrorContains(testSuite.T(), err, "file cannot be finalized: error while uploading object to GCS")
 }
