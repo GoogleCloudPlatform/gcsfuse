@@ -106,12 +106,6 @@ func (uh *UploadHandler) uploader() {
 			logger.Errorf("buffered write upload failed for object %s: error in io.Copy: %v", uh.objectName, err)
 			// Close the channel to signal upload failure.
 			close(uh.signalUploadFailure)
-
-			// Close the writer to finalize the object creation on GCS.
-			if closeErr := uh.writer.Close(); closeErr != nil {
-				logger.Errorf("Error in finalizing object %s: %v", uh.objectName, closeErr)
-				return
-			}
 			return
 		}
 		uh.wg.Done()

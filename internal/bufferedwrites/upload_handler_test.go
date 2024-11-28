@@ -163,9 +163,7 @@ func (t *UploadHandlerTest) TestUploadHandler_singleBlock_ErrorInCopy() {
 	writer := &storagemock.Writer{}
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
 	// First write will be an error and Close will be successful.
-	writer.
-		On("Write", mock.Anything).Return(0, fmt.Errorf("taco")).Once().
-		On("Close").Return(nil)
+	writer.On("Write", mock.Anything).Return(0, fmt.Errorf("taco")).Once()
 
 	// Upload the block.
 	err = t.uh.Upload(b)
@@ -191,8 +189,7 @@ func (t *UploadHandlerTest) TestUploadHandler_multipleBlocks_ErrorInCopy() {
 	// Second write will be an error and rest of the operations will be successful.
 	writer.
 		On("Write", mock.Anything).Return(10, nil).Once().
-		On("Write", mock.Anything).Return(0, fmt.Errorf("taco")).
-		On("Close").Return(nil)
+		On("Write", mock.Anything).Return(0, fmt.Errorf("taco"))
 
 	// Upload the blocks.
 	for _, b := range blocks {
