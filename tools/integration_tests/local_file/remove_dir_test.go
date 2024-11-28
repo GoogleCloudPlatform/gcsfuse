@@ -42,7 +42,7 @@ func TestRmDirOfDirectoryContainingGCSAndLocalFiles(t *testing.T) {
 	// Validate writing content to unlinked local file does not throw error.
 	operations.WriteWithoutClose(fh2, FileContents, t)
 	// Validate flush file does not throw error and does not create object on GCS.
-	operations.CloseFileShouldThrowError(fh2, t)
+	operations.CloseFileShouldNotThrowError(fh2, t)
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, localFile, t)
 	// Validate synced files are also deleted.
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, syncedFile, t)
@@ -64,9 +64,9 @@ func TestRmDirOfDirectoryContainingOnlyLocalFiles(t *testing.T) {
 	// Verify rmDir operation succeeds.
 	operations.ValidateNoFileOrDirError(path.Join(testDirPath, ExplicitDirName), t)
 	// Close the local files and validate they are not present on GCS.
-	operations.CloseFileShouldThrowError(fh1, t)
+	operations.CloseFileShouldNotThrowError(fh1, t)
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, localFile1, t)
-	operations.CloseFileShouldThrowError(fh2, t)
+	operations.CloseFileShouldNotThrowError(fh2, t)
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, localFile2, t)
 	// Validate directory is also deleted.
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, ExplicitDirName, t)

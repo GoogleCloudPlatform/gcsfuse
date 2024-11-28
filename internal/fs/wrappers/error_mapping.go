@@ -55,9 +55,9 @@ func errno(err error, preconditionErr bool) error {
 	var clobberedErr *gcsfuse_errors.FileClobberedError
 	if errors.As(err, &clobberedErr) {
 		if preconditionErr {
-			return nil
+			return syscall.ESTALE
 		}
-		return syscall.ESTALE
+		return nil
 	}
 
 	if errors.Is(err, storage.ErrObjectNotExist) {
