@@ -15,7 +15,7 @@
 package main
 
 import (
-	"log"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -72,10 +72,10 @@ func handleXMLRead(r *http.Request) error {
 	return nil
 }
 
-func handleJsonWrite(r *http.Request) error {
-	plantOp := gOpManager.retrieveOperation(JsonCreate)
+func addRetryID(r *http.Request, requestType RequestType, instruction string) error {
+	plantOp := gOpManager.retrieveOperation(requestType)
 	if plantOp != "" {
-		testID := util.CreateRetryTest(gConfig.TargetHost, map[string][]string{"storage.objects.insert": {plantOp}})
+		testID := util.CreateRetryTest(gConfig.TargetHost, map[string][]string{instruction: {plantOp}})
 		r.Header.Set("x-retry-test-id", testID)
 	}
 	return nil
@@ -83,12 +83,16 @@ func handleJsonWrite(r *http.Request) error {
 
 func handleRequest(requestType RequestType, r *http.Request) error {
 	switch requestType {
-	case XmlRead:
-		return handleXMLRead(r)
+	case XmlRead, JsonStat:
+		return addRetryID(r, requestType, "storage.objects.get")
 	case JsonCreate:
-		return handleJsonWrite(r)
+		return addRetryID(r, requestType, "storage.objects.insert")
+	case JsonDelete:
+		return addRetryID(r, requestType, "storage.objects.delete")
+	case JsonList:
+		return addRetryID(r, requestType, "storage.buckets.list")
 	default:
-		log.Println("No handling for unknown operation")
+		fmt.Println("No handling for unknown operation")
 		return nil
 	}
 }
