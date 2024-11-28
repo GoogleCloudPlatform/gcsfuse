@@ -15,56 +15,37 @@
 package mock
 
 import (
-	"bytes"
-	"fmt"
 	"io"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/stretchr/testify/mock"
 )
 
-// MockWriter implements io.WriteCloser and is used in unit tests to mock
+// Writer implements io.WriteCloser and is used in unit tests to mock
 // the behavior of a GCS object writer. This is particular used with
 // storage.TestifyMockBucket implementation and allows for controlled testing of
 // interactions with the writer without relying on actual GCS operations.
-type MockWriter struct {
+type Writer struct {
 	io.WriteCloser
-	buf bytes.Buffer
 	storage.ObjectAttrs
-	errorOnClose bool
-	errorOnWrite bool
+	mock.Mock
 }
 
-func (w *MockWriter) Write(p []byte) (n int, err error) {
-	if w.errorOnWrite {
-		return 0, fmt.Errorf("error while writing")
-	}
-	return w.buf.Write(p)
+func (mw *Writer) Write(p []byte) (n int, err error) {
+	args := mw.Called(p)
+	return args.Int(0), args.Error(1)
+}
+func (mw *Writer) Attrs() *storage.ObjectAttrs {
+	args := mw.Called()
+	return args.Get(0).(*storage.ObjectAttrs)
 }
 
-func (w *MockWriter) Close() error {
-	if w.errorOnClose {
-		return fmt.Errorf("error while closing writer")
-	}
-	return nil
+func (mw *Writer) Close() error {
+	args := mw.Called()
+	return args.Error(0)
 }
 
-func (w *MockWriter) ObjectName() string {
-	return w.Name
-}
-func (w *MockWriter) Attrs() *storage.ObjectAttrs {
-	return &w.ObjectAttrs
-}
-
-func NewMockWriter(objName string, errorOnWrite, errorOnClose bool) gcs.Writer {
-	wr := &MockWriter{
-		buf:          bytes.Buffer{},
-		errorOnWrite: errorOnWrite,
-		errorOnClose: errorOnClose,
-		ObjectAttrs: storage.ObjectAttrs{
-			Name: objName,
-		},
-	}
-
-	return wr
+func (mw *Writer) ObjectName() string {
+	args := mw.Called()
+	return args.String(0)
 }
