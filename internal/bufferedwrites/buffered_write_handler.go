@@ -56,7 +56,7 @@ func NewBWHandler(objectName string, bucket gcs.Bucket, blockSize int64, maxBloc
 	bwh = &BufferedWriteHandler{
 		current:       nil,
 		blockPool:     bp,
-		uploadHandler: newUploadHandler(objectName, bucket, bp.FreeBlocksChannel(), blockSize),
+		uploadHandler: newUploadHandler(objectName, bucket, maxBlocks, bp.FreeBlocksChannel(), blockSize),
 		totalSize:     0,
 		mtime:         time.Now(),
 	}
@@ -69,6 +69,14 @@ func (wh *BufferedWriteHandler) Write(data []byte, offset int64) (err error) {
 	if offset > wh.totalSize {
 		// TODO: Will be handled as part of ordered writes.
 		return fmt.Errorf("non sequential writes")
+	}
+
+	// Fail early if the uploadHandler has failed.
+	select {
+	case <-wh.uploadHandler.SignalUploadFailure():
+		return fmt.Errorf("BufferedWriteHandler.Write(): error while uploading object to GCS")
+	default:
+		break
 	}
 
 	dataWritten := 0
@@ -111,6 +119,14 @@ func (wh *BufferedWriteHandler) Sync() (err error) {
 
 // Flush finalizes the upload.
 func (wh *BufferedWriteHandler) Flush() (err error) {
+	// Fail early if the uploadHandler has failed.
+	select {
+	case <-wh.uploadHandler.SignalUploadFailure():
+		return fmt.Errorf("file cannot be finalized: error while uploading object to GCS")
+	default:
+		break
+	}
+
 	if wh.current != nil {
 		err := wh.uploadHandler.Upload(wh.current)
 		if err != nil {
