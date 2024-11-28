@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/googleapis/gax-go/v2/apierror"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/api/googleapi"
@@ -30,6 +31,7 @@ import (
 
 type ErrorMapping struct {
 	suite.Suite
+	preconditionErr bool
 }
 
 func TestWithErrorMapping(testSuite *testing.T) {
@@ -40,7 +42,7 @@ func (testSuite *ErrorMapping) TestPermissionDeniedGrpcApiError() {
 	statusErr := status.New(codes.PermissionDenied, "Permission denied")
 	apiError, _ := apierror.FromError(statusErr.Err())
 
-	fsErr := errno(apiError)
+	fsErr := errno(apiError, testSuite.preconditionErr)
 
 	assert.Equal(testSuite.T(), syscall.EACCES, fsErr)
 }
@@ -49,7 +51,7 @@ func (testSuite *ErrorMapping) TestNotFoundGrpcApiError() {
 	statusErr := status.New(codes.NotFound, "Not found")
 	apiError, _ := apierror.FromError(statusErr.Err())
 
-	fsErr := errno(apiError)
+	fsErr := errno(apiError, testSuite.preconditionErr)
 
 	assert.Equal(testSuite.T(), syscall.ENOENT, fsErr)
 }
@@ -58,7 +60,7 @@ func (testSuite *ErrorMapping) TestCanceledGrpcApiError() {
 	statusErr := status.New(codes.Canceled, "Canceled error")
 	apiError, _ := apierror.FromError(statusErr.Err())
 
-	fsErr := errno(apiError)
+	fsErr := errno(apiError, testSuite.preconditionErr)
 
 	assert.Equal(testSuite.T(), syscall.EINTR, fsErr)
 }
@@ -67,7 +69,7 @@ func (testSuite *ErrorMapping) TestUnAuthenticatedGrpcApiError() {
 	statusErr := status.New(codes.Unauthenticated, "UnAuthenticated error")
 	apiError, _ := apierror.FromError(statusErr.Err())
 
-	fsErr := errno(apiError)
+	fsErr := errno(apiError, testSuite.preconditionErr)
 
 	assert.Equal(testSuite.T(), syscall.EACCES, fsErr)
 }
@@ -76,7 +78,17 @@ func (testSuite *ErrorMapping) TestUnAuthenticatedHttpGoogleApiError() {
 	googleApiError := &googleapi.Error{Code: http.StatusUnauthorized}
 	googleApiError.Wrap(fmt.Errorf("UnAuthenticated error"))
 
-	fsErr := errno(googleApiError)
+	fsErr := errno(googleApiError, testSuite.preconditionErr)
 
 	assert.Equal(testSuite.T(), syscall.EACCES, fsErr)
+}
+
+func (testSuite *ErrorMapping) TestFileClobberedError() {
+	clobberedErr := &gcsfuse_errors.FileClobberedError{
+		Err: fmt.Errorf("some error"),
+	}
+
+	gotErrno := errno(clobberedErr, true)
+
+	assert.Equal(testSuite.T(), syscall.ESTALE, gotErrno)
 }

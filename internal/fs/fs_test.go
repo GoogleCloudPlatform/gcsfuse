@@ -164,6 +164,9 @@ func (t *fsTest) SetUpTestSuite() {
 				TtlSecs:            60,
 				TypeCacheMaxSizeMb: 4,
 			},
+			FileSystem: cfg.FileSystemConfig{
+				PreconditionErrors: false,
+			},
 		}
 	}
 

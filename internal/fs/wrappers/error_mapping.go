@@ -23,6 +23,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/googleapis/gax-go/v2/apierror"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -34,7 +35,7 @@ var (
 	DefaultFSError = syscall.EIO
 )
 
-func errno(err error) error {
+func errno(err error, preconditionErr bool) error {
 	if err == nil {
 		return nil
 	}
@@ -48,6 +49,15 @@ func errno(err error) error {
 	// The fuse op is interrupted
 	if errors.Is(err, context.Canceled) {
 		return syscall.EINTR
+	}
+
+	// The object is modified or deleted by a concurrent process
+	var clobberedErr *gcsfuse_errors.FileClobberedError
+	if errors.As(err, &clobberedErr) {
+		if preconditionErr {
+			return syscall.ESTALE
+		}
+		return nil
 	}
 
 	if errors.Is(err, storage.ErrObjectNotExist) {
@@ -94,14 +104,16 @@ func errno(err error) error {
 
 // WithErrorMapping wraps a FileSystem, processing the returned errors, and
 // mapping them into syscall.Errno that can be understood by FUSE.
-func WithErrorMapping(wrapped fuseutil.FileSystem) fuseutil.FileSystem {
+func WithErrorMapping(wrapped fuseutil.FileSystem, preconditionError bool) fuseutil.FileSystem {
 	return &errorMapping{
-		wrapped: wrapped,
+		wrapped:           wrapped,
+		preconditionError: preconditionError,
 	}
 }
 
 type errorMapping struct {
-	wrapped fuseutil.FileSystem
+	wrapped           fuseutil.FileSystem
+	preconditionError bool
 }
 
 func (em *errorMapping) handlePanic() {
@@ -113,7 +125,7 @@ func (em *errorMapping) handlePanic() {
 }
 
 func (em *errorMapping) mapError(op string, err error) error {
-	fsErr := errno(err)
+	fsErr := errno(err, em.preconditionError)
 	if err != nil && fsErr != nil && err != fsErr {
 		logger.Errorf("%s: %v, %v", op, fsErr, err)
 	}
