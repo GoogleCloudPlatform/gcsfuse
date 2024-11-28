@@ -55,7 +55,7 @@ func TestDeduceRequestType(t *testing.T) {
 		},
 		{
 			name:         "Delete Method",
-			method:       http.MethodDelete, // Any method other than GET, POST, PUT for JSON API
+			method:       http.MethodDelete,
 			path:         "/storage/v1/b/my-bucket/o/my-object",
 			expectedType: JsonDelete,
 		},
