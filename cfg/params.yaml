@@ -202,7 +202,7 @@
     from is modified by some other concurrent process. This helps prevent 
     silent data loss or data corruption.
   hide-flag: true
-  default: true
+  default: false
 
 - config-path: "file-system.rename-dir-limit"
   flag-name: "rename-dir-limit"
