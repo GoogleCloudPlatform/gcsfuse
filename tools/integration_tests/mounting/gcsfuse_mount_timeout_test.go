@@ -95,6 +95,8 @@ func (t *MountTimeoutTest) runGcsfuse(args []string) (err error) {
 	return t.runGcsfuseWithEnv(args, nil)
 }
 
+// mountOrTimeout mounts the bucket with the given client protocol. If the time taken
+// exceeds threshold value of 2.5 seconds, an error is thrown and test will fail.
 func (t *MountTimeoutTest) mountOrTimeout(bucketName, mountDir, clientProtocol string) error {
 	start := time.Now()
 	args := []string{"--client-protocol", clientProtocol, bucketName, t.dir}
@@ -106,8 +108,9 @@ func (t *MountTimeoutTest) mountOrTimeout(bucketName, mountDir, clientProtocol s
 			fmt.Fprintf(os.Stderr, "Warning: unmount failed: %v\n", err)
 		}
 	}()
+
 	if mountTime := time.Since(start).Seconds(); mountTime > expectedMountTime {
-		return fmt.Errorf("Mounting failed due to timeout(exceeding %f seconds).Time taken for the mount: %f sec.", expectedMountTime, mountTime)
+		return fmt.Errorf("[Client Protocol: %s]Mounting failed due to timeout(exceeding %f seconds).Time taken for the mount: %f sec.", clientProtocol, expectedMountTime, mountTime)
 	}
 	return nil
 }
@@ -130,6 +133,7 @@ func (testSuite *MountTimeoutTest) MountGcsfuseWithTimeout() {
 			clientProtocol: cfg.HTTP2,
 		},
 	}
+
 	for _, tc := range testCases {
 		err := testSuite.mountOrTimeout(setup.TestBucket(), testSuite.dir, string(tc.clientProtocol))
 		ExpectEq(nil, err)
