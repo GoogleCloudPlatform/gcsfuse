@@ -15,7 +15,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"sync"
 )
 
@@ -32,7 +32,7 @@ func NewOperationManager(config Config) *OperationManager {
 	for _, retryConfig := range config.RetryConfig {
 		om.addRetryConfig(retryConfig)
 	}
-	fmt.Printf("%+v\n", om)
+	log.Printf("%+v\n", om)
 	return om
 }
 

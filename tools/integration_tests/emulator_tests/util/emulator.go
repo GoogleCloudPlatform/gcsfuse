@@ -17,7 +17,7 @@ package util
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -33,7 +33,7 @@ func CreateRetryTest(host string, instructions map[string][]string) string {
 
 	endpoint, err := url.Parse(host)
 	if err != nil {
-		fmt.Printf("Failed to parse host env: %v\n", err)
+		log.Printf("Failed to parse host env: %v\n", err)
 		os.Exit(0)
 	}
 
@@ -61,13 +61,13 @@ func (et *emulatorTest) create(instructions map[string][]string, transport strin
 
 	buf := new(bytes.Buffer)
 	if err := json.NewEncoder(buf).Encode(data); err != nil {
-		fmt.Printf("encoding request: %v\n", err)
+		log.Printf("encoding request: %v\n", err)
 	}
 
 	et.host.Path = "retry_test"
 	resp, err := c.Post(et.host.String(), "application/json", buf)
 	if err != nil || resp.StatusCode != 200 {
-		fmt.Printf("creating retry test: err: %v, resp: %+v\n", err, resp)
+		log.Printf("creating retry test: err: %v, resp: %+v\n", err, resp)
 		os.Exit(0)
 	}
 	defer func() {
@@ -80,7 +80,7 @@ func (et *emulatorTest) create(instructions map[string][]string, transport strin
 		TestID string `json:"id"`
 	}{}
 	if err := json.NewDecoder(resp.Body).Decode(&testRes); err != nil {
-		fmt.Printf("decoding test ID: %v\n", err)
+		log.Printf("decoding test ID: %v\n", err)
 	}
 
 	et.id = testRes.TestID
