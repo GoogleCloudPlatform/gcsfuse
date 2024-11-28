@@ -51,18 +51,20 @@ func TestGetFuseMountConfig_MountOptionsFormattedCorrectly(t *testing.T) {
 
 	fsName := "mybucket"
 	for _, tc := range testCases {
-		newConfig := &cfg.Config{
-			FileSystem: cfg.FileSystemConfig{
-				FuseOptions: tc.inputFuseOptions,
-			},
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			newConfig := &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					FuseOptions: tc.inputFuseOptions,
+				},
+			}
 
-		fuseMountCfg := getFuseMountConfig(fsName, newConfig)
+			fuseMountCfg := getFuseMountConfig(fsName, newConfig)
 
-		assert.Equal(t, fsName, fuseMountCfg.FSName)
-		assert.Equal(t, "gcsfuse", fuseMountCfg.Subtype)
-		assert.Equal(t, "gcsfuse", fuseMountCfg.VolumeName)
-		assert.Equal(t, tc.expectedFuseOptions, fuseMountCfg.Options)
-		assert.True(t, fuseMountCfg.EnableParallelDirOps) // Default true unless explicitly disabled
+			assert.Equal(t, fsName, fuseMountCfg.FSName)
+			assert.Equal(t, "gcsfuse", fuseMountCfg.Subtype)
+			assert.Equal(t, "gcsfuse", fuseMountCfg.VolumeName)
+			assert.Equal(t, tc.expectedFuseOptions, fuseMountCfg.Options)
+			assert.True(t, fuseMountCfg.EnableParallelDirOps) // Default true unless explicitly disabled
+		})
 	}
 }
