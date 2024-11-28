@@ -164,10 +164,11 @@ func (t *fsTest) SetUpTestSuite() {
 				TtlSecs:            60,
 				TypeCacheMaxSizeMb: 4,
 			},
+			FileSystem: cfg.FileSystemConfig{
+				PreconditionErrors: false,
+			},
 		}
 	}
-
-	t.serverCfg.NewConfig.FileSystem.PreconditionErrors = false
 
 	// Set up ownership.
 	t.serverCfg.Uid, t.serverCfg.Gid, err = perms.MyUserAndGroup()

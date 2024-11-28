@@ -74,7 +74,10 @@ func (t *StaleHandleTest) TearDown() {
 func (t *StaleHandleTest) createLocalFile(fileName string) (filePath string, f *os.File) {
 	// Creating a file shouldn't create file on GCS.
 	filePath = path.Join(mntDir, fileName)
-	f, err := os.Create(filePath)
+	_, err = os.Stat(mntDir)
+	AssertEq(nil, err)
+
+	f, err = os.Create(filePath)
 
 	AssertEq(nil, err)
 	t.validateObjectNotFoundErr(fileName)
@@ -83,9 +86,9 @@ func (t *StaleHandleTest) createLocalFile(fileName string) (filePath string, f *
 }
 
 func (t *StaleHandleTest) validateObjectNotFoundErr(fileName string) {
-	var notFoundErr *gcs.NotFoundError
 	_, err := storageutil.ReadObject(ctx, bucket, fileName)
 
+	var notFoundErr *gcs.NotFoundError
 	ExpectTrue(errors.As(err, &notFoundErr))
 }
 
@@ -344,9 +347,8 @@ func (t *StaleHandleTest) SyncClobbered() {
 	var err error
 	var n int
 
-	// Create a file.
-	t.f1, err = os.Create(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	// Create a local file.
+	_, t.f1 = t.createLocalFile("foo")
 
 	// Dirty the file by giving it some contents.
 	n, err = t.f1.Write([]byte("taco"))
@@ -366,13 +368,38 @@ func (t *StaleHandleTest) SyncClobbered() {
 	err = t.f1.Sync()
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
-	// Closing file should also give error
-	err = t.f1.Close()
+	// Validate closing the file also throws stale NFS file handle error
+	err = t.closeLocalFile(&t.f1)
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
-	// Make f1 nil, so that another attempt is not taken in TearDown to close the
-	// file
-	t.f1 = nil
+	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
+	AssertEq(nil, err)
+	ExpectEq("foobar", string(contents))
+}
+
+func (t *StaleHandleTest) ClobberTheFileBeingRead() {
+	// Create an object on bucket
+	_, err = storageutil.CreateObject(
+		ctx,
+		bucket,
+		"foo",
+		[]byte("bar"))
+
+	// Open the read handle
+	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_RDONLY, filePerms)
+	// Replace the underlying object with a new generation.
+	_, err = storageutil.CreateObject(
+		ctx,
+		bucket,
+		"foo",
+		[]byte("foobar"))
+	AssertEq(nil, err)
+
+	// Attempt to read the file should result in stale NFS file handle error.
+	buffer := make([]byte, 1024)
+	_, err = t.f1.Read(buffer)
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
 	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
 	AssertEq(nil, err)
 	ExpectEq("foobar", string(contents))
