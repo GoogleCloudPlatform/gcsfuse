@@ -48,6 +48,8 @@ func deduceRequestType(r *http.Request) RequestType {
 			return JsonStat
 		case method == http.MethodPost:
 			return JsonCreate
+		case method == http.MethodDelete:
+			return JsonDelete
 		case method == http.MethodPut:
 			return JsonUpdate
 		default:
@@ -72,7 +74,7 @@ func addRetryID(r *http.Request, requestType RequestType, instruction string) er
 	return nil
 }
 
-func handleRequest(requestType RequestType, r *http.Request) error {
+func handleRequest(r *http.Request, requestType RequestType) error {
 	switch requestType {
 	case XmlRead, JsonStat:
 		return addRetryID(r, requestType, "storage.objects.get")

@@ -60,7 +60,7 @@ func (ph ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err = handleRequest(requestType, req)
+	err = handleRequest(req, requestType)
 	if err != nil {
 		log.Printf("Error in handling the request: %v", err)
 	}
