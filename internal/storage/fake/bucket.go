@@ -441,10 +441,7 @@ func (b *bucket) newReaderLocked(
 	// Find the object with the requested name.
 	index = b.objects.find(req.Name)
 	if index == len(b.objects) {
-		err = &gcs.NotFoundError{
-			Err: fmt.Errorf("object %s not found", req.Name),
-		}
-
+		err = storage.ErrObjectNotExist
 		return
 	}
 
