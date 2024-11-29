@@ -26,7 +26,10 @@ import (
 // RetryTestClient is an interface for creating and managing retry tests.
 type RetryTestClient interface {
 	CreateRetryTest(host string, instructions map[string][]string) string
+
 	AddRetryID(r *http.Request, requestType RequestType, instruction string) error
+	
+	HandleRequest(r *http.Request, requestType RequestType) error
 }
 
 // DefaultRetryTestClient is the default implementation of RetryTestClient.
