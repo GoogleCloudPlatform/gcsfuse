@@ -2154,7 +2154,7 @@ func (t *composeTest) OneSourceDoesntExist() {
 			},
 		})
 
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	ExpectThat(err, HasSameTypeAs(storage.ErrObjectNotExist))
 
 	// Make sure the destination object doesn't exist.
 	_, _, err = t.bucket.StatObject(
@@ -2687,8 +2687,8 @@ func (t *readTest) ObjectNameDoesntExist() {
 		_, err = rc.Read(make([]byte, 1))
 	}
 
-	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
-	ExpectThat(err, Error(MatchesRegexp("(?i)not found|404")))
+	AssertThat(err, HasSameTypeAs(storage.ErrObjectNotExist))
+	ExpectThat(err, Error(MatchesRegexp("(?i)object doesn't exist")))
 }
 
 func (t *readTest) EmptyObject() {
@@ -2790,8 +2790,8 @@ func (t *readTest) ParticularGeneration_HasBeenDeleted() {
 		_, err = rc.Read(make([]byte, 1))
 	}
 
-	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
-	ExpectThat(err, Error(MatchesRegexp("(?i)not found|404")))
+	AssertThat(err, HasSameTypeAs(storage.ErrObjectNotExist))
+	ExpectThat(err, Error(MatchesRegexp("(?i)object doesn't exist")))
 }
 
 func (t *readTest) ParticularGeneration_Exists() {
@@ -3674,7 +3674,7 @@ func (t *deleteTest) NoParticularGeneration_Successful() {
 		_, err = rc.Read(make([]byte, 1))
 	}
 
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	AssertThat(err, HasSameTypeAs(storage.ErrObjectNotExist))
 }
 
 func (t *deleteTest) ParticularGeneration_NameDoesntExist() {
@@ -3745,7 +3745,7 @@ func (t *deleteTest) ParticularGeneration_Successful() {
 
 	// The object should no longer exist.
 	_, err = storageutil.ReadObject(t.ctx, t.bucket, name)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	AssertThat(err, HasSameTypeAs(storage.ErrObjectNotExist))
 }
 
 func (t *deleteTest) MetaGenerationPrecondition_Unsatisfied_ObjectExists() {
@@ -3850,7 +3850,7 @@ func (t *deleteTest) MetaGenerationPrecondition_Satisfied() {
 
 	// The object should no longer exist.
 	_, err = storageutil.ReadObject(t.ctx, t.bucket, name)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	AssertThat(err, HasSameTypeAs(storage.ErrObjectNotExist))
 }
 
 ////////////////////////////////////////////////////////////////////////
