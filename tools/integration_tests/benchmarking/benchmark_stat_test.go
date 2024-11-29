@@ -27,6 +27,10 @@ import (
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
+const (
+	statThreshold int = 260
+)
+
 type benchmarkStatTest struct{}
 
 func (s *benchmarkStatTest) SetupB(b *testing.B) {
@@ -52,6 +56,9 @@ func (s *benchmarkStatTest) Benchmark_Stat(b *testing.B) {
 		if _, err := operations.StatFile(path.Join(testDirPath, "a.txt")); err != nil {
 			b.Errorf("testing error: %v", err)
 		}
+	}
+	if timeTaken := b.Elapsed().Milliseconds(); timeTaken > int64(statThreshold*b.N) {
+		b.Errorf("Test failed due to timeout, time taken:%d msec", timeTaken)
 	}
 }
 

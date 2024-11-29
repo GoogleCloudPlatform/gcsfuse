@@ -25,6 +25,10 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
+const (
+	deleteThreshold int = 450
+)
+
 type benchmarkDeleteTest struct{}
 
 func (s *benchmarkDeleteTest) SetupB(b *testing.B) {
@@ -52,6 +56,9 @@ func (s *benchmarkDeleteTest) Benchmark_Delete(b *testing.B) {
 		if err := os.Remove(path.Join(testDirPath, fmt.Sprintf("a%d.txt", i))); err != nil {
 			b.Errorf("testing error: %v", err)
 		}
+	}
+	if timeTaken := b.Elapsed().Milliseconds(); timeTaken > int64(deleteThreshold*b.N) {
+		b.Errorf("Test failed due to timeout, time taken:%d msec", timeTaken)
 	}
 }
 
