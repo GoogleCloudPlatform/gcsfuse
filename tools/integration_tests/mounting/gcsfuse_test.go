@@ -245,6 +245,7 @@ func assertContains(expected, actual string) {
 		logger.Fatal("Actual: %s does not contain expected: %s", actual, expected)
 	}
 }
+
 func (t *GcsfuseTest) CannedContents() {
 	var err error
 	var fi os.FileInfo
