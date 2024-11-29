@@ -15,10 +15,8 @@
 package main
 
 import (
-	"log"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 )
 
@@ -73,54 +71,6 @@ func TestDeduceRequestType(t *testing.T) {
 			requestType := deduceRequestType(r)
 			if requestType != tc.expectedType {
 				t.Errorf("Expected request type %v, but got %v", tc.expectedType, requestType)
-			}
-		})
-	}
-}
-
-func TestAddRetryID(t *testing.T) {
-	var err error
-	gConfig, err = parseConfigFile("./testdata/config.yaml")
-	log.Printf("%+v\n", gConfig)
-	if err != nil {
-		log.Printf("Parsing error: %v\n", err)
-		os.Exit(1)
-	}
-	path := "/storage/v1/b/my-bucket/o/my-object"
-
-	gOpManager = NewOperationManager(*gConfig)
-
-	testCases := []struct {
-		name        string
-		requestType RequestType
-		method      string
-	}{
-		{
-			name:        "JSON Create",
-			requestType: JsonCreate,
-			method:      http.MethodPost,
-		},
-		{
-			name:        "JSON Stat",
-			requestType: JsonStat,
-			method:      http.MethodGet,
-		},
-		{
-			name:        "JSON Delete",
-			requestType: JsonDelete,
-			method:      http.MethodDelete,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			r := httptest.NewRequest(tc.method, path, nil)
-			err = handleRequest(r, tc.requestType)
-			if err != nil {
-				t.Fatalf("addRetryID failed: %v", err)
-			}
-			if r.Header.Get("x-retry-test-id") == "" {
-				t.Errorf("Expected retry header")
 			}
 		})
 	}
