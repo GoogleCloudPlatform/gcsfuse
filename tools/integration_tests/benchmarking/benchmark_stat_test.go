@@ -17,6 +17,7 @@ package benchmarking
 import (
 	"path"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/benchmark_setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
@@ -28,7 +29,7 @@ import (
 ////////////////////////////////////////////////////////////////////////
 
 const (
-	statThreshold int = 260
+	expectedStatLatency time.Duration = 260 * time.Millisecond
 )
 
 type benchmarkStatTest struct{}
@@ -57,8 +58,9 @@ func (s *benchmarkStatTest) Benchmark_Stat(b *testing.B) {
 			b.Errorf("testing error: %v", err)
 		}
 	}
-	if timeTaken := b.Elapsed().Milliseconds(); timeTaken > int64(statThreshold*b.N) {
-		b.Errorf("Test failed due to timeout, time taken:%d msec", timeTaken)
+	averageStatLatency := time.Duration(int(b.Elapsed()) / b.N)
+	if averageStatLatency > expectedStatLatency {
+		b.Errorf("Test failed due to timeout -> DeleteFile took more time (%d msec) than expected (%d msec)", averageStatLatency.Milliseconds(), expectedStatLatency.Milliseconds())
 	}
 }
 

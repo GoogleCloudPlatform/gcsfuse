@@ -19,6 +19,7 @@ import (
 	"os"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/benchmark_setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
@@ -26,7 +27,7 @@ import (
 )
 
 const (
-	deleteThreshold int = 450
+	expectedDeleteLatency time.Duration = 450 * time.Millisecond
 )
 
 type benchmarkDeleteTest struct{}
@@ -57,8 +58,9 @@ func (s *benchmarkDeleteTest) Benchmark_Delete(b *testing.B) {
 			b.Errorf("testing error: %v", err)
 		}
 	}
-	if timeTaken := b.Elapsed().Milliseconds(); timeTaken > int64(deleteThreshold*b.N) {
-		b.Errorf("Test failed due to timeout, time taken:%d msec", timeTaken)
+	averageDeleteLatency := time.Duration(int(b.Elapsed()) / b.N)
+	if averageDeleteLatency > expectedDeleteLatency {
+		b.Errorf("Test failed due to timeout -> DeleteFile took more time (%d msec) than expected (%d msec)", averageDeleteLatency.Milliseconds(), expectedDeleteLatency.Milliseconds())
 	}
 }
 
