@@ -31,8 +31,8 @@ import (
 
 type mountFn func(c *cfg.Config, bucketName, mountPoint string) error
 
-// NewRootCmd accepts the mountFn that it executes with the parsed configuration
-func NewRootCmd(m mountFn) (*cobra.Command, error) {
+// newRootCmd accepts the mountFn that it executes with the parsed configuration
+func newRootCmd(m mountFn) (*cobra.Command, error) {
 	var (
 		configObj cfg.Config
 		cfgFile   string
@@ -147,7 +147,7 @@ func convertToPosixArgs(args []string, c *cobra.Command) []string {
 }
 
 var ExecuteMountCmd = func() {
-	rootCmd, err := NewRootCmd(Mount)
+	rootCmd, err := newRootCmd(Mount)
 	if err != nil {
 		log.Fatalf("Error occurred while creating the root command: %v", err)
 	}
