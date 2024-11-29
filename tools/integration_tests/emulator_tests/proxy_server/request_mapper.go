@@ -15,11 +15,8 @@
 package main
 
 import (
-	"log"
 	"net/http"
 	"strings"
-
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/emulator_tests/util"
 )
 
 type RequestType string
@@ -62,30 +59,5 @@ func deduceRequestType(r *http.Request) RequestType {
 		default:
 			return Unknown
 		}
-	}
-}
-
-func addRetryID(r *http.Request, requestType RequestType, instruction string) error {
-	plantOp := gOpManager.retrieveOperation(requestType)
-	if plantOp != "" {
-		testID := util.CreateRetryTest(gConfig.TargetHost, map[string][]string{instruction: {plantOp}})
-		r.Header.Set("x-retry-test-id", testID)
-	}
-	return nil
-}
-
-func handleRequest(r *http.Request, requestType RequestType) error {
-	switch requestType {
-	case XmlRead, JsonStat:
-		return addRetryID(r, requestType, "storage.objects.get")
-	case JsonCreate:
-		return addRetryID(r, requestType, "storage.objects.insert")
-	case JsonDelete:
-		return addRetryID(r, requestType, "storage.objects.delete")
-	case JsonList:
-		return addRetryID(r, requestType, "storage.buckets.list")
-	default:
-		log.Println("No handling for unknown operation")
-		return nil
 	}
 }

@@ -5,6 +5,6 @@ retryConfig:
   retryInstruction: test1
   retryCount: 3
 - method: read
-  fileName: tes
+  fileName: test
   retryInstruction: test2
   retryCount: 1

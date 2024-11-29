@@ -21,14 +21,18 @@ import (
 )
 
 type RetryConfig struct {
-	Method           string `yaml:"method"`
-	FileName         string `yaml:"fileName"`
+	// The name of the method to apply retries to (e.g., JsonCreate, JsonStat).
+	Method string `yaml:"method"`
+	// Retry instruction (e.g., return-503, stall-33s-after-20K).
 	RetryInstruction string `yaml:"retryInstruction"`
-	RetryCount       int    `yaml:"retryCount"`
-	SkipCount        int    `yaml:"skipCount"`
+	// Number of times to retry.
+	RetryCount int `yaml:"retryCount"`
+	// Number of retry attempts to skip.
+	SkipCount int `yaml:"skipCount"`
 }
 
 type Config struct {
+	// Target host address for the emulator.
 	TargetHost  string        `yaml:"targetHost"`
 	RetryConfig []RetryConfig `yaml:"retryConfig"`
 }
@@ -49,7 +53,6 @@ func parseConfigFile(configPath string) (*Config, error) {
 	log.Println("Target Host:", config.TargetHost)
 	for _, retry := range config.RetryConfig {
 		log.Println("Method:", retry.Method)
-		log.Println("File Name:", retry.FileName)
 		log.Println("Retry instructions:", retry.RetryInstruction)
 		log.Println("Retry Count:", retry.RetryCount)
 		log.Println("Skip Count:", retry.SkipCount)

@@ -69,7 +69,7 @@ func (om *OperationManager) addRetryConfig(rc RetryConfig) {
 		// Key exists, append the new retryConfig to the existing list
 		om.retryConfigs[rt] = append(om.retryConfigs[rt], rc)
 	} else {
-		// Key doesn't exist, create a new list with the retryConfig
+		// Key doesn't exist, getRetryID a new list with the retryConfig
 		om.retryConfigs[rt] = []RetryConfig{rc}
 	}
 }

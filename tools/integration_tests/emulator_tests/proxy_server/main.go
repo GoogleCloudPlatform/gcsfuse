@@ -39,6 +39,8 @@ var (
 	gOpManager *OperationManager
 )
 
+// Host address of the proxy server.
+// TODO: Allow this value to be configured via a command-line flag.
 const PORT = "8020"
 
 type ProxyHandler struct {
@@ -60,7 +62,8 @@ func (ph ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err = handleRequest(req, requestType)
+	d := new(DefaultRetryTestClient)
+	err = d.HandleRequest(req, requestType)
 	if err != nil {
 		log.Printf("Error in handling the request: %v", err)
 	}
