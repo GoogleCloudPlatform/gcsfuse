@@ -615,7 +615,6 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 		err = &gcsfuse_errors.FileClobberedError{
 			Err: err,
 		}
-		return
 	}
 
 	if err != nil {
