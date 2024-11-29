@@ -706,14 +706,12 @@ func (t *FileTest) TestNewReader_FileClobbered() {
 	// Truncate downward.
 	err := t.in.Truncate(t.ctx, 2)
 	AssertEq(nil, err)
-
 	// Clobber the backing object.
 	_, err = storageutil.CreateObject(
 		t.ctx,
 		t.bucket,
 		t.in.Name().GcsObjectName(),
 		[]byte("burrito"))
-
 	AssertEq(nil, err)
 
 	// openReader. The call should not succeed, and we expect a FileClobberedError.
