@@ -27,6 +27,8 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/canned"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/util"
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/oglematchers"
@@ -230,10 +232,19 @@ func (t *GcsfuseTest) Version() {
 		output, err := cmd.CombinedOutput()
 
 		AssertEq(nil, err)
-		AssertTrue(strings.Contains(string(output), "fake_version"))
+		if setup.TestInstalledPackage() {
+			assertContains("0.0.0", string(output))
+		} else {
+			assertContains("fake_version", string(output))
+		}
 	}
 }
 
+func assertContains(expected, actual string) {
+	if !strings.Contains(actual, expected) {
+		logger.Fatal("Actual: %s does not contain expected: %s", actual, expected)
+	}
+}
 func (t *GcsfuseTest) CannedContents() {
 	var err error
 	var fi os.FileInfo
