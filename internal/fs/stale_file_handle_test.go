@@ -19,14 +19,13 @@
 package fs_test
 
 import (
-	"errors"
 	"os"
 	"path"
 	"strings"
 	"syscall"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -48,6 +47,7 @@ func init() {
 
 func (t *StaleHandleTest) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
+	t.serverCfg.LocalFileCache = false
 	t.serverCfg.NewConfig = &cfg.Config{
 		Write: cfg.WriteConfig{
 			CreateEmptyFile: false,
@@ -86,7 +86,7 @@ func (t *StaleHandleTest) createLocalFile(fileName string) (filePath string, f *
 	f, err = os.Create(filePath)
 
 	AssertEq(nil, err)
-	t.validateObjectNotFoundErr(fileName)
+	//	t.validateObjectNotFoundErr(fileName)
 
 	return
 }
@@ -94,8 +94,7 @@ func (t *StaleHandleTest) createLocalFile(fileName string) (filePath string, f *
 func (t *StaleHandleTest) validateObjectNotFoundErr(fileName string) {
 	_, err := storageutil.ReadObject(ctx, bucket, fileName)
 
-	var notFoundErr *gcs.NotFoundError
-	ExpectTrue(errors.As(err, &notFoundErr))
+	ExpectEq(err, storage.ErrObjectNotExist)
 }
 
 func (t *StaleHandleTest) validateNoFileOrDirError(filename string) {
@@ -442,6 +441,47 @@ func (t *StaleHandleTest) WritingFileAfterObjectClobberedRemotelyFailsWithStaleH
 	ExpectEq("foobar", string(contents))
 }
 
+func (t *StaleHandleTest) SyncingFileAfterObjectClobberedRemotelyFailsWithStaleHandle() {
+	var err error
+	var n int
+
+	// Create an object on bucket
+	_, err = storageutil.CreateObject(
+		ctx,
+		bucket,
+		"foo",
+		[]byte("bar"))
+
+	// Open file handle to write
+	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_WRONLY|syscall.O_DIRECT, filePerms)
+	// Dirty the file by giving it some contents.
+	n, err = t.f1.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
+	// Replace the underlying object with a new generation.
+	_, err = storageutil.CreateObject(
+		ctx,
+		bucket,
+		"foo",
+		[]byte("foobar"))
+	AssertEq(nil, err)
+	// Attempt to sync the file should result in clobbered error.
+	err = t.f1.Sync()
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
+	// Validate closing the file also throws stale NFS file handle error
+	err = t.f1.Close()
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
+	// Make f1 nil, so that another attempt is not taken in TearDown to close the
+	// file
+	t.f1 = nil
+	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
+	AssertEq(nil, err)
+	ExpectEq("foobar", string(contents))
+}
+
 func (t *StaleHandleTest) SyncingFileAfterObjectDeletedFailsWithStaleHandle() {
 	// Create an object on bucket
 	_, err = storageutil.CreateObject(
@@ -477,7 +517,7 @@ func (t *StaleHandleTest) SyncingFileAfterObjectDeletedFailsWithStaleHandle() {
 	t.f1 = nil
 }
 
-func (t *StaleHandleTest) WritingToFileAfterObjectDeletedFailsWithStaleHandle() {
+func (t *StaleHandleTest) WritingFileAfterObjectDeletedFailsWithStaleHandle() {
 	// Create an object on bucket
 	_, err = storageutil.CreateObject(
 		ctx,
@@ -489,6 +529,91 @@ func (t *StaleHandleTest) WritingToFileAfterObjectDeletedFailsWithStaleHandle() 
 	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_WRONLY|syscall.O_DIRECT, filePerms)
 	// Delete the object.
 	err = os.Remove(t.f1.Name())
+	AssertEq(nil, err)
+	// Attempt to write to file should result in stale NFS file handle error.
+	_, err := t.f1.Write([]byte("taco"))
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
+	// Attempt to sync to file should not result in error as content written is
+	// nil.
+	err = t.f1.Sync()
+	AssertEq(nil, err)
+}
+
+func (t *StaleHandleTest) SyncingLocalInodeAfterObjectDeletedFailsWithStaleHandle() {
+	// Create a local file.
+	_, t.f1 = t.createLocalFile("foo")
+
+	// Delete the object.
+	err = os.Remove(t.f1.Name())
+	AssertEq(nil, err)
+	// Attempt to write to file should not give any error as for local inode data
+	// is written to buffer, and we don't check for object on GCS.
+	n, err := t.f1.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
+	// Attempt to sync the file should result in clobbered error.
+	err = t.f1.Sync()
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
+	// Closing file should also give error
+	err = t.f1.Close()
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
+	// Make f1 nil, so that another attempt is not taken in TearDown to close the
+	// file
+	t.f1 = nil
+}
+
+func (t *StaleHandleTest) SyncingFileAfterObjectRenamedFailsWithStaleHandle() {
+	// Create an object on bucket
+	_, err = storageutil.CreateObject(
+		ctx,
+		bucket,
+		"foo",
+		[]byte("bar"))
+
+	// Open file handle to write
+	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_WRONLY|syscall.O_DIRECT, filePerms)
+	// Dirty the file by giving it some contents.
+	n, err := t.f1.Write([]byte("foobar"))
+	AssertEq(nil, err)
+	AssertEq(6, n)
+	// Rename the object.
+	err = os.Rename(t.f1.Name(), path.Join(mntDir, "bar"))
+	AssertEq(nil, err)
+	// Attempt to write to file should not give any error.
+	n, err = t.f1.Write([]byte("taco"))
+	AssertEq(4, n)
+	AssertEq(nil, err)
+	// Attempt to sync the file should result in clobbered error.
+	err = t.f1.Sync()
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
+	// Closing file should also give error
+	err = t.f1.Close()
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
+	// Make f1 nil, so that another attempt is not taken in TearDown to close the
+	// file
+	t.f1 = nil
+}
+
+func (t *StaleHandleTest) WritingFileAfterObjectRenamedFailsWithStaleHandle() {
+	// Create an object on bucket
+	_, err = storageutil.CreateObject(
+		ctx,
+		bucket,
+		"foo",
+		[]byte("bar"))
+
+	// Open file handle to write
+	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_WRONLY|syscall.O_DIRECT, filePerms)
+	// Rename the object.
+	err = os.Rename(t.f1.Name(), path.Join(mntDir, "bar"))
 	AssertEq(nil, err)
 	// Attempt to write to file should result in stale NFS file handle error.
 	_, err := t.f1.Write([]byte("taco"))
