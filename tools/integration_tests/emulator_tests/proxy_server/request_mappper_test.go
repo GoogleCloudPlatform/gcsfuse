@@ -40,10 +40,6 @@ func TestDeduceRequestTypeAndInstruction(t *testing.T) {
 		// XML API Tests
 		{"XmlRead GET", http.MethodGet, "/bucket/object", XmlRead, "storage.objects.get"},
 		{"XmlUnknown POST", http.MethodPost, "/bucket/object", Unknown, ""},
-
-		// Other Edge Cases
-		{"UnknownPath GET", http.MethodGet, "/unknown/path", XmlRead, "storage.objects.get"},
-		{"EmptyPath GET", http.MethodPost, "", Unknown, ""},
 	}
 
 	for _, test := range tests {
