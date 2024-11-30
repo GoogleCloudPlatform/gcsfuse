@@ -22,7 +22,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestDeduceRequestType(t *testing.T) {
+func TestDeduceRequestTypeAndInstruction(t *testing.T) {
 	tests := []struct {
 		name        string
 		method      string
