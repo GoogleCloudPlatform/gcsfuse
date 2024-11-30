@@ -32,7 +32,7 @@ func TestDeduceRequestTypeAndInstruction(t *testing.T) {
 	}{
 		// JSON API Tests
 		{"JsonStat GET", http.MethodGet, "/storage/v1/bucket/object", JsonStat, "storage.objects.get"},
-		{"JsonCreate POST", http.MethodPost, "/storage/v1/bucket/object", JsonCreate, "storage.objects.create"},
+		{"JsonCreate POST", http.MethodPost, "/storage/v1/bucket/object", JsonCreate, "storage.objects.insert"},
 		{"JsonDelete DELETE", http.MethodDelete, "/storage/v1/bucket/object", JsonDelete, "storage.objects.delete"},
 		{"JsonUpdate PUT", http.MethodPut, "/storage/v1/bucket/object", JsonUpdate, "storage.objects.update"},
 		{"JsonUnknown PATCH", http.MethodPatch, "/storage/v1/bucket/object", Unknown, ""},

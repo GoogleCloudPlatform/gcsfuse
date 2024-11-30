@@ -60,7 +60,7 @@ func deduceJsonRequestTypeAndInstruction(method string) RequestTypeAndInstructio
 	case http.MethodGet:
 		return RequestTypeAndInstruction{JsonStat, "storage.objects.get"}
 	case http.MethodPost:
-		return RequestTypeAndInstruction{JsonCreate, "storage.objects.create"}
+		return RequestTypeAndInstruction{JsonCreate, "storage.objects.insert"}
 	case http.MethodDelete:
 		return RequestTypeAndInstruction{JsonDelete, "storage.objects.delete"}
 	case http.MethodPut:
