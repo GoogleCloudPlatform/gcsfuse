@@ -67,6 +67,7 @@ func defaultFileCacheConfig(t *testing.T) cfg.FileCacheConfig {
 }
 
 func TestValidateConfigFile(t *testing.T) {
+	profileMemory(t)
 	testCases := []struct {
 		name       string
 		configFile string
@@ -133,6 +134,7 @@ func TestValidateConfigFile(t *testing.T) {
 }
 
 func TestValidateCliFlag(t *testing.T) {
+	profileMemory(t)
 	testCases := []struct {
 		name    string
 		args    []string
@@ -179,6 +181,7 @@ func TestValidateCliFlag(t *testing.T) {
 }
 
 func TestValidateConfigFile_WriteConfig(t *testing.T) {
+	profileMemory(t)
 	testCases := []struct {
 		name           string
 		configFile     string
@@ -223,6 +226,7 @@ func TestValidateConfigFile_WriteConfig(t *testing.T) {
 }
 
 func TestValidateConfigFile_InvalidConfigThrowsError(t *testing.T) {
+	profileMemory(t)
 	testCases := []struct {
 		name       string
 		configFile string
@@ -335,6 +339,7 @@ func TestValidateConfigFile_InvalidConfigThrowsError(t *testing.T) {
 }
 
 func TestValidateConfigFile_FileCacheConfigSuccessful(t *testing.T) {
+	profileMemory(t)
 	testCases := []struct {
 		name           string
 		configFile     string
@@ -378,6 +383,7 @@ func TestValidateConfigFile_FileCacheConfigSuccessful(t *testing.T) {
 }
 
 func TestValidateConfigFile_GCSAuthConfigSuccessful(t *testing.T) {
+	profileMemory(t)
 	hd, err := os.UserHomeDir()
 	require.Nil(t, err)
 	testCases := []struct {
@@ -435,6 +441,7 @@ func TestValidateConfigFile_GCSAuthConfigSuccessful(t *testing.T) {
 }
 
 func TestValidateConfigFile_GCSConnectionConfigSuccessful(t *testing.T) {
+	profileMemory(t)
 	testCases := []struct {
 		name           string
 		configFile     string
@@ -492,6 +499,7 @@ func TestValidateConfigFile_GCSConnectionConfigSuccessful(t *testing.T) {
 }
 
 func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
+	profileMemory(t)
 	hd, err := os.UserHomeDir()
 	require.NoError(t, err)
 	testCases := []struct {
@@ -574,6 +582,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 }
 
 func TestValidateConfigFile_ListConfigSuccessful(t *testing.T) {
+	profileMemory(t)
 	testCases := []struct {
 		name           string
 		configFile     string
@@ -608,6 +617,7 @@ func TestValidateConfigFile_ListConfigSuccessful(t *testing.T) {
 }
 
 func TestValidateConfigFile_EnableHNSConfigSuccessful(t *testing.T) {
+	profileMemory(t)
 	testCases := []struct {
 		name           string
 		configFile     string
@@ -642,6 +652,7 @@ func TestValidateConfigFile_EnableHNSConfigSuccessful(t *testing.T) {
 }
 
 func TestValidateConfigFile_MetadataCacheConfigSuccessful(t *testing.T) {
+	profileMemory(t)
 	testCases := []struct {
 		name           string
 		configFile     string
@@ -746,6 +757,7 @@ func TestValidateConfigFile_ReadStallConfigSuccessful(t *testing.T) {
 }
 
 func TestValidateCloudMetricsExportIntervalSecs(t *testing.T) {
+	profileMemory(t)
 	testCases := []struct {
 		name    string
 		args    []string
@@ -784,6 +796,7 @@ func TestValidateCloudMetricsExportIntervalSecs(t *testing.T) {
 }
 
 func TestValidateConfigFile_MetricsConfigSuccessful(t *testing.T) {
+	profileMemory(t)
 	testCases := []struct {
 		name           string
 		configFile     string
@@ -819,7 +832,16 @@ func TestValidateConfigFile_MetricsConfigSuccessful(t *testing.T) {
 	}
 }
 
+func profileMemory(t *testing.T) {
+	t.Helper()
+	done := make(chan bool)
+	go run(done)
+	t.Cleanup(func() {
+		done <- true
+	})
+}
 func TestValidateConfigFile_MetricsConfigInvalid(t *testing.T) {
+	profileMemory(t)
 	testCases := []struct {
 		name       string
 		configFile string
@@ -837,4 +859,21 @@ func TestValidateConfigFile_MetricsConfigInvalid(t *testing.T) {
 			assert.Error(t, err)
 		})
 	}
+}
+
+func run(done <-chan bool) {
+	for {
+		select {
+		case <-done:
+			return
+		case <-time.After(10 * time.Second):
+			profile()
+		}
+	}
+}
+
+func profile() {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	fmt.Printf("Heap allocation: %d MiB\n", m.Alloc/(1024*1024))
 }
