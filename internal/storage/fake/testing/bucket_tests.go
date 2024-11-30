@@ -32,7 +32,6 @@ import (
 	"time"
 	"unicode"
 
-	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	. "github.com/jacobsa/oglematchers"
@@ -2154,7 +2153,7 @@ func (t *composeTest) OneSourceDoesntExist() {
 			},
 		})
 
-	ExpectThat(err, HasSameTypeAs(storage.ErrObjectNotExist))
+	ExpectThat(err.Error(), HasSubstr("object doesn't exist"))
 
 	// Make sure the destination object doesn't exist.
 	_, _, err = t.bucket.StatObject(
@@ -2231,7 +2230,7 @@ func (t *composeTest) ExplicitGenerations_OneDoesntExist() {
 			},
 		})
 
-	ExpectThat(err, HasSameTypeAs(storage.ErrObjectNotExist))
+	ExpectThat(err.Error(), HasSubstr("object doesn't exist"))
 
 	// Make sure the destination object doesn't exist.
 	_, _, err = t.bucket.StatObject(
@@ -2687,8 +2686,7 @@ func (t *readTest) ObjectNameDoesntExist() {
 		_, err = rc.Read(make([]byte, 1))
 	}
 
-	AssertThat(err, HasSameTypeAs(storage.ErrObjectNotExist))
-	ExpectThat(err, Error(MatchesRegexp("(?i)object doesn't exist")))
+	ExpectThat(err.Error(), HasSubstr("object doesn't exist"))
 }
 
 func (t *readTest) EmptyObject() {
@@ -2754,8 +2752,7 @@ func (t *readTest) ParticularGeneration_NeverExisted() {
 		_, err = rc.Read(make([]byte, 1))
 	}
 
-	AssertThat(err, HasSameTypeAs(storage.ErrObjectNotExist))
-	ExpectThat(err, Error(MatchesRegexp("(?i)object doesn't exist")))
+	ExpectThat(err.Error(), HasSubstr("object doesn't exist"))
 }
 
 func (t *readTest) ParticularGeneration_HasBeenDeleted() {
@@ -2790,8 +2787,7 @@ func (t *readTest) ParticularGeneration_HasBeenDeleted() {
 		_, err = rc.Read(make([]byte, 1))
 	}
 
-	AssertThat(err, HasSameTypeAs(storage.ErrObjectNotExist))
-	ExpectThat(err, Error(MatchesRegexp("(?i)object doesn't exist")))
+	ExpectThat(err.Error(), HasSubstr("object doesn't exist"))
 }
 
 func (t *readTest) ParticularGeneration_Exists() {
@@ -2856,8 +2852,7 @@ func (t *readTest) ParticularGeneration_ObjectHasBeenOverwritten() {
 		_, err = rc.Read(make([]byte, 1))
 	}
 
-	AssertThat(err, HasSameTypeAs(storage.ErrObjectNotExist))
-	ExpectThat(err, Error(MatchesRegexp("(?i)object doesn't exist")))
+	ExpectThat(err.Error(), HasSubstr("object doesn't exist"))
 
 	// Reading by the new generation should work.
 	req.Generation = o2.Generation
@@ -3674,7 +3669,7 @@ func (t *deleteTest) NoParticularGeneration_Successful() {
 		_, err = rc.Read(make([]byte, 1))
 	}
 
-	AssertThat(err, HasSameTypeAs(storage.ErrObjectNotExist))
+	ExpectThat(err.Error(), HasSubstr("object doesn't exist"))
 }
 
 func (t *deleteTest) ParticularGeneration_NameDoesntExist() {
@@ -3745,7 +3740,7 @@ func (t *deleteTest) ParticularGeneration_Successful() {
 
 	// The object should no longer exist.
 	_, err = storageutil.ReadObject(t.ctx, t.bucket, name)
-	AssertThat(err, HasSameTypeAs(storage.ErrObjectNotExist))
+	ExpectThat(err.Error(), HasSubstr("object doesn't exist"))
 }
 
 func (t *deleteTest) MetaGenerationPrecondition_Unsatisfied_ObjectExists() {
@@ -3850,7 +3845,7 @@ func (t *deleteTest) MetaGenerationPrecondition_Satisfied() {
 
 	// The object should no longer exist.
 	_, err = storageutil.ReadObject(t.ctx, t.bucket, name)
-	AssertThat(err, HasSameTypeAs(storage.ErrObjectNotExist))
+	ExpectThat(err.Error(), HasSubstr("object doesn't exist"))
 }
 
 ////////////////////////////////////////////////////////////////////////

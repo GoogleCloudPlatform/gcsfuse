@@ -442,7 +442,7 @@ func (b *bucket) newReaderLocked(
 	// Find the object with the requested name.
 	index = b.objects.find(req.Name)
 	if index == len(b.objects) {
-		err = storage.ErrObjectNotExist
+		err = fmt.Errorf("object %s not found: %w", req.Name, storage.ErrObjectNotExist)
 		return
 	}
 
@@ -450,7 +450,7 @@ func (b *bucket) newReaderLocked(
 
 	// Does the generation match?
 	if req.Generation != 0 && req.Generation != o.metadata.Generation {
-		err = storage.ErrObjectNotExist
+		err = fmt.Errorf("object %s generation %v not found: %w", req.Name, req.Generation, storage.ErrObjectNotExist)
 		return
 	}
 
