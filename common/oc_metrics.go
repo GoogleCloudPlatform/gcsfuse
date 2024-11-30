@@ -17,7 +17,6 @@ package common
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"go.opencensus.io/plugin/ochttp"
@@ -50,8 +49,6 @@ const (
 	// CacheHit annotates the read operation from file cache with true or false.
 	CacheHit = "cache_hit"
 )
-
-var ocOnce sync.Once
 
 type ocMetrics struct {
 	// GCS measures
@@ -143,13 +140,6 @@ func recordOCLatencyMetric(ctx context.Context, m *stats.Float64Measure, inc flo
 }
 
 func NewOCMetrics() (MetricHandle, error) {
-	ocOnce.Do(func() {
-		ocMetric, ocInitError = initOCMetrics()
-	})
-	return ocMetric, ocInitError
-}
-
-func initOCMetrics() (*ocMetrics, error) {
 	gcsReadBytesCount := stats.Int64("gcs/read_bytes_count", "The number of bytes read from GCS objects.", stats.UnitBytes)
 	gcsReaderCount := stats.Int64("gcs/reader_count", "The number of GCS object readers opened or closed.", stats.UnitDimensionless)
 	gcsRequestCount := stats.Int64("gcs/request_count", "The number of GCS requests processed.", stats.UnitDimensionless)
