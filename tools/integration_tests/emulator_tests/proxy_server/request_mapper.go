@@ -38,15 +38,15 @@ type RequestTypeAndInstruction struct {
 	Instruction string
 }
 
-// deduceRequestType determines the type of request and its corresponding instruction
-func deduceRequestType(r *http.Request) RequestTypeAndInstruction {
+// deduceRequestTypeAndInstruction determines the type of request and its corresponding instruction
+func deduceRequestTypeAndInstruction(r *http.Request) RequestTypeAndInstruction {
 	path := r.URL.Path
 	method := r.Method
 
 	if isJsonAPI(path) {
-		return deduceJsonRequestType(method)
+		return deduceJsonRequestTypeAndInstruction(method)
 	}
-	return deduceXmlRequestType(method)
+	return deduceXmlRequestTypeAndInstruction(method)
 }
 
 // isJsonAPI checks if the request is targeting the JSON API
@@ -54,8 +54,8 @@ func isJsonAPI(path string) bool {
 	return strings.Contains(path, "/storage/v1")
 }
 
-// deduceJsonRequestType determines the request type and instruction for JSON API requests
-func deduceJsonRequestType(method string) RequestTypeAndInstruction {
+// deduceJsonRequestTypeAndInstruction determines the request type and instruction for JSON API requests
+func deduceJsonRequestTypeAndInstruction(method string) RequestTypeAndInstruction {
 	switch method {
 	case http.MethodGet:
 		return RequestTypeAndInstruction{JsonStat, "storage.objects.get"}
@@ -70,8 +70,8 @@ func deduceJsonRequestType(method string) RequestTypeAndInstruction {
 	}
 }
 
-// deduceXmlRequestType determines the request type and instruction for XML API requests
-func deduceXmlRequestType(method string) RequestTypeAndInstruction {
+// deduceXmlRequestTypeAndInstruction determines the request type and instruction for XML API requests
+func deduceXmlRequestTypeAndInstruction(method string) RequestTypeAndInstruction {
 	switch method {
 	case http.MethodGet:
 		return RequestTypeAndInstruction{XmlRead, "storage.objects.get"}

@@ -53,7 +53,7 @@ func TestDeduceRequestType(t *testing.T) {
 				URL:    &url.URL{Path: test.path},
 			}
 
-			result := deduceRequestType(req)
+			result := deduceRequestTypeAndInstruction(req)
 			assert.Equal(t, test.expectedReq, result.RequestType)
 			assert.Equal(t, test.expectedIns, result.Instruction)
 		})
