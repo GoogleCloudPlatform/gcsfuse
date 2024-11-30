@@ -126,7 +126,7 @@ def get_pattern_rows(handle, data, obj_bytes_list, obj_ranges_list, obj_pattern,
     :param op:read/write
     """
     if len(obj_pattern) > 0:
-        data.append([handle, op, "first " + op, 1, obj_bytes_list[0], obj_bytes_list[0], json.dumps([obj_bytes_list[0]]), json.dumps([obj_ranges_list[0]])])
+        data.append([handle, op, "first " + op, 1, "", "", json.dumps([]), json.dumps([])])
         # data.append([handle, op, "first " + op, 1, obj_bytes_list[0], obj_bytes_list[0]])
     if len(obj_pattern) > 1:
         read_ranges = [obj_ranges_list[1]]
@@ -140,7 +140,7 @@ def get_pattern_rows(handle, data, obj_bytes_list, obj_ranges_list, obj_pattern,
                 json_read_bytes = json.dumps(read_bytes)
                 json_read_ranges = json.dumps(read_ranges)
                 avg_byte_size = np.mean(obj_bytes_list)
-                row = [handle, op, type_map[last_read], streak, avg_byte_size, byte_sum, json_read_bytes, json_read_ranges]
+                row = [handle, op, type_map[last_read], streak, avg_byte_size, byte_sum, "", ""]
                 # row = [handle, op, type_map[last_read], streak, avg_byte_size, byte_sum]
                 data.append(row)
                 last_read = obj_pattern[i]
@@ -158,7 +158,7 @@ def get_pattern_rows(handle, data, obj_bytes_list, obj_ranges_list, obj_pattern,
         json_read_bytes = json.dumps(read_bytes)
         json_read_ranges = json.dumps(read_ranges)
         avg_byte_size = np.mean(obj_bytes_list)
-        row = [handle, op, type_map[last_read], streak, avg_byte_size, byte_sum, json_read_bytes, json_read_ranges]
+        row = [handle, op, type_map[last_read], streak, avg_byte_size, byte_sum, "", ""]
         # row = [handle, op, type_map[last_read], streak, avg_byte_size, byte_sum]
         data.append(row)
 
@@ -179,6 +179,7 @@ def read_pattern_writer(global_data, worksheet):
         obj = global_data.name_object_map[name]
         get_pattern_rows(name, data, obj.read_bytes, obj.read_ranges, obj.read_pattern, "read")
     if len(data) > 0:
+        print(data)
         worksheet.append_rows(data)
 
 
@@ -228,17 +229,22 @@ def main_gsheet_generator(global_data):
     except gspread.exceptions.WorksheetNotFound:
         pass
     worksheet1.clear()
+    print("starting worksheet")
     worksheet1.append_rows(call_data)
     calls_data_writer(global_data, global_data.gcalls.gcs_calls, "GCS", "global", worksheet1)
     calls_data_writer(global_data, global_data.gcalls.kernel_calls, "kernel", "global", worksheet1)
+    print("writing worksheet 1")
     worksheet2.clear()
     worksheet2.append_rows(handle_data)
     handle_data_writer(global_data, worksheet2)
+    print("writing worksheet 2")
     worksheet3.clear()
     worksheet3.append_rows(pattern_data)
+    print("writing worksheet 3")
     read_pattern_writer(global_data, worksheet3)
     worksheet4.clear()
     worksheet4.append_rows(max_entry_data)
+    print("writing worksheet 4")
     max_entry_writer(global_data, worksheet4)
     worksheet5.clear()
     worksheet5.append_row(["message"])
