@@ -32,7 +32,7 @@ jobs:
         run: go mod download
 
       - name: Test all except caching parallely
-        run: CGO_ENABLED=0 go test -v -timeout 75m -count 20 -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./... | grep -v internal/cache/... | grep -v /tools/`
+        run: GODEBUG=asyncpreemptoff=1 CGO_ENABLED=0 go test -v -timeout 75m -count 20 -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./... | grep -v internal/cache/... | grep -v /tools/`
 
       - name: Test caching
         run: CGO_ENABLED=0 go test -p 1 -timeout 75m -count 20 -v -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` ./internal/cache/...
