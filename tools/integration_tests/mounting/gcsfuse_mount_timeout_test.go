@@ -17,12 +17,12 @@ package integration_test
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path"
 	"testing"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/util"
 	. "github.com/jacobsa/ogletest"
@@ -40,7 +40,8 @@ type MountTimeoutTest struct {
 }
 
 const (
-	expectedMountTime float64 = 2.5
+	expectedMountTime time.Duration = 2500 * time.Millisecond
+	logfilePathPrefix string        = "/tmp/gcsfuse_mount_timeout_"
 )
 
 var _ SetUpInterface = &MountTimeoutTest{}
@@ -48,59 +49,25 @@ var _ TearDownInterface = &MountTimeoutTest{}
 
 func init() { RegisterTestSuite(&MountTimeoutTest{}) }
 
-func (t *MountTimeoutTest) SetUp(_ *TestInfo) {
+func (testSuite *MountTimeoutTest) SetUp(_ *TestInfo) {
 	var err error
-	t.gcsfusePath = path.Join(gBuildDir, "bin/gcsfuse")
+	testSuite.gcsfusePath = path.Join(gBuildDir, "bin/gcsfuse")
 	// Set up the temporary directory.
-	t.dir, err = os.MkdirTemp("", "mount_timeout_test")
+	testSuite.dir, err = os.MkdirTemp("", "mount_timeout_test")
 	AssertEq(nil, err)
 }
 
-func (t *MountTimeoutTest) TearDown() {
-	err := os.Remove(t.dir)
+func (testSuite *MountTimeoutTest) TearDown() {
+	err := os.Remove(testSuite.dir)
 	AssertEq(nil, err)
-}
-
-// Create an appropriate exec.Cmd for running gcsfuse, setting the required
-// environment.
-func (t *MountTimeoutTest) gcsfuseCommand(args []string, env []string) (cmd *exec.Cmd) {
-	cmd = exec.Command(t.gcsfusePath, args...)
-	cmd.Env = make([]string, len(env))
-	copy(cmd.Env, env)
-
-	// Teach gcsfuse where fusermount lives.
-	cmd.Env = append(cmd.Env, fmt.Sprintf("PATH=%s", path.Dir(gFusermountPath)))
-
-	return
-}
-
-// Call gcsfuse with the supplied args and environment variable,
-// waiting for it to exit. Return nil only if it exits successfully.
-func (t *MountTimeoutTest) runGcsfuseWithEnv(args []string, env []string) (err error) {
-	cmd := t.gcsfuseCommand(args, env)
-
-	// Run.
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		err = fmt.Errorf("error %w running gcsfuse; output:\n%s", err, output)
-		return
-	}
-
-	return
-}
-
-// Call gcsfuse with the supplied args, waiting for it to exit. Return nil only
-// if it exits successfully.
-func (t *MountTimeoutTest) runGcsfuse(args []string) (err error) {
-	return t.runGcsfuseWithEnv(args, nil)
 }
 
 // mountOrTimeout mounts the bucket with the given client protocol. If the time taken
 // exceeds threshold value of 2.5 seconds, an error is thrown and test will fail.
-func (t *MountTimeoutTest) mountOrTimeout(bucketName, mountDir, clientProtocol string) error {
+func (testSuite *MountTimeoutTest) mountOrTimeout(bucketName, mountDir, clientProtocol string) error {
 	start := time.Now()
-	args := []string{"--client-protocol", clientProtocol, bucketName, t.dir}
-	if err := t.runGcsfuse(args); err != nil {
+	args := []string{"--client-protocol", clientProtocol, bucketName, testSuite.dir}
+	if err := mounting.MountGcsfuse(testSuite.gcsfusePath, args); err != nil {
 		return err
 	}
 	defer func() {
@@ -109,8 +76,8 @@ func (t *MountTimeoutTest) mountOrTimeout(bucketName, mountDir, clientProtocol s
 		}
 	}()
 
-	if mountTime := time.Since(start).Seconds(); mountTime > expectedMountTime {
-		return fmt.Errorf("[Client Protocol: %s]Mounting failed due to timeout(exceeding %f seconds).Time taken for the mount: %f sec.", clientProtocol, expectedMountTime, mountTime)
+	if mountTime := time.Since(start); mountTime > expectedMountTime {
+		return fmt.Errorf("[Client Protocol: %s]Mounting failed due to timeout(exceeding %f seconds).Time taken for the mount: %f sec", clientProtocol, expectedMountTime.Seconds(), mountTime.Seconds())
 	}
 	return nil
 }
@@ -133,8 +100,8 @@ func (testSuite *MountTimeoutTest) MountGcsfuseWithTimeout() {
 			clientProtocol: cfg.HTTP2,
 		},
 	}
-
 	for _, tc := range testCases {
+		setup.SetLogFile(fmt.Sprintf("%s%s.txt", logfilePathPrefix, tc.name))
 		err := testSuite.mountOrTimeout(setup.TestBucket(), testSuite.dir, string(tc.clientProtocol))
 		ExpectEq(nil, err)
 	}
