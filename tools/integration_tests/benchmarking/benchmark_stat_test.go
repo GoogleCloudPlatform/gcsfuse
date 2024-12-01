@@ -60,7 +60,7 @@ func (s *benchmarkStatTest) Benchmark_Stat(b *testing.B) {
 	}
 	averageStatLatency := time.Duration(int(b.Elapsed()) / b.N)
 	if averageStatLatency > expectedStatLatency {
-		b.Errorf("Test failed due to timeout -> DeleteFile took more time (%d msec) than expected (%d msec)", averageStatLatency.Milliseconds(), expectedStatLatency.Milliseconds())
+		b.Errorf("StatFile took more time (%d msec) than expected (%d msec)", averageStatLatency.Milliseconds(), expectedStatLatency.Milliseconds())
 	}
 }
 

@@ -60,7 +60,7 @@ func (s *benchmarkDeleteTest) Benchmark_Delete(b *testing.B) {
 	}
 	averageDeleteLatency := time.Duration(int(b.Elapsed()) / b.N)
 	if averageDeleteLatency > expectedDeleteLatency {
-		b.Errorf("Test failed due to timeout -> DeleteFile took more time (%d msec) than expected (%d msec)", averageDeleteLatency.Milliseconds(), expectedDeleteLatency.Milliseconds())
+		b.Errorf("DeleteFile took more time (%d msec) than expected (%d msec)", averageDeleteLatency.Milliseconds(), expectedDeleteLatency.Milliseconds())
 	}
 }
 
