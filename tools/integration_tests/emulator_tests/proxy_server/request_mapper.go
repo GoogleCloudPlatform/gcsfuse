@@ -44,38 +44,36 @@ func deduceRequestTypeAndInstruction(r *http.Request) RequestTypeAndInstruction 
 	method := r.Method
 
 	if isJsonAPI(path) {
-		return deduceJsonRequestTypeAndInstruction(method)
-	}
-	return deduceXmlRequestTypeAndInstruction(method)
-}
-
-// isJsonAPI checks if the request is targeting the JSON API
-func isJsonAPI(path string) bool {
-	return strings.Contains(path, "/storage/v1")
-}
-
-// deduceJsonRequestTypeAndInstruction determines the request type and instruction for JSON API requests
-func deduceJsonRequestTypeAndInstruction(method string) RequestTypeAndInstruction {
-	switch method {
-	case http.MethodGet:
-		return RequestTypeAndInstruction{JsonStat, "storage.objects.get"}
-	case http.MethodPost:
-		return RequestTypeAndInstruction{JsonCreate, "storage.objects.insert"}
-	case http.MethodDelete:
-		return RequestTypeAndInstruction{JsonDelete, "storage.objects.delete"}
-	case http.MethodPut:
-		return RequestTypeAndInstruction{JsonUpdate, "storage.objects.update"}
-	default:
+		switch method {
+		case http.MethodGet:
+			// Check if path ends with `/o` (indicates listing objects)
+			if strings.HasSuffix(path, "/o") {
+				return RequestTypeAndInstruction{JsonList, "storage.objects.list"}
+			}
+			// Check if path has `/o/<object-name>` (indicates stat operation)
+			if strings.Contains(path, "/o/") {
+				return RequestTypeAndInstruction{JsonStat, "storage.objects.get"}
+			}
+		case http.MethodPost:
+			return RequestTypeAndInstruction{JsonCreate, "storage.objects.insert"}
+		case http.MethodDelete:
+			return RequestTypeAndInstruction{JsonDelete, "storage.objects.delete"}
+		case http.MethodPut:
+			return RequestTypeAndInstruction{JsonUpdate, "storage.objects.update"}
+		default:
+			return RequestTypeAndInstruction{Unknown, ""}
+		}
 		return RequestTypeAndInstruction{Unknown, ""}
 	}
-}
-
-// deduceXmlRequestTypeAndInstruction determines the request type and instruction for XML API requests
-func deduceXmlRequestTypeAndInstruction(method string) RequestTypeAndInstruction {
 	switch method {
 	case http.MethodGet:
 		return RequestTypeAndInstruction{XmlRead, "storage.objects.get"}
 	default:
 		return RequestTypeAndInstruction{Unknown, ""}
 	}
+}
+
+// isJsonAPI checks if the request is targeting the JSON API
+func isJsonAPI(path string) bool {
+	return strings.Contains(path, "/storage/v1")
 }

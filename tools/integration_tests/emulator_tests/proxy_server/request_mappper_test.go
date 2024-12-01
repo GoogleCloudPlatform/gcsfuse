@@ -31,11 +31,12 @@ func TestDeduceRequestTypeAndInstruction(t *testing.T) {
 		expectedIns string
 	}{
 		// JSON API Tests
-		{"JsonStat GET", http.MethodGet, "/storage/v1/bucket/object", JsonStat, "storage.objects.get"},
-		{"JsonCreate POST", http.MethodPost, "/storage/v1/bucket/object", JsonCreate, "storage.objects.insert"},
-		{"JsonDelete DELETE", http.MethodDelete, "/storage/v1/bucket/object", JsonDelete, "storage.objects.delete"},
-		{"JsonUpdate PUT", http.MethodPut, "/storage/v1/bucket/object", JsonUpdate, "storage.objects.update"},
-		{"JsonUnknown PATCH", http.MethodPatch, "/storage/v1/bucket/object", Unknown, ""},
+		{"JsonStat GET", http.MethodGet, "/storage/v1/bucket/o/object", JsonStat, "storage.objects.get"},
+		{"JsonList GET", http.MethodGet, "/storage/v1/bucket/o", JsonList, "storage.objects.list"},
+		{"JsonCreate POST", http.MethodPost, "/storage/v1/bucket/o", JsonCreate, "storage.objects.insert"},
+		{"JsonDelete DELETE", http.MethodDelete, "/storage/v1/bucket/o", JsonDelete, "storage.objects.delete"},
+		{"JsonUpdate PUT", http.MethodPut, "/storage/v1/bucket/o", JsonUpdate, "storage.objects.update"},
+		{"JsonUnknown PATCH", http.MethodPatch, "/storage/v1/bucket/o", Unknown, ""},
 
 		// XML API Tests
 		{"XmlRead GET", http.MethodGet, "/bucket/object", XmlRead, "storage.objects.get"},
