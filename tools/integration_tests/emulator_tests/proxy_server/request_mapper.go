@@ -63,7 +63,6 @@ func deduceRequestTypeAndInstruction(r *http.Request) RequestTypeAndInstruction 
 		default:
 			return RequestTypeAndInstruction{Unknown, ""}
 		}
-		return RequestTypeAndInstruction{Unknown, ""}
 	}
 	switch method {
 	case http.MethodGet:
