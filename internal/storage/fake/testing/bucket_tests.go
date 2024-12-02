@@ -32,7 +32,6 @@ import (
 	"time"
 	"unicode"
 
-	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	. "github.com/jacobsa/oglematchers"
@@ -2231,7 +2230,7 @@ func (t *composeTest) ExplicitGenerations_OneDoesntExist() {
 			},
 		})
 
-	ExpectThat(err, HasSameTypeAs(storage.ErrObjectNotExist))
+	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 
 	// Make sure the destination object doesn't exist.
 	_, _, err = t.bucket.StatObject(
@@ -2754,8 +2753,8 @@ func (t *readTest) ParticularGeneration_NeverExisted() {
 		_, err = rc.Read(make([]byte, 1))
 	}
 
-	AssertThat(err, HasSameTypeAs(storage.ErrObjectNotExist))
-	ExpectThat(err, Error(MatchesRegexp("(?i)object doesn't exist")))
+	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	ExpectThat(err, Error(MatchesRegexp("(?i)not found|404")))
 }
 
 func (t *readTest) ParticularGeneration_HasBeenDeleted() {
@@ -2856,8 +2855,8 @@ func (t *readTest) ParticularGeneration_ObjectHasBeenOverwritten() {
 		_, err = rc.Read(make([]byte, 1))
 	}
 
-	AssertThat(err, HasSameTypeAs(storage.ErrObjectNotExist))
-	ExpectThat(err, Error(MatchesRegexp("(?i)object doesn't exist")))
+	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	ExpectThat(err, Error(MatchesRegexp("(?i)not found|404")))
 
 	// Reading by the new generation should work.
 	req.Generation = o2.Generation
