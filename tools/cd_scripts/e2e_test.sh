@@ -203,6 +203,9 @@ function run_parallel_tests() {
 
   for test_dir_p in "${test_array[@]}"
   do
+    # Unlike regular tests,benchmark tests are not executed by default when using go test .
+    # The -bench flag yells go test to run the benchmark tests and report their results by
+    # enabling the benchmarking framework.
     if [ $test_dir_p == "benchmarking" ]; then
         benchmark_flags="-bench=."
     fi
