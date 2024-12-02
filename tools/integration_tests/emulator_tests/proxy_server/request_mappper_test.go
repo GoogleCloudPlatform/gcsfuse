@@ -51,6 +51,7 @@ func TestDeduceRequestTypeAndInstruction(t *testing.T) {
 			}
 
 			result := deduceRequestTypeAndInstruction(req)
+
 			assert.Equal(t, test.expectedReq, result.RequestType)
 			assert.Equal(t, test.expectedIns, result.Instruction)
 		})
