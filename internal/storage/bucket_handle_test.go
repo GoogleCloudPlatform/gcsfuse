@@ -153,6 +153,8 @@ func (testSuite *BucketHandleTest) TestNewReaderMethodWithNilRange() {
 }
 
 func (testSuite *BucketHandleTest) TestNewReaderMethodWithInValidObject() {
+	var notFoundErr *gcs.NotFoundError
+
 	rc, err := testSuite.bucketHandle.NewReader(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: missingObjectName,
@@ -163,6 +165,7 @@ func (testSuite *BucketHandleTest) TestNewReaderMethodWithInValidObject() {
 		})
 
 	assert.NotNil(testSuite.T(), err)
+	assert.True(testSuite.T(), errors.As(err, &notFoundErr))
 	assert.Nil(testSuite.T(), rc)
 }
 
@@ -186,6 +189,8 @@ func (testSuite *BucketHandleTest) TestNewReaderMethodWithValidGeneration() {
 }
 
 func (testSuite *BucketHandleTest) TestNewReaderMethodWithInvalidGeneration() {
+	var notFoundErr *gcs.NotFoundError
+
 	rc, err := testSuite.bucketHandle.NewReader(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: TestObjectName,
@@ -197,6 +202,7 @@ func (testSuite *BucketHandleTest) TestNewReaderMethodWithInvalidGeneration() {
 		})
 
 	assert.NotNil(testSuite.T(), err)
+	assert.True(testSuite.T(), errors.As(err, &notFoundErr))
 	assert.Nil(testSuite.T(), rc)
 }
 
@@ -1374,9 +1380,9 @@ func (testSuite *BucketHandleTest) TestComposeObjectMethodWithOneSrcObjectIsDstO
 
 func (testSuite *BucketHandleTest) TestBucketTypeForHierarchicalNameSpaceTrue() {
 	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
-		Return(&controlpb.StorageLayout{
-			HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
-		}, nil)
+			Return(&controlpb.StorageLayout{
+				HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
+			}, nil)
 
 	testSuite.bucketHandle.BucketType()
 
@@ -1385,9 +1391,9 @@ func (testSuite *BucketHandleTest) TestBucketTypeForHierarchicalNameSpaceTrue() 
 
 func (testSuite *BucketHandleTest) TestBucketTypeForHierarchicalNameSpaceFalse() {
 	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
-		Return(&controlpb.StorageLayout{
-			HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: false},
-		}, nil)
+			Return(&controlpb.StorageLayout{
+				HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: false},
+			}, nil)
 
 	testSuite.bucketHandle.BucketType()
 

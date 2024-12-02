@@ -90,8 +90,8 @@ func (bh *bucketHandle) BucketType() gcs.BucketType {
 }
 
 func (bh *bucketHandle) NewReader(
-	ctx context.Context,
-	req *gcs.ReadObjectRequest) (io.ReadCloser, error) {
+		ctx context.Context,
+		req *gcs.ReadObjectRequest) (io.ReadCloser, error) {
 	// Initialising the starting offset and the length to be read by the reader.
 	start := int64(0)
 	length := int64(-1)
@@ -115,7 +115,13 @@ func (bh *bucketHandle) NewReader(
 	}
 
 	// NewRangeReader creates a "storage.Reader" object which is also io.ReadCloser since it contains both Read() and Close() methods present in io.ReadCloser interface.
-	return obj.NewRangeReader(ctx, start, length)
+	r, err := obj.NewRangeReader(ctx, start, length)
+
+	if err == storage.ErrObjectNotExist {
+		err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
+	}
+
+	return r, err
 }
 func (bh *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRequest) error {
 	obj := bh.bucket.Object(req.Name)
@@ -153,7 +159,7 @@ func (bh *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectR
 }
 
 func (bh *bucketHandle) StatObject(ctx context.Context,
-	req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
+		req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
 	var attrs *storage.ObjectAttrs
 	// Retrieving object attrs through Go Storage Client.
 	attrs, err = bh.bucket.Object(req.Name).Attrs(ctx)
