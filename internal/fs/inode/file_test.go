@@ -948,6 +948,29 @@ func (t *FileTest) TestCreateEmptyTempFileShouldCreateEmptyFile() {
 	AssertEq(0, sr.Size)
 }
 
+func (t *FileTest) TestCreateEmptyTempFileShouldNotCreateFileWhenStreamingWritesAreEnabled() {
+	t.createInodeWithLocalParam("test", true)
+	t.in.writeConfig = getWriteConfig()
+
+	err := t.in.CreateEmptyTempFile()
+
+	AssertEq(nil, err)
+	AssertEq(nil, t.in.content)
+}
+
+func (t *FileTest) TestCreateEmptyTempFileShouldCreateFileForNonLocalFiles() {
+	t.in.writeConfig = getWriteConfig()
+
+	err := t.in.CreateEmptyTempFile()
+
+	AssertEq(nil, err)
+	AssertNe(nil, t.in.content)
+	// Validate that file size is 0.
+	sr, err := t.in.content.Stat()
+	AssertEq(nil, err)
+	AssertEq(0, sr.Size)
+}
+
 func (t *FileTest) UnlinkLocalFile() {
 	var err error
 	// Create a local file inode.

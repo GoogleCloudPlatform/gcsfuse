@@ -418,7 +418,6 @@ func (f *FileInode) Attributes(
 	if err != nil {
 		return
 	}
-
 	if bwEnabled {
 		attrs.Mtime = f.bwh.WriteFileInfo().Mtime
 	}
@@ -496,7 +495,6 @@ func (f *FileInode) Write(
 	if err != nil {
 		return
 	}
-
 	if bwEnabled {
 		return f.bwh.Write(data, offset)
 	}
@@ -525,7 +523,6 @@ func (f *FileInode) SetMtime(
 	if err != nil {
 		return
 	}
-
 	if bwEnabled {
 		f.bwh.SetMtime(mtime)
 		return
@@ -551,7 +548,6 @@ func (f *FileInode) SetMtime(
 	// 2. If the file is local, that means its not yet synced to GCS. Just update
 	// the mtime locally, it will be synced when the object is created on GCS.
 	if sr.Mtime != nil || f.IsLocal() {
-		fmt.Println(f.content != nil)
 		f.content.SetMtime(mtime)
 		return
 	}
@@ -569,7 +565,6 @@ func (f *FileInode) SetMtime(
 		},
 	}
 
-	fmt.Println("invoke updateObject")
 	o, err := f.bucket.UpdateObject(ctx, req)
 	if err == nil {
 		var minObj gcs.MinObject
@@ -699,12 +694,10 @@ func (f *FileInode) CacheEnsureContent(ctx context.Context) (err error) {
 }
 
 func (f *FileInode) CreateEmptyTempFile() (err error) {
-	bwEnabled, err := f.shouldTriggerBufferedWrites()
-	if bwEnabled {
-		fmt.Println("streamig writes enabled")
-		return err
+	// Skip creating empty file when streaming writes are enabled
+	if f.local && f.writeConfig.ExperimentalEnableStreamingWrites {
+		return
 	}
-
 	// Creating a file with no contents. The contents will be updated with
 	// writeFile operations.
 	f.content, err = f.contentCache.NewTempFile(io.NopCloser(strings.NewReader("")))

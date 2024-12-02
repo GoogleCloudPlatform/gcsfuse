@@ -1685,13 +1685,10 @@ func (fs *fileSystem) createLocalFile(
 	}
 	child = fs.mintInode(core)
 	fs.localFileInodes[child.Name()] = child
-	// For buffered writes, we don't create temp files on disk.
-	if !fs.newConfig.Write.ExperimentalEnableStreamingWrites {
-		// Empty file is created to be able to set attributes on the file.
-		fileInode := child.(*inode.FileInode)
-		if err := fileInode.CreateEmptyTempFile(); err != nil {
-			return nil, err
-		}
+	// Empty file is created to be able to set attributes on the file.
+	fileInode := child.(*inode.FileInode)
+	if err := fileInode.CreateEmptyTempFile(); err != nil {
+		return nil, err
 	}
 	fs.mu.Unlock()
 
