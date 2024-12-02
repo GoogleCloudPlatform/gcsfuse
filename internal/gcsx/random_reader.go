@@ -21,7 +21,6 @@ import (
 	"strings"
 	"time"
 
-	"cloud.google.com/go/storage"
 	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
@@ -502,7 +501,8 @@ func (rr *randomReader) startRead(
 	// in GCS, it indicates a file clobbering scenario. This likely occurred because:
 	//  - The file was deleted in GCS while a local handle was still open.
 	//  - The file content was modified leading to different generation number.
-	if errors.Is(err, storage.ErrObjectNotExist) {
+	var notFoundError *gcs.NotFoundError
+	if errors.As(err, &notFoundError) {
 		err = &gcsfuse_errors.FileClobberedError{
 			Err: fmt.Errorf("NewReader: %w", err),
 		}

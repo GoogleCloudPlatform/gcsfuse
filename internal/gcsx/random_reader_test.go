@@ -27,8 +27,6 @@ import (
 	"testing/iotest"
 	"time"
 
-	storage2 "cloud.google.com/go/storage"
-
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file/downloader"
@@ -1208,11 +1206,14 @@ func (t *RandomReaderTest) Test_Destroy_NonNilCacheHandle() {
 }
 
 func (t *RandomReaderTest) TestNewReader_FileClobbered() {
+	var notFoundError *gcs.NotFoundError
+
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
-		WillOnce(Return(nil, storage2.ErrObjectNotExist))
+		WillOnce(Return(nil, notFoundError))
 
 	err := t.rr.wrapped.startRead(t.rr.ctx, 0, 1)
 
+	fmt.Printf("Error: %v", err)
 	var clobberedErr *gcsfuse_errors.FileClobberedError
 	AssertTrue(errors.As(err, &clobberedErr))
 }
