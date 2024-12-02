@@ -29,7 +29,6 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/jacobsa/syncutil"
@@ -453,7 +452,11 @@ func (b *bucket) newReaderLocked(
 
 	// Does the generation match?
 	if req.Generation != 0 && req.Generation != o.metadata.Generation {
-		err = storage.ErrObjectNotExist
+		err = &gcs.NotFoundError{
+			Err: fmt.Errorf(
+				"object %s generation %v not found", req.Name, req.Generation),
+		}
+
 		return
 	}
 
