@@ -959,6 +959,7 @@ func (t *FileTest) TestCreateEmptyTempFileShouldNotCreateFileWhenStreamingWrites
 }
 
 func (t *FileTest) TestCreateEmptyTempFileShouldCreateFileForNonLocalFiles() {
+	// Enabling buffered writes.
 	t.in.writeConfig = getWriteConfig()
 
 	err := t.in.CreateEmptyTempFile()

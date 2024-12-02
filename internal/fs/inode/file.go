@@ -706,14 +706,6 @@ func (f *FileInode) CreateEmptyTempFile() (err error) {
 	return
 }
 
-// writeToBuffer writes the given content to the in-memory buffer.
-func (f *FileInode) writeToBuffer(data []byte, offset int64) (err error) {
-
-	err = f.bwh.Write(data, offset)
-
-	return
-}
-
 func (f *FileInode) ensureBufferedWriteHandler() error {
 	var err error
 	if f.bwh == nil {
