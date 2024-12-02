@@ -90,25 +90,25 @@ func (t *StaleHandleTest) createLocalFile(fileName string) (filePath string, f *
 
 func (t *StaleHandleTest) validateObjectNotFoundErr(fileName string) {
 	var notFoundErr *gcs.NotFoundError
-	_, err := storageutil.ReadObject(ctx, bucket, fileName)
+	_, err = storageutil.ReadObject(ctx, bucket, fileName)
 
 	ExpectTrue(errors.As(err, &notFoundErr))
 }
 
 func (t *StaleHandleTest) validateNoFileOrDirError(filename string) {
-	_, err := os.Stat(path.Join(mntDir, filename))
+	_, err = os.Stat(path.Join(mntDir, filename))
 	AssertNe(nil, err)
 	AssertTrue(strings.Contains(err.Error(), "no such file or directory"))
 }
 
 func (t *StaleHandleTest) closeLocalFile(f **os.File) error {
-	err := (*f).Close()
+	err = (*f).Close()
 	*f = nil
 	return err
 }
 
 func (t *StaleHandleTest) readDirectory(dirPath string) (entries []os.DirEntry) {
-	entries, err := os.ReadDir(dirPath)
+	entries, err = os.ReadDir(dirPath)
 	AssertEq(nil, err)
 	return
 }
@@ -123,7 +123,7 @@ func (t *StaleHandleTest) verifyLocalFileEntry(entry os.DirEntry, fileName strin
 }
 
 func (t *StaleHandleTest) closeFileAndValidateObjectContents(f **os.File, fileName string, contents string) {
-	err := t.closeLocalFile(f)
+	err = t.closeLocalFile(f)
 	AssertEq(nil, err)
 	t.validateObjectContents(fileName, contents)
 }
@@ -139,11 +139,13 @@ func (t *StaleHandleTest) validateObjectContents(fileName string, contents strin
 ////////////////////////////////////////////////////////////////////////
 
 func (t *StaleHandleTest) StatOnUnlinkedLocalFile() {
-	// Create a local file.
 	var filePath string
+	var err error
+
+	// Create a local file.
 	filePath, t.f1 = t.createLocalFile(FileName)
 	// unlink the local file.
-	err := os.Remove(filePath)
+	err = os.Remove(filePath)
 	AssertEq(nil, err)
 
 	// Stat the local file and validate error.
@@ -158,13 +160,15 @@ func (t *StaleHandleTest) StatOnUnlinkedLocalFile() {
 }
 
 func (t *StaleHandleTest) TestReadDirContainingUnlinkedLocalFiles() {
-	// Create local files.
 	var filepath3 string
+	var err error
+
+	// Create local files.
 	_, t.f1 = t.createLocalFile(FileName + "1")
 	_, t.f2 = t.createLocalFile(FileName + "2")
 	filepath3, t.f3 = t.createLocalFile(FileName + "3")
 	// Unlink local file 3
-	err := os.Remove(filepath3)
+	err = os.Remove(filepath3)
 	AssertEq(nil, err)
 
 	// Attempt to list mntDir.
@@ -186,12 +190,14 @@ func (t *StaleHandleTest) TestReadDirContainingUnlinkedLocalFiles() {
 }
 
 func (t *StaleHandleTest) TestUnlinkOfLocalFile() {
-	// Create empty local file.
 	var filepath string
+	var err error
+
+	// Create empty local file.
 	filepath, t.f1 = t.createLocalFile(FileName)
 
 	// Attempt to unlink local file.
-	err := os.Remove(filepath)
+	err = os.Remove(filepath)
 
 	// Verify unlink operation succeeds.
 	AssertEq(nil, err)
@@ -205,10 +211,12 @@ func (t *StaleHandleTest) TestUnlinkOfLocalFile() {
 }
 
 func (t *StaleHandleTest) TestWriteOnUnlinkedLocalFileSucceeds() {
-	// Create local file and unlink.
 	var filepath string
+	var err error
+
+	// Create local file and unlink.
 	filepath, t.f1 = t.createLocalFile(FileName)
-	err := os.Remove(filepath)
+	err = os.Remove(filepath)
 	// Verify unlink operation succeeds.
 	AssertEq(nil, err)
 	t.validateNoFileOrDirError(FileName)
@@ -225,12 +233,14 @@ func (t *StaleHandleTest) TestWriteOnUnlinkedLocalFileSucceeds() {
 }
 
 func (t *StaleHandleTest) TestSyncOnUnlinkedLocalFile() {
-	// Create local file.
 	var filepath string
+	var err error
+
+	// Create local file.
 	filepath, t.f1 = t.createLocalFile(FileName)
 
 	// Attempt to unlink local file.
-	err := os.Remove(filepath)
+	err = os.Remove(filepath)
 
 	// Verify unlink operation succeeds.
 	AssertEq(nil, err)
@@ -250,6 +260,8 @@ func (t *StaleHandleTest) TestSyncOnUnlinkedLocalFile() {
 }
 
 func (t *StaleHandleTest) TestRmDirOfDirectoryContainingGCSAndLocalFiles() {
+	var err error
+
 	// Create explicit directory with one synced and one local file.
 	AssertEq(
 		nil,
@@ -262,7 +274,7 @@ func (t *StaleHandleTest) TestRmDirOfDirectoryContainingGCSAndLocalFiles() {
 	_, t.f1 = t.createLocalFile("explicit/" + explicitLocalFileName)
 
 	// Attempt to remove explicit directory.
-	err := os.RemoveAll(path.Join(mntDir, "explicit"))
+	err = os.RemoveAll(path.Join(mntDir, "explicit"))
 
 	// Verify rmDir operation succeeds.
 	AssertEq(nil, err)
@@ -284,8 +296,10 @@ func (t *StaleHandleTest) TestRmDirOfDirectoryContainingGCSAndLocalFiles() {
 }
 
 func (t *StaleHandleTest) TestRmDirOfDirectoryContainingOnlyLocalFiles() {
+	var err error
+
 	// Create a directory with two local files.
-	err := os.Mkdir(path.Join(mntDir, "explicit"), dirPerms)
+	err = os.Mkdir(path.Join(mntDir, "explicit"), dirPerms)
 	AssertEq(nil, err)
 	_, t.f1 = t.createLocalFile("explicit/" + explicitLocalFileName)
 	_, t.f2 = t.createLocalFile("explicit/" + FileName)
@@ -313,19 +327,21 @@ func (t *StaleHandleTest) TestRmDirOfDirectoryContainingOnlyLocalFiles() {
 }
 
 func (t *StaleHandleTest) TestReadSymlinkForDeletedLocalFile() {
-	var filePath string
+	var err error
+	var filePath, symlinkName, target string
+
 	// Create a local file.
 	filePath, t.f1 = t.createLocalFile(FileName)
 	// Writing contents to local file shouldn't create file on GCS.
-	_, err := t.f1.Write([]byte(FileContents))
+	_, err = t.f1.Write([]byte(FileContents))
 	AssertEq(nil, err)
 	t.validateObjectNotFoundErr(FileName)
 	// Create the symlink.
-	symlinkName := path.Join(mntDir, "bar")
+	symlinkName = path.Join(mntDir, "bar")
 	err = os.Symlink(filePath, symlinkName)
 	AssertEq(nil, err)
 	// Read the link.
-	target, err := os.Readlink(symlinkName)
+	target, err = os.Readlink(symlinkName)
 	AssertEq(nil, err)
 	ExpectEq(filePath, target)
 
@@ -349,7 +365,7 @@ func (t *StaleHandleTest) TestReadSymlinkForDeletedLocalFile() {
 func (t *StaleHandleTest) SyncClobberedLocalInode() {
 	var err error
 	var n int
-
+	var contents []byte
 	// Create a local file.
 	_, t.f1 = t.createLocalFile("foo")
 
@@ -375,7 +391,7 @@ func (t *StaleHandleTest) SyncClobberedLocalInode() {
 	err = t.closeLocalFile(&t.f1)
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
-	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
+	contents, err = storageutil.ReadObject(ctx, bucket, "foo")
 	AssertEq(nil, err)
 	ExpectEq("foobar", string(contents))
 }
@@ -492,7 +508,7 @@ func (t *StaleHandleTest) SyncingFileAfterObjectClobberedRemotelyFailsWithStaleH
 
 func (t *StaleHandleTest) SyncingFileAfterObjectDeletedFailsWithStaleHandle() {
 	var err error
-
+	var n int
 	// Create an object on bucket
 	_, err = storageutil.CreateObject(
 		ctx,
@@ -504,7 +520,7 @@ func (t *StaleHandleTest) SyncingFileAfterObjectDeletedFailsWithStaleHandle() {
 	// Open file handle to write
 	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_WRONLY|syscall.O_DIRECT, filePerms)
 	// Dirty the file by giving it some contents.
-	n, err := t.f1.Write([]byte("foobar"))
+	n, err = t.f1.Write([]byte("foobar"))
 	AssertEq(nil, err)
 	AssertEq(6, n)
 	// Delete the object.
@@ -557,6 +573,7 @@ func (t *StaleHandleTest) WritingToFileAfterObjectDeletedFailsWithStaleHandle() 
 
 func (t *StaleHandleTest) SyncingLocalInodeAfterObjectDeletedFailsWithStaleHandle() {
 	var err error
+	var n int
 
 	// Create a local file.
 	_, t.f1 = t.createLocalFile("foo")
@@ -566,7 +583,7 @@ func (t *StaleHandleTest) SyncingLocalInodeAfterObjectDeletedFailsWithStaleHandl
 	AssertEq(nil, err)
 	// Attempt to write to file should not give any error as for local inode data
 	// is written to buffer, and we don't check for object on GCS.
-	n, err := t.f1.Write([]byte("taco"))
+	n, err = t.f1.Write([]byte("taco"))
 	AssertEq(nil, err)
 	AssertEq(4, n)
 	// Attempt to sync the file should result in clobbered error.
@@ -585,6 +602,7 @@ func (t *StaleHandleTest) SyncingLocalInodeAfterObjectDeletedFailsWithStaleHandl
 
 func (t *StaleHandleTest) SyncingFileAfterObjectRenamedFailsWithStaleHandle() {
 	var err error
+	var n int
 
 	// Create an object on bucket
 	_, err = storageutil.CreateObject(
@@ -597,7 +615,7 @@ func (t *StaleHandleTest) SyncingFileAfterObjectRenamedFailsWithStaleHandle() {
 	// Open file handle to write
 	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_WRONLY|syscall.O_DIRECT, filePerms)
 	// Dirty the file by giving it some contents.
-	n, err := t.f1.Write([]byte("foobar"))
+	n, err = t.f1.Write([]byte("foobar"))
 	AssertEq(nil, err)
 	AssertEq(6, n)
 	// Rename the object.
