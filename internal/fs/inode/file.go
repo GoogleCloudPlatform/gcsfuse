@@ -379,7 +379,7 @@ func (f *FileInode) Attributes(
 
 	// Obtain default information from the source object.
 	attrs.Mtime = f.src.Updated
-	attrs.Size = uint64(f.src.Size)
+	attrs.Size = f.src.Size
 
 	// If the source object has an mtime metadata key, use that instead of its
 	// update time.
@@ -412,6 +412,15 @@ func (f *FileInode) Attributes(
 		if sr.Mtime != nil {
 			attrs.Mtime = *sr.Mtime
 		}
+	}
+
+	bwEnabled, err := f.shouldTriggerBufferedWrites()
+	if err != nil {
+		return
+	}
+
+	if bwEnabled {
+		attrs.Mtime = f.bwh.WriteFileInfo().Mtime
 	}
 
 	// We require only that atime and ctime be "reasonable".
@@ -483,8 +492,13 @@ func (f *FileInode) Write(
 	ctx context.Context,
 	data []byte,
 	offset int64) (err error) {
-	if f.local && f.writeConfig.ExperimentalEnableStreamingWrites {
-		return f.writeToBuffer(data, offset)
+	bwEnabled, err := f.shouldTriggerBufferedWrites()
+	if err != nil {
+		return
+	}
+
+	if bwEnabled {
+		return f.bwh.Write(data, offset)
 	}
 
 	// Make sure f.content != nil.
@@ -507,6 +521,16 @@ func (f *FileInode) Write(
 func (f *FileInode) SetMtime(
 	ctx context.Context,
 	mtime time.Time) (err error) {
+	bwEnabled, err := f.shouldTriggerBufferedWrites()
+	if err != nil {
+		return
+	}
+
+	if bwEnabled {
+		f.bwh.SetMtime(mtime)
+		return
+	}
+
 	// If we have a local temp file, stat it.
 	var sr gcsx.StatResult
 	if f.content != nil {
@@ -527,6 +551,7 @@ func (f *FileInode) SetMtime(
 	// 2. If the file is local, that means its not yet synced to GCS. Just update
 	// the mtime locally, it will be synced when the object is created on GCS.
 	if sr.Mtime != nil || f.IsLocal() {
+		fmt.Println(f.content != nil)
 		f.content.SetMtime(mtime)
 		return
 	}
@@ -544,6 +569,7 @@ func (f *FileInode) SetMtime(
 		},
 	}
 
+	fmt.Println("invoke updateObject")
 	o, err := f.bucket.UpdateObject(ctx, req)
 	if err == nil {
 		var minObj gcs.MinObject
@@ -673,6 +699,12 @@ func (f *FileInode) CacheEnsureContent(ctx context.Context) (err error) {
 }
 
 func (f *FileInode) CreateEmptyTempFile() (err error) {
+	bwEnabled, err := f.shouldTriggerBufferedWrites()
+	if bwEnabled {
+		fmt.Println("streamig writes enabled")
+		return err
+	}
+
 	// Creating a file with no contents. The contents will be updated with
 	// writeFile operations.
 	f.content, err = f.contentCache.NewTempFile(io.NopCloser(strings.NewReader("")))
@@ -683,15 +715,34 @@ func (f *FileInode) CreateEmptyTempFile() (err error) {
 
 // writeToBuffer writes the given content to the in-memory buffer.
 func (f *FileInode) writeToBuffer(data []byte, offset int64) (err error) {
-	// Initialize bufferedWriteHandler if not done already.
+
+	err = f.bwh.Write(data, offset)
+
+	return
+}
+
+func (f *FileInode) ensureBufferedWriteHandler() error {
+	var err error
 	if f.bwh == nil {
 		f.bwh, err = bufferedwrites.NewBWHandler(f.name.GcsObjectName(), f.bucket, f.writeConfig.BlockSizeMb, f.writeConfig.MaxBlocksPerFile, f.globalMaxBlocksSem)
 		if err != nil {
 			return fmt.Errorf("failed to create bufferedWriteHandler: %w", err)
 		}
+		f.bwh.SetMtime(f.mtimeClock.Now())
 	}
 
-	err = f.bwh.Write(data, offset)
+	return nil
+}
 
-	return
+func (f *FileInode) shouldTriggerBufferedWrites() (bool, error) {
+	if f.local && f.writeConfig.ExperimentalEnableStreamingWrites {
+		err := f.ensureBufferedWriteHandler()
+		if err != nil {
+			return true, err
+		}
+
+		return true, nil
+	}
+
+	return false, nil
 }

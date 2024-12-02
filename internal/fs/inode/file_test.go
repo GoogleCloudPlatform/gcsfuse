@@ -878,6 +878,26 @@ func (t *FileTest) TestSetMtimeForLocalFileShouldUpdateLocalFileAttributes() {
 	AssertEq("gcs.NotFoundError: object test not found", err.Error())
 }
 
+func (t *FileTest) TestSetMtimeForLocalFileWhenStreamingWritesAreEnabled() {
+	var err error
+	var attrs fuseops.InodeAttributes
+	// Create a local file inode.
+	t.createInodeWithLocalParam("test", true)
+	t.in.writeConfig = getWriteConfig()
+
+	// Set mtime.
+	mtime := time.Now().UTC().Add(123 * time.Second)
+	err = t.in.SetMtime(t.ctx, mtime)
+
+	AssertEq(nil, err)
+	// The inode should agree about the new mtime.
+	attrs, err = t.in.Attributes(t.ctx)
+	AssertEq(nil, err)
+	ExpectThat(attrs.Mtime, timeutil.TimeEq(mtime))
+	ExpectThat(attrs.Ctime, timeutil.TimeEq(mtime))
+	ExpectThat(attrs.Atime, timeutil.TimeEq(mtime))
+}
+
 func (t *FileTest) ContentEncodingGzip() {
 	// Set up an explicit content-encoding on the backing object and re-create the inode.
 	contentEncoding := "gzip"
