@@ -25,11 +25,6 @@ import (
 	"go.opencensus.io/tag"
 )
 
-var (
-	ocMetric    *ocMetrics
-	ocInitError error
-)
-
 const (
 	// IOMethod annotates the event that opens or closes a connection or file.
 	IOMethod = "io_method"
