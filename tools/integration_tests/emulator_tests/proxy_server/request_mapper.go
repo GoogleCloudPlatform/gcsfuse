@@ -45,6 +45,7 @@ func deduceRequestTypeAndInstruction(r *http.Request) RequestTypeAndInstruction 
 
 	if isJsonAPI(path) {
 		switch method {
+		// TODO: Implement logic to differentiate JSON read requests from general HTTP GET requests for the purpose of testing JSON read functionality.
 		case http.MethodGet:
 			// Check if path ends with `/o` (indicates listing objects)
 			if strings.HasSuffix(path, "/o") {
