@@ -74,5 +74,6 @@ func deduceRequestTypeAndInstruction(r *http.Request) RequestTypeAndInstruction 
 
 // isJsonAPI checks if the request is targeting the JSON API
 func isJsonAPI(path string) bool {
+	// The JSON API path includes "/storage/v1", while the XML API path does not.
 	return strings.Contains(path, "/storage/v1")
 }
