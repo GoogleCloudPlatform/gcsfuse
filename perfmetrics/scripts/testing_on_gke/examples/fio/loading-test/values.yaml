@@ -20,8 +20,8 @@
 image: ubuntu:24.04
 bucketName: gke-dlio-test-data
 # scenario controls the kind of storage that is used for the load testing. local-ssd means directly on LSSD; gcsfuse-generic means on a gcsfuse mount with gcsfuse.mountOptions sent from the caller; gcsfuse-no-file-cache and gcsfuse-file-cache mean as their name suggests.
-scenario: local-ssd
-nodeType: n2-standard-96
+scenario: gcsfuse-generic
+nodeType: ct6e-standard-4t
 instanceId: ldap-yyyymmdd-hhmmss
 podName:
 outputDirPrefix:

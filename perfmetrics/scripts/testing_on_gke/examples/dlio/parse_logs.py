@@ -102,7 +102,7 @@ def createOutputScenariosFromDownloadedFiles(args: dict) -> dict:
   """
 
   output = {}
-  for root, _, files in os.walk(_LOCAL_LOGS_LOCATION + "/" + args.instance_id):
+  for root, _, files in os.walk("perfmetrics/scripts/testing_on_gke/bin/dlio-logs/logs" + "/" + args.instance_id):
     print(f"Parsing directory {root} ...")
     if files:
       # If directory contains gcsfuse_mount_options file, then parse gcsfuse
