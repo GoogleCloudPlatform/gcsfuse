@@ -33,7 +33,6 @@ var (
 	fConfigPath = flag.String("config-path", "configs/config.yaml", "Path to the file")
 	// Flag to turn on debug logs.
 	debug = flag.Bool("debug", false, "logs will be enabled with a flag value of true.")
-
 	// Initialized before the server gets started.
 	gConfig *Config
 )
