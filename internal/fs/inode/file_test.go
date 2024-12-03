@@ -702,8 +702,8 @@ func (t *FileTest) Sync_Clobbered() {
 	ExpectEq(newObj.Size, m.Size)
 }
 
-func (t *FileTest) TestNewReader_FileClobbered() {
-	// Truncate downward.
+func (t *FileTest) TestOpenReader_ThrowsFileClobberedError() {
+	// Modify the file locally.
 	err := t.in.Truncate(t.ctx, 2)
 	AssertEq(nil, err)
 	// Clobber the backing object.
@@ -714,10 +714,9 @@ func (t *FileTest) TestNewReader_FileClobbered() {
 		[]byte("burrito"))
 	AssertEq(nil, err)
 
-	// openReader. The call should not succeed, and we expect a FileClobberedError.
 	_, err = t.in.openReader(t.ctx)
 
-	// Check if the error is a FileClobberedError
+	// assert error is not nil.
 	var fcErr *gcsfuse_errors.FileClobberedError
 	AssertTrue(errors.As(err, &fcErr), "expected FileClobberedError but got %v", err)
 }

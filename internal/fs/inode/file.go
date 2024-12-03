@@ -229,10 +229,9 @@ func (f *FileInode) openReader(ctx context.Context) (io.ReadCloser, error) {
 			Generation:     f.src.Generation,
 			ReadCompressed: f.src.HasContentEncodingGzip(),
 		})
-	// If a file handle is open locally, but the corresponding object doesn't exist
-	// in GCS, it indicates a file clobbering scenario. This likely occurred because:
-	//  - The file was deleted in GCS while a local handle was still open.
-	//  - The file content was modified leading to different generation number.
+	// If the object with requested generation doesn't exist in GCS, it indicates
+	// a file clobbering scenario. This likely occurred because the file was
+	// modified/deleted leading to different generation number.
 	var notFoundError *gcs.NotFoundError
 	if errors.As(err, &notFoundError) {
 		err = &gcsfuse_errors.FileClobberedError{

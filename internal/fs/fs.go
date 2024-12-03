@@ -1117,10 +1117,9 @@ func (fs *fileSystem) syncFile(
 	// SyncFile can be triggered for unlinked files if the fileHandle is open by
 	// same or another user. This indicates a potential file clobbering scenario:
 	// - The file was deleted (unlinked) while a handle to it was still open.
-	// - The file content was modified leading to different generation number.
 	if f.IsLocal() && f.IsUnlinked() {
 		err = &gcsfuse_errors.FileClobberedError{
-			Err: err,
+			Err: fmt.Errorf("file %s was unlinked while it was still open, indicating file clobbering", f.Name().LocalName()),
 		}
 		return
 	}

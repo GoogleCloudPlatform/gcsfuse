@@ -43,9 +43,10 @@ func TestFileClobberedError(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			clobberedErr := &FileClobberedError{Err: tc.err}
-			gotErrMsg := clobberedErr.Error()
-			assert.Equal(t, tc.wantErrMsg, gotErrMsg)
 
+			gotErrMsg := clobberedErr.Error()
+
+			assert.Equal(t, tc.wantErrMsg, gotErrMsg)
 			if tc.err != nil {
 				assert.True(t, errors.Is(clobberedErr, tc.err))
 			}

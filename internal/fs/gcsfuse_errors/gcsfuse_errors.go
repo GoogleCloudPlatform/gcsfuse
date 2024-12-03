@@ -25,7 +25,7 @@ type FileClobberedError struct {
 }
 
 func (fce *FileClobberedError) Error() string {
-	return fmt.Sprintf("The file was modified or deleted by another process, possibly due to concurrent access: %v", fce.Err)
+	return fmt.Sprintf("The file was modified or deleted by another process, possibly due to concurrent modification: %v", fce.Err)
 }
 
 func (fce *FileClobberedError) Unwrap() error {

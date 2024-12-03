@@ -31,7 +31,7 @@ import (
 
 type ErrorMapping struct {
 	suite.Suite
-	preconditionErr bool
+	preconditionErrCfg bool
 }
 
 func TestWithErrorMapping(testSuite *testing.T) {
@@ -42,7 +42,7 @@ func (testSuite *ErrorMapping) TestPermissionDeniedGrpcApiError() {
 	statusErr := status.New(codes.PermissionDenied, "Permission denied")
 	apiError, _ := apierror.FromError(statusErr.Err())
 
-	fsErr := errno(apiError, testSuite.preconditionErr)
+	fsErr := errno(apiError, testSuite.preconditionErrCfg)
 
 	assert.Equal(testSuite.T(), syscall.EACCES, fsErr)
 }
@@ -51,7 +51,7 @@ func (testSuite *ErrorMapping) TestNotFoundGrpcApiError() {
 	statusErr := status.New(codes.NotFound, "Not found")
 	apiError, _ := apierror.FromError(statusErr.Err())
 
-	fsErr := errno(apiError, testSuite.preconditionErr)
+	fsErr := errno(apiError, testSuite.preconditionErrCfg)
 
 	assert.Equal(testSuite.T(), syscall.ENOENT, fsErr)
 }
@@ -60,7 +60,7 @@ func (testSuite *ErrorMapping) TestCanceledGrpcApiError() {
 	statusErr := status.New(codes.Canceled, "Canceled error")
 	apiError, _ := apierror.FromError(statusErr.Err())
 
-	fsErr := errno(apiError, testSuite.preconditionErr)
+	fsErr := errno(apiError, testSuite.preconditionErrCfg)
 
 	assert.Equal(testSuite.T(), syscall.EINTR, fsErr)
 }
@@ -69,7 +69,7 @@ func (testSuite *ErrorMapping) TestUnAuthenticatedGrpcApiError() {
 	statusErr := status.New(codes.Unauthenticated, "UnAuthenticated error")
 	apiError, _ := apierror.FromError(statusErr.Err())
 
-	fsErr := errno(apiError, testSuite.preconditionErr)
+	fsErr := errno(apiError, testSuite.preconditionErrCfg)
 
 	assert.Equal(testSuite.T(), syscall.EACCES, fsErr)
 }
@@ -78,12 +78,12 @@ func (testSuite *ErrorMapping) TestUnAuthenticatedHttpGoogleApiError() {
 	googleApiError := &googleapi.Error{Code: http.StatusUnauthorized}
 	googleApiError.Wrap(fmt.Errorf("UnAuthenticated error"))
 
-	fsErr := errno(googleApiError, testSuite.preconditionErr)
+	fsErr := errno(googleApiError, testSuite.preconditionErrCfg)
 
 	assert.Equal(testSuite.T(), syscall.EACCES, fsErr)
 }
 
-func (testSuite *ErrorMapping) TestFileClobberedError() {
+func (testSuite *ErrorMapping) TestFileClobberedErrorWithPreconditionErrCfg() {
 	clobberedErr := &gcsfuse_errors.FileClobberedError{
 		Err: fmt.Errorf("some error"),
 	}
@@ -91,4 +91,14 @@ func (testSuite *ErrorMapping) TestFileClobberedError() {
 	gotErrno := errno(clobberedErr, true)
 
 	assert.Equal(testSuite.T(), syscall.ESTALE, gotErrno)
+}
+
+func (testSuite *ErrorMapping) TestFileClobberedErrorWithoutPreconditionErrCfg() {
+	clobberedErr := &gcsfuse_errors.FileClobberedError{
+		Err: fmt.Errorf("some error"),
+	}
+
+	gotErrno := errno(clobberedErr, false)
+
+	assert.Equal(testSuite.T(), nil, gotErrno)
 }
