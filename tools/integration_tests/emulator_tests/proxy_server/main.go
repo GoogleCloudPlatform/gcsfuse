@@ -29,9 +29,10 @@ import (
 )
 
 var (
-	// Flags to accept config-file path.
+	// Flag to accept config-file path.
 	fConfigPath = flag.String("config-path", "configs/config.yaml", "Path to the file")
-	debug       = flag.Bool("debug", false, "logs will be enabled with flag value true.")
+	// Flag to turn on debug logs.
+	debug = flag.Bool("debug", false, "logs will be enabled with a flag value of true.")
 
 	// Initialized before the server gets started.
 	gConfig *Config
@@ -72,7 +73,7 @@ func (ph ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respURL, err := resp.Location()
-	// Change the resp URL host to proxy server host.
+	// Change the resp URL host(target host) to proxy server host.
 	if err == nil {
 		// Parse the original URL.
 		u, err := url.Parse(respURL.String())
