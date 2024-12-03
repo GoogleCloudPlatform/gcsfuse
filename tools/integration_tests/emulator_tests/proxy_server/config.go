@@ -33,7 +33,7 @@ type RetryConfig struct {
 }
 
 type Config struct {
-	// Target host address for the emulator.
+	// TargetHost is the address of emulator server to which proxy server interacts.
 	TargetHost  string        `yaml:"targetHost"`
 	RetryConfig []RetryConfig `yaml:"retryConfig"`
 }
