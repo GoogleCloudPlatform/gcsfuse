@@ -36,9 +36,6 @@ var (
 
 	// Initialized before the server gets started.
 	gConfig *Config
-
-	// Initialized before the server gets started.
-	gOpManager *OperationManager
 )
 
 // Host address of the proxy server.
