@@ -43,7 +43,7 @@ func parseConfigFile(configPath string) (*Config, error) {
 
 	viper.SetConfigFile(configPath)
 	if err := viper.ReadInConfig(); err != nil {
-		return nil, fmt.Errorf("Error reading config file, %s", err)
+		return nil, fmt.Errorf("error reading config file, %s", err)
 	}
 
 	if err := viper.Unmarshal(&config); err != nil {
