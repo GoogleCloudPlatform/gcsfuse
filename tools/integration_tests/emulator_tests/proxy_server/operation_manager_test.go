@@ -40,28 +40,79 @@ func TestNewOperationManager(t *testing.T) {
 }
 
 func TestRetrieveOperation(t *testing.T) {
-	config := Config{
-		RetryConfig: []RetryConfig{
-			{Method: "JsonCreate", RetryInstruction: "return-503", RetryCount: 2, SkipCount: 1},
-		},
-	}
-	om := NewOperationManager(config)
+	t.Run("JsonCreate Tests", func(t *testing.T) {
+		config := Config{
+			RetryConfig: []RetryConfig{
+				{Method: "JsonCreate", RetryInstruction: "return-503", RetryCount: 2, SkipCount: 1},
+			},
+		}
+		om := NewOperationManager(config)
 
-	// First call: Skip count is decremented, so no retry instruction should be returned
-	result := om.retrieveOperation("JsonCreate")
-	assert.Equal(t, "", result, "Expected empty result due to SkipCount")
+		// First call: Skip count is decremented, so no retry instruction should be returned
+		result := om.retrieveOperation("JsonCreate")
+		assert.Equal(t, "", result, "Expected empty result due to SkipCount")
 
-	// Second call: Retry instruction should be returned
-	result = om.retrieveOperation("JsonCreate")
-	assert.Equal(t, "return-503", result, "Expected 'return-503' as RetryInstruction")
+		// Second call: Retry instruction should be returned
+		result = om.retrieveOperation("JsonCreate")
+		assert.Equal(t, "return-503", result, "Expected 'return-503' as RetryInstruction")
 
-	// Third call: Retry instruction should be returned again
-	result = om.retrieveOperation("JsonCreate")
-	assert.Equal(t, "return-503", result, "Expected 'return-503' as RetryInstruction")
+		// Third call: Retry instruction should be returned again
+		result = om.retrieveOperation("JsonCreate")
+		assert.Equal(t, "return-503", result, "Expected 'return-503' as RetryInstruction")
 
-	// Fourth call: Retry count is exhausted, so no retry instruction should be returned
-	result = om.retrieveOperation("JsonCreate")
-	assert.Equal(t, "", result, "Expected empty result as RetryCount is exhausted")
+		// Fourth call: Retry count is exhausted, so no retry instruction should be returned
+		result = om.retrieveOperation("JsonCreate")
+		assert.Equal(t, "", result, "Expected empty result as RetryCount is exhausted")
+	})
+
+	t.Run("Multiple config tests", func(t *testing.T) {
+		// Initialize OperationManager with two retry configs
+		config := Config{
+			RetryConfig: []RetryConfig{
+				{Method: "RequestTypeA", RetryInstruction: "retry-503", RetryCount: 2, SkipCount: 1},
+				{Method: "RequestTypeA", RetryInstruction: "retry-202", RetryCount: 1, SkipCount: 0},
+				{Method: "RequestTypeB", RetryInstruction: "retry-404", RetryCount: 3, SkipCount: 0},
+			},
+		}
+		om := NewOperationManager(config)
+
+		// Test for RequestTypeA
+		// First call: SkipCount is decremented, so no retry instruction should be returned
+		result := om.retrieveOperation("RequestTypeA")
+		assert.Equal(t, "", result, "Expected no result due to SkipCount")
+
+		// Second call: First retry instruction should be returned
+		result = om.retrieveOperation("RequestTypeA")
+		assert.Equal(t, "retry-503", result, "Expected 'retry-503' as RetryInstruction")
+
+		// Third call: Second retry instruction should be returned
+		result = om.retrieveOperation("RequestTypeA")
+		assert.Equal(t, "retry-503", result, "Expected 'retry-503' as RetryInstruction")
+
+		// Fourth call: Move to the second config for RequestTypeA
+		result = om.retrieveOperation("RequestTypeA")
+		assert.Equal(t, "retry-202", result, "Expected 'retry-202' as RetryInstruction")
+
+		// Fifth call: All retry instructions exhausted, so no result
+		result = om.retrieveOperation("RequestTypeA")
+		assert.Equal(t, "", result, "Expected no result as all retries are exhausted")
+
+		// Test for RequestTypeB
+		// First call: First retry instruction should be returned
+		result = om.retrieveOperation("RequestTypeB")
+		assert.Equal(t, "retry-404", result, "Expected 'retry-404' as RetryInstruction")
+
+		// Second and Third calls: Same retry instruction should be returned
+		result = om.retrieveOperation("RequestTypeB")
+		assert.Equal(t, "retry-404", result, "Expected 'retry-404' as RetryInstruction")
+
+		result = om.retrieveOperation("RequestTypeB")
+		assert.Equal(t, "retry-404", result, "Expected 'retry-404' as RetryInstruction")
+
+		// Fourth call: All retries are exhausted for RequestTypeB
+		result = om.retrieveOperation("RequestTypeB")
+		assert.Equal(t, "", result, "Expected no result as all retries are exhausted")
+	})
 }
 
 func TestAddRetryConfig(t *testing.T) {
