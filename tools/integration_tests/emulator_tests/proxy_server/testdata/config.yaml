@@ -1,0 +1,10 @@
+targetHost: "localhost:8080"
+retryConfig:
+- method: "JsonCreate"
+  retryInstruction: "return-503"
+  retryCount: 3
+  skipCount: 1
+- method: "JsonStat"
+  retryInstruction: "stall-33s-after-20K"
+  retryCount: 5
+  skipCount: 2
