@@ -77,4 +77,26 @@ retryConfig:
 		assert.NoError(t, err)
 		assert.Nil(t, config.RetryConfig, "config should be nil")
 	})
+
+	t.Run("InvalidConfigFile", func(t *testing.T) {
+		// Create a file with invalid content
+		invalidContent := `
+invalid_key: "invalid_value"
+another_invalid_key:
+`
+		tempFile, err := os.CreateTemp("", "invalid-config-*.yaml")
+		assert.NoError(t, err)
+		defer os.Remove(tempFile.Name())
+
+		_, err = tempFile.Write([]byte(invalidContent))
+		assert.NoError(t, err)
+		tempFile.Close()
+
+		// Parse the file
+		config, err := parseConfigFile(tempFile.Name())
+
+		// Assertions
+		assert.NoError(t, err)
+		assert.Nil(t, config.RetryConfig)
+	})
 }
