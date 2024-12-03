@@ -29,15 +29,15 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-func TestMountTimeout(t *testing.T) {
-	if os.Getenv("TEST_ENV") == testEnvGCEUSCentral {
-		suite.Run(t, new(MountTimeoutTest))
+func TestMountTimeoutWithRelaxedThreshold(t *testing.T) {
+	if os.Getenv("TEST_ENV") == testEnvGCENonUSCentral {
+		suite.Run(t, new(MountTimeoutTestWithRelaxedThreshold))
 	} else {
 		t.Skip()
 	}
 }
 
-type MountTimeoutTest struct {
+type MountTimeoutTestWithRelaxedThreshold struct {
 	suite.Suite
 	// Path to the gcsfuse binary.
 	gcsfusePath string
@@ -47,7 +47,7 @@ type MountTimeoutTest struct {
 	dir string
 }
 
-func (testSuite *MountTimeoutTest) SetupTest() {
+func (testSuite *MountTimeoutTestWithRelaxedThreshold) SetupTest() {
 	var err error
 	testSuite.gcsfusePath = path.Join(gBuildDir, "bin/gcsfuse")
 	// Set up the temporary directory.
@@ -55,14 +55,14 @@ func (testSuite *MountTimeoutTest) SetupTest() {
 	assert.NoError(testSuite.T(), err)
 }
 
-func (testSuite *MountTimeoutTest) TearDownTest() {
+func (testSuite *MountTimeoutTestWithRelaxedThreshold) TearDownTest() {
 	err := os.Remove(testSuite.dir)
 	assert.NoError(testSuite.T(), err)
 }
 
 // mountOrTimeout mounts the bucket with the given client protocol. If the time taken
 // exceeds threshold value of 2.5 seconds, an error is thrown and test will fail.
-func (testSuite *MountTimeoutTest) mountOrTimeout(bucketName, mountDir, clientProtocol string, expectedMountTime time.Duration) error {
+func (testSuite *MountTimeoutTestWithRelaxedThreshold) mountOrTimeout(bucketName, mountDir, clientProtocol string, expectedMountTime time.Duration) error {
 	args := []string{"--client-protocol", clientProtocol, bucketName, testSuite.dir}
 	start := time.Now()
 	if err := mounting.MountGcsfuse(testSuite.gcsfusePath, args); err != nil {
@@ -80,7 +80,7 @@ func (testSuite *MountTimeoutTest) mountOrTimeout(bucketName, mountDir, clientPr
 	return nil
 }
 
-func (testSuite *MountTimeoutTest) TestMountMultiRegionUSBucketWithTimeout() {
+func (testSuite *MountTimeoutTestWithRelaxedThreshold) TestMountMultiRegionUSBucketWithTimeout() {
 	testCases := []struct {
 		name           string
 		clientProtocol cfg.Protocol
@@ -101,12 +101,12 @@ func (testSuite *MountTimeoutTest) TestMountMultiRegionUSBucketWithTimeout() {
 	for _, tc := range testCases {
 		setup.SetLogFile(fmt.Sprintf("%s%s.txt", logfilePathPrefix, tc.name))
 
-		err := testSuite.mountOrTimeout(multiRegionUSBucket, testSuite.dir, string(tc.clientProtocol), multiRegionUSExpectedMountTime)
+		err := testSuite.mountOrTimeout(multiRegionUSBucket, testSuite.dir, string(tc.clientProtocol), relaxedExpectedMountTime)
 		assert.NoError(testSuite.T(), err)
 	}
 }
 
-func (testSuite *MountTimeoutTest) TestMountMultiRegionAsiaBucketWithTimeout() {
+func (testSuite *MountTimeoutTestWithRelaxedThreshold) TestMountMultiRegionAsiaBucketWithTimeout() {
 	testCases := []struct {
 		name           string
 		clientProtocol cfg.Protocol
@@ -127,12 +127,12 @@ func (testSuite *MountTimeoutTest) TestMountMultiRegionAsiaBucketWithTimeout() {
 	for _, tc := range testCases {
 		setup.SetLogFile(fmt.Sprintf("%s%s.txt", logfilePathPrefix, tc.name))
 
-		err := testSuite.mountOrTimeout(multiRegionAsiaBucket, testSuite.dir, string(tc.clientProtocol), multiRegionAsiaExpectedMountTime)
+		err := testSuite.mountOrTimeout(multiRegionAsiaBucket, testSuite.dir, string(tc.clientProtocol), relaxedExpectedMountTime)
 		assert.NoError(testSuite.T(), err)
 	}
 }
 
-func (testSuite *MountTimeoutTest) TestMountDualRegionUSBucketWithTimeout() {
+func (testSuite *MountTimeoutTestWithRelaxedThreshold) TestMountDualRegionUSBucketWithTimeout() {
 	testCases := []struct {
 		name           string
 		clientProtocol cfg.Protocol
@@ -153,12 +153,12 @@ func (testSuite *MountTimeoutTest) TestMountDualRegionUSBucketWithTimeout() {
 	for _, tc := range testCases {
 		setup.SetLogFile(fmt.Sprintf("%s%s.txt", logfilePathPrefix, tc.name))
 
-		err := testSuite.mountOrTimeout(dualRegionUSBucket, testSuite.dir, string(tc.clientProtocol), dualRegionUSExpectedMountTime)
+		err := testSuite.mountOrTimeout(dualRegionUSBucket, testSuite.dir, string(tc.clientProtocol), relaxedExpectedMountTime)
 		assert.NoError(testSuite.T(), err)
 	}
 }
 
-func (testSuite *MountTimeoutTest) TestMountDualRegionAsiaBucketWithTimeout() {
+func (testSuite *MountTimeoutTestWithRelaxedThreshold) TestMountDualRegionAsiaBucketWithTimeout() {
 	testCases := []struct {
 		name           string
 		clientProtocol cfg.Protocol
@@ -179,12 +179,12 @@ func (testSuite *MountTimeoutTest) TestMountDualRegionAsiaBucketWithTimeout() {
 	for _, tc := range testCases {
 		setup.SetLogFile(fmt.Sprintf("%s%s.txt", logfilePathPrefix, tc.name))
 
-		err := testSuite.mountOrTimeout(dualRegionAsiaBucket, testSuite.dir, string(tc.clientProtocol), dualRegionAsiaExpectedMountTime)
+		err := testSuite.mountOrTimeout(dualRegionAsiaBucket, testSuite.dir, string(tc.clientProtocol), relaxedExpectedMountTime)
 		assert.NoError(testSuite.T(), err)
 	}
 }
 
-func (testSuite *MountTimeoutTest) TestMountSingleRegionUSBucketWithTimeout() {
+func (testSuite *MountTimeoutTestWithRelaxedThreshold) TestMountSingleRegionUSBucketWithTimeout() {
 	testCases := []struct {
 		name           string
 		clientProtocol cfg.Protocol
@@ -205,12 +205,12 @@ func (testSuite *MountTimeoutTest) TestMountSingleRegionUSBucketWithTimeout() {
 	for _, tc := range testCases {
 		setup.SetLogFile(fmt.Sprintf("%s%s.txt", logfilePathPrefix, tc.name))
 
-		err := testSuite.mountOrTimeout(singleRegionUSCentralBucket, testSuite.dir, string(tc.clientProtocol), singleRegionUSCentralExpectedMountTime)
+		err := testSuite.mountOrTimeout(singleRegionUSCentralBucket, testSuite.dir, string(tc.clientProtocol), relaxedExpectedMountTime)
 		assert.NoError(testSuite.T(), err)
 	}
 }
 
-func (testSuite *MountTimeoutTest) TestMountSingleRegionAsiaBucketWithTimeout() {
+func (testSuite *MountTimeoutTestWithRelaxedThreshold) TestMountSingleRegionAsiaBucketWithTimeout() {
 	testCases := []struct {
 		name           string
 		clientProtocol cfg.Protocol
@@ -231,7 +231,7 @@ func (testSuite *MountTimeoutTest) TestMountSingleRegionAsiaBucketWithTimeout() 
 	for _, tc := range testCases {
 		setup.SetLogFile(fmt.Sprintf("%s%s.txt", logfilePathPrefix, tc.name))
 
-		err := testSuite.mountOrTimeout(singleRegionAsiaEastBucket, testSuite.dir, string(tc.clientProtocol), singleRegionAsiaEastExpectedMountTime)
+		err := testSuite.mountOrTimeout(singleRegionAsiaEastBucket, testSuite.dir, string(tc.clientProtocol), relaxedExpectedMountTime)
 		assert.NoError(testSuite.T(), err)
 	}
 }
