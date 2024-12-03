@@ -388,6 +388,7 @@ func (t *StaleHandleTest) ReadingFileAfterObjectClobberedRemotelyFailsWithStaleH
 
 	// Open the read handle
 	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_RDONLY|syscall.O_DIRECT, filePerms)
+	AssertEq(nil, err)
 	// Replace the underlying object with a new generation.
 	_, err = storageutil.CreateObject(
 		ctx,
@@ -417,6 +418,7 @@ func (t *StaleHandleTest) WritingToFileAfterObjectClobberedRemotelyFailsWithStal
 
 	// Open file handle to write
 	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_WRONLY|syscall.O_DIRECT, filePerms)
+	AssertEq(nil, err)
 	// Replace the underlying object with a new generation.
 	_, err = storageutil.CreateObject(
 		ctx,
@@ -449,6 +451,7 @@ func (t *StaleHandleTest) SyncingFileAfterObjectClobberedRemotelyFailsWithStaleH
 
 	// Open file handle to write
 	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_WRONLY|syscall.O_DIRECT, filePerms)
+	AssertEq(nil, err)
 	// Dirty the file by giving it some contents.
 	n, err := t.f1.Write([]byte("taco"))
 	AssertEq(nil, err)
@@ -488,6 +491,7 @@ func (t *StaleHandleTest) SyncingFileAfterObjectDeletedFailsWithStaleHandle() {
 
 	// Open file handle to write
 	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_WRONLY|syscall.O_DIRECT, filePerms)
+	AssertEq(nil, err)
 	// Dirty the file by giving it some contents.
 	n, err := t.f1.Write([]byte("foobar"))
 	AssertEq(nil, err)
@@ -524,6 +528,7 @@ func (t *StaleHandleTest) WritingToFileAfterObjectDeletedFailsWithStaleHandle() 
 
 	// Open file handle to write
 	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_WRONLY|syscall.O_DIRECT, filePerms)
+	AssertEq(nil, err)
 	// Delete the object.
 	err = os.Remove(t.f1.Name())
 	AssertEq(nil, err)
@@ -575,6 +580,7 @@ func (t *StaleHandleTest) SyncingFileAfterObjectRenamedFailsWithStaleHandle() {
 
 	// Open file handle to write
 	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_WRONLY|syscall.O_DIRECT, filePerms)
+	AssertEq(nil, err)
 	// Dirty the file by giving it some contents.
 	n, err := t.f1.Write([]byte("foobar"))
 	AssertEq(nil, err)
@@ -584,8 +590,8 @@ func (t *StaleHandleTest) SyncingFileAfterObjectRenamedFailsWithStaleHandle() {
 	AssertEq(nil, err)
 	// Attempt to write to file should not give any error.
 	n, err = t.f1.Write([]byte("taco"))
-	AssertEq(4, n)
 	AssertEq(nil, err)
+	AssertEq(4, n)
 	// Attempt to sync the file should result in clobbered error.
 	err = t.f1.Sync()
 
@@ -611,6 +617,7 @@ func (t *StaleHandleTest) WritingToFileAfterObjectRenamedFailsWithStaleHandle() 
 
 	// Open file handle to write
 	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_WRONLY|syscall.O_DIRECT, filePerms)
+	AssertEq(nil, err)
 	// Rename the object.
 	err = os.Rename(t.f1.Name(), path.Join(mntDir, "bar"))
 	AssertEq(nil, err)
