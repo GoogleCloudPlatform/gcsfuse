@@ -38,6 +38,16 @@ type Config struct {
 	RetryConfig []RetryConfig `yaml:"retryConfig"`
 }
 
+func printConfig(config Config) {
+	log.Println("Target Host:", config.TargetHost)
+	for _, retry := range config.RetryConfig {
+		log.Println("Method:", retry.Method)
+		log.Println("Retry instructions:", retry.RetryInstruction)
+		log.Println("Retry Count:", retry.RetryCount)
+		log.Println("Skip Count:", retry.SkipCount)
+	}
+}
+
 func parseConfigFile(configPath string) (*Config, error) {
 	var config Config
 
@@ -50,14 +60,7 @@ func parseConfigFile(configPath string) (*Config, error) {
 		return nil, fmt.Errorf("unable to decode into struct, %v", err)
 	}
 
-	// Access the values from the struct
-	log.Println("Target Host:", config.TargetHost)
-	for _, retry := range config.RetryConfig {
-		log.Println("Method:", retry.Method)
-		log.Println("Retry instructions:", retry.RetryInstruction)
-		log.Println("Retry Count:", retry.RetryCount)
-		log.Println("Skip Count:", retry.SkipCount)
-	}
+	printConfig(config)
 
 	return &config, nil
 }
