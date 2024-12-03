@@ -17,6 +17,7 @@ package benchmarking
 import (
 	"path"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/benchmark_setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
@@ -26,6 +27,10 @@ import (
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
+
+const (
+	expectedStatLatency time.Duration = 260 * time.Millisecond
+)
 
 type benchmarkStatTest struct{}
 
@@ -52,6 +57,10 @@ func (s *benchmarkStatTest) Benchmark_Stat(b *testing.B) {
 		if _, err := operations.StatFile(path.Join(testDirPath, "a.txt")); err != nil {
 			b.Errorf("testing error: %v", err)
 		}
+	}
+	averageStatLatency := time.Duration(int(b.Elapsed()) / b.N)
+	if averageStatLatency > expectedStatLatency {
+		b.Errorf("StatFile took more time (%d msec) than expected (%d msec)", averageStatLatency.Milliseconds(), expectedStatLatency.Milliseconds())
 	}
 }
 
