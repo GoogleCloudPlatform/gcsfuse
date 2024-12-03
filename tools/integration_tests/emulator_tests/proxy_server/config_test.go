@@ -46,6 +46,7 @@ retryConfig:
 
 		// Parse the file
 		config, err := parseConfigFile(tempFile.Name())
+		assert.NoError(t, err)
 
 		// Assertions
 		assert.Equal(t, "http://localhost:8080", config.TargetHost, "unexpected TargetHost value")
