@@ -65,13 +65,12 @@ func TestRetrieveOperation(t *testing.T) {
 		assert.Equal(t, "", result, "Expected empty result as RetryCount is exhausted")
 	})
 
-	t.Run("Multiple config tests", func(t *testing.T) {
+	t.Run("Multiple config tests with same request types", func(t *testing.T) {
 		// Initialize OperationManager with two retry configs
 		config := Config{
 			RetryConfig: []RetryConfig{
 				{Method: "RequestTypeA", RetryInstruction: "retry-503", RetryCount: 2, SkipCount: 1},
 				{Method: "RequestTypeA", RetryInstruction: "retry-202", RetryCount: 1, SkipCount: 0},
-				{Method: "RequestTypeB", RetryInstruction: "retry-404", RetryCount: 3, SkipCount: 0},
 			},
 		}
 		om := NewOperationManager(config)
@@ -96,21 +95,37 @@ func TestRetrieveOperation(t *testing.T) {
 		// Fifth call: All retry instructions exhausted, so no result
 		result = om.retrieveOperation("RequestTypeA")
 		assert.Equal(t, "", result, "Expected no result as all retries are exhausted")
+	})
 
-		// Test for RequestTypeB
-		// First call: First retry instruction should be returned
-		result = om.retrieveOperation("RequestTypeB")
-		assert.Equal(t, "retry-404", result, "Expected 'retry-404' as RetryInstruction")
+	t.Run("Multiple config tests with different request types", func(t *testing.T) {
+		// Initialize OperationManager with two retry configs
+		config := Config{
+			RetryConfig: []RetryConfig{
+				{Method: "RequestTypeA", RetryInstruction: "retry-503", RetryCount: 2, SkipCount: 1},
+				{Method: "RequestTypeB", RetryInstruction: "retry-202", RetryCount: 1, SkipCount: 0},
+			},
+		}
+		om := NewOperationManager(config)
 
-		// Second and Third calls: Same retry instruction should be returned
-		result = om.retrieveOperation("RequestTypeB")
-		assert.Equal(t, "retry-404", result, "Expected 'retry-404' as RetryInstruction")
+		// Test for RequestTypeA
+		// First call: SkipCount is decremented, so no retry instruction should be returned
+		result := om.retrieveOperation("RequestTypeA")
+		assert.Equal(t, "", result, "Expected no result due to SkipCount")
 
-		result = om.retrieveOperation("RequestTypeB")
-		assert.Equal(t, "retry-404", result, "Expected 'retry-404' as RetryInstruction")
+		// Second call: First retry instruction should be returned
+		result = om.retrieveOperation("RequestTypeA")
+		assert.Equal(t, "retry-503", result, "Expected 'retry-503' as RetryInstruction")
 
-		// Fourth call: All retries are exhausted for RequestTypeB
+		// Third call: Second retry instruction should be returned
+		result = om.retrieveOperation("RequestTypeA")
+		assert.Equal(t, "retry-503", result, "Expected 'retry-503' as RetryInstruction")
+
+		// Fourth call: Move to the second config for RequestTypeA
 		result = om.retrieveOperation("RequestTypeB")
+		assert.Equal(t, "retry-202", result, "Expected 'retry-202' as RetryInstruction")
+
+		// Fifth call: All retry instructions exhausted, so no result
+		result = om.retrieveOperation("RequestTypeA")
 		assert.Equal(t, "", result, "Expected no result as all retries are exhausted")
 	})
 }
