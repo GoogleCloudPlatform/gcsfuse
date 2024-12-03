@@ -120,7 +120,11 @@ func TestRetrieveOperation(t *testing.T) {
 		result = om.retrieveOperation("RequestTypeA")
 		assert.Equal(t, "retry-503", result, "Expected 'retry-503' as RetryInstruction")
 
-		// Fourth call: Move to the second config for RequestTypeA
+		// Forth call: All retry instructions exhausted, so no result
+		result = om.retrieveOperation("RequestTypeA")
+		assert.Equal(t, "", result, "Expected no result as all retries are exhausted")
+
+		// Fifth call: Move to the second config for RequestTypeA
 		result = om.retrieveOperation("RequestTypeB")
 		assert.Equal(t, "retry-202", result, "Expected 'retry-202' as RetryInstruction")
 	})
