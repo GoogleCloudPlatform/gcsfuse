@@ -34,7 +34,8 @@ var (
 	// Flag to turn on debug logs.
 	debug = flag.Bool("debug", false, "logs will be enabled with a flag value of true.")
 	// Initialized before the server gets started.
-	gConfig *Config
+	gConfig    *Config
+	gOpManager *OperationManager
 )
 
 // Host address of the proxy server.
@@ -58,7 +59,8 @@ func (ph ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// TODO: Handler request and add retry-id according to the instruction.
+	reqTypeAndInstruction := deduceRequestTypeAndInstruction(r)
+	AddRetryID(req, reqTypeAndInstruction)
 
 	// Send the request to the target server
 	client := &http.Client{}
@@ -159,7 +161,7 @@ func main() {
 		log.Printf("%+v\n", gConfig)
 	}
 
-	// TODO: Create operation manager instance from config.
+	gOpManager = NewOperationManager(*gConfig)
 
 	ps := NewProxyServer(PORT)
 	ps.Start()
