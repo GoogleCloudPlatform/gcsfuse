@@ -32,9 +32,11 @@ func NewOperationManager(config Config) *OperationManager {
 	for _, retryConfig := range config.RetryConfig {
 		om.addRetryConfig(retryConfig)
 	}
+
 	if *debug {
 		log.Printf("%+v\n", om)
 	}
+
 	return om
 }
 
