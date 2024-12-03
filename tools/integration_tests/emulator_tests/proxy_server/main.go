@@ -154,15 +154,17 @@ func main() {
 
 	var err error
 	gConfig, err = parseConfigFile(*fConfigPath)
-	if *debug {
-		log.Printf("%+v\n", gConfig)
-	}
 	if err != nil {
 		log.Printf("Parsing error: %v\n", err)
 		os.Exit(1)
 	}
 
-	gOpManager = NewOperationManager(*gConfig)
+	if *debug {
+		log.Printf("%+v\n", gConfig)
+	}
+
+	// TODO: Create operation manager instance from config.
+
 	ps := NewProxyServer(PORT)
 	ps.Start()
 }
