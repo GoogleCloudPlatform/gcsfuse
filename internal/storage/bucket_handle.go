@@ -115,7 +115,13 @@ func (bh *bucketHandle) NewReader(
 	}
 
 	// NewRangeReader creates a "storage.Reader" object which is also io.ReadCloser since it contains both Read() and Close() methods present in io.ReadCloser interface.
-	return obj.NewRangeReader(ctx, start, length)
+	r, err := obj.NewRangeReader(ctx, start, length)
+
+	if err == storage.ErrObjectNotExist {
+		err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
+	}
+
+	return r, err
 }
 func (bh *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRequest) error {
 	obj := bh.bucket.Object(req.Name)

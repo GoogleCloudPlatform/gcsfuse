@@ -153,6 +153,8 @@ func (testSuite *BucketHandleTest) TestNewReaderMethodWithNilRange() {
 }
 
 func (testSuite *BucketHandleTest) TestNewReaderMethodWithInValidObject() {
+	var notFoundErr *gcs.NotFoundError
+
 	rc, err := testSuite.bucketHandle.NewReader(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: missingObjectName,
@@ -163,6 +165,7 @@ func (testSuite *BucketHandleTest) TestNewReaderMethodWithInValidObject() {
 		})
 
 	assert.NotNil(testSuite.T(), err)
+	assert.True(testSuite.T(), errors.As(err, &notFoundErr))
 	assert.Nil(testSuite.T(), rc)
 }
 
@@ -186,6 +189,8 @@ func (testSuite *BucketHandleTest) TestNewReaderMethodWithValidGeneration() {
 }
 
 func (testSuite *BucketHandleTest) TestNewReaderMethodWithInvalidGeneration() {
+	var notFoundErr *gcs.NotFoundError
+
 	rc, err := testSuite.bucketHandle.NewReader(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: TestObjectName,
@@ -197,6 +202,7 @@ func (testSuite *BucketHandleTest) TestNewReaderMethodWithInvalidGeneration() {
 		})
 
 	assert.NotNil(testSuite.T(), err)
+	assert.True(testSuite.T(), errors.As(err, &notFoundErr))
 	assert.Nil(testSuite.T(), rc)
 }
 
