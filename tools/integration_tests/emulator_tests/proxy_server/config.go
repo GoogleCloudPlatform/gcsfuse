@@ -15,6 +15,7 @@
 package proxy_server
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/spf13/viper"
@@ -42,11 +43,11 @@ func parseConfigFile(configPath string) (*Config, error) {
 
 	viper.SetConfigFile(configPath)
 	if err := viper.ReadInConfig(); err != nil {
-		log.Fatalf("Error reading config file, %s", err)
+		return nil, fmt.Errorf("Error reading config file, %s", err)
 	}
 
 	if err := viper.Unmarshal(&config); err != nil {
-		log.Fatalf("unable to decode into struct, %v", err)
+		return nil, fmt.Errorf("unable to decode into struct, %v", err)
 	}
 
 	// Access the values from the struct
