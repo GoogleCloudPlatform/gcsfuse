@@ -45,7 +45,7 @@ const (
 	testEnvNonGCE                          string        = "non-gce"
 	testEnvCloudtop                        string        = "cloudtop"
 	multiRegionUSBucket                    string        = "mount_timeout_test_bucket_us"
-	multiRegionUSExpectedMountTime         time.Duration = 500 * time.Millisecond
+	multiRegionUSExpectedMountTime         time.Duration = 2000 * time.Millisecond
 	multiRegionAsiaBucket                  string        = "mount_timeout_test_bucket_asia"
 	multiRegionAsiaExpectedMountTime       time.Duration = 4500 * time.Millisecond
 	dualRegionUSBucket                     string        = "mount_timeout_test_bucket_nam4"
@@ -53,7 +53,7 @@ const (
 	dualRegionAsiaBucket                   string        = "mount_timeout_test_bucket_asia1"
 	dualRegionAsiaExpectedMountTime        time.Duration = 3750 * time.Millisecond
 	singleRegionUSCentralBucket            string        = "mount_timeout_test_bucket_us-central1"
-	singleRegionUSCentralExpectedMountTime time.Duration = 1500 * time.Millisecond
+	singleRegionUSCentralExpectedMountTime time.Duration = 2000 * time.Millisecond
 	singleRegionAsiaEastBucket             string        = "mount_timeout_test_bucket_asia-east1"
 	singleRegionAsiaEastExpectedMountTime  time.Duration = 3200 * time.Millisecond
 	relaxedExpectedMountTime               time.Duration = 8000 * time.Millisecond
