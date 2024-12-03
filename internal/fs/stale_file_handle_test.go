@@ -97,6 +97,7 @@ func (t *StaleHandleTest) validateObjectNotFoundErr(fileName string) {
 
 func (t *StaleHandleTest) validateNoFileOrDirError(filename string) {
 	_, err := os.Stat(path.Join(mntDir, filename))
+
 	AssertNe(nil, err)
 	AssertTrue(strings.Contains(err.Error(), "no such file or directory"))
 }
@@ -200,7 +201,7 @@ func (t *StaleHandleTest) TestUnlinkOfLocalFile() {
 	err = t.closeLocalFile(&t.f1)
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
-	// Verify unlinked is not present on GCS.
+	// Verify unlinked file is not present on GCS.
 	t.validateObjectNotFoundErr(FileName)
 }
 
@@ -215,6 +216,7 @@ func (t *StaleHandleTest) TestWriteOnUnlinkedLocalFileSucceeds() {
 
 	// Write to unlinked local file.
 	_, err = t.f1.WriteString(FileContents)
+
 	AssertEq(nil, err)
 	// Validate flushing unlinked local file throws stale NFS file handle error.
 	err = t.closeLocalFile(&t.f1)
@@ -228,20 +230,21 @@ func (t *StaleHandleTest) TestSyncOnUnlinkedLocalFile() {
 	// Create local file.
 	var filePath string
 	filePath, t.f1 = t.createLocalFile(FileName)
-
 	// Attempt to unlink local file.
 	err := os.Remove(filePath)
-
 	// Verify unlink operation succeeds.
 	AssertEq(nil, err)
 	t.validateNoFileOrDirError(FileName)
+
 	// Validate sync operation throws stale NFS file handle error
 	// and does not write to GCS after unlink.
 	err = t.f1.Sync()
+
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
 	t.validateObjectNotFoundErr(FileName)
-	// Validate flushing unlinked local file throws stale NFS file handle error.
+	// Validate closing unlinked local file handle also throws stale NFS file
+	// handle error.
 	err = t.closeLocalFile(&t.f1)
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
@@ -331,44 +334,40 @@ func (t *StaleHandleTest) TestReadSymlinkForDeletedLocalFile() {
 
 	// Attempt to unlink local file.
 	err = os.Remove(filePath)
+
 	// Verify unlink operation succeeds.
 	AssertEq(nil, err)
-
 	// Validate flushing local unlinked file throws stale NFS file handle error
 	// and does not create object on GCS.
 	err = t.closeLocalFile(&t.f1)
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
 	t.validateObjectNotFoundErr(FileName)
-
 	// Reading symlink should fail.
 	_, err = os.Stat(symlinkName)
 	AssertTrue(strings.Contains(err.Error(), "no such file or directory"))
 }
 
-func (t *StaleHandleTest) SyncClobberedLocalInode() {
+func (t *StaleHandleTest) SyncClobberedLocalInodeFailsWithStaleHandle() {
 	// Create a local file.
 	_, t.f1 = t.createLocalFile("foo")
-
 	// Dirty the file by giving it some contents.
 	n, err := t.f1.Write([]byte("taco"))
 	AssertEq(nil, err)
 	AssertEq(4, n)
-
 	// Replace the underlying object with a new generation.
 	_, err = storageutil.CreateObject(
 		ctx,
 		bucket,
 		"foo",
 		[]byte("foobar"))
-
 	AssertEq(nil, err)
 
-	// Attempt to sync the file should result in clobbered error.
 	err = t.f1.Sync()
+
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
-	// Validate closing the file also throws stale NFS file handle error
+	// Validate closing the file also throws error
 	err = t.closeLocalFile(&t.f1)
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
@@ -385,7 +384,6 @@ func (t *StaleHandleTest) ReadingFileAfterObjectClobberedRemotelyFailsWithStaleH
 		"foo",
 		[]byte("bar"))
 	AssertEq(nil, err)
-
 	// Open the read handle
 	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_RDONLY|syscall.O_DIRECT, filePerms)
 	AssertEq(nil, err)
@@ -396,7 +394,7 @@ func (t *StaleHandleTest) ReadingFileAfterObjectClobberedRemotelyFailsWithStaleH
 		"foo",
 		[]byte("foobar"))
 	AssertEq(nil, err)
-	// Attempt to read the file should result in stale NFS file handle error.
+
 	buffer := make([]byte, 6)
 	_, err = t.f1.Read(buffer)
 
@@ -415,7 +413,6 @@ func (t *StaleHandleTest) WritingToFileAfterObjectClobberedRemotelyFailsWithStal
 		"foo",
 		[]byte("bar"))
 	AssertEq(nil, err)
-
 	// Open file handle to write
 	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_WRONLY|syscall.O_DIRECT, filePerms)
 	AssertEq(nil, err)
@@ -426,7 +423,7 @@ func (t *StaleHandleTest) WritingToFileAfterObjectClobberedRemotelyFailsWithStal
 		"foo",
 		[]byte("foobar"))
 	AssertEq(nil, err)
-	// Attempt to write to file should result in stale NFS file handle error.
+
 	_, err = t.f1.Write([]byte("taco"))
 
 	AssertNe(nil, err)
@@ -448,7 +445,6 @@ func (t *StaleHandleTest) SyncingFileAfterObjectClobberedRemotelyFailsWithStaleH
 		"foo",
 		[]byte("bar"))
 	AssertEq(nil, err)
-
 	// Open file handle to write
 	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_WRONLY|syscall.O_DIRECT, filePerms)
 	AssertEq(nil, err)
@@ -463,12 +459,12 @@ func (t *StaleHandleTest) SyncingFileAfterObjectClobberedRemotelyFailsWithStaleH
 		"foo",
 		[]byte("foobar"))
 	AssertEq(nil, err)
-	// Attempt to sync the file should result in clobbered error.
+
 	err = t.f1.Sync()
 
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
-	// Validate closing the file also throws stale NFS file handle error
+	// Validate closing the file also throws error
 	err = t.f1.Close()
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
@@ -488,7 +484,6 @@ func (t *StaleHandleTest) SyncingFileAfterObjectDeletedFailsWithStaleHandle() {
 		"foo",
 		[]byte("bar"))
 	AssertEq(nil, err)
-
 	// Open file handle to write
 	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_WRONLY|syscall.O_DIRECT, filePerms)
 	AssertEq(nil, err)
@@ -503,7 +498,7 @@ func (t *StaleHandleTest) SyncingFileAfterObjectDeletedFailsWithStaleHandle() {
 	n, err = t.f1.Write([]byte("taco"))
 	AssertEq(4, n)
 	AssertEq(nil, err)
-	// Attempt to sync the file should result in clobbered error.
+
 	err = t.f1.Sync()
 
 	AssertNe(nil, err)
@@ -525,14 +520,13 @@ func (t *StaleHandleTest) WritingToFileAfterObjectDeletedFailsWithStaleHandle() 
 		"foo",
 		[]byte("bar"))
 	AssertEq(nil, err)
-
 	// Open file handle to write
 	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_WRONLY|syscall.O_DIRECT, filePerms)
 	AssertEq(nil, err)
 	// Delete the object.
 	err = os.Remove(t.f1.Name())
 	AssertEq(nil, err)
-	// Attempt to write to file should result in stale NFS file handle error.
+
 	_, err = t.f1.Write([]byte("taco"))
 
 	AssertNe(nil, err)
@@ -546,7 +540,6 @@ func (t *StaleHandleTest) WritingToFileAfterObjectDeletedFailsWithStaleHandle() 
 func (t *StaleHandleTest) SyncingLocalInodeAfterObjectDeletedFailsWithStaleHandle() {
 	// Create a local file.
 	_, t.f1 = t.createLocalFile("foo")
-
 	// Delete the object.
 	err := os.Remove(t.f1.Name())
 	AssertEq(nil, err)
@@ -555,7 +548,7 @@ func (t *StaleHandleTest) SyncingLocalInodeAfterObjectDeletedFailsWithStaleHandl
 	n, err := t.f1.Write([]byte("taco"))
 	AssertEq(nil, err)
 	AssertEq(4, n)
-	// Attempt to sync the file should result in clobbered error.
+
 	err = t.f1.Sync()
 
 	AssertNe(nil, err)
@@ -577,7 +570,6 @@ func (t *StaleHandleTest) SyncingFileAfterObjectRenamedFailsWithStaleHandle() {
 		"foo",
 		[]byte("bar"))
 	AssertEq(nil, err)
-
 	// Open file handle to write
 	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_WRONLY|syscall.O_DIRECT, filePerms)
 	AssertEq(nil, err)
@@ -592,7 +584,7 @@ func (t *StaleHandleTest) SyncingFileAfterObjectRenamedFailsWithStaleHandle() {
 	n, err = t.f1.Write([]byte("taco"))
 	AssertEq(nil, err)
 	AssertEq(4, n)
-	// Attempt to sync the file should result in clobbered error.
+
 	err = t.f1.Sync()
 
 	AssertNe(nil, err)
@@ -614,14 +606,13 @@ func (t *StaleHandleTest) WritingToFileAfterObjectRenamedFailsWithStaleHandle() 
 		"foo",
 		[]byte("bar"))
 	AssertEq(nil, err)
-
 	// Open file handle to write
 	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_WRONLY|syscall.O_DIRECT, filePerms)
 	AssertEq(nil, err)
 	// Rename the object.
 	err = os.Rename(t.f1.Name(), path.Join(mntDir, "bar"))
 	AssertEq(nil, err)
-	// Attempt to write to file should result in stale NFS file handle error.
+
 	_, err = t.f1.Write([]byte("taco"))
 
 	AssertNe(nil, err)
