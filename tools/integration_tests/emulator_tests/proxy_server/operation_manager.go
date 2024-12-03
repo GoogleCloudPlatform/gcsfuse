@@ -32,7 +32,9 @@ func NewOperationManager(config Config) *OperationManager {
 	for _, retryConfig := range config.RetryConfig {
 		om.addRetryConfig(retryConfig)
 	}
-	log.Printf("%+v\n", om)
+	if *debug {
+		log.Printf("%+v\n", om)
+	}
 	return om
 }
 
@@ -64,7 +66,9 @@ func (om *OperationManager) retrieveOperation(requestType RequestType) string {
 
 func (om *OperationManager) addRetryConfig(rc RetryConfig) {
 	rt := RequestType(rc.Method)
-	println(rt)
+	if *debug {
+		println(rt)
+	}
 	if om.retryConfigs[rt] != nil {
 		// Key exists, append the new retryConfig to the existing list
 		om.retryConfigs[rt] = append(om.retryConfigs[rt], rc)

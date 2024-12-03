@@ -30,7 +30,8 @@ import (
 
 var (
 	// Flags to accept config-file path.
-	fConfigPath = flag.String("config-path", "./configs/sample_config.yaml", "Path to the file")
+	fConfigPath = flag.String("config-path", "configs/config.yaml", "Path to the file")
+	debug       = flag.Bool("debug", false, "logs will be enabled with flag value true.")
 
 	// Initialized before the server gets started.
 	gConfig *Config
@@ -59,6 +60,8 @@ func (ph ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			req.Header.Add(name, value)
 		}
 	}
+
+	// TODO: Handler request and add retry-id according to the instruction.
 
 	// Send the request to the target server
 	client := &http.Client{}
@@ -150,7 +153,9 @@ func main() {
 
 	var err error
 	gConfig, err = parseConfigFile(*fConfigPath)
-	log.Printf("%+v\n", gConfig)
+	if *debug {
+		log.Printf("%+v\n", gConfig)
+	}
 	if err != nil {
 		log.Printf("Parsing error: %v\n", err)
 		os.Exit(1)
