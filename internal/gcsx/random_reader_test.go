@@ -1213,7 +1213,7 @@ func (t *RandomReaderTest) TestNewReader_FileClobbered() {
 
 	err := t.rr.wrapped.startRead(t.rr.ctx, 0, 1)
 
-	AssertEq(nil, err)
+	AssertNe(nil, err)
 	var clobberedErr *gcsfuse_errors.FileClobberedError
 	AssertTrue(errors.As(err, &clobberedErr))
 }

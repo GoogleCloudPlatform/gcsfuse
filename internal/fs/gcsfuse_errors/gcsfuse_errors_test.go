@@ -31,12 +31,12 @@ func TestFileClobberedError(t *testing.T) {
 		{
 			name:       "with_underlying_error",
 			err:        fmt.Errorf("some error"),
-			wantErrMsg: "The file was modified or deleted by another process, possibly due to concurrent access: some error",
+			wantErrMsg: "The file was modified or deleted by another process, possibly due to concurrent modification: some error",
 		},
 		{
 			name:       "without_underlying_error",
 			err:        nil,
-			wantErrMsg: "The file was modified or deleted by another process, possibly due to concurrent access: <nil>",
+			wantErrMsg: "The file was modified or deleted by another process, possibly due to concurrent modification: <nil>",
 		},
 	}
 
