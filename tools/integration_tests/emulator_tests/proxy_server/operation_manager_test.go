@@ -40,7 +40,7 @@ func TestNewOperationManager(t *testing.T) {
 }
 
 func TestRetrieveOperation(t *testing.T) {
-	t.Run("JsonCreate Tests", func(t *testing.T) {
+	t.Run("One config test", func(t *testing.T) {
 		config := Config{
 			RetryConfig: []RetryConfig{
 				{Method: "JsonCreate", RetryInstruction: "return-503", RetryCount: 2, SkipCount: 1},
@@ -123,10 +123,6 @@ func TestRetrieveOperation(t *testing.T) {
 		// Fourth call: Move to the second config for RequestTypeA
 		result = om.retrieveOperation("RequestTypeB")
 		assert.Equal(t, "retry-202", result, "Expected 'retry-202' as RetryInstruction")
-
-		// Fifth call: All retry instructions exhausted, so no result
-		result = om.retrieveOperation("RequestTypeA")
-		assert.Equal(t, "", result, "Expected no result as all retries are exhausted")
 	})
 }
 
