@@ -28,7 +28,7 @@ type RetryConfig struct {
 	RetryInstruction string `yaml:"retryInstruction"`
 	// Number of times to retry.
 	RetryCount int `yaml:"retryCount"`
-	// Number of retry attempts to skip.
+	// Number of starting retry attempts to skip.
 	SkipCount int `yaml:"skipCount"`
 }
 
