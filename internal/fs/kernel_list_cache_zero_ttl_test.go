@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -44,6 +45,7 @@ func (t *KernelListCacheTestWithZeroTtl) SetupSuite() {
 		},
 	}
 	t.serverCfg.RenameDirLimit = 10
+	t.serverCfg.MetricHandle = common.NewNoopMetrics()
 	t.fsTest.SetUpTestSuite()
 }
 

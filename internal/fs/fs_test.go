@@ -167,6 +167,7 @@ func (t *fsTest) SetUpTestSuite() {
 			},
 		}
 	}
+	t.serverCfg.MetricHandle = common.NewNoopMetrics()
 
 	// Set up ownership.
 	t.serverCfg.Uid, t.serverCfg.Gid, err = perms.MyUserAndGroup()

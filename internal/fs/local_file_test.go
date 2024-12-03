@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
@@ -868,6 +869,7 @@ func (t *LocalFileTest) TestStatFailsOnNewFileAfterDeletion() {
 		},
 		Logging: cfg.DefaultLoggingConfig(),
 	}
+	t.serverCfg.MetricHandle = common.NewNoopMetrics()
 	filePath := path.Join(mntDir, "test.txt")
 	AssertEq(nil, err)
 	f1, err := os.Create(filePath)

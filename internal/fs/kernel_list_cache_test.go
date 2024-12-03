@@ -31,6 +31,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -114,6 +115,7 @@ func (t *KernelListCacheTestWithPositiveTtl) SetupSuite() {
 		},
 	}
 	t.serverCfg.RenameDirLimit = 10
+	t.serverCfg.MetricHandle = common.NewNoopMetrics()
 	t.fsTest.SetUpTestSuite()
 }
 

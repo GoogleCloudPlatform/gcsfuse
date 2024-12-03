@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	gcsfusefs "github.com/googlecloudplatform/gcsfuse/v2/internal/fs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -82,6 +83,7 @@ func (t *typeCacheTestCommon) SetUpTestSuite() {
 			TtlSecs:            ttlInSeconds,
 		},
 	}
+	t.serverCfg.MetricHandle = common.NewNoopMetrics()
 
 	// Fill server-cfg from mount-config.
 	func(newConfig *cfg.Config, serverCfg *gcsfusefs.ServerConfig) {
