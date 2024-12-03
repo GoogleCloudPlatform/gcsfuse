@@ -16,41 +16,73 @@ package proxy_server
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestOperationManager(t *testing.T) {
+func TestNewOperationManager(t *testing.T) {
 	config := Config{
 		RetryConfig: []RetryConfig{
-			{Method: "XmlRead", RetryCount: 2, RetryInstruction: "retry_GET"},
-			{Method: "JsonStat", SkipCount: 1, RetryCount: 1, RetryInstruction: "retry_STAT"},
+			{Method: "JsonCreate", RetryInstruction: "return-503", RetryCount: 2, SkipCount: 1},
+			{Method: "JsonStat", RetryInstruction: "stall-33s-after-20K", RetryCount: 3, SkipCount: 0},
+		},
+	}
+
+	om := NewOperationManager(config)
+
+	// Assert that retryConfigs are initialized correctly
+	assert.Len(t, om.retryConfigs, 2)
+	assert.Len(t, om.retryConfigs["JsonCreate"], 1)
+	assert.Len(t, om.retryConfigs["JsonStat"], 1)
+
+	assert.Equal(t, "return-503", om.retryConfigs["JsonCreate"][0].RetryInstruction)
+	assert.Equal(t, "stall-33s-after-20K", om.retryConfigs["JsonStat"][0].RetryInstruction)
+}
+
+func TestRetrieveOperation(t *testing.T) {
+	config := Config{
+		RetryConfig: []RetryConfig{
+			{Method: "JsonCreate", RetryInstruction: "return-503", RetryCount: 2, SkipCount: 1},
 		},
 	}
 	om := NewOperationManager(config)
 
-	// Test GET operation
-	if op := om.retrieveOperation("XmlRead"); op != "retry_GET" {
-		t.Errorf("Expected 'retry_GET', got '%s'", op)
-	}
-	if op := om.retrieveOperation("XmlRead"); op != "retry_GET" {
-		t.Errorf("Expected 'retry_GET', got '%s'", op)
-	}
-	if op := om.retrieveOperation("XmlRead"); op != "" {
-		t.Errorf("Expected '', got '%s'", op)
+	// First call: Skip count is decremented, so no retry instruction should be returned
+	result := om.retrieveOperation("JsonCreate")
+	assert.Equal(t, "", result, "Expected empty result due to SkipCount")
+
+	// Second call: Retry instruction should be returned
+	result = om.retrieveOperation("JsonCreate")
+	assert.Equal(t, "return-503", result, "Expected 'return-503' as RetryInstruction")
+
+	// Third call: Retry instruction should be returned again
+	result = om.retrieveOperation("JsonCreate")
+	assert.Equal(t, "return-503", result, "Expected 'return-503' as RetryInstruction")
+
+	// Fourth call: Retry count is exhausted, so no retry instruction should be returned
+	result = om.retrieveOperation("JsonCreate")
+	assert.Equal(t, "", result, "Expected empty result as RetryCount is exhausted")
+}
+
+func TestAddRetryConfig(t *testing.T) {
+	om := &OperationManager{
+		retryConfigs: make(map[RequestType][]RetryConfig),
 	}
 
-	// Test JsonStat operation
-	if op := om.retrieveOperation("JsonStat"); op != "" {
-		t.Errorf("Expected '', got '%s'", op)
-	}
-	if op := om.retrieveOperation("JsonStat"); op != "retry_STAT" {
-		t.Errorf("Expected 'retry_POST', got '%s'", op)
-	}
-	if op := om.retrieveOperation("JsonStat"); op != "" {
-		t.Errorf("Expected '', got '%s'", op)
-	}
+	retryConfig := RetryConfig{Method: "JsonUpdate", RetryInstruction: "retry-202", RetryCount: 1, SkipCount: 0}
+	om.addRetryConfig(retryConfig)
 
-	// Test non-existent operation
-	if op := om.retrieveOperation("JsonPut"); op != "" {
-		t.Errorf("Expected '', got '%s'", op)
-	}
+	// Assert the retryConfig is added to the map
+	assert.Len(t, om.retryConfigs, 1)
+	assert.Len(t, om.retryConfigs["JsonUpdate"], 1)
+	assert.Equal(t, "retry-202", om.retryConfigs["JsonUpdate"][0].RetryInstruction)
+
+	// Add another retryConfig for the same method
+	retryConfig2 := RetryConfig{Method: "JsonUpdate", RetryInstruction: "retry-503", RetryCount: 2, SkipCount: 1}
+	om.addRetryConfig(retryConfig2)
+
+	// Assert both retryConfigs are stored under the same key
+	assert.Len(t, om.retryConfigs["JsonUpdate"], 2)
+	assert.Equal(t, "retry-202", om.retryConfigs["JsonUpdate"][0].RetryInstruction)
+	assert.Equal(t, "retry-503", om.retryConfigs["JsonUpdate"][1].RetryInstruction)
 }
