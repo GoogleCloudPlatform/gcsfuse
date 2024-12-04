@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/inode"
@@ -473,6 +474,7 @@ func (t *MultiBucketMountCachingTest) SetUpTestSuite() {
 
 	// Enable directory type caching.
 	t.serverCfg.DirTypeCacheTTL = ttl
+	t.serverCfg.MetricHandle = common.NewNoopMetrics()
 
 	// Call through.
 	t.fsTest.SetUpTestSuite()

@@ -24,6 +24,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
@@ -43,6 +44,7 @@ func init() {
 func (t *ImplicitDirsWithCacheTest) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.DirTypeCacheTTL = time.Minute * 3
+	t.serverCfg.MetricHandle = common.NewNoopMetrics()
 	t.fsTest.SetUpTestSuite()
 }
 

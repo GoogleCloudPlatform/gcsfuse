@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -54,6 +55,7 @@ func (t *HNSBucketTests) SetupSuite() {
 	t.serverCfg.NewConfig = &cfg.Config{
 		EnableHns: true,
 	}
+	t.serverCfg.MetricHandle = common.NewNoopMetrics()
 	bucketType = gcs.Hierarchical
 	t.fsTest.SetUpTestSuite()
 }

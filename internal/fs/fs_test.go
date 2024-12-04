@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
@@ -166,6 +167,7 @@ func (t *fsTest) SetUpTestSuite() {
 			},
 		}
 	}
+	t.serverCfg.MetricHandle = common.NewNoopMetrics()
 
 	// Set up ownership.
 	t.serverCfg.Uid, t.serverCfg.Gid, err = perms.MyUserAndGroup()
@@ -368,7 +370,7 @@ func (bm *fakeBucketManager) ShutDown() {}
 
 func (bm *fakeBucketManager) SetUpBucket(
 	ctx context.Context,
-	name string, isMultibucketMount bool) (sb gcsx.SyncerBucket, err error) {
+	name string, isMultibucketMount bool, _ common.MetricHandle) (sb gcsx.SyncerBucket, err error) {
 	bucket, ok := bm.buckets[name]
 	if ok {
 		sb = gcsx.NewSyncerBucket(

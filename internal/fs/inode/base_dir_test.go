@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -87,7 +88,7 @@ type fakeBucketManager struct {
 
 func (bm *fakeBucketManager) SetUpBucket(
 	ctx context.Context,
-	name string, isMultibucketMount bool) (sb gcsx.SyncerBucket, err error) {
+	name string, isMultibucketMount bool, _ common.MetricHandle) (sb gcsx.SyncerBucket, err error) {
 	bm.setupTimes++
 
 	var ok bool
@@ -118,7 +119,8 @@ func (t *BaseDirTest) resetInode() {
 			Gid:  gid,
 			Mode: dirMode,
 		},
-		t.bm)
+		t.bm,
+		common.NewNoopMetrics())
 
 	t.in.Lock()
 }
