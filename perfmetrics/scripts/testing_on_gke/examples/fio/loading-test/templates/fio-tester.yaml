@@ -42,6 +42,11 @@ spec:
       - "/bin/sh"
       - "-c"
       - |
+        # Fail if any of the commands fails.
+        set -e
+        # Print out the individual commands run.
+        set -x
+
         echo "Install dependencies..."
         apt-get update
         apt-get install -y libaio-dev gcc make git time wget
@@ -58,7 +63,7 @@ spec:
         echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
         apt-get update && apt-get install -y google-cloud-cli
 
-        gsutil -m cp -R gs://{{ .Values.bucketName }}/* /data 
+        gsutil -m cp -R gs://{{ .Values.bucketName }}/* /data
 
         echo "Sleeping 5 minutes to wait for Local SSD RAID to populate data."
         sleep 300
@@ -154,11 +159,11 @@ spec:
 
           sleep $pause_in_seconds
         done
-        
+
         {{ if eq .Values.scenario "local-ssd" }}
         gsutil -m cp -R /data/fio-output/* gs://{{ .Values.bucketName }}/fio-output/
         {{ end }}
-        
+
         echo "fio job completed!"
     volumeMounts:
     - name: dshm

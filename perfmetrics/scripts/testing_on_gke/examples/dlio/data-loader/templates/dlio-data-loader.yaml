@@ -40,6 +40,11 @@ spec:
       - "/bin/sh"
       - "-c"
       - |
+        # Fail if any of the commands fails.
+        set -e
+        # Print out the individual commands run.
+        set -x
+
         echo "Installing gsutil..."
         apt-get update && apt-get install -y apt-transport-https ca-certificates gnupg curl
         curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg

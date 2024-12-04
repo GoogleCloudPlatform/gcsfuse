@@ -44,6 +44,11 @@ spec:
       - "/bin/sh"
       - "-c"
       - |
+        # Fail if any of the commands fails.
+        set -e
+        # Print out the individual commands run.
+        set -x
+
         # Change the source code of dlio benchmark so that page cache is cleared at every epoch
         main_file="dlio_benchmark/main.py"
         x=$(grep -n "for epoch in range(1, self.epochs + 1):" $main_file | cut -f1 -d ':')

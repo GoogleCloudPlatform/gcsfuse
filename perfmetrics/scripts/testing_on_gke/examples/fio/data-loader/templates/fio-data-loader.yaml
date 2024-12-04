@@ -35,10 +35,15 @@ spec:
       - "/bin/sh"
       - "-c"
       - |
+        # Fail if any of the commands fails.
+        set -e
+        # Print out the individual commands run.
+        set -x
+
         echo "Install dependencies..."
         apt-get update
         apt-get install -y libaio-dev gcc make git wget
-        
+
         echo "Installing gsutil..."
         apt-get update && apt-get install -y apt-transport-https ca-certificates gnupg curl
         curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
@@ -82,7 +87,7 @@ spec:
         {{ else }}
         wget -O $filename https://raw.githubusercontent.com/GoogleCloudPlatform/gcsfuse/master/perfmetrics/scripts/job_files/read_cache_load_test.fio
         {{ end }}
-        
+
         NUMJOBS=50 NRFILES={{ .Values.fio.filesPerThread }} FILE_SIZE={{ .Values.fio.fileSize }} BLOCK_SIZE={{ .Values.fio.blockSize }} READ_TYPE=read DIR=/data fio ${filename} --alloc-size=1048576
 
         echo "Uploading data to bucket {{ .Values.bucketName }}..."
