@@ -60,7 +60,7 @@ func parseConfigFile(configPath string) (*Config, error) {
 		return nil, fmt.Errorf("unable to decode into struct, %v", err)
 	}
 
-	if *debug {
+	if *fDebug {
 		printConfig(config)
 	}
 

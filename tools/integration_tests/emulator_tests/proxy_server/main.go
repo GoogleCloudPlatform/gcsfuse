@@ -31,20 +31,24 @@ import (
 var (
 	// Flag to accept config-file path.
 	fConfigPath = flag.String("config-path", "configs/config.yaml", "Path to the file")
-	// Flag to turn on debug logs.
-	debug = flag.Bool("debug", false, "logs will be enabled with a flag value of true.")
+	// Flag to turn on fDebug logs.
+	// TODO: We can add support for specifying a log path for fDebug logs in a future update.
+	fDebug = flag.Bool("debug", false, "Enable proxy server fDebug logs.")
 	// Initialized before the server gets started.
 	gConfig *Config
 )
 
 // Host address of the proxy server.
 // TODO: Allow this value to be configured via a command-line flag.
-const PORT = "8020"
+const Port = "8020"
 
 type ProxyHandler struct {
 	http.Handler
 }
 
+// ServeHTTP handles incoming HTTP requests. It acts as a proxy, forwarding requests
+// to a target server specified in the configuration and then relaying the
+// response back to the original client.
 func (ph ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	targetURL := fmt.Sprintf("%s%s", gConfig.TargetHost, r.RequestURI)
 	req, err := http.NewRequest(r.Method, targetURL, r.Body)
@@ -58,8 +62,6 @@ func (ph ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// TODO: Handler request and add retry-id according to the instruction.
-
 	// Send the request to the target server
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -69,7 +71,9 @@ func (ph ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respURL, err := resp.Location()
-	// Change the resp URL host(target host) to proxy server host.
+	// Change the response URL host to the proxy server host.
+	// This is necessary because, from the client's perspective, the proxy server is the endpoint.
+	// Therefore, the response must appear to originate from the proxy host.
 	if err == nil {
 		// Parse the original URL.
 		u, err := url.Parse(respURL.String())
@@ -78,7 +82,7 @@ func (ph ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		u.Host = "localhost:" + PORT
+		u.Host = "localhost:" + Port
 		resp.Header.Set("Location", u.String())
 	}
 
@@ -99,7 +103,7 @@ func (ph ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// ProxyServer represents a simple proxy server
+// ProxyServer represents a simple proxy server over GCS storage based API endpoint.
 type ProxyServer struct {
 	port     string
 	server   *http.Server
@@ -155,12 +159,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	if *debug {
+	if *fDebug {
 		log.Printf("%+v\n", gConfig)
 	}
 
 	// TODO: Create operation manager instance from config.
 
-	ps := NewProxyServer(PORT)
+	ps := NewProxyServer(Port)
 	ps.Start()
 }

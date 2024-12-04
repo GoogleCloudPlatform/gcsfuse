@@ -15,7 +15,6 @@
 package main
 
 import (
-	"log"
 	"sync"
 )
 
@@ -33,8 +32,8 @@ func NewOperationManager(config Config) *OperationManager {
 		om.addRetryConfig(retryConfig)
 	}
 
-	if *debug {
-		log.Printf("%+v\n", om)
+	if *fDebug {
+		println(om)
 	}
 
 	return om
@@ -68,7 +67,7 @@ func (om *OperationManager) retrieveOperation(requestType RequestType) string {
 
 func (om *OperationManager) addRetryConfig(rc RetryConfig) {
 	rt := RequestType(rc.Method)
-	if *debug {
+	if *fDebug {
 		println(rt)
 	}
 	if om.retryConfigs[rt] != nil {
