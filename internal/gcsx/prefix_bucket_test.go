@@ -263,10 +263,10 @@ func (t *PrefixBucketTest) ListObjects_NoOptions() {
 	AssertEq("", l.ContinuationToken)
 	AssertThat(l.CollapsedRuns, ElementsAre())
 
-	AssertEq(3, len(l.Objects))
-	ExpectEq("burrito", l.Objects[0].Name)
-	ExpectEq("enchilada", l.Objects[1].Name)
-	ExpectEq("taco", l.Objects[2].Name)
+	AssertEq(3, len(l.MinObjects))
+	ExpectEq("burrito", l.MinObjects[0].Name)
+	ExpectEq("enchilada", l.MinObjects[1].Name)
+	ExpectEq("taco", l.MinObjects[2].Name)
 }
 
 func (t *PrefixBucketTest) ListObjects_Prefix() {
@@ -297,9 +297,9 @@ func (t *PrefixBucketTest) ListObjects_Prefix() {
 	AssertEq("", l.ContinuationToken)
 	AssertThat(l.CollapsedRuns, ElementsAre())
 
-	AssertEq(2, len(l.Objects))
-	ExpectEq("burrito0", l.Objects[0].Name)
-	ExpectEq("burrito1", l.Objects[1].Name)
+	AssertEq(2, len(l.MinObjects))
+	ExpectEq("burrito0", l.MinObjects[0].Name)
+	ExpectEq("burrito1", l.MinObjects[1].Name)
 }
 
 func (t *PrefixBucketTest) ListObjects_Delimeter() {
@@ -333,8 +333,8 @@ func (t *PrefixBucketTest) ListObjects_Delimeter() {
 
 	ExpectThat(l.CollapsedRuns, ElementsAre("burrito_", "enchilada_"))
 
-	AssertEq(1, len(l.Objects))
-	ExpectEq("burrito", l.Objects[0].Name)
+	AssertEq(1, len(l.MinObjects))
+	ExpectEq("burrito", l.MinObjects[0].Name)
 }
 
 func (t *PrefixBucketTest) ListObjects_PrefixAndDelimeter() {
@@ -369,8 +369,8 @@ func (t *PrefixBucketTest) ListObjects_PrefixAndDelimeter() {
 
 	ExpectThat(l.CollapsedRuns, ElementsAre("burrito_"))
 
-	AssertEq(1, len(l.Objects))
-	ExpectEq("burrito", l.Objects[0].Name)
+	AssertEq(1, len(l.MinObjects))
+	ExpectEq("burrito", l.MinObjects[0].Name)
 }
 
 func (t *PrefixBucketTest) UpdateObject() {

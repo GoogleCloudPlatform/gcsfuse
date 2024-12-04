@@ -30,3 +30,7 @@ Guidelines](https://opensource.google/conduct/).
 All submissions, including submissions by project members, require review. We
 use [GitHub pull requests](https://docs.github.com/articles/about-pull-requests)
 for this purpose.
+
+### Dev Guide
+Please refer to the developer guidelines 
+[here](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/dev_guide.md).

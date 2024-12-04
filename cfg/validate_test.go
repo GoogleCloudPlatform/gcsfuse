@@ -539,6 +539,34 @@ func TestValidateMetrics(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "too_high_prom_port",
+			metricsConfig: MetricsConfig{
+				PrometheusPort: 100000,
+			},
+			wantErr: true,
+		},
+		{
+			name: "valid_prom_port",
+			metricsConfig: MetricsConfig{
+				PrometheusPort: 5550,
+			},
+			wantErr: false,
+		},
+		{
+			name: "prom_disabled_0",
+			metricsConfig: MetricsConfig{
+				PrometheusPort: 0,
+			},
+			wantErr: false,
+		},
+		{
+			name: "prom_disabled_less_than_0",
+			metricsConfig: MetricsConfig{
+				PrometheusPort: -21,
+			},
+			wantErr: false,
+		},
 	}
 	for _, tc := range testCases {
 		tc := tc

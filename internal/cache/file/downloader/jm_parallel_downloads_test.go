@@ -138,7 +138,8 @@ func TestParallelDownloads(t *testing.T) {
 			t.Parallel()
 			cache, cacheDir := configureCache(t, 2*tc.objectSize)
 			storageHandle := configureFakeStorage(t)
-			bucket := storageHandle.BucketHandle(storage.TestBucketName, "")
+			ctx := context.Background()
+			bucket := storageHandle.BucketHandle(ctx, storage.TestBucketName, "")
 			minObj, content := createObjectInStoreAndInitCache(t, cache, bucket, "path/in/gcs/foo.txt", tc.objectSize)
 			fileCacheConfig := &cfg.FileCacheConfig{
 				EnableParallelDownloads:  true,
@@ -178,7 +179,8 @@ func TestMultipleConcurrentDownloads(t *testing.T) {
 	t.Parallel()
 	storageHandle := configureFakeStorage(t)
 	cache, cacheDir := configureCache(t, 30*util.MiB)
-	bucket := storageHandle.BucketHandle(storage.TestBucketName, "")
+	ctx := context.Background()
+	bucket := storageHandle.BucketHandle(ctx, storage.TestBucketName, "")
 	minObj1, content1 := createObjectInStoreAndInitCache(t, cache, bucket, "path/in/gcs/foo.txt", 10*util.MiB)
 	minObj2, content2 := createObjectInStoreAndInitCache(t, cache, bucket, "path/in/gcs/bar.txt", 5*util.MiB)
 	fileCacheConfig := &cfg.FileCacheConfig{
@@ -194,7 +196,6 @@ func TestMultipleConcurrentDownloads(t *testing.T) {
 	job2 := jm.CreateJobIfNotExists(&minObj2, bucket)
 	s1 := job1.subscribe(10 * util.MiB)
 	s2 := job2.subscribe(5 * util.MiB)
-	ctx := context.Background()
 
 	_, err1 := job1.Download(ctx, 10*util.MiB, false)
 	_, err2 := job2.Download(ctx, 5*util.MiB, false)

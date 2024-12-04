@@ -27,7 +27,7 @@ func ListAll(
 	ctx context.Context,
 	bucket gcs.Bucket,
 	req *gcs.ListObjectsRequest) (
-	objects []*gcs.Object,
+	minObjects []*gcs.MinObject,
 	runs []string,
 	err error) {
 	for {
@@ -38,7 +38,7 @@ func ListAll(
 		}
 
 		// Accumulate the results.
-		objects = append(objects, listing.Objects...)
+		minObjects = append(minObjects, listing.MinObjects...)
 		runs = append(runs, listing.CollapsedRuns...)
 
 		// Are we done?

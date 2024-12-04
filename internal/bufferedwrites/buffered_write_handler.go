@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/block"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -29,8 +30,9 @@ import (
 // BufferedWriteHandler is responsible for filling up the buffers with the data
 // as it receives and handing over to uploadHandler which uploads to GCS.
 type BufferedWriteHandler struct {
-	current   block.Block
-	blockPool *block.BlockPool
+	current       block.Block
+	blockPool     *block.BlockPool
+	uploadHandler *UploadHandler
 	// Total size of data buffered so far. Some part of buffered data might have
 	// been uploaded to GCS as well.
 	totalSize int64
@@ -45,17 +47,18 @@ type WriteFileInfo struct {
 }
 
 // NewBWHandler creates the bufferedWriteHandler struct.
-func NewBWHandler(blockSize int64, maxBlocks int32, globalMaxBlocksSem *semaphore.Weighted) (bwh *BufferedWriteHandler, err error) {
+func NewBWHandler(objectName string, bucket gcs.Bucket, blockSize int64, maxBlocks int64, globalMaxBlocksSem *semaphore.Weighted) (bwh *BufferedWriteHandler, err error) {
 	bp, err := block.NewBlockPool(blockSize, maxBlocks, globalMaxBlocksSem)
 	if err != nil {
 		return
 	}
 
 	bwh = &BufferedWriteHandler{
-		current:   nil,
-		blockPool: bp,
-		totalSize: 0,
-		mtime:     time.Now(),
+		current:       nil,
+		blockPool:     bp,
+		uploadHandler: newUploadHandler(objectName, bucket, maxBlocks, bp.FreeBlocksChannel(), blockSize),
+		totalSize:     0,
+		mtime:         time.Now(),
 	}
 	return
 }
@@ -66,6 +69,14 @@ func (wh *BufferedWriteHandler) Write(data []byte, offset int64) (err error) {
 	if offset > wh.totalSize {
 		// TODO: Will be handled as part of ordered writes.
 		return fmt.Errorf("non sequential writes")
+	}
+
+	// Fail early if the uploadHandler has failed.
+	select {
+	case <-wh.uploadHandler.SignalUploadFailure():
+		return fmt.Errorf("BufferedWriteHandler.Write(): error while uploading object to GCS")
+	default:
+		break
 	}
 
 	dataWritten := 0
@@ -88,7 +99,7 @@ func (wh *BufferedWriteHandler) Write(data []byte, offset int64) (err error) {
 		dataWritten += bytesToCopy
 
 		if wh.current.Size() == wh.blockPool.BlockSize() {
-			// TODO: err = trigger upload
+			err := wh.uploadHandler.Upload(wh.current)
 			if err != nil {
 				return err
 			}
@@ -108,8 +119,22 @@ func (wh *BufferedWriteHandler) Sync() (err error) {
 
 // Flush finalizes the upload.
 func (wh *BufferedWriteHandler) Flush() (err error) {
-	// TODO: Will be added after uploadHandler changes are done.
-	return fmt.Errorf("not implemented")
+	// Fail early if the uploadHandler has failed.
+	select {
+	case <-wh.uploadHandler.SignalUploadFailure():
+		return fmt.Errorf("file cannot be finalized: error while uploading object to GCS")
+	default:
+		break
+	}
+
+	if wh.current != nil {
+		err := wh.uploadHandler.Upload(wh.current)
+		if err != nil {
+			return err
+		}
+		wh.current = nil
+	}
+	return wh.uploadHandler.Finalize()
 }
 
 // SetMtime stores the mtime with the bufferedWriteHandler.

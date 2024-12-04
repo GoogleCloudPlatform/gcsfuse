@@ -151,6 +151,7 @@ func TestRemountTest(t *testing.T) {
 			cacheDirPath:            getDefaultCacheDirPathForTests(),
 		},
 	}
+	flagsSet = appendClientProtocolConfigToFlagSet(flagsSet)
 	// Create storage client before running tests.
 	ts := &remountTest{ctx: context.Background()}
 	closeStorageClient := client.CreateStorageClientWithCancel(&ts.ctx, &ts.storageClient)

@@ -154,6 +154,7 @@ func TestCacheFileForRangeReadTrueTest(t *testing.T) {
 			cacheDirPath:            ramCacheDir,
 		},
 	}
+	flagsSet = appendClientProtocolConfigToFlagSet(flagsSet)
 	// Run tests.
 	for _, flags := range flagsSet {
 		configFilePath := createConfigFile(&flags)

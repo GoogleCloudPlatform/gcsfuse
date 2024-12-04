@@ -50,12 +50,24 @@ type StorageHandle interface {
 	// to that project rather than to the bucket's owning project.
 	//
 	// A user-project is required for all operations on Requester Pays buckets.
-	BucketHandle(bucketName string, billingProject string) (bh *bucketHandle)
+	BucketHandle(ctx context.Context, bucketName string, billingProject string) (bh *bucketHandle)
 }
 
 type storageClient struct {
 	client               *storage.Client
 	storageControlClient *control.StorageControlClient
+	directPathDetector   *gRPCDirectPathDetector
+}
+
+type gRPCDirectPathDetector struct {
+	clientOptions []option.ClientOption
+}
+
+// isDirectPathPossible checks if gRPC direct connectivity is available for a specific bucket
+// from the environment where the client is running. A `nil` error represents Direct Connectivity was
+// detected.
+func (pd *gRPCDirectPathDetector) isDirectPathPossible(ctx context.Context, bucketName string) error {
+	return storage.CheckDirectConnectivitySupported(ctx, bucketName, pd.clientOptions...)
 }
 
 // Return clientOpts for both gRPC client and control client.
@@ -188,8 +200,14 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	// The default protocol for the Go Storage control client's folders API is gRPC.
 	// gcsfuse will initially mirror this behavior due to the client's lack of HTTP support.
 	var controlClient *control.StorageControlClient
+	var clientOpts []option.ClientOption
+	var directPathDetector *gRPCDirectPathDetector
 	if clientConfig.ClientProtocol == cfg.GRPC {
 		sc, err = createGRPCClientHandle(ctx, &clientConfig)
+		if err == nil {
+			clientOpts, err = createClientOptionForGRPCClient(&clientConfig)
+			directPathDetector = &gRPCDirectPathDetector{clientOptions: clientOpts}
+		}
 	} else if clientConfig.ClientProtocol == cfg.HTTP1 || clientConfig.ClientProtocol == cfg.HTTP2 {
 		sc, err = createHTTPClientHandle(ctx, &clientConfig)
 	} else {
@@ -204,7 +222,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	// TODO: We will implement an additional check for the HTTP control client protocol once the Go SDK supports HTTP.
 	// TODO: Custom endpoints do not currently support gRPC. Remove this additional check once TPC(custom-endpoint) supports gRPC.
 	if clientConfig.EnableHNS && clientConfig.CustomEndpoint == "" {
-		clientOpts, err := createClientOptionForGRPCClient(&clientConfig)
+		clientOpts, err = createClientOptionForGRPCClient(&clientConfig)
 		if err != nil {
 			return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
 		}
@@ -234,11 +252,11 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		sc.SetRetry(storage.WithMaxAttempts(clientConfig.MaxRetryAttempts))
 	}
 
-	sh = &storageClient{client: sc, storageControlClient: controlClient}
+	sh = &storageClient{client: sc, storageControlClient: controlClient, directPathDetector: directPathDetector}
 	return
 }
 
-func (sh *storageClient) BucketHandle(bucketName string, billingProject string) (bh *bucketHandle) {
+func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, billingProject string) (bh *bucketHandle) {
 	storageBucketHandle := sh.client.Bucket(bucketName)
 
 	if billingProject != "" {
@@ -249,6 +267,11 @@ func (sh *storageClient) BucketHandle(bucketName string, billingProject string) 
 		bucket:        storageBucketHandle,
 		bucketName:    bucketName,
 		controlClient: sh.storageControlClient,
+	}
+	if sh.directPathDetector != nil {
+		if err := sh.directPathDetector.isDirectPathPossible(ctx, bucketName); err != nil {
+			logger.Warnf("Direct path connectivity unavailable for %s, reason: %v", bucketName, err)
+		}
 	}
 	return
 }

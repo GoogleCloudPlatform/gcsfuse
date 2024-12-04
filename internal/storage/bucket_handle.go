@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"cloud.google.com/go/storage"
 	control "cloud.google.com/go/storage/control/apiv2"
@@ -64,15 +65,17 @@ func (bh *bucketHandle) BucketType() gcs.BucketType {
 			bh.bucketType = gcs.NonHierarchical
 			return bh.bucketType
 		}
-
+		startTime := time.Now()
+		logger.Infof("GetStorageLayout <- (%s)", bh.bucketName)
 		storageLayout, err := bh.getStorageLayout()
-
+		duration := time.Since(startTime)
 		// In case bucket does not exist, set type unknown instead of panic.
 		if err != nil {
 			bh.bucketType = gcs.Unknown
 			logger.Errorf("Error returned from GetStorageLayout: %v", err)
 			return bh.bucketType
 		}
+		logger.Infof("GetStorageLayout -> (%s) %v msec", bh.bucketName, duration.Milliseconds())
 
 		hierarchicalNamespace := storageLayout.GetHierarchicalNamespace()
 		if hierarchicalNamespace != nil && hierarchicalNamespace.Enabled {
@@ -112,7 +115,13 @@ func (bh *bucketHandle) NewReader(
 	}
 
 	// NewRangeReader creates a "storage.Reader" object which is also io.ReadCloser since it contains both Read() and Close() methods present in io.ReadCloser interface.
-	return obj.NewRangeReader(ctx, start, length)
+	r, err := obj.NewRangeReader(ctx, start, length)
+
+	if err == storage.ErrObjectNotExist {
+		err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
+	}
+
+	return r, err
 }
 func (bh *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRequest) error {
 	obj := bh.bucket.Object(req.Name)
@@ -223,6 +232,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 		return
 	}
 
+	fmt.Println("Complete write.....")
 	// We can't use defer to close the writer, because we need to close the
 	// writer successfully before calling Attrs() method of writer.
 	if err = wc.Close(); err != nil {
@@ -242,12 +252,18 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	o = storageutil.ObjectAttrsToBucketObject(attrs)
 	return
 }
+
 func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
 	obj := bh.getObjectHandleWithPreconditionsSet(req)
 
 	wc := &ObjectWriter{obj.NewWriter(ctx)}
 	wc.ChunkSize = chunkSize
 	wc.Writer = storageutil.SetAttrsInWriter(wc.Writer, req)
+	if callBack == nil {
+		callBack = func(bytesUploadedSoFar int64) {
+			logger.Tracef("gcs: Req %#16x: -- UploadBlock(%q): %20v bytes uploaded so far", ctx.Value(gcs.ReqIdField), req.Name, bytesUploadedSoFar)
+		}
+	}
 	wc.ProgressFunc = callBack
 
 	return wc, nil
@@ -334,6 +350,12 @@ func (bh *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsReq
 		IncludeFoldersAsPrefixes: req.IncludeFoldersAsPrefixes,
 		//MaxResults: , (Field not present in storage.Query of Go Storage Library but present in ListObjectsQuery in Jacobsa code.)
 	}
+	err = query.SetAttrSelection([]string{"Name", "Size", "Generation", "Metageneration", "Updated", "Metadata", "ContentEncoding", "CRC32C"})
+	if err != nil {
+		err = fmt.Errorf("error while setting attribute selection for List Object query :%w", err)
+		return
+	}
+
 	itr := bh.bucket.Objects(ctx, query) // Returning iterator to the list of objects.
 	pi := itr.PageInfo()
 	pi.MaxSize = req.MaxResults
@@ -361,8 +383,8 @@ func (bh *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsReq
 			list.CollapsedRuns = append(list.CollapsedRuns, attrs.Prefix)
 		} else {
 			// Converting attrs to *Object type.
-			currObject := storageutil.ObjectAttrsToBucketObject(attrs)
-			list.Objects = append(list.Objects, currObject)
+			currMinObject := storageutil.ObjectAttrsToMinObject(attrs)
+			list.MinObjects = append(list.MinObjects, currMinObject)
 		}
 
 		// itr.next returns all the objects present in the bucket. Hence adding a

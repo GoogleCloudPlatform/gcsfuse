@@ -63,6 +63,9 @@ func TestMain(m *testing.M) {
 	flagsSet := [][]string{
 		{"--kernel-list-cache-ttl-secs=-1"}, {"--kernel-list-cache-ttl-secs=0"},
 	}
+	if !testing.Short() {
+		setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "", "--client-protocol=grpc")
+	}
 	successCode := static_mounting.RunTests(flagsSet, m)
 
 	if successCode == 0 {

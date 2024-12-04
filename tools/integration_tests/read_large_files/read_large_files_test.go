@@ -91,6 +91,7 @@ func TestMain(m *testing.M) {
 	flags := [][]string{{"--implicit-dirs"}}
 	mountConfigFlags := createMountConfigsAndEquivalentFlags()
 	flags = append(flags, mountConfigFlags...)
+	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flags, "", "--client-protocol=grpc")
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 

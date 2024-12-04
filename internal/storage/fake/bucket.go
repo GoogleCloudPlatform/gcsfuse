@@ -517,6 +517,19 @@ func copyObject(o *gcs.Object) *gcs.Object {
 	return &copy
 }
 
+func copyMinObject(o *gcs.Object) *gcs.MinObject {
+	var copy gcs.MinObject
+	copy.Name = o.Name
+	copy.Size = o.Size
+	copy.Generation = o.Generation
+	copy.MetaGeneration = o.MetaGeneration
+	copy.Updated = o.Updated
+	copy.Metadata = copyMetadata(o.Metadata)
+	copy.ContentEncoding = o.ContentEncoding
+	copy.CRC32C = o.CRC32C
+	return &copy
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
@@ -614,7 +627,7 @@ func (b *bucket) ListObjects(
 
 		// Otherwise, return as an object result. Make a copy to avoid handing back
 		// internal state.
-		listing.Objects = append(listing.Objects, copyObject(&o.metadata))
+		listing.MinObjects = append(listing.MinObjects, copyMinObject(&o.metadata))
 	}
 
 	// Set up a cursor for where to start the next scan if we didn't exhaust the

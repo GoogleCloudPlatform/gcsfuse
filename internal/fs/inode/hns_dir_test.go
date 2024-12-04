@@ -23,8 +23,8 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	storagemock "github.com/googlecloudplatform/gcsfuse/v2/internal/storage/mock"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
@@ -42,7 +42,7 @@ type HNSDirTest struct {
 	ctx        context.Context
 	bucket     gcsx.SyncerBucket
 	in         DirInode
-	mockBucket *storage.TestifyMockBucket
+	mockBucket *storagemock.TestifyMockBucket
 	typeCache  metadata.TypeCache
 	fixedTime  timeutil.SimulatedClock
 }
@@ -51,7 +51,7 @@ func TestHNSDirSuite(testSuite *testing.T) { suite.Run(testSuite, new(HNSDirTest
 
 func (t *HNSDirTest) SetupTest() {
 	t.ctx = context.Background()
-	t.mockBucket = new(storage.TestifyMockBucket)
+	t.mockBucket = new(storagemock.TestifyMockBucket)
 	t.bucket = gcsx.NewSyncerBucket(
 		1,
 		".gcsfuse_tmp/",
@@ -508,15 +508,15 @@ func (t *HNSDirTest) TestReadEntriesInHierarchicalBucket() {
 		implicitDir = "implicitDir" // In Hierarchical bucket implicitDir will also become folder.
 	)
 	tok := ""
-	obj1 := gcs.Object{Name: path.Join(dirInodeName, folder1) + "/"}
-	obj2 := gcs.Object{Name: path.Join(dirInodeName, folder2) + "/"}
-	obj3 := gcs.Object{Name: path.Join(dirInodeName, folder2, file1)}
-	obj4 := gcs.Object{Name: path.Join(dirInodeName, file2)}
-	obj5 := gcs.Object{Name: path.Join(dirInodeName, implicitDir, file3)}
-	objects := []*gcs.Object{&obj1, &obj2, &obj3, &obj4, &obj5}
+	obj1 := gcs.MinObject{Name: path.Join(dirInodeName, folder1) + "/"}
+	obj2 := gcs.MinObject{Name: path.Join(dirInodeName, folder2) + "/"}
+	obj3 := gcs.MinObject{Name: path.Join(dirInodeName, folder2, file1)}
+	obj4 := gcs.MinObject{Name: path.Join(dirInodeName, file2)}
+	obj5 := gcs.MinObject{Name: path.Join(dirInodeName, implicitDir, file3)}
+	minObjects := []*gcs.MinObject{&obj1, &obj2, &obj3, &obj4, &obj5}
 	collapsedRuns := []string{path.Join(dirInodeName, folder1) + "/", path.Join(dirInodeName, folder2) + "/", path.Join(dirInodeName, implicitDir) + "/"}
 	listing := gcs.Listing{
-		Objects:       objects,
+		MinObjects:    minObjects,
 		CollapsedRuns: collapsedRuns,
 	}
 	listObjectReq := gcs.ListObjectsRequest{

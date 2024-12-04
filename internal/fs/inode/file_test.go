@@ -17,16 +17,20 @@ package inode
 import (
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
+	"golang.org/x/sync/semaphore"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
@@ -126,7 +130,9 @@ func (t *FileTest) createInodeWithLocalParam(fileName string, local bool) {
 		false, // localFileCache
 		contentcache.New("", &t.clock),
 		&t.clock,
-		local)
+		local,
+		&cfg.WriteConfig{},
+		semaphore.NewWeighted(math.MaxInt64))
 
 	t.in.Lock()
 }
@@ -255,7 +261,6 @@ func (t *FileTest) Read() {
 
 	for _, tc := range testCases {
 		desc := fmt.Sprintf("offset: %d, size: %d", tc.offset, tc.size)
-
 		data := make([]byte, tc.size)
 		n, err := t.in.Read(t.ctx, data, tc.offset)
 		data = data[:n]
@@ -941,4 +946,70 @@ func (t *FileTest) UnlinkLocalFile() {
 	_, _, err = t.bucket.StatObject(t.ctx, statReq)
 	AssertNe(nil, err)
 	AssertEq("gcs.NotFoundError: object test not found", err.Error())
+}
+
+func (t *FileTest) ReadLocalFileWhenStreamingWritesAreEnabled() {
+	// Create a local file inode.
+	t.createInodeWithLocalParam("test", true)
+	t.in.writeConfig = getWriteConfig()
+	err := t.in.Write(t.ctx, []byte("hi"), 0)
+	AssertEq(nil, err)
+	AssertEq(2, t.in.bwh.WriteFileInfo().TotalSize)
+	data := make([]byte, 10)
+
+	n, err := t.in.Read(t.ctx, data, 0)
+
+	AssertEq(0, n)
+	AssertNe(nil, err)
+	AssertEq("cannot read a local file when upload in progress", err.Error())
+}
+
+func (t *FileTest) WriteToLocalFileWithInvalidConfigWhenStreamingWritesAreEnabled() {
+	// Create a local file inode.
+	t.createInodeWithLocalParam("test", true)
+	t.in.writeConfig.ExperimentalEnableStreamingWrites = true
+	AssertEq(nil, t.in.bwh)
+
+	err := t.in.Write(t.ctx, []byte("hi"), 0)
+
+	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(), "invalid configuration"))
+}
+
+func (t *FileTest) WriteToLocalFileWhenStreamingWritesAreEnabled() {
+	// Create a local file inode.
+	t.createInodeWithLocalParam("test", true)
+	t.in.writeConfig = getWriteConfig()
+	AssertEq(nil, t.in.bwh)
+
+	err := t.in.Write(t.ctx, []byte("hi"), 0)
+
+	AssertEq(nil, err)
+	AssertNe(nil, t.in.bwh)
+	writeFileInfo := t.in.bwh.WriteFileInfo()
+	AssertEq(2, writeFileInfo.TotalSize)
+}
+
+func (t *FileTest) MultipleWritesToLocalFileWhenStreamingWritesAreEnabled() {
+	// Create a local file inode.
+	t.createInodeWithLocalParam("test", true)
+	t.in.writeConfig = getWriteConfig()
+	AssertEq(nil, t.in.bwh)
+
+	err := t.in.Write(t.ctx, []byte("hi"), 0)
+	AssertEq(nil, err)
+	AssertNe(nil, t.in.bwh)
+	AssertEq(2, t.in.bwh.WriteFileInfo().TotalSize)
+
+	err = t.in.Write(t.ctx, []byte("hello"), 0)
+	AssertEq(nil, err)
+	AssertEq(7, t.in.bwh.WriteFileInfo().TotalSize)
+}
+
+func getWriteConfig() *cfg.WriteConfig {
+	return &cfg.WriteConfig{
+		MaxBlocksPerFile:                  10,
+		BlockSizeMb:                       10,
+		ExperimentalEnableStreamingWrites: true,
+	}
 }

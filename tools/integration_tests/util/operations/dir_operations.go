@@ -139,7 +139,7 @@ func VerifyCountOfDirectoryEntries(expected, got int, t *testing.T) {
 	}
 }
 
-func CreateDirectory(dirPath string, t *testing.T) {
+func CreateDirectory(dirPath string, t testing.TB) {
 	err := os.Mkdir(dirPath, DirPermission_0755)
 
 	// Verify MkDir operation succeeds.

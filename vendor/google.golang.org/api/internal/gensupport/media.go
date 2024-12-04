@@ -135,13 +135,14 @@ func PrepareUpload(media io.Reader, chunkSize int) (r io.Reader, mb *MediaBuffer
 // code only.
 type MediaInfo struct {
 	// At most one of Media and MediaBuffer will be set.
-	media              io.Reader
-	buffer             *MediaBuffer
-	singleChunk        bool
-	mType              string
-	size               int64 // mediaSize, if known.  Used only for calls to progressUpdater_.
-	progressUpdater    googleapi.ProgressUpdater
-	chunkRetryDeadline time.Duration
+	media                io.Reader
+	buffer               *MediaBuffer
+	singleChunk          bool
+	mType                string
+	size                 int64 // mediaSize, if known.  Used only for calls to progressUpdater_.
+	progressUpdater      googleapi.ProgressUpdater
+	chunkRetryDeadline   time.Duration
+	chunkTransferTimeout time.Duration
 }
 
 // NewInfoFromMedia should be invoked from the Media method of a call. It returns a
@@ -157,6 +158,7 @@ func NewInfoFromMedia(r io.Reader, options []googleapi.MediaOption) *MediaInfo {
 		}
 	}
 	mi.chunkRetryDeadline = opts.ChunkRetryDeadline
+	mi.chunkTransferTimeout = opts.ChunkTransferTimeout
 	mi.media, mi.buffer, mi.singleChunk = PrepareUpload(r, opts.ChunkSize)
 	return mi
 }
@@ -282,6 +284,7 @@ func readerFunc(r io.Reader) func() io.Reader {
 // ResumableUpload returns an appropriately configured ResumableUpload value if the
 // upload is resumable, or nil otherwise.
 func (mi *MediaInfo) ResumableUpload(locURI string) *ResumableUpload {
+	fmt.Println("Mi chunk: ", mi.chunkTransferTimeout)
 	if mi == nil || mi.singleChunk {
 		return nil
 	}
@@ -294,7 +297,8 @@ func (mi *MediaInfo) ResumableUpload(locURI string) *ResumableUpload {
 				mi.progressUpdater(curr, mi.size)
 			}
 		},
-		ChunkRetryDeadline: mi.chunkRetryDeadline,
+		ChunkRetryDeadline:   mi.chunkRetryDeadline,
+		ChunkTransferTimeout: mi.chunkTransferTimeout,
 	}
 }
 

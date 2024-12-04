@@ -425,6 +425,31 @@ func (t *bucketTest) matchesStartTime(start time.Time) Matcher {
 	return timeutil.TimeNear(start, slop)
 }
 
+// Given gcs.minObject and gcs.extendedObjectAttributes , assert on attributes of gcs.Object
+func (t *bucketTest) assertOnObjectAttributes(expectedMinObj *gcs.MinObject, expectedExtendedAttr *gcs.ExtendedObjectAttributes, o *gcs.Object) {
+	ExpectThat(expectedMinObj.Name, Equals(o.Name))
+	ExpectThat(expectedMinObj.Size, Equals(o.Size))
+	ExpectThat(expectedMinObj.Generation, Equals(o.Generation))
+	ExpectThat(expectedMinObj.MetaGeneration, Equals(o.MetaGeneration))
+	ExpectThat(expectedMinObj.Updated, DeepEquals(o.Updated))
+	ExpectThat(expectedMinObj.Metadata, DeepEquals(o.Metadata))
+	ExpectThat(expectedMinObj.ContentEncoding, Equals(o.ContentEncoding))
+	ExpectThat(expectedMinObj.CRC32C, Equals(o.CRC32C))
+	ExpectThat(expectedExtendedAttr.ContentType, Equals(o.ContentType))
+	ExpectThat(expectedExtendedAttr.ContentLanguage, Equals(o.ContentLanguage))
+	ExpectThat(expectedExtendedAttr.CacheControl, Equals(o.CacheControl))
+	ExpectThat(expectedExtendedAttr.Owner, Equals(o.Owner))
+	ExpectThat(expectedExtendedAttr.MD5, Equals(o.MD5))
+	ExpectThat(expectedExtendedAttr.MediaLink, Equals(o.MediaLink))
+	ExpectThat(expectedExtendedAttr.StorageClass, Equals(o.StorageClass))
+	ExpectThat(expectedExtendedAttr.Deleted, DeepEquals(o.Deleted))
+	ExpectThat(expectedExtendedAttr.ComponentCount, Equals(o.ComponentCount))
+	ExpectThat(expectedExtendedAttr.ContentDisposition, Equals(o.ContentDisposition))
+	ExpectThat(expectedExtendedAttr.CustomTime, Equals(o.CustomTime))
+	ExpectThat(expectedExtendedAttr.EventBasedHold, Equals(o.EventBasedHold))
+	ExpectThat(expectedExtendedAttr.Acl, DeepEquals(o.Acl))
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Create
 ////////////////////////////////////////////////////////////////////////
@@ -444,8 +469,8 @@ func (t *createTest) EmptyObject() {
 	AssertThat(listing.CollapsedRuns, ElementsAre())
 	AssertEq("", listing.ContinuationToken)
 
-	AssertEq(1, len(listing.Objects))
-	o := listing.Objects[0]
+	AssertEq(1, len(listing.MinObjects))
+	o := listing.MinObjects[0]
 
 	AssertEq("foo", o.Name)
 	ExpectEq(0, o.Size)
@@ -462,8 +487,8 @@ func (t *createTest) NonEmptyObject() {
 	AssertThat(listing.CollapsedRuns, ElementsAre())
 	AssertEq("", listing.ContinuationToken)
 
-	AssertEq(1, len(listing.Objects))
-	o := listing.Objects[0]
+	AssertEq(1, len(listing.MinObjects))
+	o := listing.MinObjects[0]
 
 	AssertEq("foo", o.Name)
 	ExpectEq(len("taco"), o.Size)
@@ -502,8 +527,8 @@ func (t *createTest) Overwrite() {
 	AssertThat(listing.CollapsedRuns, ElementsAre())
 	AssertEq("", listing.ContinuationToken)
 
-	AssertEq(1, len(listing.Objects))
-	o := listing.Objects[0]
+	AssertEq(1, len(listing.MinObjects))
+	o := listing.MinObjects[0]
 
 	AssertEq("foo", o.Name)
 	ExpectEq(len("burrito"), o.Size)
@@ -543,15 +568,15 @@ func (t *createTest) ObjectAttributes_Default() {
 	ExpectThat(o.Deleted, timeutil.TimeEq(time.Time{}))
 	ExpectThat(o.Updated, t.matchesStartTime(createTime))
 
-	// Make sure it matches what is in a listing.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	// Make sure it matches when we stat object.
+	minObj, extendedAttr, err := t.bucket.StatObject(
+		t.ctx,
+		&gcs.StatObjectRequest{Name: o.Name,
+			ForceFetchFromGcs:              true,
+			ReturnExtendedObjectAttributes: true})
 	AssertEq(nil, err)
 
-	AssertThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
-
-	AssertEq(1, len(listing.Objects))
-	ExpectThat(listing.Objects[0], DeepEquals(o))
+	t.assertOnObjectAttributes(minObj, extendedAttr, o)
 }
 
 func (t *createTest) ObjectAttributes_Explicit() {
@@ -597,15 +622,15 @@ func (t *createTest) ObjectAttributes_Explicit() {
 	ExpectThat(o.Deleted, timeutil.TimeEq(time.Time{}))
 	ExpectThat(o.Updated, t.matchesStartTime(createTime))
 
-	// Make sure it matches what is in a listing.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	// Make sure it matches when we stat object.
+	minObj, extendedAttr, err := t.bucket.StatObject(
+		t.ctx,
+		&gcs.StatObjectRequest{Name: o.Name,
+			ForceFetchFromGcs:              true,
+			ReturnExtendedObjectAttributes: true})
 	AssertEq(nil, err)
 
-	AssertThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
-
-	AssertEq(1, len(listing.Objects))
-	ExpectThat(listing.Objects[0], DeepEquals(o))
+	t.assertOnObjectAttributes(minObj, extendedAttr, o)
 }
 
 func (t *createTest) ErrorAfterPartialContents() {
@@ -632,7 +657,7 @@ func (t *createTest) ErrorAfterPartialContents() {
 	AssertThat(listing.CollapsedRuns, ElementsAre())
 	AssertEq("", listing.ContinuationToken)
 
-	ExpectThat(listing.Objects, ElementsAre())
+	ExpectThat(listing.MinObjects, ElementsAre())
 }
 
 func (t *createTest) InterestingNames() {
@@ -692,7 +717,7 @@ func (t *createTest) InterestingNames() {
 	AssertEq("", listing.ContinuationToken)
 
 	var listingNames []string
-	for _, o := range listing.Objects {
+	for _, o := range listing.MinObjects {
 		listingNames = append(listingNames, o.Name)
 	}
 
@@ -762,7 +787,7 @@ func (t *createTest) IllegalNames() {
 
 	AssertThat(listing.CollapsedRuns, ElementsAre())
 	AssertEq("", listing.ContinuationToken)
-	ExpectThat(listing.Objects, ElementsAre())
+	ExpectThat(listing.MinObjects, ElementsAre())
 }
 
 func (t *createTest) IncorrectCRC32C() {
@@ -904,10 +929,10 @@ func (t *createTest) GenerationPrecondition_Zero_Unsatisfied() {
 	AssertThat(listing.CollapsedRuns, ElementsAre())
 	AssertEq("", listing.ContinuationToken)
 
-	AssertEq(1, len(listing.Objects))
-	AssertEq("foo", listing.Objects[0].Name)
-	ExpectEq(o.Generation, listing.Objects[0].Generation)
-	ExpectEq(len("taco"), listing.Objects[0].Size)
+	AssertEq(1, len(listing.MinObjects))
+	AssertEq("foo", listing.MinObjects[0].Name)
+	ExpectEq(o.Generation, listing.MinObjects[0].Generation)
+	ExpectEq(len("taco"), listing.MinObjects[0].Size)
 
 	// We should see the old contents when we read.
 	contents, err := t.readObject("foo")
@@ -938,10 +963,10 @@ func (t *createTest) GenerationPrecondition_Zero_Satisfied() {
 	AssertThat(listing.CollapsedRuns, ElementsAre())
 	AssertEq("", listing.ContinuationToken)
 
-	AssertEq(1, len(listing.Objects))
-	AssertEq("foo", listing.Objects[0].Name)
-	ExpectEq(o.Generation, listing.Objects[0].Generation)
-	ExpectEq(len("burrito"), listing.Objects[0].Size)
+	AssertEq(1, len(listing.MinObjects))
+	AssertEq("foo", listing.MinObjects[0].Name)
+	ExpectEq(o.Generation, listing.MinObjects[0].Generation)
+	ExpectEq(len("burrito"), listing.MinObjects[0].Size)
 
 	// We should see the new contents when we read.
 	contents, err := t.readObject("foo")
@@ -970,7 +995,7 @@ func (t *createTest) GenerationPrecondition_NonZero_Unsatisfied_Missing() {
 
 	AssertThat(listing.CollapsedRuns, ElementsAre())
 	AssertEq("", listing.ContinuationToken)
-	ExpectEq(0, len(listing.Objects))
+	ExpectEq(0, len(listing.MinObjects))
 }
 
 func (t *createTest) GenerationPrecondition_NonZero_Unsatisfied_Present() {
@@ -1004,10 +1029,10 @@ func (t *createTest) GenerationPrecondition_NonZero_Unsatisfied_Present() {
 	AssertThat(listing.CollapsedRuns, ElementsAre())
 	AssertEq("", listing.ContinuationToken)
 
-	AssertEq(1, len(listing.Objects))
-	AssertEq("foo", listing.Objects[0].Name)
-	ExpectEq(o.Generation, listing.Objects[0].Generation)
-	ExpectEq(len("taco"), listing.Objects[0].Size)
+	AssertEq(1, len(listing.MinObjects))
+	AssertEq("foo", listing.MinObjects[0].Name)
+	ExpectEq(o.Generation, listing.MinObjects[0].Generation)
+	ExpectEq(len("taco"), listing.MinObjects[0].Size)
 
 	// We should see the old contents when we read.
 	contents, err := t.readObject("foo")
@@ -1048,10 +1073,10 @@ func (t *createTest) GenerationPrecondition_NonZero_Satisfied() {
 	AssertThat(listing.CollapsedRuns, ElementsAre())
 	AssertEq("", listing.ContinuationToken)
 
-	AssertEq(1, len(listing.Objects))
-	AssertEq("foo", listing.Objects[0].Name)
-	ExpectEq(o.Generation, listing.Objects[0].Generation)
-	ExpectEq(len("burrito"), listing.Objects[0].Size)
+	AssertEq(1, len(listing.MinObjects))
+	AssertEq("foo", listing.MinObjects[0].Name)
+	ExpectEq(o.Generation, listing.MinObjects[0].Generation)
+	ExpectEq(len("burrito"), listing.MinObjects[0].Size)
 
 	// We should see the new contents when we read.
 	contents, err := t.readObject("foo")
@@ -1083,7 +1108,7 @@ func (t *createTest) MetaGenerationPrecondition_Unsatisfied_ObjectDoesntExist() 
 	AssertThat(listing.CollapsedRuns, ElementsAre())
 	AssertEq("", listing.ContinuationToken)
 
-	ExpectEq(0, len(listing.Objects))
+	ExpectEq(0, len(listing.MinObjects))
 }
 
 func (t *createTest) MetaGenerationPrecondition_Unsatisfied_ObjectExists() {
@@ -1116,11 +1141,11 @@ func (t *createTest) MetaGenerationPrecondition_Unsatisfied_ObjectExists() {
 	AssertThat(listing.CollapsedRuns, ElementsAre())
 	AssertEq("", listing.ContinuationToken)
 
-	AssertEq(1, len(listing.Objects))
-	AssertEq("foo", listing.Objects[0].Name)
-	ExpectEq(o.Generation, listing.Objects[0].Generation)
-	ExpectEq(o.MetaGeneration, listing.Objects[0].MetaGeneration)
-	ExpectEq(len("taco"), listing.Objects[0].Size)
+	AssertEq(1, len(listing.MinObjects))
+	AssertEq("foo", listing.MinObjects[0].Name)
+	ExpectEq(o.Generation, listing.MinObjects[0].Generation)
+	ExpectEq(o.MetaGeneration, listing.MinObjects[0].MetaGeneration)
+	ExpectEq(len("taco"), listing.MinObjects[0].Size)
 
 	// We should see the old contents when we read.
 	contents, err := t.readObject("foo")
@@ -1159,11 +1184,11 @@ func (t *createTest) MetaGenerationPrecondition_Satisfied() {
 	AssertThat(listing.CollapsedRuns, ElementsAre())
 	AssertEq("", listing.ContinuationToken)
 
-	AssertEq(1, len(listing.Objects))
-	AssertEq("foo", listing.Objects[0].Name)
-	ExpectEq(o.Generation, listing.Objects[0].Generation)
-	ExpectEq(o.MetaGeneration, listing.Objects[0].MetaGeneration)
-	ExpectEq(len("burrito"), listing.Objects[0].Size)
+	AssertEq(1, len(listing.MinObjects))
+	AssertEq("foo", listing.MinObjects[0].Name)
+	ExpectEq(o.Generation, listing.MinObjects[0].Generation)
+	ExpectEq(o.MetaGeneration, listing.MinObjects[0].MetaGeneration)
+	ExpectEq(len("burrito"), listing.MinObjects[0].Size)
 
 	// We should see the new contents when we read.
 	contents, err := t.readObject("foo")
@@ -3202,15 +3227,15 @@ func (t *updateTest) RemoveAllFields() {
 
 	ExpectThat(o.Metadata, DeepEquals(createReq.Metadata))
 
-	// Check that a listing agrees.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	// Make sure it matches when we stat object.
+	minObj, extendedAttr, err := t.bucket.StatObject(
+		t.ctx,
+		&gcs.StatObjectRequest{Name: o.Name,
+			ForceFetchFromGcs:              true,
+			ReturnExtendedObjectAttributes: true})
 	AssertEq(nil, err)
 
-	AssertThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
-
-	AssertEq(1, len(listing.Objects))
-	ExpectThat(listing.Objects[0], DeepEquals(o))
+	t.assertOnObjectAttributes(minObj, extendedAttr, o)
 }
 
 func (t *updateTest) ModifyAllFields() {
@@ -3255,15 +3280,15 @@ func (t *updateTest) ModifyAllFields() {
 
 	ExpectThat(o.Metadata, DeepEquals(createReq.Metadata))
 
-	// Check that a listing agrees.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	// Make sure it matches when we stat object.
+	minObj, extendedAttr, err := t.bucket.StatObject(
+		t.ctx,
+		&gcs.StatObjectRequest{Name: o.Name,
+			ForceFetchFromGcs:              true,
+			ReturnExtendedObjectAttributes: true})
 	AssertEq(nil, err)
 
-	AssertThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
-
-	AssertEq(1, len(listing.Objects))
-	ExpectThat(listing.Objects[0], DeepEquals(o))
+	t.assertOnObjectAttributes(minObj, extendedAttr, o)
 }
 
 func (t *updateTest) MixedModificationsToFields() {
@@ -3308,15 +3333,15 @@ func (t *updateTest) MixedModificationsToFields() {
 
 	ExpectThat(o.Metadata, DeepEquals(createReq.Metadata))
 
-	// Check that a listing agrees.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	// Make sure it matches when we stat object.
+	minObj, extendedAttr, err := t.bucket.StatObject(
+		t.ctx,
+		&gcs.StatObjectRequest{Name: o.Name,
+			ForceFetchFromGcs:              true,
+			ReturnExtendedObjectAttributes: true})
 	AssertEq(nil, err)
 
-	AssertThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
-
-	AssertEq(1, len(listing.Objects))
-	ExpectThat(listing.Objects[0], DeepEquals(o))
+	t.assertOnObjectAttributes(minObj, extendedAttr, o)
 }
 
 func (t *updateTest) AddUserMetadata() {
@@ -3351,15 +3376,15 @@ func (t *updateTest) AddUserMetadata() {
 				"1": "burrito",
 			}))
 
-	// Check that a listing agrees.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	// Make sure it matches when we stat object.
+	minObj, extendedAttr, err := t.bucket.StatObject(
+		t.ctx,
+		&gcs.StatObjectRequest{Name: o.Name,
+			ForceFetchFromGcs:              true,
+			ReturnExtendedObjectAttributes: true})
 	AssertEq(nil, err)
 
-	AssertThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
-
-	AssertEq(1, len(listing.Objects))
-	ExpectThat(listing.Objects[0], DeepEquals(o))
+	t.assertOnObjectAttributes(minObj, extendedAttr, o)
 }
 
 func (t *updateTest) MixedModificationsToUserMetadata() {
@@ -3408,15 +3433,15 @@ func (t *updateTest) MixedModificationsToUserMetadata() {
 				"3": "updated",
 			}))
 
-	// Check that a listing agrees.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	// Make sure it matches when we stat object.
+	minObj, extendedAttr, err := t.bucket.StatObject(
+		t.ctx,
+		&gcs.StatObjectRequest{Name: o.Name,
+			ForceFetchFromGcs:              true,
+			ReturnExtendedObjectAttributes: true})
 	AssertEq(nil, err)
 
-	AssertThat(listing.CollapsedRuns, ElementsAre())
-	AssertEq("", listing.ContinuationToken)
-
-	AssertEq(1, len(listing.Objects))
-	ExpectThat(listing.Objects[0], DeepEquals(o))
+	t.assertOnObjectAttributes(minObj, extendedAttr, o)
 }
 
 func (t *updateTest) UpdateTime() {
@@ -3635,7 +3660,7 @@ func (t *deleteTest) NoParticularGeneration_Successful() {
 	AssertNe(nil, listing)
 	AssertThat(listing.CollapsedRuns, ElementsAre())
 	AssertEq("", listing.ContinuationToken)
-	ExpectThat(listing.Objects, ElementsAre())
+	ExpectThat(listing.MinObjects, ElementsAre())
 
 	// It shouldn't be readable.
 	req := &gcs.ReadObjectRequest{
@@ -3840,7 +3865,7 @@ func (t *listTest) EmptyBucket() {
 	AssertEq(nil, err)
 
 	AssertNe(nil, listing)
-	ExpectThat(listing.Objects, ElementsAre())
+	ExpectThat(listing.MinObjects, ElementsAre())
 	ExpectThat(listing.CollapsedRuns, ElementsAre())
 	AssertEq("", listing.ContinuationToken)
 }
@@ -3857,11 +3882,11 @@ func (t *listTest) NewlyCreatedObject() {
 	AssertThat(listing.CollapsedRuns, ElementsAre())
 	AssertEq("", listing.ContinuationToken)
 
-	var o *gcs.Object
-	AssertEq(1, len(listing.Objects))
+	var o *gcs.MinObject
+	AssertEq(1, len(listing.MinObjects))
 
 	// a
-	o = listing.Objects[0]
+	o = listing.MinObjects[0]
 	AssertEq("a", o.Name)
 	ExpectEq(len("taco"), o.Size)
 }
@@ -3880,21 +3905,21 @@ func (t *listTest) TrivialQuery() {
 	AssertThat(listing.CollapsedRuns, ElementsAre())
 	AssertEq("", listing.ContinuationToken)
 
-	var o *gcs.Object
-	AssertEq(3, len(listing.Objects))
+	var o *gcs.MinObject
+	AssertEq(3, len(listing.MinObjects))
 
 	// a
-	o = listing.Objects[0]
+	o = listing.MinObjects[0]
 	AssertEq("a", o.Name)
 	ExpectEq(len("taco"), o.Size)
 
 	// b
-	o = listing.Objects[1]
+	o = listing.MinObjects[1]
 	AssertEq("b", o.Name)
 	ExpectEq(len("burrito"), o.Size)
 
 	// c
-	o = listing.Objects[2]
+	o = listing.MinObjects[2]
 	AssertEq("c", o.Name)
 	ExpectEq(len("enchilada"), o.Size)
 }
@@ -3933,11 +3958,11 @@ func (t *listTest) Delimiter_SingleRune() {
 	ExpectThat(listing.CollapsedRuns, ElementsAre("!", "b!", "c!", "d!"))
 
 	// Objects
-	AssertEq(3, len(listing.Objects))
+	AssertEq(3, len(listing.MinObjects))
 
-	ExpectEq("a", listing.Objects[0].Name)
-	ExpectEq("b", listing.Objects[1].Name)
-	ExpectEq("e", listing.Objects[2].Name)
+	ExpectEq("a", listing.MinObjects[0].Name)
+	ExpectEq("b", listing.MinObjects[1].Name)
+	ExpectEq("e", listing.MinObjects[2].Name)
 }
 
 func (t *listTest) Delimiter_MultiRune() {
@@ -3983,14 +4008,14 @@ func (t *listTest) Delimiter_MultiRune() {
 	ExpectThat(listing.CollapsedRuns, ElementsAre("!!", "b!!", "c!!", "d!!"))
 
 	// Objects
-	AssertEq(6, len(listing.Objects))
+	AssertEq(6, len(listing.MinObjects))
 
-	ExpectEq("!", listing.Objects[0].Name)
-	ExpectEq("a", listing.Objects[1].Name)
-	ExpectEq("b", listing.Objects[2].Name)
-	ExpectEq("b!", listing.Objects[3].Name)
-	ExpectEq("b!foo", listing.Objects[4].Name)
-	ExpectEq("e", listing.Objects[5].Name)
+	ExpectEq("!", listing.MinObjects[0].Name)
+	ExpectEq("a", listing.MinObjects[1].Name)
+	ExpectEq("b", listing.MinObjects[2].Name)
+	ExpectEq("b!", listing.MinObjects[3].Name)
+	ExpectEq("b!foo", listing.MinObjects[4].Name)
+	ExpectEq("e", listing.MinObjects[5].Name)
 }
 
 func (t *listTest) Prefix() {
@@ -4022,12 +4047,12 @@ func (t *listTest) Prefix() {
 	AssertThat(listing.CollapsedRuns, ElementsAre())
 
 	// Objects
-	AssertEq(4, len(listing.Objects))
+	AssertEq(4, len(listing.MinObjects))
 
-	ExpectEq("b", listing.Objects[0].Name)
-	ExpectEq("b\x00", listing.Objects[1].Name)
-	ExpectEq("b\x01", listing.Objects[2].Name)
-	ExpectEq("b타코", listing.Objects[3].Name)
+	ExpectEq("b", listing.MinObjects[0].Name)
+	ExpectEq("b\x00", listing.MinObjects[1].Name)
+	ExpectEq("b\x01", listing.MinObjects[2].Name)
+	ExpectEq("b타코", listing.MinObjects[3].Name)
 }
 
 func (t *listTest) PrefixAndDelimiter_SingleRune() {
@@ -4083,12 +4108,12 @@ func (t *listTest) PrefixAndDelimiter_SingleRune() {
 		))
 
 	// Objects
-	AssertEq(4, len(listing.Objects))
+	AssertEq(4, len(listing.MinObjects))
 
-	ExpectEq("blah!b", listing.Objects[0].Name)
-	ExpectEq("blah!b\x00", listing.Objects[1].Name)
-	ExpectEq("blah!b\x01", listing.Objects[2].Name)
-	ExpectEq("blah!b타코", listing.Objects[3].Name)
+	ExpectEq("blah!b", listing.MinObjects[0].Name)
+	ExpectEq("blah!b\x00", listing.MinObjects[1].Name)
+	ExpectEq("blah!b\x01", listing.MinObjects[2].Name)
+	ExpectEq("blah!b타코", listing.MinObjects[3].Name)
 }
 
 func (t *listTest) PrefixAndDelimiter_MultiRune() {
@@ -4148,16 +4173,16 @@ func (t *listTest) PrefixAndDelimiter_MultiRune() {
 		))
 
 	// Objects
-	AssertEq(8, len(listing.Objects))
+	AssertEq(8, len(listing.MinObjects))
 
-	ExpectEq("blah!!b", listing.Objects[0].Name)
-	ExpectEq("blah!!b\x00", listing.Objects[1].Name)
-	ExpectEq("blah!!b\x00!", listing.Objects[2].Name)
-	ExpectEq("blah!!b\x01", listing.Objects[3].Name)
-	ExpectEq("blah!!b\x01!", listing.Objects[4].Name)
-	ExpectEq("blah!!b!", listing.Objects[5].Name)
-	ExpectEq("blah!!b타코", listing.Objects[6].Name)
-	ExpectEq("blah!!b타코!", listing.Objects[7].Name)
+	ExpectEq("blah!!b", listing.MinObjects[0].Name)
+	ExpectEq("blah!!b\x00", listing.MinObjects[1].Name)
+	ExpectEq("blah!!b\x00!", listing.MinObjects[2].Name)
+	ExpectEq("blah!!b\x01", listing.MinObjects[3].Name)
+	ExpectEq("blah!!b\x01!", listing.MinObjects[4].Name)
+	ExpectEq("blah!!b!", listing.MinObjects[5].Name)
+	ExpectEq("blah!!b타코", listing.MinObjects[6].Name)
+	ExpectEq("blah!!b타코!", listing.MinObjects[7].Name)
 }
 
 func (t *listTest) Cursor_BucketEndsWithRunOfIndividualObjects() {
@@ -4199,7 +4224,7 @@ func (t *listTest) Cursor_BucketEndsWithRunOfIndividualObjects() {
 		listing, err := t.bucket.ListObjects(t.ctx, req)
 		AssertEq(nil, err)
 
-		for _, o := range listing.Objects {
+		for _, o := range listing.MinObjects {
 			objects = append(objects, o.Name)
 		}
 
@@ -4270,7 +4295,7 @@ func (t *listTest) Cursor_BucketEndsWithRunOfObjectsGroupedByDelimiter() {
 		listing, err := t.bucket.ListObjects(t.ctx, req)
 		AssertEq(nil, err)
 
-		for _, o := range listing.Objects {
+		for _, o := range listing.MinObjects {
 			objects = append(objects, o.Name)
 		}
 

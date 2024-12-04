@@ -13,13 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Installs go1.23.2 on the container, builds gcsfuse using log_rotation file
+# Installs go1.23.3 on the container, builds gcsfuse using log_rotation file
 # and installs tf-models-official v2.13.2, makes update to include clear_kernel_cache
 # and epochs functionality, and runs the model
 
 # Install go lang
 BUCKET_TYPE=$1
-wget -O go_tar.tar.gz https://go.dev/dl/go1.23.2.linux-amd64.tar.gz -q
+wget -O go_tar.tar.gz https://go.dev/dl/go1.23.3.linux-amd64.tar.gz -q
 sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
 export PATH=$PATH:/usr/local/go/bin
 
@@ -49,6 +49,12 @@ then
   TEST_BUCKET="gcsfuse-ml-data-hns-central1"
   echo "enable-hns: true" >> /tmp/gcsfuse_config.yaml
   DIR=${DIR}_${BUCKET_TYPE}
+elif [ ${BUCKET_TYPE} == "non-hns" ];
+then
+  #To validate the gRPC client, we have temporarily changed the non-HNS long haul test.
+  echo "gcs-connection:
+          client-protocol: grpc
+         " >> /tmp/gcsfuse_config.yaml
 fi
 
 nohup gcsfuse/gcsfuse --foreground \

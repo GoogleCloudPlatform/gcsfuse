@@ -106,14 +106,14 @@ func (cht *cacheHandleTest) verifyContentRead(readStartOffset int64, expectedCon
 func (cht *cacheHandleTest) SetupTest() {
 	locker.EnableInvariantsCheck()
 	cht.cacheDir = path.Join(os.Getenv("HOME"), "cache/dir")
+	ctx := context.Background()
 
 	// Create bucket in fake storage.
 	cht.fakeStorage = storage.NewFakeStorage()
 	storageHandle := cht.fakeStorage.CreateStorageHandle()
-	cht.bucket = storageHandle.BucketHandle(storage.TestBucketName, "")
+	cht.bucket = storageHandle.BucketHandle(ctx, storage.TestBucketName, "")
 
 	// Create test object in the bucket.
-	ctx := context.Background()
 	testObjectContent := make([]byte, TestObjectSize)
 	n, err := rand.Read(testObjectContent)
 	assert.Equal(cht.T(), TestObjectSize, n)

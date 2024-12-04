@@ -45,6 +45,7 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
+	"golang.org/x/sync/semaphore"
 )
 
 type ServerConfig struct {
@@ -188,6 +189,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		newConfig:                  serverCfg.NewConfig,
 		fileCacheHandler:           fileCacheHandler,
 		cacheFileForRangeRead:      serverCfg.NewConfig.FileCache.CacheFileForRangeRead,
+		globalMaxBlocksSem:         semaphore.NewWeighted(serverCfg.NewConfig.Write.GlobalMaxBlocks),
 	}
 
 	// Set up root bucket
@@ -475,6 +477,8 @@ type fileSystem struct {
 	// cacheFileForRangeRead when true downloads file into cache even for
 	// random file access.
 	cacheFileForRangeRead bool
+
+	globalMaxBlocksSem *semaphore.Weighted
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -794,7 +798,9 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 			fs.localFileCache,
 			fs.contentCache,
 			fs.mtimeClock,
-			ic.Local)
+			ic.Local,
+			&fs.newConfig.Write,
+			fs.globalMaxBlocksSem)
 	}
 
 	// Place it in our map of IDs to inodes.
@@ -1679,13 +1685,16 @@ func (fs *fileSystem) createLocalFile(
 	}
 	child = fs.mintInode(core)
 	fs.localFileInodes[child.Name()] = child
-
-	// Empty file is created to be able to set attributes on the file.
-	fileInode := child.(*inode.FileInode)
-	if err := fileInode.CreateEmptyTempFile(); err != nil {
-		return nil, err
+	// For buffered writes, we don't create temp files on disk.
+	if !fs.newConfig.Write.ExperimentalEnableStreamingWrites {
+		// Empty file is created to be able to set attributes on the file.
+		fileInode := child.(*inode.FileInode)
+		if err := fileInode.CreateEmptyTempFile(); err != nil {
+			return nil, err
+		}
 	}
 	fs.mu.Unlock()
+
 	parent.Lock()
 	defer parent.Unlock()
 	parent.InsertFileIntoTypeCache(name)

@@ -86,6 +86,17 @@ func (b *fastStatBucket) insertMultiple(objs []*gcs.Object) {
 }
 
 // LOCKS_EXCLUDED(b.mu)
+func (b *fastStatBucket) insertMultipleMinObjects(minObjs []*gcs.MinObject) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	expiration := b.clock.Now().Add(b.ttl)
+	for _, o := range minObjs {
+		b.cache.Insert(o, expiration)
+	}
+}
+
+// LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) eraseEntriesWithGivenPrefix(folderName string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -102,10 +113,9 @@ func (b *fastStatBucket) insertHierarchicalListing(listing *gcs.Listing) {
 
 	expiration := b.clock.Now().Add(b.ttl)
 
-	for _, o := range listing.Objects {
+	for _, o := range listing.MinObjects {
 		if !strings.HasSuffix(o.Name, "/") {
-			m := storageutil.ConvertObjToMinObject(o)
-			b.cache.Insert(m, expiration)
+			b.cache.Insert(o, expiration)
 		}
 	}
 
@@ -326,7 +336,7 @@ func (b *fastStatBucket) ListObjects(
 	}
 
 	// note anything we found.
-	b.insertMultiple(listing.Objects)
+	b.insertMultipleMinObjects(listing.MinObjects)
 	return
 }
 
