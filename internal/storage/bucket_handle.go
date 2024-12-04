@@ -232,6 +232,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 		return
 	}
 
+	fmt.Println("Complete write.....")
 	// We can't use defer to close the writer, because we need to close the
 	// writer successfully before calling Attrs() method of writer.
 	if err = wc.Close(); err != nil {
@@ -251,6 +252,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	o = storageutil.ObjectAttrsToBucketObject(attrs)
 	return
 }
+
 func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
 	obj := bh.getObjectHandleWithPreconditionsSet(req)
 
