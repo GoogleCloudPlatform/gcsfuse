@@ -40,7 +40,7 @@ func TestMountTimeout(t *testing.T) {
 			singleRegionUSCentralTimeout: singleRegionUSCentralExpectedMountTime,
 			singleRegionAsiaEastTimeout:  singleRegionAsiaEastExpectedMountTime,
 		}
-		fmt.Printf("Running tests with region based timeout values since the GCE VM is located in us-central...\n")
+		t.Log("Running tests with region based timeout values since the GCE VM is located in us-central...\n")
 		suite.Run(t, &MountTimeoutTest{timeouts: timeout})
 	} else if os.Getenv("TEST_ENV") == testEnvGCENonUSCentral {
 		// Set common relaxed timeout values if testing environment is GCE VM not in us-central.
@@ -52,11 +52,11 @@ func TestMountTimeout(t *testing.T) {
 			singleRegionUSCentralTimeout: relaxedExpectedMountTime,
 			singleRegionAsiaEastTimeout:  relaxedExpectedMountTime,
 		}
-		fmt.Printf("Running tests with relaxed timeout of %f sec for all scenarios since the GCE VM is not located in us-central...\n", relaxedExpectedMountTime.Seconds())
+		t.Logf("Running tests with relaxed timeout of %f sec for all scenarios since the GCE VM is not located in us-central...\n", relaxedExpectedMountTime.Seconds())
 		suite.Run(t, &MountTimeoutTest{timeouts: timeout})
 	} else {
 		// Skip the tests if the testing environment is not GCE VM.
-		fmt.Printf("Skipping tests since the testing environment is not GCE VM...\n")
+		t.Log("Skipping tests since the testing environment is not GCE VM...\n")
 		t.Skip()
 	}
 }
@@ -95,7 +95,7 @@ func (testSuite *MountTimeoutTest) TearDownTest() {
 }
 
 // mountOrTimeout mounts the bucket with the given client protocol. If the time taken
-// exceeds threshold value of 2.5 seconds, an error is thrown and test will fail.
+// exceeds the expected for the particular test case , an error is thrown and test will fail.
 func (testSuite *MountTimeoutTest) mountOrTimeout(bucketName, mountDir, clientProtocol string, expectedMountTime time.Duration) error {
 	args := []string{"--client-protocol", clientProtocol, bucketName, testSuite.dir}
 	start := time.Now()
