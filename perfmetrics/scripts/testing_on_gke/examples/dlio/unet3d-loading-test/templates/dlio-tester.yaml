@@ -79,9 +79,11 @@ spec:
         {{ end }}
 
         outputDir=/logs/{{ .Values.outputDirPrefix }}
+        mkdir -pv /data/train /data/valid
 
         echo "Testing {{ .Values.scenario }}"
         mpirun -np 8 dlio_benchmark workload=unet3d_a100 \
+        ++workload.workflow.generate_data=True \
         ++workload.train.epochs=4 \
         ++workload.workflow.profiling=True \
         ++workload.profiling.profiler=iostat \
