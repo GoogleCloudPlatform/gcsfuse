@@ -43,40 +43,49 @@ const (
 	testEnvGCEUSCentral                    string        = "gce-us-central"
 	testEnvGCENonUSCentral                 string        = "gce-non-us-central"
 	testEnvNonGCE                          string        = "non-gce"
-	testEnvCloudtop                        string        = "cloudtop"
 	multiRegionUSBucket                    string        = "mount_timeout_test_bucket_us"
-	multiRegionUSExpectedMountTime         time.Duration = 2000 * time.Millisecond
 	multiRegionAsiaBucket                  string        = "mount_timeout_test_bucket_asia"
-	multiRegionAsiaExpectedMountTime       time.Duration = 4500 * time.Millisecond
 	dualRegionUSBucket                     string        = "mount_timeout_test_bucket_nam4"
-	dualRegionUSExpectedMountTime          time.Duration = 2700 * time.Millisecond
 	dualRegionAsiaBucket                   string        = "mount_timeout_test_bucket_asia1"
-	dualRegionAsiaExpectedMountTime        time.Duration = 3750 * time.Millisecond
 	singleRegionUSCentralBucket            string        = "mount_timeout_test_bucket_us-central1"
-	singleRegionUSCentralExpectedMountTime time.Duration = 2000 * time.Millisecond
 	singleRegionAsiaEastBucket             string        = "mount_timeout_test_bucket_asia-east1"
 	singleRegionAsiaEastExpectedMountTime  time.Duration = 3200 * time.Millisecond
+	multiRegionUSExpectedMountTime         time.Duration = 2000 * time.Millisecond
+	multiRegionAsiaExpectedMountTime       time.Duration = 4500 * time.Millisecond
+	dualRegionUSExpectedMountTime          time.Duration = 2700 * time.Millisecond
+	dualRegionAsiaExpectedMountTime        time.Duration = 3750 * time.Millisecond
+	singleRegionUSCentralExpectedMountTime time.Duration = 2000 * time.Millisecond
 	relaxedExpectedMountTime               time.Duration = 8000 * time.Millisecond
 	logfilePathPrefix                      string        = "/tmp/gcsfuse_mount_timeout_"
 )
 
+// findTestExecutionEnvironment determines the environment in which the tests are running.
+// It uses the GCP resource detector to identify the environment.
+//
+// If the tests are running on a GCE instance with a hostname containing non-gce.
+// it returns testEnvNonGCE since it implies that the tests are being run on cloudtop.
+//
+// If the tests are running on a VM in the "us-central" region, it returns gce-us-central .
+// Otherwise, if running in any other region, it returns gce-non-us-central.
+//
+// For all other cases, it returns non-gce.
 func findTestExecutionEnvironment(ctx context.Context) string {
 	detectedAttrs, err := resource.New(ctx, resource.WithDetectors(gcp.NewDetector()))
 	if err != nil {
 		log.Printf("Error fetching the test environment.All tests will be skipped.")
 	}
 	attrs := detectedAttrs.Set()
-
-	if v, exists := attrs.Value("cloud.platform"); !exists || v.AsString() != "gcp_compute_engine" {
+	if v, exists := attrs.Value("gcp.gce.instance.hostname"); exists && strings.Contains(strings.ToLower(v.AsString()), "cloudtop-prod") {
 		return testEnvNonGCE
 	}
-	if v, exists := attrs.Value("cloud.account.id"); !exists || strings.Contains(strings.ToLower(v.AsString()), "cloudtop-prod") {
-		return testEnvCloudtop
+	if v, exists := attrs.Value("cloud.region"); exists {
+		if strings.Contains(strings.ToLower(v.AsString()), "us-central") {
+			return testEnvGCEUSCentral
+		} else {
+			return testEnvGCENonUSCentral
+		}
 	}
-	if v, exists := attrs.Value("cloud.region"); !exists || !strings.Contains(strings.ToLower(v.AsString()), "us-central") {
-		return testEnvGCENonUSCentral
-	}
-	return testEnvGCEUSCentral
+	return testEnvNonGCE
 }
 
 func TestMain(m *testing.M) {

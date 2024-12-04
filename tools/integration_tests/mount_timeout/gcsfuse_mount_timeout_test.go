@@ -31,10 +31,43 @@ import (
 
 func TestMountTimeout(t *testing.T) {
 	if os.Getenv("TEST_ENV") == testEnvGCEUSCentral {
-		suite.Run(t, new(MountTimeoutTest))
+		// Set strict region based timeout values if testing environment is GCE VM in us-central.
+		timeout := RegionWiseTimeouts{
+			multiRegionUSTimeout:         multiRegionUSExpectedMountTime,
+			multiRegionAsiaTimeout:       multiRegionAsiaExpectedMountTime,
+			dualRegionUSTimeout:          dualRegionUSExpectedMountTime,
+			dualRegionAsiaTimeout:        dualRegionAsiaExpectedMountTime,
+			singleRegionUSCentralTimeout: singleRegionUSCentralExpectedMountTime,
+			singleRegionAsiaEastTimeout:  singleRegionAsiaEastExpectedMountTime,
+		}
+		fmt.Printf("Running tests with region based timeout values since the GCE VM is located in us-central...\n")
+		suite.Run(t, &MountTimeoutTest{timeouts: timeout})
+	} else if os.Getenv("TEST_ENV") == testEnvGCENonUSCentral {
+		// Set common relaxed timeout values if testing environment is GCE VM not in us-central.
+		timeout := RegionWiseTimeouts{
+			multiRegionUSTimeout:         relaxedExpectedMountTime,
+			multiRegionAsiaTimeout:       relaxedExpectedMountTime,
+			dualRegionUSTimeout:          relaxedExpectedMountTime,
+			dualRegionAsiaTimeout:        relaxedExpectedMountTime,
+			singleRegionUSCentralTimeout: relaxedExpectedMountTime,
+			singleRegionAsiaEastTimeout:  relaxedExpectedMountTime,
+		}
+		fmt.Printf("Running tests with relaxed timeout of %f sec for all scenarios since the GCE VM is not located in us-central...\n", relaxedExpectedMountTime.Seconds())
+		suite.Run(t, &MountTimeoutTest{timeouts: timeout})
 	} else {
+		// Skip the tests if the testing environment is not GCE VM.
+		fmt.Printf("Skipping tests since the testing environment is not GCE VM...\n")
 		t.Skip()
 	}
+}
+
+type RegionWiseTimeouts struct {
+	multiRegionUSTimeout         time.Duration
+	multiRegionAsiaTimeout       time.Duration
+	dualRegionUSTimeout          time.Duration
+	dualRegionAsiaTimeout        time.Duration
+	singleRegionUSCentralTimeout time.Duration
+	singleRegionAsiaEastTimeout  time.Duration
 }
 
 type MountTimeoutTest struct {
@@ -44,7 +77,8 @@ type MountTimeoutTest struct {
 
 	// A temporary directory into which a file system may be mounted. Removed in
 	// TearDown.
-	dir string
+	dir      string
+	timeouts RegionWiseTimeouts
 }
 
 func (testSuite *MountTimeoutTest) SetupTest() {
@@ -101,7 +135,7 @@ func (testSuite *MountTimeoutTest) TestMountMultiRegionUSBucketWithTimeout() {
 	for _, tc := range testCases {
 		setup.SetLogFile(fmt.Sprintf("%s%s.txt", logfilePathPrefix, tc.name))
 
-		err := testSuite.mountOrTimeout(multiRegionUSBucket, testSuite.dir, string(tc.clientProtocol), multiRegionUSExpectedMountTime)
+		err := testSuite.mountOrTimeout(multiRegionUSBucket, testSuite.dir, string(tc.clientProtocol), testSuite.timeouts.multiRegionUSTimeout)
 		assert.NoError(testSuite.T(), err)
 	}
 }
@@ -127,7 +161,7 @@ func (testSuite *MountTimeoutTest) TestMountMultiRegionAsiaBucketWithTimeout() {
 	for _, tc := range testCases {
 		setup.SetLogFile(fmt.Sprintf("%s%s.txt", logfilePathPrefix, tc.name))
 
-		err := testSuite.mountOrTimeout(multiRegionAsiaBucket, testSuite.dir, string(tc.clientProtocol), multiRegionAsiaExpectedMountTime)
+		err := testSuite.mountOrTimeout(multiRegionAsiaBucket, testSuite.dir, string(tc.clientProtocol), testSuite.timeouts.multiRegionAsiaTimeout)
 		assert.NoError(testSuite.T(), err)
 	}
 }
@@ -153,7 +187,7 @@ func (testSuite *MountTimeoutTest) TestMountDualRegionUSBucketWithTimeout() {
 	for _, tc := range testCases {
 		setup.SetLogFile(fmt.Sprintf("%s%s.txt", logfilePathPrefix, tc.name))
 
-		err := testSuite.mountOrTimeout(dualRegionUSBucket, testSuite.dir, string(tc.clientProtocol), dualRegionUSExpectedMountTime)
+		err := testSuite.mountOrTimeout(dualRegionUSBucket, testSuite.dir, string(tc.clientProtocol), testSuite.timeouts.dualRegionUSTimeout)
 		assert.NoError(testSuite.T(), err)
 	}
 }
@@ -179,7 +213,7 @@ func (testSuite *MountTimeoutTest) TestMountDualRegionAsiaBucketWithTimeout() {
 	for _, tc := range testCases {
 		setup.SetLogFile(fmt.Sprintf("%s%s.txt", logfilePathPrefix, tc.name))
 
-		err := testSuite.mountOrTimeout(dualRegionAsiaBucket, testSuite.dir, string(tc.clientProtocol), dualRegionAsiaExpectedMountTime)
+		err := testSuite.mountOrTimeout(dualRegionAsiaBucket, testSuite.dir, string(tc.clientProtocol), testSuite.timeouts.dualRegionAsiaTimeout)
 		assert.NoError(testSuite.T(), err)
 	}
 }
@@ -205,7 +239,7 @@ func (testSuite *MountTimeoutTest) TestMountSingleRegionUSBucketWithTimeout() {
 	for _, tc := range testCases {
 		setup.SetLogFile(fmt.Sprintf("%s%s.txt", logfilePathPrefix, tc.name))
 
-		err := testSuite.mountOrTimeout(singleRegionUSCentralBucket, testSuite.dir, string(tc.clientProtocol), singleRegionUSCentralExpectedMountTime)
+		err := testSuite.mountOrTimeout(singleRegionUSCentralBucket, testSuite.dir, string(tc.clientProtocol), testSuite.timeouts.singleRegionUSCentralTimeout)
 		assert.NoError(testSuite.T(), err)
 	}
 }
@@ -231,7 +265,7 @@ func (testSuite *MountTimeoutTest) TestMountSingleRegionAsiaBucketWithTimeout() 
 	for _, tc := range testCases {
 		setup.SetLogFile(fmt.Sprintf("%s%s.txt", logfilePathPrefix, tc.name))
 
-		err := testSuite.mountOrTimeout(singleRegionAsiaEastBucket, testSuite.dir, string(tc.clientProtocol), singleRegionAsiaEastExpectedMountTime)
+		err := testSuite.mountOrTimeout(singleRegionAsiaEastBucket, testSuite.dir, string(tc.clientProtocol), testSuite.timeouts.singleRegionAsiaEastTimeout)
 		assert.NoError(testSuite.T(), err)
 	}
 }
