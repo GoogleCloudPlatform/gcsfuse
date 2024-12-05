@@ -38,7 +38,8 @@ func TestGetRetryID(t *testing.T) {
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/retry_test", r.URL.Path, "Unexpected URL path")
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"id": "test-id-123"})
+		err := json.NewEncoder(w).Encode(map[string]string{"id": "test-id-123"})
+		assert.NoError(t, err)
 	}))
 	defer mockServer.Close()
 
@@ -56,7 +57,8 @@ func TestCreateRetryTest(t *testing.T) {
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/retry_test", r.URL.Path, "Unexpected URL path")
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"id": "test-id-123"})
+		err := json.NewEncoder(w).Encode(map[string]string{"id": "test-id-123"})
+		assert.NoError(t, err)
 	}))
 	defer mockServer.Close()
 
@@ -75,7 +77,8 @@ func TestCreateRetryTest(t *testing.T) {
 func TestAddRetryID(t *testing.T) {
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"id": "test-id-123"})
+		err := json.NewEncoder(w).Encode(map[string]string{"id": "test-id-123"})
+		assert.NoError(t, err)
 	}))
 	defer mockServer.Close()
 
