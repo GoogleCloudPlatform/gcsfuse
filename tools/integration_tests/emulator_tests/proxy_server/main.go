@@ -35,7 +35,8 @@ var (
 	// TODO: We can add support for specifying a log path for fDebug logs in a future update.
 	fDebug = flag.Bool("debug", false, "Enable proxy server fDebug logs.")
 	// Initialized before the server gets started.
-	gConfig *Config
+	gConfig    *Config
+	gOpManager *OperationManager
 )
 
 // Host address of the proxy server.
@@ -61,6 +62,9 @@ func (ph ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			req.Header.Add(name, value)
 		}
 	}
+
+	reqTypeAndInstruction := deduceRequestTypeAndInstruction(r)
+	AddRetryID(req, reqTypeAndInstruction)
 
 	// Send the request to the target server
 	client := &http.Client{}
@@ -163,7 +167,7 @@ func main() {
 		log.Printf("%+v\n", gConfig)
 	}
 
-	// TODO: Create operation manager instance from config.
+	gOpManager = NewOperationManager(*gConfig)
 
 	ps := NewProxyServer(Port)
 	ps.Start()
