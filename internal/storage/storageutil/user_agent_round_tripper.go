@@ -14,9 +14,7 @@
 
 package storageutil
 
-import (
-	"net/http"
-)
+import "net/http"
 
 // WithUserAgent returns a ClientOption that sets the User-Agent. This option is incompatible with the WithHTTPClient option.
 // As we are using http-client, we will need to add this header via RoundTripper middleware.
