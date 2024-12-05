@@ -77,7 +77,7 @@ spec:
 
         echo "Testing {{ .Values.scenario }}"
         mpirun -np 8 dlio_benchmark workload=unet3d_a100 \
-        ++workload.train.epochs=4 \
+        ++workload.train.epochs={{ .Values.numEpochs }} \
         ++workload.workflow.profiling=True \
         ++workload.profiling.profiler=iostat \
         ++workload.profiling.iostat_devices=[md0] \

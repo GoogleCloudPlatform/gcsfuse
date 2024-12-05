@@ -109,7 +109,7 @@ spec:
         {{ end }}
 
         echo "Setup default values..."
-        epoch=4
+        epoch={{ .Values.numEpochs }}
         read_type={{ .Values.fio.readType }}
         pause_in_seconds=20
         workload_dir=/data
