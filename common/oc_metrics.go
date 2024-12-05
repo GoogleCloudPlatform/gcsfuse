@@ -23,6 +23,8 @@ import (
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 const (
@@ -71,6 +73,21 @@ func attrsToTags(attrs []MetricAttr) []tag.Mutator {
 		mutators = append(mutators, tag.Upsert(tag.MustNewKey(attr.Key), attr.Value))
 	}
 	return mutators
+}
+
+func attrsToRecordOption(attrs []MetricAttr) []metric.RecordOption {
+	otelOptions := make([]metric.RecordOption, 0, len(attrs))
+	for _, attr := range attrs {
+		otelOptions = append(otelOptions, metric.WithAttributes(attribute.String(attr.Key, attr.Value)))
+	}
+	return otelOptions
+}
+func attrsToAddOption(attrs []MetricAttr) []metric.AddOption {
+	otelOptions := make([]metric.AddOption, 0, len(attrs))
+	for _, attr := range attrs {
+		otelOptions = append(otelOptions, metric.WithAttributes(attribute.String(attr.Key, attr.Value)))
+	}
+	return otelOptions
 }
 func (o *ocMetrics) GCSReadBytesCount(ctx context.Context, inc int64, attrs []MetricAttr) {
 	recordOCMetric(ctx, o.gcsReadBytesCount, inc, attrs, "GCS read bytes count")
