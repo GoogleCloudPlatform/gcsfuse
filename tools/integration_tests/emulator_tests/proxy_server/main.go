@@ -62,8 +62,11 @@ func (ph ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			req.Header.Add(name, value)
 		}
 	}
-
+	// Determine the request type and instruction (e.g., read, write, metadata) based on the incoming request.
 	reqTypeAndInstruction := deduceRequestTypeAndInstruction(r)
+
+	// Add a unique retry ID to the request headers, associating it with the
+	// deduced request type and instruction. This is used for adding custom failures on requests.
 	AddRetryID(req, reqTypeAndInstruction)
 
 	// Send the request to the target server

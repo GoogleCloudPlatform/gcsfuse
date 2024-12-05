@@ -16,7 +16,7 @@ package main
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -37,7 +37,7 @@ func TestGetRetryID(t *testing.T) {
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 
 		// Validate the request body
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		assert.NoError(t, err)
 		defer r.Body.Close()
 
@@ -52,11 +52,12 @@ func TestGetRetryID(t *testing.T) {
 
 		// Send a mock response
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(struct {
+		err = json.NewEncoder(w).Encode(struct {
 			TestID string `json:"id"`
 		}{
 			TestID: expectedTestID,
 		})
+		assert.NoError(t, err)
 	}))
 	defer server.Close()
 
@@ -81,11 +82,12 @@ func TestCreateRetryTest(t *testing.T) {
 
 		// Send a mock response
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(struct {
+		err := json.NewEncoder(w).Encode(struct {
 			TestID string `json:"id"`
 		}{
 			TestID: expectedTestID,
 		})
+		assert.NoError(t, err)
 	}))
 	defer server.Close()
 
