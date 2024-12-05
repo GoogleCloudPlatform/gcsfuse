@@ -15,6 +15,7 @@
 package gcsx
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -26,6 +27,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	cacheutil "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
@@ -506,6 +508,18 @@ func (rr *randomReader) startRead(
 			},
 			ReadCompressed: rr.object.HasContentEncodingGzip(),
 		})
+
+	// If a file handle is open locally, but the corresponding object doesn't exist
+	// in GCS, it indicates a file clobbering scenario. This likely occurred because:
+	//  - The file was deleted in GCS while a local handle was still open.
+	//  - The file content was modified leading to different generation number.
+	var notFoundError *gcs.NotFoundError
+	if errors.As(err, &notFoundError) {
+		err = &gcsfuse_errors.FileClobberedError{
+			Err: fmt.Errorf("NewReader: %w", err),
+		}
+		return
+	}
 
 	if err != nil {
 		err = fmt.Errorf("NewReader: %w", err)

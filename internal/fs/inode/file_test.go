@@ -15,6 +15,7 @@
 package inode
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -25,6 +26,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
@@ -681,10 +683,12 @@ func (t *FileTest) Sync_Clobbered() {
 
 	AssertEq(nil, err)
 
-	// Sync. The call should succeed, but nothing should change.
+	// Sync. The call should not succeed, and we expect a FileClobberedError.
 	err = t.in.Sync(t.ctx)
 
-	AssertEq(nil, err)
+	// Check if the error is a FileClobberedError
+	var fcErr *gcsfuse_errors.FileClobberedError
+	AssertTrue(errors.As(err, &fcErr), "expected FileClobberedError but got %v", err)
 	ExpectEq(t.backingObj.Generation, t.in.SourceGeneration().Object)
 	ExpectEq(t.backingObj.MetaGeneration, t.in.SourceGeneration().Metadata)
 
@@ -696,6 +700,25 @@ func (t *FileTest) Sync_Clobbered() {
 	AssertNe(nil, m)
 	ExpectEq(newObj.Generation, m.Generation)
 	ExpectEq(newObj.Size, m.Size)
+}
+
+func (t *FileTest) TestOpenReader_ThrowsFileClobberedError() {
+	// Modify the file locally.
+	err := t.in.Truncate(t.ctx, 2)
+	AssertEq(nil, err)
+	// Clobber the backing object.
+	_, err = storageutil.CreateObject(
+		t.ctx,
+		t.bucket,
+		t.in.Name().GcsObjectName(),
+		[]byte("burrito"))
+	AssertEq(nil, err)
+
+	_, err = t.in.openReader(t.ctx)
+
+	// assert error is not nil.
+	var fcErr *gcsfuse_errors.FileClobberedError
+	AssertTrue(errors.As(err, &fcErr), "expected FileClobberedError but got %v", err)
 }
 
 func (t *FileTest) SetMtime_ContentNotFaultedIn() {
