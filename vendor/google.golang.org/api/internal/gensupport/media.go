@@ -284,7 +284,6 @@ func readerFunc(r io.Reader) func() io.Reader {
 // ResumableUpload returns an appropriately configured ResumableUpload value if the
 // upload is resumable, or nil otherwise.
 func (mi *MediaInfo) ResumableUpload(locURI string) *ResumableUpload {
-	fmt.Println("Mi chunk: ", mi.chunkTransferTimeout)
 	if mi == nil || mi.singleChunk {
 		return nil
 	}
