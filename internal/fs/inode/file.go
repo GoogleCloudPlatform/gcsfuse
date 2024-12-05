@@ -414,12 +414,14 @@ func (f *FileInode) Attributes(
 		}
 	}
 
-	bwEnabled, err := f.shouldTriggerBufferedWrites()
+	bwEnabled, err := f.bufferedWritesEnabled()
 	if err != nil {
 		return
 	}
 	if bwEnabled {
-		attrs.Mtime = f.bwh.WriteFileInfo().Mtime
+		writeFileInfo := f.bwh.WriteFileInfo()
+		attrs.Mtime = writeFileInfo.Mtime
+		attrs.Size = uint64(writeFileInfo.TotalSize)
 	}
 
 	// We require only that atime and ctime be "reasonable".
@@ -491,7 +493,7 @@ func (f *FileInode) Write(
 	ctx context.Context,
 	data []byte,
 	offset int64) (err error) {
-	bwEnabled, err := f.shouldTriggerBufferedWrites()
+	bwEnabled, err := f.bufferedWritesEnabled()
 	if err != nil {
 		return
 	}
@@ -519,7 +521,7 @@ func (f *FileInode) Write(
 func (f *FileInode) SetMtime(
 	ctx context.Context,
 	mtime time.Time) (err error) {
-	bwEnabled, err := f.shouldTriggerBufferedWrites()
+	bwEnabled, err := f.bufferedWritesEnabled()
 	if err != nil {
 		return
 	}
@@ -719,7 +721,7 @@ func (f *FileInode) ensureBufferedWriteHandler() error {
 	return nil
 }
 
-func (f *FileInode) shouldTriggerBufferedWrites() (bool, error) {
+func (f *FileInode) bufferedWritesEnabled() (bool, error) {
 	if f.local && f.writeConfig.ExperimentalEnableStreamingWrites {
 		err := f.ensureBufferedWriteHandler()
 		if err != nil {

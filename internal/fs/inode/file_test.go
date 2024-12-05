@@ -1048,6 +1048,10 @@ func (t *FileTest) MultipleWritesToLocalFileWhenStreamingWritesAreEnabled() {
 	err = t.in.Write(t.ctx, []byte("hello"), 0)
 	AssertEq(nil, err)
 	AssertEq(7, t.in.bwh.WriteFileInfo().TotalSize)
+	// The inode should agree about the new mtime.
+	attrs, err := t.in.Attributes(t.ctx)
+	AssertEq(nil, err)
+	AssertEq(7, attrs.Size)
 }
 
 func getWriteConfig() *cfg.WriteConfig {
