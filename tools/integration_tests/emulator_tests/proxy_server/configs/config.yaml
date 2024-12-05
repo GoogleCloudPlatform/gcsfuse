@@ -1,1 +1,1 @@
-targetHost: http://localhost:9000
+targetHost: "http://localhost:9000"
