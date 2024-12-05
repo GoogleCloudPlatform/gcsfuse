@@ -259,16 +259,24 @@ func ChunkSize(size int) MediaOption {
 	return chunkSizeOption(size)
 }
 
-type chunkRetryDeadlineOption time.Duration
-
-func (cd chunkRetryDeadlineOption) setOptions(o *MediaOptions) {
-	o.ChunkRetryDeadline = time.Duration(cd)
-}
-
 type chunkTransferTimeoutOption time.Duration
 
 func (cd chunkTransferTimeoutOption) setOptions(o *MediaOptions) {
 	o.ChunkTransferTimeout = time.Duration(cd)
+}
+
+// ChunkTransferTimeout returns a MediaOption which sets a per-chunk
+// transfer timeout for resumable uploads. If a single chunk has been
+// attempting to upload for longer than this time then the old req got canceled and retried.
+// The default is no timeout for the request.
+func ChunkTransferTimeout(timeout time.Duration) MediaOption {
+	return chunkTransferTimeoutOption(timeout)
+}
+
+type chunkRetryDeadlineOption time.Duration
+
+func (cd chunkRetryDeadlineOption) setOptions(o *MediaOptions) {
+	o.ChunkRetryDeadline = time.Duration(cd)
 }
 
 // ChunkRetryDeadline returns a MediaOption which sets a per-chunk retry
@@ -281,10 +289,6 @@ func (cd chunkTransferTimeoutOption) setOptions(o *MediaOptions) {
 // To set a deadline on the entire upload, use context timeout or cancellation.
 func ChunkRetryDeadline(deadline time.Duration) MediaOption {
 	return chunkRetryDeadlineOption(deadline)
-}
-
-func ChunkTransferTimeout(deadline time.Duration) MediaOption {
-	return chunkTransferTimeoutOption(deadline)
 }
 
 // MediaOptions stores options for customizing media upload.  It is not used by developers directly.
