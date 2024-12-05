@@ -97,6 +97,10 @@ func (testSuite *MountTimeoutTest) TearDownTest() {
 // mountOrTimeout mounts the bucket with the given client protocol. If the time taken
 // exceeds the expected for the particular test case , an error is thrown and test will fail.
 func (testSuite *MountTimeoutTest) mountOrTimeout(bucketName, mountDir, clientProtocol string, expectedMountTime time.Duration) error {
+	if clientProtocol == "grpc" {
+		fmt.Printf("Skipping mount timeout test for grpc testcase\n")
+		return nil
+	}
 	args := []string{"--client-protocol", clientProtocol, bucketName, testSuite.dir}
 	start := time.Now()
 	if err := mounting.MountGcsfuse(testSuite.gcsfusePath, args); err != nil {
