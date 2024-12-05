@@ -67,7 +67,10 @@ func (ph ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Add a unique retry ID to the request headers, associating it with the
 	// deduced request type and instruction. This is used for adding custom failures on requests.
-	AddRetryID(req, reqTypeAndInstruction)
+	err = AddRetryID(req, reqTypeAndInstruction)
+	if err != nil {
+		log.Printf("AddRetryID: %v", err)
+	}
 
 	// Send the request to the target server
 	client := &http.Client{}

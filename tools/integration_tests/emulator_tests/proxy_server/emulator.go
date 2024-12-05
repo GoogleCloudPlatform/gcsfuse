@@ -17,6 +17,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -24,15 +25,16 @@ import (
 )
 
 type emulatorTest struct {
-	host *url.URL // set the path when using; path is not guaranteed between calls
+	// host is the address of proxy server to which client interacts.
+	host *url.URL
 }
 
 type RetryTestClient interface {
-	GetRetryID(instructions map[string][]string, transport string) string
+	GetRetryID(instructions map[string][]string, transport string) (string, error)
 }
 
-// Create creates a retry test resource in the emulator.
-func (et *emulatorTest) GetRetryID(instructions map[string][]string, transport string) string {
+// GetRetryID creates a retry test resource in the emulator.
+func (et *emulatorTest) GetRetryID(instructions map[string][]string, transport string) (string, error) {
 	c := http.DefaultClient
 	data := struct {
 		Instructions map[string][]string `json:"instructions"`
@@ -44,15 +46,13 @@ func (et *emulatorTest) GetRetryID(instructions map[string][]string, transport s
 
 	buf := new(bytes.Buffer)
 	if err := json.NewEncoder(buf).Encode(data); err != nil {
-		log.Printf("encoding request: %v\n", err)
-		os.Exit(0) // Consider returning an error instead of exiting
+		return "", fmt.Errorf("encoding request: %v\n", err)
 	}
 
 	et.host.Path = "retry_test"
 	resp, err := c.Post(et.host.String(), "application/json", buf)
 	if err != nil || resp.StatusCode != 200 {
-		log.Printf("creating retry test: err: %v, resp: %+v\n", err, resp)
-		os.Exit(0) // Consider returning an error instead of exiting
+		return "", fmt.Errorf("creating retry test: err: %v, resp: %+v\n", err, resp)
 	}
 	defer func() {
 		closeErr := resp.Body.Close()
@@ -65,18 +65,17 @@ func (et *emulatorTest) GetRetryID(instructions map[string][]string, transport s
 		TestID string `json:"id"`
 	}{}
 	if err := json.NewDecoder(resp.Body).Decode(&testRes); err != nil {
-		log.Printf("decoding test ID: %v\n", err)
-		os.Exit(0) // Consider returning an error instead of exiting
+		return "", fmt.Errorf("decoding test ID: %v\n", err)
 	}
 
 	et.host.Path = ""
-	return testRes.TestID
+	return testRes.TestID, nil
 }
 
 // CreateRetryTest creates a retry test using the provided instructions.
-func CreateRetryTest(host string, instructions map[string][]string) string {
+func CreateRetryTest(host string, instructions map[string][]string) (string, error) {
 	if len(instructions) == 0 {
-		return ""
+		return "", nil
 	}
 
 	endpoint, err := url.Parse(host)
@@ -89,10 +88,14 @@ func CreateRetryTest(host string, instructions map[string][]string) string {
 	return et.GetRetryID(instructions, "http")
 }
 
-func AddRetryID(req *http.Request, r RequestTypeAndInstruction) {
+func AddRetryID(req *http.Request, r RequestTypeAndInstruction) error {
 	plantOp := gOpManager.retrieveOperation(r.RequestType)
 	if plantOp != "" {
-		testID := CreateRetryTest(gConfig.TargetHost, map[string][]string{r.Instruction: {plantOp}})
+		testID, err := CreateRetryTest(gConfig.TargetHost, map[string][]string{r.Instruction: {plantOp}})
+		if err != nil {
+			return fmt.Errorf("CreateRetryTest: %v", err)
+		}
 		req.Header.Set("x-retry-test-id", testID)
 	}
+	return nil
 }
