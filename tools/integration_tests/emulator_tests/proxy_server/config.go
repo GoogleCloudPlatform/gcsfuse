@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package proxy_server
+package main
 
 import (
 	"fmt"
@@ -60,7 +60,9 @@ func parseConfigFile(configPath string) (*Config, error) {
 		return nil, fmt.Errorf("unable to decode into struct, %v", err)
 	}
 
-	printConfig(config)
+	if *fDebug {
+		printConfig(config)
+	}
 
 	return &config, nil
 }
