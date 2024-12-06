@@ -97,6 +97,20 @@ func (t *FileTest) TearDown() {
 	t.in.Unlock()
 }
 
+func (t *FileTest) createInodeWithEmptyObject() {
+	object, err := storageutil.CreateObject(
+		t.ctx,
+		t.bucket,
+		fileName,
+		[]byte{})
+	t.backingObj = storageutil.ConvertObjToMinObject(object)
+
+	AssertEq(nil, err)
+
+	// Create the inode.
+	t.createInode()
+}
+
 func (t *FileTest) createInode() {
 	t.createInodeWithLocalParam(fileName, false)
 }
@@ -884,6 +898,8 @@ func (t *FileTest) TestSetMtimeForLocalFileWhenStreamingWritesAreEnabled() {
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
 	t.in.writeConfig = getWriteConfig()
+	err = t.in.CreateEmptyTempFile()
+	AssertEq(nil, err)
 
 	// Set mtime.
 	mtime := time.Now().UTC().Add(123 * time.Second)
@@ -956,9 +972,10 @@ func (t *FileTest) TestCreateEmptyTempFileShouldNotCreateFileWhenStreamingWrites
 
 	AssertEq(nil, err)
 	AssertEq(nil, t.in.content)
+	AssertNe(nil, t.in.bwh)
 }
 
-func (t *FileTest) TestCreateEmptyTempFileShouldCreateFileForNonLocalFiles() {
+func (t *FileTest) TestCreateEmptyTempFileShouldCreateFileForNonLocalFilesForStreamingWrites() {
 	// Enabling buffered writes.
 	t.in.writeConfig = getWriteConfig()
 
@@ -966,6 +983,7 @@ func (t *FileTest) TestCreateEmptyTempFileShouldCreateFileForNonLocalFiles() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, t.in.content)
+	AssertEq(nil, t.in.bwh)
 	// Validate that file size is 0.
 	sr, err := t.in.content.Stat()
 	AssertEq(nil, err)
@@ -1052,6 +1070,73 @@ func (t *FileTest) MultipleWritesToLocalFileWhenStreamingWritesAreEnabled() {
 	attrs, err := t.in.Attributes(t.ctx)
 	AssertEq(nil, err)
 	AssertEq(7, attrs.Size)
+}
+
+func (t *FileTest) WriteToEmptyGCSFileWhenStreamingWritesAreEnabled() {
+	t.createInodeWithEmptyObject()
+	t.in.writeConfig = getWriteConfig()
+	AssertEq(nil, t.in.bwh)
+
+	err := t.in.Write(t.ctx, []byte("hi"), 0)
+
+	AssertEq(nil, err)
+	AssertNe(nil, t.in.bwh)
+	writeFileInfo := t.in.bwh.WriteFileInfo()
+	AssertEq(2, writeFileInfo.TotalSize)
+}
+
+func (t *FileTest) SetMtimeOnEmptyGCSFileWhenStreamingWritesAreEnabled() {
+	t.createInodeWithEmptyObject()
+	t.in.writeConfig = getWriteConfig()
+	AssertEq(nil, t.in.bwh)
+
+	// This test checks if the mtime is updated to GCS. Since test framework
+	// doesn't support t.run, calling the test method here directly.
+	t.SetMtime_ContentNotFaultedIn()
+	// bufferedWritesHandler shouldn't get initialized.
+	AssertEq(nil, t.in.bwh)
+}
+
+func (t *FileTest) SetMtimeOnEmptyGCSFileAfterWritesWhenStreamingWritesAreEnabled() {
+	t.createInodeWithEmptyObject()
+	t.in.writeConfig = getWriteConfig()
+	AssertEq(nil, t.in.bwh)
+	// Initiate write call.
+	err := t.in.Write(t.ctx, []byte("hi"), 0)
+	AssertEq(nil, err)
+	AssertNe(nil, t.in.bwh)
+	writeFileInfo := t.in.bwh.WriteFileInfo()
+	AssertEq(2, writeFileInfo.TotalSize)
+
+	// Set mtime.
+	mtime := time.Now().UTC().Add(123 * time.Second)
+	err = t.in.SetMtime(t.ctx, mtime)
+
+	AssertEq(nil, err)
+	// The inode should agree about the new mtime.
+	attrs, err := t.in.Attributes(t.ctx)
+	AssertEq(nil, err)
+	ExpectThat(attrs.Mtime, timeutil.TimeEq(mtime))
+	ExpectThat(attrs.Ctime, timeutil.TimeEq(mtime))
+	ExpectThat(attrs.Atime, timeutil.TimeEq(mtime))
+}
+
+func (t *FileTest) TestTruncateForLocalFileWhenStreamingWritesAreEnabled() {
+	var err error
+	var attrs fuseops.InodeAttributes
+	// Create a local file inode.
+	t.createInodeWithLocalParam("test", true)
+	t.in.writeConfig = getWriteConfig()
+	err = t.in.CreateEmptyTempFile()
+	AssertEq(nil, err)
+	// Fetch the attributes and check if the file is empty.
+	attrs, err = t.in.Attributes(t.ctx)
+	AssertEq(nil, err)
+	AssertEq(0, attrs.Size)
+
+	err = t.in.Truncate(t.ctx, 6)
+
+	AssertEq(nil, err)
 }
 
 func getWriteConfig() *cfg.WriteConfig {

@@ -414,11 +414,7 @@ func (f *FileInode) Attributes(
 		}
 	}
 
-	bwEnabled, err := f.bufferedWritesEnabled()
-	if err != nil {
-		return
-	}
-	if bwEnabled {
+	if f.bwh != nil {
 		writeFileInfo := f.bwh.WriteFileInfo()
 		attrs.Mtime = writeFileInfo.Mtime
 		attrs.Size = uint64(writeFileInfo.TotalSize)
@@ -493,11 +489,14 @@ func (f *FileInode) Write(
 	ctx context.Context,
 	data []byte,
 	offset int64) (err error) {
-	bwEnabled, err := f.bufferedWritesEnabled()
-	if err != nil {
-		return
+	if f.src.Size == 0 && f.writeConfig.ExperimentalEnableStreamingWrites {
+		err = f.ensureBufferedWriteHandler()
+		if err != nil {
+			return
+		}
 	}
-	if bwEnabled {
+
+	if f.bwh != nil {
 		return f.bwh.Write(data, offset)
 	}
 
@@ -521,11 +520,7 @@ func (f *FileInode) Write(
 func (f *FileInode) SetMtime(
 	ctx context.Context,
 	mtime time.Time) (err error) {
-	bwEnabled, err := f.bufferedWritesEnabled()
-	if err != nil {
-		return
-	}
-	if bwEnabled {
+	if f.bwh != nil {
 		f.bwh.SetMtime(mtime)
 		return
 	}
@@ -698,8 +693,14 @@ func (f *FileInode) CacheEnsureContent(ctx context.Context) (err error) {
 func (f *FileInode) CreateEmptyTempFile() (err error) {
 	// Skip creating empty file when streaming writes are enabled
 	if f.local && f.writeConfig.ExperimentalEnableStreamingWrites {
+		err = f.ensureBufferedWriteHandler()
+		if err != nil {
+			return
+		}
+		f.bwh.SetMtime(f.mtimeClock.Now())
 		return
 	}
+
 	// Creating a file with no contents. The contents will be updated with
 	// writeFile operations.
 	f.content, err = f.contentCache.NewTempFile(io.NopCloser(strings.NewReader("")))
