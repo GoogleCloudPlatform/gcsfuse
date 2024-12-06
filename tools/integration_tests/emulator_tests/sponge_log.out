@@ -1,0 +1,47 @@
+{"timestamp":{"seconds":1733465144,"nanos":145052196},"severity":"INFO","message":"Pass --integrationTest flag to run the tests."}
+ok  	github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/emulator_tests	0.112s
+{"timestamp":{"seconds":1733465444,"nanos":886941559},"severity":"INFO","message":"Building build_gcsfuse at /tmp/gcsfuse_integration_tests3396622478/build_gcsfuse"}
+{"timestamp":{"seconds":1733465448,"nanos":399903231},"severity":"INFO","message":"Building gcsfuse into /tmp/gcsfuse_readwrite_test_2669682054"}
+{"timestamp":{"seconds":1733465469,"nanos":42204850},"severity":"INFO","message":"Running static mounting tests..."}
+=== RUN   TestWriteStall
+{"timestamp":{"seconds":1733465469,"nanos":42338640},"severity":"INFO","message":"Running tests with flags: [--custom-endpoint=http://localhost:8020/storage/v1/b?project=test-project/b?bucket=test-bucket]"}
+=== RUN   TestWriteStall/TestWriteStall
+    write_stall_test.go:80: 
+        	Error Trace:	/usr/local/google/home/tulsishah/gcsfuse/tools/integration_tests/emulator_tests/write_stall_test.go:80
+        	Error:      	"322.116393ms" is not greater than or equal to "40s"
+        	Test:       	TestWriteStall/TestWriteStall
+--- FAIL: TestWriteStall (1.14s)
+    --- FAIL: TestWriteStall/TestWriteStall (1.14s)
+FAIL
+exit status 1
+FAIL	github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/emulator_tests	25.403s
+{"timestamp":{"seconds":1733465701,"nanos":486190951},"severity":"INFO","message":"Building build_gcsfuse at /tmp/gcsfuse_integration_tests1962338053/build_gcsfuse"}
+{"timestamp":{"seconds":1733465705,"nanos":132410529},"severity":"INFO","message":"Building gcsfuse into /tmp/gcsfuse_readwrite_test_1336041826"}
+{"timestamp":{"seconds":1733465727,"nanos":312189841},"severity":"INFO","message":"Running static mounting tests..."}
+=== RUN   TestWriteStall
+{"timestamp":{"seconds":1733465727,"nanos":312338741},"severity":"INFO","message":"Running tests with flags: [--custom-endpoint=http://localhost:8020/storage/v1/b?project=test-project/b?bucket=test-bucket]"}
+=== RUN   TestWriteStall/TestWriteStall
+    write_stall_test.go:80: 
+        	Error Trace:	/usr/local/google/home/tulsishah/gcsfuse/tools/integration_tests/emulator_tests/write_stall_test.go:80
+        	Error:      	"296.769368ms" is not greater than or equal to "40s"
+        	Test:       	TestWriteStall/TestWriteStall
+--- FAIL: TestWriteStall (0.99s)
+    --- FAIL: TestWriteStall/TestWriteStall (0.99s)
+FAIL
+exit status 1
+FAIL	github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/emulator_tests	26.926s
+{"timestamp":{"seconds":1733465855,"nanos":222437831},"severity":"INFO","message":"Building build_gcsfuse at /tmp/gcsfuse_integration_tests2861187613/build_gcsfuse"}
+{"timestamp":{"seconds":1733465858,"nanos":731481651},"severity":"INFO","message":"Building gcsfuse into /tmp/gcsfuse_readwrite_test_3578488360"}
+{"timestamp":{"seconds":1733465879,"nanos":313868284},"severity":"INFO","message":"Running static mounting tests..."}
+=== RUN   TestWriteStall
+{"timestamp":{"seconds":1733465879,"nanos":314041874},"severity":"INFO","message":"Running tests with flags: [--custom-endpoint=http://localhost:8020/storage/v1/b?project=test-project/b?bucket=test-bucket]"}
+=== RUN   TestWriteStall/TestWriteStall
+    write_stall_test.go:80: 
+        	Error Trace:	/usr/local/google/home/tulsishah/gcsfuse/tools/integration_tests/emulator_tests/write_stall_test.go:80
+        	Error:      	"282.09103ms" is not greater than or equal to "40s"
+        	Test:       	TestWriteStall/TestWriteStall
+--- FAIL: TestWriteStall (0.92s)
+    --- FAIL: TestWriteStall/TestWriteStall (0.92s)
+FAIL
+exit status 1
+FAIL	github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/emulator_tests	25.124s

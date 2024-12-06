@@ -1,0 +1,4 @@
+mode: atomic
+github.com/googlecloudplatform/gcsfuse/v2/main.go:30.17,33.14 2 0
+github.com/googlecloudplatform/gcsfuse/v2/main.go:33.14,35.3 1 0
+github.com/googlecloudplatform/gcsfuse/v2/main.go:43.13,53.2 5 0
