@@ -61,7 +61,6 @@ func TestCreateRetryTest(t *testing.T) {
 
 	// Test with empty instructions
 	testID, err = CreateRetryTest(mockServer.URL, map[string][]string{})
-
 	assert.NoError(t, err)
 	assert.Equal(t, "", testID, "Expected empty test ID for empty instructions")
 }
