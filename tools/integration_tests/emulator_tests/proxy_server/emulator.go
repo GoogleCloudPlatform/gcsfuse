@@ -71,6 +71,25 @@ func (et *emulatorTest) GetRetryID(instructions map[string][]string, transport s
 }
 
 // CreateRetryTest creates a retry test using the provided instructions.
+//
+// It takes a host (URL string) and a map of instructions. The instructions map
+// specifies how the emulator should behave for specific requests.
+//
+// The keys of the `instructions` map are request paths, and the values are
+// lists of strings representing actions to be taken for those requests.
+// These actions can include things like returning specific error codes or
+// simulating delays.
+//
+// Example `instructions` map:
+//
+//	{
+//	  "/bucket/object1": []string{"return-503"},  // Return a 503 error for this request
+//	  "/bucket/object2": []string{"stall-100ms", "return-200"}, // Delay for 100ms then return success
+//	}
+//
+// The function returns a unique ID for the retry test, which can be used to
+// identify and manage the test. It returns an error if there is a problem
+// parsing the host URL or setting up the emulator test.
 func CreateRetryTest(host string, instructions map[string][]string) (string, error) {
 	if len(instructions) == 0 {
 		return "", nil
@@ -83,16 +102,4 @@ func CreateRetryTest(host string, instructions map[string][]string) (string, err
 
 	et := &emulatorTest{host: endpoint}
 	return et.GetRetryID(instructions, "http")
-}
-
-func AddRetryID(req *http.Request, r RequestTypeAndInstruction) error {
-	plantOp := gOpManager.retrieveOperation(r.RequestType)
-	if plantOp != "" {
-		testID, err := CreateRetryTest(gConfig.TargetHost, map[string][]string{r.Instruction: {plantOp}})
-		if err != nil {
-			return fmt.Errorf("CreateRetryTest: %v", err)
-		}
-		req.Header.Set("x-retry-test-id", testID)
-	}
-	return nil
 }

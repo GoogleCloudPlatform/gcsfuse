@@ -47,6 +47,24 @@ type ProxyHandler struct {
 	http.Handler
 }
 
+// AddRetryID creates mock error behavior on the target host for specific request types.
+// It retrieves the corresponding operation from the operation manager based on the provided RequestTypeAndInstruction.
+// If a matching operation is found, it creates a retry test with the target host and instruction,
+// and attaches the generated test ID to the HTTP request header "x-retry-test-id".
+//
+// This function is used to simulate error scenarios for testing retry mechanisms.
+func AddRetryID(req *http.Request, r RequestTypeAndInstruction) error {
+	plantOp := gOpManager.retrieveOperation(r.RequestType)
+	if plantOp != "" {
+		testID, err := CreateRetryTest(gConfig.TargetHost, map[string][]string{r.Instruction: {plantOp}})
+		if err != nil {
+			return fmt.Errorf("CreateRetryTest: %v", err)
+		}
+		req.Header.Set("x-retry-test-id", testID)
+	}
+	return nil
+}
+
 // ServeHTTP handles incoming HTTP requests. It acts as a proxy, forwarding requests
 // to a target server specified in the configuration and then relaying the
 // response back to the original client.
