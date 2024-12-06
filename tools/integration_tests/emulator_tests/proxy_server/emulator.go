@@ -83,8 +83,8 @@ func (et *emulatorTest) GetRetryID(instructions map[string][]string, transport s
 // Example `instructions` map:
 //
 //	{
-//	  "/bucket/object1": []string{"return-503"},  // Return a 503 error for this request
-//	  "/bucket/object2": []string{"stall-100ms", "return-200"}, // Delay for 100ms then return success
+//	  "storage.objects.list": []string{"return-503"},  // Return a 503 error for this request
+//	  "storage.objects.get": []string{"stall-100ms", "return-200"}, // Delay for 100ms then return success
 //	}
 //
 // The function returns a unique ID for the retry test, which can be used to
