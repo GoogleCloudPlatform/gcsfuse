@@ -38,7 +38,6 @@ func TestAddRetryID(t *testing.T) {
 			"TestType": {{Method: "TestType", RetryInstruction: "retry-instruction", RetryCount: 1, SkipCount: 0}},
 		},
 	}
-
 	req, _ := http.NewRequest("GET", "http://example.com", nil)
 	r := RequestTypeAndInstruction{
 		RequestType: "TestType",

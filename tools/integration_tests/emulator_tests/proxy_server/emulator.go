@@ -72,7 +72,7 @@ func (et *emulatorTest) GetRetryID(instructions map[string][]string, transport s
 
 // CreateRetryTest creates a retry test using the provided instructions.
 //
-// It takes a host (URL string) and a map of instructions. The instructions map
+// It takes emulator host (URL string) and a map of instructions. The instructions map
 // specifies how the emulator should behave for specific requests.
 //
 // The keys of the `instructions` map are request paths, and the values are

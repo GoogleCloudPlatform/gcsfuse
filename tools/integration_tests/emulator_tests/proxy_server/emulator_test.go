@@ -33,7 +33,6 @@ func TestGetRetryID(t *testing.T) {
 		assert.NoError(t, err)
 	}))
 	defer mockServer.Close()
-
 	hostURL, _ := url.Parse(mockServer.URL)
 	et := &emulatorTest{host: hostURL}
 	instructions := map[string][]string{"retry": {"retry-instruction"}}
