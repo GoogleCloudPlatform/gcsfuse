@@ -32,7 +32,6 @@ if [ "$minor_ver" -lt "$min_minor_ver" ]; then
 fi
 
 export STORAGE_EMULATOR_HOST="http://localhost:9000"
-export STORAGE_EMULATOR_HOST_GRPC="localhost:8888"
 
 DEFAULT_IMAGE_NAME='gcr.io/cloud-devrel-public-resources/storage-testbench'
 DEFAULT_IMAGE_TAG='latest'
@@ -45,41 +44,61 @@ CONTAINER_NAME=storage_testbench
 # The host networking driver works only on Linux hosts.
 # See more about using host networking: https://docs.docker.com/network/host/
 DOCKER_NETWORK="--net=host"
-# Note: We do not expect the RetryConformanceTest suite to pass on darwin due to
-# differences in the network errors emitted by the system.
-if [ `go env GOOS` == 'darwin' ]; then
-    DOCKER_NETWORK="-p 9000:9000 -p 8888:8888"
-fi
 
 # Get the docker image for the testbench
 docker pull $DOCKER_IMAGE
 
 # Start the testbench
-
 docker run --name $CONTAINER_NAME --rm -d $DOCKER_NETWORK $DOCKER_IMAGE
 echo "Running the Cloud Storage testbench: $STORAGE_EMULATOR_HOST"
-sleep 1
+sleep 5
 
 # Stop the testbench & cleanup environment variables
 function cleanup() {
     echo "Cleanup testbench"
     docker stop $CONTAINER_NAME
     unset STORAGE_EMULATOR_HOST;
-    unset STORAGE_EMULATOR_HOST_GRPC;
 }
 trap cleanup EXIT
 
-cd proxy_server
-nohup go run . &
-proxy_pid=$!
-echo "Proxy process: $proxy_pid"
-cd ..
+# Create the JSON payload file
+cat << EOF > test.json
+{"name":"test-bucket"}
+EOF
 
-# Run tests
-STORAGE_EMULATOR_HOST="http://localhost:8020" go test -v -run TestAsyncEpoch -timeout 10m  2>&1 | tee -a sponge_log.out
+# Execute the curl command to create bucket on storagetestbench server.
+curl -X POST --data-binary @test.json \
+    -H "Content-Type: application/json" \
+    "$STORAGE_EMULATOR_HOST/storage/v1/b?project=test-project"
 
-kill -2 $proxy_pid
+# Define an associative array to store config file and corresponding test name pairs
+# e.g. [write_stall.yaml, TestWriteStall]
+declare -A config_test_pairs=(
 
-p_listing_8020=$(lsof -i :8020 | awk '{print $2}' | tail -n +2)
-echo "Process listning on 8020: $p_listing_8020"
-kill -2 $p_listing_8020
+)
+
+# Loop through the array of config file and test name pairs
+for config_file in "${!config_test_pairs[@]}"; do
+  cd proxy_server
+
+  test_name="${config_test_pairs[$config_file]}"
+  echo "Running proxy with config file: $config_file and test suite: $test_name"
+
+  # Run the proxy server in the background with the current config file
+  nohup go run . --debug --config-path ./configs/$config_file &
+  proxy_pid=$!
+  echo "Proxy process: $proxy_pid"
+
+  # Move to the parent directory (assuming your tests are in the parent directory)
+  cd ..
+
+  # Run tests with the STORAGE_EMULATOR_HOST environment variable set and specific test suite
+  STORAGE_EMULATOR_HOST="http://localhost:8020" go test --integrationTest -v --testbucket=test-bucket -timeout 10m -run $test_name 2>&1 | tee -a sponge_log.out
+  # Kill the proxy process
+  kill -2 $proxy_pid
+
+  # Find and kill any processes still listening on port 8020
+  p_listing_8020=$(lsof -i :8020 | awk '{print $2}' | tail -n +2)
+  echo "Process listning on 8020: $p_listing_8020"
+  kill -2 $p_listing_8020
+done
