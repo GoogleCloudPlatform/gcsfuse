@@ -114,8 +114,8 @@ github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym
 github.com/DataDog/datadog-go v3.2.0+incompatible/go.mod h1:LButxg5PwREeZtORoXG3tL4fMGNddJ+vMq1mwgfaqoQ=
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.25.0 h1:3c8yed4lgqTt+oTQ+JNMDo+F4xprBf+O/il4ZC0nRLw=
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.25.0/go.mod h1:obipzmGjfSjam60XLwGfqUkJsfiheAl+TUjG+4yzyPM=
-github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.48.1 h1:UQ0AhxogsIRZDkElkblfnwjc3IaltCm2HUMvezQaL7s=
-github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.48.1/go.mod h1:jyqM3eLpJ3IbIFDTKVz2rF9T/xWGW0rIriGwnz8l9Tk=
+github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.49.0 h1:o90wcURuxekmXrtxmYWTyNla0+ZEHhud6DI1ZTxd1vI=
+github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.49.0/go.mod h1:6fTWu4m3jocfUZLYF5KsZC1TUfRvEjs7lM4crme/irw=
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.25.0 h1:4PoDbd/9/06IpwLGxSfvfNoEr9urvfkrN6mmJangGCg=
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.25.0/go.mod h1:EycllQ1gupHbjqbcmfCr/H6FKSGSmEUONJ2ivb86qeY=
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/cloudmock v0.49.0 h1:jJKWl98inONJAr/IZrdFQUWcwUO95DLY1XMD1ZIut+g=
