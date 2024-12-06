@@ -24,15 +24,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// MockHTTPClient helps simulate HTTP responses for testing
-type MockHTTPClient struct {
-	DoFunc func(req *http.Request) (*http.Response, error)
-}
-
-func (m *MockHTTPClient) Do(req *http.Request) (*http.Response, error) {
-	return m.DoFunc(req)
-}
-
 // TestGetRetryID tests the GetRetryID function
 func TestGetRetryID(t *testing.T) {
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
