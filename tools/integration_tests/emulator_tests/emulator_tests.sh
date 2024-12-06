@@ -93,7 +93,7 @@ for config_file in "${!config_test_pairs[@]}"; do
   cd ..
 
   # Run tests with the STORAGE_EMULATOR_HOST environment variable set and specific test suite
-  STORAGE_EMULATOR_HOST="http://localhost:8020" go test --integrationTest -v --testbucket=test-bucket -timeout 10m -run $test_name 2>&1 | tee -a sponge_log.out
+  STORAGE_EMULATOR_HOST="http://localhost:8020" go test --integrationTest -v --testbucket=test-bucket -timeout 10m -run $test_name
   # Kill the proxy process
   kill -2 $proxy_pid
 
