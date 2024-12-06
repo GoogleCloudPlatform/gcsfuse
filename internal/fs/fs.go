@@ -1687,7 +1687,7 @@ func (fs *fileSystem) createLocalFile(
 	fs.localFileInodes[child.Name()] = child
 	// Empty file is created to be able to set attributes on the file.
 	fileInode := child.(*inode.FileInode)
-	if err := fileInode.CreateEmptyTempFile(); err != nil {
+	if err := fileInode.CreateBufferedOrTempWriter(); err != nil {
 		return nil, err
 	}
 	fs.mu.Unlock()

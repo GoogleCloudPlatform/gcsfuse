@@ -695,7 +695,7 @@ func (f *FileInode) CacheEnsureContent(ctx context.Context) (err error) {
 	return
 }
 
-func (f *FileInode) CreateEmptyTempFile() (err error) {
+func (f *FileInode) CreateBufferedOrTempWriter() (err error) {
 	// Skip creating empty file when streaming writes are enabled
 	if f.local && f.writeConfig.ExperimentalEnableStreamingWrites {
 		err = f.ensureBufferedWriteHandler()

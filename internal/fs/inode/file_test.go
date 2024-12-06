@@ -415,7 +415,7 @@ func (t *FileTest) WriteToLocalFileThenSync() {
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
 	// Create a temp file for the local inode created above.
-	err = t.in.CreateEmptyTempFile()
+	err = t.in.CreateBufferedOrTempWriter()
 	AssertEq(nil, err)
 	// Write some content to temp file.
 	t.clock.AdvanceTime(time.Second)
@@ -459,7 +459,7 @@ func (t *FileTest) SyncEmptyLocalFile() {
 	t.createInodeWithLocalParam("test", true)
 	creationTime := t.clock.Now()
 	// Create a temp file for the local inode created above.
-	err = t.in.CreateEmptyTempFile()
+	err = t.in.CreateBufferedOrTempWriter()
 	AssertEq(nil, err)
 
 	// Sync.
@@ -629,7 +629,7 @@ func (t *FileTest) TestTruncateUpwardForLocalFileShouldUpdateLocalFileAttributes
 	var attrs fuseops.InodeAttributes
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
-	err = t.in.CreateEmptyTempFile()
+	err = t.in.CreateBufferedOrTempWriter()
 	AssertEq(nil, err)
 	// Fetch the attributes and check if the file is empty.
 	attrs, err = t.in.Attributes(t.ctx)
@@ -655,7 +655,7 @@ func (t *FileTest) TestTruncateDownwardForLocalFileShouldUpdateLocalFileAttribut
 	var attrs fuseops.InodeAttributes
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
-	err = t.in.CreateEmptyTempFile()
+	err = t.in.CreateBufferedOrTempWriter()
 	AssertEq(nil, err)
 	// Write some data to the local file.
 	err = t.in.Write(t.ctx, []byte("burrito"), 0)
@@ -867,7 +867,7 @@ func (t *FileTest) TestSetMtimeForLocalFileShouldUpdateLocalFileAttributes() {
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
 	createTime := t.in.mtimeClock.Now()
-	err = t.in.CreateEmptyTempFile()
+	err = t.in.CreateBufferedOrTempWriter()
 	AssertEq(nil, err)
 	// Validate the attributes on an empty file.
 	attrs, err = t.in.Attributes(t.ctx)
@@ -898,7 +898,7 @@ func (t *FileTest) TestSetMtimeForLocalFileWhenStreamingWritesAreEnabled() {
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
 	t.in.writeConfig = getWriteConfig()
-	err = t.in.CreateEmptyTempFile()
+	err = t.in.CreateBufferedOrTempWriter()
 	AssertEq(nil, err)
 
 	// Set mtime.
@@ -953,8 +953,8 @@ func (t *FileTest) TestCheckInvariantsShouldNotThrowExceptionForLocalFiles() {
 	AssertNe(nil, t.in)
 }
 
-func (t *FileTest) TestCreateEmptyTempFileShouldCreateEmptyFile() {
-	err := t.in.CreateEmptyTempFile()
+func (t *FileTest) TestCreateBufferedOrTempWriterShouldCreateEmptyFile() {
+	err := t.in.CreateBufferedOrTempWriter()
 
 	AssertEq(nil, err)
 	AssertNe(nil, t.in.content)
@@ -964,22 +964,22 @@ func (t *FileTest) TestCreateEmptyTempFileShouldCreateEmptyFile() {
 	AssertEq(0, sr.Size)
 }
 
-func (t *FileTest) TestCreateEmptyTempFileShouldNotCreateFileWhenStreamingWritesAreEnabled() {
+func (t *FileTest) TestCreateBufferedOrTempWriterShouldNotCreateFileWhenStreamingWritesAreEnabled() {
 	t.createInodeWithLocalParam("test", true)
 	t.in.writeConfig = getWriteConfig()
 
-	err := t.in.CreateEmptyTempFile()
+	err := t.in.CreateBufferedOrTempWriter()
 
 	AssertEq(nil, err)
 	AssertEq(nil, t.in.content)
 	AssertNe(nil, t.in.bwh)
 }
 
-func (t *FileTest) TestCreateEmptyTempFileShouldCreateFileForNonLocalFilesForStreamingWrites() {
+func (t *FileTest) TestCreateBufferedOrTempWriterShouldCreateFileForNonLocalFilesForStreamingWrites() {
 	// Enabling buffered writes.
 	t.in.writeConfig = getWriteConfig()
 
-	err := t.in.CreateEmptyTempFile()
+	err := t.in.CreateBufferedOrTempWriter()
 
 	AssertEq(nil, err)
 	AssertNe(nil, t.in.content)
@@ -995,7 +995,7 @@ func (t *FileTest) UnlinkLocalFile() {
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
 	// Create a temp file for the local inode created above.
-	err = t.in.CreateEmptyTempFile()
+	err = t.in.CreateBufferedOrTempWriter()
 	AssertEq(nil, err)
 
 	// Unlink.
