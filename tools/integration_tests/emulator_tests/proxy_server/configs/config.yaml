@@ -2,4 +2,4 @@ targetHost: http://localhost:9000
 retryConfig:
 - method: JsonCreate
   retryInstruction: "stall-for-40s-after-15000K"
-  retryCount: 1
+  retryCount: 2
