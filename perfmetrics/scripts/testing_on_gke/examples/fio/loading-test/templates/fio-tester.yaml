@@ -57,13 +57,13 @@ spec:
         num_of_threads={{ .Values.fio.numThreads }}
 
         {{ if eq .Values.scenario "local-ssd" }}
-        echo "Installing gsutil..."
+        echo "Installing gcloud..."
         apt-get update && apt-get install -y apt-transport-https ca-certificates gnupg curl
         curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
         echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
         apt-get update && apt-get install -y google-cloud-cli
 
-        gsutil -m cp -R gs://{{ .Values.bucketName }}/* /data
+        gcloud storage cp -r gs://{{ .Values.bucketName }}/* /data
 
         echo "Sleeping 5 minutes to wait for Local SSD RAID to populate data."
         sleep 300
@@ -161,7 +161,7 @@ spec:
         done
 
         {{ if eq .Values.scenario "local-ssd" }}
-        gsutil -m cp -R /data/fio-output/* gs://{{ .Values.bucketName }}/fio-output/
+        gcloud storage cp -r /data/fio-output/* gs://{{ .Values.bucketName }}/fio-output/
         {{ end }}
 
         echo "fio job completed!"

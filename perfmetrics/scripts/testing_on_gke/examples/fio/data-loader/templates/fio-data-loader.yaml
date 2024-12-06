@@ -44,7 +44,7 @@ spec:
         apt-get update
         apt-get install -y libaio-dev gcc make git wget
 
-        echo "Installing gsutil..."
+        echo "Installing gcloud ..."
         apt-get update && apt-get install -y apt-transport-https ca-certificates gnupg curl
         curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
         echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
@@ -91,7 +91,7 @@ spec:
         NUMJOBS=50 NRFILES={{ .Values.fio.filesPerThread }} FILE_SIZE={{ .Values.fio.fileSize }} BLOCK_SIZE={{ .Values.fio.blockSize }} READ_TYPE=read DIR=/data fio ${filename} --alloc-size=1048576
 
         echo "Uploading data to bucket {{ .Values.bucketName }}..."
-        gsutil -m cp -R /data/* gs://{{ .Values.bucketName }}
+        gcloud cp -r /data/* gs://{{ .Values.bucketName }}
     volumeMounts:
     - name: local-dir
       mountPath: /data
