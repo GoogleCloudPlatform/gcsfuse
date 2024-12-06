@@ -389,7 +389,7 @@ func (f *FileInode) Attributes(
 
 	// Obtain default information from the source object.
 	attrs.Mtime = f.src.Updated
-	attrs.Size = uint64(f.src.Size)
+	attrs.Size = f.src.Size
 
 	// If the source object has an mtime metadata key, use that instead of its
 	// update time.
@@ -422,6 +422,12 @@ func (f *FileInode) Attributes(
 		if sr.Mtime != nil {
 			attrs.Mtime = *sr.Mtime
 		}
+	}
+
+	if f.bwh != nil {
+		writeFileInfo := f.bwh.WriteFileInfo()
+		attrs.Mtime = writeFileInfo.Mtime
+		attrs.Size = uint64(writeFileInfo.TotalSize)
 	}
 
 	// We require only that atime and ctime be "reasonable".
@@ -493,8 +499,16 @@ func (f *FileInode) Write(
 	ctx context.Context,
 	data []byte,
 	offset int64) (err error) {
-	if f.local && f.writeConfig.ExperimentalEnableStreamingWrites {
-		return f.writeToBuffer(data, offset)
+	// For empty GCS files also we will triggered bufferedWrites flow.
+	if f.src.Size == 0 && f.writeConfig.ExperimentalEnableStreamingWrites {
+		err = f.ensureBufferedWriteHandler()
+		if err != nil {
+			return
+		}
+	}
+
+	if f.bwh != nil {
+		return f.bwh.Write(data, offset)
 	}
 
 	// Make sure f.content != nil.
@@ -517,6 +531,15 @@ func (f *FileInode) Write(
 func (f *FileInode) SetMtime(
 	ctx context.Context,
 	mtime time.Time) (err error) {
+	// When bufferedWritesHandler instance is not nil, set time on bwh.
+	// It will not be nil in 2 cases when bufferedWrites are enabled:
+	// 1. local files
+	// 2. After first write on empty GCS files.
+	if f.bwh != nil {
+		f.bwh.SetMtime(mtime)
+		return
+	}
+
 	// If we have a local temp file, stat it.
 	var sr gcsx.StatResult
 	if f.content != nil {
@@ -685,7 +708,16 @@ func (f *FileInode) CacheEnsureContent(ctx context.Context) (err error) {
 	return
 }
 
-func (f *FileInode) CreateEmptyTempFile() (err error) {
+func (f *FileInode) CreateBufferedOrTempWriter() (err error) {
+	// Skip creating empty file when streaming writes are enabled
+	if f.local && f.writeConfig.ExperimentalEnableStreamingWrites {
+		err = f.ensureBufferedWriteHandler()
+		if err != nil {
+			return
+		}
+		return
+	}
+
 	// Creating a file with no contents. The contents will be updated with
 	// writeFile operations.
 	f.content, err = f.contentCache.NewTempFile(io.NopCloser(strings.NewReader("")))
@@ -694,17 +726,15 @@ func (f *FileInode) CreateEmptyTempFile() (err error) {
 	return
 }
 
-// writeToBuffer writes the given content to the in-memory buffer.
-func (f *FileInode) writeToBuffer(data []byte, offset int64) (err error) {
-	// Initialize bufferedWriteHandler if not done already.
+func (f *FileInode) ensureBufferedWriteHandler() error {
+	var err error
 	if f.bwh == nil {
 		f.bwh, err = bufferedwrites.NewBWHandler(f.name.GcsObjectName(), f.bucket, f.writeConfig.BlockSizeMb, f.writeConfig.MaxBlocksPerFile, f.globalMaxBlocksSem)
 		if err != nil {
 			return fmt.Errorf("failed to create bufferedWriteHandler: %w", err)
 		}
+		f.bwh.SetMtime(f.mtimeClock.Now())
 	}
 
-	err = f.bwh.Write(data, offset)
-
-	return
+	return nil
 }
