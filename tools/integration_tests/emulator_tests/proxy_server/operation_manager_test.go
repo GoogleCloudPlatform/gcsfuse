@@ -17,6 +17,7 @@ package main
 import (
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -40,6 +41,8 @@ func TestNewOperationManager(t *testing.T) {
 }
 
 func TestRetrieveOperation(t *testing.T) {
+	setup.IgnoreTestIfIntegrationTestFlagIsSet(t)
+
 	t.Run("One config test", func(t *testing.T) {
 		config := Config{
 			RetryConfig: []RetryConfig{
@@ -132,6 +135,8 @@ func TestRetrieveOperation(t *testing.T) {
 }
 
 func TestAddRetryConfig(t *testing.T) {
+	setup.IgnoreTestIfIntegrationTestFlagIsSet(t)
+	
 	om := &OperationManager{
 		retryConfigs: make(map[RequestType][]RetryConfig),
 	}

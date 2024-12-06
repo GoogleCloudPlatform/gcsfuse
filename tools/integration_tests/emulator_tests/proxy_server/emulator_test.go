@@ -21,11 +21,14 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
 )
 
 // TestGetRetryID tests the GetRetryID function
 func TestGetRetryID(t *testing.T) {
+	setup.IgnoreTestIfIntegrationTestFlagIsSet(t)
+
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/retry_test", r.URL.Path, "Unexpected URL path")
 		w.Header().Set("Content-Type", "application/json")
@@ -45,6 +48,8 @@ func TestGetRetryID(t *testing.T) {
 
 // TestCreateRetryTest tests the CreateRetryTest function
 func TestCreateRetryTest(t *testing.T) {
+	setup.IgnoreTestIfIntegrationTestFlagIsSet(t)
+
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/retry_test", r.URL.Path, "Unexpected URL path")
 		w.Header().Set("Content-Type", "application/json")
