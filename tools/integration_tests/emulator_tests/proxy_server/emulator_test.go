@@ -36,9 +36,10 @@ func TestGetRetryID(t *testing.T) {
 
 	hostURL, _ := url.Parse(mockServer.URL)
 	et := &emulatorTest{host: hostURL}
-
 	instructions := map[string][]string{"retry": {"retry-instruction"}}
+	
 	testID, err := et.GetRetryID(instructions, "http")
+
 	assert.NoError(t, err)
 	assert.Equal(t, "test-id-123", testID, "Unexpected test ID returned")
 }
@@ -60,6 +61,7 @@ func TestCreateRetryTest(t *testing.T) {
 
 	// Test with empty instructions
 	testID, err = CreateRetryTest(mockServer.URL, map[string][]string{})
+
 	assert.NoError(t, err)
 	assert.Equal(t, "", testID, "Expected empty test ID for empty instructions")
 }

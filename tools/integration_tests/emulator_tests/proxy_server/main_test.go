@@ -46,6 +46,7 @@ func TestAddRetryID(t *testing.T) {
 	}
 
 	err := AddRetryID(req, r)
+
 	assert.NoError(t, err)
 	assert.Equal(t, "test-id-123", req.Header.Get("x-retry-test-id"), "Unexpected x-retry-test-id header value")
 }
