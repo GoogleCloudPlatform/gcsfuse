@@ -17,7 +17,10 @@ curl -X POST --data-binary @test.json \
 rm test.json    
 ```
 2. Run the proxy server: `go run . --config-path=<file>` This will start the proxy server at `localhost:8020`.
-3. Run the test: `STORAGE_EMULATOR_HOST="http://localhost:8020" go test --integrationTest -v --testbucket=test-bucket -timeout 10m -run $test_name`
+3. Run the test:
+```
+STORAGE_EMULATOR_HOST="http://localhost:8020" go test --integrationTest -v --testbucket=test-bucket -timeout 10m -run $test_name
+```
 
 ### Automated emulator test
 1. Run ./emulator_tests.sh
@@ -26,3 +29,6 @@ rm test.json
 1. Create a new directory for your test.
 2. Add a YAML file to the [configs](https://github.com/GoogleCloudPlatform/gcsfuse/tree/master/tools/integration_tests/emulator_tests/proxy_server/configs) directory to create a forced retry scenario.
 3. Add the YAML file and package name pair to the emulator_tests.sh file.
+```
+
+```
