@@ -12,3 +12,129 @@ JsonCreate
 2024/12/06 08:52:07 Server error: listen tcp :8020: bind: address already in use
 exit status 1
 
+2024/12/06 09:19:57 Target Host: http://localhost:9000
+2024/12/06 09:19:57 Method: JsonCreate
+2024/12/06 09:19:57 Retry instructions: stall-for-40s-after-15000K
+2024/12/06 09:19:57 Retry Count: 3
+2024/12/06 09:19:57 Skip Count: 0
+2024/12/06 09:19:57 &{TargetHost:http://localhost:9000 RetryConfig:[{Method:JsonCreate RetryInstruction:stall-for-40s-after-15000K RetryCount:3 SkipCount:0}]}
+JsonCreate
+0xc00003a850
+2024/12/06 09:19:57 Proxy server started on port 8020
+2024/12/06 09:19:57 Server error: listen tcp :8020: bind: address already in use
+exit status 1
+2024/12/06 09:20:51 Target Host: http://localhost:9000
+2024/12/06 09:20:51 Method: JsonCreate
+2024/12/06 09:20:51 Retry instructions: stall-for-40s-after-15000K
+2024/12/06 09:20:51 Retry Count: 3
+2024/12/06 09:20:51 Skip Count: 0
+2024/12/06 09:20:51 &{TargetHost:http://localhost:9000 RetryConfig:[{Method:JsonCreate RetryInstruction:stall-for-40s-after-15000K RetryCount:3 SkipCount:0}]}
+JsonCreate
+0xc00003a850
+2024/12/06 09:20:51 Proxy server started on port 8020
+2024/12/06 09:20:51 Server error: listen tcp :8020: bind: address already in use
+exit status 1
+2024/12/06 09:23:35 Target Host: http://localhost:9000
+2024/12/06 09:23:35 Method: JsonCreate
+2024/12/06 09:23:35 Retry instructions: stall-for-40s-after-15000K
+2024/12/06 09:23:35 Retry Count: 3
+2024/12/06 09:23:35 Skip Count: 0
+2024/12/06 09:23:35 &{TargetHost:http://localhost:9000 RetryConfig:[{Method:JsonCreate RetryInstruction:stall-for-40s-after-15000K RetryCount:3 SkipCount:0}]}
+JsonCreate
+0xc00003a850
+2024/12/06 09:23:35 Proxy server started on port 8020
+2024/12/06 09:23:35 Server error: listen tcp :8020: bind: address already in use
+exit status 1
+2024/12/06 09:26:38 Target Host: http://localhost:9000
+2024/12/06 09:26:38 Method: JsonCreate
+2024/12/06 09:26:38 Retry instructions: stall-for-40s-after-15000K
+2024/12/06 09:26:38 Retry Count: 3
+2024/12/06 09:26:38 Skip Count: 0
+2024/12/06 09:26:38 &{TargetHost:http://localhost:9000 RetryConfig:[{Method:JsonCreate RetryInstruction:stall-for-40s-after-15000K RetryCount:3 SkipCount:0}]}
+JsonCreate
+0xc00003a850
+2024/12/06 09:26:38 Proxy server started on port 8020
+2024/12/06 09:26:38 Server error: listen tcp :8020: bind: address already in use
+exit status 1
+2024/12/06 09:34:49 Target Host: http://localhost:9000
+2024/12/06 09:34:49 Method: JsonCreate
+2024/12/06 09:34:49 Retry instructions: stall-for-40s-after-15000K
+2024/12/06 09:34:49 Retry Count: 3
+2024/12/06 09:34:49 Skip Count: 0
+2024/12/06 09:34:49 &{TargetHost:http://localhost:9000 RetryConfig:[{Method:JsonCreate RetryInstruction:stall-for-40s-after-15000K RetryCount:3 SkipCount:0}]}
+JsonCreate
+0xc00003a850
+2024/12/06 09:34:49 Proxy server started on port 8020
+2024/12/06 09:34:49 Server error: listen tcp :8020: bind: address already in use
+exit status 1
+2024/12/06 09:36:42 Target Host: http://localhost:9000
+2024/12/06 09:36:42 Method: JsonCreate
+2024/12/06 09:36:42 Retry instructions: stall-for-40s-after-15000K
+2024/12/06 09:36:42 Retry Count: 3
+2024/12/06 09:36:42 Skip Count: 0
+2024/12/06 09:36:42 &{TargetHost:http://localhost:9000 RetryConfig:[{Method:JsonCreate RetryInstruction:stall-for-40s-after-15000K RetryCount:3 SkipCount:0}]}
+JsonCreate
+0xc00003a850
+2024/12/06 09:36:42 Proxy server started on port 8020
+2024/12/06 09:36:42 Server error: listen tcp :8020: bind: address already in use
+exit status 1
+2024/12/06 09:39:52 Target Host: http://localhost:9000
+2024/12/06 09:39:52 Method: JsonCreate
+2024/12/06 09:39:52 Retry instructions: stall-for-40s-after-15000K
+2024/12/06 09:39:52 Retry Count: 3
+2024/12/06 09:39:52 Skip Count: 0
+2024/12/06 09:39:52 &{TargetHost:http://localhost:9000 RetryConfig:[{Method:JsonCreate RetryInstruction:stall-for-40s-after-15000K RetryCount:3 SkipCount:0}]}
+JsonCreate
+0xc00003a850
+2024/12/06 09:39:52 Proxy server started on port 8020
+2024/12/06 09:39:52 Server error: listen tcp :8020: bind: address already in use
+exit status 1
+
+
+
+
+
+2024/12/06 09:42:11 Target Host: http://localhost:9000
+2024/12/06 09:42:11 Method: JsonCreate
+2024/12/06 09:42:11 Retry instructions: stall-for-40s-after-15000K
+2024/12/06 09:42:11 Retry Count: 3
+2024/12/06 09:42:11 Skip Count: 0
+2024/12/06 09:42:11 &{TargetHost:http://localhost:9000 RetryConfig:[{Method:JsonCreate RetryInstruction:stall-for-40s-after-15000K RetryCount:3 SkipCount:0}]}
+JsonCreate
+0xc00003a850
+2024/12/06 09:42:11 Proxy server started on port 8020
+2024/12/06 09:42:36 GetRetryID:  map[storage.objects.insert:[stall-for-40s-after-15000K]]
+2024/12/06 09:42:36 ID:  4909727b09834c819950fdf932c5720d
+2024/12/06 09:42:36 GetRetryID:  map[storage.objects.insert:[stall-for-40s-after-15000K]]
+2024/12/06 09:42:36 ID:  12f1d551fd0b4a8f830d7341ccd3ebb4
+2024/12/06 09:43:16 GetRetryID:  map[storage.objects.insert:[stall-for-40s-after-15000K]]
+2024/12/06 09:43:16 ID:  59546a5fe92b4d359735c9153fb7548c
+2024/12/06 09:47:00 Target Host: http://localhost:9000
+2024/12/06 09:47:00 Method: JsonCreate
+2024/12/06 09:47:00 Retry instructions: stall-for-40s-after-15000K
+2024/12/06 09:47:00 Retry Count: 3
+2024/12/06 09:47:00 Skip Count: 0
+2024/12/06 09:47:00 &{TargetHost:http://localhost:9000 RetryConfig:[{Method:JsonCreate RetryInstruction:stall-for-40s-after-15000K RetryCount:3 SkipCount:0}]}
+JsonCreate
+0xc00003a850
+2024/12/06 09:47:00 Proxy server started on port 8020
+2024/12/06 09:47:00 Server error: listen tcp :8020: bind: address already in use
+exit status 1
+signal: killed
+2024/12/06 09:50:28 Target Host: http://localhost:9000
+2024/12/06 09:50:28 Method: JsonCreate
+2024/12/06 09:50:28 Retry instructions: stall-for-40s-after-15000K
+2024/12/06 09:50:28 Retry Count: 3
+2024/12/06 09:50:28 Skip Count: 0
+2024/12/06 09:50:28 &{TargetHost:http://localhost:9000 RetryConfig:[{Method:JsonCreate RetryInstruction:stall-for-40s-after-15000K RetryCount:3 SkipCount:0}]}
+JsonCreate
+0xc00003a850
+2024/12/06 09:50:28 Proxy server started on port 8020
+2024/12/06 09:50:54 GetRetryID:  map[storage.objects.insert:[stall-for-40s-after-15000K]]
+2024/12/06 09:50:54 ID:  c9c54ee0ce624271b60ac0f85cb26609
+2024/12/06 09:50:54 GetRetryID:  map[storage.objects.insert:[stall-for-40s-after-15000K]]
+2024/12/06 09:50:54 ID:  dad11a720f5c4834a1e28f891e60d79c
+2024/12/06 09:51:34 GetRetryID:  map[storage.objects.insert:[stall-for-40s-after-15000K]]
+2024/12/06 09:51:34 ID:  e3f64fbb4bda40fdb4a206bce3e048aa
+2024/12/06 09:51:34 Shutting down proxy server...
+2024/12/06 09:51:34 Proxy server exiting

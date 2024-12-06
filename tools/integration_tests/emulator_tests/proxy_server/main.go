@@ -60,6 +60,7 @@ func AddRetryID(req *http.Request, r RequestTypeAndInstruction) error {
 		if err != nil {
 			return fmt.Errorf("CreateRetryTest: %v", err)
 		}
+		log.Println("ID: ", testID)
 		req.Header.Set("x-retry-test-id", testID)
 	}
 	return nil
