@@ -30,5 +30,5 @@ STORAGE_EMULATOR_HOST="http://localhost:8020" go test --integrationTest -v --tes
 2. Add a YAML file to the [configs](https://github.com/GoogleCloudPlatform/gcsfuse/tree/master/tools/integration_tests/emulator_tests/proxy_server/configs) directory to create a forced retry scenario.
 3. Add the YAML file and package name pair to the emulator_tests.sh file.
 ```
-
+ ["config.yaml"]="TestX"
 ```
