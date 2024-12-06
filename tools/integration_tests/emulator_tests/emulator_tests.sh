@@ -70,7 +70,7 @@ EOF
 curl -X POST --data-binary @test.json \
     -H "Content-Type: application/json" \
     "$STORAGE_EMULATOR_HOST/storage/v1/b?project=test-project"
-
+rm test.json
 # Define an associative array to store config file and corresponding test name pairs
 # e.g. [write_stall.yaml, TestWriteStall]
 declare -A config_test_pairs=(
