@@ -35,7 +35,8 @@ var (
 	// TODO: We can add support for specifying a log path for fDebug logs in a future update.
 	fDebug = flag.Bool("debug", false, "Enable proxy server fDebug logs.")
 	// Initialized before the server gets started.
-	gConfig *Config
+	gConfig    *Config
+	gOpManager *OperationManager
 )
 
 // Host address of the proxy server.
@@ -44,6 +45,24 @@ const Port = "8020"
 
 type ProxyHandler struct {
 	http.Handler
+}
+
+// AddRetryID creates mock error behavior on the target host for specific request types.
+// It retrieves the corresponding operation from the operation manager based on the provided RequestTypeAndInstruction.
+// If a matching operation is found, it creates a retry test with the target host and instruction,
+// and attaches the generated test ID to the HTTP request header "x-retry-test-id".
+//
+// This function is used to simulate error scenarios for testing retry mechanisms.
+func AddRetryID(req *http.Request, r RequestTypeAndInstruction) error {
+	plantOp := gOpManager.retrieveOperation(r.RequestType)
+	if plantOp != "" {
+		testID, err := CreateRetryTest(gConfig.TargetHost, map[string][]string{r.Instruction: {plantOp}})
+		if err != nil {
+			return fmt.Errorf("CreateRetryTest: %v", err)
+		}
+		req.Header.Set("x-retry-test-id", testID)
+	}
+	return nil
 }
 
 // ServeHTTP handles incoming HTTP requests. It acts as a proxy, forwarding requests
@@ -60,6 +79,15 @@ func (ph ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		for _, value := range values {
 			req.Header.Add(name, value)
 		}
+	}
+	// Determine the request type and instruction (e.g., read, write, metadata) based on the incoming request.
+	reqTypeAndInstruction := deduceRequestTypeAndInstruction(r)
+
+	// Add a unique retry ID to the request headers, associating it with the
+	// deduced request type and instruction. This is used for adding custom failures on requests.
+	err = AddRetryID(req, reqTypeAndInstruction)
+	if err != nil {
+		log.Printf("AddRetryID: %v", err)
 	}
 
 	// Send the request to the target server
@@ -163,7 +191,7 @@ func main() {
 		log.Printf("%+v\n", gConfig)
 	}
 
-	// TODO: Create operation manager instance from config.
+	gOpManager = NewOperationManager(*gConfig)
 
 	ps := NewProxyServer(Port)
 	ps.Start()
