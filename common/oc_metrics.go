@@ -212,6 +212,28 @@ func NewOCMetrics() (MetricHandle, error) {
 			Description: "The cumulative distribution of file system operation latencies",
 			Aggregation: ochttp.DefaultLatencyDistribution,
 			TagKeys:     []tag.Key{tag.MustNewKey(FSOp)},
+		},
+		// File cache related metrics
+		&view.View{
+			Name:        "file_cache/read_count",
+			Measure:     fileCacheReadCount,
+			Description: "Specifies the number of read requests made via file cache along with type - Sequential/Random and cache hit - true/false",
+			Aggregation: view.Sum(),
+			TagKeys:     []tag.Key{tag.MustNewKey(ReadType), tag.MustNewKey(CacheHit)},
+		},
+		&view.View{
+			Name:        "file_cache/read_bytes_count",
+			Measure:     fileCacheReadBytesCount,
+			Description: "The cumulative number of bytes read from file cache along with read type - Sequential/Random",
+			Aggregation: view.Sum(),
+			TagKeys:     []tag.Key{tag.MustNewKey(ReadType)},
+		},
+		&view.View{
+			Name:        "file_cache/read_latencies",
+			Measure:     fileCacheReadLatency,
+			Description: "The cumulative distribution of the file cache read latencies along with cache hit - true/false",
+			Aggregation: ochttp.DefaultLatencyDistribution,
+			TagKeys:     []tag.Key{tag.MustNewKey(CacheHit)},
 		}); err != nil {
 		return nil, fmt.Errorf("failed to register OpenCensus metrics for GCS client library: %w", err)
 	}
