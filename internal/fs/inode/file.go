@@ -489,6 +489,7 @@ func (f *FileInode) Write(
 	ctx context.Context,
 	data []byte,
 	offset int64) (err error) {
+	// For empty GCS files also we will triggered bufferedWrites flow.
 	if f.src.Size == 0 && f.writeConfig.ExperimentalEnableStreamingWrites {
 		err = f.ensureBufferedWriteHandler()
 		if err != nil {
@@ -520,6 +521,10 @@ func (f *FileInode) Write(
 func (f *FileInode) SetMtime(
 	ctx context.Context,
 	mtime time.Time) (err error) {
+	// When bufferedWritesHandler instance is not nil, set time on bwh.
+	// It will not be nil in 2 cases when bufferedWrites are enabled:
+	// 1. local files
+	// 2. After first write on empty GCS files.
 	if f.bwh != nil {
 		f.bwh.SetMtime(mtime)
 		return
@@ -697,7 +702,6 @@ func (f *FileInode) CreateEmptyTempFile() (err error) {
 		if err != nil {
 			return
 		}
-		f.bwh.SetMtime(f.mtimeClock.Now())
 		return
 	}
 
@@ -720,17 +724,4 @@ func (f *FileInode) ensureBufferedWriteHandler() error {
 	}
 
 	return nil
-}
-
-func (f *FileInode) bufferedWritesEnabled() (bool, error) {
-	if f.local && f.writeConfig.ExperimentalEnableStreamingWrites {
-		err := f.ensureBufferedWriteHandler()
-		if err != nil {
-			return true, err
-		}
-
-		return true, nil
-	}
-
-	return false, nil
 }

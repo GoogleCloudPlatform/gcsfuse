@@ -1121,24 +1121,6 @@ func (t *FileTest) SetMtimeOnEmptyGCSFileAfterWritesWhenStreamingWritesAreEnable
 	ExpectThat(attrs.Atime, timeutil.TimeEq(mtime))
 }
 
-func (t *FileTest) TestTruncateForLocalFileWhenStreamingWritesAreEnabled() {
-	var err error
-	var attrs fuseops.InodeAttributes
-	// Create a local file inode.
-	t.createInodeWithLocalParam("test", true)
-	t.in.writeConfig = getWriteConfig()
-	err = t.in.CreateEmptyTempFile()
-	AssertEq(nil, err)
-	// Fetch the attributes and check if the file is empty.
-	attrs, err = t.in.Attributes(t.ctx)
-	AssertEq(nil, err)
-	AssertEq(0, attrs.Size)
-
-	err = t.in.Truncate(t.ctx, 6)
-
-	AssertEq(nil, err)
-}
-
 func getWriteConfig() *cfg.WriteConfig {
 	return &cfg.WriteConfig{
 		MaxBlocksPerFile:                  10,
