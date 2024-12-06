@@ -1055,6 +1055,7 @@ func (t *FileTest) WriteToLocalFileWhenStreamingWritesAreEnabled() {
 func (t *FileTest) MultipleWritesToLocalFileWhenStreamingWritesAreEnabled() {
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
+	createTime := t.in.mtimeClock.Now()
 	t.in.writeConfig = getWriteConfig()
 	AssertEq(nil, t.in.bwh)
 
@@ -1070,11 +1071,13 @@ func (t *FileTest) MultipleWritesToLocalFileWhenStreamingWritesAreEnabled() {
 	attrs, err := t.in.Attributes(t.ctx)
 	AssertEq(nil, err)
 	AssertEq(7, attrs.Size)
+	ExpectThat(attrs.Mtime, timeutil.TimeNear(createTime, Delta))
 }
 
 func (t *FileTest) WriteToEmptyGCSFileWhenStreamingWritesAreEnabled() {
 	t.createInodeWithEmptyObject()
 	t.in.writeConfig = getWriteConfig()
+	createTime := t.in.mtimeClock.Now()
 	AssertEq(nil, t.in.bwh)
 
 	err := t.in.Write(t.ctx, []byte("hi"), 0)
@@ -1083,6 +1086,11 @@ func (t *FileTest) WriteToEmptyGCSFileWhenStreamingWritesAreEnabled() {
 	AssertNe(nil, t.in.bwh)
 	writeFileInfo := t.in.bwh.WriteFileInfo()
 	AssertEq(2, writeFileInfo.TotalSize)
+	// The inode should agree about the new mtime.
+	attrs, err := t.in.Attributes(t.ctx)
+	AssertEq(nil, err)
+	AssertEq(2, attrs.Size)
+	ExpectThat(attrs.Mtime, timeutil.TimeNear(createTime, Delta))
 }
 
 func (t *FileTest) SetMtimeOnEmptyGCSFileWhenStreamingWritesAreEnabled() {
