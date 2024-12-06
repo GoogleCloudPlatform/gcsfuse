@@ -37,7 +37,7 @@ func TestGetRetryID(t *testing.T) {
 	hostURL, _ := url.Parse(mockServer.URL)
 	et := &emulatorTest{host: hostURL}
 	instructions := map[string][]string{"retry": {"retry-instruction"}}
-	
+
 	testID, err := et.GetRetryID(instructions, "http")
 
 	assert.NoError(t, err)
