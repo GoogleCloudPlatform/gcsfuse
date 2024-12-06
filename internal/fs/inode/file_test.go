@@ -1024,7 +1024,7 @@ func (t *FileTest) MultipleWritesToLocalFileWhenStreamingWritesAreEnabled() {
 	AssertNe(nil, t.in.bwh)
 	AssertEq(2, t.in.bwh.WriteFileInfo().TotalSize)
 
-	err = t.in.Write(t.ctx, []byte("hello"), 0)
+	err = t.in.Write(t.ctx, []byte("hello"), 2)
 	AssertEq(nil, err)
 	AssertEq(7, t.in.bwh.WriteFileInfo().TotalSize)
 }
