@@ -18,10 +18,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
-	"os"
 )
 
 type emulatorTest struct {
@@ -80,8 +78,7 @@ func CreateRetryTest(host string, instructions map[string][]string) (string, err
 
 	endpoint, err := url.Parse(host)
 	if err != nil {
-		log.Printf("Failed to parse host env: %v\n", err)
-		os.Exit(0)
+		return "", fmt.Errorf("Failed to parse host env: %v\n", err)
 	}
 
 	et := &emulatorTest{host: endpoint}
