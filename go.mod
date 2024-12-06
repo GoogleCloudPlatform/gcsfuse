@@ -45,7 +45,7 @@ require (
 	golang.org/x/text v0.20.0
 	golang.org/x/time v0.8.0
 	google.golang.org/api v0.210.0
-	google.golang.org/grpc v1.68.0
+	google.golang.org/grpc v1.67.2
 	google.golang.org/protobuf v1.35.2
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/yaml.v3 v3.0.1
