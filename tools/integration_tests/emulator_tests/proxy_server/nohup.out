@@ -1,0 +1,20 @@
+2024/12/06 06:05:41 Proxy server started on port 8020
+2024/12/06 06:05:41 Server error: listen tcp :8020: bind: address already in use
+exit status 1
+2024/12/06 06:10:44 Proxy server started on port 8020
+2024/12/06 06:10:44 Server error: listen tcp :8020: bind: address already in use
+exit status 1
+2024/12/06 06:15:00 Proxy server started on port 8020
+2024/12/06 06:15:00 Server error: listen tcp :8020: bind: address already in use
+exit status 1
+2024/12/06 06:17:34 Target Host: http://localhost:9000
+2024/12/06 06:17:34 Method: JsonCreate
+2024/12/06 06:17:34 Retry instructions: stall-for-40s-after-15000K
+2024/12/06 06:17:34 Retry Count: 1
+2024/12/06 06:17:34 Skip Count: 0
+2024/12/06 06:17:34 &{TargetHost:http://localhost:9000 RetryConfig:[{Method:JsonCreate RetryInstruction:stall-for-40s-after-15000K RetryCount:1 SkipCount:0}]}
+JsonCreate
+0xc00003a850
+2024/12/06 06:17:34 Proxy server started on port 8020
+2024/12/06 06:17:34 Server error: listen tcp :8020: bind: address already in use
+exit status 1
