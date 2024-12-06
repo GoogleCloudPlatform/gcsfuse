@@ -43,12 +43,7 @@ func init() {
 }
 
 func (t *StaleHandleTest) SetUpTestSuite() {
-	t.serverCfg.ImplicitDirectories = true
-	t.serverCfg.LocalFileCache = false
 	t.serverCfg.NewConfig = &cfg.Config{
-		Write: cfg.WriteConfig{
-			CreateEmptyFile: false,
-		},
 		FileSystem: cfg.FileSystemConfig{
 			PreconditionErrors: true,
 		},
