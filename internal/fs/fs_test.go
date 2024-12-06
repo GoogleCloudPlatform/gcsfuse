@@ -290,7 +290,7 @@ func (t *fsTest) createEmptyObjects(names []string) error {
 
 func (t *fsTest) createFolders(folders []string) error {
 	for i := 0; i < len(folders); i++ {
-		_, err = bucket.CreateFolder(ctx, folders[i])
+		_, err := bucket.CreateFolder(ctx, folders[i])
 		if err != nil {
 			return err
 		}

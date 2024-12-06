@@ -840,7 +840,6 @@ func (t *LocalFileTest) AtimeMtimeAndCtime() {
 // Stat that local file.
 func (t *LocalFileTest) TestStatLocalFileAfterRecreatingItWithSameName() {
 	filePath := path.Join(mntDir, "test.txt")
-	AssertEq(nil, err)
 	f1, err := os.Create(filePath)
 	defer AssertEq(nil, f1.Close())
 	AssertEq(nil, err)
@@ -871,7 +870,6 @@ func (t *LocalFileTest) TestStatFailsOnNewFileAfterDeletion() {
 	}
 	t.serverCfg.MetricHandle = common.NewNoopMetrics()
 	filePath := path.Join(mntDir, "test.txt")
-	AssertEq(nil, err)
 	f1, err := os.Create(filePath)
 	AssertEq(nil, err)
 	defer AssertEq(nil, f1.Close())
