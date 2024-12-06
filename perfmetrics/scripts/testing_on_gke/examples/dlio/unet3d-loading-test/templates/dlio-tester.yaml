@@ -24,12 +24,16 @@ metadata:
   {{- end }}
 spec:
   restartPolicy: Never
+  activeDeadlineSeconds: 5000
   nodeSelector:
     cloud.google.com/gke-ephemeral-storage-local-ssd: "true"
     node.kubernetes.io/instance-type: {{ .Values.nodeType }}
   containers:
   - name: dlio-tester
     image: {{ .Values.image }}
+    ports:
+    - containerPort: 11021
+      hostPort: 11021
     resources:
       limits:
         cpu: {{ .Values.resourceLimits.cpu }}
