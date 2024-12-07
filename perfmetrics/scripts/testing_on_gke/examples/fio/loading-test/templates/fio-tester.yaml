@@ -19,9 +19,6 @@ metadata:
   name: {{ .Values.podName }}
   annotations:
     gke-gcsfuse/volumes: "true"
-    gke-gcsfuse/cpu-limit: "0"
-    gke-gcsfuse/memory-limit: "0"
-    gke-gcsfuse/ephemeral-storage-limit: "0"
 spec:
   activeDeadlineSeconds: 5000
   restartPolicy: Never
@@ -32,7 +29,7 @@ spec:
   - name: fio-tester
     image: {{ .Values.image }}
     ports:
-    - containerPort: 18200
+    - containerPort: 11021
       hostPort: 11021
     securityContext: # for cache dropping in the benchmarking tests.
       privileged: true
