@@ -19,6 +19,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"path"
 	"strings"
 	"testing"
@@ -36,7 +37,16 @@ import (
 // A directory containing outputs created by build_gcsfuse.
 var gBuildDir string
 
-const testBucket string = "gcsfuse_monitoring_test_bucket"
+const (
+	testBucket     = "gcsfuse_monitoring_test_bucket"
+	prometheusPort = 9191
+)
+
+func isPortOpen(port int64) bool {
+	c := exec.Command("lsof", "-t", fmt.Sprintf("-i:%d", port))
+	output, _ := c.CombinedOutput()
+	return len(output) == 0
+}
 
 type PromTest struct {
 	suite.Suite
@@ -51,6 +61,9 @@ type PromTest struct {
 }
 
 func (testSuite *PromTest) SetupSuite() {
+	if portAvailable := isPortOpen(prometheusPort); !portAvailable {
+		require.Failf(testSuite.T(), "prometheus port is not available.", "port: %d", int64(prometheusPort))
+	}
 	setup.ParseSetUpFlagsForStretchrTests(testSuite.T())
 
 	var err error
@@ -104,7 +117,7 @@ func (testSuite *PromTest) mount(bucketName string) error {
 	testSuite.T().Helper()
 	cacheDir, err := os.MkdirTemp("", "gcsfuse-cache")
 	require.NoError(testSuite.T(), err)
-	flags := []string{"--prometheus-port=9191", "--cache-dir", cacheDir}
+	flags := []string{fmt.Sprintf("--prometheus-port=%d", prometheusPort), "--cache-dir", cacheDir}
 	if testSuite.enableOtel {
 		flags = append(flags, "--enable-otel=true")
 	} else {
