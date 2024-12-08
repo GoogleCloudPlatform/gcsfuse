@@ -46,6 +46,8 @@ type PromTest struct {
 	// A temporary directory into which a file system may be mounted. Removed in
 	// TearDown.
 	mountPoint string
+
+	enableOtel bool
 }
 
 func (testSuite *PromTest) SetupSuite() {
@@ -102,7 +104,13 @@ func (testSuite *PromTest) mount(bucketName string) error {
 	testSuite.T().Helper()
 	cacheDir, err := os.MkdirTemp("", "gcsfuse-cache")
 	require.NoError(testSuite.T(), err)
-	args := []string{"--prometheus-port=9191", "--cache-dir", cacheDir, bucketName, testSuite.mountPoint}
+	flags := []string{"--prometheus-port=9191", "--cache-dir", cacheDir}
+	if testSuite.enableOtel {
+		flags = append(flags, "--enable-otel=true")
+	} else {
+		flags = append(flags, "--enable-otel=false")
+	}
+	args := append(flags, bucketName, testSuite.mountPoint)
 
 	if err := mounting.MountGcsfuse(testSuite.gcsfusePath, args); err != nil {
 		return err
@@ -221,6 +229,10 @@ func (testSuite *PromTest) TestReadMetrics() {
 
 }
 
-func TestPromSuite(t *testing.T) {
-	suite.Run(t, new(PromTest))
+func TestPromOCSuite(t *testing.T) {
+	suite.Run(t, &PromTest{enableOtel: false})
+}
+
+func TestPromOTELSuite(t *testing.T) {
+	suite.Run(t, &PromTest{enableOtel: true})
 }
