@@ -261,6 +261,15 @@ func ParseSetUpFlags() {
 	}
 }
 
+func ParseSetUpFlagsForStretchrTests(t *testing.T) {
+	flag.Parse()
+
+	if !*integrationTest {
+		log.Print("Pass --integrationTest flag to run the tests.")
+		t.SkipNow()
+	}
+}
+
 func IgnoreTestIfIntegrationTestFlagIsSet(t *testing.T) {
 	flag.Parse()
 

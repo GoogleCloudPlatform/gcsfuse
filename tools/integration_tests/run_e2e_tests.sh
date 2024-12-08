@@ -82,6 +82,7 @@ TEST_DIR_PARALLEL=(
   "concurrent_operations"
   "benchmarking"
   "mount_timeout"
+  "monitoring"
 )
 
 # These tests never become parallel as it is changing bucket permissions.

@@ -58,6 +58,16 @@ func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config) (shutdownFn co
 	} else {
 		options = append(options, metric.WithResource(res))
 	}
+	// Drop unwanted metrics
+	var view metric.View = func(i metric.Instrument) (metric.Stream, bool) {
+		s := metric.Stream{Name: i.Name, Description: i.Description, Unit: i.Unit}
+		if strings.HasPrefix(i.Name, "fs/") || strings.HasPrefix(i.Name, "gcs/") || strings.HasPrefix(i.Name, "file_cache/") {
+			return s, true
+		}
+		s.Aggregation = metric.AggregationDrop{}
+		return s, true
+	}
+	options = append(options, metric.WithView(view))
 
 	meterProvider := metric.NewMeterProvider(options...)
 	shutdownFns = append(shutdownFns, meterProvider.Shutdown)
