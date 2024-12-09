@@ -28,6 +28,5 @@ type userAgentRoundTripper struct {
 
 func (ug *userAgentRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 	r.Header.Set("User-Agent", ug.UserAgent)
-	r.Header.Set("x-retry-test-id", "af15c91cdf144f88a46d832d77e9cbc4")
 	return ug.wrapped.RoundTrip(r)
 }
