@@ -64,6 +64,7 @@ echo "Setting the integration test timeout to: $INTEGRATION_TEST_TIMEOUT"
 readonly RANDOM_STRING_LENGTH=5
 # Test directory arrays
 TEST_DIR_PARALLEL=(
+  "monitoring"
   "local_file"
   "log_rotation"
   "mounting"
@@ -89,7 +90,6 @@ TEST_DIR_NON_PARALLEL=(
   "readonly"
   "managed_folders"
   "readonly_creds"
-  "monitoring"
 )
 
 # Create a temporary file to store the log file name.

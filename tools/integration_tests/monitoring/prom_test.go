@@ -15,6 +15,7 @@
 package monitoring
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -24,6 +25,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/util"
@@ -38,11 +40,12 @@ import (
 var gBuildDir string
 
 const (
-	testBucket     = "gcsfuse_monitoring_test_bucket"
-	prometheusPort = 9191
+	testBucket = "gcsfuse_monitoring_test_bucket"
 )
 
-func isPortOpen(port int64) bool {
+var prometheusPort = 9191
+
+func isPortOpen(port int) bool {
 	c := exec.Command("lsof", "-t", fmt.Sprintf("-i:%d", port))
 	output, _ := c.CombinedOutput()
 	return len(output) == 0
@@ -60,13 +63,22 @@ type PromTest struct {
 	enableOtel bool
 }
 
-func (testSuite *PromTest) SetupSuite() {
-	if portAvailable := isPortOpen(prometheusPort); !portAvailable {
-		require.Failf(testSuite.T(), "prometheus port is not available.", "port: %d", int64(prometheusPort))
+func isHnsTestRun(t *testing.T) bool {
+	storageClient, err := client.CreateStorageClient(context.Background())
+	require.NoError(t, err, "error while creating storage client")
+	if err != nil {
+		t.SkipNow()
+		return false
 	}
-	setup.ParseSetUpFlagsForStretchrTests(testSuite.T())
+	defer storageClient.Close()
+	return setup.IsHierarchicalBucket(context.Background(), storageClient)
+}
 
-	var err error
+func (testSuite *PromTest) SetupSuite() {
+	setup.ParseSetUpFlagsForStretchrTests(testSuite.T())
+	if isHnsTestRun(testSuite.T()) {
+		prometheusPort = 9292
+	}
 
 	if setup.TestInstalledPackage() {
 		// when testInstalledPackage flag is set, gcsfuse is preinstalled on the
@@ -75,6 +87,7 @@ func (testSuite *PromTest) SetupSuite() {
 		return
 	}
 
+	var err error
 	// To test locally built package
 	// Set up a directory into which we will build.
 	if gBuildDir, err = os.MkdirTemp("", "gcsfuse_integration_tests"); err != nil {
@@ -115,6 +128,9 @@ func (testSuite *PromTest) TearDownSuite() {
 
 func (testSuite *PromTest) mount(bucketName string) error {
 	testSuite.T().Helper()
+	if portAvailable := isPortOpen(prometheusPort); !portAvailable {
+		require.Failf(testSuite.T(), "prometheus port is not available.", "port: %d", int64(prometheusPort))
+	}
 	cacheDir, err := os.MkdirTemp("", "gcsfuse-cache")
 	require.NoError(testSuite.T(), err)
 	flags := []string{fmt.Sprintf("--prometheus-port=%d", prometheusPort), "--cache-dir", cacheDir}
