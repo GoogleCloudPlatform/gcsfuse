@@ -446,6 +446,7 @@ func Test_isValidWriteStreamingConfig_SuccessScenarios(t *testing.T) {
 	}{
 		{"streaming_writes_disabled", WriteConfig{
 			BlockSizeMb:                       -1,
+			ChunkTransferTimeout:              100 * time.Second,
 			CreateEmptyFile:                   false,
 			ExperimentalEnableStreamingWrites: false,
 			GlobalMaxBlocks:                   -10,
@@ -453,6 +454,7 @@ func Test_isValidWriteStreamingConfig_SuccessScenarios(t *testing.T) {
 		}},
 		{"valid_write_config_1", WriteConfig{
 			BlockSizeMb:                       1,
+			ChunkTransferTimeout:              2 * time.Second,
 			CreateEmptyFile:                   false,
 			ExperimentalEnableStreamingWrites: true,
 			GlobalMaxBlocks:                   -1,
@@ -460,6 +462,7 @@ func Test_isValidWriteStreamingConfig_SuccessScenarios(t *testing.T) {
 		}},
 		{"valid_write_config_2", WriteConfig{
 			BlockSizeMb:                       10,
+			ChunkTransferTimeout:              5 * time.Second,
 			CreateEmptyFile:                   false,
 			ExperimentalEnableStreamingWrites: true,
 			GlobalMaxBlocks:                   20,
@@ -467,6 +470,7 @@ func Test_isValidWriteStreamingConfig_SuccessScenarios(t *testing.T) {
 		}},
 		{"valid_write_config_3", WriteConfig{
 			BlockSizeMb:                       10,
+			ChunkTransferTimeout:              10 * time.Second,
 			CreateEmptyFile:                   false,
 			ExperimentalEnableStreamingWrites: true,
 			GlobalMaxBlocks:                   20,
@@ -474,6 +478,7 @@ func Test_isValidWriteStreamingConfig_SuccessScenarios(t *testing.T) {
 		}},
 		{"valid_write_config_4", WriteConfig{
 			BlockSizeMb:                       10,
+			ChunkTransferTimeout:              20 * time.Second,
 			CreateEmptyFile:                   false,
 			ExperimentalEnableStreamingWrites: true,
 			GlobalMaxBlocks:                   40,
