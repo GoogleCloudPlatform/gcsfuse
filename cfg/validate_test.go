@@ -474,7 +474,7 @@ func Test_isValidWriteStreamingConfig_SuccessScenarios(t *testing.T) {
 	}{
 		{"streaming_writes_disabled", WriteConfig{
 			BlockSizeMb:                       -1,
-			ChunkTransferTimeout:              100 * time.Second,
+			ChunkTransferTimeout:              -1 * time.Second,
 			CreateEmptyFile:                   false,
 			ExperimentalEnableStreamingWrites: false,
 			GlobalMaxBlocks:                   -10,

@@ -646,7 +646,7 @@
     We send larger file uploads in 16 MiB chunks. This flag controls the duration 
     that the HTTP client will wait for a response after making a request to upload a chunk. 
     The default value of 10s indicates that the client will wait 10 seconds for upload completion; 
-    otherwise, it cancels the request and retries for that chunk. 0 means no timeout.
+    otherwise, it cancels the request and retries for that chunk till chunkRetryDeadline(32s). 0 means no timeout.
   default: "10s"
   hide-flag: true
 
