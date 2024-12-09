@@ -63,7 +63,9 @@ type PromTest struct {
 	enableOtel bool
 }
 
-func isHnsTestRun(t *testing.T) bool {
+// isHNSTestRun helps set a different Prometheus ports for HNS and non-HNS presubmit runs.
+// This helps ensure that there is no port contention and the HNS and non-HNS mounts come up correctly.
+func isHNSTestRun(t *testing.T) bool {
 	storageClient, err := client.CreateStorageClient(context.Background())
 	require.NoError(t, err, "error while creating storage client")
 	defer storageClient.Close()
@@ -72,7 +74,7 @@ func isHnsTestRun(t *testing.T) bool {
 
 func (testSuite *PromTest) SetupSuite() {
 	setup.ParseSetUpFlagsForStretchrTests(testSuite.T())
-	if isHnsTestRun(testSuite.T()) {
+	if isHNSTestRun(testSuite.T()) {
 		prometheusPort = 9292
 	}
 
