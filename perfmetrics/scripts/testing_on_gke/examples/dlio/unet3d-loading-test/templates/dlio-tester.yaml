@@ -17,21 +17,23 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: {{ .Values.podName }}
-  {{- if ne .Values.scenario "local-ssd" }}
   annotations:
     gke-gcsfuse/volumes: "true"
     gke-gcsfuse/memory-limit: "6Gi"
-  {{- end }}
 spec:
   restartPolicy: Never
   nodeSelector:
-    cloud.google.com/gke-ephemeral-storage-local-ssd: "true"
-    node.kubernetes.io/instance-type: {{ .Values.nodeType }}
+    cloud.google.com/gke-tpu-topology: 2x2
+    cloud.google.com/gke-tpu-accelerator: tpu-v6e-slice
   containers:
   - name: dlio-tester
     image: {{ .Values.image }}
+    ports:
+    - containerPort: 18200
+      hostPort: 11021
     resources:
       limits:
+        google.com/tpu: 4
         cpu: {{ .Values.resourceLimits.cpu }}
         memory: {{ .Values.resourceLimits.memory }}
       requests:
@@ -112,18 +114,18 @@ spec:
   - name: dshm
     emptyDir:
       medium: Memory
+  - name: gke-gcsfuse-cache
+    emptyDir:
+      medium: Memory
+  - name: gke-gcsfuse-buffer
+    emptyDir:
+      medium: Memory
+  - name: gke-gcsfuse-tmp
+    emptyDir:
+      medium: Memory
   - name: logging-vol
     emptyDir: {}
   - name: data-vol
-  {{- if eq .Values.scenario "local-ssd" }}
-    emptyDir: {}
-  {{- else if eq .Values.scenario "gcsfuse-generic" }}
-    csi:
-      driver: gcsfuse.csi.storage.gke.io
-      volumeAttributes:
-        bucketName: {{ .Values.bucketName }}
-        mountOptions: "{{ .Values.gcsfuse.mountOptions }}"
-  {{- else if eq .Values.scenario "gcsfuse-file-cache" }}
     csi:
       driver: gcsfuse.csi.storage.gke.io
       volumeAttributes:
@@ -133,16 +135,5 @@ spec:
         metadataStatCacheCapacity: "{{ .Values.gcsfuse.metadataStatCacheCapacity }}"
         fileCacheCapacity: "{{ .Values.gcsfuse.fileCacheCapacity }}"
         fileCacheForRangeRead: "{{ .Values.gcsfuse.fileCacheForRangeRead }}"
-        gcsfuseLoggingSeverity: "debug"
+        gcsfuseLoggingSeverity: "info"
         mountOptions: implicit-dirs
-  {{- else }}
-    csi:
-      driver: gcsfuse.csi.storage.gke.io
-      volumeAttributes:
-        bucketName: {{ .Values.bucketName }}
-        metadataCacheTTLSeconds: "{{ .Values.gcsfuse.metadataCacheTTLSeconds }}"
-        metadataTypeCacheCapacity: "{{ .Values.gcsfuse.metadataTypeCacheCapacity }}"
-        metadataStatCacheCapacity: "{{ .Values.gcsfuse.metadataStatCacheCapacity }}"
-        gcsfuseLoggingSeverity: "debug"
-        mountOptions: implicit-dirs
-  {{- end }}
