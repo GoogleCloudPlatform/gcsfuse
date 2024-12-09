@@ -29,7 +29,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/util"
-	io_prometheus_client "github.com/prometheus/client_model/go"
+	promclient "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -143,7 +143,7 @@ func (testSuite *PromTest) mount(bucketName string) error {
 	return nil
 }
 
-func parsePromFormat(testSuite *PromTest) (map[string]*io_prometheus_client.MetricFamily, error) {
+func parsePromFormat(testSuite *PromTest) (map[string]*promclient.MetricFamily, error) {
 	testSuite.T().Helper()
 
 	resp, err := http.Get(fmt.Sprintf("http://localhost:%d/metrics", prometheusPort))
@@ -157,7 +157,7 @@ func assertNonZeroCountMetric(testSuite *PromTest, metricName, labelName, labelV
 	mf, err := parsePromFormat(testSuite)
 	require.NoError(testSuite.T(), err)
 	for k, b := range mf {
-		if k != metricName || *b.Type != io_prometheus_client.MetricType_COUNTER {
+		if k != metricName || *b.Type != promclient.MetricType_COUNTER {
 			continue
 		}
 		for _, m := range b.Metric {
@@ -184,7 +184,7 @@ func assertNonZeroLatencyMetric(testSuite *PromTest, metricName, labelName, labe
 	require.NoError(testSuite.T(), err)
 
 	for k, v := range mf {
-		if k != metricName || *v.Type != io_prometheus_client.MetricType_HISTOGRAM {
+		if k != metricName || *v.Type != promclient.MetricType_HISTOGRAM {
 			continue
 		}
 		for _, m := range v.Metric {
