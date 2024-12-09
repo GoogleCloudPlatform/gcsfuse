@@ -61,7 +61,7 @@ function cleanup() {
 }
 trap cleanup EXIT
 
-# Create the JSON payload file
+# Create the JSON file to create bucket
 cat << EOF > test.json
 {"name":"test-bucket"}
 EOF
@@ -71,10 +71,10 @@ curl -X POST --data-binary @test.json \
     -H "Content-Type: application/json" \
     "$STORAGE_EMULATOR_HOST/storage/v1/b?project=test-project"
 rm test.json
+
 # Define an associative array to store config file and corresponding test name pairs
 # e.g. [write_stall.yaml, TestWriteStall]
 declare -A config_test_pairs=(
-
 )
 
 # Loop through the array of config file and test name pairs
@@ -89,7 +89,7 @@ for config_file in "${!config_test_pairs[@]}"; do
   proxy_pid=$!
   echo "Proxy process: $proxy_pid"
 
-  # Move to the parent directory (assuming your tests are in the parent directory)
+  # Move to the parent directory (tests are in the parent directory)
   cd ..
 
   # Run tests with the STORAGE_EMULATOR_HOST environment variable set and specific test suite

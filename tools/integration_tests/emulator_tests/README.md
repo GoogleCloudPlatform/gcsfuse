@@ -17,7 +17,7 @@ curl -X POST --data-binary @test.json \
 rm test.json    
 ```
 2. Run the proxy server: `go run . --config-path=<file>` This will start the proxy server at `localhost:8020`.
-3. Run the test:
+3. Run the specific test for which you defined config file while running proxy server:
 ```
 STORAGE_EMULATOR_HOST="http://localhost:8020" go test --integrationTest -v --testbucket=test-bucket -timeout 10m -run $test_name
 ```
