@@ -236,7 +236,7 @@ type ReadStallGcsRetriesConfig struct {
 type WriteConfig struct {
 	BlockSizeMb int64 `yaml:"block-size-mb"`
 
-	ChunkTransferTimeout time.Duration `yaml:"chunk-transfer-timeout"`
+	ChunkTransferTimeoutSecs int64 `yaml:"chunk-transfer-timeout-secs"`
 
 	CreateEmptyFile bool `yaml:"create-empty-file"`
 
@@ -257,9 +257,9 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("cache-dir", "", "", "Enables file-caching. Specifies the directory to use for file-cache.")
 
-	flagSet.DurationP("chunk-transfer-timeout", "", 10000000000*time.Nanosecond, "We send larger file uploads in 16 MiB chunks. This flag controls the duration  that the HTTP client will wait for a response after making a request to upload a chunk.  The default value of 10s indicates that the client will wait 10 seconds for upload completion;  otherwise, it cancels the request and retries for that chunk till chunkRetryDeadline(32s). 0 means no timeout.")
+	flagSet.IntP("chunk-transfer-timeout-secs", "", 10, "We send larger file uploads in 16 MiB chunks. This flag controls the duration  that the HTTP client will wait for a response after making a request to upload a chunk.  The default value of 10s indicates that the client will wait 10 seconds for upload completion;  otherwise, it cancels the request and retries for that chunk till chunkRetryDeadline(32s). 0 means no timeout.")
 
-	if err := flagSet.MarkHidden("chunk-transfer-timeout"); err != nil {
+	if err := flagSet.MarkHidden("chunk-transfer-timeout-secs"); err != nil {
 		return err
 	}
 
@@ -592,7 +592,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("write.chunk-transfer-timeout", flagSet.Lookup("chunk-transfer-timeout")); err != nil {
+	if err := v.BindPFlag("write.chunk-transfer-timeout-secs", flagSet.Lookup("chunk-transfer-timeout-secs")); err != nil {
 		return err
 	}
 
