@@ -72,33 +72,5 @@ curl -X POST --data-binary @test.json \
     "$STORAGE_EMULATOR_HOST/storage/v1/b?project=test-project"
 rm test.json
 
-# Define an associative array to store config file and corresponding test name pairs
-# e.g. [write_stall.yaml, TestWriteStall]
-declare -A config_test_pairs=(
-)
-
-# Loop through the array of config file and test name pairs
-for config_file in "${!config_test_pairs[@]}"; do
-  cd proxy_server
-
-  test_name="${config_test_pairs[$config_file]}"
-  echo "Running proxy with config file: $config_file and test suite: $test_name"
-
-  # Run the proxy server in the background with the current config file
-  nohup go run . --debug --config-path ./configs/$config_file &
-  proxy_pid=$!
-  echo "Proxy process: $proxy_pid"
-
-  # Move to the parent directory (tests are in the parent directory)
-  cd ..
-
-  # Run tests with the STORAGE_EMULATOR_HOST environment variable set and specific test suite
-  STORAGE_EMULATOR_HOST="http://localhost:8020" go test --integrationTest -v --testbucket=test-bucket -timeout 10m -run $test_name
-  # Kill the proxy process
-  kill -2 $proxy_pid
-
-  # Find and kill any processes still listening on port 8020
-  p_listing_8020=$(lsof -i :8020 | awk '{print $2}' | tail -n +2)
-  echo "Process listning on 8020: $p_listing_8020"
-  kill -2 $p_listing_8020
-done
+# Run specific test suite
+go test --integrationTest -v --testbucket=test-bucket -timeout 10m

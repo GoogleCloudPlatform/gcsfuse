@@ -221,6 +221,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	// Creating a NewWriter with requested attributes, using Go Storage Client.
 	// Chuck size for resumable upload is default i.e. 16MB.
 	wc := obj.NewWriter(ctx)
+	wc.ChunkTransferTimeout = 8 * time.Second
 	wc = storageutil.SetAttrsInWriter(wc, req)
 	wc.ProgressFunc = func(bytesUploadedSoFar int64) {
 		logger.Tracef("gcs: Req %#16x: -- CreateObject(%q): %20v bytes uploaded so far", ctx.Value(gcs.ReqIdField), req.Name, bytesUploadedSoFar)
