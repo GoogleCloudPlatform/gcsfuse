@@ -82,7 +82,6 @@ TEST_DIR_PARALLEL=(
   "concurrent_operations"
   "benchmarking"
   "mount_timeout"
-  "monitoring"
 )
 
 # These tests never become parallel as it is changing bucket permissions.
@@ -90,6 +89,7 @@ TEST_DIR_NON_PARALLEL=(
   "readonly"
   "managed_folders"
   "readonly_creds"
+  "monitoring"
 )
 
 # Create a temporary file to store the log file name.
