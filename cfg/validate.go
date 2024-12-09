@@ -17,6 +17,7 @@ package cfg
 import (
 	"fmt"
 	"math"
+	"time"
 
 	cacheutil "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 )
@@ -156,7 +157,7 @@ func isValidWriteStreamingConfig(wc *WriteConfig) error {
 	if !(wc.GlobalMaxBlocks == -1 || wc.GlobalMaxBlocks >= 2) {
 		return fmt.Errorf("invalid value of write-global-max-blocks: %d; should be >=2 or -1 (for infinite)", wc.GlobalMaxBlocks)
 	}
-	if wc.ChunkTransferTimeout < 0 {
+	if wc.ChunkTransferTimeout < 0*time.Second {
 		return fmt.Errorf("invalid value of ChunkTransferTimeout: %d; should be > 0 or 0 (for infinite)", wc.ChunkTransferTimeout)
 	}
 	return nil
