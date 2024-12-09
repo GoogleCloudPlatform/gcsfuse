@@ -66,10 +66,6 @@ type PromTest struct {
 func isHnsTestRun(t *testing.T) bool {
 	storageClient, err := client.CreateStorageClient(context.Background())
 	require.NoError(t, err, "error while creating storage client")
-	if err != nil {
-		t.SkipNow()
-		return false
-	}
 	defer storageClient.Close()
 	return setup.IsHierarchicalBucket(context.Background(), storageClient)
 }
@@ -150,7 +146,7 @@ func (testSuite *PromTest) mount(bucketName string) error {
 func parsePromFormat(testSuite *PromTest) (map[string]*io_prometheus_client.MetricFamily, error) {
 	testSuite.T().Helper()
 
-	resp, err := http.Get("http://localhost:9191/metrics")
+	resp, err := http.Get(fmt.Sprintf("http://localhost:%d/metrics", prometheusPort))
 	require.NoError(testSuite.T(), err)
 	var parser expfmt.TextParser
 	return parser.TextToMetricFamilies(resp.Body)
