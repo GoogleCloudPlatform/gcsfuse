@@ -87,6 +87,14 @@ type Writer struct {
 	// To set a deadline on the entire upload, use context timeout or
 	// cancellation.
 	ChunkRetryDeadline time.Duration
+
+	// ChunkTransferTimeout sets a per-chunk request timeout for resumable uploads.
+	//
+	// For resumable uploads, the Writer will terminate the request and attempt a retry
+	// if the request to upload a particular chunk stalls for longer than this duration. Retries
+	// may continue until the ChunkRetryDeadline is reached.
+	//
+	// The default value is no timeout.
 	ChunkTransferTimeout time.Duration
 
 	// ForceEmptyContentType is an optional parameter that is used to disable

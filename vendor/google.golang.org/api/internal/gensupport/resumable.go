@@ -41,8 +41,12 @@ type ResumableUpload struct {
 
 	// ChunkRetryDeadline configures the per-chunk deadline after which no further
 	// retries should happen.
-	ChunkRetryDeadline   time.Duration
+	ChunkRetryDeadline time.Duration
+
+	// ChunkTransferTimeout configures the per-chunk transfer timeout. If a chunk upload stalls for longer than
+	// this duration, the upload will be retried.
 	ChunkTransferTimeout time.Duration
+
 	// Track current request invocation ID and attempt count for retry metrics
 	// and idempotency headers.
 	invocationID string
@@ -61,8 +65,6 @@ func (rx *ResumableUpload) Progress() int64 {
 // size is the number of bytes in data.
 // final specifies whether data is the final chunk to be uploaded.
 func (rx *ResumableUpload) doUploadRequest(ctx context.Context, data io.Reader, off, size int64, final bool) (*http.Response, error) {
-
-	//fmt.Println("URL: ", rx.URI)
 	req, err := http.NewRequest("POST", rx.URI, data)
 	if err != nil {
 		return nil, err
@@ -198,12 +200,10 @@ func (rx *ResumableUpload) Upload(ctx context.Context) (resp *http.Response, err
 		retryDeadline = defaultRetryDeadline
 	}
 
-	var transferTimeout time.Duration
-	transferTimeout = rx.ChunkTransferTimeout
-	var numChunk = 0
 	// Send all chunks.
 	for {
 		var pause time.Duration
+
 		// Each chunk gets its own initialized-at-zero backoff and invocation ID.
 		bo := rx.Retry.backoff()
 		quitAfterTimer := time.NewTimer(retryDeadline)
@@ -245,39 +245,34 @@ func (rx *ResumableUpload) Upload(ctx context.Context) (resp *http.Response, err
 			default:
 			}
 
+			// rCtx is derived from a context with a defined transferTimeout with non-zero value.
+			// If a particular request exceeds this transfer time for getting response, the rCtx deadline will be exceeded,
+			// triggering a retry of the request.
 			var rCtx context.Context
 			var cancel context.CancelFunc
 
 			rCtx = ctx
-			if transferTimeout != 0 {
-				rCtx, cancel = context.WithTimeout(ctx, transferTimeout)
+			if rx.ChunkTransferTimeout != 0 {
+				rCtx, cancel = context.WithTimeout(ctx, rx.ChunkTransferTimeout)
 			}
 
-			//fmt.Println("In resumable uploads..")
-			startTime := time.Now()
 			resp, err = rx.transferChunk(rCtx)
-			endTime := time.Now()
-			fmt.Println(endTime.Sub(startTime))
 
 			var status int
 			if resp != nil {
 				status = resp.StatusCode
 			}
 
-			//fmt.Println("Error: ", rCtx.Err())
 			// The upload should be retried if the rCtx is canceled due to a timeout.
 			select {
 			case <-rCtx.Done():
-				if errors.Is(rCtx.Err(), context.DeadlineExceeded) {
+				if rx.ChunkTransferTimeout != 0 && errors.Is(rCtx.Err(), context.DeadlineExceeded) {
 					// Cancel the context for rCtx
-					fmt.Println("Chunk retried...")
 					cancel()
 					continue
 				}
 			default:
 			}
-
-			numChunk++
 
 			// Check if we should retry the request.
 			if !errorFunc(status, err) {

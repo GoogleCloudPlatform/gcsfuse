@@ -155,7 +155,6 @@ func sendAndRetry(ctx context.Context, client *http.Client, req *http.Request, r
 
 	for {
 		t := time.NewTimer(pause)
-
 		select {
 		case <-ctx.Done():
 			t.Stop()
@@ -167,6 +166,7 @@ func sendAndRetry(ctx context.Context, client *http.Client, req *http.Request, r
 			return resp, ctx.Err()
 		case <-t.C:
 		}
+
 		if ctx.Err() != nil {
 			// Check for context cancellation once more. If more than one case in a
 			// select is satisfied at the same time, Go will choose one arbitrarily.
