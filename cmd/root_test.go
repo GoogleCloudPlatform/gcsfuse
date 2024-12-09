@@ -194,104 +194,104 @@ func TestArgsParsing_MountOptions(t *testing.T) {
 
 func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 	tests := []struct {
-		name                          string
-		args                          []string
-		expectedChunkTransferTimeout  time.Duration
-		expectedCreateEmptyFile       bool
-		expectedEnableStreamingWrites bool
-		expectedWriteBlockSizeMB      int64
-		expectedWriteGlobalMaxBlocks  int64
-		expectedWriteMaxBlocksPerFile int64
+		name                             string
+		args                             []string
+		expectedChunkTransferTimeoutSecs int
+		expectedCreateEmptyFile          bool
+		expectedEnableStreamingWrites    bool
+		expectedWriteBlockSizeMB         int64
+		expectedWriteGlobalMaxBlocks     int64
+		expectedWriteMaxBlocksPerFile    int64
 	}{
 		{
-			name:                          "Test create-empty-file flag true.",
-			args:                          []string{"gcsfuse", "--create-empty-file=true", "abc", "pqr"},
-			expectedChunkTransferTimeout:  10 * time.Second,
-			expectedCreateEmptyFile:       true,
-			expectedEnableStreamingWrites: false,
-			expectedWriteBlockSizeMB:      64,
-			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
-			expectedWriteMaxBlocksPerFile: math.MaxInt64,
+			name:                             "Test create-empty-file flag true.",
+			args:                             []string{"gcsfuse", "--create-empty-file=true", "abc", "pqr"},
+			expectedChunkTransferTimeoutSecs: 10,
+			expectedCreateEmptyFile:          true,
+			expectedEnableStreamingWrites:    false,
+			expectedWriteBlockSizeMB:         64,
+			expectedWriteGlobalMaxBlocks:     math.MaxInt64,
+			expectedWriteMaxBlocksPerFile:    math.MaxInt64,
 		},
 		{
-			name:                          "Test create-empty-file flag false.",
-			args:                          []string{"gcsfuse", "--create-empty-file=false", "abc", "pqr"},
-			expectedChunkTransferTimeout:  10 * time.Second,
-			expectedCreateEmptyFile:       false,
-			expectedEnableStreamingWrites: false,
-			expectedWriteBlockSizeMB:      64,
-			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
-			expectedWriteMaxBlocksPerFile: math.MaxInt64,
+			name:                             "Test create-empty-file flag false.",
+			args:                             []string{"gcsfuse", "--create-empty-file=false", "abc", "pqr"},
+			expectedChunkTransferTimeoutSecs: 10,
+			expectedCreateEmptyFile:          false,
+			expectedEnableStreamingWrites:    false,
+			expectedWriteBlockSizeMB:         64,
+			expectedWriteGlobalMaxBlocks:     math.MaxInt64,
+			expectedWriteMaxBlocksPerFile:    math.MaxInt64,
 		},
 		{
-			name:                          "Test default flags.",
-			args:                          []string{"gcsfuse", "abc", "pqr"},
-			expectedChunkTransferTimeout:  10 * time.Second,
-			expectedCreateEmptyFile:       false,
-			expectedEnableStreamingWrites: false,
-			expectedWriteBlockSizeMB:      64,
-			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
-			expectedWriteMaxBlocksPerFile: math.MaxInt64,
+			name:                             "Test default flags.",
+			args:                             []string{"gcsfuse", "abc", "pqr"},
+			expectedChunkTransferTimeoutSecs: 10,
+			expectedCreateEmptyFile:          false,
+			expectedEnableStreamingWrites:    false,
+			expectedWriteBlockSizeMB:         64,
+			expectedWriteGlobalMaxBlocks:     math.MaxInt64,
+			expectedWriteMaxBlocksPerFile:    math.MaxInt64,
 		},
 		{
-			name:                          "Test enable-streaming-writes flag true.",
-			args:                          []string{"gcsfuse", "--experimental-enable-streaming-writes", "abc", "pqr"},
-			expectedChunkTransferTimeout:  10 * time.Second,
-			expectedCreateEmptyFile:       false,
-			expectedEnableStreamingWrites: true,
-			expectedWriteBlockSizeMB:      64,
-			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
-			expectedWriteMaxBlocksPerFile: math.MaxInt64,
+			name:                             "Test enable-streaming-writes flag true.",
+			args:                             []string{"gcsfuse", "--experimental-enable-streaming-writes", "abc", "pqr"},
+			expectedChunkTransferTimeoutSecs: 10,
+			expectedCreateEmptyFile:          false,
+			expectedEnableStreamingWrites:    true,
+			expectedWriteBlockSizeMB:         64,
+			expectedWriteGlobalMaxBlocks:     math.MaxInt64,
+			expectedWriteMaxBlocksPerFile:    math.MaxInt64,
 		},
 		{
-			name:                          "Test enable-streaming-writes flag false.",
-			args:                          []string{"gcsfuse", "--experimental-enable-streaming-writes=false", "abc", "pqr"},
-			expectedChunkTransferTimeout:  10 * time.Second,
-			expectedCreateEmptyFile:       false,
-			expectedEnableStreamingWrites: false,
-			expectedWriteBlockSizeMB:      64,
-			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
-			expectedWriteMaxBlocksPerFile: math.MaxInt64,
+			name:                             "Test enable-streaming-writes flag false.",
+			args:                             []string{"gcsfuse", "--experimental-enable-streaming-writes=false", "abc", "pqr"},
+			expectedChunkTransferTimeoutSecs: 10,
+			expectedCreateEmptyFile:          false,
+			expectedEnableStreamingWrites:    false,
+			expectedWriteBlockSizeMB:         64,
+			expectedWriteGlobalMaxBlocks:     math.MaxInt64,
+			expectedWriteMaxBlocksPerFile:    math.MaxInt64,
 		},
 		{
-			name:                          "Test positive write-block-size-mb flag.",
-			args:                          []string{"gcsfuse", "--experimental-enable-streaming-writes", "--write-block-size-mb=10", "abc", "pqr"},
-			expectedChunkTransferTimeout:  10 * time.Second,
-			expectedCreateEmptyFile:       false,
-			expectedEnableStreamingWrites: true,
-			expectedWriteBlockSizeMB:      10,
-			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
-			expectedWriteMaxBlocksPerFile: math.MaxInt64,
+			name:                             "Test positive write-block-size-mb flag.",
+			args:                             []string{"gcsfuse", "--experimental-enable-streaming-writes", "--write-block-size-mb=10", "abc", "pqr"},
+			expectedChunkTransferTimeoutSecs: 10,
+			expectedCreateEmptyFile:          false,
+			expectedEnableStreamingWrites:    true,
+			expectedWriteBlockSizeMB:         10,
+			expectedWriteGlobalMaxBlocks:     math.MaxInt64,
+			expectedWriteMaxBlocksPerFile:    math.MaxInt64,
 		},
 		{
-			name:                          "Test positive write-global-max-blocks flag.",
-			args:                          []string{"gcsfuse", "--experimental-enable-streaming-writes", "--write-global-max-blocks=10", "abc", "pqr"},
-			expectedChunkTransferTimeout:  10 * time.Second,
-			expectedCreateEmptyFile:       false,
-			expectedEnableStreamingWrites: true,
-			expectedWriteBlockSizeMB:      64,
-			expectedWriteGlobalMaxBlocks:  10,
-			expectedWriteMaxBlocksPerFile: math.MaxInt64,
+			name:                             "Test positive write-global-max-blocks flag.",
+			args:                             []string{"gcsfuse", "--experimental-enable-streaming-writes", "--write-global-max-blocks=10", "abc", "pqr"},
+			expectedChunkTransferTimeoutSecs: 10,
+			expectedCreateEmptyFile:          false,
+			expectedEnableStreamingWrites:    true,
+			expectedWriteBlockSizeMB:         64,
+			expectedWriteGlobalMaxBlocks:     10,
+			expectedWriteMaxBlocksPerFile:    math.MaxInt64,
 		},
 		{
-			name:                          "Test positive write-max-blocks-per-file flag.",
-			args:                          []string{"gcsfuse", "--experimental-enable-streaming-writes", "--write-max-blocks-per-file=10", "abc", "pqr"},
-			expectedChunkTransferTimeout:  10 * time.Second,
-			expectedCreateEmptyFile:       false,
-			expectedEnableStreamingWrites: true,
-			expectedWriteBlockSizeMB:      64,
-			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
-			expectedWriteMaxBlocksPerFile: 10,
+			name:                             "Test positive write-max-blocks-per-file flag.",
+			args:                             []string{"gcsfuse", "--experimental-enable-streaming-writes", "--write-max-blocks-per-file=10", "abc", "pqr"},
+			expectedChunkTransferTimeoutSecs: 10,
+			expectedCreateEmptyFile:          false,
+			expectedEnableStreamingWrites:    true,
+			expectedWriteBlockSizeMB:         64,
+			expectedWriteGlobalMaxBlocks:     math.MaxInt64,
+			expectedWriteMaxBlocksPerFile:    10,
 		},
 		{
-			name:                          "Test chunk-transfer-timeout with non default value",
-			args:                          []string{"gcsfuse", "--chunk-transfer-timeout=30s", "abc", "pqr"},
-			expectedChunkTransferTimeout:  30 * time.Second,
-			expectedCreateEmptyFile:       false,
-			expectedEnableStreamingWrites: false,
-			expectedWriteBlockSizeMB:      64,
-			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
-			expectedWriteMaxBlocksPerFile: 10,
+			name:                             "Test chunk-transfer-timeout with non default value",
+			args:                             []string{"gcsfuse", "--chunk-transfer-timeout=30s", "abc", "pqr"},
+			expectedChunkTransferTimeoutSecs: 30,
+			expectedCreateEmptyFile:          false,
+			expectedEnableStreamingWrites:    false,
+			expectedWriteBlockSizeMB:         64,
+			expectedWriteGlobalMaxBlocks:     math.MaxInt64,
+			expectedWriteMaxBlocksPerFile:    10,
 		},
 	}
 
@@ -310,7 +310,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedCreateEmptyFile, wc.CreateEmptyFile)
 				assert.Equal(t, tc.expectedEnableStreamingWrites, wc.ExperimentalEnableStreamingWrites)
-				assert.Equal(t, tc.expectedChunkTransferTimeout, wc.ChunkTransferTimeoutSecs)
+				assert.Equal(t, tc.expectedChunkTransferTimeoutSecs, wc.ChunkTransferTimeoutSecs)
 				assert.Equal(t, tc.expectedWriteBlockSizeMB, wc.BlockSizeMb)
 				assert.Equal(t, tc.expectedWriteGlobalMaxBlocks, wc.GlobalMaxBlocks)
 			}
