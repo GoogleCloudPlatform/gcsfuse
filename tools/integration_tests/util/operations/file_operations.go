@@ -341,7 +341,7 @@ func OpenFileAsReadonly(filepath string) (*os.File, error) {
 	return f, nil
 }
 
-func readBytesFromFile(f *os.File, numBytesToRead int, b []byte) error {
+func ReadBytesFromFile(f *os.File, numBytesToRead int, b []byte) error {
 	numBytesRead, err := f.Read(b)
 	if err != nil {
 		return fmt.Errorf("failed to read file %s: %v", f.Name(), err)
@@ -411,12 +411,12 @@ func AreFilesIdentical(filepath1, filepath2 string) (bool, error) {
 			numBytesBeingRead = sizeRemaining
 		}
 
-		err := readBytesFromFile(f1, numBytesBeingRead, b1)
+		err := ReadBytesFromFile(f1, numBytesBeingRead, b1)
 		if err != nil {
 			return false, err
 		}
 
-		err = readBytesFromFile(f2, numBytesBeingRead, b2)
+		err = ReadBytesFromFile(f2, numBytesBeingRead, b2)
 		if err != nil {
 			return false, err
 		}

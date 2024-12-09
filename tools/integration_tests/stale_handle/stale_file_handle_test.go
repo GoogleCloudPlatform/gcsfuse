@@ -51,15 +51,15 @@ func Test_SyncingClobberedLocalInodeFailsWithStaleHandle(t *testing.T) {
 	t.Parallel() // Mark the test parallelizable.
 	testCaseDir := "Test_SyncingClobberedLocalInodeFailsWithStaleHandle"
 	targetDir := path.Join(testDirPath, testCaseDir)
-	targetDirPath := setup.SetupTestDirectory(targetDir)
 	// Create a local file.
-	_, fh := CreateLocalFileInTestDir(ctx, storageClient, targetDirPath, FileName1, t)
+	_, fh := CreateLocalFileInTestDir(ctx, storageClient, targetDir, FileName1, t)
 	// Dirty the file by giving it some contents.
 	operations.WriteWithoutClose(fh, FileContents, t)
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t)
+	gcsDirPath := path.Join(testDirName, testCaseDir)
 
 	// Replace the underlying object with a new generation.
-	CreateObjectInGCSTestDir(ctx, storageClient, testDirName, FileName1, GCSFileContent, t)
+	CreateObjectInGCSTestDir(ctx, storageClient, gcsDirPath, FileName1, GCSFileContent, t)
 
 	operations.SyncFileShouldThrowStaleHandleError(fh, t)
 	// Closing the file should also throw error
@@ -68,44 +68,37 @@ func Test_SyncingClobberedLocalInodeFailsWithStaleHandle(t *testing.T) {
 }
 
 func Test_ReadingFileAfterObjectClobberedRemotelyFailsWithStaleHandle(t *testing.T) {
+	t.Parallel() // Mark the test parallelizable.
+	testCaseDir := "Test_ReadingFileAfterObjectClobberedRemotelyFailsWithStaleHandle"
+	gcsDirPath := path.Join(testDirName, testCaseDir)
 	// Create an object on bucket
-	_, err := storageutil.CreateObject(
-		ctx,
-		bucket,
-		"foo",
-		[]byte("bar"))
-	AssertEq(nil, err)
-
+	CreateObjectInGCSTestDir(ctx, storageClient, gcsDirPath, FileName1, GCSFileContent, t)
+	targetDir := path.Join(testDirPath, testCaseDir)
+	filePath := path.Join(targetDir, FileName1)
 	// Open the read handle
-	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_RDONLY|syscall.O_DIRECT, filePerms)
+	fh, err := operations.OpenFileAsReadonly(filePath)
 	AssertEq(nil, err)
 	// Replace the underlying object with a new generation.
-	_, err = storageutil.CreateObject(
-		ctx,
-		bucket,
-		"foo",
-		[]byte("foobar"))
-	AssertEq(nil, err)
-	// Attempt to read the file should result in stale NFS file handle error.
-	buffer := make([]byte, 6)
-	_, err = t.f1.Read(buffer)
+	CreateObjectInGCSTestDir(ctx, storageClient, gcsDirPath, FileName1, FileContents, t)
+
+	buffer := make([]byte, GCSFileSize)
+	err = operations.ReadBytesFromFile(fh, GCSFileSize, buffer)
 
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
-	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
-	AssertEq(nil, err)
-	ExpectEq("foobar", string(contents))
+	ValidateObjectContentsFromGCS(ctx, storageClient, targetDir, FileName1, FileContents, t)
 }
 
 func Test_WritingToFileAfterObjectClobberedRemotelyFailsWithStaleHandle(t *testing.T) {
+	t.Parallel() // Mark the test parallelizable.
+	testCaseDir := "Test_ReadingFileAfterObjectClobberedRemotelyFailsWithStaleHandle"
+	gcsDirPath := path.Join(testDirName, testCaseDir)
 	// Create an object on bucket
-	_, err := storageutil.CreateObject(
-		ctx,
-		bucket,
-		"foo",
-		[]byte("bar"))
-	AssertEq(nil, err)
-
+	CreateObjectInGCSTestDir(ctx, storageClient, gcsDirPath, FileName1, GCSFileContent, t)
+	targetDir := path.Join(testDirPath, testCaseDir)
+	filePath := path.Join(targetDir, FileName1)
+	// Open file handle to write
+	fh, err := operations.OpenFileAsReadonly(filePath)
 	// Open file handle to write
 	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_WRONLY|syscall.O_DIRECT, filePerms)
 	AssertEq(nil, err)
