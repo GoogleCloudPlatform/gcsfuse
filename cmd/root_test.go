@@ -196,7 +196,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 	tests := []struct {
 		name                             string
 		args                             []string
-		expectedChunkTransferTimeoutSecs int
+		expectedChunkTransferTimeoutSecs int64
 		expectedCreateEmptyFile          bool
 		expectedEnableStreamingWrites    bool
 		expectedWriteBlockSizeMB         int64
@@ -285,7 +285,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 		},
 		{
 			name:                             "Test chunk-transfer-timeout with non default value",
-			args:                             []string{"gcsfuse", "--chunk-transfer-timeout=30s", "abc", "pqr"},
+			args:                             []string{"gcsfuse", "--chunk-transfer-timeout-secs=30", "abc", "pqr"},
 			expectedChunkTransferTimeoutSecs: 30,
 			expectedCreateEmptyFile:          false,
 			expectedEnableStreamingWrites:    false,
