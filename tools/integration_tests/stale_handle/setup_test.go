@@ -61,7 +61,8 @@ func TestMain(m *testing.M) {
 	setup.SetUpTestDirForTestBucketFlag()
 
 	flagsSet := [][]string{
-		{"--precondition-errors=true", "--metadata-cache-ttl-secs=0"},
+		{"--precondition-errors=true", "--metadata-cache-ttl-secs=0", "--implicit-dirs=false"},
+		{"--precondition-errors=true", "--metadata-cache-ttl-secs=0", "--implicit-dirs=true"},
 	}
 	if !testing.Short() {
 		setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "", "--client-protocol=grpc")
