@@ -196,6 +196,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 	tests := []struct {
 		name                          string
 		args                          []string
+		expectedChunkTransferTimeout  time.Duration
 		expectedCreateEmptyFile       bool
 		expectedEnableStreamingWrites bool
 		expectedWriteBlockSizeMB      int64
@@ -205,6 +206,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 		{
 			name:                          "Test create-empty-file flag true.",
 			args:                          []string{"gcsfuse", "--create-empty-file=true", "abc", "pqr"},
+			expectedChunkTransferTimeout:  10 * time.Second,
 			expectedCreateEmptyFile:       true,
 			expectedEnableStreamingWrites: false,
 			expectedWriteBlockSizeMB:      64,
@@ -214,6 +216,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 		{
 			name:                          "Test create-empty-file flag false.",
 			args:                          []string{"gcsfuse", "--create-empty-file=false", "abc", "pqr"},
+			expectedChunkTransferTimeout:  10 * time.Second,
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: false,
 			expectedWriteBlockSizeMB:      64,
@@ -223,6 +226,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 		{
 			name:                          "Test default flags.",
 			args:                          []string{"gcsfuse", "abc", "pqr"},
+			expectedChunkTransferTimeout:  10 * time.Second,
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: false,
 			expectedWriteBlockSizeMB:      64,
@@ -232,6 +236,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 		{
 			name:                          "Test enable-streaming-writes flag true.",
 			args:                          []string{"gcsfuse", "--experimental-enable-streaming-writes", "abc", "pqr"},
+			expectedChunkTransferTimeout:  10 * time.Second,
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: true,
 			expectedWriteBlockSizeMB:      64,
@@ -241,6 +246,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 		{
 			name:                          "Test enable-streaming-writes flag false.",
 			args:                          []string{"gcsfuse", "--experimental-enable-streaming-writes=false", "abc", "pqr"},
+			expectedChunkTransferTimeout:  10 * time.Second,
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: false,
 			expectedWriteBlockSizeMB:      64,
@@ -250,6 +256,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 		{
 			name:                          "Test positive write-block-size-mb flag.",
 			args:                          []string{"gcsfuse", "--experimental-enable-streaming-writes", "--write-block-size-mb=10", "abc", "pqr"},
+			expectedChunkTransferTimeout:  10 * time.Second,
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: true,
 			expectedWriteBlockSizeMB:      10,
@@ -259,6 +266,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 		{
 			name:                          "Test positive write-global-max-blocks flag.",
 			args:                          []string{"gcsfuse", "--experimental-enable-streaming-writes", "--write-global-max-blocks=10", "abc", "pqr"},
+			expectedChunkTransferTimeout:  10 * time.Second,
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: true,
 			expectedWriteBlockSizeMB:      64,
@@ -268,8 +276,19 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 		{
 			name:                          "Test positive write-max-blocks-per-file flag.",
 			args:                          []string{"gcsfuse", "--experimental-enable-streaming-writes", "--write-max-blocks-per-file=10", "abc", "pqr"},
+			expectedChunkTransferTimeout:  10 * time.Second,
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: true,
+			expectedWriteBlockSizeMB:      64,
+			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
+			expectedWriteMaxBlocksPerFile: 10,
+		},
+		{
+			name:                          "Test chunk-transfer-timeout with non default value",
+			args:                          []string{"gcsfuse", "--chunk-transfer-timeout=30s", "abc", "pqr"},
+			expectedChunkTransferTimeout:  30 * time.Second,
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: false,
 			expectedWriteBlockSizeMB:      64,
 			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
 			expectedWriteMaxBlocksPerFile: 10,
@@ -291,6 +310,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedCreateEmptyFile, wc.CreateEmptyFile)
 				assert.Equal(t, tc.expectedEnableStreamingWrites, wc.ExperimentalEnableStreamingWrites)
+				assert.Equal(t, tc.expectedChunkTransferTimeout, wc.ChunkTransferTimeout)
 				assert.Equal(t, tc.expectedWriteBlockSizeMB, wc.BlockSizeMb)
 				assert.Equal(t, tc.expectedWriteGlobalMaxBlocks, wc.GlobalMaxBlocks)
 			}

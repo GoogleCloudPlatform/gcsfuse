@@ -639,8 +639,8 @@
   default: 64 #TODO: revisit default value after perf testing.
   hide-flag: true
 
-- config-path: "write.chunkTransferTimeout"
-  flag-name: "chunkTransferTimeOut"
+- config-path: "write.chunk-transfer-timeout"
+  flag-name: "chunk-transfer-timeout"
   type: "duration"
   usage: >-
     We send larger file uploads in 16 MiB chunks. This flag controls the duration 
