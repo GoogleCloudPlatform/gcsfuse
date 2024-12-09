@@ -79,7 +79,6 @@ func (t *StaleHandleTest) createLocalFile(fileName string) (filePath string, f *
 
 	AssertEq(nil, err)
 	t.validateObjectNotFoundErr(fileName)
-
 	return
 }
 
@@ -92,6 +91,7 @@ func (t *StaleHandleTest) validateObjectNotFoundErr(fileName string) {
 
 func (t *StaleHandleTest) validateNoFileOrDirError(filename string) {
 	_, err := os.Stat(path.Join(mntDir, filename))
+
 	AssertNe(nil, err)
 	AssertTrue(strings.Contains(err.Error(), "no such file or directory"))
 }
@@ -104,6 +104,7 @@ func (t *StaleHandleTest) closeLocalFile(f **os.File) error {
 
 func (t *StaleHandleTest) readDirectory(dirPath string) (entries []os.DirEntry) {
 	entries, err := os.ReadDir(dirPath)
+
 	AssertEq(nil, err)
 	return
 }
@@ -113,6 +114,7 @@ func (t *StaleHandleTest) verifyLocalFileEntry(entry os.DirEntry, fileName strin
 	AssertEq(fileName, entry.Name())
 
 	fileInfo, err := entry.Info()
+	
 	AssertEq(nil, err)
 	AssertEq(size, fileInfo.Size())
 }
@@ -144,7 +146,7 @@ func (t *StaleHandleTest) StatOnUnlinkedLocalFile() {
 	// Stat the local file and validate error.
 	t.validateNoFileOrDirError(FileName)
 
-	// Validate that flushing local unlinked file throws stale NFS file handle
+	// Validate that closing local unlinked file throws stale NFS file handle
 	// error and the object is not created on GCS.
 	err = t.closeLocalFile(&t.f1)
 	AssertNe(nil, err)
@@ -172,7 +174,7 @@ func (t *StaleHandleTest) TestReadDirContainingUnlinkedLocalFiles() {
 	// Close the local files.
 	t.closeFileAndValidateObjectContents(&t.f1, FileName+"1", "")
 	t.closeFileAndValidateObjectContents(&t.f2, FileName+"2", "")
-	// Validate flushing unlinked local file throws stale NFS file handle error.
+	// Validate closing unlinked local file throws stale NFS file handle error.
 	err = t.closeLocalFile(&t.f3)
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
@@ -191,11 +193,11 @@ func (t *StaleHandleTest) TestUnlinkOfLocalFile() {
 	// Verify unlink operation succeeds.
 	AssertEq(nil, err)
 	t.validateNoFileOrDirError(FileName)
-	// Validate flushing unlinked local file throws stale NFS file handle error.
+	// Validate closing unlinked local file throws stale NFS file handle error.
 	err = t.closeLocalFile(&t.f1)
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
-	// Verify unlinked is not present on GCS.
+	// Verify unlinked object is not present on GCS.
 	t.validateObjectNotFoundErr(FileName)
 }
 
@@ -210,8 +212,9 @@ func (t *StaleHandleTest) TestWriteOnUnlinkedLocalFileSucceeds() {
 
 	// Write to unlinked local file.
 	_, err = t.f1.WriteString(FileContents)
+
 	AssertEq(nil, err)
-	// Validate flushing unlinked local file throws stale NFS file handle error.
+	// Validate closing unlinked local file throws stale NFS file handle error.
 	err = t.closeLocalFile(&t.f1)
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
@@ -236,7 +239,7 @@ func (t *StaleHandleTest) TestSyncOnUnlinkedLocalFile() {
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
 	t.validateObjectNotFoundErr(FileName)
-	// Validate flushing unlinked local file throws stale NFS file handle error.
+	// Validate closing unlinked local file also throws stale NFS file handle error.
 	err = t.closeLocalFile(&t.f1)
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
@@ -267,7 +270,7 @@ func (t *StaleHandleTest) TestRmDirOfDirectoryContainingGCSAndLocalFiles() {
 	// Validate writing content to unlinked local file does not throw error
 	_, err = t.f1.WriteString(FileContents)
 	AssertEq(nil, err)
-	// Validate flush file throws stale NFS file handle error and does not create
+	// Validate close file throws stale NFS file handle error and does not create
 	// object on GCS.
 	err = t.closeLocalFile(&t.f1)
 	AssertNe(nil, err)
@@ -293,7 +296,7 @@ func (t *StaleHandleTest) TestRmDirOfDirectoryContainingOnlyLocalFiles() {
 	t.validateNoFileOrDirError("explicit/" + explicitLocalFileName)
 	t.validateNoFileOrDirError("explicit/" + FileName)
 	t.validateNoFileOrDirError("explicit")
-	// Validate flushing local unlinked files throw stale NFS file handle errors
+	// Validate closing local unlinked files throw stale NFS file handle errors
 	// and do not create objects on GCS.
 	err = t.closeLocalFile(&t.f1)
 	AssertNe(nil, err)
@@ -323,12 +326,10 @@ func (t *StaleHandleTest) TestReadSymlinkForDeletedLocalFile() {
 	target, err := os.Readlink(symlinkName)
 	AssertEq(nil, err)
 	ExpectEq(filePath, target)
-
 	// Attempt to unlink local file.
 	err = os.Remove(filePath)
 	// Verify unlink operation succeeds.
 	AssertEq(nil, err)
-
 	// Validate flushing local unlinked file throws stale NFS file handle error
 	// and does not create object on GCS.
 	err = t.closeLocalFile(&t.f1)
@@ -338,32 +339,31 @@ func (t *StaleHandleTest) TestReadSymlinkForDeletedLocalFile() {
 
 	// Reading symlink should fail.
 	_, err = os.Stat(symlinkName)
+
 	AssertTrue(strings.Contains(err.Error(), "no such file or directory"))
 }
 
 func (t *StaleHandleTest) SyncClobberedLocalInode() {
 	// Create a local file.
 	_, t.f1 = t.createLocalFile("foo")
-
 	// Dirty the file by giving it some contents.
 	n, err := t.f1.Write([]byte("taco"))
 	AssertEq(nil, err)
 	AssertEq(4, n)
-
 	// Replace the underlying object with a new generation.
 	_, err = storageutil.CreateObject(
 		ctx,
 		bucket,
 		"foo",
 		[]byte("foobar"))
-
 	AssertEq(nil, err)
 
 	// Attempt to sync the file should result in clobbered error.
 	err = t.f1.Sync()
+
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
-	// Validate closing the file also throws stale NFS file handle error
+	// Validate closing the file also throws error
 	err = t.closeLocalFile(&t.f1)
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
@@ -380,7 +380,6 @@ func (t *StaleHandleTest) ReadingFileAfterObjectClobberedRemotelyFailsWithStaleH
 		"foo",
 		[]byte("bar"))
 	AssertEq(nil, err)
-
 	// Open the read handle
 	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_RDONLY|syscall.O_DIRECT, filePerms)
 	AssertEq(nil, err)
@@ -391,6 +390,7 @@ func (t *StaleHandleTest) ReadingFileAfterObjectClobberedRemotelyFailsWithStaleH
 		"foo",
 		[]byte("foobar"))
 	AssertEq(nil, err)
+
 	// Attempt to read the file should result in stale NFS file handle error.
 	buffer := make([]byte, 6)
 	_, err = t.f1.Read(buffer)
@@ -410,7 +410,6 @@ func (t *StaleHandleTest) WritingToFileAfterObjectClobberedRemotelyFailsWithStal
 		"foo",
 		[]byte("bar"))
 	AssertEq(nil, err)
-
 	// Open file handle to write
 	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_WRONLY|syscall.O_DIRECT, filePerms)
 	AssertEq(nil, err)
@@ -421,6 +420,7 @@ func (t *StaleHandleTest) WritingToFileAfterObjectClobberedRemotelyFailsWithStal
 		"foo",
 		[]byte("foobar"))
 	AssertEq(nil, err)
+
 	// Attempt to write to file should result in stale NFS file handle error.
 	_, err = t.f1.Write([]byte("taco"))
 
@@ -443,7 +443,6 @@ func (t *StaleHandleTest) SyncingFileAfterObjectClobberedRemotelyFailsWithStaleH
 		"foo",
 		[]byte("bar"))
 	AssertEq(nil, err)
-
 	// Open file handle to write
 	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_WRONLY|syscall.O_DIRECT, filePerms)
 	AssertEq(nil, err)
@@ -458,12 +457,12 @@ func (t *StaleHandleTest) SyncingFileAfterObjectClobberedRemotelyFailsWithStaleH
 		"foo",
 		[]byte("foobar"))
 	AssertEq(nil, err)
-	// Attempt to sync the file should result in clobbered error.
+
 	err = t.f1.Sync()
 
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
-	// Validate closing the file also throws stale NFS file handle error
+	// Validate closing the file also throws error
 	err = t.f1.Close()
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("stale NFS file handle")))
@@ -483,7 +482,6 @@ func (t *StaleHandleTest) SyncingFileAfterObjectDeletedFailsWithStaleHandle() {
 		"foo",
 		[]byte("bar"))
 	AssertEq(nil, err)
-
 	// Open file handle to write
 	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_WRONLY|syscall.O_DIRECT, filePerms)
 	AssertEq(nil, err)
@@ -498,7 +496,7 @@ func (t *StaleHandleTest) SyncingFileAfterObjectDeletedFailsWithStaleHandle() {
 	n, err = t.f1.Write([]byte("taco"))
 	AssertEq(4, n)
 	AssertEq(nil, err)
-	// Attempt to sync the file should result in clobbered error.
+
 	err = t.f1.Sync()
 
 	AssertNe(nil, err)
@@ -520,14 +518,13 @@ func (t *StaleHandleTest) WritingToFileAfterObjectDeletedFailsWithStaleHandle() 
 		"foo",
 		[]byte("bar"))
 	AssertEq(nil, err)
-
 	// Open file handle to write
 	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_WRONLY|syscall.O_DIRECT, filePerms)
 	AssertEq(nil, err)
 	// Delete the object.
 	err = os.Remove(t.f1.Name())
 	AssertEq(nil, err)
-	// Attempt to write to file should result in stale NFS file handle error.
+
 	_, err = t.f1.Write([]byte("taco"))
 
 	AssertNe(nil, err)
@@ -550,7 +547,7 @@ func (t *StaleHandleTest) SyncingLocalInodeAfterObjectDeletedFailsWithStaleHandl
 	n, err := t.f1.Write([]byte("taco"))
 	AssertEq(nil, err)
 	AssertEq(4, n)
-	// Attempt to sync the file should result in clobbered error.
+
 	err = t.f1.Sync()
 
 	AssertNe(nil, err)
@@ -572,7 +569,6 @@ func (t *StaleHandleTest) SyncingFileAfterObjectRenamedFailsWithStaleHandle() {
 		"foo",
 		[]byte("bar"))
 	AssertEq(nil, err)
-
 	// Open file handle to write
 	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_WRONLY|syscall.O_DIRECT, filePerms)
 	AssertEq(nil, err)
@@ -587,7 +583,7 @@ func (t *StaleHandleTest) SyncingFileAfterObjectRenamedFailsWithStaleHandle() {
 	n, err = t.f1.Write([]byte("taco"))
 	AssertEq(nil, err)
 	AssertEq(4, n)
-	// Attempt to sync the file should result in clobbered error.
+
 	err = t.f1.Sync()
 
 	AssertNe(nil, err)
@@ -609,14 +605,13 @@ func (t *StaleHandleTest) WritingToFileAfterObjectRenamedFailsWithStaleHandle() 
 		"foo",
 		[]byte("bar"))
 	AssertEq(nil, err)
-
 	// Open file handle to write
 	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_WRONLY|syscall.O_DIRECT, filePerms)
 	AssertEq(nil, err)
 	// Rename the object.
 	err = os.Rename(t.f1.Name(), path.Join(mntDir, "bar"))
 	AssertEq(nil, err)
-	// Attempt to write to file should result in stale NFS file handle error.
+
 	_, err = t.f1.Write([]byte("taco"))
 
 	AssertNe(nil, err)
