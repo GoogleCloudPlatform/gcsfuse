@@ -114,7 +114,7 @@ func (t *StaleHandleTest) verifyLocalFileEntry(entry os.DirEntry, fileName strin
 	AssertEq(fileName, entry.Name())
 
 	fileInfo, err := entry.Info()
-	
+
 	AssertEq(nil, err)
 	AssertEq(size, fileInfo.Size())
 }
