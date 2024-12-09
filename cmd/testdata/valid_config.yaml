@@ -1,6 +1,7 @@
 app-name: hello
 write:
   create-empty-file: true
+  chunk-transfer-timeout: 20s
   experimental-enable-streaming-writes: true
   global-max-blocks: 20
   block-size-mb: 10
