@@ -17,7 +17,6 @@ package monitoring
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -60,11 +59,11 @@ type PromTest struct {
 	// TearDown.
 	mountPoint string
 
-	enableOtel bool
+	enableOTEL bool
 }
 
-// isHNSTestRun helps set a different Prometheus ports for HNS and non-HNS presubmit runs.
-// This helps ensure that there is no port contention and the HNS and non-HNS mounts come up correctly.
+// isHNSTestRun sets different Prometheus ports for HNS and non-HNS presubmit runs.
+// This ensures that there is no port contention if both HNS and non-HNS test runs are happening simultaneously.
 func isHNSTestRun(t *testing.T) bool {
 	storageClient, err := client.CreateStorageClient(context.Background())
 	require.NoError(t, err, "error while creating storage client")
@@ -88,16 +87,12 @@ func (testSuite *PromTest) SetupSuite() {
 	var err error
 	// To test locally built package
 	// Set up a directory into which we will build.
-	if gBuildDir, err = os.MkdirTemp("", "gcsfuse_integration_tests"); err != nil {
-		log.Fatalf("TempDir: %p", err)
-		return
-	}
+	gBuildDir, err = os.MkdirTemp("", "gcsfuse_integration_tests")
+	require.NoError(testSuite.T(), err, "error while creating tempDir: %v", err)
 
 	// Build into that directory.
-	if err = util.BuildGcsfuse(gBuildDir); err != nil {
-		testSuite.T().Fatalf("buildGcsfuse: %p", err)
-		return
-	}
+	err = util.BuildGcsfuse(gBuildDir)
+	require.NoErrorf(testSuite.T(), err, "error while building GCSFuse: %p", err)
 }
 
 func (testSuite *PromTest) SetupTest() {
@@ -115,6 +110,7 @@ func (testSuite *PromTest) TearDownTest() {
 	if err := util.Unmount(testSuite.mountPoint); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: unmount failed: %v\n", err)
 	}
+	require.True(testSuite.T(), isPortOpen(prometheusPort))
 
 	err := os.Remove(testSuite.mountPoint)
 	assert.NoError(testSuite.T(), err)
@@ -132,7 +128,7 @@ func (testSuite *PromTest) mount(bucketName string) error {
 	cacheDir, err := os.MkdirTemp("", "gcsfuse-cache")
 	require.NoError(testSuite.T(), err)
 	flags := []string{fmt.Sprintf("--prometheus-port=%d", prometheusPort), "--cache-dir", cacheDir}
-	if testSuite.enableOtel {
+	if testSuite.enableOTEL {
 		flags = append(flags, "--enable-otel=true")
 	} else {
 		flags = append(flags, "--enable-otel=false")
@@ -158,11 +154,11 @@ func assertNonZeroCountMetric(testSuite *PromTest, metricName, labelName, labelV
 	testSuite.T().Helper()
 	mf, err := parsePromFormat(testSuite)
 	require.NoError(testSuite.T(), err)
-	for k, b := range mf {
-		if k != metricName || *b.Type != promclient.MetricType_COUNTER {
+	for k, v := range mf {
+		if k != metricName || *v.Type != promclient.MetricType_COUNTER {
 			continue
 		}
-		for _, m := range b.Metric {
+		for _, m := range v.Metric {
 			if *m.Counter.Value <= 0 {
 				continue
 			}
@@ -257,9 +253,9 @@ func (testSuite *PromTest) TestReadMetrics() {
 }
 
 func TestPromOCSuite(t *testing.T) {
-	suite.Run(t, &PromTest{enableOtel: false})
+	suite.Run(t, &PromTest{enableOTEL: false})
 }
 
 func TestPromOTELSuite(t *testing.T) {
-	suite.Run(t, &PromTest{enableOtel: true})
+	suite.Run(t, &PromTest{enableOTEL: true})
 }

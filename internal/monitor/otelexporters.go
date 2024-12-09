@@ -39,6 +39,8 @@ import (
 const serviceName = "gcsfuse"
 const cloudMonitoringMetricPrefix = "custom.googleapis.com/gcsfuse/"
 
+var allowedMetricPrefixes = []string{"fs/", "gcs/", "file_cache/"}
+
 // SetupOTelMetricExporters sets up the metrics exporters
 func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config) (shutdownFn common.ShutdownFn) {
 	shutdownFns := make([]common.ShutdownFn, 0)
@@ -58,16 +60,8 @@ func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config) (shutdownFn co
 	} else {
 		options = append(options, metric.WithResource(res))
 	}
-	// Drop unwanted metrics
-	var view metric.View = func(i metric.Instrument) (metric.Stream, bool) {
-		s := metric.Stream{Name: i.Name, Description: i.Description, Unit: i.Unit}
-		if strings.HasPrefix(i.Name, "fs/") || strings.HasPrefix(i.Name, "gcs/") || strings.HasPrefix(i.Name, "file_cache/") {
-			return s, true
-		}
-		s.Aggregation = metric.AggregationDrop{}
-		return s, true
-	}
-	options = append(options, metric.WithView(view))
+
+	options = append(options, metric.WithView(dropDisallowedMetricsView))
 
 	meterProvider := metric.NewMeterProvider(options...)
 	shutdownFns = append(shutdownFns, meterProvider.Shutdown)
@@ -75,6 +69,18 @@ func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config) (shutdownFn co
 	otel.SetMeterProvider(meterProvider)
 
 	return common.JoinShutdownFunc(shutdownFns...)
+}
+
+// dropUnwantedMetricsView is an OTel View that drops the metrics that don't match the allowed prefixes.
+func dropDisallowedMetricsView(i metric.Instrument) (metric.Stream, bool) {
+	s := metric.Stream{Name: i.Name, Description: i.Description, Unit: i.Unit}
+	for _, prefix := range allowedMetricPrefixes {
+		if strings.HasPrefix(i.Name, prefix) {
+			return s, true
+		}
+	}
+	s.Aggregation = metric.AggregationDrop{}
+	return s, true
 }
 
 func setupCloudMonitoring(secs int64) ([]metric.Option, common.ShutdownFn) {

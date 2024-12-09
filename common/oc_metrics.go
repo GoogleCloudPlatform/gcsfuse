@@ -82,6 +82,7 @@ func attrsToRecordOption(attrs []MetricAttr) []metric.RecordOption {
 	}
 	return otelOptions
 }
+
 func attrsToAddOption(attrs []MetricAttr) []metric.AddOption {
 	otelOptions := make([]metric.AddOption, 0, len(attrs))
 	for _, attr := range attrs {
@@ -89,6 +90,7 @@ func attrsToAddOption(attrs []MetricAttr) []metric.AddOption {
 	}
 	return otelOptions
 }
+
 func (o *ocMetrics) GCSReadBytesCount(ctx context.Context, inc int64, attrs []MetricAttr) {
 	recordOCMetric(ctx, o.gcsReadBytesCount, inc, attrs, "GCS read bytes count")
 }
