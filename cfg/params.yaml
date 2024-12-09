@@ -653,7 +653,6 @@
   default: false
   hide-flag: true
 
-
 - config-path: "write.global-max-blocks"
   flag-name: "write-global-max-blocks"
   type: "int"
