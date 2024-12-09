@@ -190,7 +190,7 @@ func TestValidateConfigFile_WriteConfig(t *testing.T) {
 			expectedConfig: &cfg.Config{
 				Write: cfg.WriteConfig{
 					CreateEmptyFile:                   false,
-					ChunkTransferTimeout:              10 * time.Second,
+					ChunkTransferTimeoutSecs:          10,
 					BlockSizeMb:                       64,
 					ExperimentalEnableStreamingWrites: false,
 					GlobalMaxBlocks:                   math.MaxInt64,
@@ -203,7 +203,7 @@ func TestValidateConfigFile_WriteConfig(t *testing.T) {
 			expectedConfig: &cfg.Config{
 				Write: cfg.WriteConfig{
 					CreateEmptyFile:                   false, // changed due to enabled streaming writes.
-					ChunkTransferTimeout:              20 * time.Second,
+					ChunkTransferTimeoutSecs:          20,
 					BlockSizeMb:                       10,
 					ExperimentalEnableStreamingWrites: true,
 					GlobalMaxBlocks:                   20,
