@@ -150,6 +150,39 @@ func (testSuite *BufferedWriteTest) TestWrite_SignalUploadFailureInBetween() {
 	assert.ErrorContains(testSuite.T(), err, "BufferedWriteHandler.Write(): error while uploading object to GCS")
 }
 
+func (testSuite *BufferedWriteTest) TestWriteAtTruncatedOffset() {
+	// Truncate
+	err := testSuite.bwh.Truncate(2)
+	require.NoError(testSuite.T(), err)
+	require.Equal(testSuite.T(), int64(2), testSuite.bwh.truncatedSize)
+
+	// Write at offset = truncatedSize
+	err = testSuite.bwh.Write([]byte("hello"), 2)
+
+	require.Nil(testSuite.T(), err)
+	fileInfo := testSuite.bwh.WriteFileInfo()
+	assert.Equal(testSuite.T(), testSuite.bwh.mtime, fileInfo.Mtime)
+	assert.Equal(testSuite.T(), int64(7), fileInfo.TotalSize)
+}
+
+func (testSuite *BufferedWriteTest) TestWriteAfterTruncateAtCurrentSize() {
+	err := testSuite.bwh.Write([]byte("hello"), 0)
+	require.Nil(testSuite.T(), err)
+	require.Equal(testSuite.T(), int64(5), testSuite.bwh.totalSize)
+	// Truncate
+	err = testSuite.bwh.Truncate(20)
+	require.NoError(testSuite.T(), err)
+	require.Equal(testSuite.T(), int64(20), testSuite.bwh.truncatedSize)
+	require.Equal(testSuite.T(), int64(20), testSuite.bwh.WriteFileInfo().TotalSize)
+
+	// Write at offset=bwh.totalSize
+	err = testSuite.bwh.Write([]byte("abcde"), 5)
+
+	require.Nil(testSuite.T(), err)
+	assert.Equal(testSuite.T(), int64(10), testSuite.bwh.totalSize)
+	assert.Equal(testSuite.T(), int64(20), testSuite.bwh.WriteFileInfo().TotalSize)
+}
+
 func (testSuite *BufferedWriteTest) TestFlushWithNonNilCurrentBlock() {
 	err := testSuite.bwh.Write([]byte("hi"), 0)
 	currentBlock := testSuite.bwh.current
@@ -174,7 +207,7 @@ func (testSuite *BufferedWriteTest) TestFlushWithNilCurrentBlock() {
 	assert.NoError(testSuite.T(), err)
 }
 
-func (testSuite *BufferedWriteTest) TestFlush_SignalUploadFailureDuringWrite() {
+func (testSuite *BufferedWriteTest) TestFlushWithSignalUploadFailureDuringWrite() {
 	err := testSuite.bwh.Write([]byte("hi"), 0)
 	require.Nil(testSuite.T(), err)
 
@@ -184,4 +217,60 @@ func (testSuite *BufferedWriteTest) TestFlush_SignalUploadFailureDuringWrite() {
 	err = testSuite.bwh.Flush()
 	require.Error(testSuite.T(), err)
 	assert.ErrorContains(testSuite.T(), err, "file cannot be finalized: error while uploading object to GCS")
+}
+
+func (testSuite *BufferedWriteTest) TestFlushWithNonZeroTruncatedLengthForEmptyObject() {
+	require.Nil(testSuite.T(), testSuite.bwh.current)
+	testSuite.bwh.truncatedSize = 10
+
+	err := testSuite.bwh.Flush()
+
+	assert.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), testSuite.bwh.truncatedSize, testSuite.bwh.totalSize)
+}
+
+func (testSuite *BufferedWriteTest) TestFlushWithTruncatedLengthGreaterThanObjectSize() {
+	err := testSuite.bwh.Write([]byte("hi"), 0)
+	require.Nil(testSuite.T(), err)
+	testSuite.bwh.truncatedSize = 10
+
+	err = testSuite.bwh.Flush()
+
+	assert.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), testSuite.bwh.truncatedSize, testSuite.bwh.totalSize)
+}
+
+func (testSuite *BufferedWriteTest) TestTruncateWithLesserSize() {
+	testSuite.bwh.totalSize = 10
+
+	err := testSuite.bwh.Truncate(2)
+
+	assert.Error(testSuite.T(), err)
+}
+
+func (testSuite *BufferedWriteTest) TestTruncateWithSizeGreaterThanCurrentObjectSize() {
+	testSuite.bwh.totalSize = 10
+
+	err := testSuite.bwh.Truncate(12)
+
+	assert.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), int64(12), testSuite.bwh.truncatedSize)
+}
+
+func (testSuite *BufferedWriteTest) TestWriteFileInfoWithTruncatedLengthLessThanTotalSize() {
+	testSuite.bwh.totalSize = 10
+	testSuite.bwh.truncatedSize = 5
+
+	fileInfo := testSuite.bwh.WriteFileInfo()
+
+	assert.Equal(testSuite.T(), testSuite.bwh.totalSize, fileInfo.TotalSize)
+}
+
+func (testSuite *BufferedWriteTest) TestWriteFileInfoWithTruncatedLengthGreaterThanTotalSize() {
+	testSuite.bwh.totalSize = 10
+	testSuite.bwh.truncatedSize = 20
+
+	fileInfo := testSuite.bwh.WriteFileInfo()
+
+	assert.Equal(testSuite.T(), testSuite.bwh.truncatedSize, fileInfo.TotalSize)
 }
