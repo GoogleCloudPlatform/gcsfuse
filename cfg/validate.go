@@ -237,7 +237,7 @@ func ValidateConfig(v isSet, config *Config) error {
 	}
 
 	if err = isValidChunkTransferTimeoutForRetriesConfig(&config.GcsRetries.ChunkTransferTimeoutSecs); err != nil {
-		return fmt.Errorf("error parsing log-rotate config: %w", err)
+		return fmt.Errorf("error parsing chunk-transfer-timeout-secs config: %w", err)
 	}
 
 	if err = isValidMetricsConfig(&config.Metrics); err != nil {
