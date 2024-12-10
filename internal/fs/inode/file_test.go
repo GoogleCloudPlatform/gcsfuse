@@ -88,7 +88,7 @@ func (t *FileTest) SetupTest() {
 		[]byte(t.initialContents))
 	t.backingObj = storageutil.ConvertObjToMinObject(object)
 
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	// Create the inode.
 	t.createInode()
@@ -168,7 +168,7 @@ func (t *FileTest) TestInitialSourceGeneration() {
 
 func (t *FileTest) TestInitialAttributes() {
 	attrs, err := t.in.Attributes(t.ctx)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	assert.Equal(t.T(), uint64(len(t.initialContents)), attrs.Size)
 	assert.Equal(t.T(), uint32(1), attrs.Nlink)
@@ -193,7 +193,7 @@ func (t *FileTest) TestInitialAttributes_MtimeFromObjectMetadata_Gcsfuse() {
 
 	// Ask it for its attributes.
 	attrs, err := t.in.Attributes(t.ctx)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	assert.Equal(t.T(), attrs.Mtime, mtime)
 }
@@ -211,7 +211,7 @@ func (t *FileTest) TestInitialAttributes_MtimeFromObjectMetadata_Gsutil() {
 
 	// Ask it for its attributes.
 	attrs, err := t.in.Attributes(t.ctx)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	assert.Equal(t.T(), attrs.Mtime.UTC(), mtime)
 }
@@ -232,7 +232,7 @@ func (t *FileTest) TestInitialAttributes_MtimeFromObjectMetadata_GcsfuseOutranks
 
 	// Ask it for its attributes.
 	attrs, err := t.in.Attributes(t.ctx)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	assert.Equal(t.T(), attrs.Mtime, canonicalMtime)
 }
@@ -281,7 +281,7 @@ func (t *FileTest) TestRead() {
 			err = nil
 		}
 
-		assert.Equal(t.T(), nil, err, "%s", desc)
+		assert.Nil(t.T(), err, "%s", desc)
 		assert.Equal(t.T(), tc.expected, string(data), "%s", desc)
 	}
 }
@@ -293,14 +293,14 @@ func (t *FileTest) TestWrite() {
 
 	// Overwite a byte.
 	err = t.in.Write(t.ctx, []byte("p"), 0)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	// Add some data at the end.
 	t.clock.AdvanceTime(time.Second)
 	writeTime := t.clock.Now()
 
 	err = t.in.Write(t.ctx, []byte("burrito"), 4)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	t.clock.AdvanceTime(time.Second)
 
@@ -312,12 +312,12 @@ func (t *FileTest) TestWrite() {
 		err = nil
 	}
 
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), "pacoburrito", string(buf[:n]))
 
 	// Check attributes.
 	attrs, err := t.in.Attributes(t.ctx)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	assert.Equal(t.T(), uint64(len("pacoburrito")), attrs.Size)
 	assert.Equal(t.T(), attrs.Mtime, writeTime)
@@ -334,7 +334,7 @@ func (t *FileTest) TestTruncate() {
 	truncateTime := t.clock.Now()
 
 	err = t.in.Truncate(t.ctx, 2)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	t.clock.AdvanceTime(time.Second)
 
@@ -346,12 +346,12 @@ func (t *FileTest) TestTruncate() {
 		err = nil
 	}
 
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), "ta", string(buf[:n]))
 
 	// Check attributes.
 	attrs, err = t.in.Attributes(t.ctx)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	assert.Equal(t.T(), uint64(len("ta")), attrs.Size)
 	assert.Equal(t.T(), attrs.Mtime, truncateTime)
@@ -368,13 +368,13 @@ func (t *FileTest) TestWriteThenSync() {
 	writeTime := t.clock.Now()
 
 	err = t.in.Write(t.ctx, []byte("p"), 0)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	t.clock.AdvanceTime(time.Second)
 
 	// Sync.
 	err = t.in.Sync(t.ctx)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	// The generation should have advanced.
 	assert.Less(t.T(), t.backingObj.Generation, t.in.SourceGeneration().Object)
@@ -383,7 +383,7 @@ func (t *FileTest) TestWriteThenSync() {
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	m, _, err := t.bucket.StatObject(t.ctx, statReq)
 
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	assert.NotEqual(t.T(), nil, m)
 	assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
 	assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
@@ -395,12 +395,12 @@ func (t *FileTest) TestWriteThenSync() {
 	// Read the object's contents.
 	contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
 
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), "paco", string(contents))
 
 	// Check attributes.
 	attrs, err = t.in.Attributes(t.ctx)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	assert.Equal(t.T(), uint64(len("paco")), attrs.Size)
 	assert.Equal(t.T(), attrs.Mtime, writeTime.UTC())
@@ -413,24 +413,24 @@ func (t *FileTest) TestWriteToLocalFileThenSync() {
 	t.createInodeWithLocalParam("test", true)
 	// Create a temp file for the local inode created above.
 	err = t.in.CreateBufferedOrTempWriter()
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	// Write some content to temp file.
 	t.clock.AdvanceTime(time.Second)
 	writeTime := t.clock.Now()
 	err = t.in.Write(t.ctx, []byte("tacos"), 0)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	t.clock.AdvanceTime(time.Second)
 
 	// Sync.
 	err = t.in.Sync(t.ctx)
 
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	// Verify that fileInode is no more local
 	assert.False(t.T(), t.in.IsLocal())
 	// Stat the current object in the bucket.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	m, _, err := t.bucket.StatObject(t.ctx, statReq)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	assert.NotEqual(t.T(), nil, m)
 	assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
 	assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
@@ -440,11 +440,11 @@ func (t *FileTest) TestWriteToLocalFileThenSync() {
 		m.Metadata["gcsfuse_mtime"])
 	// Read the object's contents.
 	contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), "tacos", string(contents))
 	// Check attributes.
 	attrs, err = t.in.Attributes(t.ctx)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), uint64(len("tacos")), attrs.Size)
 	assert.Equal(t.T(), attrs.Mtime, writeTime.UTC())
 }
@@ -457,18 +457,18 @@ func (t *FileTest) TestSyncEmptyLocalFile() {
 	creationTime := t.clock.Now()
 	// Create a temp file for the local inode created above.
 	err = t.in.CreateBufferedOrTempWriter()
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	// Sync.
 	err = t.in.Sync(t.ctx)
 
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	// Verify that fileInode is no more local
 	assert.False(t.T(), t.in.IsLocal())
 	// Stat the current object in the bucket.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	m, _, err := t.bucket.StatObject(t.ctx, statReq)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	assert.NotEqual(t.T(), nil, m)
 	assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
 	assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
@@ -480,11 +480,11 @@ func (t *FileTest) TestSyncEmptyLocalFile() {
 	assert.WithinDuration(t.T(), mtime, creationTime, Delta)
 	// Read the object's contents.
 	contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), "", string(contents))
 	// Check attributes.
 	attrs, err = t.in.Attributes(t.ctx)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), uint64(0), attrs.Size)
 }
 
@@ -499,13 +499,13 @@ func (t *FileTest) TestAppendThenSync() {
 	writeTime := t.clock.Now()
 
 	err = t.in.Write(t.ctx, []byte("burrito"), int64(len("taco")))
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	t.clock.AdvanceTime(time.Second)
 
 	// Sync.
 	err = t.in.Sync(t.ctx)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	// The generation should have advanced.
 	assert.Less(t.T(), t.backingObj.Generation, t.in.SourceGeneration().Object)
@@ -514,7 +514,7 @@ func (t *FileTest) TestAppendThenSync() {
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	m, _, err := t.bucket.StatObject(t.ctx, statReq)
 
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	assert.NotEqual(t.T(), nil, m)
 	assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
 	assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
@@ -526,12 +526,12 @@ func (t *FileTest) TestAppendThenSync() {
 	// Read the object's contents.
 	contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
 
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), "tacoburrito", string(contents))
 
 	// Check attributes.
 	attrs, err = t.in.Attributes(t.ctx)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	assert.Equal(t.T(), uint64(len("tacoburrito")), attrs.Size)
 	assert.Equal(t.T(), attrs.Mtime, writeTime.UTC())
@@ -546,13 +546,13 @@ func (t *FileTest) TestTruncateDownwardThenSync() {
 	truncateTime := t.clock.Now()
 
 	err = t.in.Truncate(t.ctx, 2)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	t.clock.AdvanceTime(time.Second)
 
 	// Sync.
 	err = t.in.Sync(t.ctx)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	// The generation should have advanced.
 	assert.Less(t.T(), t.backingObj.Generation, t.in.SourceGeneration().Object)
@@ -561,7 +561,7 @@ func (t *FileTest) TestTruncateDownwardThenSync() {
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	m, _, err := t.bucket.StatObject(t.ctx, statReq)
 
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	assert.NotEqual(t.T(), nil, m)
 	assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
 	assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
@@ -572,7 +572,7 @@ func (t *FileTest) TestTruncateDownwardThenSync() {
 
 	// Check attributes.
 	attrs, err = t.in.Attributes(t.ctx)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	assert.Equal(t.T(), uint64(2), attrs.Size)
 	assert.Equal(t.T(), attrs.Mtime, truncateTime.UTC())
@@ -589,13 +589,13 @@ func (t *FileTest) TestTruncateUpwardThenSync() {
 	truncateTime := t.clock.Now()
 
 	err = t.in.Truncate(t.ctx, 6)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	t.clock.AdvanceTime(time.Second)
 
 	// Sync.
 	err = t.in.Sync(t.ctx)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	// The generation should have advanced.
 	assert.Less(t.T(), t.backingObj.Generation, t.in.SourceGeneration().Object)
@@ -607,7 +607,7 @@ func (t *FileTest) TestTruncateUpwardThenSync() {
 		truncateTime.UTC().Format(time.RFC3339Nano),
 		m.Metadata["gcsfuse_mtime"])
 
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	assert.NotEqual(t.T(), nil, m)
 	assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
 	assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
@@ -615,7 +615,7 @@ func (t *FileTest) TestTruncateUpwardThenSync() {
 
 	// Check attributes.
 	attrs, err = t.in.Attributes(t.ctx)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	assert.Equal(t.T(), uint64(6), attrs.Size)
 	assert.Equal(t.T(), attrs.Mtime, truncateTime.UTC())
@@ -627,18 +627,18 @@ func (t *FileTest) TestTestTruncateUpwardForLocalFileShouldUpdateLocalFileAttrib
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
 	err = t.in.CreateBufferedOrTempWriter()
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	// Fetch the attributes and check if the file is empty.
 	attrs, err = t.in.Attributes(t.ctx)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), uint64(0), attrs.Size)
 
 	err = t.in.Truncate(t.ctx, 6)
 
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	// The inode should return the new size.
 	attrs, err = t.in.Attributes(t.ctx)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), uint64(6), attrs.Size)
 	// Data shouldn't be updated to GCS.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
@@ -653,21 +653,21 @@ func (t *FileTest) TestTestTruncateDownwardForLocalFileShouldUpdateLocalFileAttr
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
 	err = t.in.CreateBufferedOrTempWriter()
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	// Write some data to the local file.
 	err = t.in.Write(t.ctx, []byte("burrito"), 0)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	// Validate the new data is written correctly.
 	attrs, err = t.in.Attributes(t.ctx)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), uint64(7), attrs.Size)
 
 	err = t.in.Truncate(t.ctx, 2)
 
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	// The inode should return the new size.
 	attrs, err = t.in.Attributes(t.ctx)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), uint64(2), attrs.Size)
 	// Data shouldn't be updated to GCS.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
@@ -681,7 +681,7 @@ func (t *FileTest) TestSync_Clobbered() {
 
 	// Truncate downward.
 	err = t.in.Truncate(t.ctx, 2)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	// Clobber the backing object.
 	newObj, err := storageutil.CreateObject(
@@ -690,7 +690,7 @@ func (t *FileTest) TestSync_Clobbered() {
 		t.in.Name().GcsObjectName(),
 		[]byte("burrito"))
 
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	// Sync. The call should not succeed, and we expect a FileClobberedError.
 	err = t.in.Sync(t.ctx)
@@ -705,7 +705,7 @@ func (t *FileTest) TestSync_Clobbered() {
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	m, _, err := t.bucket.StatObject(t.ctx, statReq)
 
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	assert.NotEqual(t.T(), nil, m)
 	assert.Equal(t.T(), newObj.Generation, m.Generation)
 	assert.Equal(t.T(), newObj.Size, m.Size)
@@ -738,19 +738,19 @@ func (t *FileTest) TestSetMtime_ContentNotFaultedIn() {
 	mtime := time.Now().UTC().Add(123*time.Second).AddDate(0, 0, 0)
 
 	err = t.in.SetMtime(t.ctx, mtime)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	// The inode should agree about the new mtime.
 	attrs, err = t.in.Attributes(t.ctx)
 
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), attrs.Mtime, mtime)
 
 	// The inode should have added the mtime to the backing object's metadata.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	m, _, err := t.bucket.StatObject(t.ctx, statReq)
 
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	assert.NotEqual(t.T(), nil, m)
 	assert.Equal(t.T(),
 		mtime.UTC().Format(time.RFC3339Nano),
@@ -763,25 +763,25 @@ func (t *FileTest) TestSetMtime_ContentClean() {
 
 	// Cause the content to be faulted in.
 	_, err = t.in.Read(t.ctx, make([]byte, 1), 0)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	// Set mtime.
 	mtime := time.Now().UTC().Add(123*time.Second).AddDate(0, 0, 0)
 
 	err = t.in.SetMtime(t.ctx, mtime)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	// The inode should agree about the new mtime.
 	attrs, err = t.in.Attributes(t.ctx)
 
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), attrs.Mtime, mtime)
 
 	// The inode should have added the mtime to the backing object's metadata.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	m, _, err := t.bucket.StatObject(t.ctx, statReq)
 
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	assert.NotEqual(t.T(), nil, m)
 	assert.Equal(t.T(),
 		mtime.UTC().Format(time.RFC3339Nano),
@@ -794,29 +794,29 @@ func (t *FileTest) TestSetMtime_ContentDirty() {
 
 	// Dirty the content.
 	err = t.in.Write(t.ctx, []byte("a"), 0)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	// Set mtime.
 	mtime := time.Now().UTC().Add(123 * time.Second)
 
 	err = t.in.SetMtime(t.ctx, mtime)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	// The inode should agree about the new mtime.
 	attrs, err = t.in.Attributes(t.ctx)
 
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), attrs.Mtime, mtime)
 
 	// Sync.
 	err = t.in.Sync(t.ctx)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	// Now the object in the bucket should have the appropriate mtime.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	m, _, err := t.bucket.StatObject(t.ctx, statReq)
 
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	assert.NotEqual(t.T(), nil, m)
 	assert.Equal(t.T(),
 		mtime.UTC().Format(time.RFC3339Nano),
@@ -833,18 +833,18 @@ func (t *FileTest) TestSetMtime_SourceObjectGenerationChanged() {
 		t.in.Name().GcsObjectName(),
 		[]byte("burrito"))
 
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	// Set mtime.
 	mtime := time.Now().UTC().Add(123 * time.Second)
 	err = t.in.SetMtime(t.ctx, mtime)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	// The object in the bucket should not have been changed.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	m, _, err := t.bucket.StatObject(t.ctx, statReq)
 
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	assert.NotEqual(t.T(), nil, m)
 	assert.Equal(t.T(), newObj.Generation, m.Generation)
 	assert.Equal(t.T(), 0, len(m.Metadata))
@@ -862,18 +862,18 @@ func (t *FileTest) TestSetMtime_SourceObjectMetaGenerationChanged() {
 			ContentLanguage: &lang,
 		})
 
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	// Set mtime.
 	mtime := time.Now().UTC().Add(123 * time.Second)
 	err = t.in.SetMtime(t.ctx, mtime)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	// The object in the bucket should not have been changed.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	m, _, err := t.bucket.StatObject(t.ctx, statReq)
 
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	assert.NotEqual(t.T(), nil, m)
 	assert.Equal(t.T(), newObj.Generation, m.Generation)
 	assert.Equal(t.T(), newObj.MetaGeneration, m.MetaGeneration)
@@ -886,20 +886,20 @@ func (t *FileTest) TestTestSetMtimeForLocalFileShouldUpdateLocalFileAttributes()
 	t.createInodeWithLocalParam("test", true)
 	createTime := t.in.mtimeClock.Now()
 	err = t.in.CreateBufferedOrTempWriter()
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	// Validate the attributes on an empty file.
 	attrs, err = t.in.Attributes(t.ctx)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	assert.WithinDuration(t.T(), attrs.Mtime, createTime, Delta)
 
 	// Set mtime.
 	mtime := time.Now().UTC().Add(123 * time.Second)
 	err = t.in.SetMtime(t.ctx, mtime)
 
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	// The inode should agree about the new mtime.
 	attrs, err = t.in.Attributes(t.ctx)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), attrs.Mtime, mtime)
 	assert.Equal(t.T(), attrs.Ctime, mtime)
 	assert.Equal(t.T(), attrs.Atime, mtime)
@@ -974,11 +974,11 @@ func (t *FileTest) TestTestCheckInvariantsShouldNotThrowExceptionForLocalFiles()
 func (t *FileTest) TestCreateBufferedOrTempWriterShouldCreateEmptyFile() {
 	err := t.in.CreateBufferedOrTempWriter()
 
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	assert.NotEqual(t.T(), nil, t.in.content)
 	// Validate that file size is 0.
 	sr, err := t.in.content.Stat()
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), int64(0), sr.Size)
 }
 
@@ -1014,7 +1014,7 @@ func (t *FileTest) TestUnlinkLocalFile() {
 	t.createInodeWithLocalParam("test", true)
 	// Create a temp file for the local inode created above.
 	err = t.in.CreateBufferedOrTempWriter()
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	// Unlink.
 	t.in.Unlink()
@@ -1033,7 +1033,7 @@ func (t *FileTest) TestReadLocalFileWhenStreamingWritesAreEnabled() {
 	t.createInodeWithLocalParam("test", true)
 	t.in.writeConfig = getWriteConfig()
 	err := t.in.Write(t.ctx, []byte("hi"), 0)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), int64(2), t.in.bwh.WriteFileInfo().TotalSize)
 	data := make([]byte, 10)
 
@@ -1064,7 +1064,7 @@ func (t *FileTest) TestWriteToLocalFileWhenStreamingWritesAreEnabled() {
 
 	err := t.in.Write(t.ctx, []byte("hi"), 0)
 
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	assert.NotEqual(t.T(), nil, t.in.bwh)
 	writeFileInfo := t.in.bwh.WriteFileInfo()
 	assert.Equal(t.T(), int64(2), writeFileInfo.TotalSize)
@@ -1078,7 +1078,7 @@ func (t *FileTest) TestMultipleWritesToLocalFileWhenStreamingWritesAreEnabled() 
 	assert.Nil(t.T(), t.in.bwh)
 
 	err := t.in.Write(t.ctx, []byte("hi"), 0)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	assert.NotEqual(t.T(), nil, t.in.bwh)
 	assert.Equal(t.T(), int64(2), t.in.bwh.WriteFileInfo().TotalSize)
 
