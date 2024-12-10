@@ -38,7 +38,7 @@ type UploadHandler struct {
 	freeBlocksCh chan block.Block
 
 	// writer to resumable upload the blocks to GCS.
-	writer io.WriteCloser
+	writer gcs.Writer
 
 	// signalUploadFailure channel will propagate the upload error to file
 	// inode. This signals permanent failure in the buffered write job.
@@ -116,7 +116,7 @@ func (uh *UploadHandler) uploader() {
 }
 
 // Finalize finalizes the upload.
-func (uh *UploadHandler) Finalize() error {
+func (uh *UploadHandler) Finalize() (*gcs.Object, error) {
 	uh.wg.Wait()
 	close(uh.uploadCh)
 
@@ -125,16 +125,16 @@ func (uh *UploadHandler) Finalize() error {
 		// small writes of size less than 1 block.
 		err := uh.createObjectWriter()
 		if err != nil {
-			return fmt.Errorf("createObjectWriter failed for object %s: %w", uh.objectName, err)
+			return nil, fmt.Errorf("createObjectWriter failed for object %s: %w", uh.objectName, err)
 		}
 	}
 
-	err := uh.writer.Close()
+	obj, err := uh.bucket.FinalizeUpload(context.Background(), uh.writer)
 	if err != nil {
 		logger.Errorf("UploadHandler.Finalize(%s): %v", uh.objectName, err)
-		return fmt.Errorf("writer.Close failed for object %s: %w", uh.objectName, err)
+		return nil, fmt.Errorf("FinalizeUpload failed for object %s: %w", uh.objectName, err)
 	}
-	return nil
+	return obj, nil
 }
 
 func (uh *UploadHandler) SignalUploadFailure() chan error {
