@@ -15,9 +15,10 @@
 package cfg
 
 import (
-	"errors"
 	"fmt"
 	"math"
+
+	cacheutil "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 )
 
 const (
