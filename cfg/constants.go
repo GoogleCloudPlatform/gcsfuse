@@ -82,4 +82,9 @@ const (
 	maxSupportedStatCacheMaxSizeMB = util.MaxMiBsInUint64
 )
 
+// Cache util constants.
+const (
+	MinimumAlignSizeForWriting = 4096
+)
+
 const ConfigFileFlagName = "config-file"
