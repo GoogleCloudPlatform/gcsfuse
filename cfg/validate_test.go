@@ -156,6 +156,27 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				FileSystem: FileSystemConfig{KernelListCacheTtlSecs: 30},
 			},
 		},
+		{
+			name: "valid_parallel_download_config_with_file_cache_enabled",
+			config: &Config{
+				Logging:  LoggingConfig{LogRotate: validLogRotateConfig()},
+				CacheDir: "/some/valid/path",
+				FileCache: FileCacheConfig{
+					DownloadChunkSizeMb:      50,
+					EnableParallelDownloads:  true,
+					MaxParallelDownloads:     4,
+					ParallelDownloadsPerFile: 16,
+					WriteBufferSize:          4 * 1024 * 1024,
+				},
+				GcsConnection: GcsConnectionConfig{
+					CustomEndpoint:       "https://bing.com/search?q=dotnet",
+					SequentialReadSizeMb: 200,
+				},
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "disabled",
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -323,6 +344,26 @@ func TestValidateConfig_ErrorScenarios(t *testing.T) {
 						Enable:              true,
 						ReqTargetPercentile: -3,
 					},
+				},
+			},
+		},
+		{
+			name: "parallel_download_config_without_file_cache_negative",
+			config: &Config{
+				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: FileCacheConfig{
+					DownloadChunkSizeMb:      50,
+					EnableParallelDownloads:  true,
+					MaxParallelDownloads:     4,
+					ParallelDownloadsPerFile: 16,
+					WriteBufferSize:          4 * 1024 * 1024,
+				},
+				GcsConnection: GcsConnectionConfig{
+					CustomEndpoint:       "https://bing.com/search?q=dotnet",
+					SequentialReadSizeMb: 200,
+				},
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "disabled",
 				},
 			},
 		},
