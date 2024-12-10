@@ -17,8 +17,6 @@ package cfg
 import (
 	"fmt"
 	"math"
-
-	cacheutil "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 )
 
 const (
@@ -26,7 +24,6 @@ const (
 	MaxParallelDownloadsInvalidValueError     = "the value of max-parallel-downloads for file-cache can't be less than -1"
 	ParallelDownloadsPerFileInvalidValueError = "the value of parallel-downloads-per-file for file-cache can't be less than 1"
 	DownloadChunkSizeMBInvalidValueError      = "the value of download-chunk-size-mb for file-cache can't be less than 1"
-	MaxParallelDownloadsCantBeZeroError       = "the value of max-parallel-downloads for file-cache must not be 0 when enable-parallel-downloads is true"
 )
 
 func isValidLogRotateConfig(config *LogRotateLoggingConfig) error {
@@ -55,10 +52,10 @@ func isValidFileCacheConfig(config *FileCacheConfig) error {
 		if config.MaxParallelDownloads == 0 {
 			return fmt.Errorf("the value of max-parallel-downloads for file-cache must not be 0 when enable-parallel-downloads is true")
 		}
-		if config.WriteBufferSize < cacheutil.MinimumAlignSizeForWriting {
+		if config.WriteBufferSize < MinimumAlignSizeForWriting {
 			return fmt.Errorf("the value of write-buffer-size for file-cache can't be less than 4096")
 		}
-		if (config.WriteBufferSize % cacheutil.MinimumAlignSizeForWriting) != 0 {
+		if (config.WriteBufferSize % MinimumAlignSizeForWriting) != 0 {
 			return fmt.Errorf("the value of write-buffer-size for file-cache should be in multiple of 4096")
 		}
 	}

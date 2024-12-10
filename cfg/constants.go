@@ -82,4 +82,9 @@ const (
 	maxSupportedStatCacheMaxSizeMB = util.MaxMiBsInUint64
 )
 
+// MinimumAlignSizeForWriting is the minimum buffer size used for memory-aligned
+// writes, ensuring all writes are a multiple of this value to optimize for
+// underlying storage. This may result in padding with null data if the content
+// size is not a multiple of MinimumAlignSizeForWriting.
+const MinimumAlignSizeForWriting = 4096
 const ConfigFileFlagName = "config-file"
