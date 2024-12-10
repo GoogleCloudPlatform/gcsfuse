@@ -131,7 +131,6 @@ func (uh *UploadHandler) Finalize() (*gcs.Object, error) {
 
 	obj, err := uh.bucket.FinalizeUpload(context.Background(), uh.writer)
 	if err != nil {
-		logger.Errorf("UploadHandler.Finalize(%s): %v", uh.objectName, err)
 		return nil, fmt.Errorf("FinalizeUpload failed for object %s: %w", uh.objectName, err)
 	}
 	return obj, nil

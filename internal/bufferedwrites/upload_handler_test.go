@@ -98,7 +98,7 @@ func (t *UploadHandlerTest) TestMultipleBlockUpload() {
 	}
 }
 
-func (t *UploadHandlerTest) TestUpload_CreateObjectWriterFails() {
+func (t *UploadHandlerTest) TestUploadWhenCreateObjectWriterFails() {
 	// Create a block.
 	b, err := t.blockPool.Get()
 	require.NoError(t.T(), err)
@@ -140,7 +140,7 @@ func (t *UploadHandlerTest) TestFinalizeWithNoWriter() {
 	assert.Equal(t.T(), mockObj, obj)
 }
 
-func (t *UploadHandlerTest) TestFinalizeWithNoWriter_CreateObjectWriterFails() {
+func (t *UploadHandlerTest) TestFinalizeWithNoWriterWhenCreateObjectWriterFails() {
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("taco"))
 	assert.Nil(t.T(), t.uh.writer)
 
@@ -152,7 +152,7 @@ func (t *UploadHandlerTest) TestFinalizeWithNoWriter_CreateObjectWriterFails() {
 	assert.Nil(t.T(), obj)
 }
 
-func (t *UploadHandlerTest) TestFinalize_FinalizeUploadFails() {
+func (t *UploadHandlerTest) TestFinalizeWhenFinalizeUploadFails() {
 	writer := &storagemock.Writer{}
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
 	assert.Nil(t.T(), t.uh.writer)
@@ -167,7 +167,7 @@ func (t *UploadHandlerTest) TestFinalize_FinalizeUploadFails() {
 	assert.ErrorContains(t.T(), err, "FinalizeUpload failed for object")
 }
 
-func (t *UploadHandlerTest) TestUploadHandler_singleBlock_ErrorInCopy() {
+func (t *UploadHandlerTest) TestUploadSingleBlockThrowsErrorInCopy() {
 	// Create a block with test data.
 	b, err := t.blockPool.Get()
 	require.NoError(t.T(), err)
@@ -187,7 +187,7 @@ func (t *UploadHandlerTest) TestUploadHandler_singleBlock_ErrorInCopy() {
 	assertUploadFailureSignal(t.T(), t.uh)
 }
 
-func (t *UploadHandlerTest) TestUploadHandler_multipleBlocks_ErrorInCopy() {
+func (t *UploadHandlerTest) TestUploadMultipleBlocksThrowsErrorInCopy() {
 	// Create some blocks.
 	var blocks []block.Block
 	for i := 0; i < 4; i++ {
@@ -225,7 +225,7 @@ func assertUploadFailureSignal(t *testing.T, handler *UploadHandler) {
 	}
 }
 
-func TestBufferedWriteHandler_SignalUploadFailure(t *testing.T) {
+func TestSignalUploadFailure(t *testing.T) {
 	mockSignalUploadFailure := make(chan error)
 	uploadHandler := &UploadHandler{
 		signalUploadFailure: mockSignalUploadFailure,
