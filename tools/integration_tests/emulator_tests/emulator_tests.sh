@@ -56,7 +56,7 @@ sleep 5
 # Stop the testbench & cleanup environment variables
 function cleanup() {
     echo "Cleanup testbench"
-    docker stop $CONTAINER_NAME
+#    docker stop $CONTAINER_NAME
     unset STORAGE_EMULATOR_HOST;
 }
 trap cleanup EXIT
@@ -73,4 +73,4 @@ curl -X POST --data-binary @test.json \
 rm test.json
 
 # Run specific test suite
-go test ./tools/integration_tests/emulator_tests/... --integrationTest -v --testbucket=test-bucket -timeout 10m
+go test ./tools/integration_tests/emulator_tests/... --integrationTest -v --testbucket=test-bucket -timeout 10m -run TestWriteStall

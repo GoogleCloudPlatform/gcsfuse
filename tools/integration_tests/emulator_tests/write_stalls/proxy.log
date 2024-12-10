@@ -1,0 +1,9 @@
+2024/12/10 05:44:39 Proxy server started on port 8020
+2024/12/10 05:44:40 GetRetryID:  map[storage.objects.insert:[stall-for-40s-after-15000K]]
+2024/12/10 05:44:40 ID:  f4324eae56a642c98216ea654c4dba26
+2024/12/10 05:44:40 GetRetryID:  map[storage.objects.insert:[stall-for-40s-after-15000K]]
+2024/12/10 05:44:40 ID:  345e738b3f9a4a3c857f49f956bc5dc5
+2024/12/10 05:45:20 GetRetryID:  map[storage.objects.insert:[stall-for-40s-after-15000K]]
+2024/12/10 05:45:20 ID:  1f1695b7c90a4504bee5c3d66843abc2
+2024/12/10 05:45:20 Shutting down proxy server...
+2024/12/10 05:45:20 Proxy server exiting
