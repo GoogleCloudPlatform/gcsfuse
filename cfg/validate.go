@@ -55,9 +55,6 @@ func isValidParallelDownloadConfig(config *Config) error {
 		if (config.FileCache.WriteBufferSize % CacheUtilMinimumAlignSizeForWriting) != 0 {
 			return errors.New("the value of write-buffer-size for file-cache should be in multiple of 4096")
 		}
-		if config.FileCache.ParallelDownloadsPerFile < 1 {
-			return errors.New(ParallelDownloadsPerFileInvalidValueError)
-		}
 		if string(config.CacheDir) == "" {
 			return errors.New("file cache directory is manadatory for parallel download")
 		}
@@ -72,6 +69,9 @@ func isValidFileCacheConfig(config *FileCacheConfig) error {
 	}
 	if config.MaxParallelDownloads < -1 {
 		return errors.New(MaxParallelDownloadsInvalidValueError)
+	}
+	if config.ParallelDownloadsPerFile < 1 {
+		return errors.New(ParallelDownloadsPerFileInvalidValueError)
 	}
 	if config.DownloadChunkSizeMb < 1 {
 		return errors.New(DownloadChunkSizeMBInvalidValueError)
