@@ -175,9 +175,9 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "disabled",
 				},
-      },
-    }
-    {
+			},
+		},
+		{
 			name: "valid_chunk_transfer_timeout_secs",
 			config: &Config{
 				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
@@ -379,10 +379,10 @@ func TestValidateConfig_ErrorScenarios(t *testing.T) {
 				},
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "disabled",
-        },
-      },
-    },
-    {
+				},
+			},
+		},
+		{
 			name: "chunk_transfer_timeout_in_negative",
 			config: &Config{
 				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
