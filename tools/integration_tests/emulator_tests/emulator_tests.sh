@@ -73,4 +73,4 @@ curl -X POST --data-binary @test.json \
 rm test.json
 
 # Run specific test suite
-go test --integrationTest -v --testbucket=test-bucket -timeout 10m
+go test ./tools/integration_tests/emulator_tests/... --integrationTest -v --testbucket=test-bucket -timeout 10m
