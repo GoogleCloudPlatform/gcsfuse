@@ -36,16 +36,16 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
+const localFile = "local"
+const emptyGCSFile = "emptyGCS"
+
 type FileStreamingWritesTest struct {
 	suite.Suite
-	ctx    context.Context
-	bucket gcs.Bucket
-	clock  timeutil.SimulatedClock
-
-	initialContents string
-	backingObj      *gcs.MinObject
-
-	in *FileInode
+	ctx        context.Context
+	bucket     gcs.Bucket
+	clock      timeutil.SimulatedClock
+	backingObj *gcs.MinObject
+	in         *FileInode
 }
 
 func TestFileStreamingWritesTestSuite(t *testing.T) {
@@ -60,7 +60,7 @@ func (t *FileStreamingWritesTest) SetupTest() {
 	t.bucket = fake.NewFakeBucket(&t.clock, "some_bucket", gcs.NonHierarchical)
 
 	// Create the inode.
-	t.createInode(fileName, "local")
+	t.createInode(fileName, localFile)
 }
 
 func (t *FileStreamingWritesTest) TearDownTest() {
@@ -68,7 +68,7 @@ func (t *FileStreamingWritesTest) TearDownTest() {
 }
 
 func (t *FileStreamingWritesTest) createInode(fileName string, fileType string) {
-	if fileType != "empty" && fileType != "local" {
+	if fileType != emptyGCSFile && fileType != localFile {
 		t.T().Errorf("fileType should be either local or empty")
 	}
 
@@ -82,12 +82,12 @@ func (t *FileStreamingWritesTest) createInode(fileName string, fileType string) 
 		t.bucket)
 
 	isLocal := false
-	if fileType == "local" {
+	if fileType == localFile {
 		t.backingObj = nil
 		isLocal = true
 	}
 
-	if fileType == "empty" {
+	if fileType == emptyGCSFile {
 		object, err := storageutil.CreateObject(
 			t.ctx,
 			t.bucket,
