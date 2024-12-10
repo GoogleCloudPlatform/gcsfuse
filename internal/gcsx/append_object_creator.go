@@ -100,9 +100,10 @@ func (oc *appendObjectCreator) Create(
 	tmp, err := oc.bucket.CreateObject(
 		ctx,
 		&gcs.CreateObjectRequest{
-			Name:                   tmpName,
-			GenerationPrecondition: &zero,
-			Contents:               r,
+			Name:                     tmpName,
+			GenerationPrecondition:   &zero,
+			Contents:                 r,
+			ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
 		})
 	if err != nil {
 		err = fmt.Errorf("CreateObject: %w", err)
