@@ -60,7 +60,8 @@ func (s *writeStall) Teardown(t *testing.T) {
 // is greater than or equal to the configured stall time.
 func (s *writeStall) TestWriteStallCausesDelay(t *testing.T) {
 	stallTime := 40 * time.Second
-	filePath := path.Join(setup.MntDir(), "file.txt")
+	testDirPath := path.Join(setup.MntDir(), testDirName)
+	filePath := path.Join(testDirPath, "file.txt")
 	// Create a file for writing
 	file, err := os.Create(filePath)
 	if err != nil {

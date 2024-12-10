@@ -10,6 +10,7 @@ retry test.
 cat << EOF > test.json
 {"name":"test-bucket"}
 EOF
+
 # Execute the curl command to create bucket on storagetestbench server.
 curl -X POST --data-binary @test.json \
     -H "Content-Type: application/json" \

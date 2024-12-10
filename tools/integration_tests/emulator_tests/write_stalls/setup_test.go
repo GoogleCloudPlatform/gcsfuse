@@ -24,8 +24,7 @@ import (
 )
 
 const (
-	testDirName    = "EmulatorTests"
-	onlyDirMounted = "OnlyDirEmulatorTest"
+	testDirName = "EmulatorTests"
 )
 
 var (
