@@ -33,7 +33,6 @@ import (
 
 type StaleHandleTest struct {
 	// fsTest has f1 *osFile and f2 *osFile which we will reuse here.
-	f3 *os.File
 	fsTest
 	suite.Suite
 }
@@ -55,14 +54,9 @@ func (t *StaleHandleTest) SetupTest() {
 }
 
 func (t *StaleHandleTest) TearDownTest() {
-	// Close t.f3 in case of test failure.
-	if t.f3 != nil {
-		assert.Equal(t.T(), nil, t.f3.Close())
-		t.f3 = nil
-	}
-
 	// fsTest Cleanups to clean up mntDir and close t.f1 and t.f2.
 	t.fsTest.TearDown()
+	t.TearDownTestSuite()
 }
 
 // //////////////////////////////////////////////////////////////////////
@@ -86,7 +80,7 @@ func (t *StaleHandleTest) TestSyncedObjectClobberedRemotely_Read_ThrowsStaleFile
 	assert.Equal(t.T(), nil, err)
 	// Open file handle to read.
 	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_RDONLY|syscall.O_DIRECT, filePerms)
-	assert.NotEqual(t.T(), nil, err)
+	assert.Equal(t.T(), nil, err)
 	// Replace the underlying object with a new generation.
 	_, err = storageutil.CreateObject(
 		ctx,
