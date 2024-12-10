@@ -43,16 +43,17 @@ type CreateObjectRequest struct {
 	//
 	//     https://cloud.google.com/storage/docs/json_api/v1/objects#resource
 	//
-	ContentType        string
-	ContentLanguage    string
-	ContentEncoding    string
-	CacheControl       string
-	Metadata           map[string]string
-	ContentDisposition string
-	CustomTime         string
-	EventBasedHold     bool
-	StorageClass       string
-	Acl                []*storagev1.ObjectAccessControl
+	ContentType              string
+	ContentLanguage          string
+	ContentEncoding          string
+	CacheControl             string
+	Metadata                 map[string]string
+	ContentDisposition       string
+	CustomTime               string
+	EventBasedHold           bool
+	StorageClass             string
+	Acl                      []*storagev1.ObjectAccessControl
+	ChunkTransferTimeoutSecs int64
 
 	// A reader from which to obtain the contents of the object. Must be non-nil.
 	Contents io.Reader

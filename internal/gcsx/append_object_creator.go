@@ -86,6 +86,7 @@ func (oc *appendObjectCreator) Create(
 	objectName string,
 	srcObject *gcs.Object,
 	mtime *time.Time,
+	chunkTransferTimeoutSecs int64,
 	r io.Reader) (o *gcs.Object, err error) {
 	// Choose a name for a temporary object.
 	tmpName, err := oc.chooseName()
