@@ -193,7 +193,7 @@ func (t *FileTest) TestInitialAttributes_MtimeFromObjectMetadata_Gcsfuse() {
 
 	// Ask it for its attributes.
 	attrs, err := t.in.Attributes(t.ctx)
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 
 	assert.Equal(t.T(), attrs.Mtime, mtime)
 }
@@ -384,7 +384,7 @@ func (t *FileTest) TestWriteThenSync() {
 	m, _, err := t.bucket.StatObject(t.ctx, statReq)
 
 	assert.Nil(t.T(), err)
-	assert.NotNil(t.T(), m)
+	assert.NotEqual(t.T(), nil, m)
 	assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
 	assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
 	assert.Equal(t.T(), uint64(len("paco")), m.Size)
@@ -431,7 +431,7 @@ func (t *FileTest) TestWriteToLocalFileThenSync() {
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	m, _, err := t.bucket.StatObject(t.ctx, statReq)
 	assert.Nil(t.T(), err)
-	assert.NotNil(t.T(), m)
+	assert.NotEqual(t.T(), nil, m)
 	assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
 	assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
 	assert.Equal(t.T(), uint64(len("tacos")), m.Size)
