@@ -466,7 +466,7 @@ func (f *FileInode) Read(
 	ctx context.Context,
 	dst []byte,
 	offset int64) (n int, err error) {
-	if f.IsLocal() && f.writeConfig.ExperimentalEnableStreamingWrites {
+	if f.bufferedWritesEnabled() {
 		err = fmt.Errorf("cannot read a local file when upload in progress")
 		return
 	}
@@ -498,19 +498,26 @@ func (f *FileInode) Read(
 func (f *FileInode) Write(
 	ctx context.Context,
 	data []byte,
-	offset int64) (err error) {
-	// For empty GCS files also we will triggered bufferedWrites flow.
+	offset int64) error {
+	// For empty GCS files also we will triggerred bufferedWrites flow.
 	if f.src.Size == 0 && f.writeConfig.ExperimentalEnableStreamingWrites {
-		err = f.ensureBufferedWriteHandler()
+		err := f.ensureBufferedWriteHandler()
 		if err != nil {
-			return
+			return err
 		}
 	}
 
 	if f.bwh != nil {
-		return f.bwh.Write(data, offset)
+		return f.writeUsingBufferedWrites(ctx, data, offset)
 	}
 
+	return f.writeUsingTempFile(ctx, data, offset)
+}
+
+// Helper function to serve write for file using temp file.
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) writeUsingTempFile(ctx context.Context, data []byte, offset int64) (err error) {
 	// Make sure f.content != nil.
 	err = f.ensureContent(ctx)
 	if err != nil {
@@ -521,8 +528,27 @@ func (f *FileInode) Write(
 	// Write to the mutable content. Note that io.WriterAt guarantees it returns
 	// an error for short writes.
 	_, err = f.content.WriteAt(data, offset)
-
 	return
+}
+
+// Helper function to serve write for file using buffered writes handler.
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, offset int64) error {
+	err := f.bwh.Write(data, offset)
+
+	// In case of bufferedwrites.ErrOutOfOrderWrite or bufferedwrites.ErrUploadFailure,
+	// finalize the object and fall back to temp file flow.
+	if err == bufferedwrites.ErrOutOfOrderWrite || err == bufferedwrites.ErrUploadFailure {
+		obj, err := f.bwh.Flush()
+		if err != nil {
+			return fmt.Errorf("SyncObject: %w", err)
+		}
+		f.updateInodeStateAfterSync(obj)
+		return f.writeUsingTempFile(ctx, data, offset)
+	}
+
+	return err
 }
 
 // Set the mtime for this file. May involve a round trip to GCS.
@@ -617,7 +643,7 @@ func (f *FileInode) SetMtime(
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Sync(ctx context.Context) (err error) {
-	if f.local && f.writeConfig.ExperimentalEnableStreamingWrites {
+	if f.bufferedWritesEnabled() {
 		obj, err := f.bwh.Flush()
 		if err != nil {
 			return fmt.Errorf("SyncObject: %w", err)
@@ -692,6 +718,10 @@ func (f *FileInode) updateInodeStateAfterSync(newObj *gcs.Object) {
 			f.content.Destroy()
 			f.content = nil
 		}
+		if f.bwh != nil {
+			// Blocks would have already been cleared via Flush call.
+			f.bwh = nil
+		}
 	}
 	return
 }
@@ -726,7 +756,7 @@ func (f *FileInode) CacheEnsureContent(ctx context.Context) (err error) {
 
 func (f *FileInode) CreateBufferedOrTempWriter() (err error) {
 	// Skip creating empty file when streaming writes are enabled
-	if f.local && f.writeConfig.ExperimentalEnableStreamingWrites {
+	if f.bufferedWritesEnabled() {
 		err = f.ensureBufferedWriteHandler()
 		if err != nil {
 			return
@@ -753,4 +783,8 @@ func (f *FileInode) ensureBufferedWriteHandler() error {
 	}
 
 	return nil
+}
+
+func (f *FileInode) bufferedWritesEnabled() bool {
+	return f.local && f.writeConfig.ExperimentalEnableStreamingWrites
 }
