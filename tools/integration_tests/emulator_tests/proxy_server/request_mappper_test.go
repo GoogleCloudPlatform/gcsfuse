@@ -19,13 +19,10 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestDeduceRequestTypeAndInstruction(t *testing.T) {
-	setup.IgnoreTestIfIntegrationTestFlagIsSet(t)
-
 	tests := []struct {
 		name        string
 		method      string

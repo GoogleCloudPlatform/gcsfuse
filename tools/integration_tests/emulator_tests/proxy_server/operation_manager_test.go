@@ -41,8 +41,6 @@ func TestNewOperationManager(t *testing.T) {
 }
 
 func TestRetrieveOperation(t *testing.T) {
-	setup.IgnoreTestIfIntegrationTestFlagIsSet(t)
-
 	t.Run("One config test", func(t *testing.T) {
 		config := Config{
 			RetryConfig: []RetryConfig{
@@ -136,7 +134,7 @@ func TestRetrieveOperation(t *testing.T) {
 
 func TestAddRetryConfig(t *testing.T) {
 	setup.IgnoreTestIfIntegrationTestFlagIsSet(t)
-	
+
 	om := &OperationManager{
 		retryConfigs: make(map[RequestType][]RetryConfig),
 	}
