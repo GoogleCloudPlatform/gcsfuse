@@ -18,6 +18,7 @@ set -x
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
+# Todo: Remove once gcloud is packaged in SUSE images available on GCP
 if `grep -iq suse /etc/os-release`; then
   sudo echo """[google-cloud-cli]
 name=Google Cloud CLI
@@ -53,6 +54,7 @@ set -e
 # Print commands and their arguments as they are executed.
 set -x
 
+# Determine architecture for SUSE
 if `grep -iq suse /etc/os-release`; then
   # uname can be aarch or x86_64
   uname=$(uname -i)
@@ -61,7 +63,10 @@ if `grep -iq suse /etc/os-release`; then
   elif [[ $uname == "aarch64" ]]; then
     architecture="arm64"
   fi
+fi
 
+# Todo: Remove once gcloud is packaged in SUSE images available on GCP
+if `grep -iq suse /etc/os-release`; then
   if [[ $architecture == "arm64" ]]; then
     # Create a temporary expect script
     expect_script=$(mktemp)
@@ -90,12 +95,11 @@ EOF
 fi
 
 cd ~/
-#details.txt file contains the release version and commit hash of the current release.
+# details.txt file contains the release version and commit hash of the current release.
 gsutil cp  gs://gcsfuse-release-packages/version-detail/details.txt .
-
+# Writing VM instance name to details.txt (Format: release-test-<os-name>)
 curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google" >> details.txt
 
-cat details.txt
 touch logs.txt
 touch logs-hns.txt
 
@@ -104,7 +108,7 @@ echo Current Working Directory: $(pwd)  &>> ~/logs.txt
 
 # Based on the os type in detail.txt, run the following commands for setup
 
-if grep -iq ubuntu details.txt || grep -q debian details.txt;
+if grep -q ubuntu details.txt || grep -q debian details.txt;
 then
 #  For Debian and Ubuntu os
     # architecture can be amd64 or arm64
@@ -135,16 +139,7 @@ then
     sudo apt install -y build-essential
 elif grep -q suse details.txt || grep -q sles details.txt;
 then
-#  For rhel and centos
-    # uname can be aarch or x86_64
-    uname=$(uname -i)
-
-    if [[ $uname == "x86_64" ]]; then
-      architecture="amd64"
-    elif [[ $uname == "aarch64" ]]; then
-      architecture="arm64"
-    fi
-
+#  For suse linux
     sudo zypper refresh
 
     #Install fuse
@@ -263,7 +258,6 @@ TEST_DIR_NON_PARALLEL=(
 # Create a temporary file to store the log file name.
 TEST_LOGS_FILE=$(mktemp)
 
-GO_TEST_SHORT_FLAG="-short"
 INTEGRATION_TEST_TIMEOUT=180m
 
 function run_non_parallel_tests() {
