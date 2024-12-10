@@ -305,8 +305,7 @@ function run_e2e_tests_for_tpc() {
 }
 
 function run_e2e_tests_for_emulator() {
-  ls
-  ./tool/integration_tests/emulator_tests/emulator_tests.sh
+  ./tools/integration_tests/emulator_tests/emulator_tests.sh
 }
 
 #commenting it so cleanup and failure check happens for both
