@@ -166,6 +166,7 @@ func TestValidateConfigSuccessful(t *testing.T) {
 					EnableParallelDownloads:  true,
 					MaxParallelDownloads:     4,
 					ParallelDownloadsPerFile: 16,
+					MaxSizeMb:                -1,
 					WriteBufferSize:          4 * 1024 * 1024,
 				},
 				GcsConnection: GcsConnectionConfig{

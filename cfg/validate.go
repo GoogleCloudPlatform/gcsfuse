@@ -46,6 +46,9 @@ func isValidURL(u string) error {
 
 func isValidParallelDownloadConfig(config *Config) error {
 	if config.FileCache.EnableParallelDownloads {
+		if !IsFileCacheEnabled(config) {
+			return errors.New("file cache should be enabled for parallel download support")
+		}
 		if config.FileCache.MaxParallelDownloads == 0 {
 			return errors.New("the value of max-parallel-downloads for file-cache must not be 0 when enable-parallel-downloads is true")
 		}
@@ -54,9 +57,6 @@ func isValidParallelDownloadConfig(config *Config) error {
 		}
 		if (config.FileCache.WriteBufferSize % CacheUtilMinimumAlignSizeForWriting) != 0 {
 			return errors.New("the value of write-buffer-size for file-cache should be in multiple of 4096")
-		}
-		if string(config.CacheDir) == "" {
-			return errors.New("file cache directory is manadatory for parallel download")
 		}
 	}
 
