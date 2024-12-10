@@ -193,7 +193,7 @@ func (t *FileTest) TestInitialAttributes_MtimeFromObjectMetadata_Gcsfuse() {
 
 	// Ask it for its attributes.
 	attrs, err := t.in.Attributes(t.ctx)
-	assert.Nil(t.T(), err)
+	assert.Equal(t.T(), nil, err)
 
 	assert.Equal(t.T(), attrs.Mtime, mtime)
 }
