@@ -15,96 +15,42 @@
 package emulator_tests
 
 import (
-	"crypto/rand"
-	"io"
 	"log"
 	"os"
-	"path"
 	"testing"
-	"time"
 
-	emulator_tests "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/emulator_tests/util"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
-	"github.com/stretchr/testify/assert"
 )
 
-////////////////////////////////////////////////////////////////////////
-// Boilerplate
-////////////////////////////////////////////////////////////////////////
+const (
+	testDirName = "EmulatorTests"
+)
 
-const fileSize = 50 * 1024 * 1024
+var (
+	mountFunc func([]string) error
+	// mount directory is where our tests run.
+	mountDir string
+	// root directory is the directory to be unmounted.
+	rootDir string
+)
 
-type writeStall struct {
-	flags []string
-}
+func TestMain(m *testing.M) {
+	setup.ParseSetUpFlags()
+	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
-func (s *writeStall) Setup(t *testing.T) {
-	emulator_tests.StartProcess()
-	setup.MountGCSFuseWithGivenMountFunc(s.flags, mountFunc)
-}
+	// If Mounted Directory flag is set, run tests for mounted directory.
+	setup.RunTestsForMountedDirectoryFlag(m)
 
-func (s *writeStall) Teardown(t *testing.T) {
-	assert.NoError(t, emulator_tests.KillProcessesOnPort(8020))
-	setup.UnmountGCSFuse(rootDir)
-}
+	// Else run tests for testBucket.
+	// Set up test directory.
+	setup.SetUpTestDirForTestBucketFlag()
 
-////////////////////////////////////////////////////////////////////////
-// Test scenarios
-////////////////////////////////////////////////////////////////////////
+	// Save mount and root directory variables.
+	mountDir, rootDir = setup.MntDir(), setup.MntDir()
 
-// This test verifies that write operations stall for the expected duration
-// when a write stall is induced. It creates a file, writes data to it,
-// and then calls Sync() to ensure the data is written to disk. The test
-// measures the time taken for the Sync() operation and asserts that it
-// is greater than or equal to the configured stall time.
-func (s *writeStall) TestWriteStallCausesDelay(t *testing.T) {
-	stallTime := 40 * time.Second
-	testDirPath := path.Join(setup.MntDir(), testDirName)
-	filePath := path.Join(testDirPath, "file.txt")
-	// Create a file for writing
-	file, err := os.Create(filePath)
-	if err != nil {
-		assert.NoError(t, err)
-	}
-	defer file.Close()
-
-	// Generate random data
-	data := make([]byte, fileSize)
-	if _, err := io.ReadFull(rand.Reader, data); err != nil {
-		assert.NoError(t, err)
-	}
-
-	// Write the data to the file
-	if _, err := file.Write(data); err != nil {
-		assert.NoError(t, err)
-	}
-	startTime := time.Now()
-	err = file.Sync()
-	// End timer
-	endTime := time.Now()
-	elapsedTime := endTime.Sub(startTime)
-	assert.NoError(t, err)
-
-	assert.GreaterOrEqual(t, elapsedTime, stallTime)
-}
-
-////////////////////////////////////////////////////////////////////////
-// Test Function (Runs once before all tests)
-////////////////////////////////////////////////////////////////////////
-
-func TestWriteStall(t *testing.T) {
-	ts := &writeStall{}
-
-	// Define flag set to run the tests.
-	flagsSet := [][]string{
-		{"--custom-endpoint=http://localhost:8020/storage/v1/b?project=test-project/b?bucket=test-bucket"},
-	}
-
-	// Run tests.
-	for _, flags := range flagsSet {
-		ts.flags = flags
-		log.Printf("Running tests with flags: %s", ts.flags)
-		test_setup.RunTests(t, ts)
-	}
+	log.Println("Running static mounting tests...")
+	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
+	successCode := m.Run()
+	os.Exit(successCode)
 }
