@@ -19,7 +19,9 @@ set -x
 set -e
 
 # Todo: Remove once gcloud is packaged in SUSE images available on GCP
-if `grep -iq suse /etc/os-release`; then
+# Add repo file for gcloud
+if `grep -iq sles /etc/os-release`;
+then
   sudo echo """[google-cloud-cli]
 name=Google Cloud CLI
 baseurl=https://packages.cloud.google.com/yum/repos/cloud-sdk-el9-x86_64
@@ -54,20 +56,30 @@ set -e
 # Print commands and their arguments as they are executed.
 set -x
 
-# Determine architecture for SUSE
-if `grep -iq suse /etc/os-release`; then
+# Determine architecture
+if grep -q ubuntu details.txt || grep -q debian details.txt;
+then
+  # architecture can be amd64 or arm64
+  architecture=$(dpkg --print-architecture)
+elif `grep -iq sles /etc/os-release` || grep -q rhel details.txt || grep -q centos details.txt;
+then
   # uname can be aarch or x86_64
   uname=$(uname -i)
-  if [[ $uname == "x86_64" ]]; then
+  if [[ $uname == "x86_64" ]];
+  then
     architecture="amd64"
-  elif [[ $uname == "aarch64" ]]; then
+  elif [[ $uname == "aarch64" ]];
+  then
     architecture="arm64"
   fi
 fi
 
 # Todo: Remove once gcloud is packaged in SUSE images available on GCP
-if `grep -iq suse /etc/os-release`; then
-  if [[ $architecture == "arm64" ]]; then
+# Install gcloud
+if `grep -iq suse /etc/os-release`;
+then
+  if [[ $architecture == "arm64" ]];
+  then
     # Create a temporary expect script
     expect_script=$(mktemp)
     cat <<EOF > "$expect_script"
@@ -111,9 +123,6 @@ echo Current Working Directory: $(pwd)  &>> ~/logs.txt
 if grep -q ubuntu details.txt || grep -q debian details.txt;
 then
 #  For Debian and Ubuntu os
-    # architecture can be amd64 or arm64
-    architecture=$(dpkg --print-architecture)
-
     sudo apt update
 
     #Install fuse
@@ -137,7 +146,7 @@ then
 
     #install build-essentials
     sudo apt install -y build-essential
-elif grep -q suse details.txt || grep -q sles details.txt;
+elif grep -q sles details.txt;
 then
 #  For suse linux
     sudo zypper refresh
@@ -160,15 +169,6 @@ then
     sudo zypper install -y gcc gcc-c++ make
 else
 #  For rhel and centos
-    # uname can be aarch or x86_64
-    uname=$(uname -i)
-
-    if [[ $uname == "x86_64" ]]; then
-      architecture="amd64"
-    elif [[ $uname == "aarch64" ]]; then
-      architecture="arm64"
-    fi
-
     sudo yum makecache
     sudo yum -y update
 
@@ -212,7 +212,7 @@ then
     # Downloading composite object requires integrity checking with CRC32c in gsutil.
     # it requires to install crcmod.
     pip3 install --require-hashes -r tools/cd_scripts/requirements.txt --user
-elif grep -q suse details.txt || grep -q sles details.txt;
+elif grep -iq sles details.txt;
 then
     # install python3-setuptools tools and python3-pip
     sudo zypper install -y gcc python3-devel python3-setuptools redhat-rpm-config
