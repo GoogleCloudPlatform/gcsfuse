@@ -688,21 +688,19 @@ func CreateLocalTempFile(content string, gzipCompress bool) (string, error) {
 	return writeTextToFile(f, f.Name(), content, len(content))
 }
 
-func CreateLocalFile(ctx context.Context, mntDir string, bucket gcs.Bucket, fileName string, t *testing.T) (filePath string, f *os.File) {
+func CreateLocalFile(ctx context.Context, t *testing.T, mntDir string, bucket gcs.Bucket, fileName string) (filePath string, f *os.File) {
 	t.Helper()
 	// Creating a file shouldn't create file on GCS.
 	filePath = path.Join(mntDir, fileName)
-	_, err := os.Stat(mntDir)
-	assert.Equal(t, nil, err)
 
-	f, err = os.Create(filePath)
+	f, err := os.Create(filePath)
 
 	assert.Equal(t, nil, err)
-	ValidateObjectNotFoundErr(ctx, bucket, fileName, t)
+	ValidateObjectNotFoundErr(ctx, t, bucket, fileName)
 	return
 }
 
-func CloseLocalFile(f **os.File, t *testing.T) error {
+func CloseLocalFile(t *testing.T, f **os.File) error {
 	t.Helper()
 	err := (*f).Close()
 	*f = nil
