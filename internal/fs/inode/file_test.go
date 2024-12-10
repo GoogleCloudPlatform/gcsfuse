@@ -384,7 +384,7 @@ func (t *FileTest) TestWriteThenSync() {
 	m, _, err := t.bucket.StatObject(t.ctx, statReq)
 
 	assert.Nil(t.T(), err)
-	assert.NotEqual(t.T(), nil, m)
+	assert.NotNil(t.T(), m)
 	assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
 	assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
 	assert.Equal(t.T(), uint64(len("paco")), m.Size)
@@ -431,7 +431,7 @@ func (t *FileTest) TestWriteToLocalFileThenSync() {
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	m, _, err := t.bucket.StatObject(t.ctx, statReq)
 	assert.Nil(t.T(), err)
-	assert.NotEqual(t.T(), nil, m)
+	assert.NotNil(t.T(), m)
 	assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
 	assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
 	assert.Equal(t.T(), uint64(len("tacos")), m.Size)
@@ -469,7 +469,7 @@ func (t *FileTest) TestSyncEmptyLocalFile() {
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	m, _, err := t.bucket.StatObject(t.ctx, statReq)
 	assert.Nil(t.T(), err)
-	assert.NotEqual(t.T(), nil, m)
+	assert.NotNil(t.T(), m)
 	assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
 	assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
 	assert.Equal(t.T(), uint64(0), m.Size)
@@ -515,7 +515,7 @@ func (t *FileTest) TestAppendThenSync() {
 	m, _, err := t.bucket.StatObject(t.ctx, statReq)
 
 	assert.Nil(t.T(), err)
-	assert.NotEqual(t.T(), nil, m)
+	assert.NotNil(t.T(), m)
 	assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
 	assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
 	assert.Equal(t.T(), uint64(len("tacoburrito")), m.Size)
@@ -562,7 +562,7 @@ func (t *FileTest) TestTruncateDownwardThenSync() {
 	m, _, err := t.bucket.StatObject(t.ctx, statReq)
 
 	assert.Nil(t.T(), err)
-	assert.NotEqual(t.T(), nil, m)
+	assert.NotNil(t.T(), m)
 	assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
 	assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
 	assert.Equal(t.T(), uint64(2), m.Size)
@@ -608,7 +608,7 @@ func (t *FileTest) TestTruncateUpwardThenSync() {
 		m.Metadata["gcsfuse_mtime"])
 
 	assert.Nil(t.T(), err)
-	assert.NotEqual(t.T(), nil, m)
+	assert.NotNil(t.T(), m)
 	assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
 	assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
 	assert.Equal(t.T(), uint64(6), m.Size)
@@ -643,7 +643,7 @@ func (t *FileTest) TestTestTruncateUpwardForLocalFileShouldUpdateLocalFileAttrib
 	// Data shouldn't be updated to GCS.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	_, _, err = t.bucket.StatObject(t.ctx, statReq)
-	assert.NotEqual(t.T(), nil, err)
+	assert.NotNil(t.T(), err)
 	assert.Equal(t.T(), "gcs.NotFoundError: object test not found", err.Error())
 }
 
@@ -672,7 +672,7 @@ func (t *FileTest) TestTestTruncateDownwardForLocalFileShouldUpdateLocalFileAttr
 	// Data shouldn't be updated to GCS.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	_, _, err = t.bucket.StatObject(t.ctx, statReq)
-	assert.NotEqual(t.T(), nil, err)
+	assert.NotNil(t.T(), err)
 	assert.Equal(t.T(), "gcs.NotFoundError: object test not found", err.Error())
 }
 
@@ -706,7 +706,7 @@ func (t *FileTest) TestSync_Clobbered() {
 	m, _, err := t.bucket.StatObject(t.ctx, statReq)
 
 	assert.Nil(t.T(), err)
-	assert.NotEqual(t.T(), nil, m)
+	assert.NotNil(t.T(), m)
 	assert.Equal(t.T(), newObj.Generation, m.Generation)
 	assert.Equal(t.T(), newObj.Size, m.Size)
 }
@@ -751,7 +751,7 @@ func (t *FileTest) TestSetMtime_ContentNotFaultedIn() {
 	m, _, err := t.bucket.StatObject(t.ctx, statReq)
 
 	assert.Nil(t.T(), err)
-	assert.NotEqual(t.T(), nil, m)
+	assert.NotNil(t.T(), m)
 	assert.Equal(t.T(),
 		mtime.UTC().Format(time.RFC3339Nano),
 		m.Metadata["gcsfuse_mtime"])
@@ -782,7 +782,7 @@ func (t *FileTest) TestSetMtime_ContentClean() {
 	m, _, err := t.bucket.StatObject(t.ctx, statReq)
 
 	assert.Nil(t.T(), err)
-	assert.NotEqual(t.T(), nil, m)
+	assert.NotNil(t.T(), m)
 	assert.Equal(t.T(),
 		mtime.UTC().Format(time.RFC3339Nano),
 		m.Metadata["gcsfuse_mtime"])
@@ -817,7 +817,7 @@ func (t *FileTest) TestSetMtime_ContentDirty() {
 	m, _, err := t.bucket.StatObject(t.ctx, statReq)
 
 	assert.Nil(t.T(), err)
-	assert.NotEqual(t.T(), nil, m)
+	assert.NotNil(t.T(), m)
 	assert.Equal(t.T(),
 		mtime.UTC().Format(time.RFC3339Nano),
 		m.Metadata["gcsfuse_mtime"])
@@ -845,7 +845,7 @@ func (t *FileTest) TestSetMtime_SourceObjectGenerationChanged() {
 	m, _, err := t.bucket.StatObject(t.ctx, statReq)
 
 	assert.Nil(t.T(), err)
-	assert.NotEqual(t.T(), nil, m)
+	assert.NotNil(t.T(), m)
 	assert.Equal(t.T(), newObj.Generation, m.Generation)
 	assert.Equal(t.T(), 0, len(m.Metadata))
 }
@@ -874,7 +874,7 @@ func (t *FileTest) TestSetMtime_SourceObjectMetaGenerationChanged() {
 	m, _, err := t.bucket.StatObject(t.ctx, statReq)
 
 	assert.Nil(t.T(), err)
-	assert.NotEqual(t.T(), nil, m)
+	assert.NotNil(t.T(), m)
 	assert.Equal(t.T(), newObj.Generation, m.Generation)
 	assert.Equal(t.T(), newObj.MetaGeneration, m.MetaGeneration)
 }
@@ -906,7 +906,7 @@ func (t *FileTest) TestTestSetMtimeForLocalFileShouldUpdateLocalFileAttributes()
 	// Data shouldn't be updated to GCS.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	_, _, err = t.bucket.StatObject(t.ctx, statReq)
-	assert.NotEqual(t.T(), nil, err)
+	assert.NotNil(t.T(), err)
 	assert.Equal(t.T(), "gcs.NotFoundError: object test not found", err.Error())
 }
 
@@ -968,14 +968,14 @@ func (t *FileTest) TestContentEncodingOther() {
 func (t *FileTest) TestTestCheckInvariantsShouldNotThrowExceptionForLocalFiles() {
 	t.createInodeWithLocalParam("test", true)
 
-	assert.NotEqual(t.T(), nil, t.in)
+	assert.NotNil(t.T(), t.in)
 }
 
 func (t *FileTest) TestCreateBufferedOrTempWriterShouldCreateEmptyFile() {
 	err := t.in.CreateBufferedOrTempWriter()
 
 	assert.Nil(t.T(), err)
-	assert.NotEqual(t.T(), nil, t.in.content)
+	assert.NotNil(t.T(), t.in.content)
 	// Validate that file size is 0.
 	sr, err := t.in.content.Stat()
 	assert.Nil(t.T(), err)
@@ -1024,7 +1024,7 @@ func (t *FileTest) TestUnlinkLocalFile() {
 	// Data shouldn't be updated to GCS.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	_, _, err = t.bucket.StatObject(t.ctx, statReq)
-	assert.NotEqual(t.T(), nil, err)
+	assert.NotNil(t.T(), err)
 	assert.Equal(t.T(), "gcs.NotFoundError: object test not found", err.Error())
 }
 
@@ -1040,7 +1040,7 @@ func (t *FileTest) TestReadLocalFileWhenStreamingWritesAreEnabled() {
 	n, err := t.in.Read(t.ctx, data, 0)
 
 	assert.Equal(t.T(), 0, n)
-	assert.NotEqual(t.T(), nil, err)
+	assert.NotNil(t.T(), err)
 	assert.Equal(t.T(), "cannot read a local file when upload in progress", err.Error())
 }
 
@@ -1052,7 +1052,7 @@ func (t *FileTest) TestWriteToLocalFileWithInvalidConfigWhenStreamingWritesAreEn
 
 	err := t.in.Write(t.ctx, []byte("hi"), 0)
 
-	assert.NotEqual(t.T(), nil, err)
+	assert.NotNil(t.T(), err)
 	assert.True(t.T(), strings.Contains(err.Error(), "invalid configuration"))
 }
 
@@ -1065,7 +1065,7 @@ func (t *FileTest) TestWriteToLocalFileWhenStreamingWritesAreEnabled() {
 	err := t.in.Write(t.ctx, []byte("hi"), 0)
 
 	assert.Nil(t.T(), err)
-	assert.NotEqual(t.T(), nil, t.in.bwh)
+	assert.NotNil(t.T(), t.in.bwh)
 	writeFileInfo := t.in.bwh.WriteFileInfo()
 	assert.Equal(t.T(), int64(2), writeFileInfo.TotalSize)
 }
@@ -1079,7 +1079,7 @@ func (t *FileTest) TestMultipleWritesToLocalFileWhenStreamingWritesAreEnabled() 
 
 	err := t.in.Write(t.ctx, []byte("hi"), 0)
 	assert.Nil(t.T(), err)
-	assert.NotEqual(t.T(), nil, t.in.bwh)
+	assert.NotNil(t.T(), t.in.bwh)
 	assert.Equal(t.T(), int64(2), t.in.bwh.WriteFileInfo().TotalSize)
 
 	err = t.in.Write(t.ctx, []byte("hello"), 2)
