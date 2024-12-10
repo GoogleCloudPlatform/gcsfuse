@@ -38,14 +38,11 @@ import (
 
 type FileStreamingWritesTest struct {
 	suite.Suite
-	ctx    context.Context
-	bucket gcs.Bucket
-	clock  timeutil.SimulatedClock
-
-	initialContents string
-	backingObj      *gcs.MinObject
-
-	in *FileInode
+	ctx        context.Context
+	bucket     gcs.Bucket
+	clock      timeutil.SimulatedClock
+	backingObj *gcs.MinObject
+	in         *FileInode
 }
 
 func TestFileStreamingWritesTestSuite(t *testing.T) {
