@@ -40,7 +40,12 @@ spec:
       - "/bin/sh"
       - "-c"
       - |
-        echo "Installing gsutil..."
+        # Fail if any of the commands fails.
+        set -e
+        # Print out the individual commands run.
+        set -x
+
+        echo "Installing gcloud ..."
         apt-get update && apt-get install -y apt-transport-https ca-certificates gnupg curl
         curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
         echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
@@ -57,7 +62,7 @@ spec:
         ++workload.dataset.record_length_stdev=0 \
         ++workload.dataset.record_length_resize=0
 
-        gsutil -m cp -R /data/train gs://{{ .Values.bucketName }}
+        gcloud storage cp -r /data/train gs://{{ .Values.bucketName }}
         mkdir -p /bucket/valid
     volumeMounts:
     - name: local-dir

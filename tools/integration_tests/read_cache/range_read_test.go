@@ -117,6 +117,7 @@ func TestRangeReadTest(t *testing.T) {
 			cacheDirPath:            getDefaultCacheDirPathForTests(),
 		},
 	}
+	flagsSet = appendClientProtocolConfigToFlagSet(flagsSet)
 	for _, flags := range flagsSet {
 		configFilePath := createConfigFile(&flags)
 		ts.flags = []string{"--config-file=" + configFilePath}
@@ -139,6 +140,7 @@ func TestRangeReadTest(t *testing.T) {
 			cacheDirPath:            getDefaultCacheDirPathForTests(),
 		},
 	}
+	flagsSet = appendClientProtocolConfigToFlagSet(flagsSet)
 	for _, flags := range flagsSet {
 		configFilePath := createConfigFile(&flags)
 		ts.flags = []string{"--config-file=" + configFilePath}

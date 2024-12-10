@@ -24,6 +24,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/oglematchers"
@@ -45,6 +46,7 @@ func init() {
 
 func (t *ImplicitDirsTest) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
+	t.serverCfg.MetricHandle = common.NewNoopMetrics()
 	t.fsTest.SetUpTestSuite()
 }
 

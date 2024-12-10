@@ -19,10 +19,15 @@ import (
 	"os"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/benchmark_setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+)
+
+const (
+	expectedDeleteLatency time.Duration = 675 * time.Millisecond
 )
 
 type benchmarkDeleteTest struct{}
@@ -52,6 +57,10 @@ func (s *benchmarkDeleteTest) Benchmark_Delete(b *testing.B) {
 		if err := os.Remove(path.Join(testDirPath, fmt.Sprintf("a%d.txt", i))); err != nil {
 			b.Errorf("testing error: %v", err)
 		}
+	}
+	averageDeleteLatency := time.Duration(int(b.Elapsed()) / b.N)
+	if averageDeleteLatency > expectedDeleteLatency {
+		b.Errorf("DeleteFile took more time (%d msec) than expected (%d msec)", averageDeleteLatency.Milliseconds(), expectedDeleteLatency.Milliseconds())
 	}
 }
 

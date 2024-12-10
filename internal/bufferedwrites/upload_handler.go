@@ -40,6 +40,10 @@ type UploadHandler struct {
 	// writer to resumable upload the blocks to GCS.
 	writer io.WriteCloser
 
+	// signalUploadFailure channel will propagate the upload error to file
+	// inode. This signals permanent failure in the buffered write job.
+	signalUploadFailure chan error
+
 	// Parameters required for creating a new GCS chunk writer.
 	bucket     gcs.Bucket
 	objectName string
@@ -47,14 +51,15 @@ type UploadHandler struct {
 }
 
 // newUploadHandler creates the UploadHandler struct.
-func newUploadHandler(objectName string, bucket gcs.Bucket, freeBlocksCh chan block.Block, blockSize int64) *UploadHandler {
+func newUploadHandler(objectName string, bucket gcs.Bucket, maxBlocks int64, freeBlocksCh chan block.Block, blockSize int64) *UploadHandler {
 	uh := &UploadHandler{
-		uploadCh:     make(chan block.Block),
-		wg:           sync.WaitGroup{},
-		freeBlocksCh: freeBlocksCh,
-		bucket:       bucket,
-		objectName:   objectName,
-		blockSize:    blockSize,
+		uploadCh:            make(chan block.Block, maxBlocks),
+		wg:                  sync.WaitGroup{},
+		freeBlocksCh:        freeBlocksCh,
+		bucket:              bucket,
+		objectName:          objectName,
+		blockSize:           blockSize,
+		signalUploadFailure: make(chan error, 1),
 	}
 	return uh
 }
@@ -67,7 +72,9 @@ func (uh *UploadHandler) Upload(block block.Block) error {
 		// Lazily create the object writer.
 		err := uh.createObjectWriter()
 		if err != nil {
-			return fmt.Errorf("createObjectWriter: %w", err)
+			// createObjectWriter can only fail here due to throttling, so we will not
+			// handle this error explicitly or fall back to temp file flow.
+			return fmt.Errorf("createObjectWriter failed for object %s: %w", uh.objectName, err)
 		}
 		// Start the uploader goroutine.
 		go uh.uploader()
@@ -96,9 +103,10 @@ func (uh *UploadHandler) uploader() {
 	for currBlock := range uh.uploadCh {
 		_, err := io.Copy(uh.writer, currBlock.Reader())
 		if err != nil {
-			logger.Errorf("upload failed: error in io.Copy: %v", err)
-			uh.wg.Done()
-			// TODO: handle failure scenario: finalize the upload and trigger edit flow.
+			logger.Errorf("buffered write upload failed for object %s: error in io.Copy: %v", uh.objectName, err)
+			// Close the channel to signal upload failure.
+			close(uh.signalUploadFailure)
+			return
 		}
 		uh.wg.Done()
 
@@ -113,17 +121,22 @@ func (uh *UploadHandler) Finalize() error {
 	close(uh.uploadCh)
 
 	if uh.writer == nil {
-		// Writer may not have been created for empty file creation flow.
+		// Writer may not have been created for empty file creation flow or for very
+		// small writes of size less than 1 block.
 		err := uh.createObjectWriter()
 		if err != nil {
-			return fmt.Errorf("createObjectWriter: %w", err)
+			return fmt.Errorf("createObjectWriter failed for object %s: %w", uh.objectName, err)
 		}
 	}
 
 	err := uh.writer.Close()
 	if err != nil {
-		logger.Errorf("UploadHandler.Finalize(): %v", err)
-		return fmt.Errorf("writer.Close: %w", err)
+		logger.Errorf("UploadHandler.Finalize(%s): %v", uh.objectName, err)
+		return fmt.Errorf("writer.Close failed for object %s: %w", uh.objectName, err)
 	}
 	return nil
+}
+
+func (uh *UploadHandler) SignalUploadFailure() chan error {
+	return uh.signalUploadFailure
 }

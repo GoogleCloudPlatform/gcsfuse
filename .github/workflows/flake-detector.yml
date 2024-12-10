@@ -31,11 +31,8 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Test all except caching parallely
-        run: CGO_ENABLED=0 go test -timeout 75m -count 20 -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./... | grep -v internal/cache/...`
-
-      - name: Test caching
-        run: CGO_ENABLED=0 go test -p 1 -timeout 75m -count 20 -v -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` ./internal/cache/...
+      - name: Test all
+        run: CGO_ENABLED=0 go test -p 1 -timeout 75m -count 20 -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./...`
 
       - name: Cache RaceDetector Test
         run: CGO_ENABLED=0 go test -p 1 -timeout 75m -count 20 ./internal/cache/...

@@ -31,7 +31,7 @@ RUN_TEST_ON_TPC_ENDPOINT=false
 if [ $4 != "" ]; then
   RUN_TEST_ON_TPC_ENDPOINT=$4
 fi
-INTEGRATION_TEST_TIMEOUT_IN_MINS=80
+INTEGRATION_TEST_TIMEOUT_IN_MINS=90
 
 RUN_TESTS_WITH_PRESUBMIT_FLAG=false
 if [ $# -ge 5 ] ; then
@@ -80,6 +80,8 @@ TEST_DIR_PARALLEL=(
   "log_content"
   "kernel_list_cache"
   "concurrent_operations"
+  "benchmarking"
+  "mount_timeout"
 )
 
 # These tests never become parallel as it is changing bucket permissions.
@@ -170,17 +172,24 @@ function run_parallel_tests() {
   local exit_code=0
   local -n test_array=$1
   local bucket_name_parallel=$2
+  local benchmark_flags=""
   local pids=()
 
   for test_dir_p in "${test_array[@]}"
   do
+    # Unlike regular tests,benchmark tests are not executed by default when using go test .
+    # The -bench flag yells go test to run the benchmark tests and report their results by
+    # enabling the benchmarking framework.
+    if [ $test_dir_p == "benchmarking" ]; then
+      benchmark_flags="-bench=."
+    fi
     test_path_parallel="./tools/integration_tests/$test_dir_p"
     # To make it clear whether tests are running on a flat or HNS bucket, We kept the log file naming
     # convention to include the bucket name as a suffix (e.g., package_name_bucket_name).
     local log_file="/tmp/${test_dir_p}_${bucket_name_parallel}.log"
     echo $log_file >> $TEST_LOGS_FILE
     # Executing integration tests
-    GODEBUG=asyncpreemptoff=1 go test $test_path_parallel $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG -p 1 --integrationTest -v --testbucket=$bucket_name_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1 &
+    GODEBUG=asyncpreemptoff=1 go test $test_path_parallel $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG $benchmark_flags -p 1 --integrationTest -v --testbucket=$bucket_name_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1 &
     pid=$!  # Store the PID of the background process
     pids+=("$pid")  # Optionally add the PID to an array for later
   done

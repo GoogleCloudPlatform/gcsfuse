@@ -21,6 +21,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/canned"
@@ -66,7 +67,7 @@ type BucketConfig struct {
 type BucketManager interface {
 	SetUpBucket(
 		ctx context.Context,
-		name string, isMultibucketMount bool) (b SyncerBucket, err error)
+		name string, isMultibucketMount bool, metricHandle common.MetricHandle) (b SyncerBucket, err error)
 
 	// Shuts down the bucket manager and its buckets
 	ShutDown()
@@ -155,18 +156,19 @@ func (bm *bucketManager) SetUpBucket(
 	ctx context.Context,
 	name string,
 	isMultibucketMount bool,
+	metricHandle common.MetricHandle,
 ) (sb SyncerBucket, err error) {
 	var b gcs.Bucket
 	// Set up the appropriate backing bucket.
 	if name == canned.FakeBucketName {
 		b = canned.MakeFakeBucket(ctx)
 	} else {
-		b = bm.storageHandle.BucketHandle(name, bm.config.BillingProject)
+		b = bm.storageHandle.BucketHandle(ctx, name, bm.config.BillingProject)
 	}
 
 	// Enable monitoring.
 	if bm.config.EnableMonitoring {
-		b = monitor.NewMonitoringBucket(b)
+		b = monitor.NewMonitoringBucket(b, metricHandle)
 	}
 
 	// Enable gcs logs.

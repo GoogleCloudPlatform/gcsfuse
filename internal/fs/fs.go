@@ -28,7 +28,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
+
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
@@ -125,6 +128,8 @@ type ServerConfig struct {
 
 	// NewConfig has all the config specified by the user using config-file or CLI flags.
 	NewConfig *cfg.Config
+
+	MetricHandle common.MetricHandle
 }
 
 // Create a fuse file system server according to the supplied configuration.
@@ -190,6 +195,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		fileCacheHandler:           fileCacheHandler,
 		cacheFileForRangeRead:      serverCfg.NewConfig.FileCache.CacheFileForRangeRead,
 		globalMaxBlocksSem:         semaphore.NewWeighted(serverCfg.NewConfig.Write.GlobalMaxBlocks),
+		metricHandle:               serverCfg.MetricHandle,
 	}
 
 	// Set up root bucket
@@ -199,7 +205,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		root = makeRootForAllBuckets(fs)
 	} else {
 		logger.Info("Set up root directory for bucket " + serverCfg.BucketName)
-		syncerBucket, err := fs.bucketManager.SetUpBucket(ctx, serverCfg.BucketName, false)
+		syncerBucket, err := fs.bucketManager.SetUpBucket(ctx, serverCfg.BucketName, false, fs.metricHandle)
 		if err != nil {
 			return nil, fmt.Errorf("SetUpBucket: %w", err)
 		}
@@ -242,7 +248,7 @@ func createFileCacheHandler(serverCfg *ServerConfig) (fileCacheHandler *file.Cac
 		return nil, fmt.Errorf("createFileCacheHandler: while creating file cache directory: %w", cacheDirErr)
 	}
 
-	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir, serverCfg.SequentialReadSizeMb, &serverCfg.NewConfig.FileCache)
+	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir, serverCfg.SequentialReadSizeMb, &serverCfg.NewConfig.FileCache, serverCfg.MetricHandle)
 	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager, cacheDir, filePerm, dirPerm)
 	return
 }
@@ -291,6 +297,7 @@ func makeRootForAllBuckets(fs *fileSystem) inode.DirInode {
 			Mtime: fs.mtimeClock.Now(),
 		},
 		fs.bucketManager,
+		fs.metricHandle,
 	)
 }
 
@@ -479,6 +486,8 @@ type fileSystem struct {
 	cacheFileForRangeRead bool
 
 	globalMaxBlocksSem *semaphore.Weighted
+
+	metricHandle common.MetricHandle
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -1113,9 +1122,12 @@ func (fs *fileSystem) syncFile(
 	ctx context.Context,
 	f *inode.FileInode) (err error) {
 	// SyncFile can be triggered for unlinked files if the fileHandle is open by
-	// same or another user. Silently ignore the syncFile call.
-	// This is in sync with non-local file behaviour.
+	// same or another user. This indicates a potential file clobbering scenario:
+	// - The file was deleted (unlinked) while a handle to it was still open.
 	if f.IsLocal() && f.IsUnlinked() {
+		err = &gcsfuse_errors.FileClobberedError{
+			Err: fmt.Errorf("file %s was unlinked while it was still open, indicating file clobbering", f.Name().LocalName()),
+		}
 		return
 	}
 
@@ -1143,12 +1155,12 @@ func (fs *fileSystem) syncFile(
 	// We need not update fileIndex:
 	//
 	// We've held the inode lock the whole time, so there's no way that this
-	// inode could have been booted from the index. Therefore if it's not in the
+	// inode could have been booted from the index. Therefore, if it's not in the
 	// index at the moment, it must not have been in there when we started. That
-	// is, it must have been clobbered remotely, which we treat as unlinking.
+	// is, it must have been clobbered remotely.
 	//
 	// In other words, either this inode is still in the index or it has been
-	// unlinked and *should* be anonymous.
+	// clobbered and *should* be anonymous.
 
 	return
 }
@@ -1685,13 +1697,10 @@ func (fs *fileSystem) createLocalFile(
 	}
 	child = fs.mintInode(core)
 	fs.localFileInodes[child.Name()] = child
-	// For buffered writes, we don't create temp files on disk.
-	if !fs.newConfig.Write.ExperimentalEnableStreamingWrites {
-		// Empty file is created to be able to set attributes on the file.
-		fileInode := child.(*inode.FileInode)
-		if err := fileInode.CreateEmptyTempFile(); err != nil {
-			return nil, err
-		}
+	// Empty file is created to be able to set attributes on the file.
+	fileInode := child.(*inode.FileInode)
+	if err := fileInode.CreateBufferedOrTempWriter(); err != nil {
+		return nil, err
 	}
 	fs.mu.Unlock()
 
@@ -1735,7 +1744,7 @@ func (fs *fileSystem) CreateFile(
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
-	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead)
+	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle)
 	op.Handle = handleID
 
 	fs.mu.Unlock()
@@ -2379,7 +2388,7 @@ func (fs *fileSystem) OpenFile(
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
-	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead)
+	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle)
 	op.Handle = handleID
 
 	// When we observe object generations that we didn't create, we assign them

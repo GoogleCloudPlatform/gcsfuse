@@ -50,3 +50,8 @@ func ListCacheTTLSecsToDuration(secs int64) time.Duration {
 
 	return time.Duration(secs * int64(time.Second))
 }
+
+// IsMetricsEnabled returns true if metrics are enabled.
+func IsMetricsEnabled(c *MetricsConfig) bool {
+	return c.CloudMetricsExportIntervalSecs > 0 || c.PrometheusPort > 0
+}

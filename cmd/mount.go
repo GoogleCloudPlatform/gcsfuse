@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"golang.org/x/net/context"
@@ -40,7 +41,8 @@ func mountWithStorageHandle(
 	bucketName string,
 	mountPoint string,
 	newConfig *cfg.Config,
-	storageHandle storage.StorageHandle) (mfs *fuse.MountedFileSystem, err error) {
+	storageHandle storage.StorageHandle,
+	metricHandle common.MetricHandle) (mfs *fuse.MountedFileSystem, err error) {
 	// Sanity check: make sure the temporary directory exists and is writable
 	// currently. This gives a better user experience than harder to debug EIO
 	// errors when reading files in the future.
@@ -91,7 +93,7 @@ be interacting with the file system.`)
 		OpRateLimitHz:                      newConfig.GcsConnection.LimitOpsPerSec,
 		StatCacheMaxSizeMB:                 uint64(newConfig.MetadataCache.StatCacheMaxSizeMb),
 		StatCacheTTL:                       time.Duration(newConfig.MetadataCache.TtlSecs) * time.Second,
-		EnableMonitoring:                   newConfig.Metrics.StackdriverExportInterval > 0 || newConfig.Metrics.PrometheusPort != 0,
+		EnableMonitoring:                   cfg.IsMetricsEnabled(&newConfig.Metrics),
 		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.
 		TmpObjectPrefix:                    ".gcsfuse_tmp/",
 	}
@@ -115,6 +117,7 @@ be interacting with the file system.`)
 		SequentialReadSizeMb:       int32(newConfig.GcsConnection.SequentialReadSizeMb),
 		EnableNonexistentTypeCache: newConfig.MetadataCache.EnableNonexistentTypeCache,
 		NewConfig:                  newConfig,
+		MetricHandle:               metricHandle,
 	}
 
 	logger.Infof("Creating a new server...\n")

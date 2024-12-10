@@ -29,6 +29,7 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
@@ -106,14 +107,14 @@ func (cht *cacheHandleTest) verifyContentRead(readStartOffset int64, expectedCon
 func (cht *cacheHandleTest) SetupTest() {
 	locker.EnableInvariantsCheck()
 	cht.cacheDir = path.Join(os.Getenv("HOME"), "cache/dir")
+	ctx := context.Background()
 
 	// Create bucket in fake storage.
 	cht.fakeStorage = storage.NewFakeStorage()
 	storageHandle := cht.fakeStorage.CreateStorageHandle()
-	cht.bucket = storageHandle.BucketHandle(storage.TestBucketName, "")
+	cht.bucket = storageHandle.BucketHandle(ctx, storage.TestBucketName, "")
 
 	// Create test object in the bucket.
-	ctx := context.Background()
 	testObjectContent := make([]byte, TestObjectSize)
 	n, err := rand.Read(testObjectContent)
 	assert.Equal(cht.T(), TestObjectSize, n)
@@ -148,6 +149,7 @@ func (cht *cacheHandleTest) SetupTest() {
 		func() {},
 		fileCacheConfig,
 		semaphore.NewWeighted(math.MaxInt64),
+		common.NewNoopMetrics(),
 	)
 
 	cht.cacheHandle = NewCacheHandle(readLocalFileHandle, fileDownloadJob, cht.cache, false, 0)
@@ -855,6 +857,7 @@ func (cht *cacheHandleTest) Test_SequentialRead_Parallel_Download_True() {
 		func() {},
 		fileCacheConfig,
 		semaphore.NewWeighted(math.MaxInt64),
+		common.NewNoopMetrics(),
 	)
 	cht.cacheHandle.fileDownloadJob = fileDownloadJob
 
@@ -889,6 +892,7 @@ func (cht *cacheHandleTest) Test_RandomRead_Parallel_Download_True() {
 		func() {},
 		fileCacheConfig,
 		semaphore.NewWeighted(math.MaxInt64),
+		common.NewNoopMetrics(),
 	)
 	cht.cacheHandle.fileDownloadJob = fileDownloadJob
 
@@ -923,6 +927,7 @@ func (cht *cacheHandleTest) Test_RandomRead_CacheForRangeReadFalse_And_ParallelD
 		func() {},
 		fileCacheConfig,
 		semaphore.NewWeighted(math.MaxInt64),
+		common.NewNoopMetrics(),
 	)
 
 	// Since, it's a random read, download job will not start.

@@ -31,7 +31,7 @@ import (
 func getConfigObject(t *testing.T, args []string) (*cfg.Config, error) {
 	t.Helper()
 	var c *cfg.Config
-	cmd, err := NewRootCmd(func(config *cfg.Config, _, _ string) error {
+	cmd, err := newRootCmd(func(config *cfg.Config, _, _ string) error {
 		c = config
 		return nil
 	})
@@ -514,6 +514,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 					KernelListCacheTtlSecs: 0,
 					RenameDirLimit:         0,
 					TempDir:                "",
+					PreconditionErrors:     false,
 					Uid:                    -1,
 					HandleSigterm:          true,
 				},
@@ -533,6 +534,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 					KernelListCacheTtlSecs: 0,
 					RenameDirLimit:         0,
 					TempDir:                "",
+					PreconditionErrors:     false,
 					Uid:                    -1,
 					HandleSigterm:          true,
 				},
@@ -552,6 +554,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 					KernelListCacheTtlSecs: 300,
 					RenameDirLimit:         10,
 					TempDir:                cfg.ResolvedPath(path.Join(hd, "temp")),
+					PreconditionErrors:     true,
 					Uid:                    8,
 					HandleSigterm:          true,
 				},

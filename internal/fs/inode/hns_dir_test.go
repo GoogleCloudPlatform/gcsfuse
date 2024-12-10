@@ -23,8 +23,8 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	storagemock "github.com/googlecloudplatform/gcsfuse/v2/internal/storage/mock"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
@@ -42,7 +42,7 @@ type HNSDirTest struct {
 	ctx        context.Context
 	bucket     gcsx.SyncerBucket
 	in         DirInode
-	mockBucket *storage.TestifyMockBucket
+	mockBucket *storagemock.TestifyMockBucket
 	typeCache  metadata.TypeCache
 	fixedTime  timeutil.SimulatedClock
 }
@@ -51,7 +51,7 @@ func TestHNSDirSuite(testSuite *testing.T) { suite.Run(testSuite, new(HNSDirTest
 
 func (t *HNSDirTest) SetupTest() {
 	t.ctx = context.Background()
-	t.mockBucket = new(storage.TestifyMockBucket)
+	t.mockBucket = new(storagemock.TestifyMockBucket)
 	t.bucket = gcsx.NewSyncerBucket(
 		1,
 		".gcsfuse_tmp/",

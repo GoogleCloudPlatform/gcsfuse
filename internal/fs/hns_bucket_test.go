@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -54,6 +55,7 @@ func (t *HNSBucketTests) SetupSuite() {
 	t.serverCfg.NewConfig = &cfg.Config{
 		EnableHns: true,
 	}
+	t.serverCfg.MetricHandle = common.NewNoopMetrics()
 	bucketType = gcs.Hierarchical
 	t.fsTest.SetUpTestSuite()
 }
@@ -63,7 +65,7 @@ func (t *HNSBucketTests) TearDownSuite() {
 }
 
 func (t *HNSBucketTests) SetupTest() {
-	err = t.createFolders([]string{"foo/", "bar/", "foo/test2/", "foo/test/"})
+	err := t.createFolders([]string{"foo/", "bar/", "foo/test2/", "foo/test/"})
 	require.NoError(t.T(), err)
 
 	err = t.createObjects(
@@ -101,7 +103,7 @@ func (t *HNSBucketTests) TestReadDir() {
 func (t *HNSBucketTests) TestDeleteFolder() {
 	dirPath := path.Join(mntDir, "foo")
 
-	err = os.RemoveAll(dirPath)
+	err := os.RemoveAll(dirPath)
 
 	assert.NoError(t.T(), err)
 	_, err = os.Stat(dirPath)
@@ -112,7 +114,7 @@ func (t *HNSBucketTests) TestDeleteFolder() {
 func (t *HNSBucketTests) TestDeleteImplicitDir() {
 	dirPath := path.Join(mntDir, "foo", "implicit_dir")
 
-	err = os.RemoveAll(dirPath)
+	err := os.RemoveAll(dirPath)
 
 	assert.NoError(t.T(), err)
 	_, err = os.Stat(dirPath)
@@ -124,7 +126,7 @@ func (t *HNSBucketTests) TestRenameFolderWithSrcDirectoryDoesNotExist() {
 	oldDirPath := path.Join(mntDir, "foo_not_exist")
 	newDirPath := path.Join(mntDir, "foo_rename")
 
-	err = os.Rename(oldDirPath, newDirPath)
+	err := os.Rename(oldDirPath, newDirPath)
 
 	assert.Error(t.T(), err)
 	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
@@ -135,7 +137,7 @@ func (t *HNSBucketTests) TestRenameFolderWithSrcDirectoryDoesNotExist() {
 
 func (t *HNSBucketTests) TestRenameFolderWithDstDirectoryNotEmpty() {
 	oldDirPath := path.Join(mntDir, "foo")
-	_, err = os.Stat(oldDirPath)
+	_, err := os.Stat(oldDirPath)
 	assert.NoError(t.T(), err)
 	// In the setup phase, we created file1.txt within the bar directory.
 	newDirPath := path.Join(mntDir, "bar")
@@ -150,7 +152,7 @@ func (t *HNSBucketTests) TestRenameFolderWithDstDirectoryNotEmpty() {
 
 func (t *HNSBucketTests) TestRenameFolderWithEmptySourceDirectory() {
 	oldDirPath := path.Join(mntDir, "foo", "test2")
-	_, err = os.Stat(oldDirPath)
+	_, err := os.Stat(oldDirPath)
 	assert.NoError(t.T(), err)
 	newDirPath := path.Join(mntDir, "foo_rename")
 	_, err = os.Stat(newDirPath)
@@ -171,7 +173,7 @@ func (t *HNSBucketTests) TestRenameFolderWithEmptySourceDirectory() {
 
 func (t *HNSBucketTests) TestRenameFolderWithSourceDirectoryHaveLocalFiles() {
 	oldDirPath := path.Join(mntDir, "foo", "test")
-	_, err = os.Stat(oldDirPath)
+	_, err := os.Stat(oldDirPath)
 	assert.NoError(t.T(), err)
 	file, err := os.OpenFile(path.Join(oldDirPath, "file4.txt"), os.O_RDWR|os.O_CREATE, filePerms)
 	assert.NoError(t.T(), err)
@@ -189,7 +191,7 @@ func (t *HNSBucketTests) TestRenameFolderWithSourceDirectoryHaveLocalFiles() {
 
 func (t *HNSBucketTests) TestRenameFolderWithSameParent() {
 	oldDirPath := path.Join(mntDir, "foo")
-	_, err = os.Stat(oldDirPath)
+	_, err := os.Stat(oldDirPath)
 	require.NoError(t.T(), err)
 	newDirPath := path.Join(mntDir, "foo_rename")
 	_, err = os.Stat(newDirPath)
@@ -219,7 +221,7 @@ func (t *HNSBucketTests) TestRenameFolderWithSameParent() {
 
 func (t *HNSBucketTests) TestRenameFolderWithExistingEmptyDestDirectory() {
 	oldDirPath := path.Join(mntDir, "foo", "test")
-	_, err = os.Stat(oldDirPath)
+	_, err := os.Stat(oldDirPath)
 	require.NoError(t.T(), err)
 	newDirPath := path.Join(mntDir, "foo", "test2")
 	_, err = os.Stat(newDirPath)
@@ -245,7 +247,7 @@ func (t *HNSBucketTests) TestRenameFolderWithExistingEmptyDestDirectory() {
 
 func (t *HNSBucketTests) TestRenameFolderWithDifferentParents() {
 	oldDirPath := path.Join(mntDir, "foo")
-	_, err = os.Stat(oldDirPath)
+	_, err := os.Stat(oldDirPath)
 	assert.NoError(t.T(), err)
 	newDirPath := path.Join(mntDir, "bar", "foo_rename")
 
@@ -272,7 +274,7 @@ func (t *HNSBucketTests) TestRenameFolderWithDifferentParents() {
 
 func (t *HNSBucketTests) TestRenameFolderWithOpenGCSFile() {
 	oldDirPath := path.Join(mntDir, "bar")
-	_, err = os.Stat(oldDirPath)
+	_, err := os.Stat(oldDirPath)
 	assert.NoError(t.T(), err)
 	newDirPath := path.Join(mntDir, "bar_rename")
 	filePath := path.Join(oldDirPath, "file1.txt")
@@ -309,7 +311,7 @@ func (t *HNSBucketTests) TestRenameFolderWithOpenGCSFile() {
 // Read directory again and validate it is empty.
 func (t *HNSBucketTests) TestCreateDirectoryWithSameNameAfterRename() {
 	oldDirPath := path.Join(mntDir, "foo")
-	_, err = os.Stat(oldDirPath)
+	_, err := os.Stat(oldDirPath)
 	require.NoError(t.T(), err)
 	newDirPath := path.Join(mntDir, "foo_rename")
 	// Rename directory foo --> foo_rename

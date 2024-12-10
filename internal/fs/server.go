@@ -31,10 +31,10 @@ func NewServer(ctx context.Context, cfg *ServerConfig) (fuse.Server, error) {
 		return nil, fmt.Errorf("create file system: %w", err)
 	}
 
-	fs = wrappers.WithErrorMapping(fs)
+	fs = wrappers.WithErrorMapping(fs, cfg.NewConfig.FileSystem.PreconditionErrors)
 	if newcfg.IsTracingEnabled(cfg.NewConfig) {
 		fs = wrappers.WithTracing(fs)
 	}
-	fs = wrappers.WithMonitoring(fs)
+	fs = wrappers.WithMonitoring(fs, cfg.MetricHandle)
 	return fuseutil.NewFileSystemServer(fs), nil
 }

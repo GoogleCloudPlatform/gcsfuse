@@ -15,11 +15,13 @@
 package bufferedwrites
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/block"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"golang.org/x/sync/semaphore"
 )
@@ -46,6 +48,9 @@ type WriteFileInfo struct {
 	Mtime     time.Time
 }
 
+var ErrOutOfOrderWrite = errors.New("outOfOrder write detected")
+var ErrUploadFailure = errors.New("error while uploading object to GCS")
+
 // NewBWHandler creates the bufferedWriteHandler struct.
 func NewBWHandler(objectName string, bucket gcs.Bucket, blockSize int64, maxBlocks int64, globalMaxBlocksSem *semaphore.Weighted) (bwh *BufferedWriteHandler, err error) {
 	bp, err := block.NewBlockPool(blockSize, maxBlocks, globalMaxBlocksSem)
@@ -56,7 +61,7 @@ func NewBWHandler(objectName string, bucket gcs.Bucket, blockSize int64, maxBloc
 	bwh = &BufferedWriteHandler{
 		current:       nil,
 		blockPool:     bp,
-		uploadHandler: newUploadHandler(objectName, bucket, bp.FreeBlocksChannel(), blockSize),
+		uploadHandler: newUploadHandler(objectName, bucket, maxBlocks, bp.FreeBlocksChannel(), blockSize),
 		totalSize:     0,
 		mtime:         time.Now(),
 	}
@@ -66,9 +71,18 @@ func NewBWHandler(objectName string, bucket gcs.Bucket, blockSize int64, maxBloc
 // Write writes the given data to the buffer. It writes to an existing buffer if
 // the capacity is available otherwise writes to a new buffer.
 func (wh *BufferedWriteHandler) Write(data []byte, offset int64) (err error) {
-	if offset > wh.totalSize {
-		// TODO: Will be handled as part of ordered writes.
-		return fmt.Errorf("non sequential writes")
+	if offset != wh.totalSize {
+		logger.Errorf("BufferedWriteHandler.OutOfOrderError for object: %s, expectedOffset: %d, actualOffset: %d",
+			wh.uploadHandler.objectName, wh.totalSize, offset)
+		return ErrOutOfOrderWrite
+	}
+
+	// Fail early if the uploadHandler has failed.
+	select {
+	case <-wh.uploadHandler.SignalUploadFailure():
+		return ErrUploadFailure
+	default:
+		break
 	}
 
 	dataWritten := 0
@@ -111,6 +125,14 @@ func (wh *BufferedWriteHandler) Sync() (err error) {
 
 // Flush finalizes the upload.
 func (wh *BufferedWriteHandler) Flush() (err error) {
+	// Fail early if the uploadHandler has failed.
+	select {
+	case <-wh.uploadHandler.SignalUploadFailure():
+		return ErrUploadFailure
+	default:
+		break
+	}
+
 	if wh.current != nil {
 		err := wh.uploadHandler.Upload(wh.current)
 		if err != nil {

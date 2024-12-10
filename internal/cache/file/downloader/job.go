@@ -26,12 +26,12 @@ import (
 	"syscall"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	cacheutil "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"golang.org/x/net/context"
@@ -97,6 +97,8 @@ type Job struct {
 	// Channel which is used by goroutines to know which ranges need to be
 	// downloaded when parallel download is enabled.
 	rangeChan chan data.ObjectRange
+
+	metricsHandle common.MetricHandle
 }
 
 // JobStatus represents the status of job.
@@ -122,6 +124,7 @@ func NewJob(
 	removeJobCallback func(),
 	fileCacheConfig *cfg.FileCacheConfig,
 	maxParallelismSem *semaphore.Weighted,
+	metricHandle common.MetricHandle,
 ) (job *Job) {
 	job = &Job{
 		object:               object,
@@ -132,6 +135,7 @@ func NewJob(
 		removeJobCallback:    removeJobCallback,
 		fileCacheConfig:      fileCacheConfig,
 		maxParallelismSem:    maxParallelismSem,
+		metricsHandle:        metricHandle,
 	}
 	job.mu = locker.New("Job-"+fileSpec.Path, job.checkInvariants)
 	job.init()
@@ -319,7 +323,7 @@ func (job *Job) downloadObjectToFile(cacheFile *os.File) (err error) {
 				err = fmt.Errorf("downloadObjectToFile: error in creating NewReader with start %d and limit %d: %w", start, newReaderLimit, err)
 				return err
 			}
-			monitor.CaptureGCSReadMetrics(job.cancelCtx, util.Sequential, newReaderLimit-start)
+			common.CaptureGCSReadMetrics(job.cancelCtx, job.metricsHandle, util.Sequential, newReaderLimit-start)
 		}
 
 		maxRead := min(ReadChunkSize, newReaderLimit-start)

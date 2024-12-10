@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
@@ -138,7 +139,8 @@ func TestParallelDownloads(t *testing.T) {
 			t.Parallel()
 			cache, cacheDir := configureCache(t, 2*tc.objectSize)
 			storageHandle := configureFakeStorage(t)
-			bucket := storageHandle.BucketHandle(storage.TestBucketName, "")
+			ctx := context.Background()
+			bucket := storageHandle.BucketHandle(ctx, storage.TestBucketName, "")
 			minObj, content := createObjectInStoreAndInitCache(t, cache, bucket, "path/in/gcs/foo.txt", tc.objectSize)
 			fileCacheConfig := &cfg.FileCacheConfig{
 				EnableParallelDownloads:  true,
@@ -148,7 +150,7 @@ func TestParallelDownloads(t *testing.T) {
 				WriteBufferSize:      4 * 1024 * 1024,
 				EnableODirect:        tc.enableODirect,
 			}
-			jm := NewJobManager(cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, 2, fileCacheConfig)
+			jm := NewJobManager(cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, 2, fileCacheConfig, common.NewNoopMetrics())
 			job := jm.CreateJobIfNotExists(&minObj, bucket)
 			subscriberC := job.subscribe(tc.subscribedOffset)
 
@@ -178,7 +180,8 @@ func TestMultipleConcurrentDownloads(t *testing.T) {
 	t.Parallel()
 	storageHandle := configureFakeStorage(t)
 	cache, cacheDir := configureCache(t, 30*util.MiB)
-	bucket := storageHandle.BucketHandle(storage.TestBucketName, "")
+	ctx := context.Background()
+	bucket := storageHandle.BucketHandle(ctx, storage.TestBucketName, "")
 	minObj1, content1 := createObjectInStoreAndInitCache(t, cache, bucket, "path/in/gcs/foo.txt", 10*util.MiB)
 	minObj2, content2 := createObjectInStoreAndInitCache(t, cache, bucket, "path/in/gcs/bar.txt", 5*util.MiB)
 	fileCacheConfig := &cfg.FileCacheConfig{
@@ -189,12 +192,11 @@ func TestMultipleConcurrentDownloads(t *testing.T) {
 		MaxParallelDownloads:     2,
 		WriteBufferSize:          4 * 1024 * 1024,
 	}
-	jm := NewJobManager(cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, 2, fileCacheConfig)
+	jm := NewJobManager(cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, 2, fileCacheConfig, common.NewNoopMetrics())
 	job1 := jm.CreateJobIfNotExists(&minObj1, bucket)
 	job2 := jm.CreateJobIfNotExists(&minObj2, bucket)
 	s1 := job1.subscribe(10 * util.MiB)
 	s2 := job2.subscribe(5 * util.MiB)
-	ctx := context.Background()
 
 	_, err1 := job1.Download(ctx, 10*util.MiB, false)
 	_, err2 := job2.Download(ctx, 5*util.MiB, false)
