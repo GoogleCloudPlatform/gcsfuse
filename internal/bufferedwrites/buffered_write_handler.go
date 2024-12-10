@@ -123,11 +123,11 @@ func (wh *BufferedWriteHandler) Sync() (err error) {
 }
 
 // Flush finalizes the upload.
-func (wh *BufferedWriteHandler) Flush() (err error) {
+func (wh *BufferedWriteHandler) Flush() (*gcs.Object, error) {
 	// Fail early if the uploadHandler has failed.
 	select {
 	case <-wh.uploadHandler.SignalUploadFailure():
-		return fmt.Errorf("file cannot be finalized: error while uploading object to GCS")
+		return nil, fmt.Errorf("file cannot be finalized: error while uploading object to GCS")
 	default:
 		break
 	}
@@ -135,11 +135,20 @@ func (wh *BufferedWriteHandler) Flush() (err error) {
 	if wh.current != nil {
 		err := wh.uploadHandler.Upload(wh.current)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		wh.current = nil
 	}
-	return wh.uploadHandler.Finalize()
+	obj, err := wh.uploadHandler.Finalize()
+	if err != nil {
+		return nil, fmt.Errorf("BufferedWriteHandler.Flush(): %w", err)
+	}
+	err = wh.blockPool.ClearFreeBlockChannel()
+	if err != nil {
+		// Only logging an error in case of resource leak as upload succeeded.
+		logger.Errorf("blockPool.ClearFreeBlockChannel() failed: %v", err)
+	}
+	return obj, nil
 }
 
 // SetMtime stores the mtime with the bufferedWriteHandler.
