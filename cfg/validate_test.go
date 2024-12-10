@@ -156,6 +156,21 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				FileSystem: FileSystemConfig{KernelListCacheTtlSecs: 30},
 			},
 		},
+		{
+			name: "valid_chunk_transfer_timeout_secs",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
+				GcsConnection: GcsConnectionConfig{
+					SequentialReadSizeMb: 10,
+				},
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+				FileSystem: FileSystemConfig{KernelListCacheTtlSecs: 30},
+				GcsRetries: GcsRetriesConfig{ChunkTransferTimeoutSecs: 15},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
