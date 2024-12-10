@@ -28,7 +28,8 @@ const (
 )
 
 var (
-	mountFunc func([]string) error
+	testDirPath string
+	mountFunc   func([]string) error
 	// mount directory is where our tests run.
 	mountDir string
 	// root directory is the directory to be unmounted.
