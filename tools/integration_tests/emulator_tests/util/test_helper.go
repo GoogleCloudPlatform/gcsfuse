@@ -43,10 +43,11 @@ import (
 func StartProxyServer() {
 	// Start the proxy in the background
 	cmd := exec.Command("go", "run", "../proxy_server/.", "--config-path=../proxy_server/configs/write_stall_40s.yaml")
-	logFileForProxyServer, err := os.Create(path.Join(os.Getenv("KOKORO_ARTIFACTS_DIR"), "proxy"+setup.GenerateRandomString(5)))
+	logFileForProxyServer, err := os.Create(path.Join(os.Getenv("KOKORO_ARTIFACTS_DIR"), "proxy-"+setup.GenerateRandomString(5)))
 	if err != nil {
-		log.Println("Error in creating log file for proxy server.")
+		log.Fatal("Error in creating log file for proxy server.")
 	}
+	log.Println("Proxy server logs are generated with file name %s: ", logFileForProxyServer)
 	cmd.Stdout = logFileForProxyServer
 	cmd.Stderr = logFileForProxyServer
 	err = cmd.Start()
