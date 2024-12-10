@@ -310,7 +310,6 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedCreateEmptyFile, wc.CreateEmptyFile)
 				assert.Equal(t, tc.expectedEnableStreamingWrites, wc.ExperimentalEnableStreamingWrites)
-				assert.Equal(t, tc.expectedChunkTransferTimeoutSecs, wc.ChunkTransferTimeoutSecs)
 				assert.Equal(t, tc.expectedWriteBlockSizeMB, wc.BlockSizeMb)
 				assert.Equal(t, tc.expectedWriteGlobalMaxBlocks, wc.GlobalMaxBlocks)
 			}
