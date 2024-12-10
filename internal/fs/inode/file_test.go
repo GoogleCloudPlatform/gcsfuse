@@ -384,7 +384,7 @@ func (t *FileTest) TestWriteThenSync() {
 	m, _, err := t.bucket.StatObject(t.ctx, statReq)
 
 	assert.Nil(t.T(), err)
-	assert.NotEqual(t.T(), nil, m)
+	assert.NotNil(t.T(), m)
 	assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
 	assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
 	assert.Equal(t.T(), uint64(len("paco")), m.Size)
@@ -431,7 +431,7 @@ func (t *FileTest) TestWriteToLocalFileThenSync() {
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	m, _, err := t.bucket.StatObject(t.ctx, statReq)
 	assert.Nil(t.T(), err)
-	assert.NotEqual(t.T(), nil, m)
+	assert.NotNil(t.T(), m)
 	assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
 	assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
 	assert.Equal(t.T(), uint64(len("tacos")), m.Size)
