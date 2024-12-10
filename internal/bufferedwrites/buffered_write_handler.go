@@ -85,10 +85,12 @@ func (wh *BufferedWriteHandler) Write(data []byte, offset int64) (err error) {
 		return ErrOutOfOrderWrite
 	}
 
-	// Check and update if any data filling has to be done.
-	err = wh.writeDataForTruncatedSize()
-	if err != nil {
-		return
+	if offset == wh.truncatedSize {
+		// Check and update if any data filling has to be done.
+		err = wh.writeDataForTruncatedSize()
+		if err != nil {
+			return
+		}
 	}
 
 	// Fail early if the uploadHandler has failed.
@@ -99,6 +101,10 @@ func (wh *BufferedWriteHandler) Write(data []byte, offset int64) (err error) {
 		break
 	}
 
+	return wh.appendBuffer(data)
+}
+
+func (wh *BufferedWriteHandler) appendBuffer(data []byte) (err error) {
 	dataWritten := 0
 	for dataWritten < len(data) {
 		if wh.current == nil {
@@ -209,7 +215,7 @@ func (wh *BufferedWriteHandler) writeDataForTruncatedSize() error {
 	// written more data than they actually truncated in the beginning.
 	if wh.totalSize < wh.truncatedSize {
 		diff := wh.truncatedSize - wh.totalSize
-		err := wh.Write(make([]byte, diff), wh.totalSize)
+		err := wh.appendBuffer(make([]byte, diff))
 		if err != nil {
 			return err
 		}
