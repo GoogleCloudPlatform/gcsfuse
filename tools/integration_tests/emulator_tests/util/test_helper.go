@@ -40,9 +40,9 @@ import (
 // When receiving SIGINT or SIGTERM signals, it gracefully shuts down the proxy server by:
 //   - Sending SIGINT to the proxy process.
 //   - Killing any processes listening on port 8020.
-func StartProxyServer() {
+func StartProxyServer(configPath string) {
 	// Start the proxy in the background
-	cmd := exec.Command("go", "run", "../proxy_server/.", "--config-path=../proxy_server/configs/write_stall_40s.yaml")
+	cmd := exec.Command("go", "run", "../proxy_server/.", "--config-path="+configPath)
 	logFileForProxyServer, err := os.Create(path.Join(os.Getenv("KOKORO_ARTIFACTS_DIR"), "proxy-"+setup.GenerateRandomString(5)))
 	if err != nil {
 		log.Fatal("Error in creating log file for proxy server.")
