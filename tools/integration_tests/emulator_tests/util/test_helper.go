@@ -21,10 +21,57 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path"
 	"strconv"
 	"strings"
 	"syscall"
+
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
+
+func StartProcess() {
+	// Start the proxy in the background
+	cmd := exec.Command("go", "run", "../proxy_server/.", "--config-path=../proxy_server/configs/write_stall_40s.yaml")
+	logFileForProxyServer, err := os.Create(path.Join(os.Getenv("KOKORO_ARTIFACTS_DIR"), "proxy"+setup.GenerateRandomString(5)))
+	if err != nil {
+		log.Println("Error in creating log file for proxy server.")
+	}
+	cmd.Stdout = logFileForProxyServer
+	cmd.Stderr = logFileForProxyServer
+	err = cmd.Start()
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println("Proxy process:", cmd.Process.Pid)
+
+	// Handle SIGINT and SIGTERM signals to gracefully shut down the proxy
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-sigs
+		log.Println("Shutting down proxy...")
+
+		// Send SIGINT to the proxy process
+		err := cmd.Process.Signal(syscall.SIGINT)
+		if err != nil {
+			log.Println("Error sending SIGINT to proxy process:", err)
+		}
+
+		// Find and kill any processes listening on port 8080
+		err = KillProcessesOnPort(8020)
+		if err != nil {
+			log.Println("Error killing processes on port 8020:", err)
+		}
+
+		os.Exit(0)
+	}()
+
+	// Start a simple HTTP server to keep the process running
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		log.Println(w, "Proxy is running...")
+	})
+}
 
 func KillProcessesOnPort(port int) error {
 	// Use lsof to find processes listening on the specified port
@@ -60,45 +107,4 @@ func KillProcessesOnPort(port int) error {
 	}
 
 	return nil
-}
-
-func StartProcess() {
-	// Start the proxy in the background
-	cmd := exec.Command("go", "run", "../proxy_server/.", "--config-path=../proxy_server/configs/write_stall_40s.yaml")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	err := cmd.Start()
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("Proxy process:", cmd.Process.Pid)
-
-	// Handle SIGINT and SIGTERM signals to gracefully shut down the proxy
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-
-	go func() {
-		<-sigs
-		fmt.Println("Shutting down proxy...")
-
-		// Send SIGINT to the proxy process
-		err := cmd.Process.Signal(syscall.SIGINT)
-		if err != nil {
-			log.Println("Error sending SIGINT to proxy process:", err)
-		}
-
-		// Find and kill any processes listening on port 8080
-		err = KillProcessesOnPort(8020)
-		if err != nil {
-			log.Println("Error killing processes on port 8020:", err)
-		}
-
-		os.Exit(0)
-	}()
-
-	// Start a simple HTTP server to keep the process running
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		log.Println(w, "Proxy is running...")
-	})
-	log.Fatal(http.ListenAndServe(":8020", nil))
 }
