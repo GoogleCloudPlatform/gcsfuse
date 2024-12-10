@@ -91,9 +91,6 @@ func (ph ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log.Printf("AddRetryID: %v", err)
 	}
 
-	reqTypeAndInstruction := deduceRequestTypeAndInstruction(r)
-	AddRetryID(req, reqTypeAndInstruction)
-
 	// Send the request to the target server
 	client := &http.Client{}
 	resp, err := client.Do(req)
