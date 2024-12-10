@@ -15,6 +15,7 @@
 package cfg
 
 import (
+	"errors"
 	"fmt"
 	"math"
 )
@@ -44,20 +45,20 @@ func isValidURL(u string) error {
 
 func isValidFileCacheConfig(config *FileCacheConfig) error {
 	if config.MaxSizeMb < -1 {
-		return fmt.Errorf(FileCacheMaxSizeMBInvalidValueError)
+		return errors.New(FileCacheMaxSizeMBInvalidValueError)
 	}
 	if config.MaxParallelDownloads < -1 {
-		return fmt.Errorf(MaxParallelDownloadsInvalidValueError)
+		return errors.New(MaxParallelDownloadsInvalidValueError)
 	}
 	if config.EnableParallelDownloads {
 		if config.MaxParallelDownloads == 0 {
-			return fmt.Errorf(MaxParallelDownloadsCantBeZeroError)
+			return errors.New(MaxParallelDownloadsCantBeZeroError)
 		}
 		if config.WriteBufferSize < CacheUtilMinimumAlignSizeForWriting {
-			return fmt.Errorf("the value of write-buffer-size for file-cache can't be less than 4096")
+			return errors.New("the value of write-buffer-size for file-cache can't be less than 4096")
 		}
 		if (config.WriteBufferSize % CacheUtilMinimumAlignSizeForWriting) != 0 {
-			return fmt.Errorf("the value of write-buffer-size for file-cache should be in multiple of 4096")
+			return errors.New("the value of write-buffer-size for file-cache should be in multiple of 4096")
 		}
 	}
 	if config.ParallelDownloadsPerFile < 1 {
