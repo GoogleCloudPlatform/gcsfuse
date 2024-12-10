@@ -157,6 +157,8 @@ TEST_DIR_PARALLEL=(
   "log_content"
   "kernel_list_cache"
   "concurrent_operations"
+  "benchmarking"
+  "mount_timeout"
 )
 
 # These tests never become parallel as they are changing bucket permissions.
@@ -198,15 +200,23 @@ function run_parallel_tests() {
   local -n test_array=$1
   local BUCKET_NAME=$2
   local pids=()
+  local benchmark_flags=""
+
   for test_dir_p in "${test_array[@]}"
   do
+    # Unlike regular tests,benchmark tests are not executed by default when using go test .
+    # The -bench flag yells go test to run the benchmark tests and report their results by
+    # enabling the benchmarking framework.
+    if [ $test_dir_p == "benchmarking" ]; then
+        benchmark_flags="-bench=."
+    fi
     test_path_parallel="./tools/integration_tests/$test_dir_p"
     # To make it clear whether tests are running on a flat or HNS bucket, We kept the log file naming
     # convention to include the bucket name as a suffix (e.g., package_name_bucket_name).
     local log_file="/tmp/${test_dir_p}_${BUCKET_NAME}.log"
     echo $log_file >> $TEST_LOGS_FILE
     # Executing integration tests
-    GODEBUG=asyncpreemptoff=1 go test $test_path_parallel -p 1 --integrationTest -v --testbucket=$BUCKET_NAME --testInstalledPackage=true -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1 &
+    GODEBUG=asyncpreemptoff=1 go test $test_path_parallel $benchmark_flags -p 1 --integrationTest -v --testbucket=$BUCKET_NAME --testInstalledPackage=true -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1 &
     pid=$!  # Store the PID of the background process
     pids+=("$pid")  # Optionally add the PID to an array for later
   done

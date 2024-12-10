@@ -86,3 +86,46 @@ func TestJoinShutdownFunc(t *testing.T) {
 		})
 	}
 }
+
+type int64DataPoint struct {
+	v     int64
+	attrs []MetricAttr
+}
+
+type fakeMetricHandle struct {
+	noopMetrics
+	GCSReadBytesCounter     []int64DataPoint
+	GCSDownloadBytesCounter []int64DataPoint
+}
+
+func (f *fakeMetricHandle) GCSReadCount(ctx context.Context, inc int64, attrs []MetricAttr) {
+	f.GCSReadBytesCounter = append(f.GCSReadBytesCounter, int64DataPoint{
+		v:     inc,
+		attrs: attrs,
+	})
+}
+
+func (f *fakeMetricHandle) GCSDownloadBytesCount(ctx context.Context, requestedDataSize int64, attrs []MetricAttr) {
+	f.GCSDownloadBytesCounter = append(f.GCSDownloadBytesCounter, int64DataPoint{
+		v:     requestedDataSize,
+		attrs: attrs,
+	})
+}
+
+func TestCaptureGCSReadMetrics(t *testing.T) {
+	t.Parallel()
+	metricHandle := fakeMetricHandle{}
+
+	CaptureGCSReadMetrics(context.Background(), &metricHandle, "Sequential", 64)
+
+	require.Len(t, metricHandle.GCSReadBytesCounter, 1)
+	require.Len(t, metricHandle.GCSDownloadBytesCounter, 1)
+	assert.Equal(t, metricHandle.GCSReadBytesCounter[0], int64DataPoint{
+		v:     1,
+		attrs: []MetricAttr{{Key: ReadType, Value: "Sequential"}},
+	})
+	assert.Equal(t, metricHandle.GCSDownloadBytesCounter[0], int64DataPoint{
+		v:     64,
+		attrs: []MetricAttr{{Key: ReadType, Value: "Sequential"}},
+	})
+}

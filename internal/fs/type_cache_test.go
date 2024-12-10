@@ -20,7 +20,6 @@ package fs_test
 
 import (
 	"fmt"
-	"io/fs"
 	"math"
 	"os"
 	"path"
@@ -28,6 +27,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	gcsfusefs "github.com/googlecloudplatform/gcsfuse/v2/internal/fs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -70,9 +70,6 @@ var (
 	typeCacheMaxSizeMb int64
 
 	contentInBytes []byte
-
-	fi  fs.FileInfo
-	err error
 )
 
 func (t *typeCacheTestCommon) SetUpTestSuite() {
@@ -82,6 +79,7 @@ func (t *typeCacheTestCommon) SetUpTestSuite() {
 			TtlSecs:            ttlInSeconds,
 		},
 	}
+	t.serverCfg.MetricHandle = common.NewNoopMetrics()
 
 	// Fill server-cfg from mount-config.
 	func(newConfig *cfg.Config, serverCfg *gcsfusefs.ServerConfig) {
@@ -174,7 +172,7 @@ func (t *typeCacheTestCommon) createObjectOnGCS(name string) *gcs.Object {
 }
 
 func (t *typeCacheTestCommon) statAndConfirmIsDir(name string, isDir bool) {
-	fi, err = os.Stat(name)
+	fi, err := os.Stat(name)
 
 	ExpectEq(nil, err)
 	AssertNe(nil, fi)
@@ -182,7 +180,7 @@ func (t *typeCacheTestCommon) statAndConfirmIsDir(name string, isDir bool) {
 }
 
 func (t *typeCacheTestCommon) statAndExpectNotADirectoryError(name string) {
-	_, err = os.Stat(name)
+	_, err := os.Stat(name)
 
 	ExpectNe(nil, err)
 	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("not a directory")))
@@ -210,7 +208,7 @@ func (t *typeCacheTestCommon) testNoInsertionSupported() {
 func (t *TypeCacheTestWithMaxSize1MB) TestNoEntryInitially() {
 	// Initially, without any existing object, type-cache
 	// should not contain any entry and os.Stat should fail.
-	_, err = os.Stat(path.Join(mntDir, foo))
+	_, err := os.Stat(path.Join(mntDir, foo))
 
 	ExpectNe(nil, err)
 	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("no such file or directory")))

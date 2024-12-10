@@ -29,6 +29,7 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
@@ -148,6 +149,7 @@ func (cht *cacheHandleTest) SetupTest() {
 		func() {},
 		fileCacheConfig,
 		semaphore.NewWeighted(math.MaxInt64),
+		common.NewNoopMetrics(),
 	)
 
 	cht.cacheHandle = NewCacheHandle(readLocalFileHandle, fileDownloadJob, cht.cache, false, 0)
@@ -855,6 +857,7 @@ func (cht *cacheHandleTest) Test_SequentialRead_Parallel_Download_True() {
 		func() {},
 		fileCacheConfig,
 		semaphore.NewWeighted(math.MaxInt64),
+		common.NewNoopMetrics(),
 	)
 	cht.cacheHandle.fileDownloadJob = fileDownloadJob
 
@@ -889,6 +892,7 @@ func (cht *cacheHandleTest) Test_RandomRead_Parallel_Download_True() {
 		func() {},
 		fileCacheConfig,
 		semaphore.NewWeighted(math.MaxInt64),
+		common.NewNoopMetrics(),
 	)
 	cht.cacheHandle.fileDownloadJob = fileDownloadJob
 
@@ -923,6 +927,7 @@ func (cht *cacheHandleTest) Test_RandomRead_CacheForRangeReadFalse_And_ParallelD
 		func() {},
 		fileCacheConfig,
 		semaphore.NewWeighted(math.MaxInt64),
+		common.NewNoopMetrics(),
 	)
 
 	// Since, it's a random read, download job will not start.

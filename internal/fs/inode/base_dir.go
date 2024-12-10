@@ -18,6 +18,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -60,6 +61,8 @@ type baseDirInode struct {
 
 	// GUARDED_BY(mu)
 	buckets map[string]gcsx.SyncerBucket
+
+	metricHandle common.MetricHandle
 }
 
 // NewBaseDirInode returns a baseDirInode that acts as the directory of
@@ -68,13 +71,15 @@ func NewBaseDirInode(
 	id fuseops.InodeID,
 	name Name,
 	attrs fuseops.InodeAttributes,
-	bm gcsx.BucketManager) (d DirInode) {
+	bm gcsx.BucketManager,
+	metricHandle common.MetricHandle) (d DirInode) {
 	typed := &baseDirInode{
 		id:            id,
 		name:          NewRootName(""),
 		attrs:         attrs,
 		bucketManager: bm,
 		buckets:       make(map[string]gcsx.SyncerBucket),
+		metricHandle:  metricHandle,
 	}
 	typed.lc.Init(id)
 	typed.mu = locker.NewRW("BaseDirInode"+name.GcsObjectName(), func() {})
@@ -155,7 +160,7 @@ func (d *baseDirInode) LookUpChild(ctx context.Context, name string) (*Core, err
 	var err error
 	bucket, ok := d.buckets[name]
 	if !ok {
-		bucket, err = d.bucketManager.SetUpBucket(ctx, name, true)
+		bucket, err = d.bucketManager.SetUpBucket(ctx, name, true, d.metricHandle)
 		if err != nil {
 			return nil, err
 		}

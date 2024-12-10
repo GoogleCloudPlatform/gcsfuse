@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
@@ -164,8 +165,12 @@ func (t *fsTest) SetUpTestSuite() {
 				TtlSecs:            60,
 				TypeCacheMaxSizeMb: 4,
 			},
+			FileSystem: cfg.FileSystemConfig{
+				PreconditionErrors: false,
+			},
 		}
 	}
+	t.serverCfg.MetricHandle = common.NewNoopMetrics()
 
 	// Set up ownership.
 	t.serverCfg.Uid, t.serverCfg.Gid, err = perms.MyUserAndGroup()
@@ -285,8 +290,7 @@ func (t *fsTest) createEmptyObjects(names []string) error {
 
 func (t *fsTest) createFolders(folders []string) error {
 	for i := 0; i < len(folders); i++ {
-		_, err = bucket.CreateFolder(ctx, folders[i])
-		if err != nil {
+		if _, err := bucket.CreateFolder(ctx, folders[i]); err != nil {
 			return err
 		}
 	}
@@ -368,7 +372,7 @@ func (bm *fakeBucketManager) ShutDown() {}
 
 func (bm *fakeBucketManager) SetUpBucket(
 	ctx context.Context,
-	name string, isMultibucketMount bool) (sb gcsx.SyncerBucket, err error) {
+	name string, isMultibucketMount bool, _ common.MetricHandle) (sb gcsx.SyncerBucket, err error) {
 	bucket, ok := bm.buckets[name]
 	if ok {
 		sb = gcsx.NewSyncerBucket(

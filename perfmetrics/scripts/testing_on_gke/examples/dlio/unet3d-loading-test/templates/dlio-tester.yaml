@@ -24,12 +24,16 @@ metadata:
   {{- end }}
 spec:
   restartPolicy: Never
+  activeDeadlineSeconds: 5000
   nodeSelector:
     cloud.google.com/gke-ephemeral-storage-local-ssd: "true"
     node.kubernetes.io/instance-type: {{ .Values.nodeType }}
   containers:
   - name: dlio-tester
     image: {{ .Values.image }}
+    ports:
+    - containerPort: 11021
+      hostPort: 11021
     resources:
       limits:
         cpu: {{ .Values.resourceLimits.cpu }}
@@ -44,13 +48,18 @@ spec:
       - "/bin/sh"
       - "-c"
       - |
+        # Fail if any of the commands fails.
+        set -e
+        # Print out the individual commands run.
+        set -x
+
         # Change the source code of dlio benchmark so that page cache is cleared at every epoch
         main_file="dlio_benchmark/main.py"
         x=$(grep -n "for epoch in range(1, self.epochs + 1):" $main_file | cut -f1 -d ':')
         x=$((x + 1))
         sed -i "${x} i \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ os.system(\"sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches'\")" $main_file
 
-        echo "Installing gsutil..."
+        echo "Installing gcloud..."
         apt-get update && apt-get install -y apt-transport-https ca-certificates gnupg curl
         curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
         echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
@@ -74,9 +83,11 @@ spec:
         {{ end }}
 
         outputDir=/logs/{{ .Values.outputDirPrefix }}
+        mkdir -pv /data/train /data/valid
 
         echo "Testing {{ .Values.scenario }}"
         mpirun -np 8 dlio_benchmark workload=unet3d_a100 \
+        ++workload.workflow.generate_data=True \
         ++workload.train.epochs=4 \
         ++workload.workflow.profiling=True \
         ++workload.profiling.profiler=iostat \
@@ -93,7 +104,7 @@ spec:
         echo "{{ .Values.gcsfuse.mountOptions }}" > ${outputDir}/gcsfuse_mount_options
         {{ end }}
 
-        gsutil -m cp -R /logs/* gs://{{ .Values.bucketName }}/logs/
+        gcloud storage cp -r /logs/* gs://{{ .Values.bucketName }}/logs/
     volumeMounts:
     - name: dshm
       mountPath: /dev/shm

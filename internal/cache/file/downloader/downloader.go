@@ -19,6 +19,7 @@ import (
 	"os"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
@@ -60,10 +61,12 @@ type JobManager struct {
 	jobs              map[string]*Job
 	mu                locker.Locker
 	maxParallelismSem *semaphore.Weighted
+	metricHandle      common.MetricHandle
 }
 
 func NewJobManager(fileInfoCache *lru.Cache, filePerm os.FileMode, dirPerm os.FileMode,
-	cacheDir string, sequentialReadSizeMb int32, c *cfg.FileCacheConfig) (jm *JobManager) {
+	cacheDir string, sequentialReadSizeMb int32, c *cfg.FileCacheConfig,
+	metricHandle common.MetricHandle) (jm *JobManager) {
 	maxParallelDownloads := int64(math.MaxInt64)
 	if c.MaxParallelDownloads > 0 {
 		maxParallelDownloads = c.MaxParallelDownloads
@@ -77,6 +80,7 @@ func NewJobManager(fileInfoCache *lru.Cache, filePerm os.FileMode, dirPerm os.Fi
 		fileCacheConfig:      c,
 		// Shared between jobs - Limits the overall concurrency of downloads.
 		maxParallelismSem: semaphore.NewWeighted(maxParallelDownloads),
+		metricHandle:      metricHandle,
 	}
 	jm.mu = locker.New("JobManager", func() {})
 	jm.jobs = make(map[string]*Job)
@@ -114,7 +118,7 @@ func (jm *JobManager) CreateJobIfNotExists(object *gcs.MinObject, bucket gcs.Buc
 	removeJobCallback := func() {
 		jm.removeJob(object.Name, bucket.Name())
 	}
-	job = NewJob(object, bucket, jm.fileInfoCache, jm.sequentialReadSizeMb, fileSpec, removeJobCallback, jm.fileCacheConfig, jm.maxParallelismSem)
+	job = NewJob(object, bucket, jm.fileInfoCache, jm.sequentialReadSizeMb, fileSpec, removeJobCallback, jm.fileCacheConfig, jm.maxParallelismSem, jm.metricHandle)
 	jm.jobs[objectPath] = job
 	return job
 }

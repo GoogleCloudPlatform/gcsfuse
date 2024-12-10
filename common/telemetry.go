@@ -17,6 +17,7 @@ package common
 import (
 	"context"
 	"errors"
+	"fmt"
 )
 
 type ShutdownFn func(ctx context.Context) error
@@ -33,4 +34,44 @@ func JoinShutdownFunc(shutdownFns ...ShutdownFn) ShutdownFn {
 		}
 		return err
 	}
+}
+
+// MetricAttr represents the attributes associated with a metric.
+type MetricAttr struct {
+	Key, Value string
+}
+
+func (a *MetricAttr) String() string {
+	return fmt.Sprintf("Key: %s, Value: %s", a.Key, a.Value)
+}
+
+type GCSMetricHandle interface {
+	GCSReadBytesCount(ctx context.Context, inc int64, attrs []MetricAttr)
+	GCSReaderCount(ctx context.Context, inc int64, attrs []MetricAttr)
+	GCSRequestCount(ctx context.Context, inc int64, attrs []MetricAttr)
+	GCSRequestLatency(ctx context.Context, value float64, attrs []MetricAttr)
+	GCSReadCount(ctx context.Context, inc int64, attrs []MetricAttr)
+	GCSDownloadBytesCount(ctx context.Context, inc int64, attrs []MetricAttr)
+}
+
+type OpsMetricHandle interface {
+	OpsCount(ctx context.Context, inc int64, attrs []MetricAttr)
+	OpsLatency(ctx context.Context, value float64, attrs []MetricAttr)
+	OpsErrorCount(ctx context.Context, inc int64, attrs []MetricAttr)
+}
+
+type FileCacheMetricHandle interface {
+	FileCacheReadCount(ctx context.Context, inc int64, attrs []MetricAttr)
+	FileCacheReadBytesCount(ctx context.Context, inc int64, attrs []MetricAttr)
+	FileCacheReadLatency(ctx context.Context, value float64, attrs []MetricAttr)
+}
+type MetricHandle interface {
+	GCSMetricHandle
+	OpsMetricHandle
+	FileCacheMetricHandle
+}
+
+func CaptureGCSReadMetrics(ctx context.Context, metricHandle MetricHandle, readType string, requestedDataSize int64) {
+	metricHandle.GCSReadCount(ctx, 1, []MetricAttr{{Key: ReadType, Value: readType}})
+	metricHandle.GCSDownloadBytesCount(ctx, requestedDataSize, []MetricAttr{{Key: ReadType, Value: readType}})
 }

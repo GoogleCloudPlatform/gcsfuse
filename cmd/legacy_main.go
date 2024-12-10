@@ -145,7 +145,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string) (storageHandle
 ////////////////////////////////////////////////////////////////////////
 
 // Mount the file system according to arguments in the supplied context.
-func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config) (mfs *fuse.MountedFileSystem, err error) {
+func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, metricHandle common.MetricHandle) (mfs *fuse.MountedFileSystem, err error) {
 	// Enable invariant checking if requested.
 	if newConfig.Debug.ExitOnInvariantViolation {
 		locker.EnableInvariantsCheck()
@@ -176,7 +176,8 @@ func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config) 
 		bucketName,
 		mountPoint,
 		newConfig,
-		storageHandle)
+		storageHandle,
+		metricHandle)
 
 	if err != nil {
 		err = fmt.Errorf("mountWithStorageHandle: %w", err)
@@ -373,10 +374,16 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 
 	ctx := context.Background()
 	var metricExporterShutdownFn common.ShutdownFn
-	if newConfig.Metrics.EnableOtel {
-		metricExporterShutdownFn = monitor.SetupOTelMetricExporters(ctx, newConfig)
-	} else {
-		metricExporterShutdownFn = monitor.SetupOpenCensusExporters(newConfig)
+	metricHandle := common.NewNoopMetrics()
+	if cfg.IsMetricsEnabled(&newConfig.Metrics) {
+		if newConfig.Metrics.EnableOtel {
+			metricExporterShutdownFn = monitor.SetupOTelMetricExporters(ctx, newConfig)
+		} else {
+			metricExporterShutdownFn = monitor.SetupOpenCensusExporters(newConfig)
+			if metricHandle, err = common.NewOCMetrics(); err != nil {
+				metricHandle = common.NewNoopMetrics()
+			}
+		}
 	}
 	shutdownTracingFn := monitor.SetupTracing(ctx, newConfig)
 	shutdownFn := common.JoinShutdownFunc(metricExporterShutdownFn, shutdownTracingFn)
@@ -385,7 +392,7 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	// daemonize gives us and telling it about the outcome.
 	var mfs *fuse.MountedFileSystem
 	{
-		mfs, err = mountWithArgs(bucketName, mountPoint, newConfig)
+		mfs, err = mountWithArgs(bucketName, mountPoint, newConfig, metricHandle)
 
 		// This utility is to absorb the error
 		// returned by daemonize.SignalOutcome calls by simply

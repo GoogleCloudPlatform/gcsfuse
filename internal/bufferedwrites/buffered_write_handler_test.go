@@ -95,6 +95,46 @@ func (testSuite *BufferedWriteTest) TestWriteDataSizeGreaterThanBlockSize() {
 	assert.Equal(testSuite.T(), int64(size), fileInfo.TotalSize)
 }
 
+func (testSuite *BufferedWriteTest) TestWriteWhenNextOffsetIsGreaterThanExpected() {
+	err := testSuite.bwh.Write([]byte("hi"), 0)
+	require.Nil(testSuite.T(), err)
+
+	// Next offset should be 2, but we are calling with 5.
+	err = testSuite.bwh.Write([]byte("hello"), 5)
+
+	require.NotNil(testSuite.T(), err)
+	require.Equal(testSuite.T(), err, ErrOutOfOrderWrite)
+	fileInfo := testSuite.bwh.WriteFileInfo()
+	assert.Equal(testSuite.T(), testSuite.bwh.mtime, fileInfo.Mtime)
+	assert.Equal(testSuite.T(), int64(2), fileInfo.TotalSize)
+}
+
+func (testSuite *BufferedWriteTest) TestWriteWhenNextOffsetIsLessThanExpected() {
+	err := testSuite.bwh.Write([]byte("hello"), 0)
+	require.Nil(testSuite.T(), err)
+
+	// Next offset should be 5, but we are calling with 2.
+	err = testSuite.bwh.Write([]byte("abcdefgh"), 2)
+
+	require.NotNil(testSuite.T(), err)
+	require.Equal(testSuite.T(), err, ErrOutOfOrderWrite)
+	fileInfo := testSuite.bwh.WriteFileInfo()
+	assert.Equal(testSuite.T(), testSuite.bwh.mtime, fileInfo.Mtime)
+	assert.Equal(testSuite.T(), int64(5), fileInfo.TotalSize)
+}
+
+func (testSuite *BufferedWriteTest) TestMultipleWrites() {
+	err := testSuite.bwh.Write([]byte("hello"), 0)
+	require.Nil(testSuite.T(), err)
+
+	err = testSuite.bwh.Write([]byte("abcdefgh"), 5)
+	require.Nil(testSuite.T(), err)
+
+	fileInfo := testSuite.bwh.WriteFileInfo()
+	assert.Equal(testSuite.T(), testSuite.bwh.mtime, fileInfo.Mtime)
+	assert.Equal(testSuite.T(), int64(13), fileInfo.TotalSize)
+}
+
 func (testSuite *BufferedWriteTest) TestWrite_SignalUploadFailureInBetween() {
 	err := testSuite.bwh.Write([]byte("hello"), 0)
 	require.Nil(testSuite.T(), err)
@@ -107,7 +147,7 @@ func (testSuite *BufferedWriteTest) TestWrite_SignalUploadFailureInBetween() {
 
 	err = testSuite.bwh.Write([]byte("hello"), 5)
 	require.Error(testSuite.T(), err)
-	assert.ErrorContains(testSuite.T(), err, "BufferedWriteHandler.Write(): error while uploading object to GCS")
+	assert.Equal(testSuite.T(), err, ErrUploadFailure)
 }
 
 func (testSuite *BufferedWriteTest) TestFlushWithNonNilCurrentBlock() {
@@ -143,5 +183,5 @@ func (testSuite *BufferedWriteTest) TestFlush_SignalUploadFailureDuringWrite() {
 
 	err = testSuite.bwh.Flush()
 	require.Error(testSuite.T(), err)
-	assert.ErrorContains(testSuite.T(), err, "file cannot be finalized: error while uploading object to GCS")
+	assert.Equal(testSuite.T(), err, ErrUploadFailure)
 }

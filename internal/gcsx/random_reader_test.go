@@ -28,10 +28,12 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	testutil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
@@ -177,11 +179,11 @@ func (t *RandomReaderTest) SetUp(ti *TestInfo) {
 	lruCache := lru.NewCache(CacheMaxSize)
 	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, sequentialReadSizeInMb, &cfg.FileCacheConfig{
 		EnableCrc: false,
-	})
+	}, common.NewNoopMetrics())
 	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm)
 
 	// Set up the reader.
-	rr := NewRandomReader(t.object, t.bucket, sequentialReadSizeInMb, nil, false)
+	rr := NewRandomReader(t.object, t.bucket, sequentialReadSizeInMb, nil, false, common.NewNoopMetrics())
 	t.rr.wrapped = rr.(*randomReader)
 }
 
@@ -590,7 +592,7 @@ func (t *RandomReaderTest) UpgradesSequentialReads_NoExistingReader() {
 	t.object.Size = 1 << 40
 	const readSize = 1 * MB
 	// Set up the custom randomReader.
-	rr := NewRandomReader(t.object, t.bucket, readSize/MB, nil, false)
+	rr := NewRandomReader(t.object, t.bucket, readSize/MB, nil, false, common.NewNoopMetrics())
 	t.rr.wrapped = rr.(*randomReader)
 
 	// Simulate a previous exhausted reader that ended at the offset from which
@@ -623,7 +625,7 @@ func (t *RandomReaderTest) SequentialReads_NoExistingReader_requestedSizeGreater
 	const chunkSize = 1 * MB
 	const readSize = 3 * MB
 	// Set up the custom randomReader.
-	rr := NewRandomReader(t.object, t.bucket, chunkSize/MB, nil, false)
+	rr := NewRandomReader(t.object, t.bucket, chunkSize/MB, nil, false, common.NewNoopMetrics())
 	t.rr.wrapped = rr.(*randomReader)
 	// Create readers for each chunk.
 	chunk1Reader := strings.NewReader(strings.Repeat("x", chunkSize))
@@ -670,7 +672,7 @@ func (t *RandomReaderTest) SequentialReads_existingReader_requestedSizeGreaterTh
 	const chunkSize = 1 * MB
 	const readSize = 3 * MB
 	// Set up the custom randomReader.
-	rr := NewRandomReader(t.object, t.bucket, chunkSize/MB, nil, false)
+	rr := NewRandomReader(t.object, t.bucket, chunkSize/MB, nil, false, common.NewNoopMetrics())
 	t.rr.wrapped = rr.(*randomReader)
 	// Simulate an existing reader at the correct offset, which will be exhausted
 	// by the read below.
@@ -1202,6 +1204,19 @@ func (t *RandomReaderTest) Test_Destroy_NonNilCacheHandle() {
 	t.rr.wrapped.Destroy()
 
 	ExpectEq(nil, t.rr.wrapped.fileCacheHandle)
+}
+
+func (t *RandomReaderTest) TestNewReader_FileClobbered() {
+	var notFoundError *gcs.NotFoundError
+
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(Return(nil, notFoundError))
+
+	err := t.rr.wrapped.startRead(t.rr.ctx, 0, 1)
+
+	AssertNe(nil, err)
+	var clobberedErr *gcsfuse_errors.FileClobberedError
+	AssertTrue(errors.As(err, &clobberedErr))
 }
 
 // TODO (raj-prince) - to add unit tests for failed scenario while reading via cache.

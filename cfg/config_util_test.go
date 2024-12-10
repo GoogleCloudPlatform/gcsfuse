@@ -181,3 +181,25 @@ func TestIsTracingEnabled(t *testing.T) {
 		})
 	}
 }
+
+func TestIsMetricsEnabled(t *testing.T) {
+	t.Parallel()
+	var testCases = []struct {
+		testName string
+		m        *MetricsConfig
+		enabled  bool
+	}{
+		{"cloud_metrics_export_interval_set", &MetricsConfig{CloudMetricsExportIntervalSecs: 100}, true},
+		{"prom_port_set", &MetricsConfig{PrometheusPort: 10000}, true},
+		{"none_set", &MetricsConfig{CloudMetricsExportIntervalSecs: 0, PrometheusPort: 0}, false},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.testName, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, tc.enabled, IsMetricsEnabled(tc.m))
+		})
+	}
+}
