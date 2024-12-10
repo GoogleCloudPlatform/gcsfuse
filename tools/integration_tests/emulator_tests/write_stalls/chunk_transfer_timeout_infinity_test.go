@@ -40,12 +40,12 @@ type chunkTransferTimeoutnInfinity struct {
 }
 
 func (s *chunkTransferTimeoutnInfinity) Setup(t *testing.T) {
-	emulator_tests.StartProcess()
+	emulator_tests.StartProxyServer()
 	setup.MountGCSFuseWithGivenMountFunc(s.flags, mountFunc)
 }
 
 func (s *chunkTransferTimeoutnInfinity) Teardown(t *testing.T) {
-	assert.NoError(t, emulator_tests.KillProcessesOnPort(8020))
+	assert.NoError(t, emulator_tests.KillProxyServerProcess(8020))
 	setup.UnmountGCSFuse(rootDir)
 }
 
