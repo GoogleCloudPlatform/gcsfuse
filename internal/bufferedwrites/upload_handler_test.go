@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/block"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	storagemock "github.com/googlecloudplatform/gcsfuse/v2/internal/storage/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -64,8 +65,9 @@ func (t *UploadHandlerTest) TestMultipleBlockUpload() {
 	}
 	// CreateObjectChunkWriter -- should be called once.
 	writer := &storagemock.Writer{}
+	mockObj := &gcs.Object{}
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
-	writer.On("Close").Return(nil)
+	t.mockBucket.On("FinalizeUpload", mock.Anything, writer).Return(mockObj, nil)
 
 	// Upload the blocks.
 	for _, b := range blocks {
@@ -74,8 +76,10 @@ func (t *UploadHandlerTest) TestMultipleBlockUpload() {
 	}
 
 	// Finalize.
-	err := t.uh.Finalize()
+	obj, err := t.uh.Finalize()
 	require.NoError(t.T(), err)
+	require.NotNil(t.T(), obj)
+	assert.Equal(t.T(), mockObj, obj)
 	// The blocks should be available on the free channel for reuse.
 	for _, expect := range blocks {
 		got := <-t.uh.freeBlocksCh
@@ -111,46 +115,56 @@ func (t *UploadHandlerTest) TestUpload_CreateObjectWriterFails() {
 
 func (t *UploadHandlerTest) TestFinalizeWithWriterAlreadyPresent() {
 	writer := &storagemock.Writer{}
-	writer.On("Close").Return(nil)
+	mockObj := &gcs.Object{}
+	t.mockBucket.On("FinalizeUpload", mock.Anything, writer).Return(mockObj, nil)
 	t.uh.writer = writer
 
-	err := t.uh.Finalize()
+	obj, err := t.uh.Finalize()
 
-	assert.NoError(t.T(), err)
+	require.NoError(t.T(), err)
+	require.NotNil(t.T(), obj)
+	assert.Equal(t.T(), mockObj, obj)
 }
 
 func (t *UploadHandlerTest) TestFinalizeWithNoWriter() {
 	writer := &storagemock.Writer{}
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
 	assert.Nil(t.T(), t.uh.writer)
-	writer.On("Close").Return(nil)
+	mockObj := &gcs.Object{}
+	t.mockBucket.On("FinalizeUpload", mock.Anything, writer).Return(mockObj, nil)
 
-	err := t.uh.Finalize()
+	obj, err := t.uh.Finalize()
 
-	assert.NoError(t.T(), err)
+	require.NoError(t.T(), err)
+	require.NotNil(t.T(), obj)
+	assert.Equal(t.T(), mockObj, obj)
 }
 
 func (t *UploadHandlerTest) TestFinalizeWithNoWriter_CreateObjectWriterFails() {
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("taco"))
 	assert.Nil(t.T(), t.uh.writer)
 
-	err := t.uh.Finalize()
+	obj, err := t.uh.Finalize()
 
 	require.Error(t.T(), err)
 	assert.ErrorContains(t.T(), err, "taco")
 	assert.ErrorContains(t.T(), err, "createObjectWriter")
+	assert.Nil(t.T(), obj)
 }
 
-func (t *UploadHandlerTest) TestFinalize_WriterCloseFails() {
+func (t *UploadHandlerTest) TestFinalize_FinalizeUploadFails() {
 	writer := &storagemock.Writer{}
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
 	assert.Nil(t.T(), t.uh.writer)
-	writer.On("Close").Return(fmt.Errorf("taco"))
+	mockObj := &gcs.Object{}
+	t.mockBucket.On("FinalizeUpload", mock.Anything, writer).Return(mockObj, fmt.Errorf("taco"))
 
-	err := t.uh.Finalize()
+	obj, err := t.uh.Finalize()
 
 	require.Error(t.T(), err)
-	assert.ErrorContains(t.T(), err, "writer.Close")
+	assert.Nil(t.T(), obj)
+	assert.ErrorContains(t.T(), err, "taco")
+	assert.ErrorContains(t.T(), err, "FinalizeUpload failed for object")
 }
 
 func (t *UploadHandlerTest) TestUploadHandler_singleBlock_ErrorInCopy() {
