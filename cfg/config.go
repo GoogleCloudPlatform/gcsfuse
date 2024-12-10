@@ -152,6 +152,8 @@ type GcsConnectionConfig struct {
 }
 
 type GcsRetriesConfig struct {
+	ChunkTransferTimeoutSecs int64 `yaml:"chunk-transfer-timeout-secs"`
+
 	MaxRetryAttempts int64 `yaml:"max-retry-attempts"`
 
 	MaxRetrySleep time.Duration `yaml:"max-retry-sleep"`
@@ -235,8 +237,6 @@ type ReadStallGcsRetriesConfig struct {
 
 type WriteConfig struct {
 	BlockSizeMb int64 `yaml:"block-size-mb"`
-
-	ChunkTransferTimeoutSecs int64 `yaml:"chunk-transfer-timeout-secs"`
 
 	CreateEmptyFile bool `yaml:"create-empty-file"`
 
@@ -592,7 +592,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("write.chunk-transfer-timeout-secs", flagSet.Lookup("chunk-transfer-timeout-secs")); err != nil {
+	if err := v.BindPFlag("gcs-retries.chunk-transfer-timeout-secs", flagSet.Lookup("chunk-transfer-timeout-secs")); err != nil {
 		return err
 	}
 

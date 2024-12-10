@@ -341,6 +341,17 @@
   usage: "File chunk size to read from GCS in one call. Need to specify the value in MB. ChunkSize less than 1MB is not supported"
   default: "200"
 
+- config-path: "gcs-retries.chunk-transfer-timeout-secs"
+  flag-name: "chunk-transfer-timeout-secs"
+  type: "int"
+  usage: >-
+    We send larger file uploads in 16 MiB chunks. This flag controls the duration 
+    that the HTTP client will wait for a response after making a request to upload a chunk. 
+    The default value of 10s indicates that the client will wait 10 seconds for upload completion; 
+    otherwise, it cancels the request and retries for that chunk till chunkRetryDeadline(32s). 0 means no timeout.
+  default: "10"
+  hide-flag: true
+
 - config-path: "gcs-retries.max-retry-attempts"
   flag-name: "max-retry-attempts"
   type: "int"
@@ -626,17 +637,6 @@
     Specifies the block size for streaming writes. The value should be more 
     than 0.
   default: 64 #TODO: revisit default value after perf testing.
-  hide-flag: true
-
-- config-path: "write.chunk-transfer-timeout-secs"
-  flag-name: "chunk-transfer-timeout-secs"
-  type: "int"
-  usage: >-
-    We send larger file uploads in 16 MiB chunks. This flag controls the duration 
-    that the HTTP client will wait for a response after making a request to upload a chunk. 
-    The default value of 10s indicates that the client will wait 10 seconds for upload completion; 
-    otherwise, it cancels the request and retries for that chunk till chunkRetryDeadline(32s). 0 means no timeout.
-  default: "10"
   hide-flag: true
 
 - config-path: "write.create-empty-file"

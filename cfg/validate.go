@@ -156,9 +156,6 @@ func isValidWriteStreamingConfig(wc *WriteConfig) error {
 	if !(wc.GlobalMaxBlocks == -1 || wc.GlobalMaxBlocks >= 2) {
 		return fmt.Errorf("invalid value of write-global-max-blocks: %d; should be >=2 or -1 (for infinite)", wc.GlobalMaxBlocks)
 	}
-	if wc.ChunkTransferTimeoutSecs < 0 || wc.ChunkTransferTimeoutSecs > maxSupportedTTLInSeconds {
-		return fmt.Errorf("invalid value of ChunkTransferTimeout: %d; should be > 0 or 0 (for infinite)", wc.ChunkTransferTimeoutSecs)
-	}
 	return nil
 }
 
@@ -184,6 +181,13 @@ func isValidMetricsConfig(m *MetricsConfig) error {
 	const maxPortNumber = math.MaxUint16
 	if m.PrometheusPort > maxPortNumber {
 		return fmt.Errorf("prometheus-port must not be higher than the maximum allowed port number: %d but received: %d instead", maxPortNumber, m.PrometheusPort)
+	}
+	return nil
+}
+
+func isValidChunkTransferTimeoutForRetriesConfig(chunkTransferTimeoutSecs *int64) error {
+	if *chunkTransferTimeoutSecs < 0 || *chunkTransferTimeoutSecs > maxSupportedTTLInSeconds {
+		return fmt.Errorf("invalid value of ChunkTransferTimeout: %d; should be > 0 or 0 (for infinite)", chunkTransferTimeoutSecs)
 	}
 	return nil
 }
@@ -230,6 +234,10 @@ func ValidateConfig(v isSet, config *Config) error {
 
 	if err = isValidReadStallGcsRetriesConfig(&config.GcsRetries.ReadStall); err != nil {
 		return fmt.Errorf("error parsing read-stall-gcs-retries config: %w", err)
+	}
+
+	if err = isValidChunkTransferTimeoutForRetriesConfig(&config.GcsRetries.ChunkTransferTimeoutSecs); err != nil {
+		return fmt.Errorf("error parsing log-rotate config: %w", err)
 	}
 
 	if err = isValidMetricsConfig(&config.Metrics); err != nil {

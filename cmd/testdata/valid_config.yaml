@@ -1,7 +1,6 @@
 app-name: hello
 write:
   create-empty-file: true
-  chunk-transfer-timeout-secs: 20
   experimental-enable-streaming-writes: true
   global-max-blocks: 20
   block-size-mb: 10
@@ -34,6 +33,7 @@ gcs-connection:
   max-idle-conns-per-host: 20
   sequential-read-size-mb: 450
 gcs-retries:
+  chunk-transfer-timeout-secs: 20
   read-stall:
     enable: true
     min-req-timeout: 10s
