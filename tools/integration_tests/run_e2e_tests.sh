@@ -305,6 +305,7 @@ function run_e2e_tests_for_tpc() {
 }
 
 function run_e2e_tests_for_emulator() {
+  ls
   bash ./emulator_tests/emulator_tests.sh
 }
 
