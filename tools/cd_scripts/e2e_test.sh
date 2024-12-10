@@ -195,7 +195,7 @@ else
 fi
 
 # install go
-wget -O go_tar.tar.gz https://go.dev/dl/go1.23.2.linux-${architecture}.tar.gz
+wget -O go_tar.tar.gz https://go.dev/dl/go1.23.3.linux-${architecture}.tar.gz
 sudo tar -C /usr/local -xzf go_tar.tar.gz
 export PATH=${PATH}:/usr/local/go/bin
 #Write gcsfuse and go version to log file
@@ -204,7 +204,7 @@ go version |& tee -a ~/logs.txt
 
 # Clone and checkout gcsfuse repo
 export PATH=${PATH}:/usr/local/go/bin
-git clone https://github.com/vipnydav/gcsfuse |& tee -a ~/logs.txt
+git clone https://github.com/googlecloudplatform/gcsfuse |& tee -a ~/logs.txt
 cd gcsfuse
 
 # Installation of crcmod is working through pip only on rhel and centos.
