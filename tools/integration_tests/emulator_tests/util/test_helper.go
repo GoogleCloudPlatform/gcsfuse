@@ -29,7 +29,18 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
-func StartProcess() {
+// StartProxyServer starts a proxy server as a background process and handles its lifecycle.
+//
+// It launches the proxy server with the specified configuration, logs its output to a file,
+// and sets up signal handling for graceful shutdown.
+//
+// The function also starts a simple HTTP server to keep the process running and provides an
+// endpoint to check the proxy status.
+//
+// When receiving SIGINT or SIGTERM signals, it gracefully shuts down the proxy server by:
+//   - Sending SIGINT to the proxy process.
+//   - Killing any processes listening on port 8020.
+func StartProxyServer() {
 	// Start the proxy in the background
 	cmd := exec.Command("go", "run", "../proxy_server/.", "--config-path=../proxy_server/configs/write_stall_40s.yaml")
 	logFileForProxyServer, err := os.Create(path.Join(os.Getenv("KOKORO_ARTIFACTS_DIR"), "proxy"+setup.GenerateRandomString(5)))
@@ -59,7 +70,7 @@ func StartProcess() {
 		}
 
 		// Find and kill any processes listening on port 8080
-		err = KillProcessesOnPort(8020)
+		err = KillProxyServerProcess(8020)
 		if err != nil {
 			log.Println("Error killing processes on port 8020:", err)
 		}
@@ -73,7 +84,10 @@ func StartProcess() {
 	})
 }
 
-func KillProcessesOnPort(port int) error {
+// KillProxyServerProcess kills all processes listening on the specified port.
+//
+// It uses the `lsof` command to identify the processes and sends SIGINT to each of them.
+func KillProxyServerProcess(port int) error {
 	// Use lsof to find processes listening on the specified port
 	cmd := exec.Command("lsof", "-i", fmt.Sprintf(":%d", port))
 	output, err := cmd.Output()
