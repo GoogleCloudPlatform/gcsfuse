@@ -49,6 +49,7 @@ type WriteFileInfo struct {
 }
 
 var ErrOutOfOrderWrite = errors.New("outOfOrder write detected")
+var ErrUploadFailure = errors.New("error while uploading object to GCS")
 
 // NewBWHandler creates the bufferedWriteHandler struct.
 func NewBWHandler(objectName string, bucket gcs.Bucket, blockSize int64, maxBlocks int64, globalMaxBlocksSem *semaphore.Weighted) (bwh *BufferedWriteHandler, err error) {
@@ -79,7 +80,7 @@ func (wh *BufferedWriteHandler) Write(data []byte, offset int64) (err error) {
 	// Fail early if the uploadHandler has failed.
 	select {
 	case <-wh.uploadHandler.SignalUploadFailure():
-		return fmt.Errorf("BufferedWriteHandler.Write(): error while uploading object to GCS")
+		return ErrUploadFailure
 	default:
 		break
 	}
@@ -127,7 +128,7 @@ func (wh *BufferedWriteHandler) Flush() (*gcs.Object, error) {
 	// Fail early if the uploadHandler has failed.
 	select {
 	case <-wh.uploadHandler.SignalUploadFailure():
-		return nil, fmt.Errorf("file cannot be finalized: error while uploading object to GCS")
+		return nil, ErrUploadFailure
 	default:
 		break
 	}
