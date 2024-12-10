@@ -75,6 +75,10 @@ func IsPresubmitRun() bool {
 	return *isPresubmitRun
 }
 
+func IsIntegrationTest() bool {
+	return *integrationTest
+}
+
 func TestBucket() string {
 	return *testBucket
 }
