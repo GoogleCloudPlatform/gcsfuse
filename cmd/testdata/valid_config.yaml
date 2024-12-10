@@ -9,7 +9,7 @@ file-cache:
   cache-file-for-range-read: true
   download-chunk-size-mb: 300
   enable-crc: true
-  enable-parallel-downloads: true
+  enable-parallel-downloads: false
   max-parallel-downloads: 200
   max-size-mb: 40
   parallel-downloads-per-file: 10
