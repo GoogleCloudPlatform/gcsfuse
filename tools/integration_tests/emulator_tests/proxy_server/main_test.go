@@ -54,7 +54,7 @@ func TestAddRetryID(t *testing.T) {
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	// Skip running unit tests as a part of integration tests.
+	// Skip running unit tests as part of the integration tests. Although running these tests will not cause any failures.
 	if setup.IsIntegrationTest() {
 		return
 	}
