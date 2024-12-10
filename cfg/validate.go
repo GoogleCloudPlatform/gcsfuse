@@ -15,10 +15,10 @@
 package cfg
 
 import (
+	"errors"
 	"fmt"
-	"math"
 
-	cacheutil "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
+	"math"
 )
 
 const (
@@ -47,19 +47,19 @@ func isValidURL(u string) error {
 func isValidParallelDownloadConfig(config *Config) error {
 	if config.FileCache.EnableParallelDownloads {
 		if config.FileCache.MaxParallelDownloads == 0 {
-			return fmt.Errorf("the value of max-parallel-downloads for file-cache must not be 0 when enable-parallel-downloads is true")
+			return errors.New("the value of max-parallel-downloads for file-cache must not be 0 when enable-parallel-downloads is true")
 		}
-		if config.FileCache.WriteBufferSize < cacheutil.MinimumAlignSizeForWriting {
-			return fmt.Errorf("the value of write-buffer-size for file-cache can't be less than 4096")
+		if config.FileCache.WriteBufferSize < CacheUtilMinimumAlignSizeForWriting {
+			return errors.New("the value of write-buffer-size for file-cache can't be less than 4096")
 		}
-		if (config.FileCache.WriteBufferSize % cacheutil.MinimumAlignSizeForWriting) != 0 {
-			return fmt.Errorf("the value of write-buffer-size for file-cache should be in multiple of 4096")
+		if (config.FileCache.WriteBufferSize % CacheUtilMinimumAlignSizeForWriting) != 0 {
+			return errors.New("the value of write-buffer-size for file-cache should be in multiple of 4096")
 		}
 		if config.FileCache.ParallelDownloadsPerFile < 1 {
-			return fmt.Errorf(ParallelDownloadsPerFileInvalidValueError)
+			return errors.New(ParallelDownloadsPerFileInvalidValueError)
 		}
 		if string(config.CacheDir) == "" {
-			return fmt.Errorf("file cache directory is manadatory for parallel download")
+			return errors.New("file cache directory is manadatory for parallel download")
 		}
 	}
 
@@ -68,13 +68,13 @@ func isValidParallelDownloadConfig(config *Config) error {
 
 func isValidFileCacheConfig(config *FileCacheConfig) error {
 	if config.MaxSizeMb < -1 {
-		return fmt.Errorf(FileCacheMaxSizeMBInvalidValueError)
+		return errors.New(FileCacheMaxSizeMBInvalidValueError)
 	}
 	if config.MaxParallelDownloads < -1 {
-		return fmt.Errorf(MaxParallelDownloadsInvalidValueError)
+		return errors.New(MaxParallelDownloadsInvalidValueError)
 	}
 	if config.DownloadChunkSizeMb < 1 {
-		return fmt.Errorf(DownloadChunkSizeMBInvalidValueError)
+		return errors.New(DownloadChunkSizeMBInvalidValueError)
 	}
 
 	return nil
