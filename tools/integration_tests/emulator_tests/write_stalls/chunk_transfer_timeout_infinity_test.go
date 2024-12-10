@@ -42,6 +42,7 @@ type chunkTransferTimeoutnInfinity struct {
 func (s *chunkTransferTimeoutnInfinity) Setup(t *testing.T) {
 	emulator_tests.StartProxyServer()
 	setup.MountGCSFuseWithGivenMountFunc(s.flags, mountFunc)
+	testDirPath = setup.SetupTestDirectory(testDirName)
 }
 
 func (s *chunkTransferTimeoutnInfinity) Teardown(t *testing.T) {
@@ -60,7 +61,6 @@ func (s *chunkTransferTimeoutnInfinity) Teardown(t *testing.T) {
 // is greater than or equal to the configured stall time.
 func (s *chunkTransferTimeoutnInfinity) TestWriteStallCausesDelay(t *testing.T) {
 	stallTime := 40 * time.Second
-	testDirPath := path.Join(setup.MntDir(), testDirName)
 	filePath := path.Join(testDirPath, "file.txt")
 	// Create a file for writing
 	file, err := os.Create(filePath)
