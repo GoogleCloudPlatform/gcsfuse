@@ -93,6 +93,7 @@ func (t *AppendObjectCreatorTest) call() (o *gcs.Object, err error) {
 		t.srcObject.Name,
 		&t.srcObject,
 		&t.mtime,
+		chunkTransferTimeoutSecs,
 		strings.NewReader(t.srcContents))
 
 	return

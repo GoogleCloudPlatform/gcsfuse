@@ -150,8 +150,9 @@ func (t *fsTest) SetUpTestSuite() {
 		// This bucket manager is allowed to open these buckets
 		buckets: buckets,
 		// Configs for the syncer when setting up buckets
-		appendThreshold: 0,
-		tmpObjectPrefix: ".gcsfuse_tmp/",
+		appendThreshold:          0,
+		chunkTransferTimeoutSecs: 10,
+		tmpObjectPrefix:          ".gcsfuse_tmp/",
 	}
 	t.serverCfg.RenameDirLimit = RenameDirLimit
 	t.serverCfg.SequentialReadSizeMb = SequentialReadSizeMb
@@ -363,9 +364,10 @@ func currentGid() uint32 {
 }
 
 type fakeBucketManager struct {
-	buckets         map[string]gcs.Bucket
-	appendThreshold int64
-	tmpObjectPrefix string
+	buckets                  map[string]gcs.Bucket
+	appendThreshold          int64
+	chunkTransferTimeoutSecs int64
+	tmpObjectPrefix          string
 }
 
 func (bm *fakeBucketManager) ShutDown() {}
@@ -377,6 +379,7 @@ func (bm *fakeBucketManager) SetUpBucket(
 	if ok {
 		sb = gcsx.NewSyncerBucket(
 			bm.appendThreshold,
+			bm.chunkTransferTimeoutSecs,
 			bm.tmpObjectPrefix,
 			gcsx.NewContentTypeBucket(bucket),
 		)

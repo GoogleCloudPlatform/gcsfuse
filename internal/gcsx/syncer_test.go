@@ -67,6 +67,7 @@ func (t *FullObjectCreatorTest) call() (o *gcs.Object, err error) {
 		t.srcObject.Name,
 		&t.srcObject,
 		&t.mtime,
+		chunkTransferTimeoutSecs,
 		strings.NewReader(t.srcContents))
 
 	return
@@ -175,6 +176,7 @@ func (t *FullObjectCreatorTest) CallsCreateObjectWhenSrcObjectIsNil() {
 		t.srcObject.Name,
 		nil,
 		&t.mtime,
+		chunkTransferTimeoutSecs,
 		strings.NewReader(t.srcContents))
 
 	t.validateEmptyProperties(req)
@@ -194,6 +196,7 @@ func (t *FullObjectCreatorTest) CallsCreateObjectWhenSrcObjectAndMtimeAreNil() {
 		t.srcObject.Name,
 		nil,
 		nil,
+		chunkTransferTimeoutSecs,
 		strings.NewReader(t.srcContents))
 
 	t.validateEmptyProperties(req)
@@ -243,6 +246,7 @@ func (oc *fakeObjectCreator) Create(
 	fileName string,
 	srcObject *gcs.Object,
 	mtime *time.Time,
+	chunkTransferTimeoutSecs int64,
 	r io.Reader) (o *gcs.Object, err error) {
 	// Have we been called more than once?
 	AssertFalse(oc.called)
@@ -267,6 +271,7 @@ func (oc *fakeObjectCreator) Create(
 
 const srcObjectContents = "taco"
 const appendThreshold = int64(len(srcObjectContents))
+const chunkTransferTimeoutSecs = 10
 
 type SyncerTest struct {
 	ctx context.Context
@@ -294,6 +299,7 @@ func (t *SyncerTest) SetUp(ti *TestInfo) {
 	t.bucket = fake.NewFakeBucket(&t.clock, "some_bucket", gcs.NonHierarchical)
 	t.syncer = newSyncer(
 		appendThreshold,
+		chunkTransferTimeoutSecs,
 		&t.fullCreator,
 		&t.appendCreator)
 
@@ -413,6 +419,7 @@ func (t *SyncerTest) SourceTooShortForAppend() {
 	// Recreate the syncer with a higher append threshold.
 	t.syncer = newSyncer(
 		int64(len(srcObjectContents)+1),
+		chunkTransferTimeoutSecs,
 		&t.fullCreator,
 		&t.appendCreator)
 

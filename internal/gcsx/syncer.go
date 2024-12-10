@@ -55,6 +55,7 @@ type Syncer interface {
 // to do so. Therefore the user should arrange for garbage collection.
 func NewSyncer(
 	appendThreshold int64,
+	chunkTransferTimeoutSecs int64,
 	tmpObjectPrefix string,
 	bucket gcs.Bucket) (os Syncer) {
 	// Create the object creators.
@@ -67,7 +68,7 @@ func NewSyncer(
 		bucket)
 
 	// And the syncer.
-	os = newSyncer(appendThreshold, fullCreator, appendCreator)
+	os = newSyncer(appendThreshold, chunkTransferTimeoutSecs, fullCreator, appendCreator)
 
 	return
 }
@@ -85,6 +86,7 @@ func (oc *fullObjectCreator) Create(
 	objectName string,
 	srcObject *gcs.Object,
 	mtime *time.Time,
+	chunkTransferTimeoutSecs int64,
 	r io.Reader) (o *gcs.Object, err error) {
 	metadataMap := make(map[string]string)
 
@@ -92,10 +94,11 @@ func (oc *fullObjectCreator) Create(
 	if srcObject == nil {
 		var precond int64
 		req = &gcs.CreateObjectRequest{
-			Name:                   objectName,
-			Contents:               r,
-			GenerationPrecondition: &precond,
-			Metadata:               metadataMap,
+			Name:                     objectName,
+			Contents:                 r,
+			GenerationPrecondition:   &precond,
+			Metadata:                 metadataMap,
+			ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
 		}
 	} else {
 		for key, value := range srcObject.Metadata {
@@ -115,6 +118,7 @@ func (oc *fullObjectCreator) Create(
 			CustomTime:                 srcObject.CustomTime,
 			EventBasedHold:             srcObject.EventBasedHold,
 			StorageClass:               srcObject.StorageClass,
+			ChunkTransferTimeoutSecs:   chunkTransferTimeoutSecs,
 		}
 	}
 
@@ -143,6 +147,7 @@ type objectCreator interface {
 		objectName string,
 		srcObject *gcs.Object,
 		mtime *time.Time,
+		chunkTransferTimeoutSecs int64,
 		r io.Reader) (o *gcs.Object, err error)
 }
 
@@ -161,21 +166,24 @@ type objectCreator interface {
 // to GCS (for a small create, a compose, and a delete).
 func newSyncer(
 	appendThreshold int64,
+	chunkTransferTimeoutSecs int64,
 	fullCreator objectCreator,
 	appendCreator objectCreator) (os Syncer) {
 	os = &syncer{
-		appendThreshold: appendThreshold,
-		fullCreator:     fullCreator,
-		appendCreator:   appendCreator,
+		appendThreshold:          appendThreshold,
+		chunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
+		fullCreator:              fullCreator,
+		appendCreator:            appendCreator,
 	}
 
 	return
 }
 
 type syncer struct {
-	appendThreshold int64
-	fullCreator     objectCreator
-	appendCreator   objectCreator
+	appendThreshold          int64
+	chunkTransferTimeoutSecs int64
+	fullCreator              objectCreator
+	appendCreator            objectCreator
 }
 
 func (os *syncer) SyncObject(
@@ -200,7 +208,7 @@ func (os *syncer) SyncObject(
 			err = fmt.Errorf("error in seeking: %w", err)
 			return
 		}
-		return os.fullCreator.Create(ctx, objectName, srcObject, sr.Mtime, content)
+		return os.fullCreator.Create(ctx, objectName, srcObject, sr.Mtime, os.chunkTransferTimeoutSecs, content)
 	}
 
 	// Make sure the dirty threshold makes sense.
@@ -240,7 +248,7 @@ func (os *syncer) SyncObject(
 			return
 		}
 
-		o, err = os.appendCreator.Create(ctx, objectName, srcObject, sr.Mtime, content)
+		o, err = os.appendCreator.Create(ctx, objectName, srcObject, sr.Mtime, os.chunkTransferTimeoutSecs, content)
 	} else {
 		_, err = content.Seek(0, 0)
 		if err != nil {
@@ -248,7 +256,7 @@ func (os *syncer) SyncObject(
 			return
 		}
 
-		o, err = os.fullCreator.Create(ctx, objectName, srcObject, sr.Mtime, content)
+		o, err = os.fullCreator.Create(ctx, objectName, srcObject, sr.Mtime, os.chunkTransferTimeoutSecs, content)
 	}
 
 	// Deal with errors.

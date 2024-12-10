@@ -60,11 +60,13 @@ func (t *BaseDirTest) SetUp(ti *TestInfo) {
 	}
 	t.bm.buckets["bucketA"] = gcsx.NewSyncerBucket(
 		1, // Append threshold
+		10,
 		".gcsfuse_tmp/",
 		fake.NewFakeBucket(&t.clock, "bucketA", gcs.NonHierarchical),
 	)
 	t.bm.buckets["bucketB"] = gcsx.NewSyncerBucket(
 		1, // Append threshold
+		10,
 		".gcsfuse_tmp/",
 		fake.NewFakeBucket(&t.clock, "bucketB", gcs.NonHierarchical),
 	)

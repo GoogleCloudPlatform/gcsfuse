@@ -27,9 +27,10 @@ type SyncerBucket struct {
 // a gcs.Bucket, or as a Syncer.
 func NewSyncerBucket(
 	appendThreshold int64,
+	chunkTransferTimeoutSecs int64,
 	tmpObjectPrefix string,
 	bucket gcs.Bucket,
 ) SyncerBucket {
-	syncer := NewSyncer(appendThreshold, tmpObjectPrefix, bucket)
+	syncer := NewSyncer(appendThreshold, chunkTransferTimeoutSecs, tmpObjectPrefix, bucket)
 	return SyncerBucket{bucket, syncer}
 }

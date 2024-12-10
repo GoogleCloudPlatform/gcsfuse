@@ -86,10 +86,12 @@ func (t *IntegrationTest) SetUp(ti *TestInfo) {
 
 	// Set up the syncer.
 	const appendThreshold = 0
+	const chunkTransferTimeoutSecs = 10
 	const tmpObjectPrefix = ".gcsfuse_tmp/"
 
 	t.syncer = gcsx.NewSyncer(
 		appendThreshold,
+		chunkTransferTimeoutSecs,
 		tmpObjectPrefix,
 		t.bucket)
 }
