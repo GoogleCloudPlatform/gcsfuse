@@ -26,6 +26,7 @@ import (
 	"strings"
 	"unsafe"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
 	"github.com/jacobsa/fuse/fsutil"
 )
@@ -42,13 +43,12 @@ const (
 )
 
 const (
-	MiB                        = 1024 * 1024
-	KiB                        = 1024
-	DefaultFilePerm            = os.FileMode(0600)
-	DefaultDirPerm             = os.FileMode(0700)
-	FileCache                  = "gcsfuse-file-cache"
-	BufferSizeForCRC           = 65536
-	MinimumAlignSizeForWriting = 4096
+	MiB              = 1024 * 1024
+	KiB              = 1024
+	DefaultFilePerm  = os.FileMode(0600)
+	DefaultDirPerm   = os.FileMode(0700)
+	FileCache        = "gcsfuse-file-cache"
+	BufferSizeForCRC = 65536
 )
 
 // CreateFile creates file with given file spec i.e. permissions and returns
@@ -221,13 +221,13 @@ func GetMemoryAlignedBuffer(bufferSize int64, alignSize int64) (buffer []byte, e
 
 // CopyUsingMemoryAlignedBuffer copies content from src reader to dst writer
 // by staging content into a memory aligned buffer of size bufferSize and
-// aligned to multiple of MinimumAlignSizeForWriting. Note: The minimum write
-// size is MinimumAlignSizeForWriting which means the total size of content
-// written to dst writer is always in multiple of MinimumAlignSizeForWriting.
-// If contentSize is lesser than MinimumAlignSizeForWriting then extra null data
+// aligned to multiple of cfg.CacheUtilMinimumAlignSizeForWriting. Note: The minimum write
+// size is cfg.CacheUtilMinimumAlignSizeForWriting which means the total size of content
+// written to dst writer is always in multiple of cfg.CacheUtilMinimumAlignSizeForWriting.
+// If contentSize is lesser than cfg.CacheUtilMinimumAlignSizeForWriting then extra null data
 // is written at the last.
 func CopyUsingMemoryAlignedBuffer(ctx context.Context, src io.Reader, dst io.Writer, contentSize, bufferSize int64) (n int64, err error) {
-	var alignSize int64 = MinimumAlignSizeForWriting
+	var alignSize int64 = cfg.CacheUtilMinimumAlignSizeForWriting
 	if bufferSize < alignSize || ((bufferSize % alignSize) != 0) {
 		return 0, fmt.Errorf("buffer size (%v) should be a multiple of %v", bufferSize, alignSize)
 	}
