@@ -1018,3 +1018,49 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 		})
 	}
 }
+
+func TestArgParsing_GCSRetries(t *testing.T) {
+	tests := []struct {
+		name           string
+		args           []string
+		expectedConfig *cfg.Config
+	}{
+		{
+			name: "Test with non default chunkTransferTimeout",
+			args: []string{"gcsfuse", "--chunk-transfer-timeout-secs=30", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				GcsRetries: cfg.GcsRetriesConfig{
+					ChunkTransferTimeoutSecs: 30,
+					MaxRetryAttempts:         0,
+					MaxRetrySleep:            30 * time.Second,
+					Multiplier:               2,
+					ReadStall: cfg.ReadStallGcsRetriesConfig{
+						Enable:              false,
+						InitialReqTimeout:   20 * time.Second,
+						MinReqTimeout:       1500 * time.Millisecond,
+						MaxReqTimeout:       1200 * time.Second,
+						ReqIncreaseRate:     15,
+						ReqTargetPercentile: 0.99,
+					},
+				},
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotConfig *cfg.Config
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+				gotConfig = cfg
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedConfig.GcsRetries, gotConfig.GcsRetries)
+			}
+		})
+	}
+}

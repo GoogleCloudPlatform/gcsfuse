@@ -20,6 +20,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -48,4 +49,13 @@ func TestAddRetryID(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, "test-id-123", req.Header.Get("x-retry-test-id"), "Unexpected x-retry-test-id header value")
+}
+
+func TestMain(m *testing.M) {
+	setup.ParseSetUpFlags()
+
+	// Skip running unit tests as part of the integration tests. Although running these tests will not cause any failures.
+	if setup.IsIntegrationTest() {
+		return
+	}
 }

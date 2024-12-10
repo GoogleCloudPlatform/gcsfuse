@@ -152,6 +152,8 @@ type GcsConnectionConfig struct {
 }
 
 type GcsRetriesConfig struct {
+	ChunkTransferTimeoutSecs int64 `yaml:"chunk-transfer-timeout-secs"`
+
 	MaxRetryAttempts int64 `yaml:"max-retry-attempts"`
 
 	MaxRetrySleep time.Duration `yaml:"max-retry-sleep"`
@@ -254,6 +256,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.StringP("billing-project", "", "", "Project to use for billing when accessing a bucket enabled with \"Requester Pays\". (The default is none)")
 
 	flagSet.StringP("cache-dir", "", "", "Enables file-caching. Specifies the directory to use for file-cache.")
+
+	flagSet.IntP("chunk-transfer-timeout-secs", "", 10, "We send larger file uploads in 16 MiB chunks. This flag controls the duration  that the HTTP client will wait for a response after making a request to upload a chunk.  The default value of 10s indicates that the client will wait 10 seconds for upload completion;  otherwise, it cancels the request and retries for that chunk till chunkRetryDeadline(32s). 0 means no timeout.")
+
+	if err := flagSet.MarkHidden("chunk-transfer-timeout-secs"); err != nil {
+		return err
+	}
 
 	flagSet.StringP("client-protocol", "", "http1", "The protocol used for communicating with the GCS backend. Value can be 'http1' (HTTP/1.1), 'http2' (HTTP/2) or 'grpc'.")
 
@@ -581,6 +589,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("cache-dir", flagSet.Lookup("cache-dir")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("gcs-retries.chunk-transfer-timeout-secs", flagSet.Lookup("chunk-transfer-timeout-secs")); err != nil {
 		return err
 	}
 

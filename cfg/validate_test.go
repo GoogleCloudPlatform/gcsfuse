@@ -175,6 +175,21 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "disabled",
 				},
+      },
+    }
+    {
+			name: "valid_chunk_transfer_timeout_secs",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
+				GcsConnection: GcsConnectionConfig{
+					SequentialReadSizeMb: 10,
+				},
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+				FileSystem: FileSystemConfig{KernelListCacheTtlSecs: 30},
+				GcsRetries: GcsRetriesConfig{ChunkTransferTimeoutSecs: 15},
 			},
 		},
 	}
@@ -364,6 +379,19 @@ func TestValidateConfig_ErrorScenarios(t *testing.T) {
 				},
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "disabled",
+        },
+      },
+    },
+    {
+			name: "chunk_transfer_timeout_in_negative",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+				GcsRetries: GcsRetriesConfig{
+					ChunkTransferTimeoutSecs: -5,
 				},
 			},
 		},
