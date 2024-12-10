@@ -348,7 +348,7 @@ func TestValidateConfig_ErrorScenarios(t *testing.T) {
 			},
 		},
 		{
-			name: "parallel_download_config_without_file_cache_negative",
+			name: "parallel_download_config_without_file_cache_enabled",
 			config: &Config{
 				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
 				FileCache: FileCacheConfig{
