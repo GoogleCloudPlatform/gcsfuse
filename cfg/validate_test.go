@@ -458,13 +458,6 @@ func Test_isValidWriteStreamingConfig_ErrorScenarios(t *testing.T) {
 			GlobalMaxBlocks:                   20,
 			MaxBlocksPerFile:                  1,
 		}},
-		{"negative_chunk_transfer_timeout", WriteConfig{
-			BlockSizeMb:                       -1,
-			CreateEmptyFile:                   false,
-			ExperimentalEnableStreamingWrites: true,
-			GlobalMaxBlocks:                   -10,
-			MaxBlocksPerFile:                  -10,
-		}},
 	}
 
 	for _, tc := range testCases {

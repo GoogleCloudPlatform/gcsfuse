@@ -274,15 +274,6 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
 			expectedWriteMaxBlocksPerFile: 10,
 		},
-		{
-			name:                          "Test chunk-transfer-timeout with non default value",
-			args:                          []string{"gcsfuse", "--chunk-transfer-timeout-secs=30", "abc", "pqr"},
-			expectedCreateEmptyFile:       false,
-			expectedEnableStreamingWrites: false,
-			expectedWriteBlockSizeMB:      64,
-			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
-			expectedWriteMaxBlocksPerFile: 10,
-		},
 	}
 
 	for _, tc := range tests {
