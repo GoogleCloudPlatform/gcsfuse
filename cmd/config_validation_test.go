@@ -693,8 +693,8 @@ func TestValidateConfigFile_MetadataCacheConfigSuccessful(t *testing.T) {
 	}
 }
 
-func TestValidateConfigFile_ReadStallConfigSuccessful(t *testing.T) {
-	testCases := []struct {
+func TestValidateConfigFile_GCSRetries(t *testing.T) {
+	tests := []struct {
 		name           string
 		configFile     string
 		expectedConfig *cfg.Config
@@ -705,6 +705,10 @@ func TestValidateConfigFile_ReadStallConfigSuccessful(t *testing.T) {
 			configFile: "testdata/empty_file.yaml",
 			expectedConfig: &cfg.Config{
 				GcsRetries: cfg.GcsRetriesConfig{
+					ChunkTransferTimeoutSecs: 10,
+					MaxRetryAttempts:         0,
+					MaxRetrySleep:            30 * time.Second,
+					Multiplier:               2,
 					ReadStall: cfg.ReadStallGcsRetriesConfig{
 						Enable:              false,
 						MinReqTimeout:       1500 * time.Millisecond,
@@ -721,25 +725,28 @@ func TestValidateConfigFile_ReadStallConfigSuccessful(t *testing.T) {
 			configFile: "testdata/valid_config.yaml",
 			expectedConfig: &cfg.Config{
 				GcsRetries: cfg.GcsRetriesConfig{
+					ChunkTransferTimeoutSecs: 20,
+					MaxRetryAttempts:         0,
+					MaxRetrySleep:            30 * time.Second,
+					Multiplier:               2,
 					ReadStall: cfg.ReadStallGcsRetriesConfig{
 						Enable:              true,
+						InitialReqTimeout:   20 * time.Second,
 						MinReqTimeout:       10 * time.Second,
 						MaxReqTimeout:       200 * time.Second,
-						InitialReqTimeout:   20 * time.Second,
-						ReqTargetPercentile: 0.99,
 						ReqIncreaseRate:     15,
+						ReqTargetPercentile: 0.99,
 					},
 				},
 			},
 		},
 	}
-
-	for _, tc := range testCases {
+	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
 
 			if assert.NoError(t, err) {
-				assert.EqualValues(t, tc.expectedConfig.GcsRetries.ReadStall, gotConfig.GcsRetries.ReadStall)
+				assert.EqualValues(t, tc.expectedConfig.GcsRetries, gotConfig.GcsRetries)
 			}
 		})
 	}
