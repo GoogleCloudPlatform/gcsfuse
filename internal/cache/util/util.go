@@ -221,13 +221,13 @@ func GetMemoryAlignedBuffer(bufferSize int64, alignSize int64) (buffer []byte, e
 
 // CopyUsingMemoryAlignedBuffer copies content from src reader to dst writer
 // by staging content into a memory aligned buffer of size bufferSize and
-// aligned to multiple of cfg.MinimumAlignSizeForWriting. Note: The minimum write
-// size is cfg.MinimumAlignSizeForWriting which means the total size of content
-// written to dst writer is always in multiple of cfg.MinimumAlignSizeForWriting.
-// If contentSize is lesser than cfg.MinimumAlignSizeForWriting then extra null data
+// aligned to multiple of cfg.CacheUtilMinimumAlignSizeForWriting. Note: The minimum write
+// size is cfg.CacheUtilMinimumAlignSizeForWriting which means the total size of content
+// written to dst writer is always in multiple of cfg.CacheUtilMinimumAlignSizeForWriting.
+// If contentSize is lesser than cfg.CacheUtilMinimumAlignSizeForWriting then extra null data
 // is written at the last.
 func CopyUsingMemoryAlignedBuffer(ctx context.Context, src io.Reader, dst io.Writer, contentSize, bufferSize int64) (n int64, err error) {
-	var alignSize int64 = cfg.MinimumAlignSizeForWriting
+	var alignSize int64 = cfg.CacheUtilMinimumAlignSizeForWriting
 	if bufferSize < alignSize || ((bufferSize % alignSize) != 0) {
 		return 0, fmt.Errorf("buffer size (%v) should be a multiple of %v", bufferSize, alignSize)
 	}

@@ -52,10 +52,10 @@ func isValidFileCacheConfig(config *FileCacheConfig) error {
 		if config.MaxParallelDownloads == 0 {
 			return fmt.Errorf("the value of max-parallel-downloads for file-cache must not be 0 when enable-parallel-downloads is true")
 		}
-		if config.WriteBufferSize < MinimumAlignSizeForWriting {
+		if config.WriteBufferSize < CacheUtilMinimumAlignSizeForWriting {
 			return fmt.Errorf("the value of write-buffer-size for file-cache can't be less than 4096")
 		}
-		if (config.WriteBufferSize % MinimumAlignSizeForWriting) != 0 {
+		if (config.WriteBufferSize % CacheUtilMinimumAlignSizeForWriting) != 0 {
 			return fmt.Errorf("the value of write-buffer-size for file-cache should be in multiple of 4096")
 		}
 	}
