@@ -140,7 +140,7 @@ func TestParallelDownloads(t *testing.T) {
 			cache, cacheDir := configureCache(t, 2*tc.objectSize)
 			storageHandle := configureFakeStorage(t)
 			ctx := context.Background()
-			bucket := storageHandle.BucketHandle(ctx, storage.TestBucketName, "")
+			bucket := storageHandle.BucketHandle(ctx, storage.TestBucketName, "", 10)
 			minObj, content := createObjectInStoreAndInitCache(t, cache, bucket, "path/in/gcs/foo.txt", tc.objectSize)
 			fileCacheConfig := &cfg.FileCacheConfig{
 				EnableParallelDownloads:  true,
@@ -181,7 +181,7 @@ func TestMultipleConcurrentDownloads(t *testing.T) {
 	storageHandle := configureFakeStorage(t)
 	cache, cacheDir := configureCache(t, 30*util.MiB)
 	ctx := context.Background()
-	bucket := storageHandle.BucketHandle(ctx, storage.TestBucketName, "")
+	bucket := storageHandle.BucketHandle(ctx, storage.TestBucketName, "", 10)
 	minObj1, content1 := createObjectInStoreAndInitCache(t, cache, bucket, "path/in/gcs/foo.txt", 10*util.MiB)
 	minObj2, content2 := createObjectInStoreAndInitCache(t, cache, bucket, "path/in/gcs/bar.txt", 5*util.MiB)
 	fileCacheConfig := &cfg.FileCacheConfig{

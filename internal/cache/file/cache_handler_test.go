@@ -65,7 +65,7 @@ func initializeCacheHandlerTestArgs(t *testing.T, fileCacheConfig *cfg.FileCache
 	})
 	storageHandle := fakeStorage.CreateStorageHandle()
 	ctx := context.Background()
-	bucket := storageHandle.BucketHandle(ctx, storage.TestBucketName, "")
+	bucket := storageHandle.BucketHandle(ctx, storage.TestBucketName, "", 10)
 
 	// Create test object in the bucket.
 	testObjectContent := make([]byte, TestObjectSize)
