@@ -85,6 +85,7 @@ func (wh *BufferedWriteHandler) Write(data []byte, offset int64) (err error) {
 		return ErrOutOfOrderWrite
 	}
 
+	// Check and update if any data filling has to be done.
 	err = wh.writeDataForTruncatedSize()
 	if err != nil {
 		return
