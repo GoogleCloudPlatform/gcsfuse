@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package write_stalls
+package emulator_tests
 
 import (
 	"crypto/rand"
@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	emulator_tests "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/emulator_tests/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
 	"github.com/stretchr/testify/assert"
@@ -39,10 +40,12 @@ type writeStall struct {
 }
 
 func (s *writeStall) Setup(t *testing.T) {
+	emulator_tests.StartProcess()
 	setup.MountGCSFuseWithGivenMountFunc(s.flags, mountFunc)
 }
 
 func (s *writeStall) Teardown(t *testing.T) {
+	assert.NoError(t, emulator_tests.KillProcessesOnPort(8020))
 	setup.UnmountGCSFuse(rootDir)
 }
 
