@@ -185,8 +185,8 @@ func isValidMetricsConfig(m *MetricsConfig) error {
 	return nil
 }
 
-func isValidChunkTransferTimeoutForRetriesConfig(chunkTransferTimeoutSecs *int64) error {
-	if *chunkTransferTimeoutSecs < 0 || *chunkTransferTimeoutSecs > maxSupportedTTLInSeconds {
+func isValidChunkTransferTimeoutForRetriesConfig(chunkTransferTimeoutSecs int64) error {
+	if chunkTransferTimeoutSecs < 0 || chunkTransferTimeoutSecs > maxSupportedTTLInSeconds {
 		return fmt.Errorf("invalid value of ChunkTransferTimeout: %d; should be > 0 or 0 (for infinite)", chunkTransferTimeoutSecs)
 	}
 	return nil
@@ -236,7 +236,7 @@ func ValidateConfig(v isSet, config *Config) error {
 		return fmt.Errorf("error parsing read-stall-gcs-retries config: %w", err)
 	}
 
-	if err = isValidChunkTransferTimeoutForRetriesConfig(&config.GcsRetries.ChunkTransferTimeoutSecs); err != nil {
+	if err = isValidChunkTransferTimeoutForRetriesConfig(config.GcsRetries.ChunkTransferTimeoutSecs); err != nil {
 		return fmt.Errorf("error parsing chunk-transfer-timeout-secs config: %w", err)
 	}
 
