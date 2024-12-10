@@ -389,7 +389,7 @@ function createNewNodePool() {
   local machine_type=${4}
   local num_nodes=${5}
   local num_ssd=${6}
-  gcloud container node-pools create ${node_pool} --project=${project_id} --cluster ${cluster_name} --ephemeral-storage-local-ssd count=${num_ssd} --network-performance-configs=total-egress-bandwidth-tier=TIER_1 --machine-type ${machine_type} --zone ${zone} --num-nodes ${num_nodes} --workload-metadata=GKE_METADATA
+  gcloud container node-pools create ${node_pool} --project=${project_id} --cluster ${cluster_name} --network-performance-configs=total-egress-bandwidth-tier=TIER_1 --machine-type ${machine_type} --zone ${zone} --num-nodes ${num_nodes} --workload-metadata=GKE_METADATA
 }
 
 function getMachineTypeInNodePool() {
@@ -429,7 +429,7 @@ function ensureGkeCluster() {
     fi
     gcloud container clusters update ${cluster_name} --project=${project_id} --location=${zone} --workload-pool=${project_id}.svc.id.goog
   else
-    gcloud container clusters create ${cluster_name} --project=${project_id} --zone "${zone}" --workload-pool=${project_id}.svc.id.goog --machine-type "${machine_type}" --image-type "COS_CONTAINERD" --num-nodes ${num_nodes} --ephemeral-storage-local-ssd count=${num_ssd} --network-performance-configs=total-egress-bandwidth-tier=TIER_1 --workload-metadata=GKE_METADATA
+    gcloud container clusters create ${cluster_name} --project=${project_id} --zone "${zone}"  --network "anushkadhn-mtu9k-1-us-east5-c" --workload-pool=${project_id}.svc.id.goog --machine-type "${machine_type}" --image-type "COS_CONTAINERD" --num-nodes ${num_nodes}  --network-performance-configs=total-egress-bandwidth-tier=TIER_1 --workload-metadata=GKE_METADATA
   fi
 }
 
@@ -651,29 +651,29 @@ function waitTillAllPodsComplete() {
 function fetchAndParseFioOutputs() {
   printf "\nFetching and parsing fio outputs ...\n\n"
   cd "${gke_testing_dir}"/examples/fio
-  python3 parse_logs.py --project-number=${project_number} --workload-config "${workload_config}" --instance-id ${instance_id} --output-file "${output_dir}"/fio/output.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace}
+  python3 parse_logs.py --project-number=${project_number} --workload-config "${workload_config}" --instance-id ${instance_id} --output-file "${output_dir}"/fio/output_${node_pool}.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace}
   cd -
 }
 
 function fetchAndParseDlioOutputs() {
   printf "\nFetching and parsing dlio outputs ...\n\n"
   cd "${gke_testing_dir}"/examples/dlio
-  python3 parse_logs.py --project-number=${project_number} --workload-config "${workload_config}" --instance-id ${instance_id} --output-file "${output_dir}"/dlio/output.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace}
+  python3 parse_logs.py --project-number=${project_number} --workload-config "${workload_config}" --instance-id ${instance_id} --output-file "${output_dir}"/dlio/output_${node_pool}.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace}
   cd -
 }
 
 # prep
 printRunParameters
-installDependencies
+#installDependencies
 
 # if only_parse is not set or is set as false, then
 if test -z ${only_parse} || ! ${only_parse} ; then
-  validateMachineConfig ${machine_type} ${num_nodes} ${num_ssd}
+  #validateMachineConfig ${machine_type} ${num_nodes} ${num_ssd}
 
   # GCP configuration
   ensureGcpAuthsAndConfig
   ensureGkeCluster
-  # ensureRequiredNodePoolConfiguration
+  ensureRequiredNodePoolConfiguration
   enableManagedCsiDriverIfNeeded
   activateCluster
   createKubernetesServiceAccountForCluster
@@ -698,4 +698,5 @@ deleteAllPods
 
 # parse outputs
 fetchAndParseFioOutputs
+echo "parsing"
 fetchAndParseDlioOutputs

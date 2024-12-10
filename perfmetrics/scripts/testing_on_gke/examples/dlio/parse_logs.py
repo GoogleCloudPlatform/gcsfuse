@@ -102,7 +102,7 @@ def createOutputScenariosFromDownloadedFiles(args: dict) -> dict:
   """
 
   output = {}
-  for root, _, files in os.walk("perfmetrics/scripts/testing_on_gke/bin/dlio-logs/logs" + "/" + args.instance_id):
+  for root, _, files in os.walk(os.path.expanduser("~/gcsfuse/perfmetrics/scripts/testing_on_gke/bin/dlio-logs/logs" + "/" + args.instance_id)):
     print(f"Parsing directory {root} ...")
     if files:
       # If directory contains gcsfuse_mount_options file, then parse gcsfuse
@@ -254,8 +254,8 @@ def writeRecordsToCsvOutputFile(output: dict, output_file_path: str):
         if scenario not in record_set["records"]:
           print(f"{scenario} not in output so skipping")
           continue
-
-        for i in range(len(record_set["records"]["local-ssd"])):
+        print(record_set)
+        for i in range(len(record_set["records"][scenario])):
           r = record_set["records"][scenario][i]
 
           try:
@@ -298,7 +298,7 @@ def writeRecordsToCsvOutputFile(output: dict, output_file_path: str):
 if __name__ == "__main__":
   args = parse_arguments()
   ensure_directory_exists(_LOCAL_LOGS_LOCATION)
-
+  print("here parsing start\n")
   dlioWorkloads = dlio_workload.ParseTestConfigForDlioWorkloads(
       args.workload_config
   )
@@ -309,7 +309,7 @@ if __name__ == "__main__":
     print("Mash is not installed, will skip parsing CPU and memory usage.")
 
   output = createOutputScenariosFromDownloadedFiles(args)
-
+  print(output)
   output_file_path = args.output_file
   # Create the parent directory of output_file_path if doesn't
   # exist already.

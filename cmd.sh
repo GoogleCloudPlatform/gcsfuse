@@ -1,0 +1,13 @@
+env project_id=tpu-prod-env-one-vm \
+project_number=630405687483\
+ zone=us-east5-c \
+ cluster_name=anushkadhn-tpu-cluster \
+ node_pool=anushkadhn-node-pool-tmpfs-nofilecache\
+ machine_type=ct6e-standard-4t \
+ num_nodes=1 \
+ use_custom_csi_driver=false \
+ src_dir=/usr/local/google/home/anushkadhn/gcsfuse/.. \
+  gcsfuse_branch=master \
+  instance_id=anushkadhn-hostNetworkTrue-fileCacheOff \
+   workload-config=perfmetrics/scripts/testing_on_gke/examples/workloads.json \
+output_dir=. perfmetrics/scripts/testing_on_gke/examples/run-gke-tests.sh --debug

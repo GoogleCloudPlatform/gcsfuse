@@ -19,7 +19,7 @@ metadata:
   name: {{ .Values.podName }}
   annotations:
     gke-gcsfuse/volumes: "true"
-    gke-gcsfuse/memory-limit: "6Gi"
+    gke-gcsfuse/memory-limit: "0"
 spec:
   restartPolicy: Never
   nodeSelector:
@@ -28,6 +28,7 @@ spec:
   containers:
   - name: dlio-tester
     image: {{ .Values.image }}
+    hostNetwork: true
     ports:
     - containerPort: 18200
       hostPort: 11021
@@ -126,7 +127,5 @@ spec:
         metadataCacheTTLSeconds: "{{ .Values.gcsfuse.metadataCacheTTLSeconds }}"
         metadataTypeCacheCapacity: "{{ .Values.gcsfuse.metadataTypeCacheCapacity }}"
         metadataStatCacheCapacity: "{{ .Values.gcsfuse.metadataStatCacheCapacity }}"
-        fileCacheCapacity: "{{ .Values.gcsfuse.fileCacheCapacity }}"
-        fileCacheForRangeRead: "{{ .Values.gcsfuse.fileCacheForRangeRead }}"
         gcsfuseLoggingSeverity: "info"
         mountOptions: implicit-dirs
