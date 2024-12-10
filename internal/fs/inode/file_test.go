@@ -1028,20 +1028,73 @@ func (t *FileTest) TestUnlinkLocalFile() {
 	assert.Equal(t.T(), "gcs.NotFoundError: object test not found", err.Error())
 }
 
-func (t *FileTest) TestReadLocalFileWhenStreamingWritesAreEnabled() {
-	// Create a local file inode.
-	t.createInodeWithLocalParam("test", true)
-	t.in.writeConfig = getWriteConfig()
-	err := t.in.Write(t.ctx, []byte("hi"), 0)
-	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), int64(2), t.in.bwh.WriteFileInfo().TotalSize)
+func (t *FileTest) TestReadFileWhenStreamingWritesAreEnabled() {
+	tbl := []struct {
+		name         string
+		localFile    bool
+		emptyFile    bool
+		performWrite bool
+	}{
+		{
+			name:         "LocalFileWithWrite",
+			localFile:    true,
+			emptyFile:    false,
+			performWrite: true,
+		},
+		{
+			name:         "LocalFileWithOutWrite",
+			localFile:    true,
+			emptyFile:    false,
+			performWrite: false,
+		},
+		{
+			name:         "EmptyGCSFileWithWrite",
+			localFile:    false,
+			emptyFile:    true,
+			performWrite: true,
+		},
+	}
+	for _, tc := range tbl {
+		t.Run(tc.name, func() {
+			if tc.localFile {
+				// Create a local file inode.
+				t.createInodeWithLocalParam("test", true)
+				t.in.writeConfig = getWriteConfig()
+				err := t.in.CreateBufferedOrTempWriter()
+				assert.Nil(t.T(), err)
+				assert.NotNil(t.T(), t.in.bwh)
+			}
+
+			if tc.emptyFile {
+				t.createInodeWithEmptyObject()
+				t.in.writeConfig = getWriteConfig()
+			}
+
+			if tc.performWrite {
+				err := t.in.Write(t.ctx, []byte("hi"), 0)
+				assert.Nil(t.T(), err)
+				assert.Equal(t.T(), int64(2), t.in.bwh.WriteFileInfo().TotalSize)
+			}
+
+			data := make([]byte, 10)
+
+			n, err := t.in.Read(t.ctx, data, 0)
+
+			assert.Equal(t.T(), 0, n)
+			assert.NotNil(t.T(), err)
+			assert.Equal(t.T(), "cannot read a file when upload in progress", err.Error())
+		})
+	}
+}
+
+func (t *FileTest) TestReadEmptyGCSFileWhenStreamingWritesAreEnabled() {
+	t.createInodeWithEmptyObject()
 	data := make([]byte, 10)
 
 	n, err := t.in.Read(t.ctx, data, 0)
 
 	assert.Equal(t.T(), 0, n)
-	assert.NotNil(t.T(), err)
-	assert.Equal(t.T(), "cannot read a local file when upload in progress", err.Error())
+	assert.Contains(t.T(), err.Error(), "EOF")
 }
 
 func (t *FileTest) TestWriteToLocalFileWithInvalidConfigWhenStreamingWritesAreEnabled() {
