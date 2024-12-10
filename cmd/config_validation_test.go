@@ -731,11 +731,11 @@ func TestValidateConfigFile_GCSRetries(t *testing.T) {
 					Multiplier:               2,
 					ReadStall: cfg.ReadStallGcsRetriesConfig{
 						Enable:              true,
+						InitialReqTimeout:   20 * time.Second,
 						MinReqTimeout:       10 * time.Second,
 						MaxReqTimeout:       200 * time.Second,
-						InitialReqTimeout:   20 * time.Second,
-						ReqTargetPercentile: 0.99,
 						ReqIncreaseRate:     15,
+						ReqTargetPercentile: 0.99,
 					},
 				},
 			},
