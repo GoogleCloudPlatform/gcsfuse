@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 )
@@ -34,7 +33,6 @@ type RetryTestClient interface {
 
 // GetRetryID creates a retry test resource in the emulator.
 func (et *emulatorTest) GetRetryID(instructions map[string][]string, transport string) (string, error) {
-	log.Println("GetRetryID: ", instructions)
 	c := http.DefaultClient
 	data := struct {
 		Instructions map[string][]string `json:"instructions"`
