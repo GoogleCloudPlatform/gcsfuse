@@ -378,6 +378,9 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	if cfg.IsMetricsEnabled(&newConfig.Metrics) {
 		if newConfig.Metrics.EnableOtel {
 			metricExporterShutdownFn = monitor.SetupOTelMetricExporters(ctx, newConfig)
+			if metricHandle, err = common.NewOTelMetrics(); err != nil {
+				metricHandle = common.NewNoopMetrics()
+			}
 		} else {
 			metricExporterShutdownFn = monitor.SetupOpenCensusExporters(newConfig)
 			if metricHandle, err = common.NewOCMetrics(); err != nil {
