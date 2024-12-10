@@ -50,7 +50,7 @@ type StorageHandle interface {
 	// to that project rather than to the bucket's owning project.
 	//
 	// A user-project is required for all operations on Requester Pays buckets.
-	BucketHandle(ctx context.Context, bucketName string, billingProject string) (bh *bucketHandle)
+	BucketHandle(ctx context.Context, bucketName string, billingProject string, chunkTransferTimeoutSecs int) (bh *bucketHandle)
 }
 
 type storageClient struct {
@@ -256,7 +256,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	return
 }
 
-func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, billingProject string) (bh *bucketHandle) {
+func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, billingProject string, chunkTransferTimeoutSecs int) (bh *bucketHandle) {
 	storageBucketHandle := sh.client.Bucket(bucketName)
 
 	if billingProject != "" {
@@ -264,9 +264,10 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 	}
 
 	bh = &bucketHandle{
-		bucket:        storageBucketHandle,
-		bucketName:    bucketName,
-		controlClient: sh.storageControlClient,
+		bucket:                   storageBucketHandle,
+		bucketName:               bucketName,
+		controlClient:            sh.storageControlClient,
+		chunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
 	}
 	if sh.directPathDetector != nil {
 		if err := sh.directPathDetector.isDirectPathPossible(ctx, bucketName); err != nil {

@@ -44,10 +44,11 @@ const FullBucketPathHNS = "projects/_/buckets/%s"
 
 type bucketHandle struct {
 	gcs.Bucket
-	bucket        *storage.BucketHandle
-	bucketName    string
-	bucketType    gcs.BucketType
-	controlClient StorageControlClient
+	bucket                   *storage.BucketHandle
+	bucketName               string
+	bucketType               gcs.BucketType
+	chunkTransferTimeoutSecs int
+	controlClient            StorageControlClient
 }
 
 func (bh *bucketHandle) Name() string {
@@ -221,6 +222,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	// Creating a NewWriter with requested attributes, using Go Storage Client.
 	// Chuck size for resumable upload is default i.e. 16MB.
 	wc := obj.NewWriter(ctx)
+	wc.ChunkTransferTimeout = time.Duration(bh.chunkTransferTimeoutSecs) * time.Second
 	wc = storageutil.SetAttrsInWriter(wc, req)
 	wc.ProgressFunc = func(bytesUploadedSoFar int64) {
 		logger.Tracef("gcs: Req %#16x: -- CreateObject(%q): %20v bytes uploaded so far", ctx.Value(gcs.ReqIdField), req.Name, bytesUploadedSoFar)

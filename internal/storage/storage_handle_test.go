@@ -53,7 +53,7 @@ func (testSuite *StorageHandleTest) TearDownTest() {
 
 func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketExistsWithEmptyBillingProject() {
 	storageHandle := testSuite.fakeStorage.CreateStorageHandle()
-	bucketHandle := storageHandle.BucketHandle(testSuite.ctx, TestBucketName, "")
+	bucketHandle := storageHandle.BucketHandle(testSuite.ctx, TestBucketName, "", 10)
 
 	assert.NotNil(testSuite.T(), bucketHandle)
 	assert.Equal(testSuite.T(), TestBucketName, bucketHandle.bucketName)
@@ -62,14 +62,14 @@ func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketExistsWithEmptyBil
 
 func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExistWithEmptyBillingProject() {
 	storageHandle := testSuite.fakeStorage.CreateStorageHandle()
-	bucketHandle := storageHandle.BucketHandle(testSuite.ctx, invalidBucketName, "")
+	bucketHandle := storageHandle.BucketHandle(testSuite.ctx, invalidBucketName, "", 10)
 
 	assert.Nil(testSuite.T(), bucketHandle.Bucket)
 }
 
 func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketExistsWithNonEmptyBillingProject() {
 	storageHandle := testSuite.fakeStorage.CreateStorageHandle()
-	bucketHandle := storageHandle.BucketHandle(testSuite.ctx, TestBucketName, projectID)
+	bucketHandle := storageHandle.BucketHandle(testSuite.ctx, TestBucketName, projectID, 10)
 
 	assert.NotNil(testSuite.T(), bucketHandle)
 	assert.Equal(testSuite.T(), TestBucketName, bucketHandle.bucketName)
@@ -78,7 +78,7 @@ func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketExistsWithNonEmpty
 
 func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExistWithNonEmptyBillingProject() {
 	storageHandle := testSuite.fakeStorage.CreateStorageHandle()
-	bucketHandle := storageHandle.BucketHandle(testSuite.ctx, invalidBucketName, projectID)
+	bucketHandle := storageHandle.BucketHandle(testSuite.ctx, invalidBucketName, projectID, 10)
 
 	assert.Nil(testSuite.T(), bucketHandle.Bucket)
 }

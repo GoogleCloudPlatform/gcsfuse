@@ -37,6 +37,7 @@ import (
 type BucketConfig struct {
 	BillingProject                     string
 	OnlyDir                            string
+	ChunkTransferTimeout               int
 	EgressBandwidthLimitBytesPerSecond float64
 	OpRateLimitHz                      float64
 	StatCacheMaxSizeMB                 uint64
@@ -163,7 +164,7 @@ func (bm *bucketManager) SetUpBucket(
 	if name == canned.FakeBucketName {
 		b = canned.MakeFakeBucket(ctx)
 	} else {
-		b = bm.storageHandle.BucketHandle(ctx, name, bm.config.BillingProject)
+		b = bm.storageHandle.BucketHandle(ctx, name, bm.config.BillingProject, bm.config.ChunkTransferTimeout)
 	}
 
 	// Enable monitoring.
