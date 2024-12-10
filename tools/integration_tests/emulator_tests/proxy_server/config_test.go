@@ -18,13 +18,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestParseConfigFile(t *testing.T) {
-	setup.IgnoreTestIfIntegrationTestFlagIsSet(t)
-
 	t.Run("ValidConfigFile", func(t *testing.T) {
 		// Create a temporary file with valid YAML content
 		validContent := `
