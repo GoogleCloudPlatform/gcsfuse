@@ -31,6 +31,10 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/stretchr/testify/assert"
+	"golang.org/x/net/context"
 )
 
 const (
@@ -682,4 +686,25 @@ func CreateLocalTempFile(content string, gzipCompress bool) (string, error) {
 	}
 
 	return writeTextToFile(f, f.Name(), content, len(content))
+}
+
+func CreateLocalFile(ctx context.Context, mntDir string, bucket gcs.Bucket, fileName string, t *testing.T) (filePath string, f *os.File) {
+	t.Helper()
+	// Creating a file shouldn't create file on GCS.
+	filePath = path.Join(mntDir, fileName)
+	_, err := os.Stat(mntDir)
+	assert.Equal(t, nil, err)
+
+	f, err = os.Create(filePath)
+
+	assert.Equal(t, nil, err)
+	ValidateObjectNotFoundErr(ctx, bucket, fileName, t)
+	return
+}
+
+func CloseLocalFile(f **os.File, t *testing.T) error {
+	t.Helper()
+	err := (*f).Close()
+	*f = nil
+	return err
 }
