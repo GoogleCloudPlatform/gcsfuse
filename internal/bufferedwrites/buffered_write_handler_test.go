@@ -147,7 +147,7 @@ func (testSuite *BufferedWriteTest) TestWrite_SignalUploadFailureInBetween() {
 
 	err = testSuite.bwh.Write([]byte("hello"), 5)
 	require.Error(testSuite.T(), err)
-	assert.ErrorContains(testSuite.T(), err, "BufferedWriteHandler.Write(): error while uploading object to GCS")
+	assert.Equal(testSuite.T(), err, ErrUploadFailure)
 }
 
 func (testSuite *BufferedWriteTest) TestFlushWithNonNilCurrentBlock() {
@@ -183,5 +183,5 @@ func (testSuite *BufferedWriteTest) TestFlush_SignalUploadFailureDuringWrite() {
 
 	err = testSuite.bwh.Flush()
 	require.Error(testSuite.T(), err)
-	assert.ErrorContains(testSuite.T(), err, "file cannot be finalized: error while uploading object to GCS")
+	assert.Equal(testSuite.T(), err, ErrUploadFailure)
 }
