@@ -47,7 +47,7 @@ func StartProxyServer(configPath string) {
 	if err != nil {
 		log.Fatal("Error in creating log file for proxy server.")
 	}
-	log.Printf("Proxy server logs are generated with file name %s: ", logFileForProxyServer)
+	log.Printf("Proxy server logs are generated with specific filename %s: ", logFileForProxyServer)
 	cmd.Stdout = logFileForProxyServer
 	cmd.Stderr = logFileForProxyServer
 	err = cmd.Start()
