@@ -152,9 +152,9 @@ func (wh *BufferedWriteHandler) Sync() (err error) {
 // Flush finalizes the upload.
 func (wh *BufferedWriteHandler) Flush() (*gcs.MinObject, error) {
 	// In case it is a truncated file, upload empty blocks as required.
-	err = wh.writeDataForTruncatedSize()
+	err := wh.writeDataForTruncatedSize()
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	if wh.current != nil {

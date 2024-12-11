@@ -786,46 +786,41 @@ func (t *FileTest) TestTruncateUpwardForEmptyGCSFileWhenStreamingWritesAreEnable
 func (t *FileTest) TestTruncateDownwardWhenStreamingWritesAreEnabled() {
 	tbl := []struct {
 		name         string
-		isLocal      bool
-		isEmpty      bool
+		fileType     string
 		performWrite bool
 		truncateSize int64
 	}{
 		{
 			name:         "LocalFileWithWrite",
-			isLocal:      true,
-			isEmpty:      false,
+			fileType:     LocalFile,
 			performWrite: true,
 			truncateSize: 2,
 		},
 		{
 			name:         "LocalFileWithOutWrite",
-			isLocal:      true,
-			isEmpty:      false,
+			fileType:     LocalFile,
 			performWrite: false,
 			truncateSize: -1,
 		},
 		{
 			name:         "EmptyGCSFileWithWrite",
-			isLocal:      false,
-			isEmpty:      true,
+			fileType:     EmptyGCSFile,
 			performWrite: true,
 			truncateSize: 2,
 		},
 		{
 			name:         "EmptyGCSFileWithOutWrite",
-			isLocal:      false,
-			isEmpty:      true,
+			fileType:     EmptyGCSFile,
 			performWrite: false,
 			truncateSize: -1,
 		},
 	}
 	for _, tc := range tbl {
 		t.Run(tc.name, func() {
-			if tc.isLocal {
+			if tc.fileType == LocalFile {
 				t.createInodeWithLocalParam("test", true)
 			}
-			if tc.isEmpty {
+			if tc.fileType == EmptyGCSFile {
 				t.createInodeWithEmptyObject()
 			}
 			t.in.writeConfig = getWriteConfig()
