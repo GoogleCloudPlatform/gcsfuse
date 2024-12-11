@@ -139,6 +139,7 @@ func parsePromFormat(testSuite *PromTest) (map[string]*promclient.MetricFamily, 
 	return parser.TextToMetricFamilies(resp.Body)
 }
 
+// assertNonZeroCountMetric asserts that the specified count metric is present and is positive in the Prometheus export
 func assertNonZeroCountMetric(testSuite *PromTest, metricName, labelName, labelValue string) {
 	testSuite.T().Helper()
 	mf, err := parsePromFormat(testSuite)
@@ -165,6 +166,7 @@ func assertNonZeroCountMetric(testSuite *PromTest, metricName, labelName, labelV
 	assert.Fail(testSuite.T(), "Didn't find the metric with name: %s, labelName: %s and labelValue: %s", metricName, labelName, labelValue)
 }
 
+// assertNonZeroLatencyMetric asserts that the specified latency (histogram) metric is present and is positive for at least one of the buckets in the Prometheus export.
 func assertNonZeroLatencyMetric(testSuite *PromTest, metricName, labelName, labelValue string) {
 	testSuite.T().Helper()
 	mf, err := parsePromFormat(testSuite)
