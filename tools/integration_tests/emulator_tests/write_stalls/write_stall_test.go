@@ -40,8 +40,7 @@ func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
-	// If Mounted Directory flag is set, run tests for mounted directory.
-	setup.RunTestsForMountedDirectoryFlag(m)
+	log.Println("Running static mounting tests...")
 
 	// Else run tests for testBucket.
 	// Set up test directory.
