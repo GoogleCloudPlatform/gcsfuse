@@ -25,10 +25,10 @@ spec:
   nodeSelector:
     cloud.google.com/gke-tpu-topology: 2x2
     cloud.google.com/gke-tpu-accelerator: tpu-v6e-slice
+
   containers:
   - name: dlio-tester
     image: {{ .Values.image }}
-    hostNetwork: true
     ports:
     - containerPort: 18200
       hostPort: 11021
