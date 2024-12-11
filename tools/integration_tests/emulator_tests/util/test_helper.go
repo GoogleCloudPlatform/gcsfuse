@@ -30,7 +30,7 @@ import (
 // StartProxyServer starts a proxy server as a background process and handles its lifecycle.
 //
 // It launches the proxy server with the specified configuration and port, logs its output to a file.
-func StartProxyServer(port int, configPath string) {
+func StartProxyServer(configPath string) {
 	// Start the proxy in the background
 	cmd := exec.Command("go", "run", "../proxy_server/.", "--config-path="+configPath)
 	logFileForProxyServer, err := os.Create(path.Join(os.Getenv("KOKORO_ARTIFACTS_DIR"), "proxy-"+setup.GenerateRandomString(5)))
