@@ -39,10 +39,12 @@ import (
 var gBuildDir string
 
 const (
-	testBucket = "gcsfuse_monitoring_test_bucket"
+	testBucket    = "gcsfuse_monitoring_test_bucket"
+	portNonHNSRun = 9191
+	portHNSRun    = 9192
 )
 
-var prometheusPort = 9191
+var prometheusPort = portNonHNSRun
 
 func isPortOpen(port int) bool {
 	c := exec.Command("lsof", "-t", fmt.Sprintf("-i:%d", port))
@@ -62,8 +64,7 @@ type PromTest struct {
 	enableOTEL bool
 }
 
-// isHNSTestRun sets different Prometheus ports for HNS and non-HNS presubmit runs.
-// This ensures that there is no port contention if both HNS and non-HNS test runs are happening simultaneously.
+// isHNSTestRun returns true if the bucket is an HNS bucket.
 func isHNSTestRun(t *testing.T) bool {
 	storageClient, err := client.CreateStorageClient(context.Background())
 	require.NoError(t, err, "error while creating storage client")
@@ -74,30 +75,18 @@ func isHNSTestRun(t *testing.T) bool {
 func (testSuite *PromTest) SetupSuite() {
 	setup.ParseSetUpFlagsForStretchrTests(testSuite.T())
 	if isHNSTestRun(testSuite.T()) {
-		prometheusPort = 9292
+		// sets different Prometheus ports for HNS and non-HNS presubmit runs.
+		// This ensures that there is no port contention if both HNS and non-HNS test runs are happening simultaneously.
+		prometheusPort = portHNSRun
 	}
 
-	if setup.TestInstalledPackage() {
-		// when testInstalledPackage flag is set, gcsfuse is preinstalled on the
-		// machine. Hence, here we are overwriting gBuildDir to /.
-		gBuildDir = "/"
-		return
-	}
-
-	var err error
-	// To test locally built package
-	// Set up a directory into which we will build.
-	gBuildDir, err = os.MkdirTemp("", "gcsfuse_integration_tests")
-	require.NoError(testSuite.T(), err, "error while creating tempDir: %v", err)
-
-	// Build into that directory.
-	err = util.BuildGcsfuse(gBuildDir)
+	err := setup.SetUpTestDir()
 	require.NoErrorf(testSuite.T(), err, "error while building GCSFuse: %p", err)
 }
 
 func (testSuite *PromTest) SetupTest() {
 	var err error
-	testSuite.gcsfusePath = path.Join(gBuildDir, "bin/gcsfuse")
+	testSuite.gcsfusePath = setup.BinFile()
 	testSuite.mountPoint, err = os.MkdirTemp("", "gcsfuse_monitoring_tests")
 	require.NoError(testSuite.T(), err)
 
