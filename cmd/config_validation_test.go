@@ -355,7 +355,7 @@ func TestValidateConfigFile_FileCacheConfigSuccessful(t *testing.T) {
 					CacheFileForRangeRead:    true,
 					DownloadChunkSizeMb:      300,
 					EnableCrc:                true,
-					EnableParallelDownloads:  true,
+					EnableParallelDownloads:  false,
 					MaxParallelDownloads:     200,
 					MaxSizeMb:                40,
 					ParallelDownloadsPerFile: 10,

@@ -17,6 +17,7 @@ package cfg
 import (
 	"errors"
 	"fmt"
+
 	"math"
 )
 
@@ -43,6 +44,25 @@ func isValidURL(u string) error {
 	return err
 }
 
+func isValidParallelDownloadConfig(config *Config) error {
+	if config.FileCache.EnableParallelDownloads {
+		if !IsFileCacheEnabled(config) {
+			return errors.New("file cache should be enabled for parallel download support")
+		}
+		if config.FileCache.MaxParallelDownloads == 0 {
+			return errors.New("the value of max-parallel-downloads for file-cache must not be 0 when enable-parallel-downloads is true")
+		}
+		if config.FileCache.WriteBufferSize < CacheUtilMinimumAlignSizeForWriting {
+			return errors.New("the value of write-buffer-size for file-cache can't be less than 4096")
+		}
+		if (config.FileCache.WriteBufferSize % CacheUtilMinimumAlignSizeForWriting) != 0 {
+			return errors.New("the value of write-buffer-size for file-cache should be in multiple of 4096")
+		}
+	}
+
+	return nil
+}
+
 func isValidFileCacheConfig(config *FileCacheConfig) error {
 	if config.MaxSizeMb < -1 {
 		return errors.New(FileCacheMaxSizeMBInvalidValueError)
@@ -50,22 +70,11 @@ func isValidFileCacheConfig(config *FileCacheConfig) error {
 	if config.MaxParallelDownloads < -1 {
 		return errors.New(MaxParallelDownloadsInvalidValueError)
 	}
-	if config.EnableParallelDownloads {
-		if config.MaxParallelDownloads == 0 {
-			return errors.New(MaxParallelDownloadsCantBeZeroError)
-		}
-		if config.WriteBufferSize < CacheUtilMinimumAlignSizeForWriting {
-			return errors.New("the value of write-buffer-size for file-cache can't be less than 4096")
-		}
-		if (config.WriteBufferSize % CacheUtilMinimumAlignSizeForWriting) != 0 {
-			return errors.New("the value of write-buffer-size for file-cache should be in multiple of 4096")
-		}
-	}
 	if config.ParallelDownloadsPerFile < 1 {
-		return fmt.Errorf(ParallelDownloadsPerFileInvalidValueError)
+		return errors.New(ParallelDownloadsPerFileInvalidValueError)
 	}
 	if config.DownloadChunkSizeMb < 1 {
-		return fmt.Errorf(DownloadChunkSizeMBInvalidValueError)
+		return errors.New(DownloadChunkSizeMBInvalidValueError)
 	}
 
 	return nil
@@ -241,6 +250,10 @@ func ValidateConfig(v isSet, config *Config) error {
 
 	if err = isValidMetricsConfig(&config.Metrics); err != nil {
 		return fmt.Errorf("error parsing metrics config: %w", err)
+	}
+
+	if err = isValidParallelDownloadConfig(config); err != nil {
+		return fmt.Errorf("error parsing parallel download config: %w", err)
 	}
 
 	return nil
