@@ -96,7 +96,7 @@ numjobs=40
 [10_thread]
 stonewall
 startdelay=1830
-bs=16k
+bs=20k
 directory=gcs/256kb
 filesize=256k
 rw=randwrite
@@ -109,6 +109,7 @@ startdelay=2020
 directory=gcs/3mb
 filesize=3M
 rw=randread
+bs=300k
 numjobs=40
 
 [12_thread]
@@ -125,6 +126,7 @@ stonewall
 startdelay=2400
 directory=gcs/5mb
 filesize=5M
+bs=800k
 rw=randread
 numjobs=40
 
