@@ -31,7 +31,7 @@ import (
 
 // StartProxyServer starts a proxy server as a background process and handles its lifecycle.
 //
-// It launches the proxy server with the specified configuration, logs its output to a file,
+// It launches the proxy server with the specified configuration and port, logs its output to a file,
 // and sets up signal handling for graceful shutdown.
 //
 // The function also starts a simple HTTP server to keep the process running and provides an
@@ -39,7 +39,7 @@ import (
 //
 // When receiving SIGINT or SIGTERM signals, it gracefully shuts down the proxy server by:
 //   - Sending SIGINT to the proxy process.
-//   - Killing any processes listening on port 8020.
+//   - Killing any processes listening on given port.
 func StartProxyServer(port int, configPath string) {
 	// Start the proxy in the background
 	cmd := exec.Command("go", "run", "../proxy_server/.", "--config-path="+configPath)
@@ -69,7 +69,7 @@ func StartProxyServer(port int, configPath string) {
 			log.Println("Error sending SIGINT to proxy process:", err)
 		}
 
-		// Find and kill any processes listening on port 800
+		// Find and kill any processes listening on given port
 		err = KillProxyServerProcess(port)
 		if err != nil {
 			log.Println("Error killing processes on port ", port, ":", err)
