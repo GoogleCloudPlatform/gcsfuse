@@ -17,7 +17,6 @@ package emulator_tests
 import (
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"os/exec"
 	"path"
@@ -30,11 +29,7 @@ import (
 
 // StartProxyServer starts a proxy server as a background process and handles its lifecycle.
 //
-// It launches the proxy server with the specified configuration and port, logs its output to a file,
-// and sets up signal handling for graceful shutdown.
-//
-// The function also starts a simple HTTP server to keep the process running and provides an
-// endpoint to check the proxy status.
+// It launches the proxy server with the specified configuration and port, logs its output to a file.
 func StartProxyServer(port int, configPath string) {
 	// Start the proxy in the background
 	cmd := exec.Command("go", "run", "../proxy_server/.", "--config-path="+configPath)
@@ -49,11 +44,6 @@ func StartProxyServer(port int, configPath string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	// Start a simple HTTP server to keep the process running
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		log.Println(w, "Proxy is running...")
-	})
 }
 
 // KillProxyServerProcess kills all processes listening on the specified port.
