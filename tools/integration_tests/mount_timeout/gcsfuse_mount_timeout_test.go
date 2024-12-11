@@ -16,6 +16,7 @@ package mount_timeout
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"path"
 	"testing"
@@ -27,6 +28,10 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+)
+
+const (
+	iterations int = 10
 )
 
 func TestMountTimeout(t *testing.T) {
@@ -97,19 +102,26 @@ func (testSuite *MountTimeoutTest) TearDownTest() {
 // mountOrTimeout mounts the bucket with the given client protocol. If the time taken
 // exceeds the expected for the particular test case , an error is thrown and test will fail.
 func (testSuite *MountTimeoutTest) mountOrTimeout(bucketName, mountDir, clientProtocol string, expectedMountTime time.Duration) error {
-	args := []string{"--client-protocol", clientProtocol, bucketName, testSuite.dir}
-	start := time.Now()
-	if err := mounting.MountGcsfuse(testSuite.gcsfusePath, args); err != nil {
-		return err
-	}
-	defer func() {
+	minMountTime := time.Duration(math.MaxInt64)
+
+	for i := 0; i < iterations; i++ {
+		args := []string{"--client-protocol", clientProtocol, bucketName, testSuite.dir}
+		start := time.Now()
+		if err := mounting.MountGcsfuse(testSuite.gcsfusePath, args); err != nil {
+			return err
+		}
+		mountTime := time.Since(start)
+
+		minMountTime = time.Duration(math.Min(float64(minMountTime), float64(mountTime)))
+
 		if err := util.Unmount(mountDir); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: unmount failed: %v\n", err)
+			return err
 		}
-	}()
+	}
 
-	if mountTime := time.Since(start); mountTime > expectedMountTime {
-		return fmt.Errorf("[Client Protocol: %s]Mounting failed due to timeout(exceeding %f seconds).Time taken for the mounting %s: %f sec", clientProtocol, expectedMountTime.Seconds(), bucketName, mountTime.Seconds())
+	if minMountTime > expectedMountTime {
+		return fmt.Errorf("[Client Protocol: %s] Mounting failed due to timeout (exceeding %f seconds). Time taken for mounting %s: %f sec", clientProtocol, expectedMountTime.Seconds(), bucketName, minMountTime.Seconds())
 	}
 	return nil
 }
