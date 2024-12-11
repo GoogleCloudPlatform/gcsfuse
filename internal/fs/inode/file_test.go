@@ -53,6 +53,8 @@ const fileInodeID = 17
 const fileName = "foo/bar"
 const fileMode os.FileMode = 0641
 const Delta = 30 * time.Minute
+const LocalFile = "Local"
+const EmptyGCSFile = "EmptyGCS"
 
 type FileTest struct {
 	suite.Suite
@@ -1028,20 +1030,70 @@ func (t *FileTest) TestUnlinkLocalFile() {
 	assert.Equal(t.T(), "gcs.NotFoundError: object test not found", err.Error())
 }
 
-func (t *FileTest) TestReadLocalFileWhenStreamingWritesAreEnabled() {
-	// Create a local file inode.
-	t.createInodeWithLocalParam("test", true)
+func (t *FileTest) TestReadFileWhenStreamingWritesAreEnabled() {
+	tbl := []struct {
+		name         string
+		fileType     string
+		performWrite bool
+	}{
+		{
+			name:         "LocalFileWithWrite",
+			fileType:     LocalFile,
+			performWrite: true,
+		},
+		{
+			name:         "LocalFileWithOutWrite",
+			fileType:     LocalFile,
+			performWrite: false,
+		},
+		{
+			name:         "EmptyGCSFileWithWrite",
+			fileType:     EmptyGCSFile,
+			performWrite: true,
+		},
+	}
+	for _, tc := range tbl {
+		t.Run(tc.name, func() {
+			if tc.fileType == LocalFile {
+				// Create a local file inode.
+				t.createInodeWithLocalParam("test", true)
+				t.in.writeConfig = getWriteConfig()
+				err := t.in.CreateBufferedOrTempWriter()
+				assert.Nil(t.T(), err)
+				assert.NotNil(t.T(), t.in.bwh)
+			}
+
+			if tc.fileType == EmptyGCSFile {
+				t.createInodeWithEmptyObject()
+				t.in.writeConfig = getWriteConfig()
+			}
+
+			if tc.performWrite {
+				err := t.in.Write(t.ctx, []byte("hi"), 0)
+				assert.Nil(t.T(), err)
+				assert.Equal(t.T(), int64(2), t.in.bwh.WriteFileInfo().TotalSize)
+			}
+
+			data := make([]byte, 10)
+
+			n, err := t.in.Read(t.ctx, data, 0)
+
+			assert.Equal(t.T(), 0, n)
+			assert.NotNil(t.T(), err)
+			assert.Equal(t.T(), "cannot read a file when upload in progress", err.Error())
+		})
+	}
+}
+
+func (t *FileTest) TestReadEmptyGCSFileWhenStreamingWritesAreNotInProgress() {
+	t.createInodeWithEmptyObject()
 	t.in.writeConfig = getWriteConfig()
-	err := t.in.Write(t.ctx, []byte("hi"), 0)
-	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), int64(2), t.in.bwh.WriteFileInfo().TotalSize)
 	data := make([]byte, 10)
 
 	n, err := t.in.Read(t.ctx, data, 0)
 
 	assert.Equal(t.T(), 0, n)
-	assert.NotNil(t.T(), err)
-	assert.Equal(t.T(), "cannot read a local file when upload in progress", err.Error())
+	assert.Contains(t.T(), err.Error(), "EOF")
 }
 
 func (t *FileTest) TestWriteToLocalFileWithInvalidConfigWhenStreamingWritesAreEnabled() {

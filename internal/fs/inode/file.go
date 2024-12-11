@@ -347,7 +347,9 @@ func (f *FileInode) Source() *gcs.MinObject {
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) SourceGenerationIsAuthoritative() bool {
-	return f.content == nil
+	// When streaming writes are enabled, writes are done via bufferedWritesHandler(bwh).
+	// Hence checking both f.content & f.bwh to be nil
+	return f.content == nil && f.bwh == nil
 }
 
 // Equivalent to the generation returned by f.Source().
@@ -466,8 +468,11 @@ func (f *FileInode) Read(
 	ctx context.Context,
 	dst []byte,
 	offset int64) (n int, err error) {
-	if f.IsLocal() && f.writeConfig.ExperimentalEnableStreamingWrites {
-		err = fmt.Errorf("cannot read a local file when upload in progress")
+	// It is not nil when streaming writes are enabled in 2 scenarios:
+	// 1. Local file
+	// 2. Empty GCS files and writes are triggered via buffered flow.
+	if f.bwh != nil {
+		err = fmt.Errorf("cannot read a file when upload in progress")
 		return
 	}
 
@@ -499,7 +504,7 @@ func (f *FileInode) Write(
 	ctx context.Context,
 	data []byte,
 	offset int64) (err error) {
-	// For empty GCS files also we will triggered bufferedWrites flow.
+	// For empty GCS files also we will trigger bufferedWrites flow.
 	if f.src.Size == 0 && f.writeConfig.ExperimentalEnableStreamingWrites {
 		err = f.ensureBufferedWriteHandler()
 		if err != nil {
