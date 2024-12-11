@@ -64,7 +64,7 @@ func (s *managedFoldersViewPermission) TestCreateObjectInManagedFolder(t *testin
 	}
 	t.Cleanup(func() {
 		err = file.Close()
-		operations.CheckErrorForReadOnlyFileSystem(err, t)
+		operations.CheckErrorForReadOnlyFileSystem(t, err)
 	})
 }
 
@@ -75,7 +75,7 @@ func (s *managedFoldersViewPermission) TestDeleteObjectFromManagedFolder(t *test
 		t.Errorf("File from managed folder gets deleted with view only permission.")
 	}
 
-	operations.CheckErrorForReadOnlyFileSystem(err, t)
+	operations.CheckErrorForReadOnlyFileSystem(t, err)
 }
 
 func (s *managedFoldersViewPermission) TestDeleteNonEmptyManagedFolder(t *testing.T) {
@@ -85,7 +85,7 @@ func (s *managedFoldersViewPermission) TestDeleteNonEmptyManagedFolder(t *testin
 		t.Errorf("Managed folder deleted with view only permission.")
 	}
 
-	operations.CheckErrorForReadOnlyFileSystem(err, t)
+	operations.CheckErrorForReadOnlyFileSystem(t, err)
 }
 
 func (s *managedFoldersViewPermission) TestMoveManagedFolder(t *testing.T) {

@@ -231,7 +231,7 @@ func copyDirAndCheckErrForViewPermission(src, dest string, t *testing.T) {
 		t.Errorf(" Managed folder unexpectedly got copied with view only permission.")
 	}
 
-	operations.CheckErrorForReadOnlyFileSystem(err, t)
+	operations.CheckErrorForReadOnlyFileSystem(t, err)
 }
 
 func copyObjectAndCheckErrForViewPermission(src, dest string, t *testing.T) {
@@ -240,7 +240,7 @@ func copyObjectAndCheckErrForViewPermission(src, dest string, t *testing.T) {
 		t.Errorf("Objects in managed folder unexpectedly got copied with view only permission.")
 	}
 
-	operations.CheckErrorForReadOnlyFileSystem(err, t)
+	operations.CheckErrorForReadOnlyFileSystem(t, err)
 }
 
 func moveAndCheckErrForViewPermission(src, dest string, t *testing.T) {
@@ -249,7 +249,7 @@ func moveAndCheckErrForViewPermission(src, dest string, t *testing.T) {
 		t.Errorf("Objects in managed folder unexpectedly got moved with view only permission.")
 	}
 
-	operations.CheckErrorForReadOnlyFileSystem(err, t)
+	operations.CheckErrorForReadOnlyFileSystem(t, err)
 }
 
 func createFileForTest(filePath string, t *testing.T) {

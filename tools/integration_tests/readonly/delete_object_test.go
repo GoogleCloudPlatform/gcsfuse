@@ -32,7 +32,7 @@ func checkIfObjDeletionFailed(objPath string, t *testing.T) {
 		t.Errorf("Objects are deleted in read-only file system.")
 	}
 
-	operations.CheckErrorForReadOnlyFileSystem(err, t)
+	operations.CheckErrorForReadOnlyFileSystem(t, err)
 }
 
 func TestDeleteDir(t *testing.T) {

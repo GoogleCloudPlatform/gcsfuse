@@ -137,7 +137,7 @@ func (s *managedFoldersAdminPermission) TestCopyManagedFolder(t *testing.T) {
 	err := operations.CopyDir(srcDirPath, destDirPath)
 
 	if s.bucketPermission == ViewPermission {
-		operations.CheckErrorForReadOnlyFileSystem(err, t)
+		operations.CheckErrorForReadOnlyFileSystem(t, err)
 	} else {
 		_, err = os.Stat(destDirPath)
 		if err != nil {
@@ -173,7 +173,7 @@ func (s *managedFoldersAdminPermission) TestMoveManagedFolder(t *testing.T) {
 	err := operations.Move(srcDirPath, destDirPath)
 
 	if s.bucketPermission == ViewPermission {
-		operations.CheckErrorForReadOnlyFileSystem(err, t)
+		operations.CheckErrorForReadOnlyFileSystem(t, err)
 	} else {
 		_, err = os.Stat(destDirPath)
 		if err != nil {
