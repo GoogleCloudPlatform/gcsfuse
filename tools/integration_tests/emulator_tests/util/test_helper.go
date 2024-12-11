@@ -40,7 +40,7 @@ import (
 // When receiving SIGINT or SIGTERM signals, it gracefully shuts down the proxy server by:
 //   - Sending SIGINT to the proxy process.
 //   - Killing any processes listening on port 8020.
-func StartProxyServer(configPath string) {
+func StartProxyServer(port int, configPath string) {
 	// Start the proxy in the background
 	cmd := exec.Command("go", "run", "../proxy_server/.", "--config-path="+configPath)
 	logFileForProxyServer, err := os.Create(path.Join(os.Getenv("KOKORO_ARTIFACTS_DIR"), "proxy-"+setup.GenerateRandomString(5)))
@@ -54,7 +54,6 @@ func StartProxyServer(configPath string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println("Proxy process:", cmd.Process.Pid)
 
 	// Handle SIGINT and SIGTERM signals to gracefully shut down the proxy
 	sigs := make(chan os.Signal, 1)
@@ -70,10 +69,10 @@ func StartProxyServer(configPath string) {
 			log.Println("Error sending SIGINT to proxy process:", err)
 		}
 
-		// Find and kill any processes listening on port 8080
-		err = KillProxyServerProcess(8020)
+		// Find and kill any processes listening on port 800
+		err = KillProxyServerProcess(port)
 		if err != nil {
-			log.Println("Error killing processes on port 8020:", err)
+			log.Println("Error killing processes on port ", port, ":", err)
 		}
 
 		os.Exit(0)
