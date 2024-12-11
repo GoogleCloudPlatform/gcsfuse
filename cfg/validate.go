@@ -15,10 +15,9 @@
 package cfg
 
 import (
+	"errors"
 	"fmt"
 	"math"
-
-	cacheutil "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 )
 
 const (
@@ -46,20 +45,20 @@ func isValidURL(u string) error {
 
 func isValidFileCacheConfig(config *FileCacheConfig) error {
 	if config.MaxSizeMb < -1 {
-		return fmt.Errorf(FileCacheMaxSizeMBInvalidValueError)
+		return errors.New(FileCacheMaxSizeMBInvalidValueError)
 	}
 	if config.MaxParallelDownloads < -1 {
-		return fmt.Errorf(MaxParallelDownloadsInvalidValueError)
+		return errors.New(MaxParallelDownloadsInvalidValueError)
 	}
 	if config.EnableParallelDownloads {
 		if config.MaxParallelDownloads == 0 {
-			return fmt.Errorf("the value of max-parallel-downloads for file-cache must not be 0 when enable-parallel-downloads is true")
+			return errors.New(MaxParallelDownloadsCantBeZeroError)
 		}
-		if config.WriteBufferSize < cacheutil.MinimumAlignSizeForWriting {
-			return fmt.Errorf("the value of write-buffer-size for file-cache can't be less than 4096")
+		if config.WriteBufferSize < CacheUtilMinimumAlignSizeForWriting {
+			return errors.New("the value of write-buffer-size for file-cache can't be less than 4096")
 		}
-		if (config.WriteBufferSize % cacheutil.MinimumAlignSizeForWriting) != 0 {
-			return fmt.Errorf("the value of write-buffer-size for file-cache should be in multiple of 4096")
+		if (config.WriteBufferSize % CacheUtilMinimumAlignSizeForWriting) != 0 {
+			return errors.New("the value of write-buffer-size for file-cache should be in multiple of 4096")
 		}
 	}
 	if config.ParallelDownloadsPerFile < 1 {
