@@ -1,6 +1,6 @@
 module github.com/googlecloudplatform/gcsfuse/v2
 
-go 1.23.3
+go 1.23.4
 
 require (
 	cloud.google.com/go/compute/metadata v0.5.2
