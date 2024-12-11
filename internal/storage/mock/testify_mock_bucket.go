@@ -59,7 +59,7 @@ func (m *TestifyMockBucket) CreateObjectChunkWriter(ctx context.Context, req *gc
 }
 
 func (m *TestifyMockBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.Object, error) {
-	args := m.Called(ctx, w.ObjectName())
+	args := m.Called(ctx, w)
 	return args.Get(0).(*gcs.Object), args.Error(1)
 }
 
