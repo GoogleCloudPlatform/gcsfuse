@@ -17,7 +17,7 @@
 # Mount the gcsfuse to /mnt/gcs:
 #  > docker run --privileged --device /fuse -v /mnt/gcs:/gcs:rw,rshared gcsfuse
 
-FROM golang:1.23.3-alpine AS builder
+FROM golang:1.23.4-alpine AS builder
 
 RUN apk add git
 
@@ -27,7 +27,7 @@ WORKDIR ${GCSFUSE_REPO}
 RUN go install ./tools/build_gcsfuse
 RUN build_gcsfuse . /tmp $(git log -1 --format=format:"%H")
 
-FROM alpine:3.20
+FROM alpine:3.21
 
 RUN apk add --update --no-cache bash ca-certificates fuse
 
