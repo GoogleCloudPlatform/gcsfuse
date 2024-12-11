@@ -34,19 +34,20 @@ import (
 ////////////////////////////////////////////////////////////////////////
 
 const fileSize = 50 * 1024 * 1024
+const Port = 8020
 
 type chunkTransferTimeoutnInfinity struct {
 	flags []string
 }
 
 func (s *chunkTransferTimeoutnInfinity) Setup(t *testing.T) {
-	emulator_tests.StartProxyServer()
+	emulator_tests.StartProxyServer(Port, "./configs/write_stall_40s.yaml")
 	setup.MountGCSFuseWithGivenMountFunc(s.flags, mountFunc)
 	testDirPath = setup.SetupTestDirectory(testDirName)
 }
 
 func (s *chunkTransferTimeoutnInfinity) Teardown(t *testing.T) {
-	assert.NoError(t, emulator_tests.KillProxyServerProcess(8020))
+	assert.NoError(t, emulator_tests.KillProxyServerProcess(Port))
 	setup.UnmountGCSFuse(rootDir)
 }
 
