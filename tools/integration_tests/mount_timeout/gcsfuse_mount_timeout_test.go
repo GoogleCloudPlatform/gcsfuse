@@ -104,6 +104,7 @@ func (testSuite *MountTimeoutTest) TearDownTest() {
 func (testSuite *MountTimeoutTest) mountOrTimeout(bucketName, mountDir, clientProtocol string, expectedMountTime time.Duration) error {
 	minMountTime := time.Duration(math.MaxInt64)
 
+	// Iterating 10 times to account for randomness in time taken to mount.
 	for i := 0; i < iterations; i++ {
 		args := []string{"--client-protocol", clientProtocol, bucketName, testSuite.dir}
 		start := time.Now()
@@ -115,7 +116,7 @@ func (testSuite *MountTimeoutTest) mountOrTimeout(bucketName, mountDir, clientPr
 		minMountTime = time.Duration(math.Min(float64(minMountTime), float64(mountTime)))
 
 		if err := util.Unmount(mountDir); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: unmount failed: %v\n", err)
+			err = fmt.Errorf("Warning: unmount failed: %v\n", err)
 			return err
 		}
 	}
