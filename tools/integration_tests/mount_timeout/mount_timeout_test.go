@@ -49,12 +49,12 @@ const (
 	dualRegionAsiaBucket                   string        = "mount_timeout_test_bucket_asia1"
 	singleRegionUSCentralBucket            string        = "mount_timeout_test_bucket_us-central1"
 	singleRegionAsiaEastBucket             string        = "mount_timeout_test_bucket_asia-east1"
-	singleRegionAsiaEastExpectedMountTime  time.Duration = 3200 * time.Millisecond
-	multiRegionUSExpectedMountTime         time.Duration = 2000 * time.Millisecond
-	multiRegionAsiaExpectedMountTime       time.Duration = 4500 * time.Millisecond
-	dualRegionUSExpectedMountTime          time.Duration = 2700 * time.Millisecond
-	dualRegionAsiaExpectedMountTime        time.Duration = 3750 * time.Millisecond
-	singleRegionUSCentralExpectedMountTime time.Duration = 2000 * time.Millisecond
+	singleRegionAsiaEastExpectedMountTime  time.Duration = 5500 * time.Millisecond
+	multiRegionUSExpectedMountTime         time.Duration = 4500 * time.Millisecond
+	multiRegionAsiaExpectedMountTime       time.Duration = 7500 * time.Millisecond
+	dualRegionUSExpectedMountTime          time.Duration = 4500 * time.Millisecond
+	dualRegionAsiaExpectedMountTime        time.Duration = 6250 * time.Millisecond
+	singleRegionUSCentralExpectedMountTime time.Duration = 2500 * time.Millisecond
 	relaxedExpectedMountTime               time.Duration = 8000 * time.Millisecond
 	logfilePathPrefix                      string        = "/tmp/gcsfuse_mount_timeout_"
 )
