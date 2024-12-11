@@ -269,6 +269,14 @@ func IgnoreTestIfIntegrationTestFlagIsSet(t *testing.T) {
 	}
 }
 
+func IgnoreTestIfIntegrationTestFlagNotIsSet(t *testing.T) {
+	flag.Parse()
+
+	if !*integrationTest {
+		t.SkipNow()
+	}
+}
+
 func ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet() {
 	ParseSetUpFlags()
 

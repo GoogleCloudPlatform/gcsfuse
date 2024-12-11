@@ -39,7 +39,6 @@ import (
 var gBuildDir string
 
 const (
-	testBucket    = "gcsfuse_monitoring_test_bucket"
 	portNonHNSRun = 9191
 	portHNSRun    = 9192
 )
@@ -73,7 +72,7 @@ func isHNSTestRun(t *testing.T) bool {
 }
 
 func (testSuite *PromTest) SetupSuite() {
-	setup.IgnoreTestIfIntegrationTestFlagIsSet(testSuite.T())
+	setup.IgnoreTestIfIntegrationTestFlagNotIsSet(testSuite.T())
 	if isHNSTestRun(testSuite.T()) {
 		// sets different Prometheus ports for HNS and non-HNS presubmit runs.
 		// This ensures that there is no port contention if both HNS and non-HNS test runs are happening simultaneously.
@@ -91,7 +90,7 @@ func (testSuite *PromTest) SetupTest() {
 	require.NoError(testSuite.T(), err)
 
 	setup.SetLogFile(fmt.Sprintf("%s%s.txt", "/tmp/gcsfuse_monitoring_", strings.ReplaceAll(testSuite.T().Name(), "/", "_")))
-	err = testSuite.mount(testBucket)
+	err = testSuite.mount(setup.TestBucket())
 	require.NoError(testSuite.T(), err)
 }
 
@@ -166,8 +165,8 @@ func assertNonZeroCountMetric(testSuite *PromTest, metricName, labelName, labelV
 	assert.Fail(testSuite.T(), "Didn't find the metric with name: %s, labelName: %s and labelValue: %s", metricName, labelName, labelValue)
 }
 
-// assertNonZeroLatencyMetric asserts that the specified latency (histogram) metric is present and is positive for at least one of the buckets in the Prometheus export.
-func assertNonZeroLatencyMetric(testSuite *PromTest, metricName, labelName, labelValue string) {
+// assertNonZeroHistogramMetric asserts that the specified histogram metric is present and is positive for at least one of the buckets in the Prometheus export.
+func assertNonZeroHistogramMetric(testSuite *PromTest, metricName, labelName, labelValue string) {
 	testSuite.T().Helper()
 	mf, err := parsePromFormat(testSuite)
 	require.NoError(testSuite.T(), err)
@@ -199,9 +198,9 @@ func (testSuite *PromTest) TestStatMetrics() {
 
 	require.NoError(testSuite.T(), err)
 	assertNonZeroCountMetric(testSuite, "fs_ops_count", "fs_op", "LookUpInode")
-	assertNonZeroLatencyMetric(testSuite, "fs_ops_latency", "fs_op", "LookUpInode")
+	assertNonZeroHistogramMetric(testSuite, "fs_ops_latency", "fs_op", "LookUpInode")
 	assertNonZeroCountMetric(testSuite, "gcs_request_count", "gcs_method", "StatObject")
-	assertNonZeroLatencyMetric(testSuite, "gcs_request_latencies", "gcs_method", "StatObject")
+	assertNonZeroHistogramMetric(testSuite, "gcs_request_latencies", "gcs_method", "StatObject")
 }
 
 func (testSuite *PromTest) TestFsOpsErrorMetrics() {
@@ -209,7 +208,7 @@ func (testSuite *PromTest) TestFsOpsErrorMetrics() {
 	require.Error(testSuite.T(), err)
 
 	assertNonZeroCountMetric(testSuite, "fs_ops_error_count", "fs_op", "LookUpInode")
-	assertNonZeroLatencyMetric(testSuite, "fs_ops_latency", "fs_op", "LookUpInode")
+	assertNonZeroHistogramMetric(testSuite, "fs_ops_latency", "fs_op", "LookUpInode")
 }
 
 func (testSuite *PromTest) TestListMetrics() {
@@ -219,7 +218,7 @@ func (testSuite *PromTest) TestListMetrics() {
 	assertNonZeroCountMetric(testSuite, "fs_ops_count", "fs_op", "ReadDir")
 	assertNonZeroCountMetric(testSuite, "fs_ops_count", "fs_op", "OpenDir")
 	assertNonZeroCountMetric(testSuite, "gcs_request_count", "gcs_method", "ListObjects")
-	assertNonZeroLatencyMetric(testSuite, "gcs_request_latencies", "gcs_method", "ListObjects")
+	assertNonZeroHistogramMetric(testSuite, "gcs_request_latencies", "gcs_method", "ListObjects")
 }
 
 func (testSuite *PromTest) TestReadMetrics() {
@@ -229,7 +228,7 @@ func (testSuite *PromTest) TestReadMetrics() {
 	assertNonZeroCountMetric(testSuite, "file_cache_read_count", "cache_hit", "false")
 	assertNonZeroCountMetric(testSuite, "file_cache_read_count", "read_type", "Sequential")
 	assertNonZeroCountMetric(testSuite, "file_cache_read_bytes_count", "read_type", "Sequential")
-	assertNonZeroLatencyMetric(testSuite, "file_cache_read_latencies", "cache_hit", "false")
+	assertNonZeroHistogramMetric(testSuite, "file_cache_read_latencies", "cache_hit", "false")
 	assertNonZeroCountMetric(testSuite, "fs_ops_count", "fs_op", "OpenFile")
 	assertNonZeroCountMetric(testSuite, "fs_ops_count", "fs_op", "ReadFile")
 	assertNonZeroCountMetric(testSuite, "fs_ops_count", "fs_op", "ReadFile")
@@ -239,7 +238,7 @@ func (testSuite *PromTest) TestReadMetrics() {
 	assertNonZeroCountMetric(testSuite, "gcs_read_count", "read_type", "Sequential")
 	assertNonZeroCountMetric(testSuite, "gcs_download_bytes_count", "", "")
 	assertNonZeroCountMetric(testSuite, "gcs_read_bytes_count", "", "")
-	assertNonZeroLatencyMetric(testSuite, "gcs_request_latencies", "gcs_method", "NewReader")
+	assertNonZeroHistogramMetric(testSuite, "gcs_request_latencies", "gcs_method", "NewReader")
 }
 
 func TestPromOCSuite(t *testing.T) {
