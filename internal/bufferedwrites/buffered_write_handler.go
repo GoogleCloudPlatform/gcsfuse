@@ -213,9 +213,17 @@ func (wh *BufferedWriteHandler) WriteFileInfo() WriteFileInfo {
 func (wh *BufferedWriteHandler) writeDataForTruncatedSize() error {
 	// If totalSize is greater than truncatedSize, that means user has
 	// written more data than they actually truncated in the beginning.
-	if wh.totalSize < wh.truncatedSize {
-		diff := wh.truncatedSize - wh.totalSize
-		err := wh.appendBuffer(make([]byte, diff))
+	if wh.totalSize >= wh.truncatedSize {
+		return nil
+	}
+
+	// Otherwise append dummy data to match truncatedSize.
+	diff := wh.truncatedSize - wh.totalSize
+	// Create 1MB of data at a time to avoid OOM
+	chunkSize := 1024 * 1024
+	for i := 0; i < int(diff); i += chunkSize {
+		size := math.Min(float64(chunkSize), float64(int(diff)-i))
+		err := wh.appendBuffer(make([]byte, int(size)))
 		if err != nil {
 			return err
 		}
