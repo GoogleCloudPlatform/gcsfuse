@@ -1,3 +1,0 @@
-2024/12/11 15:22:17 Proxy server started on port 8020
-2024/12/11 15:22:17 Server error: listen tcp :8020: bind: address already in use
-exit status 1
