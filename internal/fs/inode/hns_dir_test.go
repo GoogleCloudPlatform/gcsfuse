@@ -54,7 +54,7 @@ func (t *HNSDirTest) SetupTest() {
 	t.mockBucket = new(storagemock.TestifyMockBucket)
 	t.bucket = gcsx.NewSyncerBucket(
 		1,
-		10,
+		ChunkTransferTimeout,
 		".gcsfuse_tmp/",
 		t.mockBucket)
 	t.resetDirInode(false, false, true)
