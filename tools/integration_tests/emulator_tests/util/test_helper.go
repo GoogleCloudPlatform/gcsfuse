@@ -36,8 +36,6 @@ import (
 // The function also starts a simple HTTP server to keep the process running and provides an
 // endpoint to check the proxy status.
 //
-// When receiving SIGINT or SIGTERM signals, it gracefully shuts down the proxy server by:
-//   - Sending SIGINT to the proxy process.
 //   - Killing any processes listening on given port.
 func StartProxyServer(port int, configPath string) {
 	// Start the proxy in the background
