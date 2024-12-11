@@ -240,7 +240,6 @@ func (testSuite *PromTest) TestReadMetrics() {
 	assertNonZeroCountMetric(testSuite, "gcs_download_bytes_count", "", "")
 	assertNonZeroCountMetric(testSuite, "gcs_read_bytes_count", "", "")
 	assertNonZeroLatencyMetric(testSuite, "gcs_request_latencies", "gcs_method", "NewReader")
-
 }
 
 func TestPromOCSuite(t *testing.T) {
