@@ -261,17 +261,6 @@ func ParseSetUpFlags() {
 	}
 }
 
-// ParseSetUpFlagsForStretchrTests just parses the flags but doesn't fail until ParseSetUpFlags.
-// It skips the test gracefully if the integration tests are not being run.
-func ParseSetUpFlagsForStretchrTests(t *testing.T) {
-	flag.Parse()
-
-	if !*integrationTest {
-		log.Print("Pass --integrationTest flag to run the tests.")
-		t.SkipNow()
-	}
-}
-
 func IgnoreTestIfIntegrationTestFlagIsSet(t *testing.T) {
 	flag.Parse()
 

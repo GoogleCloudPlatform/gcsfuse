@@ -73,7 +73,7 @@ func isHNSTestRun(t *testing.T) bool {
 }
 
 func (testSuite *PromTest) SetupSuite() {
-	setup.ParseSetUpFlagsForStretchrTests(testSuite.T())
+	setup.IgnoreTestIfIntegrationTestFlagIsSet(testSuite.T())
 	if isHNSTestRun(testSuite.T()) {
 		// sets different Prometheus ports for HNS and non-HNS presubmit runs.
 		// This ensures that there is no port contention if both HNS and non-HNS test runs are happening simultaneously.
