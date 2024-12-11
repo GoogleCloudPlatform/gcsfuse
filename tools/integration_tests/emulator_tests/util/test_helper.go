@@ -35,8 +35,6 @@ import (
 //
 // The function also starts a simple HTTP server to keep the process running and provides an
 // endpoint to check the proxy status.
-//
-//   - Killing any processes listening on given port.
 func StartProxyServer(port int, configPath string) {
 	// Start the proxy in the background
 	cmd := exec.Command("go", "run", "../proxy_server/.", "--config-path="+configPath)
