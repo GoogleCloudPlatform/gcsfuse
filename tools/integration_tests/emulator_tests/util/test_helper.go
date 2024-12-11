@@ -20,7 +20,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"os/signal"
 	"path"
 	"strconv"
 	"strings"
@@ -54,29 +53,6 @@ func StartProxyServer(port int, configPath string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	// Handle SIGINT and SIGTERM signals to gracefully shut down the proxy
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-
-	go func() {
-		<-sigs
-		log.Println("Shutting down proxy...")
-
-		// Send SIGINT to the proxy process
-		err := cmd.Process.Signal(syscall.SIGINT)
-		if err != nil {
-			log.Println("Error sending SIGINT to proxy process:", err)
-		}
-
-		// Find and kill any processes listening on given port
-		err = KillProxyServerProcess(port)
-		if err != nil {
-			log.Println("Error killing processes on port ", port, ":", err)
-		}
-
-		os.Exit(0)
-	}()
 
 	// Start a simple HTTP server to keep the process running
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
