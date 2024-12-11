@@ -53,6 +53,8 @@ const fileInodeID = 17
 const fileName = "foo/bar"
 const fileMode os.FileMode = 0641
 const Delta = 30 * time.Minute
+const LocalFile = "Local"
+const EmptyGCSFile = "EmptyGCS"
 
 type FileTest struct {
 	suite.Suite
@@ -1031,32 +1033,28 @@ func (t *FileTest) TestUnlinkLocalFile() {
 func (t *FileTest) TestReadFileWhenStreamingWritesAreEnabled() {
 	tbl := []struct {
 		name         string
-		localFile    bool
-		emptyFile    bool
+		fileType     string
 		performWrite bool
 	}{
 		{
 			name:         "LocalFileWithWrite",
-			localFile:    true,
-			emptyFile:    false,
+			fileType:     LocalFile,
 			performWrite: true,
 		},
 		{
 			name:         "LocalFileWithOutWrite",
-			localFile:    true,
-			emptyFile:    false,
+			fileType:     LocalFile,
 			performWrite: false,
 		},
 		{
 			name:         "EmptyGCSFileWithWrite",
-			localFile:    false,
-			emptyFile:    true,
+			fileType:     EmptyGCSFile,
 			performWrite: true,
 		},
 	}
 	for _, tc := range tbl {
 		t.Run(tc.name, func() {
-			if tc.localFile {
+			if tc.fileType == LocalFile {
 				// Create a local file inode.
 				t.createInodeWithLocalParam("test", true)
 				t.in.writeConfig = getWriteConfig()
@@ -1065,7 +1063,7 @@ func (t *FileTest) TestReadFileWhenStreamingWritesAreEnabled() {
 				assert.NotNil(t.T(), t.in.bwh)
 			}
 
-			if tc.emptyFile {
+			if tc.fileType == EmptyGCSFile {
 				t.createInodeWithEmptyObject()
 				t.in.writeConfig = getWriteConfig()
 			}
@@ -1087,8 +1085,9 @@ func (t *FileTest) TestReadFileWhenStreamingWritesAreEnabled() {
 	}
 }
 
-func (t *FileTest) TestReadEmptyGCSFileWhenStreamingWritesAreEnabled() {
+func (t *FileTest) TestReadEmptyGCSFileWhenStreamingWritesAreNotInProgress() {
 	t.createInodeWithEmptyObject()
+	t.in.writeConfig = getWriteConfig()
 	data := make([]byte, 10)
 
 	n, err := t.in.Read(t.ctx, data, 0)
