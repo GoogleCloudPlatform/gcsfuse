@@ -112,8 +112,7 @@ spec:
     emptyDir:
       medium: Memory
   - name: gke-gcsfuse-buffer
-    emptyDir:
-      medium: Memory
+    emptyDir: {}
   - name: gke-gcsfuse-tmp
     emptyDir:
       medium: Memory

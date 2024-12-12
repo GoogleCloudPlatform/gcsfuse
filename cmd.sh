@@ -1,6 +1,6 @@
 
 node_pool=anushkadhn-node-pool-300gb-boot-disk
-instance_id=anushkadhn-filecacheoff-buffer-memory-boot-300gb
+instance_id=anushkadhn-filecacheoff-buffer-boot-boot-300gb
 namespace=300gb
 
 env project_id=tpu-prod-env-one-vm \
