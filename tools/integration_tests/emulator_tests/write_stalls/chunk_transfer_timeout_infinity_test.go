@@ -37,13 +37,13 @@ const fileSize = 50 * 1024 * 1024
 const Port = 8020
 const StallTime = 40 * time.Second
 
+var configPath = "../proxy_server/configs/write_stall_40s.yaml"
+
 type chunkTransferTimeoutnInfinity struct {
 	flags []string
 }
 
 func (s *chunkTransferTimeoutnInfinity) Setup(t *testing.T) {
-	configPath := "../proxy_server/configs/write_stall_40s.yaml"
-	
 	emulator_tests.StartProxyServer(configPath)
 	setup.MountGCSFuseWithGivenMountFunc(s.flags, mountFunc)
 	testDirPath = setup.SetupTestDirectory(testDirName)
@@ -99,7 +99,7 @@ func (s *chunkTransferTimeoutnInfinity) TestWriteStallCausesDelay(t *testing.T) 
 func TestChunkTransferTimeoutInfinity(t *testing.T) {
 	ts := &chunkTransferTimeoutnInfinity{}
 
-	// Define flag set to run the tests.
+	// Define flag set to run the tests.F
 	flagsSet := [][]string{
 		{"--custom-endpoint=http://localhost:8020/storage/v1/b?project=test-project/b?bucket=test-bucket", "--chunk-transfer-timeout-secs=0"},
 	}
