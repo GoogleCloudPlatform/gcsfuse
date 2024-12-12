@@ -41,7 +41,7 @@ func TestMain(m *testing.M) {
 		log.Printf("These tests will not run with mounted directory..")
 		return
 	}
-	
+
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()
 
