@@ -320,7 +320,7 @@ function clean_up() {
       # Empty bucket name may cause deletions of all the buckets.
       if [ "$bucket" != "" ];
       then
-        gcloud alpha storage rm --recursive gs://$bucket
+        gcloud alpha storage rm --recursive gs://$bucket 2>&1 | grep "ERROR"
       fi
     done
 }
