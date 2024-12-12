@@ -59,8 +59,9 @@ type BucketConfig struct {
 	// Note that if the process fails or is interrupted the temporary object will
 	// not be cleaned up, so the user must ensure that TmpObjectPrefix is
 	// periodically garbage collected.
-	AppendThreshold int64
-	TmpObjectPrefix string
+	AppendThreshold          int64
+	ChunkTransferTimeoutSecs int64
+	TmpObjectPrefix          string
 }
 
 // BucketManager manages the lifecycle of buckets.
@@ -220,6 +221,7 @@ func (bm *bucketManager) SetUpBucket(
 	}
 	sb = NewSyncerBucket(
 		bm.config.AppendThreshold,
+		bm.config.ChunkTransferTimeoutSecs,
 		bm.config.TmpObjectPrefix,
 		b)
 

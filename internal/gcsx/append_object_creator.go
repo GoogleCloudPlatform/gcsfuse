@@ -86,6 +86,7 @@ func (oc *appendObjectCreator) Create(
 	objectName string,
 	srcObject *gcs.Object,
 	mtime *time.Time,
+	chunkTransferTimeoutSecs int64,
 	r io.Reader) (o *gcs.Object, err error) {
 	// Choose a name for a temporary object.
 	tmpName, err := oc.chooseName()
@@ -99,9 +100,10 @@ func (oc *appendObjectCreator) Create(
 	tmp, err := oc.bucket.CreateObject(
 		ctx,
 		&gcs.CreateObjectRequest{
-			Name:                   tmpName,
-			GenerationPrecondition: &zero,
-			Contents:               r,
+			Name:                     tmpName,
+			GenerationPrecondition:   &zero,
+			Contents:                 r,
+			ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
 		})
 	if err != nil {
 		err = fmt.Errorf("CreateObject: %w", err)

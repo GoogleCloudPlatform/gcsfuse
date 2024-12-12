@@ -54,6 +54,15 @@ type CreateObjectRequest struct {
 	StorageClass       string
 	Acl                []*storagev1.ObjectAccessControl
 
+	// ChunkTransferTimeout sets a per-chunk request timeout for resumable uploads.
+	//
+	// For resumable uploads, the Writer will terminate the request and attempt a retry
+	// if the request to upload a particular chunk stalls for longer than this duration. Retries
+	// may continue until the ChunkRetryDeadline(32s) is reached.
+	//
+	// The default value is 10 seconds.
+	ChunkTransferTimeoutSecs int64
+
 	// A reader from which to obtain the contents of the object. Must be non-nil.
 	Contents io.Reader
 
