@@ -25,6 +25,7 @@ spec:
   nodeSelector:
     cloud.google.com/gke-tpu-topology: 2x2
     cloud.google.com/gke-tpu-accelerator: tpu-v6e-slice
+    cloud.google.com/gke-nodepool: {{ .Values.nodePool }}
   containers:
   - name: fio-tester
     image: {{ .Values.image }}

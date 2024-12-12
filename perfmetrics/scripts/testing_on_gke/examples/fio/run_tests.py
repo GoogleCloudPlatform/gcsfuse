@@ -40,6 +40,7 @@ def createHelmInstallCommands(
     fioWorkloads: set,
     instanceId: str,
     machineType: str,
+    nodePool: str,
 ) -> list:
   """Creates helm install commands for the given fioWorkload objects."""
   helm_commands = []
@@ -68,6 +69,7 @@ def createHelmInstallCommands(
           f'--set fio.filesPerThread={fioWorkload.filesPerThread}',
           f'--set fio.numThreads={fioWorkload.numThreads}',
           f'--set instanceId={instanceId}',
+          f'--set nodePool={nodePool}',
           (
               '--set'
               f' gcsfuse.mountOptions={escape_commas_in_string(fioWorkload.gcsfuseMountOptions)}'
@@ -94,6 +96,7 @@ def main(args) -> None:
       fioWorkloads,
       args.instance_id,
       args.machine_type,
+      args.nodePool
   )
   buckets = (fioWorkload.bucket for fioWorkload in fioWorkloads)
   role = 'roles/storage.objectUser'

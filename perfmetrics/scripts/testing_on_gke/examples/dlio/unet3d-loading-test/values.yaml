@@ -25,6 +25,7 @@ nodeType: ct6e-standard-4t
 instanceId: ldap-yyyymmdd-hhmmss
 podName:
 outputDirPrefix:
+nodePool:
 
 resourceLimits:
   cpu: 0

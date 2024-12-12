@@ -65,6 +65,14 @@ def parse_args():
       required=True,
   )
   parser.add_argument(
+      '--nodePool',
+      metavar='A unique string ID to represent the node',
+      help=(
+          'for setting node affinity'
+      ),
+      required=False,
+  )
+  parser.add_argument(
       '--machine-type',
       metavar='Machine-type of the GCE VM or GKE cluster node',
       help='Machine-type of the GCE VM or GKE cluster node e.g. n2-standard-32',
