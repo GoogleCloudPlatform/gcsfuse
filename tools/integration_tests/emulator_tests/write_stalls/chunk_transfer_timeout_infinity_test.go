@@ -72,7 +72,7 @@ func (s *chunkTransferTimeoutInfinity) TestWriteStallCausesDelay(t *testing.T) {
 	if err != nil {
 		require.NoError(t, err)
 	}
-	defer assert.NoError(t, file.Close())
+	defer file.Close()
 
 	// Generate random data
 	data := make([]byte, fileSize)
