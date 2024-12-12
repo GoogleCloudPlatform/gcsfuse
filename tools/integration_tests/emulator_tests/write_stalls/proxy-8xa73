@@ -1,0 +1,8 @@
+2024/12/12 13:15:29 Proxy server started on port 8020
+2024/12/12 13:15:29 retryCount:  1
+2024/12/12 13:15:29 retryCount:  1
+2024/12/12 13:15:29 retryCount:  1
+2024/12/12 13:15:39 retryCount:  0
+2024/12/12 13:15:39 Shutting down proxy server...
+2024/12/12 13:15:49 Proxy server forced to shutdown: context deadline exceeded
+exit status 1

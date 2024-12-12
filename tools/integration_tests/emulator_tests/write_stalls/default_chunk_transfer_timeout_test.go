@@ -31,6 +31,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var testDirName2 = "EmulatorTests-" + setup.GenerateRandomString(3)
+
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
@@ -42,7 +44,7 @@ type defaultChunkTransferTimeout struct {
 func (s *defaultChunkTransferTimeout) Setup(t *testing.T) {
 	emulator_tests.StartProxyServer(configPath)
 	setup.MountGCSFuseWithGivenMountFunc(s.flags, mountFunc)
-	testDirPath = setup.SetupTestDirectory(testDirName)
+	testDirPath = setup.SetupTestDirectory(testDirName2)
 }
 
 func (s *defaultChunkTransferTimeout) Teardown(t *testing.T) {
