@@ -539,7 +539,7 @@ func (f *FileInode) writeUsingTempFile(ctx context.Context, data []byte, offset 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, offset int64) error {
 	err := f.bwh.Write(data, offset)
-	if err != nil {
+	if err == bufferedwrites.ErrOutOfOrderWrite || err == bufferedwrites.ErrUploadFailure {
 		// Finalize the object.
 		flushErr := f.flushBufferedWriteHandlerAndUpdateInode()
 		if flushErr != nil {
