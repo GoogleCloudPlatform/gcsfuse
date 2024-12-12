@@ -108,6 +108,8 @@ if ([ $# -gt 0 ] && ([ "$1" == "-help" ] || [ "$1" == "--help" ] || [ "$1" == "-
   exitWithSuccess
 fi
 
+
+
 # Set environment variables.
 # GCP related
 if test -z "${project_id}"; then
@@ -121,11 +123,14 @@ test -n "${zone}" || export zone=${DEFAULT_ZONE}
 if test -z "${cluster_name}"; then
   exitWithError "${cluster_name} was not set."
 fi
-test -n "${node_pool}" || export node_pool=${DEFAULT_NODE_POOL}
+#test -n "${node_pool}" || export node_pool=${DEFAULT_NODE_POOL}
+node_pool=$3
 test -n "${machine_type}" || export machine_type=${DEFAULT_MACHINE_TYPE}
 test -n "${num_nodes}" || export num_nodes=${DEFAULT_NUM_NODES}
 test -n "${num_ssd}" || export num_ssd=${DEFAULT_NUM_SSD}
- test -n "${appnamespace}" || export appnamespace=${DEFAULT_APPNAMESPACE}
+# test -n "${appnamespace}" || export appnamespace=${DEFAULT_APPNAMESPACE}
+appnamespace=$2
+
 # test -n "${ksa}" ||
 export ksa=${DEFAULT_KSA}
 test -n "${use_custom_csi_driver}" || export use_custom_csi_driver="${DEFAULT_USE_CUSTOM_CSI_DRIVER}"
@@ -169,8 +174,8 @@ fi
 # Test runtime configuration
 test -n "${pod_wait_time_in_seconds}" || export pod_wait_time_in_seconds="${DEFAULT_POD_WAIT_TIME_IN_SECONDS}"
 test -n "${pod_timeout_in_seconds}" || export pod_timeout_in_seconds="${DEFAULT_POD_TIMEOUT_IN_SECONDS}"
-test -n "${instance_id}" || export instance_id="${DEFAULT_INSTANCE_ID}"
-
+#test -n "${instance_id}" || export instance_id="${DEFAULT_INSTANCE_ID}"
+instance_id=$4
 if [[ ${pod_timeout_in_seconds} -le ${pod_wait_time_in_seconds} ]]; then
   exitWithError "pod_timeout_in_seconds (${pod_timeout_in_seconds}) <= pod_wait_time_in_seconds (${pod_wait_time_in_seconds})"
 fi
