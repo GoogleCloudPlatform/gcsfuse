@@ -107,7 +107,7 @@ def createOutputScenariosFromDownloadedFiles(args: dict) -> dict:
   """
 
   output = {}
-  for root, _, files in os.walk(_LOCAL_LOGS_LOCATION + "/" + args.instance_id):
+  for root, _, files in os.walk(os.path.expanduser(_LOCAL_LOGS_LOCATION + "/" + args.instance_id)):
     print(f"Parsing directory {root} ...")
 
     if not files:
