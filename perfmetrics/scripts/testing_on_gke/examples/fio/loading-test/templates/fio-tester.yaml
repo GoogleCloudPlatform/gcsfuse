@@ -168,7 +168,8 @@ spec:
   - name: gke-gcsfuse-cache
     emptyDir: {}
   - name: gke-gcsfuse-buffer
-    emptyDir: {}
+    emptyDir:
+      medium: Memory
   - name: gke-gcsfuse-tmp
     emptyDir: {}
   - name: dshm
