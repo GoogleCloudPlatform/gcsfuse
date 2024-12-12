@@ -31,8 +31,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var testDirName2 = "EmulatorTests-" + setup.GenerateRandomString(3)
-
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
@@ -44,7 +42,6 @@ type defaultChunkTransferTimeout struct {
 func (s *defaultChunkTransferTimeout) Setup(t *testing.T) {
 	emulator_tests.StartProxyServer(configPath)
 	setup.MountGCSFuseWithGivenMountFunc(s.flags, mountFunc)
-	testDirPath = setup.SetupTestDirectory(testDirName2)
 }
 
 func (s *defaultChunkTransferTimeout) Teardown(t *testing.T) {
@@ -62,6 +59,8 @@ func (s *defaultChunkTransferTimeout) Teardown(t *testing.T) {
 // the data is written to GCS. The test measures the time taken for the Sync()
 // operation and asserts that it is less than or equal to the configured stall time.
 func (s *defaultChunkTransferTimeout) TestWriteStallWillNotCauseDelay(t *testing.T) {
+	testDir := "TestWriteStallWillNotCauseDelay"
+	testDirPath = setup.SetupTestDirectory(testDir)
 	filePath := path.Join(testDirPath, "file2.txt")
 	// Create a file for writing
 	file, err := os.Create(filePath)
