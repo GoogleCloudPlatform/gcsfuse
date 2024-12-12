@@ -28,6 +28,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -69,14 +70,14 @@ func (s *chunkTransferTimeoutnInfinity) TestWriteStallCausesDelay(t *testing.T) 
 	// Create a file for writing
 	file, err := os.Create(filePath)
 	if err != nil {
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	}
-	defer file.Close()
+	defer assert.NoError(t, file.Close())
 
 	// Generate random data
 	data := make([]byte, fileSize)
 	if _, err := io.ReadFull(rand.Reader, data); err != nil {
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	}
 
 	// Write the data to the file
@@ -85,7 +86,6 @@ func (s *chunkTransferTimeoutnInfinity) TestWriteStallCausesDelay(t *testing.T) 
 	}
 	startTime := time.Now()
 	err = file.Sync()
-	// End timer
 	endTime := time.Now()
 	elapsedTime := endTime.Sub(startTime)
 	assert.NoError(t, err)
@@ -100,7 +100,7 @@ func (s *chunkTransferTimeoutnInfinity) TestWriteStallCausesDelay(t *testing.T) 
 func TestChunkTransferTimeoutInfinity(t *testing.T) {
 	ts := &chunkTransferTimeoutnInfinity{}
 	proxyEndpoint := fmt.Sprintf("http://localhost:%d/storage/v1/b?project=test-project/b?bucket=%s", port, setup.TestBucket())
-	// Define flag set to run the tests.F
+	// Define flag set to run the tests.
 	flagsSet := [][]string{
 		{"--custom-endpoint=" + proxyEndpoint, "--chunk-transfer-timeout-secs=0"},
 	}
