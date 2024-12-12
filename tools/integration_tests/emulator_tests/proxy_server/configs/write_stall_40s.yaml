@@ -1,5 +1,9 @@
 targetHost: http://localhost:9000
 retryConfig:
 - method: JsonCreate
-  retryInstruction: "stall-for-40s-after-15000K"
-  retryCount: 3
+  retryInstruction: "stall-for-40s-after-15360K"
+  # To add forced error scenarios for resumable uploads, we need to define retryCount
+  # with a value one greater than the desired number of retries. This is because the initial
+  # POST request only initiate the resumable upload request. Subsequent requests actually upload the data,
+  # and it's these requests we want to stall for testing. Attaching the retry ID to the first request will have no effect.
+  retryCount: 2
