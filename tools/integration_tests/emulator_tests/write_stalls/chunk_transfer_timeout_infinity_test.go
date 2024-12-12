@@ -42,7 +42,9 @@ type chunkTransferTimeoutnInfinity struct {
 }
 
 func (s *chunkTransferTimeoutnInfinity) Setup(t *testing.T) {
-	emulator_tests.StartProxyServer("../proxy_server/configs/write_stall_40s.yaml")
+	configPath := "../proxy_server/configs/write_stall_40s.yaml"
+	
+	emulator_tests.StartProxyServer(configPath)
 	setup.MountGCSFuseWithGivenMountFunc(s.flags, mountFunc)
 	testDirPath = setup.SetupTestDirectory(testDirName)
 }
