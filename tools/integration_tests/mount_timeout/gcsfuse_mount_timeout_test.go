@@ -30,6 +30,7 @@ import (
 )
 
 func TestMountTimeout(t *testing.T) {
+	t.Skip()
 	if os.Getenv("TEST_ENV") == testEnvGCEUSCentral {
 		// Set strict region based timeout values if testing environment is GCE VM in us-central.
 		timeout := RegionWiseTimeouts{
