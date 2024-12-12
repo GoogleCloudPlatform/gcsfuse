@@ -35,8 +35,6 @@ import (
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-const fileTransferTimeout = 15 * time.Second
-
 type defaultChunkTransferTimeout struct {
 	flags []string
 }
@@ -62,7 +60,7 @@ func (s *defaultChunkTransferTimeout) Teardown(t *testing.T) {
 // the data is written to GCS. The test measures the time taken for the Sync()
 // operation and asserts that it is less than or equal to the configured stall time.
 func (s *defaultChunkTransferTimeout) TestWriteStallWillNotCauseDelay(t *testing.T) {
-	filePath := path.Join(testDirPath, "file.txt")
+	filePath := path.Join(testDirPath, "file2.txt")
 	// Create a file for writing
 	file, err := os.Create(filePath)
 	if err != nil {
@@ -86,7 +84,10 @@ func (s *defaultChunkTransferTimeout) TestWriteStallWillNotCauseDelay(t *testing
 	elapsedTime := endTime.Sub(startTime)
 	assert.NoError(t, err)
 
-	assert.Less(t, elapsedTime, fileTransferTimeout)
+	// The chunk upload should stall but successfully complete after 10 seconds.
+	// Overall file upload will face 10 seconds of stall instead of 40 seconds.
+	assert.GreaterOrEqual(t, elapsedTime, 10*time.Second)
+	assert.Less(t, elapsedTime, 15*time.Second)
 }
 
 ////////////////////////////////////////////////////////////////////////

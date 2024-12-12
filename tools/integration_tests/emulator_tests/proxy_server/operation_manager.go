@@ -15,6 +15,7 @@
 package main
 
 import (
+	"log"
 	"sync"
 )
 
@@ -51,6 +52,7 @@ func (om *OperationManager) retrieveOperation(requestType RequestType) string {
 
 	for len(configs) > 0 {
 		cc := &configs[0]
+		log.Println("retryCount: ", cc.RetryCount)
 		if cc.SkipCount > 0 {
 			cc.SkipCount--
 			return ""
