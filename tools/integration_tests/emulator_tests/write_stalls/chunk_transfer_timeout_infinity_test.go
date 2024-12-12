@@ -35,8 +35,8 @@ import (
 ////////////////////////////////////////////////////////////////////////
 
 const fileSize = 50 * 1024 * 1024
-const Port = 8020
-const StallTime = 40 * time.Second
+const port = 8020
+const stallTime = 40 * time.Second
 
 var configPath = "../proxy_server/configs/write_stall_40s.yaml"
 
@@ -52,7 +52,7 @@ func (s *chunkTransferTimeoutnInfinity) Setup(t *testing.T) {
 
 func (s *chunkTransferTimeoutnInfinity) Teardown(t *testing.T) {
 	setup.UnmountGCSFuse(rootDir)
-	assert.NoError(t, emulator_tests.KillProxyServerProcess(Port))
+	assert.NoError(t, emulator_tests.KillProxyServerProcess(port))
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -60,10 +60,10 @@ func (s *chunkTransferTimeoutnInfinity) Teardown(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 // This test verifies that write operations stall for the expected duration
-// when a write stall is induced. It creates a file, writes data to it,
-// and then calls Sync() to ensure the data is written to disk. The test
-// measures the time taken for the Sync() operation and asserts that it
-// is greater than or equal to the configured stall time.
+// when write stall is induced while uploading first chunk.
+// It creates a file, writes data to it, and then calls Sync() to ensure
+// the data is written to disk. The test measures the time taken for the Sync()
+// operation and asserts that it is greater than or equal to the configured stall time.
 func (s *chunkTransferTimeoutnInfinity) TestWriteStallCausesDelay(t *testing.T) {
 	filePath := path.Join(testDirPath, "file.txt")
 	// Create a file for writing
@@ -90,7 +90,7 @@ func (s *chunkTransferTimeoutnInfinity) TestWriteStallCausesDelay(t *testing.T) 
 	elapsedTime := endTime.Sub(startTime)
 	assert.NoError(t, err)
 
-	assert.GreaterOrEqual(t, elapsedTime, StallTime)
+	assert.GreaterOrEqual(t, elapsedTime, stallTime)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -99,7 +99,7 @@ func (s *chunkTransferTimeoutnInfinity) TestWriteStallCausesDelay(t *testing.T) 
 
 func TestChunkTransferTimeoutInfinity(t *testing.T) {
 	ts := &chunkTransferTimeoutnInfinity{}
-	proxyEndpoint := fmt.Sprintf("http://localhost:%d/storage/v1/b?project=test-project/b?bucket=test-bucket", Port)
+	proxyEndpoint := fmt.Sprintf("http://localhost:%d/storage/v1/b?project=test-project/b?bucket=%s", port, setup.TestBucket())
 	// Define flag set to run the tests.F
 	flagsSet := [][]string{
 		{"--custom-endpoint=" + proxyEndpoint, "--chunk-transfer-timeout-secs=0"},

@@ -30,24 +30,22 @@ const (
 var (
 	testDirPath string
 	mountFunc   func([]string) error
-	// mount directory is where our tests run.
-	mountDir string
 	// root directory is the directory to be unmounted.
 	rootDir string
 )
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
-	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
-	log.Println("Running static mounting tests...")
-
-	// Else run tests for testBucket.
+	if setup.MountedDirectory() != "" {
+		log.Printf("These tests will not run with mounted directory..")
+		return
+	}
+	
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()
 
-	// Save mount and root directory variables.
-	mountDir, rootDir = setup.MntDir(), setup.MntDir()
+	rootDir = setup.MntDir()
 
 	log.Println("Running static mounting tests...")
 	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
