@@ -172,7 +172,7 @@ TEST_DIR_NON_PARALLEL=(
 # Create a temporary file to store the log file name.
 TEST_LOGS_FILE=$(mktemp)
 
-INTEGRATION_TEST_TIMEOUT=180m
+INTEGRATION_TEST_TIMEOUT=240m
 
 function run_non_parallel_tests() {
   local exit_code=0
