@@ -63,7 +63,7 @@ func (s *chunkTransferTimeoutnInfinity) Teardown(t *testing.T) {
 // This test verifies that write operations stall for the expected duration
 // when write stall is induced while uploading first chunk.
 // It creates a file, writes data to it, and then calls Sync() to ensure
-// the data is written to disk. The test measures the time taken for the Sync()
+// the data is written to GCS. The test measures the time taken for the Sync()
 // operation and asserts that it is greater than or equal to the configured stall time.
 func (s *chunkTransferTimeoutnInfinity) TestWriteStallCausesDelay(t *testing.T) {
 	filePath := path.Join(testDirPath, "file.txt")
