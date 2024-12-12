@@ -99,7 +99,7 @@ func TestChunkTransferTimeoutInfinity(t *testing.T) {
 
 	// Define flag set to run the tests.
 	flagsSet := [][]string{
-		{"--custom-endpoint=http://localhost:8020/storage/v1/b?project=test-project/b?bucket=test-bucket"},
+		{"--custom-endpoint=http://localhost:8020/storage/v1/b?project=test-project/b?bucket=test-bucket", "--chunk-transfer-timeout-secs=0"},
 	}
 
 	// Run tests.

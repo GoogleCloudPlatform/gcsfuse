@@ -305,7 +305,7 @@ function run_e2e_tests_for_tpc() {
 }
 
 function run_e2e_tests_for_emulator() {
-  ./tools/integration_tests/emulator_tests/emulator_tests.sh
+  ./tools/integration_tests/emulator_tests/emulator_tests.sh $RUN_E2E_TESTS_ON_PACKAGE
 }
 
 #commenting it so cleanup and failure check happens for both
