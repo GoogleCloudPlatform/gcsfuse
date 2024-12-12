@@ -35,9 +35,10 @@ import (
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-const fileSize = 50 * 1024 * 1024
-const port = 8020
-const stallTime = 40 * time.Second
+const (
+	fileSize  = 50 * 1024 * 1024
+	stallTime = 40 * time.Second
+)
 
 var configPath = "../proxy_server/configs/write_stall_40s.yaml"
 
@@ -48,7 +49,6 @@ type chunkTransferTimeoutInfinity struct {
 func (s *chunkTransferTimeoutInfinity) Setup(t *testing.T) {
 	emulator_tests.StartProxyServer(configPath)
 	setup.MountGCSFuseWithGivenMountFunc(s.flags, mountFunc)
-	testDirPath = setup.SetupTestDirectory(testDirName)
 }
 
 func (s *chunkTransferTimeoutInfinity) Teardown(t *testing.T) {
@@ -66,6 +66,8 @@ func (s *chunkTransferTimeoutInfinity) Teardown(t *testing.T) {
 // the data is written to GCS. The test measures the time taken for the Sync()
 // operation and asserts that it is greater than or equal to the configured stall time.
 func (s *chunkTransferTimeoutInfinity) TestWriteStallCausesDelay(t *testing.T) {
+	testDir := "TestWriteStallCausesDelay"
+	testDirPath = setup.SetupTestDirectory(testDir)
 	filePath := path.Join(testDirPath, "file.txt")
 	// Create a file for writing
 	file, err := os.Create(filePath)

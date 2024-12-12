@@ -23,9 +23,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
-const (
-	testDirName = "EmulatorTests"
-)
+const port = 8020
 
 var (
 	testDirPath string
