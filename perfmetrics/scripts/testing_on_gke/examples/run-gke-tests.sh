@@ -125,8 +125,7 @@ test -n "${node_pool}" || export node_pool=${DEFAULT_NODE_POOL}
 test -n "${machine_type}" || export machine_type=${DEFAULT_MACHINE_TYPE}
 test -n "${num_nodes}" || export num_nodes=${DEFAULT_NUM_NODES}
 test -n "${num_ssd}" || export num_ssd=${DEFAULT_NUM_SSD}
-# test -n "${appnamespace}" ||
-export appnamespace=${DEFAULT_APPNAMESPACE}
+ test -n "${appnamespace}" || export appnamespace=${DEFAULT_APPNAMESPACE}
 # test -n "${ksa}" ||
 export ksa=${DEFAULT_KSA}
 test -n "${use_custom_csi_driver}" || export use_custom_csi_driver="${DEFAULT_USE_CUSTOM_CSI_DRIVER}"
