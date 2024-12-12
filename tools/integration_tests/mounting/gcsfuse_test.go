@@ -224,12 +224,6 @@ func (t *GcsfuseTest) KeyFile() {
 	}
 }
 
-func assertContains(expected, actual string) {
-	if !strings.Contains(actual, expected) {
-		logger.Fatal("Actual: %s does not contain expected: %s", actual, expected)
-	}
-}
-
 func (t *GcsfuseTest) CannedContents() {
 	var err error
 	var fi os.FileInfo
@@ -570,7 +564,7 @@ const TEST_RELATIVE_FILE_NAME = "test.txt"
 const TEST_HOME_RELATIVE_FILE_NAME = "test_home.json"
 
 func createTestFilesForRelativePathTesting() (
-	curDirTestFile string, homeDirTestFile string) {
+		curDirTestFile string, homeDirTestFile string) {
 
 	curWorkingDir, err := os.Getwd()
 	AssertEq(nil, err)
