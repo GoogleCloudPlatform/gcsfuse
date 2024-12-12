@@ -21,13 +21,11 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"strings"
 	"syscall"
 	"testing"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/canned"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/util"
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/oglematchers"
@@ -564,7 +562,7 @@ const TEST_RELATIVE_FILE_NAME = "test.txt"
 const TEST_HOME_RELATIVE_FILE_NAME = "test_home.json"
 
 func createTestFilesForRelativePathTesting() (
-		curDirTestFile string, homeDirTestFile string) {
+	curDirTestFile string, homeDirTestFile string) {
 
 	curWorkingDir, err := os.Getwd()
 	AssertEq(nil, err)
