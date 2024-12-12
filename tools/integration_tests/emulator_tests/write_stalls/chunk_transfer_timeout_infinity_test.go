@@ -35,13 +35,14 @@ import (
 
 const fileSize = 50 * 1024 * 1024
 const Port = 8020
+const StallTime = 40 * time.Second
 
 type chunkTransferTimeoutnInfinity struct {
 	flags []string
 }
 
 func (s *chunkTransferTimeoutnInfinity) Setup(t *testing.T) {
-	emulator_tests.StartProxyServer(Port, "../proxy_server/configs/write_stall_40s.yaml")
+	emulator_tests.StartProxyServer("../proxy_server/configs/write_stall_40s.yaml")
 	setup.MountGCSFuseWithGivenMountFunc(s.flags, mountFunc)
 	testDirPath = setup.SetupTestDirectory(testDirName)
 }
@@ -61,7 +62,6 @@ func (s *chunkTransferTimeoutnInfinity) Teardown(t *testing.T) {
 // measures the time taken for the Sync() operation and asserts that it
 // is greater than or equal to the configured stall time.
 func (s *chunkTransferTimeoutnInfinity) TestWriteStallCausesDelay(t *testing.T) {
-	stallTime := 40 * time.Second
 	filePath := path.Join(testDirPath, "file.txt")
 	// Create a file for writing
 	file, err := os.Create(filePath)
@@ -87,7 +87,7 @@ func (s *chunkTransferTimeoutnInfinity) TestWriteStallCausesDelay(t *testing.T) 
 	elapsedTime := endTime.Sub(startTime)
 	assert.NoError(t, err)
 
-	assert.GreaterOrEqual(t, elapsedTime, stallTime)
+	assert.GreaterOrEqual(t, elapsedTime, StallTime)
 }
 
 ////////////////////////////////////////////////////////////////////////
