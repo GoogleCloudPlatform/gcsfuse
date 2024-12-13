@@ -15,6 +15,7 @@
 package emulator_tests
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -29,7 +30,8 @@ var (
 	testDirPath string
 	mountFunc   func([]string) error
 	// root directory is the directory to be unmounted.
-	rootDir string
+	rootDir       string
+	proxyEndpoint = fmt.Sprintf("http://localhost:%d/storage/v1/b?project=test-project", port)
 )
 
 func TestMain(m *testing.M) {

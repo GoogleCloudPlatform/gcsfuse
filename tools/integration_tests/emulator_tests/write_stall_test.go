@@ -15,7 +15,6 @@
 package emulator_tests
 
 import (
-	"fmt"
 	"log"
 	"path"
 	"testing"
@@ -77,7 +76,6 @@ func (s *chunkTransferTimeoutInfinity) TestWriteStallCausesDelay(t *testing.T) {
 
 func TestChunkTransferTimeoutInfinity(t *testing.T) {
 	ts := &chunkTransferTimeoutInfinity{}
-	proxyEndpoint := fmt.Sprintf("http://localhost:%d/storage/v1/b?project=test-project", port)
 	// Define flag set to run the tests.
 	flagsSet := [][]string{
 		{"--custom-endpoint=" + proxyEndpoint, "--chunk-transfer-timeout-secs=0"},
