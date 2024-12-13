@@ -15,6 +15,7 @@
 package bufferedwrites
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
@@ -346,4 +347,29 @@ func (testSuite *BufferedWriteTest) TestWriteFileInfoWithTruncatedLengthGreaterT
 	fileInfo := testSuite.bwh.WriteFileInfo()
 
 	assert.Equal(testSuite.T(), testSuite.bwh.truncatedSize, fileInfo.TotalSize)
+}
+
+func (testSuite *BufferedWriteTest) TestUnlinkWhenWriterIsNotCreated() {
+	testSuite.bwh.Unlink()
+
+	assert.Nil(testSuite.T(), testSuite.bwh.uploadHandler.ctx)
+	assert.Equal(testSuite.T(), 0, len(testSuite.bwh.uploadHandler.uploadCh))
+	assert.Equal(testSuite.T(), 0, len(testSuite.bwh.blockPool.FreeBlocksChannel()))
+}
+
+func (testSuite *BufferedWriteTest) TestUnlinkWhenWriterIsCreated() {
+	buffer, err := operations.GenerateRandomData(blockSize)
+	assert.NoError(testSuite.T(), err)
+	// Write 5 blocks.
+	for i := 0; i < 5; i++ {
+		err = testSuite.bwh.Write(buffer, int64(blockSize*i))
+		require.Nil(testSuite.T(), err)
+	}
+
+	testSuite.bwh.Unlink()
+
+	require.NotNil(testSuite.T(), testSuite.bwh.uploadHandler.ctx)
+	assert.Equal(testSuite.T(), context.Canceled, testSuite.bwh.uploadHandler.ctx.Err())
+	assert.Equal(testSuite.T(), 0, len(testSuite.bwh.uploadHandler.uploadCh))
+	assert.Equal(testSuite.T(), 0, len(testSuite.bwh.blockPool.FreeBlocksChannel()))
 }

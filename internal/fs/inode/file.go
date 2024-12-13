@@ -324,7 +324,12 @@ func (f *FileInode) IsUnlinked() bool {
 }
 
 func (f *FileInode) Unlink() {
-	f.unlinked = true
+	if f.bwh != nil {
+		f.bwh.Unlink()
+	}
+	if f.local {
+		f.unlinked = true
+	}
 }
 
 // Source returns a record for the GCS object from which this inode is branched. The
