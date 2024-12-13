@@ -21,6 +21,7 @@ import (
 	"sync"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/block"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 )
@@ -45,21 +46,25 @@ type UploadHandler struct {
 	signalUploadFailure chan error
 
 	// Parameters required for creating a new GCS chunk writer.
-	bucket     gcs.Bucket
-	objectName string
-	blockSize  int64
+	bucket               gcs.Bucket
+	objectName           string
+	obj                  *gcs.Object
+	chunkTransferTimeout int64
+	blockSize            int64
 }
 
 // newUploadHandler creates the UploadHandler struct.
-func newUploadHandler(objectName string, bucket gcs.Bucket, maxBlocks int64, freeBlocksCh chan block.Block, blockSize int64) *UploadHandler {
+func newUploadHandler(obj *gcs.Object, objectName string, bucket gcs.Bucket, maxBlocks int64, freeBlocksCh chan block.Block, blockSize int64, chunkTransferTimeoutSecs int64) *UploadHandler {
 	uh := &UploadHandler{
-		uploadCh:            make(chan block.Block, maxBlocks),
-		wg:                  sync.WaitGroup{},
-		freeBlocksCh:        freeBlocksCh,
-		bucket:              bucket,
-		objectName:          objectName,
-		blockSize:           blockSize,
-		signalUploadFailure: make(chan error, 1),
+		uploadCh:             make(chan block.Block, maxBlocks),
+		wg:                   sync.WaitGroup{},
+		freeBlocksCh:         freeBlocksCh,
+		bucket:               bucket,
+		objectName:           objectName,
+		obj:                  obj,
+		blockSize:            blockSize,
+		signalUploadFailure:  make(chan error, 1),
+		chunkTransferTimeout: chunkTransferTimeoutSecs,
 	}
 	return uh
 }
@@ -86,12 +91,7 @@ func (uh *UploadHandler) Upload(block block.Block) error {
 
 // createObjectWriter creates a GCS object writer.
 func (uh *UploadHandler) createObjectWriter() (err error) {
-	var preCond int64
-	req := &gcs.CreateObjectRequest{
-		Name:                   uh.objectName,
-		GenerationPrecondition: &preCond,
-		Metadata:               make(map[string]string),
-	}
+	req := gcsx.CreateObjectRequest(uh.obj, uh.objectName, nil, uh.chunkTransferTimeout)
 	// We need a new context here, since the first writeFile() call will be complete
 	// (and context will be cancelled) by the time complete upload is done.
 	uh.writer, err = uh.bucket.CreateObjectChunkWriter(context.Background(), req, int(uh.blockSize), nil)

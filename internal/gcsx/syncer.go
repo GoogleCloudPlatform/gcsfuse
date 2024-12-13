@@ -88,45 +88,8 @@ func (oc *fullObjectCreator) Create(
 	mtime *time.Time,
 	chunkTransferTimeoutSecs int64,
 	r io.Reader) (o *gcs.Object, err error) {
-	metadataMap := make(map[string]string)
-
-	var req *gcs.CreateObjectRequest
-	if srcObject == nil {
-		var precond int64
-		req = &gcs.CreateObjectRequest{
-			Name:                     objectName,
-			Contents:                 r,
-			GenerationPrecondition:   &precond,
-			Metadata:                 metadataMap,
-			ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
-		}
-	} else {
-		for key, value := range srcObject.Metadata {
-			metadataMap[key] = value
-		}
-
-		req = &gcs.CreateObjectRequest{
-			Name:                       srcObject.Name,
-			GenerationPrecondition:     &srcObject.Generation,
-			MetaGenerationPrecondition: &srcObject.MetaGeneration,
-			Contents:                   r,
-			Metadata:                   metadataMap,
-			CacheControl:               srcObject.CacheControl,
-			ContentDisposition:         srcObject.ContentDisposition,
-			ContentEncoding:            srcObject.ContentEncoding,
-			ContentType:                srcObject.ContentType,
-			CustomTime:                 srcObject.CustomTime,
-			EventBasedHold:             srcObject.EventBasedHold,
-			StorageClass:               srcObject.StorageClass,
-			ChunkTransferTimeoutSecs:   chunkTransferTimeoutSecs,
-		}
-	}
-
-	// Any existing mtime value will be overwritten with new value.
-	if mtime != nil {
-		metadataMap[MtimeMetadataKey] = mtime.UTC().Format(time.RFC3339Nano)
-	}
-
+	req := CreateObjectRequest(srcObject, objectName, mtime, chunkTransferTimeoutSecs)
+	req.Contents = r
 	o, err = oc.bucket.CreateObject(ctx, req)
 	if err != nil {
 		err = fmt.Errorf("CreateObject: %w", err)

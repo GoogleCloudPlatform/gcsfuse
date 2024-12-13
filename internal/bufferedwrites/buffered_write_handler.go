@@ -60,7 +60,7 @@ var ErrOutOfOrderWrite = errors.New("outOfOrder write detected")
 var ErrUploadFailure = errors.New("error while uploading object to GCS")
 
 // NewBWHandler creates the bufferedWriteHandler struct.
-func NewBWHandler(objectName string, bucket gcs.Bucket, blockSize int64, maxBlocks int64, globalMaxBlocksSem *semaphore.Weighted) (bwh *BufferedWriteHandler, err error) {
+func NewBWHandler(obj *gcs.Object, objectName string, bucket gcs.Bucket, blockSize int64, maxBlocks int64, globalMaxBlocksSem *semaphore.Weighted, chunkTransferTimeoutSecs int64) (bwh *BufferedWriteHandler, err error) {
 	bp, err := block.NewBlockPool(blockSize, maxBlocks, globalMaxBlocksSem)
 	if err != nil {
 		return
@@ -69,7 +69,7 @@ func NewBWHandler(objectName string, bucket gcs.Bucket, blockSize int64, maxBloc
 	bwh = &BufferedWriteHandler{
 		current:       nil,
 		blockPool:     bp,
-		uploadHandler: newUploadHandler(objectName, bucket, maxBlocks, bp.FreeBlocksChannel(), blockSize),
+		uploadHandler: newUploadHandler(obj, objectName, bucket, maxBlocks, bp.FreeBlocksChannel(), blockSize, chunkTransferTimeoutSecs),
 		totalSize:     0,
 		mtime:         time.Now(),
 	}

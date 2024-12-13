@@ -29,6 +29,8 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
+const chunkTransferTimeoutSecs int64 = 10
+
 type BufferedWriteTest struct {
 	bwh *BufferedWriteHandler
 	suite.Suite
@@ -40,7 +42,7 @@ func TestBufferedWriteTestSuite(t *testing.T) {
 
 func (testSuite *BufferedWriteTest) SetupTest() {
 	bucket := fake.NewFakeBucket(timeutil.RealClock(), "FakeBucketName", gcs.NonHierarchical)
-	bwh, err := NewBWHandler("testObject", bucket, blockSize, 10, semaphore.NewWeighted(10))
+	bwh, err := NewBWHandler(nil, "testObject", bucket, blockSize, 10, semaphore.NewWeighted(10), chunkTransferTimeoutSecs)
 	require.Nil(testSuite.T(), err)
 	testSuite.bwh = bwh
 }
