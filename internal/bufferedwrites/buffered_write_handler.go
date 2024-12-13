@@ -119,20 +119,18 @@ func (wh *BufferedWriteHandler) Write(data []byte, offset int64) (err error) {
 
 // Sync uploads all the pending full buffers to GCS.
 func (wh *BufferedWriteHandler) Sync() (err error) {
-	// TODO: Will be added after uploadHandler changes are done.
-	return fmt.Errorf("not implemented")
+	wh.uploadHandler.AwaitBlocksUpload()
+
+	select {
+	case <-wh.uploadHandler.SignalUploadFailure():
+		return ErrUploadFailure
+	default:
+		return nil
+	}
 }
 
 // Flush finalizes the upload.
 func (wh *BufferedWriteHandler) Flush() (*gcs.Object, error) {
-	// Fail early if the uploadHandler has failed.
-	select {
-	case <-wh.uploadHandler.SignalUploadFailure():
-		return nil, ErrUploadFailure
-	default:
-		break
-	}
-
 	if wh.current != nil {
 		err := wh.uploadHandler.Upload(wh.current)
 		if err != nil {
@@ -140,15 +138,26 @@ func (wh *BufferedWriteHandler) Flush() (*gcs.Object, error) {
 		}
 		wh.current = nil
 	}
+
 	obj, err := wh.uploadHandler.Finalize()
 	if err != nil {
 		return nil, fmt.Errorf("BufferedWriteHandler.Flush(): %w", err)
 	}
+
 	err = wh.blockPool.ClearFreeBlockChannel()
 	if err != nil {
 		// Only logging an error in case of resource leak as upload succeeded.
 		logger.Errorf("blockPool.ClearFreeBlockChannel() failed: %v", err)
 	}
+
+	// Return an error along with object if the uploadHandler failed in between.
+	select {
+	case <-wh.uploadHandler.SignalUploadFailure():
+		return obj, ErrUploadFailure
+	default:
+		break
+	}
+
 	return obj, nil
 }
 

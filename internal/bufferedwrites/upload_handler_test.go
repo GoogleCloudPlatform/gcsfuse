@@ -32,7 +32,8 @@ import (
 )
 
 const (
-	blockSize = 1024
+	blockSize       = 1024
+	maxBlocks int64 = 5
 )
 
 type UploadHandlerTest struct {
@@ -47,10 +48,9 @@ func TestUploadHandlerTestSuite(t *testing.T) {
 }
 
 func (t *UploadHandlerTest) SetupTest() {
-	var maxBlocks int64 = 5
 	t.mockBucket = new(storagemock.TestifyMockBucket)
 	var err error
-	t.blockPool, err = block.NewBlockPool(blockSize, maxBlocks, semaphore.NewWeighted(5))
+	t.blockPool, err = block.NewBlockPool(blockSize, maxBlocks, semaphore.NewWeighted(maxBlocks))
 	require.NoError(t.T(), err)
 	t.uh = newUploadHandler("testObject", t.mockBucket, maxBlocks, t.blockPool.FreeBlocksChannel(), blockSize)
 }
@@ -85,17 +85,7 @@ func (t *UploadHandlerTest) TestMultipleBlockUpload() {
 		got := <-t.uh.freeBlocksCh
 		assert.Equal(t.T(), expect, got)
 	}
-	// All goroutines for upload should have exited.
-	done := make(chan struct{})
-	go func() {
-		t.uh.wg.Wait()
-		close(done)
-	}()
-	select {
-	case <-done:
-	case <-time.After(100 * time.Millisecond):
-		t.T().Error("Timeout waiting for WaitGroup")
-	}
+	assertAllBlocksProcessed(t.T(), t.uh)
 }
 
 func (t *UploadHandlerTest) TestUploadWhenCreateObjectWriterFails() {
@@ -185,6 +175,8 @@ func (t *UploadHandlerTest) TestUploadSingleBlockThrowsErrorInCopy() {
 	require.NoError(t.T(), err)
 	// Expect an error on the signalUploadFailure channel due to error while copying content to GCS writer.
 	assertUploadFailureSignal(t.T(), t.uh)
+	assertAllBlocksProcessed(t.T(), t.uh)
+	assert.Equal(t.T(), 1, len(t.uh.freeBlocksCh))
 }
 
 func (t *UploadHandlerTest) TestUploadMultipleBlocksThrowsErrorInCopy() {
@@ -212,6 +204,8 @@ func (t *UploadHandlerTest) TestUploadMultipleBlocksThrowsErrorInCopy() {
 	}
 
 	assertUploadFailureSignal(t.T(), t.uh)
+	assertAllBlocksProcessed(t.T(), t.uh)
+	assert.Equal(t.T(), 4, len(t.uh.freeBlocksCh))
 }
 
 func assertUploadFailureSignal(t *testing.T, handler *UploadHandler) {
@@ -225,6 +219,22 @@ func assertUploadFailureSignal(t *testing.T, handler *UploadHandler) {
 	}
 }
 
+func assertAllBlocksProcessed(t *testing.T, handler *UploadHandler) {
+	t.Helper()
+
+	// All blocks for upload should have been processed.
+	done := make(chan struct{})
+	go func() {
+		handler.wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(100 * time.Millisecond):
+		t.Error("Timeout waiting for WaitGroup")
+	}
+}
+
 func TestSignalUploadFailure(t *testing.T) {
 	mockSignalUploadFailure := make(chan error)
 	uploadHandler := &UploadHandler{
@@ -234,4 +244,32 @@ func TestSignalUploadFailure(t *testing.T) {
 	actualChannel := uploadHandler.SignalUploadFailure()
 
 	assert.Equal(t, mockSignalUploadFailure, actualChannel)
+}
+
+func (t *UploadHandlerTest) TestMultipleBlockAwaitBlocksUpload() {
+	// Create some blocks.
+	var blocks []block.Block
+	for i := 0; i < 5; i++ {
+		b, err := t.blockPool.Get()
+		require.NoError(t.T(), err)
+		blocks = append(blocks, b)
+	}
+	// CreateObjectChunkWriter -- should be called once.
+	writer := &storagemock.Writer{}
+	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
+	// Upload the blocks.
+	for _, b := range blocks {
+		err := t.uh.Upload(b)
+		require.NoError(t.T(), err)
+	}
+
+	// AwaitBlocksUpload.
+	t.uh.AwaitBlocksUpload()
+
+	// The blocks should be available on the free channel for reuse.
+	for _, expect := range blocks {
+		got := <-t.uh.freeBlocksCh
+		assert.Equal(t.T(), expect, got)
+	}
+	assertAllBlocksProcessed(t.T(), t.uh)
 }

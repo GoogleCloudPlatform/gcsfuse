@@ -101,15 +101,17 @@ func (uh *UploadHandler) createObjectWriter() (err error) {
 // uploader is the single-threaded goroutine that uploads blocks.
 func (uh *UploadHandler) uploader() {
 	for currBlock := range uh.uploadCh {
-		_, err := io.Copy(uh.writer, currBlock.Reader())
-		if err != nil {
-			logger.Errorf("buffered write upload failed for object %s: error in io.Copy: %v", uh.objectName, err)
-			// Close the channel to signal upload failure.
-			close(uh.signalUploadFailure)
-			return
+		select {
+		case <-uh.signalUploadFailure:
+		default:
+			_, err := io.Copy(uh.writer, currBlock.Reader())
+			if err != nil {
+				logger.Errorf("buffered write upload failed for object %s: error in io.Copy: %v", uh.objectName, err)
+				// Close the channel to signal upload failure.
+				close(uh.signalUploadFailure)
+			}
 		}
 		uh.wg.Done()
-
 		// Put back the uploaded block on the freeBlocksChannel for re-use.
 		uh.freeBlocksCh <- currBlock
 	}
@@ -138,4 +140,8 @@ func (uh *UploadHandler) Finalize() (*gcs.Object, error) {
 
 func (uh *UploadHandler) SignalUploadFailure() chan error {
 	return uh.signalUploadFailure
+}
+
+func (uh *UploadHandler) AwaitBlocksUpload() {
+	uh.wg.Wait()
 }
