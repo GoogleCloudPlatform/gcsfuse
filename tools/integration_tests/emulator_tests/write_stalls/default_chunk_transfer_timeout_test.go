@@ -40,13 +40,9 @@ type defaultChunkTransferTimeout struct {
 }
 
 func (s *defaultChunkTransferTimeout) Setup(t *testing.T) {
-	emulator_tests.StartProxyServer(configPath)
-	setup.MountGCSFuseWithGivenMountFunc(s.flags, mountFunc)
 }
 
 func (s *defaultChunkTransferTimeout) Teardown(t *testing.T) {
-	setup.UnmountGCSFuse(rootDir)
-	assert.NoError(t, emulator_tests.KillProxyServerProcess(port))
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -58,7 +54,10 @@ func (s *defaultChunkTransferTimeout) Teardown(t *testing.T) {
 // It creates a file, writes data to it, and then calls Sync() to ensure
 // the data is written to GCS. The test measures the time taken for the Sync()
 // operation and asserts that it is less than or equal to the configured stall time.
-func (s *defaultChunkTransferTimeout) TestWriteStallWillNotCauseDelay(t *testing.T) {
+func (s *defaultChunkTransferTimeout) TestChunkTransferTimeout_HandlesWriteStalls(t *testing.T) {
+	configPath = "../proxy_server/configs/write_stall_40s.yaml"
+	emulator_tests.StartProxyServer(configPath)
+	setup.MountGCSFuseWithGivenMountFunc(s.flags, mountFunc)
 	testDir := "TestWriteStallWillNotCauseDelay"
 	testDirPath = setup.SetupTestDirectory(testDir)
 	filePath := path.Join(testDirPath, "file2.txt")
@@ -89,6 +88,53 @@ func (s *defaultChunkTransferTimeout) TestWriteStallWillNotCauseDelay(t *testing
 	// Overall file upload will face 10 seconds of stall instead of 40 seconds.
 	assert.GreaterOrEqual(t, elapsedTime, 10*time.Second)
 	assert.Less(t, elapsedTime, 15*time.Second)
+
+	setup.UnmountGCSFuse(rootDir)
+	assert.NoError(t, emulator_tests.KillProxyServerProcess(port))
+}
+
+// This test verifies that write operations stall for the expected duration
+// when write stall is induced while uploading first chunk.
+// It creates a file, writes data to it, and then calls Sync() to ensure
+// the data is written to GCS. The test measures the time taken for the Sync()
+// operation and asserts that it is less than or equal to the configured stall time.
+func (s *defaultChunkTransferTimeout) TestChunkTransferTimeout_HandlesMultipleWriteStalls(t *testing.T) {
+	configPath = "../proxy_server/configs/write_stall_twice_40s.yaml"
+	emulator_tests.StartProxyServer(configPath)
+	setup.MountGCSFuseWithGivenMountFunc(s.flags, mountFunc)
+	testDir := "TestWriteStallTwiceWillNotCauseDelay"
+	testDirPath = setup.SetupTestDirectory(testDir)
+	filePath := path.Join(testDirPath, "file2.txt")
+	// Create a file for writing
+	file, err := os.Create(filePath)
+	if err != nil {
+		require.NoError(t, err)
+	}
+	defer file.Close()
+
+	// Generate random data
+	data := make([]byte, fileSize)
+	if _, err := io.ReadFull(rand.Reader, data); err != nil {
+		require.NoError(t, err)
+	}
+
+	// Write the data to the file
+	if _, err := file.Write(data); err != nil {
+		assert.NoError(t, err)
+	}
+	startTime := time.Now()
+	err = file.Sync()
+	endTime := time.Now()
+	elapsedTime := endTime.Sub(startTime)
+	assert.NoError(t, err)
+
+	// The chunk upload should stall but successfully complete after 20 seconds.
+	// Overall file upload will face 20 seconds of stall instead of 40 seconds.
+	assert.GreaterOrEqual(t, elapsedTime, 20*time.Second)
+	assert.Less(t, elapsedTime, 25*time.Second)
+
+	setup.UnmountGCSFuse(rootDir)
+	assert.NoError(t, emulator_tests.KillProxyServerProcess(port))
 }
 
 ////////////////////////////////////////////////////////////////////////
