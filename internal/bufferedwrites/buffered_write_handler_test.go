@@ -227,6 +227,8 @@ func (testSuite *BufferedWriteTest) TestSync5InProgressBlocks() {
 	err = testSuite.bwh.Sync()
 
 	assert.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), 0, len(testSuite.bwh.uploadHandler.uploadCh))
+	assert.Equal(testSuite.T(), 5, len(testSuite.bwh.blockPool.FreeBlocksChannel()))
 }
 
 func (testSuite *BufferedWriteTest) TestSyncBlocksWithError() {

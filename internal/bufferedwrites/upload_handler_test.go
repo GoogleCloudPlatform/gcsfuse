@@ -266,10 +266,7 @@ func (t *UploadHandlerTest) TestMultipleBlockAwaitBlocksUpload() {
 	// AwaitBlocksUpload.
 	t.uh.AwaitBlocksUpload()
 
-	// The blocks should be available on the free channel for reuse.
-	for _, expect := range blocks {
-		got := <-t.uh.freeBlocksCh
-		assert.Equal(t.T(), expect, got)
-	}
+	assert.Equal(t.T(), 5, len(t.uh.freeBlocksCh))
+	assert.Equal(t.T(), 0, len(t.uh.uploadCh))
 	assertAllBlocksProcessed(t.T(), t.uh)
 }
