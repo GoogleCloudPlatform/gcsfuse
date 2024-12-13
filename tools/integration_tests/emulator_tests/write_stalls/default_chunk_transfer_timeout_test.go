@@ -49,11 +49,8 @@ func (s *defaultChunkTransferTimeout) Teardown(t *testing.T) {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-// This test verifies that write operations stall for the expected duration
-// when write stall is induced while uploading first chunk.
-// It creates a file, writes data to it, and then calls Sync() to ensure
-// the data is written to GCS. The test measures the time taken for the Sync()
-// operation and asserts that it is less than or equal to the configured stall time.
+// The chunk upload should stall, but ultimately complete successfully after 10 seconds.
+// This means the overall file upload will experience an 10-second delay instead of a 40-second delay.
 func (s *defaultChunkTransferTimeout) TestChunkTransferTimeout_HandlesWriteStalls(t *testing.T) {
 	configPath = "../proxy_server/configs/write_stall_40s.yaml"
 	emulator_tests.StartProxyServer(configPath)
@@ -93,11 +90,8 @@ func (s *defaultChunkTransferTimeout) TestChunkTransferTimeout_HandlesWriteStall
 	assert.NoError(t, emulator_tests.KillProxyServerProcess(port))
 }
 
-// This test verifies that write operations stall for the expected duration
-// when write stall is induced while uploading first chunk.
-// It creates a file, writes data to it, and then calls Sync() to ensure
-// the data is written to GCS. The test measures the time taken for the Sync()
-// operation and asserts that it is less than or equal to the configured stall time.
+// The chunk upload should stall twice, but after each 10-second timeout,
+// a new request will be initiated. The chunk should be successfully uploaded after approximately 20 seconds.
 func (s *defaultChunkTransferTimeout) TestChunkTransferTimeout_HandlesMultipleWriteStalls(t *testing.T) {
 	configPath = "../proxy_server/configs/write_stall_twice_40s.yaml"
 	emulator_tests.StartProxyServer(configPath)
