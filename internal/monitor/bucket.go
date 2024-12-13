@@ -84,7 +84,7 @@ func (mb *monitoringBucket) CreateObjectChunkWriter(ctx context.Context, req *gc
 	return wc, err
 }
 
-func (mb *monitoringBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.Object, error) {
+func (mb *monitoringBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.MinObject, error) {
 	startTime := time.Now()
 	o, err := mb.wrapped.FinalizeUpload(ctx, w)
 	recordRequest(ctx, mb.metricHandle, "FinalizeUpload", startTime)

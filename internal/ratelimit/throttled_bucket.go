@@ -107,7 +107,7 @@ func (b *throttledBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.
 	return
 }
 
-func (b *throttledBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.Object, error) {
+func (b *throttledBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.MinObject, error) {
 	// FinalizeUpload is not throttled to prevent permanent data loss in case the
 	// limiter's burst size is exceeded.
 	// Note: CreateObjectChunkWriter, a prerequisite for FinalizeUpload,

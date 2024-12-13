@@ -111,7 +111,7 @@ func (b *prefixBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cre
 	return wc, err
 }
 
-func (b *prefixBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gcs.Object, err error) {
+func (b *prefixBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gcs.MinObject, err error) {
 	o, err = b.wrapped.FinalizeUpload(ctx, w)
 	// Modify the returned object.
 	if o != nil {

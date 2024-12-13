@@ -161,7 +161,7 @@ func (m *mockBucket) CreateObjectChunkWriter(p0 context.Context, p1 *gcs.CreateO
 	return
 }
 
-func (m *mockBucket) FinalizeUpload(p0 context.Context, p1 gcs.Writer) (o0 *gcs.Object, o1 error) {
+func (m *mockBucket) FinalizeUpload(p0 context.Context, p1 gcs.Writer) (o0 *gcs.MinObject, o1 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
 
@@ -179,7 +179,7 @@ func (m *mockBucket) FinalizeUpload(p0 context.Context, p1 gcs.Writer) (o0 *gcs.
 
 	// o0 *gcs.Object
 	if retVals[0] != nil {
-		o0 = retVals[0].(*gcs.Object)
+		o0 = retVals[0].(*gcs.MinObject)
 	}
 	// o1 error
 	if retVals[1] != nil {

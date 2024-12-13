@@ -268,7 +268,7 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 	return wc, nil
 }
 
-func (bh *bucketHandle) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gcs.Object, err error) {
+func (bh *bucketHandle) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gcs.MinObject, err error) {
 	if err = w.Close(); err != nil {
 		var gErr *googleapi.Error
 		if errors.As(err, &gErr) {
@@ -282,8 +282,8 @@ func (bh *bucketHandle) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gc
 	}
 
 	attrs := w.Attrs() // Retrieving the attributes of the created object.
-	// Converting attrs to type *Object.
-	o = storageutil.ObjectAttrsToBucketObject(attrs)
+	// Converting attrs to type *MinObject.
+	o = storageutil.ObjectAttrsToMinObject(attrs)
 	return
 }
 

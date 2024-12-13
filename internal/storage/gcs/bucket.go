@@ -99,7 +99,7 @@ type Bucket interface {
 
 	// FinalizeUpload closes the storage.Writer which completes the write
 	// operation and creates an object on GCS.
-	FinalizeUpload(ctx context.Context, writer Writer) (*Object, error)
+	FinalizeUpload(ctx context.Context, writer Writer) (*MinObject, error)
 
 	// Copy an object to a new name, preserving all metadata. Any existing
 	// generation of the destination name will be overwritten.

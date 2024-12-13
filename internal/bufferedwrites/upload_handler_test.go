@@ -65,7 +65,7 @@ func (t *UploadHandlerTest) TestMultipleBlockUpload() {
 	}
 	// CreateObjectChunkWriter -- should be called once.
 	writer := &storagemock.Writer{}
-	mockObj := &gcs.Object{}
+	mockObj := &gcs.MinObject{}
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
 	t.mockBucket.On("FinalizeUpload", mock.Anything, writer).Return(mockObj, nil)
 
@@ -105,7 +105,7 @@ func (t *UploadHandlerTest) TestUploadWhenCreateObjectWriterFails() {
 
 func (t *UploadHandlerTest) TestFinalizeWithWriterAlreadyPresent() {
 	writer := &storagemock.Writer{}
-	mockObj := &gcs.Object{}
+	mockObj := &gcs.MinObject{}
 	t.mockBucket.On("FinalizeUpload", mock.Anything, writer).Return(mockObj, nil)
 	t.uh.writer = writer
 
@@ -120,7 +120,7 @@ func (t *UploadHandlerTest) TestFinalizeWithNoWriter() {
 	writer := &storagemock.Writer{}
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
 	assert.Nil(t.T(), t.uh.writer)
-	mockObj := &gcs.Object{}
+	mockObj := &gcs.MinObject{}
 	t.mockBucket.On("FinalizeUpload", mock.Anything, writer).Return(mockObj, nil)
 
 	obj, err := t.uh.Finalize()
@@ -146,7 +146,7 @@ func (t *UploadHandlerTest) TestFinalizeWhenFinalizeUploadFails() {
 	writer := &storagemock.Writer{}
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
 	assert.Nil(t.T(), t.uh.writer)
-	mockObj := &gcs.Object{}
+	mockObj := &gcs.MinObject{}
 	t.mockBucket.On("FinalizeUpload", mock.Anything, writer).Return(mockObj, fmt.Errorf("taco"))
 
 	obj, err := t.uh.Finalize()

@@ -118,7 +118,7 @@ func (uh *UploadHandler) uploader() {
 }
 
 // Finalize finalizes the upload.
-func (uh *UploadHandler) Finalize() (*gcs.Object, error) {
+func (uh *UploadHandler) Finalize() (*gcs.MinObject, error) {
 	uh.wg.Wait()
 	close(uh.uploadCh)
 
