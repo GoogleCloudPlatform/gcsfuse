@@ -28,6 +28,7 @@ var (
 	fileCacheMeter = otel.Meter("file_cache")
 )
 
+// otelMetrics maintains the list of all metrics computed in GCSFuse.
 type otelMetrics struct {
 	fsOpsCount      metric.Int64Counter
 	fsOpsErrorCount metric.Int64Counter
