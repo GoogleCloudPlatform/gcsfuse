@@ -541,7 +541,7 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 	err := f.bwh.Write(data, offset)
 	if err == bufferedwrites.ErrOutOfOrderWrite || err == bufferedwrites.ErrUploadFailure {
 		// Finalize the object.
-		flushErr := f.flushBufferedWriteHandlerAndUpdateInode()
+		flushErr := f.flushUsingBufferedWriteHandler()
 		if flushErr != nil {
 			return fmt.Errorf("bwh.Write failed: %v, could not finalize what has been written so far: %w", err, flushErr)
 		}
@@ -559,7 +559,7 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 // new object.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) flushBufferedWriteHandlerAndUpdateInode() error {
+func (f *FileInode) flushUsingBufferedWriteHandler() error {
 	obj, err := f.bwh.Flush()
 
 	var preconditionErr *gcs.PreconditionError
@@ -695,7 +695,7 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 
 	if f.bwh != nil {
 		// Finalize the object.
-		return f.flushBufferedWriteHandlerAndUpdateInode()
+		return f.flushUsingBufferedWriteHandler()
 	}
 
 	latestGcsObj, err := f.fetchLatestGcsObject(ctx)
