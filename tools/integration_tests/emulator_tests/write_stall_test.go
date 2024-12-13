@@ -36,13 +36,12 @@ const (
 	stallTime = 40 * time.Second
 )
 
-var configPath = "../proxy_server/configs/write_stall_40s.yaml"
-
 type chunkTransferTimeoutInfinity struct {
 	flags []string
 }
 
 func (s *chunkTransferTimeoutInfinity) Setup(t *testing.T) {
+	configPath := "./proxy_server/configs/write_stall_40s.yaml"
 	emulator_tests.StartProxyServer(configPath)
 	setup.MountGCSFuseWithGivenMountFunc(s.flags, mountFunc)
 }
@@ -69,7 +68,6 @@ func (s *chunkTransferTimeoutInfinity) TestWriteStallCausesDelay(t *testing.T) {
 	elapsedTime, err := writeFileAndSync(filePath, fileSize)
 
 	assert.NoError(t, err)
-
 	assert.GreaterOrEqual(t, elapsedTime, stallTime)
 }
 
