@@ -114,11 +114,11 @@ spec:
   {{ if eq .Values.bufferLocation "bootDisk" }}
   - name: gke-gcsfuse-buffer
     emptyDir: {}
-  { { else if eq .Values.bufferLocation "memory" } }
+  {{ else if eq .Values.bufferLocation "memory" }}
   - name: gke-gcsfuse-buffer
     emptyDir:
       medium: Memory
-  { { end } }
+  {{ end }}
   - name: gke-gcsfuse-tmp
     emptyDir:
       medium: Memory
