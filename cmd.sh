@@ -3,7 +3,7 @@ buffer_location=boot
 filecacheConfig=Off
 node_pool=anushkadhn-node-pool-${bootDiskSize}-boot-disk
 instance_id=anushkadhn-filecache${filecacheConfig}-buffer-${buffer_location}-boot-${bootDiskSize}
-namespace=${bootDiskSize}
+namespace="${buffer_location}-${bootDiskSize}"
 
 env project_id=tpu-prod-env-one-vm \
 project_number=630405687483\
