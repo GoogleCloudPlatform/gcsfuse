@@ -72,6 +72,16 @@ def parse_args():
       ),
       required=False,
   )
+
+  parser.add_argument(
+      '--bufferLocation',
+      metavar='where is the buffer location: bootDisk or memory',
+      help=(
+          'for setting node affinity'
+      ),
+      required=True,
+  )
+
   parser.add_argument(
       '--machine-type',
       metavar='Machine-type of the GCE VM or GKE cluster node',

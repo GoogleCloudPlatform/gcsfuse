@@ -167,8 +167,14 @@ spec:
   volumes:
   - name: gke-gcsfuse-cache
     emptyDir: {}
+  {{ - if eq .Values.bufferLocation "bootDisk" }}
   - name: gke-gcsfuse-buffer
     emptyDir: {}
+  { { - else if eq .Values.bufferLocation "memory" } }
+  - name: gke-gcsfuse-buffer
+    emptyDir:
+      medium: Memory
+  { { - end } }
   - name: gke-gcsfuse-tmp
     emptyDir: {}
   - name: dshm

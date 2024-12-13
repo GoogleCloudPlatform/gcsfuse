@@ -176,6 +176,7 @@ test -n "${pod_wait_time_in_seconds}" || export pod_wait_time_in_seconds="${DEFA
 test -n "${pod_timeout_in_seconds}" || export pod_timeout_in_seconds="${DEFAULT_POD_TIMEOUT_IN_SECONDS}"
 #test -n "${instance_id}" || export instance_id="${DEFAULT_INSTANCE_ID}"
 instance_id=$4
+bufferLocation=$5
 if [[ ${pod_timeout_in_seconds} -le ${pod_wait_time_in_seconds} ]]; then
   exitWithError "pod_timeout_in_seconds (${pod_timeout_in_seconds}) <= pod_wait_time_in_seconds (${pod_wait_time_in_seconds})"
 fi
@@ -590,12 +591,12 @@ function deleteAllPods() {
 
 function deployAllFioHelmCharts() {
   printf "\nDeploying all fio helm charts ...\n\n"
-  cd "${gke_testing_dir}"/examples/fio && python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" --project-id=${project_id} --project-number=${project_number} --namespace=${appnamespace} --ksa=${ksa} --nodePool=${node_pool} && cd -
+  cd "${gke_testing_dir}"/examples/fio && python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" --project-id=${project_id} --project-number=${project_number} --namespace=${appnamespace} --ksa=${ksa} --nodePool=${node_pool} --bufferLocation=${bufferLocation} && cd -
 }
 
 function deployAllDlioHelmCharts() {
   printf "\nDeploying all dlio helm charts ...\n\n"
-  cd "${gke_testing_dir}"/examples/dlio && python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" --project-id=${project_id} --project-number=${project_number} --namespace=${appnamespace} --ksa=${ksa} --nodePool=${node_pool} && cd -
+  cd "${gke_testing_dir}"/examples/dlio && python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" --project-id=${project_id} --project-number=${project_number} --namespace=${appnamespace} --ksa=${ksa} --nodePool=${node_pool} --bufferLocation=${bufferLocation} && cd -
 }
 
 function waitTillAllPodsComplete() {
