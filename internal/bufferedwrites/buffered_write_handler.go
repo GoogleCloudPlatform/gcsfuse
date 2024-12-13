@@ -250,3 +250,12 @@ func (wh *BufferedWriteHandler) writeDataForTruncatedSize() error {
 
 	return nil
 }
+
+func (wh *BufferedWriteHandler) Unlink() {
+	wh.uploadHandler.CancelUpload()
+	err := wh.blockPool.ClearFreeBlockChannel()
+	if err != nil {
+		// Only logging an error in case of resource leak.
+		logger.Errorf("blockPool.ClearFreeBlockChannel() failed: %v", err)
+	}
+}

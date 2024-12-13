@@ -40,6 +40,7 @@ func ValidateObjectNotFoundErr(ctx context.Context, t *testing.T, bucket gcs.Buc
 	var notFoundErr *gcs.NotFoundError
 	_, err := storageutil.ReadObject(ctx, bucket, fileName)
 
+	assert.Error(t, err)
 	assert.True(t, errors.As(err, &notFoundErr))
 }
 

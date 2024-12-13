@@ -16,6 +16,7 @@ package inode
 
 import (
 	"context"
+	"math"
 	"testing"
 	"time"
 
@@ -26,12 +27,14 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/sync/semaphore"
 )
 
 const localFile = "local"
@@ -207,4 +210,45 @@ func (t *FileStreamingWritesTest) TestOutOfOrderWritesOnClobberedFileThrowsError
 	objGot, _, err := t.bucket.StatObject(t.ctx, statReq)
 	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), storageutil.ConvertObjToMinObject(objWritten), objGot)
+func (t *FileStreamingWritesTest) TestUnlinkLocalFileWhenWritesAreNotInProgress() {
+	assert.True(t.T(), t.in.IsLocal())
+
+	// Unlink.
+	t.in.Unlink()
+
+	// Verify that fileInode is now unlinked
+	assert.True(t.T(), t.in.IsUnlinked())
+	// Data shouldn't be updated to GCS.
+	operations.ValidateObjectNotFoundErr(t.ctx, t.T(), t.bucket, t.in.Name().GcsObjectName())
+}
+
+func (t *FileStreamingWritesTest) TestUnlinkLocalFileWhenWritesAreInProgress() {
+	assert.True(t.T(), t.in.IsLocal())
+	// Write some content to temp file.
+	err := t.in.Write(t.ctx, []byte("tacos"), 0)
+	assert.Nil(t.T(), err)
+	assert.NotNil(t.T(), t.in.bwh)
+
+	// Unlink.
+	t.in.Unlink()
+
+	// Verify that fileInode is now unlinked
+	assert.True(t.T(), t.in.IsUnlinked())
+	// Data shouldn't be updated to GCS.
+	operations.ValidateObjectNotFoundErr(t.ctx, t.T(), t.bucket, t.in.Name().GcsObjectName())
+}
+
+func (t *FileStreamingWritesTest) TestUnlinkEmptySyncedFile() {
+	t.createInode(fileName, emptyGCSFile)
+	assert.False(t.T(), t.in.IsLocal())
+	// Write some content to temp file.
+	err := t.in.Write(t.ctx, []byte("tacos"), 0)
+	assert.Nil(t.T(), err)
+	assert.NotNil(t.T(), t.in.bwh)
+
+	// Unlink.
+	t.in.Unlink()
+
+	// Verify inode is not marked unlinked.
+	assert.False(t.T(), t.in.unlinked)
 }

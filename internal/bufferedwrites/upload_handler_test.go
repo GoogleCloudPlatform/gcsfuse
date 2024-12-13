@@ -15,6 +15,7 @@
 package bufferedwrites
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strconv"
@@ -277,6 +278,14 @@ func (t *UploadHandlerTest) TestMultipleBlockAwaitBlocksUpload() {
 	assert.Equal(t.T(), 5, len(t.uh.freeBlocksCh))
 	assert.Equal(t.T(), 0, len(t.uh.uploadCh))
 	assertAllBlocksProcessed(t.T(), t.uh)
+}
+
+func (t *UploadHandlerTest) TestUploadHandlerCancelUpload() {
+	t.uh.ctx, t.uh.cancelFunc = context.WithCancel(context.Background())
+
+	t.uh.CancelUpload()
+
+	assert.Equal(t.T(), context.Canceled, t.uh.ctx.Err())
 }
 
 func (t *UploadHandlerTest) TestCreateObjectChunkWriterIsCalledWithCorrectRequestParametersForEmptyGCSObject() {
