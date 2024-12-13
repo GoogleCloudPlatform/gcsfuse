@@ -33,7 +33,7 @@ func checkIfFileCreationFailed(filePath string, t *testing.T) {
 		t.Errorf("File is created in read-only file system.")
 	}
 
-	operations.CheckErrorForReadOnlyFileSystem(err, t)
+	operations.CheckErrorForReadOnlyFileSystem(t, err)
 
 	defer file.Close()
 }
@@ -57,7 +57,7 @@ func checkIfDirCreationFailed(dirPath string, t *testing.T) {
 		t.Errorf("Directory is created in read-only file system.")
 	}
 
-	operations.CheckErrorForReadOnlyFileSystem(err, t)
+	operations.CheckErrorForReadOnlyFileSystem(t, err)
 }
 
 func TestCreateDir(t *testing.T) {
