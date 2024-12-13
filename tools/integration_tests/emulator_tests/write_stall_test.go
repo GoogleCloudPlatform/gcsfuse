@@ -65,7 +65,7 @@ func (s *chunkTransferTimeoutInfinity) TestWriteStallCausesDelay(t *testing.T) {
 	testDirPath = setup.SetupTestDirectory(testDir)
 	filePath := path.Join(testDirPath, "file.txt")
 
-	elapsedTime, err := writeFileAndSync(filePath, fileSize)
+	elapsedTime, err := emulator_tests.WriteFileAndSync(filePath, fileSize)
 
 	assert.NoError(t, err)
 	assert.GreaterOrEqual(t, elapsedTime, stallTime)

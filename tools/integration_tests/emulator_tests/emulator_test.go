@@ -15,12 +15,9 @@
 package emulator_tests
 
 import (
-	"crypto/rand"
-	"io"
 	"log"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
@@ -34,50 +31,6 @@ var (
 	// root directory is the directory to be unmounted.
 	rootDir string
 )
-
-// writeFileAndSync creates a file at the given path, writes random data to it,
-// and then syncs the file to GCS. It returns the time taken for the sync operation
-// and any error encountered.
-//
-// This function is useful for testing scenarios where file write and sync operations
-// might be subject to delays or timeouts.
-//
-// Parameters:
-//   - filePath: The path where the file should be created.
-//   - fileSize: The size of the random data to be written to the file.
-//
-// Returns:
-//   - time.Duration: The elapsed time for the file.Sync() operation.
-//   - error: Any error encountered during file creation, writing, or syncing.
-func writeFileAndSync(filePath string, fileSize int) (time.Duration, error) {
-	// Create a file for writing
-	file, err := os.Create(filePath)
-	if err != nil {
-		return 0, err
-	}
-	defer file.Close()
-
-	// Generate random data
-	data := make([]byte, fileSize)
-	if _, err := io.ReadFull(rand.Reader, data); err != nil {
-		return 0, err
-	}
-
-	// Write the data to the file
-	if _, err := file.Write(data); err != nil {
-		return 0, err
-	}
-
-	startTime := time.Now()
-	err = file.Sync()
-	endTime := time.Now()
-
-	if err != nil {
-		return 0, err
-	}
-
-	return endTime.Sub(startTime), nil
-}
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
