@@ -35,10 +35,8 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-// A directory containing outputs created by build_gcsfuse.
-var gBuildDir string
-
 const (
+	testBucket    = "gcsfuse_monitoring_test_bucket"
 	portNonHNSRun = 9191
 	portHNSRun    = 9192
 )
@@ -89,8 +87,8 @@ func (testSuite *PromTest) SetupTest() {
 	testSuite.mountPoint, err = os.MkdirTemp("", "gcsfuse_monitoring_tests")
 	require.NoError(testSuite.T(), err)
 
-	setup.SetLogFile(fmt.Sprintf("%s%s.txt", "/tmp/gcsfuse_monitoring_", strings.ReplaceAll(testSuite.T().Name(), "/", "_")))
-	err = testSuite.mount(setup.TestBucket())
+	setup.SetLogFile(fmt.Sprintf("%s%s.txt", "/tmp/gcsfuse_monitoring_test_", strings.ReplaceAll(testSuite.T().Name(), "/", "_")))
+	err = testSuite.mount(testBucket)
 	require.NoError(testSuite.T(), err)
 }
 
@@ -105,7 +103,7 @@ func (testSuite *PromTest) TearDownTest() {
 }
 
 func (testSuite *PromTest) TearDownSuite() {
-	os.RemoveAll(gBuildDir)
+	os.RemoveAll(setup.TestDir())
 }
 
 func (testSuite *PromTest) mount(bucketName string) error {
@@ -115,6 +113,8 @@ func (testSuite *PromTest) mount(bucketName string) error {
 	}
 	cacheDir, err := os.MkdirTemp("", "gcsfuse-cache")
 	require.NoError(testSuite.T(), err)
+	testSuite.T().Cleanup(func() { _ = os.RemoveAll(cacheDir) })
+
 	flags := []string{fmt.Sprintf("--prometheus-port=%d", prometheusPort), "--cache-dir", cacheDir}
 	if testSuite.enableOTEL {
 		flags = append(flags, "--enable-otel=true")
