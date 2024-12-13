@@ -309,7 +309,6 @@ if __name__ == "__main__":
     print("Mash is not installed, will skip parsing CPU and memory usage.")
 
   output = createOutputScenariosFromDownloadedFiles(args)
-  print(output)
   output_file_path = args.output_file
   # Create the parent directory of output_file_path if doesn't
   # exist already.
