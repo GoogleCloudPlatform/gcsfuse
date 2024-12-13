@@ -15,11 +15,8 @@
 package emulator_tests
 
 import (
-	"crypto/rand"
 	"fmt"
-	"io"
 	"log"
-	"os"
 	"path"
 	"testing"
 	"time"
@@ -28,7 +25,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -57,30 +53,10 @@ func (s *defaultChunkTransferTimeout) TestChunkTransferTimeout_HandlesWriteStall
 	setup.MountGCSFuseWithGivenMountFunc(s.flags, mountFunc)
 	testDir := "TestWriteStallWillNotCauseDelay"
 	testDirPath = setup.SetupTestDirectory(testDir)
-	filePath := path.Join(testDirPath, "file2.txt")
-	// Create a file for writing
-	file, err := os.Create(filePath)
-	if err != nil {
-		require.NoError(t, err)
-	}
-	defer file.Close()
+	filePath := path.Join(testDirPath, "file.txt")
+	elapsedTime, err := emulator_tests.WriteFileAndSync(filePath, fileSize)
 
-	// Generate random data
-	data := make([]byte, fileSize)
-	if _, err := io.ReadFull(rand.Reader, data); err != nil {
-		require.NoError(t, err)
-	}
-
-	// Write the data to the file
-	if _, err := file.Write(data); err != nil {
-		assert.NoError(t, err)
-	}
-	startTime := time.Now()
-	err = file.Sync()
-	endTime := time.Now()
-	elapsedTime := endTime.Sub(startTime)
 	assert.NoError(t, err)
-
 	// The chunk upload should stall but successfully complete after 10 seconds.
 	// Overall file upload will face 10 seconds of stall instead of 40 seconds.
 	assert.GreaterOrEqual(t, elapsedTime, 10*time.Second)
@@ -99,29 +75,10 @@ func (s *defaultChunkTransferTimeout) TestChunkTransferTimeout_HandlesMultipleWr
 	testDir := "TestWriteStallTwiceWillNotCauseDelay"
 	testDirPath = setup.SetupTestDirectory(testDir)
 	filePath := path.Join(testDirPath, "file2.txt")
-	// Create a file for writing
-	file, err := os.Create(filePath)
-	if err != nil {
-		require.NoError(t, err)
-	}
-	defer file.Close()
 
-	// Generate random data
-	data := make([]byte, fileSize)
-	if _, err := io.ReadFull(rand.Reader, data); err != nil {
-		require.NoError(t, err)
-	}
+	elapsedTime, err := emulator_tests.WriteFileAndSync(filePath, fileSize)
 
-	// Write the data to the file
-	if _, err := file.Write(data); err != nil {
-		assert.NoError(t, err)
-	}
-	startTime := time.Now()
-	err = file.Sync()
-	endTime := time.Now()
-	elapsedTime := endTime.Sub(startTime)
 	assert.NoError(t, err)
-
 	// The chunk upload should stall but successfully complete after 20 seconds.
 	// Overall file upload will face 20 seconds of stall instead of 40 seconds.
 	assert.GreaterOrEqual(t, elapsedTime, 20*time.Second)

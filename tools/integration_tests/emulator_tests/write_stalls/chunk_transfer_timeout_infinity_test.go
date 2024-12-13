@@ -15,11 +15,8 @@
 package emulator_tests
 
 import (
-	"crypto/rand"
 	"fmt"
-	"io"
 	"log"
-	"os"
 	"path"
 	"testing"
 	"time"
@@ -28,7 +25,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -69,29 +65,10 @@ func (s *chunkTransferTimeoutInfinity) TestWriteStallCausesDelay(t *testing.T) {
 	testDir1 := "TestWriteStallCausesDelay"
 	testDirPath = setup.SetupTestDirectory(testDir1)
 	filePath := path.Join(testDirPath, "file.txt")
-	// Create a file for writing
-	file, err := os.Create(filePath)
-	if err != nil {
-		require.NoError(t, err)
-	}
-	defer file.Close()
 
-	// Generate random data
-	data := make([]byte, fileSize)
-	if _, err := io.ReadFull(rand.Reader, data); err != nil {
-		require.NoError(t, err)
-	}
+	elapsedTime, err := emulator_tests.WriteFileAndSync(filePath, fileSize)
 
-	// Write the data to the file
-	if _, err := file.Write(data); err != nil {
-		assert.NoError(t, err)
-	}
-	startTime := time.Now()
-	err = file.Sync()
-	endTime := time.Now()
-	elapsedTime := endTime.Sub(startTime)
 	assert.NoError(t, err)
-
 	assert.GreaterOrEqual(t, elapsedTime, stallTime)
 }
 
