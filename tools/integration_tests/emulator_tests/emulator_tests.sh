@@ -19,6 +19,7 @@ set -eo pipefail
 # Display commands being run
 set -x
 
+RUN_E2E_TESTS_ON_PACKAGE=$1
 # Only run on Go 1.17+
 min_minor_ver=17
 
@@ -73,4 +74,4 @@ curl -X POST --data-binary @test.json \
 rm test.json
 
 # Run specific test suite
-go test ./tools/integration_tests/emulator_tests/... --integrationTest -v --testbucket=test-bucket -timeout 10m
+go test ./tools/integration_tests/emulator_tests/... --integrationTest -v --testbucket=test-bucket -timeout 10m --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE

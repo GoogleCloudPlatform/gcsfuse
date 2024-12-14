@@ -15,7 +15,9 @@
 package emulator_tests
 
 import (
+	"crypto/rand"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -23,6 +25,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
@@ -32,7 +35,7 @@ import (
 // It launches the proxy server with the specified configuration and port, logs its output to a file.
 func StartProxyServer(configPath string) {
 	// Start the proxy in the background
-	cmd := exec.Command("go", "run", "../proxy_server/.", "--config-path="+configPath)
+	cmd := exec.Command("go", "run", "./proxy_server/.", "--config-path="+configPath)
 	logFileForProxyServer, err := os.Create(path.Join(os.Getenv("KOKORO_ARTIFACTS_DIR"), "proxy-"+setup.GenerateRandomString(5)))
 	if err != nil {
 		log.Fatal("Error in creating log file for proxy server.")
@@ -83,4 +86,48 @@ func KillProxyServerProcess(port int) error {
 	}
 
 	return nil
+}
+
+// WriteFileAndSync creates a file at the given path, writes random data to it,
+// and then syncs the file to GCS. It returns the time taken for the sync operation
+// and any error encountered.
+//
+// This function is useful for testing scenarios where file write and sync operations
+// might be subject to delays or timeouts.
+//
+// Parameters:
+//   - filePath: The path where the file should be created.
+//   - fileSize: The size of the random data to be written to the file.
+//
+// Returns:
+//   - time.Duration: The elapsed time for the file.Sync() operation.
+//   - error: Any error encountered during file creation, writing, or syncing.
+func WriteFileAndSync(filePath string, fileSize int) (time.Duration, error) {
+	// Create a file for writing
+	file, err := os.Create(filePath)
+	if err != nil {
+		return 0, err
+	}
+	defer file.Close()
+
+	// Generate random data
+	data := make([]byte, fileSize)
+	if _, err := io.ReadFull(rand.Reader, data); err != nil {
+		return 0, err
+	}
+
+	// Write the data to the file
+	if _, err := file.Write(data); err != nil {
+		return 0, err
+	}
+
+	startTime := time.Now()
+	err = file.Sync()
+	endTime := time.Now()
+
+	if err != nil {
+		return 0, err
+	}
+
+	return endTime.Sub(startTime), nil
 }
