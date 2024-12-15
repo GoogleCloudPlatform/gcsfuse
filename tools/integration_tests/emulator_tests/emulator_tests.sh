@@ -19,6 +19,13 @@ set -eo pipefail
 # Display commands being run
 set -x
 
+architecture=$(dpkg --print-architecture)
+if [ $architecture == "arm64" ];then
+  # TODO: Remove this when we have an ARM64 image for the storage test bench.
+  echo "These tests will not run for arm64 machine..."
+  exit 0
+fi
+
 RUN_E2E_TESTS_ON_PACKAGE=$1
 # Only run on Go 1.17+
 min_minor_ver=17
