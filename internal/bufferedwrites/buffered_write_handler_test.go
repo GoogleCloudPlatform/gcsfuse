@@ -151,6 +151,39 @@ func (testSuite *BufferedWriteTest) TestWriteWithSignalUploadFailureInBetween() 
 	assert.Equal(testSuite.T(), err, ErrUploadFailure)
 }
 
+func (testSuite *BufferedWriteTest) TestWriteAtTruncatedOffset() {
+	// Truncate
+	err := testSuite.bwh.Truncate(2)
+	require.NoError(testSuite.T(), err)
+	require.Equal(testSuite.T(), int64(2), testSuite.bwh.truncatedSize)
+
+	// Write at offset = truncatedSize
+	err = testSuite.bwh.Write([]byte("hello"), 2)
+
+	require.Nil(testSuite.T(), err)
+	fileInfo := testSuite.bwh.WriteFileInfo()
+	assert.Equal(testSuite.T(), testSuite.bwh.mtime, fileInfo.Mtime)
+	assert.Equal(testSuite.T(), int64(7), fileInfo.TotalSize)
+}
+
+func (testSuite *BufferedWriteTest) TestWriteAfterTruncateAtCurrentSize() {
+	err := testSuite.bwh.Write([]byte("hello"), 0)
+	require.Nil(testSuite.T(), err)
+	require.Equal(testSuite.T(), int64(5), testSuite.bwh.totalSize)
+	// Truncate
+	err = testSuite.bwh.Truncate(20)
+	require.NoError(testSuite.T(), err)
+	require.Equal(testSuite.T(), int64(20), testSuite.bwh.truncatedSize)
+	require.Equal(testSuite.T(), int64(20), testSuite.bwh.WriteFileInfo().TotalSize)
+
+	// Write at offset=bwh.totalSize
+	err = testSuite.bwh.Write([]byte("abcde"), 5)
+
+	require.Nil(testSuite.T(), err)
+	assert.Equal(testSuite.T(), int64(10), testSuite.bwh.totalSize)
+	assert.Equal(testSuite.T(), int64(20), testSuite.bwh.WriteFileInfo().TotalSize)
+}
+
 func (testSuite *BufferedWriteTest) TestFlushWithNonNilCurrentBlock() {
 	err := testSuite.bwh.Write([]byte("hi"), 0)
 	require.Nil(testSuite.T(), err)
@@ -246,4 +279,60 @@ func (testSuite *BufferedWriteTest) TestSyncBlocksWithError() {
 
 	assert.Error(testSuite.T(), err)
 	assert.Equal(testSuite.T(), ErrUploadFailure, err)
+}
+
+func (testSuite *BufferedWriteTest) TestFlushWithNonZeroTruncatedLengthForEmptyObject() {
+	require.Nil(testSuite.T(), testSuite.bwh.current)
+	testSuite.bwh.truncatedSize = 10
+
+	_, err := testSuite.bwh.Flush()
+
+	assert.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), testSuite.bwh.truncatedSize, testSuite.bwh.totalSize)
+}
+
+func (testSuite *BufferedWriteTest) TestFlushWithTruncatedLengthGreaterThanObjectSize() {
+	err := testSuite.bwh.Write([]byte("hi"), 0)
+	require.Nil(testSuite.T(), err)
+	testSuite.bwh.truncatedSize = 10
+
+	_, err = testSuite.bwh.Flush()
+
+	assert.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), testSuite.bwh.truncatedSize, testSuite.bwh.totalSize)
+}
+
+func (testSuite *BufferedWriteTest) TestTruncateWithLesserSize() {
+	testSuite.bwh.totalSize = 10
+
+	err := testSuite.bwh.Truncate(2)
+
+	assert.Error(testSuite.T(), err)
+}
+
+func (testSuite *BufferedWriteTest) TestTruncateWithSizeGreaterThanCurrentObjectSize() {
+	testSuite.bwh.totalSize = 10
+
+	err := testSuite.bwh.Truncate(12)
+
+	assert.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), int64(12), testSuite.bwh.truncatedSize)
+}
+
+func (testSuite *BufferedWriteTest) TestWriteFileInfoWithTruncatedLengthLessThanTotalSize() {
+	testSuite.bwh.totalSize = 10
+	testSuite.bwh.truncatedSize = 5
+
+	fileInfo := testSuite.bwh.WriteFileInfo()
+
+	assert.Equal(testSuite.T(), testSuite.bwh.totalSize, fileInfo.TotalSize)
+}
+
+func (testSuite *BufferedWriteTest) TestWriteFileInfoWithTruncatedLengthGreaterThanTotalSize() {
+	testSuite.bwh.totalSize = 10
+	testSuite.bwh.truncatedSize = 20
+
+	fileInfo := testSuite.bwh.WriteFileInfo()
+
+	assert.Equal(testSuite.T(), testSuite.bwh.truncatedSize, fileInfo.TotalSize)
 }

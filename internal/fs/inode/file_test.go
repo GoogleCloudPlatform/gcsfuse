@@ -624,7 +624,7 @@ func (t *FileTest) TestTruncateUpwardThenSync() {
 	assert.Equal(t.T(), attrs.Mtime, truncateTime.UTC())
 }
 
-func (t *FileTest) TestTestTruncateUpwardForLocalFileShouldUpdateLocalFileAttributes() {
+func (t *FileTest) TestTruncateUpwardForLocalFileShouldUpdateLocalFileAttributes() {
 	var err error
 	var attrs fuseops.InodeAttributes
 	// Create a local file inode.
@@ -650,7 +650,7 @@ func (t *FileTest) TestTestTruncateUpwardForLocalFileShouldUpdateLocalFileAttrib
 	assert.Equal(t.T(), "gcs.NotFoundError: object test not found", err.Error())
 }
 
-func (t *FileTest) TestTestTruncateDownwardForLocalFileShouldUpdateLocalFileAttributes() {
+func (t *FileTest) TestTruncateDownwardForLocalFileShouldUpdateLocalFileAttributes() {
 	var err error
 	var attrs fuseops.InodeAttributes
 	// Create a local file inode.
@@ -677,6 +677,175 @@ func (t *FileTest) TestTestTruncateDownwardForLocalFileShouldUpdateLocalFileAttr
 	_, _, err = t.bucket.StatObject(t.ctx, statReq)
 	assert.NotNil(t.T(), err)
 	assert.Equal(t.T(), "gcs.NotFoundError: object test not found", err.Error())
+}
+
+func (t *FileTest) TestTruncateUpwardForLocalFileWhenStreamingWritesAreEnabled() {
+	tbl := []struct {
+		name         string
+		performWrite bool
+	}{
+		{
+			name:         "WithWrite",
+			performWrite: true,
+		},
+		{
+			name:         "WithOutWrite",
+			performWrite: false,
+		},
+	}
+	for _, tc := range tbl {
+		t.Run(tc.name, func() {
+			// Create a local file inode.
+			t.createInodeWithLocalParam("test", true)
+			t.in.writeConfig = getWriteConfig()
+			err := t.in.CreateBufferedOrTempWriter()
+			assert.Nil(t.T(), err)
+			assert.NotNil(t.T(), t.in.bwh)
+
+			// Fetch the attributes and check if the file is empty.
+			attrs, err := t.in.Attributes(t.ctx)
+			assert.Nil(t.T(), err)
+			assert.Equal(t.T(), uint64(0), attrs.Size)
+
+			if tc.performWrite {
+				err := t.in.Write(t.ctx, []byte("hi"), 0)
+				assert.Nil(t.T(), err)
+				assert.Equal(t.T(), int64(2), t.in.bwh.WriteFileInfo().TotalSize)
+				// Fetch the attributes and check if the file size reflects the write.
+				attrs, err := t.in.Attributes(t.ctx)
+				assert.Nil(t.T(), err)
+				assert.Equal(t.T(), uint64(2), attrs.Size)
+			}
+
+			err = t.in.Truncate(t.ctx, 10)
+
+			assert.Nil(t.T(), err)
+			// The inode should return the new size.
+			attrs, err = t.in.Attributes(t.ctx)
+			assert.Nil(t.T(), err)
+			assert.Equal(t.T(), uint64(10), attrs.Size)
+			// Data shouldn't be updated to GCS.
+			statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+			_, _, err = t.bucket.StatObject(t.ctx, statReq)
+			assert.NotNil(t.T(), err)
+			assert.Equal(t.T(), "gcs.NotFoundError: object test not found", err.Error())
+		})
+	}
+}
+
+func (t *FileTest) TestTruncateUpwardForEmptyGCSFileWhenStreamingWritesAreEnabled() {
+	tbl := []struct {
+		name         string
+		performWrite bool
+	}{
+		{
+			name:         "WithWrite",
+			performWrite: true,
+		},
+		{
+			name:         "WithOutWrite",
+			performWrite: false,
+		},
+	}
+	for _, tc := range tbl {
+		t.Run(tc.name, func() {
+			t.createInodeWithEmptyObject()
+			t.in.writeConfig = getWriteConfig()
+			assert.Nil(t.T(), t.in.bwh)
+			// Fetch the attributes and check if the file is empty.
+			attrs, err := t.in.Attributes(t.ctx)
+			assert.Nil(t.T(), err)
+			assert.Equal(t.T(), uint64(0), attrs.Size)
+
+			if tc.performWrite {
+				err := t.in.Write(t.ctx, []byte("hi"), 0)
+				assert.Nil(t.T(), err)
+				assert.Equal(t.T(), int64(2), t.in.bwh.WriteFileInfo().TotalSize)
+				// Fetch the attributes and check if the file size reflects the write.
+				attrs, err := t.in.Attributes(t.ctx)
+				assert.Nil(t.T(), err)
+				assert.Equal(t.T(), uint64(2), attrs.Size)
+			}
+
+			err = t.in.Truncate(t.ctx, 10)
+
+			assert.Nil(t.T(), err)
+			// The inode should return the new size.
+			attrs, err = t.in.Attributes(t.ctx)
+			assert.Nil(t.T(), err)
+			assert.Equal(t.T(), uint64(10), attrs.Size)
+			// Data shouldn't be updated to GCS.
+			statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+			minObject, _, err := t.bucket.StatObject(t.ctx, statReq)
+			assert.Nil(t.T(), err)
+			assert.Equal(t.T(), uint64(0), minObject.Size)
+		})
+	}
+}
+
+func (t *FileTest) TestTruncateDownwardWhenStreamingWritesAreEnabled() {
+	tbl := []struct {
+		name         string
+		fileType     string
+		performWrite bool
+		truncateSize int64
+	}{
+		{
+			name:         "LocalFileWithWrite",
+			fileType:     LocalFile,
+			performWrite: true,
+			truncateSize: 2,
+		},
+		{
+			name:         "LocalFileWithOutWrite",
+			fileType:     LocalFile,
+			performWrite: false,
+			truncateSize: -1,
+		},
+		{
+			name:         "EmptyGCSFileWithWrite",
+			fileType:     EmptyGCSFile,
+			performWrite: true,
+			truncateSize: 2,
+		},
+		{
+			name:         "EmptyGCSFileWithOutWrite",
+			fileType:     EmptyGCSFile,
+			performWrite: false,
+			truncateSize: -1,
+		},
+	}
+	for _, tc := range tbl {
+		t.Run(tc.name, func() {
+			if tc.fileType == LocalFile {
+				t.createInodeWithLocalParam("test", true)
+			}
+			if tc.fileType == EmptyGCSFile {
+				t.createInodeWithEmptyObject()
+			}
+			t.in.writeConfig = getWriteConfig()
+			assert.Nil(t.T(), t.in.bwh)
+			// Fetch the attributes and check if the file is empty.
+			attrs, err := t.in.Attributes(t.ctx)
+			assert.Nil(t.T(), err)
+			assert.Equal(t.T(), uint64(0), attrs.Size)
+
+			if tc.performWrite {
+				err := t.in.Write(t.ctx, []byte("hihello"), 0)
+				assert.Nil(t.T(), err)
+				assert.Equal(t.T(), int64(7), t.in.bwh.WriteFileInfo().TotalSize)
+				// Fetch the attributes and check if the file size reflects the write.
+				attrs, err := t.in.Attributes(t.ctx)
+				assert.Nil(t.T(), err)
+				assert.Equal(t.T(), uint64(7), attrs.Size)
+			}
+
+			err = t.in.Truncate(t.ctx, tc.truncateSize)
+
+			assert.NotNil(t.T(), err)
+			assert.ErrorContains(t.T(), err, "cannot truncate")
+		})
+	}
 }
 
 func (t *FileTest) TestSync_Clobbered() {

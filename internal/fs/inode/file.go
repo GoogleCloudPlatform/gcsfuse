@@ -691,6 +691,18 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 func (f *FileInode) Truncate(
 	ctx context.Context,
 	size int64) (err error) {
+	// For empty GCS files also, we will trigger bufferedWrites flow.
+	if f.src.Size == 0 && f.writeConfig.ExperimentalEnableStreamingWrites {
+		err = f.ensureBufferedWriteHandler()
+		if err != nil {
+			return
+		}
+	}
+
+	if f.bwh != nil {
+		return f.bwh.Truncate(size)
+	}
+
 	// Make sure f.content != nil.
 	err = f.ensureContent(ctx)
 	if err != nil {
