@@ -26,18 +26,21 @@ require (
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/prometheus/client_golang v1.20.5
+	github.com/prometheus/client_model v0.6.1
+	github.com/prometheus/common v0.60.1
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.10.0
 	go.opencensus.io v0.24.0
 	go.opentelemetry.io/contrib/detectors/gcp v1.32.0
-	go.opentelemetry.io/otel v1.32.0
+	go.opentelemetry.io/otel v1.33.0
 	go.opentelemetry.io/otel/exporters/prometheus v0.54.0
 	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.32.0
-	go.opentelemetry.io/otel/sdk v1.32.0
+	go.opentelemetry.io/otel/metric v1.33.0
+	go.opentelemetry.io/otel/sdk v1.33.0
 	go.opentelemetry.io/otel/sdk/metric v1.32.0
-	go.opentelemetry.io/otel/trace v1.32.0
+	go.opentelemetry.io/otel/trace v1.33.0
 	golang.org/x/net v0.32.0
 	golang.org/x/oauth2 v0.24.0
 	golang.org/x/sync v0.10.0
@@ -94,12 +97,9 @@ require (
 	github.com/pkg/xattr v0.4.10 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/prometheus/client_model v0.6.1 // indirect
-	github.com/prometheus/common v0.60.1 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/prometheus/prometheus v0.35.0 // indirect
 	github.com/prometheus/statsd_exporter v0.22.7 // indirect
-	github.com/rogpeppe/go-internal v1.12.0 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
@@ -107,9 +107,9 @@ require (
 	github.com/spf13/cast v1.6.0 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
+	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.54.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.55.0 // indirect
-	go.opentelemetry.io/otel/metric v1.32.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.30.0 // indirect
 	golang.org/x/exp v0.0.0-20240530194437-404ba88c7ed0 // indirect
