@@ -269,7 +269,10 @@ func IgnoreTestIfIntegrationTestFlagIsSet(t *testing.T) {
 	}
 }
 
-func IgnoreTestIfIntegrationTestFlagNotIsSet(t *testing.T) {
+// IgnoreTestIfIntegrationTestFlagIsNotSet helps skip a test if --integrationTest flag is not set.
+// If the test uses TestMain, then one usually calls os.Exit() to skip the test,
+// but for non-TestMain tests, this helps skip integration tests if --integrationTest has not been passed.
+func IgnoreTestIfIntegrationTestFlagIsNotSet(t *testing.T) {
 	flag.Parse()
 
 	if !*integrationTest {
