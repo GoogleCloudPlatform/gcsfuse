@@ -112,6 +112,7 @@ func (s *defaultChunkTransferTimeout) TestChunkTransferTimeout_HandlesWriteStall
 	testDir := "TestChunkTransferTimeout_HandlesWriteStalls"
 	testDirPath = setup.SetupTestDirectory(testDir)
 	filePath := path.Join(testDirPath, "file.txt")
+	
 	elapsedTime, err := emulator_tests.WriteFileAndSync(filePath, fileSize)
 
 	assert.NoError(t, err)
