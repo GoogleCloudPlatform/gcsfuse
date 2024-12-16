@@ -53,6 +53,7 @@ func (t *StreamingWritesLocalFileTest) SetupSuite() {
 			GlobalMaxBlocks:                   20,
 			MaxBlocksPerFile:                  10,
 		},
+		MetadataCache: cfg.MetadataCacheConfig{TtlSecs: 0},
 	}
 	t.fsTest.SetUpTestSuite()
 }
@@ -69,7 +70,7 @@ func (t *StreamingWritesLocalFileTest) TearDownTest() {
 	t.fsTest.TearDown()
 }
 
-func TestStreamingWritesTestSuite(t *testing.T) {
+func TestStreamingWritesLocalFileTestSuite(t *testing.T) {
 	suite.Run(t, new(StreamingWritesLocalFileTest))
 }
 
@@ -106,7 +107,7 @@ func (t *StreamingWritesLocalFileTest) TestUnlinkWhenWritesAreInProgress() {
 	operations.ValidateObjectNotFoundErr(ctx, t.T(), bucket, fileName)
 }
 
-func (t *StreamingWritesEmptyObjectTest) TestRemoveDirectoryContainingLocalAndEmptyObject() {
+func (t *StreamingWritesLocalFileTest) TestRemoveDirectoryContainingLocalAndEmptyObject() {
 	// Create explicit directory with one synced and one local file.
 	explicitDirName := "explicit"
 	emptyFileName := "emptyFile"
@@ -138,10 +139,11 @@ func (t *StreamingWritesEmptyObjectTest) TestRemoveDirectoryContainingLocalAndEm
 	operations.ValidateNoFileOrDirError(t.T(), path.Join(explicitDirName, nonEmptyFileName))
 	operations.ValidateNoFileOrDirError(t.T(), path.Join(explicitDirName, fileName))
 	operations.ValidateNoFileOrDirError(t.T(), explicitDirName)
-	// Validate flush file throws IO error and does not create object on GCS
-	// Close the file and validate that file is not created on GCS.
 	err = operations.CloseLocalFile(t.T(), &t.f1)
-	assert.NoError(nil, err)
+	assert.NoError(t.T(), err)
+	err = t.f2.Close()
+	assert.NoError(t.T(), err)
+	t.f2 = nil
 	operations.ValidateObjectNotFoundErr(ctx, t.T(), bucket, path.Join(explicitDirName, emptyFileName))
 	operations.ValidateObjectNotFoundErr(ctx, t.T(), bucket, path.Join(explicitDirName, nonEmptyFileName))
 	operations.ValidateObjectNotFoundErr(ctx, t.T(), bucket, path.Join(explicitDirName, fileName))
