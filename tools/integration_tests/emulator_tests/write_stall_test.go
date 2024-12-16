@@ -112,7 +112,7 @@ func (s *defaultChunkTransferTimeout) TestChunkTransferTimeout_HandlesWriteStall
 	testDir := "TestChunkTransferTimeout_HandlesWriteStalls"
 	testDirPath = setup.SetupTestDirectory(testDir)
 	filePath := path.Join(testDirPath, "file.txt")
-	
+
 	elapsedTime, err := emulator_tests.WriteFileAndSync(filePath, fileSize)
 
 	assert.NoError(t, err)
@@ -133,7 +133,7 @@ func (s *defaultChunkTransferTimeout) TestChunkTransferTimeout_HandlesMultipleWr
 	setup.MountGCSFuseWithGivenMountFunc(s.flags, mountFunc)
 	testDir := "TestChunkTransferTimeout_HandlesMultipleWriteStalls"
 	testDirPath = setup.SetupTestDirectory(testDir)
-	filePath := path.Join(testDirPath, "file2.txt")
+	filePath := path.Join(testDirPath, "file.txt")
 
 	elapsedTime, err := emulator_tests.WriteFileAndSync(filePath, fileSize)
 
@@ -184,7 +184,7 @@ func (s *finiteChunkTransferTimeout) TestFiniteChunkTransferTimeout_HandlesMulti
 	setup.MountGCSFuseWithGivenMountFunc(s.flags, mountFunc)
 	testDir := "TestFiniteChunkTransferTimeout_HandlesMultipleWriteStalls"
 	testDirPath = setup.SetupTestDirectory(testDir)
-	filePath := path.Join(testDirPath, "file2.txt")
+	filePath := path.Join(testDirPath, "file.txt")
 
 	elapsedTime, err := emulator_tests.WriteFileAndSync(filePath, fileSize)
 
