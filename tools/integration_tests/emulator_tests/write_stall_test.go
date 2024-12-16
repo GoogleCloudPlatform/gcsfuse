@@ -175,8 +175,8 @@ func (s *finiteChunkTransferTimeout) Setup(t *testing.T) {
 func (s *finiteChunkTransferTimeout) Teardown(t *testing.T) {
 }
 
-// The chunk upload should stall, but ultimately complete successfully after 10 seconds.
-// This means the overall file upload will experience an 10-second delay instead of a 40-second delay.
+// The chunk upload should stall, but ultimately complete successfully after 20 seconds.
+// This means the overall file upload will experience an 20-second delay instead of a 40-second delay.
 func (s *finiteChunkTransferTimeout) TestFiniteChunkTransferTimeout_HandlesMultipleWriteStalls(t *testing.T) {
 	configPath := "./proxy_server/configs/write_stall_40s.yaml"
 	emulator_tests.StartProxyServer(configPath)
@@ -188,10 +188,10 @@ func (s *finiteChunkTransferTimeout) TestFiniteChunkTransferTimeout_HandlesMulti
 	elapsedTime, err := emulator_tests.WriteFileAndSync(filePath, fileSize)
 
 	assert.NoError(t, err)
-	// The chunk upload should stall but successfully complete after 10 seconds.
-	// Overall file upload will face 10 seconds of stall instead of 40 seconds.
-	assert.GreaterOrEqual(t, elapsedTime, 10*time.Second)
-	assert.Less(t, elapsedTime, 15*time.Second)
+	// The chunk upload should stall but successfully complete after 20 seconds.
+	// Overall file upload will face 20 seconds of stall instead of 40 seconds.
+	assert.GreaterOrEqual(t, elapsedTime, 20*time.Second)
+	assert.Less(t, elapsedTime, 25*time.Second)
 
 	setup.UnmountGCSFuse(rootDir)
 	assert.NoError(t, emulator_tests.KillProxyServerProcess(port))
