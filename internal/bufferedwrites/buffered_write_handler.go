@@ -130,7 +130,7 @@ func (wh *BufferedWriteHandler) Sync() (err error) {
 }
 
 // Flush finalizes the upload.
-func (wh *BufferedWriteHandler) Flush() (*gcs.Object, error) {
+func (wh *BufferedWriteHandler) Flush() (*gcs.MinObject, error) {
 	if wh.current != nil {
 		err := wh.uploadHandler.Upload(wh.current)
 		if err != nil {

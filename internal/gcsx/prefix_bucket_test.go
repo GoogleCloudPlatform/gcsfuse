@@ -128,7 +128,7 @@ func (t *PrefixBucketTest) CreateObjectChunkWriterAndFinalizeUpload() {
 		t.ctx,
 		&gcs.CreateObjectRequest{
 			Name:            suffix,
-			ContentLanguage: "en-GB",
+			ContentEncoding: "gzip",
 			Contents:        nil,
 		},
 		1024, nil)
@@ -139,7 +139,7 @@ func (t *PrefixBucketTest) CreateObjectChunkWriterAndFinalizeUpload() {
 
 	AssertEq(nil, err)
 	ExpectEq(suffix, o.Name)
-	ExpectEq("en-GB", o.ContentLanguage)
+	ExpectEq("gzip", o.ContentEncoding)
 	// Read it through the back door.
 	actual, err := storageutil.ReadObject(t.ctx, t.wrapped, t.prefix+suffix)
 	AssertEq(nil, err)

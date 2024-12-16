@@ -58,9 +58,9 @@ func (m *TestifyMockBucket) CreateObjectChunkWriter(ctx context.Context, req *gc
 	return args.Get(0).(gcs.Writer), nil
 }
 
-func (m *TestifyMockBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.Object, error) {
+func (m *TestifyMockBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.MinObject, error) {
 	args := m.Called(ctx, w)
-	return args.Get(0).(*gcs.Object), args.Error(1)
+	return args.Get(0).(*gcs.MinObject), args.Error(1)
 }
 
 func (m *TestifyMockBucket) CopyObject(ctx context.Context, req *gcs.CopyObjectRequest) (*gcs.Object, error) {

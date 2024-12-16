@@ -228,7 +228,7 @@ func (t *FinalizeUploadTest) CallsEraseAndWrappedWithExpectedParameter() {
 	// Wrapped
 	var wrappedWriter gcs.Writer
 	ExpectCall(t.wrapped, "FinalizeUpload")(Any(), Any()).
-		WillOnce(DoAll(SaveArg(1, &wrappedWriter), Return(&gcs.Object{}, errors.New(""))))
+		WillOnce(DoAll(SaveArg(1, &wrappedWriter), Return(&gcs.MinObject{}, errors.New(""))))
 
 	// Call
 	_, _ = t.bucket.FinalizeUpload(context.TODO(), writer)
@@ -246,7 +246,7 @@ func (t *FinalizeUploadTest) WrappedFails() {
 	ExpectCall(t.cache, "Erase")(Any())
 	// Wrapped
 	ExpectCall(t.wrapped, "FinalizeUpload")(Any(), Any()).
-		WillOnce(Return(&gcs.Object{}, errors.New("taco")))
+		WillOnce(Return(&gcs.MinObject{}, errors.New("taco")))
 
 	// Call
 	o, err := t.bucket.FinalizeUpload(context.TODO(), writer)
@@ -265,7 +265,7 @@ func (t *FinalizeUploadTest) WrappedSucceeds() {
 	ExpectCall(t.cache, "Erase")(Any())
 	// Wrapped
 	ExpectCall(t.wrapped, "FinalizeUpload")(Any(), Any()).
-		WillOnce(Return(&gcs.Object{}, nil))
+		WillOnce(Return(&gcs.MinObject{}, nil))
 	// Insert
 	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(ttl)))
 

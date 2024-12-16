@@ -25,6 +25,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 )
 
 // FakeObjectWriter is a mock implementation of storage.Writer used by FakeBucket.
@@ -34,7 +35,7 @@ type FakeObjectWriter struct {
 	storage.ObjectAttrs
 	bkt    *bucket
 	req    *gcs.CreateObjectRequest
-	Object *gcs.Object // Object created by writer
+	Object *gcs.MinObject // Object created by writer
 }
 
 func (w *FakeObjectWriter) Write(p []byte) (n int, err error) {
@@ -51,7 +52,7 @@ func (w *FakeObjectWriter) Close() error {
 
 	o, err := createOrUpdateFakeObject(w.bkt, w.req, contents)
 	if err == nil {
-		w.Object = o
+		w.Object = storageutil.ConvertObjToMinObject(o)
 	}
 
 	return err

@@ -138,6 +138,10 @@ func (b *fastStatBucket) insert(o *gcs.Object) {
 	b.insertMultiple([]*gcs.Object{o})
 }
 
+func (b *fastStatBucket) insertMinObject(o *gcs.MinObject) {
+	b.insertMultipleMinObjects([]*gcs.MinObject{o})
+}
+
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) insertFolder(f *gcs.Folder) {
 	b.mu.Lock()
@@ -231,7 +235,7 @@ func (b *fastStatBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.C
 	return b.wrapped.CreateObjectChunkWriter(ctx, req, chunkSize, callBack)
 }
 
-func (b *fastStatBucket) FinalizeUpload(ctx context.Context, writer gcs.Writer) (*gcs.Object, error) {
+func (b *fastStatBucket) FinalizeUpload(ctx context.Context, writer gcs.Writer) (*gcs.MinObject, error) {
 	name := writer.ObjectName()
 	// Throw away any existing record for this object.
 	b.invalidate(name)
@@ -240,7 +244,7 @@ func (b *fastStatBucket) FinalizeUpload(ctx context.Context, writer gcs.Writer) 
 
 	// Record the new object if err is nil.
 	if err == nil {
-		b.insert(o)
+		b.insertMinObject(o)
 	}
 
 	return o, err

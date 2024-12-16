@@ -689,7 +689,7 @@ func (b *bucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObj
 	return NewFakeObjectWriter(b, req)
 }
 
-func (b *bucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.Object, error) {
+func (b *bucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.MinObject, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
