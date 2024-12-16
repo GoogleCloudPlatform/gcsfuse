@@ -164,3 +164,54 @@ func TestDefaultChunkTransferTimeout(t *testing.T) {
 		test_setup.RunTests(t, ts)
 	}
 }
+
+type finiteChunkTransferTimeout struct {
+	flags []string
+}
+
+func (s *finiteChunkTransferTimeout) Setup(t *testing.T) {
+}
+
+func (s *finiteChunkTransferTimeout) Teardown(t *testing.T) {
+}
+
+// The chunk upload should stall, but ultimately complete successfully after 10 seconds.
+// This means the overall file upload will experience an 10-second delay instead of a 40-second delay.
+func (s *finiteChunkTransferTimeout) TestFiniteChunkTransferTimeout_HandlesMultipleWriteStalls(t *testing.T) {
+	configPath := "./proxy_server/configs/write_stall_40s.yaml"
+	emulator_tests.StartProxyServer(configPath)
+	setup.MountGCSFuseWithGivenMountFunc(s.flags, mountFunc)
+	testDir := "TestFiniteChunkTransferTimeout_HandlesMultipleWriteStalls"
+	testDirPath = setup.SetupTestDirectory(testDir)
+	filePath := path.Join(testDirPath, "file2.txt")
+
+	elapsedTime, err := emulator_tests.WriteFileAndSync(filePath, fileSize)
+
+	assert.NoError(t, err)
+	// The chunk upload should stall but successfully complete after 10 seconds.
+	// Overall file upload will face 10 seconds of stall instead of 40 seconds.
+	assert.GreaterOrEqual(t, elapsedTime, 10*time.Second)
+	assert.Less(t, elapsedTime, 15*time.Second)
+
+	setup.UnmountGCSFuse(rootDir)
+	assert.NoError(t, emulator_tests.KillProxyServerProcess(port))
+}
+
+////////////////////////////////////////////////////////////////////////
+// Test Function (Runs once before all tests)
+////////////////////////////////////////////////////////////////////////
+
+func TestFiniteChunkTransferTimeout(t *testing.T) {
+	ts := &finiteChunkTransferTimeout{}
+	// Define flag set to run the tests.
+	flagsSet := [][]string{
+		{"--custom-endpoint=" + proxyEndpoint, "--chunk-transfer-timeout-secs=20"},
+	}
+
+	// Run tests.
+	for _, flags := range flagsSet {
+		ts.flags = flags
+		log.Printf("Running tests with flags: %s", ts.flags)
+		test_setup.RunTests(t, ts)
+	}
+}
