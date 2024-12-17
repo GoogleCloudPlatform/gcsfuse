@@ -39,10 +39,11 @@ func NewFastStatBucket(
 	clock timeutil.Clock,
 	wrapped gcs.Bucket) (b gcs.Bucket) {
 	fsb := &fastStatBucket{
-		cache:           cache,
-		clock:           clock,
-		wrapped:         wrapped,
-		primaryCacheTTL: primaryCacheTTL,
+		cache:            cache,
+		clock:            clock,
+		wrapped:          wrapped,
+		primaryCacheTTL:  primaryCacheTTL,
+		negativeCacheTTL: time.Duration(5) * time.Second,
 	}
 
 	b = fsb
@@ -65,8 +66,9 @@ type fastStatBucket struct {
 	/////////////////////////
 	// Constant data
 	/////////////////////////
-
-	primaryCacheTTL time.Duration
+	
+	primaryCacheTTL  time.Duration
+	negativeCacheTTL time.Duration
 }
 
 ////////////////////////////////////////////////////////////////////////
