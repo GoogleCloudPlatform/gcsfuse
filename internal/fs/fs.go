@@ -48,7 +48,6 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
-	"golang.org/x/sync/semaphore"
 )
 
 type ServerConfig struct {
@@ -194,7 +193,6 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		newConfig:                  serverCfg.NewConfig,
 		fileCacheHandler:           fileCacheHandler,
 		cacheFileForRangeRead:      serverCfg.NewConfig.FileCache.CacheFileForRangeRead,
-		globalMaxBlocksSem:         semaphore.NewWeighted(serverCfg.NewConfig.Write.GlobalMaxBlocks),
 		metricHandle:               serverCfg.MetricHandle,
 	}
 
@@ -484,8 +482,6 @@ type fileSystem struct {
 	// cacheFileForRangeRead when true downloads file into cache even for
 	// random file access.
 	cacheFileForRangeRead bool
-
-	globalMaxBlocksSem *semaphore.Weighted
 
 	metricHandle common.MetricHandle
 }
@@ -808,8 +804,7 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 			fs.contentCache,
 			fs.mtimeClock,
 			ic.Local,
-			&fs.newConfig.Write,
-			fs.globalMaxBlocksSem)
+			fs.newConfig)
 	}
 
 	// Place it in our map of IDs to inodes.
@@ -1661,9 +1656,7 @@ func (fs *fileSystem) createFile(
 // LOCKS_EXCLUDED(fs.mu)
 // UNLOCK_FUNCTION(fs.mu)
 // LOCK_FUNCTION(child)
-func (fs *fileSystem) createLocalFile(
-	parentID fuseops.InodeID,
-	name string) (child inode.Inode, err error) {
+func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.InodeID, name string) (child inode.Inode, err error) {
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(parentID)
@@ -1699,7 +1692,7 @@ func (fs *fileSystem) createLocalFile(
 	fs.localFileInodes[child.Name()] = child
 	// Empty file is created to be able to set attributes on the file.
 	fileInode := child.(*inode.FileInode)
-	if err := fileInode.CreateBufferedOrTempWriter(); err != nil {
+	if err := fileInode.CreateBufferedOrTempWriter(ctx); err != nil {
 		return nil, err
 	}
 	fs.mu.Unlock()
@@ -1729,7 +1722,7 @@ func (fs *fileSystem) CreateFile(
 	if fs.newConfig.Write.CreateEmptyFile {
 		child, err = fs.createFile(ctx, op.Parent, op.Name, op.Mode)
 	} else {
-		child, err = fs.createLocalFile(op.Parent, op.Name)
+		child, err = fs.createLocalFile(ctx, op.Parent, op.Name)
 	}
 
 	if err != nil {
