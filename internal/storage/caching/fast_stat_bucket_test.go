@@ -39,6 +39,7 @@ func TestFastStatBucket(t *testing.T) { RunTests(t) }
 ////////////////////////////////////////////////////////////////////////
 
 const primaryCacheTTL = time.Second
+const negativeCacheTTL = time.Second * 5
 
 type fastStatBucketTest struct {
 	cache   mock_gcscaching.MockStatCache
@@ -631,7 +632,7 @@ func (t *StatObjectTest) WrappedSaysNotFound() {
 	// AddNegativeEntry
 	ExpectCall(t.cache, "AddNegativeEntry")(
 		name,
-		timeutil.TimeEq(t.clock.Now().Add(primaryCacheTTL)))
+		timeutil.TimeEq(t.clock.Now().Add(negativeCacheTTL)))
 
 	// Call
 	req := &gcs.StatObjectRequest{

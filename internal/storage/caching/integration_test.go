@@ -286,7 +286,7 @@ func (t *IntegrationTest) NegativeCacheExpiration() {
 	AssertEq(nil, err)
 
 	// Advance time.
-	t.clock.AdvanceTime(primaryCacheTTL + time.Millisecond)
+	t.clock.AdvanceTime(negativeCacheTTL + time.Millisecond)
 
 	// Now StatObject should see it.
 	o, err := t.stat(name)
