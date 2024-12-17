@@ -47,14 +47,24 @@ type FileHandle struct {
 	// will be downloaded for random reads as well too.
 	cacheFileForRangeRead bool
 	metricHandle          common.MetricHandle
+	// For now, we will consider the files which are open in append mode also as write,
+	// as we are not doing anything special for append. When required we will
+	// define an enum instead of boolean to hold the type of open.
+	readOnly bool
 }
 
-func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle) (fh *FileHandle) {
+func NewFileHandle(
+	inode *inode.FileInode,
+	fileCacheHandler *file.CacheHandler,
+	cacheFileForRangeRead bool,
+	metricHandle common.MetricHandle,
+	readOnly bool) (fh *FileHandle) {
 	fh = &FileHandle{
 		inode:                 inode,
 		fileCacheHandler:      fileCacheHandler,
 		cacheFileForRangeRead: cacheFileForRangeRead,
 		metricHandle:          metricHandle,
+		readOnly:              readOnly,
 	}
 
 	fh.mu = syncutil.NewInvariantMutex(fh.checkInvariants)

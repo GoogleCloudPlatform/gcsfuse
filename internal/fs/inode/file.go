@@ -27,6 +27,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/jacobsa/fuse/fuseops"
@@ -95,6 +96,7 @@ type FileInode struct {
 
 	bwh    *bufferedwrites.BufferedWriteHandler
 	config *cfg.Config
+	writeHandleCount   int32
 }
 
 var _ Inode = &FileInode{}
@@ -367,6 +369,31 @@ func (f *FileInode) IncrementLookupCount() {
 func (f *FileInode) DecrementLookupCount(n uint64) (destroy bool) {
 	destroy = f.lc.Dec(n)
 	return
+}
+
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) RegisterFileHandle(readOnly bool) {
+	if !readOnly {
+		f.writeHandleCount++
+	}
+}
+
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) DeRegisterFileHandle(readOnly bool) {
+	if readOnly {
+		return
+	}
+
+	f.writeHandleCount--
+
+	if f.writeHandleCount < 0 {
+		logger.Errorf("Mismatch in number of write file handles for inode :%d", f.id)
+	}
+
+	// All write fileHandles associated with bwh are closed. So safe to set bwh to nil.
+	if f.writeHandleCount == 0 {
+		f.bwh = nil
+	}
 }
 
 // LOCKS_REQUIRED(f.mu)
