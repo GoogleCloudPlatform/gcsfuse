@@ -128,6 +128,16 @@ func isValidMetadataCache(v isSet, c *MetadataCacheConfig) error {
 		}
 	}
 
+	// Validate negative-ttl-secs.
+	if v.IsSet(MetadataNegativeCacheTTLConfigKey) {
+		if c.NegativeTtlSecs < -1 {
+			return fmt.Errorf("the value of negative-ttl-secs for metadata-cache can't be less than -1")
+		}
+		if c.NegativeTtlSecs > maxSupportedTTLInSeconds {
+			return fmt.Errorf("the value of negative-ttl-secs in metadata-cache is too high to be supported. Max is 9223372036")
+		}
+	}
+
 	// Validate type-cache-max-size-mb.
 	if c.TypeCacheMaxSizeMb < -1 {
 		return fmt.Errorf("the value of type-cache-max-size-mb for metadata-cache can't be less than -1")
