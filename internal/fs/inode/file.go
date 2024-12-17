@@ -94,9 +94,9 @@ type FileInode struct {
 	// Represents if local file has been unlinked.
 	unlinked bool
 
-	bwh    *bufferedwrites.BufferedWriteHandler
-	config *cfg.Config
-	writeHandleCount   int32
+	bwh              *bufferedwrites.BufferedWriteHandler
+	config           *cfg.Config
+	writeHandleCount int32
 }
 
 var _ Inode = &FileInode{}
@@ -384,11 +384,11 @@ func (f *FileInode) DeRegisterFileHandle(readOnly bool) {
 		return
 	}
 
-	f.writeHandleCount--
-
-	if f.writeHandleCount < 0 {
+	if f.writeHandleCount <= 0 {
 		logger.Errorf("Mismatch in number of write file handles for inode :%d", f.id)
 	}
+
+	f.writeHandleCount--
 
 	// All write fileHandles associated with bwh are closed. So safe to set bwh to nil.
 	if f.writeHandleCount == 0 {
@@ -829,6 +829,11 @@ func (f *FileInode) CreateBufferedOrTempWriter(ctx context.Context) (err error) 
 }
 
 func (f *FileInode) ensureBufferedWriteHandler(ctx context.Context) error {
+	// bwh already initialized, do nothing.
+	if f.bwh != nil {
+		return nil
+	}
+
 	var err error
 	var latestGcsObj *gcs.Object
 	if !f.local {
