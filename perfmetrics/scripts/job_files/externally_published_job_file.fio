@@ -1,0 +1,27 @@
+  [global]
+  ioengine=sync
+  direct=1
+  fadvise_hint=0
+  verify=0
+  iodepth=64
+  invalidate=1
+  ramp_time=10s
+  runtime=60s
+  time_based=1
+  thread=1
+  openfiles=1
+  group_reporting=1
+  allrandrepeat=1
+  # Change this to randread to test random reads.
+  rw=${READ_TYPE}
+  # Update the block size value from the table for different experiments.
+  bs=${BLOCK_SIZE}
+  # Update the file size value from table(file size) for different experiments.
+  filesize=${FILE_SIZE}
+  # Change the test directory (1mb) for different experiments. The directory must exist within the mounted directory.
+  directory=${DIR}
+  filename_format=$jobname.$jobnum.$filenum
+  [experiment]
+  stonewall
+  # Number of threads
+  numjobs=${NUMJOBS}

@@ -7,10 +7,10 @@ namespace="${buffer_location}-${bootDiskSize}"
 
 env project_id=tpu-prod-env-one-vm \
 project_number=630405687483\
- zone=us-east5-c \
+ zone=us-central2-b \
  cluster_name=anushkadhn-tpu-cluster \
  machine_type=ct6e-standard-4t \
- num_nodes=7 \
+ num_nodes=1 \
  use_custom_csi_driver=false \
  src_dir=/usr/local/google/home/anushkadhn/gcsfuse/.. \
   gcsfuse_branch=master \
@@ -19,5 +19,5 @@ output_dir=. perfmetrics/scripts/testing_on_gke/examples/run-gke-tests.sh --debu
 
 
 path=$(pwd)
-gsutil cp "${path}/fio/output_${instance_id}.csv" gs://anushkadhn-test/$bootDiskSize/buffer-on-${buffer_location}/fio/${filecacheConfig}.csv
-gsutil cp "${path}/dlio/output_${instance_id}.csv" gs://anushkadhn-test/$bootDiskSize/buffer-on-${buffer_location}/dlio/${filecacheConfig}.csv
+gsutil cp "${path}/fio/output_${instance_id}.csv" gs://anushkadhn-test/fio-investigation/nogvnic/$bootDiskSize/buffer-on-${buffer_location}/fio/${filecacheConfig}.csv
+#gsutil cp "${path}/dlio/output_${instance_id}.csv" gs://anushkadhn-test//$bootDiskSize/buffer-on-${buffer_location}/dlio/${filecacheConfig}.csv

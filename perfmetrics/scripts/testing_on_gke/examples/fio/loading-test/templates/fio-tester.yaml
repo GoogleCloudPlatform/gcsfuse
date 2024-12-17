@@ -104,7 +104,7 @@ spec:
         offset_increment=1%
         EOF
         {{ else }}
-        wget -O $filename https://raw.githubusercontent.com/GoogleCloudPlatform/gcsfuse/master/perfmetrics/scripts/job_files/read_cache_load_test.fio
+        wget -O $filename https://raw.githubusercontent.com/GoogleCloudPlatform/gcsfuse/refs/heads/fio-tpu-perf-investigation/perfmetrics/scripts/job_files/externally_published_job_file.fio
         {{ end }}
 
         echo "Setup default values..."
