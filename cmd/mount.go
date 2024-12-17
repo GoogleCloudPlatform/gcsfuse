@@ -93,6 +93,7 @@ be interacting with the file system.`)
 		OpRateLimitHz:                      newConfig.GcsConnection.LimitOpsPerSec,
 		StatCacheMaxSizeMB:                 uint64(newConfig.MetadataCache.StatCacheMaxSizeMb),
 		StatCacheTTL:                       time.Duration(newConfig.MetadataCache.TtlSecs) * time.Second,
+		NegativeStatCacheTTL:               time.Duration(5) * time.Second,
 		EnableMonitoring:                   cfg.IsMetricsEnabled(&newConfig.Metrics),
 		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.
 		ChunkTransferTimeoutSecs:           newConfig.GcsRetries.ChunkTransferTimeoutSecs,
