@@ -37,13 +37,15 @@ func NewFastStatBucket(
 	primaryCacheTTL time.Duration,
 	cache metadata.StatCache,
 	clock timeutil.Clock,
-	wrapped gcs.Bucket) (b gcs.Bucket) {
+	wrapped gcs.Bucket,
+	negativeCacheTTL time.Duration,
+) (b gcs.Bucket) {
 	fsb := &fastStatBucket{
 		cache:            cache,
 		clock:            clock,
 		wrapped:          wrapped,
 		primaryCacheTTL:  primaryCacheTTL,
-		negativeCacheTTL: time.Duration(5) * time.Second,
+		negativeCacheTTL: negativeCacheTTL,
 	}
 
 	b = fsb

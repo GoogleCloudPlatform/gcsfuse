@@ -61,7 +61,8 @@ func (t *fastStatBucketTest) SetUp(ti *TestInfo) {
 		primaryCacheTTL,
 		t.cache,
 		&t.clock,
-		t.wrapped)
+		t.wrapped,
+		negativeCacheTTL)
 }
 
 ////////////////////////////////////////////////////////////////////////

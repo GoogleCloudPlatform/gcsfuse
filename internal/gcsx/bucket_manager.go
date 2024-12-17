@@ -208,7 +208,8 @@ func (bm *bucketManager) SetUpBucket(
 			bm.config.StatCacheTTL,
 			statCache,
 			timeutil.RealClock(),
-			b)
+			b,
+			time.Duration(5)*time.Second)
 	}
 
 	// Enable content type awareness
