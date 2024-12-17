@@ -59,19 +59,37 @@ type WriteFileInfo struct {
 var ErrOutOfOrderWrite = errors.New("outOfOrder write detected")
 var ErrUploadFailure = errors.New("error while uploading object to GCS")
 
+type CreateBWHandlerRequest struct {
+	Object                   *gcs.Object
+	ObjectName               string
+	Bucket                   gcs.Bucket
+	BlockSize                int64
+	MaxBlocksPerFile         int64
+	GlobalMaxBlocksSem       *semaphore.Weighted
+	ChunkTransferTimeoutSecs int64
+}
+
 // NewBWHandler creates the bufferedWriteHandler struct.
-func NewBWHandler(objectName string, bucket gcs.Bucket, blockSize int64, maxBlocks int64, globalMaxBlocksSem *semaphore.Weighted) (bwh *BufferedWriteHandler, err error) {
-	bp, err := block.NewBlockPool(blockSize, maxBlocks, globalMaxBlocksSem)
+func NewBWHandler(req *CreateBWHandlerRequest) (bwh *BufferedWriteHandler, err error) {
+	bp, err := block.NewBlockPool(req.BlockSize, req.MaxBlocksPerFile, req.GlobalMaxBlocksSem)
 	if err != nil {
 		return
 	}
 
 	bwh = &BufferedWriteHandler{
-		current:       nil,
-		blockPool:     bp,
-		uploadHandler: newUploadHandler(objectName, bucket, maxBlocks, bp.FreeBlocksChannel(), blockSize),
-		totalSize:     0,
-		mtime:         time.Now(),
+		current:   nil,
+		blockPool: bp,
+		uploadHandler: newUploadHandler(&CreateUploadHandlerRequest{
+			Object:                   req.Object,
+			ObjectName:               req.ObjectName,
+			Bucket:                   req.Bucket,
+			FreeBlocksCh:             bp.FreeBlocksChannel(),
+			MaxBlocksPerFile:         req.MaxBlocksPerFile,
+			BlockSize:                req.BlockSize,
+			ChunkTransferTimeoutSecs: req.ChunkTransferTimeoutSecs,
+		}),
+		totalSize: 0,
+		mtime:     time.Now(),
 	}
 	return
 }
@@ -79,6 +97,14 @@ func NewBWHandler(objectName string, bucket gcs.Bucket, blockSize int64, maxBloc
 // Write writes the given data to the buffer. It writes to an existing buffer if
 // the capacity is available otherwise writes to a new buffer.
 func (wh *BufferedWriteHandler) Write(data []byte, offset int64) (err error) {
+	// Fail early if the uploadHandler has failed.
+	select {
+	case <-wh.uploadHandler.SignalUploadFailure():
+		return ErrUploadFailure
+	default:
+		break
+	}
+
 	if offset != wh.totalSize && offset != wh.truncatedSize {
 		logger.Errorf("BufferedWriteHandler.OutOfOrderError for object: %s, expectedOffset: %d, actualOffset: %d",
 			wh.uploadHandler.objectName, wh.totalSize, offset)
@@ -91,14 +117,6 @@ func (wh *BufferedWriteHandler) Write(data []byte, offset int64) (err error) {
 		if err != nil {
 			return
 		}
-	}
-
-	// Fail early if the uploadHandler has failed.
-	select {
-	case <-wh.uploadHandler.SignalUploadFailure():
-		return ErrUploadFailure
-	default:
-		break
 	}
 
 	return wh.appendBuffer(data)

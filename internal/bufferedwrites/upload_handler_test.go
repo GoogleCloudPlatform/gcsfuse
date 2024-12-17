@@ -52,7 +52,15 @@ func (t *UploadHandlerTest) SetupTest() {
 	var err error
 	t.blockPool, err = block.NewBlockPool(blockSize, maxBlocks, semaphore.NewWeighted(maxBlocks))
 	require.NoError(t.T(), err)
-	t.uh = newUploadHandler("testObject", t.mockBucket, maxBlocks, t.blockPool.FreeBlocksChannel(), blockSize)
+	t.uh = newUploadHandler(&CreateUploadHandlerRequest{
+		Object:                   nil,
+		ObjectName:               "testObject",
+		Bucket:                   t.mockBucket,
+		FreeBlocksCh:             t.blockPool.FreeBlocksChannel(),
+		MaxBlocksPerFile:         maxBlocks,
+		BlockSize:                blockSize,
+		ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
+	})
 }
 
 func (t *UploadHandlerTest) TestMultipleBlockUpload() {
@@ -269,4 +277,66 @@ func (t *UploadHandlerTest) TestMultipleBlockAwaitBlocksUpload() {
 	assert.Equal(t.T(), 5, len(t.uh.freeBlocksCh))
 	assert.Equal(t.T(), 0, len(t.uh.uploadCh))
 	assertAllBlocksProcessed(t.T(), t.uh)
+}
+
+func (t *UploadHandlerTest) TestCreateObjectChunkWriterIsCalledWithCorrectRequestParametersForEmptyGCSObject() {
+	t.uh.obj = &gcs.Object{
+		Name:            t.uh.objectName,
+		ContentType:     "image/png",
+		Size:            0,
+		ContentEncoding: "gzip",
+		Generation:      10,
+		MetaGeneration:  20,
+		Acl:             nil,
+	}
+
+	// CreateObjectChunkWriter -- should be called once with correct request parameters.
+	writer := &storagemock.Writer{}
+	mockObj := &gcs.Object{}
+	t.mockBucket.On("CreateObjectChunkWriter",
+		mock.Anything,
+		mock.MatchedBy(func(req *gcs.CreateObjectRequest) bool {
+			return req.Name == t.uh.objectName &&
+				*req.GenerationPrecondition == t.uh.obj.Generation &&
+				*req.MetaGenerationPrecondition == t.uh.obj.MetaGeneration &&
+				req.ContentEncoding == t.uh.obj.ContentEncoding &&
+				req.ContentType == t.uh.obj.ContentType &&
+				req.ChunkTransferTimeoutSecs == chunkTransferTimeoutSecs
+		}),
+		mock.Anything,
+		mock.Anything).Return(writer, nil)
+	t.mockBucket.On("FinalizeUpload", mock.Anything, writer).Return(mockObj, nil)
+
+	// Create a block.
+	b, err := t.blockPool.Get()
+	require.NoError(t.T(), err)
+	// Upload the block.
+	err = t.uh.Upload(b)
+	require.NoError(t.T(), err)
+}
+
+func (t *UploadHandlerTest) TestCreateObjectChunkWriterIsCalledWithCorrectRequestParametersForLocalInode() {
+	assert.Nil(t.T(), t.uh.obj)
+
+	// CreateObjectChunkWriter -- should be called once with correct request parameters.
+	writer := &storagemock.Writer{}
+	mockObj := &gcs.Object{}
+	t.mockBucket.On("CreateObjectChunkWriter",
+		mock.Anything,
+		mock.MatchedBy(func(req *gcs.CreateObjectRequest) bool {
+			return req.Name == t.uh.objectName &&
+				*req.GenerationPrecondition == 0 &&
+				req.MetaGenerationPrecondition == nil &&
+				req.ChunkTransferTimeoutSecs == chunkTransferTimeoutSecs
+		}),
+		mock.Anything,
+		mock.Anything).Return(writer, nil)
+	t.mockBucket.On("FinalizeUpload", mock.Anything, writer).Return(mockObj, nil)
+
+	// Create a block.
+	b, err := t.blockPool.Get()
+	require.NoError(t.T(), err)
+	// Upload the block.
+	err = t.uh.Upload(b)
+	require.NoError(t.T(), err)
 }
