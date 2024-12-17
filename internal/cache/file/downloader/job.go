@@ -472,7 +472,7 @@ func (job *Job) Download(ctx context.Context, offset int64, waitForDownload bool
 	job.mu.Lock()
 	if int64(job.object.Size) < offset {
 		defer job.mu.Unlock()
-		err = fmt.Errorf(fmt.Sprintf("Download: the requested offset %d is greater than the size of object %d", offset, job.object.Size))
+		err = fmt.Errorf("download: the requested offset %d is greater than the size of object %d", offset, job.object.Size)
 		return job.status, err
 	}
 

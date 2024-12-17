@@ -681,7 +681,7 @@ func (dt *downloaderTest) Test_Download_Concurrent() {
 	ctx := context.Background()
 	wg := sync.WaitGroup{}
 	offsets := []int64{0, 4 * util.MiB, 16 * util.MiB, 8 * util.MiB, int64(objectSize), int64(objectSize) + 1}
-	expectedErrs := []error{nil, nil, nil, nil, nil, fmt.Errorf(fmt.Sprintf("Download: the requested offset %d is greater than the size of object %d", int64(objectSize)+1, int64(objectSize)))}
+	expectedErrs := []error{nil, nil, nil, nil, nil, fmt.Errorf("download: the requested offset %d is greater than the size of object %d", int64(objectSize)+1, int64(objectSize))}
 	downloadFunc := func(expectedOffset int64, expectedErr error) {
 		defer wg.Done()
 		var jobStatus JobStatus
