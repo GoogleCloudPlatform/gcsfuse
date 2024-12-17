@@ -83,7 +83,7 @@ func (oc *fullObjectCreator) Create(
 	mtime *time.Time,
 	chunkTransferTimeoutSecs int64,
 	r io.Reader) (o *gcs.Object, err error) {
-	req := gcs.ResolveCreateObjectRequest(srcObject, objectName, mtime, chunkTransferTimeoutSecs)
+	req := gcs.NewCreateObjectRequest(srcObject, objectName, mtime, chunkTransferTimeoutSecs)
 	req.Contents = r
 	o, err = oc.bucket.CreateObject(ctx, req)
 	if err != nil {

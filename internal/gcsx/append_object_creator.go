@@ -96,7 +96,7 @@ func (oc *appendObjectCreator) Create(
 	}
 
 	// Create a temporary object containing the additional contents.
-	req := gcs.ResolveCreateObjectRequest(nil, tmpName, nil, chunkTransferTimeoutSecs)
+	req := gcs.NewCreateObjectRequest(nil, tmpName, nil, chunkTransferTimeoutSecs)
 	req.Contents = r
 	tmp, err := oc.bucket.CreateObject(ctx, req)
 	if err != nil {

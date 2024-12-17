@@ -23,7 +23,7 @@ import (
 // by time.RFC3339Nano.
 const MtimeMetadataKey = "gcsfuse_mtime"
 
-func ResolveCreateObjectRequest(srcObject *Object, objectName string, mtime *time.Time, chunkTransferTimeoutSecs int64) *CreateObjectRequest {
+func NewCreateObjectRequest(srcObject *Object, objectName string, mtime *time.Time, chunkTransferTimeoutSecs int64) *CreateObjectRequest {
 	metadataMap := make(map[string]string)
 	var req *CreateObjectRequest
 	if srcObject == nil {
