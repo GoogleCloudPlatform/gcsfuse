@@ -159,7 +159,7 @@ func (b *fastStatBucket) addNegativeEntry(name string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	expiration := b.clock.Now().Add(b.primaryCacheTTL)
+	expiration := b.clock.Now().Add(b.negativeCacheTTL)
 	b.cache.AddNegativeEntry(name, expiration)
 }
 
@@ -168,7 +168,7 @@ func (b *fastStatBucket) addNegativeEntryForFolder(name string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	expiration := b.clock.Now().Add(b.primaryCacheTTL)
+	expiration := b.clock.Now().Add(b.negativeCacheTTL)
 	b.cache.AddNegativeEntryForFolder(name, expiration)
 }
 
