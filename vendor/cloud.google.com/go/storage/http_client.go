@@ -969,7 +969,6 @@ func (c *httpStorageClient) OpenWriter(params *openWriterParams, opts ...storage
 		mediaOpts = append(mediaOpts, googleapi.ChunkRetryDeadline(params.chunkRetryDeadline))
 	}
 	if params.chunkTransferTimeout != 0 {
-		fmt.Println("chunk Transfer timeout: ", params.chunkTransferTimeout)
 		mediaOpts = append(mediaOpts, googleapi.ChunkTransferTimeout(params.chunkTransferTimeout))
 	}
 
