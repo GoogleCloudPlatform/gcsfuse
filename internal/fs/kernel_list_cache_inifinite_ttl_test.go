@@ -20,15 +20,19 @@ import (
 	"errors"
 	"os"
 	"path"
+	"regexp"
 	"testing"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
+
+const UnsupportedKernelVersion = `^6\.9\.\d+`
 
 type KernelListCacheTestWithInfiniteTtl struct {
 	suite.Suite
@@ -52,6 +56,12 @@ func (t *KernelListCacheTestWithInfiniteTtl) SetupSuite() {
 }
 
 func TestKernelListCacheTestInfiniteTtlSuite(t *testing.T) {
+	kernelVersion := operations.KernelVersion(t)
+	matched, err := regexp.MatchString(UnsupportedKernelVersion, kernelVersion)
+	assert.NoError(t, err)
+	if matched {
+		t.SkipNow()
+	}
 	suite.Run(t, new(KernelListCacheTestWithInfiniteTtl))
 }
 
