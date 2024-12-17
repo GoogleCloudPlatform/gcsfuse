@@ -18,31 +18,25 @@ import (
 	"context"
 	"log"
 	"os"
-	"path"
 	"testing"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/dynamic_mounting"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-)
-
-const (
-	testDirName    = "StaleHandleTest"
-	onlyDirMounted = "OnlyDirStaleHandleTest"
 )
 
 var (
 	storageClient *storage.Client
 	ctx           context.Context
 	testDirPath   string
+	mountFunc     func([]string) error
+	// root directory is the directory to be unmounted.
+	rootDir string
 )
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
-	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
 	// Create common storage client to be used in test.
 	ctx = context.Background()
@@ -54,30 +48,18 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
-	// If Mounted Directory flag is set, run tests for mounted directory.
-	setup.RunTestsForMountedDirectoryFlag(m)
-	// Else run tests for testBucket.
+	if setup.MountedDirectory() != "" {
+		log.Printf("These tests will not run with mounted directory..")
+		return
+	}
+
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()
 
-	flagsSet := [][]string{
-		{"--precondition-errors=true", "--metadata-cache-ttl-secs=0", "--implicit-dirs=false"},
-		{"--precondition-errors=true", "--metadata-cache-ttl-secs=0", "--implicit-dirs=true"},
-	}
-	if !testing.Short() {
-		setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "", "--client-protocol=grpc")
-	}
-	successCode := static_mounting.RunTests(flagsSet, m)
+	rootDir = setup.MntDir()
 
-	if successCode == 0 {
-		successCode = only_dir_mounting.RunTests(flagsSet, onlyDirMounted, m)
-	}
-
-	if successCode == 0 {
-		successCode = dynamic_mounting.RunTests(ctx, storageClient, flagsSet, m)
-	}
-
-	// Clean up test directory created.
-	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
+	log.Println("Running static mounting tests...")
+	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
+	successCode := m.Run()
 	os.Exit(successCode)
 }

@@ -34,10 +34,11 @@ import (
 type staleFileHandleSyncedFile struct{}
 
 func (s *staleFileHandleSyncedFile) Setup(t *testing.T) {
-	testDirPath = setup.SetupTestDirectory(testDirName)
 }
 
-func (s *staleFileHandleSyncedFile) Teardown(t *testing.T) {}
+func (s *staleFileHandleSyncedFile) Teardown(t *testing.T) {
+	setup.UnmountGCSFuse(setup.MntDir())
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
@@ -45,24 +46,23 @@ func (s *staleFileHandleSyncedFile) Teardown(t *testing.T) {}
 
 func TestSyncedObjectClobberedRemotelyReadThrowsStaleFileHandleError(t *testing.T) {
 	t.Parallel() // Mark the test parallelizable.
-	testCaseDir := "TestSyncedObjectClobberedRemotelyReadThrowsStaleFileHandleError"
-	gcsDirPath := path.Join(testDirName, testCaseDir)
+	testCaseDir := "TestSyncedObjectClobberedRemotelyReadThrowsStaleFileHandleError" + setup.GenerateRandomString(3)
+	testDirPath = setup.SetupTestDirectory(testCaseDir)
 	// Create an object on bucket
-	CreateObjectInGCSTestDir(ctx, storageClient, gcsDirPath, FileName1, GCSFileContent, t)
-	targetDir := path.Join(testDirPath, testCaseDir)
-	filePath := path.Join(targetDir, FileName1)
+	CreateObjectInGCSTestDir(ctx, storageClient, testCaseDir, FileName1, GCSFileContent, t)
+	filePath := path.Join(testDirPath, FileName1)
 	// Open the read handle
 	fh, err := operations.OpenFileAsReadonly(filePath)
 	assert.Equal(t, nil, err)
 	// Replace the underlying object with a new generation.
-	CreateObjectInGCSTestDir(ctx, storageClient, gcsDirPath, FileName1, FileContents, t)
+	CreateObjectInGCSTestDir(ctx, storageClient, testCaseDir, FileName1, FileContents, t)
 
 	buffer := make([]byte, GCSFileSize)
 	err = operations.ReadBytesFromFile(fh, GCSFileSize, buffer)
 
 	assert.NotEqual(t, nil, err)
 	operations.ValidateStaleNFSFileHandleError(t, err)
-	ValidateObjectContentsFromGCS(ctx, storageClient, targetDir, FileName1, FileContents, t)
+	ValidateObjectContentsFromGCS(ctx, storageClient, testCaseDir, FileName1, FileContents, t)
 }
 
 //func TestSyncedObjectClobberedRemotelyFirstWriteThrowsStaleFileHandleError(t *testing.T) {
