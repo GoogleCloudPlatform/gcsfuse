@@ -246,6 +246,7 @@ func (testSuite *BufferedWriteTest) TestFlushWithMultiBlockWritesAndSignalUpload
 	for i := 0; i < 5; i++ {
 		err := testSuite.bwh.Write(buffer, int64(blockSize*(i+5)))
 		require.Error(testSuite.T(), err)
+		assert.Equal(testSuite.T(), ErrUploadFailure, err)
 	}
 
 	obj, err := testSuite.bwh.Flush()

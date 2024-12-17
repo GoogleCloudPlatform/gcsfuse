@@ -120,9 +120,9 @@ func (uh *UploadHandler) uploader() {
 				close(uh.signalUploadFailure)
 			}
 		}
-		uh.wg.Done()
 		// Put back the uploaded block on the freeBlocksChannel for re-use.
 		uh.freeBlocksCh <- currBlock
+		uh.wg.Done()
 	}
 }
 

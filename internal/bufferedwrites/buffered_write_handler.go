@@ -97,6 +97,14 @@ func NewBWHandler(req *CreateBWHandlerRequest) (bwh *BufferedWriteHandler, err e
 // Write writes the given data to the buffer. It writes to an existing buffer if
 // the capacity is available otherwise writes to a new buffer.
 func (wh *BufferedWriteHandler) Write(data []byte, offset int64) (err error) {
+	// Fail early if the uploadHandler has failed.
+	select {
+	case <-wh.uploadHandler.SignalUploadFailure():
+		return ErrUploadFailure
+	default:
+		break
+	}
+
 	if offset != wh.totalSize && offset != wh.truncatedSize {
 		logger.Errorf("BufferedWriteHandler.OutOfOrderError for object: %s, expectedOffset: %d, actualOffset: %d",
 			wh.uploadHandler.objectName, wh.totalSize, offset)
@@ -109,14 +117,6 @@ func (wh *BufferedWriteHandler) Write(data []byte, offset int64) (err error) {
 		if err != nil {
 			return
 		}
-	}
-
-	// Fail early if the uploadHandler has failed.
-	select {
-	case <-wh.uploadHandler.SignalUploadFailure():
-		return ErrUploadFailure
-	default:
-		break
 	}
 
 	return wh.appendBuffer(data)
