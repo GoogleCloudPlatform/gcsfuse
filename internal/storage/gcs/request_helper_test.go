@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcsx
+package gcs
 
 import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -27,18 +26,18 @@ func TestCreateObjectRequest(t *testing.T) {
 
 	tests := []struct {
 		name                     string
-		srcObject                *gcs.Object
+		srcObject                *Object
 		objectName               string
 		mtime                    *time.Time
 		chunkTransferTimeoutSecs int64
-		expectedRequest          *gcs.CreateObjectRequest
+		expectedRequest          *CreateObjectRequest
 	}{
 		{
 			name:                     "nil_srcObject",
 			objectName:               "new-object.txt",
 			mtime:                    &now,
 			chunkTransferTimeoutSecs: 30,
-			expectedRequest: &gcs.CreateObjectRequest{
+			expectedRequest: &CreateObjectRequest{
 				Name:                   "new-object.txt",
 				GenerationPrecondition: &[]int64{0}[0], // Default precondition
 				Metadata: map[string]string{
@@ -49,7 +48,7 @@ func TestCreateObjectRequest(t *testing.T) {
 		},
 		{
 			name: "existing_srcObject",
-			srcObject: &gcs.Object{
+			srcObject: &Object{
 				Name:               "existing-object.txt",
 				Generation:         12345,
 				MetaGeneration:     67890,
@@ -64,7 +63,7 @@ func TestCreateObjectRequest(t *testing.T) {
 			},
 			mtime:                    &now,
 			chunkTransferTimeoutSecs: 60,
-			expectedRequest: &gcs.CreateObjectRequest{
+			expectedRequest: &CreateObjectRequest{
 				Name:                       "existing-object.txt",
 				GenerationPrecondition:     &[]int64{12345}[0],
 				MetaGenerationPrecondition: &[]int64{67890}[0],
@@ -87,7 +86,7 @@ func TestCreateObjectRequest(t *testing.T) {
 			name:                     "nil_mtime_nil_srcObject",
 			objectName:               "no-mtime.txt",
 			chunkTransferTimeoutSecs: 30,
-			expectedRequest: &gcs.CreateObjectRequest{
+			expectedRequest: &CreateObjectRequest{
 				Name:                     "no-mtime.txt",
 				GenerationPrecondition:   &[]int64{0}[0],
 				Metadata:                 map[string]string{},
@@ -98,7 +97,7 @@ func TestCreateObjectRequest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := CreateObjectRequest(tt.srcObject, tt.objectName, tt.mtime, tt.chunkTransferTimeoutSecs)
+			req := ResolveCreateObjectRequest(tt.srcObject, tt.objectName, tt.mtime, tt.chunkTransferTimeoutSecs)
 
 			assert.Equal(t, tt.expectedRequest, req)
 		})

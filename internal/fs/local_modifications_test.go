@@ -33,7 +33,6 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
@@ -1538,8 +1537,8 @@ func validateObjectAttributes(extendedAttr1, extendedAttr2 *gcs.ExtendedObjectAt
 	ExpectEq(FileContentsSize, minObject2.Size)
 	ExpectNe(minObject1.Generation, minObject2.Generation)
 	ExpectTrue(minObject1.Updated.Before(minObject2.Updated))
-	attr1MTime, _ := time.Parse(time.RFC3339Nano, minObject1.Metadata[gcsx.MtimeMetadataKey])
-	attr2MTime, _ := time.Parse(time.RFC3339Nano, minObject2.Metadata[gcsx.MtimeMetadataKey])
+	attr1MTime, _ := time.Parse(time.RFC3339Nano, minObject1.Metadata[gcs.MtimeMetadataKey])
+	attr2MTime, _ := time.Parse(time.RFC3339Nano, minObject2.Metadata[gcs.MtimeMetadataKey])
 	ExpectTrue(attr1MTime.Before(attr2MTime))
 	ExpectEq(minObject1.ContentEncoding, minObject2.ContentEncoding)
 	ExpectNe(nil, minObject1.CRC32C)

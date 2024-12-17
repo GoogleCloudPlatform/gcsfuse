@@ -38,7 +38,7 @@ import (
 
 // A GCS object metadata key for file mtimes. mtimes are UTC, and are stored in
 // the format defined by time.RFC3339Nano.
-const FileMtimeMetadataKey = gcsx.MtimeMetadataKey
+const FileMtimeMetadataKey = gcs.MtimeMetadataKey
 
 type FileInode struct {
 	/////////////////////////
@@ -693,8 +693,8 @@ func (f *FileInode) Truncate(
 	ctx context.Context,
 	size int64) (err error) {
 	// For empty GCS files also, we will trigger bufferedWrites flow.
-	if f.src.Size == 0 && f.writeConfig.ExperimentalEnableStreamingWrites {
-		err = f.ensureBufferedWriteHandler()
+	if f.src.Size == 0 && f.config.Write.ExperimentalEnableStreamingWrites {
+		err = f.ensureBufferedWriteHandler(ctx)
 		if err != nil {
 			return
 		}
@@ -755,7 +755,15 @@ func (f *FileInode) ensureBufferedWriteHandler(ctx context.Context) error {
 	}
 
 	if f.bwh == nil {
-		f.bwh, err = bufferedwrites.NewBWHandler(latestGcsObj, f.name.GcsObjectName(), f.bucket, f.config.Write.BlockSizeMb, f.config.Write.MaxBlocksPerFile, semaphore.NewWeighted(f.config.Write.GlobalMaxBlocks), f.config.GcsRetries.ChunkTransferTimeoutSecs)
+		f.bwh, err = bufferedwrites.NewBWHandler(&bufferedwrites.CreateBWHandlerRequest{
+			Object:                   latestGcsObj,
+			ObjectName:               f.name.GcsObjectName(),
+			Bucket:                   f.bucket,
+			BlockSize:                f.config.Write.BlockSizeMb,
+			MaxBlocksPerFile:         f.config.Write.MaxBlocksPerFile,
+			GlobalMaxBlocksSem:       semaphore.NewWeighted(f.config.Write.GlobalMaxBlocks),
+			ChunkTransferTimeoutSecs: f.config.GcsRetries.ChunkTransferTimeoutSecs,
+		})
 		if err != nil {
 			return fmt.Errorf("failed to create bufferedWriteHandler: %w", err)
 		}

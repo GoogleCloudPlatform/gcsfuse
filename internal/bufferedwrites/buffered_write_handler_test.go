@@ -42,7 +42,15 @@ func TestBufferedWriteTestSuite(t *testing.T) {
 
 func (testSuite *BufferedWriteTest) SetupTest() {
 	bucket := fake.NewFakeBucket(timeutil.RealClock(), "FakeBucketName", gcs.NonHierarchical)
-	bwh, err := NewBWHandler(nil, "testObject", bucket, blockSize, 10, semaphore.NewWeighted(10), chunkTransferTimeoutSecs)
+	bwh, err := NewBWHandler(&CreateBWHandlerRequest{
+		Object:                   nil,
+		ObjectName:               "testObject",
+		Bucket:                   bucket,
+		BlockSize:                blockSize,
+		MaxBlocksPerFile:         10,
+		GlobalMaxBlocksSem:       semaphore.NewWeighted(10),
+		ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
+	})
 	require.Nil(testSuite.T(), err)
 	testSuite.bwh = bwh
 }

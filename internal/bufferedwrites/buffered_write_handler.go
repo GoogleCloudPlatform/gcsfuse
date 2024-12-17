@@ -59,19 +59,37 @@ type WriteFileInfo struct {
 var ErrOutOfOrderWrite = errors.New("outOfOrder write detected")
 var ErrUploadFailure = errors.New("error while uploading object to GCS")
 
+type CreateBWHandlerRequest struct {
+	Object                   *gcs.Object
+	ObjectName               string
+	Bucket                   gcs.Bucket
+	BlockSize                int64
+	MaxBlocksPerFile         int64
+	GlobalMaxBlocksSem       *semaphore.Weighted
+	ChunkTransferTimeoutSecs int64
+}
+
 // NewBWHandler creates the bufferedWriteHandler struct.
-func NewBWHandler(obj *gcs.Object, objectName string, bucket gcs.Bucket, blockSize int64, maxBlocks int64, globalMaxBlocksSem *semaphore.Weighted, chunkTransferTimeoutSecs int64) (bwh *BufferedWriteHandler, err error) {
-	bp, err := block.NewBlockPool(blockSize, maxBlocks, globalMaxBlocksSem)
+func NewBWHandler(req *CreateBWHandlerRequest) (bwh *BufferedWriteHandler, err error) {
+	bp, err := block.NewBlockPool(req.BlockSize, req.MaxBlocksPerFile, req.GlobalMaxBlocksSem)
 	if err != nil {
 		return
 	}
 
 	bwh = &BufferedWriteHandler{
-		current:       nil,
-		blockPool:     bp,
-		uploadHandler: newUploadHandler(obj, objectName, bucket, maxBlocks, bp.FreeBlocksChannel(), blockSize, chunkTransferTimeoutSecs),
-		totalSize:     0,
-		mtime:         time.Now(),
+		current:   nil,
+		blockPool: bp,
+		uploadHandler: newUploadHandler(&CreateUploadHandlerRequest{
+			Object:                   req.Object,
+			ObjectName:               req.ObjectName,
+			Bucket:                   req.Bucket,
+			FreeBlocksCh:             bp.FreeBlocksChannel(),
+			MaxBlocksPerFile:         req.MaxBlocksPerFile,
+			BlockSize:                req.BlockSize,
+			ChunkTransferTimeoutSecs: req.ChunkTransferTimeoutSecs,
+		}),
+		totalSize: 0,
+		mtime:     time.Now(),
 	}
 	return
 }

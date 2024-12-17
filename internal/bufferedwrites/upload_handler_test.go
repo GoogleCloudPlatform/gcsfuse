@@ -52,7 +52,15 @@ func (t *UploadHandlerTest) SetupTest() {
 	var err error
 	t.blockPool, err = block.NewBlockPool(blockSize, maxBlocks, semaphore.NewWeighted(maxBlocks))
 	require.NoError(t.T(), err)
-	t.uh = newUploadHandler(nil, "testObject", t.mockBucket, maxBlocks, t.blockPool.FreeBlocksChannel(), blockSize, chunkTransferTimeoutSecs)
+	t.uh = newUploadHandler(&CreateUploadHandlerRequest{
+		Object:                   nil,
+		ObjectName:               "testObject",
+		Bucket:                   t.mockBucket,
+		FreeBlocksCh:             t.blockPool.FreeBlocksChannel(),
+		MaxBlocksPerFile:         maxBlocks,
+		BlockSize:                blockSize,
+		ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
+	})
 }
 
 func (t *UploadHandlerTest) TestMultipleBlockUpload() {

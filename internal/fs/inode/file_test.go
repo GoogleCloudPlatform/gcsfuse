@@ -694,8 +694,8 @@ func (t *FileTest) TestTruncateUpwardForLocalFileWhenStreamingWritesAreEnabled()
 		t.Run(tc.name, func() {
 			// Create a local file inode.
 			t.createInodeWithLocalParam("test", true)
-			t.in.writeConfig = getWriteConfig()
-			err := t.in.CreateBufferedOrTempWriter()
+			t.in.config = &cfg.Config{Write: *getWriteConfig()}
+			err := t.in.CreateBufferedOrTempWriter(t.ctx)
 			assert.Nil(t.T(), err)
 			assert.NotNil(t.T(), t.in.bwh)
 
@@ -747,7 +747,7 @@ func (t *FileTest) TestTruncateUpwardForEmptyGCSFileWhenStreamingWritesAreEnable
 	for _, tc := range tbl {
 		t.Run(tc.name, func() {
 			t.createInodeWithEmptyObject()
-			t.in.writeConfig = getWriteConfig()
+			t.in.config = &cfg.Config{Write: *getWriteConfig()}
 			assert.Nil(t.T(), t.in.bwh)
 			// Fetch the attributes and check if the file is empty.
 			attrs, err := t.in.Attributes(t.ctx)
@@ -820,7 +820,7 @@ func (t *FileTest) TestTruncateDownwardWhenStreamingWritesAreEnabled() {
 			if tc.fileType == EmptyGCSFile {
 				t.createInodeWithEmptyObject()
 			}
-			t.in.writeConfig = getWriteConfig()
+			t.in.config = &cfg.Config{Write: *getWriteConfig()}
 			assert.Nil(t.T(), t.in.bwh)
 			// Fetch the attributes and check if the file is empty.
 			attrs, err := t.in.Attributes(t.ctx)

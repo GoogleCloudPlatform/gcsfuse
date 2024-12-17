@@ -96,7 +96,7 @@ func (oc *appendObjectCreator) Create(
 	}
 
 	// Create a temporary object containing the additional contents.
-	req := CreateObjectRequest(nil, tmpName, nil, chunkTransferTimeoutSecs)
+	req := gcs.ResolveCreateObjectRequest(nil, tmpName, nil, chunkTransferTimeoutSecs)
 	req.Contents = r
 	tmp, err := oc.bucket.CreateObject(ctx, req)
 	if err != nil {
@@ -126,7 +126,7 @@ func (oc *appendObjectCreator) Create(
 	}
 
 	if mtime != nil {
-		MetadataMap[MtimeMetadataKey] = mtime.UTC().Format(time.RFC3339Nano)
+		MetadataMap[gcs.MtimeMetadataKey] = mtime.UTC().Format(time.RFC3339Nano)
 	}
 
 	// Compose the old contents plus the new over the old.

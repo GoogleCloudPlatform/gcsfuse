@@ -12,20 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcsx
+package gcs
 
 import (
 	"time"
-
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 )
 
-func CreateObjectRequest(srcObject *gcs.Object, objectName string, mtime *time.Time, chunkTransferTimeoutSecs int64) *gcs.CreateObjectRequest {
+// MtimeMetadataKey objects are created by Syncer.SyncObject and contain a
+// metadata field with this key and with a UTC mtime in the format defined
+// by time.RFC3339Nano.
+const MtimeMetadataKey = "gcsfuse_mtime"
+
+func ResolveCreateObjectRequest(srcObject *Object, objectName string, mtime *time.Time, chunkTransferTimeoutSecs int64) *CreateObjectRequest {
 	metadataMap := make(map[string]string)
-	var req *gcs.CreateObjectRequest
+	var req *CreateObjectRequest
 	if srcObject == nil {
 		var preCond int64
-		req = &gcs.CreateObjectRequest{
+		req = &CreateObjectRequest{
 			Name:                     objectName,
 			GenerationPrecondition:   &preCond,
 			Metadata:                 metadataMap,
@@ -36,7 +39,7 @@ func CreateObjectRequest(srcObject *gcs.Object, objectName string, mtime *time.T
 			metadataMap[key] = value
 		}
 
-		req = &gcs.CreateObjectRequest{
+		req = &CreateObjectRequest{
 			Name:                       srcObject.Name,
 			GenerationPrecondition:     &srcObject.Generation,
 			MetaGenerationPrecondition: &srcObject.MetaGeneration,

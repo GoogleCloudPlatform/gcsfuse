@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
@@ -104,8 +103,8 @@ func validateObjectAttributes(attr1, attr2 *storage.ObjectAttrs, t *testing.T) {
 	if attr1.StorageClass != storageClass || attr2.StorageClass != storageClass {
 		t.Errorf("Expected storage class ")
 	}
-	attr1MTime, _ := time.Parse(time.RFC3339Nano, attr1.Metadata[gcsx.MtimeMetadataKey])
-	attr2MTime, _ := time.Parse(time.RFC3339Nano, attr2.Metadata[gcsx.MtimeMetadataKey])
+	attr1MTime, _ := time.Parse(time.RFC3339Nano, attr1.Metadata[gcs.MtimeMetadataKey])
+	attr2MTime, _ := time.Parse(time.RFC3339Nano, attr2.Metadata[gcs.MtimeMetadataKey])
 	if attr2MTime.Before(attr1MTime) {
 		t.Errorf("Unexpected MTime received. After operation1: %v, After operation2: %v", attr1MTime, attr2MTime)
 	}
