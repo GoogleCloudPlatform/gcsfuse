@@ -1,0 +1,42 @@
+latest: Pulling from cloud-devrel-public-resources/storage-testbench
+Digest: sha256:20f81ae789e3540fb839639674a6068f1cf012085c6071af8ac1463eed9054dc
+Status: Image is up to date for gcr.io/cloud-devrel-public-resources/storage-testbench:latest
+gcr.io/cloud-devrel-public-resources/storage-testbench:latest
+3a7324c20cbeaf98aa3091540af737cf6e264212c896bd73b24a9f14e47ec634
+Running the Cloud Storage testbench: http://localhost:9000
+{"etag":"c4ca4238a0b923820dcc509a6f75849b","iamConfiguration":{"publicAccessPrevention":"inherited","uniformBucketLevelAccess":{}},"id":"test-bucket","kind":"storage#bucket","metageneration":"1","name":"test-bucket","projectNumber":"123456789","rpo":"DEFAULT","storageClass":"STANDARD","timeCreated":"2024-12-17T05:07:45.754045Z","updated":"2024-12-17T05:07:45.754045Z"}
+{"timestamp":{"seconds":1734412067,"nanos":56796732},"severity":"INFO","message":"Building build_gcsfuse at /tmp/gcsfuse_integration_tests1259632413/build_gcsfuse"}
+{"timestamp":{"seconds":1734412073,"nanos":85270936},"severity":"INFO","message":"Building gcsfuse into /tmp/gcsfuse_readwrite_test_4114755563"}
+{"timestamp":{"seconds":1734412098,"nanos":180187690},"severity":"INFO","message":"Running static mounting tests..."}
+=== RUN   TestChunkTransferTimeoutInfinity
+{"timestamp":{"seconds":1734412098,"nanos":180409620},"severity":"INFO","message":"Running tests with flags: [--custom-endpoint=http://localhost:8020/storage/v1/b?project=test-project --chunk-transfer-timeout-secs=0]"}
+=== RUN   TestChunkTransferTimeoutInfinity/TestWriteStallCausesDelay
+{"timestamp":{"seconds":1734412098,"nanos":180713760},"severity":"INFO","message":"Proxy server logs are generated with specific filename proxy-w5uru: "}
+--- PASS: TestChunkTransferTimeoutInfinity (41.24s)
+    --- PASS: TestChunkTransferTimeoutInfinity/TestWriteStallCausesDelay (41.24s)
+=== RUN   TestChunkTransferTimeout
+=== RUN   TestChunkTransferTimeout/DefaultChunkTransferTimeout
+{"timestamp":{"seconds":1734412139,"nanos":418123549},"severity":"INFO","message":"Running tests with flags: [--custom-endpoint=http://localhost:8020/storage/v1/b?project=test-project]"}
+=== RUN   TestChunkTransferTimeout/DefaultChunkTransferTimeout/TestHandlesMultipleWriteStalls
+{"timestamp":{"seconds":1734412139,"nanos":418452080},"severity":"INFO","message":"Proxy server logs are generated with specific filename proxy-8rx4k: "}
+=== RUN   TestChunkTransferTimeout/DefaultChunkTransferTimeout/TestHandlesWriteStalls
+{"timestamp":{"seconds":1734412161,"nanos":23621708},"severity":"INFO","message":"Proxy server logs are generated with specific filename proxy-3v8qu: "}
+=== RUN   TestChunkTransferTimeout/FiniteChunkTransferTimeout
+{"timestamp":{"seconds":1734412171,"nanos":976452953},"severity":"INFO","message":"Running tests with flags: [--custom-endpoint=http://localhost:8020/storage/v1/b?project=test-project --chunk-transfer-timeout-secs=5]"}
+=== RUN   TestChunkTransferTimeout/FiniteChunkTransferTimeout/TestHandlesMultipleWriteStalls
+{"timestamp":{"seconds":1734412171,"nanos":976759413},"severity":"INFO","message":"Proxy server logs are generated with specific filename proxy-i6iy7: "}
+=== RUN   TestChunkTransferTimeout/FiniteChunkTransferTimeout/TestHandlesWriteStalls
+{"timestamp":{"seconds":1734412183,"nanos":535545989},"severity":"INFO","message":"Proxy server logs are generated with specific filename proxy-3z674: "}
+--- PASS: TestChunkTransferTimeout (50.94s)
+    --- PASS: TestChunkTransferTimeout/DefaultChunkTransferTimeout (32.56s)
+        --- PASS: TestChunkTransferTimeout/DefaultChunkTransferTimeout/TestHandlesMultipleWriteStalls (21.61s)
+        --- PASS: TestChunkTransferTimeout/DefaultChunkTransferTimeout/TestHandlesWriteStalls (10.95s)
+    --- PASS: TestChunkTransferTimeout/FiniteChunkTransferTimeout (18.38s)
+        --- PASS: TestChunkTransferTimeout/FiniteChunkTransferTimeout/TestHandlesMultipleWriteStalls (11.56s)
+        --- PASS: TestChunkTransferTimeout/FiniteChunkTransferTimeout/TestHandlesWriteStalls (6.82s)
+PASS
+ok  	github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/emulator_tests	123.343s
+ok  	github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/emulator_tests/proxy_server	0.040s
+?   	github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/emulator_tests/util	[no test files]
+Cleanup testbench
+storage_testbench

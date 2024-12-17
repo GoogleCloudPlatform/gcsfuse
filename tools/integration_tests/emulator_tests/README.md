@@ -27,4 +27,4 @@ go test --integrationTest -v --testbucket=test-bucket -timeout 10m
 
 ### Steps to add new tests in the future:
 1. Create <feature>_test file [here](https://github.com/GoogleCloudPlatform/gcsfuse/tree/master/tools/integration_tests/emulator_tests).
-2. Create flag wise separate structure and write tests accordingly. e.g. [write_stall_test](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/tools/integration_tests/emulator_tests/write_stall_test.go)
+2. Write tests according to your scenarios. e.g. [write_stall_test](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/tools/integration_tests/emulator_tests/write_stall_test.go)
