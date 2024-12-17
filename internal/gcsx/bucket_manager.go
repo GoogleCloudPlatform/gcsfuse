@@ -198,7 +198,8 @@ func (bm *bucketManager) SetUpBucket(
 		return
 	}
 
-	// Enable cached StatObject results, if appropriate.
+	// Enable cached StatObject results based on stat cache config.
+	// Disabling stat cache with below config also disables negative stat cache.
 	if bm.config.StatCacheTTL != 0 && bm.sharedStatCache != nil {
 		var statCache metadata.StatCache
 		if isMultibucketMount {
@@ -212,7 +213,7 @@ func (bm *bucketManager) SetUpBucket(
 			statCache,
 			timeutil.RealClock(),
 			b,
-			time.Duration(5)*time.Second)
+			bm.config.NegativeStatCacheTTL)
 	}
 
 	// Enable content type awareness
