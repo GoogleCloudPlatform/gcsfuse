@@ -46,6 +46,9 @@ func resolveMetadataCacheTTL(v isSet, c *MetadataCacheConfig) {
 		if c.TtlSecs == -1 {
 			c.TtlSecs = maxSupportedTTLInSeconds
 		}
+		if c.NegativeTtlSecs == -1 {
+			c.NegativeTtlSecs = maxSupportedTTLInSeconds
+		}
 		return
 	}
 	// Else, use deprecated stat/type cache ttl to resolve metadataCacheTTL.
