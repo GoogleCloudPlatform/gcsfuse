@@ -202,6 +202,8 @@ type MetadataCacheConfig struct {
 
 	TtlSecs int64 `yaml:"ttl-secs"`
 
+	NegativeTtlSecs int64 `yaml:"negative-ttl-secs"`
+
 	TypeCacheMaxSizeMb int64 `yaml:"type-cache-max-size-mb"`
 }
 
