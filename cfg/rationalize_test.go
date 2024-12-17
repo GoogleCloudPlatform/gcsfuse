@@ -226,11 +226,12 @@ func (f flagSet) IsSet(key string) bool {
 
 func TestRationalizeMetadataCache(t *testing.T) {
 	testCases := []struct {
-		name                  string
-		flags                 flagSet
-		config                *Config
-		expectedTTLSecs       int64
-		expectedStatCacheSize int64
+		name                    string
+		flags                   flagSet
+		config                  *Config
+		expectedTTLSecs         int64
+		expectedNegativeTTLSecs int64
+		expectedStatCacheSize   int64
 	}{
 		{
 			name:            "new_ttl_flag_set",
@@ -291,11 +292,13 @@ func TestRationalizeMetadataCache(t *testing.T) {
 			config: &Config{
 				MetadataCache: MetadataCacheConfig{
 					TtlSecs:            -1,
+					NegativeTtlSecs:    -1,
 					StatCacheMaxSizeMb: -1,
 				},
 			},
-			expectedTTLSecs:       math.MaxInt64 / int64(time.Second), // Max supported ttl in seconds.
-			expectedStatCacheSize: math.MaxUint64 >> 20,               // Max supported cache size in MiB.
+			expectedTTLSecs:         math.MaxInt64 / int64(time.Second), // Max supported ttl in seconds.
+			expectedNegativeTTLSecs: math.MaxInt64 / int64(time.Second), // Max supported ttl in seconds.
+			expectedStatCacheSize:   math.MaxUint64 >> 20,               // Max supported cache size in MiB.
 		},
 	}
 
