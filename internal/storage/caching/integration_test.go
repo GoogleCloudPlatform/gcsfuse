@@ -65,7 +65,9 @@ func (t *IntegrationTest) SetUp(ti *TestInfo) {
 		primaryCacheTTL,
 		cache,
 		&t.clock,
-		t.wrapped)
+		t.wrapped,
+		negativeCacheTTL,
+	)
 }
 
 func (t *IntegrationTest) stat(name string) (o *gcs.Object, err error) {
