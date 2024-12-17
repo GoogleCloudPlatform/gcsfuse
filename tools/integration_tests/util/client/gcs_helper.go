@@ -29,21 +29,22 @@ import (
 )
 
 const (
-	FileName1          = "foo1"
-	FileName2          = "foo2"
-	FileName3          = "foo3"
-	ExplicitDirName    = "explicit"
-	ExplicitFileName1  = "explicitFile1"
-	ImplicitDirName    = "implicit"
-	ImplicitFileName1  = "implicitFile1"
-	FileContents       = "testString"
-	SizeOfFileContents = 10
-	GCSFileContent     = "GCSteststring"
-	GCSFileSize        = 13
-	FilePerms          = 0644
-	SizeTruncate       = 5
-	NewFileName        = "newName"
-	NewDirName         = "newDirName"
+	FileName1              = "foo1"
+	FileName2              = "foo2"
+	FileName3              = "foo3"
+	ExplicitDirName        = "explicit"
+	ExplicitFileName1      = "explicitFile1"
+	ExplicitLocalFileName1 = "explicitLocalFile1"
+	ImplicitDirName        = "implicit"
+	ImplicitFileName1      = "implicitFile1"
+	FileContents           = "testString"
+	SizeOfFileContents     = 10
+	GCSFileContent         = "GCSteststring"
+	GCSFileSize            = 13
+	FilePerms              = 0644
+	SizeTruncate           = 5
+	NewFileName            = "newName"
+	NewDirName             = "newDirName"
 )
 
 func CreateImplicitDir(ctx context.Context, storageClient *storage.Client,
