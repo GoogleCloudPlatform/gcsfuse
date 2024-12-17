@@ -17,7 +17,6 @@ package cfg
 import (
 	"errors"
 	"fmt"
-
 	"math"
 )
 
@@ -124,6 +123,16 @@ func isValidMetadataCache(v isSet, c *MetadataCacheConfig) error {
 		}
 		if c.TtlSecs > maxSupportedTTLInSeconds {
 			return fmt.Errorf("the value of ttl-secs in metadata-cache is too high to be supported. Max is 9223372036")
+		}
+	}
+
+	// Validate negative-ttl-secs.
+	if v.IsSet(MetadataNegativeCacheTTLConfigKey) {
+		if c.NegativeTtlSecs < -1 {
+			return fmt.Errorf("the value of negative-ttl-secs for metadata-cache can't be less than -1")
+		}
+		if c.NegativeTtlSecs > maxSupportedTTLInSeconds {
+			return fmt.Errorf("the value of negative-ttl-secs in metadata-cache is too high to be supported. Max is 9223372036")
 		}
 	}
 
