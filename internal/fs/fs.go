@@ -1737,7 +1737,7 @@ func (fs *fileSystem) CreateFile(
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
-	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle)
+	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, false)
 	op.Handle = handleID
 
 	fs.mu.Unlock()
@@ -2381,7 +2381,7 @@ func (fs *fileSystem) OpenFile(
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
-	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle)
+	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, op.OpenFlags.IsReadOnly())
 	op.Handle = handleID
 
 	// When we observe object generations that we didn't create, we assign them
