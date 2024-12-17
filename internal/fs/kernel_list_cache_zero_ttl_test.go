@@ -19,12 +19,10 @@ package fs_test
 import (
 	"os"
 	"path"
-	"regexp"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -52,12 +50,7 @@ func (t *KernelListCacheTestWithZeroTtl) SetupSuite() {
 }
 
 func TestKernelListCacheTestZeroTtlSuite(t *testing.T) {
-	kernelVersion := operations.KernelVersion(t)
-	matched, err := regexp.MatchString(UnsupportedKernelVersion, kernelVersion)
-	assert.NoError(t, err)
-	if matched {
-		t.SkipNow()
-	}
+	SkipTestForUnsupportedKernelVersion(t)
 	suite.Run(t, new(KernelListCacheTestWithZeroTtl))
 }
 

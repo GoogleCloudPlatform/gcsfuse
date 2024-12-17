@@ -32,7 +32,21 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-const UnsupportedKernelVersion = `^6\.9\.\d+`
+func SkipTestForUnsupportedKernelVersion(t *testing.T) {
+	// TODO: b/384648943 make this part of fsTest.SetUpTestSuite() after post fs
+	// tests are fully migrated to stretchr/testify.
+	t.Helper()
+	UnsupportedKernelVersions := []string{`^6\.9\.\d+`}
+
+	kernelVersion := operations.KernelVersion(t)
+	for i := 0; i < len(UnsupportedKernelVersions); i++ {
+		matched, err := regexp.MatchString(UnsupportedKernelVersions[i], kernelVersion)
+		assert.NoError(t, err)
+		if matched {
+			t.SkipNow()
+		}
+	}
+}
 
 type KernelListCacheTestWithInfiniteTtl struct {
 	suite.Suite
@@ -56,12 +70,7 @@ func (t *KernelListCacheTestWithInfiniteTtl) SetupSuite() {
 }
 
 func TestKernelListCacheTestInfiniteTtlSuite(t *testing.T) {
-	kernelVersion := operations.KernelVersion(t)
-	matched, err := regexp.MatchString(UnsupportedKernelVersion, kernelVersion)
-	assert.NoError(t, err)
-	if matched {
-		t.SkipNow()
-	}
+	SkipTestForUnsupportedKernelVersion(t)
 	suite.Run(t, new(KernelListCacheTestWithInfiniteTtl))
 }
 
