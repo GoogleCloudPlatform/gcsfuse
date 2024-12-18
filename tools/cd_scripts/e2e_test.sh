@@ -72,20 +72,6 @@ then
     #install git
     sudo apt install -y git
 
-    # Install docker
-    sudo apt-get update
-    sudo apt-get install -y ca-certificates curl
-    sudo install -m 0755 -d /etc/apt/keyrings
-    sudo curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
-    sudo chmod a+r /etc/apt/keyrings/docker.asc
-    # Add the repository to Apt sources:
-    echo \
-      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian \
-      $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-      sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-    sudo apt-get update
-    sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
    # install python3-setuptools tools.
    sudo apt-get install -y gcc python3-dev python3-setuptools
    # Downloading composite object requires integrity checking with CRC32c in gsutil.
@@ -94,7 +80,6 @@ then
 
     #install build-essentials
     sudo apt install -y build-essential
-    sudo apt-get install -y lsof
 else
 #  For rhel and centos
     # uname can be aarch or x86_64
@@ -124,15 +109,6 @@ else
 
     #install Development tools
     sudo yum -y install gcc gcc-c++ make
-
-    # install docker
-    sudo dnf -y install dnf-plugins-core
-    sudo dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
-    sudo dnf -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-    sudo usermod -aG docker $USER
-    sudo systemctl start docker
-
-    sudo yum -y install lsof
 fi
 
 # install go
@@ -310,7 +286,7 @@ function run_e2e_tests_for_hns_bucket(){
 }
 
 function run_e2e_tests_for_emulator() {
-  ./tools/integration_tests/emulator_tests/emulator_tests.sh true > logs-emulator.txt
+  ./tools/integration_tests/emulator_tests/emulator_tests.sh true > ~/logs-emulator.txt
 }
 
 function gather_test_logs() {
