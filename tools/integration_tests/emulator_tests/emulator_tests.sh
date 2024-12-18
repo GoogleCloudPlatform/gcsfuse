@@ -86,17 +86,17 @@ CONTAINER_NAME=storage_testbench
 DOCKER_NETWORK="--net=host"
 
 # Get the docker image for the testbench
-docker pull $DOCKER_IMAGE
+sudo docker pull $DOCKER_IMAGE
 
 # Start the testbench
-docker run --name $CONTAINER_NAME --rm -d $DOCKER_NETWORK $DOCKER_IMAGE
+sudo docker run --name $CONTAINER_NAME --rm -d $DOCKER_NETWORK $DOCKER_IMAGE
 echo "Running the Cloud Storage testbench: $STORAGE_EMULATOR_HOST"
 sleep 5
 
 # Stop the testbench & cleanup environment variables
 function cleanup() {
     echo "Cleanup testbench"
-    docker stop $CONTAINER_NAME
+    sudo docker stop $CONTAINER_NAME
     unset STORAGE_EMULATOR_HOST;
 }
 trap cleanup EXIT
