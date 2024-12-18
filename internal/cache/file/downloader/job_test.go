@@ -631,7 +631,7 @@ func (dt *downloaderTest) Test_Download_InvalidOffset() {
 	jobStatus, err := dt.job.Download(context.Background(), offset, true)
 
 	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(), fmt.Sprintf("Download: the requested offset %d is greater than the size of object %d", offset, dt.object.Size)))
+	AssertTrue(strings.Contains(err.Error(), fmt.Sprintf("download: the requested offset %d is greater than the size of object %d", offset, dt.object.Size)))
 	expectedJobStatus := JobStatus{NotStarted, nil, 0}
 	AssertTrue(reflect.DeepEqual(expectedJobStatus, jobStatus))
 	AssertFalse(callbackExecuted.Load())
