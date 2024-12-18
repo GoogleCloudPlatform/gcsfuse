@@ -72,6 +72,20 @@ then
     #install git
     sudo apt install -y git
 
+    # Install docker
+    sudo apt-get update
+    sudo apt-get install ca-certificates curl
+    sudo install -m 0755 -d /etc/apt/keyrings
+    sudo curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+    sudo chmod a+r /etc/apt/keyrings/docker.asc
+    # Add the repository to Apt sources:
+    echo \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian \
+      $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+      sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+    sudo apt-get update
+    sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
    # install python3-setuptools tools.
    sudo apt-get install -y gcc python3-dev python3-setuptools
    # Downloading composite object requires integrity checking with CRC32c in gsutil.
@@ -109,6 +123,15 @@ else
 
     #install Development tools
     sudo yum -y install gcc gcc-c++ make
+
+    # install docker
+    sudo dnf -y install dnf-plugins-core
+    sudo dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
+    sudo dnf install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    sudo usermod -aG docker $USER
+    sudo systemctl start docker
+
+    sudo yum install lsof
 fi
 
 # install go
@@ -285,6 +308,10 @@ function run_e2e_tests_for_hns_bucket(){
    return 0
 }
 
+function run_e2e_tests_for_emulator() {
+  ./tools/integration_tests/emulator_tests/emulator_tests.sh true > logs-emulator.txt
+}
+
 function gather_test_logs() {
   readarray -t test_logs_array < "$TEST_LOGS_FILE"
   rm "$TEST_LOGS_FILE"
@@ -313,6 +340,12 @@ echo "Running integration tests for FLAT bucket..."
 run_e2e_tests_for_flat_bucket &
 e2e_tests_flat_bucket_pid=$!
 
+run_e2e_tests_for_emulator &
+e2e_tests_emulator_pid=$!
+
+wait $e2e_tests_emulator_pid
+e2e_tests_emulator_status=$?
+
 wait $e2e_tests_flat_bucket_pid
 e2e_tests_flat_bucket_status=$?
 
@@ -337,5 +370,14 @@ else
     touch success-hns.txt
     gsutil cp success-hns.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
 fi
+
+if [ $e2e_tests_emulator_status != 0 ];
+then
+    echo "Test failures detected in emulator based tests." &>> ~/logs-emulator.txt
+else
+    touch success-emulator.txt
+    gsutil cp success-emulator.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
+fi
+
 gsutil cp ~/logs-hns.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
 '

@@ -19,8 +19,8 @@ set -eo pipefail
 # Display commands being run
 set -x
 
-architecture=$(dpkg --print-architecture)
-if [ $architecture == "arm64" ];then
+architecture=$(uname -m)
+if [ $architecture == "aarch64" ];then
   # TODO: Remove this when we have an ARM64 image for the storage test bench.(b/384388821)
   echo "These tests will not run for arm64 machine..."
   exit 0
