@@ -42,6 +42,12 @@ fi
 # Install dependencies
 # Ubuntu/Debian based machine.
 if [ -f /etc/debian_version ]; then
+  if grep -q "Ubuntu" /etc/os-release; then
+    os="ubuntu"
+  elif grep -q "Debian" /etc/os-release; then
+    os="debian"
+  fi
+
   sudo apt-get update
   sudo apt-get install -y ca-certificates curl
   sudo install -m 0755 -d /etc/apt/keyrings
@@ -49,7 +55,7 @@ if [ -f /etc/debian_version ]; then
   sudo chmod a+r /etc/apt/keyrings/docker.asc
   # Add the repository to Apt sources:
   echo \
-    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian \
+    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/${os} \
     $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
     sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
   sudo apt-get update
