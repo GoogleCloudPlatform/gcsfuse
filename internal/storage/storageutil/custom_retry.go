@@ -18,6 +18,8 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"google.golang.org/api/googleapi"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func ShouldRetry(err error) (b bool) {
@@ -38,6 +40,17 @@ func ShouldRetry(err error) (b bool) {
 		if typed.Code == 401 {
 			b = true
 			logger.Infof("Retrying for error-code 401: %v", err)
+			return
+		}
+	}
+
+	// This is the same case as above, but for gRPC UNAUTHENTICATED errors. See
+	// https://github.com/golang/oauth2/issues/623
+	// TODO: Please incorporate the correct fix post resolution of the above issue.
+	if status, ok := status.FromError(err); ok {
+		if status.Code() == codes.Unauthenticated {
+			b = true
+			logger.Infof("Retrying for UNAUTHENTICATED error: %v", err)
 			return
 		}
 	}
