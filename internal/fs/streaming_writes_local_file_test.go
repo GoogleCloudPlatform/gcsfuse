@@ -122,12 +122,12 @@ func (t *StreamingWritesLocalFileTest) TestRemoveDirectoryContainingLocalAndEmpt
 				path.Join(explicitDirName, nonEmptyFileName): "taco",
 			}))
 	// Write content to local and empty gcs file.
-	_, t.f1 = operations.CreateLocalFile(ctx, t.T(), mntDir, bucket, path.Join(explicitDirName, fileName))
-	_, err := t.f1.WriteString(FileContents)
+	_, f1 := operations.CreateLocalFile(ctx, t.T(), mntDir, bucket, path.Join(explicitDirName, fileName))
+	_, err := f1.WriteString(FileContents)
 	assert.NoError(t.T(), err)
-	t.f2, err = os.OpenFile(path.Join(mntDir, explicitDirName, emptyFileName), os.O_RDWR|syscall.O_DIRECT, filePerms)
+	f2, err := os.OpenFile(path.Join(mntDir, explicitDirName, emptyFileName), os.O_RDWR|syscall.O_DIRECT, filePerms)
 	assert.Equal(t.T(), nil, err)
-	_, err = t.f2.WriteString(FileContents)
+	_, err = f2.WriteString(FileContents)
 	assert.NoError(t.T(), err)
 
 	// Attempt to remove explicit directory.
@@ -139,11 +139,10 @@ func (t *StreamingWritesLocalFileTest) TestRemoveDirectoryContainingLocalAndEmpt
 	operations.ValidateNoFileOrDirError(t.T(), path.Join(explicitDirName, nonEmptyFileName))
 	operations.ValidateNoFileOrDirError(t.T(), path.Join(explicitDirName, fileName))
 	operations.ValidateNoFileOrDirError(t.T(), explicitDirName)
-	err = operations.CloseLocalFile(t.T(), &t.f1)
+	err = operations.CloseLocalFile(t.T(), &f1)
 	assert.NoError(t.T(), err)
-	err = t.f2.Close()
+	err = f2.Close()
 	assert.NoError(t.T(), err)
-	t.f2 = nil
 	operations.ValidateObjectNotFoundErr(ctx, t.T(), bucket, path.Join(explicitDirName, emptyFileName))
 	operations.ValidateObjectNotFoundErr(ctx, t.T(), bucket, path.Join(explicitDirName, nonEmptyFileName))
 	operations.ValidateObjectNotFoundErr(ctx, t.T(), bucket, path.Join(explicitDirName, fileName))
