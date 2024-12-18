@@ -97,6 +97,12 @@ func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb i
 	}
 }
 
+type reader struct {
+	reader io.ReadCloser
+	start  int64
+	limit  int64
+}
+
 type randomReader struct {
 	object *gcs.MinObject
 	bucket gcs.Bucket
@@ -106,6 +112,8 @@ type randomReader struct {
 	// INVARIANT: (reader == nil) == (cancel == nil)
 	reader io.ReadCloser
 	cancel func()
+	
+	readers *reader
 
 	// The range of the object that we expect reader to yield, when reader is
 	// non-nil. When reader is nil, limit is the limit of the previous read
@@ -134,6 +142,10 @@ type randomReader struct {
 	// using fileCacheHandler for the given object and bucket.
 	fileCacheHandle *file.CacheHandle
 	metricHandle    common.MetricHandle
+}
+
+func (rr *randomReader) lookupReader(offset int64) *reader, error {
+	return nil, fmt.Errorf("Not implemented")
 }
 
 func (rr *randomReader) CheckInvariants() {
@@ -292,6 +304,8 @@ func (rr *randomReader) ReadAt(
 			err = io.EOF
 			return
 		}
+		
+		reader == rr.lookupReader(offset)
 
 		// When the offset is AFTER the reader position, try to seek forward, within reason.
 		// This happens when the kernel page cache serves some data. It's very common for
@@ -530,6 +544,12 @@ func (rr *randomReader) startRead(
 	rr.cancel = cancel
 	rr.start = start
 	rr.limit = end
+		
+	rr.readers = append(rr.readers, &reader{
+		reader: rc,
+		start:  start,
+		limit:  end,
+	})
 
 	requestedDataSize := end - start
 	common.CaptureGCSReadMetrics(ctx, rr.metricHandle, readType, requestedDataSize)
