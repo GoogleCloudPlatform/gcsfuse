@@ -94,6 +94,7 @@ then
 
     #install build-essentials
     sudo apt install -y build-essential
+    sudo apt-get install -y lsof
 else
 #  For rhel and centos
     # uname can be aarch or x86_64
@@ -131,7 +132,7 @@ else
     sudo usermod -aG docker $USER
     sudo systemctl start docker
 
-    sudo yum install lsof
+    sudo yum -y install lsof
 fi
 
 # install go
