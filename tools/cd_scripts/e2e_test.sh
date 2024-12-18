@@ -142,6 +142,7 @@ git checkout $(sed -n 2p ~/details.txt) |& tee -a ~/logs.txt
 set +e
 # Test directory arrays
 TEST_DIR_PARALLEL=(
+  "monitoring"
   "local_file"
   "log_rotation"
   "mounting"
@@ -347,6 +348,7 @@ else
     touch success-hns.txt
     gsutil cp success-hns.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
 fi
+gsutil cp ~/logs-hns.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
 
 if [ $e2e_tests_emulator_status != 0 ];
 then
@@ -356,5 +358,5 @@ else
     gsutil cp success-emulator.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
 fi
 
-gsutil cp ~/logs-hns.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
+gsutil cp ~/logs-emulator.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
 '
