@@ -46,6 +46,14 @@ func executeToolCommandf(tool string, format string, args ...any) ([]byte, error
 	return runCommand(cmd)
 }
 
+// Executes any given tool (e.g. gsutil/gcloud).
+func executeToolCommand(tool string, command string) ([]byte, error) {
+	cmdArgs := tool + " " + command
+	cmd := exec.Command("/bin/bash", "-c", cmdArgs)
+
+	return runCommand(cmd)
+}
+
 // Executes any given tool (e.g. gsutil/gcloud) with given args in specified directory.
 func ExecuteToolCommandfInDirectory(dirPath, tool, format string, args ...any) ([]byte, error) {
 	cmdArgs := tool + " " + fmt.Sprintf(format, args...)
@@ -70,9 +78,14 @@ func runCommand(cmd *exec.Cmd) ([]byte, error) {
 	return stdout.Bytes(), nil
 }
 
-// Executes any given gcloud command with given args.
+// ExecuteGcloudCommandf executes any given gcloud command with given args.
 func ExecuteGcloudCommandf(format string, args ...any) ([]byte, error) {
 	return executeToolCommandf("gcloud", format, args...)
+}
+
+// ExecuteGcloudCommand executes any given gcloud command.
+func ExecuteGcloudCommand(command string) ([]byte, error) {
+	return executeToolCommand("gcloud", command)
 }
 
 func KernelVersion(t *testing.T) string {
