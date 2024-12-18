@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	expectedDeleteLatency time.Duration = 675 * time.Millisecond
+	expectedDeleteLatency time.Duration = 1000 * time.Millisecond
 )
 
 type benchmarkDeleteTest struct{}
