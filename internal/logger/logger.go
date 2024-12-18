@@ -148,10 +148,15 @@ func Errorf(format string, v ...interface{}) {
 	defaultLogger.Error(fmt.Sprintf(format, v...))
 }
 
+// Error prints the message with ERROR severity.
+func Error(error string) {
+	defaultLogger.Error(error)
+}
+
 // Fatal prints an error log and exits with non-zero exit code.
 func Fatal(format string, v ...interface{}) {
 	Errorf(format, v...)
-	Errorf(string(debug.Stack()))
+	Error(string(debug.Stack()))
 	os.Exit(1)
 }
 
