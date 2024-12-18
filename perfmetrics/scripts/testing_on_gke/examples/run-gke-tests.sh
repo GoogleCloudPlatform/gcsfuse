@@ -513,6 +513,17 @@ function ensureGcsFuseCsiDriverCode() {
   fi
 }
 
+uuid() {
+  if ! which uuidgen; then
+    # try to install uuidgen
+    sudo apt-get update && sudo apt-get install -y uuid-runtime
+    # confirm that it got installed.
+    which uuidgen
+  fi
+
+  echo $(uuidgen) | sed -e "s/\-//g" ;
+}
+
 function createCustomCsiDriverIfNeeded() {
   if ${use_custom_csi_driver}; then
     echo "Disabling managed CSI driver ..."
@@ -554,9 +565,10 @@ function createCustomCsiDriverIfNeeded() {
     make generate-spec-yaml
     printf "\nBuilding a new custom CSI driver using the above GCSFuse binary ...\n\n"
     registry=gcr.io/${project_id}/${USER}/${cluster_name}
-    make build-image-and-push-multi-arch REGISTRY=${registry} GCSFUSE_PATH=gs://${package_bucket}
+    stagingversion=$(uuid)
+    make build-image-and-push-multi-arch REGISTRY=${registry} GCSFUSE_PATH=gs://${package_bucket} STAGINGVERSION=${stagingversion}
     printf "\nInstalling the new custom CSI driver built above ...\n\n"
-    make install PROJECT=${project_id} REGISTRY=${registry}
+    make install PROJECT=${project_id} REGISTRY=${registry} STAGINGVERSION=${stagingversion}
     cd -
 
     # Wait some time after csi driver installation before deploying pods
