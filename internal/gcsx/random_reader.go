@@ -338,16 +338,19 @@ func (rr *randomReader) ReadAt(
 		br := rr.getBucketReader(offset)
 		if br == nil {
 			// TODO: remove stale bucket readers before adding new one.
-			br, err = rr.newBucketReader(ctx, offset, offset+maxReadSize)
+			// NOte: it doesn't really prefetch rr.sequentialReadSizeMb that many bytes. It just keeps
+			// a open stream that could read up to that many bytes. It only keeps about 6MB in memory.
+			br, err = rr.newBucketReader(ctx, offset, offset+int64(rr.sequentialReadSizeMb*MB))
 			if err != nil {
 				err = fmt.Errorf("ReadAt: while creating bucket reader: %w", err)
 				return
 			}
 
 			rr.bucketReaders = append(rr.bucketReaders, br)
+			logger.Tracef("Adding a bucketReader, total bucketReaders: %d", len(rr.bucketReaders))
 		}
 		var tmp int
-		tmp, err = br.read(ctx, p)
+		tmp, err = br.read(offset, p)
 
 		n += tmp
 		p = p[tmp:]
@@ -357,7 +360,7 @@ func (rr *randomReader) ReadAt(
 		if br.start == br.end {
 			err := br.reader.Close()
 			if err != nil {
-				logger.Tracef("Closing bucketReader: %v", err)
+				logger.Tracef("Closing bucketReader error: %v", err)
 			}
 
 			// TODO: remove this bucket reader from the list.
