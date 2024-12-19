@@ -178,13 +178,14 @@ type randomReader struct {
 }
 
 // func (rr *randomReader) getBucketReader(offset int64) *bucketReader {
-func (rr *randomReader) getBucketReader(pid uint32) *bucketReader {
+func (rr *randomReader) getBucketReader(pid uint32, offset int64) *bucketReader {
 	for _, br := range rr.bucketReaders {
 		if br.reader == nil {
 			continue
 		}
 		//if br.isWithinRange(offset) {
-		if br.isPidMatched(pid) {
+		// Neet to check both pid and offset as a bucket reader can only read a certain range.
+		if br.isPidMatched(pid) && br.isWithinRange(offset) {
 			return br
 		}
 	}
@@ -350,7 +351,7 @@ func (rr *randomReader) ReadAt(
 		}
 
 		//br := rr.getBucketReader(offset)
-		br := rr.getBucketReader(pid)
+		br := rr.getBucketReader(pid, offset)
 		if br == nil {
 			// TODO: remove stale bucket readers before adding new one.
 			// NOte: it doesn't really prefetch rr.sequentialReadSizeMb that many bytes. It just keeps
