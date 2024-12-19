@@ -906,8 +906,8 @@ func (t *DeleteObjectTest) WrappedSucceeds() {
 	const name = ""
 	var err error
 
-	// Erase
-	ExpectCall(t.cache, "Erase")(Any())
+	// AddNegativeEntry
+	ExpectCall(t.cache, "AddNegativeEntry")(Any(), Any())
 
 	// Wrapped
 	ExpectCall(t.wrapped, "DeleteObject")(Any(), Any()).
@@ -1003,9 +1003,10 @@ func init() { RegisterTestSuite(&DeleteFolderTest{}) }
 
 func (t *DeleteFolderTest) Test_DeleteFolder_Success() {
 	const name = "some-name"
+	ExpectCall(t.cache, "AddNegativeEntryForFolder")(name, Any()).
+		WillOnce(Return())
 	ExpectCall(t.wrapped, "DeleteFolder")(Any(), name).
 		WillOnce(Return(nil))
-	ExpectCall(t.cache, "Erase")(name).WillOnce(Return())
 
 	err := t.bucket.DeleteFolder(context.TODO(), name)
 
@@ -1014,6 +1015,8 @@ func (t *DeleteFolderTest) Test_DeleteFolder_Success() {
 
 func (t *DeleteFolderTest) Test_DeleteFolder_Failure() {
 	const name = "some-name"
+	// Erase
+	ExpectCall(t.cache, "Erase")(Any())
 	ExpectCall(t.wrapped, "DeleteFolder")(Any(), name).
 		WillOnce(Return(fmt.Errorf("mock error")))
 
