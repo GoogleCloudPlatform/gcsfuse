@@ -110,7 +110,7 @@ func TestChunkTransferTimeout(t *testing.T) {
 		},
 		{
 			name:       "MultipleStalls",
-			configPath: "./proxy_server/configs/write_stall_twice_40s.yaml",
+			configPath: "./proxy_server/configs/write_stall_twice_40s.yaml", // 2 stalls
 			// Expect total time to be greater than the timeout multiplied by the number of stalls (2 in this case).
 			expectedTimeout: func(chunkTransferTimeoutSecs int) time.Duration {
 				return time.Duration(chunkTransferTimeoutSecs*2) * time.Second
