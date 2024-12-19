@@ -12,14 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// A collection of tests which tests the kernel-list-cache feature, in which
-// directory listing 2nd time is served from kernel page-cache unless not invalidated.
-// Base of all the tests: how to detect if directory listing is served from page-cache
-// or from GCSFuse?
-// (a) GCSFuse file-system ensures different content, when listing happens on the same directory.
-// (b) If two consecutive directory listing for the same directory are same, that means
-//     2nd listing is served from kernel-page-cache.
-// (c) If not then, both 1st and 2nd listing are served from GCSFuse filesystem.
+// Streaming write tests for local file.
 
 package fs_test
 
