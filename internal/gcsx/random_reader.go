@@ -46,7 +46,7 @@ const minReadSize = MB
 // Max read size in bytes for random reads.
 // If the average read size (between seeks) is below this number, reads will
 // optimised for random access.
-// We will skip forwards in a GCS response at most this many bytes.
+
 // About 6 MB of data is buffered anyway, so 8 MB seems like a good round number.
 const maxReadSize = 8 * MB
 
@@ -97,10 +97,32 @@ func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb i
 	}
 }
 
-type reader struct {
-	reader io.ReadCloser
-	start  int64
-	limit  int64
+// bucketReader holds a open stream to a GCS bucket for a given range.
+type bucketReader struct {
+	reader   io.ReadCloser
+	start    int64
+	end      int64
+	lastUsed time.Time
+}
+
+func (br *bucketReader) isWithinRange(offset int64) bool {
+	return offset >= br.start && offset < br.end
+}
+
+func (br *bucketReader) read(offset int64, p []byte) (int, error) {
+	bytesToSkip := int64(offset - br.start)
+	skip := make([]byte, bytesToSkip)
+	n, err := io.ReadFull(br.reader, skip)
+	if err != nil {
+		return 0, err
+	}
+	br.start += int64(n)
+
+	// Actually read the data into the buffer.
+	n, err = io.ReadFull(br.reader, p)
+	br.start += int64(n)
+	br.lastUsed = time.Now()
+	return n, err
 }
 
 type randomReader struct {
@@ -112,8 +134,8 @@ type randomReader struct {
 	// INVARIANT: (reader == nil) == (cancel == nil)
 	reader io.ReadCloser
 	cancel func()
-	
-	readers *reader
+
+	bucketReaders []*bucketReader
 
 	// The range of the object that we expect reader to yield, when reader is
 	// non-nil. When reader is nil, limit is the limit of the previous read
@@ -144,8 +166,13 @@ type randomReader struct {
 	metricHandle    common.MetricHandle
 }
 
-func (rr *randomReader) lookupReader(offset int64) *reader, error {
-	return nil, fmt.Errorf("Not implemented")
+func (rr *randomReader) getBucketReader(offset int64) *bucketReader {
+	for _, br := range rr.bucketReaders {
+		if br.isWithinRange(offset) {
+			return br
+		}
+	}
+	return nil
 }
 
 func (rr *randomReader) CheckInvariants() {
@@ -304,71 +331,24 @@ func (rr *randomReader) ReadAt(
 			err = io.EOF
 			return
 		}
-		
-		reader == rr.lookupReader(offset)
 
-		// When the offset is AFTER the reader position, try to seek forward, within reason.
-		// This happens when the kernel page cache serves some data. It's very common for
-		// concurrent reads, often by only a few 128kB fuse read requests. The aim is to
-		// re-use GCS connection and avoid throwing away already read data.
-		// For parallel sequential reads to a single file, not throwing away the connections
-		// is a 15-20x improvement in throughput: 150-200 MB/s instead of 10 MB/s.
-		if rr.reader != nil && rr.start < offset && offset-rr.start < maxReadSize {
-			bytesToSkip := int64(offset - rr.start)
-			p := make([]byte, bytesToSkip)
-			n, _ := io.ReadFull(rr.reader, p)
-			rr.start += int64(n)
-		}
-
-		// If we have an existing reader but it's positioned at the wrong place,
-		// clean it up and throw it away.
-		if rr.reader != nil && rr.start != offset {
-			rr.reader.Close()
-			rr.reader = nil
-			rr.cancel = nil
-			rr.seeks++
-		}
-
-		// If we don't have a reader, start a read operation.
-		if rr.reader == nil {
-			err = rr.startRead(ctx, offset, int64(len(p)))
+		br := rr.getBucketReader(offset)
+		if br == nil {
+			br, err = rr.newBucketReader(ctx, offset, offset+maxReadSize)
 			if err != nil {
-				err = fmt.Errorf("startRead: %w", err)
+				err = fmt.Errorf("ReadAt: while creating bucket reader: %w", err)
 				return
 			}
-		}
 
-		// Now we have a reader positioned at the correct place. Consume as much from
-		// it as possible.
+			rr.bucketReaders = append(rr.bucketReaders, br)
+		}
 		var tmp int
-		tmp, err = rr.readFull(ctx, p)
+		tmp, err = br.read(ctx, p)
 
 		n += tmp
 		p = p[tmp:]
-		rr.start += int64(tmp)
 		offset += int64(tmp)
 		rr.totalReadBytes += uint64(tmp)
-
-		// Sanity check.
-		if rr.start > rr.limit {
-			err = fmt.Errorf("reader returned %d too many bytes", rr.start-rr.limit)
-
-			// Don't attempt to reuse the reader when it's behaving wackily.
-			rr.reader.Close()
-			rr.reader = nil
-			rr.cancel = nil
-			rr.start = -1
-			rr.limit = -1
-
-			return
-		}
-
-		// Are we finished with this reader now?
-		if rr.start == rr.limit {
-			rr.reader.Close()
-			rr.reader = nil
-			rr.cancel = nil
-		}
 
 		// Handle errors.
 		switch {
@@ -385,9 +365,94 @@ func (rr *randomReader) ReadAt(
 
 		case err != nil:
 			// Propagate other errors.
-			err = fmt.Errorf("readFull: %w", err)
+			err = fmt.Errorf("read error: %w", err)
 			return
 		}
+		// When the offset is AFTER the reader position, try to seek forward, within reason.
+		// This happens when the kernel page cache serves some data. It's very common for
+		// concurrent reads, often by only a few 128kB fuse read requests. The aim is to
+		// re-use GCS connection and avoid throwing away already read data.
+		// For parallel sequential reads to a single file, not throwing away the connections
+		// is a 15-20x improvement in throughput: 150-200 MB/s instead of 10 MB/s.
+		/*
+				if rr.reader != nil && rr.start < offset && offset-rr.start < maxReadSize {
+					bytesToSkip := int64(offset - rr.start)
+					p := make([]byte, bytesToSkip)
+					n, _ := io.ReadFull(rr.reader, p)
+					rr.start += int64(n)
+				}
+
+
+			// If we have an existing reader but it's positioned at the wrong place,
+			// clean it up and throw it away.
+			if rr.reader != nil && rr.start != offset {
+				rr.reader.Close()
+				rr.reader = nil
+				rr.cancel = nil
+				rr.seeks++
+			}
+
+			// If we don't have a reader, start a read operation.
+			if rr.reader == nil {
+				err = rr.startRead(ctx, offset, int64(len(p)))
+				if err != nil {
+					err = fmt.Errorf("startRead: %w", err)
+					return
+				}
+			}
+
+			// Now we have a reader positioned at the correct place. Consume as much from
+			// it as possible.
+			var tmp int
+			tmp, err = rr.readFull(ctx, p)
+
+			n += tmp
+			p = p[tmp:]
+			rr.start += int64(tmp)
+			offset += int64(tmp)
+			rr.totalReadBytes += uint64(tmp)
+
+			// Sanity check.
+			if rr.start > rr.limit {
+				err = fmt.Errorf("reader returned %d too many bytes", rr.start-rr.limit)
+
+				// Don't attempt to reuse the reader when it's behaving wackily.
+				rr.reader.Close()
+				rr.reader = nil
+				rr.cancel = nil
+				rr.start = -1
+				rr.limit = -1
+
+				return
+			}
+
+			// Are we finished with this reader now?
+			if rr.start == rr.limit {
+				rr.reader.Close()
+				rr.reader = nil
+				rr.cancel = nil
+			}
+
+			// Handle errors.
+			switch {
+			case err == io.EOF || err == io.ErrUnexpectedEOF:
+				// For a non-empty buffer, ReadFull returns EOF or ErrUnexpectedEOF only
+				// if the reader peters out early. That's fine, but it means we should
+				// have hit the limit above.
+				if rr.reader != nil {
+					err = fmt.Errorf("reader returned %d too few bytes", rr.limit-rr.start)
+					return
+				}
+
+				err = nil
+
+			case err != nil:
+				// Propagate other errors.
+				err = fmt.Errorf("readFull: %w", err)
+				return
+			}
+
+		*/
 	}
 
 	return
@@ -452,6 +517,47 @@ func (rr *randomReader) readFull(
 	n, err = io.ReadFull(rr.reader, p)
 
 	return
+}
+
+func (rr *randomReader) newBucketReader(
+	ctx context.Context,
+	start int64,
+	end int64) (*bucketReader, error) {
+
+	// Begin the read.
+	ctx, _ = context.WithCancel(context.Background())
+	rc, err := rr.bucket.NewReader(
+		ctx,
+		&gcs.ReadObjectRequest{
+			Name:       rr.object.Name,
+			Generation: rr.object.Generation,
+			Range: &gcs.ByteRange{
+				Start: uint64(start),
+				Limit: uint64(end),
+			},
+			ReadCompressed: rr.object.HasContentEncodingGzip(),
+		})
+
+	// If a file handle is open locally, but the corresponding object doesn't exist
+	// in GCS, it indicates a file clobbering scenario. This likely occurred because:
+	//  - The file was deleted in GCS while a local handle was still open.
+	//  - The file content was modified leading to different generation number.
+	var notFoundError *gcs.NotFoundError
+	if errors.As(err, &notFoundError) {
+		return nil, &gcsfuse_errors.FileClobberedError{
+			Err: fmt.Errorf("NewReader: %w", err),
+		}
+	}
+
+	common.CaptureGCSReadMetrics(ctx, rr.metricHandle, util.Sequential, end-start)
+	p := make([]byte, maxReadSize)
+	n, _ := rc.reader.Read(p)
+
+	return &bucketReader{
+		reader: rc,
+		start:  start,
+		end:    start + int64(n),
+	}, nil
 }
 
 // Ensure that rr.reader is set up for a range for which [start, start+size) is
@@ -544,11 +650,11 @@ func (rr *randomReader) startRead(
 	rr.cancel = cancel
 	rr.start = start
 	rr.limit = end
-		
-	rr.readers = append(rr.readers, &reader{
+
+	rr.rangeCaches = append(rr.rangeCaches, &reader{
 		reader: rc,
 		start:  start,
-		limit:  end,
+		end:    end,
 	})
 
 	requestedDataSize := end - start
