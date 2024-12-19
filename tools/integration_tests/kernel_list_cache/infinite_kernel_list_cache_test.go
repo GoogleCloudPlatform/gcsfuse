@@ -527,7 +527,7 @@ func TestInfiniteKernelListCacheTest(t *testing.T) {
 
 	// Define flag set to run the tests.
 	flagsSet := [][]string{
-		{"--kernel-list-cache-ttl-secs=-1"},
+		{"--kernel-list-cache-ttl-secs=-1", "--metadata-cache-ttl-secs=0"},
 	}
 
 	// Run tests.
