@@ -324,7 +324,13 @@ func (f *FileInode) IsUnlinked() bool {
 }
 
 func (f *FileInode) Unlink() {
-	f.unlinked = true
+	if f.bwh != nil {
+		f.bwh.Unlink()
+		f.bwh = nil
+	}
+	if f.local {
+		f.unlinked = true
+	}
 }
 
 // Source returns a record for the GCS object from which this inode is branched. The
@@ -533,6 +539,12 @@ func (f *FileInode) Write(
 func (f *FileInode) SetMtime(
 	ctx context.Context,
 	mtime time.Time) (err error) {
+	if f.IsLocal() && f.content == nil && f.bwh == nil {
+		// This scenario will happen for unlinked local file.
+		// No need to update mtime on GCS.
+		return
+	}
+
 	// When bufferedWritesHandler instance is not nil, set time on bwh.
 	// It will not be nil in 2 cases when bufferedWrites are enabled:
 	// 1. local files

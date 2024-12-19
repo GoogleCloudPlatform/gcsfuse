@@ -2237,6 +2237,16 @@ func (fs *fileSystem) renameNonHierarchicalDir(
 	return nil
 }
 
+func (fs *fileSystem) unlinkFileInode(inode inode.Inode) {
+	fs.mu.Lock()
+	fileInode := fs.fileInodeOrDie(inode.ID())
+	fs.mu.Unlock()
+
+	fileInode.Lock()
+	fileInode.Unlink()
+	fileInode.Unlock()
+}
+
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) Unlink(
 	ctx context.Context,
@@ -2253,19 +2263,27 @@ func (fs *fileSystem) Unlink(
 	parent := fs.dirInodeOrDie(op.Parent)
 	fs.mu.Unlock()
 
-	// if inode is a local file, mark it unlinked.
 	fileName := inode.NewFileName(parent.Name(), op.Name)
+
+	// Check if the inode is a local file.
 	fs.mu.Lock()
-	fileInode, ok := fs.localFileInodes[fileName]
-	if ok {
-		file := fs.fileInodeOrDie(fileInode.ID())
-		fs.mu.Unlock()
-		file.Lock()
-		defer file.Unlock()
-		file.Unlink()
+	localFileInode, isLocalFile := fs.localFileInodes[fileName]
+	fs.mu.Unlock()
+
+	if isLocalFile {
+		fs.unlinkFileInode(localFileInode)
 		return
 	}
+
+	// Check if the inode is a synced file.
+	fs.mu.Lock()
+	genBackedInode, isGenBackedInode := fs.generationBackedInodes[fileName]
 	fs.mu.Unlock()
+	_, isFileInode := genBackedInode.(*inode.FileInode)
+
+	if isGenBackedInode && isFileInode {
+		fs.unlinkFileInode(genBackedInode)
+	}
 
 	// else delete the backing object present on GCS.
 	parent.Lock()
