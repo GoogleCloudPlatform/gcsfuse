@@ -113,7 +113,7 @@ func (br *bucketReader) isWithinRange(offset int64) bool {
 }
 
 func (br *bucketReader) isPidMatched(pid uint32) bool {
-	return pid > 0 && br.pid == pid
+	return br.reader != nil && pid > 0 && br.pid == pid
 }
 
 func (br *bucketReader) read(offset int64, p []byte) (int, error) {
