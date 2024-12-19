@@ -94,8 +94,16 @@ type FileInode struct {
 	// Represents if local file has been unlinked.
 	unlinked bool
 
-	bwh              *bufferedwrites.BufferedWriteHandler
-	config           *cfg.Config
+	bwh    *bufferedwrites.BufferedWriteHandler
+	config *cfg.Config
+
+	// Once write is started on the file i.e, bwh is initialized, any fileHandles
+	// opened in write mode before or after this and not yet closed are considered
+	// as writing to the file even though they are not writing.
+	// In case of successful flush, we will set bwh to nil. But in case of error,
+	// we will keep returning that error to all the fileHandles open during that time
+	// and set bwh to nil after all fileHandlers are closed.
+	// writeHandleCount tracks the count of open fileHandles in write mode.
 	writeHandleCount int32
 }
 
