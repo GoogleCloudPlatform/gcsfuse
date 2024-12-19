@@ -67,6 +67,7 @@ func NewFileHandle(
 		readOnly:              readOnly,
 	}
 
+	fh.inode.RegisterFileHandle(fh.readOnly)
 	fh.mu = syncutil.NewInvariantMutex(fh.checkInvariants)
 
 	return
@@ -75,6 +76,8 @@ func NewFileHandle(
 // Destroy any resources associated with the handle, which must not be used
 // again.
 func (fh *FileHandle) Destroy() {
+	// Deregister the fileHandle with the inode.
+	fh.inode.DeRegisterFileHandle(fh.readOnly)
 	if fh.reader != nil {
 		fh.reader.Destroy()
 	}
