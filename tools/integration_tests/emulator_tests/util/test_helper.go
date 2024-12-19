@@ -131,3 +131,19 @@ func WriteFileAndSync(filePath string, fileSize int) (time.Duration, error) {
 
 	return endTime.Sub(startTime), nil
 }
+
+func GetChunkTransferTimeoutFromFlags(flags []string) (int, error) {
+	timeout := 10 // Default value
+	for _, flag := range flags {
+		if strings.HasPrefix(flag, "--chunk-transfer-timeout-secs=") {
+			valueStr := strings.TrimPrefix(flag, "--chunk-transfer-timeout-secs=")
+			var err error
+			timeout, err = strconv.Atoi(valueStr)
+			if err != nil {
+				return 0, err
+			}
+			break
+		}
+	}
+	return timeout, nil
+}

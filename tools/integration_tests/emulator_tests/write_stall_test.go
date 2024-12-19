@@ -15,6 +15,7 @@
 package emulator_tests
 
 import (
+	"fmt"
 	"log"
 	"path"
 	"testing"
@@ -86,5 +87,66 @@ func TestChunkTransferTimeoutInfinity(t *testing.T) {
 		ts.flags = flags
 		log.Printf("Running tests with flags: %s", ts.flags)
 		test_setup.RunTests(t, ts)
+	}
+}
+
+func TestChunkTransferTimeout(t *testing.T) {
+	flagSets := [][]string{
+		{"--custom-endpoint=" + proxyEndpoint},
+		{"--custom-endpoint=" + proxyEndpoint, "--chunk-transfer-timeout-secs=5"},
+	}
+
+	stallScenarios := []struct {
+		name            string
+		configPath      string
+		expectedTimeout func(int) time.Duration
+	}{
+		{
+			name:       "SingleStall",
+			configPath: "./proxy_server/configs/write_stall_40s.yaml",
+			expectedTimeout: func(chunkTransferTimeoutSecs int) time.Duration {
+				return time.Duration(chunkTransferTimeoutSecs) * time.Second
+			},
+		},
+		{
+			name:       "MultipleStalls",
+			configPath: "./proxy_server/configs/write_stall_twice_40s.yaml", // 2 stalls
+			// Expect total time to be greater than the timeout multiplied by the number of stalls (2 in this case).
+			expectedTimeout: func(chunkTransferTimeoutSecs int) time.Duration {
+				return time.Duration(chunkTransferTimeoutSecs*2) * time.Second
+			},
+		},
+	}
+
+	for _, flags := range flagSets {
+		chunkTransferTimeoutSecs, err := emulator_tests.GetChunkTransferTimeoutFromFlags(flags)
+		if err != nil {
+			t.Fatalf("Invalid chunk-transfer-timeout-secs flag: %v", err)
+		}
+
+		t.Run(fmt.Sprintf("Flags_%v", flags), func(t *testing.T) {
+			for _, scenario := range stallScenarios {
+				t.Run(scenario.name, func(t *testing.T) {
+					emulator_tests.StartProxyServer(scenario.configPath)
+					setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
+
+					defer func() { // Defer unmount and  killing the server.
+						setup.UnmountGCSFuse(rootDir)
+						assert.NoError(t, emulator_tests.KillProxyServerProcess(port))
+					}()
+
+					testDir := scenario.name + setup.GenerateRandomString(3)
+					testDirPath = setup.SetupTestDirectory(testDir)
+					filePath := path.Join(testDirPath, "file.txt")
+
+					elapsedTime, err := emulator_tests.WriteFileAndSync(filePath, fileSize)
+
+					assert.NoError(t, err, "failed to write file and sync")
+					expectedTimeout := scenario.expectedTimeout(chunkTransferTimeoutSecs)
+					assert.GreaterOrEqual(t, elapsedTime, expectedTimeout)
+					assert.Less(t, elapsedTime, expectedTimeout+5*time.Second)
+				})
+			}
+		})
 	}
 }
