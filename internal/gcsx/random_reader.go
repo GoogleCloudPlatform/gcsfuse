@@ -46,7 +46,7 @@ const minReadSize = MB
 // Max read size in bytes for random reads.
 // If the average read size (between seeks) is below this number, reads will
 // optimised for random access.
-
+// We will skip forwards in a GCS response at most this many bytes.
 // About 6 MB of data is buffered anyway, so 8 MB seems like a good round number.
 const maxReadSize = 8 * MB
 
@@ -168,6 +168,9 @@ type randomReader struct {
 
 func (rr *randomReader) getBucketReader(offset int64) *bucketReader {
 	for _, br := range rr.bucketReaders {
+		if br.reader == nil {
+			continue
+		}
 		if br.isWithinRange(offset) {
 			return br
 		}
@@ -350,6 +353,16 @@ func (rr *randomReader) ReadAt(
 		offset += int64(tmp)
 		rr.totalReadBytes += uint64(tmp)
 
+		if br.start == br.end {
+			err := br.reader.Close()
+			if err != nil {
+				logger.Tracef("Closing bucketReader: %v", err)
+			}
+
+			// TODO: remove the bucket reader from the list.
+			br.reader = nil
+		}
+
 		// Handle errors.
 		switch {
 		case err == io.EOF || err == io.ErrUnexpectedEOF:
@@ -464,6 +477,15 @@ func (rr *randomReader) Object() (o *gcs.MinObject) {
 }
 
 func (rr *randomReader) Destroy() {
+	for _, br := range rr.bucketReaders {
+		if br.reader != nil {
+			err := br.reader.Close()
+			br.reader = nil
+			if err != nil {
+				logger.Warnf("rr.Destroy(): while closing bucket reader: %v", err)
+			}
+		}
+	}
 	// Close out the reader, if we have one.
 	if rr.reader != nil {
 		err := rr.reader.Close()
@@ -550,13 +572,11 @@ func (rr *randomReader) newBucketReader(
 	}
 
 	common.CaptureGCSReadMetrics(ctx, rr.metricHandle, util.Sequential, end-start)
-	p := make([]byte, maxReadSize)
-	n, _ := rc.reader.Read(p)
 
 	return &bucketReader{
 		reader: rc,
 		start:  start,
-		end:    start + int64(n),
+		end:    end,
 	}, nil
 }
 
@@ -650,12 +670,6 @@ func (rr *randomReader) startRead(
 	rr.cancel = cancel
 	rr.start = start
 	rr.limit = end
-
-	rr.rangeCaches = append(rr.rangeCaches, &reader{
-		reader: rc,
-		start:  start,
-		end:    end,
-	})
 
 	requestedDataSize := end - start
 	common.CaptureGCSReadMetrics(ctx, rr.metricHandle, readType, requestedDataSize)
