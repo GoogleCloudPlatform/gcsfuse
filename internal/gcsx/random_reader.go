@@ -106,7 +106,7 @@ type bucketReader struct {
 }
 
 func (br *bucketReader) isWithinRange(offset int64) bool {
-	return offset >= br.start && offset < br.end
+	return br.reader != nil && offset >= br.start && offset < br.end
 }
 
 func (br *bucketReader) read(offset int64, p []byte) (int, error) {
