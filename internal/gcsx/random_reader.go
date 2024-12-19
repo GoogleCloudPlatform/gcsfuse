@@ -99,24 +99,35 @@ func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb i
 
 // bucketReader holds a open stream to a GCS bucket for a given range.
 type bucketReader struct {
-	reader   io.ReadCloser
-	start    int64
-	end      int64
-	lastUsed time.Time
+	pid       uint32
+	reader    io.ReadCloser
+	start     int64
+	end       int64
+	numSeeks  int64
+	bytesRead int64
+	lastUsed  time.Time
 }
 
 func (br *bucketReader) isWithinRange(offset int64) bool {
 	return br.reader != nil && offset >= br.start && offset < br.end
 }
 
+func (br *bucketReader) isPidMatched(pid uint32) bool {
+	return pid > 0 && br.pid == pid
+}
+
 func (br *bucketReader) read(offset int64, p []byte) (int, error) {
 	bytesToSkip := int64(offset - br.start)
 	skip := make([]byte, bytesToSkip)
+	if bytesToSkip > 0 {
+		br.numSeeks++
+	}
 	n, err := io.ReadFull(br.reader, skip)
 	if err != nil {
 		return 0, err
 	}
 	br.start += int64(n)
+	br.bytesRead += int64(n)
 
 	// Actually read the data into the buffer.
 	n, err = io.ReadFull(br.reader, p)
@@ -166,12 +177,14 @@ type randomReader struct {
 	metricHandle    common.MetricHandle
 }
 
-func (rr *randomReader) getBucketReader(offset int64) *bucketReader {
+// func (rr *randomReader) getBucketReader(offset int64) *bucketReader {
+func (rr *randomReader) getBucketReader(pid uint32) *bucketReader {
 	for _, br := range rr.bucketReaders {
 		if br.reader == nil {
 			continue
 		}
-		if br.isWithinRange(offset) {
+		//if br.isWithinRange(offset) {
+		if br.isPidMatched(pid) {
 			return br
 		}
 	}
@@ -327,7 +340,8 @@ func (rr *randomReader) ReadAt(
 	if cacheHit || n == len(p) || (n < len(p) && uint64(offset)+uint64(n) == rr.object.Size) {
 		return
 	}
-
+	readOp := ctx.Value(ReadOp).(*fuseops.ReadFileOp)
+	pid := readOp.OpContext.Pid
 	for len(p) > 0 {
 		// Have we blown past the end of the object?
 		if offset >= int64(rr.object.Size) {
@@ -335,7 +349,8 @@ func (rr *randomReader) ReadAt(
 			return
 		}
 
-		br := rr.getBucketReader(offset)
+		//br := rr.getBucketReader(offset)
+		br := rr.getBucketReader(pid)
 		if br == nil {
 			// TODO: remove stale bucket readers before adding new one.
 			// NOte: it doesn't really prefetch rr.sequentialReadSizeMb that many bytes. It just keeps
@@ -358,6 +373,8 @@ func (rr *randomReader) ReadAt(
 		rr.totalReadBytes += uint64(tmp)
 
 		if br.start == br.end {
+			logger.Tracef("Closing bucketReader for pid: %d, numSeeks: %d, bytesRead: %d", br.pid, br.numSeeks, br.bytesRead)
+
 			err := br.reader.Close()
 			if err != nil {
 				logger.Tracef("Closing bucketReader error: %v", err)
@@ -483,6 +500,7 @@ func (rr *randomReader) Object() (o *gcs.MinObject) {
 func (rr *randomReader) Destroy() {
 	for _, br := range rr.bucketReaders {
 		if br.reader != nil {
+			logger.Tracef("Closing bucketReader for pid: %d, numSeeks: %d, bytesRead: %d", br.pid, br.numSeeks, br.bytesRead)
 			err := br.reader.Close()
 			br.reader = nil
 			if err != nil {
