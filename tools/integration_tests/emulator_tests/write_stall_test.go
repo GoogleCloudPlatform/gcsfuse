@@ -15,6 +15,7 @@
 package emulator_tests
 
 import (
+	"fmt"
 	"log"
 	"path"
 	"testing"
@@ -90,60 +91,59 @@ func TestChunkTransferTimeoutInfinity(t *testing.T) {
 }
 
 func TestChunkTransferTimeout(t *testing.T) {
-	testCases := []struct {
-		name                     string
-		flags                    []string
-		chunkTransferTimeoutSecs int
-		configPath               string // Add config path to the test case
-		expectedTimeout          time.Duration
+	flagSets := [][]string{
+		{"--custom-endpoint=" + proxyEndpoint},
+		{"--custom-endpoint=" + proxyEndpoint, "--chunk-transfer-timeout-secs=5"},
+	}
+
+	stallScenarios := []struct {
+		name            string
+		configPath      string
+		expectedTimeout func(int) time.Duration
 	}{
 		{
-			name:                     "DefaultChunkTransferTimeout_SingleStall",
-			flags:                    []string{"--custom-endpoint=" + proxyEndpoint},
-			chunkTransferTimeoutSecs: 10,
-			configPath:               "./proxy_server/configs/write_stall_40s.yaml",
-			expectedTimeout:          10 * time.Second,
+			name:       "SingleStall",
+			configPath: "./proxy_server/configs/write_stall_40s.yaml",
+			expectedTimeout: func(chunkTransferTimeoutSecs int) time.Duration {
+				return time.Duration(chunkTransferTimeoutSecs) * time.Second
+			},
 		},
 		{
-			name:                     "DefaultChunkTransferTimeout_MultipleStalls", // 2 stalls
-			flags:                    []string{"--custom-endpoint=" + proxyEndpoint},
-			chunkTransferTimeoutSecs: 10,
-			configPath:               "./proxy_server/configs/write_stall_twice_40s.yaml",
-			expectedTimeout:          20 * time.Second, // Expect total time to be greater than the timeout multiplied by the number of stalls (2 in this case).
-		},
-		{
-			name:                     "FiniteChunkTransferTimeout_SingleStall",
-			flags:                    []string{"--custom-endpoint=" + proxyEndpoint, "--chunk-transfer-timeout-secs=5"},
-			chunkTransferTimeoutSecs: 5,
-			configPath:               "./proxy_server/configs/write_stall_40s.yaml",
-			expectedTimeout:          5 * time.Second,
-		},
-		{
-			name:                     "FiniteChunkTransferTimeout_MultipleStalls", // 2 stalls
-			flags:                    []string{"--custom-endpoint=" + proxyEndpoint, "--chunk-transfer-timeout-secs=5"},
-			chunkTransferTimeoutSecs: 5,
-			configPath:               "./proxy_server/configs/write_stall_twice_40s.yaml",
-			expectedTimeout:          10 * time.Second, // Expect total time to be greater than the timeout multiplied by the number of stalls (2 in this case).
+			name:       "MultipleStalls",
+			configPath: "./proxy_server/configs/write_stall_twice_40s.yaml",
+			// Expect total time to be greater than the timeout multiplied by the number of stalls (2 in this case).
+			expectedTimeout: func(chunkTransferTimeoutSecs int) time.Duration {
+				return time.Duration(chunkTransferTimeoutSecs*2) * time.Second
+			},
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			emulator_tests.StartProxyServer(tc.configPath) // Start server with specific config
-			setup.MountGCSFuseWithGivenMountFunc(tc.flags, mountFunc)
+	for _, flags := range flagSets {
+		chunkTransferTimeoutSecs := emulator_tests.GetChunkTransferTimeoutFromFlags(flags)
 
-			testDir := tc.name
-			testDirPath = setup.SetupTestDirectory(testDir)
-			filePath := path.Join(testDirPath, "file.txt")
+		t.Run(fmt.Sprintf("Flags_%v", flags), func(t *testing.T) {
+			for _, scenario := range stallScenarios {
+				t.Run(scenario.name, func(t *testing.T) {
+					emulator_tests.StartProxyServer(scenario.configPath)
+					setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 
-			elapsedTime, err := emulator_tests.WriteFileAndSync(filePath, fileSize)
+					defer func() { // Defer unmount and  killing the server.
+						setup.UnmountGCSFuse(rootDir)
+						assert.NoError(t, emulator_tests.KillProxyServerProcess(port))
+					}()
 
-			assert.NoError(t, err, "failed to write file and sync")
-			assert.GreaterOrEqual(t, elapsedTime, tc.expectedTimeout)
-			assert.Less(t, elapsedTime, tc.expectedTimeout+5*time.Second)
+					testDir := scenario.name + setup.GenerateRandomString(3)
+					testDirPath = setup.SetupTestDirectory(testDir)
+					filePath := path.Join(testDirPath, "file.txt")
 
-			setup.UnmountGCSFuse(rootDir)
-			assert.NoError(t, emulator_tests.KillProxyServerProcess(port))
+					elapsedTime, err := emulator_tests.WriteFileAndSync(filePath, fileSize)
+
+					assert.NoError(t, err, "failed to write file and sync")
+					expectedTimeout := scenario.expectedTimeout(chunkTransferTimeoutSecs)
+					assert.GreaterOrEqual(t, elapsedTime, expectedTimeout)
+					assert.Less(t, elapsedTime, expectedTimeout+5*time.Second)
+				})
+			}
 		})
 	}
 }

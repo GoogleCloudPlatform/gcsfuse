@@ -131,3 +131,21 @@ func WriteFileAndSync(filePath string, fileSize int) (time.Duration, error) {
 
 	return endTime.Sub(startTime), nil
 }
+
+func GetChunkTransferTimeoutFromFlags(flags []string) int {
+	timeout := 10 // Default value
+	for _, flag := range flags {
+		if strings.HasPrefix(flag, "--chunk-transfer-timeout-secs=") {
+			valueStr := strings.TrimPrefix(flag, "--chunk-transfer-timeout-secs=")
+			var err error
+			timeout, err = strconv.Atoi(valueStr)
+			if err != nil {
+				// Instead of fatal error, you might want to handle this differently
+				// (e.g., return the default value and log a warning)
+				panic(fmt.Sprintf("Invalid chunk-transfer-timeout-secs flag: %v", err))
+			}
+			break
+		}
+	}
+	return timeout
+}
