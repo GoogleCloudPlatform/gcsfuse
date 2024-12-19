@@ -36,6 +36,7 @@ import (
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/net/context"
 )
@@ -1311,7 +1312,7 @@ func (t *FileTest) TestMultipleWritesToLocalFileWhenStreamingWritesAreEnabled() 
 	assert.WithinDuration(t.T(), attrs.Mtime, createTime, Delta)
 }
 
-func (t *FileTest) WriteToEmptyGCSFileWhenStreamingWritesAreEnabled() {
+func (t *FileTest) TestWriteToEmptyGCSFileWhenStreamingWritesAreEnabled() {
 	t.createInodeWithEmptyObject()
 	t.in.config = &cfg.Config{Write: *getWriteConfig()}
 	createTime := t.in.mtimeClock.Now()
@@ -1330,7 +1331,7 @@ func (t *FileTest) WriteToEmptyGCSFileWhenStreamingWritesAreEnabled() {
 	assert.WithinDuration(t.T(), attrs.Mtime, createTime, Delta)
 }
 
-func (t *FileTest) SetMtimeOnEmptyGCSFileWhenStreamingWritesAreEnabled() {
+func (t *FileTest) TestSetMtimeOnEmptyGCSFileWhenStreamingWritesAreEnabled() {
 	t.createInodeWithEmptyObject()
 	t.in.config = &cfg.Config{Write: *getWriteConfig()}
 	assert.Nil(t.T(), t.in.bwh)
@@ -1342,7 +1343,7 @@ func (t *FileTest) SetMtimeOnEmptyGCSFileWhenStreamingWritesAreEnabled() {
 	assert.Nil(t.T(), t.in.bwh)
 }
 
-func (t *FileTest) SetMtimeOnEmptyGCSFileAfterWritesWhenStreamingWritesAreEnabled() {
+func (t *FileTest) TestSetMtimeOnEmptyGCSFileAfterWritesWhenStreamingWritesAreEnabled() {
 	t.createInodeWithEmptyObject()
 	t.in.config = &cfg.Config{Write: *getWriteConfig()}
 	assert.Nil(t.T(), t.in.bwh)
@@ -1364,6 +1365,92 @@ func (t *FileTest) SetMtimeOnEmptyGCSFileAfterWritesWhenStreamingWritesAreEnable
 	assert.Equal(t.T(), attrs.Mtime, mtime)
 	assert.Equal(t.T(), attrs.Ctime, mtime)
 	assert.Equal(t.T(), attrs.Atime, mtime)
+}
+
+func (t *FileTest) TestRegisterFileHandle() {
+	tbl := []struct {
+		name        string
+		readonly    bool
+		currentVal  int32
+		expectedVal int32
+	}{
+		{
+			name:        "ReadOnlyHandle",
+			readonly:    true,
+			currentVal:  0,
+			expectedVal: 0,
+		},
+		{
+			name:        "ZeroCurrentValueForWriteHandle",
+			readonly:    false,
+			currentVal:  0,
+			expectedVal: 1,
+		},
+		{
+			name:        "NonZeroCurrentValueForWriteHandle",
+			readonly:    false,
+			currentVal:  5,
+			expectedVal: 6,
+		},
+	}
+	for _, tc := range tbl {
+		t.Run(tc.name, func() {
+			t.in.writeHandleCount = tc.currentVal
+
+			t.in.RegisterFileHandle(tc.readonly)
+
+			assert.Equal(t.T(), tc.expectedVal, t.in.writeHandleCount)
+		})
+	}
+}
+
+func (t *FileTest) TestDeRegisterFileHandle() {
+	tbl := []struct {
+		name        string
+		readonly    bool
+		currentVal  int32
+		expectedVal int32
+		isBwhNil    bool
+	}{
+		{
+			name:        "ReadOnlyHandle",
+			readonly:    true,
+			currentVal:  10,
+			expectedVal: 10,
+			isBwhNil:    false,
+		},
+		{
+			name:        "NonZeroCurrentValueForWriteHandle",
+			readonly:    false,
+			currentVal:  10,
+			expectedVal: 9,
+			isBwhNil:    false,
+		},
+		{
+			name:        "LastWriteHandleToDeregister",
+			readonly:    false,
+			currentVal:  1,
+			expectedVal: 0,
+			isBwhNil:    true,
+		},
+	}
+	for _, tc := range tbl {
+		t.Run(tc.name, func() {
+			t.in.config = &cfg.Config{Write: *getWriteConfig()}
+			t.in.writeHandleCount = tc.currentVal
+			err := t.in.ensureBufferedWriteHandler(t.ctx)
+			require.NoError(t.T(), err)
+
+			t.in.DeRegisterFileHandle(tc.readonly)
+
+			assert.Equal(t.T(), tc.expectedVal, t.in.writeHandleCount)
+			if tc.isBwhNil {
+				assert.Nil(t.T(), t.in.bwh)
+			} else {
+				assert.NotNil(t.T(), t.in.bwh)
+			}
+		})
+	}
 }
 
 func getWriteConfig() *cfg.WriteConfig {
