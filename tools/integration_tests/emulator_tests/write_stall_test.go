@@ -119,7 +119,10 @@ func TestChunkTransferTimeout(t *testing.T) {
 	}
 
 	for _, flags := range flagSets {
-		chunkTransferTimeoutSecs := emulator_tests.GetChunkTransferTimeoutFromFlags(flags)
+		chunkTransferTimeoutSecs, err := emulator_tests.GetChunkTransferTimeoutFromFlags(flags)
+		if err != nil {
+			t.Fatalf("Invalid chunk-transfer-timeout-secs flag: %v", err)
+		}
 
 		t.Run(fmt.Sprintf("Flags_%v", flags), func(t *testing.T) {
 			for _, scenario := range stallScenarios {
