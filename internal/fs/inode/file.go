@@ -721,20 +721,15 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 		err = fmt.Errorf("SyncObject: %w", err)
 		return
 	}
-
+	minObj := storageutil.ConvertObjToMinObject(newObj)
 	// If we wrote out a new object, we need to update our state.
-	f.updateInodeStateAfterSync(newObj)
+	f.updateInodeStateAfterSync(minObj)
 	return
 }
 
-func (f *FileInode) updateInodeStateAfterSync(newObj *gcs.Object) {
-	if newObj != nil && !f.localFileCache {
-		var minObj gcs.MinObject
-		minObjPtr := storageutil.ConvertObjToMinObject(newObj)
-		if minObjPtr != nil {
-			minObj = *minObjPtr
-		}
-		f.src = minObj
+func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
+	if minObj != nil && !f.localFileCache {
+		f.src = *minObj
 		// Convert localFile to nonLocalFile after it is synced to GCS.
 		if f.IsLocal() {
 			f.local = false

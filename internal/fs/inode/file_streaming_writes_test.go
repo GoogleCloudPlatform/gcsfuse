@@ -16,7 +16,6 @@ package inode
 
 import (
 	"context"
-	"math"
 	"testing"
 	"time"
 
@@ -33,7 +32,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"golang.org/x/sync/semaphore"
 )
 
 const localFile = "local"
@@ -113,18 +111,17 @@ func (t *FileStreamingWritesTest) createInode(fileName string, fileType string) 
 		contentcache.New("", &t.clock),
 		&t.clock,
 		isLocal,
-		&cfg.WriteConfig{},
-		semaphore.NewWeighted(math.MaxInt64))
+		&cfg.Config{})
 
 	// Set buffered write config for created inode.
-	t.in.writeConfig = &cfg.WriteConfig{
+	t.in.config = &cfg.Config{Write: cfg.WriteConfig{
 		MaxBlocksPerFile:                  10,
 		BlockSizeMb:                       10,
 		ExperimentalEnableStreamingWrites: true,
-	}
+	}}
 
 	// Create write handler for the local inode created above.
-	err := t.in.CreateBufferedOrTempWriter()
+	err := t.in.CreateBufferedOrTempWriter(t.ctx)
 	assert.Nil(t.T(), err)
 
 	t.in.Lock()
