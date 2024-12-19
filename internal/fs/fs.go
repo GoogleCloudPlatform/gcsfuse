@@ -2376,6 +2376,14 @@ func (fs *fileSystem) OpenFile(
 
 	// Find the inode.
 	in := fs.fileInodeOrDie(op.Inode)
+	// Follow lock ordering rules to get inode lock.
+	// Inode lock is required to register fileHandle with the inode.
+	fs.mu.Unlock()
+	in.Lock()
+
+	// Get the fs lock again.
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 
 	// Allocate a handle.
 	handleID := fs.nextHandleID
