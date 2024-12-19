@@ -514,13 +514,6 @@ function ensureGcsFuseCsiDriverCode() {
 }
 
 uuid() {
-  if ! which uuidgen; then
-    # try to install uuidgen
-    sudo apt-get update && sudo apt-get install -y uuid-runtime
-    # confirm that it got installed.
-    which uuidgen
-  fi
-
   echo $(uuidgen) | sed -e "s/\-//g" ;
 }
 
@@ -565,6 +558,12 @@ function createCustomCsiDriverIfNeeded() {
     make generate-spec-yaml
     printf "\nBuilding a new custom CSI driver using the above GCSFuse binary ...\n\n"
     registry=gcr.io/${project_id}/${USER}/${cluster_name}
+    if ! which uuidgen; then
+      # try to install uuidgen
+      sudo apt-get update && sudo apt-get install -y uuid-runtime
+      # confirm that it got installed.
+      which uuidgen
+    fi
     stagingversion=$(uuid)
     make build-image-and-push-multi-arch REGISTRY=${registry} GCSFUSE_PATH=gs://${package_bucket} STAGINGVERSION=${stagingversion}
     printf "\nInstalling the new custom CSI driver built above ...\n\n"
