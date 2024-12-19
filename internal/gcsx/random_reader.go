@@ -337,6 +337,7 @@ func (rr *randomReader) ReadAt(
 
 		br := rr.getBucketReader(offset)
 		if br == nil {
+			// TODO: remove stale bucket readers before adding new one.
 			br, err = rr.newBucketReader(ctx, offset, offset+maxReadSize)
 			if err != nil {
 				err = fmt.Errorf("ReadAt: while creating bucket reader: %w", err)
@@ -359,7 +360,7 @@ func (rr *randomReader) ReadAt(
 				logger.Tracef("Closing bucketReader: %v", err)
 			}
 
-			// TODO: remove the bucket reader from the list.
+			// TODO: remove this bucket reader from the list.
 			br.reader = nil
 		}
 
@@ -574,9 +575,10 @@ func (rr *randomReader) newBucketReader(
 	common.CaptureGCSReadMetrics(ctx, rr.metricHandle, util.Sequential, end-start)
 
 	return &bucketReader{
-		reader: rc,
-		start:  start,
-		end:    end,
+		reader:   rc,
+		start:    start,
+		end:      end,
+		lastUsed: time.Now(),
 	}, nil
 }
 
