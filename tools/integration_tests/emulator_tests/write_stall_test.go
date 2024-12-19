@@ -105,11 +105,11 @@ func TestChunkTransferTimeout(t *testing.T) {
 			expectedTimeout:          10 * time.Second,
 		},
 		{
-			name:                     "DefaultChunkTransferTimeout_MultipleStalls",
+			name:                     "DefaultChunkTransferTimeout_MultipleStalls", // 2 stalls
 			flags:                    []string{"--custom-endpoint=" + proxyEndpoint},
 			chunkTransferTimeoutSecs: 10,
 			configPath:               "./proxy_server/configs/write_stall_twice_40s.yaml",
-			expectedTimeout:          20 * time.Second,
+			expectedTimeout:          20 * time.Second, // Expect total time to be greater than the timeout multiplied by the number of stalls (2 in this case).
 		},
 		{
 			name:                     "FiniteChunkTransferTimeout_SingleStall",
@@ -119,11 +119,11 @@ func TestChunkTransferTimeout(t *testing.T) {
 			expectedTimeout:          5 * time.Second,
 		},
 		{
-			name:                     "FiniteChunkTransferTimeout_MultipleStalls",
+			name:                     "FiniteChunkTransferTimeout_MultipleStalls", // 2 stalls
 			flags:                    []string{"--custom-endpoint=" + proxyEndpoint, "--chunk-transfer-timeout-secs=5"},
 			chunkTransferTimeoutSecs: 5,
 			configPath:               "./proxy_server/configs/write_stall_twice_40s.yaml",
-			expectedTimeout:          10 * time.Second,
+			expectedTimeout:          10 * time.Second, // Expect total time to be greater than the timeout multiplied by the number of stalls (2 in this case).
 		},
 	}
 
