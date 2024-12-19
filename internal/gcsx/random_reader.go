@@ -355,7 +355,7 @@ func (rr *randomReader) ReadAt(
 			// TODO: remove stale bucket readers before adding new one.
 			// NOte: it doesn't really prefetch rr.sequentialReadSizeMb that many bytes. It just keeps
 			// a open stream that could read up to that many bytes. It only keeps about 6MB in memory.
-			br, err = rr.newBucketReader(ctx, offset, offset+int64(rr.sequentialReadSizeMb*MB))
+			br, err = rr.newBucketReader(ctx, pid, offset, offset+int64(rr.sequentialReadSizeMb*MB))
 			if err != nil {
 				err = fmt.Errorf("ReadAt: while creating bucket reader: %w", err)
 				return
@@ -565,9 +565,10 @@ func (rr *randomReader) readFull(
 
 func (rr *randomReader) newBucketReader(
 	ctx context.Context,
+	pid uint32,
 	start int64,
 	end int64) (*bucketReader, error) {
-
+	logger.Tracef("Adding a bucketReader for pid: %d, offset: %d, sizeMB: %d", pid, start, int((end-start)/MB))
 	// Begin the read.
 	ctx, _ = context.WithCancel(context.Background())
 	rc, err := rr.bucket.NewReader(
@@ -597,6 +598,7 @@ func (rr *randomReader) newBucketReader(
 
 	return &bucketReader{
 		reader:   rc,
+		pid:      pid,
 		start:    start,
 		end:      end,
 		lastUsed: time.Now(),
