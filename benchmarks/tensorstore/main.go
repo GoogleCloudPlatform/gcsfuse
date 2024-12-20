@@ -36,7 +36,7 @@ type multiReadConfig struct {
 }
 
 func tscliConfig(config *multiReadConfig) (string, error) {
-	output, err := script.Exec(fmt.Sprintf("bazel-bin/tensorstore/tscli/tscli search -f \"file://%s\"", config.path)).Filter(
+	output, err := script.Exec(fmt.Sprintf("bazel-bin/tensorstore/tscli/tscli search -f \"%s\"", config.path)).Filter(
 		func(r io.Reader, w io.Writer) error {
 			scanner := newScanner(r)
 			first := true
