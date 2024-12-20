@@ -67,6 +67,7 @@ type DirInode interface {
 
 	// Rename the directiory/folder.
 	RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (*gcs.Folder, error)
+	RenameFile(ctx context.Context, fileName string, destinationFileName string) (*gcs.Object, error)
 
 	// Read the children objects of this dir, recursively. The result count
 	// is capped at the given limit. Internal caches are not refreshed from this
@@ -1049,6 +1050,13 @@ func (d *dirInode) RenameFolder(ctx context.Context, folderName string, destinat
 	d.cache.Erase(folderName)
 
 	return folder, nil
+}
+
+func (d *dirInode) RenameFile(ctx context.Context, fileName string, destinationFileName string) (*gcs.Object, error) {
+	o, err := d.bucket.MoveObject(ctx, &gcs.MoveObjectRequest{SrcObject: fileName, DestObject: destinationFileName})
+	d.cache.Erase(fileName)
+	d.cache.Insert(d.cacheClock.Now(), o.Name, metadata.RegularFileType)
+	return o, err
 }
 
 func (d *dirInode) InvalidateKernelListCache() {

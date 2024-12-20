@@ -261,6 +261,11 @@ func (d *baseDirInode) RenameFolder(ctx context.Context, folderName string, dest
 	return
 }
 
+func (d *baseDirInode) RenameFile(ctx context.Context, fileName string, destinationFileName string) (*gcs.Object, error) {
+	err := fuse.ENOSYS
+	return nil, err
+}
+
 // This operation is not supported on base_dir.
 func (d *baseDirInode) IsUnlinked() bool {
 	return false
