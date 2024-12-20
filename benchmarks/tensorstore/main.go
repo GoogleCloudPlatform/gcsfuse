@@ -105,6 +105,7 @@ func setup() (string, error) {
 
 func main() {
 	checkoutDir, err := setup()
+	defer func() { os.RemoveAll(checkoutDir) }()
 	if err != nil {
 		panic(err)
 	}
