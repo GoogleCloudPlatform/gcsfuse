@@ -23,7 +23,10 @@ import (
 	"path"
 
 	"github.com/bitfield/script"
+	flag "github.com/spf13/pflag"
 )
+
+var filePath *string = flag.String("mount-path", "file:///dev/shm/multireader", "Path to the mountpoint along with protocol e.g. file://dev/shm/multireader")
 
 type multiReadConfig struct {
 	fileIOConcurrency   int64
@@ -32,7 +35,7 @@ type multiReadConfig struct {
 	path                string
 }
 
-func tscliConfig(wd string, config *multiReadConfig) (string, error) {
+func tscliConfig(config *multiReadConfig) (string, error) {
 	output, err := script.Exec(fmt.Sprintf("bazel-bin/tensorstore/tscli/tscli search -f \"file://%s\"", config.path)).Filter(
 		func(r io.Reader, w io.Writer) error {
 			scanner := newScanner(r)
@@ -69,7 +72,7 @@ func multiReadBenchmarkSetup(wd string, config *multiReadConfig) (string, error)
 	if err := os.Chdir(wd); err != nil {
 		defer func() { _ = os.Chdir(cd) }()
 	}
-	cfgPath, err := tscliConfig(wd, config)
+	cfgPath, err := tscliConfig(config)
 	if err != nil {
 		return "", err
 	}
@@ -101,6 +104,9 @@ func multiReadBenchmark(checkoutDir string, config *multiReadConfig) error {
 		return fmt.Errorf("unable to clear page cache: %w", err)
 	}
 	benchmarkOutput, err := script.Exec(fmt.Sprintf("%s --read_config=%s", path.Join(checkoutDir, "bazel-bin/tensorstore/internal/benchmark/multi_read_benchmark"), tscliConfig)).String()
+	if err := os.Remove(tscliConfig); err != nil {
+		return err
+	}
 	fmt.Println(benchmarkOutput)
 	if err != nil {
 		return err
@@ -159,6 +165,7 @@ func main() {
 		fileIOConcurrency:   -1,
 		maxInflightRequests: -1,
 		numConfig:           -1,
+		path:                *filePath,
 	}); err != nil {
 		panic(err)
 	}
