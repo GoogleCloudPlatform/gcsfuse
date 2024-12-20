@@ -257,6 +257,10 @@ func (b *throttledBucket) CreateFolder(ctx context.Context, folderName string) (
 	return folder, err
 }
 
+func (b *throttledBucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
+	return nil, nil
+}
+
 ////////////////////////////////////////////////////////////////////////
 // readerCloser
 ////////////////////////////////////////////////////////////////////////

@@ -277,3 +277,7 @@ func (b *debugBucket) RenameFolder(ctx context.Context, folderName string, desti
 	o, err = b.wrapped.RenameFolder(ctx, folderName, destinationFolderId)
 	return o, err
 }
+
+func (b *debugBucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
+	return nil, nil
+}

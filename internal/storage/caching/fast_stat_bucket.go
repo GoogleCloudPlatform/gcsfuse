@@ -462,3 +462,7 @@ func (b *fastStatBucket) RenameFolder(ctx context.Context, folderName string, de
 
 	return f, err
 }
+
+func (b *fastStatBucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
+	return nil, nil
+}

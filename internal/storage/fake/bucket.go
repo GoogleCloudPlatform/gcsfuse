@@ -1144,3 +1144,7 @@ func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinatio
 
 	return folder, nil
 }
+
+func (b *bucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
+	return nil, nil
+}

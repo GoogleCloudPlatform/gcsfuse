@@ -277,3 +277,7 @@ func (b *prefixBucket) RenameFolder(ctx context.Context, folderName string, dest
 
 	return f, err
 }
+
+func (b *prefixBucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
+	return nil, nil
+}

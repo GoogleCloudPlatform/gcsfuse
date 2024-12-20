@@ -486,3 +486,7 @@ func (m *mockBucket) RenameFolder(ctx context.Context, folderName string, destin
 	}
 	return
 }
+
+func (b *mockBucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
+	return nil, nil
+}

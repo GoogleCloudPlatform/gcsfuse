@@ -385,3 +385,12 @@ type DeleteObjectRequest struct {
 	// is not equal to this value.
 	MetaGenerationPrecondition *int64
 }
+
+// A request to move an object.
+type MoveObjectRequest struct {
+	// The name of the object to delete. Must be specified.
+	SrcObject string
+
+	// The generation of the object to delete. Zero means the latest generation.
+	DestObject string
+}

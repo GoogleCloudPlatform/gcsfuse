@@ -607,6 +607,10 @@ func (bh *bucketHandle) CreateFolder(ctx context.Context, folderName string) (*g
 	return folder, nil
 }
 
+func (b *bucketHandle) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
+	return nil, nil
+}
+
 func isStorageConditionsNotEmpty(conditions storage.Conditions) bool {
 	return conditions != (storage.Conditions{})
 }
