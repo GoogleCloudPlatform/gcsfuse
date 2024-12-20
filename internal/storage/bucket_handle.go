@@ -467,6 +467,30 @@ func (bh *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectR
 	return
 }
 
+func (bh *bucketHandle) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
+	var o *gcs.Object
+	var err error
+
+	//obj := bh.bucket.Object(req.SrcObject)
+
+	// If storage object does not exist, httpclient is returning ErrObjectNotExist error instead of googleapi error
+	// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/cloud.google.com/go/storage/http_client.go#L516
+	switch ee := err.(type) {
+	case *googleapi.Error:
+		if ee.Code == http.StatusPreconditionFailed {
+			err = &gcs.PreconditionError{Err: ee}
+		}
+	default:
+		if err == storage.ErrObjectNotExist {
+			err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
+		} else {
+			err = fmt.Errorf("error in updating object: %w", err)
+		}
+	}
+
+	return o, nil
+}
+
 func (bh *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
 	dstObj := bh.bucket.Object(req.DstName)
 
@@ -605,10 +629,6 @@ func (bh *bucketHandle) CreateFolder(ctx context.Context, folderName string) (*g
 	folder := gcs.GCSFolder(bh.bucketName, clientFolder)
 
 	return folder, nil
-}
-
-func (b *bucketHandle) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
-	return nil, nil
 }
 
 func isStorageConditionsNotEmpty(conditions storage.Conditions) bool {

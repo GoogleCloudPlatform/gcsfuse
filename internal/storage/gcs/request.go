@@ -391,6 +391,15 @@ type MoveObjectRequest struct {
 	// The name of the object to delete. Must be specified.
 	SrcObject string
 
-	// The generation of the object to delete. Zero means the latest generation.
 	DestObject string
+
+	// The generation of the source object to copy, or zero for the latest
+	// generation.
+	SrcGeneration int64
+
+	// If non-nil, the destination object will be created/overwritten only if the
+	// current meta-generation for the source object is equal to the given value.
+	//
+	// This is probably only meaningful in conjunction with SrcGeneration.
+	SrcMetaGenerationPrecondition *int64
 }
