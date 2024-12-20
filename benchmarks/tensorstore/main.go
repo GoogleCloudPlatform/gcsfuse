@@ -26,12 +26,11 @@ import (
 	flag "github.com/spf13/pflag"
 )
 
-var filePath *string = flag.String("mount-path", "file:///dev/shm/multireader", "Path to the mountpoint along with protocol e.g. file://dev/shm/multireader")
+var filePath = flag.String("mount-path", "file:///dev/shm/multireader", "Path to the mountpoint along with protocol e.g. file://dev/shm/multireader")
 
 type multiReadConfig struct {
 	fileIOConcurrency   int64
 	maxInflightRequests int64
-	numConfig           int64
 	path                string
 }
 
@@ -103,7 +102,9 @@ func multiReadBenchmark(checkoutDir string, config *multiReadConfig) error {
 	if _, err := script.Echo("3").AppendFile("/proc/sys/vm/drop_caches"); err != nil {
 		return fmt.Errorf("unable to clear page cache: %w", err)
 	}
-	benchmarkOutput, err := script.Exec(fmt.Sprintf("%s --read_config=%s", path.Join(checkoutDir, "bazel-bin/tensorstore/internal/benchmark/multi_read_benchmark"), tscliConfig)).String()
+	cmd := fmt.Sprintf("%s --read_config=%s --max_in_flight=%d --context_spec='{\"file_io_concurrency\": {\"limit\": %d}}'",
+		path.Join(checkoutDir, "bazel-bin/tensorstore/internal/benchmark/multi_read_benchmark"), tscliConfig, config.maxInflightRequests, config.fileIOConcurrency)
+	benchmarkOutput, err := script.Exec(cmd).String()
 	if err := os.Remove(tscliConfig); err != nil {
 		return err
 	}
@@ -162,9 +163,8 @@ func main() {
 		panic(err)
 	}
 	if err = multiReadBenchmark(checkoutDir, &multiReadConfig{
-		fileIOConcurrency:   -1,
-		maxInflightRequests: -1,
-		numConfig:           -1,
+		fileIOConcurrency:   128,
+		maxInflightRequests: int64(64) * 1024 * 1024 * 1024,
 		path:                *filePath,
 	}); err != nil {
 		panic(err)
