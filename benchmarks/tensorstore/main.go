@@ -21,12 +21,16 @@ import (
 	"math"
 	"os"
 	"path"
+	"regexp"
+	"strconv"
 
 	"github.com/bitfield/script"
 	flag "github.com/spf13/pflag"
 )
 
-var filePath = flag.String("mount-path", "file:///dev/shm/multireader", "Path to the mountpoint along with protocol e.g. file://dev/shm/multireader")
+var filePath = flag.String("mount-path", "file:///dev/shm/multiread", "Path to the mountpoint along with protocol e.g. file://dev/shm/multireader")
+
+var multiReadThroughputRegex = regexp.MustCompile(`throughput:\s+(.+)\s+MB/second`)
 
 type multiReadConfig struct {
 	fileIOConcurrency   int64
@@ -34,14 +38,16 @@ type multiReadConfig struct {
 	path                string
 }
 
-func tscliConfig(config *multiReadConfig) (string, error) {
-	output, err := script.Exec(fmt.Sprintf("bazel-bin/tensorstore/tscli/tscli search -f \"%s\"", config.path)).Filter(
+func tscliConfig(checkoutDir string, config *multiReadConfig) (string, error) {
+	cmd := fmt.Sprintf("%s search -f '%s'", path.Join(checkoutDir, "bazel-bin/tensorstore/tscli/tscli"), config.path)
+	fmt.Println(cmd)
+	output, err := script.Exec(cmd).Filter(
 		func(r io.Reader, w io.Writer) error {
 			scanner := newScanner(r)
 			first := true
 			for scanner.Scan() {
 				if !first {
-					fmt.Fprint(w, ", ")
+					fmt.Fprint(w, ",")
 				}
 				line := scanner.Text()
 				fmt.Fprint(w, line)
@@ -57,31 +63,22 @@ func tscliConfig(config *multiReadConfig) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	f.Write([]byte(fmt.Sprintf("[%s]", output)))
+	if _, err := f.Write([]byte(fmt.Sprintf("[%s]", output))); err != nil {
+		return "", err
+	}
 	fName := f.Name()
-	f.Close()
+	if err := f.Close(); err != nil {
+		return "", err
+	}
 	return fName, nil
 }
 
 func multiReadBenchmarkSetup(wd string, config *multiReadConfig) (string, error) {
-	cd, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-	if err := os.Chdir(wd); err != nil {
-		defer func() { _ = os.Chdir(cd) }()
-	}
-	cfgPath, err := tscliConfig(config)
+	cfgPath, err := tscliConfig(wd, config)
 	if err != nil {
 		return "", err
 	}
 	return cfgPath, nil
-
-	/*
-		bazel-bin/tensorstore/tscli/tscli search -f "file://<mount_point>" | sed '$!s/$/,/' | sed '1s/^/[\n/'  | sed -e '$a]' > output.json
-		echo "echo 3 > /proc/sys/vm/drop_caches" | sudo sh && bazel-bin/tensorstore/internal/benchmark/multi_read_benchmark --read_config=output.json
-
-	*/
 }
 
 func multiReadBenchmark(checkoutDir string, config *multiReadConfig) (string, error) {
@@ -89,16 +86,6 @@ func multiReadBenchmark(checkoutDir string, config *multiReadConfig) (string, er
 	if err != nil {
 		return "", err
 	}
-	/*
-		cd, err := os.Getwd()
-		if err != nil {
-			return err
-		}
-		if err := os.Chdir(checkoutDir); err != nil {
-			return err
-		}
-		defer func() { os.Chdir(cd) }()
-	*/
 	if _, err := script.Echo("3").AppendFile("/proc/sys/vm/drop_caches"); err != nil {
 		return "", fmt.Errorf("unable to clear page cache: %w", err)
 	}
@@ -106,10 +93,10 @@ func multiReadBenchmark(checkoutDir string, config *multiReadConfig) (string, er
 		path.Join(checkoutDir, "bazel-bin/tensorstore/internal/benchmark/multi_read_benchmark"), tscliConfig, config.maxInflightRequests, config.fileIOConcurrency)
 	fmt.Println(cmd)
 	benchmarkOutput, err := script.Exec(cmd).String()
-	if err := os.Remove(tscliConfig); err != nil {
+	if err != nil {
 		return "", err
 	}
-	if err != nil {
+	if err := os.Remove(tscliConfig); err != nil {
 		return "", err
 	}
 	return benchmarkOutput, nil
@@ -121,16 +108,6 @@ func newScanner(r io.Reader) *bufio.Scanner {
 }
 
 func setup() (string, error) {
-	/*
-			gitDep := script.Exec("apt install git")
-			compilerDep := script.Exec("apt install python3.10-dev g++")
-			if err = gitDep.Wait(); err != nil {
-				return "", fmt.Errorf("error while installing git, stderr:%s: %w", gitDep.Error(), err)
-			}
-		if err = compilerDep.Wait(); err != nil {
-				return "", err
-			}
-	*/
 	wd, err := os.Getwd()
 	defer func() { os.Chdir(wd) }()
 	if err != nil {
@@ -176,11 +153,19 @@ func main() {
 				panic(err)
 			}
 			fmt.Println(output)
-			//bw := extractBWFromMutiReadBenchmark(output)
+			bw, err := extractBWFromMutiReadBenchmark(output)
+			if err != nil {
+				panic(err)
+			}
+			fmt.Printf("Bandwidth obtained: %d MB/s", int64(bw))
 		}
 	}
 }
 
-func extractBWFromMutiReadBenchmark(output string) float64 {
-	return 0
+func extractBWFromMutiReadBenchmark(output string) (float64, error) {
+	subMatches := multiReadThroughputRegex.FindSubmatch([]byte(output))
+	if len(subMatches) != 2 {
+		return 0, fmt.Errorf("unable to parse multi-read-benchmark output")
+	}
+	return strconv.ParseFloat(string(subMatches[1]), 64)
 }
