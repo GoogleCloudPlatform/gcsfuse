@@ -104,6 +104,7 @@ func multiReadBenchmark(checkoutDir string, config *multiReadConfig) (string, er
 	}
 	cmd := fmt.Sprintf("%s --read_config=%s --max_in_flight=%d --context_spec='{\"file_io_concurrency\": {\"limit\": %d}}'",
 		path.Join(checkoutDir, "bazel-bin/tensorstore/internal/benchmark/multi_read_benchmark"), tscliConfig, config.maxInflightRequests, config.fileIOConcurrency)
+	fmt.Println(cmd)
 	benchmarkOutput, err := script.Exec(cmd).String()
 	if err := os.Remove(tscliConfig); err != nil {
 		return "", err
