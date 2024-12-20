@@ -15,43 +15,105 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"io"
+	"math"
 	"os"
 
 	"github.com/bitfield/script"
-	flag "github.com/spf13/pflag"
-)
-
-var (
-	ip *int = flag.Int("flagname", 1234, "help message for flagname")
 )
 
 type multiReadConfig struct {
 	fileIOConcurrency   int64
 	maxInflightRequests int64
 	numConfig           int64
+	path                string
 }
 
-func multiReadBenchmark(config *multiReadConfig) float64 {
-	//script.Exec()
+func multiReadBenchmark(wd string, config *multiReadConfig) (string, error) {
+	cd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	if err := os.Chdir(wd); err != nil {
+		defer func() { _ = os.Chdir(cd) }()
+	}
+
+	output, err := script.Exec(fmt.Sprintf("bazel-bin/tensorstore/tscli/tscli search -f \"file://%s\"", config.path)).Filter(
+		func(r io.Reader, w io.Writer) error {
+			scanner := newScanner(r)
+			first := true
+			for scanner.Scan() {
+				if !first {
+					fmt.Fprint(w, ", ")
+				}
+				line := scanner.Text()
+				fmt.Fprint(w, line)
+				first = false
+			}
+			fmt.Fprintln(w)
+			return scanner.Err()
+		}).String()
+	output = fmt.Sprintf("[%s]", output)
+	fmt.Println(output)
+	return output, nil
+	/*
+		bazel-bin/tensorstore/tscli/tscli search -f "file://<mount_point>" | sed '$!s/$/,/' | sed '1s/^/[\n/'  | sed -e '$a]' > output.json
+		echo "echo 3 > /proc/sys/vm/drop_caches" | sudo sh && bazel-bin/tensorstore/internal/benchmark/multi_read_benchmark --read_config=output.json
+
+	*/
 }
 
-func setup() string {
-	if p := script.Exec("apt install python3.10-dev g++ git"); p.ExitStatus() != 0 {
-		panic("Error occurred while installing dependencies")
+func newScanner(r io.Reader) *bufio.Scanner {
+	scanner := bufio.NewScanner(r)
+	scanner.Buffer(make([]byte, 4096), math.MaxInt)
+	return scanner
+}
+
+func setup() (string, error) {
+	/*
+			gitDep := script.Exec("apt install git")
+			compilerDep := script.Exec("apt install python3.10-dev g++")
+			if err = gitDep.Wait(); err != nil {
+				return "", fmt.Errorf("error while installing git, stderr:%s: %w", gitDep.Error(), err)
+			}
+		if err = compilerDep.Wait(); err != nil {
+				return "", err
+			}
+	*/
+	wd, err := os.Getwd()
+	defer func() { os.Chdir(wd) }()
+	if err != nil {
+		return "", err
 	}
 	tempDir, err := os.MkdirTemp("", "tensorstore")
 	if err != nil {
+		return "", err
+	}
+	clone := script.Exec(fmt.Sprintf("git clone https://github.com/google/tensorstore.git %s/", tempDir))
+	if err = clone.Wait(); err != nil {
+		return "", err
+	}
+	os.Chdir(tempDir)
+	build := script.Exec("./bazelisk.py build //tensorstore/internal/benchmark:all //tensorstore/tscli")
+	if err := build.Wait(); err != nil {
 		panic(err)
 	}
-	if p := script.Exec(fmt.Sprintf("git clone https://github.com/google/tensorstore.git %s/", tempDir)); p.ExitStatus() != 0 {
-		panic("Error while cloning the repository")
-	}
-	return tempDir
+	return tempDir, nil
 }
 
 func main() {
-	setup()
+	checkoutDir, err := setup()
+	if err != nil {
+		panic(err)
+	}
+	if _, err = multiReadBenchmark(checkoutDir, &multiReadConfig{
+		fileIOConcurrency:   -1,
+		maxInflightRequests: -1,
+		numConfig:           -1,
+	}); err != nil {
+		panic(err)
+	}
 
-	//multiReadBenchmark()
 }
