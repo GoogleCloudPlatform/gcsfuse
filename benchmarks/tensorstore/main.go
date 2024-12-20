@@ -53,7 +53,7 @@ func tscliConfig(config *multiReadConfig) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	f, err := os.CreateTemp("", "tscli_config.json")
+	f, err := os.CreateTemp("", "tscli_config")
 	if err != nil {
 		return "", err
 	}
@@ -84,10 +84,10 @@ func multiReadBenchmarkSetup(wd string, config *multiReadConfig) (string, error)
 	*/
 }
 
-func multiReadBenchmark(checkoutDir string, config *multiReadConfig) error {
+func multiReadBenchmark(checkoutDir string, config *multiReadConfig) (string, error) {
 	tscliConfig, err := multiReadBenchmarkSetup(checkoutDir, config)
 	if err != nil {
-		return err
+		return "", err
 	}
 	/*
 		cd, err := os.Getwd()
@@ -100,19 +100,18 @@ func multiReadBenchmark(checkoutDir string, config *multiReadConfig) error {
 		defer func() { os.Chdir(cd) }()
 	*/
 	if _, err := script.Echo("3").AppendFile("/proc/sys/vm/drop_caches"); err != nil {
-		return fmt.Errorf("unable to clear page cache: %w", err)
+		return "", fmt.Errorf("unable to clear page cache: %w", err)
 	}
 	cmd := fmt.Sprintf("%s --read_config=%s --max_in_flight=%d --context_spec='{\"file_io_concurrency\": {\"limit\": %d}}'",
 		path.Join(checkoutDir, "bazel-bin/tensorstore/internal/benchmark/multi_read_benchmark"), tscliConfig, config.maxInflightRequests, config.fileIOConcurrency)
 	benchmarkOutput, err := script.Exec(cmd).String()
 	if err := os.Remove(tscliConfig); err != nil {
-		return err
+		return "", err
 	}
-	fmt.Println(benchmarkOutput)
 	if err != nil {
-		return err
+		return "", err
 	}
-	return nil
+	return benchmarkOutput, nil
 }
 func newScanner(r io.Reader) *bufio.Scanner {
 	scanner := bufio.NewScanner(r)
@@ -162,12 +161,25 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	if err = multiReadBenchmark(checkoutDir, &multiReadConfig{
-		fileIOConcurrency:   128,
-		maxInflightRequests: int64(64) * 1024 * 1024 * 1024,
-		path:                *filePath,
-	}); err != nil {
-		panic(err)
+	fileIOConcurrencyRange := []int64{2, 4, 8, 16, 32, 64, 128, 256}
+	maxInflightRequestMultiplicand := []int64{1, 2, 4, 8}
+
+	for _, ioConc := range fileIOConcurrencyRange {
+		for _, inflightMaxMulti := range maxInflightRequestMultiplicand {
+			output, err := multiReadBenchmark(checkoutDir, &multiReadConfig{
+				fileIOConcurrency:   ioConc,
+				maxInflightRequests: int64(64) * 1024 * 1024 * 1024 * inflightMaxMulti,
+				path:                *filePath,
+			})
+			if err != nil {
+				panic(err)
+			}
+			fmt.Println(output)
+			//bw := extractBWFromMutiReadBenchmark(output)
+		}
 	}
+}
+
+func extractBWFromMutiReadBenchmark(output string) float64 {
 
 }
