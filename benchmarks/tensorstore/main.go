@@ -181,5 +181,5 @@ func main() {
 }
 
 func extractBWFromMutiReadBenchmark(output string) float64 {
-
+	return 0
 }
