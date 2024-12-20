@@ -146,7 +146,9 @@ type randomReader struct {
 	reader io.ReadCloser
 	cancel func()
 
-	bucketReaders []*bucketReader
+	bucketReaders             []*bucketReader
+	activeBucketReaders       int
+	totalBucketReadersCreated int
 
 	// The range of the object that we expect reader to yield, when reader is
 	// non-nil. When reader is nil, limit is the limit of the previous read
@@ -178,14 +180,13 @@ type randomReader struct {
 }
 
 // func (rr *randomReader) getBucketReader(offset int64) *bucketReader {
-func (rr *randomReader) getBucketReader(pid uint32, offset int64) *bucketReader {
+func (rr *randomReader) getBucketReader(pid uint32) *bucketReader {
 	for _, br := range rr.bucketReaders {
 		if br.reader == nil {
 			continue
 		}
 		//if br.isWithinRange(offset) {
-		// Neet to check both pid and offset as a bucket reader can only read a certain range.
-		if br.isPidMatched(pid) && br.isWithinRange(offset) {
+		if br.isPidMatched(pid) {
 			return br
 		}
 	}
@@ -351,19 +352,33 @@ func (rr *randomReader) ReadAt(
 		}
 
 		//br := rr.getBucketReader(offset)
-		br := rr.getBucketReader(pid, offset)
+		br := rr.getBucketReader(pid)
+		if br != nil && !br.isWithinRange(offset) {
+			logger.Tracef("Closing bucketReader as offset is out of range. pid: %d, numSeeks: %d, bytesReadMB: %d", br.pid, br.numSeeks, br.bytesRead/MB)
+			err := br.reader.Close()
+			rr.activeBucketReaders--
+			if err != nil {
+				logger.Tracef("Closing bucketReader error: %v", err)
+			}
+			// TODO: remove this bucket reader from the list.
+			br.reader = nil
+			br = nil
+		}
+
 		if br == nil {
 			// TODO: remove stale bucket readers before adding new one.
 			// NOte: it doesn't really prefetch rr.sequentialReadSizeMb that many bytes. It just keeps
 			// a open stream that could read up to that many bytes. It only keeps about 6MB in memory.
 			br, err = rr.newBucketReader(ctx, pid, offset, offset+int64(rr.sequentialReadSizeMb*MB))
+			rr.activeBucketReaders++
+			rr.totalBucketReadersCreated++
 			if err != nil {
 				err = fmt.Errorf("ReadAt: while creating bucket reader: %w", err)
 				return
 			}
 
 			rr.bucketReaders = append(rr.bucketReaders, br)
-			logger.Tracef("Adding a bucketReader, total bucketReaders: %d", len(rr.bucketReaders))
+			logger.Tracef("Adding a bucketReader, active bucketReaders: %d, total bucketReaders created: %d", rr.activeBucketReaders, rr.totalBucketReadersCreated)
 		}
 		var tmp int
 		tmp, err = br.read(offset, p)
@@ -374,8 +389,8 @@ func (rr *randomReader) ReadAt(
 		rr.totalReadBytes += uint64(tmp)
 
 		if br.start == br.end {
-			logger.Tracef("Closing bucketReader for pid: %d, numSeeks: %d, bytesRead: %d", br.pid, br.numSeeks, br.bytesRead)
-
+			logger.Tracef("Closing bucketReader as it is exhausted. pid: %d, numSeeks: %d, bytesReadMB: %d", br.pid, br.numSeeks, br.bytesRead/MB)
+			rr.activeBucketReaders--
 			err := br.reader.Close()
 			if err != nil {
 				logger.Tracef("Closing bucketReader error: %v", err)
@@ -501,7 +516,7 @@ func (rr *randomReader) Object() (o *gcs.MinObject) {
 func (rr *randomReader) Destroy() {
 	for _, br := range rr.bucketReaders {
 		if br.reader != nil {
-			logger.Tracef("Closing bucketReader for pid: %d, numSeeks: %d, bytesRead: %d", br.pid, br.numSeeks, br.bytesRead)
+			logger.Tracef("Closing bucketReader for pid: %d, numSeeks: %d, bytesReadMB: %d", br.pid, br.numSeeks, br.bytesRead/MB)
 			err := br.reader.Close()
 			br.reader = nil
 			if err != nil {
