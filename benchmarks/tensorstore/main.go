@@ -153,7 +153,7 @@ func main() {
 	writer.Write(record)
 	for _, ioConc := range fileIOConcurrencyRange {
 		for _, inflightMaxMulti := range maxInflightRequestMultiplicand {
-			for _, round := range []int64{1, 2, 3} {
+			for _, round := range []int64{1} {
 				output, err := multiReadBenchmark(checkoutDir, &multiReadConfig{
 					fileIOConcurrency:   ioConc,
 					maxInflightRequests: int64(64) * 1024 * 1024 * 1024 * inflightMaxMulti,
