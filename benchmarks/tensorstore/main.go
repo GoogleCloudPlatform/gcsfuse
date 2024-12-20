@@ -16,6 +16,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/csv"
 	"fmt"
 	"io"
 	"math"
@@ -29,6 +30,7 @@ import (
 )
 
 var filePath = flag.String("mount-path", "file:///dev/shm/multiread", "Path to the mountpoint along with protocol e.g. file://dev/shm/multireader")
+var resultsPath = flag.String("output-path", "/tmp/output.csv", "Results will be dumped here")
 
 var multiReadThroughputRegex = regexp.MustCompile(`throughput:\s+(.+)\s+MB/second`)
 
@@ -141,23 +143,34 @@ func main() {
 	}
 	fileIOConcurrencyRange := []int64{2, 4, 8, 16, 32, 64, 128, 256}
 	maxInflightRequestMultiplicand := []int64{1, 2, 4, 8}
-
+	f, err := os.Create(*resultsPath)
+	if err != nil {
+		panic(err)
+	}
+	defer func() { f.Close() }()
+	writer := csv.NewWriter(f)
+	record := []string{"file_io_concurrency", "max_inflight_requests", "Round", "Bandwidth MB/s"}
+	writer.Write(record)
 	for _, ioConc := range fileIOConcurrencyRange {
 		for _, inflightMaxMulti := range maxInflightRequestMultiplicand {
-			output, err := multiReadBenchmark(checkoutDir, &multiReadConfig{
-				fileIOConcurrency:   ioConc,
-				maxInflightRequests: int64(64) * 1024 * 1024 * 1024 * inflightMaxMulti,
-				path:                *filePath,
-			})
-			if err != nil {
-				panic(err)
+			for _, round := range []int64{1, 2, 3} {
+				output, err := multiReadBenchmark(checkoutDir, &multiReadConfig{
+					fileIOConcurrency:   ioConc,
+					maxInflightRequests: int64(64) * 1024 * 1024 * 1024 * inflightMaxMulti,
+					path:                *filePath,
+				})
+
+				if err != nil {
+					panic(err)
+				}
+				fmt.Println(output)
+				bw, err := extractBWFromMutiReadBenchmark(output)
+				if err != nil {
+					panic(err)
+				}
+				writer.Write([]string{strconv.FormatInt(ioConc, 10), strconv.FormatInt(inflightMaxMulti, 10), strconv.FormatInt(round, 10), strconv.FormatInt(int64(bw), 10)})
+				fmt.Printf("Bandwidth obtained: %d MB/s", int64(bw))
 			}
-			fmt.Println(output)
-			bw, err := extractBWFromMutiReadBenchmark(output)
-			if err != nil {
-				panic(err)
-			}
-			fmt.Printf("Bandwidth obtained: %d MB/s", int64(bw))
 		}
 	}
 }
