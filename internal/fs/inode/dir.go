@@ -17,6 +17,7 @@ package inode
 import (
 	"errors"
 	"fmt"
+	"log"
 	"path"
 	"strings"
 	"time"
@@ -67,7 +68,7 @@ type DirInode interface {
 
 	// Rename the directiory/folder.
 	RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (*gcs.Folder, error)
-	RenameFile(ctx context.Context, fileName string, destinationFileName string) (*gcs.Object, error)
+	RenameFile(ctx context.Context, oldObject *gcs.MinObject, destinationFileName string) (*gcs.Object, error)
 
 	// Read the children objects of this dir, recursively. The result count
 	// is capped at the given limit. Internal caches are not refreshed from this
@@ -1052,10 +1053,14 @@ func (d *dirInode) RenameFolder(ctx context.Context, folderName string, destinat
 	return folder, nil
 }
 
-func (d *dirInode) RenameFile(ctx context.Context, fileName string, destinationFileName string) (*gcs.Object, error) {
-	o, err := d.bucket.MoveObject(ctx, &gcs.MoveObjectRequest{SrcObject: fileName, DestObject: destinationFileName})
-	d.cache.Erase(fileName)
-	d.cache.Insert(d.cacheClock.Now(), o.Name, metadata.RegularFileType)
+func (d *dirInode) RenameFile(ctx context.Context, oldObject *gcs.MinObject, destinationFileName string) (*gcs.Object, error) {
+	log.Println("In Rename file")
+	o, err := d.bucket.MoveObject(ctx, &gcs.MoveObjectRequest{SrcObject: oldObject.Name,
+		DestObject:                    destinationFileName,
+		SrcGeneration:                 oldObject.Generation,
+		SrcMetaGenerationPrecondition: &oldObject.MetaGeneration})
+	d.cache.Erase(oldObject.Name)
+	//d.cache.Insert(d.cacheClock.Now(), o.Name, metadata.RegularFileType)
 	return o, err
 }
 

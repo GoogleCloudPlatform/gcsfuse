@@ -279,5 +279,16 @@ func (b *prefixBucket) RenameFolder(ctx context.Context, folderName string, dest
 }
 
 func (b *prefixBucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
-	return nil, nil
+	mReq := new(gcs.MoveObjectRequest)
+	*mReq = *req
+	mReq.SrcObject = b.wrappedName(req.SrcObject)
+	mReq.DestObject = b.wrappedName(req.DestObject)
+	f, err := b.wrapped.MoveObject(ctx, req)
+
+	// Modify the returned folder.
+	if f != nil {
+		f.Name = b.localName(f.Name)
+	}
+
+	return f, err
 }

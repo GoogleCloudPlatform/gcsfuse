@@ -261,7 +261,7 @@ func (d *baseDirInode) RenameFolder(ctx context.Context, folderName string, dest
 	return
 }
 
-func (d *baseDirInode) RenameFile(ctx context.Context, fileName string, destinationFileName string) (*gcs.Object, error) {
+func (d *baseDirInode) RenameFile(ctx context.Context, o *gcs.MinObject, destinationFileName string) (*gcs.Object, error) {
 	err := fuse.ENOSYS
 	return nil, err
 }

@@ -471,6 +471,28 @@ func (bh *bucketHandle) MoveObject(ctx context.Context, req *gcs.MoveObjectReque
 	var o *gcs.Object
 	var err error
 
+	obj := bh.bucket.Object(req.SrcObject)
+
+	// Switching to the requested generation of source object.
+	if req.SrcGeneration != 0 {
+		obj = obj.Generation(req.SrcGeneration)
+	}
+
+	// Putting a condition that the metaGeneration of source should match *req.SrcMetaGenerationPrecondition for copy operation to occur.
+	if req.SrcMetaGenerationPrecondition != nil {
+		obj = obj.If(storage.Conditions{MetagenerationMatch: *req.SrcMetaGenerationPrecondition})
+	}
+
+	dstMoveObject := storage.MoveObjectDestination{
+		Object:     req.DestObject,
+		Conditions: nil,
+	}
+
+	attrs, err := obj.Move(ctx, dstMoveObject)
+	if err == nil {
+		// Converting objAttrs to type *Object
+		o = storageutil.ObjectAttrsToBucketObject(attrs)
+	}
 	//obj := bh.bucket.Object(req.SrcObject)
 
 	// If storage object does not exist, httpclient is returning ErrObjectNotExist error instead of googleapi error

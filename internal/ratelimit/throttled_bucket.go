@@ -258,7 +258,16 @@ func (b *throttledBucket) CreateFolder(ctx context.Context, folderName string) (
 }
 
 func (b *throttledBucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
-	return nil, nil
+	// Wait for permission to call through.
+	err := b.opThrottle.Wait(ctx, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	// Call through.
+	o, err := b.wrapped.MoveObject(ctx, req)
+
+	return o, err
 }
 
 ////////////////////////////////////////////////////////////////////////
