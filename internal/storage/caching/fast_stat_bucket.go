@@ -468,8 +468,9 @@ func (b *fastStatBucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequ
 	if err != nil {
 		return nil, err
 	}
-	// TODO: Caching negative entries for both objects and folders will be implemented together due to test failures.
+
 	b.invalidate(req.SrcObject)
+	b.insert(o)
 
 	return o, nil
 }

@@ -283,7 +283,7 @@ func (b *prefixBucket) MoveObject(ctx context.Context, req *gcs.MoveObjectReques
 	*mReq = *req
 	mReq.SrcObject = b.wrappedName(req.SrcObject)
 	mReq.DestObject = b.wrappedName(req.DestObject)
-	f, err := b.wrapped.MoveObject(ctx, req)
+	f, err := b.wrapped.MoveObject(ctx, mReq)
 
 	// Modify the returned folder.
 	if f != nil {

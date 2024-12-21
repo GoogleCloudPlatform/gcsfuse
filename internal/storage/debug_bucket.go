@@ -283,5 +283,5 @@ func (b *debugBucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest
 	defer b.finishRequest(id, desc, start, &err)
 
 	o, err = b.wrapped.MoveObject(ctx, req)
-	return nil, nil
+	return o, nil
 }
