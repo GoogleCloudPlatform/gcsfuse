@@ -88,11 +88,12 @@ func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb i
 		bucket:               bucket,
 		totalReadBytes:       0,
 		sequentialReadSizeMb: sequentialReadSizeMb,
-		// TODO(wlhe): make it a flag
-		perPIDReader:          true,
-		fileCacheHandler:      fileCacheHandler,
-		cacheFileForRangeRead: cacheFileForRangeRead,
-		metricHandle:          metricHandle,
+		// TODO(wlhe): make them flags
+		perPIDReader:            true,
+		minSequentialReadSizeMb: 200,
+		fileCacheHandler:        fileCacheHandler,
+		cacheFileForRangeRead:   cacheFileForRangeRead,
+		metricHandle:            metricHandle,
 	}
 }
 
@@ -109,6 +110,9 @@ type randomReader struct {
 	// perPIDReader is a flag to enable per PID GCSreader.
 	perPIDReader         bool
 	sequentialReadSizeMb int32
+
+	// minSequentialReadSizeMb is the minimum size of sequential read size when creating a GCS reader.
+	minSequentialReadSizeMb int32
 
 	// fileCacheHandler is used to get file cache handle and read happens using that.
 	// This will be nil if the file cache is disabled.
@@ -248,7 +252,7 @@ func (rr *randomReader) getObjectRangeReader(ctx context.Context) *objectRangeRe
 				return objReader
 			}
 		}
-		or := newObjectRangeReader(rr.object, rr.bucket, rr.sequentialReadSizeMb, rr.metricHandle)
+		or := newObjectRangeReader(rr.object, rr.bucket, rr.sequentialReadSizeMb, rr.minSequentialReadSizeMb, rr.metricHandle)
 		or.pid = pid
 		// TODO(wlhe): consider limit the max number of objReaders.
 		rr.objReaders = append(rr.objReaders, or)
@@ -257,7 +261,7 @@ func (rr *randomReader) getObjectRangeReader(ctx context.Context) *objectRangeRe
 	}
 
 	if rr.objReader == nil {
-		rr.objReader = newObjectRangeReader(rr.object, rr.bucket, rr.sequentialReadSizeMb, rr.metricHandle)
+		rr.objReader = newObjectRangeReader(rr.object, rr.bucket, rr.sequentialReadSizeMb, rr.minSequentialReadSizeMb, rr.metricHandle)
 		logger.Tracef("Created new %s", rr.objReader.name())
 	}
 	return rr.objReader
@@ -364,6 +368,9 @@ type objectRangeReader struct {
 
 	sequentialReadSizeMb int32
 
+	// minSequentialReadSizeMb is the minimum size of sequential read size when creating a GCS reader.
+	minSequentialReadSizeMb int32
+
 	metricHandle common.MetricHandle
 }
 
@@ -376,18 +383,19 @@ func (or *objectRangeReader) name() string {
 
 // newObjectRangeReader create a object range reader for the supplied object record that
 // reads using the given bucket.
-func newObjectRangeReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, metricHandle common.MetricHandle) *objectRangeReader {
+func newObjectRangeReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, minSequentialReadSizeMb int32, metricHandle common.MetricHandle) *objectRangeReader {
 	return &objectRangeReader{
-		object:               o,
-		bucket:               bucket,
-		pid:                  -1,
-		start:                -1,
-		limit:                -1,
-		readBytes:            0,
-		seeks:                0,
-		totalReadBytes:       0,
-		sequentialReadSizeMb: sequentialReadSizeMb,
-		metricHandle:         metricHandle,
+		object:                  o,
+		bucket:                  bucket,
+		pid:                     -1,
+		start:                   -1,
+		limit:                   -1,
+		readBytes:               0,
+		seeks:                   0,
+		totalReadBytes:          0,
+		sequentialReadSizeMb:    sequentialReadSizeMb,
+		minSequentialReadSizeMb: minSequentialReadSizeMb,
+		metricHandle:            metricHandle,
 	}
 }
 
@@ -479,10 +487,14 @@ func (or *objectRangeReader) readAt(
 	// re-use GCS connection and avoid throwing away already read data.
 	// For parallel sequential reads to a single file, not throwing away the connections
 	// is a 15-20x improvement in throughput: 150-200 MB/s instead of 10 MB/s.
+	//
+	// It doesn't reuse the connection when seeking forward for more than maxReadSize before
+	// seeking forward is actually done reading by discarding all the bytes between start and offset.
+	// If the gap is too large, it's likely that it's slower than just creating a new connection.
+	// at the new offset.
 
 	logger.Tracef("%s readAt, start: %d, limit: %d, offset: %d", or.name(), or.start, or.limit, offset)
 
-	//if or.reader != nil && or.start < offset && offset < or.limit {
 	if or.reader != nil && or.start < offset && offset-or.start < maxReadSize {
 		bytesToSkip := int64(offset - or.start)
 		skipBuffer := make([]byte, bytesToSkip)
@@ -497,8 +509,7 @@ func (or *objectRangeReader) readAt(
 		or.reader.Close()
 		or.reader = nil
 		or.cancel = nil
-		// TODO(wlhe): remove this experiment.
-		//or.seeks++
+		or.seeks++
 		if or.start > offset {
 			logger.Tracef("%s closed the GCS reader due to seeking back, %s", or.name(), or.gcsReaderStats())
 		} else if offset-or.start >= maxReadSize {
@@ -605,16 +616,27 @@ func (or *objectRangeReader) newGCSReader(
 	// (average read size in bytes rounded up to the next MB).
 	end := int64(or.object.Size)
 	readType := util.Sequential
+	logger.Tracef("%s calculating the read size for the new GCS reader, totalReadBytesMB: %.2f, seeks: %d", or.name(), or.totalReadBytesMB(), or.seeks)
+
 	if or.seeks >= minSeeksForRandom {
 		readType = util.Random
 		averageReadBytes := or.totalReadBytes / or.seeks
+		logger.Tracef("%s calculating the read size for the new GCS reader, averageReadBytesMB: %d", or.name(), averageReadBytes/MB)
+
 		if averageReadBytes < maxReadSize {
 			randomReadSize := int64(((averageReadBytes / MB) + 1) * MB)
+			logger.Tracef("%s calculating the read size for the new GCS reader, randomReadSizeMB: %d, minReadSizeMB: %d, maxReadSizeMB: %d", or.name(), randomReadSize/MB, minReadSize/MB, maxReadSize/MB)
+
 			if randomReadSize < minReadSize {
 				randomReadSize = minReadSize
 			}
 			if randomReadSize > maxReadSize {
 				randomReadSize = maxReadSize
+			}
+
+			if randomReadSize < int64(or.minSequentialReadSizeMb*MB) {
+				logger.Tracef("%s overriding the read size for the new GCS reader, original sizeMB: %d, new sizeMB: %d", or.name(), randomReadSize/MB, or.minSequentialReadSizeMb)
+				randomReadSize = int64(or.minSequentialReadSizeMb * MB)
 			}
 			end = start + randomReadSize
 		}
@@ -629,7 +651,7 @@ func (or *objectRangeReader) newGCSReader(
 	if end-start > maxSizeToReadFromGCS {
 		end = start + maxSizeToReadFromGCS
 	}
-	logger.Tracef("%s creating a new GCS bucket reader, offset: %d, sizeMB: %d", or.name(), start, (end-start)/MB)
+	logger.Tracef("%s creating a new GCS reader, offset: %d, sizeMB: %d", or.name(), start, (end-start)/MB)
 
 	// Begin the read.
 	// Use a Background context to keep the GCS stream open.
