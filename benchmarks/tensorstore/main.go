@@ -38,10 +38,11 @@ type multiReadConfig struct {
 	fileIOConcurrency   int64
 	maxInflightRequests int64
 	path                string
+	tscliConfigPath     string
 }
 
-func tscliConfig(checkoutDir string, config *multiReadConfig) (string, error) {
-	cmd := fmt.Sprintf("%s search -f '%s'", path.Join(checkoutDir, "bazel-bin/tensorstore/tscli/tscli"), config.path)
+func tscliConfig(checkoutDir string, pth string) (string, error) {
+	cmd := fmt.Sprintf("%s search -f '%s'", path.Join(checkoutDir, "bazel-bin/tensorstore/tscli/tscli"), pth)
 	fmt.Println(cmd)
 	output, err := script.Exec(cmd).Filter(
 		func(r io.Reader, w io.Writer) error {
@@ -75,33 +76,14 @@ func tscliConfig(checkoutDir string, config *multiReadConfig) (string, error) {
 	return fName, nil
 }
 
-func multiReadBenchmarkSetup(wd string, config *multiReadConfig) (string, error) {
-	cfgPath, err := tscliConfig(wd, config)
-	if err != nil {
-		return "", err
-	}
-	return cfgPath, nil
-}
-
 func multiReadBenchmark(checkoutDir string, config *multiReadConfig) (string, error) {
-	tscliConfig, err := multiReadBenchmarkSetup(checkoutDir, config)
-	if err != nil {
-		return "", err
-	}
 	if _, err := script.Echo("3").AppendFile("/proc/sys/vm/drop_caches"); err != nil {
 		return "", fmt.Errorf("unable to clear page cache: %w", err)
 	}
 	cmd := fmt.Sprintf("%s --read_config=%s --max_in_flight=%d --context_spec='{\"file_io_concurrency\": {\"limit\": %d}}'",
-		path.Join(checkoutDir, "bazel-bin/tensorstore/internal/benchmark/multi_read_benchmark"), tscliConfig, config.maxInflightRequests, config.fileIOConcurrency)
+		path.Join(checkoutDir, "bazel-bin/tensorstore/internal/benchmark/multi_read_benchmark"), config.tscliConfigPath, config.maxInflightRequests, config.fileIOConcurrency)
 	fmt.Println(cmd)
-	benchmarkOutput, err := script.Exec(cmd).String()
-	if err != nil {
-		return "", err
-	}
-	if err := os.Remove(tscliConfig); err != nil {
-		return "", err
-	}
-	return benchmarkOutput, nil
+	return script.Exec(cmd).String()
 }
 func newScanner(r io.Reader) *bufio.Scanner {
 	scanner := bufio.NewScanner(r)
@@ -154,6 +136,12 @@ func main() {
 	}()
 	record := []string{"file_io_concurrency", "max_inflight_requests", "Round", "Throughput MB/s"}
 	writer.Write(record)
+	tscliConfigPath, err := tscliConfig(checkoutDir, *filePath)
+	if err != nil {
+		panic(err)
+	}
+	defer func() { os.RemoveAll(tscliConfigPath) }()
+
 	for _, ioConc := range fileIOConcurrencyRange {
 		for _, inflightMaxMulti := range maxInflightRequestMultiplicand {
 			for _, round := range []int64{1} {
@@ -161,6 +149,7 @@ func main() {
 					fileIOConcurrency:   ioConc,
 					maxInflightRequests: int64(64) * 1024 * 1024 * 1024 * inflightMaxMulti,
 					path:                *filePath,
+					tscliConfigPath:     tscliConfigPath,
 				})
 
 				if err != nil {
