@@ -416,10 +416,14 @@ func (or *objectRangeReader) totalReadBytesMB() float32 {
 	return float32(or.totalReadBytes) / MB
 }
 
+func (or *objectRangeReader) gcsReaderStats() string {
+	return fmt.Sprintf("readBytesMB: %.2f, totalReadBytesMB: %.2f, seeks: %d", or.readBytesMB(), or.totalReadBytesMB(), or.seeks)
+}
+
 func (or *objectRangeReader) destroy() {
 	if or.reader != nil {
-		logger.Tracef("%s closed the GCS reader, seeks: %d, readBytesMB: %.2f", or.name(), or.seeks, or.readBytesMB())
-		logger.Tracef("Destroying %s, seeks: %d, totalReadBytesMB: %.2f", or.name(), or.seeks, or.totalReadBytesMB())
+		logger.Tracef("%s closed the GCS reader at final destruction, %s", or.name(), or.gcsReaderStats())
+		logger.Tracef("Destroying %s, totalReadBytesMB: %.2f, seeks: %d", or.name(), or.totalReadBytesMB(), or.seeks)
 		err := or.reader.Close()
 		or.reader = nil
 		if err != nil {
@@ -476,7 +480,7 @@ func (or *objectRangeReader) readAt(
 	// For parallel sequential reads to a single file, not throwing away the connections
 	// is a 15-20x improvement in throughput: 150-200 MB/s instead of 10 MB/s.
 
-	logger.Tracef("%s start: %d,limit: %d, offset: %d", or.name(), or.start, or.limit, offset)
+	logger.Tracef("%s readAt, start: %d, limit: %d, offset: %d", or.name(), or.start, or.limit, offset)
 
 	//if or.reader != nil && or.start < offset && offset < or.limit {
 	if or.reader != nil && or.start < offset && offset-or.start < maxReadSize {
@@ -496,11 +500,13 @@ func (or *objectRangeReader) readAt(
 		// TODO(wlhe): remove this experiment.
 		//or.seeks++
 		if or.start > offset {
-			logger.Tracef("%s closed the GCS reader due to seeking back, seeks: %d, readBytesMB: %.2f", or.name(), or.seeks, or.readBytesMB())
+			logger.Tracef("%s closed the GCS reader due to seeking back, %s", or.name(), or.gcsReaderStats())
+		} else if offset-or.start >= maxReadSize {
+			logger.Tracef("%s closed the GCS reader due to seeking forward for more than %d MB, %s", or.name(), maxReadSize/MB, or.gcsReaderStats())
 		} else if offset >= or.limit {
-			logger.Tracef("%s closed the GCS reader due to seeking too far forward, seeks: %d, readBytesMB: %.2f", or.name(), or.seeks, or.readBytesMB())
+			logger.Tracef("%s closed the GCS reader due to seeking beyond the range, %s", or.name(), or.gcsReaderStats())
 		} else {
-			logger.Tracef("%s closed the GCS reader due to wrong position, seeks: %d, readBytesMB: %.2f", or.name(), or.seeks, or.readBytesMB())
+			logger.Tracef("%s closed the GCS reader due to wrong position, %s", or.name(), or.gcsReaderStats())
 		}
 	}
 
@@ -524,7 +530,7 @@ func (or *objectRangeReader) readAt(
 	// Sanity check.
 	if or.start > or.limit {
 		err = fmt.Errorf("%s reader returned %d too many bytes", or.name(), or.start-or.limit)
-		logger.Tracef("%s closed the GCS reader due to too many bytes returned, seeks: %d, readBytesMB: %.2f", or.name(), or.seeks, or.readBytesMB())
+		logger.Tracef("%s closed the GCS reader due to too many bytes returned, %s", or.name(), or.gcsReaderStats())
 
 		// Don't attempt to reuse the reader when it's behaving wackily.
 		or.reader.Close()
@@ -539,7 +545,7 @@ func (or *objectRangeReader) readAt(
 
 	// Are we finished with this reader now?
 	if or.start == or.limit {
-		logger.Tracef("%s closed the GCS reader due to byte limit reached: %d, readBytesMB: %.2f", or.name(), or.seeks, or.readBytesMB())
+		logger.Tracef("%s closed the GCS reader due to byte limit reached: %d, %s", or.name(), or.limit, or.gcsReaderStats())
 
 		or.reader.Close()
 		or.reader = nil
