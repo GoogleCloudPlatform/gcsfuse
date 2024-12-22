@@ -147,9 +147,12 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	defer func() { f.Close() }()
 	writer := csv.NewWriter(f)
-	record := []string{"file_io_concurrency", "max_inflight_requests", "Round", "Bandwidth MB/s"}
+	defer func() {
+		writer.Flush()
+		f.Close()
+	}()
+	record := []string{"file_io_concurrency", "max_inflight_requests", "Round", "Throughput MB/s"}
 	writer.Write(record)
 	for _, ioConc := range fileIOConcurrencyRange {
 		for _, inflightMaxMulti := range maxInflightRequestMultiplicand {
