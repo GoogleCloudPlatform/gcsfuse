@@ -197,7 +197,7 @@ func (t *StaleFileHandleSyncedFile) TestSyncedObjectDeletedLocally_SyncAndClose_
 	t.f1 = nil
 }
 
-func (t *StaleFileHandleSyncedFile) TestRenamedSyncedObject_Sync_ThrowsStaleFileHandleError() {
+func (t *StaleFileHandleSyncedFile) TestRenamedSyncedObject_SyncAndClose_ThrowsStaleFileHandleError() {
 	// Dirty the file by giving it some contents.
 	n, err := t.f1.Write([]byte("foobar"))
 	assert.Equal(t.T(), nil, err)
