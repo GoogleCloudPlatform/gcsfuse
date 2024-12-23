@@ -373,8 +373,7 @@ func (b *fastStatBucket) DeleteObject(
 }
 
 func (b *fastStatBucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
-	// TODO: Implement me
-
+	// TODO: Implement it.
 	return nil, nil
 }
 
