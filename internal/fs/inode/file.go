@@ -324,12 +324,11 @@ func (f *FileInode) IsUnlinked() bool {
 }
 
 func (f *FileInode) Unlink() {
+	f.unlinked = true
+
 	if f.bwh != nil {
 		f.bwh.Unlink()
 		f.bwh = nil
-	}
-	if f.local {
-		f.unlinked = true
 	}
 }
 
@@ -591,9 +590,8 @@ func (f *FileInode) flushUsingBufferedWriteHandler() error {
 func (f *FileInode) SetMtime(
 	ctx context.Context,
 	mtime time.Time) (err error) {
-	if f.IsLocal() && f.content == nil && f.bwh == nil {
-		// This scenario will happen for unlinked local file.
-		// No need to update mtime on GCS.
+	if f.IsUnlinked() {
+		// No need to update mtime on GCS for unlinked file.
 		return
 	}
 

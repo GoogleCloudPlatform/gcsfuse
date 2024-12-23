@@ -44,8 +44,7 @@ type UploadHandler struct {
 	// inode. This signals permanent failure in the buffered write job.
 	signalUploadFailure chan error
 
-	// Context and CancelFunc persisted to cancel the uploads in case of unlink operation.
-	ctx        context.Context
+	// CancelFunc persisted to cancel the uploads in case of unlink operation.
 	cancelFunc context.CancelFunc
 
 	// Parameters required for creating a new GCS chunk writer.
@@ -107,8 +106,9 @@ func (uh *UploadHandler) createObjectWriter() (err error) {
 	req := gcs.NewCreateObjectRequest(uh.obj, uh.objectName, nil, uh.chunkTransferTimeout)
 	// We need a new context here, since the first writeFile() call will be complete
 	// (and context will be cancelled) by the time complete upload is done.
-	uh.ctx, uh.cancelFunc = context.WithCancel(context.Background())
-	uh.writer, err = uh.bucket.CreateObjectChunkWriter(uh.ctx, req, int(uh.blockSize), nil)
+	var ctx context.Context
+	ctx, uh.cancelFunc = context.WithCancel(context.Background())
+	uh.writer, err = uh.bucket.CreateObjectChunkWriter(ctx, req, int(uh.blockSize), nil)
 	return
 }
 

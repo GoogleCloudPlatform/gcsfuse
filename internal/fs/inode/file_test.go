@@ -36,6 +36,7 @@ import (
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/net/context"
 )
@@ -1046,6 +1047,19 @@ func (t *FileTest) TestSetMtime_SourceObjectMetaGenerationChanged() {
 	assert.NotNil(t.T(), m)
 	assert.Equal(t.T(), newObj.Generation, m.Generation)
 	assert.Equal(t.T(), newObj.MetaGeneration, m.MetaGeneration)
+}
+
+func (t *FileTest) TestSetMtimeForUnlinkedFileIsNoOp() {
+	t.in.unlinked = true
+	mtime := time.Now().UTC().Add(123 * time.Second)
+
+	// Set mtime.
+	err := t.in.SetMtime(t.ctx, mtime)
+
+	require.Nil(t.T(), err)
+	attr, err := t.in.Attributes(context.Background())
+	require.Nil(t.T(), err)
+	assert.NotEqual(t.T(), mtime, attr.Mtime)
 }
 
 func (t *FileTest) TestTestSetMtimeForLocalFileShouldUpdateLocalFileAttributes() {

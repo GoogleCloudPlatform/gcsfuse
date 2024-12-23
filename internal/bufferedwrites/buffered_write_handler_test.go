@@ -15,7 +15,6 @@
 package bufferedwrites
 
 import (
-	"context"
 	"strings"
 	"testing"
 	"time"
@@ -349,15 +348,15 @@ func (testSuite *BufferedWriteTest) TestWriteFileInfoWithTruncatedLengthGreaterT
 	assert.Equal(testSuite.T(), testSuite.bwh.truncatedSize, fileInfo.TotalSize)
 }
 
-func (testSuite *BufferedWriteTest) TestUnlinkWhenWriterIsNotCreated() {
+func (testSuite *BufferedWriteTest) TestUnlinkBeforeWrite() {
 	testSuite.bwh.Unlink()
 
-	assert.Nil(testSuite.T(), testSuite.bwh.uploadHandler.ctx)
+	assert.Nil(testSuite.T(), testSuite.bwh.uploadHandler.cancelFunc)
 	assert.Equal(testSuite.T(), 0, len(testSuite.bwh.uploadHandler.uploadCh))
 	assert.Equal(testSuite.T(), 0, len(testSuite.bwh.blockPool.FreeBlocksChannel()))
 }
 
-func (testSuite *BufferedWriteTest) TestUnlinkWhenWriterIsCreated() {
+func (testSuite *BufferedWriteTest) TestUnlinkAfterWrite() {
 	buffer, err := operations.GenerateRandomData(blockSize)
 	assert.NoError(testSuite.T(), err)
 	// Write 5 blocks.
@@ -365,11 +364,12 @@ func (testSuite *BufferedWriteTest) TestUnlinkWhenWriterIsCreated() {
 		err = testSuite.bwh.Write(buffer, int64(blockSize*i))
 		require.Nil(testSuite.T(), err)
 	}
+	cancelCalled := false
+	testSuite.bwh.uploadHandler.cancelFunc = func() { cancelCalled = true }
 
 	testSuite.bwh.Unlink()
 
-	require.NotNil(testSuite.T(), testSuite.bwh.uploadHandler.ctx)
-	assert.Equal(testSuite.T(), context.Canceled, testSuite.bwh.uploadHandler.ctx.Err())
+	assert.True(testSuite.T(), cancelCalled)
 	assert.Equal(testSuite.T(), 0, len(testSuite.bwh.uploadHandler.uploadCh))
 	assert.Equal(testSuite.T(), 0, len(testSuite.bwh.blockPool.FreeBlocksChannel()))
 }
