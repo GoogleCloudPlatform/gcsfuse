@@ -526,6 +526,9 @@ func TestInfiniteKernelListCacheTest(t *testing.T) {
 	}
 
 	// Define flag set to run the tests.
+	// Note: metadata cache is disabled to avoid cache consistency issue between
+	// gcsfuse cache and kernel cache. As gcsfuse cache might hold the entry which
+	// already became stale due to delete operation.
 	// TODO: Replace metadata-cache-ttl-secs with something better
 	flagsSet := [][]string{
 		{"--kernel-list-cache-ttl-secs=-1", "--metadata-cache-ttl-secs=0"},

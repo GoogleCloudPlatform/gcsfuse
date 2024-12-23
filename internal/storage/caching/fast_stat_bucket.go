@@ -378,6 +378,9 @@ func (b *fastStatBucket) DeleteObject(
 
 func (b *fastStatBucket) DeleteFolder(ctx context.Context, folderName string) error {
 	err := b.wrapped.DeleteFolder(ctx, folderName)
+	// In case of an error; invalidate the cached entry. This will make sure that
+	// gcsfuse is not caching possibly erroneous status of the folder and next
+	// call will hit GCS backend to probe the latest status.
 	if err != nil {
 		b.invalidate(folderName)
 	} else {
