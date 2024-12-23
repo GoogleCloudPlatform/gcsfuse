@@ -151,7 +151,7 @@ func NewFileInode(
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) checkInvariants() {
-	if f.destroyed {
+	if f.destroyed || f.unlinked {
 		return
 	}
 
