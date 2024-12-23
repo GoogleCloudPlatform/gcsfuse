@@ -76,11 +76,11 @@ func tscliConfig(checkoutDir string, pth string) (string, error) {
 	return fName, nil
 }
 
-func multiReadBenchmark(checkoutDir string, config *multiReadConfig) (string, error) {
+func multiReadBenchmark(checkoutDir string, config *multiReadConfig, idx int64) (string, error) {
 	if _, err := script.Echo("3").AppendFile("/proc/sys/vm/drop_caches"); err != nil {
 		return "", fmt.Errorf("unable to clear page cache: %w", err)
 	}
-	cmd := fmt.Sprintf("%s --read_config=%s --max_in_flight=%d --context_spec='{\"file_io_concurrency\": {\"limit\": %d}}'",
+	cmd := fmt.Sprintf(`%s --read_config=%s --max_in_flight=%d --context_spec='{"file_io_concurrency": {"limit": %d}, "cache_pool": {"total_bytes_limit": 0}}' --cpu_profile=/tmp/profile%d.out`,
 		path.Join(checkoutDir, "bazel-bin/tensorstore/internal/benchmark/multi_read_benchmark"), config.tscliConfigPath, config.maxInflightRequests, config.fileIOConcurrency)
 	fmt.Println(cmd)
 	return script.Exec(cmd).String()
@@ -141,6 +141,7 @@ func main() {
 		panic(err)
 	}
 	defer func() { os.RemoveAll(tscliConfigPath) }()
+	idx := int64(0)
 
 	for _, ioConc := range fileIOConcurrencyRange {
 		for _, inflightMaxMulti := range maxInflightRequestMultiplicand {
@@ -150,7 +151,9 @@ func main() {
 					maxInflightRequests: int64(64) * 1024 * 1024 * 1024 * inflightMaxMulti,
 					path:                *filePath,
 					tscliConfigPath:     tscliConfigPath,
-				})
+				},
+					idx)
+				idx++
 
 				if err != nil {
 					panic(err)
