@@ -520,7 +520,7 @@ func TestMoveObject(t *testing.T) {
 	prefix := "foo_"
 	var err error
 	suffix := "test"
-	wrapped := fake.NewFakeBucket(timeutil.RealClock(), "some_bucket", gcs.NonHierarchical)
+	wrapped := fake.NewFakeBucket(timeutil.RealClock(), "some_bucket", gcs.Hierarchical)
 	bucket, err := gcsx.NewPrefixBucket(prefix, wrapped)
 	require.NoError(t, err)
 	ctx := context.Background()
