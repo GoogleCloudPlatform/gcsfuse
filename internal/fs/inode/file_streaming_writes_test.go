@@ -208,21 +208,23 @@ func (t *FileStreamingWritesTest) TestOutOfOrderWritesOnClobberedFileThrowsError
 	objGot, _, err := t.bucket.StatObject(t.ctx, statReq)
 	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), storageutil.ConvertObjToMinObject(objWritten), objGot)
-func (t *FileStreamingWritesTest) TestUnlinkLocalFileWhenWritesAreNotInProgress() {
+}
+
+func (t *FileStreamingWritesTest) TestUnlinkLocalFileBeforeWrite() {
 	assert.True(t.T(), t.in.IsLocal())
 
 	// Unlink.
 	t.in.Unlink()
 
-	// Verify that fileInode is now unlinked
-	assert.True(t.T(), t.in.IsUnlinked())
+	assert.True(t.T(), t.in.unlinked)
+	assert.Nil(t.T(), t.in.bwh)
 	// Data shouldn't be updated to GCS.
 	operations.ValidateObjectNotFoundErr(t.ctx, t.T(), t.bucket, t.in.Name().GcsObjectName())
 }
 
-func (t *FileStreamingWritesTest) TestUnlinkLocalFileWhenWritesAreInProgress() {
+func (t *FileStreamingWritesTest) TestUnlinkLocalFileAfterWrite() {
 	assert.True(t.T(), t.in.IsLocal())
-	// Write some content to temp file.
+	// Write some content.
 	err := t.in.Write(t.ctx, []byte("tacos"), 0)
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), t.in.bwh)
@@ -230,8 +232,8 @@ func (t *FileStreamingWritesTest) TestUnlinkLocalFileWhenWritesAreInProgress() {
 	// Unlink.
 	t.in.Unlink()
 
-	// Verify that fileInode is now unlinked
 	assert.True(t.T(), t.in.IsUnlinked())
+	assert.Nil(t.T(), t.in.bwh)
 	// Data shouldn't be updated to GCS.
 	operations.ValidateObjectNotFoundErr(t.ctx, t.T(), t.bucket, t.in.Name().GcsObjectName())
 }
@@ -247,6 +249,6 @@ func (t *FileStreamingWritesTest) TestUnlinkEmptySyncedFile() {
 	// Unlink.
 	t.in.Unlink()
 
-	// Verify inode is not marked unlinked.
-	assert.False(t.T(), t.in.unlinked)
+	assert.True(t.T(), t.in.unlinked)
+	assert.Nil(t.T(), t.in.bwh)
 }

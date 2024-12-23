@@ -71,7 +71,10 @@ func TestStreamingWritesLocalFileTestSuite(t *testing.T) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *StreamingWritesLocalFileTest) TestUnlinkWhenWritesAreNotInProgress() {
+func (t *StreamingWritesLocalFileTest) TestUnlinkBeforeWrite() {
+	// Validate that the file is local (not synced).
+	operations.ValidateObjectNotFoundErr(ctx, t.T(), bucket, fileName)
+
 	// unlink the local file.
 	err := os.Remove(t.f1.Name())
 	assert.NoError(t.T(), err)
@@ -84,7 +87,10 @@ func (t *StreamingWritesLocalFileTest) TestUnlinkWhenWritesAreNotInProgress() {
 	operations.ValidateObjectNotFoundErr(ctx, t.T(), bucket, fileName)
 }
 
-func (t *StreamingWritesLocalFileTest) TestUnlinkWhenWritesAreInProgress() {
+func (t *StreamingWritesLocalFileTest) TestUnlinkAfterWrite() {
+	// Validate that the file is local (not synced).
+	operations.ValidateObjectNotFoundErr(ctx, t.T(), bucket, fileName)
+	// Write content to file.
 	_, err := t.f1.Write([]byte("tacos"))
 	assert.Nil(t.T(), err)
 

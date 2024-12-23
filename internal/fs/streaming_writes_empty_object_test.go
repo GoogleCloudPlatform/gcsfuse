@@ -75,23 +75,31 @@ func TestStreamingWritesEmptyObjectTest(t *testing.T) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *StreamingWritesEmptyObjectTest) TestUnlinkWritesAreNotInProgress() {
+func (t *StreamingWritesEmptyObjectTest) TestUnlinkBeforeWrite() {
+	// Validate that file exists on GCS.
+	_, err := storageutil.ReadObject(ctx, bucket, fileName)
+	assert.NoError(t.T(), err)
+
 	// unlink the synced file.
-	err := os.Remove(t.f1.Name())
+	err = os.Remove(t.f1.Name())
 	assert.NoError(t.T(), err)
 
 	// Stat the file and validate file is deleted.
 	operations.ValidateNoFileOrDirError(t.T(), t.f1.Name())
-	// Close the file and validate that file is not created on GCS.
+	// Close the file and validate that file is deleted from GCS.
 	err = t.f1.Close()
 	assert.NoError(nil, err)
 	t.f1 = nil
 	operations.ValidateObjectNotFoundErr(ctx, t.T(), bucket, fileName)
 }
 
-func (t *StreamingWritesEmptyObjectTest) TestUnlinkWhenWritesAreInProgress() {
-	_, err := t.f1.Write([]byte("tacos"))
-	assert.Nil(t.T(), err)
+func (t *StreamingWritesEmptyObjectTest) TestUnlinkAfterWrite() {
+	// Validate that file exists on GCS.
+	_, err := storageutil.ReadObject(ctx, bucket, fileName)
+	assert.NoError(t.T(), err)
+	// Write content to file.
+	_, err = t.f1.Write([]byte("tacos"))
+	assert.NoError(t.T(), err)
 
 	// unlink the file.
 	err = os.Remove(t.f1.Name())
