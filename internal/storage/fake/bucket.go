@@ -1014,13 +1014,12 @@ func (b *bucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*g
 		return nil, err
 	}
 
-	// Does the object exist?
+	// Does the source object exist?
 	srcIndex := b.objects.find(req.SrcName)
 	if srcIndex == len(b.objects) {
 		err = &gcs.NotFoundError{
 			Err: fmt.Errorf("object %q not found", req.SrcName),
 		}
-
 		return nil, err
 	}
 
