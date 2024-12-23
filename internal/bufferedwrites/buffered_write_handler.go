@@ -88,8 +88,9 @@ func NewBWHandler(req *CreateBWHandlerRequest) (bwh *BufferedWriteHandler, err e
 			BlockSize:                req.BlockSize,
 			ChunkTransferTimeoutSecs: req.ChunkTransferTimeoutSecs,
 		}),
-		totalSize: 0,
-		mtime:     time.Now(),
+		totalSize:     0,
+		mtime:         time.Now(),
+		truncatedSize: -1,
 	}
 	return
 }
