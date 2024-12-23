@@ -17,7 +17,6 @@ package fs_test
 import (
 	"os"
 	"path"
-	"path/filepath"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
@@ -63,12 +62,6 @@ func (t *StaleFileHandleLocalFile) SetupTest() {
 }
 
 func (t *StaleFileHandleLocalFile) TearDownTest() {
-	filePath := filepath.Join(mntDir, "foo")
-	if _, err := os.Stat(filePath); err == nil {
-		err = os.Remove(filePath)
-		assert.Equal(t.T(), nil, err)
-	}
-
 	// fsTest Cleanups to clean up mntDir and close t.f1 and t.f2.
 	t.fsTest.TearDown()
 }
@@ -126,21 +119,22 @@ func (t *StaleFileHandleLocalFile) TestUnlinkedDirectoryContainingSyncedAndLocal
 			map[string]string{
 				// File
 				"explicit/":    "",
-				"explicit/foo": "",
+				"explicit/bar": "",
 			}))
-	_, t.f1 = operations.CreateLocalFile(ctx, t.T(), mntDir, bucket, "explicit/"+explicitLocalFileName)
+	_, t.f2 = operations.CreateLocalFile(ctx, t.T(), mntDir, bucket, "explicit/"+explicitLocalFileName)
 	// Attempt to remove explicit directory.
 	err := os.RemoveAll(path.Join(mntDir, "explicit"))
+
 	// Verify rmDir operation succeeds.
 	assert.Equal(t.T(), nil, err)
 	operations.ValidateNoFileOrDirError(t.T(), path.Join(mntDir, "explicit/"+explicitLocalFileName))
 	operations.ValidateNoFileOrDirError(t.T(), path.Join(mntDir, "explicit/foo"))
 	operations.ValidateNoFileOrDirError(t.T(), path.Join(mntDir, "explicit"))
 
-	_, err = t.f1.Write([]byte(FileContents))
+	_, err = t.f2.Write([]byte(FileContents))
 
 	operations.ValidateStaleNFSFileHandleError(t.T(), err)
-	err = operations.CloseLocalFile(t.T(), &t.f1)
+	err = operations.CloseLocalFile(t.T(), &t.f2)
 	operations.ValidateStaleNFSFileHandleError(t.T(), err)
 	// Validate both local and synced files are deleted.
 	operations.ValidateObjectNotFoundErr(ctx, t.T(), bucket, "explicit/"+explicitLocalFileName)

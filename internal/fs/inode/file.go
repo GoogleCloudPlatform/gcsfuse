@@ -108,16 +108,16 @@ var _ Inode = &FileInode{}
 // REQUIRES: len(m.Name) > 0
 // REQUIRES: m.Name[len(m.Name)-1] != '/'
 func NewFileInode(
-	id fuseops.InodeID,
-	name Name,
-	m *gcs.MinObject,
-	attrs fuseops.InodeAttributes,
-	bucket *gcsx.SyncerBucket,
-	localFileCache bool,
-	contentCache *contentcache.ContentCache,
-	mtimeClock timeutil.Clock,
-	localFile bool,
-	cfg *cfg.Config) (f *FileInode) {
+		id fuseops.InodeID,
+		name Name,
+		m *gcs.MinObject,
+		attrs fuseops.InodeAttributes,
+		bucket *gcsx.SyncerBucket,
+		localFileCache bool,
+		contentCache *contentcache.ContentCache,
+		mtimeClock timeutil.Clock,
+		localFile bool,
+		cfg *cfg.Config) (f *FileInode) {
 	// Set up the basic struct.
 	var minObj gcs.MinObject
 	if m != nil {
@@ -391,7 +391,7 @@ func (f *FileInode) Destroy() (err error) {
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Attributes(
-	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
+		ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
 	attrs = f.attrs
 
 	// Obtain default information from the source object.
@@ -470,9 +470,9 @@ func (f *FileInode) Bucket() *gcsx.SyncerBucket {
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Read(
-	ctx context.Context,
-	dst []byte,
-	offset int64) (n int, err error) {
+		ctx context.Context,
+		dst []byte,
+		offset int64) (n int, err error) {
 	// It is not nil when streaming writes are enabled in 2 scenarios:
 	// 1. Local file
 	// 2. Empty GCS files and writes are triggered via buffered flow.
@@ -506,9 +506,9 @@ func (f *FileInode) Read(
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Write(
-	ctx context.Context,
-	data []byte,
-	offset int64) (err error) {
+		ctx context.Context,
+		data []byte,
+		offset int64) (err error) {
 	// For empty GCS files also we will trigger bufferedWrites flow.
 	if f.src.Size == 0 && f.config.Write.ExperimentalEnableStreamingWrites {
 		err = f.ensureBufferedWriteHandler(ctx)
@@ -539,11 +539,10 @@ func (f *FileInode) Write(
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) SetMtime(
-	ctx context.Context,
-	mtime time.Time) (err error) {
-	if f.IsLocal() && f.IsUnlinked() {
-		// This scenario will happen for unlinked local file.
-		// No need to update mtime on GCS.
+		ctx context.Context,
+		mtime time.Time) (err error) {
+	if f.IsUnlinked() {
+		// No need to update mtime on GCS for unlinked file.
 		return
 	}
 
@@ -655,6 +654,11 @@ func (f *FileInode) fetchLatestGcsObject(ctx context.Context) (*gcs.Object, erro
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Sync(ctx context.Context) (err error) {
+	// If we have not been dirtied, there is nothing to do.
+	if f.content == nil {
+		return
+	}
+
 	// Sync can be triggered for unlinked files if the fileHandle is open by
 	// same or another user. This indicates a potential file clobbering scenario:
 	// - The file was deleted (unlinked) while a handle to it was still open.
@@ -663,11 +667,6 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 			Err: fmt.Errorf("file %s was unlinked while it was still open, indicating file clobbering", f.Name().LocalName()),
 		}
 		f.content.SetClobbered()
-		return
-	}
-
-	// If we have not been dirtied, there is nothing to do.
-	if f.content == nil {
 		return
 	}
 
@@ -726,8 +725,8 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Truncate(
-	ctx context.Context,
-	size int64) (err error) {
+		ctx context.Context,
+		size int64) (err error) {
 	// For empty GCS files also, we will trigger bufferedWrites flow.
 	if f.src.Size == 0 && f.config.Write.ExperimentalEnableStreamingWrites {
 		err = f.ensureBufferedWriteHandler(ctx)
