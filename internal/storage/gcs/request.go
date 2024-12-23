@@ -391,5 +391,11 @@ type MoveObjectRequest struct {
 	SrcName string // Source object name
 	DstName string // Destination object name
 
-	// TODO: Add other necessary attributes as required
+	// The generation of the source object to move, or zero for the latest
+	// generation.
+	SrcGeneration int64
+
+	// If non-nil, the destination object will be created/overwritten only if the
+	// current meta-generation for the source object is equal to the given value.
+	SrcMetaGenerationPrecondition *int64
 }

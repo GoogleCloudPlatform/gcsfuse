@@ -514,3 +514,46 @@ func TestCreateFolder(t *testing.T) {
 	_, err = bucket.GetFolder(ctx, suffix)
 	assert.NoError(t, err)
 }
+
+func TestMoveObject(t *testing.T) {
+	var notFoundErr *gcs.NotFoundError
+	prefix := "foo_"
+	var err error
+	suffix := "test"
+	wrapped := fake.NewFakeBucket(timeutil.RealClock(), "some_bucket", gcs.NonHierarchical)
+	bucket, err := gcsx.NewPrefixBucket(prefix, wrapped)
+	require.NoError(t, err)
+	ctx := context.Background()
+	contents := "foobar"
+
+	// Create an object through the back door.
+	_, err = storageutil.CreateObject(ctx, bucket, suffix, []byte(contents))
+	AssertEq(nil, err)
+
+	// Move it to a new name.
+	newSuffix := "burrito"
+	o, err := bucket.MoveObject(
+		ctx,
+		&gcs.MoveObjectRequest{
+			SrcName: suffix,
+			DstName: newSuffix,
+		})
+
+	assert.NoError(t, err)
+	assert.Equal(t, newSuffix, o.Name)
+
+	// Read it through the back door.
+	actual, err := storageutil.ReadObject(ctx, bucket, o.Name)
+	assert.NoError(t, err)
+	assert.Equal(t, contents, string(actual))
+
+	// Stat old object.
+	m, _, err := bucket.StatObject(
+		ctx,
+		&gcs.StatObjectRequest{
+			Name: suffix,
+		})
+
+	assert.True(t, errors.As(err, &notFoundErr))
+	assert.Nil(t, m)
+}

@@ -236,8 +236,20 @@ func (b *prefixBucket) DeleteObject(
 }
 
 func (b *prefixBucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
-	// TODO: Implement it.
-	return nil, nil
+	// Modify the request and call through.
+	mReq := new(gcs.MoveObjectRequest)
+	*mReq = *req
+	mReq.SrcName = b.wrappedName(req.SrcName)
+	mReq.DstName = b.wrappedName(req.DstName)
+
+	o, err := b.wrapped.MoveObject(ctx, mReq)
+
+	// Modify the returned object.
+	if o != nil {
+		o.Name = b.localName(o.Name)
+	}
+
+	return o, err
 }
 
 func (b *prefixBucket) DeleteFolder(ctx context.Context, folderName string) (err error) {
