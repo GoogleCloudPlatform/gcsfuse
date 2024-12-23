@@ -246,6 +246,17 @@ func (b *debugBucket) DeleteObject(
 	return
 }
 
+func (b *debugBucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
+	var err error
+	var o *gcs.Object
+	id, desc, start := b.startRequest("MoveObject(%q, %q)", req.SrcName, req.DstName)
+
+	defer b.finishRequest(id, desc, start, &err)
+
+	o, err = b.wrapped.MoveObject(ctx, req)
+	return o, err
+}
+
 func (b *debugBucket) DeleteFolder(ctx context.Context, folderName string) (err error) {
 	id, desc, start := b.startRequest("DeleteFolder(%q)", folderName)
 	defer b.finishRequest(id, desc, start, &err)
