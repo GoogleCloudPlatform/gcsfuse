@@ -160,6 +160,14 @@ type Bucket interface {
 		ctx context.Context,
 		req *DeleteObjectRequest) error
 
+	// MoveObject moves an object to a new name, preserving all metadata.
+	//
+	// This function overwrites any existing object at the destination name.
+	//
+	// Returns a record for the newly created object.
+	// TODO: Add official documentation link whenever it's available.
+	MoveObject(ctx context.Context, req *MoveObjectRequest) (*Object, error)
+
 	DeleteFolder(ctx context.Context, folderName string) error
 
 	GetFolder(ctx context.Context, folderName string) (*Folder, error)

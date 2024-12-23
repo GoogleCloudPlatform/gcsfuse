@@ -1007,6 +1007,11 @@ func (b *bucket) DeleteObject(
 	return
 }
 
+func (b *bucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
+	// TODO: Implement it.
+	return nil, nil
+}
+
 func (b *bucket) DeleteFolder(ctx context.Context, folderName string) (err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()

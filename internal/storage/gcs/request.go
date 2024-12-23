@@ -385,3 +385,11 @@ type DeleteObjectRequest struct {
 	// is not equal to this value.
 	MetaGenerationPrecondition *int64
 }
+
+// MoveObjectRequest represents a request to move or rename an object.
+type MoveObjectRequest struct {
+	SrcName string // Source object name
+	DstName string // Destination object name
+
+	// TODO: Add other necessary attributes as required
+}

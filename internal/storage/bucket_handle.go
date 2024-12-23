@@ -536,6 +536,11 @@ func (bh *bucketHandle) DeleteFolder(ctx context.Context, folderName string) (er
 	return err
 }
 
+func (bh *bucketHandle) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
+	// TODO: Implement it.
+	return nil, nil
+}
+
 func (bh *bucketHandle) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (folder *gcs.Folder, err error) {
 	var controlFolder *controlpb.Folder
 	req := &controlpb.RenameFolderRequest{

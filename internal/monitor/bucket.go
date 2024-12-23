@@ -145,6 +145,13 @@ func (mb *monitoringBucket) DeleteObject(
 	return err
 }
 
+func (mb *monitoringBucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
+	startTime := time.Now()
+	o, err := mb.wrapped.MoveObject(ctx, req)
+	recordRequest(ctx, mb.metricHandle, "MoveObject", startTime)
+	return o, err
+}
+
 func (mb *monitoringBucket) DeleteFolder(ctx context.Context, folderName string) error {
 	startTime := time.Now()
 	err := mb.wrapped.DeleteFolder(ctx, folderName)
