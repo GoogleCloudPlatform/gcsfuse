@@ -53,6 +53,10 @@ type TempFile interface {
 	// Throw away the resources used by the temporary file. The object must not
 	// be used again.
 	Destroy()
+
+	SetClobbered()
+
+	IsClobbered() bool
 }
 
 // StatResult stores the result of a stat operation.
@@ -149,6 +153,7 @@ const (
 	fileComplete             = "fileComplete"
 	fileDirty                = "fileDirty"
 	fileDestroyed            = "fileDestroyed"
+	fileClobbered            = "fileClobbered"
 )
 
 type tempFile struct {
@@ -189,6 +194,13 @@ func (tf *tempFile) CheckInvariants() {
 		panic("Use of destroyed tempFile object.")
 	}
 
+	if tf.state == fileClobbered {
+		if tf.f != nil {
+			panic("File handle of clobbered file is not nil.")
+		}
+		return
+	}
+
 	// Restore the seek position after using Stat below.
 	pos, err := tf.Seek(0, 1)
 	if err != nil {
@@ -226,6 +238,23 @@ func (tf *tempFile) Destroy() {
 	}
 
 	tf.f = nil
+}
+
+func (tf *tempFile) SetClobbered() {
+	tf.state = fileClobbered
+	// Throw away the file (for anonymous files).
+	if tf.f != nil {
+		tf.f.Close()
+	}
+
+	tf.f = nil
+}
+
+func (tf *tempFile) IsClobbered() bool {
+	if tf == nil {
+		return false
+	}
+	return tf.state == fileClobbered
 }
 
 func (tf *tempFile) Read(p []byte) (int, error) {
@@ -355,6 +384,8 @@ func (tf *tempFile) ensure(limit int64) error {
 		return nil
 	case fileDestroyed:
 		return fmt.Errorf("file destroyed")
+	case fileClobbered:
+		return fmt.Errorf("file clobbered")
 	}
 	return nil
 }

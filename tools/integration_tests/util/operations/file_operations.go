@@ -693,7 +693,7 @@ func CreateLocalFile(ctx context.Context, t *testing.T, mntDir string, bucket gc
 	// Creating a file shouldn't create file on GCS.
 	filePath = path.Join(mntDir, fileName)
 
-	f, err := os.Create(filePath)
+	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC|syscall.O_DIRECT, 0666)
 
 	assert.Equal(t, nil, err)
 	ValidateObjectNotFoundErr(ctx, t, bucket, fileName)

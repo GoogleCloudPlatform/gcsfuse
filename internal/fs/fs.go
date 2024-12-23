@@ -28,8 +28,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
-
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
@@ -1116,16 +1114,6 @@ func (fs *fileSystem) lookUpOrCreateChildDirInode(
 func (fs *fileSystem) syncFile(
 	ctx context.Context,
 	f *inode.FileInode) (err error) {
-	// SyncFile can be triggered for unlinked files if the fileHandle is open by
-	// same or another user. This indicates a potential file clobbering scenario:
-	// - The file was deleted (unlinked) while a handle to it was still open.
-	if f.IsLocal() && f.IsUnlinked() {
-		err = &gcsfuse_errors.FileClobberedError{
-			Err: fmt.Errorf("file %s was unlinked while it was still open, indicating file clobbering", f.Name().LocalName()),
-		}
-		return
-	}
-
 	// Sync the inode.
 	err = f.Sync(ctx)
 	if err != nil {

@@ -274,6 +274,11 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 	} else {
 		// Local filecache is not enabled
 		if f.content != nil {
+			if f.IsUnlinked() {
+				err = &gcsfuse_errors.FileClobberedError{
+					Err: fmt.Errorf("tempFile linked to file %s was clobbered, indicating file clobbering", f.Name().LocalName()),
+				}
+			}
 			return
 		}
 
@@ -327,7 +332,6 @@ func (f *FileInode) Unlink() {
 	f.unlinked = true
 	if f.content != nil {
 		f.content.Destroy()
-		f.content = nil
 	}
 }
 
@@ -413,7 +417,7 @@ func (f *FileInode) Attributes(
 	}
 
 	// If we've got local content, its size and (maybe) mtime take precedence.
-	if f.content != nil {
+	if f.content != nil && !f.content.IsClobbered() && !f.IsUnlinked() {
 		var sr gcsx.StatResult
 		sr, err = f.content.Stat()
 		if err != nil {
@@ -537,7 +541,7 @@ func (f *FileInode) Write(
 func (f *FileInode) SetMtime(
 	ctx context.Context,
 	mtime time.Time) (err error) {
-	if f.IsLocal() && f.content == nil && f.bwh == nil {
+	if f.IsLocal() && f.IsUnlinked() {
 		// This scenario will happen for unlinked local file.
 		// No need to update mtime on GCS.
 		return
@@ -554,7 +558,7 @@ func (f *FileInode) SetMtime(
 
 	// If we have a local temp file, stat it.
 	var sr gcsx.StatResult
-	if f.content != nil {
+	if f.content != nil && !f.content.IsClobbered() {
 		sr, err = f.content.Stat()
 		if err != nil {
 			err = fmt.Errorf("stat: %w", err)
@@ -634,6 +638,9 @@ func (f *FileInode) fetchLatestGcsObject(ctx context.Context) (*gcs.Object, erro
 		err = &gcsfuse_errors.FileClobberedError{
 			Err: err,
 		}
+		if f.content != nil {
+			f.content.SetClobbered()
+		}
 	}
 
 	return latestGcsObj, err
@@ -648,17 +655,27 @@ func (f *FileInode) fetchLatestGcsObject(ctx context.Context) (*gcs.Object, erro
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Sync(ctx context.Context) (err error) {
+	// Sync can be triggered for unlinked files if the fileHandle is open by
+	// same or another user. This indicates a potential file clobbering scenario:
+	// - The file was deleted (unlinked) while a handle to it was still open.
+	if f.IsLocal() && f.IsUnlinked() {
+		err = &gcsfuse_errors.FileClobberedError{
+			Err: fmt.Errorf("file %s was unlinked while it was still open, indicating file clobbering", f.Name().LocalName()),
+		}
+		f.content.SetClobbered()
+		return
+	}
+
 	// If we have not been dirtied, there is nothing to do.
 	if f.content == nil {
 		return
 	}
 
-	defer func() {
-		if f.content != nil {
-			f.content.Destroy()
-			f.content = nil
+	if f.content.IsClobbered() {
+		err = &gcsfuse_errors.FileClobberedError{
+			Err: fmt.Errorf("tempFile linked to file %s was clobbered, indicating file clobbering", f.Name().LocalName()),
 		}
-	}()
+	}
 
 	latestGcsObj, err := f.fetchLatestGcsObject(ctx)
 	if err != nil {
@@ -675,6 +692,7 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 		err = &gcsfuse_errors.FileClobberedError{
 			Err: fmt.Errorf("SyncObject: %w", err),
 		}
+		f.content.SetClobbered()
 		return
 	}
 
@@ -696,6 +714,8 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 		if f.IsLocal() {
 			f.local = false
 		}
+		f.content.Destroy()
+		f.content = nil
 	}
 
 	return

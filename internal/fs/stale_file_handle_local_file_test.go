@@ -107,8 +107,8 @@ func (t *StaleFileHandleLocalFile) TestUnlinkedLocalInode_SyncAndClose_ThrowsSta
 	assert.Equal(t.T(), nil, err)
 	operations.ValidateNoFileOrDirError(t.T(), path.Join(mntDir, FileName))
 	// Write to unlinked local file.
-	_, err = t.f1.WriteString(FileContents)
-	assert.Equal(t.T(), nil, err)
+	_, err = t.f1.Write([]byte(FileContents))
+	operations.ValidateStaleNFSFileHandleError(t.T(), err)
 
 	err = t.f1.Sync()
 
@@ -138,7 +138,7 @@ func (t *StaleFileHandleLocalFile) TestUnlinkedDirectoryContainingSyncedAndLocal
 	operations.ValidateNoFileOrDirError(t.T(), path.Join(mntDir, "explicit/foo"))
 	operations.ValidateNoFileOrDirError(t.T(), path.Join(mntDir, "explicit"))
 	// Validate writing content to unlinked local file does not throw error.
-	_, err = t.f1.WriteString(FileContents)
+	_, err = t.f1.Write([]byte(FileContents))
 	assert.Equal(t.T(), nil, err)
 
 	err = operations.CloseLocalFile(t.T(), &t.f1)

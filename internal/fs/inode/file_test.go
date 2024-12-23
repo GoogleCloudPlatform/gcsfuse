@@ -375,7 +375,6 @@ func (t *FileTest) TestWriteThenSync() {
 	// Sync.
 	err = t.in.Sync(t.ctx)
 	assert.Nil(t.T(), err)
-	assert.Nil(t.T(), t.in.content)
 
 	// The generation should have advanced.
 	assert.Less(t.T(), t.backingObj.Generation, t.in.SourceGeneration().Object)
@@ -426,7 +425,6 @@ func (t *FileTest) TestWriteToLocalFileThenSync() {
 	err = t.in.Sync(t.ctx)
 
 	assert.Nil(t.T(), err)
-	assert.Nil(t.T(), t.in.content)
 	// Verify that fileInode is no more local
 	assert.False(t.T(), t.in.IsLocal())
 	// Stat the current object in the bucket.
@@ -465,7 +463,6 @@ func (t *FileTest) TestSyncEmptyLocalFile() {
 	err = t.in.Sync(t.ctx)
 
 	assert.Nil(t.T(), err)
-	assert.Nil(t.T(), t.in.content)
 	// Verify that fileInode is no more local
 	assert.False(t.T(), t.in.IsLocal())
 	// Stat the current object in the bucket.
@@ -509,7 +506,6 @@ func (t *FileTest) TestAppendThenSync() {
 	// Sync.
 	err = t.in.Sync(t.ctx)
 	assert.Nil(t.T(), err)
-	assert.Nil(t.T(), t.in.content)
 
 	// The generation should have advanced.
 	assert.Less(t.T(), t.backingObj.Generation, t.in.SourceGeneration().Object)
@@ -557,7 +553,6 @@ func (t *FileTest) TestTruncateDownwardThenSync() {
 	// Sync.
 	err = t.in.Sync(t.ctx)
 	assert.Nil(t.T(), err)
-	assert.Nil(t.T(), t.in.content)
 
 	// The generation should have advanced.
 	assert.Less(t.T(), t.backingObj.Generation, t.in.SourceGeneration().Object)
@@ -601,7 +596,6 @@ func (t *FileTest) TestTruncateUpwardThenSync() {
 	// Sync.
 	err = t.in.Sync(t.ctx)
 	assert.Nil(t.T(), err)
-	assert.Nil(t.T(), t.in.content)
 
 	// The generation should have advanced.
 	assert.Less(t.T(), t.backingObj.Generation, t.in.SourceGeneration().Object)
@@ -873,7 +867,7 @@ func (t *FileTest) TestSync_Clobbered() {
 	// Check if the error is a FileClobberedError
 	var fcErr *gcsfuse_errors.FileClobberedError
 	assert.True(t.T(), errors.As(err, &fcErr), "expected FileClobberedError but got %v", err)
-	assert.Nil(t.T(), t.in.content)
+	assert.True(t.T(), t.in.content.IsClobbered())
 	assert.Equal(t.T(), t.backingObj.Generation, t.in.SourceGeneration().Object)
 	assert.Equal(t.T(), t.backingObj.MetaGeneration, t.in.SourceGeneration().Metadata)
 
@@ -987,7 +981,6 @@ func (t *FileTest) TestSetMtime_ContentDirty() {
 	// Sync.
 	err = t.in.Sync(t.ctx)
 	assert.Nil(t.T(), err)
-	assert.Nil(t.T(), t.in.content)
 
 	// Now the object in the bucket should have the appropriate mtime.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
@@ -1196,9 +1189,8 @@ func (t *FileTest) TestUnlinkLocalFile() {
 	// Unlink.
 	t.in.Unlink()
 
-	// Verify that fileInode is now unlinked.
+	// Verify that fileInode is now unlinked
 	assert.True(t.T(), t.in.IsUnlinked())
-	assert.Nil(t.T(), t.in.content)
 	// Data shouldn't be updated to GCS.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	_, _, err = t.bucket.StatObject(t.ctx, statReq)
