@@ -675,6 +675,7 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 		err = &gcsfuse_errors.FileClobberedError{
 			Err: fmt.Errorf("tempFile linked to file %s was clobbered, indicating file clobbering", f.Name().LocalName()),
 		}
+		return
 	}
 
 	latestGcsObj, err := f.fetchLatestGcsObject(ctx)

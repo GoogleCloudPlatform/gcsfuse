@@ -100,18 +100,17 @@ func (t *StaleFileHandleLocalFile) TestLocalInodeClobberedRemotely_SyncAndClose_
 	assert.Equal(t.T(), "foobar", string(contents))
 }
 
-func (t *StaleFileHandleLocalFile) TestUnlinkedLocalInode_SyncAndClose_ThrowsStaleFileHandleError() {
+func (t *StaleFileHandleLocalFile) TestUnlinkedLocalInode_WriteSyncAndClose_ThrowsStaleFileHandleError() {
 	// Unlink the local file.
 	err := os.Remove(t.f1.Name())
 	// Verify unlink operation succeeds.
 	assert.Equal(t.T(), nil, err)
 	operations.ValidateNoFileOrDirError(t.T(), path.Join(mntDir, FileName))
-	// Write to unlinked local file.
+
 	_, err = t.f1.Write([]byte(FileContents))
+
 	operations.ValidateStaleNFSFileHandleError(t.T(), err)
-
 	err = t.f1.Sync()
-
 	operations.ValidateStaleNFSFileHandleError(t.T(), err)
 	err = operations.CloseLocalFile(t.T(), &t.f1)
 	operations.ValidateStaleNFSFileHandleError(t.T(), err)
@@ -119,7 +118,7 @@ func (t *StaleFileHandleLocalFile) TestUnlinkedLocalInode_SyncAndClose_ThrowsSta
 	operations.ValidateObjectNotFoundErr(ctx, t.T(), bucket, FileName)
 }
 
-func (t *StaleFileHandleLocalFile) TestUnlinkedDirectoryContainingSyncedAndLocalFiles_Close_ThrowsStaleFileHandleError() {
+func (t *StaleFileHandleLocalFile) TestUnlinkedDirectoryContainingSyncedAndLocalFiles_WriteAndClose_ThrowsStaleFileHandleError() {
 	// Create explicit directory with one synced and one local file.
 	assert.Equal(t.T(),
 		nil,
@@ -137,12 +136,11 @@ func (t *StaleFileHandleLocalFile) TestUnlinkedDirectoryContainingSyncedAndLocal
 	operations.ValidateNoFileOrDirError(t.T(), path.Join(mntDir, "explicit/"+explicitLocalFileName))
 	operations.ValidateNoFileOrDirError(t.T(), path.Join(mntDir, "explicit/foo"))
 	operations.ValidateNoFileOrDirError(t.T(), path.Join(mntDir, "explicit"))
-	// Validate writing content to unlinked local file does not throw error.
+
 	_, err = t.f1.Write([]byte(FileContents))
-	assert.Equal(t.T(), nil, err)
 
+	operations.ValidateStaleNFSFileHandleError(t.T(), err)
 	err = operations.CloseLocalFile(t.T(), &t.f1)
-
 	operations.ValidateStaleNFSFileHandleError(t.T(), err)
 	// Validate both local and synced files are deleted.
 	operations.ValidateObjectNotFoundErr(ctx, t.T(), bucket, "explicit/"+explicitLocalFileName)
