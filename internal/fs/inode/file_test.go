@@ -1327,7 +1327,7 @@ func (t *FileTest) TestWriteToEmptyGCSFileWhenStreamingWritesAreEnabled() {
 	// The inode should agree about the new mtime.
 	attrs, err := t.in.Attributes(t.ctx)
 	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), int64(2), attrs.Size)
+	assert.Equal(t.T(), uint64(2), attrs.Size)
 	assert.WithinDuration(t.T(), attrs.Mtime, createTime, Delta)
 }
 
@@ -1352,7 +1352,7 @@ func (t *FileTest) TestSetMtimeOnEmptyGCSFileAfterWritesWhenStreamingWritesAreEn
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), t.in.bwh)
 	writeFileInfo := t.in.bwh.WriteFileInfo()
-	assert.Equal(t.T(), 2, writeFileInfo.TotalSize)
+	assert.Equal(t.T(), int64(2), writeFileInfo.TotalSize)
 
 	// Set mtime.
 	mtime := time.Now().UTC().Add(123 * time.Second)
