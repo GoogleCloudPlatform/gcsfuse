@@ -1009,7 +1009,6 @@ func (b *bucket) DeleteObject(
 
 func (b *bucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
 	// TODO: Implement it.
-
 	return nil, nil
 }
 
