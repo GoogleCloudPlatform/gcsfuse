@@ -235,6 +235,11 @@ func (b *prefixBucket) DeleteObject(
 	return
 }
 
+func (b *prefixBucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
+	// TODO: Implement it.
+	return nil, nil
+}
+
 func (b *prefixBucket) DeleteFolder(ctx context.Context, folderName string) (err error) {
 	mFolderName := b.wrappedName(folderName)
 	return b.wrapped.DeleteFolder(ctx, mFolderName)

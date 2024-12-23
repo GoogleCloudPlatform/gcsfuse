@@ -378,6 +378,11 @@ func (b *fastStatBucket) DeleteObject(
 	return
 }
 
+func (b *fastStatBucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
+	// TODO: Implement it.
+	return nil, nil
+}
+
 func (b *fastStatBucket) DeleteFolder(ctx context.Context, folderName string) error {
 	err := b.wrapped.DeleteFolder(ctx, folderName)
 	if err != nil {
