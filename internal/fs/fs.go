@@ -2373,7 +2373,6 @@ func (fs *fileSystem) OpenFile(
 	ctx context.Context,
 	op *fuseops.OpenFileOp) (err error) {
 	fs.mu.Lock()
-	defer fs.mu.Unlock()
 
 	// Find the inode.
 	in := fs.fileInodeOrDie(op.Inode)
@@ -2381,6 +2380,7 @@ func (fs *fileSystem) OpenFile(
 	// Inode lock is required to register fileHandle with the inode.
 	fs.mu.Unlock()
 	in.Lock()
+	defer in.Unlock()
 
 	// Get the fs lock again.
 	fs.mu.Lock()
