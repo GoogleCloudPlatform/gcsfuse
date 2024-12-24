@@ -525,10 +525,17 @@ func TestMoveObject(t *testing.T) {
 	require.NoError(t, err)
 	ctx := context.Background()
 	contents := "foobar"
-
+	name := prefix + suffix
 	// Create an object through the back door.
-	_, err = storageutil.CreateObject(ctx, bucket, suffix, []byte(contents))
+	_, err = storageutil.CreateObject(ctx, wrapped, name, []byte(contents))
 	AssertEq(nil, err)
+	// Stat old object.
+	m, _, err := bucket.StatObject(
+		ctx,
+		&gcs.StatObjectRequest{
+			Name: suffix,
+		})
+	assert.NoError(t, err)
 
 	// Move it to a new name.
 	newSuffix := "burrito"
@@ -543,12 +550,12 @@ func TestMoveObject(t *testing.T) {
 	assert.Equal(t, newSuffix, o.Name)
 
 	// Read it through the back door.
-	actual, err := storageutil.ReadObject(ctx, bucket, o.Name)
+	actual, err := storageutil.ReadObject(ctx, wrapped, prefix+newSuffix)
 	assert.NoError(t, err)
 	assert.Equal(t, contents, string(actual))
 
 	// Stat old object.
-	m, _, err := bucket.StatObject(
+	m, _, err = bucket.StatObject(
 		ctx,
 		&gcs.StatObjectRequest{
 			Name: suffix,
