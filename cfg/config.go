@@ -196,11 +196,11 @@ type MetadataCacheConfig struct {
 
 	ExperimentalMetadataPrefetchOnMount string `yaml:"experimental-metadata-prefetch-on-mount"`
 
+	NegativeTtlSecs int64 `yaml:"negative-ttl-secs"`
+
 	StatCacheMaxSizeMb int64 `yaml:"stat-cache-max-size-mb"`
 
 	TtlSecs int64 `yaml:"ttl-secs"`
-
-	NegativeTtlSecs int64 `yaml:"negative-ttl-secs"`
 
 	TypeCacheMaxSizeMb int64 `yaml:"type-cache-max-size-mb"`
 }
@@ -465,9 +465,13 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.DurationP("max-retry-sleep", "", 30000000000*time.Nanosecond, "The maximum duration allowed to sleep in a retry loop with exponential backoff for failed requests to GCS backend. Once the backoff duration exceeds this limit, the retry continues with this specified maximum value.")
 
-	flagSet.IntP("metadata-cache-ttl-secs", "", 60, "The ttl value in seconds to be used for expiring items in metadata-cache. It can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled metadata-cache. Any value set below -1 will throw an error.")
+	flagSet.IntP("metadata-cache-negative-ttl-secs", "", 5, "The negative-ttl-secs value in seconds to be used for expiring negative entries in metadata-cache. It can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled negative entries in metadata-cache. Any value set below -1 will throw an error.")
 
-	flagSet.IntP("metadata-cache-negative-ttl-secs", "", 5, "The ttl value in seconds to be used for expiring negative entries in metadata-cache defaults to 5 secs. Only positive integer values are allowed with exception of -1 for no-ttl. Any value set below -1 or above Max int value will throw an error.")
+	if err := flagSet.MarkHidden("metadata-cache-negative-ttl-secs"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("metadata-cache-ttl-secs", "", 60, "The ttl value in seconds to be used for expiring items in metadata-cache. It can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled metadata-cache. Any value set below -1 will throw an error.")
 
 	flagSet.StringSliceP("o", "", []string{}, "Additional system-specific mount options. Multiple options can be passed as comma separated. For readonly, use --o ro")
 
@@ -808,11 +812,11 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("metadata-cache.ttl-secs", flagSet.Lookup("metadata-cache-ttl-secs")); err != nil {
+	if err := v.BindPFlag("metadata-cache.negative-ttl-secs", flagSet.Lookup("metadata-cache-negative-ttl-secs")); err != nil {
 		return err
 	}
 
-	if err := v.BindPFlag("metadata-cache.negative-ttl-secs", flagSet.Lookup("metadata-cache-negative-ttl-secs")); err != nil {
+	if err := v.BindPFlag("metadata-cache.ttl-secs", flagSet.Lookup("metadata-cache-ttl-secs")); err != nil {
 		return err
 	}
 

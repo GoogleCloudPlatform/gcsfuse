@@ -549,6 +549,16 @@
   deprecated: true
   deprecation-warning: "Experimental flag: could be removed even in a minor release."
 
+- config-path: "metadata-cache.negative-ttl-secs"
+  flag-name: "metadata-cache-negative-ttl-secs"
+  type: "int"
+  usage: >-
+    The negative-ttl-secs value in seconds to be used for expiring negative entries in metadata-cache. It
+    can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled
+    negative entries in metadata-cache. Any value set below -1 will throw an error.
+  default: "5"
+  hide-flag: true
+
 - config-path: "metadata-cache.stat-cache-max-size-mb"
   flag-name: "stat-cache-max-size-mb"
   type: "int"
