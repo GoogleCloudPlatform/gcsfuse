@@ -40,6 +40,7 @@ import (
 ////////////////////////////////////////////////////////////////////////
 
 const ttl = 10 * time.Minute
+const negativeCacheTTL = 1 * time.Minute
 
 var (
 	uncachedBucket gcs.Bucket
@@ -63,7 +64,9 @@ func (t *cachingTestCommon) SetUpTestSuite() {
 		ttl,
 		statCache,
 		&cacheClock,
-		uncachedBucket)
+		uncachedBucket,
+		negativeCacheTTL,
+	)
 
 	// Enable directory type caching.
 	t.serverCfg.DirTypeCacheTTL = ttl
@@ -469,7 +472,9 @@ func (t *MultiBucketMountCachingTest) SetUpTestSuite() {
 			ttl,
 			statCache,
 			&cacheClock,
-			uncachedBuckets[bucketName])
+			uncachedBuckets[bucketName],
+			negativeCacheTTL,
+		)
 	}
 
 	// Enable directory type caching.
