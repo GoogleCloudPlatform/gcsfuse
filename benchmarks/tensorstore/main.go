@@ -118,6 +118,7 @@ func setup() (string, error) {
 }
 
 func main() {
+	flag.Parse()
 	checkoutDir, err := setup()
 	defer func() { os.RemoveAll(checkoutDir) }()
 	if err != nil {
