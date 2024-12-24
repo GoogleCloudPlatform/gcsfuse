@@ -62,7 +62,7 @@ func TestMain(m *testing.M) {
 	defer storageClient.Close()
 
 	flags := [][]string{{"--rename-dir-limit=3", "--implicit-dirs"}, {"--rename-dir-limit=3"}}
-	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flags, "--client-protocol=grpc")
+	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flags, "", "--client-protocol=grpc")
 	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
 		flags = [][]string{hnsFlagSet}
 	}
