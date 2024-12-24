@@ -158,7 +158,13 @@ func (wh *BufferedWriteHandler) appendBuffer(data []byte) (err error) {
 
 // Sync uploads all the pending full buffers to GCS.
 func (wh *BufferedWriteHandler) Sync() (err error) {
+	// Upload all the pending buffers and release the buffers.
 	wh.uploadHandler.AwaitBlocksUpload()
+	err = wh.blockPool.ClearFreeBlockChannel()
+	if err != nil {
+		// Only logging an error in case of resource leak as upload succeeded.
+		logger.Errorf("blockPool.ClearFreeBlockChannel() failed during sync: %v", err)
+	}
 
 	select {
 	case <-wh.uploadHandler.SignalUploadFailure():
@@ -227,6 +233,12 @@ func (wh *BufferedWriteHandler) WriteFileInfo() WriteFileInfo {
 		TotalSize: int64(math.Max(float64(wh.totalSize), float64(wh.truncatedSize))),
 		Mtime:     wh.mtime,
 	}
+}
+
+func (wh *BufferedWriteHandler) Destroy() error {
+	// Destroy the upload handler and then free up the buffers.
+	wh.uploadHandler.Destroy()
+	return wh.blockPool.ClearFreeBlockChannel()
 }
 
 func (wh *BufferedWriteHandler) writeDataForTruncatedSize() error {
