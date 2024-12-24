@@ -328,7 +328,6 @@ func (f *FileInode) Unlink() {
 
 	if f.bwh != nil {
 		f.bwh.Unlink()
-		f.bwh = nil
 	}
 }
 

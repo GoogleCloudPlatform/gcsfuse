@@ -29,12 +29,12 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type StreamingWritesEmptyObjectTest struct {
+type StreamingWritesEmptyGCSObjectTest struct {
 	suite.Suite
 	fsTest
 }
 
-func (t *StreamingWritesEmptyObjectTest) SetupSuite() {
+func (t *StreamingWritesEmptyGCSObjectTest) SetupSuite() {
 	t.serverCfg.NewConfig = &cfg.Config{
 		Write: cfg.WriteConfig{
 			BlockSizeMb:                       10,
@@ -47,10 +47,10 @@ func (t *StreamingWritesEmptyObjectTest) SetupSuite() {
 	t.fsTest.SetUpTestSuite()
 }
 
-func (t *StreamingWritesEmptyObjectTest) TearDownSuite() {
+func (t *StreamingWritesEmptyGCSObjectTest) TearDownSuite() {
 	t.fsTest.TearDownTestSuite()
 }
-func (t *StreamingWritesEmptyObjectTest) SetupTest() {
+func (t *StreamingWritesEmptyGCSObjectTest) SetupTest() {
 	// Create an object on bucket.
 	_, err := storageutil.CreateObject(
 		ctx,
@@ -63,19 +63,19 @@ func (t *StreamingWritesEmptyObjectTest) SetupTest() {
 	assert.Equal(t.T(), nil, err)
 }
 
-func (t *StreamingWritesEmptyObjectTest) TearDownTest() {
+func (t *StreamingWritesEmptyGCSObjectTest) TearDownTest() {
 	t.fsTest.TearDown()
 }
 
 func TestStreamingWritesEmptyObjectTest(t *testing.T) {
-	suite.Run(t, new(StreamingWritesEmptyObjectTest))
+	suite.Run(t, new(StreamingWritesEmptyGCSObjectTest))
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *StreamingWritesEmptyObjectTest) TestUnlinkBeforeWrite() {
+func (t *StreamingWritesEmptyGCSObjectTest) TestUnlinkBeforeWrite() {
 	// Validate that file exists on GCS.
 	_, err := storageutil.ReadObject(ctx, bucket, fileName)
 	assert.NoError(t.T(), err)
@@ -93,7 +93,7 @@ func (t *StreamingWritesEmptyObjectTest) TestUnlinkBeforeWrite() {
 	operations.ValidateObjectNotFoundErr(ctx, t.T(), bucket, fileName)
 }
 
-func (t *StreamingWritesEmptyObjectTest) TestUnlinkAfterWrite() {
+func (t *StreamingWritesEmptyGCSObjectTest) TestUnlinkAfterWrite() {
 	// Validate that file exists on GCS.
 	_, err := storageutil.ReadObject(ctx, bucket, fileName)
 	assert.NoError(t.T(), err)

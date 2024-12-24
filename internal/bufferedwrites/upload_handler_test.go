@@ -281,9 +281,7 @@ func (t *UploadHandlerTest) TestMultipleBlockAwaitBlocksUpload() {
 
 func (t *UploadHandlerTest) TestUploadHandlerCancelUpload() {
 	cancelCalled := false
-	t.uh = &UploadHandler{
-		cancelFunc: func() { cancelCalled = true },
-	}
+	t.uh.cancelFunc = func() { cancelCalled = true }
 
 	t.uh.CancelUpload()
 
