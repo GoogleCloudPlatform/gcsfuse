@@ -53,12 +53,8 @@ type FileHandle struct {
 	readOnly bool
 }
 
-func NewFileHandle(
-	inode *inode.FileInode,
-	fileCacheHandler *file.CacheHandler,
-	cacheFileForRangeRead bool,
-	metricHandle common.MetricHandle,
-	readOnly bool) (fh *FileHandle) {
+// LOCKS_REQUIRED(fh.inode.mu)
+func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, readOnly bool) (fh *FileHandle) {
 	fh = &FileHandle{
 		inode:                 inode,
 		fileCacheHandler:      fileCacheHandler,
