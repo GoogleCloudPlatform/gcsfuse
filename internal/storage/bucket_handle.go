@@ -37,6 +37,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const FullFolderPathHNS = "projects/_/buckets/%s/folders/%s"
@@ -90,8 +92,8 @@ func (bh *bucketHandle) BucketType() gcs.BucketType {
 }
 
 func (bh *bucketHandle) NewReader(
-	ctx context.Context,
-	req *gcs.ReadObjectRequest) (io.ReadCloser, error) {
+		ctx context.Context,
+		req *gcs.ReadObjectRequest) (io.ReadCloser, error) {
 	// Initialising the starting offset and the length to be read by the reader.
 	start := int64(0)
 	length := int64(-1)
@@ -159,7 +161,7 @@ func (bh *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectR
 }
 
 func (bh *bucketHandle) StatObject(ctx context.Context,
-	req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
+		req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
 	var attrs *storage.ObjectAttrs
 	// Retrieving object attrs through Go Storage Client.
 	attrs, err = bh.bucket.Object(req.Name).Attrs(ctx)
@@ -236,6 +238,17 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	// We can't use defer to close the writer, because we need to close the
 	// writer successfully before calling Attrs() method of writer.
 	if err = wc.Close(); err != nil {
+		// This checks if the error returned from the RPC call is a gRPC status error.
+		// If it is, and the error code is `codes.FailedPrecondition`, it means the
+		// operation failed due to a precondition not being met.The generic gRPC error
+		// is converted into a more specific `gcs.PreconditionError`. This allows handling
+		// of precondition failures differently.
+		if rpcErr, ok := status.FromError(err); ok {
+			if code := rpcErr.Code(); code == codes.FailedPrecondition {
+				err = &gcs.PreconditionError{Err: err}
+				return
+			}
+		}
 		var gErr *googleapi.Error
 		if errors.As(err, &gErr) {
 			if gErr.Code == http.StatusPreconditionFailed {
@@ -243,6 +256,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 				return
 			}
 		}
+
 		err = fmt.Errorf("error in closing writer : %w", err)
 		return
 	}
