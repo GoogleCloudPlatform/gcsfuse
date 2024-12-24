@@ -279,6 +279,15 @@ func (t *UploadHandlerTest) TestMultipleBlockAwaitBlocksUpload() {
 	assertAllBlocksProcessed(t.T(), t.uh)
 }
 
+func (t *UploadHandlerTest) TestUploadHandlerCancelUpload() {
+	cancelCalled := false
+	t.uh.cancelFunc = func() { cancelCalled = true }
+
+	t.uh.CancelUpload()
+
+	assert.True(t.T(), cancelCalled)
+}
+
 func (t *UploadHandlerTest) TestCreateObjectChunkWriterIsCalledWithCorrectRequestParametersForEmptyGCSObject() {
 	t.uh.obj = &gcs.Object{
 		Name:            t.uh.objectName,

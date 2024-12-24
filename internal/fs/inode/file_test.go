@@ -1049,6 +1049,22 @@ func (t *FileTest) TestSetMtime_SourceObjectMetaGenerationChanged() {
 	assert.Equal(t.T(), newObj.MetaGeneration, m.MetaGeneration)
 }
 
+func (t *FileTest) TestSetMtimeForUnlinkedFileIsNoOp() {
+	t.in.unlinked = true
+	beforeUpdateAttr, err := t.in.Attributes(t.ctx)
+	require.Nil(t.T(), err)
+	mtime := beforeUpdateAttr.Mtime.UTC().Add(123 * time.Second)
+
+	// Set mtime.
+	err = t.in.SetMtime(t.ctx, mtime)
+
+	require.Nil(t.T(), err)
+	afterUpdateAttr, err := t.in.Attributes(t.ctx)
+	require.Nil(t.T(), err)
+	assert.NotEqual(t.T(), mtime, afterUpdateAttr.Mtime)
+	assert.Equal(t.T(), beforeUpdateAttr.Mtime, afterUpdateAttr.Mtime)
+}
+
 func (t *FileTest) TestTestSetMtimeForLocalFileShouldUpdateLocalFileAttributes() {
 	var err error
 	var attrs fuseops.InodeAttributes

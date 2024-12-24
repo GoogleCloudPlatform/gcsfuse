@@ -347,3 +347,29 @@ func (testSuite *BufferedWriteTest) TestWriteFileInfoWithTruncatedLengthGreaterT
 
 	assert.Equal(testSuite.T(), testSuite.bwh.truncatedSize, fileInfo.TotalSize)
 }
+
+func (testSuite *BufferedWriteTest) TestUnlinkBeforeWrite() {
+	testSuite.bwh.Unlink()
+
+	assert.Nil(testSuite.T(), testSuite.bwh.uploadHandler.cancelFunc)
+	assert.Equal(testSuite.T(), 0, len(testSuite.bwh.uploadHandler.uploadCh))
+	assert.Equal(testSuite.T(), 0, len(testSuite.bwh.blockPool.FreeBlocksChannel()))
+}
+
+func (testSuite *BufferedWriteTest) TestUnlinkAfterWrite() {
+	buffer, err := operations.GenerateRandomData(blockSize)
+	assert.NoError(testSuite.T(), err)
+	// Write 5 blocks.
+	for i := 0; i < 5; i++ {
+		err = testSuite.bwh.Write(buffer, int64(blockSize*i))
+		require.Nil(testSuite.T(), err)
+	}
+	cancelCalled := false
+	testSuite.bwh.uploadHandler.cancelFunc = func() { cancelCalled = true }
+
+	testSuite.bwh.Unlink()
+
+	assert.True(testSuite.T(), cancelCalled)
+	assert.Equal(testSuite.T(), 0, len(testSuite.bwh.uploadHandler.uploadCh))
+	assert.Equal(testSuite.T(), 0, len(testSuite.bwh.blockPool.FreeBlocksChannel()))
+}
