@@ -76,12 +76,12 @@ func tscliConfig(checkoutDir string, pth string) (string, error) {
 	return fName, nil
 }
 
-func multiReadBenchmark(checkoutDir string, config *multiReadConfig, idx int64) (string, error) {
+func multiReadBenchmark(checkoutDir string, config *multiReadConfig, _ int64) (string, error) {
 	if _, err := script.Echo("3").AppendFile("/proc/sys/vm/drop_caches"); err != nil {
 		return "", fmt.Errorf("unable to clear page cache: %w", err)
 	}
 	cmd := fmt.Sprintf(`%s --read_config=%s --max_in_flight=%d --context_spec='{"file_io_concurrency": {"limit": %d}, "cache_pool": {"total_bytes_limit": 0}}'`,
-		path.Join(checkoutDir, "bazel-bin/tensorstore/internal/benchmark/multi_read_benchmark"), config.tscliConfigPath, config.maxInflightRequests, config.fileIOConcurrency, idx)
+		path.Join(checkoutDir, "bazel-bin/tensorstore/internal/benchmark/multi_read_benchmark"), config.tscliConfigPath, config.maxInflightRequests, config.fileIOConcurrency)
 	fmt.Println(cmd)
 	return script.Exec(cmd).String()
 }
