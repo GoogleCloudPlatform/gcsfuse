@@ -517,8 +517,8 @@ func TestCreateFolder(t *testing.T) {
 
 func TestMoveObject(t *testing.T) {
 	var notFoundErr *gcs.NotFoundError
-	prefix := "foo_"
 	var err error
+	prefix := "foo_"
 	suffix := "test"
 	wrapped := fake.NewFakeBucket(timeutil.RealClock(), "some_bucket", gcs.Hierarchical)
 	bucket, err := gcsx.NewPrefixBucket(prefix, wrapped)
@@ -532,7 +532,6 @@ func TestMoveObject(t *testing.T) {
 
 	// Move it to a new name.
 	newSuffix := "burrito"
-	newName := prefix + newSuffix
 	o, err := bucket.MoveObject(
 		ctx,
 		&gcs.MoveObjectRequest{
@@ -543,6 +542,7 @@ func TestMoveObject(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, newSuffix, o.Name)
 
+	newName := prefix + newSuffix
 	// Read it through the back door.
 	actual, err := storageutil.ReadObject(ctx, wrapped, newName)
 	assert.NoError(t, err)
