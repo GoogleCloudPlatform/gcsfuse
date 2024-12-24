@@ -369,7 +369,6 @@ func (t *UploadHandlerTest) TestDestroy() {
 
 	t.uh.Destroy()
 
-	assertUploadFailureSignal(t.T(), t.uh)
 	assertAllBlocksProcessed(t.T(), t.uh)
 	assert.Equal(t.T(), 5, len(t.uh.freeBlocksCh))
 	assert.Equal(t.T(), 0, len(t.uh.uploadCh))

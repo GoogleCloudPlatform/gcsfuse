@@ -171,8 +171,6 @@ func (uh *UploadHandler) AwaitBlocksUpload() {
 }
 
 func (uh *UploadHandler) Destroy() {
-	logger.Debugf("Closing the signalUploadFailure channel to stop the upload")
-	close(uh.signalUploadFailure)
 	// Waiting for upload routine to move all blocks to freeChannel.
 	timedOut := waitTimeout(&uh.wg, 10*time.Second)
 
@@ -180,7 +178,7 @@ func (uh *UploadHandler) Destroy() {
 	// either because upload is stuck in uploading a chunk or the upload
 	// go-routine crashed. Copying all pending blocks to freeBlock channel for cleanup.
 	// We can clean up from uploadChannel also, but to ensure clean up happens
-	// at one place we are copying them to freeBlock channel.
+	// from one place we are copying them to freeBlock channel.
 	if timedOut {
 		for currBlock := range uh.uploadCh {
 			uh.freeBlocksCh <- currBlock
@@ -190,6 +188,7 @@ func (uh *UploadHandler) Destroy() {
 	}
 }
 
+// TODO: Move this method to util and add unit tests.
 // waitTimeout waits for the waitGroup for the specified max timeout.
 // Returns true if waiting timed out.
 func waitTimeout(wg *sync.WaitGroup, timeout time.Duration) bool {

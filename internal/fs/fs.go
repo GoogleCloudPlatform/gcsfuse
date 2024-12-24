@@ -2558,13 +2558,14 @@ func (fs *fileSystem) ReleaseFileHandle(
 	ctx context.Context,
 	op *fuseops.ReleaseFileHandleOp) (err error) {
 	fs.mu.Lock()
-	defer fs.mu.Unlock()
+
+	fileHandle := fs.handles[op.Handle].(*handle.FileHandle)
+	// Update the map. We are okay updating the map before destroy is called.
+	delete(fs.handles, op.Handle)
+	fs.mu.Unlock()
 
 	// Destroy the handle.
-	fs.handles[op.Handle].(*handle.FileHandle).Destroy()
-
-	// Update the map.
-	delete(fs.handles, op.Handle)
+	fileHandle.Destroy()
 
 	return
 }
