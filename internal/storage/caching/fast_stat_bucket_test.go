@@ -1058,3 +1058,48 @@ func (t *CreateFolderTest) TestCreateFolderWhenGCSCallFails() {
 	AssertNe(nil, err)
 	AssertEq(nil, result)
 }
+
+type MoveObjectTest struct {
+	fastStatBucketTest
+}
+
+func init() { RegisterTestSuite(&MoveObjectTest{}) }
+
+func (t *MoveObjectTest) MoveObjectFails() {
+	const srcName = "taco"
+	const dstName = "burrito"
+
+	// Erase
+	ExpectCall(t.cache, "Erase")(dstName)
+	ExpectCall(t.cache, "Erase")(srcName)
+
+	// Wrapped
+	ExpectCall(t.wrapped, "MoveObject")(Any(), Any()).WillOnce(Return(nil, errors.New("taco")))
+
+	// Call
+	_, err := t.bucket.MoveObject(context.TODO(), &gcs.MoveObjectRequest{SrcName: srcName, DstName: dstName})
+
+	ExpectThat(err, Error(HasSubstr("taco")))
+}
+
+func (t *MoveObjectTest) MoveObjectSucceeds() {
+	const dstName = "burrito"
+	// Erase
+	ExpectCall(t.cache, "Erase")(Any()).Times(2)
+
+	// Wrap object
+	obj := &gcs.Object{
+		Name:       dstName,
+		Generation: 1234,
+	}
+	ExpectCall(t.wrapped, "MoveObject")(Any(), Any()).WillOnce(Return(obj, nil))
+
+	// Insert in cache
+	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(ttl)))
+
+	// Call
+	o, err := t.bucket.MoveObject(context.TODO(), &gcs.MoveObjectRequest{})
+
+	AssertEq(nil, err)
+	ExpectEq(obj, o)
+}
