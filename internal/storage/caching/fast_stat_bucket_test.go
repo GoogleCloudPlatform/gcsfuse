@@ -1074,8 +1074,7 @@ func (t *MoveObjectTest) MoveObjectFails() {
 	ExpectCall(t.cache, "Erase")(srcName)
 
 	// Wrapped
-	ExpectCall(t.wrapped, "MoveObject")(Any(), Any()).
-		WillOnce(Return(nil, errors.New("taco")))
+	ExpectCall(t.wrapped, "MoveObject")(Any(), Any()).WillOnce(Return(nil, errors.New("taco")))
 
 	// Call
 	_, err := t.bucket.MoveObject(context.TODO(), &gcs.MoveObjectRequest{SrcName: srcName, DstName: dstName})
@@ -1088,15 +1087,14 @@ func (t *MoveObjectTest) MoveObjectSucceeds() {
 	// Erase
 	ExpectCall(t.cache, "Erase")(Any()).Times(2)
 
-	// Return object
+	// Wrap object
 	obj := &gcs.Object{
 		Name:       dstName,
 		Generation: 1234,
 	}
-	ExpectCall(t.wrapped, "MoveObject")(Any(), Any()).
-		WillOnce(Return(obj, nil))
+	ExpectCall(t.wrapped, "MoveObject")(Any(), Any()).WillOnce(Return(obj, nil))
 
-	// Insert
+	// Insert in cache
 	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(ttl)))
 
 	// Call
