@@ -27,6 +27,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/jacobsa/fuse/fuseops"
@@ -95,6 +96,15 @@ type FileInode struct {
 
 	bwh    *bufferedwrites.BufferedWriteHandler
 	config *cfg.Config
+
+	// Once write is started on the file i.e, bwh is initialized, any fileHandles
+	// opened in write mode before or after this and not yet closed are considered
+	// as writing to the file even though they are not writing.
+	// In case of successful flush, we will set bwh to nil. But in case of error,
+	// we will keep returning that error to all the fileHandles open during that time
+	// and set bwh to nil after all fileHandlers are closed.
+	// writeHandleCount tracks the count of open fileHandles in write mode.
+	writeHandleCount int32
 }
 
 var _ Inode = &FileInode{}
@@ -367,6 +377,31 @@ func (f *FileInode) IncrementLookupCount() {
 func (f *FileInode) DecrementLookupCount(n uint64) (destroy bool) {
 	destroy = f.lc.Dec(n)
 	return
+}
+
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) RegisterFileHandle(readOnly bool) {
+	if !readOnly {
+		f.writeHandleCount++
+	}
+}
+
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) DeRegisterFileHandle(readOnly bool) {
+	if readOnly {
+		return
+	}
+
+	if f.writeHandleCount <= 0 {
+		logger.Errorf("Mismatch in number of write file handles for inode :%d", f.id)
+	}
+
+	f.writeHandleCount--
+
+	// All write fileHandles associated with bwh are closed. So safe to set bwh to nil.
+	if f.writeHandleCount == 0 {
+		f.bwh = nil
+	}
 }
 
 // LOCKS_REQUIRED(f.mu)
@@ -802,6 +837,11 @@ func (f *FileInode) CreateBufferedOrTempWriter(ctx context.Context) (err error) 
 }
 
 func (f *FileInode) ensureBufferedWriteHandler(ctx context.Context) error {
+	// bwh already initialized, do nothing.
+	if f.bwh != nil {
+		return nil
+	}
+
 	var err error
 	var latestGcsObj *gcs.Object
 	if !f.local {

@@ -47,16 +47,23 @@ type FileHandle struct {
 	// will be downloaded for random reads as well too.
 	cacheFileForRangeRead bool
 	metricHandle          common.MetricHandle
+	// For now, we will consider the files which are open in append mode also as write,
+	// as we are not doing anything special for append. When required we will
+	// define an enum instead of boolean to hold the type of open.
+	readOnly bool
 }
 
-func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle) (fh *FileHandle) {
+// LOCKS_REQUIRED(fh.inode.mu)
+func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, readOnly bool) (fh *FileHandle) {
 	fh = &FileHandle{
 		inode:                 inode,
 		fileCacheHandler:      fileCacheHandler,
 		cacheFileForRangeRead: cacheFileForRangeRead,
 		metricHandle:          metricHandle,
+		readOnly:              readOnly,
 	}
 
+	fh.inode.RegisterFileHandle(fh.readOnly)
 	fh.mu = syncutil.NewInvariantMutex(fh.checkInvariants)
 
 	return
@@ -65,6 +72,8 @@ func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, 
 // Destroy any resources associated with the handle, which must not be used
 // again.
 func (fh *FileHandle) Destroy() {
+	// Deregister the fileHandle with the inode.
+	fh.inode.DeRegisterFileHandle(fh.readOnly)
 	if fh.reader != nil {
 		fh.reader.Destroy()
 	}

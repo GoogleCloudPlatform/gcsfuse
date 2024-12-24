@@ -1737,7 +1737,8 @@ func (fs *fileSystem) CreateFile(
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
-	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle)
+	// Creating new file is always a write operation, hence passing readOnly as false.
+	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, false)
 	op.Handle = handleID
 
 	fs.mu.Unlock()
@@ -2372,16 +2373,24 @@ func (fs *fileSystem) OpenFile(
 	ctx context.Context,
 	op *fuseops.OpenFileOp) (err error) {
 	fs.mu.Lock()
-	defer fs.mu.Unlock()
 
 	// Find the inode.
 	in := fs.fileInodeOrDie(op.Inode)
+	// Follow lock ordering rules to get inode lock.
+	// Inode lock is required to register fileHandle with the inode.
+	fs.mu.Unlock()
+	in.Lock()
+	defer in.Unlock()
+
+	// Get the fs lock again.
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 
 	// Allocate a handle.
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
-	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle)
+	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, op.OpenFlags.IsReadOnly())
 	op.Handle = handleID
 
 	// When we observe object generations that we didn't create, we assign them
