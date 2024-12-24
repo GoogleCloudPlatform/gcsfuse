@@ -347,6 +347,18 @@ func (testSuite *BufferedWriteTest) TestWriteFileInfoWithTruncatedLengthGreaterT
 
 	assert.Equal(testSuite.T(), testSuite.bwh.truncatedSize, fileInfo.TotalSize)
 }
+func (testSuite *BufferedWriteTest) TestDestroyShouldClearFreeBlockChannel() {
+	// Try to write 4 blocks of data.
+	contents := strings.Repeat("A", blockSize*4)
+	err := testSuite.bwh.Write([]byte(contents), 0)
+	require.Nil(testSuite.T(), err)
+
+	err = testSuite.bwh.Destroy()
+
+	require.Nil(testSuite.T(), err)
+	assert.Equal(testSuite.T(), 0, len(testSuite.bwh.blockPool.FreeBlocksChannel()))
+	assert.Equal(testSuite.T(), 0, len(testSuite.bwh.uploadHandler.uploadCh))
+}
 
 func (testSuite *BufferedWriteTest) TestUnlinkBeforeWrite() {
 	testSuite.bwh.Unlink()

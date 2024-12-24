@@ -349,3 +349,28 @@ func (t *UploadHandlerTest) TestCreateObjectChunkWriterIsCalledWithCorrectReques
 	err = t.uh.Upload(b)
 	require.NoError(t.T(), err)
 }
+
+func (t *UploadHandlerTest) TestDestroy() {
+	// Create some blocks.
+	var blocks []block.Block
+	for i := 0; i < 5; i++ {
+		b, err := t.blockPool.Get()
+		require.NoError(t.T(), err)
+		blocks = append(blocks, b)
+	}
+	// CreateObjectChunkWriter -- should be called once.
+	writer := &storagemock.Writer{}
+	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
+	// Upload the blocks.
+	for _, b := range blocks {
+		err := t.uh.Upload(b)
+		require.NoError(t.T(), err)
+	}
+
+	t.uh.Destroy()
+
+	assertUploadFailureSignal(t.T(), t.uh)
+	assertAllBlocksProcessed(t.T(), t.uh)
+	assert.Equal(t.T(), 5, len(t.uh.freeBlocksCh))
+	assert.Equal(t.T(), 0, len(t.uh.uploadCh))
+}
