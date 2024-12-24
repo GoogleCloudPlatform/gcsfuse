@@ -528,7 +528,7 @@ func TestMoveObject(t *testing.T) {
 	name := prefix + suffix
 	// Create an object through the back door.
 	_, err = storageutil.CreateObject(ctx, wrapped, name, []byte(contents))
-	AssertEq(nil, err)
+	assert.NoError(t, err)
 
 	// Move it to a new name.
 	newSuffix := "burrito"
