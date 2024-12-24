@@ -2258,7 +2258,7 @@ func (fs *fileSystem) Unlink(
 	// Fetch the inode.
 	in, isLocalFile := fs.localFileInodes[fileName]
 	if !isLocalFile {
-		in, _ = fs.generationBackedInodes[fileName]
+		in = fs.generationBackedInodes[fileName]
 	}
 
 	fs.mu.Unlock()
