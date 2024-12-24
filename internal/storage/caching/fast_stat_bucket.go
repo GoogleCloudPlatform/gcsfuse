@@ -373,8 +373,20 @@ func (b *fastStatBucket) DeleteObject(
 }
 
 func (b *fastStatBucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
-	// TODO: Implement it.
-	return nil, nil
+	// Throw away any existing record for the source and destination name.
+	b.invalidate(req.SrcName)
+	b.invalidate(req.DstName)
+
+	// Move the object.
+	o, err := b.wrapped.MoveObject(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Record the new version.
+	b.insert(o)
+
+	return o, nil
 }
 
 func (b *fastStatBucket) DeleteFolder(ctx context.Context, folderName string) error {
