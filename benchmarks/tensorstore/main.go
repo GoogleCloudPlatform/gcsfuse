@@ -109,7 +109,7 @@ func setup() (string, error) {
 	fmt.Println("Cloning tensorstore done")
 	os.Chdir(tempDir)
 	fmt.Println("Building benchmark targets")
-	build := script.Exec("./bazelisk.py build //tensorstore/internal/benchmark:all //tensorstore/tscli")
+	build := script.Exec("./bazelisk.py build -c opt //tensorstore/internal/benchmark:all //tensorstore/tscli")
 	if err := build.Wait(); err != nil {
 		return "", fmt.Errorf("error occurred while building benchmarks")
 	}
