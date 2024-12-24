@@ -19,7 +19,7 @@
 
 bucketName: gke-fio-64k-1m
 createUsingGcsfuse: false
-
+preprod: false
 fio:
   fileSize: 64K
   blockSize: 64K

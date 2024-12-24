@@ -54,6 +54,17 @@ spec:
         echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
         apt-get update && apt-get install -y google-cloud-cli
 
+        {{ if .Values.preprod }}
+        # switch to preprod environment
+        gcloud config configurations create preprod || gcloud config configurations activate preprod
+        gcloud config set pass_credentials_to_gsutil true
+        gcloud config set disable_usage_reporting true
+        # preprod endpoint from go/gcs-universes
+        gcloud config set api_endpoint_overrides/storage https://storage-preprod-test-unified.googleusercontent.com/storage/v1_preprod/
+        # Requires gcloud version Google Cloud SDK 422.0.0 or later.
+        gcloud config set storage/json_api_version v1_preprod
+        {{ end }}
+
         echo "Installing fio..."
         git clone -b fio-3.36 https://github.com/axboe/fio.git
         cd fio
