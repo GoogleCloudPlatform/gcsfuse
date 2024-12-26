@@ -65,6 +65,9 @@ type DirInode interface {
 	// true.
 	LookUpChild(ctx context.Context, name string) (*Core, error)
 
+	// Rename the file.
+	RenameFile(ctx context.Context, oldObject *gcs.MinObject, destinationFileName string) (*gcs.Object, error)
+
 	// Rename the directiory/folder.
 	RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (*gcs.Folder, error)
 
@@ -1036,6 +1039,20 @@ func (d *dirInode) ShouldInvalidateKernelListCache(ttl time.Duration) bool {
 
 	cachedDuration := d.cacheClock.Now().Sub(d.prevDirListingTimeStamp)
 	return cachedDuration >= ttl
+}
+
+func (d *dirInode) RenameFile(ctx context.Context, oldObject *gcs.MinObject, destinationFileName string) (*gcs.Object, error) {
+	o, err := d.bucket.MoveObject(ctx, &gcs.MoveObjectRequest{SrcName: oldObject.Name,
+		DstName:                       destinationFileName,
+		SrcGeneration:                 oldObject.Generation,
+		SrcMetaGenerationPrecondition: &oldObject.MetaGeneration})
+
+	d.cache.Erase(oldObject.Name)
+	if err == nil {
+		d.cache.Insert(d.cacheClock.Now(), o.Name, metadata.RegularFileType)
+	}
+
+	return o, err
 }
 
 func (d *dirInode) RenameFolder(ctx context.Context, folderName string, destinationFolderName string) (*gcs.Folder, error) {
