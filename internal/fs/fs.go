@@ -2255,7 +2255,12 @@ func (fs *fileSystem) Unlink(
 	parent := fs.dirInodeOrDie(op.Parent)
 	fileName := inode.NewFileName(parent.Name(), op.Name)
 
-	// Fetch the inode.
+	// Get the inode for the given file.
+	// Files must have an associated inode, which can be found in either:
+	//  - localFileInodes: For files created locally.
+	//  - generationBackedInodes: For files backed by an object.
+	// We are not checking implicitDirInodes or folderInodes because
+	// the unlink operation is only applicable to files.
 	in, isLocalFile := fs.localFileInodes[fileName]
 	if !isLocalFile {
 		in = fs.generationBackedInodes[fileName]

@@ -33,8 +33,7 @@ const (
 )
 
 type StreamingWritesLocalFileTest struct {
-	suite.Suite
-	fsTest
+	StreamingWritesCommonTest
 }
 
 func (t *StreamingWritesLocalFileTest) SetupSuite() {
@@ -55,7 +54,8 @@ func (t *StreamingWritesLocalFileTest) TearDownSuite() {
 	t.fsTest.TearDownTestSuite()
 }
 func (t *StreamingWritesLocalFileTest) SetupTest() {
-	// Create a local file.
+	// CreateLocalFile creates a local file and validates that object does not
+	// exist on GCS.
 	_, t.f1 = operations.CreateLocalFile(ctx, t.T(), mntDir, bucket, fileName)
 }
 
@@ -70,41 +70,6 @@ func TestStreamingWritesLocalFileTestSuite(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
-
-func (t *StreamingWritesLocalFileTest) TestUnlinkBeforeWrite() {
-	// Validate that the file is local (not synced).
-	operations.ValidateObjectNotFoundErr(ctx, t.T(), bucket, fileName)
-
-	// unlink the local file.
-	err := os.Remove(t.f1.Name())
-	assert.NoError(t.T(), err)
-
-	// Stat the local file and validate file is deleted.
-	operations.ValidateNoFileOrDirError(t.T(), t.f1.Name())
-	// Close the file and validate that file is not created on GCS.
-	err = operations.CloseLocalFile(t.T(), &t.f1)
-	assert.NoError(nil, err)
-	operations.ValidateObjectNotFoundErr(ctx, t.T(), bucket, fileName)
-}
-
-func (t *StreamingWritesLocalFileTest) TestUnlinkAfterWrite() {
-	// Validate that the file is local (not synced).
-	operations.ValidateObjectNotFoundErr(ctx, t.T(), bucket, fileName)
-	// Write content to file.
-	_, err := t.f1.Write([]byte("tacos"))
-	assert.Nil(t.T(), err)
-
-	// unlink the local file.
-	err = os.Remove(t.f1.Name())
-	assert.NoError(t.T(), err)
-
-	// Stat the local file and validate file is deleted.
-	operations.ValidateNoFileOrDirError(t.T(), t.f1.Name())
-	// Close the file and validate that file is not created on GCS.
-	err = operations.CloseLocalFile(t.T(), &t.f1)
-	assert.NoError(nil, err)
-	operations.ValidateObjectNotFoundErr(ctx, t.T(), bucket, fileName)
-}
 
 func (t *StreamingWritesLocalFileTest) TestRemoveDirectoryContainingLocalAndEmptyObject() {
 	// Create explicit directory with one synced and one local file.

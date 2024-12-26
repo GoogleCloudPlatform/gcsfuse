@@ -24,14 +24,12 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
 
 type StreamingWritesEmptyGCSObjectTest struct {
-	suite.Suite
-	fsTest
+	StreamingWritesCommonTest
 }
 
 func (t *StreamingWritesEmptyGCSObjectTest) SetupSuite() {
@@ -61,6 +59,10 @@ func (t *StreamingWritesEmptyGCSObjectTest) SetupTest() {
 	// Open file handle to read or write.
 	t.f1, err = os.OpenFile(path.Join(mntDir, fileName), os.O_RDWR|syscall.O_DIRECT, filePerms)
 	assert.Equal(t.T(), nil, err)
+
+	// Validate that file exists on GCS.
+	_, err = storageutil.ReadObject(ctx, bucket, fileName)
+	assert.NoError(t.T(), err)
 }
 
 func (t *StreamingWritesEmptyGCSObjectTest) TearDownTest() {
@@ -69,47 +71,4 @@ func (t *StreamingWritesEmptyGCSObjectTest) TearDownTest() {
 
 func TestStreamingWritesEmptyObjectTest(t *testing.T) {
 	suite.Run(t, new(StreamingWritesEmptyGCSObjectTest))
-}
-
-////////////////////////////////////////////////////////////////////////
-// Tests
-////////////////////////////////////////////////////////////////////////
-
-func (t *StreamingWritesEmptyGCSObjectTest) TestUnlinkBeforeWrite() {
-	// Validate that file exists on GCS.
-	_, err := storageutil.ReadObject(ctx, bucket, fileName)
-	assert.NoError(t.T(), err)
-
-	// unlink the synced file.
-	err = os.Remove(t.f1.Name())
-	assert.NoError(t.T(), err)
-
-	// Stat the file and validate file is deleted.
-	operations.ValidateNoFileOrDirError(t.T(), t.f1.Name())
-	// Close the file and validate that file is deleted from GCS.
-	err = t.f1.Close()
-	assert.NoError(nil, err)
-	t.f1 = nil
-	operations.ValidateObjectNotFoundErr(ctx, t.T(), bucket, fileName)
-}
-
-func (t *StreamingWritesEmptyGCSObjectTest) TestUnlinkAfterWrite() {
-	// Validate that file exists on GCS.
-	_, err := storageutil.ReadObject(ctx, bucket, fileName)
-	assert.NoError(t.T(), err)
-	// Write content to file.
-	_, err = t.f1.Write([]byte("tacos"))
-	assert.NoError(t.T(), err)
-
-	// unlink the file.
-	err = os.Remove(t.f1.Name())
-	assert.NoError(t.T(), err)
-
-	// Stat the file and validate file is deleted.
-	operations.ValidateNoFileOrDirError(t.T(), t.f1.Name())
-	// Close the file and validate that file is not created on GCS.
-	err = t.f1.Close()
-	assert.NoError(nil, err)
-	t.f1 = nil
-	operations.ValidateObjectNotFoundErr(ctx, t.T(), bucket, fileName)
 }
