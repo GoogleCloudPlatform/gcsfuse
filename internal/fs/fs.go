@@ -2249,30 +2249,43 @@ func (fs *fileSystem) Unlink(
 		ctx, cancel = util.IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
-	// Find the parent.
+
 	fs.mu.Lock()
+
+	// Find the parent and file name.
 	parent := fs.dirInodeOrDie(op.Parent)
+	fileName := inode.NewFileName(parent.Name(), op.Name)
+
+	// Get the inode for the given file.
+	// Files must have an associated inode, which can be found in either:
+	//  - localFileInodes: For files created locally.
+	//  - generationBackedInodes: For files backed by an object.
+	// We are not checking implicitDirInodes or folderInodes because
+	// the unlink operation is only applicable to files.
+	in, isLocalFile := fs.localFileInodes[fileName]
+	if !isLocalFile {
+		in = fs.generationBackedInodes[fileName]
+	}
+
 	fs.mu.Unlock()
 
-	// if inode is a local file, mark it unlinked.
-	fileName := inode.NewFileName(parent.Name(), op.Name)
-	fs.mu.Lock()
-	fileInode, ok := fs.localFileInodes[fileName]
-	if ok {
-		file := fs.fileInodeOrDie(fileInode.ID())
-		fs.mu.Unlock()
-		file.Lock()
-		defer file.Unlock()
-		file.Unlink()
+	if in != nil {
+		// Perform the unlink operation on the inode.
+		in.Lock()
+		in.Unlink()
+		in.Unlock()
+	}
+
+	// If the inode represents a local file, we don't need to delete
+	// the backing object on GCS, so return early.
+	if isLocalFile {
 		return
 	}
-	fs.mu.Unlock()
 
-	// else delete the backing object present on GCS.
+	// Delete the backing object present on GCS.
 	parent.Lock()
 	defer parent.Unlock()
 
-	// Delete the backing object.
 	err = parent.DeleteChildFile(
 		ctx,
 		op.Name,

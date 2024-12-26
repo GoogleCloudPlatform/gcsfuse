@@ -55,6 +55,9 @@ type Inode interface {
 	//
 	// This method may block. Errors are for logging purposes only.
 	Destroy() (err error)
+
+	// Unlink operation marks the inode as unlinked/deleted.
+	Unlink()
 }
 
 // An inode owned by a gcs bucket.
