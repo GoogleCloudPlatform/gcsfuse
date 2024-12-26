@@ -343,7 +343,6 @@ func (t *HNSDirTest) TestRenameFileWithGivenName() {
 	f, err := t.in.RenameFile(t.ctx, &oldObj, path.Join(dirInodeName, renameFileName))
 
 	t.mockBucket.AssertExpectations(t.T())
-	assert.NoError(t.T(), err)
 	// Verify the renamed file exists.
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), newObjName, f.Name)
