@@ -328,7 +328,12 @@ func (t *HNSDirTest) TestRenameFileWithGivenName() {
 	oldObjName := path.Join(dirInodeName, fileName)
 	newObjName := path.Join(dirInodeName, renameFileName)
 	var metaGeneration int64 = 0
-	moveObjectReq := gcs.MoveObjectRequest{SrcName: oldObjName, DstName: newObjName, SrcGeneration: 0, SrcMetaGenerationPrecondition: &metaGeneration}
+	moveObjectReq := gcs.MoveObjectRequest{
+		SrcName:                       oldObjName,
+		DstName:                       newObjName,
+		SrcGeneration:                 0,
+		SrcMetaGenerationPrecondition: &metaGeneration,
+	}
 	oldObj := gcs.MinObject{Name: oldObjName}
 	newObj := gcs.Object{Name: newObjName}
 
@@ -352,7 +357,12 @@ func (t *HNSDirTest) TestRenameFileWithNonExistentSourceFile() {
 	oldObjName := path.Join(dirInodeName, fileName)
 	newObjName := path.Join(dirInodeName, renameFileName)
 	var metaGeneration int64 = 0
-	moveObjectReq := gcs.MoveObjectRequest{SrcName: oldObjName, DstName: newObjName, SrcGeneration: 0, SrcMetaGenerationPrecondition: &metaGeneration}
+	moveObjectReq := gcs.MoveObjectRequest{
+		SrcName:                       oldObjName,
+		DstName:                       newObjName,
+		SrcGeneration:                 0,
+		SrcMetaGenerationPrecondition: &metaGeneration,
+	}
 	oldObj := gcs.MinObject{Name: oldObjName}
 	var notFoundErr *gcs.NotFoundError
 

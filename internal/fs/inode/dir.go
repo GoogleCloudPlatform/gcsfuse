@@ -1042,10 +1042,14 @@ func (d *dirInode) ShouldInvalidateKernelListCache(ttl time.Duration) bool {
 }
 
 func (d *dirInode) RenameFile(ctx context.Context, oldObject *gcs.MinObject, destinationFileName string) (*gcs.Object, error) {
-	o, err := d.bucket.MoveObject(ctx, &gcs.MoveObjectRequest{SrcName: oldObject.Name,
-		DstName:                       destinationFileName,
-		SrcGeneration:                 oldObject.Generation,
-		SrcMetaGenerationPrecondition: &oldObject.MetaGeneration})
+	o, err := d.bucket.MoveObject(ctx,
+		&gcs.MoveObjectRequest{
+			SrcName:                       oldObject.Name,
+			DstName:                       destinationFileName,
+			SrcGeneration:                 oldObject.Generation,
+			SrcMetaGenerationPrecondition: &oldObject.MetaGeneration,
+		},
+	)
 
 	d.cache.Erase(oldObject.Name)
 	if err == nil {
