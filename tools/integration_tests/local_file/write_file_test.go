@@ -54,3 +54,63 @@ func TestRandomWritesToLocalFile(t *testing.T) {
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
 		FileName1, "stsstring3", t)
 }
+
+func TestOutOfOrderWritesToNewFile(t *testing.T) {
+	testDirPath = setup.SetupTestDirectory(testDirName)
+	// Create a local file.
+	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
+
+	// Write some contents to file sequentially.
+	for i := 0; i < 2; i++ {
+		operations.WriteWithoutClose(fh, FileContents, t)
+	}
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t)
+
+	// Write at previous offset.
+	operations.WriteAt("hello", 0, fh, t)
+
+	expectedString := "hellotringtestString"
+	// Close the file and validate that the file is created on GCS.
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
+		FileName1, expectedString, t)
+}
+
+func TestMultipleOutOfOrderWritesToNewFile(t *testing.T) {
+	testDirPath = setup.SetupTestDirectory(testDirName)
+	// Create a local file.
+	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
+
+	// Write some contents to file sequentially.
+	for i := 0; i < 2; i++ {
+		operations.WriteWithoutClose(fh, FileContents, t)
+	}
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t)
+
+	// Write at previous offset.
+	operations.WriteAt("hello", 15, fh, t)
+
+	// Write at new offset.
+	operations.WriteAt("hey", 30, fh, t)
+
+	emptyBytes := [10]byte{}
+	expectedString := "testStringtestShello" + string(emptyBytes[:]) + "hey"
+	// Close the file and validate that the file is created on GCS.
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
+		FileName1, expectedString, t)
+}
+
+func TestWritesToNewFileStartingAtNonZeroOffset(t *testing.T) {
+	testDirPath = setup.SetupTestDirectory(testDirName)
+	// Create a local file.
+	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
+	// Write at future offset.
+	operations.WriteAt("hello", 15, fh, t)
+	// Write at zero offset now.
+	operations.WriteAt("hey", 0, fh, t)
+
+	emptyBytes := [12]byte{}
+	expectedString := "hey" + string(emptyBytes[:]) + "hello"
+	// Close the file and validate that the file is created on GCS.
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
+		FileName1, expectedString, t)
+}

@@ -56,3 +56,13 @@ func TestCreateNewFileWhenSameFileExistsOnGCS(t *testing.T) {
 	//  Ensure that the content on GCS is not overwritten.
 	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, FileName1, GCSFileContent, t)
 }
+
+func TestEmptyFileCreation(t *testing.T) {
+	testDirPath = setup.SetupTestDirectory(testDirName)
+	// Create a local file.
+	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
+
+	// Close the file and validate that the file is created on GCS.
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
+		FileName1, "", t)
+}
