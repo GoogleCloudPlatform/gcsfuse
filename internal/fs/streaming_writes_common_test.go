@@ -19,7 +19,6 @@ package fs_test
 
 import (
 	"os"
-	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/stretchr/testify/assert"
@@ -29,10 +28,6 @@ import (
 type StreamingWritesCommonTest struct {
 	suite.Suite
 	fsTest
-}
-
-func TestStreamingWritesCommonTest(t *testing.T) {
-	suite.Run(t, new(StreamingWritesCommonTest))
 }
 
 ////////////////////////////////////////////////////////////////////////
