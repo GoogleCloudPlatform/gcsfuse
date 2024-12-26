@@ -547,7 +547,7 @@ func (bh *bucketHandle) MoveObject(ctx context.Context, req *gcs.MoveObjectReque
 		obj = obj.Generation(req.SrcGeneration)
 	}
 
-	// Putting a condition that the metaGeneration of source should match *req.SrcMetaGenerationPrecondition for copy operation to occur.
+	// Putting a condition that the metaGeneration of source should match *req.SrcMetaGenerationPrecondition for move operation to occur.
 	if req.SrcMetaGenerationPrecondition != nil {
 		obj = obj.If(storage.Conditions{MetagenerationMatch: *req.SrcMetaGenerationPrecondition})
 	}
