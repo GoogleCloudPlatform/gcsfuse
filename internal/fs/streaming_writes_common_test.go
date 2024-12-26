@@ -53,15 +53,5 @@ func (t *StreamingWritesCommonTest) TestUnlinkAfterWrite() {
 	_, err := t.f1.Write([]byte("tacos"))
 	assert.NoError(t.T(), err)
 
-	// unlink the file.
-	err = os.Remove(t.f1.Name())
-	assert.NoError(t.T(), err)
-
-	// Stat the file and validate file is deleted.
-	operations.ValidateNoFileOrDirError(t.T(), t.f1.Name())
-	// Close the file and validate that file is not created on GCS.
-	err = t.f1.Close()
-	assert.NoError(nil, err)
-	t.f1 = nil
-	operations.ValidateObjectNotFoundErr(ctx, t.T(), bucket, fileName)
+	t.TestUnlinkBeforeWrite()
 }
