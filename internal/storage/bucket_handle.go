@@ -38,6 +38,7 @@ import (
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const FullFolderPathHNS = "projects/_/buckets/%s/folders/%s"
@@ -237,6 +238,17 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	// We can't use defer to close the writer, because we need to close the
 	// writer successfully before calling Attrs() method of writer.
 	if err = wc.Close(); err != nil {
+		// This checks if the error returned from the RPC call is a gRPC status error.
+		// If it is, and the error code is `codes.FailedPrecondition`, it means the
+		// operation failed due to a precondition not being met.The generic gRPC error
+		// is converted into a more specific `gcs.PreconditionError`. This allows handling
+		// of precondition failures differently.
+		if rpcErr, ok := status.FromError(err); ok {
+			if code := rpcErr.Code(); code == codes.FailedPrecondition {
+				err = &gcs.PreconditionError{Err: err}
+				return
+			}
+		}
 		var gErr *googleapi.Error
 		if errors.As(err, &gErr) {
 			if gErr.Code == http.StatusPreconditionFailed {
