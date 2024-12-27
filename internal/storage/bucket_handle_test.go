@@ -1383,9 +1383,9 @@ func (testSuite *BucketHandleTest) TestComposeObjectMethodWithOneSrcObjectIsDstO
 
 func (testSuite *BucketHandleTest) TestBucketTypeForHierarchicalNameSpaceTrue() {
 	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
-			Return(&controlpb.StorageLayout{
-				HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
-			}, nil)
+		Return(&controlpb.StorageLayout{
+			HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
+		}, nil)
 
 	testSuite.bucketHandle.BucketType()
 
@@ -1394,9 +1394,9 @@ func (testSuite *BucketHandleTest) TestBucketTypeForHierarchicalNameSpaceTrue() 
 
 func (testSuite *BucketHandleTest) TestBucketTypeForHierarchicalNameSpaceFalse() {
 	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
-			Return(&controlpb.StorageLayout{
-				HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: false},
-			}, nil)
+		Return(&controlpb.StorageLayout{
+			HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: false},
+		}, nil)
 
 	testSuite.bucketHandle.BucketType()
 
