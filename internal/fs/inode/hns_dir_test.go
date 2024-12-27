@@ -320,6 +320,59 @@ func (t *HNSDirTest) TestRenameFolderWithNonExistentSourceFolder() {
 	assert.Nil(t.T(), f)
 }
 
+func (t *HNSDirTest) TestRenameFileWithGivenName() {
+	const (
+		fileName       = "qux"
+		renameFileName = "rename"
+	)
+	oldObjName := path.Join(dirInodeName, fileName)
+	newObjName := path.Join(dirInodeName, renameFileName)
+	var metaGeneration int64 = 0
+	moveObjectReq := gcs.MoveObjectRequest{
+		SrcName:                       oldObjName,
+		DstName:                       newObjName,
+		SrcGeneration:                 0,
+		SrcMetaGenerationPrecondition: &metaGeneration,
+	}
+	oldObj := gcs.MinObject{Name: oldObjName}
+	newObj := gcs.Object{Name: newObjName}
+	t.mockBucket.On("MoveObject", t.ctx, &moveObjectReq).Return(&newObj, nil)
+
+	// Attempt to rename the file.
+	f, err := t.in.RenameFile(t.ctx, &oldObj, path.Join(dirInodeName, renameFileName))
+
+	t.mockBucket.AssertExpectations(t.T())
+	// Verify the renamed file exists.
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), newObjName, f.Name)
+}
+
+func (t *HNSDirTest) TestRenameFileWithNonExistentSourceFile() {
+	const (
+		fileName       = "qux"
+		renameFileName = "rename"
+	)
+	oldObjName := path.Join(dirInodeName, fileName)
+	newObjName := path.Join(dirInodeName, renameFileName)
+	var metaGeneration int64 = 0
+	moveObjectReq := gcs.MoveObjectRequest{
+		SrcName:                       oldObjName,
+		DstName:                       newObjName,
+		SrcGeneration:                 0,
+		SrcMetaGenerationPrecondition: &metaGeneration,
+	}
+	oldObj := gcs.MinObject{Name: oldObjName}
+	var notFoundErr *gcs.NotFoundError
+	t.mockBucket.On("MoveObject", t.ctx, &moveObjectReq).Return(nil, &gcs.NotFoundError{})
+
+	// Attempt to rename the file.
+	f, err := t.in.RenameFile(t.ctx, &oldObj, newObjName)
+
+	t.mockBucket.AssertExpectations(t.T())
+	assert.True(t.T(), errors.As(err, &notFoundErr))
+	assert.Nil(t.T(), f)
+}
+
 func (t *HNSDirTest) TestDeleteChildDir_WhenImplicitDirFlagTrueOnNonHNSBucket() {
 	const folderName = "folder"
 	dirName := path.Join(dirInodeName, folderName) + "/"
@@ -350,6 +403,7 @@ func (t *HNSDirTest) TestDeleteChildDir_WhenImplicitDirFlagFalseAndNonHNSBucket_
 	assert.Equal(t.T(), metadata.Type(0), t.typeCache.Get(t.fixedTime.Now(), dirName))
 	assert.False(t.T(), dirIn.IsUnlinked())
 }
+
 func (t *HNSDirTest) TestDeleteChildDir_WithImplicitDirFlagFalseAndNonHNSBucket_DeleteObjectThrowAnError() {
 	const name = "folder"
 	dirName := path.Join(dirInodeName, name) + "/"
