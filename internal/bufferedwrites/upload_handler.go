@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"io"
 	"sync"
-	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
@@ -187,23 +186,5 @@ func (uh *UploadHandler) Destroy() {
 			close(uh.uploadCh)
 			return
 		}
-	}
-}
-
-// TODO: Move this method to util and add unit tests.
-// waitTimeout waits for the waitGroup for the specified max timeout.
-// Returns true if waiting timed out.
-func waitTimeout(wg *sync.WaitGroup, timeout time.Duration) bool {
-	c := make(chan struct{})
-	go func() {
-		defer close(c)
-		wg.Wait()
-	}()
-
-	select {
-	case <-c:
-		return false // completed normally
-	case <-time.After(timeout):
-		return true // timed out
 	}
 }
