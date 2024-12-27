@@ -2566,6 +2566,8 @@ func (fs *fileSystem) ReleaseFileHandle(
 	fs.mu.Unlock()
 
 	// Destroy the handle.
+	fileHandle.Lock()
+	defer fileHandle.Unlock()
 	fileHandle.Destroy()
 
 	return

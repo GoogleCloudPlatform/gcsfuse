@@ -186,6 +186,15 @@ func (uh *UploadHandler) Destroy() {
 			uh.wg.Done()
 		}
 	}
+
+	// This code is safer when not executed from multiple go-routines at once.
+	// Since destroy takes a inode lock in fileHandle, this is called by
+	// only one goroutine at once.
+	select {
+	case <-uh.uploadCh:
+	default:
+		close(uh.uploadCh)
+	}
 }
 
 // TODO: Move this method to util and add unit tests.

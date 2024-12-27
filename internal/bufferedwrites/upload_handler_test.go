@@ -63,6 +63,10 @@ func (t *UploadHandlerTest) SetupTest() {
 	})
 }
 
+func (t *UploadHandlerTest) SetupSubTest() {
+	t.SetupTest()
+}
+
 func (t *UploadHandlerTest) TestMultipleBlockUpload() {
 	// Create some blocks.
 	var blocks []block.Block
@@ -351,25 +355,52 @@ func (t *UploadHandlerTest) TestCreateObjectChunkWriterIsCalledWithCorrectReques
 }
 
 func (t *UploadHandlerTest) TestDestroy() {
-	// Create some blocks.
-	var blocks []block.Block
-	for i := 0; i < 5; i++ {
-		b, err := t.blockPool.Get()
-		require.NoError(t.T(), err)
-		blocks = append(blocks, b)
-	}
-	// CreateObjectChunkWriter -- should be called once.
-	writer := &storagemock.Writer{}
-	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
-	// Upload the blocks.
-	for _, b := range blocks {
-		err := t.uh.Upload(b)
-		require.NoError(t.T(), err)
+	testCases := []struct {
+		name           string
+		uploadChClosed bool
+	}{
+		{
+			name:           "UploadChNotClosed",
+			uploadChClosed: false,
+		},
+		{
+			name:           "UploadChClosed",
+			uploadChClosed: true,
+		},
 	}
 
-	t.uh.Destroy()
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			// Create some blocks.
+			var blocks []block.Block
+			for i := 0; i < 5; i++ {
+				b, err := t.blockPool.Get()
+				require.NoError(t.T(), err)
+				blocks = append(blocks, b)
+			}
+			// CreateObjectChunkWriter -- should be called once.
+			writer := &storagemock.Writer{}
+			t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
+			// Upload the blocks.
+			for _, b := range blocks {
+				err := t.uh.Upload(b)
+				require.NoError(t.T(), err)
+			}
+			if tc.uploadChClosed {
+				close(t.uh.uploadCh)
+			}
 
-	assertAllBlocksProcessed(t.T(), t.uh)
-	assert.Equal(t.T(), 5, len(t.uh.freeBlocksCh))
-	assert.Equal(t.T(), 0, len(t.uh.uploadCh))
+			t.uh.Destroy()
+
+			assertAllBlocksProcessed(t.T(), t.uh)
+			assert.Equal(t.T(), 5, len(t.uh.freeBlocksCh))
+			assert.Equal(t.T(), 0, len(t.uh.uploadCh))
+
+			select {
+			case <-t.uh.uploadCh:
+			default:
+				assert.Fail(t.T(), "uploadCh not closed")
+			}
+		})
+	}
 }
