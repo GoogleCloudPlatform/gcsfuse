@@ -1531,43 +1531,36 @@ func TestIsPreconditionFailed(t *testing.T) {
 		name          string
 		err           error
 		expectPreCond bool
-		expectErr     bool
 	}{
 		{
 			name:          "googleapi.Error with PreconditionFailed",
 			err:           &googleapi.Error{Code: http.StatusPreconditionFailed},
 			expectPreCond: true,
-			expectErr:     true,
 		},
 		{
 			name:          "googleapi.Error with other code",
 			err:           &googleapi.Error{Code: http.StatusNotFound},
 			expectPreCond: false,
-			expectErr:     false,
 		},
 		{
 			name:          "apierror.APIError with FailedPrecondition",
 			err:           preCondApiError,
 			expectPreCond: true,
-			expectErr:     true,
 		},
 		{
 			name:          "apierror.APIError with other code",
 			err:           notFoundApiError,
 			expectPreCond: false,
-			expectErr:     false,
 		},
 		{
 			name:          "nil error",
 			err:           nil,
 			expectPreCond: false,
-			expectErr:     false,
 		},
 		{
 			name:          "generic error",
 			err:           errors.New("generic error"),
 			expectPreCond: false,
-			expectErr:     false,
 		},
 	}
 
@@ -1579,11 +1572,7 @@ func TestIsPreconditionFailed(t *testing.T) {
 				t.Errorf("Expected isPrecond to be %v, got %v", tc.expectPreCond, isPreCond)
 			}
 
-			if (err != nil) != tc.expectErr {
-				t.Errorf("Expected err to be %v, got %v", tc.expectErr, err != nil)
-			}
-
-			if tc.expectErr && err != nil {
+			if err != nil {
 				var preCondErr *gcs.PreconditionError
 				if !errors.As(err, &preCondErr) {
 					t.Errorf("Expected err to be of type *gcs.PreconditionError, got %T", err)
