@@ -1383,9 +1383,9 @@ func (testSuite *BucketHandleTest) TestComposeObjectMethodWithOneSrcObjectIsDstO
 
 func (testSuite *BucketHandleTest) TestBucketTypeForHierarchicalNameSpaceTrue() {
 	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
-		Return(&controlpb.StorageLayout{
-			HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
-		}, nil)
+			Return(&controlpb.StorageLayout{
+				HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
+			}, nil)
 
 	testSuite.bucketHandle.BucketType()
 
@@ -1394,9 +1394,9 @@ func (testSuite *BucketHandleTest) TestBucketTypeForHierarchicalNameSpaceTrue() 
 
 func (testSuite *BucketHandleTest) TestBucketTypeForHierarchicalNameSpaceFalse() {
 	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
-		Return(&controlpb.StorageLayout{
-			HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: false},
-		}, nil)
+			Return(&controlpb.StorageLayout{
+				HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: false},
+			}, nil)
 
 	testSuite.bucketHandle.BucketType()
 
@@ -1568,8 +1568,8 @@ func TestIsPreconditionFailed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			isPreCond, err := isPreconditionFailed(tt.err)
-			assert.Equal(t, tt.expectPreCond, isPreCond)
 
+			assert.Equal(t, tt.expectPreCond, isPreCond)
 			if tt.expectPreCond {
 				var preCondErr *gcs.PreconditionError
 				assert.ErrorAs(t, err, &preCondErr)
