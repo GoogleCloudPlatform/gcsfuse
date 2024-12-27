@@ -171,29 +171,22 @@ func (uh *UploadHandler) AwaitBlocksUpload() {
 }
 
 func (uh *UploadHandler) Destroy() {
-	// Waiting for upload routine to move all blocks to freeChannel.
-	timedOut := waitTimeout(&uh.wg, 10*time.Second)
-
-	// TimedOut means there are some blocks which are still in uploadChannel,
-	// either because upload is stuck in uploading a chunk or the upload
-	// go-routine crashed. Copying all pending blocks to freeBlock channel for cleanup.
-	// We can clean up from uploadChannel also, but to ensure clean up happens
-	// from one place we are copying them to freeBlock channel.
-	if timedOut {
-		for currBlock := range uh.uploadCh {
+	// Move all pending blocks to freeBlockCh and close the channel if not done.
+	for {
+		select {
+		case currBlock, ok := <-uh.uploadCh:
+			// Not ok means channel not closed. Return.
+			if !ok {
+				return
+			}
 			uh.freeBlocksCh <- currBlock
 			// Marking as wg.Done to ensure any waiters are unblocked.
 			uh.wg.Done()
+		default:
+			// This will get executed when there are no blocks pending in uploadCh and its not closed.
+			close(uh.uploadCh)
+			return
 		}
-	}
-
-	// This code is safer when not executed from multiple go-routines at once.
-	// Since destroy takes a inode lock in fileHandle, this is called by
-	// only one goroutine at once.
-	select {
-	case <-uh.uploadCh:
-	default:
-		close(uh.uploadCh)
 	}
 }
 
