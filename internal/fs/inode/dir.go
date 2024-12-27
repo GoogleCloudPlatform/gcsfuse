@@ -1056,11 +1056,6 @@ func (d *dirInode) RenameFile(ctx context.Context, fileToRename *gcs.MinObject, 
 	// Invalidate the cache entry for the old object name.
 	d.cache.Erase(fileToRename.Name)
 
-	// If the move was successful, add a cache entry for the new object name.
-	if err == nil {
-		d.cache.Insert(d.cacheClock.Now(), o.Name, metadata.RegularFileType)
-	}
-
 	return o, err
 }
 
