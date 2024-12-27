@@ -593,18 +593,14 @@ func (bh *bucketHandle) MoveObject(ctx context.Context, req *gcs.MoveObjectReque
 
 	// If storage object does not exist, httpclient is returning ErrObjectNotExist error instead of googleapi error
 	// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/cloud.google.com/go/storage/http_client.go#L516
-	if err != nil {
-		if ok, preCondErr := isPreconditionFailed(err); ok {
-			err = preCondErr
-		} else if errors.Is(err, storage.ErrObjectNotExist) {
-			err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
-		} else {
-			err = fmt.Errorf("error in moving object: %w", err)
-		}
-		return nil, err
+	if ok, preCondErr := isPreconditionFailed(err); ok {
+		err = preCondErr
+	} else if errors.Is(err, storage.ErrObjectNotExist) {
+		err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
+	} else {
+		err = fmt.Errorf("error in moving object: %w", err)
 	}
-
-	return o, nil
+	return nil, err
 }
 
 func (bh *bucketHandle) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (folder *gcs.Folder, err error) {
