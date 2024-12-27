@@ -168,3 +168,23 @@ func (uh *UploadHandler) SignalUploadFailure() chan error {
 func (uh *UploadHandler) AwaitBlocksUpload() {
 	uh.wg.Wait()
 }
+
+func (uh *UploadHandler) Destroy() {
+	// Move all pending blocks to freeBlockCh and close the channel if not done.
+	for {
+		select {
+		case currBlock, ok := <-uh.uploadCh:
+			// Not ok means channel closed. Return.
+			if !ok {
+				return
+			}
+			uh.freeBlocksCh <- currBlock
+			// Marking as wg.Done to ensure any waiters are unblocked.
+			uh.wg.Done()
+		default:
+			// This will get executed when there are no blocks pending in uploadCh and its not closed.
+			close(uh.uploadCh)
+			return
+		}
+	}
+}
