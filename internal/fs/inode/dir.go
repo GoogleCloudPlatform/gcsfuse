@@ -66,7 +66,7 @@ type DirInode interface {
 	LookUpChild(ctx context.Context, name string) (*Core, error)
 
 	// Rename the file.
-	RenameFile(ctx context.Context, oldObject *gcs.MinObject, destinationFileName string) (*gcs.Object, error)
+	RenameFile(ctx context.Context, fileToRename *gcs.MinObject, destinationFileName string) (*gcs.Object, error)
 
 	// Rename the directiory/folder.
 	RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (*gcs.Folder, error)
@@ -1041,18 +1041,19 @@ func (d *dirInode) ShouldInvalidateKernelListCache(ttl time.Duration) bool {
 	return cachedDuration >= ttl
 }
 
-func (d *dirInode) RenameFile(ctx context.Context, oldObject *gcs.MinObject, destinationFileName string) (*gcs.Object, error) {
+// LOCKS_REQUIRED(d)
+func (d *dirInode) RenameFile(ctx context.Context, fileToRename *gcs.MinObject, destinationFileName string) (*gcs.Object, error) {
 	req := &gcs.MoveObjectRequest{
-		SrcName:                       oldObject.Name,
+		SrcName:                       fileToRename.Name,
 		DstName:                       destinationFileName,
-		SrcGeneration:                 oldObject.Generation,
-		SrcMetaGenerationPrecondition: &oldObject.MetaGeneration,
+		SrcGeneration:                 fileToRename.Generation,
+		SrcMetaGenerationPrecondition: &fileToRename.MetaGeneration,
 	}
 
 	o, err := d.bucket.MoveObject(ctx, req)
 
 	// Invalidate the cache entry for the old object name.
-	d.cache.Erase(oldObject.Name)
+	d.cache.Erase(fileToRename.Name)
 
 	// If the move was successful, add a cache entry for the new object name.
 	if err == nil {

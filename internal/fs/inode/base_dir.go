@@ -256,7 +256,7 @@ func (d *baseDirInode) ShouldInvalidateKernelListCache(ttl time.Duration) bool {
 // List operation is not supported for baseDirInode.
 func (d *baseDirInode) InvalidateKernelListCache() {}
 
-func (d *baseDirInode) RenameFile(ctx context.Context, o *gcs.MinObject, destinationFileName string) (*gcs.Object, error) {
+func (d *baseDirInode) RenameFile(ctx context.Context, fileToRename *gcs.MinObject, destinationFileName string) (*gcs.Object, error) {
 	err := fuse.ENOSYS
 	return nil, err
 }

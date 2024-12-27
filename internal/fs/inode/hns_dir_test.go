@@ -336,7 +336,6 @@ func (t *HNSDirTest) TestRenameFileWithGivenName() {
 	}
 	oldObj := gcs.MinObject{Name: oldObjName}
 	newObj := gcs.Object{Name: newObjName}
-
 	t.mockBucket.On("MoveObject", t.ctx, &moveObjectReq).Return(&newObj, nil)
 
 	// Attempt to rename the file.
@@ -364,7 +363,6 @@ func (t *HNSDirTest) TestRenameFileWithNonExistentSourceFile() {
 	}
 	oldObj := gcs.MinObject{Name: oldObjName}
 	var notFoundErr *gcs.NotFoundError
-
 	t.mockBucket.On("MoveObject", t.ctx, &moveObjectReq).Return(nil, &gcs.NotFoundError{})
 
 	// Attempt to rename the file.
