@@ -2014,12 +2014,15 @@ func (fs *fileSystem) renameHierarchicalFile(ctx context.Context, oldParent inod
 
 	newFileName := inode.NewFileName(newParent.Name(), newName)
 
-	_, err := oldParent.RenameFile(ctx, oldObject, newFileName.GcsObjectName())
-	if err = fs.invalidateChildFileCacheIfExist(oldParent, oldName); err != nil {
+	if _, err := oldParent.RenameFile(ctx, oldObject, newFileName.GcsObjectName()); err != nil {
+		return fmt.Errorf("RenameFile: while renaming file: %w", err)
+	}
+
+	if err := fs.invalidateChildFileCacheIfExist(oldParent, oldName); err != nil {
 		return fmt.Errorf("renameHierarchicalFile: while invalidating cache for delete file: %w", err)
 	}
 
-	return err
+	return nil
 }
 
 // LOCKS_EXCLUDED(fs.mu)
