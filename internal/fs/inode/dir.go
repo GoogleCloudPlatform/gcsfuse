@@ -1042,6 +1042,7 @@ func (d *dirInode) ShouldInvalidateKernelListCache(ttl time.Duration) bool {
 }
 
 // LOCKS_REQUIRED(d)
+// LOCKS_REQUIRED(parent of destinationFileName)
 func (d *dirInode) RenameFile(ctx context.Context, fileToRename *gcs.MinObject, destinationFileName string) (*gcs.Object, error) {
 	req := &gcs.MoveObjectRequest{
 		SrcName:                       fileToRename.Name,
