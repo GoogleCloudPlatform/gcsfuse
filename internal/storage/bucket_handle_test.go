@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"reflect"
 	"strings"
 	"testing"
@@ -26,11 +27,13 @@ import (
 	"cloud.google.com/go/storage"
 	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
+	"github.com/googleapis/gax-go/v2/apierror"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/api/googleapi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -1519,4 +1522,73 @@ func (testSuite *BucketHandleTest) TestCreateFolderWithGivenName() {
 	testSuite.mockClient.AssertExpectations(testSuite.T())
 	assert.NoError(testSuite.T(), err)
 	assert.Equal(testSuite.T(), gcs.GCSFolder(TestBucketName, &mockFolder), folder)
+}
+
+func TestIsPreconditionFailed(t *testing.T) {
+	preCondApiError, _ := apierror.FromError(status.New(codes.FailedPrecondition, "Precondition error").Err())
+	notFoundApiError, _ := apierror.FromError(status.New(codes.NotFound, "Not Found error").Err())
+	testCases := []struct {
+		name          string
+		err           error
+		expectPreCond bool
+		expectErr     bool
+	}{
+		{
+			name:          "googleapi.Error with PreconditionFailed",
+			err:           &googleapi.Error{Code: http.StatusPreconditionFailed},
+			expectPreCond: true,
+			expectErr:     true,
+		},
+		{
+			name:          "googleapi.Error with other code",
+			err:           &googleapi.Error{Code: http.StatusNotFound},
+			expectPreCond: false,
+			expectErr:     false,
+		},
+		{
+			name:          "apierror.APIError with FailedPrecondition",
+			err:           preCondApiError,
+			expectPreCond: true,
+			expectErr:     true,
+		},
+		{
+			name:          "apierror.APIError with other code",
+			err:           notFoundApiError,
+			expectPreCond: false,
+			expectErr:     false,
+		},
+		{
+			name:          "nil error",
+			err:           nil,
+			expectPreCond: false,
+			expectErr:     false,
+		},
+		{
+			name:          "generic error",
+			err:           errors.New("generic error"),
+			expectPreCond: false,
+			expectErr:     false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			isPreCond, err := isPreconditionFailed(tc.err)
+
+			if isPreCond != tc.expectPreCond {
+				t.Errorf("Expected isPrecond to be %v, got %v", tc.expectPreCond, isPreCond)
+			}
+
+			if (err != nil) != tc.expectErr {
+				t.Errorf("Expected err to be %v, got %v", tc.expectErr, err != nil)
+			}
+
+			if tc.expectErr && err != nil {
+				var preCondErr *gcs.PreconditionError
+				if !errors.As(err, &preCondErr) {
+					t.Errorf("Expected err to be of type *gcs.PreconditionError, got %T", err)
+				}
+			}
+		})
+	}
 }
