@@ -1572,7 +1572,7 @@ func TestIsPreconditionFailed(t *testing.T) {
 				t.Errorf("Expected isPrecond to be %v, got %v", tc.expectPreCond, isPreCond)
 			}
 
-			if err != nil {
+			if tc.expectPreCond && err != nil {
 				var preCondErr *gcs.PreconditionError
 				if !errors.As(err, &preCondErr) {
 					t.Errorf("Expected err to be of type *gcs.PreconditionError, got %T", err)
