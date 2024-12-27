@@ -1051,7 +1051,6 @@ func (b *bucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*g
 
 	b.prevGeneration++
 	dst.metadata.Generation = b.prevGeneration
-
 	// Remove the source object.
 	b.objects = append(b.objects[:srcIndex], b.objects[srcIndex+1:]...)
 	// Insert dest object into our array.
