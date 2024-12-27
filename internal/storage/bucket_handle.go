@@ -588,6 +588,7 @@ func (bh *bucketHandle) MoveObject(ctx context.Context, req *gcs.MoveObjectReque
 	if err == nil {
 		// Converting objAttrs to type *Object
 		o = storageutil.ObjectAttrsToBucketObject(attrs)
+		return o, nil
 	}
 
 	// If storage object does not exist, httpclient is returning ErrObjectNotExist error instead of googleapi error
@@ -598,7 +599,7 @@ func (bh *bucketHandle) MoveObject(ctx context.Context, req *gcs.MoveObjectReque
 		} else if errors.Is(err, storage.ErrObjectNotExist) {
 			err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
 		} else {
-			err = fmt.Errorf("error in updating object: %w", err)
+			err = fmt.Errorf("error in moving object: %w", err)
 		}
 		return nil, err
 	}
