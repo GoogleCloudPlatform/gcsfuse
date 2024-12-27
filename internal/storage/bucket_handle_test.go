@@ -1527,7 +1527,8 @@ func (testSuite *BucketHandleTest) TestCreateFolderWithGivenName() {
 func TestIsPreconditionFailed(t *testing.T) {
 	preCondApiError, _ := apierror.FromError(status.New(codes.FailedPrecondition, "Precondition error").Err())
 	notFoundApiError, _ := apierror.FromError(status.New(codes.NotFound, "Not Found error").Err())
-	testCases := []struct {
+
+	tests := []struct {
 		name          string
 		err           error
 		expectPreCond bool
@@ -1564,22 +1565,15 @@ func TestIsPreconditionFailed(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			isPreCond, err := isPreconditionFailed(tc.err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			isPreCond, err := isPreconditionFailed(tt.err)
+			assert.Equal(t, tt.expectPreCond, isPreCond)
 
-			if isPreCond != tc.expectPreCond {
-				t.Errorf("Expected isPrecond to be %v, got %v", tc.expectPreCond, isPreCond)
-			}
-
-			if tc.expectPreCond && err != nil {
+			if tt.expectPreCond {
 				var preCondErr *gcs.PreconditionError
-				if !errors.As(err, &preCondErr) {
-					t.Errorf("Expected err to be of type *gcs.PreconditionError, got %T", err)
-				}
-			}
-
-			if !tc.expectPreCond {
+				assert.ErrorAs(t, err, &preCondErr)
+			} else {
 				assert.NoError(t, err)
 			}
 		})
