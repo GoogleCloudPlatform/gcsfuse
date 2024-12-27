@@ -1578,6 +1578,10 @@ func TestIsPreconditionFailed(t *testing.T) {
 					t.Errorf("Expected err to be of type *gcs.PreconditionError, got %T", err)
 				}
 			}
+
+			if !tc.expectPreCond {
+				assert.NoError(t, err)
+			}
 		})
 	}
 }
