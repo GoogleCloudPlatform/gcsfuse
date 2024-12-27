@@ -549,11 +549,18 @@ func (bh *bucketHandle) DeleteFolder(ctx context.Context, folderName string) (er
 	return err
 }
 
-func isPreconditionFailed(err error) bool {
+func isPreconditionFailed(err error) (bool, error) {
 	var gapiErr *googleapi.Error
+	if errors.As(err, &gapiErr) && gapiErr.Code == http.StatusPreconditionFailed {
+		return true, &gcs.PreconditionError{Err: gapiErr}
+	}
+
 	var apiErr *apierror.APIError
-	return (errors.As(err, &gapiErr) && gapiErr.Code == http.StatusPreconditionFailed) ||
-		(errors.As(err, &apiErr) && apiErr.GRPCStatus().Code() == codes.FailedPrecondition)
+	if errors.As(err, &apiErr) && apiErr.GRPCStatus().Code() == codes.FailedPrecondition {
+		return true, &gcs.PreconditionError{Err: apiErr}
+	}
+
+	return false, nil
 }
 
 func (bh *bucketHandle) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
@@ -586,10 +593,8 @@ func (bh *bucketHandle) MoveObject(ctx context.Context, req *gcs.MoveObjectReque
 	// If storage object does not exist, httpclient is returning ErrObjectNotExist error instead of googleapi error
 	// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/cloud.google.com/go/storage/http_client.go#L516
 	if err != nil {
-		if isPreconditionFailed(err) {
-			var gapiErr *googleapi.Error
-			errors.As(err, &gapiErr)
-			err = &gcs.PreconditionError{Err: gapiErr}
+		if ok, preCondErr := isPreconditionFailed(err); ok {
+			err = preCondErr
 		} else if errors.Is(err, storage.ErrObjectNotExist) {
 			err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
 		} else {
