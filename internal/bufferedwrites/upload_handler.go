@@ -174,7 +174,7 @@ func (uh *UploadHandler) Destroy() {
 	for {
 		select {
 		case currBlock, ok := <-uh.uploadCh:
-			// Not ok means channel not closed. Return.
+			// Not ok means channel closed. Return.
 			if !ok {
 				return
 			}
