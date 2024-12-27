@@ -21,6 +21,7 @@ import (
 
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
+	"github.com/stretchr/testify/suite"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 
@@ -33,19 +34,17 @@ import (
 // Boilerplate
 // //////////////////////////////////////////////////////////////////////
 
-// This test-suite contains parallelizable test-case. Use "-parallel n" to limit
-// the degree of parallelism. By default it uses GOMAXPROCS.
-// Ref: https://stackoverflow.com/questions/24375966/does-go-test-run-unit-tests-concurrently
 type staleFileHandleLocalFile struct {
 	flags []string
+	suite.Suite
 }
 
 func (s *staleFileHandleLocalFile) Setup(t *testing.T) {
-	setup.MountGCSFuseWithGivenMountFunc(s.flags, mountFunc)
+	mountGCSFuseAndSetupTestDir(s.flags, ctx, storageClient, testDirName)
 }
 
 func (s *staleFileHandleLocalFile) Teardown(t *testing.T) {
-	setup.UnmountGCSFuse(setup.MntDir())
+	setup.UnmountGCSFuse(rootDir)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -53,29 +52,29 @@ func (s *staleFileHandleLocalFile) Teardown(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *staleFileHandleLocalFile) TestLocalInodeClobberedRemotelySyncAndCloseThrowsStaleFileHandleError(t *testing.T) {
-	t.Parallel() // Mark the test parallelizable.
-	testCaseDir := "TestLocalInodeClobberedRemotelySyncAndCloseThrowsStaleFileHandleError" + setup.GenerateRandomString(3)
-	testDirPath = setup.SetupTestDirectory(testCaseDir)
+	testCaseDir := "TestLocalInodeClobberedRemotelySyncAndCloseThrowsStaleFileHandleError"
+	targetDir := path.Join(testDirPath, testCaseDir)
+	operations.CreateDirectory(targetDir, t)
 	// Create a local file.
-	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
+	_, fh := CreateLocalFileInTestDir(ctx, storageClient, targetDir, FileName1, t)
 	// Dirty the file by giving it some contents.
 	operations.WriteWithoutClose(fh, FileContents, t)
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testCaseDir, FileName1, t)
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, path.Join(testDirName, testCaseDir), FileName1, t)
 	// Replace the underlying object with a new generation.
-	CreateObjectInGCSTestDir(ctx, storageClient, testCaseDir, FileName1, GCSFileContent, t)
+	CreateObjectInGCSTestDir(ctx, storageClient, path.Join(testDirName, testCaseDir), FileName1, GCSFileContent, t)
 
 	operations.SyncFileShouldThrowStaleHandleError(fh, t)
 	operations.CloseFileShouldThrowStaleHandleError(fh, t)
 
-	ValidateObjectContentsFromGCS(ctx, storageClient, testCaseDir, FileName1, GCSFileContent, t)
+	ValidateObjectContentsFromGCS(ctx, storageClient, path.Join(testDirName, testCaseDir), FileName1, GCSFileContent, t)
 }
 
 func (s *staleFileHandleLocalFile) TestUnlinkedLocalInodeSyncAndCloseThrowsStaleFileHandleError(t *testing.T) {
-	t.Parallel() // Mark the test parallelizable.
-	testCaseDir := "TestUnlinkedLocalInodeSyncAndCloseThrowsStaleFileHandleError" + setup.GenerateRandomString(3)
-	testDirPath = setup.SetupTestDirectory(testCaseDir)
+	testCaseDir := "TestUnlinkedLocalInodeSyncAndCloseThrowsStaleFileHandleError"
+	targetDir := path.Join(testDirPath, testCaseDir)
+	operations.CreateDirectory(targetDir, t)
 	// Create a local file.
-	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
+	_, fh := CreateLocalFileInTestDir(ctx, storageClient, targetDir, FileName1, t)
 	// Unlink the local file.
 	operations.RemoveFile(fh.Name())
 	// Verify unlink operation succeeds.
@@ -87,27 +86,23 @@ func (s *staleFileHandleLocalFile) TestUnlinkedLocalInodeSyncAndCloseThrowsStale
 	operations.CloseFileShouldThrowStaleHandleError(fh, t)
 
 	// Verify unlinked file is not present on GCS.
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testCaseDir, FileName1, t)
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, path.Join(testDirName, testCaseDir), FileName1, t)
 }
 
 func (s *staleFileHandleLocalFile) TestUnlinkedDirectoryContainingSyncedAndLocalFilesCloseThrowsStaleFileHandleError(t *testing.T) {
-	t.Parallel() // Mark the test parallelizable.
-	testCaseDir := "TestUnlinkedDirectoryContainingSyncedAndLocalFilesCloseThrowsStaleFileHandleError" + setup.GenerateRandomString(3)
-	testDirPath = setup.SetupTestDirectory(testCaseDir)
-	targetDir := path.Join(testDirPath, ExplicitDirName)
-	fileName1 := path.Join(ExplicitDirName, ExplicitFileName1)
-	fileName2 := path.Join(ExplicitDirName, ExplicitLocalFileName1)
-	// Create explicit directory with one synced and one local file.
+	testCaseDir := "TestUnlinkedDirectoryContainingSyncedAndLocalFilesCloseThrowsStaleFileHandleError"
+	targetDir := path.Join(testDirPath, testCaseDir)
 	operations.CreateDirectory(targetDir, t)
-	CreateObjectInGCSTestDir(ctx, storageClient, testCaseDir, fileName1, "", t)
-	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName2, t)
-	// Attempt to remove explicit directory.
-	err := DeleteObjectOnGCS(ctx, storageClient, path.Join(testCaseDir, ExplicitDirName))
-	// Verify rmDir operation succeeds.
-	assert.Equal(t, nil, err)
-	operations.ValidateNoFileOrDirError(t, targetDir)
-	operations.ValidateNoFileOrDirError(t, path.Join(targetDir, ExplicitFileName1))
-	operations.ValidateNoFileOrDirError(t, path.Join(targetDir, ExplicitLocalFileName1))
+	explicitDir := path.Join(targetDir, ExplicitDirName)
+	// Create explicit directory with one synced and one local file.
+	operations.CreateDirectory(explicitDir, t)
+	CreateObjectInGCSTestDir(ctx, storageClient, path.Join(testDirName, testCaseDir, ExplicitDirName), ExplicitFileName1, "", t)
+	_, fh := CreateLocalFileInTestDir(ctx, storageClient, explicitDir, ExplicitLocalFileName1, t)
+	err := DeleteObjectOnGCS(ctx, storageClient, path.Join(testDirName, testCaseDir, ExplicitDirName)+"/")
+	assert.NoError(t, err)
+	operations.ValidateNoFileOrDirError(t, explicitDir+"/")
+	operations.ValidateNoFileOrDirError(t, path.Join(explicitDir, ExplicitFileName1))
+	operations.ValidateNoFileOrDirError(t, path.Join(explicitDir, ExplicitLocalFileName1))
 	// Validate writing content to unlinked local file does not throw error.
 	operations.WriteWithoutClose(fh, FileContents, t)
 
@@ -120,24 +115,28 @@ func (s *staleFileHandleLocalFile) TestUnlinkedDirectoryContainingSyncedAndLocal
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testCaseDir, path.Join(ExplicitDirName, ExplicitLocalFileName1), t)
 }
 
-func TestStaleFileHandleLocalFile(t *testing.T) {
-	testCases := []struct {
-		name  string
-		flags []string
-	}{
-		{
-			name:  "StaleFileHandleLocalFile",
-			flags: []string{"--precondition-errors=true", "--metadata-cache-ttl-secs=0", "implicit-dirs=true"},
-		},
+////////////////////////////////////////////////////////////////////////
+// Test Function (Runs once before all tests)
+////////////////////////////////////////////////////////////////////////
+
+func TestStaleFileHandleLocalFileTest(t *testing.T) {
+	ts := &staleFileHandleLocalFile{}
+
+	// Run tests for mounted directory if the flag is set.
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+		test_setup.RunTests(t, ts)
+		return
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			ts := &staleFileHandleLocalFile{
-				flags: tc.flags,
-			}
-			log.Printf("Running tests with flags: %s", ts.flags)
-			test_setup.RunTests(t, ts)
-		})
+	// Define flag set to run the tests.
+	flagsSet := [][]string{
+		{"--metadata-cache-ttl-secs=0", "--precondition-errors=true", "--implicit-dirs"},
+	}
+
+	// Run tests.
+	for _, flags := range flagsSet {
+		ts.flags = flags
+		log.Printf("Running tests with flags: %s", ts.flags)
+		test_setup.RunTests(t, ts)
 	}
 }
