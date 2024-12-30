@@ -114,7 +114,7 @@ func (s *staleFileHandleSyncedFile) TestSyncedObjectClobberedRemotelySyncAndClos
 	operations.SyncFileShouldThrowStaleHandleError(fh, s.T())
 	operations.CloseFileShouldThrowStaleHandleError(fh, s.T())
 
-	// Make f1 nil, so that another attempt is not taken in TearDown to close the
+	// Make fh nil, so that another attempt is not taken in TearDown to close the
 	// file.
 	fh = nil
 	// Validate that object is not updated with un-synced content.
@@ -141,7 +141,7 @@ func (s *staleFileHandleSyncedFile) TestSyncedObjectDeletedRemotelySyncAndCloseT
 	operations.SyncFileShouldThrowStaleHandleError(fh, s.T())
 	operations.CloseFileShouldThrowStaleHandleError(fh, s.T())
 
-	// Make f1 nil, so that another attempt is not taken in TearDown to close the
+	// Make fh nil, so that another attempt is not taken in TearDown to close the
 	// file.
 	fh = nil
 }
@@ -193,6 +193,10 @@ func (s *staleFileHandleSyncedFile) TestRenamedSyncedObjectSyncAndCloseThrowsSta
 	// file.
 	fh = nil
 }
+
+////////////////////////////////////////////////////////////////////////
+// Test Function (Runs once before all tests)
+////////////////////////////////////////////////////////////////////////
 
 func TestStaleFileHandleSyncedFileTest(t *testing.T) {
 	ts := &staleFileHandleSyncedFile{}
