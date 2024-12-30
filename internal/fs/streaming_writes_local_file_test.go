@@ -63,7 +63,7 @@ func (t *StreamingWritesLocalFileTest) TearDownTest() {
 	t.fsTest.TearDown()
 }
 
-func TestStreamingWritesLocalFileTestSuite(t *testing.T) {
+func TestStreamingWritesLocalFileTest(t *testing.T) {
 	suite.Run(t, new(StreamingWritesLocalFileTest))
 }
 
