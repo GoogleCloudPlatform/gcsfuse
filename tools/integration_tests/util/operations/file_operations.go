@@ -341,6 +341,15 @@ func OpenFileAsReadonly(filepath string) (*os.File, error) {
 	return f, nil
 }
 
+func OpenFileAsWriteOnly(filepath string) (*os.File, error) {
+	f, err := os.OpenFile(filepath, os.O_WRONLY|syscall.O_DIRECT, FilePermission_0400)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file %s as readonly: %v", filepath, err)
+	}
+
+	return f, nil
+}
+
 func ReadBytesFromFile(f *os.File, numBytesToRead int, b []byte) error {
 	numBytesRead, err := f.Read(b)
 	if err != nil {
