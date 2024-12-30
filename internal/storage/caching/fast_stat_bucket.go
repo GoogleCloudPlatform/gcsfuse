@@ -367,8 +367,12 @@ func (b *fastStatBucket) UpdateObject(
 func (b *fastStatBucket) DeleteObject(
 	ctx context.Context,
 	req *gcs.DeleteObjectRequest) (err error) {
-	b.invalidate(req.Name)
 	err = b.wrapped.DeleteObject(ctx, req)
+	if err != nil {
+		b.invalidate(req.Name)
+	} else {
+		b.addNegativeEntry(req.Name)
+	}
 	return
 }
 
@@ -391,11 +395,14 @@ func (b *fastStatBucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequ
 
 func (b *fastStatBucket) DeleteFolder(ctx context.Context, folderName string) error {
 	err := b.wrapped.DeleteFolder(ctx, folderName)
+	// In case of an error; invalidate the cached entry. This will make sure that
+	// gcsfuse is not caching possibly erroneous status of the folder and next
+	// call will hit GCS backend to probe the latest status.
 	if err != nil {
-		return err
+		b.invalidate(folderName)
+	} else {
+		b.addNegativeEntryForFolder(folderName)
 	}
-	// TODO: Caching negative entries for both objects and folders will be implemented together due to test failures.
-	b.invalidate(folderName)
 	return err
 }
 
