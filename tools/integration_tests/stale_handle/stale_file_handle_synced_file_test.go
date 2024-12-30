@@ -106,7 +106,8 @@ func (s *staleFileHandleSyncedFile) TestSyncedObjectClobberedRemotelySyncAndClos
 	fh, err := operations.OpenFileAsWriteOnly(filePath)
 	assert.NoError(s.T(), err)
 	// Dirty the file by giving it some contents.
-	fh.WriteString(Content)
+	_, err = fh.WriteString(Content)
+	assert.NoError(s.T(), err)
 	// Replace the underlying object with a new generation.
 	err = WriteToObject(ctx, storageClient, path.Join(testDirName, testCaseDir, FileName1), FileContents, storage.Conditions{})
 	assert.NoError(s.T(), err)
@@ -114,9 +115,6 @@ func (s *staleFileHandleSyncedFile) TestSyncedObjectClobberedRemotelySyncAndClos
 	operations.SyncFileShouldThrowStaleHandleError(fh, s.T())
 	operations.CloseFileShouldThrowStaleHandleError(fh, s.T())
 
-	// Make fh nil, so that another attempt is not taken in TearDown to close the
-	// file.
-	fh = nil
 	// Validate that object is not updated with un-synced content.
 	ValidateObjectContentsFromGCS(ctx, storageClient, path.Join(testDirName, testCaseDir), FileName1, FileContents, s.T())
 }
@@ -131,19 +129,17 @@ func (s *staleFileHandleSyncedFile) TestSyncedObjectDeletedRemotelySyncAndCloseT
 	fh, err := operations.OpenFileAsWriteOnly(filePath)
 	assert.NoError(s.T(), err)
 	// Dirty the file by giving it some contents.
-	fh.WriteString(Content)
+	_, err = fh.WriteString(Content)
+	assert.NoError(s.T(), err)
 	// Delete the object remotely.
 	err = DeleteObjectOnGCS(ctx, storageClient, path.Join(testDirName, testCaseDir, FileName1))
 	assert.NoError(s.T(), err)
 	// Attempt to write to file should not give any error.
-	fh.WriteString(Content2)
+	_, err = fh.WriteString(Content2)
+	assert.NoError(s.T(), err)
 
 	operations.SyncFileShouldThrowStaleHandleError(fh, s.T())
 	operations.CloseFileShouldThrowStaleHandleError(fh, s.T())
-
-	// Make fh nil, so that another attempt is not taken in TearDown to close the
-	// file.
-	fh = nil
 }
 
 func (s *staleFileHandleSyncedFile) TestSyncedObjectDeletedLocallySyncAndCloseThrowsStaleFileHandleError() {
@@ -156,18 +152,16 @@ func (s *staleFileHandleSyncedFile) TestSyncedObjectDeletedLocallySyncAndCloseTh
 	fh, err := operations.OpenFileAsWriteOnly(filePath)
 	assert.NoError(s.T(), err)
 	// Dirty the file by giving it some contents.
-	fh.WriteString(Content)
+	_, err = fh.WriteString(Content)
+	assert.NoError(s.T(), err)
 	// Delete the object locally.
 	operations.RemoveFile(filePath)
 	// Attempt to write to file should not give any error.
-	fh.WriteString(Content2)
+	_, err = fh.WriteString(Content2)
+	assert.NoError(s.T(), err)
 
 	operations.SyncFileShouldThrowStaleHandleError(fh, s.T())
 	operations.CloseFileShouldThrowStaleHandleError(fh, s.T())
-
-	// Make fh nil, so that another attempt is not taken in TearDown to close the
-	// file.
-	fh = nil
 }
 
 func (s *staleFileHandleSyncedFile) TestRenamedSyncedObjectSyncAndCloseThrowsStaleFileHandleError() {
@@ -181,17 +175,16 @@ func (s *staleFileHandleSyncedFile) TestRenamedSyncedObjectSyncAndCloseThrowsSta
 	fh, err := operations.OpenFileAsWriteOnly(filePath)
 	assert.NoError(s.T(), err)
 	// Dirty the file by giving it some contents.
-	fh.WriteString(Content)
-	operations.RenameFile(filePath, newFilePath)
+	_, err = fh.WriteString(Content)
+	assert.NoError(s.T(), err)
+	err = operations.RenameFile(filePath, newFilePath)
+	assert.NoError(s.T(), err)
 	// Attempt to write to file should not give any error.
-	fh.WriteString(Content2)
+	_, err = fh.WriteString(Content2)
+	assert.NoError(s.T(), err)
 
 	operations.SyncFileShouldThrowStaleHandleError(fh, s.T())
 	operations.CloseFileShouldThrowStaleHandleError(fh, s.T())
-
-	// Make fh nil, so that another attempt is not taken in TearDown to close the
-	// file.
-	fh = nil
 }
 
 ////////////////////////////////////////////////////////////////////////
