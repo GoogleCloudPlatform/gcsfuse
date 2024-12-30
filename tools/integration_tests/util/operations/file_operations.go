@@ -580,6 +580,10 @@ func CloseFileShouldThrowStaleHandleError(file *os.File, t *testing.T) {
 	} else if !strings.Contains(err.Error(), "stale NFS file handle") {
 		t.Fatalf("file.Close() for file %s: expected stale NFS file handle error, got %v", file.Name(), err)
 	}
+
+	// Make file nil, so that another attempt is not taken to close the
+	// file.
+	file = nil
 }
 
 func SyncFile(fh *os.File, t *testing.T) {

@@ -16,6 +16,7 @@ package stale_handle
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"path"
@@ -50,7 +51,9 @@ func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageCli
 	if setup.MountedDirectory() != "" {
 		mountDir = setup.MountedDirectory()
 	}
-	static_mounting.MountGcsfuseWithStaticMounting(flags)
+	if err := static_mounting.MountGcsfuseWithStaticMounting(flags); err != nil {
+		setup.LogAndExit(fmt.Sprintf("Failed to mount GCSFuse: %v", err))
+	}
 	setup.SetMntDir(mountDir)
 	testDirPath = setup.SetupTestDirectory(testDirName)
 }
