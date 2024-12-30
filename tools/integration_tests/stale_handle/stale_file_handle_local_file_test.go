@@ -66,6 +66,9 @@ func (s *staleFileHandleLocalFile) TestLocalInodeClobberedRemotelySyncAndCloseTh
 	operations.SyncFileShouldThrowStaleHandleError(fh, s.T())
 	operations.CloseFileShouldThrowStaleHandleError(fh, s.T())
 
+	// Make fh nil, so that another attempt is not taken in TearDown to close the
+	// file.
+	fh = nil
 	ValidateObjectContentsFromGCS(ctx, storageClient, path.Join(testDirName, testCaseDir), FileName1, GCSFileContent, s.T())
 }
 
@@ -85,6 +88,9 @@ func (s *staleFileHandleLocalFile) TestUnlinkedLocalInodeSyncAndCloseThrowsStale
 	operations.SyncFileShouldThrowStaleHandleError(fh, s.T())
 	operations.CloseFileShouldThrowStaleHandleError(fh, s.T())
 
+	// Make fh nil, so that another attempt is not taken in TearDown to close the
+	// file.
+	fh = nil
 	// Verify unlinked file is not present on GCS.
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, path.Join(testDirName, testCaseDir), FileName1, s.T())
 }
@@ -106,9 +112,11 @@ func (s *staleFileHandleLocalFile) TestUnlinkedDirectoryContainingSyncedAndLocal
 	// Validate writing content to unlinked local file does not throw error.
 	operations.WriteWithoutClose(fh, FileContents, s.T())
 
-	err = operations.CloseLocalFile(s.T(), &fh)
+	operations.CloseFileShouldThrowStaleHandleError(fh, s.T())
 
-	operations.ValidateStaleNFSFileHandleError(s.T(), err)
+	// Make fh nil, so that another attempt is not taken in TearDown to close the
+	// file.
+	fh = nil
 	// Validate both local and synced files are deleted.
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testCaseDir, ExplicitDirName, s.T())
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testCaseDir, path.Join(ExplicitDirName, ExplicitFileName1), s.T())

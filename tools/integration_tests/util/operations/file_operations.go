@@ -597,7 +597,7 @@ func SyncFileShouldThrowStaleHandleError(fh *os.File, t *testing.T) {
 	if err := fh.Sync(); err == nil {
 		t.Fatalf("file.Sync() for file %s: expected stale NFS file handle error, got nil", fh.Name())
 	} else if !strings.Contains(err.Error(), "stale NFS file handle") {
-		t.Fatalf("file.Close() for file %s: expected stale NFS file handle error, got %v", fh.Name(), err)
+		t.Fatalf("file.Sync() for file %s: expected stale NFS file handle error, got %v", fh.Name(), err)
 	}
 }
 
