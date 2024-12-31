@@ -335,6 +335,10 @@ func (f *FileInode) IsUnlinked() bool {
 
 func (f *FileInode) Unlink() {
 	f.unlinked = true
+
+	if f.bwh != nil {
+		f.bwh.Unlink()
+	}
 }
 
 // Source returns a record for the GCS object from which this inode is branched. The
@@ -399,7 +403,11 @@ func (f *FileInode) DeRegisterFileHandle(readOnly bool) {
 	f.writeHandleCount--
 
 	// All write fileHandles associated with bwh are closed. So safe to set bwh to nil.
-	if f.writeHandleCount == 0 {
+	if f.writeHandleCount == 0 && f.bwh != nil {
+		err := f.bwh.Destroy()
+		if err != nil {
+			logger.Warnf("Error while destroying the bufferedWritesHandler: %v", err)
+		}
 		f.bwh = nil
 	}
 }
@@ -620,6 +628,11 @@ func (f *FileInode) flushUsingBufferedWriteHandler() error {
 func (f *FileInode) SetMtime(
 	ctx context.Context,
 	mtime time.Time) (err error) {
+	if f.IsUnlinked() {
+		// No need to update mtime on GCS for unlinked file.
+		return
+	}
+
 	// When bufferedWritesHandler instance is not nil, set time on bwh.
 	// It will not be nil in 2 cases when bufferedWrites are enabled:
 	// 1. local files

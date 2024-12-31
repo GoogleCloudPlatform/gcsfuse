@@ -272,7 +272,7 @@ func (testSuite *BufferedWriteTest) TestSync5InProgressBlocks() {
 
 	assert.NoError(testSuite.T(), err)
 	assert.Equal(testSuite.T(), 0, len(testSuite.bwh.uploadHandler.uploadCh))
-	assert.Equal(testSuite.T(), 5, len(testSuite.bwh.blockPool.FreeBlocksChannel()))
+	assert.Equal(testSuite.T(), 0, len(testSuite.bwh.blockPool.FreeBlocksChannel()))
 }
 
 func (testSuite *BufferedWriteTest) TestSyncBlocksWithError() {
@@ -346,4 +346,42 @@ func (testSuite *BufferedWriteTest) TestWriteFileInfoWithTruncatedLengthGreaterT
 	fileInfo := testSuite.bwh.WriteFileInfo()
 
 	assert.Equal(testSuite.T(), testSuite.bwh.truncatedSize, fileInfo.TotalSize)
+}
+func (testSuite *BufferedWriteTest) TestDestroyShouldClearFreeBlockChannel() {
+	// Try to write 4 blocks of data.
+	contents := strings.Repeat("A", blockSize*4)
+	err := testSuite.bwh.Write([]byte(contents), 0)
+	require.Nil(testSuite.T(), err)
+
+	err = testSuite.bwh.Destroy()
+
+	require.Nil(testSuite.T(), err)
+	assert.Equal(testSuite.T(), 0, len(testSuite.bwh.blockPool.FreeBlocksChannel()))
+	assert.Equal(testSuite.T(), 0, len(testSuite.bwh.uploadHandler.uploadCh))
+}
+
+func (testSuite *BufferedWriteTest) TestUnlinkBeforeWrite() {
+	testSuite.bwh.Unlink()
+
+	assert.Nil(testSuite.T(), testSuite.bwh.uploadHandler.cancelFunc)
+	assert.Equal(testSuite.T(), 0, len(testSuite.bwh.uploadHandler.uploadCh))
+	assert.Equal(testSuite.T(), 0, len(testSuite.bwh.blockPool.FreeBlocksChannel()))
+}
+
+func (testSuite *BufferedWriteTest) TestUnlinkAfterWrite() {
+	buffer, err := operations.GenerateRandomData(blockSize)
+	assert.NoError(testSuite.T(), err)
+	// Write 5 blocks.
+	for i := 0; i < 5; i++ {
+		err = testSuite.bwh.Write(buffer, int64(blockSize*i))
+		require.Nil(testSuite.T(), err)
+	}
+	cancelCalled := false
+	testSuite.bwh.uploadHandler.cancelFunc = func() { cancelCalled = true }
+
+	testSuite.bwh.Unlink()
+
+	assert.True(testSuite.T(), cancelCalled)
+	assert.Equal(testSuite.T(), 0, len(testSuite.bwh.uploadHandler.uploadCh))
+	assert.Equal(testSuite.T(), 0, len(testSuite.bwh.blockPool.FreeBlocksChannel()))
 }

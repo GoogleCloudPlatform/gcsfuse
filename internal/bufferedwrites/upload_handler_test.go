@@ -63,14 +63,11 @@ func (t *UploadHandlerTest) SetupTest() {
 	})
 }
 
+func (t *UploadHandlerTest) SetupSubTest() {
+	t.SetupTest()
+}
+
 func (t *UploadHandlerTest) TestMultipleBlockUpload() {
-	// Create some blocks.
-	var blocks []block.Block
-	for i := 0; i < 5; i++ {
-		b, err := t.blockPool.Get()
-		require.NoError(t.T(), err)
-		blocks = append(blocks, b)
-	}
 	// CreateObjectChunkWriter -- should be called once.
 	writer := &storagemock.Writer{}
 	mockObj := &gcs.MinObject{}
@@ -78,6 +75,7 @@ func (t *UploadHandlerTest) TestMultipleBlockUpload() {
 	t.mockBucket.On("FinalizeUpload", mock.Anything, writer).Return(mockObj, nil)
 
 	// Upload the blocks.
+	blocks := t.createBlocks(5)
 	for _, b := range blocks {
 		err := t.uh.Upload(b)
 		require.NoError(t.T(), err)
@@ -189,13 +187,10 @@ func (t *UploadHandlerTest) TestUploadSingleBlockThrowsErrorInCopy() {
 
 func (t *UploadHandlerTest) TestUploadMultipleBlocksThrowsErrorInCopy() {
 	// Create some blocks.
-	var blocks []block.Block
+	blocks := t.createBlocks(4)
 	for i := 0; i < 4; i++ {
-		b, err := t.blockPool.Get()
+		err := blocks[i].Write([]byte("testdata" + strconv.Itoa(i) + " "))
 		require.NoError(t.T(), err)
-		err = b.Write([]byte("testdata" + strconv.Itoa(i) + " "))
-		require.NoError(t.T(), err)
-		blocks = append(blocks, b)
 	}
 	// CreateObjectChunkWriter -- should be called once.
 	writer := &storagemock.Writer{}
@@ -255,18 +250,11 @@ func TestSignalUploadFailure(t *testing.T) {
 }
 
 func (t *UploadHandlerTest) TestMultipleBlockAwaitBlocksUpload() {
-	// Create some blocks.
-	var blocks []block.Block
-	for i := 0; i < 5; i++ {
-		b, err := t.blockPool.Get()
-		require.NoError(t.T(), err)
-		blocks = append(blocks, b)
-	}
 	// CreateObjectChunkWriter -- should be called once.
 	writer := &storagemock.Writer{}
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
 	// Upload the blocks.
-	for _, b := range blocks {
+	for _, b := range t.createBlocks(5) {
 		err := t.uh.Upload(b)
 		require.NoError(t.T(), err)
 	}
@@ -277,6 +265,15 @@ func (t *UploadHandlerTest) TestMultipleBlockAwaitBlocksUpload() {
 	assert.Equal(t.T(), 5, len(t.uh.freeBlocksCh))
 	assert.Equal(t.T(), 0, len(t.uh.uploadCh))
 	assertAllBlocksProcessed(t.T(), t.uh)
+}
+
+func (t *UploadHandlerTest) TestUploadHandlerCancelUpload() {
+	cancelCalled := false
+	t.uh.cancelFunc = func() { cancelCalled = true }
+
+	t.uh.CancelUpload()
+
+	assert.True(t.T(), cancelCalled)
 }
 
 func (t *UploadHandlerTest) TestCreateObjectChunkWriterIsCalledWithCorrectRequestParametersForEmptyGCSObject() {
@@ -339,4 +336,56 @@ func (t *UploadHandlerTest) TestCreateObjectChunkWriterIsCalledWithCorrectReques
 	// Upload the block.
 	err = t.uh.Upload(b)
 	require.NoError(t.T(), err)
+}
+
+func (t *UploadHandlerTest) TestDestroy() {
+	testCases := []struct {
+		name           string
+		uploadChClosed bool
+	}{
+		{
+			name:           "UploadChNotClosed",
+			uploadChClosed: false,
+		},
+		{
+			name:           "UploadChClosed",
+			uploadChClosed: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			// Add blocks to uploadCh.
+			for _, b := range t.createBlocks(5) {
+				t.uh.uploadCh <- b
+				t.uh.wg.Add(1)
+			}
+			if tc.uploadChClosed {
+				close(t.uh.uploadCh)
+			}
+
+			t.uh.Destroy()
+
+			assertAllBlocksProcessed(t.T(), t.uh)
+			assert.Equal(t.T(), 5, len(t.uh.freeBlocksCh))
+			assert.Equal(t.T(), 0, len(t.uh.uploadCh))
+			// Check if uploadCh is closed.
+			select {
+			case <-t.uh.uploadCh:
+			default:
+				assert.Fail(t.T(), "uploadCh not closed")
+			}
+		})
+	}
+}
+
+func (t *UploadHandlerTest) createBlocks(count int) []block.Block {
+	var blocks []block.Block
+	for i := 0; i < count; i++ {
+		b, err := t.blockPool.Get()
+		require.NoError(t.T(), err)
+		blocks = append(blocks, b)
+	}
+
+	return blocks
 }

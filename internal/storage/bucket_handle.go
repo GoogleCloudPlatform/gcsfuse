@@ -37,6 +37,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const FullFolderPathHNS = "projects/_/buckets/%s/folders/%s"
@@ -236,6 +238,17 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	// We can't use defer to close the writer, because we need to close the
 	// writer successfully before calling Attrs() method of writer.
 	if err = wc.Close(); err != nil {
+		// This checks if the error returned from the RPC call is a gRPC status error.
+		// If it is, and the error code is `codes.FailedPrecondition`, it means the
+		// operation failed due to a precondition not being met.The generic gRPC error
+		// is converted into a more specific `gcs.PreconditionError`. This allows handling
+		// of precondition failures differently.
+		if rpcErr, ok := status.FromError(err); ok {
+			if code := rpcErr.Code(); code == codes.FailedPrecondition {
+				err = &gcs.PreconditionError{Err: err}
+				return
+			}
+		}
 		var gErr *googleapi.Error
 		if errors.As(err, &gErr) {
 			if gErr.Code == http.StatusPreconditionFailed {
@@ -536,9 +549,58 @@ func (bh *bucketHandle) DeleteFolder(ctx context.Context, folderName string) (er
 	return err
 }
 
+func isPreconditionFailed(err error) (bool, error) {
+	var gapiErr *googleapi.Error
+	if errors.As(err, &gapiErr) && gapiErr.Code == http.StatusPreconditionFailed {
+		return true, &gcs.PreconditionError{Err: gapiErr}
+	}
+
+	var apiErr *apierror.APIError
+	if errors.As(err, &apiErr) && apiErr.GRPCStatus().Code() == codes.FailedPrecondition {
+		return true, &gcs.PreconditionError{Err: apiErr}
+	}
+
+	return false, nil
+}
+
 func (bh *bucketHandle) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
-	// TODO: Implement it.
-	return nil, nil
+	var o *gcs.Object
+	var err error
+
+	obj := bh.bucket.Object(req.SrcName)
+
+	// Switching to the requested generation of source object.
+	if req.SrcGeneration != 0 {
+		obj = obj.Generation(req.SrcGeneration)
+	}
+
+	// Putting a condition that the metaGeneration of source should match *req.SrcMetaGenerationPrecondition for move operation to occur.
+	if req.SrcMetaGenerationPrecondition != nil {
+		obj = obj.If(storage.Conditions{MetagenerationMatch: *req.SrcMetaGenerationPrecondition})
+	}
+
+	dstMoveObject := storage.MoveObjectDestination{
+		Object:     req.DstName,
+		Conditions: nil,
+	}
+
+	attrs, err := obj.Move(ctx, dstMoveObject)
+	if err == nil {
+		// Converting objAttrs to type *Object
+		o = storageutil.ObjectAttrsToBucketObject(attrs)
+		return o, nil
+	}
+
+	// If storage object does not exist, httpclient is returning ErrObjectNotExist error instead of googleapi error
+	// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/cloud.google.com/go/storage/http_client.go#L516
+	if ok, preCondErr := isPreconditionFailed(err); ok {
+		err = preCondErr
+	} else if errors.Is(err, storage.ErrObjectNotExist) {
+		err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
+	} else {
+		err = fmt.Errorf("error in moving object: %w", err)
+	}
+	return nil, err
 }
 
 func (bh *bucketHandle) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (folder *gcs.Folder, err error) {

@@ -149,3 +149,6 @@ func (s *SymlinkInode) Target() (target string) {
 	target = s.target
 	return
 }
+
+func (s *SymlinkInode) Unlink() {
+}
