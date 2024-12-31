@@ -7,9 +7,9 @@ discusses potential solutions to the same.
 
 Most of the common mount point issues are around permissions on both local mount point and the Cloud Storage bucket. It is highly recommended to retry with --foreground --log-severity=TRACE flags which would provide much more detailed logs to understand the errors better and possibly provide a solution.
 
-### Mount successful but files not visible
+### Mount successful but files are not visible
 
-Try mounting the gcsfuse with --implicit-dir flag. Read the [semantics](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md) to know the reasoning.
+Try mounting the gcsfuse with `--implicit-dir` flag. Read the [semantics](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#files-and-directories) to know the reasoning.
 
 ### Mount failed with fusermount3 exit status 1
 
