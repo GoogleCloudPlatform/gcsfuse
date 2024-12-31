@@ -1994,13 +1994,44 @@ func (fs *fileSystem) Rename(
 		}
 		return fs.renameNonHierarchicalDir(ctx, oldParent, op.OldName, newParent, op.NewName)
 	}
-	return fs.renameFile(ctx, oldParent, op.OldName, child.MinObject, newParent, op.NewName)
+	if child.Bucket.BucketType() == gcs.Hierarchical {
+		return fs.renameHierarchicalFile(ctx, oldParent, op.OldName, child.MinObject, newParent, op.NewName)
+	}
+	return fs.renameNonHierarchicalFile(ctx, oldParent, op.OldName, child.MinObject, newParent, op.NewName)
 }
 
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_EXCLUDED(oldParent)
 // LOCKS_EXCLUDED(newParent)
-func (fs *fileSystem) renameFile(
+func (fs *fileSystem) renameHierarchicalFile(ctx context.Context, oldParent inode.DirInode, oldName string, oldObject *gcs.MinObject, newParent inode.DirInode, newName string) error {
+	oldParent.Lock()
+	defer oldParent.Unlock()
+
+	if newParent != oldParent {
+		newParent.Lock()
+		defer newParent.Unlock()
+	}
+
+	newFileName := inode.NewFileName(newParent.Name(), newName)
+
+	if _, err := oldParent.RenameFile(ctx, oldObject, newFileName.GcsObjectName()); err != nil {
+		return fmt.Errorf("RenameFile: while renaming file: %w", err)
+	}
+
+	if err := fs.invalidateChildFileCacheIfExist(oldParent, oldName); err != nil {
+		return fmt.Errorf("renameHierarchicalFile: while invalidating cache for delete file: %w", err)
+	}
+
+	// Insert new file in type cache.
+	newParent.InsertFileIntoTypeCache(newName)
+
+	return nil
+}
+
+// LOCKS_EXCLUDED(fs.mu)
+// LOCKS_EXCLUDED(oldParent)
+// LOCKS_EXCLUDED(newParent)
+func (fs *fileSystem) renameNonHierarchicalFile(
 	ctx context.Context,
 	oldParent inode.DirInode,
 	oldName string,
@@ -2027,7 +2058,7 @@ func (fs *fileSystem) renameFile(
 		&oldObject.MetaGeneration)
 
 	if err := fs.invalidateChildFileCacheIfExist(oldParent, oldObject.Name); err != nil {
-		return fmt.Errorf("renameFile: while invalidating cache for delete file: %w", err)
+		return fmt.Errorf("renameNonHierarchicalFile: while invalidating cache for delete file: %w", err)
 	}
 
 	oldParent.Unlock()

@@ -379,3 +379,71 @@ func (t *HNSBucketTests) TestCreateLocalFileInSamePathAfterDeletingParentDirecto
 	_, err = os.Stat(filePath)
 	assert.NoError(t.T(), err)
 }
+
+func (t *HNSBucketTests) TestRenameFileWithSrcFileDoesNotExist() {
+	oldDirPath := path.Join(mntDir, "file")
+	newDirPath := path.Join(mntDir, "file_rename")
+
+	err := os.Rename(oldDirPath, newDirPath)
+
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+	_, err = os.Stat(newDirPath)
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+}
+
+func (t *HNSBucketTests) TestRenameFileWithDstDestFileExist() {
+	oldFilePath := path.Join(mntDir, "foo", "file1.txt")
+	_, err := os.Stat(oldFilePath)
+	assert.NoError(t.T(), err)
+	// In the setup phase, we created file1.txt within the bar directory.
+	newFilePath := path.Join(mntDir, "foo", "file2.txt")
+	_, err = os.Stat(newFilePath)
+	assert.NoError(t.T(), err)
+
+	err = os.Rename(oldFilePath, newFilePath)
+
+	assert.NoError(t.T(), err)
+	_, err = os.Stat(oldFilePath)
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+}
+
+func (t *HNSBucketTests) TestRenameFileWithDifferentParent() {
+	oldFilePath := path.Join(mntDir, "foo", "file1.txt")
+	_, err := os.Stat(oldFilePath)
+	assert.NoError(t.T(), err)
+	// In the setup phase, we created file1.txt within the bar directory.
+	newFilePath := path.Join(mntDir, "bar", "file3.txt")
+	_, err = os.Stat(newFilePath)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+
+	err = os.Rename(oldFilePath, newFilePath)
+
+	assert.NoError(t.T(), err)
+	_, err = os.Stat(oldFilePath)
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+	_, err = os.Stat(newFilePath)
+	assert.NoError(t.T(), err)
+}
+
+func (t *HNSBucketTests) TestRenameFileWithSameParent() {
+	oldFilePath := path.Join(mntDir, "foo", "file1.txt")
+	_, err := os.Stat(oldFilePath)
+	assert.NoError(t.T(), err)
+	// In the setup phase, we created file1.txt within the bar directory.
+	newFilePath := path.Join(mntDir, "foo", "file3.txt")
+	_, err = os.Stat(newFilePath)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+
+	err = os.Rename(oldFilePath, newFilePath)
+
+	assert.NoError(t.T(), err)
+	_, err = os.Stat(oldFilePath)
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+	_, err = os.Stat(newFilePath)
+	assert.NoError(t.T(), err)
+}
