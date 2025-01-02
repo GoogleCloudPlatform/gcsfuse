@@ -16,7 +16,6 @@ package stale_handle
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"path"
@@ -33,30 +32,11 @@ const (
 )
 
 var (
-	testDirPath string
-	// mount directory is where our tests run.
-	mountDir string
 	// root directory is the directory to be unmounted.
 	rootDir       string
 	storageClient *storage.Client
 	ctx           context.Context
 )
-
-////////////////////////////////////////////////////////////////////////
-// Helpers
-////////////////////////////////////////////////////////////////////////
-
-func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client, testDirName string) {
-	// When tests are running in GKE environment, use the mounted directory provided as test flag.
-	if setup.MountedDirectory() != "" {
-		mountDir = setup.MountedDirectory()
-	}
-	if err := static_mounting.MountGcsfuseWithStaticMounting(flags); err != nil {
-		setup.LogAndExit(fmt.Sprintf("Failed to mount GCSFuse: %v", err))
-	}
-	setup.SetMntDir(mountDir)
-	testDirPath = setup.SetupTestDirectory(testDirName)
-}
 
 ////////////////////////////////////////////////////////////////////////
 // TestMain

@@ -15,8 +15,9 @@
 package stale_handle
 
 import (
-	"log"
+	"os"
 	"path"
+	"syscall"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -36,155 +37,108 @@ const Content2 = "foobar2"
 
 type staleFileHandleSyncedFile struct {
 	flags []string
+	f1    *os.File
 	suite.Suite
 }
 
-func (s *staleFileHandleSyncedFile) SetupSuite() {
-	mountGCSFuseAndSetupTestDir(s.flags, ctx, storageClient, testDirName)
-}
-
-func (s *staleFileHandleSyncedFile) TearDownSuite() {
-	setup.UnmountGCSFuse(rootDir)
+func (s *staleFileHandleSyncedFile) SetupTest() {
+	testDirPath := setup.SetupTestDirectory(s.T().Name())
+	// Create an object on bucket
+	err := CreateObjectOnGCS(ctx, storageClient, path.Join(s.T().Name(), FileName1), GCSFileContent)
+	assert.NoError(s.T(), err)
+	s.f1, err = os.OpenFile(path.Join(testDirPath, FileName1), os.O_RDWR|syscall.O_DIRECT, operations.FilePermission_0600)
+	assert.NoError(s.T(), err)
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (s *staleFileHandleSyncedFile) TestSyncedObjectClobberedRemotelyReadThrowsStaleFileHandleError() {
-	testCaseDir := "TestSyncedObjectClobberedRemotelyReadThrowsStaleFileHandleError"
-	targetDir := path.Join(testDirPath, testCaseDir)
-	operations.CreateDirectory(targetDir, s.T())
-	// Create an object on bucket
-	err := CreateObjectOnGCS(ctx, storageClient, path.Join(testDirName, testCaseDir, FileName1), GCSFileContent)
-	assert.NoError(s.T(), err)
-	filePath := path.Join(targetDir, FileName1)
-	// Open the read handle
-	fh, err := operations.OpenFileAsReadonly(filePath)
-	assert.NoError(s.T(), err)
+func (s *staleFileHandleSyncedFile) TestClobberedFileReadThrowsStaleFileHandleError() {
 	// Replace the underlying object with a new generation.
-	err = WriteToObject(ctx, storageClient, path.Join(testDirName, testCaseDir, FileName1), FileContents, storage.Conditions{})
+	err := WriteToObject(ctx, storageClient, path.Join(s.T().Name(), FileName1), FileContents, storage.Conditions{})
 	assert.NoError(s.T(), err)
 
 	buffer := make([]byte, GCSFileSize)
-	err = operations.ReadBytesFromFile(fh, GCSFileSize, buffer)
+	_, err = s.f1.Read(buffer)
 
 	operations.ValidateStaleNFSFileHandleError(s.T(), err)
-	ValidateObjectContentsFromGCS(ctx, storageClient, path.Join(testDirName, testCaseDir), FileName1, FileContents, s.T())
+	ValidateObjectContentsFromGCS(ctx, storageClient, s.T().Name(), FileName1, FileContents, s.T())
 }
 
-func (s *staleFileHandleSyncedFile) TestSyncedObjectClobberedRemotelyFirstWriteThrowsStaleFileHandleError() {
-	testCaseDir := "TestSyncedObjectClobberedRemotelyFirstWriteThrowsStaleFileHandleError"
-	targetDir := path.Join(testDirPath, testCaseDir)
-	operations.CreateDirectory(targetDir, s.T())
-	err := CreateObjectOnGCS(ctx, storageClient, path.Join(testDirName, testCaseDir, FileName1), GCSFileContent)
-	assert.NoError(s.T(), err)
-	filePath := path.Join(targetDir, FileName1)
-	fh, err := operations.OpenFileAsWriteOnly(filePath)
-	assert.NoError(s.T(), err)
+func (s *staleFileHandleSyncedFile) TestClobberedFileFirstWriteThrowsStaleFileHandleError() {
 	// Replace the underlying object with a new generation.
-	err = WriteToObject(ctx, storageClient, path.Join(testDirName, testCaseDir, FileName1), FileContents, storage.Conditions{})
+	err := WriteToObject(ctx, storageClient, path.Join(s.T().Name(), FileName1), FileContents, storage.Conditions{})
 	assert.NoError(s.T(), err)
 
-	_, err = fh.WriteString(Content)
+	_, err = s.f1.WriteString(Content)
 
 	operations.ValidateStaleNFSFileHandleError(s.T(), err)
 	// Attempt to sync to file should not result in error as we first check if the
 	// content has been dirtied before clobbered check in Sync flow.
-	operations.SyncFile(fh, s.T())
+	operations.SyncFile(s.f1, s.T())
 	// Validate that object is not updated with new content as write failed.
-	ValidateObjectContentsFromGCS(ctx, storageClient, path.Join(testDirName, testCaseDir), FileName1, FileContents, s.T())
+	ValidateObjectContentsFromGCS(ctx, storageClient, s.T().Name(), FileName1, FileContents, s.T())
 }
 
-func (s *staleFileHandleSyncedFile) TestSyncedObjectClobberedRemotelySyncAndCloseThrowsStaleFileHandleError() {
-	testCaseDir := "TestSyncedObjectClobberedRemotelySyncAndCloseThrowsStaleFileHandleError"
-	targetDir := path.Join(testDirPath, testCaseDir)
-	operations.CreateDirectory(targetDir, s.T())
-	err := CreateObjectOnGCS(ctx, storageClient, path.Join(testDirName, testCaseDir, FileName1), GCSFileContent)
-	assert.NoError(s.T(), err)
-	filePath := path.Join(targetDir, FileName1)
-	fh, err := operations.OpenFileAsWriteOnly(filePath)
-	assert.NoError(s.T(), err)
+func (s *staleFileHandleSyncedFile) TestClobberedFileSyncAndCloseThrowsStaleFileHandleError() {
 	// Dirty the file by giving it some contents.
-	_, err = fh.WriteString(Content)
+	_, err := s.f1.WriteString(Content)
 	assert.NoError(s.T(), err)
 	// Replace the underlying object with a new generation.
-	err = WriteToObject(ctx, storageClient, path.Join(testDirName, testCaseDir, FileName1), FileContents, storage.Conditions{})
+	err = WriteToObject(ctx, storageClient, path.Join(s.T().Name(), FileName1), FileContents, storage.Conditions{})
 	assert.NoError(s.T(), err)
 
-	operations.SyncFileShouldThrowStaleHandleError(fh, s.T())
-	operations.CloseFileShouldThrowStaleHandleError(fh, s.T())
+	err = s.f1.Sync()
 
+	operations.ValidateStaleNFSFileHandleError(s.T(), err)
+	err = s.f1.Close()
+	operations.ValidateStaleNFSFileHandleError(s.T(), err)
+	// Make f1 nil, so that another attempt is not taken in TearDown to close the
+	// file.
+	s.f1 = nil
 	// Validate that object is not updated with un-synced content.
-	ValidateObjectContentsFromGCS(ctx, storageClient, path.Join(testDirName, testCaseDir), FileName1, FileContents, s.T())
+	ValidateObjectContentsFromGCS(ctx, storageClient, s.T().Name(), FileName1, FileContents, s.T())
 }
 
-func (s *staleFileHandleSyncedFile) TestSyncedObjectDeletedRemotelySyncAndCloseThrowsStaleFileHandleError() {
-	testCaseDir := "TestSyncedObjectDeletedRemotelySyncAndCloseThrowsStaleFileHandleError"
-	targetDir := path.Join(testDirPath, testCaseDir)
-	operations.CreateDirectory(targetDir, s.T())
-	err := CreateObjectOnGCS(ctx, storageClient, path.Join(testDirName, testCaseDir, FileName1), GCSFileContent)
-	assert.NoError(s.T(), err)
-	filePath := path.Join(targetDir, FileName1)
-	fh, err := operations.OpenFileAsWriteOnly(filePath)
-	assert.NoError(s.T(), err)
+func (s *staleFileHandleSyncedFile) TestDeletedFileSyncAndCloseThrowsStaleFileHandleError() {
 	// Dirty the file by giving it some contents.
-	_, err = fh.WriteString(Content)
-	assert.NoError(s.T(), err)
-	// Delete the object remotely.
-	err = DeleteObjectOnGCS(ctx, storageClient, path.Join(testDirName, testCaseDir, FileName1))
-	assert.NoError(s.T(), err)
-	// Attempt to write to file should not give any error.
-	_, err = fh.WriteString(Content2)
-	assert.NoError(s.T(), err)
-
-	operations.SyncFileShouldThrowStaleHandleError(fh, s.T())
-	operations.CloseFileShouldThrowStaleHandleError(fh, s.T())
-}
-
-func (s *staleFileHandleSyncedFile) TestSyncedObjectDeletedLocallySyncAndCloseThrowsStaleFileHandleError() {
-	testCaseDir := "TestSyncedObjectDeletedLocallySyncAndCloseThrowsStaleFileHandleError"
-	targetDir := path.Join(testDirPath, testCaseDir)
-	operations.CreateDirectory(targetDir, s.T())
-	err := CreateObjectOnGCS(ctx, storageClient, path.Join(testDirName, testCaseDir, FileName1), GCSFileContent)
-	assert.NoError(s.T(), err)
-	filePath := path.Join(targetDir, FileName1)
-	fh, err := operations.OpenFileAsWriteOnly(filePath)
-	assert.NoError(s.T(), err)
-	// Dirty the file by giving it some contents.
-	_, err = fh.WriteString(Content)
+	_, err := s.f1.WriteString(Content)
 	assert.NoError(s.T(), err)
 	// Delete the object locally.
-	operations.RemoveFile(filePath)
+	operations.RemoveFile(s.f1.Name())
 	// Attempt to write to file should not give any error.
-	_, err = fh.WriteString(Content2)
+	_, err = s.f1.WriteString(Content2)
 	assert.NoError(s.T(), err)
 
-	operations.SyncFileShouldThrowStaleHandleError(fh, s.T())
-	operations.CloseFileShouldThrowStaleHandleError(fh, s.T())
+	err = s.f1.Sync()
+
+	operations.ValidateStaleNFSFileHandleError(s.T(), err)
+	err = s.f1.Close()
+	operations.ValidateStaleNFSFileHandleError(s.T(), err)
+	// Make f1 nil, so that another attempt is not taken in TearDown to close the
+	// file.
+	s.f1 = nil
 }
 
-func (s *staleFileHandleSyncedFile) TestRenamedSyncedObjectSyncAndCloseThrowsStaleFileHandleError() {
-	testCaseDir := "TestRenamedSyncedObjectSyncAndCloseThrowsStaleFileHandleError"
-	targetDir := path.Join(testDirPath, testCaseDir)
-	operations.CreateDirectory(targetDir, s.T())
-	err := CreateObjectOnGCS(ctx, storageClient, path.Join(testDirName, testCaseDir, FileName1), GCSFileContent)
-	assert.NoError(s.T(), err)
-	filePath := path.Join(targetDir, FileName1)
-	newFilePath := path.Join(targetDir, FileName2)
-	fh, err := operations.OpenFileAsWriteOnly(filePath)
-	assert.NoError(s.T(), err)
+func (s *staleFileHandleSyncedFile) TestRenamedFileSyncAndCloseThrowsStaleFileHandleError() {
 	// Dirty the file by giving it some contents.
-	_, err = fh.WriteString(Content)
+	_, err := s.f1.WriteString(Content)
 	assert.NoError(s.T(), err)
-	err = operations.RenameFile(filePath, newFilePath)
+	err = operations.RenameFile(s.f1.Name(), path.Join(setup.MntDir(), s.T().Name(), FileName2))
 	assert.NoError(s.T(), err)
 	// Attempt to write to file should not give any error.
-	_, err = fh.WriteString(Content2)
+	_, err = s.f1.WriteString(Content2)
 	assert.NoError(s.T(), err)
 
-	operations.SyncFileShouldThrowStaleHandleError(fh, s.T())
-	operations.CloseFileShouldThrowStaleHandleError(fh, s.T())
+	err = s.f1.Sync()
+
+	operations.ValidateStaleNFSFileHandleError(s.T(), err)
+	err = s.f1.Close()
+	operations.ValidateStaleNFSFileHandleError(s.T(), err)
+	// Make f1 nil, so that another attempt is not taken in TearDown to close the
+	// file.
+	s.f1 = nil
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -192,23 +146,5 @@ func (s *staleFileHandleSyncedFile) TestRenamedSyncedObjectSyncAndCloseThrowsSta
 ////////////////////////////////////////////////////////////////////////
 
 func TestStaleFileHandleSyncedFileTest(t *testing.T) {
-	ts := &staleFileHandleSyncedFile{}
-
-	// Run tests for mounted directory if the flag is set.
-	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		suite.Run(t, ts)
-		return
-	}
-
-	// Define flag set to run the tests.
-	flagsSet := [][]string{
-		{"--metadata-cache-ttl-secs=0", "--precondition-errors=true"},
-	}
-
-	// Run tests.
-	for _, flags := range flagsSet {
-		ts.flags = flags
-		log.Printf("Running tests with flags: %s", ts.flags)
-		suite.Run(t, ts)
-	}
+	suite.Run(t, new(staleFileHandleSyncedFile))
 }
