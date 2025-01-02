@@ -428,6 +428,7 @@ func TestParallelLookUpAndMkdirSameDir(t *testing.T) {
 	go mkdirFunc(&wg, dirPath, &mkdirErr)
 	wg.Wait()
 
+	// Assert either directory is created first or looked up first
 	assert.NoError(t, mkdirErr, "mkdirFunc should not fail")
 
 	if lookUpErr == nil {
