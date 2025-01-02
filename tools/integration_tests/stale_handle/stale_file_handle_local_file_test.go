@@ -34,10 +34,7 @@ import (
 // //////////////////////////////////////////////////////////////////////
 
 type staleFileHandleLocalFile struct {
-	flags []string
-	f1    *os.File
-	f2    *os.File
-	suite.Suite
+	staleFileHandleCommon
 }
 
 func (s *staleFileHandleLocalFile) SetupTest() {
@@ -49,44 +46,6 @@ func (s *staleFileHandleLocalFile) SetupTest() {
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
-
-func (s *staleFileHandleLocalFile) TestLocalInodeClobberedRemotelySyncAndCloseThrowsStaleFileHandleError() {
-	// Dirty the file by giving it some contents.
-	operations.WriteWithoutClose(s.f1, FileContents, s.T())
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, s.T().Name(), FileName1, s.T())
-	// Replace the underlying object with a new generation.
-	CreateObjectInGCSTestDir(ctx, storageClient, s.T().Name(), FileName1, GCSFileContent, s.T())
-
-	err := s.f1.Sync()
-
-	operations.ValidateStaleNFSFileHandleError(s.T(), err)
-	err = s.f1.Close()
-	operations.ValidateStaleNFSFileHandleError(s.T(), err)
-	// Make f1 nil, so that another attempt is not taken in TearDown to close the
-	// file.
-	s.f1 = nil
-	ValidateObjectContentsFromGCS(ctx, storageClient, s.T().Name(), FileName1, GCSFileContent, s.T())
-}
-
-func (s *staleFileHandleLocalFile) TestUnlinkedLocalInodeSyncAndCloseThrowsStaleFileHandleError() {
-	// Unlink the local file.
-	operations.RemoveFile(s.f1.Name())
-	// Verify unlink operation succeeds.
-	operations.ValidateNoFileOrDirError(s.T(), s.f1.Name())
-	// Write to unlinked local file.
-	operations.WriteWithoutClose(s.f1, FileContents, s.T())
-
-	err := s.f1.Sync()
-
-	operations.ValidateStaleNFSFileHandleError(s.T(), err)
-	err = s.f1.Close()
-	operations.ValidateStaleNFSFileHandleError(s.T(), err)
-	// Make f1 nil, so that another attempt is not taken in TearDown to close the
-	// file.
-	s.f1 = nil
-	// Verify unlinked file is not present on GCS.
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, s.T().Name(), FileName1, s.T())
-}
 
 func (s *staleFileHandleLocalFile) TestUnlinkedDirectoryContainingSyncedAndLocalFilesCloseThrowsStaleFileHandleError() {
 	explicitDir := path.Join(setup.MntDir(), s.T().Name(), ExplicitDirName)
