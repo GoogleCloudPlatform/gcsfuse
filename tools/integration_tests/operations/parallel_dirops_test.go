@@ -114,10 +114,9 @@ func TestParallelLookUpsForSameFile(t *testing.T) {
 func TestParallelReadDirs(t *testing.T) {
 	// Create directory structure for testing.
 	testDir := createDirectoryStructureForParallelDiropsTest(t)
-	readDirFunc := func(wg *sync.WaitGroup, dirPath string) ([]os.DirEntry, error) {
+	readDirFunc := func(wg *sync.WaitGroup, dirPath string, dirEntries *[]os.DirEntry, err *error) {
 		defer wg.Done()
-		dirEntries, err := os.ReadDir(dirPath)
-		return dirEntries, err
+		*dirEntries, *err = os.ReadDir(dirPath)
 	}
 	var dirEntries1, dirEntries2 []os.DirEntry
 	var err1, err2 error
@@ -126,12 +125,9 @@ func TestParallelReadDirs(t *testing.T) {
 	dirPath := path.Join(testDir, "explicitDir1")
 	wg := sync.WaitGroup{}
 	wg.Add(2)
-	go func() {
-		dirEntries1, err1 = readDirFunc(&wg, dirPath)
-	}()
-	go func() {
-		dirEntries2, err2 = readDirFunc(&wg, dirPath)
-	}()
+	go readDirFunc(&wg, dirPath, &dirEntries1, &err1)
+	go readDirFunc(&wg, dirPath, &dirEntries2, &err2)
+
 	wg.Wait()
 
 	// Assert both readDirs passed and give correct information
@@ -149,12 +145,8 @@ func TestParallelReadDirs(t *testing.T) {
 	parentDirPath := testDir
 	wg = sync.WaitGroup{}
 	wg.Add(2)
-	go func() {
-		dirEntries1, err1 = readDirFunc(&wg, dirPath)
-	}()
-	go func() {
-		dirEntries2, err2 = readDirFunc(&wg, parentDirPath)
-	}()
+	go readDirFunc(&wg, dirPath, &dirEntries1, &err1)
+	go readDirFunc(&wg, parentDirPath, &dirEntries2, &err2)
 	wg.Wait()
 
 	// Assert both readDirs passed and give correct information
@@ -201,7 +193,7 @@ func TestParallelLookUpAndDeleteSameDir(t *testing.T) {
 	if lookUpErr == nil {
 		assert.NotNil(t, statInfo, "statInfo should not be nil when lookUpErr is nil")
 		assert.Contains(t, statInfo.Name(), "explicitDir1")
-		assert.True(t, statInfo.IsDir())
+		assert.True(t, statInfo.IsDir(), "The created path should be a directory")
 	} else {
 		assert.True(t, os.IsNotExist(lookUpErr))
 	}
@@ -258,19 +250,16 @@ func TestParallelLookUpsForDifferentFiles(t *testing.T) {
 func TestParallelReadDirAndMkdirInsideSameDir(t *testing.T) {
 	// Create directory structure for testing.
 	testDir := createDirectoryStructureForParallelDiropsTest(t)
-	readDirFunc := func(wg *sync.WaitGroup, dirPath string) ([]os.DirEntry, error) {
+	readDirFunc := func(wg *sync.WaitGroup, dirPath string, dirEntries *[]os.DirEntry, err *error) {
 		defer wg.Done()
-		var dirEntries []os.DirEntry
-		err := filepath.WalkDir(dirPath, func(path string, d fs.DirEntry, err error) error {
-			dirEntries = append(dirEntries, d)
+		*err = filepath.WalkDir(dirPath, func(path string, d fs.DirEntry, err error) error {
+			*dirEntries = append(*dirEntries, d)
 			return nil
 		})
-		return dirEntries, err
 	}
-	mkdirFunc := func(wg *sync.WaitGroup, dirPath string) error {
+	mkdirFunc := func(wg *sync.WaitGroup, dirPath string, err *error) {
 		defer wg.Done()
-		err := os.Mkdir(dirPath, setup.DirPermission_0755)
-		return err
+		*err = os.Mkdir(dirPath, setup.DirPermission_0755)
 	}
 	var dirEntries []os.DirEntry
 	var readDirErr, mkdirErr error
@@ -279,12 +268,8 @@ func TestParallelReadDirAndMkdirInsideSameDir(t *testing.T) {
 	newDirPath := path.Join(testDir, "newDir")
 	wg := sync.WaitGroup{}
 	wg.Add(2)
-	go func() {
-		dirEntries, readDirErr = readDirFunc(&wg, testDir)
-	}()
-	go func() {
-		mkdirErr = mkdirFunc(&wg, newDirPath)
-	}()
+	go readDirFunc(&wg, testDir, &dirEntries, &readDirErr)
+	go mkdirFunc(&wg, newDirPath, &mkdirErr)
 	wg.Wait()
 
 	// Assert both listing and mkdir succeeded
@@ -292,7 +277,7 @@ func TestParallelReadDirAndMkdirInsideSameDir(t *testing.T) {
 	assert.NoError(t, mkdirErr)
 	dirStatInfo, err := os.Stat(newDirPath)
 	assert.NoError(t, err)
-	assert.True(t, dirStatInfo.IsDir())
+	assert.True(t, dirStatInfo.IsDir(), "The created path should be a directory")
 	// List should happen either before or after creation of newDir.
 	assert.GreaterOrEqual(t, len(dirEntries), 8)
 	assert.LessOrEqual(t, len(dirEntries), 9)
@@ -335,7 +320,7 @@ func TestParallelLookUpAndDeleteSameFile(t *testing.T) {
 		assert.NotNil(t, fileInfo, "fileInfo should not be nil when lookUpErr is nil")
 		assert.Equal(t, int64(5), fileInfo.Size())
 		assert.Contains(t, fileInfo.Name(), "file1.txt")
-		assert.False(t, fileInfo.IsDir())
+		assert.False(t, fileInfo.IsDir(), "The created path should not be a directory")
 	} else {
 		assert.True(t, os.IsNotExist(lookUpErr))
 	}
@@ -378,7 +363,7 @@ func TestParallelLookUpAndRenameSameFile(t *testing.T) {
 		assert.NotNil(t, fileInfo, "fileInfo should not be nil when lookUpErr is nil")
 		assert.Equal(t, int64(5), fileInfo.Size())
 		assert.Contains(t, fileInfo.Name(), "file1.txt")
-		assert.False(t, fileInfo.IsDir())
+		assert.False(t, fileInfo.IsDir(), "The created path should not be a directory")
 	} else {
 		assert.True(t, os.IsNotExist(lookUpErr))
 	}
