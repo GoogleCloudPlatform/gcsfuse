@@ -406,40 +406,38 @@ func TestParallelLookUpAndRenameSameFile(t *testing.T) {
 func TestParallelLookUpAndMkdirSameDir(t *testing.T) {
 	// Create directory structure for testing.
 	testDir := createDirectoryStructureForParallelDiropsTest(t)
-	lookUpFunc := func(wg *sync.WaitGroup, dirPath string) (os.FileInfo, error) {
+	lookUpFunc := func(wg *sync.WaitGroup, dirPath string, result *os.FileInfo, err *error) {
 		defer wg.Done()
-		fileInfo, err := os.Stat(dirPath)
-		return fileInfo, err
+		fileInfo, lookupErr := os.Stat(dirPath)
+		*result = fileInfo
+		*err = lookupErr
 	}
-	mkdirFunc := func(wg *sync.WaitGroup, dirPath string) error {
+	mkdirFunc := func(wg *sync.WaitGroup, dirPath string, err *error) {
 		defer wg.Done()
-		err := os.Mkdir(dirPath, setup.DirPermission_0755)
-		return err
+		*err = os.Mkdir(dirPath, setup.DirPermission_0755)
 	}
+
 	var statInfo os.FileInfo
 	var lookUpErr, mkdirErr error
 
-	// Parallel lookup and mkdir of a new directory.
 	dirPath := path.Join(testDir, "newDir")
-	wg := sync.WaitGroup{}
+	var wg sync.WaitGroup
 	wg.Add(2)
-	go func() {
-		statInfo, lookUpErr = lookUpFunc(&wg, dirPath)
-	}()
-	go func() {
-		mkdirErr = mkdirFunc(&wg, dirPath)
-	}()
+
+	go lookUpFunc(&wg, dirPath, &statInfo, &lookUpErr)
+	go mkdirFunc(&wg, dirPath, &mkdirErr)
 	wg.Wait()
 
-	assert.NoError(t, mkdirErr)
-	// Assert either directory is created first or looked up first
+	assert.NoError(t, mkdirErr, "mkdirFunc should not fail")
+
 	if lookUpErr == nil {
+		assert.NotNil(t, statInfo, "statInfo should not be nil when lookUpErr is nil")
 		assert.Contains(t, statInfo.Name(), "newDir")
 		assert.True(t, statInfo.IsDir())
 	} else {
-		assert.True(t, os.IsNotExist(lookUpErr))
+		assert.True(t, os.IsNotExist(lookUpErr), "lookUpErr should indicate directory does not exist")
 		dirStatInfo, err := os.Stat(dirPath)
-		assert.NoError(t, err)
-		assert.True(t, dirStatInfo.IsDir())
+		assert.NoError(t, err, "os.Stat should succeed after directory creation")
+		assert.True(t, dirStatInfo.IsDir(), "The created path should be a directory")
 	}
 }
