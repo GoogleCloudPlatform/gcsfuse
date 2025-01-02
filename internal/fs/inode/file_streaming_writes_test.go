@@ -66,6 +66,10 @@ func (t *FileStreamingWritesTest) TearDownTest() {
 	t.in.Unlock()
 }
 
+func (t *FileStreamingWritesTest) SetupSubTest() {
+	t.SetupTest()
+}
+
 func (t *FileStreamingWritesTest) createInode(fileName string, fileType string) {
 	if fileType != emptyGCSFile && fileType != localFile {
 		t.T().Errorf("fileType should be either local or empty")
@@ -165,6 +169,7 @@ func (t *FileStreamingWritesTest) TestOutOfOrderWritesToLocalFileFallBackToTempF
 			require.NotNil(t.T(), t.in.bwh)
 			assert.Equal(t.T(), int64(4), t.in.bwh.WriteFileInfo().TotalSize)
 
+			// Out of order write.
 			err = t.in.Write(t.ctx, []byte("hello"), tc.offset)
 			require.Nil(t.T(), err)
 
@@ -177,14 +182,13 @@ func (t *FileStreamingWritesTest) TestOutOfOrderWritesToLocalFileFallBackToTempF
 			assert.Equal(t.T(), uint64(len(tc.expectedContent)), attrs.Size)
 			assert.WithinDuration(t.T(), attrs.Mtime, createTime, Delta)
 			// sync file and validate content
-			err = t.in.Sync(t.ctx)
+			gcsSynced, err := t.in.Sync(t.ctx)
 			require.Nil(t.T(), err)
+			assert.True(t.T(), gcsSynced)
 			// Read the object's contents.
 			contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
 			assert.Nil(t.T(), err)
 			assert.Equal(t.T(), tc.expectedContent, string(contents))
-			t.TearDownTest()
-			t.SetupTest()
 		})
 	}
 }
@@ -248,4 +252,212 @@ func (t *FileStreamingWritesTest) TestUnlinkEmptySyncedFile() {
 	t.in.Unlink()
 
 	assert.True(t.T(), t.in.unlinked)
+}
+
+func (t *FileStreamingWritesTest) TestWriteToFileAndFlush() {
+	testCases := []struct {
+		name    string
+		isLocal bool
+	}{
+		{
+			name:    "local_file",
+			isLocal: true,
+		},
+		{
+			name:    "synced_empty_file",
+			isLocal: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			if tc.isLocal {
+				assert.True(t.T(), t.in.IsLocal())
+			} else {
+				t.createInode(fileName, emptyGCSFile)
+				assert.False(t.T(), t.in.IsLocal())
+			}
+			// Write some content to temp file.
+			err := t.in.Write(t.ctx, []byte("tacos"), 0)
+			assert.Nil(t.T(), err)
+			assert.NotNil(t.T(), t.in.bwh)
+			t.clock.AdvanceTime(10 * time.Second)
+
+			err = t.in.Flush(t.ctx)
+
+			require.Nil(t.T(), err)
+			// Ensure bwh cleared.
+			assert.Nil(t.T(), t.in.bwh)
+			// Verify that fileInode is no more local
+			assert.False(t.T(), t.in.IsLocal())
+			// Check attributes.
+			attrs, err := t.in.Attributes(t.ctx)
+			assert.Nil(t.T(), err)
+			assert.Equal(t.T(), uint64(len("tacos")), attrs.Size)
+			assert.Equal(t.T(), t.clock.Now().UTC(), attrs.Mtime.UTC())
+			// Validate Object on GCS.
+			statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+			m, _, err := t.bucket.StatObject(t.ctx, statReq)
+			assert.Nil(t.T(), err)
+			assert.NotNil(t.T(), m)
+			assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
+			assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
+			assert.Equal(t.T(), uint64(len("tacos")), m.Size)
+			// Mtime metadata is not written for buffered writes.
+			assert.Equal(t.T(), "", m.Metadata["gcsfuse_mtime"])
+			contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
+			assert.Nil(t.T(), err)
+			assert.Equal(t.T(), "tacos", string(contents))
+		})
+	}
+}
+
+func (t *FileStreamingWritesTest) TestFlushEmptyFile() {
+	testCases := []struct {
+		name    string
+		isLocal bool
+	}{
+		{
+			name:    "local_file",
+			isLocal: true,
+		},
+		{
+			name:    "synced_empty_file",
+			isLocal: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			if tc.isLocal {
+				assert.True(t.T(), t.in.IsLocal())
+			} else {
+				t.createInode(fileName, emptyGCSFile)
+				assert.False(t.T(), t.in.IsLocal())
+			}
+			t.clock.AdvanceTime(10 * time.Second)
+
+			err := t.in.Flush(t.ctx)
+
+			require.Nil(t.T(), err)
+			// Ensure bwh cleared.
+			assert.Nil(t.T(), t.in.bwh)
+			// Verify that fileInode is no more local
+			assert.False(t.T(), t.in.IsLocal())
+			// Check attributes.
+			attrs, err := t.in.Attributes(t.ctx)
+			assert.Nil(t.T(), err)
+			assert.Equal(t.T(), uint64(0), attrs.Size)
+			// For synced file, mtime is updated by SetInodeAttributes call.
+			if tc.isLocal {
+				assert.Equal(t.T(), t.clock.Now().UTC(), attrs.Mtime.UTC())
+			}
+			// Validate Object on GCS.
+			statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+			m, _, err := t.bucket.StatObject(t.ctx, statReq)
+			assert.Nil(t.T(), err)
+			assert.NotNil(t.T(), m)
+			assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
+			assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
+			assert.Equal(t.T(), uint64(0), m.Size)
+			// Mtime metadata is not written for buffered writes.
+			assert.Equal(t.T(), "", m.Metadata["gcsfuse_mtime"])
+			contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
+			assert.Nil(t.T(), err)
+			assert.Equal(t.T(), "", string(contents))
+		})
+	}
+}
+
+func (t *FileStreamingWritesTest) TestFlushClobberedFile() {
+	testCases := []struct {
+		name    string
+		isLocal bool
+	}{
+		{
+			name:    "local_file",
+			isLocal: true,
+		},
+		{
+			name:    "synced_empty_file",
+			isLocal: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			if tc.isLocal {
+				assert.True(t.T(), t.in.IsLocal())
+			} else {
+				t.createInode(fileName, emptyGCSFile)
+				assert.False(t.T(), t.in.IsLocal())
+			}
+			t.clock.AdvanceTime(10 * time.Second)
+			// Clobber the file.
+			objWritten, err := storageutil.CreateObject(t.ctx, t.bucket, fileName, []byte("taco"))
+			require.Nil(t.T(), err)
+
+			err = t.in.Flush(t.ctx)
+
+			require.Error(t.T(), err)
+			var fileClobberedError *gcsfuse_errors.FileClobberedError
+			assert.ErrorAs(t.T(), err, &fileClobberedError)
+			// Validate Object on GCS not updated.
+			statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+			objGot, _, err := t.bucket.StatObject(t.ctx, statReq)
+			assert.Nil(t.T(), err)
+			assert.Equal(t.T(), storageutil.ConvertObjToMinObject(objWritten), objGot)
+		})
+	}
+}
+
+func (t *FileStreamingWritesTest) TestWriteToFileAndSync() {
+	testCases := []struct {
+		name    string
+		isLocal bool
+	}{
+		{
+			name:    "local_file",
+			isLocal: true,
+		},
+		{
+			name:    "synced_empty_file",
+			isLocal: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			if tc.isLocal {
+				assert.True(t.T(), t.in.IsLocal())
+			} else {
+				t.createInode(fileName, emptyGCSFile)
+				assert.False(t.T(), t.in.IsLocal())
+			}
+			// Write some content to temp file.
+			err := t.in.Write(t.ctx, []byte("tacos"), 0)
+			assert.Nil(t.T(), err)
+			assert.NotNil(t.T(), t.in.bwh)
+			t.clock.AdvanceTime(10 * time.Second)
+
+			gcsSynced, err := t.in.Sync(t.ctx)
+
+			require.Nil(t.T(), err)
+			assert.False(t.T(), gcsSynced)
+			// Ensure bwh not cleared.
+			assert.NotNil(t.T(), t.in.bwh)
+			// Validate Object not written on GCS.
+			statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+			m, _, err := t.bucket.StatObject(t.ctx, statReq)
+			if tc.isLocal {
+				require.Error(t.T(), err)
+				var notFoundErr *gcs.NotFoundError
+				assert.ErrorAs(t.T(), err, &notFoundErr)
+			} else {
+				assert.NoError(t.T(), err)
+				assert.NotNil(t.T(), m)
+				assert.Equal(t.T(), uint64(0), m.Size)
+			}
+		})
+	}
 }

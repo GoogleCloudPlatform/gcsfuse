@@ -582,7 +582,7 @@ func (f *FileInode) writeUsingTempFile(ctx context.Context, data []byte, offset 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, offset int64) error {
 	err := f.bwh.Write(data, offset)
-	if err == bufferedwrites.ErrOutOfOrderWrite || err == bufferedwrites.ErrUploadFailure {
+	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) || errors.Is(err, bufferedwrites.ErrUploadFailure) {
 		// Finalize the object.
 		flushErr := f.flushUsingBufferedWriteHandler()
 		if flushErr != nil {
@@ -729,20 +729,42 @@ func (f *FileInode) fetchLatestGcsObject(ctx context.Context) (*gcs.Object, erro
 	return latestGcsObj, err
 }
 
-// Sync writes out contents to GCS. If this fails due to the generation having been
-// clobbered, failure is propagated back to the calling function as an error.
+// Sync writes out contents to GCS.  If this fails due to the generation
+// having been clobbered, failure is propagated back to the calling
+// function as an error.
 //
-// After this method succeeds, SourceGeneration will return the new generation
-// by which this inode should be known (which may be the same as before). If it
+// For buffered writes, this method only waits for any partial buffers to be
+// uploaded to GCS. It does not guarantee that the entire contents of the file
+// have been persisted.
+//
+// For non-buffered writes, this method writes the entire contents to GCS.
+// If this method succeeds, SourceGeneration will return the new generation by
+// which this inode should be known (which may be the same as before). If it
 // fails, the generation will not change.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) Sync(ctx context.Context) (err error) {
+func (f *FileInode) Sync(ctx context.Context) (gcsSynced bool, err error) {
 	// If we have not been dirtied, there is nothing to do.
-	if f.content == nil {
+	if f.content == nil && f.bwh == nil {
 		return
 	}
 
+	if f.bwh != nil {
+		// bwh.Sync does not finalize the upload, so return gcsSynced as false.
+		return false, f.bwh.Sync()
+	}
+	err = f.syncUsingContent(ctx)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// syncUsingContent syncs the inode content to GCS. It fetches the latest GCS
+// object, syncs the content and updates the inode state.
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) syncUsingContent(ctx context.Context) (err error) {
 	latestGcsObj, err := f.fetchLatestGcsObject(ctx)
 	if err != nil {
 		return
@@ -770,6 +792,29 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 	// If we wrote out a new object, we need to update our state.
 	f.updateInodeStateAfterSync(minObj)
 	return
+}
+
+// Flush writes out contents to GCS. If this fails due to the generation
+// having been clobbered, failure is propagated back to the calling
+// function as an error.
+//
+// After this method succeeds, SourceGeneration will return the new generation
+// by which this inode should be known (which may be the same as before). If it
+// fails, the generation will not change.
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) Flush(ctx context.Context) (err error) {
+	// If we have not been dirtied, there is nothing to do.
+	if f.content == nil && f.bwh == nil {
+		return
+	}
+
+	// Flush using the appropriate method based on whether we're using a
+	// buffered write handler.
+	if f.bwh != nil {
+		return f.flushUsingBufferedWriteHandler()
+	}
+	return f.syncUsingContent(ctx)
 }
 
 func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
