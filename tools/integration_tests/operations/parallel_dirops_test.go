@@ -199,6 +199,7 @@ func TestParallelLookUpAndDeleteSameDir(t *testing.T) {
 	assert.True(t, os.IsNotExist(err))
 	// Assert either dir is looked up first or deleted first
 	if lookUpErr == nil {
+		assert.NotNil(t, statInfo, "statInfo should not be nil when lookUpErr is nil")
 		assert.Contains(t, statInfo.Name(), "explicitDir1")
 		assert.True(t, statInfo.IsDir())
 	} else {
@@ -331,6 +332,7 @@ func TestParallelLookUpAndDeleteSameFile(t *testing.T) {
 	assert.True(t, os.IsNotExist(err))
 	// Assert either file is looked up first or deleted first
 	if lookUpErr == nil {
+		assert.NotNil(t, fileInfo, "fileInfo should not be nil when lookUpErr is nil")
 		assert.Equal(t, int64(5), fileInfo.Size())
 		assert.Contains(t, fileInfo.Name(), "file1.txt")
 		assert.False(t, fileInfo.IsDir())
@@ -373,6 +375,7 @@ func TestParallelLookUpAndRenameSameFile(t *testing.T) {
 	assert.Equal(t, int64(5), newFileInfo.Size())
 	// Assert either file is renamed first or looked up first
 	if lookUpErr == nil {
+		assert.NotNil(t, fileInfo, "fileInfo should not be nil when lookUpErr is nil")
 		assert.Equal(t, int64(5), fileInfo.Size())
 		assert.Contains(t, fileInfo.Name(), "file1.txt")
 		assert.False(t, fileInfo.IsDir())
