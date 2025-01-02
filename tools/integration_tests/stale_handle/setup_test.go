@@ -82,11 +82,16 @@ func TestMain(m *testing.M) {
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()
 
-	// Save mount and root directory variables.
-	mountDir, rootDir = setup.MntDir(), setup.MntDir()
+	// Define flag set to run the tests.
+	flagsSet := [][]string{
+		{"--metadata-cache-ttl-secs=0", "--precondition-errors=true"},
+	}
 
-	log.Println("Running static mounting tests...")
-	successCode := m.Run()
+	if !testing.Short() {
+		setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--client-protocol=grpc")
+	}
+
+	successCode := static_mounting.RunTests(flagsSet, m)
 
 	// Clean up test directory created.
 	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
