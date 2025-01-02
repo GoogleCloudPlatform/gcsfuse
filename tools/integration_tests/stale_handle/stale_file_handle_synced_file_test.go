@@ -36,9 +36,7 @@ const Content = "foobar"
 const Content2 = "foobar2"
 
 type staleFileHandleSyncedFile struct {
-	flags []string
-	f1    *os.File
-	suite.Suite
+	staleFileHandleCommon
 }
 
 func (s *staleFileHandleSyncedFile) SetupTest() {
@@ -79,46 +77,6 @@ func (s *staleFileHandleSyncedFile) TestClobberedFileFirstWriteThrowsStaleFileHa
 	operations.SyncFile(s.f1, s.T())
 	// Validate that object is not updated with new content as write failed.
 	ValidateObjectContentsFromGCS(ctx, storageClient, s.T().Name(), FileName1, FileContents, s.T())
-}
-
-func (s *staleFileHandleSyncedFile) TestClobberedFileSyncAndCloseThrowsStaleFileHandleError() {
-	// Dirty the file by giving it some contents.
-	_, err := s.f1.WriteString(Content)
-	assert.NoError(s.T(), err)
-	// Replace the underlying object with a new generation.
-	err = WriteToObject(ctx, storageClient, path.Join(s.T().Name(), FileName1), FileContents, storage.Conditions{})
-	assert.NoError(s.T(), err)
-
-	err = s.f1.Sync()
-
-	operations.ValidateStaleNFSFileHandleError(s.T(), err)
-	err = s.f1.Close()
-	operations.ValidateStaleNFSFileHandleError(s.T(), err)
-	// Make f1 nil, so that another attempt is not taken in TearDown to close the
-	// file.
-	s.f1 = nil
-	// Validate that object is not updated with un-synced content.
-	ValidateObjectContentsFromGCS(ctx, storageClient, s.T().Name(), FileName1, FileContents, s.T())
-}
-
-func (s *staleFileHandleSyncedFile) TestDeletedFileSyncAndCloseThrowsStaleFileHandleError() {
-	// Dirty the file by giving it some contents.
-	_, err := s.f1.WriteString(Content)
-	assert.NoError(s.T(), err)
-	// Delete the object locally.
-	operations.RemoveFile(s.f1.Name())
-	// Attempt to write to file should not give any error.
-	_, err = s.f1.WriteString(Content2)
-	assert.NoError(s.T(), err)
-
-	err = s.f1.Sync()
-
-	operations.ValidateStaleNFSFileHandleError(s.T(), err)
-	err = s.f1.Close()
-	operations.ValidateStaleNFSFileHandleError(s.T(), err)
-	// Make f1 nil, so that another attempt is not taken in TearDown to close the
-	// file.
-	s.f1 = nil
 }
 
 func (s *staleFileHandleSyncedFile) TestRenamedFileSyncAndCloseThrowsStaleFileHandleError() {
