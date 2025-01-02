@@ -243,7 +243,7 @@ func TestParallelLookUpsForDifferentFiles(t *testing.T) {
 	wg = sync.WaitGroup{}
 	wg.Add(2)
 	go lookUpFunc(&wg, filePath1, &stat1, &err1)
-	go lookUpFunc(&wg, filePath1, &stat2, &err2)
+	go lookUpFunc(&wg, filePath2, &stat2, &err2)
 	wg.Wait()
 
 	// Assert both stats passed and give correct information
