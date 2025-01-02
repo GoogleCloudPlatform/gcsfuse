@@ -70,10 +70,11 @@ func createDirectoryStructureForParallelDiropsTest(t *testing.T) string {
 func TestParallelLookUpsForSameFile(t *testing.T) {
 	// Create directory structure for testing.
 	testDir := createDirectoryStructureForParallelDiropsTest(t)
-	lookUpFunc := func(wg *sync.WaitGroup, filePath string) (os.FileInfo, error) {
+	lookUpFunc := func(wg *sync.WaitGroup, dirPath string, result *os.FileInfo, err *error) {
 		defer wg.Done()
-		fileInfo, err := os.Stat(filePath)
-		return fileInfo, err
+		fileInfo, lookupErr := os.Stat(dirPath)
+		*result = fileInfo
+		*err = lookupErr
 	}
 	var stat1, stat2 os.FileInfo
 	var err1, err2 error
@@ -82,12 +83,8 @@ func TestParallelLookUpsForSameFile(t *testing.T) {
 	filePath := path.Join(testDir, "file1.txt")
 	wg := sync.WaitGroup{}
 	wg.Add(2)
-	go func() {
-		stat1, err1 = lookUpFunc(&wg, filePath)
-	}()
-	go func() {
-		stat2, err2 = lookUpFunc(&wg, filePath)
-	}()
+	go lookUpFunc(&wg, filePath, &stat1, &err1)
+	go lookUpFunc(&wg, filePath, &stat2, &err2)
 	wg.Wait()
 
 	// Assert both stats passed and give correct information
@@ -101,12 +98,8 @@ func TestParallelLookUpsForSameFile(t *testing.T) {
 	// Parallel lookups of file under a directory in mount.
 	filePath = path.Join(testDir, "explicitDir1/file2.txt")
 	wg.Add(2)
-	go func() {
-		stat1, err1 = lookUpFunc(&wg, filePath)
-	}()
-	go func() {
-		stat2, err2 = lookUpFunc(&wg, filePath)
-	}()
+	go lookUpFunc(&wg, filePath, &stat1, &err1)
+	go lookUpFunc(&wg, filePath, &stat2, &err2)
 	wg.Wait()
 
 	// Assert both stats passed and give correct information
@@ -180,15 +173,15 @@ func TestParallelReadDirs(t *testing.T) {
 func TestParallelLookUpAndDeleteSameDir(t *testing.T) {
 	// Create directory structure for testing.
 	testDir := createDirectoryStructureForParallelDiropsTest(t)
-	lookUpFunc := func(wg *sync.WaitGroup, dirPath string) (os.FileInfo, error) {
+	lookUpFunc := func(wg *sync.WaitGroup, dirPath string, result *os.FileInfo, err *error) {
 		defer wg.Done()
-		fileInfo, err := os.Stat(dirPath)
-		return fileInfo, err
+		fileInfo, lookupErr := os.Stat(dirPath)
+		*result = fileInfo
+		*err = lookupErr
 	}
-	deleteFunc := func(wg *sync.WaitGroup, dirPath string) error {
+	deleteFunc := func(wg *sync.WaitGroup, dirPath string, err *error) {
 		defer wg.Done()
-		err := os.RemoveAll(dirPath)
-		return err
+		*err = os.RemoveAll(dirPath)
 	}
 	var statInfo os.FileInfo
 	var lookUpErr, deleteErr error
@@ -197,12 +190,8 @@ func TestParallelLookUpAndDeleteSameDir(t *testing.T) {
 	dirPath := path.Join(testDir, "explicitDir1")
 	wg := sync.WaitGroup{}
 	wg.Add(2)
-	go func() {
-		statInfo, lookUpErr = lookUpFunc(&wg, dirPath)
-	}()
-	go func() {
-		deleteErr = deleteFunc(&wg, dirPath)
-	}()
+	go lookUpFunc(&wg, dirPath, &statInfo, &lookUpErr)
+	go deleteFunc(&wg, dirPath, &deleteErr)
 	wg.Wait()
 
 	assert.NoError(t, deleteErr)
@@ -220,10 +209,11 @@ func TestParallelLookUpAndDeleteSameDir(t *testing.T) {
 func TestParallelLookUpsForDifferentFiles(t *testing.T) {
 	// Create directory structure for testing.
 	testDir := createDirectoryStructureForParallelDiropsTest(t)
-	lookUpFunc := func(wg *sync.WaitGroup, filePath string) (os.FileInfo, error) {
+	lookUpFunc := func(wg *sync.WaitGroup, dirPath string, result *os.FileInfo, err *error) {
 		defer wg.Done()
-		fileInfo, err := os.Stat(filePath)
-		return fileInfo, err
+		fileInfo, lookupErr := os.Stat(dirPath)
+		*result = fileInfo
+		*err = lookupErr
 	}
 	var stat1, stat2 os.FileInfo
 	var err1, err2 error
@@ -233,12 +223,9 @@ func TestParallelLookUpsForDifferentFiles(t *testing.T) {
 	filePath2 := path.Join(testDir, "file2.txt")
 	wg := sync.WaitGroup{}
 	wg.Add(2)
-	go func() {
-		stat1, err1 = lookUpFunc(&wg, filePath1)
-	}()
-	go func() {
-		stat2, err2 = lookUpFunc(&wg, filePath2)
-	}()
+	go lookUpFunc(&wg, filePath1, &stat1, &err1)
+	go lookUpFunc(&wg, filePath2, &stat2, &err2)
+
 	wg.Wait()
 
 	// Assert both stats passed and give correct information
@@ -254,12 +241,8 @@ func TestParallelLookUpsForDifferentFiles(t *testing.T) {
 	filePath2 = path.Join(testDir, "explicitDir1", "file2.txt")
 	wg = sync.WaitGroup{}
 	wg.Add(2)
-	go func() {
-		stat1, err1 = lookUpFunc(&wg, filePath1)
-	}()
-	go func() {
-		stat2, err2 = lookUpFunc(&wg, filePath2)
-	}()
+	go lookUpFunc(&wg, filePath1, &stat1, &err1)
+	go lookUpFunc(&wg, filePath1, &stat2, &err2)
 	wg.Wait()
 
 	// Assert both stats passed and give correct information
@@ -320,15 +303,15 @@ func TestParallelReadDirAndMkdirInsideSameDir(t *testing.T) {
 func TestParallelLookUpAndDeleteSameFile(t *testing.T) {
 	// Create directory structure for testing.
 	testDir := createDirectoryStructureForParallelDiropsTest(t)
-	lookUpFunc := func(wg *sync.WaitGroup, filePath string) (os.FileInfo, error) {
+	lookUpFunc := func(wg *sync.WaitGroup, dirPath string, result *os.FileInfo, err *error) {
 		defer wg.Done()
-		fileInfo, err := os.Stat(filePath)
-		return fileInfo, err
+		fileInfo, lookupErr := os.Stat(dirPath)
+		*result = fileInfo
+		*err = lookupErr
 	}
-	deleteFileFunc := func(wg *sync.WaitGroup, filePath string) error {
+	deleteFileFunc := func(wg *sync.WaitGroup, filePath string, err *error) {
 		defer wg.Done()
-		err := os.Remove(filePath)
-		return err
+		*err = os.Remove(filePath)
 	}
 	var fileInfo os.FileInfo
 	var lookUpErr, deleteErr error
@@ -337,12 +320,10 @@ func TestParallelLookUpAndDeleteSameFile(t *testing.T) {
 	filePath := path.Join(testDir, "explicitDir1", "file1.txt")
 	wg := sync.WaitGroup{}
 	wg.Add(2)
-	go func() {
-		fileInfo, lookUpErr = lookUpFunc(&wg, filePath)
-	}()
-	go func() {
-		deleteErr = deleteFileFunc(&wg, filePath)
-	}()
+
+	go lookUpFunc(&wg, filePath, &fileInfo, &lookUpErr)
+	go deleteFileFunc(&wg, filePath, &deleteErr)
+
 	wg.Wait()
 
 	assert.NoError(t, deleteErr)
@@ -361,15 +342,15 @@ func TestParallelLookUpAndDeleteSameFile(t *testing.T) {
 func TestParallelLookUpAndRenameSameFile(t *testing.T) {
 	// Create directory structure for testing.
 	testDir := createDirectoryStructureForParallelDiropsTest(t)
-	lookUpFunc := func(wg *sync.WaitGroup, filePath string) (os.FileInfo, error) {
+	lookUpFunc := func(wg *sync.WaitGroup, dirPath string, result *os.FileInfo, err *error) {
 		defer wg.Done()
-		fileInfo, err := os.Stat(filePath)
-		return fileInfo, err
+		fileInfo, lookupErr := os.Stat(dirPath)
+		*result = fileInfo
+		*err = lookupErr
 	}
-	renameFunc := func(wg *sync.WaitGroup, oldFilePath string, newFilePath string) error {
+	renameFunc := func(wg *sync.WaitGroup, oldFilePath string, newFilePath string, err *error) {
 		defer wg.Done()
-		err := os.Rename(oldFilePath, newFilePath)
-		return err
+		*err = os.Rename(oldFilePath, newFilePath)
 	}
 	var fileInfo os.FileInfo
 	var lookUpErr, renameErr error
@@ -379,12 +360,9 @@ func TestParallelLookUpAndRenameSameFile(t *testing.T) {
 	newFilePath := path.Join(testDir, "newFile.txt")
 	wg := sync.WaitGroup{}
 	wg.Add(2)
-	go func() {
-		fileInfo, lookUpErr = lookUpFunc(&wg, filePath)
-	}()
-	go func() {
-		renameErr = renameFunc(&wg, filePath, newFilePath)
-	}()
+	go lookUpFunc(&wg, filePath, &fileInfo, &lookUpErr)
+	go renameFunc(&wg, filePath, newFilePath, &renameErr)
+
 	wg.Wait()
 
 	assert.NoError(t, renameErr)
