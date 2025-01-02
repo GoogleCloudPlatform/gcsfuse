@@ -15,7 +15,6 @@
 package stale_handle
 
 import (
-	"log"
 	"os"
 	"path"
 	"testing"
@@ -36,15 +35,15 @@ import (
 
 type staleFileHandleLocalFile struct {
 	flags []string
+	f1    *os.File
+	f2    *os.File
 	suite.Suite
 }
 
-func (s *staleFileHandleLocalFile) SetupSuite() {
-	mountGCSFuseAndSetupTestDir(s.flags, ctx, storageClient, testDirName)
-}
-
-func (s *staleFileHandleLocalFile) TearDownSuite() {
-	setup.UnmountGCSFuse(rootDir)
+func (s *staleFileHandleLocalFile) SetupTest() {
+	testDirPath := setup.SetupTestDirectory(s.T().Name())
+	// Create a local file.
+	_, s.f1 = CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, s.T())
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -52,66 +51,67 @@ func (s *staleFileHandleLocalFile) TearDownSuite() {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *staleFileHandleLocalFile) TestLocalInodeClobberedRemotelySyncAndCloseThrowsStaleFileHandleError() {
-	testCaseDir := "TestLocalInodeClobberedRemotelySyncAndCloseThrowsStaleFileHandleError"
-	targetDir := path.Join(testDirPath, testCaseDir)
-	operations.CreateDirectory(targetDir, s.T())
-	// Create a local file.
-	_, fh := CreateLocalFileInTestDir(ctx, storageClient, targetDir, FileName1, s.T())
 	// Dirty the file by giving it some contents.
-	operations.WriteWithoutClose(fh, FileContents, s.T())
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, path.Join(testDirName, testCaseDir), FileName1, s.T())
+	operations.WriteWithoutClose(s.f1, FileContents, s.T())
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, s.T().Name(), FileName1, s.T())
 	// Replace the underlying object with a new generation.
-	CreateObjectInGCSTestDir(ctx, storageClient, path.Join(testDirName, testCaseDir), FileName1, GCSFileContent, s.T())
+	CreateObjectInGCSTestDir(ctx, storageClient, s.T().Name(), FileName1, GCSFileContent, s.T())
 
-	operations.SyncFileShouldThrowStaleHandleError(fh, s.T())
-	operations.CloseFileShouldThrowStaleHandleError(fh, s.T())
+	err := s.f1.Sync()
 
-	ValidateObjectContentsFromGCS(ctx, storageClient, path.Join(testDirName, testCaseDir), FileName1, GCSFileContent, s.T())
+	operations.ValidateStaleNFSFileHandleError(s.T(), err)
+	err = s.f1.Close()
+	operations.ValidateStaleNFSFileHandleError(s.T(), err)
+	// Make f1 nil, so that another attempt is not taken in TearDown to close the
+	// file.
+	s.f1 = nil
+	ValidateObjectContentsFromGCS(ctx, storageClient, s.T().Name(), FileName1, GCSFileContent, s.T())
 }
 
 func (s *staleFileHandleLocalFile) TestUnlinkedLocalInodeSyncAndCloseThrowsStaleFileHandleError() {
-	testCaseDir := "TestUnlinkedLocalInodeSyncAndCloseThrowsStaleFileHandleError"
-	targetDir := path.Join(testDirPath, testCaseDir)
-	operations.CreateDirectory(targetDir, s.T())
-	// Create a local file.
-	_, fh := CreateLocalFileInTestDir(ctx, storageClient, targetDir, FileName1, s.T())
 	// Unlink the local file.
-	operations.RemoveFile(fh.Name())
+	operations.RemoveFile(s.f1.Name())
 	// Verify unlink operation succeeds.
-	operations.ValidateNoFileOrDirError(s.T(), fh.Name())
+	operations.ValidateNoFileOrDirError(s.T(), s.f1.Name())
 	// Write to unlinked local file.
-	operations.WriteWithoutClose(fh, FileContents, s.T())
+	operations.WriteWithoutClose(s.f1, FileContents, s.T())
 
-	operations.SyncFileShouldThrowStaleHandleError(fh, s.T())
-	operations.CloseFileShouldThrowStaleHandleError(fh, s.T())
+	err := s.f1.Sync()
 
+	operations.ValidateStaleNFSFileHandleError(s.T(), err)
+	err = s.f1.Close()
+	operations.ValidateStaleNFSFileHandleError(s.T(), err)
+	// Make f1 nil, so that another attempt is not taken in TearDown to close the
+	// file.
+	s.f1 = nil
 	// Verify unlinked file is not present on GCS.
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, path.Join(testDirName, testCaseDir), FileName1, s.T())
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, s.T().Name(), FileName1, s.T())
 }
 
 func (s *staleFileHandleLocalFile) TestUnlinkedDirectoryContainingSyncedAndLocalFilesCloseThrowsStaleFileHandleError() {
-	testCaseDir := "TestUnlinkedDirectoryContainingSyncedAndLocalFilesCloseThrowsStaleFileHandleError"
-	targetDir := path.Join(testDirPath, testCaseDir)
-	operations.CreateDirectory(targetDir, s.T())
-	explicitDir := path.Join(targetDir, ExplicitDirName)
+	explicitDir := path.Join(setup.MntDir(), s.T().Name(), ExplicitDirName)
 	// Create explicit directory with one synced and one local file.
 	operations.CreateDirectory(explicitDir, s.T())
-	CreateObjectInGCSTestDir(ctx, storageClient, path.Join(testDirName, testCaseDir, ExplicitDirName), ExplicitFileName1, "", s.T())
-	_, fh := CreateLocalFileInTestDir(ctx, storageClient, explicitDir, ExplicitLocalFileName1, s.T())
+	CreateObjectInGCSTestDir(ctx, storageClient, path.Join(s.T().Name(), ExplicitDirName), ExplicitFileName1, "", s.T())
+	_, s.f2 = CreateLocalFileInTestDir(ctx, storageClient, explicitDir, ExplicitLocalFileName1, s.T())
 	err := os.RemoveAll(explicitDir)
 	assert.NoError(s.T(), err)
 	operations.ValidateNoFileOrDirError(s.T(), explicitDir+"/")
 	operations.ValidateNoFileOrDirError(s.T(), path.Join(explicitDir, ExplicitFileName1))
 	operations.ValidateNoFileOrDirError(s.T(), path.Join(explicitDir, ExplicitLocalFileName1))
 	// Validate writing content to unlinked local file does not throw error.
-	operations.WriteWithoutClose(fh, FileContents, s.T())
+	operations.WriteWithoutClose(s.f2, FileContents, s.T())
 
-	operations.CloseFileShouldThrowStaleHandleError(fh, s.T())
+	err = s.f2.Close()
 
+	operations.ValidateStaleNFSFileHandleError(s.T(), err)
+	// Make f1 nil, so that another attempt is not taken in TearDown to close the
+	// file.
+	s.f2 = nil
 	// Validate both local and synced files are deleted.
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testCaseDir, ExplicitDirName, s.T())
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testCaseDir, path.Join(ExplicitDirName, ExplicitFileName1), s.T())
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testCaseDir, path.Join(ExplicitDirName, ExplicitLocalFileName1), s.T())
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, s.T().Name(), ExplicitDirName, s.T())
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, s.T().Name(), path.Join(ExplicitDirName, ExplicitFileName1), s.T())
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, s.T().Name(), path.Join(ExplicitDirName, ExplicitLocalFileName1), s.T())
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -119,23 +119,5 @@ func (s *staleFileHandleLocalFile) TestUnlinkedDirectoryContainingSyncedAndLocal
 ////////////////////////////////////////////////////////////////////////
 
 func TestStaleFileHandleLocalFileTest(t *testing.T) {
-	ts := &staleFileHandleLocalFile{}
-
-	// Run tests for mounted directory if the flag is set.
-	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		suite.Run(t, ts)
-		return
-	}
-
-	// Define flag set to run the tests.
-	flagsSet := [][]string{
-		{"--metadata-cache-ttl-secs=0", "--precondition-errors=true"},
-	}
-
-	// Run tests.
-	for _, flags := range flagsSet {
-		ts.flags = flags
-		log.Printf("Running tests with flags: %s", ts.flags)
-		suite.Run(t, ts)
-	}
+	suite.Run(t, new(staleFileHandleLocalFile))
 }

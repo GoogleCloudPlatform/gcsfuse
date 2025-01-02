@@ -341,16 +341,7 @@ func OpenFileAsReadonly(filepath string) (*os.File, error) {
 	return f, nil
 }
 
-func OpenFileAsWriteOnly(filepath string) (*os.File, error) {
-	f, err := os.OpenFile(filepath, os.O_WRONLY|syscall.O_DIRECT, FilePermission_0400)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open file %s as readonly: %v", filepath, err)
-	}
-
-	return f, nil
-}
-
-func ReadBytesFromFile(f *os.File, numBytesToRead int, b []byte) error {
+func readBytesFromFile(f *os.File, numBytesToRead int, b []byte) error {
 	numBytesRead, err := f.Read(b)
 	if err != nil {
 		return fmt.Errorf("failed to read file %s: %v", f.Name(), err)
@@ -420,12 +411,12 @@ func AreFilesIdentical(filepath1, filepath2 string) (bool, error) {
 			numBytesBeingRead = sizeRemaining
 		}
 
-		err := ReadBytesFromFile(f1, numBytesBeingRead, b1)
+		err := readBytesFromFile(f1, numBytesBeingRead, b1)
 		if err != nil {
 			return false, err
 		}
 
-		err = ReadBytesFromFile(f2, numBytesBeingRead, b2)
+		err = readBytesFromFile(f2, numBytesBeingRead, b2)
 		if err != nil {
 			return false, err
 		}
@@ -574,34 +565,12 @@ func CloseFileShouldNotThrowError(file *os.File, t *testing.T) {
 	}
 }
 
-func CloseFileShouldThrowStaleHandleError(file *os.File, t *testing.T) {
-	if err := file.Close(); err == nil {
-		t.Fatalf("file.Close() for file %s: expected stale NFS file handle error, got nil", file.Name())
-	} else if !strings.Contains(err.Error(), "stale NFS file handle") {
-		t.Fatalf("file.Close() for file %s: expected stale NFS file handle error, got %v", file.Name(), err)
-	}
-
-	// Make file nil, so that another attempt is not taken to close the
-	// file.
-	file = nil
-}
-
 func SyncFile(fh *os.File, t *testing.T) {
 	err := fh.Sync()
 
 	// Verify fh.Sync operation succeeds.
 	if err != nil {
 		t.Fatalf("%s.Sync(): %v", fh.Name(), err)
-	}
-}
-
-func SyncFileShouldThrowStaleHandleError(fh *os.File, t *testing.T) {
-	t.Helper()
-
-	if err := fh.Sync(); err == nil {
-		t.Fatalf("file.Sync() for file %s: expected stale NFS file handle error, got nil", fh.Name())
-	} else if !strings.Contains(err.Error(), "stale NFS file handle") {
-		t.Fatalf("file.Sync() for file %s: expected stale NFS file handle error, got %v", fh.Name(), err)
 	}
 }
 
