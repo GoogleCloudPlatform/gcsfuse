@@ -78,7 +78,10 @@ func attrsToTags(attrs []MetricAttr) []tag.Mutator {
 func attrsToRecordOption(attrs []MetricAttr) []metric.RecordOption {
 	otelOptions := make([]metric.RecordOption, 0, len(attrs))
 	for _, attr := range attrs {
-		otelOptions = append(otelOptions, metric.WithAttributes(attribute.String(attr.Key, attr.Value)))
+		otelOptions = append(otelOptions, metric.WithAttributeSet(attribute.NewSet(attribute.KeyValue{
+			Key:   attribute.Key(attr.Key),
+			Value: attribute.StringValue(attr.Value),
+		})))
 	}
 	return otelOptions
 }
@@ -86,7 +89,10 @@ func attrsToRecordOption(attrs []MetricAttr) []metric.RecordOption {
 func attrsToAddOption(attrs []MetricAttr) []metric.AddOption {
 	otelOptions := make([]metric.AddOption, 0, len(attrs))
 	for _, attr := range attrs {
-		otelOptions = append(otelOptions, metric.WithAttributes(attribute.String(attr.Key, attr.Value)))
+		otelOptions = append(otelOptions, metric.WithAttributeSet(attribute.NewSet(attribute.KeyValue{
+			Key:   attribute.Key(attr.Key),
+			Value: attribute.StringValue(attr.Value),
+		})))
 	}
 	return otelOptions
 }
