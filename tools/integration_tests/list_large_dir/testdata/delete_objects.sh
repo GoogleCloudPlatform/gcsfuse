@@ -29,8 +29,6 @@ exit_code=${PIPESTATUS[0]}
 # Check the exit code of the gcloud command
 if [ $exit_code -eq 0 ]; then
   echo "Objects in bucket gs://${PATH}/ have been successfully deleted."
-else
-  echo "There were some errors, but they were ignored. Review the output for details."
 fi
 
 exit 0
