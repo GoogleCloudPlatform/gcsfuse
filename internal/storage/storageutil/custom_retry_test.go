@@ -23,6 +23,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/api/googleapi"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func TestShouldRetryReturnsTrueWithGoogleApiError(t *testing.T) {
@@ -108,6 +110,32 @@ func TestShouldRetryReturnsTrueForConnectionRefusedAndResetErrors(t *testing.T) 
 			name:           "Op Error - connection refused by peer",
 			err:            &net.OpError{Err: errors.New("connection refused by peer")},
 			expectedResult: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualResult := ShouldRetry(tc.err)
+			assert.Equal(t, tc.expectedResult, actualResult)
+		})
+	}
+}
+
+func TestShouldRetryReturnsTrueForUnauthenticatedGrpcErrors(t *testing.T) {
+	testCases := []struct {
+		name           string
+		err            error
+		expectedResult bool
+	}{
+		{
+			name:           "UNAUTHENTICATED",
+			err:            status.Error(codes.Unauthenticated, "Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other valid authentication credential. See https://developers.google.com/identity/sign-in/web/devconsole-project."),
+			expectedResult: true,
+		},
+		{
+			name:           "PERMISSION_DENIED",
+			err:            status.Error(codes.PermissionDenied, "unauthorized"),
+			expectedResult: false,
 		},
 	}
 
