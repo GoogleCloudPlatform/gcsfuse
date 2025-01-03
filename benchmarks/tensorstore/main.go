@@ -124,8 +124,8 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fileIOConcurrencyRange := []int64{2, 4, 8, 16, 32, 64, 128, 256}
-	maxInflightRequestMultiplicand := []int64{1, 2, 4, 8}
+	fileIOConcurrencyRange := []int64{256, 128, 64, 32}
+	maxInflightRequestMultiplicand := []int64{16, 12, 10, 8, 4, 2, 1}
 	f, err := os.Create(*resultsPath)
 	if err != nil {
 		panic(err)
