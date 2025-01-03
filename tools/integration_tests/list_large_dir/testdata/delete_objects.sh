@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+set -e
 if [ -z "$1" ]; then
   echo "Usage: $0 <path>"
   exit 1
@@ -24,11 +24,3 @@ echo "Attempting to delete all objects in path: gs://${PATH}/"
 
 # Run the gcloud command and suppress known errors
 gcloud storage rm -r -q gs://${PATH}/** 2>&1 | grep -v -E "The following URLs matched no objects|404"
-exit_code=${PIPESTATUS[0]}
-
-# Check the exit code of the gcloud command
-if [ $exit_code -eq 0 ]; then
-  echo "Objects in bucket gs://${PATH}/ have been successfully deleted."
-fi
-
-exit 0
