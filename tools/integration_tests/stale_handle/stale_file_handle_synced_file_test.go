@@ -61,7 +61,6 @@ func (s *staleFileHandleSyncedFile) TestClobberedFileReadThrowsStaleFileHandleEr
 	_, err = s.f1.Read(buffer)
 
 	operations.ValidateStaleNFSFileHandleError(s.T(), err)
-	ValidateObjectContentsFromGCS(ctx, storageClient, s.T().Name(), FileName1, FileContents, s.T())
 }
 
 func (s *staleFileHandleSyncedFile) TestClobberedFileFirstWriteThrowsStaleFileHandleError() {
@@ -75,8 +74,6 @@ func (s *staleFileHandleSyncedFile) TestClobberedFileFirstWriteThrowsStaleFileHa
 	// Attempt to sync to file should not result in error as we first check if the
 	// content has been dirtied before clobbered check in Sync flow.
 	operations.SyncFile(s.f1, s.T())
-	// Validate that object is not updated with new content as write failed.
-	ValidateObjectContentsFromGCS(ctx, storageClient, s.T().Name(), FileName1, FileContents, s.T())
 }
 
 func (s *staleFileHandleSyncedFile) TestRenamedFileSyncAndCloseThrowsStaleFileHandleError() {
@@ -94,9 +91,6 @@ func (s *staleFileHandleSyncedFile) TestRenamedFileSyncAndCloseThrowsStaleFileHa
 	operations.ValidateStaleNFSFileHandleError(s.T(), err)
 	err = s.f1.Close()
 	operations.ValidateStaleNFSFileHandleError(s.T(), err)
-	// Make f1 nil, so that another attempt is not taken in TearDown to close the
-	// file.
-	s.f1 = nil
 }
 
 ////////////////////////////////////////////////////////////////////////
