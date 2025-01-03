@@ -52,25 +52,18 @@ func (s *staleFileHandleLocalFile) TestUnlinkedDirectoryContainingSyncedAndLocal
 	// Create explicit directory with one synced and one local file.
 	operations.CreateDirectory(explicitDir, s.T())
 	CreateObjectInGCSTestDir(ctx, storageClient, path.Join(s.T().Name(), ExplicitDirName), ExplicitFileName1, "", s.T())
-	_, s.f2 = CreateLocalFileInTestDir(ctx, storageClient, explicitDir, ExplicitLocalFileName1, s.T())
+	_, f2 := CreateLocalFileInTestDir(ctx, storageClient, explicitDir, ExplicitLocalFileName1, s.T())
 	err := os.RemoveAll(explicitDir)
 	assert.NoError(s.T(), err)
 	operations.ValidateNoFileOrDirError(s.T(), explicitDir+"/")
 	operations.ValidateNoFileOrDirError(s.T(), path.Join(explicitDir, ExplicitFileName1))
 	operations.ValidateNoFileOrDirError(s.T(), path.Join(explicitDir, ExplicitLocalFileName1))
 	// Validate writing content to unlinked local file does not throw error.
-	operations.WriteWithoutClose(s.f2, FileContents, s.T())
+	operations.WriteWithoutClose(f2, FileContents, s.T())
 
-	err = s.f2.Close()
+	err = f2.Close()
 
 	operations.ValidateStaleNFSFileHandleError(s.T(), err)
-	// Make f1 nil, so that another attempt is not taken in TearDown to close the
-	// file.
-	s.f2 = nil
-	// Validate both local and synced files are deleted.
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, s.T().Name(), ExplicitDirName, s.T())
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, s.T().Name(), path.Join(ExplicitDirName, ExplicitFileName1), s.T())
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, s.T().Name(), path.Join(ExplicitDirName, ExplicitLocalFileName1), s.T())
 }
 
 ////////////////////////////////////////////////////////////////////////

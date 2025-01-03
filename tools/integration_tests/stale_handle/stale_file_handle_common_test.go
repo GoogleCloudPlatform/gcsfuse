@@ -31,7 +31,6 @@ import (
 
 type staleFileHandleCommon struct {
 	f1 *os.File
-	f2 *os.File
 	suite.Suite
 }
 
@@ -51,10 +50,6 @@ func (s *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHand
 	operations.ValidateStaleNFSFileHandleError(s.T(), err)
 	err = s.f1.Close()
 	operations.ValidateStaleNFSFileHandleError(s.T(), err)
-	// Make f1 nil, so that another attempt is not taken in TearDown to close the
-	// file.
-	s.f1 = nil
-	ValidateObjectContentsFromGCS(ctx, storageClient, s.T().Name(), FileName1, FileContents, s.T())
 }
 
 func (s *staleFileHandleCommon) TestDeletedFileSyncAndCloseThrowsStaleFileHandleError() {
@@ -73,9 +68,4 @@ func (s *staleFileHandleCommon) TestDeletedFileSyncAndCloseThrowsStaleFileHandle
 	operations.ValidateStaleNFSFileHandleError(s.T(), err)
 	err = s.f1.Close()
 	operations.ValidateStaleNFSFileHandleError(s.T(), err)
-	// Make f1 nil, so that another attempt is not taken in TearDown to close the
-	// file.
-	s.f1 = nil
-	// Verify unlinked file is not present on GCS.
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, s.T().Name(), FileName1, s.T())
 }

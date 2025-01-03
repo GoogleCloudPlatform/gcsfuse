@@ -18,17 +18,12 @@ import (
 	"context"
 	"log"
 	"os"
-	"path"
 	"testing"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-)
-
-const (
-	testDirName = "StaleHandleTest"
 )
 
 var (
@@ -71,7 +66,5 @@ func TestMain(m *testing.M) {
 
 	successCode := static_mounting.RunTests(flagsSet, m)
 
-	// Clean up test directory created.
-	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
 	os.Exit(successCode)
 }
