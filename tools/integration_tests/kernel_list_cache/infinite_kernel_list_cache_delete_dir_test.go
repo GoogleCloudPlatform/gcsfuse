@@ -32,19 +32,19 @@ import (
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-type infiniteKernelListCacheDeletionTest struct {
+type infiniteKernelListCacheDeleteDirTest struct {
 	flags []string
 }
 
-func (s *infiniteKernelListCacheDeletionTest) Setup(t *testing.T) {
+func (s *infiniteKernelListCacheDeleteDirTest) Setup(t *testing.T) {
 	mountGCSFuseAndSetupTestDir(s.flags, ctx, storageClient, testDirName)
 }
 
-func (s *infiniteKernelListCacheDeletionTest) Teardown(t *testing.T) {
+func (s *infiniteKernelListCacheDeleteDirTest) Teardown(t *testing.T) {
 	setup.UnmountGCSFuse(rootDir)
 }
 
-func (s *infiniteKernelListCacheDeletionTest) TestKernelListCache_ListAndDeleteDirectory(t *testing.T) {
+func (s *infiniteKernelListCacheDeleteDirTest) TestKernelListCache_ListAndDeleteDirectory(t *testing.T) {
 	targetDir := path.Join(testDirPath, "explicit_dir")
 	operations.CreateDirectory(targetDir, t)
 	// Create test data
@@ -72,7 +72,7 @@ func (s *infiniteKernelListCacheDeletionTest) TestKernelListCache_ListAndDeleteD
 	assert.NoError(t, err)
 }
 
-func (s *infiniteKernelListCacheDeletionTest) TestKernelListCache_DeleteAndListDirectory(t *testing.T) {
+func (s *infiniteKernelListCacheDeleteDirTest) TestKernelListCache_DeleteAndListDirectory(t *testing.T) {
 	targetDir := path.Join(testDirPath, "explicit_dir")
 	operations.CreateDirectory(targetDir, t)
 	// Create test data
@@ -107,8 +107,8 @@ func (s *infiniteKernelListCacheDeletionTest) TestKernelListCache_DeleteAndListD
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
 
-func TestInfiniteKernelListCacheDeletionTest(t *testing.T) {
-	ts := &infiniteKernelListCacheDeletionTest{}
+func TestInfiniteKernelListCacheDeleteDirTest(t *testing.T) {
+	ts := &infiniteKernelListCacheDeleteDirTest{}
 
 	// Run tests for mounted directory if the flag is set.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {

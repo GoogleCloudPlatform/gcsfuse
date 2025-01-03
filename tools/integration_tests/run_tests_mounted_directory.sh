@@ -566,8 +566,8 @@ for test_case in "${test_cases[@]}"; do
 done
 
 test_cases=(
-  "TestInfiniteKernelListCacheDeletionTest/TestKernelListCache_ListAndDeleteDirectory"
-  "TestInfiniteKernelListCacheDeletionTest/TestKernelListCache_DeleteAndListDirectory"
+  "TestInfiniteKernelListCacheDeleteDirTest/TestKernelListCache_ListAndDeleteDirectory"
+  "TestInfiniteKernelListCacheDeleteDirTest/TestKernelListCache_DeleteAndListDirectory"
 )
 for test_case in "${test_cases[@]}"; do
   gcsfuse --kernel-list-cache-ttl-secs=-1 --metadata-cache-ttl-secs=0 "$TEST_BUCKET_NAME" "$MOUNT_DIR"
