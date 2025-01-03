@@ -17,11 +17,9 @@ package fs_test
 import (
 	"os"
 	"path"
-	"path/filepath"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -31,17 +29,15 @@ import (
 // Boilerplate
 // //////////////////////////////////////////////////////////////////////
 
-type StaleFileHandleLocalFile struct {
-	// fsTest has f1 *osFile and f2 *osFile which we will reuse here.
-	fsTest
-	suite.Suite
+type staleFileHandleLocalFile struct {
+	staleFileHandleCommon
 }
 
 func TestStaleFileHandleLocalFile(t *testing.T) {
-	suite.Run(t, new(StaleFileHandleLocalFile))
+	suite.Run(t, new(staleFileHandleLocalFile))
 }
 
-func (t *StaleFileHandleLocalFile) SetupSuite() {
+func (t *staleFileHandleLocalFile) SetupSuite() {
 	t.serverCfg.NewConfig = &cfg.Config{
 		FileSystem: cfg.FileSystemConfig{
 			PreconditionErrors: true,
@@ -53,22 +49,16 @@ func (t *StaleFileHandleLocalFile) SetupSuite() {
 	t.fsTest.SetUpTestSuite()
 }
 
-func (t *StaleFileHandleLocalFile) TearDownSuite() {
+func (t *staleFileHandleLocalFile) TearDownSuite() {
 	t.fsTest.TearDownTestSuite()
 }
 
-func (t *StaleFileHandleLocalFile) SetupTest() {
+func (t *staleFileHandleLocalFile) SetupTest() {
 	// Create a local file.
 	_, t.f1 = operations.CreateLocalFile(ctx, t.T(), mntDir, bucket, "foo")
 }
 
-func (t *StaleFileHandleLocalFile) TearDownTest() {
-	filePath := filepath.Join(mntDir, "foo")
-	if _, err := os.Stat(filePath); err == nil {
-		err = os.Remove(filePath)
-		assert.Equal(t.T(), nil, err)
-	}
-
+func (t *staleFileHandleLocalFile) TearDownTest() {
 	// fsTest Cleanups to clean up mntDir and close t.f1 and t.f2.
 	t.fsTest.TearDown()
 }
@@ -76,50 +66,8 @@ func (t *StaleFileHandleLocalFile) TearDownTest() {
 // //////////////////////////////////////////////////////////////////////
 // Tests
 // //////////////////////////////////////////////////////////////////////
-func (t *StaleFileHandleLocalFile) TestLocalInodeClobberedRemotely_SyncAndClose_ThrowsStaleFileHandleError() {
-	// Dirty the local file by giving it some contents.
-	n, err := t.f1.Write([]byte("taco"))
-	assert.Equal(t.T(), nil, err)
-	assert.Equal(t.T(), 4, n)
-	// Replace the underlying object with a new generation.
-	_, err = storageutil.CreateObject(
-		ctx,
-		bucket,
-		"foo",
-		[]byte("foobar"))
-	assert.Equal(t.T(), nil, err)
 
-	err = t.f1.Sync()
-
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
-	err = operations.CloseLocalFile(t.T(), &t.f1)
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
-	// Validate that local file content is not synced to GCS.
-	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
-	assert.Equal(t.T(), nil, err)
-	assert.Equal(t.T(), "foobar", string(contents))
-}
-
-func (t *StaleFileHandleLocalFile) TestUnlinkedLocalInode_SyncAndClose_ThrowsStaleFileHandleError() {
-	// Unlink the local file.
-	err := os.Remove(t.f1.Name())
-	// Verify unlink operation succeeds.
-	assert.Equal(t.T(), nil, err)
-	operations.ValidateNoFileOrDirError(t.T(), path.Join(mntDir, FileName))
-	// Write to unlinked local file.
-	_, err = t.f1.WriteString(FileContents)
-	assert.Equal(t.T(), nil, err)
-
-	err = t.f1.Sync()
-
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
-	err = operations.CloseLocalFile(t.T(), &t.f1)
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
-	// Verify unlinked file is not present on GCS.
-	operations.ValidateObjectNotFoundErr(ctx, t.T(), bucket, FileName)
-}
-
-func (t *StaleFileHandleLocalFile) TestUnlinkedDirectoryContainingSyncedAndLocalFiles_Close_ThrowsStaleFileHandleError() {
+func (t *staleFileHandleLocalFile) TestUnlinkedDirectoryContainingSyncedAndLocalFilesCloseThrowsStaleFileHandleError() {
 	// Create explicit directory with one synced and one local file.
 	assert.Equal(t.T(),
 		nil,
@@ -129,19 +77,19 @@ func (t *StaleFileHandleLocalFile) TestUnlinkedDirectoryContainingSyncedAndLocal
 				"explicit/":    "",
 				"explicit/foo": "",
 			}))
-	_, t.f1 = operations.CreateLocalFile(ctx, t.T(), mntDir, bucket, "explicit/"+explicitLocalFileName)
+	_, t.f2 = operations.CreateLocalFile(ctx, t.T(), mntDir, bucket, "explicit/"+explicitLocalFileName)
 	// Attempt to remove explicit directory.
 	err := os.RemoveAll(path.Join(mntDir, "explicit"))
 	// Verify rmDir operation succeeds.
-	assert.Equal(t.T(), nil, err)
+	assert.NoError(t.T(), err)
 	operations.ValidateNoFileOrDirError(t.T(), path.Join(mntDir, "explicit/"+explicitLocalFileName))
 	operations.ValidateNoFileOrDirError(t.T(), path.Join(mntDir, "explicit/foo"))
 	operations.ValidateNoFileOrDirError(t.T(), path.Join(mntDir, "explicit"))
 	// Validate writing content to unlinked local file does not throw error.
-	_, err = t.f1.WriteString(FileContents)
-	assert.Equal(t.T(), nil, err)
+	_, err = t.f2.WriteString(FileContents)
+	assert.NoError(t.T(), err)
 
-	err = operations.CloseLocalFile(t.T(), &t.f1)
+	err = operations.CloseLocalFile(t.T(), &t.f2)
 
 	operations.ValidateStaleNFSFileHandleError(t.T(), err)
 	// Validate both local and synced files are deleted.
