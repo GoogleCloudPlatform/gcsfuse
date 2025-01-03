@@ -122,6 +122,7 @@ func validate() error {
 	if err == nil {
 		return fmt.Errorf("output file already exists: %s", *resultsPath)
 	}
+	return nil
 }
 
 func main() {
