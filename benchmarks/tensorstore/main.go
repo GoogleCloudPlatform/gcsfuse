@@ -117,8 +117,18 @@ func setup() (string, error) {
 	return tempDir, nil
 }
 
+func validate() error {
+	_, err := os.Stat(*resultsPath)
+	if err == nil {
+		return fmt.Errorf("output file already exists: %s", *resultsPath)
+	}
+}
+
 func main() {
 	flag.Parse()
+	if err := validate(); err != nil {
+		panic(err)
+	}
 	checkoutDir, err := setup()
 	defer func() { os.RemoveAll(checkoutDir) }()
 	if err != nil {
