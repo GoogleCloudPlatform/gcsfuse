@@ -20,4 +20,4 @@ fi
 
 PATH=$1
 # Run the gcloud command and suppress known errors
-gcloud storage rm -r -q gs://${PATH}/** 2>&1 | grep -v -E "The following URLs matched no objects|404"
+gcloud storage rm -r -c gs://${PATH}/** 2>&1 | grep -v -E "The following URLs matched no objects|404"
