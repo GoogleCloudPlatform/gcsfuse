@@ -19,8 +19,5 @@ if [ -z "$1" ]; then
 fi
 
 PATH=$1
-
-echo "Attempting to delete all objects in path: gs://${PATH}/"
-
 # Run the gcloud command and suppress known errors
 gcloud storage rm -r -q gs://${PATH}/** 2>&1 | grep -v -E "The following URLs matched no objects|404"
