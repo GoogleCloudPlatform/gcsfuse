@@ -171,7 +171,7 @@ func (b *debugBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.Crea
 	return
 }
 
-func (b *debugBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gcs.Object, err error) {
+func (b *debugBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gcs.MinObject, err error) {
 	id, desc, start := b.startRequest("FinalizeUpload(%q)", w.ObjectName())
 	defer b.finishRequest(id, desc, start, &err)
 
@@ -244,6 +244,17 @@ func (b *debugBucket) DeleteObject(
 
 	err = b.wrapped.DeleteObject(ctx, req)
 	return
+}
+
+func (b *debugBucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
+	var err error
+	var o *gcs.Object
+	id, desc, start := b.startRequest("MoveObject(%q, %q)", req.SrcName, req.DstName)
+
+	defer b.finishRequest(id, desc, start, &err)
+
+	o, err = b.wrapped.MoveObject(ctx, req)
+	return o, err
 }
 
 func (b *debugBucket) DeleteFolder(ctx context.Context, folderName string) (err error) {

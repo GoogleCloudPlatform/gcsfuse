@@ -138,6 +138,10 @@ func (b *fastStatBucket) insert(o *gcs.Object) {
 	b.insertMultiple([]*gcs.Object{o})
 }
 
+func (b *fastStatBucket) insertMinObject(o *gcs.MinObject) {
+	b.insertMultipleMinObjects([]*gcs.MinObject{o})
+}
+
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) insertFolder(f *gcs.Folder) {
 	b.mu.Lock()
@@ -231,7 +235,7 @@ func (b *fastStatBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.C
 	return b.wrapped.CreateObjectChunkWriter(ctx, req, chunkSize, callBack)
 }
 
-func (b *fastStatBucket) FinalizeUpload(ctx context.Context, writer gcs.Writer) (*gcs.Object, error) {
+func (b *fastStatBucket) FinalizeUpload(ctx context.Context, writer gcs.Writer) (*gcs.MinObject, error) {
 	name := writer.ObjectName()
 	// Throw away any existing record for this object.
 	b.invalidate(name)
@@ -240,7 +244,7 @@ func (b *fastStatBucket) FinalizeUpload(ctx context.Context, writer gcs.Writer) 
 
 	// Record the new object if err is nil.
 	if err == nil {
-		b.insert(o)
+		b.insertMinObject(o)
 	}
 
 	return o, err
@@ -363,18 +367,42 @@ func (b *fastStatBucket) UpdateObject(
 func (b *fastStatBucket) DeleteObject(
 	ctx context.Context,
 	req *gcs.DeleteObjectRequest) (err error) {
-	b.invalidate(req.Name)
 	err = b.wrapped.DeleteObject(ctx, req)
+	if err != nil {
+		b.invalidate(req.Name)
+	} else {
+		b.addNegativeEntry(req.Name)
+	}
 	return
+}
+
+func (b *fastStatBucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
+	// Throw away any existing record for the source and destination name.
+	b.invalidate(req.SrcName)
+	b.invalidate(req.DstName)
+
+	// Move the object.
+	o, err := b.wrapped.MoveObject(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Record the new version.
+	b.insert(o)
+
+	return o, nil
 }
 
 func (b *fastStatBucket) DeleteFolder(ctx context.Context, folderName string) error {
 	err := b.wrapped.DeleteFolder(ctx, folderName)
+	// In case of an error; invalidate the cached entry. This will make sure that
+	// gcsfuse is not caching possibly erroneous status of the folder and next
+	// call will hit GCS backend to probe the latest status.
 	if err != nil {
-		return err
+		b.invalidate(folderName)
+	} else {
+		b.addNegativeEntryForFolder(folderName)
 	}
-	// TODO: Caching negative entries for both objects and folders will be implemented together due to test failures.
-	b.invalidate(folderName)
 	return err
 }
 

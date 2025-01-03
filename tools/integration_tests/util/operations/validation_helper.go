@@ -15,12 +15,19 @@
 package operations
 
 import (
+	"context"
+	"errors"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
+	"github.com/stretchr/testify/assert"
 )
 
-func ValidateNoFileOrDirError(path string, t *testing.T) {
+func ValidateNoFileOrDirError(t *testing.T, path string) {
+	t.Helper()
 	_, err := os.Stat(path)
 	if err == nil || !strings.Contains(err.Error(), "no such file or directory") {
 		t.Fatalf("os.Stat(%s). Expected: %s, Got: %v", path,
@@ -28,7 +35,21 @@ func ValidateNoFileOrDirError(path string, t *testing.T) {
 	}
 }
 
-func CheckErrorForReadOnlyFileSystem(err error, t *testing.T) {
+func ValidateObjectNotFoundErr(ctx context.Context, t *testing.T, bucket gcs.Bucket, fileName string) {
+	t.Helper()
+	var notFoundErr *gcs.NotFoundError
+	_, err := storageutil.ReadObject(ctx, bucket, fileName)
+
+	assert.Error(t, err)
+	assert.True(t, errors.As(err, &notFoundErr))
+}
+
+func ValidateStaleNFSFileHandleError(t *testing.T, err error) {
+	assert.NotEqual(t, nil, err)
+	assert.Regexp(t, "stale NFS file handle", err.Error())
+}
+
+func CheckErrorForReadOnlyFileSystem(t *testing.T, err error) {
 	if err == nil {
 		t.Error("permission denied error expected but got nil error.")
 		return

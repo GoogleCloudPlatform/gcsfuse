@@ -558,11 +558,19 @@ test_cases=(
   "TestInfiniteKernelListCacheTest/TestKernelListCache_CacheMissOnAdditionOfDirectory"
   "TestInfiniteKernelListCacheTest/TestKernelListCache_CacheMissOnDeletionOfDirectory"
   "TestInfiniteKernelListCacheTest/TestKernelListCache_CacheMissOnDirectoryRename"
-  "TestInfiniteKernelListCacheTest/TestKernelListCache_ListAndDeleteDirectory"
-  "TestInfiniteKernelListCacheTest/TestKernelListCache_DeleteAndListDirectory"
 )
 for test_case in "${test_cases[@]}"; do
-  gcsfuse --kernel-list-cache-ttl-secs=-1 "$TEST_BUCKET_NAME" "$MOUNT_DIR"
+  gcsfuse --kernel-list-cache-ttl-secs=-1  "$TEST_BUCKET_NAME" "$MOUNT_DIR"
+  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/kernel_list_cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$test_case"
+  sudo umount "$MOUNT_DIR"
+done
+
+test_cases=(
+  "TestInfiniteKernelListCacheDeleteDirTest/TestKernelListCache_ListAndDeleteDirectory"
+  "TestInfiniteKernelListCacheDeleteDirTest/TestKernelListCache_DeleteAndListDirectory"
+)
+for test_case in "${test_cases[@]}"; do
+  gcsfuse --kernel-list-cache-ttl-secs=-1 --metadata-cache-ttl-secs=0 "$TEST_BUCKET_NAME" "$MOUNT_DIR"
   GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/kernel_list_cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$test_case"
   sudo umount "$MOUNT_DIR"
 done

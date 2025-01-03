@@ -107,7 +107,7 @@ func (b *throttledBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.
 	return
 }
 
-func (b *throttledBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.Object, error) {
+func (b *throttledBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.MinObject, error) {
 	// FinalizeUpload is not throttled to prevent permanent data loss in case the
 	// limiter's burst size is exceeded.
 	// Note: CreateObjectChunkWriter, a prerequisite for FinalizeUpload,
@@ -205,6 +205,18 @@ func (b *throttledBucket) DeleteObject(
 	return
 }
 
+func (b *throttledBucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
+	// Wait for permission to call through.
+	err := b.opThrottle.Wait(ctx, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	// Call through.
+	o, err := b.wrapped.MoveObject(ctx, req)
+
+	return o, err
+}
 func (b *throttledBucket) DeleteFolder(ctx context.Context, folderName string) (err error) {
 	// Wait for permission to call through.
 	err = b.opThrottle.Wait(ctx, 1)

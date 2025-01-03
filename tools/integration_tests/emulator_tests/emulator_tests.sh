@@ -19,6 +19,14 @@ set -eo pipefail
 # Display commands being run
 set -x
 
+uname=$(uname -m)
+if [ $uname == "aarch64" ];then
+  # TODO: Remove this when we have an ARM64 image for the storage test bench.(b/384388821)
+  echo "These tests will not run for arm64 machine..."
+  exit 0
+fi
+
+RUN_E2E_TESTS_ON_PACKAGE=$1
 # Only run on Go 1.17+
 min_minor_ver=17
 
@@ -29,6 +37,38 @@ minor_ver=${comps[1]}
 if [ "$minor_ver" -lt "$min_minor_ver" ]; then
     echo minor version $minor_ver, skipping
     exit 0
+fi
+
+# Install dependencies
+# Ubuntu/Debian based machine.
+if [ -f /etc/debian_version ]; then
+  if grep -q "Ubuntu" /etc/os-release; then
+    os="ubuntu"
+  elif grep -q "Debian" /etc/os-release; then
+    os="debian"
+  fi
+
+  sudo apt-get update
+  sudo apt-get install -y ca-certificates curl
+  sudo install -m 0755 -d /etc/apt/keyrings
+  sudo curl -fsSL https://download.docker.com/linux/${os}/gpg -o /etc/apt/keyrings/docker.asc
+  sudo chmod a+r /etc/apt/keyrings/docker.asc
+  # Add the repository to Apt sources:
+  echo \
+    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/${os} \
+    $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+    sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+  sudo apt-get update
+  sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  sudo apt-get install -y lsof
+# RHEL/CentOS based machine.
+elif [ -f /etc/redhat-release ]; then
+    sudo dnf -y install dnf-plugins-core
+    sudo dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
+    sudo dnf -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    sudo usermod -aG docker $USER
+    sudo systemctl start docker
+    sudo yum -y install lsof
 fi
 
 export STORAGE_EMULATOR_HOST="http://localhost:9000"
@@ -46,17 +86,17 @@ CONTAINER_NAME=storage_testbench
 DOCKER_NETWORK="--net=host"
 
 # Get the docker image for the testbench
-docker pull $DOCKER_IMAGE
+sudo docker pull $DOCKER_IMAGE
 
 # Start the testbench
-docker run --name $CONTAINER_NAME --rm -d $DOCKER_NETWORK $DOCKER_IMAGE
+sudo docker run --name $CONTAINER_NAME --rm -d $DOCKER_NETWORK $DOCKER_IMAGE
 echo "Running the Cloud Storage testbench: $STORAGE_EMULATOR_HOST"
 sleep 5
 
 # Stop the testbench & cleanup environment variables
 function cleanup() {
     echo "Cleanup testbench"
-    docker stop $CONTAINER_NAME
+    sudo docker stop $CONTAINER_NAME
     unset STORAGE_EMULATOR_HOST;
 }
 trap cleanup EXIT
@@ -73,4 +113,4 @@ curl -X POST --data-binary @test.json \
 rm test.json
 
 # Run specific test suite
-go test --integrationTest -v --testbucket=test-bucket -timeout 10m
+go test ./tools/integration_tests/emulator_tests/... --integrationTest -v --testbucket=test-bucket -timeout 10m --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE

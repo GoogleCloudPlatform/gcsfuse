@@ -36,10 +36,18 @@ type BufferedWriteHandler struct {
 	blockPool     *block.BlockPool
 	uploadHandler *UploadHandler
 	// Total size of data buffered so far. Some part of buffered data might have
-	// been uploaded to GCS as well.
+	// been uploaded to GCS as well. Depending on the state we are in, it might or
+	// might not include truncatedSize.
 	totalSize int64
 	// Stores the mtime value updated by kernel as part of setInodeAttributes call.
 	mtime time.Time
+	// Stores the size to truncate. No action is made when truncate is called.
+	// Will be used as mentioned below:
+	// 1. During flush if totalSize != truncatedSize, additional dummy data is
+	// added before flush and uploaded.
+	// 2. If write is started after the truncate offset, dummy data is created
+	// as per the truncatedSize and then new data is appended to it.
+	truncatedSize int64
 }
 
 // WriteFileInfo is used as part of serving fileInode attributes (GetInodeAttributes call).
@@ -51,19 +59,38 @@ type WriteFileInfo struct {
 var ErrOutOfOrderWrite = errors.New("outOfOrder write detected")
 var ErrUploadFailure = errors.New("error while uploading object to GCS")
 
+type CreateBWHandlerRequest struct {
+	Object                   *gcs.Object
+	ObjectName               string
+	Bucket                   gcs.Bucket
+	BlockSize                int64
+	MaxBlocksPerFile         int64
+	GlobalMaxBlocksSem       *semaphore.Weighted
+	ChunkTransferTimeoutSecs int64
+}
+
 // NewBWHandler creates the bufferedWriteHandler struct.
-func NewBWHandler(objectName string, bucket gcs.Bucket, blockSize int64, maxBlocks int64, globalMaxBlocksSem *semaphore.Weighted) (bwh *BufferedWriteHandler, err error) {
-	bp, err := block.NewBlockPool(blockSize, maxBlocks, globalMaxBlocksSem)
+func NewBWHandler(req *CreateBWHandlerRequest) (bwh *BufferedWriteHandler, err error) {
+	bp, err := block.NewBlockPool(req.BlockSize, req.MaxBlocksPerFile, req.GlobalMaxBlocksSem)
 	if err != nil {
 		return
 	}
 
 	bwh = &BufferedWriteHandler{
-		current:       nil,
-		blockPool:     bp,
-		uploadHandler: newUploadHandler(objectName, bucket, maxBlocks, bp.FreeBlocksChannel(), blockSize),
+		current:   nil,
+		blockPool: bp,
+		uploadHandler: newUploadHandler(&CreateUploadHandlerRequest{
+			Object:                   req.Object,
+			ObjectName:               req.ObjectName,
+			Bucket:                   req.Bucket,
+			FreeBlocksCh:             bp.FreeBlocksChannel(),
+			MaxBlocksPerFile:         req.MaxBlocksPerFile,
+			BlockSize:                req.BlockSize,
+			ChunkTransferTimeoutSecs: req.ChunkTransferTimeoutSecs,
+		}),
 		totalSize:     0,
 		mtime:         time.Now(),
+		truncatedSize: -1,
 	}
 	return
 }
@@ -71,12 +98,6 @@ func NewBWHandler(objectName string, bucket gcs.Bucket, blockSize int64, maxBloc
 // Write writes the given data to the buffer. It writes to an existing buffer if
 // the capacity is available otherwise writes to a new buffer.
 func (wh *BufferedWriteHandler) Write(data []byte, offset int64) (err error) {
-	if offset != wh.totalSize {
-		logger.Errorf("BufferedWriteHandler.OutOfOrderError for object: %s, expectedOffset: %d, actualOffset: %d",
-			wh.uploadHandler.objectName, wh.totalSize, offset)
-		return ErrOutOfOrderWrite
-	}
-
 	// Fail early if the uploadHandler has failed.
 	select {
 	case <-wh.uploadHandler.SignalUploadFailure():
@@ -85,6 +106,24 @@ func (wh *BufferedWriteHandler) Write(data []byte, offset int64) (err error) {
 		break
 	}
 
+	if offset != wh.totalSize && offset != wh.truncatedSize {
+		logger.Errorf("BufferedWriteHandler.OutOfOrderError for object: %s, expectedOffset: %d, actualOffset: %d",
+			wh.uploadHandler.objectName, wh.totalSize, offset)
+		return ErrOutOfOrderWrite
+	}
+
+	if offset == wh.truncatedSize {
+		// Check and update if any data filling has to be done.
+		err = wh.writeDataForTruncatedSize()
+		if err != nil {
+			return
+		}
+	}
+
+	return wh.appendBuffer(data)
+}
+
+func (wh *BufferedWriteHandler) appendBuffer(data []byte) (err error) {
 	dataWritten := 0
 	for dataWritten < len(data) {
 		if wh.current == nil {
@@ -119,18 +158,28 @@ func (wh *BufferedWriteHandler) Write(data []byte, offset int64) (err error) {
 
 // Sync uploads all the pending full buffers to GCS.
 func (wh *BufferedWriteHandler) Sync() (err error) {
-	// TODO: Will be added after uploadHandler changes are done.
-	return fmt.Errorf("not implemented")
+	// Upload all the pending buffers and release the buffers.
+	wh.uploadHandler.AwaitBlocksUpload()
+	err = wh.blockPool.ClearFreeBlockChannel()
+	if err != nil {
+		// Only logging an error in case of resource leak as upload succeeded.
+		logger.Errorf("blockPool.ClearFreeBlockChannel() failed during sync: %v", err)
+	}
+
+	select {
+	case <-wh.uploadHandler.SignalUploadFailure():
+		return ErrUploadFailure
+	default:
+		return nil
+	}
 }
 
 // Flush finalizes the upload.
-func (wh *BufferedWriteHandler) Flush() (*gcs.Object, error) {
-	// Fail early if the uploadHandler has failed.
-	select {
-	case <-wh.uploadHandler.SignalUploadFailure():
-		return nil, ErrUploadFailure
-	default:
-		break
+func (wh *BufferedWriteHandler) Flush() (*gcs.MinObject, error) {
+	// In case it is a truncated file, upload empty blocks as required.
+	err := wh.writeDataForTruncatedSize()
+	if err != nil {
+		return nil, err
 	}
 
 	if wh.current != nil {
@@ -140,15 +189,26 @@ func (wh *BufferedWriteHandler) Flush() (*gcs.Object, error) {
 		}
 		wh.current = nil
 	}
+
 	obj, err := wh.uploadHandler.Finalize()
 	if err != nil {
 		return nil, fmt.Errorf("BufferedWriteHandler.Flush(): %w", err)
 	}
+
 	err = wh.blockPool.ClearFreeBlockChannel()
 	if err != nil {
 		// Only logging an error in case of resource leak as upload succeeded.
 		logger.Errorf("blockPool.ClearFreeBlockChannel() failed: %v", err)
 	}
+
+	// Return an error along with object if the uploadHandler failed in between.
+	select {
+	case <-wh.uploadHandler.SignalUploadFailure():
+		return obj, ErrUploadFailure
+	default:
+		break
+	}
+
 	return obj, nil
 }
 
@@ -157,11 +217,57 @@ func (wh *BufferedWriteHandler) SetMtime(mtime time.Time) {
 	wh.mtime = mtime
 }
 
+func (wh *BufferedWriteHandler) Truncate(size int64) error {
+	if size < wh.totalSize {
+		return fmt.Errorf("cannot truncate to lesser size when upload is in progress")
+	}
+
+	wh.truncatedSize = size
+	return nil
+}
+
 // WriteFileInfo returns the file info i.e, how much data has been buffered so far
 // and the mtime.
 func (wh *BufferedWriteHandler) WriteFileInfo() WriteFileInfo {
 	return WriteFileInfo{
-		TotalSize: wh.totalSize,
+		TotalSize: int64(math.Max(float64(wh.totalSize), float64(wh.truncatedSize))),
 		Mtime:     wh.mtime,
+	}
+}
+
+func (wh *BufferedWriteHandler) Destroy() error {
+	// Destroy the upload handler and then free up the buffers.
+	wh.uploadHandler.Destroy()
+	return wh.blockPool.ClearFreeBlockChannel()
+}
+
+func (wh *BufferedWriteHandler) writeDataForTruncatedSize() error {
+	// If totalSize is greater than truncatedSize, that means user has
+	// written more data than they actually truncated in the beginning.
+	if wh.totalSize >= wh.truncatedSize {
+		return nil
+	}
+
+	// Otherwise append dummy data to match truncatedSize.
+	diff := wh.truncatedSize - wh.totalSize
+	// Create 1MB of data at a time to avoid OOM
+	chunkSize := 1024 * 1024
+	for i := 0; i < int(diff); i += chunkSize {
+		size := math.Min(float64(chunkSize), float64(int(diff)-i))
+		err := wh.appendBuffer(make([]byte, int(size)))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (wh *BufferedWriteHandler) Unlink() {
+	wh.uploadHandler.CancelUpload()
+	err := wh.blockPool.ClearFreeBlockChannel()
+	if err != nil {
+		// Only logging an error in case of resource leak.
+		logger.Errorf("blockPool.ClearFreeBlockChannel() failed: %v", err)
 	}
 }

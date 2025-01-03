@@ -24,14 +24,12 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
-	"golang.org/x/sync/semaphore"
-
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
@@ -73,6 +71,7 @@ func (t *DirTest) SetUp(ti *TestInfo) {
 	bucket := fake.NewFakeBucket(&t.clock, "some_bucket", gcs.NonHierarchical)
 	t.bucket = gcsx.NewSyncerBucket(
 		1, // Append threshold
+		ChunkTransferTimeoutSecs,
 		".gcsfuse_tmp/",
 		bucket)
 	// Create the inode. No implicit dirs by default.
@@ -207,8 +206,7 @@ func (t *DirTest) createLocalFileInode(parent Name, name string, id fuseops.Inod
 		contentcache.New("", &t.clock),
 		&t.clock,
 		true, //localFile
-		&cfg.WriteConfig{},
-		semaphore.NewWeighted(math.MaxInt64))
+		&cfg.Config{Write: cfg.WriteConfig{GlobalMaxBlocks: math.MaxInt64}})
 	return
 }
 

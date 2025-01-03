@@ -273,6 +273,17 @@ func IgnoreTestIfIntegrationTestFlagIsSet(t *testing.T) {
 	}
 }
 
+// IgnoreTestIfIntegrationTestFlagIsNotSet helps skip a test if --integrationTest flag is not set.
+// If the test uses TestMain, then one usually calls os.Exit() to skip the test,
+// but for non-TestMain tests, this helps skip integration tests if --integrationTest has not been passed.
+func IgnoreTestIfIntegrationTestFlagIsNotSet(t *testing.T) {
+	flag.Parse()
+
+	if !*integrationTest {
+		t.SkipNow()
+	}
+}
+
 func ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet() {
 	ParseSetUpFlags()
 
@@ -364,6 +375,18 @@ func CleanUpDir(directoryPath string) {
 func SetupTestDirectory(testDirName string) string {
 	testDirPath := path.Join(MntDir(), testDirName)
 	err := os.Mkdir(testDirPath, DirPermission_0755)
+	if err != nil && !strings.Contains(err.Error(), "file exists") {
+		log.Printf("Error while setting up directory %s for testing: %v", testDirPath, err)
+	}
+	CleanUpDir(testDirPath)
+	return testDirPath
+}
+
+// SetupTestDirectoryRecursive recursively creates a testDirectory in the mounted directory and cleans up
+// any content present in it.
+func SetupTestDirectoryRecursive(testDirName string) string {
+	testDirPath := path.Join(MntDir(), testDirName)
+	err := os.MkdirAll(testDirPath, DirPermission_0755)
 	if err != nil && !strings.Contains(err.Error(), "file exists") {
 		log.Printf("Error while setting up directory %s for testing: %v", testDirPath, err)
 	}

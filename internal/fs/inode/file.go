@@ -27,6 +27,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/jacobsa/fuse/fuseops"
@@ -38,7 +39,7 @@ import (
 
 // A GCS object metadata key for file mtimes. mtimes are UTC, and are stored in
 // the format defined by time.RFC3339Nano.
-const FileMtimeMetadataKey = gcsx.MtimeMetadataKey
+const FileMtimeMetadataKey = gcs.MtimeMetadataKey
 
 type FileInode struct {
 	/////////////////////////
@@ -93,9 +94,17 @@ type FileInode struct {
 	// Represents if local file has been unlinked.
 	unlinked bool
 
-	bwh                *bufferedwrites.BufferedWriteHandler
-	writeConfig        *cfg.WriteConfig
-	globalMaxBlocksSem *semaphore.Weighted
+	bwh    *bufferedwrites.BufferedWriteHandler
+	config *cfg.Config
+
+	// Once write is started on the file i.e, bwh is initialized, any fileHandles
+	// opened in write mode before or after this and not yet closed are considered
+	// as writing to the file even though they are not writing.
+	// In case of successful flush, we will set bwh to nil. But in case of error,
+	// we will keep returning that error to all the fileHandles open during that time
+	// and set bwh to nil after all fileHandlers are closed.
+	// writeHandleCount tracks the count of open fileHandles in write mode.
+	writeHandleCount int32
 }
 
 var _ Inode = &FileInode{}
@@ -118,26 +127,24 @@ func NewFileInode(
 	contentCache *contentcache.ContentCache,
 	mtimeClock timeutil.Clock,
 	localFile bool,
-	writeConfig *cfg.WriteConfig,
-	globalMaxBlocksSem *semaphore.Weighted) (f *FileInode) {
+	cfg *cfg.Config) (f *FileInode) {
 	// Set up the basic struct.
 	var minObj gcs.MinObject
 	if m != nil {
 		minObj = *m
 	}
 	f = &FileInode{
-		bucket:             bucket,
-		mtimeClock:         mtimeClock,
-		id:                 id,
-		name:               name,
-		attrs:              attrs,
-		localFileCache:     localFileCache,
-		contentCache:       contentCache,
-		src:                minObj,
-		local:              localFile,
-		unlinked:           false,
-		writeConfig:        writeConfig,
-		globalMaxBlocksSem: globalMaxBlocksSem,
+		bucket:         bucket,
+		mtimeClock:     mtimeClock,
+		id:             id,
+		name:           name,
+		attrs:          attrs,
+		localFileCache: localFileCache,
+		contentCache:   contentCache,
+		src:            minObj,
+		local:          localFile,
+		unlinked:       false,
+		config:         cfg,
 	}
 
 	f.lc.Init(id)
@@ -328,6 +335,10 @@ func (f *FileInode) IsUnlinked() bool {
 
 func (f *FileInode) Unlink() {
 	f.unlinked = true
+
+	if f.bwh != nil {
+		f.bwh.Unlink()
+	}
 }
 
 // Source returns a record for the GCS object from which this inode is branched. The
@@ -370,6 +381,35 @@ func (f *FileInode) IncrementLookupCount() {
 func (f *FileInode) DecrementLookupCount(n uint64) (destroy bool) {
 	destroy = f.lc.Dec(n)
 	return
+}
+
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) RegisterFileHandle(readOnly bool) {
+	if !readOnly {
+		f.writeHandleCount++
+	}
+}
+
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) DeRegisterFileHandle(readOnly bool) {
+	if readOnly {
+		return
+	}
+
+	if f.writeHandleCount <= 0 {
+		logger.Errorf("Mismatch in number of write file handles for inode :%d", f.id)
+	}
+
+	f.writeHandleCount--
+
+	// All write fileHandles associated with bwh are closed. So safe to set bwh to nil.
+	if f.writeHandleCount == 0 && f.bwh != nil {
+		err := f.bwh.Destroy()
+		if err != nil {
+			logger.Warnf("Error while destroying the bufferedWritesHandler: %v", err)
+		}
+		f.bwh = nil
+	}
 }
 
 // LOCKS_REQUIRED(f.mu)
@@ -503,19 +543,26 @@ func (f *FileInode) Read(
 func (f *FileInode) Write(
 	ctx context.Context,
 	data []byte,
-	offset int64) (err error) {
+	offset int64) error {
 	// For empty GCS files also we will trigger bufferedWrites flow.
-	if f.src.Size == 0 && f.writeConfig.ExperimentalEnableStreamingWrites {
-		err = f.ensureBufferedWriteHandler()
+	if f.src.Size == 0 && f.config.Write.ExperimentalEnableStreamingWrites {
+		err := f.ensureBufferedWriteHandler(ctx)
 		if err != nil {
-			return
+			return err
 		}
 	}
 
 	if f.bwh != nil {
-		return f.bwh.Write(data, offset)
+		return f.writeUsingBufferedWrites(ctx, data, offset)
 	}
 
+	return f.writeUsingTempFile(ctx, data, offset)
+}
+
+// Helper function to serve write for file using temp file.
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) writeUsingTempFile(ctx context.Context, data []byte, offset int64) (err error) {
 	// Make sure f.content != nil.
 	err = f.ensureContent(ctx)
 	if err != nil {
@@ -530,12 +577,62 @@ func (f *FileInode) Write(
 	return
 }
 
+// Helper function to serve write for file using buffered writes handler.
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, offset int64) error {
+	err := f.bwh.Write(data, offset)
+	if err == bufferedwrites.ErrOutOfOrderWrite || err == bufferedwrites.ErrUploadFailure {
+		// Finalize the object.
+		flushErr := f.flushUsingBufferedWriteHandler()
+		if flushErr != nil {
+			return fmt.Errorf("bwh.Write failed: %v, could not finalize what has been written so far: %w", err, flushErr)
+		}
+	}
+
+	// Fall back to temp file for Out-Of-Order Writes.
+	if err == bufferedwrites.ErrOutOfOrderWrite {
+		return f.writeUsingTempFile(ctx, data, offset)
+	}
+
+	return err
+}
+
+// Helper function to flush buffered writes handler and update inode state with
+// new object.
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) flushUsingBufferedWriteHandler() error {
+	obj, err := f.bwh.Flush()
+
+	var preconditionErr *gcs.PreconditionError
+	if errors.As(err, &preconditionErr) {
+		return &gcsfuse_errors.FileClobberedError{
+			Err: fmt.Errorf("f.bwh.Flush(): %w", err),
+		}
+	}
+
+	// bwh can return a partially synced object along with an error so updating
+	// inode state before returning error.
+	f.updateInodeStateAfterSync(obj)
+	if err != nil {
+		return fmt.Errorf("f.bwh.Flush(): %w", err)
+	}
+
+	return nil
+}
+
 // Set the mtime for this file. May involve a round trip to GCS.
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) SetMtime(
 	ctx context.Context,
 	mtime time.Time) (err error) {
+	if f.IsUnlinked() {
+		// No need to update mtime on GCS for unlinked file.
+		return
+	}
+
 	// When bufferedWritesHandler instance is not nil, set time on bwh.
 	// It will not be nil in 2 cases when bufferedWrites are enabled:
 	// 1. local files
@@ -613,6 +710,25 @@ func (f *FileInode) SetMtime(
 	return
 }
 
+func (f *FileInode) fetchLatestGcsObject(ctx context.Context) (*gcs.Object, error) {
+	// When listObjects call is made, we fetch data with projection set as noAcl
+	// which means acls and owner properties are not returned. So the f.src object
+	// here will not have acl information even though there are acls present on
+	// the gcsObject.
+	// Hence, we are making an explicit gcs stat call to fetch the latest
+	// properties and using that when object is synced below. StatObject by
+	// default sets the projection to full, which fetches all the object
+	// properties.
+	latestGcsObj, isClobbered, err := f.clobbered(ctx, true, true)
+	if isClobbered {
+		err = &gcsfuse_errors.FileClobberedError{
+			Err: err,
+		}
+	}
+
+	return latestGcsObj, err
+}
+
 // Sync writes out contents to GCS. If this fails due to the generation having been
 // clobbered, failure is propagated back to the calling function as an error.
 //
@@ -627,22 +743,7 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 		return
 	}
 
-	// When listObjects call is made, we fetch data with projection set as noAcl
-	// which means acls and owner properties are not returned. So the f.src object
-	// here will not have acl information even though there are acls present on
-	// the gcsObject.
-	// Hence, we are making an explicit gcs stat call to fetch the latest
-	// properties and using that when object is synced below. StatObject by
-	// default sets the projection to full, which fetches all the object
-	// properties.
-	latestGcsObj, isClobbered, err := f.clobbered(ctx, true, true)
-
-	if isClobbered {
-		err = &gcsfuse_errors.FileClobberedError{
-			Err: err,
-		}
-	}
-
+	latestGcsObj, err := f.fetchLatestGcsObject(ctx)
 	if err != nil {
 		return
 	}
@@ -665,21 +766,26 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 		err = fmt.Errorf("SyncObject: %w", err)
 		return
 	}
-
+	minObj := storageutil.ConvertObjToMinObject(newObj)
 	// If we wrote out a new object, we need to update our state.
-	if newObj != nil && !f.localFileCache {
-		var minObj gcs.MinObject
-		minObjPtr := storageutil.ConvertObjToMinObject(newObj)
-		if minObjPtr != nil {
-			minObj = *minObjPtr
-		}
-		f.src = minObj
+	f.updateInodeStateAfterSync(minObj)
+	return
+}
+
+func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
+	if minObj != nil && !f.localFileCache {
+		f.src = *minObj
 		// Convert localFile to nonLocalFile after it is synced to GCS.
 		if f.IsLocal() {
 			f.local = false
 		}
-		f.content.Destroy()
-		f.content = nil
+		if f.content != nil {
+			f.content.Destroy()
+			f.content = nil
+		}
+		if f.bwh != nil {
+			f.bwh = nil
+		}
 	}
 
 	return
@@ -691,6 +797,18 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 func (f *FileInode) Truncate(
 	ctx context.Context,
 	size int64) (err error) {
+	// For empty GCS files also, we will trigger bufferedWrites flow.
+	if f.src.Size == 0 && f.config.Write.ExperimentalEnableStreamingWrites {
+		err = f.ensureBufferedWriteHandler(ctx)
+		if err != nil {
+			return
+		}
+	}
+
+	if f.bwh != nil {
+		return f.bwh.Truncate(size)
+	}
+
 	// Make sure f.content != nil.
 	err = f.ensureContent(ctx)
 	if err != nil {
@@ -713,10 +831,10 @@ func (f *FileInode) CacheEnsureContent(ctx context.Context) (err error) {
 	return
 }
 
-func (f *FileInode) CreateBufferedOrTempWriter() (err error) {
+func (f *FileInode) CreateBufferedOrTempWriter(ctx context.Context) (err error) {
 	// Skip creating empty file when streaming writes are enabled
-	if f.local && f.writeConfig.ExperimentalEnableStreamingWrites {
-		err = f.ensureBufferedWriteHandler()
+	if f.local && f.config.Write.ExperimentalEnableStreamingWrites {
+		err = f.ensureBufferedWriteHandler(ctx)
 		if err != nil {
 			return
 		}
@@ -731,10 +849,31 @@ func (f *FileInode) CreateBufferedOrTempWriter() (err error) {
 	return
 }
 
-func (f *FileInode) ensureBufferedWriteHandler() error {
+func (f *FileInode) ensureBufferedWriteHandler(ctx context.Context) error {
+	// bwh already initialized, do nothing.
+	if f.bwh != nil {
+		return nil
+	}
+
 	var err error
+	var latestGcsObj *gcs.Object
+	if !f.local {
+		latestGcsObj, err = f.fetchLatestGcsObject(ctx)
+		if err != nil {
+			return err
+		}
+	}
+
 	if f.bwh == nil {
-		f.bwh, err = bufferedwrites.NewBWHandler(f.name.GcsObjectName(), f.bucket, f.writeConfig.BlockSizeMb, f.writeConfig.MaxBlocksPerFile, f.globalMaxBlocksSem)
+		f.bwh, err = bufferedwrites.NewBWHandler(&bufferedwrites.CreateBWHandlerRequest{
+			Object:                   latestGcsObj,
+			ObjectName:               f.name.GcsObjectName(),
+			Bucket:                   f.bucket,
+			BlockSize:                f.config.Write.BlockSizeMb,
+			MaxBlocksPerFile:         f.config.Write.MaxBlocksPerFile,
+			GlobalMaxBlocksSem:       semaphore.NewWeighted(f.config.Write.GlobalMaxBlocks),
+			ChunkTransferTimeoutSecs: f.config.GcsRetries.ChunkTransferTimeoutSecs,
+		})
 		if err != nil {
 			return fmt.Errorf("failed to create bufferedWriteHandler: %w", err)
 		}

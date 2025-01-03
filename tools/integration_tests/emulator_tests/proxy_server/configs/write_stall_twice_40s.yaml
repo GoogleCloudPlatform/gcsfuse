@@ -1,0 +1,10 @@
+targetHost: http://localhost:9000
+retryConfig:
+- method: JsonCreate
+  retryInstruction: "stall-for-40s-after-15360K"
+  retryCount: 2
+  # To add forced error scenarios for resumable uploads, we need to define skipCount two.
+  # This is because the first POST request creates the file in our tests, and the second POST request only initiates
+  # the resumable upload request. Subsequent requests actually upload the data, and it's
+  # these requests we want to stall for testing.
+  skipCount: 2

@@ -128,7 +128,7 @@ func (t *PrefixBucketTest) CreateObjectChunkWriterAndFinalizeUpload() {
 		t.ctx,
 		&gcs.CreateObjectRequest{
 			Name:            suffix,
-			ContentLanguage: "en-GB",
+			ContentEncoding: "gzip",
 			Contents:        nil,
 		},
 		1024, nil)
@@ -139,7 +139,7 @@ func (t *PrefixBucketTest) CreateObjectChunkWriterAndFinalizeUpload() {
 
 	AssertEq(nil, err)
 	ExpectEq(suffix, o.Name)
-	ExpectEq("en-GB", o.ContentLanguage)
+	ExpectEq("gzip", o.ContentEncoding)
 	// Read it through the back door.
 	actual, err := storageutil.ReadObject(t.ctx, t.wrapped, t.prefix+suffix)
 	AssertEq(nil, err)
@@ -513,4 +513,48 @@ func TestCreateFolder(t *testing.T) {
 	// Folder should get created
 	_, err = bucket.GetFolder(ctx, suffix)
 	assert.NoError(t, err)
+}
+
+func TestMoveObject(t *testing.T) {
+	var notFoundErr *gcs.NotFoundError
+	var err error
+	prefix := "foo_"
+	suffix := "test"
+	wrapped := fake.NewFakeBucket(timeutil.RealClock(), "some_bucket", gcs.Hierarchical)
+	bucket, err := gcsx.NewPrefixBucket(prefix, wrapped)
+	require.NoError(t, err)
+	ctx := context.Background()
+	contents := "foobar"
+	name := prefix + suffix
+	// Create an object through the back door.
+	_, err = storageutil.CreateObject(ctx, wrapped, name, []byte(contents))
+	assert.NoError(t, err)
+
+	// Move it to a new name.
+	newSuffix := "burrito"
+	o, err := bucket.MoveObject(
+		ctx,
+		&gcs.MoveObjectRequest{
+			SrcName: suffix,
+			DstName: newSuffix,
+		})
+
+	assert.NoError(t, err)
+	assert.Equal(t, newSuffix, o.Name)
+
+	newName := prefix + newSuffix
+	// Read it through the back door.
+	actual, err := storageutil.ReadObject(ctx, wrapped, newName)
+	assert.NoError(t, err)
+	assert.Equal(t, contents, string(actual))
+
+	// Stat old object.
+	m, _, err := bucket.StatObject(
+		ctx,
+		&gcs.StatObjectRequest{
+			Name: suffix,
+		})
+
+	assert.True(t, errors.As(err, &notFoundErr))
+	assert.Nil(t, m)
 }

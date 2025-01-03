@@ -64,6 +64,7 @@ echo "Setting the integration test timeout to: $INTEGRATION_TEST_TIMEOUT"
 readonly RANDOM_STRING_LENGTH=5
 # Test directory arrays
 TEST_DIR_PARALLEL=(
+  "monitoring"
   "local_file"
   "log_rotation"
   "mounting"
@@ -112,8 +113,8 @@ function upgrade_gcloud_version() {
 function install_packages() {
   # e.g. architecture=arm64 or amd64
   architecture=$(dpkg --print-architecture)
-  echo "Installing go-lang 1.23.3..."
-  wget -O go_tar.tar.gz https://go.dev/dl/go1.23.3.linux-${architecture}.tar.gz -q
+  echo "Installing go-lang 1.23.4..."
+  wget -O go_tar.tar.gz https://go.dev/dl/go1.23.4.linux-${architecture}.tar.gz -q
   sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
   export PATH=$PATH:/usr/local/go/bin
   sudo apt-get install -y python3
@@ -304,6 +305,10 @@ function run_e2e_tests_for_tpc() {
   exit $exit_code
 }
 
+function run_e2e_tests_for_emulator() {
+  ./tools/integration_tests/emulator_tests/emulator_tests.sh $RUN_E2E_TESTS_ON_PACKAGE
+}
+
 #commenting it so cleanup and failure check happens for both
 #set -e
 
@@ -316,7 +321,7 @@ function clean_up() {
       # Empty bucket name may cause deletions of all the buckets.
       if [ "$bucket" != "" ];
       then
-        gcloud alpha storage rm --recursive gs://$bucket
+        gcloud alpha storage rm --recursive gs://$bucket 2>&1 | grep "ERROR"
       fi
     done
 }
@@ -342,6 +347,12 @@ function main(){
   run_e2e_tests_for_flat_bucket &
   e2e_tests_flat_bucket_pid=$!
 
+  run_e2e_tests_for_emulator &
+  e2e_tests_emulator_pid=$!
+
+  wait $e2e_tests_emulator_pid
+  e2e_tests_emulator_status=$?
+
   wait $e2e_tests_flat_bucket_pid
   e2e_tests_flat_bucket_status=$?
 
@@ -352,23 +363,26 @@ function main(){
 
   print_test_logs
 
-  if [ $e2e_tests_flat_bucket_status != 0 ] && [ $e2e_tests_hns_bucket_status != 0 ];
-  then
-    echo "The e2e tests for both flat and hns bucket failed.."
-    exit 1
-  fi
-
+  exit_code=0
   if [ $e2e_tests_flat_bucket_status != 0 ];
   then
     echo "The e2e tests for flat bucket failed.."
-    exit 1
+    exit_code=1
   fi
 
   if [ $e2e_tests_hns_bucket_status != 0 ];
   then
     echo "The e2e tests for hns bucket failed.."
-    exit 1
+    exit_code=1
   fi
+
+  if [ $e2e_tests_emulator_status != 0 ];
+  then
+    echo "The e2e tests for emulator failed.."
+    exit_code=1
+  fi
+
+  exit $exit_code
 }
 
 #Main method to run script

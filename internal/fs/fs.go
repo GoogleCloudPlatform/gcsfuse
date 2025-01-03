@@ -48,7 +48,6 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
-	"golang.org/x/sync/semaphore"
 )
 
 type ServerConfig struct {
@@ -194,7 +193,6 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		newConfig:                  serverCfg.NewConfig,
 		fileCacheHandler:           fileCacheHandler,
 		cacheFileForRangeRead:      serverCfg.NewConfig.FileCache.CacheFileForRangeRead,
-		globalMaxBlocksSem:         semaphore.NewWeighted(serverCfg.NewConfig.Write.GlobalMaxBlocks),
 		metricHandle:               serverCfg.MetricHandle,
 	}
 
@@ -484,8 +482,6 @@ type fileSystem struct {
 	// cacheFileForRangeRead when true downloads file into cache even for
 	// random file access.
 	cacheFileForRangeRead bool
-
-	globalMaxBlocksSem *semaphore.Weighted
 
 	metricHandle common.MetricHandle
 }
@@ -808,8 +804,7 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 			fs.contentCache,
 			fs.mtimeClock,
 			ic.Local,
-			&fs.newConfig.Write,
-			fs.globalMaxBlocksSem)
+			fs.newConfig)
 	}
 
 	// Place it in our map of IDs to inodes.
@@ -1661,9 +1656,7 @@ func (fs *fileSystem) createFile(
 // LOCKS_EXCLUDED(fs.mu)
 // UNLOCK_FUNCTION(fs.mu)
 // LOCK_FUNCTION(child)
-func (fs *fileSystem) createLocalFile(
-	parentID fuseops.InodeID,
-	name string) (child inode.Inode, err error) {
+func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.InodeID, name string) (child inode.Inode, err error) {
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(parentID)
@@ -1699,7 +1692,7 @@ func (fs *fileSystem) createLocalFile(
 	fs.localFileInodes[child.Name()] = child
 	// Empty file is created to be able to set attributes on the file.
 	fileInode := child.(*inode.FileInode)
-	if err := fileInode.CreateBufferedOrTempWriter(); err != nil {
+	if err := fileInode.CreateBufferedOrTempWriter(ctx); err != nil {
 		return nil, err
 	}
 	fs.mu.Unlock()
@@ -1729,7 +1722,7 @@ func (fs *fileSystem) CreateFile(
 	if fs.newConfig.Write.CreateEmptyFile {
 		child, err = fs.createFile(ctx, op.Parent, op.Name, op.Mode)
 	} else {
-		child, err = fs.createLocalFile(op.Parent, op.Name)
+		child, err = fs.createLocalFile(ctx, op.Parent, op.Name)
 	}
 
 	if err != nil {
@@ -1744,7 +1737,8 @@ func (fs *fileSystem) CreateFile(
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
-	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle)
+	// Creating new file is always a write operation, hence passing readOnly as false.
+	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, false)
 	op.Handle = handleID
 
 	fs.mu.Unlock()
@@ -2255,30 +2249,43 @@ func (fs *fileSystem) Unlink(
 		ctx, cancel = util.IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
-	// Find the parent.
+
 	fs.mu.Lock()
+
+	// Find the parent and file name.
 	parent := fs.dirInodeOrDie(op.Parent)
+	fileName := inode.NewFileName(parent.Name(), op.Name)
+
+	// Get the inode for the given file.
+	// Files must have an associated inode, which can be found in either:
+	//  - localFileInodes: For files created locally.
+	//  - generationBackedInodes: For files backed by an object.
+	// We are not checking implicitDirInodes or folderInodes because
+	// the unlink operation is only applicable to files.
+	in, isLocalFile := fs.localFileInodes[fileName]
+	if !isLocalFile {
+		in = fs.generationBackedInodes[fileName]
+	}
+
 	fs.mu.Unlock()
 
-	// if inode is a local file, mark it unlinked.
-	fileName := inode.NewFileName(parent.Name(), op.Name)
-	fs.mu.Lock()
-	fileInode, ok := fs.localFileInodes[fileName]
-	if ok {
-		file := fs.fileInodeOrDie(fileInode.ID())
-		fs.mu.Unlock()
-		file.Lock()
-		defer file.Unlock()
-		file.Unlink()
+	if in != nil {
+		// Perform the unlink operation on the inode.
+		in.Lock()
+		in.Unlink()
+		in.Unlock()
+	}
+
+	// If the inode represents a local file, we don't need to delete
+	// the backing object on GCS, so return early.
+	if isLocalFile {
 		return
 	}
-	fs.mu.Unlock()
 
-	// else delete the backing object present on GCS.
+	// Delete the backing object present on GCS.
 	parent.Lock()
 	defer parent.Unlock()
 
-	// Delete the backing object.
 	err = parent.DeleteChildFile(
 		ctx,
 		op.Name,
@@ -2379,16 +2386,24 @@ func (fs *fileSystem) OpenFile(
 	ctx context.Context,
 	op *fuseops.OpenFileOp) (err error) {
 	fs.mu.Lock()
-	defer fs.mu.Unlock()
 
 	// Find the inode.
 	in := fs.fileInodeOrDie(op.Inode)
+	// Follow lock ordering rules to get inode lock.
+	// Inode lock is required to register fileHandle with the inode.
+	fs.mu.Unlock()
+	in.Lock()
+	defer in.Unlock()
+
+	// Get the fs lock again.
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 
 	// Allocate a handle.
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
-	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle)
+	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, op.OpenFlags.IsReadOnly())
 	op.Handle = handleID
 
 	// When we observe object generations that we didn't create, we assign them
@@ -2543,13 +2558,17 @@ func (fs *fileSystem) ReleaseFileHandle(
 	ctx context.Context,
 	op *fuseops.ReleaseFileHandleOp) (err error) {
 	fs.mu.Lock()
-	defer fs.mu.Unlock()
+
+	fileHandle := fs.handles[op.Handle].(*handle.FileHandle)
+	// Update the map. We are okay updating the map before destroy is called
+	// since destroy is doing only internal cleanup.
+	delete(fs.handles, op.Handle)
+	fs.mu.Unlock()
 
 	// Destroy the handle.
-	fs.handles[op.Handle].(*handle.FileHandle).Destroy()
-
-	// Update the map.
-	delete(fs.handles, op.Handle)
+	fileHandle.Lock()
+	defer fileHandle.Unlock()
+	fileHandle.Destroy()
 
 	return
 }

@@ -389,7 +389,7 @@ function createNewNodePool() {
   local machine_type=${4}
   local num_nodes=${5}
   local num_ssd=${6}
-  gcloud container node-pools create ${node_pool} --project=${project_id} --cluster ${cluster_name} --ephemeral-storage-local-ssd count=${num_ssd} --network-performance-configs=total-egress-bandwidth-tier=TIER_1 --machine-type ${machine_type} --zone ${zone} --num-nodes ${num_nodes} --workload-metadata=GKE_METADATA
+  gcloud container node-pools create ${node_pool} --project=${project_id} --cluster ${cluster_name} --ephemeral-storage-local-ssd count=${num_ssd} --network-performance-configs=total-egress-bandwidth-tier=TIER_1 --machine-type ${machine_type} --zone ${zone} --num-nodes ${num_nodes} --workload-metadata=GKE_METADATA --enable-gvnic
 }
 
 function getMachineTypeInNodePool() {
@@ -429,7 +429,7 @@ function ensureGkeCluster() {
     fi
     gcloud container clusters update ${cluster_name} --project=${project_id} --location=${zone} --workload-pool=${project_id}.svc.id.goog
   else
-    gcloud container clusters create ${cluster_name} --project=${project_id} --zone "${zone}" --workload-pool=${project_id}.svc.id.goog --machine-type "${machine_type}" --image-type "COS_CONTAINERD" --num-nodes ${num_nodes} --ephemeral-storage-local-ssd count=${num_ssd} --network-performance-configs=total-egress-bandwidth-tier=TIER_1 --workload-metadata=GKE_METADATA
+    gcloud container clusters create ${cluster_name} --project=${project_id} --zone "${zone}" --workload-pool=${project_id}.svc.id.goog --machine-type "${machine_type}" --image-type "COS_CONTAINERD" --num-nodes ${num_nodes} --ephemeral-storage-local-ssd count=${num_ssd} --network-performance-configs=total-egress-bandwidth-tier=TIER_1 --workload-metadata=GKE_METADATA --enable-gvnic
   fi
 }
 
@@ -513,6 +513,10 @@ function ensureGcsFuseCsiDriverCode() {
   fi
 }
 
+uuid() {
+  echo $(uuidgen) | sed -e "s/\-//g" ;
+}
+
 function createCustomCsiDriverIfNeeded() {
   if ${use_custom_csi_driver}; then
     echo "Disabling managed CSI driver ..."
@@ -554,9 +558,16 @@ function createCustomCsiDriverIfNeeded() {
     make generate-spec-yaml
     printf "\nBuilding a new custom CSI driver using the above GCSFuse binary ...\n\n"
     registry=gcr.io/${project_id}/${USER}/${cluster_name}
-    make build-image-and-push-multi-arch REGISTRY=${registry} GCSFUSE_PATH=gs://${package_bucket}
+    if ! which uuidgen; then
+      # try to install uuidgen
+      sudo apt-get update && sudo apt-get install -y uuid-runtime
+      # confirm that it got installed.
+      which uuidgen
+    fi
+    stagingversion=$(uuid)
+    make build-image-and-push-multi-arch REGISTRY=${registry} GCSFUSE_PATH=gs://${package_bucket} STAGINGVERSION=${stagingversion}
     printf "\nInstalling the new custom CSI driver built above ...\n\n"
-    make install PROJECT=${project_id} REGISTRY=${registry}
+    make install PROJECT=${project_id} REGISTRY=${registry} STAGINGVERSION=${stagingversion}
     cd -
 
     # Wait some time after csi driver installation before deploying pods

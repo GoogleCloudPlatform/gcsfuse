@@ -689,7 +689,7 @@ func (b *bucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObj
 	return NewFakeObjectWriter(b, req)
 }
 
-func (b *bucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.Object, error) {
+func (b *bucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.MinObject, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -1005,6 +1005,66 @@ func (b *bucket) DeleteObject(
 	b.objects = append(b.objects[:index], b.objects[index+1:]...)
 
 	return
+}
+
+func (b *bucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
+	// Check that the destination name is legal.
+	err := checkName(req.DstName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Does the source object exist?
+	srcIndex := b.objects.find(req.SrcName)
+	if srcIndex == len(b.objects) {
+		err = &gcs.NotFoundError{
+			Err: fmt.Errorf("object %q not found", req.SrcName),
+		}
+		return nil, err
+	}
+
+	// Does it have the correct generation?
+	if req.SrcGeneration != 0 &&
+		b.objects[srcIndex].metadata.Generation != req.SrcGeneration {
+		err = &gcs.NotFoundError{
+			Err: fmt.Errorf("object %s generation %d not found", req.SrcName, req.SrcGeneration),
+		}
+		return nil, err
+	}
+
+	// Does it have the correct meta-generation?
+	if req.SrcMetaGenerationPrecondition != nil {
+		p := *req.SrcMetaGenerationPrecondition
+		if b.objects[srcIndex].metadata.MetaGeneration != p {
+			err = &gcs.PreconditionError{
+				Err: fmt.Errorf("object %q has meta-generation %d", req.SrcName, b.objects[srcIndex].metadata.MetaGeneration),
+			}
+			return nil, err
+		}
+	}
+
+	// Move it and assign a new generation number, to ensure that the generation
+	// number for the destination name is strictly increasing.
+	dst := b.objects[srcIndex]
+	dst.metadata.Name = req.DstName
+	dst.metadata.MediaLink = "http://localhost/download/storage/fake/" + req.DstName
+
+	b.prevGeneration++
+	dst.metadata.Generation = b.prevGeneration
+
+	// Remove the source object.
+	b.objects = append(b.objects[:srcIndex], b.objects[srcIndex+1:]...)
+	// Insert dest object into our array.
+	existingIndex := b.objects.find(req.DstName)
+	if existingIndex < len(b.objects) {
+		b.objects[existingIndex] = dst
+	} else {
+		b.objects = append(b.objects, dst)
+		sort.Sort(b.objects)
+	}
+
+	o := copyObject(&dst.metadata)
+	return o, err
 }
 
 func (b *bucket) DeleteFolder(ctx context.Context, folderName string) (err error) {

@@ -50,6 +50,7 @@ func (t *KernelListCacheTestWithZeroTtl) SetupSuite() {
 }
 
 func TestKernelListCacheTestZeroTtlSuite(t *testing.T) {
+	SkipTestForUnsupportedKernelVersion(t)
 	suite.Run(t, new(KernelListCacheTestWithZeroTtl))
 }
 

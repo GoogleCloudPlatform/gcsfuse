@@ -111,7 +111,7 @@ func (b *prefixBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cre
 	return wc, err
 }
 
-func (b *prefixBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gcs.Object, err error) {
+func (b *prefixBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gcs.MinObject, err error) {
 	o, err = b.wrapped.FinalizeUpload(ctx, w)
 	// Modify the returned object.
 	if o != nil {
@@ -233,6 +233,23 @@ func (b *prefixBucket) DeleteObject(
 
 	err = b.wrapped.DeleteObject(ctx, mReq)
 	return
+}
+
+func (b *prefixBucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
+	// Modify the request and call through.
+	mReq := new(gcs.MoveObjectRequest)
+	*mReq = *req
+	mReq.SrcName = b.wrappedName(req.SrcName)
+	mReq.DstName = b.wrappedName(req.DstName)
+
+	o, err := b.wrapped.MoveObject(ctx, mReq)
+
+	// Modify the returned object.
+	if o != nil {
+		o.Name = b.localName(o.Name)
+	}
+
+	return o, err
 }
 
 func (b *prefixBucket) DeleteFolder(ctx context.Context, folderName string) (err error) {

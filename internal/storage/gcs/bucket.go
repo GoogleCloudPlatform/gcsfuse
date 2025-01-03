@@ -99,7 +99,7 @@ type Bucket interface {
 
 	// FinalizeUpload closes the storage.Writer which completes the write
 	// operation and creates an object on GCS.
-	FinalizeUpload(ctx context.Context, writer Writer) (*Object, error)
+	FinalizeUpload(ctx context.Context, writer Writer) (*MinObject, error)
 
 	// Copy an object to a new name, preserving all metadata. Any existing
 	// generation of the destination name will be overwritten.
@@ -159,6 +159,14 @@ type Bucket interface {
 	DeleteObject(
 		ctx context.Context,
 		req *DeleteObjectRequest) error
+
+	// MoveObject moves an object to a new name, preserving all metadata.
+	//
+	// This function overwrites any existing object at the destination name.
+	//
+	// Returns a record for the newly created object.
+	// TODO: Add official documentation link whenever it's available.
+	MoveObject(ctx context.Context, req *MoveObjectRequest) (*Object, error)
 
 	DeleteFolder(ctx context.Context, folderName string) error
 

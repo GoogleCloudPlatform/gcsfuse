@@ -31,7 +31,6 @@ import (
 	"github.com/jacobsa/fuse/fuseutil"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
-	"golang.org/x/sync/semaphore"
 )
 
 func TestDirHandle(t *testing.T) { RunTests(t) }
@@ -56,7 +55,7 @@ func init() { RegisterTestSuite(&DirHandleTest{}) }
 func (t *DirHandleTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
 	t.bucket = gcsx.NewSyncerBucket(
-		1, ".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "some_bucket", gcs.NonHierarchical))
+		1, 10, ".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "some_bucket", gcs.NonHierarchical))
 	t.clock.SetTime(time.Date(2022, 8, 15, 22, 56, 0, 0, time.Local))
 	t.resetDirHandle()
 }
@@ -106,8 +105,7 @@ func (t *DirHandleTest) createLocalFileInode(name string, id fuseops.InodeID) (i
 		contentcache.New("", &t.clock),
 		&t.clock,
 		true, // localFile
-		&cfg.WriteConfig{},
-		semaphore.NewWeighted(math.MaxInt64))
+		&cfg.Config{Write: cfg.WriteConfig{GlobalMaxBlocks: math.MaxInt64}})
 	return
 }
 

@@ -32,7 +32,7 @@ func TestStatOnUnlinkedLocalFile(t *testing.T) {
 	operations.RemoveFile(filePath)
 
 	// Stat the local file and validate error.
-	operations.ValidateNoFileOrDirError(path.Join(testDirPath, FileName1), t)
+	operations.ValidateNoFileOrDirError(t, path.Join(testDirPath, FileName1))
 
 	// Close the file and validate that file is not created on GCS.
 	operations.CloseFileShouldNotThrowError(fh, t)
@@ -71,7 +71,7 @@ func TestWriteOnUnlinkedLocalFileSucceeds(t *testing.T) {
 	filepath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
 	// Verify unlink operation succeeds.
 	operations.RemoveFile(filepath)
-	operations.ValidateNoFileOrDirError(path.Join(testDirPath, FileName1), t)
+	operations.ValidateNoFileOrDirError(t, path.Join(testDirPath, FileName1))
 
 	// Write to unlinked local file.
 	operations.WriteWithoutClose(fh, FileContents, t)
@@ -91,7 +91,7 @@ func TestSyncOnUnlinkedLocalFile(t *testing.T) {
 	operations.RemoveFile(filepath)
 
 	// Verify unlink operation succeeds.
-	operations.ValidateNoFileOrDirError(path.Join(testDirPath, FileName1), t)
+	operations.ValidateNoFileOrDirError(t, path.Join(testDirPath, FileName1))
 	// Validate sync operation does not write to GCS after unlink.
 	operations.SyncFile(fh, t)
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t)

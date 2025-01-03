@@ -112,7 +112,7 @@ else
 fi
 
 # install go
-wget -O go_tar.tar.gz https://go.dev/dl/go1.23.3.linux-${architecture}.tar.gz
+wget -O go_tar.tar.gz https://go.dev/dl/go1.23.4.linux-${architecture}.tar.gz
 sudo tar -C /usr/local -xzf go_tar.tar.gz
 export PATH=${PATH}:/usr/local/go/bin
 #Write gcsfuse and go version to log file
@@ -142,6 +142,7 @@ git checkout $(sed -n 2p ~/details.txt) |& tee -a ~/logs.txt
 set +e
 # Test directory arrays
 TEST_DIR_PARALLEL=(
+  "monitoring"
   "local_file"
   "log_rotation"
   "mounting"
@@ -172,7 +173,7 @@ TEST_DIR_NON_PARALLEL=(
 # Create a temporary file to store the log file name.
 TEST_LOGS_FILE=$(mktemp)
 
-INTEGRATION_TEST_TIMEOUT=180m
+INTEGRATION_TEST_TIMEOUT=240m
 
 function run_non_parallel_tests() {
   local exit_code=0
@@ -285,6 +286,10 @@ function run_e2e_tests_for_hns_bucket(){
    return 0
 }
 
+function run_e2e_tests_for_emulator() {
+  ./tools/integration_tests/emulator_tests/emulator_tests.sh true > ~/logs-emulator.txt
+}
+
 function gather_test_logs() {
   readarray -t test_logs_array < "$TEST_LOGS_FILE"
   rm "$TEST_LOGS_FILE"
@@ -313,6 +318,12 @@ echo "Running integration tests for FLAT bucket..."
 run_e2e_tests_for_flat_bucket &
 e2e_tests_flat_bucket_pid=$!
 
+run_e2e_tests_for_emulator &
+e2e_tests_emulator_pid=$!
+
+wait $e2e_tests_emulator_pid
+e2e_tests_emulator_status=$?
+
 wait $e2e_tests_flat_bucket_pid
 e2e_tests_flat_bucket_status=$?
 
@@ -338,4 +349,14 @@ else
     gsutil cp success-hns.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
 fi
 gsutil cp ~/logs-hns.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
+
+if [ $e2e_tests_emulator_status != 0 ];
+then
+    echo "Test failures detected in emulator based tests." &>> ~/logs-emulator.txt
+else
+    touch success-emulator.txt
+    gsutil cp success-emulator.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
+fi
+
+gsutil cp ~/logs-emulator.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
 '

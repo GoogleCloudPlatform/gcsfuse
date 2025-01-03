@@ -58,9 +58,9 @@ func (m *TestifyMockBucket) CreateObjectChunkWriter(ctx context.Context, req *gc
 	return args.Get(0).(gcs.Writer), nil
 }
 
-func (m *TestifyMockBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.Object, error) {
+func (m *TestifyMockBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.MinObject, error) {
 	args := m.Called(ctx, w)
-	return args.Get(0).(*gcs.Object), args.Error(1)
+	return args.Get(0).(*gcs.MinObject), args.Error(1)
 }
 
 func (m *TestifyMockBucket) CopyObject(ctx context.Context, req *gcs.CopyObjectRequest) (*gcs.Object, error) {
@@ -94,6 +94,14 @@ func (m *TestifyMockBucket) UpdateObject(ctx context.Context, req *gcs.UpdateObj
 func (m *TestifyMockBucket) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRequest) error {
 	args := m.Called(ctx, req)
 	return args.Error(0)
+}
+
+func (m *TestifyMockBucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
+	args := m.Called(ctx, req)
+	if args.Get(0) != nil {
+		return args.Get(0).(*gcs.Object), nil
+	}
+	return nil, args.Error(1)
 }
 
 func (m *TestifyMockBucket) DeleteFolder(ctx context.Context, folderName string) error {

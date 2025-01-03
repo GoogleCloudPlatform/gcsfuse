@@ -54,6 +54,15 @@ type CreateObjectRequest struct {
 	StorageClass       string
 	Acl                []*storagev1.ObjectAccessControl
 
+	// ChunkTransferTimeout sets a per-chunk request timeout for resumable uploads.
+	//
+	// For resumable uploads, the Writer will terminate the request and attempt a retry
+	// if the request to upload a particular chunk stalls for longer than this duration. Retries
+	// may continue until the ChunkRetryDeadline(32s) is reached.
+	//
+	// The default value is 10 seconds.
+	ChunkTransferTimeoutSecs int64
+
 	// A reader from which to obtain the contents of the object. Must be non-nil.
 	Contents io.Reader
 
@@ -375,4 +384,18 @@ type DeleteObjectRequest struct {
 	// with the given name (and optionally generation), and its meta-generation
 	// is not equal to this value.
 	MetaGenerationPrecondition *int64
+}
+
+// MoveObjectRequest represents a request to move or rename an object.
+type MoveObjectRequest struct {
+	SrcName string // Source object name
+	DstName string // Destination object name
+
+	// The generation of the source object to move, or zero for the latest
+	// generation.
+	SrcGeneration int64
+
+	// If non-nil, the destination object will be created/overwritten only if the
+	// current meta-generation for the source object is equal to the given value.
+	SrcMetaGenerationPrecondition *int64
 }

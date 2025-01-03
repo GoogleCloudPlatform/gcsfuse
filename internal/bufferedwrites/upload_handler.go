@@ -44,22 +44,39 @@ type UploadHandler struct {
 	// inode. This signals permanent failure in the buffered write job.
 	signalUploadFailure chan error
 
+	// CancelFunc persisted to cancel the uploads in case of unlink operation.
+	cancelFunc context.CancelFunc
+
 	// Parameters required for creating a new GCS chunk writer.
-	bucket     gcs.Bucket
-	objectName string
-	blockSize  int64
+	bucket               gcs.Bucket
+	objectName           string
+	obj                  *gcs.Object
+	chunkTransferTimeout int64
+	blockSize            int64
+}
+
+type CreateUploadHandlerRequest struct {
+	Object                   *gcs.Object
+	ObjectName               string
+	Bucket                   gcs.Bucket
+	FreeBlocksCh             chan block.Block
+	MaxBlocksPerFile         int64
+	BlockSize                int64
+	ChunkTransferTimeoutSecs int64
 }
 
 // newUploadHandler creates the UploadHandler struct.
-func newUploadHandler(objectName string, bucket gcs.Bucket, maxBlocks int64, freeBlocksCh chan block.Block, blockSize int64) *UploadHandler {
+func newUploadHandler(req *CreateUploadHandlerRequest) *UploadHandler {
 	uh := &UploadHandler{
-		uploadCh:            make(chan block.Block, maxBlocks),
-		wg:                  sync.WaitGroup{},
-		freeBlocksCh:        freeBlocksCh,
-		bucket:              bucket,
-		objectName:          objectName,
-		blockSize:           blockSize,
-		signalUploadFailure: make(chan error, 1),
+		uploadCh:             make(chan block.Block, req.MaxBlocksPerFile),
+		wg:                   sync.WaitGroup{},
+		freeBlocksCh:         req.FreeBlocksCh,
+		bucket:               req.Bucket,
+		objectName:           req.ObjectName,
+		obj:                  req.Object,
+		blockSize:            req.BlockSize,
+		signalUploadFailure:  make(chan error, 1),
+		chunkTransferTimeout: req.ChunkTransferTimeoutSecs,
 	}
 	return uh
 }
@@ -86,37 +103,36 @@ func (uh *UploadHandler) Upload(block block.Block) error {
 
 // createObjectWriter creates a GCS object writer.
 func (uh *UploadHandler) createObjectWriter() (err error) {
-	var preCond int64
-	req := &gcs.CreateObjectRequest{
-		Name:                   uh.objectName,
-		GenerationPrecondition: &preCond,
-		Metadata:               make(map[string]string),
-	}
+	req := gcs.NewCreateObjectRequest(uh.obj, uh.objectName, nil, uh.chunkTransferTimeout)
 	// We need a new context here, since the first writeFile() call will be complete
 	// (and context will be cancelled) by the time complete upload is done.
-	uh.writer, err = uh.bucket.CreateObjectChunkWriter(context.Background(), req, int(uh.blockSize), nil)
+	var ctx context.Context
+	ctx, uh.cancelFunc = context.WithCancel(context.Background())
+	uh.writer, err = uh.bucket.CreateObjectChunkWriter(ctx, req, int(uh.blockSize), nil)
 	return
 }
 
 // uploader is the single-threaded goroutine that uploads blocks.
 func (uh *UploadHandler) uploader() {
 	for currBlock := range uh.uploadCh {
-		_, err := io.Copy(uh.writer, currBlock.Reader())
-		if err != nil {
-			logger.Errorf("buffered write upload failed for object %s: error in io.Copy: %v", uh.objectName, err)
-			// Close the channel to signal upload failure.
-			close(uh.signalUploadFailure)
-			return
+		select {
+		case <-uh.signalUploadFailure:
+		default:
+			_, err := io.Copy(uh.writer, currBlock.Reader())
+			if err != nil {
+				logger.Errorf("buffered write upload failed for object %s: error in io.Copy: %v", uh.objectName, err)
+				// Close the channel to signal upload failure.
+				close(uh.signalUploadFailure)
+			}
 		}
-		uh.wg.Done()
-
 		// Put back the uploaded block on the freeBlocksChannel for re-use.
 		uh.freeBlocksCh <- currBlock
+		uh.wg.Done()
 	}
 }
 
 // Finalize finalizes the upload.
-func (uh *UploadHandler) Finalize() (*gcs.Object, error) {
+func (uh *UploadHandler) Finalize() (*gcs.MinObject, error) {
 	uh.wg.Wait()
 	close(uh.uploadCh)
 
@@ -136,6 +152,39 @@ func (uh *UploadHandler) Finalize() (*gcs.Object, error) {
 	return obj, nil
 }
 
+func (uh *UploadHandler) CancelUpload() {
+	if uh.cancelFunc != nil {
+		// cancel the context to cancel the ongoing GCS upload.
+		uh.cancelFunc()
+	}
+	// Wait for all in progress buffers to be added to the free channel.
+	uh.wg.Wait()
+}
+
 func (uh *UploadHandler) SignalUploadFailure() chan error {
 	return uh.signalUploadFailure
+}
+
+func (uh *UploadHandler) AwaitBlocksUpload() {
+	uh.wg.Wait()
+}
+
+func (uh *UploadHandler) Destroy() {
+	// Move all pending blocks to freeBlockCh and close the channel if not done.
+	for {
+		select {
+		case currBlock, ok := <-uh.uploadCh:
+			// Not ok means channel closed. Return.
+			if !ok {
+				return
+			}
+			uh.freeBlocksCh <- currBlock
+			// Marking as wg.Done to ensure any waiters are unblocked.
+			uh.wg.Done()
+		default:
+			// This will get executed when there are no blocks pending in uploadCh and its not closed.
+			close(uh.uploadCh)
+			return
+		}
+	}
 }

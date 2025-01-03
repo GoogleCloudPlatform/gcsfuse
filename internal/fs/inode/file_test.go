@@ -26,20 +26,19 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
+	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
+	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/net/context"
-	"golang.org/x/sync/semaphore"
-
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/contentcache"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
-	"github.com/jacobsa/fuse/fuseops"
-	"github.com/jacobsa/timeutil"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -124,6 +123,7 @@ func (t *FileTest) createInodeWithLocalParam(fileName string, local bool) {
 	)
 	syncerBucket := gcsx.NewSyncerBucket(
 		1, // Append threshold
+		ChunkTransferTimeoutSecs,
 		".gcsfuse_tmp/",
 		t.bucket)
 
@@ -144,8 +144,7 @@ func (t *FileTest) createInodeWithLocalParam(fileName string, local bool) {
 		contentcache.New("", &t.clock),
 		&t.clock,
 		local,
-		&cfg.WriteConfig{},
-		semaphore.NewWeighted(math.MaxInt64))
+		&cfg.Config{Write: cfg.WriteConfig{GlobalMaxBlocks: math.MaxInt64}})
 
 	t.in.Lock()
 }
@@ -414,7 +413,7 @@ func (t *FileTest) TestWriteToLocalFileThenSync() {
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
 	// Create a temp file for the local inode created above.
-	err = t.in.CreateBufferedOrTempWriter()
+	err = t.in.CreateBufferedOrTempWriter(t.ctx)
 	assert.Nil(t.T(), err)
 	// Write some content to temp file.
 	t.clock.AdvanceTime(time.Second)
@@ -458,7 +457,7 @@ func (t *FileTest) TestSyncEmptyLocalFile() {
 	t.createInodeWithLocalParam("test", true)
 	creationTime := t.clock.Now()
 	// Create a temp file for the local inode created above.
-	err = t.in.CreateBufferedOrTempWriter()
+	err = t.in.CreateBufferedOrTempWriter(t.ctx)
 	assert.Nil(t.T(), err)
 
 	// Sync.
@@ -623,12 +622,12 @@ func (t *FileTest) TestTruncateUpwardThenSync() {
 	assert.Equal(t.T(), attrs.Mtime, truncateTime.UTC())
 }
 
-func (t *FileTest) TestTestTruncateUpwardForLocalFileShouldUpdateLocalFileAttributes() {
+func (t *FileTest) TestTruncateUpwardForLocalFileShouldUpdateLocalFileAttributes() {
 	var err error
 	var attrs fuseops.InodeAttributes
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
-	err = t.in.CreateBufferedOrTempWriter()
+	err = t.in.CreateBufferedOrTempWriter(t.ctx)
 	assert.Nil(t.T(), err)
 	// Fetch the attributes and check if the file is empty.
 	attrs, err = t.in.Attributes(t.ctx)
@@ -649,12 +648,12 @@ func (t *FileTest) TestTestTruncateUpwardForLocalFileShouldUpdateLocalFileAttrib
 	assert.Equal(t.T(), "gcs.NotFoundError: object test not found", err.Error())
 }
 
-func (t *FileTest) TestTestTruncateDownwardForLocalFileShouldUpdateLocalFileAttributes() {
+func (t *FileTest) TestTruncateDownwardForLocalFileShouldUpdateLocalFileAttributes() {
 	var err error
 	var attrs fuseops.InodeAttributes
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
-	err = t.in.CreateBufferedOrTempWriter()
+	err = t.in.CreateBufferedOrTempWriter(t.ctx)
 	assert.Nil(t.T(), err)
 	// Write some data to the local file.
 	err = t.in.Write(t.ctx, []byte("burrito"), 0)
@@ -676,6 +675,175 @@ func (t *FileTest) TestTestTruncateDownwardForLocalFileShouldUpdateLocalFileAttr
 	_, _, err = t.bucket.StatObject(t.ctx, statReq)
 	assert.NotNil(t.T(), err)
 	assert.Equal(t.T(), "gcs.NotFoundError: object test not found", err.Error())
+}
+
+func (t *FileTest) TestTruncateUpwardForLocalFileWhenStreamingWritesAreEnabled() {
+	tbl := []struct {
+		name         string
+		performWrite bool
+	}{
+		{
+			name:         "WithWrite",
+			performWrite: true,
+		},
+		{
+			name:         "WithOutWrite",
+			performWrite: false,
+		},
+	}
+	for _, tc := range tbl {
+		t.Run(tc.name, func() {
+			// Create a local file inode.
+			t.createInodeWithLocalParam("test", true)
+			t.in.config = &cfg.Config{Write: *getWriteConfig()}
+			err := t.in.CreateBufferedOrTempWriter(t.ctx)
+			assert.Nil(t.T(), err)
+			assert.NotNil(t.T(), t.in.bwh)
+
+			// Fetch the attributes and check if the file is empty.
+			attrs, err := t.in.Attributes(t.ctx)
+			assert.Nil(t.T(), err)
+			assert.Equal(t.T(), uint64(0), attrs.Size)
+
+			if tc.performWrite {
+				err := t.in.Write(t.ctx, []byte("hi"), 0)
+				assert.Nil(t.T(), err)
+				assert.Equal(t.T(), int64(2), t.in.bwh.WriteFileInfo().TotalSize)
+				// Fetch the attributes and check if the file size reflects the write.
+				attrs, err := t.in.Attributes(t.ctx)
+				assert.Nil(t.T(), err)
+				assert.Equal(t.T(), uint64(2), attrs.Size)
+			}
+
+			err = t.in.Truncate(t.ctx, 10)
+
+			assert.Nil(t.T(), err)
+			// The inode should return the new size.
+			attrs, err = t.in.Attributes(t.ctx)
+			assert.Nil(t.T(), err)
+			assert.Equal(t.T(), uint64(10), attrs.Size)
+			// Data shouldn't be updated to GCS.
+			statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+			_, _, err = t.bucket.StatObject(t.ctx, statReq)
+			assert.NotNil(t.T(), err)
+			assert.Equal(t.T(), "gcs.NotFoundError: object test not found", err.Error())
+		})
+	}
+}
+
+func (t *FileTest) TestTruncateUpwardForEmptyGCSFileWhenStreamingWritesAreEnabled() {
+	tbl := []struct {
+		name         string
+		performWrite bool
+	}{
+		{
+			name:         "WithWrite",
+			performWrite: true,
+		},
+		{
+			name:         "WithOutWrite",
+			performWrite: false,
+		},
+	}
+	for _, tc := range tbl {
+		t.Run(tc.name, func() {
+			t.createInodeWithEmptyObject()
+			t.in.config = &cfg.Config{Write: *getWriteConfig()}
+			assert.Nil(t.T(), t.in.bwh)
+			// Fetch the attributes and check if the file is empty.
+			attrs, err := t.in.Attributes(t.ctx)
+			assert.Nil(t.T(), err)
+			assert.Equal(t.T(), uint64(0), attrs.Size)
+
+			if tc.performWrite {
+				err := t.in.Write(t.ctx, []byte("hi"), 0)
+				assert.Nil(t.T(), err)
+				assert.Equal(t.T(), int64(2), t.in.bwh.WriteFileInfo().TotalSize)
+				// Fetch the attributes and check if the file size reflects the write.
+				attrs, err := t.in.Attributes(t.ctx)
+				assert.Nil(t.T(), err)
+				assert.Equal(t.T(), uint64(2), attrs.Size)
+			}
+
+			err = t.in.Truncate(t.ctx, 10)
+
+			assert.Nil(t.T(), err)
+			// The inode should return the new size.
+			attrs, err = t.in.Attributes(t.ctx)
+			assert.Nil(t.T(), err)
+			assert.Equal(t.T(), uint64(10), attrs.Size)
+			// Data shouldn't be updated to GCS.
+			statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+			minObject, _, err := t.bucket.StatObject(t.ctx, statReq)
+			assert.Nil(t.T(), err)
+			assert.Equal(t.T(), uint64(0), minObject.Size)
+		})
+	}
+}
+
+func (t *FileTest) TestTruncateDownwardWhenStreamingWritesAreEnabled() {
+	tbl := []struct {
+		name         string
+		fileType     string
+		performWrite bool
+		truncateSize int64
+	}{
+		{
+			name:         "LocalFileWithWrite",
+			fileType:     LocalFile,
+			performWrite: true,
+			truncateSize: 2,
+		},
+		{
+			name:         "LocalFileWithOutWrite",
+			fileType:     LocalFile,
+			performWrite: false,
+			truncateSize: -1,
+		},
+		{
+			name:         "EmptyGCSFileWithWrite",
+			fileType:     EmptyGCSFile,
+			performWrite: true,
+			truncateSize: 2,
+		},
+		{
+			name:         "EmptyGCSFileWithOutWrite",
+			fileType:     EmptyGCSFile,
+			performWrite: false,
+			truncateSize: -1,
+		},
+	}
+	for _, tc := range tbl {
+		t.Run(tc.name, func() {
+			if tc.fileType == LocalFile {
+				t.createInodeWithLocalParam("test", true)
+			}
+			if tc.fileType == EmptyGCSFile {
+				t.createInodeWithEmptyObject()
+			}
+			t.in.config = &cfg.Config{Write: *getWriteConfig()}
+			assert.Nil(t.T(), t.in.bwh)
+			// Fetch the attributes and check if the file is empty.
+			attrs, err := t.in.Attributes(t.ctx)
+			assert.Nil(t.T(), err)
+			assert.Equal(t.T(), uint64(0), attrs.Size)
+
+			if tc.performWrite {
+				err := t.in.Write(t.ctx, []byte("hihello"), 0)
+				assert.Nil(t.T(), err)
+				assert.Equal(t.T(), int64(7), t.in.bwh.WriteFileInfo().TotalSize)
+				// Fetch the attributes and check if the file size reflects the write.
+				attrs, err := t.in.Attributes(t.ctx)
+				assert.Nil(t.T(), err)
+				assert.Equal(t.T(), uint64(7), attrs.Size)
+			}
+
+			err = t.in.Truncate(t.ctx, tc.truncateSize)
+
+			assert.NotNil(t.T(), err)
+			assert.ErrorContains(t.T(), err, "cannot truncate")
+		})
+	}
 }
 
 func (t *FileTest) TestSync_Clobbered() {
@@ -881,13 +1049,29 @@ func (t *FileTest) TestSetMtime_SourceObjectMetaGenerationChanged() {
 	assert.Equal(t.T(), newObj.MetaGeneration, m.MetaGeneration)
 }
 
+func (t *FileTest) TestSetMtimeForUnlinkedFileIsNoOp() {
+	t.in.unlinked = true
+	beforeUpdateAttr, err := t.in.Attributes(t.ctx)
+	require.Nil(t.T(), err)
+	mtime := beforeUpdateAttr.Mtime.UTC().Add(123 * time.Second)
+
+	// Set mtime.
+	err = t.in.SetMtime(t.ctx, mtime)
+
+	require.Nil(t.T(), err)
+	afterUpdateAttr, err := t.in.Attributes(t.ctx)
+	require.Nil(t.T(), err)
+	assert.NotEqual(t.T(), mtime, afterUpdateAttr.Mtime)
+	assert.Equal(t.T(), beforeUpdateAttr.Mtime, afterUpdateAttr.Mtime)
+}
+
 func (t *FileTest) TestTestSetMtimeForLocalFileShouldUpdateLocalFileAttributes() {
 	var err error
 	var attrs fuseops.InodeAttributes
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
 	createTime := t.in.mtimeClock.Now()
-	err = t.in.CreateBufferedOrTempWriter()
+	err = t.in.CreateBufferedOrTempWriter(t.ctx)
 	assert.Nil(t.T(), err)
 	// Validate the attributes on an empty file.
 	attrs, err = t.in.Attributes(t.ctx)
@@ -917,8 +1101,8 @@ func (t *FileTest) TestSetMtimeForLocalFileWhenStreamingWritesAreEnabled() {
 	var attrs fuseops.InodeAttributes
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
-	t.in.writeConfig = getWriteConfig()
-	err = t.in.CreateBufferedOrTempWriter()
+	t.in.config = &cfg.Config{Write: *getWriteConfig()}
+	err = t.in.CreateBufferedOrTempWriter(t.ctx)
 	assert.Nil(t.T(), err)
 
 	// Set mtime.
@@ -974,7 +1158,7 @@ func (t *FileTest) TestTestCheckInvariantsShouldNotThrowExceptionForLocalFiles()
 }
 
 func (t *FileTest) TestCreateBufferedOrTempWriterShouldCreateEmptyFile() {
-	err := t.in.CreateBufferedOrTempWriter()
+	err := t.in.CreateBufferedOrTempWriter(t.ctx)
 
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), t.in.content)
@@ -986,9 +1170,9 @@ func (t *FileTest) TestCreateBufferedOrTempWriterShouldCreateEmptyFile() {
 
 func (t *FileTest) TestCreateBufferedOrTempWriterShouldNotCreateFileWhenStreamingWritesAreEnabled() {
 	t.createInodeWithLocalParam("test", true)
-	t.in.writeConfig = getWriteConfig()
+	t.in.config = &cfg.Config{Write: *getWriteConfig()}
 
-	err := t.in.CreateBufferedOrTempWriter()
+	err := t.in.CreateBufferedOrTempWriter(t.ctx)
 
 	assert.Nil(t.T(), err)
 	assert.Nil(t.T(), t.in.content)
@@ -997,9 +1181,9 @@ func (t *FileTest) TestCreateBufferedOrTempWriterShouldNotCreateFileWhenStreamin
 
 func (t *FileTest) TestCreateBufferedOrTempWriterShouldCreateFileForNonLocalFilesForStreamingWrites() {
 	// Enabling buffered writes.
-	t.in.writeConfig = getWriteConfig()
+	t.in.config = &cfg.Config{Write: *getWriteConfig()}
 
-	err := t.in.CreateBufferedOrTempWriter()
+	err := t.in.CreateBufferedOrTempWriter(t.ctx)
 
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), t.in.content)
@@ -1015,7 +1199,7 @@ func (t *FileTest) TestUnlinkLocalFile() {
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
 	// Create a temp file for the local inode created above.
-	err = t.in.CreateBufferedOrTempWriter()
+	err = t.in.CreateBufferedOrTempWriter(t.ctx)
 	assert.Nil(t.T(), err)
 
 	// Unlink.
@@ -1057,15 +1241,15 @@ func (t *FileTest) TestReadFileWhenStreamingWritesAreEnabled() {
 			if tc.fileType == LocalFile {
 				// Create a local file inode.
 				t.createInodeWithLocalParam("test", true)
-				t.in.writeConfig = getWriteConfig()
-				err := t.in.CreateBufferedOrTempWriter()
+				t.in.config = &cfg.Config{Write: *getWriteConfig()}
+				err := t.in.CreateBufferedOrTempWriter(t.ctx)
 				assert.Nil(t.T(), err)
 				assert.NotNil(t.T(), t.in.bwh)
 			}
 
 			if tc.fileType == EmptyGCSFile {
 				t.createInodeWithEmptyObject()
-				t.in.writeConfig = getWriteConfig()
+				t.in.config = &cfg.Config{Write: *getWriteConfig()}
 			}
 
 			if tc.performWrite {
@@ -1087,7 +1271,7 @@ func (t *FileTest) TestReadFileWhenStreamingWritesAreEnabled() {
 
 func (t *FileTest) TestReadEmptyGCSFileWhenStreamingWritesAreNotInProgress() {
 	t.createInodeWithEmptyObject()
-	t.in.writeConfig = getWriteConfig()
+	t.in.config = &cfg.Config{Write: *getWriteConfig()}
 	data := make([]byte, 10)
 
 	n, err := t.in.Read(t.ctx, data, 0)
@@ -1099,7 +1283,7 @@ func (t *FileTest) TestReadEmptyGCSFileWhenStreamingWritesAreNotInProgress() {
 func (t *FileTest) TestWriteToLocalFileWithInvalidConfigWhenStreamingWritesAreEnabled() {
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
-	t.in.writeConfig.ExperimentalEnableStreamingWrites = true
+	t.in.config = &cfg.Config{Write: cfg.WriteConfig{ExperimentalEnableStreamingWrites: true}}
 	assert.Nil(t.T(), t.in.bwh)
 
 	err := t.in.Write(t.ctx, []byte("hi"), 0)
@@ -1111,7 +1295,7 @@ func (t *FileTest) TestWriteToLocalFileWithInvalidConfigWhenStreamingWritesAreEn
 func (t *FileTest) TestWriteToLocalFileWhenStreamingWritesAreEnabled() {
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
-	t.in.writeConfig = getWriteConfig()
+	t.in.config = &cfg.Config{Write: *getWriteConfig()}
 	assert.Nil(t.T(), t.in.bwh)
 
 	err := t.in.Write(t.ctx, []byte("hi"), 0)
@@ -1126,7 +1310,7 @@ func (t *FileTest) TestMultipleWritesToLocalFileWhenStreamingWritesAreEnabled() 
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
 	createTime := t.in.mtimeClock.Now()
-	t.in.writeConfig = getWriteConfig()
+	t.in.config = &cfg.Config{Write: *getWriteConfig()}
 	assert.Nil(t.T(), t.in.bwh)
 
 	err := t.in.Write(t.ctx, []byte("hi"), 0)
@@ -1144,9 +1328,9 @@ func (t *FileTest) TestMultipleWritesToLocalFileWhenStreamingWritesAreEnabled() 
 	assert.WithinDuration(t.T(), attrs.Mtime, createTime, Delta)
 }
 
-func (t *FileTest) WriteToEmptyGCSFileWhenStreamingWritesAreEnabled() {
+func (t *FileTest) TestWriteToEmptyGCSFileWhenStreamingWritesAreEnabled() {
 	t.createInodeWithEmptyObject()
-	t.in.writeConfig = getWriteConfig()
+	t.in.config = &cfg.Config{Write: *getWriteConfig()}
 	createTime := t.in.mtimeClock.Now()
 	assert.Nil(t.T(), t.in.bwh)
 
@@ -1159,13 +1343,13 @@ func (t *FileTest) WriteToEmptyGCSFileWhenStreamingWritesAreEnabled() {
 	// The inode should agree about the new mtime.
 	attrs, err := t.in.Attributes(t.ctx)
 	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), int64(2), attrs.Size)
+	assert.Equal(t.T(), uint64(2), attrs.Size)
 	assert.WithinDuration(t.T(), attrs.Mtime, createTime, Delta)
 }
 
-func (t *FileTest) SetMtimeOnEmptyGCSFileWhenStreamingWritesAreEnabled() {
+func (t *FileTest) TestSetMtimeOnEmptyGCSFileWhenStreamingWritesAreEnabled() {
 	t.createInodeWithEmptyObject()
-	t.in.writeConfig = getWriteConfig()
+	t.in.config = &cfg.Config{Write: *getWriteConfig()}
 	assert.Nil(t.T(), t.in.bwh)
 
 	// This test checks if the mtime is updated to GCS. Since test framework
@@ -1175,16 +1359,16 @@ func (t *FileTest) SetMtimeOnEmptyGCSFileWhenStreamingWritesAreEnabled() {
 	assert.Nil(t.T(), t.in.bwh)
 }
 
-func (t *FileTest) SetMtimeOnEmptyGCSFileAfterWritesWhenStreamingWritesAreEnabled() {
+func (t *FileTest) TestSetMtimeOnEmptyGCSFileAfterWritesWhenStreamingWritesAreEnabled() {
 	t.createInodeWithEmptyObject()
-	t.in.writeConfig = getWriteConfig()
+	t.in.config = &cfg.Config{Write: *getWriteConfig()}
 	assert.Nil(t.T(), t.in.bwh)
 	// Initiate write call.
 	err := t.in.Write(t.ctx, []byte("hi"), 0)
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), t.in.bwh)
 	writeFileInfo := t.in.bwh.WriteFileInfo()
-	assert.Equal(t.T(), 2, writeFileInfo.TotalSize)
+	assert.Equal(t.T(), int64(2), writeFileInfo.TotalSize)
 
 	// Set mtime.
 	mtime := time.Now().UTC().Add(123 * time.Second)
@@ -1197,6 +1381,92 @@ func (t *FileTest) SetMtimeOnEmptyGCSFileAfterWritesWhenStreamingWritesAreEnable
 	assert.Equal(t.T(), attrs.Mtime, mtime)
 	assert.Equal(t.T(), attrs.Ctime, mtime)
 	assert.Equal(t.T(), attrs.Atime, mtime)
+}
+
+func (t *FileTest) TestRegisterFileHandle() {
+	tbl := []struct {
+		name        string
+		readonly    bool
+		currentVal  int32
+		expectedVal int32
+	}{
+		{
+			name:        "ReadOnlyHandle",
+			readonly:    true,
+			currentVal:  0,
+			expectedVal: 0,
+		},
+		{
+			name:        "ZeroCurrentValueForWriteHandle",
+			readonly:    false,
+			currentVal:  0,
+			expectedVal: 1,
+		},
+		{
+			name:        "NonZeroCurrentValueForWriteHandle",
+			readonly:    false,
+			currentVal:  5,
+			expectedVal: 6,
+		},
+	}
+	for _, tc := range tbl {
+		t.Run(tc.name, func() {
+			t.in.writeHandleCount = tc.currentVal
+
+			t.in.RegisterFileHandle(tc.readonly)
+
+			assert.Equal(t.T(), tc.expectedVal, t.in.writeHandleCount)
+		})
+	}
+}
+
+func (t *FileTest) TestDeRegisterFileHandle() {
+	tbl := []struct {
+		name        string
+		readonly    bool
+		currentVal  int32
+		expectedVal int32
+		isBwhNil    bool
+	}{
+		{
+			name:        "ReadOnlyHandle",
+			readonly:    true,
+			currentVal:  10,
+			expectedVal: 10,
+			isBwhNil:    false,
+		},
+		{
+			name:        "NonZeroCurrentValueForWriteHandle",
+			readonly:    false,
+			currentVal:  10,
+			expectedVal: 9,
+			isBwhNil:    false,
+		},
+		{
+			name:        "LastWriteHandleToDeregister",
+			readonly:    false,
+			currentVal:  1,
+			expectedVal: 0,
+			isBwhNil:    true,
+		},
+	}
+	for _, tc := range tbl {
+		t.Run(tc.name, func() {
+			t.in.config = &cfg.Config{Write: *getWriteConfig()}
+			t.in.writeHandleCount = tc.currentVal
+			err := t.in.ensureBufferedWriteHandler(t.ctx)
+			require.NoError(t.T(), err)
+
+			t.in.DeRegisterFileHandle(tc.readonly)
+
+			assert.Equal(t.T(), tc.expectedVal, t.in.writeHandleCount)
+			if tc.isBwhNil {
+				assert.Nil(t.T(), t.in.bwh)
+			} else {
+				assert.NotNil(t.T(), t.in.bwh)
+			}
+		})
+	}
 }
 
 func getWriteConfig() *cfg.WriteConfig {

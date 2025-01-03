@@ -17,9 +17,9 @@
 # Copy the gcsfuse packages to the host:
 #   > docker run -it -v /tmp:/output gcsfuse-release cp -r /packages /output
 
-FROM golang:1.23.3 as builder
+FROM golang:1.23.4 as builder
 
-RUN apt-get update -qq && apt-get install -y ruby ruby-dev rubygems build-essential rpm && gem install --no-document bundler
+RUN apt-get update -qq && apt-get install -y ruby ruby-dev rubygems build-essential rpm && gem install --no-document bundler -v "2.4.12"
 
 ENV CGO_ENABLED=0
 ENV GOOS=linux

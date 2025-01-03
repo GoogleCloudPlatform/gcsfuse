@@ -161,7 +161,7 @@ func (m *mockBucket) CreateObjectChunkWriter(p0 context.Context, p1 *gcs.CreateO
 	return
 }
 
-func (m *mockBucket) FinalizeUpload(p0 context.Context, p1 gcs.Writer) (o0 *gcs.Object, o1 error) {
+func (m *mockBucket) FinalizeUpload(p0 context.Context, p1 gcs.Writer) (o0 *gcs.MinObject, o1 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
 
@@ -179,7 +179,7 @@ func (m *mockBucket) FinalizeUpload(p0 context.Context, p1 gcs.Writer) (o0 *gcs.
 
 	// o0 *gcs.Object
 	if retVals[0] != nil {
-		o0 = retVals[0].(*gcs.Object)
+		o0 = retVals[0].(*gcs.MinObject)
 	}
 	// o1 error
 	if retVals[1] != nil {
@@ -211,6 +211,37 @@ func (m *mockBucket) DeleteObject(p0 context.Context, p1 *gcs.DeleteObjectReques
 	}
 
 	return
+}
+
+func (m *mockBucket) MoveObject(p0 context.Context, p1 *gcs.MoveObjectRequest) (*gcs.Object, error) {
+	var o0 *gcs.Object
+	var o1 error
+	// Get a file name and line number for the caller.
+	_, file, line, _ := runtime.Caller(1)
+
+	// Hand the call off to the controller, which does most of the work.
+	retVals := m.controller.HandleMethodCall(
+		m,
+		"MoveObject",
+		file,
+		line,
+		[]interface{}{p0, p1})
+
+	if len(retVals) != 2 {
+		panic(fmt.Sprintf("mockBucket.MoveObject: invalid return values: %v", retVals))
+	}
+
+	// o0 *Object
+	if retVals[0] != nil {
+		o0 = retVals[0].(*gcs.Object)
+	}
+
+	// o1 error
+	if retVals[1] != nil {
+		o1 = retVals[1].(error)
+	}
+
+	return o0, o1
 }
 
 func (m *mockBucket) DeleteFolder(ctx context.Context, folderName string) (o0 error) {
