@@ -13,7 +13,7 @@
 # limitations under the License.
 set -e
 # Here $1 refers to the testBucket argument
-gcloud storage rm -r --log-http --verbosity=debug gs://$1/**
+gcloud storage rm -r -q gs://$1/**
 
 # If bucket is empty it will throw an CommandException.
 if [ $? -eq 1 ]; then
