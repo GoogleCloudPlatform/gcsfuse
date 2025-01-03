@@ -1,4 +1,5 @@
-# Copyright 2023 Google LLC
+#!/bin/bash
+# Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,12 +12,25 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-set -e
-# Here $1 refers to the testBucket argument
-gcloud storage rm -r -q gs://$1/**
 
-# If bucket is empty it will throw an CommandException.
-if [ $? -eq 1 ]; then
-  echo "Bucket is already empty."
-  exit 0
+if [ -z "$1" ]; then
+  echo "Usage: $0 <path>"
+  exit 1
 fi
+
+PATH=$1
+
+echo "Attempting to delete all objects in path: gs://${PATH}/"
+
+# Run the gcloud command and suppress known errors
+gcloud storage rm -r -q gs://${PATH}/** 2>&1 | grep -v -E "The following URLs matched no objects|404"
+exit_code=${PIPESTATUS[0]}
+
+# Check the exit code of the gcloud command
+if [ $exit_code -eq 0 ]; then
+  echo "Objects in bucket gs://${PATH}/ have been successfully deleted."
+else
+  echo "There were some errors, but they were ignored. Review the output for details."
+fi
+
+exit 0
