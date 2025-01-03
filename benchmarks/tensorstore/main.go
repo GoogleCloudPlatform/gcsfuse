@@ -175,7 +175,7 @@ func main() {
 				if err != nil {
 					panic(err)
 				}
-				writer.Write([]string{strconv.FormatInt(ioConc, 10), strconv.FormatInt(inflightMaxMulti, 10), strconv.FormatInt(round, 10), strconv.FormatInt(int64(bw), 10)})
+				writer.Write([]string{strconv.FormatInt(ioConc, 10), strconv.FormatInt(inflightMaxMulti*64, 10), strconv.FormatInt(round, 10), strconv.FormatInt(int64(bw), 10)})
 				fmt.Printf("Bandwidth obtained: %d MB/s\n", int64(bw))
 			}
 		}
