@@ -91,7 +91,7 @@ def createOutputScenariosFromDownloadedFiles(args: dict) -> dict:
   from the downloaded fio output files, which are in the following format.
 
     <_LOCAL_LOGS_LOCATION>/<instanceId>/<fileSize>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/<scenario>/<readType>/epoch[N].json
-    where N=1-4
+    where N=1-#epochs
     <_LOCAL_LOGS_LOCATION>/<instanceId>/<fileSize>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/<scenario>/<readType>/pod_name
     <_LOCAL_LOGS_LOCATION>/<instanceId>/<fileSize>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/gcsfuse-generic/<readType>/gcsfuse_mount_options
 
@@ -100,10 +100,10 @@ def createOutputScenariosFromDownloadedFiles(args: dict) -> dict:
         "mean_file_size": str
         "read_type": str
         "records":
-            "local-ssd": [record1, record2, record3, record4]
-            "gcsfuse-generic": [record1, record2, record3, record4]
-            "gcsfuse-file-cache": [record1, record2, record3, record4]
-            "gcsfuse-no-file-cache": [record1, record2, record3, record4]
+            "local-ssd": [record1, record2, record3, ...]
+            "gcsfuse-generic": [record1, record2, record3, ...]
+            "gcsfuse-file-cache": [record1, record2, record3, ...]
+            "gcsfuse-no-file-cache": [record1, record2, record3, ...]
   """
 
   output = {}
