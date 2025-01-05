@@ -186,9 +186,9 @@ func TestListDirectoryWithTwelveThousandFiles(t *testing.T) {
 	testDirPath := path.Join(setup.MntDir(), DirectoryForListLargeFileTests)
 	testDirPathOnBucket := path.Join(setup.TestBucket(), DirectoryForListLargeFileTests)
 	dirPath := path.Join(testDirPath, DirectoryWithTwelveThousandFiles)
-	
+
 	firstListTime, secondListTime := listDirectoryTime(dirPath, validateDirectoryWithTwelveThousandFiles, t)
-	
+
 	// Fetching data from the kernel for the second list will be faster.
 	assert.Less(t, secondListTime, firstListTime)
 	// The second directory listing should be 2 times better performant since it
