@@ -1,4 +1,3 @@
-#!/bin/bash
 # Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +17,6 @@ if [ -z "$1" ]; then
   exit 1
 fi
 
-PATH=$1
+DIR_PATH=$1
 # Run the gcloud command and suppress known errors
-gcloud storage rm -r gs://${PATH}/** 2>&1 | grep -v -E "The following URLs matched no objects|404"
+gcloud storage rm -r gs://${DIR_PATH}/** 2>&1 | grep -v -E "The following URLs matched no objects|404"
