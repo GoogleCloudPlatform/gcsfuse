@@ -182,18 +182,18 @@ func listDirectoryTime(dirPath string, validateDirectory func([]os.DirEntry, *te
 
 // Test with a bucket with twelve thousand files.
 func TestListDirectoryWithTwelveThousandFiles(t *testing.T) {
-	//createTwelveThousandFilesAndUploadOnTestBucket(t)
-	//testDirPath := path.Join(setup.MntDir(), DirectoryForListLargeFileTests)
+	createTwelveThousandFilesAndUploadOnTestBucket(t)
+	testDirPath := path.Join(setup.MntDir(), DirectoryForListLargeFileTests)
 	testDirPathOnBucket := path.Join(setup.TestBucket(), DirectoryForListLargeFileTests)
-	//dirPath := path.Join(testDirPath, DirectoryWithTwelveThousandFiles)
-	//
-	//firstListTime, secondListTime := listDirectoryTime(dirPath, validateDirectoryWithTwelveThousandFiles, t)
-	//
-	//// Fetching data from the kernel for the second list will be faster.
-	//assert.Less(t, secondListTime, firstListTime)
-	//// The second directory listing should be 2 times better performant since it
-	//// will be retrieved from the kernel cache.
-	//assert.Less(t, 2*secondListTime, firstListTime)
+	dirPath := path.Join(testDirPath, DirectoryWithTwelveThousandFiles)
+	
+	firstListTime, secondListTime := listDirectoryTime(dirPath, validateDirectoryWithTwelveThousandFiles, t)
+	
+	// Fetching data from the kernel for the second list will be faster.
+	assert.Less(t, secondListTime, firstListTime)
+	// The second directory listing should be 2 times better performant since it
+	// will be retrieved from the kernel cache.
+	assert.Less(t, 2*secondListTime, firstListTime)
 
 	// Clear the data after testing.
 	setup.RunScriptForTestData("testdata/delete_objects.sh", testDirPathOnBucket)
