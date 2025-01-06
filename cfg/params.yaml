@@ -224,18 +224,6 @@
   default: -1
   usage: "UID owner of all inodes."
 
-- config-path: "file-system.write-back-cache"
-  flag-name: "write-back-cache"
-  type: "bool"
-  usage: "Specifies whether to allow write-back caching. Write-Back cache 
-  improves write performance, especially for small writes, by allowing the 
-  kernel to buffer and coalesce writes before sending them to the filesystem. 
-  This can result in fewer, larger writes, but may affect data consistency if 
-  the underlying storage is modified externally. When streaming writes are 
-  enabled, write back cache is disabled."
-  default: true
-  hide-flag: true
-
 - flag-name: "foreground"
   config-path: "foreground"
   type: "bool"

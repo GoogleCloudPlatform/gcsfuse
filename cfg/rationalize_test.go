@@ -372,7 +372,6 @@ func TestRationalize_WriteConfig(t *testing.T) {
 				assert.Equal(t, tc.expectedCreateEmptyFile, tc.config.Write.CreateEmptyFile)
 				assert.Equal(t, tc.expectedMaxBlocksPerFile, tc.config.Write.MaxBlocksPerFile)
 				assert.Equal(t, tc.expectedBlockSizeMB, tc.config.Write.BlockSizeMb)
-				assert.False(t, tc.config.FileSystem.WriteBackCache)
 			}
 		})
 	}

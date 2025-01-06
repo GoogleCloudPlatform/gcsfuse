@@ -167,8 +167,9 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		// users experience the performance gains. E.g. if a user workload tries to
 		// access two files under same directory parallely, then the lookups also
 		// happen parallely.
-		EnableParallelDirOps:    !(newConfig.FileSystem.DisableParallelDirops),
-		DisableWritebackCaching: !(newConfig.FileSystem.WriteBackCache),
+		EnableParallelDirOps: !(newConfig.FileSystem.DisableParallelDirops),
+		// We disable write-back cache when streaming writes are enabled.
+		DisableWritebackCaching: newConfig.Write.ExperimentalEnableStreamingWrites,
 	}
 
 	mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse: ")

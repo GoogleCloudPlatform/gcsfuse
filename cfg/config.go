@@ -115,8 +115,6 @@ type FileSystemConfig struct {
 	TempDir ResolvedPath `yaml:"temp-dir"`
 
 	Uid int64 `yaml:"uid"`
-
-	WriteBackCache bool `yaml:"write-back-cache"`
 }
 
 type GcsAuthConfig struct {
@@ -555,12 +553,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("uid", "", -1, "UID owner of all inodes.")
 
-	flagSet.BoolP("write-back-cache", "", true, "Specifies whether to allow write-back caching. Write-Back cache improves write performance, especially for small writes, by allowing the kernel to buffer and coalesce writes before sending them to the filesystem. This can result in fewer, larger writes, but may affect data consistency if the underlying storage is modified externally. When streaming writes are enabled, write back cache is disabled.")
-
-	if err := flagSet.MarkHidden("write-back-cache"); err != nil {
-		return err
-	}
-
 	flagSet.IntP("write-block-size-mb", "", 64, "Specifies the block size for streaming writes. The value should be more  than 0.")
 
 	if err := flagSet.MarkHidden("write-block-size-mb"); err != nil {
@@ -901,10 +893,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.uid", flagSet.Lookup("uid")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("file-system.write-back-cache", flagSet.Lookup("write-back-cache")); err != nil {
 		return err
 	}
 
