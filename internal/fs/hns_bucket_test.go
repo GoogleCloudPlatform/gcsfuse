@@ -407,6 +407,9 @@ func (t *HNSBucketTests) TestRenameFileWithDstDestFileExist() {
 	_, err = os.Stat(oldFilePath)
 	assert.Error(t.T(), err)
 	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+	content, err := os.ReadFile(newFilePath)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), "abcdef", string(content))
 }
 
 func (t *HNSBucketTests) TestRenameFileWithDifferentParent() {
@@ -423,8 +426,12 @@ func (t *HNSBucketTests) TestRenameFileWithDifferentParent() {
 	_, err = os.Stat(oldFilePath)
 	assert.Error(t.T(), err)
 	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
-	_, err = os.Stat(newFilePath)
+	f, err := os.Stat(newFilePath)
 	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), "file3.txt", f.Name())
+	content, err := os.ReadFile(newFilePath)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), "abcdef", string(content))
 }
 
 func (t *HNSBucketTests) TestRenameFileWithSameParent() {
@@ -444,4 +451,7 @@ func (t *HNSBucketTests) TestRenameFileWithSameParent() {
 	f, err := os.Stat(newFilePath)
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), "file3.txt", f.Name())
+	content, err := os.ReadFile(newFilePath)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), "abcdef", string(content))
 }
