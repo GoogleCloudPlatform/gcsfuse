@@ -327,7 +327,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("enable-nonexistent-type-cache", "", false, "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType will be created. This also means new file/dir created might not be seen. For example, if this flag is set, and metadata-cache-ttl-secs is set, then if we create the same file/node in the meantime using the same mount, since we are not refreshing the cache, it will still return nil.")
 
-	flagSet.BoolP("enable-otel", "", false, "Specifies whether to use OpenTelemetry for capturing and exporting metrics. If false, use OpenCensus.")
+	flagSet.BoolP("enable-otel", "", true, "Specifies whether to use OpenTelemetry for capturing and exporting metrics. If false, use OpenCensus.")
 
 	if err := flagSet.MarkHidden("enable-otel"); err != nil {
 		return err

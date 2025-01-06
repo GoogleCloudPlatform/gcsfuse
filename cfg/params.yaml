@@ -582,7 +582,7 @@
   flag-name: "enable-otel"
   type: "bool"
   usage: "Specifies whether to use OpenTelemetry for capturing and exporting metrics. If false, use OpenCensus."
-  default: false
+  default: true
   hide-flag: true
 
 - config-path: "metrics.prometheus-port"
