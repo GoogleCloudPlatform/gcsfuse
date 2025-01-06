@@ -381,14 +381,14 @@ func (t *HNSBucketTests) TestCreateLocalFileInSamePathAfterDeletingParentDirecto
 }
 
 func (t *HNSBucketTests) TestRenameFileWithSrcFileDoesNotExist() {
-	oldDirPath := path.Join(mntDir, "file")
-	newDirPath := path.Join(mntDir, "file_rename")
+	oldFilePath := path.Join(mntDir, "file")
+	newFilePath := path.Join(mntDir, "file_rename")
 
-	err := os.Rename(oldDirPath, newDirPath)
+	err := os.Rename(oldFilePath, newFilePath)
 
 	assert.Error(t.T(), err)
 	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
-	_, err = os.Stat(newDirPath)
+	_, err = os.Stat(newFilePath)
 	assert.Error(t.T(), err)
 	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
 }
@@ -397,7 +397,6 @@ func (t *HNSBucketTests) TestRenameFileWithDstDestFileExist() {
 	oldFilePath := path.Join(mntDir, "foo", "file1.txt")
 	_, err := os.Stat(oldFilePath)
 	assert.NoError(t.T(), err)
-	// In the setup phase, we created file1.txt within the bar directory.
 	newFilePath := path.Join(mntDir, "foo", "file2.txt")
 	_, err = os.Stat(newFilePath)
 	assert.NoError(t.T(), err)
@@ -414,7 +413,6 @@ func (t *HNSBucketTests) TestRenameFileWithDifferentParent() {
 	oldFilePath := path.Join(mntDir, "foo", "file1.txt")
 	_, err := os.Stat(oldFilePath)
 	assert.NoError(t.T(), err)
-	// In the setup phase, we created file1.txt within the bar directory.
 	newFilePath := path.Join(mntDir, "bar", "file3.txt")
 	_, err = os.Stat(newFilePath)
 	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
@@ -433,7 +431,6 @@ func (t *HNSBucketTests) TestRenameFileWithSameParent() {
 	oldFilePath := path.Join(mntDir, "foo", "file1.txt")
 	_, err := os.Stat(oldFilePath)
 	assert.NoError(t.T(), err)
-	// In the setup phase, we created file1.txt within the bar directory.
 	newFilePath := path.Join(mntDir, "foo", "file3.txt")
 	_, err = os.Stat(newFilePath)
 	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
@@ -444,6 +441,7 @@ func (t *HNSBucketTests) TestRenameFileWithSameParent() {
 	_, err = os.Stat(oldFilePath)
 	assert.Error(t.T(), err)
 	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
-	_, err = os.Stat(newFilePath)
+	f, err := os.Stat(newFilePath)
 	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), "file3.txt", f.Name())
 }
