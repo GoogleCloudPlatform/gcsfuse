@@ -4,7 +4,7 @@ go 1.23.4
 
 require (
 	cloud.google.com/go/compute/metadata v0.6.0
-	cloud.google.com/go/iam v1.3.0
+	cloud.google.com/go/iam v1.3.1
 	cloud.google.com/go/secretmanager v1.14.2
 	cloud.google.com/go/storage v1.49.0
 	contrib.go.opencensus.io/exporter/ocagent v0.7.0
