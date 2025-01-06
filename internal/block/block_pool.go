@@ -37,6 +37,11 @@ type BlockPool struct {
 	// Semaphore used to limit the total number of blocks created across
 	// different files.
 	globalMaxBlocksSem *semaphore.Weighted
+
+	// When the total number of blocks is zero, a block is created for a file
+	// without acquiring the globalMaxBlocksSem. This tracks whether the semaphore
+	// needs to be released when clearing resources.
+	semaphoreAcquired bool
 }
 
 // NewBlockPool creates the blockPool based on the user configuration.
@@ -71,6 +76,9 @@ func (bp *BlockPool) Get() (Block, error) {
 			// calls to a single file are serialized because of inode.lock().
 			if bp.totalBlocks < bp.maxBlocks {
 				freeSlotsAvailable := bp.globalMaxBlocksSem.TryAcquire(1)
+				if freeSlotsAvailable {
+					bp.semaphoreAcquired = true
+				}
 				// We are allowed to create one block per file irrespective of free slots.
 				if bp.totalBlocks > 0 && !freeSlotsAvailable {
 					continue
@@ -109,7 +117,9 @@ func (bp *BlockPool) ClearFreeBlockChannel() error {
 				return fmt.Errorf("munmap error: %v", err)
 			}
 			bp.totalBlocks--
-			bp.globalMaxBlocksSem.Release(1)
+			if bp.semaphoreAcquired {
+				bp.globalMaxBlocksSem.Release(1)
+			}
 		default:
 			// Return if there are no more blocks on the channel.
 			return nil

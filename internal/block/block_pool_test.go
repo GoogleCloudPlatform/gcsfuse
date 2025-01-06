@@ -158,6 +158,23 @@ func (t *BlockPoolTest) TestClearFreeBlockChannel() {
 	require.False(t.T(), bp.globalMaxBlocksSem.TryAcquire(1))
 }
 
+func (t *BlockPoolTest) TestClearFreeBlockChannelWhenBlockIsCreatedWithoutAcquiringGlobalSem() {
+	bp, err := NewBlockPool(1024, 3, semaphore.NewWeighted(0))
+	require.Nil(t.T(), err)
+	b1, err := bp.Get()
+	require.Nil(t.T(), err)
+	require.NotNil(t.T(), b1)
+	// Adding block to freeBlocksCh
+	bp.freeBlocksCh <- b1
+	require.Equal(t.T(), int64(1), bp.totalBlocks)
+
+	err = bp.ClearFreeBlockChannel()
+
+	require.Nil(t.T(), err)
+	require.Equal(t.T(), int64(0), bp.totalBlocks)
+	require.Nil(t.T(), b1.(*memoryBlock).buffer)
+}
+
 func (t *BlockPoolTest) TestGetWhenGlobalMaxBlocksIsZero() {
 	bp, err := NewBlockPool(1024, 10, semaphore.NewWeighted(0))
 	require.Nil(t.T(), err)
