@@ -71,6 +71,10 @@ func TestFileTestSuite(t *testing.T) {
 	suite.Run(t, new(FileTest))
 }
 
+func (t *FileTest) SetupSubTest() {
+	t.SetupTest()
+}
+
 func (t *FileTest) SetupTest() {
 	// Enabling invariant check for all tests.
 	syncutil.EnableInvariantChecking()
@@ -359,267 +363,404 @@ func (t *FileTest) TestTruncate() {
 }
 
 func (t *FileTest) TestWriteThenSync() {
-	var attrs fuseops.InodeAttributes
-	var err error
+	testcases := []struct {
+		name     string
+		callSync bool
+	}{
+		{
+			name:     "sync",
+			callSync: true,
+		},
+		{
+			name:     "flush",
+			callSync: false,
+		},
+	}
 
-	assert.Equal(t.T(), "taco", t.initialContents)
+	for _, tc := range testcases {
+		t.Run(tc.name, func() {
+			var attrs fuseops.InodeAttributes
+			var err error
 
-	// Overwite a byte.
-	t.clock.AdvanceTime(time.Second)
-	writeTime := t.clock.Now()
+			assert.Equal(t.T(), "taco", t.initialContents)
 
-	err = t.in.Write(t.ctx, []byte("p"), 0)
-	assert.Nil(t.T(), err)
+			// Overwrite a byte.
+			t.clock.AdvanceTime(time.Second)
+			writeTime := t.clock.Now()
 
-	t.clock.AdvanceTime(time.Second)
+			err = t.in.Write(t.ctx, []byte("p"), 0)
+			assert.Nil(t.T(), err)
 
-	// Sync.
-	err = t.in.Sync(t.ctx)
-	assert.Nil(t.T(), err)
+			t.clock.AdvanceTime(time.Second)
 
-	// The generation should have advanced.
-	assert.Less(t.T(), t.backingObj.Generation, t.in.SourceGeneration().Object)
+			if tc.callSync {
+				gcsSynced, err := t.in.Sync(t.ctx)
+				assert.Nil(t.T(), err)
+				assert.True(t.T(), gcsSynced)
+			} else {
+				err = t.in.Flush(t.ctx)
+				assert.Nil(t.T(), err)
+			}
 
-	// Stat the current object in the bucket.
-	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
-	m, _, err := t.bucket.StatObject(t.ctx, statReq)
+			// The generation should have advanced.
+			assert.Less(t.T(), t.backingObj.Generation, t.in.SourceGeneration().Object)
 
-	assert.Nil(t.T(), err)
-	assert.NotNil(t.T(), m)
-	assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
-	assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
-	assert.Equal(t.T(), uint64(len("paco")), m.Size)
-	assert.Equal(t.T(),
-		writeTime.UTC().Format(time.RFC3339Nano),
-		m.Metadata["gcsfuse_mtime"])
+			// Stat the current object in the bucket.
+			statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+			m, _, err := t.bucket.StatObject(t.ctx, statReq)
 
-	// Read the object's contents.
-	contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
+			assert.Nil(t.T(), err)
+			assert.NotNil(t.T(), m)
+			assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
+			assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
+			assert.Equal(t.T(), uint64(len("paco")), m.Size)
+			assert.Equal(t.T(),
+				writeTime.UTC().Format(time.RFC3339Nano),
+				m.Metadata["gcsfuse_mtime"])
 
-	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), "paco", string(contents))
+			// Read the object's contents.
+			contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
 
-	// Check attributes.
-	attrs, err = t.in.Attributes(t.ctx)
-	assert.Nil(t.T(), err)
+			assert.Nil(t.T(), err)
+			assert.Equal(t.T(), "paco", string(contents))
 
-	assert.Equal(t.T(), uint64(len("paco")), attrs.Size)
-	assert.Equal(t.T(), attrs.Mtime, writeTime.UTC())
+			// Check attributes.
+			attrs, err = t.in.Attributes(t.ctx)
+			assert.Nil(t.T(), err)
+
+			assert.Equal(t.T(), uint64(len("paco")), attrs.Size)
+			assert.Equal(t.T(), attrs.Mtime, writeTime.UTC())
+		})
+	}
 }
 
 func (t *FileTest) TestWriteToLocalFileThenSync() {
-	var attrs fuseops.InodeAttributes
-	var err error
-	// Create a local file inode.
-	t.createInodeWithLocalParam("test", true)
-	// Create a temp file for the local inode created above.
-	err = t.in.CreateBufferedOrTempWriter(t.ctx)
-	assert.Nil(t.T(), err)
-	// Write some content to temp file.
-	t.clock.AdvanceTime(time.Second)
-	writeTime := t.clock.Now()
-	err = t.in.Write(t.ctx, []byte("tacos"), 0)
-	assert.Nil(t.T(), err)
-	t.clock.AdvanceTime(time.Second)
+	testcases := []struct {
+		name     string
+		callSync bool
+	}{
+		{
+			name:     "sync",
+			callSync: true,
+		},
+		{
+			name:     "flush",
+			callSync: false,
+		},
+	}
 
-	// Sync.
-	err = t.in.Sync(t.ctx)
+	for _, tc := range testcases {
+		t.Run(tc.name, func() {
+			var attrs fuseops.InodeAttributes
+			var err error
+			// Create a local file inode.
+			t.createInodeWithLocalParam("test", true)
+			// Create a temp file for the local inode created above.
+			err = t.in.CreateBufferedOrTempWriter(t.ctx)
+			assert.Nil(t.T(), err)
+			// Write some content to temp file.
+			t.clock.AdvanceTime(time.Second)
+			writeTime := t.clock.Now()
+			err = t.in.Write(t.ctx, []byte("tacos"), 0)
+			assert.Nil(t.T(), err)
+			t.clock.AdvanceTime(time.Second)
 
-	assert.Nil(t.T(), err)
-	// Verify that fileInode is no more local
-	assert.False(t.T(), t.in.IsLocal())
-	// Stat the current object in the bucket.
-	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
-	m, _, err := t.bucket.StatObject(t.ctx, statReq)
-	assert.Nil(t.T(), err)
-	assert.NotNil(t.T(), m)
-	assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
-	assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
-	assert.Equal(t.T(), uint64(len("tacos")), m.Size)
-	assert.Equal(t.T(),
-		writeTime.UTC().Format(time.RFC3339Nano),
-		m.Metadata["gcsfuse_mtime"])
-	// Read the object's contents.
-	contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
-	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), "tacos", string(contents))
-	// Check attributes.
-	attrs, err = t.in.Attributes(t.ctx)
-	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), uint64(len("tacos")), attrs.Size)
-	assert.Equal(t.T(), attrs.Mtime, writeTime.UTC())
+			if tc.callSync {
+				gcsSynced, err := t.in.Sync(t.ctx)
+				assert.Nil(t.T(), err)
+				assert.True(t.T(), gcsSynced)
+			} else {
+				err = t.in.Flush(t.ctx)
+				assert.Nil(t.T(), err)
+			}
+
+			// Verify that fileInode is no more local
+			assert.False(t.T(), t.in.IsLocal())
+			// Stat the current object in the bucket.
+			statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+			m, _, err := t.bucket.StatObject(t.ctx, statReq)
+			assert.Nil(t.T(), err)
+			assert.NotNil(t.T(), m)
+			assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
+			assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
+			assert.Equal(t.T(), uint64(len("tacos")), m.Size)
+			assert.Equal(t.T(),
+				writeTime.UTC().Format(time.RFC3339Nano),
+				m.Metadata["gcsfuse_mtime"])
+			// Read the object's contents.
+			contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
+			assert.Nil(t.T(), err)
+			assert.Equal(t.T(), "tacos", string(contents))
+			// Check attributes.
+			attrs, err = t.in.Attributes(t.ctx)
+			assert.Nil(t.T(), err)
+			assert.Equal(t.T(), uint64(len("tacos")), attrs.Size)
+			assert.Equal(t.T(), attrs.Mtime, writeTime.UTC())
+		})
+	}
 }
 
 func (t *FileTest) TestSyncEmptyLocalFile() {
-	var attrs fuseops.InodeAttributes
-	var err error
-	// Create a local file inode.
-	t.createInodeWithLocalParam("test", true)
-	creationTime := t.clock.Now()
-	// Create a temp file for the local inode created above.
-	err = t.in.CreateBufferedOrTempWriter(t.ctx)
-	assert.Nil(t.T(), err)
+	testcases := []struct {
+		name     string
+		callSync bool
+	}{
+		{
+			name:     "sync",
+			callSync: true,
+		},
+		{
+			name:     "flush",
+			callSync: false,
+		},
+	}
 
-	// Sync.
-	err = t.in.Sync(t.ctx)
+	for _, tc := range testcases {
+		t.Run(tc.name, func() {
+			var attrs fuseops.InodeAttributes
+			var err error
+			// Create a local file inode.
+			t.createInodeWithLocalParam("test", true)
+			creationTime := t.clock.Now()
+			// Create a temp file for the local inode created above.
+			err = t.in.CreateBufferedOrTempWriter(t.ctx)
+			assert.Nil(t.T(), err)
 
-	assert.Nil(t.T(), err)
-	// Verify that fileInode is no more local
-	assert.False(t.T(), t.in.IsLocal())
-	// Stat the current object in the bucket.
-	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
-	m, _, err := t.bucket.StatObject(t.ctx, statReq)
-	assert.Nil(t.T(), err)
-	assert.NotNil(t.T(), m)
-	assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
-	assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
-	assert.Equal(t.T(), uint64(0), m.Size)
-	// Validate the mtime.
-	mtimeInBucket, ok := m.Metadata["gcsfuse_mtime"]
-	assert.True(t.T(), ok)
-	mtime, _ := time.Parse(time.RFC3339Nano, mtimeInBucket)
-	assert.WithinDuration(t.T(), mtime, creationTime, Delta)
-	// Read the object's contents.
-	contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
-	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), "", string(contents))
-	// Check attributes.
-	attrs, err = t.in.Attributes(t.ctx)
-	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), uint64(0), attrs.Size)
+			if tc.callSync {
+				gcsSynced, err := t.in.Sync(t.ctx)
+				assert.Nil(t.T(), err)
+				assert.True(t.T(), gcsSynced)
+			} else {
+				err = t.in.Flush(t.ctx)
+				assert.Nil(t.T(), err)
+			}
+
+			// Verify that fileInode is no more local
+			assert.False(t.T(), t.in.IsLocal())
+			// Stat the current object in the bucket.
+			statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+			m, _, err := t.bucket.StatObject(t.ctx, statReq)
+			assert.Nil(t.T(), err)
+			assert.NotNil(t.T(), m)
+			assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
+			assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
+			assert.Equal(t.T(), uint64(0), m.Size)
+			// Validate the mtime.
+			mtimeInBucket, ok := m.Metadata["gcsfuse_mtime"]
+			assert.True(t.T(), ok)
+			mtime, _ := time.Parse(time.RFC3339Nano, mtimeInBucket)
+			assert.WithinDuration(t.T(), mtime, creationTime, Delta)
+			// Read the object's contents.
+			contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
+			assert.Nil(t.T(), err)
+			assert.Equal(t.T(), "", string(contents))
+			// Check attributes.
+			attrs, err = t.in.Attributes(t.ctx)
+			assert.Nil(t.T(), err)
+			assert.Equal(t.T(), uint64(0), attrs.Size)
+		})
+	}
 }
 
 func (t *FileTest) TestAppendThenSync() {
-	var attrs fuseops.InodeAttributes
-	var err error
+	testcases := []struct {
+		name     string
+		callSync bool
+	}{
+		{
+			name:     "sync",
+			callSync: true,
+		},
+		{
+			name:     "flush",
+			callSync: false,
+		},
+	}
 
-	assert.Equal(t.T(), "taco", t.initialContents)
+	for _, tc := range testcases {
+		t.Run(tc.name, func() {
+			var attrs fuseops.InodeAttributes
+			var err error
 
-	// Append some data.
-	t.clock.AdvanceTime(time.Second)
-	writeTime := t.clock.Now()
+			assert.Equal(t.T(), "taco", t.initialContents)
 
-	err = t.in.Write(t.ctx, []byte("burrito"), int64(len("taco")))
-	assert.Nil(t.T(), err)
+			// Append some data.
+			t.clock.AdvanceTime(time.Second)
+			writeTime := t.clock.Now()
 
-	t.clock.AdvanceTime(time.Second)
+			err = t.in.Write(t.ctx, []byte("burrito"), int64(len("taco")))
+			assert.Nil(t.T(), err)
 
-	// Sync.
-	err = t.in.Sync(t.ctx)
-	assert.Nil(t.T(), err)
+			t.clock.AdvanceTime(time.Second)
 
-	// The generation should have advanced.
-	assert.Less(t.T(), t.backingObj.Generation, t.in.SourceGeneration().Object)
+			if tc.callSync {
+				gcsSynced, err := t.in.Sync(t.ctx)
+				assert.Nil(t.T(), err)
+				assert.True(t.T(), gcsSynced)
+			} else {
+				err = t.in.Flush(t.ctx)
+				assert.Nil(t.T(), err)
+			}
 
-	// Stat the current object in the bucket.
-	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
-	m, _, err := t.bucket.StatObject(t.ctx, statReq)
+			// The generation should have advanced.
+			assert.Less(t.T(), t.backingObj.Generation, t.in.SourceGeneration().Object)
 
-	assert.Nil(t.T(), err)
-	assert.NotNil(t.T(), m)
-	assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
-	assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
-	assert.Equal(t.T(), uint64(len("tacoburrito")), m.Size)
-	assert.Equal(t.T(),
-		writeTime.UTC().Format(time.RFC3339Nano),
-		m.Metadata["gcsfuse_mtime"])
+			// Stat the current object in the bucket.
+			statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+			m, _, err := t.bucket.StatObject(t.ctx, statReq)
 
-	// Read the object's contents.
-	contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
+			assert.Nil(t.T(), err)
+			assert.NotNil(t.T(), m)
+			assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
+			assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
+			assert.Equal(t.T(), uint64(len("tacoburrito")), m.Size)
+			assert.Equal(t.T(),
+				writeTime.UTC().Format(time.RFC3339Nano),
+				m.Metadata["gcsfuse_mtime"])
 
-	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), "tacoburrito", string(contents))
+			// Read the object's contents.
+			contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
 
-	// Check attributes.
-	attrs, err = t.in.Attributes(t.ctx)
-	assert.Nil(t.T(), err)
+			assert.Nil(t.T(), err)
+			assert.Equal(t.T(), "tacoburrito", string(contents))
 
-	assert.Equal(t.T(), uint64(len("tacoburrito")), attrs.Size)
-	assert.Equal(t.T(), attrs.Mtime, writeTime.UTC())
+			// Check attributes.
+			attrs, err = t.in.Attributes(t.ctx)
+			assert.Nil(t.T(), err)
+
+			assert.Equal(t.T(), uint64(len("tacoburrito")), attrs.Size)
+			assert.Equal(t.T(), attrs.Mtime, writeTime.UTC())
+		})
+	}
 }
 
 func (t *FileTest) TestTruncateDownwardThenSync() {
-	var attrs fuseops.InodeAttributes
-	var err error
+	testcases := []struct {
+		name     string
+		callSync bool
+	}{
+		{
+			name:     "sync",
+			callSync: true,
+		},
+		{
+			name:     "flush",
+			callSync: false,
+		},
+	}
+	for _, tc := range testcases {
+		t.Run(tc.name, func() {
+			var attrs fuseops.InodeAttributes
+			var err error
 
-	// Truncate downward.
-	t.clock.AdvanceTime(time.Second)
-	truncateTime := t.clock.Now()
+			// Truncate downward.
+			t.clock.AdvanceTime(time.Second)
+			truncateTime := t.clock.Now()
 
-	err = t.in.Truncate(t.ctx, 2)
-	assert.Nil(t.T(), err)
+			err = t.in.Truncate(t.ctx, 2)
+			assert.Nil(t.T(), err)
 
-	t.clock.AdvanceTime(time.Second)
+			t.clock.AdvanceTime(time.Second)
 
-	// Sync.
-	err = t.in.Sync(t.ctx)
-	assert.Nil(t.T(), err)
+			if tc.callSync {
+				gcsSynced, err := t.in.Sync(t.ctx)
+				assert.Nil(t.T(), err)
+				assert.True(t.T(), gcsSynced)
+			} else {
+				err = t.in.Flush(t.ctx)
+				assert.Nil(t.T(), err)
+			}
 
-	// The generation should have advanced.
-	assert.Less(t.T(), t.backingObj.Generation, t.in.SourceGeneration().Object)
+			// The generation should have advanced.
+			assert.Less(t.T(), t.backingObj.Generation, t.in.SourceGeneration().Object)
 
-	// Stat the current object in the bucket.
-	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
-	m, _, err := t.bucket.StatObject(t.ctx, statReq)
+			// Stat the current object in the bucket.
+			statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+			m, _, err := t.bucket.StatObject(t.ctx, statReq)
 
-	assert.Nil(t.T(), err)
-	assert.NotNil(t.T(), m)
-	assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
-	assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
-	assert.Equal(t.T(), uint64(2), m.Size)
-	assert.Equal(t.T(),
-		truncateTime.UTC().Format(time.RFC3339Nano),
-		m.Metadata["gcsfuse_mtime"])
+			assert.Nil(t.T(), err)
+			assert.NotNil(t.T(), m)
+			assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
+			assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
+			assert.Equal(t.T(), uint64(2), m.Size)
+			assert.Equal(t.T(),
+				truncateTime.UTC().Format(time.RFC3339Nano),
+				m.Metadata["gcsfuse_mtime"])
 
-	// Check attributes.
-	attrs, err = t.in.Attributes(t.ctx)
-	assert.Nil(t.T(), err)
+			// Check attributes.
+			attrs, err = t.in.Attributes(t.ctx)
+			assert.Nil(t.T(), err)
 
-	assert.Equal(t.T(), uint64(2), attrs.Size)
-	assert.Equal(t.T(), attrs.Mtime, truncateTime.UTC())
+			assert.Equal(t.T(), uint64(2), attrs.Size)
+			assert.Equal(t.T(), attrs.Mtime, truncateTime.UTC())
+		})
+	}
 }
 
-func (t *FileTest) TestTruncateUpwardThenSync() {
-	var attrs fuseops.InodeAttributes
-	var err error
+func (t *FileTest) TestTruncateUpwardThenFlush() {
+	testcases := []struct {
+		name     string
+		callSync bool
+	}{
+		{
+			name:     "sync",
+			callSync: true,
+		},
+		{
+			name:     "flush",
+			callSync: false,
+		},
+	}
 
-	assert.Equal(t.T(), 4, len(t.initialContents))
+	for _, tc := range testcases {
+		t.Run(tc.name, func() {
+			var attrs fuseops.InodeAttributes
+			var err error
 
-	// Truncate upward.
-	t.clock.AdvanceTime(time.Second)
-	truncateTime := t.clock.Now()
+			assert.Equal(t.T(), 4, len(t.initialContents))
 
-	err = t.in.Truncate(t.ctx, 6)
-	assert.Nil(t.T(), err)
+			// Truncate upward.
+			t.clock.AdvanceTime(time.Second)
+			truncateTime := t.clock.Now()
 
-	t.clock.AdvanceTime(time.Second)
+			err = t.in.Truncate(t.ctx, 6)
+			assert.Nil(t.T(), err)
 
-	// Sync.
-	err = t.in.Sync(t.ctx)
-	assert.Nil(t.T(), err)
+			t.clock.AdvanceTime(time.Second)
 
-	// The generation should have advanced.
-	assert.Less(t.T(), t.backingObj.Generation, t.in.SourceGeneration().Object)
+			if tc.callSync {
+				gcsSynced, err := t.in.Sync(t.ctx)
+				assert.Nil(t.T(), err)
+				assert.True(t.T(), gcsSynced)
+			} else {
+				err = t.in.Flush(t.ctx)
+				assert.Nil(t.T(), err)
+			}
 
-	// Stat the current object in the bucket.
-	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
-	m, _, err := t.bucket.StatObject(t.ctx, statReq)
-	assert.Equal(t.T(),
-		truncateTime.UTC().Format(time.RFC3339Nano),
-		m.Metadata["gcsfuse_mtime"])
+			// The generation should have advanced.
+			assert.Less(t.T(), t.backingObj.Generation, t.in.SourceGeneration().Object)
 
-	assert.Nil(t.T(), err)
-	assert.NotNil(t.T(), m)
-	assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
-	assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
-	assert.Equal(t.T(), uint64(6), m.Size)
+			// Stat the current object in the bucket.
+			statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+			m, _, err := t.bucket.StatObject(t.ctx, statReq)
+			assert.Equal(t.T(),
+				truncateTime.UTC().Format(time.RFC3339Nano),
+				m.Metadata["gcsfuse_mtime"])
 
-	// Check attributes.
-	attrs, err = t.in.Attributes(t.ctx)
-	assert.Nil(t.T(), err)
+			assert.Nil(t.T(), err)
+			assert.NotNil(t.T(), m)
+			assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
+			assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
+			assert.Equal(t.T(), uint64(6), m.Size)
 
-	assert.Equal(t.T(), uint64(6), attrs.Size)
-	assert.Equal(t.T(), attrs.Mtime, truncateTime.UTC())
+			// Check attributes.
+			attrs, err = t.in.Attributes(t.ctx)
+			assert.Nil(t.T(), err)
+
+			assert.Equal(t.T(), uint64(6), attrs.Size)
+			assert.Equal(t.T(), attrs.Mtime, truncateTime.UTC())
+		})
+	}
 }
 
 func (t *FileTest) TestTruncateUpwardForLocalFileShouldUpdateLocalFileAttributes() {
@@ -846,39 +987,64 @@ func (t *FileTest) TestTruncateDownwardWhenStreamingWritesAreEnabled() {
 	}
 }
 
-func (t *FileTest) TestSync_Clobbered() {
-	var err error
+func (t *FileTest) TestSyncFlush_Clobbered() {
+	testcases := []struct {
+		name     string
+		callSync bool
+	}{
+		{
+			name:     "sync",
+			callSync: true,
+		},
+		{
+			name:     "flush",
+			callSync: false,
+		},
+	}
 
-	// Truncate downward.
-	err = t.in.Truncate(t.ctx, 2)
-	assert.Nil(t.T(), err)
+	for _, tc := range testcases {
+		t.Run(tc.name, func() {
+			var err error
 
-	// Clobber the backing object.
-	newObj, err := storageutil.CreateObject(
-		t.ctx,
-		t.bucket,
-		t.in.Name().GcsObjectName(),
-		[]byte("burrito"))
+			// Truncate downward.
+			err = t.in.Truncate(t.ctx, 2)
+			assert.Nil(t.T(), err)
 
-	assert.Nil(t.T(), err)
+			// Clobber the backing object.
+			newObj, err := storageutil.CreateObject(
+				t.ctx,
+				t.bucket,
+				t.in.Name().GcsObjectName(),
+				[]byte("burrito"))
 
-	// Sync. The call should not succeed, and we expect a FileClobberedError.
-	err = t.in.Sync(t.ctx)
+			assert.Nil(t.T(), err)
 
-	// Check if the error is a FileClobberedError
-	var fcErr *gcsfuse_errors.FileClobberedError
-	assert.True(t.T(), errors.As(err, &fcErr), "expected FileClobberedError but got %v", err)
-	assert.Equal(t.T(), t.backingObj.Generation, t.in.SourceGeneration().Object)
-	assert.Equal(t.T(), t.backingObj.MetaGeneration, t.in.SourceGeneration().Metadata)
+			if tc.callSync {
+				var gcsSynced bool
+				// Sync. The call should not succeed, and we expect a FileClobberedError.
+				gcsSynced, err = t.in.Sync(t.ctx)
+				assert.False(t.T(), gcsSynced)
+			} else {
+				// Flush. The call should not succeed, and we expect a FileClobberedError.
+				err = t.in.Flush(t.ctx)
+			}
 
-	// The object in the bucket should not have been changed.
-	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
-	m, _, err := t.bucket.StatObject(t.ctx, statReq)
+			// Check if the error is a FileClobberedError
+			var fcErr *gcsfuse_errors.FileClobberedError
+			assert.True(t.T(), errors.As(err, &fcErr), "expected FileClobberedError but got %v", err)
+			assert.Equal(t.T(), t.backingObj.Generation, t.in.SourceGeneration().Object)
+			assert.Equal(t.T(), t.backingObj.MetaGeneration, t.in.SourceGeneration().Metadata)
 
-	assert.Nil(t.T(), err)
-	assert.NotNil(t.T(), m)
-	assert.Equal(t.T(), newObj.Generation, m.Generation)
-	assert.Equal(t.T(), newObj.Size, m.Size)
+			// The object in the bucket should not have been changed.
+			statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+			m, _, err := t.bucket.StatObject(t.ctx, statReq)
+
+			assert.Nil(t.T(), err)
+			assert.NotNil(t.T(), m)
+			assert.Equal(t.T(), newObj.Generation, m.Generation)
+			assert.Equal(t.T(), newObj.Size, m.Size)
+		})
+	}
 }
 
 func (t *FileTest) TestOpenReader_ThrowsFileClobberedError() {
@@ -979,8 +1145,9 @@ func (t *FileTest) TestSetMtime_ContentDirty() {
 	assert.Equal(t.T(), attrs.Mtime, mtime)
 
 	// Sync.
-	err = t.in.Sync(t.ctx)
+	gcsSynced, err := t.in.Sync(t.ctx)
 	assert.Nil(t.T(), err)
+	assert.True(t.T(), gcsSynced)
 
 	// Now the object in the bucket should have the appropriate mtime.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
@@ -1068,6 +1235,7 @@ func (t *FileTest) TestSetMtimeForUnlinkedFileIsNoOp() {
 func (t *FileTest) TestTestSetMtimeForLocalFileShouldUpdateLocalFileAttributes() {
 	var err error
 	var attrs fuseops.InodeAttributes
+
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
 	createTime := t.in.mtimeClock.Now()
@@ -1099,6 +1267,7 @@ func (t *FileTest) TestTestSetMtimeForLocalFileShouldUpdateLocalFileAttributes()
 func (t *FileTest) TestSetMtimeForLocalFileWhenStreamingWritesAreEnabled() {
 	var err error
 	var attrs fuseops.InodeAttributes
+
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
 	t.in.config = &cfg.Config{Write: *getWriteConfig()}
@@ -1196,6 +1365,7 @@ func (t *FileTest) TestCreateBufferedOrTempWriterShouldCreateFileForNonLocalFile
 
 func (t *FileTest) TestUnlinkLocalFile() {
 	var err error
+
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
 	// Create a temp file for the local inode created above.
