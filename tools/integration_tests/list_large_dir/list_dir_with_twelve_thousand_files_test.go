@@ -15,6 +15,8 @@
 package list_large_dir_test
 
 import (
+	"fmt"
+	"log"
 	"math"
 	"os"
 	"path"
@@ -176,6 +178,31 @@ func listDirectoryTime(dirPath string, validateDirectory func([]os.DirEntry, *te
 	return firstListTime, minSecondListTime
 }
 
+func filterErrors(output string) string {
+	lines := strings.Split(output, "\n")
+	var filteredLines []string
+	for _, line := range lines {
+		if !strings.Contains(line, "The following URLs matched no objects") && !strings.Contains(line, "404") && line != "" {
+			// Added to exclude adding empty lines to output.
+			filteredLines = append(filteredLines, line)
+		}
+	}
+	return strings.Join(filteredLines, "\n")
+}
+
+func cleanDirectory(dirPath string) {
+	// Clear the bucket after testing.
+	out, err := operations.ExecuteGcloudCommand("storage rm -r " + fmt.Sprintf("gs://%s/100Mib/**", dirPath))
+	if err != nil {
+		// Filter known harmless errors.  Consider logging these instead of completely
+		// suppressing them.
+		filteredOutput := filterErrors(string(out))
+		if filteredOutput != "" {
+			log.Fatalf("error in cleaning directory: %v", string(filteredOutput))
+		}
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
@@ -196,7 +223,7 @@ func TestListDirectoryWithTwelveThousandFiles(t *testing.T) {
 	assert.Less(t, 2*secondListTime, firstListTime)
 
 	// Clear the data after testing.
-	setup.RunScriptForTestData("testdata/delete_objects.sh", testDirPathOnBucket)
+	cleanDirectory(testDirPathOnBucket)
 }
 
 // Test with a bucket with twelve thousand files and hundred explicit directories.
@@ -214,9 +241,7 @@ func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T)
 	// The second directory listing should be 2 times better performant since it
 	// will be retrieved from the kernel cache.
 	assert.Less(t, 2*secondListTime, firstListTime)
-
-	// Clear the bucket after testing.
-	setup.RunScriptForTestData("testdata/delete_objects.sh", testDirPathOnBucket)
+	cleanDirectory(testDirPathOnBucket)
 }
 
 // Test with a bucket with twelve thousand files, hundred explicit directories, and hundred implicit directories.
@@ -237,5 +262,5 @@ func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImpl
 	// will be retrieved from the kernel cache.
 	assert.Less(t, 2*secondListTime, firstListTime)
 	// Clear the bucket after testing.
-	setup.RunScriptForTestData("testdata/delete_objects.sh", testDirPathOnBucket)
+	cleanDirectory(testDirPathOnBucket)
 }
