@@ -30,6 +30,8 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+const file1Content = "abcdef"
+
 type HNSBucketTests struct {
 	suite.Suite
 	fsTest
@@ -70,7 +72,7 @@ func (t *HNSBucketTests) SetupTest() {
 
 	err = t.createObjects(
 		map[string]string{
-			"foo/file1.txt":              "abcdef",
+			"foo/file1.txt":              file1Content,
 			"foo/file2.txt":              "xyz",
 			"foo/test/file3.txt":         "xyz",
 			"foo/implicit_dir/file3.txt": "xxw",
@@ -409,7 +411,7 @@ func (t *HNSBucketTests) TestRenameFileWithDstDestFileExist() {
 	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
 	content, err := os.ReadFile(newFilePath)
 	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), "abcdef", string(content))
+	assert.Equal(t.T(), file1Content, string(content))
 }
 
 func (t *HNSBucketTests) TestRenameFileWithDifferentParent() {
@@ -431,7 +433,7 @@ func (t *HNSBucketTests) TestRenameFileWithDifferentParent() {
 	assert.Equal(t.T(), "file3.txt", f.Name())
 	content, err := os.ReadFile(newFilePath)
 	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), "abcdef", string(content))
+	assert.Equal(t.T(), file1Content, string(content))
 }
 
 func (t *HNSBucketTests) TestRenameFileWithSameParent() {
@@ -453,5 +455,5 @@ func (t *HNSBucketTests) TestRenameFileWithSameParent() {
 	assert.Equal(t.T(), "file3.txt", f.Name())
 	content, err := os.ReadFile(newFilePath)
 	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), "abcdef", string(content))
+	assert.Equal(t.T(), file1Content, string(content))
 }
