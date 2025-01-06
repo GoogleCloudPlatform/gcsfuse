@@ -68,21 +68,24 @@ func resolveStatCacheMaxSizeMB(v isSet, c *MetadataCacheConfig) {
 	c.StatCacheMaxSizeMb = int64(util.BytesToHigherMiBs(uint64(c.DeprecatedStatCacheCapacity) * avgTotalStatCacheEntrySize))
 }
 
-func resolveStreamingWriteConfig(w *WriteConfig) {
-	if w.ExperimentalEnableStreamingWrites {
-		w.CreateEmptyFile = false
+func resolveStreamingWriteConfig(c *Config) {
+	if c.Write.ExperimentalEnableStreamingWrites {
+		c.Write.CreateEmptyFile = false
+		c.FileSystem.WriteBackCache = false
 	}
 
-	if w.GlobalMaxBlocks == -1 {
-		w.GlobalMaxBlocks = math.MaxInt64
+	c.Write.BlockSizeMb *= util.MiB
+
+	if c.Write.GlobalMaxBlocks == -1 {
+		c.Write.GlobalMaxBlocks = math.MaxInt64
 	}
 
-	if w.MaxBlocksPerFile == -1 {
-		w.MaxBlocksPerFile = math.MaxInt64
+	if c.Write.MaxBlocksPerFile == -1 {
+		c.Write.MaxBlocksPerFile = math.MaxInt64
 	}
 
-	if w.GlobalMaxBlocks < w.MaxBlocksPerFile {
-		w.MaxBlocksPerFile = w.GlobalMaxBlocks
+	if c.Write.GlobalMaxBlocks < c.Write.MaxBlocksPerFile {
+		c.Write.MaxBlocksPerFile = c.Write.GlobalMaxBlocks
 	}
 }
 
@@ -107,7 +110,7 @@ func Rationalize(v isSet, c *Config) error {
 		c.Logging.Severity = "TRACE"
 	}
 
-	resolveStreamingWriteConfig(&c.Write)
+	resolveStreamingWriteConfig(c)
 	resolveMetadataCacheTTL(v, &c.MetadataCache)
 	resolveStatCacheMaxSizeMB(v, &c.MetadataCache)
 	resolveCloudMetricsUploadIntervalSecs(&c.Metrics)

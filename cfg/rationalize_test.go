@@ -315,6 +315,7 @@ func TestRationalize_WriteConfig(t *testing.T) {
 		config                   *Config
 		expectedCreateEmptyFile  bool
 		expectedMaxBlocksPerFile int64
+		expectedBlockSizeMB      int64
 	}{
 		{
 			name: "valid_config_streaming_writes_enabled",
@@ -329,12 +330,13 @@ func TestRationalize_WriteConfig(t *testing.T) {
 			},
 			expectedCreateEmptyFile:  false,
 			expectedMaxBlocksPerFile: math.MaxInt64,
+			expectedBlockSizeMB:      10 * 1024 * 1024,
 		},
 		{
 			name: "valid_config_global_max_blocks_less_than_blocks_per_file",
 			config: &Config{
 				Write: WriteConfig{
-					BlockSizeMb:                       10,
+					BlockSizeMb:                       5,
 					CreateEmptyFile:                   true,
 					ExperimentalEnableStreamingWrites: true,
 					GlobalMaxBlocks:                   10,
@@ -343,12 +345,13 @@ func TestRationalize_WriteConfig(t *testing.T) {
 			},
 			expectedCreateEmptyFile:  false,
 			expectedMaxBlocksPerFile: 10,
+			expectedBlockSizeMB:      5 * 1024 * 1024,
 		},
 		{
 			name: "valid_config_global_max_blocks_more_than_blocks_per_file",
 			config: &Config{
 				Write: WriteConfig{
-					BlockSizeMb:                       10,
+					BlockSizeMb:                       64,
 					CreateEmptyFile:                   true,
 					ExperimentalEnableStreamingWrites: true,
 					GlobalMaxBlocks:                   20,
@@ -357,6 +360,7 @@ func TestRationalize_WriteConfig(t *testing.T) {
 			},
 			expectedCreateEmptyFile:  false,
 			expectedMaxBlocksPerFile: 10,
+			expectedBlockSizeMB:      64 * 1024 * 1024,
 		},
 	}
 
@@ -367,6 +371,8 @@ func TestRationalize_WriteConfig(t *testing.T) {
 			if assert.NoError(t, actualErr) {
 				assert.Equal(t, tc.expectedCreateEmptyFile, tc.config.Write.CreateEmptyFile)
 				assert.Equal(t, tc.expectedMaxBlocksPerFile, tc.config.Write.MaxBlocksPerFile)
+				assert.Equal(t, tc.expectedBlockSizeMB, tc.config.Write.BlockSizeMb)
+				assert.False(t, tc.config.FileSystem.WriteBackCache)
 			}
 		})
 	}
