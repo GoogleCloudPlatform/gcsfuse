@@ -46,7 +46,10 @@ var expectedFooDirEntries = []dirEntry{
 	{name: "file1.txt", isDir: false},
 	{name: "file2.txt", isDir: false},
 	{name: "implicit_dir", isDir: true},
+	{name: "cache_test", isDir: true},
 }
+
+var test_folders_in_hns_bucket = []string{"foo/", "bar/", "foo/test2/", "foo/test/", "foo/cache_test/"}
 
 func TestHNSBucketTests(t *testing.T) { suite.Run(t, new(HNSBucketTests)) }
 
@@ -65,7 +68,7 @@ func (t *HNSBucketTests) TearDownSuite() {
 }
 
 func (t *HNSBucketTests) SetupTest() {
-	err := t.createFolders([]string{"foo/", "bar/", "foo/test2/", "foo/test/"})
+	err := t.createFolders(test_folders_in_hns_bucket)
 	require.NoError(t.T(), err)
 
 	err = t.createObjects(
@@ -89,7 +92,7 @@ func (t *HNSBucketTests) TestReadDir() {
 	dirEntries, err := os.ReadDir(dirPath)
 
 	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), 5, len(dirEntries))
+	assert.Equal(t.T(), 6, len(dirEntries))
 	actualDirEntries := []dirEntry{}
 	for _, d := range dirEntries {
 		actualDirEntries = append(actualDirEntries, dirEntry{
@@ -208,7 +211,7 @@ func (t *HNSBucketTests) TestRenameFolderWithSameParent() {
 	assert.NoError(t.T(), err)
 	dirEntries, err := os.ReadDir(newDirPath)
 	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), 5, len(dirEntries))
+	assert.Equal(t.T(), 6, len(dirEntries))
 	actualDirEntries := []dirEntry{}
 	for _, d := range dirEntries {
 		actualDirEntries = append(actualDirEntries, dirEntry{
@@ -261,7 +264,7 @@ func (t *HNSBucketTests) TestRenameFolderWithDifferentParents() {
 	assert.NoError(t.T(), err)
 	dirEntries, err := os.ReadDir(newDirPath)
 	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), 5, len(dirEntries))
+	assert.Equal(t.T(), 6, len(dirEntries))
 	actualDirEntries := []dirEntry{}
 	for _, d := range dirEntries {
 		actualDirEntries = append(actualDirEntries, dirEntry{
@@ -327,7 +330,7 @@ func (t *HNSBucketTests) TestCreateDirectoryWithSameNameAfterRename() {
 	// Read new directory and validate.
 	dirEntries, err := os.ReadDir(newDirPath)
 	require.NoError(t.T(), err)
-	require.Equal(t.T(), 5, len(dirEntries))
+	require.Equal(t.T(), 6, len(dirEntries))
 	actualDirEntries := []dirEntry{}
 	for _, d := range dirEntries {
 		actualDirEntries = append(actualDirEntries, dirEntry{
@@ -359,8 +362,8 @@ func (t *HNSBucketTests) TestCreateLocalFileInSamePathAfterDeletingParentDirecto
 	dirPath := path.Join(mntDir, "foo", "test2")
 	filePath := path.Join(dirPath, "test.txt")
 	// Create local file in side it.
-	f1, err := os.Create(filePath)
-	defer require.NoError(t.T(), f1.Close())
+	_, err := os.Create(filePath)
+	// defer require.NoError(t.T(), f1.Close())
 	require.NoError(t.T(), err)
 	_, err = os.Stat(filePath)
 	require.NoError(t.T(), err)
@@ -379,3 +382,62 @@ func (t *HNSBucketTests) TestCreateLocalFileInSamePathAfterDeletingParentDirecto
 	_, err = os.Stat(filePath)
 	assert.NoError(t.T(), err)
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// --------------------- Test for delete object -------------------
+// Create directory - foo/test2
+// Create object in directory - foo/test2/test.txt
+// Stat the object - foo/test2/test.txt
+// Delete object - foo/test2/test.txt
+// Create object using t.createobjects
+// Stat the object - foo/test2/test.txt --> It should return not found error although object present
+// Generate this test, it should resemble other tests in this file in form and structure for e.g. TestRenameFolderWithSourceDirectoryHaveLocalFiles
+func (t *HNSBucketTests) TestLocalFileIsInaccessibleAfterDeleteObjectButPresentRemotely() {
+	dirPath := path.Join(mntDir, "foo", "cache_test")
+	filePath := path.Join(dirPath, "local_file.txt")
+	// Create local file inside it.
+	ff, err := os.Create(filePath)
+	require.NoError(t.T(), ff.Close())
+	require.NoError(t.T(), err)
+	_, err = os.Stat(filePath)
+	require.NoError(t.T(), err)
+	// Delete object
+	err = os.Remove(filePath)
+	assert.NoError(t.T(), err)
+	// Create object using t.createobjects
+	err = t.createObjects(map[string]string{filePath: "burrito"})
+	assert.NoError(t.T(), err)
+	// // Stat the object --> It should return not found error although object present
+	// _, err = os.Stat(filePath)
+	// assert.Error(t.T(), err)
+	// assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+}
+
+// --------------------- Test for delete directory -----------------
+// Create directory - foo/test2
+// stat directory - foo/test2
+// Delete directory - rm -r foo/test2
+// Create directory using t.createobjects
+// Stat the directory - foo/test2/test.txt --> It should return not found error from cache although dir present
+// Function name should be TestLocalDirectoryIsInaccessibleAfterDeleteObjectButPresentRemotely
+// Use TestLocalFileIsInaccessibleAfterDeleteObjectButPresentRemotely for inspiration
+// ------------------------------------------------------------------
+// func (t *HNSBucketTests) TestLocalDirectoryIsInaccessibleAfterDeleteDirectoryButPresentRemotely() {
+// 	dirPath := path.Join(mntDir, "foo", "test2")
+// 	// Create directory - foo/test2
+// 	err := os.Mkdir(dirPath, dirPerms)
+// 	require.NoError(t.T(), err)
+// 	// stat directory - foo/test2
+// 	_, err = os.Stat(dirPath)
+// 	require.NoError(t.T(), err)
+// 	// Delete directory - rm -r foo/test2
+// 	err = os.RemoveAll(dirPath)
+// 	assert.NoError(t.T(), err)
+// 	// Create directory using t.createobjects
+// 	err = t.createFolders([]string{dirPath + "/"})
+// 	assert.NoError(t.T(), err)
+// 	// Stat the directory - foo/test2/test.txt --> It should return not found error from cache although dir present
+// 	_, err = os.Stat(dirPath)
+// 	assert.Error(t.T(), err)
+// 	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+// }
