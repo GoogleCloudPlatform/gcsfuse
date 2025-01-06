@@ -34,8 +34,9 @@ func TestStatOnUnlinkedLocalFile(t *testing.T) {
 	// Stat the local file and validate error.
 	operations.ValidateNoFileOrDirError(t, path.Join(testDirPath, FileName1))
 
-	// Close the file and validate that file is not created on GCS.
-	operations.CloseFileShouldNotThrowError(fh, t)
+	// Validate closing local file throws error and does not create file on GCS.
+	err := fh.Close()
+	operations.ValidateStaleNFSFileHandleError(t, err)
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t)
 }
 
@@ -60,8 +61,9 @@ func TestReadDirContainingUnlinkedLocalFiles(t *testing.T) {
 		FileName1, "", t)
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh2, testDirName,
 		FileName2, "", t)
-	// Verify unlinked file is not written to GCS.
-	operations.CloseFileShouldNotThrowError(fh3, t)
+	// Verify closing unlinked local file throws error and does not write to GCS.
+	err := fh3.Close()
+	operations.ValidateStaleNFSFileHandleError(t, err)
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName3, t)
 }
 
@@ -76,8 +78,9 @@ func TestWriteOnUnlinkedLocalFileSucceeds(t *testing.T) {
 	// Write to unlinked local file.
 	operations.WriteWithoutClose(fh, FileContents, t)
 
-	// Validate flush file does not throw error.
-	operations.CloseFileShouldNotThrowError(fh, t)
+	// Validate flush file throws error.
+	err := fh.Close()
+	operations.ValidateStaleNFSFileHandleError(t, err)
 	// Validate unlinked file is not written to GCS.
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t)
 }
@@ -92,10 +95,11 @@ func TestSyncOnUnlinkedLocalFile(t *testing.T) {
 
 	// Verify unlink operation succeeds.
 	operations.ValidateNoFileOrDirError(t, path.Join(testDirPath, FileName1))
-	// Validate sync operation does not write to GCS after unlink.
-	operations.SyncFile(fh, t)
+	// Validate sync and close operations throws error and do not write to GCS after unlink.
+	err := fh.Sync()
+	operations.ValidateStaleNFSFileHandleError(t, err)
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t)
-	// Close the local file and validate it is not present on GCS.
-	operations.CloseFileShouldNotThrowError(fh, t)
+	err = fh.Close()
+	operations.ValidateStaleNFSFileHandleError(t, err)
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t)
 }

@@ -173,8 +173,9 @@ func TestReadDirWithSameNameLocalAndGCSFile(t *testing.T) {
 		t.Fatalf("ReadDir err: %v", err)
 	}
 
-	// Close the local file.
-	operations.CloseFileShouldNotThrowError(fh1, t)
+	// Validate closing local file throws error.
+	err = fh1.Close()
+	operations.ValidateStaleNFSFileHandleError(t, err)
 }
 
 func TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError(t *testing.T) {
