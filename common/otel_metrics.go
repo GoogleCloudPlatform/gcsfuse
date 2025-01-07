@@ -49,7 +49,7 @@ type otelMetrics struct {
 }
 
 func (o *otelMetrics) GCSReadBytesCount(ctx context.Context, inc int64, attrs []MetricAttr) {
-	gcsReadBytesCount.Add(inc)
+	//gcsReadBytesCount.Add(inc)
 	//o.gcsReadBytesCount.Add(ctx, inc, attrsToAddOption(attrs)...)
 }
 
