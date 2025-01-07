@@ -51,23 +51,23 @@ func (o *otelMetrics) GCSReadBytesCount(ctx context.Context, inc int64, attrs []
 }
 
 func (o *otelMetrics) GCSReaderCount(ctx context.Context, inc int64, attrs []MetricAttr) {
-	o.gcsReaderCount.Add(ctx, inc, attrsToAddOption(attrs)...)
+	//o.gcsReaderCount.Add(ctx, inc, attrsToAddOption(attrs)...)
 }
 
 func (o *otelMetrics) GCSRequestCount(ctx context.Context, inc int64, attrs []MetricAttr) {
-	o.gcsRequestCount.Add(ctx, inc, attrsToAddOption(attrs)...)
+	//o.gcsRequestCount.Add(ctx, inc, attrsToAddOption(attrs)...)
 }
 
 func (o *otelMetrics) GCSRequestLatency(ctx context.Context, value float64, attrs []MetricAttr) {
-	o.gcsRequestLatency.Record(ctx, value, attrsToRecordOption(attrs)...)
+	//o.gcsRequestLatency.Record(ctx, value, attrsToRecordOption(attrs)...)
 }
 
 func (o *otelMetrics) GCSReadCount(ctx context.Context, inc int64, attrs []MetricAttr) {
-	o.gcsReadCount.Add(ctx, inc, attrsToAddOption(attrs)...)
+	//o.gcsReadCount.Add(ctx, inc, attrsToAddOption(attrs)...)
 }
 
 func (o *otelMetrics) GCSDownloadBytesCount(ctx context.Context, inc int64, attrs []MetricAttr) {
-	o.gcsDownloadBytesCount.Add(ctx, inc, attrsToAddOption(attrs)...)
+	//o.gcsDownloadBytesCount.Add(ctx, inc, attrsToAddOption(attrs)...)
 }
 
 func (o *otelMetrics) OpsCount(ctx context.Context, inc int64, attrs []MetricAttr) {
@@ -75,23 +75,23 @@ func (o *otelMetrics) OpsCount(ctx context.Context, inc int64, attrs []MetricAtt
 }
 
 func (o *otelMetrics) OpsLatency(ctx context.Context, value float64, attrs []MetricAttr) {
-	o.fsOpsLatency.Record(ctx, value, attrsToRecordOption(attrs)...)
+	//o.fsOpsLatency.Record(ctx, value, attrsToRecordOption(attrs)...)
 }
 
 func (o *otelMetrics) OpsErrorCount(ctx context.Context, inc int64, attrs []MetricAttr) {
-	o.fsOpsErrorCount.Add(ctx, inc, attrsToAddOption(attrs)...)
+	//o.fsOpsErrorCount.Add(ctx, inc, attrsToAddOption(attrs)...)
 }
 
 func (o *otelMetrics) FileCacheReadCount(ctx context.Context, inc int64, attrs []MetricAttr) {
-	o.fileCacheReadCount.Add(ctx, inc, attrsToAddOption(attrs)...)
+	//o.fileCacheReadCount.Add(ctx, inc, attrsToAddOption(attrs)...)
 }
 
 func (o *otelMetrics) FileCacheReadBytesCount(ctx context.Context, inc int64, attrs []MetricAttr) {
-	o.fileCacheReadBytesCount.Add(ctx, inc, attrsToAddOption(attrs)...)
+	//o.fileCacheReadBytesCount.Add(ctx, inc, attrsToAddOption(attrs)...)
 }
 
 func (o *otelMetrics) FileCacheReadLatency(ctx context.Context, value float64, attrs []MetricAttr) {
-	o.fileCacheReadLatency.Record(ctx, value, attrsToRecordOption(attrs)...)
+	//o.fileCacheReadLatency.Record(ctx, value, attrsToRecordOption(attrs)...)
 }
 
 func NewOTelMetrics() (MetricHandle, error) {
