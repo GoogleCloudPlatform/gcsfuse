@@ -17,15 +17,17 @@ package common
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
 )
 
 var (
-	fsOpsMeter     = otel.Meter("fs_op")
-	gcsMeter       = otel.Meter("gcs")
-	fileCacheMeter = otel.Meter("file_cache")
+	fsOpsMeter        = otel.Meter("fs_op")
+	gcsMeter          = otel.Meter("gcs")
+	fileCacheMeter    = otel.Meter("file_cache")
+	gcsReadBytesCount = atomic.Int64{}
 )
 
 // otelMetrics maintains the list of all metrics computed in GCSFuse.
@@ -47,6 +49,7 @@ type otelMetrics struct {
 }
 
 func (o *otelMetrics) GCSReadBytesCount(ctx context.Context, inc int64, attrs []MetricAttr) {
+	gcsReadBytesCount.Add(inc)
 	//o.gcsReadBytesCount.Add(ctx, inc, attrsToAddOption(attrs)...)
 }
 
@@ -71,7 +74,7 @@ func (o *otelMetrics) GCSDownloadBytesCount(ctx context.Context, inc int64, attr
 }
 
 func (o *otelMetrics) OpsCount(ctx context.Context, inc int64, attrs []MetricAttr) {
-	o.fsOpsCount.Add(ctx, inc, attrsToAddOption(attrs)...)
+	//o.fsOpsCount.Add(ctx, inc, attrsToAddOption(attrs)...)
 }
 
 func (o *otelMetrics) OpsLatency(ctx context.Context, value float64, attrs []MetricAttr) {
