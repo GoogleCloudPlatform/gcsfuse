@@ -1028,23 +1028,17 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 // UNLOCK_FUNCTION(fs.mu)
 // LOCK_FUNCTION(child)
 func (fs *fileSystem) lookUpLocalFileInode(parent inode.DirInode, childName string) (child inode.Inode) {
+	// Trim the suffix assigned to fix conflicting names.
+	childName = strings.TrimSuffix(childName, inode.ConflictingFileNameSuffix)
+	fileName := inode.NewFileName(parent.Name(), childName)
+
+	fs.mu.Lock()
 	defer func() {
 		if child != nil {
 			child.IncrementLookupCount()
 		}
 		fs.mu.Unlock()
 	}()
-
-	// Trim the suffix assigned to fix conflicting names.
-	childName = strings.TrimSuffix(childName, inode.ConflictingFileNameSuffix)
-
-	// Panic in inode.NewFileName() leads to another panic in the defer function, because of fs.mu.Unlock()
-	// call over the already unlocked mutex. This eventually results into the loss of actual panic message
-	// inside inode.NewFileName().
-	// Explicitly calling fs.mu.Lock() before inode.NewFileName() to avoid this nested panic and hence original
-	// panic message loss.
-	fs.mu.Lock()
-	fileName := inode.NewFileName(parent.Name(), childName)
 
 	var maxTriesToLookupInode = 3
 	for n := 0; n < maxTriesToLookupInode; n++ {
