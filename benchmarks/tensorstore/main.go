@@ -44,8 +44,7 @@ type multiReadConfig struct {
 }
 
 type kvStoreConfig struct {
-	fileIOConcurrency   int64
-	maxInflightRequests int64
+	fileIOConcurrency int64
 }
 
 func tscliConfig(checkoutDir string, pth string) (string, error) {
@@ -140,8 +139,8 @@ func kvStoreBenchmark(checkoutDir string, config *kvStoreConfig) (string, error)
 	if _, err := script.Echo("3").AppendFile("/proc/sys/vm/drop_caches"); err != nil {
 		return "", fmt.Errorf("unable to clear page cache: %w", err)
 	}
-	cmd := fmt.Sprintf(`%s --max_in_flight=%d --context_spec='{"file_io_concurrency": {"limit": %d}, "cache_pool": {"total_bytes_limit": 0}}'`,
-		path.Join(checkoutDir, "bazel-bin/tensorstore/internal/benchmark/kvstore_benchmark"), config.maxInflightRequests, config.fileIOConcurrency)
+	cmd := fmt.Sprintf(`%s --context_spec='{"file_io_concurrency": {"limit": %d}, "cache_pool": {"total_bytes_limit": 0}}'`,
+		path.Join(checkoutDir, "bazel-bin/tensorstore/internal/benchmark/kvstore_benchmark"), config.fileIOConcurrency)
 	fmt.Println(cmd)
 	return script.Exec(cmd).String()
 
@@ -167,8 +166,7 @@ func invokeKVStoreBenchmark(checkoutDir string) {
 		for _, inflightMaxMulti := range maxInflightRequestMultiplicand {
 			for _, round := range []int64{1} {
 				output, err := kvStoreBenchmark(checkoutDir, &kvStoreConfig{
-					fileIOConcurrency:   ioConc,
-					maxInflightRequests: int64(64) * 1024 * 1024 * 1024 * inflightMaxMulti,
+					fileIOConcurrency: ioConc,
 				})
 				idx++
 
