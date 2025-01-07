@@ -642,7 +642,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 	}{
 		{
 			name: "normal",
-			args: []string{"gcsfuse", "--dir-mode=0777", "--disable-parallel-dirops", "--file-mode=0666", "--o", "ro", "--gid=7", "--ignore-interrupts=false", "--kernel-list-cache-ttl-secs=300", "--rename-dir-limit=10", "--temp-dir=~/temp", "--uid=8", "--precondition-errors=true", "abc", "pqr"},
+			args: []string{"gcsfuse", "--dir-mode=0777", "--disable-parallel-dirops", "--file-mode=0666", "--o", "ro", "--gid=7", "--ignore-interrupts=false", "--kernel-list-cache-ttl-secs=300", "--rename-dir-limit=10", "--temp-dir=~/temp", "--uid=8", "--precondition-errors=false", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
 					DirMode:                0777,
@@ -654,7 +654,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					KernelListCacheTtlSecs: 300,
 					RenameDirLimit:         10,
 					TempDir:                cfg.ResolvedPath(path.Join(hd, "temp")),
-					PreconditionErrors:     true,
+					PreconditionErrors:     false,
 					Uid:                    8,
 					HandleSigterm:          true,
 				},
@@ -674,7 +674,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					KernelListCacheTtlSecs: 0,
 					RenameDirLimit:         0,
 					TempDir:                "",
-					PreconditionErrors:     false,
+					PreconditionErrors:     true,
 					Uid:                    -1,
 					HandleSigterm:          true,
 				},
@@ -694,7 +694,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					KernelListCacheTtlSecs: 0,
 					RenameDirLimit:         0,
 					TempDir:                "",
-					PreconditionErrors:     false,
+					PreconditionErrors:     true,
 					Uid:                    -1,
 					HandleSigterm:          true,
 				},
