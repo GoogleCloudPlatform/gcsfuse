@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -190,7 +191,7 @@ func TestValidateConfigFile_WriteConfig(t *testing.T) {
 			expectedConfig: &cfg.Config{
 				Write: cfg.WriteConfig{
 					CreateEmptyFile:                   false,
-					BlockSizeMb:                       64,
+					BlockSizeMb:                       64 * util.MiB,
 					ExperimentalEnableStreamingWrites: false,
 					GlobalMaxBlocks:                   math.MaxInt64,
 					MaxBlocksPerFile:                  math.MaxInt64},
@@ -202,7 +203,7 @@ func TestValidateConfigFile_WriteConfig(t *testing.T) {
 			expectedConfig: &cfg.Config{
 				Write: cfg.WriteConfig{
 					CreateEmptyFile:                   false, // changed due to enabled streaming writes.
-					BlockSizeMb:                       10,
+					BlockSizeMb:                       10 * util.MiB,
 					ExperimentalEnableStreamingWrites: true,
 					GlobalMaxBlocks:                   20,
 					MaxBlocksPerFile:                  2,
