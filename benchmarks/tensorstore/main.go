@@ -156,31 +156,28 @@ func invokeKVStoreBenchmark(checkoutDir string) {
 		writer.Flush()
 		f.Close()
 	}()
-	record := []string{"file_io_concurrency", "max_inflight_requests", "Round", "Throughput MB/s"}
+	record := []string{"file_io_concurrency", "Round", "Throughput MB/s"}
 	writer.Write(record)
 	idx := int64(0)
 	fileIOConcurrencyRange := []int64{256, 128, 64, 32}
-	maxInflightRequestMultiplicand := []int64{16, 12, 10, 8, 4, 2, 1}
 
 	for _, ioConc := range fileIOConcurrencyRange {
-		for _, inflightMaxMulti := range maxInflightRequestMultiplicand {
-			for _, round := range []int64{1} {
-				output, err := kvStoreBenchmark(checkoutDir, &kvStoreConfig{
-					fileIOConcurrency: ioConc,
-				})
-				idx++
+		for _, round := range []int64{1} {
+			output, err := kvStoreBenchmark(checkoutDir, &kvStoreConfig{
+				fileIOConcurrency: ioConc,
+			})
+			idx++
 
-				if err != nil {
-					panic(err)
-				}
-				fmt.Println(output)
-				bw, err := extractBWFromKVStoreBenchmark(output)
-				if err != nil {
-					panic(err)
-				}
-				writer.Write([]string{strconv.FormatInt(ioConc, 10), strconv.FormatInt(inflightMaxMulti*64, 10), strconv.FormatInt(round, 10), strconv.FormatInt(int64(bw), 10)})
-				fmt.Printf("Bandwidth obtained: %d MB/s\n", int64(bw))
+			if err != nil {
+				panic(err)
 			}
+			fmt.Println(output)
+			bw, err := extractBWFromKVStoreBenchmark(output)
+			if err != nil {
+				panic(err)
+			}
+			writer.Write([]string{strconv.FormatInt(ioConc, 10), strconv.FormatInt(round, 10), strconv.FormatInt(int64(bw), 10)})
+			fmt.Printf("Bandwidth obtained: %d MB/s\n", int64(bw))
 		}
 	}
 }
