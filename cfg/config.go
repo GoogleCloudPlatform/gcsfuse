@@ -475,7 +475,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("prometheus-port", "", 0, "Expose Prometheus metrics endpoint on this port and a path of /metrics.")
+	flagSet.IntP("prometheus-port", "", 9192, "Expose Prometheus metrics endpoint on this port and a path of /metrics.")
 
 	if err := flagSet.MarkHidden("prometheus-port"); err != nil {
 		return err
