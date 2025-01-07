@@ -241,7 +241,7 @@ func main() {
 		panic(err)
 	}
 	checkoutDir, err := setup()
-	defer func() { os.RemoveAll(checkoutDir) }()
+	//defer func() { os.RemoveAll(checkoutDir) }()
 	if err != nil {
 		panic(err)
 	}
