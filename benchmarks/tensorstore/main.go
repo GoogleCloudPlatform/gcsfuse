@@ -29,9 +29,14 @@ import (
 	flag "github.com/spf13/pflag"
 )
 
+const (
+	multiread = "multiread"
+	kvStore   = "kv_store"
+)
+
 var filePath = flag.String("mount-path", "file:///dev/shm/multiread", "Path to the mountpoint along with protocol e.g. file://dev/shm/multireader")
 var resultsPath = flag.String("output-path", "/tmp/output.csv", "Results will be dumped here")
-var benchmark = flag.String("benchmark", "multiread", "Benchmark to run")
+var benchmark = flag.String("benchmark", multiread, "Benchmark to run. Set to one of multiread or kv_store")
 
 var multiReadThroughputRegex = regexp.MustCompile(`throughput:\s+(.+)\s+MB/second`)
 var kvStoreThroughputRegex = regexp.MustCompile(`.*bytes in .*\s+(.+)\s+MB/second`)
@@ -238,12 +243,12 @@ func main() {
 		panic(err)
 	}
 	checkoutDir, err := setup()
-	//defer func() { os.RemoveAll(checkoutDir) }()
+	defer func() { os.RemoveAll(checkoutDir) }()
 	if err != nil {
 		panic(err)
 	}
 
-	if *benchmark == "multiread" {
+	if *benchmark == multiread {
 		invokeMultiReadBenchmark(checkoutDir)
 	} else {
 		invokeKVStoreBenchmark(checkoutDir)
