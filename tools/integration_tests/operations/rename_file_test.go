@@ -17,6 +17,7 @@ package operations_test
 
 import (
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
@@ -47,26 +48,33 @@ func TestRenameFile(t *testing.T) {
 
 // Rename file from Test/move.txt to Test/move2.txt
 func TestRenameFileWithDstDestFileExist(t *testing.T) {
+	// Set up the test directory.
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
+	// Define source and destination file names.
 	fileName := path.Join(testDir, "move1.txt")
 	destFileName := path.Join(testDir, "move2.txt")
+	// Create the source file with content.
 	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, t)
 
+	// Rename the file.
 	err := operations.RenameFile(fileName, destFileName)
-	if err != nil {
-		t.Errorf("Error in file renaming: %v", err)
-	}
-
-	// Check if the data in the file is the same after renaming.
+	
+	assert.NoError(t, err, "error in file renaming")
+	// Verify the file was renamed and content is preserved.
 	setup.CompareFileContents(t, destFileName, Content)
 }
 
 func TestRenameFileWithSrcFileDoesNoExist(t *testing.T) {
+	// Set up the test directory.
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
-	fileName := path.Join(testDir, "move1.txt")
+	// Define source and destination file names.
+	fileName := path.Join(testDir, "move1.txt") // This file does not exist.
 	destFileName := path.Join(testDir, "move2.txt")
 
+	// Attempt to rename the non-existent file.
 	err := operations.RenameFile(fileName, destFileName)
 
+	// Assert that an error occurred.
 	assert.Error(t, err)
+	assert.True(t, strings.Contains(err.Error(), "no such file or directory"))
 }
