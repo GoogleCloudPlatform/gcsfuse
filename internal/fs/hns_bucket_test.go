@@ -54,8 +54,6 @@ var expectedFooDirEntries = []dirEntry{
 	{name: "implicit_dir", isDir: true},
 }
 
-var test_folders_in_hns_bucket = []string{"foo/", "bar/", "foo/test2/", "foo/test/", "foo/cachetest/"}
-
 func TestHNSBucketTests(t *testing.T) { suite.Run(t, new(HNSBucketTests)) }
 
 func (t *HNSBucketTests) SetupSuite() {
