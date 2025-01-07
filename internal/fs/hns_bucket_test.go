@@ -74,7 +74,6 @@ func (t *HNSBucketTests) TearDownSuite() {
 }
 
 func (t *HNSBucketTests) SetupTest() {
-	fmt.Println("********* Calling SetupTest")
 	err := t.createFolders(test_folders_in_hns_bucket)
 	require.NoError(t.T(), err)
 
@@ -90,7 +89,6 @@ func (t *HNSBucketTests) SetupTest() {
 }
 
 func (t *HNSBucketTests) TearDownTest() {
-	fmt.Println("********* Calling TearDownTest")
 	t.fsTest.TearDown()
 }
 
@@ -443,13 +441,11 @@ func (t *HNSCachedBucketMountTest) TearDownSuite() {
 }
 
 func (t *HNSCachedBucketMountTest) SetupTest() {
-	fmt.Println("********* Calling SetupTest")
 	err := t.createFolders([]string{"hns/", "hns/cache/"})
 	require.NoError(t.T(), err)
 }
 
 func (t *HNSCachedBucketMountTest) TearDownTest() {
-	fmt.Println("********* Calling TearDownTest")
 	t.fsTest.TearDown()
 }
 
