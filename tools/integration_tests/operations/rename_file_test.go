@@ -46,7 +46,7 @@ func TestRenameFile(t *testing.T) {
 	setup.CompareFileContents(t, newFileName, string(content))
 }
 
-// Rename file from Test/move.txt to Test/move2.txt
+// Rename file from Test/move1.txt to Test/move2.txt
 func TestRenameFileWithDstDestFileExist(t *testing.T) {
 	// Set up the test directory.
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
@@ -58,7 +58,7 @@ func TestRenameFileWithDstDestFileExist(t *testing.T) {
 
 	// Rename the file.
 	err := operations.RenameFile(fileName, destFileName)
-	
+
 	assert.NoError(t, err, "error in file renaming")
 	// Verify the file was renamed and content is preserved.
 	setup.CompareFileContents(t, destFileName, Content)
