@@ -194,6 +194,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		fileCacheHandler:           fileCacheHandler,
 		cacheFileForRangeRead:      serverCfg.NewConfig.FileCache.CacheFileForRangeRead,
 		metricHandle:               serverCfg.MetricHandle,
+		enableAtomicRenameObject:   serverCfg.NewConfig.EnableAtomicRenameObject,
 	}
 
 	// Set up root bucket
@@ -484,6 +485,8 @@ type fileSystem struct {
 	cacheFileForRangeRead bool
 
 	metricHandle common.MetricHandle
+
+	enableAtomicRenameObject bool
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -1028,6 +1031,11 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 // UNLOCK_FUNCTION(fs.mu)
 // LOCK_FUNCTION(child)
 func (fs *fileSystem) lookUpLocalFileInode(parent inode.DirInode, childName string) (child inode.Inode) {
+	// Trim the suffix assigned to fix conflicting names.
+	childName = strings.TrimSuffix(childName, inode.ConflictingFileNameSuffix)
+	fileName := inode.NewFileName(parent.Name(), childName)
+
+	fs.mu.Lock()
 	defer func() {
 		if child != nil {
 			child.IncrementLookupCount()
@@ -1035,11 +1043,6 @@ func (fs *fileSystem) lookUpLocalFileInode(parent inode.DirInode, childName stri
 		fs.mu.Unlock()
 	}()
 
-	// Trim the suffix assigned to fix conflicting names.
-	childName = strings.TrimSuffix(childName, inode.ConflictingFileNameSuffix)
-	fileName := inode.NewFileName(parent.Name(), childName)
-
-	fs.mu.Lock()
 	var maxTriesToLookupInode = 3
 	for n := 0; n < maxTriesToLookupInode; n++ {
 		child = fs.localFileInodes[fileName]
@@ -1108,41 +1111,17 @@ func (fs *fileSystem) lookUpOrCreateChildDirInode(
 	return child, nil
 }
 
-// Synchronize the supplied file inode to GCS, updating the index as
-// appropriate.
+// promoteToGenerationBacked updates the file system maps for the given file inode
+// after it has been synced to GCS.
+// The inode is removed from the localFileInodes map and added to the
+// generationBackedInodes map.
 //
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_REQUIRED(f)
-func (fs *fileSystem) syncFile(
-	ctx context.Context,
-	f *inode.FileInode) (err error) {
-	// SyncFile can be triggered for unlinked files if the fileHandle is open by
-	// same or another user. This indicates a potential file clobbering scenario:
-	// - The file was deleted (unlinked) while a handle to it was still open.
-	if f.IsLocal() && f.IsUnlinked() {
-		err = &gcsfuse_errors.FileClobberedError{
-			Err: fmt.Errorf("file %s was unlinked while it was still open, indicating file clobbering", f.Name().LocalName()),
-		}
-		return
-	}
-
-	// Sync the inode.
-	err = f.Sync(ctx)
-	if err != nil {
-		err = fmt.Errorf("FileInode.Sync: %w", err)
-		// If the inode was local file inode, treat it as unlinked.
-		fs.mu.Lock()
-		delete(fs.localFileInodes, f.Name())
-		fs.mu.Unlock()
-		return
-	}
-
-	// Once the inode is synced to GCS, it is no longer an localFileInode.
-	// Delete the entry from localFileInodes map and add it to generationBackedInodes.
+func (fs *fileSystem) promoteToGenerationBacked(f *inode.FileInode) {
 	fs.mu.Lock()
 	delete(fs.localFileInodes, f.Name())
-	_, ok := fs.generationBackedInodes[f.Name()]
-	if !ok {
+	if _, ok := fs.generationBackedInodes[f.Name()]; !ok {
 		fs.generationBackedInodes[f.Name()] = f
 	}
 	fs.mu.Unlock()
@@ -1156,8 +1135,75 @@ func (fs *fileSystem) syncFile(
 	//
 	// In other words, either this inode is still in the index or it has been
 	// clobbered and *should* be anonymous.
+}
 
-	return
+// Flushes the supplied file inode to GCS, updating the index as
+// appropriate.
+//
+// LOCKS_EXCLUDED(fs.mu)
+// LOCKS_REQUIRED(f)
+func (fs *fileSystem) flushFile(
+	ctx context.Context,
+	f *inode.FileInode) error {
+	// SyncFile can be triggered for unlinked files if the fileHandle is open by
+	// same or another user. This indicates a potential file clobbering scenario:
+	// - The file was deleted (unlinked) while a handle to it was still open.
+	if f.IsLocal() && f.IsUnlinked() {
+		return &gcsfuse_errors.FileClobberedError{
+			Err: fmt.Errorf("file %s was unlinked while it was still open, indicating file clobbering", f.Name().LocalName()),
+		}
+	}
+
+	// Flush the inode.
+	err := f.Flush(ctx)
+	if err != nil {
+		err = fmt.Errorf("FileInode.Sync: %w", err)
+		// If the inode was local file inode, treat it as unlinked.
+		fs.mu.Lock()
+		delete(fs.localFileInodes, f.Name())
+		fs.mu.Unlock()
+		return err
+	}
+
+	// Promote the inode to generationBackedInodes in fs maps.
+	fs.promoteToGenerationBacked(f)
+	return nil
+}
+
+// Synchronizes the supplied file inode to GCS, updating the index as
+// appropriate.
+//
+// LOCKS_EXCLUDED(fs.mu)
+// LOCKS_REQUIRED(f)
+func (fs *fileSystem) syncFile(
+	ctx context.Context,
+	f *inode.FileInode) error {
+	// SyncFile can be triggered for unlinked files if the fileHandle is open by
+	// same or another user. This indicates a potential file clobbering scenario:
+	// - The file was deleted (unlinked) while a handle to it was still open.
+	if f.IsLocal() && f.IsUnlinked() {
+		return &gcsfuse_errors.FileClobberedError{
+			Err: fmt.Errorf("file %s was unlinked while it was still open, indicating file clobbering", f.Name().LocalName()),
+		}
+	}
+
+	// Sync the inode.
+	gcsSynced, err := f.Sync(ctx)
+	if err != nil {
+		err = fmt.Errorf("FileInode.Sync: %w", err)
+		// If the inode was local file inode, treat it as unlinked.
+		fs.mu.Lock()
+		delete(fs.localFileInodes, f.Name())
+		fs.mu.Unlock()
+		return err
+	}
+
+	// If gcsSynced is true, it means the inode was fully synced to GCS In this
+	// case, we need to promote the inode to generationBackedInodes in fs maps.
+	if gcsSynced {
+		fs.promoteToGenerationBacked(f)
+	}
+	return nil
 }
 
 // Decrement the supplied inode's lookup count, destroying it if the inode says
@@ -1994,13 +2040,44 @@ func (fs *fileSystem) Rename(
 		}
 		return fs.renameNonHierarchicalDir(ctx, oldParent, op.OldName, newParent, op.NewName)
 	}
-	return fs.renameFile(ctx, oldParent, op.OldName, child.MinObject, newParent, op.NewName)
+	if child.Bucket.BucketType() == gcs.Hierarchical && fs.enableAtomicRenameObject {
+		return fs.renameHierarchicalFile(ctx, oldParent, op.OldName, child.MinObject, newParent, op.NewName)
+	}
+	return fs.renameNonHierarchicalFile(ctx, oldParent, op.OldName, child.MinObject, newParent, op.NewName)
 }
 
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_EXCLUDED(oldParent)
 // LOCKS_EXCLUDED(newParent)
-func (fs *fileSystem) renameFile(
+func (fs *fileSystem) renameHierarchicalFile(ctx context.Context, oldParent inode.DirInode, oldName string, oldObject *gcs.MinObject, newParent inode.DirInode, newName string) error {
+	oldParent.Lock()
+	defer oldParent.Unlock()
+
+	if newParent != oldParent {
+		newParent.Lock()
+		defer newParent.Unlock()
+	}
+
+	newFileName := inode.NewFileName(newParent.Name(), newName)
+
+	if _, err := oldParent.RenameFile(ctx, oldObject, newFileName.GcsObjectName()); err != nil {
+		return fmt.Errorf("renameFile: while renaming file: %w", err)
+	}
+
+	if err := fs.invalidateChildFileCacheIfExist(oldParent, oldName); err != nil {
+		return fmt.Errorf("renameHierarchicalFile: while invalidating cache for delete file: %w", err)
+	}
+
+	// Insert new file in type cache.
+	newParent.InsertFileIntoTypeCache(newName)
+
+	return nil
+}
+
+// LOCKS_EXCLUDED(fs.mu)
+// LOCKS_EXCLUDED(oldParent)
+// LOCKS_EXCLUDED(newParent)
+func (fs *fileSystem) renameNonHierarchicalFile(
 	ctx context.Context,
 	oldParent inode.DirInode,
 	oldName string,
@@ -2027,7 +2104,7 @@ func (fs *fileSystem) renameFile(
 		&oldObject.MetaGeneration)
 
 	if err := fs.invalidateChildFileCacheIfExist(oldParent, oldObject.Name); err != nil {
-		return fmt.Errorf("renameFile: while invalidating cache for delete file: %w", err)
+		return fmt.Errorf("renameNonHierarchicalFile: while invalidating cache for delete file: %w", err)
 	}
 
 	oldParent.Unlock()
@@ -2546,7 +2623,7 @@ func (fs *fileSystem) FlushFile(
 	defer in.Unlock()
 
 	// Sync it.
-	if err := fs.syncFile(ctx, in); err != nil {
+	if err := fs.flushFile(ctx, in); err != nil {
 		return err
 	}
 

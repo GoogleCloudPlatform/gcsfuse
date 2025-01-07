@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -207,7 +208,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			args:                          []string{"gcsfuse", "--create-empty-file=true", "abc", "pqr"},
 			expectedCreateEmptyFile:       true,
 			expectedEnableStreamingWrites: false,
-			expectedWriteBlockSizeMB:      64,
+			expectedWriteBlockSizeMB:      64 * util.MiB,
 			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
 			expectedWriteMaxBlocksPerFile: math.MaxInt64,
 		},
@@ -216,7 +217,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			args:                          []string{"gcsfuse", "--create-empty-file=false", "abc", "pqr"},
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: false,
-			expectedWriteBlockSizeMB:      64,
+			expectedWriteBlockSizeMB:      64 * util.MiB,
 			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
 			expectedWriteMaxBlocksPerFile: math.MaxInt64,
 		},
@@ -225,7 +226,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			args:                          []string{"gcsfuse", "abc", "pqr"},
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: false,
-			expectedWriteBlockSizeMB:      64,
+			expectedWriteBlockSizeMB:      64 * util.MiB,
 			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
 			expectedWriteMaxBlocksPerFile: math.MaxInt64,
 		},
@@ -234,7 +235,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			args:                          []string{"gcsfuse", "--experimental-enable-streaming-writes", "abc", "pqr"},
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: true,
-			expectedWriteBlockSizeMB:      64,
+			expectedWriteBlockSizeMB:      64 * util.MiB,
 			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
 			expectedWriteMaxBlocksPerFile: math.MaxInt64,
 		},
@@ -243,7 +244,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			args:                          []string{"gcsfuse", "--experimental-enable-streaming-writes=false", "abc", "pqr"},
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: false,
-			expectedWriteBlockSizeMB:      64,
+			expectedWriteBlockSizeMB:      64 * util.MiB,
 			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
 			expectedWriteMaxBlocksPerFile: math.MaxInt64,
 		},
@@ -252,7 +253,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			args:                          []string{"gcsfuse", "--experimental-enable-streaming-writes", "--write-block-size-mb=10", "abc", "pqr"},
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: true,
-			expectedWriteBlockSizeMB:      10,
+			expectedWriteBlockSizeMB:      10 * util.MiB,
 			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
 			expectedWriteMaxBlocksPerFile: math.MaxInt64,
 		},
@@ -261,7 +262,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			args:                          []string{"gcsfuse", "--experimental-enable-streaming-writes", "--write-global-max-blocks=10", "abc", "pqr"},
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: true,
-			expectedWriteBlockSizeMB:      64,
+			expectedWriteBlockSizeMB:      64 * util.MiB,
 			expectedWriteGlobalMaxBlocks:  10,
 			expectedWriteMaxBlocksPerFile: math.MaxInt64,
 		},
@@ -270,7 +271,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			args:                          []string{"gcsfuse", "--experimental-enable-streaming-writes", "--write-max-blocks-per-file=10", "abc", "pqr"},
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: true,
-			expectedWriteBlockSizeMB:      64,
+			expectedWriteBlockSizeMB:      64 * util.MiB,
 			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
 			expectedWriteMaxBlocksPerFile: 10,
 		},
@@ -642,7 +643,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 	}{
 		{
 			name: "normal",
-			args: []string{"gcsfuse", "--dir-mode=0777", "--disable-parallel-dirops", "--file-mode=0666", "--o", "ro", "--gid=7", "--ignore-interrupts=false", "--kernel-list-cache-ttl-secs=300", "--rename-dir-limit=10", "--temp-dir=~/temp", "--uid=8", "--precondition-errors=true", "abc", "pqr"},
+			args: []string{"gcsfuse", "--dir-mode=0777", "--disable-parallel-dirops", "--file-mode=0666", "--o", "ro", "--gid=7", "--ignore-interrupts=false", "--kernel-list-cache-ttl-secs=300", "--rename-dir-limit=10", "--temp-dir=~/temp", "--uid=8", "--precondition-errors=false", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
 					DirMode:                0777,
@@ -654,7 +655,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					KernelListCacheTtlSecs: 300,
 					RenameDirLimit:         10,
 					TempDir:                cfg.ResolvedPath(path.Join(hd, "temp")),
-					PreconditionErrors:     true,
+					PreconditionErrors:     false,
 					Uid:                    8,
 					HandleSigterm:          true,
 				},
@@ -674,7 +675,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					KernelListCacheTtlSecs: 0,
 					RenameDirLimit:         0,
 					TempDir:                "",
-					PreconditionErrors:     false,
+					PreconditionErrors:     true,
 					Uid:                    -1,
 					HandleSigterm:          true,
 				},
@@ -694,7 +695,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					KernelListCacheTtlSecs: 0,
 					RenameDirLimit:         0,
 					TempDir:                "",
-					PreconditionErrors:     false,
+					PreconditionErrors:     true,
 					Uid:                    -1,
 					HandleSigterm:          true,
 				},
@@ -839,6 +840,38 @@ func TestArgsParsing_EnableHNSFlags(t *testing.T) {
 	}
 }
 
+func TestArgsParsing_EnableAtomicRenameObjectFlag(t *testing.T) {
+	tests := []struct {
+		name                             string
+		args                             []string
+		expectedEnableAtomicRenameObject bool
+	}{
+		{
+			name:                             "normal",
+			args:                             []string{"gcsfuse", "--enable-atomic-rename-object=true", "abc", "pqr"},
+			expectedEnableAtomicRenameObject: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotEnableAtomicRenameObject bool
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+				gotEnableAtomicRenameObject = cfg.EnableAtomicRenameObject
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedEnableAtomicRenameObject, gotEnableAtomicRenameObject)
+			}
+		})
+	}
+}
+
 func TestArgsParsing_MetricsFlags(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -849,7 +882,7 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 			name: "default",
 			args: []string{"gcsfuse", "abc", "pqr"},
 			expected: &cfg.MetricsConfig{
-				EnableOtel: false,
+				EnableOtel: true,
 			},
 		},
 		{
@@ -874,14 +907,21 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 			},
 		},
 		{
-			name:     "cloud-metrics-export-interval-secs-positive",
-			args:     []string{"gcsfuse", "--cloud-metrics-export-interval-secs=10", "abc", "pqr"},
-			expected: &cfg.MetricsConfig{CloudMetricsExportIntervalSecs: 10},
+			name: "cloud-metrics-export-interval-secs-positive",
+			args: []string{"gcsfuse", "--cloud-metrics-export-interval-secs=10", "abc", "pqr"},
+			expected: &cfg.MetricsConfig{
+				CloudMetricsExportIntervalSecs: 10,
+				EnableOtel:                     true,
+			},
 		},
 		{
-			name:     "stackdriver-export-interval-positive",
-			args:     []string{"gcsfuse", "--stackdriver-export-interval=10h", "abc", "pqr"},
-			expected: &cfg.MetricsConfig{CloudMetricsExportIntervalSecs: 10 * 3600, StackdriverExportInterval: time.Duration(10) * time.Hour},
+			name: "stackdriver-export-interval-positive",
+			args: []string{"gcsfuse", "--stackdriver-export-interval=10h", "abc", "pqr"},
+			expected: &cfg.MetricsConfig{
+				CloudMetricsExportIntervalSecs: 10 * 3600,
+				StackdriverExportInterval:      time.Duration(10) * time.Hour,
+				EnableOtel:                     true,
+			},
 		},
 	}
 	for _, tc := range tests {
@@ -913,7 +953,7 @@ func TestArgsParsing_MetricsViewConfig(t *testing.T) {
 			name:    "default",
 			cfgFile: "empty.yml",
 			expected: &cfg.MetricsConfig{
-				EnableOtel: false,
+				EnableOtel: true,
 			},
 		},
 		{
@@ -933,12 +973,16 @@ func TestArgsParsing_MetricsViewConfig(t *testing.T) {
 		{
 			name:     "cloud-metrics-export-interval-secs-positive",
 			cfgFile:  "metrics_export_interval_positive.yml",
-			expected: &cfg.MetricsConfig{CloudMetricsExportIntervalSecs: 100},
+			expected: &cfg.MetricsConfig{CloudMetricsExportIntervalSecs: 100, EnableOtel: true},
 		},
 		{
-			name:     "stackdriver-export-interval-positive",
-			cfgFile:  "stackdriver_export_interval_positive.yml",
-			expected: &cfg.MetricsConfig{CloudMetricsExportIntervalSecs: 12 * 3600, StackdriverExportInterval: 12 * time.Hour},
+			name:    "stackdriver-export-interval-positive",
+			cfgFile: "stackdriver_export_interval_positive.yml",
+			expected: &cfg.MetricsConfig{
+				CloudMetricsExportIntervalSecs: 12 * 3600,
+				StackdriverExportInterval:      12 * time.Hour,
+				EnableOtel:                     true,
+			},
 		},
 	}
 	for _, tc := range tests {

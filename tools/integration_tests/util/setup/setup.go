@@ -370,11 +370,12 @@ func CleanUpDir(directoryPath string) {
 	}
 }
 
-// SetupTestDirectory creates a testDirectory in the mounted directory and cleans up
-// any content present in it.
+// SetupTestDirectory creates a test directory hierarchy in the mounted directory,
+// cleaning up any content present. It takes a testDirName which can include
+// slashes to create nested directories (e.g., "a/b/c").
 func SetupTestDirectory(testDirName string) string {
 	testDirPath := path.Join(MntDir(), testDirName)
-	err := os.Mkdir(testDirPath, DirPermission_0755)
+	err := os.MkdirAll(testDirPath, DirPermission_0755)
 	if err != nil && !strings.Contains(err.Error(), "file exists") {
 		log.Printf("Error while setting up directory %s for testing: %v", testDirPath, err)
 	}
