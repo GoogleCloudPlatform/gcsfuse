@@ -207,7 +207,7 @@ func invokeMultiReadBenchmark(checkoutDir string) {
 	}
 	defer func() { os.RemoveAll(tscliConfigPath) }()
 	idx := int64(0)
-	fileIOConcurrencyRange := []int64{256, 128, 64, 32}
+	fileIOConcurrencyRange := []int64{256, 200, 128, 64, 32}
 	maxInflightRequestMultiplicand := []int64{16, 12, 10, 8, 4, 2, 1}
 
 	for _, ioConc := range fileIOConcurrencyRange {
