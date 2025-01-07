@@ -447,13 +447,13 @@ func (t *HNSCachedBucketMountTest) TearDownTest() {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // --------------------- Test for delete object -------------------
-// Create directory - foo/test2
-// Create object in directory - foo/test2/test.txt
-// Stat the object - foo/test2/test.txt
-// Delete object - foo/test2/test.txt
-// Create object using t.createobjects
-// Stat the object - foo/test2/test.txt --> It should return not found error although object present
-// // Generate this test, it should resemble other tests in this file in form and structure for e.g. TestRenameFolderWithSourceDirectoryHaveLocalFiles
+// Create directory
+// Create object in directory
+// Stat the object
+// Delete object
+// Create object using other client
+// Stat the object immediately, It should return not found error although object present
+// Stat the object after TTL expiry and it should appear
 func (t *HNSCachedBucketMountTest) TestLocalFileIsInaccessibleAfterDeleteObjectButPresentRemotely() {
 	dirPath := path.Join(mntDir, "hns", "cache")
 	filePath := path.Join(dirPath, "file1.txt")
@@ -484,13 +484,12 @@ func (t *HNSCachedBucketMountTest) TestLocalFileIsInaccessibleAfterDeleteObjectB
 }
 
 // --------------------- Test for delete directory -----------------
-// Create directory - foo/test2
-// stat directory - foo/test2
-// Delete directory - rm -r foo/test2
-// Create directory using t.createobjects
-// Stat the directory - foo/test2/test.txt --> It should return not found error from cache although dir present
-// Function name should be TestLocalDirectoryIsInaccessibleAfterDeleteObjectButPresentRemotely
-// Use TestLocalFileIsInaccessibleAfterDeleteObjectButPresentRemotely for inspiration
+// Create directory
+// stat directory
+// Delete directory
+// Create directory using other client
+// Stat the directory immeditely, It should return not found error from cache although dir present
+// Stat the directory after TTL expiry and it should appear
 // ------------------------------------------------------------------
 func (t *HNSCachedBucketMountTest) TestLocalDirectoryIsInaccessibleAfterDeleteDirectoryButPresentRemotely() {
 	dirPath := path.Join(mntDir, "hns", "cache", "test")

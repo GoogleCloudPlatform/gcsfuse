@@ -734,8 +734,7 @@ func (t *MultiBucketMountCachingTest) TypeOfNameChanges_RemoteModifier() {
 // Delete directory
 // Create directory using storageutil
 // Stat the directory - It should return not found error from cache although dir present on GCS
-// Use DirectoryRemovedRemotely test for inspiration
-// New test case name would be DirectoryRemovedLocallyAddedRemotely
+// Stat the directory after TTL expiry and it should appear
 // ------------------------------------------------------------------
 func (t *MultiBucketMountCachingTest) DirectoryRemovedLocallyAddedRemotely() {
 	const name = "foo"
@@ -785,8 +784,7 @@ func (t *MultiBucketMountCachingTest) DirectoryRemovedLocallyAddedRemotely() {
 // Delete object
 // Create object using storageutil
 // Stat the object. It should return not found error although object present.
-// Use DirectoryRemovedLocallyAddedRemotely test for inspiration.
-// New test name should be ObjectRemovedLocallyAddedRemotely
+// Stat the object after TTL expiry and it should appear
 // ------------------------------------------------------------------
 func (t *MultiBucketMountCachingTest) ObjectRemovedLocallyAddedRemotely() {
 	const dirName = "foo"
