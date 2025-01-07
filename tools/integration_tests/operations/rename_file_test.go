@@ -21,6 +21,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestRenameFile(t *testing.T) {
@@ -38,8 +39,34 @@ func TestRenameFile(t *testing.T) {
 
 	err = operations.RenameFile(fileName, newFileName)
 	if err != nil {
-		t.Errorf("Error in file copying: %v", err)
+		t.Errorf("Error in file renaming: %v", err)
 	}
 	// Check if the data in the file is the same after renaming.
 	setup.CompareFileContents(t, newFileName, string(content))
+}
+
+// Rename file from Test/move.txt to Test/move2.txt
+func TestRenameFileWithDstDestFileExist(t *testing.T) {
+	testDir := setup.SetupTestDirectory(DirForOperationTests)
+	fileName := path.Join(testDir, "move1.txt")
+	destFileName := path.Join(testDir, "move2.txt")
+	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, t)
+
+	err := operations.RenameFile(fileName, destFileName)
+	if err != nil {
+		t.Errorf("Error in file renaming: %v", err)
+	}
+
+	// Check if the data in the file is the same after renaming.
+	setup.CompareFileContents(t, destFileName, Content)
+}
+
+func TestRenameFileWithSrcFileDoesNoExist(t *testing.T) {
+	testDir := setup.SetupTestDirectory(DirForOperationTests)
+	fileName := path.Join(testDir, "move1.txt")
+	destFileName := path.Join(testDir, "move2.txt")
+
+	err := operations.RenameFile(fileName, destFileName)
+
+	assert.Error(t, err)
 }

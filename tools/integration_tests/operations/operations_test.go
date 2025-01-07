@@ -103,6 +103,7 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 		"write": map[string]interface{}{
 			"create-empty-file": true,
 		},
+		"enable-atomic-rename-object": true,
 	}
 
 	filePath1 := setup.YAMLConfigFile(mountConfig1, "config1.yaml")
@@ -184,7 +185,7 @@ func TestMain(m *testing.M) {
 	// HNS tests utilize the gRPC protocol, which is not supported by TPC.
 	if !setup.TestOnTPCEndPoint() {
 		if setup.IsHierarchicalBucket(ctx, storageClient) {
-			flagsSet = [][]string{{"--experimental-enable-json-read=true"}}
+			flagsSet = [][]string{{"--experimental-enable-json-read=true", "--enable-atomic-rename-object=true"}}
 		}
 	}
 
