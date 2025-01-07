@@ -132,23 +132,23 @@ func (t *BlockPoolTest) TestBlockSize() {
 func (t *BlockPoolTest) TestClearFreeBlockChannel() {
 	bp, err := NewBlockPool(1024, 10, semaphore.NewWeighted(3))
 	require.Nil(t.T(), err)
-	b1 := t.validateGetBlockIsNotBlocked(bp)
-	b2 := t.validateGetBlockIsNotBlocked(bp)
-	b3 := t.validateGetBlockIsNotBlocked(bp)
-	b4 := t.validateGetBlockIsNotBlocked(bp)
+	blocks := make([]Block, 4)
+	for i := 0; i < 4; i++ {
+		blocks[i] = t.validateGetBlockIsNotBlocked(bp)
+	}
 	// Adding 2 blocks to freeBlocksCh
-	bp.freeBlocksCh <- b1
-	bp.freeBlocksCh <- b2
+	bp.freeBlocksCh <- blocks[0]
+	bp.freeBlocksCh <- blocks[1]
 	require.Equal(t.T(), int64(4), bp.totalBlocks)
 
 	err = bp.ClearFreeBlockChannel()
 
 	require.Nil(t.T(), err)
 	require.Equal(t.T(), int64(2), bp.totalBlocks)
-	require.Nil(t.T(), b1.(*memoryBlock).buffer)
-	require.Nil(t.T(), b2.(*memoryBlock).buffer)
-	require.NotNil(t.T(), b3.(*memoryBlock).buffer)
-	require.NotNil(t.T(), b4.(*memoryBlock).buffer)
+	require.Nil(t.T(), blocks[0].(*memoryBlock).buffer)
+	require.Nil(t.T(), blocks[1].(*memoryBlock).buffer)
+	require.NotNil(t.T(), blocks[2].(*memoryBlock).buffer)
+	require.NotNil(t.T(), blocks[3].(*memoryBlock).buffer)
 	// Check if semaphore is released correctly.
 	require.True(t.T(), bp.globalMaxBlocksSem.TryAcquire(2))
 	require.False(t.T(), bp.globalMaxBlocksSem.TryAcquire(1))
