@@ -52,7 +52,6 @@ var expectedFooDirEntries = []dirEntry{
 	{name: "file1.txt", isDir: false},
 	{name: "file2.txt", isDir: false},
 	{name: "implicit_dir", isDir: true},
-	{name: "cachetest", isDir: true},
 }
 
 var test_folders_in_hns_bucket = []string{"foo/", "bar/", "foo/test2/", "foo/test/", "foo/cachetest/"}
@@ -74,7 +73,7 @@ func (t *HNSBucketTests) TearDownSuite() {
 }
 
 func (t *HNSBucketTests) SetupTest() {
-	err := t.createFolders(test_folders_in_hns_bucket)
+	err := t.createFolders([]string{"foo/", "bar/", "foo/test2/", "foo/test/"})
 	require.NoError(t.T(), err)
 
 	err = t.createObjects(
@@ -98,7 +97,7 @@ func (t *HNSBucketTests) TestReadDir() {
 	dirEntries, err := os.ReadDir(dirPath)
 
 	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), 6, len(dirEntries))
+	assert.Equal(t.T(), 5, len(dirEntries))
 	actualDirEntries := []dirEntry{}
 	for _, d := range dirEntries {
 		actualDirEntries = append(actualDirEntries, dirEntry{
@@ -217,7 +216,7 @@ func (t *HNSBucketTests) TestRenameFolderWithSameParent() {
 	assert.NoError(t.T(), err)
 	dirEntries, err := os.ReadDir(newDirPath)
 	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), 6, len(dirEntries))
+	assert.Equal(t.T(), 5, len(dirEntries))
 	actualDirEntries := []dirEntry{}
 	for _, d := range dirEntries {
 		actualDirEntries = append(actualDirEntries, dirEntry{
@@ -270,7 +269,7 @@ func (t *HNSBucketTests) TestRenameFolderWithDifferentParents() {
 	assert.NoError(t.T(), err)
 	dirEntries, err := os.ReadDir(newDirPath)
 	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), 6, len(dirEntries))
+	assert.Equal(t.T(), 5, len(dirEntries))
 	actualDirEntries := []dirEntry{}
 	for _, d := range dirEntries {
 		actualDirEntries = append(actualDirEntries, dirEntry{
@@ -304,7 +303,6 @@ func (t *HNSBucketTests) TestRenameFolderWithOpenGCSFile() {
 	assert.NoError(t.T(), err)
 	dirEntries, err := os.ReadDir(newDirPath)
 	assert.NoError(t.T(), err)
-	fmt.Println("**************** dirEntries", dirEntries, newDirPath)
 	assert.Equal(t.T(), 1, len(dirEntries))
 	assert.Equal(t.T(), "file1.txt", dirEntries[0].Name())
 	assert.False(t.T(), dirEntries[0].IsDir())
@@ -337,7 +335,7 @@ func (t *HNSBucketTests) TestCreateDirectoryWithSameNameAfterRename() {
 	// Read new directory and validate.
 	dirEntries, err := os.ReadDir(newDirPath)
 	require.NoError(t.T(), err)
-	require.Equal(t.T(), 6, len(dirEntries))
+	require.Equal(t.T(), 5, len(dirEntries))
 	actualDirEntries := []dirEntry{}
 	for _, d := range dirEntries {
 		actualDirEntries = append(actualDirEntries, dirEntry{
@@ -369,8 +367,8 @@ func (t *HNSBucketTests) TestCreateLocalFileInSamePathAfterDeletingParentDirecto
 	dirPath := path.Join(mntDir, "foo", "test2")
 	filePath := path.Join(dirPath, "test.txt")
 	// Create local file in side it.
-	_, err := os.Create(filePath)
-	// defer require.NoError(t.T(), f1.Close())
+	f1, err := os.Create(filePath)
+	defer require.NoError(t.T(), f1.Close())
 	require.NoError(t.T(), err)
 	_, err = os.Stat(filePath)
 	require.NoError(t.T(), err)
