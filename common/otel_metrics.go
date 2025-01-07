@@ -17,7 +17,9 @@ package common
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync/atomic"
+	"time"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
@@ -28,6 +30,7 @@ var (
 	gcsMeter          = otel.Meter("gcs")
 	fileCacheMeter    = otel.Meter("file_cache")
 	gcsReadBytesCount = atomic.Int64{}
+	fsOpsCount        = atomic.Int64{}
 )
 
 // otelMetrics maintains the list of all metrics computed in GCSFuse.
@@ -49,8 +52,7 @@ type otelMetrics struct {
 }
 
 func (o *otelMetrics) GCSReadBytesCount(ctx context.Context, inc int64, attrs []MetricAttr) {
-	//gcsReadBytesCount.Add(inc)
-	//o.gcsReadBytesCount.Add(ctx, inc, attrsToAddOption(attrs)...)
+	gcsReadBytesCount.Add(inc)
 }
 
 func (o *otelMetrics) GCSReaderCount(ctx context.Context, inc int64, attrs []MetricAttr) {
@@ -74,6 +76,7 @@ func (o *otelMetrics) GCSDownloadBytesCount(ctx context.Context, inc int64, attr
 }
 
 func (o *otelMetrics) OpsCount(ctx context.Context, inc int64, attrs []MetricAttr) {
+	fsOpsCount.Add(inc)
 	//o.fsOpsCount.Add(ctx, inc, attrsToAddOption(attrs)...)
 }
 
@@ -98,6 +101,14 @@ func (o *otelMetrics) FileCacheReadLatency(ctx context.Context, value float64, a
 }
 
 func NewOTelMetrics() (MetricHandle, error) {
+	go func() {
+		for {
+			if gcsReadBytesCount.Load() < 0 || fsOpsCount.Load() < 0 {
+				fmt.Println("Hello")
+			}
+			time.Sleep(10 * time.Second)
+		}
+	}()
 	fsOpsCount, err1 := fsOpsMeter.Int64Counter("fs/ops_count", metric.WithDescription("The cumulative number of ops processed by the file system."))
 	fsOpsLatency, err2 := fsOpsMeter.Float64Histogram("fs/ops_latency", metric.WithDescription("The cumulative distribution of file system operation latencies"), metric.WithUnit("us"),
 		defaultLatencyDistribution)
