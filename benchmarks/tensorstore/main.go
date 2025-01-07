@@ -140,7 +140,7 @@ func kvStoreBenchmark(checkoutDir string, config *kvStoreConfig) (string, error)
 	if _, err := script.Echo("3").AppendFile("/proc/sys/vm/drop_caches"); err != nil {
 		return "", fmt.Errorf("unable to clear page cache: %w", err)
 	}
-	cmd := fmt.Sprintf(`%s --kvstore_spec="%s" --context_spec='{"file_io_concurrency": {"limit": %d}, "cache_pool": {"total_bytes_limit": 0}}'`,
+	cmd := fmt.Sprintf(`%s --kvstore_spec=\"%s\" --context_spec='{"file_io_concurrency": {"limit": %d}, "cache_pool": {"total_bytes_limit": 0}}'`,
 		path.Join(checkoutDir, "bazel-bin/tensorstore/internal/benchmark/kvstore_benchmark"), config.path, config.fileIOConcurrency)
 	fmt.Println(cmd)
 	return script.Exec(cmd).String()
