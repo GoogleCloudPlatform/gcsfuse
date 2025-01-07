@@ -21,10 +21,16 @@ import (
 	"path"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/caching"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
+	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -46,10 +52,10 @@ var expectedFooDirEntries = []dirEntry{
 	{name: "file1.txt", isDir: false},
 	{name: "file2.txt", isDir: false},
 	{name: "implicit_dir", isDir: true},
-	{name: "cache_test", isDir: true},
+	{name: "cachetest", isDir: true},
 }
 
-var test_folders_in_hns_bucket = []string{"foo/", "bar/", "foo/test2/", "foo/test/", "foo/cache_test/"}
+var test_folders_in_hns_bucket = []string{"foo/", "bar/", "foo/test2/", "foo/test/", "foo/cachetest/"}
 
 func TestHNSBucketTests(t *testing.T) { suite.Run(t, new(HNSBucketTests)) }
 
@@ -68,6 +74,7 @@ func (t *HNSBucketTests) TearDownSuite() {
 }
 
 func (t *HNSBucketTests) SetupTest() {
+	fmt.Println("********* Calling SetupTest")
 	err := t.createFolders(test_folders_in_hns_bucket)
 	require.NoError(t.T(), err)
 
@@ -83,6 +90,7 @@ func (t *HNSBucketTests) SetupTest() {
 }
 
 func (t *HNSBucketTests) TearDownTest() {
+	fmt.Println("********* Calling TearDownTest")
 	t.fsTest.TearDown()
 }
 
@@ -298,6 +306,7 @@ func (t *HNSBucketTests) TestRenameFolderWithOpenGCSFile() {
 	assert.NoError(t.T(), err)
 	dirEntries, err := os.ReadDir(newDirPath)
 	assert.NoError(t.T(), err)
+	fmt.Println("**************** dirEntries", dirEntries, newDirPath)
 	assert.Equal(t.T(), 1, len(dirEntries))
 	assert.Equal(t.T(), "file1.txt", dirEntries[0].Name())
 	assert.False(t.T(), dirEntries[0].IsDir())
@@ -383,6 +392,67 @@ func (t *HNSBucketTests) TestCreateLocalFileInSamePathAfterDeletingParentDirecto
 	assert.NoError(t.T(), err)
 }
 
+// //////////////////////////////////////////////////////////////////////
+// HNS bucket with caching support tests
+// //////////////////////////////////////////////////////////////////////
+const (
+	cachedHnsBucketName string = "cachedHnsBucket"
+)
+
+var (
+	uncachedHNSBucket gcs.Bucket
+)
+
+type HNSCachedBucketMountTest struct {
+	suite.Suite
+	fsTest
+}
+
+func TestHNSCachedBucketTests(t *testing.T) { suite.Run(t, new(HNSCachedBucketMountTest)) }
+
+func (t *HNSCachedBucketMountTest) SetupSuite() {
+	uncachedHNSBucket = fake.NewFakeBucket(timeutil.RealClock(), cachedHnsBucketName, gcs.Hierarchical)
+	lruCache := newLruCache(uint64(1000 * cfg.AverageSizeOfPositiveStatCacheEntry))
+	statCache := metadata.NewStatCacheBucketView(lruCache, "")
+	bucket = caching.NewFastStatBucket(
+		ttl,
+		statCache,
+		&cacheClock,
+		uncachedHNSBucket)
+
+	// Enable directory type caching.
+	t.serverCfg.DirTypeCacheTTL = ttl
+	t.serverCfg.ImplicitDirectories = false
+	t.serverCfg.NewConfig = &cfg.Config{
+		EnableHns: true,
+		FileCache: defaultFileCacheConfig(),
+		MetadataCache: cfg.MetadataCacheConfig{
+			// Setting default values.
+			StatCacheMaxSizeMb: 32,
+			TtlSecs:            60,
+			TypeCacheMaxSizeMb: 4,
+		},
+	}
+	bucketType = gcs.Hierarchical
+	// Call through.
+	t.fsTest.SetUpTestSuite()
+}
+
+func (t *HNSCachedBucketMountTest) TearDownSuite() {
+	t.fsTest.TearDownTestSuite()
+}
+
+func (t *HNSCachedBucketMountTest) SetupTest() {
+	fmt.Println("********* Calling SetupTest")
+	err := t.createFolders([]string{"hns/", "hns/cache/"})
+	require.NoError(t.T(), err)
+}
+
+func (t *HNSCachedBucketMountTest) TearDownTest() {
+	fmt.Println("********* Calling TearDownTest")
+	t.fsTest.TearDown()
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // --------------------- Test for delete object -------------------
 // Create directory - foo/test2
@@ -391,10 +461,10 @@ func (t *HNSBucketTests) TestCreateLocalFileInSamePathAfterDeletingParentDirecto
 // Delete object - foo/test2/test.txt
 // Create object using t.createobjects
 // Stat the object - foo/test2/test.txt --> It should return not found error although object present
-// Generate this test, it should resemble other tests in this file in form and structure for e.g. TestRenameFolderWithSourceDirectoryHaveLocalFiles
-func (t *HNSBucketTests) TestLocalFileIsInaccessibleAfterDeleteObjectButPresentRemotely() {
-	dirPath := path.Join(mntDir, "foo", "cache_test")
-	filePath := path.Join(dirPath, "local_file.txt")
+// // Generate this test, it should resemble other tests in this file in form and structure for e.g. TestRenameFolderWithSourceDirectoryHaveLocalFiles
+func (t *HNSCachedBucketMountTest) TestLocalFileIsInaccessibleAfterDeleteObjectButPresentRemotely() {
+	dirPath := path.Join(mntDir, "hns", "cache")
+	filePath := path.Join(dirPath, "file1.txt")
 	// Create local file inside it.
 	ff, err := os.Create(filePath)
 	require.NoError(t.T(), ff.Close())
@@ -404,13 +474,21 @@ func (t *HNSBucketTests) TestLocalFileIsInaccessibleAfterDeleteObjectButPresentR
 	// Delete object
 	err = os.Remove(filePath)
 	assert.NoError(t.T(), err)
-	// Create object using t.createobjects
-	err = t.createObjects(map[string]string{filePath: "burrito"})
+	// Create an object with the same name via GCS.
+	_, err = storageutil.CreateObject(
+		ctx,
+		uncachedHNSBucket,
+		path.Join("hns", "cache", "file1.txt"),
+		[]byte("burrito"))
 	assert.NoError(t.T(), err)
-	// // Stat the object --> It should return not found error although object present
-	// _, err = os.Stat(filePath)
-	// assert.Error(t.T(), err)
-	// assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+	// Stat the object --> It should return not found error although object present
+	_, err = os.Stat(filePath)
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+	// After the TTL elapses, we should see it reappear.
+	cacheClock.AdvanceTime(ttl + time.Millisecond)
+	_, err = os.Stat(filePath)
+	assert.NoError(t.T(), err)
 }
 
 // --------------------- Test for delete directory -----------------
@@ -422,22 +500,31 @@ func (t *HNSBucketTests) TestLocalFileIsInaccessibleAfterDeleteObjectButPresentR
 // Function name should be TestLocalDirectoryIsInaccessibleAfterDeleteObjectButPresentRemotely
 // Use TestLocalFileIsInaccessibleAfterDeleteObjectButPresentRemotely for inspiration
 // ------------------------------------------------------------------
-// func (t *HNSBucketTests) TestLocalDirectoryIsInaccessibleAfterDeleteDirectoryButPresentRemotely() {
-// 	dirPath := path.Join(mntDir, "foo", "test2")
-// 	// Create directory - foo/test2
-// 	err := os.Mkdir(dirPath, dirPerms)
-// 	require.NoError(t.T(), err)
-// 	// stat directory - foo/test2
-// 	_, err = os.Stat(dirPath)
-// 	require.NoError(t.T(), err)
-// 	// Delete directory - rm -r foo/test2
-// 	err = os.RemoveAll(dirPath)
-// 	assert.NoError(t.T(), err)
-// 	// Create directory using t.createobjects
-// 	err = t.createFolders([]string{dirPath + "/"})
-// 	assert.NoError(t.T(), err)
-// 	// Stat the directory - foo/test2/test.txt --> It should return not found error from cache although dir present
-// 	_, err = os.Stat(dirPath)
-// 	assert.Error(t.T(), err)
-// 	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
-// }
+func (t *HNSCachedBucketMountTest) TestLocalDirectoryIsInaccessibleAfterDeleteDirectoryButPresentRemotely() {
+	dirPath := path.Join(mntDir, "hns", "cache", "test")
+	// Create directory - foo/test2
+	err := os.Mkdir(dirPath, dirPerms)
+	require.NoError(t.T(), err)
+	// stat directory - foo/test2
+	_, err = os.Stat(dirPath)
+	require.NoError(t.T(), err)
+	// Delete directory - rm -r foo/test2
+	err = os.RemoveAll(dirPath)
+	assert.NoError(t.T(), err)
+	// Create a directory with the same name via GCS.
+	_, err = storageutil.CreateObject(
+		ctx,
+		uncachedHNSBucket,
+		path.Join("hns", "cache", "test")+"/",
+		[]byte(""))
+	assert.NoError(t.T(), err)
+	// Stat the directory - foo/test2/test.txt --> It should return not found error from cache although dir present
+	_, err = os.Stat(dirPath)
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+
+	// After the TTL elapses, we should see it reappear.
+	cacheClock.AdvanceTime(ttl + time.Millisecond)
+	_, err = os.Stat(dirPath)
+	assert.NoError(t.T(), err)
+}
