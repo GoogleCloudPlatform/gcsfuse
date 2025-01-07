@@ -31,14 +31,21 @@ import (
 
 var filePath = flag.String("mount-path", "file:///dev/shm/multiread", "Path to the mountpoint along with protocol e.g. file://dev/shm/multireader")
 var resultsPath = flag.String("output-path", "/tmp/output.csv", "Results will be dumped here")
+var benchmark = flag.String("benchmark", "multiread", "Benchmark to run")
 
 var multiReadThroughputRegex = regexp.MustCompile(`throughput:\s+(.+)\s+MB/second`)
+var kvStoreThroughputRegex = regexp.MustCompile(`.*bytes in .*\s+(.+)\s+MB/second`)
 
 type multiReadConfig struct {
 	fileIOConcurrency   int64
 	maxInflightRequests int64
 	path                string
 	tscliConfigPath     string
+}
+
+type kvStoreConfig struct {
+	fileIOConcurrency   int64
+	maxInflightRequests int64
 }
 
 func tscliConfig(checkoutDir string, pth string) (string, error) {
@@ -76,15 +83,6 @@ func tscliConfig(checkoutDir string, pth string) (string, error) {
 	return fName, nil
 }
 
-func multiReadBenchmark(checkoutDir string, config *multiReadConfig, _ int64) (string, error) {
-	if _, err := script.Echo("3").AppendFile("/proc/sys/vm/drop_caches"); err != nil {
-		return "", fmt.Errorf("unable to clear page cache: %w", err)
-	}
-	cmd := fmt.Sprintf(`%s --read_config=%s --max_in_flight=%d --context_spec='{"file_io_concurrency": {"limit": %d}, "cache_pool": {"total_bytes_limit": 0}}'`,
-		path.Join(checkoutDir, "bazel-bin/tensorstore/internal/benchmark/multi_read_benchmark"), config.tscliConfigPath, config.maxInflightRequests, config.fileIOConcurrency)
-	fmt.Println(cmd)
-	return script.Exec(cmd).String()
-}
 func newScanner(r io.Reader) *bufio.Scanner {
 	scanner := bufio.NewScanner(r)
 	scanner.Buffer(make([]byte, 4096), math.MaxInt)
@@ -122,21 +120,74 @@ func validate() error {
 	if err == nil {
 		return fmt.Errorf("output file already exists: %s", *resultsPath)
 	}
+	if *benchmark != "multiread" && *benchmark != "kv_store" {
+		return fmt.Errorf("unknown benchmark: %s", *benchmark)
+	}
 	return nil
 }
 
-func main() {
-	flag.Parse()
-	if err := validate(); err != nil {
-		panic(err)
+func multiReadBenchmark(checkoutDir string, config *multiReadConfig, _ int64) (string, error) {
+	if _, err := script.Echo("3").AppendFile("/proc/sys/vm/drop_caches"); err != nil {
+		return "", fmt.Errorf("unable to clear page cache: %w", err)
 	}
-	checkoutDir, err := setup()
-	defer func() { os.RemoveAll(checkoutDir) }()
+	cmd := fmt.Sprintf(`%s --read_config=%s --max_in_flight=%d --context_spec='{"file_io_concurrency": {"limit": %d}, "cache_pool": {"total_bytes_limit": 0}}'`,
+		path.Join(checkoutDir, "bazel-bin/tensorstore/internal/benchmark/multi_read_benchmark"), config.tscliConfigPath, config.maxInflightRequests, config.fileIOConcurrency)
+	fmt.Println(cmd)
+	return script.Exec(cmd).String()
+}
+
+func kvStoreBenchmark(checkoutDir string, config *kvStoreConfig) (string, error) {
+	if _, err := script.Echo("3").AppendFile("/proc/sys/vm/drop_caches"); err != nil {
+		return "", fmt.Errorf("unable to clear page cache: %w", err)
+	}
+	cmd := fmt.Sprintf(`%s --max_in_flight=%d --context_spec='{"file_io_concurrency": {"limit": %d}, "cache_pool": {"total_bytes_limit": 0}}'`,
+		path.Join(checkoutDir, "bazel-bin/tensorstore/internal/benchmark/kvstore_benchmark"), config.maxInflightRequests, config.fileIOConcurrency)
+	fmt.Println(cmd)
+	return script.Exec(cmd).String()
+
+}
+
+func invokeKVStoreBenchmark(checkoutDir string) {
+	f, err := os.Create(*resultsPath)
 	if err != nil {
 		panic(err)
 	}
+	writer := csv.NewWriter(f)
+	defer func() {
+		writer.Flush()
+		f.Close()
+	}()
+	record := []string{"file_io_concurrency", "max_inflight_requests", "Round", "Throughput MB/s"}
+	writer.Write(record)
+	idx := int64(0)
 	fileIOConcurrencyRange := []int64{256, 128, 64, 32}
 	maxInflightRequestMultiplicand := []int64{16, 12, 10, 8, 4, 2, 1}
+
+	for _, ioConc := range fileIOConcurrencyRange {
+		for _, inflightMaxMulti := range maxInflightRequestMultiplicand {
+			for _, round := range []int64{1} {
+				output, err := kvStoreBenchmark(checkoutDir, &kvStoreConfig{
+					fileIOConcurrency:   ioConc,
+					maxInflightRequests: int64(64) * 1024 * 1024 * 1024 * inflightMaxMulti,
+				})
+				idx++
+
+				if err != nil {
+					panic(err)
+				}
+				fmt.Println(output)
+				bw, err := extractBWFromKVStoreBenchmark(output)
+				if err != nil {
+					panic(err)
+				}
+				writer.Write([]string{strconv.FormatInt(ioConc, 10), strconv.FormatInt(inflightMaxMulti*64, 10), strconv.FormatInt(round, 10), strconv.FormatInt(int64(bw), 10)})
+				fmt.Printf("Bandwidth obtained: %d MB/s\n", int64(bw))
+			}
+		}
+	}
+}
+
+func invokeMultiReadBenchmark(checkoutDir string) {
 	f, err := os.Create(*resultsPath)
 	if err != nil {
 		panic(err)
@@ -154,6 +205,8 @@ func main() {
 	}
 	defer func() { os.RemoveAll(tscliConfigPath) }()
 	idx := int64(0)
+	fileIOConcurrencyRange := []int64{256, 128, 64, 32}
+	maxInflightRequestMultiplicand := []int64{16, 12, 10, 8, 4, 2, 1}
 
 	for _, ioConc := range fileIOConcurrencyRange {
 		for _, inflightMaxMulti := range maxInflightRequestMultiplicand {
@@ -180,6 +233,32 @@ func main() {
 			}
 		}
 	}
+}
+
+func main() {
+	flag.Parse()
+	if err := validate(); err != nil {
+		panic(err)
+	}
+	checkoutDir, err := setup()
+	defer func() { os.RemoveAll(checkoutDir) }()
+	if err != nil {
+		panic(err)
+	}
+
+	if *benchmark == "multiread" {
+		invokeMultiReadBenchmark(checkoutDir)
+	} else {
+		invokeKVStoreBenchmark(checkoutDir)
+	}
+}
+
+func extractBWFromKVStoreBenchmark(output string) (float64, error) {
+	subMatches := kvStoreThroughputRegex.FindSubmatch([]byte(output))
+	if len(subMatches) != 2 {
+		return 0, fmt.Errorf("unable to parse KVStore output")
+	}
+	return strconv.ParseFloat(string(subMatches[1]), 64)
 }
 
 func extractBWFromMutiReadBenchmark(output string) (float64, error) {
