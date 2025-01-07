@@ -1028,6 +1028,11 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 // UNLOCK_FUNCTION(fs.mu)
 // LOCK_FUNCTION(child)
 func (fs *fileSystem) lookUpLocalFileInode(parent inode.DirInode, childName string) (child inode.Inode) {
+	// Trim the suffix assigned to fix conflicting names.
+	childName = strings.TrimSuffix(childName, inode.ConflictingFileNameSuffix)
+	fileName := inode.NewFileName(parent.Name(), childName)
+
+	fs.mu.Lock()
 	defer func() {
 		if child != nil {
 			child.IncrementLookupCount()
@@ -1035,11 +1040,6 @@ func (fs *fileSystem) lookUpLocalFileInode(parent inode.DirInode, childName stri
 		fs.mu.Unlock()
 	}()
 
-	// Trim the suffix assigned to fix conflicting names.
-	childName = strings.TrimSuffix(childName, inode.ConflictingFileNameSuffix)
-	fileName := inode.NewFileName(parent.Name(), childName)
-
-	fs.mu.Lock()
 	var maxTriesToLookupInode = 3
 	for n := 0; n < maxTriesToLookupInode; n++ {
 		child = fs.localFileInodes[fileName]
