@@ -55,7 +55,8 @@ func TestHNSBucketTests(t *testing.T) { suite.Run(t, new(HNSBucketTests)) }
 func (t *HNSBucketTests) SetupSuite() {
 	t.serverCfg.ImplicitDirectories = false
 	t.serverCfg.NewConfig = &cfg.Config{
-		EnableHns: true,
+		EnableHns:                true,
+		EnableAtomicRenameObject: true,
 	}
 	t.serverCfg.MetricHandle = common.NewNoopMetrics()
 	bucketType = gcs.Hierarchical
