@@ -451,12 +451,10 @@ func (t *HNSBucketTests) TestRenameFile() {
 			_, err = os.Stat(tc.oldFilePath)
 			assert.Error(t.T(), err)
 			assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
-
 			// Verify the new file exists and has the correct content.
 			f, err := os.Stat(tc.newFilePath)
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), path.Base(tc.newFilePath), f.Name())
-
 			content, err := os.ReadFile(tc.newFilePath)
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), tc.wantContent, string(content))
