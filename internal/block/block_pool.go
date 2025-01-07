@@ -37,11 +37,6 @@ type BlockPool struct {
 	// Semaphore used to limit the total number of blocks created across
 	// different files.
 	globalMaxBlocksSem *semaphore.Weighted
-
-	// When the total number of blocks is zero, a block is created for a file
-	// without acquiring the globalMaxBlocksSem. This tracks whether the semaphore
-	// needs to be released when clearing resources.
-	semaphoreAcquired bool
 }
 
 // NewBlockPool creates the blockPool based on the user configuration.
@@ -74,16 +69,7 @@ func (bp *BlockPool) Get() (Block, error) {
 		default:
 			// No lock is required here since blockPool is per file and all write
 			// calls to a single file are serialized because of inode.lock().
-			if bp.totalBlocks < bp.maxBlocks {
-				freeSlotsAvailable := bp.globalMaxBlocksSem.TryAcquire(1)
-				if freeSlotsAvailable {
-					bp.semaphoreAcquired = true
-				}
-				// We are allowed to create one block per file irrespective of free slots.
-				if bp.totalBlocks > 0 && !freeSlotsAvailable {
-					continue
-				}
-
+			if bp.canAllocateBlock() {
 				b, err := createBlock(bp.blockSize)
 				if err != nil {
 					return nil, err
@@ -91,10 +77,26 @@ func (bp *BlockPool) Get() (Block, error) {
 
 				bp.totalBlocks++
 				return b, nil
-
 			}
 		}
 	}
+}
+
+// canAllocateBlock checks if a new block can be allocated.
+func (bp *BlockPool) canAllocateBlock() bool {
+	// If max blocks limit is reached, then no more blocks can be allocated.
+	if bp.totalBlocks >= bp.maxBlocks {
+		return false
+	}
+
+	// Always allow allocation if this is the first block for the file.
+	if bp.totalBlocks == 0 {
+		return true
+	}
+
+	// Otherwise, check if we can acquire a semaphore.
+	semAcquired := bp.globalMaxBlocksSem.TryAcquire(1)
+	return semAcquired
 }
 
 // FreeBlocksChannel returns the freeBlocksCh being used by the block pool.
@@ -117,7 +119,7 @@ func (bp *BlockPool) ClearFreeBlockChannel() error {
 				return fmt.Errorf("munmap error: %v", err)
 			}
 			bp.totalBlocks--
-			if bp.semaphoreAcquired {
+			if bp.totalBlocks != 0 {
 				bp.globalMaxBlocksSem.Release(1)
 			}
 		default:
