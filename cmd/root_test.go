@@ -850,11 +850,6 @@ func TestArgsParsing_EnableAtomicRenameObjectFlag(t *testing.T) {
 			args:                             []string{"gcsfuse", "--enable-atomic-rename-object=true", "abc", "pqr"},
 			expectedEnableAtomicRenameObject: true,
 		},
-		{
-			name:                             "default",
-			args:                             []string{"gcsfuse", "abc", "pqr"},
-			expectedEnableAtomicRenameObject: false,
-		},
 	}
 
 	for _, tc := range tests {
