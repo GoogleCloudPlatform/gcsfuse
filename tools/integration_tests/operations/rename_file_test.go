@@ -51,28 +51,28 @@ func TestRenameFileWithDstDestFileExist(t *testing.T) {
 	// Set up the test directory.
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 	// Define source and destination file names.
-	fileName := path.Join(testDir, "move1.txt")
-	destFileName := path.Join(testDir, "move2.txt")
+	srcFilePath := path.Join(testDir, "move1.txt")
+	destFilePath := path.Join(testDir, "move2.txt")
 	// Create the source file with content.
-	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, t)
+	operations.CreateFileWithContent(srcFilePath, setup.FilePermission_0600, Content, t)
 
 	// Rename the file.
-	err := operations.RenameFile(fileName, destFileName)
+	err := operations.RenameFile(srcFilePath, destFilePath)
 
 	assert.NoError(t, err, "error in file renaming")
 	// Verify the file was renamed and content is preserved.
-	setup.CompareFileContents(t, destFileName, Content)
+	setup.CompareFileContents(t, destFilePath, Content)
 }
 
 func TestRenameFileWithSrcFileDoesNoExist(t *testing.T) {
 	// Set up the test directory.
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 	// Define source and destination file names.
-	fileName := path.Join(testDir, "move1.txt") // This file does not exist.
-	destFileName := path.Join(testDir, "move2.txt")
+	srcFilePath := path.Join(testDir, "move1.txt") // This file does not exist.
+	destFilePath := path.Join(testDir, "move2.txt")
 
 	// Attempt to rename the non-existent file.
-	err := operations.RenameFile(fileName, destFileName)
+	err := operations.RenameFile(srcFilePath, destFilePath)
 
 	// Assert that an error occurred.
 	assert.Error(t, err)
