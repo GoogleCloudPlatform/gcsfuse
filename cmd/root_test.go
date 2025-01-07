@@ -849,7 +849,7 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 			name: "default",
 			args: []string{"gcsfuse", "abc", "pqr"},
 			expected: &cfg.MetricsConfig{
-				EnableOtel: false,
+				EnableOtel: true,
 			},
 		},
 		{
@@ -874,14 +874,21 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 			},
 		},
 		{
-			name:     "cloud-metrics-export-interval-secs-positive",
-			args:     []string{"gcsfuse", "--cloud-metrics-export-interval-secs=10", "abc", "pqr"},
-			expected: &cfg.MetricsConfig{CloudMetricsExportIntervalSecs: 10},
+			name: "cloud-metrics-export-interval-secs-positive",
+			args: []string{"gcsfuse", "--cloud-metrics-export-interval-secs=10", "abc", "pqr"},
+			expected: &cfg.MetricsConfig{
+				CloudMetricsExportIntervalSecs: 10,
+				EnableOtel:                     true,
+			},
 		},
 		{
-			name:     "stackdriver-export-interval-positive",
-			args:     []string{"gcsfuse", "--stackdriver-export-interval=10h", "abc", "pqr"},
-			expected: &cfg.MetricsConfig{CloudMetricsExportIntervalSecs: 10 * 3600, StackdriverExportInterval: time.Duration(10) * time.Hour},
+			name: "stackdriver-export-interval-positive",
+			args: []string{"gcsfuse", "--stackdriver-export-interval=10h", "abc", "pqr"},
+			expected: &cfg.MetricsConfig{
+				CloudMetricsExportIntervalSecs: 10 * 3600,
+				StackdriverExportInterval:      time.Duration(10) * time.Hour,
+				EnableOtel:                     true,
+			},
 		},
 	}
 	for _, tc := range tests {
@@ -913,7 +920,7 @@ func TestArgsParsing_MetricsViewConfig(t *testing.T) {
 			name:    "default",
 			cfgFile: "empty.yml",
 			expected: &cfg.MetricsConfig{
-				EnableOtel: false,
+				EnableOtel: true,
 			},
 		},
 		{
@@ -933,12 +940,16 @@ func TestArgsParsing_MetricsViewConfig(t *testing.T) {
 		{
 			name:     "cloud-metrics-export-interval-secs-positive",
 			cfgFile:  "metrics_export_interval_positive.yml",
-			expected: &cfg.MetricsConfig{CloudMetricsExportIntervalSecs: 100},
+			expected: &cfg.MetricsConfig{CloudMetricsExportIntervalSecs: 100, EnableOtel: true},
 		},
 		{
-			name:     "stackdriver-export-interval-positive",
-			cfgFile:  "stackdriver_export_interval_positive.yml",
-			expected: &cfg.MetricsConfig{CloudMetricsExportIntervalSecs: 12 * 3600, StackdriverExportInterval: 12 * time.Hour},
+			name:    "stackdriver-export-interval-positive",
+			cfgFile: "stackdriver_export_interval_positive.yml",
+			expected: &cfg.MetricsConfig{
+				CloudMetricsExportIntervalSecs: 12 * 3600,
+				StackdriverExportInterval:      12 * time.Hour,
+				EnableOtel:                     true,
+			},
 		},
 	}
 	for _, tc := range tests {
