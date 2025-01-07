@@ -17,10 +17,12 @@ package operations_test
 
 import (
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestRenameFile(t *testing.T) {
@@ -42,4 +44,19 @@ func TestRenameFile(t *testing.T) {
 	}
 	// Check if the data in the file is the same after renaming.
 	setup.CompareFileContents(t, newFileName, string(content))
+}
+
+func TestRenameFileWithSrcFileDoesNoExist(t *testing.T) {
+	// Set up the test directory.
+	testDir := setup.SetupTestDirectory(DirForOperationTests)
+	// Define source and destination file names.
+	srcFilePath := path.Join(testDir, "move1.txt") // This file does not exist.
+	destFilePath := path.Join(testDir, "move2.txt")
+
+	// Attempt to rename the non-existent file.
+	err := operations.RenameFile(srcFilePath, destFilePath)
+
+	// Assert that an error occurred.
+	assert.Error(t, err)
+	assert.True(t, strings.Contains(err.Error(), "no such file or directory"))
 }
