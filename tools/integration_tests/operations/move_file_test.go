@@ -18,6 +18,7 @@ package operations_test
 import (
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
@@ -119,4 +120,7 @@ func TestMoveFileWithDestFileExist(t *testing.T) {
 	assert.NoError(t, err, "error in file moving")
 	// Verify the file was renamed and content is preserved.
 	setup.CompareFileContents(t, destFilePath, Content)
+	_, err = os.Stat(srcFilePath)
+	assert.Error(t, err)
+	assert.True(t, strings.Contains(err.Error(), "no such file or directory"))
 }

@@ -2061,7 +2061,7 @@ func (fs *fileSystem) renameHierarchicalFile(ctx context.Context, oldParent inod
 	newFileName := inode.NewFileName(newParent.Name(), newName)
 
 	if _, err := oldParent.RenameFile(ctx, oldObject, newFileName.GcsObjectName()); err != nil {
-		return fmt.Errorf("RenameFile: while renaming file: %w", err)
+		return fmt.Errorf("renameFile: while renaming file: %w", err)
 	}
 
 	if err := fs.invalidateChildFileCacheIfExist(oldParent, oldName); err != nil {
