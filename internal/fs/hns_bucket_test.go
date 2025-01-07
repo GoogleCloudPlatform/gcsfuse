@@ -40,6 +40,8 @@ type dirEntry struct {
 	isDir bool
 }
 
+const file1Content = "abcdef"
+
 var expectedFooDirEntries = []dirEntry{
 	{name: "test", isDir: true},
 	{name: "test2", isDir: true},
@@ -70,7 +72,7 @@ func (t *HNSBucketTests) SetupTest() {
 
 	err = t.createObjects(
 		map[string]string{
-			"foo/file1.txt":              "abcdef",
+			"foo/file1.txt":              file1Content,
 			"foo/file2.txt":              "xyz",
 			"foo/test/file3.txt":         "xyz",
 			"foo/implicit_dir/file3.txt": "xxw",
@@ -378,4 +380,80 @@ func (t *HNSBucketTests) TestCreateLocalFileInSamePathAfterDeletingParentDirecto
 	assert.NoError(t.T(), err)
 	_, err = os.Stat(filePath)
 	assert.NoError(t.T(), err)
+}
+
+func (t *HNSBucketTests) TestRenameFileWithSrcFileDoesNotExist() {
+	oldFilePath := path.Join(mntDir, "file")
+	newFilePath := path.Join(mntDir, "file_rename")
+
+	err := os.Rename(oldFilePath, newFilePath)
+
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+	_, err = os.Stat(newFilePath)
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+}
+
+func (t *HNSBucketTests) TestRenameFileWithDstDestFileExist() {
+	oldFilePath := path.Join(mntDir, "foo", "file1.txt")
+	_, err := os.Stat(oldFilePath)
+	assert.NoError(t.T(), err)
+	newFilePath := path.Join(mntDir, "foo", "file2.txt")
+	_, err = os.Stat(newFilePath)
+	assert.NoError(t.T(), err)
+
+	err = os.Rename(oldFilePath, newFilePath)
+
+	assert.NoError(t.T(), err)
+	_, err = os.Stat(oldFilePath)
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+	content, err := os.ReadFile(newFilePath)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), file1Content, string(content))
+}
+
+func (t *HNSBucketTests) TestRenameFileWithDifferentParent() {
+	oldFilePath := path.Join(mntDir, "foo", "file1.txt")
+	_, err := os.Stat(oldFilePath)
+	assert.NoError(t.T(), err)
+	newFilePath := path.Join(mntDir, "bar", "file3.txt")
+	_, err = os.Stat(newFilePath)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+
+	err = os.Rename(oldFilePath, newFilePath)
+
+	assert.NoError(t.T(), err)
+	_, err = os.Stat(oldFilePath)
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+	f, err := os.Stat(newFilePath)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), "file3.txt", f.Name())
+	content, err := os.ReadFile(newFilePath)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), file1Content, string(content))
+}
+
+func (t *HNSBucketTests) TestRenameFileWithSameParent() {
+	oldFilePath := path.Join(mntDir, "foo", "file1.txt")
+	_, err := os.Stat(oldFilePath)
+	assert.NoError(t.T(), err)
+	newFilePath := path.Join(mntDir, "foo", "file3.txt")
+	_, err = os.Stat(newFilePath)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+
+	err = os.Rename(oldFilePath, newFilePath)
+
+	assert.NoError(t.T(), err)
+	_, err = os.Stat(oldFilePath)
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+	f, err := os.Stat(newFilePath)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), "file3.txt", f.Name())
+	content, err := os.ReadFile(newFilePath)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), file1Content, string(content))
 }
