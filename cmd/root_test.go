@@ -839,6 +839,43 @@ func TestArgsParsing_EnableHNSFlags(t *testing.T) {
 	}
 }
 
+func TestArgsParsing_EnableAtomicRenameObjectFlag(t *testing.T) {
+	tests := []struct {
+		name                             string
+		args                             []string
+		expectedEnableAtomicRenameObject bool
+	}{
+		{
+			name:                             "normal",
+			args:                             []string{"gcsfuse", "--enable-atomic-rename-object=false", "abc", "pqr"},
+			expectedEnableAtomicRenameObject: false,
+		},
+		{
+			name:                             "default",
+			args:                             []string{"gcsfuse", "abc", "pqr"},
+			expectedEnableAtomicRenameObject: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotEnableAtomicRenameObject bool
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+				gotEnableAtomicRenameObject = cfg.EnableAtomicRenameObject
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedEnableAtomicRenameObject, gotEnableAtomicRenameObject)
+			}
+		})
+	}
+}
+
 func TestArgsParsing_MetricsFlags(t *testing.T) {
 	tests := []struct {
 		name     string

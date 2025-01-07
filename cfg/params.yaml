@@ -71,6 +71,13 @@
   usage: "Print debug messages when a mutex is held too long."
   default: false
 
+- config-path: "enable-atomic-rename-object"
+  flag-name: "enable-atomic-rename-object"
+  type: "bool"
+  usage: "Enables support for atomic rename operation on HNS bucket."
+  default: false
+  hide-flag: true
+
 - config-path: "enable-hns"
   flag-name: "enable-hns"
   type: "bool"

@@ -30,6 +30,8 @@ type Config struct {
 
 	Debug DebugConfig `yaml:"debug"`
 
+	EnableAtomicRenameObject bool `yaml:"enable-atomic-rename-object"`
+
 	EnableHns bool `yaml:"enable-hns"`
 
 	FileCache FileCacheConfig `yaml:"file-cache"`
@@ -310,6 +312,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("disable-parallel-dirops", "", false, "Specifies whether to allow parallel dir operations (lookups and readers)")
 
 	if err := flagSet.MarkHidden("disable-parallel-dirops"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("enable-atomic-rename-object", "", false, "Enables support for atomic rename operation on HNS bucket.")
+
+	if err := flagSet.MarkHidden("enable-atomic-rename-object"); err != nil {
 		return err
 	}
 
@@ -633,6 +641,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.disable-parallel-dirops", flagSet.Lookup("disable-parallel-dirops")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("enable-atomic-rename-object", flagSet.Lookup("enable-atomic-rename-object")); err != nil {
 		return err
 	}
 
