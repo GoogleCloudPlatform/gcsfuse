@@ -315,7 +315,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("enable-atomic-rename-object", "", false, "Enables support for atomic rename operation on HNS bucket.")
+	flagSet.BoolP("enable-atomic-rename-object", "", false, "Enables support for atomic rename object operation on HNS bucket.")
 
 	if err := flagSet.MarkHidden("enable-atomic-rename-object"); err != nil {
 		return err
