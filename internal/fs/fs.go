@@ -1038,9 +1038,11 @@ func (fs *fileSystem) lookUpLocalFileInode(parent inode.DirInode, childName stri
 	// Trim the suffix assigned to fix conflicting names.
 	childName = strings.TrimSuffix(childName, inode.ConflictingFileNameSuffix)
 
-	// Panic in inode.NewFileName() leads to another panic in the defer's fs.mu.Unlock()
-	// and leads to loss of actual panic message inside inode.NewFileName(), explicitly
-	// calling fs.mu.Lock() to avoid panic in defer's fs.mu.Unlock().
+	// Panic in inode.NewFileName() leads to another panic in the defer function, because of fs.mu.Unlock()
+	// call over the already unlocked mutex. This eventually results into the loss of actual panic message
+	// inside inode.NewFileName().
+	// Explicitly calling fs.mu.Lock() before inode.NewFileName() to avoid this nested panic and hence original
+	// panic message loss.
 	fs.mu.Lock()
 	fileName := inode.NewFileName(parent.Name(), childName)
 
