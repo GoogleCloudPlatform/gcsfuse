@@ -1037,9 +1037,13 @@ func (fs *fileSystem) lookUpLocalFileInode(parent inode.DirInode, childName stri
 
 	// Trim the suffix assigned to fix conflicting names.
 	childName = strings.TrimSuffix(childName, inode.ConflictingFileNameSuffix)
+
+	// Panic in inode.NewFileName() leads to another panic in the defer's fs.mu.Unlock()
+	// and leads to loss of actual panic message inside inode.NewFileName(), explicitly
+	// calling fs.mu.Lock() to avoid panic in defer's fs.mu.Unlock().
+	fs.mu.Lock()
 	fileName := inode.NewFileName(parent.Name(), childName)
 
-	fs.mu.Lock()
 	var maxTriesToLookupInode = 3
 	for n := 0; n < maxTriesToLookupInode; n++ {
 		child = fs.localFileInodes[fileName]
