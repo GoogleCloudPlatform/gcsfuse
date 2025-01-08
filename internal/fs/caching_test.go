@@ -727,3 +727,107 @@ func (t *MultiBucketMountCachingTest) TypeOfNameChanges_RemoteModifier() {
 	AssertEq(nil, err)
 	ExpectFalse(fi.IsDir())
 }
+
+// --------------------- Test for delete directory -----------------
+// Create directory
+// stat directory
+// Delete directory
+// Create directory using storageutil
+// Stat the directory - It should return not found error from cache although dir present on GCS
+// Stat the directory after TTL expiry and it should appear
+// ------------------------------------------------------------------
+func (t *MultiBucketMountCachingTest) DirectoryRemovedLocallyAddedRemotely() {
+	const name = "foo"
+	var fi os.FileInfo
+	var err error
+	bucket1MntDir := getMultiMountBucketDir(bucket1Name)
+	bucket1 := uncachedBuckets[bucket1Name]
+
+	// Create a directory via the file system.
+	err = os.Mkdir(path.Join(bucket1MntDir, name), 0700)
+	AssertEq(nil, err)
+
+	// Stat the directory
+	fi, err = os.Stat(path.Join(bucket1MntDir, name))
+	AssertEq(nil, err)
+	ExpectTrue(fi.IsDir())
+
+	// Remove the directory locally.
+	err = os.RemoveAll(path.Join(bucket1MntDir, name))
+	AssertEq(nil, err)
+
+	// Create a directory with the same name via GCS.
+	_, err = storageutil.CreateObject(
+		ctx,
+		bucket1,
+		name+"/",
+		[]byte(""))
+
+	AssertEq(nil, err)
+
+	// Because we are caching, the directory should still appear to not exist.
+	_, err = os.Stat(path.Join(bucket1MntDir, name))
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
+
+	// After the TTL elapses, we should see it reappear.
+	cacheClock.AdvanceTime(ttl + time.Millisecond)
+
+	fi, err = os.Stat(path.Join(bucket1MntDir, name))
+	AssertEq(nil, err)
+	ExpectTrue(fi.IsDir())
+}
+
+// --------------------- Test for delete object -------------------
+// Create directory
+// Create object in directory
+// Stat the object
+// Delete object
+// Create object using storageutil
+// Stat the object. It should return not found error although object present.
+// Stat the object after TTL expiry and it should appear
+// ------------------------------------------------------------------
+func (t *MultiBucketMountCachingTest) ObjectRemovedLocallyAddedRemotely() {
+	const dirName = "foo"
+	const objName = "bar"
+	var fi os.FileInfo
+	var err error
+	bucket1MntDir := getMultiMountBucketDir(bucket1Name)
+	bucket1 := uncachedBuckets[bucket1Name]
+
+	// Create a directory via the file system.
+	err = os.Mkdir(path.Join(bucket1MntDir, dirName), 0700)
+	AssertEq(nil, err)
+
+	// Create an object in the directory via the file system.
+	err = os.WriteFile(path.Join(bucket1MntDir, dirName, objName), []byte("taco"), 0400)
+	AssertEq(nil, err)
+
+	// Stat the object
+	fi, err = os.Stat(path.Join(bucket1MntDir, dirName, objName))
+	AssertEq(nil, err)
+	ExpectFalse(fi.IsDir())
+
+	// Remove the object locally.
+	err = os.Remove(path.Join(bucket1MntDir, dirName, objName))
+	AssertEq(nil, err)
+
+	// Create an object with the same name via GCS.
+	_, err = storageutil.CreateObject(
+		ctx,
+		bucket1,
+		path.Join(dirName, objName),
+		[]byte("burrito"))
+
+	AssertEq(nil, err)
+
+	// Because we are caching, the object should still appear to not exist.
+	_, err = os.Stat(path.Join(bucket1MntDir, dirName, objName))
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
+
+	// After the TTL elapses, we should see it reappear.
+	cacheClock.AdvanceTime(ttl + time.Millisecond)
+
+	fi, err = os.Stat(path.Join(bucket1MntDir, dirName, objName))
+	AssertEq(nil, err)
+	ExpectFalse(fi.IsDir())
+}
