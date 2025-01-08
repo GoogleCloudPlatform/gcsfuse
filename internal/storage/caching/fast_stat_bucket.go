@@ -69,9 +69,9 @@ type fastStatBucket struct {
 	// Constant data
 	/////////////////////////
 
-	// TTL for entries for existing files in the cache.
+	// TTL for entries for existing files and folders in the cache.
 	primaryCacheTTL time.Duration
-	// TTL for entries for non-existing files in the cache.
+	// TTL for entries for non-existing files and folders in the cache.
 	negativeCacheTTL time.Duration
 }
 
