@@ -43,9 +43,9 @@ when writing large files.
 
 **Concurrency**
 
-Multiple readers can access the same or different objects from the same bucket without issue. Multiple writers can also write to different objects in the same bucket without issue. However, there is no concurrency control for multiple writers to the same file. When multiple writers try to replace a file, the last write wins and all previous writes are lost - there is no merging, version control, or user notification of the subsequent overwrite. Therefore, for data integrity it is recommended that multiple sources do not modify the same object.
+Multiple readers can access the same or different objects from the same bucket without issue. Multiple writers can also write to different objects in the same bucket without issue. However, there is no concurrency control for multiple writers to the same file. When multiple writers try to replace a file from the same machine, the last write wins and all previous writes are lost without any user notification of the overwrite. However, in case of different machines the flush from first machine wins and the other machines that had the file open before the first machine synced its changes will get a ```syscall.ESTALE error``` when they try to save their own edits - there is no merging or version control. Therefore, for data integrity it is recommended that multiple sources do not modify the same object.
 
-**Write/read consistency**
+**Write/Read consistency**
 
 Cloud Storage by nature is [strongly consistent](https://cloud.google.com/storage/docs/consistency). Cloud Storage FUSE offers close-to-open and fsync-to-open consistency. Once a file is closed, consistency is guaranteed in the following open and read immediately.
 
@@ -54,6 +54,17 @@ Examples:
 
 - Machine A opens a file and writes then successfully closes or syncs it, and the file was not concurrently unlinked from the point of view of A. Machine B then opens the file after machine A finishes closing or syncing. Machine B will observe a version of the file at least as new as the one created by machine A.
 - Machine A and B both open the same file, which contains the text ‘ABC’. Machine A modifies the file to ‘ABC-123’ and closes/syncs the file which gets written back to Cloud Storage. After, Machine B, which still has the file open, instead modifies the file to ‘ABC-XYZ’, and saves and closes the file. As the last writer wins, the current state of the file will read ‘ABC-XYZ’.
+
+**Stale File Handle Errors**
+
+To prevent data corruption and ensure consistency, Cloud Storage FUSE actively detects and handles situations that could lead to stale file handles. This results in a ```syscall.ESTALE error``` under the following circumstances:
+
+- **Concurrent Writes**: As described above, if multiple machines have the same file open for writing and one machine modifies and syncs the file, other machines with open file handles will encounter this error upon syncing or closing the file.
+- **Read During Modification**: If a machine is reading a file and another machine modifies and syncs the same file, the reader will receive this error.
+- **File Deletion or Renaming During Read**: If a machine is reading a file and the file is deleted or renamed from the same or a different machine, the reader will encounter this error.
+- **File Deletion or Renaming During Write**: If a machine is writing to a file and the file is deleted or renamed from the same or a different machine, the writer will receive this error upon syncing or closing the file.
+
+These changes in Cloud Storage FUSE prioritize data integrity and provide users with clear indications of potential conflicts, preventing silent data loss and ensuring a more robust and reliable experience.
 
 # Caching
 
