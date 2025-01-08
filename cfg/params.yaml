@@ -653,8 +653,8 @@
   hold."
   default: false
 
-- config-path: "write.experimental-enable-streaming-writes"
-  flag-name: "experimental-enable-streaming-writes"
+- config-path: "write.enable-streaming-writes"
+  flag-name: "enable-streaming-writes"
   type: "bool"
   usage: "Enables streaming uploads during write file operation."
   default: false

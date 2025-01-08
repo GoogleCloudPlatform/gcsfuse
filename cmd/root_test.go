@@ -232,7 +232,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 		},
 		{
 			name:                          "Test enable-streaming-writes flag true.",
-			args:                          []string{"gcsfuse", "--experimental-enable-streaming-writes", "abc", "pqr"},
+			args:                          []string{"gcsfuse", "--enable-streaming-writes", "abc", "pqr"},
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: true,
 			expectedWriteBlockSizeMB:      64 * util.MiB,
@@ -241,7 +241,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 		},
 		{
 			name:                          "Test enable-streaming-writes flag false.",
-			args:                          []string{"gcsfuse", "--experimental-enable-streaming-writes=false", "abc", "pqr"},
+			args:                          []string{"gcsfuse", "--enable-streaming-writes=false", "abc", "pqr"},
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: false,
 			expectedWriteBlockSizeMB:      64 * util.MiB,
@@ -250,7 +250,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 		},
 		{
 			name:                          "Test positive write-block-size-mb flag.",
-			args:                          []string{"gcsfuse", "--experimental-enable-streaming-writes", "--write-block-size-mb=10", "abc", "pqr"},
+			args:                          []string{"gcsfuse", "--enable-streaming-writes", "--write-block-size-mb=10", "abc", "pqr"},
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: true,
 			expectedWriteBlockSizeMB:      10 * util.MiB,
@@ -259,7 +259,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 		},
 		{
 			name:                          "Test positive write-global-max-blocks flag.",
-			args:                          []string{"gcsfuse", "--experimental-enable-streaming-writes", "--write-global-max-blocks=10", "abc", "pqr"},
+			args:                          []string{"gcsfuse", "--enable-streaming-writes", "--write-global-max-blocks=10", "abc", "pqr"},
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: true,
 			expectedWriteBlockSizeMB:      64 * util.MiB,
@@ -268,7 +268,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 		},
 		{
 			name:                          "Test positive write-max-blocks-per-file flag.",
-			args:                          []string{"gcsfuse", "--experimental-enable-streaming-writes", "--write-max-blocks-per-file=10", "abc", "pqr"},
+			args:                          []string{"gcsfuse", "--enable-streaming-writes", "--write-max-blocks-per-file=10", "abc", "pqr"},
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: true,
 			expectedWriteBlockSizeMB:      64 * util.MiB,
@@ -291,7 +291,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedCreateEmptyFile, wc.CreateEmptyFile)
-				assert.Equal(t, tc.expectedEnableStreamingWrites, wc.ExperimentalEnableStreamingWrites)
+				assert.Equal(t, tc.expectedEnableStreamingWrites, wc.EnableStreamingWrites)
 				assert.Equal(t, tc.expectedWriteBlockSizeMB, wc.BlockSizeMb)
 				assert.Equal(t, tc.expectedWriteGlobalMaxBlocks, wc.GlobalMaxBlocks)
 			}

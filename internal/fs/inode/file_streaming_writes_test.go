@@ -120,10 +120,10 @@ func (t *FileStreamingWritesTest) createInode(fileName string, fileType string) 
 
 	// Set buffered write config for created inode.
 	t.in.config = &cfg.Config{Write: cfg.WriteConfig{
-		MaxBlocksPerFile:                  5,
-		BlockSizeMb:                       1,
-		ExperimentalEnableStreamingWrites: true,
-		GlobalMaxBlocks:                   10,
+		MaxBlocksPerFile:      5,
+		BlockSizeMb:           1,
+		EnableStreamingWrites: true,
+		GlobalMaxBlocks:       10,
 	}}
 
 	// Create write handler for the local inode created above.

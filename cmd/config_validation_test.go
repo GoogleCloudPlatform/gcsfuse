@@ -190,11 +190,11 @@ func TestValidateConfigFile_WriteConfig(t *testing.T) {
 			configFile: "testdata/empty_file.yaml",
 			expectedConfig: &cfg.Config{
 				Write: cfg.WriteConfig{
-					CreateEmptyFile:                   false,
-					BlockSizeMb:                       64 * util.MiB,
-					ExperimentalEnableStreamingWrites: false,
-					GlobalMaxBlocks:                   math.MaxInt64,
-					MaxBlocksPerFile:                  math.MaxInt64},
+					CreateEmptyFile:       false,
+					BlockSizeMb:           64 * util.MiB,
+					EnableStreamingWrites: false,
+					GlobalMaxBlocks:       math.MaxInt64,
+					MaxBlocksPerFile:      math.MaxInt64},
 			},
 		},
 		{
@@ -202,11 +202,11 @@ func TestValidateConfigFile_WriteConfig(t *testing.T) {
 			configFile: "testdata/valid_config.yaml",
 			expectedConfig: &cfg.Config{
 				Write: cfg.WriteConfig{
-					CreateEmptyFile:                   false, // changed due to enabled streaming writes.
-					BlockSizeMb:                       10 * util.MiB,
-					ExperimentalEnableStreamingWrites: true,
-					GlobalMaxBlocks:                   20,
-					MaxBlocksPerFile:                  2,
+					CreateEmptyFile:       false, // changed due to enabled streaming writes.
+					BlockSizeMb:           10 * util.MiB,
+					EnableStreamingWrites: true,
+					GlobalMaxBlocks:       20,
+					MaxBlocksPerFile:      2,
 				},
 			},
 		},

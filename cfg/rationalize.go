@@ -69,7 +69,7 @@ func resolveStatCacheMaxSizeMB(v isSet, c *MetadataCacheConfig) {
 }
 
 func resolveStreamingWriteConfig(w *WriteConfig) {
-	if w.ExperimentalEnableStreamingWrites {
+	if w.EnableStreamingWrites {
 		w.CreateEmptyFile = false
 	}
 

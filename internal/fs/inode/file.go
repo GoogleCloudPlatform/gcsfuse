@@ -545,7 +545,7 @@ func (f *FileInode) Write(
 	data []byte,
 	offset int64) error {
 	// For empty GCS files also we will trigger bufferedWrites flow.
-	if f.src.Size == 0 && f.config.Write.ExperimentalEnableStreamingWrites {
+	if f.src.Size == 0 && f.config.Write.EnableStreamingWrites {
 		err := f.ensureBufferedWriteHandler(ctx)
 		if err != nil {
 			return err
@@ -843,7 +843,7 @@ func (f *FileInode) Truncate(
 	ctx context.Context,
 	size int64) (err error) {
 	// For empty GCS files also, we will trigger bufferedWrites flow.
-	if f.src.Size == 0 && f.config.Write.ExperimentalEnableStreamingWrites {
+	if f.src.Size == 0 && f.config.Write.EnableStreamingWrites {
 		err = f.ensureBufferedWriteHandler(ctx)
 		if err != nil {
 			return
@@ -878,7 +878,7 @@ func (f *FileInode) CacheEnsureContent(ctx context.Context) (err error) {
 
 func (f *FileInode) CreateBufferedOrTempWriter(ctx context.Context) (err error) {
 	// Skip creating empty file when streaming writes are enabled
-	if f.local && f.config.Write.ExperimentalEnableStreamingWrites {
+	if f.local && f.config.Write.EnableStreamingWrites {
 		err = f.ensureBufferedWriteHandler(ctx)
 		if err != nil {
 			return
