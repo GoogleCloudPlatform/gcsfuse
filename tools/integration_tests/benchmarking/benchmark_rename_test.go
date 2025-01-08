@@ -45,7 +45,6 @@ func (s *benchmarkRenameTest) TeardownB(b *testing.B) {}
 func (s *benchmarkRenameTest) Benchmark_Rename(b *testing.B) {
 	createFiles(b)
 	b.ResetTimer()
-	log.Println("N: ", b.N)
 	for i := 0; i < b.N; i++ {
 		if err := os.Rename(path.Join(testDirPath, fmt.Sprintf("a%d.txt", i)), path.Join(testDirPath, fmt.Sprintf("b%d.txt", i))); err != nil {
 			b.Errorf("testing error: %v", err)
