@@ -76,9 +76,8 @@ func (s *benchmarkStatTest) Benchmark_Stat(b *testing.B) {
 func Benchmark_Stat(b *testing.B) {
 	ts := &benchmarkStatTest{}
 	flagsSet := [][]string{
-		{"--stat-cache-ttl=0", "--enable-atomic-rename-object=true"}, {"--client-protocol=grpc", "--stat-cache-ttl=0", "--enable-atomic-rename-object=true"},
+		{"--stat-cache-ttl=0"}, {"--client-protocol=grpc", "--stat-cache-ttl=0"},
 	}
-
 
 	// Run tests.
 	for _, flags := range flagsSet {
