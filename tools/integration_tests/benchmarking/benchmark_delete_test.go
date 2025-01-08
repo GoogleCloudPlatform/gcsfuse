@@ -16,13 +16,13 @@ package benchmarking
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path"
 	"testing"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/benchmark_setup"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
@@ -30,20 +30,16 @@ const (
 	expectedDeleteLatency time.Duration = 675 * time.Millisecond
 )
 
-type benchmarkDeleteTest struct{}
-
-func (s *benchmarkDeleteTest) SetupB(b *testing.B) {
-	testDirPath = setup.SetupTestDirectory(testDirName)
+type benchmarkDeleteTest struct {
+	flags []string
 }
 
-func (s *benchmarkDeleteTest) TeardownB(b *testing.B) {}
+func (s *benchmarkDeleteTest) SetupB(b *testing.B) {
+	mountGCSFuseAndSetupTestDir(s.flags, testDirName)
+}
 
-// createFilesToDelete creates the below objects in the bucket.
-// benchmarking/a{i}.txt where i is a counter based on the benchtime value.
-func createFilesToDelete(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		operations.CreateFileOfSize(5, path.Join(testDirPath, fmt.Sprintf("a%d.txt", i)), b)
-	}
+func (s *benchmarkDeleteTest) TeardownB(b *testing.B) {
+	setup.UnmountGCSFuse(rootDir)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -51,7 +47,7 @@ func createFilesToDelete(b *testing.B) {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *benchmarkDeleteTest) Benchmark_Delete(b *testing.B) {
-	createFilesToDelete(b)
+	createFiles(b)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if err := os.Remove(path.Join(testDirPath, fmt.Sprintf("a%d.txt", i))); err != nil {
@@ -70,5 +66,15 @@ func (s *benchmarkDeleteTest) Benchmark_Delete(b *testing.B) {
 
 func Benchmark_Delete(b *testing.B) {
 	ts := &benchmarkDeleteTest{}
-	benchmark_setup.RunBenchmarks(b, ts)
+
+	flagsSet := [][]string{
+		{"--stat-cache-ttl=0"}, {"--client-protocol=grpc", "--stat-cache-ttl=0"},
+	}
+
+	// Run tests.
+	for _, flags := range flagsSet {
+		ts.flags = flags
+		log.Printf("Running tests with flags: %s", ts.flags)
+		benchmark_setup.RunBenchmarks(b, ts)
+	}
 }
