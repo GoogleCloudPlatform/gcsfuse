@@ -1100,7 +1100,7 @@ func (t *MoveObjectTest) MoveObjectSucceeds() {
 	ExpectCall(t.wrapped, "MoveObject")(Any(), Any()).WillOnce(Return(obj, nil))
 
 	// Insert in cache
-	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(ttl)))
+	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(primaryCacheTTL)))
 
 	// Call
 	o, err := t.bucket.MoveObject(context.TODO(), &gcs.MoveObjectRequest{})
