@@ -805,7 +805,6 @@ func TestValidateConfigFile_MetricsConfigSuccessful(t *testing.T) {
 				StackdriverExportInterval:      0,
 				CloudMetricsExportIntervalSecs: 0,
 				PrometheusPort:                 0,
-				EnableOtel:                     true,
 			},
 		},
 		{
@@ -813,7 +812,6 @@ func TestValidateConfigFile_MetricsConfigSuccessful(t *testing.T) {
 			configFile: "testdata/valid_config.yaml",
 			expectedConfig: &cfg.MetricsConfig{
 				CloudMetricsExportIntervalSecs: 10,
-				EnableOtel:                     true,
 			},
 		},
 	}
