@@ -103,6 +103,7 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 		"write": map[string]interface{}{
 			"create-empty-file": true,
 		},
+		"enable-atomic-rename-object": true,
 	}
 
 	filePath1 := setup.YAMLConfigFile(mountConfig1, "config1.yaml")
@@ -167,7 +168,7 @@ func TestMain(m *testing.M) {
 	// Set up flags to run tests on.
 	// Note: GRPC related tests will work only if you have allow-list bucket.
 	// Note: We are not testing specifically for implicit-dirs because they are covered as part of the other flags.
-	flagsSet := [][]string{}
+	flagsSet := [][]string{{"--enable-atomic-rename-object=true"}}
 
 	// Enable experimental-enable-json-read=true case, but for non-presubmit runs only.
 	if !setup.IsPresubmitRun() {
@@ -178,13 +179,13 @@ func TestMain(m *testing.M) {
 
 	// gRPC tests will not run in TPC environment
 	if !testing.Short() && !setup.TestOnTPCEndPoint() {
-		flagsSet = append(flagsSet, []string{"--client-protocol=grpc", "--implicit-dirs=true"})
+		flagsSet = append(flagsSet, []string{"--client-protocol=grpc", "--implicit-dirs=true", "--enable-atomic-rename-object=true"})
 	}
 
 	// HNS tests utilize the gRPC protocol, which is not supported by TPC.
 	if !setup.TestOnTPCEndPoint() {
 		if setup.IsHierarchicalBucket(ctx, storageClient) {
-			flagsSet = [][]string{{"--experimental-enable-json-read=true"}}
+			flagsSet = [][]string{{"--experimental-enable-json-read=true", "--enable-atomic-rename-object=true"}}
 		}
 	}
 

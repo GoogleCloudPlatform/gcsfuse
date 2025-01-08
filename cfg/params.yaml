@@ -71,6 +71,13 @@
   usage: "Print debug messages when a mutex is held too long."
   default: false
 
+- config-path: "enable-atomic-rename-object"
+  flag-name: "enable-atomic-rename-object"
+  type: "bool"
+  usage: "Enables support for atomic rename object operation on HNS bucket."
+  default: false
+  hide-flag: true
+
 - config-path: "enable-hns"
   flag-name: "enable-hns"
   type: "bool"
@@ -202,7 +209,7 @@
     from is modified by some other concurrent process. This helps prevent 
     silent data loss or data corruption.
   hide-flag: true
-  default: false
+  default: true
 
 - config-path: "file-system.rename-dir-limit"
   flag-name: "rename-dir-limit"
@@ -582,7 +589,7 @@
   flag-name: "enable-otel"
   type: "bool"
   usage: "Specifies whether to use OpenTelemetry for capturing and exporting metrics. If false, use OpenCensus."
-  default: false
+  default: true
   hide-flag: true
 
 - config-path: "metrics.prometheus-port"

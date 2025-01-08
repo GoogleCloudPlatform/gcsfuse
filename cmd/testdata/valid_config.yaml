@@ -52,10 +52,11 @@ file-system:
   kernel-list-cache-ttl-secs: 300
   rename-dir-limit: 10
   temp-dir: ~/temp
-  precondition-errors: true
+  precondition-errors: false
 list:
   enable-empty-managed-folders: true
 enable-hns: false
+enable-atomic-rename-object: false
 metadata-cache:
   deprecated-stat-cache-capacity: 200
   deprecated-stat-cache-ttl: 30s

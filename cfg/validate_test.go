@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -446,6 +447,13 @@ func Test_isValidWriteStreamingConfig_ErrorScenarios(t *testing.T) {
 	}{
 		{"zero_block_size", WriteConfig{
 			BlockSizeMb:                       0,
+			CreateEmptyFile:                   false,
+			ExperimentalEnableStreamingWrites: true,
+			GlobalMaxBlocks:                   -1,
+			MaxBlocksPerFile:                  -1,
+		}},
+		{"very_large_block_size", WriteConfig{
+			BlockSizeMb:                       util.MaxMiBsInInt64 + 1,
 			CreateEmptyFile:                   false,
 			ExperimentalEnableStreamingWrites: true,
 			GlobalMaxBlocks:                   -1,

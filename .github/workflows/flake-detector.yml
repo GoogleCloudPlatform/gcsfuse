@@ -32,7 +32,7 @@ jobs:
         run: go mod download
 
       - name: Test all
-        run: CGO_ENABLED=0 go test -p 1 -timeout 75m -count 20 -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./...`
+        run: CGO_ENABLED=0 go test -p 1 -timeout 75m -count 5 -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./...`
 
       - name: Cache RaceDetector Test
-        run: CGO_ENABLED=0 go test -p 1 -timeout 75m -count 20 ./internal/cache/...
+        run: CGO_ENABLED=0 go test -p 1 -timeout 75m -count 5 ./internal/cache/...

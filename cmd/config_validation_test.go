@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -190,7 +191,7 @@ func TestValidateConfigFile_WriteConfig(t *testing.T) {
 			expectedConfig: &cfg.Config{
 				Write: cfg.WriteConfig{
 					CreateEmptyFile:                   false,
-					BlockSizeMb:                       64,
+					BlockSizeMb:                       64 * util.MiB,
 					ExperimentalEnableStreamingWrites: false,
 					GlobalMaxBlocks:                   math.MaxInt64,
 					MaxBlocksPerFile:                  math.MaxInt64},
@@ -202,7 +203,7 @@ func TestValidateConfigFile_WriteConfig(t *testing.T) {
 			expectedConfig: &cfg.Config{
 				Write: cfg.WriteConfig{
 					CreateEmptyFile:                   false, // changed due to enabled streaming writes.
-					BlockSizeMb:                       10,
+					BlockSizeMb:                       10 * util.MiB,
 					ExperimentalEnableStreamingWrites: true,
 					GlobalMaxBlocks:                   20,
 					MaxBlocksPerFile:                  2,
@@ -514,7 +515,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 					KernelListCacheTtlSecs: 0,
 					RenameDirLimit:         0,
 					TempDir:                "",
-					PreconditionErrors:     false,
+					PreconditionErrors:     true,
 					Uid:                    -1,
 					HandleSigterm:          true,
 				},
@@ -534,7 +535,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 					KernelListCacheTtlSecs: 0,
 					RenameDirLimit:         0,
 					TempDir:                "",
-					PreconditionErrors:     false,
+					PreconditionErrors:     true,
 					Uid:                    -1,
 					HandleSigterm:          true,
 				},
@@ -554,7 +555,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 					KernelListCacheTtlSecs: 300,
 					RenameDirLimit:         10,
 					TempDir:                cfg.ResolvedPath(path.Join(hd, "temp")),
-					PreconditionErrors:     true,
+					PreconditionErrors:     false,
 					Uid:                    8,
 					HandleSigterm:          true,
 				},
@@ -804,6 +805,7 @@ func TestValidateConfigFile_MetricsConfigSuccessful(t *testing.T) {
 				StackdriverExportInterval:      0,
 				CloudMetricsExportIntervalSecs: 0,
 				PrometheusPort:                 0,
+				EnableOtel:                     true,
 			},
 		},
 		{
@@ -811,6 +813,7 @@ func TestValidateConfigFile_MetricsConfigSuccessful(t *testing.T) {
 			configFile: "testdata/valid_config.yaml",
 			expectedConfig: &cfg.MetricsConfig{
 				CloudMetricsExportIntervalSecs: 10,
+				EnableOtel:                     true,
 			},
 		},
 	}

@@ -19,6 +19,7 @@ import (
 	"errors"
 	"os"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -46,7 +47,7 @@ func ValidateObjectNotFoundErr(ctx context.Context, t *testing.T, bucket gcs.Buc
 
 func ValidateStaleNFSFileHandleError(t *testing.T, err error) {
 	assert.NotEqual(t, nil, err)
-	assert.Regexp(t, "stale NFS file handle", err.Error())
+	assert.Regexp(t, syscall.ESTALE.Error(), err.Error())
 }
 
 func CheckErrorForReadOnlyFileSystem(t *testing.T, err error) {

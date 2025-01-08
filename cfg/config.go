@@ -30,6 +30,8 @@ type Config struct {
 
 	Debug DebugConfig `yaml:"debug"`
 
+	EnableAtomicRenameObject bool `yaml:"enable-atomic-rename-object"`
+
 	EnableHns bool `yaml:"enable-hns"`
 
 	FileCache FileCacheConfig `yaml:"file-cache"`
@@ -313,6 +315,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.BoolP("enable-atomic-rename-object", "", false, "Enables support for atomic rename object operation on HNS bucket.")
+
+	if err := flagSet.MarkHidden("enable-atomic-rename-object"); err != nil {
+		return err
+	}
+
 	flagSet.BoolP("enable-empty-managed-folders", "", false, "This handles the corner case in listing managed folders. There are two corner cases (a) empty managed folder (b) nested managed folder which doesn't contain any descendent as object. This flag always works in conjunction with --implicit-dirs flag. (a) If only ImplicitDirectories is true, all managed folders are listed other than above two mentioned cases. (b) If both ImplicitDirectories and EnableEmptyManagedFolders are true, then all the managed folders are listed including the above-mentioned corner case. (c) If ImplicitDirectories is false then no managed folders are listed irrespective of enable-empty-managed-folders flag.")
 
 	if err := flagSet.MarkHidden("enable-empty-managed-folders"); err != nil {
@@ -327,7 +335,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("enable-nonexistent-type-cache", "", false, "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType will be created. This also means new file/dir created might not be seen. For example, if this flag is set, and metadata-cache-ttl-secs is set, then if we create the same file/node in the meantime using the same mount, since we are not refreshing the cache, it will still return nil.")
 
-	flagSet.BoolP("enable-otel", "", false, "Specifies whether to use OpenTelemetry for capturing and exporting metrics. If false, use OpenCensus.")
+	flagSet.BoolP("enable-otel", "", true, "Specifies whether to use OpenTelemetry for capturing and exporting metrics. If false, use OpenCensus.")
 
 	if err := flagSet.MarkHidden("enable-otel"); err != nil {
 		return err
@@ -469,7 +477,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("only-dir", "", "", "Mount only a specific directory within the bucket. See docs/mounting for more information")
 
-	flagSet.BoolP("precondition-errors", "", false, "Throw Stale NFS file handle error in case the object being synced or read  from is modified by some other concurrent process. This helps prevent  silent data loss or data corruption.")
+	flagSet.BoolP("precondition-errors", "", true, "Throw Stale NFS file handle error in case the object being synced or read  from is modified by some other concurrent process. This helps prevent  silent data loss or data corruption.")
 
 	if err := flagSet.MarkHidden("precondition-errors"); err != nil {
 		return err
@@ -633,6 +641,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.disable-parallel-dirops", flagSet.Lookup("disable-parallel-dirops")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("enable-atomic-rename-object", flagSet.Lookup("enable-atomic-rename-object")); err != nil {
 		return err
 	}
 
