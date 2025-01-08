@@ -15,6 +15,7 @@
 package benchmarking
 
 import (
+	"log"
 	"path"
 	"testing"
 	"time"
@@ -32,13 +33,17 @@ const (
 	expectedStatLatency time.Duration = 390 * time.Millisecond
 )
 
-type benchmarkStatTest struct{}
-
-func (s *benchmarkStatTest) SetupB(b *testing.B) {
-	testDirPath = setup.SetupTestDirectory(testDirName)
+type benchmarkStatTest struct {
+	flags []string
 }
 
-func (s *benchmarkStatTest) TeardownB(b *testing.B) {}
+func (s *benchmarkStatTest) SetupB(b *testing.B) {
+	mountGCSFuseAndSetupTestDir(s.flags, testDirName)
+}
+
+func (s *benchmarkStatTest) TeardownB(b *testing.B) {
+	setup.UnmountGCSFuse(rootDir)
+}
 
 // createFilesToStat creates the below object in the bucket.
 // benchmarking/a.txt
@@ -70,5 +75,15 @@ func (s *benchmarkStatTest) Benchmark_Stat(b *testing.B) {
 
 func Benchmark_Stat(b *testing.B) {
 	ts := &benchmarkStatTest{}
-	benchmark_setup.RunBenchmarks(b, ts)
+	flagsSet := [][]string{
+		{"--stat-cache-ttl=0", "--enable-atomic-rename-object=true"}, {"--client-protocol=grpc", "--stat-cache-ttl=0", "--enable-atomic-rename-object=true"},
+	}
+
+
+	// Run tests.
+	for _, flags := range flagsSet {
+		ts.flags = flags
+		log.Printf("Running tests with flags: %s", ts.flags)
+		benchmark_setup.RunBenchmarks(b, ts)
+	}
 }

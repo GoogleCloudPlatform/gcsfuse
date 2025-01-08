@@ -16,6 +16,7 @@ package benchmarking
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path"
 	"testing"
@@ -25,17 +26,21 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
-type benchmarkRenameTest struct{}
+type benchmarkRenameTest struct {
+	flags []string
+}
 
 const (
 	expectedRenameLatency time.Duration = 700 * time.Millisecond
 )
 
 func (s *benchmarkRenameTest) SetupB(b *testing.B) {
-	testDirPath = setup.SetupTestDirectory(testDirName)
+	mountGCSFuseAndSetupTestDir(s.flags, testDirName)
 }
 
-func (s *benchmarkRenameTest) TeardownB(b *testing.B) {}
+func (s *benchmarkRenameTest) TeardownB(b *testing.B) {
+	setup.UnmountGCSFuse(rootDir)
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Test scenarios
@@ -61,5 +66,14 @@ func (s *benchmarkRenameTest) Benchmark_Rename(b *testing.B) {
 
 func Benchmark_Rename(b *testing.B) {
 	ts := &benchmarkRenameTest{}
-	benchmark_setup.RunBenchmarks(b, ts)
+	flagsSet := [][]string{
+		{"--stat-cache-ttl=0"}, {"--client-protocol=grpc", "--stat-cache-ttl=0"},
+	}
+
+	// Run tests.
+	for _, flags := range flagsSet {
+		ts.flags = flags
+		log.Printf("Running tests with flags: %s", ts.flags)
+		benchmark_setup.RunBenchmarks(b, ts)
+	}
 }

@@ -37,7 +37,26 @@ var (
 	storageClient *storage.Client
 	ctx           context.Context
 	testDirPath   string
+	mountFunc     func([]string) error
+	// mount directory is where our tests run.
+	mountDir string
+	// root directory is the directory to be unmounted.
+	rootDir string
 )
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+func mountGCSFuseAndSetupTestDir(flags []string, testDirName string) {
+	// When tests are running in GKE environment, use the mounted directory provided as test flag.
+	if setup.MountedDirectory() != "" {
+		mountDir = setup.MountedDirectory()
+	}
+	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
+	setup.SetMntDir(mountDir)
+	testDirPath = setup.SetupTestDirectory(testDirName)
+}
 
 // createFiles creates the below objects in the bucket.
 // benchmarking/a{i}.txt where i is a counter based on the benchtime value.
@@ -67,11 +86,12 @@ func TestMain(m *testing.M) {
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()
 
-	flagsSet := [][]string{
-		{"--stat-cache-ttl=0", "--enable-atomic-rename-object=true"},
-		{"--client-protocol=grpc", "--stat-cache-ttl=0", "--enable-atomic-rename-object=true"},
-	}
-	successCode := static_mounting.RunTests(flagsSet, m)
+	// Save mount and root directory variables.
+	mountDir, rootDir = setup.MntDir(), setup.MntDir()
+
+	log.Println("Running static mounting tests...")
+	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
+	successCode := m.Run()
 
 	// Clean up test directory created.
 	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))

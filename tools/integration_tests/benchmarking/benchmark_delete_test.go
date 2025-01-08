@@ -16,6 +16,7 @@ package benchmarking
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path"
 	"testing"
@@ -29,13 +30,17 @@ const (
 	expectedDeleteLatency time.Duration = 675 * time.Millisecond
 )
 
-type benchmarkDeleteTest struct{}
-
-func (s *benchmarkDeleteTest) SetupB(b *testing.B) {
-	testDirPath = setup.SetupTestDirectory(testDirName)
+type benchmarkDeleteTest struct {
+	flags []string
 }
 
-func (s *benchmarkDeleteTest) TeardownB(b *testing.B) {}
+func (s *benchmarkDeleteTest) SetupB(b *testing.B) {
+	mountGCSFuseAndSetupTestDir(s.flags, testDirName)
+}
+
+func (s *benchmarkDeleteTest) TeardownB(b *testing.B) {
+	setup.UnmountGCSFuse(rootDir)
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Test scenarios
@@ -61,5 +66,15 @@ func (s *benchmarkDeleteTest) Benchmark_Delete(b *testing.B) {
 
 func Benchmark_Delete(b *testing.B) {
 	ts := &benchmarkDeleteTest{}
-	benchmark_setup.RunBenchmarks(b, ts)
+
+	flagsSet := [][]string{
+		{"--stat-cache-ttl=0"}, {"--client-protocol=grpc", "--stat-cache-ttl=0"},
+	}
+
+	// Run tests.
+	for _, flags := range flagsSet {
+		ts.flags = flags
+		log.Printf("Running tests with flags: %s", ts.flags)
+		benchmark_setup.RunBenchmarks(b, ts)
+	}
 }
