@@ -16,7 +16,6 @@ package benchmarking
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path"
 	"testing"
