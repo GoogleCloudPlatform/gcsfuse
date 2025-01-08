@@ -16,6 +16,7 @@ package benchmarking
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"path"
@@ -24,6 +25,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
@@ -36,6 +38,14 @@ var (
 	ctx           context.Context
 	testDirPath   string
 )
+
+// createFiles creates the below objects in the bucket.
+// benchmarking/a{i}.txt where i is a counter based on the benchtime value.
+func createFiles(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		operations.CreateFileOfSize(5, path.Join(testDirPath, fmt.Sprintf("a%d.txt", i)), b)
+	}
+}
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
@@ -58,8 +68,8 @@ func TestMain(m *testing.M) {
 	setup.SetUpTestDirForTestBucketFlag()
 
 	flagsSet := [][]string{
-		{"--stat-cache-ttl=0"},
-		{"--client-protocol=grpc", "--stat-cache-ttl=0"},
+		{"--stat-cache-ttl=0", "--enable-atomic-rename-object=true"},
+		{"--client-protocol=grpc", "--stat-cache-ttl=0", "--enable-atomic-rename-object=true"},
 	}
 	successCode := static_mounting.RunTests(flagsSet, m)
 
