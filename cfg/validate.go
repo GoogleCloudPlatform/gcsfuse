@@ -152,7 +152,7 @@ func isValidMetadataCache(v isSet, c *MetadataCacheConfig) error {
 }
 
 func isValidWriteStreamingConfig(wc *WriteConfig) error {
-	if !wc.ExperimentalEnableStreamingWrites {
+	if !wc.EnableStreamingWrites {
 		return nil
 	}
 

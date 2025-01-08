@@ -242,7 +242,7 @@ type WriteConfig struct {
 
 	CreateEmptyFile bool `yaml:"create-empty-file"`
 
-	ExperimentalEnableStreamingWrites bool `yaml:"experimental-enable-streaming-writes"`
+	EnableStreamingWrites bool `yaml:"enable-streaming-writes"`
 
 	GlobalMaxBlocks int64 `yaml:"global-max-blocks"`
 
@@ -347,15 +347,15 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("experimental-enable-json-read", "", false, "By default, GCSFuse uses the GCS XML API to get and read objects. When this flag is specified, GCSFuse uses the GCS JSON API instead.\"")
+	flagSet.BoolP("enable-streaming-writes", "", false, "Enables streaming uploads during write file operation.")
 
-	if err := flagSet.MarkDeprecated("experimental-enable-json-read", "Experimental flag: could be dropped even in a minor release."); err != nil {
+	if err := flagSet.MarkHidden("enable-streaming-writes"); err != nil {
 		return err
 	}
 
-	flagSet.BoolP("experimental-enable-streaming-writes", "", false, "Enables streaming uploads during write file operation.")
+	flagSet.BoolP("experimental-enable-json-read", "", false, "By default, GCSFuse uses the GCS XML API to get and read objects. When this flag is specified, GCSFuse uses the GCS JSON API instead.\"")
 
-	if err := flagSet.MarkHidden("experimental-enable-streaming-writes"); err != nil {
+	if err := flagSet.MarkDeprecated("experimental-enable-json-read", "Experimental flag: could be dropped even in a minor release."); err != nil {
 		return err
 	}
 
@@ -668,11 +668,11 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("gcs-connection.experimental-enable-json-read", flagSet.Lookup("experimental-enable-json-read")); err != nil {
+	if err := v.BindPFlag("write.enable-streaming-writes", flagSet.Lookup("enable-streaming-writes")); err != nil {
 		return err
 	}
 
-	if err := v.BindPFlag("write.experimental-enable-streaming-writes", flagSet.Lookup("experimental-enable-streaming-writes")); err != nil {
+	if err := v.BindPFlag("gcs-connection.experimental-enable-json-read", flagSet.Lookup("experimental-enable-json-read")); err != nil {
 		return err
 	}
 

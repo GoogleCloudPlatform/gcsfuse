@@ -1453,7 +1453,7 @@ func (t *FileTest) TestReadEmptyGCSFileWhenStreamingWritesAreNotInProgress() {
 func (t *FileTest) TestWriteToLocalFileWithInvalidConfigWhenStreamingWritesAreEnabled() {
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
-	t.in.config = &cfg.Config{Write: cfg.WriteConfig{ExperimentalEnableStreamingWrites: true}}
+	t.in.config = &cfg.Config{Write: cfg.WriteConfig{EnableStreamingWrites: true}}
 	assert.Nil(t.T(), t.in.bwh)
 
 	err := t.in.Write(t.ctx, []byte("hi"), 0)
@@ -1641,8 +1641,8 @@ func (t *FileTest) TestDeRegisterFileHandle() {
 
 func getWriteConfig() *cfg.WriteConfig {
 	return &cfg.WriteConfig{
-		MaxBlocksPerFile:                  10,
-		BlockSizeMb:                       10,
-		ExperimentalEnableStreamingWrites: true,
+		MaxBlocksPerFile:      10,
+		BlockSizeMb:           10,
+		EnableStreamingWrites: true,
 	}
 }

@@ -1,6 +1,6 @@
 write:
   create-empty-file: true
-  experimental-enable-streaming-writes: true
+  enable-streaming-writes: true
   global-max-blocks: 0
   block-size-mb: 10
   max-blocks-per-file: 2
