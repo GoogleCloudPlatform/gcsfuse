@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Provide test for listing large directory
-package list_large_dir_test
+package list_large_dir
 
 import (
 	"log"
@@ -24,15 +24,13 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
-const DirectoryForListLargeFileTests = "directoryForListLargeFileTests"
-const PrefixFileInDirectoryWithTwelveThousandFiles = "fileInDirectoryWithTwelveThousandFiles"
-const PrefixExplicitDirInLargeDirListTest = "explicitDirInLargeDirListTest"
-const PrefixImplicitDirInLargeDirListTest = "implicitDirInLargeDirListTest"
-const NumberOfFilesInDirectoryWithTwelveThousandFiles = 12000
-const NumberOfImplicitDirsInDirectoryWithTwelveThousandFiles = 100
-const NumberOfExplicitDirsInDirectoryWithTwelveThousandFiles = 100
-
-var DirectoryWithTwelveThousandFiles = "directoryWithTwelveThousandFiles" + setup.GenerateRandomString(5)
+const directoryForListLargeFileTests = "directoryForListLargeFileTests"
+const prefixFileInDirectoryWithTwelveThousandFiles = "fileInDirectoryWithTwelveThousandFiles"
+const prefixExplicitDirInLargeDirListTest = "explicitDirInLargeDirListTest"
+const prefixImplicitDirInLargeDirListTest = "implicitDirInLargeDirListTest"
+const numberOfFilesInDirectoryWithTwelveThousandFiles = 12000
+const numberOfImplicitDirsInDirectoryWithTwelveThousandFiles = 100
+const numberOfExplicitDirsInDirectoryWithTwelveThousandFiles = 100
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
