@@ -40,8 +40,11 @@ type BucketConfig struct {
 	EgressBandwidthLimitBytesPerSecond float64
 	OpRateLimitHz                      float64
 	StatCacheMaxSizeMB                 uint64
-	StatCacheTTL                       time.Duration
-	EnableMonitoring                   bool
+	// Config for TTL of entries for existing file in stat cache
+	StatCacheTTL time.Duration
+	// Config for TTL of entries for non-existing file in stat cache
+	NegativeStatCacheTTL time.Duration
+	EnableMonitoring     bool
 
 	// Files backed by on object of length at least AppendThreshold that have
 	// only been appended to (i.e. none of the object's contents have been
@@ -195,7 +198,8 @@ func (bm *bucketManager) SetUpBucket(
 		return
 	}
 
-	// Enable cached StatObject results, if appropriate.
+	// Enable cached StatObject results based on stat cache config.
+	// Disabling stat cache with below config also disables negative stat cache.
 	if bm.config.StatCacheTTL != 0 && bm.sharedStatCache != nil {
 		var statCache metadata.StatCache
 		if isMultibucketMount {
@@ -208,7 +212,8 @@ func (bm *bucketManager) SetUpBucket(
 			bm.config.StatCacheTTL,
 			statCache,
 			timeutil.RealClock(),
-			b)
+			b,
+			bm.config.NegativeStatCacheTTL)
 	}
 
 	// Enable content type awareness

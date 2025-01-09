@@ -34,15 +34,18 @@ import (
 // bucket. Records are invalidated when modifications are made through this
 // bucket, and after the supplied TTL.
 func NewFastStatBucket(
-	ttl time.Duration,
+	primaryCacheTTL time.Duration,
 	cache metadata.StatCache,
 	clock timeutil.Clock,
-	wrapped gcs.Bucket) (b gcs.Bucket) {
+	wrapped gcs.Bucket,
+	negativeCacheTTL time.Duration,
+) (b gcs.Bucket) {
 	fsb := &fastStatBucket{
-		cache:   cache,
-		clock:   clock,
-		wrapped: wrapped,
-		ttl:     ttl,
+		cache:            cache,
+		clock:            clock,
+		wrapped:          wrapped,
+		primaryCacheTTL:  primaryCacheTTL,
+		negativeCacheTTL: negativeCacheTTL,
 	}
 
 	b = fsb
@@ -66,7 +69,10 @@ type fastStatBucket struct {
 	// Constant data
 	/////////////////////////
 
-	ttl time.Duration
+	// TTL for entries for existing files and folders in the cache.
+	primaryCacheTTL time.Duration
+	// TTL for entries for non-existing files and folders in the cache.
+	negativeCacheTTL time.Duration
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -78,7 +84,7 @@ func (b *fastStatBucket) insertMultiple(objs []*gcs.Object) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	expiration := b.clock.Now().Add(b.ttl)
+	expiration := b.clock.Now().Add(b.primaryCacheTTL)
 	for _, o := range objs {
 		m := storageutil.ConvertObjToMinObject(o)
 		b.cache.Insert(m, expiration)
@@ -90,7 +96,7 @@ func (b *fastStatBucket) insertMultipleMinObjects(minObjs []*gcs.MinObject) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	expiration := b.clock.Now().Add(b.ttl)
+	expiration := b.clock.Now().Add(b.primaryCacheTTL)
 	for _, o := range minObjs {
 		b.cache.Insert(o, expiration)
 	}
@@ -111,7 +117,7 @@ func (b *fastStatBucket) insertHierarchicalListing(listing *gcs.Listing) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	expiration := b.clock.Now().Add(b.ttl)
+	expiration := b.clock.Now().Add(b.primaryCacheTTL)
 
 	for _, o := range listing.MinObjects {
 		if !strings.HasSuffix(o.Name, "/") {
@@ -147,7 +153,7 @@ func (b *fastStatBucket) insertFolder(f *gcs.Folder) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	b.cache.InsertFolder(f, b.clock.Now().Add(b.ttl))
+	b.cache.InsertFolder(f, b.clock.Now().Add(b.primaryCacheTTL))
 }
 
 // LOCKS_EXCLUDED(b.mu)
@@ -155,7 +161,7 @@ func (b *fastStatBucket) addNegativeEntry(name string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	expiration := b.clock.Now().Add(b.ttl)
+	expiration := b.clock.Now().Add(b.negativeCacheTTL)
 	b.cache.AddNegativeEntry(name, expiration)
 }
 
@@ -164,7 +170,7 @@ func (b *fastStatBucket) addNegativeEntryForFolder(name string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	expiration := b.clock.Now().Add(b.ttl)
+	expiration := b.clock.Now().Add(b.negativeCacheTTL)
 	b.cache.AddNegativeEntryForFolder(name, expiration)
 }
 

@@ -62,10 +62,12 @@ func (t *IntegrationTest) SetUp(ti *TestInfo) {
 	t.wrapped = fake.NewFakeBucket(&t.clock, bucketName, gcs.NonHierarchical)
 
 	t.bucket = caching.NewFastStatBucket(
-		ttl,
+		primaryCacheTTL,
 		cache,
 		&t.clock,
-		t.wrapped)
+		t.wrapped,
+		negativeCacheTTL,
+	)
 }
 
 func (t *IntegrationTest) stat(name string) (o *gcs.Object, err error) {
@@ -183,7 +185,7 @@ func (t *IntegrationTest) PositiveCacheExpiration() {
 	AssertEq(nil, err)
 
 	// Advance time.
-	t.clock.AdvanceTime(ttl + time.Millisecond)
+	t.clock.AdvanceTime(primaryCacheTTL + time.Millisecond)
 
 	// StatObject should no longer see it.
 	_, err = t.stat(name)
@@ -286,7 +288,7 @@ func (t *IntegrationTest) NegativeCacheExpiration() {
 	AssertEq(nil, err)
 
 	// Advance time.
-	t.clock.AdvanceTime(ttl + time.Millisecond)
+	t.clock.AdvanceTime(negativeCacheTTL + time.Millisecond)
 
 	// Now StatObject should see it.
 	o, err := t.stat(name)

@@ -122,7 +122,7 @@ func TestInfiniteKernelListCacheDeleteDirTest(t *testing.T) {
 	// already became stale due to delete operation.
 	// TODO: Replace metadata-cache-ttl-secs with something better
 	flagsSet := [][]string{
-		{"--kernel-list-cache-ttl-secs=-1", "--metadata-cache-ttl-secs=0"},
+		{"--kernel-list-cache-ttl-secs=-1", "--metadata-cache-ttl-secs=0", "--metadata-cache-negative-ttl-secs=0"},
 	}
 
 	// Run tests.

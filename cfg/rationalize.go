@@ -41,7 +41,12 @@ func decodeURL(u string) (string, error) {
 // on the user flags/configs.
 func resolveMetadataCacheTTL(v isSet, c *MetadataCacheConfig) {
 	// If metadata-cache:ttl-secs has been set, then it overrides both
-	// stat-cache-ttl and type-cache-tll.
+	// stat-cache-ttl, type-cache-tll and negative cache ttl.
+	if v.IsSet(MetadataNegativeCacheTTLConfigKey) {
+		if c.NegativeTtlSecs == -1 {
+			c.NegativeTtlSecs = maxSupportedTTLInSeconds
+		}
+	}
 	if v.IsSet(MetadataCacheTTLConfigKey) {
 		if c.TtlSecs == -1 {
 			c.TtlSecs = maxSupportedTTLInSeconds
