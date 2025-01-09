@@ -274,7 +274,7 @@ func (t *BlockPoolTest) validateGetBlockIsNotBlocked(bp *BlockPool) Block {
 	}
 }
 
-func (t *BlockPoolTest) TestBlockPool_FreeBlocksChannel() {
+func (t *BlockPoolTest) TestFreeBlocksChannel() {
 	freeBlocksCh := make(chan Block)
 	bp := &BlockPool{
 		freeBlocksCh: freeBlocksCh,
@@ -286,7 +286,7 @@ func (t *BlockPoolTest) TestBlockPool_FreeBlocksChannel() {
 	assert.Equal(t.T(), freeBlocksCh, ch)
 }
 
-func (t *BlockPoolTest) TestBlockPool_canAllocateBlock() {
+func (t *BlockPoolTest) TestCanAllocateBlock() {
 	tests := []struct {
 		name        string
 		maxBlocks   int64
