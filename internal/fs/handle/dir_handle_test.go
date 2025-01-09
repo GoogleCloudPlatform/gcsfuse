@@ -31,6 +31,7 @@ import (
 	"github.com/jacobsa/fuse/fuseutil"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
+	"golang.org/x/sync/semaphore"
 )
 
 func TestDirHandle(t *testing.T) { RunTests(t) }
@@ -105,7 +106,8 @@ func (t *DirHandleTest) createLocalFileInode(name string, id fuseops.InodeID) (i
 		contentcache.New("", &t.clock),
 		&t.clock,
 		true, // localFile
-		&cfg.Config{Write: cfg.WriteConfig{GlobalMaxBlocks: math.MaxInt64}})
+		&cfg.Config{},
+		semaphore.NewWeighted(math.MaxInt64))
 	return
 }
 

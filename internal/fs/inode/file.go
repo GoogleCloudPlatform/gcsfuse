@@ -105,6 +105,10 @@ type FileInode struct {
 	// and set bwh to nil after all fileHandlers are closed.
 	// writeHandleCount tracks the count of open fileHandles in write mode.
 	writeHandleCount int32
+
+	// Limits the max number of blocks that can be created across file system when
+	// streaming writes are enabled.
+	globalMaxWriteBlocksSem *semaphore.Weighted
 }
 
 var _ Inode = &FileInode{}
@@ -127,24 +131,26 @@ func NewFileInode(
 	contentCache *contentcache.ContentCache,
 	mtimeClock timeutil.Clock,
 	localFile bool,
-	cfg *cfg.Config) (f *FileInode) {
+	cfg *cfg.Config,
+	globalMaxBlocksSem *semaphore.Weighted) (f *FileInode) {
 	// Set up the basic struct.
 	var minObj gcs.MinObject
 	if m != nil {
 		minObj = *m
 	}
 	f = &FileInode{
-		bucket:         bucket,
-		mtimeClock:     mtimeClock,
-		id:             id,
-		name:           name,
-		attrs:          attrs,
-		localFileCache: localFileCache,
-		contentCache:   contentCache,
-		src:            minObj,
-		local:          localFile,
-		unlinked:       false,
-		config:         cfg,
+		bucket:                  bucket,
+		mtimeClock:              mtimeClock,
+		id:                      id,
+		name:                    name,
+		attrs:                   attrs,
+		localFileCache:          localFileCache,
+		contentCache:            contentCache,
+		src:                     minObj,
+		local:                   localFile,
+		unlinked:                false,
+		config:                  cfg,
+		globalMaxWriteBlocksSem: globalMaxBlocksSem,
 	}
 
 	f.lc.Init(id)
@@ -916,7 +922,7 @@ func (f *FileInode) ensureBufferedWriteHandler(ctx context.Context) error {
 			Bucket:                   f.bucket,
 			BlockSize:                f.config.Write.BlockSizeMb,
 			MaxBlocksPerFile:         f.config.Write.MaxBlocksPerFile,
-			GlobalMaxBlocksSem:       semaphore.NewWeighted(f.config.Write.GlobalMaxBlocks),
+			GlobalMaxBlocksSem:       f.globalMaxWriteBlocksSem,
 			ChunkTransferTimeoutSecs: f.config.GcsRetries.ChunkTransferTimeoutSecs,
 		})
 		if err != nil {
