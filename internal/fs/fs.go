@@ -1379,8 +1379,6 @@ func (fs *fileSystem) symlinkInodeOrDie(
 
 // invalidateChildFileCacheIfExist invalidates the file in read cache. This is used to
 // invalidate the file in read cache after deletion of original file.
-//
-// LOCKS_REQUIRED(fs.mu)
 func (fs *fileSystem) invalidateChildFileCacheIfExist(parentInode inode.DirInode, objectGCSName string) (err error) {
 	if fs.fileCacheHandler != nil {
 		if bucketOwnedDirInode, ok := parentInode.(inode.BucketOwnedDirInode); ok {
@@ -2053,7 +2051,6 @@ func (fs *fileSystem) Rename(
 	return fs.renameNonHierarchicalFile(ctx, oldParent, op.OldName, child.MinObject, newParent, op.NewName)
 }
 
-// LOCKS_EXCLUDED(fs.mu)
 // LOCKS_EXCLUDED(oldParent)
 // LOCKS_EXCLUDED(newParent)
 func (fs *fileSystem) renameHierarchicalFile(ctx context.Context, oldParent inode.DirInode, oldName string, oldObject *gcs.MinObject, newParent inode.DirInode, newName string) error {
@@ -2081,7 +2078,6 @@ func (fs *fileSystem) renameHierarchicalFile(ctx context.Context, oldParent inod
 	return nil
 }
 
-// LOCKS_EXCLUDED(fs.mu)
 // LOCKS_EXCLUDED(oldParent)
 // LOCKS_EXCLUDED(newParent)
 func (fs *fileSystem) renameNonHierarchicalFile(
