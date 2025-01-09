@@ -39,6 +39,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/net/context"
+	"golang.org/x/sync/semaphore"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -148,7 +149,8 @@ func (t *FileTest) createInodeWithLocalParam(fileName string, local bool) {
 		contentcache.New("", &t.clock),
 		&t.clock,
 		local,
-		&cfg.Config{Write: cfg.WriteConfig{GlobalMaxBlocks: math.MaxInt64}})
+		&cfg.Config{},
+		semaphore.NewWeighted(math.MaxInt64))
 
 	t.in.Lock()
 }

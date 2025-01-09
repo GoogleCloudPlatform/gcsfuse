@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
+	"golang.org/x/sync/semaphore"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
@@ -195,6 +196,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		cacheFileForRangeRead:      serverCfg.NewConfig.FileCache.CacheFileForRangeRead,
 		metricHandle:               serverCfg.MetricHandle,
 		enableAtomicRenameObject:   serverCfg.NewConfig.EnableAtomicRenameObject,
+		globalMaxWriteBlocksSem:    semaphore.NewWeighted(serverCfg.NewConfig.Write.GlobalMaxBlocks),
 	}
 
 	// Set up root bucket
@@ -487,6 +489,10 @@ type fileSystem struct {
 	metricHandle common.MetricHandle
 
 	enableAtomicRenameObject bool
+
+	// Limits the max number of blocks that can be created across file system when
+	// streaming writes are enabled.
+	globalMaxWriteBlocksSem *semaphore.Weighted
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -807,7 +813,8 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 			fs.contentCache,
 			fs.mtimeClock,
 			ic.Local,
-			fs.newConfig)
+			fs.newConfig,
+			fs.globalMaxWriteBlocksSem)
 	}
 
 	// Place it in our map of IDs to inodes.
