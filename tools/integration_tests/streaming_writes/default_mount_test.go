@@ -1,28 +1,23 @@
 package streaming_writes
 
 import (
-	"testing"
+	"os"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
+	"github.com/stretchr/testify/suite"
 )
 
-type defaultMountTest struct {
+type defaultMountCommonTest struct {
+	f1 *os.File
+	suite.Suite
 }
 
-func (tt *defaultMountTest) Setup(t *testing.T) {
-}
-
-func (tt *defaultMountTest) Teardown(t *testing.T) {
-}
-
-// Executes all tests that run with single streamingWrites configuration.
-func TestWithDefaultMount(t *testing.T) {
+func (t *defaultMountCommonTest) SetupSuite() {
 	flags := []string{"--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=2"}
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
-	defer setup.UnmountGCSFuse(rootDir)
 	testDirPath = setup.SetupTestDirectory(testDirName)
+}
 
-	ts := &defaultMountTest{}
-	test_setup.RunTests(t, ts)
+func (t *defaultMountCommonTest) TearDownSuite() {
+	setup.UnmountGCSFuse(rootDir)
 }

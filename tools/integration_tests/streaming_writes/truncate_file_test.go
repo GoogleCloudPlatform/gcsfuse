@@ -1,29 +1,27 @@
 package streaming_writes
 
 import (
-	"testing"
-
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func (tt *defaultMountTest) TestTruncate(t *testing.T) {
+func (t *defaultMountCommonTest) TestTruncate() {
 	truncateSize := 2 * 1024 * 1024
 	fileName := "truncate"
 	// Create a local file.
-	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t)
+	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t.T())
 
 	err := fh.Truncate(int64(truncateSize))
 
-	if err != nil {
-		t.Fatalf("Error in truncating: %v", err)
-	}
+	assert.NoError(t.T(), err)
 	data := make([]byte, truncateSize)
 	// Close the file and validate that the file is created on GCS.
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, fileName, string(data[:]), t)
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, fileName, string(data[:]), t.T())
 }
 
-func (tt *defaultMountTest) TestWriteAfterTruncate(t *testing.T) {
+func (t *defaultMountCommonTest) TestWriteAfterTruncate() {
 	truncateSize := 10
 
 	testCases := []struct {
@@ -49,82 +47,72 @@ func (tt *defaultMountTest) TestWriteAfterTruncate(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func() {
 			data := make([]byte, tc.fileSize)
 			// Create a local file.
-			_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, tc.name, t)
+			_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, tc.name, t.T())
 			// Perform truncate.
 			err := fh.Truncate(int64(truncateSize))
-			if err != nil {
-				t.Fatalf("Error in truncating: %v", err)
-			}
+			require.NoError(t.T(), err)
 
 			// Triggers writes after truncate.
 			newData := []byte("hi")
 			_, err = fh.WriteAt(newData, tc.offset)
-			if err != nil {
-				t.Fatalf("Error in writing: %v", err)
-			}
 
+			require.NoError(t.T(), err)
 			data[tc.offset] = newData[0]
 			data[tc.offset+1] = newData[1]
 			// Close the file and validate that the file is created on GCS.
-			CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, tc.name, string(data[:]), t)
+			CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, tc.name, string(data[:]), t.T())
 		})
 	}
 
 }
 
-func (tt *defaultMountTest) TestWriteAndTruncate(t *testing.T) {
+func (t *defaultMountCommonTest) TestWriteAndTruncate() {
 	truncateSize := 20
 	fileName := "writeAndTruncate"
 	// Create a local file and write
-	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t)
-	operations.WriteWithoutClose(fh, FileContents, t)
+	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t.T())
+	operations.WriteWithoutClose(fh, FileContents, t.T())
 
 	err := fh.Truncate(int64(truncateSize))
-	if err != nil {
-		t.Fatalf("Error in truncating: %v", err)
-	}
 
+	require.NoError(t.T(), err)
 	data := make([]byte, 10)
 	// Close the file and validate that the file is created on GCS.
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, fileName, FileContents+string(data[:]), t)
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, fileName, FileContents+string(data[:]), t.T())
 }
 
-func (tt *defaultMountTest) TestWriteTruncateWrite(t *testing.T) {
+func (t *defaultMountCommonTest) TestWriteTruncateWrite() {
 	truncateSize := 30
 	fileName := "writeTruncateWrite"
 	// Create a local file.
-	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t)
+	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t.T())
 
 	// Write
-	operations.WriteWithoutClose(fh, FileContents, t)
+	operations.WriteWithoutClose(fh, FileContents, t.T())
 	// Perform truncate
 	err := fh.Truncate(int64(truncateSize))
-	if err != nil {
-		t.Fatalf("Error in truncating: %v", err)
-	}
+	require.NoError(t.T(), err)
 	// Write
-	operations.WriteWithoutClose(fh, FileContents, t)
+	operations.WriteWithoutClose(fh, FileContents, t.T())
 
 	data := make([]byte, 10)
 	// Close the file and validate that the file is created on GCS.
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, fileName, FileContents+FileContents+string(data[:]), t)
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, fileName, FileContents+FileContents+string(data[:]), t.T())
 }
 
-func (tt *defaultMountTest) TestTruncateToLowerSizeAfterWrite(t *testing.T) {
+func (t *defaultMountCommonTest) TestTruncateToLowerSizeAfterWrite() {
 	fileName := "truncateToLowerSizeAfterWrite"
 	// Create a local file.
-	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t)
+	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t.T())
 
 	// Write
-	operations.WriteWithoutClose(fh, FileContents+FileContents, t)
-
+	operations.WriteWithoutClose(fh, FileContents+FileContents, t.T())
 	// Perform truncate
 	err := fh.Truncate(int64(5))
-	if err == nil {
-		// Truncating to lower size after writes are not allowed.
-		t.Fatalf("Truncate should fail, but it didnt: %v", err)
-	}
+
+	// Truncating to lower size after writes are not allowed.
+	require.Error(t.T(), err)
 }
