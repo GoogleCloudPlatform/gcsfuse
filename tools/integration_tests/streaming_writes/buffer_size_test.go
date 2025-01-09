@@ -25,6 +25,7 @@ func TestWritesWithDifferentConfig(t *testing.T) {
 			fileSize: 5 * 1024 * 1024,
 		},
 		{
+			// BlockSize*num_blocks < fileSize
 			name:     "NumberOfBlocksLessThanFileSize",
 			flags:    []string{"--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=2"},
 			fileSize: 10 * 1024 * 1024,
