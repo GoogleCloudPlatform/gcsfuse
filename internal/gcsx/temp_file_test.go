@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2015 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,12 +17,11 @@ package gcsx_test
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
@@ -42,7 +41,7 @@ func readAll(rs io.ReadSeeker) (content []byte, err error) {
 		return
 	}
 
-	content, err = ioutil.ReadAll(rs)
+	content, err = io.ReadAll(rs)
 	if err != nil {
 		err = fmt.Errorf("ReadFull: %w", err)
 		return

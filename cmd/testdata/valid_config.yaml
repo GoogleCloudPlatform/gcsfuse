@@ -1,0 +1,71 @@
+app-name: hello
+write:
+  create-empty-file: true
+  enable-streaming-writes: true
+  global-max-blocks: 20
+  block-size-mb: 10
+  max-blocks-per-file: 2
+file-cache:
+  cache-file-for-range-read: true
+  download-chunk-size-mb: 300
+  enable-crc: true
+  enable-parallel-downloads: false
+  max-parallel-downloads: 200
+  max-size-mb: 40
+  parallel-downloads-per-file: 10
+  write-buffer-size: 8192
+  enable-o-direct: true
+gcs-auth:
+  anonymous-access: true
+  key-file: "~/key.file"
+  reuse-token-from-url: false
+  token-url: "www.abc.com"
+gcs-connection:
+  billing-project: abc
+  client-protocol: http2
+  custom-endpoint: www.abc.com
+  experimental-enable-json-read: true
+  grpc-conn-pool-size: 200
+  http-client-timeout: 400s
+  limit-bytes-per-sec: 20
+  limit-ops-per-sec: 30
+  max-conns-per-host: 400
+  max-idle-conns-per-host: 20
+  sequential-read-size-mb: 450
+gcs-retries:
+  chunk-transfer-timeout-secs: 20
+  read-stall:
+    enable: true
+    min-req-timeout: 10s
+    max-req-timeout: 200s
+    initial-req-timeout: 20s
+    req-increase-rate: 15
+    req-target-percentile: 0.99
+file-system:
+  dir-mode: 0777
+  disable-parallel-dirops: true
+  file-mode: 0666
+  fuse-options: "ro"
+  gid: 7
+  uid: 8
+  ignore-interrupts: false
+  kernel-list-cache-ttl-secs: 300
+  rename-dir-limit: 10
+  temp-dir: ~/temp
+  precondition-errors: false
+list:
+  enable-empty-managed-folders: true
+enable-hns: false
+enable-atomic-rename-object: false
+metadata-cache:
+  deprecated-stat-cache-capacity: 200
+  deprecated-stat-cache-ttl: 30s
+  deprecated-type-cache-ttl: 20s
+  enable-nonexistent-type-cache: true
+  experimental-metadata-prefetch-on-mount: sync
+  stat-cache-max-size-mb: 40
+  ttl-secs: 100
+  type-cache-max-size-mb: 10
+
+metrics:
+  cloud-metrics-export-interval-secs: 10

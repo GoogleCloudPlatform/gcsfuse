@@ -1,0 +1,5 @@
+file-cache:
+  cache-file-for-range-read: true
+  enable-parallel-downloads: true
+  parallel-downloads-per-file: 100
+  max-parallel-downloads: -10

@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2015 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 //
 // 1.  Open the file.
 // 2.  Read it from start to end with a configurable buffer size.
-//
 package main
 
 import (
@@ -26,14 +25,13 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"sort"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/benchmarks/internal/format"
-	"github.com/googlecloudplatform/gcsfuse/benchmarks/internal/percentile"
+	"github.com/googlecloudplatform/gcsfuse/v2/benchmarks/internal/format"
+	"github.com/googlecloudplatform/gcsfuse/v2/benchmarks/internal/percentile"
 )
 
 var fDir = flag.String("dir", "", "Directory within which to write the file.")
@@ -47,14 +45,14 @@ var fReadSize = flag.Int64("read_size", 1<<20, "Size of each call to read(2).")
 
 func run() (err error) {
 	if *fDir == "" {
-		err = errors.New("You must set --dir.")
+		err = errors.New("you must set --dir")
 		return
 	}
 
 	// Create a temporary file.
 	log.Printf("Creating a temporary file in %s.", *fDir)
 
-	f, err := ioutil.TempFile(*fDir, "sequential_read")
+	f, err := os.CreateTemp(*fDir, "sequential_read")
 	if err != nil {
 		err = fmt.Errorf("TempFile: %w", err)
 		return
@@ -72,14 +70,14 @@ func run() (err error) {
 	log.Printf("Writing %d random bytes.", *fFileSize)
 	_, err = io.Copy(f, io.LimitReader(rand.Reader, *fFileSize))
 	if err != nil {
-		err = fmt.Errorf("Copying random bytes: %w", err)
+		err = fmt.Errorf("copying random bytes: %w", err)
 		return
 	}
 
 	// Finish off the file.
 	err = f.Close()
 	if err != nil {
-		err = fmt.Errorf("Closing file: %w", err)
+		err = fmt.Errorf("closing file: %w", err)
 		return
 	}
 
@@ -95,7 +93,7 @@ func run() (err error) {
 		// Open the file for reading.
 		f, err = os.Open(path)
 		if err != nil {
-			err = fmt.Errorf("Opening file: %w", err)
+			err = fmt.Errorf("opening file: %w", err)
 			return
 		}
 
@@ -114,14 +112,14 @@ func run() (err error) {
 			err = nil
 
 		case err != nil:
-			err = fmt.Errorf("Reading: %w", err)
+			err = fmt.Errorf("reading: %w", err)
 			return
 		}
 
 		// Close the file.
 		err = f.Close()
 		if err != nil {
-			err = fmt.Errorf("Closing file after reading: %w", err)
+			err = fmt.Errorf("closing file after reading: %w", err)
 			return
 		}
 	}

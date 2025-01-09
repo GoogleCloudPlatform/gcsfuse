@@ -1,0 +1,4 @@
+write:
+  create-empty-file: true
+  enable-streaming-writes: true
+  block-size-mb: 0

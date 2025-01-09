@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2015 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ package inode
 import (
 	"sync"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
 	"golang.org/x/net/context"
 )
@@ -55,6 +55,9 @@ type Inode interface {
 	//
 	// This method may block. Errors are for logging purposes only.
 	Destroy() (err error)
+
+	// Unlink operation marks the inode as unlinked/deleted.
+	Unlink()
 }
 
 // An inode owned by a gcs bucket.
@@ -62,7 +65,7 @@ type BucketOwnedInode interface {
 	Inode
 
 	// Return the gcs.Bucket which the dir or file belongs to.
-	Bucket() gcsx.SyncerBucket
+	Bucket() *gcsx.SyncerBucket
 }
 
 // An inode that is backed by a particular generation of a GCS object.

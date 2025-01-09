@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2015 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 //
 // Usage:
 //
-//     package_gcsfuse dst_dir version [commit]
+//	package_gcsfuse dst_dir version [commit]
 //
 // This will cause the gcsfuse git repo to be cloned to a temporary location
 // and a build performed, embedding the given version name. The build will be
@@ -41,7 +41,7 @@ func run(args []string) (err error) {
 
 	// Extract arguments.
 	if len(args) < 2 || len(args) > 3 {
-		err = fmt.Errorf("Usage: %s dst_dir version [commit]", os.Args[0])
+		err = fmt.Errorf("usage: %s dst_dir version [commit]", os.Args[0])
 		return
 	}
 

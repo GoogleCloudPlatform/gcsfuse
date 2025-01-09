@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2015 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -192,29 +192,29 @@ func (tf *tempFile) CheckInvariants() {
 	// Restore the seek position after using Stat below.
 	pos, err := tf.Seek(0, 1)
 	if err != nil {
-		panic(fmt.Errorf("Seek: %w", err))
+		panic(fmt.Errorf("seek: %w", err))
 	}
 
 	defer func() {
 		_, err := tf.Seek(pos, 0)
 		if err != nil {
-			panic(fmt.Errorf("Seek: %w", err))
+			panic(fmt.Errorf("seek: %w", err))
 		}
 	}()
 
 	// INVARIANT: Stat().DirtyThreshold <= Stat().Size
 	sr, err := tf.Stat()
 	if err != nil {
-		panic(fmt.Errorf("Stat: %w", err))
+		panic(fmt.Errorf("stat: %w", err))
 	}
 
 	if !(sr.DirtyThreshold <= sr.Size) {
-		panic(fmt.Errorf("Mismatch: %d vs. %d", sr.DirtyThreshold, sr.Size))
+		panic(fmt.Errorf("mismatch: %d vs. %d", sr.DirtyThreshold, sr.Size))
 	}
 
 	// INVARIANT: mtime == nil => Stat().DirtyThreshold == Stat().Size
 	if tf.mtime == nil && sr.DirtyThreshold != sr.Size {
-		panic(fmt.Errorf("Mismatch: %d vs. %d", sr.DirtyThreshold, sr.Size))
+		panic(fmt.Errorf("mismatch: %d vs. %d", sr.DirtyThreshold, sr.Size))
 	}
 }
 
@@ -229,7 +229,7 @@ func (tf *tempFile) Destroy() {
 func (tf *tempFile) Read(p []byte) (int, error) {
 	err := tf.ensureComplete()
 	if err != nil {
-		return 0, fmt.Errorf("Cannot Read incomplete file: %w", err)
+		return 0, fmt.Errorf("cannot Read incomplete file: %w", err)
 	}
 	return tf.f.Read(p)
 }
@@ -237,7 +237,7 @@ func (tf *tempFile) Read(p []byte) (int, error) {
 func (tf *tempFile) Seek(offset int64, whence int) (int64, error) {
 	err := tf.ensureComplete()
 	if err != nil {
-		return 0, fmt.Errorf("Cannot Seek incomplete file: %w", err)
+		return 0, fmt.Errorf("cannot Seek incomplete file: %w", err)
 	}
 	return tf.f.Seek(offset, whence)
 }
@@ -245,7 +245,7 @@ func (tf *tempFile) Seek(offset int64, whence int) (int64, error) {
 func (tf *tempFile) ReadAt(p []byte, offset int64) (int, error) {
 	err := tf.ensureComplete()
 	if err != nil {
-		return 0, fmt.Errorf("Cannot ReadAt incomplete file: %w", err)
+		return 0, fmt.Errorf("cannot ReadAt incomplete file: %w", err)
 	}
 	return tf.f.ReadAt(p, offset)
 }
@@ -253,7 +253,7 @@ func (tf *tempFile) ReadAt(p []byte, offset int64) (int, error) {
 func (tf *tempFile) Stat() (sr StatResult, err error) {
 	err = tf.ensureComplete()
 	if err != nil {
-		err = fmt.Errorf("Cannot Stat incomplete file: %w", err)
+		err = fmt.Errorf("cannot Stat incomplete file: %w", err)
 		return
 	}
 	sr.DirtyThreshold = tf.dirtyThreshold
@@ -262,7 +262,7 @@ func (tf *tempFile) Stat() (sr StatResult, err error) {
 	// Get the size from the file.
 	sr.Size, err = tf.f.Seek(0, 2)
 	if err != nil {
-		err = fmt.Errorf("Seek: %w", err)
+		err = fmt.Errorf("seek: %w", err)
 		return
 	}
 
@@ -272,7 +272,7 @@ func (tf *tempFile) Stat() (sr StatResult, err error) {
 func (tf *tempFile) WriteAt(p []byte, offset int64) (int, error) {
 	err := tf.ensureComplete()
 	if err != nil {
-		return 0, fmt.Errorf("Cannot WriteAt incomplete file: %w", err)
+		return 0, fmt.Errorf("cannot WriteAt incomplete file: %w", err)
 	}
 
 	// Update our state regarding being dirty.
@@ -290,7 +290,7 @@ func (tf *tempFile) WriteAt(p []byte, offset int64) (int, error) {
 func (tf *tempFile) Truncate(n int64) error {
 	err := tf.ensureComplete()
 	if err != nil {
-		return fmt.Errorf("Cannot Truncate incomplete file: %w", err)
+		return fmt.Errorf("cannot Truncate incomplete file: %w", err)
 	}
 
 	// Update our state regarding being dirty.

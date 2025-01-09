@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2015 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -35,7 +34,7 @@ func build(
 
 	// Create a directory to become GOCACHE below.
 	var gocache string
-	gocache, err = ioutil.TempDir("", "package_gcsfuse_gocache")
+	gocache, err = os.MkdirTemp("", "package_gcsfuse_gocache")
 	if err != nil {
 		err = fmt.Errorf("TempDir: %w", err)
 		return
@@ -44,7 +43,7 @@ func build(
 
 	// Create a directory to hold our outputs. Kill it if we later return in
 	// error.
-	dir, err = ioutil.TempDir("", "package_gcsfuse_build")
+	dir, err = os.MkdirTemp("", "package_gcsfuse_build")
 	if err != nil {
 		err = fmt.Errorf("TempDir: %w", err)
 		return
@@ -57,7 +56,7 @@ func build(
 	}()
 
 	// Create another directory into which we will clone the git repo bloe.
-	gitDir, err := ioutil.TempDir("", "package_gcsfuse_git")
+	gitDir, err := os.MkdirTemp("", "package_gcsfuse_git")
 	if err != nil {
 		err = fmt.Errorf("TempDir: %w", err)
 		return
@@ -79,7 +78,7 @@ func build(
 		var output []byte
 		output, err = cmd.CombinedOutput()
 		if err != nil {
-			err = fmt.Errorf("Cloning: %w\nOutput:\n%s", err, output)
+			err = fmt.Errorf("cloning: %w\nOutput:\n%s", err, output)
 			return
 		}
 	}
@@ -106,7 +105,7 @@ func build(
 		var output []byte
 		output, err = cmd.CombinedOutput()
 		if err != nil {
-			err = fmt.Errorf("Building build_gcsfuse: %w\nOutput:\n%s", err, output)
+			err = fmt.Errorf("building build_gcsfuse: %w\nOutput:\n%s", err, output)
 			return
 		}
 	}
@@ -144,7 +143,7 @@ func build(
 
 	err = os.Rename(path.Join(dir, "bin"), path.Join(dir, "usr/bin"))
 	if err != nil {
-		err = fmt.Errorf("Rename: %w", err)
+		err = fmt.Errorf("rename: %w", err)
 		return
 	}
 

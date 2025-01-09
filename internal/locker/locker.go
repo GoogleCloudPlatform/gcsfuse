@@ -1,4 +1,4 @@
-// Copyright 2021 Google Inc. All Rights Reserved.
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,12 +16,11 @@
 package locker
 
 import (
-	"log"
 	"runtime"
 	"sync"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 )
 
 var gEnableInvariantsCheck bool
@@ -56,7 +55,6 @@ func New(name string, check func()) Locker {
 		l = &debugger{
 			locker: l,
 			name:   name,
-			logger: logger.NewDebug("debug_mutex"),
 		}
 	}
 
@@ -83,7 +81,6 @@ type debugger struct {
 	name   string
 	holder string
 	timer  *time.Timer
-	logger *log.Logger
 }
 
 func (d *debugger) Lock() {
@@ -94,7 +91,7 @@ func (d *debugger) Lock() {
 	d.holder = string(buf)
 
 	d.timer = time.AfterFunc(5*time.Second, func() {
-		d.logger.Printf("Potential dead lock detected for a lock %q held by: %v\n", d.name, d.holder)
+		logger.Tracef("debug_mutex: Potential dead lock detected for a lock %q held by: %v\n", d.name, d.holder)
 	})
 }
 

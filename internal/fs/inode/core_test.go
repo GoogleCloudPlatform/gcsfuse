@@ -1,4 +1,4 @@
-// Copyright 2021 Google Inc. All Rights Reserved.
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,10 +18,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
-	"github.com/jacobsa/gcloud/gcs/gcsfake"
-	"github.com/jacobsa/gcloud/gcs/gcsutil"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/inode"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
@@ -47,7 +49,7 @@ func init() { RegisterTestSuite(&CoreTest{}) }
 func (t *CoreTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
 	t.bucket = gcsx.NewSyncerBucket(
-		1, ".gcsfuse_tmp/", gcsfake.NewFakeBucket(&t.clock, "some_bucket"))
+		1, 10, ".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "some_bucket", gcs.NonHierarchical))
 	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
 }
 
@@ -58,90 +60,141 @@ func (t *CoreTest) TearDown() {}
 ////////////////////////////////////////////////////////////////////////
 
 func (t *CoreTest) File() {
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
+	o, err := storageutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
+	m := storageutil.ConvertObjToMinObject(o)
 	AssertEq(nil, err)
 
-	name := inode.NewFileName(inode.NewRootName(t.bucket.Name()), o.Name)
+	name := inode.NewFileName(inode.NewRootName(t.bucket.Name()), m.Name)
 	c := &inode.Core{
-		Bucket:   t.bucket,
-		FullName: name,
-		Object:   o,
+		Bucket:    &t.bucket,
+		FullName:  name,
+		MinObject: m,
 	}
 	ExpectTrue(c.Exists())
-	ExpectEq(inode.RegularFileType, c.Type())
+	ExpectEq(metadata.RegularFileType, c.Type())
+}
+
+func (t *CoreTest) LocalFile() {
+	name := inode.NewFileName(inode.NewRootName(t.bucket.Name()), "test")
+	c := &inode.Core{
+		Bucket:    &t.bucket,
+		FullName:  name,
+		MinObject: nil,
+		Local:     true,
+	}
+	ExpectTrue(c.Exists())
+	ExpectEq(metadata.RegularFileType, c.Type())
 }
 
 func (t *CoreTest) ExplicitDir() {
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "bar/", []byte(""))
+	o, err := storageutil.CreateObject(t.ctx, t.bucket, "bar/", []byte(""))
+	m := storageutil.ConvertObjToMinObject(o)
 	AssertEq(nil, err)
 
-	name := inode.NewDirName(inode.NewRootName(t.bucket.Name()), o.Name)
+	name := inode.NewDirName(inode.NewRootName(t.bucket.Name()), m.Name)
 	c := &inode.Core{
-		Bucket:   t.bucket,
-		FullName: name,
-		Object:   o,
+		Bucket:    &t.bucket,
+		FullName:  name,
+		MinObject: m,
 	}
 	ExpectTrue(c.Exists())
-	ExpectEq(inode.ExplicitDirType, c.Type())
+	ExpectEq(metadata.ExplicitDirType, c.Type())
 }
 
 func (t *CoreTest) ImplicitDir() {
 	name := inode.NewDirName(inode.NewRootName(t.bucket.Name()), "bar/")
 	c := &inode.Core{
-		Bucket:   t.bucket,
-		FullName: name,
-		Object:   nil,
+		Bucket:    &t.bucket,
+		FullName:  name,
+		MinObject: nil,
 	}
 	ExpectTrue(c.Exists())
-	ExpectEq(inode.ImplicitDirType, c.Type())
+	ExpectEq(metadata.ImplicitDirType, c.Type())
 }
 
 func (t *CoreTest) BucketRootDir() {
 	c := &inode.Core{
-		Bucket:   t.bucket,
-		FullName: inode.NewRootName(t.bucket.Name()),
-		Object:   nil,
+		Bucket:    &t.bucket,
+		FullName:  inode.NewRootName(t.bucket.Name()),
+		MinObject: nil,
 	}
 	ExpectTrue(c.Exists())
-	ExpectEq(inode.ImplicitDirType, c.Type())
+	ExpectEq(metadata.ImplicitDirType, c.Type())
 }
 
 func (t *CoreTest) Nonexistent() {
 	var c *inode.Core
 	ExpectFalse(c.Exists())
-	ExpectEq(inode.UnknownType, c.Type())
+	ExpectEq(metadata.UnknownType, c.Type())
 }
 
 func (t *CoreTest) SanityCheck() {
 	root := inode.NewRootName(t.bucket.Name())
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "bar", []byte(""))
+	o, err := storageutil.CreateObject(t.ctx, t.bucket, "bar", []byte(""))
+	m := storageutil.ConvertObjToMinObject(o)
 	AssertEq(nil, err)
 
 	c := &inode.Core{
-		Bucket:   t.bucket,
-		FullName: inode.NewDirName(root, "bar"),
-		Object:   nil,
+		Bucket:    &t.bucket,
+		FullName:  inode.NewDirName(root, "bar"),
+		MinObject: nil,
 	}
 	ExpectEq(nil, c.SanityCheck()) // implicit dir is okay
 
 	c = &inode.Core{
-		Bucket:   t.bucket,
-		FullName: inode.NewFileName(root, "bar"),
-		Object:   nil,
-	}
-	ExpectNe(nil, c.SanityCheck()) // missing object for file
-
-	c = &inode.Core{
-		Bucket:   t.bucket,
-		FullName: inode.NewFileName(root, o.Name),
-		Object:   o,
+		Bucket:    &t.bucket,
+		FullName:  inode.NewFileName(root, m.Name),
+		MinObject: m,
 	}
 	ExpectEq(nil, c.SanityCheck()) // name match
 
 	c = &inode.Core{
-		Bucket:   t.bucket,
-		FullName: inode.NewFileName(root, "foo"),
-		Object:   o,
+		Bucket:    &t.bucket,
+		FullName:  inode.NewFileName(root, "foo"),
+		MinObject: m,
 	}
 	ExpectNe(nil, c.SanityCheck()) // name mismatch
+
+	c = &inode.Core{
+		Bucket:    &t.bucket,
+		FullName:  inode.NewFileName(root, "foo"),
+		MinObject: nil,
+		Local:     true,
+	}
+	ExpectEq(nil, c.SanityCheck()) // object is nil for local fileInode.
+
+	c = &inode.Core{
+		Bucket:    &t.bucket,
+		FullName:  inode.NewFileName(root, "foo"),
+		MinObject: nil,
+		Local:     false,
+	}
+	ExpectNe(nil, c.SanityCheck()) // Missing object for non-local fileInode.
+}
+
+func (t *CoreTest) SanityCheckForFolder() {
+	root := inode.NewRootName(t.bucket.Name())
+	f, err := t.bucket.CreateFolder(t.ctx, "folder/")
+	AssertEq(nil, err)
+	c := &inode.Core{
+		Bucket:   &t.bucket,
+		FullName: inode.NewDirName(root, "folder"),
+		Folder:   f,
+	}
+
+	ExpectEq(nil, c.SanityCheck())
+}
+
+func (t *CoreTest) ExplicitDirTypeForFolder() {
+	f, err := t.bucket.CreateFolder(t.ctx, "folder/")
+	AssertEq(nil, err)
+	name := inode.NewDirName(inode.NewRootName(t.bucket.Name()), f.Name)
+	c := &inode.Core{
+		Bucket:   &t.bucket,
+		FullName: name,
+		Folder:   f,
+	}
+
+	ExpectTrue(c.Exists())
+	ExpectEq(metadata.ExplicitDirType, c.Type())
 }

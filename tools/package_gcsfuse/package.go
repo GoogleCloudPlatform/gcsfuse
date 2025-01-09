@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2015 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ func packageFpm(
 		"-v", version,
 		"-d", "fuse",
 		"--vendor", "",
-		"--maintainer", "Aaron Jacobs <jacobsa@google.com>",
+		"--maintainer", "GCSFuse dev <gcs-fuse-dev@google.com>",
 		"--url", "https://github.com/googlecloudplatform/gcsfuse",
 		"--description", "A user-space file system for interacting with Google Cloud Storage.",
 	)

@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2015 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,12 +19,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"golang.org/x/net/context"
+	"golang.org/x/sync/errgroup"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/logger"
-	"github.com/jacobsa/gcloud/gcs"
-	"github.com/jacobsa/gcloud/gcs/gcsutil"
-	"github.com/jacobsa/syncutil"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 )
 
 func garbageCollectOnce(
@@ -32,13 +32,13 @@ func garbageCollectOnce(
 	tmpObjectPrefix string,
 	bucket gcs.Bucket) (objectsDeleted uint64, err error) {
 	const stalenessThreshold = 30 * time.Minute
-	b := syncutil.NewBundle(ctx)
+	group, ctx := errgroup.WithContext(ctx)
 
 	// List all objects with the temporary prefix.
-	objects := make(chan *gcs.Object, 100)
-	b.Add(func(ctx context.Context) (err error) {
-		defer close(objects)
-		err = gcsutil.ListPrefix(ctx, bucket, tmpObjectPrefix, objects)
+	minObjects := make(chan *gcs.MinObject, 100)
+	group.Go(func() (err error) {
+		defer close(minObjects)
+		err = storageutil.ListPrefix(ctx, bucket, tmpObjectPrefix, minObjects)
 		if err != nil {
 			err = fmt.Errorf("ListPrefix: %w", err)
 			return
@@ -50,9 +50,9 @@ func garbageCollectOnce(
 	// Filter to the names of objects that are stale.
 	now := time.Now()
 	staleNames := make(chan string, 100)
-	b.Add(func(ctx context.Context) (err error) {
+	group.Go(func() (err error) {
 		defer close(staleNames)
-		for o := range objects {
+		for o := range minObjects {
 			if now.Sub(o.Updated) < stalenessThreshold {
 				continue
 			}
@@ -70,12 +70,13 @@ func garbageCollectOnce(
 	})
 
 	// Delete those objects.
-	b.Add(func(ctx context.Context) (err error) {
+	group.Go(func() (err error) {
 		for name := range staleNames {
 			err = bucket.DeleteObject(
 				ctx,
 				&gcs.DeleteObjectRequest{
-					Name: name,
+					Name:       name,
+					Generation: 0, // Latest generation of stale object.
 				})
 
 			if err != nil {
@@ -89,7 +90,7 @@ func garbageCollectOnce(
 		return
 	})
 
-	err = b.Join()
+	err = group.Wait()
 	return
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2021 Google Inc. All Rights Reserved.
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,15 +21,13 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
-	"log"
 	"os"
 	"path"
 	"regexp"
 	"sync"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/jacobsa/timeutil"
 )
 
@@ -46,7 +44,6 @@ type CacheObjectKey struct {
 // fileMap is an in memory map to represent cache contents on disk
 type ContentCache struct {
 	mu         sync.Mutex
-	debug      *log.Logger
 	tempDir    string
 	fileMap    map[CacheObjectKey]*CacheObject
 	mtimeClock timeutil.Clock
@@ -85,7 +82,7 @@ func (c *ContentCache) WriteMetadataCheckpointFile(cacheFileName string, cacheFi
 		return
 	}
 	metadataFileName = fmt.Sprintf("%s.json", cacheFileName)
-	err = ioutil.WriteFile(metadataFileName, file, 0644)
+	err = os.WriteFile(metadataFileName, file, 0644)
 	if err != nil {
 		err = fmt.Errorf("WriteFile for JSON metadata: %w", err)
 		return
@@ -113,14 +110,14 @@ func (c *ContentCache) recoverFileFromCache(metadataFile fs.FileInfo) {
 	}
 	var metadata CacheFileObjectMetadata
 	metadataAbsolutePath := path.Join(c.tempDir, metadataFile.Name())
-	contents, err := ioutil.ReadFile(metadataAbsolutePath)
+	contents, err := os.ReadFile(metadataAbsolutePath)
 	if err != nil {
-		c.debug.Printf("Skip metadata file %v due to read error: %s", metadataFile.Name(), err)
+		logger.Errorf("content cache: Skip metadata file %v due to read error: %s", metadataFile.Name(), err)
 		return
 	}
 	err = json.Unmarshal(contents, &metadata)
 	if err != nil {
-		c.debug.Printf("Skip metadata file %v due to file corruption: %s", metadataFile.Name(), err)
+		logger.Errorf("content cache: Skip metadata file %v due to file corruption: %s", metadataFile.Name(), err)
 		return
 	}
 	cacheObjectKey := &CacheObjectKey{
@@ -132,12 +129,12 @@ func (c *ContentCache) recoverFileFromCache(metadataFile fs.FileInfo) {
 	// so this is probably not scalable, we should figure out if this is an actual issue or not
 	file, err := os.Open(fileName)
 	if err != nil {
-		c.debug.Printf("Skip cache file %v due to error: %v", fileName, err)
+		logger.Errorf("content cache: Skip cache file %v due to error: %v", fileName, err)
 		return
 	}
 	cacheFile, err := c.recoverCacheFile(file)
 	if err != nil {
-		c.debug.Printf("Skip cache file %v due to error: %v", fileName, err)
+		logger.Errorf("content cache: Skip cache file %v due to error: %v", fileName, err)
 	}
 	cacheObject := &CacheObject{
 		MetadataFileName:        metadataAbsolutePath,
@@ -154,10 +151,20 @@ func (c *ContentCache) RecoverCache() error {
 		c.tempDir = "/tmp"
 	}
 	logger.Infof("Recovering cache:\n")
-	files, err := ioutil.ReadDir(c.tempDir)
+	dirEntries, err := os.ReadDir(c.tempDir)
 	if err != nil {
-		// if we fail to read the specified directory, log and return error
+		// We failed to get the list of directory entries
+		// in the temp directory, log and return error.
 		return fmt.Errorf("recover cache: %w", err)
+	}
+	files := make([]os.FileInfo, len(dirEntries))
+	for i, dirEntry := range dirEntries {
+		files[i], err = dirEntry.Info()
+		if err != nil {
+			// We failed to read a directory entry,
+			// log and return error.
+			return fmt.Errorf("recover cache: %w", err)
+		}
 	}
 	for _, metadataFile := range files {
 		c.recoverFileFromCache(metadataFile)
@@ -177,7 +184,6 @@ func matchPattern(fileName string) bool {
 // New creates a ContentCache.
 func New(tempDir string, mtimeClock timeutil.Clock) *ContentCache {
 	return &ContentCache{
-		debug:      logger.NewDebug("content cache: "),
 		tempDir:    tempDir,
 		fileMap:    make(map[CacheObjectKey]*CacheObject),
 		mtimeClock: mtimeClock,
@@ -199,7 +205,7 @@ func (c *ContentCache) AddOrReplace(cacheObjectKey *CacheObjectKey, generation i
 		cacheObject.Destroy()
 	}
 	// Create a temporary cache file on disk
-	f, err := ioutil.TempFile(c.tempDir, CacheFilePrefix)
+	f, err := os.CreateTemp(c.tempDir, CacheFilePrefix)
 	if err != nil {
 		return nil, fmt.Errorf("TempFile: %w", err)
 	}

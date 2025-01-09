@@ -1,4 +1,4 @@
-// Copyright 2021 Google Inc. All Rights Reserved.
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,9 +22,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 )
-
 
 func HandleCPUProfileSignals() {
 	profileOnce := func(duration time.Duration, path string) (err error) {
@@ -32,7 +31,7 @@ func HandleCPUProfileSignals() {
 		var f *os.File
 		f, err = os.Create(path)
 		if err != nil {
-			err = fmt.Errorf("Create: %w", err)
+			err = fmt.Errorf("create: %w", err)
 			return
 		}
 
@@ -44,7 +43,11 @@ func HandleCPUProfileSignals() {
 		}()
 
 		// Profile.
-		pprof.StartCPUProfile(f)
+		err = pprof.StartCPUProfile(f)
+		if err != nil {
+			logger.Errorf("StartCPUProfile failed: %v", err)
+			return
+		}
 		time.Sleep(duration)
 		pprof.StopCPUProfile()
 		return

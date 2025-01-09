@@ -1,4 +1,4 @@
-// Copyright 2020 Google Inc. All Rights Reserved.
+// Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 package gcsx
 
 import (
-	"github.com/jacobsa/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 )
 
 type SyncerBucket struct {
@@ -27,9 +27,10 @@ type SyncerBucket struct {
 // a gcs.Bucket, or as a Syncer.
 func NewSyncerBucket(
 	appendThreshold int64,
+	chunkTransferTimeoutSecs int64,
 	tmpObjectPrefix string,
 	bucket gcs.Bucket,
 ) SyncerBucket {
-	syncer := NewSyncer(appendThreshold, tmpObjectPrefix, bucket)
+	syncer := NewSyncer(appendThreshold, chunkTransferTimeoutSecs, tmpObjectPrefix, bucket)
 	return SyncerBucket{bucket, syncer}
 }

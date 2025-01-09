@@ -1,0 +1,70 @@
+{
+  "metric": {
+    "type" :"agent.googleapis.com/cpu/load_1m",
+    "labels": {
+      "key": "loadbalanced",
+      "value": "false"
+    },
+    "labels": {
+      "key": "instance_name",
+      "value": "drashti-load-test"
+    }
+  },
+  "resource": {
+    "type": "gce_instance",
+    "labels": {
+      "key": "zone",
+      "value": "us-central1-c"
+    },
+    "labels": {
+      "key": "project_id",
+      "value": "gcs-fuse-test"
+    },
+    "labels": {
+      "key": "instance_id",
+      "value": "5260009346344796582"
+    }
+  },
+  "metric_kind": "GAUGE",
+  "value_type": 3,
+  "points": [
+    {
+      "interval": {
+        "end_time": {
+          "seconds": 1656300960
+        },
+        "start_time": {
+          "seconds": 1656300840
+        }
+      },
+      "value": {
+        "double_value": 6933473.3
+      }
+    },
+    {
+      "interval": {
+        "end_time": {
+          "seconds": 1656300840
+        },
+        "start_time": {
+          "seconds": 1656300720
+        }
+      },
+      "value": {
+        "double_value": 6803372.233333333
+      }
+    },
+    {
+      "interval": {
+        "end_time": {
+          "seconds": 1656300720
+        },
+        "start_time": {
+          "seconds": 1656300600
+        }
+      },
+      "value": {
+        "double_value": 6685105.283333333
+      }
+    }]
+}

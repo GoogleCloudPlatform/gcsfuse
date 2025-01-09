@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2016 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,9 +18,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
-	"github.com/jacobsa/gcloud/gcs"
-	"github.com/jacobsa/gcloud/gcs/gcsfake"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
 )
@@ -83,7 +83,7 @@ func TestContentTypeBucket_CreateObject(t *testing.T) {
 	for i, tc := range contentTypeBucketTestCases {
 		// Set up a bucket.
 		bucket := gcsx.NewContentTypeBucket(
-			gcsfake.NewFakeBucket(timeutil.RealClock(), ""))
+			fake.NewFakeBucket(timeutil.RealClock(), "", gcs.NonHierarchical))
 
 		// Create the object.
 		req := &gcs.CreateObjectRequest{
@@ -104,6 +104,31 @@ func TestContentTypeBucket_CreateObject(t *testing.T) {
 	}
 }
 
+func TestContentTypeBucket_CreateObjectChunkWriter(t *testing.T) {
+	for i, tc := range contentTypeBucketTestCases {
+		// Set up a bucket.
+		bucket := gcsx.NewContentTypeBucket(
+			fake.NewFakeBucket(timeutil.RealClock(), "", gcs.NonHierarchical))
+
+		// Create the object.
+		req := &gcs.CreateObjectRequest{
+			Name:        tc.name,
+			ContentType: tc.request,
+		}
+
+		w, err := bucket.CreateObjectChunkWriter(context.Background(), req, 0, func(_ int64) {})
+		if err != nil {
+			t.Fatalf("Test case %d: CreateObjectChunkWriter: %v", i, err)
+		}
+
+		// Check the content type.
+		writerImpl := w.(*fake.FakeObjectWriter)
+		if got, want := writerImpl.ContentType, tc.expected; got != want {
+			t.Errorf("Test case %d: o.ContentType is %q, want %q", i, got, want)
+		}
+	}
+}
+
 func TestContentTypeBucket_ComposeObjects(t *testing.T) {
 	var err error
 	ctx := context.Background()
@@ -111,7 +136,7 @@ func TestContentTypeBucket_ComposeObjects(t *testing.T) {
 	for i, tc := range contentTypeBucketTestCases {
 		// Set up a bucket.
 		bucket := gcsx.NewContentTypeBucket(
-			gcsfake.NewFakeBucket(timeutil.RealClock(), ""))
+			fake.NewFakeBucket(timeutil.RealClock(), "", gcs.NonHierarchical))
 
 		// Create a source object.
 		const srcName = "some_src"

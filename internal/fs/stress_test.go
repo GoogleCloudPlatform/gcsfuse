@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2015 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@ package fs_test
 
 import (
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path"
@@ -24,11 +23,10 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/net/context"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/ogletest"
-	"github.com/jacobsa/syncutil"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -84,7 +82,9 @@ type StressTest struct {
 	fsTest
 }
 
-func init() { RegisterTestSuite(&StressTest{}) }
+func init() {
+	RegisterTestSuite(&StressTest{})
+}
 
 func (t *StressTest) CreateAndReadManyFilesInParallel() {
 	var err error
@@ -104,7 +104,7 @@ func (t *StressTest) CreateAndReadManyFilesInParallel() {
 	err = forEachName(
 		names,
 		func(n string) (err error) {
-			err = ioutil.WriteFile(path.Join(t.Dir, n), []byte(n), 0400)
+			err = os.WriteFile(path.Join(mntDir, n), []byte(n), 0400)
 			return
 		})
 
@@ -114,7 +114,7 @@ func (t *StressTest) CreateAndReadManyFilesInParallel() {
 	err = forEachName(
 		names,
 		func(n string) (err error) {
-			contents, err := ioutil.ReadFile(path.Join(t.Dir, n))
+			contents, err := os.ReadFile(path.Join(mntDir, n))
 			if err != nil {
 				err = fmt.Errorf("ReadFile: %w", err)
 				return
@@ -136,7 +136,7 @@ func (t *StressTest) TruncateFileManyTimesInParallel() {
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(runtime.NumCPU()))
 
 	// Create a file.
-	f, err := os.Create(path.Join(t.Dir, "foo"))
+	f, err := os.Create(path.Join(mntDir, "foo"))
 	AssertEq(nil, err)
 	defer f.Close()
 
@@ -162,19 +162,19 @@ func (t *StressTest) TruncateFileManyTimesInParallel() {
 	}
 
 	// Run several workers.
-	b := syncutil.NewBundle(t.ctx)
+	group := new(errgroup.Group)
 
 	const numWorkers = 16
 	finalSizes := make(chan int64, numWorkers)
 
 	for i := 0; i < numWorkers; i++ {
-		b.Add(func(ctx context.Context) (err error) {
+		group.Go(func() (err error) {
 			err = worker(finalSizes)
 			return
 		})
 	}
 
-	err = b.Join()
+	err = group.Wait()
 	AssertEq(nil, err)
 
 	close(finalSizes)
@@ -195,21 +195,21 @@ func (t *StressTest) TruncateFileManyTimesInParallel() {
 }
 
 func (t *StressTest) CreateInParallel_NoTruncate() {
-	fusetesting.RunCreateInParallelTest_NoTruncate(t.ctx, t.Dir)
+	fusetesting.RunCreateInParallelTest_NoTruncate(ctx, mntDir)
 }
 
 func (t *StressTest) CreateInParallel_Truncate() {
-	fusetesting.RunCreateInParallelTest_Truncate(t.ctx, t.Dir)
+	fusetesting.RunCreateInParallelTest_Truncate(ctx, mntDir)
 }
 
 func (t *StressTest) CreateInParallel_Exclusive() {
-	fusetesting.RunCreateInParallelTest_Exclusive(t.ctx, t.Dir)
+	fusetesting.RunCreateInParallelTest_Exclusive(ctx, mntDir)
 }
 
 func (t *StressTest) MkdirInParallel() {
-	fusetesting.RunMkdirInParallelTest(t.ctx, t.Dir)
+	fusetesting.RunMkdirInParallelTest(ctx, mntDir)
 }
 
 func (t *StressTest) SymlinkInParallel() {
-	fusetesting.RunSymlinkInParallelTest(t.ctx, t.Dir)
+	fusetesting.RunSymlinkInParallelTest(ctx, mntDir)
 }

@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2015 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,9 +20,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"golang.org/x/net/context"
-
-	"github.com/jacobsa/gcloud/gcs"
 )
 
 // NewPrefixBucket creates a view on the wrapped bucket that pretends as if only
@@ -64,6 +63,10 @@ func (b *prefixBucket) Name() string {
 	return b.wrapped.Name()
 }
 
+func (b *prefixBucket) BucketType() gcs.BucketType {
+	return b.wrapped.BucketType()
+}
+
 func (b *prefixBucket) NewReader(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
@@ -91,6 +94,29 @@ func (b *prefixBucket) CreateObject(
 		o.Name = b.localName(o.Name)
 	}
 
+	return
+}
+
+func (b *prefixBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
+	// Modify the request and call through.
+	mReq := new(gcs.CreateObjectRequest)
+	*mReq = *req
+	mReq.Name = b.wrappedName(req.Name)
+
+	wc, err := b.wrapped.CreateObjectChunkWriter(ctx, mReq, chunkSize, callBack)
+	if err != nil {
+		return nil, err
+	}
+
+	return wc, err
+}
+
+func (b *prefixBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gcs.MinObject, err error) {
+	o, err = b.wrapped.FinalizeUpload(ctx, w)
+	// Modify the returned object.
+	if o != nil {
+		o.Name = b.localName(o.Name)
+	}
 	return
 }
 
@@ -139,17 +165,17 @@ func (b *prefixBucket) ComposeObjects(
 
 func (b *prefixBucket) StatObject(
 	ctx context.Context,
-	req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
+	req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
 	// Modify the request and call through.
 	mReq := new(gcs.StatObjectRequest)
 	*mReq = *req
 	mReq.Name = b.wrappedName(req.Name)
 
-	o, err = b.wrapped.StatObject(ctx, mReq)
+	m, e, err = b.wrapped.StatObject(ctx, mReq)
 
 	// Modify the returned object.
-	if o != nil {
-		o.Name = b.localName(o.Name)
+	if m != nil {
+		m.Name = b.localName(m.Name)
 	}
 
 	return
@@ -167,7 +193,7 @@ func (b *prefixBucket) ListObjects(
 
 	// Modify the returned listing.
 	if l != nil {
-		for _, o := range l.Objects {
+		for _, o := range l.MinObjects {
 			o.Name = b.localName(o.Name)
 		}
 
@@ -207,4 +233,64 @@ func (b *prefixBucket) DeleteObject(
 
 	err = b.wrapped.DeleteObject(ctx, mReq)
 	return
+}
+
+func (b *prefixBucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
+	// Modify the request and call through.
+	mReq := new(gcs.MoveObjectRequest)
+	*mReq = *req
+	mReq.SrcName = b.wrappedName(req.SrcName)
+	mReq.DstName = b.wrappedName(req.DstName)
+
+	o, err := b.wrapped.MoveObject(ctx, mReq)
+
+	// Modify the returned object.
+	if o != nil {
+		o.Name = b.localName(o.Name)
+	}
+
+	return o, err
+}
+
+func (b *prefixBucket) DeleteFolder(ctx context.Context, folderName string) (err error) {
+	mFolderName := b.wrappedName(folderName)
+	return b.wrapped.DeleteFolder(ctx, mFolderName)
+}
+
+func (b *prefixBucket) GetFolder(ctx context.Context, folderName string) (folder *gcs.Folder, err error) {
+	mFolderName := b.wrappedName(folderName)
+
+	f, err := b.wrapped.GetFolder(ctx, mFolderName)
+
+	// Modify the returned folder.
+	if f != nil {
+		f.Name = b.localName(f.Name)
+	}
+
+	return f, err
+}
+
+func (b *prefixBucket) CreateFolder(ctx context.Context, folderName string) (*gcs.Folder, error) {
+	mFolderName := b.wrappedName(folderName)
+	f, err := b.wrapped.CreateFolder(ctx, mFolderName)
+
+	// Modify the returned folder.
+	if f != nil {
+		f.Name = b.localName(mFolderName)
+	}
+
+	return f, err
+}
+
+func (b *prefixBucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (*gcs.Folder, error) {
+	mFolderName := b.wrappedName(folderName)
+	mDestinationFolderId := b.wrappedName(destinationFolderId)
+	f, err := b.wrapped.RenameFolder(ctx, mFolderName, mDestinationFolderId)
+
+	// Modify the returned folder.
+	if f != nil {
+		f.Name = b.localName(f.Name)
+	}
+
+	return f, err
 }

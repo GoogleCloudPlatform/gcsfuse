@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2015 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,9 +17,9 @@ package inode
 import (
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/jacobsa/fuse/fuseops"
-	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/timeutil"
 )
 
@@ -35,31 +35,43 @@ type ExplicitDirInode interface {
 func NewExplicitDirInode(
 	id fuseops.InodeID,
 	name Name,
-	o *gcs.Object,
+	m *gcs.MinObject,
 	attrs fuseops.InodeAttributes,
 	implicitDirs bool,
+	includeFoldersAsPrefixes bool,
+	enableNonexistentTypeCache bool,
 	typeCacheTTL time.Duration,
-	bucket gcsx.SyncerBucket,
+	bucket *gcsx.SyncerBucket,
 	mtimeClock timeutil.Clock,
-	cacheClock timeutil.Clock) (d ExplicitDirInode) {
+	cacheClock timeutil.Clock,
+	typeCacheMaxSizeMB int64,
+	enableHNS bool) (d ExplicitDirInode) {
 	wrapped := NewDirInode(
 		id,
 		name,
 		attrs,
 		implicitDirs,
+		includeFoldersAsPrefixes,
+		enableNonexistentTypeCache,
 		typeCacheTTL,
 		bucket,
 		mtimeClock,
-		cacheClock)
+		cacheClock,
+		typeCacheMaxSizeMB,
+		enableHNS)
 
-	d = &explicitDirInode{
+	dirInode := &explicitDirInode{
 		dirInode: wrapped.(*dirInode),
-		generation: Generation{
-			Object:   o.Generation,
-			Metadata: o.MetaGeneration,
-		},
 	}
 
+	if m != nil {
+		dirInode.generation = Generation{
+			Object:   m.Generation,
+			Metadata: m.MetaGeneration,
+		}
+	}
+
+	d = dirInode
 	return
 }
 

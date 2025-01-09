@@ -1,4 +1,4 @@
-// Copyright 2022 Google Inc. All Rights Reserved.
+// Copyright 2022 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,12 +17,11 @@ package contentcache_test
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"sync"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/contentcache"
 	"github.com/jacobsa/fuse/fsutil"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
@@ -76,7 +75,7 @@ func TestReadWriteMetadataCheckpointFile(t *testing.T) {
 	metadataFileName, err := contentCache.WriteMetadataCheckpointFile(objectMetadata.ObjectName, &objectMetadata)
 	AssertEq(err, nil)
 	newObjectMetadata := contentcache.CacheFileObjectMetadata{}
-	contents, err := ioutil.ReadFile(metadataFileName)
+	contents, err := os.ReadFile(metadataFileName)
 	AssertEq(err, nil)
 	err = json.Unmarshal(contents, &newObjectMetadata)
 	AssertEq(err, nil)

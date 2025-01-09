@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2016 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ import (
 	"mime"
 	"path"
 
-	"github.com/jacobsa/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
 
@@ -56,4 +56,14 @@ func (b contentTypeBucket) ComposeObjects(
 	// Pass on the request.
 	o, err = b.Bucket.ComposeObjects(ctx, req)
 	return
+}
+
+func (b contentTypeBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
+	// Guess a content type if necessary.
+	if req.ContentType == "" {
+		req.ContentType = mime.TypeByExtension(path.Ext(req.Name))
+	}
+
+	// Pass on the request.
+	return b.Bucket.CreateObjectChunkWriter(ctx, req, chunkSize, callBack)
 }

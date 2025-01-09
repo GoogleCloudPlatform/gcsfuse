@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2015 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,18 +15,24 @@
 package gcsx
 
 import (
+	"errors"
 	"fmt"
 	"io"
-	"log"
+	"strconv"
+	"strings"
+	"time"
 
-	"github.com/jacobsa/gcloud/gcs"
-	"go.opencensus.io/stats"
-	"go.opencensus.io/stats/view"
+	"github.com/google/uuid"
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
+	cacheutil "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	"github.com/jacobsa/fuse/fuseops"
 	"golang.org/x/net/context"
-)
-
-var (
-	readBytes = stats.Int64("read_bytes", "The number of bytes read from GCS", "By")
 )
 
 // MB is 1 Megabyte. (Silly comment to make the lint warning go away)
@@ -47,33 +53,27 @@ const maxReadSize = 8 * MB
 // Minimum number of seeks before evaluating if the read pattern is random.
 const minSeeksForRandom = 2
 
-// Initialize the metrics.
-func init() {
-	v := &view.View{
-		Name:        "gcsfuse_read_bytes",
-		Measure:     readBytes,
-		Description: "The number of bytes read from GCS",
-		Aggregation: view.Sum(),
-	}
-	if err := view.Register(v); err != nil {
-		log.Fatalf("Failed to register the view: %v", err)
-	}
-}
+// "readOp" is the value used in read context to store pointer to the read operation.
+const ReadOp = "readOp"
 
 // RandomReader is an object that knows how to read ranges within a particular
 // generation of a particular GCS object. Optimised for (large) sequential reads.
 //
 // Not safe for concurrent access.
+//
+// TODO - (raj-prince) - Rename this with appropriate name as it also started
+// fulfilling the responsibility of reading object's content from cache.
 type RandomReader interface {
 	// Panic if any internal invariants are violated.
 	CheckInvariants()
 
-	// Matches the semantics of io.ReaderAt, with the addition of context
-	// support.
-	ReadAt(ctx context.Context, p []byte, offset int64) (n int, err error)
+	// ReadAt Matches the semantics of io.ReaderAt, with the addition of context
+	// support and cache support. It returns a boolean which represent either
+	// content is read from fileCache (cacheHit = true) or gcs (cacheHit = false)
+	ReadAt(ctx context.Context, p []byte, offset int64) (n int, cacheHit bool, err error)
 
 	// Return the record for the object to which the reader is bound.
-	Object() (o *gcs.Object)
+	Object() (o *gcs.MinObject)
 
 	// Clean up any resources associated with the reader, which must not be used
 	// again.
@@ -82,23 +82,23 @@ type RandomReader interface {
 
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
-func NewRandomReader(
-	o *gcs.Object,
-	bucket gcs.Bucket) (rr RandomReader, err error) {
-	rr = &randomReader{
-		object:         o,
-		bucket:         bucket,
-		start:          -1,
-		limit:          -1,
-		seeks:          0,
-		totalReadBytes: 0,
+func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle) RandomReader {
+	return &randomReader{
+		object:                o,
+		bucket:                bucket,
+		start:                 -1,
+		limit:                 -1,
+		seeks:                 0,
+		totalReadBytes:        0,
+		sequentialReadSizeMb:  sequentialReadSizeMb,
+		fileCacheHandler:      fileCacheHandler,
+		cacheFileForRangeRead: cacheFileForRangeRead,
+		metricHandle:          metricHandle,
 	}
-
-	return
 }
 
 type randomReader struct {
-	object *gcs.Object
+	object *gcs.MinObject
 	bucket gcs.Bucket
 
 	// If non-nil, an in-flight read request and a function for cancelling it.
@@ -113,10 +113,27 @@ type randomReader struct {
 	//
 	// INVARIANT: start <= limit
 	// INVARIANT: limit < 0 implies reader != nil
+	// All these properties will be used only in case of GCS reads and not for
+	// reads from cache.
 	start          int64
 	limit          int64
 	seeks          uint64
 	totalReadBytes uint64
+
+	sequentialReadSizeMb int32
+
+	// fileCacheHandler is used to get file cache handle and read happens using that.
+	// This will be nil if the file cache is disabled.
+	fileCacheHandler *file.CacheHandler
+
+	// cacheFileForRangeRead is also valid for cache workflow, if true, object content
+	// will be downloaded for random reads as well too.
+	cacheFileForRangeRead bool
+
+	// fileCacheHandle is used to read from the cached location. It is created on the fly
+	// using fileCacheHandler for the given object and bucket.
+	fileCacheHandle *file.CacheHandle
+	metricHandle    common.MetricHandle
 }
 
 func (rr *randomReader) CheckInvariants() {
@@ -136,10 +153,139 @@ func (rr *randomReader) CheckInvariants() {
 	}
 }
 
+// tryReadingFromFileCache creates the cache handle first if it doesn't exist already
+// and then use that handle to read object's content which is cached in local file.
+// For the successful read, it returns number of bytes read, and a boolean representing
+// cacheHit as true.
+// For unsuccessful read, returns cacheHit as false, in this case content
+// should be read from GCS.
+// And it returns non-nil error in case something unexpected happens during the execution.
+// In this case, we must abort the Read operation.
+//
+// Important: What happens if the file in cache deleted externally?
+// That means, we have fileInfo entry in the fileInfoCache for that deleted file.
+// (a) If a new fileCacheHandle is created in that case it will return FileNotPresentInCache
+// error, given by fileCacheHandler.GetCacheHandle().
+// (b) If there is already an open fileCacheHandle then it means there is an open
+// fileHandle to file in cache. So, we will get the correct data from fileHandle
+// because Linux does not delete a file until open fileHandle count for a file is zero.
+func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
+	p []byte,
+	offset int64) (n int, cacheHit bool, err error) {
+
+	if rr.fileCacheHandler == nil {
+		return
+	}
+
+	// By default, consider read type random if the offset is non-zero.
+	isSeq := offset == 0
+
+	// Request log and start the execution timer.
+	requestId := uuid.New()
+	readOp := ctx.Value(ReadOp).(*fuseops.ReadFileOp)
+	logger.Tracef("%.13v <- FileCache(%s:/%s, offset: %d, size: %d handle: %d)", requestId, rr.bucket.Name(), rr.object.Name, offset, len(p), readOp.Handle)
+	startTime := time.Now()
+
+	// Response log
+	defer func() {
+		executionTime := time.Since(startTime)
+		var requestOutput string
+		if err != nil {
+			requestOutput = fmt.Sprintf("err: %v (%v)", err, executionTime)
+		} else {
+			if rr.fileCacheHandle != nil {
+				isSeq = rr.fileCacheHandle.IsSequential(offset)
+			}
+			requestOutput = fmt.Sprintf("OK (isSeq: %t, hit: %t) (%v)", isSeq, cacheHit, executionTime)
+		}
+
+		// Here rr.fileCacheHandle will not be nil since we return from the above in those cases.
+		logger.Tracef("%.13v -> %s", requestId, requestOutput)
+
+		readType := util.Random
+		if isSeq {
+			readType = util.Sequential
+		}
+		captureFileCacheMetrics(ctx, rr.metricHandle, readType, n, cacheHit, executionTime)
+	}()
+
+	// Create fileCacheHandle if not already.
+	if rr.fileCacheHandle == nil {
+		rr.fileCacheHandle, err = rr.fileCacheHandler.GetCacheHandle(rr.object, rr.bucket, rr.cacheFileForRangeRead, offset)
+		if err != nil {
+			// We fall back to GCS if file size is greater than the cache size
+			if strings.Contains(err.Error(), lru.InvalidEntrySizeErrorMsg) {
+				logger.Warnf("tryReadingFromFileCache: while creating CacheHandle: %v", err)
+				return 0, false, nil
+			} else if strings.Contains(err.Error(), cacheutil.CacheHandleNotRequiredForRandomReadErrMsg) {
+				// Fall back to GCS if it is a random read, cacheFileForRangeRead is
+				// False and there doesn't already exist file in cache.
+				isSeq = false
+				return 0, false, nil
+			}
+
+			return 0, false, fmt.Errorf("tryReadingFromFileCache: while creating CacheHandle instance: %w", err)
+		}
+	}
+
+	n, cacheHit, err = rr.fileCacheHandle.Read(ctx, rr.bucket, rr.object, offset, p)
+	if err == nil {
+		return
+	}
+
+	cacheHit = false
+	n = 0
+
+	if cacheutil.IsCacheHandleInvalid(err) {
+		logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", rr.fileCacheHandle, rr.bucket.Name(), rr.object.Name)
+		err = rr.fileCacheHandle.Close()
+		if err != nil {
+			logger.Warnf("tryReadingFromFileCache: while closing fileCacheHandle: %v", err)
+		}
+		rr.fileCacheHandle = nil
+	} else if !strings.Contains(err.Error(), cacheutil.FallbackToGCSErrMsg) {
+		err = fmt.Errorf("tryReadingFromFileCache: while reading via cache: %w", err)
+		return
+	}
+	err = nil
+
+	return
+}
+
+func captureFileCacheMetrics(ctx context.Context, metricHandle common.MetricHandle, readType string, readDataSize int, cacheHit bool, readLatency time.Duration) {
+	metricHandle.FileCacheReadCount(ctx, 1, []common.MetricAttr{
+		{Key: common.ReadType, Value: readType},
+		{Key: common.CacheHit, Value: strconv.FormatBool(cacheHit)},
+	})
+
+	metricHandle.FileCacheReadBytesCount(ctx, int64(readDataSize), []common.MetricAttr{{Key: common.ReadType, Value: readType}})
+	metricHandle.FileCacheReadLatency(ctx, float64(readLatency.Microseconds()), []common.MetricAttr{{Key: common.CacheHit, Value: strconv.FormatBool(cacheHit)}})
+}
+
 func (rr *randomReader) ReadAt(
 	ctx context.Context,
 	p []byte,
-	offset int64) (n int, err error) {
+	offset int64) (n int, cacheHit bool, err error) {
+
+	if offset >= int64(rr.object.Size) {
+		err = io.EOF
+		return
+	}
+
+	// Note: If we are reading the file for the first time and read type is sequential
+	// then the file cache behavior is write-through i.e. data is first read from
+	// GCS, cached in file and then served from that file. But the cacheHit is
+	// false in that case.
+	n, cacheHit, err = rr.tryReadingFromFileCache(ctx, p, offset)
+	if err != nil {
+		err = fmt.Errorf("ReadAt: while reading from cache: %w", err)
+		return
+	}
+	// Data was served from cache.
+	if cacheHit || n == len(p) || (n < len(p) && uint64(offset)+uint64(n) == rr.object.Size) {
+		return
+	}
+
 	for len(p) > 0 {
 		// Have we blown past the end of the object?
 		if offset >= int64(rr.object.Size) {
@@ -156,7 +302,7 @@ func (rr *randomReader) ReadAt(
 		if rr.reader != nil && rr.start < offset && offset-rr.start < maxReadSize {
 			bytesToSkip := int64(offset - rr.start)
 			p := make([]byte, bytesToSkip)
-			n, _ := rr.reader.Read(p)
+			n, _ := io.ReadFull(rr.reader, p)
 			rr.start += int64(n)
 		}
 
@@ -171,7 +317,7 @@ func (rr *randomReader) ReadAt(
 
 		// If we don't have a reader, start a read operation.
 		if rr.reader == nil {
-			err = rr.startRead(offset, int64(len(p)))
+			err = rr.startRead(ctx, offset, int64(len(p)))
 			if err != nil {
 				err = fmt.Errorf("startRead: %w", err)
 				return
@@ -191,7 +337,7 @@ func (rr *randomReader) ReadAt(
 
 		// Sanity check.
 		if rr.start > rr.limit {
-			err = fmt.Errorf("Reader returned %d too many bytes", rr.start-rr.limit)
+			err = fmt.Errorf("reader returned %d too many bytes", rr.start-rr.limit)
 
 			// Don't attempt to reuse the reader when it's behaving wackily.
 			rr.reader.Close()
@@ -217,7 +363,7 @@ func (rr *randomReader) ReadAt(
 			// if the reader peters out early. That's fine, but it means we should
 			// have hit the limit above.
 			if rr.reader != nil {
-				err = fmt.Errorf("Reader returned %d too few bytes", rr.limit-rr.start)
+				err = fmt.Errorf("reader returned %d too few bytes", rr.limit-rr.start)
 				return
 			}
 
@@ -230,11 +376,10 @@ func (rr *randomReader) ReadAt(
 		}
 	}
 
-	stats.Record(ctx, readBytes.M(int64(n)))
 	return
 }
 
-func (rr *randomReader) Object() (o *gcs.Object) {
+func (rr *randomReader) Object() (o *gcs.MinObject) {
 	o = rr.object
 	return
 }
@@ -242,9 +387,21 @@ func (rr *randomReader) Object() (o *gcs.Object) {
 func (rr *randomReader) Destroy() {
 	// Close out the reader, if we have one.
 	if rr.reader != nil {
-		rr.reader.Close()
+		err := rr.reader.Close()
 		rr.reader = nil
 		rr.cancel = nil
+		if err != nil {
+			logger.Warnf("rr.Destroy(): while closing reader: %v", err)
+		}
+	}
+
+	if rr.fileCacheHandle != nil {
+		logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", rr.fileCacheHandle, rr.bucket.Name(), rr.object.Name)
+		err := rr.fileCacheHandle.Close()
+		if err != nil {
+			logger.Warnf("rr.Destroy(): while closing cacheFileHandle: %v", err)
+		}
+		rr.fileCacheHandle = nil
 	}
 }
 
@@ -284,22 +441,24 @@ func (rr *randomReader) readFull(
 }
 
 // Ensure that rr.reader is set up for a range for which [start, start+size) is
-// a prefix.
+// a prefix. Irrespective of the size requested, we try to fetch more data
+// from GCS defined by sequentialReadSizeMb flag to serve future read requests.
 func (rr *randomReader) startRead(
+	ctx context.Context,
 	start int64,
 	size int64) (err error) {
 	// Make sure start and size are legal.
 	if start < 0 || uint64(start) > rr.object.Size || size < 0 {
 		err = fmt.Errorf(
-			"Range [%d, %d) is illegal for %d-byte object",
+			"range [%d, %d) is illegal for %d-byte object",
 			start,
 			start+size,
 			rr.object.Size)
 		return
 	}
 
-	// GCS requests are expensive. Prefer to issue read requests to the end of
-	// the object. Sequential reads will simply sip from the fire house
+	// GCS requests are expensive. Prefer to issue read requests defined by
+	// sequentialReadSizeMb flag. Sequential reads will simply sip from the fire house
 	// with each call to ReadAt. In practice, GCS will fill the TCP buffers
 	// with about 6 MB of data. Requests from outside GCP will be charged
 	// about 6MB of egress data, even if less data is read. Inside GCP
@@ -310,7 +469,9 @@ func (rr *randomReader) startRead(
 	// optimise for random reads. Random reads will read data in chunks of
 	// (average read size in bytes rounded up to the next MB).
 	end := int64(rr.object.Size)
+	readType := util.Sequential
 	if rr.seeks >= minSeeksForRandom {
+		readType = util.Random
 		averageReadBytes := rr.totalReadBytes / rr.seeks
 		if averageReadBytes < maxReadSize {
 			randomReadSize := int64(((averageReadBytes / MB) + 1) * MB)
@@ -327,6 +488,13 @@ func (rr *randomReader) startRead(
 		end = int64(rr.object.Size)
 	}
 
+	// To avoid overloading GCS and to have reasonable latencies, we will only
+	// fetch data of max size defined by sequentialReadSizeMb.
+	maxSizeToReadFromGCS := int64(rr.sequentialReadSizeMb * MB)
+	if end-start > maxSizeToReadFromGCS {
+		end = start + maxSizeToReadFromGCS
+	}
+
 	// Begin the read.
 	ctx, cancel := context.WithCancel(context.Background())
 	rc, err := rr.bucket.NewReader(
@@ -338,7 +506,20 @@ func (rr *randomReader) startRead(
 				Start: uint64(start),
 				Limit: uint64(end),
 			},
+			ReadCompressed: rr.object.HasContentEncodingGzip(),
 		})
+
+	// If a file handle is open locally, but the corresponding object doesn't exist
+	// in GCS, it indicates a file clobbering scenario. This likely occurred because:
+	//  - The file was deleted in GCS while a local handle was still open.
+	//  - The file content was modified leading to different generation number.
+	var notFoundError *gcs.NotFoundError
+	if errors.As(err, &notFoundError) {
+		err = &gcsfuse_errors.FileClobberedError{
+			Err: fmt.Errorf("NewReader: %w", err),
+		}
+		return
+	}
 
 	if err != nil {
 		err = fmt.Errorf("NewReader: %w", err)
@@ -349,6 +530,9 @@ func (rr *randomReader) startRead(
 	rr.cancel = cancel
 	rr.start = start
 	rr.limit = end
+
+	requestedDataSize := end - start
+	common.CaptureGCSReadMetrics(ctx, rr.metricHandle, readType, requestedDataSize)
 
 	return
 }

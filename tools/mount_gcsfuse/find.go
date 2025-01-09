@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2015 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -45,7 +45,7 @@ func findFusermount() (p string, err error) {
 		}
 	}
 
-	err = errors.New("Can't find a usable executable.")
+	err = errors.New("can't find a usable executable")
 	return
 }
 
@@ -71,6 +71,6 @@ func findGcsfuse() (p string, err error) {
 		}
 	}
 
-	err = errors.New("Can't find a usable executable.")
+	err = errors.New("can't find a usable executable")
 	return
 }

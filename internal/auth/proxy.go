@@ -1,4 +1,4 @@
-// Copyright 2020 Google Inc. All Rights Reserved.
+// Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,8 +19,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"net"
 	"net/http"
+	"net/url"
 
 	"golang.org/x/oauth2"
 )
@@ -30,13 +31,34 @@ import (
 func newProxyTokenSource(
 	ctx context.Context,
 	endpoint string,
-) oauth2.TokenSource {
-	ts := proxyTokenSource{
+	reuseTokenFromUrl bool,
+) (ts oauth2.TokenSource, err error) {
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		err = fmt.Errorf("newProxyTokenSource cannot parse endpoint %s: %w", endpoint, err)
+		return
+	}
+
+	client := &http.Client{}
+	if u.Scheme == "unix" {
+		client.Transport = &http.Transport{
+			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+				dialer := net.Dialer{}
+				return dialer.DialContext(ctx, u.Scheme, u.Path)
+			},
+		}
+		endpoint = "http://unix?" + u.RawQuery
+	}
+
+	ts = proxyTokenSource{
 		ctx:      ctx,
 		endpoint: endpoint,
-		client:   &http.Client{},
+		client:   client,
 	}
-	return oauth2.ReuseTokenSource(nil, ts)
+	if reuseTokenFromUrl {
+		return oauth2.ReuseTokenSource(nil, ts), nil
+	}
+	return ts, nil
 }
 
 type proxyTokenSource struct {
@@ -52,7 +74,7 @@ func (ts proxyTokenSource) Token() (token *oauth2.Token, err error) {
 		return
 	}
 
-	body, err := ioutil.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
 		err = fmt.Errorf("proxyTokenSource cannot load body: %w", err)
 		return

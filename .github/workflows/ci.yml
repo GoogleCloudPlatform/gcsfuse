@@ -9,12 +9,26 @@ on:
       - '*'
 
 jobs:
+  format-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: "1.23"
+    - name: CodeGen
+      run: go generate ./...
+    - name: Formatting diff
+      run: go fmt ./... && git diff --exit-code --name-only
+
   linux-tests:
     strategy:
       matrix:
-        go: [1.17.x]
-    runs-on: ubuntu-20.04
-    timeout-minutes: 10
+        go: [ 1.23.x ]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
     - uses: actions/checkout@v2
@@ -26,9 +40,34 @@ jobs:
       run: sudo apt-get update && sudo apt-get install -y fuse3 libfuse-dev
     - name: Build
       run: |
-        go build ./...
+        CGO_ENABLED=0 go build ./...
         go install ./tools/build_gcsfuse
         build_gcsfuse . /tmp ${GITHUB_SHA}
-    - name: Test
-      run: go test -p 1 -count 1 -v -cover ./...
-    
+    - name: Test all
+      run: CGO_ENABLED=0 go test -p 1 -count 1 -covermode=atomic -coverprofile=coverage.out -coverpkg=./... -v -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./...`
+    - name: Cache RaceDetector Test
+      run: go test -p 1 -count 1 -v -race -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` ./internal/cache/...
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v4.3.1
+      timeout-minutes: 5
+      with:
+        fail_ci_if_error: true
+        token: ${{ secrets.CODECOV_TOKEN }}
+        flags: unittests
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+    - name: Setup Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: "1.23"
+    - name: checkout code
+      uses: actions/checkout@v4
+    - name: golangci-lint
+      uses: golangci/golangci-lint-action@032fa5c5e48499f06cf9d32c02149bfac1284239
+      with:
+        args: -E=goimports --timeout 2m0s
+        only-new-issues: true
+

@@ -1,4 +1,4 @@
-// Copyright 2020 Google Inc. All Rights Reserved.
+// Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,125 +15,184 @@
 package logger
 
 import (
+	"context"
+	"fmt"
 	"io"
-	"log"
+	"log/slog"
+	"log/syslog"
 	"os"
+	"runtime/debug"
 
-	"github.com/jacobsa/daemonize"
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"gopkg.in/natefinch/lumberjack.v2"
+)
+
+// Syslog file contains logs from all different programmes running on the VM.
+// ProgrammeName is prefixed to all the logs written to syslog. This constant is
+// used to filter the logs from syslog and write it to respective log files -
+// gcsfuse.log in case of GCSFuse.
+const (
+	ProgrammeName           string = "gcsfuse"
+	GCSFuseInBackgroundMode string = "GCSFUSE_IN_BACKGROUND_MODE"
+	textFormat              string = "text"
 )
 
 var (
 	defaultLoggerFactory *loggerFactory
-	defaultInfoLogger    *log.Logger
+	defaultLogger        *slog.Logger
 )
 
 // InitLogFile initializes the logger factory to create loggers that print to
 // a log file.
-func InitLogFile(filename string, format string) error {
-	f, err := os.OpenFile(
-		filename,
-		os.O_WRONLY|os.O_CREATE|os.O_APPEND,
-		0644,
-	)
-	if err != nil {
-		return err
+// In case of empty file, it starts writing the log to syslog file, which
+// is eventually filtered and redirected to a fixed location using syslog
+// config.
+// Here, background true means, this InitLogFile has been called for the
+// background daemon.
+func InitLogFile(newLogConfig cfg.LoggingConfig) error {
+	var f *os.File
+	var sysWriter *syslog.Writer
+	var fileWriter *lumberjack.Logger
+	var err error
+	if newLogConfig.FilePath != "" {
+		f, err = os.OpenFile(
+			string(newLogConfig.FilePath),
+			os.O_WRONLY|os.O_CREATE|os.O_APPEND,
+			0644,
+		)
+		if err != nil {
+			return err
+		}
+		fileWriter = &lumberjack.Logger{
+			Filename:   f.Name(),
+			MaxSize:    int(newLogConfig.LogRotate.MaxFileSizeMb),
+			MaxBackups: int(newLogConfig.LogRotate.BackupFileCount),
+			Compress:   newLogConfig.LogRotate.Compress,
+		}
+	} else {
+		if _, ok := os.LookupEnv(GCSFuseInBackgroundMode); ok {
+			// Priority consist of facility and severity, here facility to specify the
+			// type of system that is logging the message to syslog and severity is log-level.
+			// User applications are allowed to take facility value between LOG_LOCAL0
+			// to LOG_LOCAL7. We are using LOG_LOCAL7 as facility and LOG_DEBUG to write
+			// debug messages.
+
+			// Suppressing the error while creating the syslog, although logger will
+			// be initialised with stdout/err, log will be printed anywhere. Because,
+			// in this case gcsfuse will be running as daemon.
+			sysWriter, _ = syslog.New(syslog.LOG_LOCAL7|syslog.LOG_DEBUG, ProgrammeName)
+		}
 	}
 
 	defaultLoggerFactory = &loggerFactory{
-		file:   f,
-		flag:   0,
-		format: format,
+		file:       f,
+		sysWriter:  sysWriter,
+		fileWriter: fileWriter,
+		format:     newLogConfig.Format,
+		level:      string(newLogConfig.Severity),
+		logRotate:  newLogConfig.LogRotate,
 	}
-	defaultInfoLogger = NewInfo("")
+	defaultLogger = defaultLoggerFactory.newLogger(string(newLogConfig.Severity))
 
 	return nil
 }
 
 // init initializes the logger factory to use stdout and stderr.
 func init() {
+	logConfig := cfg.DefaultLoggingConfig()
 	defaultLoggerFactory = &loggerFactory{
-		file: nil,
-		flag: log.Ldate | log.Ltime | log.Lmicroseconds,
+		file:      nil,
+		format:    logConfig.Format,
+		level:     string(logConfig.Severity), // setting log level to INFO by default
+		logRotate: logConfig.LogRotate,
 	}
-	defaultInfoLogger = NewInfo("")
+	defaultLogger = defaultLoggerFactory.newLogger(cfg.INFO)
 }
 
-// Close closes the log file when necessary.
-func Close() {
-	if f := defaultLoggerFactory.file; f != nil {
-		f.Close()
-		defaultLoggerFactory.file = nil
+// SetLogFormat updates the log format of default logger.
+func SetLogFormat(format string) {
+	if format == defaultLoggerFactory.format {
+		return
 	}
+	defaultLoggerFactory.format = format
+	defaultLogger = defaultLoggerFactory.newLogger(defaultLoggerFactory.level)
 }
 
-// NewNotice returns a new logger for logging notice with given prefix to
-// the log file or the status writer which forwards the notices to the invoker
-// from the daemon.
-func NewNotice(prefix string) *log.Logger {
-	return defaultLoggerFactory.newLogger("NOTICE", prefix)
+// Tracef prints the message with TRACE severity in the specified format.
+func Tracef(format string, v ...interface{}) {
+	defaultLogger.Log(context.Background(), LevelTrace, fmt.Sprintf(format, v...))
 }
 
-// NewDebug returns a new logger for logging debug messages with given prefix
-// to the log file or stdout.
-func NewDebug(prefix string) *log.Logger {
-	return defaultLoggerFactory.newLogger("DEBUG", prefix)
+// Debugf prints the message with DEBUG severity in the specified format.
+func Debugf(format string, v ...interface{}) {
+	defaultLogger.Debug(fmt.Sprintf(format, v...))
 }
 
-// NewInfo returns a new logger for logging info with given prefix to the log
-// file or stdout.
-func NewInfo(prefix string) *log.Logger {
-	return defaultLoggerFactory.newLogger("INFO", prefix)
-}
-
-// NewError returns a new logger for logging errors with given prefix to the log
-// file or stderr.
-func NewError(prefix string) *log.Logger {
-	return defaultLoggerFactory.newLogger("ERROR", prefix)
-}
-
-// Info calls the default info logger to print the message using Printf.
+// Infof prints the message with INFO severity in the specified format.
 func Infof(format string, v ...interface{}) {
-	defaultInfoLogger.Printf(format, v...)
+	defaultLogger.Info(fmt.Sprintf(format, v...))
 }
 
-// Info calls the default info logger to print the message using Println.
-func Info(v ...interface{}) {
-	defaultInfoLogger.Println(v...)
+// Info prints the message with info severity.
+func Info(message string, args ...any) {
+	defaultLogger.Info(message, args...)
+}
+
+// Warnf prints the message with WARNING severity in the specified format.
+func Warnf(format string, v ...interface{}) {
+	defaultLogger.Warn(fmt.Sprintf(format, v...))
+}
+
+// Errorf prints the message with ERROR severity in the specified format.
+func Errorf(format string, v ...interface{}) {
+	defaultLogger.Error(fmt.Sprintf(format, v...))
+}
+
+// Error prints the message with ERROR severity.
+func Error(error string) {
+	defaultLogger.Error(error)
+}
+
+// Fatal prints an error log and exits with non-zero exit code.
+func Fatal(format string, v ...interface{}) {
+	Errorf(format, v...)
+	Error(string(debug.Stack()))
+	os.Exit(1)
 }
 
 type loggerFactory struct {
 	// If nil, log to stdout or stderr. Otherwise, log to this file.
-	file   *os.File
-	flag   int
-	format string
+	file       *os.File
+	sysWriter  *syslog.Writer
+	format     string
+	level      string
+	logRotate  cfg.LogRotateLoggingConfig
+	fileWriter *lumberjack.Logger
 }
 
-func (f *loggerFactory) newLogger(level, prefix string) *log.Logger {
-	return log.New(f.writer(level), prefix, f.flag)
+func (f *loggerFactory) newLogger(level string) *slog.Logger {
+	// create a new logger
+	var programLevel = new(slog.LevelVar)
+	logger := slog.New(f.handler(programLevel, ""))
+	slog.SetDefault(logger)
+	setLoggingLevel(level, programLevel)
+	return logger
 }
 
-func (f *loggerFactory) writer(level string) io.Writer {
-	if f.file != nil {
-		switch f.format {
-		case "json":
-			return &jsonWriter{
-				w:     f.file,
-				level: level,
-			}
-		case "text":
-			return &textWriter{
-				w:     f.file,
-				level: level,
-			}
-		}
+func (f *loggerFactory) createJsonOrTextHandler(writer io.Writer, levelVar *slog.LevelVar, prefix string) slog.Handler {
+	if f.format == textFormat {
+		return slog.NewTextHandler(writer, getHandlerOptions(levelVar, prefix, f.format))
+	}
+	return slog.NewJSONHandler(writer, getHandlerOptions(levelVar, prefix, f.format))
+}
+
+func (f *loggerFactory) handler(levelVar *slog.LevelVar, prefix string) slog.Handler {
+	if f.fileWriter != nil {
+		return f.createJsonOrTextHandler(f.fileWriter, levelVar, prefix)
 	}
 
-	switch level {
-	case "NOTICE":
-		return daemonize.StatusWriter
-	case "ERROR":
-		return os.Stderr
-	default:
-		return os.Stdout
+	if f.sysWriter != nil {
+		return f.createJsonOrTextHandler(f.sysWriter, levelVar, prefix)
 	}
+	return f.createJsonOrTextHandler(os.Stdout, levelVar, prefix)
 }

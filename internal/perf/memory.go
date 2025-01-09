@@ -1,4 +1,4 @@
-// Copyright 2021 Google Inc. All Rights Reserved.
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 )
 
 const (
@@ -31,18 +31,17 @@ const (
 	MiB = 1024 * KiB
 )
 
-
 func HandleMemoryProfileSignals() {
 	profileOnce := func(path string) (err error) {
-		// Trigger a garbage collection to get up to date information (cf.
-		// https://goo.gl/aXVQfL).
+		// Trigger a garbage collection to get up to date information
+		// (https://tinyurl.com/93d9jh53).
 		runtime.GC()
 
 		// Open the file.
 		var f *os.File
 		f, err = os.Create(path)
 		if err != nil {
-			err = fmt.Errorf("Create: %w", err)
+			err = fmt.Errorf("create: %w", err)
 			return
 		}
 
@@ -70,7 +69,7 @@ func HandleMemoryProfileSignals() {
 
 		var m runtime.MemStats
 		runtime.ReadMemStats(&m)
-		logger.Infof("Heap allocation: %d MiB", m.Alloc / MiB)
+		logger.Infof("Heap allocation: %d MiB", m.Alloc/MiB)
 
 		err := profileOnce(path)
 		if err == nil {

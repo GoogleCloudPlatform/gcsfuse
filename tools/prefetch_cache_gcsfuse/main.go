@@ -1,4 +1,4 @@
-// Copyright 2022 Google Inc. All Rights Reserved.
+// Copyright 2022 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,12 +16,11 @@
 //
 // Usage:
 //
-//     prefetch_cache_gcsfuse cache_dir bucket_name [prefix]
+//	prefetch_cache_gcsfuse cache_dir bucket_name [prefix]
 //
 // This will prefetch the cache files from the specified bucket
 // with an optional file prefix to filter the GCS objects
 // and download them into the specified cache directory
-//
 package main
 
 import (
@@ -34,7 +33,7 @@ import (
 func run(args []string) (err error) {
 	// Extract arguments.
 	if len(args) < 2 || len(args) > 3 {
-		err = fmt.Errorf("Usage: %s cache_dir bucket_name [prefix]", os.Args[0])
+		err = fmt.Errorf("usage: %s cache_dir bucket_name [prefix]", os.Args[0])
 		return
 	}
 

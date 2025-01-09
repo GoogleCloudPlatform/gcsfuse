@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2015 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Create and open a bunch of files, then measure the performance of repeatedly
-// statting them.
+// stating them.
 package main
 
 import (
@@ -27,10 +27,10 @@ import (
 	"time"
 
 	"golang.org/x/net/context"
+	"golang.org/x/sync/errgroup"
 
-	"github.com/googlecloudplatform/gcsfuse/benchmarks/internal/format"
+	"github.com/googlecloudplatform/gcsfuse/v2/benchmarks/internal/format"
 	"github.com/jacobsa/fuse/fsutil"
-	"github.com/jacobsa/syncutil"
 )
 
 var fDir = flag.String("dir", "", "Directory within which to create the files.")
@@ -50,7 +50,7 @@ func closeAll(files []*os.File) {
 func createFiles(
 	dir string,
 	numFiles int) (files []*os.File, err error) {
-	b := syncutil.NewBundle(context.Background())
+	group, ctx := errgroup.WithContext(context.Background())
 
 	// Create files in parallel, and write them to a channel.
 	const parallelism = 128
@@ -61,7 +61,7 @@ func createFiles(
 
 	for i := 0; i < parallelism; i++ {
 		wg.Add(1)
-		b.Add(func(ctx context.Context) (err error) {
+		group.Go(func() (err error) {
 			defer wg.Done()
 			for {
 				// Should we create another?
@@ -95,7 +95,7 @@ func createFiles(
 	}()
 
 	// Accumulate into the slice.
-	b.Add(func(ctx context.Context) (err error) {
+	group.Go(func() (err error) {
 		for f := range fileChan {
 			files = append(files, f)
 		}
@@ -103,7 +103,7 @@ func createFiles(
 		return
 	})
 
-	err = b.Join()
+	err = group.Wait()
 	if err != nil {
 		closeAll(files)
 		files = nil
@@ -118,12 +118,12 @@ func createFiles(
 
 func run() (err error) {
 	if *fDir == "" {
-		err = errors.New("You must set --dir.")
+		err = errors.New("you must set --dir")
 		return
 	}
 
 	if *fNumFiles <= 0 {
-		err = fmt.Errorf("Invalid setting for --num_files: %d", *fNumFiles)
+		err = fmt.Errorf("invalid setting for --num_files: %d", *fNumFiles)
 		return
 	}
 
@@ -147,7 +147,7 @@ func run() (err error) {
 	for ; time.Since(start) < *fDuration; statCount++ {
 		_, err = files[statCount%int64(len(files))].Stat()
 		if err != nil {
-			err = fmt.Errorf("Stat: %w", err)
+			err = fmt.Errorf("stat: %w", err)
 			return
 		}
 	}

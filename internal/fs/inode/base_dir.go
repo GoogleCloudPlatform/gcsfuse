@@ -1,4 +1,4 @@
-// Copyright 2020 Google Inc. All Rights Reserved.
+// Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,22 +15,26 @@
 package inode
 
 import (
-	"sync"
 	"syscall"
+	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
+
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/jacobsa/fuse"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
-	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
 )
 
 // An inode that
-//  (1) represents a base directory which contains a list of
-//      subdirectories as the roots of different GCS buckets;
-//  (2) implements BaseDirInode, allowing read only ops.
+//
+//	(1) represents a base directory which contains a list of
+//	    subdirectories as the roots of different GCS buckets;
+//	(2) implements BaseDirInode, allowing read only ops.
 type baseDirInode struct {
 	/////////////////////////
 	// Constant data
@@ -48,7 +52,7 @@ type baseDirInode struct {
 
 	// A mutex that must be held when calling certain methods. See documentation
 	// for each method.
-	mu sync.Mutex
+	mu locker.RWLocker
 
 	lc lookupCount
 
@@ -57,6 +61,8 @@ type baseDirInode struct {
 
 	// GUARDED_BY(mu)
 	buckets map[string]gcsx.SyncerBucket
+
+	metricHandle common.MetricHandle
 }
 
 // NewBaseDirInode returns a baseDirInode that acts as the directory of
@@ -65,39 +71,20 @@ func NewBaseDirInode(
 	id fuseops.InodeID,
 	name Name,
 	attrs fuseops.InodeAttributes,
-	bm gcsx.BucketManager) (d DirInode) {
+	bm gcsx.BucketManager,
+	metricHandle common.MetricHandle) (d DirInode) {
 	typed := &baseDirInode{
 		id:            id,
 		name:          NewRootName(""),
 		attrs:         attrs,
 		bucketManager: bm,
 		buckets:       make(map[string]gcsx.SyncerBucket),
+		metricHandle:  metricHandle,
 	}
 	typed.lc.Init(id)
+	typed.mu = locker.NewRW("BaseDirInode"+name.GcsObjectName(), func() {})
 
 	d = typed
-	return
-}
-
-////////////////////////////////////////////////////////////////////////
-// Helpers
-////////////////////////////////////////////////////////////////////////
-
-// LOCKS_REQUIRED(d)
-func (d *baseDirInode) lookUpOrSetUpBucket(
-	ctx context.Context,
-	name string) (b gcsx.SyncerBucket, err error) {
-	var ok bool
-	b, ok = d.buckets[name]
-	if ok {
-		return
-	}
-
-	b, err = d.bucketManager.SetUpBucket(ctx, name)
-	if err != nil {
-		return
-	}
-	d.buckets[name] = b
 	return
 }
 
@@ -110,6 +97,26 @@ func (d *baseDirInode) Lock() {
 }
 
 func (d *baseDirInode) Unlock() {
+	d.mu.Unlock()
+}
+
+func (d *baseDirInode) RLock() {
+	d.mu.RLock()
+}
+
+func (d *baseDirInode) RUnlock() {
+	d.mu.RUnlock()
+}
+
+// LockForChildLookup takes exclusive lock on inode when the inode's child is
+// looked up. It is different from non-base dir inode because during lookup of
+// child in base directory inode, the buckets map is modified and hence should
+// be guarded by exclusive lock.
+func (d *baseDirInode) LockForChildLookup() {
+	d.mu.Lock()
+}
+
+func (d *baseDirInode) UnlockForChildLookup() {
 	d.mu.Unlock()
 }
 
@@ -153,7 +160,7 @@ func (d *baseDirInode) LookUpChild(ctx context.Context, name string) (*Core, err
 	var err error
 	bucket, ok := d.buckets[name]
 	if !ok {
-		bucket, err = d.bucketManager.SetUpBucket(ctx, name)
+		bucket, err = d.bucketManager.SetUpBucket(ctx, name, true, d.metricHandle)
 		if err != nil {
 			return nil, err
 		}
@@ -161,9 +168,9 @@ func (d *baseDirInode) LookUpChild(ctx context.Context, name string) (*Core, err
 	}
 
 	return &Core{
-		Bucket:   bucket,
-		FullName: NewRootName(bucket.Name()),
-		Object:   nil,
+		Bucket:    &bucket,
+		FullName:  NewRootName(bucket.Name()),
+		MinObject: nil,
 	}, nil
 }
 
@@ -197,7 +204,15 @@ func (d *baseDirInode) CreateChildFile(ctx context.Context, name string) (*Core,
 	return nil, fuse.ENOSYS
 }
 
-func (d *baseDirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.Object) (*Core, error) {
+func (d *baseDirInode) InsertFileIntoTypeCache(_ string) {}
+
+func (d *baseDirInode) EraseFromTypeCache(_ string) {}
+
+func (d *baseDirInode) CreateLocalChildFileCore(_ string) (Core, error) {
+	return Core{}, fuse.ENOSYS
+}
+
+func (d *baseDirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.MinObject) (*Core, error) {
 	return nil, fuse.ENOSYS
 }
 
@@ -220,7 +235,41 @@ func (d *baseDirInode) DeleteChildFile(
 
 func (d *baseDirInode) DeleteChildDir(
 	ctx context.Context,
-	name string) (err error) {
+	name string,
+	isImplicitDir bool,
+	dirInode DirInode) (err error) {
 	err = fuse.ENOSYS
 	return
+}
+
+func (d *baseDirInode) LocalFileEntries(localFileInodes map[Name]Inode) (localEntries map[string]fuseutil.Dirent) {
+	// Base directory can not contain local files.
+	return nil
+}
+
+func (d *baseDirInode) ShouldInvalidateKernelListCache(ttl time.Duration) bool {
+	// Keeping the default behavior although list operation is not supported
+	// for baseDirInode.
+	return true
+}
+
+// List operation is not supported for baseDirInode.
+func (d *baseDirInode) InvalidateKernelListCache() {}
+
+func (d *baseDirInode) RenameFile(ctx context.Context, fileToRename *gcs.MinObject, destinationFileName string) (*gcs.Object, error) {
+	err := fuse.ENOSYS
+	return nil, err
+}
+
+func (d *baseDirInode) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (op *gcs.Folder, err error) {
+	err = fuse.ENOSYS
+	return
+}
+
+// This operation is not supported on base_dir.
+func (d *baseDirInode) IsUnlinked() bool {
+	return false
+}
+
+func (d *baseDirInode) Unlink() {
 }

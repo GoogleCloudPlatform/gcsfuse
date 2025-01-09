@@ -1,0 +1,5 @@
+file-system:
+  fuse-options:
+  - a
+  - b
+  - c

@@ -1,4 +1,4 @@
-// Copyright 2020 Google Inc. All Rights Reserved.
+// Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package inode_test
+package inode
 
 import (
 	"fmt"
@@ -20,15 +20,19 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"golang.org/x/net/context"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
-	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
 )
+
+const ChunkTransferTimeoutSecs = 10
 
 func TestBaseDir(t *testing.T) { RunTests(t) }
 
@@ -40,7 +44,7 @@ type BaseDirTest struct {
 	ctx   context.Context
 	clock timeutil.SimulatedClock
 	bm    *fakeBucketManager
-	in    inode.DirInode
+	in    DirInode
 }
 
 var _ SetUpInterface = &BaseDirTest{}
@@ -58,13 +62,15 @@ func (t *BaseDirTest) SetUp(ti *TestInfo) {
 	}
 	t.bm.buckets["bucketA"] = gcsx.NewSyncerBucket(
 		1, // Append threshold
+		ChunkTransferTimeoutSecs,
 		".gcsfuse_tmp/",
-		gcsfake.NewFakeBucket(&t.clock, "bucketA"),
+		fake.NewFakeBucket(&t.clock, "bucketA", gcs.NonHierarchical),
 	)
 	t.bm.buckets["bucketB"] = gcsx.NewSyncerBucket(
 		1, // Append threshold
+		ChunkTransferTimeoutSecs,
 		".gcsfuse_tmp/",
-		gcsfake.NewFakeBucket(&t.clock, "bucketB"),
+		fake.NewFakeBucket(&t.clock, "bucketB", gcs.NonHierarchical),
 	)
 
 	// Create the inode. No implicit dirs by default.
@@ -86,7 +92,7 @@ type fakeBucketManager struct {
 
 func (bm *fakeBucketManager) SetUpBucket(
 	ctx context.Context,
-	name string) (sb gcsx.SyncerBucket, err error) {
+	name string, isMultibucketMount bool, _ common.MetricHandle) (sb gcsx.SyncerBucket, err error) {
 	bm.setupTimes++
 
 	var ok bool
@@ -109,15 +115,16 @@ func (t *BaseDirTest) resetInode() {
 		t.in.Unlock()
 	}
 
-	t.in = inode.NewBaseDirInode(
+	t.in = NewBaseDirInode(
 		dirInodeID,
-		inode.NewRootName(""),
+		NewRootName(""),
 		fuseops.InodeAttributes{
 			Uid:  uid,
 			Gid:  gid,
 			Mode: dirMode,
 		},
-		t.bm)
+		t.bm,
+		common.NewNoopMetrics())
 
 	t.in.Lock()
 }
@@ -171,8 +178,8 @@ func (t *BaseDirTest) LookUpChild_BucketFound() {
 	ExpectTrue(result.FullName.IsBucketRoot())
 	ExpectEq("bucketA/", result.FullName.LocalName())
 	ExpectEq("", result.FullName.GcsObjectName())
-	ExpectEq(nil, result.Object)
-	ExpectEq(inode.ImplicitDirType, result.Type())
+	ExpectEq(nil, result.MinObject)
+	ExpectEq(metadata.ImplicitDirType, result.Type())
 
 	result, err = t.in.LookUpChild(t.ctx, "bucketB")
 
@@ -183,8 +190,8 @@ func (t *BaseDirTest) LookUpChild_BucketFound() {
 	ExpectTrue(result.FullName.IsBucketRoot())
 	ExpectEq("bucketB/", result.FullName.LocalName())
 	ExpectEq("", result.FullName.GcsObjectName())
-	ExpectEq(nil, result.Object)
-	ExpectEq(inode.ImplicitDirType, result.Type())
+	ExpectEq(nil, result.MinObject)
+	ExpectEq(metadata.ImplicitDirType, result.Type())
 }
 
 func (t *BaseDirTest) LookUpChild_BucketCached() {
@@ -198,4 +205,16 @@ func (t *BaseDirTest) LookUpChild_BucketCached() {
 	ExpectEq(2, t.bm.SetUpTimes())
 	_, _ = t.in.LookUpChild(t.ctx, "missing_bucket")
 	ExpectEq(3, t.bm.SetUpTimes())
+}
+
+func (t *BaseDirTest) Test_ShouldInvalidateKernelListCache() {
+	ttl := time.Second
+	AssertEq(true, t.in.ShouldInvalidateKernelListCache(ttl))
+}
+
+func (t *BaseDirTest) Test_ShouldInvalidateKernelListCache_TtlExpired() {
+	ttl := time.Second
+	t.clock.AdvanceTime(10 * time.Second)
+
+	AssertEq(true, t.in.ShouldInvalidateKernelListCache(ttl))
 }

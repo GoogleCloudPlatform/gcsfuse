@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2015 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,23 +17,24 @@ package fs
 import (
 	"fmt"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/fs/wrappers"
+	newcfg "github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/wrappers"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseutil"
 	"golang.org/x/net/context"
 )
 
-// Create a fuse file system server according to the supplied configuration.
+// NewServer creates a fuse file system server according to the supplied configuration.
 func NewServer(ctx context.Context, cfg *ServerConfig) (fuse.Server, error) {
 	fs, err := NewFileSystem(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("create file system: %w", err)
 	}
 
-	if cfg.DebugFS {
-		fs = wrappers.WithDebugLogging(fs)
+	fs = wrappers.WithErrorMapping(fs, cfg.NewConfig.FileSystem.PreconditionErrors)
+	if newcfg.IsTracingEnabled(cfg.NewConfig) {
+		fs = wrappers.WithTracing(fs)
 	}
-	fs = wrappers.WithErrorMapping(fs)
-	fs = wrappers.WithMonitoring(fs)
+	fs = wrappers.WithMonitoring(fs, cfg.MetricHandle)
 	return fuseutil.NewFileSystemServer(fs), nil
 }

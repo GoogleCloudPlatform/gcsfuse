@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2015 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,12 +22,11 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/benchmarks/internal/format"
+	"github.com/googlecloudplatform/gcsfuse/v2/benchmarks/internal/format"
 )
 
 var fDir = flag.String("dir", "", "Directory within which to write the file.")
@@ -41,16 +40,16 @@ var fWriteSize = flag.Int64("write_size", 1<<20, "Size of each call to write(2).
 
 func run() (err error) {
 	if *fDir == "" {
-		err = errors.New("You must set --dir.")
+		err = errors.New("you must set --dir")
 		return
 	}
 
 	// Create a temporary file.
-	log.Printf("Creating a temporary file in %s.", *fDir)
+	log.Printf("creating a temporary file in %s.", *fDir)
 
-	f, err := ioutil.TempFile(*fDir, "write_locally")
+	f, err := os.CreateTemp(*fDir, "write_locally")
 	if err != nil {
-		err = fmt.Errorf("TempFile: %w", err)
+		err = fmt.Errorf("tempFile: %w", err)
 		return
 	}
 
@@ -59,11 +58,11 @@ func run() (err error) {
 	// Make sure we clean it up later.
 	defer func() {
 		log.Printf("Truncating and closing %s.", path)
-		f.Truncate(0)
-		f.Close()
+		_ = f.Truncate(0)
+		_ = f.Close()
 
 		log.Printf("Deleting %s.", path)
-		os.Remove(path)
+		_ = os.Remove(path)
 	}()
 
 	// Extend to the initial size.
@@ -71,7 +70,7 @@ func run() (err error) {
 
 	err = f.Truncate(*fFileSize)
 	if err != nil {
-		err = fmt.Errorf("Truncate: %w", err)
+		err = fmt.Errorf("truncate: %w", err)
 		return
 	}
 
@@ -88,22 +87,17 @@ func run() (err error) {
 		// Seek to the beginning.
 		_, err = f.Seek(0, 0)
 		if err != nil {
-			err = fmt.Errorf("Seek: %w", err)
+			err = fmt.Errorf("seek: %w", err)
 			return
 		}
 
 		// Overwrite.
 		var n int64
 		for n < *fFileSize && time.Since(start) < *fDuration {
-			toWrite := *fFileSize - n
-			if toWrite > *fWriteSize {
-				toWrite = *fWriteSize
-			}
-
 			var tmp int
 			tmp, err = f.Write(buf)
 			if err != nil {
-				err = fmt.Errorf("Write: %w", err)
+				err = fmt.Errorf("write: %w", err)
 				return
 			}
 
