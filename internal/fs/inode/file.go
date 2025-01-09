@@ -727,8 +727,13 @@ func (f *FileInode) fetchLatestGcsObject(ctx context.Context) (*gcs.Object, erro
 	// properties.
 	latestGcsObj, isClobbered, err := f.clobbered(ctx, true, true)
 	if isClobbered {
+		if err == nil {
+			err = fmt.Errorf("file was clobbered")
+		} else {
+			err = fmt.Errorf("file was clobbered: %w", err)
+		}
 		err = &gcsfuse_errors.FileClobberedError{
-			Err: fmt.Errorf("clobbered: file was clobbered"),
+			Err: err,
 		}
 	}
 
