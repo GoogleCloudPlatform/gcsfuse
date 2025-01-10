@@ -20,6 +20,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
@@ -56,8 +57,7 @@ func (s *disabledNegativeStatCacheTest) TestNegativeStatCacheDisabled(t *testing
 	assert.ErrorContains(t, err, "explicit_dir/file1.txt: no such file or directory")
 
 	// Adding the object with same name
-	f1 := operations.CreateFile(targetFile, setup.FilePermission_0600, t)
-	operations.CloseFile(f1)
+	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, targetFile, "some-content", t)
 
 	// File should be returned, as call will be served from GCS and gcsfuse should not return from cache
 	f, err := os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))

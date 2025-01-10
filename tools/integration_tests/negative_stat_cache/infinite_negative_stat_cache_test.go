@@ -1,4 +1,5 @@
-// Copyright 2025 Google LLC
+// Copyright 2025
+//Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -57,7 +58,7 @@ func (s *infiniteNegativeStatCacheTest) TestInfiniteNegativeStatCache(t *testing
 	assert.ErrorContains(t, err, "explicit_dir/file1.txt: no such file or directory")
 
 	// Adding the object with same name
-	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join("explicit_dir", "file1.txt"), "some-content", t)
+	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, targetFile, "some-content", t)
 
 	// Error should be returned again, as call will not be served from GCS due to infinite gcsfuse stat cache
 	_, err = os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))
