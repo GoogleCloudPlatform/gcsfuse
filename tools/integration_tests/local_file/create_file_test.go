@@ -63,6 +63,5 @@ func TestEmptyFileCreation(t *testing.T) {
 	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
 
 	// Close the file and validate that the file is created on GCS.
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
-		FileName1, "", t)
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, FileName1, "", t)
 }
