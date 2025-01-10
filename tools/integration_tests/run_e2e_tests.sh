@@ -85,6 +85,7 @@ TEST_DIR_PARALLEL=(
   "mount_timeout"
   "stale_handle"
   "negative_stat_cache"
+  "streaming_writes"
 )
 
 # These tests never become parallel as it is changing bucket permissions.

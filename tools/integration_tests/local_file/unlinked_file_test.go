@@ -103,3 +103,49 @@ func TestSyncOnUnlinkedLocalFile(t *testing.T) {
 	operations.ValidateStaleNFSFileHandleError(t, err)
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t)
 }
+
+func TestFileWithSameNameCanBeCreatedWhenDeletedBeforeSync(t *testing.T) {
+	testDirPath = setup.SetupTestDirectory(testDirName)
+	// Create a local file.
+	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
+	// Write some content.
+	operations.WriteWithoutClose(fh, FileContents, t)
+	// Remove and close the file.
+	operations.RemoveFile(filePath)
+	// Currently flush calls returns error if unlinked. Ignoring that error here.
+	_ = fh.Close()
+	// Validate that file is not created on  GCS
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t)
+	// Verify unlink operation succeeds.
+	operations.ValidateNoFileOrDirError(t, path.Join(testDirPath, FileName1))
+
+	// Create a local file.
+	_, fh = CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
+
+	newContents := "newContents"
+	operations.WriteWithoutClose(fh, newContents, t)
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, FileName1, newContents, t)
+}
+
+func TestFileWithSameNameCanBeCreatedAfterDelete(t *testing.T) {
+	testDirPath = setup.SetupTestDirectory(testDirName)
+	// Create a local file.
+	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
+	// Write some content.
+	operations.WriteWithoutClose(fh, FileContents, t)
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
+		FileName1, FileContents, t)
+	// Remove  the file.
+	operations.RemoveFile(filePath)
+	// Validate that file id deleted from GCS
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t)
+	// Verify unlink operation succeeds.
+	operations.ValidateNoFileOrDirError(t, path.Join(testDirPath, FileName1))
+
+	// Create a local file.
+	_, fh = CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
+
+	newContents := "newContents"
+	operations.WriteWithoutClose(fh, newContents, t)
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, FileName1, newContents, t)
+}
