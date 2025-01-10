@@ -1,3 +1,17 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package streaming_writes
 
 import (
@@ -9,16 +23,13 @@ import (
 
 func (t *defaultMountCommonTest) TestTruncate() {
 	truncateSize := 2 * 1024 * 1024
-	fileName := "truncate"
-	// Create a local file.
-	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t.T())
 
-	err := fh.Truncate(int64(truncateSize))
+	err := t.f1.Truncate(int64(truncateSize))
 
 	assert.NoError(t.T(), err)
 	data := make([]byte, truncateSize)
 	// Close the file and validate that the file is created on GCS.
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, fileName, string(data[:]), t.T())
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, string(data[:]), t.T())
 }
 
 func (t *defaultMountCommonTest) TestWriteAfterTruncate() {
@@ -71,47 +82,37 @@ func (t *defaultMountCommonTest) TestWriteAfterTruncate() {
 
 func (t *defaultMountCommonTest) TestWriteAndTruncate() {
 	truncateSize := 20
-	fileName := "writeAndTruncate"
-	// Create a local file and write
-	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t.T())
-	operations.WriteWithoutClose(fh, FileContents, t.T())
+	operations.WriteWithoutClose(t.f1, FileContents, t.T())
 
-	err := fh.Truncate(int64(truncateSize))
+	err := t.f1.Truncate(int64(truncateSize))
 
 	require.NoError(t.T(), err)
 	data := make([]byte, 10)
 	// Close the file and validate that the file is created on GCS.
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, fileName, FileContents+string(data[:]), t.T())
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, FileContents+string(data[:]), t.T())
 }
 
 func (t *defaultMountCommonTest) TestWriteTruncateWrite() {
 	truncateSize := 30
-	fileName := "writeTruncateWrite"
-	// Create a local file.
-	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t.T())
 
 	// Write
-	operations.WriteWithoutClose(fh, FileContents, t.T())
+	operations.WriteWithoutClose(t.f1, FileContents, t.T())
 	// Perform truncate
-	err := fh.Truncate(int64(truncateSize))
+	err := t.f1.Truncate(int64(truncateSize))
 	require.NoError(t.T(), err)
 	// Write
-	operations.WriteWithoutClose(fh, FileContents, t.T())
+	operations.WriteWithoutClose(t.f1, FileContents, t.T())
 
 	data := make([]byte, 10)
 	// Close the file and validate that the file is created on GCS.
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, fileName, FileContents+FileContents+string(data[:]), t.T())
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, FileContents+FileContents+string(data[:]), t.T())
 }
 
 func (t *defaultMountCommonTest) TestTruncateToLowerSizeAfterWrite() {
-	fileName := "truncateToLowerSizeAfterWrite"
-	// Create a local file.
-	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t.T())
-
 	// Write
-	operations.WriteWithoutClose(fh, FileContents+FileContents, t.T())
+	operations.WriteWithoutClose(t.f1, FileContents+FileContents, t.T())
 	// Perform truncate
-	err := fh.Truncate(int64(5))
+	err := t.f1.Truncate(int64(5))
 
 	// Truncating to lower size after writes are not allowed.
 	require.Error(t.T(), err)
