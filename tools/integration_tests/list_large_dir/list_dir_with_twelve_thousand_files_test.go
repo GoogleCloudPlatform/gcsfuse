@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"os/exec"
 	"path"
 	"strconv"
 	"strings"
@@ -42,24 +43,33 @@ type listLargeDir struct {
 // Helpers
 // //////////////////////////////////////////////////////////////////////
 
+func clearKernelListCache(t *testing.T) {
+	t.Helper()
+
+	cmd := exec.Command("sudo", "sh", "-c", "echo 3 > /proc/sys/vm/drop_caches")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Error clearing kernel list cache: %v\nOutput: %s", err, output)
+	}
+}
+
 func validateDirectory(t *testing.T, objs []os.DirEntry, expectExplicitDirs, expectImplicitDirs bool) {
 	t.Helper()
 
 	var numberOfFiles, numberOfExplicitDirs, numberOfImplicitDirs int
 
 	for _, obj := range objs {
-		if !obj.IsDir() {
+		if !obj.IsDir() { // Check if it's a file
 			numberOfFiles++
 			checkIfObjNameIsCorrect(t, obj.Name(), prefixFileInDirectoryWithTwelveThousandFiles, numberOfFilesInDirectoryWithTwelveThousandFiles)
-		} else {
-			if strings.Contains(obj.Name(), prefixExplicitDirInLargeDirListTest) {
-				numberOfExplicitDirs++
-				checkIfObjNameIsCorrect(t, obj.Name(), prefixExplicitDirInLargeDirListTest, numberOfExplicitDirsInDirectoryWithTwelveThousandFiles)
-			} else {
-				numberOfImplicitDirs++
-				checkIfObjNameIsCorrect(t, obj.Name(), prefixImplicitDirInLargeDirListTest, numberOfImplicitDirsInDirectoryWithTwelveThousandFiles)
-			}
+		} else if strings.Contains(obj.Name(), prefixExplicitDirInLargeDirListTest) { // Check if it's an explicit subdirectory
+			numberOfExplicitDirs++
+			checkIfObjNameIsCorrect(t, obj.Name(), prefixExplicitDirInLargeDirListTest, numberOfExplicitDirsInDirectoryWithTwelveThousandFiles)
+		} else if strings.Contains(obj.Name(), prefixImplicitDirInLargeDirListTest) { // Check if it's an implicit subdirectory
+			numberOfImplicitDirs++
+			checkIfObjNameIsCorrect(t, obj.Name(), prefixImplicitDirInLargeDirListTest, numberOfImplicitDirsInDirectoryWithTwelveThousandFiles)
 		}
+		// Otherwise, it's the main directory, so skip the check
 	}
 
 	if numberOfFiles != numberOfFilesInDirectoryWithTwelveThousandFiles {
@@ -91,10 +101,11 @@ func checkIfObjNameIsCorrect(t *testing.T, objName string, prefix string, maxNum
 func createFilesAndUpload(t *testing.T, dirPath string) {
 	t.Helper()
 
-	operations.CreateDirectoryWithNFiles(numberOfFilesInDirectoryWithTwelveThousandFiles, dirPath, prefixFileInDirectoryWithTwelveThousandFiles, t)
+	// Creating twelve thousand files in DirectoryWithTwelveThousandFiles directory to upload them on a bucket for testing.
+	localDirPath := path.Join(os.Getenv("HOME"), directoryWithTwelveThousandFiles)
+	operations.CreateDirectoryWithNFiles(numberOfFilesInDirectoryWithTwelveThousandFiles, localDirPath, prefixFileInDirectoryWithTwelveThousandFiles, t)
 
-	dirPathOnBucket := path.Join(setup.TestBucket(), directoryForListLargeFileTests, t.Name())
-	setup.RunScriptForTestData("testdata/upload_files_to_bucket.sh", dirPathOnBucket, t.Name(), prefixFileInDirectoryWithTwelveThousandFiles)
+	setup.RunScriptForTestData("testdata/upload_files_to_bucket.sh", dirPath, localDirPath, prefixFileInDirectoryWithTwelveThousandFiles)
 }
 
 func createExplicitDirs(t *testing.T, dirPath string) {
@@ -189,23 +200,16 @@ func prepareTestDirectory(t *testing.T, withExplicitDirs bool, withImplicitDirs 
 			}
 		}
 
-		// Safeguard: Only remove if it exists and is not empty
-		if len(objs) > 0 {
-			err = os.RemoveAll(testDirPath)
-			if err != nil {
-				t.Fatalf("Failed to remove directory: %v", err)
-			}
-		}
+		setup.RunScriptForTestData("testdata/delete_objects.sh", testDirPathOnBucket)
 
-		createFilesAndUpload(t, testDirPath)
+		createFilesAndUpload(t, testDirPathOnBucket)
 
 		if withExplicitDirs {
 			createExplicitDirs(t, testDirPath)
 		}
 
 		if withImplicitDirs {
-			subDirPath := path.Join(testDirPathOnBucket, testDirName)
-			setup.RunScriptForTestData("testdata/create_implicit_dir.sh", subDirPath, prefixImplicitDirInLargeDirListTest, strconv.Itoa(numberOfImplicitDirsInDirectoryWithTwelveThousandFiles))
+			setup.RunScriptForTestData("testdata/create_implicit_dir.sh", testDirPathOnBucket, prefixImplicitDirInLargeDirListTest, strconv.Itoa(numberOfImplicitDirsInDirectoryWithTwelveThousandFiles))
 		}
 	} else {
 		t.Logf("Using existing test directory: %s", testDirPathOnBucket)
@@ -262,7 +266,9 @@ func (t *listLargeDir) SetupSuite() {
 // Test with a bucket with twelve thousand files.
 func (t *listLargeDir) TestListDirectoryWithTwelveThousandFiles() {
 	dirPath := prepareTestDirectory(t.T(), false, false)
-	firstListTime, secondListTime := listDirTime(t.T(), dirPath, validateDirectory) // No need to wrap validateDirectory
+	clearKernelListCache(t.T())
+
+	firstListTime, secondListTime := listDirTime(t.T(), dirPath, validateDirectory)
 
 	assert.Less(t.T(), secondListTime, firstListTime)
 	assert.Less(t.T(), 2*secondListTime, firstListTime)
@@ -271,7 +277,9 @@ func (t *listLargeDir) TestListDirectoryWithTwelveThousandFiles() {
 // Test with a bucket with twelve thousand files and hundred explicit directories.
 func (t *listLargeDir) TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDir() {
 	dirPath := prepareTestDirectory(t.T(), true, false)
-	firstListTime, secondListTime := listDirTime(t.T(), dirPath, validateDirectory) // No need to wrap validateDirectory
+	clearKernelListCache(t.T())
+
+	firstListTime, secondListTime := listDirTime(t.T(), dirPath, validateDirectory)
 
 	assert.Less(t.T(), secondListTime, firstListTime)
 	assert.Less(t.T(), 2*secondListTime, firstListTime)
@@ -280,7 +288,9 @@ func (t *listLargeDir) TestListDirectoryWithTwelveThousandFilesAndHundredExplici
 // Test with a bucket with twelve thousand files, hundred explicit directories, and hundred implicit directories.
 func (t *listLargeDir) TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir() {
 	dirPath := prepareTestDirectory(t.T(), true, true)
-	firstListTime, secondListTime := listDirTime(t.T(), dirPath, validateDirectory) // No need to wrap validateDirectory
+	clearKernelListCache(t.T())
+
+	firstListTime, secondListTime := listDirTime(t.T(), dirPath, validateDirectory)
 
 	assert.Less(t.T(), secondListTime, firstListTime)
 	assert.Less(t.T(), 2*secondListTime, firstListTime)

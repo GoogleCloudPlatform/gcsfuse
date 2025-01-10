@@ -32,6 +32,8 @@ const numberOfFilesInDirectoryWithTwelveThousandFiles = 12000
 const numberOfImplicitDirsInDirectoryWithTwelveThousandFiles = 100
 const numberOfExplicitDirsInDirectoryWithTwelveThousandFiles = 100
 
+var directoryWithTwelveThousandFiles = "directoryWithTwelveThousandFiles" + setup.GenerateRandomString(5)
+
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
