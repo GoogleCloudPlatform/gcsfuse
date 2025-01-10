@@ -726,17 +726,14 @@ func (f *FileInode) fetchLatestGcsObject(ctx context.Context) (*gcs.Object, erro
 	// default sets the projection to full, which fetches all the object
 	// properties.
 	latestGcsObj, isClobbered, err := f.clobbered(ctx, true, true)
+	if err != nil {
+		return latestGcsObj, err
+	}
 	if isClobbered {
-		if err == nil {
-			err = fmt.Errorf("file was clobbered")
-		} else {
-			err = fmt.Errorf("file was clobbered: %w", err)
-		}
 		err = &gcsfuse_errors.FileClobberedError{
-			Err: err,
+			Err: fmt.Errorf("file was clobbered"),
 		}
 	}
-
 	return latestGcsObj, err
 }
 
