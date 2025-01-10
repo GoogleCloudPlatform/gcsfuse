@@ -15,18 +15,12 @@
 package stale_handle
 
 import (
-	"os"
-	"path"
 	"testing"
 
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-
-	"github.com/stretchr/testify/assert"
 )
 
 // //////////////////////////////////////////////////////////////////////
@@ -41,29 +35,6 @@ func (s *staleFileHandleLocalFile) SetupTest() {
 	testDirPath := setup.SetupTestDirectory(s.T().Name())
 	// Create a local file.
 	_, s.f1 = CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, s.T())
-}
-
-////////////////////////////////////////////////////////////////////////
-// Tests
-////////////////////////////////////////////////////////////////////////
-
-func (s *staleFileHandleLocalFile) TestUnlinkedDirectoryContainingSyncedAndLocalFilesCloseThrowsStaleFileHandleError() {
-	explicitDir := path.Join(setup.MntDir(), s.T().Name(), ExplicitDirName)
-	// Create explicit directory with one synced and one local file.
-	operations.CreateDirectory(explicitDir, s.T())
-	CreateObjectInGCSTestDir(ctx, storageClient, path.Join(s.T().Name(), ExplicitDirName), ExplicitFileName1, "", s.T())
-	_, f2 := CreateLocalFileInTestDir(ctx, storageClient, explicitDir, ExplicitLocalFileName1, s.T())
-	err := os.RemoveAll(explicitDir)
-	assert.NoError(s.T(), err)
-	operations.ValidateNoFileOrDirError(s.T(), explicitDir+"/")
-	operations.ValidateNoFileOrDirError(s.T(), path.Join(explicitDir, ExplicitFileName1))
-	operations.ValidateNoFileOrDirError(s.T(), path.Join(explicitDir, ExplicitLocalFileName1))
-	// Validate writing content to unlinked local file does not throw error.
-	operations.WriteWithoutClose(f2, FileContents, s.T())
-
-	err = f2.Close()
-
-	operations.ValidateStaleNFSFileHandleError(s.T(), err)
 }
 
 ////////////////////////////////////////////////////////////////////////

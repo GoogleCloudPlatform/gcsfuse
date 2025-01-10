@@ -138,3 +138,29 @@ func (t *staleFileHandleSyncedFile) TestRenamedFileSyncThrowsStaleFileHandleErro
 	// file.
 	t.f1 = nil
 }
+
+func (t *staleFileHandleSyncedFile) TestFileDeletedRemotelySyncAndCloseThrowsStaleFileHandleError() {
+	// Dirty the file by giving it some contents.
+	n, err := t.f1.Write([]byte("foobar"))
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 6, n)
+	// Unlink the file.
+	err = storageutil.DeleteObject(ctx, bucket, "foo")
+	assert.NoError(t.T(), err)
+	// Verify unlink operation succeeds.
+	assert.NoError(t.T(), err)
+	operations.ValidateObjectNotFoundErr(ctx, t.T(), bucket, "foo")
+	// Attempt to write to file should not give any error.
+	n, err = t.f1.Write([]byte("taco"))
+	assert.Equal(t.T(), 4, n)
+	assert.NoError(t.T(), err)
+
+	err = t.f1.Sync()
+
+	operations.ValidateStaleNFSFileHandleError(t.T(), err)
+	err = t.f1.Close()
+	operations.ValidateStaleNFSFileHandleError(t.T(), err)
+	// Make f1 nil, so that another attempt is not taken in TearDown to close the
+	// file.
+	t.f1 = nil
+}

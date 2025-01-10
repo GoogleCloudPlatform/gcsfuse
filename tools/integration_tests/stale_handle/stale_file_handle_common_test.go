@@ -52,7 +52,7 @@ func (s *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHand
 	operations.ValidateStaleNFSFileHandleError(s.T(), err)
 }
 
-func (s *staleFileHandleCommon) TestDeletedFileSyncAndCloseThrowsStaleFileHandleError() {
+func (s *staleFileHandleCommon) TestFileDeletedLocallySyncAndCloseDoNotThrowError() {
 	// Dirty the file by giving it some contents.
 	_, err := s.f1.WriteString(Content)
 	assert.NoError(s.T(), err)
@@ -63,9 +63,6 @@ func (s *staleFileHandleCommon) TestDeletedFileSyncAndCloseThrowsStaleFileHandle
 	// Attempt to write to file should not give any error.
 	operations.WriteWithoutClose(s.f1, Content2, s.T())
 
-	err = s.f1.Sync()
-
-	operations.ValidateStaleNFSFileHandleError(s.T(), err)
-	err = s.f1.Close()
-	operations.ValidateStaleNFSFileHandleError(s.T(), err)
+	operations.SyncFile(s.f1, s.T())
+	operations.CloseFile(s.f1)
 }
