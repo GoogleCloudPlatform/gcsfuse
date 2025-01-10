@@ -1152,7 +1152,7 @@ func (fs *fileSystem) flushFile(
 	ctx context.Context,
 	f *inode.FileInode) error {
 	// FlushFile mirrors the behavior of native filesystems by not returning an error
-	// when file to be synced has been unlinked from the same mount. 
+	// when file to be synced has been unlinked from the same mount.
 	if f.IsUnlinked() {
 		return nil
 	}
@@ -1182,7 +1182,7 @@ func (fs *fileSystem) syncFile(
 	ctx context.Context,
 	f *inode.FileInode) error {
 	// SyncFile mirrors the behavior of native filesystems by not returning an error
-	// when file to be synced has been unlinked from the same mount. 
+	// when file to be synced has been unlinked from the same mount.
 
 	// Sync the inode.
 	gcsSynced, err := f.Sync(ctx)
