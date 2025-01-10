@@ -82,5 +82,8 @@ func (t *staleFileHandleCommon) TestFileDeletedLocallySyncAndCloseDoNotThrowErro
 	operations.SyncFile(t.f1, t.T())
 	operations.CloseFile(t.f1)
 
+	// Make f1 nil, so that another attempt is not taken in TearDown to close the
+	// file.
+	t.f1 = nil
 	operations.ValidateObjectNotFoundErr(ctx, t.T(), bucket, "foo")
 }
