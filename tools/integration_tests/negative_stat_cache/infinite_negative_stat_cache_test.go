@@ -58,7 +58,7 @@ func (s *infiniteNegativeStatCacheTest) TestInfiniteNegativeStatCache(t *testing
 	assert.ErrorContains(t, err, "explicit_dir/file1.txt: no such file or directory")
 
 	// Adding the object with same name
-	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, targetFile, "some-content", t)
+	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, "explicit_dir/file1.txt", "some-content", t)
 
 	// Error should be returned again, as call will not be served from GCS due to infinite gcsfuse stat cache
 	_, err = os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))

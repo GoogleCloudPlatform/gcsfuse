@@ -57,7 +57,7 @@ func (s *disabledNegativeStatCacheTest) TestNegativeStatCacheDisabled(t *testing
 	assert.ErrorContains(t, err, "explicit_dir/file1.txt: no such file or directory")
 
 	// Adding the object with same name
-	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, targetFile, "some-content", t)
+	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, "explicit_dir/file1.txt", "some-content", t)
 
 	// File should be returned, as call will be served from GCS and gcsfuse should not return from cache
 	f, err := os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))
