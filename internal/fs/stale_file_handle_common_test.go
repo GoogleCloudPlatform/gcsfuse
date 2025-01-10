@@ -64,7 +64,7 @@ func (t *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHand
 	assert.Equal(t.T(), "foobar", string(contents))
 }
 
-func (t *staleFileHandleCommon) TestDeletedFileSyncAndCloseThrowsStaleFileHandleError() {
+func (t *staleFileHandleCommon) TestFileDeletedLocallySyncAndCloseDoNotThrowError() {
 	// Dirty the file by giving it some contents.
 	n, err := t.f1.Write([]byte("foobar"))
 	assert.NoError(t.T(), err)
@@ -79,14 +79,11 @@ func (t *staleFileHandleCommon) TestDeletedFileSyncAndCloseThrowsStaleFileHandle
 	assert.Equal(t.T(), 4, n)
 	assert.NoError(t.T(), err)
 
-	err = t.f1.Sync()
+	operations.SyncFile(t.f1, t.T())
+	operations.CloseFile(t.f1)
 
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
-	err = t.f1.Close()
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
 	// Make f1 nil, so that another attempt is not taken in TearDown to close the
 	// file.
 	t.f1 = nil
-	// Verify unlinked file is not present on GCS.
 	operations.ValidateObjectNotFoundErr(ctx, t.T(), bucket, "foo")
 }

@@ -15,13 +15,10 @@
 package fs_test
 
 import (
-	"os"
-	"path"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -61,39 +58,4 @@ func (t *staleFileHandleLocalFile) SetupTest() {
 func (t *staleFileHandleLocalFile) TearDownTest() {
 	// fsTest Cleanups to clean up mntDir and close t.f1 and t.f2.
 	t.fsTest.TearDown()
-}
-
-// //////////////////////////////////////////////////////////////////////
-// Tests
-// //////////////////////////////////////////////////////////////////////
-
-func (t *staleFileHandleLocalFile) TestUnlinkedDirectoryContainingSyncedAndLocalFilesCloseThrowsStaleFileHandleError() {
-	// Create explicit directory with one synced and one local file.
-	assert.Equal(t.T(),
-		nil,
-		t.createObjects(
-			map[string]string{
-				// File
-				"explicit/":    "",
-				"explicit/foo": "",
-			}))
-	_, t.f2 = operations.CreateLocalFile(ctx, t.T(), mntDir, bucket, "explicit/"+explicitLocalFileName)
-	// Attempt to remove explicit directory.
-	err := os.RemoveAll(path.Join(mntDir, "explicit"))
-	// Verify rmDir operation succeeds.
-	assert.NoError(t.T(), err)
-	operations.ValidateNoFileOrDirError(t.T(), path.Join(mntDir, "explicit/"+explicitLocalFileName))
-	operations.ValidateNoFileOrDirError(t.T(), path.Join(mntDir, "explicit/foo"))
-	operations.ValidateNoFileOrDirError(t.T(), path.Join(mntDir, "explicit"))
-	// Validate writing content to unlinked local file does not throw error.
-	_, err = t.f2.WriteString(FileContents)
-	assert.NoError(t.T(), err)
-
-	err = operations.CloseLocalFile(t.T(), &t.f2)
-
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
-	// Validate both local and synced files are deleted.
-	operations.ValidateObjectNotFoundErr(ctx, t.T(), bucket, "explicit/"+explicitLocalFileName)
-	operations.ValidateObjectNotFoundErr(ctx, t.T(), bucket, "explicit/foo")
-	operations.ValidateObjectNotFoundErr(ctx, t.T(), bucket, "explicit/")
 }

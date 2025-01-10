@@ -28,7 +28,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
 	"golang.org/x/sync/semaphore"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
@@ -1152,13 +1151,10 @@ func (fs *fileSystem) promoteToGenerationBacked(f *inode.FileInode) {
 func (fs *fileSystem) flushFile(
 	ctx context.Context,
 	f *inode.FileInode) error {
-	// SyncFile can be triggered for unlinked files if the fileHandle is open by
-	// same or another user. This indicates a potential file clobbering scenario:
-	// - The file was deleted (unlinked) while a handle to it was still open.
-	if f.IsLocal() && f.IsUnlinked() {
-		return &gcsfuse_errors.FileClobberedError{
-			Err: fmt.Errorf("file %s was unlinked while it was still open, indicating file clobbering", f.Name().LocalName()),
-		}
+	// FlushFile mirrors the behavior of native filesystems by not returning an error
+	// when file to be synced has been unlinked from the same mount.
+	if f.IsUnlinked() {
+		return nil
 	}
 
 	// Flush the inode.
@@ -1185,13 +1181,10 @@ func (fs *fileSystem) flushFile(
 func (fs *fileSystem) syncFile(
 	ctx context.Context,
 	f *inode.FileInode) error {
-	// SyncFile can be triggered for unlinked files if the fileHandle is open by
-	// same or another user. This indicates a potential file clobbering scenario:
-	// - The file was deleted (unlinked) while a handle to it was still open.
-	if f.IsLocal() && f.IsUnlinked() {
-		return &gcsfuse_errors.FileClobberedError{
-			Err: fmt.Errorf("file %s was unlinked while it was still open, indicating file clobbering", f.Name().LocalName()),
-		}
+	// SyncFile mirrors the behavior of native filesystems by not returning an error
+	// when file to be synced has been unlinked from the same mount.
+	if f.IsUnlinked() {
+		return nil
 	}
 
 	// Sync the inode.

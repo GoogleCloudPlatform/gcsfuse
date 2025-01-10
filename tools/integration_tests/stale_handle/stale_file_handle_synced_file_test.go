@@ -93,6 +93,25 @@ func (s *staleFileHandleSyncedFile) TestRenamedFileSyncAndCloseThrowsStaleFileHa
 	operations.ValidateStaleNFSFileHandleError(s.T(), err)
 }
 
+func (s *staleFileHandleSyncedFile) TestFileDeletedRemotelySyncAndCloseThrowsStaleFileHandleError() {
+	// Dirty the file by giving it some contents.
+	_, err := s.f1.WriteString(Content)
+	assert.NoError(s.T(), err)
+	// Delete the file remotely.
+	err = DeleteObjectOnGCS(ctx, storageClient, path.Join(s.T().Name(), FileName1))
+	assert.NoError(s.T(), err)
+	// Verify unlink operation succeeds.
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, s.T().Name(), FileName1, s.T())
+	// Attempt to write to file should not give any error.
+	operations.WriteWithoutClose(s.f1, Content2, s.T())
+
+	err = s.f1.Sync()
+
+	operations.ValidateStaleNFSFileHandleError(s.T(), err)
+	err = s.f1.Close()
+	operations.ValidateStaleNFSFileHandleError(s.T(), err)
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
