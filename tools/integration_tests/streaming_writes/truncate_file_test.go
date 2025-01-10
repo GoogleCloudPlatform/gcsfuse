@@ -60,10 +60,7 @@ func (t *defaultMountCommonTest) TestWriteAfterTruncate() {
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
 			data := make([]byte, tc.fileSize)
-			// Create a local file.
-			_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, tc.name, t.T())
-			// Perform truncate.
-			err := fh.Truncate(int64(truncateSize))
+			err := t.f1.Truncate(int64(truncateSize))
 			require.NoError(t.T(), err)
 
 			// Triggers writes after truncate.
