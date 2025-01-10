@@ -32,6 +32,12 @@ func (t *defaultMountLocalFile) SetupTest() {
 	_, t.f1 = CreateLocalFileInTestDir(ctx, storageClient, testDirPath, t.fileName, t.T())
 }
 
+func (t *defaultMountLocalFile) SetupSubTest() {
+	t.fileName = FileName1 + setup.GenerateRandomString(5)
+	// Create a local file.
+	_, t.f1 = CreateLocalFileInTestDir(ctx, storageClient, testDirPath, t.fileName, t.T())
+}
+
 // Executes all tests that run with single streamingWrites configuration for localFiles.
 func TestDefaultMountLocalFileTest(t *testing.T) {
 	suite.Run(t, new(defaultMountLocalFile))

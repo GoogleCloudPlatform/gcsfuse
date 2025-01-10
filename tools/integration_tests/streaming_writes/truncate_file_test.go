@@ -60,18 +60,19 @@ func (t *defaultMountCommonTest) TestWriteAfterTruncate() {
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
 			data := make([]byte, tc.fileSize)
+			// Perform truncate.
 			err := t.f1.Truncate(int64(truncateSize))
 			require.NoError(t.T(), err)
 
 			// Triggers writes after truncate.
 			newData := []byte("hi")
-			_, err = fh.WriteAt(newData, tc.offset)
+			_, err = t.f1.WriteAt(newData, tc.offset)
 
 			require.NoError(t.T(), err)
 			data[tc.offset] = newData[0]
 			data[tc.offset+1] = newData[1]
 			// Close the file and validate that the file is created on GCS.
-			CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, tc.name, string(data[:]), t.T())
+			CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, string(data[:]), t.T())
 		})
 	}
 
