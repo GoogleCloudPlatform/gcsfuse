@@ -1152,8 +1152,7 @@ func (fs *fileSystem) flushFile(
 	ctx context.Context,
 	f *inode.FileInode) error {
 	// FlushFile mirrors the behavior of native filesystems by not returning an error
-	// when syncing files that have been unlinked from the same mount. This applies
-	// to both local and synced files.
+	// when file to be synced has been unlinked from the same mount. 
 	if f.IsUnlinked() {
 		return nil
 	}
