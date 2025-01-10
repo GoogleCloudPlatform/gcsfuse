@@ -1183,6 +1183,9 @@ func (fs *fileSystem) syncFile(
 	f *inode.FileInode) error {
 	// SyncFile mirrors the behavior of native filesystems by not returning an error
 	// when file to be synced has been unlinked from the same mount.
+	if f.IsUnlinked() {
+		return nil
+	}
 
 	// Sync the inode.
 	gcsSynced, err := f.Sync(ctx)
