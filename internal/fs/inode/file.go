@@ -727,14 +727,14 @@ func (f *FileInode) fetchLatestGcsObject(ctx context.Context) (*gcs.Object, erro
 	// properties.
 	latestGcsObj, isClobbered, err := f.clobbered(ctx, true, true)
 	if err != nil {
-		return latestGcsObj, err
+		return nil, err
 	}
 	if isClobbered {
 		err = &gcsfuse_errors.FileClobberedError{
 			Err: fmt.Errorf("file was clobbered"),
 		}
 	}
-	return latestGcsObj, err
+	return latestGcsObj, nil
 }
 
 // Sync writes out contents to GCS.  If this fails due to the generation
