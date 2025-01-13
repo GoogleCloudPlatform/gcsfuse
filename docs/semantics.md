@@ -385,13 +385,13 @@ Instead, when a conflicting pair of foo and ```foo/``` objects both exist, it ap
 
 ### Unsupported object names
 
-Objects in GCS with double slashes '//' as a name or
-prefix are not supported in GCSfuse. Accessing a directory with such
-named files will cause an 'input/output error', as the Linux
-filesystem does not support files or directories named with a '/'.
-The most common example of this is an object called, for example
-'A//C.txt' where 'A' indicates a directory and 'C.txt' indicates a
-file, and is missing directory 'B/' between 'A/' and 'C.txt'.
+- Objects in GCS with `double slashes '//'` as a name or prefix are not supported in GCSfuse. Accessing a directory with such named files will cause an 'input/output error', as the Linux filesystem does not support files or directories named with a '/'. The most common example of this is an object called, for example 'A//C.txt' where 'A' indicates a directory and 'C.txt' indicates a file, and is missing directory 'B/' between 'A/' and 'C.txt'.
+
+
+- Objects in GCS with suffix `/\n` like, `gs://gcs-bkt/a/\n`:
+Mounting bucket with such objects leads to crash `sync: unlock of unlocked mutex` or `Panic: Inode 'a/' cannot have child file`.
+`\n` in GCSFuse is used to resolve the name conflicts, in case there is a file and directory exists with the same name. Ref: [name-conflict](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#name-conflicts) section.
+
 
 ## Memory-mapped files
 
