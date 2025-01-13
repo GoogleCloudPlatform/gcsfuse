@@ -29,6 +29,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"golang.org/x/net/context"
 	option "google.golang.org/api/option"
+	"google.golang.org/api/option/internaloption"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -74,14 +75,22 @@ func (pd *gRPCDirectPathDetector) isDirectPathPossible(ctx context.Context, buck
 func createClientOptionForGRPCClient(clientConfig *storageutil.StorageClientConfig) (clientOpts []option.ClientOption, err error) {
 	// Add Custom endpoint option.
 	if clientConfig.CustomEndpoint != "" {
+		clientOpts = append(clientOpts, option.WithEndpoint(storageutil.StripScheme(clientConfig.CustomEndpoint)))
 		if clientConfig.AnonymousAccess {
-			clientOpts = append(clientOpts, option.WithEndpoint(storageutil.StripScheme(clientConfig.CustomEndpoint)))
 			// Explicitly disable auth in case of custom-endpoint, aligned with the http-client.
 			// TODO: to revisit here when supporting TPC for grpc client.
 			clientOpts = append(clientOpts, option.WithoutAuthentication())
 			clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())))
 		} else {
-			err = fmt.Errorf("GRPC client doesn't support auth for custom-endpoint. Please set anonymous-access: true via config-file.")
+			//authorityOption := "storage-preprod-test-grpc.googleusercontent.com"
+			//clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithAuthority(authorityOption)))
+			tokenSrc, tokenCreationErr := storageutil.CreateTokenSource(clientConfig)
+			if tokenCreationErr != nil {
+				err = fmt.Errorf("while fetching tokenSource: %w", tokenCreationErr)
+				return
+			}
+			clientOpts = append(clientOpts, option.WithTokenSource(tokenSrc))
+			logger.Info(fmt.Sprintf("Using Custom endpoint: %s", clientConfig.CustomEndpoint))
 			return
 		}
 	} else {
@@ -221,12 +230,18 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 
 	// TODO: We will implement an additional check for the HTTP control client protocol once the Go SDK supports HTTP.
 	// TODO: Custom endpoints do not currently support gRPC. Remove this additional check once TPC(custom-endpoint) supports gRPC.
-	if clientConfig.EnableHNS && clientConfig.CustomEndpoint == "" {
+	if clientConfig.EnableHNS {
 		clientOpts, err = createClientOptionForGRPCClient(&clientConfig)
 		if err != nil {
 			return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
 		}
+		// The Go SDK will do this for us for the Storage client, but for the GAPIC storage control client we have to do it ourselves
+		clientOpts = append(clientOpts,
+			internaloption.EnableDirectPath(true),
+			internaloption.EnableDirectPathXds(),
+			internaloption.AllowNonDefaultServiceAccount(true))
 		controlClient, err = storageutil.CreateGRPCControlClient(ctx, clientOpts, &clientConfig)
+		// Unset the environment variable, since it's used only while creation of grpc client.
 		if err != nil {
 			return nil, fmt.Errorf("could not create StorageControl Client: %w", err)
 		}
