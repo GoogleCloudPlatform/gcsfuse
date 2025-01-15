@@ -32,11 +32,15 @@ func TestReadLocalFile(t *testing.T) {
 	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, FileName1, t)
 	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, FileName1, t)
 
-	if setup.StreamingWritesEnabled() {
-		// Mounts with streaming writes do not supporting reading files.
-		ReadingLocalFileShouldHaveContent(ctx, fh, "", t)
-	} else {
-		ReadingLocalFileShouldHaveContent(ctx, fh, content, t)
+	// mounts with streaming writes disabled support read operation.
+	if !setup.StreamingWritesEnabled() {
+		// Read the local file contents.
+		buf := make([]byte, len(content))
+		n, err := fh.ReadAt(buf, 0)
+		if err != nil || len(content) != n || content != string(buf) {
+			t.Fatalf("Read file operation failed on local file: %v "+
+				"Expected content: %s, Got Content: %s", err, content, string(buf))
+		}
 	}
 
 	// Close the file and validate that the file is created on GCS.

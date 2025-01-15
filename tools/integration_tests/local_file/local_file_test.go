@@ -53,15 +53,6 @@ func WritingToLocalFileShouldNotWriteToGCS(ctx context.Context, storageClient *s
 	client.ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, fileName, t)
 }
 
-func ReadingLocalFileShouldHaveContent(ctx context.Context, fh *os.File, content string, t *testing.T) {
-	buf := make([]byte, len(content))
-	n, err := fh.ReadAt(buf, 0)
-	if err != nil || len(content) != n || content != string(buf) {
-		t.Fatalf("Read file operation failed on local file: %v "+
-			"Expected content: %s, Got Content: %s", err, content, string(buf))
-	}
-}
-
 func NewFileShouldGetSyncedToGCSAtClose(ctx context.Context, storageClient *storage.Client,
 	testDirPath, fileName string, t *testing.T) {
 	// Create a local file.
@@ -108,8 +99,8 @@ func TestMain(m *testing.M) {
 	flagsSet := [][]string{
 		{"--implicit-dirs=true", "--rename-dir-limit=3"},
 		{"--implicit-dirs=false", "--rename-dir-limit=3"},
-		{"--implicit-dirs=true", "--rename-dir-limit=3", "--enable-streaming-writes=true", "--write-block-size-mb=2", "--write-max-blocks-per-file=2"},
-		{"--implicit-dirs=false", "--rename-dir-limit=3", "--enable-streaming-writes=true", "--write-block-size-mb=2", "--write-max-blocks-per-file=2"},
+		{"--enable-streaming-writes=true", "--write-block-size-mb=2", "--write-max-blocks-per-file=2"},
+		{"--enable-streaming-writes=true", "--write-block-size-mb=2", "--write-max-blocks-per-file=2", "create-empty-file: true"},
 	}
 
 	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
