@@ -23,6 +23,7 @@ import (
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/require"
 )
 
 func TestStatOnLocalFile(t *testing.T) {
@@ -57,7 +58,7 @@ func TestStatOnLocalFileWithConflictingFileNameSuffix(t *testing.T) {
 		FileName1, "", t)
 }
 
-func TestTruncateLocalFile(t *testing.T) {
+func TestTruncateLocalFileToSmallerSize(t *testing.T) {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
 	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
@@ -67,17 +68,53 @@ func TestTruncateLocalFile(t *testing.T) {
 	// Stat the file to validate if new contents are written.
 	operations.VerifyStatFile(filePath, SizeOfFileContents, FilePerms, t)
 
-	// Truncate the file to update the file size.
-	err := os.Truncate(filePath, SizeTruncate)
-	if err != nil {
-		t.Fatalf("os.Truncate err: %v", err)
+	// Truncate the file to update file size to smaller file size.
+	err := os.Truncate(filePath, SmallerSizeTruncate)
+	var expectTruncatedSize int64 = SizeOfFileContents
+	var expectedContent = FileContents
+	if setup.StreamingWritesEnabled() {
+		// Mounts with streaming writes do not supporting truncating files to smaller.
+		require.Error(t, err)
+	} else {
+		if err != nil {
+			t.Fatalf("os.Truncate err: %v", err)
+		}
+		expectTruncatedSize = SmallerSizeTruncate
+		expectedContent = FileContents[:SmallerSizeTruncate]
 	}
+
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t)
 
 	// Stat the file to validate if file is truncated correctly.
-	operations.VerifyStatFile(filePath, SizeTruncate, FilePerms, t)
+	operations.VerifyStatFile(filePath, expectTruncatedSize, FilePerms, t)
 
 	// Close the file and validate that the file is created on GCS.
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
-		FileName1, "testS", t)
+		FileName1, expectedContent, t)
+}
+
+func TestTruncateLocalFileToBiggerSize(t *testing.T) {
+	testDirPath = setup.SetupTestDirectory(testDirName)
+	// Create a local file.
+	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
+	// Writing contents to local file .
+	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, FileName1, t)
+
+	// Stat the file to validate if new contents are written.
+	operations.VerifyStatFile(filePath, SizeOfFileContents, FilePerms, t)
+
+	// Truncate the file to update file size to bigger file size.
+	err := os.Truncate(filePath, BiggerSizeTruncate)
+	if err != nil {
+		t.Fatalf("os.Truncate err: %v", err)
+	}
+
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t)
+
+	// Stat the file to validate if file is truncated correctly.
+	operations.VerifyStatFile(filePath, BiggerSizeTruncate, FilePerms, t)
+
+	// Close file and validate that file of expected size is created on GCS.
+	CloseFileAndValidateSizeFromGCS(ctx, storageClient, fh, testDirName,
+		FileName1, BiggerSizeTruncate, t)
 }

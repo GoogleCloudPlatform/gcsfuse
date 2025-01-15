@@ -26,7 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
-func createAndVerifySymLink(t *testing.T) (filePath, symlink string, fh *os.File) {
+func createAndVerifySymLink(streamingWritesEnabled bool, t *testing.T) (filePath, symlink string, fh *os.File) {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
 	filePath, fh = CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
@@ -38,18 +38,23 @@ func createAndVerifySymLink(t *testing.T) (filePath, symlink string, fh *os.File
 
 	// Read the link.
 	operations.VerifyReadLink(filePath, symlink, t)
+	if streamingWritesEnabled {
+		// Mounts with streaming writes do not support reading files.
+		return
+	}
 	operations.VerifyReadFile(symlink, FileContents, t)
 	return
 }
 
 func TestCreateSymlinkForLocalFile(t *testing.T) {
-	_, _, fh := createAndVerifySymLink(t)
+	_, _, fh := createAndVerifySymLink(setup.StreamingWritesEnabled(), t)
+	// Close the file and validate that the file is created on GCS.
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
 		FileName1, FileContents, t)
 }
 
 func TestReadSymlinkForDeletedLocalFile(t *testing.T) {
-	filePath, symlink, fh := createAndVerifySymLink(t)
+	filePath, symlink, fh := createAndVerifySymLink(setup.StreamingWritesEnabled(), t)
 	// Remove filePath and then close the fileHandle to avoid syncing to GCS.
 	operations.RemoveFile(filePath)
 	operations.CloseFileShouldNotThrowError(fh, t)

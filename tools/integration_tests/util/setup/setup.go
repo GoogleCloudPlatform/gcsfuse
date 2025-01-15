@@ -49,16 +49,18 @@ const (
 	DirPermission_0755  = 0755
 	Charset             = "abcdefghijklmnopqrstuvwxyz0123456789"
 	PathEnvVariable     = "PATH"
+	StreamingWritesFlag = "--enable-streaming-writes=true"
 )
 
 var (
-	binFile              string
-	logFile              string
-	testDir              string
-	mntDir               string
-	sbinFile             string
-	onlyDirMounted       string
-	dynamicBucketMounted string
+	binFile                string
+	logFile                string
+	testDir                string
+	mntDir                 string
+	sbinFile               string
+	onlyDirMounted         string
+	dynamicBucketMounted   string
+	streamingWritesEnabled bool
 )
 
 // Run the shell script to prepare the testData in the specified bucket.
@@ -102,6 +104,19 @@ func SetLogFile(logFileValue string) {
 
 func LogFile() string {
 	return logFile
+}
+
+func SetStreamingWritesEnabled(flags []string) {
+	streamingWritesEnabled = false
+	for _, flag := range flags {
+		if flag == StreamingWritesFlag {
+			streamingWritesEnabled = true
+		}
+	}
+}
+
+func StreamingWritesEnabled() bool {
+	return streamingWritesEnabled
 }
 
 func BinFile() string {
