@@ -16,10 +16,13 @@
 package list_large_dir
 
 import (
+	"context"
 	"log"
 	"os"
 	"testing"
 
+	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
@@ -32,19 +35,28 @@ const numberOfFilesInDirectoryWithTwelveThousandFiles = 12000
 const numberOfImplicitDirsInDirectoryWithTwelveThousandFiles = 100
 const numberOfExplicitDirsInDirectoryWithTwelveThousandFiles = 100
 
-var directoryWithTwelveThousandFiles = "directoryWithTwelveThousandFiles" + setup.GenerateRandomString(5)
+var (
+	directoryWithTwelveThousandFiles = "directoryWithTwelveThousandFiles" + setup.GenerateRandomString(5)
+	storageClient                    *storage.Client
+	ctx                              context.Context
+)
 
 func TestMain(m *testing.M) {
-	setup.ParseSetUpFlags()
+	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
+
+	// Create common storage client to be used in test.
+	ctx = context.Background()
+	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
+	defer func() {
+		err := closeStorageClient()
+		if err != nil {
+			log.Fatalf("closeStorageClient failed: %v", err)
+		}
+	}()
 
 	flags := [][]string{{"--implicit-dirs", "--stat-cache-ttl=0", "--kernel-list-cache-ttl-secs=-1"}}
 	if !testing.Short() {
 		flags = append(flags, []string{"--client-protocol=grpc", "--implicit-dirs=true", "--stat-cache-ttl=0", "--kernel-list-cache-ttl-secs=-1"})
-	}
-
-	if setup.TestBucket() == "" && setup.MountedDirectory() != "" {
-		log.Print("Please pass the name of bucket mounted at mountedDirectory to --testBucket flag.")
-		os.Exit(1)
 	}
 
 	// Run tests for mountedDirectory only if --mountedDirectory flag is set.

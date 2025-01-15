@@ -28,3 +28,4 @@ do
    a=`expr $a + 1`
    gcloud storage cp testFile.txt gs://$TEST_BUCKET/$dir/
 done
+rm testFile.txt
