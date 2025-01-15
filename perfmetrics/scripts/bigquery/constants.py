@@ -14,7 +14,7 @@
 """Contains constants for bigquery.
 """
 
-PROJECT_ID = 'gcs-fuse-test-ml'
+PROJECT_ID = 'gcs-fuse-test'
 DATASET_ID = 'performance_metrics'
 CONFIGURATION_TABLE_ID = 'experiment_configuration'
 FIO_TABLE_ID = 'read_write_fio_metrics'

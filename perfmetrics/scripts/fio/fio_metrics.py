@@ -101,15 +101,15 @@ REQ_JOB_METRICS.append(JobMetric('lat_s_max',
                                  [consts.LAT_NS, consts.MAX], consts.NS_TO_S))
 REQ_JOB_METRICS.append(JobMetric('lat_s_mean',
                                  [consts.LAT_NS, consts.MEAN], consts.NS_TO_S))
-REQ_JOB_METRICS.extend([
-    JobMetric('lat_s_perc_20',
-              [consts.LAT_NS, consts.PERCENTILE, consts.P20], consts.NS_TO_S),
-    JobMetric('lat_s_perc_50',
-              [consts.LAT_NS, consts.PERCENTILE, consts.P50], consts.NS_TO_S),
-    JobMetric('lat_s_perc_90',
-              [consts.LAT_NS, consts.PERCENTILE, consts.P90], consts.NS_TO_S),
-    JobMetric('lat_s_perc_95',
-              [consts.LAT_NS, consts.PERCENTILE, consts.P95], consts.NS_TO_S)])
+# REQ_JOB_METRICS.extend([
+#     JobMetric('lat_s_perc_20',
+#               [consts.LAT_NS, consts.PERCENTILE, consts.P20], consts.NS_TO_S),
+#     JobMetric('lat_s_perc_50',
+#               [consts.LAT_NS, consts.PERCENTILE, consts.P50], consts.NS_TO_S),
+#     JobMetric('lat_s_perc_90',
+#               [consts.LAT_NS, consts.PERCENTILE, consts.P90], consts.NS_TO_S),
+#     JobMetric('lat_s_perc_95',
+#               [consts.LAT_NS, consts.PERCENTILE, consts.P95], consts.NS_TO_S)])
 # append new metrics here
 
 

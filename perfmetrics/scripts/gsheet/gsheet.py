@@ -62,3 +62,25 @@ def write_to_google_sheet(worksheet: str, data,
           'values': data
       },
       range='{}!A2'.format(worksheet)).execute()
+
+def append_to_google_sheet(worksheet: str, data, spreadsheet_id=SPREADSHEET_ID) -> None:
+    """Calls the API to update the values of a sheet.
+
+    Args:
+        worksheet: string, name of the worksheet to be edited appended by a "!"
+        data: list of tuples/lists, data to be added to the worksheet
+
+    Raises:
+        HttpError: For any Google Sheets API call related errors
+    """
+    sheets_client = _get_sheets_service_client()
+
+    # Appending new rows
+    sheets_client.spreadsheets().values().append(
+        spreadsheetId=spreadsheet_id,
+        valueInputOption='USER_ENTERED',
+        body={
+            'majorDimension': 'ROWS',
+            'values': data
+        },
+        range='{}!A2'.format(worksheet)).execute()

@@ -1,0 +1,21 @@
+[global]
+ioengine=libaio
+direct=0 // as write back cache will be auto disabled.
+create_on_open=1
+fadvise_hint=0
+verify=0
+rw=write
+bs=1M
+iodepth=64
+invalidate=1
+ramp_time=10s
+nrfiles=1
+thread=1
+openfiles=1
+group_reporting=1
+allrandrepeat=1
+numjobs=1
+filename_format=$jobname.$jobnum.$filenum
+
+[1_thread]
+stonewall

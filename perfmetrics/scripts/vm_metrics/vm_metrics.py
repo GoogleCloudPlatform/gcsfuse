@@ -44,7 +44,7 @@ import subprocess
 sys.path.insert(0, '..')
 from gsheet import gsheet
 
-PROJECT_NAME = 'projects/gcs-fuse-test-ml'
+PROJECT_NAME = 'projects/gcs-fuse-test'
 CPU_UTI_METRIC_TYPE = 'compute.googleapis.com/instance/cpu/utilization'
 RECEIVED_BYTES_COUNT_METRIC_TYPE = 'compute.googleapis.com/instance/network/received_bytes_count'
 OPS_LATENCY_METRIC_TYPE = 'custom.googleapis.com/gcsfuse/fs/ops_latency'
@@ -322,8 +322,7 @@ class VmMetrics:
 
     # Metrics data for metrics other that OPS_ERROR_COUNT_DATA should not be empty:
     if (metrics_data == []):
-      raise NoValuesError('No values were retrieved from the call for ' +
-                          metric.metric_type)
+      return [MetricPoint(0, 0, 0) for i in range(int((end_time_sec-start_time_sec)/period)+1)]
 
     return metrics_data
 
@@ -344,7 +343,7 @@ class VmMetrics:
     elif test_type == 'write' or test_type == 'randwrite':
         fs_op = 'WriteFile'
 
-    updated_metrics_list = list(METRICS_LIST)
+    updated_metrics_list = list(RENAME_METRICS_LIST)
 
     # Creating a new metric that requires test_type and adding it to the updated_metrics_list:
     ops_latency_filter = 'metric.labels.fs_op = "{}"'.format(fs_op)
