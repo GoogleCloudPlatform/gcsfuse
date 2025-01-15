@@ -46,9 +46,16 @@ func TestRandomWritesToLocalFile(t *testing.T) {
 
 	// Write some contents to file randomly.
 	operations.WriteAt("string1", 0, fh, t)
-	operations.WriteAt("string2", 2, fh, t)
-	operations.WriteAt("string3", 3, fh, t)
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t)
+	operations.WriteAt("string2", 2, fh, t)
+	if setup.StreamingWritesEnabled() {
+		// First out of order write ensures the existing sequentially written data is uploaded
+		// to GCS when streaming writes are enabled.
+		ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, FileName1, "string1", t)
+	} else {
+		ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t)
+	}
+	operations.WriteAt("string3", 3, fh, t)
 
 	// Close the file and validate that the file is created on GCS.
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
