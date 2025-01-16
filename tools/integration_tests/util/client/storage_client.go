@@ -211,6 +211,9 @@ func DeleteObjectOnGCS(ctx context.Context, client *storage.Client, objectName s
 	return nil
 }
 
+// DeleteAllObjectsWithPrefix deletes all objects with the specified prefix in a GCS bucket.
+// It concurrently iterates through objects with the given prefix and deletes them using multiple goroutines,
+// leveraging the number of CPU cores for optimal performance.
 func DeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, prefix string) error {
 	bucket, _ := setup.GetBucketAndObjectBasedOnTypeOfMount("")
 
@@ -219,7 +222,7 @@ func DeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, pre
 	objectItr := client.Bucket(bucket).Objects(ctx, query)
 
 	// Create a buffered channel to receive errors from goroutines
-	errChan := make(chan error, 1000)
+	errChan := make(chan error, 100)
 
 	// Determine the number of concurrent goroutines using CPU cores
 	numCores := runtime.NumCPU()

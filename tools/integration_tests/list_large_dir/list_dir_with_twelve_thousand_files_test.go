@@ -22,7 +22,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-
 	"time"
 
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
@@ -60,13 +59,13 @@ func validateDirectory(t *testing.T, objs []os.DirEntry, expectExplicitDirs, exp
 	)
 
 	for _, obj := range objs {
-		if !obj.IsDir() { // Check if it's a file
+		if !obj.IsDir() { 
 			numberOfFiles++
 			checkIfObjNameIsCorrect(t, obj.Name(), prefixFileInDirectoryWithTwelveThousandFiles, numberOfFilesInDirectoryWithTwelveThousandFiles)
-		} else if strings.Contains(obj.Name(), prefixExplicitDirInLargeDirListTest) { // Check if it's an explicit subdirectory
+		} else if strings.Contains(obj.Name(), prefixExplicitDirInLargeDirListTest) { 
 			numberOfExplicitDirs++
 			checkIfObjNameIsCorrect(t, obj.Name(), prefixExplicitDirInLargeDirListTest, numberOfExplicitDirsInDirectoryWithTwelveThousandFiles)
-		} else if strings.Contains(obj.Name(), prefixImplicitDirInLargeDirListTest) { // Check if it's an implicit subdirectory
+		} else if strings.Contains(obj.Name(), prefixImplicitDirInLargeDirListTest) {
 			numberOfImplicitDirs++
 			checkIfObjNameIsCorrect(t, obj.Name(), prefixImplicitDirInLargeDirListTest, numberOfImplicitDirsInDirectoryWithTwelveThousandFiles)
 		}
@@ -103,7 +102,6 @@ func checkIfObjNameIsCorrect(t *testing.T, objName string, prefix string, maxNum
 func createFilesAndUpload(t *testing.T, dirPath string) {
 	t.Helper()
 
-	// Creating twelve thousand files in DirectoryWithTwelveThousandFiles directory to upload them on a bucket for testing.
 	localDirPath := path.Join(os.Getenv("HOME"), directoryWithTwelveThousandFiles)
 	operations.CreateDirectoryWithNFiles(numberOfFilesInDirectoryWithTwelveThousandFiles, localDirPath, prefixFileInDirectoryWithTwelveThousandFiles, t)
 
@@ -151,12 +149,18 @@ func listDirTime(t *testing.T, dirPath string, expectExplicitDirs bool, expectIm
 	return firstListTime, minSecondListTime
 }
 
-// prepareTestDirectory sets up a test directory with files and optional directories.
+// prepareTestDirectory sets up a test directory with files and required explicit and implicit directories.
 func prepareTestDirectory(t *testing.T, withExplicitDirs bool, withImplicitDirs bool) string {
 	t.Helper()
 
-	testDirPathOnBucket := path.Join(setup.TestBucket(), t.Name())
-	testDirPath := setup.SetupTestDirectory(t.Name())
+	testDirName := t.Name()
+	testDirPathOnBucket := path.Join(setup.TestBucket(), testDirName)
+	testDirPath := path.Join(setup.MntDir(), testDirName)
+
+	err := os.MkdirAll(testDirPath, 0755)
+	if err != nil {
+		t.Fatalf("Failed to create directory: %v", err)
+	}
 
 	createFilesAndUpload(t, testDirPathOnBucket)
 
