@@ -41,7 +41,8 @@ type listLargeDir struct {
 }
 
 func (t *listLargeDir) TearDownSuite() {
-	DeleteAllObjectsWithPrefix(ctx, storageClient, t.T().Name())
+	err := DeleteAllObjectsWithPrefix(ctx, storageClient, t.T().Name())
+	assert.NoError(t.T(), err)
 }
 
 // //////////////////////////////////////////////////////////////////////
@@ -59,10 +60,10 @@ func validateDirectory(t *testing.T, objs []os.DirEntry, expectExplicitDirs, exp
 	)
 
 	for _, obj := range objs {
-		if !obj.IsDir() { 
+		if !obj.IsDir() {
 			numberOfFiles++
 			checkIfObjNameIsCorrect(t, obj.Name(), prefixFileInDirectoryWithTwelveThousandFiles, numberOfFilesInDirectoryWithTwelveThousandFiles)
-		} else if strings.Contains(obj.Name(), prefixExplicitDirInLargeDirListTest) { 
+		} else if strings.Contains(obj.Name(), prefixExplicitDirInLargeDirListTest) {
 			numberOfExplicitDirs++
 			checkIfObjNameIsCorrect(t, obj.Name(), prefixExplicitDirInLargeDirListTest, numberOfExplicitDirsInDirectoryWithTwelveThousandFiles)
 		} else if strings.Contains(obj.Name(), prefixImplicitDirInLargeDirListTest) {
@@ -153,14 +154,8 @@ func listDirTime(t *testing.T, dirPath string, expectExplicitDirs bool, expectIm
 func prepareTestDirectory(t *testing.T, withExplicitDirs bool, withImplicitDirs bool) string {
 	t.Helper()
 
-	testDirName := t.Name()
-	testDirPathOnBucket := path.Join(setup.TestBucket(), testDirName)
-	testDirPath := path.Join(setup.MntDir(), testDirName)
-
-	err := os.MkdirAll(testDirPath, 0755)
-	if err != nil {
-		t.Fatalf("Failed to create directory: %v", err)
-	}
+	testDirPathOnBucket := path.Join(setup.TestBucket(), t.Name())
+	testDirPath := setup.SetupTestDirectory(t.Name())
 
 	createFilesAndUpload(t, testDirPathOnBucket)
 
