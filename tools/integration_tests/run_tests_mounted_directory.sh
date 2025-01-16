@@ -594,3 +594,14 @@ for test_case in "${test_cases[@]}"; do
   GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/kernel_list_cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$test_case"
   sudo umount "$MOUNT_DIR"
 done
+
+# Test package: stale_handle
+# Run tests with static mounting.  (flags: --metadata-cache-ttl-secs=0 --precondition-errors=true)
+gcsfuse --metadata-cache-ttl-secs=0 --precondition-errors=true $TEST_BUCKET_NAME $MOUNT_DIR
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/stale_handle/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
+sudo umount $MOUNT_DIR
+
+# Run test with persistent mounting.  (flags: --metadata-cache-ttl-secs=0 --precondition-errors=true)
+mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o metadata_cache_ttl_secs=0,precondition_errors=true
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/stale_handle/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
+sudo umount $MOUNT_DIR
