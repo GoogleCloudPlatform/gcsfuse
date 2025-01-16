@@ -36,7 +36,7 @@ func SkipTestForUnsupportedKernelVersion(t *testing.T) {
 	// TODO: b/384648943 make this part of fsTest.SetUpTestSuite() after post fs
 	// tests are fully migrated to stretchr/testify.
 	t.Helper()
-	UnsupportedKernelVersions := []string{`^6\.9\.\d+`, `^6\.10\.\d+`, `^6\.11\.\d+`, `^6\.12\.\d+`}
+	UnsupportedKernelVersions := []string{`^6\.9\.\d+-.*`, `^6\.10\.\d+-.*`, `^6\.11\.\d+-.*`, `^6\.12\.\d+-.*`}
 
 	kernelVersion := operations.KernelVersion(t)
 	for i := 0; i < len(UnsupportedKernelVersions); i++ {
