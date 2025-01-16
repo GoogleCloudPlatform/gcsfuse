@@ -155,7 +155,12 @@ func prepareTestDirectory(t *testing.T, withExplicitDirs bool, withImplicitDirs 
 	t.Helper()
 
 	testDirPathOnBucket := path.Join(setup.TestBucket(), t.Name())
-	testDirPath := setup.SetupTestDirectory(t.Name())
+	testDirPath := path.Join(setup.MntDir(), t.Name())
+
+	err := os.MkdirAll(testDirPath, 0755)
+	if err != nil {
+		t.Fatalf("Failed to create directory: %v", err)
+	}
 
 	createFilesAndUpload(t, testDirPathOnBucket)
 
