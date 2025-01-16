@@ -125,7 +125,7 @@ func listDirTime(t *testing.T, dirPath string, expectExplicitDirs bool, expectIm
 	startTime := time.Now()
 	objs, err := os.ReadDir(dirPath)
 	if err != nil {
-		t.Fatalf("Error listing directory: %v", err)
+		t.Fatalf("Error in listing directory: %v", err)
 	}
 	endTime := time.Now()
 
@@ -137,7 +137,7 @@ func listDirTime(t *testing.T, dirPath string, expectExplicitDirs bool, expectIm
 		startTime = time.Now()
 		objs, err = os.ReadDir(dirPath)
 		if err != nil {
-			t.Fatalf("Error listing directory: %v", err)
+			t.Fatalf("Error in listing directory: %v", err)
 		}
 		endTime = time.Now()
 		validateDirectory(t, objs, expectExplicitDirs, expectImplicitDirs)
