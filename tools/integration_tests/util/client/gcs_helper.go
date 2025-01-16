@@ -79,18 +79,6 @@ func ValidateObjectContentsFromGCS(ctx context.Context, storageClient *storage.C
 	}
 }
 
-func ValidateObjectSizeFromGCS(ctx context.Context, storageClient *storage.Client,
-	testDirName string, fileName string, expectedSize int64, t *testing.T) {
-	gotContent, err := ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, fileName))
-	if err != nil {
-		t.Fatalf("Error while reading file from GCS, Err: %v", err)
-	}
-
-	if int64(len(gotContent)) != expectedSize {
-		t.Fatalf("GCS file %s size mismatch. Got file size: %d, Expected file size: %d ", fileName, len(gotContent), expectedSize)
-	}
-}
-
 func ValidateObjectChunkFromGCS(ctx context.Context, storageClient *storage.Client,
 	testDirName string, fileName string, offset, size int64, expectedContent string,
 	t *testing.T) {
@@ -110,12 +98,6 @@ func CloseFileAndValidateContentFromGCS(ctx context.Context, storageClient *stor
 	fh *os.File, testDirName, fileName, content string, t *testing.T) {
 	operations.CloseFileShouldNotThrowError(fh, t)
 	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, fileName, content, t)
-}
-
-func CloseFileAndValidateSizeFromGCS(ctx context.Context, storageClient *storage.Client,
-	fh *os.File, testDirName, fileName string, size int64, t *testing.T) {
-	operations.CloseFileShouldNotThrowError(fh, t)
-	ValidateObjectSizeFromGCS(ctx, storageClient, testDirName, fileName, size, t)
 }
 
 func CreateLocalFileInTestDir(ctx context.Context, storageClient *storage.Client,
