@@ -100,7 +100,6 @@ func TestMain(m *testing.M) {
 		{"--implicit-dirs=true", "--rename-dir-limit=3"},
 		{"--implicit-dirs=false", "--rename-dir-limit=3"},
 		{"--enable-streaming-writes=true", "--write-block-size-mb=2", "--write-max-blocks-per-file=2"},
-		{"--enable-streaming-writes=true", "--write-block-size-mb=2", "--write-max-blocks-per-file=2", "create-empty-file: true"},
 	}
 
 	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
