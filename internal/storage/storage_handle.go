@@ -235,7 +235,8 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	if err == nil {
 		clientOpts, err = createClientOptionForGRPCClient(&clientConfig)
 		directPathDetector = &gRPCDirectPathDetector{clientOptions: clientOpts}
-	} else {
+	}
+	if err != nil {
 		err = fmt.Errorf("go grpc storage client creation failed: %w", err)
 		return
 	}
