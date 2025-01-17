@@ -222,9 +222,8 @@ func newMonitoringReadCloser(ctx context.Context, object string, rc gcs.StorageR
 }
 
 type monitoringReadCloser struct {
-	ctx    context.Context
-	object string
-	//wrapped      io.ReadCloser
+	ctx          context.Context
+	object       string
 	wrapped      gcs.StorageReader
 	metricHandle common.MetricHandle
 }
