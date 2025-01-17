@@ -104,6 +104,14 @@ func (m *TestifyMockBucket) DeleteObject(ctx context.Context, req *gcs.DeleteObj
 	return args.Error(0)
 }
 
+func (m *TestifyMockBucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
+	args := m.Called(ctx, req)
+	if args.Get(0) != nil {
+		return args.Get(0).(*gcs.Object), nil
+	}
+	return nil, args.Error(1)
+}
+
 func (m *TestifyMockBucket) DeleteFolder(ctx context.Context, folderName string) error {
 	args := m.Called(ctx, folderName)
 	return args.Error(0)
