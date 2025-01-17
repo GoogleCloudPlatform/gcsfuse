@@ -510,7 +510,7 @@ func (t *HNSCachedBucketMountTest) SetupSuite() {
 			TypeCacheMaxSizeMb: 4,
 		},
 	}
-	bucketType = gcs.BucketType{}
+	bucketType = gcs.BucketType{Hierarchical: true}
 	// Call through.
 	t.fsTest.SetUpTestSuite()
 }
