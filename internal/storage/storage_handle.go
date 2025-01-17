@@ -61,7 +61,7 @@ type storageClient struct {
 	httpClient           *storage.Client
 	grpcClient           *storage.Client
 	clientProtocol       cfg.Protocol
-	storageControlClient *control.StorageControlClient
+	storageControlClient StorageControlClient
 	directPathDetector   *gRPCDirectPathDetector
 }
 
@@ -230,7 +230,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	var controlClient *control.StorageControlClient
 	var clientOpts []option.ClientOption
 	var directPathDetector *gRPCDirectPathDetector
-	//if clientConfig.ClientProtocol == cfg.GRPC {
+
 	gc, err = createGRPCClientHandle(ctx, &clientConfig)
 	if err == nil {
 		clientOpts, err = createClientOptionForGRPCClient(&clientConfig)
@@ -239,14 +239,8 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		err = fmt.Errorf("go grpc storage client creation failed: %w", err)
 		return
 	}
-	//}
-	//if clientConfig.ClientProtocol == cfg.HTTP1 || clientConfig.ClientProtocol == cfg.HTTP2 {
-	hc, err = createHTTPClientHandle(ctx, &clientConfig)
-	//} else {
-	//err = fmt.Errorf("invalid client-protocol requested: %s", clientConfig.ClientProtocol)
-	//}
 
-	//hc, err = createHTTPClientHandle(ctx, &clientConfig)
+	hc, err = createHTTPClientHandle(ctx, &clientConfig)
 	if err != nil {
 		err = fmt.Errorf("go http storage client creation failed: %w", err)
 		return
@@ -256,25 +250,14 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	// TODO: Custom endpoints do not currently support gRPC. Remove this additional check once TPC(custom-endpoint) supports gRPC.
 	// Create storageControlClient irrespective of whether hns needs to be enabled or not.
 	// Because we will use storageControlClient to check layout of given bucket.
-	//clientOpts, err := createClientOptionForGRPCClient(&clientConfig)
-	//if err != nil {
-	//return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
-	//}
+	clientOpts, err = createClientOptionForGRPCClient(&clientConfig)
+	if err != nil {
+		return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
+	}
 	controlClient, err = storageutil.CreateGRPCControlClient(ctx, clientOpts, &clientConfig)
 	if err != nil {
 		return nil, fmt.Errorf("could not create StorageControl Client: %w", err)
 	}
-
-	//if clientConfig.EnableHNS && clientConfig.CustomEndpoint == "" {
-	//clientOpts, err = createClientOptionForGRPCClient(&clientConfig)
-	//if err != nil {
-	//return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
-	//}
-	//controlClient, err = storageutil.CreateGRPCControlClient(ctx, clientOpts, &clientConfig)
-	//if err != nil {
-	//return nil, fmt.Errorf("could not create StorageControl Client: %w", err)
-	//}
-	//}
 
 	// ShouldRetry function checks if an operation should be retried based on the
 	// response of operation (error.Code).
@@ -318,6 +301,11 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 
 	if bucketType.Zonal || sh.clientProtocol == cfg.GRPC {
 		client = sh.grpcClient
+		if sh.directPathDetector != nil {
+			if err := sh.directPathDetector.isDirectPathPossible(ctx, bucketName); err != nil {
+				logger.Warnf("Direct path connectivity unavailable for %s, reason: %v", bucketName, err)
+			}
+		}
 	} else if sh.clientProtocol == cfg.HTTP1 || sh.clientProtocol == cfg.HTTP2 {
 		client = sh.httpClient
 	} else {
@@ -335,10 +323,6 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 		controlClient: sh.storageControlClient,
 		bucketType:    bucketType,
 	}
-	if sh.directPathDetector != nil {
-		if err := sh.directPathDetector.isDirectPathPossible(ctx, bucketName); err != nil {
-			logger.Warnf("Direct path connectivity unavailable for %s, reason: %v", bucketName, err)
-		}
-	}
+
 	return
 }

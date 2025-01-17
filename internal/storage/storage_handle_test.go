@@ -116,7 +116,6 @@ func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExistWithNo
 	storageHandle := testSuite.fakeStorage.CreateStorageHandle()
 	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
 		Return(nil, fmt.Errorf("bucket does not exist"))
-	bucketHandle, err := storageHandle.BucketHandle(invalidBucketName, projectID)
 	bucketHandle, err := storageHandle.BucketHandle(testSuite.ctx, invalidBucketName, projectID)
 
 	assert.Nil(testSuite.T(), bucketHandle)
@@ -236,20 +235,9 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithInvalidClientProtoco
 	testSuite.mockStorageLayout(gcs.BucketType{})
 	sh := fakeStorage.CreateStorageHandle()
 	assert.NotNil(testSuite.T(), sh)
-	bh, err := sh.BucketHandle(TestBucketName, projectID)
+	bh, err := sh.BucketHandle(testSuite.ctx, TestBucketName, projectID)
 
 	assert.Nil(testSuite.T(), bh)
-	assert.NotNil(testSuite.T(), err)
-	assert.Contains(testSuite.T(), err.Error(), "invalid client-protocol requested: test-protocol")
-}
-
-func (testSuite *StorageHandleTest) TestNewStorageHandleWithInvalidClientProtocol2() {
-	sc := storageutil.GetDefaultStorageClientConfig()
-	sc.ExperimentalEnableJsonRead = true
-	sc.ClientProtocol = "test-protocol"
-
-	handleCreated, err := NewStorageHandle(testSuite.ctx, sc)
-
 	assert.NotNil(testSuite.T(), err)
 	assert.Contains(testSuite.T(), err.Error(), "invalid client-protocol requested: test-protocol")
 }
@@ -290,11 +278,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleDirectPathDetector() {
 			storageClient, ok := handleCreated.(*storageClient)
 			assert.True(testSuite.T(), ok)
 
-			if tc.expectDirectPathDetector {
-				assert.NotNil(testSuite.T(), storageClient.directPathDetector)
-			} else {
-				assert.Nil(testSuite.T(), storageClient.directPathDetector)
-			}
+			assert.NotNil(testSuite.T(), storageClient.directPathDetector)
 		})
 	}
 }
@@ -326,28 +310,6 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithGRPCClientProtocol()
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), storageClient)
-}
-
-func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_WithHTTPClientProtocol() {
-	sc := storageutil.GetDefaultStorageClientConfig()
-	sc.ClientProtocol = cfg.HTTP1
-
-	storageClient, err := createGRPCClientHandle(testSuite.ctx, &sc)
-
-	assert.NotNil(testSuite.T(), err)
-	assert.Nil(testSuite.T(), storageClient)
-	assert.Contains(testSuite.T(), err.Error(), fmt.Sprintf("client-protocol requested is not GRPC: %s", cfg.HTTP1))
-}
-
-func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_WithGRPCClientProtocol() {
-	sc := storageutil.GetDefaultStorageClientConfig()
-	sc.ClientProtocol = cfg.GRPC
-
-	storageClient, err := createHTTPClientHandle(testSuite.ctx, &sc)
-
-	assert.NotNil(testSuite.T(), err)
-	assert.Nil(testSuite.T(), storageClient)
-	assert.Contains(testSuite.T(), err.Error(), fmt.Sprintf("client-protocol requested is not HTTP1 or HTTP2: %s", cfg.GRPC))
 }
 
 func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_WithReadStallRetry() {
