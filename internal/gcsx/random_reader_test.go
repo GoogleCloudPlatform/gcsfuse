@@ -615,10 +615,10 @@ func (t *RandomReaderTest) SequentialReads_NoExistingReader_requestedSizeGreater
 
 	// Call through.
 	buf := make([]byte, readSize)
-	_, cacheHit, err := t.rr.ReadAt(buf, 0)
+	objectData, err := t.rr.ReadAt(buf, 0)
 
 	// Check the state now.
-	ExpectFalse(cacheHit)
+	ExpectFalse(objectData.CacheHit)
 	ExpectEq(nil, err)
 	// Start is the total data read.
 	ExpectEq(readSize, t.rr.wrapped.start)
@@ -671,10 +671,10 @@ func (t *RandomReaderTest) SequentialReads_existingReader_requestedSizeGreaterTh
 
 	// Call through.
 	buf := make([]byte, readSize)
-	_, cacheHit, err := t.rr.ReadAt(buf, 0)
+	objectData, err := t.rr.ReadAt(buf, 0)
 
 	// Check the state now.
-	ExpectFalse(cacheHit)
+	ExpectFalse(objectData.CacheHit)
 	ExpectEq(nil, err)
 	// Start is the total data read.
 	ExpectEq(readSize, t.rr.wrapped.start)
