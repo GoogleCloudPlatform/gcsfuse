@@ -777,34 +777,35 @@ func (t *RandomReaderTest) Test_ReadAt_SequentialToRandomSubsequentReadOffsetLes
 	ExpectTrue(reflect.DeepEqual(testContent[start3:end3], buf3))
 }
 
-// func (t *RandomReaderTest) Test_ReadAt_CacheMissDueToInvalidJob() {
-// 	t.rr.wrapped.fileCacheHandler = t.cacheHandler
-// 	objectSize := t.object.Size
-// 	testContent := testutil.GenerateRandomBytes(int(objectSize))
-// 	rc1 := getReadCloser(testContent)
-// 	t.mockNewReaderCallForTestBucket(0, objectSize, rc1)
-// 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
-// 	buf := make([]byte, objectSize)
-// 	_, cacheHit, err := t.rr.ReadAt(buf, 0)
-// 	AssertEq(nil, err)
-// 	ExpectFalse(cacheHit)
-// 	AssertTrue(reflect.DeepEqual(testContent, buf))
-// 	job := t.jobManager.GetJob(t.object.Name, t.bucket.Name())
-// 	AssertTrue(job == nil || job.GetStatus().Name == downloader.Completed)
-// 	err = t.rr.wrapped.fileCacheHandler.InvalidateCache(t.object.Name, t.bucket.Name())
-// 	AssertEq(nil, err)
-// 	// Second reader (rc2) is required, since first reader (rc) is completely read.
-// 	// Reading again will return EOF.
-// 	rc2 := getReadCloser(testContent)
-// 	t.mockNewReaderCallForTestBucket(0, objectSize, rc2)
+func (t *RandomReaderTest) Test_ReadAt_CacheMissDueToInvalidJob() {
+	t.rr.wrapped.fileCacheHandler = t.cacheHandler
+	objectSize := t.object.Size
+	testContent := testutil.GenerateRandomBytes(int(objectSize))
+	rc1 := getReadCloser(testContent)
+	t.mockNewReaderCallForTestBucket(0, objectSize, rc1)
+	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
+	buf := make([]byte, objectSize)
+	objectData, err := t.rr.ReadAt(buf, 0)
+	AssertEq(nil, err)
+	ExpectFalse(objectData.CacheHit)
+	AssertTrue(reflect.DeepEqual(testContent, buf))
+	job := t.jobManager.GetJob(t.object.Name, t.bucket.Name())
+	AssertTrue(job == nil || job.GetStatus().Name == downloader.Completed)
+	err = t.rr.wrapped.fileCacheHandler.InvalidateCache(t.object.Name, t.bucket.Name())
+	AssertEq(nil, err)
+	// Second reader (rc2) is required, since first reader (rc) is completely read.
+	// Reading again will return EOF.
+	rc2 := getReadCloser(testContent)
+	t.mockNewReaderCallForTestBucket(0, objectSize, rc2)
 
-// 	_, cacheHit, err = t.rr.ReadAt(buf, 0)
+	objectData, err = t.rr.ReadAt(buf, 0)
 
-//		ExpectEq(nil, err)
-//		ExpectFalse(cacheHit)
-//		ExpectTrue(reflect.DeepEqual(testContent, buf))
-//		ExpectEq(nil, t.rr.wrapped.fileCacheHandle)
-//	}
+	ExpectEq(nil, err)
+	ExpectFalse(objectData.CacheHit)
+	ExpectTrue(reflect.DeepEqual(testContent, buf))
+	ExpectEq(nil, t.rr.wrapped.fileCacheHandle)
+}
+
 func (t *RandomReaderTest) Test_ReadAt_CachePopulatedAndThenCacheMissDueToInvalidJob() {
 	t.rr.wrapped.fileCacheHandler = t.cacheHandler
 	objectSize := t.object.Size
