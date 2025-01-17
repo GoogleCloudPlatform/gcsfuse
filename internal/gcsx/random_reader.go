@@ -628,9 +628,6 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 		return
 	}
 
-	requestedDataSize := end - start
-	common.CaptureGCSReadMetrics(ctx, rr.metricHandle, readType, requestedDataSize)
-
 	return
 }
 
