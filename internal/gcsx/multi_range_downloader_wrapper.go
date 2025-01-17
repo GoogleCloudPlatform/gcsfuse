@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/clock"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/monitor"
@@ -147,7 +148,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader() (err
 
 // Reads the data using MultiRangeDownloader.
 func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []byte,
-	startOffset int64, endOffset int64, timeout time.Duration) (bytesRead int, err error) {
+	startOffset int64, endOffset int64, timeout time.Duration, metricHandle common.MetricHandle) (bytesRead int, err error) {
 	// Bidi Api with 0 as read_limit means no limit whereas we do not want to read anything with empty buffer.
 	// Hence, handling it separately.
 	if len(buf) == 0 {
@@ -204,7 +205,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 		err = res.err
 	}
 	duration := time.Since(start)
-	monitor.CaptureMultiRangeDownloaderMetrics(ctx, "MultiRangeDownloader::Add", start)
+	monitor.CaptureMultiRangeDownloaderMetrics(ctx, metricHandle, "MultiRangeDownloader::Add", start)
 	errDesc := "OK"
 	if err != nil {
 		errDesc = err.Error()
