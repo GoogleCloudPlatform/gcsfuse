@@ -42,6 +42,14 @@ func (m *TestifyMockBucket) NewReader(ctx context.Context, req *gcs.ReadObjectRe
 	return args.Get(0).(io.ReadCloser), args.Error(1)
 }
 
+func (m *TestifyMockBucket) NewReaderWithReadHandle(ctx context.Context, req *gcs.ReadObjectRequest) (gcs.StorageReader, error) {
+	args := m.Called(ctx, req)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(gcs.StorageReader), args.Error(1)
+}
+
 func (m *TestifyMockBucket) CreateObject(ctx context.Context, req *gcs.CreateObjectRequest) (*gcs.Object, error) {
 	args := m.Called(ctx, req)
 	if args.Get(1) != nil {
@@ -129,6 +137,15 @@ func (m *TestifyMockBucket) CreateFolder(ctx context.Context, folderName string)
 	args := m.Called(ctx, folderName)
 	if args.Get(0) != nil {
 		return args.Get(0).(*gcs.Folder), nil
+	}
+	return nil, args.Error(1)
+}
+
+func (m *TestifyMockBucket) NewMultiRangeDownloader(
+	ctx context.Context, req *gcs.MultiRangeDownloaderRequest) (gcs.MultiRangeDownloader, error) {
+	args := m.Called(ctx, req)
+	if args.Get(0) != nil {
+		return args.Get(0).(gcs.MultiRangeDownloader), nil
 	}
 	return nil, args.Error(1)
 }

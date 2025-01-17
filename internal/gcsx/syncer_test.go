@@ -296,7 +296,7 @@ func (t *SyncerTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
 
 	// Set up dependencies.
-	t.bucket = fake.NewFakeBucket(&t.clock, "some_bucket", gcs.NonHierarchical)
+	t.bucket = fake.NewFakeBucket(&t.clock, "some_bucket", gcs.BucketType{})
 	t.syncer = newSyncer(
 		appendThreshold,
 		chunkTransferTimeoutSecs,

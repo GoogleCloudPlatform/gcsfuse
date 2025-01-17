@@ -70,12 +70,19 @@ func (b *prefixBucket) BucketType() gcs.BucketType {
 func (b *prefixBucket) NewReader(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
+	rc, err = b.NewReaderWithReadHandle(ctx, req)
+	return
+}
+
+func (b *prefixBucket) NewReaderWithReadHandle(
+	ctx context.Context,
+	req *gcs.ReadObjectRequest) (rd gcs.StorageReader, err error) {
 	// Modify the request and call through.
 	mReq := new(gcs.ReadObjectRequest)
 	*mReq = *req
 	mReq.Name = b.wrappedName(req.Name)
 
-	rc, err = b.wrapped.NewReader(ctx, mReq)
+	rd, err = b.wrapped.NewReaderWithReadHandle(ctx, mReq)
 	return
 }
 
@@ -293,4 +300,15 @@ func (b *prefixBucket) RenameFolder(ctx context.Context, folderName string, dest
 	}
 
 	return f, err
+}
+
+func (b *prefixBucket) NewMultiRangeDownloader(
+	ctx context.Context, req *gcs.MultiRangeDownloaderRequest) (mrd gcs.MultiRangeDownloader, err error) {
+	// Modify the request and call through.
+	mReq := new(gcs.MultiRangeDownloaderRequest)
+	*mReq = *req
+	mReq.Name = b.wrappedName(req.Name)
+
+	mrd, err = b.wrapped.NewMultiRangeDownloader(ctx, mReq)
+	return
 }

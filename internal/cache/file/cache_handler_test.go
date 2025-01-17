@@ -24,6 +24,7 @@ import (
 	"testing"
 	"time"
 
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
@@ -36,6 +37,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -59,17 +61,21 @@ func initializeCacheHandlerTestArgs(t *testing.T, fileCacheConfig *cfg.FileCache
 	locker.EnableInvariantsCheck()
 
 	// Create bucket in fake storage.
-	fakeStorage := storage.NewFakeStorage()
+	mockClient := new(storage.MockStorageControlClient)
+	fakeStorage := storage.NewFakeStorageWithMockClient(mockClient, cfg.HTTP2)
 	t.Cleanup(func() {
 		fakeStorage.ShutDown()
 	})
 	storageHandle := fakeStorage.CreateStorageHandle()
+	mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
+		Return(&controlpb.StorageLayout{}, nil)
 	ctx := context.Background()
-	bucket := storageHandle.BucketHandle(ctx, storage.TestBucketName, "")
+	bucket, err := storageHandle.BucketHandle(ctx, storage.TestBucketName, "")
+	require.NoError(t, err)
 
 	// Create test object in the bucket.
 	testObjectContent := make([]byte, TestObjectSize)
-	_, err := rand.Read(testObjectContent)
+	_, err = rand.Read(testObjectContent)
 	require.NoError(t, err)
 	object := createObject(t, bucket, TestObjectName, testObjectContent)
 

@@ -17,6 +17,7 @@
 package testing
 
 import (
+	"bytes"
 	"context"
 	"crypto/md5"
 	"crypto/rand"
@@ -292,8 +293,78 @@ func readMultiple(
 	}
 
 	// Run several workers.
-	const parallelsim = 32
-	for i := 0; i < parallelsim; i++ {
+	const parallelism = 32
+	for i := 0; i < parallelism; i++ {
+		group.Go(func() (err error) {
+			for i := range indices {
+				handleRequest(ctx, i)
+			}
+
+			return
+		})
+	}
+
+	AssertEq(nil, group.Wait())
+	return
+}
+
+// Issue all of the supplied read requests
+// using multi-range-read approach,
+// with some degree of parallelism.
+func readMultipleUsingMultiRangeDownloader(
+	ctx context.Context,
+	bucket gcs.Bucket,
+	req *gcs.MultiRangeDownloaderRequest,
+	ranges []gcs.ByteRange) (contents []*bytes.Buffer, errs []error) {
+	group, ctx := errgroup.WithContext(ctx)
+	if len(ranges) == 0 {
+		return // nothing to do
+	}
+
+	// Open a reader.
+	mrd, err := bucket.NewMultiRangeDownloader(ctx, req)
+	if err != nil {
+		AddFailure("failed to get multi-range-downloader for object %s: %v", req.Name, err)
+		return
+	}
+	// Not checking error on mrd.Close() here as it is expected to fail for
+	// negative test cases. These negative cases are tested through errs[i].
+	defer mrd.Close()
+
+	// Feed indices into a channel.
+	indices := make(chan int, len(ranges))
+	for i := range ranges {
+		indices <- i
+	}
+	close(indices)
+
+	// Set up a function that deals with one request.
+	contents = make([]*bytes.Buffer, len(ranges))
+	errs = make([]error, len(ranges))
+
+	handleRequest := func(ctx context.Context, i int) {
+		if ranges[i].Limit > ranges[i].Start {
+			size := ranges[i].Limit - ranges[i].Start
+			contents[i] = bytes.NewBuffer(make([]byte, 0, size))
+			// Add a new range to read.
+			mrd.Add(contents[i], int64(ranges[i].Start), int64(size), func(offset, length int64, err error) {
+				// Mark error for this range if the callback returned error for it.
+				errs[i] = err
+			})
+		} else {
+			// Create a dummy buffer to avoid unnecessary initialization failures.
+			contents[i] = bytes.NewBuffer(make([]byte, 0, 1))
+			// Add a new range to read.
+			mrd.Add(contents[i], int64(ranges[i].Start), 0, func(offset, length int64, err error) {
+				// Mark error for this range if the callback returned error for it.
+				errs[i] = err
+			})
+		}
+	}
+
+	// Run several workers.
+	const parallelism = 32
+	for i := 0; i < parallelism; i++ {
 		group.Go(func() (err error) {
 			for i := range indices {
 				handleRequest(ctx, i)
@@ -3025,6 +3096,337 @@ func (t *readTest) Ranges_NonEmptyObject() {
 		desc := fmt.Sprintf("Test case %d, range %v", i, tc.br)
 		ExpectEq(nil, errs[i], "%s", desc)
 		ExpectEq(tc.expectedContents, string(contents[i]), "%s", desc)
+	}
+}
+
+////////////////////////////////////////////////////////////////////////
+// Read - multirange
+////////////////////////////////////////////////////////////////////////
+
+type readMultiRangeTest struct {
+	bucketTest
+}
+
+func (t *readMultiRangeTest) ObjectNameDoesntExist() {
+	req := &gcs.MultiRangeDownloaderRequest{
+		Name: "foobar",
+	}
+
+	_, err := t.bucket.NewMultiRangeDownloader(t.ctx, req)
+
+	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	ExpectThat(err, Error(MatchesRegexp("(?i)not found|404")))
+}
+
+func (t *readMultiRangeTest) EmptyObject() {
+	// Create
+	AssertEq(nil, t.createObject("foo", ""))
+
+	// Read
+	req := &gcs.MultiRangeDownloaderRequest{
+		Name: "foo",
+	}
+
+	mrd, err := t.bucket.NewMultiRangeDownloader(t.ctx, req)
+	AssertEq(nil, err)
+
+	// Close
+	AssertEq(nil, mrd.Close())
+}
+
+func (t *readMultiRangeTest) NonEmptyObject() {
+	// Create
+	AssertEq(nil, t.createObject("foo", "taco"))
+
+	// Read
+	req := &gcs.MultiRangeDownloaderRequest{
+		Name: "foo",
+	}
+
+	mrd, err := t.bucket.NewMultiRangeDownloader(t.ctx, req)
+	AssertEq(nil, err)
+
+	outBuffer := bytes.NewBufferString("")
+	callbackCalled := false
+	mrd.Add(outBuffer, 0, 4, func(offset int64, length int64, err error) {
+		AssertEq(nil, err)
+		AssertEq("taco", outBuffer.String())
+		callbackCalled = true
+	})
+
+	// Close
+	mrd.Wait()
+	AssertTrue(callbackCalled)
+	AssertEq(nil, mrd.Close())
+}
+
+func (t *readMultiRangeTest) ParticularGeneration_NeverExisted() {
+	// Create an object.
+	o, err := storageutil.CreateObject(
+		t.ctx,
+		t.bucket,
+		"foo",
+		[]byte{})
+
+	AssertEq(nil, err)
+	AssertGt(o.Generation, 0)
+
+	// Attempt to read a different generation.
+	req := &gcs.MultiRangeDownloaderRequest{
+		Name:       "foo",
+		Generation: o.Generation + 1,
+	}
+	_, err = t.bucket.NewMultiRangeDownloader(t.ctx, req)
+
+	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	ExpectThat(err, Error(MatchesRegexp("(?i)not found|404")))
+}
+
+func (t *readMultiRangeTest) ParticularGeneration_HasBeenDeleted() {
+	// Create an object.
+	o, err := storageutil.CreateObject(
+		t.ctx,
+		t.bucket,
+		"foo",
+		[]byte{})
+
+	AssertEq(nil, err)
+	AssertGt(o.Generation, 0)
+
+	// Delete it.
+	err = t.bucket.DeleteObject(
+		t.ctx,
+		&gcs.DeleteObjectRequest{
+			Name: "foo",
+		})
+
+	AssertEq(nil, err)
+
+	// Attempt to read by generation.
+	req := &gcs.MultiRangeDownloaderRequest{
+		Name:       "foo",
+		Generation: o.Generation,
+	}
+	_, err = t.bucket.NewMultiRangeDownloader(t.ctx, req)
+
+	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	ExpectThat(err, Error(MatchesRegexp("(?i)not found|404")))
+}
+
+func (t *readMultiRangeTest) ParticularGeneration_Exists() {
+	// Create an object.
+	o, err := storageutil.CreateObject(
+		t.ctx,
+		t.bucket,
+		"foo",
+		[]byte("taco"))
+
+	AssertEq(nil, err)
+	AssertGt(o.Generation, 0)
+
+	// Attempt to read the correct generation.
+	req := &gcs.MultiRangeDownloaderRequest{
+		Name:       "foo",
+		Generation: o.Generation,
+	}
+
+	mrd, err := t.bucket.NewMultiRangeDownloader(t.ctx, req)
+	AssertEq(nil, err)
+
+	outBuffer := bytes.NewBufferString("")
+	callbackCalled := false
+	mrd.Add(outBuffer, 0, 4, func(offset int64, length int64, err error) {
+		AssertEq(nil, err)
+		AssertEq("taco", outBuffer.String())
+		callbackCalled = true
+	})
+
+	// Close
+	AssertEq(nil, mrd.Close())
+	AssertTrue(callbackCalled)
+}
+
+func (t *readMultiRangeTest) ParticularGeneration_ObjectHasBeenOverwritten() {
+	// Create an object.
+	o, err := storageutil.CreateObject(
+		t.ctx,
+		t.bucket,
+		"foo",
+		[]byte("taco"))
+
+	AssertEq(nil, err)
+	AssertGt(o.Generation, 0)
+
+	// Overwrite with a new generation.
+	o2, err := storageutil.CreateObject(
+		t.ctx,
+		t.bucket,
+		"foo",
+		[]byte("burrito"))
+
+	AssertEq(nil, err)
+	AssertGt(o2.Generation, 0)
+	AssertNe(o.Generation, o2.Generation)
+
+	// Reading by the old generation should fail.
+	req := &gcs.MultiRangeDownloaderRequest{
+		Name:       "foo",
+		Generation: o.Generation,
+	}
+
+	_, err = t.bucket.NewMultiRangeDownloader(t.ctx, req)
+	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	ExpectThat(err, Error(MatchesRegexp("(?i)not found|404")))
+
+	// Reading by the new generation should work.
+	req.Generation = o2.Generation
+	mrd, err := t.bucket.NewMultiRangeDownloader(t.ctx, req)
+
+	AssertEq(nil, err)
+	AssertNe(nil, mrd)
+
+	size := len("burrito")
+	callbackCalled := false
+	writer := bytes.NewBufferString("")
+	mrd.Add(writer, int64(0), int64(size), func(offset, length int64, err error) {
+		AssertEq(nil, err)
+		AssertEq("burrito", writer.String(),
+			"Failed to match buf=%v, content=%v", writer.Bytes(), []byte("burrito"))
+		callbackCalled = true
+	})
+
+	// Close
+	AssertEq(nil, mrd.Close())
+	AssertTrue(callbackCalled)
+}
+
+func (t *readMultiRangeTest) Ranges_EmptyObject() {
+	// Create an empty object.
+	AssertEq(nil, t.createObject("foo", ""))
+
+	// Test cases.
+	testCases := []struct {
+		br          gcs.ByteRange
+		expectError bool
+	}{
+		// Empty without knowing object length
+		{gcs.ByteRange{Start: 0, Limit: 0}, false},
+
+		{gcs.ByteRange{Start: 1, Limit: 2}, true},
+		{gcs.ByteRange{Start: 1, Limit: 1}, true},
+		{gcs.ByteRange{Start: 1, Limit: 0}, true},
+
+		// Not empty without knowing object length
+		{gcs.ByteRange{Start: 0, Limit: 1}, false},
+		{gcs.ByteRange{Start: 0, Limit: 17}, false},
+	}
+
+	// Turn test cases into read requests.
+	req := &gcs.MultiRangeDownloaderRequest{
+		Name: "foo",
+	}
+
+	var ranges []gcs.ByteRange
+	for _, tc := range testCases {
+		ranges = append(ranges, tc.br)
+	}
+
+	// Make each request.
+	contents, errs := readMultipleUsingMultiRangeDownloader(
+		t.ctx,
+		t.bucket,
+		req,
+		ranges)
+
+	AssertEq(len(testCases), len(contents))
+	AssertEq(len(testCases), len(errs))
+	for i, tc := range testCases {
+		desc := fmt.Sprintf("Test case %d, range %v", i, tc.br)
+		if tc.expectError {
+			ExpectNe(nil, errs[i], desc)
+		} else {
+			ExpectEq(nil, errs[i], "%s", desc)
+			ExpectEq("", contents[i].String(), "%s", desc)
+		}
+	}
+}
+
+func (t *readMultiRangeTest) Ranges_NonEmptyObject() {
+	// Create an object of length four.
+	AssertEq(nil, t.createObject("foo", "taco"))
+
+	// Test cases.
+	testCases := []struct {
+		br               gcs.ByteRange
+		expectedContents string
+		expectError      bool
+	}{
+		// Left anchored
+		{gcs.ByteRange{Start: 0, Limit: 5}, "taco", false},
+		{gcs.ByteRange{Start: 0, Limit: 4}, "taco", false},
+		{gcs.ByteRange{Start: 0, Limit: 3}, "tac", false},
+		{gcs.ByteRange{Start: 0, Limit: 2}, "ta", false},
+		{gcs.ByteRange{Start: 0, Limit: 1}, "t", false},
+		{gcs.ByteRange{Start: 0, Limit: 0}, "", false},
+
+		// Floating left edge
+		{gcs.ByteRange{Start: 1, Limit: 5}, "aco", false},
+		{gcs.ByteRange{Start: 1, Limit: 4}, "aco", false},
+		{gcs.ByteRange{Start: 1, Limit: 3}, "ac", false},
+		{gcs.ByteRange{Start: 1, Limit: 2}, "a", false},
+		{gcs.ByteRange{Start: 1, Limit: 1}, "", false},
+		{gcs.ByteRange{Start: 1, Limit: 0}, "", false},
+
+		// Left edge at right edge of object
+		{gcs.ByteRange{Start: 4, Limit: 17}, "", false},
+		{gcs.ByteRange{Start: 4, Limit: 5}, "", false},
+		{gcs.ByteRange{Start: 4, Limit: 4}, "", false},
+		{gcs.ByteRange{Start: 4, Limit: 1}, "", false},
+		{gcs.ByteRange{Start: 4, Limit: 0}, "", false},
+
+		// Left edge past right edge of object
+		{gcs.ByteRange{Start: 5, Limit: 17}, "", true},
+		{gcs.ByteRange{Start: 5, Limit: 5}, "", true},
+		{gcs.ByteRange{Start: 5, Limit: 4}, "", true},
+		{gcs.ByteRange{Start: 5, Limit: 1}, "", true},
+		{gcs.ByteRange{Start: 5, Limit: 0}, "", true},
+
+		// Left edge is 2^63 - 1
+		{gcs.ByteRange{Start: math.MaxInt64, Limit: 5}, "", true},
+		{gcs.ByteRange{Start: math.MaxInt64, Limit: 4}, "", true},
+		{gcs.ByteRange{Start: math.MaxInt64, Limit: 1}, "", true},
+		{gcs.ByteRange{Start: math.MaxInt64, Limit: 0}, "", true},
+	}
+
+	// Turn test cases into read requests.
+	req := &gcs.MultiRangeDownloaderRequest{
+		Name: "foo",
+	}
+
+	var ranges []gcs.ByteRange
+	for _, tc := range testCases {
+		ranges = append(ranges, tc.br)
+	}
+
+	// Make each request.
+	contents, errs := readMultipleUsingMultiRangeDownloader(
+		t.ctx,
+		t.bucket,
+		req,
+		ranges)
+
+	AssertEq(len(testCases), len(contents))
+	AssertEq(len(testCases), len(errs))
+	for i, tc := range testCases {
+		desc := fmt.Sprintf("Test case %d, range %v", i, tc.br)
+		if tc.expectError {
+			ExpectNe(nil, errs[i], "%q", desc)
+		} else {
+			ExpectEq(nil, errs[i], "%q", desc)
+			if tc.br.Limit > tc.br.Start {
+				ExpectEq(tc.expectedContents, contents[i].String(), "%s", desc)
+			}
+		}
 	}
 }
 

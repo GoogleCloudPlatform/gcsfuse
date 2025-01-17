@@ -28,7 +28,6 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googleapis/gax-go/v2"
 	"github.com/googleapis/gax-go/v2/apierror"
@@ -48,7 +47,7 @@ type bucketHandle struct {
 	gcs.Bucket
 	bucket        *storage.BucketHandle
 	bucketName    string
-	bucketType    gcs.BucketType
+	bucketType    *gcs.BucketType
 	controlClient StorageControlClient
 }
 
@@ -57,43 +56,52 @@ func (bh *bucketHandle) Name() string {
 }
 
 func (bh *bucketHandle) BucketType() gcs.BucketType {
-	var nilControlClient *control.StorageControlClient = nil
-	// Note: The first invocation of this method will be slower due to a required Google Cloud Storage (GCS) fetch.
-	// Subsequent calls will be significantly faster as the results are cached in memory.
-	// While this operation is thread-safe, parallel calls during the initial fetch can result in redundant GCS requests.
-	// To avoid this, it's advisable to call this initially while mounting.
-	if bh.bucketType == gcs.Nil {
-		if bh.controlClient == nilControlClient {
-			bh.bucketType = gcs.NonHierarchical
-			return bh.bucketType
-		}
-		startTime := time.Now()
-		logger.Infof("GetStorageLayout <- (%s)", bh.bucketName)
-		storageLayout, err := bh.getStorageLayout()
-		duration := time.Since(startTime)
-		// In case bucket does not exist, set type unknown instead of panic.
-		if err != nil {
-			bh.bucketType = gcs.Unknown
-			logger.Errorf("Error returned from GetStorageLayout: %v", err)
-			return bh.bucketType
-		}
-		logger.Infof("GetStorageLayout -> (%s) %v msec", bh.bucketName, duration.Milliseconds())
-
-		hierarchicalNamespace := storageLayout.GetHierarchicalNamespace()
-		if hierarchicalNamespace != nil && hierarchicalNamespace.Enabled {
-			bh.bucketType = gcs.Hierarchical
-			return bh.bucketType
-		}
-
-		bh.bucketType = gcs.NonHierarchical
-	}
-
-	return bh.bucketType
+	return *bh.bucketType
 }
+
+//var nilControlClient *control.StorageControlClient = nil
+//// Note: The first invocation of this method will be slower due to a required Google Cloud Storage (GCS) fetch.
+//// Subsequent calls will be significantly faster as the results are cached in memory.
+//// While this operation is thread-safe, parallel calls during the initial fetch can result in redundant GCS requests.
+//// To avoid this, it's advisable to call this initially while mounting.
+//if bh.bucketType == gcs.Nil {
+//if bh.controlClient == nilControlClient {
+//bh.bucketType = gcs.NonHierarchical
+//return bh.bucketType
+//}
+//startTime := time.Now()
+//logger.Infof("GetStorageLayout <- (%s)", bh.bucketName)
+//storageLayout, err := bh.getStorageLayout()
+//duration := time.Since(startTime)
+//// In case bucket does not exist, set type unknown instead of panic.
+//if err != nil {
+//bh.bucketType = gcs.Unknown
+//logger.Errorf("Error returned from GetStorageLayout: %v", err)
+//return bh.bucketType
+//}
+//logger.Infof("GetStorageLayout -> (%s) %v msec", bh.bucketName, duration.Milliseconds())
+//
+//hierarchicalNamespace := storageLayout.GetHierarchicalNamespace()
+//if hierarchicalNamespace != nil && hierarchicalNamespace.Enabled {
+//bh.bucketType = gcs.Hierarchical
+//return bh.bucketType
+//}
+//
+//bh.bucketType = gcs.NonHierarchical
+//}
+//
+//return bh.bucketType
 
 func (bh *bucketHandle) NewReader(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (io.ReadCloser, error) {
+	rc, err := bh.NewReaderWithReadHandle(ctx, req)
+	return rc, err
+}
+
+func (bh *bucketHandle) NewReaderWithReadHandle(
+	ctx context.Context,
+	req *gcs.ReadObjectRequest) (gcs.StorageReader, error) {
 	// Initialising the starting offset and the length to be read by the reader.
 	start := int64(0)
 	length := int64(-1)
@@ -116,6 +124,14 @@ func (bh *bucketHandle) NewReader(
 		obj = obj.ReadCompressed(true)
 	}
 
+	// Insert ReadHandle into objectHandle if present.
+	// Objects that have been opened can be opened again using readHandle at lower latency.
+	// This produces the exact same object and generation and does not check if
+	// the generation is still the newest one.
+	if req.ReadHandle != nil {
+		obj = obj.ReadHandle(req.ReadHandle)
+	}
+
 	// NewRangeReader creates a "storage.Reader" object which is also io.ReadCloser since it contains both Read() and Close() methods present in io.ReadCloser interface.
 	r, err := obj.NewRangeReader(ctx, start, length)
 
@@ -125,6 +141,7 @@ func (bh *bucketHandle) NewReader(
 
 	return r, err
 }
+
 func (bh *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRequest) error {
 	obj := bh.bucket.Object(req.Name)
 
@@ -228,6 +245,8 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	wc.ProgressFunc = func(bytesUploadedSoFar int64) {
 		logger.Tracef("gcs: Req %#16x: -- CreateObject(%q): %20v bytes uploaded so far", ctx.Value(gcs.ReqIdField), req.Name, bytesUploadedSoFar)
 	}
+	// All objects in zonal buckets must be appendable.
+	wc.Append = bh.BucketType().Zonal
 
 	// Copy the contents to the writer.
 	if _, err = io.Copy(wc, req.Contents); err != nil {
@@ -277,6 +296,8 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 		}
 	}
 	wc.ProgressFunc = callBack
+	// All objects in zonal buckets must be appendable.
+	wc.Append = bh.BucketType().Zonal
 
 	return wc, nil
 }
@@ -672,6 +693,22 @@ func (bh *bucketHandle) CreateFolder(ctx context.Context, folderName string) (*g
 	folder := gcs.GCSFolder(bh.bucketName, clientFolder)
 
 	return folder, nil
+}
+
+func (bh *bucketHandle) NewMultiRangeDownloader(
+	ctx context.Context, req *gcs.MultiRangeDownloaderRequest) (gcs.MultiRangeDownloader, error) {
+	obj := bh.bucket.Object(req.Name)
+
+	// Switching to the requested generation of object.
+	if req.Generation != 0 {
+		obj = obj.Generation(req.Generation)
+	}
+
+	if req.ReadCompressed {
+		obj = obj.ReadCompressed(true)
+	}
+
+	return obj.NewMultiRangeDownloader(ctx)
 }
 
 func isStorageConditionsNotEmpty(conditions storage.Conditions) bool {

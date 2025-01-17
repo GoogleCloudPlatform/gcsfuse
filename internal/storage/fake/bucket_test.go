@@ -35,7 +35,7 @@ func init() {
 		deps.Clock = clock
 
 		// Set up the bucket.
-		deps.Bucket = NewFakeBucket(clock, "some_bucket", gcs.NonHierarchical)
+		deps.Bucket = NewFakeBucket(clock, "some_bucket", gcs.BucketType{})
 
 		return
 	}

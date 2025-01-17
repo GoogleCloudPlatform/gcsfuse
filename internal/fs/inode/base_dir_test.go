@@ -64,13 +64,13 @@ func (t *BaseDirTest) SetUp(ti *TestInfo) {
 		1, // Append threshold
 		ChunkTransferTimeoutSecs,
 		".gcsfuse_tmp/",
-		fake.NewFakeBucket(&t.clock, "bucketA", gcs.NonHierarchical),
+		fake.NewFakeBucket(&t.clock, "bucketA", gcs.BucketType{}),
 	)
 	t.bm.buckets["bucketB"] = gcsx.NewSyncerBucket(
 		1, // Append threshold
 		ChunkTransferTimeoutSecs,
 		".gcsfuse_tmp/",
-		fake.NewFakeBucket(&t.clock, "bucketB", gcs.NonHierarchical),
+		fake.NewFakeBucket(&t.clock, "bucketB", gcs.BucketType{}),
 	)
 
 	// Create the inode. No implicit dirs by default.

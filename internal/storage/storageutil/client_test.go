@@ -18,29 +18,30 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/jacobsa/oglematchers"
-	. "github.com/jacobsa/ogletest"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 	"golang.org/x/oauth2"
 )
 
-func TestClient(t *testing.T) { RunTests(t) }
-
-type clientTest struct {
+func TestClient(t *testing.T) {
+	suite.Run(t, new(clientTest))
 }
 
-func init() { RegisterTestSuite(&clientTest{}) }
+type clientTest struct {
+	suite.Suite
+}
 
 // Helpers
 
 func (t *clientTest) validateProxyInTransport(httpClient *http.Client) {
 	userAgentRT, ok := httpClient.Transport.(*userAgentRoundTripper)
-	AssertEq(true, ok)
+	assert.True(t.T(), ok)
 	oauthTransport, ok := userAgentRT.wrapped.(*oauth2.Transport)
-	AssertEq(true, ok)
+	assert.True(t.T(), ok)
 	transport, ok := oauthTransport.Base.(*http.Transport)
-	AssertEq(true, ok)
+	assert.True(t.T(), ok)
 	if ok {
-		ExpectEq(http.ProxyFromEnvironment, transport.Proxy)
+		assert.Equal(t.T(), http.ProxyFromEnvironment, transport.Proxy)
 	}
 }
 
@@ -51,9 +52,9 @@ func (t *clientTest) TestCreateHttpClientWithHttp1() {
 
 	httpClient, err := CreateHttpClient(&sc)
 
-	ExpectEq(nil, err)
-	ExpectNe(nil, httpClient)
-	ExpectEq(sc.HttpClientTimeout, httpClient.Timeout)
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), httpClient)
+	assert.Equal(t.T(), sc.HttpClientTimeout, httpClient.Timeout)
 }
 
 func (t *clientTest) TestCreateHttpClientWithHttp2() {
@@ -61,9 +62,9 @@ func (t *clientTest) TestCreateHttpClientWithHttp2() {
 
 	httpClient, err := CreateHttpClient(&sc)
 
-	ExpectEq(nil, err)
-	ExpectNe(nil, httpClient)
-	ExpectEq(sc.HttpClientTimeout, httpClient.Timeout)
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), httpClient)
+	assert.Equal(t.T(), sc.HttpClientTimeout, httpClient.Timeout)
 }
 
 func (t *clientTest) TestCreateHttpClientWithHttp1AndAuthEnabled() {
@@ -73,9 +74,9 @@ func (t *clientTest) TestCreateHttpClientWithHttp1AndAuthEnabled() {
 	// Act: this method add tokenSource and clientOptions.
 	httpClient, err := CreateHttpClient(&sc)
 
-	AssertNe(nil, err)
-	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("no such file or directory")))
-	AssertEq(nil, httpClient)
+	assert.Error(t.T(), err)
+	assert.ErrorContains(t.T(), err, "no such file or directory")
+	assert.Nil(t.T(), httpClient)
 }
 
 func (t *clientTest) TestCreateHttpClientWithHttp2AndAuthEnabled() {
@@ -84,9 +85,9 @@ func (t *clientTest) TestCreateHttpClientWithHttp2AndAuthEnabled() {
 	// Act: this method add tokenSource and clientOptions.
 	httpClient, err := CreateHttpClient(&sc)
 
-	AssertNe(nil, err)
-	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("no such file or directory")))
-	AssertEq(nil, httpClient)
+	assert.Error(t.T(), err)
+	assert.ErrorContains(t.T(), err, "no such file or directory")
+	assert.Nil(t.T(), httpClient)
 }
 
 func (t *clientTest) TestCreateTokenSrc() {
@@ -94,9 +95,9 @@ func (t *clientTest) TestCreateTokenSrc() {
 
 	tokenSrc, err := CreateTokenSource(&sc)
 
-	AssertNe(nil, err)
-	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("no such file or directory")))
-	ExpectNe(nil, &tokenSrc)
+	assert.Error(t.T(), err)
+	assert.ErrorContains(t.T(), err, "no such file or directory")
+	assert.NotEqual(t.T(), nil, &tokenSrc)
 }
 
 func (t *clientTest) TestStripScheme() {
@@ -124,9 +125,21 @@ func (t *clientTest) TestStripScheme() {
 			input:          "bad://http://localhost:888://",
 			expectedOutput: "http://localhost:888://",
 		},
+		{
+			input:          "dns:///localhost:888://",
+			expectedOutput: "dns:///localhost:888://",
+		},
+		{
+			input:          "google-c2p:///localhost:888://",
+			expectedOutput: "google-c2p:///localhost:888://",
+		},
+		{
+			input:          "google:///localhost:888://",
+			expectedOutput: "google:///localhost:888://",
+		},
 	} {
 		output := StripScheme(tc.input)
 
-		AssertEq(tc.expectedOutput, output)
+		assert.Equal(t.T(), tc.expectedOutput, output)
 	}
 }

@@ -3,7 +3,7 @@ on:
   # Enable triggering the workflow manually
   workflow_dispatch:
   push:
-    branches: [ "master" ]
+    branches: [ "pre-launch-acv2" ]
 
 jobs:
   flake-detector:

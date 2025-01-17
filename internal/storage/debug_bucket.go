@@ -20,6 +20,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	storagev2 "cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"golang.org/x/net/context"
@@ -117,6 +118,11 @@ func (dr *debugReader) Close() (err error) {
 	return
 }
 
+func (dr *debugReader) ReadHandle() storagev2.ReadHandle {
+	hd := "opaque-handle"
+	return []byte(hd)
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Bucket interface
 ////////////////////////////////////////////////////////////////////////
@@ -129,16 +135,14 @@ func (b *debugBucket) BucketType() gcs.BucketType {
 	return b.wrapped.BucketType()
 }
 
-func (b *debugBucket) NewReader(
-	ctx context.Context,
-	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
-	id, desc, start := b.startRequest("Read(%q, %v)", req.Name, req.Range)
+func setupReader(ctx context.Context, b *debugBucket, req *gcs.ReadObjectRequest, method string) (gcs.StorageReader, error) {
+	id, desc, start := b.startRequest("%q(%q, %v)", method, req.Name, req.Range)
 
 	// Call through.
-	rc, err = b.wrapped.NewReader(ctx, req)
+	rc, err := b.wrapped.NewReaderWithReadHandle(ctx, req)
 	if err != nil {
 		b.finishRequest(id, desc, start, &err)
-		return
+		return rc, err
 	}
 
 	// Return a special reader that prings debug info.
@@ -149,7 +153,20 @@ func (b *debugBucket) NewReader(
 		startTime: start,
 		wrapped:   rc,
 	}
+	return rc, err
+}
 
+func (b *debugBucket) NewReader(
+	ctx context.Context,
+	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
+	rc, err = setupReader(ctx, b, req, "Read")
+	return
+}
+
+func (b *debugBucket) NewReaderWithReadHandle(
+	ctx context.Context,
+	req *gcs.ReadObjectRequest) (rd gcs.StorageReader, err error) {
+	rd, err = setupReader(ctx, b, req, "ReadWithReadHandle")
 	return
 }
 
@@ -287,4 +304,60 @@ func (b *debugBucket) RenameFolder(ctx context.Context, folderName string, desti
 
 	o, err = b.wrapped.RenameFolder(ctx, folderName, destinationFolderId)
 	return o, err
+}
+
+type debugMultiRangeDownloader struct {
+	bucket    *debugBucket
+	requestID uint64
+	desc      string
+	startTime time.Time
+	wrapped   gcs.MultiRangeDownloader
+}
+
+func (dmrd *debugMultiRangeDownloader) Add(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
+	id, desc, start := dmrd.bucket.startRequest("MultiRangeDownloader.Add(%v,%v)", offset, length)
+	wrapperCallback := func(offset int64, length int64, err error) {
+		defer dmrd.bucket.finishRequest(id, desc, start, &err)
+		if callback != nil {
+			callback(offset, length, err)
+		}
+	}
+	dmrd.wrapped.Add(output, offset, length, wrapperCallback)
+}
+
+func (dmrd *debugMultiRangeDownloader) Close() (err error) {
+	id, desc, start := dmrd.bucket.startRequest("MultiRangeDownloader.Close()")
+	defer dmrd.bucket.finishRequest(id, desc, start, &err)
+	err = dmrd.wrapped.Close()
+	return
+}
+
+func (dmrd *debugMultiRangeDownloader) Wait() {
+	id, desc, start := dmrd.bucket.startRequest("MultiRangeDownloader.Wait()")
+	var err error
+	defer dmrd.bucket.finishRequest(id, desc, start, &err)
+	dmrd.wrapped.Wait()
+}
+
+func (b *debugBucket) NewMultiRangeDownloader(
+	ctx context.Context, req *gcs.MultiRangeDownloaderRequest) (mrd gcs.MultiRangeDownloader, err error) {
+	id, desc, start := b.startRequest("NewMultiRangeDownloader(%q)", req.Name)
+	defer b.finishRequest(id, desc, start, &err)
+
+	// Call through.
+	mrd, err = b.wrapped.NewMultiRangeDownloader(ctx, req)
+	if err != nil {
+		b.finishRequest(id, desc, start, &err)
+		return
+	}
+
+	// Return a special reader that prints debug info.
+	mrd = &debugMultiRangeDownloader{
+		bucket:    b,
+		requestID: id,
+		desc:      desc,
+		startTime: start,
+		wrapped:   mrd,
+	}
+	return
 }
