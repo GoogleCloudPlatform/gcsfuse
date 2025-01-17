@@ -74,11 +74,11 @@ func (t *RandomReaderStretchrTest) SetupTest() {
 	lruCache := lru.NewCache(CacheMaxSize)
 	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, sequentialReadSizeInMb, &cfg.FileCacheConfig{
 		EnableCrc: false,
-	})
+	}, nil)
 	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm)
 
 	// Set up the reader.
-	rr := NewRandomReader(t.object, t.mockBucket, sequentialReadSizeInMb, nil, false, nil)
+	rr := NewRandomReader(t.object, t.mockBucket, sequentialReadSizeInMb, nil, false, nil, nil)
 	t.rr.wrapped = rr.(*randomReader)
 }
 
@@ -276,7 +276,7 @@ func (t *RandomReaderStretchrTest) Test_ReadFromRangeReader_WhenExistingReaderIs
 			t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).Return(rc, nil).Times(1)
 			buf := make([]byte, dataSize)
 
-			n, err := t.rr.wrapped.readFromRangeReader(t.rr.ctx, buf, 0, int64(t.object.Size))
+			n, err := t.rr.wrapped.readFromRangeReader(t.rr.ctx, buf, 0, int64(t.object.Size), "unhandled")
 
 			t.mockBucket.AssertExpectations(t.T())
 			assert.NoError(t.T(), err)
@@ -303,7 +303,7 @@ func (t *RandomReaderStretchrTest) Test_ReadFromRangeReader_WhenExistingReaderIs
 	t.rr.wrapped.cancel = func() {}
 	buf := make([]byte, dataSize)
 
-	n, err := t.rr.wrapped.readFromRangeReader(t.rr.ctx, buf, 4, 8)
+	n, err := t.rr.wrapped.readFromRangeReader(t.rr.ctx, buf, 4, 8, "unhandled")
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), dataSize, n)
@@ -346,7 +346,7 @@ func (t *RandomReaderStretchrTest) Test_ReadFromRangeReader_WhenAllDataFromReade
 			t.rr.wrapped.cancel = func() {}
 			buf := make([]byte, dataSize)
 
-			n, err := t.rr.wrapped.readFromRangeReader(t.rr.ctx, buf, 4, 10)
+			n, err := t.rr.wrapped.readFromRangeReader(t.rr.ctx, buf, 4, 10, "unhandled")
 
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), dataSize, n)
@@ -392,7 +392,7 @@ func (t *RandomReaderStretchrTest) Test_ReadFromRangeReader_WhenReaderHasLessDat
 			t.rr.wrapped.cancel = func() {}
 			buf := make([]byte, 10)
 
-			n, err := t.rr.wrapped.readFromRangeReader(t.rr.ctx, buf, 0, 10)
+			n, err := t.rr.wrapped.readFromRangeReader(t.rr.ctx, buf, 0, 10, "unhandled")
 
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), dataSize, n)
@@ -438,7 +438,7 @@ func (t *RandomReaderStretchrTest) Test_ReadFromRangeReader_WhenReaderReturnedMo
 			t.rr.wrapped.cancel = func() {}
 			buf := make([]byte, 10)
 
-			_, err := t.rr.wrapped.readFromRangeReader(t.rr.ctx, buf, 0, 10)
+			_, err := t.rr.wrapped.readFromRangeReader(t.rr.ctx, buf, 0, 10, "unhandled")
 
 			assert.True(t.T(), strings.Contains(err.Error(), "extra bytes: 2"))
 			assert.Nil(t.T(), t.rr.wrapped.reader)
@@ -462,7 +462,7 @@ func (t *RandomReaderStretchrTest) Test_ReadFromRangeReader_WhenReaderReturnedEO
 	t.rr.wrapped.cancel = func() {}
 	buf := make([]byte, 10)
 
-	_, err := t.rr.wrapped.readFromRangeReader(t.rr.ctx, buf, 0, 10)
+	_, err := t.rr.wrapped.readFromRangeReader(t.rr.ctx, buf, 0, 10, "unhandled")
 
 	assert.True(t.T(), strings.Contains(err.Error(), "skipping 4 bytes"))
 }
