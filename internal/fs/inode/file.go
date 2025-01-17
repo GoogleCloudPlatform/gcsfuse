@@ -101,10 +101,6 @@ type FileInode struct {
 	// code.
 	MRDWrapper gcsx.MultiRangeDownloaderWrapper
 
-	bwh                *bufferedwrites.BufferedWriteHandler
-	writeConfig        *cfg.WriteConfig
-	globalMaxBlocksSem *semaphore.Weighted
-
 	bwh    *bufferedwrites.BufferedWriteHandler
 	config *cfg.Config
 
