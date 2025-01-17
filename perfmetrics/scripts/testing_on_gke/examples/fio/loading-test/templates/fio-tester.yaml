@@ -25,17 +25,16 @@ spec:
   nodeSelector:
     cloud.google.com/gke-tpu-topology: 2x2
     cloud.google.com/gke-tpu-accelerator: tpu-v6e-slice
+    cloud.google.com/gke-nodepool: default-pool
+  hostNetwork: true
   containers:
   - name: fio-tester
     image: {{ .Values.image }}
     ports:
     - containerPort: 11021
       hostPort: 11021
-    securityContext: # for cache dropping in the benchmarking tests.
+    securityContext:
       privileged: true
-    resources:
-      limits:
-        google.com/tpu: 4
     command:
       - "/bin/sh"
       - "-c"
@@ -164,12 +163,6 @@ spec:
     - name: data-vol
       mountPath: /data
   volumes:
-  - name: gke-gcsfuse-cache
-    emptyDir: {}
-  - name: gke-gcsfuse-buffer
-    emptyDir: {}
-  - name: gke-gcsfuse-tmp
-    emptyDir: {}
   - name: dshm
     emptyDir:
       medium: Memory
@@ -182,6 +175,7 @@ spec:
         metadataTypeCacheCapacity: "{{ .Values.gcsfuse.metadataTypeCacheCapacity }}"
         metadataStatCacheCapacity: "{{ .Values.gcsfuse.metadataStatCacheCapacity }}"
         fileCacheCapacity: "{{ .Values.gcsfuse.fileCacheCapacity }}"
-        fileCacheForRangeRead: "true"
+        fileCacheForRangeRead: "false"
         gcsfuseLoggingSeverity: "info"
         mountOptions: "{{ .Values.gcsfuse.mountOptions }}"
+        disableMetrics: "true"

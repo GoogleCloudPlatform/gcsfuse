@@ -44,7 +44,7 @@ gcsfuse:
   metadataCacheTTLSeconds: "6048000"
   metadataStatCacheCapacity: "-1"
   metadataTypeCacheCapacity: "-1"
-  fileCacheCapacity: "-1"
-  fileCacheForRangeRead: "true"
+  fileCacheCapacity: "0"
+  fileCacheForRangeRead: "false"
   mountOptions: "implicit-dirs"
 

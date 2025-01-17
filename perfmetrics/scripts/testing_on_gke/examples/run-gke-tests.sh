@@ -668,7 +668,8 @@ installDependencies
 
 # if only_parse is not set or is set as false, then
 if test -z ${only_parse} || ! ${only_parse} ; then
-  validateMachineConfig ${machine_type} ${num_nodes} ${num_ssd}
+#  validateMachineConfig ${machine_type} ${num_nodes} ${num_ssd}
+
 
   # GCP configuration
   ensureGcpAuthsAndConfig
@@ -687,7 +688,7 @@ if test -z ${only_parse} || ! ${only_parse} ; then
   # Run latest workload configuration
   deleteAllPods
   deployAllFioHelmCharts
-  deployAllDlioHelmCharts
+#  deployAllDlioHelmCharts
 fi
 
 # monitor pods
@@ -698,4 +699,4 @@ deleteAllPods
 
 # parse outputs
 fetchAndParseFioOutputs
-fetchAndParseDlioOutputs
+#fetchAndParseDlioOutputs

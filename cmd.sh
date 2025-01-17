@@ -1,0 +1,13 @@
+env project_id=tpu-prod-env-large-adhoc \
+project_number=716203006749\
+ zone=us-central2-b \
+ cluster_name=v6e-benchmark-cluster \
+ machine_type=ct6e-standard-4t \
+ num_nodes=3\
+ use_custom_csi_driver=true \
+ gcsfuse_branch=master \
+ gcsfuse_src_dir=. \
+ csi_src_dir=./src/gcs-fuse-csi-driver\
+ instance_id=gke-test-pipeline-http1-bootdisk-100gb-hn-false\
+ workload_config=<absolute-path-to-gcsfuse/perfmetrics/scripts/testing_on_gke/examples/workloads.json> \
+ output_dir=. perfmetrics/scripts/testing_on_gke/examples/run-gke-tests.sh --debug
