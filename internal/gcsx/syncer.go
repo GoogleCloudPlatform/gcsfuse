@@ -68,7 +68,11 @@ func NewSyncer(
 	}
 
 	// And the syncer.
+<<<<<<< HEAD
 	os = newSyncer(composeThreshold, chunkTransferTimeoutSecs, fullCreator, composeCreator)
+=======
+	os = newSyncer(appendThreshold, chunkTransferTimeoutSecs, fullCreator, composeCreator)
+>>>>>>> beb91c517 (fix build errors)
 
 	return
 }
@@ -202,7 +206,7 @@ func (os *syncer) SyncObject(
 	// Otherwise, we need to create a new generation. If the source object is
 	// long enough, hasn't been dirtied, and has a low enough component count,
 	// then we can make the optimization of not rewriting its contents.
-	if os.composeCreator != nil && srcSize >= os.composeThreshold &&
+	if os.composeCreator != nil && srcSize >= os.appendThreshold &&
 		sr.DirtyThreshold == srcSize &&
 		srcObject.ComponentCount < gcs.MaxComponentCount {
 		_, err = content.Seek(srcSize, 0)

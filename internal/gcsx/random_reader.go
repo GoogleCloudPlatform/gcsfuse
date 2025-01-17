@@ -363,7 +363,9 @@ func (rr *randomReader) ReadAt(
 	}
 
 	if rr.reader != nil {
-		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, -1)
+		// TODO: Passing readType as "unhandled" here for now. Ideally
+		// readType should be stored in and obtained from the previous rr.reader.
+		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, -1, "unhandled")
 		return
 	}
 
@@ -376,7 +378,7 @@ func (rr *randomReader) ReadAt(
 
 	readerType := readerType(readType, offset, end, rr.bucket.BucketType())
 	if readerType == RangeReader {
-		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, end)
+		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, end, readType)
 		return
 	}
 
@@ -572,7 +574,7 @@ func readerType(readType string, start int64, end int64, bucketType gcs.BucketTy
 
 // readFromRangeReader reads using the NewReader interface of go-sdk. Its uses
 // the existing reader if available, otherwise makes a call to GCS.
-func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offset int64, end int64) (n int, err error) {
+func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offset int64, end int64, readType string) (n int, err error) {
 	// If we don't have a reader, start a read operation.
 	if rr.reader == nil {
 		err = rr.startRead(offset, end)
@@ -628,6 +630,9 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 		return
 	}
 
+	requestedDataSize := end - offset
+	common.CaptureGCSReadMetrics(ctx, rr.metricHandle, readType, requestedDataSize)
+
 	return
 }
 
@@ -641,7 +646,7 @@ func (rr *randomReader) readFromMultiRangeReader(ctx context.Context, p []byte, 
 		rr.mrdWrapper.IncrementRefCount()
 	}
 
-	bytesRead, err = rr.mrdWrapper.Read(ctx, p, offset, end, timeout)
+	bytesRead, err = rr.mrdWrapper.Read(ctx, p, offset, end, timeout, rr.metricHandle)
 	rr.totalReadBytes += uint64(bytesRead)
 	return
 }
