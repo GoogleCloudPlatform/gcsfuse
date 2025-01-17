@@ -21,10 +21,12 @@ import (
 	"testing"
 	"time"
 
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -35,6 +37,7 @@ const projectID string = "valid-project-id"
 type StorageHandleTest struct {
 	suite.Suite
 	fakeStorage FakeStorage
+	mockClient  *MockStorageControlClient
 	ctx         context.Context
 }
 
@@ -43,7 +46,8 @@ func TestStorageHandleTestSuite(t *testing.T) {
 }
 
 func (testSuite *StorageHandleTest) SetupTest() {
-	testSuite.fakeStorage = NewFakeStorage()
+	testSuite.mockClient = new(MockStorageControlClient)
+	testSuite.fakeStorage = NewFakeStorageWithMockClient(testSuite.mockClient, cfg.HTTP2)
 	testSuite.ctx = context.Background()
 }
 
@@ -51,36 +55,72 @@ func (testSuite *StorageHandleTest) TearDownTest() {
 	testSuite.fakeStorage.ShutDown()
 }
 
+func (testSuite *StorageHandleTest) mockStorageLayout(bucketType gcs.BucketType) {
+	storageLayout := &controlpb.StorageLayout{
+		HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: false},
+		LocationType:          "nil",
+	}
+
+	if bucketType.Zonal {
+		storageLayout.HierarchicalNamespace = &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true}
+		storageLayout.LocationType = "zone"
+	}
+
+	if bucketType.Hierarchical {
+		storageLayout.HierarchicalNamespace = &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true}
+		storageLayout.LocationType = "multiregion"
+	}
+
+	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).Return(storageLayout, nil)
+}
+
 func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketExistsWithEmptyBillingProject() {
 	storageHandle := testSuite.fakeStorage.CreateStorageHandle()
-	bucketHandle := storageHandle.BucketHandle(testSuite.ctx, TestBucketName, "")
+	testSuite.mockStorageLayout(gcs.BucketType{})
+	bucketHandle, err := storageHandle.BucketHandle(testSuite.ctx, TestBucketName, "")
 
 	assert.NotNil(testSuite.T(), bucketHandle)
+	assert.Nil(testSuite.T(), err)
 	assert.Equal(testSuite.T(), TestBucketName, bucketHandle.bucketName)
-	assert.Equal(testSuite.T(), gcs.Nil, bucketHandle.bucketType)
+	assert.False(testSuite.T(), bucketHandle.bucketType.Zonal)
+	assert.False(testSuite.T(), bucketHandle.bucketType.Hierarchical)
 }
 
 func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExistWithEmptyBillingProject() {
 	storageHandle := testSuite.fakeStorage.CreateStorageHandle()
-	bucketHandle := storageHandle.BucketHandle(testSuite.ctx, invalidBucketName, "")
+	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, fmt.Errorf("bucket does not exist"))
+	bucketHandle, err := storageHandle.BucketHandle(testSuite.ctx, invalidBucketName, "")
 
-	assert.Nil(testSuite.T(), bucketHandle.Bucket)
+	assert.NotNil(testSuite.T(), err)
+	assert.Nil(testSuite.T(), bucketHandle)
 }
 
 func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketExistsWithNonEmptyBillingProject() {
 	storageHandle := testSuite.fakeStorage.CreateStorageHandle()
-	bucketHandle := storageHandle.BucketHandle(testSuite.ctx, TestBucketName, projectID)
+	testSuite.mockStorageLayout(gcs.BucketType{Hierarchical: true})
+
+	bucketHandle, err := storageHandle.BucketHandle(testSuite.ctx, TestBucketName, projectID)
 
 	assert.NotNil(testSuite.T(), bucketHandle)
+	assert.Nil(testSuite.T(), err)
 	assert.Equal(testSuite.T(), TestBucketName, bucketHandle.bucketName)
-	assert.Equal(testSuite.T(), gcs.Nil, bucketHandle.bucketType)
+	assert.False(testSuite.T(), bucketHandle.bucketType.Zonal)
+	assert.True(testSuite.T(), bucketHandle.bucketType.Hierarchical)
+	// verify the billing account set.
+	testHandle := bucketHandle
+	assert.Equal(testSuite.T(), bucketHandle.bucket, testHandle.bucket.UserProject(projectID))
 }
 
 func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExistWithNonEmptyBillingProject() {
 	storageHandle := testSuite.fakeStorage.CreateStorageHandle()
-	bucketHandle := storageHandle.BucketHandle(testSuite.ctx, invalidBucketName, projectID)
+	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, fmt.Errorf("bucket does not exist"))
+	bucketHandle, err := storageHandle.BucketHandle(invalidBucketName, projectID)
+	bucketHandle, err := storageHandle.BucketHandle(testSuite.ctx, invalidBucketName, projectID)
 
-	assert.Nil(testSuite.T(), bucketHandle.Bucket)
+	assert.Nil(testSuite.T(), bucketHandle)
+	assert.NotNil(testSuite.T(), err)
 }
 
 func (testSuite *StorageHandleTest) TestNewStorageHandleHttp2Disabled() {
@@ -134,7 +174,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithCustomEndpointAndAut
 	handleCreated, err := NewStorageHandle(testSuite.ctx, sc)
 
 	assert.NotNil(testSuite.T(), err)
-	assert.Contains(testSuite.T(), err.Error(), "no such file or directory")
+	assert.Contains(testSuite.T(), err.Error(), "GRPC client doesn't support auth for custom-endpoint")
 	assert.Nil(testSuite.T(), handleCreated)
 }
 
@@ -192,6 +232,18 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWhenJsonReadEnabled() {
 }
 
 func (testSuite *StorageHandleTest) TestNewStorageHandleWithInvalidClientProtocol() {
+	fakeStorage := NewFakeStorageWithMockClient(testSuite.mockClient, "test-protocol")
+	testSuite.mockStorageLayout(gcs.BucketType{})
+	sh := fakeStorage.CreateStorageHandle()
+	assert.NotNil(testSuite.T(), sh)
+	bh, err := sh.BucketHandle(TestBucketName, projectID)
+
+	assert.Nil(testSuite.T(), bh)
+	assert.NotNil(testSuite.T(), err)
+	assert.Contains(testSuite.T(), err.Error(), "invalid client-protocol requested: test-protocol")
+}
+
+func (testSuite *StorageHandleTest) TestNewStorageHandleWithInvalidClientProtocol2() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ExperimentalEnableJsonRead = true
 	sc.ClientProtocol = "test-protocol"
@@ -199,7 +251,6 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithInvalidClientProtoco
 	handleCreated, err := NewStorageHandle(testSuite.ctx, sc)
 
 	assert.NotNil(testSuite.T(), err)
-	assert.Nil(testSuite.T(), handleCreated)
 	assert.Contains(testSuite.T(), err.Error(), "invalid client-protocol requested: test-protocol")
 }
 

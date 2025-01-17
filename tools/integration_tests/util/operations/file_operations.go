@@ -688,6 +688,24 @@ func CreateLocalTempFile(content string, gzipCompress bool) (string, error) {
 	return writeTextToFile(f, f.Name(), content, len(content))
 }
 
+// ReadAndCompare reads content from the given file paths and compares them.
+func ReadAndCompare(t *testing.T, filePathInMntDir string, filePathInLocalDisk string, offset int64, chunkSize int64) {
+	t.Helper()
+	mountContents, err := ReadChunkFromFile(filePathInMntDir, chunkSize, offset, os.O_RDONLY)
+	if err != nil {
+		t.Fatalf("error in read file from mounted directory :%d", err)
+	}
+
+	diskContents, err := ReadChunkFromFile(filePathInLocalDisk, chunkSize, offset, os.O_RDONLY)
+	if err != nil {
+		t.Fatalf("error in read file from local directory :%d", err)
+	}
+
+	if !bytes.Equal(mountContents, diskContents) {
+		t.Fatalf("data mismatch between mounted directory and local disk")
+	}
+}
+
 func CreateLocalFile(ctx context.Context, t *testing.T, mntDir string, bucket gcs.Bucket, fileName string) (filePath string, f *os.File) {
 	t.Helper()
 	// Creating a file shouldn't create file on GCS.

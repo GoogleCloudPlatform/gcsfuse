@@ -59,7 +59,7 @@ func (t *IntegrationTest) SetUp(ti *TestInfo) {
 	const cacheCapacity = 100
 	lruCache := lru.NewCache(cfg.AverageSizeOfPositiveStatCacheEntry * cacheCapacity)
 	cache := metadata.NewStatCacheBucketView(lruCache, "")
-	t.wrapped = fake.NewFakeBucket(&t.clock, bucketName, gcs.NonHierarchical)
+	t.wrapped = fake.NewFakeBucket(&t.clock, bucketName, gcs.BucketType{})
 
 	t.bucket = caching.NewFastStatBucket(
 		primaryCacheTTL,

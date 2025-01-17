@@ -26,7 +26,6 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
@@ -108,12 +107,4 @@ func TestMain(m *testing.M) {
 
 	successCode := static_mounting.RunTests(flags, m)
 	os.Exit(successCode)
-}
-
-func createFileOnDiskAndCopyToMntDir(fileInLocalDisk string, fileInMntDir string, fileSize int, t *testing.T) {
-	setup.RunScriptForTestData("testdata/write_content_of_fix_size_in_file.sh", fileInLocalDisk, strconv.Itoa(fileSize))
-	err := operations.CopyFile(fileInLocalDisk, fileInMntDir)
-	if err != nil {
-		t.Errorf("Error in copying file:%v", err)
-	}
 }

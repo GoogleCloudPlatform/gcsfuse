@@ -371,6 +371,35 @@ func (m *mockBucket) NewReader(p0 context.Context, p1 *gcs.ReadObjectRequest) (o
 	return
 }
 
+func (m *mockBucket) NewReaderWithReadHandle(p0 context.Context, p1 *gcs.ReadObjectRequest) (o0 gcs.StorageReader, o1 error) {
+	// Get a file name and line number for the caller.
+	_, file, line, _ := runtime.Caller(1)
+
+	// Hand the call off to the controller, which does most of the work.
+	retVals := m.controller.HandleMethodCall(
+		m,
+		"NewReaderWithReadHandle",
+		file,
+		line,
+		[]interface{}{p0, p1})
+
+	if len(retVals) != 2 {
+		panic(fmt.Sprintf("mockBucket.NewReaderWithReadHandle: invalid return values: %v", retVals))
+	}
+
+	// o0 gcs.StorageReader
+	if retVals[0] != nil {
+		o0 = retVals[0].(gcs.StorageReader)
+	}
+
+	// o1 error
+	if retVals[1] != nil {
+		o1 = retVals[1].(error)
+	}
+
+	return
+}
+
 func (m *mockBucket) StatObject(p0 context.Context,
 	p1 *gcs.StatObjectRequest) (o0 *gcs.MinObject, o1 *gcs.ExtendedObjectAttributes, o2 error) {
 	// Get a file name and line number for the caller.
@@ -515,5 +544,35 @@ func (m *mockBucket) RenameFolder(ctx context.Context, folderName string, destin
 	if retVals[1] != nil {
 		o1 = retVals[1].(error)
 	}
+	return
+}
+
+func (m *mockBucket) NewMultiRangeDownloader(
+	p0 context.Context, p1 *gcs.MultiRangeDownloaderRequest) (o0 gcs.MultiRangeDownloader, o1 error) {
+	// Get a file name and line number for the caller.
+	_, file, line, _ := runtime.Caller(1)
+
+	// Hand the call off to the controller, which does most of the work.
+	retVals := m.controller.HandleMethodCall(
+		m,
+		"NewMultiRangeDownloader",
+		file,
+		line,
+		[]interface{}{p0, p1})
+
+	if len(retVals) != 2 {
+		panic(fmt.Sprintf("mockBucket.NewMultiRangeDownloader: invalid return values: %v", retVals))
+	}
+
+	// o0 io.ReadCloser
+	if retVals[0] != nil {
+		o0 = retVals[0].(gcs.MultiRangeDownloader)
+	}
+
+	// o1 error
+	if retVals[1] != nil {
+		o1 = retVals[1].(error)
+	}
+
 	return
 }

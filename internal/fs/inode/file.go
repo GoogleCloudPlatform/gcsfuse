@@ -94,6 +94,17 @@ type FileInode struct {
 	// Represents if local file has been unlinked.
 	unlinked bool
 
+	// Wrapper object for multi range downloader. Needed as we will create the MRD in
+	// random reader and we can't pass fileInode object to random reader as it
+	// creates a cyclic dependency.
+	// Todo: Investigate if cyclic dependency can be removed by removing some unused
+	// code.
+	MRDWrapper gcsx.MultiRangeDownloaderWrapper
+
+	bwh                *bufferedwrites.BufferedWriteHandler
+	writeConfig        *cfg.WriteConfig
+	globalMaxBlocksSem *semaphore.Weighted
+
 	bwh    *bufferedwrites.BufferedWriteHandler
 	config *cfg.Config
 
@@ -151,6 +162,7 @@ func NewFileInode(
 		unlinked:                false,
 		config:                  cfg,
 		globalMaxWriteBlocksSem: globalMaxBlocksSem,
+		MRDWrapper:              gcsx.NewMultiRangeDownloaderWrapper(bucket, &minObj),
 	}
 
 	f.lc.Init(id)

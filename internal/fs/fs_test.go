@@ -129,9 +129,6 @@ func (t *fsTest) SetUpTestSuite() {
 	mtimeClock = timeutil.RealClock()
 	cacheClock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
 	t.serverCfg.CacheClock = &cacheClock
-	if bucketType == gcs.Nil {
-		bucketType = gcs.NonHierarchical
-	}
 
 	if buckets != nil {
 		// mount all buckets

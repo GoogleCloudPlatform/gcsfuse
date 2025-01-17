@@ -138,6 +138,7 @@ func RegisterBucketTests(makeDeps func(context.Context) BucketTestDeps) {
 		&copyTest{},
 		&composeTest{},
 		&readTest{},
+		&readMultiRangeTest{},
 		&statTest{},
 		&updateTest{},
 		&deleteTest{},

@@ -2033,7 +2033,7 @@ func (fs *fileSystem) Rename(
 	if child.FullName.IsDir() {
 		// If 'enable-hns' flag is false, the bucket type is set to 'NonHierarchical' even for HNS buckets because the control client is nil.
 		// Therefore, an additional 'enable hns' check is not required here.
-		if child.Bucket.BucketType() == gcs.Hierarchical {
+		if child.Bucket.BucketType().Hierarchical {
 			return fs.renameHierarchicalDir(ctx, oldParent, op.OldName, newParent, op.NewName)
 		}
 		return fs.renameNonHierarchicalDir(ctx, oldParent, op.OldName, newParent, op.NewName)
@@ -2511,7 +2511,7 @@ func (fs *fileSystem) ReadFile(
 	defer fh.Unlock()
 
 	// Serve the read.
-	op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
+	op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
 
 	// As required by fuse, we don't treat EOF as an error.
 	if err == io.EOF {

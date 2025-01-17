@@ -25,6 +25,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -532,4 +533,24 @@ func AppendFlagsToAllFlagsInTheFlagsSet(flagsSet *[][]string, newFlags ...string
 		}
 	}
 	*flagsSet = resultFlagsSet
+}
+
+// CreateFileAndCopyToMntDir creates a file of given size.
+// The same file will be copied to the mounted directory as well.
+func CreateFileAndCopyToMntDir(t *testing.T, fileSize int, dirName string) (string, string) {
+	testDir := SetupTestDirectory(dirName)
+	fileInLocalDisk := "test_file" + GenerateRandomString(5) + ".txt"
+	filePathInLocalDisk := path.Join(os.TempDir(), fileInLocalDisk)
+	filePathInMntDir := path.Join(testDir, fileInLocalDisk)
+	CreateFileOnDiskAndCopyToMntDir(t, filePathInLocalDisk, filePathInMntDir, fileSize)
+	return filePathInLocalDisk, filePathInMntDir
+}
+
+// CreateFileOnDiskAndCopyToMntDir creates a file of given size and copies to given path.
+func CreateFileOnDiskAndCopyToMntDir(t *testing.T, filePathInLocalDisk string, filePathInMntDir string, fileSize int) {
+	RunScriptForTestData("../util/setup/testdata/write_content_of_fix_size_in_file.sh", filePathInLocalDisk, strconv.Itoa(fileSize))
+	err := operations.CopyFile(filePathInLocalDisk, filePathInMntDir)
+	if err != nil {
+		t.Errorf("Error in copying file:%v", err)
+	}
 }

@@ -37,7 +37,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 )
 
-type HNSDirTest struct {
+type hnsDirTest struct {
 	suite.Suite
 	ctx        context.Context
 	bucket     gcsx.SyncerBucket
@@ -47,11 +47,26 @@ type HNSDirTest struct {
 	fixedTime  timeutil.SimulatedClock
 }
 
-func TestHNSDirSuite(testSuite *testing.T) { suite.Run(testSuite, new(HNSDirTest)) }
+type HNSDirTest struct {
+	hnsDirTest
+}
 
-func (t *HNSDirTest) SetupTest() {
+type NonHNSDirTest struct {
+	hnsDirTest
+}
+
+func TestHNSDirSuiteWithHierarchicalBucket(testSuite *testing.T) {
+	suite.Run(testSuite, &HNSDirTest{})
+}
+
+func TestHNSDirSuiteWithNonHierarchicalBucket(testSuite *testing.T) {
+	suite.Run(testSuite, &NonHNSDirTest{})
+}
+
+func (t *hnsDirTest) setupTestSuite(hierarchical bool) {
 	t.ctx = context.Background()
-	t.mockBucket = new(storagemock.TestifyMockBucket)
+	t.mockBucket = new(storage.TestifyMockBucket)
+	t.mockBucket.On("BucketType").Return(gcs.BucketType{Hierarchical: hierarchical})
 	t.bucket = gcsx.NewSyncerBucket(
 		1,
 		ChunkTransferTimeoutSecs,
@@ -60,11 +75,19 @@ func (t *HNSDirTest) SetupTest() {
 	t.resetDirInode(false, false, true)
 }
 
-func (t *HNSDirTest) resetDirInode(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing bool) {
+func (t *HNSDirTest) SetupTest() {
+	t.setupTestSuite(true)
+}
+
+func (t *NonHNSDirTest) SetupTest() {
+	t.setupTestSuite(false)
+}
+
+func (t *hnsDirTest) resetDirInode(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing bool) {
 	t.resetDirInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing, 4, typeCacheTTL)
 }
 
-func (t *HNSDirTest) resetDirInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing bool, typeCacheMaxSizeMB int64, typeCacheTTL time.Duration) {
+func (t *hnsDirTest) resetDirInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing bool, typeCacheMaxSizeMB int64, typeCacheTTL time.Duration) {
 	t.fixedTime.SetTime(time.Date(2024, 7, 22, 2, 15, 0, 0, time.Local))
 
 	t.in = NewDirInode(
@@ -95,7 +118,7 @@ func (t *HNSDirTest) resetDirInodeWithTypeCacheConfigs(implicitDirs, enableNonex
 	t.in.Lock()
 }
 
-func (t *HNSDirTest) createDirInode(dirInodeName string) DirInode {
+func (t *hnsDirTest) createDirInode(dirInodeName string) DirInode {
 	return NewDirInode(
 		5,
 		NewDirName(NewRootName(""), dirInodeName),
@@ -117,6 +140,10 @@ func (t *HNSDirTest) createDirInode(dirInodeName string) DirInode {
 }
 
 func (t *HNSDirTest) TearDownTest() {
+	t.in.Unlock()
+}
+
+func (t *NonHNSDirTest) TearDownTest() {
 	t.in.Unlock()
 }
 
@@ -162,7 +189,6 @@ func (t *HNSDirTest) TestLookUpChildWithConflictMarkerName() {
 	object := gcs.MinObject{Name: dirName}
 	t.mockBucket.On("GetFolder", mock.Anything, dirName).Return(folder, nil)
 	t.mockBucket.On("StatObject", mock.Anything, &statObjectRequest).Return(&object, &gcs.ExtendedObjectAttributes{}, nil)
-	t.mockBucket.On("BucketType").Return(gcs.Hierarchical)
 
 	c, err := t.in.LookUpChild(t.ctx, name+"\n")
 
@@ -179,7 +205,6 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckOnlyForExplicitHNSDirectory() {
 		Name: dirName,
 	}
 	t.mockBucket.On("GetFolder", mock.Anything, mock.Anything).Return(folder, nil)
-	t.mockBucket.On("BucketType").Return(gcs.Hierarchical)
 	t.typeCache.Insert(t.fixedTime.Now().Add(time.Minute), name, metadata.ExplicitDirType)
 
 	// Look up with the proper name.
@@ -202,7 +227,6 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeNotPresent
 	t.mockBucket.On("GetFolder", mock.Anything, mock.Anything).Return(folder, nil)
 	notFoundErr := &gcs.NotFoundError{Err: errors.New("storage: object doesn't exist")}
 	t.mockBucket.On("StatObject", mock.Anything, mock.Anything).Return(nil, nil, notFoundErr)
-	t.mockBucket.On("BucketType").Return(gcs.Hierarchical)
 	assert.Equal(t.T(), metadata.UnknownType, t.typeCache.Get(t.fixedTime.Now(), name))
 	// Look up with the proper name.
 	result, err := t.in.LookUpChild(t.ctx, name)
@@ -258,7 +282,6 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsSymlinkT
 		CacheControl: "some-value",
 	}
 	t.mockBucket.On("StatObject", mock.Anything, mock.Anything).Return(minObject, attrs, nil)
-	t.mockBucket.On("BucketType").Return(gcs.Hierarchical)
 	t.typeCache.Insert(t.fixedTime.Now().Add(time.Minute), name, metadata.SymlinkType)
 	// Look up with the proper name.
 	result, err := t.in.LookUpChild(t.ctx, name)
@@ -373,7 +396,7 @@ func (t *HNSDirTest) TestRenameFileWithNonExistentSourceFile() {
 	assert.Nil(t.T(), f)
 }
 
-func (t *HNSDirTest) TestDeleteChildDir_WhenImplicitDirFlagTrueOnNonHNSBucket() {
+func (t *NonHNSDirTest) TestDeleteChildDir_WhenImplicitDirFlagTrueOnNonHNSBucket() {
 	const folderName = "folder"
 	dirName := path.Join(dirInodeName, folderName) + "/"
 	dirIn := t.createDirInode(dirName)
@@ -385,14 +408,13 @@ func (t *HNSDirTest) TestDeleteChildDir_WhenImplicitDirFlagTrueOnNonHNSBucket() 
 	assert.NoError(t.T(), err)             // Ensure no error occurred
 }
 
-func (t *HNSDirTest) TestDeleteChildDir_WhenImplicitDirFlagFalseAndNonHNSBucket_DeleteObjectGiveSuccess() {
+func (t *NonHNSDirTest) TestDeleteChildDir_WhenImplicitDirFlagFalseAndNonHNSBucket_DeleteObjectGiveSuccess() {
 	const name = "dir"
 	dirName := path.Join(dirInodeName, name) + "/"
 	deleteObjectReq := gcs.DeleteObjectRequest{
 		Name:       dirName,
 		Generation: 0,
 	}
-	t.mockBucket.On("BucketType").Return(gcs.NonHierarchical)
 	t.mockBucket.On("DeleteObject", t.ctx, &deleteObjectReq).Return(nil)
 	dirIn := t.createDirInode(dirName)
 
@@ -403,15 +425,13 @@ func (t *HNSDirTest) TestDeleteChildDir_WhenImplicitDirFlagFalseAndNonHNSBucket_
 	assert.Equal(t.T(), metadata.Type(0), t.typeCache.Get(t.fixedTime.Now(), dirName))
 	assert.False(t.T(), dirIn.IsUnlinked())
 }
-
-func (t *HNSDirTest) TestDeleteChildDir_WithImplicitDirFlagFalseAndNonHNSBucket_DeleteObjectThrowAnError() {
+func (t *NonHNSDirTest) TestDeleteChildDir_WithImplicitDirFlagFalseAndNonHNSBucket_DeleteObjectThrowAnError() {
 	const name = "folder"
 	dirName := path.Join(dirInodeName, name) + "/"
 	deleteObjectReq := gcs.DeleteObjectRequest{
 		Name:       dirName,
 		Generation: 0,
 	}
-	t.mockBucket.On("BucketType").Return(gcs.NonHierarchical)
 	t.mockBucket.On("DeleteObject", t.ctx, &deleteObjectReq).Return(fmt.Errorf("mock error"))
 	dirIn := t.createDirInode(dirName)
 
@@ -430,7 +450,6 @@ func (t *HNSDirTest) TestDeleteChildDir_WithImplicitDirFlagFalseAndBucketTypeIsH
 		Name:       dirName,
 		Generation: 0,
 	}
-	t.mockBucket.On("BucketType").Return(gcs.Hierarchical)
 	t.mockBucket.On("DeleteObject", t.ctx, &deleteObjectReq).Return(nil)
 	t.mockBucket.On("DeleteFolder", t.ctx, dirName).Return(fmt.Errorf("mock error"))
 	dirIn := t.createDirInode(dirName)
@@ -450,7 +469,6 @@ func (t *HNSDirTest) TestDeleteChildDir_WithImplicitDirFlagFalseAndBucketTypeIsH
 		Name:       dirName,
 		Generation: 0,
 	}
-	t.mockBucket.On("BucketType").Return(gcs.Hierarchical)
 	t.mockBucket.On("DeleteObject", t.ctx, &deleteObjectReq).Return(fmt.Errorf("mock error"))
 	t.mockBucket.On("DeleteFolder", t.ctx, dirName).Return(nil)
 	dirIn := t.createDirInode(dirName)
@@ -471,7 +489,6 @@ func (t *HNSDirTest) TestDeleteChildDir_WithImplicitDirFlagFalseAndBucketTypeIsH
 		Name:       dirName,
 		Generation: 0,
 	}
-	t.mockBucket.On("BucketType").Return(gcs.Hierarchical)
 	t.mockBucket.On("DeleteObject", t.ctx, &deleteObjectReq).Return(fmt.Errorf("mock error"))
 	t.mockBucket.On("DeleteFolder", t.ctx, dirName).Return(fmt.Errorf("mock delete folder error"))
 	dirIn := t.createDirInode(dirName)
@@ -489,7 +506,6 @@ func (t *HNSDirTest) TestDeleteChildDir_WithImplicitDirFlagFalseAndBucketTypeIsH
 func (t *HNSDirTest) TestCreateChildDirWhenBucketTypeIsHNSWithFailure() {
 	const name = "folder"
 	dirName := path.Join(dirInodeName, name) + "/"
-	t.mockBucket.On("BucketType").Return(gcs.Hierarchical)
 	t.mockBucket.On("CreateFolder", t.ctx, dirName).Return(nil, fmt.Errorf("mock error"))
 
 	result, err := t.in.CreateChildDir(t.ctx, name)
@@ -504,7 +520,6 @@ func (t *HNSDirTest) TestCreateChildDirWhenBucketTypeIsHNSWithSuccess() {
 	const name = "folder"
 	dirName := path.Join(dirInodeName, name) + "/"
 	folder := gcs.Folder{Name: dirName}
-	t.mockBucket.On("BucketType").Return(gcs.Hierarchical)
 	t.mockBucket.On("CreateFolder", t.ctx, dirName).Return(&folder, nil)
 
 	result, err := t.in.CreateChildDir(t.ctx, name)
@@ -517,12 +532,11 @@ func (t *HNSDirTest) TestCreateChildDirWhenBucketTypeIsHNSWithSuccess() {
 	assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.fixedTime.Now(), name))
 }
 
-func (t *HNSDirTest) TestCreateChildDirWhenBucketTypeIsNonHNSWithFailure() {
+func (t *NonHNSDirTest) TestCreateChildDirWhenBucketTypeIsNonHNSWithFailure() {
 	const name = "folder"
 	var preCond int64
 	dirName := path.Join(dirInodeName, name) + "/"
 	createObjectReq := gcs.CreateObjectRequest{Name: dirName, Contents: strings.NewReader(""), GenerationPrecondition: &preCond}
-	t.mockBucket.On("BucketType").Return(gcs.NonHierarchical)
 	t.mockBucket.On("CreateObject", t.ctx, &createObjectReq).Return(nil, fmt.Errorf("mock error"))
 
 	result, err := t.in.CreateChildDir(t.ctx, name)
@@ -533,13 +547,12 @@ func (t *HNSDirTest) TestCreateChildDirWhenBucketTypeIsNonHNSWithFailure() {
 	assert.Equal(t.T(), metadata.Type(0), t.typeCache.Get(t.fixedTime.Now(), dirName))
 }
 
-func (t *HNSDirTest) TestCreateChildDirWhenBucketTypeIsNonHNSWithSuccess() {
+func (t *NonHNSDirTest) TestCreateChildDirWhenBucketTypeIsNonHNSWithSuccess() {
 	const name = "folder"
 	dirName := path.Join(dirInodeName, name) + "/"
 	var preCond int64
 	createObjectReq := gcs.CreateObjectRequest{Name: dirName, Contents: strings.NewReader(""), GenerationPrecondition: &preCond}
 	object := gcs.Object{Name: dirName}
-	t.mockBucket.On("BucketType").Return(gcs.NonHierarchical)
 	t.mockBucket.On("CreateObject", t.ctx, &createObjectReq).Return(&object, nil)
 
 	result, err := t.in.CreateChildDir(t.ctx, name)
@@ -582,7 +595,6 @@ func (t *HNSDirTest) TestReadEntriesInHierarchicalBucket() {
 		MaxResults:               5000,
 		ProjectionVal:            gcs.NoAcl,
 	}
-	t.mockBucket.On("BucketType").Return(gcs.Hierarchical)
 	t.mockBucket.On("ListObjects", t.ctx, &listObjectReq).Return(&listing, nil)
 
 	entries, _, err := t.in.ReadEntries(t.ctx, tok)

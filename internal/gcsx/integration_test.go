@@ -79,7 +79,7 @@ func init() { RegisterTestSuite(&IntegrationTest{}) }
 
 func (t *IntegrationTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
-	t.bucket = fake.NewFakeBucket(&t.clock, "some_bucket", gcs.NonHierarchical)
+	t.bucket = fake.NewFakeBucket(&t.clock, "some_bucket", gcs.BucketType{})
 
 	// Set up a fixed, non-zero time.
 	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
