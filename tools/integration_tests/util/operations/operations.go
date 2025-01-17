@@ -83,5 +83,3 @@ func ExecuteGcloudCommandf(format string, args ...any) ([]byte, error) {
 func ExecuteGcloudCommand(command string) ([]byte, error) {
 	return executeToolCommand("gcloud", command)
 }
-
-
