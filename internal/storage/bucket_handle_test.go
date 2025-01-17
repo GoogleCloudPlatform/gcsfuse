@@ -79,7 +79,7 @@ func createBucketHandle(testSuite *BucketHandleTest, resp *controlpb.StorageLayo
 	var err error
 	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
 		Return(resp, err1)
-	testSuite.bucketHandle, err = testSuite.storageHandle.BucketHandle(TestBucketName, "")
+	testSuite.bucketHandle, err = testSuite.storageHandle.BucketHandle(context.Background(), TestBucketName, "")
 	testSuite.bucketHandle.controlClient = testSuite.mockClient
 
 	assert.NotNil(testSuite.T(), testSuite.bucketHandle)
@@ -99,12 +99,9 @@ func TestBucketHandleTestSuite(testSuite *testing.T) {
 }
 
 func (testSuite *BucketHandleTest) SetupTest() {
-	ctx := context.Background()
-	//testSuite.fakeStorage = NewFakeStorage()
 	testSuite.mockClient = new(MockStorageControlClient)
 	testSuite.fakeStorage = NewFakeStorageWithMockClient(testSuite.mockClient, cfg.HTTP2)
 	testSuite.storageHandle = testSuite.fakeStorage.CreateStorageHandle()
-	testSuite.bucketHandle = testSuite.storageHandle.BucketHandle(ctx, TestBucketName, "")
 }
 
 func (testSuite *BucketHandleTest) TearDownTest() {
@@ -1498,7 +1495,7 @@ func (testSuite *BucketHandleTest) TestBucketHandleWithError() {
 	var err error
 	// Test when the client returns an error.
 	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).Return(x, errors.New("mocked error"))
-	testSuite.bucketHandle, err = testSuite.storageHandle.BucketHandle(TestBucketName, "")
+	testSuite.bucketHandle, err = testSuite.storageHandle.BucketHandle(context.Background(), TestBucketName, "")
 
 	assert.Nil(testSuite.T(), testSuite.bucketHandle)
 	assert.Contains(testSuite.T(), err.Error(), "mocked error")
