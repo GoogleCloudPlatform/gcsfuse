@@ -33,7 +33,7 @@ func GetKernelVersion() (string, error) {
 
 // kernelVersion is just a wrapper over GetKernelVersion. This
 // allows us to mock it in the unit test of ShouldSkipKernelListCacheTest.
-var kernelVersionForTest = func() (string, error) {
+var kernelVersionToTest = func() (string, error) {
 	return GetKernelVersion()
 }
 
@@ -43,7 +43,7 @@ var kernelVersionForTest = func() (string, error) {
 func IsKLCacheEvictionUnSupported() (bool, error) {
 	UnsupportedKernelVersions := []string{`^6\.9\.\d+`, `^6\.10\.\d+`, `^6\.11\.\d+`, `^6\.12\.\d+`}
 
-	kernelVersion, err := kernelVersionForTest()
+	kernelVersion, err := kernelVersionToTest()
 	if err != nil {
 		return false, err
 	}

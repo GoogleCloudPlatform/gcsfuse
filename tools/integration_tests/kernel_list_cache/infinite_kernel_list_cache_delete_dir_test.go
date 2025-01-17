@@ -45,8 +45,6 @@ func (s *infiniteKernelListCacheDeleteDirTest) Teardown(t *testing.T) {
 }
 
 func (s *infiniteKernelListCacheDeleteDirTest) TestKernelListCache_ListAndDeleteDirectory(t *testing.T) {
-	operations.SkipKLCTestForUnsupportedKernelVersion(t)
-
 	targetDir := path.Join(testDirPath, "explicit_dir")
 	operations.CreateDirectory(targetDir, t)
 	// Create test data
@@ -75,8 +73,6 @@ func (s *infiniteKernelListCacheDeleteDirTest) TestKernelListCache_ListAndDelete
 }
 
 func (s *infiniteKernelListCacheDeleteDirTest) TestKernelListCache_DeleteAndListDirectory(t *testing.T) {
-	operations.SkipKLCTestForUnsupportedKernelVersion(t)
-
 	targetDir := path.Join(testDirPath, "explicit_dir")
 	operations.CreateDirectory(targetDir, t)
 	// Create test data
@@ -112,6 +108,8 @@ func (s *infiniteKernelListCacheDeleteDirTest) TestKernelListCache_DeleteAndList
 ////////////////////////////////////////////////////////////////////////
 
 func TestInfiniteKernelListCacheDeleteDirTest(t *testing.T) {
+	operations.SkipKLCTestForUnsupportedKernelVersion(t)
+
 	ts := &infiniteKernelListCacheDeleteDirTest{}
 
 	// Run tests for mounted directory if the flag is set.

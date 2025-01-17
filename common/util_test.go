@@ -17,6 +17,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIsKLCacheEvictionUnSupported(t *testing.T) {
@@ -26,62 +27,55 @@ func TestIsKLCacheEvictionUnSupported(t *testing.T) {
 		expectedSkip      bool
 	}{
 		{
-			name:              "Cloudtop Supported",
+			name:              "Cloudtop_Supported",
 			mockKernelVersion: "4.19.0-17-amd64",
 			expectedSkip:      false,
 		},
 		{
-			name:              "Cloudtop Unsupported",
+			name:              "Cloudtop_Unsupported",
 			mockKernelVersion: "6.10.11-1rodete2-amd64",
 			expectedSkip:      true,
 		},
 		{
-			name:              "GCP Linux Kernel Version, supported",
+			name:              "GCP_Supported",
 			mockKernelVersion: "6.8.0-1020-gcp",
 			expectedSkip:      false,
 		},
 		{
-			name:              "GCP Linux Kernel Version, unsupported",
+			name:              "GCP_Unsupported_6.9.x",
 			mockKernelVersion: "6.9.0-1020-gcp",
 			expectedSkip:      true,
 		},
 		{
-			name:              "GCP Linux Kernel Version, unsupported",
-			mockKernelVersion: "6.9.0-1020-gcp",
-			expectedSkip:      true,
-		},
-		{
-			name:              "GCP Linux Kernel Version, unsupported",
+			name:              "GCP_Unsupported_6.10.x",
 			mockKernelVersion: "6.10.0-1020-gcp",
 			expectedSkip:      true,
 		},
 		{
-			name:              "GCP Linux Kernel Version, unsupported",
+			name:              "GCP_Unsupported_6.11.x",
 			mockKernelVersion: "6.11.0-1020-gcp",
 			expectedSkip:      true,
 		},
 		{
-			name:              "Another Unsupported Kernel Version",
-			mockKernelVersion: "6.10.0-1-amd64",
+			name:              "GCP_Unsupported_6.12.x",
+			mockKernelVersion: "6.12.0-1020-gcp",
 			expectedSkip:      true,
 		},
 		{
-			name:              "GCP Linux Kernel Version, unsupported",
-			mockKernelVersion: "6.12.0-1020-gcp",
+			name:              "Amd64_Unsupported_6.10.x",
+			mockKernelVersion: "6.10.0-1-amd64",
 			expectedSkip:      true,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			originalKernelVersion := kernelVersionForTest
-			kernelVersionForTest = func() (string, error) { return tc.mockKernelVersion, nil }
-			defer func() { kernelVersionForTest = originalKernelVersion }()
+			originalKernelVersion := kernelVersionToTest
+			kernelVersionToTest = func() (string, error) { return tc.mockKernelVersion, nil }
+			defer func() { kernelVersionToTest = originalKernelVersion }()
 
 			skip, err := IsKLCacheEvictionUnSupported()
-			if err != nil {
-				t.Fatalf("Unexpected error: %v", err)
-			}
+			require.NoError(t, err)
 			assert.Equal(t, tc.expectedSkip, skip)
 		})
 	}
