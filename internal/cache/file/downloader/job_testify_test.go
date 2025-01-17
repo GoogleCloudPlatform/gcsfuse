@@ -22,6 +22,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
 	"golang.org/x/net/context"
 	"golang.org/x/sync/semaphore"
@@ -64,7 +65,7 @@ func (t *JobTestifyTest) initReadCacheTestifyTest(objectName string, objectConte
 		DirPerm:  util.DefaultDirPerm,
 	}
 	t.cache = lru.NewCache(lruCacheSize)
-	t.job = NewJob(&t.object, t.mockBucket, t.cache, sequentialReadSize, t.fileSpec, removeCallback, t.defaultFileCacheConfig, semaphore.NewWeighted(math.MaxInt64), nil)
+	t.job = NewJob(&t.object, t.mockBucket, t.cache, sequentialReadSize, t.fileSpec, removeCallback, t.defaultFileCacheConfig, semaphore.NewWeighted(math.MaxInt64), common.NewNoopMetrics())
 	fileInfoKey := data.FileInfoKey{
 		BucketName: storage.TestBucketName,
 		ObjectName: objectName,
