@@ -487,7 +487,7 @@ type HNSCachedBucketMountTest struct {
 func TestHNSCachedBucketTests(t *testing.T) { suite.Run(t, new(HNSCachedBucketMountTest)) }
 
 func (t *HNSCachedBucketMountTest) SetupSuite() {
-	uncachedHNSBucket = fake.NewFakeBucket(timeutil.RealClock(), cachedHnsBucketName, gcs.Hierarchical)
+	uncachedHNSBucket = fake.NewFakeBucket(timeutil.RealClock(), cachedHnsBucketName, gcs.BucketType{})
 	lruCache := newLruCache(uint64(1000 * cfg.AverageSizeOfPositiveStatCacheEntry))
 	statCache := metadata.NewStatCacheBucketView(lruCache, "")
 	bucket = caching.NewFastStatBucket(
@@ -510,7 +510,7 @@ func (t *HNSCachedBucketMountTest) SetupSuite() {
 			TypeCacheMaxSizeMb: 4,
 		},
 	}
-	bucketType = gcs.Hierarchical
+	bucketType = gcs.BucketType{}
 	// Call through.
 	t.fsTest.SetUpTestSuite()
 }
