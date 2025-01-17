@@ -73,6 +73,8 @@ func (s *infiniteKernelListCacheDeleteDirTest) TestKernelListCache_ListAndDelete
 }
 
 func (s *infiniteKernelListCacheDeleteDirTest) TestKernelListCache_DeleteAndListDirectory(t *testing.T) {
+	operations.SkipKLCTestForUnsupportedKernelVersion(t)
+
 	targetDir := path.Join(testDirPath, "explicit_dir")
 	operations.CreateDirectory(targetDir, t)
 	// Create test data

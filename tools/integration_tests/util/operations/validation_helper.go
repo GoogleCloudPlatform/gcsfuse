@@ -22,6 +22,7 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/stretchr/testify/assert"
@@ -59,4 +60,13 @@ func CheckErrorForReadOnlyFileSystem(t *testing.T, err error) {
 		return
 	}
 	t.Errorf("Incorrect error for readonly file system: %v", err.Error())
+}
+
+func SkipKLCTestForUnsupportedKernelVersion(t *testing.T) {
+	t.Helper()
+	unsupported, err := common.IsKLCacheEvictionUnSupported()
+	assert.NoError(t, err)
+	if unsupported {
+		t.SkipNow()
+	}
 }

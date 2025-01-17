@@ -20,11 +20,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os/exec"
-	"strings"
-	"testing"
 	"time"
-
-	"github.com/stretchr/testify/assert"
 )
 
 // GenerateRandomData generates random data that can be used to write to a file.
@@ -88,12 +84,4 @@ func ExecuteGcloudCommand(command string) ([]byte, error) {
 	return executeToolCommand("gcloud", command)
 }
 
-func KernelVersion(t *testing.T) string {
-	t.Helper()
 
-	cmd := exec.Command("uname", "-r")
-	out, err := cmd.Output()
-	assert.NoError(t, err)
-	kernelVersion := strings.TrimSpace(string(out))
-	return kernelVersion
-}
