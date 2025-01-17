@@ -32,27 +32,6 @@ var (
 	readerCountOC    = stats.Int64("gcs/reader_count", "The number of GCS object readers opened or closed.", stats.UnitDimensionless)
 )
 
-//// Initialize the metrics.
-//func init() {
-//// OpenCensus views (aggregated measures)
-//if err := view.Register(
-//&view.View{
-//Name:        "gcs/read_bytes_count",
-//Measure:     readBytesCountOC,
-//Description: "The cumulative number of bytes read from GCS objects.",
-//Aggregation: view.Sum(),
-//},
-//&view.View{
-//Name:        "gcs/reader_count",
-//Measure:     readerCountOC,
-//Description: "The cumulative number of GCS object readers opened or closed.",
-//Aggregation: view.Sum(),
-//TagKeys:     []tag.Key{tags.IOMethod},
-//}); err != nil {
-//fmt.Printf("Failed to register OpenCensus metrics for GCS client library: %v", err)
-//}
-//}
-
 // recordRequest records a request and its latency.
 func recordRequest(ctx context.Context, metricHandle common.MetricHandle, method string, start time.Time) {
 	metricHandle.GCSRequestCount(ctx, 1, []common.MetricAttr{{Key: common.GCSMethod, Value: method}})
