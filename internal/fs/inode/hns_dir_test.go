@@ -65,7 +65,7 @@ func TestHNSDirSuiteWithNonHierarchicalBucket(testSuite *testing.T) {
 
 func (t *hnsDirTest) setupTestSuite(hierarchical bool) {
 	t.ctx = context.Background()
-	t.mockBucket = new(storage.TestifyMockBucket)
+	t.mockBucket = new(storagemock.TestifyMockBucket)
 	t.mockBucket.On("BucketType").Return(gcs.BucketType{Hierarchical: hierarchical})
 	t.bucket = gcsx.NewSyncerBucket(
 		1,
