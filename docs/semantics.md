@@ -43,7 +43,7 @@ when writing large files.
 
 **Concurrency**
 
-Multiple readers can access the same or different objects from the same bucket without issue. Multiple writers can also write to different objects in the same bucket without issue. However, there is no concurrency control for multiple writers to the same file. When multiple writers try to replace a file from the same machine, the last write wins and all previous writes are lost without any user notification of the overwrite. However, in case of different machines the flush from first machine wins and the other machines that had the file open before the first machine synced its changes will get a ```syscall.ESTALE error``` when they try to save their own edits - there is no merging or version control. Therefore, for data integrity it is recommended that multiple sources do not modify the same object.
+Multiple readers can access the same or different objects from the same bucket without issue. Multiple writers can also write to different objects in the same bucket without issue. However, there is no concurrency control for multiple writers to the same file. When multiple writers try to replace a file from the same machine, the last write wins and all previous writes are lost without any user notification of the overwrite. However, in case of different machines the flush from first machine wins and the other machines that had the file open before the first machine synced its changes will get a ```syscall.ESTALE``` error when they try to save their own edits - there is no merging or version control. Therefore, for data integrity it is recommended that multiple sources do not modify the same object.
 
 **Write/Read consistency**
 
@@ -57,13 +57,12 @@ Examples:
 
 **Stale File Handle Errors**
 
-To prevent data corruption and ensure consistency, Cloud Storage FUSE actively detects and handles situations that could lead to stale file handles. This results in a ```syscall.ESTALE error``` under the following circumstances:
+To prevent data corruption and ensure consistency, Cloud Storage FUSE actively detects and handles situations that could lead to stale file handles. This results in a ```syscall.ESTALE``` error under the following circumstances:
 
-- **Concurrent Writes**: When multiple mounts have the same file open for writing, and one mount modifies and syncs the file, other mounts with open file handles will encounter this error when the writer application attempts to sync or close the file.
-- **Read During Modification**: If one mount is reading a file while another mount modifies and syncs the file, the reader application will encounter this error.
-- **File Deletion or Renaming During Read**: If a mount is reading a file and the file is deleted or renamed by the same or a different mount, the reader application will encounter this error.
-- **File Renaming During Write**: If a mount is writing to a file and the file is renamed by the same or a different mount, the writer application will encounter this error when attempting to sync or close the file.
-- **File Deletion During Write**: If a mount is writing to a file and the file is deleted by the same or a different mount, the writer application will encounter this error when attempting to sync or close the file. However, if the file is deleted by the same mount, the writer application will not encounter any error.
+- **Concurrent Writes**: As described above, if multiple machines have the same file open for writing and one machine modifies and syncs the file, other machines with open file handles will encounter this error upon syncing or closing the file.
+- **Read During Modification**: If a machine is reading a file and another machine modifies and syncs the same file, the reader will receive this error.
+- **File Deletion or Renaming During Read**: If a machine is reading a file and the file is deleted or renamed from the same or a different machine, the reader will encounter this error.
+- **File Deletion or Renaming During Write**: If a machine is writing to a file and the file is deleted or renamed from the same or a different machine, the writer will receive this error upon syncing or closing the file.
 
 These changes in Cloud Storage FUSE prioritize data integrity and provide users with clear indications of potential conflicts, preventing silent data loss and ensuring a more robust and reliable experience.
 
@@ -430,4 +429,3 @@ Not all of the usual file system features are supported. Most prominently:
 - File and directory permissions and ownership cannot be changed. See the permissions section above.
 - Modification times are not tracked for any inodes except for files.
 - No other times besides modification time are tracked. For example, ctime and atime are not tracked (but will be set to something reasonable). Requests to change them will appear to succeed, but the results are unspecified.
-
