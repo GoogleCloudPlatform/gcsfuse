@@ -51,7 +51,7 @@ func (s *finiteKernelListCacheTest) Teardown(t *testing.T) {
 
 func (s *finiteKernelListCacheTest) TestKernelListCache_CacheHitWithinLimit_CacheMissAfterLimit(t *testing.T) {
 	operations.SkipKLCTestForUnsupportedKernelVersion(t)
-	
+
 	targetDir := path.Join(testDirPath, "explicit_dir")
 	operations.CreateDirectory(targetDir, t)
 	// Create test data

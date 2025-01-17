@@ -31,7 +31,7 @@ func TestIsKLCacheEvictionUnSupported(t *testing.T) {
 			expectedSkip:      false,
 		},
 		{
-			name: 			   "Cloudtop Unsupported",
+			name:              "Cloudtop Unsupported",
 			mockKernelVersion: "6.10.11-1rodete2-amd64",
 			expectedSkip:      true,
 		},

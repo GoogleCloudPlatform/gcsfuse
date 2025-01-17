@@ -16,8 +16,8 @@ package common
 
 import (
 	"os/exec"
-	"strings"
 	"regexp"
+	"strings"
 )
 
 // GetKernelVersion returns the kernel version.
@@ -31,7 +31,7 @@ func GetKernelVersion() (string, error) {
 	return kernelVersion, nil
 }
 
-// kernelVersion is just a wrapper over GetKernelVersion. This 
+// kernelVersion is just a wrapper over GetKernelVersion. This
 // allows us to mock it in the unit test of ShouldSkipKernelListCacheTest.
 var kernelVersionForTest = func() (string, error) {
 	return GetKernelVersion()
