@@ -66,7 +66,6 @@ func (t *HNSBucketTests) SetupSuite() {
 		EnableAtomicRenameObject: true,
 	}
 	t.serverCfg.MetricHandle = common.NewNoopMetrics()
-	//bucketType = gcs.Hierarchical
 	bucketType = gcs.BucketType{Hierarchical: true}
 	t.fsTest.SetUpTestSuite()
 }
