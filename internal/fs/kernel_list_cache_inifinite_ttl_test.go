@@ -20,13 +20,11 @@ import (
 	"errors"
 	"os"
 	"path"
-	"regexp"
 	"testing"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -36,15 +34,10 @@ func SkipTestForUnsupportedKernelVersion(t *testing.T) {
 	// TODO: b/384648943 make this part of fsTest.SetUpTestSuite() after post fs
 	// tests are fully migrated to stretchr/testify.
 	t.Helper()
-	UnsupportedKernelVersions := []string{`^6\.9\.\d+`, `^6\.10\.\d+`, `^6\.11\.\d+`, `^6\.12\.\d+`}
-
-	kernelVersion := operations.KernelVersion(t)
-	for i := 0; i < len(UnsupportedKernelVersions); i++ {
-		matched, err := regexp.MatchString(UnsupportedKernelVersions[i], kernelVersion)
-		assert.NoError(t, err)
-		if matched {
-			t.SkipNow()
-		}
+	unsupported, err := common.IsKLCacheEvictionUnSupported()
+	assert.NoError(t, err)
+	if unsupported {
+		t.SkipNow()
 	}
 }
 

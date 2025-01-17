@@ -108,6 +108,8 @@ func (s *infiniteKernelListCacheDeleteDirTest) TestKernelListCache_DeleteAndList
 ////////////////////////////////////////////////////////////////////////
 
 func TestInfiniteKernelListCacheDeleteDirTest(t *testing.T) {
+	operations.SkipKLCTestForUnsupportedKernelVersion(t)
+
 	ts := &infiniteKernelListCacheDeleteDirTest{}
 
 	// Run tests for mounted directory if the flag is set.
