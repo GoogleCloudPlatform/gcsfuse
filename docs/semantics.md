@@ -43,7 +43,7 @@ when writing large files.
 
 **Concurrency**
 
-Multiple readers can access the same or different objects from the same bucket without issue. Multiple writers can also write to different objects in the same bucket without issue. However, there is no concurrency control for multiple writers to the same file. When multiple writers try to replace a file from the same machine, the last write wins and all previous writes are lost without any user notification of the overwrite. However, in case of different machines the flush from first machine wins and the other machines that had the file open before the first machine synced its changes will get a ```syscall.ESTALE error``` when they try to save their own edits - there is no merging or version control. Therefore, for data integrity it is recommended that multiple sources do not modify the same object.
+Multiple readers can access the same or different objects from the same bucket without issue. Multiple writers can also write to different objects in the same bucket without issue. However, there is no concurrency control for multiple writers to the same file. When multiple writers try to replace a file from the same machine, the last write wins and all previous writes are lost without any user notification of the overwrite. However, in case of different machines the flush from first machine wins and the other machines that had the file open before the first machine synced its changes will get a ```syscall.ESTALE``` error when they try to save their own edits - there is no merging or version control. Therefore, for data integrity it is recommended that multiple sources do not modify the same object.
 
 **Write/Read consistency**
 
@@ -57,7 +57,7 @@ Examples:
 
 **Stale File Handle Errors**
 
-To prevent data corruption and ensure consistency, Cloud Storage FUSE actively detects and handles situations that could lead to stale file handles. This results in a ```syscall.ESTALE error``` under the following circumstances:
+To prevent data corruption and ensure consistency, Cloud Storage FUSE actively detects and handles situations that could lead to stale file handles. This results in a ```syscall.ESTALE``` error under the following circumstances:
 
 - **Concurrent Writes**: When multiple mounts have the same file open for writing, and one mount modifies and syncs the file, other mounts with open file handles will encounter this error when the writer application attempts to sync or close the file.
 - **Read During Modification**: If one mount is reading a file while another mount modifies and syncs the file, the reader application will encounter this error.
