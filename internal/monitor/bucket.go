@@ -23,13 +23,6 @@ import (
 	storagev2 "cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	"go.opencensus.io/stats"
-)
-
-var (
-	// OpenCensus measures
-	readBytesCountOC = stats.Int64("gcs/read_bytes_count", "The number of bytes read from GCS objects.", stats.UnitBytes)
-	readerCountOC    = stats.Int64("gcs/reader_count", "The number of GCS object readers opened or closed.", stats.UnitDimensionless)
 )
 
 // recordRequest records a request and its latency.
