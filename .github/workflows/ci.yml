@@ -3,7 +3,7 @@ name: ci
 on:
   push:
     branches:
-      - pre-launch-acv2
+      - master
   pull_request:
     branches:
       - '*'
@@ -11,7 +11,7 @@ on:
 jobs:
   format-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 5
     steps:
     - uses: actions/checkout@v4
     - name: Set up Go
@@ -49,7 +49,7 @@ jobs:
       run: go test -p 1 -count 1 -v -race -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` ./internal/cache/...
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v4.3.1
-      timeout-minutes: 10
+      timeout-minutes: 5
       with:
         fail_ci_if_error: true
         token: ${{ secrets.CODECOV_TOKEN }}
@@ -68,6 +68,6 @@ jobs:
     - name: golangci-lint
       uses: golangci/golangci-lint-action@032fa5c5e48499f06cf9d32c02149bfac1284239
       with:
-        args: -E=goimports --timeout 15m0s --exclude-dirs vendor
+        args: -E=goimports --timeout 2m0s
         only-new-issues: true
 

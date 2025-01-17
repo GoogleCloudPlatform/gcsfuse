@@ -7,7 +7,7 @@ on:
     # runs periodically on 12:01 utc (5:31pm ist) on monday
     - cron: '01 12 * * 1'
   push:
-    branches: [ "pre-launch-acv2" ]
+    branches: [ "master" ]
 
 # Declare default permissions as read only.
 permissions: read-all
@@ -34,8 +34,11 @@ jobs:
           results_file: results.sarif
           results_format: sarif
           repo_token: ${{ secrets.SCORECARD_TOKEN }}
-          # Do not publish results
-          publish_results: false
+          # Public repositories:
+          #   - Publish results to OpenSSF REST API for easy access by consumers
+          #   - Allows the repository to include the Scorecard badge.
+          #   - See https://github.com/ossf/scorecard-action#publishing-results.
+          publish_results: true
 
       # Upload the results as artifacts (optional). Commenting out will disable uploads of run results in SARIF
       # format to the repository Actions tab.
