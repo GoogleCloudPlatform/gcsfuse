@@ -59,10 +59,11 @@ Examples:
 
 To prevent data corruption and ensure consistency, Cloud Storage FUSE actively detects and handles situations that could lead to stale file handles. This results in a ```syscall.ESTALE error``` under the following circumstances:
 
-- **Concurrent Writes**: As described above, if multiple machines have the same file open for writing and one machine modifies and syncs the file, other machines with open file handles will encounter this error upon syncing or closing the file.
-- **Read During Modification**: If a machine is reading a file and another machine modifies and syncs the same file, the reader will receive this error.
-- **File Deletion or Renaming During Read**: If a machine is reading a file and the file is deleted or renamed from the same or a different machine, the reader will encounter this error.
-- **File Deletion or Renaming During Write**: If a machine is writing to a file and the file is deleted or renamed from the same or a different machine, the writer will receive this error upon syncing or closing the file.
+- **Concurrent Writes**: When multiple mounts have the same file open for writing, and one mount modifies and syncs the file, other mounts with open file handles will encounter this error when the writer application attempts to sync or close the file.
+- **Read During Modification**: If one mount is reading a file while another mount modifies and syncs the file, the reader application will encounter this error.
+- **File Deletion or Renaming During Read**: If a mount is reading a file and the file is deleted or renamed by the same or a different mount, the reader application will encounter this error.
+- **File Renaming During Write**: If a mount is writing to a file and the file is renamed by the same or a different mount, the writer application will encounter this error when attempting to sync or close the file.
+- **File Deletion During Write**: If a mount is writing to a file and the file is deleted by the same or a different mount, the writer application will encounter this error when attempting to sync or close the file. However, if the file is deleted by the same mount, the writer application will not encounter any error.
 
 These changes in Cloud Storage FUSE prioritize data integrity and provide users with clear indications of potential conflicts, preventing silent data loss and ensuring a more robust and reliable experience.
 
