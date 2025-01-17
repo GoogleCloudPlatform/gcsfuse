@@ -59,39 +59,6 @@ func (bh *bucketHandle) BucketType() gcs.BucketType {
 	return *bh.bucketType
 }
 
-//var nilControlClient *control.StorageControlClient = nil
-//// Note: The first invocation of this method will be slower due to a required Google Cloud Storage (GCS) fetch.
-//// Subsequent calls will be significantly faster as the results are cached in memory.
-//// While this operation is thread-safe, parallel calls during the initial fetch can result in redundant GCS requests.
-//// To avoid this, it's advisable to call this initially while mounting.
-//if bh.bucketType == gcs.Nil {
-//if bh.controlClient == nilControlClient {
-//bh.bucketType = gcs.NonHierarchical
-//return bh.bucketType
-//}
-//startTime := time.Now()
-//logger.Infof("GetStorageLayout <- (%s)", bh.bucketName)
-//storageLayout, err := bh.getStorageLayout()
-//duration := time.Since(startTime)
-//// In case bucket does not exist, set type unknown instead of panic.
-//if err != nil {
-//bh.bucketType = gcs.Unknown
-//logger.Errorf("Error returned from GetStorageLayout: %v", err)
-//return bh.bucketType
-//}
-//logger.Infof("GetStorageLayout -> (%s) %v msec", bh.bucketName, duration.Milliseconds())
-//
-//hierarchicalNamespace := storageLayout.GetHierarchicalNamespace()
-//if hierarchicalNamespace != nil && hierarchicalNamespace.Enabled {
-//bh.bucketType = gcs.Hierarchical
-//return bh.bucketType
-//}
-//
-//bh.bucketType = gcs.NonHierarchical
-//}
-//
-//return bh.bucketType
-
 func (bh *bucketHandle) NewReader(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (io.ReadCloser, error) {
