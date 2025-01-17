@@ -49,7 +49,7 @@ type Syncer interface {
 // to delete them, but if we are interrupted for some reason we may not be able
 // to do so. Therefore the user should arrange for garbage collection.
 func NewSyncer(
-	appendThreshold int64,
+	composeThreshold int64,
 	chunkTransferTimeoutSecs int64,
 	tmpObjectPrefix string,
 	bucket gcs.Bucket) (os Syncer) {
@@ -62,13 +62,13 @@ func NewSyncer(
 	// in their entirety.
 	var composeCreator objectCreator
 	if !bucket.BucketType().Zonal {
-		appendCreator = newAppendObjectCreator(
+		composeCreator = newComposeObjectCreator(
 			tmpObjectPrefix,
 			bucket)
 	}
 
 	// And the syncer.
-	os = newSyncer(appendThreshold, chunkTransferTimeoutSecs, fullCreator, appendCreator)
+	os = newSyncer(composeThreshold, chunkTransferTimeoutSecs, fullCreator, composeCreator)
 
 	return
 }
@@ -128,25 +128,25 @@ type objectCreator interface {
 // the order of the bandwidth to GCS times three times the round trip latency
 // to GCS (for a small create, a compose, and a delete).
 func newSyncer(
-	appendThreshold int64,
+	composeThreshold int64,
 	chunkTransferTimeoutSecs int64,
 	fullCreator objectCreator,
 	composeCreator objectCreator) (os Syncer) {
 	os = &syncer{
-		appendThreshold:          appendThreshold,
+		composeThreshold:         composeThreshold,
 		chunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
 		fullCreator:              fullCreator,
-		appendCreator:            appendCreator,
+		composeCreator:           composeCreator,
 	}
 
 	return
 }
 
 type syncer struct {
-	appendThreshold          int64
+	composeThreshold         int64
 	chunkTransferTimeoutSecs int64
 	fullCreator              objectCreator
-	appendCreator            objectCreator
+	composeCreator           objectCreator
 }
 
 func (os *syncer) SyncObject(
@@ -211,7 +211,7 @@ func (os *syncer) SyncObject(
 			return
 		}
 
-		o, err = os.appendCreator.Create(ctx, objectName, srcObject, sr.Mtime, os.chunkTransferTimeoutSecs, content)
+		o, err = os.composeCreator.Create(ctx, objectName, srcObject, sr.Mtime, os.chunkTransferTimeoutSecs, content)
 	} else {
 		_, err = content.Seek(0, 0)
 		if err != nil {
