@@ -326,7 +326,6 @@ func (job *Job) downloadObjectToFile(cacheFile *os.File) (err error) {
 				return err
 			}
 			if newReader != nil {
-				// The following is a dead code which has no net output.
 				readHandle = newReader.ReadHandle()
 			}
 			common.CaptureGCSReadMetrics(job.cancelCtx, job.metricsHandle, util.Sequential, newReaderLimit-start)
