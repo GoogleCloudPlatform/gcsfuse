@@ -173,7 +173,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithCustomEndpointAndAut
 	handleCreated, err := NewStorageHandle(testSuite.ctx, sc)
 
 	assert.NotNil(testSuite.T(), err)
-	assert.Contains(testSuite.T(), err.Error(), "GRPC client doesn't support auth for custom-endpoint")
+	assert.Contains(testSuite.T(), err.Error(), "no such file or directory")
 	assert.Nil(testSuite.T(), handleCreated)
 }
 
@@ -510,12 +510,28 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithGRPCClientWithCustom
 	sc.CustomEndpoint = url.String()
 	sc.AnonymousAccess = false
 	sc.ClientProtocol = cfg.GRPC
+	sc.TokenUrl = storageutil.CustomTokenUrl
+	sc.KeyFile = ""
 
 	handleCreated, err := NewStorageHandle(testSuite.ctx, sc)
 
-	assert.NotNil(testSuite.T(), err)
-	assert.Contains(testSuite.T(), err.Error(), "GRPC client doesn't support auth for custom-endpoint. Please set anonymous-access: true via config-file.")
-	assert.Nil(testSuite.T(), handleCreated)
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), handleCreated)
+}
+
+func (testSuite *StorageHandleTest) TestNewStorageHandleWithGRPCClientWithCustomEndpointAndAuthDisabled() {
+	url, err := url.Parse(storageutil.CustomEndpoint)
+	assert.Nil(testSuite.T(), err)
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.CustomEndpoint = url.String()
+	sc.ClientProtocol = cfg.GRPC
+	sc.TokenUrl = storageutil.CustomTokenUrl
+	sc.KeyFile = ""
+
+	handleCreated, err := NewStorageHandle(testSuite.ctx, sc)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), handleCreated)
 }
 
 func (testSuite *StorageHandleTest) TestCreateStorageHandleWithEnableHNSTrue() {

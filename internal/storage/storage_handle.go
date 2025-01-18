@@ -80,27 +80,22 @@ func (pd *gRPCDirectPathDetector) isDirectPathPossible(ctx context.Context, buck
 func createClientOptionForGRPCClient(clientConfig *storageutil.StorageClientConfig) (clientOpts []option.ClientOption, err error) {
 	// Add Custom endpoint option.
 	if clientConfig.CustomEndpoint != "" {
+		clientOpts = append(clientOpts, option.WithEndpoint(storageutil.StripScheme(clientConfig.CustomEndpoint)))
+		// TODO(b/390799251): Check if this line can be merged with below anonymousAccess check.
 		if clientConfig.AnonymousAccess {
-			clientOpts = append(clientOpts, option.WithEndpoint(storageutil.StripScheme(clientConfig.CustomEndpoint)))
-			// Explicitly disable auth in case of custom-endpoint, aligned with the http-client.
-			// TODO: to revisit here when supporting TPC for grpc client.
-			clientOpts = append(clientOpts, option.WithoutAuthentication())
 			clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())))
-		} else {
-			err = fmt.Errorf("GRPC client doesn't support auth for custom-endpoint. Please set anonymous-access: true via config-file.")
+		}
+	}
+
+	if clientConfig.AnonymousAccess {
+		clientOpts = append(clientOpts, option.WithoutAuthentication())
+	} else {
+		tokenSrc, tokenCreationErr := storageutil.CreateTokenSource(clientConfig)
+		if tokenCreationErr != nil {
+			err = fmt.Errorf("while fetching tokenSource: %w", tokenCreationErr)
 			return
 		}
-	} else {
-		if clientConfig.AnonymousAccess {
-			clientOpts = append(clientOpts, option.WithoutAuthentication())
-		} else {
-			tokenSrc, tokenCreationErr := storageutil.CreateTokenSource(clientConfig)
-			if tokenCreationErr != nil {
-				err = fmt.Errorf("while fetching tokenSource: %w", tokenCreationErr)
-				return
-			}
-			clientOpts = append(clientOpts, option.WithTokenSource(tokenSrc))
-		}
+		clientOpts = append(clientOpts, option.WithTokenSource(tokenSrc))
 	}
 
 	clientOpts = append(clientOpts, option.WithGRPCConnectionPool(clientConfig.GrpcConnPoolSize))
