@@ -2038,7 +2038,7 @@ func (fs *fileSystem) Rename(
 		}
 		return fs.renameNonHierarchicalDir(ctx, oldParent, op.OldName, newParent, op.NewName)
 	}
-	if (child.Bucket.BucketType() == gcs.BucketType{}) && fs.enableAtomicRenameObject {
+	if (child.Bucket.BucketType() == gcs.BucketType{Hierarchical: true}) && fs.enableAtomicRenameObject {
 		return fs.renameHierarchicalFile(ctx, oldParent, op.OldName, child.MinObject, newParent, op.NewName)
 	}
 	return fs.renameNonHierarchicalFile(ctx, oldParent, op.OldName, child.MinObject, newParent, op.NewName)
