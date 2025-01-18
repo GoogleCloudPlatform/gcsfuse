@@ -81,7 +81,8 @@ func (mb *monitoringBucket) NewReader(
 func (mb *monitoringBucket) NewReaderWithReadHandle(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (rd gcs.StorageReader, err error) {
-	rd, err = setupReader(ctx, mb, req, "NewReaderWithReadHandle")
+	// Using NewReader here also as NewReader() method is not used and will be removed.
+	rd, err = setupReader(ctx, mb, req, "NewReader")
 	return
 }
 
