@@ -113,7 +113,7 @@ func (t *RandomReaderStretchrTest) Test_ReadInfo() {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
-			_, err := t.rr.wrapped.getReadInfo(tc.start, tc.size)
+			_, _, err := t.rr.wrapped.getReadInfo(tc.start, tc.size)
 
 			assert.Error(t.T(), err)
 			errorString := fmt.Sprintf(
@@ -138,10 +138,10 @@ func (t *RandomReaderStretchrTest) Test_ReadInfo_Sequential() {
 	for _, tc := range testCases {
 		t.Run(tc.testName, func() {
 			t.object.Size = tc.objectSize
-			end, err := t.rr.wrapped.getReadInfo(tc.start, 10)
+			readType, end, err := t.rr.wrapped.getReadInfo(tc.start, 10)
 
 			assert.NoError(t.T(), err)
-			assert.Equal(t.T(), testutil.Sequential, t.rr.wrapped.readType)
+			assert.Equal(t.T(), testutil.Sequential, readType)
 			assert.Equal(t.T(), tc.expectedEnd, end)
 		})
 	}
@@ -171,10 +171,10 @@ func (t *RandomReaderStretchrTest) Test_ReadInfo_Random() {
 		t.Run(tc.testName, func() {
 			t.object.Size = tc.objectSize
 			t.rr.wrapped.totalReadBytes = tc.totalReadBytes
-			end, err := t.rr.wrapped.getReadInfo(tc.start, 10)
+			readType, end, err := t.rr.wrapped.getReadInfo(tc.start, 10)
 
 			assert.NoError(t.T(), err)
-			assert.Equal(t.T(), testutil.Random, t.rr.wrapped.readType)
+			assert.Equal(t.T(), testutil.Random, readType)
 			assert.Equal(t.T(), tc.expectedEnd, end)
 		})
 	}
