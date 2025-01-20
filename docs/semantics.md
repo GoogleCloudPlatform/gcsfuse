@@ -169,7 +169,7 @@ As the name suggests, the Cloud Storage FUSE kernel-list-cache is used to cache 
 
 By default, the list cache is disabled. It can be enabled by configuring the `--kernel-list-cache-ttl-secs` cli flag or `file-system:kernel-list-cache-ttl-secs` config flag where:
 *   A value of 0 means disabled. This is the default value.
-*   A positive value represents the ttl (in seconds) to keep the directory list response in the kernel page-cache.
+*   A positive value represents the ttl (in seconds) to keep the directory list response in the kernel page-cache. Important to note, the ttl-based eviction doesn't work with kernel versions 6.9.x to 6.12.x ([details](https://github.com/GoogleCloudPlatform/gcsfuse/issues/2792)), because of a [bug](https://lore.kernel.org/linux-fsdevel/CAEW=TRr7CYb4LtsvQPLj-zx5Y+EYBmGfM24SuzwyDoGVNoKm7w@mail.gmail.com/) in kernel-fuse driver, which is [fixed](https://github.com/torvalds/linux/commit/03f275adb8fbd7b4ebe96a1ad5044d8e602692dc) in 6.13.x.
 *   -1 to bypass entry expiration and always return the list response from the cache if available.
 
 **Important Points**
