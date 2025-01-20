@@ -16,11 +16,14 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"os"
 	"reflect"
+	"runtime"
+	"sync"
 	"testing"
 	"time"
 
@@ -208,6 +211,9 @@ func DeleteObjectOnGCS(ctx context.Context, client *storage.Client, objectName s
 	return nil
 }
 
+// DeleteAllObjectsWithPrefix deletes all objects with the specified prefix in a GCS bucket.
+// It concurrently iterates through objects with the given prefix and deletes them using multiple goroutines,
+// leveraging the number of CPU cores for optimal performance.
 func DeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, prefix string) error {
 	bucket, _ := setup.GetBucketAndObjectBasedOnTypeOfMount("")
 
@@ -215,17 +221,47 @@ func DeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, pre
 	query := &storage.Query{Prefix: prefix}
 	objectItr := client.Bucket(bucket).Objects(ctx, query)
 
-	// Iterate through objects with the specified prefix and delete them
+	// Create a buffered channel to receive errors from goroutines
+	errChan := make(chan error, 100)
+
+	// Determine the number of concurrent goroutines using CPU cores
+	numCores := runtime.NumCPU()
+	sem := make(chan struct{}, numCores) // Semaphore to limit concurrency
+
+	var wg sync.WaitGroup
+
+	// Iterate through objects with the specified prefix
 	for {
 		attrs, err := objectItr.Next()
 		if err == iterator.Done {
 			break
 		}
-		if err := DeleteObjectOnGCS(ctx, client, attrs.Name); err != nil {
-			return err
+		if err != nil {
+			return fmt.Errorf("error iterating through objects: %w", err)
 		}
+
+		wg.Add(1)
+		sem <- struct{}{} // Acquire a semaphore slot
+		go func(attrs *storage.ObjectAttrs) {
+			defer func() {
+				<-sem // Release the semaphore slot
+				wg.Done()
+			}()
+			if err := DeleteObjectOnGCS(ctx, client, attrs.Name); err != nil {
+				errChan <- fmt.Errorf("error deleting object %s: %w", attrs.Name, err)
+			}
+		}(attrs)
 	}
-	return nil
+
+	wg.Wait()
+	close(errChan)
+
+	var errs []error
+	for err := range errChan {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
 }
 
 func StatObject(ctx context.Context, client *storage.Client, object string) (*storage.ObjectAttrs, error) {
