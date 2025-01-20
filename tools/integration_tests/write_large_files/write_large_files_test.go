@@ -54,7 +54,8 @@ func compareFileFromGCSBucketAndMntDir(gcsFile, mntDirFile, localFilePathToDownl
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	flags := [][]string{{"--implicit-dirs"}}
+	// TODO: remove max-blocks-per-file after the default values are set.
+	flags := [][]string{{"--enable-streaming-writes=true", "--write-max-blocks-per-file=2"}}
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
