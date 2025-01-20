@@ -455,6 +455,8 @@ type FileSystemConfig struct {
 
 	KernelListCacheTtlSecs int64 `yaml:"kernel-list-cache-ttl-secs"`
 
+	MaxReadAheadKb int64 `yaml:"max-read-ahead-kb"`
+
 	ODirect bool `yaml:"o-direct"`
 
 	PreconditionErrors bool `yaml:"precondition-errors"`
@@ -950,6 +952,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("max-idle-conns-per-host", "", 100, "The number of maximum idle connections allowed per server.")
 
+	flagSet.IntP("max-read-ahead-kb", "", 1024, "Max read ahead in KiB by kernel while performing reads.")
+
+	if err := flagSet.MarkHidden("max-read-ahead-kb"); err != nil {
+		return err
+	}
+
 	flagSet.IntP("max-retry-attempts", "", 0, "It sets a limit on the number of times an operation will be retried if it fails, preventing endless retry loops. A value of 0 indicates no limit.")
 
 	flagSet.DurationP("max-retry-duration", "", 0*time.Nanosecond, "This is currently unused.")
@@ -1440,6 +1448,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("gcs-connection.max-idle-conns-per-host", flagSet.Lookup("max-idle-conns-per-host")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.max-read-ahead-kb", flagSet.Lookup("max-read-ahead-kb")); err != nil {
 		return err
 	}
 

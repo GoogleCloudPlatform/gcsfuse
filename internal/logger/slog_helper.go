@@ -88,7 +88,7 @@ func addPrefixToMessage(a *slog.Attr, prefix string) {
 	// Add prefix to the message.
 	message := a.Value.Any().(string)
 	var sb strings.Builder
-	sb.WriteString(prefix)
+	// sb.WriteString(prefix)
 	sb.WriteString(message)
 	a.Value = slog.StringValue(sb.String())
 }
@@ -101,7 +101,8 @@ func addPrefixToMessage(a *slog.Attr, prefix string) {
 func customiseTimeFormat(a *slog.Attr, format string) {
 	currTime := a.Value.Any().(time.Time).Round(0)
 	if format == textFormat {
-		a.Value = slog.StringValue(currTime.Round(0).Format("02/01/2006 03:04:05.000000"))
+		// a.Value = slog.StringValue(currTime.Round(0).Format("02/01/2006 03:04:05.000000"))
+		a.Value = slog.StringValue("")
 	} else {
 		*a = slog.Group(timestampKey, secondsKey, currTime.Unix(), nanosKey, currTime.Nanosecond())
 	}

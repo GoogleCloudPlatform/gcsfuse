@@ -350,6 +350,13 @@ params:
         - name: "aiml-serving"
           value: -1
 
+  - config-path: "file-system.max-read-ahead-kb"
+    flag-name: "max-read-ahead-kb"
+    type: "int"
+    usage: "Max read ahead in KiB by kernel while performing reads."
+    default: "0"
+    hide-flag: true
+  
   - config-path: "file-system.o-direct"
     flag-name: "o-direct"
     type: "bool"
@@ -358,6 +365,7 @@ params:
       all I/O operations are sent directly to the GCSFuse daemon. 
     default: false
     hide-flag: true
+
 
   - config-path: "file-system.precondition-errors"
     flag-name: "precondition-errors"
