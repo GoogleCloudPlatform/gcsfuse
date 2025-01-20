@@ -57,7 +57,7 @@ Examples:
 
 **Stale File Handle Errors**
 
-To prevent data corruption and ensure consistency, Cloud Storage FUSE actively detects and handles situations that could lead to stale file handles. This results in a ```syscall.ESTALE``` error under the following circumstances:
+To ensure consistency, Cloud Storage FUSE returns a ```syscall.ESTALE``` error when an application tries to access stale data. This can occur in the following circumstances:
 
 - **Concurrent Writes**: When multiple mounts have the same file open for writing, and one mount modifies and syncs the file, other mounts with open file handles will encounter this error when the writer application attempts to sync or close the file.
 - **Read During Modification**: If one mount is reading a file while another mount modifies and syncs the file, the reader application will encounter this error.
