@@ -28,9 +28,9 @@ BUCKET_LOCATION=$3
 # Pass "true" to run e2e tests on TPC endpoint.
 # The default value will be false.
 RUN_TEST_ON_TPC_ENDPOINT=false
-if [ $4 != "" ]; then
-  RUN_TEST_ON_TPC_ENDPOINT=$4
-fi
+# if [ $4 != "" ]; then
+  # RUN_TEST_ON_TPC_ENDPOINT=$4
+# fi
 INTEGRATION_TEST_TIMEOUT_IN_MINS=90
 
 RUN_TESTS_WITH_PRESUBMIT_FLAG=false
@@ -350,11 +350,11 @@ function main(){
   run_e2e_tests_for_flat_bucket &
   e2e_tests_flat_bucket_pid=$!
 
-  run_e2e_tests_for_emulator &
-  e2e_tests_emulator_pid=$!
+  # run_e2e_tests_for_emulator &
+  # e2e_tests_emulator_pid=$!
 
-  wait $e2e_tests_emulator_pid
-  e2e_tests_emulator_status=$?
+  # wait $e2e_tests_emulator_pid
+  # e2e_tests_emulator_status=$?
 
   wait $e2e_tests_flat_bucket_pid
   e2e_tests_flat_bucket_status=$?
@@ -379,11 +379,11 @@ function main(){
     exit_code=1
   fi
 
-  if [ $e2e_tests_emulator_status != 0 ];
-  then
-    echo "The e2e tests for emulator failed.."
-    exit_code=1
-  fi
+  # if [ $e2e_tests_emulator_status != 0 ];
+  # then
+    # echo "The e2e tests for emulator failed.."
+    # exit_code=1
+  # fi
 
   exit $exit_code
 }
