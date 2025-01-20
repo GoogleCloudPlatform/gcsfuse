@@ -70,7 +70,7 @@ echo Install git
 sudo apt-get install git -y
 # It is require for multi-arch support
 sudo apt-get install qemu-user-static binfmt-support
-git clone https://github.com/GoogleCloudPlatform/gcsfuse.git
+git clone https://github.com/vipnydav/gcsfuse.git
 cd gcsfuse/tools/package_gcsfuse_docker/
 git checkout "v$RELEASE_VERSION_TAG"
 echo "Building docker for ${architecture} ..."
