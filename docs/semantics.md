@@ -43,7 +43,7 @@ when writing large files.
 
 **Concurrency**
 
-Multiple readers can access the same or different objects within a bucket without issue. Likewise, multiple writers modify different objects in the same bucket simultaneously without any issue. Even when multiple writers attempt to replace the same file from the same mount point, the last write wins similar to a native filesystem.
+Multiple readers can access the same or different objects within a bucket without issue. Likewise, multiple writers can modify different objects in the same bucket simultaneously without any issue. Concurrent writes to the same gcs object are supported from the same mount and behave similar to native file system.
 
 However, when different mounts try to write to the same object, the flush from first mount wins. Other mounts that have not updated their local file descriptors after the object is updated will encounter a ```syscall.ESTALE``` error when attempting to save their edits due to precondition checks. Therefore, to ensure data integrity it is strongly recommended that multiple sources do not modify the same object.
 
