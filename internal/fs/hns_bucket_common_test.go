@@ -28,7 +28,6 @@ import (
 )
 
 type HNSBucketCommonTest struct {
-	fsTest
 	suite.Suite
 }
 
