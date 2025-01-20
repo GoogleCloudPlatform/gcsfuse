@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	"cloud.google.com/go/storage"
 	control "cloud.google.com/go/storage/control/apiv2"
@@ -191,11 +192,16 @@ func (sh *storageClient) lookupBucketType(bucketName string) (*gcs.BucketType, e
 		return &gcs.BucketType{}, nil // Assume defaults
 	}
 
+	startTime := time.Now()
+	logger.Infof("GetStorageLayout <- (%s)", bucketName)
 	storageLayout, err := sh.getStorageLayout(bucketName)
+	duration := time.Since(startTime)
 
 	if err != nil {
 		return nil, err
 	}
+
+	logger.Infof("GetStorageLayout -> (%s) %v msec", bucketName, duration.Milliseconds())
 
 	return &gcs.BucketType{
 		Hierarchical: storageLayout.GetHierarchicalNamespace().GetEnabled(),
