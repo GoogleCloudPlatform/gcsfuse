@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Streaming write tests which are common for both local file and synced empty
-// object.
-
 package fs_test
 
 import (
