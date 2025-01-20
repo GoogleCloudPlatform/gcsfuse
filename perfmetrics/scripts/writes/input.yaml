@@ -1,6 +1,70 @@
 # Example YAML configuration file for gcsfuse buffered writes benchmarking.
-# 3 readings for each experiment.
+# 10 readings for each experiment. bs 1, 5, 10, 16, 32, 50, 64, 128, num_blocks 1, 2, 5, 10, 20
 config:
+- fio_directory: 100mfile-bs1m-1blocks
+  fio_block_size: 1m
+  fio_file_size: 100m
+  gcsfuse_flags: '--write-block-size-mb=1 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=1'
+- fio_directory: 100mfile-bs5m-1blocks
+  fio_block_size: 1m
+  fio_file_size: 100m
+  gcsfuse_flags: '--write-block-size-mb=5 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=1'
+- fio_directory: 100mfile-bs10m-1blocks
+  fio_block_size: 1m
+  fio_file_size: 100m
+  gcsfuse_flags: '--write-block-size-mb=10 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=1'
+- fio_directory: 100mfile-bs16m-1blocks
+  fio_block_size: 1m
+  fio_file_size: 100m
+  gcsfuse_flags: '--write-block-size-mb=16 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=1'
+- fio_directory: 100mfile-bs32m-1blocks
+  fio_block_size: 1m
+  fio_file_size: 100m
+  gcsfuse_flags: '--write-block-size-mb=32 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=1'
+- fio_directory: 100mfile-bs50m-1blocks
+  fio_block_size: 1m
+  fio_file_size: 100m
+  gcsfuse_flags: '--write-block-size-mb=50 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=1'
+- fio_directory: 100mfile-bs64m-1blocks
+  fio_block_size: 1m
+  fio_file_size: 100m
+  gcsfuse_flags: '--write-block-size-mb=64 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=1'
+- fio_directory: 100mfile-bs128m-1blocks
+  fio_block_size: 1m
+  fio_file_size: 100m
+  gcsfuse_flags: '--write-block-size-mb=128 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=1'
+- fio_directory: 100mfile-bs1m-2blocks
+  fio_block_size: 1m
+  fio_file_size: 100m
+  gcsfuse_flags: '--write-block-size-mb=1 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=2'
+- fio_directory: 100mfile-bs5m-2blocks
+  fio_block_size: 1m
+  fio_file_size: 100m
+  gcsfuse_flags: '--write-block-size-mb=5 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=2'
+- fio_directory: 100mfile-bs10m-2blocks
+  fio_block_size: 1m
+  fio_file_size: 100m
+  gcsfuse_flags: '--write-block-size-mb=10 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=2'
+- fio_directory: 100mfile-bs16m-2blocks
+  fio_block_size: 1m
+  fio_file_size: 100m
+  gcsfuse_flags: '--write-block-size-mb=16 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=2'
+- fio_directory: 100mfile-bs32m-2blocks
+  fio_block_size: 1m
+  fio_file_size: 100m
+  gcsfuse_flags: '--write-block-size-mb=32 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=2'
+- fio_directory: 100mfile-bs50m-2blocks
+  fio_block_size: 1m
+  fio_file_size: 100m
+  gcsfuse_flags: '--write-block-size-mb=50 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=2'
+- fio_directory: 100mfile-bs64m-2blocks
+  fio_block_size: 1m
+  fio_file_size: 100m
+  gcsfuse_flags: '--write-block-size-mb=64 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=2'
+- fio_directory: 100mfile-bs128m-2blocks
+  fio_block_size: 1m
+  fio_file_size: 100m
+  gcsfuse_flags: '--write-block-size-mb=128 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=2'
 - fio_directory: 100mfile-bs1m-5blocks
   fio_block_size: 1m
   fio_file_size: 100m
@@ -13,10 +77,26 @@ config:
   fio_block_size: 1m
   fio_file_size: 100m
   gcsfuse_flags: '--write-block-size-mb=10 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=5'
+- fio_directory: 100mfile-bs16m-5blocks
+  fio_block_size: 1m
+  fio_file_size: 100m
+  gcsfuse_flags: '--write-block-size-mb=16 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=5'
+- fio_directory: 100mfile-bs32m-5blocks
+  fio_block_size: 1m
+  fio_file_size: 100m
+  gcsfuse_flags: '--write-block-size-mb=32 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=5'
 - fio_directory: 100mfile-bs50m-5blocks
   fio_block_size: 1m
   fio_file_size: 100m
   gcsfuse_flags: '--write-block-size-mb=50 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=5'
+- fio_directory: 100mfile-bs64m-5blocks
+  fio_block_size: 1m
+  fio_file_size: 100m
+  gcsfuse_flags: '--write-block-size-mb=64 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=5'
+- fio_directory: 100mfile-bs128m-5blocks
+  fio_block_size: 1m
+  fio_file_size: 100m
+  gcsfuse_flags: '--write-block-size-mb=128 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=5'
 - fio_directory: 100mfile-bs1m-10blocks
   fio_block_size: 1m
   fio_file_size: 100m
@@ -29,10 +109,26 @@ config:
   fio_block_size: 1m
   fio_file_size: 100m
   gcsfuse_flags: '--write-block-size-mb=10 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=10'
+- fio_directory: 100mfile-bs16m-10blocks
+  fio_block_size: 1m
+  fio_file_size: 100m
+  gcsfuse_flags: '--write-block-size-mb=16 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=10'
+- fio_directory: 100mfile-bs32m-10blocks
+  fio_block_size: 1m
+  fio_file_size: 100m
+  gcsfuse_flags: '--write-block-size-mb=32 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=10'
 - fio_directory: 100mfile-bs50m-10blocks
   fio_block_size: 1m
   fio_file_size: 100m
   gcsfuse_flags: '--write-block-size-mb=50 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=10'
+- fio_directory: 100mfile-bs64m-10blocks
+  fio_block_size: 1m
+  fio_file_size: 100m
+  gcsfuse_flags: '--write-block-size-mb=64 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=10'
+- fio_directory: 100mfile-bs128m-10blocks
+  fio_block_size: 1m
+  fio_file_size: 100m
+  gcsfuse_flags: '--write-block-size-mb=128 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=10'
 - fio_directory: 100mfile-bs1m-20blocks
   fio_block_size: 1m
   fio_file_size: 100m
@@ -45,12 +141,91 @@ config:
   fio_block_size: 1m
   fio_file_size: 100m
   gcsfuse_flags: '--write-block-size-mb=10 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=20'
+- fio_directory: 100mfile-bs16m-20blocks
+  fio_block_size: 1m
+  fio_file_size: 100m
+  gcsfuse_flags: '--write-block-size-mb=16 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=20'
+- fio_directory: 100mfile-bs32m-20blocks
+  fio_block_size: 1m
+  fio_file_size: 100m
+  gcsfuse_flags: '--write-block-size-mb=32 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=20'
 - fio_directory: 100mfile-bs50m-20blocks
   fio_block_size: 1m
   fio_file_size: 100m
   gcsfuse_flags: '--write-block-size-mb=50 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=20'
+- fio_directory: 100mfile-bs64m-20blocks
+  fio_block_size: 1m
+  fio_file_size: 100m
+  gcsfuse_flags: '--write-block-size-mb=64 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=20'
+- fio_directory: 100mfile-bs128m-20blocks
+  fio_block_size: 1m
+  fio_file_size: 100m
+  gcsfuse_flags: '--write-block-size-mb=128 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=20'
 
-
+- fio_directory: 500mfile-bs1m-1blocks
+  fio_block_size: 1m
+  fio_file_size: 500m
+  gcsfuse_flags: '--write-block-size-mb=1 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=1'
+- fio_directory: 500mfile-bs5m-1blocks
+  fio_block_size: 1m
+  fio_file_size: 500m
+  gcsfuse_flags: '--write-block-size-mb=5 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=1'
+- fio_directory: 500mfile-bs10m-1blocks
+  fio_block_size: 1m
+  fio_file_size: 500m
+  gcsfuse_flags: '--write-block-size-mb=10 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=1'
+- fio_directory: 500mfile-bs16m-1blocks
+  fio_block_size: 1m
+  fio_file_size: 500m
+  gcsfuse_flags: '--write-block-size-mb=16 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=1'
+- fio_directory: 500mfile-bs32m-1blocks
+  fio_block_size: 1m
+  fio_file_size: 500m
+  gcsfuse_flags: '--write-block-size-mb=32 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=1'
+- fio_directory: 500mfile-bs50m-1blocks
+  fio_block_size: 1m
+  fio_file_size: 500m
+  gcsfuse_flags: '--write-block-size-mb=50 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=1'
+- fio_directory: 500mfile-bs64m-1blocks
+  fio_block_size: 1m
+  fio_file_size: 500m
+  gcsfuse_flags: '--write-block-size-mb=64 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=1'
+- fio_directory: 500mfile-bs128m-1blocks
+  fio_block_size: 1m
+  fio_file_size: 500m
+  gcsfuse_flags: '--write-block-size-mb=128 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=1'
+- fio_directory: 500mfile-bs1m-2blocks
+  fio_block_size: 1m
+  fio_file_size: 500m
+  gcsfuse_flags: '--write-block-size-mb=1 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=2'
+- fio_directory: 500mfile-bs5m-2blocks
+  fio_block_size: 1m
+  fio_file_size: 500m
+  gcsfuse_flags: '--write-block-size-mb=5 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=2'
+- fio_directory: 500mfile-bs10m-2blocks
+  fio_block_size: 1m
+  fio_file_size: 500m
+  gcsfuse_flags: '--write-block-size-mb=10 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=2'
+- fio_directory: 500mfile-bs16m-2blocks
+  fio_block_size: 1m
+  fio_file_size: 500m
+  gcsfuse_flags: '--write-block-size-mb=16 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=2'
+- fio_directory: 500mfile-bs32m-2blocks
+  fio_block_size: 1m
+  fio_file_size: 500m
+  gcsfuse_flags: '--write-block-size-mb=32 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=2'
+- fio_directory: 500mfile-bs50m-2blocks
+  fio_block_size: 1m
+  fio_file_size: 500m
+  gcsfuse_flags: '--write-block-size-mb=50 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=2'
+- fio_directory: 500mfile-bs64m-2blocks
+  fio_block_size: 1m
+  fio_file_size: 500m
+  gcsfuse_flags: '--write-block-size-mb=64 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=2'
+- fio_directory: 500mfile-bs128m-2blocks
+  fio_block_size: 1m
+  fio_file_size: 500m
+  gcsfuse_flags: '--write-block-size-mb=128 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=2'
 - fio_directory: 500mfile-bs1m-5blocks
   fio_block_size: 1m
   fio_file_size: 500m
@@ -63,10 +238,26 @@ config:
   fio_block_size: 1m
   fio_file_size: 500m
   gcsfuse_flags: '--write-block-size-mb=10 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=5'
+- fio_directory: 500mfile-bs16m-5blocks
+  fio_block_size: 1m
+  fio_file_size: 500m
+  gcsfuse_flags: '--write-block-size-mb=16 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=5'
+- fio_directory: 500mfile-bs32m-5blocks
+  fio_block_size: 1m
+  fio_file_size: 500m
+  gcsfuse_flags: '--write-block-size-mb=32 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=5'
 - fio_directory: 500mfile-bs50m-5blocks
   fio_block_size: 1m
   fio_file_size: 500m
   gcsfuse_flags: '--write-block-size-mb=50 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=5'
+- fio_directory: 500mfile-bs64m-5blocks
+  fio_block_size: 1m
+  fio_file_size: 500m
+  gcsfuse_flags: '--write-block-size-mb=64 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=5'
+- fio_directory: 500mfile-bs128m-5blocks
+  fio_block_size: 1m
+  fio_file_size: 500m
+  gcsfuse_flags: '--write-block-size-mb=128 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=5'
 - fio_directory: 500mfile-bs1m-10blocks
   fio_block_size: 1m
   fio_file_size: 500m
@@ -79,10 +270,26 @@ config:
   fio_block_size: 1m
   fio_file_size: 500m
   gcsfuse_flags: '--write-block-size-mb=10 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=10'
+- fio_directory: 500mfile-bs16m-10blocks
+  fio_block_size: 1m
+  fio_file_size: 500m
+  gcsfuse_flags: '--write-block-size-mb=16 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=10'
+- fio_directory: 500mfile-bs32m-10blocks
+  fio_block_size: 1m
+  fio_file_size: 500m
+  gcsfuse_flags: '--write-block-size-mb=32 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=10'
 - fio_directory: 500mfile-bs50m-10blocks
   fio_block_size: 1m
   fio_file_size: 500m
   gcsfuse_flags: '--write-block-size-mb=50 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=10'
+- fio_directory: 500mfile-bs64m-10blocks
+  fio_block_size: 1m
+  fio_file_size: 500m
+  gcsfuse_flags: '--write-block-size-mb=64 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=10'
+- fio_directory: 500mfile-bs128m-10blocks
+  fio_block_size: 1m
+  fio_file_size: 500m
+  gcsfuse_flags: '--write-block-size-mb=128 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=10'
 - fio_directory: 500mfile-bs1m-20blocks
   fio_block_size: 1m
   fio_file_size: 500m
@@ -95,11 +302,91 @@ config:
   fio_block_size: 1m
   fio_file_size: 500m
   gcsfuse_flags: '--write-block-size-mb=10 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=20'
+- fio_directory: 500mfile-bs16m-20blocks
+  fio_block_size: 1m
+  fio_file_size: 500m
+  gcsfuse_flags: '--write-block-size-mb=16 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=20'
+- fio_directory: 500mfile-bs32m-20blocks
+  fio_block_size: 1m
+  fio_file_size: 500m
+  gcsfuse_flags: '--write-block-size-mb=32 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=20'
 - fio_directory: 500mfile-bs50m-20blocks
   fio_block_size: 1m
   fio_file_size: 500m
   gcsfuse_flags: '--write-block-size-mb=50 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=20'
+- fio_directory: 500mfile-bs64m-20blocks
+  fio_block_size: 1m
+  fio_file_size: 500m
+  gcsfuse_flags: '--write-block-size-mb=64 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=20'
+- fio_directory: 500mfile-bs128m-20blocks
+  fio_block_size: 1m
+  fio_file_size: 500m
+  gcsfuse_flags: '--write-block-size-mb=128 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=20'
 
+- fio_directory: 1Gfile-bs1m-1blocks
+  fio_block_size: 1m
+  fio_file_size: 1G
+  gcsfuse_flags: '--write-block-size-mb=1 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=1'
+- fio_directory: 1Gfile-bs5m-1blocks
+  fio_block_size: 1m
+  fio_file_size: 1G
+  gcsfuse_flags: '--write-block-size-mb=5 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=1'
+- fio_directory: 1Gfile-bs10m-1blocks
+  fio_block_size: 1m
+  fio_file_size: 1G
+  gcsfuse_flags: '--write-block-size-mb=10 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=1'
+- fio_directory: 1Gfile-bs16m-1blocks
+  fio_block_size: 1m
+  fio_file_size: 1G
+  gcsfuse_flags: '--write-block-size-mb=16 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=1'
+- fio_directory: 1Gfile-bs32m-1blocks
+  fio_block_size: 1m
+  fio_file_size: 1G
+  gcsfuse_flags: '--write-block-size-mb=32 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=1'
+- fio_directory: 1Gfile-bs50m-1blocks
+  fio_block_size: 1m
+  fio_file_size: 1G
+  gcsfuse_flags: '--write-block-size-mb=50 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=1'
+- fio_directory: 1Gfile-bs64m-1blocks
+  fio_block_size: 1m
+  fio_file_size: 1G
+  gcsfuse_flags: '--write-block-size-mb=64 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=1'
+- fio_directory: 1Gfile-bs128m-1blocks
+  fio_block_size: 1m
+  fio_file_size: 1G
+  gcsfuse_flags: '--write-block-size-mb=128 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=1'
+- fio_directory: 1Gfile-bs1m-2blocks
+  fio_block_size: 1m
+  fio_file_size: 1G
+  gcsfuse_flags: '--write-block-size-mb=1 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=2'
+- fio_directory: 1Gfile-bs5m-2blocks
+  fio_block_size: 1m
+  fio_file_size: 1G
+  gcsfuse_flags: '--write-block-size-mb=5 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=2'
+- fio_directory: 1Gfile-bs10m-2blocks
+  fio_block_size: 1m
+  fio_file_size: 1G
+  gcsfuse_flags: '--write-block-size-mb=10 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=2'
+- fio_directory: 1Gfile-bs16m-2blocks
+  fio_block_size: 1m
+  fio_file_size: 1G
+  gcsfuse_flags: '--write-block-size-mb=16 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=2'
+- fio_directory: 1Gfile-bs32m-2blocks
+  fio_block_size: 1m
+  fio_file_size: 1G
+  gcsfuse_flags: '--write-block-size-mb=32 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=2'
+- fio_directory: 1Gfile-bs50m-2blocks
+  fio_block_size: 1m
+  fio_file_size: 1G
+  gcsfuse_flags: '--write-block-size-mb=50 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=2'
+- fio_directory: 1Gfile-bs64m-2blocks
+  fio_block_size: 1m
+  fio_file_size: 1G
+  gcsfuse_flags: '--write-block-size-mb=64 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=2'
+- fio_directory: 1Gfile-bs128m-2blocks
+  fio_block_size: 1m
+  fio_file_size: 1G
+  gcsfuse_flags: '--write-block-size-mb=128 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=2'
 - fio_directory: 1Gfile-bs1m-5blocks
   fio_block_size: 1m
   fio_file_size: 1G
@@ -112,10 +399,26 @@ config:
   fio_block_size: 1m
   fio_file_size: 1G
   gcsfuse_flags: '--write-block-size-mb=10 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=5'
+- fio_directory: 1Gfile-bs16m-5blocks
+  fio_block_size: 1m
+  fio_file_size: 1G
+  gcsfuse_flags: '--write-block-size-mb=16 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=5'
+- fio_directory: 1Gfile-bs32m-5blocks
+  fio_block_size: 1m
+  fio_file_size: 1G
+  gcsfuse_flags: '--write-block-size-mb=32 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=5'
 - fio_directory: 1Gfile-bs50m-5blocks
   fio_block_size: 1m
   fio_file_size: 1G
   gcsfuse_flags: '--write-block-size-mb=50 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=5'
+- fio_directory: 1Gfile-bs64m-5blocks
+  fio_block_size: 1m
+  fio_file_size: 1G
+  gcsfuse_flags: '--write-block-size-mb=64 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=5'
+- fio_directory: 1Gfile-bs128m-5blocks
+  fio_block_size: 1m
+  fio_file_size: 1G
+  gcsfuse_flags: '--write-block-size-mb=128 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=5'
 - fio_directory: 1Gfile-bs1m-10blocks
   fio_block_size: 1m
   fio_file_size: 1G
@@ -128,10 +431,26 @@ config:
   fio_block_size: 1m
   fio_file_size: 1G
   gcsfuse_flags: '--write-block-size-mb=10 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=10'
+- fio_directory: 1Gfile-bs16m-10blocks
+  fio_block_size: 1m
+  fio_file_size: 1G
+  gcsfuse_flags: '--write-block-size-mb=16 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=10'
+- fio_directory: 1Gfile-bs32m-10blocks
+  fio_block_size: 1m
+  fio_file_size: 1G
+  gcsfuse_flags: '--write-block-size-mb=32 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=10'
 - fio_directory: 1Gfile-bs50m-10blocks
   fio_block_size: 1m
   fio_file_size: 1G
   gcsfuse_flags: '--write-block-size-mb=50 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=10'
+- fio_directory: 1Gfile-bs64m-10blocks
+  fio_block_size: 1m
+  fio_file_size: 1G
+  gcsfuse_flags: '--write-block-size-mb=64 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=10'
+- fio_directory: 1Gfile-bs128m-10blocks
+  fio_block_size: 1m
+  fio_file_size: 1G
+  gcsfuse_flags: '--write-block-size-mb=128 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=10'
 - fio_directory: 1Gfile-bs1m-20blocks
   fio_block_size: 1m
   fio_file_size: 1G
@@ -144,11 +463,91 @@ config:
   fio_block_size: 1m
   fio_file_size: 1G
   gcsfuse_flags: '--write-block-size-mb=10 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=20'
+- fio_directory: 1Gfile-bs16m-20blocks
+  fio_block_size: 1m
+  fio_file_size: 1G
+  gcsfuse_flags: '--write-block-size-mb=16 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=20'
+- fio_directory: 1Gfile-bs32m-20blocks
+  fio_block_size: 1m
+  fio_file_size: 1G
+  gcsfuse_flags: '--write-block-size-mb=32 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=20'
 - fio_directory: 1Gfile-bs50m-20blocks
   fio_block_size: 1m
   fio_file_size: 1G
   gcsfuse_flags: '--write-block-size-mb=50 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=20'
+- fio_directory: 1Gfile-bs64m-20blocks
+  fio_block_size: 1m
+  fio_file_size: 1G
+  gcsfuse_flags: '--write-block-size-mb=64 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=20'
+- fio_directory: 1Gfile-bs128m-20blocks
+  fio_block_size: 1m
+  fio_file_size: 1G
+  gcsfuse_flags: '--write-block-size-mb=128 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=20'
 
+- fio_directory: 10Gfile-bs1m-1blocks
+  fio_block_size: 1m
+  fio_file_size: 10G
+  gcsfuse_flags: '--write-block-size-mb=1 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=1'
+- fio_directory: 10Gfile-bs5m-1blocks
+  fio_block_size: 1m
+  fio_file_size: 10G
+  gcsfuse_flags: '--write-block-size-mb=5 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=1'
+- fio_directory: 10Gfile-bs10m-1blocks
+  fio_block_size: 1m
+  fio_file_size: 10G
+  gcsfuse_flags: '--write-block-size-mb=10 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=1'
+- fio_directory: 10Gfile-bs16m-1blocks
+  fio_block_size: 1m
+  fio_file_size: 10G
+  gcsfuse_flags: '--write-block-size-mb=16 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=1'
+- fio_directory: 10Gfile-bs32m-1blocks
+  fio_block_size: 1m
+  fio_file_size: 10G
+  gcsfuse_flags: '--write-block-size-mb=32 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=1'
+- fio_directory: 10Gfile-bs50m-1blocks
+  fio_block_size: 1m
+  fio_file_size: 10G
+  gcsfuse_flags: '--write-block-size-mb=50 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=1'
+- fio_directory: 10Gfile-bs64m-1blocks
+  fio_block_size: 1m
+  fio_file_size: 10G
+  gcsfuse_flags: '--write-block-size-mb=64 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=1'
+- fio_directory: 10Gfile-bs128m-1blocks
+  fio_block_size: 1m
+  fio_file_size: 10G
+  gcsfuse_flags: '--write-block-size-mb=128 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=1'
+- fio_directory: 10Gfile-bs1m-2blocks
+  fio_block_size: 1m
+  fio_file_size: 10G
+  gcsfuse_flags: '--write-block-size-mb=1 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=2'
+- fio_directory: 10Gfile-bs5m-2blocks
+  fio_block_size: 1m
+  fio_file_size: 10G
+  gcsfuse_flags: '--write-block-size-mb=5 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=2'
+- fio_directory: 10Gfile-bs10m-2blocks
+  fio_block_size: 1m
+  fio_file_size: 10G
+  gcsfuse_flags: '--write-block-size-mb=10 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=2'
+- fio_directory: 10Gfile-bs16m-2blocks
+  fio_block_size: 1m
+  fio_file_size: 10G
+  gcsfuse_flags: '--write-block-size-mb=16 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=2'
+- fio_directory: 10Gfile-bs32m-2blocks
+  fio_block_size: 1m
+  fio_file_size: 10G
+  gcsfuse_flags: '--write-block-size-mb=32 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=2'
+- fio_directory: 10Gfile-bs50m-2blocks
+  fio_block_size: 1m
+  fio_file_size: 10G
+  gcsfuse_flags: '--write-block-size-mb=50 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=2'
+- fio_directory: 10Gfile-bs64m-2blocks
+  fio_block_size: 1m
+  fio_file_size: 10G
+  gcsfuse_flags: '--write-block-size-mb=64 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=2'
+- fio_directory: 10Gfile-bs128m-2blocks
+  fio_block_size: 1m
+  fio_file_size: 10G
+  gcsfuse_flags: '--write-block-size-mb=128 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=2'
 - fio_directory: 10Gfile-bs1m-5blocks
   fio_block_size: 1m
   fio_file_size: 10G
@@ -161,10 +560,26 @@ config:
   fio_block_size: 1m
   fio_file_size: 10G
   gcsfuse_flags: '--write-block-size-mb=10 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=5'
+- fio_directory: 10Gfile-bs16m-5blocks
+  fio_block_size: 1m
+  fio_file_size: 10G
+  gcsfuse_flags: '--write-block-size-mb=16 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=5'
+- fio_directory: 10Gfile-bs32m-5blocks
+  fio_block_size: 1m
+  fio_file_size: 10G
+  gcsfuse_flags: '--write-block-size-mb=32 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=5'
 - fio_directory: 10Gfile-bs50m-5blocks
   fio_block_size: 1m
   fio_file_size: 10G
   gcsfuse_flags: '--write-block-size-mb=50 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=5'
+- fio_directory: 10Gfile-bs64m-5blocks
+  fio_block_size: 1m
+  fio_file_size: 10G
+  gcsfuse_flags: '--write-block-size-mb=64 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=5'
+- fio_directory: 10Gfile-bs128m-5blocks
+  fio_block_size: 1m
+  fio_file_size: 10G
+  gcsfuse_flags: '--write-block-size-mb=128 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=5'
 - fio_directory: 10Gfile-bs1m-10blocks
   fio_block_size: 1m
   fio_file_size: 10G
@@ -177,10 +592,26 @@ config:
   fio_block_size: 1m
   fio_file_size: 10G
   gcsfuse_flags: '--write-block-size-mb=10 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=10'
+- fio_directory: 10Gfile-bs16m-10blocks
+  fio_block_size: 1m
+  fio_file_size: 10G
+  gcsfuse_flags: '--write-block-size-mb=16 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=10'
+- fio_directory: 10Gfile-bs32m-10blocks
+  fio_block_size: 1m
+  fio_file_size: 10G
+  gcsfuse_flags: '--write-block-size-mb=32 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=10'
 - fio_directory: 10Gfile-bs50m-10blocks
   fio_block_size: 1m
   fio_file_size: 10G
   gcsfuse_flags: '--write-block-size-mb=50 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=10'
+- fio_directory: 10Gfile-bs64m-10blocks
+  fio_block_size: 1m
+  fio_file_size: 10G
+  gcsfuse_flags: '--write-block-size-mb=64 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=10'
+- fio_directory: 10Gfile-bs128m-10blocks
+  fio_block_size: 1m
+  fio_file_size: 10G
+  gcsfuse_flags: '--write-block-size-mb=128 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=10'
 - fio_directory: 10Gfile-bs1m-20blocks
   fio_block_size: 1m
   fio_file_size: 10G
@@ -193,56 +624,23 @@ config:
   fio_block_size: 1m
   fio_file_size: 10G
   gcsfuse_flags: '--write-block-size-mb=10 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=20'
+- fio_directory: 10Gfile-bs16m-20blocks
+  fio_block_size: 1m
+  fio_file_size: 10G
+  gcsfuse_flags: '--write-block-size-mb=16 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=20'
+- fio_directory: 10Gfile-bs32m-20blocks
+  fio_block_size: 1m
+  fio_file_size: 10G
+  gcsfuse_flags: '--write-block-size-mb=32 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=20'
 - fio_directory: 10Gfile-bs50m-20blocks
   fio_block_size: 1m
   fio_file_size: 10G
   gcsfuse_flags: '--write-block-size-mb=50 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=20'
-
-- fio_directory: 50Gfile-bs1m-5blocks
+- fio_directory: 10Gfile-bs64m-20blocks
   fio_block_size: 1m
-  fio_file_size: 50G
-  gcsfuse_flags: '--write-block-size-mb=1 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=5'
-- fio_directory: 50Gfile-bs5m-5blocks
+  fio_file_size: 10G
+  gcsfuse_flags: '--write-block-size-mb=64 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=20'
+- fio_directory: 10Gfile-bs128m-20blocks
   fio_block_size: 1m
-  fio_file_size: 50G
-  gcsfuse_flags: '--write-block-size-mb=5 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=5'
-- fio_directory: 50Gfile-bs10m-5blocks
-  fio_block_size: 1m
-  fio_file_size: 50G
-  gcsfuse_flags: '--write-block-size-mb=10 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=5'
-- fio_directory: 50Gfile-bs50m-5blocks
-  fio_block_size: 1m
-  fio_file_size: 50G
-  gcsfuse_flags: '--write-block-size-mb=50 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=5'
-- fio_directory: 50Gfile-bs1m-10blocks
-  fio_block_size: 1m
-  fio_file_size: 50G
-  gcsfuse_flags: '--write-block-size-mb=1 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=10'
-- fio_directory: 50Gfile-bs5m-10blocks
-  fio_block_size: 1m
-  fio_file_size: 50G
-  gcsfuse_flags: '--write-block-size-mb=5 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=10'
-- fio_directory: 50Gfile-bs10m-10blocks
-  fio_block_size: 1m
-  fio_file_size: 50G
-  gcsfuse_flags: '--write-block-size-mb=10 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=10'
-- fio_directory: 50Gfile-bs50m-10blocks
-  fio_block_size: 1m
-  fio_file_size: 50G
-  gcsfuse_flags: '--write-block-size-mb=50 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=10'
-- fio_directory: 50Gfile-bs1m-20blocks
-  fio_block_size: 1m
-  fio_file_size: 50G
-  gcsfuse_flags: '--write-block-size-mb=1 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=20'
-- fio_directory: 50Gfile-bs5m-20blocks
-  fio_block_size: 1m
-  fio_file_size: 50G
-  gcsfuse_flags: '--write-block-size-mb=5 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=20'
-- fio_directory: 50Gfile-bs10m-20blocks
-  fio_block_size: 1m
-  fio_file_size: 50G
-  gcsfuse_flags: '--write-block-size-mb=10 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=20'
-- fio_directory: 50Gfile-bs50m-20blocks
-  fio_block_size: 1m
-  fio_file_size: 50G
-  gcsfuse_flags: '--write-block-size-mb=50 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=20'
+  fio_file_size: 10G
+  gcsfuse_flags: '--write-block-size-mb=128 --enable-streaming-writes --write-global-max-blocks=-1 --write-max-blocks-per-file=20'
