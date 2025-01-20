@@ -246,13 +246,18 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	// TODO: Custom endpoints do not currently support gRPC. Remove this additional check once TPC(custom-endpoint) supports gRPC.
 	// Create storageControlClient irrespective of whether hns needs to be enabled or not.
 	// Because we will use storageControlClient to check layout of given bucket.
-	clientOpts, err = createClientOptionForGRPCClient(&clientConfig)
-	if err != nil {
-		return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
-	}
-	controlClient, err = storageutil.CreateGRPCControlClient(ctx, clientOpts, &clientConfig)
-	if err != nil {
-		return nil, fmt.Errorf("could not create StorageControl Client: %w", err)
+	//  TODO: For now, disabling control-client for all cases where custom-endpoint is not-nil.
+	//  These include TPC, storage-testbench and preprod environment. It should be
+	//  re-enabled for preprod later by explicitly allowing the preprod endpoint.
+	if clientConfig.EnableHNS && clientConfig.CustomEndpoint == "" {
+		clientOpts, err = createClientOptionForGRPCClient(&clientConfig)
+		if err != nil {
+			return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
+		}
+		controlClient, err = storageutil.CreateGRPCControlClient(ctx, clientOpts, &clientConfig)
+		if err != nil {
+			return nil, fmt.Errorf("could not create StorageControl Client: %w", err)
+		}
 	}
 
 	// ShouldRetry function checks if an operation should be retried based on the
