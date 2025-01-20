@@ -60,8 +60,7 @@ Examples:
 To ensure consistency, Cloud Storage FUSE returns a ```syscall.ESTALE``` error when an application tries to access stale data. This can occur in the following circumstances:
 
 - **Concurrent Writes**: When multiple mounts have the same file open for writing, and one mount modifies and syncs the file, other mounts with open file handles will encounter this error when the writer application attempts to sync or close the file.
-- **Read During Modification**: If one mount is reading a file while another mount modifies and syncs the file, the reader application will encounter this error.
-- **File Deletion or Renaming During Read**: If a mount is reading a file and the file is deleted or renamed by the same or a different mount, the reader application will encounter this error.
+- **Read During Modification**:  If an application is reading a file through a GCSFuse mount, and the same object is modified on GCS (by deleting, renaming, or changing its content or metadata), the GCSFuse reader will encounter this error. This is because GCSFuse detects that the file it was accessing has changed.
 - **File Renaming During Write**: If an application is writing to a file through a GCSFuse mount, and the same object is renamed on Google Cloud Storage (via same or different GCSFuse mount or through another interface), the writer will encounter this error when syncing or closing the file.
 - **File Deletion During Write**: If a mount is writing to a file and the file is deleted by the same or a different mount, the writer application will encounter this error when attempting to sync or close the file. However, if the file is deleted by the same mount, the writer application will not encounter any error.
 
