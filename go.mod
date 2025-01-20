@@ -16,7 +16,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/googleapis/gax-go/v2 v2.14.1
 	github.com/jacobsa/daemonize v0.0.0-20240917082746-f35568b6c3ec
-	github.com/jacobsa/fuse v0.0.0-20241025064006-8ccd61173b05
+	github.com/jacobsa/fuse v0.0.0-20240607092844-7285af0d05b0
 	github.com/jacobsa/oglematchers v0.0.0-20150720000706-141901ea67cd
 	github.com/jacobsa/oglemock v0.0.0-20150831005832-e94d794d06ff
 	github.com/jacobsa/ogletest v0.0.0-20170503003838-80d50a735a11
