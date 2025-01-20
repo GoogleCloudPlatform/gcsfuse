@@ -42,14 +42,14 @@ type Syncer interface {
 // NewSyncer creates a syncer that syncs into the supplied bucket.
 //
 // When the source object has been changed only by appending, and the source
-// object's size is at least appendThreshold, we will "append" to it by writing
+// object's size is at least composeThreshold, we will "append" to it by writing
 // out a temporary blob and composing it with the source object.
 //
 // Temporary blobs have names beginning with tmpObjectPrefix. We make an effort
 // to delete them, but if we are interrupted for some reason we may not be able
 // to do so. Therefore the user should arrange for garbage collection.
 func NewSyncer(
-	appendThreshold int64,
+	composeThreshold int64,
 	chunkTransferTimeoutSecs int64,
 	tmpObjectPrefix string,
 	bucket gcs.Bucket) (os Syncer) {
@@ -58,12 +58,17 @@ func NewSyncer(
 		bucket: bucket,
 	}
 
-	appendCreator := newAppendObjectCreator(
-		tmpObjectPrefix,
-		bucket)
+	// Zonal buckets do not currently support Compose, so we always write objects
+	// in their entirety.
+	var composeCreator objectCreator
+	if !bucket.BucketType().Zonal {
+		composeCreator = newComposeObjectCreator(
+			tmpObjectPrefix,
+			bucket)
+	}
 
 	// And the syncer.
-	os = newSyncer(appendThreshold, chunkTransferTimeoutSecs, fullCreator, appendCreator)
+	os = newSyncer(composeThreshold, chunkTransferTimeoutSecs, fullCreator, composeCreator)
 
 	return
 }
@@ -115,33 +120,33 @@ type objectCreator interface {
 //   - fullCreator accepts the source object and the full contents with which it
 //     should be overwritten.
 //
-//   - appendCreator accepts the source object and the contents that should be
+//   - composeCreator accepts the source object and the contents that should be
 //     "appended" to it.
 //
-// appendThreshold controls the source object length at which we consider it
+// composeThreshold controls the source object length at which we consider it
 // worthwhile to make the append optimization. It should be set to a value on
 // the order of the bandwidth to GCS times three times the round trip latency
 // to GCS (for a small create, a compose, and a delete).
 func newSyncer(
-	appendThreshold int64,
+	composeThreshold int64,
 	chunkTransferTimeoutSecs int64,
 	fullCreator objectCreator,
-	appendCreator objectCreator) (os Syncer) {
+	composeCreator objectCreator) (os Syncer) {
 	os = &syncer{
-		appendThreshold:          appendThreshold,
+		composeThreshold:         composeThreshold,
 		chunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
 		fullCreator:              fullCreator,
-		appendCreator:            appendCreator,
+		composeCreator:           composeCreator,
 	}
 
 	return
 }
 
 type syncer struct {
-	appendThreshold          int64
+	composeThreshold         int64
 	chunkTransferTimeoutSecs int64
 	fullCreator              objectCreator
-	appendCreator            objectCreator
+	composeCreator           objectCreator
 }
 
 func (os *syncer) SyncObject(
@@ -197,7 +202,7 @@ func (os *syncer) SyncObject(
 	// Otherwise, we need to create a new generation. If the source object is
 	// long enough, hasn't been dirtied, and has a low enough component count,
 	// then we can make the optimization of not rewriting its contents.
-	if srcSize >= os.appendThreshold &&
+	if os.composeCreator != nil && srcSize >= os.composeThreshold &&
 		sr.DirtyThreshold == srcSize &&
 		srcObject.ComponentCount < gcs.MaxComponentCount {
 		_, err = content.Seek(srcSize, 0)
@@ -206,7 +211,7 @@ func (os *syncer) SyncObject(
 			return
 		}
 
-		o, err = os.appendCreator.Create(ctx, objectName, srcObject, sr.Mtime, os.chunkTransferTimeoutSecs, content)
+		o, err = os.composeCreator.Create(ctx, objectName, srcObject, sr.Mtime, os.chunkTransferTimeoutSecs, content)
 	} else {
 		_, err = content.Seek(0, 0)
 		if err != nil {

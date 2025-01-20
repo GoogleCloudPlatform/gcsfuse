@@ -15,6 +15,7 @@
 package gcsx_test
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"strings"
@@ -28,48 +29,47 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
-	. "github.com/jacobsa/oglematchers"
-	. "github.com/jacobsa/ogletest"
+	"github.com/stretchr/testify/suite"
+
 	"github.com/jacobsa/timeutil"
 )
-
-func TestPrefixBucket(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
 type PrefixBucketTest struct {
+	suite.Suite
 	ctx     context.Context
 	prefix  string
 	wrapped gcs.Bucket
 	bucket  gcs.Bucket
 }
 
-var _ SetUpInterface = &PrefixBucketTest{}
+func TestPrefixBucket(t *testing.T) {
+	suite.Run(t, new(PrefixBucketTest))
+}
 
-func init() { RegisterTestSuite(&PrefixBucketTest{}) }
-
-func (t *PrefixBucketTest) SetUp(ti *TestInfo) {
+func (t *PrefixBucketTest) SetupTest() {
 	var err error
 
-	t.ctx = ti.Ctx
+	t.ctx = context.Background()
 	t.prefix = "foo_"
-	t.wrapped = fake.NewFakeBucket(timeutil.RealClock(), "some_bucket", gcs.NonHierarchical)
+	t.wrapped = fake.NewFakeBucket(timeutil.RealClock(), "some_bucket", gcs.BucketType{})
 
 	t.bucket, err = gcsx.NewPrefixBucket(t.prefix, t.wrapped)
-	AssertEq(nil, err)
+	assert.NoError(t.T(), err)
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *PrefixBucketTest) Name() {
-	ExpectEq(t.wrapped.Name(), t.bucket.Name())
+func (t *PrefixBucketTest) Test_Name() {
+	assert.Equal(t.T(), t.wrapped.Name(), t.bucket.Name())
 }
 
-func (t *PrefixBucketTest) NewReader() {
+func (t *PrefixBucketTest) Test_NewReader() {
 	var err error
 	suffix := "taco"
 	name := t.prefix + suffix
@@ -77,7 +77,7 @@ func (t *PrefixBucketTest) NewReader() {
 
 	// Create an object through the back door.
 	_, err = storageutil.CreateObject(t.ctx, t.wrapped, name, []byte(contents))
-	AssertEq(nil, err)
+	assert.Equal(t.T(), nil, err)
 
 	// Read it through the prefix bucket.
 	rc, err := t.bucket.NewReader(
@@ -86,15 +86,205 @@ func (t *PrefixBucketTest) NewReader() {
 			Name: suffix,
 		})
 
-	AssertEq(nil, err)
+	assert.Equal(t.T(), nil, err)
 	defer rc.Close()
 
 	actual, err := io.ReadAll(rc)
-	AssertEq(nil, err)
-	ExpectEq(contents, string(actual))
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), contents, string(actual))
 }
 
-func (t *PrefixBucketTest) CreateObject() {
+func (t *PrefixBucketTest) Test_NewReaderWithReadHandle() {
+	var err error
+	suffix := "taco"
+	name := t.prefix + suffix
+	contents := "foobar"
+	// Create an object through the back door.
+	_, err = storageutil.CreateObject(t.ctx, t.wrapped, name, []byte(contents))
+	assert.Equal(t.T(), nil, err)
+
+	// Read it through the prefix bucket with read handle.
+	rc, err := t.bucket.NewReaderWithReadHandle(
+		t.ctx,
+		&gcs.ReadObjectRequest{
+			Name:       suffix,
+			ReadHandle: []byte("new-handle"),
+		})
+
+	assert.Equal(t.T(), nil, err)
+	defer rc.Close()
+	actual, err := io.ReadAll(rc)
+	assert.NoError(t.T(), nil, err)
+	assert.Equal(t.T(), contents, string(actual))
+	assert.Equal(t.T(), string(rc.ReadHandle()), "opaque-handle")
+}
+
+func (t *PrefixBucketTest) Test_NewReaderWithNilReadHandle() {
+	var err error
+	suffix := "taco"
+	name := t.prefix + suffix
+	contents := "foobar"
+	// Create an object through the back door.
+	_, err = storageutil.CreateObject(t.ctx, t.wrapped, name, []byte(contents))
+	assert.Equal(t.T(), nil, err)
+
+	// Read it through the prefix bucket with out read handle.
+	rc, err := t.bucket.NewReaderWithReadHandle(
+		t.ctx,
+		&gcs.ReadObjectRequest{
+			Name: suffix,
+		})
+
+	assert.NoError(t.T(), err)
+	defer rc.Close()
+	actual, err := io.ReadAll(rc)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), contents, string(actual))
+	assert.Equal(t.T(), string(rc.ReadHandle()), "opaque-handle")
+}
+
+func (t *PrefixBucketTest) Test_NewMultiRangeReader_WithFullContentRead() {
+	var err error
+	suffix := "taco"
+	name := t.prefix + suffix
+	contents := "foobar"
+	// Create an object through the back door.
+	_, err = storageutil.CreateObject(t.ctx, t.wrapped, name, []byte(contents))
+	assert.Equal(t.T(), nil, err)
+
+	// Read it through the prefix bucket.
+	mrd, err := t.bucket.NewMultiRangeDownloader(
+		t.ctx,
+		&gcs.MultiRangeDownloaderRequest{
+			Name: suffix,
+		})
+
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), mrd)
+	defer func() {
+		assert.NoError(t.T(), mrd.Close())
+	}()
+
+	size := int64(len(contents))
+	var outputString string
+	outputWriter := bytes.NewBufferString(outputString)
+	mrd.Add(outputWriter, 0, size, func(int64, int64, error) {})
+	mrd.Wait()
+
+	assert.Equal(t.T(), contents, outputWriter.String())
+}
+
+func (t *PrefixBucketTest) Test_NewMultiRangeReader_WithoutWait() {
+	var err error
+	suffix := "taco"
+	name := t.prefix + suffix
+	contents := "foobar"
+	// Create an object through the back door.
+	_, err = storageutil.CreateObject(t.ctx, t.wrapped, name, []byte(contents))
+	assert.Equal(t.T(), nil, err)
+
+	// Read it through the prefix bucket with out read handle.
+	mrd, err := t.bucket.NewMultiRangeDownloader(
+		t.ctx,
+		&gcs.MultiRangeDownloaderRequest{
+			Name: suffix,
+		})
+
+	var outputString string
+	outputWriter := bytes.NewBufferString(outputString)
+
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), mrd)
+	defer func() {
+		assert.NoError(t.T(), mrd.Close())
+		assert.Equal(t.T(), contents, outputWriter.String())
+	}()
+
+	size := int64(len(contents))
+	mrd.Add(outputWriter, 0, size, func(offset, length int64, err error) {})
+}
+
+func (t *PrefixBucketTest) Test_NewMultiRangeReader_WithMultipleReads() {
+	var err error
+	suffix := "taco"
+	name := t.prefix + suffix
+	contents := "foobar"
+	// Create an object through the back door.
+	_, err = storageutil.CreateObject(t.ctx, t.wrapped, name, []byte(contents))
+	assert.Equal(t.T(), nil, err)
+
+	// Read it through the prefix bucket with out read handle.
+	mrd, err := t.bucket.NewMultiRangeDownloader(
+		t.ctx,
+		&gcs.MultiRangeDownloaderRequest{
+			Name: suffix,
+		})
+
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), mrd)
+	defer func() {
+		assert.NoError(t.T(), mrd.Close())
+	}()
+
+	size := int64(len(contents))
+	halfSize := size / 2
+	var outputString1 string
+	outputWriter1 := bytes.NewBufferString(outputString1)
+	mrd.Add(outputWriter1, 0, halfSize, func(offset, length int64, err error) {})
+
+	var outputString2 string
+	outputWriter2 := bytes.NewBufferString(outputString2)
+	mrd.Add(outputWriter2, halfSize, halfSize, func(offset, length int64, err error) {})
+
+	mrd.Wait()
+
+	assert.Equal(t.T(), "foo", outputWriter1.String())
+	assert.Equal(t.T(), "bar", outputWriter2.String())
+}
+
+func (t *PrefixBucketTest) Test_NewMultiRangeReader_WithOutOfBoundsReadError() {
+	var err error
+	suffix := "taco"
+	name := t.prefix + suffix
+	contents := "foobar"
+	// Create an object through the back door.
+	_, err = storageutil.CreateObject(t.ctx, t.wrapped, name, []byte(contents))
+	assert.Equal(t.T(), nil, err)
+
+	// Read it through the prefix bucket with out read handle.
+	mrd, err := t.bucket.NewMultiRangeDownloader(
+		t.ctx,
+		&gcs.MultiRangeDownloaderRequest{
+			Name: suffix,
+		})
+
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), mrd)
+	defer func() {
+		assert.Error(t.T(), mrd.Close())
+	}()
+
+	size := int64(len(contents))
+	var outputString string
+	outputWriter := bytes.NewBufferString(outputString)
+	mrd.Add(outputWriter, size+1, 1, func(offset, length int64, err error) {})
+}
+
+func (t *PrefixBucketTest) Test_NewMultiRangeReader_WithNonexistentObjectError() {
+	var err error
+
+	// Read it through the prefix bucket with out read handle.
+	mrd, err := t.bucket.NewMultiRangeDownloader(
+		t.ctx,
+		&gcs.MultiRangeDownloaderRequest{
+			Name: "taco",
+		})
+
+	assert.Error(t.T(), err)
+	assert.Nil(t.T(), mrd)
+}
+
+func (t *PrefixBucketTest) Test_CreateObject() {
 	var err error
 	suffix := "taco"
 	contents := "foobar"
@@ -108,14 +298,14 @@ func (t *PrefixBucketTest) CreateObject() {
 			Contents:        strings.NewReader(contents),
 		})
 
-	AssertEq(nil, err)
-	ExpectEq(suffix, o.Name)
-	ExpectEq("en-GB", o.ContentLanguage)
+	assert.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), suffix, o.Name)
+	assert.Equal(t.T(), "en-GB", o.ContentLanguage)
 
 	// Read it through the back door.
 	actual, err := storageutil.ReadObject(t.ctx, t.wrapped, t.prefix+suffix)
-	AssertEq(nil, err)
-	ExpectEq(contents, string(actual))
+	assert.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), contents, string(actual))
 }
 
 func (t *PrefixBucketTest) CreateObjectChunkWriterAndFinalizeUpload() {
@@ -132,21 +322,22 @@ func (t *PrefixBucketTest) CreateObjectChunkWriterAndFinalizeUpload() {
 			Contents:        nil,
 		},
 		1024, nil)
-	AssertEq(nil, err)
+	assert.NoError(t.T(), err)
 	_, err = w.Write(content)
-	AssertEq(nil, err)
+	assert.NoError(t.T(), err)
 	o, err := t.bucket.FinalizeUpload(t.ctx, w)
 
-	AssertEq(nil, err)
-	ExpectEq(suffix, o.Name)
-	ExpectEq("gzip", o.ContentEncoding)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), suffix, o.Name)
+	//assert.Equal(t.T(), "en-GB", o.ContentLanguage)
+	assert.Equal(t.T(), "gzip", o.ContentEncoding)
 	// Read it through the back door.
 	actual, err := storageutil.ReadObject(t.ctx, t.wrapped, t.prefix+suffix)
-	AssertEq(nil, err)
-	ExpectEq(string(content), string(actual))
+	assert.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), string(content), string(actual))
 }
 
-func (t *PrefixBucketTest) CopyObject() {
+func (t *PrefixBucketTest) Test_CopyObject() {
 	var err error
 	suffix := "taco"
 	name := t.prefix + suffix
@@ -154,7 +345,7 @@ func (t *PrefixBucketTest) CopyObject() {
 
 	// Create an object through the back door.
 	_, err = storageutil.CreateObject(t.ctx, t.wrapped, name, []byte(contents))
-	AssertEq(nil, err)
+	assert.Equal(t.T(), nil, err)
 
 	// Copy it to a new name.
 	newSuffix := "burrito"
@@ -165,16 +356,16 @@ func (t *PrefixBucketTest) CopyObject() {
 			DstName: newSuffix,
 		})
 
-	AssertEq(nil, err)
-	ExpectEq(newSuffix, o.Name)
+	assert.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), newSuffix, o.Name)
 
 	// Read it through the back door.
 	actual, err := storageutil.ReadObject(t.ctx, t.wrapped, t.prefix+newSuffix)
-	AssertEq(nil, err)
-	ExpectEq(contents, string(actual))
+	assert.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), contents, string(actual))
 }
 
-func (t *PrefixBucketTest) ComposeObjects() {
+func (t *PrefixBucketTest) Test_ComposeObjects() {
 	var err error
 
 	suffix0 := "taco"
@@ -192,7 +383,7 @@ func (t *PrefixBucketTest) ComposeObjects() {
 			t.prefix + suffix1: []byte(contents1),
 		})
 
-	AssertEq(nil, err)
+	assert.Equal(t.T(), nil, err)
 
 	// Compose them.
 	newSuffix := "enchilada"
@@ -206,16 +397,16 @@ func (t *PrefixBucketTest) ComposeObjects() {
 			},
 		})
 
-	AssertEq(nil, err)
-	ExpectEq(newSuffix, o.Name)
+	assert.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), newSuffix, o.Name)
 
 	// Read it through the back door.
 	actual, err := storageutil.ReadObject(t.ctx, t.wrapped, t.prefix+newSuffix)
-	AssertEq(nil, err)
-	ExpectEq(contents0+contents1, string(actual))
+	assert.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), contents0+contents1, string(actual))
 }
 
-func (t *PrefixBucketTest) StatObject() {
+func (t *PrefixBucketTest) Test_StatObject() {
 	var err error
 	suffix := "taco"
 	name := t.prefix + suffix
@@ -223,7 +414,7 @@ func (t *PrefixBucketTest) StatObject() {
 
 	// Create an object through the back door.
 	_, err = storageutil.CreateObject(t.ctx, t.wrapped, name, []byte(contents))
-	AssertEq(nil, err)
+	assert.Equal(t.T(), nil, err)
 
 	// Stat it.
 	m, _, err := t.bucket.StatObject(
@@ -232,13 +423,13 @@ func (t *PrefixBucketTest) StatObject() {
 			Name: suffix,
 		})
 
-	AssertEq(nil, err)
-	AssertNe(nil, m)
-	ExpectEq(suffix, m.Name)
-	ExpectEq(len(contents), m.Size)
+	assert.Equal(t.T(), nil, err)
+	assert.NotEqual(t.T(), nil, m)
+	assert.Equal(t.T(), suffix, m.Name)
+	assert.Equal(t.T(), uint64(len(contents)), m.Size)
 }
 
-func (t *PrefixBucketTest) ListObjects_NoOptions() {
+func (t *PrefixBucketTest) Test_ListObjects_NoOptions() {
 	var err error
 
 	// Create a few objects.
@@ -252,24 +443,24 @@ func (t *PrefixBucketTest) ListObjects_NoOptions() {
 			"some_other":           []byte(""),
 		})
 
-	AssertEq(nil, err)
+	assert.Equal(t.T(), nil, err)
 
 	// List.
 	l, err := t.bucket.ListObjects(
 		t.ctx,
 		&gcs.ListObjectsRequest{})
 
-	AssertEq(nil, err)
-	AssertEq("", l.ContinuationToken)
-	AssertThat(l.CollapsedRuns, ElementsAre())
+	assert.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), "", l.ContinuationToken)
+	assert.Empty(t.T(), l.CollapsedRuns)
 
-	AssertEq(3, len(l.MinObjects))
-	ExpectEq("burrito", l.MinObjects[0].Name)
-	ExpectEq("enchilada", l.MinObjects[1].Name)
-	ExpectEq("taco", l.MinObjects[2].Name)
+	assert.Equal(t.T(), 3, len(l.MinObjects))
+	assert.Equal(t.T(), "burrito", l.MinObjects[0].Name)
+	assert.Equal(t.T(), "enchilada", l.MinObjects[1].Name)
+	assert.Equal(t.T(), "taco", l.MinObjects[2].Name)
 }
 
-func (t *PrefixBucketTest) ListObjects_Prefix() {
+func (t *PrefixBucketTest) Test_ListObjects_Prefix() {
 	var err error
 
 	// Create a few objects.
@@ -284,7 +475,7 @@ func (t *PrefixBucketTest) ListObjects_Prefix() {
 			"some_other":          []byte(""),
 		})
 
-	AssertEq(nil, err)
+	assert.Equal(t.T(), nil, err)
 
 	// List, with a prefix.
 	l, err := t.bucket.ListObjects(
@@ -293,16 +484,16 @@ func (t *PrefixBucketTest) ListObjects_Prefix() {
 			Prefix: "burrito",
 		})
 
-	AssertEq(nil, err)
-	AssertEq("", l.ContinuationToken)
-	AssertThat(l.CollapsedRuns, ElementsAre())
+	assert.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), "", l.ContinuationToken)
+	assert.Empty(t.T(), l.CollapsedRuns)
 
-	AssertEq(2, len(l.MinObjects))
-	ExpectEq("burrito0", l.MinObjects[0].Name)
-	ExpectEq("burrito1", l.MinObjects[1].Name)
+	assert.Equal(t.T(), 2, len(l.MinObjects))
+	assert.Equal(t.T(), "burrito0", l.MinObjects[0].Name)
+	assert.Equal(t.T(), "burrito1", l.MinObjects[1].Name)
 }
 
-func (t *PrefixBucketTest) ListObjects_Delimeter() {
+func (t *PrefixBucketTest) Test_ListObjects_Delimeter() {
 	var err error
 
 	// Create a few objects.
@@ -317,27 +508,27 @@ func (t *PrefixBucketTest) ListObjects_Delimeter() {
 			"some_other":             []byte(""),
 		})
 
-	AssertEq(nil, err)
+	assert.Equal(t.T(), nil, err)
 
 	// List, with a delimiter. Make things extra interesting by using a delimiter
 	// that is contained within the bucket prefix.
-	AssertNe(-1, strings.IndexByte(t.prefix, '_'))
+	assert.NotEqual(t.T(), -1, strings.IndexByte(t.prefix, '_'))
 	l, err := t.bucket.ListObjects(
 		t.ctx,
 		&gcs.ListObjectsRequest{
 			Delimiter: "_",
 		})
 
-	AssertEq(nil, err)
-	AssertEq("", l.ContinuationToken)
+	assert.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), "", l.ContinuationToken)
 
-	ExpectThat(l.CollapsedRuns, ElementsAre("burrito_", "enchilada_"))
+	assert.ElementsMatch(t.T(), l.CollapsedRuns, []string{"burrito_", "enchilada_"})
 
-	AssertEq(1, len(l.MinObjects))
-	ExpectEq("burrito", l.MinObjects[0].Name)
+	assert.Equal(t.T(), 1, len(l.MinObjects))
+	assert.Equal(t.T(), "burrito", l.MinObjects[0].Name)
 }
 
-func (t *PrefixBucketTest) ListObjects_PrefixAndDelimeter() {
+func (t *PrefixBucketTest) Test_ListObjects_PrefixAndDelimeter() {
 	var err error
 
 	// Create a few objects.
@@ -352,11 +543,11 @@ func (t *PrefixBucketTest) ListObjects_PrefixAndDelimeter() {
 			"some_other":             []byte(""),
 		})
 
-	AssertEq(nil, err)
+	assert.Equal(t.T(), nil, err)
 
 	// List, with a delimiter and a prefix. Make things extra interesting by
 	// using a delimiter that is contained within the bucket prefix.
-	AssertNe(-1, strings.IndexByte(t.prefix, '_'))
+	assert.NotEqual(t.T(), -1, strings.IndexByte(t.prefix, '_'))
 	l, err := t.bucket.ListObjects(
 		t.ctx,
 		&gcs.ListObjectsRequest{
@@ -364,16 +555,16 @@ func (t *PrefixBucketTest) ListObjects_PrefixAndDelimeter() {
 			Prefix:    "burrito",
 		})
 
-	AssertEq(nil, err)
-	AssertEq("", l.ContinuationToken)
+	assert.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), "", l.ContinuationToken)
 
-	ExpectThat(l.CollapsedRuns, ElementsAre("burrito_"))
+	assert.ElementsMatch(t.T(), l.CollapsedRuns, []string{"burrito_"})
 
-	AssertEq(1, len(l.MinObjects))
-	ExpectEq("burrito", l.MinObjects[0].Name)
+	assert.Equal(t.T(), 1, len(l.MinObjects))
+	assert.Equal(t.T(), "burrito", l.MinObjects[0].Name)
 }
 
-func (t *PrefixBucketTest) UpdateObject() {
+func (t *PrefixBucketTest) Test_UpdateObject() {
 	var err error
 	suffix := "taco"
 	name := t.prefix + suffix
@@ -381,7 +572,7 @@ func (t *PrefixBucketTest) UpdateObject() {
 
 	// Create an object through the back door.
 	_, err = storageutil.CreateObject(t.ctx, t.wrapped, name, []byte(contents))
-	AssertEq(nil, err)
+	assert.Equal(t.T(), nil, err)
 
 	// Update it.
 	newContentLanguage := "en-GB"
@@ -392,12 +583,12 @@ func (t *PrefixBucketTest) UpdateObject() {
 			ContentLanguage: &newContentLanguage,
 		})
 
-	AssertEq(nil, err)
-	ExpectEq(suffix, o.Name)
-	ExpectEq(newContentLanguage, o.ContentLanguage)
+	assert.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), suffix, o.Name)
+	assert.Equal(t.T(), newContentLanguage, o.ContentLanguage)
 }
 
-func (t *PrefixBucketTest) DeleteObject() {
+func (t *PrefixBucketTest) Test_DeleteObject() {
 	var err error
 	suffix := "taco"
 	name := t.prefix + suffix
@@ -405,7 +596,7 @@ func (t *PrefixBucketTest) DeleteObject() {
 
 	// Create an object through the back door.
 	_, err = storageutil.CreateObject(t.ctx, t.wrapped, name, []byte(contents))
-	AssertEq(nil, err)
+	assert.Equal(t.T(), nil, err)
 
 	// Delete it.
 	err = t.bucket.DeleteObject(
@@ -414,7 +605,7 @@ func (t *PrefixBucketTest) DeleteObject() {
 			Name: suffix,
 		})
 
-	AssertEq(nil, err)
+	assert.Equal(t.T(), nil, err)
 
 	// It should be gone.
 	_, _, err = t.wrapped.StatObject(
@@ -424,12 +615,12 @@ func (t *PrefixBucketTest) DeleteObject() {
 		})
 
 	var notFoundErr *gcs.NotFoundError
-	ExpectTrue(errors.As(err, &notFoundErr))
+	assert.True(t.T(), errors.As(err, &notFoundErr))
 }
 
 func TestGetFolder_Prefix(t *testing.T) {
 	prefix := "foo_"
-	wrapped := fake.NewFakeBucket(timeutil.RealClock(), "some_bucket", gcs.NonHierarchical)
+	wrapped := fake.NewFakeBucket(timeutil.RealClock(), "some_bucket", gcs.BucketType{})
 	bucket, err := gcsx.NewPrefixBucket(prefix, wrapped)
 	require.Nil(t, err)
 	folderName := "taco"
@@ -448,7 +639,7 @@ func TestGetFolder_Prefix(t *testing.T) {
 
 func TestDeleteFolder(t *testing.T) {
 	prefix := "foo_"
-	wrapped := fake.NewFakeBucket(timeutil.RealClock(), "some_bucket", gcs.NonHierarchical)
+	wrapped := fake.NewFakeBucket(timeutil.RealClock(), "some_bucket", gcs.BucketType{})
 	bucket, err := gcsx.NewPrefixBucket(prefix, wrapped)
 	require.Nil(t, err)
 	folderName := "taco"
@@ -477,7 +668,7 @@ func TestRenameFolder(t *testing.T) {
 	old_suffix := "test"
 	name := prefix + old_suffix
 	new_suffix := "new_test"
-	wrapped := fake.NewFakeBucket(timeutil.RealClock(), "some_bucket", gcs.NonHierarchical)
+	wrapped := fake.NewFakeBucket(timeutil.RealClock(), "some_bucket", gcs.BucketType{})
 	bucket, err := gcsx.NewPrefixBucket(prefix, wrapped)
 	require.Nil(t, err)
 	ctx := context.Background()
@@ -501,7 +692,7 @@ func TestCreateFolder(t *testing.T) {
 	prefix := "foo_"
 	var err error
 	suffix := "test"
-	wrapped := fake.NewFakeBucket(timeutil.RealClock(), "some_bucket", gcs.NonHierarchical)
+	wrapped := fake.NewFakeBucket(timeutil.RealClock(), "some_bucket", gcs.BucketType{})
 	bucket, err := gcsx.NewPrefixBucket(prefix, wrapped)
 	require.NoError(t, err)
 	ctx := context.Background()
@@ -520,7 +711,7 @@ func TestMoveObject(t *testing.T) {
 	var err error
 	prefix := "foo_"
 	suffix := "test"
-	wrapped := fake.NewFakeBucket(timeutil.RealClock(), "some_bucket", gcs.Hierarchical)
+	wrapped := fake.NewFakeBucket(timeutil.RealClock(), "some_bucket", gcs.BucketType{Hierarchical: true})
 	bucket, err := gcsx.NewPrefixBucket(prefix, wrapped)
 	require.NoError(t, err)
 	ctx := context.Background()

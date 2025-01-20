@@ -20,6 +20,7 @@ import (
 	"io"
 	"time"
 
+	storagev2 "cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 )
@@ -31,6 +32,10 @@ func recordRequest(ctx context.Context, metricHandle common.MetricHandle, method
 	latencyUs := time.Since(start).Microseconds()
 	latencyMs := float64(latencyUs) / 1000.0
 	metricHandle.GCSRequestLatency(ctx, latencyMs, []common.MetricAttr{{Key: common.GCSMethod, Value: method}})
+}
+
+func CaptureMultiRangeDownloaderMetrics(ctx context.Context, metricHandle common.MetricHandle, method string, start time.Time) {
+	recordRequest(ctx, metricHandle, method, start)
 }
 
 // NewMonitoringBucket returns a gcs.Bucket that exports metrics for monitoring
@@ -54,17 +59,30 @@ func (mb *monitoringBucket) BucketType() gcs.BucketType {
 	return mb.wrapped.BucketType()
 }
 
-func (mb *monitoringBucket) NewReader(
-	ctx context.Context,
-	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
+func setupReader(ctx context.Context, mb *monitoringBucket, req *gcs.ReadObjectRequest, method string) (gcs.StorageReader, error) {
 	startTime := time.Now()
 
-	rc, err = mb.wrapped.NewReader(ctx, req)
+	rc, err := mb.wrapped.NewReaderWithReadHandle(ctx, req)
 	if err == nil {
 		rc = newMonitoringReadCloser(ctx, req.Name, rc, mb.metricHandle)
 	}
 
-	recordRequest(ctx, mb.metricHandle, "NewReader", startTime)
+	recordRequest(ctx, mb.metricHandle, method, startTime)
+	return rc, err
+}
+
+func (mb *monitoringBucket) NewReader(
+	ctx context.Context,
+	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
+	rc, err = setupReader(ctx, mb, req, "NewReader")
+	return
+}
+
+func (mb *monitoringBucket) NewReaderWithReadHandle(
+	ctx context.Context,
+	req *gcs.ReadObjectRequest) (rd gcs.StorageReader, err error) {
+	// Using NewReader here also as NewReader() method is not used and will be removed.
+	rd, err = setupReader(ctx, mb, req, "NewReader")
 	return
 }
 
@@ -180,13 +198,21 @@ func (mb *monitoringBucket) RenameFolder(ctx context.Context, folderName string,
 	return
 }
 
+func (mb *monitoringBucket) NewMultiRangeDownloader(
+	ctx context.Context, req *gcs.MultiRangeDownloaderRequest) (mrd gcs.MultiRangeDownloader, err error) {
+	startTime := time.Now()
+	mrd, err = mb.wrapped.NewMultiRangeDownloader(ctx, req)
+	recordRequest(ctx, mb.metricHandle, "NewMultiRangeDownloader", startTime)
+	return
+}
+
 // recordReader increments the reader count when it's opened or closed.
 func recordReader(ctx context.Context, metricHandle common.MetricHandle, ioMethod string) {
 	metricHandle.GCSReaderCount(ctx, 1, []common.MetricAttr{{Key: common.IOMethod, Value: ioMethod}})
 }
 
 // Monitoring on the object reader
-func newMonitoringReadCloser(ctx context.Context, object string, rc io.ReadCloser, metricHandle common.MetricHandle) io.ReadCloser {
+func newMonitoringReadCloser(ctx context.Context, object string, rc gcs.StorageReader, metricHandle common.MetricHandle) gcs.StorageReader {
 	recordReader(ctx, metricHandle, "opened")
 	return &monitoringReadCloser{
 		ctx:          ctx,
@@ -199,7 +225,7 @@ func newMonitoringReadCloser(ctx context.Context, object string, rc io.ReadClose
 type monitoringReadCloser struct {
 	ctx          context.Context
 	object       string
-	wrapped      io.ReadCloser
+	wrapped      gcs.StorageReader
 	metricHandle common.MetricHandle
 }
 
@@ -217,5 +243,11 @@ func (mrc *monitoringReadCloser) Close() (err error) {
 		return fmt.Errorf("close reader: %w", err)
 	}
 	recordReader(mrc.ctx, mrc.metricHandle, "closed")
+	return
+}
+
+func (mrc *monitoringReadCloser) ReadHandle() (rh storagev2.ReadHandle) {
+	rh = mrc.wrapped.ReadHandle()
+	recordReader(mrc.ctx, mrc.metricHandle, "ReadHandle")
 	return
 }

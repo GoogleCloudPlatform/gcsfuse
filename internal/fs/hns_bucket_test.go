@@ -66,7 +66,7 @@ func (t *HNSBucketTests) SetupSuite() {
 		EnableAtomicRenameObject: true,
 	}
 	t.serverCfg.MetricHandle = common.NewNoopMetrics()
-	bucketType = gcs.Hierarchical
+	bucketType = gcs.BucketType{Hierarchical: true}
 	t.fsTest.SetUpTestSuite()
 }
 
@@ -487,7 +487,8 @@ type HNSCachedBucketMountTest struct {
 func TestHNSCachedBucketTests(t *testing.T) { suite.Run(t, new(HNSCachedBucketMountTest)) }
 
 func (t *HNSCachedBucketMountTest) SetupSuite() {
-	uncachedHNSBucket = fake.NewFakeBucket(timeutil.RealClock(), cachedHnsBucketName, gcs.Hierarchical)
+	bucketType = gcs.BucketType{Hierarchical: true}
+	uncachedHNSBucket = fake.NewFakeBucket(timeutil.RealClock(), cachedHnsBucketName, bucketType)
 	lruCache := newLruCache(uint64(1000 * cfg.AverageSizeOfPositiveStatCacheEntry))
 	statCache := metadata.NewStatCacheBucketView(lruCache, "")
 	bucket = caching.NewFastStatBucket(
@@ -510,7 +511,6 @@ func (t *HNSCachedBucketMountTest) SetupSuite() {
 			TypeCacheMaxSizeMb: 4,
 		},
 	}
-	bucketType = gcs.Hierarchical
 	// Call through.
 	t.fsTest.SetUpTestSuite()
 }

@@ -167,7 +167,11 @@ func (bm *bucketManager) SetUpBucket(
 	if name == canned.FakeBucketName {
 		b = canned.MakeFakeBucket(ctx)
 	} else {
-		b = bm.storageHandle.BucketHandle(ctx, name, bm.config.BillingProject)
+		b, err = bm.storageHandle.BucketHandle(ctx, name, bm.config.BillingProject)
+		if err != nil {
+			err = fmt.Errorf("BucketHandle: %w", err)
+			return
+		}
 	}
 
 	// Enable monitoring.

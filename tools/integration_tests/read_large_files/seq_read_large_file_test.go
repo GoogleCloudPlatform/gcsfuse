@@ -16,8 +16,6 @@ package read_large_files
 
 import (
 	"bytes"
-	"os"
-	"path"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
@@ -25,14 +23,11 @@ import (
 )
 
 func TestReadLargeFileSequentially(t *testing.T) {
-	testDir := setup.SetupTestDirectory(DirForReadLargeFilesTests)
 	// Create file of 500 MB with random data in local disk and copy it in mntDir.
-	fileInLocalDisk := path.Join(os.Getenv("HOME"), FiveHundredMBFile)
-	file := path.Join(testDir, FiveHundredMBFile)
-	createFileOnDiskAndCopyToMntDir(fileInLocalDisk, file, FiveHundredMB, t)
+	fileInLocalDisk, fileInMntDir := setup.CreateFileAndCopyToMntDir(t, FiveHundredMB, DirForReadLargeFilesTests)
 
 	// Sequentially read the data from file.
-	content, err := operations.ReadFileSequentially(file, ChunkSize)
+	content, err := operations.ReadFileSequentially(fileInMntDir, ChunkSize)
 	if err != nil {
 		t.Errorf("Error in reading file: %v", err)
 	}

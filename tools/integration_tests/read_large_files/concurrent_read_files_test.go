@@ -15,8 +15,6 @@
 package read_large_files
 
 import (
-	"bytes"
-	"fmt"
 	"os"
 	"path"
 	"testing"
@@ -32,25 +30,6 @@ var FileThree = "fileThree" + setup.GenerateRandomString(5) + ".txt"
 
 const NumberOfFilesInLocalDiskForConcurrentRead = 3
 
-func readFile(fileInLocalDisk string, fileInMntDir string) error {
-	dataInMntDirFile, err := operations.ReadFile(fileInMntDir)
-	if err != nil {
-		return err
-	}
-
-	dataInLocalDiskFile, err := operations.ReadFile(fileInLocalDisk)
-	if err != nil {
-		return err
-	}
-
-	// Compare actual content and expect content.
-	if bytes.Equal(dataInLocalDiskFile, dataInMntDirFile) == false {
-		return fmt.Errorf("Reading incorrect file.")
-	}
-
-	return nil
-}
-
 func TestReadFilesConcurrently(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForReadLargeFilesTests)
 
@@ -65,7 +44,7 @@ func TestReadFilesConcurrently(t *testing.T) {
 		file := path.Join(testDir, filesInLocalDisk[i])
 		filesPathInMntDir = append(filesPathInMntDir, file)
 
-		createFileOnDiskAndCopyToMntDir(fileInLocalDisk, file, FiveHundredMB, t)
+		setup.CreateFileOnDiskAndCopyToMntDir(t, fileInLocalDisk, file, FiveHundredMB)
 	}
 
 	var eG errgroup.Group
@@ -76,7 +55,8 @@ func TestReadFilesConcurrently(t *testing.T) {
 
 		// Thread to read the current file.
 		eG.Go(func() error {
-			return readFile(filesPathInLocalDisk[fileIndex], filesPathInMntDir[fileIndex])
+			operations.ReadAndCompare(t, filesPathInMntDir[fileIndex], filesPathInLocalDisk[fileIndex], 0, FiveHundredMB)
+			return nil
 		})
 	}
 

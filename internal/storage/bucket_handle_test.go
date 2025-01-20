@@ -28,6 +28,7 @@ import (
 	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googleapis/gax-go/v2/apierror"
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -74,6 +75,17 @@ func minObjectsToMinObjectNames(minObjects []*gcs.MinObject) (objectNames []stri
 	return
 }
 
+func createBucketHandle(testSuite *BucketHandleTest, resp *controlpb.StorageLayout, err1 error) {
+	var err error
+	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
+		Return(resp, err1)
+	testSuite.bucketHandle, err = testSuite.storageHandle.BucketHandle(context.Background(), TestBucketName, "")
+	testSuite.bucketHandle.controlClient = testSuite.mockClient
+
+	assert.NotNil(testSuite.T(), testSuite.bucketHandle)
+	assert.Nil(testSuite.T(), err)
+}
+
 type BucketHandleTest struct {
 	suite.Suite
 	bucketHandle  *bucketHandle
@@ -87,14 +99,9 @@ func TestBucketHandleTestSuite(testSuite *testing.T) {
 }
 
 func (testSuite *BucketHandleTest) SetupTest() {
-	testSuite.fakeStorage = NewFakeStorage()
-	testSuite.storageHandle = testSuite.fakeStorage.CreateStorageHandle()
-	ctx := context.Background()
-	testSuite.bucketHandle = testSuite.storageHandle.BucketHandle(ctx, TestBucketName, "")
 	testSuite.mockClient = new(MockStorageControlClient)
-	testSuite.bucketHandle.controlClient = testSuite.mockClient
-
-	assert.NotNil(testSuite.T(), testSuite.bucketHandle)
+	testSuite.fakeStorage = NewFakeStorageWithMockClient(testSuite.mockClient, cfg.HTTP2)
+	testSuite.storageHandle = testSuite.fakeStorage.CreateStorageHandle()
 }
 
 func (testSuite *BucketHandleTest) TearDownTest() {
@@ -247,7 +254,50 @@ func (testSuite *BucketHandleTest) TestNewReaderMethodWithCompressionDisabled() 
 	assert.Equal(testSuite.T(), ContentInTestGzipObjectDecompressed, string(buf))
 }
 
+// Fakestorage doesn't support readHandle concept
+func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethodWithoutReadHandle() {
+	rd, err := testSuite.bucketHandle.NewReaderWithReadHandle(context.Background(),
+		&gcs.ReadObjectRequest{
+			Name: TestObjectName,
+			Range: &gcs.ByteRange{
+				Start: uint64(0),
+				Limit: uint64(len(ContentInTestObject)),
+			},
+			ReadHandle: nil,
+		})
+
+	assert.Nil(testSuite.T(), err)
+	defer rd.Close()
+	buf := make([]byte, len(ContentInTestObject))
+	_, err = rd.Read(buf)
+	assert.Nil(testSuite.T(), err)
+	//assert.Equal(testSuite.T(), len(rd.ReadHandle()), 0)
+	assert.Equal(testSuite.T(), ContentInTestObject, string(buf[:]))
+}
+
+// Fakestorage doesn't support readHandle concept
+func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethodWithReadHandle() {
+	rd, err := testSuite.bucketHandle.NewReaderWithReadHandle(context.Background(),
+		&gcs.ReadObjectRequest{
+			Name: TestObjectName,
+			Range: &gcs.ByteRange{
+				Start: uint64(0),
+				Limit: uint64(len(ContentInTestObject)),
+			},
+			ReadHandle: []byte("opaque-handle"),
+		})
+
+	assert.Nil(testSuite.T(), err)
+	defer rd.Close()
+	buf := make([]byte, len(ContentInTestObject))
+	_, err = rd.Read(buf)
+	assert.Nil(testSuite.T(), err)
+	//assert.Equal(testSuite.T(), len(rd.ReadHandle()), 0)
+	assert.Equal(testSuite.T(), ContentInTestObject, string(buf[:]))
+}
+
 func (testSuite *BucketHandleTest) TestDeleteObjectMethodWithValidObject() {
+	createBucketHandle(testSuite, &controlpb.StorageLayout{}, nil)
 	err := testSuite.bucketHandle.DeleteObject(context.Background(),
 		&gcs.DeleteObjectRequest{
 			Name:                       TestObjectName,
@@ -280,7 +330,8 @@ func (testSuite *BucketHandleTest) TestDeleteObjectMethodWithMissingGeneration()
 }
 
 func (testSuite *BucketHandleTest) TestDeleteObjectMethodWithZeroGeneration() {
-	// Note: fake-gcs-server doesn'testSuite respect Generation or other conditions in
+	createBucketHandle(testSuite, &controlpb.StorageLayout{}, nil)
+	// Note: fake-gcs-server doesn't respect Generation or other conditions in
 	// delete operations. This unit test will be helpful when fake-gcs-server
 	// start respecting these conditions, or we move to other testing framework.
 	err := testSuite.bucketHandle.DeleteObject(context.Background(),
@@ -378,6 +429,8 @@ func (testSuite *BucketHandleTest) TestCopyObjectMethodWithInvalidGeneration() {
 }
 
 func (testSuite *BucketHandleTest) TestCreateObjectMethodWithValidObject() {
+	createBucketHandle(testSuite, &controlpb.StorageLayout{}, nil)
+
 	content := "Creating a new object"
 	obj, err := testSuite.bucketHandle.CreateObject(context.Background(),
 		&gcs.CreateObjectRequest{
@@ -391,6 +444,8 @@ func (testSuite *BucketHandleTest) TestCreateObjectMethodWithValidObject() {
 }
 
 func (testSuite *BucketHandleTest) TestCreateObjectMethodWithGenerationAsZero() {
+	createBucketHandle(testSuite, &controlpb.StorageLayout{}, nil)
+
 	content := "Creating a new object"
 	var generation int64 = 0
 	obj, err := testSuite.bucketHandle.CreateObject(context.Background(),
@@ -406,6 +461,8 @@ func (testSuite *BucketHandleTest) TestCreateObjectMethodWithGenerationAsZero() 
 }
 
 func (testSuite *BucketHandleTest) TestCreateObjectMethodWithGenerationAsZeroWhenObjectAlreadyExists() {
+	createBucketHandle(testSuite, &controlpb.StorageLayout{}, nil)
+
 	content := "Creating a new object"
 	var generation int64 = 0
 	var precondition *gcs.PreconditionError
@@ -432,6 +489,8 @@ func (testSuite *BucketHandleTest) TestCreateObjectMethodWithGenerationAsZeroWhe
 }
 
 func (testSuite *BucketHandleTest) TestCreateObjectMethodWhenGivenGenerationObjectNotExist() {
+	createBucketHandle(testSuite, &controlpb.StorageLayout{}, nil)
+
 	var precondition *gcs.PreconditionError
 	content := "Creating a new object"
 	var crc32 uint32 = 45
@@ -450,6 +509,8 @@ func (testSuite *BucketHandleTest) TestCreateObjectMethodWhenGivenGenerationObje
 }
 
 func (testSuite *BucketHandleTest) TestBucketHandle_CreateObjectChunkWriter() {
+	createBucketHandle(testSuite, &controlpb.StorageLayout{}, nil)
+
 	var generation0 int64 = 0
 	var generationNon0 int64 = 786
 	var metaGeneration0 int64 = 0
@@ -547,6 +608,8 @@ func (testSuite *BucketHandleTest) TestBucketHandle_CreateObjectChunkWriterWithN
 }
 
 func (testSuite *BucketHandleTest) TestBucketHandle_FinalizeUploadSuccess() {
+	createBucketHandle(testSuite, &controlpb.StorageLayout{}, nil)
+
 	var generation0 int64 = 0
 
 	tests := []struct {
@@ -616,6 +679,8 @@ func (testSuite *BucketHandleTest) createObject(objName string) {
 }
 
 func (testSuite *BucketHandleTest) TestFinalizeUploadWithGenerationAsZeroWhenObjectAlreadyExists() {
+	createBucketHandle(testSuite, &controlpb.StorageLayout{}, nil)
+
 	objName := "pre_created_test_object"
 	testSuite.createObject(objName)
 	// Create Object Writer again when object already exists.
@@ -962,6 +1027,7 @@ func (testSuite *BucketHandleTest) TestComposeObjectMethodWithDstObjectExist() {
 }
 
 func (testSuite *BucketHandleTest) TestComposeObjectMethodWithOneSrcObject() {
+	createBucketHandle(testSuite, &controlpb.StorageLayout{}, nil)
 	var notfound *gcs.NotFoundError
 	// Checking that dstObject does not exist
 	_, _, err := testSuite.bucketHandle.StatObject(context.Background(),
@@ -1025,6 +1091,7 @@ func (testSuite *BucketHandleTest) TestComposeObjectMethodWithOneSrcObject() {
 }
 
 func (testSuite *BucketHandleTest) TestComposeObjectMethodWithTwoSrcObjects() {
+	createBucketHandle(testSuite, &controlpb.StorageLayout{}, nil)
 	var notfound *gcs.NotFoundError
 	_, _, err := testSuite.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
@@ -1286,6 +1353,7 @@ func (testSuite *BucketHandleTest) TestComposeObjectMethodWhenDstObjectDoesNotEx
 
 func (testSuite *BucketHandleTest) TestComposeObjectMethodWithOneSrcObjectIsDstObject() {
 	// Checking source object 1 exists. This will also be the destination object.
+	createBucketHandle(testSuite, &controlpb.StorageLayout{}, nil)
 	srcMinObj1, _, err := testSuite.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: TestObjectName,
@@ -1382,59 +1450,83 @@ func (testSuite *BucketHandleTest) TestComposeObjectMethodWithOneSrcObjectIsDstO
 }
 
 func (testSuite *BucketHandleTest) TestBucketTypeForHierarchicalNameSpaceTrue() {
-	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
-		Return(&controlpb.StorageLayout{
-			HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
-		}, nil)
+	createBucketHandle(testSuite, &controlpb.StorageLayout{
+		HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
+	}, nil)
 
 	testSuite.bucketHandle.BucketType()
 
-	assert.Equal(testSuite.T(), gcs.Hierarchical, testSuite.bucketHandle.bucketType, "Expected Hierarchical bucket type")
+	assert.Equal(testSuite.T(), &gcs.BucketType{Hierarchical: true}, testSuite.bucketHandle.bucketType, "Expected Hierarchical bucket type")
+}
+
+func (testSuite *BucketHandleTest) TestBucketTypeForZonalLocationType() {
+	createBucketHandle(testSuite, &controlpb.StorageLayout{
+		LocationType: "zone",
+	}, nil)
+
+	testSuite.bucketHandle.BucketType()
+
+	assert.Equal(testSuite.T(), &gcs.BucketType{Zonal: true}, testSuite.bucketHandle.bucketType, "Expected Zonal bucket type")
+}
+
+func (testSuite *BucketHandleTest) TestBucketTypeForZonalLocationTypeAndHierarchicalNameSpaceTrue() {
+	createBucketHandle(testSuite, &controlpb.StorageLayout{
+		HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
+		LocationType:          "zone",
+	}, nil)
+
+	testSuite.bucketHandle.BucketType()
+
+	assert.Equal(testSuite.T(), &gcs.BucketType{Hierarchical: true, Zonal: true}, testSuite.bucketHandle.bucketType, "Expected Zonal bucket type")
 }
 
 func (testSuite *BucketHandleTest) TestBucketTypeForHierarchicalNameSpaceFalse() {
-	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
-		Return(&controlpb.StorageLayout{
-			HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: false},
-		}, nil)
+	createBucketHandle(testSuite, &controlpb.StorageLayout{
+		HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: false},
+	}, nil)
 
 	testSuite.bucketHandle.BucketType()
 
-	assert.Equal(testSuite.T(), gcs.NonHierarchical, testSuite.bucketHandle.bucketType, "Expected NonHierarchical bucket type")
+	assert.Equal(testSuite.T(), &gcs.BucketType{}, testSuite.bucketHandle.bucketType, "Expected default bucket type")
 }
 
-func (testSuite *BucketHandleTest) TestBucketTypeWithError() {
+func (testSuite *BucketHandleTest) TestBucketHandleWithError() {
 	var x *controlpb.StorageLayout
+	var err error
 	// Test when the client returns an error.
 	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).Return(x, errors.New("mocked error"))
-	testSuite.bucketHandle.BucketType()
+	testSuite.bucketHandle, err = testSuite.storageHandle.BucketHandle(context.Background(), TestBucketName, "")
 
-	assert.Equal(testSuite.T(), gcs.Unknown, testSuite.bucketHandle.bucketType, "Expected Unknown when there's an error")
+	assert.Nil(testSuite.T(), testSuite.bucketHandle)
+	assert.Contains(testSuite.T(), err.Error(), "mocked error")
 }
 
 func (testSuite *BucketHandleTest) TestBucketTypeWithHierarchicalNamespaceIsNil() {
-	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
-		Return(&controlpb.StorageLayout{}, nil)
+	createBucketHandle(testSuite, &controlpb.StorageLayout{}, nil)
 
 	testSuite.bucketHandle.BucketType()
 
-	assert.Equal(testSuite.T(), gcs.NonHierarchical, testSuite.bucketHandle.bucketType, "Expected NonHierarchical bucket type")
+	assert.Equal(testSuite.T(), &gcs.BucketType{}, testSuite.bucketHandle.bucketType, "Expected default bucket type")
 }
 
 func (testSuite *BucketHandleTest) TestDefaultBucketTypeWithControlClientNil() {
+	createBucketHandle(testSuite, &controlpb.StorageLayout{}, nil)
 	var nilControlClient *control.StorageControlClient = nil
 	testSuite.bucketHandle.controlClient = nilControlClient
 
 	testSuite.bucketHandle.BucketType()
 
-	assert.Equal(testSuite.T(), gcs.NonHierarchical, testSuite.bucketHandle.bucketType, "Expected NonHierarchical bucket type")
+	assert.Equal(testSuite.T(), &gcs.BucketType{}, testSuite.bucketHandle.bucketType, "Expected default bucket type")
 }
 
 func (testSuite *BucketHandleTest) TestDeleteFolderWhenFolderExitForHierarchicalBucket() {
+	createBucketHandle(testSuite, &controlpb.StorageLayout{
+		HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
+	}, nil)
 	ctx := context.Background()
 	deleteFolderReq := controlpb.DeleteFolderRequest{Name: fmt.Sprintf(FullFolderPathHNS, TestBucketName, TestFolderName)}
 	testSuite.mockClient.On("DeleteFolder", ctx, &deleteFolderReq, mock.Anything).Return(nil)
-	testSuite.bucketHandle.bucketType = gcs.Hierarchical
+	testSuite.bucketHandle.bucketType = &gcs.BucketType{Hierarchical: true}
 
 	err := testSuite.bucketHandle.DeleteFolder(ctx, TestFolderName)
 
@@ -1444,9 +1536,12 @@ func (testSuite *BucketHandleTest) TestDeleteFolderWhenFolderExitForHierarchical
 
 func (testSuite *BucketHandleTest) TestDeleteFolderWhenFolderNotExistForHierarchicalBucket() {
 	ctx := context.Background()
+	createBucketHandle(testSuite, &controlpb.StorageLayout{
+		HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
+	}, nil)
 	deleteFolderReq := controlpb.DeleteFolderRequest{Name: fmt.Sprintf(FullFolderPathHNS, TestBucketName, missingFolderName)}
 	testSuite.mockClient.On("DeleteFolder", mock.Anything, &deleteFolderReq, mock.Anything).Return(errors.New("mock error"))
-	testSuite.bucketHandle.bucketType = gcs.Hierarchical
+	testSuite.bucketHandle.bucketType = &gcs.BucketType{Hierarchical: true}
 
 	err := testSuite.bucketHandle.DeleteFolder(ctx, missingFolderName)
 
@@ -1456,13 +1551,16 @@ func (testSuite *BucketHandleTest) TestDeleteFolderWhenFolderNotExistForHierarch
 
 func (testSuite *BucketHandleTest) TestGetFolderWhenFolderExistsForHierarchicalBucket() {
 	ctx := context.Background()
+	createBucketHandle(testSuite, &controlpb.StorageLayout{
+		HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
+	}, nil)
 	folderPath := fmt.Sprintf(FullFolderPathHNS, TestBucketName, TestFolderName)
 	getFolderReq := controlpb.GetFolderRequest{Name: folderPath}
 	mockFolder := controlpb.Folder{
 		Name: folderPath,
 	}
 	testSuite.mockClient.On("GetFolder", ctx, &getFolderReq, mock.Anything).Return(&mockFolder, nil)
-	testSuite.bucketHandle.bucketType = gcs.Hierarchical
+	testSuite.bucketHandle.bucketType = &gcs.BucketType{Hierarchical: true}
 
 	result, err := testSuite.bucketHandle.GetFolder(ctx, TestFolderName)
 
@@ -1473,10 +1571,13 @@ func (testSuite *BucketHandleTest) TestGetFolderWhenFolderExistsForHierarchicalB
 
 func (testSuite *BucketHandleTest) TestGetFolderWhenFolderDoesNotExistsForHierarchicalBucket() {
 	ctx := context.Background()
+	createBucketHandle(testSuite, &controlpb.StorageLayout{
+		HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
+	}, nil)
 	folderPath := fmt.Sprintf(FullFolderPathHNS, TestBucketName, missingFolderName)
 	getFolderReq := controlpb.GetFolderRequest{Name: folderPath}
 	testSuite.mockClient.On("GetFolder", ctx, &getFolderReq, mock.Anything).Return(nil, status.Error(codes.NotFound, "folder not found"))
-	testSuite.bucketHandle.bucketType = gcs.Hierarchical
+	testSuite.bucketHandle.bucketType = &gcs.BucketType{Hierarchical: true}
 
 	result, err := testSuite.bucketHandle.GetFolder(ctx, missingFolderName)
 
@@ -1487,9 +1588,12 @@ func (testSuite *BucketHandleTest) TestGetFolderWhenFolderDoesNotExistsForHierar
 
 func (testSuite *BucketHandleTest) TestRenameFolderWithError() {
 	ctx := context.Background()
+	createBucketHandle(testSuite, &controlpb.StorageLayout{
+		HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
+	}, nil)
 	renameFolderReq := controlpb.RenameFolderRequest{Name: fmt.Sprintf(FullFolderPathHNS, TestBucketName, TestFolderName), DestinationFolderId: TestRenameFolder}
 	testSuite.mockClient.On("RenameFolder", mock.Anything, &renameFolderReq, mock.Anything).Return(nil, errors.New("mock error"))
-	testSuite.bucketHandle.bucketType = gcs.Hierarchical
+	testSuite.bucketHandle.bucketType = &gcs.BucketType{Hierarchical: true}
 
 	_, err := testSuite.bucketHandle.RenameFolder(ctx, TestFolderName, TestRenameFolder)
 
@@ -1498,9 +1602,12 @@ func (testSuite *BucketHandleTest) TestRenameFolderWithError() {
 }
 
 func (testSuite *BucketHandleTest) TestCreateFolderWithError() {
+	createBucketHandle(testSuite, &controlpb.StorageLayout{
+		HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
+	}, nil)
 	createFolderReq := controlpb.CreateFolderRequest{Parent: fmt.Sprintf(FullBucketPathHNS, TestBucketName), FolderId: TestFolderName, Recursive: true}
 	testSuite.mockClient.On("CreateFolder", context.Background(), &createFolderReq, mock.Anything).Return(nil, errors.New("mock error"))
-	testSuite.bucketHandle.bucketType = gcs.Hierarchical
+	testSuite.bucketHandle.bucketType = &gcs.BucketType{Hierarchical: true}
 
 	folder, err := testSuite.bucketHandle.CreateFolder(context.Background(), TestFolderName)
 
@@ -1510,12 +1617,15 @@ func (testSuite *BucketHandleTest) TestCreateFolderWithError() {
 }
 
 func (testSuite *BucketHandleTest) TestCreateFolderWithGivenName() {
+	createBucketHandle(testSuite, &controlpb.StorageLayout{
+		HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
+	}, nil)
 	mockFolder := controlpb.Folder{
 		Name: fmt.Sprintf(FullFolderPathHNS, TestBucketName, TestFolderName),
 	}
 	createFolderReq := controlpb.CreateFolderRequest{Parent: fmt.Sprintf(FullBucketPathHNS, TestBucketName), FolderId: TestFolderName, Recursive: true}
 	testSuite.mockClient.On("CreateFolder", context.Background(), &createFolderReq, mock.Anything).Return(&mockFolder, nil)
-	testSuite.bucketHandle.bucketType = gcs.Hierarchical
+	testSuite.bucketHandle.bucketType = &gcs.BucketType{Hierarchical: true}
 
 	folder, err := testSuite.bucketHandle.CreateFolder(context.Background(), TestFolderName)
 

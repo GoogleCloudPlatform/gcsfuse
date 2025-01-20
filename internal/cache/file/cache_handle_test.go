@@ -28,6 +28,7 @@ import (
 	"strings"
 	"testing"
 
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
@@ -40,6 +41,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/sync/semaphore"
 )
@@ -110,9 +112,14 @@ func (cht *cacheHandleTest) SetupTest() {
 	ctx := context.Background()
 
 	// Create bucket in fake storage.
-	cht.fakeStorage = storage.NewFakeStorage()
+	var err error
+	mockClient := new(storage.MockStorageControlClient)
+	cht.fakeStorage = storage.NewFakeStorageWithMockClient(mockClient, cfg.HTTP2)
 	storageHandle := cht.fakeStorage.CreateStorageHandle()
-	cht.bucket = storageHandle.BucketHandle(ctx, storage.TestBucketName, "")
+	mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
+		Return(&controlpb.StorageLayout{}, nil)
+	cht.bucket, err = storageHandle.BucketHandle(ctx, storage.TestBucketName, "")
+	assert.Nil(cht.T(), err)
 
 	// Create test object in the bucket.
 	testObjectContent := make([]byte, TestObjectSize)

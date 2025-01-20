@@ -296,7 +296,8 @@ func (job *Job) updateStatusOffset(downloadedOffset int64) (err error) {
 // file and updates the file info cache. It uses gcs.Bucket's NewReader method
 // to download the object.
 func (job *Job) downloadObjectToFile(cacheFile *os.File) (err error) {
-	var newReader io.ReadCloser
+	var newReader gcs.StorageReader
+	var readHandle []byte
 	var start, end, sequentialReadSize, newReaderLimit int64
 	end = int64(job.object.Size)
 	sequentialReadSize = int64(job.sequentialReadSizeMb) * cacheutil.MiB
@@ -308,7 +309,7 @@ func (job *Job) downloadObjectToFile(cacheFile *os.File) (err error) {
 	for start < end {
 		if newReader == nil {
 			newReaderLimit = min(start+sequentialReadSize, end)
-			newReader, err = job.bucket.NewReader(
+			newReader, err = job.bucket.NewReaderWithReadHandle(
 				job.cancelCtx,
 				&gcs.ReadObjectRequest{
 					Name:       job.object.Name,
@@ -318,10 +319,14 @@ func (job *Job) downloadObjectToFile(cacheFile *os.File) (err error) {
 						Limit: uint64(newReaderLimit),
 					},
 					ReadCompressed: job.object.HasContentEncodingGzip(),
+					ReadHandle:     readHandle,
 				})
 			if err != nil {
 				err = fmt.Errorf("downloadObjectToFile: error in creating NewReader with start %d and limit %d: %w", start, newReaderLimit, err)
 				return err
+			}
+			if newReader != nil {
+				readHandle = newReader.ReadHandle()
 			}
 			common.CaptureGCSReadMetrics(job.cancelCtx, job.metricsHandle, util.Sequential, newReaderLimit-start)
 		}

@@ -21,19 +21,11 @@ import (
 	"golang.org/x/net/context"
 )
 
-// BucketType represents different types of buckets like
-// Hierarchical or NonHierarchical as constants.
-type BucketType int
-
-// BucketType enum values.
-const (
-	// A default value of "nil" indicates that the bucket
-	// type has not been specified.
-	Nil BucketType = iota
-	NonHierarchical
-	Hierarchical
-	Unknown
-)
+// BucketType represents bucket features.
+type BucketType struct {
+	Hierarchical bool
+	Zonal        bool
+}
 
 const (
 	// ReqIdField is the key for the value of
@@ -64,7 +56,7 @@ type Writer interface {
 type Bucket interface {
 	Name() string
 
-	// Return Type of bucket e.g. Hierarchical or NonHierarchical
+	// Return Type of bucket.
 	BucketType() BucketType
 
 	// Create a reader for the contents of a particular generation of an object.
@@ -79,6 +71,22 @@ type Bucket interface {
 	NewReader(
 		ctx context.Context,
 		req *ReadObjectRequest) (io.ReadCloser, error)
+
+	// Similar to NewReader. But establishes connection using the readHandle if not nil.
+	// ReadHandle helps in reducing the latency by eleminating auth/metadata checks when a valid readHandle is passed.
+	// ReadHandle is valid when its not nil, not expired and belongs to the same client.
+	NewReaderWithReadHandle(
+		ctx context.Context,
+		req *ReadObjectRequest) (StorageReader, error)
+
+	// Create a new multi-range downloader for the contents of a particular generation of an object.
+	// On a nil error, the caller must arrange for the reader to be closed when
+	// it is no longer needed.
+	//
+	// Non-existent objects cause either this method or the first read from the
+	// resulting reader to return an error of type *NotFoundError.
+	NewMultiRangeDownloader(
+		ctx context.Context, req *MultiRangeDownloaderRequest) (MultiRangeDownloader, error)
 
 	// Create or overwrite an object according to the supplied request. The new
 	// object is guaranteed to exist immediately for the purposes of reading (and

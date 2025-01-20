@@ -30,7 +30,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-func TestAppendObjectCreator(t *testing.T) { RunTests(t) }
+func TestComposeObjectCreator(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
 // Helpers
@@ -63,7 +63,7 @@ func deleteReqName(expected string) (m Matcher) {
 
 const prefix = ".gcsfuse_tmp/"
 
-type AppendObjectCreatorTest struct {
+type ComposeObjectCreatorTest struct {
 	ctx     context.Context
 	bucket  storage.MockBucket
 	creator objectCreator
@@ -73,21 +73,21 @@ type AppendObjectCreatorTest struct {
 	mtime       time.Time
 }
 
-var _ SetUpInterface = &AppendObjectCreatorTest{}
+var _ SetUpInterface = &ComposeObjectCreatorTest{}
 
-func init() { RegisterTestSuite(&AppendObjectCreatorTest{}) }
+func init() { RegisterTestSuite(&ComposeObjectCreatorTest{}) }
 
-func (t *AppendObjectCreatorTest) SetUp(ti *TestInfo) {
+func (t *ComposeObjectCreatorTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
 
 	// Create the bucket.
 	t.bucket = storage.NewMockBucket(ti.MockController, "bucket")
 
 	// Create the creator.
-	t.creator = newAppendObjectCreator(prefix, t.bucket)
+	t.creator = newComposeObjectCreator(prefix, t.bucket)
 }
 
-func (t *AppendObjectCreatorTest) call() (o *gcs.Object, err error) {
+func (t *ComposeObjectCreatorTest) call() (o *gcs.Object, err error) {
 	o, err = t.creator.Create(
 		t.ctx,
 		t.srcObject.Name,
@@ -103,7 +103,7 @@ func (t *AppendObjectCreatorTest) call() (o *gcs.Object, err error) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *AppendObjectCreatorTest) CallsCreateObject() {
+func (t *ComposeObjectCreatorTest) CallsCreateObject() {
 	t.srcContents = "taco"
 
 	// CreateObject
@@ -124,7 +124,7 @@ func (t *AppendObjectCreatorTest) CallsCreateObject() {
 	ExpectEq(t.srcContents, string(b))
 }
 
-func (t *AppendObjectCreatorTest) CreateObjectFails() {
+func (t *ComposeObjectCreatorTest) CreateObjectFails() {
 	var err error
 
 	// CreateObject
@@ -138,7 +138,7 @@ func (t *AppendObjectCreatorTest) CreateObjectFails() {
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
-func (t *AppendObjectCreatorTest) CreateObjectReturnsPreconditionError() {
+func (t *ComposeObjectCreatorTest) CreateObjectReturnsPreconditionError() {
 	var err error
 
 	// CreateObject
@@ -154,7 +154,7 @@ func (t *AppendObjectCreatorTest) CreateObjectReturnsPreconditionError() {
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
-func (t *AppendObjectCreatorTest) CallsComposeObjects() {
+func (t *ComposeObjectCreatorTest) CallsComposeObjects() {
 	t.srcObject.Name = "foo"
 	t.srcObject.Generation = 17
 	t.srcObject.MetaGeneration = 23
@@ -206,7 +206,7 @@ func (t *AppendObjectCreatorTest) CallsComposeObjects() {
 	ExpectEq(tmpObject.Generation, src.Generation)
 }
 
-func (t *AppendObjectCreatorTest) CallsComposeObjectsWithObjectProperties() {
+func (t *ComposeObjectCreatorTest) CallsComposeObjectsWithObjectProperties() {
 	t.srcObject.Name = "foo"
 	t.srcObject.Generation = 17
 	t.srcObject.MetaGeneration = 23
@@ -274,7 +274,7 @@ func (t *AppendObjectCreatorTest) CallsComposeObjectsWithObjectProperties() {
 	ExpectEq(tmpObject.Generation, src.Generation)
 }
 
-func (t *AppendObjectCreatorTest) ComposeObjectsFails() {
+func (t *ComposeObjectCreatorTest) ComposeObjectsFails() {
 	// CreateObject
 	tmpObject := &gcs.Object{
 		Name: "bar",
@@ -298,7 +298,7 @@ func (t *AppendObjectCreatorTest) ComposeObjectsFails() {
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
-func (t *AppendObjectCreatorTest) ComposeObjectsReturnsPreconditionError() {
+func (t *ComposeObjectCreatorTest) ComposeObjectsReturnsPreconditionError() {
 	// CreateObject
 	tmpObject := &gcs.Object{
 		Name: "bar",
@@ -324,7 +324,7 @@ func (t *AppendObjectCreatorTest) ComposeObjectsReturnsPreconditionError() {
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
-func (t *AppendObjectCreatorTest) ComposeObjectsReturnsNotFoundError() {
+func (t *ComposeObjectCreatorTest) ComposeObjectsReturnsNotFoundError() {
 	// CreateObject
 	tmpObject := &gcs.Object{
 		Name: "bar",
@@ -350,7 +350,7 @@ func (t *AppendObjectCreatorTest) ComposeObjectsReturnsNotFoundError() {
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
-func (t *AppendObjectCreatorTest) CallsDeleteObject() {
+func (t *ComposeObjectCreatorTest) CallsDeleteObject() {
 	// CreateObject
 	tmpObject := &gcs.Object{
 		Name: "bar",
@@ -372,7 +372,7 @@ func (t *AppendObjectCreatorTest) CallsDeleteObject() {
 	t.call()
 }
 
-func (t *AppendObjectCreatorTest) DeleteObjectFails() {
+func (t *ComposeObjectCreatorTest) DeleteObjectFails() {
 	// CreateObject
 	tmpObject := &gcs.Object{
 		Name: "bar",
@@ -397,7 +397,7 @@ func (t *AppendObjectCreatorTest) DeleteObjectFails() {
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
-func (t *AppendObjectCreatorTest) DeleteObjectSucceeds() {
+func (t *ComposeObjectCreatorTest) DeleteObjectSucceeds() {
 	// CreateObject
 	tmpObject := &gcs.Object{
 		Name: "bar",

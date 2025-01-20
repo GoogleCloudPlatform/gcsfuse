@@ -126,6 +126,10 @@ func CreateTokenSource(storageClientConfig *StorageClientConfig) (tokenSrc oauth
 
 // StripScheme strips the scheme part of given url.
 func StripScheme(url string) string {
+	// Don't strip off the scheme part for google-internal schemes.
+	if strings.HasPrefix(url, "dns:///") || strings.HasPrefix(url, "google-c2p:///") || strings.HasPrefix(url, "google:///") {
+		return url
+	}
 	if strings.Contains(url, urlSchemeSeparator) {
 		url = strings.SplitN(url, urlSchemeSeparator, 2)[1]
 	}

@@ -1078,7 +1078,7 @@ func (d *dirInode) InvalidateKernelListCache() {
 }
 
 func (d *dirInode) isBucketHierarchical() bool {
-	if d.isHNSEnabled && d.bucket.BucketType() == gcs.Hierarchical {
+	if d.isHNSEnabled && d.bucket.BucketType().Hierarchical {
 		return true
 	}
 	return false

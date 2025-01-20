@@ -405,7 +405,7 @@ func createOrUpdateFakeObject(b *bucket, req *gcs.CreateObjectRequest, contents 
 		sort.Sort(b.objects)
 	}
 
-	if b.BucketType() == gcs.Hierarchical {
+	if b.BucketType().Hierarchical {
 		b.addFolderEntry(req.Name)
 	}
 	return
@@ -671,6 +671,24 @@ func (b *bucket) NewReader(
 	}
 
 	rc = io.NopCloser(r)
+	return
+}
+
+// LOCKS_EXCLUDED(b.mu)
+func (b *bucket) NewReaderWithReadHandle(ctx context.Context, req *gcs.ReadObjectRequest) (rd gcs.StorageReader, err error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	r, _, err := b.newReaderLocked(req)
+	if err != nil {
+		return
+	}
+
+	rc := io.NopCloser(r)
+	rd = &FakeReader{
+		ReadCloser: rc,
+		Handle:     []byte("opaque-handle"),
+	}
 	return
 }
 
@@ -1203,4 +1221,21 @@ func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinatio
 	}
 
 	return folder, nil
+}
+
+func (b *bucket) NewMultiRangeDownloader(
+	ctx context.Context, req *gcs.MultiRangeDownloaderRequest) (gcs.MultiRangeDownloader, error) {
+	index := b.objects.find(req.Name)
+	if index >= len(b.objects) || index < 0 {
+		return nil, &gcs.NotFoundError{Err: fmt.Errorf("not found object %s in fake-bucket", req.Name)}
+	}
+	obj := b.objects[index]
+	if req.Generation != 0 && obj.metadata.Generation != req.Generation {
+		return nil, &gcs.NotFoundError{Err: fmt.Errorf("not found object %s in fake-bucket with generation %v", req.Name, req.Generation)}
+	}
+	if obj.data == nil {
+		return nil, fmt.Errorf("found no content for object %s in fake-bucket", req.Name)
+	}
+
+	return &fakeMultiRangeDownloader{obj: &obj}, nil
 }
