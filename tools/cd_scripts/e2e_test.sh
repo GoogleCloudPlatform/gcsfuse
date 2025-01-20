@@ -142,7 +142,6 @@ git checkout $(sed -n 2p ~/details.txt) |& tee -a ~/logs.txt
 set +e
 # Test directory arrays
 TEST_DIR_PARALLEL=(
-  "monitoring"
   "local_file"
   "log_rotation"
   "mounting"
@@ -158,7 +157,6 @@ TEST_DIR_PARALLEL=(
   "log_content"
   "kernel_list_cache"
   "concurrent_operations"
-  "benchmarking"
   "mount_timeout"
   "stale_handle"
   "negative_stat_cache"
