@@ -62,9 +62,9 @@ Examples:
 To ensure consistency, Cloud Storage FUSE returns a ```syscall.ESTALE``` error when an application tries to access stale data. This can occur in the following circumstances:
 
 - **Concurrent Writes**: When multiple mounts have the same file open for writing, and one mount modifies and syncs the file, other mounts with open file descriptors will encounter this error when attempting to sync or close the file.
-- **Read During Modification**:  If an application is reading a file through a GCSFuse mount, and the same object is modified on GCS (by deleting, renaming, or changing its content or metadata), the GCSFuse reader will encounter this error. This is because GCSFuse detects that the file it was accessing has changed.
-- **File Renaming During Write**: If an application is writing to a file through a GCSFuse mount, and the same object is renamed on Google Cloud Storage (via same or different GCSFuse mount or through another interface), the writer will encounter this error when syncing or closing the file.
-- **File Deletion During Write**: If an application is writing to a file through a GCSFuse mount, and the same object is deleted on Google Cloud Storage (via different GCSFuse mount or through another interface), the writer will encounter this error when syncing or closing the file.
+- **Read During Modification**:  When an application is reading a file through a GCSFuse mount, and the same object is modified on GCS (by deleting, renaming, or changing its content or metadata), the GCSFuse reader will encounter this error. This is because GCSFuse detects that the file it was accessing has changed.
+- **File Renaming During Write**: When an application is writing to a file through a GCSFuse mount, and the same object is renamed on Google Cloud Storage (via same or different GCSFuse mount or through another interface), the writer will encounter this error when syncing or closing the file.
+- **File Deletion During Write**: When an application is writing to a file through a GCSFuse mount, and the same object is deleted on Google Cloud Storage (via different GCSFuse mount or through another interface), the writer will encounter this error when syncing or closing the file.
 
 These changes in Cloud Storage FUSE prioritize data integrity and provide users with clear indications of potential conflicts, preventing silent data loss and ensuring a more robust and reliable experience.
 
