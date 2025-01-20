@@ -112,7 +112,6 @@ func createClientOptionForGRPCClient(clientConfig *storageutil.StorageClientConf
 }
 
 func setRetryConfig(sc *storage.Client, clientConfig *storageutil.StorageClientConfig) {
-
 	if sc == nil || clientConfig == nil {
 		logger.Fatal("setRetryConfig: Empty storage client or clientConfig")
 		return
