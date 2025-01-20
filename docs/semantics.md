@@ -43,7 +43,9 @@ when writing large files.
 
 **Concurrency**
 
-Multiple readers can access the same or different objects from the same bucket without issue. Multiple writers can also write to different objects in the same bucket without issue. However, there is no concurrency control for multiple writers to the same file. When multiple writers try to replace a file from the same machine, the last write wins and all previous writes are lost without any user notification of the overwrite. However, in case of different machines the flush from first machine wins and the other machines that had the file open before the first machine synced its changes will get a ```syscall.ESTALE``` error when they try to save their own edits - there is no merging or version control. Therefore, for data integrity it is recommended that multiple sources do not modify the same object.
+Multiple readers can access the same or different objects within a bucket without issue. Likewise, multiple writers modify different objects in the same bucket simultaneously without any issue. Even when multiple writers attempt to replace the same file from the same mount point, the last write wins similar to a native filesystem.
+
+However, when different mounts try to write to the same object, the flush from first mount wins. Other mounts that have not updated their local file descriptors after the object is updated will encounter a ```syscall.ESTALE``` error when attempting to save their edits due to precondition checks. Therefore, to ensure data integrity it is strongly recommended that multiple sources do not modify the same object.
 
 **Write/Read consistency**
 
