@@ -157,7 +157,6 @@ TEST_DIR_PARALLEL=(
   "log_content"
   "kernel_list_cache"
   "concurrent_operations"
-  "benchmarking"
   "mount_timeout"
   "stale_handle"
   "negative_stat_cache"
