@@ -20,7 +20,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/stretchr/testify/assert"
@@ -37,12 +36,8 @@ func TestZonalBucketTests(t *testing.T) { suite.Run(t, new(ZonalBucketTests)) }
 
 func (t *ZonalBucketTests) SetupSuite() {
 	t.serverCfg.ImplicitDirectories = false
-	t.serverCfg.NewConfig = &cfg.Config{
-		EnableHns:                true,
-		EnableAtomicRenameObject: true,
-	}
 	t.serverCfg.MetricHandle = common.NewNoopMetrics()
-	bucketType = gcs.BucketType{Hierarchical: true}
+	bucketType = gcs.BucketType{Zonal: true}
 	t.fsTest.SetUpTestSuite()
 }
 
@@ -67,6 +62,38 @@ func (t *ZonalBucketTests) SetupTest() {
 
 func (t *ZonalBucketTests) TearDownTest() {
 	t.fsTest.TearDown()
+}
+
+func (t *ZonalBucketTests) TestRenameFileWithSrcFileDoesNotExist() {
+	oldFilePath := path.Join(mntDir, "file")
+	newFilePath := path.Join(mntDir, "file_rename")
+
+	err := os.Rename(oldFilePath, newFilePath)
+
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+	_, err = os.Stat(newFilePath)
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+}
+
+func (t *ZonalBucketTests) TestRenameFileWithDstDestFileExist() {
+	oldFilePath := path.Join(mntDir, "foo", "file1.txt")
+	_, err := os.Stat(oldFilePath)
+	assert.NoError(t.T(), err)
+	newFilePath := path.Join(mntDir, "foo", "file2.txt")
+	_, err = os.Stat(newFilePath)
+	assert.NoError(t.T(), err)
+
+	err = os.Rename(oldFilePath, newFilePath)
+
+	assert.NoError(t.T(), err)
+	_, err = os.Stat(oldFilePath)
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+	content, err := os.ReadFile(newFilePath)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), file1Content, string(content))
 }
 
 func (t *ZonalBucketTests) TestRenameFile() {
