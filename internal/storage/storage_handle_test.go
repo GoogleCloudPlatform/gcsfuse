@@ -244,24 +244,20 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithInvalidClientProtoco
 
 func (testSuite *StorageHandleTest) TestNewStorageHandleDirectPathDetector() {
 	testCases := []struct {
-		name                     string
-		clientProtocol           cfg.Protocol
-		expectDirectPathDetector bool
+		name           string
+		clientProtocol cfg.Protocol
 	}{
 		{
-			name:                     "grpcWithNonNilDirectPathDetector",
-			clientProtocol:           cfg.GRPC,
-			expectDirectPathDetector: true,
+			name:           "grpcWithNonNilDirectPathDetector",
+			clientProtocol: cfg.GRPC,
 		},
 		{
-			name:                     "http1WithNilDirectPathDetector",
-			clientProtocol:           cfg.HTTP1,
-			expectDirectPathDetector: false,
+			name:           "http1WithNilDirectPathDetector",
+			clientProtocol: cfg.HTTP1,
 		},
 		{
-			name:                     "http2WithNilDirectPathDetector",
-			clientProtocol:           cfg.HTTP2,
-			expectDirectPathDetector: false,
+			name:           "http2WithNilDirectPathDetector",
+			clientProtocol: cfg.HTTP2,
 		},
 	}
 
