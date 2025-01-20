@@ -142,6 +142,6 @@ If it's running on GKE, the issue could be caused by an Out-of-Memory (OOM) erro
 
 ### GCSFuse crashes with `fatal error: sync: unlock of unlocked mutex` or `Panic: Inode 'a/' cannot have child file ''`
 
-**Solution:** This happens when bucket contains an object with suffix `/\n` like, `gs://gcs-bkt/a/\n`
+**Solution:** This happens when the mounting bucket contains an object with suffix `/\n` like, `gs://gcs-bkt/a/\n`
 You need to find such objects and replace them with any other valid gcs object names. - [How](https://github.com/GoogleCloudPlatform/gcsfuse/discussions/2894)?
 
