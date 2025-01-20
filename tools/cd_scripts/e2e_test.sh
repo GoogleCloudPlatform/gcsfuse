@@ -163,6 +163,7 @@ TEST_DIR_PARALLEL=(
   "stale_handle"
   "negative_stat_cache"
   "streaming_writes"
+  "list_large_dir"
 )
 
 # These tests never become parallel as they are changing bucket permissions.
@@ -170,7 +171,6 @@ TEST_DIR_NON_PARALLEL=(
   "readonly"
   "managed_folders"
   "readonly_creds"
-  "list_large_dir"
 )
 
 # Create a temporary file to store the log file name.
