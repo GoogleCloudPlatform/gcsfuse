@@ -18,6 +18,7 @@ import (
 	"github.com/fsouza/fake-gcs-server/fakestorage"
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 )
 
 const TestBucketName string = "gcsfuse-default-bucket"
@@ -63,10 +64,11 @@ func (f *fakeStorage) CreateStorageHandle() (sh StorageHandle) {
 		f.mockClient = new(MockStorageControlClient)
 	}
 	sh = &storageClient{
-		httpClient:           f.fakeStorageServer.Client(),
-		grpcClient:           f.fakeStorageServer.Client(),
-		storageControlClient: f.mockClient,
-		clientProtocol:       f.protocol,
+		httpClient:               f.fakeStorageServer.Client(),
+		grpcClient:               f.fakeStorageServer.Client(),
+		grpcClientWithBidiConfig: f.fakeStorageServer.Client(),
+		storageControlClient:     f.mockClient,
+		clientConfig:             storageutil.StorageClientConfig{ClientProtocol: f.protocol},
 	}
 	return
 }
