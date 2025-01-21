@@ -61,6 +61,8 @@ type Config struct {
 	OnlyDir string `yaml:"only-dir"`
 
 	Write WriteConfig `yaml:"write"`
+
+	MRD MRDConfig `yaml:"mrd"`
 }
 
 type DebugConfig struct {
@@ -249,6 +251,10 @@ type WriteConfig struct {
 	GlobalMaxBlocks int64 `yaml:"global-max-blocks"`
 
 	MaxBlocksPerFile int64 `yaml:"max-blocks-per-file"`
+}
+
+type MRDConfig struct {
+	PerInode bool `yaml:"per-inode"`
 }
 
 func BuildFlagSet(flagSet *pflag.FlagSet) error {
@@ -470,6 +476,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	if err := flagSet.MarkDeprecated("max-retry-duration", "This is currently unused."); err != nil {
 		return err
 	}
+
+	flagSet.BoolP("mrd-per-inode", "", false, "Determines whether to keep MRD per inoder or per file handle")
 
 	flagSet.DurationP("max-retry-sleep", "", 30000000000*time.Nanosecond, "The maximum duration allowed to sleep in a retry loop with exponential backoff for failed requests to GCS backend. Once the backoff duration exceeds this limit, the retry continues with this specified maximum value.")
 

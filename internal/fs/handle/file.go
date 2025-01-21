@@ -54,22 +54,29 @@ type FileHandle struct {
 
 	// Wrapper object for multi range downloader.
 	MRDWrapper gcsx.MultiRangeDownloaderWrapper
+
+	// flag to determine whether MRD should be per inode or file handle
+	perInodeMRD bool
 }
 
 // LOCKS_REQUIRED(fh.inode.mu)
-func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, readOnly bool) (fh *FileHandle) {
+func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, readOnly bool, perInodeMRD bool) (fh *FileHandle) {
 	fh = &FileHandle{
 		inode:                 inode,
 		fileCacheHandler:      fileCacheHandler,
 		cacheFileForRangeRead: cacheFileForRangeRead,
 		metricHandle:          metricHandle,
 		readOnly:              readOnly,
-		MRDWrapper:            gcsx.NewMultiRangeDownloaderWrapper(inode.Bucket(), inode.Source()),
+		perInodeMRD:           perInodeMRD,
 	}
 
 	fh.inode.RegisterFileHandle(fh.readOnly)
-	fh.MRDWrapper.IncrementRefCount()
 	fh.mu = syncutil.NewInvariantMutex(fh.checkInvariants)
+
+	if !perInodeMRD {
+		fh.MRDWrapper = gcsx.NewMultiRangeDownloaderWrapper(inode.Bucket(), inode.Source(), false)
+		fh.MRDWrapper.IncrementRefCount()
+	}
 
 	return
 }
@@ -198,8 +205,11 @@ func (fh *FileHandle) tryEnsureReader(ctx context.Context, sequentialReadSizeMb 
 	}
 
 	// Attempt to create an appropriate reader.
-	rr := gcsx.NewRandomReader(fh.inode.Source(), fh.inode.Bucket(), sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, &fh.MRDWrapper)
+	if fh.perInodeMRD {
+		fh.reader = gcsx.NewRandomReader(fh.inode.Source(), fh.inode.Bucket(), sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, &fh.inode.MRDWrapper)
+	} else {
+		fh.reader = gcsx.NewRandomReader(fh.inode.Source(), fh.inode.Bucket(), sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, &fh.MRDWrapper)
+	}
 
-	fh.reader = rr
 	return
 }

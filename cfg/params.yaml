@@ -715,3 +715,11 @@
   default: "0s"
   deprecated: true
   deprecation-warning: "This is currently unused."
+
+- config-path: "mrd.per-inode"
+  flag-name: "mrd-per-inode"
+  type: "bool"
+  usage: "Determines whether to keep MRD at inode level or file handle level"
+  default: false
+  hide-flag: true
+
