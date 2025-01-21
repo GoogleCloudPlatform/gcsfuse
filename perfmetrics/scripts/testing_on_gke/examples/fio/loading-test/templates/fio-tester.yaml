@@ -25,7 +25,8 @@ spec:
   nodeSelector:
     cloud.google.com/gke-tpu-topology: 2x2
     cloud.google.com/gke-tpu-accelerator: tpu-v6e-slice
-    cloud.google.com/gke-nodepool: {{ .Values.nodePool }}
+    cloud.google.com/gke-nodepool: {{ .Values.nodePool}}
+  hostNetwork: true
   containers:
   - name: fio-tester
     image: {{ .Values.image }}
@@ -49,19 +50,6 @@ spec:
         block_size={{ .Values.fio.blockSize }}
         file_size={{ .Values.fio.fileSize }}
         num_of_threads={{ .Values.fio.numThreads }}
-
-        {{ if eq .Values.scenario "local-ssd" }}
-        echo "Installing gsutil..."
-        apt-get update && apt-get install -y apt-transport-https ca-certificates gnupg curl
-        curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
-        echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
-        apt-get update && apt-get install -y google-cloud-cli
-
-        gsutil -m cp -R gs://{{ .Values.bucketName }}/* /data 
-
-        echo "Sleeping 5 minutes to wait for Local SSD RAID to populate data."
-        sleep 300
-        {{ end }}
 
         # We are building fio from source because of the issue: https://github.com/axboe/fio/issues/1668.
         # The sed command below is to address internal bug b/309563824.
@@ -166,15 +154,14 @@ spec:
       mountPath: /data
   volumes:
   - name: gke-gcsfuse-cache
+    {{ if eq .Values.cacheLocation "boot" }}
     emptyDir: {}
-  {{ if eq .Values.bufferLocation "bootDisk" }}
-  - name: gke-gcsfuse-buffer
-    emptyDir: {}
-  {{ else if eq .Values.bufferLocation "memory" }}
-  - name: gke-gcsfuse-buffer
+    {{ else }}
     emptyDir:
-      medium: Memory
-  {{ end }}
+        medium: Memory
+    {{ end }}
+  - name: gke-gcsfuse-buffer
+    emptyDir: {}
   - name: gke-gcsfuse-tmp
     emptyDir: {}
   - name: dshm
@@ -192,3 +179,4 @@ spec:
         fileCacheForRangeRead: "true"
         gcsfuseLoggingSeverity: "info"
         mountOptions: "{{ .Values.gcsfuse.mountOptions }}"
+        disableMetrics: "true"
