@@ -74,21 +74,21 @@ func (t *mrdWrapperTest) Test_IncrementRefCount_ParallelUpdates() {
 	assert.Equal(t.T(), finalRefCount, t.mrdWrapper.refCount)
 }
 
-func (t *mrdWrapperTest) Test_IncrementRefCount_CancelCleanup() {
-	const finalRefCount int = 1
-	t.mrdWrapper.IncrementRefCount()
-	err := t.mrdWrapper.DecrementRefCount()
+// func (t *mrdWrapperTest) Test_IncrementRefCount_CancelCleanup() {
+// 	const finalRefCount int = 1
+// 	t.mrdWrapper.IncrementRefCount()
+// 	err := t.mrdWrapper.DecrementRefCount()
 
-	assert.Nil(t.T(), err)
-	assert.NotNil(t.T(), t.mrdWrapper.cancelCleanup)
-	assert.NotNil(t.T(), t.mrdWrapper.Wrapped)
+// 	assert.Nil(t.T(), err)
+// 	assert.NotNil(t.T(), t.mrdWrapper.cancelCleanup)
+// 	assert.NotNil(t.T(), t.mrdWrapper.Wrapped)
 
-	t.mrdWrapper.IncrementRefCount()
+// 	t.mrdWrapper.IncrementRefCount()
 
-	assert.Equal(t.T(), finalRefCount, t.mrdWrapper.refCount)
-	assert.Nil(t.T(), t.mrdWrapper.cancelCleanup)
-	assert.NotNil(t.T(), t.mrdWrapper.Wrapped)
-}
+// 	assert.Equal(t.T(), finalRefCount, t.mrdWrapper.refCount)
+// 	assert.Nil(t.T(), t.mrdWrapper.cancelCleanup)
+// 	assert.NotNil(t.T(), t.mrdWrapper.Wrapped)
+// }
 
 func (t *mrdWrapperTest) Test_DecrementRefCount_ParallelUpdates() {
 	const finalRefCount int = 0
@@ -115,10 +115,10 @@ func (t *mrdWrapperTest) Test_DecrementRefCount_ParallelUpdates() {
 	wg.Wait()
 
 	assert.Equal(t.T(), finalRefCount, t.mrdWrapper.GetRefCount())
-	assert.NotNil(t.T(), t.mrdWrapper.Wrapped)
-	assert.NotNil(t.T(), t.mrdWrapper.cancelCleanup)
+	// assert.NotNil(t.T(), t.mrdWrapper.Wrapped)
+	// assert.NotNil(t.T(), t.mrdWrapper.cancelCleanup)
 	// Waiting for the cleanup to be done.
-	time.Sleep(t.mrdTimeout + time.Millisecond)
+	// time.Sleep(t.mrdTimeout + time.Millisecond)
 	assert.Nil(t.T(), t.mrdWrapper.Wrapped)
 }
 

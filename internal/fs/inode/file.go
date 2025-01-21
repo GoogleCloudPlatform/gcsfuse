@@ -99,7 +99,7 @@ type FileInode struct {
 	// creates a cyclic dependency.
 	// Todo: Investigate if cyclic dependency can be removed by removing some unused
 	// code.
-	MRDWrapper gcsx.MultiRangeDownloaderWrapper
+	// MRDWrapper gcsx.MultiRangeDownloaderWrapper
 
 	bwh    *bufferedwrites.BufferedWriteHandler
 	config *cfg.Config
@@ -158,7 +158,7 @@ func NewFileInode(
 		unlinked:                false,
 		config:                  cfg,
 		globalMaxWriteBlocksSem: globalMaxBlocksSem,
-		MRDWrapper:              gcsx.NewMultiRangeDownloaderWrapper(bucket, &minObj),
+		// MRDWrapper:              gcsx.NewMultiRangeDownloaderWrapper(bucket, &minObj),
 	}
 
 	f.lc.Init(id)

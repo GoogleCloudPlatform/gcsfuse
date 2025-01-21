@@ -51,6 +51,9 @@ type FileHandle struct {
 	// as we are not doing anything special for append. When required we will
 	// define an enum instead of boolean to hold the type of open.
 	readOnly bool
+
+	// Wrapper object for multi range downloader.
+	MRDWrapper gcsx.MultiRangeDownloaderWrapper
 }
 
 // LOCKS_REQUIRED(fh.inode.mu)
@@ -61,9 +64,11 @@ func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, 
 		cacheFileForRangeRead: cacheFileForRangeRead,
 		metricHandle:          metricHandle,
 		readOnly:              readOnly,
+		MRDWrapper:            gcsx.NewMultiRangeDownloaderWrapper(inode.Bucket(), inode.Source()),
 	}
 
 	fh.inode.RegisterFileHandle(fh.readOnly)
+	fh.MRDWrapper.IncrementRefCount()
 	fh.mu = syncutil.NewInvariantMutex(fh.checkInvariants)
 
 	return
@@ -82,6 +87,7 @@ func (fh *FileHandle) Destroy() {
 	if fh.reader != nil {
 		fh.reader.Destroy()
 	}
+	fh.MRDWrapper.DecrementRefCount()
 }
 
 // Inode returns the inode backing this handle.
@@ -192,7 +198,7 @@ func (fh *FileHandle) tryEnsureReader(ctx context.Context, sequentialReadSizeMb 
 	}
 
 	// Attempt to create an appropriate reader.
-	rr := gcsx.NewRandomReader(fh.inode.Source(), fh.inode.Bucket(), sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, &fh.inode.MRDWrapper)
+	rr := gcsx.NewRandomReader(fh.inode.Source(), fh.inode.Bucket(), sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, &fh.MRDWrapper)
 
 	fh.reader = rr
 	return
