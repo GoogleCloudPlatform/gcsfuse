@@ -2,13 +2,14 @@
 cluster_name=$1
 num_nodes=$2
 nodepool=$3
+vpc-network=$4
 
 bootDiskSize=100gb
-buffer_location=memory
+cache_location=<memory/boot>
 filecacheConfig=<Off/filecache/filecache-pd>
 node_pool=$nodepool
-instance_id=<anushkadhn>-filecache${filecacheConfig}-buffer-${buffer_location}-boot-${bootDiskSize}
-namespace="${buffer_location}-${bootDiskSize}"
+instance_id=filecache${filecacheConfig}-buffer-${cache_location}-boot-${bootDiskSize}
+namespace="${cache_location}-${bootDiskSize}"
 
 env project_id=tpu-prod-env-large-adhoc \
 project_number=716203006749\
@@ -17,11 +18,11 @@ project_number=716203006749\
  machine_type=ct6e-standard-4t \
  num_nodes=${num_nodes} \
  use_custom_csi_driver=true \
- src_dir=/usr/local/google/home/anushkadhn/gcsfuse-custom-csi/.. \
+ src_dir=$HOME/gcsfuse-custom-csi/.. \
  gcsfuse_branch=master \
  gcsfuse_src_dir=.\
- workload-config=./perfmetrics/scripts/testing_on_gke/examples/workloads.json \
-output_dir=. perfmetrics/scripts/testing_on_gke/examples/run-gke-tests.sh --debug   $namespace $node_pool $instance_id $buffer_location
+ workload_config=./perfmetrics/scripts/testing_on_gke/examples/workload.json \
+output_dir=. perfmetrics/scripts/testing_on_gke/examples/run-gke-tests.sh --debug   $namespace $node_pool $instance_id $cache_location $vpc-network
 
 
 
