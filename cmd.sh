@@ -21,7 +21,7 @@ project_number=716203006749\
  src_dir=$HOME/gcsfuse-custom-csi/.. \
  gcsfuse_branch=master \
  gcsfuse_src_dir=.\
- workload_config=./perfmetrics/scripts/testing_on_gke/examples/workload.json \
+ workload_config=./perfmetrics/scripts/testing_on_gke/examples/workloads.json \
 output_dir=. perfmetrics/scripts/testing_on_gke/examples/run-gke-tests.sh --debug   $namespace $node_pool $instance_id $cache_location $vpc_network
 
 
