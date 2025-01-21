@@ -289,6 +289,16 @@ func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle() {
 	assert.NotNil(testSuite.T(), storageClient)
 }
 
+func (testSuite *StorageHandleTest) TestCreateGRPCClientHandleWithBidiConfig() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.ClientProtocol = cfg.GRPC
+
+	storageClient, err := createGRPCClientHandle(testSuite.ctx, &sc, true)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), storageClient)
+}
+
 func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 

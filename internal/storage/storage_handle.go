@@ -116,6 +116,7 @@ func setRetryConfig(sc *storage.Client, clientConfig *storageutil.StorageClientC
 		logger.Fatal("setRetryConfig: Empty storage client or clientConfig")
 		return
 	}
+
 	// ShouldRetry function checks if an operation should be retried based on the
 	// response of operation (error.Code).
 	// RetryAlways causes all operations to be checked for retries using
@@ -288,26 +289,30 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	return
 }
 
-func (sh *storageClient) getClient(ctx context.Context, isbucketZonal bool) (sc *storage.Client, err error) {
+func (sh *storageClient) getClient(ctx context.Context, isbucketZonal bool) (*storage.Client, error) {
+	var err error
 	if isbucketZonal {
 		if sh.grpcClientWithBidiConfig == nil {
 			sh.grpcClientWithBidiConfig, err = createGRPCClientHandle(ctx, &sh.clientConfig, true)
 		}
-		sc = sh.grpcClientWithBidiConfig
-	} else if sh.clientConfig.ClientProtocol == cfg.GRPC {
+		return sh.grpcClientWithBidiConfig, err
+	}
+
+	if sh.clientConfig.ClientProtocol == cfg.GRPC {
 		if sh.grpcClient == nil {
 			sh.grpcClient, err = createGRPCClientHandle(ctx, &sh.clientConfig, false)
 		}
-		sc = sh.grpcClient
-	} else if sh.clientConfig.ClientProtocol == cfg.HTTP1 || sh.clientConfig.ClientProtocol == cfg.HTTP2 {
+		return sh.grpcClient, err
+	}
+
+	if sh.clientConfig.ClientProtocol == cfg.HTTP1 || sh.clientConfig.ClientProtocol == cfg.HTTP2 {
 		if sh.httpClient == nil {
 			sh.httpClient, err = createHTTPClientHandle(ctx, &sh.clientConfig)
 		}
-		sc = sh.httpClient
-	} else {
-		err = fmt.Errorf("invalid client-protocol requested: %s", sh.clientConfig.ClientProtocol)
+		return sh.httpClient, err
 	}
-	return
+
+	return nil, fmt.Errorf("invalid client-protocol requested: %s", sh.clientConfig.ClientProtocol)
 }
 
 func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, billingProject string) (bh *bucketHandle, err error) {
