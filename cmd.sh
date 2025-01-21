@@ -2,7 +2,7 @@
 cluster_name=$1
 num_nodes=$2
 nodepool=$3
-vpc-network=$4
+vpc_network=$4
 
 bootDiskSize=100gb
 cache_location=<memory/boot>
@@ -22,7 +22,7 @@ project_number=716203006749\
  gcsfuse_branch=master \
  gcsfuse_src_dir=.\
  workload_config=./perfmetrics/scripts/testing_on_gke/examples/workload.json \
-output_dir=. perfmetrics/scripts/testing_on_gke/examples/run-gke-tests.sh --debug   $namespace $node_pool $instance_id $cache_location $vpc-network
+output_dir=. perfmetrics/scripts/testing_on_gke/examples/run-gke-tests.sh --debug   $namespace $node_pool $instance_id $cache_location $vpc_network
 
 
 
