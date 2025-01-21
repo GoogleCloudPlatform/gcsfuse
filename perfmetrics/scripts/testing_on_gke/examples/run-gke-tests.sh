@@ -176,7 +176,8 @@ test -n "${pod_wait_time_in_seconds}" || export pod_wait_time_in_seconds="${DEFA
 test -n "${pod_timeout_in_seconds}" || export pod_timeout_in_seconds="${DEFAULT_POD_TIMEOUT_IN_SECONDS}"
 #test -n "${instance_id}" || export instance_id="${DEFAULT_INSTANCE_ID}"
 instance_id=$4
-bufferLocation=$5
+cacheLocation=$5
+network=$6
 if [[ ${pod_timeout_in_seconds} -le ${pod_wait_time_in_seconds} ]]; then
   exitWithError "pod_timeout_in_seconds (${pod_timeout_in_seconds}) <= pod_wait_time_in_seconds (${pod_wait_time_in_seconds})"
 fi
@@ -227,9 +228,9 @@ function printRunParameters() {
   echo "workload_config=\"${workload_config}\""
   echo "output_dir=\"${output_dir}\""
   echo "force_update_gcsfuse_code=\"${force_update_gcsfuse_code}\""
-  echo ""
-  echo ""
-  echo ""
+  echo "Node Pool: ${node_pool}"
+  echo "instance_id: ${instance_id}"
+  echo "File Cache Location: ${cacheLocation}"
 }
 
 # Install dependencies.
@@ -434,7 +435,7 @@ function ensureGkeCluster() {
     fi
     gcloud container clusters update ${cluster_name} --project=${project_id} --location=${zone} --workload-pool=${project_id}.svc.id.goog
   else
-    gcloud container clusters create ${cluster_name} --project=${project_id} --zone "${zone}"  --network "anushkadhn-mtu9k-1-us-east5-c" --workload-pool=${project_id}.svc.id.goog --machine-type "${machine_type}" --image-type "COS_CONTAINERD" --num-nodes ${num_nodes}  --network-performance-configs=total-egress-bandwidth-tier=TIER_1 --workload-metadata=GKE_METADATA
+    gcloud container clusters create ${cluster_name} --project=${project_id} --zone "${zone}"  --network $network --workload-pool=${project_id}.svc.id.goog --machine-type "${machine_type}" --image-type "COS_CONTAINERD" --num-nodes ${num_nodes}  --network-performance-configs=total-egress-bandwidth-tier=TIER_1 --workload-metadata=GKE_METADATA
   fi
 }
 
@@ -544,6 +545,7 @@ function createCustomCsiDriverIfNeeded() {
     printf "\nBuilding a new GCSFuse binary from ${gcsfuse_src_dir} ...\n\n"
     cd "${gcsfuse_src_dir}"
     rm -rfv ./bin ./sbin
+
     GOOS=linux GOARCH=amd64 go run tools/build_gcsfuse/main.go . . v3
     # Copy the binary to a GCS bucket for csi driver build.
     gcloud storage -q cp ./bin/gcsfuse gs://${package_bucket}/linux/amd64/
@@ -591,12 +593,12 @@ function deleteAllPods() {
 
 function deployAllFioHelmCharts() {
   printf "\nDeploying all fio helm charts ...\n\n"
-  cd "${gke_testing_dir}"/examples/fio && python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" --project-id=${project_id} --project-number=${project_number} --namespace=${appnamespace} --ksa=${ksa} --nodePool=${node_pool} --bufferLocation=${bufferLocation} && cd -
+  cd "${gke_testing_dir}"/examples/fio && python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" --project-id=${project_id} --project-number=${project_number} --namespace=${appnamespace} --ksa=${ksa} --node-pool=${node_pool} --file-cache-location=${cacheLocation}   && cd -
 }
 
 function deployAllDlioHelmCharts() {
   printf "\nDeploying all dlio helm charts ...\n\n"
-  cd "${gke_testing_dir}"/examples/dlio && python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" --project-id=${project_id} --project-number=${project_number} --namespace=${appnamespace} --ksa=${ksa} --nodePool=${node_pool} --bufferLocation=${bufferLocation} && cd -
+  cd "${gke_testing_dir}"/examples/dlio && python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" --project-id=${project_id} --project-number=${project_number} --namespace=${appnamespace} --ksa=${ksa} && cd -
 }
 
 function waitTillAllPodsComplete() {
@@ -634,7 +636,11 @@ function waitTillAllPodsComplete() {
     else
       printf "\n${num_noncompleted_pods} pod(s) is/are still pending/running (time till timeout=${time_till_timeout} seconds). Will check again in "${pod_wait_time_in_seconds}" seconds. Sleeping for now.\n\n"
       printf "\nYou can take a break too if you want. Just kill this run and connect back to it later, for fetching and parsing outputs, using the following command: \n"
-      printf "   only_parse=true instance_id=${instance_id} project_id=${project_id} project_number=${project_number} zone=${zone} machine_type=${machine_type} use_custom_csi_driver=${use_custom_csi_driver} gcsfuse_src_dir=\"${gcsfuse_src_dir}\" csi_src_dir=\"${csi_src_dir}\" pod_wait_time_in_seconds=${pod_wait_time_in_seconds} pod_timeout_in_seconds=${pod_timeout_in_seconds} workload_config=\"${workload_config}\" cluster_name=${cluster_name} output_dir=\"${output_dir}\" $0 \n"
+      printf "   only_parse=true instance_id=${instance_id} project_id=${project_id} project_number=${project_number} zone=${zone} machine_type=${machine_type} use_custom_csi_driver=${use_custom_csi_driver} gcsfuse_src_dir=\"${gcsfuse_src_dir}\" "
+      if test -d "${csi_src_dir}"; then
+        printf "csi_src_dir=\"${csi_src_dir}\" "
+      fi
+      printf "pod_wait_time_in_seconds=${pod_wait_time_in_seconds} pod_timeout_in_seconds=${pod_timeout_in_seconds} workload_config=\"${workload_config}\" cluster_name=${cluster_name} output_dir=\"${output_dir}\" output_gsheet_id=\"${output_gsheet_id}\" output_gsheet_keyfile=\"${output_gsheet_keyfile}\" $0 \n"
       printf "\nbut remember that this will reset the start-timer for pod timeout.\n\n"
       printf "\nTo ssh to any specific pod, use the following command: \n"
       printf "  gcloud container clusters get-credentials ${cluster_name} --location=${zone}\n"
@@ -676,23 +682,22 @@ if test -z ${only_parse} || ! ${only_parse} ; then
   #validateMachineConfig ${machine_type} ${num_nodes} ${num_ssd}
 
   # GCP configuration
-  ensureGcpAuthsAndConfig
-  ensureGkeCluster
-  ensureRequiredNodePoolConfiguration
-  enableManagedCsiDriverIfNeeded
-  activateCluster
-  createKubernetesServiceAccountForCluster
+#  ensureGcpAuthsAndConfig
+#  ensureGkeCluster
+##  ensureRequiredNodePoolConfiguration
+#  enableManagedCsiDriverIfNeeded
+#  activateCluster
+#  createKubernetesServiceAccountForCluster
+##
+##  # GCSFuse driver source code
+#  ensureGcsfuseCode
+#
+#   #GCP/GKE configuration dependent on GCSFuse/CSI driver source code
+#  createCustomCsiDriverIfNeeded
 
-  # GCSFuse driver source code
-  ensureGcsfuseCode
-
-  # GCP/GKE configuration dependent on GCSFuse/CSI driver source code
-  createCustomCsiDriverIfNeeded
-
-  # Run latest workload configuration
+   #Run latest workload configuration
   deleteAllPods
   deployAllFioHelmCharts
-  deployAllDlioHelmCharts
 fi
 
 # monitor pods
@@ -703,5 +708,4 @@ deleteAllPods
 
 # parse outputs
 fetchAndParseFioOutputs
-echo "parsing"
-fetchAndParseDlioOutputs
+
