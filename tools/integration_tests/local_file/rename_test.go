@@ -105,7 +105,7 @@ func (t *commonLocalFileTestSuite) TestRenameOfLocalFileSucceedsAfterSync() {
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
 }
 
-func (t *localFileTestSuite) TestRenameOfDirectoryWithLocalFileSucceedsAfterSync() {
+func (t *commonLocalFileTestSuite) TestRenameOfDirectoryWithLocalFileSucceedsAfterSync() {
 	t.TestRenameOfDirectoryWithLocalFileFails()
 
 	// Attempt to rename directory again after sync.

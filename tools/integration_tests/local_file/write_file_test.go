@@ -96,7 +96,7 @@ func (t *commonLocalFileTestSuite) TestMultipleOutOfOrderWritesToNewFile() {
 		FileName1, expectedString, t.T())
 }
 
-func (t *localFileTestSuite) TestWritesToNewFileStartingAtNonZeroOffset() {
+func (t *commonLocalFileTestSuite) TestWritesToNewFileStartingAtNonZeroOffset() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
 	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())

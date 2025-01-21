@@ -22,7 +22,7 @@ import (
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/assert"
 )
 
 func (t *commonLocalFileTestSuite) TestStatOnLocalFile() {
@@ -96,7 +96,7 @@ func (t *localFileWithStreaminingWritesTestSuite) TestTruncateLocalFileToSmaller
 	// Truncate the file to update file size to smaller file size.
 	err := os.Truncate(filePath, SmallerSizeTruncate)
 	// Mounts with streaming writes do not supporting truncating files to smaller.
-	require.Error(t.T(), err)
+	assert.Error(t.T(), err)
 
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
 

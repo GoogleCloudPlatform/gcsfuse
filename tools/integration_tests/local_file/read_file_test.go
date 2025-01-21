@@ -18,6 +18,7 @@ package local_file_test
 import (
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/assert"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -56,10 +57,10 @@ func (t *localFileWithStreaminingWritesTestSuite) TestReadLocalFileWithStreaming
 	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, FileName1, t.T())
 	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, FileName1, t.T())
 
-	// Read the local file contents.
+	// Reading the local file content fails.
 	buf := make([]byte, len(content))
 	_, err := fh.ReadAt(buf, 0)
-	t.NotNil(err)
+	assert.Error(t.T(), err)
 	// Close the file and validate that the file is created on GCS.
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, FileName1, content, t.T())
 }
