@@ -41,7 +41,7 @@ def createHelmInstallCommands(
     instanceId: str,
     machineType: str,
     nodePool: str,
-    bufferLocation:str,
+    fileCacheLoc: str
 ) -> list:
   """Creates helm install commands for the given fioWorkload objects."""
   helm_commands = []
@@ -70,15 +70,14 @@ def createHelmInstallCommands(
           f'--set fio.filesPerThread={fioWorkload.filesPerThread}',
           f'--set fio.numThreads={fioWorkload.numThreads}',
           f'--set instanceId={instanceId}',
-          f'--set nodePool={nodePool}',
-          f'--set bufferLocation={bufferLocation}',
           (
               '--set'
               f' gcsfuse.mountOptions={escape_commas_in_string(fioWorkload.gcsfuseMountOptions)}'
           ),
-          f'--set '
           f'--set nodeType={machineType}',
           f'--set podName={podName}',
+          f'--set nodePool={nodePool}',
+          f'--set cacheLocation={fileCacheLoc}',
           f'--set outputDirPrefix={outputDirPrefix}',
           f"--set resourceLimits.cpu={resourceLimits['cpu']}",
           f"--set resourceLimits.memory={resourceLimits['memory']}",
@@ -99,8 +98,8 @@ def main(args) -> None:
       fioWorkloads,
       args.instance_id,
       args.machine_type,
-      args.nodePool,
-      args.bufferLocation,
+      args.node_pool,
+      args.file_cache_location
   )
   buckets = (fioWorkload.bucket for fioWorkload in fioWorkloads)
   role = 'roles/storage.objectUser'
