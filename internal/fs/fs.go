@@ -1714,6 +1714,9 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 
 	defer func() {
 		if err != nil {
+			if child == nil {
+				return
+			}
 			// fs.mu lock is already taken
 			delete(fs.localFileInodes, child.Name())
 		}

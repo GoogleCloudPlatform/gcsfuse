@@ -473,20 +473,6 @@ func Test_isValidWriteStreamingConfig_ErrorScenarios(t *testing.T) {
 			GlobalMaxBlocks:       -2,
 			MaxBlocksPerFile:      -1,
 		}},
-		{"0_global_max_blocks", WriteConfig{
-			BlockSizeMb:           10,
-			CreateEmptyFile:       false,
-			EnableStreamingWrites: true,
-			GlobalMaxBlocks:       0,
-			MaxBlocksPerFile:      -1,
-		}},
-		{"1_global_max_blocks", WriteConfig{
-			BlockSizeMb:           10,
-			CreateEmptyFile:       false,
-			EnableStreamingWrites: true,
-			GlobalMaxBlocks:       1,
-			MaxBlocksPerFile:      -1,
-		}},
 		{"-2_max_blocks_per_file", WriteConfig{
 			BlockSizeMb:           10,
 			CreateEmptyFile:       false,
@@ -500,13 +486,6 @@ func Test_isValidWriteStreamingConfig_ErrorScenarios(t *testing.T) {
 			EnableStreamingWrites: true,
 			GlobalMaxBlocks:       20,
 			MaxBlocksPerFile:      0,
-		}},
-		{"1_max_blocks_per_file", WriteConfig{
-			BlockSizeMb:           10,
-			CreateEmptyFile:       false,
-			EnableStreamingWrites: true,
-			GlobalMaxBlocks:       20,
-			MaxBlocksPerFile:      1,
 		}},
 	}
 
@@ -556,6 +535,27 @@ func Test_isValidWriteStreamingConfig_SuccessScenarios(t *testing.T) {
 			EnableStreamingWrites: true,
 			GlobalMaxBlocks:       40,
 			MaxBlocksPerFile:      20,
+		}},
+		{"0_global_max_blocks", WriteConfig{
+			BlockSizeMb:           10,
+			CreateEmptyFile:       false,
+			EnableStreamingWrites: true,
+			GlobalMaxBlocks:       0,
+			MaxBlocksPerFile:      -1,
+		}},
+		{"1_global_max_blocks", WriteConfig{
+			BlockSizeMb:           10,
+			CreateEmptyFile:       false,
+			EnableStreamingWrites: true,
+			GlobalMaxBlocks:       1,
+			MaxBlocksPerFile:      -1,
+		}},
+		{"1_max_blocks_per_file", WriteConfig{
+			BlockSizeMb:           10,
+			CreateEmptyFile:       false,
+			EnableStreamingWrites: true,
+			GlobalMaxBlocks:       20,
+			MaxBlocksPerFile:      1,
 		}},
 	}
 
