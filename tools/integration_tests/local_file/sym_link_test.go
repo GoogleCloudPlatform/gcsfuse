@@ -26,7 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
-func createAndVerifySymLink(streamingWritesEnabled bool, t *testing.T) (filePath, symlink string, fh *os.File) {
+func createAndVerifySymLink(t *testing.T) (filePath, symlink string, fh *os.File) {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
 	filePath, fh = CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
@@ -38,31 +38,57 @@ func createAndVerifySymLink(streamingWritesEnabled bool, t *testing.T) (filePath
 
 	// Read the link.
 	operations.VerifyReadLink(filePath, symlink, t)
-	if streamingWritesEnabled {
-		// Mounts with streaming writes do not support reading files.
-		return
-	}
-	operations.VerifyReadFile(symlink, FileContents, t)
 	return
 }
 
-func TestCreateSymlinkForLocalFile(t *testing.T) {
-	_, _, fh := createAndVerifySymLink(setup.StreamingWritesEnabled(), t)
+func (t *localFileTestSuite) TestCreateSymlinkForLocalFile() {
+	_, symlink, fh := createAndVerifySymLink(t.T())
+	// Read the file from symlink.
+	operations.VerifyReadFile(symlink, FileContents, t.T())
 	// Close the file and validate that the file is created on GCS.
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
-		FileName1, FileContents, t)
+		FileName1, FileContents, t.T())
 }
 
-func TestReadSymlinkForDeletedLocalFile(t *testing.T) {
-	filePath, symlink, fh := createAndVerifySymLink(setup.StreamingWritesEnabled(), t)
+func (t *localFileTestSuite) TestReadSymlinkForDeletedLocalFile() {
+	filePath, symlink, fh := createAndVerifySymLink(t.T())
+	// Read the file from symlink.
+	operations.VerifyReadFile(symlink, FileContents, t.T())
 	// Remove filePath and then close the fileHandle to avoid syncing to GCS.
 	operations.RemoveFile(filePath)
-	operations.CloseFileShouldNotThrowError(fh, t)
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t)
+	operations.CloseFileShouldNotThrowError(fh, t.T())
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
 
 	// Reading symlink should fail.
 	_, err := os.Stat(symlink)
 	if err == nil || !strings.Contains(err.Error(), "no such file or directory") {
-		t.Fatalf("Reading symlink for deleted local file did not fail.")
+		t.T().Fatalf("Reading symlink for deleted local file did not fail.")
+	}
+}
+
+func (t *localFileWithStreaminingWritesTestSuite) TestCreateSymlinkForLocalFileWithStreamingWritesReadFails() {
+	_, symlink, fh := createAndVerifySymLink(t.T())
+	// Read the file from symlink fails.
+	_, err := os.ReadFile(symlink)
+	t.NotNil(err)
+	// Close the file and validate that the file is created on GCS.
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
+		FileName1, FileContents, t.T())
+}
+
+func (t *localFileWithStreaminingWritesTestSuite) TestReadSymlinkForDeletedLocalFileWithStreamingWritesReadFails() {
+	filePath, symlink, fh := createAndVerifySymLink(t.T())
+	// Read the file from symlink fails
+	_, err := os.ReadFile(symlink)
+	t.NotNil(err)
+	// Remove filePath and then close the fileHandle to avoid syncing to GCS.
+	operations.RemoveFile(filePath)
+	operations.CloseFileShouldNotThrowError(fh, t.T())
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
+
+	// Reading symlink should fail.
+	_, err = os.Stat(symlink)
+	if err == nil || !strings.Contains(err.Error(), "no such file or directory") {
+		t.T().Fatalf("Reading symlink for deleted local file did not fail.")
 	}
 }

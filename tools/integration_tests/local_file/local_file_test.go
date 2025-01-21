@@ -30,6 +30,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/suite"
 )
 
 const (
@@ -38,9 +39,10 @@ const (
 )
 
 var (
-	testDirPath   string
-	storageClient *storage.Client
-	ctx           context.Context
+	currentTestSuite suite.TestingSuite
+	testDirPath      string
+	storageClient    *storage.Client
+	ctx              context.Context
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -64,6 +66,30 @@ func NewFileShouldGetSyncedToGCSAtClose(ctx context.Context, storageClient *stor
 
 	// Close the file and validate if the file is created on GCS.
 	client.CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, fileName, client.FileContents, t)
+}
+
+func RunTestsForFlagsSet(flagsSet [][]string, m *testing.M) (successCode int) {
+	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
+		flagsSet = append(flagsSet, hnsFlagSet)
+	}
+
+	if !testing.Short() {
+		setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--client-protocol=grpc")
+	}
+
+	successCode = static_mounting.RunTests(flagsSet, m)
+
+	if successCode == 0 {
+		successCode = only_dir_mounting.RunTests(flagsSet, onlyDirMounted, m)
+	}
+
+	// Dynamic mounting tests create a bucket and perform tests on that bucket,
+	// which is not a hierarchical bucket. So we are not running those tests with
+	// hierarchical bucket.
+	if successCode == 0 && !setup.IsHierarchicalBucket(ctx, storageClient) {
+		successCode = dynamic_mounting.RunTests(ctx, storageClient, flagsSet, m)
+	}
+	return successCode
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -94,33 +120,23 @@ func TestMain(m *testing.M) {
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()
 
-	// Set up flags to run tests on.
+	// Set up flags to run tests on local file test suite.
 	// Not setting config file explicitly with 'create-empty-file: false' as it is default.
-	flagsSet := [][]string{
+	localFileFlagsSet := [][]string{
 		{"--implicit-dirs=true", "--rename-dir-limit=3"},
 		{"--implicit-dirs=false", "--rename-dir-limit=3"},
+	}
+
+	// Set up flags to run tests on local file with streaming writes test suite.
+	localFileWithStreamingWritesFlagsSet := [][]string{
 		{"--enable-streaming-writes=true", "--write-block-size-mb=2", "--write-max-blocks-per-file=2"},
 	}
 
-	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
-		flagsSet = append(flagsSet, hnsFlagSet)
-	}
-
-	if !testing.Short() {
-		setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--client-protocol=grpc")
-	}
-
-	successCode := static_mounting.RunTests(flagsSet, m)
-
+	currentTestSuite = new(localFileTestSuite)
+	successCode := RunTestsForFlagsSet(localFileFlagsSet, m)
 	if successCode == 0 {
-		successCode = only_dir_mounting.RunTests(flagsSet, onlyDirMounted, m)
-	}
-
-	// Dynamic mounting tests create a bucket and perform tests on that bucket,
-	// which is not a hierarchical bucket. So we are not running those tests with
-	// hierarchical bucket.
-	if successCode == 0 && !setup.IsHierarchicalBucket(ctx, storageClient) {
-		successCode = dynamic_mounting.RunTests(ctx, storageClient, flagsSet, m)
+		currentTestSuite = new(localFileWithStreaminingWritesTestSuite)
+		successCode = RunTestsForFlagsSet(localFileWithStreamingWritesFlagsSet, m)
 	}
 
 	// Clean up test directory created.
