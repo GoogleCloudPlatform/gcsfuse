@@ -28,9 +28,9 @@ BUCKET_LOCATION=$3
 # Pass "true" to run e2e tests on TPC endpoint.
 # The default value will be false.
 RUN_TEST_ON_TPC_ENDPOINT=false
-# if [ $4 != "" ]; then
-  # RUN_TEST_ON_TPC_ENDPOINT=$4
-# fi
+if [ $4 != "" ]; then
+  RUN_TEST_ON_TPC_ENDPOINT=$4
+fi
 INTEGRATION_TEST_TIMEOUT_IN_MINS=90
 
 RUN_TESTS_WITH_PRESUBMIT_FLAG=false
