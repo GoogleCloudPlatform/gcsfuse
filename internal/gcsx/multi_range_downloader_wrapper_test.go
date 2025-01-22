@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/clock"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -54,7 +53,7 @@ func (t *mrdWrapperTest) SetupTest() {
 	// Create the bucket.
 	t.mockBucket = new(storage.TestifyMockBucket)
 	t.mrdTimeout = time.Millisecond
-	t.mrdWrapper = NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{WaitTime: t.mrdTimeout})
+	t.mrdWrapper = NewMultiRangeDownloaderWrapper(t.mockBucket, t.object)
 	t.mrdWrapper.Wrapped = fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond)
 	t.mrdWrapper.refCount = 0
 }
@@ -80,14 +79,11 @@ func (t *mrdWrapperTest) Test_IncrementRefCount_CancelCleanup() {
 	err := t.mrdWrapper.DecrementRefCount()
 
 	assert.Nil(t.T(), err)
-	assert.NotNil(t.T(), t.mrdWrapper.cancelCleanup)
-	assert.NotNil(t.T(), t.mrdWrapper.Wrapped)
+	assert.Nil(t.T(), t.mrdWrapper.Wrapped)
 
 	t.mrdWrapper.IncrementRefCount()
 
 	assert.Equal(t.T(), finalRefCount, t.mrdWrapper.refCount)
-	assert.Nil(t.T(), t.mrdWrapper.cancelCleanup)
-	assert.NotNil(t.T(), t.mrdWrapper.Wrapped)
 }
 
 func (t *mrdWrapperTest) Test_DecrementRefCount_ParallelUpdates() {
@@ -115,10 +111,6 @@ func (t *mrdWrapperTest) Test_DecrementRefCount_ParallelUpdates() {
 	wg.Wait()
 
 	assert.Equal(t.T(), finalRefCount, t.mrdWrapper.GetRefCount())
-	assert.NotNil(t.T(), t.mrdWrapper.Wrapped)
-	assert.NotNil(t.T(), t.mrdWrapper.cancelCleanup)
-	// Waiting for the cleanup to be done.
-	time.Sleep(t.mrdTimeout + time.Millisecond)
 	assert.Nil(t.T(), t.mrdWrapper.Wrapped)
 }
 
