@@ -38,6 +38,6 @@ type localFileWithStreaminingWritesTestSuite struct {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func TestCurrentTestSuite(t *testing.T) {
-	suite.Run(t, currentTestSuite)
+func TestLocalFileTestSuite(t *testing.T) {
+	suite.Run(t, new(localFileTestSuite))
 }
