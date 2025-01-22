@@ -67,7 +67,6 @@ func RunTests(flagsSet [][]string, m *testing.M) (successCode int) {
 
 	successCode = executeTestsForStaticMounting(flagsSet, m)
 
-	fmt.Println(setup.LogFile())
 	log.Printf("Test log: %s\n", setup.LogFile())
 
 	return successCode
