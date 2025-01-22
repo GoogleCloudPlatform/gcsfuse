@@ -509,3 +509,32 @@ func (t *FileStreamingWritesTest) TestWriteToFileAndSync() {
 		})
 	}
 }
+
+func (t *FileStreamingWritesTest) TestTruncateOnFileUsingTempFileDoesNotRecreatesBWH() {
+	assert.True(t.T(), t.in.IsLocal())
+	require.NotNil(t.T(), t.in.bwh)
+	// Out of order write.
+	err := t.in.Write(t.ctx, []byte("taco"), 2)
+	require.Nil(t.T(), err)
+	// Ensure bwh cleared and temp file created.
+	assert.Nil(t.T(), t.in.bwh)
+	assert.NotNil(t.T(), t.in.content)
+
+	err = t.in.Truncate(t.ctx, 10)
+	require.Nil(t.T(), err)
+
+	// Ensure bwh not re-created.
+	assert.Nil(t.T(), t.in.bwh)
+	// The inode should agree about the new size.
+	attrs, err := t.in.Attributes(t.ctx)
+	require.Nil(t.T(), err)
+	assert.Equal(t.T(), uint64(10), attrs.Size)
+	// sync file and validate content
+	gcsSynced, err := t.in.Sync(t.ctx)
+	require.Nil(t.T(), err)
+	assert.True(t.T(), gcsSynced)
+	// Read the object's contents.
+	contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
+	assert.Nil(t.T(), err)
+	assert.Equal(t.T(), "\x00\x00taco\x00\x00\x00\x00", string(contents))
+}

@@ -572,7 +572,7 @@ func (f *FileInode) Write(
 		}
 	}
 
-	if f.bwh != nil && !isTempFileInUse {
+	if f.bwh != nil {
 		err := f.writeUsingBufferedWrites(ctx, data, offset)
 		logger.Errorf("after buffered write handler = %v", f.bwh)
 		return err
@@ -878,8 +878,14 @@ func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 func (f *FileInode) Truncate(
 	ctx context.Context,
 	size int64) (err error) {
+
+	isTempFileInUse, err := f.isTempFileInUse()
+	if err != nil {
+		return err
+	}
+
 	// For empty GCS files also, we will trigger bufferedWrites flow.
-	if f.src.Size == 0 && f.config.Write.EnableStreamingWrites {
+	if f.src.Size == 0 && f.config.Write.EnableStreamingWrites && !isTempFileInUse {
 		err = f.ensureBufferedWriteHandler(ctx)
 		if err != nil {
 			return
