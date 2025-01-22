@@ -25,7 +25,3 @@ type localFileWithStreaminingWritesTestSuite struct {
 func TestCurrentTestSuite(t *testing.T) {
 	suite.Run(t, currentTestSuite)
 }
-
-func TestCommonLocalFileTestSuite(t *testing.T) {
-	suite.Run(t, &commonLocalFileTestSuite{})
-}
