@@ -149,7 +149,7 @@ spec:
         echo "fio job completed!"
     volumeMounts:
     - name: dshm
-      mountPath: /dev/shm
+      mountPath: /shm
     - name: data-vol
       mountPath: /data
   volumes:
@@ -161,8 +161,6 @@ spec:
         medium: Memory
     {{ end }}
   - name: gke-gcsfuse-buffer
-    emptyDir: {}
-  - name: gke-gcsfuse-tmp
     emptyDir: {}
   - name: dshm
     emptyDir:

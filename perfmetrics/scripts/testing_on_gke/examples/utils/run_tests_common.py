@@ -64,23 +64,6 @@ def parse_args():
       ),
       required=True,
   )
-  parser.add_argument(
-      '--nodePool',
-      metavar='A unique string ID to represent the node',
-      help=(
-          'for setting node affinity'
-      ),
-      required=False,
-  )
-
-  parser.add_argument(
-      '--bufferLocation',
-      metavar='where is the buffer location: bootDisk or memory',
-      help=(
-          'for setting node affinity'
-      ),
-      required=True,
-  )
 
   parser.add_argument(
       '--machine-type',
@@ -114,6 +97,18 @@ def parse_args():
       help='kubernetes service account of the user e.g. default',
       required=False,
       default='default',
+  )
+  parser.add_argument(
+      '--node-pool',
+      metavar='Node pool ',
+      help='node pool',
+      required=True,
+  )
+  parser.add_argument(
+      '--file-cache-location',
+      metavar='file cache loc',
+      help='file cache loc - boot or memory',
+      required=True,
   )
   parser.add_argument(
       '-n',
