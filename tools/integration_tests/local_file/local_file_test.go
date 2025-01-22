@@ -129,7 +129,7 @@ func TestMain(m *testing.M) {
 
 	// Set up flags to run tests on local file with streaming writes test suite.
 	localFileWithStreamingWritesFlagsSet := [][]string{
-		{"--enable-streaming-writes=true", "--write-block-size-mb=2", "--write-max-blocks-per-file=2"},
+		{"--rename-dir-limit=3", "--enable-streaming-writes=true", "--write-block-size-mb=2", "--write-max-blocks-per-file=2"},
 	}
 
 	currentTestSuite = new(localFileTestSuite)
