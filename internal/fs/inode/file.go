@@ -558,19 +558,39 @@ func (f *FileInode) Write(
 	ctx context.Context,
 	data []byte,
 	offset int64) error {
+
+	isTempFileInUse, err := f.isTempFileInUse()
+	if err != nil {
+		return err
+	}
+
 	// For empty GCS files also we will trigger bufferedWrites flow.
-	if f.src.Size == 0 && f.config.Write.EnableStreamingWrites {
+	if f.src.Size == 0 && f.config.Write.EnableStreamingWrites && !isTempFileInUse {
 		err := f.ensureBufferedWriteHandler(ctx)
 		if err != nil {
 			return err
 		}
 	}
 
-	if f.bwh != nil {
-		return f.writeUsingBufferedWrites(ctx, data, offset)
+	if f.bwh != nil && !isTempFileInUse {
+		err := f.writeUsingBufferedWrites(ctx, data, offset)
+		logger.Errorf("after buffered write handler = %v", f.bwh)
+		return err
 	}
 
 	return f.writeUsingTempFile(ctx, data, offset)
+}
+
+func (f *FileInode) isTempFileInUse() (bool, error) {
+	if f.content == nil {
+		return false, nil
+	}
+	statRes, err := f.content.Stat()
+	if err != nil {
+		return false, err
+	}
+
+	return statRes.Size > 0, nil
 }
 
 // Helper function to serve write for file using temp file.
