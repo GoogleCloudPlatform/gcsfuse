@@ -34,8 +34,7 @@ var FileOne = "fileOne" + setup.GenerateRandomString(5) + ".txt"
 var FileTwo = "fileTwo" + setup.GenerateRandomString(5) + ".txt"
 var FileThree = "fileThree" + setup.GenerateRandomString(5) + ".txt"
 
-func writeFile(fileName string, fileSize int64, t *testing.T) error {
-	filePath := path.Join(setup.MntDir(), DirForConcurrentWrite, fileName)
+func writeFile(filePath string, fileSize int64) error {
 	f, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, WritePermission_0200)
 	if err != nil {
 		return fmt.Errorf("Open file for write at start: %v", err)
@@ -43,20 +42,13 @@ func writeFile(fileName string, fileSize int64, t *testing.T) error {
 
 	// Closing file at the end.
 	defer operations.CloseFile(f)
+	return operations.WriteChunkOfRandomBytesToFile(f, int(fileSize), 0)
+}
 
-	err = operations.WriteChunkOfRandomBytesToFile(f, int(fileSize), 0)
-	if err != nil {
-		return fmt.Errorf("Error: %v", err)
-	}
-
+func validateFileContents(fileName string, mntFilePath string, t *testing.T) error {
 	filePathInGcsBucket := path.Join(DirForConcurrentWrite, fileName)
 	localFilePath := path.Join(TmpDir, fileName)
-	err = compareFileFromGCSBucketAndMntDir(filePathInGcsBucket, filePath, localFilePath, t)
-	if err != nil {
-		return fmt.Errorf("Error: %v", err)
-	}
-
-	return nil
+	return compareFileFromGCSBucketAndMntDir(filePathInGcsBucket, mntFilePath, localFilePath, t)
 }
 
 func TestMultipleFilesAtSameTime(t *testing.T) {
@@ -77,7 +69,13 @@ func TestMultipleFilesAtSameTime(t *testing.T) {
 
 		// Thread to write the current file.
 		eG.Go(func() error {
-			return writeFile(files[fileIndex], FiveHundredMB, t)
+			mntFilePath := path.Join(setup.MntDir(), DirForConcurrentWrite, files[fileIndex])
+			err := writeFile(mntFilePath, FiveHundredMB)
+			if err != nil {
+				return fmt.Errorf("WriteError: %v", err)
+			}
+
+			return validateFileContents(files[fileIndex], mntFilePath, t)
 		})
 	}
 

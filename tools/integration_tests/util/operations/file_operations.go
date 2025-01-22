@@ -476,6 +476,14 @@ func CreateFile(filePath string, filePerms os.FileMode, t testing.TB) (f *os.Fil
 	return
 }
 
+func OpenFile(filePath string, t testing.TB) (f *os.File) {
+	f, err := os.OpenFile(filePath, os.O_RDWR, FilePermission_0777)
+	if err != nil {
+		t.Fatalf("OpenFile(%s): %v", filePath, err)
+	}
+	return
+}
+
 func CreateSymLink(filePath, symlink string, t *testing.T) {
 	err := os.Symlink(filePath, symlink)
 
