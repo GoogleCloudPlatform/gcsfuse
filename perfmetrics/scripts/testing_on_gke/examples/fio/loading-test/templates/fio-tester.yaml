@@ -17,6 +17,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: {{ .Values.podName }}
+  namespace: {{ .Values.namespace }}
   annotations:
     gke-gcsfuse/volumes: "true"
 spec:

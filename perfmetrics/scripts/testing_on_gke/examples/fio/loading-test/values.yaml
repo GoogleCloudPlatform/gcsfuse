@@ -27,6 +27,7 @@ podName:
 outputDirPrefix:
 nodePool:
 cacheLocation:
+namespace:
 
 resourceLimits:
   cpu: 0
