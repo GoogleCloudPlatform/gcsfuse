@@ -4,7 +4,7 @@ num_nodes=$2
 nodepool=$3
 vpc_network=$4
 
-bootDiskSize=100gb
+bootDiskSize=2tb
 cache_location=<memory/boot>
 filecacheConfig=<Off/On>
 node_pool=$nodepool
