@@ -32,7 +32,7 @@ import (
 
 // Timeout value which determines when the MultiRangeDownloader will be closed after
 // it's refcount reaches 0.
-// TODO b/391508479 : Reset it back to an appropriate value
+// TODO (b/391508479): Reset it back to an appropriate value & rename it to multiRangeDownloaderCleanupTimeout.
 const multiRangeDownloaderTimeout = 0
 
 func NewMultiRangeDownloaderWrapper(bucket gcs.Bucket, object *gcs.MinObject) MultiRangeDownloaderWrapper {
@@ -117,10 +117,9 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) cleanupMultiRangeDownloader() {
 	closeMRD := func(ctx context.Context) {
 		select {
 		case <-mrdWrapper.clock.After(multiRangeDownloaderTimeout):
-			/* TODO b/391508479: Restore locks when closeMRD is called asynchronously
-			mrdWrapper.mu.Lock()
-			defer mrdWrapper.mu.Unlock()
-			*/
+			// TODO (b/391508479): Restore locks when closeMRD is called asynchronously.
+			// mrdWrapper.mu.Lock()
+			// defer mrdWrapper.mu.Unlock()
 
 			if mrdWrapper.refCount == 0 && mrdWrapper.Wrapped != nil {
 				mrdWrapper.Wrapped.Close()
@@ -132,11 +131,10 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) cleanupMultiRangeDownloader() {
 		}
 	}
 
-	/* TODO b/391508479: Start using cancelCleanup function & call closeMRD asynchronously
-	ctx, cancel := context.WithCancel(context.Background())
-	mrdWrapper.cancelCleanup = cancel
-	go closeMRD(ctx)
-	*/
+	// TODO (b/391508479): Start using cancelCleanup function & call closeMRD asynchronously.
+	// ctx, cancel := context.WithCancel(context.Background())
+	// mrdWrapper.cancelCleanup = cancel
+	// go closeMRD(ctx)
 	closeMRD(context.Background())
 }
 
