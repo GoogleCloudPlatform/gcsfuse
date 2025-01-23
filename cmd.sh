@@ -5,8 +5,8 @@ nodepool=$3
 vpc_network=$4
 
 bootDiskSize=2tb
-cache_location=<memory/boot>
-filecacheConfig=<Off/On>
+cache_location=memory
+filecacheConfig=on
 node_pool=$nodepool
 instance_id=filecache${filecacheConfig}-buffer-${cache_location}-boot-${bootDiskSize}
 namespace="${cache_location}-${bootDiskSize}"

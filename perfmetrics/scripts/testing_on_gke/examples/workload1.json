@@ -12,7 +12,7 @@
             "readTypes": ["read"]
           },
           "gcsfuseMountOptions": "implicit-dirs,metadata-cache:ttl-secs:-1,metadata-cache:type-cache-max-size-mb:-1,metadata-cache:stat-cache-max-size-mb:-1,file-cache:max-size-mb:-1,file-cache:cache-file-for-range-read:true",
-          "bucket":"<ldap>-fio-64k-1m-us-central2",
+          "bucket":"mpise-fio-64k-1m-us-central2",
           "_bucket_alt2":"fio-64k-1m-us-central1",
           "_bucket_alt3":"gke-fio-64k-1m"
         },
@@ -25,7 +25,7 @@
             "readTypes": ["read"]
           },
           "gcsfuseMountOptions": "implicit-dirs,metadata-cache:ttl-secs:-1,metadata-cache:type-cache-max-size-mb:-1,metadata-cache:stat-cache-max-size-mb:-1,file-cache:max-size-mb:-1,file-cache:cache-file-for-range-read:true",
-          "bucket":"<ldap>-fio-128k-1m-us-central2",
+          "bucket":"mpise-fio-128k-1m-us-central2",
           "_bucket_alt2":"fio-128k-1m-us-central1",
           "_bucket_alt3":"gke-fio-128k-1m"
         },
@@ -38,7 +38,7 @@
             "readTypes": ["read","randread"]
           },
           "gcsfuseMountOptions": "implicit-dirs,metadata-cache:ttl-secs:-1,metadata-cache:type-cache-max-size-mb:-1,metadata-cache:stat-cache-max-size-mb:-1,file-cache:max-size-mb:-1,file-cache:cache-file-for-range-read:true",
-          "bucket":"<ldap>-fio-1mb-1m-us-central2",
+          "bucket":"mpise-fio-1mb-1m-us-central2",
           "_bucket_alt2":"fio-1mb-1m-us-central1",
           "_bucket_alt3":"gke-fio-1mb-1m"
         },
@@ -51,7 +51,7 @@
             "readTypes": ["read"]
           },
           "gcsfuseMountOptions": "implicit-dirs,metadata-cache:ttl-secs:-1,metadata-cache:type-cache-max-size-mb:-1,metadata-cache:stat-cache-max-size-mb:-1,file-cache:max-size-mb:-1,file-cache:cache-file-for-range-read:true",
-          "bucket":"<ldap>-fio-100mb-50k-us-central2",
+          "bucket":"mpise-fio-100mb-50k-us-central2",
           "_bucket_alt2":"fio-100mb-50k-us-central1",
           "_bucket_alt3":"gke-fio-100mb-50k"
         },
@@ -65,7 +65,7 @@
             "readTypes": ["read"]
           },
           "gcsfuseMountOptions": "implicit-dirs,metadata-cache:ttl-secs:-1,metadata-cache:type-cache-max-size-mb:-1,metadata-cache:stat-cache-max-size-mb:-1,file-cache:max-size-mb:-1,file-cache:cache-file-for-range-read:true",
-          "bucket":"<ldap>-fio-200gb-1-us-central2",
+          "bucket":"mpise-fio-200gb-1-us-central2",
           "_bucket_alt2":"fio-200gb-1-us-central1",
           "_bucket_alt3":"gke-fio-200gb-1"
         },
@@ -78,7 +78,7 @@
             "readTypes": ["read"]
           },
           "gcsfuseMountOptions": "implicit-dirs,metadata-cache:ttl-secs:-1,metadata-cache:type-cache-max-size-mb:-1,metadata-cache:stat-cache-max-size-mb:-1,file-cache:max-size-mb:-1,file-cache:cache-file-for-range-read:true",
-          "bucket":"<ldap>-fio-10g-500-us-central2",
+          "bucket":"mpise-fio-10g-500-us-central2",
           "_bucket_alt2":"fio-10g-500-us-central1"
         }
       ]
