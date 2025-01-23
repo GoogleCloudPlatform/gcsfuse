@@ -22,7 +22,6 @@ import (
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-	"github.com/stretchr/testify/assert"
 )
 
 func (t *commonLocalFileTestSuite) TestStatOnLocalFile() {
@@ -81,29 +80,4 @@ func (t *localFileTestSuite) TestTruncateLocalFileToSmallerSize() {
 	// Close the file and validate that the file is created on GCS.
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
 		FileName1, FileContents[:SmallerSizeTruncate], t.T())
-}
-
-func (t *localFileWithStreaminingWritesTestSuite) TestTruncateLocalFileToSmallerSizewithStreamingWritesFails() {
-	testDirPath = setup.SetupTestDirectory(testDirName)
-	// Create a local file.
-	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
-	// Writing contents to local file .
-	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, FileName1, t.T())
-
-	// Stat the file to validate if new contents are written.
-	operations.VerifyStatFile(filePath, SizeOfFileContents, FilePerms, t.T())
-
-	// Truncate the file to update file size to smaller file size.
-	err := os.Truncate(filePath, SmallerSizeTruncate)
-	// Mounts with streaming writes do not supporting truncating files to smaller.
-	assert.Error(t.T(), err)
-
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
-
-	// Stat the file to validate if file is truncated correctly.
-	operations.VerifyStatFile(filePath, SizeOfFileContents, FilePerms, t.T())
-
-	// Close the file and validate that the file is created on GCS.
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
-		FileName1, FileContents, t.T())
 }

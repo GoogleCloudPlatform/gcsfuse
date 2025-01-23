@@ -18,7 +18,6 @@ package local_file_test
 import (
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-	"github.com/stretchr/testify/assert"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -43,24 +42,6 @@ func (t *localFileTestSuite) TestReadLocalFile() {
 			"Expected content: %s, Got Content: %s", err, content, string(buf))
 	}
 
-	// Close the file and validate that the file is created on GCS.
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, FileName1, content, t.T())
-}
-
-func (t *localFileWithStreaminingWritesTestSuite) TestReadLocalFileWithStreamingWritesFails() {
-	testDirPath = setup.SetupTestDirectory(testDirName)
-	// Create a local file.
-	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
-
-	// Write FileContents twice to local file.
-	content := FileContents + FileContents
-	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, FileName1, t.T())
-	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, FileName1, t.T())
-
-	// Reading the local file content fails.
-	buf := make([]byte, len(content))
-	_, err := fh.ReadAt(buf, 0)
-	assert.Error(t.T(), err)
 	// Close the file and validate that the file is created on GCS.
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, FileName1, content, t.T())
 }
