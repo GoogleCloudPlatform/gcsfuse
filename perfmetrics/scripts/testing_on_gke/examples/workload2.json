@@ -1,0 +1,87 @@
+{
+  "TestConfig": {
+    "workloadConfig": {
+      "runOnSSD": false,
+      "workloads": [
+        {
+          "fioWorkload": {
+            "fileSize": "64k",
+            "filesPerThread": 20000,
+            "numThreads": 50,
+            "blockSize": "64K",
+            "readTypes": ["read"]
+          },
+          "gcsfuseMountOptions": "implicit-dirs,metadata-cache:ttl-secs:-1,metadata-cache:type-cache-max-size-mb:-1,metadata-cache:stat-cache-max-size-mb:-1,file-cache:max-size-mb:-1,file-cache:cache-file-for-range-read:true,file-cache:enable-parallel-downloads:true",
+          "bucket":"<ldap>-fio-64k-1m-us-central2",
+          "_bucket_alt2":"fio-64k-1m-us-central1",
+          "_bucket_alt3":"gke-fio-64k-1m"
+        },
+        {
+          "fioWorkload": {
+            "fileSize": "128K",
+            "filesPerThread": 20000,
+            "numThreads": 50,
+            "blockSize": "128K",
+            "readTypes": ["read"]
+          },
+          "gcsfuseMountOptions": "implicit-dirs,metadata-cache:ttl-secs:-1,metadata-cache:type-cache-max-size-mb:-1,metadata-cache:stat-cache-max-size-mb:-1,file-cache:max-size-mb:-1,file-cache:cache-file-for-range-read:true,file-cache:enable-parallel-downloads:true",
+          "bucket":"<ldap>-fio-128k-1m-us-central2",
+          "_bucket_alt2":"fio-128k-1m-us-central1",
+          "_bucket_alt3":"gke-fio-128k-1m"
+        },
+        {
+          "fioWorkload": {
+            "fileSize": "1M",
+            "filesPerThread": 20000,
+            "numThreads": 50,
+            "blockSize": "256K",
+            "readTypes": ["read","randread"]
+          },
+          "gcsfuseMountOptions": "implicit-dirs,metadata-cache:ttl-secs:-1,metadata-cache:type-cache-max-size-mb:-1,metadata-cache:stat-cache-max-size-mb:-1,file-cache:max-size-mb:-1,file-cache:cache-file-for-range-read:true,file-cache:enable-parallel-downloads:true",
+          "bucket":"<ldap>-fio-1mb-1m-us-central2",
+          "_bucket_alt2":"fio-1mb-1m-us-central1",
+          "_bucket_alt3":"gke-fio-1mb-1m"
+        },
+        {
+          "fioWorkload": {
+            "fileSize": "100M",
+            "filesPerThread": 1000,
+            "numThreads": 50,
+            "blockSize": "1M",
+            "readTypes": ["read"]
+          },
+          "gcsfuseMountOptions": "implicit-dirs,metadata-cache:ttl-secs:-1,metadata-cache:type-cache-max-size-mb:-1,metadata-cache:stat-cache-max-size-mb:-1,file-cache:max-size-mb:-1,file-cache:cache-file-for-range-read:true,file-cache:enable-parallel-downloads:true",
+          "bucket":"<ldap>-fio-100mb-50k-us-central2",
+          "_bucket_alt2":"fio-100mb-50k-us-central1",
+          "_bucket_alt3":"gke-fio-100mb-50k"
+        },
+        {
+          "fioWorkload": {
+            "_description": "This workload's job file is configured differently from the rest. It has one file, whis is read in parallel depending on the value of numThreads (only 100 supported right now).",
+            "fileSize": "200G",
+            "filesPerThread": 1,
+            "numThreads": 100,
+            "blockSize": "1M",
+            "readTypes": ["read"]
+          },
+          "gcsfuseMountOptions": "implicit-dirs,metadata-cache:ttl-secs:-1,metadata-cache:type-cache-max-size-mb:-1,metadata-cache:stat-cache-max-size-mb:-1,file-cache:max-size-mb:-1,file-cache:cache-file-for-range-read:true,file-cache:enable-parallel-downloads:true",
+          "bucket":"<ldap>-fio-200gb-1-us-central2",
+          "_bucket_alt2":"fio-200gb-1-us-central1",
+          "_bucket_alt3":"gke-fio-200gb-1"
+        },
+        {
+          "fioWorkload": {
+            "fileSize": "10G",
+            "filesPerThread": 16,
+            "numThreads": 1,
+            "blockSize": "1M",
+            "readTypes": ["read"]
+          },
+          "gcsfuseMountOptions": "implicit-dirs,metadata-cache:ttl-secs:-1,metadata-cache:type-cache-max-size-mb:-1,metadata-cache:stat-cache-max-size-mb:-1,file-cache:max-size-mb:-1,file-cache:cache-file-for-range-read:true,file-cache:enable-parallel-downloads:true",
+          "bucket":"<ldap>-fio-10g-500-us-central2",
+          "_bucket_alt2":"fio-10g-500-us-central1"
+        }
+      ]
+    }
+  }
+}
