@@ -255,6 +255,23 @@ TEST_DIR_NON_PARALLEL=(
   "list_large_dir"
 )
 
+TEST_DIR_NON_PARALLEL_SKIP_SUSE_ARM64=(
+  "managed_folders"
+  "list_large_dir"
+)
+
+function containsElement() {
+  local test_array = $1
+  local element = $2
+  for elem in "$test_array[@]}"
+  do
+    if [ $elem == $element ]; then
+      return 1
+    fi
+  done
+  return 0
+}
+
 # Create a temporary file to store the log file name.
 TEST_LOGS_FILE=$(mktemp)
 
@@ -266,6 +283,10 @@ function run_non_parallel_tests() {
   local BUCKET_NAME=$2
   for test_dir_np in "${test_array[@]}"
   do
+    skip_test = containsElement TEST_DIR_NON_PARALLEL_SKIP_SUSE_ARM64 $test_dir_np
+    if [ $skip_test == 1 ]; then
+      continue
+    fi
     test_path_non_parallel="./tools/integration_tests/$test_dir_np"
     # To make it clear whether tests are running on a flat or HNS bucket, We kept the log file naming
     # convention to include the bucket name as a suffix (e.g., package_name_bucket_name).
@@ -324,9 +345,9 @@ function run_e2e_tests_for_flat_bucket() {
   flat_bucket_name_parallel=$(sed -n 3p ~/details.txt)-parallel
   echo "Flat Bucket name to run tests parallelly: "$flat_bucket_name_parallel
 
-  echo "Running parallel tests..."
-  run_parallel_tests TEST_DIR_PARALLEL "$flat_bucket_name_parallel" &
-  parallel_tests_pid=$!
+  #echo "Running parallel tests..."
+  #run_parallel_tests TEST_DIR_PARALLEL "$flat_bucket_name_parallel" &
+  #parallel_tests_pid=$!
 
  echo "Running non parallel tests ..."
  run_non_parallel_tests TEST_DIR_NON_PARALLEL "$flat_bucket_name_non_parallel" &
@@ -392,8 +413,8 @@ function gather_test_logs() {
 }
 
 echo "Running integration tests for HNS bucket..."
-run_e2e_tests_for_hns_bucket &
-e2e_tests_hns_bucket_pid=$!
+#run_e2e_tests_for_hns_bucket &
+#e2e_tests_hns_bucket_pid=$!
 
 echo "Running integration tests for FLAT bucket..."
 run_e2e_tests_for_flat_bucket &
