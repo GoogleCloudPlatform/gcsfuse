@@ -56,6 +56,7 @@ type MultiRangeDownloaderWrapper struct {
 	Wrapped gcs.MultiRangeDownloader
 
 	// Bucket and object details for MultiRangeDownloader.
+	// Object should not be nil.
 	object *gcs.MinObject
 	bucket gcs.Bucket
 
@@ -67,6 +68,11 @@ type MultiRangeDownloaderWrapper struct {
 	cancelCleanup context.CancelFunc
 	// Used for waiting for timeout (helps us in mocking the functionality).
 	clock clock.Clock
+}
+
+// Sets the gcs.MinObject stored in the wrapper to passed value.
+func (mrdWrapper *MultiRangeDownloaderWrapper) SetMinObject(minObj *gcs.MinObject) {
+	mrdWrapper.object = minObj
 }
 
 // Returns current refcount.
@@ -136,6 +142,10 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) cleanupMultiRangeDownloader() {
 
 // Ensures that MultiRangeDownloader exists, creating it if it does not exist.
 func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader() (err error) {
+	if mrdWrapper.object == nil || mrdWrapper.bucket == nil {
+		return fmt.Errorf("ensureMultiRangeDownloader error: Missing minObject or bucket")
+	}
+
 	if mrdWrapper.Wrapped == nil {
 		mrdWrapper.Wrapped, err = mrdWrapper.bucket.NewMultiRangeDownloader(context.Background(), &gcs.MultiRangeDownloaderRequest{
 			Name:           mrdWrapper.object.Name,
@@ -158,6 +168,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 	err = mrdWrapper.ensureMultiRangeDownloader()
 	if err != nil {
 		err = fmt.Errorf("MultiRangeDownloaderWrapper::Read: Error in creating MultiRangeDownloader:  %v", err)
+		mrdWrapper.Wrapped = nil
 		return
 	}
 
