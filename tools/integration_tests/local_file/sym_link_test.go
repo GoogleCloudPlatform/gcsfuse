@@ -38,22 +38,18 @@ func createAndVerifySymLink(t *testing.T) (filePath, symlink string, fh *os.File
 
 	// Read the link.
 	operations.VerifyReadLink(filePath, symlink, t)
+	operations.VerifyReadFile(symlink, FileContents, t)
 	return
 }
 
 func (t *localFileTestSuite) TestCreateSymlinkForLocalFile() {
-	_, symlink, fh := createAndVerifySymLink(t.T())
-	// Read the file from symlink.
-	operations.VerifyReadFile(symlink, FileContents, t.T())
-	// Close the file and validate that the file is created on GCS.
+	_, _, fh := createAndVerifySymLink(t.T())
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
 		FileName1, FileContents, t.T())
 }
 
 func (t *localFileTestSuite) TestReadSymlinkForDeletedLocalFile() {
 	filePath, symlink, fh := createAndVerifySymLink(t.T())
-	// Read the file from symlink.
-	operations.VerifyReadFile(symlink, FileContents, t.T())
 	// Remove filePath and then close the fileHandle to avoid syncing to GCS.
 	operations.RemoveFile(filePath)
 	operations.CloseFileShouldNotThrowError(fh, t.T())
