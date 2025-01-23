@@ -43,7 +43,7 @@ fio:
   numThreads: "50"
 
 gcsfuse:
-  metadataCacheTTLSeconds: "6048000"
+  metadataCacheTTLSeconds: "-1"
   metadataStatCacheCapacity: "-1"
   metadataTypeCacheCapacity: "-1"
   fileCacheCapacity: "-1"
