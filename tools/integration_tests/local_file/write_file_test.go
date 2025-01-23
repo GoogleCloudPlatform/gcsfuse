@@ -97,8 +97,6 @@ func (t *commonLocalFileTestSuite) TestMultipleOutOfOrderWritesToNewFile() {
 }
 
 func (t *commonLocalFileTestSuite) TestWritesToNewFileStartingAtNonZeroOffset() {
-	// TODO(mohitkyadav): Start running test again once the fix for this test is done.
-	t.T().SkipNow()
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
 	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
