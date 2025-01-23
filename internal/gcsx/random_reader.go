@@ -359,7 +359,12 @@ func (rr *randomReader) ReadAt(
 		rr.closeReader()
 		rr.reader = nil
 		rr.cancel = nil
-		rr.seeks++
+		if rr.start != offset {
+			// We should only increase the seek count if we have to discard the reader when it's
+			// positioned at wrong place. Discarding it if can't serve the entire require would
+			// result in reader size not growing for random reads scenario.
+			rr.seeks++
+		}
 	}
 
 	if rr.reader != nil {
