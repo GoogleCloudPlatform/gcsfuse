@@ -24,6 +24,8 @@ import (
 type defaultMountCommonTest struct {
 	f1       *os.File
 	fileName string
+	// filePath of the above file in the mounted directory.
+	filePath string
 	suite.Suite
 }
 
