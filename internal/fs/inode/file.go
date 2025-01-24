@@ -559,23 +559,13 @@ func (f *FileInode) Write(
 	data []byte,
 	offset int64) error {
 
-	isTempFileInUse, err := f.isTempFileInUse()
+	err := f.initBufferedWriteHandlerIfEligible(ctx)
 	if err != nil {
 		return err
 	}
 
-	// For empty GCS files also we will trigger bufferedWrites flow.
-	if f.src.Size == 0 && f.config.Write.EnableStreamingWrites && !isTempFileInUse {
-		err := f.ensureBufferedWriteHandler(ctx)
-		if err != nil {
-			return err
-		}
-	}
-
 	if f.bwh != nil {
-		err := f.writeUsingBufferedWrites(ctx, data, offset)
-		logger.Errorf("after buffered write handler = %v", f.bwh)
-		return err
+		return f.writeUsingBufferedWrites(ctx, data, offset)
 	}
 
 	return f.writeUsingTempFile(ctx, data, offset)
@@ -879,17 +869,9 @@ func (f *FileInode) Truncate(
 	ctx context.Context,
 	size int64) (err error) {
 
-	isTempFileInUse, err := f.isTempFileInUse()
+	err = f.initBufferedWriteHandlerIfEligible(ctx)
 	if err != nil {
 		return err
-	}
-
-	// For empty GCS files also, we will trigger bufferedWrites flow.
-	if f.src.Size == 0 && f.config.Write.EnableStreamingWrites && !isTempFileInUse {
-		err = f.ensureBufferedWriteHandler(ctx)
-		if err != nil {
-			return
-		}
 	}
 
 	if f.bwh != nil {
@@ -934,6 +916,23 @@ func (f *FileInode) CreateBufferedOrTempWriter(ctx context.Context) (err error) 
 	// Setting the initial mtime to creation time.
 	f.content.SetMtime(f.mtimeClock.Now())
 	return
+}
+
+func (f *FileInode) initBufferedWriteHandlerIfEligible(ctx context.Context) error {
+	isTempFileInUse, err := f.isTempFileInUse()
+	if err != nil {
+		return fmt.Errorf("f.isTempFileInUse: %w", err)
+	}
+
+	// For empty GCS files also we will trigger bufferedWrites flow.
+	if f.src.Size == 0 && f.config.Write.EnableStreamingWrites && !isTempFileInUse {
+		err := f.ensureBufferedWriteHandler(ctx)
+		if err != nil {
+			return fmt.Errorf("f.ensureBufferedWriteHandler: %w", err)
+		}
+	}
+
+	return nil
 }
 
 func (f *FileInode) ensureBufferedWriteHandler(ctx context.Context) error {
