@@ -94,7 +94,7 @@ func TestMain(m *testing.M) {
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()
 
-	// Set up flags to run tests on.
+	// Set up flags to run tests on local file test suite.
 	// Not setting config file explicitly with 'create-empty-file: false' as it is default.
 	flagsSet := [][]string{
 		{"--implicit-dirs=true", "--rename-dir-limit=3"},
