@@ -675,25 +675,25 @@ function fetchAndParseDlioOutputs() {
 
 # prep
 printRunParameters
-#installDependencies
+installDependencies
 
 # if only_parse is not set or is set as false, then
 if test -z ${only_parse} || ! ${only_parse} ; then
   #validateMachineConfig ${machine_type} ${num_nodes} ${num_ssd}
 
   # GCP configuration
-#  ensureGcpAuthsAndConfig
-#  ensureGkeCluster
+  ensureGcpAuthsAndConfig
+  ensureGkeCluster
 ##  ensureRequiredNodePoolConfiguration
-#  enableManagedCsiDriverIfNeeded
-#  activateCluster
-#  createKubernetesServiceAccountForCluster
+  enableManagedCsiDriverIfNeeded
+  activateCluster
+  createKubernetesServiceAccountForCluster
 ##
 ##  # GCSFuse driver source code
-#  ensureGcsfuseCode
+  ensureGcsfuseCode
 #
 #   #GCP/GKE configuration dependent on GCSFuse/CSI driver source code
-#  createCustomCsiDriverIfNeeded
+  createCustomCsiDriverIfNeeded
 
    #Run latest workload configuration
   deleteAllPods
