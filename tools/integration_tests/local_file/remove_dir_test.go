@@ -27,7 +27,7 @@ import (
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *commonLocalFileTestSuite) TestRmDirOfDirectoryContainingGCSAndLocalFiles() {
+func (t *CommonLocalFileTestSuite) TestRmDirOfDirectoryContainingGCSAndLocalFiles() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create explicit directory with one synced and one local file.
 	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t.T())
@@ -52,7 +52,7 @@ func (t *commonLocalFileTestSuite) TestRmDirOfDirectoryContainingGCSAndLocalFile
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, ExplicitDirName, t.T())
 }
 
-func (t *commonLocalFileTestSuite) TestRmDirOfDirectoryContainingOnlyLocalFiles() {
+func (t *CommonLocalFileTestSuite) TestRmDirOfDirectoryContainingOnlyLocalFiles() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a directory with two local files.
 	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t.T())

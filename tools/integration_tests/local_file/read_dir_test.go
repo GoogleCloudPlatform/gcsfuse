@@ -58,7 +58,7 @@ func readingDirNTimesShouldNotThrowError(n int, wg *sync.WaitGroup, t *testing.T
 // Tests
 // //////////////////////////////////////////////////////////////////////
 
-func (t *commonLocalFileTestSuite) TestReadDir() {
+func (t *CommonLocalFileTestSuite) TestReadDir() {
 	// Structure
 	// mntDir/
 	// mntDir/explicit/		    				--- directory
@@ -104,7 +104,7 @@ func (t *commonLocalFileTestSuite) TestReadDir() {
 		GCSFileContent, t.T())
 }
 
-func (t *commonLocalFileTestSuite) TestRecursiveListingWithLocalFiles() {
+func (t *CommonLocalFileTestSuite) TestRecursiveListingWithLocalFiles() {
 	// Structure
 	// mntDir/
 	// mntDir/foo1 										--- file
@@ -159,7 +159,7 @@ func (t *commonLocalFileTestSuite) TestRecursiveListingWithLocalFiles() {
 		path.Join(ExplicitDirName, ExplicitFileName1), "", t.T())
 }
 
-func (t *commonLocalFileTestSuite) TestReadDirWithSameNameLocalAndGCSFile() {
+func (t *CommonLocalFileTestSuite) TestReadDirWithSameNameLocalAndGCSFile() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create local file.
 	_, fh1 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
@@ -178,7 +178,7 @@ func (t *commonLocalFileTestSuite) TestReadDirWithSameNameLocalAndGCSFile() {
 	operations.ValidateStaleNFSFileHandleError(t.T(), err)
 }
 
-func (t *commonLocalFileTestSuite) TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError() {
+func (t *CommonLocalFileTestSuite) TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -190,7 +190,7 @@ func (t *commonLocalFileTestSuite) TestConcurrentReadDirAndCreationOfLocalFiles_
 	wg.Wait()
 }
 
-func (t *commonLocalFileTestSuite) TestStatLocalFileAfterRecreatingItWithSameName() {
+func (t *CommonLocalFileTestSuite) TestStatLocalFileAfterRecreatingItWithSameName() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	filePath := path.Join(testDirPath, FileName1)
 	operations.CreateFile(filePath, FilePerms, t.T())

@@ -41,7 +41,7 @@ func verifyRenameOperationNotSupported(err error, t *testing.T) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *commonLocalFileTestSuite) TestRenameOfLocalFileFails() {
+func (t *CommonLocalFileTestSuite) TestRenameOfLocalFileFails() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create local file with some content.
 	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
@@ -61,7 +61,7 @@ func (t *commonLocalFileTestSuite) TestRenameOfLocalFileFails() {
 		FileName1, FileContents+FileContents, t.T())
 }
 
-func (t *commonLocalFileTestSuite) TestRenameOfDirectoryWithLocalFileFails() {
+func (t *CommonLocalFileTestSuite) TestRenameOfDirectoryWithLocalFileFails() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	//Create directory with 1 synced and 1 local file.
 	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t.T())
@@ -88,7 +88,7 @@ func (t *commonLocalFileTestSuite) TestRenameOfDirectoryWithLocalFileFails() {
 		path.Join(ExplicitDirName, FileName2), FileContents+FileContents, t.T())
 }
 
-func (t *commonLocalFileTestSuite) TestRenameOfLocalFileSucceedsAfterSync() {
+func (t *CommonLocalFileTestSuite) TestRenameOfLocalFileSucceedsAfterSync() {
 	t.TestRenameOfLocalFileFails()
 
 	// Attempt to Rename synced file.
@@ -105,7 +105,7 @@ func (t *commonLocalFileTestSuite) TestRenameOfLocalFileSucceedsAfterSync() {
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
 }
 
-func (t *commonLocalFileTestSuite) TestRenameOfDirectoryWithLocalFileSucceedsAfterSync() {
+func (t *CommonLocalFileTestSuite) TestRenameOfDirectoryWithLocalFileSucceedsAfterSync() {
 	t.TestRenameOfDirectoryWithLocalFileFails()
 
 	// Attempt to rename directory again after sync.

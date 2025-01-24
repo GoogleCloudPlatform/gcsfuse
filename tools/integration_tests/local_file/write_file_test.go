@@ -21,7 +21,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
-func (t *commonLocalFileTestSuite) TestMultipleWritesToLocalFile() {
+func (t *CommonLocalFileTestSuite) TestMultipleWritesToLocalFile() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
 	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
@@ -53,7 +53,7 @@ func (t *localFileTestSuite) TestRandomWritesToLocalFile() {
 		FileName1, "stsstring3", t.T())
 }
 
-func (t *commonLocalFileTestSuite) TestOutOfOrderWritesToNewFile() {
+func (t *CommonLocalFileTestSuite) TestOutOfOrderWritesToNewFile() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
 	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
@@ -73,7 +73,7 @@ func (t *commonLocalFileTestSuite) TestOutOfOrderWritesToNewFile() {
 		FileName1, expectedString, t.T())
 }
 
-func (t *commonLocalFileTestSuite) TestMultipleOutOfOrderWritesToNewFile() {
+func (t *CommonLocalFileTestSuite) TestMultipleOutOfOrderWritesToNewFile() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
 	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
@@ -96,7 +96,7 @@ func (t *commonLocalFileTestSuite) TestMultipleOutOfOrderWritesToNewFile() {
 		FileName1, expectedString, t.T())
 }
 
-func (t *commonLocalFileTestSuite) TestWritesToNewFileStartingAtNonZeroOffset() {
+func (t *CommonLocalFileTestSuite) TestWritesToNewFileStartingAtNonZeroOffset() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
 	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())

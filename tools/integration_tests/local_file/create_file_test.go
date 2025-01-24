@@ -28,7 +28,7 @@ import (
 // Boilerplate
 // //////////////////////////////////////////////////////////////////////
 
-type commonLocalFileTestSuite struct {
+type CommonLocalFileTestSuite struct {
 	suite.Suite
 }
 
@@ -36,14 +36,14 @@ type commonLocalFileTestSuite struct {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *commonLocalFileTestSuite) TestNewFileShouldNotGetSyncedToGCSTillClose() {
+func (t *CommonLocalFileTestSuite) TestNewFileShouldNotGetSyncedToGCSTillClose() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 
 	// Validate.
 	NewFileShouldGetSyncedToGCSAtClose(ctx, storageClient, testDirPath, FileName1, t.T())
 }
 
-func (t *commonLocalFileTestSuite) TestNewFileUnderExplicitDirectoryShouldNotGetSyncedToGCSTillClose() {
+func (t *CommonLocalFileTestSuite) TestNewFileUnderExplicitDirectoryShouldNotGetSyncedToGCSTillClose() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Make explicit directory.
 	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t.T())
@@ -52,7 +52,7 @@ func (t *commonLocalFileTestSuite) TestNewFileUnderExplicitDirectoryShouldNotGet
 	NewFileShouldGetSyncedToGCSAtClose(ctx, storageClient, testDirPath, path.Join(ExplicitDirName, ExplicitFileName1), t.T())
 }
 
-func (t *commonLocalFileTestSuite) TestCreateNewFileWhenSameFileExistsOnGCS() {
+func (t *CommonLocalFileTestSuite) TestCreateNewFileWhenSameFileExistsOnGCS() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
 	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
@@ -69,7 +69,7 @@ func (t *commonLocalFileTestSuite) TestCreateNewFileWhenSameFileExistsOnGCS() {
 	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, FileName1, GCSFileContent, t.T())
 }
 
-func (t *commonLocalFileTestSuite) TestEmptyFileCreation() {
+func (t *CommonLocalFileTestSuite) TestEmptyFileCreation() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
 	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())

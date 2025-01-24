@@ -24,7 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
-func (t *commonLocalFileTestSuite) TestStatOnLocalFile() {
+func (t *CommonLocalFileTestSuite) TestStatOnLocalFile() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
 	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
@@ -43,7 +43,7 @@ func (t *commonLocalFileTestSuite) TestStatOnLocalFile() {
 		FileName1, FileContents, t.T())
 }
 
-func (t *commonLocalFileTestSuite) TestStatOnLocalFileWithConflictingFileNameSuffix() {
+func (t *CommonLocalFileTestSuite) TestStatOnLocalFileWithConflictingFileNameSuffix() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
 	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
