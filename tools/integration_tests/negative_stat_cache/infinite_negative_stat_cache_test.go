@@ -18,6 +18,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"syscall"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
@@ -84,7 +85,7 @@ func (s *infiniteNegativeStatCacheTest) TestInfiniteNegativeStatCacheForAlreadyE
 
 	// Error should be returned as already exist on trying to create.
 	err = os.Mkdir(dir, setup.DirPermission_0755)
-	assert.ErrorContains(t, err, "file exists")
+	assert.ErrorIs(t, err, syscall.EEXIST)
 }
 
 ////////////////////////////////////////////////////////////////////////
