@@ -135,7 +135,6 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) cleanupMultiRangeDownloader() {
 	ctx, cancel := context.WithCancel(context.Background())
 	mrdWrapper.cancelCleanup = cancel
 	go closeMRD(ctx)
-	closeMRD(context.Background())
 }
 
 // Ensures that MultiRangeDownloader exists, creating it if it does not exist.
