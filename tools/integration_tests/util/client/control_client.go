@@ -106,7 +106,7 @@ func CreateManagedFoldersInBucket(ctx context.Context, client *control.StorageCo
 	}
 }
 
-func CreateFoldersInBucket(ctx context.Context, client *control.StorageControlClient, folderPath string) (*controlpb.Folder, error) {
+func CreateFolderInBucket(ctx context.Context, client *control.StorageControlClient, folderPath string) (*controlpb.Folder, error) {
 	bucket, rootFolder := setup.GetBucketAndObjectBasedOnTypeOfMount("")
 
 	req := &controlpb.CreateFolderRequest{

@@ -80,7 +80,7 @@ func (s *infiniteNegativeStatCacheTest) TestInfiniteNegativeStatCacheForAlreadyE
 	assert.ErrorContains(t, err, "no such file or directory")
 
 	// Adding the same name folder with control client
-	_, err = client.CreateFoldersInBucket(ctx, storageControlClient, dirPathOnBucket)
+	_, err = client.CreateFolderInBucket(ctx, storageControlClient, dirPathOnBucket)
 	assert.NoError(t, err)
 
 	// Error should be returned as already exist on trying to create.
