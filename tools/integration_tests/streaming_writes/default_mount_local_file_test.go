@@ -17,6 +17,7 @@ package streaming_writes
 import (
 	"testing"
 
+	local_file "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/local_file"
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/suite"
@@ -41,4 +42,8 @@ func (t *defaultMountLocalFile) SetupSubTest() {
 // Executes all tests that run with single streamingWrites configuration for localFiles.
 func TestDefaultMountLocalFileTest(t *testing.T) {
 	suite.Run(t, new(defaultMountLocalFile))
+}
+
+func TestDefaultMountLocalFileTestSuite(t *testing.T) {
+	suite.Run(t, new(local_file.CommonLocalFileTestSuite))
 }

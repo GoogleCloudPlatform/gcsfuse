@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Provides integration tests for create local file.
-package local_file_test
+package local_file
 
 import (
 	"path"
@@ -21,16 +21,7 @@ import (
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-	"github.com/stretchr/testify/suite"
 )
-
-// //////////////////////////////////////////////////////////////////////
-// Boilerplate
-// //////////////////////////////////////////////////////////////////////
-
-type CommonLocalFileTestSuite struct {
-	suite.Suite
-}
 
 ////////////////////////////////////////////////////////////////////////
 // Tests

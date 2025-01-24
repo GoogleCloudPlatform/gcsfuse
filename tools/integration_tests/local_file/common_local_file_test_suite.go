@@ -17,8 +17,6 @@
 package local_file
 
 import (
-	"testing"
-
 	"github.com/stretchr/testify/suite"
 )
 
@@ -26,14 +24,6 @@ import (
 // Boilerplate
 // //////////////////////////////////////////////////////////////////////
 
-type localFileTestSuite struct {
-	CommonLocalFileTestSuite
-}
-
-////////////////////////////////////////////////////////////////////////
-// Tests
-////////////////////////////////////////////////////////////////////////
-
-func TestLocalFileTestSuite(t *testing.T) {
-	suite.Run(t, new(localFileTestSuite))
+type CommonLocalFileTestSuite struct {
+	suite.Suite
 }
