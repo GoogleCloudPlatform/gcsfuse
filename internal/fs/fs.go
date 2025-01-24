@@ -980,8 +980,7 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 	parent inode.DirInode,
 	childName string) (child inode.Inode, err error) {
 	// First check if the requested child is a localFileInode.
-	child, err = fs.lookUpLocalFileInode(parent, childName)
-	if err != nil {
+	if child, err = fs.lookUpLocalFileInode(parent, childName); err != nil {
 		return child, err
 	}
 	if child != nil {
