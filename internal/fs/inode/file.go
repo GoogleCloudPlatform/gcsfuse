@@ -901,12 +901,12 @@ func (f *FileInode) CacheEnsureContent(ctx context.Context) (err error) {
 }
 
 func (f *FileInode) CreateBufferedOrTempWriter(ctx context.Context) (err error) {
-	// Skip creating empty file when streaming writes are enabled
-	if f.local && f.config.Write.EnableStreamingWrites {
-		err = f.ensureBufferedWriteHandler(ctx)
-		if err != nil {
-			return
-		}
+	err = f.initBufferedWriteHandlerIfEligible(ctx)
+	if err != nil {
+		return err
+	}
+	// Skip creating empty file when streaming writes are enabled.
+	if f.bwh != nil {
 		return
 	}
 
@@ -919,29 +919,21 @@ func (f *FileInode) CreateBufferedOrTempWriter(ctx context.Context) (err error) 
 }
 
 func (f *FileInode) initBufferedWriteHandlerIfEligible(ctx context.Context) error {
-	isTempFileInUse, err := f.isTempFileInUse()
-	if err != nil {
-		return fmt.Errorf("f.isTempFileInUse: %w", err)
-	}
-
-	// For empty GCS files also we will trigger bufferedWrites flow.
-	if f.src.Size == 0 && f.config.Write.EnableStreamingWrites && !isTempFileInUse {
-		err := f.ensureBufferedWriteHandler(ctx)
-		if err != nil {
-			return fmt.Errorf("f.ensureBufferedWriteHandler: %w", err)
-		}
-	}
-
-	return nil
-}
-
-func (f *FileInode) ensureBufferedWriteHandler(ctx context.Context) error {
 	// bwh already initialized, do nothing.
 	if f.bwh != nil {
 		return nil
 	}
 
-	var err error
+	isTempFileInUse, err := f.isTempFileInUse()
+	if err != nil {
+		return fmt.Errorf("f.isTempFileInUse: %w", err)
+	}
+
+	if f.src.Size != 0 || !f.config.Write.EnableStreamingWrites || isTempFileInUse {
+		// bwh should not be initialized under these conditions.
+		return nil
+	}
+
 	var latestGcsObj *gcs.Object
 	if !f.local {
 		latestGcsObj, err = f.fetchLatestGcsObject(ctx)

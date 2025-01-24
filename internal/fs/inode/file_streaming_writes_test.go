@@ -538,3 +538,53 @@ func (t *FileStreamingWritesTest) TestTruncateOnFileUsingTempFileDoesNotRecreate
 	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), "\x00\x00taco\x00\x00\x00\x00", string(contents))
 }
+
+func (t *FileStreamingWritesTest) TestDeRegisterFileHandle() {
+	tbl := []struct {
+		name        string
+		readonly    bool
+		currentVal  int32
+		expectedVal int32
+		isBwhNil    bool
+	}{
+		{
+			name:        "ReadOnlyHandle",
+			readonly:    true,
+			currentVal:  10,
+			expectedVal: 10,
+			isBwhNil:    false,
+		},
+		{
+			name:        "NonZeroCurrentValueForWriteHandle",
+			readonly:    false,
+			currentVal:  10,
+			expectedVal: 9,
+			isBwhNil:    false,
+		},
+		{
+			name:        "LastWriteHandleToDeregister",
+			readonly:    false,
+			currentVal:  1,
+			expectedVal: 0,
+			isBwhNil:    true,
+		},
+	}
+	for _, tc := range tbl {
+		t.Run(tc.name, func() {
+			t.in.config = &cfg.Config{Write: *getWriteConfig()}
+			t.in.writeHandleCount = tc.currentVal
+			err := t.in.initBufferedWriteHandlerIfEligible(t.ctx)
+			require.NoError(t.T(), err)
+			require.NotNil(t.T(), t.in.bwh)
+
+			t.in.DeRegisterFileHandle(tc.readonly)
+
+			assert.Equal(t.T(), tc.expectedVal, t.in.writeHandleCount)
+			if tc.isBwhNil {
+				assert.Nil(t.T(), t.in.bwh)
+			} else {
+				assert.NotNil(t.T(), t.in.bwh)
+			}
+		})
+	}
+}
