@@ -40,7 +40,7 @@ func NewMultiRangeDownloaderWrapper(bucket gcs.Bucket, object *gcs.MinObject) Mu
 
 func NewMultiRangeDownloaderWrapperWithClock(bucket gcs.Bucket, object *gcs.MinObject, clock clock.Clock) MultiRangeDownloaderWrapper {
 	if object == nil {
-		logger.Errorf("NewMultiRangeDownloaderWrapperWithClock: Missing MinObject")
+		logger.Warnf("NewMultiRangeDownloaderWrapperWithClock: Missing MinObject")
 	}
 	return MultiRangeDownloaderWrapper{
 		clock:  clock,
