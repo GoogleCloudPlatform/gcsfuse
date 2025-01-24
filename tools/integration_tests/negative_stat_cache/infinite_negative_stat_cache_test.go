@@ -69,10 +69,6 @@ func (s *infiniteNegativeStatCacheTest) TestInfiniteNegativeStatCache(t *testing
 }
 
 func (s *infiniteNegativeStatCacheTest) TestInfiniteNegativeStatCacheForAlreadyExistFolder(t *testing.T) {
-	// CreateFolder API is only for HNS buckets and not FLAT.
-	if !setup.IsHierarchicalBucket(ctx, storageClient) {
-		t.SkipNow()
-	}
 	targetDir := path.Join(testDirPath, "explicit_dir")
 	// Create test directory
 	operations.CreateDirectory(targetDir, t)
@@ -83,8 +79,12 @@ func (s *infiniteNegativeStatCacheTest) TestInfiniteNegativeStatCacheForAlreadyE
 	_, err := os.Stat(dir)
 	assert.ErrorContains(t, err, "no such file or directory")
 
-	// Adding the same name folder with control client
-	_, err = client.CreateFolderInBucket(ctx, storageControlClient, dirPathOnBucket)
+	// Adding the same name folder/dir.
+	if setup.IsHierarchicalBucket(ctx, storageClient) {
+		_, err = client.CreateFolderInBucket(ctx, storageControlClient, dirPathOnBucket)
+	} else {
+		err = client.CreateObjectOnGCS(ctx, storageClient, dirPathOnBucket+"/", "")
+	}
 	assert.NoError(t, err)
 
 	// Error should be returned as already exist on trying to create.
