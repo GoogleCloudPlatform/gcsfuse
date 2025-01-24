@@ -39,6 +39,9 @@ func NewMultiRangeDownloaderWrapper(bucket gcs.Bucket, object *gcs.MinObject) Mu
 }
 
 func NewMultiRangeDownloaderWrapperWithClock(bucket gcs.Bucket, object *gcs.MinObject, clock clock.Clock) MultiRangeDownloaderWrapper {
+	if object == nil {
+		logger.Errorf("NewMultiRangeDownloaderWrapperWithClock: Missing MinObject")
+	}
 	return MultiRangeDownloaderWrapper{
 		clock:  clock,
 		bucket: bucket,
@@ -70,9 +73,11 @@ type MultiRangeDownloaderWrapper struct {
 	clock clock.Clock
 }
 
-// Sets the gcs.MinObject stored in the wrapper to passed value.
+// Sets the gcs.MinObject stored in the wrapper to passed value, only if it's non nil.
 func (mrdWrapper *MultiRangeDownloaderWrapper) SetMinObject(minObj *gcs.MinObject) {
-	mrdWrapper.object = minObj
+	if minObj != nil {
+		mrdWrapper.object = minObj
+	}
 }
 
 // Returns current refcount.

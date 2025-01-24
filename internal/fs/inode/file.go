@@ -629,7 +629,7 @@ func (f *FileInode) flushUsingBufferedWriteHandler() error {
 	// bwh can return a partially synced object along with an error so updating
 	// inode state before returning error.
 	f.updateInodeStateAfterSync(obj)
-	f.updateMRDWrapper(obj)
+	f.updateMRDWrapper()
 	if err != nil {
 		return fmt.Errorf("f.bwh.Flush(): %w", err)
 	}
@@ -808,7 +808,7 @@ func (f *FileInode) syncUsingContent(ctx context.Context) (err error) {
 	minObj := storageutil.ConvertObjToMinObject(newObj)
 	// If we wrote out a new object, we need to update our state.
 	f.updateInodeStateAfterSync(minObj)
-	f.updateMRDWrapper(minObj)
+	f.updateMRDWrapper()
 	return
 }
 
@@ -856,10 +856,8 @@ func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 
 // Updates the min object stored in MRDWrapper corresponding to the inode.
 // Should be called when minObject associated with inode is updated.
-func (f *FileInode) updateMRDWrapper(minObj *gcs.MinObject) {
-	if minObj != nil {
-		f.MRDWrapper.SetMinObject(minObj)
-	}
+func (f *FileInode) updateMRDWrapper() {
+	f.MRDWrapper.SetMinObject(&f.src)
 }
 
 // Truncate the file to the specified size.
