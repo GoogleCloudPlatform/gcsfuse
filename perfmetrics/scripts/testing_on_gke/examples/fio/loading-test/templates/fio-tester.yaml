@@ -21,7 +21,7 @@ metadata:
   annotations:
     gke-gcsfuse/volumes: "true"
 spec:
-  activeDeadlineSeconds: 5000
+  activeDeadlineSeconds: 50000
   restartPolicy: Never
   nodeSelector:
     cloud.google.com/gke-tpu-topology: 2x2
