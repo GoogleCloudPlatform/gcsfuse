@@ -17,11 +17,7 @@ package streaming_writes
 import (
 	"testing"
 
-<<<<<<< HEAD
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/local_file"
-=======
-	local_file "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/local_file"
->>>>>>> 142a6205a (test running common file test from streaming package.)
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/suite"
