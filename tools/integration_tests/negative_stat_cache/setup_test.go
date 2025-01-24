@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"cloud.google.com/go/storage"
+	control "cloud.google.com/go/storage/control/apiv2"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/only_dir_mounting"
@@ -40,9 +41,10 @@ var (
 	// mount directory is where our tests run.
 	mountDir string
 	// root directory is the directory to be unmounted.
-	rootDir       string
-	storageClient *storage.Client
-	ctx           context.Context
+	rootDir              string
+	storageClient        *storage.Client
+	storageControlClient *control.StorageControlClient
+	ctx                  context.Context
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -74,6 +76,13 @@ func TestMain(m *testing.M) {
 		err := closeStorageClient()
 		if err != nil {
 			log.Fatalf("closeStorageClient failed: %v", err)
+		}
+	}()
+	closeStorageControlClient := client.CreateControlClientWithCancel(&ctx, &storageControlClient)
+	defer func() {
+		err := closeStorageControlClient()
+		if err != nil {
+			log.Fatalf("closeStorageControlClient failed: %v", err)
 		}
 	}()
 

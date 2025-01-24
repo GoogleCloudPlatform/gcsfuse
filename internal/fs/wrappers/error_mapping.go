@@ -82,6 +82,8 @@ func errno(err error, preconditionErrCfg bool) error {
 		switch apiErr.GRPCStatus().Code() {
 		case codes.Canceled:
 			return syscall.EINTR
+		case codes.AlreadyExists:
+			return syscall.EEXIST
 		case codes.PermissionDenied, codes.Unauthenticated:
 			return syscall.EACCES
 		case codes.NotFound:
