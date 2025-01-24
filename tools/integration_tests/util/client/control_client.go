@@ -29,6 +29,7 @@ import (
 	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googleapis/gax-go/v2"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"google.golang.org/grpc/codes"
 )
@@ -109,7 +110,7 @@ func CreateFoldersInBucket(ctx context.Context, client *control.StorageControlCl
 	bucket, rootFolder := setup.GetBucketAndObjectBasedOnTypeOfMount("")
 
 	req := &controlpb.CreateFolderRequest{
-		Parent:   fmt.Sprintf("projects/_/buckets/%v", bucket),
+		Parent:   fmt.Sprintf(storage.FullBucketPathHNS, bucket),
 		FolderId: path.Join(rootFolder, folderPath),
 	}
 	f, err := client.CreateFolder(ctx, req)
