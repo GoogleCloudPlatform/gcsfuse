@@ -69,6 +69,10 @@ func (s *infiniteNegativeStatCacheTest) TestInfiniteNegativeStatCache(t *testing
 }
 
 func (s *infiniteNegativeStatCacheTest) TestInfiniteNegativeStatCacheForAlreadyExistFolder(t *testing.T) {
+	// CreateFolder API is only for HNS buckets and not FLAT.
+	if !setup.IsHierarchicalBucket(ctx, storageClient) {
+		t.SkipNow()
+	}
 	targetDir := path.Join(testDirPath, "explicit_dir")
 	// Create test directory
 	operations.CreateDirectory(targetDir, t)
