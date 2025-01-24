@@ -1039,10 +1039,12 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 // UNLOCK_FUNCTION(fs.mu)
 // LOCK_FUNCTION(child)
 func (fs *fileSystem) lookUpLocalFileInode(parent inode.DirInode, childName string) (child inode.Inode, err error) {
-	// Trim the suffix assigned to fix conflicting names.
+	// If the path specified is "a/\n", the child would come as \n which is not a valid childname.
+	// In such cases, simply return a file-not-found.
 	if childName == inode.ConflictingFileNameSuffix {
 		return child, syscall.ENOENT
 	}
+	// Trim the suffix assigned to fix conflicting names.
 	childName = strings.TrimSuffix(childName, inode.ConflictingFileNameSuffix)
 	fileName := inode.NewFileName(parent.Name(), childName)
 
