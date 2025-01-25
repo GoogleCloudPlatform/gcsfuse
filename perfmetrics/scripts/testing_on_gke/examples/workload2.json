@@ -32,7 +32,7 @@
         {
           "fioWorkload": {
             "fileSize": "1M",
-            "filesPerThread": 20000,
+            "filesPerThread": 10000,
             "numThreads": 50,
             "blockSize": "256K",
             "readTypes": ["read","randread"]
@@ -45,7 +45,7 @@
         {
           "fioWorkload": {
             "fileSize": "100M",
-            "filesPerThread": 1000,
+            "filesPerThread": 100,
             "numThreads": 50,
             "blockSize": "1M",
             "readTypes": ["read"]
@@ -60,7 +60,7 @@
             "_description": "This workload's job file is configured differently from the rest. It has one file, whis is read in parallel depending on the value of numThreads (only 100 supported right now).",
             "fileSize": "200G",
             "filesPerThread": 1,
-            "numThreads": 100,
+            "numThreads": 2,
             "blockSize": "1M",
             "readTypes": ["read"]
           },
