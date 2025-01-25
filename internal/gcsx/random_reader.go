@@ -85,8 +85,7 @@ type RandomReader interface {
 	// again.
 	Destroy()
 
-	PrintFileCacheStats(objName string)
-	PrintMRDStats(obbjName string)
+	GetFileCacheStats() (uint64, uint64, uint64)
 }
 
 // ObjectData specifies the response returned as part of ReadAt call.
@@ -204,12 +203,8 @@ func (rr *randomReader) CheckInvariants() {
 	}
 }
 
-func (rr *randomReader) PrintFileCacheStats(objName string) {
-	logger.Errorf("Abhishek: Object:%s FileCacheTimeTaken: %d; FileCacheHitPositive: %d; FileCacheHitNegative: %d", objName, rr.FileCacheTimeTaken, rr.FileCacheHitPositive, rr.FileCacheHitNegative)
-}
-
-func (rr *randomReader) PrintMRDStats(objName string) {
-	logger.Errorf("Abhishek: Object:%s MRDCount:%d; MRDTimeConsumed:%d", objName, rr.mrdWrapper.Count, rr.mrdWrapper.TimeConsumed)
+func (rr *randomReader) GetFileCacheStats() (uint64, uint64, uint64) {
+	return rr.FileCacheTimeTaken, rr.FileCacheHitPositive, rr.FileCacheHitNegative
 }
 
 // tryReadingFromFileCache creates the cache handle first if it doesn't exist already

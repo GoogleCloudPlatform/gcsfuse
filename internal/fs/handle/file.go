@@ -22,6 +22,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
 )
@@ -51,6 +52,10 @@ type FileHandle struct {
 	// as we are not doing anything special for append. When required we will
 	// define an enum instead of boolean to hold the type of open.
 	readOnly bool
+
+	FileCacheHitPositive uint64
+	FileCacheHitNegative uint64
+	FileCacheTimeTaken   uint64
 }
 
 // LOCKS_REQUIRED(fh.inode.mu)
@@ -79,11 +84,15 @@ func (fh *FileHandle) Destroy() {
 	fh.inode.Lock()
 	fh.inode.DeRegisterFileHandle(fh.readOnly)
 	fh.inode.Unlock()
-	fh.reader.PrintMRDStats(fh.reader.Object().Name)
-	fh.reader.PrintFileCacheStats(fh.reader.Object().Name)
 	if fh.reader != nil {
+		a, b, c := fh.reader.GetFileCacheStats()
+		fh.FileCacheTimeTaken += a
+		fh.FileCacheHitPositive += b
+		fh.FileCacheHitNegative += c
 		fh.reader.Destroy()
 	}
+	logger.Errorf("Abhishek: Object:%s FileCacheTimeTaken: %d; FileCacheHitPositive: %d; FileCacheHitNegative: %d", fh.inode.Name().GcsObjectName(), fh.FileCacheTimeTaken, fh.FileCacheHitPositive, fh.FileCacheHitNegative)
+	logger.Errorf("Abhishek: Object:%s MRDCount:%d; MRDTimeConsumed:%d", fh.inode.Name().GcsObjectName(), fh.inode.MRDWrapper.Count, fh.inode.MRDWrapper.TimeConsumed)
 }
 
 // Inode returns the inode backing this handle.
@@ -176,6 +185,10 @@ func (fh *FileHandle) tryEnsureReader(ctx context.Context, sequentialReadSizeMb 
 	// we have one.
 	if !fh.inode.SourceGenerationIsAuthoritative() {
 		if fh.reader != nil {
+			a, b, c := fh.reader.GetFileCacheStats()
+			fh.FileCacheTimeTaken += a
+			fh.FileCacheHitPositive += b
+			fh.FileCacheHitNegative += c
 			fh.reader.Destroy()
 			fh.reader = nil
 		}
@@ -189,6 +202,10 @@ func (fh *FileHandle) tryEnsureReader(ctx context.Context, sequentialReadSizeMb 
 		if fh.reader.Object().Generation == fh.inode.SourceGeneration().Object {
 			return
 		}
+		a, b, c := fh.reader.GetFileCacheStats()
+		fh.FileCacheTimeTaken += a
+		fh.FileCacheHitPositive += b
+		fh.FileCacheHitNegative += c
 		fh.reader.Destroy()
 		fh.reader = nil
 	}
