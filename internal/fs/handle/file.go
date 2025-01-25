@@ -79,6 +79,8 @@ func (fh *FileHandle) Destroy() {
 	fh.inode.Lock()
 	fh.inode.DeRegisterFileHandle(fh.readOnly)
 	fh.inode.Unlock()
+	fh.reader.PrintMRDStats(fh.reader.Object().Name)
+	fh.reader.PrintFileCacheStats(fh.reader.Object().Name)
 	if fh.reader != nil {
 		fh.reader.Destroy()
 	}

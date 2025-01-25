@@ -66,7 +66,9 @@ type MultiRangeDownloaderWrapper struct {
 	// Holds the cancel function, which can be called to cancel the cleanup function.
 	cancelCleanup context.CancelFunc
 	// Used for waiting for timeout (helps us in mocking the functionality).
-	clock clock.Clock
+	clock        clock.Clock
+	Count        uint64
+	TimeConsumed uint64
 }
 
 // Returns current refcount.
@@ -105,7 +107,9 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) DecrementRefCount() (err error) {
 
 	mrdWrapper.refCount--
 	if mrdWrapper.refCount == 0 {
-		mrdWrapper.cleanupMultiRangeDownloader()
+		mrdWrapper.Wrapped.Close()
+		mrdWrapper.Wrapped = nil
+		// mrdWrapper.cleanupMultiRangeDownloader()
 	}
 	return
 }
@@ -157,6 +161,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 
 	err = mrdWrapper.ensureMultiRangeDownloader()
 	if err != nil {
+		mrdWrapper.Wrapped = nil
 		err = fmt.Errorf("MultiRangeDownloaderWrapper::Read: Error in creating MultiRangeDownloader:  %v", err)
 		return
 	}
@@ -205,6 +210,8 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 		err = res.err
 	}
 	duration := time.Since(start)
+	mrdWrapper.Count++
+	mrdWrapper.TimeConsumed += uint64(duration.Microseconds())
 	monitor.CaptureMultiRangeDownloaderMetrics(ctx, metricHandle, "MultiRangeDownloader::Add", start)
 	errDesc := "OK"
 	if err != nil {

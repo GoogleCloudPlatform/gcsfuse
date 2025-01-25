@@ -84,6 +84,9 @@ type RandomReader interface {
 	// Clean up any resources associated with the reader, which must not be used
 	// again.
 	Destroy()
+
+	PrintFileCacheStats(objName string)
+	PrintMRDStats(obbjName string)
 }
 
 // ObjectData specifies the response returned as part of ReadAt call.
@@ -124,6 +127,9 @@ func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb i
 		cacheFileForRangeRead: cacheFileForRangeRead,
 		mrdWrapper:            mrdWrapper,
 		metricHandle:          metricHandle,
+		FileCacheHitPositive:  0,
+		FileCacheHitNegative:  0,
+		FileCacheTimeTaken:    0,
 	}
 }
 
@@ -162,7 +168,10 @@ type randomReader struct {
 
 	// fileCacheHandle is used to read from the cached location. It is created on the fly
 	// using fileCacheHandler for the given object and bucket.
-	fileCacheHandle *file.CacheHandle
+	fileCacheHandle      *file.CacheHandle
+	FileCacheHitPositive uint64
+	FileCacheHitNegative uint64
+	FileCacheTimeTaken   uint64
 
 	// Stores the handle associated with the previously closed newReader instance.
 	// This will be used while making the new connection to bypass auth and metadata
@@ -193,6 +202,14 @@ func (rr *randomReader) CheckInvariants() {
 	if rr.limit < 0 && rr.reader != nil {
 		panic(fmt.Sprintf("Unexpected non-nil reader with limit == %d", rr.limit))
 	}
+}
+
+func (rr *randomReader) PrintFileCacheStats(objName string) {
+	logger.Errorf("Abhishek: Object:%s FileCacheTimeTaken: %d; FileCacheHitPositive: %d; FileCacheHitNegative: %d", objName, rr.FileCacheTimeTaken, rr.FileCacheHitPositive, rr.FileCacheHitNegative)
+}
+
+func (rr *randomReader) PrintMRDStats(objName string) {
+	logger.Errorf("Abhishek: Object:%s MRDCount:%d; MRDTimeConsumed:%d", objName, rr.mrdWrapper.Count, rr.mrdWrapper.TimeConsumed)
 }
 
 // tryReadingFromFileCache creates the cache handle first if it doesn't exist already
@@ -231,6 +248,12 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 	// Response log
 	defer func() {
 		executionTime := time.Since(startTime)
+		rr.FileCacheTimeTaken += uint64(executionTime.Microseconds())
+		if cacheHit {
+			rr.FileCacheHitPositive++
+		} else {
+			rr.FileCacheHitNegative++
+		}
 		var requestOutput string
 		if err != nil {
 			requestOutput = fmt.Sprintf("err: %v (%v)", err, executionTime)
