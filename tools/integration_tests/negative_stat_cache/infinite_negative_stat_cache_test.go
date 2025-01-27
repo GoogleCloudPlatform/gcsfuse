@@ -69,17 +69,17 @@ func (s *infiniteNegativeStatCacheTest) TestInfiniteNegativeStatCache(t *testing
 }
 
 func (s *infiniteNegativeStatCacheTest) TestInfiniteNegativeStatCacheForAlreadyExistFolder(t *testing.T) {
-	targetDir := path.Join(testDirPath, "explicit_dir")
-	// Create test directory
-	operations.CreateDirectory(targetDir, t)
-	dir := path.Join(targetDir, "test_dir")
-	dirPathOnBucket := path.Join(testDirName, "explicit_dir", "test_dir")
+	dirName := "testInfiniteNegativeStatCacheForAlreadyExistFolder"
+	dirPath := path.Join(testDirPath, dirName)
+	dirPathOnBucket := path.Join(testDirName, dirName)
 
-	// Error should be returned as dir does not exist
-	_, err := os.Stat(dir)
-	assert.ErrorContains(t, err, "no such file or directory")
+	// Stat should return an error because the directory doesn't exist yet,
+	// populating the negative metadata cache.
+	_, err := os.Stat(dirPath)
+	assert.Error(t, err)
+	assert.True(t, os.IsNotExist(err))
 
-	// Adding the same name folder/dir.
+	// Create the directory in the bucket using a different client outside of gcsfuse.
 	if setup.IsHierarchicalBucket(ctx, storageClient) {
 		_, err = client.CreateFolderInBucket(ctx, storageControlClient, dirPathOnBucket)
 	} else {
@@ -87,8 +87,10 @@ func (s *infiniteNegativeStatCacheTest) TestInfiniteNegativeStatCacheForAlreadyE
 	}
 	assert.NoError(t, err)
 
-	// Error should be returned as already exist on trying to create.
-	err = os.Mkdir(dir, setup.DirPermission_0755)
+	// Attempting to create the directory again should fail with EEXIST because the
+	// negative stat cache entry persists, causing LookUpInode to return a "not found" error
+	// and triggering a directory creation attempt despite the directory already existing in GCS.
+	err = os.Mkdir(dirPath, setup.DirPermission_0755)
 	assert.ErrorIs(t, err, syscall.EEXIST)
 }
 
