@@ -41,8 +41,8 @@ func (t *defaultMountEmptyGCSFile) createEmptyGCSFile() {
 	// Create an empty file on GCS.
 	CreateObjectInGCSTestDir(ctx, storageClient, testDirName, t.fileName, "", t.T())
 	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, t.fileName, "", t.T())
-	filePath := path.Join(testDirPath, t.fileName)
-	t.f1 = operations.OpenFile(filePath, t.T())
+	t.filePath = path.Join(testDirPath, t.fileName)
+	t.f1 = operations.OpenFile(t.filePath, t.T())
 }
 
 // Executes all tests that run with single streamingWrites configuration for empty GCS Files.

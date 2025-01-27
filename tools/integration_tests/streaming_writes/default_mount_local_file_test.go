@@ -34,13 +34,13 @@ type defaultMountCommonLocalFileTestSuite struct {
 func (t *defaultMountLocalFile) SetupTest() {
 	t.fileName = FileName1 + setup.GenerateRandomString(5)
 	// Create a local file.
-	_, t.f1 = CreateLocalFileInTestDir(ctx, storageClient, testDirPath, t.fileName, t.T())
+	t.filePath, t.f1 = CreateLocalFileInTestDir(ctx, storageClient, testDirPath, t.fileName, t.T())
 }
 
 func (t *defaultMountLocalFile) SetupSubTest() {
 	t.fileName = FileName1 + setup.GenerateRandomString(5)
 	// Create a local file.
-	_, t.f1 = CreateLocalFileInTestDir(ctx, storageClient, testDirPath, t.fileName, t.T())
+	t.filePath, t.f1 = CreateLocalFileInTestDir(ctx, storageClient, testDirPath, t.fileName, t.T())
 }
 
 func (t *defaultMountCommonLocalFileTestSuite) SetupSuite() {
