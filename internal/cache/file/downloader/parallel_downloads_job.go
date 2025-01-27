@@ -15,6 +15,7 @@
 package downloader
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -147,10 +148,14 @@ func (job *Job) downloadOffsets(ctx context.Context, goroutineIndex int64, cache
 				// In case channel is closed return.
 				return nil
 			}
-
+			oldhandle := readHandle
 			offsetWriter := io.NewOffsetWriter(cacheFile, int64(objectRange.Start))
+			logger.Tracef("ReadHandle to server %v, for file %v for job id %v", readHandle, cacheFile.Name(), goroutineIndex)
 			readHandle, err = job.downloadRange(ctx, offsetWriter, objectRange.Start, objectRange.End, readHandle)
-			logger.Tracef("ReadHandle from server %v", readHandle)
+			logger.Tracef("ReadHandle from server %v, for file %v for job id %v", readHandle, cacheFile.Name(), goroutineIndex)
+			if !bytes.Equal(oldhandle, readHandle) {
+				logger.Tracef("change in handle from %v to %v for file %v for job id %v", oldhandle, readHandle, cacheFile.Name(), goroutineIndex)
+			}
 			if err != nil {
 				return err
 			}
