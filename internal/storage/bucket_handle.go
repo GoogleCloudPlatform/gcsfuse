@@ -80,6 +80,7 @@ func (bh *bucketHandle) NewReaderWithReadHandle(
 		length = end - start
 	}
 
+	logger.Tracef("ReadHandle to server %v", req.ReadHandle)
 	obj := bh.bucket.Object(req.Name)
 
 	// Switching to the requested generation of object.

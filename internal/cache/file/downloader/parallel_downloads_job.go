@@ -150,6 +150,7 @@ func (job *Job) downloadOffsets(ctx context.Context, goroutineIndex int64, cache
 
 			offsetWriter := io.NewOffsetWriter(cacheFile, int64(objectRange.Start))
 			readHandle, err = job.downloadRange(ctx, offsetWriter, objectRange.Start, objectRange.End, readHandle)
+			logger.Tracef("ReadHandle from server %v", readHandle)
 			if err != nil {
 				return err
 			}
