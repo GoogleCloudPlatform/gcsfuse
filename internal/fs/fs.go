@@ -980,7 +980,9 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 	parent inode.DirInode,
 	childName string) (child inode.Inode, err error) {
 	// First check if the requested child is a localFileInode.
-	child = fs.lookUpLocalFileInode(parent, childName)
+	if child, err = fs.lookUpLocalFileInode(parent, childName); err != nil {
+		return child, err
+	}
 	if child != nil {
 		return
 	}
@@ -1036,7 +1038,12 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 // LOCKS_EXCLUDED(parent)
 // UNLOCK_FUNCTION(fs.mu)
 // LOCK_FUNCTION(child)
-func (fs *fileSystem) lookUpLocalFileInode(parent inode.DirInode, childName string) (child inode.Inode) {
+func (fs *fileSystem) lookUpLocalFileInode(parent inode.DirInode, childName string) (child inode.Inode, err error) {
+	// If the path specified is "a/\n", the child would come as \n which is not a valid childname.
+	// In such cases, simply return a file-not-found.
+	if childName == inode.ConflictingFileNameSuffix {
+		return child, syscall.ENOENT
+	}
 	// Trim the suffix assigned to fix conflicting names.
 	childName = strings.TrimSuffix(childName, inode.ConflictingFileNameSuffix)
 	fileName := inode.NewFileName(parent.Name(), childName)
@@ -2009,7 +2016,10 @@ func (fs *fileSystem) Rename(
 	}
 
 	// If object to be renamed is a local file inode (un-synced), rename operation is not supported.
-	localChild := fs.lookUpLocalFileInode(oldParent, op.OldName)
+	localChild, err := fs.lookUpLocalFileInode(oldParent, op.OldName)
+	if err != nil {
+		return err
+	}
 	if localChild != nil {
 		fs.unlockAndDecrementLookupCount(localChild, 1)
 		return fmt.Errorf("cannot rename open file %q: %w", op.OldName, syscall.ENOTSUP)
