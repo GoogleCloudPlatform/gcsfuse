@@ -21,6 +21,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/assert"
 )
 
 func (t *defaultMountCommonTest) TestReadLocalFileFails() {
@@ -68,4 +69,17 @@ func (t *defaultMountCommonTest) TestReadAfterFlush() {
 
 	require.NoError(t.T(), err)
 	require.Equal(t.T(), string(buf), testContent)
+}
+
+func (t *defaultMountLocalFile) TestReadLocalFileFails() {
+	// Write some content to local file.
+	t.f1.WriteAt([]byte(FileContents), 0)
+
+	// Reading the local file content fails.
+	buf := make([]byte, len(FileContents))
+	_, err := t.f1.ReadAt(buf, 0)
+	assert.Error(t.T(), err)
+
+	// Close the file and validate that the file is created on GCS.
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, FileContents, t.T())
 }
