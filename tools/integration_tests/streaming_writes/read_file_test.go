@@ -21,11 +21,12 @@ import (
 
 func (t *defaultMountLocalFile) TestReadLocalFileFails() {
 	// Write some content to local file.
-	t.f1.WriteAt([]byte(FileContents), 0)
+	_, err := t.f1.WriteAt([]byte(FileContents), 0)
+	assert.NoError(t.T(), err)
 
 	// Reading the local file content fails.
 	buf := make([]byte, len(FileContents))
-	_, err := t.f1.ReadAt(buf, 0)
+	_, err = t.f1.ReadAt(buf, 0)
 	assert.Error(t.T(), err)
 
 	// Close the file and validate that the file is created on GCS.

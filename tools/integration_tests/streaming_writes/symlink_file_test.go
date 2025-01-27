@@ -29,13 +29,14 @@ func (t *defaultMountLocalFile) TestCreateSymlinkForLocalFileReadFails() {
 	// Create Symlink.
 	symlink := path.Join(testDirPath, setup.GenerateRandomString(5))
 	operations.CreateSymLink(t.filePath, symlink, t.T())
-	t.f1.WriteAt([]byte(FileContents), 0)
+	_, err := t.f1.WriteAt([]byte(FileContents), 0)
+	assert.NoError(t.T(), err)
 
 	// Verify read link.
 	operations.VerifyReadLink(t.filePath, symlink, t.T())
 
 	// Reading file from symlink fails.
-	_, err := os.ReadFile(symlink)
+	_, err = os.ReadFile(symlink)
 	assert.Error(t.T(), err)
 
 	// Close the file and validate that the file is created on GCS.
@@ -47,13 +48,14 @@ func (t *defaultMountLocalFile) TestReadSymlinkForDeletedLocalFileFails() {
 	// Create Symlink.
 	symlink := path.Join(testDirPath, setup.GenerateRandomString(5))
 	operations.CreateSymLink(t.filePath, symlink, t.T())
-	t.f1.WriteAt([]byte(FileContents), 0)
+	_, err := t.f1.WriteAt([]byte(FileContents), 0)
+	assert.NoError(t.T(), err)
 
 	// Verify read link.
 	operations.VerifyReadLink(t.filePath, symlink, t.T())
 
 	// Read the file from symlink fails
-	_, err := os.ReadFile(symlink)
+	_, err = os.ReadFile(symlink)
 	assert.Error(t.T(), err)
 
 	// Remove filePath and then close the fileHandle to avoid syncing to GCS.
