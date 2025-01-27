@@ -23,48 +23,12 @@ import (
 	"path"
 	"testing"
 
-	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
-
-const (
-	testDirName    = "LocalFileTest"
-	onlyDirMounted = "OnlyDirMountLocalFiles"
-)
-
-var (
-	testDirPath   string
-	storageClient *storage.Client
-	ctx           context.Context
-)
-
-////////////////////////////////////////////////////////////////////////
-// Helpers
-////////////////////////////////////////////////////////////////////////
-
-func WritingToLocalFileShouldNotWriteToGCS(ctx context.Context, storageClient *storage.Client,
-	fh *os.File, testDirName, fileName string, t *testing.T) {
-	operations.WriteWithoutClose(fh, client.FileContents, t)
-	client.ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, fileName, t)
-}
-
-func NewFileShouldGetSyncedToGCSAtClose(ctx context.Context, storageClient *storage.Client,
-	testDirPath, fileName string, t *testing.T) {
-	// Create a local file.
-	_, fh := client.CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t)
-
-	// Writing contents to local file shouldn't create file on GCS.
-	testDirName := client.GetDirName(testDirPath)
-	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, fileName, t)
-
-	// Close the file and validate if the file is created on GCS.
-	client.CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, fileName, client.FileContents, t)
-}
 
 ////////////////////////////////////////////////////////////////////////
 // TestMain
@@ -74,6 +38,9 @@ func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
+
+	// set the test dir to local file test
+	testDirName = testDirLocalFileTest
 
 	// Create storage client before running tests.
 	ctx = context.Background()
