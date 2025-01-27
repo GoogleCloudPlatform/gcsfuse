@@ -68,8 +68,15 @@ func (s *infiniteNegativeStatCacheTest) TestInfiniteNegativeStatCache(t *testing
 	assert.ErrorContains(t, err, "explicit_dir/file1.txt: no such file or directory")
 }
 
-func (s *infiniteNegativeStatCacheTest) TestInfiniteNegativeStatCacheForAlreadyExistFolder(t *testing.T) {
-	dirName := "testInfiniteNegativeStatCacheForAlreadyExistFolder"
+// TestAlreadyExistFolder tests the scenario where a folder creation attempt fails
+// with EEXIST due to the infinite negative stat cache.  The infinite negative
+// cache is essential because LookUpInode must return a "not found" error to
+// trigger the subsequent create operation. This occurs when a folder is created
+// externally after gcsfuse has cached a negative stat entry for that path. The
+// negative cache prevents gcsfuse from seeing the externally created folder,
+// leading to an EEXIST error when attempting to create the same folder again.
+func (s *infiniteNegativeStatCacheTest) TestAlreadyExistFolder(t *testing.T) {
+	dirName := "testAlreadyExistFolder"
 	dirPath := path.Join(testDirPath, dirName)
 	dirPathOnBucket := path.Join(testDirName, dirName)
 
