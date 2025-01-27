@@ -269,10 +269,11 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	var clientOpts []option.ClientOption
 
 	// TODO: We will implement an additional check for the HTTP control client protocol once the Go SDK supports HTTP.
-	// TODO: Custom endpoints do not currently support gRPC. Remove this additional check once TPC(custom-endpoint) supports gRPC.
-	// Create storageControlClient irrespective of whether hns needs to be enabled or not.
-	// Because we will use storageControlClient to check layout of given bucket.
-	if clientConfig.CustomEndpoint == "" {
+	// Control-client is needed for folder APIs and for getting storage-layout of the bucket.
+	// GetStorageLayout API is not supported for storage-testbench and for TPC, both of which are identified by non-nil custom-endpoint.
+	// Change this check once TPC(custom-endpoint) supports gRPC.
+	// TODO: Enable creation of control-client for preprod endpoint.
+	if clientConfig.EnableHNS && clientConfig.CustomEndpoint == "" {
 		clientOpts, err = createClientOptionForGRPCClient(&clientConfig, false)
 		if err != nil {
 			return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
