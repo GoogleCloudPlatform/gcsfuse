@@ -16,6 +16,7 @@
 package local_file
 
 import (
+	"log"
 	"path"
 
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
@@ -29,6 +30,7 @@ import (
 
 func (t *CommonLocalFileTestSuite) TestNewFileShouldNotGetSyncedToGCSTillClose() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
+	log.Printf("testDirPath: %v", testDirPath)
 
 	// Validate.
 	NewFileShouldGetSyncedToGCSAtClose(ctx, storageClient, testDirPath, FileName1, t.T())
