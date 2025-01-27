@@ -13,7 +13,7 @@
 // limitations under the License.
 //
 // Provides integration tests for symlink operation on local files.
-package local_file_test
+package local_file
 
 import (
 	"os"

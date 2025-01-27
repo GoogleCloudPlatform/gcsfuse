@@ -14,7 +14,7 @@
 
 // Provides integration tests for create local file.
 
-package local_file_test
+package local_file
 
 import (
 	"testing"
