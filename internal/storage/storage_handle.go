@@ -272,7 +272,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	// TODO: Custom endpoints do not currently support gRPC. Remove this additional check once TPC(custom-endpoint) supports gRPC.
 	// Create storageControlClient irrespective of whether hns needs to be enabled or not.
 	// Because we will use storageControlClient to check layout of given bucket.
-	if clientConfig.CustomEndpoint != "" {
+	if clientConfig.CustomEndpoint == "" {
 		clientOpts, err = createClientOptionForGRPCClient(&clientConfig, false)
 		if err != nil {
 			return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
