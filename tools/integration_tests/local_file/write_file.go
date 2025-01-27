@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Provides integration tests for write on local files.
-package local_file
+package local_file_test
 
 import (
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"

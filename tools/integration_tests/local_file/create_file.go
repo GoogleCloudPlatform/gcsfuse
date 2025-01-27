@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Provides integration tests for create local file.
-package local_file
+package local_file_test
 
 import (
 	"path"

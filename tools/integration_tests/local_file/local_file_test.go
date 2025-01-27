@@ -14,7 +14,7 @@
 
 // Provides integration tests for file and directory operations.
 
-package local_file
+package local_file_test
 
 import (
 	"context"
