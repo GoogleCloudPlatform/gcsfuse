@@ -105,7 +105,10 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) DecrementRefCount() (err error) {
 
 	mrdWrapper.refCount--
 	if mrdWrapper.refCount == 0 {
-		mrdWrapper.cleanupMultiRangeDownloader()
+		mrdWrapper.Wrapped.Close()
+		mrdWrapper.Wrapped = nil
+		// TODO (b/391508479): Start using cleanup function when MRD recreation is handled
+		// mrdWrapper.cleanupMultiRangeDownloader()
 	}
 	return
 }
