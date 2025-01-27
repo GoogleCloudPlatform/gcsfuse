@@ -25,7 +25,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func (t *defaultMountLocalFile) TestCreateSymlinkForLocalFileReadFails() {
+func (t *defaultMountCommonTest) TestCreateSymlinkForLocalFileReadFails() {
 	// Create Symlink.
 	symlink := path.Join(testDirPath, setup.GenerateRandomString(5))
 	operations.CreateSymLink(t.filePath, symlink, t.T())
@@ -44,7 +44,7 @@ func (t *defaultMountLocalFile) TestCreateSymlinkForLocalFileReadFails() {
 		t.fileName, FileContents, t.T())
 }
 
-func (t *defaultMountLocalFile) TestReadSymlinkForDeletedLocalFileFails() {
+func (t *defaultMountCommonTest) TestReadSymlinkForDeletedLocalFileFails() {
 	// Create Symlink.
 	symlink := path.Join(testDirPath, setup.GenerateRandomString(5))
 	operations.CreateSymLink(t.filePath, symlink, t.T())

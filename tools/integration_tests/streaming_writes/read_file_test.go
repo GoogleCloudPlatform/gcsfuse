@@ -19,7 +19,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func (t *defaultMountLocalFile) TestReadLocalFileFails() {
+func (t *defaultMountCommonTest) TestReadLocalFileFails() {
 	// Write some content to local file.
 	_, err := t.f1.WriteAt([]byte(FileContents), 0)
 	assert.NoError(t.T(), err)
