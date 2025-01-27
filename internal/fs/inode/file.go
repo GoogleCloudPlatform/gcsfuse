@@ -571,18 +571,6 @@ func (f *FileInode) Write(
 	return f.writeUsingTempFile(ctx, data, offset)
 }
 
-func (f *FileInode) isTempFileInUse() (bool, error) {
-	if f.content == nil {
-		return false, nil
-	}
-	statRes, err := f.content.Stat()
-	if err != nil {
-		return false, err
-	}
-
-	return statRes.Size > 0, nil
-}
-
 // Helper function to serve write for file using temp file.
 //
 // LOCKS_REQUIRED(f.mu)
@@ -924,17 +912,14 @@ func (f *FileInode) initBufferedWriteHandlerIfEligible(ctx context.Context) erro
 		return nil
 	}
 
-	isTempFileInUse, err := f.isTempFileInUse()
-	if err != nil {
-		return fmt.Errorf("f.isTempFileInUse: %w", err)
-	}
-
-	if f.src.Size != 0 || !f.config.Write.EnableStreamingWrites || isTempFileInUse {
+	tempFileInUse := f.content != nil
+	if f.src.Size != 0 || !f.config.Write.EnableStreamingWrites || tempFileInUse {
 		// bwh should not be initialized under these conditions.
 		return nil
 	}
 
 	var latestGcsObj *gcs.Object
+	var err error
 	if !f.local {
 		latestGcsObj, err = f.fetchLatestGcsObject(ctx)
 		if err != nil {
