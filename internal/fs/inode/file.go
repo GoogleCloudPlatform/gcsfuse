@@ -158,7 +158,11 @@ func NewFileInode(
 		unlinked:                false,
 		config:                  cfg,
 		globalMaxWriteBlocksSem: globalMaxBlocksSem,
-		MRDWrapper:              gcsx.NewMultiRangeDownloaderWrapper(bucket, &minObj),
+	}
+	var err error
+	f.MRDWrapper, err = gcsx.NewMultiRangeDownloaderWrapper(bucket, &minObj)
+	if err != nil {
+		logger.Errorf("NewFileInode: Error in creating MRDWrapper %v", err)
 	}
 
 	f.lc.Init(id)
@@ -629,7 +633,6 @@ func (f *FileInode) flushUsingBufferedWriteHandler() error {
 	// bwh can return a partially synced object along with an error so updating
 	// inode state before returning error.
 	f.updateInodeStateAfterSync(obj)
-	f.updateMRDWrapper()
 	if err != nil {
 		return fmt.Errorf("f.bwh.Flush(): %w", err)
 	}
@@ -808,7 +811,6 @@ func (f *FileInode) syncUsingContent(ctx context.Context) (err error) {
 	minObj := storageutil.ConvertObjToMinObject(newObj)
 	// If we wrote out a new object, we need to update our state.
 	f.updateInodeStateAfterSync(minObj)
-	f.updateMRDWrapper()
 	return
 }
 
@@ -838,6 +840,8 @@ func (f *FileInode) Flush(ctx context.Context) (err error) {
 func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 	if minObj != nil && !f.localFileCache {
 		f.src = *minObj
+		// Update MRDWrapper
+		f.updateMRDWrapper()
 		// Convert localFile to nonLocalFile after it is synced to GCS.
 		if f.IsLocal() {
 			f.local = false

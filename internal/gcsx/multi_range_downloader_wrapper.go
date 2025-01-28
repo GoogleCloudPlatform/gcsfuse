@@ -34,19 +34,19 @@ import (
 // it's refcount reaches 0.
 const multiRangeDownloaderTimeout = 60 * time.Second
 
-func NewMultiRangeDownloaderWrapper(bucket gcs.Bucket, object *gcs.MinObject) MultiRangeDownloaderWrapper {
+func NewMultiRangeDownloaderWrapper(bucket gcs.Bucket, object *gcs.MinObject) (MultiRangeDownloaderWrapper, error) {
 	return NewMultiRangeDownloaderWrapperWithClock(bucket, object, clock.RealClock{})
 }
 
-func NewMultiRangeDownloaderWrapperWithClock(bucket gcs.Bucket, object *gcs.MinObject, clock clock.Clock) MultiRangeDownloaderWrapper {
+func NewMultiRangeDownloaderWrapperWithClock(bucket gcs.Bucket, object *gcs.MinObject, clock clock.Clock) (MultiRangeDownloaderWrapper, error) {
 	if object == nil {
-		logger.Warnf("NewMultiRangeDownloaderWrapperWithClock: Missing MinObject")
+		return MultiRangeDownloaderWrapper{}, fmt.Errorf("NewMultiRangeDownloaderWrapperWithClock: Missing MinObject")
 	}
 	return MultiRangeDownloaderWrapper{
 		clock:  clock,
 		bucket: bucket,
 		object: object,
-	}
+	}, nil
 }
 
 type readResult struct {
@@ -74,10 +74,12 @@ type MultiRangeDownloaderWrapper struct {
 }
 
 // Sets the gcs.MinObject stored in the wrapper to passed value, only if it's non nil.
-func (mrdWrapper *MultiRangeDownloaderWrapper) SetMinObject(minObj *gcs.MinObject) {
-	if minObj != nil {
-		mrdWrapper.object = minObj
+func (mrdWrapper *MultiRangeDownloaderWrapper) SetMinObject(minObj *gcs.MinObject) error {
+	if minObj == nil {
+		return fmt.Errorf("MultiRangeDownloaderWrapper::SetMinObject: Missing MinObject")
 	}
+	mrdWrapper.object = minObj
+	return nil
 }
 
 // Returns current refcount.
