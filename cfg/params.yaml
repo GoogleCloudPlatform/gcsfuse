@@ -675,7 +675,8 @@
   type: "int"
   usage: >-
     Specifies the maximum number of blocks to be used by all files for
-    streaming writes. The value should be >= 2 or -1 (for infinite blocks).
+    streaming writes. The value should be >= 0 (1 block per file is not counted 
+    towards this limit) or -1 (for infinite blocks).
   default: -1 #TODO: revisit default value after perf testing.
   hide-flag: true
 
@@ -684,7 +685,7 @@
   type: "int"
   usage: >-
     Specifies the maximum number of blocks to be used by a single file for 
-    streaming writes. The value should be >= 2 or -1 (for infinite blocks).
+    streaming writes. The value should be >= 1 or -1 (for infinite blocks).
   default: -1 #TODO: revisit default value after perf testing.
   hide-flag: true
 

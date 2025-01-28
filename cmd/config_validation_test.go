@@ -194,7 +194,7 @@ func TestValidateConfigFile_WriteConfig(t *testing.T) {
 					BlockSizeMb:           64 * util.MiB,
 					EnableStreamingWrites: false,
 					GlobalMaxBlocks:       math.MaxInt64,
-					MaxBlocksPerFile:      math.MaxInt64},
+					MaxBlocksPerFile:      math.MaxInt16},
 			},
 		},
 		{
@@ -302,11 +302,11 @@ func TestValidateConfigFile_InvalidConfigThrowsError(t *testing.T) {
 		},
 		{
 			name:       "small_global_max_blocks",
-			configFile: "testdata/write_config/invalid_write_config_due_to_small_global_max_blocks.yaml",
+			configFile: "testdata/write_config/invalid_write_config_due_to_invalid_global_max_blocks.yaml",
 		},
 		{
 			name:       "small_max_blocks_per_file",
-			configFile: "testdata/write_config/invalid_write_config_due_to_small_max_blocks_per_file.yaml",
+			configFile: "testdata/write_config/invalid_write_config_due_to_zero_max_blocks_per_file.yaml",
 		},
 		{
 			name:       "negative req_increase_rate",
