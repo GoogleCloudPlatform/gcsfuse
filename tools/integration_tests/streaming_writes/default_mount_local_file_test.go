@@ -15,6 +15,7 @@
 package streaming_writes
 
 import (
+	"path"
 	"testing"
 
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/local_file"
@@ -42,7 +43,8 @@ func (t *defaultMountLocalFile) SetupSubTest() {
 func (t *defaultMountLocalFile) createLocalFile() {
 	t.fileName = FileName1 + setup.GenerateRandomString(5)
 	// Create a local file.
-	t.filePath, t.f1 = CreateLocalFileInTestDir(ctx, storageClient, testDirPath, t.fileName, t.T())
+	_, t.f1 = CreateLocalFileInTestDir(ctx, storageClient, testDirPath, t.fileName, t.T())
+	t.filePath = path.Join(testDirPath, t.fileName)
 }
 
 func (t *defaultMountCommonLocalFileTestSuite) SetupSuite() {
