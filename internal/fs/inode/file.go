@@ -861,7 +861,10 @@ func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 // Updates the min object stored in MRDWrapper corresponding to the inode.
 // Should be called when minObject associated with inode is updated.
 func (f *FileInode) updateMRDWrapper() {
-	f.MRDWrapper.SetMinObject(&f.src)
+	err := f.MRDWrapper.SetMinObject(&f.src)
+	if err != nil {
+		logger.Errorf("FileInode::updateMRDWrapper Error in setting minObject %v", err)
+	}
 }
 
 // Truncate the file to the specified size.
