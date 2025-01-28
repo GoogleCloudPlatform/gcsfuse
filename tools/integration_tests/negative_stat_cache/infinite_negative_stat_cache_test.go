@@ -18,6 +18,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"syscall"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
@@ -65,6 +66,30 @@ func (s *infiniteNegativeStatCacheTest) TestInfiniteNegativeStatCache(t *testing
 	assert.NotNil(t, err)
 	// Assert the underlying error is File Not Exist
 	assert.ErrorContains(t, err, "explicit_dir/file1.txt: no such file or directory")
+}
+
+func (s *infiniteNegativeStatCacheTest) TestInfiniteNegativeStatCacheForAlreadyExistFolder(t *testing.T) {
+	targetDir := path.Join(testDirPath, "explicit_dir")
+	// Create test directory
+	operations.CreateDirectory(targetDir, t)
+	dir := path.Join(targetDir, "test_dir")
+	dirPathOnBucket := path.Join(testDirName, "explicit_dir", "test_dir")
+
+	// Error should be returned as dir does not exist
+	_, err := os.Stat(dir)
+	assert.ErrorContains(t, err, "no such file or directory")
+
+	// Adding the same name folder/dir.
+	if setup.IsHierarchicalBucket(ctx, storageClient) {
+		_, err = client.CreateFolderInBucket(ctx, storageControlClient, dirPathOnBucket)
+	} else {
+		err = client.CreateObjectOnGCS(ctx, storageClient, dirPathOnBucket+"/", "")
+	}
+	assert.NoError(t, err)
+
+	// Error should be returned as already exist on trying to create.
+	err = os.Mkdir(dir, setup.DirPermission_0755)
+	assert.ErrorIs(t, err, syscall.EEXIST)
 }
 
 ////////////////////////////////////////////////////////////////////////

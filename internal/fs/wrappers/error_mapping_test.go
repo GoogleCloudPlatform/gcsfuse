@@ -47,6 +47,15 @@ func (testSuite *ErrorMapping) TestPermissionDeniedGrpcApiError() {
 	assert.Equal(testSuite.T(), syscall.EACCES, fsErr)
 }
 
+func (testSuite *ErrorMapping) TestAlreadyExistGrpcApiError() {
+	statusErr := status.New(codes.AlreadyExists, "already exist")
+	apiError, _ := apierror.FromError(statusErr.Err())
+
+	fsErr := errno(apiError, testSuite.preconditionErrCfg)
+
+	assert.Equal(testSuite.T(), syscall.EEXIST, fsErr)
+}
+
 func (testSuite *ErrorMapping) TestNotFoundGrpcApiError() {
 	statusErr := status.New(codes.NotFound, "Not found")
 	apiError, _ := apierror.FromError(statusErr.Err())
