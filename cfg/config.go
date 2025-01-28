@@ -351,10 +351,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("enable-streaming-writes", "", false, "Enables streaming uploads during write file operation.")
 
-	if err := flagSet.MarkHidden("enable-streaming-writes"); err != nil {
-		return err
-	}
-
 	flagSet.BoolP("experimental-enable-json-read", "", false, "By default, GCSFuse uses the GCS XML API to get and read objects. When this flag is specified, GCSFuse uses the GCS JSON API instead.\"")
 
 	if err := flagSet.MarkDeprecated("experimental-enable-json-read", "Experimental flag: could be dropped even in a minor release."); err != nil {
@@ -569,19 +565,19 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("uid", "", -1, "UID owner of all inodes.")
 
-	flagSet.IntP("write-block-size-mb", "", 64, "Specifies the block size for streaming writes. The value should be more  than 0.")
+	flagSet.IntP("write-block-size-mb", "", 32, "Specifies the block size for streaming writes. The value should be more  than 0.")
 
 	if err := flagSet.MarkHidden("write-block-size-mb"); err != nil {
 		return err
 	}
 
-	flagSet.IntP("write-global-max-blocks", "", -1, "Specifies the maximum number of blocks to be used by all files for streaming writes. The value should be >= 0 (1 block per file is not counted  towards this limit) or -1 (for infinite blocks).")
+	flagSet.IntP("write-global-max-blocks", "", 0, "Specifies the maximum number of blocks to be used by all files for streaming writes. The value should be >= 0 (1 block per file is not counted  towards this limit) or -1 (for infinite blocks).")
 
 	if err := flagSet.MarkHidden("write-global-max-blocks"); err != nil {
 		return err
 	}
 
-	flagSet.IntP("write-max-blocks-per-file", "", -1, "Specifies the maximum number of blocks to be used by a single file for  streaming writes. The value should be >= 1 or -1 (for infinite blocks).")
+	flagSet.IntP("write-max-blocks-per-file", "", 1, "Specifies the maximum number of blocks to be used by a single file for  streaming writes. The value should be >= 1 or -1 (for infinite blocks).")
 
 	if err := flagSet.MarkHidden("write-max-blocks-per-file"); err != nil {
 		return err

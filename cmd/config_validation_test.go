@@ -16,7 +16,6 @@ package cmd
 
 import (
 	"fmt"
-	"math"
 	"os"
 	"path"
 	"runtime"
@@ -191,10 +190,10 @@ func TestValidateConfigFile_WriteConfig(t *testing.T) {
 			expectedConfig: &cfg.Config{
 				Write: cfg.WriteConfig{
 					CreateEmptyFile:       false,
-					BlockSizeMb:           64 * util.MiB,
+					BlockSizeMb:           32 * util.MiB,
 					EnableStreamingWrites: false,
-					GlobalMaxBlocks:       math.MaxInt64,
-					MaxBlocksPerFile:      math.MaxInt16},
+					GlobalMaxBlocks:       0,
+					MaxBlocksPerFile:      0},
 			},
 		},
 		{
