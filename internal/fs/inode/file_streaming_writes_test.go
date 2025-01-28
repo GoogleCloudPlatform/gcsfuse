@@ -619,7 +619,7 @@ func (t *TestBufferedWriteHandler) WriteFileInfo() bufferedwrites.WriteFileInfo 
 }
 
 func (t *TestBufferedWriteHandler) Sync() (err error)      { return nil }
-func (t *TestBufferedWriteHandler) SetMtime(_ time.Time)   { return }
+func (t *TestBufferedWriteHandler) SetMtime(_ time.Time)   {}
 func (t *TestBufferedWriteHandler) Truncate(_ int64) error { return nil }
 func (t *TestBufferedWriteHandler) Destroy() error         { return nil }
 func (t *TestBufferedWriteHandler) Unlink()                {}
