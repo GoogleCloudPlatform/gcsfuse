@@ -28,6 +28,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/suite"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -91,4 +92,8 @@ func TestMain(m *testing.M) {
 	// Clean up test directory created.
 	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
 	os.Exit(successCode)
+}
+
+func TestLocalFileTestSuite(t *testing.T) {
+	suite.Run(t, new(localFileTestSuite))
 }
