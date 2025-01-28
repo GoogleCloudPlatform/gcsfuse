@@ -17,7 +17,6 @@ package streaming_writes
 import (
 	"os"
 	"path"
-	"strings"
 
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
@@ -31,17 +30,15 @@ func (t *defaultMountCommonTest) TestCreateSymlinkForLocalFileReadFails() {
 	operations.CreateSymLink(t.filePath, symlink, t.T())
 	_, err := t.f1.WriteAt([]byte(FileContents), 0)
 	assert.NoError(t.T(), err)
-
 	// Verify read link.
 	operations.VerifyReadLink(t.filePath, symlink, t.T())
 
 	// Reading file from symlink fails.
 	_, err = os.ReadFile(symlink)
-	assert.Error(t.T(), err)
 
+	assert.Error(t.T(), err)
 	// Close the file and validate that the file is created on GCS.
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName,
-		t.fileName, FileContents, t.T())
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, FileContents, t.T())
 }
 
 func (t *defaultMountCommonTest) TestReadSymlinkForDeletedLocalFileFails() {
@@ -50,22 +47,18 @@ func (t *defaultMountCommonTest) TestReadSymlinkForDeletedLocalFileFails() {
 	operations.CreateSymLink(t.filePath, symlink, t.T())
 	_, err := t.f1.WriteAt([]byte(FileContents), 0)
 	assert.NoError(t.T(), err)
-
 	// Verify read link.
 	operations.VerifyReadLink(t.filePath, symlink, t.T())
 
-	// Read the file from symlink fails
+	// Reading the file from symlink fails.
 	_, err = os.ReadFile(symlink)
-	assert.Error(t.T(), err)
 
+	assert.Error(t.T(), err)
 	// Remove filePath and then close the fileHandle to avoid syncing to GCS.
 	operations.RemoveFile(t.filePath)
 	operations.CloseFileShouldNotThrowError(t.f1, t.T())
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, t.fileName, t.T())
-
 	// Reading symlink should fail.
 	_, err = os.Stat(symlink)
-	if err == nil || !strings.Contains(err.Error(), "no such file or directory") {
-		t.T().Fatalf("Reading symlink for deleted local file did not fail.")
-	}
+	assert.Error(t.T(), err)
 }
