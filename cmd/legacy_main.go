@@ -113,7 +113,11 @@ func getConfigForUserAgent(mountConfig *cfg.Config) string {
 	if cfg.IsParallelDownloadsEnabled(mountConfig) {
 		isParallelDownloadsEnabled = "1"
 	}
-	return fmt.Sprintf("%s:%s:%s", isFileCacheEnabled, isFileCacheForRangeReadEnabled, isParallelDownloadsEnabled)
+	areStreamingWritesEnabled := "0"
+	if mountConfig.Write.EnableStreamingWrites {
+		areStreamingWritesEnabled = "1"
+	}
+	return fmt.Sprintf("%s:%s:%s:%s", isFileCacheEnabled, isFileCacheForRangeReadEnabled, isParallelDownloadsEnabled, areStreamingWritesEnabled)
 }
 func createStorageHandle(newConfig *cfg.Config, userAgent string) (storageHandle storage.StorageHandle, err error) {
 	storageClientConfig := storageutil.StorageClientConfig{
