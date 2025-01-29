@@ -57,9 +57,9 @@ type BufferedWriteHandler interface {
 	Unlink()
 }
 
-// BufferedWriteHandlerImpl is responsible for filling up the buffers with the data
+// bufferedWriteHandlerImpl is responsible for filling up the buffers with the data
 // as it receives and handing over to uploadHandler which uploads to GCS.
-type BufferedWriteHandlerImpl struct {
+type bufferedWriteHandlerImpl struct {
 	current       block.Block
 	blockPool     *block.BlockPool
 	uploadHandler *UploadHandler
@@ -104,7 +104,7 @@ func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err er
 		return
 	}
 
-	bwh = &BufferedWriteHandlerImpl{
+	bwh = &bufferedWriteHandlerImpl{
 		current:   nil,
 		blockPool: bp,
 		uploadHandler: newUploadHandler(&CreateUploadHandlerRequest{
@@ -123,7 +123,7 @@ func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err er
 	return
 }
 
-func (wh *BufferedWriteHandlerImpl) Write(data []byte, offset int64) (err error) {
+func (wh *bufferedWriteHandlerImpl) Write(data []byte, offset int64) (err error) {
 	// Fail early if the uploadHandler has failed.
 	select {
 	case <-wh.uploadHandler.SignalUploadFailure():
@@ -149,7 +149,7 @@ func (wh *BufferedWriteHandlerImpl) Write(data []byte, offset int64) (err error)
 	return wh.appendBuffer(data)
 }
 
-func (wh *BufferedWriteHandlerImpl) appendBuffer(data []byte) (err error) {
+func (wh *bufferedWriteHandlerImpl) appendBuffer(data []byte) (err error) {
 	dataWritten := 0
 	for dataWritten < len(data) {
 		if wh.current == nil {
@@ -182,7 +182,7 @@ func (wh *BufferedWriteHandlerImpl) appendBuffer(data []byte) (err error) {
 	return
 }
 
-func (wh *BufferedWriteHandlerImpl) Sync() (err error) {
+func (wh *bufferedWriteHandlerImpl) Sync() (err error) {
 	// Upload all the pending buffers and release the buffers.
 	wh.uploadHandler.AwaitBlocksUpload()
 	err = wh.blockPool.ClearFreeBlockChannel()
@@ -200,7 +200,7 @@ func (wh *BufferedWriteHandlerImpl) Sync() (err error) {
 }
 
 // Flush finalizes the upload.
-func (wh *BufferedWriteHandlerImpl) Flush() (*gcs.MinObject, error) {
+func (wh *bufferedWriteHandlerImpl) Flush() (*gcs.MinObject, error) {
 	// In case it is a truncated file, upload empty blocks as required.
 	err := wh.writeDataForTruncatedSize()
 	if err != nil {
@@ -237,11 +237,11 @@ func (wh *BufferedWriteHandlerImpl) Flush() (*gcs.MinObject, error) {
 	return obj, nil
 }
 
-func (wh *BufferedWriteHandlerImpl) SetMtime(mtime time.Time) {
+func (wh *bufferedWriteHandlerImpl) SetMtime(mtime time.Time) {
 	wh.mtime = mtime
 }
 
-func (wh *BufferedWriteHandlerImpl) Truncate(size int64) error {
+func (wh *bufferedWriteHandlerImpl) Truncate(size int64) error {
 	if size < wh.totalSize {
 		return fmt.Errorf("cannot truncate to lesser size when upload is in progress")
 	}
@@ -250,19 +250,19 @@ func (wh *BufferedWriteHandlerImpl) Truncate(size int64) error {
 	return nil
 }
 
-func (wh *BufferedWriteHandlerImpl) WriteFileInfo() WriteFileInfo {
+func (wh *bufferedWriteHandlerImpl) WriteFileInfo() WriteFileInfo {
 	return WriteFileInfo{
 		TotalSize: int64(math.Max(float64(wh.totalSize), float64(wh.truncatedSize))),
 		Mtime:     wh.mtime,
 	}
 }
 
-func (wh *BufferedWriteHandlerImpl) Destroy() error {
+func (wh *bufferedWriteHandlerImpl) Destroy() error {
 	wh.uploadHandler.Destroy()
 	return wh.blockPool.ClearFreeBlockChannel()
 }
 
-func (wh *BufferedWriteHandlerImpl) writeDataForTruncatedSize() error {
+func (wh *bufferedWriteHandlerImpl) writeDataForTruncatedSize() error {
 	// If totalSize is greater than truncatedSize, that means user has
 	// written more data than they actually truncated in the beginning.
 	if wh.totalSize >= wh.truncatedSize {
@@ -284,7 +284,7 @@ func (wh *BufferedWriteHandlerImpl) writeDataForTruncatedSize() error {
 	return nil
 }
 
-func (wh *BufferedWriteHandlerImpl) Unlink() {
+func (wh *bufferedWriteHandlerImpl) Unlink() {
 	wh.uploadHandler.CancelUpload()
 	err := wh.blockPool.ClearFreeBlockChannel()
 	if err != nil {

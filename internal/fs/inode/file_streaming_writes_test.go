@@ -591,38 +591,38 @@ func (t *FileStreamingWritesTest) TestDeRegisterFileHandle() {
 	}
 }
 
-// TestBufferedWriteHandler is a test double for BufferedWriteHandler.
-type TestBufferedWriteHandler struct {
+// FakeBufferedWriteHandler is a test double for BufferedWriteHandler.
+type FakeBufferedWriteHandler struct {
 	WriteFunc func(data []byte, offset int64) error
 	FlushFunc func() (*gcs.MinObject, error)
 }
 
-func (t *TestBufferedWriteHandler) Write(data []byte, offset int64) error {
+func (t *FakeBufferedWriteHandler) Write(data []byte, offset int64) error {
 	if t.WriteFunc != nil {
 		return t.WriteFunc(data, offset)
 	}
 	return nil
 }
 
-func (t *TestBufferedWriteHandler) Flush() (*gcs.MinObject, error) {
+func (t *FakeBufferedWriteHandler) Flush() (*gcs.MinObject, error) {
 	if t.FlushFunc != nil {
 		return t.FlushFunc()
 	}
 	return nil, nil
 }
 
-func (t *TestBufferedWriteHandler) WriteFileInfo() bufferedwrites.WriteFileInfo {
+func (t *FakeBufferedWriteHandler) WriteFileInfo() bufferedwrites.WriteFileInfo {
 	return bufferedwrites.WriteFileInfo{
 		TotalSize: 0,
 		Mtime:     time.Time{},
 	}
 }
 
-func (t *TestBufferedWriteHandler) Sync() (err error)      { return nil }
-func (t *TestBufferedWriteHandler) SetMtime(_ time.Time)   {}
-func (t *TestBufferedWriteHandler) Truncate(_ int64) error { return nil }
-func (t *TestBufferedWriteHandler) Destroy() error         { return nil }
-func (t *TestBufferedWriteHandler) Unlink()                {}
+func (t *FakeBufferedWriteHandler) Sync() (err error)      { return nil }
+func (t *FakeBufferedWriteHandler) SetMtime(_ time.Time)   {}
+func (t *FakeBufferedWriteHandler) Truncate(_ int64) error { return nil }
+func (t *FakeBufferedWriteHandler) Destroy() error         { return nil }
+func (t *FakeBufferedWriteHandler) Unlink()                {}
 
 func (t *FileStreamingWritesTest) TestWriteUsingBufferedWritesErrorScenarios() {
 	assert.True(t.T(), t.in.IsLocal())
@@ -650,7 +650,7 @@ func (t *FileStreamingWritesTest) TestWriteUsingBufferedWritesErrorScenarios() {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
-			t.in.bwh = &TestBufferedWriteHandler{
+			t.in.bwh = &FakeBufferedWriteHandler{
 				WriteFunc: func(data []byte, offset int64) error {
 					return tc.writeErr
 				},
