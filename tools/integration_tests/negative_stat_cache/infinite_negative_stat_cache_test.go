@@ -26,6 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type infiniteNegativeStatCacheTest struct {
@@ -79,25 +80,24 @@ func (s *infiniteNegativeStatCacheTest) TestAlreadyExistFolder(t *testing.T) {
 	dirName := "testAlreadyExistFolder"
 	dirPath := path.Join(testDirPath, dirName)
 	dirPathOnBucket := path.Join(testDirName, dirName)
-
 	// Stat should return an error because the directory doesn't exist yet,
 	// populating the negative metadata cache.
 	_, err := os.Stat(dirPath)
-	assert.Error(t, err)
-	assert.True(t, os.IsNotExist(err))
-
+	require.Error(t, err)
+	require.True(t, os.IsNotExist(err))
 	// Create the directory in the bucket using a different client outside of gcsfuse.
 	if setup.IsHierarchicalBucket(ctx, storageClient) {
 		_, err = client.CreateFolderInBucket(ctx, storageControlClient, dirPathOnBucket)
 	} else {
 		err = client.CreateObjectOnGCS(ctx, storageClient, dirPathOnBucket+"/", "")
 	}
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Attempting to create the directory again should fail with EEXIST because the
 	// negative stat cache entry persists, causing LookUpInode to return a "not found" error
 	// and triggering a directory creation attempt despite the directory already existing in GCS.
 	err = os.Mkdir(dirPath, setup.DirPermission_0755)
+
 	assert.ErrorIs(t, err, syscall.EEXIST)
 }
 
