@@ -32,8 +32,9 @@ import (
 )
 
 const (
-	blockSize       = 1024
-	maxBlocks int64 = 5
+	blockSize        = 1024
+	maxBlocks  int64 = 5
+	objectName       = "testObject"
 )
 
 type UploadHandlerTest struct {
@@ -54,7 +55,7 @@ func (t *UploadHandlerTest) SetupTest() {
 	require.NoError(t.T(), err)
 	t.uh = newUploadHandler(&CreateUploadHandlerRequest{
 		Object:                   nil,
-		ObjectName:               "testObject",
+		ObjectName:               objectName,
 		Bucket:                   t.mockBucket,
 		FreeBlocksCh:             t.blockPool.FreeBlocksChannel(),
 		MaxBlocksPerFile:         maxBlocks,
@@ -92,6 +93,7 @@ func (t *UploadHandlerTest) TestMultipleBlockUpload() {
 		assert.Equal(t.T(), expect, got)
 	}
 	assertAllBlocksProcessed(t.T(), t.uh)
+	assertUploadChClosed(t.T(), t.uh)
 }
 
 func (t *UploadHandlerTest) TestUploadWhenCreateObjectWriterFails() {
@@ -120,6 +122,7 @@ func (t *UploadHandlerTest) TestFinalizeWithWriterAlreadyPresent() {
 	require.NoError(t.T(), err)
 	require.NotNil(t.T(), obj)
 	assert.Equal(t.T(), mockObj, obj)
+	assertUploadChClosed(t.T(), t.uh)
 }
 
 func (t *UploadHandlerTest) TestFinalizeWithNoWriter() {
@@ -134,6 +137,7 @@ func (t *UploadHandlerTest) TestFinalizeWithNoWriter() {
 	require.NoError(t.T(), err)
 	require.NotNil(t.T(), obj)
 	assert.Equal(t.T(), mockObj, obj)
+	assertUploadChClosed(t.T(), t.uh)
 }
 
 func (t *UploadHandlerTest) TestFinalizeWithNoWriterWhenCreateObjectWriterFails() {
@@ -146,6 +150,7 @@ func (t *UploadHandlerTest) TestFinalizeWithNoWriterWhenCreateObjectWriterFails(
 	assert.ErrorContains(t.T(), err, "taco")
 	assert.ErrorContains(t.T(), err, "createObjectWriter")
 	assert.Nil(t.T(), obj)
+	assertUploadChClosed(t.T(), t.uh)
 }
 
 func (t *UploadHandlerTest) TestFinalizeWhenFinalizeUploadFails() {
@@ -161,6 +166,29 @@ func (t *UploadHandlerTest) TestFinalizeWhenFinalizeUploadFails() {
 	assert.Nil(t.T(), obj)
 	assert.ErrorContains(t.T(), err, "taco")
 	assert.ErrorContains(t.T(), err, "FinalizeUpload failed for object")
+	assertUploadChClosed(t.T(), t.uh)
+}
+
+func (t *UploadHandlerTest) TestFinalizeWhenUploadChannelAlreadyClosed() {
+	close(t.uh.uploadCh)
+
+	obj, err := t.uh.Finalize()
+
+	require.Error(t.T(), err)
+	assert.Nil(t.T(), obj)
+	assert.ErrorContains(t.T(), err, fmt.Sprintf(ErrCloseAllFileHandles, objectName))
+}
+
+func (t *UploadHandlerTest) TestReFinalizeAfterUploadFails() {
+	t.TestFinalizeWhenFinalizeUploadFails()
+
+	// Re-finalize.
+	obj, err := t.uh.Finalize()
+
+	require.Error(t.T(), err)
+	assert.Nil(t.T(), obj)
+	assert.ErrorContains(t.T(), err, fmt.Sprintf(ErrCloseAllFileHandles, objectName))
+
 }
 
 func (t *UploadHandlerTest) TestUploadSingleBlockThrowsErrorInCopy() {
@@ -219,6 +247,19 @@ func assertUploadFailureSignal(t *testing.T, handler *UploadHandler) {
 		break
 	case <-time.After(200 * time.Millisecond):
 		t.Error("Expected an error on signalUploadFailure channel")
+	}
+}
+
+func assertUploadChClosed(t *testing.T, handler *UploadHandler) {
+	t.Helper()
+
+	select {
+	case _, ok := <-handler.uploadCh:
+		if !ok {
+			return
+		}
+	default:
+		t.Error("Expected uploadCh to be closed")
 	}
 }
 

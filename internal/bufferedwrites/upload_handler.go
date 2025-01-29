@@ -25,6 +25,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 )
 
+// Note: All the write operations take inode lock in fs.go, hence we don't need
+// any locks here as we will get calls to these methods serially.
+
 // UploadHandler is responsible for synchronized uploads of the filled blocks
 // to GCS and then putting them back for reuse once the block has been uploaded.
 type UploadHandler struct {
@@ -134,7 +137,16 @@ func (uh *UploadHandler) uploader() {
 // Finalize finalizes the upload.
 func (uh *UploadHandler) Finalize() (*gcs.MinObject, error) {
 	uh.wg.Wait()
-	close(uh.uploadCh)
+	select {
+	case _, ok := <-uh.uploadCh:
+		if !ok {
+			// Closed channel means we have already finalized the upload. Do not retry.
+			return nil, fmt.Errorf(ErrCloseAllFileHandles, uh.objectName)
+		}
+	default:
+		close(uh.uploadCh)
+		break
+	}
 
 	if uh.writer == nil {
 		// Writer may not have been created for empty file creation flow or for very

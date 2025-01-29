@@ -86,6 +86,7 @@ type WriteFileInfo struct {
 
 var ErrOutOfOrderWrite = errors.New("outOfOrder write detected")
 var ErrUploadFailure = errors.New("error while uploading object to GCS")
+var ErrCloseAllFileHandles = "error in streaming writes, please close all file handles pointing to object: %s"
 
 type CreateBWHandlerRequest struct {
 	Object                   *gcs.Object
