@@ -16,8 +16,6 @@ package local_file
 
 import (
 	"context"
-	"os"
-	"testing"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
@@ -30,8 +28,6 @@ const (
 )
 
 var (
-	testDirName   string
-	testDirPath   string
 	storageClient *storage.Client
 	ctx           context.Context
 )
@@ -40,41 +36,16 @@ var (
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func WritingToLocalFileShouldNotWriteToGCS(ctx context.Context, storageClient *storage.Client,
-	fh *os.File, testDirName, fileName string, t *testing.T) {
-	operations.WriteWithoutClose(fh, client.FileContents, t)
-	client.ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, fileName, t)
+func (t *CommonLocalFileTestSuite) WritingToLocalFileShouldNotWriteToGCS(ctx context.Context, storageClient *storage.Client, testDirName string) {
+	operations.WriteWithoutClose(t.fh, client.FileContents, t.T())
+	client.ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, t.fileName, t.T())
 }
 
-func NewFileShouldGetSyncedToGCSAtClose(ctx context.Context, storageClient *storage.Client,
-	testDirPath, fileName string, t *testing.T) {
-	// Create a local file.
-	_, fh := client.CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t)
-
+func (t *CommonLocalFileTestSuite) NewFileShouldGetSyncedToGCSAtClose(ctx context.Context, storageClient *storage.Client) {
 	// Writing contents to local file shouldn't create file on GCS.
-	testDirName := client.GetDirName(testDirPath)
-	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, fileName, t)
+	testDirName := client.GetDirName(t.testDirPath)
+	t.WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, testDirName)
 
 	// Close the file and validate if the file is created on GCS.
-	client.CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, fileName, client.FileContents, t)
-}
-
-// Following setters are required to setup ctx, storageClient, testDirName for the local file tests
-// getting executed from different package.
-func SetCtx(otherCtx context.Context) {
-	if ctx == nil {
-		ctx = otherCtx
-	}
-}
-
-func SetStorageClient(otherStorageClient *storage.Client) {
-	if storageClient == nil {
-		storageClient = otherStorageClient
-	}
-}
-
-func SetTestDirName(otherTestDirName string) {
-	if testDirName == "" {
-		testDirName = otherTestDirName
-	}
+	client.CloseFileAndValidateContentFromGCS(ctx, storageClient, t.fh, testDirName, t.fileName, client.FileContents, t.T())
 }

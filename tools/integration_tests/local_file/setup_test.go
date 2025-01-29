@@ -20,7 +20,6 @@ import (
 	"context"
 	"log"
 	"os"
-	"path"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
@@ -39,9 +38,6 @@ func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
-
-	// set the test dir to local file test
-	testDirName = testDirLocalFileTest
 
 	// Create storage client before running tests.
 	ctx = context.Background()
@@ -89,11 +85,31 @@ func TestMain(m *testing.M) {
 		successCode = dynamic_mounting.RunTests(ctx, storageClient, flagsSet, m)
 	}
 
-	// Clean up test directory created.
-	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
 	os.Exit(successCode)
 }
 
+type localFileTestSuite struct {
+	CommonLocalFileTestSuite
+	suite.Suite
+}
+
 func TestLocalFileTestSuite(t *testing.T) {
-	suite.Run(t, new(localFileTestSuite))
+	s := new(localFileTestSuite)
+	s.fileName = client.FileName1
+	s.CommonLocalFileTestSuite.TestifySuite = &s.Suite
+	suite.Run(t, s)
+}
+
+func (t *localFileTestSuite) SetupTest() {
+	t.testDirName = "LocalFileTest"
+	t.testDirPath = setup.SetupTestDirectory(t.testDirName)
+	_, t.fh = client.CreateLocalFileInTestDir(ctx, storageClient, t.testDirPath, t.fileName, t.T())
+}
+
+func (t *localFileTestSuite) SetupSubTest() {
+	t.SetupTest()
+}
+
+func (t *localFileTestSuite) TearDownTest() {
+
 }

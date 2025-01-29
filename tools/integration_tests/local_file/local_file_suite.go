@@ -15,7 +15,9 @@
 package local_file
 
 import (
-	"github.com/stretchr/testify/suite"
+	"os"
+
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_suite"
 )
 
 // //////////////////////////////////////////////////////////////////////
@@ -23,9 +25,9 @@ import (
 // //////////////////////////////////////////////////////////////////////
 
 type CommonLocalFileTestSuite struct {
-	suite.Suite
-}
-
-type localFileTestSuite struct {
-	CommonLocalFileTestSuite
+	testDirPath string
+	testDirName string
+	fh          *os.File
+	fileName    string
+	test_suite.TestifySuite
 }

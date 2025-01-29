@@ -554,6 +554,8 @@ func VerifyReadLink(expectedTarget, symlinkName string, t *testing.T) {
 }
 
 func WriteWithoutClose(fh *os.File, content string, t *testing.T) {
+	t.Helper()
+
 	_, err := fh.Write([]byte(content))
 	if err != nil {
 		t.Fatalf("Error while writing to local file. err: %v", err)

@@ -20,7 +20,6 @@ import (
 
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -28,43 +27,44 @@ import (
 ////////////////////////////////////////////////////////////////////////
 
 func (t *CommonLocalFileTestSuite) TestNewFileShouldNotGetSyncedToGCSTillClose() {
-	testDirPath = setup.SetupTestDirectory(testDirName)
+	testDirName := GetDirName(t.testDirPath)
 
-	// Validate.
-	NewFileShouldGetSyncedToGCSAtClose(ctx, storageClient, testDirPath, FileName1, t.T())
+	// Writing contents to local file shouldn't create file on GCS.
+	operations.WriteWithoutClose(t.fh, FileContents, t.T())
+
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, t.fileName, t.T())
+	// Close the file and validate if the file is created on GCS.
+	operations.CloseFileShouldNotThrowError(t.fh, t.T())
+	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, t.fileName, FileContents, t.T())
 }
 
 func (t *CommonLocalFileTestSuite) TestNewFileUnderExplicitDirectoryShouldNotGetSyncedToGCSTillClose() {
-	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Make explicit directory.
-	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t.T())
+	t.testDirName = path.Join(t.testDirName, ExplicitDirName)
+	t.testDirPath = path.Join(t.testDirPath, ExplicitDirName)
+	operations.CreateDirectory(t.testDirPath, t.T())
+	_, t.fh = CreateLocalFileInTestDir(ctx, storageClient, t.testDirPath, t.fileName, t.T())
 
-	// Validate.
-	NewFileShouldGetSyncedToGCSAtClose(ctx, storageClient, testDirPath, path.Join(ExplicitDirName, ExplicitFileName1), t.T())
+	t.WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, t.testDirName)
+
+	// Close the file and validate if the file is created on GCS.
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.fh, t.testDirName, t.fileName, FileContents, t.T())
 }
 
 func (t *CommonLocalFileTestSuite) TestCreateNewFileWhenSameFileExistsOnGCS() {
-	testDirPath = setup.SetupTestDirectory(testDirName)
-	// Create a local file.
-	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
-
 	// Create a file on GCS with the same name.
-	CreateObjectInGCSTestDir(ctx, storageClient, testDirName, FileName1, GCSFileContent, t.T())
+	CreateObjectInGCSTestDir(ctx, storageClient, t.testDirName, t.fileName, GCSFileContent, t.T())
 
 	// Write to local file.
-	operations.WriteWithoutClose(fh, FileContents, t.T())
+	operations.WriteWithoutClose(t.fh, FileContents, t.T())
 	// Validate closing local file throws error.
-	err := fh.Close()
+	err := t.fh.Close()
 	operations.ValidateStaleNFSFileHandleError(t.T(), err)
 	//  Ensure that the content on GCS is not overwritten.
-	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, FileName1, GCSFileContent, t.T())
+	ValidateObjectContentsFromGCS(ctx, storageClient, t.testDirName, t.fileName, GCSFileContent, t.T())
 }
 
 func (t *CommonLocalFileTestSuite) TestEmptyFileCreation() {
-	testDirPath = setup.SetupTestDirectory(testDirName)
-	// Create a local file.
-	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
-
 	// Close the file and validate that the file is created on GCS.
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, FileName1, "", t.T())
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.fh, t.testDirName, t.fileName, "", t.T())
 }

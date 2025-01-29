@@ -18,7 +18,7 @@ import (
 	"os"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-	"github.com/stretchr/testify/suite"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_suite"
 )
 
 type defaultMountCommonTest struct {
@@ -26,7 +26,7 @@ type defaultMountCommonTest struct {
 	fileName string
 	// filePath of the above file in the mounted directory.
 	filePath string
-	suite.Suite
+	test_suite.TestifySuite
 }
 
 func (t *defaultMountCommonTest) SetupSuite() {
