@@ -980,8 +980,9 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 	parent inode.DirInode,
 	childName string) (child inode.Inode, err error) {
 	// First check if the requested child is a localFileInode.
-	if child, err = fs.lookUpLocalFileInode(parent, childName); err != nil {
-		return child, err
+	child, err = fs.lookUpLocalFileInode(parent, childName)
+	if err != nil {
+		return nil, err
 	}
 	if child != nil {
 		return
@@ -1042,7 +1043,7 @@ func (fs *fileSystem) lookUpLocalFileInode(parent inode.DirInode, childName stri
 	// If the path specified is "a/\n", the child would come as \n which is not a valid childname.
 	// In such cases, simply return a file-not-found.
 	if childName == inode.ConflictingFileNameSuffix {
-		return child, syscall.ENOENT
+		return nil, syscall.ENOENT
 	}
 	// Trim the suffix assigned to fix conflicting names.
 	childName = strings.TrimSuffix(childName, inode.ConflictingFileNameSuffix)
