@@ -16,11 +16,13 @@ package inode
 
 import (
 	"context"
+	"errors"
 	"math"
 	"testing"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/bufferedwrites"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
@@ -585,6 +587,82 @@ func (t *FileStreamingWritesTest) TestDeRegisterFileHandle() {
 			} else {
 				assert.NotNil(t.T(), t.in.bwh)
 			}
+		})
+	}
+}
+
+// FakeBufferedWriteHandler is a test double for BufferedWriteHandler.
+type FakeBufferedWriteHandler struct {
+	WriteFunc func(data []byte, offset int64) error
+	FlushFunc func() (*gcs.MinObject, error)
+}
+
+func (t *FakeBufferedWriteHandler) Write(data []byte, offset int64) error {
+	if t.WriteFunc != nil {
+		return t.WriteFunc(data, offset)
+	}
+	return nil
+}
+
+func (t *FakeBufferedWriteHandler) Flush() (*gcs.MinObject, error) {
+	if t.FlushFunc != nil {
+		return t.FlushFunc()
+	}
+	return nil, nil
+}
+
+func (t *FakeBufferedWriteHandler) WriteFileInfo() bufferedwrites.WriteFileInfo {
+	return bufferedwrites.WriteFileInfo{
+		TotalSize: 0,
+		Mtime:     time.Time{},
+	}
+}
+
+func (t *FakeBufferedWriteHandler) Sync() (err error)      { return nil }
+func (t *FakeBufferedWriteHandler) SetMtime(_ time.Time)   {}
+func (t *FakeBufferedWriteHandler) Truncate(_ int64) error { return nil }
+func (t *FakeBufferedWriteHandler) Destroy() error         { return nil }
+func (t *FakeBufferedWriteHandler) Unlink()                {}
+
+func (t *FileStreamingWritesTest) TestWriteUsingBufferedWritesErrorScenarios() {
+	assert.True(t.T(), t.in.IsLocal())
+	require.NotNil(t.T(), t.in.bwh)
+
+	testCases := []struct {
+		name        string
+		writeErr    error
+		flushErr    error
+		expectedErr string
+	}{
+		{
+			name:        "Write_error_flush_succeeds",
+			writeErr:    errors.New("write error"),
+			flushErr:    nil,
+			expectedErr: "write error",
+		},
+		{
+			name:        "Write_error_flush_fails",
+			writeErr:    errors.New("write error"),
+			flushErr:    errors.New("flush error"),
+			expectedErr: "write error.*flush error", // Use regex for multiple errors
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			t.in.bwh = &FakeBufferedWriteHandler{
+				WriteFunc: func(data []byte, offset int64) error {
+					return tc.writeErr
+				},
+				FlushFunc: func() (*gcs.MinObject, error) {
+					return nil, tc.flushErr
+				},
+			}
+
+			err := t.in.Write(context.Background(), []byte("hello"), 0)
+
+			require.Error(t.T(), err)
+			assert.Regexp(t.T(), tc.expectedErr, err.Error())
 		})
 	}
 }

@@ -101,7 +101,7 @@ type FileInode struct {
 	// code.
 	MRDWrapper gcsx.MultiRangeDownloaderWrapper
 
-	bwh    *bufferedwrites.BufferedWriteHandler
+	bwh    bufferedwrites.BufferedWriteHandler
 	config *cfg.Config
 
 	// Once write is started on the file i.e, bwh is initialized, any fileHandles
@@ -594,7 +594,7 @@ func (f *FileInode) writeUsingTempFile(ctx context.Context, data []byte, offset 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, offset int64) error {
 	err := f.bwh.Write(data, offset)
-	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) || errors.Is(err, bufferedwrites.ErrUploadFailure) {
+	if err != nil {
 		// Finalize the object.
 		flushErr := f.flushUsingBufferedWriteHandler()
 		if flushErr != nil {
@@ -603,7 +603,7 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 	}
 
 	// Fall back to temp file for Out-Of-Order Writes.
-	if err == bufferedwrites.ErrOutOfOrderWrite {
+	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
 		return f.writeUsingTempFile(ctx, data, offset)
 	}
 
