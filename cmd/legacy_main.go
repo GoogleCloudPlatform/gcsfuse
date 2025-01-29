@@ -114,7 +114,7 @@ func getConfigForUserAgent(mountConfig *cfg.Config) string {
 		isParallelDownloadsEnabled = "1"
 	}
 	areStreamingWritesEnabled := "0"
-	if cfg.AreStreamingWritesEnabled(mountConfig) {
+	if mountConfig.Write.EnableStreamingWrites {
 		areStreamingWritesEnabled = "1"
 	}
 	return fmt.Sprintf("%s:%s:%s:%s", isFileCacheEnabled, isFileCacheForRangeReadEnabled, isParallelDownloadsEnabled, areStreamingWritesEnabled)

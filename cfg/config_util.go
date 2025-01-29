@@ -55,8 +55,3 @@ func ListCacheTTLSecsToDuration(secs int64) time.Duration {
 func IsMetricsEnabled(c *MetricsConfig) bool {
 	return c.CloudMetricsExportIntervalSecs > 0 || c.PrometheusPort > 0
 }
-
-// AreStreamingWritesEnabled returns true if streaming writes are enabled.
-func AreStreamingWritesEnabled(c *Config) bool {
-	return c.Write.EnableStreamingWrites
-}
