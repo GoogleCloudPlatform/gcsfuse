@@ -70,9 +70,9 @@ func (s *infiniteNegativeStatCacheTest) TestInfiniteNegativeStatCache(t *testing
 }
 
 // TestAlreadyExistFolder tests the scenario where a folder creation attempt fails
-// with EEXIST. The infinite negative cache is essential because LookUpInode must 
-// return a "not found" error to trigger the subsequent create operation. This occurs 
-// when a folder is created externally after gcsfuse has cached a negative stat entry for that path. 
+// with EEXIST. The infinite negative cache is essential because LookUpInode must
+// return a "not found" error to trigger the subsequent create operation. This occurs
+// when a folder is created externally after gcsfuse has cached a negative stat entry for that path.
 // The negative cache prevents gcsfuse from seeing the externally created folder,
 // leading to an EEXIST error when attempting to create the same folder again.
 func (s *infiniteNegativeStatCacheTest) TestAlreadyExistFolder(t *testing.T) {
