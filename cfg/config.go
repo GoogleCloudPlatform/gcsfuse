@@ -571,7 +571,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("write-global-max-blocks", "", 0, "Specifies the maximum number of blocks to be used by all files for streaming writes. The value should be >= 0 (1 block per file is not counted  towards this limit) or -1 (for infinite blocks).")
+	flagSet.IntP("write-global-max-blocks", "", -1, "Specifies the maximum number of blocks to be used by all files for streaming writes. The value should be >= 0 (1 block per file is not counted  towards this limit) or -1 (for infinite blocks).")
 
 	if err := flagSet.MarkHidden("write-global-max-blocks"); err != nil {
 		return err
