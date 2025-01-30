@@ -95,5 +95,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestLocalFileTestSuite(t *testing.T) {
-	suite.Run(t, new(localFileTestSuite))
+	s := new(localFileTestSuite)
+	s.CommonLocalFileTestSuite.TestifySuite = &s.Suite
+	suite.Run(t, s)
 }

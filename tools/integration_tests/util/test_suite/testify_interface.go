@@ -12,22 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package local_file
+package test_suite
 
-import (
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_suite"
-	"github.com/stretchr/testify/suite"
-)
+import "github.com/stretchr/testify/suite"
 
-// //////////////////////////////////////////////////////////////////////
-// Boilerplate
-// //////////////////////////////////////////////////////////////////////
-
-type localFileTestSuite struct {
-	CommonLocalFileTestSuite
-	suite.Suite
-}
-
-type CommonLocalFileTestSuite struct {
-	test_suite.TestifySuite
+type TestifySuite interface {
+	suite.TestingSuite
+	Run(name string, subtest func()) bool
 }
