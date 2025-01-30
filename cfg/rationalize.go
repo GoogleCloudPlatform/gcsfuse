@@ -89,10 +89,6 @@ func resolveStreamingWriteConfig(w *WriteConfig) {
 		// available, make channel results in panic.
 		w.MaxBlocksPerFile = math.MaxInt16
 	}
-
-	if w.GlobalMaxBlocks < w.MaxBlocksPerFile {
-		w.MaxBlocksPerFile = w.GlobalMaxBlocks
-	}
 }
 
 func resolveCloudMetricsUploadIntervalSecs(m *MetricsConfig) {
