@@ -594,16 +594,17 @@ func (f *FileInode) writeUsingTempFile(ctx context.Context, data []byte, offset 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, offset int64) error {
 	err := f.bwh.Write(data, offset)
-	if err != nil {
-		// Finalize the object.
-		flushErr := f.flushUsingBufferedWriteHandler()
-		if flushErr != nil {
-			return fmt.Errorf("bwh.Write failed: %v, could not finalize what has been written so far: %w", err, flushErr)
-		}
+	if err != nil && !errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
+		return fmt.Errorf("write to buffered write handler failed: %w", err)
 	}
 
 	// Fall back to temp file for Out-Of-Order Writes.
 	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
+		// Finalize the object.
+		err = f.flushUsingBufferedWriteHandler()
+		if err != nil {
+			return fmt.Errorf("could not finalize what has been written so far: %w", err)
+		}
 		return f.writeUsingTempFile(ctx, data, offset)
 	}
 
