@@ -347,7 +347,7 @@ func TestRationalize_WriteConfig(t *testing.T) {
 				},
 			},
 			expectedCreateEmptyFile:  false,
-			expectedMaxBlocksPerFile: 10,
+			expectedMaxBlocksPerFile: 20,
 			expectedBlockSizeMB:      5 * 1024 * 1024,
 		},
 		{
