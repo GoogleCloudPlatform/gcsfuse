@@ -600,6 +600,7 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 
 	// Fall back to temp file for Out-Of-Order Writes.
 	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
+		logger.Infof("Out-of-order write detected. Falling back to temporary file on disk.")
 		// Finalize the object.
 		err = f.flushUsingBufferedWriteHandler()
 		if err != nil {
