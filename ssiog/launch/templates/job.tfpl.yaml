@@ -1,0 +1,110 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: ssiog-job-training-
+spec:
+  parallelism: ${parallelism} 
+  completions: ${parallelism}
+  completionMode: Indexed
+  template:
+    metadata:
+      labels:
+        app: ssiog-job
+      annotations:
+        gke-gcsfuse/volumes: "true"
+        gke-gcsfuse/cpu-limit: "0"
+        gke-gcsfuse/memory-limit: "0"
+        gke-gcsfuse/ephemeral-storage-limit: "0"
+    spec:
+      restartPolicy: Never
+      serviceAccountName: ${k8s_sa_name}
+      hostNetwork: true
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - ssiog-job
+            topologyKey: "kubernetes.io/hostname"
+      containers:
+      - name: ssiog-benchmark
+        image: ${image}
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: JOB_COMPLETION_INDEX
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.annotations['batch.kubernetes.io/job-completion-index']
+        - name: JOB_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.labels['job-name']
+        securityContext:
+          privileged: true
+        command:
+        - /bin/bash
+        - -c
+        - |
+          mkdir -p /mnt/benchmark-output/${label}/$${JOB_NAME} || true
+          mkdir -p /output/ || true
+          args=(
+            --prefix ${prefixes}
+            --object-count-limit=${object_count_limit}
+            --epochs=${epochs}
+            --background-threads=${background_threads}
+            --sample-size=65536
+            --steps=${steps}
+            --batch-size=${batch_size}
+            --group-size=1
+            --log-metrics=True
+            --metrics-file=/output/results-$${JOB_COMPLETION_INDEX}.csv
+            --log-level=INFO
+            --read-order=FullRandom
+            --export-metrics=True
+            --exporter-type=cloud
+            --label=${label}
+          )
+          /app/training.py "$${args[@]}"
+
+          echo "Copying the local metrics to bucket..."
+          cp -r /output/* /mnt/benchmark-output/${label}/$${JOB_NAME}/
+        volumeMounts:
+        - mountPath: /mnt/benchmark-output
+          name: gcsfuse-outputs
+          readOnly: false
+        - mountPath: /mnt/benchmark-inputs
+          name: mnt-inputs
+          readOnly: true
+      volumes:
+      - name: gcsfuse-outputs
+        csi:
+          driver: gcsfuse.csi.storage.gke.io
+          volumeAttributes:
+            bucketName: ${metrics_bucket_name}
+      - name: mnt-inputs
+        csi:
+          driver: gcsfuse.csi.storage.gke.io
+          readOnly: false
+          volumeAttributes:
+            bucketName: ${data_bucket_name}
+            mountOptions: "debug_fuse,implicit-dirs,metadata-cache:ttl-secs:-1,metadata-cache:stat-cache-max-size-mb:-1,metadata-cache:type-cache-max-size-mb:-1"

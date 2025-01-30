@@ -1,0 +1,158 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  generateName: ssiog-training-
+  annotations:
+    alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool # 1:1 job replica to node pool assignment
+spec:
+  failurePolicy:
+    maxRestarts: 0
+  replicatedJobs:
+    - name: main
+      replicas: 1
+      template:
+        spec:
+          parallelism: ${parallelism} # Should be smaller than the number of VMs
+          completions: ${parallelism} # Same as the above.
+          backoffLimit: 0   # When any pod fails, the job is failed
+          template:
+            metadata:
+              # Required for GCSFuse.
+              # For other storage solutions, please modify this section.
+              annotations:
+                gke-gcsfuse/volumes: "true"
+                gke-gcsfuse/cpu-limit: "0"
+                gke-gcsfuse/memory-limit: "0"
+                gke-gcsfuse/ephemeral-storage-limit: "0"
+            spec:
+              # The main entry point. Use the same image as the benchmark.
+              containers:
+              - name: ssiog-benchmark
+                image: ${image}
+                env:
+                - name: REPLICATED_JOB_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/replicatedjob-name']
+                - name: JOB_INDEX
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/job-index']
+                - name: JOBSET_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['jobset.sigs.k8s.io/jobset-name']
+                - name: JOB_COMPLETION_INDEX
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['batch.kubernetes.io/job-completion-index']
+                ports:
+                - containerPort: 5670
+                securityContext:
+                  privileged: true
+                command:
+                - /bin/bash
+                - -c
+                - |
+                  mkdir -p /mnt/benchmark-output/${label}/$${JOBSET_NAME} || true
+                  mkdir -p /output/ || true
+                  args=(
+                    --prefix ${prefixes}
+                    --object-count-limit=${object_count_limit}
+                    --epochs=${epochs}
+                    --background-threads=${background_threads}
+                    --sample-size=65536
+                    --steps=${steps}
+                    --batch-size=${batch_size}
+                    --group-member-id=$${JOB_COMPLETION_INDEX}
+                    --group-coordinator-address=$${JOBSET_NAME}-$${REPLICATED_JOB_NAME}-0-0.$${JOBSET_NAME}
+                    --group-coordinator-port=5670
+                    --group-size=${parallelism}
+                    --log-metrics=True
+                    --metrics-file=/output/results-$${JOB_COMPLETION_INDEX}.csv
+                    --log-level=INFO
+                    --read-order=FullRandom
+                    --export-metrics=True
+                    --exporter-type=cloud
+                    --label=${label}
+                  )
+                  /app/training.py "$${args[@]}"
+
+                  echo "Copying the local metrics to bucket..."
+                  cp -r /output/* /mnt/benchmark-output/${label}/$${JOBSET_NAME}/
+                volumeMounts:
+                - mountPath: /mnt/benchmark-output
+                  name: gcsfuse-outputs
+                  readOnly: false
+                - mountPath: /mnt/benchmark-inputs
+                  name: mnt-inputs
+                  readOnly: true
+
+              initContainers:
+              - name: capture-system-info
+                image: ubuntu:24.04
+                restartPolicy: Always
+                command:
+                - /bin/bash
+                - -c
+                - |
+                  echo "nproc"; nproc; echo; echo
+                  echo "Memory"; free -h; echo; echo
+                  echo "Mounted"; df; echo; echo
+                  function sigterm() {
+                    exit 0;
+                  }
+                  trap sigterm SIGTERM
+                  tail -f /dev/null
+                volumeMounts:
+                # For other storage solutions, please modify the mount path and specify it in the
+                # `dataset_directory` argument in the command above.
+                - mountPath: /mnt/benchmark-output
+                  name: gcsfuse-outputs
+                  readOnly: false
+
+              schedulerName: default-scheduler
+              restartPolicy: Never
+              affinity:
+                nodeAffinity:
+                  requiredDuringSchedulingIgnoredDuringExecution:
+                    nodeSelectorTerms:
+                    - matchExpressions:
+                      - key: cloud.google.com/gke-nodepool
+                        operator: NotIn
+                        values:
+                        - default-pool
+
+              hostNetwork: true
+              dnsPolicy: ClusterFirstWithHostNet
+              terminationGracePeriodSeconds: 30
+              # Set up k8s SA to access the metrics bucket: https://cloud.google.com/kubernetes-engine/docs/how-to/persistent-volumes/cloud-storage-fuse-csi-driver#authentication.
+              # For GCSFuse, also set up access to the dataset bucket.
+              serviceAccountName: ${k8s_sa_name}
+              volumes:
+              - name: gcsfuse-outputs
+                csi:
+                  driver: gcsfuse.csi.storage.gke.io
+                  volumeAttributes:
+                    bucketName: ${metrics_bucket_name}
+              - name: mnt-inputs
+                csi:
+                  driver: gcsfuse.csi.storage.gke.io
+                  readOnly: false
+                  volumeAttributes:
+                    bucketName: ${data_bucket_name}
+                    mountOptions: "debug_fuse,implicit-dirs,metadata-cache:ttl-secs:-1,metadata-cache:stat-cache-max-size-mb:-1,metadata-cache:type-cache-max-size-mb:-1"
