@@ -1,4 +1,4 @@
-name: Python CI/CD
+name: SSIOG CI/CD
 
 on:
   push:
@@ -8,9 +8,7 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python 3.10
@@ -21,7 +19,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install pytest
-        if [ -f requirements.txt ]; then pip install --root-user-action ignore -r requirements.txt && pip cache purge; fi
+        if [ -f ssiog/requirements.txt ]; then pip install --root-user-action ignore -r ssiog/requirements.txt && pip cache purge; fi
     - name: Run tests with pytest
       run: |
         pytest
