@@ -28,7 +28,9 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	"cloud.google.com/go/storage/experimental"
 	"github.com/googleapis/gax-go/v2"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
@@ -39,7 +41,7 @@ import (
 	storagev1 "google.golang.org/api/storage/v1"
 )
 
-func CreateStorageClient(ctx context.Context) (client *storage.Client, err error) {
+func CreateStorageClient(ctx context.Context, bucketType *gcs.BucketType) (client *storage.Client, err error) {
 	// Create new storage client.
 	if setup.TestOnTPCEndPoint() {
 		var ts oauth2.TokenSource
@@ -50,7 +52,11 @@ func CreateStorageClient(ctx context.Context) (client *storage.Client, err error
 		}
 		client, err = storage.NewClient(ctx, option.WithEndpoint("storage.apis-tpczero.goog:443"), option.WithTokenSource(ts))
 	} else {
-		client, err = storage.NewClient(ctx)
+		if bucketType.Zonal {
+			client, err = storage.NewGRPCClient(ctx, experimental.WithGRPCBidiReads())
+		} else {
+			client, err = storage.NewClient(ctx)
+		}
 	}
 	if err != nil {
 		return nil, fmt.Errorf("storage.NewClient: %w", err)
@@ -149,11 +155,11 @@ func CreateObjectOnGCS(ctx context.Context, client *storage.Client, object, cont
 }
 
 // CreateStorageClientWithCancel creates a new storage client with a cancelable context and returns a function that can be used to cancel the client's operations
-func CreateStorageClientWithCancel(ctx *context.Context, storageClient **storage.Client) func() error {
+func CreateStorageClientWithCancel(ctx *context.Context, bucketType *gcs.BucketType, storageClient **storage.Client) func() error {
 	var err error
 	var cancel context.CancelFunc
 	*ctx, cancel = context.WithCancel(*ctx)
-	*storageClient, err = CreateStorageClient(*ctx)
+	*storageClient, err = CreateStorageClient(*ctx, bucketType)
 	if err != nil {
 		log.Fatalf("client.CreateStorageClient: %v", err)
 	}

@@ -31,6 +31,10 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	control "cloud.google.com/go/storage/control/apiv2"
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
+	"github.com/googleapis/gax-go/v2"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/util"
 	"google.golang.org/api/iterator"
@@ -434,6 +438,24 @@ func IsHierarchicalBucket(ctx context.Context, storageClient *storage.Client) bo
 	}
 
 	return false
+}
+
+func LookupBucketType(controlClient *control.StorageControlClient) (*gcs.BucketType, error) {
+	var callOptions []gax.CallOption
+	stoargeLayout, err := controlClient.GetStorageLayout(context.Background(), &controlpb.GetStorageLayoutRequest{
+		Name:      fmt.Sprintf("projects/_/buckets/%s/storageLayout", *testBucket),
+		Prefix:    "",
+		RequestId: "",
+	}, callOptions...)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &gcs.BucketType{
+		Hierarchical: stoargeLayout.GetHierarchicalNamespace().GetEnabled(),
+		Zonal:        stoargeLayout.GetLocationType() == "zone",
+	}, nil
 }
 
 // Explicitly set the enable-hns config flag to true when running tests on the HNS bucket.
