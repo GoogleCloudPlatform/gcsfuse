@@ -642,7 +642,6 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_MRDRead() {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
-			var err error
 			t.rr.wrapped.reader = nil
 			t.rr.wrapped.isMRDInUse = false
 			t.rr.wrapped.seeks = minSeeksForRandom + 1
@@ -686,7 +685,6 @@ func (t *RandomReaderStretchrTest) Test_ReadFromMultiRangeReader_ReadFull() {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
-			var err error
 			t.rr.wrapped.reader = nil
 			t.rr.wrapped.isMRDInUse = false
 			t.object.Size = uint64(tc.dataSize)
@@ -723,7 +721,6 @@ func (t *RandomReaderStretchrTest) Test_ReadFromMultiRangeReader_ReadChunk() {
 	}
 
 	for _, tc := range testCases {
-		var err error
 		t.rr.wrapped.reader = nil
 		t.object.Size = uint64(tc.dataSize)
 		testContent := testutil.GenerateRandomBytes(int(t.object.Size))
@@ -763,7 +760,6 @@ func (t *RandomReaderStretchrTest) Test_ReadFromMultiRangeReader_ValidateTimeout
 
 	for i, tc := range testCases {
 		t.Run(tc.name, func() {
-			var err error
 			t.rr.wrapped.reader = nil
 			t.rr.wrapped.isMRDInUse = false
 			t.object.Size = uint64(tc.dataSize)

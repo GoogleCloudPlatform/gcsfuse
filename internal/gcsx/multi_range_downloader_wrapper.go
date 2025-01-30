@@ -42,6 +42,8 @@ func NewMultiRangeDownloaderWrapperWithClock(bucket gcs.Bucket, object *gcs.MinO
 	if object == nil {
 		return MultiRangeDownloaderWrapper{}, fmt.Errorf("NewMultiRangeDownloaderWrapperWithClock: Missing MinObject")
 	}
+	// In case of a local inode, MRDWrapper would be created with an empty minObject (i.e. with a minObject without any information)
+	// and when the object is actually created, MRDWrapper would be updated using SetMinObject method.
 	return MultiRangeDownloaderWrapper{
 		clock:  clock,
 		bucket: bucket,
@@ -80,6 +82,10 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) SetMinObject(minObj *gcs.MinObjec
 	}
 	mrdWrapper.object = minObj
 	return nil
+}
+
+func (mrdWrapper *MultiRangeDownloaderWrapper) GetMinObject() *gcs.MinObject {
+	return mrdWrapper.object
 }
 
 // Returns current refcount.

@@ -16,6 +16,7 @@ package gcsx
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -158,6 +159,71 @@ func (t *mrdWrapperTest) Test_Read() {
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), tc.end-tc.start, bytesRead)
 			assert.Equal(t.T(), t.objectData[tc.start:tc.end], buf[:bytesRead])
+		})
+	}
+}
+
+func (t *mrdWrapperTest) Test_NewMultiRangeDownloaderWrapper() {
+	testCases := []struct {
+		name   string
+		bucket gcs.Bucket
+		obj    *gcs.MinObject
+		err    error
+	}{
+		{
+			name:   "ValidParameters",
+			bucket: t.mockBucket,
+			obj:    t.object,
+			err:    nil,
+		},
+		{
+			name:   "NilMinObject",
+			bucket: t.mockBucket,
+			obj:    nil,
+			err:    fmt.Errorf("NewMultiRangeDownloaderWrapperWithClock: Missing MinObject"),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			_, err := NewMultiRangeDownloaderWrapper(tc.bucket, tc.obj)
+			if tc.err == nil {
+				assert.NoError(t.T(), err)
+			} else {
+				assert.Error(t.T(), err)
+				assert.EqualError(t.T(), err, tc.err.Error())
+			}
+		})
+	}
+}
+
+func (t *mrdWrapperTest) Test_SetMinObject() {
+	testCases := []struct {
+		name string
+		obj  *gcs.MinObject
+		err  error
+	}{
+		{
+			name: "ValidMinObject",
+			obj:  t.object,
+			err:  nil,
+		},
+		{
+			name: "NilMinObject",
+			obj:  nil,
+			err:  fmt.Errorf("MultiRangeDownloaderWrapper::SetMinObject: Missing MinObject"),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			err := t.mrdWrapper.SetMinObject(tc.obj)
+			if tc.err == nil {
+				assert.NoError(t.T(), err)
+			} else {
+				assert.Error(t.T(), err)
+				assert.EqualError(t.T(), err, tc.err.Error())
+			}
 		})
 	}
 }
