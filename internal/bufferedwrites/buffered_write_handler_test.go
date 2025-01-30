@@ -243,9 +243,7 @@ func (testSuite *BufferedWriteTest) TestFlushWithSignalUploadFailureDuringWrite(
 	obj, err := testSuite.bwh.Flush()
 	require.Error(testSuite.T(), err)
 	assert.Equal(testSuite.T(), err, ErrUploadFailure)
-	// Whatever could be finalized, got finalized (empty object in this case).
-	assert.NotNil(testSuite.T(), obj)
-	assert.Equal(testSuite.T(), uint64(0), obj.Size)
+	assert.Nil(testSuite.T(), obj)
 }
 
 func (testSuite *BufferedWriteTest) TestFlushWithMultiBlockWritesAndSignalUploadFailureInBetween() {
@@ -267,9 +265,7 @@ func (testSuite *BufferedWriteTest) TestFlushWithMultiBlockWritesAndSignalUpload
 
 	require.Error(testSuite.T(), err)
 	assert.Equal(testSuite.T(), err, ErrUploadFailure)
-	// Whatever could be finalized, got finalized.
-	assert.NotNil(testSuite.T(), obj)
-	assert.Equal(testSuite.T(), uint64(5*blockSize), obj.Size)
+	assert.Nil(testSuite.T(), obj)
 }
 
 func (testSuite *BufferedWriteTest) TestSync5InProgressBlocks() {
@@ -409,4 +405,15 @@ func (testSuite *BufferedWriteTest) TestUnlinkAfterWrite() {
 	assert.True(testSuite.T(), cancelCalled)
 	assert.Equal(testSuite.T(), 0, len(bwhImpl.uploadHandler.uploadCh))
 	assert.Equal(testSuite.T(), 0, len(bwhImpl.blockPool.FreeBlocksChannel()))
+}
+
+func (testSuite *BufferedWriteTest) TestReFlushAfterUploadFails() {
+	testSuite.TestFlushWithMultiBlockWritesAndSignalUploadFailureInBetween()
+
+	// Re-flush.
+	obj, err := testSuite.bwh.Flush()
+
+	require.Error(testSuite.T(), err)
+	assert.Nil(testSuite.T(), obj)
+	assert.ErrorContains(testSuite.T(), err, ErrUploadFailure.Error())
 }

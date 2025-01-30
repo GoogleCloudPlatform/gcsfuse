@@ -201,6 +201,14 @@ func (wh *bufferedWriteHandlerImpl) Sync() (err error) {
 
 // Flush finalizes the upload.
 func (wh *bufferedWriteHandlerImpl) Flush() (*gcs.MinObject, error) {
+	// Fail early if upload already failed.
+	select {
+	case <-wh.uploadHandler.SignalUploadFailure():
+		return nil, ErrUploadFailure
+	default:
+		break
+	}
+
 	// In case it is a truncated file, upload empty blocks as required.
 	err := wh.writeDataForTruncatedSize()
 	if err != nil {
@@ -224,14 +232,6 @@ func (wh *bufferedWriteHandlerImpl) Flush() (*gcs.MinObject, error) {
 	if err != nil {
 		// Only logging an error in case of resource leak as upload succeeded.
 		logger.Errorf("blockPool.ClearFreeBlockChannel() failed: %v", err)
-	}
-
-	// Return an error along with object if the uploadHandler failed in between.
-	select {
-	case <-wh.uploadHandler.SignalUploadFailure():
-		return obj, ErrUploadFailure
-	default:
-		break
 	}
 
 	return obj, nil

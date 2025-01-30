@@ -616,21 +616,17 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) flushUsingBufferedWriteHandler() error {
 	obj, err := f.bwh.Flush()
-
 	var preconditionErr *gcs.PreconditionError
 	if errors.As(err, &preconditionErr) {
 		return &gcsfuse_errors.FileClobberedError{
 			Err: fmt.Errorf("f.bwh.Flush(): %w", err),
 		}
 	}
-
-	// bwh can return a partially synced object along with an error so updating
-	// inode state before returning error.
-	f.updateInodeStateAfterSync(obj)
 	if err != nil {
 		return fmt.Errorf("f.bwh.Flush(): %w", err)
 	}
 
+	f.updateInodeStateAfterSync(obj)
 	return nil
 }
 
