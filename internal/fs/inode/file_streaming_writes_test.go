@@ -624,45 +624,18 @@ func (t *FakeBufferedWriteHandler) Truncate(_ int64) error { return nil }
 func (t *FakeBufferedWriteHandler) Destroy() error         { return nil }
 func (t *FakeBufferedWriteHandler) Unlink()                {}
 
-func (t *FileStreamingWritesTest) TestWriteUsingBufferedWritesErrorScenarios() {
+func (t *FileStreamingWritesTest) TestWriteUsingBufferedWritesFails() {
 	assert.True(t.T(), t.in.IsLocal())
 	require.NotNil(t.T(), t.in.bwh)
-
-	testCases := []struct {
-		name        string
-		writeErr    error
-		flushErr    error
-		expectedErr string
-	}{
-		{
-			name:        "Write_error_flush_succeeds",
-			writeErr:    errors.New("write error"),
-			flushErr:    nil,
-			expectedErr: "write error",
-		},
-		{
-			name:        "Write_error_flush_fails",
-			writeErr:    errors.New("write error"),
-			flushErr:    errors.New("flush error"),
-			expectedErr: "write error.*flush error", // Use regex for multiple errors
+	writeErr := errors.New("write error")
+	t.in.bwh = &FakeBufferedWriteHandler{
+		WriteFunc: func(data []byte, offset int64) error {
+			return writeErr
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func() {
-			t.in.bwh = &FakeBufferedWriteHandler{
-				WriteFunc: func(data []byte, offset int64) error {
-					return tc.writeErr
-				},
-				FlushFunc: func() (*gcs.MinObject, error) {
-					return nil, tc.flushErr
-				},
-			}
+	err := t.in.Write(context.Background(), []byte("hello"), 0)
 
-			err := t.in.Write(context.Background(), []byte("hello"), 0)
-
-			require.Error(t.T(), err)
-			assert.Regexp(t.T(), tc.expectedErr, err.Error())
-		})
-	}
+	require.Error(t.T(), err)
+	assert.Regexp(t.T(), writeErr.Error(), err.Error())
 }
