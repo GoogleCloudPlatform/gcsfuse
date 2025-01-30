@@ -12,13 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Provides integration tests for create local file.
-
-package local_file_test
+package local_file
 
 import (
-	"testing"
-
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_suite"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -28,12 +25,9 @@ import (
 
 type localFileTestSuite struct {
 	CommonLocalFileTestSuite
+	suite.Suite
 }
 
-////////////////////////////////////////////////////////////////////////
-// Tests
-////////////////////////////////////////////////////////////////////////
-
-func TestLocalFileTestSuite(t *testing.T) {
-	suite.Run(t, new(localFileTestSuite))
+type CommonLocalFileTestSuite struct {
+	test_suite.TestifySuite
 }

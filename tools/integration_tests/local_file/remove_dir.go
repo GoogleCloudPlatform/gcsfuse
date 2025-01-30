@@ -13,7 +13,7 @@
 // limitations under the License.
 //
 // Provides integration tests for removeDir operation on directories containing local files.
-package local_file_test
+package local_file
 
 import (
 	"path"
