@@ -107,7 +107,9 @@ workloads for the given test setup:
     # Update the block size value from the table for different 
     bs=1M
     # Update the file size value from table(file size) for different experiments.
-    filesize=1G  
+    filesize=1G
+    # Update the fsync value from table(fysnc) for different experiments.
+    fsync=1024
     [experiment]
     stonewall
     # Change the test directory (1mb) for different experiments. The directory must exist within the mounted directory.
@@ -122,13 +124,13 @@ numbers will be different for edits/appends to existing files.
 
 #### Sequential Write
 
-| File Size | BlockSize | nrfiles | Bandwidth in MiB/sec | IOPS(avg) | Avg Latency (msec) | Network Send Traffic (GiB/s) |
-|-----------|-----------|---------|----------------------|-----------|--------------------|------------------------------|
-| 256KB     | 16K       | 30      | 212                  | 14976.95  | 3.206              | 0.027                        |
-| 1MB       | 1M        | 30      | 772                  | 794.32    | 1.150              | 0.036                        |
-| 50MB      | 1M        | 20      | 3611                 | 5948.63   | 8.929              | 1.33                         |
-| 100MB     | 1M        | 10      | 3577                 | 4672.64   | 1.911              | 1.41                         |
-| 1GB       | 1M        | 2       | 1766                 | 2121.66   | 49.114             | 1.77                         |
+| File Size | BlockSize | nrfiles | fsync |Bandwidth in MiB/sec | IOPS(avg) | Avg Latency (msec) | Network Send Traffic (GiB/s) |
+|-----------|-----------|---------|-------|---------------------|-----------|--------------------|------------------------------|
+| 256KB     | 16K       | 30      | 16    |212                  | 14976.95  | 3.206              | 0.027                        |
+| 1MB       | 1M        | 30      | 1     |772                  | 794.32    | 1.150              | 0.036                        |
+| 50MB      | 1M        | 20      | 50    |3611                 | 5948.63   | 8.929              | 1.33                         |
+| 100MB     | 1M        | 10      | 100   |3577                 | 4672.64   | 1.911              | 1.41                         |
+| 1GB       | 1M        | 2       | 1024  |1766                 | 2121.66   | 49.114             | 1.77                         |
 
 #### Random Write
 
