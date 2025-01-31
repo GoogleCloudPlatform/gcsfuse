@@ -2053,12 +2053,12 @@ func (fs *fileSystem) Rename(
 		return fs.renameNonHierarchicalDir(ctx, oldParent, op.OldName, newParent, op.NewName)
 	}
 
-	return fs.renameFile(ctx, op, err, child, oldParent, newParent)
+	return fs.renameFile(ctx, op, child, oldParent, newParent)
 }
 
 // LOCKS_EXCLUDED(oldParent)
 // LOCKS_EXCLUDED(newParent)
-func (fs *fileSystem) renameFile(ctx context.Context, op *fuseops.RenameOp, err error, child *inode.Core, oldParent inode.DirInode, newParent inode.DirInode) error {
+func (fs *fileSystem) renameFile(ctx context.Context, op *fuseops.RenameOp, child *inode.Core, oldParent inode.DirInode, newParent inode.DirInode) error {
 	updatedMinObject, err := fs.flushBeforeRename(ctx, child)
 	if err != nil {
 		return fmt.Errorf("flushBeforeRename error :%v", err)
