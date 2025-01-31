@@ -2052,10 +2052,39 @@ func (fs *fileSystem) Rename(
 		}
 		return fs.renameNonHierarchicalDir(ctx, oldParent, op.OldName, newParent, op.NewName)
 	}
-	if (child.Bucket.BucketType().Hierarchical && fs.enableAtomicRenameObject) || child.Bucket.BucketType().Zonal {
-		return fs.renameHierarchicalFile(ctx, oldParent, op.OldName, child.MinObject, newParent, op.NewName)
+
+	updatedMinObject, err2 := fs.flushIfRequired(ctx, child)
+	if err2 != nil {
+		return err2
 	}
-	return fs.renameNonHierarchicalFile(ctx, oldParent, op.OldName, child.MinObject, newParent, op.NewName)
+
+	if (child.Bucket.BucketType().Hierarchical && fs.enableAtomicRenameObject) || child.Bucket.BucketType().Zonal {
+		return fs.renameHierarchicalFile(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)
+	}
+	return fs.renameNonHierarchicalFile(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)
+}
+
+func (fs *fileSystem) flushIfRequired(ctx context.Context, child *inode.Core) (*gcs.MinObject, error) {
+	if !fs.newConfig.Write.EnableStreamingWrites {
+		return child.MinObject, nil
+	}
+
+	fs.mu.Lock()
+	existingInode, ok := fs.generationBackedInodes[child.FullName]
+	fs.mu.Unlock()
+	if !ok {
+		return child.MinObject, nil
+	}
+
+	fileInode, isFileInode := existingInode.(*inode.FileInode)
+	if !isFileInode {
+		return child.MinObject, nil
+	}
+
+	fileInode.Lock()
+	defer fileInode.Unlock()
+	err := fs.flushFile(ctx, fileInode)
+	return fileInode.Source(), err
 }
 
 // LOCKS_EXCLUDED(oldParent)
