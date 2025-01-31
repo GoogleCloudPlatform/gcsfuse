@@ -84,6 +84,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) SetMinObject(minObj *gcs.MinObjec
 	return nil
 }
 
+// Returns the minObject stored in MultiRangeDownloaderWrapper. Used only for unit testing.
 func (mrdWrapper *MultiRangeDownloaderWrapper) GetMinObject() *gcs.MinObject {
 	return mrdWrapper.object
 }
