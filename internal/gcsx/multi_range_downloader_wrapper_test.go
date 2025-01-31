@@ -16,6 +16,7 @@ package gcsx
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -45,6 +46,7 @@ func TestMRDWrapperTestSuite(t *testing.T) {
 }
 
 func (t *mrdWrapperTest) SetupTest() {
+	var err error
 	t.object = &gcs.MinObject{
 		Name:       "foo",
 		Size:       100,
@@ -54,7 +56,8 @@ func (t *mrdWrapperTest) SetupTest() {
 	// Create the bucket.
 	t.mockBucket = new(storage.TestifyMockBucket)
 	t.mrdTimeout = time.Millisecond
-	t.mrdWrapper = NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{WaitTime: t.mrdTimeout})
+	t.mrdWrapper, err = NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{WaitTime: t.mrdTimeout})
+	assert.Nil(t.T(), err, "Error in creating MRDWrapper")
 	t.mrdWrapper.Wrapped = fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond)
 	t.mrdWrapper.refCount = 0
 }
@@ -153,6 +156,117 @@ func (t *mrdWrapperTest) Test_Read() {
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), tc.end-tc.start, bytesRead)
 			assert.Equal(t.T(), t.objectData[tc.start:tc.end], buf[:bytesRead])
+		})
+	}
+}
+
+func (t *mrdWrapperTest) Test_NewMultiRangeDownloaderWrapper() {
+	testCases := []struct {
+		name   string
+		bucket gcs.Bucket
+		obj    *gcs.MinObject
+		err    error
+	}{
+		{
+			name:   "ValidParameters",
+			bucket: t.mockBucket,
+			obj:    t.object,
+			err:    nil,
+		},
+		{
+			name:   "NilMinObject",
+			bucket: t.mockBucket,
+			obj:    nil,
+			err:    fmt.Errorf("NewMultiRangeDownloaderWrapperWithClock: Missing MinObject"),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			_, err := NewMultiRangeDownloaderWrapper(tc.bucket, tc.obj)
+			if tc.err == nil {
+				assert.NoError(t.T(), err)
+			} else {
+				assert.Error(t.T(), err)
+				assert.EqualError(t.T(), err, tc.err.Error())
+			}
+		})
+	}
+}
+
+func (t *mrdWrapperTest) Test_SetMinObject() {
+	testCases := []struct {
+		name string
+		obj  *gcs.MinObject
+		err  error
+	}{
+		{
+			name: "ValidMinObject",
+			obj:  t.object,
+			err:  nil,
+		},
+		{
+			name: "NilMinObject",
+			obj:  nil,
+			err:  fmt.Errorf("MultiRangeDownloaderWrapper::SetMinObject: Missing MinObject"),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			err := t.mrdWrapper.SetMinObject(tc.obj)
+			if tc.err == nil {
+				assert.NoError(t.T(), err)
+			} else {
+				assert.Error(t.T(), err)
+				assert.EqualError(t.T(), err, tc.err.Error())
+			}
+		})
+	}
+}
+
+func (t *mrdWrapperTest) Test_EnsureMultiRangeDownloader() {
+	testCases := []struct {
+		name   string
+		obj    *gcs.MinObject
+		bucket gcs.Bucket
+		err    error
+	}{
+		{
+			name:   "ValidMinObject",
+			obj:    t.object,
+			bucket: t.mockBucket,
+			err:    nil,
+		},
+		{
+			name:   "NilMinObject",
+			obj:    nil,
+			bucket: t.mockBucket,
+			err:    fmt.Errorf("ensureMultiRangeDownloader error: Missing minObject or bucket"),
+		},
+		{
+			name:   "NilBucket",
+			obj:    t.object,
+			bucket: nil,
+			err:    fmt.Errorf("ensureMultiRangeDownloader error: Missing minObject or bucket"),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			t.mrdWrapper.bucket = tc.bucket
+			t.mrdWrapper.object = tc.obj
+			t.mrdWrapper.Wrapped = nil
+			t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond))
+			err := t.mrdWrapper.ensureMultiRangeDownloader()
+			if tc.err == nil {
+				assert.NoError(t.T(), err)
+				assert.NotNil(t.T(), t.mrdWrapper.Wrapped)
+			} else {
+				assert.Error(t.T(), err)
+				assert.EqualError(t.T(), err, tc.err.Error())
+				assert.Nil(t.T(), t.mrdWrapper.Wrapped)
+			}
 		})
 	}
 }

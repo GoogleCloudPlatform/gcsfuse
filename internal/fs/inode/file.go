@@ -158,7 +158,11 @@ func NewFileInode(
 		unlinked:                false,
 		config:                  cfg,
 		globalMaxWriteBlocksSem: globalMaxBlocksSem,
-		MRDWrapper:              gcsx.NewMultiRangeDownloaderWrapper(bucket, &minObj),
+	}
+	var err error
+	f.MRDWrapper, err = gcsx.NewMultiRangeDownloaderWrapper(bucket, &f.src)
+	if err != nil {
+		logger.Errorf("NewFileInode: Error in creating MRDWrapper %v", err)
 	}
 
 	f.lc.Init(id)
@@ -697,6 +701,7 @@ func (f *FileInode) SetMtime(
 			minObj = *minObjPtr
 		}
 		f.src = minObj
+		f.updateMRDWrapper()
 		return
 	}
 
@@ -832,6 +837,8 @@ func (f *FileInode) Flush(ctx context.Context) (err error) {
 func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 	if minObj != nil && !f.localFileCache {
 		f.src = *minObj
+		// Update MRDWrapper
+		f.updateMRDWrapper()
 		// Convert localFile to nonLocalFile after it is synced to GCS.
 		if f.IsLocal() {
 			f.local = false
@@ -846,6 +853,15 @@ func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 	}
 
 	return
+}
+
+// Updates the min object stored in MRDWrapper corresponding to the inode.
+// Should be called when minObject associated with inode is updated.
+func (f *FileInode) updateMRDWrapper() {
+	err := f.MRDWrapper.SetMinObject(&f.src)
+	if err != nil {
+		logger.Errorf("FileInode::updateMRDWrapper Error in setting minObject %v", err)
+	}
 }
 
 // Truncate the file to the specified size.
