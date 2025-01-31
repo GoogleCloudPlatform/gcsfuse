@@ -1,0 +1,10 @@
+Logging:
+  file-path: "~/logs/gcsfuse.log"
+  format: text
+  severity: info
+  log-rotate:
+    max-file-size-mb: 512
+    backup-file-count: 10
+    compress: true
+gcs-connection:
+  client-protocol: grpc
