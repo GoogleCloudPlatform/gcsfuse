@@ -22,7 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func (t *defaultMountEmptyGCSFile) TestMoveBeforeFileIsFlushed() {
+func (t *defaultMountCommonTest) TestMoveBeforeFileIsFlushed() {
 	operations.WriteWithoutClose(t.f1, FileContents, t.T())
 	operations.WriteWithoutClose(t.f1, FileContents, t.T())
 	operations.VerifyStatFile(t.filePath, int64(2*len(FileContents)), FilePerms, t.T())
