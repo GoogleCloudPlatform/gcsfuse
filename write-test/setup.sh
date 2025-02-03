@@ -50,8 +50,13 @@ function init() {
 
 
 function run() {
-    cd ~/bucket-grpc
+    cd ~/bucket-zonal
     ~/dev/gcsfuse-tools/write-test/write_master.sh
+    umount ~/bucket-zonal && sleep 50
+    
+    # cd ~/bucket-grpc
+    # ~/dev/gcsfuse-tools/write-test/write_master.sh
+    # umount ~/bucket-grpc && sleep 50
 }
 
 

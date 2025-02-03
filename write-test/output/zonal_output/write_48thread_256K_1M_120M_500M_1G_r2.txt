@@ -1,0 +1,780 @@
+job_001: (g=0): rw=write, bs=(R) 16.0KiB-16.0KiB, (W) 16.0KiB-16.0KiB, (T) 16.0KiB-16.0KiB, ioengine=libaio, iodepth=64
+...
+fio-3.16
+Starting 48 threads
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+
+job_001: (groupid=0, jobs=48): err= 0: pid=232132: Sun Feb  2 08:06:26 2025
+  write: IOPS=48.3k, BW=755MiB/s (791MB/s)(265GiB/360001msec); 0 zone resets
+    slat (usec): min=198, max=37020, avg=992.55, stdev=145.07
+    clat (nsec): min=1314, max=101349k, avg=62612908.02, stdev=2805544.17
+     lat (usec): min=704, max=102282, avg=63605.66, stdev=2839.66
+    clat percentiles (usec):
+     |  1.00th=[57410],  5.00th=[58983], 10.00th=[60031], 20.00th=[60556],
+     | 30.00th=[61080], 40.00th=[61080], 50.00th=[61604], 60.00th=[62653],
+     | 70.00th=[64226], 80.00th=[65274], 90.00th=[66323], 95.00th=[67634],
+     | 99.00th=[69731], 99.50th=[70779], 99.90th=[74974], 99.95th=[81265],
+     | 99.99th=[86508]
+   bw (  KiB/s): min=701634, max=841586, per=99.97%, avg=772618.74, stdev=422.53, samples=34534
+   iops        : min=43852, max=52596, avg=48287.18, stdev=26.39, samples=34534
+  lat (usec)   : 2=0.01%, 4=0.01%, 10=0.01%, 750=0.01%, 1000=0.01%
+  lat (msec)   : 2=0.01%, 4=0.01%, 10=0.01%, 20=0.01%, 50=0.01%
+  lat (msec)   : 100=100.00%, 250=0.01%
+  cpu          : usr=0.32%, sys=0.90%, ctx=34772610, majf=11, minf=627043
+  IO depths    : 1=0.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=0,17385482,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=755MiB/s (791MB/s), 755MiB/s-755MiB/s (791MB/s-791MB/s), io=265GiB (285GB), run=360001-360001msec
+job_001: (g=0): rw=randwrite, bs=(R) 16.0KiB-16.0KiB, (W) 16.0KiB-16.0KiB, (T) 16.0KiB-16.0KiB, ioengine=libaio, iodepth=64
+...
+fio-3.16
+Starting 48 threads
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+
+job_001: (groupid=0, jobs=48): err= 0: pid=232744: Sun Feb  2 08:15:32 2025
+  write: IOPS=48.3k, BW=755MiB/s (792MB/s)(266GiB/360002msec); 0 zone resets
+    slat (usec): min=145, max=27227, avg=991.77, stdev=144.56
+    clat (nsec): min=1491, max=95034k, avg=62570686.89, stdev=2740338.54
+     lat (usec): min=910, max=96045, avg=63562.64, stdev=2773.37
+    clat percentiles (usec):
+     |  1.00th=[56886],  5.00th=[58983], 10.00th=[60031], 20.00th=[60556],
+     | 30.00th=[61080], 40.00th=[61080], 50.00th=[61604], 60.00th=[62653],
+     | 70.00th=[64226], 80.00th=[65274], 90.00th=[66323], 95.00th=[67634],
+     | 99.00th=[69731], 99.50th=[70779], 99.90th=[74974], 99.95th=[80217],
+     | 99.99th=[85459]
+   bw (  KiB/s): min=704387, max=852348, per=99.97%, avg=773112.02, stdev=411.14, samples=34538
+   iops        : min=44024, max=53271, avg=48317.89, stdev=25.68, samples=34538
+  lat (usec)   : 2=0.01%, 4=0.01%, 1000=0.01%
+  lat (msec)   : 2=0.01%, 4=0.01%, 10=0.01%, 20=0.01%, 50=0.01%
+  lat (msec)   : 100=100.00%
+  cpu          : usr=0.33%, sys=0.90%, ctx=34796072, majf=6, minf=664091
+  IO depths    : 1=0.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=0,17397180,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=755MiB/s (792MB/s), 755MiB/s-755MiB/s (792MB/s-792MB/s), io=266GiB (285GB), run=360002-360002msec
+job_001: (g=0): rw=write, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=libaio, iodepth=64
+...
+fio-3.16
+Starting 48 threads
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+
+job_001: (groupid=0, jobs=48): err= 0: pid=233365: Sun Feb  2 08:24:39 2025
+  write: IOPS=4011, BW=4020MiB/s (4215MB/s)(1413GiB/360012msec); 0 zone resets
+    slat (usec): min=7283, max=219959, avg=11962.68, stdev=834.43
+    clat (nsec): min=1811, max=964666k, avg=752973842.49, stdev=28576783.21
+     lat (msec): min=7, max=976, avg=764.94, stdev=28.75
+    clat percentiles (msec):
+     |  1.00th=[  684],  5.00th=[  718], 10.00th=[  735], 20.00th=[  743],
+     | 30.00th=[  751], 40.00th=[  751], 50.00th=[  760], 60.00th=[  760],
+     | 70.00th=[  760], 80.00th=[  768], 90.00th=[  776], 95.00th=[  785],
+     | 99.00th=[  802], 99.50th=[  810], 99.90th=[  818], 99.95th=[  818],
+     | 99.99th=[  827]
+   bw (  MiB/s): min= 3614, max= 4643, per=99.78%, avg=4011.34, stdev= 2.64, samples=34535
+   iops        : min= 3608, max= 4642, avg=4008.99, stdev= 2.65, samples=34535
+  lat (usec)   : 2=0.01%, 4=0.01%, 10=0.01%
+  lat (msec)   : 10=0.01%, 20=0.01%, 50=0.01%, 100=0.01%, 250=0.04%
+  lat (msec)   : 500=0.07%, 750=35.88%, 1000=64.19%
+  cpu          : usr=0.53%, sys=0.32%, ctx=2889491, majf=0, minf=29779568
+  IO depths    : 1=0.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=0,1444223,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=4020MiB/s (4215MB/s), 4020MiB/s-4020MiB/s (4215MB/s-4215MB/s), io=1413GiB (1518GB), run=360012-360012msec
+job_001: (g=0): rw=randwrite, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=libaio, iodepth=64
+...
+fio-3.16
+Starting 48 threads
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+
+job_001: (groupid=0, jobs=48): err= 0: pid=233973: Sun Feb  2 08:33:49 2025
+  write: IOPS=3989, BW=3998MiB/s (4192MB/s)(1406GiB/360013msec); 0 zone resets
+    slat (usec): min=6871, max=61547, avg=12028.31, stdev=806.46
+    clat (nsec): min=1795, max=839489k, avg=757124073.69, stdev=26353859.93
+     lat (msec): min=6, max=851, avg=769.15, stdev=26.48
+    clat percentiles (msec):
+     |  1.00th=[  718],  5.00th=[  735], 10.00th=[  735], 20.00th=[  743],
+     | 30.00th=[  751], 40.00th=[  751], 50.00th=[  760], 60.00th=[  760],
+     | 70.00th=[  768], 80.00th=[  768], 90.00th=[  776], 95.00th=[  785],
+     | 99.00th=[  802], 99.50th=[  810], 99.90th=[  827], 99.95th=[  827],
+     | 99.99th=[  827]
+   bw (  MiB/s): min= 3603, max= 4486, per=99.78%, avg=3989.19, stdev= 2.22, samples=34523
+   iops        : min= 3598, max= 4486, avg=3986.85, stdev= 2.23, samples=34523
+  lat (usec)   : 2=0.01%, 4=0.01%, 10=0.01%
+  lat (msec)   : 10=0.01%, 20=0.01%, 50=0.01%, 100=0.01%, 250=0.04%
+  lat (msec)   : 500=0.07%, 750=28.90%, 1000=71.16%
+  cpu          : usr=0.52%, sys=0.31%, ctx=2873725, majf=0, minf=27343765
+  IO depths    : 1=0.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=0,1436325,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=3998MiB/s (4192MB/s), 3998MiB/s-3998MiB/s (4192MB/s-4192MB/s), io=1406GiB (1509GB), run=360013-360013msec
+job_001: (g=0): rw=write, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=libaio, iodepth=64
+...
+fio-3.16
+Starting 48 threads
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+
+job_001: (groupid=0, jobs=48): err= 0: pid=234583: Sun Feb  2 08:43:02 2025
+  write: IOPS=3928, BW=3937MiB/s (4128MB/s)(1384GiB/360016msec); 0 zone resets
+    slat (usec): min=874, max=98812, avg=12216.24, stdev=1348.12
+    clat (usec): min=2, max=903972, avg=768978.29, stdev=40425.83
+     lat (msec): min=11, max=918, avg=781.20, stdev=40.83
+    clat percentiles (msec):
+     |  1.00th=[  634],  5.00th=[  701], 10.00th=[  735], 20.00th=[  751],
+     | 30.00th=[  768], 40.00th=[  768], 50.00th=[  776], 60.00th=[  776],
+     | 70.00th=[  785], 80.00th=[  793], 90.00th=[  802], 95.00th=[  818],
+     | 99.00th=[  835], 99.50th=[  844], 99.90th=[  860], 99.95th=[  860],
+     | 99.99th=[  885]
+   bw (  MiB/s): min= 3340, max= 4917, per=99.78%, avg=3928.07, stdev= 4.20, samples=34555
+   iops        : min= 3334, max= 4917, avg=3925.79, stdev= 4.20, samples=34555
+  lat (usec)   : 4=0.01%, 10=0.01%
+  lat (msec)   : 20=0.01%, 50=0.01%, 100=0.01%, 250=0.04%, 500=0.07%
+  lat (msec)   : 750=16.86%, 1000=83.22%
+  cpu          : usr=0.52%, sys=0.31%, ctx=2829669, majf=0, minf=29790010
+  IO depths    : 1=0.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=0,1414263,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=3937MiB/s (4128MB/s), 3937MiB/s-3937MiB/s (4128MB/s-4128MB/s), io=1384GiB (1486GB), run=360016-360016msec
+job_001: (g=0): rw=randwrite, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=libaio, iodepth=64
+...
+fio-3.16
+Starting 48 threads
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+
+job_001: (groupid=0, jobs=48): err= 0: pid=235192: Sun Feb  2 08:52:19 2025
+  write: IOPS=3956, BW=3965MiB/s (4158MB/s)(1394GiB/360012msec); 0 zone resets
+    slat (usec): min=882, max=67585, avg=12128.87, stdev=1251.73
+    clat (nsec): min=1832, max=896783k, avg=763471355.86, stdev=34404084.25
+     lat (msec): min=6, max=909, avg=775.60, stdev=34.70
+    clat percentiles (msec):
+     |  1.00th=[  659],  5.00th=[  718], 10.00th=[  735], 20.00th=[  743],
+     | 30.00th=[  760], 40.00th=[  760], 50.00th=[  768], 60.00th=[  776],
+     | 70.00th=[  776], 80.00th=[  785], 90.00th=[  793], 95.00th=[  802],
+     | 99.00th=[  827], 99.50th=[  835], 99.90th=[  844], 99.95th=[  852],
+     | 99.99th=[  860]
+   bw (  MiB/s): min= 3453, max= 4835, per=99.78%, avg=3956.24, stdev= 3.40, samples=34542
+   iops        : min= 3449, max= 4835, avg=3953.87, stdev= 3.41, samples=34542
+  lat (usec)   : 2=0.01%, 4=0.01%, 10=0.01%
+  lat (msec)   : 10=0.01%, 20=0.01%, 50=0.01%, 100=0.01%, 250=0.04%
+  lat (msec)   : 500=0.07%, 750=23.98%, 1000=76.09%
+  cpu          : usr=0.52%, sys=0.32%, ctx=2850024, majf=0, minf=33301985
+  IO depths    : 1=0.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=0,1424412,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=3965MiB/s (4158MB/s), 3965MiB/s-3965MiB/s (4158MB/s-4158MB/s), io=1394GiB (1497GB), run=360012-360012msec
+job_001: (g=0): rw=write, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=libaio, iodepth=64
+...
+fio-3.16
+Starting 48 threads
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+
+job_001: (groupid=0, jobs=48): err= 0: pid=235804: Sun Feb  2 09:01:37 2025
+  write: IOPS=3942, BW=3951MiB/s (4143MB/s)(1389GiB/360012msec); 0 zone resets
+    slat (usec): min=916, max=123996, avg=12172.45, stdev=1777.39
+    clat (nsec): min=1890, max=915810k, avg=766178781.10, stdev=36953484.60
+     lat (msec): min=8, max=928, avg=778.35, stdev=37.28
+    clat percentiles (msec):
+     |  1.00th=[  667],  5.00th=[  709], 10.00th=[  726], 20.00th=[  751],
+     | 30.00th=[  760], 40.00th=[  768], 50.00th=[  768], 60.00th=[  776],
+     | 70.00th=[  785], 80.00th=[  785], 90.00th=[  802], 95.00th=[  810],
+     | 99.00th=[  835], 99.50th=[  844], 99.90th=[  885], 99.95th=[  885],
+     | 99.99th=[  894]
+   bw (  MiB/s): min= 3203, max= 4870, per=99.78%, avg=3942.07, stdev= 3.74, samples=34549
+   iops        : min= 3201, max= 4870, avg=3939.84, stdev= 3.74, samples=34549
+  lat (usec)   : 2=0.01%, 4=0.01%, 10=0.01%
+  lat (msec)   : 10=0.01%, 20=0.01%, 50=0.01%, 100=0.01%, 250=0.04%
+  lat (msec)   : 500=0.07%, 750=22.23%, 1000=77.84%
+  cpu          : usr=0.52%, sys=0.33%, ctx=2840137, majf=0, minf=34413563
+  IO depths    : 1=0.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=0,1419319,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=3951MiB/s (4143MB/s), 3951MiB/s-3951MiB/s (4143MB/s-4143MB/s), io=1389GiB (1491GB), run=360012-360012msec
+job_001: (g=0): rw=randwrite, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=libaio, iodepth=64
+...
+fio-3.16
+Starting 48 threads
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+
+job_001: (groupid=0, jobs=48): err= 0: pid=236415: Sun Feb  2 09:10:54 2025
+  write: IOPS=3916, BW=3925MiB/s (4116MB/s)(1380GiB/360013msec); 0 zone resets
+    slat (usec): min=547, max=108114, avg=12252.26, stdev=1664.64
+    clat (nsec): min=1819, max=920674k, avg=771229830.39, stdev=41196403.19
+     lat (usec): min=778, max=932913, avg=783482.89, stdev=41610.33
+    clat percentiles (msec):
+     |  1.00th=[  642],  5.00th=[  693], 10.00th=[  735], 20.00th=[  751],
+     | 30.00th=[  768], 40.00th=[  768], 50.00th=[  776], 60.00th=[  785],
+     | 70.00th=[  793], 80.00th=[  793], 90.00th=[  810], 95.00th=[  818],
+     | 99.00th=[  844], 99.50th=[  852], 99.90th=[  860], 99.95th=[  860],
+     | 99.99th=[  877]
+   bw (  MiB/s): min= 3368, max= 4863, per=99.78%, avg=3916.50, stdev= 4.24, samples=34541
+   iops        : min= 3361, max= 4862, avg=3913.93, stdev= 4.25, samples=34541
+  lat (usec)   : 2=0.01%, 4=0.01%, 10=0.01%, 1000=0.01%
+  lat (msec)   : 2=0.01%, 4=0.01%, 10=0.01%, 20=0.01%, 50=0.01%
+  lat (msec)   : 100=0.01%, 250=0.04%, 500=0.06%, 750=17.30%, 1000=82.79%
+  cpu          : usr=0.52%, sys=0.33%, ctx=2821794, majf=0, minf=35348448
+  IO depths    : 1=0.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=0,1410074,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=3925MiB/s (4116MB/s), 3925MiB/s-3925MiB/s (4116MB/s-4116MB/s), io=1380GiB (1482GB), run=360013-360013msec
+job_001: (g=0): rw=write, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=libaio, iodepth=64
+...
+fio-3.16
+Starting 48 threads
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+
+job_001: (groupid=0, jobs=48): err= 0: pid=237028: Sun Feb  2 09:20:13 2025
+  write: IOPS=3904, BW=3913MiB/s (4103MB/s)(1376GiB/360013msec); 0 zone resets
+    slat (usec): min=967, max=87922, avg=12290.12, stdev=1891.64
+    clat (usec): min=2, max=916465, avg=773628.50, stdev=36845.43
+     lat (msec): min=9, max=929, avg=785.92, stdev=37.15
+    clat percentiles (msec):
+     |  1.00th=[  667],  5.00th=[  726], 10.00th=[  735], 20.00th=[  751],
+     | 30.00th=[  768], 40.00th=[  776], 50.00th=[  776], 60.00th=[  785],
+     | 70.00th=[  785], 80.00th=[  793], 90.00th=[  810], 95.00th=[  818],
+     | 99.00th=[  844], 99.50th=[  852], 99.90th=[  877], 99.95th=[  894],
+     | 99.99th=[  902]
+   bw (  MiB/s): min= 3143, max= 4767, per=99.77%, avg=3904.42, stdev= 3.78, samples=34545
+   iops        : min= 3142, max= 4767, avg=3902.02, stdev= 3.79, samples=34545
+  lat (usec)   : 4=0.01%, 10=0.01%
+  lat (msec)   : 10=0.01%, 20=0.01%, 50=0.01%, 100=0.01%, 250=0.04%
+  lat (msec)   : 500=0.07%, 750=17.28%, 1000=82.79%
+  cpu          : usr=0.51%, sys=0.34%, ctx=2813201, majf=0, minf=36703745
+  IO depths    : 1=0.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=0,1405743,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=3913MiB/s (4103MB/s), 3913MiB/s-3913MiB/s (4103MB/s-4103MB/s), io=1376GiB (1477GB), run=360013-360013msec
+job_001: (g=0): rw=randwrite, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=libaio, iodepth=64
+...
+fio-3.16
+Starting 48 threads
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+
+job_001: (groupid=0, jobs=48): err= 0: pid=237648: Sun Feb  2 09:29:37 2025
+  write: IOPS=3901, BW=3910MiB/s (4100MB/s)(1375GiB/360012msec); 0 zone resets
+    slat (usec): min=935, max=117038, avg=12298.91, stdev=1810.40
+    clat (nsec): min=1967, max=916160k, avg=774180179.05, stdev=38860452.35
+     lat (msec): min=7, max=928, avg=786.48, stdev=39.21
+    clat percentiles (msec):
+     |  1.00th=[  676],  5.00th=[  709], 10.00th=[  735], 20.00th=[  751],
+     | 30.00th=[  768], 40.00th=[  776], 50.00th=[  776], 60.00th=[  785],
+     | 70.00th=[  793], 80.00th=[  802], 90.00th=[  810], 95.00th=[  827],
+     | 99.00th=[  844], 99.50th=[  852], 99.90th=[  885], 99.95th=[  894],
+     | 99.99th=[  902]
+   bw (  MiB/s): min= 3247, max= 4769, per=99.77%, avg=3901.45, stdev= 3.93, samples=34534
+   iops        : min= 3244, max= 4768, avg=3899.08, stdev= 3.94, samples=34534
+  lat (usec)   : 2=0.01%, 4=0.01%, 10=0.01%
+  lat (msec)   : 10=0.01%, 20=0.01%, 50=0.01%, 100=0.01%, 250=0.04%
+  lat (msec)   : 500=0.07%, 750=17.70%, 1000=82.38%
+  cpu          : usr=0.52%, sys=0.35%, ctx=2810988, majf=0, minf=40250747
+  IO depths    : 1=0.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=0,1404712,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=3910MiB/s (4100MB/s), 3910MiB/s-3910MiB/s (4100MB/s-4100MB/s), io=1375GiB (1476GB), run=360012-360012msec

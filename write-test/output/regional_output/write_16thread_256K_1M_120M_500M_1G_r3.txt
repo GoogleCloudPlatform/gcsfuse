@@ -1,0 +1,459 @@
+job_001: (g=0): rw=write, bs=(R) 16.0KiB-16.0KiB, (W) 16.0KiB-16.0KiB, (T) 16.0KiB-16.0KiB, ioengine=libaio, iodepth=64
+...
+fio-3.16
+Starting 16 threads
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+
+job_001: (groupid=0, jobs=16): err= 0: pid=152779: Sat Feb  1 13:08:25 2025
+  write: IOPS=48.0k, BW=765MiB/s (802MB/s)(269GiB/360001msec); 0 zone resets
+    slat (usec): min=65, max=28739, avg=325.66, stdev=89.15
+    clat (nsec): min=1375, max=49522k, avg=20582603.26, stdev=1445094.73
+     lat (usec): min=310, max=49859, avg=20908.42, stdev=1462.31
+    clat percentiles (usec):
+     |  1.00th=[17433],  5.00th=[18482], 10.00th=[19006], 20.00th=[19530],
+     | 30.00th=[19792], 40.00th=[20055], 50.00th=[20317], 60.00th=[20841],
+     | 70.00th=[21103], 80.00th=[21627], 90.00th=[22414], 95.00th=[23200],
+     | 99.00th=[24511], 99.50th=[25035], 99.90th=[25822], 99.95th=[26346],
+     | 99.99th=[43779]
+   bw (  KiB/s): min=709574, max=927488, per=99.99%, avg=783507.70, stdev=1709.02, samples=11504
+   iops        : min=44348, max=57968, avg=48968.91, stdev=106.81, samples=11504
+  lat (usec)   : 2=0.01%, 4=0.01%, 500=0.01%, 750=0.01%, 1000=0.01%
+  lat (msec)   : 2=0.01%, 4=0.01%, 10=0.01%, 20=35.18%, 50=64.82%
+  cpu          : usr=0.71%, sys=2.30%, ctx=35260945, majf=1, minf=166856
+  IO depths    : 1=0.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=0,17630368,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=765MiB/s (802MB/s), 765MiB/s-765MiB/s (802MB/s-802MB/s), io=269GiB (289GB), run=360001-360001msec
+job_001: (g=0): rw=randwrite, bs=(R) 16.0KiB-16.0KiB, (W) 16.0KiB-16.0KiB, (T) 16.0KiB-16.0KiB, ioengine=libaio, iodepth=64
+...
+fio-3.16
+Starting 16 threads
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+job_001: Laying out IO files (9 files / total 2MiB)
+
+job_001: (groupid=0, jobs=16): err= 0: pid=153545: Sat Feb  1 13:16:46 2025
+  write: IOPS=48.8k, BW=763MiB/s (800MB/s)(268GiB/360001msec); 0 zone resets
+    slat (usec): min=65, max=47095, avg=326.59, stdev=90.98
+    clat (nsec): min=1153, max=68085k, avg=20645196.65, stdev=1437365.75
+     lat (usec): min=252, max=68449, avg=20971.92, stdev=1454.28
+    clat percentiles (usec):
+     |  1.00th=[17695],  5.00th=[18744], 10.00th=[19006], 20.00th=[19530],
+     | 30.00th=[19792], 40.00th=[20317], 50.00th=[20579], 60.00th=[20841],
+     | 70.00th=[21103], 80.00th=[21627], 90.00th=[22414], 95.00th=[23200],
+     | 99.00th=[24511], 99.50th=[25035], 99.90th=[25822], 99.95th=[26346],
+     | 99.99th=[44303]
+   bw (  KiB/s): min=706903, max=884948, per=99.98%, avg=781107.31, stdev=1683.53, samples=11509
+   iops        : min=44180, max=55309, avg=48818.70, stdev=105.21, samples=11509
+  lat (usec)   : 2=0.01%, 4=0.01%, 500=0.01%, 750=0.01%, 1000=0.01%
+  lat (msec)   : 2=0.01%, 4=0.01%, 10=0.01%, 20=33.19%, 50=66.81%
+  lat (msec)   : 100=0.01%
+  cpu          : usr=0.77%, sys=2.29%, ctx=35153934, majf=15, minf=211400
+  IO depths    : 1=0.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=0,17576857,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=763MiB/s (800MB/s), 763MiB/s-763MiB/s (800MB/s-800MB/s), io=268GiB (288GB), run=360001-360001msec
+job_001: (g=0): rw=write, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=libaio, iodepth=64
+...
+fio-3.16
+Starting 16 threads
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+
+job_001: (groupid=0, jobs=16): err= 0: pid=153872: Sat Feb  1 13:25:08 2025
+  write: IOPS=4176, BW=4180MiB/s (4383MB/s)(1469GiB/360004msec); 0 zone resets
+    slat (usec): min=735, max=39108, avg=3828.78, stdev=463.78
+    clat (nsec): min=1748, max=287878k, avg=241257679.22, stdev=10794722.30
+     lat (usec): min=913, max=291818, avg=245086.81, stdev=10915.59
+    clat percentiles (msec):
+     |  1.00th=[  211],  5.00th=[  224], 10.00th=[  230], 20.00th=[  234],
+     | 30.00th=[  239], 40.00th=[  241], 50.00th=[  243], 60.00th=[  245],
+     | 70.00th=[  247], 80.00th=[  249], 90.00th=[  253], 95.00th=[  257],
+     | 99.00th=[  266], 99.50th=[  271], 99.90th=[  275], 99.95th=[  279],
+     | 99.99th=[  284]
+   bw (  MiB/s): min= 3689, max= 4876, per=99.92%, avg=4176.31, stdev= 9.75, samples=11510
+   iops        : min= 3689, max= 4876, avg=4175.86, stdev= 9.75, samples=11510
+  lat (usec)   : 2=0.01%, 4=0.01%, 10=0.01%, 1000=0.01%
+  lat (msec)   : 2=0.01%, 4=0.01%, 10=0.01%, 20=0.01%, 50=0.01%
+  lat (msec)   : 100=0.02%, 250=83.63%, 500=16.41%
+  cpu          : usr=1.59%, sys=0.74%, ctx=3007475, majf=0, minf=12880103
+  IO depths    : 1=0.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=0,1503644,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=4180MiB/s (4383MB/s), 4180MiB/s-4180MiB/s (4383MB/s-4383MB/s), io=1469GiB (1578GB), run=360004-360004msec
+job_001: (g=0): rw=randwrite, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=libaio, iodepth=64
+...
+fio-3.16
+Starting 16 threads
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+job_001: Laying out IO files (9 files / total 9MiB)
+
+job_001: (groupid=0, jobs=16): err= 0: pid=154646: Sat Feb  1 13:33:29 2025
+  write: IOPS=4205, BW=4208MiB/s (4413MB/s)(1480GiB/360004msec); 0 zone resets
+    slat (usec): min=749, max=33014, avg=3802.36, stdev=497.04
+    clat (nsec): min=1783, max=294545k, avg=239603618.59, stdev=10181095.96
+     lat (usec): min=752, max=299351, avg=243406.24, stdev=10289.76
+    clat percentiles (msec):
+     |  1.00th=[  215],  5.00th=[  224], 10.00th=[  228], 20.00th=[  232],
+     | 30.00th=[  236], 40.00th=[  239], 50.00th=[  241], 60.00th=[  243],
+     | 70.00th=[  245], 80.00th=[  247], 90.00th=[  251], 95.00th=[  255],
+     | 99.00th=[  264], 99.50th=[  266], 99.90th=[  275], 99.95th=[  279],
+     | 99.99th=[  288]
+   bw (  MiB/s): min= 3785, max= 4749, per=99.92%, avg=4205.11, stdev= 9.12, samples=11514
+   iops        : min= 3784, max= 4749, avg=4204.66, stdev= 9.12, samples=11514
+  lat (usec)   : 2=0.01%, 4=0.01%, 1000=0.01%
+  lat (msec)   : 2=0.01%, 4=0.01%, 10=0.01%, 20=0.01%, 50=0.01%
+  lat (msec)   : 100=0.01%, 250=88.45%, 500=11.59%
+  cpu          : usr=1.65%, sys=0.72%, ctx=3028176, majf=0, minf=13662168
+  IO depths    : 1=0.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=0,1514005,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=4208MiB/s (4413MB/s), 4208MiB/s-4208MiB/s (4413MB/s-4413MB/s), io=1480GiB (1589GB), run=360004-360004msec
+job_001: (g=0): rw=write, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=libaio, iodepth=64
+...
+fio-3.16
+Starting 16 threads
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+
+job_001: (groupid=0, jobs=16): err= 0: pid=155345: Sat Feb  1 13:41:52 2025
+  write: IOPS=4047, BW=4050MiB/s (4247MB/s)(1424GiB/360004msec); 0 zone resets
+    slat (usec): min=684, max=57966, avg=3951.14, stdev=534.87
+    clat (nsec): min=1966, max=320665k, avg=248954919.71, stdev=12663836.57
+     lat (usec): min=1238, max=324803, avg=252906.34, stdev=12812.51
+    clat percentiles (msec):
+     |  1.00th=[  209],  5.00th=[  228], 10.00th=[  234], 20.00th=[  243],
+     | 30.00th=[  247], 40.00th=[  249], 50.00th=[  251], 60.00th=[  253],
+     | 70.00th=[  255], 80.00th=[  257], 90.00th=[  262], 95.00th=[  266],
+     | 99.00th=[  279], 99.50th=[  284], 99.90th=[  300], 99.95th=[  309],
+     | 99.99th=[  313]
+   bw (  MiB/s): min= 3499, max= 4874, per=99.92%, avg=4047.06, stdev=11.01, samples=11516
+   iops        : min= 3498, max= 4873, avg=4046.52, stdev=11.01, samples=11516
+  lat (usec)   : 2=0.01%, 4=0.01%, 10=0.01%
+  lat (msec)   : 2=0.01%, 4=0.01%, 10=0.01%, 20=0.01%, 50=0.01%
+  lat (msec)   : 100=0.01%, 250=47.92%, 500=52.13%
+  cpu          : usr=1.58%, sys=0.72%, ctx=2914445, majf=0, minf=13148206
+  IO depths    : 1=0.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=0,1457113,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=4050MiB/s (4247MB/s), 4050MiB/s-4050MiB/s (4247MB/s-4247MB/s), io=1424GiB (1529GB), run=360004-360004msec
+job_001: (g=0): rw=randwrite, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=libaio, iodepth=64
+...
+fio-3.16
+Starting 16 threads
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+job_001: Laying out IO files (9 files / total 1080MiB)
+
+job_001: (groupid=0, jobs=16): err= 0: pid=155924: Sat Feb  1 13:50:15 2025
+  write: IOPS=4012, BW=4015MiB/s (4210MB/s)(1412GiB/360003msec); 0 zone resets
+    slat (usec): min=717, max=57118, avg=3985.60, stdev=507.79
+    clat (nsec): min=1772, max=374063k, avg=251143946.92, stdev=11601684.34
+     lat (usec): min=719, max=378416, avg=255129.98, stdev=11724.20
+    clat percentiles (msec):
+     |  1.00th=[  222],  5.00th=[  232], 10.00th=[  239], 20.00th=[  243],
+     | 30.00th=[  247], 40.00th=[  249], 50.00th=[  253], 60.00th=[  255],
+     | 70.00th=[  257], 80.00th=[  259], 90.00th=[  264], 95.00th=[  268],
+     | 99.00th=[  279], 99.50th=[  284], 99.90th=[  300], 99.95th=[  305],
+     | 99.99th=[  317]
+   bw (  MiB/s): min= 3475, max= 4698, per=99.92%, avg=4011.77, stdev= 9.42, samples=11508
+   iops        : min= 3474, max= 4698, avg=4011.28, stdev= 9.42, samples=11508
+  lat (usec)   : 2=0.01%, 4=0.01%, 10=0.01%, 750=0.01%, 1000=0.01%
+  lat (msec)   : 2=0.01%, 4=0.01%, 10=0.01%, 20=0.01%, 50=0.01%
+  lat (msec)   : 100=0.01%, 250=42.91%, 500=57.13%
+  cpu          : usr=1.56%, sys=0.72%, ctx=2889051, majf=0, minf=13611098
+  IO depths    : 1=0.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=0,1444426,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=4015MiB/s (4210MB/s), 4015MiB/s-4015MiB/s (4210MB/s-4210MB/s), io=1412GiB (1516GB), run=360003-360003msec
+job_001: (g=0): rw=write, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=libaio, iodepth=64
+...
+fio-3.16
+Starting 16 threads
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+
+job_001: (groupid=0, jobs=16): err= 0: pid=156501: Sat Feb  1 13:58:41 2025
+  write: IOPS=4016, BW=4019MiB/s (4214MB/s)(1413GiB/360005msec); 0 zone resets
+    slat (usec): min=683, max=76430, avg=3981.75, stdev=928.30
+    clat (nsec): min=1669, max=358334k, avg=250888133.00, stdev=14901904.11
+     lat (usec): min=764, max=362265, avg=254870.17, stdev=15067.63
+    clat percentiles (msec):
+     |  1.00th=[  209],  5.00th=[  226], 10.00th=[  232], 20.00th=[  243],
+     | 30.00th=[  247], 40.00th=[  249], 50.00th=[  253], 60.00th=[  255],
+     | 70.00th=[  257], 80.00th=[  262], 90.00th=[  266], 95.00th=[  271],
+     | 99.00th=[  296], 99.50th=[  305], 99.90th=[  317], 99.95th=[  321],
+     | 99.99th=[  330]
+   bw (  MiB/s): min= 3356, max= 4976, per=99.92%, avg=4015.88, stdev=12.27, samples=11517
+   iops        : min= 3354, max= 4976, avg=4015.43, stdev=12.27, samples=11517
+  lat (usec)   : 2=0.01%, 4=0.01%, 1000=0.01%
+  lat (msec)   : 2=0.01%, 4=0.01%, 10=0.01%, 20=0.01%, 50=0.01%
+  lat (msec)   : 100=0.01%, 250=42.21%, 500=57.84%
+  cpu          : usr=1.58%, sys=0.68%, ctx=2892008, majf=0, minf=13989417
+  IO depths    : 1=0.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=0,1445886,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=4019MiB/s (4214MB/s), 4019MiB/s-4019MiB/s (4214MB/s-4214MB/s), io=1413GiB (1517GB), run=360005-360005msec
+job_001: (g=0): rw=randwrite, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=libaio, iodepth=64
+...
+fio-3.16
+Starting 16 threads
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+job_001: Laying out IO files (9 files / total 4500MiB)
+
+job_001: (groupid=0, jobs=16): err= 0: pid=157090: Sat Feb  1 14:07:08 2025
+  write: IOPS=3993, BW=3996MiB/s (4190MB/s)(1405GiB/360004msec); 0 zone resets
+    slat (usec): min=692, max=117753, avg=4004.35, stdev=974.41
+    clat (nsec): min=1687, max=406715k, avg=252313300.16, stdev=13425388.09
+     lat (usec): min=933, max=410907, avg=256317.81, stdev=13562.33
+    clat percentiles (msec):
+     |  1.00th=[  218],  5.00th=[  234], 10.00th=[  239], 20.00th=[  245],
+     | 30.00th=[  249], 40.00th=[  251], 50.00th=[  253], 60.00th=[  255],
+     | 70.00th=[  257], 80.00th=[  259], 90.00th=[  266], 95.00th=[  271],
+     | 99.00th=[  300], 99.50th=[  309], 99.90th=[  321], 99.95th=[  326],
+     | 99.99th=[  347]
+   bw (  MiB/s): min= 3298, max= 4710, per=99.92%, avg=3993.04, stdev=10.47, samples=11516
+   iops        : min= 3298, max= 4710, avg=3992.51, stdev=10.47, samples=11516
+  lat (usec)   : 2=0.01%, 4=0.01%, 1000=0.01%
+  lat (msec)   : 2=0.01%, 4=0.01%, 10=0.01%, 20=0.01%, 50=0.01%
+  lat (msec)   : 100=0.01%, 250=39.22%, 500=60.82%
+  cpu          : usr=1.57%, sys=0.67%, ctx=2875540, majf=0, minf=12152894
+  IO depths    : 1=0.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=0,1437683,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=3996MiB/s (4190MB/s), 3996MiB/s-3996MiB/s (4190MB/s-4190MB/s), io=1405GiB (1509GB), run=360004-360004msec
+job_001: (g=0): rw=write, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=libaio, iodepth=64
+...
+fio-3.16
+Starting 16 threads
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+
+job_001: (groupid=0, jobs=16): err= 0: pid=157223: Sat Feb  1 14:15:40 2025
+  write: IOPS=4044, BW=4048MiB/s (4244MB/s)(1423GiB/360004msec); 0 zone resets
+    slat (usec): min=521, max=115417, avg=3953.66, stdev=960.91
+    clat (nsec): min=1773, max=403147k, avg=249122704.28, stdev=15680644.18
+     lat (usec): min=524, max=407286, avg=253076.63, stdev=15860.71
+    clat percentiles (msec):
+     |  1.00th=[  207],  5.00th=[  222], 10.00th=[  232], 20.00th=[  241],
+     | 30.00th=[  245], 40.00th=[  249], 50.00th=[  251], 60.00th=[  253],
+     | 70.00th=[  255], 80.00th=[  259], 90.00th=[  264], 95.00th=[  271],
+     | 99.00th=[  296], 99.50th=[  309], 99.90th=[  326], 99.95th=[  330],
+     | 99.99th=[  359]
+   bw (  MiB/s): min= 3277, max= 4909, per=99.91%, avg=4044.05, stdev=13.56, samples=11516
+   iops        : min= 3276, max= 4909, avg=4043.42, stdev=13.56, samples=11516
+  lat (usec)   : 2=0.01%, 4=0.01%, 750=0.01%
+  lat (msec)   : 2=0.01%, 4=0.01%, 10=0.01%, 20=0.01%, 50=0.01%
+  lat (msec)   : 100=0.01%, 250=48.18%, 500=51.86%
+  cpu          : usr=1.58%, sys=0.67%, ctx=2912401, majf=0, minf=10666427
+  IO depths    : 1=0.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=0,1456125,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=4048MiB/s (4244MB/s), 4048MiB/s-4048MiB/s (4244MB/s-4244MB/s), io=1423GiB (1528GB), run=360004-360004msec
+job_001: (g=0): rw=randwrite, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=libaio, iodepth=64
+...
+fio-3.16
+Starting 16 threads
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+job_001: Laying out IO files (9 files / total 9216MiB)
+
+job_001: (groupid=0, jobs=16): err= 0: pid=157800: Sat Feb  1 14:24:15 2025
+  write: IOPS=4060, BW=4063MiB/s (4261MB/s)(1429GiB/360005msec); 0 zone resets
+    slat (usec): min=587, max=146610, avg=3938.38, stdev=930.78
+    clat (nsec): min=1898, max=401860k, avg=248168055.40, stdev=15345054.91
+     lat (usec): min=790, max=406273, avg=252106.89, stdev=15518.66
+    clat percentiles (msec):
+     |  1.00th=[  207],  5.00th=[  222], 10.00th=[  230], 20.00th=[  239],
+     | 30.00th=[  245], 40.00th=[  247], 50.00th=[  249], 60.00th=[  253],
+     | 70.00th=[  255], 80.00th=[  257], 90.00th=[  264], 95.00th=[  271],
+     | 99.00th=[  288], 99.50th=[  300], 99.90th=[  330], 99.95th=[  334],
+     | 99.99th=[  355]
+   bw (  MiB/s): min= 3253, max= 4929, per=99.92%, avg=4059.99, stdev=12.96, samples=11514
+   iops        : min= 3252, max= 4929, avg=4059.49, stdev=12.96, samples=11514
+  lat (usec)   : 2=0.01%, 4=0.01%, 10=0.01%, 1000=0.01%
+  lat (msec)   : 2=0.01%, 4=0.01%, 10=0.01%, 20=0.01%, 50=0.01%
+  lat (msec)   : 100=0.01%, 250=52.63%, 500=47.41%
+  cpu          : usr=1.60%, sys=0.65%, ctx=2923697, majf=0, minf=13535719
+  IO depths    : 1=0.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=0,1461764,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=4063MiB/s (4261MB/s), 4063MiB/s-4063MiB/s (4261MB/s-4261MB/s), io=1429GiB (1534GB), run=360005-360005msec
