@@ -18,15 +18,6 @@
 set -e
 # e.g. architecture=arm64 or amd64
 architecture=$(dpkg --print-architecture)
-echo "Installing docker..."
-sudo mkdir -p /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-echo \
-  "deb [arch=${architecture} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-sudo apt-get update
-sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin -y
-
 echo "Building and installing gcsfuse..."
 # $1 refers to branch or commit-id on which we want to build package.
 branch=$1

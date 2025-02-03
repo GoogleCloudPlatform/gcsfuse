@@ -44,7 +44,7 @@ import subprocess
 sys.path.insert(0, '..')
 from gsheet import gsheet
 
-PROJECT_NAME = 'projects/gcs-fuse-test-ml'
+PROJECT_NAME = 'projects/gcs-fuse-test'
 CPU_UTI_METRIC_TYPE = 'compute.googleapis.com/instance/cpu/utilization'
 RECEIVED_BYTES_COUNT_METRIC_TYPE = 'compute.googleapis.com/instance/network/received_bytes_count'
 OPS_LATENCY_METRIC_TYPE = 'custom.googleapis.com/gcsfuse/fs/ops_latency'
@@ -187,8 +187,8 @@ def _get_metric_filter(type, metric_type, instance, extra_filter):
             metric_type=metric_type, instance_name=instance)
   elif (type == 'custom'):
     metric_filter = (
-        'metric.type = "{metric_type}" AND metric.labels.opencensus_task = '
-        'ends_with("{instance_name}")').format(
+        'metric.type = "{metric_type}" AND metadata.system_labels.name = '
+        '"{instance_name}"').format(
         metric_type=metric_type, instance_name=instance)
   elif (type == 'agent'):
     # Fetch the instance ID here
@@ -200,6 +200,7 @@ def _get_metric_filter(type, metric_type, instance, extra_filter):
 
   if (extra_filter == ''):
     return metric_filter
+  print('{} AND {}'.format(metric_filter, extra_filter))
   return '{} AND {}'.format(metric_filter, extra_filter)
 
 def _create_metric_points_from_response(metrics_response, factor):

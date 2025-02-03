@@ -23,7 +23,7 @@ cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 
 echo "Building and installing gcsfuse"
 # Get the latest commitId of yesterday in the log file. Build gcsfuse and run
-commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
+commitId=$(git log --max-count=1 --pretty=%H)
 ./perfmetrics/scripts/build_and_install_gcsfuse.sh $commitId
 
 # Mounting gcs bucket
