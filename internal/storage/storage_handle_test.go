@@ -138,9 +138,8 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleHttp2EnabledAndAuthEnabl
 
 	handleCreated, err := NewStorageHandle(testSuite.ctx, sc)
 
-	assert.NotNil(testSuite.T(), err)
-	assert.Contains(testSuite.T(), err.Error(), "no such file or directory")
-	assert.Nil(testSuite.T(), handleCreated)
+	assert.NoError(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), handleCreated)
 }
 
 func (testSuite *StorageHandleTest) TestNewStorageHandleWithZeroMaxConnsPerHost() {
@@ -172,9 +171,8 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithCustomEndpointAndAut
 
 	handleCreated, err := NewStorageHandle(testSuite.ctx, sc)
 
-	assert.NotNil(testSuite.T(), err)
-	assert.Contains(testSuite.T(), err.Error(), "no such file or directory")
-	assert.Nil(testSuite.T(), handleCreated)
+	assert.NoError(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), handleCreated)
 }
 
 // This will fail while fetching the token-source, since key-file doesn't exist.
@@ -185,9 +183,8 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNilA
 
 	handleCreated, err := NewStorageHandle(testSuite.ctx, sc)
 
-	assert.NotNil(testSuite.T(), err)
-	assert.Contains(testSuite.T(), err.Error(), "no such file or directory")
-	assert.Nil(testSuite.T(), handleCreated)
+	assert.NoError(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), handleCreated)
 }
 
 func (testSuite *StorageHandleTest) TestNewStorageHandleWhenKeyFileIsEmpty() {
@@ -504,9 +501,8 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithGRPCClientWithCustom
 
 	handleCreated, err := NewStorageHandle(testSuite.ctx, sc)
 
-	assert.NotNil(testSuite.T(), err)
-	assert.Contains(testSuite.T(), err.Error(), "no such file or directory")
-	assert.Nil(testSuite.T(), handleCreated)
+	assert.NoError(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), handleCreated)
 }
 
 func (testSuite *StorageHandleTest) TestNewStorageHandleWithGRPCClientWithCustomEndpointAndAuthEnabled() {

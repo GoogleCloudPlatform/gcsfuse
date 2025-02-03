@@ -161,6 +161,7 @@ func (t *UploadHandlerTest) TestFinalizeWhenFinalizeUploadFails() {
 	assert.Nil(t.T(), obj)
 	assert.ErrorContains(t.T(), err, "taco")
 	assert.ErrorContains(t.T(), err, "FinalizeUpload failed for object")
+	assertUploadFailureSignal(t.T(), t.uh)
 }
 
 func (t *UploadHandlerTest) TestUploadSingleBlockThrowsErrorInCopy() {
@@ -298,7 +299,7 @@ func (t *UploadHandlerTest) TestCreateObjectChunkWriterIsCalledWithCorrectReques
 				*req.MetaGenerationPrecondition == t.uh.obj.MetaGeneration &&
 				req.ContentEncoding == t.uh.obj.ContentEncoding &&
 				req.ContentType == t.uh.obj.ContentType &&
-				req.ChunkTransferTimeoutSecs == chunkTransferTimeoutSecs
+				req.ChunkTransferTimeoutSecs == 0
 		}),
 		mock.Anything,
 		mock.Anything).Return(writer, nil)
@@ -324,7 +325,7 @@ func (t *UploadHandlerTest) TestCreateObjectChunkWriterIsCalledWithCorrectReques
 			return req.Name == t.uh.objectName &&
 				*req.GenerationPrecondition == 0 &&
 				req.MetaGenerationPrecondition == nil &&
-				req.ChunkTransferTimeoutSecs == chunkTransferTimeoutSecs
+				req.ChunkTransferTimeoutSecs == 0
 		}),
 		mock.Anything,
 		mock.Anything).Return(writer, nil)
@@ -388,4 +389,36 @@ func (t *UploadHandlerTest) createBlocks(count int) []block.Block {
 	}
 
 	return blocks
+}
+
+func (t *UploadHandlerTest) TestUploadHandler_closeUploadFailureChannel() {
+	testCases := []struct {
+		name         string
+		initialState chan error
+	}{
+		{
+			name:         "Channel_initially_open",
+			initialState: make(chan error),
+		},
+		{
+			name:         "Channel_already_closed",
+			initialState: func() chan error { ch := make(chan error); close(ch); return ch }(),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			uh := &UploadHandler{
+				signalUploadFailure: tc.initialState,
+			}
+
+			uh.closeUploadFailureChannel()
+
+			select {
+			case <-uh.signalUploadFailure:
+			default:
+				t.T().Error("expected channel to be closed but it was not")
+			}
+		})
+	}
 }

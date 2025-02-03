@@ -32,7 +32,7 @@ import (
 const chunkTransferTimeoutSecs int64 = 10
 
 type BufferedWriteTest struct {
-	bwh *BufferedWriteHandler
+	bwh BufferedWriteHandler
 	suite.Suite
 }
 
@@ -69,7 +69,8 @@ func (testSuite *BufferedWriteTest) TestWrite() {
 
 	require.Nil(testSuite.T(), err)
 	fileInfo := testSuite.bwh.WriteFileInfo()
-	assert.Equal(testSuite.T(), testSuite.bwh.mtime, fileInfo.Mtime)
+	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
+	assert.Equal(testSuite.T(), bwhImpl.mtime, fileInfo.Mtime)
 	assert.Equal(testSuite.T(), int64(2), fileInfo.TotalSize)
 }
 
@@ -78,7 +79,8 @@ func (testSuite *BufferedWriteTest) TestWriteWithEmptyBuffer() {
 
 	require.Nil(testSuite.T(), err)
 	fileInfo := testSuite.bwh.WriteFileInfo()
-	assert.Equal(testSuite.T(), testSuite.bwh.mtime, fileInfo.Mtime)
+	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
+	assert.Equal(testSuite.T(), bwhImpl.mtime, fileInfo.Mtime)
 	assert.Equal(testSuite.T(), int64(0), fileInfo.TotalSize)
 }
 
@@ -90,7 +92,8 @@ func (testSuite *BufferedWriteTest) TestWriteEqualToBlockSize() {
 
 	require.Nil(testSuite.T(), err)
 	fileInfo := testSuite.bwh.WriteFileInfo()
-	assert.Equal(testSuite.T(), testSuite.bwh.mtime, fileInfo.Mtime)
+	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
+	assert.Equal(testSuite.T(), bwhImpl.mtime, fileInfo.Mtime)
 	assert.Equal(testSuite.T(), int64(size), fileInfo.TotalSize)
 }
 
@@ -102,7 +105,8 @@ func (testSuite *BufferedWriteTest) TestWriteDataSizeGreaterThanBlockSize() {
 
 	require.Nil(testSuite.T(), err)
 	fileInfo := testSuite.bwh.WriteFileInfo()
-	assert.Equal(testSuite.T(), testSuite.bwh.mtime, fileInfo.Mtime)
+	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
+	assert.Equal(testSuite.T(), bwhImpl.mtime, fileInfo.Mtime)
 	assert.Equal(testSuite.T(), int64(size), fileInfo.TotalSize)
 }
 
@@ -116,7 +120,8 @@ func (testSuite *BufferedWriteTest) TestWriteWhenNextOffsetIsGreaterThanExpected
 	require.NotNil(testSuite.T(), err)
 	require.Equal(testSuite.T(), err, ErrOutOfOrderWrite)
 	fileInfo := testSuite.bwh.WriteFileInfo()
-	assert.Equal(testSuite.T(), testSuite.bwh.mtime, fileInfo.Mtime)
+	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
+	assert.Equal(testSuite.T(), bwhImpl.mtime, fileInfo.Mtime)
 	assert.Equal(testSuite.T(), int64(2), fileInfo.TotalSize)
 }
 
@@ -130,7 +135,8 @@ func (testSuite *BufferedWriteTest) TestWriteWhenNextOffsetIsLessThanExpected() 
 	require.NotNil(testSuite.T(), err)
 	require.Equal(testSuite.T(), err, ErrOutOfOrderWrite)
 	fileInfo := testSuite.bwh.WriteFileInfo()
-	assert.Equal(testSuite.T(), testSuite.bwh.mtime, fileInfo.Mtime)
+	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
+	assert.Equal(testSuite.T(), bwhImpl.mtime, fileInfo.Mtime)
 	assert.Equal(testSuite.T(), int64(5), fileInfo.TotalSize)
 }
 
@@ -142,7 +148,8 @@ func (testSuite *BufferedWriteTest) TestMultipleWrites() {
 	require.Nil(testSuite.T(), err)
 
 	fileInfo := testSuite.bwh.WriteFileInfo()
-	assert.Equal(testSuite.T(), testSuite.bwh.mtime, fileInfo.Mtime)
+	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
+	assert.Equal(testSuite.T(), bwhImpl.mtime, fileInfo.Mtime)
 	assert.Equal(testSuite.T(), int64(13), fileInfo.TotalSize)
 }
 
@@ -150,11 +157,12 @@ func (testSuite *BufferedWriteTest) TestWriteWithSignalUploadFailureInBetween() 
 	err := testSuite.bwh.Write([]byte("hello"), 0)
 	require.Nil(testSuite.T(), err)
 	fileInfo := testSuite.bwh.WriteFileInfo()
-	assert.Equal(testSuite.T(), testSuite.bwh.mtime, fileInfo.Mtime)
+	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
+	assert.Equal(testSuite.T(), bwhImpl.mtime, fileInfo.Mtime)
 	assert.Equal(testSuite.T(), int64(5), fileInfo.TotalSize)
 
 	// Close the channel to simulate failure in uploader.
-	close(testSuite.bwh.uploadHandler.SignalUploadFailure())
+	close(bwhImpl.uploadHandler.SignalUploadFailure())
 
 	err = testSuite.bwh.Write([]byte("hello"), 5)
 	require.Error(testSuite.T(), err)
@@ -165,32 +173,34 @@ func (testSuite *BufferedWriteTest) TestWriteAtTruncatedOffset() {
 	// Truncate
 	err := testSuite.bwh.Truncate(2)
 	require.NoError(testSuite.T(), err)
-	require.Equal(testSuite.T(), int64(2), testSuite.bwh.truncatedSize)
+	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
+	require.Equal(testSuite.T(), int64(2), bwhImpl.truncatedSize)
 
 	// Write at offset = truncatedSize
 	err = testSuite.bwh.Write([]byte("hello"), 2)
 
 	require.Nil(testSuite.T(), err)
 	fileInfo := testSuite.bwh.WriteFileInfo()
-	assert.Equal(testSuite.T(), testSuite.bwh.mtime, fileInfo.Mtime)
+	assert.Equal(testSuite.T(), bwhImpl.mtime, fileInfo.Mtime)
 	assert.Equal(testSuite.T(), int64(7), fileInfo.TotalSize)
 }
 
 func (testSuite *BufferedWriteTest) TestWriteAfterTruncateAtCurrentSize() {
 	err := testSuite.bwh.Write([]byte("hello"), 0)
 	require.Nil(testSuite.T(), err)
-	require.Equal(testSuite.T(), int64(5), testSuite.bwh.totalSize)
+	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
+	require.Equal(testSuite.T(), int64(5), bwhImpl.totalSize)
 	// Truncate
 	err = testSuite.bwh.Truncate(20)
 	require.NoError(testSuite.T(), err)
-	require.Equal(testSuite.T(), int64(20), testSuite.bwh.truncatedSize)
+	require.Equal(testSuite.T(), int64(20), bwhImpl.truncatedSize)
 	require.Equal(testSuite.T(), int64(20), testSuite.bwh.WriteFileInfo().TotalSize)
 
 	// Write at offset=bwh.totalSize
 	err = testSuite.bwh.Write([]byte("abcde"), 5)
 
 	require.Nil(testSuite.T(), err)
-	assert.Equal(testSuite.T(), int64(10), testSuite.bwh.totalSize)
+	assert.Equal(testSuite.T(), int64(10), bwhImpl.totalSize)
 	assert.Equal(testSuite.T(), int64(20), testSuite.bwh.WriteFileInfo().TotalSize)
 }
 
@@ -201,16 +211,18 @@ func (testSuite *BufferedWriteTest) TestFlushWithNonNilCurrentBlock() {
 	obj, err := testSuite.bwh.Flush()
 
 	require.NoError(testSuite.T(), err)
-	assert.Equal(testSuite.T(), nil, testSuite.bwh.current)
+	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
+	assert.Equal(testSuite.T(), nil, bwhImpl.current)
 	// Validate object.
 	assert.NotNil(testSuite.T(), obj)
 	assert.Equal(testSuite.T(), uint64(2), obj.Size)
 	// Validate that all blocks have been freed up.
-	assert.Equal(testSuite.T(), 0, len(testSuite.bwh.blockPool.FreeBlocksChannel()))
+	assert.Equal(testSuite.T(), 0, len(bwhImpl.blockPool.FreeBlocksChannel()))
 }
 
 func (testSuite *BufferedWriteTest) TestFlushWithNilCurrentBlock() {
-	require.Nil(testSuite.T(), testSuite.bwh.current)
+	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
+	require.Nil(testSuite.T(), bwhImpl.current)
 
 	obj, err := testSuite.bwh.Flush()
 
@@ -223,16 +235,15 @@ func (testSuite *BufferedWriteTest) TestFlushWithNilCurrentBlock() {
 func (testSuite *BufferedWriteTest) TestFlushWithSignalUploadFailureDuringWrite() {
 	err := testSuite.bwh.Write([]byte("hi"), 0)
 	require.Nil(testSuite.T(), err)
+	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
 
 	// Close the channel to simulate failure in uploader.
-	close(testSuite.bwh.uploadHandler.SignalUploadFailure())
+	close(bwhImpl.uploadHandler.SignalUploadFailure())
 
 	obj, err := testSuite.bwh.Flush()
 	require.Error(testSuite.T(), err)
 	assert.Equal(testSuite.T(), err, ErrUploadFailure)
-	// Whatever could be finalized, got finalized (empty object in this case).
-	assert.NotNil(testSuite.T(), obj)
-	assert.Equal(testSuite.T(), uint64(0), obj.Size)
+	assert.Nil(testSuite.T(), obj)
 }
 
 func (testSuite *BufferedWriteTest) TestFlushWithMultiBlockWritesAndSignalUploadFailureInBetween() {
@@ -241,7 +252,8 @@ func (testSuite *BufferedWriteTest) TestFlushWithMultiBlockWritesAndSignalUpload
 	// Upload and sync 5 blocks.
 	testSuite.TestSync5InProgressBlocks()
 	// Close the channel to simulate failure in uploader.
-	close(testSuite.bwh.uploadHandler.SignalUploadFailure())
+	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
+	close(bwhImpl.uploadHandler.SignalUploadFailure())
 	// Write 5 more blocks.
 	for i := 0; i < 5; i++ {
 		err := testSuite.bwh.Write(buffer, int64(blockSize*(i+5)))
@@ -253,9 +265,7 @@ func (testSuite *BufferedWriteTest) TestFlushWithMultiBlockWritesAndSignalUpload
 
 	require.Error(testSuite.T(), err)
 	assert.Equal(testSuite.T(), err, ErrUploadFailure)
-	// Whatever could be finalized, got finalized.
-	assert.NotNil(testSuite.T(), obj)
-	assert.Equal(testSuite.T(), uint64(5*blockSize), obj.Size)
+	assert.Nil(testSuite.T(), obj)
 }
 
 func (testSuite *BufferedWriteTest) TestSync5InProgressBlocks() {
@@ -271,8 +281,9 @@ func (testSuite *BufferedWriteTest) TestSync5InProgressBlocks() {
 	err = testSuite.bwh.Sync()
 
 	assert.NoError(testSuite.T(), err)
-	assert.Equal(testSuite.T(), 0, len(testSuite.bwh.uploadHandler.uploadCh))
-	assert.Equal(testSuite.T(), 0, len(testSuite.bwh.blockPool.FreeBlocksChannel()))
+	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
+	assert.Equal(testSuite.T(), 0, len(bwhImpl.uploadHandler.uploadCh))
+	assert.Equal(testSuite.T(), 0, len(bwhImpl.blockPool.FreeBlocksChannel()))
 }
 
 func (testSuite *BufferedWriteTest) TestSyncBlocksWithError() {
@@ -284,7 +295,8 @@ func (testSuite *BufferedWriteTest) TestSyncBlocksWithError() {
 		require.Nil(testSuite.T(), err)
 	}
 	// Close the channel to simulate failure in uploader.
-	close(testSuite.bwh.uploadHandler.SignalUploadFailure())
+	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
+	close(bwhImpl.uploadHandler.SignalUploadFailure())
 
 	err = testSuite.bwh.Sync()
 
@@ -293,28 +305,31 @@ func (testSuite *BufferedWriteTest) TestSyncBlocksWithError() {
 }
 
 func (testSuite *BufferedWriteTest) TestFlushWithNonZeroTruncatedLengthForEmptyObject() {
-	require.Nil(testSuite.T(), testSuite.bwh.current)
-	testSuite.bwh.truncatedSize = 10
+	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
+	require.Nil(testSuite.T(), bwhImpl.current)
+	bwhImpl.truncatedSize = 10
 
 	_, err := testSuite.bwh.Flush()
 
 	assert.NoError(testSuite.T(), err)
-	assert.Equal(testSuite.T(), testSuite.bwh.truncatedSize, testSuite.bwh.totalSize)
+	assert.Equal(testSuite.T(), bwhImpl.truncatedSize, bwhImpl.totalSize)
 }
 
 func (testSuite *BufferedWriteTest) TestFlushWithTruncatedLengthGreaterThanObjectSize() {
 	err := testSuite.bwh.Write([]byte("hi"), 0)
 	require.Nil(testSuite.T(), err)
-	testSuite.bwh.truncatedSize = 10
+	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
+	bwhImpl.truncatedSize = 10
 
 	_, err = testSuite.bwh.Flush()
 
 	assert.NoError(testSuite.T(), err)
-	assert.Equal(testSuite.T(), testSuite.bwh.truncatedSize, testSuite.bwh.totalSize)
+	assert.Equal(testSuite.T(), bwhImpl.truncatedSize, bwhImpl.totalSize)
 }
 
 func (testSuite *BufferedWriteTest) TestTruncateWithLesserSize() {
-	testSuite.bwh.totalSize = 10
+	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
+	bwhImpl.totalSize = 10
 
 	err := testSuite.bwh.Truncate(2)
 
@@ -322,30 +337,33 @@ func (testSuite *BufferedWriteTest) TestTruncateWithLesserSize() {
 }
 
 func (testSuite *BufferedWriteTest) TestTruncateWithSizeGreaterThanCurrentObjectSize() {
-	testSuite.bwh.totalSize = 10
+	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
+	bwhImpl.totalSize = 10
 
 	err := testSuite.bwh.Truncate(12)
 
 	assert.NoError(testSuite.T(), err)
-	assert.Equal(testSuite.T(), int64(12), testSuite.bwh.truncatedSize)
+	assert.Equal(testSuite.T(), int64(12), bwhImpl.truncatedSize)
 }
 
 func (testSuite *BufferedWriteTest) TestWriteFileInfoWithTruncatedLengthLessThanTotalSize() {
-	testSuite.bwh.totalSize = 10
-	testSuite.bwh.truncatedSize = 5
+	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
+	bwhImpl.totalSize = 10
+	bwhImpl.truncatedSize = 5
 
 	fileInfo := testSuite.bwh.WriteFileInfo()
 
-	assert.Equal(testSuite.T(), testSuite.bwh.totalSize, fileInfo.TotalSize)
+	assert.Equal(testSuite.T(), bwhImpl.totalSize, fileInfo.TotalSize)
 }
 
 func (testSuite *BufferedWriteTest) TestWriteFileInfoWithTruncatedLengthGreaterThanTotalSize() {
-	testSuite.bwh.totalSize = 10
-	testSuite.bwh.truncatedSize = 20
+	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
+	bwhImpl.totalSize = 10
+	bwhImpl.truncatedSize = 20
 
 	fileInfo := testSuite.bwh.WriteFileInfo()
 
-	assert.Equal(testSuite.T(), testSuite.bwh.truncatedSize, fileInfo.TotalSize)
+	assert.Equal(testSuite.T(), bwhImpl.truncatedSize, fileInfo.TotalSize)
 }
 func (testSuite *BufferedWriteTest) TestDestroyShouldClearFreeBlockChannel() {
 	// Try to write 4 blocks of data.
@@ -356,16 +374,18 @@ func (testSuite *BufferedWriteTest) TestDestroyShouldClearFreeBlockChannel() {
 	err = testSuite.bwh.Destroy()
 
 	require.Nil(testSuite.T(), err)
-	assert.Equal(testSuite.T(), 0, len(testSuite.bwh.blockPool.FreeBlocksChannel()))
-	assert.Equal(testSuite.T(), 0, len(testSuite.bwh.uploadHandler.uploadCh))
+	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
+	assert.Equal(testSuite.T(), 0, len(bwhImpl.blockPool.FreeBlocksChannel()))
+	assert.Equal(testSuite.T(), 0, len(bwhImpl.uploadHandler.uploadCh))
 }
 
 func (testSuite *BufferedWriteTest) TestUnlinkBeforeWrite() {
 	testSuite.bwh.Unlink()
 
-	assert.Nil(testSuite.T(), testSuite.bwh.uploadHandler.cancelFunc)
-	assert.Equal(testSuite.T(), 0, len(testSuite.bwh.uploadHandler.uploadCh))
-	assert.Equal(testSuite.T(), 0, len(testSuite.bwh.blockPool.FreeBlocksChannel()))
+	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
+	assert.Nil(testSuite.T(), bwhImpl.uploadHandler.cancelFunc)
+	assert.Equal(testSuite.T(), 0, len(bwhImpl.uploadHandler.uploadCh))
+	assert.Equal(testSuite.T(), 0, len(bwhImpl.blockPool.FreeBlocksChannel()))
 }
 
 func (testSuite *BufferedWriteTest) TestUnlinkAfterWrite() {
@@ -377,11 +397,23 @@ func (testSuite *BufferedWriteTest) TestUnlinkAfterWrite() {
 		require.Nil(testSuite.T(), err)
 	}
 	cancelCalled := false
-	testSuite.bwh.uploadHandler.cancelFunc = func() { cancelCalled = true }
+	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
+	bwhImpl.uploadHandler.cancelFunc = func() { cancelCalled = true }
 
 	testSuite.bwh.Unlink()
 
 	assert.True(testSuite.T(), cancelCalled)
-	assert.Equal(testSuite.T(), 0, len(testSuite.bwh.uploadHandler.uploadCh))
-	assert.Equal(testSuite.T(), 0, len(testSuite.bwh.blockPool.FreeBlocksChannel()))
+	assert.Equal(testSuite.T(), 0, len(bwhImpl.uploadHandler.uploadCh))
+	assert.Equal(testSuite.T(), 0, len(bwhImpl.blockPool.FreeBlocksChannel()))
+}
+
+func (testSuite *BufferedWriteTest) TestReFlushAfterUploadFails() {
+	testSuite.TestFlushWithMultiBlockWritesAndSignalUploadFailureInBetween()
+
+	// Re-flush.
+	obj, err := testSuite.bwh.Flush()
+
+	require.Error(testSuite.T(), err)
+	assert.Nil(testSuite.T(), obj)
+	assert.ErrorContains(testSuite.T(), err, ErrUploadFailure.Error())
 }

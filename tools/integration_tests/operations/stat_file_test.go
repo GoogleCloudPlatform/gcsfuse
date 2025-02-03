@@ -12,28 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Provides integration tests for create local file.
-
-package local_file_test
+package operations_test
 
 import (
+	"os"
+	"syscall"
 	"testing"
 
-	"github.com/stretchr/testify/suite"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-// //////////////////////////////////////////////////////////////////////
-// Boilerplate
-// //////////////////////////////////////////////////////////////////////
+func TestStatWithTrailingNewline(t *testing.T) {
+	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
-type localFileTestSuite struct {
-	CommonLocalFileTestSuite
-}
+	_, err := os.Stat(testDir + "/\n")
 
-////////////////////////////////////////////////////////////////////////
-// Tests
-////////////////////////////////////////////////////////////////////////
-
-func TestLocalFileTestSuite(t *testing.T) {
-	suite.Run(t, new(localFileTestSuite))
+	require.Error(t, err)
+	assert.Equal(t, err.(*os.PathError).Err, syscall.ENOENT)
 }

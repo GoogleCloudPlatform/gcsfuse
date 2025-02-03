@@ -980,7 +980,10 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 	parent inode.DirInode,
 	childName string) (child inode.Inode, err error) {
 	// First check if the requested child is a localFileInode.
-	child = fs.lookUpLocalFileInode(parent, childName)
+	child, err = fs.lookUpLocalFileInode(parent, childName)
+	if err != nil {
+		return nil, err
+	}
 	if child != nil {
 		return
 	}
@@ -1036,7 +1039,12 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 // LOCKS_EXCLUDED(parent)
 // UNLOCK_FUNCTION(fs.mu)
 // LOCK_FUNCTION(child)
-func (fs *fileSystem) lookUpLocalFileInode(parent inode.DirInode, childName string) (child inode.Inode) {
+func (fs *fileSystem) lookUpLocalFileInode(parent inode.DirInode, childName string) (child inode.Inode, err error) {
+	// If the path specified is "a/\n", the child would come as \n which is not a valid childname.
+	// In such cases, simply return a file-not-found.
+	if childName == inode.ConflictingFileNameSuffix {
+		return nil, syscall.ENOENT
+	}
 	// Trim the suffix assigned to fix conflicting names.
 	childName = strings.TrimSuffix(childName, inode.ConflictingFileNameSuffix)
 	fileName := inode.NewFileName(parent.Name(), childName)
@@ -1707,6 +1715,9 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 
 	defer func() {
 		if err != nil {
+			if child == nil {
+				return
+			}
 			// fs.mu lock is already taken
 			delete(fs.localFileInodes, child.Name())
 		}
@@ -2009,8 +2020,12 @@ func (fs *fileSystem) Rename(
 	}
 
 	// If object to be renamed is a local file inode (un-synced), rename operation is not supported.
-	localChild := fs.lookUpLocalFileInode(oldParent, op.OldName)
-	if localChild != nil {
+	localChild, err := fs.lookUpLocalFileInode(oldParent, op.OldName)
+	if err != nil {
+		return err
+	}
+	// For streaming writes, we will finalize localChild and do rename.
+	if localChild != nil && !fs.newConfig.Write.EnableStreamingWrites {
 		fs.unlockAndDecrementLookupCount(localChild, 1)
 		return fmt.Errorf("cannot rename open file %q: %w", op.OldName, syscall.ENOTSUP)
 	}
@@ -2038,10 +2053,57 @@ func (fs *fileSystem) Rename(
 		}
 		return fs.renameNonHierarchicalDir(ctx, oldParent, op.OldName, newParent, op.NewName)
 	}
-	if (child.Bucket.BucketType().Hierarchical && fs.enableAtomicRenameObject) || child.Bucket.BucketType().Zonal {
-		return fs.renameHierarchicalFile(ctx, oldParent, op.OldName, child.MinObject, newParent, op.NewName)
+
+	return fs.renameFile(ctx, op, child, oldParent, newParent)
+}
+
+// LOCKS_EXCLUDED(oldParent)
+// LOCKS_EXCLUDED(newParent)
+func (fs *fileSystem) renameFile(ctx context.Context, op *fuseops.RenameOp, child *inode.Core, oldParent inode.DirInode, newParent inode.DirInode) error {
+	updatedMinObject, err := fs.flushPendingWrites(ctx, child)
+	if err != nil {
+		return fmt.Errorf("flushBeforeRename error :%v", err)
 	}
-	return fs.renameNonHierarchicalFile(ctx, oldParent, op.OldName, child.MinObject, newParent, op.NewName)
+
+	if (child.Bucket.BucketType().Hierarchical && fs.enableAtomicRenameObject) || child.Bucket.BucketType().Zonal {
+		return fs.renameHierarchicalFile(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)
+	}
+	return fs.renameNonHierarchicalFile(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)
+}
+
+// LOCKS_EXCLUDED(fs.mu)
+// LOCKS_EXCLUDED(fileInode)
+func (fs *fileSystem) flushPendingWrites(ctx context.Context, child *inode.Core) (minObject *gcs.MinObject, err error) {
+	// We will return modified minObject if flush is done, otherwise the original
+	// minObject is returned. Original minObject is the one passed in the request.
+	minObject = child.MinObject
+	if !fs.newConfig.Write.EnableStreamingWrites {
+		return
+	}
+
+	fs.mu.Lock()
+	existingInode, ok := fs.generationBackedInodes[child.FullName]
+	fs.mu.Unlock()
+	// If this is not an existing file, then nothing to do.
+	// We shouldn't hit scenario ideally since we checked for local file and
+	// explicit-dirs (flat bucket) before reaching this step.
+	if !ok {
+		logger.Warnf("Encountered a non-fileInode in rename file path %d", existingInode.ID())
+		return
+	}
+
+	fileInode, isFileInode := existingInode.(*inode.FileInode)
+	// Same as above comment. This should be a file for sure.
+	if !isFileInode {
+		logger.Errorf("Encountered a non-fileInode in rename file path %d", existingInode.ID())
+		return
+	}
+
+	fileInode.Lock()
+	defer fileInode.Unlock()
+	// Try to flush if there are any pending writes.
+	err = fs.flushFile(ctx, fileInode)
+	return
 }
 
 // LOCKS_EXCLUDED(oldParent)

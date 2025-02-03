@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Provides integration tests for rename operation on local files.
-package local_file_test
+package local_file
 
 import (
 	"os"
@@ -41,7 +41,7 @@ func verifyRenameOperationNotSupported(err error, t *testing.T) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *CommonLocalFileTestSuite) TestRenameOfLocalFileFails() {
+func (t *localFileTestSuite) TestRenameOfLocalFileFails() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create local file with some content.
 	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
@@ -89,7 +89,11 @@ func (t *CommonLocalFileTestSuite) TestRenameOfDirectoryWithLocalFileFails() {
 }
 
 func (t *CommonLocalFileTestSuite) TestRenameOfLocalFileSucceedsAfterSync() {
-	t.TestRenameOfLocalFileFails()
+	testDirPath = setup.SetupTestDirectory(testDirName)
+	// Create local file with some content.
+	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
+	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, FileName1, t.T())
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, FileName1, FileContents, t.T())
 
 	// Attempt to Rename synced file.
 	err := os.Rename(
@@ -100,8 +104,7 @@ func (t *CommonLocalFileTestSuite) TestRenameOfLocalFileSucceedsAfterSync() {
 	if err != nil {
 		t.T().Fatalf("os.Rename() failed on synced file: %v", err)
 	}
-	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, NewFileName,
-		FileContents+FileContents, t.T())
+	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, NewFileName, FileContents, t.T())
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
 }
 

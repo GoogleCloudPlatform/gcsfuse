@@ -101,7 +101,7 @@ type FileInode struct {
 	// code.
 	MRDWrapper gcsx.MultiRangeDownloaderWrapper
 
-	bwh    *bufferedwrites.BufferedWriteHandler
+	bwh    bufferedwrites.BufferedWriteHandler
 	config *cfg.Config
 
 	// Once write is started on the file i.e, bwh is initialized, any fileHandles
@@ -158,7 +158,11 @@ func NewFileInode(
 		unlinked:                false,
 		config:                  cfg,
 		globalMaxWriteBlocksSem: globalMaxBlocksSem,
-		MRDWrapper:              gcsx.NewMultiRangeDownloaderWrapper(bucket, &minObj),
+	}
+	var err error
+	f.MRDWrapper, err = gcsx.NewMultiRangeDownloaderWrapper(bucket, &f.src)
+	if err != nil {
+		logger.Errorf("NewFileInode: Error in creating MRDWrapper %v", err)
 	}
 
 	f.lc.Init(id)
@@ -558,12 +562,10 @@ func (f *FileInode) Write(
 	ctx context.Context,
 	data []byte,
 	offset int64) error {
-	// For empty GCS files also we will trigger bufferedWrites flow.
-	if f.src.Size == 0 && f.config.Write.EnableStreamingWrites {
-		err := f.ensureBufferedWriteHandler(ctx)
-		if err != nil {
-			return err
-		}
+
+	err := f.initBufferedWriteHandlerIfEligible(ctx)
+	if err != nil {
+		return err
 	}
 
 	if f.bwh != nil {
@@ -596,16 +598,18 @@ func (f *FileInode) writeUsingTempFile(ctx context.Context, data []byte, offset 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, offset int64) error {
 	err := f.bwh.Write(data, offset)
-	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) || errors.Is(err, bufferedwrites.ErrUploadFailure) {
-		// Finalize the object.
-		flushErr := f.flushUsingBufferedWriteHandler()
-		if flushErr != nil {
-			return fmt.Errorf("bwh.Write failed: %v, could not finalize what has been written so far: %w", err, flushErr)
-		}
+	if err != nil && !errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
+		return fmt.Errorf("write to buffered write handler failed: %w", err)
 	}
 
 	// Fall back to temp file for Out-Of-Order Writes.
-	if err == bufferedwrites.ErrOutOfOrderWrite {
+	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
+		logger.Infof("Out-of-order write detected. Falling back to temporary file on disk.")
+		// Finalize the object.
+		err = f.flushUsingBufferedWriteHandler()
+		if err != nil {
+			return fmt.Errorf("could not finalize what has been written so far: %w", err)
+		}
 		return f.writeUsingTempFile(ctx, data, offset)
 	}
 
@@ -618,21 +622,17 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) flushUsingBufferedWriteHandler() error {
 	obj, err := f.bwh.Flush()
-
 	var preconditionErr *gcs.PreconditionError
 	if errors.As(err, &preconditionErr) {
 		return &gcsfuse_errors.FileClobberedError{
 			Err: fmt.Errorf("f.bwh.Flush(): %w", err),
 		}
 	}
-
-	// bwh can return a partially synced object along with an error so updating
-	// inode state before returning error.
-	f.updateInodeStateAfterSync(obj)
 	if err != nil {
 		return fmt.Errorf("f.bwh.Flush(): %w", err)
 	}
 
+	f.updateInodeStateAfterSync(obj)
 	return nil
 }
 
@@ -701,6 +701,7 @@ func (f *FileInode) SetMtime(
 			minObj = *minObjPtr
 		}
 		f.src = minObj
+		f.updateMRDWrapper()
 		return
 	}
 
@@ -836,6 +837,8 @@ func (f *FileInode) Flush(ctx context.Context) (err error) {
 func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 	if minObj != nil && !f.localFileCache {
 		f.src = *minObj
+		// Update MRDWrapper
+		f.updateMRDWrapper()
 		// Convert localFile to nonLocalFile after it is synced to GCS.
 		if f.IsLocal() {
 			f.local = false
@@ -852,18 +855,25 @@ func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 	return
 }
 
+// Updates the min object stored in MRDWrapper corresponding to the inode.
+// Should be called when minObject associated with inode is updated.
+func (f *FileInode) updateMRDWrapper() {
+	err := f.MRDWrapper.SetMinObject(&f.src)
+	if err != nil {
+		logger.Errorf("FileInode::updateMRDWrapper Error in setting minObject %v", err)
+	}
+}
+
 // Truncate the file to the specified size.
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Truncate(
 	ctx context.Context,
 	size int64) (err error) {
-	// For empty GCS files also, we will trigger bufferedWrites flow.
-	if f.src.Size == 0 && f.config.Write.EnableStreamingWrites {
-		err = f.ensureBufferedWriteHandler(ctx)
-		if err != nil {
-			return
-		}
+
+	err = f.initBufferedWriteHandlerIfEligible(ctx)
+	if err != nil {
+		return err
 	}
 
 	if f.bwh != nil {
@@ -893,12 +903,12 @@ func (f *FileInode) CacheEnsureContent(ctx context.Context) (err error) {
 }
 
 func (f *FileInode) CreateBufferedOrTempWriter(ctx context.Context) (err error) {
-	// Skip creating empty file when streaming writes are enabled
-	if f.local && f.config.Write.EnableStreamingWrites {
-		err = f.ensureBufferedWriteHandler(ctx)
-		if err != nil {
-			return
-		}
+	err = f.initBufferedWriteHandlerIfEligible(ctx)
+	if err != nil {
+		return err
+	}
+	// Skip creating empty file when streaming writes are enabled.
+	if f.bwh != nil {
 		return
 	}
 
@@ -910,14 +920,20 @@ func (f *FileInode) CreateBufferedOrTempWriter(ctx context.Context) (err error) 
 	return
 }
 
-func (f *FileInode) ensureBufferedWriteHandler(ctx context.Context) error {
+func (f *FileInode) initBufferedWriteHandlerIfEligible(ctx context.Context) error {
 	// bwh already initialized, do nothing.
 	if f.bwh != nil {
 		return nil
 	}
 
-	var err error
+	tempFileInUse := f.content != nil
+	if f.src.Size != 0 || !f.config.Write.EnableStreamingWrites || tempFileInUse {
+		// bwh should not be initialized under these conditions.
+		return nil
+	}
+
 	var latestGcsObj *gcs.Object
+	var err error
 	if !f.local {
 		latestGcsObj, err = f.fetchLatestGcsObject(ctx)
 		if err != nil {
