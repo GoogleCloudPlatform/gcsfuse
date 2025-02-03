@@ -125,8 +125,7 @@ func (uh *UploadHandler) uploader() {
 			_, err := io.Copy(uh.writer, currBlock.Reader())
 			if err != nil {
 				logger.Errorf("buffered write upload failed for object %s: error in io.Copy: %v", uh.objectName, err)
-				// Close the channel to signal upload failure.
-				close(uh.signalUploadFailure)
+				uh.closeUploadFailureChannel()
 			}
 		}
 		// Put back the uploaded block on the freeBlocksChannel for re-use.
@@ -151,6 +150,7 @@ func (uh *UploadHandler) Finalize() (*gcs.MinObject, error) {
 
 	obj, err := uh.bucket.FinalizeUpload(context.Background(), uh.writer)
 	if err != nil {
+		uh.closeUploadFailureChannel()
 		return nil, fmt.Errorf("FinalizeUpload failed for object %s: %w", uh.objectName, err)
 	}
 	return obj, nil
@@ -190,5 +190,15 @@ func (uh *UploadHandler) Destroy() {
 			close(uh.uploadCh)
 			return
 		}
+	}
+}
+
+// Closes the channel if not already closed to signal upload failure.
+func (uh *UploadHandler) closeUploadFailureChannel() {
+	select {
+	case <-uh.signalUploadFailure:
+		break
+	default:
+		close(uh.signalUploadFailure)
 	}
 }
