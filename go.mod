@@ -10,7 +10,7 @@ require (
 	contrib.go.opencensus.io/exporter/ocagent v0.7.0
 	contrib.go.opencensus.io/exporter/prometheus v0.4.2
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.14
-	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.49.0
+	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.50.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.25.0
 	github.com/fsouza/fake-gcs-server v1.52.1
 	github.com/google/uuid v1.6.0
@@ -64,7 +64,7 @@ require (
 	cloud.google.com/go/pubsub v1.45.3 // indirect
 	cloud.google.com/go/trace v1.11.3 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.25.0 // indirect
-	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.49.0 // indirect
+	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.50.0 // indirect
 	github.com/aws/aws-sdk-go v1.55.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/census-instrumentation/opencensus-proto v0.4.1 // indirect
