@@ -48,6 +48,9 @@ func (s *smallCacheTTLTest) Setup(t *testing.T) {
 }
 
 func (s *smallCacheTTLTest) Teardown(t *testing.T) {
+	if t.Failed() {
+		setup.SaveLogFileToKOKOROArtifact("gcsfuse-failed-integration-test-logs-" + strings.Replace(t.Name(), "/", "-", -1))
+	}
 	setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 }
 

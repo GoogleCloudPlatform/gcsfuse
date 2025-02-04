@@ -230,12 +230,16 @@ func SaveLogFileInCaseOfFailure(successCode int) {
 	if successCode != 0 {
 		// Logfile name will be gcsfuse-failed-integration-test-log-xxxxx
 		failedlogsFileName := "gcsfuse-failed-integration-test-logs-" + GenerateRandomString(5)
-		log.Printf("log file is available on kokoro artifacts with file name: %s", failedlogsFileName)
-		logFileInKokoroArtifact := path.Join(os.Getenv("KOKORO_ARTIFACTS_DIR"), failedlogsFileName)
-		err := operations.CopyFile(logFile, logFileInKokoroArtifact)
-		if err != nil {
-			log.Fatalf("Error in coping logfile in kokoro artifact: %v", err)
-		}
+		SaveLogFileToKOKOROArtifact(failedlogsFileName)
+	}
+}
+
+func SaveLogFileToKOKOROArtifact(artifactName string) {
+	log.Printf("log file is available on kokoro artifacts with file name: %s", artifactName)
+	logFileInKokoroArtifact := path.Join(os.Getenv("KOKORO_ARTIFACTS_DIR"), artifactName)
+	err := operations.CopyFile(logFile, logFileInKokoroArtifact)
+	if err != nil {
+		log.Fatalf("Error in coping logfile in kokoro artifact: %v", err)
 	}
 }
 

@@ -17,6 +17,7 @@ package read_cache
 import (
 	"context"
 	"log"
+	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
@@ -46,6 +47,9 @@ func (s *disabledCacheTTLTest) Setup(t *testing.T) {
 }
 
 func (s *disabledCacheTTLTest) Teardown(t *testing.T) {
+	if t.Failed() {
+		setup.SaveLogFileToKOKOROArtifact("gcsfuse-failed-integration-test-logs-" + strings.Replace(t.Name(), "/", "-", -1))
+	}
 	setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 }
 

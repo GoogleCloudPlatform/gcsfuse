@@ -210,7 +210,7 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	}
 
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
-	defer setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
+	defer setup.UnmountGCSFuse(rootDir)
 	setup.SetMntDir(mountDir)
 
 	// Run tests on given {Bucket permission, Managed folder permission}.
