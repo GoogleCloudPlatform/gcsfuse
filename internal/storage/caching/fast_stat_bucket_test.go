@@ -698,7 +698,7 @@ func (t *ListObjectsTest) EmptyListing() {
 	expected := &gcs.Listing{}
 
 	ExpectCall(t.wrapped, "BucketType")().
-		WillOnce(Return(gcs.NonHierarchical))
+		WillOnce(Return(gcs.BucketType{}))
 
 	ExpectCall(t.wrapped, "ListObjects")(Any(), Any()).
 		WillOnce(Return(expected, nil))
@@ -715,7 +715,7 @@ func (t *ListObjectsTest) EmptyListingForHNS() {
 	expected := &gcs.Listing{}
 
 	ExpectCall(t.wrapped, "BucketType")().
-		WillOnce(Return(gcs.Hierarchical))
+		WillOnce(Return(gcs.BucketType{Hierarchical: true}))
 
 	ExpectCall(t.wrapped, "ListObjects")(Any(), Any()).
 		WillOnce(Return(expected, nil))
@@ -737,7 +737,7 @@ func (t *ListObjectsTest) NonEmptyListing() {
 	}
 
 	ExpectCall(t.wrapped, "BucketType")().
-		WillOnce(Return(gcs.NonHierarchical))
+		WillOnce(Return(gcs.BucketType{}))
 
 	ExpectCall(t.wrapped, "ListObjects")(Any(), Any()).
 		WillOnce(Return(expected, nil))
@@ -763,7 +763,7 @@ func (t *ListObjectsTest) NonEmptyListingForHNS() {
 	}
 
 	ExpectCall(t.wrapped, "BucketType")().
-		WillOnce(Return(gcs.Hierarchical))
+		WillOnce(Return(gcs.BucketType{Hierarchical: true}))
 
 	ExpectCall(t.wrapped, "ListObjects")(Any(), Any()).
 		WillOnce(Return(expected, nil))

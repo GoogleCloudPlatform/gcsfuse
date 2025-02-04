@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Note: All the write operations take inode lock in fs.go, hence we don't need
+// any locks here as we will get calls to these methods serially.
+
 package bufferedwrites
 
 import (
@@ -103,7 +106,8 @@ func (uh *UploadHandler) Upload(block block.Block) error {
 
 // createObjectWriter creates a GCS object writer.
 func (uh *UploadHandler) createObjectWriter() (err error) {
-	req := gcs.NewCreateObjectRequest(uh.obj, uh.objectName, nil, uh.chunkTransferTimeout)
+	// TODO: b/381479965: Dynamically set chunkTransferTimeoutSecs based on chunk size. 0 here means no timeout.
+	req := gcs.NewCreateObjectRequest(uh.obj, uh.objectName, nil, 0)
 	// We need a new context here, since the first writeFile() call will be complete
 	// (and context will be cancelled) by the time complete upload is done.
 	var ctx context.Context
@@ -121,8 +125,7 @@ func (uh *UploadHandler) uploader() {
 			_, err := io.Copy(uh.writer, currBlock.Reader())
 			if err != nil {
 				logger.Errorf("buffered write upload failed for object %s: error in io.Copy: %v", uh.objectName, err)
-				// Close the channel to signal upload failure.
-				close(uh.signalUploadFailure)
+				uh.closeUploadFailureChannel()
 			}
 		}
 		// Put back the uploaded block on the freeBlocksChannel for re-use.
@@ -147,6 +150,7 @@ func (uh *UploadHandler) Finalize() (*gcs.MinObject, error) {
 
 	obj, err := uh.bucket.FinalizeUpload(context.Background(), uh.writer)
 	if err != nil {
+		uh.closeUploadFailureChannel()
 		return nil, fmt.Errorf("FinalizeUpload failed for object %s: %w", uh.objectName, err)
 	}
 	return obj, nil
@@ -186,5 +190,15 @@ func (uh *UploadHandler) Destroy() {
 			close(uh.uploadCh)
 			return
 		}
+	}
+}
+
+// Closes the channel if not already closed to signal upload failure.
+func (uh *UploadHandler) closeUploadFailureChannel() {
+	select {
+	case <-uh.signalUploadFailure:
+		break
+	default:
+		close(uh.signalUploadFailure)
 	}
 }

@@ -85,11 +85,9 @@ func resolveStreamingWriteConfig(w *WriteConfig) {
 	}
 
 	if w.MaxBlocksPerFile == -1 {
-		w.MaxBlocksPerFile = math.MaxInt64
-	}
-
-	if w.GlobalMaxBlocks < w.MaxBlocksPerFile {
-		w.MaxBlocksPerFile = w.GlobalMaxBlocks
+		// Setting a reasonable value here because if enough heap space is not
+		// available, make channel results in panic.
+		w.MaxBlocksPerFile = math.MaxInt16
 	}
 }
 

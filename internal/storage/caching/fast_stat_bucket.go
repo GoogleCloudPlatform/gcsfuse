@@ -218,6 +218,13 @@ func (b *fastStatBucket) NewReader(
 	return
 }
 
+func (b *fastStatBucket) NewReaderWithReadHandle(
+	ctx context.Context,
+	req *gcs.ReadObjectRequest) (rd gcs.StorageReader, err error) {
+	rd, err = b.wrapped.NewReaderWithReadHandle(ctx, req)
+	return
+}
+
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) CreateObject(
 	ctx context.Context,
@@ -340,7 +347,7 @@ func (b *fastStatBucket) ListObjects(
 		return
 	}
 
-	if b.BucketType() == gcs.Hierarchical {
+	if b.BucketType().Hierarchical {
 		b.insertHierarchicalListing(listing)
 		return
 	}
@@ -491,4 +498,10 @@ func (b *fastStatBucket) RenameFolder(ctx context.Context, folderName string, de
 	b.insertFolder(f)
 
 	return f, err
+}
+
+func (b *fastStatBucket) NewMultiRangeDownloader(
+	ctx context.Context, req *gcs.MultiRangeDownloaderRequest) (mrd gcs.MultiRangeDownloader, err error) {
+	mrd, err = b.wrapped.NewMultiRangeDownloader(ctx, req)
+	return
 }

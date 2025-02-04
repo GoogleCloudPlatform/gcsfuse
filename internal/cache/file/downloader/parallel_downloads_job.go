@@ -34,8 +34,8 @@ import (
 // GCS into given destination writer.
 //
 // This function doesn't take locks and can be executed parallely.
-func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, end int64) error {
-	newReader, err := job.bucket.NewReader(
+func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, end int64, readHandle []byte) ([]byte, error) {
+	newReader, err := job.bucket.NewReaderWithReadHandle(
 		ctx,
 		&gcs.ReadObjectRequest{
 			Name:       job.object.Name,
@@ -45,10 +45,11 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 				Limit: uint64(end),
 			},
 			ReadCompressed: job.object.HasContentEncodingGzip(),
+			ReadHandle:     readHandle,
 		})
 	if err != nil {
 		err = fmt.Errorf("downloadRange: error in creating NewReader with start %d and limit %d: %w", start, end, err)
-		return err
+		return nil, err
 	}
 	defer func() {
 		// Reader is closed after the data has been read and the error from closure
@@ -80,7 +81,7 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 	if err != nil {
 		err = fmt.Errorf("downloadRange: error at the time of copying content to cache file %w", err)
 	}
-	return err
+	return newReader.ReadHandle(), err
 }
 
 // RangeMap maintains the ranges downloaded by the different goroutines. This
@@ -136,6 +137,8 @@ func (job *Job) downloadOffsets(ctx context.Context, goroutineIndex int64, cache
 		if goroutineIndex > 0 {
 			defer job.maxParallelismSem.Release(1)
 		}
+		var readHandle []byte
+		var err error
 
 		for {
 			// Read the offset to be downloaded from the channel.
@@ -146,7 +149,7 @@ func (job *Job) downloadOffsets(ctx context.Context, goroutineIndex int64, cache
 			}
 
 			offsetWriter := io.NewOffsetWriter(cacheFile, int64(objectRange.Start))
-			err := job.downloadRange(ctx, offsetWriter, objectRange.Start, objectRange.End)
+			readHandle, err = job.downloadRange(ctx, offsetWriter, objectRange.Start, objectRange.End, readHandle)
 			if err != nil {
 				return err
 			}

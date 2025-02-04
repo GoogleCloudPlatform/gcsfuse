@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 
+	storagev2 "cloud.google.com/go/storage"
 	storagev1 "google.golang.org/api/storage/v1"
 )
 
@@ -167,6 +168,12 @@ type ComposeSource struct {
 	Generation int64
 }
 
+// StorageReader implements the storage.Reader.
+type StorageReader interface {
+	ReadHandle() storagev2.ReadHandle
+	io.ReadCloser
+}
+
 // ByteRange is a [start, limit) range of bytes within an object.
 //
 // Its semantics are as follows:
@@ -197,6 +204,22 @@ type ReadObjectRequest struct {
 
 	// If present, limit the contents returned to a range within the object.
 	Range *ByteRange
+
+	// If present, read the contents of the GCS object as it is on GCS.
+	// This might not be honoured by all the implementations.
+	ReadCompressed bool
+
+	// ReadHandle associated with the object. This would be periodically refreshed.
+	ReadHandle []byte
+}
+
+// A request to read the contents of an object at a particular generation.
+type MultiRangeDownloaderRequest struct {
+	// The name of the object to read.
+	Name string
+
+	// The generation of the object to read. Zero means the latest generation.
+	Generation int64
 
 	// If present, read the contents of the GCS object as it is on GCS.
 	// This might not be honoured by all the implementations.

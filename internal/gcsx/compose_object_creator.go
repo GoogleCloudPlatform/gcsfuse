@@ -34,10 +34,10 @@ import (
 //
 // Create guarantees to return *gcs.PreconditionError when the source object
 // has been clobbered.
-func newAppendObjectCreator(
+func newComposeObjectCreator(
 	prefix string,
 	bucket gcs.Bucket) (oc objectCreator) {
-	oc = &appendObjectCreator{
+	oc = &composeObjectCreator{
 		prefix: prefix,
 		bucket: bucket,
 	}
@@ -49,12 +49,12 @@ func newAppendObjectCreator(
 // Implementation
 ////////////////////////////////////////////////////////////////////////
 
-type appendObjectCreator struct {
+type composeObjectCreator struct {
 	prefix string
 	bucket gcs.Bucket
 }
 
-func (oc *appendObjectCreator) chooseName() (name string, err error) {
+func (oc *composeObjectCreator) chooseName() (name string, err error) {
 	// Generate a good 64-bit random number.
 	var buf [8]byte
 	_, err = io.ReadFull(rand.Reader, buf[:])
@@ -79,9 +79,9 @@ func (oc *appendObjectCreator) chooseName() (name string, err error) {
 }
 
 // ObjectName param is present here for consistency between fullObjectCreator
-// and appendObjectCreator. ObjectName is not used in append flow since
+// and composeObjectCreator. ObjectName is not used in append flow since
 // srcObject.Name gives the objectName.
-func (oc *appendObjectCreator) Create(
+func (oc *composeObjectCreator) Create(
 	ctx context.Context,
 	objectName string,
 	srcObject *gcs.Object,

@@ -599,7 +599,7 @@
   flag-name: "enable-otel"
   type: "bool"
   usage: "Specifies whether to use OpenTelemetry for capturing and exporting metrics. If false, use OpenCensus."
-  default: false
+  default: true
   hide-flag: true
 
 - config-path: "metrics.prometheus-port"
@@ -653,7 +653,7 @@
   usage: >-
     Specifies the block size for streaming writes. The value should be more 
     than 0.
-  default: 64 #TODO: revisit default value after perf testing.
+  default: 32
   hide-flag: true
 
 - config-path: "write.create-empty-file"
@@ -668,15 +668,16 @@
   type: "bool"
   usage: "Enables streaming uploads during write file operation."
   default: false
-  hide-flag: true
+  hide-flag: false
 
 - config-path: "write.global-max-blocks"
   flag-name: "write-global-max-blocks"
   type: "int"
   usage: >-
     Specifies the maximum number of blocks to be used by all files for
-    streaming writes. The value should be >= 2 or -1 (for infinite blocks).
-  default: -1 #TODO: revisit default value after perf testing.
+    streaming writes. The value should be >= 0 (1 block per file is not counted 
+    towards this limit) or -1 (for infinite blocks).
+  default: -1
   hide-flag: true
 
 - config-path: "write.max-blocks-per-file"
@@ -684,8 +685,8 @@
   type: "int"
   usage: >-
     Specifies the maximum number of blocks to be used by a single file for 
-    streaming writes. The value should be >= 2 or -1 (for infinite blocks).
-  default: -1 #TODO: revisit default value after perf testing.
+    streaming writes. The value should be >= 1 or -1 (for infinite blocks).
+  default: 1
   hide-flag: true
 
 - flag-name: "debug_fs"

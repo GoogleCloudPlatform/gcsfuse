@@ -42,12 +42,6 @@ var (
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	if setup.MountedDirectory() != "" {
-		// Once streaming writes are enabled by default, we can run all defaultMount tests here.
-		log.Printf("These tests will not run with mounted directory..")
-		return
-	}
-
 	// Create storage client before running tests.
 	ctx = context.Background()
 	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
@@ -57,6 +51,13 @@ func TestMain(m *testing.M) {
 			log.Fatalf("closeStorageClient failed: %v", err)
 		}
 	}()
+
+	// To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	// flags to be set, as operations tests validates content from the bucket.
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+		rootDir = setup.MountedDirectory()
+		setup.RunTestsForMountedDirectoryFlag(m)
+	}
 
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()

@@ -191,10 +191,10 @@ func TestValidateConfigFile_WriteConfig(t *testing.T) {
 			expectedConfig: &cfg.Config{
 				Write: cfg.WriteConfig{
 					CreateEmptyFile:       false,
-					BlockSizeMb:           64 * util.MiB,
+					BlockSizeMb:           32 * util.MiB,
 					EnableStreamingWrites: false,
 					GlobalMaxBlocks:       math.MaxInt64,
-					MaxBlocksPerFile:      math.MaxInt64},
+					MaxBlocksPerFile:      1},
 			},
 		},
 		{
@@ -302,11 +302,11 @@ func TestValidateConfigFile_InvalidConfigThrowsError(t *testing.T) {
 		},
 		{
 			name:       "small_global_max_blocks",
-			configFile: "testdata/write_config/invalid_write_config_due_to_small_global_max_blocks.yaml",
+			configFile: "testdata/write_config/invalid_write_config_due_to_invalid_global_max_blocks.yaml",
 		},
 		{
 			name:       "small_max_blocks_per_file",
-			configFile: "testdata/write_config/invalid_write_config_due_to_small_max_blocks_per_file.yaml",
+			configFile: "testdata/write_config/invalid_write_config_due_to_zero_max_blocks_per_file.yaml",
 		},
 		{
 			name:       "negative req_increase_rate",
@@ -807,6 +807,7 @@ func TestValidateConfigFile_MetricsConfigSuccessful(t *testing.T) {
 				StackdriverExportInterval:      0,
 				CloudMetricsExportIntervalSecs: 0,
 				PrometheusPort:                 0,
+				EnableOtel:                     true,
 			},
 		},
 		{
@@ -814,6 +815,7 @@ func TestValidateConfigFile_MetricsConfigSuccessful(t *testing.T) {
 			configFile: "testdata/valid_config.yaml",
 			expectedConfig: &cfg.MetricsConfig{
 				CloudMetricsExportIntervalSecs: 10,
+				EnableOtel:                     true,
 			},
 		},
 	}

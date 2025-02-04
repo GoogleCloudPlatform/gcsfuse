@@ -337,7 +337,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("enable-nonexistent-type-cache", "", false, "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType will be created. This also means new file/dir created might not be seen. For example, if this flag is set, and metadata-cache-ttl-secs is set, then if we create the same file/node in the meantime using the same mount, since we are not refreshing the cache, it will still return nil.")
 
-	flagSet.BoolP("enable-otel", "", false, "Specifies whether to use OpenTelemetry for capturing and exporting metrics. If false, use OpenCensus.")
+	flagSet.BoolP("enable-otel", "", true, "Specifies whether to use OpenTelemetry for capturing and exporting metrics. If false, use OpenCensus.")
 
 	if err := flagSet.MarkHidden("enable-otel"); err != nil {
 		return err
@@ -350,10 +350,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	}
 
 	flagSet.BoolP("enable-streaming-writes", "", false, "Enables streaming uploads during write file operation.")
-
-	if err := flagSet.MarkHidden("enable-streaming-writes"); err != nil {
-		return err
-	}
 
 	flagSet.BoolP("experimental-enable-json-read", "", false, "By default, GCSFuse uses the GCS XML API to get and read objects. When this flag is specified, GCSFuse uses the GCS JSON API instead.\"")
 
@@ -569,19 +565,19 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("uid", "", -1, "UID owner of all inodes.")
 
-	flagSet.IntP("write-block-size-mb", "", 64, "Specifies the block size for streaming writes. The value should be more  than 0.")
+	flagSet.IntP("write-block-size-mb", "", 32, "Specifies the block size for streaming writes. The value should be more  than 0.")
 
 	if err := flagSet.MarkHidden("write-block-size-mb"); err != nil {
 		return err
 	}
 
-	flagSet.IntP("write-global-max-blocks", "", -1, "Specifies the maximum number of blocks to be used by all files for streaming writes. The value should be >= 2 or -1 (for infinite blocks).")
+	flagSet.IntP("write-global-max-blocks", "", -1, "Specifies the maximum number of blocks to be used by all files for streaming writes. The value should be >= 0 (1 block per file is not counted  towards this limit) or -1 (for infinite blocks).")
 
 	if err := flagSet.MarkHidden("write-global-max-blocks"); err != nil {
 		return err
 	}
 
-	flagSet.IntP("write-max-blocks-per-file", "", -1, "Specifies the maximum number of blocks to be used by a single file for  streaming writes. The value should be >= 2 or -1 (for infinite blocks).")
+	flagSet.IntP("write-max-blocks-per-file", "", 1, "Specifies the maximum number of blocks to be used by a single file for  streaming writes. The value should be >= 1 or -1 (for infinite blocks).")
 
 	if err := flagSet.MarkHidden("write-max-blocks-per-file"); err != nil {
 		return err

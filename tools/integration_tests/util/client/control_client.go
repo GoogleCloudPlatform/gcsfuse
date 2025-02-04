@@ -22,12 +22,15 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"path"
 	"strings"
 	"time"
 
 	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googleapis/gax-go/v2"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"google.golang.org/grpc/codes"
 )
 
@@ -101,4 +104,16 @@ func CreateManagedFoldersInBucket(ctx context.Context, client *control.StorageCo
 	if _, err := client.CreateManagedFolder(ctx, req); err != nil && !strings.Contains(err.Error(), "The specified managed folder already exists") {
 		log.Fatalf("Error while creating managed folder: %v", err)
 	}
+}
+
+func CreateFolderInBucket(ctx context.Context, client *control.StorageControlClient, folderPath string) (*controlpb.Folder, error) {
+	bucket, rootFolder := setup.GetBucketAndObjectBasedOnTypeOfMount("")
+	req := &controlpb.CreateFolderRequest{
+		Parent:   fmt.Sprintf(storage.FullBucketPathHNS, bucket),
+		FolderId: path.Join(rootFolder, folderPath),
+	}
+
+	f, err := client.CreateFolder(ctx, req)
+
+	return f, err
 }

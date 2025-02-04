@@ -13,55 +13,58 @@
 // limitations under the License.
 
 // Provides integration tests for create local file.
-package local_file_test
+package local_file
 
 import (
 	"path"
-	"testing"
 
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
-func TestNewFileShouldNotGetSyncedToGCSTillClose(t *testing.T) {
+////////////////////////////////////////////////////////////////////////
+// Tests
+////////////////////////////////////////////////////////////////////////
+
+func (t *CommonLocalFileTestSuite) TestNewFileShouldNotGetSyncedToGCSTillClose() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 
 	// Validate.
-	NewFileShouldGetSyncedToGCSAtClose(ctx, storageClient, testDirPath, FileName1, t)
+	NewFileShouldGetSyncedToGCSAtClose(ctx, storageClient, testDirPath, FileName1, t.T())
 }
 
-func TestNewFileUnderExplicitDirectoryShouldNotGetSyncedToGCSTillClose(t *testing.T) {
+func (t *CommonLocalFileTestSuite) TestNewFileUnderExplicitDirectoryShouldNotGetSyncedToGCSTillClose() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Make explicit directory.
-	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t)
+	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t.T())
 
 	// Validate.
-	NewFileShouldGetSyncedToGCSAtClose(ctx, storageClient, testDirPath, path.Join(ExplicitDirName, ExplicitFileName1), t)
+	NewFileShouldGetSyncedToGCSAtClose(ctx, storageClient, testDirPath, path.Join(ExplicitDirName, ExplicitFileName1), t.T())
 }
 
-func TestCreateNewFileWhenSameFileExistsOnGCS(t *testing.T) {
+func (t *CommonLocalFileTestSuite) TestCreateNewFileWhenSameFileExistsOnGCS() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
-	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
+	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
 
 	// Create a file on GCS with the same name.
-	CreateObjectInGCSTestDir(ctx, storageClient, testDirName, FileName1, GCSFileContent, t)
+	CreateObjectInGCSTestDir(ctx, storageClient, testDirName, FileName1, GCSFileContent, t.T())
 
 	// Write to local file.
-	operations.WriteWithoutClose(fh, FileContents, t)
+	operations.WriteWithoutClose(fh, FileContents, t.T())
 	// Validate closing local file throws error.
 	err := fh.Close()
-	operations.ValidateStaleNFSFileHandleError(t, err)
+	operations.ValidateStaleNFSFileHandleError(t.T(), err)
 	//  Ensure that the content on GCS is not overwritten.
-	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, FileName1, GCSFileContent, t)
+	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, FileName1, GCSFileContent, t.T())
 }
 
-func TestEmptyFileCreation(t *testing.T) {
+func (t *CommonLocalFileTestSuite) TestEmptyFileCreation() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
-	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
+	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
 
 	// Close the file and validate that the file is created on GCS.
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, FileName1, "", t)
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, FileName1, "", t.T())
 }

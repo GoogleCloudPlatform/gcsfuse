@@ -16,7 +16,9 @@ package storage
 
 import (
 	"github.com/fsouza/fake-gcs-server/fakestorage"
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 )
 
 const TestBucketName string = "gcsfuse-default-bucket"
@@ -53,10 +55,21 @@ type FakeStorage interface {
 
 type fakeStorage struct {
 	fakeStorageServer *fakestorage.Server
+	mockClient        *MockStorageControlClient
+	protocol          cfg.Protocol
 }
 
 func (f *fakeStorage) CreateStorageHandle() (sh StorageHandle) {
-	sh = &storageClient{client: f.fakeStorageServer.Client()}
+	if f.mockClient == nil {
+		f.mockClient = new(MockStorageControlClient)
+	}
+	sh = &storageClient{
+		httpClient:               f.fakeStorageServer.Client(),
+		grpcClient:               f.fakeStorageServer.Client(),
+		grpcClientWithBidiConfig: f.fakeStorageServer.Client(),
+		storageControlClient:     f.mockClient,
+		clientConfig:             storageutil.StorageClientConfig{ClientProtocol: f.protocol},
+	}
 	return
 }
 
@@ -71,6 +84,19 @@ func NewFakeStorage() FakeStorage {
 	}
 	fakeStorage := &fakeStorage{
 		fakeStorageServer: f,
+	}
+	return fakeStorage
+}
+
+func NewFakeStorageWithMockClient(mc *MockStorageControlClient, protocol cfg.Protocol) FakeStorage {
+	f, err := createFakeStorageServer(getTestFakeStorageObject())
+	if err != nil {
+		panic(err)
+	}
+	fakeStorage := &fakeStorage{
+		fakeStorageServer: f,
+		mockClient:        mc,
+		protocol:          protocol,
 	}
 	return fakeStorage
 }

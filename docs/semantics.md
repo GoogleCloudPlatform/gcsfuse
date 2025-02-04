@@ -43,9 +43,11 @@ when writing large files.
 
 **Concurrency**
 
-Multiple readers can access the same or different objects from the same bucket without issue. Multiple writers can also write to different objects in the same bucket without issue. However, there is no concurrency control for multiple writers to the same file. When multiple writers try to replace a file, the last write wins and all previous writes are lost - there is no merging, version control, or user notification of the subsequent overwrite. Therefore, for data integrity it is recommended that multiple sources do not modify the same object.
+Multiple readers can access the same or different objects within a bucket without issue. Likewise, multiple writers can modify different objects in the same bucket simultaneously without any issue. Concurrent writes to the same gcs object are supported from the same mount and behave similar to native file system.
 
-**Write/read consistency**
+However, when different mounts try to write to the same object, the flush from first mount wins. Other mounts that have not updated their local file descriptors after the object is modified will encounter a ```syscall.ESTALE``` error when attempting to save their edits due to precondition checks. Therefore, to ensure data is consistently written, it is strongly recommended that multiple sources do not modify the same object.
+
+**Write/Read consistency**
 
 Cloud Storage by nature is [strongly consistent](https://cloud.google.com/storage/docs/consistency). Cloud Storage FUSE offers close-to-open and fsync-to-open consistency. Once a file is closed, consistency is guaranteed in the following open and read immediately.
 
@@ -54,6 +56,17 @@ Examples:
 
 - Machine A opens a file and writes then successfully closes or syncs it, and the file was not concurrently unlinked from the point of view of A. Machine B then opens the file after machine A finishes closing or syncing. Machine B will observe a version of the file at least as new as the one created by machine A.
 - Machine A and B both open the same file, which contains the text ‘ABC’. Machine A modifies the file to ‘ABC-123’ and closes/syncs the file which gets written back to Cloud Storage. After, Machine B, which still has the file open, instead modifies the file to ‘ABC-XYZ’, and saves and closes the file. As the last writer wins, the current state of the file will read ‘ABC-XYZ’.
+
+**Stale File Handle Errors**
+
+To ensure consistency, Cloud Storage FUSE returns a ```syscall.ESTALE``` error when an application tries to access stale data. This can occur in the following circumstances:
+
+- **Concurrent Writes**: When multiple mounts have the same file open for writing, and one mount modifies and syncs the file, other mounts with open file descriptors will encounter this error when attempting to sync or close the file.
+- **Read During Modification**:  When an application is reading a file through a GCSFuse mount, and the same object is modified on GCS (by deleting, renaming, or changing its content or metadata), the GCSFuse reader will encounter this error. This is because GCSFuse detects that the file it was accessing has changed.
+- **File Renaming During Write**: When an application is writing to a file through a GCSFuse mount, and the same object is renamed on Google Cloud Storage (via same or different GCSFuse mount or through another interface), the writer will encounter this error when syncing or closing the file.
+- **File Deletion During Write**: When an application is writing to a file through a GCSFuse mount, and the same object is deleted on Google Cloud Storage (via different GCSFuse mount or through another interface), the writer will encounter this error when syncing or closing the file.
+
+These changes in Cloud Storage FUSE prioritize data integrity and provide users with clear indications of potential conflicts, preventing silent data loss and ensuring a more robust and reliable experience.
 
 # Caching
 
@@ -176,6 +189,7 @@ By default, the list cache is disabled. It can be enabled by configuring the `--
 *   The kernel-list-cache is kept within the kernel's page-cache. Consequently, this functionality depends upon the availability of page-cache memory on the system. This contrasts with the stat and type caches, which are retained in user memory as part of Cloud Storage Fuse daemon.
 *   The kernel's list cache is maintained on a per-directory level, resulting in either all list entries being retained in the page cache or none at all.
 *   The creation, renaming, or deletion of new files or folders causes the eviction of the page-cache of their immediate parent directory, but not of all ancestral directories.
+*   The ttl-based eviction doesn't work with kernel versions 6.9.x to 6.12.x ([details](https://github.com/GoogleCloudPlatform/gcsfuse/issues/2792)), because of a [bug](https://lore.kernel.org/linux-fsdevel/CAEW=TRr7CYb4LtsvQPLj-zx5Y+EYBmGfM24SuzwyDoGVNoKm7w@mail.gmail.com/) in kernel-fuse driver, which is [fixed](https://github.com/torvalds/linux/commit/03f275adb8fbd7b4ebe96a1ad5044d8e602692dc) in 6.13.x. Although, eviction because of creation, renaming, or deletion of a file or folders from the same mount works as expected.
 
 **Consistency**
 *   Kernel List cache ensures consistency within the mount. That means, creation, deletion or rename of files/folder within a directory evicts the kernel list cache of the directory.

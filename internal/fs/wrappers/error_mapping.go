@@ -22,13 +22,13 @@ import (
 	"syscall"
 
 	"cloud.google.com/go/storage"
-	"github.com/googleapis/gax-go/v2/apierror"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var (
@@ -74,14 +74,12 @@ func errno(err error, preconditionErrCfg bool) error {
 		return syscall.EACCES
 	}
 
-	// The control client API returns an RPC error code instead of googleapi code.
-	// Currently, we only have gRPC control client APIs, so we are checking the gRPC status code.
-	// TODO: Add a check for the HTTP status code when the HTTP client is initiated for control client APIs.
-	var apiErr *apierror.APIError
-	if errors.As(err, &apiErr) {
-		switch apiErr.GRPCStatus().Code() {
+	if grpcStatus, ok := status.FromError(err); ok {
+		switch grpcStatus.Code() {
 		case codes.Canceled:
 			return syscall.EINTR
+		case codes.AlreadyExists:
+			return syscall.EEXIST
 		case codes.PermissionDenied, codes.Unauthenticated:
 			return syscall.EACCES
 		case codes.NotFound:

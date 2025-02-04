@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
@@ -33,6 +34,7 @@ import (
 	testutil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	. "github.com/jacobsa/ogletest"
+	"github.com/stretchr/testify/mock"
 )
 
 var cacheDir = path.Join(os.Getenv("HOME"), "cache/dir")
@@ -57,10 +59,15 @@ func (dt *downloaderTest) setupHelper() {
 	operations.RemoveDir(cacheDir)
 
 	// Create bucket in fake storage.
-	dt.fakeStorage = storage.NewFakeStorage()
+	var err error
+	mockClient := new(storage.MockStorageControlClient)
+	dt.fakeStorage = storage.NewFakeStorageWithMockClient(mockClient, cfg.HTTP2)
 	storageHandle := dt.fakeStorage.CreateStorageHandle()
+	mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
+		Return(&controlpb.StorageLayout{}, nil)
 	ctx := context.Background()
-	dt.bucket = storageHandle.BucketHandle(ctx, storage.TestBucketName, "")
+	dt.bucket, err = storageHandle.BucketHandle(ctx, storage.TestBucketName, "")
+	ExpectEq(nil, err)
 
 	dt.initJobTest(DefaultObjectName, []byte("taco"), DefaultSequentialReadSizeMb, CacheMaxSize, func() {})
 	dt.jm = NewJobManager(dt.cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, DefaultSequentialReadSizeMb, dt.defaultFileCacheConfig, common.NewNoopMetrics())

@@ -13,11 +13,10 @@
 // limitations under the License.
 
 // Provides integration tests for stat operation on local files.
-package local_file_test
+package local_file
 
 import (
 	"os"
-	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/inode"
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
@@ -25,59 +24,60 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
-func TestStatOnLocalFile(t *testing.T) {
+func (t *CommonLocalFileTestSuite) TestStatOnLocalFile() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
-	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
+	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
 
 	// Stat the local file.
-	operations.VerifyStatFile(filePath, 0, FilePerms, t)
+	operations.VerifyStatFile(filePath, 0, FilePerms, t.T())
 
 	// Writing contents to local file shouldn't create file on GCS.
-	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, FileName1, t)
+	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, FileName1, t.T())
 
 	// Stat the local file again to check if new content is written.
-	operations.VerifyStatFile(filePath, SizeOfFileContents, FilePerms, t)
+	operations.VerifyStatFile(filePath, SizeOfFileContents, FilePerms, t.T())
 
 	// Close the file and validate that the file is created on GCS.
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
-		FileName1, FileContents, t)
+		FileName1, FileContents, t.T())
 }
 
-func TestStatOnLocalFileWithConflictingFileNameSuffix(t *testing.T) {
+func (t *CommonLocalFileTestSuite) TestStatOnLocalFileWithConflictingFileNameSuffix() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
-	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
+	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
 
 	// Stat the local file.
-	operations.VerifyStatFile(filePath+inode.ConflictingFileNameSuffix, 0, FilePerms, t)
+	operations.VerifyStatFile(filePath+inode.ConflictingFileNameSuffix, 0, FilePerms, t.T())
 
 	// Close the file and validate that the file is created on GCS.
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
-		FileName1, "", t)
+		FileName1, "", t.T())
 }
 
-func TestTruncateLocalFile(t *testing.T) {
+func (t *localFileTestSuite) TestTruncateLocalFileToSmallerSize() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
-	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
+	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
 	// Writing contents to local file .
-	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, FileName1, t)
+	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, FileName1, t.T())
 
 	// Stat the file to validate if new contents are written.
-	operations.VerifyStatFile(filePath, SizeOfFileContents, FilePerms, t)
+	operations.VerifyStatFile(filePath, SizeOfFileContents, FilePerms, t.T())
 
-	// Truncate the file to update the file size.
-	err := os.Truncate(filePath, SizeTruncate)
+	// Truncate the file to update file size to smaller file size.
+	err := os.Truncate(filePath, SmallerSizeTruncate)
 	if err != nil {
-		t.Fatalf("os.Truncate err: %v", err)
+		t.T().Fatalf("os.Truncate err: %v", err)
 	}
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t)
+
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
 
 	// Stat the file to validate if file is truncated correctly.
-	operations.VerifyStatFile(filePath, SizeTruncate, FilePerms, t)
+	operations.VerifyStatFile(filePath, SmallerSizeTruncate, FilePerms, t.T())
 
 	// Close the file and validate that the file is created on GCS.
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
-		FileName1, "testS", t)
+		FileName1, FileContents[:SmallerSizeTruncate], t.T())
 }

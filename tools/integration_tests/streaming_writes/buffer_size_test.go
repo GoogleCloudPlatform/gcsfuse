@@ -23,6 +23,10 @@ import (
 )
 
 func TestWritesWithDifferentConfig(t *testing.T) {
+	// Do not run this test with mounted directory flag.
+	if setup.MountedDirectory() != "" {
+		t.SkipNow()
+	}
 	testCases := []struct {
 		name     string
 		flags    []string

@@ -13,7 +13,7 @@
 // limitations under the License.
 //
 // Provides integration tests for symlink operation on local files.
-package local_file_test
+package local_file
 
 import (
 	"os"
@@ -42,22 +42,22 @@ func createAndVerifySymLink(t *testing.T) (filePath, symlink string, fh *os.File
 	return
 }
 
-func TestCreateSymlinkForLocalFile(t *testing.T) {
-	_, _, fh := createAndVerifySymLink(t)
+func (t *localFileTestSuite) TestCreateSymlinkForLocalFile() {
+	_, _, fh := createAndVerifySymLink(t.T())
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
-		FileName1, FileContents, t)
+		FileName1, FileContents, t.T())
 }
 
-func TestReadSymlinkForDeletedLocalFile(t *testing.T) {
-	filePath, symlink, fh := createAndVerifySymLink(t)
+func (t *localFileTestSuite) TestReadSymlinkForDeletedLocalFile() {
+	filePath, symlink, fh := createAndVerifySymLink(t.T())
 	// Remove filePath and then close the fileHandle to avoid syncing to GCS.
 	operations.RemoveFile(filePath)
-	operations.CloseFileShouldNotThrowError(fh, t)
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t)
+	operations.CloseFileShouldNotThrowError(fh, t.T())
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
 
 	// Reading symlink should fail.
 	_, err := os.Stat(symlink)
 	if err == nil || !strings.Contains(err.Error(), "no such file or directory") {
-		t.Fatalf("Reading symlink for deleted local file did not fail.")
+		t.T().Fatalf("Reading symlink for deleted local file did not fail.")
 	}
 }

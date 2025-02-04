@@ -187,8 +187,8 @@ def _get_metric_filter(type, metric_type, instance, extra_filter):
             metric_type=metric_type, instance_name=instance)
   elif (type == 'custom'):
     metric_filter = (
-        'metric.type = "{metric_type}" AND metric.labels.opencensus_task = '
-        'ends_with("{instance_name}")').format(
+        'metric.type = "{metric_type}" AND metadata.system_labels.name = '
+        '"{instance_name}"').format(
         metric_type=metric_type, instance_name=instance)
   elif (type == 'agent'):
     # Fetch the instance ID here

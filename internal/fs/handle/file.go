@@ -102,7 +102,7 @@ func (fh *FileHandle) Unlock() {
 //
 // LOCKS_REQUIRED(fh)
 // LOCKS_EXCLUDED(fh.inode)
-func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequentialReadSizeMb int32) (n int, err error) {
+func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequentialReadSizeMb int32) (output []byte, n int, err error) {
 	// Lock the inode and attempt to ensure that we have a reader for its current
 	// state, or clear fh.reader if it's not possible to create one (probably
 	// because the inode is dirty).
@@ -121,7 +121,8 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 	if fh.reader != nil {
 		fh.inode.Unlock()
 
-		n, _, err = fh.reader.ReadAt(ctx, dst, offset)
+		var objectData gcsx.ObjectData
+		objectData, err = fh.reader.ReadAt(ctx, dst, offset)
 		switch {
 		case err == io.EOF:
 			return
@@ -131,12 +132,16 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 			return
 		}
 
+		output = objectData.DataBuf
+		n = objectData.Size
 		return
 	}
 
 	// Otherwise we must fall through to the inode.
 	defer fh.inode.Unlock()
 	n, err = fh.inode.Read(ctx, dst, offset)
+	// Setting dst as output since output is used by the caller to read the data.
+	output = dst
 
 	return
 }
@@ -187,7 +192,7 @@ func (fh *FileHandle) tryEnsureReader(ctx context.Context, sequentialReadSizeMb 
 	}
 
 	// Attempt to create an appropriate reader.
-	rr := gcsx.NewRandomReader(fh.inode.Source(), fh.inode.Bucket(), sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle)
+	rr := gcsx.NewRandomReader(fh.inode.Source(), fh.inode.Bucket(), sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, &fh.inode.MRDWrapper)
 
 	fh.reader = rr
 	return

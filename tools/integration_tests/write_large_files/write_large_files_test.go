@@ -54,7 +54,7 @@ func compareFileFromGCSBucketAndMntDir(gcsFile, mntDirFile, localFilePathToDownl
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	flags := [][]string{{"--implicit-dirs"}}
+	flags := [][]string{{"--enable-streaming-writes=true"}}
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 

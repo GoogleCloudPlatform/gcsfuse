@@ -83,7 +83,7 @@ func TestContentTypeBucket_CreateObject(t *testing.T) {
 	for i, tc := range contentTypeBucketTestCases {
 		// Set up a bucket.
 		bucket := gcsx.NewContentTypeBucket(
-			fake.NewFakeBucket(timeutil.RealClock(), "", gcs.NonHierarchical))
+			fake.NewFakeBucket(timeutil.RealClock(), "", gcs.BucketType{}))
 
 		// Create the object.
 		req := &gcs.CreateObjectRequest{
@@ -108,7 +108,7 @@ func TestContentTypeBucket_CreateObjectChunkWriter(t *testing.T) {
 	for i, tc := range contentTypeBucketTestCases {
 		// Set up a bucket.
 		bucket := gcsx.NewContentTypeBucket(
-			fake.NewFakeBucket(timeutil.RealClock(), "", gcs.NonHierarchical))
+			fake.NewFakeBucket(timeutil.RealClock(), "", gcs.BucketType{}))
 
 		// Create the object.
 		req := &gcs.CreateObjectRequest{
@@ -136,7 +136,7 @@ func TestContentTypeBucket_ComposeObjects(t *testing.T) {
 	for i, tc := range contentTypeBucketTestCases {
 		// Set up a bucket.
 		bucket := gcsx.NewContentTypeBucket(
-			fake.NewFakeBucket(timeutil.RealClock(), "", gcs.NonHierarchical))
+			fake.NewFakeBucket(timeutil.RealClock(), "", gcs.BucketType{}))
 
 		// Create a source object.
 		const srcName = "some_src"

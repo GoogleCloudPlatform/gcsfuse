@@ -13,33 +13,35 @@
 // limitations under the License.
 
 // Provides integration tests for read operation on local files.
-package local_file_test
+package local_file
 
 import (
-	"testing"
-
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
-func TestReadLocalFile(t *testing.T) {
+////////////////////////////////////////////////////////////////////////
+// Tests
+////////////////////////////////////////////////////////////////////////
+
+func (t *localFileTestSuite) TestReadLocalFile() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
-	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
+	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
 
 	// Write FileContents twice to local file.
 	content := FileContents + FileContents
-	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, FileName1, t)
-	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, FileName1, t)
+	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, FileName1, t.T())
+	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, FileName1, t.T())
 
 	// Read the local file contents.
 	buf := make([]byte, len(content))
 	n, err := fh.ReadAt(buf, 0)
 	if err != nil || len(content) != n || content != string(buf) {
-		t.Fatalf("Read file operation failed on local file: %v "+
+		t.T().Fatalf("Read file operation failed on local file: %v "+
 			"Expected content: %s, Got Content: %s", err, content, string(buf))
 	}
 
 	// Close the file and validate that the file is created on GCS.
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, FileName1, content, t)
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, FileName1, content, t.T())
 }

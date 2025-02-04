@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Provides integration tests for readDir call containing local files.
-package local_file_test
+package local_file
 
 import (
 	"io/fs"
@@ -58,7 +58,7 @@ func readingDirNTimesShouldNotThrowError(n int, wg *sync.WaitGroup, t *testing.T
 // Tests
 // //////////////////////////////////////////////////////////////////////
 
-func TestReadDir(t *testing.T) {
+func (t *CommonLocalFileTestSuite) TestReadDir() {
 	// Structure
 	// mntDir/
 	// mntDir/explicit/		    				--- directory
@@ -69,42 +69,42 @@ func TestReadDir(t *testing.T) {
 
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create explicit dir with 1 local file.
-	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t)
+	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t.T())
 	_, fh1 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath,
-		path.Join(ExplicitDirName, ExplicitFileName1), t)
+		path.Join(ExplicitDirName, ExplicitFileName1), t.T())
 	// Create empty local file.
-	_, fh2 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
+	_, fh2 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
 	// Create non-empty local file.
-	_, fh3 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName2, t)
-	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh3, testDirName, FileName2, t)
+	_, fh3 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName2, t.T())
+	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh3, testDirName, FileName2, t.T())
 	// Create GCS synced file.
-	CreateObjectInGCSTestDir(ctx, storageClient, testDirName, FileName3, GCSFileContent, t)
+	CreateObjectInGCSTestDir(ctx, storageClient, testDirName, FileName3, GCSFileContent, t.T())
 
 	// Attempt to list mnt and explicit directory.
-	entriesMnt := operations.ReadDirectory(testDirPath, t)
-	entriesDir := operations.ReadDirectory(path.Join(testDirPath, ExplicitDirName), t)
+	entriesMnt := operations.ReadDirectory(testDirPath, t.T())
+	entriesDir := operations.ReadDirectory(path.Join(testDirPath, ExplicitDirName), t.T())
 
 	// Verify entriesMnt received successfully.
-	operations.VerifyCountOfDirectoryEntries(4, len(entriesMnt), t)
-	operations.VerifyDirectoryEntry(entriesMnt[0], ExplicitDirName, t)
-	operations.VerifyFileEntry(entriesMnt[1], FileName1, 0, t)
-	operations.VerifyFileEntry(entriesMnt[2], FileName2, SizeOfFileContents, t)
-	operations.VerifyFileEntry(entriesMnt[3], FileName3, GCSFileSize, t)
+	operations.VerifyCountOfDirectoryEntries(4, len(entriesMnt), t.T())
+	operations.VerifyDirectoryEntry(entriesMnt[0], ExplicitDirName, t.T())
+	operations.VerifyFileEntry(entriesMnt[1], FileName1, 0, t.T())
+	operations.VerifyFileEntry(entriesMnt[2], FileName2, SizeOfFileContents, t.T())
+	operations.VerifyFileEntry(entriesMnt[3], FileName3, GCSFileSize, t.T())
 	// Verify entriesDir received successfully.
-	operations.VerifyCountOfDirectoryEntries(1, len(entriesDir), t)
-	operations.VerifyFileEntry(entriesDir[0], ExplicitFileName1, 0, t)
+	operations.VerifyCountOfDirectoryEntries(1, len(entriesDir), t.T())
+	operations.VerifyFileEntry(entriesDir[0], ExplicitFileName1, 0, t.T())
 	// Close the local files.
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh1, testDirName,
-		path.Join(ExplicitDirName, ExplicitFileName1), "", t)
+		path.Join(ExplicitDirName, ExplicitFileName1), "", t.T())
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh2, testDirName,
-		FileName1, "", t)
+		FileName1, "", t.T())
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh3, testDirName,
-		FileName2, FileContents, t)
+		FileName2, FileContents, t.T())
 	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, FileName3,
-		GCSFileContent, t)
+		GCSFileContent, t.T())
 }
 
-func TestRecursiveListingWithLocalFiles(t *testing.T) {
+func (t *CommonLocalFileTestSuite) TestRecursiveListingWithLocalFiles() {
 	// Structure
 	// mntDir/
 	// mntDir/foo1 										--- file
@@ -113,11 +113,11 @@ func TestRecursiveListingWithLocalFiles(t *testing.T) {
 
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create local file in mnt/ dir.
-	_, fh1 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
+	_, fh1 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
 	// Create explicit dir with 1 local file.
-	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t)
+	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t.T())
 	_, fh2 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath,
-		path.Join(ExplicitDirName, ExplicitFileName1), t)
+		path.Join(ExplicitDirName, ExplicitFileName1), t.T())
 
 	// Recursively list mntDir/ directory.
 	err := filepath.WalkDir(testDirPath, func(walkPath string, dir fs.DirEntry, err error) error {
@@ -129,21 +129,21 @@ func TestRecursiveListingWithLocalFiles(t *testing.T) {
 			return nil
 		}
 
-		objs := operations.ReadDirectory(walkPath, t)
+		objs := operations.ReadDirectory(walkPath, t.T())
 
 		// Check if mntDir has correct objects.
 		if walkPath == testDirPath {
 			// numberOfObjects = 2
-			operations.VerifyCountOfDirectoryEntries(2, len(objs), t)
-			operations.VerifyDirectoryEntry(objs[0], ExplicitDirName, t)
-			operations.VerifyFileEntry(objs[1], FileName1, 0, t)
+			operations.VerifyCountOfDirectoryEntries(2, len(objs), t.T())
+			operations.VerifyDirectoryEntry(objs[0], ExplicitDirName, t.T())
+			operations.VerifyFileEntry(objs[1], FileName1, 0, t.T())
 		}
 
 		// Check if mntDir/explicit/ has correct objects.
 		if walkPath == path.Join(setup.MntDir(), ExplicitDirName) {
 			// numberOfObjects = 1
-			operations.VerifyCountOfDirectoryEntries(1, len(objs), t)
-			operations.VerifyFileEntry(objs[0], ExplicitFileName1, 0, t)
+			operations.VerifyCountOfDirectoryEntries(1, len(objs), t.T())
+			operations.VerifyFileEntry(objs[0], ExplicitFileName1, 0, t.T())
 		}
 
 		return nil
@@ -151,58 +151,58 @@ func TestRecursiveListingWithLocalFiles(t *testing.T) {
 
 	// Validate and close the files.
 	if err != nil {
-		t.Fatalf("filepath.WalkDir() err: %v", err)
+		t.T().Fatalf("filepath.WalkDir() err: %v", err)
 	}
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh1, testDirName,
-		FileName1, "", t)
+		FileName1, "", t.T())
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh2, testDirName,
-		path.Join(ExplicitDirName, ExplicitFileName1), "", t)
+		path.Join(ExplicitDirName, ExplicitFileName1), "", t.T())
 }
 
-func TestReadDirWithSameNameLocalAndGCSFile(t *testing.T) {
+func (t *CommonLocalFileTestSuite) TestReadDirWithSameNameLocalAndGCSFile() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create local file.
-	_, fh1 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
+	_, fh1 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
 	// Create same name gcs file.
 	time.Sleep(2 * time.Second)
-	CreateObjectInGCSTestDir(ctx, storageClient, testDirName, FileName1, GCSFileContent, t)
+	CreateObjectInGCSTestDir(ctx, storageClient, testDirName, FileName1, GCSFileContent, t.T())
 
 	// Attempt to list testDir.
 	_, err := os.ReadDir(testDirPath)
 	if err != nil {
-		t.Fatalf("ReadDir err: %v", err)
+		t.T().Fatalf("ReadDir err: %v", err)
 	}
 
 	// Validate closing local file throws error.
 	err = fh1.Close()
-	operations.ValidateStaleNFSFileHandleError(t, err)
+	operations.ValidateStaleNFSFileHandleError(t.T(), err)
 }
 
-func TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError(t *testing.T) {
+func (t *CommonLocalFileTestSuite) TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	var wg sync.WaitGroup
 	wg.Add(2)
 
 	// Concurrently create 100 local files and read directory 200 times.
-	go creatingNLocalFilesShouldNotThrowError(100, &wg, t)
-	go readingDirNTimesShouldNotThrowError(200, &wg, t)
+	go creatingNLocalFilesShouldNotThrowError(100, &wg, t.T())
+	go readingDirNTimesShouldNotThrowError(200, &wg, t.T())
 
 	wg.Wait()
 }
 
-func TestStatLocalFileAfterRecreatingItWithSameName(t *testing.T) {
+func (t *CommonLocalFileTestSuite) TestStatLocalFileAfterRecreatingItWithSameName() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	filePath := path.Join(testDirPath, FileName1)
-	operations.CreateFile(filePath, FilePerms, t)
+	operations.CreateFile(filePath, FilePerms, t.T())
 	_, err := os.Stat(filePath)
-	require.NoError(t, err)
+	require.NoError(t.T(), err)
 	err = os.Remove(filePath)
-	require.NoError(t, err)
-	operations.CreateFile(filePath, FilePerms, t)
+	require.NoError(t.T(), err)
+	operations.CreateFile(filePath, FilePerms, t.T())
 
 	f, err := os.Stat(filePath)
 
-	assert.NoError(t, err)
-	assert.Equal(t, FileName1, f.Name())
-	assert.False(t, f.IsDir())
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), FileName1, f.Name())
+	assert.False(t.T(), f.IsDir())
 }

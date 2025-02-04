@@ -17,6 +17,7 @@ package ratelimit
 import (
 	"io"
 
+	storagev2 "cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
@@ -57,6 +58,13 @@ func (b *throttledBucket) BucketType() gcs.BucketType {
 func (b *throttledBucket) NewReader(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
+	rc, err = b.NewReaderWithReadHandle(ctx, req)
+	return
+}
+
+func (b *throttledBucket) NewReaderWithReadHandle(
+	ctx context.Context,
+	req *gcs.ReadObjectRequest) (rd gcs.StorageReader, err error) {
 	// Wait for permission to call through.
 
 	err = b.opThrottle.Wait(ctx, 1)
@@ -65,15 +73,15 @@ func (b *throttledBucket) NewReader(
 	}
 
 	// Call through.
-	rc, err = b.wrapped.NewReader(ctx, req)
+	rd, err = b.wrapped.NewReaderWithReadHandle(ctx, req)
 	if err != nil {
 		return
 	}
 
 	// Wrap the result in a throttled layer.
-	rc = &readerCloser{
-		Reader: ThrottledReader(ctx, rc, b.egressThrottle),
-		Closer: rc,
+	rd = &throttledGCSReader{
+		Reader: ThrottledReader(ctx, rd, b.egressThrottle),
+		Closer: rd,
 	}
 
 	return
@@ -269,23 +277,35 @@ func (b *throttledBucket) CreateFolder(ctx context.Context, folderName string) (
 	return folder, err
 }
 
+func (b *throttledBucket) NewMultiRangeDownloader(
+	ctx context.Context, req *gcs.MultiRangeDownloaderRequest) (mrd gcs.MultiRangeDownloader, err error) {
+	// Call through.
+	mrd, err = b.wrapped.NewMultiRangeDownloader(ctx, req)
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // readerCloser
 ////////////////////////////////////////////////////////////////////////
 
 // An io.ReadCloser that forwards read requests to an io.Reader and close
-// requests to an io.Closer.
-type readerCloser struct {
+// , readHandle requests to gcs.StorageReader.
+type throttledGCSReader struct {
 	Reader io.Reader
-	Closer io.Closer
+	Closer gcs.StorageReader
 }
 
-func (rc *readerCloser) Read(p []byte) (n int, err error) {
+func (rc *throttledGCSReader) Read(p []byte) (n int, err error) {
 	n, err = rc.Reader.Read(p)
 	return
 }
 
-func (rc *readerCloser) Close() (err error) {
+func (rc *throttledGCSReader) Close() (err error) {
 	err = rc.Closer.Close()
+	return
+}
+
+func (rc *throttledGCSReader) ReadHandle() (rh storagev2.ReadHandle) {
+	rh = rc.Closer.ReadHandle()
 	return
 }

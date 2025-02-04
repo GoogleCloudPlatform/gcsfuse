@@ -139,3 +139,9 @@ It is possible customer is seeing the error "transport endpoint is not connected
 - Try restarting/rebooting the VM Instance.
 
 If it's running on GKE, the issue could be caused by an Out-of-Memory (OOM) error. Consider increasing the memory allocated to the GKE sidecar container. For more info refer [here](https://github.com/GoogleCloudPlatform/gcs-fuse-csi-driver/blob/main/docs/known-issues.md#implications-of-the-sidecar-container-design).
+
+### GCSFuse crashes with `fatal error: sync: unlock of unlocked mutex` or `Panic: Inode 'a/' cannot have child file ''`
+
+**Solution:** This happens when the mounting bucket contains an object with suffix `/\n` like, `gs://gcs-bkt/a/\n`
+You need to find such objects and replace them with any other valid gcs object names. - [How](https://github.com/GoogleCloudPlatform/gcsfuse/discussions/2894)?
+

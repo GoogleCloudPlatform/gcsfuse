@@ -112,7 +112,7 @@ else
 fi
 
 # install go
-wget -O go_tar.tar.gz https://go.dev/dl/go1.23.4.linux-${architecture}.tar.gz
+wget -O go_tar.tar.gz https://go.dev/dl/go1.23.5.linux-${architecture}.tar.gz
 sudo tar -C /usr/local -xzf go_tar.tar.gz
 export PATH=${PATH}:/usr/local/go/bin
 #Write gcsfuse and go version to log file
@@ -142,7 +142,6 @@ git checkout $(sed -n 2p ~/details.txt) |& tee -a ~/logs.txt
 set +e
 # Test directory arrays
 TEST_DIR_PARALLEL=(
-  "monitoring"
   "local_file"
   "log_rotation"
   "mounting"
@@ -158,7 +157,6 @@ TEST_DIR_PARALLEL=(
   "log_content"
   "kernel_list_cache"
   "concurrent_operations"
-  "benchmarking"
   "mount_timeout"
   "stale_handle"
   "negative_stat_cache"

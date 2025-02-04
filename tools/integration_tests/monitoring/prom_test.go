@@ -242,9 +242,15 @@ func (testSuite *PromTest) TestReadMetrics() {
 }
 
 func TestPromOCSuite(t *testing.T) {
+	if setup.TestInstalledPackage() {
+		t.Skip("Skipping since testing on installed package")
+	}
 	suite.Run(t, &PromTest{enableOTEL: false})
 }
 
 func TestPromOTELSuite(t *testing.T) {
+	if setup.TestInstalledPackage() {
+		t.Skip("Skipping since testing on installed package")
+	}
 	suite.Run(t, &PromTest{enableOTEL: true})
 }

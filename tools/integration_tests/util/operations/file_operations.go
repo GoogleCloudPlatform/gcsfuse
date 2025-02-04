@@ -476,6 +476,14 @@ func CreateFile(filePath string, filePerms os.FileMode, t testing.TB) (f *os.Fil
 	return
 }
 
+func OpenFile(filePath string, t testing.TB) (f *os.File) {
+	f, err := os.OpenFile(filePath, os.O_RDWR, FilePermission_0777)
+	if err != nil {
+		t.Fatalf("OpenFile(%s): %v", filePath, err)
+	}
+	return
+}
+
 func CreateSymLink(filePath, symlink string, t *testing.T) {
 	err := os.Symlink(filePath, symlink)
 
@@ -686,6 +694,24 @@ func CreateLocalTempFile(content string, gzipCompress bool) (string, error) {
 	}
 
 	return writeTextToFile(f, f.Name(), content, len(content))
+}
+
+// ReadAndCompare reads content from the given file paths and compares them.
+func ReadAndCompare(t *testing.T, filePathInMntDir string, filePathInLocalDisk string, offset int64, chunkSize int64) {
+	t.Helper()
+	mountContents, err := ReadChunkFromFile(filePathInMntDir, chunkSize, offset, os.O_RDONLY)
+	if err != nil {
+		t.Fatalf("error in read file from mounted directory :%d", err)
+	}
+
+	diskContents, err := ReadChunkFromFile(filePathInLocalDisk, chunkSize, offset, os.O_RDONLY)
+	if err != nil {
+		t.Fatalf("error in read file from local directory :%d", err)
+	}
+
+	if !bytes.Equal(mountContents, diskContents) {
+		t.Fatalf("data mismatch between mounted directory and local disk")
+	}
 }
 
 func CreateLocalFile(ctx context.Context, t *testing.T, mntDir string, bucket gcs.Bucket, fileName string) (filePath string, f *os.File) {

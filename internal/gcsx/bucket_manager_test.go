@@ -19,10 +19,13 @@ import (
 	"testing"
 	"time"
 
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	. "github.com/jacobsa/ogletest"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestBucketManager(t *testing.T) { RunTests(t) }
@@ -38,6 +41,7 @@ type BucketManagerTest struct {
 	bucket        gcs.Bucket
 	storageHandle storage.StorageHandle
 	fakeStorage   storage.FakeStorage
+	mockClient    *storage.MockStorageControlClient
 }
 
 var _ SetUpInterface = &BucketManagerTest{}
@@ -46,12 +50,20 @@ var _ TearDownInterface = &BucketManagerTest{}
 func init() { RegisterTestSuite(&BucketManagerTest{}) }
 
 func (t *BucketManagerTest) SetUp(_ *TestInfo) {
-	t.fakeStorage = storage.NewFakeStorage()
+	var err error
+	t.mockClient = new(storage.MockStorageControlClient)
+	t.fakeStorage = storage.NewFakeStorageWithMockClient(t.mockClient, cfg.HTTP2)
 	t.storageHandle = t.fakeStorage.CreateStorageHandle()
+	t.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
+		Return(&controlpb.StorageLayout{
+			HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
+			LocationType:          "zone",
+		}, nil)
 	ctx := context.Background()
-	t.bucket = t.storageHandle.BucketHandle(ctx, TestBucketName, "")
+	t.bucket, err = t.storageHandle.BucketHandle(ctx, TestBucketName, "")
 
 	AssertNe(nil, t.bucket)
+	AssertEq(nil, err)
 }
 
 func (t *BucketManagerTest) TearDown() {

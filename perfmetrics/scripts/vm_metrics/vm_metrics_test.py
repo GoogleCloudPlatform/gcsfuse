@@ -288,7 +288,7 @@ class TestVmmetricsTest(unittest.TestCase):
   def test_get_metric_filter_custom(self):
     metric_type = "metric_type"
     extra_filter = "extra_filter"
-    expected_metric_filter = 'metric.type = "{}" AND metric.labels.opencensus_task = ends_with("{}") AND {}'.format(metric_type, TEST_INSTANCE, extra_filter)
+    expected_metric_filter = 'metric.type = "{}" AND metadata.system_labels.name = "{}" AND {}'.format(metric_type, TEST_INSTANCE, extra_filter)
     self.assertEqual(vm_metrics._get_metric_filter('custom', metric_type, TEST_INSTANCE, extra_filter), expected_metric_filter)
 
   @patch('vm_metrics._get_instance_id')

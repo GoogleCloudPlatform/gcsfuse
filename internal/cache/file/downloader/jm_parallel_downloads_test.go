@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
@@ -31,6 +32,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -50,8 +52,11 @@ func createObjectInBucket(t *testing.T, objPath string, objSize int64, bucket gc
 
 func configureFakeStorage(t *testing.T) storage.StorageHandle {
 	t.Helper()
-	fakeStorage := storage.NewFakeStorage()
+	mockClient := new(storage.MockStorageControlClient)
+	fakeStorage := storage.NewFakeStorageWithMockClient(mockClient, cfg.HTTP2)
 	t.Cleanup(func() { fakeStorage.ShutDown() })
+	mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
+		Return(&controlpb.StorageLayout{}, nil)
 	return fakeStorage.CreateStorageHandle()
 }
 
@@ -140,7 +145,8 @@ func TestParallelDownloads(t *testing.T) {
 			cache, cacheDir := configureCache(t, 2*tc.objectSize)
 			storageHandle := configureFakeStorage(t)
 			ctx := context.Background()
-			bucket := storageHandle.BucketHandle(ctx, storage.TestBucketName, "")
+			bucket, err := storageHandle.BucketHandle(ctx, storage.TestBucketName, "")
+			assert.Nil(t, err)
 			minObj, content := createObjectInStoreAndInitCache(t, cache, bucket, "path/in/gcs/foo.txt", tc.objectSize)
 			fileCacheConfig := &cfg.FileCacheConfig{
 				EnableParallelDownloads:  true,
@@ -154,7 +160,7 @@ func TestParallelDownloads(t *testing.T) {
 			job := jm.CreateJobIfNotExists(&minObj, bucket)
 			subscriberC := job.subscribe(tc.subscribedOffset)
 
-			_, err := job.Download(context.Background(), 10, false)
+			_, err = job.Download(context.Background(), 10, false)
 
 			timeout := time.After(1 * time.Second)
 			for {
@@ -181,7 +187,8 @@ func TestMultipleConcurrentDownloads(t *testing.T) {
 	storageHandle := configureFakeStorage(t)
 	cache, cacheDir := configureCache(t, 30*util.MiB)
 	ctx := context.Background()
-	bucket := storageHandle.BucketHandle(ctx, storage.TestBucketName, "")
+	bucket, err := storageHandle.BucketHandle(ctx, storage.TestBucketName, "")
+	assert.Nil(t, err)
 	minObj1, content1 := createObjectInStoreAndInitCache(t, cache, bucket, "path/in/gcs/foo.txt", 10*util.MiB)
 	minObj2, content2 := createObjectInStoreAndInitCache(t, cache, bucket, "path/in/gcs/bar.txt", 5*util.MiB)
 	fileCacheConfig := &cfg.FileCacheConfig{
