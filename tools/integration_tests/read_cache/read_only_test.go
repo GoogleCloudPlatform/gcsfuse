@@ -17,6 +17,7 @@ package read_cache
 import (
 	"context"
 	"log"
+	"strings"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -46,7 +47,7 @@ func (s *readOnlyTest) Setup(t *testing.T) {
 
 func (s *readOnlyTest) Teardown(t *testing.T) {
 	if t.Failed() {
-		setup.SaveLogFileToKOKOROArtifact("gcsfuse-failed-integration-test-logs-" + t.Name())
+		setup.SaveLogFileToKOKOROArtifact("gcsfuse-failed-integration-test-logs-" + strings.Replace(t.Name(), "/", "-", -1))
 	}
 	setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 }
