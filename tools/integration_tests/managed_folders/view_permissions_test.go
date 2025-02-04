@@ -147,7 +147,7 @@ func TestManagedFolders_FolderViewPermission(t *testing.T) {
 		flags = append(flags, "--key-file="+localKeyFilePath)
 	}
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
-	defer setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
+	defer setup.UnmountGCSFuse(rootDir)
 	setup.SetMntDir(mountDir)
 
 	bucket, testDir = setup.GetBucketAndObjectBasedOnTypeOfMount(TestDirForManagedFolderTest)
