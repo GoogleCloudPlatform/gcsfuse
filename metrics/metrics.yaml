@@ -1,9 +1,27 @@
-- name: "fs/ops_count"
-  type: "int_counter"
-  description: "test counter"
-  attributeSet: ["a1", "a2"]
+attributes:
+  - name: "a1"
+    type: "string"
+    values:
+    - "seq"
+    - "random"
+  - name: "a2"
+    type: "string"
+    values:
+    - "one"
+    - "two"
 
-- name: "fs/ops_latency"
-  type: "int_histogram"
-  description: "test histogram"
-  attributeSet: ["a1", "a2"]
+metrics:
+  - name: "fs/ops_count"
+    type: "int_counter"
+    description: "test counter"
+    attributes:
+    - "a1"
+    - "a2"
+
+  - name: "fs/ops_latency"
+    type: "int_histogram"
+    description: "test histogram"
+    buckets: [1,2,3,4,10, 11,20,30,40,100]
+    attributes: 
+    - "a1"
+    - "a2"

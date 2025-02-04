@@ -29,11 +29,26 @@ var (
 	templateDir = flag.String("templateDir", ".", "Directory containing the template files")
 )
 
+type Attribute struct {
+	Name   string
+	Type   string
+	Values []string
+}
+
 type Metric struct {
-	Name        string `yaml:"flag-name"`
+	Name        string
 	Type        string
 	Description string
 	Attributes  []string
+	Buckets     []int
+}
+
+type MetricsConfig struct {
+	Metrics    []Metric
+	Attributes []Attribute
+}
+
+type templateData struct {
 }
 
 func validateFlags() error {
@@ -49,23 +64,23 @@ func validateFlags() error {
 	return nil
 }
 
-func validateMetrics(_ []Metric) error {
+func validateMetrics(_ MetricsConfig) error {
 	return nil
 }
 
-func parseMetricsConfig() ([]Metric, error) {
+func parseMetricsConfig() (MetricsConfig, error) {
 	buf, err := os.ReadFile(*paramsFile)
 	if err != nil {
-		return nil, err
+		return MetricsConfig{}, err
 	}
-	var metricsConfig []Metric
+	var metricsConfig MetricsConfig
 	dec := yaml.NewDecoder(bytes.NewReader(buf))
 	dec.KnownFields(true)
 	if err = dec.Decode(&metricsConfig); err != nil {
-		return nil, err
+		return MetricsConfig{}, err
 	}
 	if err = validateMetrics(metricsConfig); err != nil {
-		return nil, err
+		return MetricsConfig{}, err
 	}
 	return metricsConfig, nil
 }
@@ -84,4 +99,10 @@ func main() {
 	}
 
 	fmt.Println(metricsConfig)
+
+	for i := 0; i < len(metricsConfig.Metrics); i++ {
+		fmt.Println(metricsConfig.Metrics[i].Name)
+		fmt.Println(metricsConfig.Metrics[i].Type)
+	}
+
 }
