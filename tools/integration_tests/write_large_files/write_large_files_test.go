@@ -56,7 +56,7 @@ func TestMain(m *testing.M) {
 
 	// write-global-max-blocks=2 is for checking multiple file writes in parallel.
 	// concurrent_write_files_test.go- we are writing 3 files in parallel.
-	// with this config, we are not giving 2 blocks to each file.
+	// with this config, we are giving 2 blocks to 2 files and 1 block to other file.
 	flags := [][]string{
 		{"--enable-streaming-writes=false"},
 		{"--enable-streaming-writes=true", "--write-max-blocks-per-file=2", "--write-global-max-blocks=2"}}
