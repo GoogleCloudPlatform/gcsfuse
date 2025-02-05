@@ -1,0 +1,118 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ${NAME}
+spec:
+  parallelism: 512
+  completions: 512
+  completionMode: Indexed
+  template:
+    metadata:
+      labels:
+        app: ssiog-job
+      annotations:
+        gke-gcsfuse/volumes: "true"
+        gke-gcsfuse/cpu-limit: "0"
+        gke-gcsfuse/memory-limit: "0"
+        gke-gcsfuse/ephemeral-storage-limit: "0"
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        cloud.google.com/gke-ephemeral-storage-local-ssd: "true"
+      serviceAccountName: vipinydv-ssiog-runner
+      hostNetwork: true
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - ssiog-job
+            topologyKey: "kubernetes.io/hostname"
+      containers:
+      - name: gke-gcsfuse-sidecar
+        image: gcr.io/gcs-tess/vipinydv_directio/gcs-fuse-csi-driver-sidecar-mounter:v1.10.0-27-gfbca76b7
+      - name: ssiog-benchmark
+        image: us-west1-docker.pkg.dev/gcs-tess/ssiog-training/v1.0.1@sha256:c45474e1ab1cf6466b6f2ff3c6bb7e46a94b9beae3727b41329915efda3ded09
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: JOB_COMPLETION_INDEX
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.annotations['batch.kubernetes.io/job-completion-index']
+        - name: JOB_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.labels['job-name']
+        securityContext:
+          privileged: true
+        command:
+        - /bin/bash
+        - -c
+        - |
+          mkdir -p /mnt/benchmark-output/${JOB_NAME} || true
+          mkdir -p /output/${JOB_NAME} || true
+          args=(
+            --prefix /mnt/benchmark-input/1B/
+            --object-count-limit=100
+            --epochs=1
+            --background-threads=32
+            --sample-size=1
+            --steps=10
+            --batch-size=98304
+            --group-size=1
+            --log-metrics=True
+            --metrics-file=/output/${JOB_NAME}/results-${JOB_COMPLETION_INDEX}.csv
+            --log-level=INFO
+            --read-order=FullRandom
+            --export-metrics=True
+            --exporter-type=cloud
+            --label=test_0-0-0-0
+          )
+          /app/training.py "${args[@]}"
+
+          echo "Copying the local metrics to bucket..."
+          cp -r /output/${JOB_NAME}/* /mnt/benchmark-output/${JOB_NAME}/
+        volumeMounts:
+        - mountPath: /mnt/benchmark-output
+          name: gcsfuse-output
+          readOnly: false
+        - mountPath: /mnt/benchmark-input
+          name: mnt-input
+          readOnly: true
+      volumes:
+      - name: gcsfuse-output
+        csi:
+          driver: gcsfuse.csi.storage.gke.io
+          volumeAttributes:
+            skipCSIBucketAccessCheck: "true"
+            bucketName: vipinydv-metrics
+      - name: mnt-input
+        csi:
+          driver: gcsfuse.csi.storage.gke.io
+          readOnly: false
+          volumeAttributes:
+            skipCSIBucketAccessCheck: "true"
+            bucketName: ${DATA_BUCKET_NAME}
+            fileCacheCapacity: ${FILE_CACHE_CAPACITY}
+            fileCacheForRangeRead: "true"
+            mountOptions: "logging:severity:trace,implicit-dirs,metadata-cache:ttl-secs:-1,metadata-cache:stat-cache-max-size-mb:-1,metadata-cache:type-cache-max-size-mb:-1,file-cache:enable-parallel-downloads:${PARALLEL_DOWNLOAD},gcs-retries:read-stall:enable:${READ_STALL_RETRY}"
