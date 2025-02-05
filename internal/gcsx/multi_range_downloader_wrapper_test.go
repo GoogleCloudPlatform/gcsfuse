@@ -148,7 +148,7 @@ func (t *mrdWrapperTest) Test_Read() {
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
 			buf := make([]byte, tc.end-tc.start)
-			t.mrdWrapper.Wrapped = nil
+			t.mrdWrapper.createMRD = true
 			t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond))
 
 			bytesRead, err := t.mrdWrapper.Read(context.Background(), buf, int64(tc.start), int64(tc.end), time.Millisecond, common.NewNoopMetrics())
@@ -256,16 +256,17 @@ func (t *mrdWrapperTest) Test_EnsureMultiRangeDownloader() {
 		t.Run(tc.name, func() {
 			t.mrdWrapper.bucket = tc.bucket
 			t.mrdWrapper.object = tc.obj
-			t.mrdWrapper.Wrapped = nil
+			t.mrdWrapper.createMRD = true
 			t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond))
 			err := t.mrdWrapper.ensureMultiRangeDownloader()
 			if tc.err == nil {
 				assert.NoError(t.T(), err)
 				assert.NotNil(t.T(), t.mrdWrapper.Wrapped)
+				assert.False(t.T(), t.mrdWrapper.createMRD)
 			} else {
 				assert.Error(t.T(), err)
 				assert.EqualError(t.T(), err, tc.err.Error())
-				assert.Nil(t.T(), t.mrdWrapper.Wrapped)
+				assert.True(t.T(), t.mrdWrapper.createMRD)
 			}
 		})
 	}
