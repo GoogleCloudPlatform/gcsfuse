@@ -541,7 +541,6 @@ func (rr *randomReader) getReadInfo(
 	// optimise for random reads. Random reads will read data in chunks of
 	// (average read size in bytes rounded up to the next MB).
 	end = int64(rr.object.Size)
-	rr.readType = util.Sequential
 	if rr.seeks >= minSeeksForRandom {
 		rr.readType = util.Random
 		averageReadBytes := rr.totalReadBytes / rr.seeks
