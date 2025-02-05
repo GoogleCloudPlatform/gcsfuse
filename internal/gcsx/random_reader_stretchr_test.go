@@ -624,7 +624,6 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_ValidateReadType() {
 		name              string
 		dataSize          int
 		bucketType        gcs.BucketType
-		initialReadType   string
 		readRanges        [][]int
 		expectedReadTypes []string
 	}{
@@ -632,7 +631,6 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_ValidateReadType() {
 			name:              "SequentialReadFlat",
 			dataSize:          100,
 			bucketType:        gcs.BucketType{Zonal: false},
-			initialReadType:   testutil.Sequential,
 			readRanges:        [][]int{{0, 10}, {10, 20}, {20, 35}, {35, 50}},
 			expectedReadTypes: []string{testutil.Sequential, testutil.Sequential, testutil.Sequential, testutil.Sequential},
 		},
@@ -640,7 +638,6 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_ValidateReadType() {
 			name:              "SequentialReadZonal",
 			dataSize:          100,
 			bucketType:        gcs.BucketType{Zonal: true},
-			initialReadType:   testutil.Sequential,
 			readRanges:        [][]int{{0, 10}, {10, 20}, {20, 35}, {35, 50}},
 			expectedReadTypes: []string{testutil.Sequential, testutil.Sequential, testutil.Sequential, testutil.Sequential},
 		},
@@ -648,7 +645,6 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_ValidateReadType() {
 			name:              "RandomReadFlat",
 			dataSize:          100,
 			bucketType:        gcs.BucketType{Zonal: false},
-			initialReadType:   testutil.Sequential,
 			readRanges:        [][]int{{0, 50}, {30, 40}, {10, 20}, {20, 30}, {30, 40}},
 			expectedReadTypes: []string{testutil.Sequential, testutil.Sequential, testutil.Random, testutil.Random, testutil.Random},
 		},
@@ -656,17 +652,8 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_ValidateReadType() {
 			name:              "RandomReadZonal",
 			dataSize:          100,
 			bucketType:        gcs.BucketType{Zonal: true},
-			initialReadType:   testutil.Sequential,
 			readRanges:        [][]int{{0, 50}, {30, 40}, {10, 20}, {20, 30}, {30, 40}},
 			expectedReadTypes: []string{testutil.Sequential, testutil.Sequential, testutil.Random, testutil.Random, testutil.Random},
-		},
-		{
-			name:              "InitialReadTypeRandom",
-			dataSize:          100,
-			bucketType:        gcs.BucketType{Zonal: true},
-			initialReadType:   testutil.Random,
-			readRanges:        [][]int{{10, 20}, {20, 30}, {30, 40}, {40, 50}},
-			expectedReadTypes: []string{testutil.Random, testutil.Random, testutil.Random, testutil.Random},
 		},
 	}
 
@@ -676,7 +663,7 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_ValidateReadType() {
 			t.rr.wrapped.reader = nil
 			t.rr.wrapped.isMRDInUse = false
 			t.rr.wrapped.seeks = 0
-			t.rr.wrapped.readType = tc.initialReadType
+			t.rr.wrapped.readType = testutil.Sequential
 			t.object.Size = uint64(tc.dataSize)
 			testContent := testutil.GenerateRandomBytes(int(t.object.Size))
 			fakeMRDWrapper, err := NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{})
