@@ -37,6 +37,7 @@ import (
 )
 
 var isPresubmitRun = flag.Bool("presubmit", false, "Boolean flag to indicate if test-run is a presubmit run.")
+var isZonalBucketRun = flag.Bool("zonal", false, "Boolean flag to indicate if test-run should use a zonal bucket.")
 var testBucket = flag.String("testbucket", "", "The GCS bucket used for the test.")
 var mountedDirectory = flag.String("mountedDirectory", "", "The GCSFuse mounted directory used for the test.")
 var integrationTest = flag.Bool("integrationTest", false, "Run tests only when the flag value is true.")
@@ -74,6 +75,10 @@ func RunScriptForTestData(args ...string) {
 
 func IsPresubmitRun() bool {
 	return *isPresubmitRun
+}
+
+func IsZonalBucketRun() bool {
+	return *isZonalBucketRun
 }
 
 func IsIntegrationTest() bool {
