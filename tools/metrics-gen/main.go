@@ -27,6 +27,7 @@ var (
 	outDir      = flag.String("outDir", "", "Output directory where the auto-generated files are to be placed")
 	paramsFile  = flag.String("paramsFile", "", "Params YAML file")
 	templateDir = flag.String("templateDir", ".", "Directory containing the template files")
+	varNum      = 0
 )
 
 type Attribute struct {
@@ -100,9 +101,36 @@ func main() {
 
 	fmt.Println(metricsConfig)
 
+	varName := "prefix"
+
 	for i := 0; i < len(metricsConfig.Metrics); i++ {
-		fmt.Println(metricsConfig.Metrics[i].Name)
-		fmt.Println(metricsConfig.Metrics[i].Type)
+		switch metricsConfig.Metrics[i].Type {
+		case "int_counter":
+			handleIntCounter(metricsConfig.Metrics[i], metricsConfig.Attributes)
+		case "int_histogram":
+			handleIntHistogram(metricsConfig.Metrics[i], metricsConfig.Attributes)
+		}
+
 	}
+}
+
+func handleIntCounter(m Metric, varName *string) {
+	fmt.Println(m.Name)
+}
+
+func handleIntHistogram(m Metric, attributes map[string]Attribute) {
+	for _, attr := range m.Attributes {
+		if x, ok := attributes[attr]; ok {
+			fmt.Println(x)
+		} else {
+			panic("Attribute doesn't exist")
+		}
+	}
+	fmt.Println(m.Name)
+}
+
+func genVarName() string {
+	varNum++
+	return fmt.Sprintf("var%d", varNum)
 
 }
