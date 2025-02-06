@@ -139,7 +139,10 @@ func WriteToObject(ctx context.Context, client *storage.Client, object, content 
 	// Upload an object with storage.Writer.
 	wc := o.NewWriter(ctx)
 	if setup.IsZonalBucketRun() {
-		wc.Append = true // setting true for zonal buckets
+		attrs, _ := client.Bucket(setup.TestBucket()).Attrs(ctx)
+		if attrs.StorageClass == "RAPID" {
+			wc.Append = true
+		}
 	}
 	if _, err := io.WriteString(wc, content); err != nil {
 		return fmt.Errorf("io.WriteSTring: %w", err)
