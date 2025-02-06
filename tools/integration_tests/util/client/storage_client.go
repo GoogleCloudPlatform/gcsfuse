@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	"cloud.google.com/go/storage/experimental"
 	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
@@ -50,7 +51,11 @@ func CreateStorageClient(ctx context.Context) (client *storage.Client, err error
 		}
 		client, err = storage.NewClient(ctx, option.WithEndpoint("storage.apis-tpczero.goog:443"), option.WithTokenSource(ts))
 	} else {
-		client, err = storage.NewClient(ctx)
+		if setup.IsZonalBucketRun() {
+			client, err = storage.NewGRPCClient(ctx, experimental.WithGRPCBidiReads())
+		} else {
+			client, err = storage.NewClient(ctx)
+		}
 	}
 	if err != nil {
 		return nil, fmt.Errorf("storage.NewClient: %w", err)
@@ -133,6 +138,9 @@ func WriteToObject(ctx context.Context, client *storage.Client, object, content 
 
 	// Upload an object with storage.Writer.
 	wc := o.NewWriter(ctx)
+	if setup.IsZonalBucketRun() {
+		wc.Append = true // setting true for zonal buckets
+	}
 	if _, err := io.WriteString(wc, content); err != nil {
 		return fmt.Errorf("io.WriteSTring: %w", err)
 	}
