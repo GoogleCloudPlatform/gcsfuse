@@ -75,8 +75,8 @@ func (s *infiniteNegativeStatCacheTest) TestInfiniteNegativeStatCache(t *testing
 // when a folder is created externally after gcsfuse has cached a negative stat entry for that path.
 // The negative cache prevents gcsfuse from seeing the externally created folder,
 // leading to an EEXIST error when attempting to create the same folder again.
-func (s *infiniteNegativeStatCacheTest) TestAlreadyExistFolder(t *testing.T) {
-	dirName := "testAlreadyExistFolder"
+func (s *infiniteNegativeStatCacheTest) TestInfiniteNegativeStatCacheForAlreadyExistFolder(t *testing.T) {
+	dirName := "testInfiniteNegativeStatCacheForAlreadyExistFolder"
 	dirPath := path.Join(testDirPath, dirName)
 	dirPathOnBucket := path.Join(testDirName, dirName)
 	// Stat should return an error because the directory doesn't exist yet,
@@ -91,6 +91,11 @@ func (s *infiniteNegativeStatCacheTest) TestAlreadyExistFolder(t *testing.T) {
 		err = client.CreateObjectOnGCS(ctx, storageClient, dirPathOnBucket+"/", "")
 	}
 	require.NoError(t, err)
+
+	// Attempting to create the directory again should fail with EEXIST because the
+	// negative stat cache entry persists, causing LookUpInode to return a "not found" error
+	// and triggering a directory creation attempt despite the directory already existing in GCS.
+	err = os.Mkdir(dirPath, setup.DirPermission_0755)
 
 	// Attempting to create the directory again should fail with EEXIST because the
 	// negative stat cache entry persists, causing LookUpInode to return a "not found" error
