@@ -135,7 +135,7 @@ def main():
     args = parse_args()
     result_df = analyze_metrics(args.metrics_path, args.timestamp_filter)
     if result_df is not None:
-        print(result_df['sample_lat'].describe(percentiles=[0.05, 0.1, 0.25, 0.5, 0.9, 0.99, 0.999]))
+        print(result_df['sample_lat'].describe(percentiles=[0.05, 0.1, 0.25, 0.5, 0.9, 0.99, 0.999, 0.9999, 0.99999, 0.999999, 0.9999999]))
 
 if __name__ == "__main__":
     main()
