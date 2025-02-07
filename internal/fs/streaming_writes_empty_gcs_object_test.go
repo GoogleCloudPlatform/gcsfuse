@@ -66,7 +66,7 @@ func (t *StreamingWritesEmptyGCSObjectTest) SetupTest() {
 	assert.NoError(t.T(), err)
 }
 
-func (t *StreamingWritesCommonTest) TestRenameFileWithPendingWrites() {
+func (t *StreamingWritesEmptyGCSObjectTest) TestRenameFileWithPendingWrites() {
 	_, err := t.f1.Write([]byte("tacos"))
 	assert.NoError(t.T(), err)
 	newFilePath := path.Join(mntDir, "test.txt")
