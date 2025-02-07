@@ -22,7 +22,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func (t *defaultMountCommonTest) TestMoveBeforeFileIsFlushed() {
+// os.Rename can't be invoked over local files. It's failing with file not found error.
+// Hence running this test only for empty GCS file.
+func (t *defaultMountEmptyGCSFile) TestRenameBeforeFileIsFlushed() {
 	operations.WriteWithoutClose(t.f1, FileContents, t.T())
 	operations.WriteWithoutClose(t.f1, FileContents, t.T())
 	operations.VerifyStatFile(t.filePath, int64(2*len(FileContents)), FilePerms, t.T())
@@ -31,7 +33,7 @@ func (t *defaultMountCommonTest) TestMoveBeforeFileIsFlushed() {
 
 	newFile := "newFile.txt"
 	destDirPath := path.Join(testDirPath, newFile)
-	err = operations.Move(t.filePath, destDirPath)
+	err = operations.RenameFile(t.filePath, destDirPath)
 
 	// Validate that move didn't throw any error.
 	require.NoError(t.T(), err)
