@@ -33,8 +33,7 @@ spec:
       restartPolicy: Never
       nodeSelector:
         cloud.google.com/gke-ephemeral-storage-local-ssd: "true"
-      serviceAccountName: vipinydv-ssiog-runner
-      hostNetwork: true
+      serviceAccountName: ${SERVICE_ACCOUNT_NAME:-"vipinydv-ssiog-runner"}
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -47,9 +46,9 @@ spec:
             topologyKey: "kubernetes.io/hostname"
       containers:
       - name: gke-gcsfuse-sidecar
-        image: gcr.io/gcs-tess/vipinydv_directio/gcs-fuse-csi-driver-sidecar-mounter:v1.10.0-27-gfbca76b7
+        image: ${GKE_GCSFUSE_IMAGE:-"gcr.io/gcs-tess/vipinydv_directio/gcs-fuse-csi-driver-sidecar-mounter:v1.10.0-27-gfbca76b7"}
       - name: ssiog-benchmark
-        image: us-west1-docker.pkg.dev/gcs-tess/ssiog-training/v1.0.1@sha256:c45474e1ab1cf6466b6f2ff3c6bb7e46a94b9beae3727b41329915efda3ded09
+        image: ${SSIOG_BENCHMARK_IMAGE:-"us-west1-docker.pkg.dev/gcs-tess/ssiog-training/v1.0.1@sha256:c45474e1ab1cf6466b6f2ff3c6bb7e46a94b9beae3727b41329915efda3ded09"}
         env:
         - name: POD_NAME
           valueFrom:
@@ -72,21 +71,21 @@ spec:
           mkdir -p /mnt/benchmark-output/${JOB_NAME} || true
           mkdir -p /output/${JOB_NAME} || true
           args=(
-            --prefix /mnt/benchmark-input/1B/
-            --object-count-limit=100
-            --epochs=1
-            --background-threads=32
-            --sample-size=1
-            --steps=10
-            --batch-size=98304
-            --group-size=1
+            --prefix ${PREFIX:-"/mnt/benchmark-input/1B/"}  # Default value if not set
+            --object-count-limit=${OBJECT_COUNT_LIMIT:-100}  # Default value if not set
+            --epochs=${EPOCHS:-1}  # Default value if not set
+            --background-threads=${BACKGROUND_THREADS:-32}  # Default value if not set
+            --sample-size=${SAMPLE_SIZE:-1}  # Default value if not set
+            --steps=${STEPS:-10}  # Default value if not set
+            --batch-size=${BATCH_SIZE:-98304}  # Default value if not set
+            --group-size=${GROUP_SIZE:-1}  # Default value if not set
             --log-metrics=True
             --metrics-file=/output/${JOB_NAME}/results-${JOB_COMPLETION_INDEX}.csv
             --log-level=INFO
             --read-order=FullRandom
             --export-metrics=True
             --exporter-type=cloud
-            --label=test_0-0-0-0
+            --label=${LABEL:-"test_0-0-0-0"}  # Default value if not set
           )
           /app/training.py "${args[@]}"
 
@@ -105,7 +104,7 @@ spec:
           driver: gcsfuse.csi.storage.gke.io
           volumeAttributes:
             skipCSIBucketAccessCheck: "true"
-            bucketName: vipinydv-metrics
+            bucketName: ${OUTPUT_BUCKET_NAME:-"vipinydv-metrics"}
       - name: mnt-input
         csi:
           driver: gcsfuse.csi.storage.gke.io

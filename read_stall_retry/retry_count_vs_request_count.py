@@ -1,11 +1,31 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import pandas as pd
 import logging
 import time
+import os
 
 # Run read_stall_retry/stalled_read_req_retry_logs.sh before running this script to get the log files
 
 # Move to the directory that has log files
-os.chdir(os.path.expanduser('~/vipinydv-redstall-logs'))
+os.chdir(os.path.expanduser('~/redastall-logs'))
+
+# Create the 'retry_count_vs_request_count' directory if it doesn't exist
+output_dir = os.path.join(os.getcwd(), 'retry_count_vs_request_count')
+if not os.path.exists(output_dir):
+    os.makedirs(output_dir)
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
@@ -59,8 +79,8 @@ for filename in filenames:
     # Log the distinct frequencies
     logger.info(f"Distinct frequencies (number of unique counts): {len(frequency_counts)}")
 
-    # Save the frequency counts to a CSV file
-    output_filename = f'{filename}-generated.csv'
+    # Save the frequency counts to a CSV file inside the retry_count_vs_request_count directory
+    output_filename = os.path.join(output_dir, f'{filename}.csv')
     
     # Convert frequency_counts to DataFrame and reset index properly
     frequency_counts_df = frequency_counts.reset_index(name='retry_count')  # Ensure column name for frequency count is unique
