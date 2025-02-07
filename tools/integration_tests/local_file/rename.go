@@ -41,7 +41,7 @@ func verifyRenameOperationNotSupported(err error, t *testing.T) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *localFileTestSuite) TestRenameOfLocalFileFails() {
+func (t *CommonLocalFileTestSuite) TestRenameOfLocalFileFails() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create local file with some content.
 	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())

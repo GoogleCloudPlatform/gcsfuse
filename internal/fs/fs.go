@@ -2024,8 +2024,7 @@ func (fs *fileSystem) Rename(
 	if err != nil {
 		return err
 	}
-	// For streaming writes, we will finalize localChild and do rename.
-	if localChild != nil && !fs.newConfig.Write.EnableStreamingWrites {
+	if localChild != nil {
 		fs.unlockAndDecrementLookupCount(localChild, 1)
 		return fmt.Errorf("cannot rename open file %q: %w", op.OldName, syscall.ENOTSUP)
 	}
@@ -2062,7 +2061,7 @@ func (fs *fileSystem) Rename(
 func (fs *fileSystem) renameFile(ctx context.Context, op *fuseops.RenameOp, child *inode.Core, oldParent inode.DirInode, newParent inode.DirInode) error {
 	updatedMinObject, err := fs.flushPendingWrites(ctx, child)
 	if err != nil {
-		return fmt.Errorf("flushBeforeRename error :%v", err)
+		return fmt.Errorf("flushPendingWrites error :%v", err)
 	}
 
 	if (child.Bucket.BucketType().Hierarchical && fs.enableAtomicRenameObject) || child.Bucket.BucketType().Zonal {
@@ -2103,6 +2102,7 @@ func (fs *fileSystem) flushPendingWrites(ctx context.Context, child *inode.Core)
 	defer fileInode.Unlock()
 	// Try to flush if there are any pending writes.
 	err = fs.flushFile(ctx, fileInode)
+	minObject = fileInode.Source()
 	return
 }
 
