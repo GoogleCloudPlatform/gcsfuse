@@ -2024,8 +2024,7 @@ func (fs *fileSystem) Rename(
 	if err != nil {
 		return err
 	}
-	// For streaming writes, we will finalize localChild and do rename.
-	if localChild != nil && !fs.newConfig.Write.EnableStreamingWrites {
+	if localChild != nil {
 		fs.unlockAndDecrementLookupCount(localChild, 1)
 		return fmt.Errorf("cannot rename open file %q: %w", op.OldName, syscall.ENOTSUP)
 	}
