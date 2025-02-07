@@ -19,6 +19,7 @@ package fs_test
 import (
 	"os"
 	"path"
+	"strings"
 	"syscall"
 	"testing"
 
@@ -63,6 +64,26 @@ func (t *StreamingWritesEmptyGCSObjectTest) SetupTest() {
 	// Validate that file exists on GCS.
 	_, err = storageutil.ReadObject(ctx, bucket, fileName)
 	assert.NoError(t.T(), err)
+}
+
+func (t *StreamingWritesCommonTest) TestRenameFileWithPendingWrites() {
+	_, err := t.f1.Write([]byte("tacos"))
+	assert.NoError(t.T(), err)
+	newFilePath := path.Join(mntDir, "test.txt")
+	// Check that new file doesn't exist.
+	_, err = os.Stat(newFilePath)
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+
+	err = os.Rename(t.f1.Name(), newFilePath)
+
+	assert.NoError(t.T(), err)
+	_, err = os.Stat(t.f1.Name())
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+	content, err := os.ReadFile(newFilePath)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), "tacos", string(content))
 }
 
 func (t *StreamingWritesEmptyGCSObjectTest) TearDownTest() {
