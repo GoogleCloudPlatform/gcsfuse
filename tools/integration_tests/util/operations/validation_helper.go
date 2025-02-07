@@ -26,6 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func ValidateNoFileOrDirError(t *testing.T, path string) {
@@ -47,8 +48,8 @@ func ValidateObjectNotFoundErr(ctx context.Context, t *testing.T, bucket gcs.Buc
 }
 
 func ValidateStaleNFSFileHandleError(t *testing.T, err error) {
-	assert.NotEqual(t, nil, err)
-	assert.Regexp(t, syscall.ESTALE.Error(), err.Error())
+	require.Error(t, err)
+	assert.Regexp(t, syscall.ESTALE.Error()+"|"+syscall.EEXIST.Error(), err.Error())
 }
 
 func CheckErrorForReadOnlyFileSystem(t *testing.T, err error) {

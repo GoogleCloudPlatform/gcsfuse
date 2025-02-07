@@ -18,7 +18,6 @@ import (
 	"os"
 
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/local_file"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_suite"
 )
 
@@ -35,12 +34,7 @@ func (t *defaultMountCommonTest) SetupSuite() {
 	SetCtx(ctx)
 	SetStorageClient(storageClient)
 	SetTestDirName(testDirName)
-
-	flags := []string{"--rename-dir-limit=3", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=2"}
-	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
-	testDirPath = setup.SetupTestDirectory(testDirName)
 }
 
 func (t *defaultMountCommonTest) TearDownSuite() {
-	setup.UnmountGCSFuse(rootDir)
 }

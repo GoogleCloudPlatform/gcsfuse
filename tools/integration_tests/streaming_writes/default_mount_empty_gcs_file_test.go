@@ -50,5 +50,16 @@ func (t *defaultMountEmptyGCSFile) createEmptyGCSFile() {
 func TestDefaultMountEmptyGCSFileTest(t *testing.T) {
 	s := new(defaultMountEmptyGCSFile)
 	s.defaultMountCommonTest.TestifySuite = &s.Suite
+
+	flags := []string{"--rename-dir-limit=3", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=2"}
+	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
+	testDirPath = setup.SetupTestDirectory(testDirName)
 	suite.Run(t, s)
+	setup.UnmountGCSFuse(rootDir)
+
+	flags = []string{"--rename-dir-limit=3", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=2", "--client-protocol=grpc"}
+	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
+	testDirPath = setup.SetupTestDirectory(testDirName)
+	suite.Run(t, s)
+	setup.UnmountGCSFuse(rootDir)
 }

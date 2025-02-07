@@ -84,6 +84,8 @@ func errno(err error, preconditionErrCfg bool) error {
 			return syscall.EACCES
 		case codes.NotFound:
 			return syscall.ENOENT
+		case codes.FailedPrecondition:
+			return syscall.ESTALE
 		}
 	}
 	// Translate API errors into an em errno

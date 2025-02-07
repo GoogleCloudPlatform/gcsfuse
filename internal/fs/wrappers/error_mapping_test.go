@@ -65,6 +65,15 @@ func (testSuite *ErrorMapping) TestNotFoundGrpcApiError() {
 	assert.Equal(testSuite.T(), syscall.ENOENT, fsErr)
 }
 
+func (testSuite *ErrorMapping) TestFailedPreconditionGrpcApiError() {
+	statusErr := status.New(codes.FailedPrecondition, "Not found")
+	apiError, _ := apierror.FromError(statusErr.Err())
+
+	fsErr := errno(apiError, testSuite.preconditionErrCfg)
+
+	assert.Equal(testSuite.T(), syscall.ESTALE, fsErr)
+}
+
 func (testSuite *ErrorMapping) TestCanceledGrpcApiError() {
 	statusErr := status.New(codes.Canceled, "Canceled error")
 	apiError, _ := apierror.FromError(statusErr.Err())
