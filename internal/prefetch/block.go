@@ -116,7 +116,7 @@ func (b *Block) Delete() error {
 }
 
 func (b *Block) Write(bytes []byte) (n int, err error) {
-	if (b.endOffset - b.offset) + uint64(len(bytes)) > uint64(cap(b.data)) {
+	if b.endOffset + uint64(len(bytes)) > uint64(cap(b.data)) {
 		// Add info log to print above value, just info log 
 		logger.Infof("Write: b.endOffset: %d, b.offset: %d, len(bytes): %d, cap(b.data): %d", b.endOffset, b.offset, len(bytes), cap(b.data))
 
