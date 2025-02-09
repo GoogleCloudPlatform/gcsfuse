@@ -9,7 +9,6 @@ import (
 
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
@@ -52,7 +51,7 @@ func (ps *prefetchTestSuite) SetupSuite() {
 	ps.threadPool.Start()
 
 	// Block pool.
-	ps.blockPool = NewBlockPool(10 * _1MB, 1024*_1MB)
+	ps.blockPool = NewBlockPool(10*_1MB, 1024*_1MB)
 
 	// Storage, bucket and object.
 	mockClient := new(storage.MockStorageControlClient)
@@ -63,7 +62,7 @@ func (ps *prefetchTestSuite) SetupSuite() {
 	var err error
 	ps.bucket, err = storageHandle.BucketHandle(context.Background(), storage.TestBucketName, "")
 	ps.assert.NoError(err)
-	objects := map[string][]byte{storage.TestObjectName: make([]byte, 50*_1MB)}
+	objects := map[string][]byte{storage.TestObjectName: make([]byte, 500*_1MB)}
 	err = storageutil.CreateObjects(context.Background(), ps.bucket, objects)
 	ps.object = getMinObject(storage.TestObjectName, ps.bucket)
 	ps.assert.NoError(err)
@@ -96,35 +95,22 @@ func (ps *prefetchTestSuite) TestNewPrefetchReader() {
 	ps.assert.NotNil(prefetchReader.blockIndexMap)
 	ps.assert.Nil(prefetchReader.readHandle)
 	ps.assert.Equal(prefetchReader.blockPool, ps.blockPool)
-	ps.assert.Nil(prefetchReader.threadPool)
+	ps.assert.Equal(prefetchReader.threadPool, ps.threadPool)
 	ps.assert.Nil(prefetchReader.metricHandle)
 
 	// Destroy the prefetch reader
 	prefetchReader.Destroy()
 }
 
-
 func (ps *prefetchTestSuite) TestSequentialRead() {
 	prefetchReader := NewPrefetchReader(&ps.object, ps.bucket, getDefaultPrefetchConfig(), ps.blockPool, ps.threadPool)
 
 	buffer := make([]byte, _1MB)
 	offset := int64(0)
-	ctr := 0
-	for {
+	for offset = int64(0); offset < int64(50*_1MB); offset += int64(len(buffer)) {
 		objectData, err := prefetchReader.ReadAt(context.Background(), buffer, offset)
-		ps.assert.True(err != nil || err == io.EOF)
+		ps.assert.True(err == nil || err == io.EOF)
 		ps.assert.Equal(len(buffer), int(objectData.Size))
-
-		logger.Infof("TestSequentialRead: objectData: %v", objectData.Size)
-		offset += int64(objectData.Size)
-		if objectData.Size == 0 {
-			break
-		}
-		ctr++
-
-		if ctr == 40 {
-			break
-		}
 	}
 	ps.assert.Equal(offset, int64(50*_1MB))
 }
