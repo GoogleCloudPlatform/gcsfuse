@@ -37,7 +37,7 @@ type prefetchConfig struct {
 
 func getDefaultPrefetchConfig() *prefetchConfig {
 	return &prefetchConfig{
-		prefetchCount:      10,
+		prefetchCount:      6,
 		prefetchChunkSize:  10 * int64(_1MB),
 		prefetchMultiplier: 2,
 	}
@@ -108,6 +108,7 @@ func (p *prefetchReader) ReadAt(ctx context.Context, inputBuffer []byte, offset 
 
 		block, err := p.findBlock(ctx, offset)
 		if err != nil {
+			logger.Errorf("ReadAt: error in finding block: %v", err)
 			return objectData, err
 		}
 
@@ -123,6 +124,7 @@ func (p *prefetchReader) ReadAt(ctx context.Context, inputBuffer []byte, offset 
 
 		
 		if offset >= int64(p.object.Size) {
+			logger.Info("Early return: %v, error: %v", dataRead, io.EOF)
 			objectData.Size = dataRead
 			return objectData, io.EOF
 		}
@@ -145,10 +147,16 @@ func (p *prefetchReader) findBlock(ctx context.Context, offset int64) (*Block, e
 	entry, ok := p.blockIndexMap[blockIndex]
 	if !ok {
 		if p.lastReadOffset == -1 { // First read.
-			p.fetch(ctx, blockIndex, false)
+			err := p.fetch(ctx, blockIndex, false)
+			if err != nil && err != io.EOF {
+				return nil, err
+			}
 		} else { // random read.
 			p.randomSeekCount++
-			p.fetch(ctx, blockIndex, false)
+			err := p.fetch(ctx, blockIndex, false)
+			if err != nil && err != io.EOF {
+				return nil, err
+			}
 		}
 
 		entry, ok = p.blockIndexMap[blockIndex]
@@ -172,7 +180,11 @@ func (p *prefetchReader) findBlock(ctx context.Context, offset int64) (*Block, e
 
 			if p.randomSeekCount < 2 {
 				if uint64(p.nextBlockToPrefetch*p.prefetchConfig.prefetchChunkSize) < p.object.Size {
-					p.fetch(ctx, p.nextBlockToPrefetch, true)
+					err := p.fetch(ctx, p.nextBlockToPrefetch, true)
+					if err != nil && err != io.EOF {
+						return nil, err
+					}
+
 				}
 			}
 		case BlockStatusDownloadFailed:
@@ -203,13 +215,14 @@ func (p *prefetchReader) fetch(ctx context.Context, blockIndex int64, prefetch b
 	// If no buffers were allocated then we have all the buffers allocated to this prefetcher.
 	// So, re-use the buffer in the sliding window faship.
 	if newlyCreatedBlockCnt == 0 {
+		logger.Warnf("Hit sliding window code")
 		newlyCreatedBlockCnt = 1
-		}
+	}
 
 	for i := 0; i < newlyCreatedBlockCnt; i++ {
 		_, ok := p.blockIndexMap[blockIndex]
 		if !ok {
-			err = p.refreshBlock(ctx, blockIndex, prefetch)
+			err = p.refreshBlock(ctx, blockIndex, prefetch || i > 0)
 			if err != nil {
 				return
 			}
