@@ -52,10 +52,8 @@ type prefetchReader struct {
 
 	randomSeekCount int64
 
-	cookedBlocks  *list.List
-	cookingBlocks *list.List
-
 	blockIndexMap map[int64]*Block
+	blockQueue    *Queue
 
 	readHandle []byte // For zonal bucket.
 
@@ -73,14 +71,14 @@ func NewPrefetchReader(object *gcs.MinObject, bucket gcs.Bucket, prefetchConfig 
 		lastReadOffset:      -1,
 		nextBlockToPrefetch: 0,
 		randomSeekCount:     0,
-		cookedBlocks:        list.New(),
-		cookingBlocks:       list.New(),
+		blockQueue:          NewQueue(),
 		blockIndexMap:       make(map[int64]*Block),
 		blockPool:           blockPool,
 		threadPool:           threadPool,
 		metricHandle:        nil,
 	}
 }
+
 
 /**
  * ReadAt reads the data from the object at the given offset.
@@ -103,6 +101,7 @@ func (p *prefetchReader) ReadAt(ctx context.Context, inputBuffer []byte, offset 
 	}
 
 	dataRead := int(0)
+	for 
 	for dataRead < len(inputBuffer) {
 		logger.Infof("ReadAt: reading data from block at offset %d", offset)
 
@@ -142,6 +141,11 @@ func (p *prefetchReader) findBlock(ctx context.Context, offset int64) (*Block, e
 	blockIndex := offset / p.prefetchConfig.prefetchChunkSize
 	logger.Infof("findBlock: looking for block %v for object %s at offset %d", blockIndex, p.object.Name, offset)
 
+	if p.blockQueue.IsEmpty() {
+		p.blockQueue.Push(blockIndex)
+	} else {
+			
+	}
 	entry, ok := p.blockIndexMap[blockIndex]
 	if !ok {
 		if p.lastReadOffset == -1 { // First read.
