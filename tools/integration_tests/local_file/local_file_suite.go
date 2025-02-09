@@ -15,6 +15,10 @@
 package local_file
 
 import (
+	"context"
+	"os"
+
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_suite"
 	"github.com/stretchr/testify/suite"
 )
@@ -29,5 +33,13 @@ type localFileTestSuite struct {
 }
 
 type CommonLocalFileTestSuite struct {
+	filePath           string
+	testDirName        string
+	testDirPath        string
+	fh                 *os.File
+	ctx                context.Context
+	storageClient      *storage.Client
+	CloseStorageClient func() error
+	flags              []string
 	test_suite.TestifySuite
 }

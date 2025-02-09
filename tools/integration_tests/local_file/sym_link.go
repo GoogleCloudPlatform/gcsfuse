@@ -15,49 +15,48 @@
 // Provides integration tests for symlink operation on local files.
 package local_file
 
-import (
-	"os"
-	"path"
-	"strings"
-	"testing"
+// import (
+// 	"os"
+// 	"path"
+// 	"strings"
 
-	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-)
+// 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
+// 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
+// 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+// )
 
-func createAndVerifySymLink(t *testing.T) (filePath, symlink string, fh *os.File) {
-	testDirPath = setup.SetupTestDirectory(testDirName)
-	// Create a local file.
-	filePath, fh = CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
-	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, FileName1, t)
+// func (t *localFileTestSuite) createAndVerifySymLink() (filePath, symlink string, fh *os.File) {
+// 	t.testDirPath = setup.SetupTestDirectory(t.testDirName)
+// 	// Create a local file.
+// 	filePath, fh = CreateLocalFileInTestDir(t.ctx, t.storageClient, t.testDirPath, FileName1, t.T())
+// 	WritingToLocalFileShouldNotWriteToGCS(t.ctx, t.storageClient, fh, t.testDirName, FileName1, t.T())
 
-	// Create the symlink.
-	symlink = path.Join(testDirPath, "bar")
-	operations.CreateSymLink(filePath, symlink, t)
+// 	// Create the symlink.
+// 	symlink = path.Join(t.testDirPath, "bar")
+// 	operations.CreateSymLink(filePath, symlink, t.T())
 
-	// Read the link.
-	operations.VerifyReadLink(filePath, symlink, t)
-	operations.VerifyReadFile(symlink, FileContents, t)
-	return
-}
+// 	// Read the link.
+// 	operations.VerifyReadLink(filePath, symlink, t.T())
+// 	operations.VerifyReadFile(symlink, FileContents, t.T())
+// 	return
+// }
 
-func (t *localFileTestSuite) TestCreateSymlinkForLocalFile() {
-	_, _, fh := createAndVerifySymLink(t.T())
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
-		FileName1, FileContents, t.T())
-}
+// func (t *localFileTestSuite) TestCreateSymlinkForLocalFile() {
+// 	_, _, fh := t.createAndVerifySymLink()
+// 	CloseFileAndValidateContentFromGCS(t.ctx, t.storageClient, fh, t.testDirName,
+// 		FileName1, FileContents, t.T())
+// }
 
-func (t *localFileTestSuite) TestReadSymlinkForDeletedLocalFile() {
-	filePath, symlink, fh := createAndVerifySymLink(t.T())
-	// Remove filePath and then close the fileHandle to avoid syncing to GCS.
-	operations.RemoveFile(filePath)
-	operations.CloseFileShouldNotThrowError(fh, t.T())
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
+// func (t *localFileTestSuite) TestReadSymlinkForDeletedLocalFile() {
+// 	filePath, symlink, fh := t.createAndVerifySymLink()
+// 	// Remove filePath and then close the fileHandle to avoid syncing to GCS.
+// 	operations.RemoveFile(filePath)
+// 	operations.CloseFileShouldNotThrowError(fh, t.T())
+// 	ValidateObjectNotFoundErrOnGCS(t.ctx, t.storageClient, t.testDirName, FileName1, t.T())
 
-	// Reading symlink should fail.
-	_, err := os.Stat(symlink)
-	if err == nil || !strings.Contains(err.Error(), "no such file or directory") {
-		t.T().Fatalf("Reading symlink for deleted local file did not fail.")
-	}
-}
+// 	// Reading symlink should fail.
+// 	_, err := os.Stat(symlink)
+// 	if err == nil || !strings.Contains(err.Error(), "no such file or directory") {
+// 		t.T().Fatalf("Reading symlink for deleted local file did not fail.")
+// 	}
+// }

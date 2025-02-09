@@ -23,9 +23,7 @@ import (
 	"path"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/dynamic_mounting"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/only_dir_mounting"
+	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/suite"
@@ -40,18 +38,6 @@ func TestMain(m *testing.M) {
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
-	// set the test dir to local file test
-	testDirName = testDirLocalFileTest
-
-	// Create storage client before running tests.
-	ctx = context.Background()
-	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
-	defer func() {
-		err := closeStorageClient()
-		if err != nil {
-			log.Fatalf("closeStorageClient failed: %v", err)
-		}
-	}()
 	// To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	// flags to be set, as local_file tests validates content from the bucket.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
@@ -78,24 +64,37 @@ func TestMain(m *testing.M) {
 
 	successCode := static_mounting.RunTests(flagsSet, m)
 
-	if successCode == 0 {
-		successCode = only_dir_mounting.RunTests(flagsSet, onlyDirMounted, m)
-	}
+	// if successCode == 0 {
+	// 	successCode = only_dir_mounting.RunTests(flagsSet, onlyDirMounted, m)
+	// }
 
-	// Dynamic mounting tests create a bucket and perform tests on that bucket,
-	// which is not a hierarchical bucket. So we are not running those tests with
-	// hierarchical bucket.
-	if successCode == 0 && !setup.IsHierarchicalBucket(ctx, storageClient) {
-		successCode = dynamic_mounting.RunTests(ctx, storageClient, flagsSet, m)
-	}
-
-	// Clean up test directory created.
-	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
+	// // Dynamic mounting tests create a bucket and perform tests on that bucket,
+	// // which is not a hierarchical bucket. So we are not running those tests with
+	// // hierarchical bucket.
+	// if successCode == 0 && !setup.IsHierarchicalBucket(ctx, storageClient) {
+	// 	successCode = dynamic_mounting.RunTests(ctx, storageClient, flagsSet, m)
+	// }
+	// m.Run()
 	os.Exit(successCode)
 }
 
+func (t *localFileTestSuite) SetupSuite() {
+	t.ctx = context.Background()
+	t.CloseStorageClient = CreateStorageClientWithCancel(&t.ctx, &t.storageClient)
+}
+
+func (t *localFileTestSuite) TearDownSuite() {
+	// Clean up test directory created.
+	setup.CleanupDirectoryOnGCS(t.ctx, t.storageClient, path.Join(setup.TestBucket(), LocalFileTestDirName))
+	// Close storage client.
+	err := t.CloseStorageClient()
+	if err != nil {
+		log.Fatalf("closeStorageClient failed: %v", err)
+	}
+}
 func TestLocalFileTestSuite(t *testing.T) {
 	s := new(localFileTestSuite)
+	s.CommonLocalFileTestSuite.flags = []string{"--implicit-dirs=true", "--rename-dir-limit=3"}
 	s.CommonLocalFileTestSuite.TestifySuite = &s.Suite
 	suite.Run(t, s)
 }

@@ -28,49 +28,49 @@ import (
 ////////////////////////////////////////////////////////////////////////
 
 func (t *CommonLocalFileTestSuite) TestRmDirOfDirectoryContainingGCSAndLocalFiles() {
-	testDirPath = setup.SetupTestDirectory(testDirName)
+	t.testDirPath = setup.SetupTestDirectory(t.testDirName)
 	// Create explicit directory with one synced and one local file.
-	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t.T())
+	operations.CreateDirectory(path.Join(t.testDirPath, ExplicitDirName), t.T())
 	syncedFile := path.Join(ExplicitDirName, FileName1)
 	localFile := path.Join(ExplicitDirName, FileName2)
-	_, fh1 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, syncedFile, t.T())
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh1, testDirName, syncedFile, "", t.T())
-	_, fh2 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, localFile, t.T())
+	_, fh1 := CreateLocalFileInTestDir(t.ctx, t.storageClient, t.testDirPath, syncedFile, t.T())
+	CloseFileAndValidateContentFromGCS(t.ctx, t.storageClient, fh1, t.testDirName, syncedFile, "", t.T())
+	_, fh2 := CreateLocalFileInTestDir(t.ctx, t.storageClient, t.testDirPath, localFile, t.T())
 
 	// Attempt to remove explicit directory.
-	operations.RemoveDir(path.Join(testDirPath, ExplicitDirName))
+	operations.RemoveDir(path.Join(t.testDirPath, ExplicitDirName))
 
 	// Verify that directory is removed.
-	operations.ValidateNoFileOrDirError(t.T(), path.Join(testDirPath, ExplicitDirName))
+	operations.ValidateNoFileOrDirError(t.T(), path.Join(t.testDirPath, ExplicitDirName))
 	// Validate writing content to unlinked local file does not throw error.
 	operations.WriteWithoutClose(fh2, FileContents, t.T())
 	// Validate flush file does not throw error and does not create object on GCS.
 	operations.CloseFileShouldNotThrowError(fh2, t.T())
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, localFile, t.T())
+	ValidateObjectNotFoundErrOnGCS(t.ctx, t.storageClient, t.testDirName, localFile, t.T())
 	// Validate synced files are also deleted.
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, syncedFile, t.T())
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, ExplicitDirName, t.T())
+	ValidateObjectNotFoundErrOnGCS(t.ctx, t.storageClient, t.testDirName, syncedFile, t.T())
+	ValidateObjectNotFoundErrOnGCS(t.ctx, t.storageClient, t.testDirName, ExplicitDirName, t.T())
 }
 
 func (t *CommonLocalFileTestSuite) TestRmDirOfDirectoryContainingOnlyLocalFiles() {
-	testDirPath = setup.SetupTestDirectory(testDirName)
+	t.testDirPath = setup.SetupTestDirectory(t.testDirName)
 	// Create a directory with two local files.
-	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t.T())
+	operations.CreateDirectory(path.Join(t.testDirPath, ExplicitDirName), t.T())
 	localFile1 := path.Join(ExplicitDirName, FileName1)
 	localFile2 := path.Join(ExplicitDirName, FileName2)
-	_, fh1 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, localFile1, t.T())
-	_, fh2 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, localFile2, t.T())
+	_, fh1 := CreateLocalFileInTestDir(t.ctx, t.storageClient, t.testDirPath, localFile1, t.T())
+	_, fh2 := CreateLocalFileInTestDir(t.ctx, t.storageClient, t.testDirPath, localFile2, t.T())
 
 	// Attempt to remove explicit directory.
-	operations.RemoveDir(path.Join(testDirPath, ExplicitDirName))
+	operations.RemoveDir(path.Join(t.testDirPath, ExplicitDirName))
 
 	// Verify rmDir operation succeeds.
-	operations.ValidateNoFileOrDirError(t.T(), path.Join(testDirPath, ExplicitDirName))
+	operations.ValidateNoFileOrDirError(t.T(), path.Join(t.testDirPath, ExplicitDirName))
 	// Close the local files and validate they are not present on GCS.
 	operations.CloseFileShouldNotThrowError(fh1, t.T())
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, localFile1, t.T())
+	ValidateObjectNotFoundErrOnGCS(t.ctx, t.storageClient, t.testDirName, localFile1, t.T())
 	operations.CloseFileShouldNotThrowError(fh2, t.T())
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, localFile2, t.T())
+	ValidateObjectNotFoundErrOnGCS(t.ctx, t.storageClient, t.testDirName, localFile2, t.T())
 	// Validate directory is also deleted.
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, ExplicitDirName, t.T())
+	ValidateObjectNotFoundErrOnGCS(t.ctx, t.storageClient, t.testDirName, ExplicitDirName, t.T())
 }

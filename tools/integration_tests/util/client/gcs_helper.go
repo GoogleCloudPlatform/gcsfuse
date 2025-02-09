@@ -45,6 +45,7 @@ const (
 	SmallerSizeTruncate    = 5
 	NewFileName            = "newName"
 	NewDirName             = "newDirName"
+	LocalFileTestDirName   = "LocalFileTest"
 )
 
 func CreateImplicitDir(ctx context.Context, storageClient *storage.Client,

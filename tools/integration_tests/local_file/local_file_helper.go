@@ -25,15 +25,11 @@ import (
 )
 
 const (
-	onlyDirMounted       = "OnlyDirMountLocalFiles"
-	testDirLocalFileTest = "LocalFileTest"
+	onlyDirMounted = "OnlyDirMountLocalFiles"
 )
 
 var (
-	testDirName   string
-	testDirPath   string
-	storageClient *storage.Client
-	ctx           context.Context
+	MountFunc func([]string) error
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -57,24 +53,4 @@ func NewFileShouldGetSyncedToGCSAtClose(ctx context.Context, storageClient *stor
 
 	// Close the file and validate if the file is created on GCS.
 	client.CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, fileName, client.FileContents, t)
-}
-
-// Following setters are required to setup ctx, storageClient, testDirName for the local file tests
-// getting executed from different package.
-func SetCtx(otherCtx context.Context) {
-	if ctx == nil {
-		ctx = otherCtx
-	}
-}
-
-func SetStorageClient(otherStorageClient *storage.Client) {
-	if storageClient == nil {
-		storageClient = otherStorageClient
-	}
-}
-
-func SetTestDirName(otherTestDirName string) {
-	if testDirName == "" {
-		testDirName = otherTestDirName
-	}
 }

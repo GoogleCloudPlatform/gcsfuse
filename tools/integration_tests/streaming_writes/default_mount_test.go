@@ -32,9 +32,6 @@ type defaultMountCommonTest struct {
 
 func (t *defaultMountCommonTest) SetupSuite() {
 	// TODO(mohitkyadav): Make these part of test suite after refactoring.
-	SetCtx(ctx)
-	SetStorageClient(storageClient)
-	SetTestDirName(testDirName)
 
 	flags := []string{"--rename-dir-limit=3", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=2"}
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)

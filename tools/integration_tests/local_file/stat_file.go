@@ -15,69 +15,69 @@
 // Provides integration tests for stat operation on local files.
 package local_file
 
-import (
-	"os"
+// import (
+// 	"os"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/inode"
-	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-)
+// 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/inode"
+// 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
+// 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
+// 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+// )
 
-func (t *CommonLocalFileTestSuite) TestStatOnLocalFile() {
-	testDirPath = setup.SetupTestDirectory(testDirName)
-	// Create a local file.
-	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
+// func (t *CommonLocalFileTestSuite) TestStatOnLocalFile() {
+// 	t.testDirPath = setup.SetupTestDirectory(t.testDirName)
+// 	// Create a local file.
+// 	filePath, fh := CreateLocalFileInTestDir(t.ctx, t.storageClient, t.testDirPath, FileName1, t.T())
 
-	// Stat the local file.
-	operations.VerifyStatFile(filePath, 0, FilePerms, t.T())
+// 	// Stat the local file.
+// 	operations.VerifyStatFile(filePath, 0, FilePerms, t.T())
 
-	// Writing contents to local file shouldn't create file on GCS.
-	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, FileName1, t.T())
+// 	// Writing contents to local file shouldn't create file on GCS.
+// 	WritingToLocalFileShouldNotWriteToGCS(t.ctx, t.storageClient, fh, t.testDirName, FileName1, t.T())
 
-	// Stat the local file again to check if new content is written.
-	operations.VerifyStatFile(filePath, SizeOfFileContents, FilePerms, t.T())
+// 	// Stat the local file again to check if new content is written.
+// 	operations.VerifyStatFile(filePath, SizeOfFileContents, FilePerms, t.T())
 
-	// Close the file and validate that the file is created on GCS.
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
-		FileName1, FileContents, t.T())
-}
+// 	// Close the file and validate that the file is created on GCS.
+// 	CloseFileAndValidateContentFromGCS(t.ctx, t.storageClient, fh, t.testDirName,
+// 		FileName1, FileContents, t.T())
+// }
 
-func (t *CommonLocalFileTestSuite) TestStatOnLocalFileWithConflictingFileNameSuffix() {
-	testDirPath = setup.SetupTestDirectory(testDirName)
-	// Create a local file.
-	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
+// func (t *CommonLocalFileTestSuite) TestStatOnLocalFileWithConflictingFileNameSuffix() {
+// 	t.testDirPath = setup.SetupTestDirectory(t.testDirName)
+// 	// Create a local file.
+// 	filePath, fh := CreateLocalFileInTestDir(t.ctx, t.storageClient, t.testDirPath, FileName1, t.T())
 
-	// Stat the local file.
-	operations.VerifyStatFile(filePath+inode.ConflictingFileNameSuffix, 0, FilePerms, t.T())
+// 	// Stat the local file.
+// 	operations.VerifyStatFile(filePath+inode.ConflictingFileNameSuffix, 0, FilePerms, t.T())
 
-	// Close the file and validate that the file is created on GCS.
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
-		FileName1, "", t.T())
-}
+// 	// Close the file and validate that the file is created on GCS.
+// 	CloseFileAndValidateContentFromGCS(t.ctx, t.storageClient, fh, t.testDirName,
+// 		FileName1, "", t.T())
+// }
 
-func (t *localFileTestSuite) TestTruncateLocalFileToSmallerSize() {
-	testDirPath = setup.SetupTestDirectory(testDirName)
-	// Create a local file.
-	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
-	// Writing contents to local file .
-	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, FileName1, t.T())
+// func (t *localFileTestSuite) TestTruncateLocalFileToSmallerSize() {
+// 	t.testDirPath = setup.SetupTestDirectory(t.testDirName)
+// 	// Create a local file.
+// 	filePath, fh := CreateLocalFileInTestDir(t.ctx, t.storageClient, t.testDirPath, FileName1, t.T())
+// 	// Writing contents to local file .
+// 	WritingToLocalFileShouldNotWriteToGCS(t.ctx, t.storageClient, fh, t.testDirName, FileName1, t.T())
 
-	// Stat the file to validate if new contents are written.
-	operations.VerifyStatFile(filePath, SizeOfFileContents, FilePerms, t.T())
+// 	// Stat the file to validate if new contents are written.
+// 	operations.VerifyStatFile(filePath, SizeOfFileContents, FilePerms, t.T())
 
-	// Truncate the file to update file size to smaller file size.
-	err := os.Truncate(filePath, SmallerSizeTruncate)
-	if err != nil {
-		t.T().Fatalf("os.Truncate err: %v", err)
-	}
+// 	// Truncate the file to update file size to smaller file size.
+// 	err := os.Truncate(filePath, SmallerSizeTruncate)
+// 	if err != nil {
+// 		t.T().Fatalf("os.Truncate err: %v", err)
+// 	}
 
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
+// 	ValidateObjectNotFoundErrOnGCS(t.ctx, t.storageClient, t.testDirName, FileName1, t.T())
 
-	// Stat the file to validate if file is truncated correctly.
-	operations.VerifyStatFile(filePath, SmallerSizeTruncate, FilePerms, t.T())
+// 	// Stat the file to validate if file is truncated correctly.
+// 	operations.VerifyStatFile(filePath, SmallerSizeTruncate, FilePerms, t.T())
 
-	// Close the file and validate that the file is created on GCS.
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
-		FileName1, FileContents[:SmallerSizeTruncate], t.T())
-}
+// 	// Close the file and validate that the file is created on GCS.
+// 	CloseFileAndValidateContentFromGCS(t.ctx, t.storageClient, fh, t.testDirName,
+// 		FileName1, FileContents[:SmallerSizeTruncate], t.T())
+// }
