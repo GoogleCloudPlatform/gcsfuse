@@ -154,7 +154,7 @@ func WriteToObject(ctx context.Context, client *storage.Client, object, content 
 	}
 
 	// Upload an object with storage.Writer.
-	wc, err := NewWriterExt(ctx, o, client)
+	wc, err := NewWriterWithSupportForZB(ctx, o, client)
 	if err != nil {
 		return fmt.Errorf("Failed to open writer for object %q: %w", o.ObjectName(), err)
 	}
@@ -304,7 +304,7 @@ func StatObject(ctx context.Context, client *storage.Client, object string) (*st
 func UploadGcsObject(ctx context.Context, client *storage.Client, localPath, bucketName, objectName string, uploadGzipEncoded bool) error {
 	// Create a writer to upload the object.
 	obj := client.Bucket(bucketName).Object(objectName)
-	w, err := NewWriterExt(ctx, obj, client)
+	w, err := NewWriterWithSupportForZB(ctx, obj, client)
 	defer func() {
 		if err := w.Close(); err != nil {
 			log.Printf("Failed to close GCS object gs://%s/%s: %v", bucketName, objectName, err)

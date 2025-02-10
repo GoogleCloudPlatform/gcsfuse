@@ -75,7 +75,7 @@ func createTestDataForReadOnlyTests(ctx context.Context, storageClient *storage.
 		filePath := path.Join(dirPath, file.filePath)
 		// Create a storage writer for the destination object
 		object := bucketHandle.Object(filePath)
-		writer, err := client.NewWriterExt(ctx, object, storageClient)
+		writer, err := client.NewWriterWithSupportForZB(ctx, object, storageClient)
 		if err != nil {
 			return fmt.Errorf("Error opening writer for object %s: %w\n", file.filePath, err)
 		}
