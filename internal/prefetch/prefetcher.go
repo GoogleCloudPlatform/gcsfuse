@@ -27,6 +27,10 @@ import (
 	"golang.org/x/net/context"
 )
 
+const (
+	min_prefetch = 10
+)
+
 type PrefetchConfig struct {
 	PrefetchCount     int64
 	PrefetchChunkSize int64
@@ -196,7 +200,7 @@ func (p *PrefetchReader) findBlock(ctx context.Context, offset int64) (*Block, e
 		switch t {
 		case BlockStatusDownloaded:
 			block.flags.Clear(BlockFlagDownloading)
-
+			p.addToCookedBlocks(block)
 			if p.randomSeekCount < 2 {
 				if uint64(p.nextBlockToPrefetch*p.PrefetchConfig.PrefetchChunkSize) < p.object.Size {
 					err := p.fetch(ctx, p.nextBlockToPrefetch, true)
@@ -226,7 +230,7 @@ func (p *PrefetchReader) fetch(ctx context.Context, blockIndex int64, prefetch b
 	currentBlockCnt := p.cookingBlocks.Len() + p.cookedBlocks.Len()
 	newlyCreatedBlockCnt := int(0)
 
-	for ; currentBlockCnt < int(p.PrefetchConfig.PrefetchCount) && newlyCreatedBlockCnt < 10; currentBlockCnt++ {
+	for ; currentBlockCnt < int(p.PrefetchConfig.PrefetchCount) && newlyCreatedBlockCnt < min_prefetch; currentBlockCnt++ {
 		block := p.blockPool.MustGet()
 		if block != nil {
 			block.node = p.cookedBlocks.PushFront(block)
@@ -249,6 +253,8 @@ func (p *PrefetchReader) fetch(ctx context.Context, blockIndex int64, prefetch b
 				return
 			}
 			blockIndex++
+		} else {
+			logger.Warnf("Not expected")
 		}
 	}
 
