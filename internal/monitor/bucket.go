@@ -231,9 +231,7 @@ type monitoringReadCloser struct {
 
 func (mrc *monitoringReadCloser) Read(p []byte) (n int, err error) {
 	n, err = mrc.wrapped.Read(p)
-	if err == nil || err == io.EOF {
-		mrc.metricHandle.GCSReadBytesCount(mrc.ctx, int64(n))
-	}
+	mrc.metricHandle.GCSReadBytesCount(mrc.ctx, int64(n))
 	return
 }
 
