@@ -457,6 +457,7 @@ func (rr *randomReader) readFull(
 
 	// Call through.
 	n, err = io.ReadFull(rr.reader, p)
+	rr.metricHandle.GCSReadBytesCount(ctx, int64(n))
 
 	return
 }
