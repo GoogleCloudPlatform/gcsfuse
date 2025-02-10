@@ -51,7 +51,6 @@ type localFileTestSuite struct {
 }
 
 func (t *localFileTestSuite) SetupSuite() {
-	log.Println("Setting up suite")
 	t.ctx = context.Background()
 	t.CloseStorageClient = CreateStorageClientWithCancel(&t.ctx, &t.storageClient)
 	if !testing.Short() {
@@ -100,7 +99,6 @@ func (t *localFileTestSuite) TearDownSuite() {
 }
 
 func (t *localFileTestSuite) SetupTest() {
-	log.Println("Setting up test")
 	t.testDirPath = setup.SetupTestDirectory(t.testDirName)
 	t.filePath, t.fh = CreateLocalFileInTestDir(t.ctx, t.storageClient, t.testDirPath, FileName1, t.T())
 }
