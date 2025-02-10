@@ -22,22 +22,17 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 )
 
-// Various flags denoting state of a block
+// State of the block.
 const (
 	BlockFlagFresh       uint16 = iota
 	BlockFlagDownloading        // Block is being downloaded
-	BlockFlagUploading          // Block is being uploaded
-	BlockFlagDirty              // Block has been written and data is not persisted yet
-	BlockFlagSynced             // Block has been written and data is persisted
 	BlockFlagFailed             // Block upload/download has failed
 )
 
-// Flags to denote the status of upload/download of a block
+// State of the download.
 const (
 	BlockStatusDownloaded     int = iota + 1 // Download of this block is complete
-	BlockStatusUploaded                      // Upload of this block is complete
 	BlockStatusDownloadFailed                // Download of this block has failed
-	BlockStatusUploadFailed                  // Upload of this block has failed
 )
 
 type BitMap16 uint16
@@ -56,20 +51,14 @@ func (bm *BitMap16) Reset() { *bm = 0 }
 
 // Block is a memory mapped buffer with its state to hold data
 type Block struct {
-	offset uint64          // Start offset of the data this block holds
-	id     int64           // Id of the block i.e. (offset / block size)
-	state  chan int        // Channel depicting data has been read for this block or not
-	flags  BitMap16 // Various states of the block
-	data   []byte          // Data read from blob
-	node   *list.Element   // node representation of this block in the list inside prefetcher
+	offset uint64        // Start offset of the data this block holds
+	id     int64         // Id of the block i.e. (offset / block size)
+	state  chan int      // Channel depicting data has been read for this block or not
+	flags  BitMap16      // Various states of the block
+	data   []byte        // Data read from blob
+	node   *list.Element // node representation of this block in the list inside prefetcher
 
 	endOffset uint64 // End offset of the data this block holds
-}
-
-type blockInfo struct {
-	id        string // blockID of the block
-	committed bool   // flag to determine if the block has been committed or not
-	size      uint64 // length of data in block
 }
 
 // AllocateBlock creates a new memory mapped buffer for the given size
@@ -116,8 +105,8 @@ func (b *Block) Delete() error {
 }
 
 func (b *Block) Write(bytes []byte) (n int, err error) {
-	if b.endOffset + uint64(len(bytes)) > uint64(cap(b.data)) {
-		// Add info log to print above value, just info log 
+	if b.endOffset+uint64(len(bytes)) > uint64(cap(b.data)) {
+		// Add info log to print above value, just info log
 		logger.Infof("Write: b.endOffset: %d, b.offset: %d, len(bytes): %d, cap(b.data): %d", b.endOffset, b.offset, len(bytes), cap(b.data))
 
 		return 0, fmt.Errorf("received data more than capacity of the block")
@@ -132,18 +121,12 @@ func (b *Block) Write(bytes []byte) (n int, err error) {
 	return n, nil
 }
 
-
 // ReUse reinits the Block by recreating its channel
 func (b *Block) ReUse() {
 	b.id = -1
 	b.offset = 0
 	b.flags.Reset()
 	b.flags.Set(BlockFlagFresh)
-	b.state = make(chan int, 1)
-}
-
-// Uploading marks buffer is under upload
-func (b *Block) Uploading() {
 	b.state = make(chan int, 1)
 }
 
@@ -160,21 +143,6 @@ func (b *Block) Ready(val int) {
 // Unblock marks this Block is ready to be read in parllel now
 func (b *Block) Unblock() {
 	close(b.state)
-}
-
-// Mark this block as dirty as it has been modified
-func (b *Block) Dirty() {
-	b.flags.Set(BlockFlagDirty)
-}
-
-// Mark this block as dirty as it has been modified
-func (b *Block) NoMoreDirty() {
-	b.flags.Clear(BlockFlagDirty)
-}
-
-// Check if this block has been modified or not
-func (b *Block) IsDirty() bool {
-	return b.flags.IsSet(BlockFlagDirty)
 }
 
 // Mark this block as failed
