@@ -130,10 +130,12 @@ func ReadChunkFromGCS(ctx context.Context, client *storage.Client, object string
 
 func NewWriterExt(ctx context.Context, o *storage.ObjectHandle, client *storage.Client) *storage.Writer {
 	wc := o.NewWriter(ctx)
-	if setup.IsZonalBucketRun() {
-		attrs, _ := client.Bucket(o.BucketName()).Attrs(ctx)
-		if attrs.StorageClass == "RAPID" {
+	attrs, _ := client.Bucket(o.BucketName()).Attrs(ctx)
+	if attrs.StorageClass == "RAPID" {
+		if setup.IsZonalBucketRun() {
 			wc.Append = true
+		} else {
+			panic(fmt.Sprintf("Found zonal bucket %q in non-zonal e2e test run (--zonal=false)", o.BucketName()))
 		}
 	}
 	return wc
