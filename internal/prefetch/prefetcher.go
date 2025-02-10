@@ -22,33 +22,27 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
 
-type prefetchConfig struct {
-	prefetchCount      int64
-	prefetchChunkSize  int64
-	prefetchMultiplier int64
-
-	// Fast forward without reading.
-	fastForwardBytes int64
+type PrefetchConfig struct {
+	PrefetchCount     int64
+	PrefetchChunkSize int64
 }
 
-func getDefaultPrefetchConfig() *prefetchConfig {
-	return &prefetchConfig{
-		prefetchCount:      6,
-		prefetchChunkSize:  8 * int64(_1MB),
-		prefetchMultiplier: 2,
+func getDefaultPrefetchConfig() *PrefetchConfig {
+	return &PrefetchConfig{
+		PrefetchCount:     6,
+		PrefetchChunkSize: 8 * int64(_1MB),
 	}
 }
 
-type prefetchReader struct {
+type PrefetchReader struct {
 	object              *gcs.MinObject
 	bucket              gcs.Bucket
-	prefetchConfig      *prefetchConfig
+	PrefetchConfig      *PrefetchConfig
 	lastReadOffset      int64
 	nextBlockToPrefetch int64
 
@@ -67,11 +61,11 @@ type prefetchReader struct {
 	metricHandle common.MetricHandle
 }
 
-func NewPrefetchReader(object *gcs.MinObject, bucket gcs.Bucket, prefetchConfig *prefetchConfig, blockPool *BlockPool, threadPool *ThreadPool) *prefetchReader {
-	return &prefetchReader{
+func NewPrefetchReader(object *gcs.MinObject, bucket gcs.Bucket, PrefetchConfig *PrefetchConfig, blockPool *BlockPool, threadPool *ThreadPool) *PrefetchReader {
+	return &PrefetchReader{
 		object:              object,
 		bucket:              bucket,
-		prefetchConfig:      prefetchConfig,
+		PrefetchConfig:      PrefetchConfig,
 		lastReadOffset:      -1,
 		nextBlockToPrefetch: 0,
 		randomSeekCount:     0,
@@ -90,7 +84,7 @@ func NewPrefetchReader(object *gcs.MinObject, bucket gcs.Bucket, prefetchConfig 
  * If it is, it reads the data from the block.
  * If it is not, it downloads the block from GCS and then reads the data from the block.
  */
-func (p *prefetchReader) ReadAt(ctx context.Context, inputBuffer []byte, offset int64) (objectData gcsx.ObjectData, err error) {
+func (p *PrefetchReader) ReadAt(ctx context.Context, inputBuffer []byte, offset int64) (n int64, err error) {
 	// Generate an unique id in the request
 	requestId := uuid.New()
 	stime := time.Now()
@@ -105,12 +99,6 @@ func (p *prefetchReader) ReadAt(ctx context.Context, inputBuffer []byte, offset 
 		}
 	}()
 
-	objectData = gcsx.ObjectData{
-		DataBuf:  inputBuffer,
-		CacheHit: false,
-		Size:     0,
-	}
-
 	if offset >= int64(p.object.Size) {
 		err = io.EOF
 		return
@@ -118,13 +106,14 @@ func (p *prefetchReader) ReadAt(ctx context.Context, inputBuffer []byte, offset 
 
 	dataRead := int(0)
 	for dataRead < len(inputBuffer) {
-		block, err := p.findBlock(ctx, offset)
+		var block *Block
+		block, err = p.findBlock(ctx, offset)
 		if err != nil {
-			return objectData, err
+			return n, err
 		}
 
 		readOffset := uint64(offset) - block.offset
-		blockSize := GetBlockSize(block, uint64(p.prefetchConfig.prefetchChunkSize), uint64(p.object.Size))
+		blockSize := GetBlockSize(block, uint64(p.PrefetchConfig.PrefetchChunkSize), uint64(p.object.Size))
 
 		bytesRead := copy(inputBuffer[dataRead:], block.data[readOffset:blockSize])
 
@@ -132,12 +121,17 @@ func (p *prefetchReader) ReadAt(ctx context.Context, inputBuffer []byte, offset 
 		offset += int64(bytesRead)
 
 		if offset >= int64(p.object.Size) {
-			objectData.Size = dataRead
-			return objectData, io.EOF
+			n = int64(dataRead)
+			err = io.EOF
+			return
+		}
+
+		if bytesRead == 0 {
+			n = int64(dataRead)
+			return n, io.EOF
 		}
 	}
-
-	objectData.Size = dataRead
+	n = int64(dataRead)
 	return
 }
 
@@ -147,8 +141,8 @@ func (p *prefetchReader) ReadAt(ctx context.Context, inputBuffer []byte, offset 
  * If it is, it returns the block.
  * If it is not, it downloads the block from GCS and then returns.
  */
-func (p *prefetchReader) findBlock(ctx context.Context, offset int64) (*Block, error) {
-	blockIndex := offset / p.prefetchConfig.prefetchChunkSize
+func (p *PrefetchReader) findBlock(ctx context.Context, offset int64) (*Block, error) {
+	blockIndex := offset / p.PrefetchConfig.PrefetchChunkSize
 	logger.Tracef("findBlock: <- (%s, %d)", p.object.Name, offset)
 
 	entry, ok := p.blockIndexMap[blockIndex]
@@ -185,7 +179,7 @@ func (p *prefetchReader) findBlock(ctx context.Context, offset int64) (*Block, e
 			block.flags.Clear(BlockFlagDownloading)
 
 			if p.randomSeekCount < 2 {
-				if uint64(p.nextBlockToPrefetch*p.prefetchConfig.prefetchChunkSize) < p.object.Size {
+				if uint64(p.nextBlockToPrefetch*p.PrefetchConfig.PrefetchChunkSize) < p.object.Size {
 					err := p.fetch(ctx, p.nextBlockToPrefetch, true)
 					if err != nil && err != io.EOF {
 						return nil, err
@@ -203,13 +197,13 @@ func (p *prefetchReader) findBlock(ctx context.Context, offset int64) (*Block, e
 	return block, nil
 }
 
-func (p *prefetchReader) fetch(ctx context.Context, blockIndex int64, prefetch bool) (err error) {
+func (p *PrefetchReader) fetch(ctx context.Context, blockIndex int64, prefetch bool) (err error) {
 	logger.Tracef("fetch: <- block (%s, %d, %v)", p.object.Name, blockIndex, prefetch)
 
 	currentBlockCnt := p.cookingBlocks.Len() + p.cookedBlocks.Len()
 	newlyCreatedBlockCnt := int(0)
 
-	for ; currentBlockCnt < int(p.prefetchConfig.prefetchCount) && newlyCreatedBlockCnt < 4; currentBlockCnt++ {
+	for ; currentBlockCnt < int(p.PrefetchConfig.PrefetchCount) && newlyCreatedBlockCnt < 4; currentBlockCnt++ {
 		block := p.blockPool.MustGet()
 		if block != nil {
 			block.node = p.cookedBlocks.PushFront(block)
@@ -239,8 +233,8 @@ func (p *prefetchReader) fetch(ctx context.Context, blockIndex int64, prefetch b
 }
 
 // refreshBlock refreshes a block by scheduling the block to thread-pool to download.
-func (p *prefetchReader) refreshBlock(ctx context.Context, blockIndex int64, prefetch bool) error {
-	offset := blockIndex * p.prefetchConfig.prefetchChunkSize
+func (p *PrefetchReader) refreshBlock(ctx context.Context, blockIndex int64, prefetch bool) error {
+	offset := blockIndex * p.PrefetchConfig.PrefetchChunkSize
 	if uint64(offset) >= p.object.Size {
 		return io.EOF
 	}
@@ -277,8 +271,8 @@ func (p *prefetchReader) refreshBlock(ctx context.Context, blockIndex int64, pre
 /**
  * scheduleBlock schedules a block for download
  */
-func (p *prefetchReader) scheduleBlock(ctx context.Context, block *Block, prefetch bool) {
-	task := &prefetchTask{
+func (p *PrefetchReader) scheduleBlock(ctx context.Context, block *Block, prefetch bool) {
+	task := &PrefetchTask{
 		ctx:      ctx,
 		object:   p.object,
 		bucket:   p.bucket,
@@ -296,7 +290,7 @@ func (p *prefetchReader) scheduleBlock(ctx context.Context, block *Block, prefet
 	p.threadPool.Schedule(!prefetch, task)
 }
 
-func (p *prefetchReader) addToCookedBlocks(block *Block) {
+func (p *PrefetchReader) addToCookedBlocks(block *Block) {
 	if block.node != nil {
 		p.cookedBlocks.Remove(block.node)
 		p.cookingBlocks.Remove(block.node)
@@ -305,7 +299,7 @@ func (p *prefetchReader) addToCookedBlocks(block *Block) {
 	block.node = p.cookedBlocks.PushBack(block)
 }
 
-func (p *prefetchReader) addToCookingBlocks(block *Block) {
+func (p *PrefetchReader) addToCookingBlocks(block *Block) {
 	if block.node != nil {
 		_ = p.cookedBlocks.Remove(block.node)
 		_ = p.cookingBlocks.Remove(block.node)
@@ -314,7 +308,7 @@ func (p *prefetchReader) addToCookingBlocks(block *Block) {
 	block.node = p.cookingBlocks.PushBack(block)
 }
 
-func (p *prefetchReader) Destroy() {
+func (p *PrefetchReader) Destroy() {
 	// Release the buffers which are still under download after they have been written
 	blockList := p.cookingBlocks
 	node := blockList.Front()

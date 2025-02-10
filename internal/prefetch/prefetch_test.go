@@ -24,7 +24,7 @@ type prefetchTestSuite struct {
 	assert         *assert.Assertions
 	threadPool     *ThreadPool
 	blockPool      *BlockPool
-	prefetchReader *prefetchReader
+	PrefetchReader *PrefetchReader
 
 	fakeStorage storage.FakeStorage
 	object      gcs.MinObject
@@ -49,7 +49,7 @@ func (ps *prefetchTestSuite) SetupSuite() {
 	ps.assert = assert.New(ps.T())
 
 	// Thread pool.
-	ps.threadPool = newThreadPool(4, Download)
+	ps.threadPool = NewThreadPool(4, Download)
 	ps.threadPool.Start()
 
 	// Block pool.
@@ -82,41 +82,41 @@ func (ps *prefetchTestSuite) TearDownSuite() {
 
 func (ps *prefetchTestSuite) TestNewPrefetchReader() {
 	// Create a prefetch reader
-	prefetchReader := NewPrefetchReader(&ps.object, ps.bucket, getDefaultPrefetchConfig(), ps.blockPool, ps.threadPool)
+	PrefetchReader := NewPrefetchReader(&ps.object, ps.bucket, getDefaultPrefetchConfig(), ps.blockPool, ps.threadPool)
 
 	// Assert that the prefetch reader is not nil
-	ps.assert.NotNil(prefetchReader)
+	ps.assert.NotNil(PrefetchReader)
 
 	// Assert that the object, bucket, and prefetch config are set correctly
-	ps.assert.Equal(prefetchReader.object, &ps.object)
-	ps.assert.Equal(prefetchReader.bucket, ps.bucket)
-	ps.assert.NotNil(prefetchReader.prefetchConfig)
+	ps.assert.Equal(PrefetchReader.object, &ps.object)
+	ps.assert.Equal(PrefetchReader.bucket, ps.bucket)
+	ps.assert.NotNil(PrefetchReader.PrefetchConfig)
 
 	// Assert that the other fields are initialized correctly
-	ps.assert.Equal(prefetchReader.lastReadOffset, int64(-1))
-	ps.assert.Equal(prefetchReader.nextBlockToPrefetch, int64(0))
-	ps.assert.Equal(prefetchReader.randomSeekCount, int64(0))
-	ps.assert.NotNil(prefetchReader.cookedBlocks)
-	ps.assert.NotNil(prefetchReader.cookingBlocks)
-	ps.assert.NotNil(prefetchReader.blockIndexMap)
-	ps.assert.Nil(prefetchReader.readHandle)
-	ps.assert.Equal(prefetchReader.blockPool, ps.blockPool)
-	ps.assert.Equal(prefetchReader.threadPool, ps.threadPool)
-	ps.assert.Nil(prefetchReader.metricHandle)
+	ps.assert.Equal(PrefetchReader.lastReadOffset, int64(-1))
+	ps.assert.Equal(PrefetchReader.nextBlockToPrefetch, int64(0))
+	ps.assert.Equal(PrefetchReader.randomSeekCount, int64(0))
+	ps.assert.NotNil(PrefetchReader.cookedBlocks)
+	ps.assert.NotNil(PrefetchReader.cookingBlocks)
+	ps.assert.NotNil(PrefetchReader.blockIndexMap)
+	ps.assert.Nil(PrefetchReader.readHandle)
+	ps.assert.Equal(PrefetchReader.blockPool, ps.blockPool)
+	ps.assert.Equal(PrefetchReader.threadPool, ps.threadPool)
+	ps.assert.Nil(PrefetchReader.metricHandle)
 
 	// Destroy the prefetch reader
-	prefetchReader.Destroy()
+	PrefetchReader.Destroy()
 }
 
 func (ps *prefetchTestSuite) TestSequentialRead() {
-	prefetchReader := NewPrefetchReader(&ps.object, ps.bucket, getDefaultPrefetchConfig(), ps.blockPool, ps.threadPool)
+	PrefetchReader := NewPrefetchReader(&ps.object, ps.bucket, getDefaultPrefetchConfig(), ps.blockPool, ps.threadPool)
 
 	buffer := make([]byte, _1MB)
 	offset := int64(0)
 	for offset = int64(0); offset < int64(100*_1MB); offset += int64(len(buffer)) {
-		objectData, err := prefetchReader.ReadAt(context.Background(), buffer, offset)
+		n, err := PrefetchReader.ReadAt(context.Background(), buffer, offset)
 		ps.assert.True(err == nil || err == io.EOF)
-		ps.assert.Equal(len(buffer), int(objectData.Size))
+		ps.assert.Equal(len(buffer), int(n))
 	}
 	ps.assert.Equal(offset, int64(100*_1MB))
 }

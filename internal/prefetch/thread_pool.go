@@ -16,6 +16,8 @@ package prefetch
 
 import (
 	"sync"
+
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 )
 
 // ThreadPool is a group of workers that can be used to execute a task
@@ -30,15 +32,16 @@ type ThreadPool struct {
 	wg sync.WaitGroup
 
 	// Channel to hold pending requests
-	priorityCh chan *prefetchTask
-	normalCh   chan *prefetchTask
+	priorityCh chan *PrefetchTask
+	normalCh   chan *PrefetchTask
 
 	// Reader method that will actually read the data
-	download func(*prefetchTask)
+	download func(*PrefetchTask)
 }
 
 // newThreadPool creates a new thread pool
-func newThreadPool(count uint32, download func(*prefetchTask)) *ThreadPool {
+func NewThreadPool(count uint32, download func(*PrefetchTask)) *ThreadPool {
+	logger.Infof("Threadpool: creating with worker: %d", count)
 	if count == 0 || download == nil {
 		return nil
 	}
@@ -47,8 +50,8 @@ func newThreadPool(count uint32, download func(*prefetchTask)) *ThreadPool {
 		worker:     count,
 		download:   download,
 		close:      make(chan int, count),
-		priorityCh: make(chan *prefetchTask, count*2),
-		normalCh:   make(chan *prefetchTask, count*5000),
+		priorityCh: make(chan *PrefetchTask, count*2),
+		normalCh:   make(chan *PrefetchTask, count*5000),
 	}
 }
 
@@ -77,7 +80,7 @@ func (t *ThreadPool) Stop() {
 }
 
 // Schedule the download of a block
-func (t *ThreadPool) Schedule(urgent bool, item *prefetchTask) {
+func (t *ThreadPool) Schedule(urgent bool, item *PrefetchTask) {
 	// urgent specifies the priority of this task.
 	// true means high priority and false means low priority
 	if urgent {
