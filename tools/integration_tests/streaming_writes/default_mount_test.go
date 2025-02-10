@@ -17,7 +17,6 @@ package streaming_writes
 import (
 	"os"
 
-	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/local_file"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_suite"
 )

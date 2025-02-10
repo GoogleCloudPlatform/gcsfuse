@@ -23,10 +23,9 @@ import (
 
 	"cloud.google.com/go/compute/metadata"
 	"cloud.google.com/go/storage"
-	"google.golang.org/api/iterator"
-
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"google.golang.org/api/iterator"
 )
 
 // Adding prefix `golang-grpc-test` to white list the bucket for grpc so that
@@ -101,6 +100,10 @@ func executeTestsForDynamicMounting(flags [][]string, m *testing.M) (successCode
 	// Setting back the original mntDir after testing.
 	setup.SetMntDir(rootMntDir)
 	return
+}
+
+func GetTestBucketNameForDynamicMounting() string {
+	return testBucketForDynamicMounting
 }
 
 func CreateTestBucketForDynamicMounting(ctx context.Context, client *storage.Client) (bucketName string) {

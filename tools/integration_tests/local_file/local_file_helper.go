@@ -29,7 +29,8 @@ const (
 )
 
 var (
-	MountFunc func([]string) error
+	MountFunc  func([]string) error
+	rootMntDir string
 )
 
 ////////////////////////////////////////////////////////////////////////

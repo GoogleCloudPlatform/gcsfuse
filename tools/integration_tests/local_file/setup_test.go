@@ -17,13 +17,13 @@
 package local_file
 
 import (
-	"context"
 	"log"
 	"os"
-	"path"
 	"testing"
 
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/dynamic_mounting"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/suite"
@@ -48,53 +48,50 @@ func TestMain(m *testing.M) {
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()
 
-	// Set up flags to run tests on local file test suite.
-	// Not setting config file explicitly with 'create-empty-file: false' as it is default.
-	flagsSet := [][]string{
-		{"--implicit-dirs=true", "--rename-dir-limit=3"},
-		{"--implicit-dirs=false", "--rename-dir-limit=3"}}
-
-	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
-		flagsSet = append(flagsSet, hnsFlagSet)
+	log.Println("Running static mounting tests...")
+	MountFunc = static_mounting.MountGcsfuseWithStaticMounting
+	successCode := m.Run()
+	if successCode == 0 {
+		log.Println("Running only dir mounting tests...")
+		setup.SetOnlyDirMounted(onlyDirMounted)
+		MountFunc = only_dir_mounting.MountGcsfuseWithOnlyDir
+		successCode = m.Run()
+		setup.SetOnlyDirMounted("")
 	}
 
-	if !testing.Short() {
-		setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--client-protocol=grpc")
+	// Dynamic mounting tests create a bucket and perform tests on that bucket,
+	// which is not a hierarchical bucket. So we skip these tests in setupSuite
+	//if we find the bucket is not hierarchical.
+	if successCode == 0 {
+		MountFunc = dynamic_mounting.MountGcsfuseWithDynamicMounting
+		log.Printf("Running dynamic mounting tests for test bucket [%v]...", setup.TestBucket())
+		// SetDynamicBucketMounted to the passed test bucket.
+		setup.SetDynamicBucketMounted(setup.TestBucket())
+		successCode = m.Run()
+		if successCode == 0 {
+			log.Printf("Running dynamic mounting tests for created test bucket [%v]...", dynamic_mounting.GetTestBucketNameForDynamicMounting())
+			// SetDynamicBucketMounted to the passed test bucket.
+			setup.SetDynamicBucketMounted(dynamic_mounting.GetTestBucketNameForDynamicMounting())
+			successCode = m.Run()
+		}
+		// Reset SetDynamicBucketMounted to empty after tests are done.
+		setup.SetDynamicBucketMounted("")
 	}
-
-	successCode := static_mounting.RunTests(flagsSet, m)
-
-	// if successCode == 0 {
-	// 	successCode = only_dir_mounting.RunTests(flagsSet, onlyDirMounted, m)
-	// }
-
-	// // Dynamic mounting tests create a bucket and perform tests on that bucket,
-	// // which is not a hierarchical bucket. So we are not running those tests with
-	// // hierarchical bucket.
-	// if successCode == 0 && !setup.IsHierarchicalBucket(ctx, storageClient) {
-	// 	successCode = dynamic_mounting.RunTests(ctx, storageClient, flagsSet, m)
-	// }
-	// m.Run()
 	os.Exit(successCode)
 }
 
-func (t *localFileTestSuite) SetupSuite() {
-	t.ctx = context.Background()
-	t.CloseStorageClient = CreateStorageClientWithCancel(&t.ctx, &t.storageClient)
+func TestLocalFileTestSuiteWithImplicitDir(t *testing.T) {
+	s := new(localFileTestSuite)
+	s.CommonLocalFileTestSuite.TestifySuite = &s.Suite
+	s.CommonLocalFileTestSuite.flags = []string{"--implicit-dirs=true", "--rename-dir-limit=3"}
+	s.CommonLocalFileTestSuite.testDirName = LocalFileTestDirName
+	suite.Run(t, s)
 }
 
-func (t *localFileTestSuite) TearDownSuite() {
-	// Clean up test directory created.
-	setup.CleanupDirectoryOnGCS(t.ctx, t.storageClient, path.Join(setup.TestBucket(), LocalFileTestDirName))
-	// Close storage client.
-	err := t.CloseStorageClient()
-	if err != nil {
-		log.Fatalf("closeStorageClient failed: %v", err)
-	}
-}
-func TestLocalFileTestSuite(t *testing.T) {
+func TestLocalFileTestSuiteWithoutImplicitDir(t *testing.T) {
 	s := new(localFileTestSuite)
-	s.CommonLocalFileTestSuite.flags = []string{"--implicit-dirs=true", "--rename-dir-limit=3"}
 	s.CommonLocalFileTestSuite.TestifySuite = &s.Suite
+	s.CommonLocalFileTestSuite.flags = []string{"--implicit-dirs=false", "--rename-dir-limit=3"}
+	s.CommonLocalFileTestSuite.testDirName = LocalFileTestDirName
 	suite.Run(t, s)
 }
