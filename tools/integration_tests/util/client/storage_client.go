@@ -128,17 +128,21 @@ func ReadChunkFromGCS(ctx context.Context, client *storage.Client, object string
 	return string(content), nil
 }
 
-func NewWriterExt(ctx context.Context, o *storage.ObjectHandle, client *storage.Client) *storage.Writer {
-	wc := o.NewWriter(ctx)
-	attrs, _ := client.Bucket(o.BucketName()).Attrs(ctx)
+func NewWriterWithSupportForZB(ctx context.Context, o *storage.ObjectHandle, client *storage.Client) (wc *storage.Writer, err error) {
+	var attrs *storage.BucketAttrs
+	wc = o.NewWriter(ctx)
+	attrs, err = client.Bucket(o.BucketName()).Attrs(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get attributes for bucket %q: %w", o.BucketName(), err)
+	}
 	if attrs.StorageClass == "RAPID" {
 		if setup.IsZonalBucketRun() {
 			wc.Append = true
 		} else {
-			panic(fmt.Sprintf("Found zonal bucket %q in non-zonal e2e test run (--zonal=false)", o.BucketName()))
+			return nil, fmt.Errorf("Found zonal bucket %q in non-zonal e2e test run (--zonal=false)", o.BucketName())
 		}
 	}
-	return wc
+	return
 }
 
 func WriteToObject(ctx context.Context, client *storage.Client, object, content string, precondition storage.Conditions) error {
@@ -150,7 +154,10 @@ func WriteToObject(ctx context.Context, client *storage.Client, object, content 
 	}
 
 	// Upload an object with storage.Writer.
-	wc := NewWriterExt(ctx, o, client)
+	wc, err := NewWriterExt(ctx, o, client)
+	if err != nil {
+		return fmt.Errorf("Failed to open writer for object %q: %w", o.ObjectName(), err)
+	}
 	if _, err := io.WriteString(wc, content); err != nil {
 		return fmt.Errorf("io.WriteSTring: %w", err)
 	}
@@ -297,7 +304,7 @@ func StatObject(ctx context.Context, client *storage.Client, object string) (*st
 func UploadGcsObject(ctx context.Context, client *storage.Client, localPath, bucketName, objectName string, uploadGzipEncoded bool) error {
 	// Create a writer to upload the object.
 	obj := client.Bucket(bucketName).Object(objectName)
-	w := NewWriterExt(ctx, obj, client)
+	w, err := NewWriterExt(ctx, obj, client)
 	defer func() {
 		if err := w.Close(); err != nil {
 			log.Printf("Failed to close GCS object gs://%s/%s: %v", bucketName, objectName, err)

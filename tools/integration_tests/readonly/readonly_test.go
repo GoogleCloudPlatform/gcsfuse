@@ -17,6 +17,7 @@ package readonly_test
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"path"
@@ -55,7 +56,7 @@ var (
 	cacheDir      string
 )
 
-func createTestDataForReadOnlyTests(ctx context.Context, storageClient *storage.Client) {
+func createTestDataForReadOnlyTests(ctx context.Context, storageClient *storage.Client) error {
 	// Define the text to write and the files to create
 	files := []struct {
 		fileContent string
@@ -74,17 +75,23 @@ func createTestDataForReadOnlyTests(ctx context.Context, storageClient *storage.
 		filePath := path.Join(dirPath, file.filePath)
 		// Create a storage writer for the destination object
 		object := bucketHandle.Object(filePath)
-		writer := client.NewWriterExt(ctx, object, storageClient)
+		writer, err := client.NewWriterExt(ctx, object, storageClient)
+		if err != nil {
+			return fmt.Errorf("Error opening writer for object %s: %w\n", file.filePath, err)
+		}
 
 		// Write the text to the object
-		if _, err := writer.Write([]byte(file.fileContent + "\n")); err != nil {
+		if _, err = writer.Write([]byte(file.fileContent + "\n")); err != nil {
 			log.Printf("Error writing to object %s: %v\n", file.filePath, err)
 		}
-		err := writer.Close()
+		err = writer.Close()
 		if err != nil {
 			log.Printf("Error in closing writer: %v", err)
+			return err
 		}
 	}
+
+	return nil
 }
 
 func checkErrorForObjectNotExist(err error, t *testing.T) {
@@ -139,7 +146,10 @@ func TestMain(m *testing.M) {
 	}
 
 	// Create test data.
-	createTestDataForReadOnlyTests(ctx, storageClient)
+	if err := createTestDataForReadOnlyTests(ctx, storageClient); err != nil {
+		log.Printf("Failed creating test data for readonly tests: %v", err)
+		os.Exit(1)
+	}
 
 	// Run tests for mountedDirectory only if --mountedDirectory flag is set.
 	setup.RunTestsForMountedDirectoryFlag(m)
