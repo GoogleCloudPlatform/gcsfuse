@@ -59,10 +59,20 @@ type PrefetchReader struct {
 	threadPool *ThreadPool
 
 	metricHandle common.MetricHandle
+
+	// Create a cancellable context and cancellable function 
+	cancelFunc context.CancelFunc
+	ctx context.Context
+}
+
+func (p *PrefetchReader) Close() error {
+	p.Destroy()
+	return nil
+
 }
 
 func NewPrefetchReader(object *gcs.MinObject, bucket gcs.Bucket, PrefetchConfig *PrefetchConfig, blockPool *BlockPool, threadPool *ThreadPool) *PrefetchReader {
-	return &PrefetchReader{
+	prefetchReader := &PrefetchReader{
 		object:              object,
 		bucket:              bucket,
 		PrefetchConfig:      PrefetchConfig,
@@ -75,7 +85,11 @@ func NewPrefetchReader(object *gcs.MinObject, bucket gcs.Bucket, PrefetchConfig 
 		blockPool:           blockPool,
 		threadPool:          threadPool,
 		metricHandle:        nil,
+		
 	}
+
+	prefetchReader.ctx, prefetchReader.cancelFunc = context.WithCancel(context.Background())
+	return prefetchReader
 }
 
 /**
@@ -88,14 +102,15 @@ func (p *PrefetchReader) ReadAt(ctx context.Context, inputBuffer []byte, offset 
 	// Generate an unique id in the request
 	requestId := uuid.New()
 	stime := time.Now()
+	blockIndex := offset / p.PrefetchConfig.PrefetchChunkSize
 
-	logger.Infof("%.10v <- ReadAt(%d, %d).", requestId, offset, len(inputBuffer))
+	logger.Infof("%.10v <- ReadAt(%d, %d, %d).", requestId, offset, len(inputBuffer), blockIndex)
 
 	defer func() {
 		if err != nil && err != io.EOF {
-			logger.Errorf("%.10v -> ReadAt(%d, %d) with error: %v", requestId, offset, len(inputBuffer), err)
+			logger.Errorf("%.10v -> ReadAt(%d, %d, %d) with error: %v", requestId, offset, len(inputBuffer), blockIndex, err)
 		} else {
-			logger.Infof("%.10v -> ReadAt(%d, %d): ok(%v)", requestId, offset, len(inputBuffer), time.Since(stime))
+			logger.Infof("%.10v -> ReadAt(%d, %d, %d): ok(%v)", requestId, offset, len(inputBuffer), blockIndex, time.Since(stime))
 		}
 	}()
 
@@ -188,8 +203,12 @@ func (p *PrefetchReader) findBlock(ctx context.Context, offset int64) (*Block, e
 				}
 			}
 		case BlockStatusDownloadFailed:
-			logger.Errorf("findBlock: failed to download block (%s, %v, %d).", p.object.Name, block.id, offset)
 			block.flags.Set(BlockFlagFailed)
+			return nil, fmt.Errorf("findBlock: failed to download block (%s, %v, %d).", p.object.Name, block.id, offset)
+
+		case BlockStatusDownloadCancelled:
+			block.flags.Set(BlockFlagFailed)
+			return nil, fmt.Errorf("findBlock: download cancelled for block (%s, %v, %d).", p.object.Name, block.id, offset)
 		default:
 			logger.Errorf("findBlock: unknown status %d for block (%s, %v, %d)", t, p.object.Name, block.id, offset)
 		}
@@ -203,7 +222,7 @@ func (p *PrefetchReader) fetch(ctx context.Context, blockIndex int64, prefetch b
 	currentBlockCnt := p.cookingBlocks.Len() + p.cookedBlocks.Len()
 	newlyCreatedBlockCnt := int(0)
 
-	for ; currentBlockCnt < int(p.PrefetchConfig.PrefetchCount) && newlyCreatedBlockCnt < 4; currentBlockCnt++ {
+	for ; currentBlockCnt < int(p.PrefetchConfig.PrefetchCount) && newlyCreatedBlockCnt < 10; currentBlockCnt++ {
 		block := p.blockPool.MustGet()
 		if block != nil {
 			block.node = p.cookedBlocks.PushFront(block)
@@ -273,7 +292,7 @@ func (p *PrefetchReader) refreshBlock(ctx context.Context, blockIndex int64, pre
  */
 func (p *PrefetchReader) scheduleBlock(ctx context.Context, block *Block, prefetch bool) {
 	task := &PrefetchTask{
-		ctx:      ctx,
+		ctx:      p.ctx,
 		object:   p.object,
 		bucket:   p.bucket,
 		block:    block,
@@ -309,6 +328,11 @@ func (p *PrefetchReader) addToCookingBlocks(block *Block) {
 }
 
 func (p *PrefetchReader) Destroy() {
+	if p.cancelFunc != nil {
+		p.cancelFunc()
+		p.cancelFunc = nil
+	}
+
 	// Release the buffers which are still under download after they have been written
 	blockList := p.cookingBlocks
 	node := blockList.Front()

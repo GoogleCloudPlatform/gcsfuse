@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"golang.org/x/net/context"
+	"errors"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -68,18 +69,31 @@ func Download(task *PrefetchTask) {
 			ReadCompressed: task.object.HasContentEncodingGzip(),
 			ReadHandle:     nil,
 		})
+
 	if err != nil {
-		err = fmt.Errorf("downloadRange: error in creating reader(%d, %d), error: %v", start, end, err)
-		task.block.Failed()
-		task.block.Ready(BlockStatusDownloadFailed)
+		if errors.Is(err, context.Canceled) {
+			logger.Warnf("Download block (%s, %v): %v failed with context cancelled.", task.object.Name, task.blockId, err)
+			task.block.Failed()
+			task.block.Ready(BlockStatusDownloadCancelled)
+		} else {
+			err = fmt.Errorf("downloadRange: error in creating reader(%d, %d), error: %v", start, end, err)
+			task.block.Failed()
+			task.block.Ready(BlockStatusDownloadFailed)
+		}
 		return
 	}
 
 	_, err = io.CopyN(task.block, newReader, int64(end-start))
 	if err != nil {
-		err = fmt.Errorf("downloadRange: error copying the content to block: %v", err)
-		task.block.Failed()
-		task.block.Ready(BlockStatusDownloadFailed)
+		if errors.Is(err, context.Canceled) {
+			logger.Warnf("Download block (%s, %v): %v failed with context cancelled.", task.object.Name, task.blockId, err)
+			task.block.Failed()
+			task.block.Ready(BlockStatusDownloadCancelled)
+		} else {
+			err = fmt.Errorf("downloadRange: error copying the content to block: %v", err)
+			task.block.Failed()
+			task.block.Ready(BlockStatusDownloadFailed)
+		}
 		return
 	}
 
