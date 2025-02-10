@@ -16,16 +16,17 @@ package prefetch
 
 import (
 	"fmt"
-	"golang.org/x/net/context"
 	"io"
 	"time"
+
+	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 )
 
-// One prefetchTask to be scheduled
-type prefetchTask struct {
+// One PrefetchTask to be scheduled
+type PrefetchTask struct {
 	ctx      context.Context
 	object   *gcs.MinObject
 	bucket   gcs.Bucket
@@ -39,7 +40,7 @@ type prefetchTask struct {
 * download downloads a range of bytes from the object.
 * This method is used by the thread-pool scheduler.
  */
-func Download(task *prefetchTask) {
+func Download(task *PrefetchTask) {
 	logger.Infof("Download: <- block (%s, %v).", task.object.Name, task.blockId)
 	stime := time.Now()
 
