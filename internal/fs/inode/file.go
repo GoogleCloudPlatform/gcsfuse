@@ -782,9 +782,12 @@ func (f *FileInode) Sync(ctx context.Context) (gcsSynced bool, err error) {
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) syncUsingContent(ctx context.Context) (err error) {
-	latestGcsObj, err := f.fetchLatestGcsObject(ctx)
-	if err != nil {
-		return
+	var latestGcsObj *gcs.Object
+	if !f.local {
+		latestGcsObj, err = f.fetchLatestGcsObject(ctx)
+		if err != nil {
+			return
+		}
 	}
 
 	// Write out the contents if they are dirty.
