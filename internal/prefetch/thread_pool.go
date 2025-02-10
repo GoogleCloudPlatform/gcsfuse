@@ -15,10 +15,7 @@
 package prefetch
 
 import (
-	"context"
 	"sync"
-
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 )
 
 // ThreadPool is a group of workers that can be used to execute a task
@@ -38,17 +35,6 @@ type ThreadPool struct {
 
 	// Reader method that will actually read the data
 	download func(*prefetchTask)
-}
-
-// One prefetchTask to be scheduled
-type prefetchTask struct {
-	ctx context.Context
-	object      *gcs.MinObject
-	bucket   gcs.Bucket
-	block    *Block            // Block to hold data for this item
-	prefetch bool              // Flag marking this is a prefetch request or not
-	blockId  int64            // BlockId of the block
-	failCnt int
 }
 
 // newThreadPool creates a new thread pool

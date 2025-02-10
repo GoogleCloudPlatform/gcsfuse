@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
@@ -44,10 +45,11 @@ func getMinObject(objectName string, bucket gcs.Bucket) gcs.MinObject {
 }
 
 func (ps *prefetchTestSuite) SetupSuite() {
+	stime := time.Now()
 	ps.assert = assert.New(ps.T())
 
 	// Thread pool.
-	ps.threadPool = newThreadPool(4, ps.prefetchReader.download)
+	ps.threadPool = newThreadPool(4, Download)
 	ps.threadPool.Start()
 
 	// Block pool.
@@ -62,16 +64,20 @@ func (ps *prefetchTestSuite) SetupSuite() {
 	var err error
 	ps.bucket, err = storageHandle.BucketHandle(context.Background(), storage.TestBucketName, "")
 	ps.assert.NoError(err)
-	objects := map[string][]byte{storage.TestObjectName: make([]byte, 500*_1MB)}
-	err = storageutil.CreateObjects(context.Background(), ps.bucket, objects)
+	_, err = storageutil.CreateObject(context.Background(), ps.bucket, storage.TestObjectName, make([]byte, 200*_1MB))
 	ps.object = getMinObject(storage.TestObjectName, ps.bucket)
 	ps.assert.NoError(err)
+
+	fmt.Printf("Total setup time: %v\n", time.Since(stime))
+
 }
 
 func (ps *prefetchTestSuite) TearDownSuite() {
+	stime := time.Now()
 	ps.threadPool.Stop()
 	ps.blockPool.Terminate()
 	ps.fakeStorage.ShutDown()
+	fmt.Printf("Total teardown time: %v\n", time.Since(stime))
 }
 
 func (ps *prefetchTestSuite) TestNewPrefetchReader() {
@@ -107,12 +113,12 @@ func (ps *prefetchTestSuite) TestSequentialRead() {
 
 	buffer := make([]byte, _1MB)
 	offset := int64(0)
-	for offset = int64(0); offset < int64(50*_1MB); offset += int64(len(buffer)) {
+	for offset = int64(0); offset < int64(100*_1MB); offset += int64(len(buffer)) {
 		objectData, err := prefetchReader.ReadAt(context.Background(), buffer, offset)
 		ps.assert.True(err == nil || err == io.EOF)
 		ps.assert.Equal(len(buffer), int(objectData.Size))
 	}
-	ps.assert.Equal(offset, int64(50*_1MB))
+	ps.assert.Equal(offset, int64(100*_1MB))
 }
 
 func TestPrefetchSuite(t *testing.T) {

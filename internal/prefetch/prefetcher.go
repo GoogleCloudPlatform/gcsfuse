@@ -16,9 +16,11 @@ package prefetch
 
 import (
 	"container/list"
- 	"io"
 	"fmt"
-	
+	"io"
+	"time"
+
+	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
@@ -38,7 +40,7 @@ type prefetchConfig struct {
 func getDefaultPrefetchConfig() *prefetchConfig {
 	return &prefetchConfig{
 		prefetchCount:      6,
-		prefetchChunkSize:  10 * int64(_1MB),
+		prefetchChunkSize:  8 * int64(_1MB),
 		prefetchMultiplier: 2,
 	}
 }
@@ -77,7 +79,7 @@ func NewPrefetchReader(object *gcs.MinObject, bucket gcs.Bucket, prefetchConfig 
 		cookingBlocks:       list.New(),
 		blockIndexMap:       make(map[int64]*Block),
 		blockPool:           blockPool,
-		threadPool:           threadPool,
+		threadPool:          threadPool,
 		metricHandle:        nil,
 	}
 }
@@ -89,7 +91,19 @@ func NewPrefetchReader(object *gcs.MinObject, bucket gcs.Bucket, prefetchConfig 
  * If it is not, it downloads the block from GCS and then reads the data from the block.
  */
 func (p *prefetchReader) ReadAt(ctx context.Context, inputBuffer []byte, offset int64) (objectData gcsx.ObjectData, err error) {
-	logger.Infof("ReadAt: input parameters: buffer length: %d, offset: %d", len(inputBuffer), offset)
+	// Generate an unique id in the request
+	requestId := uuid.New()
+	stime := time.Now()
+
+	logger.Infof("%.10v <- ReadAt(%d, %d).", requestId, offset, len(inputBuffer))
+
+	defer func() {
+		if err != nil && err != io.EOF {
+			logger.Errorf("%.10v -> ReadAt(%d, %d) with error: %v", requestId, offset, len(inputBuffer), err)
+		} else {
+			logger.Infof("%.10v -> ReadAt(%d, %d): ok(%v)", requestId, offset, len(inputBuffer), time.Since(stime))
+		}
+	}()
 
 	objectData = gcsx.ObjectData{
 		DataBuf:  inputBuffer,
@@ -104,11 +118,8 @@ func (p *prefetchReader) ReadAt(ctx context.Context, inputBuffer []byte, offset 
 
 	dataRead := int(0)
 	for dataRead < len(inputBuffer) {
-		logger.Infof("ReadAt: reading data from block at offset %d", offset)
-
 		block, err := p.findBlock(ctx, offset)
 		if err != nil {
-			logger.Errorf("ReadAt: error in finding block: %v", err)
 			return objectData, err
 		}
 
@@ -116,15 +127,11 @@ func (p *prefetchReader) ReadAt(ctx context.Context, inputBuffer []byte, offset 
 		blockSize := GetBlockSize(block, uint64(p.prefetchConfig.prefetchChunkSize), uint64(p.object.Size))
 
 		bytesRead := copy(inputBuffer[dataRead:], block.data[readOffset:blockSize])
-		
+
 		dataRead += bytesRead
 		offset += int64(bytesRead)
 
-		logger.Infof("ReadAt: read %d bytes from block %d, offset: %d, block offset: %d", bytesRead, block.id, offset, block.offset)
-
-		
 		if offset >= int64(p.object.Size) {
-			logger.Info("Early return: %v, error: %v", dataRead, io.EOF)
 			objectData.Size = dataRead
 			return objectData, io.EOF
 		}
@@ -142,7 +149,7 @@ func (p *prefetchReader) ReadAt(ctx context.Context, inputBuffer []byte, offset 
  */
 func (p *prefetchReader) findBlock(ctx context.Context, offset int64) (*Block, error) {
 	blockIndex := offset / p.prefetchConfig.prefetchChunkSize
-	logger.Infof("findBlock: looking for block %v for object %s at offset %d", blockIndex, p.object.Name, offset)
+	logger.Tracef("findBlock: <- (%s, %d)", p.object.Name, offset)
 
 	entry, ok := p.blockIndexMap[blockIndex]
 	if !ok {
@@ -175,7 +182,6 @@ func (p *prefetchReader) findBlock(ctx context.Context, offset int64) (*Block, e
 
 		switch t {
 		case BlockStatusDownloaded:
-			logger.Tracef("findBlock: downloaded block %v for object %s at offset %d", block.id, p.object.Name, offset)
 			block.flags.Clear(BlockFlagDownloading)
 
 			if p.randomSeekCount < 2 {
@@ -188,22 +194,21 @@ func (p *prefetchReader) findBlock(ctx context.Context, offset int64) (*Block, e
 				}
 			}
 		case BlockStatusDownloadFailed:
-			logger.Errorf("findBlock: failed to download block %v for object %s at offset %d", block.id, p.object.Name, offset)
+			logger.Errorf("findBlock: failed to download block (%s, %v, %d).", p.object.Name, block.id, offset)
 			block.flags.Set(BlockFlagFailed)
 		default:
-			logger.Errorf("findBlock: unknown status %d for block %v for object %s at offset %d", t, block.id, p.object.Name, offset)
+			logger.Errorf("findBlock: unknown status %d for block (%s, %v, %d)", t, p.object.Name, block.id, offset)
 		}
 	}
 	return block, nil
 }
 
 func (p *prefetchReader) fetch(ctx context.Context, blockIndex int64, prefetch bool) (err error) {
-	logger.Infof("fetch: start fetching block %v for object %s, prefetch: %v", blockIndex, p.object.Name, prefetch)
-
+	logger.Tracef("fetch: <- block (%s, %d, %v)", p.object.Name, blockIndex, prefetch)
 
 	currentBlockCnt := p.cookingBlocks.Len() + p.cookedBlocks.Len()
 	newlyCreatedBlockCnt := int(0)
-	
+
 	for ; currentBlockCnt < int(p.prefetchConfig.prefetchCount) && newlyCreatedBlockCnt < 4; currentBlockCnt++ {
 		block := p.blockPool.MustGet()
 		if block != nil {
@@ -215,7 +220,7 @@ func (p *prefetchReader) fetch(ctx context.Context, blockIndex int64, prefetch b
 	// If no buffers were allocated then we have all the buffers allocated to this prefetcher.
 	// So, re-use the buffer in the sliding window faship.
 	if newlyCreatedBlockCnt == 0 {
-		logger.Warnf("Hit sliding window code")
+		logger.Infof("fetch (%s, %d) moved into sliding window mode.", p.object.Name, blockIndex)
 		newlyCreatedBlockCnt = 1
 	}
 
@@ -235,8 +240,6 @@ func (p *prefetchReader) fetch(ctx context.Context, blockIndex int64, prefetch b
 
 // refreshBlock refreshes a block by scheduling the block to thread-pool to download.
 func (p *prefetchReader) refreshBlock(ctx context.Context, blockIndex int64, prefetch bool) error {
-	logger.Tracef("refreshBlock: request to download block: %d, object: %s, prefetch: %v", blockIndex, p.object.Name, prefetch)
-
 	offset := blockIndex * p.prefetchConfig.prefetchChunkSize
 	if uint64(offset) >= p.object.Size {
 		return io.EOF
@@ -246,11 +249,10 @@ func (p *prefetchReader) refreshBlock(ctx context.Context, blockIndex int64, pre
 	if nodeList.Len() == 0 && !prefetch {
 		block := p.blockPool.MustGet()
 		if block == nil {
-			logger.Tracef("refreshBlock: Unable to allocate block: %d, object: %s, prefetch: %v", blockIndex, p.object.Name, prefetch)
 			return fmt.Errorf("unable to allocate block")
 		}
 
-		block.node = p.cookedBlocks.PushFront(block)	
+		block.node = p.cookedBlocks.PushFront(block)
 	}
 
 	node := nodeList.Front()
@@ -273,52 +275,6 @@ func (p *prefetchReader) refreshBlock(ctx context.Context, blockIndex int64, pre
 }
 
 /**
-* download downloads a range of bytes from the object.
-* This method is used by the thread-pool scheduler.
- */
-func (p *prefetchReader) download(task *prefetchTask) {
-	logger.Infof("download: start downloading block %v for object %s", task.blockId, task.object.Name)
-
-	start := uint64(task.block.offset)
-	end := task.block.offset + GetBlockSize(task.block, uint64(len(task.block.data)), task.object.Size)
-
-	newReader, err := task.bucket.NewReaderWithReadHandle(
-		task.ctx,
-		&gcs.ReadObjectRequest{
-			Name:       task.object.Name,
-			Generation: task.object.Generation,
-			Range: &gcs.ByteRange{
-				Start: start,
-				Limit: end,
-			},
-			ReadCompressed: task.object.HasContentEncodingGzip(),
-			ReadHandle:     nil,
-		})
-	if err != nil {
-		logger.Errorf("downloadRange: error in creating NewReader with start %d and limit %d: %v", start, end, err)
-		task.block.Failed()
-		task.block.Ready(BlockStatusDownloadFailed)
-		return
-	}
-
-	_, err = io.CopyN(task.block, newReader, int64(end-start))
-	if err != nil {
-		logger.Errorf("downloadRange: error at the time of copying content to cache file %v", err)
-		task.block.Failed()
-		task.block.Ready(BlockStatusDownloadFailed)
-		return
-	}
-
-	task.block.Ready(BlockStatusDownloaded)
-
-	logger.Infof("download: completed downloading block %v for object %s", task.blockId, task.object.Name)
-}
-
-func GetBlockSize(block *Block, blockSize uint64, objectSize uint64) uint64 {
-	return min(blockSize, objectSize-block.offset)
-}
-
-/**
  * scheduleBlock schedules a block for download
  */
 func (p *prefetchReader) scheduleBlock(ctx context.Context, block *Block, prefetch bool) {
@@ -330,6 +286,8 @@ func (p *prefetchReader) scheduleBlock(ctx context.Context, block *Block, prefet
 		prefetch: prefetch,
 		blockId:  block.id,
 	}
+
+	logger.Infof("Scheduling block (%s, %d, %v).", p.object.Name, block.id, prefetch)
 
 	// Add to cooking block.
 	p.addToCookingBlocks(block)
