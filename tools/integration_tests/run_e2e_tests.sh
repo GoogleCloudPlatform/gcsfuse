@@ -207,6 +207,7 @@ function run_parallel_tests() {
     GODEBUG=asyncpreemptoff=1 go test $test_path_parallel $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=${RUN_TESTS_WITH_ZONAL_BUCKET} $benchmark_flags -p 1 --integrationTest -v --testbucket=$bucket_name_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1 &
     pid=$!  # Store the PID of the background process
     pids+=("$pid")  # Optionally add the PID to an array for later
+    package_names[$pid]=$test_dir_p # Keep mapping between package name and PID to print failed package un case of failure.
   done
 
   # Wait for processes and collect exit codes
@@ -215,7 +216,8 @@ function run_parallel_tests() {
     exit_code_parallel=$?
     if [ $exit_code_parallel != 0 ]; then
       exit_code=$exit_code_parallel
-      echo "test fail in parallel on package: " $test_dir_p
+      package_name="${package_names[$pid]}" # Retrieve the package name
+      echo "test fail in parallel on package: " $package_name
     fi
   done
   return $exit_code
