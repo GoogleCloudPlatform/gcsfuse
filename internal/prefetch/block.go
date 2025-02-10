@@ -33,6 +33,7 @@ const (
 const (
 	BlockStatusDownloaded     int = iota + 1 // Download of this block is complete
 	BlockStatusDownloadFailed                // Download of this block has failed
+	BlockStatusDownloadCancelled             // Download of this block has been cancelled
 )
 
 type BitMap16 uint16
@@ -125,6 +126,7 @@ func (b *Block) Write(bytes []byte) (n int, err error) {
 func (b *Block) ReUse() {
 	b.id = -1
 	b.offset = 0
+	b.endOffset = 0
 	b.flags.Reset()
 	b.flags.Set(BlockFlagFresh)
 	b.state = make(chan int, 1)
