@@ -294,6 +294,14 @@ func IgnoreTestIfIntegrationTestFlagIsNotSet(t *testing.T) {
 	}
 }
 
+func IgnoreTestIfPresubmitFlagIsSet(b *testing.B) {
+	flag.Parse()
+
+	if *isPresubmitRun {
+		b.SkipNow()
+	}
+}
+
 func ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet() {
 	ParseSetUpFlags()
 
