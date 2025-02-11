@@ -63,7 +63,9 @@ func setupReader(ctx context.Context, mb *monitoringBucket, req *gcs.ReadObjectR
 	startTime := time.Now()
 
 	rc, err := mb.wrapped.NewReaderWithReadHandle(ctx, req)
+
 	if err == nil {
+		rc = newGCSFullReadCloser(rc)
 		rc = newMonitoringReadCloser(ctx, req.Name, rc, mb.metricHandle)
 	}
 
@@ -209,6 +211,26 @@ func (mb *monitoringBucket) NewMultiRangeDownloader(
 // recordReader increments the reader count when it's opened or closed.
 func recordReader(ctx context.Context, metricHandle common.MetricHandle, ioMethod string) {
 	metricHandle.GCSReaderCount(ctx, 1, []common.MetricAttr{{Key: common.IOMethod, Value: ioMethod}})
+}
+
+type gcsFullReadCloser struct {
+	wrapped gcs.StorageReader
+}
+
+func newGCSFullReadCloser(reader gcs.StorageReader) gcs.StorageReader {
+	return gcsFullReadCloser{wrapped: reader}
+}
+
+func (frc gcsFullReadCloser) Read(p []byte) (n int, err error) {
+	return io.ReadFull(frc.wrapped, p)
+}
+
+func (frc gcsFullReadCloser) ReadHandle() (rh storagev2.ReadHandle) {
+	return frc.wrapped.ReadHandle()
+}
+
+func (frc gcsFullReadCloser) Close() (err error) {
+	return frc.wrapped.Close()
 }
 
 // Monitoring on the object reader
