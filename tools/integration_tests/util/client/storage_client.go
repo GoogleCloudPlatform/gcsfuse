@@ -305,6 +305,9 @@ func UploadGcsObject(ctx context.Context, client *storage.Client, localPath, buc
 	// Create a writer to upload the object.
 	obj := client.Bucket(bucketName).Object(objectName)
 	w, err := NewWriterWithSupportForZB(ctx, obj, client)
+	if err != nil {
+		return fmt.Errorf("Failed to open writer for GCS object gs://%s/%s: %w", bucketName, objectName, err)
+	}
 	defer func() {
 		if err := w.Close(); err != nil {
 			log.Printf("Failed to close GCS object gs://%s/%s: %v", bucketName, objectName, err)
