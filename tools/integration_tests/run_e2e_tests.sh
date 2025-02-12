@@ -39,17 +39,15 @@ if [ $# -ge 5 ] ; then
   RUN_TESTS_WITH_PRESUBMIT_FLAG=$5
 fi
 
-# if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
-  if [[ ${BUCKET_LOCATION} != "us-central1" && ${BUCKET_LOCATION} != "us-west4" ]]; then
-    >&2 echo "Zonal buckets are not supported in the passed region (BUCKET_LOCATION): ${BUCKET_LOCATION}. Supported regions: us-central1, us-west4"
-    exit 1
-  fi
-  if ${RUN_TESTS_WITH_PRESUBMIT_FLAG}; then
-    BUCKET_LOCATION="us-west4"
-  else
-    BUCKET_LOCATION="us-central1"
-  fi
-# fi
+if [[ ${BUCKET_LOCATION} != "us-central1" && ${BUCKET_LOCATION} != "us-west4" ]]; then
+  >&2 echo "Zonal buckets are not supported in the passed region (BUCKET_LOCATION): ${BUCKET_LOCATION}. Supported regions: us-central1, us-west4"
+  exit 1
+fi
+if ${RUN_TESTS_WITH_PRESUBMIT_FLAG}; then
+  BUCKET_LOCATION="us-west4"
+else
+  BUCKET_LOCATION="us-central1"
+fi
 
 if [ "$#" -lt 3 ]
 then
