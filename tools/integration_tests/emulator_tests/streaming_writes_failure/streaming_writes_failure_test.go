@@ -39,10 +39,9 @@ var (
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	// To run mountedDirectory tests, we need both testBucket and mountedDirectory
-	// flags to be set, as operations tests validates content from the bucket.
 	if setup.MountedDirectory() != "" {
-
+		log.Printf("These tests will not run with mounted directory.")
+		return
 	}
 
 	// Set up test directory.
