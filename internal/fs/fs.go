@@ -1332,6 +1332,8 @@ func (fs *fileSystem) getAttributes(
 
 	// Set up the expiration time.
 	if fs.inodeAttributeCacheTTL > 0 {
+		fmt.Println("ttl")
+		fmt.Println(fs.inodeAttributeCacheTTL)
 		expiration = time.Now().Add(fs.inodeAttributeCacheTTL)
 	}
 
@@ -1484,6 +1486,8 @@ func (fs *fileSystem) LookUpInode(
 		return err
 	}
 
+	fmt.Println(e.Attributes)
+	fmt.Println(e.AttributesExpiration)
 	return
 }
 
@@ -1511,6 +1515,9 @@ func (fs *fileSystem) GetInodeAttributes(
 	if err != nil {
 		return err
 	}
+
+	fmt.Println(op.Attributes)
+	fmt.Println(op.AttributesExpiration)
 
 	return
 }
