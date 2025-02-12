@@ -93,7 +93,7 @@ func (t *defaultFailureTestSuite) TestStreamingWritesFailsOnSecondChunkUploadFai
 	// Write again 2MB (C, D) may or may not fail based on the status of block B upload but it ensures the block B
 	// is uploaded after the write and error is propagated.
 	// Fuse:[D] -> Go-SDK:[C] -> GCS[A, B -> upload fails]
-	_, err = t.fh1.WriteAt(data[2*operations.MiB:4*operations.MiB], 2*operations.MiB)
+	_, _ = t.fh1.WriteAt(data[2*operations.MiB:4*operations.MiB], 2*operations.MiB)
 
 	// Write 5th 1MB results in errors.
 	_, err = t.fh1.WriteAt(data[4*operations.MiB:5*operations.MiB], 4*operations.MiB)
@@ -132,10 +132,9 @@ func (t *defaultFailureTestSuite) TestStreamingWritesTruncateSmallerFailsOnSecon
 	// Fuse:[B] -> Go-SDK:[A]-> GCS[]
 	_, err = t.fh1.WriteAt(data[:2*operations.MiB], 0)
 	assert.NoError(t.T(), err)
-	// Write again 2MB (C, D) may or may not fail based on the status of block B upload but it ensures the block B
-	// is uploaded after the write and error is propagated.
+	// Write again 2MB (C, D) may succeed based on the status of block B but write ensure the error is propagated.
 	// Fuse:[D] -> Go-SDK:[C] -> GCS[A, B -> upload fails]
-	_, err = t.fh1.WriteAt(data[2*operations.MiB:4*operations.MiB], 2*operations.MiB)
+	_, _ = t.fh1.WriteAt(data[2*operations.MiB:4*operations.MiB], 2*operations.MiB)
 
 	// Write 5th 1MB results in errors as it sees the error propagated via B upload failure.
 	_, err = t.fh1.WriteAt(data[4*operations.MiB:5*operations.MiB], 4*operations.MiB)
@@ -174,7 +173,7 @@ func (t *defaultFailureTestSuite) TestStreamingWritesTruncateBiggerSucceedsOnSec
 	assert.NoError(t.T(), err)
 	// Write again 2MB (C, D) may succeed based on the status of block B.
 	// Fuse:[D] -> Go-SDK:[C] -> GCS[A, B -> upload fails]
-	_, err = t.fh1.WriteAt(data[2*operations.MiB:4*operations.MiB], 2*operations.MiB)
+	_, _ = t.fh1.WriteAt(data[2*operations.MiB:4*operations.MiB], 2*operations.MiB)
 
 	// Write 5th 1MB results in errors as it sees the error propagated via B upload failure.
 	_, err = t.fh1.WriteAt(data[4*operations.MiB:5*operations.MiB], 4*operations.MiB)
@@ -218,7 +217,7 @@ func (t *defaultFailureTestSuite) TestStreamingWritesSyncFailsOnSecondChunkUploa
 
 	// Write next 1 MB block C may succeed based on the status of block B.
 	// Fuse:[C] -> Go-SDK:[B]-> GCS[A]
-	_, err = t.fh1.WriteAt(data[2*operations.MiB:3*operations.MiB], 2*operations.MiB)
+	_, _ = t.fh1.WriteAt(data[2*operations.MiB:3*operations.MiB], 2*operations.MiB)
 
 	// Sync now reports failure from B block upload.
 	// Fuse:[] -> Go-SDK:[C]-> GCS[A, B -> upload fails]
