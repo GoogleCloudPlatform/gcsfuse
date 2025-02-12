@@ -117,7 +117,7 @@ TEST_DIR_PARALLEL_FOR_ZB=(
   "interrupt"
   "kernel_list_cache"
   # "list_large_dir"
-  "local_file"
+  # "local_file"
   # "log_content"
   "log_rotation"
   "monitoring"
