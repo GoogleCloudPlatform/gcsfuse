@@ -163,6 +163,8 @@ func (bh *bucketHandle) StatObject(ctx context.Context,
 	// Converting attrs to type *Object
 	o := storageutil.ObjectAttrsToBucketObject(attrs)
 	m = storageutil.ConvertObjToMinObject(o)
+	fmt.Println(m.Name)
+	fmt.Println(m.Size)
 	if req.ReturnExtendedObjectAttributes {
 		e = storageutil.ConvertObjToExtendedObjectAttributes(o)
 	}
@@ -385,6 +387,8 @@ func (bh *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsReq
 			// Converting attrs to *Object type.
 			currMinObject := storageutil.ObjectAttrsToMinObject(attrs)
 			list.MinObjects = append(list.MinObjects, currMinObject)
+			fmt.Println(currMinObject.Name)
+			fmt.Println(currMinObject.Size)
 		}
 
 		// itr.next returns all the objects present in the bucket. Hence adding a
