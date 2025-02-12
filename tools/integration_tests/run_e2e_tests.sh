@@ -207,7 +207,7 @@ function create_hns_bucket() {
 function create_zonal_bucket() {
   region=${BUCKET_LOCATION}
   if [[ "${region}" != "us-central1" && "${region}"!="us-west4" ]]; then
-    >&2 echo "Unsupported region for zonal bucket: ${region}"
+    >&2 echo "Unsupported region for zonal bucket: ${region}. Supported regions: us-central1 and us-west4"
     return 1
   else
     zone=${region}"-a"
