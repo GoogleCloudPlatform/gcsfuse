@@ -930,9 +930,14 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 		// Check that the index still points at this inode. If not, it's possible
 		// that the inode is in the process of being destroyed and is unsafe to
 		// use. Go around and try again.
+		fmt.Println(existingInode)
+		fmt.Println(fs.generationBackedInodes[ic.FullName])
 		if fs.generationBackedInodes[ic.FullName] != existingInode {
+			fmt.Println("indoes didnt match")
 			existingInode.Unlock()
 			continue
+		} else {
+			fmt.Println("indoes mathced")
 		}
 
 		// Have we found the correct inode?
