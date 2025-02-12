@@ -106,6 +106,39 @@ TEST_DIR_NON_PARALLEL=(
   "readonly_creds"
 )
 
+# Test directory arrays
+TEST_DIR_PARALLEL_FOR_ZB=(
+  # "benchmarking"
+  # "concurrent_operations"
+  # "explicit_dir"
+  "gzip"
+  # "implicit_dir"
+  "interrupt"
+  "kernel_list_cache"
+  # "list_large_dir"
+  "local_file"
+  # "log_content"
+  "log_rotation"
+  "monitoring"
+  "mount_timeout"
+  "mounting"
+  "negative_stat_cache"
+  # "operations"
+  "read_cache"
+  "read_large_files"
+  "rename_dir_limit"
+  "stale_handle"
+  # "streaming_writes"
+  "write_large_files"
+)
+
+# These tests never become parallel as it is changing bucket permissions.
+TEST_DIR_NON_PARALLEL_FOR_ZB=(
+  "readonly"
+  "managed_folders"
+  "readonly_creds"
+)
+
 # Create a temporary file to store the log file name.
 TEST_LOGS_FILE=$(mktemp)
 
@@ -157,6 +190,29 @@ function create_hns_bucket() {
   bucket_name="golang-grpc-test-gcsfuse-e2e-tests-hns-"$(tr -dc 'a-z0-9' < /dev/urandom | head -c $RANDOM_STRING_LENGTH)
   gcloud alpha storage buckets create gs://$bucket_name --project=$hns_project_id --location=$BUCKET_LOCATION --uniform-bucket-level-access --enable-hierarchical-namespace
   echo "$bucket_name"
+}
+
+function create_zonal_bucket() {
+  if [[ $# < 1 ]]; then
+    >&2 echo "Too few arguments (\"$@\") passed to create_zonal_bucket. Expected: <zone>"
+    return 1
+  fi
+
+  region=${BUCKET_LOCATION}
+  if [[ "${region}" != "us-central1" && "${region}"!="us-west4" ]]; then
+    >&2 echo "Unsupported region for zonal bucket: ${region}"
+    return 1
+  else
+    zone=${region}"-a"
+  fi
+
+  local -r hns_project_id="gcs-fuse-test"
+  zonal_bucket_name_prefix= # 'fastbyte-team-'
+  # Generate bucket name with random string.
+  bucket_name=${zonal_bucket_name_prefix}"gcsfuse-e2e-tests-zb-"$(tr -dc 'a-z0-9' < /dev/urandom | head -c $RANDOM_STRING_LENGTH)
+  echo "Creating zonal bucket ${bucket_name} ..."
+  gcloud alpha storage buckets create gs://$bucket_name --project=$hns_project_id --location=$region --placement=${zone} --default-storage-class=RAPID --uniform-bucket-level-access --enable-hierarchical-namespace
+  echo "Created zonal bucket ${bucket_name}"
 }
 
 function run_non_parallel_tests() {
