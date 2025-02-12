@@ -943,8 +943,11 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 		fileInode, ok := existingInode.(*inode.FileInode)
 		if ok {
 			fmt.Println("its file inode")
-			fileInode.Source().Size = ic.MinObject.Size
+			obj := fileInode.Source()
+			obj.Size = ic.MinObject.Size
+			fileInode.SetSource(*obj)
 			fmt.Println("updated the size")
+			fmt.Println(fileInode.Source())
 		}
 
 		// Have we found the correct inode?

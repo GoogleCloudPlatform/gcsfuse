@@ -359,6 +359,10 @@ func (f *FileInode) Unlink() {
 	}
 }
 
+func (f *FileInode) SetSource(object gcs.MinObject) {
+	f.src = object
+}
+
 // Source returns a record for the GCS object from which this inode is branched. The
 // record is guaranteed not to be modified, and users must not modify it.
 //
