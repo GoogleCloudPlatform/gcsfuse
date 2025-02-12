@@ -377,6 +377,9 @@ function run_e2e_tests_for_zonal_bucket(){
    run_non_parallel_tests TEST_DIR_NON_PARALLEL_FOR_ZB "$zonal_bucket_name_non_parallel_group" &
    non_parallel_tests_zonal_group_pid=$!
 
+   echo "Waiting for some time for experiment ..."
+   sleep 1200
+
    # Wait for all tests to complete.
    wait $parallel_tests_zonal_group_pid
    parallel_tests_zonal_group_exit_code=$?
