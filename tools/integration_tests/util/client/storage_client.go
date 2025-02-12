@@ -128,20 +128,26 @@ func ReadChunkFromGCS(ctx context.Context, client *storage.Client, object string
 	return string(content), nil
 }
 
-func NewWriterWithSupportForZB(ctx context.Context, o *storage.ObjectHandle, client *storage.Client) (wc *storage.Writer, err error) {
-	var attrs *storage.BucketAttrs
+// NewWriter is a wrapper over storage.NewWriter which
+// extends support to zonal buckets.
+func NewWriter(ctx context.Context, o *storage.ObjectHandle, client *storage.Client) (wc *storage.Writer, err error) {
 	wc = o.NewWriter(ctx)
+
+	// Changes specific to zonal bucket
+	var attrs *storage.BucketAttrs
 	attrs, err = client.Bucket(o.BucketName()).Attrs(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get attributes for bucket %q: %w", o.BucketName(), err)
 	}
 	if attrs.StorageClass == "RAPID" {
 		if setup.IsZonalBucketRun() {
+			// Zonal bucket writers require append-flag to be set.
 			wc.Append = true
 		} else {
-			return nil, fmt.Errorf("Found zonal bucket %q in non-zonal e2e test run (--zonal=false)", o.BucketName())
+			return nil, fmt.Errorf("found zonal bucket %q in non-zonal e2e test run (--zonal=false)", o.BucketName())
 		}
 	}
+
 	return
 }
 
@@ -154,7 +160,7 @@ func WriteToObject(ctx context.Context, client *storage.Client, object, content 
 	}
 
 	// Upload an object with storage.Writer.
-	wc, err := NewWriterWithSupportForZB(ctx, o, client)
+	wc, err := NewWriter(ctx, o, client)
 	if err != nil {
 		return fmt.Errorf("Failed to open writer for object %q: %w", o.ObjectName(), err)
 	}
@@ -304,7 +310,7 @@ func StatObject(ctx context.Context, client *storage.Client, object string) (*st
 func UploadGcsObject(ctx context.Context, client *storage.Client, localPath, bucketName, objectName string, uploadGzipEncoded bool) error {
 	// Create a writer to upload the object.
 	obj := client.Bucket(bucketName).Object(objectName)
-	w, err := NewWriterWithSupportForZB(ctx, obj, client)
+	w, err := NewWriter(ctx, obj, client)
 	if err != nil {
 		return fmt.Errorf("Failed to open writer for GCS object gs://%s/%s: %w", bucketName, objectName, err)
 	}
