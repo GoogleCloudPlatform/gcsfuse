@@ -50,6 +50,18 @@ if [[ $# -ge 6 ]] ; then
   fi
 fi
 
+if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
+  if [[ ${BUCKET_LOCATION}!="us-central1" && ${BUCKET_LOCATION}!="us-west4" ]]; then
+    >&2 echo "Zonal buckets are not supported in the passed region (BUCKET_LOCATION): ${BUCKET_LOCATION}. Supported regions: us-central1, us-west4"
+    exit 1
+  fi
+  if ${RUN_TESTS_WITH_PRESUBMIT_FLAG}; then
+    BUCKET_LOCATION="us-west4"
+  else
+    BUCKET_LOCATION="us-central1"
+  fi
+fi
+
 if [ "$#" -lt 3 ]
 then
   echo "Incorrect number of arguments passed, please refer to the script and pass the three arguments required..."
@@ -106,6 +118,39 @@ TEST_DIR_NON_PARALLEL=(
   "readonly_creds"
 )
 
+# Test directory arrays
+TEST_DIR_PARALLEL_FOR_ZB=(
+  # "benchmarking"
+  # "concurrent_operations"
+  # "explicit_dir"
+  "gzip"
+  # "implicit_dir"
+  "interrupt"
+  "kernel_list_cache"
+  # "list_large_dir"
+  "local_file"
+  # "log_content"
+  "log_rotation"
+  "monitoring"
+  "mount_timeout"
+  "mounting"
+  "negative_stat_cache"
+  # "operations"
+  "read_cache"
+  "read_large_files"
+  "rename_dir_limit"
+  "stale_handle"
+  # "streaming_writes"
+  "write_large_files"
+)
+
+# These tests never become parallel as it is changing bucket permissions.
+TEST_DIR_NON_PARALLEL_FOR_ZB=(
+  "readonly"
+  "managed_folders"
+  "readonly_creds"
+)
+
 # Create a temporary file to store the log file name.
 TEST_LOGS_FILE=$(mktemp)
 
@@ -157,6 +202,24 @@ function create_hns_bucket() {
   bucket_name="golang-grpc-test-gcsfuse-e2e-tests-hns-"$(tr -dc 'a-z0-9' < /dev/urandom | head -c $RANDOM_STRING_LENGTH)
   gcloud alpha storage buckets create gs://$bucket_name --project=$hns_project_id --location=$BUCKET_LOCATION --uniform-bucket-level-access --enable-hierarchical-namespace
   echo "$bucket_name"
+}
+
+function create_zonal_bucket() {
+  region=${BUCKET_LOCATION}
+  if [[ "${region}" != "us-central1" && "${region}"!="us-west4" ]]; then
+    >&2 echo "Unsupported region for zonal bucket: ${region}"
+    return 1
+  else
+    zone=${region}"-a"
+  fi
+
+  local -r hns_project_id="gcs-fuse-test"
+  zonal_bucket_name_prefix= # 'fastbyte-team-'
+  # Generate bucket name with random string.
+  bucket_name=${zonal_bucket_name_prefix}"gcsfuse-e2e-tests-zb-"$(tr -dc 'a-z0-9' < /dev/urandom | head -c $RANDOM_STRING_LENGTH)
+  echo "Creating zonal bucket ${bucket_name} ..."
+  gcloud alpha storage buckets create gs://$bucket_name --project=$hns_project_id --location=$region --placement=${zone} --default-storage-class=RAPID --uniform-bucket-level-access --enable-hierarchical-namespace
+  echo "Created zonal bucket ${bucket_name}"
 }
 
 function run_non_parallel_tests() {
@@ -300,6 +363,35 @@ function run_e2e_tests_for_hns_bucket(){
    return 0
 }
 
+function run_e2e_tests_for_zonal_bucket(){
+   zonal_bucket_name_parallel_group=$(create_zonal_bucket)
+   echo "Hns Bucket Created: "$zonal_bucket_name_parallel_group
+
+   zonal_bucket_name_non_parallel_group=$(create_zonal_bucket)
+   echo "Hns Bucket Created: "$zonal_bucket_name_non_parallel_group
+
+   echo "Running tests for HNS bucket"
+   run_parallel_tests TEST_DIR_PARALLEL_FOR_ZB "$zonal_bucket_name_parallel_group" &
+   parallel_tests_zonal_group_pid=$!
+   run_non_parallel_tests TEST_DIR_NON_PARALLEL_FOR_ZB "$zonal_bucket_name_non_parallel_group" &
+   non_parallel_tests_zonal_group_pid=$!
+
+   # Wait for all tests to complete.
+   wait $parallel_tests_zonal_group_pid
+   parallel_tests_zonal_group_exit_code=$?
+   wait $non_parallel_tests_zonal_group_pid
+   non_parallel_tests_zonal_group_exit_code=$?
+
+   hns_buckets=("$zonal_bucket_name_parallel_group" "$zonal_bucket_name_non_parallel_group")
+   clean_up hns_buckets
+
+   if [ $parallel_tests_zonal_group_exit_code != 0 ] || [ $non_parallel_tests_zonal_group_exit_code != 0 ];
+   then
+    return 1
+   fi
+   return 0
+}
+
 function run_e2e_tests_for_tpc() {
   # Clean bucket before testing.
   gcloud storage rm -r gs://gcsfuse-e2e-tests-tpc/**
@@ -356,6 +448,9 @@ function main(){
   fi
 
   #run integration tests
+  run_e2e_tests_for_zonal_bucket &
+  e2e_tests_zonal_bucket_pid=$!
+
   run_e2e_tests_for_hns_bucket &
   e2e_tests_hns_bucket_pid=$!
 
@@ -374,6 +469,9 @@ function main(){
   wait $e2e_tests_hns_bucket_pid
   e2e_tests_hns_bucket_status=$?
 
+  wait $e2e_tests_zonal_bucket_pid
+  e2e_tests_zonal_bucket_status=$?
+
   set -e
 
   print_test_logs
@@ -388,6 +486,12 @@ function main(){
   if [ $e2e_tests_hns_bucket_status != 0 ];
   then
     echo "The e2e tests for hns bucket failed.."
+    exit_code=1
+  fi
+
+  if [ $e2e_tests_zonal_bucket_status != 0 ];
+  then
+    echo "The e2e tests for zonal bucket failed.."
     exit_code=1
   fi
 
