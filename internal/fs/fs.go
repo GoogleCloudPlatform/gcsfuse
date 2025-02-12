@@ -940,8 +940,16 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 			fmt.Println("indoes mathced")
 		}
 
+		fileInode, ok := existingInode.(*inode.FileInode)
+		if ok {
+			fmt.Println("its file inode")
+			fileInode.Source().Size = ic.MinObject.Size
+			fmt.Println("updated the size")
+		}
+
 		// Have we found the correct inode?
 		cmp := oGen.Compare(existingInode.SourceGeneration())
+
 		if cmp == 0 {
 			in = existingInode
 			return
@@ -1324,6 +1332,8 @@ func (fs *fileSystem) getAttributes(
 		expiration = time.Now().Add(fs.inodeAttributeCacheTTL)
 	}
 
+	fmt.Println("printing get attributes")
+	fmt.Println(attr.Size)
 	return
 }
 
