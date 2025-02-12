@@ -365,12 +365,12 @@ function run_e2e_tests_for_hns_bucket(){
 
 function run_e2e_tests_for_zonal_bucket(){
    zonal_bucket_name_parallel_group=$(create_zonal_bucket)
-   echo "Hns Bucket Created: "$zonal_bucket_name_parallel_group
+   echo "Zonal Bucket Created: "$zonal_bucket_name_parallel_group
 
    zonal_bucket_name_non_parallel_group=$(create_zonal_bucket)
-   echo "Hns Bucket Created: "$zonal_bucket_name_non_parallel_group
+   echo "Zonal Bucket Created: "$zonal_bucket_name_non_parallel_group
 
-   echo "Running tests for HNS bucket"
+   echo "Running tests for ZONAL bucket"
    run_parallel_tests TEST_DIR_PARALLEL_FOR_ZB "$zonal_bucket_name_parallel_group" &
    parallel_tests_zonal_group_pid=$!
    run_non_parallel_tests TEST_DIR_NON_PARALLEL_FOR_ZB "$zonal_bucket_name_non_parallel_group" &
@@ -382,8 +382,8 @@ function run_e2e_tests_for_zonal_bucket(){
    wait $non_parallel_tests_zonal_group_pid
    non_parallel_tests_zonal_group_exit_code=$?
 
-   hns_buckets=("$zonal_bucket_name_parallel_group" "$zonal_bucket_name_non_parallel_group")
-   clean_up hns_buckets
+   zonal_buckets=("$zonal_bucket_name_parallel_group" "$zonal_bucket_name_non_parallel_group")
+   clean_up zonal_buckets
 
    if [ $parallel_tests_zonal_group_exit_code != 0 ] || [ $non_parallel_tests_zonal_group_exit_code != 0 ];
    then
