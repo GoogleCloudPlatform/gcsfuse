@@ -269,7 +269,7 @@ function run_parallel_tests() {
     echo "Queueing up test package in parallel (with zonal=${zonal}): ${test_dir_p} ..."
     GODEBUG=asyncpreemptoff=1 go test $test_path_parallel $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=${zonal} $benchmark_flags -p 1 --integrationTest -v --testbucket=$bucket_name_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1 &
     pid=$!  # Store the PID of the background process
-    echo "Queued up test package in parallel (with zonal=${zonal}): ${test_dir_p}"
+    echo "Queued up test package in parallel (with zonal=${zonal}): ${test_dir_p} with pid=${pid}"
     pids[${test_dir_p}]=${pid} # Optionally add the PID to an array for later
   done
 
@@ -277,6 +277,8 @@ function run_parallel_tests() {
   for package_name in "${!pids[@]}"; do
     pid="${pids[${package_name}]}"
     echo "Waiting on test package ${package_name} (with zonal=${zonal}) through pid=${pid} ..."
+    # What if the process for this test package completed long back and its PID got
+    # re-assigned to another process since then ?
     wait $pid
     exit_code_parallel=$?
     if [ $exit_code_parallel != 0 ]; then
