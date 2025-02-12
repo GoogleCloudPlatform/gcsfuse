@@ -212,7 +212,6 @@ function create_zonal_bucket() {
 }
 
 function run_non_parallel_tests() {
-  set -x
   local exit_code=0
   local -n test_array=$1
   local bucket_name_non_parallel=$2
@@ -237,12 +236,10 @@ function run_non_parallel_tests() {
       echo "test fail in non parallel on package: " $test_dir_np
     fi
   done
-  set +x
   return $exit_code
 }
 
 function run_parallel_tests() {
-  set -x
   local exit_code=0
   local -n test_array=$1
   local bucket_name_parallel=$2
@@ -282,7 +279,6 @@ function run_parallel_tests() {
       echo "test fail in parallel on package: " $package_name
     fi
   done
-  set +x
   return $exit_code
 }
 
@@ -376,9 +372,6 @@ function run_e2e_tests_for_zonal_bucket(){
    parallel_tests_zonal_group_pid=$!
    run_non_parallel_tests TEST_DIR_NON_PARALLEL_FOR_ZB "$zonal_bucket_name_non_parallel_group" true &
    non_parallel_tests_zonal_group_pid=$!
-
-   echo "Waiting for some time for experiment ..."
-   sleep 1200
 
    # Wait for all tests to complete.
    wait $parallel_tests_zonal_group_pid
