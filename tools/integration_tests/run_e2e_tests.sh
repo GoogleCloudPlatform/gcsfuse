@@ -51,7 +51,7 @@ if [[ $# -ge 6 ]] ; then
 fi
 
 if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
-  if [[ ${BUCKET_LOCATION}!="us-central1" && ${BUCKET_LOCATION}!="us-west4" ]]; then
+  if [[ ${BUCKET_LOCATION} != "us-central1" && ${BUCKET_LOCATION} != "us-west4" ]]; then
     >&2 echo "Zonal buckets are not supported in the passed region (BUCKET_LOCATION): ${BUCKET_LOCATION}. Supported regions: us-central1, us-west4"
     exit 1
   fi
@@ -206,7 +206,7 @@ function create_hns_bucket() {
 
 function create_zonal_bucket() {
   region=${BUCKET_LOCATION}
-  if [[ "${region}" != "us-central1" && "${region}"!="us-west4" ]]; then
+  if [[ "${region}" != "us-central1" && "${region}" != "us-west4" ]]; then
     >&2 echo "Unsupported region for zonal bucket: ${region}. Supported regions: us-central1 and us-west4"
     return 1
   else
