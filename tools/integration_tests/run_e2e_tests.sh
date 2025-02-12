@@ -39,17 +39,6 @@ if [ $# -ge 5 ] ; then
   RUN_TESTS_WITH_PRESUBMIT_FLAG=$5
 fi
 
-# # 6th parameter is set to enable/disable run for zonal bucket.
-# RUN_TESTS_WITH_ZONAL_BUCKET=false
-# if [[ $# -ge 6 ]] ; then
-  # if [[ "$6" == "true" ]]; then
-    # RUN_TESTS_WITH_ZONAL_BUCKET=true
-  # elif [[ "$6" != "false" ]]; then
-    # echo "Error: Invalid value for 6th argument: "$6" . Expected: true or false."
-    # exit 1
-  # fi
-# fi
-
 # if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
   if [[ ${BUCKET_LOCATION} != "us-central1" && ${BUCKET_LOCATION} != "us-west4" ]]; then
     >&2 echo "Zonal buckets are not supported in the passed region (BUCKET_LOCATION): ${BUCKET_LOCATION}. Supported regions: us-central1, us-west4"
@@ -228,7 +217,7 @@ function run_non_parallel_tests() {
   local -n test_array=$1
   local bucket_name_non_parallel=$2
   local zonal=false
-  if [[ $#>=3 && "$3"="true" ]]; then
+  if [ $# -ge 3 ] && [ "$3" = "true" ] ; then
     zonal=true
   fi
 
@@ -258,7 +247,7 @@ function run_parallel_tests() {
   local -n test_array=$1
   local bucket_name_parallel=$2
   local zonal=false
-  if [[ $#>=3 && "$3"="true" ]]; then
+  if [ $# -ge 3 ] && [ "$3" = "true" ] ; then
     zonal=true
   fi
   local benchmark_flags=""
