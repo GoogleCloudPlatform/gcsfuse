@@ -218,9 +218,8 @@ function create_zonal_bucket() {
   zonal_bucket_name_prefix= # 'fastbyte-team-'
   # Generate bucket name with random string.
   bucket_name=${zonal_bucket_name_prefix}"gcsfuse-e2e-tests-zb-"$(date +%Y%m%d-%H%M%S)"-"$(tr -dc 'a-z0-9' < /dev/urandom | head -c $RANDOM_STRING_LENGTH)
-  echo "Creating zonal bucket ${bucket_name} ..."
   gcloud alpha storage buckets create gs://$bucket_name --project=$project_id --location=$region --placement=${zone} --default-storage-class=RAPID --uniform-bucket-level-access --enable-hierarchical-namespace
-  echo "Created zonal bucket ${bucket_name}"
+  echo "${bucket_name}"
 }
 
 function run_non_parallel_tests() {
@@ -366,10 +365,10 @@ function run_e2e_tests_for_hns_bucket(){
 
 function run_e2e_tests_for_zonal_bucket(){
    zonal_bucket_name_parallel_group=$(create_zonal_bucket)
-   echo "Zonal Bucket Created: "$zonal_bucket_name_parallel_group
+   echo "Zonal Bucket Created for parallel tests: "$zonal_bucket_name_parallel_group
 
    zonal_bucket_name_non_parallel_group=$(create_zonal_bucket)
-   echo "Zonal Bucket Created: "$zonal_bucket_name_non_parallel_group
+   echo "Zonal Bucket Created for non-parallel tests: "$zonal_bucket_name_non_parallel_group
 
    echo "Running tests for ZONAL bucket"
    run_parallel_tests TEST_DIR_PARALLEL_FOR_ZB "$zonal_bucket_name_parallel_group" &
