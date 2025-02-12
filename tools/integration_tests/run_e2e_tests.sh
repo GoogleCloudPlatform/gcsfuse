@@ -454,23 +454,23 @@ function main(){
   run_e2e_tests_for_zonal_bucket &
   e2e_tests_zonal_bucket_pid=$!
 
-  # run_e2e_tests_for_hns_bucket &
-  # e2e_tests_hns_bucket_pid=$!
-#
-  # run_e2e_tests_for_flat_bucket &
-  # e2e_tests_flat_bucket_pid=$!
-#
-  # run_e2e_tests_for_emulator &
-  # e2e_tests_emulator_pid=$!
-#
-  # wait $e2e_tests_emulator_pid
-  # e2e_tests_emulator_status=$?
-#
-  # wait $e2e_tests_flat_bucket_pid
-  # e2e_tests_flat_bucket_status=$?
-#
-  # wait $e2e_tests_hns_bucket_pid
-  # e2e_tests_hns_bucket_status=$?
+  run_e2e_tests_for_hns_bucket &
+  e2e_tests_hns_bucket_pid=$!
+
+  run_e2e_tests_for_flat_bucket &
+  e2e_tests_flat_bucket_pid=$!
+
+  run_e2e_tests_for_emulator &
+  e2e_tests_emulator_pid=$!
+
+  wait $e2e_tests_emulator_pid
+  e2e_tests_emulator_status=$?
+
+  wait $e2e_tests_flat_bucket_pid
+  e2e_tests_flat_bucket_status=$?
+
+  wait $e2e_tests_hns_bucket_pid
+  e2e_tests_hns_bucket_status=$?
 
   wait $e2e_tests_zonal_bucket_pid
   e2e_tests_zonal_bucket_status=$?
@@ -480,17 +480,17 @@ function main(){
   print_test_logs
 
   exit_code=0
-  # if [ $e2e_tests_flat_bucket_status != 0 ];
-  # then
-    # echo "The e2e tests for flat bucket failed.."
-    # exit_code=1
-  # fi
-#
-  # if [ $e2e_tests_hns_bucket_status != 0 ];
-  # then
-    # echo "The e2e tests for hns bucket failed.."
-    # exit_code=1
-  # fi
+  if [ $e2e_tests_flat_bucket_status != 0 ];
+  then
+    echo "The e2e tests for flat bucket failed.."
+    exit_code=1
+  fi
+
+  if [ $e2e_tests_hns_bucket_status != 0 ];
+  then
+    echo "The e2e tests for hns bucket failed.."
+    exit_code=1
+  fi
 
   if [ $e2e_tests_zonal_bucket_status != 0 ];
   then
@@ -498,11 +498,11 @@ function main(){
     exit_code=1
   fi
 
-  # if [ $e2e_tests_emulator_status != 0 ];
-  # then
-    # echo "The e2e tests for emulator failed.."
-    # exit_code=1
-  # fi
+  if [ $e2e_tests_emulator_status != 0 ];
+  then
+    echo "The e2e tests for emulator failed.."
+    exit_code=1
+  fi
 
   exit $exit_code
 }
