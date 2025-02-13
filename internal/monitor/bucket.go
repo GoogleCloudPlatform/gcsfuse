@@ -213,26 +213,6 @@ func recordReader(ctx context.Context, metricHandle common.MetricHandle, ioMetho
 	metricHandle.GCSReaderCount(ctx, 1, []common.MetricAttr{{Key: common.IOMethod, Value: ioMethod}})
 }
 
-type gcsFullReadCloser struct {
-	wrapped gcs.StorageReader
-}
-
-func newGCSFullReadCloser(reader gcs.StorageReader) gcs.StorageReader {
-	return gcsFullReadCloser{wrapped: reader}
-}
-
-func (frc gcsFullReadCloser) Read(p []byte) (n int, err error) {
-	return io.ReadFull(frc.wrapped, p)
-}
-
-func (frc gcsFullReadCloser) ReadHandle() (rh storagev2.ReadHandle) {
-	return frc.wrapped.ReadHandle()
-}
-
-func (frc gcsFullReadCloser) Close() (err error) {
-	return frc.wrapped.Close()
-}
-
 // Monitoring on the object reader
 func newMonitoringReadCloser(ctx context.Context, object string, rc gcs.StorageReader, metricHandle common.MetricHandle) gcs.StorageReader {
 	recordReader(ctx, metricHandle, "opened")
