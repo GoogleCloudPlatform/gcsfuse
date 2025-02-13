@@ -39,14 +39,27 @@ if [ $# -ge 5 ] ; then
   RUN_TESTS_WITH_PRESUBMIT_FLAG=$5
 fi
 
-if [[ ${BUCKET_LOCATION} != "us-central1" && ${BUCKET_LOCATION} != "us-west4" ]]; then
-  >&2 echo "Zonal buckets are not supported in the passed region (BUCKET_LOCATION): ${BUCKET_LOCATION}. Supported regions: us-central1, us-west4"
-  exit 1
+# 6th parameter is set to enable/disable run for zonal bucket.
+RUN_TESTS_WITH_ZONAL_BUCKET=false
+if [[ $# -ge 6 ]] ; then
+  if [[ "$6" == "true" ]]; then
+    RUN_TESTS_WITH_ZONAL_BUCKET=true
+  elif [[ "$6" != "false" ]]; then
+    echo "Error: Invalid value for 6th argument: "$6" . Expected: true or false."
+    exit 1
+  fi
 fi
-if ${RUN_TESTS_WITH_PRESUBMIT_FLAG}; then
-  BUCKET_LOCATION="us-west4"
-else
-  BUCKET_LOCATION="us-central1"
+
+if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
+  if ${RUN_TESTS_WITH_PRESUBMIT_FLAG}; then
+    if [ "${BUCKET_LOCATION}" != "us-west4" ]; then
+      >&2 echo "presubmit should be run in us-west4 region. Region passed: ${BUCKET_LOCATION}"
+      exit 1
+    fi
+  elif [ "${BUCKET_LOCATION}" != "us-central1" ]; then
+    >&2 echo "Non-presubmit e2e tests should be run in us-central1 region if zonal bucket run is enabled. Region passed: ${BUCKET_LOCATION}"
+    exit 1
+  fi
 fi
 
 if [ "$#" -lt 3 ]
@@ -451,8 +464,11 @@ function main(){
   fi
 
   #run integration tests
-  run_e2e_tests_for_zonal_bucket &
-  e2e_tests_zonal_bucket_pid=$!
+
+  if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
+    run_e2e_tests_for_zonal_bucket &
+    e2e_tests_zonal_bucket_pid=$!
+  fi
 
   run_e2e_tests_for_hns_bucket &
   e2e_tests_hns_bucket_pid=$!
@@ -472,8 +488,10 @@ function main(){
   wait $e2e_tests_hns_bucket_pid
   e2e_tests_hns_bucket_status=$?
 
-  wait $e2e_tests_zonal_bucket_pid
-  e2e_tests_zonal_bucket_status=$?
+  if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
+    wait $e2e_tests_zonal_bucket_pid
+    e2e_tests_zonal_bucket_status=$?
+  fi
 
   set -e
 
@@ -492,8 +510,7 @@ function main(){
     exit_code=1
   fi
 
-  if [ $e2e_tests_zonal_bucket_status != 0 ];
-  then
+  if ${RUN_TESTS_WITH_ZONAL_BUCKET} && [ $e2e_tests_zonal_bucket_status != 0 ]; then
     echo "The e2e tests for zonal bucket failed.."
     exit_code=1
   fi
