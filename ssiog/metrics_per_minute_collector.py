@@ -15,105 +15,166 @@
 import pandas as pd
 import fsspec
 import gcsfs
+import argparse
 import logging
+import os
+import psutil
 from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
-import argparse
-import os
 import numpy as np
+from collections import defaultdict
 
-# Initialize logging
+# Initialize the global logger with basic INFO level log.
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s')
 logger = logging.getLogger(__name__)
 
-def process_csv(file, fs, chunk_size=1000):
-    """Reads and processes each CSV file in chunks."""
+def convert_bytes_to_mib(bytes):
+    return bytes / (1024 ** 2)
+
+def get_system_memory():
+    mem = psutil.virtual_memory()
+    return convert_bytes_to_mib(mem.total), convert_bytes_to_mib(mem.used), convert_bytes_to_mib(mem.free)
+
+def get_memory_usage():
+    process = psutil.Process(os.getpid())
+    mem_info = process.memory_info()
+    return convert_bytes_to_mib(mem_info.rss)
+
+def calculate_percentiles(latencies):
+    # Calculate percentiles and the min/max latency values
+    percentiles = {
+        'p90': np.percentile(latencies, 90),
+        'p99': np.percentile(latencies, 99),
+        'p99.9': np.percentile(latencies, 99.9),
+        'p99.99': np.percentile(latencies, 99.99),
+        'p99.999': np.percentile(latencies, 99.999),
+        'p99.9999': np.percentile(latencies, 99.9999),
+        'p99.99999': np.percentile(latencies, 99.99999),
+        'min': np.min(latencies),
+        'max': np.max(latencies)
+    }
+    return percentiles
+
+def process_csv(file, fs):
     try:
-        # Read CSV file in chunks
         with fs.open(file, 'r') as f:
-            df_iterator = pd.read_csv(f, chunksize=chunk_size)
-            result_df = pd.concat(df_iterator, ignore_index=True)
-            return result_df
+            df = pd.read_csv(f)
+            if 'sample_lat' not in df.columns:
+                logger.warning(f"File {file} does not contain 'sample_lat' column. Skipping file.")
+                return pd.DataFrame()  # Return an empty DataFrame if no 'sample_lat' column
+            
+            if not df.empty:
+                # Assuming 'timestamp' and 'sample_lat' columns are present
+                df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s')
+                return df
+            else:
+                return pd.DataFrame()
     except Exception as e:
-        logger.error(f"Error reading file {file}: {e}")
-        return None
+        logger.error(f"Error processing file {file}: {e}")
+        return pd.DataFrame()  # Return an empty DataFrame on error
 
-def calculate_latency_statistics(df):
-    # Ensure that 'timestamp' is in datetime format
-    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s')
+def analyze_metrics(path, timestamp_filter=True):
+    """
+    Analyzes metrics from CSV files in a Google Cloud Storage bucket or local filesystem.
+    """
 
-    # Create a new column 'Time' with the formatted timestamp (HH:MM)
-    df['Time'] = df['timestamp'].dt.strftime('%H:%M')
-
-    # Group by 'Time' (each minute) and calculate the latency statistics
-    result_df = df.groupby('Time').agg(
-        min_latency=('sample_lat', 'min'),
-        mean_latency=('sample_lat', 'mean'),
-        p90_latency=('sample_lat', lambda x: x.quantile(0.9)),
-        p99_9_latency=('sample_lat', lambda x: x.quantile(0.999)),
-        p99_99_latency=('sample_lat', lambda x: x.quantile(0.9999)),
-        p99_999_latency=('sample_lat', lambda x: x.quantile(0.99999)),
-        p99_9999_latency=('sample_lat', lambda x: x.quantile(0.999999)),
-        p99_99999_latency=('sample_lat', lambda x: x.quantile(0.9999999)),
-        max_latency=('sample_lat', 'max')
-    ).reset_index()
-
-    return result_df
-
-def analyze_metrics(path, timestamp_filter=True, chunk_size=1000, output_path="output_latencies.csv"):
     try:
-        # Set up file system (GCS or local)
-        if path.startswith("gs://"):
+        if path.startswith("gs://"):  # if GCS path
             fs = gcsfs.GCSFileSystem()
-        else:
+        else:  # otherwise assume it's a local path
             fs = fsspec.filesystem("local")
-
-        # Get list of CSV files
+        
+        # Find all CSV files in the path using glob-like pattern matching.
         csv_files = list(fs.glob(path))
         if not csv_files:
-            logger.error("No CSV files found.")
+            return None
+        
+        logger.info(f"Total number of CSV files: {len(csv_files)}")
+        systemMemory = get_system_memory()
+        logger.info(f"Total system memory: {systemMemory[0]} MiB")
+        logger.info(f"Used system memory: {systemMemory[1]} MiB")
+        logger.info(f"Free system memory: {systemMemory[2]} MiB")
+        logger.info(f"Memory usage by process before loading CSV files: {get_memory_usage()} MiB")    
+
+        with ThreadPoolExecutor() as pool:
+            results = list(tqdm(pool.map(lambda file: process_csv(file, fs), csv_files), total=len(csv_files)))
+        
+        # Initialize a dictionary to store latency data per minute
+        minute_data = defaultdict(list)
+        start_timestamps = []
+        end_timestamps = []
+
+        # Process data
+        for df in results:
+            if not df.empty:
+                # Round timestamp to the start of the minute (i.e., remove seconds and microseconds)
+                df['minute'] = df['timestamp'].dt.floor('min')  # Update to 'min' instead of 'T'
+                for minute, group in df.groupby('minute'):
+                    minute_data[minute].extend(group['sample_lat'].values)
+
+        # Process per-minute latency data
+        processed_metrics = []
+        for minute, latencies in minute_data.items():
+            if latencies:
+                percentiles = calculate_percentiles(latencies)
+                processed_metrics.append({
+                    'time': minute.strftime('%H:%M'),
+                    'min': percentiles['min'],  # Min comes first
+                    'p90': percentiles['p90'],
+                    'p99': percentiles['p99'],
+                    'p99.9': percentiles['p99.9'],
+                    'p99.99': percentiles['p99.99'],
+                    'p99.999': percentiles['p99.999'],
+                    'p99.9999': percentiles['p99.9999'],
+                    'p99.99999': percentiles['p99.99999'],
+                    'max': percentiles['max']
+                })
+
+        # Convert processed metrics into a DataFrame
+        result_df = pd.DataFrame(processed_metrics)
+        
+        logger.info(f"Memory usage by process after loading CSV files: {get_memory_usage()} MiB")
+        
+        if result_df.empty:
             return None
 
-        logger.info(f"Total number of CSV files: {len(csv_files)}")
-
-        # Process files in parallel and collect results
-        all_stats = []  # List to store results
-        with ThreadPoolExecutor() as pool:
-            for result_df in tqdm(pool.map(lambda file: process_csv(file, fs, chunk_size), csv_files), total=len(csv_files)):
-                if result_df is not None:
-                    # Calculate statistics for each chunk of data
-                    stats = calculate_latency_statistics(result_df)
-                    all_stats.append(stats)
-
-        # Combine the results
-        if all_stats:
-            final_stats = pd.concat(all_stats, ignore_index=True)
-
-            # Save to CSV
-            final_stats.to_csv(output_path, index=False)
-            logger.info(f"Results saved to {output_path}")
-            return output_path
-
+        return result_df
+    
     except Exception as e:
         logger.error(f"Error in analyzing metrics: {e}")
         return None
 
-def main():
-    # Command-line argument parsing
-    parser = argparse.ArgumentParser(description="Analyze latency metrics from CSV files.")
-    parser.add_argument('--metrics-path', type=str, required=True, help="Path to CSV files (e.g., gs://bucket/* or local path).")
-    parser.add_argument('--output-path', type=str, default="output_latencies.csv", help="Output path for the results (CSV format).")
-    parser.add_argument('--chunk-size', type=int, default=1000, help="Chunk size for processing CSV files.")
+def parse_args():
+    parser = argparse.ArgumentParser(description="Analyze metrics from GCS")
     
-    args = parser.parse_args()
+    parser.add_argument(
+        "--metrics-path",
+        type=str,
+        help="GCS or local path to metrics files",
+        default="gs://vipinydv-metrics/slowenvironment-readstall-genericread-1byte/*.csv"
+    )
+    parser.add_argument(
+        "--timestamp-filter",
+        action="store_true",
+        help="Filter by common timestamps"
+    )
+    parser.add_argument(
+        "--output-file",
+        type=str,
+        help="Path to save the processed CSV output",
+        default="processed_metrics.csv"  # Default file name if not provided
+    )
+    
+    return parser.parse_args()
 
-    # Call the analyze_metrics function with the provided arguments
-    output = analyze_metrics(args.metrics_path, chunk_size=args.chunk_size, output_path=args.output_path)
+def main():
+    args = parse_args()
+    result_df = analyze_metrics(args.metrics_path, args.timestamp_filter)
     
-    if output:
-        logger.info(f"Analysis complete. Output saved to: {output}")
-    else:
-        logger.error("Analysis failed.")
+    if result_df is not None:
+        output_file = args.output_file  # Get the file path from the argument
+        result_df.to_csv(output_file, index=False)
+        logger.info(f"Results have been saved to {output_file}")
 
 if __name__ == "__main__":
     main()
