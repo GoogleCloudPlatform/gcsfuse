@@ -23,23 +23,24 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type dummyStorageReader struct {
+// partialStorageReader reads at most maxBytes from the buffer in one go.
+type partialStorageReader struct {
 	buf      *bytes.Buffer
 	maxBytes int
 }
 
-func (frc dummyStorageReader) ReadHandle() (rh storagev2.ReadHandle) {
+func (psr partialStorageReader) ReadHandle() (rh storagev2.ReadHandle) {
 	return nil
 }
 
-func (frc dummyStorageReader) Close() (err error) {
+func (psr partialStorageReader) Close() (err error) {
 	return nil
 }
 
-func (frc dummyStorageReader) Read(b []byte) (n int, err error) {
-	bufLen := min(len(b), frc.maxBytes)
+func (psr partialStorageReader) Read(b []byte) (n int, err error) {
+	bufLen := min(len(b), psr.maxBytes)
 	temp := make([]byte, bufLen)
-	n, err = frc.buf.Read(temp)
+	n, err = psr.buf.Read(temp)
 	copy(b, temp)
 	return n, err
 }
@@ -96,7 +97,7 @@ func TestFullReaderCloser(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			storageReader := dummyStorageReader{
+			storageReader := partialStorageReader{
 				maxBytes: tc.maxReadBytes,
 				buf:      new(bytes.Buffer),
 			}
