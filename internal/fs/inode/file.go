@@ -465,13 +465,13 @@ func (f *FileInode) Attributes(
 	}
 
 	// Otherwise, if its been synced with gcsfuse before, we'll have gcsfuse_mtime
-	if formatted, ok := f.src.Metadata["gcsfuse_mtime"]; ok {
+	/*if formatted, ok := f.src.Metadata["gcsfuse_mtime"]; ok {
 		attrs.Mtime, err = time.Parse(time.RFC3339Nano, formatted)
 		if err != nil {
 			err = fmt.Errorf("time.Parse(%q): %w", formatted, err)
 			return
 		}
-	}
+	}*/
 
 	// If we've got local content, its size and (maybe) mtime take precedence.
 	if f.content != nil {

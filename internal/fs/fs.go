@@ -945,6 +945,8 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 			fmt.Println("its file inode")
 			obj := fileInode.Source()
 			obj.Size = ic.MinObject.Size
+			obj.Updated = time.Now()
+
 			fileInode.SetSource(*obj)
 			fmt.Println("updated the size")
 			fmt.Println(fileInode.Source())
