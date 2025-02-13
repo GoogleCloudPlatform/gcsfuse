@@ -47,7 +47,7 @@ func (pe *PreconditionError) Error() string {
 }
 
 // WrapGCSFuseError converts an error returned by go-sdk into gcsfuse specific gcs error.
-// It returns converted error and a boolean indicating whether a conversion occured or not.
+// It returns wrapped error and a boolean indicating whether a conversion occured or not.
 func WrapGCSFuseError(err error) (error, bool) {
 	if err == nil {
 		return nil, false

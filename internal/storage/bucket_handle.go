@@ -115,9 +115,9 @@ func (bh *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectR
 	}
 
 	err := obj.Delete(ctx)
-	var converted bool
-	err, converted = gcs.WrapGCSFuseError(err)
-	if err != nil && !converted {
+	var wrapped bool
+	err, wrapped = gcs.WrapGCSFuseError(err)
+	if err != nil && !wrapped {
 		err = fmt.Errorf("error in deleting object: %w", err)
 	}
 	return err
@@ -129,10 +129,10 @@ func (bh *bucketHandle) StatObject(ctx context.Context,
 	// Retrieving object attrs through Go Storage Client.
 	attrs, err = bh.bucket.Object(req.Name).Attrs(ctx)
 
-	var converted bool
-	err, converted = gcs.WrapGCSFuseError(err)
+	var wrapped bool
+	err, wrapped = gcs.WrapGCSFuseError(err)
 	if err != nil {
-		if !converted {
+		if !wrapped {
 			err = fmt.Errorf("error in fetching object attributes: %w", err)
 		}
 		return
@@ -202,9 +202,9 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	// We can't use defer to close the writer, because we need to close the
 	// writer successfully before calling Attrs() method of writer.
 	if err = wc.Close(); err != nil {
-		var converted bool
-		err, converted = gcs.WrapGCSFuseError(err)
-		if !converted {
+		var wrapped bool
+		err, wrapped = gcs.WrapGCSFuseError(err)
+		if !wrapped {
 			err = fmt.Errorf("error in closing writer : %w", err)
 		}
 		return
@@ -235,9 +235,9 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 
 func (bh *bucketHandle) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gcs.MinObject, err error) {
 	if err = w.Close(); err != nil {
-		var converted bool
-		err, converted = gcs.WrapGCSFuseError(err)
-		if !converted {
+		var wrapped bool
+		err, wrapped = gcs.WrapGCSFuseError(err)
+		if !wrapped {
 			err = fmt.Errorf("error in closing writer : %w", err)
 		}
 		return
@@ -266,9 +266,9 @@ func (bh *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectReque
 	objAttrs, err := dstObj.CopierFrom(srcObj).Run(ctx)
 
 	if err != nil {
-		var converted bool
-		err, converted = gcs.WrapGCSFuseError(err)
-		if !converted {
+		var wrapped bool
+		err, wrapped = gcs.WrapGCSFuseError(err)
+		if !wrapped {
 			err = fmt.Errorf("error in copying object: %w", err)
 		}
 		return
@@ -405,9 +405,9 @@ func (bh *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectR
 		return
 	}
 
-	var converted bool
-	err, converted = gcs.WrapGCSFuseError(err)
-	if !converted {
+	var wrapped bool
+	err, wrapped = gcs.WrapGCSFuseError(err)
+	if !wrapped {
 		err = fmt.Errorf("error in updating object: %w", err)
 	}
 
@@ -453,9 +453,9 @@ func (bh *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObje
 	// Composing Source Objects to Destination Object using Composer created through Go Storage Client.
 	attrs, err := dstObj.ComposerFrom(srcObjList...).Run(ctx)
 	if err != nil {
-		var converted bool
-		err, converted = gcs.WrapGCSFuseError(err)
-		if !converted {
+		var wrapped bool
+		err, wrapped = gcs.WrapGCSFuseError(err)
+		if !wrapped {
 			err = fmt.Errorf("error in composing object: %w", err)
 		}
 		return
@@ -505,9 +505,9 @@ func (bh *bucketHandle) MoveObject(ctx context.Context, req *gcs.MoveObjectReque
 		return o, nil
 	}
 
-	var converted bool
-	err, converted = gcs.WrapGCSFuseError(err)
-	if !converted {
+	var wrapped bool
+	err, wrapped = gcs.WrapGCSFuseError(err)
+	if !wrapped {
 		err = fmt.Errorf("error in moving object: %w", err)
 	}
 

@@ -132,7 +132,7 @@ func TestWrapGCSFuseError(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, converted := WrapGCSFuseError(tc.inputErr)
+			got, wrapped := WrapGCSFuseError(tc.inputErr)
 			assert.Equal(t, tc.expectedConvert, converted)
 			assert.Equal(t, tc.expectedErr, got)
 
