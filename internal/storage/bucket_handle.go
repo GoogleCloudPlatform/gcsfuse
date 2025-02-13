@@ -95,7 +95,7 @@ func (bh *bucketHandle) NewReaderWithReadHandle(
 
 	// NewRangeReader creates a "storage.Reader" object which is also io.ReadCloser since it contains both Read() and Close() methods present in io.ReadCloser interface.
 	r, err := obj.NewRangeReader(ctx, start, length)
-	err, _ = gcs.WrapGCSFuseError(err)
+	err, _ = gcs.WrapUnderCommonGCSError(err)
 
 	return r, err
 }
@@ -116,7 +116,7 @@ func (bh *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectR
 
 	err := obj.Delete(ctx)
 	var wrapped bool
-	err, wrapped = gcs.WrapGCSFuseError(err)
+	err, wrapped = gcs.WrapUnderCommonGCSError(err)
 	if err != nil && !wrapped {
 		err = fmt.Errorf("error in deleting object: %w", err)
 	}
@@ -130,7 +130,7 @@ func (bh *bucketHandle) StatObject(ctx context.Context,
 	attrs, err = bh.bucket.Object(req.Name).Attrs(ctx)
 
 	var wrapped bool
-	err, wrapped = gcs.WrapGCSFuseError(err)
+	err, wrapped = gcs.WrapUnderCommonGCSError(err)
 	if err != nil {
 		if !wrapped {
 			err = fmt.Errorf("error in fetching object attributes: %w", err)
@@ -203,7 +203,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	// writer successfully before calling Attrs() method of writer.
 	if err = wc.Close(); err != nil {
 		var wrapped bool
-		err, wrapped = gcs.WrapGCSFuseError(err)
+		err, wrapped = gcs.WrapUnderCommonGCSError(err)
 		if !wrapped {
 			err = fmt.Errorf("error in closing writer : %w", err)
 		}
@@ -236,7 +236,7 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 func (bh *bucketHandle) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gcs.MinObject, err error) {
 	if err = w.Close(); err != nil {
 		var wrapped bool
-		err, wrapped = gcs.WrapGCSFuseError(err)
+		err, wrapped = gcs.WrapUnderCommonGCSError(err)
 		if !wrapped {
 			err = fmt.Errorf("error in closing writer : %w", err)
 		}
@@ -267,7 +267,7 @@ func (bh *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectReque
 
 	if err != nil {
 		var wrapped bool
-		err, wrapped = gcs.WrapGCSFuseError(err)
+		err, wrapped = gcs.WrapUnderCommonGCSError(err)
 		if !wrapped {
 			err = fmt.Errorf("error in copying object: %w", err)
 		}
@@ -406,7 +406,7 @@ func (bh *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectR
 	}
 
 	var wrapped bool
-	err, wrapped = gcs.WrapGCSFuseError(err)
+	err, wrapped = gcs.WrapUnderCommonGCSError(err)
 	if !wrapped {
 		err = fmt.Errorf("error in updating object: %w", err)
 	}
@@ -454,7 +454,7 @@ func (bh *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObje
 	attrs, err := dstObj.ComposerFrom(srcObjList...).Run(ctx)
 	if err != nil {
 		var wrapped bool
-		err, wrapped = gcs.WrapGCSFuseError(err)
+		err, wrapped = gcs.WrapUnderCommonGCSError(err)
 		if !wrapped {
 			err = fmt.Errorf("error in composing object: %w", err)
 		}
@@ -506,7 +506,7 @@ func (bh *bucketHandle) MoveObject(ctx context.Context, req *gcs.MoveObjectReque
 	}
 
 	var wrapped bool
-	err, wrapped = gcs.WrapGCSFuseError(err)
+	err, wrapped = gcs.WrapUnderCommonGCSError(err)
 	if !wrapped {
 		err = fmt.Errorf("error in moving object: %w", err)
 	}
@@ -555,7 +555,7 @@ func (bh *bucketHandle) GetFolder(ctx context.Context, folderName string) (*gcs.
 
 	if err != nil {
 		err = fmt.Errorf("error getting metadata for folder: %s, %w", folderName, err)
-		err, _ = gcs.WrapGCSFuseError(err)
+		err, _ = gcs.WrapUnderCommonGCSError(err)
 		return nil, err
 	}
 

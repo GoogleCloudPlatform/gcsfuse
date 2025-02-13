@@ -28,7 +28,7 @@ import (
 	"errors"
 )
 
-func TestWrapGCSFuseError(t *testing.T) {
+func TestWrapUnderCommonGCSError(t *testing.T) {
 	preconditionAPIErr, ok := apierror.FromError(status.Error(codes.FailedPrecondition, codes.FailedPrecondition.String()))
 	assert.True(t, ok)
 
@@ -132,7 +132,7 @@ func TestWrapGCSFuseError(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, wrapped := WrapGCSFuseError(tc.inputErr)
+			got, wrapped := WrapUnderCommonGCSError(tc.inputErr)
 			assert.Equal(t, tc.expectedWrapped, wrapped)
 			assert.Equal(t, tc.expectedErr, got)
 

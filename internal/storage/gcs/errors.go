@@ -46,9 +46,9 @@ func (pe *PreconditionError) Error() string {
 	return fmt.Sprintf("gcs.PreconditionError: %v", pe.Err)
 }
 
-// WrapGCSFuseError converts an error returned by go-sdk into gcsfuse specific gcs error.
-// It returns wrapped error and a boolean indicating whether a conversion occured or not.
-func WrapGCSFuseError(err error) (error, bool) {
+// WrapUnderCommonGCSError converts an error returned by go-sdk into gcsfuse specific common gcs error.
+// It returns wrapped error and a boolean indicating whether a wrapped or not.
+func WrapUnderCommonGCSError(err error) (error, bool) {
 	if err == nil {
 		return nil, false
 	}
