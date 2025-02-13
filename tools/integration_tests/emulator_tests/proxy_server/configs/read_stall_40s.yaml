@@ -1,0 +1,6 @@
+targetHost: http://localhost:9000
+retryConfig:
+- method: XmlRead
+  retryInstruction: "stall-for-40s-after-0K"
+  retryCount: 1
+  skipCount: 0
