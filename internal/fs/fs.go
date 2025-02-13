@@ -1459,6 +1459,9 @@ func (fs *fileSystem) StatFS(
 func (fs *fileSystem) LookUpInode(
 	ctx context.Context,
 	op *fuseops.LookUpInodeOp) (err error) {
+	fmt.Println("lookupinode args")
+	fmt.Println(op.Entry.Attributes.Mode)
+	fmt.Println("lookupinode done")
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
@@ -1497,6 +1500,9 @@ func (fs *fileSystem) LookUpInode(
 func (fs *fileSystem) GetInodeAttributes(
 	ctx context.Context,
 	op *fuseops.GetInodeAttributesOp) (err error) {
+	fmt.Println("received args")
+	fmt.Println(op.Attributes.Mode)
+	fmt.Println("Done printing recieved arsg")
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
