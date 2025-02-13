@@ -118,7 +118,9 @@ TEST_DIR_NON_PARALLEL=(
   "readonly_creds"
 )
 
-# Test directory arrays
+# Subset of TEST_DIR_PARALLEL,
+# but only those tests which currently
+# pass for zonal buckets.
 TEST_DIR_PARALLEL_FOR_ZB=(
   # "benchmarking"
   # "concurrent_operations"
@@ -144,7 +146,9 @@ TEST_DIR_PARALLEL_FOR_ZB=(
   "write_large_files"
 )
 
-# These tests never become parallel as it is changing bucket permissions.
+# Subset of TEST_DIR_NON_PARALLEL,
+# but only those tests which currently
+# pass for zonal buckets.
 TEST_DIR_NON_PARALLEL_FOR_ZB=(
   "readonly"
   "managed_folders"
