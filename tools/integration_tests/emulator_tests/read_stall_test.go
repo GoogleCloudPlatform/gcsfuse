@@ -64,7 +64,7 @@ func (s *readStall) TestReadFirstKBStallInducedShouldCompleteInLessThanStallTime
 	elapsedTime, err := emulator_tests.ReadFirstKB(filePath)
 
 	assert.NoError(t, err)
-	assert.Less(t, elapsedTime, stallTime)
+	assert.Less(t, elapsedTime, readStallTime)
 }
 
 ////////////////////////////////////////////////////////////////////////
