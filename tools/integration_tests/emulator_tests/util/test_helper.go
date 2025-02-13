@@ -133,6 +133,27 @@ func WriteFileAndSync(filePath string, fileSize int) (time.Duration, error) {
 	return endTime.Sub(startTime), nil
 }
 
+// ReadFirstKB reads the first 1KB of a file and returns the time taken.
+func ReadFirstKB(filePath string) (time.Duration, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return 0, err
+	}
+	defer file.Close()
+
+	buffer := make([]byte, 1024)
+
+	startTime := time.Now()
+	_, err = file.Read(buffer)
+	if err != nil && err != io.EOF {
+		return 0, err
+	}
+
+	endTime := time.Now()
+
+	return endTime.Sub(startTime), nil
+}
+
 func GetChunkTransferTimeoutFromFlags(flags []string) (int, error) {
 	timeout := 10 // Default value
 	for _, flag := range flags {
