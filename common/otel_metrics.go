@@ -35,12 +35,12 @@ type otelMetrics struct {
 	fsOpsErrorCount metric.Int64Counter
 	fsOpsLatency    metric.Float64Histogram
 
-	gcsReadCount          metric.Int64Counter
-	gcsReadBytesCountInt  *atomic.Int64
-	gcsReaderCount        metric.Int64Counter
-	gcsRequestCount       metric.Int64Counter
-	gcsRequestLatency     metric.Float64Histogram
-	gcsDownloadBytesCount metric.Int64Counter
+	gcsReadCount            metric.Int64Counter
+	gcsReadBytesCountAtomic *atomic.Int64
+	gcsReaderCount          metric.Int64Counter
+	gcsRequestCount         metric.Int64Counter
+	gcsRequestLatency       metric.Float64Histogram
+	gcsDownloadBytesCount   metric.Int64Counter
 
 	fileCacheReadCount      metric.Int64Counter
 	fileCacheReadBytesCount metric.Int64Counter
@@ -48,7 +48,7 @@ type otelMetrics struct {
 }
 
 func (o *otelMetrics) GCSReadBytesCount(_ context.Context, inc int64) {
-	o.gcsReadBytesCountInt.Add(inc)
+	o.gcsReadBytesCountAtomic.Add(inc)
 }
 
 func (o *otelMetrics) GCSReaderCount(ctx context.Context, inc int64, attrs []MetricAttr) {
@@ -107,12 +107,12 @@ func NewOTelMetrics() (MetricHandle, error) {
 		metric.WithDescription("The cumulative number of bytes downloaded from GCS along with type - Sequential/Random"),
 		metric.WithUnit("By"))
 
-	var gcsReadBytesCountInt atomic.Int64
+	var gcsReadBytesCountAtomic atomic.Int64
 	_, err6 := gcsMeter.Int64ObservableCounter("gcs/read_bytes_count",
 		metric.WithDescription("The cumulative number of bytes read from GCS objects."),
 		metric.WithUnit("By"),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
-			obsrv.Observe(gcsReadBytesCountInt.Load())
+			obsrv.Observe(gcsReadBytesCountAtomic.Load())
 			return nil
 		}))
 	gcsReaderCount, err7 := gcsMeter.Int64Counter("gcs/reader_count", metric.WithDescription("The cumulative number of GCS object readers opened or closed."))
@@ -138,7 +138,7 @@ func NewOTelMetrics() (MetricHandle, error) {
 		fsOpsErrorCount:         fsOpsErrorCount,
 		fsOpsLatency:            fsOpsLatency,
 		gcsReadCount:            gcsReadCount,
-		gcsReadBytesCountInt:    &gcsReadBytesCountInt,
+		gcsReadBytesCountAtomic: &gcsReadBytesCountAtomic,
 		gcsReaderCount:          gcsReaderCount,
 		gcsRequestCount:         gcsRequestCount,
 		gcsRequestLatency:       gcsRequestLatency,
