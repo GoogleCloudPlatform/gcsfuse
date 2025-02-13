@@ -75,7 +75,7 @@
   flag-name: "enable-atomic-rename-object"
   type: "bool"
   usage: "Enables support for atomic rename object operation on HNS bucket."
-  default: false
+  default: true
   hide-flag: true
 
 - config-path: "enable-hns"
