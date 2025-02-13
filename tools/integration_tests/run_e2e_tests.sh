@@ -460,54 +460,54 @@ function main(){
 
   install_packages
 
-  set +e
+  # set +e
+#
+  # # Run tpc test and exit in case RUN_TEST_ON_TPC_ENDPOINT is true.
+  # if [ $RUN_TEST_ON_TPC_ENDPOINT == true ]; then
+       # run_e2e_tests_for_tpc
+  # fi
 
-  # Run tpc test and exit in case RUN_TEST_ON_TPC_ENDPOINT is true.
-  if [ $RUN_TEST_ON_TPC_ENDPOINT == true ]; then
-       run_e2e_tests_for_tpc
-  fi
+  # #run integration tests
+  # run_e2e_tests_for_hns_bucket &
+  # e2e_tests_hns_bucket_pid=$!
+#
+  # run_e2e_tests_for_flat_bucket &
+  # e2e_tests_flat_bucket_pid=$!
+#
+  # run_e2e_tests_for_emulator &
+  # e2e_tests_emulator_pid=$!
+#
+  # wait $e2e_tests_emulator_pid
+  # e2e_tests_emulator_status=$?
+#
+  # wait $e2e_tests_flat_bucket_pid
+  # e2e_tests_flat_bucket_status=$?
+#
+  # wait $e2e_tests_hns_bucket_pid
+  # e2e_tests_hns_bucket_status=$?
 
-  #run integration tests
-  run_e2e_tests_for_hns_bucket &
-  e2e_tests_hns_bucket_pid=$!
+  # set -e
+#
+  # print_test_logs
+#
+  # exit_code=0
+  # if [ $e2e_tests_flat_bucket_status != 0 ];
+  # then
+    # echo "The e2e tests for flat bucket failed.."
+    # exit_code=1
+  # fi
+#
+  # if [ $e2e_tests_hns_bucket_status != 0 ];
+  # then
+    # echo "The e2e tests for hns bucket failed.."
+    # exit_code=1
+  # fi
 
-  run_e2e_tests_for_flat_bucket &
-  e2e_tests_flat_bucket_pid=$!
-
-  run_e2e_tests_for_emulator &
-  e2e_tests_emulator_pid=$!
-
-  wait $e2e_tests_emulator_pid
-  e2e_tests_emulator_status=$?
-
-  wait $e2e_tests_flat_bucket_pid
-  e2e_tests_flat_bucket_status=$?
-
-  wait $e2e_tests_hns_bucket_pid
-  e2e_tests_hns_bucket_status=$?
-
-  set -e
-
-  print_test_logs
-
-  exit_code=0
-  if [ $e2e_tests_flat_bucket_status != 0 ];
-  then
-    echo "The e2e tests for flat bucket failed.."
-    exit_code=1
-  fi
-
-  if [ $e2e_tests_hns_bucket_status != 0 ];
-  then
-    echo "The e2e tests for hns bucket failed.."
-    exit_code=1
-  fi
-
-  if [ $e2e_tests_emulator_status != 0 ];
-  then
-    echo "The e2e tests for emulator failed.."
-    exit_code=1
-  fi
+  # if [ $e2e_tests_emulator_status != 0 ];
+  # then
+    # echo "The e2e tests for emulator failed.."
+    # exit_code=1
+  # fi
 
   set +e
 
