@@ -21,10 +21,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 )
 
-// gcsFullReadCloser wraps a gcs.StorageReader and ensures that the Read call returns:
-// 1. entire response, if buffer size > response size
-// 2. entire buffer is filled, if buffer size <= response size
-// 3. error
+// gcsFullReadCloser wraps a gcs.StorageReader and ensures that the Read call reads the entire response up to the buffer size even if the wrapped read returns data in smaller chunks.
 type gcsFullReadCloser struct {
 	wrapped gcs.StorageReader
 }

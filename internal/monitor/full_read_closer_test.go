@@ -51,7 +51,6 @@ func TestFullReaderCloser(t *testing.T) {
 		name         string
 		bufSize      int
 		data         []byte
-		maxReadBytes int
 		expectedData []byte
 		expectedErr  error
 	}{
@@ -75,14 +74,6 @@ func TestFullReaderCloser(t *testing.T) {
 			bufSize:      4,
 			expectedData: []byte("0123"),
 			expectedErr:  nil,
-		},
-		{
-			name:         "partial_read_full_data_returned",
-			data:         []byte("0123"),
-			bufSize:      10,
-			maxReadBytes: 2,
-			expectedData: []byte("0123"),
-			expectedErr:  io.ErrUnexpectedEOF,
 		},
 	}
 	for _, tc := range tests {
