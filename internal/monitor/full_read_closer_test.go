@@ -23,22 +23,22 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// partialStorageReader reads at most maxBytes from the buffer in one go.
-type partialStorageReader struct {
-	buf      *bytes.Buffer
-	maxBytes int
+// twoBytesStorageReader reads at most 2 bytes from the buffer in one go.
+type twoBytesStorageReader struct {
+	buf *bytes.Buffer
 }
 
-func (psr partialStorageReader) ReadHandle() (rh storagev2.ReadHandle) {
+func (psr twoBytesStorageReader) ReadHandle() (rh storagev2.ReadHandle) {
 	return nil
 }
 
-func (psr partialStorageReader) Close() (err error) {
+func (psr twoBytesStorageReader) Close() (err error) {
 	return nil
 }
 
-func (psr partialStorageReader) Read(b []byte) (n int, err error) {
-	bufLen := min(len(b), psr.maxBytes)
+func (psr twoBytesStorageReader) Read(b []byte) (n int, err error) {
+	maxBytes := 2
+	bufLen := min(len(b), maxBytes)
 	temp := make([]byte, bufLen)
 	n, err = psr.buf.Read(temp)
 	copy(b, temp)
@@ -48,58 +48,49 @@ func (psr partialStorageReader) Read(b []byte) (n int, err error) {
 func TestFullReaderCloser(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name                 string
-		bufSize              int
-		data                 []byte
-		maxReadBytes         int
-		expectedData         []byte
-		expectedErr          error
-		expectedNumBytesRead int
+		name         string
+		bufSize      int
+		data         []byte
+		maxReadBytes int
+		expectedData []byte
+		expectedErr  error
 	}{
 		{
-			name:                 "large_buffer",
-			data:                 []byte("0123"),
-			bufSize:              5,
-			maxReadBytes:         10,
-			expectedData:         []byte("0123"),
-			expectedErr:          io.ErrUnexpectedEOF,
-			expectedNumBytesRead: 4,
+			name:         "large_buffer",
+			data:         []byte("0123"),
+			bufSize:      5,
+			expectedData: []byte("0123"),
+			expectedErr:  io.ErrUnexpectedEOF,
 		},
 		{
-			name:                 "small_buffer",
-			data:                 []byte("0123"),
-			bufSize:              2,
-			maxReadBytes:         10,
-			expectedData:         []byte("01"),
-			expectedErr:          nil,
-			expectedNumBytesRead: 2,
+			name:         "small_buffer",
+			data:         []byte("0123"),
+			bufSize:      2,
+			expectedData: []byte("01"),
+			expectedErr:  nil,
 		},
 		{
-			name:                 "equal_buffer",
-			data:                 []byte("0123"),
-			bufSize:              4,
-			maxReadBytes:         10,
-			expectedData:         []byte("0123"),
-			expectedErr:          nil,
-			expectedNumBytesRead: 4,
+			name:         "equal_buffer",
+			data:         []byte("0123"),
+			bufSize:      4,
+			expectedData: []byte("0123"),
+			expectedErr:  nil,
 		},
 		{
-			name:                 "partial_read_full_data_returned",
-			data:                 []byte("0123"),
-			bufSize:              10,
-			maxReadBytes:         2,
-			expectedData:         []byte("0123"),
-			expectedErr:          io.ErrUnexpectedEOF,
-			expectedNumBytesRead: 4,
+			name:         "partial_read_full_data_returned",
+			data:         []byte("0123"),
+			bufSize:      10,
+			maxReadBytes: 2,
+			expectedData: []byte("0123"),
+			expectedErr:  io.ErrUnexpectedEOF,
 		},
 	}
 	for _, tc := range tests {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			storageReader := partialStorageReader{
-				maxBytes: tc.maxReadBytes,
-				buf:      new(bytes.Buffer),
+			storageReader := twoBytesStorageReader{
+				buf: new(bytes.Buffer),
 			}
 			storageReader.buf.Write(tc.data)
 			fullReadCloser := newGCSFullReadCloser(storageReader)
@@ -107,7 +98,7 @@ func TestFullReaderCloser(t *testing.T) {
 
 			n, err := fullReadCloser.Read(buffer)
 
-			assert.Equal(t, tc.expectedNumBytesRead, n)
+			assert.Equal(t, len(tc.expectedData), n)
 			assert.Equal(t, tc.expectedErr, err)
 			assert.Equal(t, tc.expectedData[:n], buffer[:n])
 		})

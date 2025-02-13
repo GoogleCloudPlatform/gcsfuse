@@ -22,9 +22,9 @@ import (
 )
 
 // gcsFullReadCloser wraps a gcs.StorageReader and ensures that the Read call returns:
-// if size of the buffer is more than the response, then the entire response is returned,
-// or if size of the buffer is less than or equal to the response, then the entire buffer is filled,
-// or an error is encountered.
+// 1. entire response, if buffer size > response size
+// 2. entire buffer is filled, if buffer size <= response size
+// 3. error
 type gcsFullReadCloser struct {
 	wrapped gcs.StorageReader
 }
@@ -34,11 +34,9 @@ func newGCSFullReadCloser(reader gcs.StorageReader) gcs.StorageReader {
 }
 
 // Read reads exactly len(buf) bytes from the wrapped StorageReader into buf.
-// It returns the number of bytes copied and an error if fewer bytes were read.
-// The error is EOF only if no bytes were read.
-// If an EOF happens after reading some but not all the bytes, Read returns ErrUnexpectedEOF.
-// On return, n == len(buf) if and only if err == nil.
-// If StorageReader returns an error having read at least len(buf) bytes, the error is dropped.
+// 1. the number of bytes copied and an ErrUnexpectedEOF if response size < buffer size
+// 2. EOF only if no bytes were read.
+// 3. n == len(buf) if and only if err == nil.
 func (frc gcsFullReadCloser) Read(buf []byte) (n int, err error) {
 	return io.ReadFull(frc.wrapped, buf)
 }
