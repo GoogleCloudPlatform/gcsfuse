@@ -91,8 +91,8 @@ func attrsToAddOption(attrs []MetricAttr) []metric.AddOption {
 	return otelOptions
 }
 
-func (o *ocMetrics) GCSReadBytesCount(ctx context.Context, inc int64, attrs []MetricAttr) {
-	recordOCMetric(ctx, o.gcsReadBytesCount, inc, attrs, "GCS read bytes count")
+func (o *ocMetrics) GCSReadBytesCount(ctx context.Context, inc int64) {
+	recordOCMetric(ctx, o.gcsReadBytesCount, inc, nil, "GCS read bytes count")
 }
 
 func (o *ocMetrics) GCSReaderCount(ctx context.Context, inc int64, attrs []MetricAttr) {
