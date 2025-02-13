@@ -322,11 +322,11 @@ function print_test_logs() {
 function run_e2e_tests_for_flat_bucket() {
   # Adding prefix `golang-grpc-test` to white list the bucket for grpc so that
   # we can run grpc related e2e tests.
-  bucketPrefix="golang-grpc-test-gcsfuse-non-parallel-e2e-tests-"
+  bucketPrefix="golang-grpc-test-gcsfuse-np-e2e-tests-"
   bucket_name_non_parallel=$(create_bucket $bucketPrefix)
   echo "Bucket name for non parallel tests: "$bucket_name_non_parallel
 
-  bucketPrefix="golang-grpc-test-gcsfuse-parallel-e2e-tests-"
+  bucketPrefix="golang-grpc-test-gcsfuse-p-e2e-tests-"
   bucket_name_parallel=$(create_bucket $bucketPrefix)
   echo "Bucket name for parallel tests: "$bucket_name_parallel
 
