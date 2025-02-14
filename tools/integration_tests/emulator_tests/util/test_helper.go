@@ -25,6 +25,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"testing"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
@@ -128,6 +129,29 @@ func WriteFileAndSync(filePath string, fileSize int) (time.Duration, error) {
 	if err != nil {
 		return 0, err
 	}
+
+	return endTime.Sub(startTime), nil
+}
+
+// ReadFirstKB reads the first 1KB of a file and returns the time taken.
+func ReadFirstKB(t *testing.T, filePath string) (time.Duration, error) {
+	t.Helper()
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		return 0, err
+	}
+	defer file.Close()
+
+	buffer := make([]byte, 1024)
+
+	startTime := time.Now()
+	_, err = file.Read(buffer)
+	if err != nil && err != io.EOF {
+		return 0, err
+	}
+
+	endTime := time.Now()
 
 	return endTime.Sub(startTime), nil
 }
