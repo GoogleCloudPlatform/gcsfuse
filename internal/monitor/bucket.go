@@ -63,7 +63,9 @@ func setupReader(ctx context.Context, mb *monitoringBucket, req *gcs.ReadObjectR
 	startTime := time.Now()
 
 	rc, err := mb.wrapped.NewReaderWithReadHandle(ctx, req)
+
 	if err == nil {
+		rc = newGCSFullReadCloser(rc)
 		rc = newMonitoringReadCloser(ctx, req.Name, rc, mb.metricHandle)
 	}
 
