@@ -15,15 +15,17 @@
 package emulator_tests
 
 import (
+	"fmt"
 	"log"
 	"path"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/suite"
+
 	emulator_tests "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/emulator_tests/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -31,21 +33,27 @@ import (
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-const readStallTime = 40 * time.Second
+const (
+	readStallTime = 10 * time.Second
+	minReqTimeout = 1500 * time.Millisecond
+)
 
 type readStall struct {
 	flags []string
+	suite.Suite
+	testDirPath string
 }
 
-func (s *readStall) Setup(t *testing.T) {
-	configPath := "./proxy_server/configs/read_stall_40s.yaml"
+func (r *readStall) SetupTest() {
+	configPath := "./proxy_server/configs/read_stall_10s.yaml"
 	emulator_tests.StartProxyServer(configPath)
-	setup.MountGCSFuseWithGivenMountFunc(s.flags, mountFunc)
+	setup.MountGCSFuseWithGivenMountFunc(r.flags, mountFunc)
+	r.testDirPath = setup.SetupTestDirectory(r.T().Name())
 }
 
-func (s *readStall) Teardown(t *testing.T) {
+func (r *readStall) TearDownTest() {
 	setup.UnmountGCSFuse(rootDir)
-	assert.NoError(t, emulator_tests.KillProxyServerProcess(port))
+	assert.NoError(r.T(), emulator_tests.KillProxyServerProcess(port))
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -55,16 +63,15 @@ func (s *readStall) Teardown(t *testing.T) {
 // TestReadFirstKBStallInducedShouldCompleteInLessThanStallTime verifies that reading the first 1KB
 // of a file completes in less time than the configured stall time, even when a read stall is induced.
 // It creates a file, reads the initial 1KB, and asserts that the elapsed time is less than the expected stall duration.
-func (s *readStall) TestReadFirstKBStallInducedShouldCompleteInLessThanStallTime(t *testing.T) {
-	testDir := "TestReadFirstKBStallInducedShouldCompleteInLessThanStallTime"
-	testDirPath = setup.SetupTestDirectory(testDir)
-	filePath := path.Join(testDirPath, "file.txt")
-	operations.CreateFileOfSize(fileSize, filePath, t)
+func (r *readStall) TestReadFirstKBStallInducedShouldCompleteInLessThanStallTime() {
+	filePath := path.Join(r.testDirPath, "file.txt")
+	operations.CreateFileOfSize(fileSize, filePath, r.T())
 
-	elapsedTime, err := emulator_tests.ReadFirstKB(filePath)
+	elapsedTime, err := emulator_tests.ReadFirstKB(r.T(), filePath)
 
-	assert.NoError(t, err)
-	assert.Less(t, elapsedTime, readStallTime)
+	assert.NoError(r.T(), err)
+	assert.Greater(r.T(), elapsedTime, minReqTimeout)
+	assert.Less(r.T(), 4*elapsedTime, readStallTime)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -75,13 +82,13 @@ func TestReadStall(t *testing.T) {
 	ts := &readStall{}
 	// Define flag set to run the tests.
 	flagsSet := [][]string{
-		{"--custom-endpoint=" + proxyEndpoint, "--enable-read-stall-retry=true"},
+		{"--custom-endpoint=" + proxyEndpoint, "--enable-read-stall-retry=true", "--read-stall-min-req-timeout=" + fmt.Sprintf("%dms", minReqTimeout.Milliseconds())},
 	}
 
 	// Run tests.
 	for _, flags := range flagsSet {
 		ts.flags = flags
 		log.Printf("Running tests with flags: %s", ts.flags)
-		test_setup.RunTests(t, ts)
+		suite.Run(t, ts)
 	}
 }
