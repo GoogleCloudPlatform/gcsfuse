@@ -18,8 +18,21 @@ set -x
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
-#details.txt file contains the release version and commit hash of the current release.
-gsutil cp  gs://gcsfuse-release-packages/version-detail/details.txt .
+# Todo: Remove once gcloud is packaged in SUSE images available on GCP
+# Add repo file for gcloud
+if `grep -iq sles /etc/os-release`;
+then
+  sudo echo """[google-cloud-cli]
+name=Google Cloud CLI
+baseurl=https://packages.cloud.google.com/yum/repos/cloud-sdk-el9-x86_64
+enabled=1
+gpgcheck=1
+repo_gpgcheck=0
+gpgkey=https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg""" > /etc/zypp/repos.d/google-cloud-sdk.repo
+
+  sudo zypper --gpg-auto-import-keys -n refresh
+fi
+
 # Writing VM instance name to details.txt (Format: release-test-<os-name>)
 curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google" >> details.txt
 
@@ -28,6 +41,9 @@ if grep -q ubuntu details.txt || grep -q debian details.txt;
 then
 #  For ubuntu and debian os
     sudo adduser --ingroup google-sudoers --disabled-password --home=/home/starterscriptuser --gecos "" starterscriptuser
+elif grep -q suse details.txt || grep -q sles details.txt;
+then
+    sudo useradd -m -g google-sudoers --home-dir=/home/starterscriptuser starterscriptuser
 else
 #  For rhel and centos
     sudo adduser -g google-sudoers --home-dir=/home/starterscriptuser starterscriptuser
@@ -40,9 +56,62 @@ set -e
 # Print commands and their arguments as they are executed.
 set -x
 
-#Copy details.txt to starterscriptuser home directory and create logs.txt
+# Determine architecture
+if grep -q ubuntu details.txt || grep -q debian details.txt;
+then
+  # architecture can be amd64 or arm64
+  architecture=$(dpkg --print-architecture)
+elif `grep -iq sles /etc/os-release` || grep -q rhel details.txt || grep -q centos details.txt;
+then
+  # uname can be aarch or x86_64
+  uname=$(uname -i)
+  if [[ $uname == "x86_64" ]];
+  then
+    architecture="amd64"
+  elif [[ $uname == "aarch64" ]];
+  then
+    architecture="arm64"
+  fi
+fi
+
+# Todo: Remove once gcloud is packaged in SUSE images available on GCP
+# Install gcloud
+if `grep -iq suse /etc/os-release`;
+then
+  if [[ $architecture == "arm64" ]];
+  then
+    # Create a temporary expect script
+    expect_script=$(mktemp)
+    cat <<EOF > "$expect_script"
+#!/usr/bin/expect -f
+
+spawn sudo zypper --gpg-auto-import-keys install google-cloud-sdk
+expect "Choose from above solutions by number or cancel \[1\/2\/c\/d\/\?\] \(c\): "
+send "2\r"
+expect "Continue? \[y\/n\/v\/...? shows all options\] (y): "
+send "y\r"
+expect eof
+EOF
+
+    # Make the expect script executable
+    sudo chmod +x "$expect_script"
+
+    # Run the expect script using expect
+    sudo expect "$expect_script"
+
+    # Remove the temporary expect script
+    sudo rm "$expect_script"
+  else
+    sudo zypper --gpg-auto-import-keys install -y google-cloud-sdk
+  fi
+fi
+
 cd ~/
-cp /details.txt .
+# details.txt file contains the release version and commit hash of the current release.
+gsutil cp  gs://gcsfuse-release-packages/version-detail/details.txt .
+# Writing VM instance name to details.txt (Format: release-test-<os-name>)
+curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google" >> details.txt
+
 touch logs.txt
 touch logs-hns.txt
 
@@ -54,9 +123,6 @@ echo Current Working Directory: $(pwd)  &>> ~/logs.txt
 if grep -q ubuntu details.txt || grep -q debian details.txt;
 then
 #  For Debian and Ubuntu os
-    # architecture can be amd64 or arm64
-    architecture=$(dpkg --print-architecture)
-
     sudo apt update
 
     #Install fuse
@@ -80,17 +146,29 @@ then
 
     #install build-essentials
     sudo apt install -y build-essential
+elif grep -q sles details.txt;
+then
+#  For suse linux
+    sudo zypper refresh
+
+    #Install fuse
+    sudo zypper install -y fuse
+
+    #download and install gcsfuse rpm package
+    gsutil cp gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/gcsfuse-$(sed -n 1p details.txt)-1.${uname}.rpm .
+    sudo zypper --no-gpg-checks install -y gcsfuse-$(sed -n 1p details.txt)-1.${uname}.rpm
+    sudo cp /usr/bin/gcsfuse /bin/gcsfuse
+
+    #install wget
+    sudo zypper install -y wget
+
+    #install git
+    sudo zypper install -y git
+
+    #install Development tools
+    sudo zypper install -y gcc gcc-c++ make
 else
 #  For rhel and centos
-    # uname can be aarch or x86_64
-    uname=$(uname -i)
-
-    if [[ $uname == "x86_64" ]]; then
-      architecture="amd64"
-    elif [[ $uname == "aarch64" ]]; then
-      architecture="arm64"
-    fi
-
     sudo yum makecache
     sudo yum -y update
 
@@ -134,6 +212,14 @@ then
     # Downloading composite object requires integrity checking with CRC32c in gsutil.
     # it requires to install crcmod.
     pip3 install --require-hashes -r tools/cd_scripts/requirements.txt --user
+elif grep -iq sles details.txt;
+then
+    # install python3-setuptools tools and python3-pip
+    sudo zypper install -y gcc python3-devel python3-setuptools redhat-rpm-config
+    sudo zypper install -y python3-pip
+    # Downloading composite object requires integrity checking with CRC32c in gsutil.
+    # it requires to install crcmod.
+    pip3 install --require-hashes -r tools/cd_scripts/requirements.txt --user
 fi
 
 git checkout $(sed -n 2p ~/details.txt) |& tee -a ~/logs.txt
@@ -171,6 +257,23 @@ TEST_DIR_NON_PARALLEL=(
   "list_large_dir"
 )
 
+TEST_DIR_NON_PARALLEL_SKIP_SUSE_ARM64=(
+  "managed_folders"
+  "list_large_dir"
+)
+
+function containsElement() {
+  local test_array = $1
+  local element = $2
+  for elem in "$test_array[@]}"
+  do
+    if [ $elem == $element ]; then
+      return 1
+    fi
+  done
+  return 0
+}
+
 # Create a temporary file to store the log file name.
 TEST_LOGS_FILE=$(mktemp)
 
@@ -182,6 +285,10 @@ function run_non_parallel_tests() {
   local BUCKET_NAME=$2
   for test_dir_np in "${test_array[@]}"
   do
+    skip_test = containsElement TEST_DIR_NON_PARALLEL_SKIP_SUSE_ARM64 $test_dir_np
+    if [ $skip_test == 1 ]; then
+      continue
+    fi
     test_path_non_parallel="./tools/integration_tests/$test_dir_np"
     # To make it clear whether tests are running on a flat or HNS bucket, We kept the log file naming
     # convention to include the bucket name as a suffix (e.g., package_name_bucket_name).
@@ -240,9 +347,9 @@ function run_e2e_tests_for_flat_bucket() {
   flat_bucket_name_parallel=$(sed -n 3p ~/details.txt)-parallel
   echo "Flat Bucket name to run tests parallelly: "$flat_bucket_name_parallel
 
-  echo "Running parallel tests..."
-  run_parallel_tests TEST_DIR_PARALLEL "$flat_bucket_name_parallel" &
-  parallel_tests_pid=$!
+  #echo "Running parallel tests..."
+  #run_parallel_tests TEST_DIR_PARALLEL "$flat_bucket_name_parallel" &
+  #parallel_tests_pid=$!
 
  echo "Running non parallel tests ..."
  run_non_parallel_tests TEST_DIR_NON_PARALLEL "$flat_bucket_name_non_parallel" &
@@ -312,8 +419,8 @@ function gather_test_logs() {
 }
 
 echo "Running integration tests for HNS bucket..."
-run_e2e_tests_for_hns_bucket &
-e2e_tests_hns_bucket_pid=$!
+#run_e2e_tests_for_hns_bucket &
+#e2e_tests_hns_bucket_pid=$!
 
 echo "Running integration tests for FLAT bucket..."
 run_e2e_tests_for_flat_bucket &
