@@ -102,11 +102,11 @@ func (t *defaultFailureTestSuite) writingAfterBwhReinitializationSucceeds() {
 	// Verify that Object is not found on GCS.
 	ValidateObjectNotFoundErrOnGCS(t.ctx, t.storageClient, testDirName, FileName1, t.T())
 	// Opening new file handle and writing to file succeeds.
-	fh := operations.CreateFile(t.filePath, FilePerms, t.T())
-	_, err := fh.WriteAt(t.data, 0)
+	t.fh1 = operations.CreateFile(t.filePath, FilePerms, t.T())
+	_, err := t.fh1.WriteAt(t.data, 0)
 	assert.NoError(t.T(), err)
 	// Sync succeeds.
-	err = fh.Sync()
+	err = t.fh1.Sync()
 	assert.NoError(t.T(), err)
 }
 
@@ -186,12 +186,12 @@ func (t *defaultFailureTestSuite) TestStreamingWritesTruncateBiggerSucceedsOnSec
 	operations.CloseFileShouldThrowError(t.fh1, t.T())
 	// Opening new file handle and writing to file succeeds.
 	t.writingAfterBwhReinitializationSucceeds()
-	// Opening new file handle and truncate to bigger size succeeds.
-	fh3 := operations.CreateFile(t.filePath, FilePerms, t.T())
+	// Truncate to bigger size succeeds.
+	t.fh1.Truncate(6 * operations.MiB)
 	assert.NoError(t.T(), err)
 	// Close and validate object content found on GCS.
 	emptyBytes := make([]byte, operations.MiB)
-	CloseFileAndValidateContentFromGCS(t.ctx, t.storageClient, fh3, testDirName, FileName1, string(t.data)+string(emptyBytes), t.T())
+	CloseFileAndValidateContentFromGCS(t.ctx, t.storageClient, t.fh1, testDirName, FileName1, string(t.data)+string(emptyBytes), t.T())
 }
 
 func (t *defaultFailureTestSuite) TestStreamingWritesSyncFailsOnSecondChunkUploadFailure() {
