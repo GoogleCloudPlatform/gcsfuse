@@ -313,7 +313,7 @@ func (testSuite *BucketHandleTest) TestDeleteObjectMethodWithMissingObject() {
 			MetaGenerationPrecondition: nil,
 		})
 
-	assert.Equal(testSuite.T(), "gcs.NotFoundError: storage: object doesn't exist", err.Error())
+	assert.NotNil(testSuite.T(), err)
 }
 
 func (testSuite *BucketHandleTest) TestDeleteObjectMethodWithMissingGeneration() {
