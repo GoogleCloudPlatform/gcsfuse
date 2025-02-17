@@ -16,11 +16,11 @@ package gcsx
 
 import (
 	"context"
-	"fmt"
 	"io"
-	"math"
+	"strconv"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 )
 
@@ -133,53 +133,57 @@ func (rr *randomReader) ReadAt(ctx context.Context, p []byte, offset int64) (obj
 	// Check first if we can read using existing reader. if not, determine which
 	// api to use and call gcs accordingly.
 
-	// When the offset is AFTER the reader position, try to seek forward, within reason.
-	// This happens when the kernel page cache serves some data. It's very common for
-	// concurrent reads, often by only a few 128kB fuse read requests. The aim is to
-	// re-use GCS connection and avoid throwing away already read data.
-	// For parallel sequential reads to a single file, not throwing away the connections
-	// is a 15-20x improvement in throughput: 150-200 MB/s instead of 10 MB/s.
-	if rr.reader != nil && rr.start < offset && offset-rr.start < maxReadSize {
-		bytesToSkip := offset - rr.start
-		p := make([]byte, bytesToSkip)
-		n, _ := io.ReadFull(rr.reader, p)
-		rr.start += int64(n)
-	}
-
-	// If we have an existing reader, but it's positioned at the wrong place,
-	// clean it up and throw it away.
-	// We will also clean up the existing reader if it can't serve the entire request.
-	dataToRead := math.Min(float64(offset+int64(len(p))), float64(rr.object.Size))
-	if rr.reader != nil && (rr.start != offset || int64(dataToRead) > rr.limit) {
-		rr.closeReader()
-		rr.reader = nil
-		rr.cancel = nil
-		if rr.start != offset {
-			// We should only increase the seek count if we have to discard the reader when it's
-			// positioned at wrong place. Discarding it if can't serve the entire request would
-			// result in reader size not growing for random reads scenario.
-			rr.seeks++
+	// 2. Try reading from the GCS reader (if it exists and is positioned correctly).
+	if rr.gr.reader != nil {
+		objectData, err = rr.gr.ReadAt(ctx, p, offset) // Call gcsReader.ReadAt
+		if err == nil {
+			rr.gr.totalReadBytes += uint64(objectData.Size) // Update totalReadBytes in gcsReader if successful
+		}
+		if err == nil || err == io.EOF { // Treat EOF as success (partial read).
+			if objectData.Size > 0 { // Only update seeks if data was actually read from GCS.
+				rr.gr.seeks++
+			}
+			return objectData, err
+		}
+		if err != nil { // Cleanup the gcsReader if ReadAt fails (other than EOF).
+			rr.gr.Destroy()
+			rr.gr = rr.gr.NewGcsReader(rr.object, rr.bucket, rr.gr.sequentialReadSizeMb) // Initialize a new reader
+		}
+	} else {
+		// Initialize a new reader and attempt reading.
+		rr.gr = rr.gr.NewGcsReader(rr.object, rr.bucket, rr.gr.sequentialReadSizeMb) // Initialize a new reader
+		objectData, err = rr.gr.ReadAt(ctx, p, offset)                               // Call gcsReader.ReadAt
+		if err == nil {
+			rr.gr.totalReadBytes += uint64(objectData.Size) // Update totalReadBytes in gcsReader if successful
+		}
+		if err == nil || err == io.EOF { // Treat EOF as success (partial read).
+			if objectData.Size > 0 { // Only update seeks if data was actually read from GCS.
+				rr.gr.seeks++
+			}
+			return objectData, err
+		} else { // If it fails, clean up.
+			rr.gr.Destroy()
+			rr.gr = nil // Make sure it's cleaned up correctly.
 		}
 	}
-
-	if rr.reader != nil {
-		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, -1, rr.readType)
-		return
+	// 3. Fall back to Multi-Range Downloader if appropriate and not already using it.
+	if rr.mrd != nil { // Check if mrd is available and not in use.
+		objectData.Size, err = rr.mrd.Read(ctx, p, offset, offset+int64(len(p)), multiRangeDownloaderTimeout, rr.fc.metricHandle)
+		if err == nil || err == io.EOF {
+			rr.gr.totalReadBytes += uint64(objectData.Size)
+			return objectData, err
+		}
 	}
-
-	// If we don't have a reader, determine whether to read from NewReader or MRR.
-	end, err := rr.getReadInfo(offset, int64(len(p)))
-	if err != nil {
-		err = fmt.Errorf("ReadAt: getReaderInfo: %w", err)
-		return
-	}
-
-	readerType := readerType(rr.readType, offset, end, rr.bucket.BucketType())
-	if readerType == RangeReader {
-		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, end, rr.readType)
-		return
-	}
-
-	objectData.Size, err = rr.readFromMultiRangeReader(ctx, p, offset, end, TimeoutForMultiRangeRead)
+	// Handle errors, potentially retrying or falling back to a different strategy.
 	return
+}
+
+func captureFileCacheMetrics(ctx context.Context, metricHandle common.MetricHandle, readType string, readDataSize int, cacheHit bool, readLatency time.Duration) {
+	metricHandle.FileCacheReadCount(ctx, 1, []common.MetricAttr{
+		{Key: common.ReadType, Value: readType},
+		{Key: common.CacheHit, Value: strconv.FormatBool(cacheHit)},
+	})
+
+	metricHandle.FileCacheReadBytesCount(ctx, int64(readDataSize), []common.MetricAttr{{Key: common.ReadType, Value: readType}})
+	metricHandle.FileCacheReadLatency(ctx, float64(readLatency.Microseconds()), []common.MetricAttr{{Key: common.CacheHit, Value: strconv.FormatBool(cacheHit)}})
 }
