@@ -187,7 +187,7 @@ func (t *defaultFailureTestSuite) TestStreamingWritesTruncateBiggerSucceedsOnSec
 	// Opening new file handle and writing to file succeeds.
 	t.writingAfterBwhReinitializationSucceeds()
 	// Truncate to bigger size succeeds.
-	t.fh1.Truncate(6 * operations.MiB)
+	err = t.fh1.Truncate(6 * operations.MiB)
 	assert.NoError(t.T(), err)
 	// Close and validate object content found on GCS.
 	emptyBytes := make([]byte, operations.MiB)
