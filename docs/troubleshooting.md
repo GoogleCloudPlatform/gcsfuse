@@ -145,3 +145,10 @@ If it's running on GKE, the issue could be caused by an Out-of-Memory (OOM) erro
 **Solution:** This happens when the mounting bucket contains an object with suffix `/\n` like, `gs://gcs-bkt/a/\n`
 You need to find such objects and replace them with any other valid gcs object names. - [How](https://github.com/GoogleCloudPlatform/gcsfuse/discussions/2894)?
 
+### OSError [ErrNo 28] No space left on device
+
+The Writes in GCSFuse are staged locally before they are uploaded to GCS buckets. It takes up the space of the files that are being uploaded concurrently and deleted locally once they are uploaded. During this time, since the disk is used, it may get used up.
+
+The path can be configured by using the mount flag [--temp-dir](https://cloud.google.com/storage/docs/cloud-storage-fuse/cli-options) to a path which has the disk space if available. By default, it takes the temp directory of the machine.
+
+Alternatively, from [GCSFuse version 2.9.1](https://github.com/GoogleCloudPlatform/gcsfuse/releases/tag/v2.9.1) onwards, writes can be configured with streaming writes feature ( which doesnt involve staging the file locally ) with the help of --enable-streaming-writes flag
