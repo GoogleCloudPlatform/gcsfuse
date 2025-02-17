@@ -95,9 +95,7 @@ func (bh *bucketHandle) NewReaderWithReadHandle(
 
 	// NewRangeReader creates a "storage.Reader" object which is also io.ReadCloser since it contains both Read() and Close() methods present in io.ReadCloser interface.
 	r, err := obj.NewRangeReader(ctx, start, length)
-	err, _ = gcs.WrapUnderCommonGCSError(err)
-
-	return r, err
+	return r, gcs.WrapUnderCommonGCSError(err)
 }
 
 func (bh *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRequest) error {
@@ -115,26 +113,24 @@ func (bh *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectR
 	}
 
 	err := obj.Delete(ctx)
-	var wrapped bool
-	err, wrapped = gcs.WrapUnderCommonGCSError(err)
-	if err != nil && !wrapped {
+	if err != nil {
 		err = fmt.Errorf("error in deleting object: %w", err)
 	}
-	return err
+	return gcs.WrapUnderCommonGCSError(err)
 }
 
 func (bh *bucketHandle) StatObject(ctx context.Context,
 	req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
+
+	defer func() {
+		err = gcs.WrapUnderCommonGCSError(err)
+	}()
+
 	var attrs *storage.ObjectAttrs
 	// Retrieving object attrs through Go Storage Client.
 	attrs, err = bh.bucket.Object(req.Name).Attrs(ctx)
-
-	var wrapped bool
-	err, wrapped = gcs.WrapUnderCommonGCSError(err)
 	if err != nil {
-		if !wrapped {
-			err = fmt.Errorf("error in fetching object attributes: %w", err)
-		}
+		err = fmt.Errorf("error in fetching object attributes: %w", err)
 		return
 	}
 
@@ -180,6 +176,10 @@ func (bh *bucketHandle) getObjectHandleWithPreconditionsSet(req *gcs.CreateObjec
 }
 
 func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
+	defer func() {
+		err = gcs.WrapUnderCommonGCSError(err)
+	}()
+
 	obj := bh.getObjectHandleWithPreconditionsSet(req)
 
 	// Creating a NewWriter with requested attributes, using Go Storage Client.
@@ -202,11 +202,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	// We can't use defer to close the writer, because we need to close the
 	// writer successfully before calling Attrs() method of writer.
 	if err = wc.Close(); err != nil {
-		var wrapped bool
-		err, wrapped = gcs.WrapUnderCommonGCSError(err)
-		if !wrapped {
-			err = fmt.Errorf("error in closing writer : %w", err)
-		}
+		err = fmt.Errorf("error in closing writer : %w", err)
 		return
 	}
 
@@ -215,6 +211,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	o = storageutil.ObjectAttrsToBucketObject(attrs)
 	return
 }
+
 func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
 	obj := bh.getObjectHandleWithPreconditionsSet(req)
 
@@ -234,12 +231,12 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 }
 
 func (bh *bucketHandle) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gcs.MinObject, err error) {
+	defer func() {
+		err = gcs.WrapUnderCommonGCSError(err)
+	}()
+
 	if err = w.Close(); err != nil {
-		var wrapped bool
-		err, wrapped = gcs.WrapUnderCommonGCSError(err)
-		if !wrapped {
-			err = fmt.Errorf("error in closing writer : %w", err)
-		}
+		err = fmt.Errorf("error in closing writer : %w", err)
 		return
 	}
 
@@ -250,6 +247,10 @@ func (bh *bucketHandle) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gc
 }
 
 func (bh *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
+	defer func() {
+		err = gcs.WrapUnderCommonGCSError(err)
+	}()
+
 	srcObj := bh.bucket.Object(req.SrcName)
 	dstObj := bh.bucket.Object(req.DstName)
 
@@ -266,11 +267,7 @@ func (bh *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectReque
 	objAttrs, err := dstObj.CopierFrom(srcObj).Run(ctx)
 
 	if err != nil {
-		var wrapped bool
-		err, wrapped = gcs.WrapUnderCommonGCSError(err)
-		if !wrapped {
-			err = fmt.Errorf("error in copying object: %w", err)
-		}
+		err = fmt.Errorf("error in copying object: %w", err)
 		return
 	}
 	// Converting objAttrs to type *Object
@@ -360,6 +357,10 @@ func (bh *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsReq
 }
 
 func (bh *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
+	defer func() {
+		err = gcs.WrapUnderCommonGCSError(err)
+	}()
+
 	obj := bh.bucket.Object(req.Name)
 
 	if req.Generation != 0 {
@@ -405,16 +406,15 @@ func (bh *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectR
 		return
 	}
 
-	var wrapped bool
-	err, wrapped = gcs.WrapUnderCommonGCSError(err)
-	if !wrapped {
-		err = fmt.Errorf("error in updating object: %w", err)
-	}
-
+	err = fmt.Errorf("error in updating object: %w", err)
 	return
 }
 
 func (bh *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
+	defer func() {
+		err = gcs.WrapUnderCommonGCSError(err)
+	}()
+
 	dstObj := bh.bucket.Object(req.DstName)
 
 	dstObjConds := storage.Conditions{}
@@ -453,11 +453,7 @@ func (bh *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObje
 	// Composing Source Objects to Destination Object using Composer created through Go Storage Client.
 	attrs, err := dstObj.ComposerFrom(srcObjList...).Run(ctx)
 	if err != nil {
-		var wrapped bool
-		err, wrapped = gcs.WrapUnderCommonGCSError(err)
-		if !wrapped {
-			err = fmt.Errorf("error in composing object: %w", err)
-		}
+		err = fmt.Errorf("error in composing object: %w", err)
 		return
 	}
 
@@ -468,6 +464,10 @@ func (bh *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObje
 }
 
 func (bh *bucketHandle) DeleteFolder(ctx context.Context, folderName string) (err error) {
+	defer func() {
+		err = gcs.WrapUnderCommonGCSError(err)
+	}()
+
 	var callOptions []gax.CallOption
 
 	err = bh.controlClient.DeleteFolder(ctx, &controlpb.DeleteFolderRequest{
@@ -480,6 +480,10 @@ func (bh *bucketHandle) DeleteFolder(ctx context.Context, folderName string) (er
 func (bh *bucketHandle) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
 	var o *gcs.Object
 	var err error
+
+	defer func() {
+		err = gcs.WrapUnderCommonGCSError(err)
+	}()
 
 	obj := bh.bucket.Object(req.SrcName)
 
@@ -505,16 +509,15 @@ func (bh *bucketHandle) MoveObject(ctx context.Context, req *gcs.MoveObjectReque
 		return o, nil
 	}
 
-	var wrapped bool
-	err, wrapped = gcs.WrapUnderCommonGCSError(err)
-	if !wrapped {
-		err = fmt.Errorf("error in moving object: %w", err)
-	}
-
+	err = fmt.Errorf("error in moving object: %w", err)
 	return nil, err
 }
 
 func (bh *bucketHandle) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (folder *gcs.Folder, err error) {
+	defer func() {
+		err = gcs.WrapUnderCommonGCSError(err)
+	}()
+
 	var controlFolder *controlpb.Folder
 	req := &controlpb.RenameFolderRequest{
 		Name:                fmt.Sprintf(FullFolderPathHNS, bh.bucketName, folderName),
@@ -554,8 +557,7 @@ func (bh *bucketHandle) GetFolder(ctx context.Context, folderName string) (*gcs.
 	}, callOptions...)
 
 	if err != nil {
-		err = fmt.Errorf("error getting metadata for folder: %s, %w", folderName, err)
-		err, _ = gcs.WrapUnderCommonGCSError(err)
+		err = gcs.WrapUnderCommonGCSError(fmt.Errorf("error getting metadata for folder: %s, %w", folderName, err))
 		return nil, err
 	}
 
@@ -572,7 +574,7 @@ func (bh *bucketHandle) CreateFolder(ctx context.Context, folderName string) (*g
 
 	clientFolder, err := bh.controlClient.CreateFolder(ctx, req)
 	if err != nil {
-		return nil, err
+		return nil, gcs.WrapUnderCommonGCSError(err)
 	}
 
 	folder := gcs.GCSFolder(bh.bucketName, clientFolder)

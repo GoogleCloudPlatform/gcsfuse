@@ -15,6 +15,7 @@
 package gcs
 
 import (
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -38,104 +39,111 @@ func TestWrapUnderCommonGCSError(t *testing.T) {
 	otherAPIErr, ok := apierror.FromError(status.Error(codes.Internal, codes.Internal.String()))
 	assert.True(t, ok)
 
+	// TODO: to check - why does wrapped_grpc_status_NotFound test fails without same error in input and output?
+	grpcNotFoundErr := status.Error(codes.NotFound, "not found")
+	assert.True(t, ok)
+
 	testCases := []struct {
-		name            string
-		inputErr        error
-		expectedErr     error
-		expectedWrapped bool
+		name        string
+		inputErr    error
+		expectedErr error
 	}{
 		{
-			name:            "nil_error",
-			inputErr:        nil,
-			expectedErr:     nil,
-			expectedWrapped: false,
+			name:        "nil_error",
+			inputErr:    nil,
+			expectedErr: nil,
 		},
 		{
-			name:            "googleapi.Error_NotFound",
-			inputErr:        &googleapi.Error{Code: http.StatusNotFound},
-			expectedErr:     &NotFoundError{Err: &googleapi.Error{Code: http.StatusNotFound}},
-			expectedWrapped: true,
+			name:        "googleapi.Error_NotFound",
+			inputErr:    &googleapi.Error{Code: http.StatusNotFound},
+			expectedErr: &NotFoundError{Err: &googleapi.Error{Code: http.StatusNotFound}},
 		},
 		{
-			name:            "googleapi.Error_PreconditionFailed",
-			inputErr:        &googleapi.Error{Code: http.StatusPreconditionFailed},
-			expectedErr:     &PreconditionError{Err: &googleapi.Error{Code: http.StatusPreconditionFailed}},
-			expectedWrapped: true,
+			name:        "googleapi.Error_PreconditionFailed",
+			inputErr:    &googleapi.Error{Code: http.StatusPreconditionFailed},
+			expectedErr: &PreconditionError{Err: &googleapi.Error{Code: http.StatusPreconditionFailed}},
 		},
 		{
-			name:            "googleapi.Error_other_code",
-			inputErr:        &googleapi.Error{Code: http.StatusBadRequest},
-			expectedErr:     &googleapi.Error{Code: http.StatusBadRequest},
-			expectedWrapped: false,
+			name:        "googleapi.Error_other_code",
+			inputErr:    &googleapi.Error{Code: http.StatusBadRequest},
+			expectedErr: &googleapi.Error{Code: http.StatusBadRequest},
 		},
 		{
-			name:            "grpc_status_NotFound",
-			inputErr:        status.Error(codes.NotFound, "not found"),
-			expectedErr:     &NotFoundError{Err: status.Error(codes.NotFound, "not found")},
-			expectedWrapped: true,
+			name:        "wrapped_googleapi.Error_NotFound",
+			inputErr:    fmt.Errorf("wrapped: %w", &googleapi.Error{Code: http.StatusNotFound}),
+			expectedErr: &NotFoundError{Err: fmt.Errorf("wrapped: %w", &googleapi.Error{Code: http.StatusNotFound})},
 		},
 		{
-			name:            "grpc_status_FailedPrecondition",
-			inputErr:        status.Error(codes.FailedPrecondition, "failed precondition"),
-			expectedErr:     &PreconditionError{Err: status.Error(codes.FailedPrecondition, "failed precondition")},
-			expectedWrapped: true,
+			name:        "grpc_status_NotFound",
+			inputErr:    status.Error(codes.NotFound, "not found"),
+			expectedErr: &NotFoundError{Err: status.Error(codes.NotFound, "not found")},
 		},
 		{
-			name:            "grpc_status_other_code",
-			inputErr:        status.Error(codes.Internal, "internal error"),
-			expectedErr:     status.Error(codes.Internal, "internal error"),
-			expectedWrapped: false,
+			name:        "grpc_status_FailedPrecondition",
+			inputErr:    status.Error(codes.FailedPrecondition, "failed precondition"),
+			expectedErr: &PreconditionError{Err: status.Error(codes.FailedPrecondition, "failed precondition")},
 		},
 		{
-			name:            "other_error",
-			inputErr:        errors.New("some error"),
-			expectedErr:     errors.New("some error"),
-			expectedWrapped: false,
+			name:        "grpc_status_other_code",
+			inputErr:    status.Error(codes.Internal, "internal error"),
+			expectedErr: status.Error(codes.Internal, "internal error"),
 		},
 		{
-			name:            "GCS_Precondition_error",
-			inputErr:        &PreconditionError{Err: errors.New("precondition error")},
-			expectedErr:     &PreconditionError{Err: errors.New("precondition error")},
-			expectedWrapped: false,
+			name:        "other_error",
+			inputErr:    errors.New("some error"),
+			expectedErr: errors.New("some error"),
 		},
 		{
-			name:            "GCS_NotFound_error",
-			inputErr:        &NotFoundError{Err: errors.New("not found error")},
-			expectedErr:     &NotFoundError{Err: errors.New("not found error")},
-			expectedWrapped: false,
+			name:        "wrapped_grpc_status_NotFound",
+			inputErr:    fmt.Errorf("wrapped: %w", grpcNotFoundErr),
+			expectedErr: &NotFoundError{Err: fmt.Errorf("wrapped: %w", grpcNotFoundErr)},
 		},
 		{
-			name:            "Storage_object_not_exist",
-			inputErr:        storage.ErrObjectNotExist,
-			expectedErr:     &NotFoundError{Err: storage.ErrObjectNotExist},
-			expectedWrapped: true,
+			name:        "GCS_Precondition_error",
+			inputErr:    &PreconditionError{Err: errors.New("precondition error")},
+			expectedErr: &PreconditionError{Err: errors.New("precondition error")},
 		},
 		{
-			name:            "precondition_apierror",
-			inputErr:        preconditionAPIErr,
-			expectedErr:     &PreconditionError{Err: preconditionAPIErr},
-			expectedWrapped: true,
+			name:        "GCS_NotFound_error",
+			inputErr:    &NotFoundError{Err: errors.New("not found error")},
+			expectedErr: &NotFoundError{Err: errors.New("not found error")},
 		},
 		{
-			name:            "notfound_apierror",
-			inputErr:        notFoundAPIErr,
-			expectedErr:     &NotFoundError{Err: notFoundAPIErr},
-			expectedWrapped: true,
+			name:        "wrapped_GCS_Precondition_error",
+			inputErr:    fmt.Errorf("wrapped: %w", &PreconditionError{Err: errors.New("precondition error")}),
+			expectedErr: fmt.Errorf("wrapped: %w", &PreconditionError{Err: errors.New("precondition error")}),
 		},
 		{
-			name:            "other_apierror",
-			inputErr:        otherAPIErr,
-			expectedErr:     otherAPIErr,
-			expectedWrapped: false,
+			name:        "storage_object_not_exist",
+			inputErr:    storage.ErrObjectNotExist,
+			expectedErr: &NotFoundError{Err: storage.ErrObjectNotExist},
+		},
+		{
+			name:        "precondition_apierror",
+			inputErr:    preconditionAPIErr,
+			expectedErr: &PreconditionError{Err: preconditionAPIErr},
+		},
+		{
+			name:        "notfound_apierror",
+			inputErr:    notFoundAPIErr,
+			expectedErr: &NotFoundError{Err: notFoundAPIErr},
+		},
+		{
+			name:        "other_apierror",
+			inputErr:    otherAPIErr,
+			expectedErr: otherAPIErr,
+		},
+		{
+			name:        "wrapped_precondition_apierror",
+			inputErr:    fmt.Errorf("wrapped: %w", preconditionAPIErr),
+			expectedErr: &PreconditionError{Err: fmt.Errorf("wrapped: %w", preconditionAPIErr)},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, wrapped := WrapUnderCommonGCSError(tc.inputErr)
-			assert.Equal(t, tc.expectedWrapped, wrapped)
+			got := WrapUnderCommonGCSError(tc.inputErr)
 			assert.Equal(t, tc.expectedErr, got)
-
 		})
 	}
 }

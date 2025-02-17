@@ -20,7 +20,6 @@ import (
 	"net/http"
 
 	"cloud.google.com/go/storage"
-	"github.com/googleapis/gax-go/v2/apierror"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -47,10 +46,9 @@ func (pe *PreconditionError) Error() string {
 }
 
 // WrapUnderCommonGCSError converts an error returned by go-sdk into gcsfuse specific common gcs error.
-// It returns wrapped error and a boolean indicating whether a wrapped or not.
-func WrapUnderCommonGCSError(err error) (error, bool) {
+func WrapUnderCommonGCSError(err error) error {
 	if err == nil {
-		return nil, false
+		return nil
 	}
 
 	// Http client error.
@@ -58,37 +56,27 @@ func WrapUnderCommonGCSError(err error) (error, bool) {
 	if errors.As(err, &gErr) {
 		switch gErr.Code {
 		case http.StatusNotFound:
-			return &NotFoundError{Err: err}, true
+			return &NotFoundError{Err: err}
 		case http.StatusPreconditionFailed:
-			return &PreconditionError{Err: err}, true
-		}
-
-	}
-
-	// Control client error.
-	var apiErr *apierror.APIError
-	if errors.As(err, &apiErr) {
-		switch apiErr.GRPCStatus().Code() {
-		case codes.NotFound:
-			return &NotFoundError{Err: err}, true
-		case codes.FailedPrecondition:
-			return &PreconditionError{Err: err}, true
+			return &PreconditionError{Err: err}
 		}
 	}
 
-	// RPC error.
+	// RPC error (all gRPC client including control client).
 	if rpcErr, ok := status.FromError(err); ok {
 		switch rpcErr.Code() {
 		case codes.NotFound:
-			return &NotFoundError{Err: err}, true
+			return &NotFoundError{Err: err}
 		case codes.FailedPrecondition:
-			return &PreconditionError{Err: err}, true
+			return &PreconditionError{Err: err}
 		}
 	}
 
-	if err == storage.ErrObjectNotExist {
-		return &NotFoundError{Err: err}, true
+	// If storage object doesn't exist, go-sdk returns as ErrObjectNotExist.
+	// Ref: http://shortn/_CY9Jyqf2wF
+	if errors.Is(err, storage.ErrObjectNotExist) {
+		return &NotFoundError{Err: err}
 	}
 
-	return err, false
+	return err
 }
