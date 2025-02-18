@@ -781,10 +781,14 @@ func (f *FileInode) Sync(ctx context.Context) (gcsSynced bool, err error) {
 // object, syncs the content and updates the inode state.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) syncUsingContent(ctx context.Context) (err error) {
-	latestGcsObj, err := f.fetchLatestGcsObject(ctx)
-	if err != nil {
-		return
+func (f *FileInode) syncUsingContent(ctx context.Context) error {
+	var latestGcsObj *gcs.Object
+	if !f.local {
+		var err error
+		latestGcsObj, err = f.fetchLatestGcsObject(ctx)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Write out the contents if they are dirty.
@@ -794,21 +798,19 @@ func (f *FileInode) syncUsingContent(ctx context.Context) (err error) {
 
 	var preconditionErr *gcs.PreconditionError
 	if errors.As(err, &preconditionErr) {
-		err = &gcsfuse_errors.FileClobberedError{
+		return &gcsfuse_errors.FileClobberedError{
 			Err: fmt.Errorf("SyncObject: %w", err),
 		}
-		return
 	}
 
 	// Propagate other errors.
 	if err != nil {
-		err = fmt.Errorf("SyncObject: %w", err)
-		return
+		return fmt.Errorf("SyncObject: %w", err)
 	}
 	minObj := storageutil.ConvertObjToMinObject(newObj)
 	// If we wrote out a new object, we need to update our state.
 	f.updateInodeStateAfterSync(minObj)
-	return
+	return nil
 }
 
 // Flush writes out contents to GCS. If this fails due to the generation
