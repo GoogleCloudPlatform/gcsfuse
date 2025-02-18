@@ -1,0 +1,1057 @@
+/tmp/gcsfuse_readwrite_test_1640732685/bin/gcsfuse --config-file=/tmp/gcsfuse_readwrite_test_1640732685/configForReadCacheWithParallelDownload --debug_gcs --debug_fs --debug_fuse --log-file=/tmp/gcsfuse_readwrite_test_1640732685/gcsfuse.log tulsishah-hns /tmp/gcsfuse_readwrite_test_1640732685/mnt
+{"timestamp":{"seconds":1739879055,"nanos":859920079},"severity":"INFO","message":"Start gcsfuse/fake_version (Go version go1.25-20250216-RC00 cl/727547642 +d524e1eccd X:fieldtrack,boringcrypto) for app \"\" using mount point: /tmp/gcsfuse_readwrite_test_1640732685/mnt\n"}
+{"timestamp":{"seconds":1739879055,"nanos":859982819},"severity":"INFO","message":"GCSFuse config","config":{"AppName":"","CacheDir":"/tmp/gcsfuse_readwrite_test_1640732685/cache-dir-read-cache-hns-true","Debug":{"ExitOnInvariantViolation":false,"Fuse":true,"Gcs":true,"LogMutex":false},"EnableAtomicRenameObject":false,"EnableHns":true,"FileCache":{"CacheFileForRangeRead":false,"DownloadChunkSizeMb":4,"EnableCrc":true,"EnableODirect":false,"EnableParallelDownloads":true,"MaxParallelDownloads":-1,"MaxSizeMb":9,"ParallelDownloadsPerFile":4,"WriteBufferSize":4194304},"FileSystem":{"DirMode":"755","DisableParallelDirops":false,"FileMode":"644","FuseOptions":[],"Gid":-1,"HandleSigterm":true,"IgnoreInterrupts":true,"KernelListCacheTtlSecs":0,"PreconditionErrors":true,"RenameDirLimit":0,"TempDir":"","Uid":-1},"Foreground":true,"GcsAuth":{"AnonymousAccess":false,"KeyFile":"","ReuseTokenFromUrl":true,"TokenUrl":""},"GcsConnection":{"BillingProject":"","ClientProtocol":"http1","CustomEndpoint":"","ExperimentalEnableJsonRead":false,"GrpcConnPoolSize":1,"HttpClientTimeout":0,"LimitBytesPerSec":-1,"LimitOpsPerSec":-1,"MaxConnsPerHost":0,"MaxIdleConnsPerHost":100,"SequentialReadSizeMb":200},"GcsRetries":{"ChunkTransferTimeoutSecs":10,"MaxRetryAttempts":0,"MaxRetrySleep":30000000000,"Multiplier":2,"ReadStall":{"Enable":false,"InitialReqTimeout":20000000000,"MaxReqTimeout":1200000000000,"MinReqTimeout":1500000000,"ReqIncreaseRate":15,"ReqTargetPercentile":0.99}},"ImplicitDirs":false,"List":{"EnableEmptyManagedFolders":false},"Logging":{"FilePath":"/tmp/gcsfuse_readwrite_test_1640732685/gcsfuse.log","Format":"json","LogRotate":{"BackupFileCount":10,"Compress":true,"MaxFileSizeMb":512},"Severity":"TRACE"},"MetadataCache":{"DeprecatedStatCacheCapacity":20460,"DeprecatedStatCacheTtl":60000000000,"DeprecatedTypeCacheTtl":60000000000,"EnableNonexistentTypeCache":false,"ExperimentalMetadataPrefetchOnMount":"disabled","NegativeTtlSecs":5,"StatCacheMaxSizeMb":32,"TtlSecs":60,"TypeCacheMaxSizeMb":4},"Metrics":{"CloudMetricsExportIntervalSecs":0,"EnableOtel":true,"PrometheusPort":0,"StackdriverExportInterval":0},"Monitoring":{"ExperimentalOpentelemetryCollectorAddress":"","ExperimentalTracingMode":"","ExperimentalTracingSamplingRatio":0},"OnlyDir":"","Write":{"BlockSizeMb":33554432,"CreateEmptyFile":false,"EnableStreamingWrites":false,"GlobalMaxBlocks":9223372036854775807,"MaxBlocksPerFile":1}}}
+{"timestamp":{"seconds":1739879055,"nanos":860167989},"severity":"INFO","message":"Creating Storage handle..."}
+{"timestamp":{"seconds":1739879055,"nanos":860175019},"severity":"INFO","message":"UserAgent = gcsfuse/fake_version (Go version go1.25-20250216-RC00 cl/727547642 +d524e1eccd X:fieldtrack,boringcrypto) (GPN:gcsfuse) (Cfg:1:0:1:0)\n"}
+{"timestamp":{"seconds":1739879055,"nanos":860759609},"severity":"INFO","message":"Creating a mount at \"/tmp/gcsfuse_readwrite_test_1640732685/mnt\"\n"}
+{"timestamp":{"seconds":1739879055,"nanos":860778699},"severity":"INFO","message":"Creating a new server...\n"}
+{"timestamp":{"seconds":1739879055,"nanos":861003199},"severity":"INFO","message":"Set up root directory for bucket tulsishah-hns"}
+{"timestamp":{"seconds":1739879055,"nanos":861020179},"severity":"INFO","message":"GetStorageLayout <- (tulsishah-hns)"}
+{"timestamp":{"seconds":1739879055,"nanos":981817388},"severity":"INFO","message":"GetStorageLayout -> (tulsishah-hns) 120 msec"}
+{"timestamp":{"seconds":1739879055,"nanos":982110308},"severity":"TRACE","message":"gcs: Req              0x0: <- ListObjects(\"\")"}
+{"timestamp":{"seconds":1739879056,"nanos":81697211},"severity":"TRACE","message":"gcs: Req              0x0: -> ListObjects(\"\") (99.575323ms): OK"}
+{"timestamp":{"seconds":1739879056,"nanos":81767351},"severity":"INFO","message":"Mounting file system \"tulsishah-hns\"..."}
+{"timestamp":{"seconds":1739879056,"nanos":81849561},"severity":"TRACE","message":"fuse_debug: Beginning the mounting kickoff process"}
+{"timestamp":{"seconds":1739879056,"nanos":81858071},"severity":"TRACE","message":"fuse_debug: Parsing fuse file descriptor"}
+{"timestamp":{"seconds":1739879056,"nanos":81864061},"severity":"TRACE","message":"fuse_debug: Preparing for direct mounting"}
+{"timestamp":{"seconds":1739879056,"nanos":81895431},"severity":"TRACE","message":"fuse_debug: Successfully opened the /dev/fuse in blocking mode"}
+{"timestamp":{"seconds":1739879056,"nanos":81909211},"severity":"TRACE","message":"fuse_debug: Starting the unix mounting"}
+{"timestamp":{"seconds":1739879056,"nanos":81924041},"severity":"TRACE","message":"fuse_debug: Directmount failed. Trying fallback."}
+{"timestamp":{"seconds":1739879056,"nanos":81995391},"severity":"TRACE","message":"fuse_debug: Creating a socket pair"}
+{"timestamp":{"seconds":1739879056,"nanos":82019981},"severity":"TRACE","message":"fuse_debug: Creating files to wrap the sockets"}
+{"timestamp":{"seconds":1739879056,"nanos":82027841},"severity":"TRACE","message":"fuse_debug: Starting fusermount/os mount"}
+{"timestamp":{"seconds":1739879056,"nanos":84854080},"severity":"TRACE","message":"fuse_debug: Wrapping socket pair in a connection"}
+{"timestamp":{"seconds":1739879056,"nanos":84893280},"severity":"TRACE","message":"fuse_debug: Checking that we have a unix domain socket"}
+{"timestamp":{"seconds":1739879056,"nanos":84899420},"severity":"TRACE","message":"fuse_debug: Read a message from socket"}
+{"timestamp":{"seconds":1739879056,"nanos":84914210},"severity":"TRACE","message":"fuse_debug: Successfully read the socket message."}
+{"timestamp":{"seconds":1739879056,"nanos":84919710},"severity":"TRACE","message":"fuse_debug: Converting FD into os.File"}
+{"timestamp":{"seconds":1739879056,"nanos":84950070},"severity":"TRACE","message":"fuse_debug: Completed the mounting kickoff process"}
+{"timestamp":{"seconds":1739879056,"nanos":84955260},"severity":"TRACE","message":"fuse_debug: Creating a connection object"}
+{"timestamp":{"seconds":1739879056,"nanos":85366390},"severity":"TRACE","message":"fuse_debug: Op 0x00000002        connection.go:420] <- init"}
+{"timestamp":{"seconds":1739879056,"nanos":85470000},"severity":"TRACE","message":"fuse_debug: Op 0x00000002        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":85492520},"severity":"TRACE","message":"fuse_debug: Successfully created the connection"}
+{"timestamp":{"seconds":1739879056,"nanos":85508950},"severity":"TRACE","message":"fuse_debug: Waiting for mounting process to complete"}
+{"timestamp":{"seconds":1739879056,"nanos":85517700},"severity":"INFO","message":"File system has been successfully mounted."}
+{"timestamp":{"seconds":1739879056,"nanos":86172360},"severity":"TRACE","message":"fuse_debug: Op 0x00000004        connection.go:420] <- GetInodeAttributes (inode 1, PID 181543)"}
+{"timestamp":{"seconds":1739879056,"nanos":86340270},"severity":"TRACE","message":"fuse_debug: Op 0x00000004        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":86860120},"severity":"TRACE","message":"fuse_debug: Op 0x00000006        connection.go:420] <- LookUpInode (parent 1, name \".Trash\", PID 181543)"}
+{"timestamp":{"seconds":1739879056,"nanos":87033170},"severity":"TRACE","message":"gcs: Req              0x1: <- GetFolder(\".Trash/\")"}
+{"timestamp":{"seconds":1739879056,"nanos":87103920},"severity":"TRACE","message":"gcs: Req              0x2: <- StatObject(\".Trash\")"}
+{"timestamp":{"seconds":1739879056,"nanos":125622133},"severity":"TRACE","message":"gcs: Req              0x2: -> StatObject(\".Trash\") (38.526603ms): gcs.NotFoundError: storage: object doesn't exist"}
+{"timestamp":{"seconds":1739879056,"nanos":133857262},"severity":"TRACE","message":"gcs: Req              0x1: -> GetFolder(\".Trash/\") (46.831932ms): gcs.NotFoundError: error getting metadata for folder: .Trash/, rpc error: code = NotFound desc = The folder does not exist."}
+{"timestamp":{"seconds":1739879056,"nanos":133916812},"severity":"TRACE","message":"fuse_debug: Op 0x00000006        connection.go:515] -> Error: \"no such file or directory\""}
+{"timestamp":{"seconds":1739879056,"nanos":134226842},"severity":"TRACE","message":"fuse_debug: Op 0x00000008        connection.go:420] <- LookUpInode (parent 1, name \".Trash-1052824\", PID 181543)"}
+{"timestamp":{"seconds":1739879056,"nanos":134336731},"severity":"TRACE","message":"gcs: Req              0x3: <- GetFolder(\".Trash-1052824/\")"}
+{"timestamp":{"seconds":1739879056,"nanos":134436282},"severity":"TRACE","message":"gcs: Req              0x4: <- StatObject(\".Trash-1052824\")"}
+{"timestamp":{"seconds":1739879056,"nanos":170122225},"severity":"TRACE","message":"gcs: Req              0x4: -> StatObject(\".Trash-1052824\") (35.686774ms): gcs.NotFoundError: storage: object doesn't exist"}
+{"timestamp":{"seconds":1739879056,"nanos":176391384},"severity":"TRACE","message":"gcs: Req              0x3: -> GetFolder(\".Trash-1052824/\") (42.041593ms): gcs.NotFoundError: error getting metadata for folder: .Trash-1052824/, rpc error: code = NotFound desc = The folder does not exist."}
+{"timestamp":{"seconds":1739879056,"nanos":176451414},"severity":"TRACE","message":"fuse_debug: Op 0x00000008        connection.go:515] -> Error: \"no such file or directory\""}
+{"timestamp":{"seconds":1739879056,"nanos":504689098},"severity":"TRACE","message":"fuse_debug: Op 0x0000000a        connection.go:420] <- LookUpInode (parent 1, name \"ReadCacheTest\", PID 3841177)"}
+{"timestamp":{"seconds":1739879056,"nanos":504831258},"severity":"TRACE","message":"gcs: Req              0x5: <- GetFolder(\"ReadCacheTest/\")"}
+{"timestamp":{"seconds":1739879056,"nanos":504872608},"severity":"TRACE","message":"gcs: Req              0x6: <- StatObject(\"ReadCacheTest\")"}
+{"timestamp":{"seconds":1739879056,"nanos":529868123},"severity":"TRACE","message":"gcs: Req              0x6: -> StatObject(\"ReadCacheTest\") (24.999635ms): gcs.NotFoundError: storage: object doesn't exist"}
+{"timestamp":{"seconds":1739879056,"nanos":544403481},"severity":"TRACE","message":"gcs: Req              0x5: -> GetFolder(\"ReadCacheTest/\") (39.572413ms): OK"}
+{"timestamp":{"seconds":1739879056,"nanos":544496991},"severity":"TRACE","message":"fuse_debug: Op 0x0000000a        connection.go:513] -> OK (inode 2)"}
+{"timestamp":{"seconds":1739879056,"nanos":544658181},"severity":"TRACE","message":"fuse_debug: Op 0x0000000c        connection.go:420] <- LookUpInode (parent 2, name \"15MBFile\", PID 3841177)"}
+{"timestamp":{"seconds":1739879056,"nanos":544792251},"severity":"TRACE","message":"gcs: Req              0x7: <- GetFolder(\"ReadCacheTest/15MBFile/\")"}
+{"timestamp":{"seconds":1739879056,"nanos":544894531},"severity":"TRACE","message":"gcs: Req              0x8: <- StatObject(\"ReadCacheTest/15MBFile\")"}
+{"timestamp":{"seconds":1739879056,"nanos":567051427},"severity":"TRACE","message":"gcs: Req              0x8: -> StatObject(\"ReadCacheTest/15MBFile\") (22.159796ms): OK"}
+{"timestamp":{"seconds":1739879056,"nanos":588014443},"severity":"TRACE","message":"gcs: Req              0x7: -> GetFolder(\"ReadCacheTest/15MBFile/\") (43.207752ms): gcs.NotFoundError: error getting metadata for folder: ReadCacheTest/15MBFile/, rpc error: code = NotFound desc = The folder does not exist."}
+{"timestamp":{"seconds":1739879056,"nanos":588094493},"severity":"TRACE","message":"fuse_debug: Op 0x0000000c        connection.go:513] -> OK (inode 3)"}
+{"timestamp":{"seconds":1739879056,"nanos":588403233},"severity":"TRACE","message":"fuse_debug: Op 0x0000000e        connection.go:420] <- OpenFile (inode 3, PID 3841177)"}
+{"timestamp":{"seconds":1739879056,"nanos":588494753},"severity":"TRACE","message":"fuse_debug: Op 0x0000000e        connection.go:513] -> OK (handle 0)"}
+{"timestamp":{"seconds":1739879056,"nanos":588641023},"severity":"TRACE","message":"fuse_debug: Op 0x00000010        connection.go:420] <- unknown (inode 3, opcode 40)"}
+{"timestamp":{"seconds":1739879056,"nanos":588699213},"severity":"TRACE","message":"fuse_debug: Op 0x00000010        connection.go:515] -> Error: \"function not implemented\""}
+{"timestamp":{"seconds":1739879056,"nanos":588829463},"severity":"TRACE","message":"fuse_debug: Op 0x00000012        connection.go:420] <- LookUpInode (parent 1, name \"ReadCacheTest\", PID 3841177)"}
+{"timestamp":{"seconds":1739879056,"nanos":588921573},"severity":"TRACE","message":"fuse_debug: Op 0x00000012        connection.go:513] -> OK (inode 2)"}
+{"timestamp":{"seconds":1739879056,"nanos":589075893},"severity":"TRACE","message":"fuse_debug: Op 0x00000014        connection.go:420] <- LookUpInode (parent 2, name \"15MBFile\", PID 3841177)"}
+{"timestamp":{"seconds":1739879056,"nanos":589176573},"severity":"TRACE","message":"fuse_debug: Op 0x00000014        connection.go:513] -> OK (inode 3)"}
+{"timestamp":{"seconds":1739879056,"nanos":589336943},"severity":"TRACE","message":"fuse_debug: Op 0x00000016        connection.go:420] <- ReadFile (inode 3, PID 3841177, handle 0, offset 9437184, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":589437083},"severity":"TRACE","message":"23611786-25a7 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 9437184, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879056,"nanos":589454903},"severity":"TRACE","message":"23611786-25a7 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (3.4µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":589462623},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":589467083},"severity":"INFO","message":"End-Start 6291456"}
+{"timestamp":{"seconds":1739879056,"nanos":589470723},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":589474713},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":589479913},"severity":"INFO","message":"Start And End 9437184 15728640 0"}
+{"timestamp":{"seconds":1739879056,"nanos":589489623},"severity":"TRACE","message":"gcs: Req              0x9: <- \"ReadWithReadHandle\"(\"ReadCacheTest/15MBFile\", [9437184, 15728640))"}
+{"timestamp":{"seconds":1739879056,"nanos":661610860},"severity":"TRACE","message":"fuse_debug: Op 0x00000016        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":661907340},"severity":"TRACE","message":"fuse_debug: Op 0x00000018        connection.go:420] <- FlushFile (inode 3, PID 3841177)"}
+{"timestamp":{"seconds":1739879056,"nanos":662041830},"severity":"TRACE","message":"fuse_debug: Op 0x00000018        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":662168410},"severity":"TRACE","message":"fuse_debug: Op 0x0000001a        connection.go:420] <- ReleaseFileHandle (PID 0, handle 0)"}
+{"timestamp":{"seconds":1739879056,"nanos":662275480},"severity":"TRACE","message":"gcs: Req              0x9: -> \"ReadWithReadHandle\"(\"ReadCacheTest/15MBFile\", [9437184, 15728640)) (72.776697ms): OK"}
+{"timestamp":{"seconds":1739879056,"nanos":662348380},"severity":"TRACE","message":"fuse_debug: Op 0x0000001a        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":691460475},"severity":"TRACE","message":"fuse_debug: Op 0x0000001c        connection.go:420] <- LookUpInode (parent 1, name \"ReadCacheTest\", PID 3851709)"}
+{"timestamp":{"seconds":1739879056,"nanos":691594995},"severity":"TRACE","message":"fuse_debug: Op 0x0000001c        connection.go:513] -> OK (inode 2)"}
+{"timestamp":{"seconds":1739879056,"nanos":691700966},"severity":"TRACE","message":"fuse_debug: Op 0x0000001e        connection.go:420] <- LookUpInode (parent 2, name \"15MBFile\", PID 3851709)"}
+{"timestamp":{"seconds":1739879056,"nanos":691783855},"severity":"TRACE","message":"fuse_debug: Op 0x0000001e        connection.go:513] -> OK (inode 3)"}
+{"timestamp":{"seconds":1739879056,"nanos":691897255},"severity":"TRACE","message":"fuse_debug: Op 0x00000020        connection.go:420] <- OpenFile (inode 3, PID 3851709)"}
+{"timestamp":{"seconds":1739879056,"nanos":691975185},"severity":"TRACE","message":"fuse_debug: Op 0x00000020        connection.go:513] -> OK (handle 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":692079255},"severity":"TRACE","message":"fuse_debug: Op 0x00000022        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 0, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":692200355},"severity":"TRACE","message":"f5424a78-4870 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 0, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":692241645},"severity":"WARNING","message":"tryReadingFromFileCache: while creating CacheHandle: GetCacheHandle: while adding the entry in the cache: addFileInfoEntryAndCreateDownloadJob: while inserting into the cache: size of the entry is more than the cache's maxSize"}
+{"timestamp":{"seconds":1739879056,"nanos":692255745},"severity":"TRACE","message":"f5424a78-4870 -> err: GetCacheHandle: while adding the entry in the cache: addFileInfoEntryAndCreateDownloadJob: while inserting into the cache: size of the entry is more than the cache's maxSize (15.12µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":692265155},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":692270315},"severity":"INFO","message":"End-Start 15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":692274095},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":692278065},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":692283865},"severity":"INFO","message":"Start And End 0 15728640 0"}
+{"timestamp":{"seconds":1739879056,"nanos":692295345},"severity":"TRACE","message":"gcs: Req              0xa: <- \"ReadWithReadHandle\"(\"ReadCacheTest/15MBFile\", [0, 15728640))"}
+{"timestamp":{"seconds":1739879056,"nanos":768817172},"severity":"TRACE","message":"fuse_debug: Op 0x00000022        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":769193352},"severity":"TRACE","message":"fuse_debug: Op 0x00000024        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 131072, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":769332072},"severity":"TRACE","message":"bd7b311d-e298 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 131072, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":769381262},"severity":"TRACE","message":"bd7b311d-e298 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (5.24µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":769391132},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":769398182},"severity":"INFO","message":"End-Start 15597568"}
+{"timestamp":{"seconds":1739879056,"nanos":769402082},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":769406192},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":770087061},"severity":"TRACE","message":"fuse_debug: Op 0x00000024        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":770442532},"severity":"TRACE","message":"fuse_debug: Op 0x00000026        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 262144, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":770512992},"severity":"TRACE","message":"874292d8-7831 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 262144, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":770533272},"severity":"TRACE","message":"874292d8-7831 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.92µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":770539572},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":770552101},"severity":"INFO","message":"End-Start 15466496"}
+{"timestamp":{"seconds":1739879056,"nanos":770555732},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":770559581},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":770785251},"severity":"TRACE","message":"fuse_debug: Op 0x00000026        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":771172061},"severity":"TRACE","message":"fuse_debug: Op 0x00000028        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 393216, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":771237741},"severity":"TRACE","message":"fea22568-4b4c <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 393216, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":771252581},"severity":"TRACE","message":"fea22568-4b4c -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.48µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":771257501},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":771261321},"severity":"INFO","message":"End-Start 15335424"}
+{"timestamp":{"seconds":1739879056,"nanos":771264891},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":771268301},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":771522261},"severity":"TRACE","message":"fuse_debug: Op 0x00000028        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":772109501},"severity":"TRACE","message":"fuse_debug: Op 0x0000002a        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 524288, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":772181661},"severity":"TRACE","message":"af61af47-ce20 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 524288, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":772197281},"severity":"TRACE","message":"af61af47-ce20 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.56µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":772202431},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":772206251},"severity":"INFO","message":"End-Start 15204352"}
+{"timestamp":{"seconds":1739879056,"nanos":772209821},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":772213301},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":772404751},"severity":"TRACE","message":"fuse_debug: Op 0x0000002a        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":772519941},"severity":"TRACE","message":"fuse_debug: Op 0x0000002c        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 655360, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":772578571},"severity":"TRACE","message":"c8700d7c-aad8 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 655360, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":772592981},"severity":"TRACE","message":"c8700d7c-aad8 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.62µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":772597901},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":772601681},"severity":"INFO","message":"End-Start 15073280"}
+{"timestamp":{"seconds":1739879056,"nanos":772605091},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":772608471},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":772832401},"severity":"TRACE","message":"fuse_debug: Op 0x0000002c        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":773412111},"severity":"TRACE","message":"fuse_debug: Op 0x0000002e        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 786432, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":773506721},"severity":"TRACE","message":"6670ca6d-401d <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 786432, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":773555221},"severity":"TRACE","message":"6670ca6d-401d -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (16.16µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":773566071},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":773571761},"severity":"INFO","message":"End-Start 14942208"}
+{"timestamp":{"seconds":1739879056,"nanos":773575501},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":773580551},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":773872111},"severity":"TRACE","message":"fuse_debug: Op 0x0000002e        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":774702431},"severity":"TRACE","message":"fuse_debug: Op 0x00000030        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 917504, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":774823881},"severity":"TRACE","message":"72e801c2-e8a8 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 917504, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":774870571},"severity":"TRACE","message":"72e801c2-e8a8 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (6µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":774881061},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":774886161},"severity":"INFO","message":"End-Start 14811136"}
+{"timestamp":{"seconds":1739879056,"nanos":774889861},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":774894031},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":775176151},"severity":"TRACE","message":"fuse_debug: Op 0x00000030        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":776026411},"severity":"TRACE","message":"fuse_debug: Op 0x00000032        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 1048576, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":776082520},"severity":"TRACE","message":"40ddec4d-271c <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 1048576, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":776107111},"severity":"TRACE","message":"40ddec4d-271c -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (3.349µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":776113551},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":776117500},"severity":"INFO","message":"End-Start 14680064"}
+{"timestamp":{"seconds":1739879056,"nanos":776121151},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":776125051},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":776284050},"severity":"TRACE","message":"fuse_debug: Op 0x00000032        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":776383070},"severity":"TRACE","message":"fuse_debug: Op 0x00000034        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 1179648, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":776480920},"severity":"TRACE","message":"7f5f0342-2db1 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 1179648, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":776534930},"severity":"TRACE","message":"7f5f0342-2db1 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (5.7µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":776545500},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":776550360},"severity":"INFO","message":"End-Start 14548992"}
+{"timestamp":{"seconds":1739879056,"nanos":776554340},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":776558350},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":776716850},"severity":"TRACE","message":"fuse_debug: Op 0x00000034        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":777838640},"severity":"TRACE","message":"fuse_debug: Op 0x00000036        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 1310720, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":777908190},"severity":"TRACE","message":"c4ba8f8e-4b1a <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 1310720, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":777930240},"severity":"TRACE","message":"c4ba8f8e-4b1a -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.7µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":777936630},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":777940650},"severity":"INFO","message":"End-Start 14417920"}
+{"timestamp":{"seconds":1739879056,"nanos":777944190},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":777947880},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":778098700},"severity":"TRACE","message":"fuse_debug: Op 0x00000036        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":778237630},"severity":"TRACE","message":"fuse_debug: Op 0x00000038        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 1441792, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":778301110},"severity":"TRACE","message":"0eb7c272-0944 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 1441792, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":778324050},"severity":"TRACE","message":"0eb7c272-0944 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (3.31µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":778330710},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":778335240},"severity":"INFO","message":"End-Start 14286848"}
+{"timestamp":{"seconds":1739879056,"nanos":778338850},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":778342810},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":778470630},"severity":"TRACE","message":"fuse_debug: Op 0x00000038        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":778581850},"severity":"TRACE","message":"fuse_debug: Op 0x0000003a        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 1572864, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":778633730},"severity":"TRACE","message":"b1457469-d8be <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 1572864, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":778655150},"severity":"TRACE","message":"b1457469-d8be -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.19µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":778660180},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":778664160},"severity":"INFO","message":"End-Start 14155776"}
+{"timestamp":{"seconds":1739879056,"nanos":778674190},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":778678340},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":778813530},"severity":"TRACE","message":"fuse_debug: Op 0x0000003a        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":780415960},"severity":"TRACE","message":"fuse_debug: Op 0x0000003c        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 1703936, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":780481690},"severity":"TRACE","message":"a3fd954d-7fdc <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 1703936, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":780505139},"severity":"TRACE","message":"a3fd954d-7fdc -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.84µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":780511479},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":780515930},"severity":"INFO","message":"End-Start 14024704"}
+{"timestamp":{"seconds":1739879056,"nanos":780519459},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":780523290},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":780679010},"severity":"TRACE","message":"fuse_debug: Op 0x0000003c        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":780798219},"severity":"TRACE","message":"fuse_debug: Op 0x0000003e        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 1835008, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":780889019},"severity":"TRACE","message":"8c100479-6303 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 1835008, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":780929019},"severity":"TRACE","message":"8c100479-6303 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (5.2µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":780939790},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":780945079},"severity":"INFO","message":"End-Start 13893632"}
+{"timestamp":{"seconds":1739879056,"nanos":780949010},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":780953039},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":781107910},"severity":"TRACE","message":"fuse_debug: Op 0x0000003e        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":781258819},"severity":"TRACE","message":"fuse_debug: Op 0x00000040        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 1966080, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":781322159},"severity":"TRACE","message":"73b9463b-072b <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 1966080, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":781345930},"severity":"TRACE","message":"73b9463b-072b -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (3.071µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":781353099},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":781357979},"severity":"INFO","message":"End-Start 13762560"}
+{"timestamp":{"seconds":1739879056,"nanos":781361930},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":781365619},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":781479790},"severity":"TRACE","message":"fuse_debug: Op 0x00000040        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":783102549},"severity":"TRACE","message":"fuse_debug: Op 0x00000042        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 2097152, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":783185559},"severity":"TRACE","message":"791dd7fa-7d82 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 2097152, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":783206149},"severity":"TRACE","message":"791dd7fa-7d82 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.64µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":783212179},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":783218079},"severity":"INFO","message":"End-Start 13631488"}
+{"timestamp":{"seconds":1739879056,"nanos":783221749},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":783225739},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":783374209},"severity":"TRACE","message":"fuse_debug: Op 0x00000042        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":783590089},"severity":"TRACE","message":"fuse_debug: Op 0x00000044        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 2228224, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":783699129},"severity":"TRACE","message":"85d64e91-ed63 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 2228224, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":783718509},"severity":"TRACE","message":"85d64e91-ed63 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.33µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":783724339},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":783728189},"severity":"INFO","message":"End-Start 13500416"}
+{"timestamp":{"seconds":1739879056,"nanos":783731689},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":783735249},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":783845369},"severity":"TRACE","message":"fuse_debug: Op 0x00000044        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":783997979},"severity":"TRACE","message":"fuse_debug: Op 0x00000046        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 2359296, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":784087659},"severity":"TRACE","message":"f0844700-39fd <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 2359296, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":784119669},"severity":"TRACE","message":"f0844700-39fd -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (4.88µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":784129229},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":784134089},"severity":"INFO","message":"End-Start 13369344"}
+{"timestamp":{"seconds":1739879056,"nanos":784137849},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":784141729},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":784307449},"severity":"TRACE","message":"fuse_debug: Op 0x00000046        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":784468679},"severity":"TRACE","message":"fuse_debug: Op 0x00000048        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 2490368, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":784512989},"severity":"TRACE","message":"08c131b5-b4a1 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 2490368, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":784536379},"severity":"TRACE","message":"08c131b5-b4a1 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.55µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":784547959},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":784552519},"severity":"INFO","message":"End-Start 13238272"}
+{"timestamp":{"seconds":1739879056,"nanos":784556149},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":784559739},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":784711939},"severity":"TRACE","message":"fuse_debug: Op 0x00000048        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":786652399},"severity":"TRACE","message":"fuse_debug: Op 0x0000004a        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 2621440, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":786744669},"severity":"TRACE","message":"f30c5775-e2ae <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 2621440, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":786774699},"severity":"TRACE","message":"f30c5775-e2ae -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (3.45µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":786782719},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":786787009},"severity":"INFO","message":"End-Start 13107200"}
+{"timestamp":{"seconds":1739879056,"nanos":786790729},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":786794979},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":786949899},"severity":"TRACE","message":"fuse_debug: Op 0x0000004a        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":787083049},"severity":"TRACE","message":"fuse_debug: Op 0x0000004c        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 2752512, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":787146069},"severity":"TRACE","message":"a18b71d3-87dc <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 2752512, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":787165209},"severity":"TRACE","message":"a18b71d3-87dc -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.5µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":787171019},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":787175079},"severity":"INFO","message":"End-Start 12976128"}
+{"timestamp":{"seconds":1739879056,"nanos":787178559},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":787182569},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":787313429},"severity":"TRACE","message":"fuse_debug: Op 0x0000004c        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":787418439},"severity":"TRACE","message":"fuse_debug: Op 0x0000004e        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 2883584, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":787492209},"severity":"TRACE","message":"9a15c638-9aaf <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 2883584, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":787511059},"severity":"TRACE","message":"9a15c638-9aaf -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.58µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":787516759},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":787520919},"severity":"INFO","message":"End-Start 12845056"}
+{"timestamp":{"seconds":1739879056,"nanos":787524719},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":787537219},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":787734409},"severity":"TRACE","message":"fuse_debug: Op 0x0000004e        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":787923599},"severity":"TRACE","message":"fuse_debug: Op 0x00000050        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 3014656, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":788009279},"severity":"TRACE","message":"52c4edb0-34b9 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 3014656, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":788028899},"severity":"TRACE","message":"52c4edb0-34b9 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.19µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":788035579},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":788040049},"severity":"INFO","message":"End-Start 12713984"}
+{"timestamp":{"seconds":1739879056,"nanos":788043659},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":788047619},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":788213719},"severity":"TRACE","message":"fuse_debug: Op 0x00000050        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":788342319},"severity":"TRACE","message":"fuse_debug: Op 0x00000052        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 3145728, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":788382799},"severity":"TRACE","message":"17cdfdff-89f6 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 3145728, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":788396189},"severity":"TRACE","message":"17cdfdff-89f6 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.64µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":788401099},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":788404779},"severity":"INFO","message":"End-Start 12582912"}
+{"timestamp":{"seconds":1739879056,"nanos":788408219},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":788411649},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":788561859},"severity":"TRACE","message":"fuse_debug: Op 0x00000052        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":791064378},"severity":"TRACE","message":"fuse_debug: Op 0x00000054        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 3276800, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":791176378},"severity":"TRACE","message":"20398f35-69d8 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 3276800, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":791194478},"severity":"TRACE","message":"20398f35-69d8 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.35µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":791200938},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":791205328},"severity":"INFO","message":"End-Start 12451840"}
+{"timestamp":{"seconds":1739879056,"nanos":791208968},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":791212918},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":791330808},"severity":"TRACE","message":"fuse_debug: Op 0x00000054        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":791455288},"severity":"TRACE","message":"fuse_debug: Op 0x00000056        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 3407872, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":791526248},"severity":"TRACE","message":"5ae5fb71-a67d <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 3407872, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":791547648},"severity":"TRACE","message":"5ae5fb71-a67d -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.18µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":791554198},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":791558488},"severity":"INFO","message":"End-Start 12320768"}
+{"timestamp":{"seconds":1739879056,"nanos":791562268},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":791565918},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":791712828},"severity":"TRACE","message":"fuse_debug: Op 0x00000056        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":791854398},"severity":"TRACE","message":"fuse_debug: Op 0x00000058        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 3538944, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":791946578},"severity":"TRACE","message":"df1f53d9-3c86 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 3538944, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":791977468},"severity":"TRACE","message":"df1f53d9-3c86 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (3.53µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":791985638},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":791990198},"severity":"INFO","message":"End-Start 12189696"}
+{"timestamp":{"seconds":1739879056,"nanos":791994188},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":791997948},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":792238118},"severity":"TRACE","message":"fuse_debug: Op 0x00000058        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":792374548},"severity":"TRACE","message":"fuse_debug: Op 0x0000005a        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 3670016, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":792424878},"severity":"TRACE","message":"cc2171e9-c6b5 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 3670016, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":792449348},"severity":"TRACE","message":"cc2171e9-c6b5 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.7µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":792456348},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":792461118},"severity":"INFO","message":"End-Start 12058624"}
+{"timestamp":{"seconds":1739879056,"nanos":792464708},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":792468458},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":792589368},"severity":"TRACE","message":"fuse_debug: Op 0x0000005a        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":792709218},"severity":"TRACE","message":"fuse_debug: Op 0x0000005c        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 3801088, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":792757678},"severity":"TRACE","message":"1414aac4-2586 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 3801088, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":792780258},"severity":"TRACE","message":"1414aac4-2586 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.67µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":792808488},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":792813648},"severity":"INFO","message":"End-Start 11927552"}
+{"timestamp":{"seconds":1739879056,"nanos":792817438},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":792821418},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":793010518},"severity":"TRACE","message":"fuse_debug: Op 0x0000005c        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":793126698},"severity":"TRACE","message":"fuse_debug: Op 0x0000005e        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 3932160, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":793168568},"severity":"TRACE","message":"4108400b-07f6 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 3932160, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":793186928},"severity":"TRACE","message":"4108400b-07f6 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.02µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":793193278},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":793197388},"severity":"INFO","message":"End-Start 11796480"}
+{"timestamp":{"seconds":1739879056,"nanos":793200998},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":793204788},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":793332558},"severity":"TRACE","message":"fuse_debug: Op 0x0000005e        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":793782518},"severity":"TRACE","message":"fuse_debug: Op 0x00000060        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 4063232, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":793867408},"severity":"TRACE","message":"dbdeb57d-8b57 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 4063232, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":793890808},"severity":"TRACE","message":"dbdeb57d-8b57 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.8µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":793900768},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":793905558},"severity":"INFO","message":"End-Start 11665408"}
+{"timestamp":{"seconds":1739879056,"nanos":793909268},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":793913318},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":794058488},"severity":"TRACE","message":"fuse_debug: Op 0x00000060        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":794187028},"severity":"TRACE","message":"fuse_debug: Op 0x00000062        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 4194304, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":794275618},"severity":"TRACE","message":"82bfa4a9-6e0f <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 4194304, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":794304048},"severity":"TRACE","message":"82bfa4a9-6e0f -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (3.51µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":794311608},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":794316008},"severity":"INFO","message":"End-Start 11534336"}
+{"timestamp":{"seconds":1739879056,"nanos":794319748},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":794323838},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":794470778},"severity":"TRACE","message":"fuse_debug: Op 0x00000062        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":794614597},"severity":"TRACE","message":"fuse_debug: Op 0x00000064        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 4325376, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":794678108},"severity":"TRACE","message":"d3080283-8584 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 4325376, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":794699228},"severity":"TRACE","message":"d3080283-8584 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.88µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":794704208},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":794708137},"severity":"INFO","message":"End-Start 11403264"}
+{"timestamp":{"seconds":1739879056,"nanos":794711648},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":794715097},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":794855708},"severity":"TRACE","message":"fuse_debug: Op 0x00000064        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":794980277},"severity":"TRACE","message":"fuse_debug: Op 0x00000066        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 4456448, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":795037077},"severity":"TRACE","message":"58975bac-629d <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 4456448, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":795061097},"severity":"TRACE","message":"58975bac-629d -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.3µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":795067237},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":795071808},"severity":"INFO","message":"End-Start 11272192"}
+{"timestamp":{"seconds":1739879056,"nanos":795077557},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":795081277},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":795212397},"severity":"TRACE","message":"fuse_debug: Op 0x00000066        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":795330657},"severity":"TRACE","message":"fuse_debug: Op 0x00000068        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 4587520, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":795388957},"severity":"TRACE","message":"e638b00f-7218 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 4587520, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":795409028},"severity":"TRACE","message":"e638b00f-7218 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.5µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":795414697},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":795418797},"severity":"INFO","message":"End-Start 11141120"}
+{"timestamp":{"seconds":1739879056,"nanos":795422597},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":795426417},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":795597807},"severity":"TRACE","message":"fuse_debug: Op 0x00000068        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":795857257},"severity":"TRACE","message":"fuse_debug: Op 0x0000006a        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 4718592, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":795932467},"severity":"TRACE","message":"4b6d1b08-ff34 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 4718592, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":795961577},"severity":"TRACE","message":"4b6d1b08-ff34 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.72µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":795969107},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":795973837},"severity":"INFO","message":"End-Start 11010048"}
+{"timestamp":{"seconds":1739879056,"nanos":795979157},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":795985157},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":796142307},"severity":"TRACE","message":"fuse_debug: Op 0x0000006a        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":796300027},"severity":"TRACE","message":"fuse_debug: Op 0x0000006c        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 4849664, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":796365487},"severity":"TRACE","message":"a8a03fbf-d5a8 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 4849664, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":796385207},"severity":"TRACE","message":"a8a03fbf-d5a8 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.21µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":796390707},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":796394757},"severity":"INFO","message":"End-Start 10878976"}
+{"timestamp":{"seconds":1739879056,"nanos":796398337},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":796401877},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":796515037},"severity":"TRACE","message":"fuse_debug: Op 0x0000006c        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":796635477},"severity":"TRACE","message":"fuse_debug: Op 0x0000006e        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 4980736, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":796708967},"severity":"TRACE","message":"d76bdd03-160f <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 4980736, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":796731397},"severity":"TRACE","message":"d76bdd03-160f -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.54µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":796740417},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":796744557},"severity":"INFO","message":"End-Start 10747904"}
+{"timestamp":{"seconds":1739879056,"nanos":796748157},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":796751927},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":796871687},"severity":"TRACE","message":"fuse_debug: Op 0x0000006e        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":797401007},"severity":"TRACE","message":"fuse_debug: Op 0x00000070        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 5111808, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":797486027},"severity":"TRACE","message":"b1903463-ac84 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 5111808, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":797513597},"severity":"TRACE","message":"b1903463-ac84 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.15µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":797519857},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":797525987},"severity":"INFO","message":"End-Start 10616832"}
+{"timestamp":{"seconds":1739879056,"nanos":797534367},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":797538457},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":797665397},"severity":"TRACE","message":"fuse_debug: Op 0x00000070        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":797790607},"severity":"TRACE","message":"fuse_debug: Op 0x00000072        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 5242880, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":797844547},"severity":"TRACE","message":"7dea3447-60ec <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 5242880, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":797874597},"severity":"TRACE","message":"7dea3447-60ec -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (3.81µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":797882607},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":797887597},"severity":"INFO","message":"End-Start 10485760"}
+{"timestamp":{"seconds":1739879056,"nanos":797891407},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":797895497},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":798090377},"severity":"TRACE","message":"fuse_debug: Op 0x00000072        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":798210327},"severity":"TRACE","message":"fuse_debug: Op 0x00000074        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 5373952, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":798254667},"severity":"TRACE","message":"44c2d34e-74fe <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 5373952, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":798279317},"severity":"TRACE","message":"44c2d34e-74fe -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.62µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":798287037},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":798291917},"severity":"INFO","message":"End-Start 10354688"}
+{"timestamp":{"seconds":1739879056,"nanos":798295757},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":798300257},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":798532807},"severity":"TRACE","message":"fuse_debug: Op 0x00000074        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":798698537},"severity":"TRACE","message":"fuse_debug: Op 0x00000076        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 5505024, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":798739847},"severity":"TRACE","message":"0ec1581b-c944 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 5505024, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":798761567},"severity":"TRACE","message":"0ec1581b-c944 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.8µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":798768157},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":798772407},"severity":"INFO","message":"End-Start 10223616"}
+{"timestamp":{"seconds":1739879056,"nanos":798775837},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":798779687},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":798968557},"severity":"TRACE","message":"fuse_debug: Op 0x00000076        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":799099567},"severity":"TRACE","message":"fuse_debug: Op 0x00000078        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 5636096, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":799184567},"severity":"TRACE","message":"5ce6e38c-0264 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 5636096, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":799227627},"severity":"TRACE","message":"5ce6e38c-0264 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (5.32µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":799236957},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":799241697},"severity":"INFO","message":"End-Start 10092544"}
+{"timestamp":{"seconds":1739879056,"nanos":799246087},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":799250507},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":799449517},"severity":"TRACE","message":"fuse_debug: Op 0x00000078        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":799582327},"severity":"TRACE","message":"fuse_debug: Op 0x0000007a        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 5767168, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":799662727},"severity":"TRACE","message":"193abfdb-9dcb <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 5767168, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":799689277},"severity":"TRACE","message":"193abfdb-9dcb -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (3.01µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":799695297},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":799699857},"severity":"INFO","message":"End-Start 9961472"}
+{"timestamp":{"seconds":1739879056,"nanos":799703327},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":799707147},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":799845767},"severity":"TRACE","message":"fuse_debug: Op 0x0000007a        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":799958336},"severity":"TRACE","message":"fuse_debug: Op 0x0000007c        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 5898240, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":800012807},"severity":"TRACE","message":"96fcc52b-da11 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 5898240, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":800035916},"severity":"TRACE","message":"96fcc52b-da11 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.4µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":800042947},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":800047476},"severity":"INFO","message":"End-Start 9830400"}
+{"timestamp":{"seconds":1739879056,"nanos":800051407},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":800055287},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":800180207},"severity":"TRACE","message":"fuse_debug: Op 0x0000007c        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":800293487},"severity":"TRACE","message":"fuse_debug: Op 0x0000007e        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 6029312, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":800328276},"severity":"TRACE","message":"666f8d5f-7bfb <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 6029312, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":800342807},"severity":"TRACE","message":"666f8d5f-7bfb -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.609µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":800352387},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":800356247},"severity":"INFO","message":"End-Start 9699328"}
+{"timestamp":{"seconds":1739879056,"nanos":800359887},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":800363407},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":800494787},"severity":"TRACE","message":"fuse_debug: Op 0x0000007e        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":800606336},"severity":"TRACE","message":"fuse_debug: Op 0x00000080        connection.go:420] <- ReadFile (inode 3, PID 3851709, handle 1, offset 6160384, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":800657516},"severity":"TRACE","message":"d2d10a9f-8e6e <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 6160384, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":800671627},"severity":"TRACE","message":"d2d10a9f-8e6e -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.44µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":800676676},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":800680436},"severity":"INFO","message":"End-Start 9568256"}
+{"timestamp":{"seconds":1739879056,"nanos":800683976},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":800687747},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":800796296},"severity":"TRACE","message":"fuse_debug: Op 0x00000080        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":803399796},"severity":"TRACE","message":"fuse_debug: Op 0x00000082        connection.go:420] <- ReadFile (inode 3, PID 3841173, handle 1, offset 6291456, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":803510506},"severity":"TRACE","message":"1b1998c5-95d8 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 6291456, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":803538136},"severity":"TRACE","message":"1b1998c5-95d8 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.35µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":803544616},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":803551266},"severity":"INFO","message":"End-Start 9437184"}
+{"timestamp":{"seconds":1739879056,"nanos":803554726},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":803558386},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":803713196},"severity":"TRACE","message":"fuse_debug: Op 0x00000082        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":803886426},"severity":"TRACE","message":"fuse_debug: Op 0x00000084        connection.go:420] <- ReadFile (inode 3, PID 3841173, handle 1, offset 6422528, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":803952376},"severity":"TRACE","message":"637195c1-76b7 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 6422528, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":803967846},"severity":"TRACE","message":"637195c1-76b7 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.9µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":803973096},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":803976836},"severity":"INFO","message":"End-Start 9306112"}
+{"timestamp":{"seconds":1739879056,"nanos":803980756},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":803989666},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":804088026},"severity":"TRACE","message":"fuse_debug: Op 0x00000084        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":804218996},"severity":"TRACE","message":"fuse_debug: Op 0x00000086        connection.go:420] <- ReadFile (inode 3, PID 3841173, handle 1, offset 6553600, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":804275596},"severity":"TRACE","message":"1603f2a7-d3ba <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 6553600, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":804290766},"severity":"TRACE","message":"1603f2a7-d3ba -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.71µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":804295796},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":804299546},"severity":"INFO","message":"End-Start 9175040"}
+{"timestamp":{"seconds":1739879056,"nanos":804302986},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":804306606},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":804434096},"severity":"TRACE","message":"fuse_debug: Op 0x00000086        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":804580876},"severity":"TRACE","message":"fuse_debug: Op 0x00000088        connection.go:420] <- ReadFile (inode 3, PID 3841173, handle 1, offset 6684672, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":804644006},"severity":"TRACE","message":"d96bf9c3-1d4c <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 6684672, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":804660716},"severity":"TRACE","message":"d96bf9c3-1d4c -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.64µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":804665706},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":804669626},"severity":"INFO","message":"End-Start 9043968"}
+{"timestamp":{"seconds":1739879056,"nanos":804672986},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":804676756},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":804785146},"severity":"TRACE","message":"fuse_debug: Op 0x00000088        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":804917256},"severity":"TRACE","message":"fuse_debug: Op 0x0000008a        connection.go:420] <- ReadFile (inode 3, PID 3841173, handle 1, offset 6815744, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":804980826},"severity":"TRACE","message":"3301a41c-9a80 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 6815744, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":805005506},"severity":"TRACE","message":"3301a41c-9a80 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.62µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":805012616},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":805017006},"severity":"INFO","message":"End-Start 8912896"}
+{"timestamp":{"seconds":1739879056,"nanos":805020466},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":805024186},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":805156626},"severity":"TRACE","message":"fuse_debug: Op 0x0000008a        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":805282456},"severity":"TRACE","message":"fuse_debug: Op 0x0000008c        connection.go:420] <- ReadFile (inode 3, PID 3841173, handle 1, offset 6946816, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":805353506},"severity":"TRACE","message":"6392d6d3-25d8 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 6946816, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":805377735},"severity":"TRACE","message":"6392d6d3-25d8 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (3.289µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":805384095},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":805388306},"severity":"INFO","message":"End-Start 8781824"}
+{"timestamp":{"seconds":1739879056,"nanos":805392095},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":805396075},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":805542715},"severity":"TRACE","message":"fuse_debug: Op 0x0000008c        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":805662226},"severity":"TRACE","message":"fuse_debug: Op 0x0000008e        connection.go:420] <- ReadFile (inode 3, PID 3841173, handle 1, offset 7077888, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":805707595},"severity":"TRACE","message":"ed7e9afd-bdfd <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 7077888, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":805727266},"severity":"TRACE","message":"ed7e9afd-bdfd -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.9µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":805733666},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":805737606},"severity":"INFO","message":"End-Start 8650752"}
+{"timestamp":{"seconds":1739879056,"nanos":805740995},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":805744726},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":805878926},"severity":"TRACE","message":"fuse_debug: Op 0x0000008e        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":805994766},"severity":"TRACE","message":"fuse_debug: Op 0x00000090        connection.go:420] <- ReadFile (inode 3, PID 3841173, handle 1, offset 7208960, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":806042206},"severity":"TRACE","message":"c3fae213-bef1 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 7208960, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":806067815},"severity":"TRACE","message":"c3fae213-bef1 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.58µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":806075266},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":806079826},"severity":"INFO","message":"End-Start 8519680"}
+{"timestamp":{"seconds":1739879056,"nanos":806083655},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":806087366},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":806233815},"severity":"TRACE","message":"fuse_debug: Op 0x00000090        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":806387495},"severity":"TRACE","message":"fuse_debug: Op 0x00000092        connection.go:420] <- ReadFile (inode 3, PID 3841173, handle 1, offset 7340032, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":806448215},"severity":"TRACE","message":"7c52e130-723f <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 7340032, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":806466725},"severity":"TRACE","message":"7c52e130-723f -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.83µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":806477875},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":806481715},"severity":"INFO","message":"End-Start 8388608"}
+{"timestamp":{"seconds":1739879056,"nanos":806485105},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":806488455},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":806624835},"severity":"TRACE","message":"fuse_debug: Op 0x00000092        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":806753985},"severity":"TRACE","message":"fuse_debug: Op 0x00000094        connection.go:420] <- ReadFile (inode 3, PID 3841173, handle 1, offset 7471104, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":806800845},"severity":"TRACE","message":"f3b877bc-213b <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 7471104, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":806820975},"severity":"TRACE","message":"f3b877bc-213b -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.26µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":806826895},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":806831235},"severity":"INFO","message":"End-Start 8257536"}
+{"timestamp":{"seconds":1739879056,"nanos":806834575},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":806838615},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":806974185},"severity":"TRACE","message":"fuse_debug: Op 0x00000094        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":807107195},"severity":"TRACE","message":"fuse_debug: Op 0x00000096        connection.go:420] <- ReadFile (inode 3, PID 3841173, handle 1, offset 7602176, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":807161095},"severity":"TRACE","message":"24b340d9-2693 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 7602176, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":807177595},"severity":"TRACE","message":"24b340d9-2693 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.01µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":807182435},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":807186135},"severity":"INFO","message":"End-Start 8126464"}
+{"timestamp":{"seconds":1739879056,"nanos":807189595},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":807193335},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":807343915},"severity":"TRACE","message":"fuse_debug: Op 0x00000096        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":807457375},"severity":"TRACE","message":"fuse_debug: Op 0x00000098        connection.go:420] <- ReadFile (inode 3, PID 3841173, handle 1, offset 7733248, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":807487385},"severity":"TRACE","message":"581e9ca6-039d <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 7733248, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":807504175},"severity":"TRACE","message":"581e9ca6-039d -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.7µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":807513665},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":807517755},"severity":"INFO","message":"End-Start 7995392"}
+{"timestamp":{"seconds":1739879056,"nanos":807521075},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":807524695},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":807682225},"severity":"TRACE","message":"fuse_debug: Op 0x00000098        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":811412414},"severity":"TRACE","message":"fuse_debug: Op 0x0000009a        connection.go:420] <- ReadFile (inode 3, PID 3841173, handle 1, offset 7864320, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":811488745},"severity":"TRACE","message":"bdd3beae-a517 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 7864320, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":811510525},"severity":"TRACE","message":"bdd3beae-a517 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (3.82µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":811518365},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":811522734},"severity":"INFO","message":"End-Start 7864320"}
+{"timestamp":{"seconds":1739879056,"nanos":811526745},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":811530785},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":811724594},"severity":"TRACE","message":"fuse_debug: Op 0x0000009a        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":811906174},"severity":"TRACE","message":"fuse_debug: Op 0x0000009c        connection.go:420] <- ReadFile (inode 3, PID 3841173, handle 1, offset 7995392, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":811980344},"severity":"TRACE","message":"bbaad51e-f82d <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 7995392, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":811996254},"severity":"TRACE","message":"bbaad51e-f82d -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.94µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":812001444},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":812005504},"severity":"INFO","message":"End-Start 7733248"}
+{"timestamp":{"seconds":1739879056,"nanos":812009124},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":812012634},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":812117154},"severity":"TRACE","message":"fuse_debug: Op 0x0000009c        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":812219614},"severity":"TRACE","message":"fuse_debug: Op 0x0000009e        connection.go:420] <- ReadFile (inode 3, PID 3841173, handle 1, offset 8126464, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":812286714},"severity":"TRACE","message":"f9fbac98-b711 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 8126464, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":812317784},"severity":"TRACE","message":"f9fbac98-b711 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.39µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":812324834},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":812329114},"severity":"INFO","message":"End-Start 7602176"}
+{"timestamp":{"seconds":1739879056,"nanos":812332614},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":812336604},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":812470614},"severity":"TRACE","message":"fuse_debug: Op 0x0000009e        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":812610604},"severity":"TRACE","message":"fuse_debug: Op 0x000000a0        connection.go:420] <- ReadFile (inode 3, PID 3841173, handle 1, offset 8257536, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":812672254},"severity":"TRACE","message":"1d4a1511-4cde <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 8257536, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":812693214},"severity":"TRACE","message":"1d4a1511-4cde -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.57µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":812698624},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":812702424},"severity":"INFO","message":"End-Start 7471104"}
+{"timestamp":{"seconds":1739879056,"nanos":812705994},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":812709694},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":812851464},"severity":"TRACE","message":"fuse_debug: Op 0x000000a0        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":812989454},"severity":"TRACE","message":"fuse_debug: Op 0x000000a2        connection.go:420] <- ReadFile (inode 3, PID 3841173, handle 1, offset 8388608, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":813045714},"severity":"TRACE","message":"9fbe326d-5094 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 8388608, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":813066164},"severity":"TRACE","message":"9fbe326d-5094 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (3.87µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":813071894},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":813076034},"severity":"INFO","message":"End-Start 7340032"}
+{"timestamp":{"seconds":1739879056,"nanos":813079584},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":813083484},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":813211104},"severity":"TRACE","message":"fuse_debug: Op 0x000000a2        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":813317064},"severity":"TRACE","message":"fuse_debug: Op 0x000000a4        connection.go:420] <- ReadFile (inode 3, PID 3841173, handle 1, offset 8519680, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":813363254},"severity":"TRACE","message":"c6b98e66-784d <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 8519680, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":813381174},"severity":"TRACE","message":"c6b98e66-784d -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.69µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":813386394},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":813390134},"severity":"INFO","message":"End-Start 7208960"}
+{"timestamp":{"seconds":1739879056,"nanos":813393654},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":813397184},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":813525714},"severity":"TRACE","message":"fuse_debug: Op 0x000000a4        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":813651454},"severity":"TRACE","message":"fuse_debug: Op 0x000000a6        connection.go:420] <- ReadFile (inode 3, PID 3841173, handle 1, offset 8650752, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":813702724},"severity":"TRACE","message":"993cfe48-63f3 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 8650752, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":813723984},"severity":"TRACE","message":"993cfe48-63f3 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.14µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":813732784},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":813737394},"severity":"INFO","message":"End-Start 7077888"}
+{"timestamp":{"seconds":1739879056,"nanos":813746374},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":813750154},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":813921754},"severity":"TRACE","message":"fuse_debug: Op 0x000000a6        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":814049824},"severity":"TRACE","message":"fuse_debug: Op 0x000000a8        connection.go:420] <- ReadFile (inode 3, PID 3841173, handle 1, offset 8781824, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":814102644},"severity":"TRACE","message":"507cf348-dec5 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 8781824, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":814127074},"severity":"TRACE","message":"507cf348-dec5 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.99µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":814134314},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":814138594},"severity":"INFO","message":"End-Start 6946816"}
+{"timestamp":{"seconds":1739879056,"nanos":814142174},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":814146644},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":814303064},"severity":"TRACE","message":"fuse_debug: Op 0x000000a8        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":814462234},"severity":"TRACE","message":"fuse_debug: Op 0x000000aa        connection.go:420] <- ReadFile (inode 3, PID 3841173, handle 1, offset 8912896, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":814507974},"severity":"TRACE","message":"d3ee392b-e7a2 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 8912896, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":814522264},"severity":"TRACE","message":"d3ee392b-e7a2 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.74µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":814527064},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":814530814},"severity":"INFO","message":"End-Start 6815744"}
+{"timestamp":{"seconds":1739879056,"nanos":814534304},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":814538194},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":814661264},"severity":"TRACE","message":"fuse_debug: Op 0x000000aa        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":814792424},"severity":"TRACE","message":"fuse_debug: Op 0x000000ac        connection.go:420] <- ReadFile (inode 3, PID 3841173, handle 1, offset 9043968, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":814843754},"severity":"TRACE","message":"b12db35d-1a79 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 9043968, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":814865004},"severity":"TRACE","message":"b12db35d-1a79 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.29µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":814871204},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":814875474},"severity":"INFO","message":"End-Start 6684672"}
+{"timestamp":{"seconds":1739879056,"nanos":814879274},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":814882924},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":815024924},"severity":"TRACE","message":"fuse_debug: Op 0x000000ac        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":815142104},"severity":"TRACE","message":"fuse_debug: Op 0x000000ae        connection.go:420] <- ReadFile (inode 3, PID 3841173, handle 1, offset 9175040, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":815186644},"severity":"TRACE","message":"e86d402c-f3a6 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 9175040, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":815201704},"severity":"TRACE","message":"e86d402c-f3a6 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.72µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":815217834},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":815221454},"severity":"INFO","message":"End-Start 6553600"}
+{"timestamp":{"seconds":1739879056,"nanos":815224694},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":815229834},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":815342564},"severity":"TRACE","message":"fuse_debug: Op 0x000000ae        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":815461444},"severity":"TRACE","message":"fuse_debug: Op 0x000000b0        connection.go:420] <- ReadFile (inode 3, PID 3841173, handle 1, offset 9306112, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":815509534},"severity":"TRACE","message":"33eab3c4-f90a <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 9306112, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":815557164},"severity":"TRACE","message":"33eab3c4-f90a -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (28.26µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":815564794},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":815569064},"severity":"INFO","message":"End-Start 6422528"}
+{"timestamp":{"seconds":1739879056,"nanos":815572654},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":815576414},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":815737244},"severity":"TRACE","message":"fuse_debug: Op 0x000000b0        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":815865474},"severity":"TRACE","message":"fuse_debug: Op 0x000000b2        connection.go:420] <- ReadFile (inode 3, PID 3841173, handle 1, offset 9437184, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":815938894},"severity":"TRACE","message":"5ae94ba6-152c <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 9437184, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":815964564},"severity":"TRACE","message":"5ae94ba6-152c -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.43µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":815971244},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":815975604},"severity":"INFO","message":"End-Start 6291456"}
+{"timestamp":{"seconds":1739879056,"nanos":815979174},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":815983214},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":816117244},"severity":"TRACE","message":"fuse_debug: Op 0x000000b2        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":816298184},"severity":"TRACE","message":"fuse_debug: Op 0x000000b4        connection.go:420] <- ReadFile (inode 3, PID 3841173, handle 1, offset 9568256, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":816362653},"severity":"TRACE","message":"1b81332f-1c13 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 9568256, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":816387444},"severity":"TRACE","message":"1b81332f-1c13 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (3.42µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":816400033},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":816404664},"severity":"INFO","message":"End-Start 6160384"}
+{"timestamp":{"seconds":1739879056,"nanos":816408204},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":816412233},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":816533584},"severity":"TRACE","message":"fuse_debug: Op 0x000000b4        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":816647244},"severity":"TRACE","message":"fuse_debug: Op 0x000000b6        connection.go:420] <- ReadFile (inode 3, PID 3841173, handle 1, offset 9699328, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":816689613},"severity":"TRACE","message":"1118b1d8-2a2c <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 9699328, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":816706984},"severity":"TRACE","message":"1118b1d8-2a2c -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.889µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":816712264},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":816716104},"severity":"INFO","message":"End-Start 6029312"}
+{"timestamp":{"seconds":1739879056,"nanos":816719833},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":816723433},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":816833173},"severity":"TRACE","message":"fuse_debug: Op 0x000000b6        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":818802883},"severity":"TRACE","message":"fuse_debug: Op 0x000000b8        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 9830400, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":818874643},"severity":"TRACE","message":"22eaa1c6-0060 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 9830400, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":818897503},"severity":"TRACE","message":"22eaa1c6-0060 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.57µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":818904703},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":818908873},"severity":"INFO","message":"End-Start 5898240"}
+{"timestamp":{"seconds":1739879056,"nanos":818912563},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":818916193},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":819055243},"severity":"TRACE","message":"fuse_debug: Op 0x000000b8        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":819188003},"severity":"TRACE","message":"fuse_debug: Op 0x000000ba        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 9961472, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":819249773},"severity":"TRACE","message":"aadbb38e-8882 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 9961472, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":819266273},"severity":"TRACE","message":"aadbb38e-8882 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.78µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":819271043},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":819274973},"severity":"INFO","message":"End-Start 5767168"}
+{"timestamp":{"seconds":1739879056,"nanos":819278733},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":819288043},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":819412343},"severity":"TRACE","message":"fuse_debug: Op 0x000000ba        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":819542933},"severity":"TRACE","message":"fuse_debug: Op 0x000000bc        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 10092544, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":819593083},"severity":"TRACE","message":"fdce2b43-187d <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 10092544, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":819613343},"severity":"TRACE","message":"fdce2b43-187d -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.53µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":819619093},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":819642383},"severity":"INFO","message":"End-Start 5636096"}
+{"timestamp":{"seconds":1739879056,"nanos":819646273},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":819650163},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":819792113},"severity":"TRACE","message":"fuse_debug: Op 0x000000bc        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":819922983},"severity":"TRACE","message":"fuse_debug: Op 0x000000be        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 10223616, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":819966273},"severity":"TRACE","message":"3cd70e87-847c <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 10223616, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":819981833},"severity":"TRACE","message":"3cd70e87-847c -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.23µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":819986853},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":819990693},"severity":"INFO","message":"End-Start 5505024"}
+{"timestamp":{"seconds":1739879056,"nanos":820005883},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":820009293},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":820144423},"severity":"TRACE","message":"fuse_debug: Op 0x000000be        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":820276503},"severity":"TRACE","message":"fuse_debug: Op 0x000000c0        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 10354688, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":820330443},"severity":"TRACE","message":"45ab5cd4-0c19 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 10354688, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":820353643},"severity":"TRACE","message":"45ab5cd4-0c19 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.6µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":820360413},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":820364873},"severity":"INFO","message":"End-Start 5373952"}
+{"timestamp":{"seconds":1739879056,"nanos":820368643},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":820372393},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":820517873},"severity":"TRACE","message":"fuse_debug: Op 0x000000c0        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":820653333},"severity":"TRACE","message":"fuse_debug: Op 0x000000c2        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 10485760, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":820700473},"severity":"TRACE","message":"ac637803-3359 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 10485760, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":820716743},"severity":"TRACE","message":"ac637803-3359 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.75µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":820725783},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":820729653},"severity":"INFO","message":"End-Start 5242880"}
+{"timestamp":{"seconds":1739879056,"nanos":820733123},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":820736543},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":820865083},"severity":"TRACE","message":"fuse_debug: Op 0x000000c2        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":820987053},"severity":"TRACE","message":"fuse_debug: Op 0x000000c4        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 10616832, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":821028033},"severity":"TRACE","message":"51d9916f-668d <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 10616832, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":821040943},"severity":"TRACE","message":"51d9916f-668d -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.36µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":821045373},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":821048933},"severity":"INFO","message":"End-Start 5111808"}
+{"timestamp":{"seconds":1739879056,"nanos":821052753},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":821056363},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":821191373},"severity":"TRACE","message":"fuse_debug: Op 0x000000c4        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":821308713},"severity":"TRACE","message":"fuse_debug: Op 0x000000c6        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 10747904, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":821354463},"severity":"TRACE","message":"13311421-7fe4 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 10747904, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":821372523},"severity":"TRACE","message":"13311421-7fe4 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.99µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":821378183},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":821382043},"severity":"INFO","message":"End-Start 4980736"}
+{"timestamp":{"seconds":1739879056,"nanos":821385563},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":821389573},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":821518043},"severity":"TRACE","message":"fuse_debug: Op 0x000000c6        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":821674503},"severity":"TRACE","message":"fuse_debug: Op 0x000000c8        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 10878976, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":821769023},"severity":"TRACE","message":"a97a977b-8823 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 10878976, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":821787732},"severity":"TRACE","message":"a97a977b-8823 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.951µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":821798872},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":821802752},"severity":"INFO","message":"End-Start 4849664"}
+{"timestamp":{"seconds":1739879056,"nanos":821806292},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":821809692},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":821940272},"severity":"TRACE","message":"fuse_debug: Op 0x000000c8        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":822063063},"severity":"TRACE","message":"fuse_debug: Op 0x000000ca        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 11010048, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":822108343},"severity":"TRACE","message":"751741a8-b4cd <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 11010048, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":822131343},"severity":"TRACE","message":"751741a8-b4cd -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.58µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":822136492},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":822140072},"severity":"INFO","message":"End-Start 4718592"}
+{"timestamp":{"seconds":1739879056,"nanos":822143652},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":822147292},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":822252543},"severity":"TRACE","message":"fuse_debug: Op 0x000000ca        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":822374292},"severity":"TRACE","message":"fuse_debug: Op 0x000000cc        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 11141120, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":822427992},"severity":"TRACE","message":"ec9437c9-3876 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 11141120, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":822447763},"severity":"TRACE","message":"ec9437c9-3876 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.071µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":822453523},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":822457543},"severity":"INFO","message":"End-Start 4587520"}
+{"timestamp":{"seconds":1739879056,"nanos":822461052},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":822464832},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":822589983},"severity":"TRACE","message":"fuse_debug: Op 0x000000cc        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":822709412},"severity":"TRACE","message":"fuse_debug: Op 0x000000ce        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 11272192, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":822757282},"severity":"TRACE","message":"4b3a9ed4-4c4e <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 11272192, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":822772792},"severity":"TRACE","message":"4b3a9ed4-4c4e -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.6µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":822777972},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":822781942},"severity":"INFO","message":"End-Start 4456448"}
+{"timestamp":{"seconds":1739879056,"nanos":822785352},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":822789192},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":822914702},"severity":"TRACE","message":"fuse_debug: Op 0x000000ce        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":823034432},"severity":"TRACE","message":"fuse_debug: Op 0x000000d0        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 11403264, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":823078142},"severity":"TRACE","message":"72352c1c-6853 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 11403264, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":823106592},"severity":"TRACE","message":"72352c1c-6853 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.07µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":823112412},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":823116072},"severity":"INFO","message":"End-Start 4325376"}
+{"timestamp":{"seconds":1739879056,"nanos":823119622},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":823124272},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":823240152},"severity":"TRACE","message":"fuse_debug: Op 0x000000d0        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":823356312},"severity":"TRACE","message":"fuse_debug: Op 0x000000d2        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 11534336, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":823396662},"severity":"TRACE","message":"6b562276-d9ad <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 11534336, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":823409422},"severity":"TRACE","message":"6b562276-d9ad -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.3µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":823413582},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":823417222},"severity":"INFO","message":"End-Start 4194304"}
+{"timestamp":{"seconds":1739879056,"nanos":823420722},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":823424512},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":823572302},"severity":"TRACE","message":"fuse_debug: Op 0x000000d2        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":823718342},"severity":"TRACE","message":"fuse_debug: Op 0x000000d4        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 11665408, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":823826762},"severity":"TRACE","message":"243cfec6-f3ba <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 11665408, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":823991302},"severity":"TRACE","message":"243cfec6-f3ba -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (122.25µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":824001882},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":824006502},"severity":"INFO","message":"End-Start 4063232"}
+{"timestamp":{"seconds":1739879056,"nanos":824010492},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":824014832},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":824141352},"severity":"TRACE","message":"fuse_debug: Op 0x000000d4        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":824247532},"severity":"TRACE","message":"fuse_debug: Op 0x000000d6        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 11796480, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":824310352},"severity":"TRACE","message":"c641c13e-5d71 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 11796480, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":824335442},"severity":"TRACE","message":"c641c13e-5d71 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.44µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":824343962},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":824349672},"severity":"INFO","message":"End-Start 3932160"}
+{"timestamp":{"seconds":1739879056,"nanos":824354942},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":824361402},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":824669482},"severity":"TRACE","message":"fuse_debug: Op 0x000000d6        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":824823582},"severity":"TRACE","message":"fuse_debug: Op 0x000000d8        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 11927552, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":824883542},"severity":"TRACE","message":"fe49aefe-1b61 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 11927552, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":824899652},"severity":"TRACE","message":"fe49aefe-1b61 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.71µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":824904642},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":824908312},"severity":"INFO","message":"End-Start 3801088"}
+{"timestamp":{"seconds":1739879056,"nanos":824911842},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":824915452},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":825041922},"severity":"TRACE","message":"fuse_debug: Op 0x000000d8        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":825136022},"severity":"TRACE","message":"fuse_debug: Op 0x000000da        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 12058624, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":825185212},"severity":"TRACE","message":"9af6ad54-710f <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 12058624, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":825208452},"severity":"TRACE","message":"9af6ad54-710f -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.4µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":825215212},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":825219912},"severity":"INFO","message":"End-Start 3670016"}
+{"timestamp":{"seconds":1739879056,"nanos":825223802},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":825227332},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":825339292},"severity":"TRACE","message":"fuse_debug: Op 0x000000da        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":825458822},"severity":"TRACE","message":"fuse_debug: Op 0x000000dc        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 12189696, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":825494462},"severity":"TRACE","message":"4976b1e6-f950 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 12189696, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":825516982},"severity":"TRACE","message":"4976b1e6-f950 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.07µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":825522632},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":825534152},"severity":"INFO","message":"End-Start 3538944"}
+{"timestamp":{"seconds":1739879056,"nanos":825537822},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":825541492},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":825700772},"severity":"TRACE","message":"fuse_debug: Op 0x000000dc        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":827047442},"severity":"TRACE","message":"fuse_debug: Op 0x000000de        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 12320768, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":827116922},"severity":"TRACE","message":"6fbf5bf7-2085 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 12320768, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":827134631},"severity":"TRACE","message":"6fbf5bf7-2085 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.969µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":827140362},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":827144202},"severity":"INFO","message":"End-Start 3407872"}
+{"timestamp":{"seconds":1739879056,"nanos":827147911},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":827151462},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":827290302},"severity":"TRACE","message":"fuse_debug: Op 0x000000de        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":827424342},"severity":"TRACE","message":"fuse_debug: Op 0x000000e0        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 12451840, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":827574642},"severity":"TRACE","message":"f5cb6928-a1b1 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 12451840, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":827617182},"severity":"TRACE","message":"f5cb6928-a1b1 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (19.891µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":827664902},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":827719931},"severity":"INFO","message":"End-Start 3276800"}
+{"timestamp":{"seconds":1739879056,"nanos":827724542},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":827728302},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":828051911},"severity":"TRACE","message":"fuse_debug: Op 0x000000e0        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":828179302},"severity":"TRACE","message":"fuse_debug: Op 0x000000e2        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 12582912, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":828240151},"severity":"TRACE","message":"1f4fd459-5d7e <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 12582912, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":828257391},"severity":"TRACE","message":"1f4fd459-5d7e -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.049µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":828283771},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":828288322},"severity":"INFO","message":"End-Start 3145728"}
+{"timestamp":{"seconds":1739879056,"nanos":828292011},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":828295582},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":828631011},"severity":"TRACE","message":"fuse_debug: Op 0x000000e2        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":828825331},"severity":"TRACE","message":"fuse_debug: Op 0x000000e4        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 12713984, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":828902571},"severity":"TRACE","message":"de66ba3a-b414 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 12713984, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":828926291},"severity":"TRACE","message":"de66ba3a-b414 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.549µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":828933542},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":828937931},"severity":"INFO","message":"End-Start 3014656"}
+{"timestamp":{"seconds":1739879056,"nanos":828941842},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":828945511},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":829105151},"severity":"TRACE","message":"fuse_debug: Op 0x000000e4        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":829282822},"severity":"TRACE","message":"fuse_debug: Op 0x000000e6        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 12845056, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":829364971},"severity":"TRACE","message":"a18795b8-a439 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 12845056, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":829386982},"severity":"TRACE","message":"a18795b8-a439 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.629µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":829393562},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":829397822},"severity":"INFO","message":"End-Start 2883584"}
+{"timestamp":{"seconds":1739879056,"nanos":829401531},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":829405242},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":829556771},"severity":"TRACE","message":"fuse_debug: Op 0x000000e6        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":829694531},"severity":"TRACE","message":"fuse_debug: Op 0x000000e8        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 12976128, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":829738751},"severity":"TRACE","message":"9751a3e2-367c <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 12976128, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":829754701},"severity":"TRACE","message":"9751a3e2-367c -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.03µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":829759751},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":829763611},"severity":"INFO","message":"End-Start 2752512"}
+{"timestamp":{"seconds":1739879056,"nanos":829767111},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":829771231},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":829878181},"severity":"TRACE","message":"fuse_debug: Op 0x000000e8        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":830036361},"severity":"TRACE","message":"fuse_debug: Op 0x000000ea        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 13107200, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":830133331},"severity":"TRACE","message":"2af8b1cf-6cf6 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 13107200, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":830160781},"severity":"TRACE","message":"2af8b1cf-6cf6 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.36µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":830167801},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":830171981},"severity":"INFO","message":"End-Start 2621440"}
+{"timestamp":{"seconds":1739879056,"nanos":830179131},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":830182781},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":830339251},"severity":"TRACE","message":"fuse_debug: Op 0x000000ea        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":830456131},"severity":"TRACE","message":"fuse_debug: Op 0x000000ec        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 13238272, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":830557851},"severity":"TRACE","message":"db3e43ec-87d7 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 13238272, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":830583391},"severity":"TRACE","message":"db3e43ec-87d7 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.93µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":830603951},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":830608741},"severity":"INFO","message":"End-Start 2490368"}
+{"timestamp":{"seconds":1739879056,"nanos":830612411},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":830616371},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":831011741},"severity":"TRACE","message":"fuse_debug: Op 0x000000ec        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":831155841},"severity":"TRACE","message":"fuse_debug: Op 0x000000ee        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 13369344, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":831221561},"severity":"TRACE","message":"06a930ed-be1f <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 13369344, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":831243711},"severity":"TRACE","message":"06a930ed-be1f -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.42µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":831252891},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":831257211},"severity":"INFO","message":"End-Start 2359296"}
+{"timestamp":{"seconds":1739879056,"nanos":831260811},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":831264411},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":831438121},"severity":"TRACE","message":"fuse_debug: Op 0x000000ee        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":831562611},"severity":"TRACE","message":"fuse_debug: Op 0x000000f0        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 13500416, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":831618251},"severity":"TRACE","message":"38e42372-13ac <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 13500416, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":831669671},"severity":"TRACE","message":"38e42372-13ac -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.75µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":831676871},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":831681451},"severity":"INFO","message":"End-Start 2228224"}
+{"timestamp":{"seconds":1739879056,"nanos":831690871},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":831694771},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":831859991},"severity":"TRACE","message":"fuse_debug: Op 0x000000f0        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":831985241},"severity":"TRACE","message":"fuse_debug: Op 0x000000f2        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 13631488, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":832030981},"severity":"TRACE","message":"d01beda9-c589 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 13631488, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":832050051},"severity":"TRACE","message":"d01beda9-c589 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.63µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":832055771},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":832060011},"severity":"INFO","message":"End-Start 2097152"}
+{"timestamp":{"seconds":1739879056,"nanos":832063791},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":832067481},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":832312901},"severity":"TRACE","message":"fuse_debug: Op 0x000000f2        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":832427371},"severity":"TRACE","message":"fuse_debug: Op 0x000000f4        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 13762560, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":832483581},"severity":"TRACE","message":"8ccc3c4b-719c <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 13762560, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":832497611},"severity":"TRACE","message":"8ccc3c4b-719c -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.86µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":832503221},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":832507121},"severity":"INFO","message":"End-Start 1966080"}
+{"timestamp":{"seconds":1739879056,"nanos":832510721},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":832514841},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":832664611},"severity":"TRACE","message":"fuse_debug: Op 0x000000f4        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":832777651},"severity":"TRACE","message":"fuse_debug: Op 0x000000f6        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 13893632, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":832833471},"severity":"TRACE","message":"e31b157b-a592 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 13893632, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":832853011},"severity":"TRACE","message":"e31b157b-a592 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.17µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":832859231},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":832863331},"severity":"INFO","message":"End-Start 1835008"}
+{"timestamp":{"seconds":1739879056,"nanos":832867131},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":832870681},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":833020381},"severity":"TRACE","message":"fuse_debug: Op 0x000000f6        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":833135071},"severity":"TRACE","message":"fuse_debug: Op 0x000000f8        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 14024704, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":833189971},"severity":"TRACE","message":"b9ff198b-16c5 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 14024704, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":833205911},"severity":"TRACE","message":"b9ff198b-16c5 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.54µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":833211391},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":833215121},"severity":"INFO","message":"End-Start 1703936"}
+{"timestamp":{"seconds":1739879056,"nanos":833218671},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":833221981},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":833360401},"severity":"TRACE","message":"fuse_debug: Op 0x000000f8        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":833473011},"severity":"TRACE","message":"fuse_debug: Op 0x000000fa        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 14155776, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":833538081},"severity":"TRACE","message":"733bcc95-75b9 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 14155776, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":833560351},"severity":"TRACE","message":"733bcc95-75b9 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.12µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":833565721},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":833569841},"severity":"INFO","message":"End-Start 1572864"}
+{"timestamp":{"seconds":1739879056,"nanos":833573211},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":833577141},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":833825341},"severity":"TRACE","message":"fuse_debug: Op 0x000000fa        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":833950571},"severity":"TRACE","message":"fuse_debug: Op 0x000000fc        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 14286848, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":834015971},"severity":"TRACE","message":"3f73a2ea-12ff <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 14286848, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":834037961},"severity":"TRACE","message":"3f73a2ea-12ff -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.22µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":834044911},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":834049391},"severity":"INFO","message":"End-Start 1441792"}
+{"timestamp":{"seconds":1739879056,"nanos":834052831},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":834056801},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":834195981},"severity":"TRACE","message":"fuse_debug: Op 0x000000fc        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":834324131},"severity":"TRACE","message":"fuse_debug: Op 0x000000fe        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 14417920, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":834389431},"severity":"TRACE","message":"cded0adc-413e <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 14417920, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":834414811},"severity":"TRACE","message":"cded0adc-413e -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.7µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":834428291},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":834432941},"severity":"INFO","message":"End-Start 1310720"}
+{"timestamp":{"seconds":1739879056,"nanos":834436501},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":834440171},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":834570891},"severity":"TRACE","message":"fuse_debug: Op 0x000000fe        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":834695331},"severity":"TRACE","message":"fuse_debug: Op 0x00000100        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 14548992, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":834753251},"severity":"TRACE","message":"9ef042c3-1fb2 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 14548992, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":834769531},"severity":"TRACE","message":"9ef042c3-1fb2 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.86µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":834774241},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":834777881},"severity":"INFO","message":"End-Start 1179648"}
+{"timestamp":{"seconds":1739879056,"nanos":834781491},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":834784961},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":834888681},"severity":"TRACE","message":"fuse_debug: Op 0x00000100        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":835066081},"severity":"TRACE","message":"fuse_debug: Op 0x00000102        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 14680064, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":835129741},"severity":"TRACE","message":"dcfd998c-5310 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 14680064, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":835144531},"severity":"TRACE","message":"dcfd998c-5310 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.42µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":835152421},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":835156201},"severity":"INFO","message":"End-Start 1048576"}
+{"timestamp":{"seconds":1739879056,"nanos":835159741},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":835163191},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":835273161},"severity":"TRACE","message":"fuse_debug: Op 0x00000102        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":835394741},"severity":"TRACE","message":"fuse_debug: Op 0x00000104        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 14811136, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":835437221},"severity":"TRACE","message":"34980372-20ce <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 14811136, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":835450701},"severity":"TRACE","message":"34980372-20ce -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.51µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":835455321},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":835458911},"severity":"INFO","message":"End-Start 917504"}
+{"timestamp":{"seconds":1739879056,"nanos":835462311},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":835465851},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":835568390},"severity":"TRACE","message":"fuse_debug: Op 0x00000104        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":835707321},"severity":"TRACE","message":"fuse_debug: Op 0x00000106        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 14942208, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":835749521},"severity":"TRACE","message":"44e58044-e074 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 14942208, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":835762901},"severity":"TRACE","message":"44e58044-e074 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.371µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":835767381},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":835770981},"severity":"INFO","message":"End-Start 786432"}
+{"timestamp":{"seconds":1739879056,"nanos":835774481},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":835778090},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":835883881},"severity":"TRACE","message":"fuse_debug: Op 0x00000106        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":836015710},"severity":"TRACE","message":"fuse_debug: Op 0x00000108        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 15073280, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":836082721},"severity":"TRACE","message":"4b8c8c34-3bb2 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 15073280, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":836104581},"severity":"TRACE","message":"4b8c8c34-3bb2 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.651µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":836111001},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":836115241},"severity":"INFO","message":"End-Start 655360"}
+{"timestamp":{"seconds":1739879056,"nanos":836118850},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":836122501},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":836238521},"severity":"TRACE","message":"fuse_debug: Op 0x00000108        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":836381330},"severity":"TRACE","message":"fuse_debug: Op 0x0000010a        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 15204352, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":836451430},"severity":"TRACE","message":"226fd41c-350f <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 15204352, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":836473990},"severity":"TRACE","message":"226fd41c-350f -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.531µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":836480570},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":836484761},"severity":"INFO","message":"End-Start 524288"}
+{"timestamp":{"seconds":1739879056,"nanos":836488521},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":836492130},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":836607570},"severity":"TRACE","message":"fuse_debug: Op 0x0000010a        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":836735520},"severity":"TRACE","message":"fuse_debug: Op 0x0000010c        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 15335424, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":836802070},"severity":"TRACE","message":"bd619bf5-cff8 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 15335424, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":836822100},"severity":"TRACE","message":"bd619bf5-cff8 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (1.97µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":836827670},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":836831730},"severity":"INFO","message":"End-Start 393216"}
+{"timestamp":{"seconds":1739879056,"nanos":836835560},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":836840820},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":836990530},"severity":"TRACE","message":"fuse_debug: Op 0x0000010c        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":844331589},"severity":"TRACE","message":"fuse_debug: Op 0x0000010e        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 15466496, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":844438049},"severity":"TRACE","message":"6d975c99-c022 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 15466496, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":844462179},"severity":"TRACE","message":"6d975c99-c022 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.48µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":844469409},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":844473799},"severity":"INFO","message":"End-Start 262144"}
+{"timestamp":{"seconds":1739879056,"nanos":844477439},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":844481259},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":844633829},"severity":"TRACE","message":"fuse_debug: Op 0x0000010e        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":844772279},"severity":"TRACE","message":"fuse_debug: Op 0x00000110        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 1, offset 15597568, 131072 bytes)"}
+{"timestamp":{"seconds":1739879056,"nanos":844836529},"severity":"TRACE","message":"2834c6ed-6473 <- FileCache(tulsishah-hns:/ReadCacheTest/15MBFile, offset: 15597568, size: 131072 handle: 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":844859799},"severity":"TRACE","message":"2834c6ed-6473 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (2.23µs)"}
+{"timestamp":{"seconds":1739879056,"nanos":844869519},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879056,"nanos":844874119},"severity":"INFO","message":"End-Start 131072"}
+{"timestamp":{"seconds":1739879056,"nanos":844877779},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879056,"nanos":844882509},"severity":"INFO","message":"End:  15728640"}
+{"timestamp":{"seconds":1739879056,"nanos":845019949},"severity":"TRACE","message":"gcs: Req              0xa: -> \"ReadWithReadHandle\"(\"ReadCacheTest/15MBFile\", [0, 15728640)) (152.726904ms): OK"}
+{"timestamp":{"seconds":1739879056,"nanos":845037489},"severity":"TRACE","message":"fuse_debug: Op 0x00000110        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":845171859},"severity":"TRACE","message":"fuse_debug: Op 0x00000112        connection.go:420] <- FlushFile (inode 3, PID 3841175)"}
+{"timestamp":{"seconds":1739879056,"nanos":845268579},"severity":"TRACE","message":"fuse_debug: Op 0x00000112        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879056,"nanos":845350119},"severity":"TRACE","message":"fuse_debug: Op 0x00000114        connection.go:420] <- ReleaseFileHandle (PID 0, handle 1)"}
+{"timestamp":{"seconds":1739879056,"nanos":845411939},"severity":"TRACE","message":"fuse_debug: Op 0x00000114        connection.go:513] -> OK ()"}

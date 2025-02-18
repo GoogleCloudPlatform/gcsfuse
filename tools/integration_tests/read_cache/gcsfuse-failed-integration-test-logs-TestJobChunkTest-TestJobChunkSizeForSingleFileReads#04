@@ -1,0 +1,839 @@
+/tmp/gcsfuse_readwrite_test_1640732685/bin/gcsfuse --config-file=/tmp/gcsfuse_readwrite_test_1640732685/limitedMaxParallelDownloadsNotEffectingChunkSize --debug_gcs --debug_fs --debug_fuse --log-file=/tmp/gcsfuse_readwrite_test_1640732685/gcsfuse.log tulsishah-hns /tmp/gcsfuse_readwrite_test_1640732685/mnt
+{"timestamp":{"seconds":1739879016,"nanos":154460884},"severity":"INFO","message":"Start gcsfuse/fake_version (Go version go1.25-20250216-RC00 cl/727547642 +d524e1eccd X:fieldtrack,boringcrypto) for app \"\" using mount point: /tmp/gcsfuse_readwrite_test_1640732685/mnt\n"}
+{"timestamp":{"seconds":1739879016,"nanos":154531574},"severity":"INFO","message":"GCSFuse config","config":{"AppName":"","CacheDir":"/tmp/gcsfuse_readwrite_test_1640732685/cache-dir-read-cache-hns-true","Debug":{"ExitOnInvariantViolation":false,"Fuse":true,"Gcs":true,"LogMutex":false},"EnableAtomicRenameObject":false,"EnableHns":true,"FileCache":{"CacheFileForRangeRead":false,"DownloadChunkSizeMb":4,"EnableCrc":true,"EnableODirect":false,"EnableParallelDownloads":true,"MaxParallelDownloads":9,"MaxSizeMb":48,"ParallelDownloadsPerFile":4,"WriteBufferSize":4194304},"FileSystem":{"DirMode":"755","DisableParallelDirops":false,"FileMode":"644","FuseOptions":[],"Gid":-1,"HandleSigterm":true,"IgnoreInterrupts":true,"KernelListCacheTtlSecs":0,"PreconditionErrors":true,"RenameDirLimit":0,"TempDir":"","Uid":-1},"Foreground":true,"GcsAuth":{"AnonymousAccess":false,"KeyFile":"","ReuseTokenFromUrl":true,"TokenUrl":""},"GcsConnection":{"BillingProject":"","ClientProtocol":"http1","CustomEndpoint":"","ExperimentalEnableJsonRead":false,"GrpcConnPoolSize":1,"HttpClientTimeout":0,"LimitBytesPerSec":-1,"LimitOpsPerSec":-1,"MaxConnsPerHost":0,"MaxIdleConnsPerHost":100,"SequentialReadSizeMb":200},"GcsRetries":{"ChunkTransferTimeoutSecs":10,"MaxRetryAttempts":0,"MaxRetrySleep":30000000000,"Multiplier":2,"ReadStall":{"Enable":false,"InitialReqTimeout":20000000000,"MaxReqTimeout":1200000000000,"MinReqTimeout":1500000000,"ReqIncreaseRate":15,"ReqTargetPercentile":0.99}},"ImplicitDirs":false,"List":{"EnableEmptyManagedFolders":false},"Logging":{"FilePath":"/tmp/gcsfuse_readwrite_test_1640732685/gcsfuse.log","Format":"json","LogRotate":{"BackupFileCount":10,"Compress":true,"MaxFileSizeMb":512},"Severity":"TRACE"},"MetadataCache":{"DeprecatedStatCacheCapacity":20460,"DeprecatedStatCacheTtl":60000000000,"DeprecatedTypeCacheTtl":60000000000,"EnableNonexistentTypeCache":false,"ExperimentalMetadataPrefetchOnMount":"disabled","NegativeTtlSecs":5,"StatCacheMaxSizeMb":32,"TtlSecs":60,"TypeCacheMaxSizeMb":4},"Metrics":{"CloudMetricsExportIntervalSecs":0,"EnableOtel":true,"PrometheusPort":0,"StackdriverExportInterval":0},"Monitoring":{"ExperimentalOpentelemetryCollectorAddress":"","ExperimentalTracingMode":"","ExperimentalTracingSamplingRatio":0},"OnlyDir":"","Write":{"BlockSizeMb":33554432,"CreateEmptyFile":false,"EnableStreamingWrites":false,"GlobalMaxBlocks":9223372036854775807,"MaxBlocksPerFile":1}}}
+{"timestamp":{"seconds":1739879016,"nanos":154800424},"severity":"INFO","message":"Creating Storage handle..."}
+{"timestamp":{"seconds":1739879016,"nanos":154807134},"severity":"INFO","message":"UserAgent = gcsfuse/fake_version (Go version go1.25-20250216-RC00 cl/727547642 +d524e1eccd X:fieldtrack,boringcrypto) (GPN:gcsfuse) (Cfg:1:0:1:0)\n"}
+{"timestamp":{"seconds":1739879016,"nanos":155416874},"severity":"INFO","message":"Creating a mount at \"/tmp/gcsfuse_readwrite_test_1640732685/mnt\"\n"}
+{"timestamp":{"seconds":1739879016,"nanos":155438064},"severity":"INFO","message":"Creating a new server...\n"}
+{"timestamp":{"seconds":1739879016,"nanos":155613564},"severity":"INFO","message":"Set up root directory for bucket tulsishah-hns"}
+{"timestamp":{"seconds":1739879016,"nanos":155658854},"severity":"INFO","message":"GetStorageLayout <- (tulsishah-hns)"}
+{"timestamp":{"seconds":1739879016,"nanos":277314322},"severity":"INFO","message":"GetStorageLayout -> (tulsishah-hns) 121 msec"}
+{"timestamp":{"seconds":1739879016,"nanos":277670382},"severity":"TRACE","message":"gcs: Req              0x0: <- ListObjects(\"\")"}
+{"timestamp":{"seconds":1739879016,"nanos":383667334},"severity":"TRACE","message":"gcs: Req              0x0: -> ListObjects(\"\") (105.984272ms): OK"}
+{"timestamp":{"seconds":1739879016,"nanos":383745783},"severity":"INFO","message":"Mounting file system \"tulsishah-hns\"..."}
+{"timestamp":{"seconds":1739879016,"nanos":383782294},"severity":"TRACE","message":"fuse_debug: Beginning the mounting kickoff process"}
+{"timestamp":{"seconds":1739879016,"nanos":383789103},"severity":"TRACE","message":"fuse_debug: Parsing fuse file descriptor"}
+{"timestamp":{"seconds":1739879016,"nanos":383794914},"severity":"TRACE","message":"fuse_debug: Preparing for direct mounting"}
+{"timestamp":{"seconds":1739879016,"nanos":383827654},"severity":"TRACE","message":"fuse_debug: Successfully opened the /dev/fuse in blocking mode"}
+{"timestamp":{"seconds":1739879016,"nanos":383839383},"severity":"TRACE","message":"fuse_debug: Starting the unix mounting"}
+{"timestamp":{"seconds":1739879016,"nanos":383854463},"severity":"TRACE","message":"fuse_debug: Directmount failed. Trying fallback."}
+{"timestamp":{"seconds":1739879016,"nanos":383922383},"severity":"TRACE","message":"fuse_debug: Creating a socket pair"}
+{"timestamp":{"seconds":1739879016,"nanos":383956074},"severity":"TRACE","message":"fuse_debug: Creating files to wrap the sockets"}
+{"timestamp":{"seconds":1739879016,"nanos":383964363},"severity":"TRACE","message":"fuse_debug: Starting fusermount/os mount"}
+{"timestamp":{"seconds":1739879016,"nanos":386690303},"severity":"TRACE","message":"fuse_debug: Wrapping socket pair in a connection"}
+{"timestamp":{"seconds":1739879016,"nanos":386729373},"severity":"TRACE","message":"fuse_debug: Checking that we have a unix domain socket"}
+{"timestamp":{"seconds":1739879016,"nanos":386735733},"severity":"TRACE","message":"fuse_debug: Read a message from socket"}
+{"timestamp":{"seconds":1739879016,"nanos":386750563},"severity":"TRACE","message":"fuse_debug: Successfully read the socket message."}
+{"timestamp":{"seconds":1739879016,"nanos":386755973},"severity":"TRACE","message":"fuse_debug: Converting FD into os.File"}
+{"timestamp":{"seconds":1739879016,"nanos":386779383},"severity":"TRACE","message":"fuse_debug: Completed the mounting kickoff process"}
+{"timestamp":{"seconds":1739879016,"nanos":386783823},"severity":"TRACE","message":"fuse_debug: Creating a connection object"}
+{"timestamp":{"seconds":1739879016,"nanos":386848873},"severity":"TRACE","message":"fuse_debug: Op 0x00000002        connection.go:420] <- init"}
+{"timestamp":{"seconds":1739879016,"nanos":386863933},"severity":"TRACE","message":"fuse_debug: Op 0x00000002        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879016,"nanos":386878613},"severity":"TRACE","message":"fuse_debug: Successfully created the connection"}
+{"timestamp":{"seconds":1739879016,"nanos":386904403},"severity":"TRACE","message":"fuse_debug: Waiting for mounting process to complete"}
+{"timestamp":{"seconds":1739879016,"nanos":386912193},"severity":"INFO","message":"File system has been successfully mounted."}
+{"timestamp":{"seconds":1739879016,"nanos":387268183},"severity":"TRACE","message":"fuse_debug: Op 0x00000004        connection.go:420] <- GetInodeAttributes (inode 1, PID 181543)"}
+{"timestamp":{"seconds":1739879016,"nanos":387474593},"severity":"TRACE","message":"fuse_debug: Op 0x00000004        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879016,"nanos":387758793},"severity":"TRACE","message":"fuse_debug: Op 0x00000006        connection.go:420] <- LookUpInode (parent 1, name \".Trash\", PID 181543)"}
+{"timestamp":{"seconds":1739879016,"nanos":387943003},"severity":"TRACE","message":"gcs: Req              0x1: <- StatObject(\".Trash\")"}
+{"timestamp":{"seconds":1739879016,"nanos":387947993},"severity":"TRACE","message":"gcs: Req              0x2: <- GetFolder(\".Trash/\")"}
+{"timestamp":{"seconds":1739879016,"nanos":430350215},"severity":"TRACE","message":"gcs: Req              0x1: -> StatObject(\".Trash\") (42.409182ms): gcs.NotFoundError: storage: object doesn't exist"}
+{"timestamp":{"seconds":1739879016,"nanos":437200234},"severity":"TRACE","message":"gcs: Req              0x2: -> GetFolder(\".Trash/\") (49.245241ms): gcs.NotFoundError: error getting metadata for folder: .Trash/, rpc error: code = NotFound desc = The folder does not exist."}
+{"timestamp":{"seconds":1739879016,"nanos":437263184},"severity":"TRACE","message":"fuse_debug: Op 0x00000006        connection.go:515] -> Error: \"no such file or directory\""}
+{"timestamp":{"seconds":1739879016,"nanos":437580893},"severity":"TRACE","message":"fuse_debug: Op 0x00000008        connection.go:420] <- LookUpInode (parent 1, name \".Trash-1052824\", PID 181543)"}
+{"timestamp":{"seconds":1739879016,"nanos":437700013},"severity":"TRACE","message":"gcs: Req              0x3: <- GetFolder(\".Trash-1052824/\")"}
+{"timestamp":{"seconds":1739879016,"nanos":437746064},"severity":"TRACE","message":"gcs: Req              0x4: <- StatObject(\".Trash-1052824\")"}
+{"timestamp":{"seconds":1739879016,"nanos":475406418},"severity":"TRACE","message":"gcs: Req              0x4: -> StatObject(\".Trash-1052824\") (37.656554ms): gcs.NotFoundError: storage: object doesn't exist"}
+{"timestamp":{"seconds":1739879016,"nanos":483995306},"severity":"TRACE","message":"gcs: Req              0x3: -> GetFolder(\".Trash-1052824/\") (46.283312ms): gcs.NotFoundError: error getting metadata for folder: .Trash-1052824/, rpc error: code = NotFound desc = The folder does not exist."}
+{"timestamp":{"seconds":1739879016,"nanos":484051066},"severity":"TRACE","message":"fuse_debug: Op 0x00000008        connection.go:515] -> Error: \"no such file or directory\""}
+{"timestamp":{"seconds":1739879016,"nanos":864396438},"severity":"TRACE","message":"fuse_debug: Op 0x0000000a        connection.go:420] <- LookUpInode (parent 1, name \"ReadCacheTest\", PID 3851686)"}
+{"timestamp":{"seconds":1739879016,"nanos":864537009},"severity":"TRACE","message":"gcs: Req              0x5: <- GetFolder(\"ReadCacheTest/\")"}
+{"timestamp":{"seconds":1739879016,"nanos":864595078},"severity":"TRACE","message":"gcs: Req              0x6: <- StatObject(\"ReadCacheTest\")"}
+{"timestamp":{"seconds":1739879016,"nanos":888512294},"severity":"TRACE","message":"gcs: Req              0x6: -> StatObject(\"ReadCacheTest\") (23.921226ms): gcs.NotFoundError: storage: object doesn't exist"}
+{"timestamp":{"seconds":1739879016,"nanos":938624425},"severity":"TRACE","message":"gcs: Req              0x5: -> GetFolder(\"ReadCacheTest/\") (74.084706ms): OK"}
+{"timestamp":{"seconds":1739879016,"nanos":938726915},"severity":"TRACE","message":"fuse_debug: Op 0x0000000a        connection.go:513] -> OK (inode 2)"}
+{"timestamp":{"seconds":1739879016,"nanos":938989645},"severity":"TRACE","message":"fuse_debug: Op 0x0000000c        connection.go:420] <- LookUpInode (parent 2, name \"foouxdx\", PID 3851686)"}
+{"timestamp":{"seconds":1739879016,"nanos":939103165},"severity":"TRACE","message":"gcs: Req              0x7: <- GetFolder(\"ReadCacheTest/foouxdx/\")"}
+{"timestamp":{"seconds":1739879016,"nanos":939149555},"severity":"TRACE","message":"gcs: Req              0x8: <- StatObject(\"ReadCacheTest/foouxdx\")"}
+{"timestamp":{"seconds":1739879016,"nanos":981927937},"severity":"TRACE","message":"gcs: Req              0x8: -> StatObject(\"ReadCacheTest/foouxdx\") (42.776272ms): OK"}
+{"timestamp":{"seconds":1739879016,"nanos":983319647},"severity":"TRACE","message":"gcs: Req              0x7: -> GetFolder(\"ReadCacheTest/foouxdx/\") (44.214112ms): gcs.NotFoundError: error getting metadata for folder: ReadCacheTest/foouxdx/, rpc error: code = NotFound desc = The folder does not exist."}
+{"timestamp":{"seconds":1739879016,"nanos":983378067},"severity":"TRACE","message":"fuse_debug: Op 0x0000000c        connection.go:513] -> OK (inode 3)"}
+{"timestamp":{"seconds":1739879016,"nanos":983667297},"severity":"TRACE","message":"fuse_debug: Op 0x0000000e        connection.go:420] <- OpenFile (inode 3, PID 3851686)"}
+{"timestamp":{"seconds":1739879016,"nanos":983780327},"severity":"TRACE","message":"fuse_debug: Op 0x0000000e        connection.go:513] -> OK (handle 0)"}
+{"timestamp":{"seconds":1739879016,"nanos":983919777},"severity":"TRACE","message":"fuse_debug: Op 0x00000010        connection.go:420] <- unknown (inode 3, opcode 40)"}
+{"timestamp":{"seconds":1739879016,"nanos":983978007},"severity":"TRACE","message":"fuse_debug: Op 0x00000010        connection.go:515] -> Error: \"function not implemented\""}
+{"timestamp":{"seconds":1739879016,"nanos":984094397},"severity":"TRACE","message":"fuse_debug: Op 0x00000012        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 0, 131072 bytes)"}
+{"timestamp":{"seconds":1739879016,"nanos":984174907},"severity":"TRACE","message":"28a1cba5-519e <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 0, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879016,"nanos":984379827},"severity":"TRACE","message":"28a1cba5-519e -> OK (isSeq: true, hit: false) (193.75µs)"}
+{"timestamp":{"seconds":1739879016,"nanos":984388937},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879016,"nanos":984393147},"severity":"INFO","message":"End-Start 16777216"}
+{"timestamp":{"seconds":1739879016,"nanos":984397227},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879016,"nanos":984401307},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879016,"nanos":984406537},"severity":"INFO","message":"Start And End 0 16777216 0"}
+{"timestamp":{"seconds":1739879016,"nanos":984416397},"severity":"TRACE","message":"gcs: Req              0x9: <- \"ReadWithReadHandle\"(\"ReadCacheTest/foouxdx\", [0, 16777216))"}
+{"timestamp":{"seconds":1739879016,"nanos":984606897},"severity":"TRACE","message":"gcs: Req              0xa: <- \"ReadWithReadHandle\"(\"ReadCacheTest/foouxdx\", [0, 4194304))"}
+{"timestamp":{"seconds":1739879016,"nanos":984616977},"severity":"TRACE","message":"gcs: Req              0xb: <- \"ReadWithReadHandle\"(\"ReadCacheTest/foouxdx\", [4194304, 8388608))"}
+{"timestamp":{"seconds":1739879016,"nanos":984684187},"severity":"TRACE","message":"gcs: Req              0xd: <- \"ReadWithReadHandle\"(\"ReadCacheTest/foouxdx\", [12582912, 16777216))"}
+{"timestamp":{"seconds":1739879016,"nanos":984619267},"severity":"TRACE","message":"gcs: Req              0xc: <- \"ReadWithReadHandle\"(\"ReadCacheTest/foouxdx\", [8388608, 12582912))"}
+{"timestamp":{"seconds":1739879017,"nanos":40706357},"severity":"TRACE","message":"fuse_debug: Op 0x00000012        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":41051577},"severity":"TRACE","message":"fuse_debug: Op 0x00000014        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 131072, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":41195287},"severity":"TRACE","message":"e2c724f8-90c9 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 131072, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":41225197},"severity":"TRACE","message":"e2c724f8-90c9 -> OK (isSeq: true, hit: false) (4.28µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":41236737},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":41241307},"severity":"INFO","message":"End-Start 16646144"}
+{"timestamp":{"seconds":1739879017,"nanos":41245397},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":41249487},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":41881687},"severity":"TRACE","message":"fuse_debug: Op 0x00000014        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":42243997},"severity":"TRACE","message":"fuse_debug: Op 0x00000016        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 262144, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":42334677},"severity":"TRACE","message":"ca17e130-406e <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 262144, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":42359977},"severity":"TRACE","message":"ca17e130-406e -> OK (isSeq: true, hit: false) (4.36µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":42372787},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":42377417},"severity":"INFO","message":"End-Start 16515072"}
+{"timestamp":{"seconds":1739879017,"nanos":42381357},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":42385497},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":42601747},"severity":"TRACE","message":"fuse_debug: Op 0x00000016        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":42946867},"severity":"TRACE","message":"fuse_debug: Op 0x00000018        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 393216, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":43010907},"severity":"TRACE","message":"df6e0c46-46f3 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 393216, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":43031977},"severity":"TRACE","message":"df6e0c46-46f3 -> OK (isSeq: true, hit: false) (2.45µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":43038957},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":43043367},"severity":"INFO","message":"End-Start 16384000"}
+{"timestamp":{"seconds":1739879017,"nanos":43047287},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":43051217},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":43254246},"severity":"TRACE","message":"fuse_debug: Op 0x00000018        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":43839157},"severity":"TRACE","message":"fuse_debug: Op 0x0000001a        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 524288, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":43914397},"severity":"TRACE","message":"0dfaf77e-0cac <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 524288, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":43940817},"severity":"TRACE","message":"0dfaf77e-0cac -> OK (isSeq: true, hit: false) (6.691µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":43948386},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":43952657},"severity":"INFO","message":"End-Start 16252928"}
+{"timestamp":{"seconds":1739879017,"nanos":43956566},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":43961126},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":44983516},"severity":"TRACE","message":"fuse_debug: Op 0x0000001a        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":45148016},"severity":"TRACE","message":"fuse_debug: Op 0x0000001c        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 655360, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":45233866},"severity":"TRACE","message":"1c381cde-56a9 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 655360, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":45256126},"severity":"TRACE","message":"1c381cde-56a9 -> OK (isSeq: true, hit: false) (3.16µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":45263626},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":45268206},"severity":"INFO","message":"End-Start 16121856"}
+{"timestamp":{"seconds":1739879017,"nanos":45272396},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":45275956},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":45836716},"severity":"TRACE","message":"fuse_debug: Op 0x0000001c        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":46489946},"severity":"TRACE","message":"fuse_debug: Op 0x0000001e        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 786432, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":46615896},"severity":"TRACE","message":"e95dc363-503b <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 786432, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":46644686},"severity":"TRACE","message":"e95dc363-503b -> OK (isSeq: true, hit: false) (4.36µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":46655196},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":46660156},"severity":"INFO","message":"End-Start 15990784"}
+{"timestamp":{"seconds":1739879017,"nanos":46664436},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":46668766},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":46887686},"severity":"TRACE","message":"fuse_debug: Op 0x0000001e        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":47547266},"severity":"TRACE","message":"fuse_debug: Op 0x00000020        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 917504, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":47618326},"severity":"TRACE","message":"2bbe8fb4-5127 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 917504, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":47658976},"severity":"TRACE","message":"2bbe8fb4-5127 -> OK (isSeq: true, hit: false) (2.61µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":47666466},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":47670616},"severity":"INFO","message":"End-Start 15859712"}
+{"timestamp":{"seconds":1739879017,"nanos":47674376},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":47678226},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":48167006},"severity":"TRACE","message":"fuse_debug: Op 0x00000020        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":49084765},"severity":"TRACE","message":"fuse_debug: Op 0x00000022        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 1048576, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":49170945},"severity":"TRACE","message":"gcs: Req              0xb: -> \"ReadWithReadHandle\"(\"ReadCacheTest/foouxdx\", [4194304, 8388608)) (64.558158ms): OK"}
+{"timestamp":{"seconds":1739879017,"nanos":49205085},"severity":"TRACE","message":"89c7c5cf-f3ef <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 1048576, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":49229036},"severity":"TRACE","message":"89c7c5cf-f3ef -> OK (isSeq: true, hit: false) (2.649µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":49235785},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":49240665},"severity":"INFO","message":"End-Start 15728640"}
+{"timestamp":{"seconds":1739879017,"nanos":49244405},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":49248356},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":49393436},"severity":"TRACE","message":"fuse_debug: Op 0x00000022        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":49516545},"severity":"TRACE","message":"fuse_debug: Op 0x00000024        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 1179648, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":49584976},"severity":"TRACE","message":"44ad09b4-1629 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 1179648, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":49606316},"severity":"TRACE","message":"44ad09b4-1629 -> OK (isSeq: true, hit: false) (2.18µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":49612796},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":49617176},"severity":"INFO","message":"End-Start 15597568"}
+{"timestamp":{"seconds":1739879017,"nanos":49625256},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":49629325},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":49760655},"severity":"TRACE","message":"fuse_debug: Op 0x00000024        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":50805665},"severity":"TRACE","message":"fuse_debug: Op 0x00000026        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 1310720, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":50919205},"severity":"TRACE","message":"e1c92ded-0153 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 1310720, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":50941655},"severity":"TRACE","message":"e1c92ded-0153 -> OK (isSeq: true, hit: false) (3.18µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":50948825},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":50952875},"severity":"INFO","message":"End-Start 15466496"}
+{"timestamp":{"seconds":1739879017,"nanos":50956465},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":50960345},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":51134255},"severity":"TRACE","message":"fuse_debug: Op 0x00000026        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":51268775},"severity":"TRACE","message":"fuse_debug: Op 0x00000028        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 1441792, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":51313625},"severity":"TRACE","message":"9453ecde-a271 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 1441792, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":51329365},"severity":"TRACE","message":"9453ecde-a271 -> OK (isSeq: true, hit: false) (1.75µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":51334685},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":51338815},"severity":"INFO","message":"End-Start 15335424"}
+{"timestamp":{"seconds":1739879017,"nanos":51342335},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":51345885},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":51450635},"severity":"TRACE","message":"fuse_debug: Op 0x00000028        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":51559675},"severity":"TRACE","message":"fuse_debug: Op 0x0000002a        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 1572864, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":51610065},"severity":"TRACE","message":"4f9246df-a8b0 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 1572864, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":51649145},"severity":"TRACE","message":"4f9246df-a8b0 -> OK (isSeq: true, hit: false) (2.56µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":51663675},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":51668105},"severity":"INFO","message":"End-Start 15204352"}
+{"timestamp":{"seconds":1739879017,"nanos":51671535},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":51675395},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":51793245},"severity":"TRACE","message":"fuse_debug: Op 0x0000002a        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":53278985},"severity":"TRACE","message":"fuse_debug: Op 0x0000002c        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 1703936, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":53343725},"severity":"TRACE","message":"4281d67d-9f17 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 1703936, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":53366285},"severity":"TRACE","message":"4281d67d-9f17 -> OK (isSeq: true, hit: false) (2.05µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":53373145},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":53377165},"severity":"INFO","message":"End-Start 15073280"}
+{"timestamp":{"seconds":1739879017,"nanos":53380935},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":53385165},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":53503285},"severity":"TRACE","message":"fuse_debug: Op 0x0000002c        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":53624955},"severity":"TRACE","message":"fuse_debug: Op 0x0000002e        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 1835008, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":53681955},"severity":"TRACE","message":"85d55648-421d <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 1835008, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":53699045},"severity":"TRACE","message":"85d55648-421d -> OK (isSeq: true, hit: false) (1.98µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":53704645},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":53708545},"severity":"INFO","message":"End-Start 14942208"}
+{"timestamp":{"seconds":1739879017,"nanos":53712075},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":53715785},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":53814685},"severity":"TRACE","message":"fuse_debug: Op 0x0000002e        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":53923165},"severity":"TRACE","message":"fuse_debug: Op 0x00000030        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 1966080, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":53968035},"severity":"TRACE","message":"85af2db8-d8e1 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 1966080, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":53984444},"severity":"TRACE","message":"85af2db8-d8e1 -> OK (isSeq: true, hit: false) (1.48µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":53989444},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":53993224},"severity":"INFO","message":"End-Start 14811136"}
+{"timestamp":{"seconds":1739879017,"nanos":53996755},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":54000644},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":54105075},"severity":"TRACE","message":"fuse_debug: Op 0x00000030        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":54386644},"severity":"TRACE","message":"fuse_debug: Op 0x00000032        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 2097152, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":54445904},"severity":"TRACE","message":"188b3d1f-e2eb <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 2097152, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":54459264},"severity":"TRACE","message":"188b3d1f-e2eb -> OK (isSeq: true, hit: false) (1.38µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":54464064},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":54467724},"severity":"INFO","message":"End-Start 14680064"}
+{"timestamp":{"seconds":1739879017,"nanos":54471595},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":54475515},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":54606815},"severity":"TRACE","message":"fuse_debug: Op 0x00000032        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":54726664},"severity":"TRACE","message":"fuse_debug: Op 0x00000034        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 2228224, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":54865784},"severity":"TRACE","message":"fed35a27-16ab <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 2228224, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":54887884},"severity":"TRACE","message":"fed35a27-16ab -> OK (isSeq: true, hit: false) (2.2µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":54894495},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":54899195},"severity":"INFO","message":"End-Start 14548992"}
+{"timestamp":{"seconds":1739879017,"nanos":54902864},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":54906455},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":55059775},"severity":"TRACE","message":"fuse_debug: Op 0x00000034        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":55178664},"severity":"TRACE","message":"fuse_debug: Op 0x00000036        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 2359296, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":55222884},"severity":"TRACE","message":"24a7ca2e-3d24 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 2359296, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":55237544},"severity":"TRACE","message":"24a7ca2e-3d24 -> OK (isSeq: true, hit: false) (1.62µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":55242304},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":55245904},"severity":"INFO","message":"End-Start 14417920"}
+{"timestamp":{"seconds":1739879017,"nanos":55249284},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":55252684},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":55350684},"severity":"TRACE","message":"fuse_debug: Op 0x00000036        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":55462844},"severity":"TRACE","message":"fuse_debug: Op 0x00000038        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 2490368, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":55508284},"severity":"TRACE","message":"b1723a6b-cb0d <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 2490368, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":55525594},"severity":"TRACE","message":"b1723a6b-cb0d -> OK (isSeq: true, hit: false) (1.67µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":55530724},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":55534334},"severity":"INFO","message":"End-Start 14286848"}
+{"timestamp":{"seconds":1739879017,"nanos":55537904},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":55541374},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":55679974},"severity":"TRACE","message":"fuse_debug: Op 0x00000038        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":56028454},"severity":"TRACE","message":"fuse_debug: Op 0x0000003a        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 2621440, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":56104294},"severity":"TRACE","message":"e52b98bc-df58 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 2621440, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":56131444},"severity":"TRACE","message":"e52b98bc-df58 -> OK (isSeq: true, hit: false) (3.73µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":56139724},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":56144244},"severity":"INFO","message":"End-Start 14155776"}
+{"timestamp":{"seconds":1739879017,"nanos":56147904},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":56156164},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":56322744},"severity":"TRACE","message":"fuse_debug: Op 0x0000003a        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":56462274},"severity":"TRACE","message":"fuse_debug: Op 0x0000003c        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 2752512, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":56569984},"severity":"TRACE","message":"5ad410a6-b0ce <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 2752512, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":56594064},"severity":"TRACE","message":"5ad410a6-b0ce -> OK (isSeq: true, hit: false) (2.2µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":56600664},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":56605074},"severity":"INFO","message":"End-Start 14024704"}
+{"timestamp":{"seconds":1739879017,"nanos":56608554},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":56612544},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":56738024},"severity":"TRACE","message":"fuse_debug: Op 0x0000003c        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":56889644},"severity":"TRACE","message":"fuse_debug: Op 0x0000003e        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 2883584, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":56973294},"severity":"TRACE","message":"5c0ef627-2bf3 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 2883584, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":56996304},"severity":"TRACE","message":"5c0ef627-2bf3 -> OK (isSeq: true, hit: false) (2.36µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":57002954},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":57007374},"severity":"INFO","message":"End-Start 13893632"}
+{"timestamp":{"seconds":1739879017,"nanos":57011094},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":57014964},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":57191464},"severity":"TRACE","message":"fuse_debug: Op 0x0000003e        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":57323694},"severity":"TRACE","message":"fuse_debug: Op 0x00000040        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 3014656, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":57373004},"severity":"TRACE","message":"471a193b-9a0c <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 3014656, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":57392074},"severity":"TRACE","message":"471a193b-9a0c -> OK (isSeq: true, hit: false) (2.28µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":57397354},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":57400934},"severity":"INFO","message":"End-Start 13762560"}
+{"timestamp":{"seconds":1739879017,"nanos":57404554},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":57408194},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":57547614},"severity":"TRACE","message":"fuse_debug: Op 0x00000040        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":57678174},"severity":"TRACE","message":"fuse_debug: Op 0x00000042        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 3145728, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":57730274},"severity":"TRACE","message":"50051fb5-1a2f <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 3145728, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":57758134},"severity":"TRACE","message":"50051fb5-1a2f -> OK (isSeq: true, hit: false) (3.36µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":57777804},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":57782544},"severity":"INFO","message":"End-Start 13631488"}
+{"timestamp":{"seconds":1739879017,"nanos":57786204},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":57790684},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":57902734},"severity":"TRACE","message":"fuse_debug: Op 0x00000042        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":59852454},"severity":"TRACE","message":"fuse_debug: Op 0x00000044        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 3276800, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":59989063},"severity":"TRACE","message":"603a1a22-aca1 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 3276800, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":60008803},"severity":"TRACE","message":"603a1a22-aca1 -> OK (isSeq: true, hit: false) (2.3µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":60015254},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":60019434},"severity":"INFO","message":"End-Start 13500416"}
+{"timestamp":{"seconds":1739879017,"nanos":60023334},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":60027243},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":60148483},"severity":"TRACE","message":"fuse_debug: Op 0x00000044        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":60285394},"severity":"TRACE","message":"fuse_debug: Op 0x00000046        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 3407872, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":60376174},"severity":"TRACE","message":"6240b73f-d9b4 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 3407872, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":60410754},"severity":"TRACE","message":"6240b73f-d9b4 -> OK (isSeq: true, hit: false) (3.749µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":60420423},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":60425694},"severity":"INFO","message":"End-Start 13369344"}
+{"timestamp":{"seconds":1739879017,"nanos":60429634},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":60433763},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":60583483},"severity":"TRACE","message":"fuse_debug: Op 0x00000046        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":60718593},"severity":"TRACE","message":"fuse_debug: Op 0x00000048        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 3538944, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":60778703},"severity":"TRACE","message":"85b41579-cbdb <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 3538944, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":60798053},"severity":"TRACE","message":"85b41579-cbdb -> OK (isSeq: true, hit: false) (2.08µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":60804503},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":60808863},"severity":"INFO","message":"End-Start 13238272"}
+{"timestamp":{"seconds":1739879017,"nanos":60812593},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":60816423},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":60971473},"severity":"TRACE","message":"fuse_debug: Op 0x00000048        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":61091613},"severity":"TRACE","message":"fuse_debug: Op 0x0000004a        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 3670016, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":61135723},"severity":"TRACE","message":"dd2cbe13-5023 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 3670016, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":61153023},"severity":"TRACE","message":"dd2cbe13-5023 -> OK (isSeq: true, hit: false) (1.85µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":61158903},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":61162833},"severity":"INFO","message":"End-Start 13107200"}
+{"timestamp":{"seconds":1739879017,"nanos":61166253},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":61170023},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":61298143},"severity":"TRACE","message":"fuse_debug: Op 0x0000004a        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":61410693},"severity":"TRACE","message":"fuse_debug: Op 0x0000004c        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 3801088, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":61462593},"severity":"TRACE","message":"8fedd5ae-a2ab <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 3801088, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":61488573},"severity":"TRACE","message":"8fedd5ae-a2ab -> OK (isSeq: true, hit: false) (3.08µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":61507173},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":61512373},"severity":"INFO","message":"End-Start 12976128"}
+{"timestamp":{"seconds":1739879017,"nanos":61516113},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":61520233},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":61668343},"severity":"TRACE","message":"fuse_debug: Op 0x0000004c        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":61847123},"severity":"TRACE","message":"fuse_debug: Op 0x0000004e        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 3932160, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":61919603},"severity":"TRACE","message":"a96c567f-d868 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 3932160, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":61943083},"severity":"TRACE","message":"a96c567f-d868 -> OK (isSeq: true, hit: false) (2.28µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":61950053},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":61954983},"severity":"INFO","message":"End-Start 12845056"}
+{"timestamp":{"seconds":1739879017,"nanos":61958653},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":61962343},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":62096093},"severity":"TRACE","message":"fuse_debug: Op 0x0000004e        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":64635253},"severity":"TRACE","message":"gcs: Req              0xa: -> \"ReadWithReadHandle\"(\"ReadCacheTest/foouxdx\", [0, 4194304)) (80.030986ms): OK"}
+{"timestamp":{"seconds":1739879017,"nanos":64660403},"severity":"TRACE","message":"Job:0xc000242f00 (tulsishah-hns:/ReadCacheTest/foouxdx) downloaded till 8388608 offset."}
+{"timestamp":{"seconds":1739879017,"nanos":65194382},"severity":"TRACE","message":"fuse_debug: Op 0x00000050        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 4063232, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":65281833},"severity":"TRACE","message":"6f7a0030-87c0 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 4063232, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":65336362},"severity":"TRACE","message":"6f7a0030-87c0 -> OK (isSeq: true, hit: true) (33.709µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":65360133},"severity":"TRACE","message":"fuse_debug: Op 0x00000050        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":65494202},"severity":"TRACE","message":"fuse_debug: Op 0x00000052        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 4194304, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":65564482},"severity":"TRACE","message":"9869cb53-87d0 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 4194304, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":65623582},"severity":"TRACE","message":"9869cb53-87d0 -> OK (isSeq: true, hit: true) (40.38µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":65640593},"severity":"TRACE","message":"fuse_debug: Op 0x00000052        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":65819113},"severity":"TRACE","message":"fuse_debug: Op 0x00000054        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 4325376, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":65886822},"severity":"TRACE","message":"e212ce71-7231 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 4325376, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":65965812},"severity":"TRACE","message":"e212ce71-7231 -> OK (isSeq: true, hit: true) (58.8µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":65985112},"severity":"TRACE","message":"fuse_debug: Op 0x00000054        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":66164152},"severity":"TRACE","message":"fuse_debug: Op 0x00000056        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 4456448, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":66239552},"severity":"TRACE","message":"8f15bd1a-e0dd <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 4456448, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":66301322},"severity":"TRACE","message":"8f15bd1a-e0dd -> OK (isSeq: true, hit: true) (39.76µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":66319832},"severity":"TRACE","message":"fuse_debug: Op 0x00000056        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":66450592},"severity":"TRACE","message":"fuse_debug: Op 0x00000058        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 4587520, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":66510762},"severity":"TRACE","message":"e70f1d4c-f816 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 4587520, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":66562602},"severity":"TRACE","message":"e70f1d4c-f816 -> OK (isSeq: true, hit: true) (35.61µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":66575592},"severity":"TRACE","message":"fuse_debug: Op 0x00000058        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":66668932},"severity":"TRACE","message":"fuse_debug: Op 0x0000005a        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 4718592, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":66709392},"severity":"TRACE","message":"70d3e326-ed73 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 4718592, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":66750422},"severity":"TRACE","message":"70d3e326-ed73 -> OK (isSeq: true, hit: true) (28.07µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":66761742},"severity":"TRACE","message":"fuse_debug: Op 0x0000005a        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":66889132},"severity":"TRACE","message":"fuse_debug: Op 0x0000005c        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 4849664, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":66928352},"severity":"TRACE","message":"0f50f591-e4b0 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 4849664, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":66979272},"severity":"TRACE","message":"0f50f591-e4b0 -> OK (isSeq: true, hit: true) (28.51µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":66995662},"severity":"TRACE","message":"fuse_debug: Op 0x0000005c        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":67167652},"severity":"TRACE","message":"fuse_debug: Op 0x0000005e        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 4980736, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":67233482},"severity":"TRACE","message":"be39f1cf-8938 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 4980736, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":67273892},"severity":"TRACE","message":"be39f1cf-8938 -> OK (isSeq: true, hit: true) (27.64µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":67285062},"severity":"TRACE","message":"fuse_debug: Op 0x0000005e        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":68126012},"severity":"TRACE","message":"fuse_debug: Op 0x00000060        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 5111808, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":68217312},"severity":"TRACE","message":"50b6ea21-0c93 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 5111808, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":68282242},"severity":"TRACE","message":"50b6ea21-0c93 -> OK (isSeq: true, hit: true) (44.7µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":68299482},"severity":"TRACE","message":"fuse_debug: Op 0x00000060        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":68512692},"severity":"TRACE","message":"fuse_debug: Op 0x00000062        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 5242880, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":68584072},"severity":"TRACE","message":"4cea3154-979e <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 5242880, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":68649452},"severity":"TRACE","message":"4cea3154-979e -> OK (isSeq: true, hit: true) (42.22µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":68697732},"severity":"TRACE","message":"fuse_debug: Op 0x00000062        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":68942602},"severity":"TRACE","message":"fuse_debug: Op 0x00000064        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 5373952, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":69018062},"severity":"TRACE","message":"4f9810fa-2d5a <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 5373952, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":69076872},"severity":"TRACE","message":"4f9810fa-2d5a -> OK (isSeq: true, hit: true) (39.87µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":69090912},"severity":"TRACE","message":"fuse_debug: Op 0x00000064        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":69225242},"severity":"TRACE","message":"fuse_debug: Op 0x00000066        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 5505024, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":69325232},"severity":"TRACE","message":"1b534351-a550 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 5505024, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":69380982},"severity":"TRACE","message":"1b534351-a550 -> OK (isSeq: true, hit: true) (38.23µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":69396132},"severity":"TRACE","message":"fuse_debug: Op 0x00000066        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":69591522},"severity":"TRACE","message":"fuse_debug: Op 0x00000068        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 5636096, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":69727722},"severity":"TRACE","message":"b0495b5e-339a <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 5636096, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":69784192},"severity":"TRACE","message":"b0495b5e-339a -> OK (isSeq: true, hit: true) (37.62µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":69805282},"severity":"TRACE","message":"fuse_debug: Op 0x00000068        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":69936872},"severity":"TRACE","message":"fuse_debug: Op 0x0000006a        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 5767168, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":69995782},"severity":"TRACE","message":"d8ffc14a-0a68 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 5767168, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":70034742},"severity":"TRACE","message":"d8ffc14a-0a68 -> OK (isSeq: true, hit: true) (25.23µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":70045922},"severity":"TRACE","message":"fuse_debug: Op 0x0000006a        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":70174182},"severity":"TRACE","message":"fuse_debug: Op 0x0000006c        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 5898240, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":70230101},"severity":"TRACE","message":"7a72eba7-e593 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 5898240, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":70269332},"severity":"TRACE","message":"7a72eba7-e593 -> OK (isSeq: true, hit: true) (26.729µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":70280701},"severity":"TRACE","message":"fuse_debug: Op 0x0000006c        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":70402121},"severity":"TRACE","message":"fuse_debug: Op 0x0000006e        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 6029312, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":70452212},"severity":"TRACE","message":"fb2ef88f-0a48 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 6029312, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":70491532},"severity":"TRACE","message":"fb2ef88f-0a48 -> OK (isSeq: true, hit: true) (27.389µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":70501772},"severity":"TRACE","message":"fuse_debug: Op 0x0000006e        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":70646852},"severity":"TRACE","message":"fuse_debug: Op 0x00000070        connection.go:420] <- ReadFile (inode 3, PID 3851686, handle 0, offset 6160384, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":70695612},"severity":"TRACE","message":"79d79baa-45f7 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 6160384, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":70735101},"severity":"TRACE","message":"79d79baa-45f7 -> OK (isSeq: true, hit: true) (25.229µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":70748492},"severity":"TRACE","message":"fuse_debug: Op 0x00000070        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":71730751},"severity":"TRACE","message":"fuse_debug: Op 0x00000072        connection.go:420] <- ReadFile (inode 3, PID 3841177, handle 0, offset 6291456, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":71814781},"severity":"TRACE","message":"3f46637e-2a56 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 6291456, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":71876371},"severity":"TRACE","message":"3f46637e-2a56 -> OK (isSeq: true, hit: true) (40.26µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":71893511},"severity":"TRACE","message":"fuse_debug: Op 0x00000072        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":72053991},"severity":"TRACE","message":"fuse_debug: Op 0x00000074        connection.go:420] <- ReadFile (inode 3, PID 3841177, handle 0, offset 6422528, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":72143551},"severity":"TRACE","message":"6a331247-8f95 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 6422528, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":72203661},"severity":"TRACE","message":"6a331247-8f95 -> OK (isSeq: true, hit: true) (38.26µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":72221651},"severity":"TRACE","message":"fuse_debug: Op 0x00000074        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":72646381},"severity":"TRACE","message":"fuse_debug: Op 0x00000076        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 0, offset 6553600, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":72724451},"severity":"TRACE","message":"f78aa86b-a499 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 6553600, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":72777491},"severity":"TRACE","message":"f78aa86b-a499 -> OK (isSeq: true, hit: true) (36.31µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":72791351},"severity":"TRACE","message":"fuse_debug: Op 0x00000076        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":72939811},"severity":"TRACE","message":"fuse_debug: Op 0x00000078        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 0, offset 6684672, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":73007521},"severity":"TRACE","message":"58c1375d-8b20 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 6684672, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":73060491},"severity":"TRACE","message":"58c1375d-8b20 -> OK (isSeq: true, hit: true) (34.95µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":73081681},"severity":"TRACE","message":"fuse_debug: Op 0x00000078        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":73314231},"severity":"TRACE","message":"fuse_debug: Op 0x0000007a        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 0, offset 6815744, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":73362971},"severity":"TRACE","message":"6d1df7c2-c33f <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 6815744, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":73406031},"severity":"TRACE","message":"6d1df7c2-c33f -> OK (isSeq: true, hit: true) (27.47µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":73419181},"severity":"TRACE","message":"fuse_debug: Op 0x0000007a        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":73673521},"severity":"TRACE","message":"fuse_debug: Op 0x0000007c        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 0, offset 6946816, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":73830971},"severity":"TRACE","message":"67733220-3b79 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 6946816, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":73885671},"severity":"TRACE","message":"67733220-3b79 -> OK (isSeq: true, hit: true) (38.35µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":73899021},"severity":"TRACE","message":"fuse_debug: Op 0x0000007c        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":74079211},"severity":"TRACE","message":"fuse_debug: Op 0x0000007e        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 0, offset 7077888, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":74190041},"severity":"TRACE","message":"a671465c-99ed <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 7077888, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":74268501},"severity":"TRACE","message":"a671465c-99ed -> OK (isSeq: true, hit: true) (46.29µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":74295651},"severity":"TRACE","message":"fuse_debug: Op 0x0000007e        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":74445321},"severity":"TRACE","message":"fuse_debug: Op 0x00000080        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 0, offset 7208960, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":74502281},"severity":"TRACE","message":"89d7114e-90d5 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 7208960, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":74560441},"severity":"TRACE","message":"89d7114e-90d5 -> OK (isSeq: true, hit: true) (39.94µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":74572501},"severity":"TRACE","message":"fuse_debug: Op 0x00000080        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":74717221},"severity":"TRACE","message":"fuse_debug: Op 0x00000082        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 0, offset 7340032, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":74800011},"severity":"TRACE","message":"db556bca-66f8 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 7340032, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":74856241},"severity":"TRACE","message":"db556bca-66f8 -> OK (isSeq: true, hit: true) (38.42µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":74871881},"severity":"TRACE","message":"fuse_debug: Op 0x00000082        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":75067651},"severity":"TRACE","message":"fuse_debug: Op 0x00000084        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 0, offset 7471104, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":75117271},"severity":"TRACE","message":"7b1d2750-865d <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 7471104, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":75160441},"severity":"TRACE","message":"7b1d2750-865d -> OK (isSeq: true, hit: true) (27.78µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":75173751},"severity":"TRACE","message":"fuse_debug: Op 0x00000084        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":75313431},"severity":"TRACE","message":"fuse_debug: Op 0x00000086        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 0, offset 7602176, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":75359421},"severity":"TRACE","message":"c66bfb87-9ccd <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 7602176, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":75406411},"severity":"TRACE","message":"c66bfb87-9ccd -> OK (isSeq: true, hit: true) (34.17µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":75416931},"severity":"TRACE","message":"fuse_debug: Op 0x00000086        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":75645051},"severity":"TRACE","message":"fuse_debug: Op 0x00000088        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 0, offset 7733248, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":75687160},"severity":"TRACE","message":"c8439fc9-ed0a <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 7733248, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":75723251},"severity":"TRACE","message":"c8439fc9-ed0a -> OK (isSeq: true, hit: true) (22.851µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":75734011},"severity":"TRACE","message":"fuse_debug: Op 0x00000088        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":76387451},"severity":"TRACE","message":"gcs: Req              0xd: -> \"ReadWithReadHandle\"(\"ReadCacheTest/foouxdx\", [12582912, 16777216)) (91.726843ms): OK"}
+{"timestamp":{"seconds":1739879017,"nanos":76604320},"severity":"TRACE","message":"fuse_debug: Op 0x0000008a        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 0, offset 7864320, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":76719260},"severity":"TRACE","message":"485bd95f-4653 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 7864320, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":76773700},"severity":"TRACE","message":"485bd95f-4653 -> OK (isSeq: true, hit: true) (38.44µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":76788710},"severity":"TRACE","message":"fuse_debug: Op 0x0000008a        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":76953420},"severity":"TRACE","message":"fuse_debug: Op 0x0000008c        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 0, offset 7995392, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":77008940},"severity":"TRACE","message":"01e1775e-dd2d <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 7995392, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":77063330},"severity":"TRACE","message":"01e1775e-dd2d -> OK (isSeq: true, hit: true) (35.68µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":77078790},"severity":"TRACE","message":"fuse_debug: Op 0x0000008c        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":77231430},"severity":"TRACE","message":"fuse_debug: Op 0x0000008e        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 0, offset 8126464, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":77312920},"severity":"TRACE","message":"6d419652-0002 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 8126464, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":77354880},"severity":"TRACE","message":"6d419652-0002 -> OK (isSeq: true, hit: true) (27.94µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":77369560},"severity":"TRACE","message":"fuse_debug: Op 0x0000008e        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":77511040},"severity":"TRACE","message":"fuse_debug: Op 0x00000090        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 0, offset 8257536, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":77568440},"severity":"TRACE","message":"7c9c37bc-b5bc <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 8257536, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":77636360},"severity":"TRACE","message":"7c9c37bc-b5bc -> OK (isSeq: true, hit: true) (42.91µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":77670810},"severity":"TRACE","message":"fuse_debug: Op 0x00000090        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":77805780},"severity":"TRACE","message":"fuse_debug: Op 0x00000092        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 0, offset 8388608, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":77842250},"severity":"TRACE","message":"9fcc8c7f-dfc6 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 8388608, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":77857680},"severity":"TRACE","message":"9fcc8c7f-dfc6 -> OK (isSeq: true, hit: false) (2.74µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":77863910},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":77868230},"severity":"INFO","message":"End-Start 8388608"}
+{"timestamp":{"seconds":1739879017,"nanos":77871910},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":77875820},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":77993510},"severity":"TRACE","message":"fuse_debug: Op 0x00000092        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":78205930},"severity":"TRACE","message":"fuse_debug: Op 0x00000094        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 0, offset 8519680, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":78269230},"severity":"TRACE","message":"b3c6f90a-6041 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 8519680, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":78283000},"severity":"TRACE","message":"b3c6f90a-6041 -> OK (isSeq: true, hit: false) (2.03µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":78287860},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":78291710},"severity":"INFO","message":"End-Start 8257536"}
+{"timestamp":{"seconds":1739879017,"nanos":78295040},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":78298720},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":78413540},"severity":"TRACE","message":"fuse_debug: Op 0x00000094        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":78553910},"severity":"TRACE","message":"fuse_debug: Op 0x00000096        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 0, offset 8650752, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":78609060},"severity":"TRACE","message":"955acf65-6204 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 8650752, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":78623570},"severity":"TRACE","message":"955acf65-6204 -> OK (isSeq: true, hit: false) (1.83µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":78628850},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":78632570},"severity":"INFO","message":"End-Start 8126464"}
+{"timestamp":{"seconds":1739879017,"nanos":78636020},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":78687860},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":78785300},"severity":"TRACE","message":"fuse_debug: Op 0x00000096        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":78988830},"severity":"TRACE","message":"fuse_debug: Op 0x00000098        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 0, offset 8781824, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":79050700},"severity":"TRACE","message":"0efb9f93-ecb6 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 8781824, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":79067810},"severity":"TRACE","message":"0efb9f93-ecb6 -> OK (isSeq: true, hit: false) (2.44µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":79073720},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":79077900},"severity":"INFO","message":"End-Start 7995392"}
+{"timestamp":{"seconds":1739879017,"nanos":79083430},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":79087910},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":79225760},"severity":"TRACE","message":"fuse_debug: Op 0x00000098        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":79360620},"severity":"TRACE","message":"fuse_debug: Op 0x0000009a        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 0, offset 8912896, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":79418650},"severity":"TRACE","message":"999004d8-391b <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 8912896, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":79432250},"severity":"TRACE","message":"999004d8-391b -> OK (isSeq: true, hit: false) (1.67µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":79436940},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":79440450},"severity":"INFO","message":"End-Start 7864320"}
+{"timestamp":{"seconds":1739879017,"nanos":79444050},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":79448990},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":79561390},"severity":"TRACE","message":"fuse_debug: Op 0x0000009a        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":79761200},"severity":"TRACE","message":"fuse_debug: Op 0x0000009c        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 0, offset 9043968, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":79843590},"severity":"TRACE","message":"15b0cb37-0b05 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 9043968, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":79860260},"severity":"TRACE","message":"15b0cb37-0b05 -> OK (isSeq: true, hit: false) (2.04µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":79865460},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":79869540},"severity":"INFO","message":"End-Start 7733248"}
+{"timestamp":{"seconds":1739879017,"nanos":79877350},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":79881120},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":80001000},"severity":"TRACE","message":"fuse_debug: Op 0x0000009c        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":80157620},"severity":"TRACE","message":"fuse_debug: Op 0x0000009e        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 0, offset 9175040, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":80240420},"severity":"TRACE","message":"3ad375d2-aa3c <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 9175040, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":80261830},"severity":"TRACE","message":"3ad375d2-aa3c -> OK (isSeq: true, hit: false) (2.45µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":80268700},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":80272910},"severity":"INFO","message":"End-Start 7602176"}
+{"timestamp":{"seconds":1739879017,"nanos":80276600},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":80280360},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":80395510},"severity":"TRACE","message":"fuse_debug: Op 0x0000009e        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":80544200},"severity":"TRACE","message":"fuse_debug: Op 0x000000a0        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 0, offset 9306112, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":80636970},"severity":"TRACE","message":"a3fc6058-bec2 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 9306112, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":80669060},"severity":"TRACE","message":"a3fc6058-bec2 -> OK (isSeq: true, hit: false) (5.08µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":80681010},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":80688090},"severity":"INFO","message":"End-Start 7471104"}
+{"timestamp":{"seconds":1739879017,"nanos":80694680},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":80701170},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":80913110},"severity":"TRACE","message":"fuse_debug: Op 0x000000a0        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":81066410},"severity":"TRACE","message":"fuse_debug: Op 0x000000a2        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 0, offset 9437184, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":81126910},"severity":"TRACE","message":"956e3e6b-3f6a <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 9437184, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":81156140},"severity":"TRACE","message":"956e3e6b-3f6a -> OK (isSeq: true, hit: false) (3.89µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":81163980},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":81168590},"severity":"INFO","message":"End-Start 7340032"}
+{"timestamp":{"seconds":1739879017,"nanos":81177640},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":81182110},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":81345250},"severity":"TRACE","message":"fuse_debug: Op 0x000000a2        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":81479100},"severity":"TRACE","message":"fuse_debug: Op 0x000000a4        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 0, offset 9568256, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":81541300},"severity":"TRACE","message":"894724ed-5a03 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 9568256, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":81568040},"severity":"TRACE","message":"894724ed-5a03 -> OK (isSeq: true, hit: false) (2.58µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":81573380},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":81579500},"severity":"INFO","message":"End-Start 7208960"}
+{"timestamp":{"seconds":1739879017,"nanos":81583230},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":81586970},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":81763260},"severity":"TRACE","message":"fuse_debug: Op 0x000000a4        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":81904600},"severity":"TRACE","message":"fuse_debug: Op 0x000000a6        connection.go:420] <- ReadFile (inode 3, PID 3841175, handle 0, offset 9699328, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":81949690},"severity":"TRACE","message":"0f563bf1-1c71 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 9699328, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":81965180},"severity":"TRACE","message":"0f563bf1-1c71 -> OK (isSeq: true, hit: false) (1.83µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":81970220},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":81973940},"severity":"INFO","message":"End-Start 7077888"}
+{"timestamp":{"seconds":1739879017,"nanos":81977290},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":81980940},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":82093040},"severity":"TRACE","message":"fuse_debug: Op 0x000000a6        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":83341100},"severity":"TRACE","message":"fuse_debug: Op 0x000000a8        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 9830400, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":83417330},"severity":"TRACE","message":"3b86adde-f129 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 9830400, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":83444070},"severity":"TRACE","message":"3b86adde-f129 -> OK (isSeq: true, hit: false) (2.98µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":83450700},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":83455410},"severity":"INFO","message":"End-Start 6946816"}
+{"timestamp":{"seconds":1739879017,"nanos":83458890},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":83462990},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":83681130},"severity":"TRACE","message":"fuse_debug: Op 0x000000a8        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":83886700},"severity":"TRACE","message":"fuse_debug: Op 0x000000aa        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 9961472, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":83949210},"severity":"TRACE","message":"e08cf41a-87ec <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 9961472, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":83971670},"severity":"TRACE","message":"e08cf41a-87ec -> OK (isSeq: true, hit: false) (2.2µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":83977360},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":83981410},"severity":"INFO","message":"End-Start 6815744"}
+{"timestamp":{"seconds":1739879017,"nanos":83984900},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":83988540},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":84107240},"severity":"TRACE","message":"fuse_debug: Op 0x000000aa        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":84285379},"severity":"TRACE","message":"fuse_debug: Op 0x000000ac        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 10092544, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":84361279},"severity":"TRACE","message":"fbbae89d-a626 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 10092544, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":84387090},"severity":"TRACE","message":"fbbae89d-a626 -> OK (isSeq: true, hit: false) (4µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":84396050},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":84400759},"severity":"INFO","message":"End-Start 6684672"}
+{"timestamp":{"seconds":1739879017,"nanos":84404719},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":84408810},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":84550250},"severity":"TRACE","message":"fuse_debug: Op 0x000000ac        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":84777479},"severity":"TRACE","message":"fuse_debug: Op 0x000000ae        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 10223616, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":84864999},"severity":"TRACE","message":"318ae290-79f9 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 10223616, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":84889699},"severity":"TRACE","message":"318ae290-79f9 -> OK (isSeq: true, hit: false) (2.791µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":84897050},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":84902139},"severity":"INFO","message":"End-Start 6553600"}
+{"timestamp":{"seconds":1739879017,"nanos":84906719},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":84911230},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":85083690},"severity":"TRACE","message":"fuse_debug: Op 0x000000ae        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":85207419},"severity":"TRACE","message":"fuse_debug: Op 0x000000b0        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 10354688, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":85282419},"severity":"TRACE","message":"e062eb56-ec79 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 10354688, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":85307190},"severity":"TRACE","message":"e062eb56-ec79 -> OK (isSeq: true, hit: false) (2.9µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":85315019},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":85319509},"severity":"INFO","message":"End-Start 6422528"}
+{"timestamp":{"seconds":1739879017,"nanos":85323379},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":85327339},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":85478389},"severity":"TRACE","message":"fuse_debug: Op 0x000000b0        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":85711069},"severity":"TRACE","message":"fuse_debug: Op 0x000000b2        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 10485760, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":85794229},"severity":"TRACE","message":"36972a79-10f7 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 10485760, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":85831279},"severity":"TRACE","message":"36972a79-10f7 -> OK (isSeq: true, hit: false) (5.28µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":85840999},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":85846429},"severity":"INFO","message":"End-Start 6291456"}
+{"timestamp":{"seconds":1739879017,"nanos":85850199},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":85856669},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":86009469},"severity":"TRACE","message":"fuse_debug: Op 0x000000b2        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":86185769},"severity":"TRACE","message":"fuse_debug: Op 0x000000b4        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 10616832, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":86229239},"severity":"TRACE","message":"3e3a5e5d-e05d <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 10616832, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":86252239},"severity":"TRACE","message":"3e3a5e5d-e05d -> OK (isSeq: true, hit: false) (2.69µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":86259399},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":86264219},"severity":"INFO","message":"End-Start 6160384"}
+{"timestamp":{"seconds":1739879017,"nanos":86268009},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":86271739},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":86394109},"severity":"TRACE","message":"fuse_debug: Op 0x000000b4        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":86542629},"severity":"TRACE","message":"fuse_debug: Op 0x000000b6        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 10747904, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":86611039},"severity":"TRACE","message":"33850f52-892d <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 10747904, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":86633829},"severity":"TRACE","message":"33850f52-892d -> OK (isSeq: true, hit: false) (2.66µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":86640949},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":86645479},"severity":"INFO","message":"End-Start 6029312"}
+{"timestamp":{"seconds":1739879017,"nanos":86649179},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":86653269},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":86801519},"severity":"TRACE","message":"fuse_debug: Op 0x000000b6        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":86913209},"severity":"TRACE","message":"fuse_debug: Op 0x000000b8        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 10878976, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":86970279},"severity":"TRACE","message":"8b30a8b8-5548 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 10878976, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":86991739},"severity":"TRACE","message":"8b30a8b8-5548 -> OK (isSeq: true, hit: false) (2.27µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":86998489},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":87002579},"severity":"INFO","message":"End-Start 5898240"}
+{"timestamp":{"seconds":1739879017,"nanos":87006239},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":87009919},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":87129499},"severity":"TRACE","message":"fuse_debug: Op 0x000000b8        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":87248009},"severity":"TRACE","message":"fuse_debug: Op 0x000000ba        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 11010048, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":87292439},"severity":"TRACE","message":"5184c363-e7fa <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 11010048, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":87309509},"severity":"TRACE","message":"5184c363-e7fa -> OK (isSeq: true, hit: false) (2.35µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":87317939},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":87321769},"severity":"INFO","message":"End-Start 5767168"}
+{"timestamp":{"seconds":1739879017,"nanos":87325179},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":87328859},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":87446279},"severity":"TRACE","message":"fuse_debug: Op 0x000000ba        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":87545879},"severity":"TRACE","message":"fuse_debug: Op 0x000000bc        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 11141120, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":87595269},"severity":"TRACE","message":"ed45ecf9-507c <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 11141120, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":87614739},"severity":"TRACE","message":"ed45ecf9-507c -> OK (isSeq: true, hit: false) (2.36µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":87635909},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":87640749},"severity":"INFO","message":"End-Start 5636096"}
+{"timestamp":{"seconds":1739879017,"nanos":87646779},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":87650659},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":87768679},"severity":"TRACE","message":"fuse_debug: Op 0x000000bc        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":88059169},"severity":"TRACE","message":"fuse_debug: Op 0x000000be        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 11272192, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":88122369},"severity":"TRACE","message":"8c746b39-942b <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 11272192, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":88139889},"severity":"TRACE","message":"8c746b39-942b -> OK (isSeq: true, hit: false) (2.14µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":88145529},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":88149639},"severity":"INFO","message":"End-Start 5505024"}
+{"timestamp":{"seconds":1739879017,"nanos":88153409},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":88157479},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":88287449},"severity":"TRACE","message":"fuse_debug: Op 0x000000be        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":88387129},"severity":"TRACE","message":"fuse_debug: Op 0x000000c0        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 11403264, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":88455899},"severity":"TRACE","message":"9702eeea-74fa <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 11403264, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":88478869},"severity":"TRACE","message":"9702eeea-74fa -> OK (isSeq: true, hit: false) (2.72µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":88486879},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":88492159},"severity":"INFO","message":"End-Start 5373952"}
+{"timestamp":{"seconds":1739879017,"nanos":88497409},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":88502959},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":88674669},"severity":"TRACE","message":"fuse_debug: Op 0x000000c0        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":88862899},"severity":"TRACE","message":"fuse_debug: Op 0x000000c2        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 11534336, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":88943819},"severity":"TRACE","message":"6f3bc9ba-9e95 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 11534336, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":88970149},"severity":"TRACE","message":"6f3bc9ba-9e95 -> OK (isSeq: true, hit: false) (3.76µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":88977779},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":88982489},"severity":"INFO","message":"End-Start 5242880"}
+{"timestamp":{"seconds":1739879017,"nanos":88986229},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":88990059},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":89140169},"severity":"TRACE","message":"fuse_debug: Op 0x000000c2        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":89261289},"severity":"TRACE","message":"fuse_debug: Op 0x000000c4        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 11665408, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":89332939},"severity":"TRACE","message":"fb337fc2-e72f <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 11665408, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":89357949},"severity":"TRACE","message":"fb337fc2-e72f -> OK (isSeq: true, hit: false) (2.91µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":89366069},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":89371859},"severity":"INFO","message":"End-Start 5111808"}
+{"timestamp":{"seconds":1739879017,"nanos":89376819},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":89381749},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":89557499},"severity":"TRACE","message":"fuse_debug: Op 0x000000c4        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":89766658},"severity":"TRACE","message":"fuse_debug: Op 0x000000c6        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 11796480, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":89836038},"severity":"TRACE","message":"7f457a2b-8c7b <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 11796480, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":89860209},"severity":"TRACE","message":"7f457a2b-8c7b -> OK (isSeq: true, hit: false) (3.04µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":89867429},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":89872189},"severity":"INFO","message":"End-Start 4980736"}
+{"timestamp":{"seconds":1739879017,"nanos":89875758},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":89879669},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":90029038},"severity":"TRACE","message":"fuse_debug: Op 0x000000c6        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":90302789},"severity":"TRACE","message":"fuse_debug: Op 0x000000c8        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 11927552, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":90370689},"severity":"TRACE","message":"a980c662-e458 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 11927552, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":90391198},"severity":"TRACE","message":"a980c662-e458 -> OK (isSeq: true, hit: false) (2.36µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":90397209},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":90401738},"severity":"INFO","message":"End-Start 4849664"}
+{"timestamp":{"seconds":1739879017,"nanos":90405369},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":90413729},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":90534818},"severity":"TRACE","message":"fuse_debug: Op 0x000000c8        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":90674378},"severity":"TRACE","message":"fuse_debug: Op 0x000000ca        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 12058624, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":90747358},"severity":"TRACE","message":"12c15ad3-19fd <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 12058624, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":90773118},"severity":"TRACE","message":"12c15ad3-19fd -> OK (isSeq: true, hit: false) (2.79µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":90781378},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":90787268},"severity":"INFO","message":"End-Start 4718592"}
+{"timestamp":{"seconds":1739879017,"nanos":90791898},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":90797338},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":90980158},"severity":"TRACE","message":"fuse_debug: Op 0x000000ca        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":91135638},"severity":"TRACE","message":"fuse_debug: Op 0x000000cc        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 12189696, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":91205058},"severity":"TRACE","message":"9775db69-d379 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 12189696, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":91230778},"severity":"TRACE","message":"9775db69-d379 -> OK (isSeq: true, hit: false) (3.16µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":91237938},"severity":"INFO","message":"p length:  131072"}
+{"timestamp":{"seconds":1739879017,"nanos":91242858},"severity":"INFO","message":"End-Start 4587520"}
+{"timestamp":{"seconds":1739879017,"nanos":91246488},"severity":"INFO","message":"maxSizeToReadFromGCS 209715200"}
+{"timestamp":{"seconds":1739879017,"nanos":91250128},"severity":"INFO","message":"End:  16777216"}
+{"timestamp":{"seconds":1739879017,"nanos":91402148},"severity":"TRACE","message":"fuse_debug: Op 0x000000cc        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":93489888},"severity":"TRACE","message":"gcs: Req              0xc: -> \"ReadWithReadHandle\"(\"ReadCacheTest/foouxdx\", [8388608, 12582912)) (108.866891ms): OK"}
+{"timestamp":{"seconds":1739879017,"nanos":93526848},"severity":"TRACE","message":"Job:0xc000242f00 (tulsishah-hns:/ReadCacheTest/foouxdx) downloaded till 16777216 offset."}
+{"timestamp":{"seconds":1739879017,"nanos":95797468},"severity":"TRACE","message":"fuse_debug: Op 0x000000ce        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 12320768, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":95878937},"severity":"TRACE","message":"ac8f5e7a-4ade <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 12320768, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":95949977},"severity":"TRACE","message":"ac8f5e7a-4ade -> OK (isSeq: true, hit: true) (43µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":95968377},"severity":"TRACE","message":"fuse_debug: Op 0x000000ce        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":96095497},"severity":"TRACE","message":"fuse_debug: Op 0x000000d0        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 12451840, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":96161807},"severity":"TRACE","message":"4a211f15-8923 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 12451840, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":96232317},"severity":"TRACE","message":"4a211f15-8923 -> OK (isSeq: true, hit: true) (39.88µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":96252817},"severity":"TRACE","message":"fuse_debug: Op 0x000000d0        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":96374017},"severity":"TRACE","message":"fuse_debug: Op 0x000000d2        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 12582912, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":96444127},"severity":"TRACE","message":"d80a6fb2-4e1b <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 12582912, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":96486257},"severity":"TRACE","message":"d80a6fb2-4e1b -> OK (isSeq: true, hit: true) (26.84µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":96499017},"severity":"TRACE","message":"fuse_debug: Op 0x000000d2        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":96617967},"severity":"TRACE","message":"fuse_debug: Op 0x000000d4        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 12713984, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":96685117},"severity":"TRACE","message":"5d6a4f95-af01 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 12713984, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":96728967},"severity":"TRACE","message":"5d6a4f95-af01 -> OK (isSeq: true, hit: true) (27.97µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":96741307},"severity":"TRACE","message":"fuse_debug: Op 0x000000d4        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":96854347},"severity":"TRACE","message":"fuse_debug: Op 0x000000d6        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 12845056, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":96910467},"severity":"TRACE","message":"037fcec8-4dee <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 12845056, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":96960937},"severity":"TRACE","message":"037fcec8-4dee -> OK (isSeq: true, hit: true) (37.6µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":96972077},"severity":"TRACE","message":"fuse_debug: Op 0x000000d6        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":97129087},"severity":"TRACE","message":"fuse_debug: Op 0x000000d8        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 12976128, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":97181947},"severity":"TRACE","message":"1837a936-3e9f <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 12976128, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":97223047},"severity":"TRACE","message":"1837a936-3e9f -> OK (isSeq: true, hit: true) (28.77µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":97233887},"severity":"TRACE","message":"fuse_debug: Op 0x000000d8        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":97349797},"severity":"TRACE","message":"fuse_debug: Op 0x000000da        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 13107200, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":97390897},"severity":"TRACE","message":"ee3ce999-dbba <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 13107200, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":97429397},"severity":"TRACE","message":"ee3ce999-dbba -> OK (isSeq: true, hit: true) (26.92µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":97439737},"severity":"TRACE","message":"fuse_debug: Op 0x000000da        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":97491947},"severity":"TRACE","message":"Job:0xc000242f00 (tulsishah-hns:/ReadCacheTest/foouxdx) status changed to Completed with error: <nil>"}
+{"timestamp":{"seconds":1739879017,"nanos":97559247},"severity":"TRACE","message":"fuse_debug: Op 0x000000dc        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 13238272, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":97631017},"severity":"TRACE","message":"6535f157-10ce <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 13238272, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":97682077},"severity":"TRACE","message":"6535f157-10ce -> OK (isSeq: true, hit: true) (31.13µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":97698907},"severity":"TRACE","message":"fuse_debug: Op 0x000000dc        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":97827237},"severity":"TRACE","message":"fuse_debug: Op 0x000000de        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 13369344, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":97884237},"severity":"TRACE","message":"5c24df4f-c4dc <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 13369344, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":97938517},"severity":"TRACE","message":"5c24df4f-c4dc -> OK (isSeq: true, hit: true) (40.71µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":97950327},"severity":"TRACE","message":"fuse_debug: Op 0x000000de        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":98099437},"severity":"TRACE","message":"fuse_debug: Op 0x000000e0        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 13500416, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":98157127},"severity":"TRACE","message":"a86d3798-e988 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 13500416, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":98189837},"severity":"TRACE","message":"a86d3798-e988 -> OK (isSeq: true, hit: true) (19.35µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":98201997},"severity":"TRACE","message":"fuse_debug: Op 0x000000e0        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":98336077},"severity":"TRACE","message":"fuse_debug: Op 0x000000e2        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 13631488, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":98388337},"severity":"TRACE","message":"dfc3e4ef-4c5f <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 13631488, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":98436337},"severity":"TRACE","message":"dfc3e4ef-4c5f -> OK (isSeq: true, hit: true) (24.02µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":98447727},"severity":"TRACE","message":"fuse_debug: Op 0x000000e2        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":98567947},"severity":"TRACE","message":"fuse_debug: Op 0x000000e4        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 13762560, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":98627947},"severity":"TRACE","message":"2d3a70ef-def4 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 13762560, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":98663447},"severity":"TRACE","message":"2d3a70ef-def4 -> OK (isSeq: true, hit: true) (22.68µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":98675667},"severity":"TRACE","message":"fuse_debug: Op 0x000000e4        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":98807397},"severity":"TRACE","message":"fuse_debug: Op 0x000000e6        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 13893632, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":98860767},"severity":"TRACE","message":"d38290fd-5c87 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 13893632, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":98894387},"severity":"TRACE","message":"d38290fd-5c87 -> OK (isSeq: true, hit: true) (21.64µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":98905147},"severity":"TRACE","message":"fuse_debug: Op 0x000000e6        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":99031817},"severity":"TRACE","message":"fuse_debug: Op 0x000000e8        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 14024704, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":99072287},"severity":"TRACE","message":"7dc39833-e17a <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 14024704, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":99110117},"severity":"TRACE","message":"7dc39833-e17a -> OK (isSeq: true, hit: true) (21.61µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":99121077},"severity":"TRACE","message":"fuse_debug: Op 0x000000e8        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":99220127},"severity":"TRACE","message":"fuse_debug: Op 0x000000ea        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 14155776, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":99258437},"severity":"TRACE","message":"88c4789f-a1d4 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 14155776, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":99291567},"severity":"TRACE","message":"88c4789f-a1d4 -> OK (isSeq: true, hit: true) (22.24µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":99301587},"severity":"TRACE","message":"fuse_debug: Op 0x000000ea        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":99398037},"severity":"TRACE","message":"fuse_debug: Op 0x000000ec        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 14286848, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":99439327},"severity":"TRACE","message":"e7047416-ecf1 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 14286848, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":99471117},"severity":"TRACE","message":"e7047416-ecf1 -> OK (isSeq: true, hit: true) (20.13µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":99481137},"severity":"TRACE","message":"fuse_debug: Op 0x000000ec        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":99568737},"severity":"TRACE","message":"fuse_debug: Op 0x000000ee        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 14417920, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":99604837},"severity":"TRACE","message":"201a60c7-90f9 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 14417920, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":99666937},"severity":"TRACE","message":"201a60c7-90f9 -> OK (isSeq: true, hit: true) (48.43µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":99695717},"severity":"TRACE","message":"fuse_debug: Op 0x000000ee        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":99814117},"severity":"TRACE","message":"fuse_debug: Op 0x000000f0        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 14548992, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":99868147},"severity":"TRACE","message":"d45105af-5a4f <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 14548992, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":99901497},"severity":"TRACE","message":"d45105af-5a4f -> OK (isSeq: true, hit: true) (23.75µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":99912637},"severity":"TRACE","message":"fuse_debug: Op 0x000000f0        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":100031317},"severity":"TRACE","message":"fuse_debug: Op 0x000000f2        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 14680064, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":100074647},"severity":"TRACE","message":"5c8f82d9-be82 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 14680064, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":100108697},"severity":"TRACE","message":"5c8f82d9-be82 -> OK (isSeq: true, hit: true) (23.1µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":100118717},"severity":"TRACE","message":"fuse_debug: Op 0x000000f2        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":100206027},"severity":"TRACE","message":"fuse_debug: Op 0x000000f4        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 14811136, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":100246557},"severity":"TRACE","message":"6649300d-d8a8 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 14811136, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":100285397},"severity":"TRACE","message":"6649300d-d8a8 -> OK (isSeq: true, hit: true) (22.39µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":100295447},"severity":"TRACE","message":"fuse_debug: Op 0x000000f4        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":100381917},"severity":"TRACE","message":"fuse_debug: Op 0x000000f6        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 14942208, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":100418347},"severity":"TRACE","message":"52808a76-3509 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 14942208, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":100446656},"severity":"TRACE","message":"52808a76-3509 -> OK (isSeq: true, hit: true) (17.64µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":100462167},"severity":"TRACE","message":"fuse_debug: Op 0x000000f6        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":100638676},"severity":"TRACE","message":"fuse_debug: Op 0x000000f8        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 15073280, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":100687436},"severity":"TRACE","message":"fee9991c-cf8e <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 15073280, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":100717347},"severity":"TRACE","message":"fee9991c-cf8e -> OK (isSeq: true, hit: true) (18.591µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":100727467},"severity":"TRACE","message":"fuse_debug: Op 0x000000f8        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":100832587},"severity":"TRACE","message":"fuse_debug: Op 0x000000fa        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 15204352, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":100882316},"severity":"TRACE","message":"5f9dc514-22a8 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 15204352, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":100911587},"severity":"TRACE","message":"5f9dc514-22a8 -> OK (isSeq: true, hit: true) (17.88µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":100930016},"severity":"TRACE","message":"fuse_debug: Op 0x000000fa        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":101028627},"severity":"TRACE","message":"fuse_debug: Op 0x000000fc        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 15335424, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":101067516},"severity":"TRACE","message":"d496f354-0fa6 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 15335424, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":101097396},"severity":"TRACE","message":"d496f354-0fa6 -> OK (isSeq: true, hit: true) (19.14µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":101107567},"severity":"TRACE","message":"fuse_debug: Op 0x000000fc        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":107612145},"severity":"TRACE","message":"fuse_debug: Op 0x000000fe        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 15466496, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":107704005},"severity":"TRACE","message":"5e85e9c8-1127 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 15466496, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":107760465},"severity":"TRACE","message":"5e85e9c8-1127 -> OK (isSeq: true, hit: true) (28.25µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":107782465},"severity":"TRACE","message":"fuse_debug: Op 0x000000fe        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":107918865},"severity":"TRACE","message":"fuse_debug: Op 0x00000100        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 15597568, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":107987845},"severity":"TRACE","message":"8bccdef7-f8cb <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 15597568, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":108025495},"severity":"TRACE","message":"8bccdef7-f8cb -> OK (isSeq: true, hit: true) (20.68µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":108038875},"severity":"TRACE","message":"fuse_debug: Op 0x00000100        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":108189015},"severity":"TRACE","message":"fuse_debug: Op 0x00000102        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 15728640, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":108250135},"severity":"TRACE","message":"21cc764a-79a4 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 15728640, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":108285255},"severity":"TRACE","message":"21cc764a-79a4 -> OK (isSeq: true, hit: true) (20.92µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":108297575},"severity":"TRACE","message":"fuse_debug: Op 0x00000102        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":108415695},"severity":"TRACE","message":"fuse_debug: Op 0x00000104        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 15859712, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":108528215},"severity":"TRACE","message":"5a710a9c-ae7e <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 15859712, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":108587425},"severity":"TRACE","message":"5a710a9c-ae7e -> OK (isSeq: true, hit: true) (36.02µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":108606545},"severity":"TRACE","message":"fuse_debug: Op 0x00000104        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":108763745},"severity":"TRACE","message":"fuse_debug: Op 0x00000106        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 15990784, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":108827785},"severity":"TRACE","message":"0ee3b524-a364 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 15990784, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":108871685},"severity":"TRACE","message":"0ee3b524-a364 -> OK (isSeq: true, hit: true) (30.11µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":108883995},"severity":"TRACE","message":"fuse_debug: Op 0x00000106        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":109007705},"severity":"TRACE","message":"fuse_debug: Op 0x00000108        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 16121856, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":109066415},"severity":"TRACE","message":"be5790eb-f016 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 16121856, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":109102095},"severity":"TRACE","message":"be5790eb-f016 -> OK (isSeq: true, hit: true) (22.79µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":109113385},"severity":"TRACE","message":"fuse_debug: Op 0x00000108        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":109243215},"severity":"TRACE","message":"fuse_debug: Op 0x0000010a        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 16252928, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":109284305},"severity":"TRACE","message":"1afe44be-0f99 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 16252928, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":109322655},"severity":"TRACE","message":"1afe44be-0f99 -> OK (isSeq: true, hit: true) (22.32µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":109333015},"severity":"TRACE","message":"fuse_debug: Op 0x0000010a        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":109457015},"severity":"TRACE","message":"fuse_debug: Op 0x0000010c        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 16384000, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":109499555},"severity":"TRACE","message":"273f8a76-80d5 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 16384000, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":109534795},"severity":"TRACE","message":"273f8a76-80d5 -> OK (isSeq: true, hit: true) (23.29µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":109544525},"severity":"TRACE","message":"fuse_debug: Op 0x0000010c        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":109660045},"severity":"TRACE","message":"fuse_debug: Op 0x0000010e        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 16515072, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":109699085},"severity":"TRACE","message":"068de9b4-a483 <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 16515072, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":109734245},"severity":"TRACE","message":"068de9b4-a483 -> OK (isSeq: true, hit: true) (23.81µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":109744745},"severity":"TRACE","message":"fuse_debug: Op 0x0000010e        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":109851925},"severity":"TRACE","message":"fuse_debug: Op 0x00000110        connection.go:420] <- ReadFile (inode 3, PID 3841172, handle 0, offset 16646144, 131072 bytes)"}
+{"timestamp":{"seconds":1739879017,"nanos":109889095},"severity":"TRACE","message":"20059167-c71d <- FileCache(tulsishah-hns:/ReadCacheTest/foouxdx, offset: 16646144, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":109924685},"severity":"TRACE","message":"20059167-c71d -> OK (isSeq: true, hit: true) (23.81µs)"}
+{"timestamp":{"seconds":1739879017,"nanos":109938695},"severity":"TRACE","message":"fuse_debug: Op 0x00000110        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":110043425},"severity":"TRACE","message":"fuse_debug: Op 0x00000112        connection.go:420] <- FlushFile (inode 3, PID 3841172)"}
+{"timestamp":{"seconds":1739879017,"nanos":110087445},"severity":"TRACE","message":"fuse_debug: Op 0x00000112        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739879017,"nanos":110131205},"severity":"TRACE","message":"fuse_debug: Op 0x00000114        connection.go:420] <- ReleaseFileHandle (PID 0, handle 0)"}
+{"timestamp":{"seconds":1739879017,"nanos":110297005},"severity":"TRACE","message":"gcs: Req              0x9: -> \"ReadWithReadHandle\"(\"ReadCacheTest/foouxdx\", [0, 16777216)) (125.856608ms): OK"}
+{"timestamp":{"seconds":1739879017,"nanos":110348965},"severity":"TRACE","message":"Closing cacheHandle:0xc00059f740 for object: tulsishah-hns:/ReadCacheTest/foouxdx"}
+{"timestamp":{"seconds":1739879017,"nanos":110384895},"severity":"TRACE","message":"fuse_debug: Op 0x00000114        connection.go:513] -> OK ()"}

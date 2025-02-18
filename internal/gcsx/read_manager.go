@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
@@ -144,11 +145,12 @@ func (rr *readManager) ReadAt(ctx context.Context, p []byte, offset int64) (gcs_
 	}
 
 	objectData, err = rr.fileCacheReader.ReadAt(ctx, p, offset)
+	log.Println("Error in file cache reading: ", err)
 	if err != nil {
 		err = fmt.Errorf("ReadAt: while reading from cache: %w", err)
 		return objectData, err
 	}
-	if objectData.CacheHit || objectData.Size == len(p) {
+	if objectData.CacheHit || objectData.Size == len(p) || (objectData.Size < len(p) && uint64(offset)+uint64(objectData.Size) == rr.object.Size) {
 		return objectData, nil
 	}
 
