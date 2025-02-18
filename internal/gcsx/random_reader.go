@@ -383,8 +383,8 @@ func (rr *randomReader) ReadAt(
 		return
 	}
 
-	readerType := readerType(rr.readType, offset, end, rr.bucket.BucketType())
-	if readerType == RangeReader {
+	readerType2 := readerType(rr.readType, offset, end, rr.bucket.BucketType())
+	if readerType2 == RangeReader {
 		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, end, rr.readType)
 		return
 	}

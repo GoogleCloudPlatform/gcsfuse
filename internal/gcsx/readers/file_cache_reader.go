@@ -37,7 +37,7 @@ import (
 const ReadOp = "readOp"
 
 type FileCacheReader struct {
-	Obj *gcs.MinObject
+	Obj    *gcs.MinObject
 	Bucket gcs.Bucket
 
 	// fileCacheHandler is used to get file cache handle and read happens using that.
@@ -64,7 +64,11 @@ func (fc *FileCacheReader) CheckInvariants() {
 
 func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcs_readers.ObjectData, error) {
 	var err error
-	var o gcs_readers.ObjectData
+	o := gcs_readers.ObjectData{
+		DataBuf:  p,
+		CacheHit: false,
+		Size:     0,
+	}
 
 	// Note: If we are reading the file for the first time and read type is sequential
 	// then the file cache behavior is write-through i.e. data is first read from
@@ -84,7 +88,11 @@ func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (
 	return o, nil
 }
 
-func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte, offset int64) (n int, cacheHit bool, err error) {
+func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte, offset int64) (int, bool, error) {
+	var err error
+	var n int
+	var cacheHit bool
+
 	if fc.FileCacheHandler == nil {
 		return 0, false, nil
 	}
@@ -142,7 +150,7 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 
 	n, cacheHit, err = fc.FileCacheHandle.Read(ctx, fc.Bucket, fc.Obj, offset, p)
 	if err == nil {
-		return
+		return n, cacheHit, nil
 	}
 
 	cacheHit = false
@@ -157,11 +165,11 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 		fc.FileCacheHandle = nil
 	} else if !strings.Contains(err.Error(), cacheutil.FallbackToGCSErrMsg) {
 		err = fmt.Errorf("tryReadingFromFileCache: while reading via cache: %w", err)
-		return
+		return 0, false, err
 	}
 	err = nil
 
-	return
+	return n, cacheHit, nil
 }
 
 func (fc *FileCacheReader) Destroy() {
