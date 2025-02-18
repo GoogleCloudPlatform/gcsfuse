@@ -603,7 +603,7 @@ func (bh *bucketHandle) RenameFolder(ctx context.Context, folderName string, des
 	}
 
 	// Wait blocks until the long-running operation is completed,
-	// returning the response and any errors encountered.
+	// returning the response and any errors encountered
 	controlFolder, err = resp.Wait(ctx)
 	folder = gcs.GCSFolder(bh.bucketName, controlFolder)
 
