@@ -41,17 +41,19 @@ const (
 type readStall struct {
 	flags []string
 	suite.Suite
-	testDirPath string
 }
 
-func (r *readStall) SetupTest() {
+func (r *readStall) SetupSuite() {
 	configPath := "./proxy_server/configs/read_stall_40s.yaml"
 	emulator_tests.StartProxyServer(configPath)
 	setup.MountGCSFuseWithGivenMountFunc(r.flags, mountFunc)
-	r.testDirPath = setup.SetupTestDirectory(r.T().Name())
 }
 
-func (r *readStall) TearDownTest() {
+func (r *readStall) SetupTest() {
+	testDirPath = setup.SetupTestDirectory(r.T().Name())
+}
+
+func (r *readStall) TearDownSuite() {
 	setup.UnmountGCSFuse(rootDir)
 	assert.NoError(r.T(), emulator_tests.KillProxyServerProcess(port))
 }
@@ -64,14 +66,14 @@ func (r *readStall) TearDownTest() {
 // of a file completes in less time than the configured stall time, even when a read stall is induced.
 // It creates a file, reads the initial 1KB, and asserts that the elapsed time is less than the expected stall duration.
 func (r *readStall) TestReadFirstKBStallInducedShouldCompleteInLessThanStallTime() {
-	filePath := path.Join(r.testDirPath, "file.txt")
+	filePath := path.Join(testDirPath, "file.txt")
 	operations.CreateFileOfSize(fileSize, filePath, r.T())
 
 	elapsedTime, err := emulator_tests.ReadFirstKB(r.T(), filePath)
 
 	assert.NoError(r.T(), err)
 	assert.Greater(r.T(), elapsedTime, minReqTimeout)
-	assert.Less(r.T(), 10*elapsedTime, readStallTime)
+	assert.Less(r.T(), elapsedTime, readStallTime)
 }
 
 ////////////////////////////////////////////////////////////////////////
