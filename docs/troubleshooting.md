@@ -151,4 +151,4 @@ The Writes in GCSFuse are staged locally before they are uploaded to GCS buckets
 
 The path can be configured by using the mount flag [--temp-dir](https://cloud.google.com/storage/docs/cloud-storage-fuse/cli-options) to a path which has the disk space if available. By default, it takes the `/tmp` directory of the machine. (sometimes may be limited depending on the machine ).
 
-Alternatively, from [GCSFuse version 2.9.1](https://github.com/GoogleCloudPlatform/gcsfuse/releases/tag/v2.9.1) onwards, writes can be configured with streaming writes feature ( which doesnt involve staging the file locally ) with the help of --enable-streaming-writes flag
+Alternatively, from [GCSFuse version 2.9.1](https://github.com/GoogleCloudPlatform/gcsfuse/releases/tag/v2.9.1) onwards, writes can be configured with streaming writes feature ( which doesnt involve staging the file locally ) with the help of `--enable-streaming-writes` flag
