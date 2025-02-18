@@ -84,12 +84,12 @@ func NewReadManager(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb in
 			Seeks:          0,
 			TotalReadBytes: 0,
 			RangeReader: gcs_readers.RangeReader{
-				Obj:          o,
-				Bucket:       bucket,
-				Start:        -1,
-				Limit:        -1,
-				Seeks:        0,
-				MetricHandle: metricHandle,
+				Obj:            o,
+				Bucket:         bucket,
+				Start:          -1,
+				Limit:          -1,
+				Seeks:          0,
+				MetricHandle:   metricHandle,
 				TotalReadBytes: 0,
 			},
 			Mrr: gcs_readers.MultiRangeReader{
@@ -144,8 +144,8 @@ func (rr *readManager) ReadAt(ctx context.Context, p []byte, offset int64) (gcs_
 	}
 
 	objectData, err = rr.fileCacheReader.ReadAt(ctx, p, offset)
-	if objectData.CacheHit && err == nil {
-		return objectData, err
+	if err == nil && (objectData.CacheHit || objectData.Size == len(p)) {
+		return objectData, nil
 	}
 
 	objectData, err = rr.gcsReader.ReadAt(ctx, p, offset)
