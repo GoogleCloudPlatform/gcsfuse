@@ -413,13 +413,13 @@ func (bh *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectR
 
 	attrs, err := obj.Update(ctx, updateQuery)
 
-	if err == nil {
-		// Converting objAttrs to type *Object
-		o = storageutil.ObjectAttrsToBucketObject(attrs)
+	if err != nil {
+		err = fmt.Errorf("error in updating object: %w", err)
 		return
 	}
 
-	err = fmt.Errorf("error in updating object: %w", err)
+	// Converting objAttrs to type *Object
+	o = storageutil.ObjectAttrsToBucketObject(attrs)
 	return
 }
 
@@ -511,13 +511,13 @@ func (bh *bucketHandle) MoveObject(ctx context.Context, req *gcs.MoveObjectReque
 	}
 
 	attrs, err := obj.Move(ctx, dstMoveObject)
-	if err == nil {
-		// Converting objAttrs to type *Object
-		o = storageutil.ObjectAttrsToBucketObject(attrs)
+	if err != nil {
+		err = fmt.Errorf("error in moving object: %w", err)
 		return
 	}
 
-	err = fmt.Errorf("error in moving object: %w", err)
+	// Converting objAttrs to type *Object
+	o = storageutil.ObjectAttrsToBucketObject(attrs)
 	return
 }
 
