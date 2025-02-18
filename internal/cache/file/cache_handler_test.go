@@ -740,10 +740,10 @@ func Test_InvalidateCache_Truncates(t *testing.T) {
 				WriteBufferSize:          4 * 1024 * 1024,
 			},
 			cacheDir: path.Join(os.Getenv("HOME"), "CacheHandlerTest/dir"),
-			// Error is expected in parallel downloads because the foreground reads
-			// doesn't wait for async job to download till the requested offset unlike
+			// Error is NOT expected in parallel downloads because the foreground reads
+			// wait for async job to download till the requested offset just like
 			// in case of non-parallel downloads for sequential reads.
-			isCacheHandleReadErrExpected: true,
+			isCacheHandleReadErrExpected: false,
 			isInvalidateCacheErrExpected: false,
 			isCacheFileReadErrExpected:   true,
 		},
@@ -988,10 +988,10 @@ func Test_Destroy(t *testing.T) {
 				WriteBufferSize:          4 * 1024 * 1024,
 			},
 			cacheDir: path.Join(os.Getenv("HOME"), "CacheHandlerTest/dir"),
-			// Error is expected in parallel downloads because the foreground reads
-			// doesn't wait for async job to download till the requested offset unlike
+			// Error is NOT expected in parallel downloads because the foreground reads
+			// wait for async job to download till the requested offset just like
 			// in case of non-parallel downloads for sequential reads.
-			isCacheHandleErrExpected: true,
+			isCacheHandleErrExpected: false,
 			expectedJobStatus:        []string{string(downloader.Completed), string(downloader.Invalid)},
 		},
 	}
