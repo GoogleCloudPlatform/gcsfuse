@@ -73,7 +73,7 @@ func (r *readStall) TestReadFirstKBStallInducedShouldCompleteInLessThanStallTime
 
 	assert.NoError(r.T(), err)
 	assert.Greater(r.T(), elapsedTime, minReqTimeout)
-	assert.Less(r.T(), elapsedTime, readStallTime)
+	assert.Less(r.T(), 10*elapsedTime, readStallTime)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -84,7 +84,7 @@ func TestReadStall(t *testing.T) {
 	ts := &readStall{}
 	// Define flag set to run the tests.
 	flagsSet := [][]string{
-		{"--custom-endpoint=" + proxyEndpoint, "--enable-read-stall-retry=true", "--read-stall-min-req-timeout=" + fmt.Sprintf("%dms", minReqTimeout.Milliseconds())},
+		{"--custom-endpoint=" + proxyEndpoint, "--enable-read-stall-retry=true", "--read-stall-min-req-timeout=" + fmt.Sprintf("%dms", minReqTimeout.Milliseconds()), "--read-stall-initial-req-timeout=" + fmt.Sprintf("%dms", minReqTimeout.Milliseconds())},
 	}
 
 	// Run tests.
