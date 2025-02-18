@@ -39,9 +39,8 @@ func TestGetGCSError(t *testing.T) {
 	otherAPIErr, ok := apierror.FromError(status.Error(codes.Internal, codes.Internal.String()))
 	assert.True(t, ok)
 
-	// TODO: to directly create the error for "wrapped_grpc_status_NotFound" sub-test, if below issue is fixed.
-	// Currently, test fails because status.FromError(err) appends extra message to the input err, if error is created directly.
-	// Details: https://github.com/grpc/grpc-go/issues/8102
+	// TODO: to directly create the error for "wrapped_grpc_status_NotFound" sub-test, when the following issue is resolved.
+	// Ref: https://github.com/grpc/grpc-go/issues/8102
 	grpcNotFoundErr := status.Error(codes.NotFound, "not found")
 	assert.True(t, ok)
 
