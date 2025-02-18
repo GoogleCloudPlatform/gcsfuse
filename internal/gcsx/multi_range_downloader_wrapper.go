@@ -124,7 +124,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) DecrementRefCount() (err error) {
 	}
 
 	mrdWrapper.refCount--
-	if mrdWrapper.refCount == 0 {
+	if mrdWrapper.refCount == 0 && mrdWrapper.Wrapped != nil {
 		mrdWrapper.Wrapped.Close()
 		mrdWrapper.Wrapped = nil
 		// TODO (b/391508479): Start using cleanup function when MRD recreation is handled
@@ -164,11 +164,16 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader() (err
 	}
 
 	if mrdWrapper.Wrapped == nil {
-		mrdWrapper.Wrapped, err = mrdWrapper.bucket.NewMultiRangeDownloader(context.Background(), &gcs.MultiRangeDownloaderRequest{
+		var mrd gcs.MultiRangeDownloader
+		mrd, err = mrdWrapper.bucket.NewMultiRangeDownloader(context.Background(), &gcs.MultiRangeDownloaderRequest{
 			Name:           mrdWrapper.object.Name,
 			Generation:     mrdWrapper.object.Generation,
 			ReadCompressed: mrdWrapper.object.HasContentEncodingGzip(),
 		})
+		if err == nil {
+			// Updating mrdWrapper.Wrapped only when MRD creation was successful.
+			mrdWrapper.Wrapped = mrd
+		}
 	}
 	return
 }
@@ -185,7 +190,6 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 	err = mrdWrapper.ensureMultiRangeDownloader()
 	if err != nil {
 		err = fmt.Errorf("MultiRangeDownloaderWrapper::Read: Error in creating MultiRangeDownloader:  %v", err)
-		mrdWrapper.Wrapped = nil
 		return
 	}
 

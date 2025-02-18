@@ -113,7 +113,7 @@ func (t *RandomReaderStretchrTest) Test_ReadInfo() {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
-			_, _, err := t.rr.wrapped.getReadInfo(tc.start, tc.size)
+			_, err := t.rr.wrapped.getReadInfo(tc.start, tc.size)
 
 			assert.Error(t.T(), err)
 			errorString := fmt.Sprintf(
@@ -138,10 +138,10 @@ func (t *RandomReaderStretchrTest) Test_ReadInfo_Sequential() {
 	for _, tc := range testCases {
 		t.Run(tc.testName, func() {
 			t.object.Size = tc.objectSize
-			readType, end, err := t.rr.wrapped.getReadInfo(tc.start, 10)
+			end, err := t.rr.wrapped.getReadInfo(tc.start, 10)
 
 			assert.NoError(t.T(), err)
-			assert.Equal(t.T(), testutil.Sequential, readType)
+			assert.Equal(t.T(), testutil.Sequential, t.rr.wrapped.readType)
 			assert.Equal(t.T(), tc.expectedEnd, end)
 		})
 	}
@@ -171,10 +171,10 @@ func (t *RandomReaderStretchrTest) Test_ReadInfo_Random() {
 		t.Run(tc.testName, func() {
 			t.object.Size = tc.objectSize
 			t.rr.wrapped.totalReadBytes = tc.totalReadBytes
-			readType, end, err := t.rr.wrapped.getReadInfo(tc.start, 10)
+			end, err := t.rr.wrapped.getReadInfo(tc.start, 10)
 
 			assert.NoError(t.T(), err)
-			assert.Equal(t.T(), testutil.Random, readType)
+			assert.Equal(t.T(), testutil.Random, t.rr.wrapped.readType)
 			assert.Equal(t.T(), tc.expectedEnd, end)
 		})
 	}
@@ -615,6 +615,72 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_InvalidOffset() {
 			_, err := t.rr.wrapped.ReadAt(t.rr.ctx, buf, int64(tc.start))
 
 			assert.Error(t.T(), err)
+		})
+	}
+}
+
+func (t *RandomReaderStretchrTest) Test_ReadAt_ValidateReadType() {
+	testCases := []struct {
+		name              string
+		dataSize          int
+		bucketType        gcs.BucketType
+		readRanges        [][]int
+		expectedReadTypes []string
+	}{
+		{
+			name:              "SequentialReadFlat",
+			dataSize:          100,
+			bucketType:        gcs.BucketType{Zonal: false},
+			readRanges:        [][]int{{0, 10}, {10, 20}, {20, 35}, {35, 50}},
+			expectedReadTypes: []string{testutil.Sequential, testutil.Sequential, testutil.Sequential, testutil.Sequential},
+		},
+		{
+			name:              "SequentialReadZonal",
+			dataSize:          100,
+			bucketType:        gcs.BucketType{Zonal: true},
+			readRanges:        [][]int{{0, 10}, {10, 20}, {20, 35}, {35, 50}},
+			expectedReadTypes: []string{testutil.Sequential, testutil.Sequential, testutil.Sequential, testutil.Sequential},
+		},
+		{
+			name:              "RandomReadFlat",
+			dataSize:          100,
+			bucketType:        gcs.BucketType{Zonal: false},
+			readRanges:        [][]int{{0, 50}, {30, 40}, {10, 20}, {20, 30}, {30, 40}},
+			expectedReadTypes: []string{testutil.Sequential, testutil.Sequential, testutil.Random, testutil.Random, testutil.Random},
+		},
+		{
+			name:              "RandomReadZonal",
+			dataSize:          100,
+			bucketType:        gcs.BucketType{Zonal: true},
+			readRanges:        [][]int{{0, 50}, {30, 40}, {10, 20}, {20, 30}, {30, 40}},
+			expectedReadTypes: []string{testutil.Sequential, testutil.Sequential, testutil.Random, testutil.Random, testutil.Random},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			assert.Equal(t.T(), len(tc.readRanges), len(tc.expectedReadTypes), "Test Parameter Error: readRanges and expectedReadTypes should have same length")
+			t.rr.wrapped.reader = nil
+			t.rr.wrapped.isMRDInUse = false
+			t.rr.wrapped.seeks = 0
+			t.rr.wrapped.readType = testutil.Sequential
+			t.object.Size = uint64(tc.dataSize)
+			testContent := testutil.GenerateRandomBytes(int(t.object.Size))
+			fakeMRDWrapper, err := NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{})
+			assert.Nil(t.T(), err, "Error in creating MRDWrapper")
+			t.rr.wrapped.mrdWrapper = &fakeMRDWrapper
+			t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, testContent, time.Microsecond))
+			t.mockBucket.On("BucketType", mock.Anything).Return(tc.bucketType).Times(len(tc.readRanges))
+
+			for i, readRange := range tc.readRanges {
+				t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(&fake.FakeReader{ReadCloser: getReadCloser(testContent)}, nil).Once()
+				buf := make([]byte, readRange[1]-readRange[0])
+
+				_, err := t.rr.wrapped.ReadAt(t.rr.ctx, buf, int64(readRange[0]))
+
+				assert.NoError(t.T(), err)
+				assert.Equal(t.T(), tc.expectedReadTypes[i], t.rr.wrapped.readType)
+			}
 		})
 	}
 }

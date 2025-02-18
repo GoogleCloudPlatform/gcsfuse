@@ -230,6 +230,10 @@ func ReadFileSequentially(filePath string, chunkSize int64) (content []byte, err
 
 // Write data of chunkSize in file at given offset.
 func WriteChunkOfRandomBytesToFile(file *os.File, chunkSize int, offset int64) error {
+	return WriteChunkOfRandomBytesToFiles([]*os.File{file}, chunkSize, offset)
+}
+
+func WriteChunkOfRandomBytesToFiles(files []*os.File, chunkSize int, offset int64) error {
 	// Generate random data of chunk size.
 	chunk := make([]byte, chunkSize)
 	_, err := rand.Read(chunk)
@@ -237,19 +241,21 @@ func WriteChunkOfRandomBytesToFile(file *os.File, chunkSize int, offset int64) e
 		return fmt.Errorf("error while generating random string: %v", err)
 	}
 
-	// Write data in the file.
-	n, err := file.WriteAt(chunk, offset)
-	if err != nil {
-		return fmt.Errorf("error in writing randomly in file: %v", err)
-	}
+	for _, file := range files {
+		// Write data in the file.
+		n, err := file.WriteAt(chunk, offset)
+		if err != nil {
+			return fmt.Errorf("error in writing randomly in file: %s, %v", file.Name(), err)
+		}
 
-	if n != chunkSize {
-		return fmt.Errorf("incorrect number of bytes written in the file actual %d, expected %d", n, chunkSize)
-	}
+		if n != chunkSize {
+			return fmt.Errorf("incorrect number of bytes written in the file %s actual %d, expected %d", file.Name(), n, chunkSize)
+		}
 
-	err = file.Sync()
-	if err != nil {
-		return fmt.Errorf("error in syncing file: %v", err)
+		err = file.Sync()
+		if err != nil {
+			return fmt.Errorf("error in syncing file: %v", err)
+		}
 	}
 
 	return nil
@@ -573,12 +579,26 @@ func CloseFileShouldNotThrowError(file *os.File, t *testing.T) {
 	}
 }
 
+func CloseFileShouldThrowError(t *testing.T, file *os.File) {
+	t.Helper()
+	if err := file.Close(); err == nil {
+		t.Fatalf("file.Close() for file %s should throw an error: %v", file.Name(), err)
+	}
+}
+
 func SyncFile(fh *os.File, t *testing.T) {
 	err := fh.Sync()
 
 	// Verify fh.Sync operation succeeds.
 	if err != nil {
 		t.Fatalf("%s.Sync(): %v", fh.Name(), err)
+	}
+}
+
+func SyncFileShouldThrowError(t *testing.T, file *os.File) {
+	t.Helper()
+	if err := file.Sync(); err == nil {
+		t.Fatalf("file.Close() for file %s should throw an error: %v", file.Name(), err)
 	}
 }
 

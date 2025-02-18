@@ -119,6 +119,7 @@ func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb i
 		limit:                 -1,
 		seeks:                 0,
 		totalReadBytes:        0,
+		readType:              util.Sequential,
 		sequentialReadSizeMb:  sequentialReadSizeMb,
 		fileCacheHandler:      fileCacheHandler,
 		cacheFileForRangeRead: cacheFileForRangeRead,
@@ -149,6 +150,9 @@ type randomReader struct {
 	limit          int64
 	seeks          uint64
 	totalReadBytes uint64
+
+	// ReadType of the reader. Will be sequential by default.
+	readType string
 
 	sequentialReadSizeMb int32
 
@@ -368,22 +372,20 @@ func (rr *randomReader) ReadAt(
 	}
 
 	if rr.reader != nil {
-		// TODO: Passing readType as "unhandled" here for now. Ideally
-		// readType should be stored in and obtained from the previous rr.reader.
-		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, -1, "unhandled")
+		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, -1, rr.readType)
 		return
 	}
 
 	// If we don't have a reader, determine whether to read from NewReader or MRR.
-	readType, end, err := rr.getReadInfo(offset, int64(len(p)))
+	end, err := rr.getReadInfo(offset, int64(len(p)))
 	if err != nil {
 		err = fmt.Errorf("ReadAt: getReaderInfo: %w", err)
 		return
 	}
 
-	readerType := readerType(readType, offset, end, rr.bucket.BucketType())
+	readerType := readerType(rr.readType, offset, end, rr.bucket.BucketType())
 	if readerType == RangeReader {
-		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, end, readType)
+		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, end, rr.readType)
 		return
 	}
 
@@ -507,12 +509,12 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 	return
 }
 
-// getReaderInfo provides the readType and the range to query GCS.
+// getReaderInfo determines the readType and provides the range to query GCS.
 // Range here is [start, end]. End is computed using the readType, start offset
 // and size of the data the callers needs.
 func (rr *randomReader) getReadInfo(
 	start int64,
-	size int64) (readType string, end int64, err error) {
+	size int64) (end int64, err error) {
 	// Make sure start and size are legal.
 	if start < 0 || uint64(start) > rr.object.Size || size < 0 {
 		err = fmt.Errorf(
@@ -539,9 +541,8 @@ func (rr *randomReader) getReadInfo(
 	// optimise for random reads. Random reads will read data in chunks of
 	// (average read size in bytes rounded up to the next MB).
 	end = int64(rr.object.Size)
-	readType = util.Sequential
 	if rr.seeks >= minSeeksForRandom {
-		readType = util.Random
+		rr.readType = util.Random
 		averageReadBytes := rr.totalReadBytes / rr.seeks
 		if averageReadBytes < maxReadSize {
 			randomReadSize := int64(((averageReadBytes / MB) + 1) * MB)

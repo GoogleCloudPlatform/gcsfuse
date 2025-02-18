@@ -37,11 +37,13 @@ import (
 )
 
 var isPresubmitRun = flag.Bool("presubmit", false, "Boolean flag to indicate if test-run is a presubmit run.")
+var isZonalBucketRun = flag.Bool("zonal", false, "Boolean flag to indicate if test-run should use a zonal bucket.")
 var testBucket = flag.String("testbucket", "", "The GCS bucket used for the test.")
 var mountedDirectory = flag.String("mountedDirectory", "", "The GCSFuse mounted directory used for the test.")
 var integrationTest = flag.Bool("integrationTest", false, "Run tests only when the flag value is true.")
 var testInstalledPackage = flag.Bool("testInstalledPackage", false, "[Optional] Run tests on the package pre-installed on the host machine. By default, integration tests build a new package to run the tests.")
 var testOnTPCEndPoint = flag.Bool("testOnTPCEndPoint", false, "Run tests on TPC endpoint only when the flag value is true.")
+var testOnCustomEndpoint = flag.String("testOnCustomEndpoint", "", "Run tests on custom endpoint only when the flag value is set. Required for tests requiring proxy server.")
 var seededRand *rand.Rand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 const (
@@ -76,6 +78,10 @@ func IsPresubmitRun() bool {
 	return *isPresubmitRun
 }
 
+func IsZonalBucketRun() bool {
+	return *isZonalBucketRun
+}
+
 func IsIntegrationTest() bool {
 	return *integrationTest
 }
@@ -90,6 +96,10 @@ func TestInstalledPackage() bool {
 
 func TestOnTPCEndPoint() bool {
 	return *testOnTPCEndPoint
+}
+
+func TestOnCustomEndpoint() string {
+	return *testOnCustomEndpoint
 }
 
 func MountedDirectory() string {
@@ -286,6 +296,14 @@ func IgnoreTestIfIntegrationTestFlagIsNotSet(t *testing.T) {
 
 	if !*integrationTest {
 		t.SkipNow()
+	}
+}
+
+func IgnoreTestIfPresubmitFlagIsSet(b *testing.B) {
+	flag.Parse()
+
+	if *isPresubmitRun {
+		b.SkipNow()
 	}
 }
 
