@@ -43,6 +43,7 @@ var mountedDirectory = flag.String("mountedDirectory", "", "The GCSFuse mounted 
 var integrationTest = flag.Bool("integrationTest", false, "Run tests only when the flag value is true.")
 var testInstalledPackage = flag.Bool("testInstalledPackage", false, "[Optional] Run tests on the package pre-installed on the host machine. By default, integration tests build a new package to run the tests.")
 var testOnTPCEndPoint = flag.Bool("testOnTPCEndPoint", false, "Run tests on TPC endpoint only when the flag value is true.")
+var testOnCustomEndpoint = flag.String("testOnCustomEndpoint", "", "Run tests on custom endpoint only when the flag value is set. Required for tests requiring proxy server.")
 var seededRand *rand.Rand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 const (
@@ -95,6 +96,10 @@ func TestInstalledPackage() bool {
 
 func TestOnTPCEndPoint() bool {
 	return *testOnTPCEndPoint
+}
+
+func TestOnCustomEndpoint() string {
+	return *testOnCustomEndpoint
 }
 
 func MountedDirectory() string {
