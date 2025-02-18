@@ -579,7 +579,8 @@ func CloseFileShouldNotThrowError(file *os.File, t *testing.T) {
 	}
 }
 
-func CloseFileShouldThrowError(file *os.File, t *testing.T) {
+func CloseFileShouldThrowError(t *testing.T, file *os.File) {
+	t.Helper()
 	if err := file.Close(); err == nil {
 		t.Fatalf("file.Close() for file %s should throw an error: %v", file.Name(), err)
 	}
@@ -594,7 +595,8 @@ func SyncFile(fh *os.File, t *testing.T) {
 	}
 }
 
-func SyncFileShouldThrowError(file *os.File, t *testing.T) {
+func SyncFileShouldThrowError(t *testing.T, file *os.File) {
+	t.Helper()
 	if err := file.Sync(); err == nil {
 		t.Fatalf("file.Close() for file %s should throw an error: %v", file.Name(), err)
 	}

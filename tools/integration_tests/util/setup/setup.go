@@ -347,7 +347,6 @@ func SetUpTestDirForTestBucketFlag() {
 		log.Printf("setUpTestDir: %v\n", err)
 		os.Exit(1)
 	}
-
 }
 
 func SetUpLogDirForTestDirTests(logDirName string) (logDir string) {
