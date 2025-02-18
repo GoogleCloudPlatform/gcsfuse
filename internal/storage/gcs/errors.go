@@ -45,8 +45,8 @@ func (pe *PreconditionError) Error() string {
 	return fmt.Sprintf("gcs.PreconditionError: %v", pe.Err)
 }
 
-// WrapUnderCommonGCSError converts an error returned by go-sdk into gcsfuse specific common gcs error.
-func WrapUnderCommonGCSError(err error) error {
+// GetGCSError converts an error returned by go-sdk into gcsfuse specific common gcs error.
+func GetGCSError(err error) error {
 	if err == nil {
 		return nil
 	}
@@ -73,6 +73,7 @@ func WrapUnderCommonGCSError(err error) error {
 	}
 
 	// If storage object doesn't exist, go-sdk returns as ErrObjectNotExist.
+	// Important to note: currently go-sdk doesn't format/convert error coming from the control-client.
 	// Ref: http://shortn/_CY9Jyqf2wF
 	if errors.Is(err, storage.ErrObjectNotExist) {
 		return &NotFoundError{Err: err}
