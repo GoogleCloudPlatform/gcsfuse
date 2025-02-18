@@ -144,7 +144,11 @@ func (rr *readManager) ReadAt(ctx context.Context, p []byte, offset int64) (gcs_
 	}
 
 	objectData, err = rr.fileCacheReader.ReadAt(ctx, p, offset)
-	if err == nil && (objectData.CacheHit || objectData.Size == len(p)) {
+	if err != nil {
+		err = fmt.Errorf("ReadAt: while reading from cache: %w", err)
+		return objectData, err
+	}
+	if objectData.CacheHit || objectData.Size == len(p) {
 		return objectData, nil
 	}
 
