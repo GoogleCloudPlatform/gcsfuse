@@ -99,7 +99,11 @@ func (gr *GCSReader) CheckInvariants() {
 }
 
 func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcs_readers.ObjectData, error) {
-	var objectData gcs_readers.ObjectData
+	objectData := gcs_readers.ObjectData{
+		DataBuf:  p,
+		CacheHit: false,
+		Size:     0,
+	}
 	var err error
 
 	// Check first if we can read using existing reader. if not, determine which

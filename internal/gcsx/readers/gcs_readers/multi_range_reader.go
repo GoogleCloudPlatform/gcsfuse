@@ -73,7 +73,11 @@ func (mrd *MultiRangeReader) readFromMultiRangeReader(ctx context.Context, p []b
 }
 
 func (mrd *MultiRangeReader) ReadAt(ctx context.Context, p []byte, offset int64) (ObjectData, error) {
-	var o ObjectData
+	o := ObjectData{
+		DataBuf:  p,
+		CacheHit: false,
+		Size:     0,
+	}
 	var err error
 
 	o.Size, err = mrd.readFromMultiRangeReader(ctx, p, offset, mrd.End, TimeoutForMultiRangeRead)
