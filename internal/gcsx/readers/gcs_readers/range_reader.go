@@ -49,12 +49,7 @@ type RangeReader struct {
 	// This will be used while making the new connection to bypass auth and metadata
 	// checks.
 	ReadHandle []byte
-
-	// If non-nil, an in-flight read request and a function for cancelling it.
-	//
-	// INVARIANT: (reader == nil) == (cancel == nil)
-	reader gcs.StorageReader
-	cancel func()
+	cancel     func()
 
 	MetricHandle common.MetricHandle
 }
@@ -75,17 +70,17 @@ func (rr *RangeReader) ReadAt(ctx context.Context, p []byte, offset int64) (Obje
 
 func (rr *RangeReader) Destroy() {
 	// Close out the reader, if we have one.
-	if rr.reader != nil {
+	if rr.Reader != nil {
 		rr.closeReader()
-		rr.reader = nil
+		rr.Reader = nil
 		rr.cancel = nil
 	}
 }
 
 // closeReader fetches the readHandle before closing the reader instance.
 func (rr *RangeReader) closeReader() {
-	rr.ReadHandle = rr.reader.ReadHandle()
-	err := rr.reader.Close()
+	rr.ReadHandle = rr.Reader.ReadHandle()
+	err := rr.Reader.Close()
 	if err != nil {
 		logger.Warnf("error while closing reader: %v", err)
 	}
@@ -97,7 +92,7 @@ func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset
 	var n int
 	var err error
 	// If we don't have a reader, start a read operation.
-	if rr.reader == nil {
+	if rr.Reader == nil {
 		err = rr.startRead(offset, end)
 		if err != nil {
 			err = fmt.Errorf("startRead: %w", err)
@@ -117,7 +112,7 @@ func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset
 
 		// Don't attempt to reuse the reader when it's behaving wackily.
 		rr.closeReader()
-		rr.reader = nil
+		rr.Reader = nil
 		rr.cancel = nil
 		rr.Start = -1
 		rr.Limit = -1
@@ -128,7 +123,7 @@ func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset
 	// Are we finished with this reader now?
 	if rr.Start == rr.Limit {
 		rr.closeReader()
-		rr.reader = nil
+		rr.Reader = nil
 		rr.cancel = nil
 	}
 
@@ -138,7 +133,7 @@ func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset
 		// For a non-empty buffer, ReadFull returns EOF or ErrUnexpectedEOF only
 		// if the reader peters out early. That's fine, but it means we should
 		// have hit the limit above.
-		if rr.reader != nil {
+		if rr.Reader != nil {
 			err = fmt.Errorf("Reader returned early by skipping %d bytes", rr.Limit-rr.Start)
 			return 0, err
 		}
@@ -159,7 +154,7 @@ func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset
 
 // Like io.ReadFull, but deals with the cancellation issues.
 //
-// REQUIRES: rr.reader != nil
+// REQUIRES: rr.Reader != nil
 func (rr *RangeReader) readFull(ctx context.Context, p []byte) (n int, err error) {
 	// Start a goroutine that will cancel the read operation we block on below if
 	// the calling context is cancelled, but only if this method has not already
@@ -185,12 +180,12 @@ func (rr *RangeReader) readFull(ctx context.Context, p []byte) (n int, err error
 	}()
 
 	// Call through.
-	n, err = io.ReadFull(rr.reader, p)
+	n, err = io.ReadFull(rr.Reader, p)
 
 	return
 }
 
-// Ensure that rr.reader is set up for a range for which [start, start+size) is
+// Ensure that rr.Reader is set up for a range for which [start, start+size) is
 // a prefix. Irrespective of the size requested, we try to fetch more data
 // from GCS defined by sequentialReadSizeMb flag to serve future read requests.
 func (rr *RangeReader) startRead(start int64, end int64) (err error) {
@@ -229,7 +224,7 @@ func (rr *RangeReader) startRead(start int64, end int64) (err error) {
 		return
 	}
 
-	rr.reader = rc
+	rr.Reader = rc
 	rr.cancel = cancel
 	rr.Start = start
 	rr.Limit = end

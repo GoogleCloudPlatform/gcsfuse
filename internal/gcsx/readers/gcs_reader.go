@@ -86,11 +86,7 @@ type GCSReader struct {
 	// INVARIANT: (reader == nil) == (cancel == nil)
 	Reader         gcs.StorageReader
 	TotalReadBytes uint64
-	// If non-nil, an in-flight read request and a function for cancelling it.
-	//
-	// INVARIANT: (reader == nil) == (cancel == nil)
-	reader gcs.StorageReader
-	cancel func()
+	cancel         func()
 
 	SequentialReadSizeMb int32
 }
@@ -118,7 +114,7 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcs_re
 	if gr.Reader != nil && gr.Start < offset && offset-gr.Start < maxReadSize {
 		bytesToSkip := offset - gr.Start
 		p := make([]byte, bytesToSkip)
-		n, _ := io.ReadFull(gr.reader, p)
+		n, _ := io.ReadFull(gr.Reader, p)
 		gr.Start += int64(n)
 	}
 
@@ -126,9 +122,9 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcs_re
 	// clean it up and throw it away.
 	// We will also clean up the existing reader if it can't serve the entire request.
 	dataToRead := math.Min(float64(offset+int64(len(p))), float64(gr.Obj.Size))
-	if gr.reader != nil && (gr.Start != offset || int64(dataToRead) > gr.Limit) {
+	if gr.Reader != nil && (gr.Start != offset || int64(dataToRead) > gr.Limit) {
 		gr.closeReader()
-		gr.reader = nil
+		gr.Reader = nil
 		gr.cancel = nil
 		if gr.Start != offset {
 			// We should only increase the seek count if we have to discard the reader when it's
@@ -139,8 +135,11 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcs_re
 	}
 
 	gr.RangeReader.ReadHandle = gr.ReadHandle
+	gr.RangeReader.End = -1
+	gr.Mrr.End = -1
+	log.Println("p length: ", len(p))
 
-	if gr.reader != nil {
+	if gr.Reader != nil {
 		objectData, err = gr.RangeReader.ReadAt(ctx, p, offset)
 		return objectData, err
 	}
@@ -154,6 +153,7 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcs_re
 	gr.RangeReader.End = end
 	gr.Mrr.End = end
 
+	log.Println("End: ", gr.RangeReader.End)
 	readerType := gr.readerType(gr.ReaderType, offset, end, gr.Bucket.BucketType())
 	if readerType == RangeReader {
 		objectData, err = gr.RangeReader.ReadAt(ctx, p, offset)
@@ -170,8 +170,8 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcs_re
 
 // closeReader fetches the readHandle before closing the reader instance.
 func (gr *GCSReader) closeReader() {
-	gr.ReadHandle = gr.reader.ReadHandle()
-	err := gr.reader.Close()
+	gr.ReadHandle = gr.Reader.ReadHandle()
+	err := gr.Reader.Close()
 	if err != nil {
 		logger.Warnf("error while closing reader: %v", err)
 	}
