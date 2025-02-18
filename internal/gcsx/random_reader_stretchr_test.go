@@ -79,7 +79,7 @@ func (t *RandomReaderStretchrTest) SetupTest() {
 	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm)
 
 	// Set up the reader.
-	rr := NewRandomReader(t.object, t.mockBucket, sequentialReadSizeInMb, nil, false, common.NewNoopMetrics(), nil)
+	rr := NewRandomReader(t.object, t.mockBucket, sequentialReadSizeInMb, nil, false, common.NewNoopMetrics(), nil, nil)
 	t.rr.wrapped = rr.(*randomReader)
 }
 

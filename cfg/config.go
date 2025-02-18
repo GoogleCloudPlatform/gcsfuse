@@ -60,6 +60,8 @@ type Config struct {
 
 	OnlyDir string `yaml:"only-dir"`
 
+	Prefetch PrefetchConfig `yaml:"prefetch"`
+
 	Write WriteConfig `yaml:"write"`
 }
 
@@ -225,6 +227,20 @@ type MonitoringConfig struct {
 	ExperimentalTracingSamplingRatio float64 `yaml:"experimental-tracing-sampling-ratio"`
 }
 
+type PrefetchConfig struct {
+	BlockSizeMb int64 `yaml:"block-size-mb"`
+
+	Enable bool `yaml:"enable"`
+
+	MaxParallelism int64 `yaml:"max-parallelism"`
+
+	MaxPrefetchBlocks int64 `yaml:"max-prefetch-blocks"`
+
+	MaxPrefetchSizeMb int64 `yaml:"max-prefetch-size-mb"`
+
+	MinPrefetchBlocks int64 `yaml:"min-prefetch-blocks"`
+}
+
 type ReadStallGcsRetriesConfig struct {
 	Enable bool `yaml:"enable"`
 
@@ -343,6 +359,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.BoolP("enable-prefetch", "", false, "Part size for the non-file-cache flow.")
+
 	flagSet.BoolP("enable-read-stall-retry", "", false, "To turn on/off retries for stalled read requests. This is based on a timeout that changes depending on how long similar requests took in the past.")
 
 	if err := flagSet.MarkHidden("enable-read-stall-retry"); err != nil {
@@ -405,7 +423,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("file-cache-enable-parallel-downloads", "", false, "Enable parallel downloads.")
 
-	flagSet.IntP("file-cache-max-parallel-downloads", "", DefaultMaxParallelDownloads(), "Sets an uber limit of number of concurrent file download requests that are made across all files.")
+	flagSet.IntP("file-cache-max-parallel-downloads", "", 100, "Sets an uber limit of number of concurrent file download requests that are made across all files.")
 
 	flagSet.IntP("file-cache-max-size-mb", "", -1, "Maximum size of the file-cache in MiBs")
 
@@ -486,6 +504,16 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	if err := flagSet.MarkHidden("precondition-errors"); err != nil {
 		return err
 	}
+
+	flagSet.IntP("prefetch-block-size-mb", "", 8, "Part size for the non-file-cache flow.")
+
+	flagSet.IntP("prefetch-max-parallelism", "", 100, "Upper limit of overall parallelism.")
+
+	flagSet.IntP("prefetch-max-prefetch-blocks", "", 10, "Per file max number of blocks to be prefetched.")
+
+	flagSet.IntP("prefetch-max-prefetch-size-mb", "", 1024, "Total cap over memory used for prefetch.")
+
+	flagSet.IntP("prefetch-min-prefetch-blocks", "", 4, "Per file min number of blocks to be prefetched.")
 
 	flagSet.IntP("prometheus-port", "", 0, "Expose Prometheus metrics endpoint on this port and a path of /metrics.")
 
@@ -668,6 +696,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("prefetch.enable", flagSet.Lookup("enable-prefetch")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("gcs-retries.read-stall.enable", flagSet.Lookup("enable-read-stall-retry")); err != nil {
 		return err
 	}
@@ -837,6 +869,26 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.precondition-errors", flagSet.Lookup("precondition-errors")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("prefetch.block-size-mb", flagSet.Lookup("prefetch-block-size-mb")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("prefetch.max-parallelism", flagSet.Lookup("prefetch-max-parallelism")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("prefetch.max-prefetch-blocks", flagSet.Lookup("prefetch-max-prefetch-blocks")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("prefetch.max-prefetch-size-mb", flagSet.Lookup("prefetch-max-prefetch-size-mb")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("prefetch.min-prefetch-blocks", flagSet.Lookup("prefetch-min-prefetch-blocks")); err != nil {
 		return err
 	}
 
