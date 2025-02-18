@@ -27,6 +27,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/readers/gcs_readers"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
@@ -99,7 +100,7 @@ type FileInode struct {
 	// creates a cyclic dependency.
 	// Todo: Investigate if cyclic dependency can be removed by removing some unused
 	// code.
-	MRDWrapper gcsx.MultiRangeDownloaderWrapper
+	MRDWrapper gcs_readers.MultiRangeDownloaderWrapper
 
 	bwh    bufferedwrites.BufferedWriteHandler
 	config *cfg.Config
@@ -160,7 +161,7 @@ func NewFileInode(
 		globalMaxWriteBlocksSem: globalMaxBlocksSem,
 	}
 	var err error
-	f.MRDWrapper, err = gcsx.NewMultiRangeDownloaderWrapper(bucket, &f.src)
+	f.MRDWrapper, err = gcs_readers.NewMultiRangeDownloaderWrapper(bucket, &f.src)
 	if err != nil {
 		logger.Errorf("NewFileInode: Error in creating MRDWrapper %v", err)
 	}
