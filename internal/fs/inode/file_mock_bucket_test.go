@@ -58,18 +58,14 @@ func (t *FileMockBucketTest) SetupTest() {
 	t.bucket.On("BucketType").Return(gcs.BucketType{Hierarchical: false, Zonal: false})
 
 	// Create the inode.
-	t.createInode(fileName, localFile)
+	t.createLockedInode(fileName, localFile)
 }
 
 func (t *FileMockBucketTest) TearDownTest() {
 	t.in.Unlock()
 }
 
-func (t *FileMockBucketTest) SetupSubTest() {
-	t.SetupTest()
-}
-
-func (t *FileMockBucketTest) createInode(fileName string, fileType string) {
+func (t *FileMockBucketTest) createLockedInode(fileName string, fileType string) {
 	if fileType != emptyGCSFile && fileType != localFile {
 		t.T().Errorf("fileType should be either local or empty")
 	}
@@ -138,9 +134,11 @@ func (t *FileMockBucketTest) TestFlushLocalFileDoesNotForceFetchObjectFromGCS() 
 }
 
 func (t *FileMockBucketTest) TestFlushSyncedFileForceFetchObjectFromGCS() {
+	// Expect a CreateObject call because createLockedInode creates a synced file
+	// inode (backed by GCS object).
 	t.bucket.On("CreateObject", t.ctx, mock.AnythingOfType("*gcs.CreateObjectRequest")).
 		Return(&gcs.Object{Name: fileName}, nil)
-	t.createInode(fileName, emptyGCSFile)
+	t.createLockedInode(fileName, emptyGCSFile)
 	assert.False(t.T(), t.in.IsLocal())
 	// Expect both StatObject and CreateObject call on bucket.
 	t.bucket.On("StatObject", t.ctx, mock.AnythingOfType("*gcs.StatObjectRequest")).
