@@ -1,0 +1,4 @@
+cache-dir: /tmp/cache-dir-read-large-files-hns-true
+file-cache:
+    cache-file-for-range-read: false
+    max-size-mb: -1

@@ -17,6 +17,7 @@ package readers
 import (
 	"context"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -115,6 +116,7 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 		} else {
 			if fc.FileCacheHandle != nil {
 				isSeq = fc.FileCacheHandle.IsSequential(offset)
+				log.Println("Is Sequentaillll: ", isSeq)
 			}
 			requestOutput = fmt.Sprintf("OK (isSeq: %t, hit: %t) (%v)", isSeq, cacheHit, executionTime)
 		}
@@ -126,9 +128,11 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 		if isSeq {
 			readType = util.Sequential
 		}
+		log.Println("Is Seq2222: ", isSeq)
 		captureFileCacheMetrics(ctx, fc.MetricHandle, readType, n, cacheHit, executionTime)
 	}()
 
+	log.Println("Is Seq: ", isSeq)
 	// Create fileCacheHandle if not already.
 	if fc.FileCacheHandle == nil {
 		fc.FileCacheHandle, err = fc.FileCacheHandler.GetCacheHandle(fc.Obj, fc.Bucket, fc.CacheFileForRangeRead, offset)
