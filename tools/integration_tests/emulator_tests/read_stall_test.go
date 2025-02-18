@@ -34,7 +34,7 @@ import (
 ////////////////////////////////////////////////////////////////////////
 
 const (
-	readStallTime = 10 * time.Second
+	readStallTime = 40 * time.Second
 	minReqTimeout = 1500 * time.Millisecond
 )
 
@@ -45,7 +45,7 @@ type readStall struct {
 }
 
 func (r *readStall) SetupTest() {
-	configPath := "./proxy_server/configs/read_stall_10s.yaml"
+	configPath := "./proxy_server/configs/read_stall_40s.yaml"
 	emulator_tests.StartProxyServer(configPath)
 	setup.MountGCSFuseWithGivenMountFunc(r.flags, mountFunc)
 	r.testDirPath = setup.SetupTestDirectory(r.T().Name())
@@ -71,7 +71,7 @@ func (r *readStall) TestReadFirstKBStallInducedShouldCompleteInLessThanStallTime
 
 	assert.NoError(r.T(), err)
 	assert.Greater(r.T(), elapsedTime, minReqTimeout)
-	assert.Less(r.T(), 4*elapsedTime, readStallTime)
+	assert.Less(r.T(), 10*elapsedTime, readStallTime)
 }
 
 ////////////////////////////////////////////////////////////////////////

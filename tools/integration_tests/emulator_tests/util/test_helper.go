@@ -28,6 +28,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
@@ -138,7 +139,7 @@ func WriteFileAndSync(filePath string, fileSize int) (time.Duration, error) {
 func ReadFirstKB(t *testing.T, filePath string) (time.Duration, error) {
 	t.Helper()
 
-	file, err := os.Open(filePath)
+	file, err := operations.OpenFileAsReadonly(filePath)
 	if err != nil {
 		return 0, err
 	}
