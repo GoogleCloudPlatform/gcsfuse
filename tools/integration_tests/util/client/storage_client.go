@@ -50,8 +50,6 @@ func CreateStorageClient(ctx context.Context) (client *storage.Client, err error
 			return nil, fmt.Errorf("unable to fetch token-source for TPC: %w", err)
 		}
 		client, err = storage.NewClient(ctx, option.WithEndpoint("storage.apis-tpczero.goog:443"), option.WithTokenSource(ts))
-	} else if setup.TestOnCustomEndpoint() != "" {
-		client, err = storage.NewClient(ctx, option.WithEndpoint(setup.TestOnCustomEndpoint()))
 	} else {
 		if setup.IsZonalBucketRun() {
 			client, err = storage.NewGRPCClient(ctx, experimental.WithGRPCBidiReads())

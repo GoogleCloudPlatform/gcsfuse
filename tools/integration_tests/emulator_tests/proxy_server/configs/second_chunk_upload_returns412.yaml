@@ -1,8 +1,0 @@
-targetHost: http://localhost:9000
-retryConfig:
-- method: JsonCreate
-  retryInstruction: "return-412"
-  retryCount: 1
-  # Skip count of three is required as first call is used to create the testDir on the GCS and then
-  # second and third call are used in creating resumable upload session uri and first chunk upload.
-  skipCount: 3

@@ -579,26 +579,12 @@ func CloseFileShouldNotThrowError(file *os.File, t *testing.T) {
 	}
 }
 
-func CloseFileShouldThrowError(t *testing.T, file *os.File) {
-	t.Helper()
-	if err := file.Close(); err == nil {
-		t.Fatalf("file.Close() for file %s should throw an error: %v", file.Name(), err)
-	}
-}
-
 func SyncFile(fh *os.File, t *testing.T) {
 	err := fh.Sync()
 
 	// Verify fh.Sync operation succeeds.
 	if err != nil {
 		t.Fatalf("%s.Sync(): %v", fh.Name(), err)
-	}
-}
-
-func SyncFileShouldThrowError(t *testing.T, file *os.File) {
-	t.Helper()
-	if err := file.Sync(); err == nil {
-		t.Fatalf("file.Close() for file %s should throw an error: %v", file.Name(), err)
 	}
 }
 
