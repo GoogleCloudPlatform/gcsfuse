@@ -32,8 +32,9 @@ var (
 	// Flag to accept config-file path.
 	fConfigPath = flag.String("config-path", "configs/config.yaml", "Path to the file")
 	// Flag to turn on fDebug logs.
-	// TODO: We can add support for specifying a log path for fDebug logs in a future update.
 	fDebug = flag.Bool("debug", false, "Enable proxy server fDebug logs.")
+	// Flag to specify debug log path for proxy server.
+	fDebugLogPath = flag.String("debug-log-path", "", "Path to the file")
 	// Initialized before the server gets started.
 	gConfig    *Config
 	gOpManager *OperationManager
@@ -55,6 +56,12 @@ type ProxyHandler struct {
 // This function is used to simulate error scenarios for testing retry mechanisms.
 func AddRetryID(req *http.Request, r RequestTypeAndInstruction) error {
 	plantOp := gOpManager.retrieveOperation(r.RequestType)
+	if *fDebug {
+		log.Printf("\n\nRecieved request at proxy server: %v", req)
+		if plantOp != "" {
+			log.Println("Planting operation: ", plantOp)
+		}
+	}
 	if plantOp != "" {
 		testID, err := CreateRetryTest(gConfig.TargetHost, map[string][]string{r.Instruction: {plantOp}})
 		if err != nil {
@@ -128,6 +135,9 @@ func (ph ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_, err = io.Copy(w, resp.Body)
 	if err != nil {
 		log.Printf("Error in coping response body: %v", err)
+	}
+	if *fDebug {
+		log.Printf("Sending response from proxy server: %v", resp)
 	}
 }
 
