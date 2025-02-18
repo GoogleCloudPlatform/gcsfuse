@@ -185,9 +185,10 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 
 		fch.prevOffset = offset
 
-		if fch.fileDownloadJob.IsParallelDownloadsEnabled() {
-			waitForDownload = false
-		}
+		// TODO: Remove this code in final PR
+		//if fch.fileDownloadJob.IsParallelDownloadsEnabled() {
+		//	waitForDownload = false
+		//}
 
 		jobStatus, err = fch.fileDownloadJob.Download(ctx, requiredOffset, waitForDownload)
 		if err != nil {

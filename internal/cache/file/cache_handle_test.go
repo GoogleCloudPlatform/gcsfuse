@@ -868,14 +868,14 @@ func (cht *cacheHandleTest) Test_SequentialRead_Parallel_Download_True() {
 	)
 	cht.cacheHandle.fileDownloadJob = fileDownloadJob
 
-	n, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
+	_, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
 
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
-	assert.Less(cht.T(), jobStatus.Offset, offset)
-	assert.Equal(cht.T(), downloader.Downloading, jobStatus.Name)
-	assert.Equal(cht.T(), 0, n)
+	assert.True(cht.T(), jobStatus.Name == downloader.Completed || jobStatus.Name == downloader.Downloading)
+	assert.GreaterOrEqual(cht.T(), jobStatus.Offset, offset)
 	assert.False(cht.T(), cacheHit)
-	assert.ErrorContains(cht.T(), err, util.FallbackToGCSErrMsg)
+	assert.Nil(cht.T(), err)
+	cht.verifyContentRead(offset, dst)
 }
 
 func (cht *cacheHandleTest) Test_RandomRead_Parallel_Download_True() {
