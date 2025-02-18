@@ -147,7 +147,7 @@ You need to find such objects and replace them with any other valid gcs object n
 
 ### OSError [ErrNo 28] No space left on device
 
-The Writes in GCSFuse are staged locally before they are uploaded to GCS buckets. It takes up the space of the files that are being uploaded concurrently and deleted locally once they are uploaded. During this time, since the disk is used, this error may come up.
+The Writes in GCSFuse are staged locally before they are uploaded to GCS buckets. It takes up disk space equivalent to the size of the files that are being uploaded concurrently and deleted locally once they are uploaded. During this time, since the disk is used, this error may come up.
 
 The path can be configured by using the mount flag [--temp-dir](https://cloud.google.com/storage/docs/cloud-storage-fuse/cli-options) to a path which has the disk space if available. By default, it takes the `/tmp` directory of the machine. (sometimes may be limited depending on the machine ).
 
