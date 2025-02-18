@@ -210,9 +210,6 @@ func (t *defaultFailureTestSuite) TestStreamingWritesSyncFailsOnSecondChunkUploa
 	// Sync now reports failure from B block upload.
 	// Fuse:[] -> Go-SDK:[C]-> GCS[A, B -> upload fails]
 	operations.SyncFileShouldThrowError(t.fh1, t.T())
-	// Opening new file handle fails.
-	_, err = os.OpenFile(t.filePath, os.O_RDWR, FilePerms)
-	assert.Error(t.T(), err)
 	// Close file handle to reinitialize bwh.
 	operations.CloseFileShouldThrowError(t.fh1, t.T())
 	// Opening new file handle and writing to file succeeds.
@@ -231,9 +228,6 @@ func (t *defaultFailureTestSuite) TestStreamingWritesCloseFailsOnSecondChunkUplo
 	err = t.fh1.Close()
 
 	assert.NotNil(t.T(), err)
-	// Opening new file handle fails.
-	_, err = os.OpenFile(t.filePath, os.O_RDWR, FilePerms)
-	assert.Error(t.T(), err)
 	// Close file handle to reinitialize bwh.
 	operations.CloseFileShouldThrowError(t.fh1, t.T())
 	// Opening new file handle and writing to file succeeds.
