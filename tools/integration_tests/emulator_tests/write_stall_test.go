@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package write_stall
+package emulator_tests
 
 import (
 	"fmt"
@@ -41,7 +41,7 @@ type chunkTransferTimeoutInfinity struct {
 }
 
 func (s *chunkTransferTimeoutInfinity) Setup(t *testing.T) {
-	configPath := "../proxy_server/configs/write_stall_40s.yaml"
+	configPath := "./proxy_server/configs/write_stall_40s.yaml"
 	emulator_tests.StartProxyServer(configPath)
 	setup.MountGCSFuseWithGivenMountFunc(s.flags, mountFunc)
 }
@@ -103,14 +103,14 @@ func TestChunkTransferTimeout(t *testing.T) {
 	}{
 		{
 			name:       "SingleStall",
-			configPath: "../proxy_server/configs/write_stall_40s.yaml",
+			configPath: "./proxy_server/configs/write_stall_40s.yaml",
 			expectedTimeout: func(chunkTransferTimeoutSecs int) time.Duration {
 				return time.Duration(chunkTransferTimeoutSecs) * time.Second
 			},
 		},
 		{
 			name:       "MultipleStalls",
-			configPath: "../proxy_server/configs/write_stall_twice_40s.yaml", // 2 stalls
+			configPath: "./proxy_server/configs/write_stall_twice_40s.yaml", // 2 stalls
 			// Expect total time to be greater than the timeout multiplied by the number of stalls (2 in this case).
 			expectedTimeout: func(chunkTransferTimeoutSecs int) time.Duration {
 				return time.Duration(chunkTransferTimeoutSecs*2) * time.Second

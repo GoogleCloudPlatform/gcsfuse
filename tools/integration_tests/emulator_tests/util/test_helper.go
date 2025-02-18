@@ -35,7 +35,7 @@ import (
 // It launches the proxy server with the specified configuration and port, logs its output to a file.
 func StartProxyServer(configPath string) {
 	// Start the proxy in the background
-	cmd := exec.Command("go", "run", "../proxy_server/.", "--config-path="+configPath)
+	cmd := exec.Command("go", "run", "./proxy_server/.", "--config-path="+configPath)
 	logFileForProxyServer, err := os.Create(path.Join(os.Getenv("KOKORO_ARTIFACTS_DIR"), "proxy-"+setup.GenerateRandomString(5)))
 	if err != nil {
 		log.Fatal("Error in creating log file for proxy server.")
@@ -64,8 +64,7 @@ func KillProxyServerProcess(port int) error {
 	lines := strings.Split(string(output), "\n")
 	for _, line := range lines[1:] {
 		fields := strings.Fields(line)
-		// Kill only the process directly listening on the port.
-		if len(fields) > 1 && strings.Contains(line, "LISTEN") {
+		if len(fields) > 1 {
 			pidStr := fields[1]
 			pid, err := strconv.Atoi(pidStr)
 			if err != nil {

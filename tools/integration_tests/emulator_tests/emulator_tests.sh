@@ -88,14 +88,6 @@ DOCKER_NETWORK="--net=host"
 # Get the docker image for the testbench
 sudo docker pull $DOCKER_IMAGE
 
-# Remove the docker container if it's already running.
-CONTAINER_ID=$(sudo docker ps -aqf "name=$CONTAINER_NAME")
-if [[ -n "$CONTAINER_ID" ]]; then
-  echo "Container with ID:[$CONTAINER_ID] is already running with name:[$CONTAINER_NAME]"
-  echo "Stoping container...."
-  sudo docker stop $CONTAINER_ID
-fi
-
 # Start the testbench
 sudo docker run --name $CONTAINER_NAME --rm -d $DOCKER_NETWORK $DOCKER_IMAGE
 echo "Running the Cloud Storage testbench: $STORAGE_EMULATOR_HOST"
@@ -120,8 +112,5 @@ curl -X POST --data-binary @test.json \
     "$STORAGE_EMULATOR_HOST/storage/v1/b?project=test-project"
 rm test.json
 
-# Run Write Stall Tests.
-go test ./tools/integration_tests/emulator_tests/write_stall/... --integrationTest -v --testbucket=test-bucket -timeout 10m --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE
-
-# Run Streaming Writes Failure Tests.
-go test ./tools/integration_tests/emulator_tests/streaming_writes_failure/... -p 1 -short --integrationTest -v --testbucket=test-bucket --testOnCustomEndpoint=http://localhost:8020 -timeout 10m --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE
+# Run specific test suite
+go test ./tools/integration_tests/emulator_tests/... --integrationTest -v --testbucket=test-bucket -timeout 10m --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE
