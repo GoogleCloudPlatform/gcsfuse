@@ -21,8 +21,8 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"strings"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting"
@@ -87,7 +87,8 @@ func (testSuite *PromTest) SetupTest() {
 	testSuite.mountPoint, err = os.MkdirTemp("", "gcsfuse_monitoring_tests")
 	require.NoError(testSuite.T(), err)
 
-	setup.SetLogFile(fmt.Sprintf("%s%s.txt", "/tmp/gcsfuse_monitoring_test_", strings.ReplaceAll(testSuite.T().Name(), "/", "_")))
+	//setup.SetLogFile(fmt.Sprintf("%s%s.txt", "/tmp/gcsfuse_monitoring_test_", strings.ReplaceAll(testSuite.T().Name(), "/", "_")))
+	time.Sleep(30 * time.Minute)
 	err = testSuite.mount(testBucket)
 	require.NoError(testSuite.T(), err)
 }
@@ -98,12 +99,12 @@ func (testSuite *PromTest) TearDownTest() {
 	}
 	require.True(testSuite.T(), isPortOpen(prometheusPort))
 
-	err := os.Remove(testSuite.mountPoint)
-	assert.NoError(testSuite.T(), err)
+	//err := os.Remove(testSuite.mountPoint)
+	//assert.NoError(testSuite.T(), err)
 }
 
 func (testSuite *PromTest) TearDownSuite() {
-	os.RemoveAll(setup.TestDir())
+	//os.RemoveAll(setup.TestDir())
 }
 
 func (testSuite *PromTest) mount(bucketName string) error {
@@ -121,6 +122,7 @@ func (testSuite *PromTest) mount(bucketName string) error {
 	} else {
 		flags = append(flags, "--enable-otel=false")
 	}
+	flags = append(flags, "--debug_fs", "--debug_fuse", "--log-file="+setup.LogFile())
 	args := append(flags, bucketName, testSuite.mountPoint)
 
 	if err := mounting.MountGcsfuse(testSuite.gcsfusePath, args); err != nil {
@@ -242,15 +244,10 @@ func (testSuite *PromTest) TestReadMetrics() {
 }
 
 func TestPromOCSuite(t *testing.T) {
-	if setup.TestInstalledPackage() {
-		t.Skip("Skipping since testing on installed package")
-	}
+
 	suite.Run(t, &PromTest{enableOTEL: false})
 }
 
 func TestPromOTELSuite(t *testing.T) {
-	if setup.TestInstalledPackage() {
-		t.Skip("Skipping since testing on installed package")
-	}
 	suite.Run(t, &PromTest{enableOTEL: true})
 }
