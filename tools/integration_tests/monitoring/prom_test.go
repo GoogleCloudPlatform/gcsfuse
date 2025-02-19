@@ -103,7 +103,7 @@ func (testSuite *PromTest) TearDownTest() {
 }
 
 func (testSuite *PromTest) TearDownSuite() {
-	os.RemoveAll(setup.TestDir())
+	//os.RemoveAll(setup.TestDir())
 }
 
 func (testSuite *PromTest) mount(bucketName string) error {
@@ -242,7 +242,7 @@ func (testSuite *PromTest) TestReadMetrics() {
 }
 
 func TestPromOCSuite(t *testing.T) {
-	
+
 	suite.Run(t, &PromTest{enableOTEL: false})
 }
 
