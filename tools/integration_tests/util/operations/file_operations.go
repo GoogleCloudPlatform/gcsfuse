@@ -18,7 +18,6 @@ package operations
 import (
 	"bytes"
 	"compress/gzip"
-	"crypto/rand"
 	"fmt"
 	"hash/crc32"
 	"io"
@@ -34,6 +33,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 )
 
@@ -171,6 +171,14 @@ func WriteFile(fileName string, content string) (err error) {
 	return
 }
 
+func CloseFiles(t *testing.T, files []*os.File) {
+	t.Helper()
+	for _, file := range files {
+		err := file.Close()
+		assert.NoError(t, err)
+	}
+}
+
 func CloseFile(file *os.File) {
 	if err := file.Close(); err != nil {
 		log.Fatalf("error in closing: %v", err)
@@ -228,17 +236,11 @@ func ReadFileSequentially(filePath string, chunkSize int64) (content []byte, err
 	return
 }
 
-// Write data of chunkSize in file at given offset.
-func WriteChunkOfRandomBytesToFile(file *os.File, chunkSize int, offset int64) error {
-	return WriteChunkOfRandomBytesToFiles([]*os.File{file}, chunkSize, offset)
-}
-
 func WriteChunkOfRandomBytesToFiles(files []*os.File, chunkSize int, offset int64) error {
 	// Generate random data of chunk size.
-	chunk := make([]byte, chunkSize)
-	_, err := rand.Read(chunk)
+	chunk, err := GenerateRandomData(int64(chunkSize))
 	if err != nil {
-		return fmt.Errorf("error while generating random string: %v", err)
+		return fmt.Errorf("error in generating random data: %v", err)
 	}
 
 	for _, file := range files {
@@ -261,28 +263,17 @@ func WriteChunkOfRandomBytesToFiles(files []*os.File, chunkSize int, offset int6
 	return nil
 }
 
-func WriteFileSequentially(filePath string, fileSize int64, chunkSize int64) (err error) {
-	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT|os.O_CREATE, FilePermission_0600)
-	if err != nil {
-		log.Fatalf("Error in opening file: %v", err)
-	}
-
-	// Closing file at the end.
-	defer CloseFile(file)
+func WriteFilesSequentially(t *testing.T, filePaths []string, fileSize int64, chunkSize int64) {
+	t.Helper()
+	files := OpenFiles(t, filePaths)
+	defer CloseFiles(t, files)
 
 	var offset int64 = 0
-
 	for offset < fileSize {
-		// Get random chunkSize or remaining filesize data into chunk.
-		if (fileSize - offset) < chunkSize {
-			chunkSize = fileSize - offset
-		}
-
-		err := WriteChunkOfRandomBytesToFile(file, int(chunkSize), offset)
-		if err != nil {
-			log.Fatalf("Error in writing chunk: %v", err)
-		}
-
+		// Reduce chunk size to remaining file size in case chunk size is larger.
+		chunkSize = min(chunkSize, fileSize-offset)
+		err := WriteChunkOfRandomBytesToFiles(files, int(chunkSize), offset)
+		assert.NoError(t, err)
 		offset = offset + chunkSize
 	}
 	return
@@ -482,7 +473,20 @@ func CreateFile(filePath string, filePerms os.FileMode, t testing.TB) (f *os.Fil
 	return
 }
 
-func OpenFile(filePath string, t testing.TB) (f *os.File) {
+func OpenFiles(t *testing.T, filePaths []string) []*os.File {
+	t.Helper()
+	var files []*os.File
+
+	// Open all files.
+	for _, filePath := range filePaths {
+		file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT|os.O_CREATE, FilePermission_0600)
+		require.NoError(t, err)
+		files = append(files, file)
+	}
+	return files
+}
+
+func OpenFile(filePath string, t *testing.T) (f *os.File) {
 	f, err := os.OpenFile(filePath, os.O_RDWR, FilePermission_0777)
 	if err != nil {
 		t.Fatalf("OpenFile(%s): %v", filePath, err)
