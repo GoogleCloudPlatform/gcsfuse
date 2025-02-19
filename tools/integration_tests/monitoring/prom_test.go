@@ -22,6 +22,7 @@ import (
 	"os/exec"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting"
@@ -89,6 +90,8 @@ func (testSuite *PromTest) SetupTest() {
 	//setup.SetLogFile(fmt.Sprintf("%s%s.txt", "/tmp/gcsfuse_monitoring_test_", strings.ReplaceAll(testSuite.T().Name(), "/", "_")))
 	err = testSuite.mount(testBucket)
 	require.NoError(testSuite.T(), err)
+
+	time.Sleep(30 * time.Minute)
 }
 
 func (testSuite *PromTest) TearDownTest() {
