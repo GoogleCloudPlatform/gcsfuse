@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"regexp"
 	"sort"
@@ -147,5 +148,6 @@ func GetStructuredLogsSortedByTimestamp(logFilePath string, t *testing.T) []*Str
 		return false
 	})
 
+	log.Println("StructuredReadLogEntry: ", structuredReadLogs)
 	return structuredReadLogs
 }
