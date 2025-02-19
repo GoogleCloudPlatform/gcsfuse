@@ -805,47 +805,59 @@ func (t *RandomReaderStretchrTest) Test_ReadFromMultiRangeReader_ReadChunk() {
 	}
 }
 
-func (t *RandomReaderStretchrTest) Test_ReadFromMultiRangeReader_ValidateTimeout() {
+func (t *RandomReaderStretchrTest) Test_ReadFromMultiRangeReader_ErrorHandling() {
 	testCases := []struct {
-		name      string
-		dataSize  int
-		sleepTime time.Duration
+		name               string
+		dataSize           int
+		sleepTime          time.Duration
+		expectedErrKeyword string
 	}{
 		{
-			name:      "TimeoutPlusOneMilliSecond",
-			dataSize:  100,
-			sleepTime: TestTimeoutForMultiRangeRead + time.Millisecond,
+			name:               "NilMRDWrapper",
+			dataSize:           100,
+			sleepTime:          0,
+			expectedErrKeyword: "MultiRangeDownloaderWrapper",
 		},
-		// Ensure that this is always the last test
 		{
-			name:      "TimeoutValue",
-			dataSize:  100,
-			sleepTime: TestTimeoutForMultiRangeRead,
+			name:               "TimeoutPlusOneMilliSecond",
+			dataSize:           100,
+			sleepTime:          TestTimeoutForMultiRangeRead + time.Millisecond,
+			expectedErrKeyword: "Timeout",
+		},
+		{
+			name:               "TimeoutValue",
+			dataSize:           100,
+			sleepTime:          TestTimeoutForMultiRangeRead,
+			expectedErrKeyword: "Timeout",
 		},
 	}
 
-	for i, tc := range testCases {
+	for _, tc := range testCases {
 		t.Run(tc.name, func() {
 			t.rr.wrapped.reader = nil
 			t.rr.wrapped.isMRDInUse = false
 			t.object.Size = uint64(tc.dataSize)
 			testContent := testutil.GenerateRandomBytes(int(t.object.Size))
-			fakeMRDWrapper, err := NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{})
-			assert.Nil(t.T(), err, "Error in creating MRDWrapper")
-			t.rr.wrapped.mrdWrapper = &fakeMRDWrapper
-			t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, testContent, tc.sleepTime)).Times(1)
-			t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: true}).Times(1)
+			if tc.name == "NilMRDWrapper" {
+				t.rr.wrapped.mrdWrapper = nil
+			} else {
+				fakeMRDWrapper, err := NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{})
+				assert.Nil(t.T(), err, "Error in creating MRDWrapper")
+				t.rr.wrapped.mrdWrapper = &fakeMRDWrapper
+				t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, testContent, tc.sleepTime)).Once()
+			}
+			t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: true}).Once()
 			buf := make([]byte, tc.dataSize)
 
 			bytesRead, err := t.rr.wrapped.readFromMultiRangeReader(t.rr.ctx, buf, 0, int64(t.object.Size), TestTimeoutForMultiRangeRead)
 
-			if i == len(testCases)-1 && bytesRead != 0 {
+			if tc.name == "TimeoutValue" && bytesRead != 0 {
 				assert.NoError(t.T(), err)
 				assert.Equal(t.T(), tc.dataSize, bytesRead)
 				assert.Equal(t.T(), testContent[:tc.dataSize], buf[:bytesRead])
 				return
 			}
-			assert.ErrorContains(t.T(), err, "Timeout")
+			assert.ErrorContains(t.T(), err, tc.expectedErrKeyword)
 		})
 	}
 }

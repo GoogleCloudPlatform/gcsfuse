@@ -143,6 +143,11 @@ func (t *mrdWrapperTest) Test_Read() {
 			start: 10,
 			end:   10 + int(t.object.Size)/2,
 		},
+		{
+			name:  "ReadEmpty",
+			start: 10,
+			end:   10,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -156,6 +161,57 @@ func (t *mrdWrapperTest) Test_Read() {
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), tc.end-tc.start, bytesRead)
 			assert.Equal(t.T(), t.objectData[tc.start:tc.end], buf[:bytesRead])
+		})
+	}
+}
+
+func (t *mrdWrapperTest) Test_Read_ErrorHandling() {
+	testCases := []struct {
+		name               string
+		start              int
+		end                int
+		expectedErrKeyword string
+	}{
+		{
+			name:               "ErrorInCreatingMRD",
+			start:              0,
+			end:                100,
+			expectedErrKeyword: "MultiRangeDownloader",
+		},
+		{
+			name:               "TimeoutError",
+			start:              0,
+			end:                100,
+			expectedErrKeyword: "Timeout",
+		},
+		{
+			name:               "ContextCancelled",
+			start:              0,
+			end:                100,
+			expectedErrKeyword: "Context Cancelled",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			ctx := context.Background()
+			buf := make([]byte, tc.end-tc.start)
+			t.mrdWrapper.Wrapped = nil
+			if tc.name == "ErrorInCreatingMRD" {
+				t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("Error in creating MRD")).Once()
+			} else if tc.name == "TimeoutError" {
+				t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, t.mrdTimeout+time.Millisecond), nil).Once()
+			} else if tc.name == "ContextCancelled" {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithCancel(context.Background())
+				cancel()
+				t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond), nil).Once()
+			}
+
+			bytesRead, err := t.mrdWrapper.Read(ctx, buf, int64(tc.start), int64(tc.end), t.mrdTimeout, common.NewNoopMetrics())
+
+			assert.ErrorContains(t.T(), err, tc.expectedErrKeyword)
+			assert.Equal(t.T(), 0, bytesRead)
 		})
 	}
 }
