@@ -100,6 +100,7 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 
 	// By default, consider read type random if the offset is non-zero.
 	isSeq := offset == 0
+	log.Println("Is Seq in start: ", isSeq)
 
 	// Request log and start the execution timer.
 	requestId := uuid.New()
@@ -128,7 +129,7 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 		if isSeq {
 			readType = util.Sequential
 		}
-		log.Println("Is Seq2222: ", isSeq)
+		log.Println("Is Seq2222: ", isSeq, readType)
 		captureFileCacheMetrics(ctx, fc.MetricHandle, readType, n, cacheHit, executionTime)
 	}()
 
