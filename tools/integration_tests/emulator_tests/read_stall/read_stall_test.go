@@ -45,7 +45,7 @@ type readStall struct {
 }
 
 func (r *readStall) SetupSuite() {
-	configPath := "./proxy_server/configs/read_stall_40s.yaml"
+	configPath := "../proxy_server/configs/read_stall_40s.yaml"
 	emulator_tests.StartProxyServer(configPath)
 	setup.MountGCSFuseWithGivenMountFunc(r.flags, mountFunc)
 }

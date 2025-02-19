@@ -121,7 +121,7 @@ curl -X POST --data-binary @test.json \
 rm test.json
 
 # Run Read Stall Tests.
-go test ./tools/integration_tests/emulator_tests/read_stall/... --integrationTest -v --testbucket=test-bucket -timeout 60m --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE
+go test ./tools/integration_tests/emulator_tests/read_stall/... --integrationTest -v --testbucket=test-bucket -timeout 10m --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE
 
 # Run Write Stall Tests.
 go test ./tools/integration_tests/emulator_tests/write_stall/... --integrationTest -v --testbucket=test-bucket -timeout 10m --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE
