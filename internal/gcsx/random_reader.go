@@ -571,11 +571,11 @@ func (rr *randomReader) getReadInfo(
 
 // readerType specifies the go-sdk interface to use for reads.
 func readerType(readType string, start int64, end int64, bucketType gcs.BucketType) ReaderType {
-	bytesToBeRead := end - start
-	if readType == util.Random && bytesToBeRead < maxReadSize && bucketType.Zonal {
-		return MultiRangeReader
-	}
-	return RangeReader
+	// bytesToBeRead := end - start
+	// if readType == util.Random && bytesToBeRead < maxReadSize && bucketType.Zonal {
+	// 	return MultiRangeReader
+	// }
+	return MultiRangeReader
 }
 
 // readFromRangeReader reads using the NewReader interface of go-sdk. Its uses
