@@ -88,10 +88,9 @@ func (testSuite *PromTest) SetupTest() {
 	require.NoError(testSuite.T(), err)
 
 	//setup.SetLogFile(fmt.Sprintf("%s%s.txt", "/tmp/gcsfuse_monitoring_test_", strings.ReplaceAll(testSuite.T().Name(), "/", "_")))
+	time.Sleep(30 * time.Minute)
 	err = testSuite.mount(testBucket)
 	require.NoError(testSuite.T(), err)
-
-	time.Sleep(30 * time.Minute)
 }
 
 func (testSuite *PromTest) TearDownTest() {
