@@ -508,10 +508,10 @@ func UnmountGCSFuseAndDeleteLogFile(rootDir string) {
 	UnmountGCSFuse(rootDir)
 	// delete log file created
 	if *mountedDirectory == "" {
-		//err := os.Remove(LogFile())
-		//if err != nil {
-		//	LogAndExit(fmt.Sprintf("Error in deleting log file: %v", err))
-		//}
+		err := os.Remove(LogFile())
+		if err != nil {
+			LogAndExit(fmt.Sprintf("Error in deleting log file: %v", err))
+		}
 	}
 }
 

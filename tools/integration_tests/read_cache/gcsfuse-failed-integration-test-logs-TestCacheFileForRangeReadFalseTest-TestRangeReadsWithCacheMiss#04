@@ -1,0 +1,79 @@
+/tmp/gcsfuse_readwrite_test_3721810548/bin/gcsfuse --config-file=/tmp/gcsfuse_readwrite_test_3721810548/configForReadCacheWithParallelDownload --debug_gcs --debug_fs --debug_fuse --log-file=/tmp/gcsfuse_readwrite_test_3721810548/gcsfuse.log tulsishah-hns /tmp/gcsfuse_readwrite_test_3721810548/mnt
+{"timestamp":{"seconds":1739955019,"nanos":809426459},"severity":"INFO","message":"Start gcsfuse/fake_version (Go version go1.25-20250216-RC00 cl/727547642 +d524e1eccd X:fieldtrack,boringcrypto) for app \"\" using mount point: /tmp/gcsfuse_readwrite_test_3721810548/mnt\n"}
+{"timestamp":{"seconds":1739955019,"nanos":809494569},"severity":"INFO","message":"GCSFuse config","config":{"AppName":"","CacheDir":"/tmp/gcsfuse_readwrite_test_3721810548/cache-dir-read-cache-hns-true","Debug":{"ExitOnInvariantViolation":false,"Fuse":true,"Gcs":true,"LogMutex":false},"EnableAtomicRenameObject":false,"EnableHns":true,"FileCache":{"CacheFileForRangeRead":false,"DownloadChunkSizeMb":4,"EnableCrc":true,"EnableODirect":false,"EnableParallelDownloads":true,"MaxParallelDownloads":-1,"MaxSizeMb":50,"ParallelDownloadsPerFile":4,"WriteBufferSize":4194304},"FileSystem":{"DirMode":"755","DisableParallelDirops":false,"FileMode":"644","FuseOptions":[],"Gid":-1,"HandleSigterm":true,"IgnoreInterrupts":true,"KernelListCacheTtlSecs":0,"PreconditionErrors":true,"RenameDirLimit":0,"TempDir":"","Uid":-1},"Foreground":true,"GcsAuth":{"AnonymousAccess":false,"KeyFile":"","ReuseTokenFromUrl":true,"TokenUrl":""},"GcsConnection":{"BillingProject":"","ClientProtocol":"http1","CustomEndpoint":"","ExperimentalEnableJsonRead":false,"GrpcConnPoolSize":1,"HttpClientTimeout":0,"LimitBytesPerSec":-1,"LimitOpsPerSec":-1,"MaxConnsPerHost":0,"MaxIdleConnsPerHost":100,"SequentialReadSizeMb":200},"GcsRetries":{"ChunkTransferTimeoutSecs":10,"MaxRetryAttempts":0,"MaxRetrySleep":30000000000,"Multiplier":2,"ReadStall":{"Enable":false,"InitialReqTimeout":20000000000,"MaxReqTimeout":1200000000000,"MinReqTimeout":1500000000,"ReqIncreaseRate":15,"ReqTargetPercentile":0.99}},"ImplicitDirs":false,"List":{"EnableEmptyManagedFolders":false},"Logging":{"FilePath":"/tmp/gcsfuse_readwrite_test_3721810548/gcsfuse.log","Format":"json","LogRotate":{"BackupFileCount":10,"Compress":true,"MaxFileSizeMb":512},"Severity":"TRACE"},"MetadataCache":{"DeprecatedStatCacheCapacity":20460,"DeprecatedStatCacheTtl":60000000000,"DeprecatedTypeCacheTtl":60000000000,"EnableNonexistentTypeCache":false,"ExperimentalMetadataPrefetchOnMount":"disabled","NegativeTtlSecs":5,"StatCacheMaxSizeMb":32,"TtlSecs":60,"TypeCacheMaxSizeMb":4},"Metrics":{"CloudMetricsExportIntervalSecs":0,"EnableOtel":true,"PrometheusPort":0,"StackdriverExportInterval":0},"Monitoring":{"ExperimentalOpentelemetryCollectorAddress":"","ExperimentalTracingMode":"","ExperimentalTracingSamplingRatio":0},"OnlyDir":"","Write":{"BlockSizeMb":33554432,"CreateEmptyFile":false,"EnableStreamingWrites":false,"GlobalMaxBlocks":9223372036854775807,"MaxBlocksPerFile":1}}}
+{"timestamp":{"seconds":1739955019,"nanos":809779570},"severity":"INFO","message":"Creating Storage handle..."}
+{"timestamp":{"seconds":1739955019,"nanos":809786339},"severity":"INFO","message":"UserAgent = gcsfuse/fake_version (Go version go1.25-20250216-RC00 cl/727547642 +d524e1eccd X:fieldtrack,boringcrypto) (GPN:gcsfuse) (Cfg:1:0:1:0)\n"}
+{"timestamp":{"seconds":1739955019,"nanos":810399230},"severity":"INFO","message":"Creating a mount at \"/tmp/gcsfuse_readwrite_test_3721810548/mnt\"\n"}
+{"timestamp":{"seconds":1739955019,"nanos":810417319},"severity":"INFO","message":"Creating a new server...\n"}
+{"timestamp":{"seconds":1739955019,"nanos":810592170},"severity":"INFO","message":"Set up root directory for bucket tulsishah-hns"}
+{"timestamp":{"seconds":1739955019,"nanos":810605279},"severity":"INFO","message":"GetStorageLayout <- (tulsishah-hns)"}
+{"timestamp":{"seconds":1739955019,"nanos":967153278},"severity":"INFO","message":"GetStorageLayout -> (tulsishah-hns) 156 msec"}
+{"timestamp":{"seconds":1739955019,"nanos":967444988},"severity":"TRACE","message":"gcs: Req              0x0: <- ListObjects(\"\")"}
+{"timestamp":{"seconds":1739955020,"nanos":79446655},"severity":"TRACE","message":"gcs: Req              0x0: -> ListObjects(\"\") (111.991757ms): OK"}
+{"timestamp":{"seconds":1739955020,"nanos":79526415},"severity":"INFO","message":"Mounting file system \"tulsishah-hns\"..."}
+{"timestamp":{"seconds":1739955020,"nanos":79564635},"severity":"TRACE","message":"fuse_debug: Beginning the mounting kickoff process"}
+{"timestamp":{"seconds":1739955020,"nanos":79571675},"severity":"TRACE","message":"fuse_debug: Parsing fuse file descriptor"}
+{"timestamp":{"seconds":1739955020,"nanos":79577685},"severity":"TRACE","message":"fuse_debug: Preparing for direct mounting"}
+{"timestamp":{"seconds":1739955020,"nanos":79609335},"severity":"TRACE","message":"fuse_debug: Successfully opened the /dev/fuse in blocking mode"}
+{"timestamp":{"seconds":1739955020,"nanos":79620495},"severity":"TRACE","message":"fuse_debug: Starting the unix mounting"}
+{"timestamp":{"seconds":1739955020,"nanos":79662835},"severity":"TRACE","message":"fuse_debug: Directmount failed. Trying fallback."}
+{"timestamp":{"seconds":1739955020,"nanos":79748855},"severity":"TRACE","message":"fuse_debug: Creating a socket pair"}
+{"timestamp":{"seconds":1739955020,"nanos":79773955},"severity":"TRACE","message":"fuse_debug: Creating files to wrap the sockets"}
+{"timestamp":{"seconds":1739955020,"nanos":79781895},"severity":"TRACE","message":"fuse_debug: Starting fusermount/os mount"}
+{"timestamp":{"seconds":1739955020,"nanos":82644225},"severity":"TRACE","message":"fuse_debug: Wrapping socket pair in a connection"}
+{"timestamp":{"seconds":1739955020,"nanos":82704395},"severity":"TRACE","message":"fuse_debug: Checking that we have a unix domain socket"}
+{"timestamp":{"seconds":1739955020,"nanos":82711565},"severity":"TRACE","message":"fuse_debug: Read a message from socket"}
+{"timestamp":{"seconds":1739955020,"nanos":82730715},"severity":"TRACE","message":"fuse_debug: Successfully read the socket message."}
+{"timestamp":{"seconds":1739955020,"nanos":82736695},"severity":"TRACE","message":"fuse_debug: Converting FD into os.File"}
+{"timestamp":{"seconds":1739955020,"nanos":82768345},"severity":"TRACE","message":"fuse_debug: Completed the mounting kickoff process"}
+{"timestamp":{"seconds":1739955020,"nanos":82773675},"severity":"TRACE","message":"fuse_debug: Creating a connection object"}
+{"timestamp":{"seconds":1739955020,"nanos":83204305},"severity":"TRACE","message":"fuse_debug: Op 0x00000002        connection.go:420] <- init"}
+{"timestamp":{"seconds":1739955020,"nanos":84689575},"severity":"TRACE","message":"fuse_debug: Op 0x00000002        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739955020,"nanos":84718425},"severity":"TRACE","message":"fuse_debug: Successfully created the connection"}
+{"timestamp":{"seconds":1739955020,"nanos":84731135},"severity":"TRACE","message":"fuse_debug: Waiting for mounting process to complete"}
+{"timestamp":{"seconds":1739955020,"nanos":84739555},"severity":"INFO","message":"File system has been successfully mounted."}
+{"timestamp":{"seconds":1739955020,"nanos":84879245},"severity":"TRACE","message":"fuse_debug: Op 0x00000004        connection.go:420] <- GetInodeAttributes (inode 1, PID 181543)"}
+{"timestamp":{"seconds":1739955020,"nanos":85087875},"severity":"TRACE","message":"fuse_debug: Op 0x00000004        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739955020,"nanos":85322895},"severity":"TRACE","message":"fuse_debug: Op 0x00000006        connection.go:420] <- LookUpInode (parent 1, name \".Trash\", PID 181543)"}
+{"timestamp":{"seconds":1739955020,"nanos":85442875},"severity":"TRACE","message":"gcs: Req              0x1: <- GetFolder(\".Trash/\")"}
+{"timestamp":{"seconds":1739955020,"nanos":85489285},"severity":"TRACE","message":"gcs: Req              0x2: <- StatObject(\".Trash\")"}
+{"timestamp":{"seconds":1739955020,"nanos":132207928},"severity":"TRACE","message":"gcs: Req              0x2: -> StatObject(\".Trash\") (46.723793ms): gcs.NotFoundError: storage: object doesn't exist"}
+{"timestamp":{"seconds":1739955020,"nanos":137480998},"severity":"TRACE","message":"gcs: Req              0x1: -> GetFolder(\".Trash/\") (52.032483ms): gcs.NotFoundError: error getting metadata for folder: .Trash/, rpc error: code = NotFound desc = The folder does not exist."}
+{"timestamp":{"seconds":1739955020,"nanos":137541408},"severity":"TRACE","message":"fuse_debug: Op 0x00000006        connection.go:515] -> Error: \"no such file or directory\""}
+{"timestamp":{"seconds":1739955020,"nanos":137821128},"severity":"TRACE","message":"fuse_debug: Op 0x00000008        connection.go:420] <- LookUpInode (parent 1, name \".Trash-1052824\", PID 181543)"}
+{"timestamp":{"seconds":1739955020,"nanos":137996598},"severity":"TRACE","message":"gcs: Req              0x3: <- GetFolder(\".Trash-1052824/\")"}
+{"timestamp":{"seconds":1739955020,"nanos":138033688},"severity":"TRACE","message":"gcs: Req              0x4: <- StatObject(\".Trash-1052824\")"}
+{"timestamp":{"seconds":1739955020,"nanos":160703009},"severity":"TRACE","message":"gcs: Req              0x4: -> StatObject(\".Trash-1052824\") (22.670121ms): gcs.NotFoundError: storage: object doesn't exist"}
+{"timestamp":{"seconds":1739955020,"nanos":187703031},"severity":"TRACE","message":"gcs: Req              0x3: -> GetFolder(\".Trash-1052824/\") (49.692873ms): gcs.NotFoundError: error getting metadata for folder: .Trash-1052824/, rpc error: code = NotFound desc = The folder does not exist."}
+{"timestamp":{"seconds":1739955020,"nanos":187770371},"severity":"TRACE","message":"fuse_debug: Op 0x00000008        connection.go:515] -> Error: \"no such file or directory\""}
+{"timestamp":{"seconds":1739955020,"nanos":404854224},"severity":"TRACE","message":"fuse_debug: Op 0x0000000a        connection.go:420] <- LookUpInode (parent 1, name \"ReadCacheTest\", PID 808363)"}
+{"timestamp":{"seconds":1739955020,"nanos":404979224},"severity":"TRACE","message":"gcs: Req              0x5: <- GetFolder(\"ReadCacheTest/\")"}
+{"timestamp":{"seconds":1739955020,"nanos":405012674},"severity":"TRACE","message":"gcs: Req              0x6: <- StatObject(\"ReadCacheTest\")"}
+{"timestamp":{"seconds":1739955020,"nanos":452337247},"severity":"TRACE","message":"gcs: Req              0x6: -> StatObject(\"ReadCacheTest\") (47.327873ms): gcs.NotFoundError: storage: object doesn't exist"}
+{"timestamp":{"seconds":1739955020,"nanos":453441747},"severity":"TRACE","message":"gcs: Req              0x5: -> GetFolder(\"ReadCacheTest/\") (48.463332ms): OK"}
+{"timestamp":{"seconds":1739955020,"nanos":453520787},"severity":"TRACE","message":"fuse_debug: Op 0x0000000a        connection.go:513] -> OK (inode 2)"}
+{"timestamp":{"seconds":1739955020,"nanos":453726747},"severity":"TRACE","message":"fuse_debug: Op 0x0000000c        connection.go:420] <- LookUpInode (parent 2, name \"foo8yhl\", PID 808363)"}
+{"timestamp":{"seconds":1739955020,"nanos":453830156},"severity":"TRACE","message":"gcs: Req              0x7: <- GetFolder(\"ReadCacheTest/foo8yhl/\")"}
+{"timestamp":{"seconds":1739955020,"nanos":453892336},"severity":"TRACE","message":"gcs: Req              0x8: <- StatObject(\"ReadCacheTest/foo8yhl\")"}
+{"timestamp":{"seconds":1739955020,"nanos":476425948},"severity":"TRACE","message":"gcs: Req              0x8: -> StatObject(\"ReadCacheTest/foo8yhl\") (22.542922ms): OK"}
+{"timestamp":{"seconds":1739955020,"nanos":505712409},"severity":"TRACE","message":"gcs: Req              0x7: -> GetFolder(\"ReadCacheTest/foo8yhl/\") (51.868713ms): gcs.NotFoundError: error getting metadata for folder: ReadCacheTest/foo8yhl/, rpc error: code = NotFound desc = The folder does not exist."}
+{"timestamp":{"seconds":1739955020,"nanos":505774059},"severity":"TRACE","message":"fuse_debug: Op 0x0000000c        connection.go:513] -> OK (inode 3)"}
+{"timestamp":{"seconds":1739955020,"nanos":506113990},"severity":"TRACE","message":"fuse_debug: Op 0x0000000e        connection.go:420] <- OpenFile (inode 3, PID 808363)"}
+{"timestamp":{"seconds":1739955020,"nanos":506232630},"severity":"TRACE","message":"fuse_debug: Op 0x0000000e        connection.go:513] -> OK (handle 0)"}
+{"timestamp":{"seconds":1739955020,"nanos":506383939},"severity":"TRACE","message":"fuse_debug: Op 0x00000010        connection.go:420] <- unknown (inode 3, opcode 40)"}
+{"timestamp":{"seconds":1739955020,"nanos":506486850},"severity":"TRACE","message":"fuse_debug: Op 0x00000010        connection.go:515] -> Error: \"function not implemented\""}
+{"timestamp":{"seconds":1739955020,"nanos":506609039},"severity":"TRACE","message":"fuse_debug: Op 0x00000012        connection.go:420] <- LookUpInode (parent 1, name \"ReadCacheTest\", PID 808363)"}
+{"timestamp":{"seconds":1739955020,"nanos":506696059},"severity":"TRACE","message":"fuse_debug: Op 0x00000012        connection.go:513] -> OK (inode 2)"}
+{"timestamp":{"seconds":1739955020,"nanos":506855979},"severity":"TRACE","message":"fuse_debug: Op 0x00000014        connection.go:420] <- LookUpInode (parent 2, name \"foo8yhl\", PID 808363)"}
+{"timestamp":{"seconds":1739955020,"nanos":506935259},"severity":"TRACE","message":"fuse_debug: Op 0x00000014        connection.go:513] -> OK (inode 3)"}
+{"timestamp":{"seconds":1739955020,"nanos":507093559},"severity":"TRACE","message":"fuse_debug: Op 0x00000016        connection.go:420] <- ReadFile (inode 3, PID 808363, handle 0, offset 5000, 131072 bytes)"}
+{"timestamp":{"seconds":1739955020,"nanos":507196019},"severity":"TRACE","message":"9ce68de4-e9b8 <- FileCache(tulsishah-hns:/ReadCacheTest/foo8yhl, offset: 5000, size: 131072 handle: 0)"}
+{"timestamp":{"seconds":1739955020,"nanos":507213370},"severity":"TRACE","message":"9ce68de4-e9b8 -> err: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent (3.171µs)"}
+{"timestamp":{"seconds":1739955020,"nanos":507220619},"severity":"INFO","message":"Error in file cache reading:  ReadAt: while reading from cache: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent"}
+{"timestamp":{"seconds":1739955020,"nanos":507236899},"severity":"ERROR","message":"ReadFile: input/output error, fh.reader.ReadAt: ReadAt: while reading from cache: ReadAt: while reading from cache: addFileInfoEntryAndCreateDownloadJob: cacheFileForRangeRead is false, read type random read and fileInfo entry is absent"}
+{"timestamp":{"seconds":1739955020,"nanos":507248310},"severity":"TRACE","message":"fuse_debug: Op 0x00000016        connection.go:515] -> Error: \"input/output error\""}
+{"timestamp":{"seconds":1739955020,"nanos":507254490},"severity":"ERROR","message":"fuse: *fuseops.ReadFileOp error: input/output error"}
+{"timestamp":{"seconds":1739955020,"nanos":507414419},"severity":"TRACE","message":"fuse_debug: Op 0x00000018        connection.go:420] <- FlushFile (inode 3, PID 808363)"}
+{"timestamp":{"seconds":1739955020,"nanos":507491390},"severity":"TRACE","message":"fuse_debug: Op 0x00000018        connection.go:513] -> OK ()"}
+{"timestamp":{"seconds":1739955020,"nanos":507581079},"severity":"TRACE","message":"fuse_debug: Op 0x0000001a        connection.go:420] <- ReleaseFileHandle (PID 0, handle 0)"}
+{"timestamp":{"seconds":1739955020,"nanos":507656490},"severity":"TRACE","message":"fuse_debug: Op 0x0000001a        connection.go:513] -> OK ()"}
