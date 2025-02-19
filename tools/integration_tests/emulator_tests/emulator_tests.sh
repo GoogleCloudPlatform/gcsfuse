@@ -120,11 +120,5 @@ curl -X POST --data-binary @test.json \
     "$STORAGE_EMULATOR_HOST/storage/v1/b?project=test-project"
 rm test.json
 
-# Run Read Stall Tests.
-go test ./tools/integration_tests/emulator_tests/read_stall/... --integrationTest -v --testbucket=test-bucket -timeout 10m --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE
-
-# Run Write Stall Tests.
-go test ./tools/integration_tests/emulator_tests/write_stall/... --integrationTest -v --testbucket=test-bucket -timeout 10m --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE
-
-# Run Streaming Writes Failure Tests.
-go test ./tools/integration_tests/emulator_tests/streaming_writes_failure/... -p 1 -short --integrationTest -v --testbucket=test-bucket --testOnCustomEndpoint=http://localhost:8020 -timeout 10m --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE
+# Run all the tests.
+go test ./tools/integration_tests/emulator_tests/... -p 1 --integrationTest -v --testbucket=test-bucket --testOnCustomEndpoint=http://localhost:8020 -timeout 10m --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE
