@@ -120,6 +120,7 @@ func (testSuite *PromTest) mount(bucketName string) error {
 	} else {
 		flags = append(flags, "--enable-otel=false")
 	}
+	flags = append(flags, "--debug_fs", "--debug_fuse", "--log-file="+setup.LogFile())
 	args := append(flags, bucketName, testSuite.mountPoint)
 
 	if err := mounting.MountGcsfuse(testSuite.gcsfusePath, args); err != nil {
