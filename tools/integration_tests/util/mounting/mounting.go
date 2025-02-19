@@ -25,6 +25,7 @@ import (
 )
 
 func MountGcsfuse(binaryFile string, flags []string) error {
+	flags = append(flags, "--debug_fs", "--debug_fuse", "--log-file="+setup.LogFile())
 	mountCmd := exec.Command(
 		binaryFile,
 		flags...,

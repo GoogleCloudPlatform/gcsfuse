@@ -21,7 +21,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
@@ -87,7 +86,7 @@ func (testSuite *PromTest) SetupTest() {
 	testSuite.mountPoint, err = os.MkdirTemp("", "gcsfuse_monitoring_tests")
 	require.NoError(testSuite.T(), err)
 
-	setup.SetLogFile(fmt.Sprintf("%s%s.txt", "/tmp/gcsfuse_monitoring_test_", strings.ReplaceAll(testSuite.T().Name(), "/", "_")))
+	//setup.SetLogFile(fmt.Sprintf("%s%s.txt", "/tmp/gcsfuse_monitoring_test_", strings.ReplaceAll(testSuite.T().Name(), "/", "_")))
 	err = testSuite.mount(testBucket)
 	require.NoError(testSuite.T(), err)
 }
