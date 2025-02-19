@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package emulator_tests
+package read_stall
 
 import (
 	"fmt"
@@ -34,6 +34,7 @@ import (
 ////////////////////////////////////////////////////////////////////////
 
 const (
+	fileSize        = 10 * 1024 * 1024
 	forcedStallTime = 40 * time.Second
 	minReqTimeout   = 1500 * time.Millisecond
 )
