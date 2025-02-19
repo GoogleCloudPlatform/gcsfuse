@@ -34,8 +34,8 @@ import (
 ////////////////////////////////////////////////////////////////////////
 
 const (
-	readStallTime = 40 * time.Second
-	minReqTimeout = 1500 * time.Millisecond
+	forcedStallTime = 40 * time.Second
+	minReqTimeout   = 1500 * time.Millisecond
 )
 
 type readStall struct {
@@ -62,18 +62,18 @@ func (r *readStall) TearDownSuite() {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-// TestReadFirstKBStallInducedShouldCompleteInLessThanStallTime verifies that reading the first 1KB
+// TestReadFirstByteStallInducedShouldCompleteInLessThanStallTime verifies that reading the first byte
 // of a file completes in less time than the configured stall time, even when a read stall is induced.
-// It creates a file, reads the initial 1KB, and asserts that the elapsed time is less than the expected stall duration.
-func (r *readStall) TestReadFirstKBStallInducedShouldCompleteInLessThanStallTime() {
+// It creates a file, reads the first byte, and asserts that the elapsed time is less than the expected stall duration.
+func (r *readStall) TestReadFirstByteStallInducedShouldCompleteInLessThanStallTime() {
 	filePath := path.Join(testDirPath, "file.txt")
 	operations.CreateFileOfSize(fileSize, filePath, r.T())
 
-	elapsedTime, err := emulator_tests.ReadFirstKB(r.T(), filePath)
+	elapsedTime, err := emulator_tests.ReadFirstByte(r.T(), filePath)
 
 	assert.NoError(r.T(), err)
 	assert.Greater(r.T(), elapsedTime, minReqTimeout)
-	assert.Less(r.T(), 10*elapsedTime, readStallTime)
+	assert.Less(r.T(), 10*elapsedTime, forcedStallTime)
 }
 
 ////////////////////////////////////////////////////////////////////////

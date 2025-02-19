@@ -135,8 +135,8 @@ func WriteFileAndSync(filePath string, fileSize int) (time.Duration, error) {
 	return endTime.Sub(startTime), nil
 }
 
-// ReadFirstKB reads the first 1KB of a file and returns the time taken.
-func ReadFirstKB(t *testing.T, filePath string) (time.Duration, error) {
+// ReadFirstByte reads the first byte of a file and returns the time taken.
+func ReadFirstByte(t *testing.T, filePath string) (time.Duration, error) {
 	t.Helper()
 
 	file, err := operations.OpenFileAsReadonly(filePath)
@@ -145,7 +145,7 @@ func ReadFirstKB(t *testing.T, filePath string) (time.Duration, error) {
 	}
 	defer file.Close()
 
-	buffer := make([]byte, 1024)
+	buffer := make([]byte, 1)
 
 	startTime := time.Now()
 	_, err = file.Read(buffer)

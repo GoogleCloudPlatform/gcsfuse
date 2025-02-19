@@ -3,7 +3,4 @@ retryConfig:
 - method: XmlRead
   retryInstruction: "stall-for-40s-after-0K"
   retryCount: 1
-  # To add forced error scenarios for resumable uploads, we need to define skipCount one.
-  # This is because the first GET request creates the file in our tests. Subsequent requests
-  # actually upload the data, and it's these requests we want to stall for testing.
   skipCount: 0
