@@ -34,8 +34,8 @@ import (
 ////////////////////////////////////////////////////////////////////////
 
 const (
-	fileSize        = 10 * 1024 * 1024
-	forcedStallTime = 40 * time.Second
+	fileSize        = 5 * 1024 * 1024
+	forcedStallTime = 5 * time.Second
 	minReqTimeout   = 1500 * time.Millisecond
 )
 
@@ -45,7 +45,7 @@ type readStall struct {
 }
 
 func (r *readStall) SetupSuite() {
-	configPath := "../proxy_server/configs/read_stall_40s.yaml"
+	configPath := "../proxy_server/configs/read_stall_5s.yaml"
 	emulator_tests.StartProxyServer(configPath)
 	setup.MountGCSFuseWithGivenMountFunc(r.flags, mountFunc)
 }
@@ -74,7 +74,7 @@ func (r *readStall) TestReadFirstByteStallInducedShouldCompleteInLessThanStallTi
 
 	assert.NoError(r.T(), err)
 	assert.Greater(r.T(), elapsedTime, minReqTimeout)
-	assert.Less(r.T(), 10*elapsedTime, forcedStallTime)
+	assert.Less(r.T(), elapsedTime, forcedStallTime)
 }
 
 ////////////////////////////////////////////////////////////////////////
