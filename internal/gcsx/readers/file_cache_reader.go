@@ -17,7 +17,6 @@ package readers
 import (
 	"context"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -89,18 +88,13 @@ func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (
 	return o, nil
 }
 
-func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte, offset int64) (int, bool, error) {
-	var err error
-	var n int
-	var cacheHit bool
-
+func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte, offset int64) (n int, cacheHit bool, err error) {
 	if fc.FileCacheHandler == nil {
 		return 0, false, nil
 	}
 
 	// By default, consider read type random if the offset is non-zero.
 	isSeq := offset == 0
-	log.Println("Is Seq in start: ", isSeq)
 
 	// Request log and start the execution timer.
 	requestId := uuid.New()
@@ -117,7 +111,6 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 		} else {
 			if fc.FileCacheHandle != nil {
 				isSeq = fc.FileCacheHandle.IsSequential(offset)
-				log.Println("Is Sequentaillll: ", isSeq)
 			}
 			requestOutput = fmt.Sprintf("OK (isSeq: %t, hit: %t) (%v)", isSeq, cacheHit, executionTime)
 		}
@@ -129,11 +122,9 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 		if isSeq {
 			readType = util.Sequential
 		}
-		log.Println("Is Seq2222: ", isSeq, readType)
-		captureFileCacheMetrics(ctx, fc.MetricHandle, readType, n, cacheHit, executionTime)
+		fc.captureFileCacheMetrics(ctx, fc.MetricHandle, readType, n, cacheHit, executionTime)
 	}()
 
-	log.Println("Is Seq: ", isSeq)
 	// Create fileCacheHandle if not already.
 	if fc.FileCacheHandle == nil {
 		fc.FileCacheHandle, err = fc.FileCacheHandler.GetCacheHandle(fc.Obj, fc.Bucket, fc.CacheFileForRangeRead, offset)
@@ -170,11 +161,11 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 		fc.FileCacheHandle = nil
 	} else if !strings.Contains(err.Error(), cacheutil.FallbackToGCSErrMsg) {
 		err = fmt.Errorf("tryReadingFromFileCache: while reading via cache: %w", err)
-		return 0, false, err
+		return n, cacheHit, err
 	}
 	err = nil
 
-	return n, cacheHit, nil
+	return n, cacheHit, err
 }
 
 func (fc *FileCacheReader) Destroy() {
@@ -188,7 +179,7 @@ func (fc *FileCacheReader) Destroy() {
 	}
 }
 
-func captureFileCacheMetrics(ctx context.Context, metricHandle common.MetricHandle, readType string, readDataSize int, cacheHit bool, readLatency time.Duration) {
+func (fc *FileCacheReader) captureFileCacheMetrics(ctx context.Context, metricHandle common.MetricHandle, readType string, readDataSize int, cacheHit bool, readLatency time.Duration) {
 	metricHandle.FileCacheReadCount(ctx, 1, []common.MetricAttr{
 		{Key: common.ReadType, Value: readType},
 		{Key: common.CacheHit, Value: strconv.FormatBool(cacheHit)},

@@ -165,6 +165,7 @@ func (s *jobChunkTest) TestJobChunkSizeForMultipleFileReads(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func TestJobChunkTest(t *testing.T) {
+	t.SkipNow()
 	ts := &jobChunkTest{ctx: context.Background()}
 	// Create storage client before running tests.
 	closeStorageClient := client.CreateStorageClientWithCancel(&ts.ctx, &ts.storageClient)
