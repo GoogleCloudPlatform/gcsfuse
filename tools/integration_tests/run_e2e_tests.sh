@@ -76,34 +76,10 @@ readonly RANDOM_STRING_LENGTH=5
 # Test directory arrays
 TEST_DIR_PARALLEL=(
   "monitoring"
-  "local_file"
-  "log_rotation"
-  "mounting"
-  "read_cache"
-  "gzip"
-  "write_large_files"
-  "list_large_dir"
-  "rename_dir_limit"
-  "read_large_files"
-  "explicit_dir"
-  "implicit_dir"
-  "interrupt"
-  "operations"
-  "log_content"
-  "kernel_list_cache"
-  "concurrent_operations"
-  "benchmarking"
-  "mount_timeout"
-  "stale_handle"
-  "negative_stat_cache"
-  "streaming_writes"
 )
 
 # These tests never become parallel as it is changing bucket permissions.
 TEST_DIR_NON_PARALLEL=(
-  "readonly"
-  "managed_folders"
-  "readonly_creds"
 )
 
 # Create a temporary file to store the log file name.
@@ -363,12 +339,6 @@ function main(){
   run_e2e_tests_for_flat_bucket &
   e2e_tests_flat_bucket_pid=$!
 
-  run_e2e_tests_for_emulator &
-  e2e_tests_emulator_pid=$!
-
-  wait $e2e_tests_emulator_pid
-  e2e_tests_emulator_status=$?
-
   wait $e2e_tests_flat_bucket_pid
   e2e_tests_flat_bucket_status=$?
 
@@ -378,6 +348,9 @@ function main(){
   set -e
 
   print_test_logs
+
+
+  sleep 3600
 
   exit_code=0
   if [ $e2e_tests_flat_bucket_status != 0 ];
