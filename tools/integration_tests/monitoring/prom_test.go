@@ -37,11 +37,23 @@ import (
 const (
 	testHNSBucket  = "gcsfuse_monitoring_test_bucket"
 	testFlatBucket = "gcsfuse_monitoring_test_bucket_flat"
-	portNonHNSRun  = 9191
-	portHNSRun     = 9192
 )
 
-var prometheusPort = portNonHNSRun
+var (
+	portNonHNSRun = 9190
+	portHNSRun    = 10190
+)
+
+var prometheusPort int
+
+func setPrometheusPort(t *testing.T) {
+	if isHNSTestRun(t) {
+		prometheusPort = portHNSRun
+		portHNSRun++
+	}
+	prometheusPort = portNonHNSRun
+	portNonHNSRun++
+}
 
 func getBucket(t *testing.T) string {
 	if isHNSTestRun(t) {
@@ -79,11 +91,6 @@ func isHNSTestRun(t *testing.T) bool {
 
 func (testSuite *PromTest) SetupSuite() {
 	setup.IgnoreTestIfIntegrationTestFlagIsNotSet(testSuite.T())
-	if isHNSTestRun(testSuite.T()) {
-		// sets different Prometheus ports for HNS and non-HNS presubmit runs.
-		// This ensures that there is no port contention if both HNS and non-HNS test runs are happening simultaneously.
-		prometheusPort = portHNSRun
-	}
 
 	err := setup.SetUpTestDir()
 	require.NoErrorf(testSuite.T(), err, "error while building GCSFuse: %p", err)
@@ -94,6 +101,7 @@ func (testSuite *PromTest) SetupTest() {
 	testSuite.gcsfusePath = setup.BinFile()
 	testSuite.mountPoint, err = os.MkdirTemp("", "gcsfuse_monitoring_tests")
 	require.NoError(testSuite.T(), err)
+	setPrometheusPort(testSuite.T())
 
 	//setup.SetLogFile(fmt.Sprintf("%s%s.txt", "/tmp/gcsfuse_monitoring_test_", strings.ReplaceAll(testSuite.T().Name(), "/", "_")))
 	err = testSuite.mount(getBucket(testSuite.T()))
