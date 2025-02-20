@@ -186,7 +186,7 @@
   usage: >-
     Instructs gcsfuse to ignore system interrupt signals (like SIGINT, triggered
     by Ctrl+C). This prevents those signals from immediately terminating gcsfuse
-    inflight operations. (default: true)
+    inflight operations.
   default: true
 
 - config-path: "file-system.kernel-list-cache-ttl-secs"
@@ -240,13 +240,13 @@
 - config-path: "gcs-auth.anonymous-access"
   flag-name: "anonymous-access"
   type: "bool"
-  usage: "Authentication is enabled by default. This flag disables authentication"
+  usage: "This flag disables authentication."
   default: false
 
 - config-path: "gcs-auth.key-file"
   flag-name: "key-file"
   type: "resolvedPath"
-  usage: "Absolute path to JSON key file for use with GCS. (The default is none, Google application default credentials used)"
+  usage: "Absolute path to JSON key file for use with GCS. If this flag is left unset, Google application default credentials are used."
 
 - config-path: "gcs-auth.reuse-token-from-url"
   flag-name: "reuse-token-from-url"
@@ -265,7 +265,7 @@
   type: "string"
   usage: >-
     Project to use for billing when accessing a bucket enabled with "Requester
-    Pays". (The default is none)
+    Pays".
   default: ""
 
 - config-path: "gcs-connection.client-protocol"
@@ -312,7 +312,7 @@
   type: "duration"
   usage: >-
     The time duration that http client will wait to get response from the
-    server. The default value 0 indicates no timeout.
+    server. A value of 0 indicates no timeout.
   default: "0s"
 
 - config-path: "gcs-connection.limit-bytes-per-sec"
@@ -332,7 +332,7 @@
   type: "int"
   usage: >-
     The max number of TCP connections allowed per server. This is effective when
-    client-protocol is set to 'http1'. The default value 0 indicates no limit on
+    client-protocol is set to 'http1'. A value of 0 indicates no limit on
     TCP connections (limited by the machine specifications).
   default: "0"
 
@@ -354,7 +354,7 @@
   usage: >-
     We send larger file uploads in 16 MiB chunks. This flag controls the duration 
     that the HTTP client will wait for a response after making a request to upload a chunk. 
-    The default value of 10s indicates that the client will wait 10 seconds for upload completion; 
+    As an example, a value of 10 indicates that the client will wait 10 seconds for upload completion; 
     otherwise, it cancels the request and retries for that chunk till chunkRetryDeadline(32s). 0 means no timeout.
   default: "10"
   hide-flag: true
@@ -364,7 +364,7 @@
   type: "int"
   usage: >-
     It sets a limit on the number of times an operation will be retried if it
-    fails, preventing endless retry loops. The default value 0 indicates no limit.
+    fails, preventing endless retry loops. A value of 0 indicates no limit.
   default: "0"
 
 - config-path: "gcs-retries.max-retry-sleep"
@@ -465,8 +465,7 @@
   type: "int"
   usage: >-
     The maximum number of backup log files to retain after they have been
-    rotated. The default value is 10. When value is set to 0, all backup files are
-    retained.
+    rotated. A value of 0 indicates all backup files are retained.
   default: "10"
 
 - config-path: "logging.log-rotate.compress"
@@ -613,7 +612,7 @@
   flag-name: "stackdriver-export-interval"
   type: "duration"
   usage: >-
-    Export metrics to stackdriver with this interval. The default value 0
+    Export metrics to stackdriver with this interval. A value of 0
     indicates no exporting.
   default: "0s"
   deprecated: true
