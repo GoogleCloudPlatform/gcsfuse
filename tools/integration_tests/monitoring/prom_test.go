@@ -22,6 +22,7 @@ import (
 	"os/exec"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting"
@@ -87,7 +88,7 @@ func isHNSTestRun(t *testing.T) bool {
 	require.NoError(t, err, "error while creating storage client")
 	defer storageClient.Close()
 	isHNS := setup.IsHierarchicalBucket(context.Background(), storageClient)
-	fmt.Fprintf(os.Stderr, "IsHNS: %t\n", isHNS)
+	fmt.Fprintf(os.Stderr, "IsHNS: %t, bucket name: %v\n", isHNS, setup.TestBucket())
 	return isHNS
 }
 
@@ -107,6 +108,7 @@ func (testSuite *PromTest) SetupTest() {
 
 	//setup.SetLogFile(fmt.Sprintf("%s%s.txt", "/tmp/gcsfuse_monitoring_test_", strings.ReplaceAll(testSuite.T().Name(), "/", "_")))
 	err = testSuite.mount(getBucket(testSuite.T()))
+	time.Sleep(5 * time.Minute)
 	require.NoError(testSuite.T(), err)
 }
 
