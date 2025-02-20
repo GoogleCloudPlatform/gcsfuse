@@ -35,12 +35,21 @@ import (
 )
 
 const (
-	testBucket    = "gcsfuse_monitoring_test_bucket"
-	portNonHNSRun = 9191
-	portHNSRun    = 9192
+	testHNSBucket  = "gcsfuse_monitoring_test_bucket"
+	testFlatBucket = "gcsfuse_monitoring_test_bucket_flat"
+	portNonHNSRun  = 9191
+	portHNSRun     = 9192
 )
 
 var prometheusPort = portNonHNSRun
+
+func getBucket(t *testing.T) string {
+	if isHNSTestRun(t) {
+		return testHNSBucket
+	}
+	return testFlatBucket
+
+}
 
 func isPortOpen(port int) bool {
 	c := exec.Command("lsof", "-t", fmt.Sprintf("-i:%d", port))
@@ -87,7 +96,7 @@ func (testSuite *PromTest) SetupTest() {
 	require.NoError(testSuite.T(), err)
 
 	//setup.SetLogFile(fmt.Sprintf("%s%s.txt", "/tmp/gcsfuse_monitoring_test_", strings.ReplaceAll(testSuite.T().Name(), "/", "_")))
-	err = testSuite.mount(testBucket)
+	err = testSuite.mount(getBucket(testSuite.T()))
 	require.NoError(testSuite.T(), err)
 }
 
