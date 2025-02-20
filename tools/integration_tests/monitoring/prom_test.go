@@ -92,7 +92,6 @@ func isHNSTestRun(t *testing.T) bool {
 
 func (testSuite *PromTest) SetupSuite() {
 	setup.IgnoreTestIfIntegrationTestFlagIsNotSet(testSuite.T())
-	setPrometheusPort(testSuite.T())
 	err := setup.SetUpTestDir()
 	require.NoErrorf(testSuite.T(), err, "error while building GCSFuse: %p", err)
 }
@@ -102,6 +101,7 @@ func (testSuite *PromTest) SetupTest() {
 	testSuite.gcsfusePath = setup.BinFile()
 	testSuite.mountPoint, err = os.MkdirTemp("", "gcsfuse_monitoring_tests")
 	require.NoError(testSuite.T(), err)
+	setPrometheusPort(testSuite.T())
 
 	setup.SetLogFile(fmt.Sprintf("%s%s.txt", "/tmp/gcsfuse_monitoring_test_", strings.ReplaceAll(testSuite.T().Name(), "/", "_")))
 	err = testSuite.mount(getBucket(testSuite.T()))
