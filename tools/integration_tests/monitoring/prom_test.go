@@ -38,8 +38,11 @@ import (
 const (
 	testHNSBucket  = "gcsfuse_monitoring_test_bucket"
 	testFlatBucket = "gcsfuse_monitoring_test_bucket_flat"
-	portNonHNSRun  = 9190
-	portHNSRun     = 10190
+)
+
+var (
+	portNonHNSRun = 9190
+	portHNSRun    = 10190
 )
 
 var prometheusPort int
@@ -47,9 +50,18 @@ var prometheusPort int
 func setPrometheusPort(t *testing.T) {
 	if isHNSTestRun(t) {
 		prometheusPort = portHNSRun
+		portHNSRun++
 		return
 	}
 	prometheusPort = portNonHNSRun
+	portNonHNSRun++
+}
+
+func getBucket(t *testing.T) string {
+	if isHNSTestRun(t) {
+		return testHNSBucket
+	}
+	return testFlatBucket
 }
 
 func isPortOpen(port int) bool {
@@ -83,13 +95,6 @@ func (testSuite *PromTest) SetupSuite() {
 	setPrometheusPort(testSuite.T())
 	err := setup.SetUpTestDir()
 	require.NoErrorf(testSuite.T(), err, "error while building GCSFuse: %p", err)
-}
-
-func getBucket(t *testing.T) string {
-	if isHNSTestRun(t) {
-		return testHNSBucket
-	}
-	return testFlatBucket
 }
 
 func (testSuite *PromTest) SetupTest() {
