@@ -61,7 +61,6 @@ func getBucket(t *testing.T) string {
 		return testHNSBucket
 	}
 	return testFlatBucket
-
 }
 
 func isPortOpen(port int) bool {
