@@ -86,7 +86,9 @@ func isHNSTestRun(t *testing.T) bool {
 	storageClient, err := client.CreateStorageClient(context.Background())
 	require.NoError(t, err, "error while creating storage client")
 	defer storageClient.Close()
-	return setup.IsHierarchicalBucket(context.Background(), storageClient)
+	isHNS := setup.IsHierarchicalBucket(context.Background(), storageClient)
+	fmt.Fprintf(os.Stderr, "IsHNS: %b\n", isHNS)
+	return isHNS
 }
 
 func (testSuite *PromTest) SetupSuite() {
