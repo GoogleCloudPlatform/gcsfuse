@@ -28,6 +28,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/jacobsa/fuse/fuseops"
@@ -99,7 +100,7 @@ type FileInode struct {
 	// creates a cyclic dependency.
 	// Todo: Investigate if cyclic dependency can be removed by removing some unused
 	// code.
-	MRDWrapper gcsx.MultiRangeDownloaderWrapper
+	MRDWrapper storage.MultiRangeDownloaderWrapper
 
 	bwh    bufferedwrites.BufferedWriteHandler
 	config *cfg.Config
