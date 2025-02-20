@@ -98,8 +98,6 @@ type FileInode struct {
 	// Wrapper object for multi range downloader. Needed as we will create the MRD in
 	// random reader and we can't pass fileInode object to random reader as it
 	// creates a cyclic dependency.
-	// Todo: Investigate if cyclic dependency can be removed by removing some unused
-	// code.
 	MRDWrapper storage.MultiRangeDownloaderWrapper
 
 	bwh    bufferedwrites.BufferedWriteHandler
