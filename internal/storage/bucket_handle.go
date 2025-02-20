@@ -544,7 +544,7 @@ func (bh *bucketHandle) RenameFolder(ctx context.Context, folderName string, des
 		err = fmt.Errorf("error in getting result from renaming folder response: %w", err)
 		return
 	}
-	
+
 	folder = gcs.GCSFolder(bh.bucketName, controlFolder)
 	return
 }
