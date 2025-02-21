@@ -47,6 +47,18 @@ type ProxyHandler struct {
 	http.Handler
 }
 
+// logRequestAndType is used for logging the request on proxy server.
+// More fields can be added or removed as per requirement for debugging purpose.
+func logRequestAndType(req *http.Request, r RequestType) {
+	// Print empty lines to separate each request in log.
+	log.Println("")
+	log.Println("")
+	log.Printf("RequestType: %s\n", r)
+	log.Printf("URL: %s\n", req.URL.String())
+	log.Printf("Content-Length: %s\n", req.Header.Get("Content-Length"))
+	log.Printf("Content-Range: %s\n", req.Header.Get("Content-Range"))
+}
+
 // AddRetryID creates mock error behavior on the target host for specific request types.
 // It retrieves the corresponding operation from the operation manager based on the provided RequestTypeAndInstruction.
 // If a matching operation is found, it creates a retry test with the target host and instruction,
@@ -55,6 +67,12 @@ type ProxyHandler struct {
 // This function is used to simulate error scenarios for testing retry mechanisms.
 func AddRetryID(req *http.Request, r RequestTypeAndInstruction) error {
 	plantOp := gOpManager.retrieveOperation(r.RequestType)
+	if *fDebug {
+		logRequestAndType(req, r.RequestType)
+		if plantOp != "" {
+			log.Println("Planting operation: ", plantOp)
+		}
+	}
 	if plantOp != "" {
 		testID, err := CreateRetryTest(gConfig.TargetHost, map[string][]string{r.Instruction: {plantOp}})
 		if err != nil {
@@ -92,7 +110,9 @@ func (ph ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Send the request to the target server
 	client := &http.Client{}
+	start := time.Now()
 	resp, err := client.Do(req)
+	elapsed := time.Since(start)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -128,6 +148,10 @@ func (ph ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_, err = io.Copy(w, resp.Body)
 	if err != nil {
 		log.Printf("Error in coping response body: %v", err)
+	}
+	if *fDebug {
+		log.Printf("Respnse Status: %d\n", resp.StatusCode)
+		log.Printf("Elapsed Time: %.3fs\n", elapsed.Seconds())
 	}
 }
 
