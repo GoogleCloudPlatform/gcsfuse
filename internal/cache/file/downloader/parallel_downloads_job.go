@@ -181,10 +181,10 @@ func (job *Job) downloadOffsets(ctx context.Context, goroutineIndex int64, cache
 				return err
 			}
 
-			err = job.updateRangeMap(rangeMap, objectRange.Start, objectRange.End)
-			if err != nil {
-				return err
-			}
+			//err = job.updateRangeMap(rangeMap, objectRange.Start, objectRange.End)
+			//if err != nil {
+			//	return err
+			//}
 		}
 	}
 }
