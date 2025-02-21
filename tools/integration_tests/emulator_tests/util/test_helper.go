@@ -36,6 +36,10 @@ import (
 //
 // It launches the proxy server with the specified configuration and port, logs its output to a file.
 func StartProxyServer(configPath string) {
+	port := 8020
+	out, _ := exec.Command("sh", "-c", fmt.Sprintf("netstat -ant | grep LISTEN | grep %v", port)).Output()
+	log.Printf("netstat output is => %v", string(out))
+	time.Sleep(2 * time.Minute) // Sleeping for port resets.
 	// Start the proxy in the background
 	cmd := exec.Command("go", "run", "../proxy_server/.", "--config-path="+configPath)
 	logFileForProxyServer, err := os.Create(path.Join(os.Getenv("KOKORO_ARTIFACTS_DIR"), "proxy-"+setup.GenerateRandomString(5)))
@@ -43,52 +47,81 @@ func StartProxyServer(configPath string) {
 		log.Fatal("Error in creating log file for proxy server.")
 	}
 	log.Printf("Proxy server logs are generated with specific filename %s: ", logFileForProxyServer.Name())
-	cmd.Stdout = logFileForProxyServer
-	cmd.Stderr = logFileForProxyServer
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	err = cmd.Start()
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
+func GetListeningProcessIDOnPort(port int) (int, error) {
+	cmd := exec.Command("lsof", "-i", fmt.Sprintf(":%d", port))
+	out, err := cmd.CombinedOutput()
+
+	if err != nil {
+		if exiterr, ok := err.(*exec.ExitError); ok && exiterr.ExitCode() == 1 {
+			log.Println("No process found on lsof output.")
+			return -1, nil // No process found, port is not listening, no error
+		}
+		// An actual error occurred (e.g., lsof not found)
+		return -1, fmt.Errorf("lsof error: %w, output: %s", err, out)
+	}
+
+	lines := strings.Split(string(out), "\n")
+	log.Println("lsof output now:")
+	for _, line := range lines {
+		log.Println(line)
+	}
+	for _, line := range lines[1:] {
+		fields := strings.Fields(line)
+		if len(fields) > 1 && strings.Contains(line, "LISTEN") {
+			pid, err := strconv.Atoi(fields[1])
+			if err != nil {
+				return -1, fmt.Errorf("failed to parse PID: %w", err)
+			}
+			return pid, nil // Process is listening, no error
+		}
+	}
+	return -1, nil // if lsof returned something, but no LISTEN line, then return -1.
+}
+
 // KillProxyServerProcess kills all processes listening on the specified port.
 //
 // It uses the `lsof` command to identify the processes and sends SIGINT to each of them.
 func KillProxyServerProcess(port int) error {
-	// Use lsof to find processes listening on the specified port
-	cmd := exec.Command("lsof", "-i", fmt.Sprintf(":%d", port))
-	output, err := cmd.Output()
-	if err != nil {
-		return fmt.Errorf("error running lsof: %w", err)
-	}
-
-	// Parse the lsof output to get the process IDs
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines[1:] {
-		fields := strings.Fields(line)
-		// Kill only the process directly listening on the port.
-		if len(fields) > 1 && strings.Contains(line, "LISTEN") {
-			pidStr := fields[1]
-			pid, err := strconv.Atoi(pidStr)
-			if err != nil {
-				log.Println("Error parsing process ID:", err)
-				continue
-			}
-
-			// Send SIGINT to the process
-			process, err := os.FindProcess(pid)
-			if err != nil {
-				log.Println("Error finding process:", err)
-				continue
-			}
-			err = process.Signal(syscall.SIGINT)
-			if err != nil {
-				log.Println("Error sending SIGINT to process:", err)
-			}
+	log.Printf("Killing Proxy Server Process on port: %v", port)
+	for {
+		pid, err := GetListeningProcessIDOnPort(port)
+		if err != nil {
+			return err
 		}
-	}
 
-	return nil
+		if pid == -1 {
+			log.Printf("Port is free to use now.")
+			return nil // Port is free
+		}
+
+		process, err := os.FindProcess(pid)
+		if err != nil {
+			// Handle the case where the process is not found
+			if strings.Contains(err.Error(), "no such process") {
+				continue // Process might have already terminated, continue to the next iteration
+			}
+			return fmt.Errorf("failed to find process: %w", err)
+		}
+
+		if err := process.Signal(syscall.SIGINT); err != nil {
+			// Handle the case where signaling fails (e.g., process already terminated)
+			if strings.Contains(err.Error(), "no such process") ||
+				strings.Contains(err.Error(), "os: process already finished") {
+				continue // Process might have already terminated, continue to the next iteration
+			}
+			return fmt.Errorf("failed to kill process: %w", err)
+		}
+
+		time.Sleep(1 * time.Second)
+	}
 }
 
 // WriteFileAndSync creates a file at the given path, writes random data to it,
