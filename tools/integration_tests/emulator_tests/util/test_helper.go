@@ -39,7 +39,7 @@ func StartProxyServer(configPath string) {
 	port := 8020
 	out, _ := exec.Command("sh", "-c", fmt.Sprintf("netstat -ant | grep LISTEN | grep %v", port)).Output()
 	log.Printf("netstat output is => %v", string(out))
-	time.Sleep(2 * time.Minute) // Sleeping for port resets.
+	time.Sleep(2 * time.Minute) // Sleeping for port resets
 	// Start the proxy in the background
 	cmd := exec.Command("go", "run", "../proxy_server/.", "--config-path="+configPath)
 	logFileForProxyServer, err := os.Create(path.Join(os.Getenv("KOKORO_ARTIFACTS_DIR"), "proxy-"+setup.GenerateRandomString(5)))
