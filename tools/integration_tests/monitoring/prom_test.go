@@ -118,10 +118,6 @@ func (testSuite *PromTest) TearDownTest() {
 	assert.NoError(testSuite.T(), err)
 }
 
-func (testSuite *PromTest) TearDownSuite() {
-	os.RemoveAll(setup.TestDir())
-}
-
 func (testSuite *PromTest) mount(bucketName string) error {
 	testSuite.T().Helper()
 	if portAvailable := isPortOpen(prometheusPort); !portAvailable {
@@ -258,15 +254,9 @@ func (testSuite *PromTest) TestReadMetrics() {
 }
 
 func TestPromOCSuite(t *testing.T) {
-	if setup.TestInstalledPackage() {
-		t.Skip("Skipping since testing on installed package")
-	}
 	suite.Run(t, &PromTest{enableOTEL: false})
 }
 
 func TestPromOTELSuite(t *testing.T) {
-	if setup.TestInstalledPackage() {
-		t.Skip("Skipping since testing on installed package")
-	}
 	suite.Run(t, &PromTest{enableOTEL: true})
 }
