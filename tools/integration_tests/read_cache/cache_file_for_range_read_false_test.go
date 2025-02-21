@@ -116,7 +116,9 @@ func (s *cacheFileForRangeReadFalseTest) TestReadIsTreatedNonSequentialAfterFile
 	randomReadChunkCount := fileSizeSameAsCacheCapacity / chunkSizeToRead
 	readTillChunk := randomReadChunkCount / 2
 	fh1 := operations.OpenFile(path.Join(testDirPath, testFileNames[0]), t)
+	defer operations.CloseFile(fh1)
 	fh2 := operations.OpenFile(path.Join(testDirPath, testFileNames[1]), t)
+	defer operations.CloseFile(fh2)
 
 	// Use file handle 1 to read file 1 partially.
 	expectedOutcome[0] = readFileBetweenOffset(t, fh1, 0, int64(readTillChunk*chunkSizeToRead))
