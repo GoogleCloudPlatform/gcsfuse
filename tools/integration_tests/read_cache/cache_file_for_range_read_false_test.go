@@ -16,7 +16,6 @@ package read_cache
 
 import (
 	"context"
-	"io"
 	"log"
 	"os"
 	"path"
@@ -74,19 +73,8 @@ func readFileBetweenOffset(t *testing.T, file *os.File, startOffset, endOffSet i
 		expected.BucketName = setup.DynamicBucketMounted()
 	}
 
-	chunkRead := make([]byte, chunkSizeToRead)
-	var readData []byte
-	for startOffset < endOffSet {
-		_, err := file.ReadAt(chunkRead, startOffset)
-		if err != nil && err != io.EOF {
-			t.Errorf("Failed to read file chunk at offset %d: %v", startOffset, err)
-		}
-		readData = append(readData, chunkRead...)
-		startOffset = startOffset + chunkSizeToRead
-	}
-
+	expected.content = operations.ReadFileBetweenOffset(t, file, startOffset, endOffSet, chunkSizeToRead)
 	expected.EndTimeStampSeconds = time.Now().Unix()
-	expected.content = string(readData)
 	return expected
 }
 

@@ -316,6 +316,25 @@ func ReadChunkFromFile(filePath string, chunkSize int64, offset int64, flag int)
 	return
 }
 
+func ReadFileBetweenOffset(t *testing.T, file *os.File, startOffset, endOffset, chunkSize int64) string {
+	t.Helper()
+	chunk := make([]byte, chunkSize)
+	var readData []byte
+
+	for startOffset < endOffset {
+		readSize := min(chunkSize, endOffset-startOffset)
+
+		n, err := file.ReadAt(chunk[:readSize], startOffset)
+		if err != nil && err != io.EOF {
+			t.Errorf("Failed to read file chunk at offset %d: %v", startOffset, err)
+		}
+		readData = append(readData, chunk[:n]...)
+		startOffset += int64(n)
+	}
+
+	return string(readData)
+}
+
 // Returns the stats of a file.
 // Fails if the passed input is a directory.
 func StatFile(file string) (*fs.FileInfo, error) {
