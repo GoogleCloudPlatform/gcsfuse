@@ -105,6 +105,7 @@ spec:
         csi:
           driver: gcsfuse.csi.storage.gke.io
           readOnly: false
+          disableMetrics: false
           volumeAttributes:
             bucketName: princer-ssiog-data-bkt
             mountOptions: "debug_fuse,implicit-dirs,metadata-cache:ttl-secs:-1,metadata-cache:stat-cache-max-size-mb:-1,metadata-cache:type-cache-max-size-mb:-1"

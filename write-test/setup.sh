@@ -34,6 +34,8 @@ function install_gcsfuse() {
 }
 
 function init() {
+
+    
     export TEST_BUCKET_ZONAL=fastbyte-team-princer-zb-write-test-uw4a
     export TEST_BUCKET_GRPC=princer-grpc-write-test-uw4a
 
@@ -50,13 +52,20 @@ function init() {
 
 
 function run() {
-    cd ~/bucket-zonal
-    ~/dev/gcsfuse-tools/write-test/write_master.sh
-    umount ~/bucket-zonal && sleep 50
-    
-    # cd ~/bucket-grpc
+    export TEST_BUCKET_ZONAL=fastbyte-team-princer-zb-write-test-uw4a
+    export TEST_BUCKET_GRPC=princer-grpc-write-test-uw4a
+
+    # gcsfuse --config-file ~/dev/gcsfuse-tools/write-test/config.yaml $TEST_BUCKET_ZONAL "~/bucket-zonal"
+    # cd ~/bucket-zonal
     # ~/dev/gcsfuse-tools/write-test/write_master.sh
-    # umount ~/bucket-grpc && sleep 50
+    # cd -
+    # umount ~/bucket-zonal && sleep 50
+    
+    gcsfuse --config-file ~/dev/gcsfuse-tools/write-test/config.yaml $TEST_BUCKET_GRPC "~/bucket-grpc"
+    cd ~/bucket-grpc
+    ~/dev/gcsfuse-tools/write-test/write_master.sh
+    cd -
+    umount ~/bucket-grpc && sleep 50
 }
 
 

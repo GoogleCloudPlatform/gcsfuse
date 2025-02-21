@@ -99,6 +99,14 @@ def analyze_metrics(path, timestamp_filter=True):
         min_timestamp = max(start_timestamps)
         max_timestamp = min(end_timestamps)
         
+        min_tt = min(start_timestamps)
+        # min_tt = min(min_tt, min(end_timestamps))
+        
+        max_tt = max(end_timestamps)
+        # max_tt = max(max_tt, end_timestamps)
+        
+        print(f"Prince: ${max_tt - min_tt}")
+        
         # Filter which is not recorded b/w min_timestamp and max_timestamp
         if timestamp_filter:
             combined_df['timestamp'] = pd.to_datetime(combined_df['timestamp'], unit='s')
