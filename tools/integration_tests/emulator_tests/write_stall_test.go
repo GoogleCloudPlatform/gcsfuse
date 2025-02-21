@@ -130,6 +130,11 @@ func TestChunkTransferTimeout(t *testing.T) {
 					emulator_tests.StartProxyServer(scenario.configPath)
 					setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 
+					defer func() { // Defer unmount and  killing the server.
+						setup.UnmountGCSFuse(rootDir)
+						assert.NoError(t, emulator_tests.KillProxyServerProcess(port))
+					}()
+
 					testDir := scenario.name + setup.GenerateRandomString(3)
 					testDirPath = setup.SetupTestDirectory(testDir)
 					filePath := path.Join(testDirPath, "file.txt")
@@ -140,9 +145,6 @@ func TestChunkTransferTimeout(t *testing.T) {
 					expectedTimeout := scenario.expectedTimeout(chunkTransferTimeoutSecs)
 					assert.GreaterOrEqual(t, elapsedTime, expectedTimeout)
 					assert.Less(t, elapsedTime, expectedTimeout+5*time.Second)
-
-					setup.UnmountGCSFuse(rootDir)
-					assert.NoError(t, emulator_tests.KillProxyServerProcess(port))
 				})
 			}
 		})
