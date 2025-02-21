@@ -190,7 +190,7 @@ func (ps *ProxyServer) Start() {
 	<-ps.shutdown
 	log.Println("Shutting down proxy server...")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
 	if err := ps.server.Shutdown(ctx); err != nil {
