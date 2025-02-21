@@ -18,11 +18,9 @@ import (
 	"context"
 	"log"
 	"os"
-	"testing"
 
 	"cloud.google.com/go/storage"
 	emulator_tests "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/emulator_tests/util"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
@@ -36,7 +34,7 @@ import (
 // Boilerplate
 // //////////////////////////////////////////////////////////////////////
 
-type defaultFailureTestSuite struct {
+type commonFailureTestSuite struct {
 	suite.Suite
 	configPath         string
 	flags              []string
@@ -47,44 +45,48 @@ type defaultFailureTestSuite struct {
 	closeStorageClient func() error
 	ctx                context.Context
 	data               []byte
+	gcsObjectValidator
+}
+
+type gcsObjectValidator interface {
+	// Validate file from GCS for empty gcs file and new local files.
+	validateGcsObject()
 }
 
 // //////////////////////////////////////////////////////////////////////
 // Helpers
 // //////////////////////////////////////////////////////////////////////
 
-func (t *defaultFailureTestSuite) SetupSuite() {
-	t.configPath = "../proxy_server/configs/second_chunk_upload_returns412.yaml"
+func (t *commonFailureTestSuite) SetupSuite() {
 	t.flags = []string{"--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=1", "--custom-endpoint=" + proxyEndpoint}
 	// Generate 5 MB random data.
-	data, err := operations.GenerateRandomData(5 * operations.MiB)
-	t.data = data
+	var err error
+	t.data, err = operations.GenerateRandomData(5 * operations.MiB)
 	require.NoError(t.T(), err)
 	log.Printf("Running tests with flags: %v", t.flags)
 }
 
-func (t *defaultFailureTestSuite) SetupTest() {
+func (t *commonFailureTestSuite) setupTest() {
+	t.T().Helper()
 	// Start proxy server for each test to ensure the config is initialized per test.
 	emulator_tests.StartProxyServer(t.configPath)
 	// Create storage client before running tests.
 	t.ctx = context.Background()
-	t.closeStorageClient = client.CreateStorageClientWithCancel(&t.ctx, &t.storageClient)
+	t.closeStorageClient = CreateStorageClientWithCancel(&t.ctx, &t.storageClient)
 	setup.MountGCSFuseWithGivenMountFunc(t.flags, mountFunc)
+	// Setup random testDirName.
+	testDirName = testDirNamePrefix + setup.GenerateRandomString(5)
 	// Setup test directory for testing.
 	t.testDirPath = setup.SetupTestDirectory(testDirName)
-	// Create a local file.
-	t.filePath, t.fh1 = CreateLocalFileInTestDir(t.ctx, t.storageClient, t.testDirPath, FileName1, t.T())
 }
 
-func (t *defaultFailureTestSuite) TearDownTest() {
-	// CleanUp MntDir before unmounting GCSFuse.
-	setup.CleanUpDir(rootDir)
+func (t *commonFailureTestSuite) TearDownTest() {
 	setup.UnmountGCSFuse(rootDir)
 	assert.NoError(t.T(), t.closeStorageClient())
 	assert.NoError(t.T(), emulator_tests.KillProxyServerProcess(port))
 }
 
-func (t *defaultFailureTestSuite) writingWithNewFileHandleAlsoFails(data []byte, off int64) {
+func (t *commonFailureTestSuite) writingWithNewFileHandleAlsoFails(data []byte, off int64) {
 	t.T().Helper()
 	// Opening a new file handle succeeds.
 	fh := operations.OpenFile(t.filePath, t.T())
@@ -95,10 +97,10 @@ func (t *defaultFailureTestSuite) writingWithNewFileHandleAlsoFails(data []byte,
 	operations.CloseFileShouldThrowError(t.T(), fh)
 }
 
-func (t *defaultFailureTestSuite) writingAfterBwhReinitializationSucceeds() {
+func (t *commonFailureTestSuite) writingAfterBwhReinitializationSucceeds() {
 	t.T().Helper()
-	// Verify that Object is not found on GCS.
-	ValidateObjectNotFoundErrOnGCS(t.ctx, t.storageClient, testDirName, FileName1, t.T())
+	// Verify that expectation from GCS matches.
+	t.validateGcsObject()
 	// Opening new file handle and writing to file succeeds.
 	t.fh1 = operations.CreateFile(t.filePath, FilePerms, t.T())
 	_, err := t.fh1.WriteAt(t.data, 0)
@@ -112,7 +114,7 @@ func (t *defaultFailureTestSuite) writingAfterBwhReinitializationSucceeds() {
 // Tests
 // //////////////////////////////////////////////////////////////////////
 
-func (t *defaultFailureTestSuite) TestStreamingWritesFailsOnSecondChunkUploadFailure() {
+func (t *commonFailureTestSuite) TestStreamingWritesFailsOnSecondChunkUploadFailure() {
 	// Write first 2 MB (say A,B) block to file succeeds but async upload of block B will result in error.
 	// Fuse:[B] -> Go-SDK:[A] -> GCS[]
 	_, err := t.fh1.WriteAt(t.data[:2*operations.MiB], 0)
@@ -134,7 +136,7 @@ func (t *defaultFailureTestSuite) TestStreamingWritesFailsOnSecondChunkUploadFai
 	CloseFileAndValidateContentFromGCS(t.ctx, t.storageClient, t.fh1, testDirName, FileName1, string(t.data), t.T())
 }
 
-func (t *defaultFailureTestSuite) TestStreamingWritesTruncateSmallerFailsOnSecondChunkUploadFailure() {
+func (t *commonFailureTestSuite) TestStreamingWritesTruncateSmallerFailsOnSecondChunkUploadFailure() {
 	// Write first 2 MB (say A,B) block to file succeeds but async upload of block B will result in error.
 	// Fuse:[B] -> Go-SDK:[A] -> GCS[]
 	_, err := t.fh1.WriteAt(t.data[:2*operations.MiB], 0)
@@ -159,7 +161,7 @@ func (t *defaultFailureTestSuite) TestStreamingWritesTruncateSmallerFailsOnSecon
 	CloseFileAndValidateContentFromGCS(t.ctx, t.storageClient, t.fh1, testDirName, FileName1, string(t.data), t.T())
 }
 
-func (t *defaultFailureTestSuite) TestStreamingWritesTruncateBiggerSucceedsOnSecondChunkUploadFailure() {
+func (t *commonFailureTestSuite) TestStreamingWritesTruncateBiggerSucceedsOnSecondChunkUploadFailure() {
 	// Write first 2 MB (say A,B) block to file succeeds but async upload of block B will result in error.
 	// Fuse:[B] -> Go-SDK:[A] -> GCS[]
 	_, err := t.fh1.WriteAt(t.data[:2*operations.MiB], 0)
@@ -190,7 +192,7 @@ func (t *defaultFailureTestSuite) TestStreamingWritesTruncateBiggerSucceedsOnSec
 	CloseFileAndValidateContentFromGCS(t.ctx, t.storageClient, t.fh1, testDirName, FileName1, string(t.data)+string(emptyBytes), t.T())
 }
 
-func (t *defaultFailureTestSuite) TestStreamingWritesSyncFailsOnSecondChunkUploadFailure() {
+func (t *commonFailureTestSuite) TestStreamingWritesSyncFailsOnSecondChunkUploadFailure() {
 	// Write first 2 MB (say A,B) block to file succeeds but async upload of block B will result in error.
 	// Fuse:[B] -> Go-SDK:[A] -> GCS[]
 	_, err := t.fh1.WriteAt(t.data[:2*operations.MiB], 0)
@@ -214,7 +216,7 @@ func (t *defaultFailureTestSuite) TestStreamingWritesSyncFailsOnSecondChunkUploa
 	CloseFileAndValidateContentFromGCS(t.ctx, t.storageClient, t.fh1, testDirName, FileName1, string(t.data), t.T())
 }
 
-func (t *defaultFailureTestSuite) TestStreamingWritesCloseFailsOnSecondChunkUploadFailure() {
+func (t *commonFailureTestSuite) TestStreamingWritesCloseFailsOnSecondChunkUploadFailure() {
 	// Write first 2 MB (say A,B) block to file succeeds but async upload of block B will result in error.
 	// Fuse:[B] -> Go-SDK:[A] -> GCS[]
 	_, err := t.fh1.WriteAt(t.data[:2*operations.MiB], 0)
@@ -230,7 +232,7 @@ func (t *defaultFailureTestSuite) TestStreamingWritesCloseFailsOnSecondChunkUplo
 	CloseFileAndValidateContentFromGCS(t.ctx, t.storageClient, t.fh1, testDirName, FileName1, string(t.data), t.T())
 }
 
-func (t *defaultFailureTestSuite) TestStreamingWritesWhenFinalizeObjectFailure() {
+func (t *commonFailureTestSuite) TestStreamingWritesWhenFinalizeObjectFailure() {
 	// Write 1 MB data to file succeeds and async upload of block will also succeed.
 	_, err := t.fh1.WriteAt(t.data[:operations.MiB], 0)
 	assert.NoError(t.T(), err)
@@ -243,8 +245,4 @@ func (t *defaultFailureTestSuite) TestStreamingWritesWhenFinalizeObjectFailure()
 	t.writingAfterBwhReinitializationSucceeds()
 	// Close and validate object content found on GCS.
 	CloseFileAndValidateContentFromGCS(t.ctx, t.storageClient, t.fh1, testDirName, FileName1, string(t.data), t.T())
-}
-
-func TestUploadFailureTestSuite(t *testing.T) {
-	suite.Run(t, new(defaultFailureTestSuite))
 }

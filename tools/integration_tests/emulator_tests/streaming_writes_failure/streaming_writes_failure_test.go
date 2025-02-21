@@ -25,15 +25,16 @@ import (
 )
 
 const (
-	testDirName = "StreamingWritesFailureTest"
-	port        = 8020
+	testDirNamePrefix = "StreamingWritesFailureTest"
+	port              = 8020
 )
 
 var (
 	proxyEndpoint = fmt.Sprintf("http://localhost:%d/storage/v1/b?project=test-project", port)
 	mountFunc     func([]string) error
 	// root directory is the directory to be unmounted.
-	rootDir string
+	rootDir     string
+	testDirName string
 )
 
 func TestMain(m *testing.M) {
