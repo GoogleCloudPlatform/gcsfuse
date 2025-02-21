@@ -81,28 +81,28 @@ func (dt *parallelDownloaderTest) Test_downloadRange() {
 	// Download end 1MiB of object
 	start, end := int64(9*util.MiB), int64(10*util.MiB)
 	offsetWriter := io.NewOffsetWriter(file, start)
-	_, err = dt.job.downloadRange(context.Background(), offsetWriter, start, end, nil)
+	_, err = dt.job.downloadRange(context.Background(), offsetWriter, start, end, nil, make(map[int64]int64))
 	AssertEq(nil, err)
 	verifyContentAtOffset(file, start, end)
 
 	// Download start 4MiB of object
 	start, end = int64(0*util.MiB), int64(4*util.MiB)
 	offsetWriter = io.NewOffsetWriter(file, start)
-	_, err = dt.job.downloadRange(context.Background(), offsetWriter, start, end, nil)
+	_, err = dt.job.downloadRange(context.Background(), offsetWriter, start, end, nil, make(map[int64]int64))
 	AssertEq(nil, err)
 	verifyContentAtOffset(file, start, end)
 
 	// Download middle 1B of object
 	start, end = int64(5*util.MiB), int64(5*util.MiB+1)
 	offsetWriter = io.NewOffsetWriter(file, start)
-	_, err = dt.job.downloadRange(context.Background(), offsetWriter, start, end, nil)
+	_, err = dt.job.downloadRange(context.Background(), offsetWriter, start, end, nil, make(map[int64]int64))
 	AssertEq(nil, err)
 	verifyContentAtOffset(file, start, end)
 
 	// Download 0B of object
 	start, end = int64(5*util.MiB), int64(5*util.MiB)
 	offsetWriter = io.NewOffsetWriter(file, start)
-	_, err = dt.job.downloadRange(context.Background(), offsetWriter, start, end, nil)
+	_, err = dt.job.downloadRange(context.Background(), offsetWriter, start, end, nil, make(map[int64]int64))
 	AssertEq(nil, err)
 	verifyContentAtOffset(file, start, end)
 }
