@@ -34,7 +34,7 @@ import (
 // GCS into given destination writer.
 //
 // This function doesn't take locks and can be executed parallely.
-func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, end int64, readHandle []byte) ([]byte, error) {
+func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, end int64, readHandle []byte, rangeMap map[int64]int64) ([]byte, error) {
 	newReader, err := job.bucket.NewReaderWithReadHandle(
 		ctx,
 		&gcs.ReadObjectRequest{
@@ -66,15 +66,42 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 	// Use standard copy function if O_DIRECT is disabled and memory aligned
 	// buffer otherwise.
 	if !job.fileCacheConfig.EnableODirect {
-		_, err = io.CopyN(dstWriter, newReader, end-start)
+		for start < end {
+			writeSize := min(end-start, ReadChunkSize)
+			_, err = io.CopyN(dstWriter, newReader, writeSize)
+			if err != nil {
+				err = fmt.Errorf("downloadRange: error at the time of copying content to cache file %w", err)
+			}
+
+			err = job.updateRangeMap(rangeMap, start, start+writeSize)
+			if err != nil {
+				// should return existing read handle with error
+				return newReader.ReadHandle(), err
+			}
+
+			start = start + writeSize
+		}
 	} else {
-		_, err = cacheutil.CopyUsingMemoryAlignedBuffer(ctx, newReader, dstWriter, end-start,
-			job.fileCacheConfig.WriteBufferSize)
-		// If context is canceled while reading/writing in CopyUsingMemoryAlignedBuffer
-		// then it returns error different from context cancelled (invalid argument),
-		// and we need to report that error as context cancelled.
-		if !errors.Is(err, context.Canceled) && errors.Is(ctx.Err(), context.Canceled) {
-			err = errors.Join(err, ctx.Err())
+		for start < end {
+			writeSize := min(end-start, ReadChunkSize)
+			_, err = cacheutil.CopyUsingMemoryAlignedBuffer(ctx, newReader, dstWriter, writeSize,
+				job.fileCacheConfig.WriteBufferSize)
+			// If context is canceled while reading/writing in CopyUsingMemoryAlignedBuffer
+			// then it returns error different from context cancelled (invalid argument),
+			// and we need to report that error as context cancelled.
+			if !errors.Is(err, context.Canceled) && errors.Is(ctx.Err(), context.Canceled) {
+				err = errors.Join(err, ctx.Err())
+			}
+			if err != nil {
+				err = fmt.Errorf("downloadRange: error at the time of copying content to cache file %w", err)
+			}
+
+			err = job.updateRangeMap(rangeMap, start, start+writeSize)
+			if err != nil {
+				// should return existing read handle with error
+				return newReader.ReadHandle(), err
+			}
+			start = start + writeSize
 		}
 	}
 
@@ -149,7 +176,7 @@ func (job *Job) downloadOffsets(ctx context.Context, goroutineIndex int64, cache
 			}
 
 			offsetWriter := io.NewOffsetWriter(cacheFile, int64(objectRange.Start))
-			readHandle, err = job.downloadRange(ctx, offsetWriter, objectRange.Start, objectRange.End, readHandle)
+			readHandle, err = job.downloadRange(ctx, offsetWriter, objectRange.Start, objectRange.End, readHandle, rangeMap)
 			if err != nil {
 				return err
 			}
