@@ -44,10 +44,7 @@ func uploadFile(t *testing.T, dirNamePrefix string, fileSize int64) {
 	filePath := path.Join(testDir, FileName)
 
 	// Sequentially write the data in file.
-	err = operations.WriteFileSequentially(filePath, fileSize, fileSize)
-	if err != nil {
-		t.Fatalf("Error in writing file: %v", err)
-	}
+	operations.WriteFilesSequentially(t, []string{filePath}, fileSize, fileSize)
 }
 
 func extractRelevantLogsFromLogFile(t *testing.T, logFile string, logFileOffset int64) (logString string) {

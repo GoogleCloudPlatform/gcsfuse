@@ -17,84 +17,56 @@
 package write_large_files
 
 import (
-	"os"
 	"path"
-	"syscall"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 )
 
 func TestWriteToSameFileConcurrently(t *testing.T) {
+	// Setup Test directory and files to write to.
 	seqWriteDir := setup.SetupTestDirectory(DirForSeqWrite)
-	mountedFilePath := path.Join(seqWriteDir, "50mb"+setup.GenerateRandomString(5)+".txt")
-	localFilePath := path.Join(TmpDir, "50mbLocal"+setup.GenerateRandomString(5)+".txt")
-	localFile := operations.CreateFile(localFilePath, setup.FilePermission_0600, t)
-
-	// Clean up.
-	defer operations.RemoveDir(seqWriteDir)
-	defer operations.RemoveFile(localFilePath)
-
+	mountedDirFilePath := path.Join(seqWriteDir, setup.GenerateRandomString(5))
+	localFilePath := path.Join(TmpDir, setup.GenerateRandomString(5))
+	t.Cleanup(func() { operations.RemoveFile(localFilePath) })
+	// We will have x numbers of concurrent writers trying to write to the same file.
+	// Every thread will start at offset = writer_index * (fileSize/thread_count).
 	var eG errgroup.Group
 	concurrentWriterCount := 5
 	chunkSize := 50 * OneMiB / concurrentWriterCount
 
-	// We will have x numbers of concurrent threads trying to write from the same file.
-	// Every thread will start at offset = thread_index * (fileSize/thread_count).
 	for i := 0; i < concurrentWriterCount; i++ {
 		offset := i * chunkSize
-
 		eG.Go(func() error {
-			return writeToFileSequentially(localFilePath, mountedFilePath, offset, offset+chunkSize, t)
+			writeToFileSequentially(t, []string{localFilePath, mountedDirFilePath}, offset, offset+chunkSize)
+			return nil
 		})
 	}
 
 	// Wait on threads to end.
 	err := eG.Wait()
-	if err != nil {
-		t.Errorf("writing failed")
-	}
-
-	// Close the local file since the below method will open the file again.
-	operations.CloseFile(localFile)
-
-	identical, err := operations.AreFilesIdentical(mountedFilePath, localFilePath)
-	if !identical {
-		t.Fatalf("Comparision failed: %v", err)
-	}
+	require.NoError(t, err)
+	identical, err := operations.AreFilesIdentical(mountedDirFilePath, localFilePath)
+	require.NoError(t, err)
+	assert.True(t, identical)
 }
 
-func writeToFileSequentially(localFilePath string, mountedFilePath string, startOffset int, endOffset int, t *testing.T) (err error) {
-	mountedFile, err := os.OpenFile(mountedFilePath, os.O_RDWR|syscall.O_DIRECT|os.O_CREATE, setup.FilePermission_0600)
-	if err != nil {
-		t.Fatalf("Error in opening file: %v", err)
-	}
+func writeToFileSequentially(t *testing.T, filePaths []string, startOffset int, endOffset int) {
+	t.Helper()
+	filesToWrite := operations.OpenFiles(t, filePaths)
+	defer operations.CloseFiles(t, filesToWrite)
 
-	localFile, err := os.OpenFile(localFilePath, os.O_RDWR|syscall.O_DIRECT|os.O_CREATE, setup.FilePermission_0600)
-	if err != nil {
-		t.Fatalf("Error in opening file: %v", err)
-	}
-
-	filesToWrite := []*os.File{localFile, mountedFile}
-
-	// Closing file at the end.
-	defer operations.CloseFile(mountedFile)
-	defer operations.CloseFile(localFile)
-
-	var chunkSize = 5 * OneMiB
+	var chunkSize = OneMiB
 	for startOffset < endOffset {
-		if (endOffset - startOffset) < chunkSize {
-			chunkSize = endOffset - startOffset
-		}
+		chunkSize = min(chunkSize, endOffset-startOffset)
 
 		err := operations.WriteChunkOfRandomBytesToFiles(filesToWrite, chunkSize, int64(startOffset))
-		if err != nil {
-			t.Fatalf("Error in writing chunk: %v", err)
-		}
+		require.NoError(t, err)
 
 		startOffset = startOffset + chunkSize
 	}
-	return
 }
