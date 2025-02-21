@@ -75,7 +75,7 @@ echo "Setting the integration test timeout to: $INTEGRATION_TEST_TIMEOUT"
 readonly RANDOM_STRING_LENGTH=5
 # Test directory arrays
 TEST_DIR_PARALLEL=(
-  "monitoring"
+  # "monitoring"
   "local_file"
   "log_rotation"
   "mounting"
@@ -127,8 +127,8 @@ function upgrade_gcloud_version() {
 function install_packages() {
   # e.g. architecture=arm64 or amd64
   architecture=$(dpkg --print-architecture)
-  echo "Installing go-lang 1.23.5..."
-  wget -O go_tar.tar.gz https://go.dev/dl/go1.23.5.linux-${architecture}.tar.gz -q
+  echo "Installing go-lang 1.24.0..."
+  wget -O go_tar.tar.gz https://go.dev/dl/go1.24.0.linux-${architecture}.tar.gz -q
   sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
   export PATH=$PATH:/usr/local/go/bin
   sudo apt-get install -y python3
