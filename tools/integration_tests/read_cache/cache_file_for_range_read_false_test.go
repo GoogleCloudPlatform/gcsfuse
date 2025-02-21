@@ -16,11 +16,13 @@ package read_cache
 
 import (
 	"context"
+	"io"
 	"log"
+	"os"
 	"path"
 	"strings"
-	"sync"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
@@ -61,11 +63,31 @@ func (s *cacheFileForRangeReadFalseTest) Teardown(t *testing.T) {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func readFileAsync(t *testing.T, wg *sync.WaitGroup, testFileName string, expectedOutcome **Expected) {
-	go func() {
-		defer wg.Done()
-		*expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, testFileName, true, zeroOffset, t)
-	}()
+func readFileBetweenOffset(t *testing.T, file *os.File, startOffset, endOffSet int64) *Expected {
+	t.Helper()
+	expected := &Expected{
+		StartTimeStampSeconds: time.Now().Unix(),
+		BucketName:            setup.TestBucket(),
+		ObjectName:            path.Join(testDirName, path.Base(file.Name())),
+	}
+	if setup.DynamicBucketMounted() != "" {
+		expected.BucketName = setup.DynamicBucketMounted()
+	}
+
+	chunkRead := make([]byte, chunkSizeToRead)
+	var readData []byte
+	for startOffset < endOffSet {
+		_, err := file.ReadAt(chunkRead, startOffset)
+		if err != nil && err != io.EOF {
+			t.Errorf("Failed to read file chunk at offset %d: %v", startOffset, err)
+		}
+		readData = append(readData, chunkRead...)
+		startOffset = startOffset + chunkSizeToRead
+	}
+
+	expected.EndTimeStampSeconds = time.Now().Unix()
+	expected.content = string(readData)
+	return expected
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -86,39 +108,43 @@ func (s *cacheFileForRangeReadFalseTest) TestRangeReadsWithCacheMiss(t *testing.
 	validateFileIsNotCached(testFileName, t)
 }
 
-func (s *cacheFileForRangeReadFalseTest) TestConcurrentReads_ReadIsTreatedNonSequentialAfterFileIsRemovedFromCache(t *testing.T) {
+func (s *cacheFileForRangeReadFalseTest) TestReadIsTreatedNonSequentialAfterFileIsRemovedFromCache(t *testing.T) {
 	var testFileNames [2]string
-	var expectedOutcome [2]*Expected
+	var expectedOutcome [4]*Expected
 	testFileNames[0] = setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSizeSameAsCacheCapacity, t)
 	testFileNames[1] = setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSizeSameAsCacheCapacity, t)
 	randomReadChunkCount := fileSizeSameAsCacheCapacity / chunkSizeToRead
+	readTillChunk := randomReadChunkCount / 2
+	fh1 := operations.OpenFile(path.Join(testDirPath, testFileNames[0]), t)
+	fh2 := operations.OpenFile(path.Join(testDirPath, testFileNames[1]), t)
 
-	var wg sync.WaitGroup
-	for i := 0; i < 2; i++ {
-		wg.Add(1)
-		readFileAsync(t, &wg, testFileNames[i], &expectedOutcome[i])
-	}
-	wg.Wait()
+	// Use file handle 1 to read file 1 partially.
+	expectedOutcome[0] = readFileBetweenOffset(t, fh1, 0, int64(readTillChunk*chunkSizeToRead))
+	// Use file handle 2 to read file 2 partially. This wiill evict file 1 from cache due to cache capacity constraints.
+	expectedOutcome[1] = readFileBetweenOffset(t, fh2, 0, int64(readTillChunk*chunkSizeToRead))
+	// Read remaining file 1.
+	expectedOutcome[2] = readFileBetweenOffset(t, fh1, int64(readTillChunk*chunkSizeToRead)+1, fileSizeSameAsCacheCapacity)
+	// Read remaining file 2.
+	expectedOutcome[3] = readFileBetweenOffset(t, fh2, int64(readTillChunk*chunkSizeToRead)+1, fileSizeSameAsCacheCapacity)
 
+	// Merge the expected outcomes.
+	expectedOutcome[0].EndTimeStampSeconds = expectedOutcome[2].EndTimeStampSeconds
+	expectedOutcome[0].content = expectedOutcome[0].content + expectedOutcome[2].content
+	expectedOutcome[1].EndTimeStampSeconds = expectedOutcome[3].EndTimeStampSeconds
+	expectedOutcome[1].content = expectedOutcome[1].content + expectedOutcome[3].content
+	// Parse the logs and validate with expected outcome.
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	require.Equal(t, 2, len(structuredReadLogs))
-	// Goroutine execution order isn't guaranteed.
-	// If the object name in expected outcome doesn't align with the logs, swap
-	// the expected outcome objects and file names at positions 0 and 1.
-	if expectedOutcome[0].ObjectName != structuredReadLogs[0].ObjectName {
-		expectedOutcome[0], expectedOutcome[1] = expectedOutcome[1], expectedOutcome[0]
-		testFileNames[0], testFileNames[1] = testFileNames[1], testFileNames[0]
-	}
 	validate(expectedOutcome[0], structuredReadLogs[0], true, false, randomReadChunkCount, t)
 	validate(expectedOutcome[1], structuredReadLogs[1], true, false, randomReadChunkCount, t)
-	// Validate last chunk was considered non-sequential and cache hit false for first read.
-	assert.False(t, structuredReadLogs[0].Chunks[randomReadChunkCount-1].IsSequential)
-	assert.False(t, structuredReadLogs[0].Chunks[randomReadChunkCount-1].CacheHit)
-	// Validate last chunk was considered sequential and cache hit true for second read.
-	assert.True(t, structuredReadLogs[1].Chunks[randomReadChunkCount-1].IsSequential)
+	// Validate after cache eviction, read was considered non-sequential and cache hit false for first file.
+	assert.False(t, structuredReadLogs[0].Chunks[readTillChunk+1].IsSequential)
+	assert.False(t, structuredReadLogs[0].Chunks[readTillChunk+1].CacheHit)
+	// Validate for 2nd file read was considered sequential because of no cache eviction.
+	assert.True(t, structuredReadLogs[1].Chunks[readTillChunk+1].IsSequential)
 	if !s.isParallelDownloadsEnabled {
 		// When parallel downloads are enabled, we can't concretely say that the read will be cache Hit.
-		assert.True(t, structuredReadLogs[1].Chunks[randomReadChunkCount-1].CacheHit)
+		assert.True(t, structuredReadLogs[1].Chunks[readTillChunk+1].CacheHit)
 	}
 
 	validateFileIsNotCached(testFileNames[0], t)
