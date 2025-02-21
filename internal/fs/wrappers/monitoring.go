@@ -381,3 +381,7 @@ func (fs *monitoring) SetXattr(ctx context.Context, op *fuseops.SetXattrOp) erro
 func (fs *monitoring) Fallocate(ctx context.Context, op *fuseops.FallocateOp) error {
 	return fs.invokeWrapped(ctx, "Fallocate", func(ctx context.Context) error { return fs.wrapped.Fallocate(ctx, op) })
 }
+
+func (fs *monitoring) SyncFS(ctx context.Context, op *fuseops.SyncFSOp) error {
+	return fs.invokeWrapped(ctx, "SyncFS", func(ctx context.Context) error { return fs.wrapped.SyncFS(ctx, op) })
+}

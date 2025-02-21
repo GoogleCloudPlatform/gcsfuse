@@ -155,6 +155,10 @@ func (d dummyFS) Fallocate(_ context.Context, _ *fuseops.FallocateOp) error {
 	return nil
 }
 
+func (d dummyFS) SyncFS(_ context.Context, _ *fuseops.SyncFSOp) error {
+	return nil
+}
+
 func (d dummyFS) Destroy() {}
 
 func TestSpanCreation(t *testing.T) {
