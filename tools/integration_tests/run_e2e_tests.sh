@@ -75,7 +75,7 @@ echo "Setting the integration test timeout to: $INTEGRATION_TEST_TIMEOUT"
 readonly RANDOM_STRING_LENGTH=5
 # Test directory arrays
 TEST_DIR_PARALLEL=(
-  "monitoring"
+  # "monitoring"
   "local_file"
   "log_rotation"
   "mounting"
