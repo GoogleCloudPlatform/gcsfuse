@@ -27,7 +27,7 @@ import (
 // generation.
 type ExplicitDirInode interface {
 	DirInode
-	Metadata() Metadata
+	SourceMetadata() Metadata
 }
 
 // Create an explicit dir inode backed by the supplied object. See notes on
@@ -80,7 +80,7 @@ type explicitDirInode struct {
 	metadata Metadata
 }
 
-func (d *explicitDirInode) SourceMetadata() (gen Metadata) {
+func (d *explicitDirInode) SourceMetadata() Metadata {
 	return Metadata{
 		Generation:     d.metadata.Generation,
 		MetaGeneration: d.metadata.MetaGeneration,

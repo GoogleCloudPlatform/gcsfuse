@@ -115,7 +115,7 @@ func (s *SymlinkInode) Name() Name {
 	return s.name
 }
 
-// SourceGeneration returns the object generation from which this inode was branched.
+// Metadata returns the object generation from which this inode was branched.
 //
 // LOCKS_REQUIRED(s)
 func (s *SymlinkInode) SourceMetadata() Metadata {

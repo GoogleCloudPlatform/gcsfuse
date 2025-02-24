@@ -81,6 +81,9 @@ type GenerationBackedInode interface {
 // the two.
 //
 // Cf. https://cloud.google.com/storage/docs/generations-preconditions
+//
+// Size is to detect new appends done via different process. Used only for rapid
+// storage buckets.
 type Metadata struct {
 	Generation     int64
 	MetaGeneration int64

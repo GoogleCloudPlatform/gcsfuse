@@ -239,8 +239,10 @@ func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool, inclu
 	}
 
 	// We are clobbered iff the generation doesn't match our source generation.
-	oGen := Metadata{o.Generation, o.MetaGeneration, o.Size}
-	b = f.Metadata().Compare(oGen) != 0
+	// In case of Rapid storage, we are not considering new appends as clobbered.
+	// This is mainly to keep in sync with the precondition checks done by the server.
+	// Server doesn't validate the size in the precondition checks.
+	b = f.src.Generation != o.Generation || f.src.MetaGeneration != o.MetaGeneration
 
 	return
 }
@@ -381,10 +383,11 @@ func (f *FileInode) SourceGenerationIsAuthoritative() bool {
 	return f.content == nil && f.bwh == nil
 }
 
-// Equivalent to the generation returned by f.Source().
+// Represents the metadata to uniquely identify an object. Size is considered
+// only for Rapid storage.
 //
 // LOCKS_REQUIRED(f)
-func (f *FileInode) Metadata() (m Metadata) {
+func (f *FileInode) SourceMetadata() (m Metadata) {
 	m.Generation = f.src.Generation
 	m.MetaGeneration = f.src.MetaGeneration
 	m.Size = f.src.Size
@@ -683,7 +686,7 @@ func (f *FileInode) SetMtime(
 
 	// Otherwise, update the backing object's metadata.
 	formatted := mtime.UTC().Format(time.RFC3339Nano)
-	srcGen := f.Metadata()
+	srcGen := f.SourceMetadata()
 
 	req := &gcs.UpdateObjectRequest{
 		Name:                       f.src.Name,
