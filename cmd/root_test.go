@@ -331,7 +331,7 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 					CacheFileForRangeRead:    false,
 					DownloadChunkSizeMb:      200,
 					EnableCrc:                false,
-					EnableParallelDownloads:  false,
+					EnableParallelDownloads:  true,
 					MaxParallelDownloads:     int64(max(16, 2*runtime.NumCPU())),
 					MaxSizeMb:                -1,
 					ParallelDownloadsPerFile: 16,

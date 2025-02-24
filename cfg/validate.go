@@ -47,9 +47,10 @@ func isValidURL(u string) error {
 
 func isValidParallelDownloadConfig(config *Config) error {
 	if config.FileCache.EnableParallelDownloads {
-		if !IsFileCacheEnabled(config) {
-			return errors.New("file cache should be enabled for parallel download support")
-		}
+		// TODO: remove this check, parallel downloads is enabled by default hence this check is redundant
+		//if !IsFileCacheEnabled(config) {
+		//	return errors.New("file cache should be enabled for parallel download support")
+		//}
 		if config.FileCache.MaxParallelDownloads == 0 {
 			return errors.New("the value of max-parallel-downloads for file-cache must not be 0 when enable-parallel-downloads is true")
 		}

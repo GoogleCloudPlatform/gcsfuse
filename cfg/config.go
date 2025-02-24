@@ -403,7 +403,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("file-cache-enable-parallel-downloads", "", false, "Enable parallel downloads.")
+	flagSet.BoolP("file-cache-enable-parallel-downloads", "", true, "Enable parallel downloads.")
 
 	flagSet.IntP("file-cache-max-parallel-downloads", "", DefaultMaxParallelDownloads(), "Sets an uber limit of number of concurrent file download requests that are made across all files.")
 
