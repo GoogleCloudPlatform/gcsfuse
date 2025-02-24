@@ -43,7 +43,6 @@ var mountedDirectory = flag.String("mountedDirectory", "", "The GCSFuse mounted 
 var integrationTest = flag.Bool("integrationTest", false, "Run tests only when the flag value is true.")
 var testInstalledPackage = flag.Bool("testInstalledPackage", false, "[Optional] Run tests on the package pre-installed on the host machine. By default, integration tests build a new package to run the tests.")
 var testOnTPCEndPoint = flag.Bool("testOnTPCEndPoint", false, "Run tests on TPC endpoint only when the flag value is true.")
-var testOnCustomEndpoint = flag.String("testOnCustomEndpoint", "", "Run tests on custom endpoint only when the flag value is set. Required for tests requiring proxy server.")
 var seededRand *rand.Rand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 const (
@@ -96,10 +95,6 @@ func TestInstalledPackage() bool {
 
 func TestOnTPCEndPoint() bool {
 	return *testOnTPCEndPoint
-}
-
-func TestOnCustomEndpoint() string {
-	return *testOnCustomEndpoint
 }
 
 func MountedDirectory() string {
@@ -575,4 +570,17 @@ func CreateFileOnDiskAndCopyToMntDir(t *testing.T, filePathInLocalDisk string, f
 	if err != nil {
 		t.Errorf("Error in copying file:%v", err)
 	}
+}
+
+func CreateProxyServerLogFile(t *testing.T) string {
+	proxyServerLogFile := path.Join(TestDir(), "proxy-server-log-"+GenerateRandomString(5))
+	_, err := os.Create(proxyServerLogFile)
+	if err != nil {
+		t.Fatalf("Error in creating log file for proxy server: %v", err)
+	}
+	return proxyServerLogFile
+}
+
+func AppendProxyEndpointToFlagSet(flagSet *[]string, port int) {
+	*flagSet = append(*flagSet, "--custom-endpoint="+fmt.Sprintf("http://localhost:%d/storage/v1/", port))
 }

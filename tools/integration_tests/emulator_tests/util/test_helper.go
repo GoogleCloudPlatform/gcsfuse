@@ -16,12 +16,13 @@ package emulator_tests
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"os"
 	"os/exec"
-	"path"
+	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
@@ -29,65 +30,71 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
-// StartProxyServer starts a proxy server as a background process and handles its lifecycle.
+const PortAndProxyProcessIdInfoRegex = `Listening Proxy Server On Port \[(\d+)\] with Process ID \[(\d+)\]`
+
+// StartProxyServer starts the proxy server in the background and returns the port and process ID it is listening on.
 //
-// It launches the proxy server with the specified configuration and port, logs its output to a file.
-func StartProxyServer(configPath string) {
-	// Start the proxy in the background
-	cmd := exec.Command("go", "run", "../proxy_server/.", "--config-path="+configPath)
-	logFileForProxyServer, err := os.Create(path.Join(os.Getenv("KOKORO_ARTIFACTS_DIR"), "proxy-"+setup.GenerateRandomString(5)))
+// It takes the config path and log file path as input. The proxy server is starts in background using
+// the go run command. The output of the proxy server is redirected to the log file. It also sets the
+// STORAGE_EMULATOR_HOST to `localhost:port` so that any new storage client will use this endpoint by
+// default. If any error occurs it fails.
+//
+// Parameters:
+//   - configPath: Path for config for Proxy Server.
+//   - logFilePath: Path for log file for Proxy Server Logs.
+//
+// Returns:
+//   - int: Port number that the proxy server is listening on.
+//   - int: Proxy Server Process ID.
+//   - error: An error if any error occurs in setting up Proxy Server.
+func StartProxyServer(configPath, logFilePath string) (int, int, error) {
+	cmd := exec.Command("go", "run", "../proxy_server/.", "--config-path="+configPath, "--log-file="+logFilePath)
+	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+	err := cmd.Start()
 	if err != nil {
-		log.Fatal("Error in creating log file for proxy server.")
+		return -1, -1, fmt.Errorf("error executing proxy server cmd: %v", err)
 	}
-	log.Printf("Proxy server logs are generated with specific filename %s: ", logFileForProxyServer.Name())
-	cmd.Stdout = logFileForProxyServer
-	cmd.Stderr = logFileForProxyServer
-	err = cmd.Start()
+	log.Printf("Proxy Server log file: %s", logFilePath)
+	port, proxyProcessId, err := getPortAndProcessInfoFromLogFile(logFilePath)
 	if err != nil {
-		log.Fatal(err)
+		return -1, -1, fmt.Errorf("error getting port information from log file: %v", err)
 	}
+	// Set STORAGE_EMULATOR_HOST to current proxy server for the test. This ensures
+	// any storage client created during this test will call this proxy endpoint.
+	// More details: https://cloud.google.com/go/docs/reference/cloud.google.com/go/storage/latest#hdr-Creating_a_Client
+	err = os.Setenv("STORAGE_EMULATOR_HOST", fmt.Sprintf("localhost:%d", port))
+	if err != nil {
+		return -1, -1, fmt.Errorf("error setting STORAGE_EMULATOR_HOST environment variable: %v", err)
+	}
+	return port, proxyProcessId, nil
 }
 
-// KillProxyServerProcess kills all processes listening on the specified port.
+// KillProxyServerProcess kills given Proxy Server Process ID.
+// It also unsets the STORAGE_EMULATOR_HOST environment variable for proxy server.
 //
-// It uses the `lsof` command to identify the processes and sends SIGINT to each of them.
-func KillProxyServerProcess(port int) error {
-	// Use lsof to find processes listening on the specified port
-	cmd := exec.Command("lsof", "-i", fmt.Sprintf(":%d", port))
-	output, err := cmd.Output()
+// Parameters:
+//   - proxyProcessId: PID of Proxy Server.
+//
+// Returns:
+//   - error: if any error occurs in unsetting env or killing proxy Server.
+func KillProxyServerProcess(proxyProcessId int) error {
+	// Unset STORAGE_EMULATOR_HOST environment set in StartProxyServer.
+	err := os.Unsetenv("STORAGE_EMULATOR_HOST")
 	if err != nil {
-		return fmt.Errorf("error running lsof: %w", err)
+		return fmt.Errorf("error unsetting STORAGE_EMULATOR_HOST environment variable: %v", err)
 	}
-
-	// Parse the lsof output to get the process IDs
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines[1:] {
-		fields := strings.Fields(line)
-		// Kill only the process directly listening on the port.
-		if len(fields) > 1 && strings.Contains(line, "LISTEN") {
-			pidStr := fields[1]
-			pid, err := strconv.Atoi(pidStr)
-			if err != nil {
-				log.Println("Error parsing process ID:", err)
-				continue
-			}
-
-			// Send SIGINT to the process
-			process, err := os.FindProcess(pid)
-			if err != nil {
-				log.Println("Error finding process:", err)
-				continue
-			}
-			err = process.Signal(syscall.SIGINT)
-			if err != nil {
-				log.Println("Error sending SIGINT to process:", err)
-			}
-		}
+	// Find Proxy Server Process.
+	process, err := os.FindProcess(proxyProcessId)
+	if err != nil {
+		return fmt.Errorf("error finding the proxy server process with PID %d: %v", proxyProcessId, err)
 	}
-
+	// Send SIGINT to the Process.
+	err = process.Signal(syscall.SIGINT)
+	if err != nil {
+		return fmt.Errorf("error sending SIGINT to the proxy server process with PID %d: %v", proxyProcessId, err)
+	}
 	return nil
 }
 
@@ -172,4 +179,62 @@ func GetChunkTransferTimeoutFromFlags(flags []string) (int, error) {
 		}
 	}
 	return timeout, nil
+}
+
+// GetPortFromLogFile polls a log file for a specific log message containing the port number.
+// It returns the port number if found, or an error if the port is not found within the specified duration.
+//
+// Parameters:
+//   - logFilePath: The path to the log file to monitor.
+//
+// Returns:
+//   - Port, proxy process ID , or an error if any error occurs.
+func getPortAndProcessInfoFromLogFile(logFilePath string) (int, int, error) {
+	logPollingDuration := 3 * time.Minute  // Duration to poll logs.
+	logPollingFrequency := 3 * time.Second // Frequency to poll logs.
+
+	// Regular expression to extract the port number and Process ID from the log file.
+	re := regexp.MustCompile(PortAndProxyProcessIdInfoRegex)
+
+	// Calculate the timeout time.
+	timeout := time.After(logPollingDuration)
+
+	// Create a ticker to poll the log file at the specified frequency.
+	ticker := time.NewTicker(logPollingFrequency)
+	defer ticker.Stop()
+
+	// Poll the log file until the timeout or the port is found.
+	for {
+		select {
+		case <-timeout:
+			// Timeout occurred, return an error.
+			return -1, -1, errors.New("timeout: port number not found in log file")
+		case <-ticker.C:
+			// Read the log file.
+			content, err := operations.ReadFile(logFilePath)
+			if err != nil {
+				// Log file could not be opened, return an error.
+				return -1, -1, fmt.Errorf("failed to read the log file: %w", err)
+			}
+
+			// Attempt to extract the port number from the log line.
+			match := re.FindStringSubmatch(string(content))
+			if len(match) == 3 {
+				// Port number and PID found, parse it and return.
+				portStr, proxyProcessIdStr := match[1], match[2]
+
+				port, err := strconv.Atoi(portStr)
+				if err != nil {
+					// Port number could not be parsed, return an error.
+					return -1, -1, fmt.Errorf("failed to parse port number: %w", err)
+				}
+				proxyProcessId, err := strconv.Atoi(proxyProcessIdStr)
+				if err != nil {
+					// Process ID could not be parsed, return an error.
+					return -1, -1, fmt.Errorf("failed to parse process ID: %w", err)
+				}
+				return port, proxyProcessId, nil
+			}
+		}
+	}
 }

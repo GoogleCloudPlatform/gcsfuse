@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	emulator_tests "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/emulator_tests/util"
@@ -40,13 +41,18 @@ const (
 )
 
 type readStall struct {
-	flags []string
+	port           int
+	proxyProcessId int
+	flags          []string
 	suite.Suite
 }
 
 func (r *readStall) SetupSuite() {
 	configPath := "../proxy_server/configs/read_stall_5s.yaml"
-	emulator_tests.StartProxyServer(configPath)
+	var err error
+	r.port, r.proxyProcessId, err = emulator_tests.StartProxyServer(configPath, setup.CreateProxyServerLogFile(r.T()))
+	require.NoError(r.T(), err)
+	setup.AppendProxyEndpointToFlagSet(&r.flags, r.port)
 	setup.MountGCSFuseWithGivenMountFunc(r.flags, mountFunc)
 }
 
@@ -56,7 +62,7 @@ func (r *readStall) SetupTest() {
 
 func (r *readStall) TearDownSuite() {
 	setup.UnmountGCSFuse(rootDir)
-	assert.NoError(r.T(), emulator_tests.KillProxyServerProcess(port))
+	assert.NoError(r.T(), emulator_tests.KillProxyServerProcess(r.proxyProcessId))
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -85,7 +91,7 @@ func TestReadStall(t *testing.T) {
 	ts := &readStall{}
 	// Define flag set to run the tests.
 	flagsSet := [][]string{
-		{"--custom-endpoint=" + proxyEndpoint, "--enable-read-stall-retry=true", "--read-stall-min-req-timeout=" + fmt.Sprintf("%dms", minReqTimeout.Milliseconds()), "--read-stall-initial-req-timeout=" + fmt.Sprintf("%dms", minReqTimeout.Milliseconds())},
+		{"--enable-read-stall-retry=true", "--read-stall-min-req-timeout=" + fmt.Sprintf("%dms", minReqTimeout.Milliseconds()), "--read-stall-initial-req-timeout=" + fmt.Sprintf("%dms", minReqTimeout.Milliseconds())},
 	}
 
 	// Run tests.

@@ -120,5 +120,5 @@ curl -X POST --data-binary @test.json \
     "$STORAGE_EMULATOR_HOST/storage/v1/b?project=test-project"
 rm test.json
 
-# Run all the tests.
-go test ./tools/integration_tests/emulator_tests/... -p 1 --integrationTest -v --testbucket=test-bucket --testOnCustomEndpoint=http://localhost:8020/storage/v1/ -timeout 10m --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE
+# Run all emulator test packages in parallel.
+go test ./tools/integration_tests/emulator_tests/... --integrationTest -v --testbucket=test-bucket -timeout 10m --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE
