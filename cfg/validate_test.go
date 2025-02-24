@@ -364,26 +364,27 @@ func TestValidateConfig_ErrorScenarios(t *testing.T) {
 				},
 			},
 		},
-		{
-			name: "parallel_download_config_without_file_cache_enabled",
-			config: &Config{
-				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
-				FileCache: FileCacheConfig{
-					DownloadChunkSizeMb:      50,
-					EnableParallelDownloads:  true,
-					MaxParallelDownloads:     4,
-					ParallelDownloadsPerFile: 16,
-					WriteBufferSize:          4 * 1024 * 1024,
-				},
-				GcsConnection: GcsConnectionConfig{
-					CustomEndpoint:       "https://bing.com/search?q=dotnet",
-					SequentialReadSizeMb: 200,
-				},
-				MetadataCache: MetadataCacheConfig{
-					ExperimentalMetadataPrefetchOnMount: "disabled",
-				},
-			},
-		},
+		//{
+		// TODO: Remove this test as check is also removed
+		//	name: "parallel_download_config_without_file_cache_enabled",
+		//	config: &Config{
+		//		Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
+		//		FileCache: FileCacheConfig{
+		//			DownloadChunkSizeMb:      50,
+		//			EnableParallelDownloads:  true,
+		//			MaxParallelDownloads:     4,
+		//			ParallelDownloadsPerFile: 16,
+		//			WriteBufferSize:          4 * 1024 * 1024,
+		//		},
+		//		GcsConnection: GcsConnectionConfig{
+		//			CustomEndpoint:       "https://bing.com/search?q=dotnet",
+		//			SequentialReadSizeMb: 200,
+		//		},
+		//		MetadataCache: MetadataCacheConfig{
+		//			ExperimentalMetadataPrefetchOnMount: "disabled",
+		//		},
+		//	},
+		//},
 		{
 			name: "chunk_transfer_timeout_in_negative",
 			config: &Config{
