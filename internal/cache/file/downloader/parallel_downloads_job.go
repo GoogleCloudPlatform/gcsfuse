@@ -94,6 +94,7 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 			}
 			if err != nil {
 				err = fmt.Errorf("downloadRange: error at the time of copying content to cache file %w", err)
+				return newReader.ReadHandle(), err
 			}
 
 			err = job.updateRangeMap(rangeMap, start, start+writeSize)
@@ -175,7 +176,7 @@ func (job *Job) downloadOffsets(ctx context.Context, goroutineIndex int64, cache
 				return nil
 			}
 
-			offsetWriter := io.NewOffsetWriter(cacheFile, int64(objectRange.Start))
+			offsetWriter := io.NewOffsetWriter(cacheFile, objectRange.Start)
 			readHandle, err = job.downloadRange(ctx, offsetWriter, objectRange.Start, objectRange.End, readHandle, rangeMap)
 			if err != nil {
 				return err
