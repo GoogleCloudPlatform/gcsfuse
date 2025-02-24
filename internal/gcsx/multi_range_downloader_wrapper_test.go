@@ -165,55 +165,36 @@ func (t *mrdWrapperTest) Test_Read() {
 	}
 }
 
-func (t *mrdWrapperTest) Test_Read_ErrorHandling() {
-	testCases := []struct {
-		name               string
-		start              int
-		end                int
-		expectedErrKeyword string
-	}{
-		{
-			name:               "ErrorInCreatingMRD",
-			start:              0,
-			end:                100,
-			expectedErrKeyword: "MultiRangeDownloader",
-		},
-		{
-			name:               "TimeoutError",
-			start:              0,
-			end:                100,
-			expectedErrKeyword: "Timeout",
-		},
-		{
-			name:               "ContextCancelled",
-			start:              0,
-			end:                100,
-			expectedErrKeyword: "Context Cancelled",
-		},
-	}
+func (t *mrdWrapperTest) Test_Read_ErrorInCreatingMRD() {
+	t.mrdWrapper.Wrapped = nil
+	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("Error in creating MRD")).Once()
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func() {
-			ctx := context.Background()
-			buf := make([]byte, tc.end-tc.start)
-			t.mrdWrapper.Wrapped = nil
-			if tc.name == "ErrorInCreatingMRD" {
-				t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("Error in creating MRD")).Once()
-			} else if tc.name == "TimeoutError" {
-				t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, t.mrdTimeout+time.Millisecond), nil).Once()
-			} else if tc.name == "ContextCancelled" {
-				var cancel context.CancelFunc
-				ctx, cancel = context.WithCancel(context.Background())
-				cancel()
-				t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond), nil).Once()
-			}
+	bytesRead, err := t.mrdWrapper.Read(context.Background(), make([]byte, t.object.Size), 0, int64(t.object.Size), t.mrdTimeout, common.NewNoopMetrics())
 
-			bytesRead, err := t.mrdWrapper.Read(ctx, buf, int64(tc.start), int64(tc.end), t.mrdTimeout, common.NewNoopMetrics())
+	assert.ErrorContains(t.T(), err, "MultiRangeDownloaderWrapper::Read: Error in creating MultiRangeDownloader")
+	assert.Equal(t.T(), 0, bytesRead)
+}
 
-			assert.ErrorContains(t.T(), err, tc.expectedErrKeyword)
-			assert.Equal(t.T(), 0, bytesRead)
-		})
-	}
+func (t *mrdWrapperTest) Test_Read_Timeout() {
+	t.mrdWrapper.Wrapped = nil
+	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, t.mrdTimeout+2*time.Millisecond), nil).Once()
+
+	bytesRead, err := t.mrdWrapper.Read(context.Background(), make([]byte, t.object.Size), 0, int64(t.object.Size), t.mrdTimeout, common.NewNoopMetrics())
+
+	assert.ErrorContains(t.T(), err, "Timeout")
+	assert.Equal(t.T(), 0, bytesRead)
+}
+
+func (t *mrdWrapperTest) Test_Read_ContextCancelled() {
+	t.mrdWrapper.Wrapped = nil
+	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond), nil).Once()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	bytesRead, err := t.mrdWrapper.Read(ctx, make([]byte, t.object.Size), 0, int64(t.object.Size), t.mrdTimeout, common.NewNoopMetrics())
+
+	assert.ErrorContains(t.T(), err, "Context Cancelled")
+	assert.Equal(t.T(), 0, bytesRead)
 }
 
 func (t *mrdWrapperTest) Test_NewMultiRangeDownloaderWrapper() {
