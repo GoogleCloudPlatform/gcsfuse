@@ -899,9 +899,10 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 		return fs.createDirInode(ic, fs.implicitDirInodes)
 	}
 
-	oGen := inode.Generation{
-		Object:   ic.MinObject.Generation,
-		Metadata: ic.MinObject.MetaGeneration,
+	oGen := inode.Metadata{
+		Generation:     ic.MinObject.Generation,
+		MetaGeneration: ic.MinObject.MetaGeneration,
+		Size:           ic.MinObject.Size,
 	}
 
 	// Retry loop for the stale index entry case below. On entry, we hold fs.mu
@@ -936,7 +937,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 		}
 
 		// Have we found the correct inode?
-		cmp := oGen.Compare(existingInode.SourceGeneration())
+		cmp := oGen.Compare(existingInode.Metadata())
 		if cmp == 0 {
 			in = existingInode
 			return

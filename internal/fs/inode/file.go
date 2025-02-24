@@ -239,8 +239,8 @@ func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool, inclu
 	}
 
 	// We are clobbered iff the generation doesn't match our source generation.
-	oGen := Generation{o.Generation, o.MetaGeneration}
-	b = f.SourceGeneration().Compare(oGen) != 0
+	oGen := Metadata{o.Generation, o.MetaGeneration, o.Size}
+	b = f.Metadata().Compare(oGen) != 0
 
 	return
 }
@@ -384,9 +384,10 @@ func (f *FileInode) SourceGenerationIsAuthoritative() bool {
 // Equivalent to the generation returned by f.Source().
 //
 // LOCKS_REQUIRED(f)
-func (f *FileInode) SourceGeneration() (g Generation) {
-	g.Object = f.src.Generation
-	g.Metadata = f.src.MetaGeneration
+func (f *FileInode) Metadata() (m Metadata) {
+	m.Generation = f.src.Generation
+	m.MetaGeneration = f.src.MetaGeneration
+	m.Size = f.src.Size
 	return
 }
 
@@ -682,12 +683,12 @@ func (f *FileInode) SetMtime(
 
 	// Otherwise, update the backing object's metadata.
 	formatted := mtime.UTC().Format(time.RFC3339Nano)
-	srcGen := f.SourceGeneration()
+	srcGen := f.Metadata()
 
 	req := &gcs.UpdateObjectRequest{
 		Name:                       f.src.Name,
-		Generation:                 srcGen.Object,
-		MetaGenerationPrecondition: &srcGen.Metadata,
+		Generation:                 srcGen.Generation,
+		MetaGenerationPrecondition: &srcGen.MetaGeneration,
 		Metadata: map[string]*string{
 			FileMtimeMetadataKey: &formatted,
 		},

@@ -73,7 +73,7 @@ type GenerationBackedInode interface {
 	Inode
 
 	// Requires the inode lock.
-	SourceGeneration() Generation
+	SourceMetadata() Metadata
 }
 
 // A particular generation of a GCS object, consisting of both a GCS object
@@ -81,29 +81,39 @@ type GenerationBackedInode interface {
 // the two.
 //
 // Cf. https://cloud.google.com/storage/docs/generations-preconditions
-type Generation struct {
-	Object   int64
-	Metadata int64
+type Metadata struct {
+	Generation     int64
+	MetaGeneration int64
+	Size           uint64
 }
 
 // Compare returns -1, 0, or 1 according to whether g is less than, equal to, or greater
 // than other.
-func (g Generation) Compare(other Generation) int {
+func (m Metadata) Compare(other Metadata) int {
 	// Compare first on object generation number.
 	switch {
-	case g.Object < other.Object:
+	case m.Generation < other.Generation:
 		return -1
 
-	case g.Object > other.Object:
+	case m.Generation > other.Generation:
 		return 1
 	}
 
 	// Break ties on meta-generation.
 	switch {
-	case g.Metadata < other.Metadata:
+	case m.MetaGeneration < other.MetaGeneration:
 		return -1
 
-	case g.Metadata > other.Metadata:
+	case m.MetaGeneration > other.MetaGeneration:
+		return 1
+	}
+
+	// Break ties on size.
+	switch {
+	case m.Size < other.Size:
+		return -1
+
+	case m.Size > other.Size:
 		return 1
 	}
 

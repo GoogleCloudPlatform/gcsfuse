@@ -42,11 +42,11 @@ type SymlinkInode struct {
 	// Constant data
 	/////////////////////////
 
-	id               fuseops.InodeID
-	name             Name
-	sourceGeneration Generation
-	attrs            fuseops.InodeAttributes
-	target           string
+	id       fuseops.InodeID
+	name     Name
+	metadata Metadata
+	attrs    fuseops.InodeAttributes
+	target   string
 
 	/////////////////////////
 	// Mutable state
@@ -72,9 +72,10 @@ func NewSymlinkInode(
 	s = &SymlinkInode{
 		id:   id,
 		name: name,
-		sourceGeneration: Generation{
-			Object:   m.Generation,
-			Metadata: m.MetaGeneration,
+		metadata: Metadata{
+			Generation:     m.Generation,
+			MetaGeneration: m.MetaGeneration,
+			Size:           m.Size,
 		},
 		attrs: fuseops.InodeAttributes{
 			Nlink: 1,
@@ -117,8 +118,8 @@ func (s *SymlinkInode) Name() Name {
 // SourceGeneration returns the object generation from which this inode was branched.
 //
 // LOCKS_REQUIRED(s)
-func (s *SymlinkInode) SourceGeneration() Generation {
-	return s.sourceGeneration
+func (s *SymlinkInode) SourceMetadata() Metadata {
+	return s.metadata
 }
 
 // LOCKS_REQUIRED(s.mu)
