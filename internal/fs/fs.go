@@ -938,6 +938,10 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 		// Have we found the correct inode?
 		cmp := oGen.Compare(existingInode.SourceGeneration())
 		if cmp == 0 {
+			cmp = fs.compareSize(existingInode, ic)
+		}
+
+		if cmp == 0 {
 			in = existingInode
 			return
 		}
@@ -964,6 +968,28 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 
 		continue
 	}
+}
+
+func (fs *fileSystem) compareSize(inode inode.GenerationBackedInode, core inode.Core) int {
+	if !core.Bucket.BucketType().Zonal {
+		return 0
+	}
+	attrs, err := inode.Attributes(context.Background())
+	// If something fails in fetching attributes, consider as no change.
+	if err != nil {
+		return 0
+	}
+
+	// Only if size from the server is greater than the local size, consider the
+	// object as modified, so a new inodeId is returned to the kernel.
+	// It is common for server to return stale length (lesser length), hence
+	// if the appends are happening via this mount, server can return shorter than
+	// what we have. So don't consider the object as modified in that case.
+	if attrs.Size < core.MinObject.Size {
+		return 1
+	}
+
+	return 0
 }
 
 // Look up the child with the given name within the parent, then return an
