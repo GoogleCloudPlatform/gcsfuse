@@ -2719,3 +2719,9 @@ func (fs *fileSystem) ListXattr(
 	op *fuseops.ListXattrOp) error {
 	return syscall.ENOSYS
 }
+
+func (fs *fileSystem) SyncFS(
+	ctx context.Context,
+	op *fuseops.SyncFSOp) error {
+	return syscall.ENOSYS
+}
