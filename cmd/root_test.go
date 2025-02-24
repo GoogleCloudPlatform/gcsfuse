@@ -329,7 +329,7 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 			expectedConfig: &cfg.Config{
 				FileCache: cfg.FileCacheConfig{
 					CacheFileForRangeRead:    false,
-					DownloadChunkSizeMb:      50,
+					DownloadChunkSizeMb:      200,
 					EnableCrc:                false,
 					EnableParallelDownloads:  false,
 					MaxParallelDownloads:     int64(max(16, 2*runtime.NumCPU())),
