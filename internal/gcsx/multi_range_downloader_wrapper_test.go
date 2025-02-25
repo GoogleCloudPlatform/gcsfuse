@@ -151,7 +151,7 @@ func (t *mrdWrapperTest) Test_Read() {
 			t.mrdWrapper.Wrapped = nil
 			t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond))
 
-			bytesRead, err := t.mrdWrapper.Read(context.Background(), buf, int64(tc.start), int64(tc.end), time.Millisecond, common.NewNoopMetrics())
+			bytesRead, err := t.mrdWrapper.Read(context.Background(), buf, int64(tc.start), int64(tc.end), 10*time.Millisecond, common.NewNoopMetrics())
 
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), tc.end-tc.start, bytesRead)
