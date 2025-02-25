@@ -246,3 +246,27 @@ func (t *commonFailureTestSuite) TestStreamingWritesWhenFinalizeObjectFailure() 
 	// Close and validate object content found on GCS.
 	CloseFileAndValidateContentFromGCS(t.ctx, t.storageClient, t.fh1, testDirName, FileName1, string(t.data), t.T())
 }
+
+func (t *commonFailureTestSuite) TestStreamingWritesBwhResetsWhenFileHandlesAreOpenInReadMode() {
+	// Write first 2 MB (say A,B) block to file succeeds but async upload of block B will result in error.
+	// Fuse:[B] -> Go-SDK:[A] -> GCS[]
+	_, err := t.fh1.WriteAt(t.data[:2*operations.MiB], 0)
+	assert.NoError(t.T(), err)
+	// Write again 2MB (C, D) will trigger B upload.
+	// Fuse:[D] -> Go-SDK:[C] -> GCS[A, B -> upload fails]
+	_, _ = t.fh1.WriteAt(t.data[2*operations.MiB:4*operations.MiB], 2*operations.MiB)
+
+	// Write 5th 1MB results in errors.
+	_, err = t.fh1.WriteAt(t.data[4*operations.MiB:5*operations.MiB], 4*operations.MiB)
+
+	require.Error(t.T(), err)
+	fh2, err := operations.OpenFileAsReadonly(t.filePath)
+	assert.NoError(t.T(), err)
+	// Closing only file handle in write mode.
+	operations.CloseFileShouldThrowError(t.T(), t.fh1)
+	// Opening new file handle and writing to file succeeds when file handles in O_RDONLY mode are open.
+	t.writingAfterBwhReinitializationSucceeds()
+	operations.CloseFileShouldNotThrowError(fh2, t.T())
+	// Close and validate object content found on GCS.
+	CloseFileAndValidateContentFromGCS(t.ctx, t.storageClient, t.fh1, testDirName, FileName1, string(t.data), t.T())
+}
