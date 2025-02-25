@@ -389,7 +389,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("file-cache-cache-file-for-range-read", "", false, "Whether to cache file for range reads.")
 
-	flagSet.IntP("file-cache-download-chunk-size-mb", "", 200, "Size of chunks in MiB that each concurrent request downloads.")
+	flagSet.IntP("file-cache-download-chunk-size-mb", "", 50, "Size of chunks in MiB that each concurrent request downloads.")
 
 	flagSet.BoolP("file-cache-enable-crc", "", false, "Performs CRC to ensure that file is correctly downloaded into cache.")
 
@@ -403,7 +403,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("file-cache-enable-parallel-downloads", "", true, "Enable parallel downloads.")
+	flagSet.BoolP("file-cache-enable-parallel-downloads", "", false, "Enable parallel downloads.")
 
 	flagSet.IntP("file-cache-max-parallel-downloads", "", DefaultMaxParallelDownloads(), "Sets an uber limit of number of concurrent file download requests that are made across all files.")
 
