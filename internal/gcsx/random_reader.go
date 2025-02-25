@@ -180,6 +180,13 @@ type randomReader struct {
 	isMRDInUse bool
 
 	metricHandle common.MetricHandle
+
+	// buffer is used for MultiRangeDownloader
+	buffer []byte
+
+	// stores the start and end offset of the data stored within buffer
+	bufferStartOffset int64
+	bufferEndOffset   int64
 }
 
 func (rr *randomReader) CheckInvariants() {
@@ -643,6 +650,18 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 }
 
 func (rr *randomReader) readFromMultiRangeReader(ctx context.Context, p []byte, offset, end int64, timeout time.Duration) (bytesRead int, err error) {
+
+	// Create buffer if it does not exist
+	if rr.buffer == nil {
+		rr.buffer = make([]byte, maxReadSize)
+	} else if offset >= rr.bufferStartOffset && end <= rr.bufferEndOffset {
+		// If buffer exists and has the requested data, return from the buffer
+		startIndex := offset - rr.bufferStartOffset
+		endIndex := startIndex + (end - offset)
+		bytesRead = copy(p, rr.buffer[startIndex:endIndex])
+		return bytesRead, nil
+	}
+
 	if rr.mrdWrapper == nil {
 		return 0, fmt.Errorf("readFromMultiRangeReader: Invalid MultiRangeDownloaderWrapper")
 	}
@@ -652,8 +671,14 @@ func (rr *randomReader) readFromMultiRangeReader(ctx context.Context, p []byte, 
 		rr.mrdWrapper.IncrementRefCount()
 	}
 
-	bytesRead, err = rr.mrdWrapper.Read(ctx, p, offset, end, timeout, rr.metricHandle)
-	rr.totalReadBytes += uint64(bytesRead)
+	var bytesReadLargeBuffer int
+	bytesReadLargeBuffer, err = rr.mrdWrapper.Read(ctx, rr.buffer, offset, offset+maxReadSize, timeout, rr.metricHandle)
+	if err == nil {
+		rr.bufferStartOffset = offset
+		rr.bufferEndOffset = offset + int64(bytesReadLargeBuffer)
+		bytesRead = copy(p, rr.buffer[:end-offset])
+	}
+	rr.totalReadBytes += uint64(bytesReadLargeBuffer)
 	return
 }
 
