@@ -31,6 +31,7 @@ const (
 )
 
 var (
+	flags       []string
 	testDirPath string
 	mountFunc   func([]string) error
 	// root directory is the directory to be unmounted.
@@ -63,8 +64,24 @@ func TestMain(m *testing.M) {
 	setup.SetUpTestDirForTestBucketFlag()
 	rootDir = setup.MntDir()
 
+	// Define flag set to run the tests.
+	flagsSet := [][]string{
+		{"--rename-dir-limit=3", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=2"},
+	}
+	// Run all tests for GRPC.
+	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--client-protocol=grpc", "")
+
 	log.Println("Running static mounting tests...")
 	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
-	successCode := m.Run()
+
+	var successCode int
+	for i := range flagsSet {
+		log.Printf("Running tests with flags: %v", flagsSet[i])
+		flags = flagsSet[i]
+		successCode = m.Run()
+		if successCode != 0 {
+			break
+		}
+	}
 	os.Exit(successCode)
 }
