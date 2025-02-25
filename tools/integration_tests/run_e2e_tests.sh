@@ -457,6 +457,12 @@ function main(){
   fi
 
   #run integration tests
+
+  if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
+    run_e2e_tests_for_zonal_bucket &
+    e2e_tests_zonal_bucket_pid=$!
+  fi
+
   run_e2e_tests_for_hns_bucket &
   e2e_tests_hns_bucket_pid=$!
 
@@ -475,6 +481,11 @@ function main(){
   wait $e2e_tests_hns_bucket_pid
   e2e_tests_hns_bucket_status=$?
 
+  if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
+    wait $e2e_tests_zonal_bucket_pid
+    e2e_tests_zonal_bucket_status=$?
+  fi
+
   set -e
 
   print_test_logs
@@ -492,32 +503,14 @@ function main(){
     exit_code=1
   fi
 
-  if [ $e2e_tests_emulator_status != 0 ];
-  then
-    echo "The e2e tests for emulator failed.."
+  if ${RUN_TESTS_WITH_ZONAL_BUCKET} && [ $e2e_tests_zonal_bucket_status != 0 ]; then
+    echo "The e2e tests for zonal bucket failed.."
     exit_code=1
   fi
 
-  set +e
-
-  # Run tests on zonal buckets.
-  if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
-    run_e2e_tests_for_zonal_bucket &
-    e2e_tests_zonal_bucket_pid=$!
-  fi
-
-  if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
-    wait $e2e_tests_zonal_bucket_pid
-    e2e_tests_zonal_bucket_status=$?
-  fi
-
-  set -e
-
-  print_test_logs
-
-  exit_code=0
-  if ${RUN_TESTS_WITH_ZONAL_BUCKET} && [ $e2e_tests_zonal_bucket_status != 0 ]; then
-    echo "The e2e tests for zonal bucket failed.."
+  if [ $e2e_tests_emulator_status != 0 ];
+  then
+    echo "The e2e tests for emulator failed.."
     exit_code=1
   fi
 
