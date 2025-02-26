@@ -184,6 +184,45 @@ class DlioWorkloadTest(unittest.TestCase):
         )
     )
 
+  def test_validate_dlio_workload_invalid_unsupported_numEpochs(
+      self,
+  ):
+    workload = dict({
+        "dlioWorkload": {
+            "numFilesTrain": 1000,
+            "recordLength": 10000,
+            "batchSizes": [100, 200],
+        },
+        "bucket": "dummy-bucket",
+        "gcsfuseMountOptions": "implicit-dirs",
+        "numEpochs": False,
+    })
+    self.assertFalse(
+        validateDlioWorkload(
+            workload, "invalid-dlio-workload-unsupported-numEpochs"
+        )
+    )
+
+  def test_validate_dlio_workload_invalid_numEpochs_toolow(
+      self,
+  ):
+    workload = dict({
+        "dlioWorkload": {
+            "numFilesTrain": 1000,
+            "recordLength": 10000,
+            "batchSizes": [100, 200],
+        },
+        "bucket": "dummy-bucket",
+        "gcsfuseMountOptions": "implicit-dirs",
+        "numEpochs": -1,
+    })
+    self.assertFalse(
+        validateDlioWorkload(
+            workload,
+            "invalid-dlio-workload-unsupported-numEpochs-too-low",
+        )
+    )
+
   def test_validate_dlio_workload_invalid_missing_batchSizes(self):
     workload = dict({
         "dlioWorkload": {

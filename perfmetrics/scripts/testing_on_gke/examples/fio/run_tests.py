@@ -54,35 +54,37 @@ def createHelmInstallCommands(
     resourceRequests = resourceLimits
 
   for fioWorkload in fioWorkloads:
-    for readType in fioWorkload.readTypes:
-      chartName, podName, outputDirPrefix = fio_workload.FioChartNamePodName(
-          fioWorkload, instanceId, readType
-      )
-      commands = [
-          f'helm install {chartName} loading-test',
-          f'--set bucketName={fioWorkload.bucket}',
-          f'--set scenario={fioWorkload.scenario}',
-          f'--set fio.readType={readType}',
-          f'--set fio.fileSize={fioWorkload.fileSize}',
-          f'--set fio.blockSize={fioWorkload.blockSize}',
-          f'--set fio.filesPerThread={fioWorkload.filesPerThread}',
-          f'--set fio.numThreads={fioWorkload.numThreads}',
-          f'--set instanceId={instanceId}',
-          (
-              '--set'
-              f' gcsfuse.mountOptions={escape_commas_in_string(fioWorkload.gcsfuseMountOptions)}'
-          ),
-          f'--set nodeType={machineType}',
-          f'--set podName={podName}',
-          f'--set outputDirPrefix={outputDirPrefix}',
-          f"--set resourceLimits.cpu={resourceLimits['cpu']}",
-          f"--set resourceLimits.memory={resourceLimits['memory']}",
-          f"--set resourceRequests.cpu={resourceRequests['cpu']}",
-          f"--set resourceRequests.memory={resourceRequests['memory']}",
-      ]
+    if fioWorkload.numEpochs > 0:
+      for readType in fioWorkload.readTypes:
+        chartName, podName, outputDirPrefix = fio_workload.FioChartNamePodName(
+            fioWorkload, instanceId, readType
+        )
+        commands = [
+            f'helm install {chartName} loading-test',
+            f'--set bucketName={fioWorkload.bucket}',
+            f'--set scenario={fioWorkload.scenario}',
+            f'--set fio.readType={readType}',
+            f'--set fio.fileSize={fioWorkload.fileSize}',
+            f'--set fio.blockSize={fioWorkload.blockSize}',
+            f'--set fio.filesPerThread={fioWorkload.filesPerThread}',
+            f'--set fio.numThreads={fioWorkload.numThreads}',
+            f'--set instanceId={instanceId}',
+            (
+                '--set'
+                f' gcsfuse.mountOptions={escape_commas_in_string(fioWorkload.gcsfuseMountOptions)}'
+            ),
+            f'--set nodeType={machineType}',
+            f'--set podName={podName}',
+            f'--set outputDirPrefix={outputDirPrefix}',
+            f"--set resourceLimits.cpu={resourceLimits['cpu']}",
+            f"--set resourceLimits.memory={resourceLimits['memory']}",
+            f"--set resourceRequests.cpu={resourceRequests['cpu']}",
+            f"--set resourceRequests.memory={resourceRequests['memory']}",
+            f'--set numEpochs={fioWorkload.numEpochs}',
+        ]
 
-      helm_command = ' '.join(commands)
-      helm_commands.append(helm_command)
+        helm_command = ' '.join(commands)
+        helm_commands.append(helm_command)
   return helm_commands
 
 
