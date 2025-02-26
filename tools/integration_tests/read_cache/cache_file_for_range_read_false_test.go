@@ -110,9 +110,12 @@ func (s *cacheFileForRangeReadFalseTest) TestReadIsTreatedNonSequentialAfterFile
 
 	// Use file handle 1 to read file 1 partially.
 	expectedOutcome[0] = readFileBetweenOffset(t, fh1, 0, int64(readTillChunk*chunkSizeToRead))
-	// Use file handle 2 to read file 2 partially. This wiill evict file 1 from cache due to cache capacity constraints.
+	// Use file handle 2 to read file 2 partially. This will evict file 1 from
+	// cache due to cache capacity constraints.
 	expectedOutcome[1] = readFileBetweenOffset(t, fh2, 0, int64(readTillChunk*chunkSizeToRead))
-	// Read remaining file 1.
+	// Read remaining file 1. File 2 remains cached. Cache eviction happens on
+	// cache handler creation, which is tied to the file handle. Since the handle
+	// isn't recreated, eviction doesn't occur.
 	expectedOutcome[2] = readFileBetweenOffset(t, fh1, int64(readTillChunk*chunkSizeToRead)+1, fileSizeSameAsCacheCapacity)
 	// Read remaining file 2.
 	expectedOutcome[3] = readFileBetweenOffset(t, fh2, int64(readTillChunk*chunkSizeToRead)+1, fileSizeSameAsCacheCapacity)

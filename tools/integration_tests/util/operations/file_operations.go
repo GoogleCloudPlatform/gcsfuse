@@ -325,17 +325,12 @@ func ReadFileBetweenOffset(t *testing.T, file *os.File, startOffset, endOffset, 
 		readSize := min(chunkSize, endOffset-startOffset)
 
 		n, err := file.ReadAt(chunk[:readSize], startOffset)
-		if err != nil {
-			if err == io.EOF && startOffset < endOffset {
-				// Reached EOF before endOffset.
-				if n > 0 {
-					readData = append(readData, chunk[:n]...)
-				}
-				break
-			} else if err != io.EOF {
-				t.Errorf("Failed to read file chunk at offset %d: %v", startOffset, err)
-				return "" //Return empty string on error.
-			}
+		if err == io.EOF {
+			readData = append(readData, chunk[:n]...)
+			break
+		} else if err != nil {
+			t.Errorf("Failed to read file chunk at offset %d: %v", startOffset, err)
+			return ""
 		}
 		readData = append(readData, chunk[:n]...)
 		startOffset += int64(n)
