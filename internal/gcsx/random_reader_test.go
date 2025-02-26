@@ -200,12 +200,6 @@ func getReadCloser(content []byte) io.ReadCloser {
 	return rc
 }
 
-func (t *RandomReaderTest) mockNewReaderCallForTestBucket(start uint64, limit uint64, rd io.ReadCloser) {
-	ExpectCall(t.bucket, "NewReader")(
-		Any(), AllOf(rangeStartIs(start), rangeLimitIs(limit))).
-		WillRepeatedly(Return(rd, nil))
-}
-
 func (t *RandomReaderTest) mockNewReaderWithHandleCallForTestBucket(start uint64, limit uint64, rd gcs.StorageReader) {
 	ExpectCall(t.bucket, "NewReaderWithReadHandle")(
 		Any(), AllOf(rangeStartIs(start), rangeLimitIs(limit))).
