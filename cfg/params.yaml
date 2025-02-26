@@ -563,7 +563,6 @@
     can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled
     negative entries in metadata-cache. Any value set below -1 will throw an error.
   default: "5"
-  hide-flag: true
 
 - config-path: "metadata-cache.stat-cache-max-size-mb"
   flag-name: "stat-cache-max-size-mb"
