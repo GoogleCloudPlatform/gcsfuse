@@ -59,7 +59,16 @@ type Bucket interface {
 	// Return Type of bucket.
 	BucketType() BucketType
 
-	// Similar to NewReader (now deprecated). But establishes connection using the readHandle if not nil.
+	// Create a reader for the contents of a particular generation of an object.
+	// On a nil error, the caller must arrange for the reader to be closed when
+	// it is no longer needed.
+	//
+	// Non-existent objects cause either this method or the first read from the
+	// resulting reader to return an error of type *NotFoundError.
+	//
+	// Official documentation:
+	//     https://cloud.google.com/storage/docs/json_api/v1/objects/get
+	// Connection is established using the readHandle if not nil.
 	// ReadHandle helps in reducing the latency by eleminating auth/metadata checks when a valid readHandle is passed.
 	// ReadHandle is valid when its not nil, not expired and belongs to the same client.
 	NewReaderWithReadHandle(
