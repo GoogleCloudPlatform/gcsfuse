@@ -104,7 +104,7 @@ func (t *IntegrationTest) TearDown() {
 
 func (t *IntegrationTest) create(o *gcs.Object) {
 	// Set up a reader.
-	rc, err := t.bucket.NewReader(
+	rc, err := t.bucket.NewReaderWithReadHandle(
 		t.ctx,
 		&gcs.ReadObjectRequest{
 			Name:       o.Name,

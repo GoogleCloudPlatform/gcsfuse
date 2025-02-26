@@ -293,7 +293,7 @@ func (job *Job) updateStatusOffset(downloadedOffset int64) (err error) {
 }
 
 // downloadObjectToFile downloads the backing object from GCS into the given
-// file and updates the file info cache. It uses gcs.Bucket's NewReader method
+// file and updates the file info cache. It uses gcs.Bucket's NewReaderWithReadHandle method
 // to download the object.
 func (job *Job) downloadObjectToFile(cacheFile *os.File) (err error) {
 	var newReader gcs.StorageReader
