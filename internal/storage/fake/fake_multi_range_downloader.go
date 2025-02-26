@@ -27,10 +27,11 @@ import (
 // This struct is an implementation of the gcs.MultiRangeDownloader interface.
 type fakeMultiRangeDownloader struct {
 	gcs.MultiRangeDownloader
-	obj       *fakeObject
-	wg        sync.WaitGroup
-	err       error
-	sleepTime time.Duration // Sleep time to simulate real-world.
+	obj        *fakeObject
+	wg         sync.WaitGroup
+	err        error
+	defaultErr error
+	sleepTime  time.Duration // Sleep time to simulate real-world.
 }
 
 func createFakeObject(obj *gcs.MinObject, data []byte) fakeObject {
@@ -52,16 +53,16 @@ func NewFakeMultiRangeDownloaderWithSleep(obj *gcs.MinObject, data []byte, sleep
 func NewFakeMultiRangeDownloaderWithSleepAndDefaultError(obj *gcs.MinObject, data []byte, sleepTime time.Duration, err error) gcs.MultiRangeDownloader {
 	fakeObj := createFakeObject(obj, data)
 	return &fakeMultiRangeDownloader{
-		obj:       &fakeObj,
-		sleepTime: sleepTime,
-		err:       err,
+		obj:        &fakeObj,
+		sleepTime:  sleepTime,
+		defaultErr: err,
 	}
 }
 
 func (fmrd *fakeMultiRangeDownloader) Add(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
-	if fmrd.err != nil {
+	if fmrd.defaultErr != nil {
 		if callback != nil {
-			callback(offset, 0, fmrd.err)
+			callback(offset, 0, fmrd.defaultErr)
 		}
 		return
 	}
