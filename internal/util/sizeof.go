@@ -167,28 +167,6 @@ func contentSizeOfServerResponse(sr *googleapi.ServerResponse) (size int) {
 	return
 }
 
-func contentSizeOfObjectAccessControlProjectTeam(oacpt *storagev1.ObjectAccessControlProjectTeam) (size int) {
-	if oacpt == nil {
-		return
-	}
-
-	// Account for string members.
-	for _, strPtr := range []*string{
-		&oacpt.ProjectNumber, &oacpt.Team,
-	} {
-		size += contentSizeOfString(strPtr)
-	}
-
-	// Account for string-array members.
-	for _, strArrayPtr := range []*[]string{
-		&oacpt.ForceSendFields, &oacpt.NullFields,
-	} {
-		size += contentSizeOfArrayOfStrings(strArrayPtr)
-	}
-
-	return
-}
-
 // NestedSizeOfGcsMinObject returns the full nested memory size
 // of the gcs.MinObject pointed by the passed pointer.
 // Improvement scope: This can be generalized to a general-struct

@@ -52,16 +52,6 @@ var ContentDisposition string = "ContentDisposition"
 // Hence, we are not writing tests for these flows.
 // https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/github.com/fsouza/fake-gcs-server/fakestorage/object.go#L515
 
-func objectsToObjectNames(objects []*gcs.Object) (objectNames []string) {
-	objectNames = make([]string, len(objects))
-	for i, object := range objects {
-		if object != nil {
-			objectNames[i] = object.Name
-		}
-	}
-	return
-}
-
 func minObjectsToMinObjectNames(minObjects []*gcs.MinObject) (objectNames []string) {
 	objectNames = make([]string, len(minObjects))
 	for i, object := range minObjects {
