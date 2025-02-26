@@ -17,6 +17,7 @@ package gcsx
 import (
 	"context"
 	"fmt"
+	"io"
 	"sync"
 	"testing"
 	"time"
@@ -194,6 +195,25 @@ func (t *mrdWrapperTest) Test_Read_ContextCancelled() {
 	bytesRead, err := t.mrdWrapper.Read(ctx, make([]byte, t.object.Size), 0, int64(t.object.Size), t.mrdTimeout, common.NewNoopMetrics())
 
 	assert.ErrorContains(t.T(), err, "Context Cancelled")
+	assert.Equal(t.T(), 0, bytesRead)
+}
+
+func (t *mrdWrapperTest) Test_Read_EOF() {
+	t.mrdWrapper.Wrapped = nil
+	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleepAndDefaultError(t.object, t.objectData, time.Microsecond, io.EOF), nil).Once()
+
+	_, err := t.mrdWrapper.Read(context.Background(), make([]byte, t.object.Size), 0, int64(t.object.Size), t.mrdTimeout, common.NewNoopMetrics())
+
+	assert.ErrorContains(t.T(), err, "EOF")
+}
+
+func (t *mrdWrapperTest) Test_Read_Error() {
+	t.mrdWrapper.Wrapped = nil
+	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleepAndDefaultError(t.object, t.objectData, time.Microsecond, fmt.Errorf("Error")), nil).Once()
+
+	bytesRead, err := t.mrdWrapper.Read(context.Background(), make([]byte, t.object.Size), 0, int64(t.object.Size), t.mrdTimeout, common.NewNoopMetrics())
+
+	assert.ErrorContains(t.T(), err, "Error in Add Call")
 	assert.Equal(t.T(), 0, bytesRead)
 }
 

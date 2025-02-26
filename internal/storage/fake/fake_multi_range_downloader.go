@@ -42,18 +42,29 @@ func createFakeObject(obj *gcs.MinObject, data []byte) fakeObject {
 }
 
 func NewFakeMultiRangeDownloader(obj *gcs.MinObject, data []byte) gcs.MultiRangeDownloader {
-	return NewFakeMultiRangeDownloaderWithSleep(obj, data, time.Millisecond)
+	return NewFakeMultiRangeDownloaderWithSleepAndDefaultError(obj, data, time.Millisecond, nil)
 }
 
 func NewFakeMultiRangeDownloaderWithSleep(obj *gcs.MinObject, data []byte, sleepTime time.Duration) gcs.MultiRangeDownloader {
+	return NewFakeMultiRangeDownloaderWithSleepAndDefaultError(obj, data, sleepTime, nil)
+}
+
+func NewFakeMultiRangeDownloaderWithSleepAndDefaultError(obj *gcs.MinObject, data []byte, sleepTime time.Duration, err error) gcs.MultiRangeDownloader {
 	fakeObj := createFakeObject(obj, data)
 	return &fakeMultiRangeDownloader{
 		obj:       &fakeObj,
 		sleepTime: sleepTime,
+		err:       err,
 	}
 }
 
 func (fmrd *fakeMultiRangeDownloader) Add(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
+	if fmrd.err != nil {
+		if callback != nil {
+			callback(offset, 0, fmrd.err)
+		}
+		return
+	}
 	obj := fmrd.obj
 	size := int64(len(obj.data))
 	var err error
@@ -75,7 +86,7 @@ func (fmrd *fakeMultiRangeDownloader) Add(output io.Writer, offset, length int64
 		// If inputs aren't correct, fail immediately and return callback.
 		fmrd.err = err
 		if callback != nil {
-			callback(offset, length, err)
+			callback(offset, 0, err)
 		}
 		return
 	}
@@ -94,7 +105,7 @@ func (fmrd *fakeMultiRangeDownloader) Add(output io.Writer, offset, length int64
 			err = fmt.Errorf("failed to write %v bytes to writer through multi-range-downloader, bytes written = %v, error = %v", length, n, err)
 		}
 		if callback != nil {
-			callback(offset, length, err)
+			callback(offset, int64(n), err)
 		}
 		// Don't clear pre-existing error in downloader.
 		if fmrd.err != nil {
