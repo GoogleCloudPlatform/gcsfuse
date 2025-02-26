@@ -15,6 +15,7 @@
 package handle
 
 import (
+	"errors"
 	"fmt"
 	"io"
 
@@ -124,7 +125,8 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 		var objectData gcsx.ObjectData
 		objectData, err = fh.reader.ReadAt(ctx, dst, offset)
 		switch {
-		case err == io.EOF:
+		case errors.Is(err, io.EOF):
+			err = io.EOF
 			return
 
 		case err != nil:
