@@ -36,7 +36,6 @@ func (t *defaultMountCommonTest) SetupSuite() {
 	SetStorageClient(storageClient)
 	SetTestDirName(testDirName)
 
-	flags := []string{"--rename-dir-limit=3", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=2"}
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 	testDirPath = setup.SetupTestDirectory(testDirName)
 }
