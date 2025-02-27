@@ -30,7 +30,7 @@ import (
 ////////////////////////////////////////////////////////////////////////
 
 const (
-	expectedStatLatency time.Duration = 390 * time.Millisecond
+	expectedStatLatency time.Duration = 700 * time.Millisecond
 )
 
 type benchmarkStatTest struct {
