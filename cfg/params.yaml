@@ -117,6 +117,13 @@
   usage: "Enable parallel downloads."
   default: false
 
+- config-path: "file-cache.experimental-parallel-downloads-default-on"
+  flag-name: "file-cache-experimental-parallel-downloads-default-on"
+  type: "bool"
+  usage: "Enable parallel downloads by default on experimental basis."
+  default: false
+  hide-flag: true
+
 - config-path: "file-cache.max-parallel-downloads"
   flag-name: "file-cache-max-parallel-downloads"
   type: "int"

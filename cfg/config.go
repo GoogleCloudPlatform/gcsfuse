@@ -84,6 +84,8 @@ type FileCacheConfig struct {
 
 	EnableParallelDownloads bool `yaml:"enable-parallel-downloads"`
 
+	ExperimentalParallelDownloadsDefaultOn bool `yaml:"experimental-parallel-downloads-default-on"`
+
 	MaxParallelDownloads int64 `yaml:"max-parallel-downloads"`
 
 	MaxSizeMb int64 `yaml:"max-size-mb"`
@@ -405,6 +407,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("file-cache-enable-parallel-downloads", "", false, "Enable parallel downloads.")
 
+	flagSet.BoolP("file-cache-experimental-parallel-downloads-default-on", "", false, "Enable parallel downloads by default on experimental basis.")
+
+	if err := flagSet.MarkHidden("file-cache-experimental-parallel-downloads-default-on"); err != nil {
+		return err
+	}
+
 	flagSet.IntP("file-cache-max-parallel-downloads", "", DefaultMaxParallelDownloads(), "Sets an uber limit of number of concurrent file download requests that are made across all files.")
 
 	flagSet.IntP("file-cache-max-size-mb", "", -1, "Maximum size of the file-cache in MiBs")
@@ -713,6 +721,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-cache.enable-parallel-downloads", flagSet.Lookup("file-cache-enable-parallel-downloads")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-cache.experimental-parallel-downloads-default-on", flagSet.Lookup("file-cache-experimental-parallel-downloads-default-on")); err != nil {
 		return err
 	}
 
