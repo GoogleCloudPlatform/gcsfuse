@@ -45,6 +45,8 @@ type commonFailureTestSuite struct {
 	closeStorageClient func() error
 	ctx                context.Context
 	data               []byte
+	port               int
+	proxyProcessId     int
 	gcsObjectValidator
 }
 
@@ -58,7 +60,7 @@ type gcsObjectValidator interface {
 // //////////////////////////////////////////////////////////////////////
 
 func (t *commonFailureTestSuite) SetupSuite() {
-	t.flags = []string{"--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=1", "--custom-endpoint=" + proxyEndpoint}
+	t.flags = []string{"--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=1"}
 	// Generate 5 MB random data.
 	var err error
 	t.data, err = operations.GenerateRandomData(5 * operations.MiB)
@@ -69,7 +71,10 @@ func (t *commonFailureTestSuite) SetupSuite() {
 func (t *commonFailureTestSuite) setupTest() {
 	t.T().Helper()
 	// Start proxy server for each test to ensure the config is initialized per test.
-	emulator_tests.StartProxyServer(t.configPath)
+	var err error
+	t.port, t.proxyProcessId, err = emulator_tests.StartProxyServer(t.configPath, setup.CreateProxyServerLogFile(t.T()))
+	require.NoError(t.T(), err)
+	setup.AppendProxyEndpointToFlagSet(&t.flags, t.port)
 	// Create storage client before running tests.
 	t.ctx = context.Background()
 	t.closeStorageClient = CreateStorageClientWithCancel(&t.ctx, &t.storageClient)
@@ -83,7 +88,7 @@ func (t *commonFailureTestSuite) setupTest() {
 func (t *commonFailureTestSuite) TearDownTest() {
 	setup.UnmountGCSFuse(rootDir)
 	assert.NoError(t.T(), t.closeStorageClient())
-	assert.NoError(t.T(), emulator_tests.KillProxyServerProcess(port))
+	assert.NoError(t.T(), emulator_tests.KillProxyServerProcess(t.proxyProcessId))
 }
 
 func (t *commonFailureTestSuite) writingWithNewFileHandleAlsoFails(data []byte, off int64) {

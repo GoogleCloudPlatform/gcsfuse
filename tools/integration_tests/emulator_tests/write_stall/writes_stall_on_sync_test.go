@@ -25,6 +25,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -37,18 +38,23 @@ const (
 )
 
 type chunkTransferTimeoutInfinity struct {
-	flags []string
+	port           int
+	proxyProcessId int
+	flags          []string
 }
 
 func (s *chunkTransferTimeoutInfinity) Setup(t *testing.T) {
 	configPath := "../proxy_server/configs/write_stall_40s.yaml"
-	emulator_tests.StartProxyServer(configPath)
+	var err error
+	s.port, s.proxyProcessId, err = emulator_tests.StartProxyServer(configPath, setup.CreateProxyServerLogFile(t))
+	require.NoError(t, err)
+	setup.AppendProxyEndpointToFlagSet(&s.flags, s.port)
 	setup.MountGCSFuseWithGivenMountFunc(s.flags, mountFunc)
 }
 
 func (s *chunkTransferTimeoutInfinity) Teardown(t *testing.T) {
 	setup.UnmountGCSFuse(rootDir)
-	assert.NoError(t, emulator_tests.KillProxyServerProcess(port))
+	assert.NoError(t, emulator_tests.KillProxyServerProcess(s.proxyProcessId))
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -79,7 +85,7 @@ func TestChunkTransferTimeoutInfinity(t *testing.T) {
 	ts := &chunkTransferTimeoutInfinity{}
 	// Define flag set to run the tests.
 	flagsSet := [][]string{
-		{"--custom-endpoint=" + proxyEndpoint, "--chunk-transfer-timeout-secs=0"},
+		{"--chunk-transfer-timeout-secs=0"},
 	}
 
 	// Run tests.
@@ -92,8 +98,8 @@ func TestChunkTransferTimeoutInfinity(t *testing.T) {
 
 func TestChunkTransferTimeout(t *testing.T) {
 	flagSets := [][]string{
-		{"--custom-endpoint=" + proxyEndpoint},
-		{"--custom-endpoint=" + proxyEndpoint, "--chunk-transfer-timeout-secs=5"},
+		{},
+		{"--chunk-transfer-timeout-secs=5"},
 	}
 
 	stallScenarios := []struct {
@@ -127,12 +133,14 @@ func TestChunkTransferTimeout(t *testing.T) {
 		t.Run(fmt.Sprintf("Flags_%v", flags), func(t *testing.T) {
 			for _, scenario := range stallScenarios {
 				t.Run(scenario.name, func(t *testing.T) {
-					emulator_tests.StartProxyServer(scenario.configPath)
+					port, proxyProcessId, err := emulator_tests.StartProxyServer(scenario.configPath, setup.CreateProxyServerLogFile(t))
+					require.NoError(t, err)
+					setup.AppendProxyEndpointToFlagSet(&flags, port)
 					setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 
 					defer func() { // Defer unmount and  killing the server.
 						setup.UnmountGCSFuse(rootDir)
-						assert.NoError(t, emulator_tests.KillProxyServerProcess(port))
+						assert.NoError(t, emulator_tests.KillProxyServerProcess(proxyProcessId))
 					}()
 
 					testDir := scenario.name + setup.GenerateRandomString(3)

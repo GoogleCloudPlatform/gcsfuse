@@ -15,7 +15,6 @@
 package streaming_writes_failure
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -26,12 +25,10 @@ import (
 
 const (
 	testDirNamePrefix = "StreamingWritesFailureTest"
-	port              = 8020
 )
 
 var (
-	proxyEndpoint = fmt.Sprintf("http://localhost:%d/storage/v1/b?project=test-project", port)
-	mountFunc     func([]string) error
+	mountFunc func([]string) error
 	// root directory is the directory to be unmounted.
 	rootDir     string
 	testDirName string
