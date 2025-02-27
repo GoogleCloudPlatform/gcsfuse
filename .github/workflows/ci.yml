@@ -17,7 +17,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: "1.23"
+        go-version: "1.24"
     - name: CodeGen
       run: go generate ./...
     - name: Formatting diff
@@ -26,7 +26,7 @@ jobs:
   linux-tests:
     strategy:
       matrix:
-        go: [ 1.23.x ]
+        go: [ 1.24.x ]
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -62,7 +62,7 @@ jobs:
     - name: Setup Go
       uses: actions/setup-go@v4
       with:
-        go-version: "1.23"
+        go-version: "1.24"
     - name: checkout code
       uses: actions/checkout@v4
     - name: golangci-lint
