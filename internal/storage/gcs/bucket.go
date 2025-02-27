@@ -68,11 +68,7 @@ type Bucket interface {
 	//
 	// Official documentation:
 	//     https://cloud.google.com/storage/docs/json_api/v1/objects/get
-	NewReader(
-		ctx context.Context,
-		req *ReadObjectRequest) (io.ReadCloser, error)
-
-	// Similar to NewReader. But establishes connection using the readHandle if not nil.
+	// Connection is established using the readHandle if not nil.
 	// ReadHandle helps in reducing the latency by eleminating auth/metadata checks when a valid readHandle is passed.
 	// ReadHandle is valid when its not nil, not expired and belongs to the same client.
 	NewReaderWithReadHandle(

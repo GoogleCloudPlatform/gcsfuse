@@ -200,12 +200,6 @@ func getReadCloser(content []byte) io.ReadCloser {
 	return rc
 }
 
-func (t *RandomReaderTest) mockNewReaderCallForTestBucket(start uint64, limit uint64, rd io.ReadCloser) {
-	ExpectCall(t.bucket, "NewReader")(
-		Any(), AllOf(rangeStartIs(start), rangeLimitIs(limit))).
-		WillRepeatedly(Return(rd, nil))
-}
-
 func (t *RandomReaderTest) mockNewReaderWithHandleCallForTestBucket(start uint64, limit uint64, rd gcs.StorageReader) {
 	ExpectCall(t.bucket, "NewReaderWithReadHandle")(
 		Any(), AllOf(rangeStartIs(start), rangeLimitIs(limit))).
@@ -741,8 +735,6 @@ func (t *RandomReaderTest) Test_ReadAt_SequentialToRandomSubsequentReadOffsetLes
 	t.object.Size = 20 * util.MiB
 	objectSize := t.object.Size
 	testContent := testutil.GenerateRandomBytes(int(objectSize))
-	rc := getReadCloser(testContent)
-	t.mockNewReaderCallForTestBucket(0, objectSize, rc)
 	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, objectSize, rd)
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
@@ -870,7 +862,6 @@ func (t *RandomReaderTest) Test_ReadAt_CachePopulatedAndThenCacheMissDueToInvali
 	// Second reader (rc2) is required, since first reader (rc) is completely read.
 	// Reading again will return EOF.
 	rc2 := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
-	t.mockNewReaderCallForTestBucket(0, objectSize, rc2)
 	t.mockNewReaderWithHandleCallForTestBucket(0, objectSize, rc2)
 	objectData, err = t.rr.ReadAt(buf, 0)
 	ExpectEq(nil, err)
@@ -910,7 +901,8 @@ func (t *RandomReaderTest) Test_ReadAt_IfCacheFileGetsDeleted() {
 	AssertEq(nil, err)
 	// Second reader (rc2) is required, since first reader (rc) is completely read.
 	// Reading again will return EOF.
-	t.mockNewReaderCallForTestBucket(0, objectSize, getReadCloser(testContent))
+	rd2 := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
+	t.mockNewReaderWithHandleCallForTestBucket(0, objectSize, rd2)
 
 	_, err = t.rr.ReadAt(buf, 0)
 

@@ -80,7 +80,7 @@ func (t *PrefixBucketTest) Test_NewReader() {
 	assert.Equal(t.T(), nil, err)
 
 	// Read it through the prefix bucket.
-	rc, err := t.bucket.NewReader(
+	rc, err := t.bucket.NewReaderWithReadHandle(
 		t.ctx,
 		&gcs.ReadObjectRequest{
 			Name: suffix,

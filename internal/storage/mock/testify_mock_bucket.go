@@ -16,7 +16,6 @@ package mock
 
 import (
 	"context"
-	"io"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/stretchr/testify/mock"
@@ -35,11 +34,6 @@ func (m *TestifyMockBucket) Name() string {
 func (m *TestifyMockBucket) BucketType() gcs.BucketType {
 	args := m.Called()
 	return args.Get(0).(gcs.BucketType)
-}
-
-func (m *TestifyMockBucket) NewReader(ctx context.Context, req *gcs.ReadObjectRequest) (io.ReadCloser, error) {
-	args := m.Called(ctx, req)
-	return args.Get(0).(io.ReadCloser), args.Error(1)
 }
 
 func (m *TestifyMockBucket) NewReaderWithReadHandle(ctx context.Context, req *gcs.ReadObjectRequest) (gcs.StorageReader, error) {

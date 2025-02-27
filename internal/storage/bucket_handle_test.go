@@ -96,7 +96,7 @@ func (testSuite *BucketHandleTest) TearDownTest() {
 }
 
 func (testSuite *BucketHandleTest) TestNewReaderMethodWithCompleteRead() {
-	rc, err := testSuite.bucketHandle.NewReader(context.Background(),
+	rc, err := testSuite.bucketHandle.NewReaderWithReadHandle(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: TestObjectName,
 			Range: &gcs.ByteRange{
@@ -117,7 +117,7 @@ func (testSuite *BucketHandleTest) TestNewReaderMethodWithRangeRead() {
 	start := uint64(2)
 	limit := uint64(8)
 
-	rc, err := testSuite.bucketHandle.NewReader(context.Background(),
+	rc, err := testSuite.bucketHandle.NewReaderWithReadHandle(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: TestObjectName,
 			Range: &gcs.ByteRange{
@@ -135,7 +135,7 @@ func (testSuite *BucketHandleTest) TestNewReaderMethodWithRangeRead() {
 }
 
 func (testSuite *BucketHandleTest) TestNewReaderMethodWithNilRange() {
-	rc, err := testSuite.bucketHandle.NewReader(context.Background(),
+	rc, err := testSuite.bucketHandle.NewReaderWithReadHandle(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name:  TestObjectName,
 			Range: nil,
@@ -152,7 +152,7 @@ func (testSuite *BucketHandleTest) TestNewReaderMethodWithNilRange() {
 func (testSuite *BucketHandleTest) TestNewReaderMethodWithInValidObject() {
 	var notFoundErr *gcs.NotFoundError
 
-	rc, err := testSuite.bucketHandle.NewReader(context.Background(),
+	rc, err := testSuite.bucketHandle.NewReaderWithReadHandle(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: missingObjectName,
 			Range: &gcs.ByteRange{
@@ -167,7 +167,7 @@ func (testSuite *BucketHandleTest) TestNewReaderMethodWithInValidObject() {
 }
 
 func (testSuite *BucketHandleTest) TestNewReaderMethodWithValidGeneration() {
-	rc, err := testSuite.bucketHandle.NewReader(context.Background(),
+	rc, err := testSuite.bucketHandle.NewReaderWithReadHandle(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: TestObjectName,
 			Range: &gcs.ByteRange{
@@ -188,7 +188,7 @@ func (testSuite *BucketHandleTest) TestNewReaderMethodWithValidGeneration() {
 func (testSuite *BucketHandleTest) TestNewReaderMethodWithInvalidGeneration() {
 	var notFoundErr *gcs.NotFoundError
 
-	rc, err := testSuite.bucketHandle.NewReader(context.Background(),
+	rc, err := testSuite.bucketHandle.NewReaderWithReadHandle(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: TestObjectName,
 			Range: &gcs.ByteRange{
@@ -204,7 +204,7 @@ func (testSuite *BucketHandleTest) TestNewReaderMethodWithInvalidGeneration() {
 }
 
 func (testSuite *BucketHandleTest) TestNewReaderMethodWithCompressionEnabled() {
-	rc, err := testSuite.bucketHandle.NewReader(context.Background(),
+	rc, err := testSuite.bucketHandle.NewReaderWithReadHandle(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: TestGzipObjectName,
 			Range: &gcs.ByteRange{
@@ -223,7 +223,7 @@ func (testSuite *BucketHandleTest) TestNewReaderMethodWithCompressionEnabled() {
 }
 
 func (testSuite *BucketHandleTest) TestNewReaderMethodWithCompressionDisabled() {
-	rc, err := testSuite.bucketHandle.NewReader(context.Background(),
+	rc, err := testSuite.bucketHandle.NewReaderWithReadHandle(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: TestGzipObjectName,
 			Range: &gcs.ByteRange{
@@ -931,7 +931,7 @@ func (testSuite *BucketHandleTest) TestUpdateObjectMethodWithMissingObject() {
 
 // Read content of an object and return
 func (testSuite *BucketHandleTest) readObjectContent(ctx context.Context, req *gcs.ReadObjectRequest) (buffer string) {
-	rc, err := testSuite.bucketHandle.NewReader(ctx, &gcs.ReadObjectRequest{
+	rc, err := testSuite.bucketHandle.NewReaderWithReadHandle(ctx, &gcs.ReadObjectRequest{
 		Name:  req.Name,
 		Range: req.Range})
 

@@ -16,7 +16,6 @@ package caching
 
 import (
 	"fmt"
-	"io"
 	"strings"
 	"sync"
 	"time"
@@ -209,13 +208,6 @@ func (b *fastStatBucket) Name() string {
 
 func (b *fastStatBucket) BucketType() gcs.BucketType {
 	return b.wrapped.BucketType()
-}
-
-func (b *fastStatBucket) NewReader(
-	ctx context.Context,
-	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
-	rc, err = b.wrapped.NewReader(ctx, req)
-	return
 }
 
 func (b *fastStatBucket) NewReaderWithReadHandle(

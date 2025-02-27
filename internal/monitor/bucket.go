@@ -17,7 +17,6 @@ package monitor
 import (
 	"context"
 	"fmt"
-	"io"
 	"time"
 
 	storagev2 "cloud.google.com/go/storage"
@@ -71,13 +70,6 @@ func setupReader(ctx context.Context, mb *monitoringBucket, req *gcs.ReadObjectR
 
 	recordRequest(ctx, mb.metricHandle, method, startTime)
 	return rc, err
-}
-
-func (mb *monitoringBucket) NewReader(
-	ctx context.Context,
-	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
-	rc, err = setupReader(ctx, mb, req, "NewReader")
-	return
 }
 
 func (mb *monitoringBucket) NewReaderWithReadHandle(

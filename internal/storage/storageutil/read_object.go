@@ -33,7 +33,7 @@ func ReadObject(
 		Name: name,
 	}
 
-	rc, err := bucket.NewReader(ctx, req)
+	rc, err := bucket.NewReaderWithReadHandle(ctx, req)
 	if err != nil {
 		return
 	}

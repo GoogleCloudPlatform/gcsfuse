@@ -659,22 +659,6 @@ func (b *bucket) ListObjects(
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *bucket) NewReader(
-	ctx context.Context,
-	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	r, _, err := b.newReaderLocked(req)
-	if err != nil {
-		return
-	}
-
-	rc = io.NopCloser(r)
-	return
-}
-
-// LOCKS_EXCLUDED(b.mu)
 func (b *bucket) NewReaderWithReadHandle(ctx context.Context, req *gcs.ReadObjectRequest) (rd gcs.StorageReader, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
