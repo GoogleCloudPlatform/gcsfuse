@@ -583,3 +583,10 @@ func (job *Job) IsParallelDownloadsEnabled() bool {
 	}
 	return false
 }
+
+func (job *Job) IsExperimentalParallelDownloadsDefaultOn() bool {
+	if job.fileCacheConfig != nil && job.fileCacheConfig.ExperimentalParallelDownloadsDefaultOn {
+		return true
+	}
+	return false
+}
