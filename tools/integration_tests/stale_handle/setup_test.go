@@ -59,10 +59,8 @@ func TestMain(m *testing.M) {
 	flagsSet := [][]string{
 		{"--metadata-cache-ttl-secs=0", "--precondition-errors=true"},
 	}
-
-	if !testing.Short() {
-		setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--client-protocol=grpc")
-	}
+	// Run all tests for GRPC.
+	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--client-protocol=grpc", "")
 
 	successCode := static_mounting.RunTests(flagsSet, m)
 
