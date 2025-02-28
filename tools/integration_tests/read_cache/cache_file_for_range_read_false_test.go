@@ -130,14 +130,17 @@ func (s *cacheFileForRangeReadFalseTest) TestReadIsTreatedNonSequentialAfterFile
 	require.Equal(t, 2, len(structuredReadLogs))
 	validate(expectedOutcome[0], structuredReadLogs[0], true, false, randomReadChunkCount, t)
 	validate(expectedOutcome[1], structuredReadLogs[1], true, false, randomReadChunkCount, t)
-	// Validate after cache eviction, read was considered non-sequential and cache hit false for first file.
-	assert.False(t, structuredReadLogs[0].Chunks[readTillChunk+1].IsSequential)
-	assert.False(t, structuredReadLogs[0].Chunks[readTillChunk+1].CacheHit)
+	// Validate after cache eviction, read was considered non-sequential and cache
+	// hit false for first file.
+	// Checking for the last chunk, not readTillChunk+1, due to potential kernel
+	// over-reads on some architectures.
+	assert.False(t, structuredReadLogs[0].Chunks[randomReadChunkCount-1].IsSequential)
+	assert.False(t, structuredReadLogs[0].Chunks[randomReadChunkCount-1].CacheHit)
 	// Validate for 2nd file read was considered sequential because of no cache eviction.
-	assert.True(t, structuredReadLogs[1].Chunks[readTillChunk+1].IsSequential)
+	assert.True(t, structuredReadLogs[1].Chunks[randomReadChunkCount-1].IsSequential)
 	if !s.isParallelDownloadsEnabled {
 		// When parallel downloads are enabled, we can't concretely say that the read will be cache Hit.
-		assert.True(t, structuredReadLogs[1].Chunks[readTillChunk+1].CacheHit)
+		assert.True(t, structuredReadLogs[1].Chunks[randomReadChunkCount-1].CacheHit)
 	}
 
 	validateFileIsNotCached(testFileNames[0], t)
