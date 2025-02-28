@@ -54,14 +54,6 @@ func (b *throttledBucket) Name() string {
 func (b *throttledBucket) BucketType() gcs.BucketType {
 	return b.wrapped.BucketType()
 }
-
-func (b *throttledBucket) NewReader(
-	ctx context.Context,
-	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
-	rc, err = b.NewReaderWithReadHandle(ctx, req)
-	return
-}
-
 func (b *throttledBucket) NewReaderWithReadHandle(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (rd gcs.StorageReader, err error) {
