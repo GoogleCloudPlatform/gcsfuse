@@ -50,6 +50,18 @@ if [[ $# -ge 6 ]] ; then
   fi
 fi
 
+if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
+  if ${RUN_TESTS_WITH_PRESUBMIT_FLAG}; then
+    if [ "${BUCKET_LOCATION}" != "us-west4" ]; then
+      >&2 echo "presubmit should be run in us-west4 region. Region passed: ${BUCKET_LOCATION}"
+      exit 1
+    fi
+  elif [ "${BUCKET_LOCATION}" != "us-central1" ]; then
+    >&2 echo "Non-presubmit e2e tests should be run in us-central1 region if zonal bucket run is enabled. Region passed: ${BUCKET_LOCATION}"
+    exit 1
+  fi
+fi
+
 if [ "$#" -lt 3 ]
 then
   echo "Incorrect number of arguments passed, please refer to the script and pass the three arguments required..."
