@@ -51,13 +51,8 @@ if [[ $# -ge 6 ]] ; then
 fi
 
 if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
-  if ${RUN_TESTS_WITH_PRESUBMIT_FLAG}; then
-    if [ "${BUCKET_LOCATION}" != "us-west4" ]; then
-      >&2 echo "presubmit should be run in us-west4 region. Region passed: ${BUCKET_LOCATION}"
-      exit 1
-    fi
-  elif [ "${BUCKET_LOCATION}" != "us-central1" ]; then
-    >&2 echo "Non-presubmit e2e tests should be run in us-central1 region if zonal bucket run is enabled. Region passed: ${BUCKET_LOCATION}"
+  if [ "${BUCKET_LOCATION}" != "us-west4" ] && [ "${BUCKET_LOCATION}" != "us-central1" ]; then
+    >&2 echo "For enabling zonal bucket run, BUCKET_LOCATION should be one of: us-west4, us-central1; passed: ${BUCKET_LOCATION}"
     exit 1
   fi
 fi
@@ -210,13 +205,8 @@ function create_hns_bucket() {
 
 function create_zonal_bucket() {
   local -r project_id="gcs-fuse-test-ml"
-  region=${BUCKET_LOCATION}
-  if [[ "${region}" != "us-central1" && "${region}" != "us-west4" ]]; then
-    >&2 echo "Unsupported region for zonal bucket: ${region}. Supported regions: us-central1 and us-west4"
-    return 1
-  else
-    zone=${region}"-a"
-  fi
+  local -r region=${BUCKET_LOCATION}
+  local -r zone=${region}"-a"
 
   local -r hns_project_id="gcs-fuse-test"
   zonal_bucket_name_prefix= # 'fastbyte-team-'
