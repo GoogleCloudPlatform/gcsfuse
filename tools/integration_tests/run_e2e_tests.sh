@@ -159,6 +159,24 @@ function create_hns_bucket() {
   echo "$bucket_name"
 }
 
+function create_zonal_bucket() {
+  local -r project_id="gcs-fuse-test-ml"
+  region=${BUCKET_LOCATION}
+  if [[ "${region}" != "us-central1" && "${region}" != "us-west4" ]]; then
+    >&2 echo "Unsupported region for zonal bucket: ${region}. Supported regions: us-central1 and us-west4"
+    return 1
+  else
+    zone=${region}"-a"
+  fi
+
+  local -r hns_project_id="gcs-fuse-test"
+  zonal_bucket_name_prefix= # 'fastbyte-team-'
+  # Generate bucket name with random string.
+  bucket_name=${zonal_bucket_name_prefix}"gcsfuse-e2e-tests-zb-"$(date +%Y%m%d-%H%M%S)"-"$(tr -dc 'a-z0-9' < /dev/urandom | head -c $RANDOM_STRING_LENGTH)
+  gcloud alpha storage buckets create gs://$bucket_name --project=$project_id --location=$region --placement=${zone} --default-storage-class=RAPID --uniform-bucket-level-access --enable-hierarchical-namespace
+  echo "${bucket_name}"
+}
+
 function run_non_parallel_tests() {
   local exit_code=0
   local -n test_array=$1
