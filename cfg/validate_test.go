@@ -365,6 +365,7 @@ func TestValidateConfig_ErrorScenarios(t *testing.T) {
 			},
 		},
 		{
+			//TODO: Remove this test as check is also removed when parallel download is default ON
 			name: "parallel_download_config_without_file_cache_enabled",
 			config: &Config{
 				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},

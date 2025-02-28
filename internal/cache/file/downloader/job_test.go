@@ -1023,6 +1023,22 @@ func (dt *downloaderTest) Test_When_Parallel_Download_Is_Disabled() {
 	AssertFalse(result)
 }
 
+func (dt *downloaderTest) Test_When_Experimental_Default_Parallel_Download_On() {
+	//Arrange - initJobTest is being called in setup of downloader.go
+	dt.job.fileCacheConfig.ExperimentalParallelDownloadsDefaultOn = true
+
+	result := dt.job.IsExperimentalParallelDownloadsDefaultOn()
+
+	AssertTrue(result)
+}
+
+func (dt *downloaderTest) Test_When_Experimental_Default_Parallel_Download_Off() {
+
+	result := dt.job.IsExperimentalParallelDownloadsDefaultOn()
+
+	AssertFalse(result)
+}
+
 func (dt *downloaderTest) Test_createCacheFile_WhenNonParallelDownloads() {
 	//Arrange - initJobTest is being called in setup of downloader.go
 	dt.job.fileCacheConfig.EnableParallelDownloads = false
