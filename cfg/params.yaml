@@ -222,7 +222,7 @@
   type: "resolvedPath"
   usage: >-
     Path to the temporary directory where writes are staged prior to upload to
-    Cloud Storage. (default: system default, likely /tmp)
+    Cloud Storage. (default: "/tmp")
   default: ""
 
 - config-path: "file-system.uid"
