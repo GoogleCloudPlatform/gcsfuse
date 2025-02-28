@@ -50,7 +50,7 @@ type readStall struct {
 func (r *readStall) SetupSuite() {
 	configPath := "../proxy_server/configs/read_stall_5s.yaml"
 	var err error
-	r.port, r.proxyProcessId, err = emulator_tests.StartProxyServer(configPath, setup.CreateProxyServerLogFile(r.T()))
+	r.port, r.proxyProcessId, err = emulator_tests.StartProxyServer(configPath, setup.ProxyServerLogFile(r.T()))
 	require.NoError(r.T(), err)
 	setup.AppendProxyEndpointToFlagSet(&r.flags, r.port)
 	setup.MountGCSFuseWithGivenMountFunc(r.flags, mountFunc)
@@ -63,6 +63,7 @@ func (r *readStall) SetupTest() {
 func (r *readStall) TearDownSuite() {
 	setup.UnmountGCSFuse(rootDir)
 	assert.NoError(r.T(), emulator_tests.KillProxyServerProcess(r.proxyProcessId))
+	setup.SaveLogFilesInCaseOfFailure(r.T())
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -81,6 +82,7 @@ func (r *readStall) TestReadFirstByteStallInducedShouldCompleteInLessThanStallTi
 	assert.NoError(r.T(), err)
 	assert.Greater(r.T(), elapsedTime, minReqTimeout)
 	assert.Less(r.T(), elapsedTime, forcedStallTime)
+	r.T().FailNow()
 }
 
 ////////////////////////////////////////////////////////////////////////

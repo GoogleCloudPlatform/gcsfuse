@@ -36,7 +36,7 @@ var (
 	// Flag to accept config-file path.
 	fConfigPath = flag.String("config-path", "configs/config.yaml", "Path to the file")
 	// Flag to turn on fDebug logs.
-	fDebug       = flag.Bool("debug", false, "Enable proxy server fDebug logs.")
+	fDebug       = flag.Bool("debug", true, "Enable proxy server fDebug logs.")
 	fLogFilePath = flag.String("log-file", "", "Path to the log file")
 	// Initialized before the server gets started.
 	gConfig    *Config
@@ -223,7 +223,7 @@ func main() {
 		log.Println("No log file path for proxy server provided.")
 		os.Exit(1)
 	}
-	logFile, err := os.OpenFile(*fLogFilePath, os.O_WRONLY|os.O_APPEND, 0666)
+	logFile, err := os.OpenFile(*fLogFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		log.Printf("Error opening log file: %v\n", err)
 		os.Exit(1)

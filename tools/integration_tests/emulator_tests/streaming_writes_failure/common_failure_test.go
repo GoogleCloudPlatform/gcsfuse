@@ -72,7 +72,7 @@ func (t *commonFailureTestSuite) setupTest() {
 	t.T().Helper()
 	// Start proxy server for each test to ensure the config is initialized per test.
 	var err error
-	t.port, t.proxyProcessId, err = emulator_tests.StartProxyServer(t.configPath, setup.CreateProxyServerLogFile(t.T()))
+	t.port, t.proxyProcessId, err = emulator_tests.StartProxyServer(t.configPath, setup.ProxyServerLogFile(t.T()))
 	require.NoError(t.T(), err)
 	setup.AppendProxyEndpointToFlagSet(&t.flags, t.port)
 	// Create storage client before running tests.
@@ -89,6 +89,7 @@ func (t *commonFailureTestSuite) TearDownTest() {
 	setup.UnmountGCSFuse(rootDir)
 	assert.NoError(t.T(), t.closeStorageClient())
 	assert.NoError(t.T(), emulator_tests.KillProxyServerProcess(t.proxyProcessId))
+	setup.SaveLogFilesInCaseOfFailure(t.T())
 }
 
 func (t *commonFailureTestSuite) writingWithNewFileHandleAlsoFails(data []byte, off int64) {
@@ -139,6 +140,7 @@ func (t *commonFailureTestSuite) TestStreamingWritesFailsOnSecondChunkUploadFail
 	t.writingAfterBwhReinitializationSucceeds()
 	// Close and validate object content found on GCS.
 	CloseFileAndValidateContentFromGCS(t.ctx, t.storageClient, t.fh1, testDirName, FileName1, string(t.data), t.T())
+	t.T().FailNow()
 }
 
 func (t *commonFailureTestSuite) TestStreamingWritesTruncateSmallerFailsOnSecondChunkUploadFailure() {

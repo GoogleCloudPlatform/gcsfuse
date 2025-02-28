@@ -46,7 +46,7 @@ type chunkTransferTimeoutInfinity struct {
 func (s *chunkTransferTimeoutInfinity) Setup(t *testing.T) {
 	configPath := "../proxy_server/configs/write_stall_40s.yaml"
 	var err error
-	s.port, s.proxyProcessId, err = emulator_tests.StartProxyServer(configPath, setup.CreateProxyServerLogFile(t))
+	s.port, s.proxyProcessId, err = emulator_tests.StartProxyServer(configPath, setup.ProxyServerLogFile(t))
 	require.NoError(t, err)
 	setup.AppendProxyEndpointToFlagSet(&s.flags, s.port)
 	setup.MountGCSFuseWithGivenMountFunc(s.flags, mountFunc)
@@ -133,7 +133,7 @@ func TestChunkTransferTimeout(t *testing.T) {
 		t.Run(fmt.Sprintf("Flags_%v", flags), func(t *testing.T) {
 			for _, scenario := range stallScenarios {
 				t.Run(scenario.name, func(t *testing.T) {
-					port, proxyProcessId, err := emulator_tests.StartProxyServer(scenario.configPath, setup.CreateProxyServerLogFile(t))
+					port, proxyProcessId, err := emulator_tests.StartProxyServer(scenario.configPath, setup.ProxyServerLogFile(t))
 					require.NoError(t, err)
 					setup.AppendProxyEndpointToFlagSet(&flags, port)
 					setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)

@@ -46,15 +46,18 @@ var testOnTPCEndPoint = flag.Bool("testOnTPCEndPoint", false, "Run tests on TPC 
 var seededRand *rand.Rand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 const (
-	FilePermission_0600 = 0600
-	DirPermission_0755  = 0755
-	Charset             = "abcdefghijklmnopqrstuvwxyz0123456789"
-	PathEnvVariable     = "PATH"
+	FilePermission_0600      = 0600
+	DirPermission_0755       = 0755
+	Charset                  = "abcdefghijklmnopqrstuvwxyz0123456789"
+	PathEnvVariable          = "PATH"
+	GCSFuseLogFilePrefix     = "gcsfuse-failed-integration-test-logs-"
+	ProxyServerLogFilePrefix = "proxy-server-failed-integration-test-logs-"
 )
 
 var (
 	binFile              string
 	logFile              string
+	proxyServerLogFile   string
 	testDir              string
 	mntDir               string
 	sbinFile             string
@@ -164,13 +167,13 @@ func SetUpTestDir() error {
 	var err error
 	testDir, err = os.MkdirTemp("", "gcsfuse_readwrite_test_")
 	if err != nil {
-		return fmt.Errorf("TempDir: %w\n", err)
+		return fmt.Errorf("TempDir: %w", err)
 	}
 
 	if !TestInstalledPackage() {
 		err = util.BuildGcsfuse(testDir)
 		if err != nil {
-			return fmt.Errorf("BuildGcsfuse(%q): %w\n", TestDir(), err)
+			return fmt.Errorf("BuildGcsfuse(%q): %w", TestDir(), err)
 		}
 		binFile = path.Join(TestDir(), "bin/gcsfuse")
 		sbinFile = path.Join(TestDir(), "sbin/mount.gcsfuse")
@@ -188,12 +191,13 @@ func SetUpTestDir() error {
 		binFile = "gcsfuse"
 		sbinFile = "mount.gcsfuse"
 	}
+	proxyServerLogFile = path.Join(TestDir(), "proxy-server.log")
 	logFile = path.Join(TestDir(), "gcsfuse.log")
 	mntDir = path.Join(TestDir(), "mnt")
 
 	err = os.Mkdir(mntDir, 0755)
 	if err != nil {
-		return fmt.Errorf("Mkdir(%q): %v\n", MntDir(), err)
+		return fmt.Errorf("Mkdir(%q): %v", MntDir(), err)
 	}
 	return nil
 }
@@ -244,8 +248,49 @@ func SaveLogFileToKOKOROArtifact(artifactName string) {
 	logFileInKokoroArtifact := path.Join(os.Getenv("KOKORO_ARTIFACTS_DIR"), artifactName)
 	err := operations.CopyFile(logFile, logFileInKokoroArtifact)
 	if err != nil {
-		log.Fatalf("Error in coping logfile in kokoro artifact: %v", err)
+		log.Fatalf("Error in copying logfile in kokoro artifact: %v", err)
 	}
+}
+
+func removeLogFileIfExists(logFile string) {
+	err := os.Remove(logFile)
+	if !os.IsExist(err) {
+		return
+	}
+	log.Printf("Error removing log file %v", err)
+}
+
+func copyLogFile(logFile, pathToCopy string) {
+	if _, err := os.Stat(logFile); os.IsNotExist(err) {
+		return
+	}
+	err := operations.CopyFile(logFile, pathToCopy)
+	if err != nil {
+		log.Fatalf("Error in moving logfile: %v", err)
+	} else {
+		log.Printf("Log file saved: %s", pathToCopy)
+	}
+
+}
+
+// SaveLogFilesInCaseOfFailure saves log files (GCSFuse log file, Proxy Server log file)
+// only in case of test failures. For tests running on KOKORO it saves on KOKORO artifacts
+// otherwise saves in local testDir.
+func SaveLogFilesInCaseOfFailure(tb testing.TB) {
+	if tb.Failed() {
+		logDir := os.Getenv("KOKORO_ARTIFACTS_DIR")
+		if logDir == "" {
+			// Save log files in TestDir as this run is not on KOKORO.
+			logDir = TestDir()
+		}
+		pathToCopyGCSFuseLog := path.Join(logDir, GCSFuseLogFilePrefix+strings.ReplaceAll(tb.Name(), "/", "-"))
+		pathToCopyProxyServerLog := path.Join(logDir, ProxyServerLogFilePrefix+strings.ReplaceAll(tb.Name(), "/", "-"))
+		copyLogFile(logFile, pathToCopyGCSFuseLog)
+		copyLogFile(proxyServerLogFile, pathToCopyProxyServerLog)
+	}
+	// remove generic log files.
+	removeLogFileIfExists(logFile)
+	removeLogFileIfExists(proxyServerLogFile)
 }
 
 func UnMountAndThrowErrorInFailure(flags []string, successCode int) {
@@ -572,12 +617,7 @@ func CreateFileOnDiskAndCopyToMntDir(t *testing.T, filePathInLocalDisk string, f
 	}
 }
 
-func CreateProxyServerLogFile(t *testing.T) string {
-	proxyServerLogFile := path.Join(TestDir(), "proxy-server-log-"+GenerateRandomString(5))
-	_, err := os.Create(proxyServerLogFile)
-	if err != nil {
-		t.Fatalf("Error in creating log file for proxy server: %v", err)
-	}
+func ProxyServerLogFile(t *testing.T) string {
 	return proxyServerLogFile
 }
 
