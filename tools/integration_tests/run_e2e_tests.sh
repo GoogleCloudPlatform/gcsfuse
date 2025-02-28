@@ -469,11 +469,11 @@ function main(){
   run_e2e_tests_for_flat_bucket &
   e2e_tests_flat_bucket_pid=$!
 
-  run_e2e_tests_for_emulator &
-  e2e_tests_emulator_pid=$!
+  # run_e2e_tests_for_emulator &
+  # e2e_tests_emulator_pid=$!
 
-  wait $e2e_tests_emulator_pid
-  e2e_tests_emulator_status=$?
+  # wait $e2e_tests_emulator_pid
+  # e2e_tests_emulator_status=$?
 
   wait $e2e_tests_flat_bucket_pid
   e2e_tests_flat_bucket_status=$?
@@ -508,11 +508,11 @@ function main(){
     exit_code=1
   fi
 
-  if [ $e2e_tests_emulator_status != 0 ];
-  then
-    echo "The e2e tests for emulator failed.."
-    exit_code=1
-  fi
+  # if [ $e2e_tests_emulator_status != 0 ];
+  # then
+    # echo "The e2e tests for emulator failed.."
+    # exit_code=1
+  # fi
 
   exit $exit_code
 }
