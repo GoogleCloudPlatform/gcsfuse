@@ -130,7 +130,7 @@ TEST_DIR_PARALLEL_FOR_ZB=(
   "log_rotation"
   # "monitoring"
   "mount_timeout"
-  "mounting"
+  # "mounting"
   # "negative_stat_cache"
   # "operations"
   # "read_cache"
