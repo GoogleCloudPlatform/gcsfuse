@@ -143,7 +143,7 @@ function create_bucket() {
   bucket_prefix=$1
   local -r project_id="gcs-fuse-test-ml"
   # Generate bucket name with random string
-  bucket_name=$bucket_prefix$(tr -dc 'a-z0-9' < /dev/urandom | head -c $RANDOM_STRING_LENGTH)
+  bucket_name=${bucket_prefix}$(date +%Y%m%d-%H%M%S)"-"$(tr -dc 'a-z0-9' < /dev/urandom | head -c $RANDOM_STRING_LENGTH)
   # We are using gcloud alpha because gcloud storage is giving issues running on Kokoro
   gcloud alpha storage buckets create gs://$bucket_name --project=$project_id --location=$BUCKET_LOCATION --uniform-bucket-level-access
   echo $bucket_name
@@ -154,7 +154,7 @@ function create_hns_bucket() {
   # Generate bucket name with random string.
   # Adding prefix `golang-grpc-test` to white list the bucket for grpc
   # so that we can run grpc related e2e tests.
-  bucket_name="golang-grpc-test-gcsfuse-e2e-tests-hns-"$(tr -dc 'a-z0-9' < /dev/urandom | head -c $RANDOM_STRING_LENGTH)
+  bucket_name="golang-grpc-test-gcsfuse-e2e-tests-hns-"$(date +%Y%m%d-%H%M%S)"-"$(tr -dc 'a-z0-9' < /dev/urandom | head -c $RANDOM_STRING_LENGTH)
   gcloud alpha storage buckets create gs://$bucket_name --project=$hns_project_id --location=$BUCKET_LOCATION --uniform-bucket-level-access --enable-hierarchical-namespace
   echo "$bucket_name"
 }
@@ -240,11 +240,11 @@ function print_test_logs() {
 function run_e2e_tests_for_flat_bucket() {
   # Adding prefix `golang-grpc-test` to white list the bucket for grpc so that
   # we can run grpc related e2e tests.
-  bucketPrefix="golang-grpc-test-gcsfuse-non-parallel-e2e-tests-"
+  bucketPrefix="golang-grpc-test-gcsfuse-np-e2e-tests-"
   bucket_name_non_parallel=$(create_bucket $bucketPrefix)
   echo "Bucket name for non parallel tests: "$bucket_name_non_parallel
 
-  bucketPrefix="golang-grpc-test-gcsfuse-parallel-e2e-tests-"
+  bucketPrefix="golang-grpc-test-gcsfuse-p-e2e-tests-"
   bucket_name_parallel=$(create_bucket $bucketPrefix)
   echo "Bucket name for parallel tests: "$bucket_name_parallel
 
