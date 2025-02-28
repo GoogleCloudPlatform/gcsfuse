@@ -445,10 +445,10 @@ function clean_up() {
 function main(){
   set -e
 
-  upgrade_gcloud_version
-
-  install_packages
-
+  # upgrade_gcloud_version
+# 
+  # install_packages
+# 
   set +e
 
   # Run tpc test and exit in case RUN_TEST_ON_TPC_ENDPOINT is true.
