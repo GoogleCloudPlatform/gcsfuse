@@ -334,12 +334,41 @@ function run_e2e_tests_for_hns_bucket(){
    return 0
 }
 
+function run_e2e_tests_for_zonal_bucket(){
+   zonal_bucket_name_parallel_group=$(create_zonal_bucket)
+   echo "Zonal Bucket Created for parallel tests: "$zonal_bucket_name_parallel_group
+
+   zonal_bucket_name_non_parallel_group=$(create_zonal_bucket)
+   echo "Zonal Bucket Created for non-parallel tests: "$zonal_bucket_name_non_parallel_group
+
+   echo "Running tests for ZONAL bucket"
+   run_parallel_tests TEST_DIR_PARALLEL_FOR_ZB "$zonal_bucket_name_parallel_group" true &
+   parallel_tests_zonal_group_pid=$!
+   run_non_parallel_tests TEST_DIR_NON_PARALLEL_FOR_ZB "$zonal_bucket_name_non_parallel_group" true &
+   non_parallel_tests_zonal_group_pid=$!
+
+   # Wait for all tests to complete.
+   wait $parallel_tests_zonal_group_pid
+   parallel_tests_zonal_group_exit_code=$?
+   wait $non_parallel_tests_zonal_group_pid
+   non_parallel_tests_zonal_group_exit_code=$?
+
+   zonal_buckets=("$zonal_bucket_name_parallel_group" "$zonal_bucket_name_non_parallel_group")
+   clean_up zonal_buckets
+
+   if [ $parallel_tests_zonal_group_exit_code != 0 ] || [ $non_parallel_tests_zonal_group_exit_code != 0 ];
+   then
+    return 1
+   fi
+   return 0
+}
+
 function run_e2e_tests_for_tpc() {
   # Clean bucket before testing.
   gcloud storage rm -r gs://gcsfuse-e2e-tests-tpc/**
 
   # Run Operations e2e tests in TPC to validate all the functionality.
-  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/... --testOnTPCEndPoint=$RUN_TEST_ON_TPC_ENDPOINT $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=${RUN_TESTS_WITH_ZONAL_BUCKET} -p 1 --integrationTest -v --testbucket=gcsfuse-e2e-tests-tpc --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT
+  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/... --testOnTPCEndPoint=$RUN_TEST_ON_TPC_ENDPOINT $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=false -p 1 --integrationTest -v --testbucket=gcsfuse-e2e-tests-tpc --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT
   exit_code=$?
 
   set -e
