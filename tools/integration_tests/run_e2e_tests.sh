@@ -120,34 +120,34 @@ TEST_DIR_PARALLEL_FOR_ZB=(
   # "benchmarking"
   # "concurrent_operations"
   # "explicit_dir"
-  # "gzip"
+  "gzip"
   # "implicit_dir"
-  # "interrupt"
-  # "kernel_list_cache"
+  "interrupt"
+  "kernel_list_cache"
   # "list_large_dir"
   # "local_file"
   # "log_content"
   "log_rotation"
-  # "monitoring"
+  "monitoring"
   "mount_timeout"
-  # "mounting"
-  # "negative_stat_cache"
+  "mounting"
+  "negative_stat_cache"
   # "operations"
   # "read_cache"
-  # "read_large_files"
-  # "rename_dir_limit"
-  # "stale_handle"
+  "read_large_files"
+  "rename_dir_limit"
+  "stale_handle"
   # "streaming_writes"
-  # "write_large_files"
+  "write_large_files"
 )
 
 # Subset of TEST_DIR_NON_PARALLEL,
 # but only those tests which currently
 # pass for zonal buckets.
 TEST_DIR_NON_PARALLEL_FOR_ZB=(
-  # "readonly"
+  "readonly"
   # "managed_folders"
-  # "readonly_creds"
+  "readonly_creds"
 )
 
 # Create a temporary file to store the log file name.
