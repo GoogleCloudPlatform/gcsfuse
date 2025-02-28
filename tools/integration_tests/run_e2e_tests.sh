@@ -163,6 +163,10 @@ function run_non_parallel_tests() {
   local exit_code=0
   local -n test_array=$1
   local bucket_name_non_parallel=$2
+  local zonal=false
+  if [ $# -ge 3 ] && [ "$3" = "true" ] ; then
+    zonal=true
+  fi
 
   for test_dir_np in "${test_array[@]}"
   do
@@ -173,12 +177,14 @@ function run_non_parallel_tests() {
     echo $log_file >> $TEST_LOGS_FILE
 
     # Executing integration tests
-    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=${RUN_TESTS_WITH_ZONAL_BUCKET} --integrationTest -v --testbucket=$bucket_name_non_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1
+    echo "Running test package in non-parallel (with zonal=${zonal}): ${test_dir_np} ..."
+    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=${zonal} --integrationTest -v --testbucket=$bucket_name_non_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1
     exit_code_non_parallel=$?
     if [ $exit_code_non_parallel != 0 ]; then
       exit_code=$exit_code_non_parallel
-      echo "test fail in non parallel on package: " $test_dir_np
+      echo "test fail in non parallel on package (with zonal=${zonal}): " $test_dir_np
     fi
+    echo "Passed test package in non-parallel (with zonal=${zonal}): ${test_dir_np} ..."
   done
   return $exit_code
 }
@@ -187,8 +193,12 @@ function run_parallel_tests() {
   local exit_code=0
   local -n test_array=$1
   local bucket_name_parallel=$2
+  local zonal=false
+  if [ $# -ge 3 ] && [ "$3" = "true" ] ; then
+    zonal=true
+  fi
   local benchmark_flags=""
-  local pids=()
+  declare -A pids
 
   for test_dir_p in "${test_array[@]}"
   do
@@ -204,21 +214,26 @@ function run_parallel_tests() {
     local log_file="/tmp/${test_dir_p}_${bucket_name_parallel}.log"
     echo $log_file >> $TEST_LOGS_FILE
     # Executing integration tests
-    GODEBUG=asyncpreemptoff=1 go test $test_path_parallel $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=${RUN_TESTS_WITH_ZONAL_BUCKET} $benchmark_flags -p 1 --integrationTest -v --testbucket=$bucket_name_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1 &
+    echo "Queueing up test package in parallel (with zonal=${zonal}): ${test_dir_p} ..."
+    GODEBUG=asyncpreemptoff=1 go test $test_path_parallel $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=${zonal} $benchmark_flags -p 1 --integrationTest -v --testbucket=$bucket_name_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1 &
     pid=$!  # Store the PID of the background process
-    pids+=("$pid")  # Optionally add the PID to an array for later
-    package_names[$pid]=$test_dir_p # Keep mapping between package name and PID to print failed package un case of failure.
+    echo "Queued up test package in parallel (with zonal=${zonal}): ${test_dir_p} with pid=${pid}"
+    pids[${test_dir_p}]=${pid} # Optionally add the PID to an array for later
   done
 
   # Wait for processes and collect exit codes
-  for pid in "${pids[@]}"; do
+  for package_name in "${!pids[@]}"; do
+    pid="${pids[${package_name}]}"
+    echo "Waiting on test package ${package_name} (with zonal=${zonal}) through pid=${pid} ..."
+    # What if the process for this test package completed long back and its PID got
+    # re-assigned to another process since then ?
     wait $pid
     exit_code_parallel=$?
     if [ $exit_code_parallel != 0 ]; then
       exit_code=$exit_code_parallel
-      package_name="${package_names[$pid]}" # Retrieve the package name
-      echo "test fail in parallel on package: " $package_name
+      echo "test fail in parallel on package (with zonal=${zonal}): " $package_name
     fi
+    echo "Passed test package in parallel (with zonal=${zonal}): ${package_name} ."
   done
   return $exit_code
 }
