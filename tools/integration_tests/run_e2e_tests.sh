@@ -118,6 +118,43 @@ TEST_DIR_NON_PARALLEL=(
   "readonly_creds"
 )
 
+# Subset of TEST_DIR_PARALLEL,
+# but only those tests which currently
+# pass for zonal buckets.
+TEST_DIR_PARALLEL_FOR_ZB=(
+  # "benchmarking"
+  # "concurrent_operations"
+  # "explicit_dir"
+  # "gzip"
+  # "implicit_dir"
+  # "interrupt"
+  # "kernel_list_cache"
+  # "list_large_dir"
+  # "local_file"
+  # "log_content"
+  # "log_rotation"
+  # "monitoring"
+  # "mount_timeout"
+  "mounting"
+  # "negative_stat_cache"
+  # "operations"
+  # "read_cache"
+  # "read_large_files"
+  # "rename_dir_limit"
+  # "stale_handle"
+  # "streaming_writes"
+  # "write_large_files"
+)
+
+# Subset of TEST_DIR_NON_PARALLEL,
+# but only those tests which currently
+# pass for zonal buckets.
+TEST_DIR_NON_PARALLEL_FOR_ZB=(
+  # "readonly"
+  # "managed_folders"
+  # "readonly_creds"
+)
+
 # Create a temporary file to store the log file name.
 TEST_LOGS_FILE=$(mktemp)
 
@@ -431,6 +468,12 @@ function main(){
   fi
 
   #run integration tests
+
+  if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
+    run_e2e_tests_for_zonal_bucket &
+    e2e_tests_zonal_bucket_pid=$!
+  fi
+
   run_e2e_tests_for_hns_bucket &
   e2e_tests_hns_bucket_pid=$!
 
@@ -449,6 +492,11 @@ function main(){
   wait $e2e_tests_hns_bucket_pid
   e2e_tests_hns_bucket_status=$?
 
+  if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
+    wait $e2e_tests_zonal_bucket_pid
+    e2e_tests_zonal_bucket_status=$?
+  fi
+
   set -e
 
   print_test_logs
@@ -463,6 +511,11 @@ function main(){
   if [ $e2e_tests_hns_bucket_status != 0 ];
   then
     echo "The e2e tests for hns bucket failed.."
+    exit_code=1
+  fi
+
+  if ${RUN_TESTS_WITH_ZONAL_BUCKET} && [ $e2e_tests_zonal_bucket_status != 0 ]; then
+    echo "The e2e tests for zonal bucket failed.."
     exit_code=1
   fi
 
