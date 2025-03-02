@@ -14,11 +14,11 @@ function create_bucket() {
     gcloud storage buckets create gs://fastbyte-team-princer-zb-write-test-uw4a --location=us-west4 --default-storage-class=RAPID --enable-hierarchical-namespace --placement us-west4-a  --uniform-bucket-level-access --project=gcs-tess
     
     # GRPC bucket.
-    gcloud storage buckets create gs://princer-grpc-write-test-uw4a --location=us-west4 --default-storage-class=STANDARD --enable-hierarchical-namespace --uniform-bucket-level-access --project=gcs-tess
+    gcloud storage buckets create gs://princer-grpc-read-test-uc1a --location=us-central1 --default-storage-class=STANDARD --enable-hierarchical-namespace --uniform-bucket-level-access --project=gcs-tess
 }
 
 function install_go_and_add_in_path() {
-    version=1.23.4
+    version=1.23.5
     wget -O go_tar.tar.gz https://go.dev/dl/go${version}.linux-amd64.tar.gz -q
     sudo rm -rf /usr/local/go
     tar -xzf go_tar.tar.gz && sudo mv go /usr/local

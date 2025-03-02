@@ -1,0 +1,207 @@
+princer_google_com@princer-c4-uc1a:~/dev/gcsfuse-tools$
+princer_google_com@princer-c4-uc1a:~/dev/gcsfuse-tools$
+princer_google_com@princer-c4-uc1a:~/dev/gcsfuse-tools$ ./read-test/read_96thread_1G.sh http.txt http
+princer_google_com@princer-c4-uc1a:~/dev/gcsfuse-tools$ ./read-test/read_96thread_1G.sh http.txt http
+{"timestamp":{"seconds":1740664222,"nanos":269820288},"severity":"INFO","message":"Start gcsfuse/unknown (Go version go1.23.5) for app \"\" using mount point: /home/princer_google_com/bucket\n"}
+{"timestamp":{"seconds":1740664222,"nanos":269863575},"severity":"INFO","message":"GCSFuse config","config":{"AppName":"","CacheDir":"","Debug":{"ExitOnInvariantViolation":false,"Fuse":false,"Gcs":false,"LogMutex":false},"EnableAtomicRenameObject":false,"EnableHns":true,"FileCache":{"CacheFileForRangeRead":false,"DownloadChunkSizeMb":50,"EnableCrc":false,"EnableODirect":false,"EnableParallelDownloads":false,"MaxParallelDownloads":100,"MaxSizeMb":-1,"ParallelDownloadsPerFile":16,"WriteBufferSize":4194304},"FileSystem":{"DirMode":"755","DisableParallelDirops":false,"FileMode":"644","FuseOptions":[],"Gid":-1,"HandleSigterm":true,"IgnoreInterrupts":true,"KernelListCacheTtlSecs":0,"PreconditionErrors":true,"RenameDirLimit":0,"TempDir":"","Uid":-1},"Foreground":false,"GcsAuth":{"AnonymousAccess":false,"KeyFile":"","ReuseTokenFromUrl":true,"TokenUrl":""},"GcsConnection":{"BillingProject":"","ClientProtocol":"http1","CustomEndpoint":"","ExperimentalEnableJsonRead":false,"GrpcConnPoolSize":1,"HttpClientTimeout":0,"LimitBytesPerSec":-1,"LimitOpsPerSec":-1,"MaxConnsPerHost":0,"MaxIdleConnsPerHost":100,"SequentialReadSizeMb":200},"GcsRetries":{"ChunkTransferTimeoutSecs":10,"MaxRetryAttempts":0,"MaxRetrySleep":30000000000,"Multiplier":2,"ReadStall":{"Enable":false,"InitialReqTimeout":20000000000,"MaxReqTimeout":1200000000000,"MinReqTimeout":1500000000,"ReqIncreaseRate":15,"ReqTargetPercentile":0.99}},"ImplicitDirs":true,"List":{"EnableEmptyManagedFolders":false},"Logging":{"FilePath":"","Format":"json","LogRotate":{"BackupFileCount":10,"Compress":true,"MaxFileSizeMb":512},"Severity":"INFO"},"MetadataCache":{"DeprecatedStatCacheCapacity":20460,"DeprecatedStatCacheTtl":60000000000,"DeprecatedTypeCacheTtl":60000000000,"EnableNonexistentTypeCache":false,"ExperimentalMetadataPrefetchOnMount":"disabled","NegativeTtlSecs":5,"StatCacheMaxSizeMb":32,"TtlSecs":60,"TypeCacheMaxSizeMb":4},"Metrics":{"CloudMetricsExportIntervalSecs":0,"EnableOtel":true,"PrometheusPort":0,"StackdriverExportInterval":0},"Monitoring":{"ExperimentalOpentelemetryCollectorAddress":"","ExperimentalTracingMode":"","ExperimentalTracingSamplingRatio":0},"OnlyDir":"","Prefetch":{"BlockSizeMb":8,"Enable":false,"MaxParallelism":100,"MaxPrefetchBlocks":10,"MaxPrefetchSizeMb":1024,"MinPrefetchBlocks":4},"Write":{"BlockSizeMb":33554432,"CreateEmptyFile":false,"EnableStreamingWrites":false,"GlobalMaxBlocks":9223372036854775807,"MaxBlocksPerFile":1}}}
+{"timestamp":{"seconds":1740664222,"nanos":456715417},"severity":"INFO","message":"File system has been successfully mounted."}
+Running for read with 32 jobs...
+single_group: (g=0): rw=read, bs=(R) 128KiB-128KiB, (W) 128KiB-128KiB, (T) 128KiB-128KiB, ioengine=libaio, iodepth=64
+...
+fio-3.16
+Starting 32 threads
+
+single_group: (groupid=0, jobs=32): err= 0: pid=496095: Thu Feb 27 13:53:24 2025
+  read: IOPS=47.0k, BW=5882MiB/s (6168MB/s)(690GiB/120035msec)
+    slat (usec): min=124, max=4754.4k, avg=679.10, stdev=3501.20
+    clat (nsec): min=1642, max=5773.6M, avg=42847330.70, stdev=42551406.67
+     lat (usec): min=227, max=5776.4k, avg=43527.15, stdev=43023.33
+    clat percentiles (msec):
+     |  1.00th=[   22],  5.00th=[   24], 10.00th=[   26], 20.00th=[   28],
+     | 30.00th=[   30], 40.00th=[   32], 50.00th=[   35], 60.00th=[   38],
+     | 70.00th=[   43], 80.00th=[   52], 90.00th=[   69], 95.00th=[   90],
+     | 99.00th=[  146], 99.50th=[  178], 99.90th=[  266], 99.95th=[  326],
+     | 99.99th=[ 1200]
+   bw (  MiB/s): min= 1775, max= 9851, per=100.00%, avg=5895.94, stdev=50.46, samples=7639
+   iops        : min=14207, max=78808, avg=47166.70, stdev=403.71, samples=7639
+  lat (usec)   : 2=0.01%, 4=0.01%, 10=0.01%, 250=0.01%, 500=0.01%
+  lat (usec)   : 750=0.01%, 1000=0.01%
+  lat (msec)   : 2=0.01%, 4=0.01%, 10=0.01%, 20=0.31%, 50=78.23%
+  lat (msec)   : 100=17.90%, 250=3.46%, 500=0.10%, 750=0.01%, 1000=0.01%
+  lat (msec)   : 2000=0.01%, >=2000=0.01%
+  cpu          : usr=0.15%, sys=1.18%, ctx=5648770, majf=2, minf=1942607
+  IO depths    : 1=0.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=5646549,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+   READ: bw=5882MiB/s (6168MB/s), 5882MiB/s-5882MiB/s (6168MB/s-6168MB/s), io=690GiB (740GB), run=120035-120035msec
+Running for read with 32 jobs completed.
+Running for randread with 32 jobs...
+single_group: (g=0): rw=randread, bs=(R) 128KiB-128KiB, (W) 128KiB-128KiB, (T) 128KiB-128KiB, ioengine=libaio, iodepth=64
+...
+fio-3.16
+Starting 32 threads
+
+single_group: (groupid=0, jobs=32): err= 0: pid=497284: Thu Feb 27 14:02:16 2025
+  read: IOPS=412, BW=53.0MiB/s (55.6MB/s)(8999MiB/169724msec)
+    slat (usec): min=223, max=59329k, avg=56311.16, stdev=321063.12
+    clat (usec): min=2, max=62964k, avg=3496249.79, stdev=2506295.64
+     lat (msec): min=29, max=63052, avg=3552.53, stdev=2524.99
+    clat percentiles (msec):
+     |  1.00th=[ 1334],  5.00th=[ 2836], 10.00th=[ 2937], 20.00th=[ 3037],
+     | 30.00th=[ 3138], 40.00th=[ 3205], 50.00th=[ 3306], 60.00th=[ 3373],
+     | 70.00th=[ 3473], 80.00th=[ 3608], 90.00th=[ 3809], 95.00th=[ 4044],
+     | 99.00th=[ 7550], 99.50th=[14026], 99.90th=[17113], 99.95th=[17113],
+     | 99.99th=[17113]
+   bw (  KiB/s): min=20409, max=112880, per=100.00%, avg=77145.70, stdev=488.46, samples=7423
+   iops        : min=  155, max=  880, avg=600.72, stdev= 3.82, samples=7423
+  lat (usec)   : 4=0.01%, 10=0.03%
+  lat (msec)   : 50=0.02%, 100=0.04%, 250=0.11%, 500=0.19%, 750=0.19%
+  lat (msec)   : 1000=0.18%, 2000=0.78%, >=2000=101.33%
+  cpu          : usr=0.01%, sys=0.03%, ctx=69966, majf=0, minf=0
+  IO depths    : 1=0.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=69947,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+   READ: bw=53.0MiB/s (55.6MB/s), 53.0MiB/s-53.0MiB/s (55.6MB/s-55.6MB/s), io=8999MiB (9437MB), run=169724-169724msec
+Running for randread with 32 jobs completed.
+Running for read with 48 jobs...
+single_group: (g=0): rw=read, bs=(R) 128KiB-128KiB, (W) 128KiB-128KiB, (T) 128KiB-128KiB, ioengine=libaio, iodepth=64
+...
+fio-3.16
+Starting 48 threads
+
+single_group: (groupid=0, jobs=48): err= 0: pid=498139: Thu Feb 27 14:10:19 2025
+  read: IOPS=71.5k, BW=8942MiB/s (9376MB/s)(1060GiB/121364msec)
+    slat (usec): min=135, max=1469.4k, avg=662.44, stdev=2160.78
+    clat (nsec): min=1737, max=3661.9M, avg=41818704.19, stdev=32371547.64
+     lat (usec): min=205, max=3664.3k, avg=42481.33, stdev=32752.45
+    clat percentiles (msec):
+     |  1.00th=[   22],  5.00th=[   24], 10.00th=[   26], 20.00th=[   28],
+     | 30.00th=[   30], 40.00th=[   32], 50.00th=[   35], 60.00th=[   38],
+     | 70.00th=[   43], 80.00th=[   50], 90.00th=[   66], 95.00th=[   84],
+     | 99.00th=[  140], 99.50th=[  171], 99.90th=[  300], 99.95th=[  443],
+     | 99.99th=[ 1028]
+   bw (  MiB/s): min= 2678, max=14517, per=100.00%, avg=9040.36, stdev=46.88, samples=11483
+   iops        : min=21424, max=116138, avg=72321.55, stdev=375.06, samples=11483
+  lat (usec)   : 2=0.01%, 4=0.01%, 10=0.01%, 250=0.01%, 500=0.01%
+  lat (usec)   : 750=0.01%, 1000=0.01%
+  lat (msec)   : 2=0.01%, 4=0.01%, 10=0.01%, 20=0.43%, 50=80.23%
+  lat (msec)   : 100=16.51%, 250=2.70%, 500=0.12%, 750=0.02%, 1000=0.01%
+  lat (msec)   : 2000=0.01%, >=2000=0.01%
+  cpu          : usr=0.25%, sys=1.51%, ctx=8685971, majf=5, minf=4996681
+  IO depths    : 1=0.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=8678709,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+   READ: bw=8942MiB/s (9376MB/s), 8942MiB/s-8942MiB/s (9376MB/s-9376MB/s), io=1060GiB (1138GB), run=121364-121364msec
+Running for read with 48 jobs completed.
+Running for randread with 48 jobs...
+single_group: (g=0): rw=randread, bs=(R) 128KiB-128KiB, (W) 128KiB-128KiB, (T) 128KiB-128KiB, ioengine=libaio, iodepth=64
+...
+fio-3.16
+Starting 48 threads
+
+single_group: (groupid=0, jobs=48): err= 0: pid=498902: Thu Feb 27 14:18:22 2025
+  read: IOPS=891, BW=115MiB/s (120MB/s)(13.4GiB/120163msec)
+    slat (usec): min=203, max=20516k, avg=53824.97, stdev=68915.71
+    clat (nsec): min=1920, max=24730M, avg=3351420051.64, stdev=734101853.84
+     lat (msec): min=27, max=24800, avg=3405.50, stdev=740.53
+    clat percentiles (msec):
+     |  1.00th=[ 1167],  5.00th=[ 2836], 10.00th=[ 2937], 20.00th=[ 3037],
+     | 30.00th=[ 3138], 40.00th=[ 3205], 50.00th=[ 3272], 60.00th=[ 3373],
+     | 70.00th=[ 3473], 80.00th=[ 3675], 90.00th=[ 3977], 95.00th=[ 4245],
+     | 99.00th=[ 4732], 99.50th=[ 4933], 99.90th=[ 5403], 99.95th=[17113],
+     | 99.99th=[17113]
+   bw (  KiB/s): min=52718, max=165624, per=97.62%, avg=114524.08, stdev=431.82, samples=11455
+   iops        : min=  406, max= 1293, avg=892.26, stdev= 3.38, samples=11455
+  lat (usec)   : 2=0.01%, 4=0.03%, 10=0.02%
+  lat (msec)   : 50=0.02%, 100=0.04%, 250=0.14%, 500=0.21%, 750=0.22%
+  lat (msec)   : 1000=0.22%, 2000=0.85%, >=2000=101.08%
+  cpu          : usr=0.01%, sys=0.03%, ctx=107098, majf=0, minf=0
+  IO depths    : 1=0.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=107066,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+   READ: bw=115MiB/s (120MB/s), 115MiB/s-115MiB/s (120MB/s-120MB/s), io=13.4GiB (14.4GB), run=120163-120163msec
+Running for randread with 48 jobs completed.
+Running for read with 96 jobs...
+single_group: (g=0): rw=read, bs=(R) 128KiB-128KiB, (W) 128KiB-128KiB, (T) 128KiB-128KiB, ioengine=libaio, iodepth=64
+...
+fio-3.16
+Starting 96 threads
+
+single_group: (groupid=0, jobs=96): err= 0: pid=499661: Thu Feb 27 14:26:26 2025
+  read: IOPS=89.4k, BW=10.9GiB/s (11.7GB/s)(1310GiB/120042msec)
+    slat (usec): min=158, max=381096, avg=1072.60, stdev=1784.93
+    clat (nsec): min=1524, max=1099.0M, avg=67640060.19, stdev=19507172.96
+     lat (usec): min=191, max=1108.0k, avg=68712.85, stdev=19705.05
+    clat percentiles (msec):
+     |  1.00th=[   57],  5.00th=[   59], 10.00th=[   60], 20.00th=[   61],
+     | 30.00th=[   62], 40.00th=[   63], 50.00th=[   63], 60.00th=[   64],
+     | 70.00th=[   65], 80.00th=[   66], 90.00th=[   74], 95.00th=[  107],
+     | 99.00th=[  157], 99.50th=[  184], 99.90th=[  230], 99.95th=[  259],
+     | 99.99th=[  363]
+   bw (  MiB/s): min= 5799, max=12865, per=99.96%, avg=11172.74, stdev=13.68, samples=22984
+   iops        : min=46392, max=102922, avg=89379.56, stdev=109.41, samples=22984
+  lat (usec)   : 2=0.01%, 4=0.01%, 10=0.01%, 250=0.01%, 500=0.01%
+  lat (usec)   : 750=0.01%, 1000=0.01%
+  lat (msec)   : 2=0.01%, 4=0.01%, 10=0.01%, 20=0.01%, 50=0.03%
+  lat (msec)   : 100=93.94%, 250=6.01%, 500=0.06%, 750=0.01%, 1000=0.01%
+  lat (msec)   : 2000=0.01%
+  cpu          : usr=0.14%, sys=0.80%, ctx=10735392, majf=23, minf=4791450
+  IO depths    : 1=0.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=10727407,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+   READ: bw=10.9GiB/s (11.7GB/s), 10.9GiB/s-10.9GiB/s (11.7GB/s-11.7GB/s), io=1310GiB (1407GB), run=120042-120042msec
+Running for read with 96 jobs completed.
+Running for randread with 96 jobs...
+single_group: (g=0): rw=randread, bs=(R) 128KiB-128KiB, (W) 128KiB-128KiB, (T) 128KiB-128KiB, ioengine=libaio, iodepth=64
+...
+fio-3.16
+Starting 96 threads
+
+single_group: (groupid=0, jobs=96): err= 0: pid=500022: Thu Feb 27 14:34:30 2025
+  read: IOPS=1740, BW=224MiB/s (235MB/s)(26.3GiB/120124msec)
+    slat (usec): min=247, max=2255.0k, avg=55121.39, stdev=29959.76
+    clat (nsec): min=1950, max=5735.1M, avg=3427473708.94, stdev=573994868.54
+     lat (msec): min=27, max=5768, avg=3482.73, stdev=579.42
+    clat percentiles (msec):
+     |  1.00th=[ 1116],  5.00th=[ 2836], 10.00th=[ 2937], 20.00th=[ 3071],
+     | 30.00th=[ 3171], 40.00th=[ 3239], 50.00th=[ 3373], 60.00th=[ 3473],
+     | 70.00th=[ 3641], 80.00th=[ 3842], 90.00th=[ 4178], 95.00th=[ 4396],
+     | 99.00th=[ 4732], 99.50th=[ 4866], 99.90th=[ 5067], 99.95th=[ 5201],
+     | 99.99th=[ 5604]
+   bw (  KiB/s): min=92655, max=324323, per=97.26%, avg=223034.54, stdev=426.48, samples=23001
+   iops        : min=  718, max= 2530, avg=1737.49, stdev= 3.34, samples=23001
+  lat (usec)   : 2=0.01%, 4=0.03%, 10=0.02%
+  lat (msec)   : 50=0.02%, 100=0.04%, 250=0.13%, 500=0.23%, 750=0.23%
+  lat (msec)   : 1000=0.23%, 2000=0.88%, >=2000=101.08%
+  cpu          : usr=0.01%, sys=0.03%, ctx=209170, majf=0, minf=0
+  IO depths    : 1=0.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=209065,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+   READ: bw=224MiB/s (235MB/s), 224MiB/s-224MiB/s (235MB/s-235MB/s), io=26.3GiB (28.2GB), run=120124-120124msec
+Running for randread with 96 jobs completed.
+/home/princer_google_com/dev/gcsfuse-tools
+p

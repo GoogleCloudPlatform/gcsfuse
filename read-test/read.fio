@@ -9,9 +9,9 @@ bs=1M ;Use a block size of 1MB for I/O operations.
 iodepth=64 ;Allow up to 64 outstanding I/O requests to be issued at the same time. This can improve I/O performance, especially when dealing with high-latency storage.
 invalidate=1 ;Invalidate the data in the cache before each read. This ensures that each read is from the storage device, not the cache.
 # Timing and Load:
-ramp_time=2m ;Gradually increase the I/O load over a period of 1 minute. This helps to avoid shocking the storage system at the start of the test.
-runtime=10m ;Run the test for 10 minutes. The `ramp_time` is included
-;startdelay=2m ;Wait for 2 minutes before starting the test. This can be used to stagger the start times of multiple Fio jobs, or to allow the storage device to warm up.
+ramp_time=1m ;Gradually increase the I/O load over a period of 1 minute. This helps to avoid shocking the storage system at the start of the test.
+runtime=2m ;Run the test for 10 minutes. The `ramp_time` is included
+;startdelay=1s ;Wait for 2 minutes before starting the test. This can be used to stagger the start times of multiple Fio jobs, or to allow the storage device to warm up.
 time_based=1 ;Run the test based on time, rather than the number of I/O operations completed.
 # Files and Jobs:
 nrfiles=1 ;Use one file per job.
