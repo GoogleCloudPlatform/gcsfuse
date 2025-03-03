@@ -17,7 +17,6 @@ package fs_test
 import (
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/stretchr/testify/suite"
 )
@@ -25,29 +24,23 @@ import (
 // //////////////////////////////////////////////////////////////////////
 // Boilerplate
 // //////////////////////////////////////////////////////////////////////
-
 type staleFileHandleLocalFile struct {
 	staleFileHandleCommon
+	suite.Suite
 }
 
-func TestStaleFileHandleLocalFile(t *testing.T) {
-	suite.Run(t, new(staleFileHandleLocalFile))
+type streamingWritesStaleFileHandleLocalFile struct {
+	streamingWritesStaleFileHandleCommon
+	suite.Suite
 }
 
-func (t *staleFileHandleLocalFile) SetupSuite() {
-	t.serverCfg.NewConfig = &cfg.Config{
-		FileSystem: cfg.FileSystemConfig{
-			PreconditionErrors: true,
-		},
-		MetadataCache: cfg.MetadataCacheConfig{
-			TtlSecs: 0,
-		},
-	}
-	t.fsTest.SetUpTestSuite()
-}
+// //////////////////////////////////////////////////////////////////////
+// Helpers
+// //////////////////////////////////////////////////////////////////////
 
-func (t *staleFileHandleLocalFile) TearDownSuite() {
-	t.fsTest.TearDownTestSuite()
+func (t *streamingWritesStaleFileHandleLocalFile) SetupTest() {
+	// Create a local file.
+	_, t.f1 = operations.CreateLocalFile(ctx, t.T(), mntDir, bucket, "foo")
 }
 
 func (t *staleFileHandleLocalFile) SetupTest() {
@@ -55,7 +48,21 @@ func (t *staleFileHandleLocalFile) SetupTest() {
 	_, t.f1 = operations.CreateLocalFile(ctx, t.T(), mntDir, bucket, "foo")
 }
 
-func (t *staleFileHandleLocalFile) TearDownTest() {
-	// fsTest Cleanups to clean up mntDir and close t.f1 and t.f2.
-	t.fsTest.TearDown()
+// Executes all stale handle tests for local files.
+func TestStaleFileHandleLocalFile(t *testing.T) {
+	config = commonConfig(t)
+	ts := new(staleFileHandleLocalFile)
+	ts.staleFileHandleCommonHelper.TestifySuite = &ts.Suite
+	suite.Run(t, ts)
+}
+
+// Executes all stale handle tests for local files with streaming writes.
+func TestStaleFileHandleLocalFileWithStreamingWrites(t *testing.T) {
+	config = commonConfig(t)
+	config.Write.EnableStreamingWrites = true
+	config.Write.BlockSizeMb = 1
+	config.Write.MaxBlocksPerFile = 1
+	ts := new(streamingWritesStaleFileHandleLocalFile)
+	ts.streamingWritesStaleFileHandleCommon.TestifySuite = &ts.Suite
+	suite.Run(t, ts)
 }

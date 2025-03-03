@@ -17,21 +17,77 @@ package fs_test
 import (
 	"os"
 	"path"
+	"syscall"
+	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_suite"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/suite"
+)
+
+var (
+	config *cfg.Config // config for the server
 )
 
 // //////////////////////////////////////////////////////////////////////
 // Boilerplate
 // //////////////////////////////////////////////////////////////////////
-
-type staleFileHandleCommon struct {
+type staleFileHandleCommonHelper struct {
 	// fsTest has f1 *osFile and f2 *osFile which we will reuse here.
 	fsTest
-	suite.Suite
+	test_suite.TestifySuite
+}
+type staleFileHandleCommon struct {
+	streamingWritesStaleFileHandleCommon
+}
+
+type streamingWritesStaleFileHandleCommon struct {
+	staleFileHandleCommonHelper
+}
+
+// //////////////////////////////////////////////////////////////////////
+// Helpers
+// //////////////////////////////////////////////////////////////////////
+
+func commonConfig(t *testing.T) *cfg.Config {
+	t.Helper()
+	return &cfg.Config{
+		FileSystem: cfg.FileSystemConfig{
+			PreconditionErrors: true,
+		},
+		MetadataCache: cfg.MetadataCacheConfig{
+			TtlSecs: 0,
+		},
+	}
+}
+func (t *staleFileHandleCommonHelper) createGCSObject(content string) {
+	t.T().Helper()
+	// Create an object on bucket.
+	_, err := storageutil.CreateObject(
+		ctx,
+		bucket,
+		"foo",
+		[]byte(content))
+	assert.NoError(t.T(), err)
+	// Open file handle to read or write.
+	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_RDWR|syscall.O_DIRECT, filePerms)
+	assert.NoError(t.T(), err)
+}
+
+func (t *staleFileHandleCommonHelper) SetupSuite() {
+	t.serverCfg.NewConfig = config
+	t.fsTest.SetUpTestSuite()
+}
+
+func (t *staleFileHandleCommonHelper) TearDownSuite() {
+	t.fsTest.TearDownTestSuite()
+}
+
+func (t *staleFileHandleCommonHelper) TearDownTest() {
+	// fsTest Cleanups to clean up mntDir and close t.f1 and t.f2.
+	t.fsTest.TearDown()
 }
 
 // //////////////////////////////////////////////////////////////////////
@@ -64,7 +120,7 @@ func (t *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHand
 	assert.Equal(t.T(), "foobar", string(contents))
 }
 
-func (t *staleFileHandleCommon) TestFileDeletedLocallySyncAndCloseDoNotThrowError() {
+func (t *streamingWritesStaleFileHandleCommon) TestFileDeletedLocallySyncAndCloseDoNotThrowError() {
 	// Dirty the file by giving it some contents.
 	n, err := t.f1.Write([]byte("foobar"))
 	assert.NoError(t.T(), err)

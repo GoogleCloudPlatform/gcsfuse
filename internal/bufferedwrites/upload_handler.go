@@ -43,9 +43,8 @@ type UploadHandler struct {
 	// writer to resumable upload the blocks to GCS.
 	writer gcs.Writer
 
-	// signalUploadFailure channel will propagate the upload error to file
-	// inode. This signals permanent failure in the buffered write job.
-	signalUploadFailure chan error
+	// uploadError contains the error seen by uploader.
+	uploadError error
 
 	// CancelFunc persisted to cancel the uploads in case of unlink operation.
 	cancelFunc context.CancelFunc
@@ -78,7 +77,6 @@ func newUploadHandler(req *CreateUploadHandlerRequest) *UploadHandler {
 		objectName:           req.ObjectName,
 		obj:                  req.Object,
 		blockSize:            req.BlockSize,
-		signalUploadFailure:  make(chan error, 1),
 		chunkTransferTimeout: req.ChunkTransferTimeoutSecs,
 	}
 	return uh
@@ -119,13 +117,11 @@ func (uh *UploadHandler) createObjectWriter() (err error) {
 // uploader is the single-threaded goroutine that uploads blocks.
 func (uh *UploadHandler) uploader() {
 	for currBlock := range uh.uploadCh {
-		select {
-		case <-uh.signalUploadFailure:
-		default:
+		if uh.GetUploadError() == nil {
 			_, err := io.Copy(uh.writer, currBlock.Reader())
 			if err != nil {
 				logger.Errorf("buffered write upload failed for object %s: error in io.Copy: %v", uh.objectName, err)
-				uh.closeUploadFailureChannel()
+				uh.SetUploadError(gcs.GetGCSError(err))
 			}
 		}
 		// Put back the uploaded block on the freeBlocksChannel for re-use.
@@ -150,8 +146,9 @@ func (uh *UploadHandler) Finalize() (*gcs.MinObject, error) {
 
 	obj, err := uh.bucket.FinalizeUpload(context.Background(), uh.writer)
 	if err != nil {
-		uh.closeUploadFailureChannel()
-		return nil, fmt.Errorf("FinalizeUpload failed for object %s: %w", uh.objectName, err)
+		uh.SetUploadError(err)
+		logger.Errorf("FinalizeUpload failed for object %s: %v", uh.objectName, err)
+		return nil, err
 	}
 	return obj, nil
 }
@@ -165,8 +162,14 @@ func (uh *UploadHandler) CancelUpload() {
 	uh.wg.Wait()
 }
 
-func (uh *UploadHandler) SignalUploadFailure() chan error {
-	return uh.signalUploadFailure
+func (uh *UploadHandler) GetUploadError() error {
+	return uh.uploadError
+}
+
+func (uh *UploadHandler) SetUploadError(err error) {
+	if uh.uploadError == nil {
+		uh.uploadError = err
+	}
 }
 
 func (uh *UploadHandler) AwaitBlocksUpload() {
@@ -190,15 +193,5 @@ func (uh *UploadHandler) Destroy() {
 			close(uh.uploadCh)
 			return
 		}
-	}
-}
-
-// Closes the channel if not already closed to signal upload failure.
-func (uh *UploadHandler) closeUploadFailureChannel() {
-	select {
-	case <-uh.signalUploadFailure:
-		break
-	default:
-		close(uh.signalUploadFailure)
 	}
 }

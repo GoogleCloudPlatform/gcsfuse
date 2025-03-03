@@ -17,10 +17,8 @@ package fs_test
 import (
 	"os"
 	"path"
-	"syscall"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/stretchr/testify/assert"
@@ -33,43 +31,24 @@ import (
 
 type staleFileHandleSyncedFile struct {
 	staleFileHandleCommon
+	suite.Suite
 }
 
-func TestStaleFileHandleSyncedFile(t *testing.T) {
-	suite.Run(t, new(staleFileHandleSyncedFile))
+type streamingWritesStaleFileHandleSyncedFile struct {
+	streamingWritesStaleFileHandleCommon
+	suite.Suite
 }
 
-func (t *staleFileHandleSyncedFile) SetupSuite() {
-	t.serverCfg.NewConfig = &cfg.Config{
-		FileSystem: cfg.FileSystemConfig{
-			PreconditionErrors: true,
-		},
-		MetadataCache: cfg.MetadataCacheConfig{
-			TtlSecs: 0,
-		},
-	}
-	t.fsTest.SetUpTestSuite()
+// //////////////////////////////////////////////////////////////////////
+// Helpers
+// //////////////////////////////////////////////////////////////////////
+
+func (t *streamingWritesStaleFileHandleSyncedFile) SetupTest() {
+	t.createGCSObject("")
 }
 
-func (t *staleFileHandleSyncedFile) TearDownSuite() {
-	t.fsTest.TearDownTestSuite()
-}
 func (t *staleFileHandleSyncedFile) SetupTest() {
-	// Create an object on bucket.
-	_, err := storageutil.CreateObject(
-		ctx,
-		bucket,
-		"foo",
-		[]byte("bar"))
-	assert.NoError(t.T(), err)
-	// Open file handle to read or write.
-	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_RDWR|syscall.O_DIRECT, filePerms)
-	assert.NoError(t.T(), err)
-}
-
-func (t *staleFileHandleSyncedFile) TearDownTest() {
-	// fsTest Cleanups to clean up mntDir and close t.f1 and t.f2.
-	t.fsTest.TearDown()
+	t.createGCSObject("bar")
 }
 
 // //////////////////////////////////////////////////////////////////////
@@ -94,7 +73,7 @@ func (t *staleFileHandleSyncedFile) TestClobberedFileReadThrowsStaleFileHandleEr
 	assert.Equal(t.T(), "foobar", string(contents))
 }
 
-func (t *staleFileHandleSyncedFile) TestClobberedFileFirstWriteThrowsStaleFileHandleError() {
+func (t *streamingWritesStaleFileHandleSyncedFile) TestClobberedFileFirstWriteThrowsStaleFileHandleError() {
 	// Replace the underlying object with a new generation.
 	_, err := storageutil.CreateObject(
 		ctx,
@@ -163,4 +142,23 @@ func (t *staleFileHandleSyncedFile) TestFileDeletedRemotelySyncAndCloseThrowsSta
 	// Make f1 nil, so that another attempt is not taken in TearDown to close the
 	// file.
 	t.f1 = nil
+}
+
+// Executes all stale handle tests for gcs synced files.
+func TestStaleFileHandleSyncedFile(t *testing.T) {
+	config = commonConfig(t)
+	ts := new(staleFileHandleSyncedFile)
+	ts.staleFileHandleCommon.TestifySuite = &ts.Suite
+	suite.Run(t, ts)
+}
+
+// Executes all stale handle tests for gcs synced files with streaming writes.
+func TestStaleFileHandleSyncedFileWithStreamingWrites(t *testing.T) {
+	config = commonConfig(t)
+	ts := new(streamingWritesStaleFileHandleSyncedFile)
+	ts.streamingWritesStaleFileHandleCommon.TestifySuite = &ts.Suite
+	config.Write.EnableStreamingWrites = true
+	config.Write.BlockSizeMb = 1
+	config.Write.MaxBlocksPerFile = 1
+	suite.Run(t, ts)
 }

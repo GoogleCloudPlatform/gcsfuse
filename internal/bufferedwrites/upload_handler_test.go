@@ -160,8 +160,7 @@ func (t *UploadHandlerTest) TestFinalizeWhenFinalizeUploadFails() {
 	require.Error(t.T(), err)
 	assert.Nil(t.T(), obj)
 	assert.ErrorContains(t.T(), err, "taco")
-	assert.ErrorContains(t.T(), err, "FinalizeUpload failed for object")
-	assertUploadFailureSignal(t.T(), t.uh)
+	assertUploadFailureError(t.T(), t.uh)
 }
 
 func (t *UploadHandlerTest) TestUploadSingleBlockThrowsErrorInCopy() {
@@ -181,7 +180,7 @@ func (t *UploadHandlerTest) TestUploadSingleBlockThrowsErrorInCopy() {
 
 	require.NoError(t.T(), err)
 	// Expect an error on the signalUploadFailure channel due to error while copying content to GCS writer.
-	assertUploadFailureSignal(t.T(), t.uh)
+	assertUploadFailureError(t.T(), t.uh)
 	assertAllBlocksProcessed(t.T(), t.uh)
 	assert.Equal(t.T(), 1, len(t.uh.freeBlocksCh))
 }
@@ -207,19 +206,16 @@ func (t *UploadHandlerTest) TestUploadMultipleBlocksThrowsErrorInCopy() {
 		require.NoError(t.T(), err)
 	}
 
-	assertUploadFailureSignal(t.T(), t.uh)
+	assertUploadFailureError(t.T(), t.uh)
 	assertAllBlocksProcessed(t.T(), t.uh)
 	assert.Equal(t.T(), 4, len(t.uh.freeBlocksCh))
 }
 
-func assertUploadFailureSignal(t *testing.T, handler *UploadHandler) {
+func assertUploadFailureError(t *testing.T, handler *UploadHandler) {
 	t.Helper()
-
-	select {
-	case <-handler.signalUploadFailure:
-		break
-	case <-time.After(200 * time.Millisecond):
-		t.Error("Expected an error on signalUploadFailure channel")
+	time.Sleep(200 * time.Millisecond)
+	if handler.GetUploadError() == nil {
+		t.Error("Expected an error on the uploader")
 	}
 }
 
@@ -239,15 +235,15 @@ func assertAllBlocksProcessed(t *testing.T, handler *UploadHandler) {
 	}
 }
 
-func TestSignalUploadFailure(t *testing.T) {
-	mockSignalUploadFailure := make(chan error)
+func TestSetUploadError(t *testing.T) {
+	mockUploadError := fmt.Errorf("error")
 	uploadHandler := &UploadHandler{
-		signalUploadFailure: mockSignalUploadFailure,
+		uploadError: mockUploadError,
 	}
 
-	actualChannel := uploadHandler.SignalUploadFailure()
+	actualUploadError := uploadHandler.GetUploadError()
 
-	assert.Equal(t, mockSignalUploadFailure, actualChannel)
+	assert.Equal(t, mockUploadError, actualUploadError)
 }
 
 func (t *UploadHandlerTest) TestMultipleBlockAwaitBlocksUpload() {
@@ -391,34 +387,33 @@ func (t *UploadHandlerTest) createBlocks(count int) []block.Block {
 	return blocks
 }
 
-func (t *UploadHandlerTest) TestUploadHandler_closeUploadFailureChannel() {
+func (t *UploadHandlerTest) TestUploadHandler_SetUploadError() {
 	testCases := []struct {
 		name         string
-		initialState chan error
+		initialError error
+		finalError   error
 	}{
 		{
-			name:         "Channel_initially_open",
-			initialState: make(chan error),
+			name:         "Error_initially_nil",
+			initialError: nil,
+			finalError:   fmt.Errorf("bar"),
 		},
 		{
-			name:         "Channel_already_closed",
-			initialState: func() chan error { ch := make(chan error); close(ch); return ch }(),
+			name:         "Error_already_set",
+			initialError: fmt.Errorf("foo"),
+			finalError:   fmt.Errorf("foo"),
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
 			uh := &UploadHandler{
-				signalUploadFailure: tc.initialState,
+				uploadError: tc.initialError,
 			}
 
-			uh.closeUploadFailureChannel()
+			uh.SetUploadError(fmt.Errorf("bar"))
 
-			select {
-			case <-uh.signalUploadFailure:
-			default:
-				t.T().Error("expected channel to be closed but it was not")
-			}
+			assert.Equal(t.T(), tc.finalError, uh.GetUploadError())
 		})
 	}
 }

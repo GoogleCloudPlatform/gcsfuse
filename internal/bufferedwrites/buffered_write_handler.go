@@ -85,7 +85,6 @@ type WriteFileInfo struct {
 }
 
 var ErrOutOfOrderWrite = errors.New("outOfOrder write detected")
-var ErrUploadFailure = errors.New("error while uploading object to GCS")
 
 type CreateBWHandlerRequest struct {
 	Object                   *gcs.Object
@@ -124,12 +123,9 @@ func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err er
 }
 
 func (wh *bufferedWriteHandlerImpl) Write(data []byte, offset int64) (err error) {
-	// Fail early if the uploadHandler has failed.
-	select {
-	case <-wh.uploadHandler.SignalUploadFailure():
-		return ErrUploadFailure
-	default:
-		break
+	// Fail early if the uploadHandler has already failed.
+	if wh.uploadHandler.GetUploadError() != nil {
+		return wh.uploadHandler.GetUploadError()
 	}
 
 	if offset != wh.totalSize && offset != wh.truncatedSize {
@@ -190,23 +186,18 @@ func (wh *bufferedWriteHandlerImpl) Sync() (err error) {
 		// Only logging an error in case of resource leak as upload succeeded.
 		logger.Errorf("blockPool.ClearFreeBlockChannel() failed during sync: %v", err)
 	}
-
-	select {
-	case <-wh.uploadHandler.SignalUploadFailure():
-		return ErrUploadFailure
-	default:
-		return nil
+	if wh.uploadHandler.GetUploadError() != nil {
+		return wh.uploadHandler.GetUploadError()
 	}
+
+	return
 }
 
 // Flush finalizes the upload.
 func (wh *bufferedWriteHandlerImpl) Flush() (*gcs.MinObject, error) {
 	// Fail early if upload already failed.
-	select {
-	case <-wh.uploadHandler.SignalUploadFailure():
-		return nil, ErrUploadFailure
-	default:
-		break
+	if wh.uploadHandler.GetUploadError() != nil {
+		return nil, wh.uploadHandler.GetUploadError()
 	}
 
 	// In case it is a truncated file, upload empty blocks as required.
