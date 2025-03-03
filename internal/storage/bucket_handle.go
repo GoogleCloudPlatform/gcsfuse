@@ -64,8 +64,11 @@ func (bh *bucketHandle) NewReaderWithReadHandle(
 	// Initialising the starting offset and the length to be read by the reader.
 	start := int64(0)
 	length := int64(-1)
-	// Following the semantics of NewReader method(now deprecated). Passing start, length as 0,-1 reads the entire file.
-	// https://github.com/GoogleCloudPlatform/gcsfuse/blob/34211af652dbaeb012b381a3daf3c94b95f65e00/vendor/cloud.google.com/go/storage/reader.go#L75
+	// Following the semantics of NewRangeReader method.
+	// Passing negative length reads the entire object.
+	// If offset is negative, the object is read abs(offset) bytes from the end,
+	// and length must also be negative to indicate all remaining bytes will be read.
+	// Ref: https://github.com/GoogleCloudPlatform/gcsfuse/blob/34211af652dbaeb012b381a3daf3c94b95f65e00/vendor/cloud.google.com/go/storage/reader.go#L80
 	if req.Range != nil {
 		start = int64((*req.Range).Start)
 		end := int64((*req.Range).Limit)
