@@ -204,7 +204,7 @@ func (t *mrdWrapperTest) Test_Read_EOF() {
 
 	_, err := t.mrdWrapper.Read(context.Background(), make([]byte, t.object.Size), 0, int64(t.object.Size), t.mrdTimeout, common.NewNoopMetrics())
 
-	assert.ErrorContains(t.T(), err, "EOF")
+	assert.ErrorIs(t.T(), err, io.EOF)
 }
 
 func (t *mrdWrapperTest) Test_Read_Error() {
