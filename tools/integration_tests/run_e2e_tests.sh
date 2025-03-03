@@ -209,9 +209,8 @@ function create_zonal_bucket() {
   local -r zone=${region}"-a"
 
   local -r hns_project_id="gcs-fuse-test"
-  zonal_bucket_name_prefix= # 'fastbyte-team-'
   # Generate bucket name with random string.
-  bucket_name=${zonal_bucket_name_prefix}"gcsfuse-e2e-tests-zb-"$(date +%Y%m%d-%H%M%S)"-"$(tr -dc 'a-z0-9' < /dev/urandom | head -c $RANDOM_STRING_LENGTH)
+  bucket_name="gcsfuse-e2e-tests-zb-"$(date +%Y%m%d-%H%M%S)"-"$(tr -dc 'a-z0-9' < /dev/urandom | head -c $RANDOM_STRING_LENGTH)
   gcloud alpha storage buckets create gs://$bucket_name --project=$project_id --location=$region --placement=${zone} --default-storage-class=RAPID --uniform-bucket-level-access --enable-hierarchical-namespace
   echo "${bucket_name}"
 }
