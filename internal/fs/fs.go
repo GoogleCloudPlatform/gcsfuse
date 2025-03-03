@@ -2025,8 +2025,11 @@ func (fs *fileSystem) Rename(
 		return err
 	}
 	if localChild != nil {
+		err = fs.flushFile(ctx, localChild.(*inode.FileInode))
+		if err != nil {
+			return fmt.Errorf("flush failed on rename: %w", err)
+		}
 		fs.unlockAndDecrementLookupCount(localChild, 1)
-		return fmt.Errorf("cannot rename open file %q: %w", op.OldName, syscall.ENOTSUP)
 	}
 
 	// Else find the object in the old location (on GCS).
