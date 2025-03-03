@@ -899,7 +899,7 @@ func (t *RandomReaderTest) Test_ReadAt_IfCacheFileGetsDeleted() {
 	filePath := util.GetDownloadPath(t.cacheDir, util.GetObjectPath(t.bucket.Name(), t.object.Name))
 	err = os.Remove(filePath)
 	AssertEq(nil, err)
-	// Second reader (rc2) is required, since first reader (rc) is completely read.
+	// Second reader (rd2) is required, since first reader (rd) is completely read.
 	// Reading again will return EOF.
 	rd2 := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, objectSize, rd2)
