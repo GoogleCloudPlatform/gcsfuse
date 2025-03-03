@@ -105,7 +105,7 @@ func (testSuite *BucketHandleTest) TearDownTest() {
 	testSuite.fakeStorage.ShutDown()
 }
 
-func (testSuite *BucketHandleTest) TestNewReaderMethodWithCompleteRead() {
+func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethodWithCompleteRead() {
 	rc, err := testSuite.bucketHandle.NewReaderWithReadHandle(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: TestObjectName,
@@ -123,7 +123,7 @@ func (testSuite *BucketHandleTest) TestNewReaderMethodWithCompleteRead() {
 	assert.Equal(testSuite.T(), ContentInTestObject, string(buf[:]))
 }
 
-func (testSuite *BucketHandleTest) TestNewReaderMethodWithRangeRead() {
+func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethodWithRangeRead() {
 	start := uint64(2)
 	limit := uint64(8)
 
@@ -144,7 +144,7 @@ func (testSuite *BucketHandleTest) TestNewReaderMethodWithRangeRead() {
 	assert.Equal(testSuite.T(), ContentInTestObject[start:limit], string(buf[:]))
 }
 
-func (testSuite *BucketHandleTest) TestNewReaderMethodWithNilRange() {
+func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethodWithNilRange() {
 	rc, err := testSuite.bucketHandle.NewReaderWithReadHandle(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name:  TestObjectName,
@@ -159,7 +159,7 @@ func (testSuite *BucketHandleTest) TestNewReaderMethodWithNilRange() {
 	assert.Equal(testSuite.T(), ContentInTestObject, string(buf[:]))
 }
 
-func (testSuite *BucketHandleTest) TestNewReaderMethodWithInValidObject() {
+func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethodWithInValidObject() {
 	var notFoundErr *gcs.NotFoundError
 
 	rc, err := testSuite.bucketHandle.NewReaderWithReadHandle(context.Background(),
@@ -176,7 +176,7 @@ func (testSuite *BucketHandleTest) TestNewReaderMethodWithInValidObject() {
 	assert.Nil(testSuite.T(), rc)
 }
 
-func (testSuite *BucketHandleTest) TestNewReaderMethodWithValidGeneration() {
+func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethodWithValidGeneration() {
 	rc, err := testSuite.bucketHandle.NewReaderWithReadHandle(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: TestObjectName,
@@ -195,7 +195,7 @@ func (testSuite *BucketHandleTest) TestNewReaderMethodWithValidGeneration() {
 	assert.Equal(testSuite.T(), ContentInTestObject, string(buf[:]))
 }
 
-func (testSuite *BucketHandleTest) TestNewReaderMethodWithInvalidGeneration() {
+func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethodWithInvalidGeneration() {
 	var notFoundErr *gcs.NotFoundError
 
 	rc, err := testSuite.bucketHandle.NewReaderWithReadHandle(context.Background(),
@@ -213,7 +213,7 @@ func (testSuite *BucketHandleTest) TestNewReaderMethodWithInvalidGeneration() {
 	assert.Nil(testSuite.T(), rc)
 }
 
-func (testSuite *BucketHandleTest) TestNewReaderMethodWithCompressionEnabled() {
+func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethodWithCompressionEnabled() {
 	rc, err := testSuite.bucketHandle.NewReaderWithReadHandle(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: TestGzipObjectName,
@@ -232,7 +232,7 @@ func (testSuite *BucketHandleTest) TestNewReaderMethodWithCompressionEnabled() {
 	assert.Equal(testSuite.T(), ContentInTestGzipObjectCompressed, string(buf))
 }
 
-func (testSuite *BucketHandleTest) TestNewReaderMethodWithCompressionDisabled() {
+func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethodWithCompressionDisabled() {
 	rc, err := testSuite.bucketHandle.NewReaderWithReadHandle(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: TestGzipObjectName,
