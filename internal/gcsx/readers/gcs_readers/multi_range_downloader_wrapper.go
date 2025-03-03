@@ -30,10 +30,6 @@ import (
 	"golang.org/x/net/context"
 )
 
-// Timeout value which determines when the MultiRangeDownloader will be closed after
-// it's refcount reaches 0.
-const multiRangeDownloaderTimeout = 60 * time.Second
-
 func NewMultiRangeDownloaderWrapper(bucket gcs.Bucket, object *gcs.MinObject) (MultiRangeDownloaderWrapper, error) {
 	return NewMultiRangeDownloaderWrapperWithClock(bucket, object, clock.RealClock{})
 }
@@ -131,30 +127,6 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) DecrementRefCount() (err error) {
 		// mrdWrapper.cleanupMultiRangeDownloader()
 	}
 	return
-}
-
-// Spawns a cancellable go routine to close the MRD after the timeout.
-// Always call after taking MultiRangeDownloaderWrapper's mutex lock.
-func (mrdWrapper *MultiRangeDownloaderWrapper) cleanupMultiRangeDownloader() {
-	closeMRD := func(ctx context.Context) {
-		select {
-		case <-mrdWrapper.clock.After(multiRangeDownloaderTimeout):
-			mrdWrapper.mu.Lock()
-			defer mrdWrapper.mu.Unlock()
-
-			if mrdWrapper.refCount == 0 && mrdWrapper.Wrapped != nil {
-				mrdWrapper.Wrapped.Close()
-				mrdWrapper.Wrapped = nil
-				mrdWrapper.cancelCleanup = nil
-			}
-		case <-ctx.Done():
-			return
-		}
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	mrdWrapper.cancelCleanup = cancel
-	go closeMRD(ctx)
 }
 
 // Ensures that MultiRangeDownloader exists, creating it if it does not exist.

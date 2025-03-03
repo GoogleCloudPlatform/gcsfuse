@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
@@ -55,11 +54,6 @@ type readManager struct {
 	readType string
 
 	sequentialReadSizeMb int32
-
-	// Stores the handle associated with the previously closed newReader instance.
-	// This will be used while making the new connection to bypass auth and metadata
-	// checks.
-	readHandle []byte
 
 	gcsReader       readers.GCSReader
 	fileCacheReader readers.FileCacheReader
@@ -145,7 +139,6 @@ func (rr *readManager) ReadAt(ctx context.Context, p []byte, offset int64) (gcs_
 	}
 
 	objectData, err = rr.fileCacheReader.ReadAt(ctx, p, offset)
-	log.Println("Error in file cache reading: ", err)
 	if err != nil {
 		err = fmt.Errorf("ReadAt: while reading from cache: %w", err)
 		return objectData, err
