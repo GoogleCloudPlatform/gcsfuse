@@ -37,10 +37,13 @@ type otelMetrics struct {
 
 	gcsReadCount            metric.Int64Counter
 	gcsReadBytesCountAtomic *atomic.Int64
+	gcsMaxConcurrencyAtomic *atomic.Int64
+	gcsTemp                 atomic.Int64
 	gcsReaderCount          metric.Int64Counter
 	gcsRequestCount         metric.Int64Counter
 	gcsRequestLatency       metric.Float64Histogram
 	gcsDownloadBytesCount   metric.Int64Counter
+	gcsMaxConcurrency       *atomic.Int64
 
 	fileCacheReadCount      metric.Int64Counter
 	fileCacheReadBytesCount metric.Int64Counter
@@ -52,6 +55,16 @@ func (o *otelMetrics) GCSReadBytesCount(_ context.Context, inc int64) {
 }
 
 func (o *otelMetrics) GCSReaderCount(ctx context.Context, inc int64, attrs []MetricAttr) {
+	var v int64
+	if attrs[0].Value == "opened" {
+		v = o.gcsTemp.Add(inc)
+	} else {
+		v = o.gcsTemp.Add(-inc)
+	}
+	if v > o.gcsMaxConcurrencyAtomic.Load() {
+		o.gcsMaxConcurrencyAtomic.Store(v)
+	}
+
 	o.gcsReaderCount.Add(ctx, inc, attrsToAddOption(attrs)...)
 }
 
@@ -118,6 +131,12 @@ func NewOTelMetrics() (MetricHandle, error) {
 	gcsReaderCount, err7 := gcsMeter.Int64Counter("gcs/reader_count", metric.WithDescription("The cumulative number of GCS object readers opened or closed."))
 	gcsRequestCount, err8 := gcsMeter.Int64Counter("gcs/request_count", metric.WithDescription("The cumulative number of GCS requests processed."))
 	gcsRequestLatency, err9 := gcsMeter.Float64Histogram("gcs/request_latencies", metric.WithDescription("The cumulative distribution of the GCS request latencies."), metric.WithUnit("ms"))
+	var gcsMaxConcurrencyAtomic atomic.Int64
+	_, err13 := gcsMeter.Int64ObservableCounter("gcs/max_concurrency", metric.WithDescription("The maximum number of GCS readers at a given point."),
+		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
+			obsrv.Observe(gcsMaxConcurrencyAtomic.Load())
+			return nil
+		}))
 
 	fileCacheReadCount, err10 := fileCacheMeter.Int64Counter("file_cache/read_count",
 		metric.WithDescription("Specifies the number of read requests made via file cache along with type - Sequential/Random and cache hit - true/false"))
@@ -129,7 +148,7 @@ func NewOTelMetrics() (MetricHandle, error) {
 		metric.WithUnit("us"),
 		defaultLatencyDistribution)
 
-	if err := errors.Join(err1, err2, err3, err4, err5, err6, err7, err8, err9, err10, err11, err12); err != nil {
+	if err := errors.Join(err1, err2, err3, err4, err5, err6, err7, err8, err9, err10, err11, err12, err13); err != nil {
 		return nil, err
 	}
 
@@ -139,6 +158,7 @@ func NewOTelMetrics() (MetricHandle, error) {
 		fsOpsLatency:            fsOpsLatency,
 		gcsReadCount:            gcsReadCount,
 		gcsReadBytesCountAtomic: &gcsReadBytesCountAtomic,
+		gcsMaxConcurrencyAtomic: &gcsMaxConcurrencyAtomic,
 		gcsReaderCount:          gcsReaderCount,
 		gcsRequestCount:         gcsRequestCount,
 		gcsRequestLatency:       gcsRequestLatency,
