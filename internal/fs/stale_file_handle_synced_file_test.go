@@ -134,13 +134,15 @@ func (t *staleFileHandleSyncedFile) TestFileDeletedRemotelySyncAndCloseThrowsSta
 	t.f1 = nil
 }
 
-func (t *staleFileHandleStreamingWritesSyncedFile) TestClobberedWriteFileSyncAndCloseThrowsStaleFileHandleError() {
+func (t *staleFileHandleStreamingWritesSyncedFile) TestWriteToClobberedFileThrowsStaleFileHandleError() {
 	// Replace the underlying object with a new generation.
 	clobberFile(t.T(), "foo", "foobar")
 	// Writing to file will return Stale File Handle Error.
 	data, err := operations.GenerateRandomData(operations.MiB * 4)
 	assert.NoError(t.T(), err)
+
 	_, err = t.f1.WriteAt(data, 0)
+
 	operations.ValidateStaleNFSFileHandleError(t.T(), err)
 	err = t.f1.Sync()
 	assert.NoError(t.T(), err)
@@ -155,14 +157,16 @@ func (t *staleFileHandleStreamingWritesSyncedFile) TestClobberedWriteFileSyncAnd
 	assert.Equal(t.T(), "foobar", string(contents))
 }
 
-func (t *staleFileHandleStreamingWritesSyncedFile) TestClobberedRenameWriteSyncAndCloseThrowsStaleFileHandleError() {
+func (t *staleFileHandleStreamingWritesSyncedFile) TestRenameFileWriteThrowsStaleFileHandleError() {
 	// Rename the object.
 	err := os.Rename(t.f1.Name(), path.Join(mntDir, "bar"))
 	assert.NoError(t.T(), err)
 	// Writing to file will return Stale File Handle Error.
 	data, err := operations.GenerateRandomData(operations.MiB * 4)
 	assert.NoError(t.T(), err)
+
 	_, err = t.f1.WriteAt(data, 0)
+
 	operations.ValidateStaleNFSFileHandleError(t.T(), err)
 	err = t.f1.Sync()
 	assert.NoError(t.T(), err)

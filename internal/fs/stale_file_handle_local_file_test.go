@@ -59,7 +59,9 @@ func (t *staleFileHandleStreamingWritesLocalFile) TestClobberedWriteFileSyncAndC
 	// Writing to file will return Stale File Handle Error.
 	data, err := operations.GenerateRandomData(operations.MiB * 4)
 	assert.NoError(t.T(), err)
+
 	_, err = t.f1.WriteAt(data, 0)
+
 	operations.ValidateStaleNFSFileHandleError(t.T(), err)
 	err = t.f1.Sync()
 	operations.ValidateStaleNFSFileHandleError(t.T(), err)

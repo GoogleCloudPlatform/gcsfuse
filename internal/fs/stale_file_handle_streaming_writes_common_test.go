@@ -70,7 +70,9 @@ func (t *staleFileHandleStreamingWritesCommon) TestWriteFileSyncFileClobberedFlu
 	assert.NoError(t.T(), err)
 	// Replace the underlying object with a new generation.
 	clobberFile(t.T(), "foo", "foobar")
+
 	err = t.f1.Close()
+
 	operations.ValidateStaleNFSFileHandleError(t.T(), err)
 	// Make f1 nil, so that another attempt is not taken in TearDown to close the
 	// file.
