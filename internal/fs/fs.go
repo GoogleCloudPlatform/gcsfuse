@@ -2019,13 +2019,16 @@ func (fs *fileSystem) Rename(
 		}
 	}
 
-	// If object to be renamed is a local file inode (un-synced), rename operation is not supported.
+	// Find if the Object to be renamed is local.
 	localChild, err := fs.lookUpLocalFileInode(oldParent, op.OldName)
 	if err != nil {
 		return err
 	}
 	if localChild != nil {
-		err = fs.flushFile(ctx, localChild.(*inode.FileInode))
+		in := fs.fileInodeOrDie(localChild.ID())
+		in.Lock()
+		err = fs.flushFile(ctx, in)
+		defer in.Unlock()
 		if err != nil {
 			return fmt.Errorf("flush failed on rename: %w", err)
 		}
