@@ -39,16 +39,17 @@ function mount_gcsfuse_and_run_test() {
   #   $1: Bucket name
 
   local BUCKET_NAME="$1"
+  # Clean up bucket before run (ignoring the failure if there are no objects to delete).
+  gcloud alpha storage rm -r gs://${BUCKET_NAME}/**  || true
   # Create a directory for gcsfuse logs.
   mkdir -p "${KOKORO_ARTIFACTS_DIR}/gcsfuse_logs"
-#  local GCSFUSE_FLAGS=--log-severity=TRACE --log-file=${KOKORO_ARTIFACTS_DIR}/gcsfuse_logs/${BUCKET_NAME}.log --enable-streaming-writes
   local MOUNT_POINT="${HOME}/gcs/${BUCKET_NAME}"
   mkdir -p "${MOUNT_POINT}"
 
   COMMON_FLAGS=(--log-severity=TRACE --enable-streaming-writes --log-file="${KOKORO_ARTIFACTS_DIR}"/gcsfuse_logs/"${BUCKET_NAME}".log)
   if [[ $BUCKET_NAME == "jax-emulated-checkpoint-flat" ]]
   then
-    go run . "${COMMON_FLAGS[@]}" --rename-dir-limit=-1  "${BUCKET_NAME}" "${MOUNT_POINT}"
+    go run . "${COMMON_FLAGS[@]}" --rename-dir-limit=100  "${BUCKET_NAME}" "${MOUNT_POINT}"
   else
     go run . "${COMMON_FLAGS[@]}" "${BUCKET_NAME}" "${MOUNT_POINT}"
   fi
@@ -72,14 +73,23 @@ source .venv/bin/activate
 # Install JAX dependencies.
 pip install -r ./perfmetrics/scripts/ml_tests/checkpoint/Jax/requirements.txt
 
-# Run tests on legacy flat bucket.
+# Run tests in parallel on flat and hns bucket.
 FLAT_BUCKET_NAME="jax-emulated-checkpoint-flat"
-mount_gcsfuse_and_run_test "${FLAT_BUCKET_NAME}"
-
-# Run tests on hns bucket.
 HNS_BUCKET_NAME="jax-emulated-checkpoint-hns"
-mount_gcsfuse_and_run_test "${HNS_BUCKET_NAME}"
+mount_gcsfuse_and_run_test "${FLAT_BUCKET_NAME}" &
+flat_pid=$!
+mount_gcsfuse_and_run_test "${HNS_BUCKET_NAME}" &
+hns_pid=$!
 
-# Clean up buckets after run.
-gcloud storage rm -r gs://FLAT_BUCKET_NAME/**
-gcloud storage rm -r gs://HNS_BUCKET_NAME/**
+# Wait for both processes to finish and check exit codes
+wait "$flat_pid"
+flat_status=$?
+wait "$hns_pid"
+hns_status=$?
+
+if [[ "$flat_status" -ne 0 ]] || [[ "$hns_status" -ne 0 ]]; then
+  echo "Checkpoint tests failed"
+  exit 1
+else
+  echo "Checkpoint tests completed successfully"
+fi
