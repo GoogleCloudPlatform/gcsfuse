@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io"
 	iofs "io/fs"
-	"log"
 	"math"
 	"os"
 	"path"
@@ -2060,7 +2059,6 @@ func (fs *fileSystem) Rename(
 // LOCKS_EXCLUDED(oldParent)
 // LOCKS_EXCLUDED(newParent)
 func (fs *fileSystem) renameFile(ctx context.Context, op *fuseops.RenameOp, child *inode.Core, oldParent inode.DirInode, newParent inode.DirInode) error {
-	log.Println("renameFile called")
 	updatedMinObject, err := fs.flushPendingWrites(ctx, child)
 	if err != nil {
 		return fmt.Errorf("flushPendingWrites error :%v", err)

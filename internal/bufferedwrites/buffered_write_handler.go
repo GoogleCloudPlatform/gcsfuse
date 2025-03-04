@@ -185,10 +185,7 @@ func (wh *bufferedWriteHandlerImpl) Sync() (err error) {
 		// Only logging an error in case of resource leak as upload succeeded.
 		logger.Errorf("blockPool.ClearFreeBlockChannel() failed during sync: %v", err)
 	}
-	if wh.uploadHandler.GetUploadError() != nil {
-		err = wh.uploadHandler.GetUploadError()
-	}
-
+	err = wh.uploadHandler.GetUploadError()
 	return
 }
 
