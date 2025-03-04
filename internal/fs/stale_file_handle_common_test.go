@@ -18,6 +18,7 @@ import (
 	"os"
 	"path"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/stretchr/testify/assert"
@@ -32,6 +33,36 @@ type staleFileHandleCommon struct {
 	// fsTest has f1 *osFile and f2 *osFile which we will reuse here.
 	fsTest
 	suite.Suite
+}
+
+// //////////////////////////////////////////////////////////////////////
+// Helpers
+// //////////////////////////////////////////////////////////////////////
+
+func commonServerConfig() *cfg.Config {
+	return &cfg.Config{
+		FileSystem: cfg.FileSystemConfig{
+			PreconditionErrors: true,
+		},
+		MetadataCache: cfg.MetadataCacheConfig{
+			TtlSecs: 0,
+		},
+	}
+
+}
+
+func (t *staleFileHandleCommon) SetupSuite() {
+	t.serverCfg.NewConfig = commonServerConfig()
+	t.fsTest.SetUpTestSuite()
+}
+
+func (t *staleFileHandleCommon) TearDownTest() {
+	// fsTest Cleanups to clean up mntDir and close t.f1 and t.f2.
+	t.fsTest.TearDown()
+}
+
+func (t *staleFileHandleCommon) TearDownSuite() {
+	t.fsTest.TearDownTestSuite()
 }
 
 // //////////////////////////////////////////////////////////////////////

@@ -15,7 +15,6 @@
 package fs_test
 
 import (
-	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/stretchr/testify/assert"
@@ -36,20 +35,12 @@ type staleFileHandleStreamingWritesCommon struct {
 // //////////////////////////////////////////////////////////////////////
 
 func (t *staleFileHandleStreamingWritesCommon) SetupSuite() {
-	t.serverCfg.NewConfig = &cfg.Config{
-		FileSystem: cfg.FileSystemConfig{
-			PreconditionErrors: true,
-		},
-		MetadataCache: cfg.MetadataCacheConfig{
-			TtlSecs: 0,
-		},
-		Write: cfg.WriteConfig{
-			BlockSizeMb:           operations.MiB,
-			EnableStreamingWrites: true,
-			MaxBlocksPerFile:      1,
-		},
-	}
+	serverCfg := commonServerConfig()
+	serverCfg.Write.EnableStreamingWrites = true
+	serverCfg.Write.BlockSizeMb = operations.MiB
+	serverCfg.Write.MaxBlocksPerFile = 1
 
+	t.serverCfg.NewConfig = serverCfg
 	t.mountCfg.DisableWritebackCaching = true
 
 	t.fsTest.SetUpTestSuite()
