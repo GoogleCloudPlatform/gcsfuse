@@ -21,6 +21,9 @@ test-config file for a list of them.
 import json
 
 
+DefaultNumEpochs = 4
+
+
 def validateDlioWorkload(workload: dict, name: str):
   """Validates the given json workload object."""
   for requiredWorkloadAttribute, expectedType in {
@@ -39,6 +42,17 @@ def validateDlioWorkload(workload: dict, name: str):
       return False
     if expectedType == str and ' ' in workload[requiredWorkloadAttribute]:
       print(f"{name} has space in the value of '{requiredWorkloadAttribute}'")
+      return False
+
+  if 'numEpochs' in workload:
+    if not type(workload['numEpochs']) is int:
+      print(
+          f"In {name}, the type of workload['numEpochs'] is of type"
+          f" {type(workload['numEpochs'])}, not {int}"
+      )
+      return False
+    if int(workload['numEpochs']) < 0:
+      print(f"In {name}, the value of workload['numEpochs'] < 0, expected: >=0")
       return False
 
   if 'fioWorkload' in workload:
@@ -106,6 +120,8 @@ class DlioWorkload:
   "<config>[:<subconfig>[:<subsubconfig>[...]]]:<value>". For example, a legal
   value would be:
   "implicit-dirs,file_mode=777,file-cache:enable-parallel-downloads:true,metadata-cache:ttl-secs:true".
+  7. numEpochs: Number of runs of the DLIO workload. Default is DefaultNumEpochs
+  if missing.
   """
 
   def __init__(
@@ -116,6 +132,7 @@ class DlioWorkload:
       bucket: str,
       batchSizes: list,
       gcsfuseMountOptions: str,
+      numEpochs: int = DefaultNumEpochs,
   ):
     self.scenario = scenario
     self.numFilesTrain = numFilesTrain
@@ -123,6 +140,7 @@ class DlioWorkload:
     self.bucket = bucket
     self.batchSizes = set(batchSizes)
     self.gcsfuseMountOptions = gcsfuseMountOptions
+    self.numEpochs = numEpochs
 
 
 def ParseTestConfigForDlioWorkloads(testConfigFileName: str):
@@ -154,6 +172,11 @@ def ParseTestConfigForDlioWorkloads(testConfigFileName: str):
                   workload['bucket'],
                   dlioWorkload['batchSizes'],
                   workload['gcsfuseMountOptions'],
+                  numEpochs=(
+                      workload['numEpochs']
+                      if 'numEpochs' in workload
+                      else DefaultNumEpochs
+                  ),
               )
           )
   return dlioWorkloads

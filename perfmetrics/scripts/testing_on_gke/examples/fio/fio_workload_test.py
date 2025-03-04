@@ -249,6 +249,45 @@ class FioWorkloadTest(unittest.TestCase):
         )
     )
 
+  def test_validate_fio_workload_invalid_unsupported_numEpochs(self):
+    workload = dict({
+        "fioWorkload": {
+            "fileSize": "1kb",
+            "filesPerThread": 2,
+            "blockSize": "1kb",
+            "numThreads": "1k",
+        },
+        "bucket": "dummy-bucket",
+        "gcsfuseMountOptions": "implicit-dirs",
+        "numEpochs": False,
+    })
+    self.assertFalse(
+        validateFioWorkload(
+            workload, "invalid-fio-workload-unsupported-numEpochs"
+        )
+    )
+
+  def test_validate_fio_workload_invalid_numEpochsTooLow(
+      self,
+  ):
+    workload = dict({
+        "fioWorkload": {
+            "fileSize": "1kb",
+            "filesPerThread": 2,
+            "blockSize": "1kb",
+            "numThreads": "1k",
+        },
+        "bucket": "dummy-bucket",
+        "gcsfuseMountOptions": "implicit-dirs",
+        "numEpochs": -1,
+    })
+    self.assertFalse(
+        validateFioWorkload(
+            workload,
+            "invalid-fio-workload-unsupported-numEpochs-too-low",
+        )
+    )
+
   def test_validate_fio_workload_invalid_unsupported_readTypes_1(self):
     workload = dict({
         "fioWorkload": {
