@@ -156,13 +156,6 @@ func setupReader(ctx context.Context, b *debugBucket, req *gcs.ReadObjectRequest
 	return rc, err
 }
 
-func (b *debugBucket) NewReader(
-	ctx context.Context,
-	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
-	rc, err = setupReader(ctx, b, req, "Read")
-	return
-}
-
 func (b *debugBucket) NewReaderWithReadHandle(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (rd gcs.StorageReader, err error) {
