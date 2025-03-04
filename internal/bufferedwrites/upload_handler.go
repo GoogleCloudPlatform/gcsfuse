@@ -114,15 +114,25 @@ func (uh *UploadHandler) createObjectWriter() (err error) {
 	return
 }
 
+func (uh *UploadHandler) getUploadError() error {
+	return uh.uploadError
+}
+
+func (uh *UploadHandler) setUploadError(err error) {
+	uh.uploadError = err
+}
+
 // uploader is the single-threaded goroutine that uploads blocks.
 func (uh *UploadHandler) uploader() {
 	for currBlock := range uh.uploadCh {
-		if uh.GetUploadError() == nil {
-			_, err := io.Copy(uh.writer, currBlock.Reader())
-			if err != nil {
-				logger.Errorf("buffered write upload failed for object %s: error in io.Copy: %v", uh.objectName, err)
-				uh.SetUploadError(gcs.GetGCSError(err))
-			}
+		if uh.getUploadError() != nil {
+			uh.wg.Done()
+			continue
+		}
+		_, err := io.Copy(uh.writer, currBlock.Reader())
+		if err != nil {
+			logger.Errorf("buffered write upload failed for object %s: error in io.Copy: %v", uh.objectName, err)
+			uh.setUploadError(gcs.GetGCSError(err))
 		}
 		// Put back the uploaded block on the freeBlocksChannel for re-use.
 		uh.freeBlocksCh <- currBlock
@@ -146,7 +156,8 @@ func (uh *UploadHandler) Finalize() (*gcs.MinObject, error) {
 
 	obj, err := uh.bucket.FinalizeUpload(context.Background(), uh.writer)
 	if err != nil {
-		uh.SetUploadError(err)
+		// FinalizeUpload already returns GCSerror so no need to convert again.
+		uh.setUploadError(err)
 		logger.Errorf("FinalizeUpload failed for object %s: %v", uh.objectName, err)
 		return nil, err
 	}
@@ -160,16 +171,6 @@ func (uh *UploadHandler) CancelUpload() {
 	}
 	// Wait for all in progress buffers to be added to the free channel.
 	uh.wg.Wait()
-}
-
-func (uh *UploadHandler) GetUploadError() error {
-	return uh.uploadError
-}
-
-func (uh *UploadHandler) SetUploadError(err error) {
-	if uh.uploadError == nil {
-		uh.uploadError = err
-	}
 }
 
 func (uh *UploadHandler) AwaitBlocksUpload() {

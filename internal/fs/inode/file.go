@@ -775,7 +775,6 @@ func (f *FileInode) Sync(ctx context.Context) (gcsSynced bool, err error) {
 	if f.bwh != nil {
 		// bwh.Sync does not finalize the upload, so return gcsSynced as false.
 		err = f.bwh.Sync()
-		gcsSynced = false
 		var preconditionErr *gcs.PreconditionError
 		if errors.As(err, &preconditionErr) {
 			return false, &gcsfuse_errors.FileClobberedError{

@@ -179,7 +179,7 @@ func (t *UploadHandlerTest) TestUploadSingleBlockThrowsErrorInCopy() {
 	err = t.uh.Upload(b)
 
 	require.NoError(t.T(), err)
-	// Expect an error on the signalUploadFailure channel due to error while copying content to GCS writer.
+	// Expect an error on upload due to error while copying content to GCS writer.
 	assertUploadFailureError(t.T(), t.uh)
 	assertAllBlocksProcessed(t.T(), t.uh)
 	assert.Equal(t.T(), 1, len(t.uh.freeBlocksCh))
@@ -208,14 +208,20 @@ func (t *UploadHandlerTest) TestUploadMultipleBlocksThrowsErrorInCopy() {
 
 	assertUploadFailureError(t.T(), t.uh)
 	assertAllBlocksProcessed(t.T(), t.uh)
-	assert.Equal(t.T(), 4, len(t.uh.freeBlocksCh))
+	assert.Equal(t.T(), 2, len(t.uh.freeBlocksCh))
 }
 
 func assertUploadFailureError(t *testing.T, handler *UploadHandler) {
 	t.Helper()
-	time.Sleep(200 * time.Millisecond)
-	if handler.GetUploadError() == nil {
-		t.Error("Expected an error on the uploader")
+	for {
+		select {
+		case <-time.After(200 * time.Millisecond):
+			t.Error("Expected an error in uploader")
+		default:
+			if handler.getUploadError() != nil {
+				return
+			}
+		}
 	}
 }
 
@@ -237,11 +243,10 @@ func assertAllBlocksProcessed(t *testing.T, handler *UploadHandler) {
 
 func TestSetUploadError(t *testing.T) {
 	mockUploadError := fmt.Errorf("error")
-	uploadHandler := &UploadHandler{
-		uploadError: mockUploadError,
-	}
+	uploadHandler := &UploadHandler{}
+	uploadHandler.setUploadError(mockUploadError)
 
-	actualUploadError := uploadHandler.GetUploadError()
+	actualUploadError := uploadHandler.getUploadError()
 
 	assert.Equal(t, mockUploadError, actualUploadError)
 }
@@ -401,7 +406,7 @@ func (t *UploadHandlerTest) TestUploadHandler_SetUploadError() {
 		{
 			name:         "Error_already_set",
 			initialError: fmt.Errorf("foo"),
-			finalError:   fmt.Errorf("foo"),
+			finalError:   fmt.Errorf("bar"),
 		},
 	}
 
@@ -411,9 +416,9 @@ func (t *UploadHandlerTest) TestUploadHandler_SetUploadError() {
 				uploadError: tc.initialError,
 			}
 
-			uh.SetUploadError(fmt.Errorf("bar"))
+			uh.setUploadError(fmt.Errorf("bar"))
 
-			assert.Equal(t.T(), tc.finalError, uh.GetUploadError())
+			assert.Equal(t.T(), tc.finalError, uh.getUploadError())
 		})
 	}
 }

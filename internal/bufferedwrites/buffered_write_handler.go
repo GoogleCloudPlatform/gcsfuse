@@ -124,8 +124,9 @@ func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err er
 
 func (wh *bufferedWriteHandlerImpl) Write(data []byte, offset int64) (err error) {
 	// Fail early if the uploadHandler has already failed.
-	if wh.uploadHandler.GetUploadError() != nil {
-		return wh.uploadHandler.GetUploadError()
+	err = wh.uploadHandler.getUploadError()
+	if err != nil {
+		return
 	}
 	if offset != wh.totalSize && offset != wh.truncatedSize {
 		logger.Errorf("BufferedWriteHandler.OutOfOrderError for object: %s, expectedOffset: %d, actualOffset: %d",
@@ -185,19 +186,20 @@ func (wh *bufferedWriteHandlerImpl) Sync() (err error) {
 		// Only logging an error in case of resource leak as upload succeeded.
 		logger.Errorf("blockPool.ClearFreeBlockChannel() failed during sync: %v", err)
 	}
-	err = wh.uploadHandler.GetUploadError()
+	err = wh.uploadHandler.getUploadError()
 	return
 }
 
 // Flush finalizes the upload.
 func (wh *bufferedWriteHandlerImpl) Flush() (*gcs.MinObject, error) {
 	// Fail early if upload already failed.
-	if wh.uploadHandler.GetUploadError() != nil {
-		return nil, wh.uploadHandler.GetUploadError()
+	err := wh.uploadHandler.getUploadError()
+	if err != nil {
+		return nil, err
 	}
 
 	// In case it is a truncated file, upload empty blocks as required.
-	err := wh.writeDataForTruncatedSize()
+	err = wh.writeDataForTruncatedSize()
 	if err != nil {
 		return nil, err
 	}
