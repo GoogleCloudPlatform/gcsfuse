@@ -1,6 +1,6 @@
 # GCSFuse Metrics
-GCSFuse supports exporting custom metrics to Google cloud monitoring. 
-Metrics are collected using OpenCensus and exported via Stackdriver exporter.
+GCSFuse supports exporting custom metrics to Google Cloud monitoring. 
+Metrics are collected using OpenTelemetry and exported via Cloud Monitoring exporter.
 
 As of today, GCSFuse exports following metrics related to filesystem and
 gcs calls.
@@ -148,4 +148,4 @@ gcs_read_count{read_type="Sequential"} 5
 to specify the target Prometheus metric endpoint under the `scrape_configs` section in the Prometheus configuration file.
 
 ## References:
-* More details around adding custom metrics using OpenCensus can be found [here](https://cloud.google.com/monitoring/custom-metrics/open-census)
+* More details around adding custom metrics using OpenTelemetry can be found [here](https://cloud.google.com/monitoring/custom-metrics/open-telemetry)
