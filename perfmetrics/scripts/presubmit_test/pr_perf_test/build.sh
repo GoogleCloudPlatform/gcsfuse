@@ -13,10 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Running test only for when PR contains execute-perf-test or execute-integration-tests label
+# Running test only for when PR contains execute-perf-test,
+# execute-integration-tests or execute-checkpoint-test label.
 readonly EXECUTE_PERF_TEST_LABEL="execute-perf-test"
 readonly EXECUTE_INTEGRATION_TEST_LABEL="execute-integration-tests"
 readonly EXECUTE_PACKAGE_BUILD_TEST_LABEL="execute-package-build-tests"
+readonly EXECUTE_CHECKPOINT_TEST_LABEL="execute-checkpoint-test"
 readonly RUN_E2E_TESTS_ON_INSTALLED_PACKAGE=false
 readonly SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=false
 readonly BUCKET_LOCATION=us-west4
@@ -32,11 +34,13 @@ curl https://api.github.com/repos/GoogleCloudPlatform/gcsfuse/pulls/$KOKORO_GITH
 perfTest=$(grep "$EXECUTE_PERF_TEST_LABEL" pr.json)
 integrationTests=$(grep "$EXECUTE_INTEGRATION_TEST_LABEL" pr.json)
 packageBuildTests=$(grep "$EXECUTE_PACKAGE_BUILD_TEST_LABEL" pr.json)
+checkpointTests=$(grep "$EXECUTE_CHECKPOINT_TEST_LABEL" pr.json)
 rm pr.json
 perfTestStr="$perfTest"
 integrationTestsStr="$integrationTests"
 packageBuildTestsStr="$packageBuildTests"
-if [[ "$perfTestStr" != *"$EXECUTE_PERF_TEST_LABEL"*  &&  "$integrationTestsStr" != *"$EXECUTE_INTEGRATION_TEST_LABEL"*  && "$packageBuildTestsStr" != *"$EXECUTE_PACKAGE_BUILD_TEST_LABEL"* ]]
+checkpointTestStr="$checkpointTests"
+if [[ "$perfTestStr" != *"$EXECUTE_PERF_TEST_LABEL"*  && "$integrationTestsStr" != *"$EXECUTE_INTEGRATION_TEST_LABEL"*  && "$packageBuildTestsStr" != *"$EXECUTE_PACKAGE_BUILD_TEST_LABEL"* && "$checkpointTestStr" != *"$EXECUTE_CHECKPOINT_TEST_LABEL"* ]]
 then
   echo "No need to execute tests"
   exit 0
@@ -127,4 +131,14 @@ then
 
   echo "Running package build tests...."
   ./perfmetrics/scripts/build_and_install_gcsfuse.sh master
+fi
+
+# Execute JAX checkpoints tests.
+if [[ "$checkpointTestStr" == *"$EXECUTE_CHECKPOINT_TEST_LABEL"* ]];
+then
+  echo checkout PR branch
+  git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
+
+  echo "Running checkpoint tests...."
+  ./perfmetrics/scripts/ml_tests/checkpoint/Jax/run_checkpoints.sh
 fi
