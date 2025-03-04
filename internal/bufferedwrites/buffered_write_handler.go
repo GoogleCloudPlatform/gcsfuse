@@ -17,7 +17,6 @@ package bufferedwrites
 import (
 	"errors"
 	"fmt"
-	"log"
 	"math"
 	"time"
 
@@ -124,15 +123,10 @@ func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err er
 }
 
 func (wh *bufferedWriteHandlerImpl) Write(data []byte, offset int64) (err error) {
-	log.Printf("Write called with len(%v), offset (%v)", len(data), offset)
 	// Fail early if the uploadHandler has already failed.
 	if wh.uploadHandler.GetUploadError() != nil {
-		log.Println("Error on Write")
 		return wh.uploadHandler.GetUploadError()
-	} else {
-		log.Println("No error on Write")
 	}
-
 	if offset != wh.totalSize && offset != wh.truncatedSize {
 		logger.Errorf("BufferedWriteHandler.OutOfOrderError for object: %s, expectedOffset: %d, actualOffset: %d",
 			wh.uploadHandler.objectName, wh.totalSize, offset)
@@ -172,12 +166,8 @@ func (wh *bufferedWriteHandlerImpl) appendBuffer(data []byte) (err error) {
 
 		if wh.current.Size() == wh.blockPool.BlockSize() {
 			err := wh.uploadHandler.Upload(wh.current)
-			log.Println("Uploading chunk...")
 			if err != nil {
-				log.Println("Got error.....")
 				return err
-			} else {
-				log.Println("No error on upload chunk...")
 			}
 			wh.current = nil
 		}
