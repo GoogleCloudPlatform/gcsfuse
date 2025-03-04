@@ -23,6 +23,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/readers/gcs_readers"
 	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
 )
@@ -38,7 +39,7 @@ type FileHandle struct {
 	// INVARIANT: If reader != nil, reader.CheckInvariants() doesn't panic.
 	//
 	// GUARDED_BY(mu)
-	reader gcsx.RandomReader
+	reader gcsx.Reader
 
 	// fileCacheHandler is used to get file cache handle and read happens using that.
 	// This will be nil if the file cache is disabled.
@@ -122,7 +123,7 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 	if fh.reader != nil {
 		fh.inode.Unlock()
 
-		var objectData gcsx.ObjectData
+		var objectData gcs_readers.ObjectData
 		objectData, err = fh.reader.ReadAt(ctx, dst, offset)
 		switch {
 		case errors.Is(err, io.EOF):
@@ -194,8 +195,9 @@ func (fh *FileHandle) tryEnsureReader(ctx context.Context, sequentialReadSizeMb 
 	}
 
 	// Attempt to create an appropriate reader.
-	rr := gcsx.NewRandomReader(fh.inode.Source(), fh.inode.Bucket(), sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, &fh.inode.MRDWrapper)
+	// rr := gcsx.NewRandomReader(fh.inode.Source(), fh.inode.Bucket(), sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, &fh.inode.MRDWrapper)
 
+	rr := gcsx.NewReadManager(fh.inode.Source(), fh.inode.Bucket(), sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, &fh.inode.MRDWrapper)
 	fh.reader = rr
 	return
 }

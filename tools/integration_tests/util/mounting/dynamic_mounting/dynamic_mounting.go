@@ -21,7 +21,6 @@ import (
 	"path"
 	"testing"
 
-	"cloud.google.com/go/compute/metadata"
 	"cloud.google.com/go/storage"
 	"google.golang.org/api/iterator"
 
@@ -104,10 +103,10 @@ func executeTestsForDynamicMounting(flags [][]string, m *testing.M) (successCode
 }
 
 func CreateTestBucketForDynamicMounting(ctx context.Context, client *storage.Client) (bucketName string) {
-	projectID, err := metadata.ProjectID()
-	if err != nil {
-		log.Printf("Error in fetching project id: %v", err)
-	}
+	projectID := "gcs-fuse-test"
+	//if err != nil {
+	//	log.Printf("Error in fetching project id: %v", err)
+	//}
 
 	// Create bucket handle and attributes
 	storageClassAndLocation := &storage.BucketAttrs{
