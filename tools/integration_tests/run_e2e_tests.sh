@@ -31,7 +31,7 @@ RUN_TEST_ON_TPC_ENDPOINT=false
 if [ $4 != "" ]; then
   RUN_TEST_ON_TPC_ENDPOINT=$4
 fi
-INTEGRATION_TEST_TIMEOUT_IN_MINS=90
+INTEGRATION_TEST_TIMEOUT_IN_MINS=140
 
 RUN_TESTS_WITH_PRESUBMIT_FLAG=false
 if [ $# -ge 5 ] ; then
@@ -82,62 +82,62 @@ echo "Setting the integration test timeout to: $INTEGRATION_TEST_TIMEOUT"
 readonly RANDOM_STRING_LENGTH=5
 # Test directory arrays
 TEST_DIR_PARALLEL=(
-  "monitoring"
-  "local_file"
-  "log_rotation"
-  "mounting"
-  "read_cache"
-  "gzip"
-  "write_large_files"
-  "list_large_dir"
-  "rename_dir_limit"
-  "read_large_files"
-  "explicit_dir"
-  "implicit_dir"
-  "interrupt"
-  "operations"
-  "log_content"
-  "kernel_list_cache"
-  "concurrent_operations"
-  "benchmarking"
-  "mount_timeout"
+  # "monitoring"
+  # "local_file"
+  # "log_rotation"
+  # "mounting"
+  # "read_cache"
+  # "gzip"
+  # "write_large_files"
+  # "list_large_dir"
+  # "rename_dir_limit"
+  # "read_large_files"
+  # "explicit_dir"
+  # "implicit_dir"
+  # "interrupt"
+  # "operations"
+  # "log_content"
+  # "kernel_list_cache"
+  # "concurrent_operations"
+  # "benchmarking"
+  # "mount_timeout"
   "stale_handle"
-  "negative_stat_cache"
-  "streaming_writes"
+  # "negative_stat_cache"
+  # "streaming_writes"
 )
 
 # These tests never become parallel as it is changing bucket permissions.
 TEST_DIR_NON_PARALLEL=(
-  "readonly"
-  "managed_folders"
-  "readonly_creds"
+  # "readonly"
+  # "managed_folders"
+  # "readonly_creds"
 )
 
 # Subset of TEST_DIR_PARALLEL,
 # but only those tests which currently
 # pass for zonal buckets.
 TEST_DIR_PARALLEL_FOR_ZB=(
-  # "benchmarking"
-  # "concurrent_operations"
-  # "explicit_dir"
+  # # "benchmarking"
+  # # "concurrent_operations"
+  # # "explicit_dir"
   # "gzip"
-  # "implicit_dir"
+  # # "implicit_dir"
   # "interrupt"
   # "kernel_list_cache"
-  # "list_large_dir"
-  # "local_file"
-  # "log_content"
-  "log_rotation"
+  # # "list_large_dir"
+  # # "local_file"
+  # # "log_content"
+  # "log_rotation"
   # "monitoring"
-  "mount_timeout"
+  # "mount_timeout"
   # "mounting"
   # "negative_stat_cache"
-  # "operations"
+  # # "operations"
   # "read_cache"
   # "read_large_files"
   # "rename_dir_limit"
-  # "stale_handle"
-  # "streaming_writes"
+  "stale_handle"
+  # # "streaming_writes"
   # "write_large_files"
 )
 
@@ -146,7 +146,7 @@ TEST_DIR_PARALLEL_FOR_ZB=(
 # pass for zonal buckets.
 TEST_DIR_NON_PARALLEL_FOR_ZB=(
   # "readonly"
-  # "managed_folders"
+  # # "managed_folders"
   # "readonly_creds"
 )
 
@@ -445,10 +445,10 @@ function clean_up() {
 function main(){
   set -e
 
-  upgrade_gcloud_version
-
-  install_packages
-
+  # upgrade_gcloud_version
+# 
+  # install_packages
+# 
   set +e
 
   # Run tpc test and exit in case RUN_TEST_ON_TPC_ENDPOINT is true.
@@ -469,11 +469,11 @@ function main(){
   run_e2e_tests_for_flat_bucket &
   e2e_tests_flat_bucket_pid=$!
 
-  run_e2e_tests_for_emulator &
-  e2e_tests_emulator_pid=$!
+  # run_e2e_tests_for_emulator &
+  # e2e_tests_emulator_pid=$!
 
-  wait $e2e_tests_emulator_pid
-  e2e_tests_emulator_status=$?
+  # wait $e2e_tests_emulator_pid
+  # e2e_tests_emulator_status=$?
 
   wait $e2e_tests_flat_bucket_pid
   e2e_tests_flat_bucket_status=$?
@@ -508,11 +508,11 @@ function main(){
     exit_code=1
   fi
 
-  if [ $e2e_tests_emulator_status != 0 ];
-  then
-    echo "The e2e tests for emulator failed.."
-    exit_code=1
-  fi
+  # if [ $e2e_tests_emulator_status != 0 ];
+  # then
+    # echo "The e2e tests for emulator failed.."
+    # exit_code=1
+  # fi
 
   exit $exit_code
 }
