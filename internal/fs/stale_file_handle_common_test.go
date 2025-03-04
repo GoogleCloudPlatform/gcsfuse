@@ -17,6 +17,8 @@ package fs_test
 import (
 	"os"
 	"path"
+	"syscall"
+	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
@@ -51,6 +53,30 @@ func commonServerConfig() *cfg.Config {
 
 }
 
+func clobberFile(t *testing.T, fileName, content string) {
+	t.Helper()
+	_, err := storageutil.CreateObject(
+		ctx,
+		bucket,
+		fileName,
+		[]byte(content))
+	assert.NoError(t, err)
+}
+
+func createGCSObject(t *testing.T, fileName, content string) *os.File {
+	t.Helper()
+	_, err := storageutil.CreateObject(
+		ctx,
+		bucket,
+		fileName,
+		[]byte(content))
+	assert.NoError(t, err)
+	// Open file handle to read or write.
+	fh, err := os.OpenFile(path.Join(mntDir, fileName), os.O_RDWR|syscall.O_DIRECT, filePerms)
+	assert.NoError(t, err)
+	return fh
+}
+
 func (t *staleFileHandleCommon) SetupSuite() {
 	t.serverCfg.NewConfig = commonServerConfig()
 	t.fsTest.SetUpTestSuite()
@@ -68,18 +94,14 @@ func (t *staleFileHandleCommon) TearDownSuite() {
 // //////////////////////////////////////////////////////////////////////
 // Tests
 // //////////////////////////////////////////////////////////////////////
+
 func (t *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHandleError() {
 	// Dirty the file by giving it some contents.
 	n, err := t.f1.Write([]byte("taco"))
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), 4, n)
 	// Replace the underlying object with a new generation.
-	_, err = storageutil.CreateObject(
-		ctx,
-		bucket,
-		"foo",
-		[]byte("foobar"))
-	assert.NoError(t.T(), err)
+	clobberFile(t.T(), "foo", "foobar")
 
 	err = t.f1.Sync()
 

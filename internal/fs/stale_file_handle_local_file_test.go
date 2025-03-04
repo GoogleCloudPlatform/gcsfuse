@@ -35,6 +35,10 @@ type staleFileHandleStreamingWritesLocalFile struct {
 	staleFileHandleStreamingWritesCommon
 }
 
+// //////////////////////////////////////////////////////////////////////
+// Helpers
+// //////////////////////////////////////////////////////////////////////
+
 func (t *staleFileHandleStreamingWritesLocalFile) SetupTest() {
 	// Create a local file.
 	_, t.f1 = operations.CreateLocalFile(ctx, t.T(), mntDir, bucket, "foo")
@@ -45,14 +49,13 @@ func (t *staleFileHandleLocalFile) SetupTest() {
 	_, t.f1 = operations.CreateLocalFile(ctx, t.T(), mntDir, bucket, "foo")
 }
 
+// //////////////////////////////////////////////////////////////////////
+// Tests
+// //////////////////////////////////////////////////////////////////////
+
 func (t *staleFileHandleStreamingWritesLocalFile) TestClobberedWriteFileSyncAndCloseThrowsStaleFileHandleError() {
 	// Replace the underlying object with a new generation.
-	_, err := storageutil.CreateObject(
-		ctx,
-		bucket,
-		"foo",
-		[]byte("foobar"))
-	assert.NoError(t.T(), err)
+	clobberFile(t.T(), "foo", "foobar")
 	// Writing to file will return Stale File Handle Error.
 	data, err := operations.GenerateRandomData(operations.MiB * 4)
 	assert.NoError(t.T(), err)

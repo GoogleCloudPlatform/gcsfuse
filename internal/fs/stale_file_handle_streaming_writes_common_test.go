@@ -24,6 +24,7 @@ import (
 // //////////////////////////////////////////////////////////////////////
 // Boilerplate
 // //////////////////////////////////////////////////////////////////////
+
 type staleFileHandleStreamingWritesCommon struct {
 	// fsTest has f1 *osFile and f2 *osFile which we will reuse here.
 	fsTest
@@ -68,12 +69,7 @@ func (t *staleFileHandleStreamingWritesCommon) TestWriteFileSyncFileClobberedFlu
 	err = t.f1.Sync()
 	assert.NoError(t.T(), err)
 	// Replace the underlying object with a new generation.
-	_, err = storageutil.CreateObject(
-		ctx,
-		bucket,
-		"foo",
-		[]byte("foobar"))
-	assert.NoError(t.T(), err)
+	clobberFile(t.T(), "foo", "foobar")
 	err = t.f1.Close()
 	operations.ValidateStaleNFSFileHandleError(t.T(), err)
 	// Make f1 nil, so that another attempt is not taken in TearDown to close the

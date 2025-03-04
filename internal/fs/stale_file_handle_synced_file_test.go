@@ -17,7 +17,6 @@ package fs_test
 import (
 	"os"
 	"path"
-	"syscall"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
@@ -37,46 +36,30 @@ type staleFileHandleStreamingWritesSyncedFile struct {
 	staleFileHandleStreamingWritesCommon
 }
 
+// //////////////////////////////////////////////////////////////////////
+// Helpers
+// //////////////////////////////////////////////////////////////////////
+
 func (t *staleFileHandleSyncedFile) SetupTest() {
 	// Create an object on bucket.
-	_, err := storageutil.CreateObject(
-		ctx,
-		bucket,
-		"foo",
-		[]byte("bar"))
-	assert.NoError(t.T(), err)
-	// Open file handle to read or write.
-	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_RDWR|syscall.O_DIRECT, filePerms)
-	assert.NoError(t.T(), err)
+	t.f1 = createGCSObject(t.T(), "foo", "bar")
 }
 
 func (t *staleFileHandleStreamingWritesSyncedFile) SetupTest() {
-	// Create an object on bucket.
-	_, err := storageutil.CreateObject(
-		ctx,
-		bucket,
-		"foo",
-		[]byte(""))
-	assert.NoError(t.T(), err)
-	// Open file handle to read or write.
-	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_RDWR|syscall.O_DIRECT, filePerms)
-	assert.NoError(t.T(), err)
+	// Create an empty object on bucket.
+	t.f1 = createGCSObject(t.T(), "foo", "")
 }
 
 // //////////////////////////////////////////////////////////////////////
 // Tests
 // //////////////////////////////////////////////////////////////////////
+
 func (t *staleFileHandleSyncedFile) TestClobberedFileReadThrowsStaleFileHandleError() {
 	// Replace the underlying object with a new generation.
-	_, err := storageutil.CreateObject(
-		ctx,
-		bucket,
-		"foo",
-		[]byte("foobar"))
-	assert.NoError(t.T(), err)
+	clobberFile(t.T(), "foo", "foobar")
 
 	buffer := make([]byte, 6)
-	_, err = t.f1.Read(buffer)
+	_, err := t.f1.Read(buffer)
 
 	operations.ValidateStaleNFSFileHandleError(t.T(), err)
 	// Validate that object is updated with new content.
@@ -87,14 +70,9 @@ func (t *staleFileHandleSyncedFile) TestClobberedFileReadThrowsStaleFileHandleEr
 
 func (t *staleFileHandleSyncedFile) TestClobberedFileFirstWriteThrowsStaleFileHandleError() {
 	// Replace the underlying object with a new generation.
-	_, err := storageutil.CreateObject(
-		ctx,
-		bucket,
-		"foo",
-		[]byte("foobar"))
-	assert.NoError(t.T(), err)
+	clobberFile(t.T(), "foo", "foobar")
 
-	_, err = t.f1.Write([]byte("taco"))
+	_, err := t.f1.Write([]byte("taco"))
 
 	operations.ValidateStaleNFSFileHandleError(t.T(), err)
 	// Attempt to sync to file should not result in error as we first check if the
@@ -158,12 +136,7 @@ func (t *staleFileHandleSyncedFile) TestFileDeletedRemotelySyncAndCloseThrowsSta
 
 func (t *staleFileHandleStreamingWritesSyncedFile) TestClobberedWriteFileSyncAndCloseThrowsStaleFileHandleError() {
 	// Replace the underlying object with a new generation.
-	_, err := storageutil.CreateObject(
-		ctx,
-		bucket,
-		"foo",
-		[]byte("foobar"))
-	assert.NoError(t.T(), err)
+	clobberFile(t.T(), "foo", "foobar")
 	// Writing to file will return Stale File Handle Error.
 	data, err := operations.GenerateRandomData(operations.MiB * 4)
 	assert.NoError(t.T(), err)
