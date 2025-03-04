@@ -39,7 +39,9 @@ if [ $# -ge 5 ] ; then
   RUN_TESTS_WITH_PRESUBMIT_FLAG=$5
 fi
 
-# 6th parameter is set to enable/disable run for zonal bucket.
+# 6th parameter is set to enable/disable run for zonal bucket(s).
+# If it is set to true, then the run will be only on zonal bucket(s),
+# otherwise the run will only on non-zonal bucket(s).
 RUN_TESTS_WITH_ZONAL_BUCKET=false
 if [[ $# -ge 6 ]] ; then
   if [[ "$6" == "true" ]]; then
@@ -401,7 +403,7 @@ function run_e2e_tests_for_zonal_bucket(){
    return 0
 }
 
-function run_e2e_tests_for_tpc() {
+function run_e2e_tests_for_tpc_and_exit() {
   # Clean bucket before testing.
   gcloud storage rm -r gs://gcsfuse-e2e-tests-tpc/**
 
@@ -451,68 +453,65 @@ function main(){
 
   set +e
 
-  # Run tpc test and exit in case RUN_TEST_ON_TPC_ENDPOINT is true.
-  if [ $RUN_TEST_ON_TPC_ENDPOINT == true ]; then
-       run_e2e_tests_for_tpc
-  fi
-
   #run integration tests
+  exit_code=0
 
   if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
     run_e2e_tests_for_zonal_bucket &
     e2e_tests_zonal_bucket_pid=$!
-  fi
-
-  run_e2e_tests_for_hns_bucket &
-  e2e_tests_hns_bucket_pid=$!
-
-  run_e2e_tests_for_flat_bucket &
-  e2e_tests_flat_bucket_pid=$!
-
-  run_e2e_tests_for_emulator &
-  e2e_tests_emulator_pid=$!
-
-  wait $e2e_tests_emulator_pid
-  e2e_tests_emulator_status=$?
-
-  wait $e2e_tests_flat_bucket_pid
-  e2e_tests_flat_bucket_status=$?
-
-  wait $e2e_tests_hns_bucket_pid
-  e2e_tests_hns_bucket_status=$?
-
-  if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
     wait $e2e_tests_zonal_bucket_pid
     e2e_tests_zonal_bucket_status=$?
+
+    if [ $e2e_tests_zonal_bucket_status != 0 ]; then
+      echo "The e2e tests for zonal bucket failed.."
+      exit_code=1
+    fi
+  else
+    # Run tpc test and exit in case RUN_TEST_ON_TPC_ENDPOINT is true.
+    if [ $RUN_TEST_ON_TPC_ENDPOINT == true ]; then
+         run_e2e_tests_for_tpc_and_exit
+    fi
+
+    run_e2e_tests_for_hns_bucket &
+    e2e_tests_hns_bucket_pid=$!
+
+    run_e2e_tests_for_flat_bucket &
+    e2e_tests_flat_bucket_pid=$!
+
+    run_e2e_tests_for_emulator &
+    e2e_tests_emulator_pid=$!
+
+    wait $e2e_tests_emulator_pid
+    e2e_tests_emulator_status=$?
+
+    wait $e2e_tests_flat_bucket_pid
+    e2e_tests_flat_bucket_status=$?
+
+    wait $e2e_tests_hns_bucket_pid
+    e2e_tests_hns_bucket_status=$?
+
+    if [ $e2e_tests_flat_bucket_status != 0 ];
+    then
+      echo "The e2e tests for flat bucket failed.."
+      exit_code=1
+    fi
+
+    if [ $e2e_tests_hns_bucket_status != 0 ];
+    then
+      echo "The e2e tests for hns bucket failed.."
+      exit_code=1
+    fi
+
+    if [ $e2e_tests_emulator_status != 0 ];
+    then
+      echo "The e2e tests for emulator failed.."
+      exit_code=1
+    fi
   fi
 
   set -e
 
   print_test_logs
-
-  exit_code=0
-  if [ $e2e_tests_flat_bucket_status != 0 ];
-  then
-    echo "The e2e tests for flat bucket failed.."
-    exit_code=1
-  fi
-
-  if [ $e2e_tests_hns_bucket_status != 0 ];
-  then
-    echo "The e2e tests for hns bucket failed.."
-    exit_code=1
-  fi
-
-  if ${RUN_TESTS_WITH_ZONAL_BUCKET} && [ $e2e_tests_zonal_bucket_status != 0 ]; then
-    echo "The e2e tests for zonal bucket failed.."
-    exit_code=1
-  fi
-
-  if [ $e2e_tests_emulator_status != 0 ];
-  then
-    echo "The e2e tests for emulator failed.."
-    exit_code=1
-  fi
 
   exit $exit_code
 }
