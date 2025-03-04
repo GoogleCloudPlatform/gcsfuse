@@ -17,6 +17,7 @@ package bufferedwrites
 import (
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"time"
 
@@ -123,9 +124,13 @@ func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err er
 }
 
 func (wh *bufferedWriteHandlerImpl) Write(data []byte, offset int64) (err error) {
+	log.Printf("Write called with len(%v), offset (%v)", len(data), offset)
 	// Fail early if the uploadHandler has already failed.
 	if wh.uploadHandler.GetUploadError() != nil {
+		log.Println("Error on Write")
 		return wh.uploadHandler.GetUploadError()
+	} else {
+		log.Println("No error on Write")
 	}
 
 	if offset != wh.totalSize && offset != wh.truncatedSize {
@@ -167,8 +172,12 @@ func (wh *bufferedWriteHandlerImpl) appendBuffer(data []byte) (err error) {
 
 		if wh.current.Size() == wh.blockPool.BlockSize() {
 			err := wh.uploadHandler.Upload(wh.current)
+			log.Println("Uploading chunk...")
 			if err != nil {
+				log.Println("Got error.....")
 				return err
+			} else {
+				log.Println("No error on upload chunk...")
 			}
 			wh.current = nil
 		}
@@ -187,7 +196,7 @@ func (wh *bufferedWriteHandlerImpl) Sync() (err error) {
 		logger.Errorf("blockPool.ClearFreeBlockChannel() failed during sync: %v", err)
 	}
 	if wh.uploadHandler.GetUploadError() != nil {
-		return wh.uploadHandler.GetUploadError()
+		err = wh.uploadHandler.GetUploadError()
 	}
 
 	return

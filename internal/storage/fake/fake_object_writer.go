@@ -39,6 +39,11 @@ type FakeObjectWriter struct {
 }
 
 func (w *FakeObjectWriter) Write(p []byte) (n int, err error) {
+	contents := w.buf.Bytes()
+	// Validate for preconditions.
+	if err := preconditionChecks(w.bkt, w.req, contents); err != nil {
+		return 0, err
+	}
 	return w.buf.Write(p)
 }
 

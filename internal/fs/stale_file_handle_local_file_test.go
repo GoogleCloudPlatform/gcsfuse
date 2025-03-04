@@ -17,30 +17,48 @@ package fs_test
 import (
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
 
 // //////////////////////////////////////////////////////////////////////
 // Boilerplate
 // //////////////////////////////////////////////////////////////////////
+
 type staleFileHandleLocalFile struct {
 	staleFileHandleCommon
-	suite.Suite
 }
 
-type streamingWritesStaleFileHandleLocalFile struct {
-	streamingWritesStaleFileHandleCommon
-	suite.Suite
+type staleFileHandleStreamingWritesLocalFile struct {
+	staleFileHandleStreamingWritesCommon
 }
 
-// //////////////////////////////////////////////////////////////////////
-// Helpers
-// //////////////////////////////////////////////////////////////////////
-
-func (t *streamingWritesStaleFileHandleLocalFile) SetupTest() {
+func (t *staleFileHandleStreamingWritesLocalFile) SetupTest() {
 	// Create a local file.
 	_, t.f1 = operations.CreateLocalFile(ctx, t.T(), mntDir, bucket, "foo")
+}
+
+func TestStaleFileHandleLocalFile(t *testing.T) {
+	suite.Run(t, new(staleFileHandleLocalFile))
+}
+
+func (t *staleFileHandleLocalFile) SetupSuite() {
+	t.serverCfg.NewConfig = &cfg.Config{
+		FileSystem: cfg.FileSystemConfig{
+			PreconditionErrors: true,
+		},
+		MetadataCache: cfg.MetadataCacheConfig{
+			TtlSecs: 0,
+		},
+	}
+	t.fsTest.SetUpTestSuite()
+}
+
+func (t *staleFileHandleLocalFile) TearDownSuite() {
+	t.fsTest.TearDownTestSuite()
 }
 
 func (t *staleFileHandleLocalFile) SetupTest() {
@@ -48,21 +66,39 @@ func (t *staleFileHandleLocalFile) SetupTest() {
 	_, t.f1 = operations.CreateLocalFile(ctx, t.T(), mntDir, bucket, "foo")
 }
 
-// Executes all stale handle tests for local files.
-func TestStaleFileHandleLocalFile(t *testing.T) {
-	config = commonConfig(t)
-	ts := new(staleFileHandleLocalFile)
-	ts.staleFileHandleCommonHelper.TestifySuite = &ts.Suite
-	suite.Run(t, ts)
+func (t *staleFileHandleLocalFile) TearDownTest() {
+	// fsTest Cleanups to clean up mntDir and close t.f1 and t.f2.
+	t.fsTest.TearDown()
+}
+
+func (t *staleFileHandleStreamingWritesLocalFile) TestClobberedWriteFileSyncAndCloseThrowsStaleFileHandleError() {
+	// Replace the underlying object with a new generation.
+	_, err := storageutil.CreateObject(
+		ctx,
+		bucket,
+		"foo",
+		[]byte("foobar"))
+	assert.NoError(t.T(), err)
+	// Writing to file will return Stale File Handle Error.
+	data, err := operations.GenerateRandomData(operations.MiB * 4)
+	assert.NoError(t.T(), err)
+	_, err = t.f1.WriteAt(data, 0)
+	operations.ValidateStaleNFSFileHandleError(t.T(), err)
+	err = t.f1.Sync()
+	operations.ValidateStaleNFSFileHandleError(t.T(), err)
+	err = t.f1.Close()
+	operations.ValidateStaleNFSFileHandleError(t.T(), err)
+	// Make f1 nil, so that another attempt is not taken in TearDown to close the
+	// file.
+	t.f1 = nil
+	// Validate that object is not updated with un-synced content.
+	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), "foobar", string(contents))
 }
 
 // Executes all stale handle tests for local files with streaming writes.
-func TestStaleFileHandleLocalFileWithStreamingWrites(t *testing.T) {
-	config = commonConfig(t)
-	config.Write.EnableStreamingWrites = true
-	config.Write.BlockSizeMb = 1
-	config.Write.MaxBlocksPerFile = 1
-	ts := new(streamingWritesStaleFileHandleLocalFile)
-	ts.streamingWritesStaleFileHandleCommon.TestifySuite = &ts.Suite
+func TestStaleFileHandleStreamingWritesLocalFile(t *testing.T) {
+	ts := new(staleFileHandleStreamingWritesLocalFile)
 	suite.Run(t, ts)
 }
