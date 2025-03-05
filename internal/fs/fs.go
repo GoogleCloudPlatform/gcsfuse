@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	iofs "io/fs"
+	"log"
 	"math"
 	"os"
 	"path"
@@ -2018,36 +2019,46 @@ func (fs *fileSystem) Rename(
 			return fmt.Errorf("move out of bucket %q: %w", oldBucket, syscall.ENOTSUP)
 		}
 	}
-
+	var child *inode.Core
+	var updatedMinObject *gcs.MinObject
 	// Find if the Object to be renamed is local.
 	localChild, err := fs.lookUpLocalFileInode(oldParent, op.OldName)
 	if err != nil {
 		return err
 	}
 	if localChild != nil {
+		fs.unlockAndDecrementLookupCount(localChild, 1)
+		fs.mu.Lock()
 		in := fs.fileInodeOrDie(localChild.ID())
+		fs.mu.Unlock()
 		in.Lock()
 		err = fs.flushFile(ctx, in)
-		defer in.Unlock()
+		updatedMinObject = in.Source()
+		in.Unlock()
+		log.Printf("UpdatedMinObject: %v", updatedMinObject.Size)
 		if err != nil {
-			return fmt.Errorf("flush failed on rename: %w", err)
+			return fmt.Errorf("flushFile: %w", err)
 		}
-		fs.unlockAndDecrementLookupCount(localChild, 1)
+
 	}
-
-	// Else find the object in the old location (on GCS).
+	// Now we must find the localChild as well here as it has been promoted to generation backed fileInode.
 	oldParent.Lock()
-	child, err := oldParent.LookUpChild(ctx, op.OldName)
+	child, err = oldParent.LookUpChild(ctx, op.OldName)
 	oldParent.Unlock()
-
 	if err != nil {
-		err = fmt.Errorf("LookUpChild: %w", err)
-		return err
+		return fmt.Errorf("LookUpChild: %w", err)
 	}
 
 	if child == nil {
 		err = fuse.ENOENT
 		return err
+	}
+
+	if localChild == nil {
+		updatedMinObject, err = fs.flushPendingBufferedWrites(ctx, child)
+		if err != nil {
+			return fmt.Errorf("flushPendingBufferedWrites: %w", err)
+		}
 	}
 
 	if child.FullName.IsDir() {
@@ -2058,18 +2069,12 @@ func (fs *fileSystem) Rename(
 		}
 		return fs.renameNonHierarchicalDir(ctx, oldParent, op.OldName, newParent, op.NewName)
 	}
-
-	return fs.renameFile(ctx, op, child, oldParent, newParent)
+	return fs.renameFile(ctx, op, child, updatedMinObject, oldParent, newParent)
 }
 
 // LOCKS_EXCLUDED(oldParent)
 // LOCKS_EXCLUDED(newParent)
-func (fs *fileSystem) renameFile(ctx context.Context, op *fuseops.RenameOp, child *inode.Core, oldParent inode.DirInode, newParent inode.DirInode) error {
-	updatedMinObject, err := fs.flushPendingWrites(ctx, child)
-	if err != nil {
-		return fmt.Errorf("flushPendingWrites error :%v", err)
-	}
-
+func (fs *fileSystem) renameFile(ctx context.Context, op *fuseops.RenameOp, child *inode.Core, updatedMinObject *gcs.MinObject, oldParent inode.DirInode, newParent inode.DirInode) error {
 	if (child.Bucket.BucketType().Hierarchical && fs.enableAtomicRenameObject) || child.Bucket.BucketType().Zonal {
 		return fs.renameHierarchicalFile(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)
 	}
@@ -2078,7 +2083,7 @@ func (fs *fileSystem) renameFile(ctx context.Context, op *fuseops.RenameOp, chil
 
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_EXCLUDED(fileInode)
-func (fs *fileSystem) flushPendingWrites(ctx context.Context, child *inode.Core) (minObject *gcs.MinObject, err error) {
+func (fs *fileSystem) flushPendingBufferedWrites(ctx context.Context, child *inode.Core) (minObject *gcs.MinObject, err error) {
 	// We will return modified minObject if flush is done, otherwise the original
 	// minObject is returned. Original minObject is the one passed in the request.
 	minObject = child.MinObject
