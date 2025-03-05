@@ -43,11 +43,9 @@ function upgrade_gcloud_version() {
 }
 upgrade_gcloud_version
 
-# Clone and build the gcsfuse master branch.
-git clone https://github.com/GoogleCloudPlatform/gcsfuse.git
-cd gcsfuse
+# Build gcsfuse.
+cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 CGO_ENABLED=0 go build .
-cd -
 
 function mount_gcsfuse_and_run_test() {
   # Function to mount GCSFuse.
