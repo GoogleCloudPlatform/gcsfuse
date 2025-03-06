@@ -345,6 +345,8 @@ function installDependencies() {
     echoerror "sudo addgroup docker && sudo usermod -aG docker $USER && newgrp docker"
     return 1
   fi
+  # Install python modules for gsheet.
+  python3 -m pip install google-api-python-client
 }
 
 # Make sure you have access to the necessary GCP resources. The easiest way to enable it is to use <your-ldap>@google.com as active auth.
@@ -679,7 +681,7 @@ function waitTillAllPodsComplete() {
       if test -d "${csi_src_dir}"; then
         message+="csi_src_dir=\"${csi_src_dir}\" "
       fi
-      message+="pod_wait_time_in_seconds=${pod_wait_time_in_seconds} pod_timeout_in_seconds=${pod_timeout_in_seconds} workload_config=\"${workload_config}\" cluster_name=${cluster_name} output_dir=\"${output_dir}\" $0 \n"
+      message+="pod_wait_time_in_seconds=${pod_wait_time_in_seconds} pod_timeout_in_seconds=${pod_timeout_in_seconds} workload_config=\"${workload_config}\" cluster_name=${cluster_name} output_dir=\"${output_dir}\" output_gsheet_id=\"${output_gsheet_id}\" output_gsheet_keyfile=\"${output_gsheet_keyfile}\" $0 \n"
       message+="\nbut remember that this will reset the start-timer for pod timeout.\n\n"
       message+="\nTo ssh to any specific pod, use the following command: \n"
       message+="  gcloud container clusters get-credentials ${cluster_name} --location=${zone}\n"
