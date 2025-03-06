@@ -27,9 +27,6 @@ readonly RUN_TEST_ON_TPC_ENDPOINT=false
 # This flag, if set true, will indicate to underlying script to customize for a presubmit run.
 readonly RUN_TESTS_WITH_PRESUBMIT_FLAG=true
 
-# This flag, if set true, will indicate to underlying script to also run for zonal buckets.
-readonly RUN_TESTS_FOR_ZONAL_BUCKET=true
-
 curl https://api.github.com/repos/GoogleCloudPlatform/gcsfuse/pulls/$KOKORO_GITHUB_PULL_REQUEST_NUMBER >> pr.json
 perfTest=$(grep "$EXECUTE_PERF_TEST_LABEL" pr.json)
 integrationTests=$(grep "$EXECUTE_INTEGRATION_TEST_LABEL" pr.json)
@@ -120,7 +117,7 @@ then
 
   echo "Running e2e tests...."
   # $1 argument is refering to value of testInstalledPackage.
-  ./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $BUCKET_LOCATION $RUN_TEST_ON_TPC_ENDPOINT $RUN_TESTS_WITH_PRESUBMIT_FLAG ${RUN_TESTS_FOR_ZONAL_BUCKET}
+  ./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $BUCKET_LOCATION $RUN_TEST_ON_TPC_ENDPOINT $RUN_TESTS_WITH_PRESUBMIT_FLAG false
 fi
 
 # Execute package build tests.
