@@ -37,7 +37,7 @@ type MultiRangeReader struct {
 
 	MetricHandle common.MetricHandle
 
-	totalReadBytes uint64
+	TotalReadBytes uint64
 }
 
 // ObjectData specifies the response returned as part of ReadAt call.
@@ -68,7 +68,7 @@ func (mrd *MultiRangeReader) readFromMultiRangeReader(ctx context.Context, p []b
 	}
 
 	bytesRead, err = mrd.MrdWrapper.Read(ctx, p, offset, end, timeout, mrd.MetricHandle)
-	mrd.totalReadBytes += uint64(bytesRead)
+	mrd.TotalReadBytes += uint64(bytesRead)
 	return
 }
 

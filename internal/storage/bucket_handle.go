@@ -111,6 +111,7 @@ func (bh *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectR
 	// live object even if generation is not set in request. We are passing 0
 	// generation explicitly to satisfy idempotency condition.
 	obj = obj.Generation(req.Generation)
+	fmt.Println("Generation: ", req.Generation)
 
 	// Putting condition that the object's MetaGeneration should match the requested MetaGeneration for deletion to occur.
 	if req.MetaGenerationPrecondition != nil && *req.MetaGenerationPrecondition != 0 {
