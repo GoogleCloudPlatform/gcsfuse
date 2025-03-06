@@ -61,8 +61,7 @@ function mount_gcsfuse_and_run_test() {
   mkdir -p "${MOUNT_POINT}"
 
   COMMON_FLAGS=(--log-severity=TRACE --enable-streaming-writes --log-file="${KOKORO_ARTIFACTS_DIR}"/gcsfuse_logs/"${BUCKET_NAME}".log)
-  if [[ $BUCKET_NAME == "jax-emulated-checkpoint-flat" ]]
-  then
+  if [[ "$BUCKET_NAME" =~ "flat" ]]; then
     go run . "${COMMON_FLAGS[@]}" --rename-dir-limit=100  "${BUCKET_NAME}" "${MOUNT_POINT}"
   else
     go run . "${COMMON_FLAGS[@]}" "${BUCKET_NAME}" "${MOUNT_POINT}"
