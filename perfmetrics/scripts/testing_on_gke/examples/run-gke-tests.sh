@@ -638,25 +638,25 @@ function waitTillAllPodsComplete() {
       printf "\nAll pods have completed.\n\n"
       break
     else
-      printf "\n${num_noncompleted_pods} pod(s) is/are still pending/running (time till timeout=${time_till_timeout} seconds). Will check again in "${pod_wait_time_in_seconds}" seconds. Sleeping for now.\n\n"
-      printf "\nYou can take a break too if you want. Just kill this run and connect back to it later, for fetching and parsing outputs, using the following command: \n"
-      printf "   only_parse=true instance_id=${instance_id} project_id=${project_id} project_number=${project_number} zone=${zone} machine_type=${machine_type} use_custom_csi_driver=${use_custom_csi_driver} gcsfuse_src_dir=\"${gcsfuse_src_dir}\" "
+      message="\n${num_noncompleted_pods} pod(s) is/are still pending/running (time till timeout=${time_till_timeout} seconds). Will check again in "${pod_wait_time_in_seconds}" seconds. Sleeping for now.\n\n"
+      message+="\nYou can take a break too if you want. Just kill this run and connect back to it later, for fetching and parsing outputs, using the following command: \n"
+      message+="   only_parse=true instance_id=${instance_id} project_id=${project_id} project_number=${project_number} zone=${zone} machine_type=${machine_type} use_custom_csi_driver=${use_custom_csi_driver} gcsfuse_src_dir=\"${gcsfuse_src_dir}\" "
       if test -d "${csi_src_dir}"; then
-        printf "csi_src_dir=\"${csi_src_dir}\" "
+        message+="csi_src_dir=\"${csi_src_dir}\" "
       fi
-      printf "pod_wait_time_in_seconds=${pod_wait_time_in_seconds} pod_timeout_in_seconds=${pod_timeout_in_seconds} workload_config=\"${workload_config}\" cluster_name=${cluster_name} output_dir=\"${output_dir}\" output_gsheet_id=\"${output_gsheet_id}\" output_gsheet_keyfile=\"${output_gsheet_keyfile}\" $0 \n"
-      printf "\nbut remember that this will reset the start-timer for pod timeout.\n\n"
-      printf "\nTo ssh to any specific pod, use the following command: \n"
-      printf "  gcloud container clusters get-credentials ${cluster_name} --location=${zone}\n"
-      printf "  kubectl config set-context --current --namespace=${appnamespace}\n"
-      printf "  kubectl exec -it pods/<podname> [-c {gke-gcsfuse-sidecar|fio-tester|dlio-tester}] --namespace=${appnamespace} -- /bin/bash \n"
-      printf "\nTo view cpu/memory usage of different pods/containers: \n"
-      printf "  kubectl top pod [<podname>] --namespace=${appnamespace} [--containers] \n"
-      printf "\nTo view the latest status of all the pods in this cluster/namespace: \n"
-      printf "  kubectl get pods --namespace=${appnamespace} [-o wide] [--watch] \n"
-      printf "\nTo output the configuration of all or one of the pods in this cluster/namespace (useful for debugging): \n"
-      printf "  kubectl get [pods or pods/<podname>] --namespace=${appnamespace} -o yaml \n"
-      printf "\n\n\n"
+      message+="pod_wait_time_in_seconds=${pod_wait_time_in_seconds} pod_timeout_in_seconds=${pod_timeout_in_seconds} workload_config=\"${workload_config}\" cluster_name=${cluster_name} output_dir=\"${output_dir}\" output_gsheet_id=\"${output_gsheet_id}\" output_gsheet_keyfile=\"${output_gsheet_keyfile}\" $0 \n"
+      message+="\nbut remember that this will reset the start-timer for pod timeout.\n\n"
+      message+="\nTo ssh to any specific pod, use the following command: \n"
+      message+="  gcloud container clusters get-credentials ${cluster_name} --location=${zone}\n"
+      message+="  kubectl config set-context --current --namespace=${appnamespace}\n"
+      message+="  kubectl exec -it pods/<podname> [-c {gke-gcsfuse-sidecar|fio-tester|dlio-tester}] --namespace=${appnamespace} -- /bin/bash \n"
+      message+="\nTo view cpu/memory usage of different pods/containers: \n"
+      message+="  kubectl top pod [<podname>] --namespace=${appnamespace} [--containers] \n"
+      message+="\nTo view the latest status of all the pods in this cluster/namespace: \n"
+      message+="  kubectl get pods --namespace=${appnamespace} [-o wide] [--watch] \n"
+      message+="\nTo output the configuration of all or one of the pods in this cluster/namespace (useful for debugging): \n"
+      message+="  kubectl get [pods or pods/<podname>] --namespace=${appnamespace} -o yaml \n"
+      printf "${message}\n\n\n"
     fi
     sleep ${pod_wait_time_in_seconds}
     unset podslist # necessary to update the value of podslist every iteration
