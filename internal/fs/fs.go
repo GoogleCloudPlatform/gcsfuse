@@ -2024,11 +2024,9 @@ func (fs *fileSystem) Rename(
 		return err
 	}
 	// Rename operation is not supported for local files without streaming writes.
-	if localChild != nil {
+	if localChild != nil && !fs.newConfig.Write.EnableStreamingWrites {
 		fs.unlockAndDecrementLookupCount(localChild, 1)
-		if !fs.newConfig.Write.EnableStreamingWrites {
-			return fmt.Errorf("cannot rename open file %q: %w", op.OldName, syscall.ENOTSUP)
-		}
+		return fmt.Errorf("cannot rename open file %q: %w", op.OldName, syscall.ENOTSUP)
 	}
 	// flush pending writes from streaming writes before rename operation.
 	err = fs.flushPendingBufferedWrites(ctx, oldParent, op.OldName)
@@ -2044,8 +2042,7 @@ func (fs *fileSystem) Rename(
 	}
 
 	if child == nil {
-		err = fuse.ENOENT
-		return err
+		return fuse.ENOENT
 	}
 
 	if child.FullName.IsDir() {
