@@ -30,6 +30,7 @@ import (
 	cacheutil "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/jacobsa/fuse/fuseops"
@@ -111,7 +112,7 @@ const (
 
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
-func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper) RandomReader {
+func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *storage.MultiRangeDownloaderWrapper) RandomReader {
 	return &randomReader{
 		object:                o,
 		bucket:                bucket,
@@ -174,7 +175,7 @@ type randomReader struct {
 	readHandle []byte
 
 	// mrdWrapper points to the wrapper object within inode.
-	mrdWrapper *MultiRangeDownloaderWrapper
+	mrdWrapper *storage.MultiRangeDownloaderWrapper
 
 	// boolean variable to determine if MRD is being used or not.
 	isMRDInUse bool
