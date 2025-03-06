@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io"
 	iofs "io/fs"
-	"log"
 	"math"
 	"os"
 	"path"
