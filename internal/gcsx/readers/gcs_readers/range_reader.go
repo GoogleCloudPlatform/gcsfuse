@@ -54,10 +54,6 @@ type RangeReader struct {
 	MetricHandle common.MetricHandle
 }
 
-func (rr *RangeReader) Object() *gcs.MinObject {
-	return rr.Obj
-}
-
 func (rr *RangeReader) CheckInvariants() {
 }
 

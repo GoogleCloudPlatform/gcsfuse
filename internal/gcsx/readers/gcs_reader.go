@@ -145,6 +145,12 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcs_re
 
 	if gr.Reader != nil {
 		objectData, err = gr.RangeReader.ReadAt(ctx, p, offset)
+		gr.Reader = gr.RangeReader.Reader
+		gr.TotalReadBytes = gr.RangeReader.TotalReadBytes
+		gr.Start = gr.RangeReader.Start
+		gr.Limit = gr.RangeReader.Limit
+		gr.Seeks = gr.RangeReader.Seeks
+
 		return objectData, err
 	}
 
@@ -161,10 +167,16 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcs_re
 	readerType := gr.readerType(gr.ReaderType, offset, end, gr.Bucket.BucketType())
 	if readerType == RangeReader {
 		objectData, err = gr.RangeReader.ReadAt(ctx, p, offset)
+		gr.Reader = gr.RangeReader.Reader
+		gr.TotalReadBytes = gr.RangeReader.TotalReadBytes
+		gr.Start = gr.RangeReader.Start
+		gr.Limit = gr.RangeReader.Limit
+		gr.Seeks = gr.RangeReader.Seeks
 		return objectData, err
 	}
 
 	objectData, err = gr.Mrr.ReadAt(ctx, p, offset)
+	gr.TotalReadBytes = gr.Mrr.TotalReadBytes
 	if err != nil {
 		return objectData, err
 	}
@@ -244,4 +256,8 @@ func (gr *GCSReader) getReadInfo(start int64, size int64) (int64, error) {
 	}
 
 	return end, nil
+}
+
+func (gr *GCSReader) Destroy() {
+
 }
