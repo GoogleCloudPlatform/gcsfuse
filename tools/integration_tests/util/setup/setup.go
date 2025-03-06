@@ -252,30 +252,30 @@ func SaveLogFileToKOKOROArtifact(artifactName string) {
 	}
 }
 
-func removeLogFileIfExists(logFile string) {
+func cleanUpLogFile(logFile string) {
 	err := os.Remove(logFile)
 	if !os.IsExist(err) {
 		return
 	}
-	log.Printf("Error removing log file %v", err)
+	log.Printf("Error cleaning up log file %v", err)
 }
 
-func copyLogFile(logFile, pathToCopy string) {
+func saveLogFileToDestination(logFile, destination string) {
 	if _, err := os.Stat(logFile); os.IsNotExist(err) {
 		return
 	}
-	err := operations.CopyFile(logFile, pathToCopy)
+	err := operations.CopyFile(logFile, destination)
 	if err != nil {
-		log.Fatalf("Error in moving logfile: %v", err)
+		log.Fatalf("Error in saving logfile: %v", err)
 	} else {
-		log.Printf("Log file saved: %s", pathToCopy)
+		log.Printf("Log file saved: %s", destination)
 	}
 
 }
 
 // SaveLogFilesInCaseOfFailure saves log files (GCSFuse log file, Proxy Server log file)
 // only in case of test failures. For tests running on KOKORO it saves on KOKORO artifacts
-// otherwise saves in local testDir.
+// otherwise saves in local TestDir.
 func SaveLogFilesInCaseOfFailure(tb testing.TB) {
 	if tb.Failed() {
 		logDir := os.Getenv("KOKORO_ARTIFACTS_DIR")
@@ -283,14 +283,14 @@ func SaveLogFilesInCaseOfFailure(tb testing.TB) {
 			// Save log files in TestDir as this run is not on KOKORO.
 			logDir = TestDir()
 		}
-		pathToCopyGCSFuseLog := path.Join(logDir, GCSFuseLogFilePrefix+strings.ReplaceAll(tb.Name(), "/", "-"))
-		pathToCopyProxyServerLog := path.Join(logDir, ProxyServerLogFilePrefix+strings.ReplaceAll(tb.Name(), "/", "-"))
-		copyLogFile(logFile, pathToCopyGCSFuseLog)
-		copyLogFile(proxyServerLogFile, pathToCopyProxyServerLog)
+		pathToSaveGCSFuseLog := path.Join(logDir, GCSFuseLogFilePrefix+strings.ReplaceAll(tb.Name(), "/", "-")+GenerateRandomString(5))
+		pathToSaveProxyServerLog := path.Join(logDir, ProxyServerLogFilePrefix+strings.ReplaceAll(tb.Name(), "/", "-")+GenerateRandomString(5))
+		saveLogFileToDestination(logFile, pathToSaveGCSFuseLog)
+		saveLogFileToDestination(proxyServerLogFile, pathToSaveProxyServerLog)
 	}
-	// remove generic log files.
-	removeLogFileIfExists(logFile)
-	removeLogFileIfExists(proxyServerLogFile)
+	// cleanup log files from previous mounts within same TestDir.
+	cleanUpLogFile(logFile)
+	cleanUpLogFile(proxyServerLogFile)
 }
 
 func UnMountAndThrowErrorInFailure(flags []string, successCode int) {
