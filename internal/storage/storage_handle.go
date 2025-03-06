@@ -334,7 +334,7 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 		if sh.directPathDetector != nil {
 			if err := sh.directPathDetector.isDirectPathPossible(ctx, bucketName); err != nil {
 				logger.Warnf("Direct path connectivity unavailable for %s, reason: %v", bucketName, err)
-			}else {
+			} else {
 				logger.Infof("Successfully connected over gRPC DirectPath for %s", bucketName)
 			}
 		}
