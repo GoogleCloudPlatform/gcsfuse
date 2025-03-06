@@ -22,9 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// os.Rename can't be invoked over local files. It's failing with file not found error.
-// Hence running this test only for empty GCS file.
-func (t *defaultMountEmptyGCSFile) TestRenameBeforeFileIsFlushed() {
+func (t *defaultMountCommonTest) TestRenameBeforeFileIsFlushed() {
 	operations.WriteWithoutClose(t.f1, FileContents, t.T())
 	operations.WriteWithoutClose(t.f1, FileContents, t.T())
 	operations.VerifyStatFile(t.filePath, int64(2*len(FileContents)), FilePerms, t.T())
@@ -39,6 +37,27 @@ func (t *defaultMountEmptyGCSFile) TestRenameBeforeFileIsFlushed() {
 	require.NoError(t.T(), err)
 	// Verify the new object contents.
 	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, newFile, FileContents+FileContents, t.T())
+	require.NoError(t.T(), t.f1.Close())
+	// Check if old object is deleted.
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, t.fileName, t.T())
+}
+
+func (t *defaultMountCommonTest) TestAfterRenameWriteFailsWithStaleNFSFileHandleError() {
+	data, err := operations.GenerateRandomData(operations.MiB * 4)
+	require.NoError(t.T(), err)
+	_, err = t.f1.WriteAt(data, 0)
+	require.NoError(t.T(), err)
+	operations.VerifyStatFile(t.filePath, operations.MiB*4, FilePerms, t.T())
+	err = t.f1.Sync()
+	require.NoError(t.T(), err)
+	err = operations.RenameFile(t.filePath, path.Join(testDirPath, FileName2))
+	require.NoError(t.T(), err)
+
+	_, err = t.f1.WriteAt(data, operations.MiB*4)
+
+	operations.ValidateStaleNFSFileHandleError(t.T(), err)
+	// Verify the new object contents.
+	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, FileName2, string(data), t.T())
 	require.NoError(t.T(), t.f1.Close())
 	// Check if old object is deleted.
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, t.fileName, t.T())
