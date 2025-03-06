@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	iofs "io/fs"
+	"log"
 	"math"
 	"os"
 	"path"
@@ -2035,7 +2036,9 @@ func (fs *fileSystem) Rename(
 		if !isLocalFile {
 			return fmt.Errorf("encountered a non-fileInode in rename of local file path %d", localChild.ID())
 		}
-		return fs.renameFile(ctx, op, fileInode.Bucket(), fileInode.Source(), oldParent, newParent)
+		minObject := fileInode.Source()
+		fileInode.Unlock() // Unlock lock acquired during lookUpLocalFileInode.
+		return fs.renameFile(ctx, op, fileInode.Bucket(), minObject, oldParent, newParent)
 	}
 
 	// find the object in the old location (on GCS).
