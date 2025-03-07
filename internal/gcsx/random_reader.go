@@ -213,7 +213,7 @@ func (rr *randomReader) CheckInvariants() {
 // (a) If a new fileCacheHandle is created in that case it will return FileNotPresentInCache
 // error, given by fileCacheHandler.GetCacheHandle().
 // (b) If there is already an open fileCacheHandle then it means there is an open
-// fileHandle to file in cache. So, we will get the correct data from fileHandle
+// fileHandle to file in cache. So, we will get the corretryReadingFromFileCachect data from fileHandle
 // because Linux does not delete a file until open fileHandle count for a file is zero.
 func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 	p []byte,
@@ -383,8 +383,8 @@ func (rr *randomReader) ReadAt(
 		return
 	}
 
-	readerType := readerType(rr.readType, offset, end, rr.bucket.BucketType())
-	if readerType == RangeReader {
+	readerType2 := readerType(rr.readType, offset, end, rr.bucket.BucketType())
+	if readerType2 == RangeReader {
 		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, end, rr.readType)
 		return
 	}
@@ -522,10 +522,6 @@ func (rr *randomReader) getReadInfo(
 			start,
 			start+size,
 			rr.object.Size)
-		return
-	}
-
-	if err != nil {
 		return
 	}
 

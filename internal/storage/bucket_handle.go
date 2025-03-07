@@ -111,6 +111,7 @@ func (bh *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectR
 	// live object even if generation is not set in request. We are passing 0
 	// generation explicitly to satisfy idempotency condition.
 	obj = obj.Generation(req.Generation)
+	fmt.Println("Generation: ", req.Generation)
 
 	// Putting condition that the object's MetaGeneration should match the requested MetaGeneration for deletion to occur.
 	if req.MetaGenerationPrecondition != nil && *req.MetaGenerationPrecondition != 0 {
@@ -534,7 +535,7 @@ func (bh *bucketHandle) RenameFolder(ctx context.Context, folderName string, des
 	}
 
 	// Wait blocks until the long-running operation is completed,
-	// returning the response and any errors encountered.
+	// returning the response and any errors encountered
 	controlFolder, err = resp.Wait(ctx)
 	if err != nil {
 		err = fmt.Errorf("error in getting result from renaming folder response: %w", err)
