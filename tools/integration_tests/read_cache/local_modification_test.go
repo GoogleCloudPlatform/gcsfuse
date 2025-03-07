@@ -18,7 +18,6 @@ import (
 	"context"
 	"log"
 	"path"
-	"strings"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -46,10 +45,8 @@ func (s *localModificationTest) Setup(t *testing.T) {
 }
 
 func (s *localModificationTest) Teardown(t *testing.T) {
-	if t.Failed() {
-		setup.SaveLogFileToKOKOROArtifact("gcsfuse-failed-integration-test-logs-" + strings.Replace(t.Name(), "/", "-", -1))
-	}
 	setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
+	setup.SaveLogFilesInCaseOfFailure(t)
 }
 
 ////////////////////////////////////////////////////////////////////////

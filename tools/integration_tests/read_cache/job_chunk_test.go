@@ -18,7 +18,6 @@ import (
 	"context"
 	"log"
 	"path"
-	"strings"
 	"sync"
 	"testing"
 
@@ -52,10 +51,8 @@ func (s *jobChunkTest) Setup(t *testing.T) {
 }
 
 func (s *jobChunkTest) Teardown(t *testing.T) {
-	if t.Failed() {
-		setup.SaveLogFileToKOKOROArtifact("gcsfuse-failed-integration-test-logs-" + strings.Replace(t.Name(), "/", "-", -1))
-	}
 	setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
+	setup.SaveLogFilesInCaseOfFailure(t)
 }
 
 func createConfigFileForJobChunkTest(cacheSize int64, cacheFileForRangeRead bool, fileName string, parallelDownloadsPerFile, maxParallelDownloads, downloadChunkSizeMB int, clientProtocol string) string {
