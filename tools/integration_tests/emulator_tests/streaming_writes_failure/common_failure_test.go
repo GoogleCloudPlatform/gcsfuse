@@ -72,7 +72,7 @@ func (t *commonFailureTestSuite) setupTest() {
 	t.T().Helper()
 	// Start proxy server for each test to ensure the config is initialized per test.
 	var err error
-	t.port, t.proxyProcessId, err = emulator_tests.StartProxyServer(t.configPath, setup.CreateProxyServerLogFile(t.T()))
+	t.port, t.proxyProcessId, err = emulator_tests.StartProxyServer(t.configPath, setup.ProxyServerLogFile())
 	require.NoError(t.T(), err)
 	setup.AppendProxyEndpointToFlagSet(&t.flags, t.port)
 	// Create storage client before running tests.
@@ -86,9 +86,9 @@ func (t *commonFailureTestSuite) setupTest() {
 }
 
 func (t *commonFailureTestSuite) TearDownTest() {
-	setup.UnmountGCSFuse(rootDir)
 	assert.NoError(t.T(), t.closeStorageClient())
 	assert.NoError(t.T(), emulator_tests.KillProxyServerProcess(t.proxyProcessId))
+	setup.UnmountGCSFuseAndSaveLogFilesInCaseOfFailure(t.T(), rootDir)
 }
 
 func (t *commonFailureTestSuite) writingWithNewFileHandleAlsoFails(data []byte, off int64) {

@@ -44,25 +44,26 @@ type readStall struct {
 	port           int
 	proxyProcessId int
 	flags          []string
+	configPath     string
 	suite.Suite
 }
 
 func (r *readStall) SetupSuite() {
-	configPath := "../proxy_server/configs/read_stall_5s.yaml"
-	var err error
-	r.port, r.proxyProcessId, err = emulator_tests.StartProxyServer(configPath, setup.CreateProxyServerLogFile(r.T()))
-	require.NoError(r.T(), err)
-	setup.AppendProxyEndpointToFlagSet(&r.flags, r.port)
-	setup.MountGCSFuseWithGivenMountFunc(r.flags, mountFunc)
+	r.configPath = "../proxy_server/configs/read_stall_5s.yaml"
 }
 
 func (r *readStall) SetupTest() {
+	var err error
+	r.port, r.proxyProcessId, err = emulator_tests.StartProxyServer(r.configPath, setup.ProxyServerLogFile())
+	require.NoError(r.T(), err)
+	setup.AppendProxyEndpointToFlagSet(&r.flags, r.port)
+	setup.MountGCSFuseWithGivenMountFunc(r.flags, mountFunc)
 	testDirPath = setup.SetupTestDirectory(r.T().Name())
 }
 
-func (r *readStall) TearDownSuite() {
-	setup.UnmountGCSFuse(rootDir)
+func (r *readStall) TearDownTest() {
 	assert.NoError(r.T(), emulator_tests.KillProxyServerProcess(r.proxyProcessId))
+	setup.UnmountGCSFuseAndSaveLogFilesInCaseOfFailure(r.T(), rootDir)
 }
 
 ////////////////////////////////////////////////////////////////////////
