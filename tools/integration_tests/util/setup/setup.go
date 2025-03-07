@@ -273,10 +273,10 @@ func saveLogFileToDestination(logFile, destination string) {
 
 }
 
-// SaveLogFilesInCaseOfFailure saves log files (GCSFuse log file, Proxy Server log file)
+// saveLogFilesInCaseOfFailure saves log files (GCSFuse log file, Proxy Server log file)
 // only in case of test failures. For tests running on KOKORO it saves on KOKORO artifacts
 // otherwise saves in local TestDir.
-func SaveLogFilesInCaseOfFailure(tb testing.TB) {
+func saveLogFilesInCaseOfFailure(tb testing.TB) {
 	if tb.Failed() {
 		logDir := os.Getenv("KOKORO_ARTIFACTS_DIR")
 		if logDir == "" {
@@ -549,14 +549,16 @@ func MountGCSFuseWithGivenMountFunc(flags []string, mountFunc func([]string) err
 	}
 }
 
-func UnmountGCSFuseAndDeleteLogFile(rootDir string) {
-	UnmountGCSFuse(rootDir)
-	// delete log file created
+func UnmountGCSFuseAndSaveLogFilesInCaseOfFailure(tb testing.TB, rootDir string) {
+	SetMntDir(rootDir)
+	saveLogFilesInCaseOfFailure(tb)
 	if *mountedDirectory == "" {
-		err := os.Remove(LogFile())
+		// Unmount GCSFuse only when tests are not running on mounted directory.
+		err := UnMount()
 		if err != nil {
-			LogAndExit(fmt.Sprintf("Error in deleting log file: %v", err))
+			LogAndExit(fmt.Sprintf("Error in unmounting bucket: %v", err))
 		}
+
 	}
 }
 
@@ -617,7 +619,7 @@ func CreateFileOnDiskAndCopyToMntDir(t *testing.T, filePathInLocalDisk string, f
 	}
 }
 
-func ProxyServerLogFile(t *testing.T) string {
+func ProxyServerLogFile() string {
 	return proxyServerLogFile
 }
 

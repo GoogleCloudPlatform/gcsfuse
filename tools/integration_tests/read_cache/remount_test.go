@@ -47,8 +47,7 @@ func (s *remountTest) Setup(t *testing.T) {
 }
 
 func (s *remountTest) Teardown(t *testing.T) {
-	setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
-	setup.SaveLogFilesInCaseOfFailure(t)
+	setup.UnmountGCSFuseAndSaveLogFilesInCaseOfFailure(t, rootDir)
 }
 
 ////////////////////////////////////////////////////////////////////////
