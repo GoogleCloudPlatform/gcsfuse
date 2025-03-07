@@ -232,7 +232,7 @@ func main() {
 	log.SetOutput(logFile)
 
 	if *fDebug {
-		log.Printf("%+v\n", gConfig)
+		printConfig(*gConfig)
 	}
 
 	gOpManager = NewOperationManager(*gConfig)
