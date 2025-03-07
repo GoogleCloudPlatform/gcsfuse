@@ -24,11 +24,10 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/readers"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/readers/gcs_readers"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	"google.golang.org/api/storage/v1"
 )
 
 type readManager struct {
-	object storage.Object
+	object *gcs.MinObject
 	reader gcs.StorageReader
 	cancel func()
 
@@ -71,15 +70,16 @@ func NewReadManager(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb in
 	}
 
 	return &readManager{
+		object: o,
 		readers: []Reader{
-			&gcsReader,
 			&fileCacheReader,
+			&gcsReader,
 		},
 	}
 }
 
 func (rr *readManager) Object() (o *gcs.MinObject) {
-	return nil
+	return rr.object
 }
 
 func (rr *readManager) CheckInvariants() {
