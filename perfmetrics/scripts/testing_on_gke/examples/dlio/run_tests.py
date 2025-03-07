@@ -38,9 +38,7 @@ import dlio_workload
 
 
 def createHelmInstallCommands(
-    dlioWorkloads: set,
-    instanceId: str,
-    machineType: str,
+    dlioWorkloads: set, instanceId: str, machineType: str, customCSIDriver: str
 ) -> list:
   """Creates helm install commands for the given dlioWorkload objects."""
   helm_commands = []
@@ -82,6 +80,7 @@ def createHelmInstallCommands(
             f"--set resourceRequests.cpu={resourceRequests['cpu']}",
             f"--set resourceRequests.memory={resourceRequests['memory']}",
             f'--set numEpochs={dlioWorkload.numEpochs}',
+            f'--set gcsfuse.customCSIDriver={customCSIDriver}',
         ]
 
         helm_command = ' '.join(commands)
@@ -94,9 +93,7 @@ def main(args) -> None:
       args.workload_config
   )
   helmInstallCommands = createHelmInstallCommands(
-      dlioWorkloads,
-      args.instance_id,
-      args.machine_type,
+      dlioWorkloads, args.instance_id, args.machine_type, args.custom_csi_driver
   )
   buckets = [dlioWorkload.bucket for dlioWorkload in dlioWorkloads]
   role = 'roles/storage.objectUser'
