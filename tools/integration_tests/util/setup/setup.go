@@ -237,8 +237,8 @@ func UnMountBucket() {
 
 func SaveLogFileInCaseOfFailure(successCode int) {
 	if successCode != 0 {
-		// Logfile name will be gcsfuse-failed-integration-test-log-xxxxx
-		failedlogsFileName := "gcsfuse-failed-integration-test-logs-" + GenerateRandomString(5)
+		// Logfile name will be gcsfuse-failed-integration-test-logs-xxxxx
+		failedlogsFileName := GCSFuseLogFilePrefix + GenerateRandomString(5)
 		SaveLogFileToKOKOROArtifact(failedlogsFileName)
 	}
 }
