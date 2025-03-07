@@ -37,9 +37,7 @@ import fio_workload
 
 
 def createHelmInstallCommands(
-    fioWorkloads: set,
-    instanceId: str,
-    machineType: str,
+    fioWorkloads: set, instanceId: str, machineType: str, customCSIDriver: str
 ) -> list:
   """Creates helm install commands for the given fioWorkload objects."""
   helm_commands = []
@@ -81,6 +79,7 @@ def createHelmInstallCommands(
             f"--set resourceRequests.cpu={resourceRequests['cpu']}",
             f"--set resourceRequests.memory={resourceRequests['memory']}",
             f'--set numEpochs={fioWorkload.numEpochs}',
+            f'--set gcsfuse.customCSIDriver={customCSIDriver}',
         ]
 
         helm_command = ' '.join(commands)
@@ -93,9 +92,7 @@ def main(args) -> None:
       args.workload_config
   )
   helmInstallCommands = createHelmInstallCommands(
-      fioWorkloads,
-      args.instance_id,
-      args.machine_type,
+      fioWorkloads, args.instance_id, args.machine_type, args.custom_csi_driver
   )
   buckets = (fioWorkload.bucket for fioWorkload in fioWorkloads)
   role = 'roles/storage.objectUser'

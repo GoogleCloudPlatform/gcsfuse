@@ -36,8 +36,9 @@ fi
 # Utilities
 function exitWithSuccess() { exit 0; }
 function exitWithFailure() { exit 1; }
-function echoerror()  { >&2 echo "Error: "$@; }
-function exitWithError()  { echoerror $@ ; exitWithFailure ; }
+function echoerror()  { >&2 echo "Error: "$@ ; }
+function exitWithError()  { echoerror "$@" ; exitWithFailure ; }
+function returnWithError()  { echoerror "$@" ; return 1 ; }
 
 # Default values, to be used for parameters in case user does not specify them.
 # GCP related
@@ -541,6 +542,17 @@ uuid() {
   echo $(uuidgen) | sed -e "s/\-//g" ;
 }
 
+verify_csi_driver_image() {
+  if [[ $# < 1 ]]; then
+    returnWithError "No arguments passed to verify_csi_driver_image. Expected: \$1=<csi-driver-image> ."
+  fi
+  local csi_driver_image=${1}
+  echo "Checking ${csi_driver_image} ..."
+  if ! gcloud -q container images describe ${csi_driver_image} >/dev/null; then
+    returnWithError "${csi_driver_image} is not a valid GCSFuse csi driver image.  !!! Please check if you missed adding /gcs-fuse-csi-driver-sidecar-mounter before the hash. !!!"
+  fi
+}
+
 function createCustomCsiDriverIfNeeded() {
   if ${use_custom_csi_driver}; then
     echo "Disabling managed CSI driver ..."
@@ -592,9 +604,14 @@ function createCustomCsiDriverIfNeeded() {
       stagingversion=$(uuid)
       make build-image-and-push-multi-arch REGISTRY=${registry} GCSFUSE_PATH=gs://${package_bucket} STAGINGVERSION=${stagingversion}
 
-      local built_csi_driver=${registry}:${stagingversion}
-
+      readonly subregistry=gcs-fuse-csi-driver-sidecar-mounter
+      local built_csi_driver=${registry}/${subregistry}:${stagingversion}
       printf "\n\nCreated custom csi driver \" ${built_csi_driver} \" . To use it, please pass environment variable \" custom_csi_driver=${built_csi_driver} \" .\n\n"
+
+      # Verify that the csi-driver image is a good image to use..
+      echo "Verifying that ${built_csi_driver} is a valid GCSFuse csi driver image ..."
+      sleep 30
+      verify_csi_driver_image ${built_csi_driver}
 
       printf "\nInstalling the new custom CSI driver ${built_csi_driver} ...\n\n"
       make install PROJECT=${project_id} REGISTRY=${registry} STAGINGVERSION=${stagingversion}
@@ -608,7 +625,9 @@ function createCustomCsiDriverIfNeeded() {
       printf "\nSleeping 30 seconds after csi custom driver installation before deploying pods ...\n\n"
       sleep 30
     else
-      exitWithError "User passed custom_csi_driver=${custom_csi_driver}. This is currently an unsupported feature."
+      echo "User passed custom_csi_driver=${custom_csi_driver}. This will be used while running the pods."
+      echo "Verifying that ${custom_csi_driver} is a valid GCSFuse csi driver image ..."
+      verify_csi_driver_image ${custom_csi_driver}
     fi
   else
     echo ""
@@ -631,12 +650,17 @@ function deleteAllPods() {
 
 function deployAllFioHelmCharts() {
   printf "\nDeploying all fio helm charts ...\n\n"
-  cd "${gke_testing_dir}"/examples/fio && python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" --project-id=${project_id} --project-number=${project_number} --namespace=${appnamespace} --ksa=${ksa} && cd -
+  cd "${gke_testing_dir}"/examples/fio
+  python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" --project-id=${project_id} --project-number=${project_number} --namespace=${appnamespace} --ksa=${ksa} --custom-csi-driver=${custom_csi_driver}
+  cd -
 }
 
 function deployAllDlioHelmCharts() {
   printf "\nDeploying all dlio helm charts ...\n\n"
-  cd "${gke_testing_dir}"/examples/dlio && python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" --project-id=${project_id} --project-number=${project_number} --namespace=${appnamespace} --ksa=${ksa} && cd -
+  cd "${gke_testing_dir}"/examples/dlio
+  python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" --project-id=${project_id} --project-number=${project_number} --namespace=${appnamespace} --ksa=${ksa} --custom-csi-driver=${custom_csi_driver}
+
+  cd -
 }
 
 function waitTillAllPodsComplete() {
