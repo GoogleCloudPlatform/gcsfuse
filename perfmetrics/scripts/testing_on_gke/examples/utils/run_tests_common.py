@@ -106,6 +106,16 @@ def parse_args():
           ' not actually run them.'
       ),
   )
+  parser.add_argument(
+      '--custom-csi-driver',
+      metavar='custom csi driver to be used to run the pods',
+      help=(
+          'pass the full path to the custom csi driver image in the Artifact'
+          ' registry to be used to run the workloads'
+      ),
+      required=False,
+      default='',
+  )
 
   args = parser.parse_args()
   for argument in [
