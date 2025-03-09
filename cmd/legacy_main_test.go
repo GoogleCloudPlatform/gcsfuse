@@ -483,17 +483,17 @@ func (t *MainTest) TestForwardedEnvVars_NotPassedWhenUnset() {
 
 func (t *MainTest) TestGetDeviceMajorMinor() {
 	testCases := []struct {
-		name           string
-		mountPoint    string
-		expectedErr   bool
+		name        string
+		mountPoint  string
+		expectedErr bool
 	}{
 		{
-			name:         "Existing mount point",
+			name:        "Existing mount point",
 			mountPoint:  "/tmp",
 			expectedErr: false,
 		},
 		{
-			name:         "Non-existing mount point",
+			name:        "Non-existing mount point",
 			mountPoint:  "/path/to/non/existing/mountpoint",
 			expectedErr: true,
 		},

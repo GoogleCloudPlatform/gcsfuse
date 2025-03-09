@@ -1120,6 +1120,40 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Test file system max-read-ahead-kb flag enabled.",
+			args: []string{"gcsfuse", "--max-read-ahead-kb=1024", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					DirMode:            0755,
+					FileMode:           0644,
+					FuseOptions:        []string{},
+					Gid:                -1,
+					IgnoreInterrupts:   true,
+					ODirect:            false,
+					PreconditionErrors: true,
+					Uid:                -1,
+					MaxReadAheadKb:     1024,
+				},
+			},
+		},
+		{
+			name: "Test file system max-read-ahead-kb flag disabled.",
+			args: []string{"gcsfuse", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					DirMode:            0755,
+					FileMode:           0644,
+					FuseOptions:        []string{},
+					Gid:                -1,
+					IgnoreInterrupts:   true,
+					ODirect:            false,
+					PreconditionErrors: true,
+					Uid:                -1,
+					MaxReadAheadKb:     0,
+				},
+			},
+		},
 	}
 
 	for _, tc := range tests {

@@ -592,6 +592,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 					TempDir:                "",
 					PreconditionErrors:     true,
 					Uid:                    -1,
+					MaxReadAheadKb:         0,
 				},
 			},
 		},
@@ -611,6 +612,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 					TempDir:                "",
 					PreconditionErrors:     true,
 					Uid:                    -1,
+					MaxReadAheadKb:         0,
 				},
 			},
 		},
@@ -630,6 +632,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 					TempDir:                cfg.ResolvedPath(path.Join(hd, "temp")),
 					PreconditionErrors:     false,
 					Uid:                    8,
+					MaxReadAheadKb:         1024,
 				},
 				GcsConnection: cfg.GcsConnectionConfig{
 					EnableHttpDnsCache: true,

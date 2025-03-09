@@ -217,10 +217,6 @@ func getDeviceMajorMinor(mountPoint string) (major uint32, minor uint32, err err
 		return
 	}
 
-	logger.Infof("File info: %+v %s\n", fileInfo, mountPoint)
-	logger.Infof("file sys: %+v\n", fileInfo.Sys())
-	logger.Infof("file sys type: %T\n", fileInfo.Sys())
-
 	stat, ok := fileInfo.Sys().(*syscall.Stat_t)
 	if !ok {
 		err = fmt.Errorf("fileInfo.Sys() is not of type *syscall.Stat_t")
@@ -233,7 +229,7 @@ func getDeviceMajorMinor(mountPoint string) (major uint32, minor uint32, err err
 	return
 }
 
-// setMaxReadAhead sets the read ahead value for the filesystem mounted at
+// setMaxReadAhead sets the kernel-read-ahead for the filesystem mounted at
 // the given mountPoint to readAheadKb.
 func setMaxReadAhead(mountPoint string, readAheadKb int) error {
 	major, minor, err := getDeviceMajorMinor(mountPoint)
@@ -242,10 +238,8 @@ func setMaxReadAhead(mountPoint string, readAheadKb int) error {
 	}
 
 	sysPath := filepath.Join("/sys/class/bdi", fmt.Sprintf("%d:%d", major, minor), "read_ahead_kb")
-	data := fmt.Sprintf("%d\n", readAheadKb)
-
 	cmd := exec.Command("sudo", "-n", "tee", sysPath)
-	cmd.Stdin = strings.NewReader(data)
+	cmd.Stdin = strings.NewReader(fmt.Sprintf("%d\n", readAheadKb))
 
 	var stderr strings.Builder
 	cmd.Stderr = &stderr

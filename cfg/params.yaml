@@ -353,7 +353,10 @@ params:
   - config-path: "file-system.max-read-ahead-kb"
     flag-name: "max-read-ahead-kb"
     type: "int"
-    usage: "Max read ahead in KiB by kernel while performing reads."
+    usage: >-
+      Sets max kernel-read-ahead for the mount in KiB. 0 means system default.
+      Requires sudo permission to set this value, otherwise the value will be ignored
+      and system default will be used.
     default: "0"
     hide-flag: true
   
