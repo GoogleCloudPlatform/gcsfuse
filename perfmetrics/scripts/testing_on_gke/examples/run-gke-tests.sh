@@ -111,6 +111,17 @@ if ([ $# -gt 0 ] && ([ "$1" == "-help" ] || [ "$1" == "--help" ] || [ "$1" == "-
   exitWithSuccess
 fi
 
+verify_csi_driver_image() {
+  if [[ $# < 1 ]]; then
+    returnWithError "No arguments passed to verify_csi_driver_image. Expected: \$1=<csi-driver-image> ."
+  fi
+  local csi_driver_image=${1}
+  echo "Checking ${csi_driver_image} ..."
+  if ! gcloud -q container images describe ${csi_driver_image} >/dev/null; then
+    returnWithError "${csi_driver_image} is not a valid GCSFuse csi driver image.  !!! Please check if you missed adding /gcs-fuse-csi-driver-sidecar-mounter before the hash. !!!"
+  fi
+}
+
 # Set environment variables.
 # GCP related
 if test -z "${project_id}"; then
@@ -145,7 +156,9 @@ if test -z "${custom_csi_driver}"; then
     exitWithError "Unsupported value passed for use_custom_csi_driver: ${use_custom_csi_driver}. Supported values: true/false ."
   fi
 else
-  echo "User has passed custom_csi_driver as \"${custom_csi_driver}\""
+  echo "User passed custom_csi_driver=${custom_csi_driver}. This will be used this run."
+  printf "\nVerifying that ${custom_csi_driver} is a valid GCSFuse csi driver image ...\n\n"
+  verify_csi_driver_image ${custom_csi_driver}
   if test -z "${use_custom_csi_driver}"; then
     echo "use_custom_csi_driver has not been set, so setting it to true as custom_csi_driver has been set to \"${custom_csi_driver}\""
     export use_custom_csi_driver=true
@@ -542,17 +555,6 @@ uuid() {
   echo $(uuidgen) | sed -e "s/\-//g" ;
 }
 
-verify_csi_driver_image() {
-  if [[ $# < 1 ]]; then
-    returnWithError "No arguments passed to verify_csi_driver_image. Expected: \$1=<csi-driver-image> ."
-  fi
-  local csi_driver_image=${1}
-  echo "Checking ${csi_driver_image} ..."
-  if ! gcloud -q container images describe ${csi_driver_image} >/dev/null; then
-    returnWithError "${csi_driver_image} is not a valid GCSFuse csi driver image.  !!! Please check if you missed adding /gcs-fuse-csi-driver-sidecar-mounter before the hash. !!!"
-  fi
-}
-
 function createCustomCsiDriverIfNeeded() {
   if ${use_custom_csi_driver}; then
     echo "Disabling managed CSI driver ..."
@@ -624,10 +626,6 @@ function createCustomCsiDriverIfNeeded() {
       # sidecar container into the Pod spec' error.
       printf "\nSleeping 30 seconds after csi custom driver installation before deploying pods ...\n\n"
       sleep 30
-    else
-      echo "User passed custom_csi_driver=${custom_csi_driver}. This will be used while running the pods."
-      echo "Verifying that ${custom_csi_driver} is a valid GCSFuse csi driver image ..."
-      verify_csi_driver_image ${custom_csi_driver}
     fi
   else
     echo ""
