@@ -17,6 +17,7 @@
 # execute-integration-tests or execute-checkpoint-test label.
 readonly EXECUTE_PERF_TEST_LABEL="execute-perf-test"
 readonly EXECUTE_INTEGRATION_TEST_LABEL="execute-integration-tests"
+readonly EXECUTE_INTEGRATION_TEST_LABEL_ON_ZB="execute-integration-tests-on-zb"
 readonly EXECUTE_PACKAGE_BUILD_TEST_LABEL="execute-package-build-tests"
 readonly EXECUTE_CHECKPOINT_TEST_LABEL="execute-checkpoint-test"
 readonly RUN_E2E_TESTS_ON_INSTALLED_PACKAGE=false
@@ -27,20 +28,19 @@ readonly RUN_TEST_ON_TPC_ENDPOINT=false
 # This flag, if set true, will indicate to underlying script to customize for a presubmit run.
 readonly RUN_TESTS_WITH_PRESUBMIT_FLAG=true
 
-# This flag, if set true, will indicate to underlying script to run for zonal bucket(s), and not for non-zonal bucket(s).
-readonly RUN_TESTS_FOR_ZONAL_BUCKET=false
-
 curl https://api.github.com/repos/GoogleCloudPlatform/gcsfuse/pulls/$KOKORO_GITHUB_PULL_REQUEST_NUMBER >> pr.json
 perfTest=$(grep "$EXECUTE_PERF_TEST_LABEL" pr.json)
-integrationTests=$(grep "$EXECUTE_INTEGRATION_TEST_LABEL" pr.json)
+integrationTests=$(grep "\"$EXECUTE_INTEGRATION_TEST_LABEL\"" pr.json)
+integrationTestsOnZB=$(grep "\"$EXECUTE_INTEGRATION_TEST_LABEL_ON_ZB\"" pr.json)
 packageBuildTests=$(grep "$EXECUTE_PACKAGE_BUILD_TEST_LABEL" pr.json)
 checkpointTests=$(grep "$EXECUTE_CHECKPOINT_TEST_LABEL" pr.json)
 rm pr.json
 perfTestStr="$perfTest"
 integrationTestsStr="$integrationTests"
+integrationTestsOnZBStr="$integrationTestsOnZB"
 packageBuildTestsStr="$packageBuildTests"
 checkpointTestStr="$checkpointTests"
-if [[ "$perfTestStr" != *"$EXECUTE_PERF_TEST_LABEL"*  && "$integrationTestsStr" != *"$EXECUTE_INTEGRATION_TEST_LABEL"*  && "$packageBuildTestsStr" != *"$EXECUTE_PACKAGE_BUILD_TEST_LABEL"* && "$checkpointTestStr" != *"$EXECUTE_CHECKPOINT_TEST_LABEL"* ]]
+if [[ "$perfTestStr" != *"$EXECUTE_PERF_TEST_LABEL"*  && "$integrationTestsStr" != *"$EXECUTE_INTEGRATION_TEST_LABEL"*  && "$integrationTestsOnZBStr" != *"$EXECUTE_INTEGRATION_TEST_LABEL_ON_ZB"*  && "$packageBuildTestsStr" != *"$EXECUTE_PACKAGE_BUILD_TEST_LABEL"* && "$checkpointTestStr" != *"$EXECUTE_CHECKPOINT_TEST_LABEL"* ]]
 then
   echo "No need to execute tests"
   exit 0
@@ -112,15 +112,26 @@ then
  python3 ./perfmetrics/scripts/presubmit/print_results.py
 fi
 
-# Execute integration tests.
-if [[ "$integrationTestsStr" == *"$EXECUTE_INTEGRATION_TEST_LABEL"* ]];
+# Execute integration tests on zonal bucket(s).
+if test -n "${integrationTestsOnZBStr}" ;
 then
   echo checkout PR branch
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
-  echo "Running e2e tests...."
+  echo "Running e2e tests on zonal bucket(s) ..."
   # $1 argument is refering to value of testInstalledPackage.
-  ./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $BUCKET_LOCATION $RUN_TEST_ON_TPC_ENDPOINT $RUN_TESTS_WITH_PRESUBMIT_FLAG ${RUN_TESTS_FOR_ZONAL_BUCKET}
+  ./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $BUCKET_LOCATION $RUN_TEST_ON_TPC_ENDPOINT $RUN_TESTS_WITH_PRESUBMIT_FLAG true
+fi
+
+# Execute integration tests on non-zonal bucket(s).
+if test -n "${integrationTestsStr}" ;
+then
+  echo checkout PR branch
+  git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
+
+  echo "Running e2e tests on non-zonal bucket(s) ..."
+  # $1 argument is refering to value of testInstalledPackage.
+  ./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $BUCKET_LOCATION $RUN_TEST_ON_TPC_ENDPOINT $RUN_TESTS_WITH_PRESUBMIT_FLAG false
 fi
 
 # Execute package build tests.
