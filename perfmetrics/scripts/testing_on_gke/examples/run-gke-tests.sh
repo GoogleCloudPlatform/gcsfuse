@@ -611,7 +611,7 @@ function createCustomCsiDriverIfNeeded() {
       printf "\n\nCreated custom csi driver \" ${built_csi_driver} \" . To use it, please pass environment variable \" custom_csi_driver=${built_csi_driver} \" .\n\n"
 
       # Verify that the csi-driver image is a good image to use..
-      echo "Verifying that ${built_csi_driver} is a valid GCSFuse csi driver image ..."
+      printf "\nVerifying that ${built_csi_driver} is a valid GCSFuse csi driver image ...\n\n"
       sleep 30
       verify_csi_driver_image ${built_csi_driver}
 
