@@ -598,6 +598,12 @@ func (f *FileInode) writeUsingTempFile(ctx context.Context, data []byte, offset 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, offset int64) error {
 	err := f.bwh.Write(data, offset)
+	var preconditionErr *gcs.PreconditionError
+	if errors.As(err, &preconditionErr) {
+		return &gcsfuse_errors.FileClobberedError{
+			Err: fmt.Errorf("f.bwh.Write(): %w", err),
+		}
+	}
 	if err != nil && !errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
 		return fmt.Errorf("write to buffered write handler failed: %w", err)
 	}
@@ -768,7 +774,14 @@ func (f *FileInode) Sync(ctx context.Context) (gcsSynced bool, err error) {
 
 	if f.bwh != nil {
 		// bwh.Sync does not finalize the upload, so return gcsSynced as false.
-		return false, f.bwh.Sync()
+		err = f.bwh.Sync()
+		var preconditionErr *gcs.PreconditionError
+		if errors.As(err, &preconditionErr) {
+			return false, &gcsfuse_errors.FileClobberedError{
+				Err: fmt.Errorf("f.bwh.Sync(): %w", err),
+			}
+		}
+		return
 	}
 	err = f.syncUsingContent(ctx)
 	if err != nil {
