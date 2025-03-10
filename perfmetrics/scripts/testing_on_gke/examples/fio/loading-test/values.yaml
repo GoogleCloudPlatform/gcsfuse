@@ -48,4 +48,4 @@ gcsfuse:
   fileCacheCapacity: "-1"
   fileCacheForRangeRead: "true"
   mountOptions: "implicit-dirs"
-
+  customCSIDriver: ""

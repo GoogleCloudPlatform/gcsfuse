@@ -30,17 +30,15 @@ import sys
 
 # local imports from other directories
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'utils'))
-from run_tests_common import escape_commas_in_string, parse_args, run_command, add_iam_role_for_buckets
-from utils import UnknownMachineTypeError, resource_limits
+from run_tests_common import escape_commas_in_string, parse_args, add_iam_role_for_buckets
+from utils import UnknownMachineTypeError, resource_limits, run_command
 
 # local imports from same directory
 import dlio_workload
 
 
 def createHelmInstallCommands(
-    dlioWorkloads: set,
-    instanceId: str,
-    machineType: str,
+    dlioWorkloads: set, instanceId: str, machineType: str, customCSIDriver: str
 ) -> list:
   """Creates helm install commands for the given dlioWorkload objects."""
   helm_commands = []
@@ -82,6 +80,7 @@ def createHelmInstallCommands(
             f"--set resourceRequests.cpu={resourceRequests['cpu']}",
             f"--set resourceRequests.memory={resourceRequests['memory']}",
             f'--set numEpochs={dlioWorkload.numEpochs}',
+            f'--set gcsfuse.customCSIDriver={customCSIDriver}',
         ]
 
         helm_command = ' '.join(commands)
@@ -94,9 +93,7 @@ def main(args) -> None:
       args.workload_config
   )
   helmInstallCommands = createHelmInstallCommands(
-      dlioWorkloads,
-      args.instance_id,
-      args.machine_type,
+      dlioWorkloads, args.instance_id, args.machine_type, args.custom_csi_driver
   )
   buckets = [dlioWorkload.bucket for dlioWorkload in dlioWorkloads]
   role = 'roles/storage.objectUser'

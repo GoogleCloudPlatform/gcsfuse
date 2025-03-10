@@ -18,21 +18,7 @@
 import argparse
 import subprocess
 import sys
-
-
-def run_command(command: str) -> int:
-  """Runs the given string command as a subprocess.
-
-  Returns exit-code which would be non-zero for error.
-  """
-  result = subprocess.run(
-      [word for word in command.split(' ') if (word and not str.isspace(word))],
-      capture_output=True,
-      text=True,
-  )
-  print(result.stdout)
-  print(result.stderr)
-  return result.returncode
+from utils import run_command
 
 
 def escape_commas_in_string(unescapedStr: str) -> str:
@@ -105,6 +91,16 @@ def parse_args():
           'Only print out the test configurations that will run,'
           ' not actually run them.'
       ),
+  )
+  parser.add_argument(
+      '--custom-csi-driver',
+      metavar='custom csi driver to be used to run the pods',
+      help=(
+          'pass the full path to the custom csi driver image in the Artifact'
+          ' registry to be used to run the workloads'
+      ),
+      required=False,
+      default='',
   )
 
   args = parser.parse_args()
