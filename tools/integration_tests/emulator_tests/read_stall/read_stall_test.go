@@ -54,8 +54,8 @@ func (r *readStall) SetupSuite() {
 }
 
 func (r *readStall) SetupTest() {
-	var err error
 	r.proxyServerLogFile = setup.CreateProxyServerLogFile(r.T())
+	var err error
 	r.port, r.proxyProcessId, err = emulator_tests.StartProxyServer(r.configPath, r.proxyServerLogFile)
 	require.NoError(r.T(), err)
 	setup.AppendProxyEndpointToFlagSet(&r.flags, r.port)

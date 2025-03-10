@@ -46,8 +46,8 @@ type chunkTransferTimeoutInfinity struct {
 
 func (s *chunkTransferTimeoutInfinity) Setup(t *testing.T) {
 	configPath := "../proxy_server/configs/write_stall_40s.yaml"
-	var err error
 	s.proxyServerLogFile = setup.CreateProxyServerLogFile(t)
+	var err error
 	s.port, s.proxyProcessId, err = emulator_tests.StartProxyServer(configPath, s.proxyServerLogFile)
 	require.NoError(t, err)
 	setup.AppendProxyEndpointToFlagSet(&s.flags, s.port)
