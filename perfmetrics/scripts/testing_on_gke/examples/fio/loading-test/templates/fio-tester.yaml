@@ -28,6 +28,10 @@ spec:
     cloud.google.com/gke-ephemeral-storage-local-ssd: "true"
     node.kubernetes.io/instance-type: {{ .Values.nodeType }}
   containers:
+  {{- if not (eq .Values.gcsfuse.customCSIDriver "")  }}
+  - name: gke-gcsfuse-sidecar
+    image: {{ .Values.gcsfuse.customCSIDriver }}
+  {{- end }}
   - name: fio-tester
     image: {{ .Values.image }}
     ports:
