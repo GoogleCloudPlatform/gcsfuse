@@ -30,6 +30,8 @@ type Config struct {
 
 	Debug DebugConfig `yaml:"debug"`
 
+	DisableAutoconfig bool `yaml:"disable-autoconfig"`
+
 	EnableAtomicRenameObject bool `yaml:"enable-atomic-rename-object"`
 
 	EnableHns bool `yaml:"enable-hns"`
@@ -51,6 +53,8 @@ type Config struct {
 	List ListConfig `yaml:"list"`
 
 	Logging LoggingConfig `yaml:"logging"`
+
+	MachineType string `yaml:"machine-type"`
 
 	MetadataCache MetadataCacheConfig `yaml:"metadata-cache"`
 
@@ -313,6 +317,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("dir-mode", "", "0755", "Permissions bits for directories, in octal.")
 
+	flagSet.BoolP("disable-autoconfig", "", false, "Disable optimizing configuration automatically for a machine")
+
+	if err := flagSet.MarkHidden("disable-autoconfig"); err != nil {
+		return err
+	}
+
 	flagSet.BoolP("disable-parallel-dirops", "", false, "Specifies whether to allow parallel dir operations (lookups and readers)")
 
 	if err := flagSet.MarkHidden("disable-parallel-dirops"); err != nil {
@@ -462,6 +472,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.IntP("log-rotate-max-file-size-mb", "", 512, "The maximum size in megabytes that a log file can reach before it is rotated.")
 
 	flagSet.StringP("log-severity", "", "info", "Specifies the logging severity expressed as one of [trace, debug, info, warning, error, off]")
+
+	flagSet.StringP("machine-type", "", "", "Type of the machine on which gcsfuse is being run for e.g. a3-highgpu-4g")
 
 	flagSet.IntP("max-conns-per-host", "", 0, "The max number of TCP connections allowed per server. This is effective when client-protocol is set to 'http1'. A value of 0 indicates no limit on TCP connections (limited by the machine specifications).")
 
@@ -644,6 +656,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("disable-autoconfig", flagSet.Lookup("disable-autoconfig")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("file-system.disable-parallel-dirops", flagSet.Lookup("disable-parallel-dirops")); err != nil {
 		return err
 	}
@@ -805,6 +821,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("logging.severity", flagSet.Lookup("log-severity")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("machine-type", flagSet.Lookup("machine-type")); err != nil {
 		return err
 	}
 

@@ -71,6 +71,13 @@
   usage: "Print debug messages when a mutex is held too long."
   default: false
 
+- config-path: "disable-autoconfig"
+  flag-name: "disable-autoconfig"
+  type: "bool"
+  usage: "Disable optimizing configuration automatically for a machine"
+  default: false
+  hide-flag: true
+
 - config-path: "enable-atomic-rename-object"
   flag-name: "enable-atomic-rename-object"
   type: "bool"
@@ -492,6 +499,12 @@
   type: "logSeverity"
   usage: "Specifies the logging severity expressed as one of [trace, debug, info, warning, error, off]"
   default: "info"
+
+- config-path: "machine-type"
+  flag-name: "machine-type"
+  type: "string"
+  usage: "Type of the machine on which gcsfuse is being run for e.g. a3-highgpu-4g"
+  default: "" 
 
 - config-path: "metadata-cache.deprecated-stat-cache-capacity"
   flag-name: "stat-cache-capacity"
