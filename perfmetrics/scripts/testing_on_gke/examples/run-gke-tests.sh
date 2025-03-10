@@ -144,6 +144,7 @@ export appnamespace=${DEFAULT_APPNAMESPACE}
 # test -n "${ksa}" ||
 export ksa=${DEFAULT_KSA}
 
+applied_custom_csi_driver=
 if test -z "${custom_csi_driver}"; then
   echo "custom_csi_driver has not been set, so assuming \"${DEFAULT_CUSTOM_CSI_DRIVER}\" for it ..."
   export custom_csi_driver="${DEFAULT_CUSTOM_CSI_DRIVER}"
@@ -163,10 +164,11 @@ else
     echo "use_custom_csi_driver has not been set, so setting it to true as custom_csi_driver has been set to \"${custom_csi_driver}\""
     export use_custom_csi_driver=true
   elif [[ ${use_custom_csi_driver} = "false" ]]; then
-    echo "User has disabled use_custom_csi_driver, while passing a custom_csi_driver, so over-riding use_custom_csi_driver to true ."
+    exitWithError "User has disabled use_custom_csi_driver, while passing a custom_csi_driver. This is unsupported."
   elif [[ ${use_custom_csi_driver} != "true" ]]; then
-    exitWithError "Unsupported value passed for use_custom_csi_driver: ${use_custom_csi_driver}. Supported values: true/false ."
+    exitWithError "Unsupported value passed for use_custom_csi_driver: ${use_custom_csi_driver}. Supported values: true or false ."
   fi
+  applied_custom_csi_driver=${custom_csi_driver}
 fi
 
 test -n "${gcsfuse_branch}" || export gcsfuse_branch="${DEFAULT_GCSFUSE_BRANCH}"
@@ -500,20 +502,12 @@ function ensureRequiredNodePoolConfiguration() {
   fi
 }
 
-function enableManagedCsiDriverIfNeeded() {
-  if ${use_custom_csi_driver}; then
-    printf "\nDisabling csi add-on ...\n\n"
-    gcloud -q container clusters update ${cluster_name} \
-    --project=${project_id} \
-    --update-addons GcsFuseCsiDriver=DISABLED \
-    --location=${zone}
-  else
+function enableManagedCsiDriver() {
     printf "\nEnabling csi add-on ...\n\n"
     gcloud -q container clusters update ${cluster_name} \
       --project=${project_id} \
       --update-addons GcsFuseCsiDriver=ENABLED \
       --location=${zone}
-  fi
 }
 
 function activateCluster() {
@@ -556,81 +550,61 @@ uuid() {
 }
 
 function createCustomCsiDriverIfNeeded() {
-  if ${use_custom_csi_driver}; then
-    echo "Disabling managed CSI driver ..."
-    gcloud -q container clusters update ${cluster_name} --project=${project_id} --update-addons GcsFuseCsiDriver=DISABLED --location=${zone}
+  if ${use_custom_csi_driver} && test -z "${applied_custom_csi_driver}"; then
+    printf "\nCreating a new custom CSI driver ...\n\n"
 
-    if test -z "${custom_csi_driver}"; then
-      printf "\nCreating a new custom CSI driver ...\n\n"
-
-      # Create a bucket (if needed) for storing GCSFuse binaries.
-      if test -z "${package_bucket}"; then
-        package_bucket=${project_id}-${cluster_name}-gcsfuse-bin
-        package_bucket=${package_bucket/google/}
-      fi
-      if [[ ${#package_bucket} -gt 63 ]] ; then
-        echoerror "package_bucket \"${package_bucket}\" is too long (should be <= 63)"
-        return 1
-      fi
-      # If package_bucket does not already exist, create it.
-      if (! (gcloud storage buckets list --project=${project_id} | grep -wqo ${package_bucket}) ); then
-        region=$(echo ${zone} | rev | cut -d- -f2- | rev)
-        gcloud storage buckets create gs://${package_bucket} --project=${project_id} --location=${region}
-      fi
-
-      # Build new gcsfuse binaries.
-      printf "\nBuilding a new GCSFuse binary from ${gcsfuse_src_dir} ...\n\n"
-      cd "${gcsfuse_src_dir}"
-      rm -rfv ./bin ./sbin
-      GOOS=linux GOARCH=amd64 go run tools/build_gcsfuse/main.go . . v3
-      # Copy the binary to a GCS bucket for csi driver build.
-      gcloud storage -q cp ./bin/gcsfuse gs://${package_bucket}/linux/amd64/
-      gcloud storage -q cp gs://${package_bucket}/linux/amd64/gcsfuse gs://${package_bucket}/linux/arm64/ # needed as build on arm64 doesn't work on cloudtop.
-      # clean-up
-      rm -rfv "${gcsfuse_src_dir}"/bin "${gcsfuse_src_dir}"/sbin
-      cd -
-
-      # Build and install csi driver
-      ensureGcsFuseCsiDriverCode
-      cd "${csi_src_dir}"
-      make uninstall || true
-      make generate-spec-yaml
-      printf "\nBuilding a new custom CSI driver using the above GCSFuse binary ...\n\n"
-      registry=gcr.io/${project_id}/${USER}/${cluster_name}
-      if ! which uuidgen; then
-        # try to install uuidgen
-        sudo apt-get update && sudo apt-get install -y uuid-runtime
-        # confirm that it got installed.
-        which uuidgen
-      fi
-      stagingversion=$(uuid)
-      make build-image-and-push-multi-arch REGISTRY=${registry} GCSFUSE_PATH=gs://${package_bucket} STAGINGVERSION=${stagingversion}
-
-      readonly subregistry=gcs-fuse-csi-driver-sidecar-mounter
-      local built_csi_driver=${registry}/${subregistry}:${stagingversion}
-      printf "\n\nCreated custom csi driver \" ${built_csi_driver} \" . To use it, please pass environment variable \" custom_csi_driver=${built_csi_driver} \" .\n\n"
-
-      # Verify that the csi-driver image is a good image to use..
-      printf "\nVerifying that ${built_csi_driver} is a valid GCSFuse csi driver image ...\n\n"
-      sleep 30
-      verify_csi_driver_image ${built_csi_driver}
-
-      printf "\nInstalling the new custom CSI driver ${built_csi_driver} ...\n\n"
-      make install PROJECT=${project_id} REGISTRY=${registry} STAGINGVERSION=${stagingversion}
-      cd -
-
-      printf "\n\nInstalled custom csi driver \" ${built_csi_driver} \" . To use it, please pass environment variable \" custom_csi_driver=${built_csi_driver} \" .\n\n"
-
-      # Wait some time after csi driver installation before deploying pods
-      # to avoid failures caused by 'the webhook failed to inject the
-      # sidecar container into the Pod spec' error.
-      printf "\nSleeping 30 seconds after csi custom driver installation before deploying pods ...\n\n"
-      sleep 30
+    # Create a bucket (if needed) for storing GCSFuse binaries.
+    if test -z "${package_bucket}"; then
+      package_bucket=${project_id}-${cluster_name}-gcsfuse-bin
+      package_bucket=${package_bucket/google/}
     fi
-  else
-    echo ""
-    echo "Enabling managed CSI driver ..."
-    gcloud -q container clusters update ${cluster_name} --project=${project_id} --update-addons GcsFuseCsiDriver=ENABLED --location=${zone}
+    if [[ ${#package_bucket} -gt 63 ]] ; then
+      echoerror "package_bucket \"${package_bucket}\" is too long (should be <= 63)"
+      return 1
+    fi
+    # If package_bucket does not already exist, create it.
+    if (! (gcloud storage buckets list --project=${project_id} | grep -wqo ${package_bucket}) ); then
+      region=$(echo ${zone} | rev | cut -d- -f2- | rev)
+      gcloud storage buckets create gs://${package_bucket} --project=${project_id} --location=${region}
+    fi
+
+    # Build new gcsfuse binaries.
+    printf "\nBuilding a new GCSFuse binary from ${gcsfuse_src_dir} ...\n\n"
+    cd "${gcsfuse_src_dir}"
+    rm -rfv ./bin ./sbin
+    GOOS=linux GOARCH=amd64 go run tools/build_gcsfuse/main.go . . v3
+    # Copy the binary to a GCS bucket for csi driver build.
+    gcloud storage -q cp ./bin/gcsfuse gs://${package_bucket}/linux/amd64/
+    gcloud storage -q cp gs://${package_bucket}/linux/amd64/gcsfuse gs://${package_bucket}/linux/arm64/ # needed as build on arm64 doesn't work on cloudtop.
+    # clean-up
+    rm -rfv "${gcsfuse_src_dir}"/bin "${gcsfuse_src_dir}"/sbin
+    cd -
+
+    # Build and install csi driver
+    ensureGcsFuseCsiDriverCode
+    cd "${csi_src_dir}"
+    make generate-spec-yaml
+    printf "\nBuilding a new custom CSI driver using the above GCSFuse binary ...\n\n"
+    registry=gcr.io/${project_id}/${USER}/${cluster_name}
+    if ! which uuidgen; then
+      # try to install uuidgen
+      sudo apt-get update && sudo apt-get install -y uuid-runtime
+      # confirm that it got installed.
+      which uuidgen
+    fi
+    stagingversion=$(uuid)
+    make build-image-and-push-multi-arch REGISTRY=${registry} GCSFUSE_PATH=gs://${package_bucket} STAGINGVERSION=${stagingversion}
+
+    readonly subregistry=gcs-fuse-csi-driver-sidecar-mounter
+    applied_custom_csi_driver=${registry}/${subregistry}:${stagingversion}
+    printf "\n\nCreated custom csi driver \" ${applied_custom_csi_driver} \" . To use it in future runs, please pass environment variable \" custom_csi_driver=${applied_custom_csi_driver} \" .\n\n"
+
+    # Verify that the csi-driver image is a good image to use..
+    printf "\nVerifying that ${applied_custom_csi_driver} is a valid GCSFuse csi driver image ...\n\n"
+    sleep 30
+    verify_csi_driver_image ${applied_custom_csi_driver}
+
+    cd -
   fi
 }
 
@@ -649,14 +623,14 @@ function deleteAllPods() {
 function deployAllFioHelmCharts() {
   printf "\nDeploying all fio helm charts ...\n\n"
   cd "${gke_testing_dir}"/examples/fio
-  python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" --project-id=${project_id} --project-number=${project_number} --namespace=${appnamespace} --ksa=${ksa} --custom-csi-driver=${custom_csi_driver}
+  python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" --project-id=${project_id} --project-number=${project_number} --namespace=${appnamespace} --ksa=${ksa} --custom-csi-driver=${applied_custom_csi_driver}
   cd -
 }
 
 function deployAllDlioHelmCharts() {
   printf "\nDeploying all dlio helm charts ...\n\n"
   cd "${gke_testing_dir}"/examples/dlio
-  python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" --project-id=${project_id} --project-number=${project_number} --namespace=${appnamespace} --ksa=${ksa} --custom-csi-driver=${custom_csi_driver}
+  python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" --project-id=${project_id} --project-number=${project_number} --namespace=${appnamespace} --ksa=${ksa} --custom-csi-driver=${applied_custom_csi_driver}
 
   cd -
 }
@@ -695,8 +669,13 @@ function waitTillAllPodsComplete() {
       break
     else
       message="\n${num_noncompleted_pods} pod(s) is/are still pending/running (time till timeout=${time_till_timeout} seconds). Will check again in "${pod_wait_time_in_seconds}" seconds. Sleeping for now.\n\n"
-      message+="\nYou can take a break too if you want. Just kill this run and connect back to it later, for fetching and parsing outputs, using the following command: \n"
-      message+="   only_parse=true instance_id=${instance_id} project_id=${project_id} project_number=${project_number} zone=${zone} machine_type=${machine_type} use_custom_csi_driver=${use_custom_csi_driver} gcsfuse_src_dir=\"${gcsfuse_src_dir}\" "
+      message+="\nYou can take a break too if you want. Just kill this run and connect back to it later, for fetching and parsing outputs, using the following command: \n\n"
+      message+="   only_parse=true instance_id=${instance_id} project_id=${project_id} project_number=${project_number} zone=${zone} machine_type=${machine_type}"
+      message+=" use_custom_csi_driver=${use_custom_csi_driver}"
+      if test -n "${custom_csi_driver}"; then
+        message+=" custom_csi_driver=${custom_csi_driver}"
+      fi
+      message+=" gcsfuse_src_dir=\"${gcsfuse_src_dir}\" "
       if test -d "${csi_src_dir}"; then
         message+="csi_src_dir=\"${csi_src_dir}\" "
       fi
@@ -745,7 +724,7 @@ if test -z ${only_parse} || ! ${only_parse} ; then
   ensureGcpAuthsAndConfig
   ensureGkeCluster
   # ensureRequiredNodePoolConfiguration
-  enableManagedCsiDriverIfNeeded
+  enableManagedCsiDriver
   activateCluster
   createKubernetesServiceAccountForCluster
 
@@ -770,3 +749,7 @@ deleteAllPods
 # parse outputs
 fetchAndParseFioOutputs
 fetchAndParseDlioOutputs
+
+if test -z "${custom_csi_driver}" && test -n "${applied_custom_csi_driver}"; then
+  printf "\nTo reuse this custom CSI driver in future runs, pass environment variable \" custom_csi_driver=${applied_custom_csi_driver} \" .\n\n"
+fi
