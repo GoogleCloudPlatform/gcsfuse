@@ -141,17 +141,14 @@ func getMachineType(isSet isValueSet) (string, error) {
 			if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusTooManyRequests {
 				if retry < maxRetries {
 					delay := time.Duration(float64(initialDelay) * math.Pow(2, float64(retry)))
-					fmt.Fprintf(os.Stderr, "Warning: Metadata server %s returned quota error: %d, retrying in %v\n", endpoint, resp.StatusCode, delay)
 					time.Sleep(delay)
 					break // Retry the request.
 				} else {
-					fmt.Fprintf(os.Stderr, "Warning: Metadata server %s returned quota error: %d, max retries reached\n", endpoint, resp.StatusCode)
 					return "", fmt.Errorf("metadata server %s returned quota error: %d, max retries reached", endpoint, resp.StatusCode)
 				}
 			}
 
 			if resp.StatusCode != http.StatusOK {
-				fmt.Fprintf(os.Stderr, "Warning: Metadata server %s returned non-200 status: %d\n", endpoint, resp.StatusCode)
 				continue
 			}
 
@@ -183,8 +180,6 @@ func ApplyMachineTypeOptimizations(config *OptimizationConfig, cfg *Config, isSe
 	for _, mt := range config.MachineTypes {
 		for _, name := range mt.Names {
 			if strings.HasPrefix(machineType, name) {
-				fmt.Fprintf(os.Stderr, "Detected machine type: %s, applying optimizations.\n", machineType)
-
 				// Find the FlagOverrideSet.
 				var flagOverrideSet *FlagOverrideSet
 				for i := range config.FlagOverrideSets {
@@ -211,16 +206,13 @@ func ApplyMachineTypeOptimizations(config *OptimizationConfig, cfg *Config, isSe
 		}
 	}
 
-	fmt.Fprintf(os.Stderr, "Machine type %s not found in optimization config, using default settings.\n", machineType)
 	return nil
 }
 
 // Optimize applies machine type optimizations using the default configuration.
 func Optimize(cfg *Config, isSet isValueSet) error {
 	// Check if disable-autoconfig is set to true.
-	fmt.Fprintf(os.Stderr, "Value of disable-autoconfig: %v\n", isSet.GetBool("disable-autoconfig"))
 	if isSet.GetBool("disable-autoconfig") {
-		fmt.Fprintf(os.Stderr, "Value of disable-autoconfig: %v, returning now\n", isSet.GetBool("disable-autoconfig"))
 		return nil
 	}
 	return ApplyMachineTypeOptimizations(&DefaultOptimizationConfig, cfg, isSet)

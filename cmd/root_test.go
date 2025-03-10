@@ -275,6 +275,13 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
 			expectedWriteMaxBlocksPerFile: 10,
 		},
+		{
+			name:                          "Test high performance config values.",
+			args:                          []string{"gcsfuse", "--machine-type=a3-highgpu-4g", "abc", "pqr"},
+			expectedEnableStreamingWrites: true,
+			expectedWriteBlockSizeMB:      32 * util.MiB,
+			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
+		},
 	}
 
 	for _, tc := range tests {
