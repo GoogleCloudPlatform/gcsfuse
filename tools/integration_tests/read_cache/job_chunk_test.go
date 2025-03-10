@@ -51,7 +51,8 @@ func (s *jobChunkTest) Setup(t *testing.T) {
 }
 
 func (s *jobChunkTest) Teardown(t *testing.T) {
-	setup.UnmountGCSFuseAndSaveLogFilesInCaseOfFailure(t, rootDir)
+	setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+	setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 }
 
 func createConfigFileForJobChunkTest(cacheSize int64, cacheFileForRangeRead bool, fileName string, parallelDownloadsPerFile, maxParallelDownloads, downloadChunkSizeMB int, clientProtocol string) string {

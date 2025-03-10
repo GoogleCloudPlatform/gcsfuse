@@ -48,7 +48,8 @@ func (s *smallCacheTTLTest) Setup(t *testing.T) {
 }
 
 func (s *smallCacheTTLTest) Teardown(t *testing.T) {
-	setup.UnmountGCSFuseAndSaveLogFilesInCaseOfFailure(t, rootDir)
+	setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+	setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 }
 
 ////////////////////////////////////////////////////////////////////////

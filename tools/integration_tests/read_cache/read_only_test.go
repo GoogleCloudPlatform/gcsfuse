@@ -45,7 +45,8 @@ func (s *readOnlyTest) Setup(t *testing.T) {
 }
 
 func (s *readOnlyTest) Teardown(t *testing.T) {
-	setup.UnmountGCSFuseAndSaveLogFilesInCaseOfFailure(t, rootDir)
+	setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+	setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 }
 
 ////////////////////////////////////////////////////////////////////////

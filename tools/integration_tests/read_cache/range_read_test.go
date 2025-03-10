@@ -47,7 +47,8 @@ func (s *rangeReadTest) Setup(t *testing.T) {
 }
 
 func (s *rangeReadTest) Teardown(t *testing.T) {
-	setup.UnmountGCSFuseAndSaveLogFilesInCaseOfFailure(t, rootDir)
+	setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+	setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 }
 
 ////////////////////////////////////////////////////////////////////////

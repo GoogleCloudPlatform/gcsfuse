@@ -168,7 +168,7 @@ func validateFileIsNotCached(fileName string, t *testing.T) {
 
 func remountGCSFuse(flags []string, t *testing.T) {
 	setup.SetMntDir(rootDir)
-	setup.UnmountGCSFuseAndSaveLogFilesInCaseOfFailure(t, rootDir)
+	setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 	setup.SetMntDir(mountDir)
