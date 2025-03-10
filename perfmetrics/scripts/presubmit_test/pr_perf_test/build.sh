@@ -27,8 +27,8 @@ readonly RUN_TEST_ON_TPC_ENDPOINT=false
 # This flag, if set true, will indicate to underlying script to customize for a presubmit run.
 readonly RUN_TESTS_WITH_PRESUBMIT_FLAG=true
 
-# This flag, if set true, will indicate to underlying script to also run for zonal buckets.
-readonly RUN_TESTS_FOR_ZONAL_BUCKET=true
+# This flag, if set true, will indicate to underlying script to run for zonal bucket(s), and not for non-zonal bucket(s).
+readonly RUN_TESTS_FOR_ZONAL_BUCKET=false
 
 curl https://api.github.com/repos/GoogleCloudPlatform/gcsfuse/pulls/$KOKORO_GITHUB_PULL_REQUEST_NUMBER >> pr.json
 perfTest=$(grep "$EXECUTE_PERF_TEST_LABEL" pr.json)
