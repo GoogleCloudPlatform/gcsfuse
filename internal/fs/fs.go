@@ -2019,82 +2019,61 @@ func (fs *fileSystem) Rename(
 		}
 	}
 
-	// If object to be renamed is a local file inode (un-synced), rename operation is not supported.
-	localChild, err := fs.lookUpLocalFileInode(oldParent, op.OldName)
-	if err != nil {
-		return err
-	}
-	if localChild != nil {
-		fs.unlockAndDecrementLookupCount(localChild, 1)
-		return fmt.Errorf("cannot rename open file %q: %w", op.OldName, syscall.ENOTSUP)
-	}
-
-	// Else find the object in the old location (on GCS).
-	oldParent.Lock()
-	child, err := oldParent.LookUpChild(ctx, op.OldName)
-	oldParent.Unlock()
-
-	if err != nil {
-		err = fmt.Errorf("LookUpChild: %w", err)
-		return err
-	}
-
+	child, err := fs.lookUpOrCreateChildInode(ctx, oldParent, op.OldName)
 	if child == nil {
-		err = fuse.ENOENT
-		return err
+		return fuse.ENOENT
+	}
+	child.DecrementLookupCount(1)
+	child.Unlock()
+
+	childBktOwned, ok := child.(inode.BucketOwnedInode)
+	if !ok { // Won't happen in ideal case.
+		return fmt.Errorf("child inode is not owned by any bucket")
 	}
 
-	if child.FullName.IsDir() {
+	if child.Name().IsDir() {
 		// If 'enable-hns' flag is false, the bucket type is set to 'NonHierarchical' even for HNS buckets because the control client is nil.
 		// Therefore, an additional 'enable hns' check is not required here.
-		if child.Bucket.BucketType().Hierarchical {
+		if childBktOwned.Bucket().BucketType().Hierarchical {
 			return fs.renameHierarchicalDir(ctx, oldParent, op.OldName, newParent, op.NewName)
 		}
 		return fs.renameNonHierarchicalDir(ctx, oldParent, op.OldName, newParent, op.NewName)
 	}
-
-	return fs.renameFile(ctx, op, child, oldParent, newParent)
+	childFileInode, ok := child.(*inode.FileInode)
+	if !ok {
+		return fmt.Errorf("neither file not directory inode")
+	}
+	// If object to be renamed is a local file inode (un-synced), rename operation is not supported.
+	if childFileInode.IsLocal() && !fs.newConfig.Write.EnableStreamingWrites {
+		return fmt.Errorf("cannot rename open file %q: %w", op.OldName, syscall.ENOTSUP)
+	}
+	return fs.renameFile(ctx, op, childFileInode, oldParent, newParent)
 }
 
 // LOCKS_EXCLUDED(oldParent)
 // LOCKS_EXCLUDED(newParent)
-func (fs *fileSystem) renameFile(ctx context.Context, op *fuseops.RenameOp, child *inode.Core, oldParent inode.DirInode, newParent inode.DirInode) error {
-	updatedMinObject, err := fs.flushPendingWrites(ctx, child)
+func (fs *fileSystem) renameFile(ctx context.Context, op *fuseops.RenameOp, oldObject *inode.FileInode, oldParent, newParent inode.DirInode) error {
+	// flush pending writes from streaming writes before rename operation.
+	updatedObject, err := fs.flushPendingBufferedWrites(ctx, oldObject)
 	if err != nil {
-		return fmt.Errorf("flushPendingWrites error :%v", err)
+		return fmt.Errorf("flushPendingBufferedWrites: %w", err)
 	}
-
-	if (child.Bucket.BucketType().Hierarchical && fs.enableAtomicRenameObject) || child.Bucket.BucketType().Zonal {
-		return fs.renameHierarchicalFile(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)
+	if (oldObject.Bucket().BucketType().Hierarchical && fs.enableAtomicRenameObject) || oldObject.Bucket().BucketType().Zonal {
+		return fs.renameHierarchicalFile(ctx, oldParent, op.OldName, updatedObject, newParent, op.NewName)
 	}
-	return fs.renameNonHierarchicalFile(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)
+	return fs.renameNonHierarchicalFile(ctx, oldParent, op.OldName, updatedObject, newParent, op.NewName)
 }
 
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_EXCLUDED(fileInode)
-func (fs *fileSystem) flushPendingWrites(ctx context.Context, child *inode.Core) (minObject *gcs.MinObject, err error) {
+func (fs *fileSystem) flushPendingBufferedWrites(ctx context.Context, fileInode *inode.FileInode) (minObject *gcs.MinObject, err error) {
 	// We will return modified minObject if flush is done, otherwise the original
 	// minObject is returned. Original minObject is the one passed in the request.
-	minObject = child.MinObject
+	fileInode.Lock()
+	minObject = fileInode.Source()
+	fileInode.Unlock()
+
 	if !fs.newConfig.Write.EnableStreamingWrites {
-		return
-	}
-
-	fs.mu.Lock()
-	existingInode, ok := fs.generationBackedInodes[child.FullName]
-	fs.mu.Unlock()
-	// If this is not an existing file, then nothing to do.
-	// We shouldn't hit scenario ideally since we checked for local file and
-	// explicit-dirs (flat bucket) before reaching this step.
-	if !ok {
-		logger.Warnf("Encountered a non-fileInode in rename file path %d", existingInode.ID())
-		return
-	}
-
-	fileInode, isFileInode := existingInode.(*inode.FileInode)
-	// Same as above comment. This should be a file for sure.
-	if !isFileInode {
-		logger.Errorf("Encountered a non-fileInode in rename file path %d", existingInode.ID())
 		return
 	}
 
