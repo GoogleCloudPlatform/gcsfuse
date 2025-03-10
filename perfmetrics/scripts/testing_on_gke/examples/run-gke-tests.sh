@@ -503,11 +503,11 @@ function ensureRequiredNodePoolConfiguration() {
 }
 
 function enableManagedCsiDriver() {
-    printf "\nEnabling csi add-on ...\n\n"
-    gcloud -q container clusters update ${cluster_name} \
-      --project=${project_id} \
-      --update-addons GcsFuseCsiDriver=ENABLED \
-      --location=${zone}
+  printf "\nEnabling csi add-on ...\n\n"
+  gcloud -q container clusters update ${cluster_name} \
+    --project=${project_id} \
+    --update-addons GcsFuseCsiDriver=ENABLED \
+    --location=${zone}
 }
 
 function activateCluster() {
