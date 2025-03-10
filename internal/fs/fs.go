@@ -2043,6 +2043,7 @@ func (fs *fileSystem) Rename(
 	if !ok {
 		return fmt.Errorf("neither file not directory inode")
 	}
+	// If object to be renamed is a local file inode (un-synced), rename operation is not supported.
 	if childFileInode.IsLocal() && !fs.newConfig.Write.EnableStreamingWrites {
 		return fmt.Errorf("cannot rename open file %q: %w", op.OldName, syscall.ENOTSUP)
 	}
