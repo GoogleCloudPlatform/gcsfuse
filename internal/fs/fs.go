@@ -2053,7 +2053,7 @@ func (fs *fileSystem) Rename(
 // LOCKS_EXCLUDED(newParent)
 func (fs *fileSystem) renameFile(ctx context.Context, op *fuseops.RenameOp, oldObject *inode.FileInode, oldParent, newParent inode.DirInode) error {
 	// flush pending writes from streaming writes before rename operation.
-	updatedObject, err := fs.flushPendingWrites(ctx, oldObject)
+	updatedObject, err := fs.flushPendingBufferedWrites(ctx, oldObject)
 	if err != nil {
 		return fmt.Errorf("flushPendingBufferedWrites: %w", err)
 	}
@@ -2065,7 +2065,7 @@ func (fs *fileSystem) renameFile(ctx context.Context, op *fuseops.RenameOp, oldO
 
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_EXCLUDED(fileInode)
-func (fs *fileSystem) flushPendingWrites(ctx context.Context, fileInode *inode.FileInode) (minObject *gcs.MinObject, err error) {
+func (fs *fileSystem) flushPendingBufferedWrites(ctx context.Context, fileInode *inode.FileInode) (minObject *gcs.MinObject, err error) {
 	// We will return modified minObject if flush is done, otherwise the original
 	// minObject is returned. Original minObject is the one passed in the request.
 	fileInode.Lock()
