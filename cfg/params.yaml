@@ -504,7 +504,8 @@
   flag-name: "machine-type"
   type: "string"
   usage: "Type of the machine on which gcsfuse is being run for e.g. a3-highgpu-4g"
-  default: "" 
+  default: ""
+  hide-flag: true
 
 - config-path: "metadata-cache.deprecated-stat-cache-capacity"
   flag-name: "stat-cache-capacity"
