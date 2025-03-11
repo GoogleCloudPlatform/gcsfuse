@@ -15,7 +15,6 @@ package cfg
 import (
 	"fmt"
 	"io"
-	"math"
 	"net/http"
 	"os"
 	"reflect"
@@ -29,9 +28,8 @@ import (
 ////////////////////////////////////////////////////////////////////////
 
 const (
-	maxRetries   = 1
-	initialDelay = 10 * time.Millisecond
-	httpTimeout  = 10 * time.Millisecond
+	maxRetries  = 2
+	httpTimeout = 5 * time.Millisecond
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -139,8 +137,6 @@ func getMachineType(isSet isValueSet) (string, error) {
 
 			if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusTooManyRequests {
 				if retry < maxRetries {
-					delay := time.Duration(float64(initialDelay) * math.Pow(2, float64(retry)))
-					time.Sleep(delay)
 					break // Retry the request.
 				} else {
 					return "", fmt.Errorf("metadata server %s returned quota error: %d, max retries reached", endpoint, resp.StatusCode)
