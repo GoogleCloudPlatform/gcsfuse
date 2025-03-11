@@ -2031,7 +2031,7 @@ func (fs *fileSystem) Rename(
 
 	childBktOwned, ok := child.(inode.BucketOwnedInode)
 	if !ok { // Won't happen in ideal case.
-		return fmt.Errorf("child inode (id %v) is neither file nor directory inode", child.ID())
+		return fmt.Errorf("child inode (id %v) is not owned by any bucket", child.ID())
 	}
 
 	if child.Name().IsDir() {
@@ -2044,7 +2044,7 @@ func (fs *fileSystem) Rename(
 	}
 	childFileInode, ok := child.(*inode.FileInode)
 	if !ok {
-		return fmt.Errorf("neither file not directory inode")
+		return fmt.Errorf("child inode (id %v) is neither file nor directory inode", child.ID())
 	}
 	// TODO(b/402335988): Fix rename flow for local files when streaming writes is disabled.
 	// If object to be renamed is a local file inode and streaming writes are disabled, rename operation is not supported.
