@@ -277,7 +277,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 		},
 		{
 			name:                          "Test high performance config values.",
-			args:                          []string{"gcsfuse", "--machine-type=a3-highgpu-4g", "abc", "pqr"},
+			args:                          []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "abc", "pqr"},
 			expectedEnableStreamingWrites: true,
 			expectedWriteBlockSizeMB:      32 * util.MiB,
 			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
