@@ -92,7 +92,7 @@ var (
 		MachineTypes: []MachineType{
 			{
 				Names: []string{
-					"a2-megagpu-16g", "a2-ultragpu-8g", "a3-edgegpu-8g", "a3-highgpu-8g", "a3-megagpu-8g", "a3-ultragpu-8g", "a3-ultragpu-8g-nolssd", "a4-highgpu-8g-lowmem",
+					"a2-megagpu-16g", "a2-ultragpu-8g", "a3-edgegpu-8g", "a3-highgpu-8g", "a3-megagpu-8g", "a3-ultragpu-8g", "a4-highgpu-8g-lowmem",
 					"ct5l-hightpu-8t", "ct5lp-hightpu-8t", "ct5p-hightpu-4t", "ct5p-hightpu-4t-tpu", "ct6e-standard-4t", "ct6e-standard-4t-tpu", "ct6e-standard-8t", "ct6e-standard-8t-tpu"},
 				FlagOverrideSetName: "high-performance",
 			},
