@@ -30,8 +30,8 @@ import (
 
 const (
 	maxRetries   = 3
-	initialDelay = 100 * time.Millisecond
-	httpTimeout  = 5 * time.Second
+	initialDelay = 25 * time.Millisecond
+	httpTimeout  = 50 * time.Millisecond
 )
 
 ////////////////////////////////////////////////////////////////////////
