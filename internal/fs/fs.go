@@ -2070,15 +2070,11 @@ func (fs *fileSystem) flushPendingBufferedWrites(ctx context.Context, fileInode 
 	// We will return modified minObject if flush is done, otherwise the original
 	// minObject is returned. Original minObject is the one passed in the request.
 	fileInode.Lock()
+	defer fileInode.Unlock()
 	minObject = fileInode.Source()
-	fileInode.Unlock()
-
 	if !fs.newConfig.Write.EnableStreamingWrites {
 		return
 	}
-
-	fileInode.Lock()
-	defer fileInode.Unlock()
 	// Try to flush if there are any pending writes.
 	err = fs.flushFile(ctx, fileInode)
 	minObject = fileInode.Source()
