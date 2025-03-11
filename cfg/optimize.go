@@ -17,7 +17,6 @@ import (
 	"io"
 	"math"
 	"net/http"
-	"os"
 	"reflect"
 	"strings"
 	"time"
@@ -132,7 +131,7 @@ func getMachineType(isSet isValueSet) (string, error) {
 
 			resp, err := client.Do(req)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Warning: Failed to get machine type from %s: %v\n", endpoint, err)
+				// fmt.Fprintf(os.Stderr, "Warning: Failed to get machine type from %s: %v\n", endpoint, err)
 				continue // Try the next endpoint.
 			}
 			defer resp.Body.Close()
@@ -172,7 +171,7 @@ func getMachineType(isSet isValueSet) (string, error) {
 func ApplyMachineTypeOptimizations(config *OptimizationConfig, cfg *Config, isSet isValueSet) error {
 	machineType, err := getMachineType(isSet)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: Failed to get machine type from metadata server: %v\n", err)
+		// fmt.Fprintf(os.Stderr, "Warning: Failed to get machine type from metadata server: %v\n", err)
 		return nil // Non-fatal error, continue with default settings.
 	}
 
@@ -189,7 +188,7 @@ func ApplyMachineTypeOptimizations(config *OptimizationConfig, cfg *Config, isSe
 				}
 
 				if flagOverrideSet == nil {
-					fmt.Fprintf(os.Stderr, "Warning: FlagOverrideSet %s not found for machine type %s.\n", mt.FlagOverrideSetName, mt.Names)
+					// fmt.Fprintf(os.Stderr, "Warning: FlagOverrideSet %s not found for machine type %s.\n", mt.FlagOverrideSetName, mt.Names)
 					continue
 				}
 
@@ -197,7 +196,7 @@ func ApplyMachineTypeOptimizations(config *OptimizationConfig, cfg *Config, isSe
 					// Use reflection to find the field in ServerConfig.
 					err := setFlagValue(cfg, flag, override, isSet)
 					if err != nil {
-						fmt.Fprintf(os.Stderr, "Warning: Failed to set flag %s: %v\n", flag, err)
+						// fmt.Fprintf(os.Stderr, "Warning: Failed to set flag %s: %v\n", flag, err)
 					}
 				}
 				return nil // Applied optimizations, no need to check other machine types.
