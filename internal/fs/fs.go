@@ -2067,7 +2067,6 @@ func (fs *fileSystem) renameFile(ctx context.Context, op *fuseops.RenameOp, oldO
 	return fs.renameNonHierarchicalFile(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)
 }
 
-// LOCKS_EXCLUDED(fs.mu)
 // LOCKS_EXCLUDED(fileInode)
 func (fs *fileSystem) flushPendingWrites(ctx context.Context, fileInode *inode.FileInode) (minObject *gcs.MinObject, err error) {
 	// We will return modified minObject if flush is done, otherwise the original
