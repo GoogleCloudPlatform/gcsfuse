@@ -29,7 +29,7 @@ import (
 
 const (
 	maxRetries  = 2
-	httpTimeout = 5 * time.Millisecond
+	httpTimeout = 50 * time.Millisecond
 )
 
 ////////////////////////////////////////////////////////////////////////
