@@ -102,9 +102,9 @@ var (
 	}
 
 	// metadataEndpoints are the endpoints to try for fetching metadata.
+	// Use an array to make provision for https endpoint in the future: https://cloud.google.com/compute/docs/metadata/querying-metadata#metadata_server_endpoints
 	metadataEndpoints = []string{
 		"http://metadata.google.internal/computeMetadata/v1/instance/machine-type",
-		"https://metadata.google.internal/computeMetadata/v1/instance/machine-type",
 	}
 )
 

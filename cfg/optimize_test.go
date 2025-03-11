@@ -64,7 +64,6 @@ func resetMetadataEndpoints(t *testing.T) {
 	t.Helper()
 	metadataEndpoints = []string{
 		"http://metadata.google.internal/computeMetadata/v1/instance/machine-type",
-		"https://metadata.google.internal/computeMetadata/v1/instance/machine-type",
 	}
 }
 
