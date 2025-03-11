@@ -2020,6 +2020,9 @@ func (fs *fileSystem) Rename(
 	}
 
 	child, err := fs.lookUpOrCreateChildInode(ctx, oldParent, op.OldName)
+	if err != nil {
+		return err
+	}
 	if child == nil {
 		return fuse.ENOENT
 	}
@@ -2028,7 +2031,7 @@ func (fs *fileSystem) Rename(
 
 	childBktOwned, ok := child.(inode.BucketOwnedInode)
 	if !ok { // Won't happen in ideal case.
-		return fmt.Errorf("child inode is not owned by any bucket")
+		return fmt.Errorf("child inode (id %v) is neither file nor directory inode", child.ID())
 	}
 
 	if child.Name().IsDir() {
@@ -2043,7 +2046,8 @@ func (fs *fileSystem) Rename(
 	if !ok {
 		return fmt.Errorf("neither file not directory inode")
 	}
-	// If object to be renamed is a local file inode (un-synced), rename operation is not supported.
+	// TODO(b/402335988): Fix rename flow for local files when streaming writes is disabled.
+	// If object to be renamed is a local file inode and streaming writes are disabled, rename operation is not supported.
 	if childFileInode.IsLocal() && !fs.newConfig.Write.EnableStreamingWrites {
 		return fmt.Errorf("cannot rename open file %q: %w", op.OldName, syscall.ENOTSUP)
 	}
@@ -2053,20 +2057,19 @@ func (fs *fileSystem) Rename(
 // LOCKS_EXCLUDED(oldParent)
 // LOCKS_EXCLUDED(newParent)
 func (fs *fileSystem) renameFile(ctx context.Context, op *fuseops.RenameOp, oldObject *inode.FileInode, oldParent, newParent inode.DirInode) error {
-	// flush pending writes from streaming writes before rename operation.
-	updatedObject, err := fs.flushPendingBufferedWrites(ctx, oldObject)
+	updatedMinObject, err := fs.flushPendingWrites(ctx, oldObject)
 	if err != nil {
-		return fmt.Errorf("flushPendingBufferedWrites: %w", err)
+		return fmt.Errorf("flushPendingWrites: %w", err)
 	}
 	if (oldObject.Bucket().BucketType().Hierarchical && fs.enableAtomicRenameObject) || oldObject.Bucket().BucketType().Zonal {
-		return fs.renameHierarchicalFile(ctx, oldParent, op.OldName, updatedObject, newParent, op.NewName)
+		return fs.renameHierarchicalFile(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)
 	}
-	return fs.renameNonHierarchicalFile(ctx, oldParent, op.OldName, updatedObject, newParent, op.NewName)
+	return fs.renameNonHierarchicalFile(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)
 }
 
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_EXCLUDED(fileInode)
-func (fs *fileSystem) flushPendingBufferedWrites(ctx context.Context, fileInode *inode.FileInode) (minObject *gcs.MinObject, err error) {
+func (fs *fileSystem) flushPendingWrites(ctx context.Context, fileInode *inode.FileInode) (minObject *gcs.MinObject, err error) {
 	// We will return modified minObject if flush is done, otherwise the original
 	// minObject is returned. Original minObject is the one passed in the request.
 	fileInode.Lock()
