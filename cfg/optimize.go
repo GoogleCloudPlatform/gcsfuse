@@ -29,7 +29,7 @@ import (
 ////////////////////////////////////////////////////////////////////////
 
 const (
-	maxRetries   = 3
+	maxRetries   = 2
 	initialDelay = 25 * time.Millisecond
 	httpTimeout  = 50 * time.Millisecond
 )
@@ -120,7 +120,7 @@ func getMachineType(isSet isValueSet) (string, error) {
 	}
 	client := http.Client{Timeout: httpTimeout}
 
-	for retry := 0; retry <= maxRetries; retry++ {
+	for retry := 0; retry < maxRetries; retry++ {
 		for _, endpoint := range metadataEndpoints {
 			req, err := http.NewRequest(http.MethodGet, endpoint, nil)
 			if err != nil {
