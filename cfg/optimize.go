@@ -38,9 +38,6 @@ const (
 // Types
 ////////////////////////////////////////////////////////////////////////
 
-// isSet interface is abstraction over the IsValueSet() method of viper, specially
-// added to keep rationalize method simple. IsValueSet will be used to resolve
-// conflicting deprecated flags and new configs.
 type isValueSet interface {
 	IsSet(string) bool
 	GetString(string) string
