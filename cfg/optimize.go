@@ -29,9 +29,9 @@ import (
 ////////////////////////////////////////////////////////////////////////
 
 const (
-	maxRetries   = 2
-	initialDelay = 25 * time.Millisecond
-	httpTimeout  = 50 * time.Millisecond
+	maxRetries   = 1
+	initialDelay = 10 * time.Millisecond
+	httpTimeout  = 10 * time.Millisecond
 )
 
 ////////////////////////////////////////////////////////////////////////
