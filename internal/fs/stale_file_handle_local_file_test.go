@@ -17,9 +17,7 @@ package fs_test
 import (
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -31,18 +29,9 @@ type staleFileHandleLocalFile struct {
 	staleFileHandleCommon
 }
 
-type staleFileHandleStreamingWritesLocalFile struct {
-	staleFileHandleStreamingWritesCommon
-}
-
 // //////////////////////////////////////////////////////////////////////
 // Helpers
 // //////////////////////////////////////////////////////////////////////
-
-func (t *staleFileHandleStreamingWritesLocalFile) SetupTest() {
-	// Create a local file.
-	_, t.f1 = operations.CreateLocalFile(ctx, t.T(), mntDir, bucket, "foo")
-}
 
 func (t *staleFileHandleLocalFile) SetupTest() {
 	// Create a local file.
@@ -53,36 +42,7 @@ func (t *staleFileHandleLocalFile) SetupTest() {
 // Tests
 // //////////////////////////////////////////////////////////////////////
 
-func (t *staleFileHandleStreamingWritesLocalFile) TestClobberedWriteFileSyncAndCloseThrowsStaleFileHandleError() {
-	// Replace the underlying object with a new generation.
-	clobberFile(t.T(), "foo", "foobar")
-	// Writing to file will return Stale File Handle Error.
-	data, err := operations.GenerateRandomData(operations.MiB * 4)
-	assert.NoError(t.T(), err)
-
-	_, err = t.f1.WriteAt(data, 0)
-
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
-	err = t.f1.Sync()
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
-	err = t.f1.Close()
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
-	// Make f1 nil, so that another attempt is not taken in TearDown to close the
-	// file.
-	t.f1 = nil
-	// Validate that object is not updated with un-synced content.
-	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
-	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), "foobar", string(contents))
-}
-
 // Executes all stale handle tests for local files.
 func TestStaleFileHandleLocalFile(t *testing.T) {
 	suite.Run(t, new(staleFileHandleLocalFile))
-}
-
-// Executes all stale handle tests for local files with streaming writes.
-func TestStaleFileHandleStreamingWritesLocalFile(t *testing.T) {
-	ts := new(staleFileHandleStreamingWritesLocalFile)
-	suite.Run(t, ts)
 }

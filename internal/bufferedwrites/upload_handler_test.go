@@ -218,7 +218,7 @@ func assertUploadFailureError(t *testing.T, handler *UploadHandler) {
 		case <-time.After(200 * time.Millisecond):
 			t.Error("Expected an error in uploader")
 		default:
-			if handler.getUploadError() != nil {
+			if handler.UploadError() != nil {
 				return
 			}
 		}
@@ -241,12 +241,12 @@ func assertAllBlocksProcessed(t *testing.T, handler *UploadHandler) {
 	}
 }
 
-func TestSetUploadError(t *testing.T) {
+func TestUploadError(t *testing.T) {
 	mockUploadError := fmt.Errorf("error")
 	uploadHandler := &UploadHandler{}
-	uploadHandler.setUploadError(mockUploadError)
+	uploadHandler.uploadError = mockUploadError
 
-	actualUploadError := uploadHandler.getUploadError()
+	actualUploadError := uploadHandler.UploadError()
 
 	assert.Equal(t, mockUploadError, actualUploadError)
 }
@@ -390,35 +390,4 @@ func (t *UploadHandlerTest) createBlocks(count int) []block.Block {
 	}
 
 	return blocks
-}
-
-func (t *UploadHandlerTest) TestUploadHandler_SetUploadError() {
-	testCases := []struct {
-		name         string
-		initialError error
-		finalError   error
-	}{
-		{
-			name:         "Error_initially_nil",
-			initialError: nil,
-			finalError:   fmt.Errorf("bar"),
-		},
-		{
-			name:         "Error_already_set",
-			initialError: fmt.Errorf("foo"),
-			finalError:   fmt.Errorf("bar"),
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func() {
-			uh := &UploadHandler{
-				uploadError: tc.initialError,
-			}
-
-			uh.setUploadError(fmt.Errorf("bar"))
-
-			assert.Equal(t.T(), tc.finalError, uh.getUploadError())
-		})
-	}
 }

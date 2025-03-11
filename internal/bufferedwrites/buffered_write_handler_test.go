@@ -165,7 +165,7 @@ func (testSuite *BufferedWriteTest) TestWriteWithSignalUploadFailureInBetween() 
 	assert.Equal(testSuite.T(), int64(5), fileInfo.TotalSize)
 
 	// Set an error to simulate failure in uploader.
-	bwhImpl.uploadHandler.setUploadError(errUploadFailure)
+	bwhImpl.uploadHandler.uploadError = errUploadFailure
 
 	err = testSuite.bwh.Write([]byte("hello"), 5)
 	require.Error(testSuite.T(), err)
@@ -241,7 +241,7 @@ func (testSuite *BufferedWriteTest) TestFlushWithSignalUploadFailureDuringWrite(
 	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
 
 	// Set an error to simulate failure in uploader.
-	bwhImpl.uploadHandler.setUploadError(errUploadFailure)
+	bwhImpl.uploadHandler.uploadError = errUploadFailure
 
 	obj, err := testSuite.bwh.Flush()
 	require.Error(testSuite.T(), err)
@@ -256,7 +256,7 @@ func (testSuite *BufferedWriteTest) TestFlushWithMultiBlockWritesAndSignalUpload
 	testSuite.TestSync5InProgressBlocks()
 	// Set an error to simulate failure in uploader.
 	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
-	bwhImpl.uploadHandler.setUploadError(errUploadFailure)
+	bwhImpl.uploadHandler.uploadError = errUploadFailure
 	// Write 5 more blocks.
 	for i := 0; i < 5; i++ {
 		err := testSuite.bwh.Write(buffer, int64(blockSize*(i+5)))
@@ -299,7 +299,7 @@ func (testSuite *BufferedWriteTest) TestSyncBlocksWithError() {
 	}
 	// Set an error to simulate failure in uploader.
 	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
-	bwhImpl.uploadHandler.setUploadError(errUploadFailure)
+	bwhImpl.uploadHandler.uploadError = errUploadFailure
 
 	err = testSuite.bwh.Sync()
 

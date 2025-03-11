@@ -124,7 +124,7 @@ func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err er
 
 func (wh *bufferedWriteHandlerImpl) Write(data []byte, offset int64) (err error) {
 	// Fail early if the uploadHandler has already failed.
-	err = wh.uploadHandler.getUploadError()
+	err = wh.uploadHandler.UploadError()
 	if err != nil {
 		return
 	}
@@ -186,14 +186,14 @@ func (wh *bufferedWriteHandlerImpl) Sync() (err error) {
 		// Only logging an error in case of resource leak as upload succeeded.
 		logger.Errorf("blockPool.ClearFreeBlockChannel() failed during sync: %v", err)
 	}
-	err = wh.uploadHandler.getUploadError()
+	err = wh.uploadHandler.UploadError()
 	return
 }
 
 // Flush finalizes the upload.
 func (wh *bufferedWriteHandlerImpl) Flush() (*gcs.MinObject, error) {
 	// Fail early if upload already failed.
-	err := wh.uploadHandler.getUploadError()
+	err := wh.uploadHandler.UploadError()
 	if err != nil {
 		return nil, err
 	}

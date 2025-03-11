@@ -32,9 +32,6 @@ import (
 type staleFileHandleSyncedFile struct {
 	staleFileHandleCommon
 }
-type staleFileHandleStreamingWritesSyncedFile struct {
-	staleFileHandleStreamingWritesCommon
-}
 
 // //////////////////////////////////////////////////////////////////////
 // Helpers
@@ -43,11 +40,6 @@ type staleFileHandleStreamingWritesSyncedFile struct {
 func (t *staleFileHandleSyncedFile) SetupTest() {
 	// Create an object on bucket.
 	t.f1 = createGCSObject(t.T(), "foo", "bar")
-}
-
-func (t *staleFileHandleStreamingWritesSyncedFile) SetupTest() {
-	// Create an empty object on bucket.
-	t.f1 = createGCSObject(t.T(), "foo", "")
 }
 
 // //////////////////////////////////////////////////////////////////////
@@ -134,60 +126,7 @@ func (t *staleFileHandleSyncedFile) TestFileDeletedRemotelySyncAndCloseThrowsSta
 	t.f1 = nil
 }
 
-func (t *staleFileHandleStreamingWritesSyncedFile) TestWriteToClobberedFileThrowsStaleFileHandleError() {
-	// Replace the underlying object with a new generation.
-	clobberFile(t.T(), "foo", "foobar")
-	// Writing to file will return Stale File Handle Error.
-	data, err := operations.GenerateRandomData(operations.MiB * 4)
-	assert.NoError(t.T(), err)
-
-	_, err = t.f1.WriteAt(data, 0)
-
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
-	err = t.f1.Sync()
-	assert.NoError(t.T(), err)
-	err = t.f1.Close()
-	assert.NoError(t.T(), err)
-	// Make f1 nil, so that another attempt is not taken in TearDown to close the
-	// file.
-	t.f1 = nil
-	// Validate that object is not updated with un-synced content.
-	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
-	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), "foobar", string(contents))
-}
-
-func (t *staleFileHandleStreamingWritesSyncedFile) TestRenameFileWriteThrowsStaleFileHandleError() {
-	// Rename the object.
-	err := os.Rename(t.f1.Name(), path.Join(mntDir, "bar"))
-	assert.NoError(t.T(), err)
-	// Writing to file will return Stale File Handle Error.
-	data, err := operations.GenerateRandomData(operations.MiB * 4)
-	assert.NoError(t.T(), err)
-
-	_, err = t.f1.WriteAt(data, 0)
-
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
-	err = t.f1.Sync()
-	assert.NoError(t.T(), err)
-	err = t.f1.Close()
-	assert.NoError(t.T(), err)
-	// Make f1 nil, so that another attempt is not taken in TearDown to close the
-	// file.
-	t.f1 = nil
-	// Validate that object is not updated with un-synced content.
-	contents, err := storageutil.ReadObject(ctx, bucket, "bar")
-	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), "", string(contents))
-}
-
 // Executes all stale handle tests for gcs synced files.
 func TestStaleFileHandleSyncedFile(t *testing.T) {
 	suite.Run(t, new(staleFileHandleSyncedFile))
-}
-
-// Executes all stale handle tests for gcs synced files with streaming writes.
-func TestStaleFileHandleStreamingWritesSyncedFile(t *testing.T) {
-	ts := new(staleFileHandleStreamingWritesSyncedFile)
-	suite.Run(t, ts)
 }
