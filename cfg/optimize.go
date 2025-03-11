@@ -17,6 +17,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"os"
 	"reflect"
 	"strings"
 	"time"
@@ -194,10 +195,10 @@ func ApplyMachineTypeOptimizations(config *OptimizationConfig, cfg *Config, isSe
 
 				for flag, override := range flagOverrideSet.Overrides {
 					// Use reflection to find the field in ServerConfig.
-					setFlagValue(cfg, flag, override, isSet)
-					// if err != nil {
-					// 	// fmt.Fprintf(os.Stderr, "Warning: Failed to set flag %s: %v\n", flag, err)
-					// }
+					err := setFlagValue(cfg, flag, override, isSet)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Warning: Failed to set flag %s: %v\n", flag, err)
+					}
 				}
 				return nil // Applied optimizations, no need to check other machine types.
 			}
