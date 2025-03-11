@@ -194,7 +194,7 @@ func ApplyMachineTypeOptimizations(config *OptimizationConfig, cfg *Config, isSe
 
 				for flag, override := range flagOverrideSet.Overrides {
 					// Use reflection to find the field in ServerConfig.
-					err := setFlagValue(cfg, flag, override, isSet)
+					setFlagValue(cfg, flag, override, isSet)
 					// if err != nil {
 					// 	// fmt.Fprintf(os.Stderr, "Warning: Failed to set flag %s: %v\n", flag, err)
 					// }
