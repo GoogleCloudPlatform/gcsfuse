@@ -96,6 +96,8 @@ function printHelp() {
   echo "workload_config=<path/to/workload/configuration/file e.g. /a/b/c.json >"
   echo "output_dir=</absolute/path/to/output/dir, output files will be written at output_dir/fio/output.csv and output_dir/dlio/output.csv>"
   echo "force_update_gcsfuse_code=<true|false, to force-update the gcsfuse-code to given branch if gcsfuse_src_dir has been set. Default=\"${DEFAULT_FORCE_UPDATE_GCSFUSE_CODE}\">"
+  echo "output_gsheet_id=<ID of a google-sheet i.e. <gsheet-id> in https://docs.google.com/spreadsheets/d/<gsheet-id>>"
+  echo "output_gsheet_keyfile=<local/GCS path of a service-account key-file to read/write output google sheet.>"
   echo ""
   echo ""
   echo ""
@@ -235,6 +237,14 @@ else
   export output_dir="${gke_testing_dir}"/examples
 fi
 
+# if output_gsheet_id is defined by this point,
+if test -n "${output_gsheet_id}"; then
+  # and output_gsheet_keyfile is not defined, then try the pre-defind keyfile at gs://gcsfuse-aiml-test-outputs/creds/${project_id}.json .
+  if test -z "${output_gsheet_keyfile}"; then
+    export output_gsheet_keyfile=gs://gcsfuse-aiml-test-outputs/creds/${project_id}.json
+  fi
+fi
+
 function printRunParameters() {
   echo "Running $0 with following parameters:"
   echo ""
@@ -264,6 +274,8 @@ function printRunParameters() {
   echo "workload_config=\"${workload_config}\""
   echo "output_dir=\"${output_dir}\""
   echo "force_update_gcsfuse_code=\"${force_update_gcsfuse_code}\""
+  echo "output_gsheet_id=\"${output_gsheet_id}\""
+  echo "output_gsheet_keyfile=\"${output_gsheet_keyfile}\""
   echo ""
   echo ""
   echo ""
@@ -345,6 +357,8 @@ function installDependencies() {
     echoerror "sudo addgroup docker && sudo usermod -aG docker $USER && newgrp docker"
     return 1
   fi
+  # Install python modules for gsheet.
+  python3 -m pip install google-api-python-client
 }
 
 # Make sure you have access to the necessary GCP resources. The easiest way to enable it is to use <your-ldap>@google.com as active auth.
@@ -679,7 +693,7 @@ function waitTillAllPodsComplete() {
       if test -d "${csi_src_dir}"; then
         message+="csi_src_dir=\"${csi_src_dir}\" "
       fi
-      message+="pod_wait_time_in_seconds=${pod_wait_time_in_seconds} pod_timeout_in_seconds=${pod_timeout_in_seconds} workload_config=\"${workload_config}\" cluster_name=${cluster_name} output_dir=\"${output_dir}\" $0 \n"
+      message+="pod_wait_time_in_seconds=${pod_wait_time_in_seconds} pod_timeout_in_seconds=${pod_timeout_in_seconds} workload_config=\"${workload_config}\" cluster_name=${cluster_name} output_dir=\"${output_dir}\" output_gsheet_id=\"${output_gsheet_id}\" output_gsheet_keyfile=\"${output_gsheet_keyfile}\" $0 \n"
       message+="\nbut remember that this will reset the start-timer for pod timeout.\n\n"
       message+="\nTo ssh to any specific pod, use the following command: \n"
       message+="  gcloud container clusters get-credentials ${cluster_name} --location=${zone}\n"
@@ -701,14 +715,14 @@ function waitTillAllPodsComplete() {
 function fetchAndParseFioOutputs() {
   printf "\nFetching and parsing fio outputs ...\n\n"
   cd "${gke_testing_dir}"/examples/fio
-  python3 parse_logs.py --project-number=${project_number} --workload-config "${workload_config}" --instance-id ${instance_id} --output-file "${output_dir}"/fio/output.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace}
+  python3 parse_logs.py --project-number=${project_number} --workload-config "${workload_config}" --instance-id ${instance_id} --output-file "${output_dir}"/fio/output.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace} --output-gsheet-id=${output_gsheet_id} --output-worksheet-name=fio --output-gsheet-keyfile=${output_gsheet_keyfile}
   cd -
 }
 
 function fetchAndParseDlioOutputs() {
   printf "\nFetching and parsing dlio outputs ...\n\n"
   cd "${gke_testing_dir}"/examples/dlio
-  python3 parse_logs.py --project-number=${project_number} --workload-config "${workload_config}" --instance-id ${instance_id} --output-file "${output_dir}"/dlio/output.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace}
+  python3 parse_logs.py --project-number=${project_number} --workload-config "${workload_config}" --instance-id ${instance_id} --output-file "${output_dir}"/dlio/output.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace} --output-gsheet-id=${output_gsheet_id} --output-worksheet-name=dlio --output-gsheet-keyfile=${output_gsheet_keyfile}
   cd -
 }
 
