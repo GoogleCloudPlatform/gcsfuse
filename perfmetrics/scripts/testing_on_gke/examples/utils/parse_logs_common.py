@@ -23,8 +23,6 @@ from typing import Tuple
 SUPPORTED_SCENARIOS = [
     "local-ssd",
     "gcsfuse-generic",
-    "gcsfuse-no-file-cache",
-    "gcsfuse-file-cache",
 ]
 
 
