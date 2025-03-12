@@ -29,7 +29,7 @@ func (t *defaultMountCommonTest) TestRenameBeforeFileIsFlushed() {
 	err := t.f1.Sync()
 	require.NoError(t.T(), err)
 
-	newFile := "newFile.txt"
+	newFile := "new" + t.fileName
 	destDirPath := path.Join(testDirPath, newFile)
 	err = operations.RenameFile(t.filePath, destDirPath)
 
@@ -50,7 +50,8 @@ func (t *defaultMountCommonTest) TestSyncAfterRenameSucceeds() {
 	operations.VerifyStatFile(t.filePath, operations.MiB*4, FilePerms, t.T())
 	err = t.f1.Sync()
 	require.NoError(t.T(), err)
-	err = operations.RenameFile(t.filePath, path.Join(testDirPath, FileName2))
+	newFile := "new" + t.fileName
+	err = operations.RenameFile(t.filePath, path.Join(testDirPath, newFile))
 	require.NoError(t.T(), err)
 
 	err = t.f1.Sync()
@@ -58,7 +59,7 @@ func (t *defaultMountCommonTest) TestSyncAfterRenameSucceeds() {
 	// Verify that sync succeeds after rename.
 	require.NoError(t.T(), err)
 	// Verify the new object contents.
-	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, FileName2, string(data), t.T())
+	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, newFile, string(data), t.T())
 	require.NoError(t.T(), t.f1.Close())
 	// Check if old object is deleted.
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, t.fileName, t.T())
@@ -72,14 +73,15 @@ func (t *defaultMountCommonTest) TestAfterRenameWriteFailsWithStaleNFSFileHandle
 	operations.VerifyStatFile(t.filePath, operations.MiB*4, FilePerms, t.T())
 	err = t.f1.Sync()
 	require.NoError(t.T(), err)
-	err = operations.RenameFile(t.filePath, path.Join(testDirPath, FileName2))
+	newFile := "new" + t.fileName
+	err = operations.RenameFile(t.filePath, path.Join(testDirPath, newFile))
 	require.NoError(t.T(), err)
 
 	_, err = t.f1.WriteAt(data, operations.MiB*4)
 
 	operations.ValidateStaleNFSFileHandleError(t.T(), err)
 	// Verify the new object contents.
-	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, FileName2, string(data), t.T())
+	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, newFile, string(data), t.T())
 	require.NoError(t.T(), t.f1.Close())
 	// Check if old object is deleted.
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, t.fileName, t.T())
