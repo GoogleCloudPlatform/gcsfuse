@@ -244,7 +244,7 @@ func assertAllBlocksProcessed(t *testing.T, handler *UploadHandler) {
 func TestUploadError(t *testing.T) {
 	mockUploadError := fmt.Errorf("error")
 	uploadHandler := &UploadHandler{}
-	uploadHandler.uploadError = mockUploadError
+	uploadHandler.uploadError.Store(&mockUploadError)
 
 	actualUploadError := uploadHandler.UploadError()
 

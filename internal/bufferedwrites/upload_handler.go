@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"sync/atomic"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
@@ -43,9 +44,8 @@ type UploadHandler struct {
 	// writer to resumable upload the blocks to GCS.
 	writer gcs.Writer
 
-	// uploadError contains the error seen by uploader.
-	uploadError error
-
+	// uploadError stores atomic pointer to the error seen by uploader.
+	uploadError atomic.Pointer[error]
 	// CancelFunc persisted to cancel the uploads in case of unlink operation.
 	cancelFunc context.CancelFunc
 
@@ -114,8 +114,11 @@ func (uh *UploadHandler) createObjectWriter() (err error) {
 	return
 }
 
-func (uh *UploadHandler) UploadError() error {
-	return uh.uploadError
+func (uh *UploadHandler) UploadError() (err error) {
+	if uploadError := uh.uploadError.Load(); uploadError != nil {
+		err = *uploadError
+	}
+	return
 }
 
 // uploader is the single-threaded goroutine that uploads blocks.
@@ -128,7 +131,8 @@ func (uh *UploadHandler) uploader() {
 		_, err := io.Copy(uh.writer, currBlock.Reader())
 		if err != nil {
 			logger.Errorf("buffered write upload failed for object %s: error in io.Copy: %v", uh.objectName, err)
-			uh.uploadError = gcs.GetGCSError(err)
+			err = gcs.GetGCSError(err)
+			uh.uploadError.Store(&err)
 		}
 		// Put back the uploaded block on the freeBlocksChannel for re-use.
 		uh.freeBlocksCh <- currBlock
@@ -153,7 +157,7 @@ func (uh *UploadHandler) Finalize() (*gcs.MinObject, error) {
 	obj, err := uh.bucket.FinalizeUpload(context.Background(), uh.writer)
 	if err != nil {
 		// FinalizeUpload already returns GCSerror so no need to convert again.
-		uh.uploadError = err
+		uh.uploadError.Store(&err)
 		logger.Errorf("FinalizeUpload failed for object %s: %v", uh.objectName, err)
 		return nil, err
 	}
