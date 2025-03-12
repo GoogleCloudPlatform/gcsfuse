@@ -244,9 +244,6 @@ func TestApplyMachineTypeOptimizations_MatchingMachineType(t *testing.T) {
 	if cfg.FileSystem.RenameDirLimit != 200000 {
 		t.Errorf("Expected RenameDirLimit to be 200000, got %d", cfg.FileSystem.RenameDirLimit)
 	}
-	if cfg.FileSystem.Gid != 1000 {
-		t.Errorf("Expected Gid to be 1000, got %d", cfg.FileSystem.Gid)
-	}
 }
 
 func TestApplyMachineTypeOptimizations_NonMatchingMachineType(t *testing.T) {
@@ -419,12 +416,12 @@ func TestSetFlagValue_String(t *testing.T) {
 func TestSetFlagValue_Int(t *testing.T) {
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
-	err := setFlagValue(cfg, "file-system.gid", FlagOverride{NewValue: 1000}, isSet)
+	err := setFlagValue(cfg, "metadata-cache.stat-cache-max-size-mb", FlagOverride{NewValue: 1024}, isSet)
 	if err != nil {
 		t.Fatalf("setFlagValue failed: %v", err)
 	}
-	if cfg.FileSystem.Gid != 1000 {
-		t.Errorf("Expected Gid to be 1000, got %d", cfg.FileSystem.Gid)
+	if cfg.MetadataCache.StatCacheMaxSizeMb != 1024 {
+		t.Errorf("Expected stat cache max size to be 1024, got %d", cfg.MetadataCache.StatCacheMaxSizeMb)
 	}
 }
 
@@ -521,8 +518,5 @@ func TestOptimize_Success(t *testing.T) {
 	}
 	if cfg.FileSystem.RenameDirLimit != 200000 {
 		t.Errorf("Expected RenameDirLimit to be 200000, got %d", cfg.FileSystem.RenameDirLimit)
-	}
-	if cfg.FileSystem.Gid != 1000 {
-		t.Errorf("Expected Gid to be 1000, got %d", cfg.FileSystem.Gid)
 	}
 }

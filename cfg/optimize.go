@@ -83,7 +83,6 @@ var (
 					"metadata-cache.type-cache-max-size-mb": {NewValue: 128},
 					"implicit-dirs":                         {NewValue: true},
 					"file-system.rename-dir-limit":          {NewValue: 200000},
-					"file-system.gid":                       {NewValue: 1000},
 				},
 			},
 		},
@@ -168,7 +167,6 @@ func getMachineType(isSet isValueSet) (string, error) {
 func ApplyMachineTypeOptimizations(config *OptimizationConfig, cfg *Config, isSet isValueSet) error {
 	machineType, err := getMachineType(isSet)
 	if err != nil {
-		// fmt.Fprintf(os.Stderr, "Warning: Failed to get machine type from metadata server: %v\n", err)
 		return nil // Non-fatal error, continue with default settings.
 	}
 
