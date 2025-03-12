@@ -241,7 +241,7 @@ func assertAllBlocksProcessed(t *testing.T, handler *UploadHandler) {
 	}
 }
 
-func TestUploadError(t *testing.T) {
+func TestUploadErrorReturnsError(t *testing.T) {
 	mockUploadError := fmt.Errorf("error")
 	uploadHandler := &UploadHandler{}
 	uploadHandler.uploadError.Store(&mockUploadError)
@@ -249,6 +249,14 @@ func TestUploadError(t *testing.T) {
 	actualUploadError := uploadHandler.UploadError()
 
 	assert.Equal(t, mockUploadError, actualUploadError)
+}
+
+func TestUploadErrorReturnsNil(t *testing.T) {
+	uploadHandler := &UploadHandler{}
+
+	actualUploadError := uploadHandler.UploadError()
+
+	assert.Nil(t, actualUploadError)
 }
 
 func (t *UploadHandlerTest) TestMultipleBlockAwaitBlocksUpload() {
