@@ -39,15 +39,15 @@ func decodeURL(u string) (string, error) {
 
 // resolveMetadataCacheTTL returns the ttl to be used for stat/type cache based
 // on the user flags/configs.
-func resolveMetadataCacheTTL(v isSet, c *MetadataCacheConfig) {
+func resolveMetadataCacheTTL(v isSet, c *MetadataCacheConfig, optimizationApplied bool) {
 	// If metadata-cache:ttl-secs has been set, then it overrides both
 	// stat-cache-ttl, type-cache-tll and negative cache ttl.
-	if v.IsSet(MetadataNegativeCacheTTLConfigKey) {
+	if v.IsSet(MetadataNegativeCacheTTLConfigKey) || optimizationApplied {
 		if c.NegativeTtlSecs == -1 {
 			c.NegativeTtlSecs = maxSupportedTTLInSeconds
 		}
 	}
-	if v.IsSet(MetadataCacheTTLConfigKey) {
+	if v.IsSet(MetadataCacheTTLConfigKey) || optimizationApplied {
 		if c.TtlSecs == -1 {
 			c.TtlSecs = maxSupportedTTLInSeconds
 		}
@@ -59,10 +59,10 @@ func resolveMetadataCacheTTL(v isSet, c *MetadataCacheConfig) {
 
 // resolveStatCacheMaxSizeMB returns the stat-cache size in MiBs based on the
 // user old and new flags/configs.
-func resolveStatCacheMaxSizeMB(v isSet, c *MetadataCacheConfig) {
+func resolveStatCacheMaxSizeMB(v isSet, c *MetadataCacheConfig, optimizationApplied bool) {
 	// If metadata-cache:stat-cache-size-mb has been set, then it overrides
 	// stat-cache-capacity.
-	if v.IsSet(StatCacheMaxSizeConfigKey) {
+	if v.IsSet(StatCacheMaxSizeConfigKey) || optimizationApplied {
 		if c.StatCacheMaxSizeMb == -1 {
 			c.StatCacheMaxSizeMb = int64(maxSupportedStatCacheMaxSizeMB)
 		}
@@ -98,7 +98,7 @@ func resolveCloudMetricsUploadIntervalSecs(m *MetricsConfig) {
 }
 
 // Rationalize updates the config fields based on the values of other fields.
-func Rationalize(v isSet, c *Config) error {
+func Rationalize(v isSet, c *Config, optimizationApplied bool) error {
 	var err error
 	if c.GcsConnection.CustomEndpoint, err = decodeURL(c.GcsConnection.CustomEndpoint); err != nil {
 		return err
@@ -113,8 +113,8 @@ func Rationalize(v isSet, c *Config) error {
 	}
 
 	resolveStreamingWriteConfig(&c.Write)
-	resolveMetadataCacheTTL(v, &c.MetadataCache)
-	resolveStatCacheMaxSizeMB(v, &c.MetadataCache)
+	resolveMetadataCacheTTL(v, &c.MetadataCache, optimizationApplied)
+	resolveStatCacheMaxSizeMB(v, &c.MetadataCache, optimizationApplied)
 	resolveCloudMetricsUploadIntervalSecs(&c.Metrics)
 
 	return nil

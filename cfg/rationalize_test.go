@@ -56,7 +56,7 @@ func TestRationalizeCustomEndpointSuccessful(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualErr := Rationalize(&mockIsSet{}, tc.config)
+			actualErr := Rationalize(&mockIsSet{}, tc.config, false)
 
 			if assert.NoError(t, actualErr) {
 				assert.Equal(t, tc.expectedCustomEndpoint, tc.config.GcsConnection.CustomEndpoint)
@@ -82,7 +82,7 @@ func TestRationalizeCustomEndpointUnsuccessful(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Error(t, Rationalize(&mockIsSet{}, tc.config))
+			assert.Error(t, Rationalize(&mockIsSet{}, tc.config, false))
 		})
 	}
 }
@@ -150,7 +150,7 @@ func TestLoggingSeverityRationalization(t *testing.T) {
 			},
 		}
 
-		err := Rationalize(&mockIsSet{}, &c)
+		err := Rationalize(&mockIsSet{}, &c, false)
 
 		if assert.NoError(t, err) {
 			assert.Equal(t, tc.expected, c.Logging.Severity)
@@ -186,7 +186,7 @@ func TestRationalize_TokenURLSuccessful(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualErr := Rationalize(&mockIsSet{}, tc.config)
+			actualErr := Rationalize(&mockIsSet{}, tc.config, false)
 
 			if assert.NoError(t, actualErr) {
 				assert.Equal(t, tc.expectedTokenURL, tc.config.GcsAuth.TokenUrl)
@@ -212,7 +212,7 @@ func TestRationalize_TokenURLUnsuccessful(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Error(t, Rationalize(&mockIsSet{}, tc.config))
+			assert.Error(t, Rationalize(&mockIsSet{}, tc.config, false))
 		})
 	}
 }
@@ -304,7 +304,7 @@ func TestRationalizeMetadataCache(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			if assert.NoError(t, Rationalize(tc.flags, tc.config)) {
+			if assert.NoError(t, Rationalize(tc.flags, tc.config, false)) {
 				assert.Equal(t, tc.expectedTTLSecs, tc.config.MetadataCache.TtlSecs)
 				assert.Equal(t, tc.expectedStatCacheSize, tc.config.MetadataCache.StatCacheMaxSizeMb)
 			}
@@ -369,7 +369,7 @@ func TestRationalize_WriteConfig(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualErr := Rationalize(&mockIsSet{}, tc.config)
+			actualErr := Rationalize(&mockIsSet{}, tc.config, false)
 
 			if assert.NoError(t, actualErr) {
 				assert.Equal(t, tc.expectedCreateEmptyFile, tc.config.Write.CreateEmptyFile)
@@ -424,7 +424,7 @@ func TestRationalizeMetricsConfig(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			if assert.NoError(t, Rationalize(&mockIsSet{}, tc.config)) {
+			if assert.NoError(t, Rationalize(&mockIsSet{}, tc.config, false)) {
 				assert.Equal(t, tc.expected, tc.config.Metrics.CloudMetricsExportIntervalSecs)
 			}
 		})

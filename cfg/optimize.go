@@ -164,12 +164,12 @@ func getMachineType(isSet isValueSet) (string, error) {
 }
 
 // ApplyMachineTypeOptimizations applies optimizations based on the detected machine type.
-func ApplyMachineTypeOptimizations(config *OptimizationConfig, cfg *Config, isSet isValueSet) error {
+func ApplyMachineTypeOptimizations(config *OptimizationConfig, cfg *Config, isSet isValueSet) (bool, error) {
 	machineType, err := getMachineType(isSet)
 	if err != nil {
-		return nil // Non-fatal error, continue with default settings.
+		return false, nil // Non-fatal error, continue with default settings.
 	}
-
+	optimizationApplied := false
 	for _, mt := range config.MachineTypes {
 		for _, name := range mt.Names {
 			if strings.HasPrefix(machineType, name) {
@@ -192,21 +192,23 @@ func ApplyMachineTypeOptimizations(config *OptimizationConfig, cfg *Config, isSe
 					err := setFlagValue(cfg, flag, override, isSet)
 					if err != nil {
 						fmt.Fprintf(os.Stderr, "Warning: Failed to set flag %s: %v\n", flag, err)
+					} else {
+						optimizationApplied = true
 					}
 				}
-				return nil // Applied optimizations, no need to check other machine types.
+				return optimizationApplied, nil // Applied optimizations, no need to check other machine types.
 			}
 		}
 	}
 
-	return nil
+	return optimizationApplied, nil
 }
 
 // Optimize applies machine type optimizations using the default configuration.
-func Optimize(cfg *Config, isSet isValueSet) error {
+func Optimize(cfg *Config, isSet isValueSet) (bool, error) {
 	// Check if disable-autoconfig is set to true.
 	if isSet.GetBool("disable-autoconfig") {
-		return nil
+		return false, nil
 	}
 	return ApplyMachineTypeOptimizations(&DefaultOptimizationConfig, cfg, isSet)
 }

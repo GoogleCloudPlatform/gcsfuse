@@ -177,7 +177,7 @@ func TestOptimize_DisableAutoConfig(t *testing.T) {
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{"disable-autoconfig": true}, boolFlags: map[string]bool{"disable-autoconfig": true}}
 
-	err := Optimize(cfg, isSet)
+	_, err := Optimize(cfg, isSet)
 	if err != nil {
 		t.Fatalf("Optimize failed: %v", err)
 	}
@@ -221,11 +221,13 @@ func TestApplyMachineTypeOptimizations_MatchingMachineType(t *testing.T) {
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	err := ApplyMachineTypeOptimizations(&config, cfg, isSet)
+	optimizationApplied, err := ApplyMachineTypeOptimizations(&config, cfg, isSet)
 	if err != nil {
 		t.Fatalf("ApplyMachineTypeOptimizations failed: %v", err)
 	}
-
+	if !optimizationApplied {
+		t.Errorf("Expected optimization to be applied")
+	}
 	if cfg.MetadataCache.NegativeTtlSecs != 0 {
 		t.Errorf("Expected NegativeTTLSecs to be 0, got %d", cfg.MetadataCache.NegativeTtlSecs)
 	}
@@ -262,9 +264,13 @@ func TestApplyMachineTypeOptimizations_NonMatchingMachineType(t *testing.T) {
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	err := ApplyMachineTypeOptimizations(&config, cfg, isSet)
+	optimizationApplied, err := ApplyMachineTypeOptimizations(&config, cfg, isSet)
 	if err != nil {
 		t.Fatalf("ApplyMachineTypeOptimizations failed: %v", err)
+	}
+
+	if optimizationApplied {
+		t.Errorf("Expected optimizationApplied to be false")
 	}
 
 	// Check that no optimizations were applied.
@@ -291,9 +297,12 @@ func TestApplyMachineTypeOptimizations_UserSetFlag(t *testing.T) {
 	// Simulate setting config value by user
 	cfg.FileSystem.RenameDirLimit = 10000
 
-	err := ApplyMachineTypeOptimizations(&config, cfg, isSet)
+	optimizationApplied, err := ApplyMachineTypeOptimizations(&config, cfg, isSet)
 	if err != nil {
 		t.Fatalf("ApplyMachineTypeOptimizations failed: %v", err)
+	}
+	if !optimizationApplied {
+		t.Errorf("Expected optimizationApplied to be true")
 	}
 
 	if cfg.MetadataCache.NegativeTtlSecs != 0 {
@@ -340,7 +349,7 @@ func TestApplyMachineTypeOptimizations_MissingFlagOverrideSet(t *testing.T) {
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	err := ApplyMachineTypeOptimizations(&config, cfg, isSet)
+	_, err := ApplyMachineTypeOptimizations(&config, cfg, isSet)
 	if err != nil {
 		t.Fatalf("ApplyMachineTypeOptimizations failed: %v", err)
 	}
@@ -361,7 +370,7 @@ func TestApplyMachineTypeOptimizations_GetMachineTypeError(t *testing.T) {
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	err := ApplyMachineTypeOptimizations(&config, cfg, isSet)
+	_, err := ApplyMachineTypeOptimizations(&config, cfg, isSet)
 	if err != nil {
 		t.Fatalf("ApplyMachineTypeOptimizations failed: %v", err)
 	}
@@ -383,7 +392,7 @@ func TestApplyMachineTypeOptimizations_NoError(t *testing.T) {
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	err := ApplyMachineTypeOptimizations(&config, cfg, isSet)
+	_, err := ApplyMachineTypeOptimizations(&config, cfg, isSet)
 	if err != nil {
 		t.Fatalf("ApplyMachineTypeOptimizations failed: %v", err)
 	}
@@ -468,7 +477,7 @@ func TestApplyMachineTypeOptimizations_NoMachineTypes(t *testing.T) {
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	err := ApplyMachineTypeOptimizations(&config, cfg, isSet)
+	_, err := ApplyMachineTypeOptimizations(&config, cfg, isSet)
 	if err != nil {
 		t.Fatalf("ApplyMachineTypeOptimizations failed: %v", err)
 	}
@@ -493,7 +502,7 @@ func TestOptimize_Success(t *testing.T) {
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	err := Optimize(cfg, isSet)
+	_, err := Optimize(cfg, isSet)
 	if err != nil {
 		t.Fatalf("Optimize failed: %v", err)
 	}
