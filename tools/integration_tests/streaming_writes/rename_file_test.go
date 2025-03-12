@@ -42,6 +42,28 @@ func (t *defaultMountCommonTest) TestRenameBeforeFileIsFlushed() {
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, t.fileName, t.T())
 }
 
+func (t *defaultMountCommonTest) TestSyncAfterRenameSucceeds() {
+	data, err := operations.GenerateRandomData(operations.MiB * 4)
+	require.NoError(t.T(), err)
+	_, err = t.f1.WriteAt(data, 0)
+	require.NoError(t.T(), err)
+	operations.VerifyStatFile(t.filePath, operations.MiB*4, FilePerms, t.T())
+	err = t.f1.Sync()
+	require.NoError(t.T(), err)
+	err = operations.RenameFile(t.filePath, path.Join(testDirPath, FileName2))
+	require.NoError(t.T(), err)
+
+	err = t.f1.Sync()
+
+	// Verify that sync succeeds after rename.
+	require.NoError(t.T(), err)
+	// Verify the new object contents.
+	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, FileName2, string(data), t.T())
+	require.NoError(t.T(), t.f1.Close())
+	// Check if old object is deleted.
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, t.fileName, t.T())
+}
+
 func (t *defaultMountCommonTest) TestAfterRenameWriteFailsWithStaleNFSFileHandleError() {
 	data, err := operations.GenerateRandomData(operations.MiB * 4)
 	require.NoError(t.T(), err)
