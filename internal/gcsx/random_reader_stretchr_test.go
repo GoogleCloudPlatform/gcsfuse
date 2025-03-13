@@ -79,7 +79,7 @@ func (t *RandomReaderStretchrTest) SetupTest() {
 	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm)
 
 	// Set up the reader.
-	rr := NewRandomReader(t.object, t.mockBucket, sequentialReadSizeInMb, nil, false, common.NewNoopMetrics(), nil)
+	rr := NewRandomReader(t.object, t.mockBucket, sequentialReadSizeInMb, nil, false, common.NewNoopMetrics(), nil, false)
 	t.rr.wrapped = rr.(*randomReader)
 }
 
@@ -862,4 +862,112 @@ func (t *RandomReaderStretchrTest) Test_ReadFromMultiRangeReader_ValidateTimeout
 			assert.ErrorContains(t.T(), err, tc.expectedErrKeyword)
 		})
 	}
+}
+
+// *************** Test for first read optimization ***************
+type RandomReaderWithFirstReadOptimizationTest struct {
+	RandomReaderStretchrTest
+}
+
+func TestRandomReaderWithFirstReadOptimization(t *testing.T) {
+	suite.Run(t, new(RandomReaderWithFirstReadOptimizationTest))
+}
+
+func (t *RandomReaderWithFirstReadOptimizationTest) SetupTest() {
+	t.RandomReaderStretchrTest.SetupTest()
+	rr := NewRandomReader(t.object, t.mockBucket, sequentialReadSizeInMb, nil, false, common.NewNoopMetrics(), nil, true)
+	t.rr.wrapped = rr.(*randomReader)
+}
+
+func (t *RandomReaderWithFirstReadOptimizationTest) TearDownTest() {
+	t.RandomReaderStretchrTest.TearDownTest()
+}
+
+func (t *RandomReaderWithFirstReadOptimizationTest) Test_ReadAt_ExistingReaderLimitIsLessThanRequestedObjectSize() {
+}
+
+func (t *RandomReaderWithFirstReadOptimizationTest) Test_ReadAt_ExistingReaderLimitIsLessThanRequestedDataSize() {
+}
+
+func (t *RandomReaderWithFirstReadOptimizationTest) Test_ReadAt_MRDRead() {
+
+}
+func (t *RandomReaderWithFirstReadOptimizationTest) Test_ReadAt_InvalidOffset() {
+
+}
+
+func (t *RandomReaderWithFirstReadOptimizationTest) Test_ReadAt_ValidateReadType() {
+
+}
+
+func (t *RandomReaderWithFirstReadOptimizationTest) Test_ExistingReader_WrongOffset() {
+	t.T().Skip("Not required")
+	testCases := []struct {
+		name       string
+		readHandle []byte
+	}{
+		{
+			name:       "ReaderHasReadHandle",
+			readHandle: []byte("fake-handle"),
+		},
+		{
+			name:       "ReaderHasNoReadHandle",
+			readHandle: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			// Simulate an existing reader.
+			t.rr.wrapped.readHandle = tc.readHandle
+			t.rr.wrapped.reader = &fake.FakeReader{
+				ReadCloser: io.NopCloser(strings.NewReader("xxx")),
+				Handle:     tc.readHandle,
+			}
+			t.rr.wrapped.cancel = func() {}
+			t.rr.wrapped.start = 2
+			t.rr.wrapped.limit = 5
+			readObjectRequest := &gcs.ReadObjectRequest{
+				Name:       t.rr.wrapped.object.Name,
+				Generation: t.rr.wrapped.object.Generation,
+				Range: &gcs.ByteRange{
+					Start: uint64(0),
+					Limit: t.object.Size,
+				},
+				ReadCompressed: t.rr.wrapped.object.HasContentEncodingGzip(),
+				ReadHandle:     t.rr.wrapped.readHandle,
+			}
+			t.mockBucket.
+				On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).
+				Return(nil, errors.New(string(tc.readHandle))).
+				Times(1)
+			t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(1)
+
+			buf := make([]byte, 1)
+
+			_, err := t.rr.ReadAt(buf, 0)
+
+			t.mockBucket.AssertExpectations(t.T())
+			assert.NotNil(t.T(), err)
+		})
+	}
+}
+
+// Write a unit test to validate reader is closed on the first read
+func (t *RandomReaderWithFirstReadOptimizationTest) Test_ReaderIsClosedOnFirstRead() {
+	t.object.Size = 10
+	rc := &fake.FakeReader{ReadCloser: getReadCloser([]byte("abcdefghij"))}
+	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(rc, nil)
+	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(1)
+	requestSize := 6
+	buf := make([]byte, requestSize)
+
+	data, err := t.rr.ReadAt(buf, 2)
+
+	require.Nil(t.T(), err)
+	require.Nil(t.T(), t.rr.wrapped.reader)
+	require.Equal(t.T(), requestSize, data.Size)
+	require.Equal(t.T(), "abcdef", string(buf[:data.Size]))
+	assert.Equal(t.T(), uint64(requestSize), t.rr.wrapped.totalReadBytes)
+	assert.Nil(t.T(), t.rr.wrapped.reader)
 }

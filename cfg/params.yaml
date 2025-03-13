@@ -651,6 +651,15 @@
   usage: "Mount only a specific directory within the bucket. See docs/mounting for more information"
   default: ""
 
+- config-path: "read.optimize-random-read"
+  flag-name: "optimize-random-read"
+  type: "bool"
+  usage: >-
+    If enabled, it will optimize random reads by requesting only the requested size on the first file-handle
+    read. This avoids unnecessary server-side work but incurs an extra read for sequential access.
+  default: false
+  hide-flag: true
+
 - config-path: "write.block-size-mb"
   flag-name: "write-block-size-mb"
   type: "int"

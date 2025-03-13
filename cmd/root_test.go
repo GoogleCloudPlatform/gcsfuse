@@ -1110,3 +1110,43 @@ func TestArgParsing_GCSRetries(t *testing.T) {
 		})
 	}
 }
+
+func TestArgsParsing_ReadConfig(t *testing.T) {
+	tests := []struct {
+		name     string
+		cfgFile  string
+		expected *cfg.ReadConfig
+	}{
+		{
+			name:    "default",
+			cfgFile: "empty.yaml",
+			expected: &cfg.ReadConfig{
+				OptimizeRandomRead: false,
+			},
+		},
+		{
+			name:    "override_default",
+			cfgFile: "override.yaml",
+			expected: &cfg.ReadConfig{
+				OptimizeRandomRead: true,
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotConfig *cfg.Config
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+				gotConfig = cfg
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs([]string{"gcsfuse", fmt.Sprintf("--config-file=testdata/read_config/%s", tc.cfgFile), "abc", "pqr"}, cmd))
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expected, &gotConfig.Read)
+			}
+		})
+	}
+}
