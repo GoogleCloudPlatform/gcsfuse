@@ -22,6 +22,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/readers"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/readers/cache_readers"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/readers/gcs_readers"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 )
@@ -37,14 +38,11 @@ type readManager struct {
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
 func NewReadManager(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *gcs_readers.MultiRangeDownloaderWrapper) Reader {
-	var gcsReader readers.GCSReader
-	var fileCacheReader readers.FileCacheReader
-	gcsReader = readers.GCSReader{
+	var gcsReader gcs_readers.GCSReader
+	var fileCacheReader cache_readers.FileCacheReader
+	gcsReader = gcs_readers.GCSReader{
 		Obj:            o,
 		Bucket:         bucket,
-		Start:          -1,
-		Limit:          -1,
-		Seeks:          0,
 		TotalReadBytes: 0,
 		RangeReader: gcs_readers.RangeReader{
 			Obj:            o,
@@ -61,7 +59,7 @@ func NewReadManager(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb in
 		},
 		SequentialReadSizeMb: sequentialReadSizeMb,
 	}
-	fileCacheReader = readers.FileCacheReader{
+	fileCacheReader = cache_readers.FileCacheReader{
 		Obj:                   o,
 		Bucket:                bucket,
 		FileCacheHandler:      fileCacheHandler,
@@ -89,9 +87,9 @@ func (rr *readManager) CheckInvariants() {
 	}
 }
 
-func (rr *readManager) ReadAt(ctx context.Context, p []byte, offset int64) (gcs_readers.ObjectData, error) {
+func (rr *readManager) ReadAt(ctx context.Context, p []byte, offset int64) (readers.ObjectData, error) {
 	var err error
-	objectData := gcs_readers.ObjectData{
+	objectData := readers.ObjectData{
 		DataBuf:  p,
 		CacheHit: false,
 		Size:     0,

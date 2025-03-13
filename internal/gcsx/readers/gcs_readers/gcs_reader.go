@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package readers
+package gcs_readers
 
 import (
 	"context"
@@ -20,9 +20,8 @@ import (
 	"io"
 	"log"
 	"math"
-	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/readers/gcs_readers"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/readers"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
@@ -52,41 +51,32 @@ const (
 
 	// Minimum number of seeks before evaluating if the read pattern is random.
 	minSeeksForRandom = 2
-
-	// TODO(b/385826024): Revert timeout to an appropriate value
-	TimeoutForMultiRangeRead = time.Hour
 )
 
 // ReaderType enum values.
 const (
 	// RangeReader corresponds to NewReader method in bucket_handle.go
-	RangeReader ReaderType = iota
+	RangeReaderType ReaderType = iota
 	// MultiRangeReader corresponds to NewMultiRangeDownloader method in bucket_handle.go
-	MultiRangeReader
+	MultiRangeReaderType
 )
 
 type GCSReader struct {
 	Obj    *gcs.MinObject
 	Bucket gcs.Bucket
 
-	RangeReader gcs_readers.RangeReader
-	Mrr         gcs_readers.MultiRangeReader
+	RangeReader RangeReader
+	Mrr         MultiRangeReader
 	// Stores the handle associated with the previously closed newReader instance.
 	// This will be used while making the new connection to bypass auth and metadata
 	// checks.
 	ReadHandle []byte
 	ReaderType string
 
-	Start int64
-	Limit int64
-	Seeks uint64
-
 	// If non-nil, an in-flight read request and a function for cancelling it.
 	//
 	// INVARIANT: (reader == nil) == (cancel == nil)
-	Reader         gcs.StorageReader
 	TotalReadBytes uint64
-	cancel         func()
 
 	SequentialReadSizeMb int32
 }
@@ -98,8 +88,8 @@ func (gr *GCSReader) Object() *gcs.MinObject {
 func (gr *GCSReader) CheckInvariants() {
 }
 
-func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcs_readers.ObjectData, error) {
-	objectData := gcs_readers.ObjectData{
+func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (readers.ObjectData, error) {
+	objectData := readers.ObjectData{
 		DataBuf:  p,
 		CacheHit: false,
 		Size:     0,
@@ -115,26 +105,25 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcs_re
 	// re-use GCS connection and avoid throwing away already read data.
 	// For parallel sequential reads to a single file, not throwing away the connections
 	// is a 15-20x improvement in throughput: 150-200 MB/s instead of 10 MB/s.
-	if gr.Reader != nil && gr.Start < offset && offset-gr.Start < maxReadSize {
-		bytesToSkip := offset - gr.Start
+	if gr.RangeReader.Reader != nil && gr.RangeReader.Start < offset && offset-gr.RangeReader.Start < maxReadSize {
+		bytesToSkip := offset - gr.RangeReader.Start
 		p := make([]byte, bytesToSkip)
-		n, _ := io.ReadFull(gr.Reader, p)
-		gr.Start += int64(n)
+		n, _ := io.ReadFull(gr.RangeReader.Reader, p)
+		gr.RangeReader.Start += int64(n)
 	}
 
 	// If we have an existing reader, but it's positioned at the wrong place,
 	// clean it up and throw it away.
 	// We will also clean up the existing reader if it can't serve the entire request.
 	dataToRead := math.Min(float64(offset+int64(len(p))), float64(gr.Obj.Size))
-	if gr.Reader != nil && (gr.Start != offset || int64(dataToRead) > gr.Limit) {
+	if gr.RangeReader.Reader != nil && (gr.RangeReader.Start != offset || int64(dataToRead) > gr.RangeReader.Limit) {
 		gr.closeReader()
-		gr.Reader = nil
-		gr.cancel = nil
-		if gr.Start != offset {
+		gr.RangeReader.Reader = nil
+		if gr.RangeReader.Start != offset {
 			// We should only increase the seek count if we have to discard the reader when it's
 			// positioned at wrong place. Discarding it if can't serve the entire request would
 			// result in reader size not growing for random reads scenario.
-			gr.Seeks++
+			gr.RangeReader.Seeks++
 		}
 	}
 
@@ -143,13 +132,9 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcs_re
 	gr.Mrr.End = -1
 	log.Println("p length: ", len(p))
 
-	if gr.Reader != nil {
+	if gr.RangeReader.Reader != nil {
 		objectData, err = gr.RangeReader.ReadAt(ctx, p, offset)
-		gr.Reader = gr.RangeReader.Reader
 		gr.TotalReadBytes = gr.RangeReader.TotalReadBytes
-		gr.Start = gr.RangeReader.Start
-		gr.Limit = gr.RangeReader.Limit
-		gr.Seeks = gr.RangeReader.Seeks
 
 		return objectData, err
 	}
@@ -165,13 +150,9 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcs_re
 
 	log.Println("End: ", gr.RangeReader.End)
 	readerType := gr.readerType(gr.ReaderType, offset, end, gr.Bucket.BucketType())
-	if readerType == RangeReader {
+	if readerType == RangeReaderType {
 		objectData, err = gr.RangeReader.ReadAt(ctx, p, offset)
-		gr.Reader = gr.RangeReader.Reader
 		gr.TotalReadBytes = gr.RangeReader.TotalReadBytes
-		gr.Start = gr.RangeReader.Start
-		gr.Limit = gr.RangeReader.Limit
-		gr.Seeks = gr.RangeReader.Seeks
 		return objectData, err
 	}
 
@@ -186,8 +167,8 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcs_re
 
 // closeReader fetches the readHandle before closing the reader instance.
 func (gr *GCSReader) closeReader() {
-	gr.ReadHandle = gr.Reader.ReadHandle()
-	err := gr.Reader.Close()
+	gr.ReadHandle = gr.RangeReader.Reader.ReadHandle()
+	err := gr.RangeReader.Reader.Close()
 	if err != nil {
 		logger.Warnf("error while closing reader: %v", err)
 	}
@@ -197,9 +178,9 @@ func (gr *GCSReader) closeReader() {
 func (gr *GCSReader) readerType(readType string, start int64, end int64, bucketType gcs.BucketType) ReaderType {
 	bytesToBeRead := end - start
 	if readType == util.Random && bytesToBeRead < maxReadSize && bucketType.Zonal {
-		return MultiRangeReader
+		return MultiRangeReaderType
 	}
-	return RangeReader
+	return RangeReaderType
 }
 
 // getReaderInfo determines the readType and provides the range to query GCS.
@@ -228,9 +209,9 @@ func (gr *GCSReader) getReadInfo(start int64, size int64) (int64, error) {
 	// optimise for random reads. Random reads will read data in chunks of
 	// (average read size in bytes rounded up to the next MB).
 	end := int64(gr.Obj.Size)
-	if gr.Seeks >= minSeeksForRandom {
+	if gr.RangeReader.Seeks >= minSeeksForRandom {
 		gr.ReaderType = util.Random
-		averageReadBytes := gr.TotalReadBytes / gr.Seeks
+		averageReadBytes := gr.TotalReadBytes / gr.RangeReader.Seeks
 		if averageReadBytes < maxReadSize {
 			randomReadSize := int64(((averageReadBytes / MB) + 1) * MB)
 			if randomReadSize < minReadSize {

@@ -23,7 +23,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/readers/gcs_readers"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/readers"
 	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
 )
@@ -123,7 +123,7 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 	if fh.reader != nil {
 		fh.inode.Unlock()
 
-		var objectData gcs_readers.ObjectData
+		var objectData readers.ObjectData
 		objectData, err = fh.reader.ReadAt(ctx, dst, offset)
 		switch {
 		case errors.Is(err, io.EOF):

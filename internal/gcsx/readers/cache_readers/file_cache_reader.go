@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package readers
+package cache_readers
 
 import (
 	"context"
@@ -26,7 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	cacheutil "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/readers/gcs_readers"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/readers"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
@@ -62,9 +62,9 @@ func (fc *FileCacheReader) Object() *gcs.MinObject {
 func (fc *FileCacheReader) CheckInvariants() {
 }
 
-func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcs_readers.ObjectData, error) {
+func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (readers.ObjectData, error) {
 	var err error
-	o := gcs_readers.ObjectData{
+	o := readers.ObjectData{
 		DataBuf:  p,
 		CacheHit: false,
 		Size:     0,

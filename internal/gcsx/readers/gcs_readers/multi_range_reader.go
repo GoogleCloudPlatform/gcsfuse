@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/readers"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"golang.org/x/net/context"
@@ -38,16 +39,6 @@ type MultiRangeReader struct {
 	MetricHandle common.MetricHandle
 
 	TotalReadBytes uint64
-}
-
-// ObjectData specifies the response returned as part of ReadAt call.
-type ObjectData struct {
-	// Byte array populated with the requested data.
-	DataBuf []byte
-	// Size of the data returned.
-	Size int
-	// Specified whether data is served from cache or not.
-	CacheHit bool
 }
 
 func (mrd *MultiRangeReader) Object() *gcs.MinObject {
@@ -72,8 +63,8 @@ func (mrd *MultiRangeReader) readFromMultiRangeReader(ctx context.Context, p []b
 	return
 }
 
-func (mrd *MultiRangeReader) ReadAt(ctx context.Context, p []byte, offset int64) (ObjectData, error) {
-	o := ObjectData{
+func (mrd *MultiRangeReader) ReadAt(ctx context.Context, p []byte, offset int64) (readers.ObjectData, error) {
+	o := readers.ObjectData{
 		DataBuf:  p,
 		CacheHit: false,
 		Size:     0,

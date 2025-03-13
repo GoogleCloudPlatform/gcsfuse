@@ -22,6 +22,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/readers"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
@@ -57,8 +58,8 @@ type RangeReader struct {
 func (rr *RangeReader) CheckInvariants() {
 }
 
-func (rr *RangeReader) ReadAt(ctx context.Context, p []byte, offset int64) (ObjectData, error) {
-	objectData := ObjectData{
+func (rr *RangeReader) ReadAt(ctx context.Context, p []byte, offset int64) (readers.ObjectData, error) {
+	objectData := readers.ObjectData{
 		DataBuf:  p,
 		CacheHit: false,
 		Size:     0,
