@@ -19,7 +19,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"strings"
 	"testing"
 	"time"
 
@@ -52,9 +51,7 @@ func (s *cacheFileForRangeReadFalseTest) Setup(t *testing.T) {
 }
 
 func (s *cacheFileForRangeReadFalseTest) Teardown(t *testing.T) {
-	if t.Failed() {
-		setup.SaveLogFileToKOKOROArtifact("gcsfuse-failed-integration-test-logs-" + strings.Replace(t.Name(), "/", "-", -1))
-	}
+	setup.SaveGCSFuseLogFileInCaseOfFailure(t)
 	setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 }
 

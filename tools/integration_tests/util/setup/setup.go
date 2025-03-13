@@ -46,10 +46,12 @@ var testOnTPCEndPoint = flag.Bool("testOnTPCEndPoint", false, "Run tests on TPC 
 var seededRand *rand.Rand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 const (
-	FilePermission_0600 = 0600
-	DirPermission_0755  = 0755
-	Charset             = "abcdefghijklmnopqrstuvwxyz0123456789"
-	PathEnvVariable     = "PATH"
+	FilePermission_0600      = 0600
+	DirPermission_0755       = 0755
+	Charset                  = "abcdefghijklmnopqrstuvwxyz0123456789"
+	PathEnvVariable          = "PATH"
+	GCSFuseLogFilePrefix     = "gcsfuse-failed-integration-test-logs-"
+	ProxyServerLogFilePrefix = "proxy-server-failed-integration-test-logs-"
 )
 
 var (
@@ -164,13 +166,13 @@ func SetUpTestDir() error {
 	var err error
 	testDir, err = os.MkdirTemp("", "gcsfuse_readwrite_test_")
 	if err != nil {
-		return fmt.Errorf("TempDir: %w\n", err)
+		return fmt.Errorf("TempDir: %w", err)
 	}
 
 	if !TestInstalledPackage() {
 		err = util.BuildGcsfuse(testDir)
 		if err != nil {
-			return fmt.Errorf("BuildGcsfuse(%q): %w\n", TestDir(), err)
+			return fmt.Errorf("BuildGcsfuse(%q): %w", TestDir(), err)
 		}
 		binFile = path.Join(TestDir(), "bin/gcsfuse")
 		sbinFile = path.Join(TestDir(), "sbin/mount.gcsfuse")
@@ -193,7 +195,7 @@ func SetUpTestDir() error {
 
 	err = os.Mkdir(mntDir, 0755)
 	if err != nil {
-		return fmt.Errorf("Mkdir(%q): %v\n", MntDir(), err)
+		return fmt.Errorf("Mkdir(%q): %v", MntDir(), err)
 	}
 	return nil
 }
@@ -233,19 +235,44 @@ func UnMountBucket() {
 
 func SaveLogFileInCaseOfFailure(successCode int) {
 	if successCode != 0 {
-		// Logfile name will be gcsfuse-failed-integration-test-log-xxxxx
-		failedlogsFileName := "gcsfuse-failed-integration-test-logs-" + GenerateRandomString(5)
-		SaveLogFileToKOKOROArtifact(failedlogsFileName)
+		SaveLogFileAsArtifact(LogFile(), GCSFuseLogFilePrefix+GenerateRandomString(5))
 	}
 }
 
-func SaveLogFileToKOKOROArtifact(artifactName string) {
-	log.Printf("log file is available on kokoro artifacts with file name: %s", artifactName)
-	logFileInKokoroArtifact := path.Join(os.Getenv("KOKORO_ARTIFACTS_DIR"), artifactName)
-	err := operations.CopyFile(logFile, logFileInKokoroArtifact)
-	if err != nil {
-		log.Fatalf("Error in coping logfile in kokoro artifact: %v", err)
+// Saves logFile as given artifactName in KOKORO or
+// TestDir based on where the test is ran.
+func SaveLogFileAsArtifact(logFile, artifactName string) {
+	logDir := os.Getenv("KOKORO_ARTIFACTS_DIR")
+	if logDir == "" {
+		// Save log files in TestDir as this run is not on KOKORO.
+		logDir = TestDir()
 	}
+	artifactPath := path.Join(logDir, artifactName)
+	err := operations.CopyFile(logFile, artifactPath)
+	if err != nil {
+		log.Fatalf("Error in copying logfile to artifact path: %v", err)
+	}
+	log.Printf("Log file saved at %v", artifactPath)
+}
+
+// In case of test failure saves GCSFuse log file to
+// KOKORO artifacts directory if test ran on KOKORO
+// or saves to TestDir if test ran on local.
+func SaveGCSFuseLogFileInCaseOfFailure(tb testing.TB) {
+	if !tb.Failed() {
+		return
+	}
+	SaveLogFileAsArtifact(LogFile(), GCSFuseLogFilePrefix+strings.ReplaceAll(tb.Name(), "/", "_")+GenerateRandomString(5))
+}
+
+// In case of test failure saves ProxyServerLogFile to
+// KOKORO artifacts directory if test ran on KOKORO
+// or saves to TestDir if test ran on local.
+func SaveProxyServerLogFileInCaseOfFailure(proxyServerLogFile string, tb testing.TB) {
+	if !tb.Failed() {
+		return
+	}
+	SaveLogFileAsArtifact(proxyServerLogFile, ProxyServerLogFilePrefix+strings.ReplaceAll(tb.Name(), "/", "_")+GenerateRandomString(5))
 }
 
 func UnMountAndThrowErrorInFailure(flags []string, successCode int) {

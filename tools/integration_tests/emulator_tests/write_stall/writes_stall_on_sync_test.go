@@ -38,15 +38,17 @@ const (
 )
 
 type chunkTransferTimeoutInfinity struct {
-	port           int
-	proxyProcessId int
-	flags          []string
+	port               int
+	proxyProcessId     int
+	proxyServerLogFile string
+	flags              []string
 }
 
 func (s *chunkTransferTimeoutInfinity) Setup(t *testing.T) {
 	configPath := "../proxy_server/configs/write_stall_40s.yaml"
+	s.proxyServerLogFile = setup.CreateProxyServerLogFile(t)
 	var err error
-	s.port, s.proxyProcessId, err = emulator_tests.StartProxyServer(configPath, setup.CreateProxyServerLogFile(t))
+	s.port, s.proxyProcessId, err = emulator_tests.StartProxyServer(configPath, s.proxyServerLogFile)
 	require.NoError(t, err)
 	setup.AppendProxyEndpointToFlagSet(&s.flags, s.port)
 	setup.MountGCSFuseWithGivenMountFunc(s.flags, mountFunc)
@@ -55,6 +57,8 @@ func (s *chunkTransferTimeoutInfinity) Setup(t *testing.T) {
 func (s *chunkTransferTimeoutInfinity) Teardown(t *testing.T) {
 	setup.UnmountGCSFuse(rootDir)
 	assert.NoError(t, emulator_tests.KillProxyServerProcess(s.proxyProcessId))
+	setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+	setup.SaveProxyServerLogFileInCaseOfFailure(s.proxyServerLogFile, t)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -133,14 +137,17 @@ func TestChunkTransferTimeout(t *testing.T) {
 		t.Run(fmt.Sprintf("Flags_%v", flags), func(t *testing.T) {
 			for _, scenario := range stallScenarios {
 				t.Run(scenario.name, func(t *testing.T) {
-					port, proxyProcessId, err := emulator_tests.StartProxyServer(scenario.configPath, setup.CreateProxyServerLogFile(t))
+					proxyServerLogFile := setup.CreateProxyServerLogFile(t)
+					port, proxyProcessId, err := emulator_tests.StartProxyServer(scenario.configPath, proxyServerLogFile)
 					require.NoError(t, err)
 					setup.AppendProxyEndpointToFlagSet(&flags, port)
 					setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 
-					defer func() { // Defer unmount and  killing the server.
+					defer func() { // Defer unmount, killing the proxy server and saving log files.
 						setup.UnmountGCSFuse(rootDir)
 						assert.NoError(t, emulator_tests.KillProxyServerProcess(proxyProcessId))
+						setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+						setup.SaveProxyServerLogFileInCaseOfFailure(proxyServerLogFile, t)
 					}()
 
 					testDir := scenario.name + setup.GenerateRandomString(3)
