@@ -35,8 +35,9 @@ if [ $# -gt 0 ]; then
     >&2 echo "$0: ZONAL_BUCKET_ARG (\$1) passed as $1 . Expected: true or false"
     exit  1
   fi
-elif test -n ${RUN_TESTS_FOR_ZONAL_BUCKET}; then
-  ZONAL_BUCKET_ARG=${RUN_TESTS_FOR_ZONAL_BUCKET}
+elif test -n "${RUN_TESTS_WITH_ZONAL_BUCKET}" && ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
+  echo "Running for zonal bucket(s) ...";
+  ZONAL_BUCKET_ARG=${RUN_TESTS_WITH_ZONAL_BUCKET}
 fi
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
