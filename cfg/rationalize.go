@@ -47,14 +47,24 @@ func resolveMetadataCacheTTL(v isSet, c *MetadataCacheConfig, optimizationApplie
 			c.NegativeTtlSecs = maxSupportedTTLInSeconds
 		}
 	}
-	if v.IsSet(MetadataCacheTTLConfigKey) || optimizationApplied {
-		if c.TtlSecs == -1 {
-			c.TtlSecs = maxSupportedTTLInSeconds
+	// if any of three TTL flags are set then
+	// 	if MetadataCacheTTLConfigKey is set then use that
+	// 	else use other two values
+	// else if optimization not applied set default value
+	// otherwise optimization would have applied so mutate accordingly
+	if v.IsSet(MetadataCacheTTLConfigKey) || v.IsSet(MetadataCacheStatCacheTTLKey) || v.IsSet(MetadataCacheTypeCacheTTLKey) {
+		if v.IsSet(MetadataCacheTTLConfigKey) {
+			if c.TtlSecs == -1 {
+				c.TtlSecs = maxSupportedTTLInSeconds
+			}
+			return
 		}
-		return
+		c.TtlSecs = int64(math.Ceil(math.Min(c.DeprecatedStatCacheTtl.Seconds(), c.DeprecatedTypeCacheTtl.Seconds())))
+	} else if !optimizationApplied {
+		c.TtlSecs = int64(math.Ceil(math.Min(c.DeprecatedStatCacheTtl.Seconds(), c.DeprecatedTypeCacheTtl.Seconds())))
+	} else if c.TtlSecs == -1 {
+		c.TtlSecs = maxSupportedTTLInSeconds
 	}
-	// Else, use deprecated stat/type cache ttl to resolve metadataCacheTTL.
-	c.TtlSecs = int64(math.Ceil(math.Min(c.DeprecatedStatCacheTtl.Seconds(), c.DeprecatedTypeCacheTtl.Seconds())))
 }
 
 // resolveStatCacheMaxSizeMB returns the stat-cache size in MiBs based on the
@@ -62,15 +72,27 @@ func resolveMetadataCacheTTL(v isSet, c *MetadataCacheConfig, optimizationApplie
 func resolveStatCacheMaxSizeMB(v isSet, c *MetadataCacheConfig, optimizationApplied bool) {
 	// If metadata-cache:stat-cache-size-mb has been set, then it overrides
 	// stat-cache-capacity.
-	if v.IsSet(StatCacheMaxSizeConfigKey) || optimizationApplied {
-		if c.StatCacheMaxSizeMb == -1 {
-			c.StatCacheMaxSizeMb = int64(maxSupportedStatCacheMaxSizeMB)
+
+	// if any of two (StatCacheMaxSizeConfigKey, MetadataCacheStatCacheCapacityKey) are set then ->
+	// 	if StatCacheMaxSizeConfigKey is set then use that
+	// 	else use DeprecatedStatCacheCapacity
+	// else if optimization not applied set default value
+	// otherwise optimization would have been applied so mutate accordingly
+	if v.IsSet(StatCacheMaxSizeConfigKey) || v.IsSet(MetadataCacheStatCacheCapacityKey) {
+		if v.IsSet(StatCacheMaxSizeConfigKey) {
+			if c.StatCacheMaxSizeMb == -1 {
+				c.StatCacheMaxSizeMb = int64(maxSupportedStatCacheMaxSizeMB)
+			}
+			return
 		}
-		return
+		avgTotalStatCacheEntrySize := AverageSizeOfPositiveStatCacheEntry + AverageSizeOfNegativeStatCacheEntry
+		c.StatCacheMaxSizeMb = int64(util.BytesToHigherMiBs(uint64(c.DeprecatedStatCacheCapacity) * avgTotalStatCacheEntrySize))
+	} else if !optimizationApplied {
+		avgTotalStatCacheEntrySize := AverageSizeOfPositiveStatCacheEntry + AverageSizeOfNegativeStatCacheEntry
+		c.StatCacheMaxSizeMb = int64(util.BytesToHigherMiBs(uint64(c.DeprecatedStatCacheCapacity) * avgTotalStatCacheEntrySize))
+	} else if c.StatCacheMaxSizeMb == -1 {
+		c.StatCacheMaxSizeMb = int64(maxSupportedStatCacheMaxSizeMB)
 	}
-	// Else, use deprecated stat-cache-capacity to resolve StatCacheMaxSizeMb.
-	avgTotalStatCacheEntrySize := AverageSizeOfPositiveStatCacheEntry + AverageSizeOfNegativeStatCacheEntry
-	c.StatCacheMaxSizeMb = int64(util.BytesToHigherMiBs(uint64(c.DeprecatedStatCacheCapacity) * avgTotalStatCacheEntrySize))
 }
 
 func resolveStreamingWriteConfig(w *WriteConfig) {

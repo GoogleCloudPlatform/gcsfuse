@@ -312,6 +312,98 @@ func TestRationalizeMetadataCache(t *testing.T) {
 	}
 }
 
+func TestRationalizeMetadataCacheWithOptimization(t *testing.T) {
+	testCases := []struct {
+		name                    string
+		flags                   flagSet
+		config                  *Config
+		expectedTTLSecs         int64
+		expectedNegativeTTLSecs int64
+		expectedStatCacheSize   int64
+	}{
+		{
+			name:                    "negative_ttl_flag_set",
+			flags:                   flagSet{"metadata-cache.negative-ttl-secs": true},
+			config:                  &Config{MetadataCache: MetadataCacheConfig{NegativeTtlSecs: 44}},
+			expectedNegativeTTLSecs: 44,
+		},
+		{
+			name:            "new_ttl_flag_set",
+			flags:           flagSet{"metadata-cache.ttl-secs": true},
+			config:          &Config{MetadataCache: MetadataCacheConfig{TtlSecs: 30}},
+			expectedTTLSecs: 30,
+		},
+		{
+			name:  "old_ttl_flags_set",
+			flags: flagSet{"metadata-cache.deprecated-stat-cache-ttl": true, "metadata-cache.deprecated-type-cache-ttl": true},
+			config: &Config{
+				MetadataCache: MetadataCacheConfig{
+					DeprecatedStatCacheTtl: 10 * time.Second,
+					DeprecatedTypeCacheTtl: 5 * time.Second,
+				},
+			},
+			expectedTTLSecs: 5,
+		},
+		{
+			name:  "new_and_old_ttl_flags_set",
+			flags: flagSet{"metadata-cache.ttl-secs": true, "metadata-cache.deprecated-stat-cache-ttl": true, "metadata-cache.deprecated-type-cache-ttl": true},
+			config: &Config{
+				MetadataCache: MetadataCacheConfig{
+					TtlSecs:                30,
+					DeprecatedStatCacheTtl: 10 * time.Second,
+					DeprecatedTypeCacheTtl: 5 * time.Second,
+				},
+			},
+			expectedTTLSecs: 30,
+		},
+		{
+			name:                  "new_stat-cache-size-mb_flag_set",
+			flags:                 flagSet{"metadata-cache.stat-cache-max-size-mb": true},
+			config:                &Config{MetadataCache: MetadataCacheConfig{StatCacheMaxSizeMb: 100}},
+			expectedTTLSecs:       0, // Assuming no change to TtlSecs in this function
+			expectedStatCacheSize: 100,
+		},
+		{
+			name:                  "old_stat-cache-capacity_flag_set",
+			flags:                 flagSet{"metadata-cache.deprecated-stat-cache-capacity": true},
+			config:                &Config{MetadataCache: MetadataCacheConfig{DeprecatedStatCacheCapacity: 1000}},
+			expectedTTLSecs:       0,
+			expectedStatCacheSize: 2,
+		},
+		{
+			name:                  "new_and_old_stat-cache-capacity_flag_set",
+			flags:                 flagSet{"metadata-cache.stat-cache-max-size-mb": true, "metadata-cache.deprecated-stat-cache-capacity": true},
+			config:                &Config{MetadataCache: MetadataCacheConfig{StatCacheMaxSizeMb: 100, DeprecatedStatCacheCapacity: 1000}},
+			expectedTTLSecs:       0,
+			expectedStatCacheSize: 100,
+		},
+		{
+			name:  "ttl_and_stat_cache_size_set_to_-1",
+			flags: flagSet{"metadata-cache.ttl-secs": true, "metadata-cache.stat-cache-max-size-mb": true},
+			config: &Config{
+				MetadataCache: MetadataCacheConfig{
+					TtlSecs:            -1,
+					NegativeTtlSecs:    -1,
+					StatCacheMaxSizeMb: -1,
+				},
+			},
+			expectedTTLSecs:         math.MaxInt64 / int64(time.Second), // Max supported ttl in seconds.
+			expectedNegativeTTLSecs: math.MaxInt64 / int64(time.Second), // Max supported ttl in seconds.
+			expectedStatCacheSize:   math.MaxUint64 >> 20,               // Max supported cache size in MiB.
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if assert.NoError(t, Rationalize(tc.flags, tc.config, true)) {
+				assert.Equal(t, tc.expectedTTLSecs, tc.config.MetadataCache.TtlSecs)
+				assert.Equal(t, tc.expectedNegativeTTLSecs, tc.config.MetadataCache.NegativeTtlSecs)
+				assert.Equal(t, tc.expectedStatCacheSize, tc.config.MetadataCache.StatCacheMaxSizeMb)
+			}
+		})
+	}
+}
+
 func TestRationalize_WriteConfig(t *testing.T) {
 	testCases := []struct {
 		name                     string
