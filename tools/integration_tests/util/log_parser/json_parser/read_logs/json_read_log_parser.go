@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"regexp"
 	"sort"
@@ -29,8 +28,8 @@ import (
 )
 
 func filterAndParseLogLine(logLine string,
-	structuredLogs map[int64]*StructuredReadLogEntry,
-	opReverseMap map[string]*handleAndChunkIndex) error {
+		structuredLogs map[int64]*StructuredReadLogEntry,
+		opReverseMap map[string]*handleAndChunkIndex) error {
 
 	jsonLog := make(map[string]interface{})
 	if err := json.Unmarshal([]byte(logLine), &jsonLog); err != nil {
@@ -142,12 +141,11 @@ func GetStructuredLogsSortedByTimestamp(logFilePath string, t *testing.T) []*Str
 		if structuredReadLogs[i].StartTimeSeconds < structuredReadLogs[j].StartTimeSeconds {
 			return true
 		} else if structuredReadLogs[i].StartTimeSeconds == structuredReadLogs[j].StartTimeSeconds &&
-			structuredReadLogs[i].StartTimeNanos < structuredReadLogs[j].StartTimeNanos {
+				structuredReadLogs[i].StartTimeNanos < structuredReadLogs[j].StartTimeNanos {
 			return true
 		}
 		return false
 	})
 
-	log.Println("StructuredReadLogEntry: ", structuredReadLogs)
 	return structuredReadLogs
 }
