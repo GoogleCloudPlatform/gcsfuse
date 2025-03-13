@@ -13,8 +13,8 @@
 
 # limitations under the License.
 # To run the script,run in terminal:
-# python3 renaming_benchmark.py config.json bucket_type  [--upload_gs] \
-# [--num_samples NUM_SAMPLES]
+# python3 renaming_benchmark.py dir-config.json bucket_type  gcsfuse_mount_flags \
+# [--upload_gs]  [--num_samples NUM_SAMPLES]
 # where dir-config.json file contains the directory structure details for the test.
 
 import os
@@ -295,18 +295,20 @@ def _record_time_of_operation(mount_point, dir, num_samples):
   time_interval_for_vm_metrics={}
   # Collecting metrics for non-nested folders.
   for folder in dir["folders"]["folder_structure"]:
+    log.info("Testing started for {}".format(folder["name"]))
     results[folder["name"]],time_interval = _record_time_for_folder_rename(mount_point,folder,num_samples)
     time_interval_for_vm_metrics[folder["name"]]=[time_interval[0][0],time_interval[-1][-1]]
 
   nested_folder={
       "name": dir["nested_folders"]["folder_name"]
   }
+  log.info("Testing started for {}".format(dir["nested_folders"]["folder_name"]))
   results[dir["nested_folders"]["folder_name"]],time_interval = _record_time_for_folder_rename(mount_point,nested_folder,num_samples)
   time_interval_for_vm_metrics[dir["nested_folders"]["folder_name"]]=[time_interval[0][0],time_interval[-1][-1]]
   return results,time_interval_for_vm_metrics
 
 
-def _perform_testing(dir, test_type, num_samples):
+def _perform_testing(dir, mount_flags, num_samples):
   """
   This function performs rename operations and records time of operation .
   Args:
@@ -340,17 +342,6 @@ def _perform_testing(dir, test_type, num_samples):
     test_type : flat or hns.
     num_samples: Number of samples to collect for each test.
   """
-  if test_type == "hns":
-    # Creating config file for mounting with hns enabled.
-    with open("/tmp/config.yml",'w') as mount_config:
-      mount_config.write("enable-hns: true")
-    mount_flags="--config-file=/tmp/config.yml --stackdriver-export-interval=30s"
-  else :
-    # Creating config file for mounting with hns disabled.
-    with open("/tmp/config.yml",'w') as mount_config:
-      mount_config.write("enable-hns: false")
-    mount_flags = "--config-file=/tmp/config.yml  --implicit-dirs --rename-dir-limit=1000000 --stackdriver-export-interval=30s"
-
   # Mounting the gcs bucket.
   bucket_name = mount_gcs_bucket(dir["name"], mount_flags, log)
   # Record time of operation and populate the results dict.
@@ -375,6 +366,11 @@ def _parse_arguments(argv):
       help='Provide bucket type - hns or flat ',
       action='store',
       choices=['hns','flat']
+  )
+  parser.add_argument(
+      'gcsfuse_flags',
+      help='Gcsfuse flags for mounting the tests bucket.',
+      action='store',
   )
   parser.add_argument(
       '--upload_gs',
@@ -443,7 +439,7 @@ def _get_upload_value_for_vm_metrics(vm_metrics):
   return upload_values
 
 
-def _run_rename_benchmark(test_type,dir_config,num_samples,upload_gs):
+def _run_rename_benchmark(test_type,dir_config,mount_flags,num_samples,upload_gs):
   with open(os.path.abspath(dir_config)) as file:
     dir_str = json.load(file)
 
@@ -460,7 +456,7 @@ def _run_rename_benchmark(test_type,dir_config,num_samples,upload_gs):
     sys.exit(1)
 
   # Getting latency related metrics
-  results,time_intervals=_perform_testing(dir_str, test_type, num_samples)
+  results,time_intervals=_perform_testing(dir_str, mount_flags, num_samples)
   parsed_metrics = _parse_results(dir_str, results, num_samples)
   upload_values = _get_values_to_export(dir_str, parsed_metrics,
                                              test_type)
@@ -504,12 +500,12 @@ def _run_rename_benchmark(test_type,dir_config,num_samples,upload_gs):
 
 if __name__ == '__main__':
   argv = sys.argv
-  if len(argv) < 3:
+  if len(argv) < 4:
     raise TypeError('Incorrect number of arguments.\n'
                     'Usage: '
-                    'python3 renaming_benchmark.py  [--upload_gs] [--num_samples NUM_SAMPLES] config_file bucket_type')
+                    'python3 renaming_benchmark.py  [--upload_gs] [--num_samples NUM_SAMPLES] config_file bucket_type mount_flags')
 
   args = _parse_arguments(argv)
   check_dependencies(['gcloud', 'gcsfuse'], log)
-  _run_rename_benchmark(args.bucket_type, args.config_file, args.num_samples,
+  _run_rename_benchmark(args.bucket_type, args.config_file,args.gcsfuse_flags, args.num_samples,
                           args.upload_gs)
