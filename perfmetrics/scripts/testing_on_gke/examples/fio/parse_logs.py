@@ -51,6 +51,11 @@ record = {
     "blockSize": "",
     "filesPerThread": 0,
     "numThreads": 0,
+    "e2e_latency_ns_max": 0,
+    "e2e_latency_ns_p50": 0,
+    "e2e_latency_ns_p90": 0,
+    "e2e_latency_ns_p99": 0,
+    "e2e_latency_ns_p99.9": 0,
 }
 
 
@@ -250,6 +255,13 @@ def createOutputScenariosFromDownloadedFiles(args: dict) -> dict:
       r["blockSize"] = bs
       r["filesPerThread"] = nrfiles
       r["numThreads"] = numjobs
+      clat_ns = per_epoch_output_data["jobs"][0]["read"]["clat_ns"]
+      r["e2e_latency_ns_max"] = clat_ns["max"]
+      clat_ns_percentile = clat_ns["percentile"]
+      r["e2e_latency_ns_p50"] = clat_ns_percentile["50.000000"]
+      r["e2e_latency_ns_p90"] = clat_ns_percentile["90.000000"]
+      r["e2e_latency_ns_p99"] = clat_ns_percentile["99.000000"]
+      r["e2e_latency_ns_p99.9"] = clat_ns_percentile["99.900000"]
 
       # This print is for debugging in case something goes wrong.
       pprint.pprint(r)
@@ -274,7 +286,9 @@ def writeRecordsToCsvOutputFile(output: dict, output_file_path: str):
         " Lowest"
         " Memory (MB),GCSFuse Highest Memory (MB),GCSFuse Lowest CPU"
         " (core),GCSFuse Highest CPU"
-        " (core),Pod,Start,End,GcsfuseMoutOptions,BlockSize,FilesPerThread,NumThreads,InstanceID\n"
+        " (core),Pod,Start,End,GcsfuseMoutOptions,BlockSize,FilesPerThread,NumThreads,InstanceID,"
+        "e2e_latency_ns_max,e2e_latency_ns_p50,e2e_latency_ns_p90,e2e_latency_ns_p99,e2e_latency_ns_p99.9"  #
+        "\n"
     )
 
     for key in output:
@@ -312,7 +326,10 @@ def writeRecordsToCsvOutputFile(output: dict, output_file_path: str):
             continue
 
           output_file_fwr.write(
-              f"{record_set['mean_file_size']},{record_set['read_type']},{scenario},{r['epoch']},{r['duration']},{r['throughput_mb_per_second']},{r['IOPS']},{r['throughput_over_local_ssd']},{r['lowest_memory']},{r['highest_memory']},{r['lowest_cpu']},{r['highest_cpu']},{r['pod_name']},{r['start']},{r['end']},\"{r['gcsfuse_mount_options']}\",{r['blockSize']},{r['filesPerThread']},{r['numThreads']},{args.instance_id}\n"
+              f"{record_set['mean_file_size']},{record_set['read_type']},{scenario},{r['epoch']},{r['duration']},{r['throughput_mb_per_second']},{r['IOPS']},{r['throughput_over_local_ssd']},{r['lowest_memory']},{r['highest_memory']},{r['lowest_cpu']},{r['highest_cpu']},{r['pod_name']},{r['start']},{r['end']},\"{r['gcsfuse_mount_options']}\",{r['blockSize']},{r['filesPerThread']},{r['numThreads']},{args.instance_id},"
+          )
+          output_file_fwr.write(
+              f"{r['e2e_latency_ns_max']},{r['e2e_latency_ns_p50']},{r['e2e_latency_ns_p90']},{r['e2e_latency_ns_p99']},{r['e2e_latency_ns_p99.9']}\n"
           )
 
     output_file_fwr.close()
