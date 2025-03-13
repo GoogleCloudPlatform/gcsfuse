@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"sync/atomic"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
@@ -43,10 +44,8 @@ type UploadHandler struct {
 	// writer to resumable upload the blocks to GCS.
 	writer gcs.Writer
 
-	// signalUploadFailure channel will propagate the upload error to file
-	// inode. This signals permanent failure in the buffered write job.
-	signalUploadFailure chan error
-
+	// uploadError stores atomic pointer to the error seen by uploader.
+	uploadError atomic.Pointer[error]
 	// CancelFunc persisted to cancel the uploads in case of unlink operation.
 	cancelFunc context.CancelFunc
 
@@ -78,7 +77,6 @@ func newUploadHandler(req *CreateUploadHandlerRequest) *UploadHandler {
 		objectName:           req.ObjectName,
 		obj:                  req.Object,
 		blockSize:            req.BlockSize,
-		signalUploadFailure:  make(chan error, 1),
 		chunkTransferTimeout: req.ChunkTransferTimeoutSecs,
 	}
 	return uh
@@ -116,17 +114,25 @@ func (uh *UploadHandler) createObjectWriter() (err error) {
 	return
 }
 
+func (uh *UploadHandler) UploadError() (err error) {
+	if uploadError := uh.uploadError.Load(); uploadError != nil {
+		err = *uploadError
+	}
+	return
+}
+
 // uploader is the single-threaded goroutine that uploads blocks.
 func (uh *UploadHandler) uploader() {
 	for currBlock := range uh.uploadCh {
-		select {
-		case <-uh.signalUploadFailure:
-		default:
-			_, err := io.Copy(uh.writer, currBlock.Reader())
-			if err != nil {
-				logger.Errorf("buffered write upload failed for object %s: error in io.Copy: %v", uh.objectName, err)
-				uh.closeUploadFailureChannel()
-			}
+		if uh.UploadError() != nil {
+			uh.wg.Done()
+			continue
+		}
+		_, err := io.Copy(uh.writer, currBlock.Reader())
+		if err != nil {
+			logger.Errorf("buffered write upload failed for object %s: error in io.Copy: %v", uh.objectName, err)
+			err = gcs.GetGCSError(err)
+			uh.uploadError.Store(&err)
 		}
 		// Put back the uploaded block on the freeBlocksChannel for re-use.
 		uh.freeBlocksCh <- currBlock
@@ -150,8 +156,10 @@ func (uh *UploadHandler) Finalize() (*gcs.MinObject, error) {
 
 	obj, err := uh.bucket.FinalizeUpload(context.Background(), uh.writer)
 	if err != nil {
-		uh.closeUploadFailureChannel()
-		return nil, fmt.Errorf("FinalizeUpload failed for object %s: %w", uh.objectName, err)
+		// FinalizeUpload already returns GCSerror so no need to convert again.
+		uh.uploadError.Store(&err)
+		logger.Errorf("FinalizeUpload failed for object %s: %v", uh.objectName, err)
+		return nil, err
 	}
 	return obj, nil
 }
@@ -163,10 +171,6 @@ func (uh *UploadHandler) CancelUpload() {
 	}
 	// Wait for all in progress buffers to be added to the free channel.
 	uh.wg.Wait()
-}
-
-func (uh *UploadHandler) SignalUploadFailure() chan error {
-	return uh.signalUploadFailure
 }
 
 func (uh *UploadHandler) AwaitBlocksUpload() {
@@ -190,15 +194,5 @@ func (uh *UploadHandler) Destroy() {
 			close(uh.uploadCh)
 			return
 		}
-	}
-}
-
-// Closes the channel if not already closed to signal upload failure.
-func (uh *UploadHandler) closeUploadFailureChannel() {
-	select {
-	case <-uh.signalUploadFailure:
-		break
-	default:
-		close(uh.signalUploadFailure)
 	}
 }
