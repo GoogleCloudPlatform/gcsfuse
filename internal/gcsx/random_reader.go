@@ -360,6 +360,11 @@ func (rr *randomReader) ReadAt(
 		Size:     0,
 	}
 
+	if offset < 0 {
+		err = fmt.Errorf("ReadAt: negative offset: %d", offset)
+		return
+	}
+
 	if offset >= int64(rr.object.Size) {
 		err = io.EOF
 		return
