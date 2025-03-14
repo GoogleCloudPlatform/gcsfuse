@@ -218,8 +218,8 @@ type randomReader struct {
 	metricHandle common.MetricHandle
 
 	// Stores three read-states:
-	// -1 represents the 1st read, to make the gcs request size asked by the application.
-	// non-negative offset represents the 2nd read, used to decide the pattern relative to the 1st read.
+	// -1 represents the 1st read, to make the gcs request size GCSFuse receives from kernel.
+	// non-negative offset represents the 2nd read, used to decide the read-pattern relative to the 1st read.
 	// -2 represents the 3rd read (or disabled state), to disable this logic.
 	randReadOptimizerState randReadOptimizerState
 }
@@ -387,9 +387,11 @@ func (rr *randomReader) ReadAt(
 	}
 
 	// Special optimization for random read flow:
-	// Instead of starting a sequential read upto 200MiB, make a gcs request of size asked by application.
-	// This stops (a) spamming the server by making a 200 MiB request, (b) Head of line blocking issue
-	// for gRPC in case multiple reader creates a 200 MiB reader connection and don't read from that.
+	// Instead of starting a sequential read upto 200MiB, make a gcs request of size GCSFuse receives from kernel.
+	// This stops -
+	// (a) spamming the server because of large 200 MiB request (prefetch).
+	// (b) Head of line blocking issue for gRPC in case multiple reader creates a 200 MiB reader connection and
+	// don't read from that.
 	if !rr.randReadOptimizerState.isDisabled() {
 		if rr.randReadOptimizerState.isFirstRead() {
 			objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, offset+int64(len(p)), util.Random)

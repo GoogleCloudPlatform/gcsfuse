@@ -80,9 +80,9 @@ func (t *RandomReaderStretchrTest) SetupTest() {
 	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm)
 
 	// Set up the reader.
+	t.optimizeRandomRead = false
 	rr := NewRandomReader(t.object, t.mockBucket, sequentialReadSizeInMb, nil, false, common.NewNoopMetrics(), nil, t.optimizeRandomRead)
 	t.rr.wrapped = rr.(*randomReader)
-	t.optimizeRandomRead = false
 }
 
 func (t *RandomReaderStretchrTest) TearDownTest() {
@@ -472,7 +472,7 @@ func (t *RandomReaderStretchrTest) Test_ReadFromRangeReader_WhenReaderReturnedEO
 
 func (t *RandomReaderStretchrTest) Test_ExistingReader_WrongOffset() {
 	if t.optimizeRandomRead {
-		t.T().Skip("first gcs request size will differ in case of optimizeRandomRead=true.")
+		t.T().Skip("Expected: first gcs request size will differ in case of optimizeRandomRead=true.")
 	}
 	testCases := []struct {
 		name       string
@@ -527,7 +527,7 @@ func (t *RandomReaderStretchrTest) Test_ExistingReader_WrongOffset() {
 
 func (t *RandomReaderStretchrTest) Test_ReadAt_ExistingReaderLimitIsLessThanRequestedDataSize() {
 	if t.optimizeRandomRead {
-		t.T().Skip("Random read optimization is not for the existing reader.")
+		t.T().Skip("Random read optimization is not for the existing reader scenario.")
 	}
 	t.object.Size = 10
 	// Simulate an existing reader.
@@ -564,7 +564,7 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_ExistingReaderLimitIsLessThanRequ
 
 func (t *RandomReaderStretchrTest) Test_ReadAt_ExistingReaderLimitIsLessThanRequestedObjectSize() {
 	if t.optimizeRandomRead {
-		t.T().Skip("first gcs request size will differ in case of optimizeRandomRead=true.")
+		t.T().Skip("Expected: first gcs request size will differ in case of optimizeRandomRead=true.")
 	}
 	t.object.Size = 5
 	// Simulate an existing reader
@@ -698,7 +698,7 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_ValidateReadType() {
 
 func (t *RandomReaderStretchrTest) Test_ReadAt_MRDRead() {
 	if t.optimizeRandomRead {
-		t.T().Skip("this test only targets for MRD read, so not required for optimizeRandomRead=true.")
+		t.T().Skip("This test only targets for MRD read, so not required for optimizeRandomRead=true.")
 	}
 
 	testCases := []struct {
@@ -879,7 +879,7 @@ func (t *RandomReaderStretchrTest) Test_ReadFromMultiRangeReader_ValidateTimeout
 	}
 }
 
-// *************** Test for rand read optimization ***************
+// **** Unit test for random read optimization ****
 type RandomReaderWithFirstReadOptimizationTest struct {
 	RandomReaderStretchrTest
 }

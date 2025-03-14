@@ -53,7 +53,10 @@ type FileHandle struct {
 	// define an enum instead of boolean to hold the type of open.
 	readOnly bool
 
-
+	// So far, GCSFuse starts the reader with large prefetch assuming the read as sequential.
+	// More prefetching leads to more server side processing, which can be avoided for random
+	// reads. If true, then first gcs request is made of the same size as read-size received
+	// from the kernel.
 	optimizeRandomRead bool
 }
 
