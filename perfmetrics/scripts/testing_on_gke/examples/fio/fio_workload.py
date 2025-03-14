@@ -110,8 +110,7 @@ class FioWorkload:
   (essentially the data needed to create a job file for FIO run).
 
   Members:
-  1. scenario (string): One of "local-ssd", "gcsfuse-generic",
-  "gcsfuse-file-cache" and "gcsfuse-no-file-cache".
+  1. scenario (string): One of "local-ssd", "gcsfuse-generic".
   2. fileSize (string): fio filesize field in string format e.g. '100', '10K',
   '10M' etc.
   3. blockSize (string): equivalent of bs field in fio job file e.g. '8K',
