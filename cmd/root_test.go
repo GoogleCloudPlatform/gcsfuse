@@ -193,6 +193,58 @@ func TestArgsParsing_MountOptions(t *testing.T) {
 	}
 }
 
+// Lets test for ImplicitDirs which is goverened by implicit-dirs flags
+func TestArgsParsing_ImplicitDirsFlag(t *testing.T) {
+	tests := []struct {
+		name             string
+		args             []string
+		expectedImplicit bool
+	}{
+		{
+			name:             "normal",
+			args:             []string{"gcsfuse", "--implicit-dirs", "abc", "pqr"},
+			expectedImplicit: true,
+		},
+		{
+			name:             "default",
+			args:             []string{"gcsfuse", "abc", "pqr"},
+			expectedImplicit: false,
+		},
+		{
+			name:             "normal_false",
+			args:             []string{"gcsfuse", "--implicit-dirs=false", "abc", "pqr"},
+			expectedImplicit: false,
+		},
+		{
+			name:             "default true on high performance machine",
+			args:             []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "abc", "pqr"},
+			expectedImplicit: true,
+		},
+		{
+			name:             "default overriden on high performance machine",
+			args:             []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--implicit-dirs=false", "abc", "pqr"},
+			expectedImplicit: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotImplicit bool
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+				gotImplicit = cfg.ImplicitDirs
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedImplicit, gotImplicit)
+			}
+		})
+	}
+}
 func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 	tests := []struct {
 		name                          string
@@ -281,6 +333,15 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedEnableStreamingWrites: true,
 			expectedWriteBlockSizeMB:      32 * util.MiB,
 			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
+		},
+		{
+			name:                          "Test high performance config values with enable-streaming-writes flag overriden.",
+			args:                          []string{"gcsfuse", "--enable-streaming-writes=false", "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: false,
+			expectedWriteBlockSizeMB:      32 * util.MiB,
+			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
+			expectedWriteMaxBlocksPerFile: 1,
 		},
 	}
 
@@ -689,6 +750,46 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			},
 		},
 		{
+			name: "high performance defaults with rename dir options",
+			args: []string{"gcsfuse", "--dir-mode=777", "--machine-type=a3-highgpu-8g", "--file-mode=666", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					DirMode:                0777,
+					DisableParallelDirops:  false,
+					FileMode:               0666,
+					FuseOptions:            []string{},
+					Gid:                    -1,
+					IgnoreInterrupts:       true,
+					KernelListCacheTtlSecs: 0,
+					RenameDirLimit:         200000,
+					TempDir:                "",
+					PreconditionErrors:     true,
+					Uid:                    -1,
+					HandleSigterm:          true,
+				},
+			},
+		},
+		{
+			name: "high performance defaults with overriden rename dir options",
+			args: []string{"gcsfuse", "--dir-mode=777", "--machine-type=a3-highgpu-8g", "--rename-dir-limit=15000", "--file-mode=666", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					DirMode:                0777,
+					DisableParallelDirops:  false,
+					FileMode:               0666,
+					FuseOptions:            []string{},
+					Gid:                    -1,
+					IgnoreInterrupts:       true,
+					KernelListCacheTtlSecs: 0,
+					RenameDirLimit:         15000,
+					TempDir:                "",
+					PreconditionErrors:     true,
+					Uid:                    -1,
+					HandleSigterm:          true,
+				},
+			},
+		},
+		{
 			name: "default",
 			args: []string{"gcsfuse", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
@@ -1048,6 +1149,57 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 					TtlSecs:                             60,
 					NegativeTtlSecs:                     5,
 					TypeCacheMaxSizeMb:                  4,
+				},
+			},
+		},
+		{
+			name: "high performance default config values",
+			args: []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				MetadataCache: cfg.MetadataCacheConfig{
+					DeprecatedStatCacheCapacity:         20460,
+					DeprecatedStatCacheTtl:              60 * time.Second,
+					DeprecatedTypeCacheTtl:              60 * time.Second,
+					EnableNonexistentTypeCache:          false,
+					ExperimentalMetadataPrefetchOnMount: "disabled",
+					StatCacheMaxSizeMb:                  1024,
+					TtlSecs:                             9223372036,
+					NegativeTtlSecs:                     0,
+					TypeCacheMaxSizeMb:                  128,
+				},
+			},
+		},
+		{
+			name: "high performance default config values obey customer flags",
+			args: []string{"gcsfuse", "--stat-cache-capacity=2000", "--stat-cache-ttl=2m", "--type-cache-ttl=1m20s", "--enable-nonexistent-type-cache", "--experimental-metadata-prefetch-on-mount=async", "--stat-cache-max-size-mb=15", "--metadata-cache-ttl-secs=25", "--metadata-cache-negative-ttl-secs=20", "--type-cache-max-size-mb=30", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				MetadataCache: cfg.MetadataCacheConfig{
+					DeprecatedStatCacheCapacity:         2000,
+					DeprecatedStatCacheTtl:              2 * time.Minute,
+					DeprecatedTypeCacheTtl:              80 * time.Second,
+					EnableNonexistentTypeCache:          true,
+					ExperimentalMetadataPrefetchOnMount: "async",
+					StatCacheMaxSizeMb:                  15,
+					TtlSecs:                             25,
+					NegativeTtlSecs:                     20,
+					TypeCacheMaxSizeMb:                  30,
+				},
+			},
+		},
+		{
+			name: "high performance default config values use deprecated flags",
+			args: []string{"gcsfuse", "--stat-cache-capacity=2000", "--stat-cache-ttl=2m", "--type-cache-ttl=4m", "--enable-nonexistent-type-cache", "--experimental-metadata-prefetch-on-mount=async", "--metadata-cache-negative-ttl-secs=20", "--type-cache-max-size-mb=30", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				MetadataCache: cfg.MetadataCacheConfig{
+					DeprecatedStatCacheCapacity:         2000,
+					DeprecatedStatCacheTtl:              2 * time.Minute,
+					DeprecatedTypeCacheTtl:              4 * time.Minute,
+					EnableNonexistentTypeCache:          true,
+					ExperimentalMetadataPrefetchOnMount: "async",
+					StatCacheMaxSizeMb:                  4,
+					TtlSecs:                             120,
+					NegativeTtlSecs:                     20,
+					TypeCacheMaxSizeMb:                  30,
 				},
 			},
 		},
