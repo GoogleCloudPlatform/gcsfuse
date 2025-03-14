@@ -65,25 +65,29 @@ const TimeoutForMultiRangeRead = time.Hour
 // If gap b/w current read start and previously read content is greater than gRandomReadThreshold,
 // read is assumed as random read.
 const gRandomReadThreshold = 1 * MB
-const gDisabled = randomReadOptimizationOffset(-2)
-const gFirstRead = randomReadOptimizationOffset(-1)
+const gDisabled = randReadOptimizerState(-2)
+const gFirstRead = randReadOptimizerState(-1)
 
-type randomReadOptimizationOffset int64
+type randReadOptimizerState int64
 
-func (h randomReadOptimizationOffset) offset() int64 {
+func (h randReadOptimizerState) offset() int64 {
 	return int64(h)
 }
 
-func (h randomReadOptimizationOffset) isFirstRead() bool {
+func (h randReadOptimizerState) isFirstRead() bool {
 	return h == gFirstRead
 }
 
-func (h randomReadOptimizationOffset) isSecondRead() bool {
+func (h randReadOptimizerState) isSecondRead() bool {
 	return h.offset() >= 0
 }
 
-func (h randomReadOptimizationOffset) isDisabled() bool {
+func (h randReadOptimizerState) isDisabled() bool {
 	return h == gDisabled
+}
+
+func (h randReadOptimizerState) isRandom(offset int64) bool {
+	return offset < int64(h) || (offset-int64(h) > gRandomReadThreshold)
 }
 
 // RandomReader is an object that knows how to read ranges within a particular
@@ -139,23 +143,23 @@ const (
 // reads using the given bucket.
 func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper, optimizeRandomRead bool) RandomReader {
 	rr := &randomReader{
-		object:                o,
-		bucket:                bucket,
-		start:                 -1,
-		limit:                 -1,
-		seeks:                 0,
-		totalReadBytes:        0,
-		readType:              util.Sequential,
-		sequentialReadSizeMb:  sequentialReadSizeMb,
-		fileCacheHandler:      fileCacheHandler,
-		cacheFileForRangeRead: cacheFileForRangeRead,
-		mrdWrapper:            mrdWrapper,
-		metricHandle:          metricHandle,
-		lastReadOffset:        gDisabled,
+		object:                 o,
+		bucket:                 bucket,
+		start:                  -1,
+		limit:                  -1,
+		seeks:                  0,
+		totalReadBytes:         0,
+		readType:               util.Sequential,
+		sequentialReadSizeMb:   sequentialReadSizeMb,
+		fileCacheHandler:       fileCacheHandler,
+		cacheFileForRangeRead:  cacheFileForRangeRead,
+		mrdWrapper:             mrdWrapper,
+		metricHandle:           metricHandle,
+		randReadOptimizerState: gDisabled,
 	}
 
 	if optimizeRandomRead {
-		rr.lastReadOffset = gFirstRead
+		rr.randReadOptimizerState = gFirstRead
 	}
 	return rr
 }
@@ -213,10 +217,11 @@ type randomReader struct {
 
 	metricHandle common.MetricHandle
 
-	// -1 represents the first read.
-	// non-negative value represents the 2nd read and the offset read during the 1st request.
-	// -2 represents the 3rd read onwards.
-	lastReadOffset randomReadOptimizationOffset
+	// Stores three read-states:
+	// -1 represents the 1st read, to make the gcs request size asked by the application.
+	// non-negative offset represents the 2nd read, used to decide the pattern relative to the 1st read.
+	// -2 represents the 3rd read (or disabled state), to disable this logic.
+	randReadOptimizerState randReadOptimizerState
 }
 
 func (rr *randomReader) CheckInvariants() {
@@ -377,22 +382,19 @@ func (rr *randomReader) ReadAt(
 	}
 
 	// Special optimization for random read flow:
-	// Instead of starting a sequential read upto 200MiB, server the first application request
-	// by creating the reader equal to size of application read request.
+	// Instead of starting a sequential read upto 200MiB, make a gcs request of size asked by application.
 	// This stops (a) spamming the server by making a 200 MiB request, (b) Head of line blocking issue
 	// for gRPC in case multiple reader creates a 200 MiB reader connection and don't read from that.
-	if !rr.lastReadOffset.isDisabled() {
-		if rr.lastReadOffset.isFirstRead() {
+	if !rr.randReadOptimizerState.isDisabled() {
+		if rr.randReadOptimizerState.isFirstRead() {
 			objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, offset+int64(len(p)), util.Random)
-			rr.lastReadOffset = randomReadOptimizationOffset(offset + int64(len(p)))
+			rr.randReadOptimizerState = randReadOptimizerState(offset + int64(len(p)))
 			return
-		} else if rr.lastReadOffset.isSecondRead() {
-			// Random read.
-			lastReadOffset1 := rr.lastReadOffset.offset()
-			if offset < lastReadOffset1 || offset-lastReadOffset1 > gRandomReadThreshold {
+		} else if rr.randReadOptimizerState.isSecondRead() {
+			if rr.randReadOptimizerState.isRandom(offset) {
 				rr.seeks = minSeeksForRandom // Mark the current and onwards read as random.
 			}
-			rr.lastReadOffset = gDisabled // Not execute the logic for further read.
+			rr.randReadOptimizerState = gDisabled // Not execute the logic for further read.
 		}
 	}
 
