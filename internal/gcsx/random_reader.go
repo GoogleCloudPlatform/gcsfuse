@@ -350,9 +350,12 @@ func (rr *randomReader) ReadAt(
 	// is a 15-20x improvement in throughput: 150-200 MB/s instead of 10 MB/s.
 	if rr.reader != nil && rr.start < offset && offset-rr.start < maxReadSize {
 		bytesToSkip := offset - rr.start
-		p := make([]byte, bytesToSkip)
-		n, _ := io.ReadFull(rr.reader, p)
-		rr.start += int64(n)
+		discardedBytes, copyError := io.CopyN(io.Discard, rr.reader, int64(bytesToSkip))
+		// io.EOF is expected if the reader is shorter than the requested offset to read.
+		if copyError != nil && !errors.Is(copyError, io.EOF) {
+			logger.Warnf("Error while skipping reader bytes: %v", copyError)
+		}
+		rr.start += discardedBytes
 	}
 
 	// If we have an existing reader, but it's positioned at the wrong place,
