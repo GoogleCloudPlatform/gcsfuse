@@ -84,7 +84,7 @@ func (t *staleFileHandleStreamingWritesCommon) TestClosingFileHandleForClobbered
 	err = WriteToObject(ctx, storageClient, path.Join(testDirName, t.fileName), FileContents, storage.Conditions{})
 	assert.NoError(t.T(), err)
 
-    // Closing the file/writer returns stale NFS file handle error.
+	// Closing the file/writer returns stale NFS file handle error.
 	err = t.f1.Close()
 
 	operations.ValidateStaleNFSFileHandleError(t.T(), err)
