@@ -1,11 +1,10 @@
 module github.com/googlecloudplatform/gcsfuse/v2
 
 go 1.24.0
-
 require (
 	cloud.google.com/go/compute/metadata v0.6.0
 	cloud.google.com/go/iam v1.4.1
-	cloud.google.com/go/secretmanager v1.14.5
+	cloud.google.com/go/secretmanager v1.14.6
 	cloud.google.com/go/storage v1.51.0
 	contrib.go.opencensus.io/exporter/ocagent v0.7.0
 	contrib.go.opencensus.io/exporter/prometheus v0.4.2
