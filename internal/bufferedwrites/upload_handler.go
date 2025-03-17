@@ -19,6 +19,7 @@ package bufferedwrites
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"sync"
@@ -132,6 +133,12 @@ func (uh *UploadHandler) uploader() {
 		if err != nil {
 			logger.Errorf("buffered write upload failed for object %s: error in io.Copy: %v", uh.objectName, err)
 			err = gcs.GetGCSError(err)
+			// Convert Context Canceled from Unlink operation to pre-condition error.
+			if errors.Is(err, context.Canceled) {
+				err = &gcs.PreconditionError{
+					Err: err,
+				}
+			}
 			uh.uploadError.Store(&err)
 		}
 		// Put back the uploaded block on the freeBlocksChannel for re-use.
