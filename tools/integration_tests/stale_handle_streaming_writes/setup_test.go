@@ -66,7 +66,6 @@ func TestMain(m *testing.M) {
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()
 	rootDir = setup.MntDir()
-	log.Println("Log File: " + setup.LogFile())
 	// Define flag set to run the tests.
 	flagsSet := [][]string{
 		{"--rename-dir-limit=3", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=1"},
