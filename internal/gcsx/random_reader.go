@@ -351,7 +351,7 @@ func (rr *randomReader) ReadAt(
 	if rr.reader != nil && rr.start < offset && offset-rr.start < maxReadSize {
 		bytesToSkip := offset - rr.start
 		discardedBytes, copyError := io.CopyN(io.Discard, rr.reader, int64(bytesToSkip))
-		// io.EOF is expected when reader is shorter than required offset to read. 
+		// io.EOF is expected when reader is shorter than required offset to read.
 		if copyError != nil && !errors.Is(copyError, io.EOF) {
 			logger.Warnf("Error while skipping reader bytes: %v", copyError)
 		}
