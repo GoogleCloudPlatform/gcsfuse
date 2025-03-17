@@ -255,6 +255,23 @@ func (b *fastStatBucket) FinalizeUpload(ctx context.Context, writer gcs.Writer) 
 	return o, err
 }
 
+func (b *fastStatBucket) FlushUpload(ctx context.Context, writer gcs.Writer) (int64, error) {
+	name := writer.ObjectName()
+	o, _, _ := b.StatObject(ctx, &gcs.StatObjectRequest{Name: name, ForceFetchFromGcs: false})
+	// Throw away any existing record for this object.
+	b.invalidate(name)
+
+	offset, err := b.wrapped.FlushUpload(ctx, writer)
+
+	// Record the new object if err is nil.
+	if err == nil && o != nil {
+		o.Size = uint64(offset)
+		b.insertMinObject(o)
+	}
+
+	return offset, err
+}
+
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) CopyObject(
 	ctx context.Context,

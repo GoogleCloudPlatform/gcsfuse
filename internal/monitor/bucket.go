@@ -103,6 +103,13 @@ func (mb *monitoringBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*
 	return o, err
 }
 
+func (mb *monitoringBucket) FlushUpload(ctx context.Context, w gcs.Writer) (int64, error) {
+	startTime := time.Now()
+	offset, err := mb.wrapped.FlushUpload(ctx, w)
+	recordRequest(ctx, mb.metricHandle, "FlushUpload", startTime)
+	return offset, err
+}
+
 func (mb *monitoringBucket) CopyObject(
 	ctx context.Context,
 	req *gcs.CopyObjectRequest) (*gcs.Object, error) {

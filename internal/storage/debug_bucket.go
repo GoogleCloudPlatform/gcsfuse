@@ -189,6 +189,14 @@ func (b *debugBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gcs.
 	return
 }
 
+func (b *debugBucket) FlushUpload(ctx context.Context, w gcs.Writer) (offset int64, err error) {
+	id, desc, start := b.startRequest("FlushUpload(%q)", w.ObjectName())
+	defer b.finishRequest(id, desc, start, &err)
+
+	offset, err = b.wrapped.FlushUpload(ctx, w)
+	return
+}
+
 func (b *debugBucket) CopyObject(
 	ctx context.Context,
 	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {

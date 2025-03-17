@@ -188,6 +188,34 @@ func (m *mockBucket) FinalizeUpload(p0 context.Context, p1 gcs.Writer) (o0 *gcs.
 	return
 }
 
+func (m *mockBucket) FlushUpload(p0 context.Context, p1 gcs.Writer) (o0 int64, o1 error) {
+	// Get a file name and line number for the caller.
+	_, file, line, _ := runtime.Caller(1)
+
+	// Hand the call off to the controller, which does most of the work.
+	retVals := m.controller.HandleMethodCall(
+		m,
+		"FlushUpload",
+		file,
+		line,
+		[]interface{}{p0, p1})
+
+	if len(retVals) != 2 {
+		panic(fmt.Sprintf("mockBucket.FlushUpload: invalid return values: %v", retVals))
+	}
+
+	// o0 int64 (offset)
+	if retVals[0] != nil {
+		o0 = retVals[0].(int64)
+	}
+	// o1 error
+	if retVals[1] != nil {
+		o1 = retVals[1].(error)
+	}
+
+	return
+}
+
 func (m *mockBucket) DeleteObject(p0 context.Context, p1 *gcs.DeleteObjectRequest) (o0 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
