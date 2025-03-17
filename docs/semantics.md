@@ -8,20 +8,24 @@ Files that have not been modified are read portion by portion on demand. Cloud S
 
 ## Writes
 
-### With Default Configuration
+### Default Write Path
 
-For modifications to existing file objects, Cloud Storage FUSE downloads the entire
-backing object's contents from Cloud Storage. The contents are stored in a local
-temporary file (temp-file for short) whose location is controlled by the flag ```--temp-dir```. Later,
-when the file is closed or fsync'd, Cloud Storage FUSE writes the contents of
-the local file back to Cloud Storage as a new object generation, and deletes temp-file. Modifying even
-a single bit of an object results in the full re-upload of the object. The
+Files are written locally as a temporary file (temp-file for short) whose
+location is controlled by the flag `--temp-dir`. Upon closing or fsyncing
+the file, the file is then written to your Cloud Storage bucket and the
+temp-file is deleted.
+
+For modifications to existing files, Cloud Storage FUSE downloads the
+entire
+backing object's contents from Cloud Storage, storing them in the same temporary
+directory as mentioned above. When the file is closed or fsync'd, Cloud Storage
+FUSE writes the contents of the local file back to Cloud Storage as a new object
+generation, and deletes
+temp-file. Modifying even a single bit of an object results in the full
+re-upload of the object. The
 exception is if an append is done to the end of a file, where the original file
 is at least 2MB, then only the appended content is uploaded.
 
-For new objects, objects are first written to the same temporary directory as
-mentioned above. Upon closing or fsyncing the file, the file is then written to
-your Cloud Storage bucket.
 As new and modified files are fully staged in the local temporary directory
 until they are written out to Cloud Storage, you
 must ensure that there is enough free space available to handle staged content
@@ -29,41 +33,43 @@ when writing large files.
 
 #### Notes
 
--   Prior to version 1.2.0, you will notice that an empty file is created in the
-    Cloud Storage bucket as a hold. Upon closing or fsyncing the file, the file
-    is written to your Cloud Storage bucket, with the existing empty file now
-    reflecting the accurate file size and content. Starting with version 1.2,
-    the default behavior is to not create this zero-byte file, which increases
-    write performance. If needed, it can be re-enabled by setting the
-    `create-empty-file: true` configuration in the config file.
--   If the application never sends fsync for a file, it will leave behind its
-    temp-file (in temp-dir), which will not be cleared until the user unmounts
-    the bucket. As an example, if you are writing a large file, and temp-dir
-    does not have enough free space available, then you will get 'out of space'
-    error. Then the temp-file will not be deleted until you do an fsync for that
-    file, or unmount the bucket.
+- Prior to version 1.2.0, you will notice that an empty file is created in the
+  Cloud Storage bucket as a hold. Upon closing or fsyncing the file, the file
+  is written to your Cloud Storage bucket, with the existing empty file now
+  reflecting the accurate file size and content. Starting with version 1.2,
+  the default behavior is to not create this zero-byte file, which increases
+  write performance. If needed, it can be re-enabled by setting the
+  `create-empty-file: true` configuration in the config file.
+- If the application never sends fsync for a file, it will leave behind its
+  temp-file (in temp-dir), which will not be cleared until the user unmounts
+  the bucket. As an example, if you are writing a large file, and temp-dir
+  does not have enough free space available, then you will get 'out of space'
+  error. Then the temp-file will not be deleted until you do an fsync for that
+  file, or unmount the bucket.
 
-### With Streaming Writes Configuration
+### With Streaming Writes
 
-Starting version 2.9.1, GCSFuse supports Streaming writes, which is a new write
-path that uploads data directly to Google Cloud Storage (GCS) as it's written.
-This reduces both latency and disk space usage, making it particularly
-beneficial for large, sequential writes such as checkpoints. Streaming writes
-can be enabled using `--enable-streaming-writes` flag.
+Starting with version 2.9.1, GCSFuse supports Streaming writes, which is a new
+write
+path that uploads data directly to Google Cloud Storage (GCS) as it's written
+without fully staging the file in the temp-dir. This reduces both latency and
+disk space usage, making it particularly beneficial for large, sequential writes
+such as checkpoints. Streaming writes can be enabled using
+`--enable-streaming-writes` flag or `write:enable-streaming-writes:true` in the
+config file.
 
 **Memory Usage:** Each file opened for streaming writes will consume
 approximately 64MB of RAM during the upload process. This memory is released
 when the file handle is closed. This should be considered when planning resource
 allocation for applications using streaming writes.
 
-#### Note:
+#### Note on Streaming Writes:
 
 - **New files, Sequential Writes:** Streaming writes are designed for sequential
   writes to a new, single file only. Modifying existing files, or doing
   out-of-order writes (whether from the same file handle or concurrent writes
-  from
-  multiple file handles) will cause GCSFuse to automatically revert to the
-  existing behavior of staging writes to a temporary file on disk. An
+  from multiple file handles) will cause GCSFuse to automatically revert to the
+  existing write path of staging writes to a temporary file on disk. An
   informational log message will be emitted when this fallback occurs.
 
 - **Concurrent Writes to the Same File:** While concurrent writes to the same
@@ -71,15 +77,15 @@ allocation for applications using streaming writes.
   streaming writes. If a (rare, often server-related) error occurs during
   concurrent writes, all file handles must be closed before any future writes
   can resume. This phase of streaming writes is optimized for single-stream
-  writes to new files, such as those used by checkpointing systems like
-  TensorStore.
+  writes to new files, , such as for AI/ML checkpointing.
 
 - **File System Semantics Change:**
     - **FSync Operation does not finalize the Object:** When streaming writes
       are enabled, the fsync operation will not finalize the object on GCS.
-      Instead, the object will be finalized only when the file is closed. This
-      is a key difference from the previous behavior and should be considered
-      when using streaming writes. Relying on fsync for data durability with
+      Instead, the object will be finalized only when the file is closed. 
+      Only finalized objects are visible to the end user. This is a key 
+      difference from the previous behavior and should be considered when 
+      using streaming writes. Relying on fsync for data durability with
       streaming writes enabled is not recommended. Data is only guaranteed to be
       on GCS after the file is closed.
     - **Rename Operation Syncs the File:** Rename operation on a file undergoing
