@@ -78,11 +78,10 @@ func (t *staleFileHandleStreamingWritesCommon) TestClosingFileHandleForClobbered
 	// Dirty the file by giving it some contents.
 	_, err := t.f1.WriteAt([]byte(t.data), 0)
 	assert.NoError(t.T(), err)
-	err = t.f1.Sync()
-	assert.NoError(t.T(), err)
 	// Clobber file by replacing the underlying object with a new generation.
 	err = WriteToObject(ctx, storageClient, path.Join(testDirName, t.fileName), FileContents, storage.Conditions{})
 	assert.NoError(t.T(), err)
+	operations.SyncFile(t.f1, t.T())
 
 	// Closing the file/writer returns stale NFS file handle error.
 	err = t.f1.Close()
