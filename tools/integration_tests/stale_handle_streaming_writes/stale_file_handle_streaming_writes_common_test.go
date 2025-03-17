@@ -66,10 +66,10 @@ func (t *staleFileHandleStreamingWritesCommon) TestFileDeletedLocallySyncAndClos
 	// Verify unlink operation succeeds.
 	operations.ValidateNoFileOrDirError(t.T(), t.f1.Name())
 
-	// Attempt to write to file should give stale NFS file handle erorr.
+	// Write should not give an error.
 	_, err = t.f1.WriteAt([]byte(t.data), int64(bytesWrote))
 
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
+	assert.NoError(t.T(), err)
 	operations.SyncFile(t.f1, t.T())
 	operations.CloseFileShouldNotThrowError(t.f1, t.T())
 }
@@ -80,7 +80,7 @@ func (t *staleFileHandleStreamingWritesCommon) TestClosingFileHandleForClobbered
 	assert.NoError(t.T(), err)
 	err = t.f1.Sync()
 	assert.NoError(t.T(), err)
-	// Replace the underlying object with a new generation.
+	// Clobber file by replacing the underlying object with a new generation.
 	err = WriteToObject(ctx, storageClient, path.Join(testDirName, t.fileName), FileContents, storage.Conditions{})
 	assert.NoError(t.T(), err)
 

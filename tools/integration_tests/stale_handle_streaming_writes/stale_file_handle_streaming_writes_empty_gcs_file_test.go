@@ -52,7 +52,7 @@ func (t *staleFileHandleStreamingWritesEmptyGcsFile) SetupTest() {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *staleFileHandleStreamingWritesEmptyGcsFile) TestFirstWriteToClobberedFileThrowsStaleFileHandleError() {
-	// Replace the underlying object with a new generation.
+	// Clobber file by replacing the underlying object with a new generation.
 	err := WriteToObject(ctx, storageClient, path.Join(testDirName, t.fileName), FileContents, storage.Conditions{})
 	assert.NoError(t.T(), err)
 
