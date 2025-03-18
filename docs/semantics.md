@@ -66,11 +66,11 @@ allocation for applications using streaming writes.
 #### Note on Streaming Writes:
 
 - **New files, Sequential Writes:** Streaming writes are designed for sequential
-  writes to a new, single file only. Modifying existing files, or doing
-  out-of-order writes (whether from the same file handle or concurrent writes
-  from multiple file handles) will cause GCSFuse to automatically revert to the
-  existing write path of staging writes to a temporary file on disk. An
-  informational log message will be emitted when this fallback occurs.
+  writes to a new file only. Modifying existing files, or doing out-of-order 
+  writes (whether from the same file handle or concurrent writes from multiple 
+  file handles) will cause GCSFuse to automatically revert to the existing write
+  path of staging writes to a temporary file on disk. An informational log
+  message will be emitted when this fallback occurs.
 
 - **Concurrent Writes to the Same File:** While concurrent writes to the same
   file are possible, they are not the primary use case for this initial phase of
@@ -94,9 +94,10 @@ allocation for applications using streaming writes.
       behavior of staging writes to a temporary file on disk.
     - **Read Operations During Write:** Today the application can read the data
       when the writes are in progress for that file. With buffered writes, the
-      application will not be able to read until the object is finalized i.e.,
-      fclose() is called. Applications should ensure that they do not attempt to
-      read from a file while it is being written to using streaming writes.
+      application will not be able to read the file until the corresponding GCS 
+      object is finalized i.e., fclose() is called. Applications should ensure 
+      that they do not attempt to read from a file while it is being written to 
+      using streaming writes.
     - **Write Stalls and Chunk Uploads:** Streaming writes do not currently
       implement chunk-level timeouts or retries. Write operations may stall, and
       chunk uploads that encounter errors will eventually fail after the default
