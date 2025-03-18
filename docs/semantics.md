@@ -95,8 +95,7 @@ allocation for applications using streaming writes.
     - **Read Operations During Write:** Today the application can read the data
       when the writes are in progress for that file. With buffered writes, the
       application will not be able to read the file until the corresponding GCS 
-      object is finalized i.e., fclose() is called. Applications should ensure 
-      that they do not attempt to read from a file while it is being written to 
+      object is finalized i.e., fclose() is called. Applications should not read from a file while it is being written to 
       using streaming writes.
     - **Write Stalls and Chunk Uploads:** Streaming writes do not currently
       implement chunk-level timeouts or retries. Write operations may stall, and
