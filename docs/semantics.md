@@ -84,7 +84,7 @@ allocation for applications using streaming writes.
       are enabled, the fsync operation will not finalize the object on GCS.
       Instead, the object will be finalized only when the file is closed. 
       Only finalized objects are visible to the end user. This is a key 
-      difference from the previous behavior and should be considered when 
+      difference from the default non-streaming-writes behavior and should be considered when 
       using streaming writes. Relying on fsync for data durability with
       streaming writes enabled is not recommended. Data is only guaranteed to be
       on GCS after the file is closed.
