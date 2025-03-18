@@ -430,3 +430,38 @@ func TestRationalizeMetricsConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestRationalize_ParallelDownloadsConfig(t *testing.T) {
+	testCases := []struct {
+		name                      string
+		flags                     flagSet
+		config                    *Config
+		expectedParallelDownloads bool
+	}{
+		{
+			name:  "valid_config_file_cache_enabled",
+			flags: flagSet{"file-cache.max-size-mb": true},
+			config: &Config{
+				FileCache: FileCacheConfig{
+					MaxSizeMb: 500,
+				},
+			},
+			expectedParallelDownloads: true,
+		},
+		{
+			name:                      "valid_config_file_cache_disabled",
+			config:                    &Config{},
+			expectedParallelDownloads: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualErr := Rationalize(tc.flags, tc.config)
+
+			if assert.NoError(t, actualErr) {
+				assert.Equal(t, tc.expectedParallelDownloads, tc.config.FileCache.EnableParallelDownloads)
+			}
+		})
+	}
+}
