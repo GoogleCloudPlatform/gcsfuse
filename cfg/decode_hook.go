@@ -15,7 +15,7 @@
 package cfg
 
 import (
-	"github.com/mitchellh/mapstructure"
+	"github.com/go-viper/mapstructure/v2"
 )
 
 // DecodeHook will be called by Viper while constructing the config object.
