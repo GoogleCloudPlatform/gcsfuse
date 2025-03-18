@@ -146,7 +146,6 @@ TEST_DIR_PARALLEL=(
   "local_file"
   "log_rotation"
   "mounting"
-  "read_cache"
   "gzip"
   "write_large_files"
   "rename_dir_limit"
@@ -171,6 +170,7 @@ TEST_DIR_NON_PARALLEL=(
   "managed_folders"
   "readonly_creds"
   "list_large_dir"
+  "read_cache"
 )
 
 # Create a temporary file to store the log file name.
