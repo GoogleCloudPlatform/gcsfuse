@@ -86,8 +86,8 @@ allocation for applications using streaming writes.
       Only finalized objects are visible to the end user. This is a key 
       difference from the default non-streaming-writes behavior and should be considered when 
       using streaming writes. Relying on fsync for data durability with
-      streaming writes enabled is not recommended. Data is only guaranteed to be
-      on GCS after the file is closed.
+      streaming writes enabled is not recommended. Data is guaranteed to be
+      on GCS only after the file is closed.
     - **Rename Operation Syncs the File:** Rename operation on a file undergoing
       writes via streaming writes will be finalized and then renamed. This means
       that any follow up writes will automatically revert to the existing
