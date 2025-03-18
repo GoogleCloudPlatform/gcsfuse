@@ -77,7 +77,7 @@ allocation for applications using streaming writes.
   streaming writes. If a (rare, often server-related) error occurs during
   concurrent writes, all file handles must be closed before any future writes
   can resume. This phase of streaming writes is optimized for single-stream
-  writes to new files, , such as for AI/ML checkpointing.
+  writes to new files, such as for AI/ML checkpointing.
 
 - **File System Semantics Change:**
     - **FSync Operation does not finalize the Object:** When streaming writes
