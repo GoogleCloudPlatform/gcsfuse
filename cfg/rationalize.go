@@ -127,6 +127,7 @@ func Rationalize(v isSet, c *Config) error {
 	resolveMetadataCacheTTL(v, &c.MetadataCache)
 	resolveStatCacheMaxSizeMB(v, &c.MetadataCache)
 	resolveCloudMetricsUploadIntervalSecs(&c.Metrics)
+	resolveParallelDownloadsValue(v, &c.FileCache)
 
 	return nil
 }
