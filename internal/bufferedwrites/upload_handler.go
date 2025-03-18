@@ -19,6 +19,7 @@ package bufferedwrites
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"sync"
@@ -129,6 +130,12 @@ func (uh *UploadHandler) uploader() {
 			continue
 		}
 		_, err := io.Copy(uh.writer, currBlock.Reader())
+		if errors.Is(err, context.Canceled) {
+			// Context canceled error indicates that the file was deleted from the
+			// same mount. In this case, we suppress the error to match local
+			// filesystem behavior.
+			err = nil
+		}
 		if err != nil {
 			logger.Errorf("buffered write upload failed for object %s: error in io.Copy: %v", uh.objectName, err)
 			err = gcs.GetGCSError(err)
