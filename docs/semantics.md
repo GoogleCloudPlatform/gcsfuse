@@ -80,7 +80,7 @@ allocation for applications using streaming writes.
   writes to new files, such as for AI/ML checkpointing.
 
 - **File System Semantics Change:**
-    - **FSync Operation does not finalize the Object:** When streaming writes
+    - **FSync operation does not finalize the object:** When streaming writes
       are enabled, the fsync operation will not finalize the object on GCS.
       Instead, the object will be finalized only when the file is closed. 
       Only finalized objects are visible to the end user. This is a key 
