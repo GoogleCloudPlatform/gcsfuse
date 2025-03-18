@@ -49,7 +49,7 @@ when writing large files.
 
 ### With Streaming Writes
 
-Starting with version 2.9.1, GCSFuse supports Streaming writes, which is a new
+Starting with version 2.9.1, GCSFuse supports streaming-writes, which is a new
 write
 path that uploads data directly to Google Cloud Storage (GCS) as it's written
 without fully staging the file in the temp-dir. This reduces both latency and
