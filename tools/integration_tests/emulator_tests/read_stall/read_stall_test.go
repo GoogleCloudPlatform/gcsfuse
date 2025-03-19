@@ -41,28 +41,30 @@ const (
 )
 
 type readStall struct {
-	port           int
-	proxyProcessId int
-	flags          []string
+	port               int
+	proxyProcessId     int
+	proxyServerLogFile string
+	flags              []string
+	configPath         string
 	suite.Suite
 }
 
-func (r *readStall) SetupSuite() {
-	configPath := "../proxy_server/configs/read_stall_5s.yaml"
+func (r *readStall) SetupTest() {
+	r.configPath = "../proxy_server/configs/read_stall_5s.yaml"
+	r.proxyServerLogFile = setup.CreateProxyServerLogFile(r.T())
 	var err error
-	r.port, r.proxyProcessId, err = emulator_tests.StartProxyServer(configPath, setup.CreateProxyServerLogFile(r.T()))
+	r.port, r.proxyProcessId, err = emulator_tests.StartProxyServer(r.configPath, r.proxyServerLogFile)
 	require.NoError(r.T(), err)
 	setup.AppendProxyEndpointToFlagSet(&r.flags, r.port)
 	setup.MountGCSFuseWithGivenMountFunc(r.flags, mountFunc)
-}
-
-func (r *readStall) SetupTest() {
 	testDirPath = setup.SetupTestDirectory(r.T().Name())
 }
 
-func (r *readStall) TearDownSuite() {
+func (r *readStall) TearDownTest() {
 	setup.UnmountGCSFuse(rootDir)
 	assert.NoError(r.T(), emulator_tests.KillProxyServerProcess(r.proxyProcessId))
+	setup.SaveGCSFuseLogFileInCaseOfFailure(r.T())
+	setup.SaveProxyServerLogFileInCaseOfFailure(r.proxyServerLogFile, r.T())
 }
 
 ////////////////////////////////////////////////////////////////////////
