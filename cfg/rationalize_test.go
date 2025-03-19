@@ -440,17 +440,25 @@ func TestRationalize_ParallelDownloadsConfig(t *testing.T) {
 	}{
 		{
 			name:  "valid_config_file_cache_enabled",
-			flags: flagSet{"file-cache.max-size-mb": true},
+			flags: flagSet{"cache-dir": true},
 			config: &Config{
-				FileCache: FileCacheConfig{
-					MaxSizeMb: 500,
-				},
+				CacheDir: ResolvedPath("/some-path"),
 			},
 			expectedParallelDownloads: true,
 		},
 		{
 			name:                      "valid_config_file_cache_disabled",
 			config:                    &Config{},
+			expectedParallelDownloads: false,
+		},
+		{
+			name:  "valid_config_cache_dir_not_set_and_max_size_mb_set",
+			flags: flagSet{"file-cache.max-size-mb": true},
+			config: &Config{
+				FileCache: FileCacheConfig{
+					MaxSizeMb: 500,
+				},
+			},
 			expectedParallelDownloads: false,
 		},
 	}
