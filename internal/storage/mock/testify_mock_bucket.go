@@ -67,7 +67,7 @@ func (m *TestifyMockBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*
 
 func (m *TestifyMockBucket) FlushUpload(ctx context.Context, w gcs.Writer) (int64, error) {
 	args := m.Called(ctx, w)
-	return args.Get(0).(int64), args.Error(1)
+	return int64(args.Int(0)), args.Error(1)
 }
 
 func (m *TestifyMockBucket) CopyObject(ctx context.Context, req *gcs.CopyObjectRequest) (*gcs.Object, error) {
