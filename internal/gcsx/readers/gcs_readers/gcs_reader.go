@@ -127,14 +127,12 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (reader
 		}
 	}
 
-	gr.RangeReader.ReadHandle = gr.ReadHandle
 	gr.RangeReader.End = -1
 	gr.Mrr.End = -1
 	log.Println("p length: ", len(p))
 
 	if gr.RangeReader.Reader != nil {
 		objectData, err = gr.RangeReader.ReadAt(ctx, p, offset)
-		gr.TotalReadBytes = gr.RangeReader.TotalReadBytes
 
 		return objectData, err
 	}
@@ -211,7 +209,7 @@ func (gr *GCSReader) getReadInfo(start int64, size int64) (int64, error) {
 	end := int64(gr.Obj.Size)
 	if gr.RangeReader.Seeks >= minSeeksForRandom {
 		gr.ReaderType = util.Random
-		averageReadBytes := gr.TotalReadBytes / gr.RangeReader.Seeks
+		averageReadBytes := gr.RangeReader.TotalReadBytes / gr.RangeReader.Seeks
 		if averageReadBytes < maxReadSize {
 			randomReadSize := int64(((averageReadBytes / MB) + 1) * MB)
 			if randomReadSize < minReadSize {
