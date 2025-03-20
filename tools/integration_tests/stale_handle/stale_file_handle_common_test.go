@@ -17,10 +17,12 @@ package stale_handle
 import (
 	"os"
 	"path"
+	"slices"
 
 	"cloud.google.com/go/storage"
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -30,8 +32,38 @@ import (
 // //////////////////////////////////////////////////////////////////////
 
 type staleFileHandleCommon struct {
-	f1 *os.File
+	f1          *os.File
+	data        string
+	testDirPath string
 	suite.Suite
+}
+
+// //////////////////////////////////////////////////////////////////////
+// Helpers
+// //////////////////////////////////////////////////////////////////////
+
+func (s *staleFileHandleCommon) SetupSuite() {
+	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
+}
+
+func (s *staleFileHandleCommon) TearDownSuite() {
+	setup.UnmountGCSFuse(rootDir)
+	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
+}
+
+func (s *staleFileHandleCommon) streamingWritesEnabled() bool {
+	s.T().Helper()
+	return slices.Contains(flags, "--enable-streaming-writes=true")
+}
+
+// Used to validate stale handle error from sync/close when streaming writes are disabled.
+func (s *staleFileHandleCommon) validateStaleNFSFileHandleErrorIfStreamingWritesDisabled(err error) {
+	s.T().Helper()
+	if !s.streamingWritesEnabled() {
+		operations.ValidateStaleNFSFileHandleError(s.T(), err)
+	} else {
+		assert.NoError(s.T(), err)
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -40,9 +72,10 @@ type staleFileHandleCommon struct {
 
 func (s *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHandleError() {
 	// Dirty the file by giving it some contents.
-	operations.WriteWithoutClose(s.f1, Content, s.T())
-	// Replace the underlying object with a new generation.
-	err := WriteToObject(ctx, storageClient, path.Join(s.T().Name(), FileName1), FileContents, storage.Conditions{})
+	_, err := s.f1.WriteAt([]byte(s.data), 0)
+	assert.NoError(s.T(), err)
+	// Clobber file by replacing the underlying object with a new generation.
+	err = WriteToObject(ctx, storageClient, path.Join(s.T().Name(), FileName1), FileContents, storage.Conditions{})
 	assert.NoError(s.T(), err)
 
 	err = s.f1.Sync()
@@ -54,15 +87,17 @@ func (s *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHand
 
 func (s *staleFileHandleCommon) TestFileDeletedLocallySyncAndCloseDoNotThrowError() {
 	// Dirty the file by giving it some contents.
-	_, err := s.f1.WriteString(Content)
+	bytesWrote, err := s.f1.WriteAt([]byte(s.data), 0)
 	assert.NoError(s.T(), err)
 	// Delete the file.
 	operations.RemoveFile(s.f1.Name())
 	// Verify unlink operation succeeds.
+
 	operations.ValidateNoFileOrDirError(s.T(), s.f1.Name())
 	// Attempt to write to file should not give any error.
-	operations.WriteWithoutClose(s.f1, Content2, s.T())
+	_, err = s.f1.WriteAt([]byte(s.data), int64(bytesWrote))
 
+	assert.NoError(s.T(), err)
 	operations.SyncFile(s.f1, s.T())
 	operations.CloseFileShouldNotThrowError(s.T(), s.f1)
 }
