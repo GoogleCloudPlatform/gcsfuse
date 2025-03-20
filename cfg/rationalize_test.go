@@ -477,9 +477,9 @@ func TestRationalize_ParallelDownloadsConfig(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualErr := Rationalize(tc.flags, tc.config)
+			err := Rationalize(tc.flags, tc.config)
 
-			if assert.NoError(t, actualErr) {
+			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedParallelDownloads, tc.config.FileCache.EnableParallelDownloads)
 			}
 		})
