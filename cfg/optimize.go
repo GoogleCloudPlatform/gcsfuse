@@ -164,12 +164,12 @@ func getMachineType(isSet isValueSet) (string, error) {
 }
 
 // ApplyMachineTypeOptimizations applies optimizations based on the detected machine type.
-func ApplyMachineTypeOptimizations(config *OptimizationConfig, cfg *Config, isSet isValueSet) (bool, error) {
+func ApplyMachineTypeOptimizations(config *OptimizationConfig, cfg *Config, isSet isValueSet) ([]string, error) {
 	machineType, err := getMachineType(isSet)
 	if err != nil {
-		return false, nil // Non-fatal error, continue with default settings.
+		return []string{}, nil // Non-fatal error, continue with default settings.
 	}
-	optimizationApplied := false
+	var optimizedFlags []string
 	for _, mt := range config.MachineTypes {
 		for _, name := range mt.Names {
 			if strings.HasPrefix(machineType, name) {
@@ -193,24 +193,25 @@ func ApplyMachineTypeOptimizations(config *OptimizationConfig, cfg *Config, isSe
 					if err != nil {
 						fmt.Fprintf(os.Stderr, "Warning: Failed to set flag %s: %v\n", flag, err)
 					} else {
-						optimizationApplied = true
+						optimizedFlags = append(optimizedFlags, flag)
 					}
 				}
-				return optimizationApplied, nil // Applied optimizations, no need to check other machine types.
+				return optimizedFlags, nil // Applied optimizations, no need to check other machine types.
 			}
 		}
 	}
 
-	return optimizationApplied, nil
+	return optimizedFlags, nil
 }
 
 // Optimize applies machine type optimizations using the default configuration.
-func Optimize(cfg *Config, isSet isValueSet) (bool, error) {
+func Optimize(cfg *Config, isSet isValueSet) ([]string, error) {
 	// Check if disable-autoconfig is set to true.
 	if isSet.GetBool("disable-autoconfig") {
-		return false, nil
+		return []string{}, nil
 	}
-	return ApplyMachineTypeOptimizations(&DefaultOptimizationConfig, cfg, isSet)
+	optimizedFlags, err := ApplyMachineTypeOptimizations(&DefaultOptimizationConfig, cfg, isSet)
+	return optimizedFlags, err
 }
 
 // snakeCaseToCamelCase converts a string from snake-case to CamelCase.
@@ -270,6 +271,7 @@ func setFlagValue(cfg *Config, flag string, override FlagOverride, isSet isValue
 	// Only override if the user hasn't set it.
 	if !isSet.IsSet(fullFlagName) {
 		// Set the value based on the field type.
+
 		switch field.Kind() {
 		case reflect.Bool:
 			boolValue, ok := override.NewValue.(bool)
@@ -295,4 +297,13 @@ func setFlagValue(cfg *Config, flag string, override FlagOverride, isSet isValue
 	}
 
 	return nil
+}
+
+func isFlagPresent(flags []string, flag string) bool {
+	for _, v := range flags {
+		if v == flag {
+			return true
+		}
+	}
+	return false
 }

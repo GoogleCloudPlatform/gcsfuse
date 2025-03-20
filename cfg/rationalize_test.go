@@ -56,7 +56,7 @@ func TestRationalizeCustomEndpointSuccessful(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualErr := Rationalize(&mockIsSet{}, tc.config, false)
+			actualErr := Rationalize(&mockIsSet{}, tc.config, []string{})
 
 			if assert.NoError(t, actualErr) {
 				assert.Equal(t, tc.expectedCustomEndpoint, tc.config.GcsConnection.CustomEndpoint)
@@ -82,7 +82,7 @@ func TestRationalizeCustomEndpointUnsuccessful(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Error(t, Rationalize(&mockIsSet{}, tc.config, false))
+			assert.Error(t, Rationalize(&mockIsSet{}, tc.config, []string{}))
 		})
 	}
 }
@@ -150,7 +150,7 @@ func TestLoggingSeverityRationalization(t *testing.T) {
 			},
 		}
 
-		err := Rationalize(&mockIsSet{}, &c, false)
+		err := Rationalize(&mockIsSet{}, &c, []string{})
 
 		if assert.NoError(t, err) {
 			assert.Equal(t, tc.expected, c.Logging.Severity)
@@ -186,7 +186,7 @@ func TestRationalize_TokenURLSuccessful(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualErr := Rationalize(&mockIsSet{}, tc.config, false)
+			actualErr := Rationalize(&mockIsSet{}, tc.config, []string{})
 
 			if assert.NoError(t, actualErr) {
 				assert.Equal(t, tc.expectedTokenURL, tc.config.GcsAuth.TokenUrl)
@@ -212,7 +212,7 @@ func TestRationalize_TokenURLUnsuccessful(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Error(t, Rationalize(&mockIsSet{}, tc.config, false))
+			assert.Error(t, Rationalize(&mockIsSet{}, tc.config, []string{}))
 		})
 	}
 }
@@ -304,7 +304,7 @@ func TestRationalizeMetadataCache(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			if assert.NoError(t, Rationalize(tc.flags, tc.config, false)) {
+			if assert.NoError(t, Rationalize(tc.flags, tc.config, []string{})) {
 				assert.Equal(t, tc.expectedTTLSecs, tc.config.MetadataCache.TtlSecs)
 				assert.Equal(t, tc.expectedStatCacheSize, tc.config.MetadataCache.StatCacheMaxSizeMb)
 			}
@@ -395,7 +395,7 @@ func TestRationalizeMetadataCacheWithOptimization(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			if assert.NoError(t, Rationalize(tc.flags, tc.config, true)) {
+			if assert.NoError(t, Rationalize(tc.flags, tc.config, []string{"metadata-cache.negative-ttl-secs", "metadata-cache.ttl-secs", "metadata-cache.stat-cache-max-size-mb", "metadata-cache.deprecated-stat-cache-capacity", "metadata-cache.deprecated-stat-cache-ttl", "metadata-cache.deprecated-type-cache-ttl"})) {
 				assert.Equal(t, tc.expectedTTLSecs, tc.config.MetadataCache.TtlSecs)
 				assert.Equal(t, tc.expectedNegativeTTLSecs, tc.config.MetadataCache.NegativeTtlSecs)
 				assert.Equal(t, tc.expectedStatCacheSize, tc.config.MetadataCache.StatCacheMaxSizeMb)
@@ -461,7 +461,7 @@ func TestRationalize_WriteConfig(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualErr := Rationalize(&mockIsSet{}, tc.config, false)
+			actualErr := Rationalize(&mockIsSet{}, tc.config, []string{})
 
 			if assert.NoError(t, actualErr) {
 				assert.Equal(t, tc.expectedCreateEmptyFile, tc.config.Write.CreateEmptyFile)
@@ -516,7 +516,7 @@ func TestRationalizeMetricsConfig(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			if assert.NoError(t, Rationalize(&mockIsSet{}, tc.config, false)) {
+			if assert.NoError(t, Rationalize(&mockIsSet{}, tc.config, []string{})) {
 				assert.Equal(t, tc.expected, tc.config.Metrics.CloudMetricsExportIntervalSecs)
 			}
 		})

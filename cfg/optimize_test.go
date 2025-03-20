@@ -221,11 +221,11 @@ func TestApplyMachineTypeOptimizations_MatchingMachineType(t *testing.T) {
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	optimizationApplied, err := ApplyMachineTypeOptimizations(&config, cfg, isSet)
+	optimizedFlags, err := ApplyMachineTypeOptimizations(&config, cfg, isSet)
 	if err != nil {
 		t.Fatalf("ApplyMachineTypeOptimizations failed: %v", err)
 	}
-	if !optimizationApplied {
+	if len(optimizedFlags) == 0 {
 		t.Errorf("Expected optimization to be applied")
 	}
 	if cfg.MetadataCache.NegativeTtlSecs != 0 {
@@ -264,13 +264,13 @@ func TestApplyMachineTypeOptimizations_NonMatchingMachineType(t *testing.T) {
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	optimizationApplied, err := ApplyMachineTypeOptimizations(&config, cfg, isSet)
+	optimizedFlags, err := ApplyMachineTypeOptimizations(&config, cfg, isSet)
 	if err != nil {
 		t.Fatalf("ApplyMachineTypeOptimizations failed: %v", err)
 	}
 
-	if optimizationApplied {
-		t.Errorf("Expected optimizationApplied to be false")
+	if len(optimizedFlags) != 0 {
+		t.Errorf("Expected optimizedFlags to be empty")
 	}
 
 	// Check that no optimizations were applied.
@@ -297,12 +297,12 @@ func TestApplyMachineTypeOptimizations_UserSetFlag(t *testing.T) {
 	// Simulate setting config value by user
 	cfg.FileSystem.RenameDirLimit = 10000
 
-	optimizationApplied, err := ApplyMachineTypeOptimizations(&config, cfg, isSet)
+	optimizedFlags, err := ApplyMachineTypeOptimizations(&config, cfg, isSet)
 	if err != nil {
 		t.Fatalf("ApplyMachineTypeOptimizations failed: %v", err)
 	}
-	if !optimizationApplied {
-		t.Errorf("Expected optimizationApplied to be true")
+	if len(optimizedFlags) == 0 {
+		t.Errorf("Expected optimizedFlags to be non empty")
 	}
 
 	if cfg.MetadataCache.NegativeTtlSecs != 0 {
@@ -502,12 +502,12 @@ func TestOptimize_Success(t *testing.T) {
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	_, err := Optimize(cfg, isSet)
+	optimizedFlags, err := Optimize(cfg, isSet)
 	if err != nil {
 		t.Fatalf("Optimize failed: %v", err)
 	}
 
-	if !cfg.Write.EnableStreamingWrites {
+	if !cfg.Write.EnableStreamingWrites || !isFlagPresent(optimizedFlags, "write.enable-streaming-writes") {
 		t.Errorf("Expected EnableStreamingWrites to be true")
 	}
 	if cfg.MetadataCache.NegativeTtlSecs != 0 {
