@@ -32,20 +32,22 @@ import (
 // Boilerplate
 // //////////////////////////////////////////////////////////////////////
 
-const Content = "foobar"
-const Content2 = "foobar2"
-
 type staleFileHandleSyncedFile struct {
 	staleFileHandleCommon
 }
 
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
 func (s *staleFileHandleSyncedFile) SetupTest() {
-	testDirPath := setup.SetupTestDirectory(s.T().Name())
-	// Create an object on bucket
-	err := CreateObjectOnGCS(ctx, storageClient, path.Join(s.T().Name(), FileName1), GCSFileContent)
+	s.testDirPath = setup.SetupTestDirectory(s.T().Name())
+	// Create an empty object on GCS.
+	err := CreateObjectOnGCS(ctx, storageClient, path.Join(s.T().Name(), FileName1), "")
 	assert.NoError(s.T(), err)
-	s.f1, err = os.OpenFile(path.Join(testDirPath, FileName1), os.O_RDWR|syscall.O_DIRECT, operations.FilePermission_0600)
+	s.f1, err = os.OpenFile(path.Join(s.testDirPath, FileName1), os.O_RDWR|syscall.O_DIRECT, operations.FilePermission_0600)
 	assert.NoError(s.T(), err)
+	s.data = setup.GenerateRandomString(operations.MiB * 5)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -53,39 +55,54 @@ func (s *staleFileHandleSyncedFile) SetupTest() {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *staleFileHandleSyncedFile) TestClobberedFileReadThrowsStaleFileHandleError() {
+	if s.streamingWritesEnabled() {
+		s.T().Skip("Skipping test as reads aren't supported with streaming writes.")
+	}
+	// Dirty the file by giving it some contents.
+	_, err := s.f1.WriteAt([]byte(s.data), 0)
+	operations.SyncFile(s.f1, s.T())
+	assert.NoError(s.T(), err)
 	// Replace the underlying object with a new generation.
-	err := WriteToObject(ctx, storageClient, path.Join(s.T().Name(), FileName1), FileContents, storage.Conditions{})
+	err = WriteToObject(ctx, storageClient, path.Join(s.T().Name(), FileName1), FileContents, storage.Conditions{})
 	assert.NoError(s.T(), err)
 
-	buffer := make([]byte, GCSFileSize)
+	buffer := make([]byte, len(s.data))
 	_, err = s.f1.Read(buffer)
 
 	operations.ValidateESTALEError(s.T(), err)
 }
 
 func (s *staleFileHandleSyncedFile) TestClobberedFileFirstWriteThrowsStaleFileHandleError() {
-	// Replace the underlying object with a new generation.
+	// Clobber file by replacing the underlying object with a new generation.
 	err := WriteToObject(ctx, storageClient, path.Join(s.T().Name(), FileName1), FileContents, storage.Conditions{})
 	assert.NoError(s.T(), err)
 
-	_, err = s.f1.WriteString(Content)
+	// Attempt first write to the file should give stale NFS file handle error.
+	_, err = s.f1.WriteAt([]byte(s.data), 0)
 
 	operations.ValidateESTALEError(s.T(), err)
 	// Attempt to sync to file should not result in error as we first check if the
 	// content has been dirtied before clobbered check in Sync flow.
 	operations.SyncFile(s.f1, s.T())
+	operations.CloseFileShouldNotThrowError(s.f1, s.T())
 }
 
 func (s *staleFileHandleSyncedFile) TestRenamedFileSyncAndCloseThrowsStaleFileHandleError() {
 	// Dirty the file by giving it some contents.
-	_, err := s.f1.WriteString(Content)
+	n, err := s.f1.WriteAt([]byte(s.data), 0)
 	assert.NoError(s.T(), err)
-	err = operations.RenameFile(s.f1.Name(), path.Join(setup.MntDir(), s.T().Name(), FileName2))
-	assert.NoError(s.T(), err)
-	// Attempt to write to file should not give any error.
-	_, err = s.f1.WriteString(Content2)
+	newFile := "new" + FileName1
+	err = operations.RenameFile(s.f1.Name(), path.Join(s.testDirPath, newFile))
 	assert.NoError(s.T(), err)
 
+	// Attempt to write to file should give error iff streaming writes are enabled.
+	_, err = s.f1.WriteAt([]byte(s.data), int64(n))
+
+	if s.streamingWritesEnabled() {
+		operations.ValidateStaleNFSFileHandleError(s.T(), err)
+	} else {
+		assert.NoError(s.T(), err)
+	}
 	err = s.f1.Sync()
 
 	operations.ValidateESTALEError(s.T(), err)
@@ -95,7 +112,7 @@ func (s *staleFileHandleSyncedFile) TestRenamedFileSyncAndCloseThrowsStaleFileHa
 
 func (s *staleFileHandleSyncedFile) TestFileDeletedRemotelySyncAndCloseThrowsStaleFileHandleError() {
 	// Dirty the file by giving it some contents.
-	_, err := s.f1.WriteString(Content)
+	n, err := s.f1.WriteAt([]byte(s.data), 0)
 	assert.NoError(s.T(), err)
 	// Delete the file remotely.
 	err = DeleteObjectOnGCS(ctx, storageClient, path.Join(s.T().Name(), FileName1))
@@ -103,7 +120,8 @@ func (s *staleFileHandleSyncedFile) TestFileDeletedRemotelySyncAndCloseThrowsSta
 	// Verify unlink operation succeeds.
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, s.T().Name(), FileName1, s.T())
 	// Attempt to write to file should not give any error.
-	operations.WriteWithoutClose(s.f1, Content2, s.T())
+	_, err = s.f1.WriteAt([]byte(s.data), int64(n))
+	assert.NoError(s.T(), err)
 
 	err = s.f1.Sync()
 
@@ -116,6 +134,6 @@ func (s *staleFileHandleSyncedFile) TestFileDeletedRemotelySyncAndCloseThrowsSta
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
 
-func TestStaleFileHandleSyncedFileTest(t *testing.T) {
+func TestStaleFileHandleEmptyGcsFileTest(t *testing.T) {
 	suite.Run(t, new(staleFileHandleSyncedFile))
 }
