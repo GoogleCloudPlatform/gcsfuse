@@ -174,7 +174,9 @@ func assertNonZeroCountMetric(testSuite *PromTest, metricName, labelName, labelV
 		}
 
 	}
-	assert.Fail(testSuite.T(), "Didn't find the metric with name: %s, labelName: %s and labelValue: %s", metricName, labelName, labelValue)
+	assert.Fail(testSuite.T(), fmt.Sprintf("Didn't find the metric with name: %s, labelName: %s and labelValue: %s",
+		metricName, labelName, labelValue))
+	//assert.Fail(testSuite.T(), "Didn't find the metric with name: %s, labelName: %s and labelValue: %s", metricName, labelName, labelValue)
 }
 
 // assertNonZeroHistogramMetric asserts that the specified histogram metric is present and is positive for at least one of the buckets in the Prometheus export.
