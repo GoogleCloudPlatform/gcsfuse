@@ -64,7 +64,11 @@ func (w *FakeObjectWriter) Close() error {
 }
 
 func (w *FakeObjectWriter) Flush() (int64, error) {
-	return int64(w.buf.Len()), w.Close()
+	err := w.Close()
+	if err != nil {
+		return 0, err
+	}
+	return int64(w.buf.Len()), nil
 }
 
 func (w *FakeObjectWriter) ObjectName() string {

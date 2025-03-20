@@ -279,6 +279,68 @@ func (t *FinalizeUploadTest) WrappedSucceeds() {
 }
 
 ////////////////////////////////////////////////////////////////////////
+// FinalizeUpload
+////////////////////////////////////////////////////////////////////////
+
+type FlushUploadTest struct {
+	fastStatBucketTest
+}
+
+func init() { RegisterTestSuite(&FlushUploadTest{}) }
+
+func (t *FlushUploadTest) WrappedFails() {
+	const name = "taco"
+	writer := &storage.ObjectWriter{
+		Writer: &gostorage.Writer{ObjectAttrs: gostorage.ObjectAttrs{Name: name}},
+	}
+	// Expect cache Lookup.
+	ExpectCall(t.cache, "LookUp")(name, timeutil.TimeEq(t.clock.Now())).
+		WillOnce(Return(true, &gcs.MinObject{}))
+	// Expect cache Erase.
+	ExpectCall(t.cache, "Erase")(name)
+	// Expect call to Wrapped method.
+	var wrappedWriter gcs.Writer
+	ExpectCall(t.wrapped, "FlushUpload")(Any(), Any()).
+		WillOnce(DoAll(SaveArg(1, &wrappedWriter), Return(10, errors.New("taco"))))
+
+	// Call.
+	gotOffset, err := t.bucket.FlushUpload(context.TODO(), writer)
+
+	AssertNe(nil, wrappedWriter)
+	ExpectEq(writer, wrappedWriter)
+	ExpectEq(10, gotOffset)
+	ExpectThat(err, Error(HasSubstr("taco")))
+}
+
+func (t *FlushUploadTest) WrappedSucceeds() {
+	const name = "taco"
+	minObject := &gcs.MinObject{}
+	writer := &storage.ObjectWriter{
+		Writer: &gostorage.Writer{ObjectAttrs: gostorage.ObjectAttrs{Name: name}},
+	}
+	var err error
+	// Expect cache Lookup.
+	ExpectCall(t.cache, "LookUp")(name, timeutil.TimeEq(t.clock.Now())).
+		WillOnce(Return(true, minObject))
+	// Expect cache Erase.
+	ExpectCall(t.cache, "Erase")(name)
+	// Wrapped.
+	ExpectCall(t.wrapped, "FlushUpload")(Any(), Any()).
+		WillOnce(Return(10, nil))
+	// Insert.
+	var cachedMinObject *gcs.MinObject
+	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(primaryCacheTTL))).
+		WillOnce(DoAll(SaveArg(0, &cachedMinObject)))
+
+	// Call
+	offset, err := t.bucket.FlushUpload(context.TODO(), writer)
+
+	AssertEq(nil, err)
+	ExpectEq(10, offset)
+	ExpectEq(10, cachedMinObject.Size)
+}
+
+////////////////////////////////////////////////////////////////////////
 // CopyObject
 ////////////////////////////////////////////////////////////////////////
 
