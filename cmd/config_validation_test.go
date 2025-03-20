@@ -55,15 +55,16 @@ func getConfigObjectWithConfigFile(t *testing.T, configFilePath string) (*cfg.Co
 func defaultFileCacheConfig(t *testing.T) cfg.FileCacheConfig {
 	t.Helper()
 	return cfg.FileCacheConfig{
-		CacheFileForRangeRead:    false,
-		DownloadChunkSizeMb:      50,
-		EnableCrc:                false,
-		EnableParallelDownloads:  false,
-		MaxParallelDownloads:     int64(max(16, 2*runtime.NumCPU())),
-		MaxSizeMb:                -1,
-		ParallelDownloadsPerFile: 16,
-		WriteBufferSize:          4 * 1024 * 1024,
-		EnableODirect:            false,
+		CacheFileForRangeRead:                  false,
+		DownloadChunkSizeMb:                    50,
+		EnableCrc:                              false,
+		EnableParallelDownloads:                false,
+		ExperimentalParallelDownloadsDefaultOn: true,
+		MaxParallelDownloads:                   int64(max(16, 2*runtime.NumCPU())),
+		MaxSizeMb:                              -1,
+		ParallelDownloadsPerFile:               16,
+		WriteBufferSize:                        4 * 1024 * 1024,
+		EnableODirect:                          false,
 	}
 }
 
@@ -353,15 +354,16 @@ func TestValidateConfigFile_FileCacheConfigSuccessful(t *testing.T) {
 			configFile: "testdata/valid_config.yaml",
 			expectedConfig: &cfg.Config{
 				FileCache: cfg.FileCacheConfig{
-					CacheFileForRangeRead:    true,
-					DownloadChunkSizeMb:      300,
-					EnableCrc:                true,
-					EnableParallelDownloads:  false,
-					MaxParallelDownloads:     200,
-					MaxSizeMb:                40,
-					ParallelDownloadsPerFile: 10,
-					WriteBufferSize:          8192,
-					EnableODirect:            true,
+					CacheFileForRangeRead:                  true,
+					DownloadChunkSizeMb:                    300,
+					EnableCrc:                              true,
+					EnableParallelDownloads:                false,
+					MaxParallelDownloads:                   200,
+					MaxSizeMb:                              40,
+					ParallelDownloadsPerFile:               10,
+					WriteBufferSize:                        8192,
+					EnableODirect:                          true,
+					ExperimentalParallelDownloadsDefaultOn: true,
 				},
 			},
 		},
