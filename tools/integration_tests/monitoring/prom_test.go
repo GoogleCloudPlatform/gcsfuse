@@ -239,7 +239,7 @@ func (testSuite *PromTest) TestReadMetrics() {
 	require.NoError(testSuite.T(), err)
 	assertNonZeroCountMetric(testSuite, "file_cache_read_count", "cache_hit", "false")
 	assertNonZeroCountMetric(testSuite, "file_cache_read_count", "read_type", "Sequential")
-	assertNonZeroCountMetric(testSuite, "file_cache_read_bytes_count", "read_type", "Sequential")
+	assertNonZeroCountMetric(testSuite, "file_cache_read_bytes_count", "read_type", "Parallel")
 	assertNonZeroHistogramMetric(testSuite, "file_cache_read_latencies", "cache_hit", "false")
 	assertNonZeroCountMetric(testSuite, "fs_ops_count", "fs_op", "OpenFile")
 	assertNonZeroCountMetric(testSuite, "fs_ops_count", "fs_op", "ReadFile")
