@@ -80,8 +80,6 @@ const (
 	// StatCacheMaxSizeConfigKey is the Viper configuration key for the maximum
 	//size of the metadata stat cache in megabytes.
 	StatCacheMaxSizeConfigKey = "metadata-cache.stat-cache-max-size-mb"
-	// CacheDir is the Viper configuration key for cache directory.
-	CacheDir = "cache-dir"
 	// FileCacheParallelDownloadsConfigKey is the Viper configuration key for the
 	//parallel-downloads enablement.
 	FileCacheParallelDownloadsConfigKey = "file-cache.enable-parallel-downloads"
