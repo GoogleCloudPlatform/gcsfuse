@@ -188,20 +188,20 @@ func (m *mockBucket) FinalizeUpload(p0 context.Context, p1 gcs.Writer) (o0 *gcs.
 	return
 }
 
-func (m *mockBucket) FlushUpload(p0 context.Context, p1 gcs.Writer) (o0 int64, o1 error) {
+func (m *mockBucket) FlushPendingWrites(p0 context.Context, p1 gcs.Writer) (o0 int64, o1 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
 
 	// Hand the call off to the controller, which does most of the work.
 	retVals := m.controller.HandleMethodCall(
 		m,
-		"FlushUpload",
+		"FlushPendingWrites",
 		file,
 		line,
 		[]interface{}{p0, p1})
 
 	if len(retVals) != 2 {
-		panic(fmt.Sprintf("mockBucket.FlushUpload: invalid return values: %v", retVals))
+		panic(fmt.Sprintf("mockBucket.FlushPendingWrites: invalid return values: %v", retVals))
 	}
 
 	// o0 int64 (offset)

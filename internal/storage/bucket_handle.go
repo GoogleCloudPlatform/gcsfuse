@@ -251,14 +251,14 @@ func (bh *bucketHandle) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gc
 	return
 }
 
-func (bh *bucketHandle) FlushUpload(ctx context.Context, w gcs.Writer) (offset int64, err error) {
+func (bh *bucketHandle) FlushPendingWrites(ctx context.Context, w gcs.Writer) (offset int64, err error) {
 	defer func() {
 		err = gcs.GetGCSError(err)
 	}()
 
 	offset, err = w.Flush()
 	if err != nil {
-		err = fmt.Errorf("error in flushing writer : %w", err)
+		err = fmt.Errorf("error in FlushPendingWrites : %w", err)
 		return
 	}
 

@@ -673,7 +673,7 @@ func (testSuite *BucketHandleTest) createObjectChunkWriter(t *testing.T, objectN
 	return wr
 }
 
-func (testSuite *BucketHandleTest) TestFlushUploadFails() {
+func (testSuite *BucketHandleTest) TestFlushPendingWritesFails() {
 	// These tests only run with HTTP client because fake storage server is not
 	// integrated with GRPC.
 	var generation0 int64 = 0
@@ -695,7 +695,7 @@ func (testSuite *BucketHandleTest) TestFlushUploadFails() {
 			}, nil)
 			wr := testSuite.createObjectChunkWriter(t, TestObjectName, &generation0, 100)
 
-			_, err := testSuite.bucketHandle.FlushUpload(context.Background(), wr)
+			_, err := testSuite.bucketHandle.FlushPendingWrites(context.Background(), wr)
 
 			require.Error(t, err)
 			assert.ErrorContains(testSuite.T(), err, "Flush not supported unless client uses gRPC and Append is set to true")

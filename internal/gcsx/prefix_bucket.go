@@ -119,8 +119,8 @@ func (b *prefixBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gcs
 	return
 }
 
-func (b *prefixBucket) FlushUpload(ctx context.Context, w gcs.Writer) (offset int64, err error) {
-	return b.wrapped.FlushUpload(ctx, w)
+func (b *prefixBucket) FlushPendingWrites(ctx context.Context, w gcs.Writer) (offset int64, err error) {
+	return b.wrapped.FlushPendingWrites(ctx, w)
 }
 
 func (b *prefixBucket) CopyObject(

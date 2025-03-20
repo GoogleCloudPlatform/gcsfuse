@@ -255,7 +255,7 @@ func (b *fastStatBucket) FinalizeUpload(ctx context.Context, writer gcs.Writer) 
 	return o, err
 }
 
-func (b *fastStatBucket) FlushUpload(ctx context.Context, writer gcs.Writer) (int64, error) {
+func (b *fastStatBucket) FlushPendingWrites(ctx context.Context, writer gcs.Writer) (int64, error) {
 	name := writer.ObjectName()
 	hit, o := b.cache.LookUp(name, b.clock.Now())
 	if hit {
@@ -263,7 +263,7 @@ func (b *fastStatBucket) FlushUpload(ctx context.Context, writer gcs.Writer) (in
 		b.invalidate(name)
 	}
 
-	offset, err := b.wrapped.FlushUpload(ctx, writer)
+	offset, err := b.wrapped.FlushPendingWrites(ctx, writer)
 
 	// Record the new object if err is nil.
 	if err == nil && hit && o != nil {

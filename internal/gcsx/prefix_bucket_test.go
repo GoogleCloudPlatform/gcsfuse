@@ -337,7 +337,7 @@ func (t *PrefixBucketTest) CreateObjectChunkWriterAndFinalizeUpload() {
 	assert.Equal(t.T(), string(content), string(actual))
 }
 
-func (t *PrefixBucketTest) CreateObjectChunkWriterAndFlushUpload() {
+func (t *PrefixBucketTest) CreateObjectChunkWriterAndFlushPendingWrites() {
 	var err error
 	suffix := "taco"
 	content := []byte("foobar")
@@ -354,7 +354,7 @@ func (t *PrefixBucketTest) CreateObjectChunkWriterAndFlushUpload() {
 	assert.NoError(t.T(), err)
 	_, err = w.Write(content)
 	assert.NoError(t.T(), err)
-	offset, err := t.bucket.FlushUpload(t.ctx, w)
+	offset, err := t.bucket.FlushPendingWrites(t.ctx, w)
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), int64(len(content)), offset)

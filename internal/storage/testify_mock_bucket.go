@@ -65,7 +65,7 @@ func (m *TestifyMockBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*
 	return args.Get(0).(*gcs.MinObject), args.Error(1)
 }
 
-func (m *TestifyMockBucket) FlushUpload(ctx context.Context, w gcs.Writer) (int64, error) {
+func (m *TestifyMockBucket) FlushPendingWrites(ctx context.Context, w gcs.Writer) (int64, error) {
 	args := m.Called(ctx, w)
 	return args.Get(0).(int64), args.Error(1)
 }

@@ -872,7 +872,6 @@ func (fs *fileSystem) createDirInode(ic inode.Core, inodes map[inode.Name]inode.
 // LOCK_FUNCTION(in)
 func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Inode) {
 
-	// Sanity check.
 	if err := ic.SanityCheck(); err != nil {
 		panic(err.Error())
 	}

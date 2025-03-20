@@ -103,10 +103,10 @@ func (mb *monitoringBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*
 	return o, err
 }
 
-func (mb *monitoringBucket) FlushUpload(ctx context.Context, w gcs.Writer) (int64, error) {
+func (mb *monitoringBucket) FlushPendingWrites(ctx context.Context, w gcs.Writer) (int64, error) {
 	startTime := time.Now()
-	offset, err := mb.wrapped.FlushUpload(ctx, w)
-	recordRequest(ctx, mb.metricHandle, "FlushUpload", startTime)
+	offset, err := mb.wrapped.FlushPendingWrites(ctx, w)
+	recordRequest(ctx, mb.metricHandle, "FlushPendingWrites", startTime)
 	return offset, err
 }
 

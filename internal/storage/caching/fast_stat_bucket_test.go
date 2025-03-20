@@ -282,13 +282,13 @@ func (t *FinalizeUploadTest) WrappedSucceeds() {
 // FinalizeUpload
 ////////////////////////////////////////////////////////////////////////
 
-type FlushUploadTest struct {
+type FlushPendingWritesTest struct {
 	fastStatBucketTest
 }
 
-func init() { RegisterTestSuite(&FlushUploadTest{}) }
+func init() { RegisterTestSuite(&FlushPendingWritesTest{}) }
 
-func (t *FlushUploadTest) WrappedFails() {
+func (t *FlushPendingWritesTest) WrappedFails() {
 	const name = "taco"
 	writer := &storage.ObjectWriter{
 		Writer: &gostorage.Writer{ObjectAttrs: gostorage.ObjectAttrs{Name: name}},
@@ -300,19 +300,18 @@ func (t *FlushUploadTest) WrappedFails() {
 	ExpectCall(t.cache, "Erase")(name)
 	// Expect call to Wrapped method.
 	var wrappedWriter gcs.Writer
-	ExpectCall(t.wrapped, "FlushUpload")(Any(), Any()).
+	ExpectCall(t.wrapped, "FlushPendingWrites")(Any(), Any()).
 		WillOnce(DoAll(SaveArg(1, &wrappedWriter), Return(10, errors.New("taco"))))
 
 	// Call.
-	gotOffset, err := t.bucket.FlushUpload(context.TODO(), writer)
+	gotOffset, err := t.bucket.FlushPendingWrites(context.TODO(), writer)
 
-	AssertNe(nil, wrappedWriter)
 	ExpectEq(writer, wrappedWriter)
 	ExpectEq(10, gotOffset)
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
-func (t *FlushUploadTest) WrappedSucceeds() {
+func (t *FlushPendingWritesTest) WrappedSucceeds() {
 	const name = "taco"
 	minObject := &gcs.MinObject{}
 	writer := &storage.ObjectWriter{
@@ -325,7 +324,7 @@ func (t *FlushUploadTest) WrappedSucceeds() {
 	// Expect cache Erase.
 	ExpectCall(t.cache, "Erase")(name)
 	// Wrapped.
-	ExpectCall(t.wrapped, "FlushUpload")(Any(), Any()).
+	ExpectCall(t.wrapped, "FlushPendingWrites")(Any(), Any()).
 		WillOnce(Return(10, nil))
 	// Insert.
 	var cachedMinObject *gcs.MinObject
@@ -333,7 +332,7 @@ func (t *FlushUploadTest) WrappedSucceeds() {
 		WillOnce(DoAll(SaveArg(0, &cachedMinObject)))
 
 	// Call
-	offset, err := t.bucket.FlushUpload(context.TODO(), writer)
+	offset, err := t.bucket.FlushPendingWrites(context.TODO(), writer)
 
 	AssertEq(nil, err)
 	ExpectEq(10, offset)

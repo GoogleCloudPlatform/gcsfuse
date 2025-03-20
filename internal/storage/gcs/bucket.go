@@ -106,9 +106,9 @@ type Bucket interface {
 	// operation and creates an object on GCS.
 	FinalizeUpload(ctx context.Context, writer Writer) (*MinObject, error)
 
-	// FlushUpload is used for zonal buckets to flush any pending data in the
-	// writer buffer. The object is not finalized and can be appended further.
-	FlushUpload(ctx context.Context, writer Writer) (int64, error)
+	// FlushPendingWrites is used for zonal buckets to flush any pending data in
+	// the writer buffer. The object is not finalized and can be appended further.
+	FlushPendingWrites(ctx context.Context, writer Writer) (int64, error)
 
 	// Copy an object to a new name, preserving all metadata. Any existing
 	// generation of the destination name will be overwritten.
