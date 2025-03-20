@@ -407,7 +407,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("file-cache-enable-parallel-downloads", "", false, "Enable parallel downloads.")
 
-	flagSet.BoolP("file-cache-experimental-parallel-downloads-default-on", "", false, "Enable parallel downloads by default on experimental basis.")
+	flagSet.BoolP("file-cache-experimental-parallel-downloads-default-on", "", true, "Enable parallel downloads by default on experimental basis.")
 
 	if err := flagSet.MarkHidden("file-cache-experimental-parallel-downloads-default-on"); err != nil {
 		return err
