@@ -171,29 +171,6 @@ func (uh *UploadHandler) Finalize() (*gcs.MinObject, error) {
 	return obj, nil
 }
 
-// Flush uploads any data in the write buffer.
-func (uh *UploadHandler) Flush() (int64, error) {
-	uh.wg.Wait()
-
-	if uh.writer == nil {
-		// Writer may not have been created for empty file creation flow or for very
-		// small writes of size less than 1 block.
-		err := uh.createObjectWriter()
-		if err != nil {
-			return 0, fmt.Errorf("createObjectWriter failed for object %s: %w", uh.objectName, err)
-		}
-	}
-
-	offset, err := uh.bucket.FlushUpload(context.Background(), uh.writer)
-	if err != nil {
-		// FlushUpload already returns GCS error so no need to convert again.
-		uh.uploadError.Store(&err)
-		logger.Errorf("FlushUpload failed for object %s: %v", uh.objectName, err)
-		return 0, err
-	}
-	return offset, nil
-}
-
 func (uh *UploadHandler) CancelUpload() {
 	if uh.cancelFunc != nil {
 		// cancel the context to cancel the ongoing GCS upload.

@@ -163,57 +163,6 @@ func (t *UploadHandlerTest) TestFinalizeWhenFinalizeUploadFails() {
 	assertUploadFailureError(t.T(), t.uh)
 }
 
-func (t *UploadHandlerTest) TestFlushWithWriterAlreadyPresent() {
-	writer := &storagemock.Writer{}
-	mockOffset := 10
-	t.mockBucket.On("FlushUpload", mock.Anything, writer).Return(mockOffset, nil)
-	t.uh.writer = writer
-
-	offset, err := t.uh.Flush()
-
-	require.NoError(t.T(), err)
-	assert.EqualValues(t.T(), mockOffset, offset)
-}
-
-func (t *UploadHandlerTest) TestFlushWithNoWriter() {
-	writer := &storagemock.Writer{}
-	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
-	assert.Nil(t.T(), t.uh.writer)
-	mockOffset := 10
-	t.mockBucket.On("FlushUpload", mock.Anything, writer).Return(mockOffset, nil)
-
-	offset, err := t.uh.Flush()
-
-	require.NoError(t.T(), err)
-	assert.EqualValues(t.T(), mockOffset, offset)
-}
-
-func (t *UploadHandlerTest) TestFlushWithNoWriterWhenCreateObjectWriterFails() {
-	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("taco"))
-	assert.Nil(t.T(), t.uh.writer)
-
-	offset, err := t.uh.Flush()
-
-	require.Error(t.T(), err)
-	assert.ErrorContains(t.T(), err, "taco")
-	assert.ErrorContains(t.T(), err, "createObjectWriter")
-	assert.EqualValues(t.T(), 0, offset)
-}
-
-func (t *UploadHandlerTest) TestFlushWhenFlushUploadFails() {
-	writer := &storagemock.Writer{}
-	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
-	assert.Nil(t.T(), t.uh.writer)
-	t.mockBucket.On("FlushUpload", mock.Anything, writer).Return(0, fmt.Errorf("taco"))
-
-	offset, err := t.uh.Flush()
-
-	require.Error(t.T(), err)
-	assert.EqualValues(t.T(), 0, offset)
-	assert.ErrorContains(t.T(), err, "taco")
-	assertUploadFailureError(t.T(), t.uh)
-}
-
 func (t *UploadHandlerTest) TestUploadSingleBlockThrowsErrorInCopy() {
 	// Create a block with test data.
 	b, err := t.blockPool.Get()
