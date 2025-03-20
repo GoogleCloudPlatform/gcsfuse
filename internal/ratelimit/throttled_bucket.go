@@ -115,6 +115,14 @@ func (b *throttledBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gc
 	return b.wrapped.FinalizeUpload(ctx, w)
 }
 
+func (b *throttledBucket) FlushPendingWrites(ctx context.Context, w gcs.Writer) (int64, error) {
+	// FlushPendingWrites is not throttled to prevent permanent data loss in case the
+	// limiter's burst size is exceeded.
+	// Note: CreateObjectChunkWriter, a prerequisite for FlushPendingWrites,
+	// is throttled.
+	return b.wrapped.FlushPendingWrites(ctx, w)
+}
+
 func (b *throttledBucket) CopyObject(
 	ctx context.Context,
 	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {

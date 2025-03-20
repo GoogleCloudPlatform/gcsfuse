@@ -337,6 +337,33 @@ func (t *PrefixBucketTest) CreateObjectChunkWriterAndFinalizeUpload() {
 	assert.Equal(t.T(), string(content), string(actual))
 }
 
+func (t *PrefixBucketTest) CreateObjectChunkWriterAndFlushPendingWrites() {
+	var err error
+	suffix := "taco"
+	content := []byte("foobar")
+
+	// Create the object.
+	w, err := t.bucket.CreateObjectChunkWriter(
+		t.ctx,
+		&gcs.CreateObjectRequest{
+			Name:            suffix,
+			ContentEncoding: "gzip",
+			Contents:        nil,
+		},
+		1024, nil)
+	assert.NoError(t.T(), err)
+	_, err = w.Write(content)
+	assert.NoError(t.T(), err)
+	offset, err := t.bucket.FlushPendingWrites(t.ctx, w)
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), int64(len(content)), offset)
+	// Read it through the back door.
+	actual, err := storageutil.ReadObject(t.ctx, t.wrapped, t.prefix+suffix)
+	assert.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), string(content), string(actual))
+}
+
 func (t *PrefixBucketTest) Test_CopyObject() {
 	var err error
 	suffix := "taco"

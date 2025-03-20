@@ -691,6 +691,18 @@ func (b *bucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObj
 	return NewFakeObjectWriter(b, req)
 }
 
+func (b *bucket) FlushPendingWrites(ctx context.Context, w gcs.Writer) (int64, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	offset, err := w.Flush()
+	if err != nil {
+		return 0, err
+	}
+
+	return offset, nil
+}
+
 func (b *bucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.MinObject, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()

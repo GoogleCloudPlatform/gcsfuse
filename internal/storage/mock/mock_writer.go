@@ -35,6 +35,7 @@ func (mw *Writer) Write(p []byte) (n int, err error) {
 	args := mw.Called(p)
 	return args.Int(0), args.Error(1)
 }
+
 func (mw *Writer) Attrs() *storage.ObjectAttrs {
 	args := mw.Called()
 	return args.Get(0).(*storage.ObjectAttrs)
@@ -43,6 +44,11 @@ func (mw *Writer) Attrs() *storage.ObjectAttrs {
 func (mw *Writer) Close() error {
 	args := mw.Called()
 	return args.Error(0)
+}
+
+func (mw *Writer) Flush() (int64, error) {
+	args := mw.Called()
+	return args.Get(0).(int64), args.Error(1)
 }
 
 func (mw *Writer) ObjectName() string {
