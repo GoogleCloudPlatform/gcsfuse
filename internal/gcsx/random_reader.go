@@ -112,7 +112,7 @@ const (
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
 func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper) RandomReader {
-	return &randomReader{
+	rr := &randomReader{
 		object:                o,
 		bucket:                bucket,
 		start:                 -1,
@@ -126,6 +126,8 @@ func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb i
 		mrdWrapper:            mrdWrapper,
 		metricHandle:          metricHandle,
 	}
+	rr.sizeProvider = NewRandomReaderReadSizeProvider(int64(o.Size))
+	return rr
 }
 
 type randomReader struct {
@@ -180,6 +182,8 @@ type randomReader struct {
 	isMRDInUse bool
 
 	metricHandle common.MetricHandle
+
+	sizeProvider ReadSizeProvider
 }
 
 func (rr *randomReader) CheckInvariants() {
@@ -366,12 +370,19 @@ func (rr *randomReader) ReadAt(
 		rr.closeReader()
 		rr.reader = nil
 		rr.cancel = nil
+		discarded := false
 		if rr.start != offset {
 			// We should only increase the seek count if we have to discard the reader when it's
 			// positioned at wrong place. Discarding it if can't serve the entire request would
 			// result in reader size not growing for random reads scenario.
 			rr.seeks++
+			discarded = true
 		}
+		rr.sizeProvider.ProvideFeedback(&Feedback{
+			TotalReadBytes: int64(rr.totalReadBytes),
+			ReadCompletely: !discarded,
+			LastOffsetRead: rr.start,
+		})
 	}
 
 	if rr.reader != nil {
@@ -379,12 +390,12 @@ func (rr *randomReader) ReadAt(
 		return
 	}
 
-	// If we don't have a reader, determine whether to read from NewReader or MRR.
-	end, err := rr.getReadInfo(offset, int64(len(p)))
+	sizeToRead, err := rr.sizeProvider.GetNextReadSize(offset)
 	if err != nil {
-		err = fmt.Errorf("ReadAt: getReaderInfo: %w", err)
+		err = fmt.Errorf("size provider: GetNextReadSize: %v", err)
 		return
 	}
+	end := offset + sizeToRead
 
 	readerType := readerType(rr.readType, offset, end, rr.bucket.BucketType())
 	if readerType == RangeReader {
@@ -609,6 +620,7 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 		rr.cancel = nil
 		rr.start = -1
 		rr.limit = -1
+		rr.totalReadBytes = 0
 
 		return
 	}
@@ -618,6 +630,12 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 		rr.closeReader()
 		rr.reader = nil
 		rr.cancel = nil
+		rr.sizeProvider.ProvideFeedback(&Feedback{
+			TotalReadBytes: int64(rr.totalReadBytes),
+			ReadCompletely: true,
+			LastOffsetRead: rr.start,
+		})
+		rr.totalReadBytes = 0
 	}
 
 	// Handle errors.
