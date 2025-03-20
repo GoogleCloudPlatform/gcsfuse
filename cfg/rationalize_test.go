@@ -463,7 +463,9 @@ func TestRationalize_ParallelDownloadsConfig(t *testing.T) {
 			expectedParallelDownloads: false,
 		},
 		{
-			name:  "valid_config_parallel_download_explicit_false",
+			name: "valid_config_parallel_download_explicit_false",
+			// flagset here is representing viper config, value true is not actual value of the flag
+			// it just means flag is SET by the user
 			flags: flagSet{"file-cache.enable-parallel-downloads": true},
 			config: &Config{
 				CacheDir: ResolvedPath("/some-path"),
