@@ -74,7 +74,7 @@ func (dt *downloaderTest) setupHelper() {
 }
 
 func (dt *downloaderTest) SetUp(*TestInfo) {
-	dt.defaultFileCacheConfig = &cfg.FileCacheConfig{EnableCrc: true}
+	dt.defaultFileCacheConfig = &cfg.FileCacheConfig{EnableCrc: true, ExperimentalParallelDownloadsDefaultOn: true}
 	dt.setupHelper()
 }
 

@@ -47,11 +47,12 @@ func init() { RegisterTestSuite(&parallelDownloaderTest{}) }
 
 func (dt *parallelDownloaderTest) SetUp(*TestInfo) {
 	dt.defaultFileCacheConfig = &cfg.FileCacheConfig{
-		EnableParallelDownloads:  true,
-		ParallelDownloadsPerFile: 3,
-		DownloadChunkSizeMb:      3,
-		EnableCrc:                true,
-		WriteBufferSize:          4 * 1024 * 1024,
+		ExperimentalParallelDownloadsDefaultOn: true,
+		EnableParallelDownloads:                true,
+		ParallelDownloadsPerFile:               3,
+		DownloadChunkSizeMb:                    3,
+		EnableCrc:                              true,
+		WriteBufferSize:                        4 * 1024 * 1024,
 	}
 	dt.setupHelper()
 }
@@ -81,30 +82,39 @@ func (dt *parallelDownloaderTest) Test_downloadRange() {
 	// Download end 1MiB of object
 	start, end := int64(9*util.MiB), int64(10*util.MiB)
 	offsetWriter := io.NewOffsetWriter(file, start)
-	_, err = dt.job.downloadRange(context.Background(), offsetWriter, start, end, nil, make(map[int64]int64))
+	rangeMap := make(map[int64]int64)
+
+	_, err = dt.job.downloadRange(context.Background(), offsetWriter, start, end, nil, rangeMap)
 	AssertEq(nil, err)
 	verifyContentAtOffset(file, start, end)
 
 	// Download start 4MiB of object
 	start, end = int64(0*util.MiB), int64(4*util.MiB)
 	offsetWriter = io.NewOffsetWriter(file, start)
-	_, err = dt.job.downloadRange(context.Background(), offsetWriter, start, end, nil, make(map[int64]int64))
+	_, err = dt.job.downloadRange(context.Background(), offsetWriter, start, end, nil, rangeMap)
 	AssertEq(nil, err)
 	verifyContentAtOffset(file, start, end)
 
 	// Download middle 1B of object
 	start, end = int64(5*util.MiB), int64(5*util.MiB+1)
 	offsetWriter = io.NewOffsetWriter(file, start)
-	_, err = dt.job.downloadRange(context.Background(), offsetWriter, start, end, nil, make(map[int64]int64))
+	_, err = dt.job.downloadRange(context.Background(), offsetWriter, start, end, nil, rangeMap)
 	AssertEq(nil, err)
 	verifyContentAtOffset(file, start, end)
 
 	// Download 0B of object
 	start, end = int64(5*util.MiB), int64(5*util.MiB)
 	offsetWriter = io.NewOffsetWriter(file, start)
-	_, err = dt.job.downloadRange(context.Background(), offsetWriter, start, end, nil, make(map[int64]int64))
+	_, err = dt.job.downloadRange(context.Background(), offsetWriter, start, end, nil, rangeMap)
 	AssertEq(nil, err)
 	verifyContentAtOffset(file, start, end)
+
+	//Verify marker map updated correctly
+	expectedMap := make(map[int64]int64)
+	expectedMap[0] = 4194304
+	expectedMap[9437184] = 10485760
+	expectedMap[5242880] = 5242881
+	verifyMarkerMap(rangeMap, expectedMap)
 }
 
 func (dt *parallelDownloaderTest) Test_parallelDownloadObjectToFile() {
@@ -235,4 +245,12 @@ func (dt *parallelDownloaderTest) Test_updateRangeMap_withInputNotOverlappingWit
 	AssertEq(10, rangeMap[8])
 	AssertEq(12, rangeMap[14])
 	AssertEq(14, rangeMap[12])
+}
+
+func verifyMarkerMap(actual map[int64]int64, expected map[int64]int64) {
+	for key, expectedValue := range expected {
+		actualValue, exists := actual[key]
+		AssertTrue(exists)
+		AssertEq(expectedValue, actualValue)
+	}
 }
