@@ -21,20 +21,20 @@ import (
 
 // randomReaderReadSizeProvider implements the ReadSizeProvider interface for randomReader.
 type randomReaderReadSizeProvider struct {
-	seek int64
-	totalReadBytes int64
-	readType string
-	objectSize int64
+	seek               int64
+	totalReadBytes     int64
+	readType           string
+	objectSize         int64
 	sequentialReadSize int32
 }
 
 // NewRandomReaderReadSizeProvider creates a new ReadSizeProvider for the given randomReader.
 func NewRandomReaderReadSizeProvider(objectSize int64) ReadSizeProvider {
 	return &randomReaderReadSizeProvider{
-		seek: 0,
-		totalReadBytes: 0,
-		readType: util.Sequential,
-		objectSize: objectSize,
+		seek:               0,
+		totalReadBytes:     0,
+		readType:           util.Sequential,
+		objectSize:         objectSize,
 		sequentialReadSize: 200 * MB,
 	}
 }
@@ -100,4 +100,3 @@ func (rrs *randomReaderReadSizeProvider) ProvideFeedback(f *Feedback) {
 		rrs.seek++
 	}
 }
-

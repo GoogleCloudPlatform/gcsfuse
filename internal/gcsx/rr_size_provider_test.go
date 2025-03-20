@@ -29,7 +29,6 @@ func TestRRSizeProvider(t *testing.T) {
 	suite.Run(t, new(RRSizeProvider))
 }
 
-
 func (s *RRSizeProvider) SetupTest() {
 	s.provider = NewRandomReaderReadSizeProvider(1000 * MB)
 }
@@ -42,7 +41,7 @@ func (s *RRSizeProvider) TestGetNextReadSize_SequentialRead() {
 	s.Equal(util.Sequential, s.provider.ReadType())
 
 	// Assumes read all the content.
-	s.provider.ProvideFeedback(&Feedback{TotalReadBytes: 200 * MB, ReadCompletely: true, LastOffsetRead: 200 * MB - 1})
+	s.provider.ProvideFeedback(&Feedback{TotalReadBytes: 200 * MB, ReadCompletely: true, LastOffsetRead: 200*MB - 1})
 
 	// 2nd reader request from offset 1MiB
 	size, err = s.provider.GetNextReadSize(200 * MB)
@@ -51,8 +50,8 @@ func (s *RRSizeProvider) TestGetNextReadSize_SequentialRead() {
 	s.Equal(util.Sequential, s.provider.ReadType())
 
 	// Assumes read all the content.
-	s.provider.ProvideFeedback(&Feedback{TotalReadBytes: 200 * MB, ReadCompletely: true, LastOffsetRead: 400 * MB - 1})
-	
+	s.provider.ProvideFeedback(&Feedback{TotalReadBytes: 200 * MB, ReadCompletely: true, LastOffsetRead: 400*MB - 1})
+
 	// 3rd reader request from offset 11MiB
 	size, err = s.provider.GetNextReadSize(400 * MB)
 	s.Require().NoError(err)
@@ -60,27 +59,27 @@ func (s *RRSizeProvider) TestGetNextReadSize_SequentialRead() {
 	s.Equal(util.Sequential, s.provider.ReadType())
 
 	// Assumes read all the content.
-	s.provider.ProvideFeedback(&Feedback{TotalReadBytes: 200 * MB, ReadCompletely: true, LastOffsetRead: 600 * MB - 1})
+	s.provider.ProvideFeedback(&Feedback{TotalReadBytes: 200 * MB, ReadCompletely: true, LastOffsetRead: 600*MB - 1})
 
 	// 4th reader request from offset 111 MiB
 	size, err = s.provider.GetNextReadSize(600 * MB)
-	s.Require().NoError(err)	
+	s.Require().NoError(err)
 	s.Require().NoError(err)
 	s.Equal(int64(200*MB), size)
 	s.Equal(util.Sequential, s.provider.ReadType())
 
 	// Assumes read all the content.
-	s.provider.ProvideFeedback(&Feedback{TotalReadBytes: 200 * MB, ReadCompletely: true, LastOffsetRead: 800 * MB - 1})
+	s.provider.ProvideFeedback(&Feedback{TotalReadBytes: 200 * MB, ReadCompletely: true, LastOffsetRead: 800*MB - 1})
 
 	// 4th reader request from offset 111 MiB
 	size, err = s.provider.GetNextReadSize(800 * MB)
-	s.Require().NoError(err)	
+	s.Require().NoError(err)
 	s.Require().NoError(err)
 	s.Equal(int64(200*MB), size)
 	s.Equal(util.Sequential, s.provider.ReadType())
 
 	// Assumes read all the content.
-	s.provider.ProvideFeedback(&Feedback{TotalReadBytes: 200 * MB, ReadCompletely: true, LastOffsetRead: 1000 * MB - 1})
+	s.provider.ProvideFeedback(&Feedback{TotalReadBytes: 200 * MB, ReadCompletely: true, LastOffsetRead: 1000*MB - 1})
 
 	// 4th reader request from offset 111 MiB
 	_, err = s.provider.GetNextReadSize(1000 * MB)
@@ -94,7 +93,7 @@ func (s *RRSizeProvider) TestGetNextReadSize_RandomRead() {
 	s.Equal(util.Sequential, s.provider.ReadType())
 
 	// Assumes read all the contents.
-	s.provider.ProvideFeedback(&Feedback{TotalReadBytes: 1 * MB, ReadCompletely: false, LastOffsetRead: 6 * MB - 1})
+	s.provider.ProvideFeedback(&Feedback{TotalReadBytes: 1 * MB, ReadCompletely: false, LastOffsetRead: 6*MB - 1})
 
 	// 2nd random request from offset 11 MiB
 	size, err = s.provider.GetNextReadSize(11 * MB)
@@ -103,7 +102,7 @@ func (s *RRSizeProvider) TestGetNextReadSize_RandomRead() {
 	s.Equal(util.Sequential, s.provider.ReadType())
 
 	// Assuming read all the contents.
-	s.provider.ProvideFeedback(&Feedback{TotalReadBytes: 1 * MB, ReadCompletely: false, LastOffsetRead: 12 * MB - 1})
+	s.provider.ProvideFeedback(&Feedback{TotalReadBytes: 1 * MB, ReadCompletely: false, LastOffsetRead: 12*MB - 1})
 
 	// 3rd random request from offset 96 MiB
 	size, err = s.provider.GetNextReadSize(96 * MB)
@@ -111,7 +110,7 @@ func (s *RRSizeProvider) TestGetNextReadSize_RandomRead() {
 	s.Equal(int64(1*MB), size)
 	s.Equal(util.Random, s.provider.ReadType())
 
-	s.provider.ProvideFeedback(&Feedback{TotalReadBytes: 1 * MB, ReadCompletely: true, LastOffsetRead: 96 * MB - 1})
+	s.provider.ProvideFeedback(&Feedback{TotalReadBytes: 1 * MB, ReadCompletely: true, LastOffsetRead: 96*MB - 1})
 
 	// 3rd random request from offset 122 MiB
 	size, err = s.provider.GetNextReadSize(122 * MB)
@@ -131,4 +130,3 @@ func (s *RRSizeProvider) TestGetNextReadSize_InvalidOffsetGreaterThanObjectSize(
 	_, err := s.provider.GetNextReadSize(1001 * MB)
 	s.Require().Error(err)
 }
-

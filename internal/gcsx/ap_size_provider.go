@@ -23,29 +23,28 @@ import (
 
 const gSequentialReadThreshold = 1 * MB
 
-
 // apSizeProvider implements the ReadSizeProvider interface for randomReader.
 type apSizeProvider struct {
-	seek int64
-	totalReadBytes int64
-	readType string
-	objectSize int64
-	maxSequentialMiB int64
+	seek                 int64
+	totalReadBytes       int64
+	readType             string
+	objectSize           int64
+	maxSequentialMiB     int64
 	sequentialMultiplier int32
-	lastOffset int64
-	lastRequestSize int64
+	lastOffset           int64
+	lastRequestSize      int64
 }
 
 // NewAPSizeProvider creates a new ReadSizeProvider for the given randomReader.
 func NewAPSizeProvider(objectSize int64, sequentialMulplier int32) ReadSizeProvider {
 	return &apSizeProvider{
-		seek: 0,
-		totalReadBytes: 0,
-		readType: util.Sequential,
-		objectSize: objectSize,
-		maxSequentialMiB: 1000 * MB,
+		seek:                 0,
+		totalReadBytes:       0,
+		readType:             util.Sequential,
+		objectSize:           objectSize,
+		maxSequentialMiB:     1000 * MB,
 		sequentialMultiplier: sequentialMulplier,
-		lastRequestSize: math.MaxInt64,
+		lastRequestSize:      math.MaxInt64,
 	}
 }
 
@@ -72,7 +71,7 @@ func (rrs *apSizeProvider) GetNextReadSize(offset int64) (size int64, err error)
 		rrs.lastRequestSize = requestSize
 	}
 
-	if rrs.lastRequestSize > rrs.objectSize - offset {
+	if rrs.lastRequestSize > rrs.objectSize-offset {
 		rrs.lastRequestSize = rrs.objectSize - offset
 	}
 	return rrs.lastRequestSize, nil
@@ -97,4 +96,3 @@ func (rrs *apSizeProvider) isSequential(offset int64) bool {
 	}
 	return true
 }
-
