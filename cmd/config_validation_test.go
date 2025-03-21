@@ -56,7 +56,7 @@ func defaultFileCacheConfig(t *testing.T) cfg.FileCacheConfig {
 	t.Helper()
 	return cfg.FileCacheConfig{
 		CacheFileForRangeRead:                  false,
-		DownloadChunkSizeMb:                    50,
+		DownloadChunkSizeMb:                    200,
 		EnableCrc:                              false,
 		EnableParallelDownloads:                false,
 		ExperimentalParallelDownloadsDefaultOn: true,
