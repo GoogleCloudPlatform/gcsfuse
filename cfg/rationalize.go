@@ -97,6 +97,14 @@ func resolveCloudMetricsUploadIntervalSecs(m *MetricsConfig) {
 	}
 }
 
+func resolveParallelDownloadsValue(v isSet, fc *FileCacheConfig, c *Config) {
+	// Parallel downloads should be default ON when file cache is enabled, in case
+	// it is explicitly set by the user, use that value.
+	if IsFileCacheEnabled(c) && !v.IsSet(FileCacheParallelDownloadsConfigKey) {
+		fc.EnableParallelDownloads = true
+	}
+}
+
 // Rationalize updates the config fields based on the values of other fields.
 func Rationalize(v isSet, c *Config) error {
 	var err error
@@ -116,6 +124,7 @@ func Rationalize(v isSet, c *Config) error {
 	resolveMetadataCacheTTL(v, &c.MetadataCache)
 	resolveStatCacheMaxSizeMB(v, &c.MetadataCache)
 	resolveCloudMetricsUploadIntervalSecs(&c.Metrics)
+	resolveParallelDownloadsValue(v, &c.FileCache, c)
 
 	return nil
 }

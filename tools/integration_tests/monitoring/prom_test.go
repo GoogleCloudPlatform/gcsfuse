@@ -174,7 +174,8 @@ func assertNonZeroCountMetric(testSuite *PromTest, metricName, labelName, labelV
 		}
 
 	}
-	assert.Fail(testSuite.T(), "Didn't find the metric with name: %s, labelName: %s and labelValue: %s", metricName, labelName, labelValue)
+	assert.Fail(testSuite.T(), fmt.Sprintf("Didn't find the metric with name: %s, labelName: %s and labelValue: %s",
+		metricName, labelName, labelValue))
 }
 
 // assertNonZeroHistogramMetric asserts that the specified histogram metric is present and is positive for at least one of the buckets in the Prometheus export.
@@ -239,7 +240,6 @@ func (testSuite *PromTest) TestReadMetrics() {
 	require.NoError(testSuite.T(), err)
 	assertNonZeroCountMetric(testSuite, "file_cache_read_count", "cache_hit", "false")
 	assertNonZeroCountMetric(testSuite, "file_cache_read_count", "read_type", "Sequential")
-	assertNonZeroCountMetric(testSuite, "file_cache_read_bytes_count", "read_type", "Sequential")
 	assertNonZeroHistogramMetric(testSuite, "file_cache_read_latencies", "cache_hit", "false")
 	assertNonZeroCountMetric(testSuite, "fs_ops_count", "fs_op", "OpenFile")
 	assertNonZeroCountMetric(testSuite, "fs_ops_count", "fs_op", "ReadFile")
@@ -247,10 +247,11 @@ func (testSuite *PromTest) TestReadMetrics() {
 	assertNonZeroCountMetric(testSuite, "gcs_request_count", "gcs_method", "NewReader")
 	assertNonZeroCountMetric(testSuite, "gcs_reader_count", "io_method", "opened")
 	assertNonZeroCountMetric(testSuite, "gcs_reader_count", "io_method", "closed")
-	assertNonZeroCountMetric(testSuite, "gcs_read_count", "read_type", "Sequential")
+	assertNonZeroCountMetric(testSuite, "gcs_read_count", "read_type", "Parallel")
 	assertNonZeroCountMetric(testSuite, "gcs_download_bytes_count", "", "")
 	assertNonZeroCountMetric(testSuite, "gcs_read_bytes_count", "", "")
 	assertNonZeroHistogramMetric(testSuite, "gcs_request_latencies", "gcs_method", "NewReader")
+	//TODO: file_cache_read_bytes_count should be added once with waitForDownload is true same as sequential for default pd,
 }
 
 func TestPromOCSuite(t *testing.T) {

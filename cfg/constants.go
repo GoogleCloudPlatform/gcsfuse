@@ -79,8 +79,11 @@ const (
 	MetadataNegativeCacheTTLConfigKey = "metadata-cache.negative-ttl-secs"
 	// StatCacheMaxSizeConfigKey is the Viper configuration key for the maximum
 	//size of the metadata stat cache in megabytes.
-	StatCacheMaxSizeConfigKey      = "metadata-cache.stat-cache-max-size-mb"
-	maxSupportedStatCacheMaxSizeMB = util.MaxMiBsInUint64
+	StatCacheMaxSizeConfigKey = "metadata-cache.stat-cache-max-size-mb"
+	// FileCacheParallelDownloadsConfigKey is the Viper configuration key for the
+	//parallel-downloads enablement.
+	FileCacheParallelDownloadsConfigKey = "file-cache.enable-parallel-downloads"
+	maxSupportedStatCacheMaxSizeMB      = util.MaxMiBsInUint64
 )
 
 // CacheUtilMinimumAlignSizeForWriting is the minimum buffer size used for memory-aligned
