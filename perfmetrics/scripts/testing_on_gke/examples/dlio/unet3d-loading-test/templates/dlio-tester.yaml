@@ -131,26 +131,4 @@ spec:
       volumeAttributes:
         bucketName: {{ .Values.bucketName }}
         mountOptions: "{{ .Values.gcsfuse.mountOptions }}"
-  {{- else if eq .Values.scenario "gcsfuse-file-cache" }}
-    csi:
-      driver: gcsfuse.csi.storage.gke.io
-      volumeAttributes:
-        bucketName: {{ .Values.bucketName }}
-        metadataCacheTTLSeconds: "{{ .Values.gcsfuse.metadataCacheTTLSeconds }}"
-        metadataTypeCacheCapacity: "{{ .Values.gcsfuse.metadataTypeCacheCapacity }}"
-        metadataStatCacheCapacity: "{{ .Values.gcsfuse.metadataStatCacheCapacity }}"
-        fileCacheCapacity: "{{ .Values.gcsfuse.fileCacheCapacity }}"
-        fileCacheForRangeRead: "{{ .Values.gcsfuse.fileCacheForRangeRead }}"
-        gcsfuseLoggingSeverity: "debug"
-        mountOptions: implicit-dirs
-  {{- else }}
-    csi:
-      driver: gcsfuse.csi.storage.gke.io
-      volumeAttributes:
-        bucketName: {{ .Values.bucketName }}
-        metadataCacheTTLSeconds: "{{ .Values.gcsfuse.metadataCacheTTLSeconds }}"
-        metadataTypeCacheCapacity: "{{ .Values.gcsfuse.metadataTypeCacheCapacity }}"
-        metadataStatCacheCapacity: "{{ .Values.gcsfuse.metadataStatCacheCapacity }}"
-        gcsfuseLoggingSeverity: "debug"
-        mountOptions: implicit-dirs
   {{- end }}
