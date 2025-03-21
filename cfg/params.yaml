@@ -95,7 +95,7 @@
   flag-name: "file-cache-download-chunk-size-mb"
   type: "int"
   usage: "Size of chunks in MiB that each concurrent request downloads."
-  default: "50"
+  default: "200"
 
 - config-path: "file-cache.enable-crc"
   flag-name: "file-cache-enable-crc"
