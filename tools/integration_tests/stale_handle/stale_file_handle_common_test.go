@@ -18,6 +18,8 @@ import (
 	"os"
 	"path"
 	"slices"
+	"strings"
+	"testing"
 
 	"cloud.google.com/go/storage"
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
@@ -35,6 +37,9 @@ type staleFileHandleCommon struct {
 	f1          *os.File
 	data        string
 	testDirPath string
+	// Directory to unmount for the suite.
+	suiteRootDir string
+	flags        []string
 	suite.Suite
 }
 
@@ -42,18 +47,24 @@ type staleFileHandleCommon struct {
 // Helpers
 // //////////////////////////////////////////////////////////////////////
 
+func getTestName(t *testing.T) string {
+	return strings.ReplaceAll(t.Name(), "/", "_")
+}
 func (s *staleFileHandleCommon) SetupSuite() {
-	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
+	s.suiteRootDir = path.Join(setup.TestDir(), "mnt", getTestName(s.T()))
+	setup.SetMntDir(s.suiteRootDir)
+	operations.CreateDirectory(s.suiteRootDir, s.T())
+	setup.MountGCSFuseWithGivenMountFunc(s.flags, mountFunc)
 }
 
 func (s *staleFileHandleCommon) TearDownSuite() {
-	setup.UnmountGCSFuse(rootDir)
+	setup.UnmountGCSFuse(s.suiteRootDir)
 	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 }
 
 func (s *staleFileHandleCommon) streamingWritesEnabled() bool {
 	s.T().Helper()
-	return slices.Contains(flags, "--enable-streaming-writes=true")
+	return slices.Contains(s.flags, "--enable-streaming-writes=true")
 }
 
 // Used to validate stale handle error from sync/close when streaming writes are disabled.
@@ -75,7 +86,7 @@ func (s *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHand
 	_, err := s.f1.WriteAt([]byte(s.data), 0)
 	assert.NoError(s.T(), err)
 	// Clobber file by replacing the underlying object with a new generation.
-	err = WriteToObject(ctx, storageClient, path.Join(s.T().Name(), FileName1), FileContents, storage.Conditions{})
+	err = WriteToObject(ctx, storageClient, path.Join(getTestName(s.T()), FileName1), FileContents, storage.Conditions{})
 	assert.NoError(s.T(), err)
 
 	err = s.f1.Sync()
