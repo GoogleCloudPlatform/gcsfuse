@@ -230,7 +230,7 @@ func (testSuite *PromTest) TestListMetrics() {
 	assertNonZeroCountMetric(testSuite, "fs_ops_count", "fs_op", "ReadDir")
 	assertNonZeroCountMetric(testSuite, "fs_ops_count", "fs_op", "OpenDir")
 	assertNonZeroCountMetric(testSuite, "gcs_request_count", "gcs_method", "ListObjects")
-	assertNonZeroHistogramMetric(testSuite, "gcs_request_latencies", "gcs_method", "ListObjects")
+	assertNonZeroHistogramMetric(testSuite, "gcs_request_latency", "gcs_method", "ListObjects")
 }
 
 func (testSuite *PromTest) TestReadMetrics() {
@@ -239,8 +239,8 @@ func (testSuite *PromTest) TestReadMetrics() {
 	require.NoError(testSuite.T(), err)
 	assertNonZeroCountMetric(testSuite, "file_cache_read_count", "cache_hit", "false")
 	assertNonZeroCountMetric(testSuite, "file_cache_read_count", "read_type", "Sequential")
-	assertNonZeroCountMetric(testSuite, "file_cache_read_bytes_count", "read_type", "Sequential")
-	assertNonZeroHistogramMetric(testSuite, "file_cache_read_latencies", "cache_hit", "false")
+	assertNonZeroCountMetric(testSuite, "file_cache_read_bytes", "read_type", "Sequential")
+	assertNonZeroHistogramMetric(testSuite, "file_cache_read_latency", "cache_hit", "false")
 	assertNonZeroCountMetric(testSuite, "fs_ops_count", "fs_op", "OpenFile")
 	assertNonZeroCountMetric(testSuite, "fs_ops_count", "fs_op", "ReadFile")
 	assertNonZeroCountMetric(testSuite, "fs_ops_count", "fs_op", "ReadFile")
@@ -248,9 +248,9 @@ func (testSuite *PromTest) TestReadMetrics() {
 	assertNonZeroCountMetric(testSuite, "gcs_reader_count", "io_method", "opened")
 	assertNonZeroCountMetric(testSuite, "gcs_reader_count", "io_method", "closed")
 	assertNonZeroCountMetric(testSuite, "gcs_read_count", "read_type", "Sequential")
-	assertNonZeroCountMetric(testSuite, "gcs_download_bytes_count", "", "")
-	assertNonZeroCountMetric(testSuite, "gcs_read_bytes_count", "", "")
-	assertNonZeroHistogramMetric(testSuite, "gcs_request_latencies", "gcs_method", "NewReader")
+	assertNonZeroCountMetric(testSuite, "gcs_fetched_bytes", "", "")
+	assertNonZeroCountMetric(testSuite, "gcs_read_bytes", "", "")
+	assertNonZeroHistogramMetric(testSuite, "gcs_request_latency", "gcs_method", "NewReader")
 }
 
 func TestPromOCSuite(t *testing.T) {

@@ -171,7 +171,7 @@ func NewOCMetrics() (MetricHandle, error) {
 	// OpenCensus views (aggregated measures)
 	if err := view.Register(
 		&view.View{
-			Name:        "gcs/read_bytes_count",
+			Name:        "gcs/read_bytes",
 			Measure:     gcsReadBytesCount,
 			Description: "The cumulative number of bytes read from GCS objects.",
 			Aggregation: view.Sum(),
@@ -191,7 +191,7 @@ func NewOCMetrics() (MetricHandle, error) {
 			TagKeys:     []tag.Key{tag.MustNewKey(GCSMethod)},
 		},
 		&view.View{
-			Name:        "gcs/request_latencies",
+			Name:        "gcs/request_latency",
 			Measure:     gcsRequestLatency,
 			Description: "The cumulative distribution of the GCS request latencies.",
 			Aggregation: ochttp.DefaultLatencyDistribution,
@@ -205,9 +205,9 @@ func NewOCMetrics() (MetricHandle, error) {
 			TagKeys:     []tag.Key{tag.MustNewKey(ReadType)},
 		},
 		&view.View{
-			Name:        "gcs/download_bytes_count",
+			Name:        "gcs/fetched_bytes",
 			Measure:     gcsDownloadBytesCount,
-			Description: "The cumulative number of bytes downloaded from GCS along with type - Sequential/Random",
+			Description: "The cumulative number of bytes requested from GCS broken down by type - Sequential/Random. This is the size of request that GCSFuse makes to GCS but does not necessarily read all of it.",
 			Aggregation: view.Sum(),
 			TagKeys:     []tag.Key{tag.MustNewKey(ReadType)},
 		},
@@ -241,14 +241,14 @@ func NewOCMetrics() (MetricHandle, error) {
 			TagKeys:     []tag.Key{tag.MustNewKey(ReadType), tag.MustNewKey(CacheHit)},
 		},
 		&view.View{
-			Name:        "file_cache/read_bytes_count",
+			Name:        "file_cache/read_bytes",
 			Measure:     fileCacheReadBytesCount,
 			Description: "The cumulative number of bytes read from file cache along with read type - Sequential/Random",
 			Aggregation: view.Sum(),
 			TagKeys:     []tag.Key{tag.MustNewKey(ReadType)},
 		},
 		&view.View{
-			Name:        "file_cache/read_latencies",
+			Name:        "file_cache/read_latency",
 			Measure:     fileCacheReadLatency,
 			Description: "The cumulative distribution of the file cache read latencies along with cache hit - true/false",
 			Aggregation: ochttp.DefaultLatencyDistribution,
