@@ -166,7 +166,7 @@ func (t *UploadHandlerTest) TestFinalizeWhenFinalizeUploadFails() {
 func (t *UploadHandlerTest) TestFlushWithWriterAlreadyPresent() {
 	writer := &storagemock.Writer{}
 	mockOffset := 10
-	t.mockBucket.On("FlushUpload", mock.Anything, writer).Return(mockOffset, nil)
+	t.mockBucket.On("FlushPendingWrites", mock.Anything, writer).Return(mockOffset, nil)
 	t.uh.writer = writer
 
 	offset, err := t.uh.Flush()
@@ -180,7 +180,7 @@ func (t *UploadHandlerTest) TestFlushWithNoWriter() {
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
 	assert.Nil(t.T(), t.uh.writer)
 	mockOffset := 10
-	t.mockBucket.On("FlushUpload", mock.Anything, writer).Return(mockOffset, nil)
+	t.mockBucket.On("FlushPendingWrites", mock.Anything, writer).Return(mockOffset, nil)
 
 	offset, err := t.uh.Flush()
 
@@ -200,11 +200,11 @@ func (t *UploadHandlerTest) TestFlushWithNoWriterWhenCreateObjectWriterFails() {
 	assert.EqualValues(t.T(), 0, offset)
 }
 
-func (t *UploadHandlerTest) TestFlushWhenFlushUploadFails() {
+func (t *UploadHandlerTest) TestFlushWhenFlushPendingWritesFails() {
 	writer := &storagemock.Writer{}
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
 	assert.Nil(t.T(), t.uh.writer)
-	t.mockBucket.On("FlushUpload", mock.Anything, writer).Return(0, fmt.Errorf("taco"))
+	t.mockBucket.On("FlushPendingWrites", mock.Anything, writer).Return(0, fmt.Errorf("taco"))
 
 	offset, err := t.uh.Flush()
 
