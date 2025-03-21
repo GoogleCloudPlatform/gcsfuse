@@ -15,24 +15,24 @@ Each error is mapped to an error_category in a many-to-one relationship.
 can group by op_type.
 
 ## GCS metrics
-* **gcs/download_bytes_count:** Cumulative number of bytes downloaded from GCS along
+* **gcs/fetched_bytes:** Cumulative number of bytes downloaded from GCS along
 with read type. Read type specifies sequential or random or parallel read.
-* **gcs/read_bytes_count:** Cumulative number of bytes read from GCS objects. This
+* **gcs/read_bytes:** Cumulative number of bytes read from GCS objects. This
 is different from download_bytes_count. For eg: we might download x number of
 bytes from GCS but read only <x bytes.
 * **gcs/reader_count:** Cumulative number of GCS object readers opened or closed. We 
 can group the data by IO Method type i.e., opened or closed. 
 * **gcs/request_count:** Cumulative number of GCS requests processed. 
-* **gcs/request_latencies:** Cumulative distribution of the GCS request latencies. 
+* **gcs/request_latency:** Cumulative distribution of the GCS request latencies. 
 * **gcs/read_count:** Specifies the count of gcs reads made along with read type. 
 Read type specifies sequential or random read.
 
 Note: Both request_count and request_latencies allows grouping by gcs method type.
 
 ## File cache metrics
-* **file_cache/read_bytes_count:** The cumulative number of bytes read from file 
+* **file_cache/read_bytes:** The cumulative number of bytes read from file 
 cache along with read type - Sequential/Random.
-* **file_cache/read_latencies:** The cumulative distribution of the file cache read 
+* **file_cache/read_latency:** The cumulative distribution of the file cache read 
 latencies along with cache hit - true/false.
 * **file_cache/read_count:** Specifies the number of read requests made via file cache 
 along with type - Sequential/Random and cache hit - true/false.

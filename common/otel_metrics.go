@@ -103,12 +103,12 @@ func NewOTelMetrics() (MetricHandle, error) {
 
 	gcsReadCount, err4 := gcsMeter.Int64Counter("gcs/read_count", metric.WithDescription("Specifies the number of gcs reads made along with type - Sequential/Random"))
 
-	gcsDownloadBytesCount, err5 := gcsMeter.Int64Counter("gcs/download_bytes_count",
-		metric.WithDescription("The cumulative number of bytes downloaded from GCS along with type - Sequential/Random"),
+	gcsDownloadBytesCount, err5 := gcsMeter.Int64Counter("gcs/fetched_bytes",
+		metric.WithDescription("The cumulative number of bytes requested from GCS broken down by type - Sequential/Random. This is the size of request that GCSFuse makes to GCS but does not necessarily read all of it."),
 		metric.WithUnit("By"))
 
 	var gcsReadBytesCountAtomic atomic.Int64
-	_, err6 := gcsMeter.Int64ObservableCounter("gcs/read_bytes_count",
+	_, err6 := gcsMeter.Int64ObservableCounter("gcs/read_bytes",
 		metric.WithDescription("The cumulative number of bytes read from GCS objects."),
 		metric.WithUnit("By"),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -117,14 +117,14 @@ func NewOTelMetrics() (MetricHandle, error) {
 		}))
 	gcsReaderCount, err7 := gcsMeter.Int64Counter("gcs/reader_count", metric.WithDescription("The cumulative number of GCS object readers opened or closed."))
 	gcsRequestCount, err8 := gcsMeter.Int64Counter("gcs/request_count", metric.WithDescription("The cumulative number of GCS requests processed."))
-	gcsRequestLatency, err9 := gcsMeter.Float64Histogram("gcs/request_latencies", metric.WithDescription("The cumulative distribution of the GCS request latencies."), metric.WithUnit("ms"))
+	gcsRequestLatency, err9 := gcsMeter.Float64Histogram("gcs/request_latency", metric.WithDescription("The cumulative distribution of the GCS request latencies."), metric.WithUnit("ms"))
 
 	fileCacheReadCount, err10 := fileCacheMeter.Int64Counter("file_cache/read_count",
 		metric.WithDescription("Specifies the number of read requests made via file cache along with type - Sequential/Random and cache hit - true/false"))
-	fileCacheReadBytesCount, err11 := fileCacheMeter.Int64Counter("file_cache/read_bytes_count",
+	fileCacheReadBytesCount, err11 := fileCacheMeter.Int64Counter("file_cache/read_bytes",
 		metric.WithDescription("The cumulative number of bytes read from file cache along with read type - Sequential/Random"),
 		metric.WithUnit("By"))
-	fileCacheReadLatency, err12 := fileCacheMeter.Float64Histogram("file_cache/read_latencies",
+	fileCacheReadLatency, err12 := fileCacheMeter.Float64Histogram("file_cache/read_latency",
 		metric.WithDescription("The cumulative distribution of the file cache read latencies along with cache hit - true/false"),
 		metric.WithUnit("us"),
 		defaultLatencyDistribution)
