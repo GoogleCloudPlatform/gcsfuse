@@ -179,8 +179,27 @@ func (wh *bufferedWriteHandlerImpl) appendBuffer(data []byte) (err error) {
 }
 
 func (wh *bufferedWriteHandlerImpl) Sync() (err error) {
-	// Upload all the pending buffers and release the buffers.
+	// Upload current block (for both regional and zonal buckets).
+	if wh.current != nil && wh.current.Size() != 0 {
+		err := wh.uploadHandler.Upload(wh.current)
+		if err != nil {
+			return err
+		}
+		wh.current = nil
+	}
+	// Upload all the pending buffers.
 	wh.uploadHandler.AwaitBlocksUpload()
+	// Flush writer in case of a zonal bucket.
+	if wh.uploadHandler.bucket.BucketType().Zonal {
+		n, err := wh.uploadHandler.Flush()
+		if err != nil {
+			return err
+		}
+		if n != wh.totalSize {
+			return fmt.Errorf("could not upload entire data, expected offset %d, Got %d", wh.totalSize, n)
+		}
+	}
+	// Release memory used by buffers.
 	err = wh.blockPool.ClearFreeBlockChannel()
 	if err != nil {
 		// Only logging an error in case of resource leak as upload succeeded.
