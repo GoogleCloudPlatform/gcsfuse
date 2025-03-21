@@ -391,7 +391,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("file-cache-cache-file-for-range-read", "", false, "Whether to cache file for range reads.")
 
-	flagSet.IntP("file-cache-download-chunk-size-mb", "", 50, "Size of chunks in MiB that each concurrent request downloads.")
+	flagSet.IntP("file-cache-download-chunk-size-mb", "", 200, "Size of chunks in MiB that each concurrent request downloads.")
 
 	flagSet.BoolP("file-cache-enable-crc", "", false, "Performs CRC to ensure that file is correctly downloaded into cache.")
 
@@ -407,7 +407,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("file-cache-enable-parallel-downloads", "", false, "Enable parallel downloads.")
 
-	flagSet.BoolP("file-cache-experimental-parallel-downloads-default-on", "", false, "Enable parallel downloads by default on experimental basis.")
+	flagSet.BoolP("file-cache-experimental-parallel-downloads-default-on", "", true, "Enable parallel downloads by default on experimental basis.")
 
 	if err := flagSet.MarkHidden("file-cache-experimental-parallel-downloads-default-on"); err != nil {
 		return err
