@@ -94,7 +94,7 @@ func (dt *parallelDownloaderTest) Test_downloadRange() {
 	_, err = dt.job.downloadRange(context.Background(), offsetWriter, start, end, nil, rangeMap)
 	AssertEq(nil, err)
 	verifyContentAtOffset(file, start, end)
-	AssertEq(end, rangeMap[start])
+	AssertEq(int64(4*util.MiB), rangeMap[start])
 
 	// Download middle 1B of object
 	start, end = int64(5*util.MiB), int64(5*util.MiB+1)
@@ -102,7 +102,7 @@ func (dt *parallelDownloaderTest) Test_downloadRange() {
 	_, err = dt.job.downloadRange(context.Background(), offsetWriter, start, end, nil, rangeMap)
 	AssertEq(nil, err)
 	verifyContentAtOffset(file, start, end)
-	AssertEq(end, rangeMap[start])
+	AssertEq(int64(5*util.MiB+1), rangeMap[start])
 
 	// Download 0B of object
 	start, end = int64(5*util.MiB), int64(5*util.MiB)
@@ -110,7 +110,7 @@ func (dt *parallelDownloaderTest) Test_downloadRange() {
 	_, err = dt.job.downloadRange(context.Background(), offsetWriter, start, end, nil, rangeMap)
 	AssertEq(nil, err)
 	verifyContentAtOffset(file, start, end)
-	AssertEq(end, rangeMap[start])
+	AssertEq(int64(5*util.MiB), rangeMap[start])
 }
 
 func (dt *parallelDownloaderTest) Test_parallelDownloadObjectToFile() {
