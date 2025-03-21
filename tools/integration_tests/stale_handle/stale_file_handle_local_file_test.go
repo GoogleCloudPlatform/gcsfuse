@@ -41,12 +41,12 @@ type staleFileHandleLocalFile struct {
 // //////////////////////////////////////////////////////////////////////
 
 func (s *staleFileHandleLocalFile) SetupTest() {
-	s.testDirPath = setup.SetupTestDirectory(s.T().Name())
+	s.testDirPath = setup.SetupTestDirectory(getTestName(s.T()))
 	// Create a local file.
 	var err error
 	s.f1, err = os.OpenFile(path.Join(s.testDirPath, FileName1), os.O_RDWR|os.O_CREATE|os.O_TRUNC|syscall.O_DIRECT, operations.FilePermission_0600)
 	assert.NoError(s.T(), err)
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, s.T().Name(), FileName1, s.T())
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, getTestName(s.T()), FileName1, s.T())
 	s.data = setup.GenerateRandomString(operations.MiB * 5)
 }
 
@@ -56,5 +56,10 @@ func (s *staleFileHandleLocalFile) SetupTest() {
 
 func TestStaleFileHandleLocalFileTest(t *testing.T) {
 	ts := new(staleFileHandleLocalFile)
-	suite.Run(t, ts)
+	for _, flags := range flagsSet {
+		ts.flags = flags
+		t.Run("A", func(t *testing.T) {
+			suite.Run(t, ts)
+		})
+	}
 }
