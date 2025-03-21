@@ -24,7 +24,7 @@ metadata:
   {{- end }}
 spec:
   restartPolicy: Never
-  activeDeadlineSeconds: 5000
+  activeDeadlineSeconds: 15000
   nodeSelector:
     cloud.google.com/gke-ephemeral-storage-local-ssd: "true"
     node.kubernetes.io/instance-type: {{ .Values.nodeType }}
