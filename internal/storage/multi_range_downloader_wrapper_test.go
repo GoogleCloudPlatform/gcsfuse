@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcsx
+package storage
 
 import (
 	"context"
@@ -24,7 +24,6 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/clock"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	testutil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
@@ -37,7 +36,7 @@ type mrdWrapperTest struct {
 	suite.Suite
 	object     *gcs.MinObject
 	objectData []byte
-	mockBucket *storage.TestifyMockBucket
+	mockBucket *TestifyMockBucket
 	mrdWrapper MultiRangeDownloaderWrapper
 	mrdTimeout time.Duration
 }
@@ -55,7 +54,7 @@ func (t *mrdWrapperTest) SetupTest() {
 	}
 	t.objectData = testutil.GenerateRandomBytes(int(t.object.Size))
 	// Create the bucket.
-	t.mockBucket = new(storage.TestifyMockBucket)
+	t.mockBucket = new(TestifyMockBucket)
 	t.mrdTimeout = time.Millisecond
 	t.mrdWrapper, err = NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{WaitTime: t.mrdTimeout})
 	assert.Nil(t.T(), err, "Error in creating MRDWrapper")
