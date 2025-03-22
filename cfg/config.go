@@ -60,6 +60,8 @@ type Config struct {
 
 	OnlyDir string `yaml:"only-dir"`
 
+	Read ReadConfig `yaml:"read"`
+
 	Write WriteConfig `yaml:"write"`
 }
 
@@ -225,6 +227,10 @@ type MonitoringConfig struct {
 	ExperimentalTracingMode string `yaml:"experimental-tracing-mode"`
 
 	ExperimentalTracingSamplingRatio float64 `yaml:"experimental-tracing-sampling-ratio"`
+}
+
+type ReadConfig struct {
+	OptimizeRandomRead bool `yaml:"optimize-random-read"`
 }
 
 type ReadStallGcsRetriesConfig struct {
@@ -484,6 +490,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.StringSliceP("o", "", []string{}, "Additional system-specific mount options. Multiple options can be passed as comma separated. For readonly, use --o ro")
 
 	flagSet.StringP("only-dir", "", "", "Mount only a specific directory within the bucket. See docs/mounting for more information")
+
+	flagSet.BoolP("optimize-random-read", "", false, "If enabled, it will optimize random reads by requesting only the requested size on the first file-handle read. This avoids unnecessary server-side work but incurs an extra read for sequential access.")
+
+	if err := flagSet.MarkHidden("optimize-random-read"); err != nil {
+		return err
+	}
 
 	flagSet.BoolP("precondition-errors", "", true, "Throw Stale NFS file handle error in case the object being synced or read  from is modified by some other concurrent process. This helps prevent  silent data loss or data corruption.")
 
@@ -837,6 +849,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("only-dir", flagSet.Lookup("only-dir")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("read.optimize-random-read", flagSet.Lookup("optimize-random-read")); err != nil {
 		return err
 	}
 
