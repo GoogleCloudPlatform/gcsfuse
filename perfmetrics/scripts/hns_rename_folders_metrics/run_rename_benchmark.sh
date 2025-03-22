@@ -29,14 +29,17 @@ echo "Installing Ops Agent on Vm"
 curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
 sudo bash add-google-cloud-ops-agent-repo.sh --also-install
 
-UPLOAD_FLAGS=$1
-gsutil cp gs://periodic-perf-tests/creds.json ../gsheet/
-
 echo "Upgrading gcloud version"
 ../upgrade_gcloud.sh
 
+GCSFUSE_HNS_FLAGS=$1
+GCSFUSE_FLAT_FLAGS=$2
+UPLOAD_FLAGS=$3
+gsutil cp gs://periodic-perf-tests/creds.json ../gsheet/
+
+# Uncomment the following 2 lines to run the benchmark on flat bucket.
 #echo "Running renaming benchmark on flat bucket"
-#python3 renaming_benchmark.py config-flat.json flat "$UPLOAD_FLAGS"
+#python3 renaming_benchmark.py config-flat.json flat "$GCSFUSE_FLAT_FLAGS" "$UPLOAD_FLAGS"
 
 echo "Running renaming benchmark on HNS bucket"
-python3 renaming_benchmark.py config-hns.json hns $UPLOAD_FLAGS
+python3 renaming_benchmark.py config-hns.json hns "$GCSFUSE_HNS_FLAGS" $UPLOAD_FLAGS
