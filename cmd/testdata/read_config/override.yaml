@@ -1,0 +1,2 @@
+read:
+  enable-adaptive-read-size: true

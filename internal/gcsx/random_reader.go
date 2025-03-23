@@ -111,7 +111,7 @@ const (
 
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
-func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper) RandomReader {
+func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper, enableAdaptiveReadSize bool) RandomReader {
 	rr := &randomReader{
 		object:                o,
 		bucket:                bucket,
@@ -126,7 +126,12 @@ func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb i
 		mrdWrapper:            mrdWrapper,
 		metricHandle:          metricHandle,
 	}
-	rr.sizeProvider = NewRandomReaderReadSizeProvider(int64(o.Size))
+	if enableAdaptiveReadSize {
+		rr.sizeProvider = NewAdaptiveReadSizeProvider(int64(o.Size), 10)
+	} else {
+		rr.sizeProvider = NewRandomReaderReadSizeProvider(int64(o.Size))
+	}
+
 	return rr
 }
 
@@ -378,10 +383,10 @@ func (rr *randomReader) ReadAt(
 			rr.seeks++
 			discarded = true
 		}
-		rr.sizeProvider.ProvideFeedback(&Feedback{
-			TotalReadBytes: int64(rr.totalReadBytes),
-			ReadCompletely: !discarded,
-			LastOffsetRead: rr.start,
+		rr.sizeProvider.ProvideFeedback(&ReadFeedback{
+			TotalBytesRead: int64(rr.totalReadBytes),
+			ReadComplete:   !discarded,
+			LastOffset:     rr.start,
 		})
 	}
 
@@ -612,7 +617,7 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 
 	// Sanity check.
 	if rr.start > rr.limit {
-		err = fmt.Errorf("Reader returned extra bytes: %d", rr.start-rr.limit)
+		err = fmt.Errorf("reader returned extra bytes: %d", rr.start-rr.limit)
 
 		// Don't attempt to reuse the reader when it's behaving wackily.
 		rr.closeReader()
@@ -630,10 +635,10 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 		rr.closeReader()
 		rr.reader = nil
 		rr.cancel = nil
-		rr.sizeProvider.ProvideFeedback(&Feedback{
-			TotalReadBytes: int64(rr.totalReadBytes),
-			ReadCompletely: true,
-			LastOffsetRead: rr.start,
+		rr.sizeProvider.ProvideFeedback(&ReadFeedback{
+			TotalBytesRead: int64(rr.totalReadBytes),
+			ReadComplete:   true,
+			LastOffset:     rr.start,
 		})
 		rr.totalReadBytes = 0
 	}
@@ -645,7 +650,7 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 		// if the reader peters out early. That's fine, but it means we should
 		// have hit the limit above.
 		if rr.reader != nil {
-			err = fmt.Errorf("Reader returned early by skipping %d bytes", rr.limit-rr.start)
+			err = fmt.Errorf("reader returned early by skipping %d bytes", rr.limit-rr.start)
 			return
 		}
 

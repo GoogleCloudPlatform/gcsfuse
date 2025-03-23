@@ -21,76 +21,79 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 )
 
-const gSequentialReadThreshold = 1 * MB
+const (
+	gSequentialReadThreshold = 1 * MB
+	gMaxSequentialReadSize   = 1000 * MB
+)
 
-// apSizeProvider implements the ReadSizeProvider interface for randomReader.
-type apSizeProvider struct {
-	seek                 int64
-	totalReadBytes       int64
+// adaptiveReadSizeProvider implements the ReadSizeProvider interface, adapting
+// read sizes based on observed access patterns (sequential vs. random).
+// For sequential, starts with 1MiB and progressively increases it (multiplied by sequentialMultiplier) until it reaches gMaxSequentialReadSize.
+// For random, resets the read-size back to 1 MiB.
+type adaptiveReadSizeProvider struct {
+	totalBytesRead       int64
 	readType             string
 	objectSize           int64
-	maxSequentialMiB     int64
 	sequentialMultiplier int32
 	lastOffset           int64
-	lastRequestSize      int64
+	lastReadSize         int64 // Size of the last read request.
+	seekCount            int64 // Number of non-sequential seeks.
 }
 
-// NewAPSizeProvider creates a new ReadSizeProvider for the given randomReader.
-func NewAPSizeProvider(objectSize int64, sequentialMulplier int32) ReadSizeProvider {
-	return &apSizeProvider{
-		seek:                 0,
-		totalReadBytes:       0,
-		readType:             util.Sequential,
+func NewAdaptiveReadSizeProvider(objectSize int64, sequentialMultiplier int32) ReadSizeProvider {
+	return &adaptiveReadSizeProvider{
+		totalBytesRead:       0,
+		readType:             util.Random,
 		objectSize:           objectSize,
-		maxSequentialMiB:     1000 * MB,
-		sequentialMultiplier: sequentialMulplier,
-		lastRequestSize:      math.MaxInt64,
+		sequentialMultiplier: sequentialMultiplier,
+		lastReadSize:         MB, // Initialize to a large value.
+		lastOffset:           math.MaxInt64,
 	}
 }
 
 // GetNextReadSize returns the size of the next read request, given the current offset.
-func (rrs *apSizeProvider) GetNextReadSize(offset int64) (size int64, err error) {
+func (apsp *adaptiveReadSizeProvider) GetNextReadSize(offset int64) (size int64, err error) {
 	// Make sure start is legal.
-	if offset < 0 || uint64(offset) > uint64(rrs.objectSize) {
+	if offset < 0 || uint64(offset) > uint64(apsp.objectSize) {
 		err = fmt.Errorf(
 			"offset %d is illegal for %d-byte object",
 			offset,
-			rrs.objectSize)
+			apsp.objectSize)
 		return
 	}
 
-	if !rrs.isSequential(offset) {
-		rrs.readType = util.Random
-		rrs.lastRequestSize = 1 * MB
+	if !apsp.isSequential(offset) {
+		apsp.readType = util.Random
+		apsp.lastReadSize = 1 * MB
 	} else {
-		rrs.readType = util.Sequential
-		requestSize := rrs.lastRequestSize * int64(rrs.sequentialMultiplier)
-		if requestSize > rrs.maxSequentialMiB {
-			requestSize = rrs.maxSequentialMiB
+		apsp.readType = util.Sequential
+		requestSize := apsp.lastReadSize * int64(apsp.sequentialMultiplier)
+		if requestSize > gMaxSequentialReadSize {
+			requestSize = gMaxSequentialReadSize
 		}
-		rrs.lastRequestSize = requestSize
+		apsp.lastReadSize = requestSize
 	}
 
-	if rrs.lastRequestSize > rrs.objectSize-offset {
-		rrs.lastRequestSize = rrs.objectSize - offset
+	if apsp.lastReadSize > apsp.objectSize-offset {
+		apsp.lastReadSize = apsp.objectSize - offset
 	}
-	return rrs.lastRequestSize, nil
+	return apsp.lastReadSize, nil
 }
 
-func (rrs *apSizeProvider) ReadType() string {
-	return rrs.readType
+func (apsp *adaptiveReadSizeProvider) GetReadType() string {
+	return apsp.readType
 }
 
-func (rrs *apSizeProvider) ProvideFeedback(f *Feedback) {
-	rrs.totalReadBytes = f.TotalReadBytes
-	if !f.ReadCompletely {
-		rrs.seek++
+func (apsp *adaptiveReadSizeProvider) ProvideFeedback(f *ReadFeedback) {
+	apsp.totalBytesRead = f.TotalBytesRead
+	if !f.ReadComplete {
+		apsp.seekCount++
 	}
-	rrs.lastOffset = f.LastOffsetRead
+	apsp.lastOffset = f.LastOffset
 }
 
-func (rrs *apSizeProvider) isSequential(offset int64) bool {
-	offsetMargin := offset - rrs.lastOffset
+func (apsp *adaptiveReadSizeProvider) isSequential(offset int64) bool {
+	offsetMargin := offset - apsp.lastOffset
 	if offsetMargin < 0 || offsetMargin > gSequentialReadThreshold { // random read
 		return false
 	}

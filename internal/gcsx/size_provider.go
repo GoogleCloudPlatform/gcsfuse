@@ -14,23 +14,28 @@
 
 package gcsx
 
-// Feedback struct contains total read bytes, and boolean to signify if not read completely
-// from the previous reader.
-type Feedback struct {
-	TotalReadBytes int64
-	ReadCompletely bool
-	LastOffsetRead int64
+// ReadFeedback provides feedback on a completed read operation.  This information
+// is used to adapt future read sizes.
+type ReadFeedback struct {
+	TotalBytesRead int64 `json:"totalBytesRead"` // Total bytes read since the last feedback.
+	ReadComplete   bool  `json:"readComplete"`   // True if the entire requested range was read.
+	LastOffset     int64 `json:"lastOffset"`     // The last byte offset read.
 }
 
-// ReadSizeProvider is an interface that provides the size of the next read request.
+// ReadSizeProvider determines the optimal size for subsequent read requests
+// based on the observed read patterns.  This helps optimize performance for
+// both sequential and random access patterns.
 type ReadSizeProvider interface {
-	// GetNextReadSize returns the size of the next read request, given the current offset.
-	// It also returns an error if the offset is invalid.
+	// GetNextReadSize determines the optimal size for the next read request,
+	// given the current offset.  It returns an error if the offset is invalid
+	// or if an internal error occurs.
 	GetNextReadSize(offset int64) (size int64, err error)
 
-	// ReadType returns the current 
-	ReadType() string
+	// GetReadType returns the currently detected read type ("sequential" or "random").
+	GetReadType() string
 
-	// Provide feedback of previous reader request.
-	ProvideFeedback(f *Feedback)
+	// ProvideFeedback updates the read size provider with feedback from a completed
+	// read operation.  This allows the provider to adapt its read size strategy
+	// based on the observed patterns.
+	ProvideFeedback(feedback *ReadFeedback)
 }

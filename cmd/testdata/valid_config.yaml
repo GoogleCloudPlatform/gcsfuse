@@ -1,4 +1,6 @@
 app-name: hello
+read:
+  enable-adaptive-read-size: true
 write:
   create-empty-file: true
   enable-streaming-writes: true

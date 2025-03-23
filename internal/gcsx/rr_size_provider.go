@@ -16,6 +16,7 @@ package gcsx
 
 import (
 	"fmt"
+
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 )
 
@@ -90,13 +91,13 @@ func (rrs *randomReaderReadSizeProvider) GetNextReadSize(offset int64) (size int
 	return
 }
 
-func (rrs *randomReaderReadSizeProvider) ReadType() string {
+func (rrs *randomReaderReadSizeProvider) GetReadType() string {
 	return rrs.readType
 }
 
-func (rrs *randomReaderReadSizeProvider) ProvideFeedback(f *Feedback) {
-	rrs.totalReadBytes = f.TotalReadBytes
-	if !f.ReadCompletely {
+func (rrs *randomReaderReadSizeProvider) ProvideFeedback(f *ReadFeedback) {
+	rrs.totalReadBytes = f.TotalBytesRead
+	if !f.ReadComplete {
 		rrs.seek++
 	}
 }
