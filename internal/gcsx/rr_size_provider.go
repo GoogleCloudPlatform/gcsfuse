@@ -96,7 +96,7 @@ func (rrs *randomReaderReadSizeProvider) GetReadType() string {
 }
 
 func (rrs *randomReaderReadSizeProvider) ProvideFeedback(f *ReadFeedback) {
-	rrs.totalReadBytes = f.TotalBytesRead
+	rrs.totalReadBytes += f.TotalBytesRead
 	if !f.ReadComplete {
 		rrs.seek++
 	}

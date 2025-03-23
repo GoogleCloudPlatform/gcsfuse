@@ -388,6 +388,7 @@ func (rr *randomReader) ReadAt(
 			ReadComplete:   !discarded,
 			LastOffset:     rr.start,
 		})
+		rr.totalReadBytes = 0
 	}
 
 	if rr.reader != nil {
