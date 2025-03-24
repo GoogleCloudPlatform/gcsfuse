@@ -39,38 +39,64 @@ func decodeURL(u string) (string, error) {
 
 // resolveMetadataCacheTTL returns the ttl to be used for stat/type cache based
 // on the user flags/configs.
-func resolveMetadataCacheTTL(v isSet, c *MetadataCacheConfig) {
+func resolveMetadataCacheTTL(v isSet, c *MetadataCacheConfig, optimizedFlags []string) {
 	// If metadata-cache:ttl-secs has been set, then it overrides both
 	// stat-cache-ttl, type-cache-tll and negative cache ttl.
-	if v.IsSet(MetadataNegativeCacheTTLConfigKey) {
+	optimizationAppliedToNegativeCacheTTL := isFlagPresent(optimizedFlags, MetadataNegativeCacheTTLConfigKey)
+
+	if v.IsSet(MetadataNegativeCacheTTLConfigKey) || optimizationAppliedToNegativeCacheTTL {
 		if c.NegativeTtlSecs == -1 {
 			c.NegativeTtlSecs = maxSupportedTTLInSeconds
 		}
 	}
-	if v.IsSet(MetadataCacheTTLConfigKey) {
-		if c.TtlSecs == -1 {
-			c.TtlSecs = maxSupportedTTLInSeconds
+	// if any of three TTL flags are set then
+	// 	if MetadataCacheTTLConfigKey is set then use that
+	// 	else use other two values
+	// else if optimization not applied set default value
+	// otherwise optimization would have applied so mutate accordingly
+	optimizationAppliedToMetadataCacheTTL := isFlagPresent(optimizedFlags, MetadataCacheTTLConfigKey)
+	if v.IsSet(MetadataCacheTTLConfigKey) || v.IsSet(MetadataCacheStatCacheTTLKey) || v.IsSet(MetadataCacheTypeCacheTTLKey) {
+		if v.IsSet(MetadataCacheTTLConfigKey) {
+			if c.TtlSecs == -1 {
+				c.TtlSecs = maxSupportedTTLInSeconds
+			}
+			return
 		}
-		return
+		c.TtlSecs = int64(math.Ceil(math.Min(c.DeprecatedStatCacheTtl.Seconds(), c.DeprecatedTypeCacheTtl.Seconds())))
+	} else if !optimizationAppliedToMetadataCacheTTL {
+		c.TtlSecs = int64(math.Ceil(math.Min(c.DeprecatedStatCacheTtl.Seconds(), c.DeprecatedTypeCacheTtl.Seconds())))
+	} else if c.TtlSecs == -1 {
+		c.TtlSecs = maxSupportedTTLInSeconds
 	}
-	// Else, use deprecated stat/type cache ttl to resolve metadataCacheTTL.
-	c.TtlSecs = int64(math.Ceil(math.Min(c.DeprecatedStatCacheTtl.Seconds(), c.DeprecatedTypeCacheTtl.Seconds())))
 }
 
 // resolveStatCacheMaxSizeMB returns the stat-cache size in MiBs based on the
 // user old and new flags/configs.
-func resolveStatCacheMaxSizeMB(v isSet, c *MetadataCacheConfig) {
+func resolveStatCacheMaxSizeMB(v isSet, c *MetadataCacheConfig, optimizedFlags []string) {
 	// If metadata-cache:stat-cache-size-mb has been set, then it overrides
 	// stat-cache-capacity.
-	if v.IsSet(StatCacheMaxSizeConfigKey) {
-		if c.StatCacheMaxSizeMb == -1 {
-			c.StatCacheMaxSizeMb = int64(maxSupportedStatCacheMaxSizeMB)
+
+	// if any of two (StatCacheMaxSizeConfigKey, MetadataCacheStatCacheCapacityKey) are set then ->
+	// 	if StatCacheMaxSizeConfigKey is set then use that
+	// 	else use DeprecatedStatCacheCapacity
+	// else if optimization not applied set default value
+	// otherwise optimization would have been applied so mutate accordingly
+	optimizationAppliedToStatCacheMaxSize := isFlagPresent(optimizedFlags, StatCacheMaxSizeConfigKey)
+	if v.IsSet(StatCacheMaxSizeConfigKey) || v.IsSet(MetadataCacheStatCacheCapacityKey) {
+		if v.IsSet(StatCacheMaxSizeConfigKey) {
+			if c.StatCacheMaxSizeMb == -1 {
+				c.StatCacheMaxSizeMb = int64(maxSupportedStatCacheMaxSizeMB)
+			}
+			return
 		}
-		return
+		avgTotalStatCacheEntrySize := AverageSizeOfPositiveStatCacheEntry + AverageSizeOfNegativeStatCacheEntry
+		c.StatCacheMaxSizeMb = int64(util.BytesToHigherMiBs(uint64(c.DeprecatedStatCacheCapacity) * avgTotalStatCacheEntrySize))
+	} else if !optimizationAppliedToStatCacheMaxSize {
+		avgTotalStatCacheEntrySize := AverageSizeOfPositiveStatCacheEntry + AverageSizeOfNegativeStatCacheEntry
+		c.StatCacheMaxSizeMb = int64(util.BytesToHigherMiBs(uint64(c.DeprecatedStatCacheCapacity) * avgTotalStatCacheEntrySize))
+	} else if c.StatCacheMaxSizeMb == -1 {
+		c.StatCacheMaxSizeMb = int64(maxSupportedStatCacheMaxSizeMB)
 	}
-	// Else, use deprecated stat-cache-capacity to resolve StatCacheMaxSizeMb.
-	avgTotalStatCacheEntrySize := AverageSizeOfPositiveStatCacheEntry + AverageSizeOfNegativeStatCacheEntry
-	c.StatCacheMaxSizeMb = int64(util.BytesToHigherMiBs(uint64(c.DeprecatedStatCacheCapacity) * avgTotalStatCacheEntrySize))
 }
 
 func resolveStreamingWriteConfig(w *WriteConfig) {
@@ -97,16 +123,8 @@ func resolveCloudMetricsUploadIntervalSecs(m *MetricsConfig) {
 	}
 }
 
-func resolveParallelDownloadsValue(v isSet, fc *FileCacheConfig, c *Config) {
-	// Parallel downloads should be default ON when file cache is enabled, in case
-	// it is explicitly set by the user, use that value.
-	if IsFileCacheEnabled(c) && !v.IsSet(FileCacheParallelDownloadsConfigKey) {
-		fc.EnableParallelDownloads = true
-	}
-}
-
 // Rationalize updates the config fields based on the values of other fields.
-func Rationalize(v isSet, c *Config) error {
+func Rationalize(v isSet, c *Config, optimizedFlags []string) error {
 	var err error
 	if c.GcsConnection.CustomEndpoint, err = decodeURL(c.GcsConnection.CustomEndpoint); err != nil {
 		return err
@@ -121,10 +139,9 @@ func Rationalize(v isSet, c *Config) error {
 	}
 
 	resolveStreamingWriteConfig(&c.Write)
-	resolveMetadataCacheTTL(v, &c.MetadataCache)
-	resolveStatCacheMaxSizeMB(v, &c.MetadataCache)
+	resolveMetadataCacheTTL(v, &c.MetadataCache, optimizedFlags)
+	resolveStatCacheMaxSizeMB(v, &c.MetadataCache, optimizedFlags)
 	resolveCloudMetricsUploadIntervalSecs(&c.Metrics)
-	resolveParallelDownloadsValue(v, &c.FileCache, c)
 
 	return nil
 }
