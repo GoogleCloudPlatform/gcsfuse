@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"os/exec"
 	"regexp"
@@ -56,7 +55,6 @@ func StartProxyServer(configPath, logFilePath string) (int, int, error) {
 	if err != nil {
 		return -1, -1, fmt.Errorf("error executing proxy server cmd: %v", err)
 	}
-	log.Printf("Proxy Server log file: %s", logFilePath)
 	port, proxyProcessId, err := getPortAndProcessInfoFromLogFile(logFilePath)
 	if err != nil {
 		return -1, -1, fmt.Errorf("error getting port information from log file: %v", err)

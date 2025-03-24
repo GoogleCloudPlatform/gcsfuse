@@ -1,25 +1,31 @@
 # Read/Writes
 
-**Reads**
+## Reads
 
 Cloud Storage FUSE makes API calls to Cloud Storage to read an object directly, without downloading it to a local directory. A TCP connection is established, in which the entire object, or just portions as specified by the application/operating system via an offset, can be read back.
 
 Files that have not been modified are read portion by portion on demand. Cloud Storage FUSE uses a heuristic to detect when a file is being read sequentially, and will issue fewer, larger read requests to Cloud Storage in this case, increasing performance. 
 
-**Writes**
+## Writes
 
-For modifications to existing file objects, Cloud Storage FUSE downloads the entire
-backing object's contents from Cloud Storage. The contents are stored in a local
-temporary file (temp-file for short) whose location is controlled by the flag ```--temp-dir```. Later,
-when the file is closed or fsync'd, Cloud Storage FUSE writes the contents of
-the local file back to Cloud Storage as a new object generation, and deletes temp-file. Modifying even
-a single bit of an object results in the full re-upload of the object. The
+### Default Write Path
+
+Files are written locally as a temporary file (temp-file for short) whose
+location is controlled by the flag `--temp-dir`. Upon closing or fsyncing
+the file, the file is then written to your Cloud Storage bucket and the
+temp-file is deleted.
+
+For modifications to existing files, Cloud Storage FUSE downloads the
+entire
+backing object's contents from Cloud Storage, storing them in the same temporary
+directory as mentioned above. When the file is closed or fsync'd, Cloud Storage
+FUSE writes the contents of the local file back to Cloud Storage as a new object
+generation, and deletes
+temp-file. Modifying even a single bit of an object results in the full
+re-upload of the object. The
 exception is if an append is done to the end of a file, where the original file
 is at least 2MB, then only the appended content is uploaded.
 
-For new objects, objects are first written to the same temporary directory as
-mentioned above. Upon closing or fsyncing the file, the file is then written to
-your Cloud Storage bucket.
 As new and modified files are fully staged in the local temporary directory
 until they are written out to Cloud Storage, you
 must ensure that there is enough free space available to handle staged content
@@ -27,27 +33,84 @@ when writing large files.
 
 #### Notes
 
--   Prior to version 1.2.0, you will notice that an empty file is created in the
-    Cloud Storage bucket as a hold. Upon closing or fsyncing the file, the file
-    is written to your Cloud Storage bucket, with the existing empty file now
-    reflecting the accurate file size and content. Starting with version 1.2,
-    the default behavior is to not create this zero-byte file, which increases
-    write performance. If needed, it can be re-enabled by setting the
-    `create-empty-file: true` configuration in the config file.
--   If the application never sends fsync for a file, it will leave behind its
-    temp-file (in temp-dir), which will not be cleared until the user unmounts
-    the bucket. As an example, if you are writing a large file, and temp-dir
-    does not have enough free space available, then you will get 'out of space'
-    error. Then the temp-file will not be deleted until you do an fsync for that
-    file, or unmount the bucket.
+- Prior to version 1.2.0, you will notice that an empty file is created in the
+  Cloud Storage bucket as a hold. Upon closing or fsyncing the file, the file
+  is written to your Cloud Storage bucket, with the existing empty file now
+  reflecting the accurate file size and content. Starting with version 1.2,
+  the default behavior is to not create this zero-byte file, which increases
+  write performance. If needed, it can be re-enabled by setting the
+  `create-empty-file: true` configuration in the config file.
+- If the application never sends fsync for a file, it will leave behind its
+  temp-file (in temp-dir), which will not be cleared until the user unmounts
+  the bucket. As an example, if you are writing a large file, and temp-dir
+  does not have enough free space available, then you will get 'out of space'
+  error. Then the temp-file will not be deleted until you do an fsync for that
+  file, or unmount the bucket.
 
-**Concurrency**
+### With Streaming Writes
+
+Starting with version 2.9.1, GCSFuse supports streaming-writes, which is a new
+write
+path that uploads data directly to Google Cloud Storage (GCS) as it's written
+without fully staging the file in the temp-dir. This reduces both latency and
+disk space usage, making it particularly beneficial for large, sequential writes
+such as checkpoints. Streaming writes can be enabled using
+`--enable-streaming-writes` flag or `write:enable-streaming-writes:true` in the
+config file.
+
+**Memory Usage:** Each file opened for streaming writes will consume
+approximately 64MB of RAM during the upload process. This memory is released
+when the file handle is closed. This should be considered when planning resource
+allocation for applications using streaming writes.
+
+#### Note on Streaming Writes:
+
+- **New files, Sequential Writes:** Streaming writes are designed for sequential
+  writes to a new file only. Modifying existing files, or doing out-of-order 
+  writes (whether from the same file handle or concurrent writes from multiple 
+  file handles) will cause GCSFuse to automatically revert to the existing write
+  path of staging writes to a temporary file on disk. An informational log
+  message will be emitted when this fallback occurs.
+
+- **Concurrent Writes to the Same File:** While concurrent writes to the same
+  file are possible, they are not the primary use case for this initial phase of
+  streaming writes. If a (rare, often server-related) error occurs during
+  concurrent writes, all file handles must be closed before any future writes
+  can resume. This phase of streaming writes is optimized for single-stream
+  writes to new files, such as for AI/ML checkpointing.
+
+- **File System Semantics Change:**
+    - **FSync operation does not finalize the object:** When streaming writes
+      are enabled, the fsync operation will not finalize the object on GCS.
+      Instead, the object will be finalized only when the file is closed. 
+      Only finalized objects are visible to the end user. This is a key 
+      difference from the default non-streaming-writes behavior and should be considered when 
+      using streaming writes. Relying on fsync for data durability with
+      streaming writes enabled is not recommended. Data is guaranteed to be
+      on GCS only after the file is closed.
+    - **Rename Operation Syncs the File:** Rename operation on a file undergoing
+      writes via streaming writes will be finalized and then renamed. This means
+      that any follow up writes will automatically revert to the existing
+      behavior of staging writes to a temporary file on disk.
+    - **Read Operations During Write:** Today the application can read the data
+      when the writes are in progress for that file. With buffered writes, the
+      application will not be able to read the file until the corresponding GCS 
+      object is finalized i.e., fclose() is called. Applications should not read from a file while it is being written to 
+      using streaming writes.
+    - **Write Stalls and Chunk Uploads:** Streaming writes do not currently
+      implement chunk-level timeouts or retries. Write operations may stall, and
+      chunk uploads that encounter errors will eventually fail after the default
+      32-second deadline.
+
+___
+
+# Concurrency
 
 Multiple readers can access the same or different objects within a bucket without issue. Likewise, multiple writers can modify different objects in the same bucket simultaneously without any issue. Concurrent writes to the same gcs object are supported from the same mount and behave similar to native file system.
 
 However, when different mounts try to write to the same object, the flush from first mount wins. Other mounts that have not updated their local file descriptors after the object is modified will encounter a ```syscall.ESTALE``` error when attempting to save their edits due to precondition checks. Therefore, to ensure data is consistently written, it is strongly recommended that multiple sources do not modify the same object.
 
-**Write/Read consistency**
+### Write/Read consistency
 
 Cloud Storage by nature is [strongly consistent](https://cloud.google.com/storage/docs/consistency). Cloud Storage FUSE offers close-to-open and fsync-to-open consistency. Once a file is closed, consistency is guaranteed in the following open and read immediately.
 
@@ -57,7 +120,7 @@ Examples:
 - Machine A opens a file and writes then successfully closes or syncs it, and the file was not concurrently unlinked from the point of view of A. Machine B then opens the file after machine A finishes closing or syncing. Machine B will observe a version of the file at least as new as the one created by machine A.
 - Machine A and B both open the same file, which contains the text ‘ABC’. Machine A modifies the file to ‘ABC-123’ and closes/syncs the file which gets written back to Cloud Storage. After, Machine B, which still has the file open, instead modifies the file to ‘ABC-XYZ’, and saves and closes the file. As the last writer wins, the current state of the file will read ‘ABC-XYZ’.
 
-**Stale File Handle Errors**
+### Stale File Handle Errors
 
 To ensure consistency, Cloud Storage FUSE returns a ```syscall.ESTALE``` error when an application tries to access stale data. This can occur in the following circumstances:
 
@@ -68,6 +131,8 @@ To ensure consistency, Cloud Storage FUSE returns a ```syscall.ESTALE``` error w
 
 These changes in Cloud Storage FUSE prioritize data integrity and provide users with clear indications of potential conflicts, preventing silent data loss and ensuring a more robust and reliable experience.
 
+___
+
 # Caching
 
 Cloud Storage FUSE has four forms of optional caching: stat, type, list, and file. Stat and type caches are enabled by default. Using Cloud Storage FUSE with file caching, list caching, stat caching, or type caching enabled can significantly increase performance but reduces consistency guarantees.
@@ -77,7 +142,7 @@ The default behavior is appropriate, and brings significant performance benefits
 
 **Important**: The rest of this document assumes that caching is disabled (by setting ```--stat-cache-ttl 0``` and ```--type-cache-ttl 0``` or ```metadata-cache:ttl-secs: 0```). This is not the default. If you want the consistency guarantees discussed in this document, you must use these options to disable caching. 
 
-**Stat caching**
+## Stat caching
 
 The cost of the consistency guarantees discussed in the rest of this document is that Cloud Storage FUSE must frequently send stat object requests to Cloud Storage in order to get the freshest possible answer for the kernel when it asks about a particular name or inode, which happens frequently. This can make what appear to the user to be simple operations, like ```ls -l```, take quite a long time.
 
@@ -117,7 +182,7 @@ Warning: Using stat caching breaks the consistency guarantees discussed in this 
 - The mounted bucket is only modified on a single machine, via a single Cloud Storage FUSE mount.
 - The mounted bucket is modified by multiple actors, but the user is confident that they don't need the guarantees discussed in this document.
 
-**Type caching**
+## Type caching
 
 Because Cloud Storage does not forbid an object named ```foo``` from existing next to an object named ```foo/``` (see the Name conflicts section), when Cloud Storage FUSE is asked to look up the name "foo" it must stat both objects.
 
@@ -140,7 +205,7 @@ The behavior of type cache is controlled by the following flags/config parameter
 - The mounted bucket is never modified.
 - The type (file or directory) for any given path never changes.
 
-**File caching**
+## File caching
 
 The Cloud Storage FUSE file cache feature is a client-based read cache that lets repeat file reads to be served from a faster local cache storage media of your choice.
 
@@ -176,7 +241,7 @@ Additional file cache [behavior](https://cloud.google.com/storage/docs/gcsfuse-c
 
    - If a Cloud Storage FUSE client modifies a cached file or its metadata, then the file is immediately invalidated and consistency is ensured in the following read by the same client. However, if different clients access the same file or its metadata, and its entries are cached, then the cached version of the file or metadata is read and not the updated version until the file is invalidated by that specific client's TTL setting.     
 
-**Kernel List Cache**
+## Kernel List Cache
 
 As the name suggests, the Cloud Storage FUSE kernel-list-cache is used to cache the directory listing (output of `ls`) in kernel page-cache. It significantly improves the workload which involves repeated listing. For multi node/mount-point scenario, this is recommended to be used only for read only workloads, e.g. for Serving and Training workloads.
 
@@ -202,6 +267,8 @@ By default, the list cache is disabled. It can be enabled by configuring the `--
 1. ```--stat-cache-ttl``` and ```--type-cache-ttl``` have been deprecated (starting v2.0) and only ```metadata-cache: ttl-secs``` in the gcsfuse config-file will be supported. So, it is recommended to switch from these two to ```metadata-cache: ttl-secs```.
 For now, for backward compatibility, both are accepted, and the minimum of the two, rounded to the next higher multiple of a second, is used as TTL for both stat-cache and type-cache, when ```metadata-cache: ttl-secs``` is not set.
 1. Both stat-cache and type-cache internally use the same TTL.
+
+___
 
 # Files and Directories
 
@@ -273,11 +340,15 @@ HNS-enabled buckets offer several advantages over standard buckets when used wit
 - HNS buckets treat folders as first-class entities, closely aligning with traditional file system semantics. Commands like mkdir now directly create folder resources within the bucket, unlike with traditional buckets where directories were simulated using prefixes and 0-byte objects.
 - List object calls ([BucketHandle.Objects](https://cloud.google.com/storage/docs/json_api/v1/objects/list)), are replaced with [get folder](https://cloud.google.com/storage/docs/json_api/v1/folders/getfoldermetadata) calls, resulting in quicker response times and fewer overall list calls for every lookup operation.
 
+___
+
 # Generations
 
 With each record in Cloud Storage is stored object and metadata [generation numbers](https://cloud.google.com/storage/docs/generations-preconditions). These provide a total order on requests to modify an object's contents and metadata, compatible with causality. So if insert operation A happens before insert operation B, then the generation number resulting from A will be less than that resulting from B.
 
 In the discussion below, the term "generation" refers to both object generation and meta-generation numbers from Cloud Storage. In other words, what we call "generation" is a pair ```(G, M)``` of Cloud Storage object generation number ```G``` and associated meta-generation number ```M```.
+
+___
 
 # File inodes
 
@@ -332,6 +403,8 @@ Cloud Storage FUSE sets the following pieces of Cloud Storage object metadata fo
 - contentType is set to Cloud Storage's best guess as to the MIME type of the file, based on its file extension.
 - The custom metadata key gcsfuse_mtime is set to track mtime, as discussed above.
 
+___
+
 # Directory Inodes
 
 Cloud Storage FUSE directory inodes exist simply to satisfy the kernel and export a way to look up child inodes. Unlike file inodes:
@@ -353,9 +426,13 @@ Cloud Storage FUSE makes similar calls while deleting a directory: it lists obje
 
 Note that by definition, implicit directories cannot be empty.
 
+___
+
 # Symlink inodes
 
 Cloud Storage FUSE represents symlinks with empty Cloud Storage objects that contain the custom metadata key ```gcsfuse_symlink_target```, with the value giving the target of a symlink. In other respects they work like a file inode, including receiving the same permissions. 
+
+___
 
 # Permissions and ownership
 
@@ -370,6 +447,8 @@ These defaults can be overridden with the ```--uid```, ```--gid```, ```--file-mo
 The fuse kernel layer itself restricts file system access to the mounting user ([fuse.txt](https://github.com/torvalds/linux/blob/a33f32244d8550da8b4a26e277ce07d5c6d158b5/Documentation/filesystems/fuse.txt##L102-L105)). No matter what the configured inode permissions are, by default other users will receive "permission denied" errors when attempting to access the file system. This includes the root user.
 
 This can be overridden by setting ```-o allow_other``` to allow other users to access the file system. However, there may be [security implications](https://github.com/torvalds/linux/blob/a33f32244d8550da8b4a26e277ce07d5c6d158b5/Documentation/filesystems/fuse.txt#L218-L310).
+
+___
 
 # Non-standard filesystem behaviors
 

@@ -621,22 +621,7 @@ func (testSuite *BucketHandleTest) TestBucketHandle_FinalizeUploadSuccess() {
 
 	for _, tt := range tests {
 		testSuite.T().Run(tt.name, func(t *testing.T) {
-			progressFunc := func(_ int64) {}
-			wr, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(),
-				&gcs.CreateObjectRequest{
-					Name:                   tt.objectName,
-					GenerationPrecondition: tt.generation,
-				},
-				tt.chunkSize,
-				progressFunc,
-			)
-			require.NoError(t, err)
-			objWr, ok := (wr).(*ObjectWriter)
-			require.True(t, ok)
-			require.NotNil(t, objWr)
-			assert.Equal(t, tt.objectName, objWr.ObjectName())
-			assert.Equal(t, tt.chunkSize, objWr.ChunkSize)
-			assert.Equal(t, reflect.ValueOf(progressFunc).Pointer(), reflect.ValueOf(objWr.ProgressFunc).Pointer())
+			wr := testSuite.createObjectChunkWriter(t, tt.objectName, tt.generation, tt.chunkSize)
 
 			o, err := testSuite.bucketHandle.FinalizeUpload(context.Background(), wr)
 
@@ -646,47 +631,76 @@ func (testSuite *BucketHandleTest) TestBucketHandle_FinalizeUploadSuccess() {
 	}
 }
 
-func (testSuite *BucketHandleTest) createObject(objName string) {
-	testSuite.T().Helper()
-	var generation int64 = 0
-	wr, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(),
-		&gcs.CreateObjectRequest{
-			Name:                   objName,
-			GenerationPrecondition: &generation,
-		},
-		100,
-		func(_ int64) {})
-	require.NoError(testSuite.T(), err)
-	assert.Equal(testSuite.T(), objName, wr.ObjectName())
-
-	o, err := testSuite.bucketHandle.FinalizeUpload(context.Background(), wr)
-
-	require.NoError(testSuite.T(), err)
-	assert.NotNil(testSuite.T(), o)
-}
-
 func (testSuite *BucketHandleTest) TestFinalizeUploadWithGenerationAsZeroWhenObjectAlreadyExists() {
 	createBucketHandle(testSuite, &controlpb.StorageLayout{}, nil)
 
+	// Pre-create the object (creating writer and finalizing upload).
 	objName := "pre_created_test_object"
-	testSuite.createObject(objName)
-	// Create Object Writer again when object already exists.
 	var generation int64 = 0
-	wr, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(),
-		&gcs.CreateObjectRequest{
-			Name:                   objName,
-			GenerationPrecondition: &generation,
-		},
-		100,
-		func(_ int64) {})
-	require.NoError(testSuite.T(), err)
-	assert.Equal(testSuite.T(), objName, wr.ObjectName())
-
+	wr := testSuite.createObjectChunkWriter(testSuite.T(), objName, &generation, 100)
 	o, err := testSuite.bucketHandle.FinalizeUpload(context.Background(), wr)
+	require.NoError(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), o)
+	// Create Object Writer again when object already exists.
+	wr = testSuite.createObjectChunkWriter(testSuite.T(), objName, &generation, 100)
+
+	o, err = testSuite.bucketHandle.FinalizeUpload(context.Background(), wr)
 
 	assert.Error(testSuite.T(), err)
 	assert.IsType(testSuite.T(), &gcs.PreconditionError{}, err)
 	assert.Nil(testSuite.T(), o)
+}
+
+func (testSuite *BucketHandleTest) createObjectChunkWriter(t *testing.T, objectName string, generation *int64, chunkSize int) gcs.Writer {
+	t.Helper()
+	progressFunc := func(_ int64) {}
+	wr, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(),
+		&gcs.CreateObjectRequest{
+			Name:                   objectName,
+			GenerationPrecondition: generation,
+		},
+		chunkSize,
+		progressFunc,
+	)
+	require.NoError(t, err)
+	objWr, ok := (wr).(*ObjectWriter)
+	require.True(t, ok)
+	require.NotNil(t, objWr)
+	assert.Equal(t, objectName, objWr.ObjectName())
+	assert.Equal(t, chunkSize, objWr.ChunkSize)
+	assert.Equal(t, reflect.ValueOf(progressFunc).Pointer(), reflect.ValueOf(objWr.ProgressFunc).Pointer())
+
+	return wr
+}
+
+func (testSuite *BucketHandleTest) TestFlushPendingWritesFails() {
+	// These tests only run with HTTP client because fake storage server is not
+	// integrated with GRPC.
+	var generation0 int64 = 0
+	tests := []struct {
+		bucketType string
+	}{
+		{
+			bucketType: "multiregion",
+		},
+		{
+			bucketType: "zone",
+		},
+	}
+
+	for _, tt := range tests {
+		testSuite.T().Run(tt.bucketType, func(t *testing.T) {
+			createBucketHandle(testSuite, &controlpb.StorageLayout{
+				LocationType: tt.bucketType,
+			}, nil)
+			wr := testSuite.createObjectChunkWriter(t, TestObjectName, &generation0, 100)
+
+			_, err := testSuite.bucketHandle.FlushPendingWrites(context.Background(), wr)
+
+			require.Error(t, err)
+			assert.ErrorContains(testSuite.T(), err, "Flush not supported unless client uses gRPC and Append is set to true")
+		})
+	}
 }
 
 func (testSuite *BucketHandleTest) TestGetProjectValueWhenGcloudProjectionIsNoAcl() {
