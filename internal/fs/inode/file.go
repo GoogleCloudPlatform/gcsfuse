@@ -95,9 +95,7 @@ type FileInode struct {
 	// Represents if local file has been unlinked.
 	unlinked bool
 
-	// Wrapper object for multi range downloader. Needed as we will create the MRD in
-	// random reader and we can't pass fileInode object to random reader as it
-	// creates a cyclic dependency.
+	// Wrapper object for multi range downloader.
 	MRDWrapper storage.MultiRangeDownloaderWrapper
 
 	bwh    bufferedwrites.BufferedWriteHandler
