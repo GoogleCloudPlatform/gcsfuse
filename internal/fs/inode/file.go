@@ -530,6 +530,11 @@ func (f *FileInode) Read(
 	// 1. Local file
 	// 2. Empty GCS files and writes are triggered via buffered flow.
 	if f.bwh != nil {
+		err = f.syncUsingBufferedWriteHandler()
+		if err != nil {
+			err = fmt.Errorf("could not sync what has been written so far: %w", err)
+			return
+		}
 		err = fmt.Errorf("cannot read a file when upload in progress")
 		return
 	}
@@ -639,6 +644,24 @@ func (f *FileInode) flushUsingBufferedWriteHandler() error {
 	}
 
 	f.updateInodeStateAfterSync(obj)
+	return nil
+}
+
+// Helper function to sync buffered writes, for zonal buckets it flushes the writer
+// for writes be available for read.
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) syncUsingBufferedWriteHandler() error {
+	err := f.bwh.Sync()
+	var preconditionErr *gcs.PreconditionError
+	if errors.As(err, &preconditionErr) {
+		return &gcsfuse_errors.FileClobberedError{
+			Err: fmt.Errorf("f.bwh.Sync(): %w", err),
+		}
+	}
+	if err != nil {
+		return fmt.Errorf("f.bwh.Sync(): %w", err)
+	}
 	return nil
 }
 
@@ -773,13 +796,11 @@ func (f *FileInode) Sync(ctx context.Context) (gcsSynced bool, err error) {
 	}
 
 	if f.bwh != nil {
-		// bwh.Sync does not finalize the upload, so return gcsSynced as false.
-		err = f.bwh.Sync()
-		var preconditionErr *gcs.PreconditionError
-		if errors.As(err, &preconditionErr) {
-			return false, &gcsfuse_errors.FileClobberedError{
-				Err: fmt.Errorf("f.bwh.Sync(): %w", err),
-			}
+		// syncUsingBufferedWriteHandler does not finalize the upload,
+		// so return gcsSynced as false.
+		err = f.syncUsingBufferedWriteHandler()
+		if err != nil {
+			err = fmt.Errorf("could not sync what has been written so far: %w", err)
 		}
 		return
 	}
