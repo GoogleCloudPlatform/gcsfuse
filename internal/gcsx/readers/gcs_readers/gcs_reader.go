@@ -90,9 +90,10 @@ func (gr *GCSReader) CheckInvariants() {
 
 func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (readers.ObjectData, error) {
 	objectData := readers.ObjectData{
-		DataBuf:  p,
-		CacheHit: false,
-		Size:     0,
+		DataBuf:                 p,
+		CacheHit:                false,
+		Size:                    0,
+		FallBackToAnotherReader: false,
 	}
 	var err error
 

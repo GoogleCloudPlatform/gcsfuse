@@ -88,7 +88,7 @@ func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (
 		return o, nil
 	}
 
-	return o, fmt.Errorf("Unable to read from cache")
+	return o, err
 }
 
 func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte, offset int64) (n int, cacheHit bool, err error) {
