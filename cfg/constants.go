@@ -76,6 +76,9 @@ const (
 	// MetadataCacheTTLConfigKey is the Viper configuration key for the metadata
 	//cache's time-to-live (TTL) in seconds.
 	MetadataCacheTTLConfigKey         = "metadata-cache.ttl-secs"
+	MetadataCacheStatCacheTTLKey      = "metadata-cache.deprecated-stat-cache-ttl"
+	MetadataCacheTypeCacheTTLKey      = "metadata-cache.deprecated-type-cache-ttl"
+	MetadataCacheStatCacheCapacityKey = "metadata-cache.deprecated-stat-cache-capacity"
 	MetadataNegativeCacheTTLConfigKey = "metadata-cache.negative-ttl-secs"
 	// StatCacheMaxSizeConfigKey is the Viper configuration key for the maximum
 	//size of the metadata stat cache in megabytes.
