@@ -189,9 +189,12 @@ func (wh *bufferedWriteHandlerImpl) Sync() (err error) {
 	}
 	// Upload all the pending buffers.
 	wh.uploadHandler.AwaitBlocksUpload()
-	// Flush writer in case of a zonal bucket.
+	// The FlushPendingWrites method synchronizes all bytes currently residing in
+	// the Writer's buffer to Cloud Storage, thereby making them available for
+	// other operations like read.
+	// This functionality is exclusively supported on zonal buckets.
 	if wh.uploadHandler.bucket.BucketType().Zonal {
-		n, err := wh.uploadHandler.Flush()
+		n, err := wh.uploadHandler.FlushPendingWrites()
 		if err != nil {
 			return err
 		}

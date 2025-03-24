@@ -317,7 +317,8 @@ func (testSuite *BufferedWriteTest) TestSyncPartialBlock() {
 	assert.Nil(testSuite.T(), bwhImpl.current)
 	assert.Equal(testSuite.T(), 0, len(bwhImpl.uploadHandler.uploadCh))
 	assert.Equal(testSuite.T(), 0, len(bwhImpl.blockPool.FreeBlocksChannel()))
-	// Read the file from back door.
+	// Read the file from back door. Since the object is not finalized, the object
+	// will not be available on GCS.
 	_, err = storageutil.ReadObject(context.Background(), bwhImpl.uploadHandler.bucket, bwhImpl.uploadHandler.objectName)
 	require.Error(testSuite.T(), err)
 	var notFoundErr *gcs.NotFoundError
