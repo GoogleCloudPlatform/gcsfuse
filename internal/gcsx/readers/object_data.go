@@ -22,4 +22,6 @@ type ObjectData struct {
 	Size int
 	// Specified whether data is served from cache or not.
 	CacheHit bool
+
+	FallBackToAnotherReader bool
 }

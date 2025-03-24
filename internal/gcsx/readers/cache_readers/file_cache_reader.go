@@ -44,13 +44,13 @@ type FileCacheReader struct {
 	// This will be nil if the file cache is disabled.
 	FileCacheHandler *file.CacheHandler
 
-	// cacheFileForRangeRead is also valid for cache workflow, if true, object content
+	// CacheFileForRangeRead is also valid for cache workflow, if true, object content
 	// will be downloaded for random reads as well too.
 	CacheFileForRangeRead bool
 
 	// fileCacheHandle is used to read from the cached location. It is created on the fly
 	// using fileCacheHandler for the given object and bucket.
-	FileCacheHandle *file.CacheHandle
+	fileCacheHandle *file.CacheHandle
 
 	MetricHandle common.MetricHandle
 }
@@ -65,9 +65,10 @@ func (fc *FileCacheReader) CheckInvariants() {
 func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (readers.ObjectData, error) {
 	var err error
 	o := readers.ObjectData{
-		DataBuf:  p,
-		CacheHit: false,
-		Size:     0,
+		DataBuf:                 p,
+		CacheHit:                false,
+		Size:                    0,
+		FallBackToAnotherReader: true,
 	}
 
 	// Note: If we are reading the file for the first time and read type is sequential
@@ -83,6 +84,7 @@ func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (
 	if cacheHit || n == len(p) || (n < len(p) && uint64(offset)+uint64(n) == fc.Obj.Size) {
 		o.CacheHit = cacheHit
 		o.Size = n
+		o.FallBackToAnotherReader = false
 		return o, nil
 	}
 
@@ -110,8 +112,8 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 		if err != nil {
 			requestOutput = fmt.Sprintf("err: %v (%v)", err, executionTime)
 		} else {
-			if fc.FileCacheHandle != nil {
-				isSeq = fc.FileCacheHandle.IsSequential(offset)
+			if fc.fileCacheHandle != nil {
+				isSeq = fc.fileCacheHandle.IsSequential(offset)
 			}
 			requestOutput = fmt.Sprintf("OK (isSeq: %t, hit: %t) (%v)", isSeq, cacheHit, executionTime)
 		}
@@ -127,15 +129,15 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 	}()
 
 	// Create fileCacheHandle if not already.
-	if fc.FileCacheHandle == nil {
-		fc.FileCacheHandle, err = fc.FileCacheHandler.GetCacheHandle(fc.Obj, fc.Bucket, fc.CacheFileForRangeRead, offset)
+	if fc.fileCacheHandle == nil {
+		fc.fileCacheHandle, err = fc.FileCacheHandler.GetCacheHandle(fc.Obj, fc.Bucket, fc.CacheFileForRangeRead, offset)
 		if err != nil {
 			// We fall back to GCS if file size is greater than the cache size
 			if strings.Contains(err.Error(), lru.InvalidEntrySizeErrorMsg) {
 				logger.Warnf("tryReadingFromFileCache: while creating CacheHandle: %v", err)
 				return 0, false, nil
 			} else if strings.Contains(err.Error(), cacheutil.CacheHandleNotRequiredForRandomReadErrMsg) {
-				// Fall back to GCS if it is a random read, cacheFileForRangeRead is
+				// Fall back to GCS if it is a random read, CacheFileForRangeRead is
 				// False and there doesn't already exist file in cache.
 				isSeq = false
 				return 0, false, nil
@@ -145,7 +147,7 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 		}
 	}
 
-	n, cacheHit, err = fc.FileCacheHandle.Read(ctx, fc.Bucket, fc.Obj, offset, p)
+	n, cacheHit, err = fc.fileCacheHandle.Read(ctx, fc.Bucket, fc.Obj, offset, p)
 	if err == nil {
 		return n, cacheHit, nil
 	}
@@ -154,12 +156,12 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 	n = 0
 
 	if cacheutil.IsCacheHandleInvalid(err) {
-		logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", fc.FileCacheHandle, fc.Bucket.Name(), fc.Obj.Name)
-		err = fc.FileCacheHandle.Close()
+		logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", fc.fileCacheHandle, fc.Bucket.Name(), fc.Obj.Name)
+		err = fc.fileCacheHandle.Close()
 		if err != nil {
 			logger.Warnf("tryReadingFromFileCache: while closing fileCacheHandle: %v", err)
 		}
-		fc.FileCacheHandle = nil
+		fc.fileCacheHandle = nil
 	} else if !strings.Contains(err.Error(), cacheutil.FallbackToGCSErrMsg) {
 		err = fmt.Errorf("tryReadingFromFileCache: while reading via cache: %w", err)
 		return n, cacheHit, err
@@ -170,13 +172,13 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 }
 
 func (fc *FileCacheReader) Destroy() {
-	if fc.FileCacheHandle != nil {
-		logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", fc.FileCacheHandle, fc.Bucket.Name(), fc.Obj.Name)
-		err := fc.FileCacheHandle.Close()
+	if fc.fileCacheHandle != nil {
+		logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", fc.fileCacheHandle, fc.Bucket.Name(), fc.Obj.Name)
+		err := fc.fileCacheHandle.Close()
 		if err != nil {
 			logger.Warnf("rr.Destroy(): while closing cacheFileHandle: %v", err)
 		}
-		fc.FileCacheHandle = nil
+		fc.fileCacheHandle = nil
 	}
 }
 
