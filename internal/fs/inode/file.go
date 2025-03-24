@@ -376,9 +376,10 @@ func (f *FileInode) Source() *gcs.MinObject {
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) SourceGenerationIsAuthoritative() bool {
-	// When streaming writes are enabled, writes are done via bufferedWritesHandler(bwh).
-	// Hence checking both f.content & f.bwh to be nil
-	return f.content == nil && f.bwh == nil
+	// Source generation is authoritative if:
+	//   1.  No pending writes exists on the inode (both content and bwh are nil).
+	//   2.  The bucket is zonal and there is no pending content write.
+	return (f.content == nil && f.bwh == nil) || (f.bucket.BucketType().Zonal && f.content == nil)
 }
 
 // Equivalent to the generation returned by f.Source().
@@ -530,11 +531,6 @@ func (f *FileInode) Read(
 	// 1. Local file
 	// 2. Empty GCS files and writes are triggered via buffered flow.
 	if f.bwh != nil {
-		err = f.syncUsingBufferedWriteHandler()
-		if err != nil {
-			err = fmt.Errorf("could not sync what has been written so far: %w", err)
-			return
-		}
 		err = fmt.Errorf("cannot read a file when upload in progress")
 		return
 	}
@@ -648,10 +644,13 @@ func (f *FileInode) flushUsingBufferedWriteHandler() error {
 }
 
 // Helper function to sync buffered writes, for zonal buckets it flushes the writer
-// for writes be available for read.
+// for writes be available for read. Operation is no-op when BWH is nil.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) syncUsingBufferedWriteHandler() error {
+func (f *FileInode) SyncUsingBufferedWriteHandler() error {
+	if f.bwh == nil {
+		return nil
+	}
 	err := f.bwh.Sync()
 	var preconditionErr *gcs.PreconditionError
 	if errors.As(err, &preconditionErr) {
@@ -798,7 +797,7 @@ func (f *FileInode) Sync(ctx context.Context) (gcsSynced bool, err error) {
 	if f.bwh != nil {
 		// syncUsingBufferedWriteHandler does not finalize the upload,
 		// so return gcsSynced as false.
-		err = f.syncUsingBufferedWriteHandler()
+		err = f.SyncUsingBufferedWriteHandler()
 		if err != nil {
 			err = fmt.Errorf("could not sync what has been written so far: %w", err)
 		}
