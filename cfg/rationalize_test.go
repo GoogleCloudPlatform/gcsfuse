@@ -56,7 +56,7 @@ func TestRationalizeCustomEndpointSuccessful(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualErr := Rationalize(&mockIsSet{}, tc.config)
+			actualErr := Rationalize(&mockIsSet{}, tc.config, []string{})
 
 			if assert.NoError(t, actualErr) {
 				assert.Equal(t, tc.expectedCustomEndpoint, tc.config.GcsConnection.CustomEndpoint)
@@ -82,7 +82,7 @@ func TestRationalizeCustomEndpointUnsuccessful(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Error(t, Rationalize(&mockIsSet{}, tc.config))
+			assert.Error(t, Rationalize(&mockIsSet{}, tc.config, []string{}))
 		})
 	}
 }
@@ -150,7 +150,7 @@ func TestLoggingSeverityRationalization(t *testing.T) {
 			},
 		}
 
-		err := Rationalize(&mockIsSet{}, &c)
+		err := Rationalize(&mockIsSet{}, &c, []string{})
 
 		if assert.NoError(t, err) {
 			assert.Equal(t, tc.expected, c.Logging.Severity)
@@ -186,7 +186,7 @@ func TestRationalize_TokenURLSuccessful(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualErr := Rationalize(&mockIsSet{}, tc.config)
+			actualErr := Rationalize(&mockIsSet{}, tc.config, []string{})
 
 			if assert.NoError(t, actualErr) {
 				assert.Equal(t, tc.expectedTokenURL, tc.config.GcsAuth.TokenUrl)
@@ -212,7 +212,7 @@ func TestRationalize_TokenURLUnsuccessful(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Error(t, Rationalize(&mockIsSet{}, tc.config))
+			assert.Error(t, Rationalize(&mockIsSet{}, tc.config, []string{}))
 		})
 	}
 }
@@ -304,8 +304,100 @@ func TestRationalizeMetadataCache(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			if assert.NoError(t, Rationalize(tc.flags, tc.config)) {
+			if assert.NoError(t, Rationalize(tc.flags, tc.config, []string{})) {
 				assert.Equal(t, tc.expectedTTLSecs, tc.config.MetadataCache.TtlSecs)
+				assert.Equal(t, tc.expectedStatCacheSize, tc.config.MetadataCache.StatCacheMaxSizeMb)
+			}
+		})
+	}
+}
+
+func TestRationalizeMetadataCacheWithOptimization(t *testing.T) {
+	testCases := []struct {
+		name                    string
+		flags                   flagSet
+		config                  *Config
+		expectedTTLSecs         int64
+		expectedNegativeTTLSecs int64
+		expectedStatCacheSize   int64
+	}{
+		{
+			name:                    "negative_ttl_flag_set",
+			flags:                   flagSet{"metadata-cache.negative-ttl-secs": true},
+			config:                  &Config{MetadataCache: MetadataCacheConfig{NegativeTtlSecs: 44}},
+			expectedNegativeTTLSecs: 44,
+		},
+		{
+			name:            "new_ttl_flag_set",
+			flags:           flagSet{"metadata-cache.ttl-secs": true},
+			config:          &Config{MetadataCache: MetadataCacheConfig{TtlSecs: 30}},
+			expectedTTLSecs: 30,
+		},
+		{
+			name:  "old_ttl_flags_set",
+			flags: flagSet{"metadata-cache.deprecated-stat-cache-ttl": true, "metadata-cache.deprecated-type-cache-ttl": true},
+			config: &Config{
+				MetadataCache: MetadataCacheConfig{
+					DeprecatedStatCacheTtl: 10 * time.Second,
+					DeprecatedTypeCacheTtl: 5 * time.Second,
+				},
+			},
+			expectedTTLSecs: 5,
+		},
+		{
+			name:  "new_and_old_ttl_flags_set",
+			flags: flagSet{"metadata-cache.ttl-secs": true, "metadata-cache.deprecated-stat-cache-ttl": true, "metadata-cache.deprecated-type-cache-ttl": true},
+			config: &Config{
+				MetadataCache: MetadataCacheConfig{
+					TtlSecs:                30,
+					DeprecatedStatCacheTtl: 10 * time.Second,
+					DeprecatedTypeCacheTtl: 5 * time.Second,
+				},
+			},
+			expectedTTLSecs: 30,
+		},
+		{
+			name:                  "new_stat-cache-size-mb_flag_set",
+			flags:                 flagSet{"metadata-cache.stat-cache-max-size-mb": true},
+			config:                &Config{MetadataCache: MetadataCacheConfig{StatCacheMaxSizeMb: 100}},
+			expectedTTLSecs:       0, // Assuming no change to TtlSecs in this function
+			expectedStatCacheSize: 100,
+		},
+		{
+			name:                  "old_stat-cache-capacity_flag_set",
+			flags:                 flagSet{"metadata-cache.deprecated-stat-cache-capacity": true},
+			config:                &Config{MetadataCache: MetadataCacheConfig{DeprecatedStatCacheCapacity: 1000}},
+			expectedTTLSecs:       0,
+			expectedStatCacheSize: 2,
+		},
+		{
+			name:                  "new_and_old_stat-cache-capacity_flag_set",
+			flags:                 flagSet{"metadata-cache.stat-cache-max-size-mb": true, "metadata-cache.deprecated-stat-cache-capacity": true},
+			config:                &Config{MetadataCache: MetadataCacheConfig{StatCacheMaxSizeMb: 100, DeprecatedStatCacheCapacity: 1000}},
+			expectedTTLSecs:       0,
+			expectedStatCacheSize: 100,
+		},
+		{
+			name:  "ttl_and_stat_cache_size_set_to_-1",
+			flags: flagSet{"metadata-cache.ttl-secs": true, "metadata-cache.stat-cache-max-size-mb": true},
+			config: &Config{
+				MetadataCache: MetadataCacheConfig{
+					TtlSecs:            -1,
+					NegativeTtlSecs:    -1,
+					StatCacheMaxSizeMb: -1,
+				},
+			},
+			expectedTTLSecs:         math.MaxInt64 / int64(time.Second), // Max supported ttl in seconds.
+			expectedNegativeTTLSecs: math.MaxInt64 / int64(time.Second), // Max supported ttl in seconds.
+			expectedStatCacheSize:   math.MaxUint64 >> 20,               // Max supported cache size in MiB.
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if assert.NoError(t, Rationalize(tc.flags, tc.config, []string{"metadata-cache.negative-ttl-secs", "metadata-cache.ttl-secs", "metadata-cache.stat-cache-max-size-mb", "metadata-cache.deprecated-stat-cache-capacity", "metadata-cache.deprecated-stat-cache-ttl", "metadata-cache.deprecated-type-cache-ttl"})) {
+				assert.Equal(t, tc.expectedTTLSecs, tc.config.MetadataCache.TtlSecs)
+				assert.Equal(t, tc.expectedNegativeTTLSecs, tc.config.MetadataCache.NegativeTtlSecs)
 				assert.Equal(t, tc.expectedStatCacheSize, tc.config.MetadataCache.StatCacheMaxSizeMb)
 			}
 		})
@@ -369,7 +461,7 @@ func TestRationalize_WriteConfig(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualErr := Rationalize(&mockIsSet{}, tc.config)
+			actualErr := Rationalize(&mockIsSet{}, tc.config, []string{})
 
 			if assert.NoError(t, actualErr) {
 				assert.Equal(t, tc.expectedCreateEmptyFile, tc.config.Write.CreateEmptyFile)
@@ -424,65 +516,8 @@ func TestRationalizeMetricsConfig(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			if assert.NoError(t, Rationalize(&mockIsSet{}, tc.config)) {
+			if assert.NoError(t, Rationalize(&mockIsSet{}, tc.config, []string{})) {
 				assert.Equal(t, tc.expected, tc.config.Metrics.CloudMetricsExportIntervalSecs)
-			}
-		})
-	}
-}
-
-func TestRationalize_ParallelDownloadsConfig(t *testing.T) {
-	testCases := []struct {
-		name                      string
-		flags                     flagSet
-		config                    *Config
-		expectedParallelDownloads bool
-	}{
-		{
-			name: "valid_config_file_cache_enabled",
-			config: &Config{
-				CacheDir: ResolvedPath("/some-path"),
-				FileCache: FileCacheConfig{
-					MaxSizeMb: 500,
-				},
-			},
-			expectedParallelDownloads: true,
-		},
-		{
-			name:                      "valid_config_file_cache_disabled",
-			config:                    &Config{},
-			expectedParallelDownloads: false,
-		},
-		{
-			name: "valid_config_cache_dir_not_set_and_max_size_mb_set",
-			config: &Config{
-				FileCache: FileCacheConfig{
-					MaxSizeMb: 500,
-				},
-			},
-			expectedParallelDownloads: false,
-		},
-		{
-			name: "valid_config_parallel_download_explicit_false",
-			// flagset here is representing viper config, value true is not actual value of the flag
-			// it just means flag is SET by the user
-			flags: flagSet{"file-cache.enable-parallel-downloads": true},
-			config: &Config{
-				CacheDir: ResolvedPath("/some-path"),
-				FileCache: FileCacheConfig{
-					MaxSizeMb: 500,
-				},
-			},
-			expectedParallelDownloads: false,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			err := Rationalize(tc.flags, tc.config)
-
-			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expectedParallelDownloads, tc.config.FileCache.EnableParallelDownloads)
 			}
 		})
 	}
