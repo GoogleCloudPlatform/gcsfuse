@@ -214,13 +214,13 @@ func Optimize(cfg *Config, isSet isValueSet) ([]string, error) {
 	return optimizedFlags, err
 }
 
-// snakeCaseToCamelCase converts a string from snake-case to CamelCase.
+// convertToCamelCase converts a string from snake-case to CamelCase.
 func convertToCamelCase(input string) string {
 	if input == "" {
 		return ""
 	}
 
-	// Split the string by underscores.
+	// Split the string by hyphen.
 	parts := strings.Split(input, "-")
 
 	// Capitalize each part and join them together.
