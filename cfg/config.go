@@ -52,6 +52,8 @@ type Config struct {
 
 	Logging LoggingConfig `yaml:"logging"`
 
+	MachineType string `yaml:"machine-type"`
+
 	MetadataCache MetadataCacheConfig `yaml:"metadata-cache"`
 
 	Metrics MetricsConfig `yaml:"metrics"`
@@ -463,6 +465,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("log-severity", "", "info", "Specifies the logging severity expressed as one of [trace, debug, info, warning, error, off]")
 
+	flagSet.StringP("machine-type", "", "", "Type of the machine on which gcsfuse is being run for e.g. a3-highgpu-4g")
+
+	if err := flagSet.MarkHidden("machine-type"); err != nil {
+		return err
+	}
+
 	flagSet.IntP("max-conns-per-host", "", 0, "The max number of TCP connections allowed per server. This is effective when client-protocol is set to 'http1'. A value of 0 indicates no limit on TCP connections (limited by the machine specifications).")
 
 	flagSet.IntP("max-idle-conns-per-host", "", 100, "The number of maximum idle connections allowed per server.")
@@ -805,6 +813,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("logging.severity", flagSet.Lookup("log-severity")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("machine-type", flagSet.Lookup("machine-type")); err != nil {
 		return err
 	}
 
