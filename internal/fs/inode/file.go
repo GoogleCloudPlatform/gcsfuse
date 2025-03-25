@@ -376,9 +376,11 @@ func (f *FileInode) Source() *gcs.MinObject {
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) SourceGenerationIsAuthoritative() bool {
-	// When streaming writes are enabled, writes are done via bufferedWritesHandler(bwh).
-	// Hence checking both f.content & f.bwh to be nil
-	return f.content == nil && f.bwh == nil
+	// Source generation is authoritative if:
+	//   1.  No pending writes exists on the inode (both content and bwh are nil).
+	//   2.  The bucket is zonal and there is no pending content write and SyncUsingBufferedWriteHandler has been called on the f.
+	// TODO(b/406160290): Check if this can be improved.
+	return (f.content == nil && f.bwh == nil) || (f.bucket.BucketType().Zonal && f.content == nil)
 }
 
 // Equivalent to the generation returned by f.Source().
@@ -642,6 +644,27 @@ func (f *FileInode) flushUsingBufferedWriteHandler() error {
 	return nil
 }
 
+// Helper function to sync buffered writes, for zonal buckets it flushes the writer
+// for writes to be available for read. This operation is no-op when BWH is nil.
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) SyncUsingBufferedWriteHandler() error {
+	if f.bwh == nil {
+		return nil
+	}
+	err := f.bwh.Sync()
+	var preconditionErr *gcs.PreconditionError
+	if errors.As(err, &preconditionErr) {
+		return &gcsfuse_errors.FileClobberedError{
+			Err: fmt.Errorf("f.bwh.Sync(): %w", err),
+		}
+	}
+	if err != nil {
+		return fmt.Errorf("f.bwh.Sync(): %w", err)
+	}
+	return nil
+}
+
 // Set the mtime for this file. May involve a round trip to GCS.
 //
 // LOCKS_REQUIRED(f.mu)
@@ -773,13 +796,11 @@ func (f *FileInode) Sync(ctx context.Context) (gcsSynced bool, err error) {
 	}
 
 	if f.bwh != nil {
-		// bwh.Sync does not finalize the upload, so return gcsSynced as false.
-		err = f.bwh.Sync()
-		var preconditionErr *gcs.PreconditionError
-		if errors.As(err, &preconditionErr) {
-			return false, &gcsfuse_errors.FileClobberedError{
-				Err: fmt.Errorf("f.bwh.Sync(): %w", err),
-			}
+		// SyncUsingBufferedWriteHandler does not finalize the upload,
+		// so return gcsSynced as false.
+		err = f.SyncUsingBufferedWriteHandler()
+		if err != nil {
+			err = fmt.Errorf("could not sync what has been written so far: %w", err)
 		}
 		return
 	}
