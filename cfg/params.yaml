@@ -493,6 +493,13 @@
   usage: "Specifies the logging severity expressed as one of [trace, debug, info, warning, error, off]"
   default: "info"
 
+- config-path: "machine-type"
+  flag-name: "machine-type"
+  type: "string"
+  usage: "Type of the machine on which gcsfuse is being run for e.g. a3-highgpu-4g"
+  default: ""
+  hide-flag: true
+
 - config-path: "metadata-cache.deprecated-stat-cache-capacity"
   flag-name: "stat-cache-capacity"
   type: "int"
@@ -663,8 +670,7 @@
 - config-path: "write.create-empty-file"
   flag-name: "create-empty-file"
   type: "bool"
-  usage: "For a new file, it creates an empty file in Cloud Storage bucket as a
-  hold."
+  usage: "For a new file, it creates an empty file in Cloud Storage bucket as a hold."
   default: false
 
 - config-path: "write.enable-streaming-writes"
