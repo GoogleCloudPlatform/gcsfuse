@@ -296,61 +296,66 @@ func (testSuite *BufferedWriteTest) TestSync5InProgressBlocks() {
 	assert.Equal(testSuite.T(), 0, len(bwhImpl.blockPool.FreeBlocksChannel()))
 }
 
-func (testSuite *BufferedWriteTest) TestSyncPartialBlock() {
-	buffer, err := operations.GenerateRandomData(blockSize)
-	assert.NoError(testSuite.T(), err)
-	// Write 2 blocks.
-	for i := 0; i < 2; i++ {
-		err = testSuite.bwh.Write(buffer, int64(blockSize*i))
-		require.Nil(testSuite.T(), err)
+func (testSuite *BufferedWriteTest) TestSyncPartialBlockTableDriven() {
+	testCases := []struct {
+		name       string
+		bucketType gcs.BucketType
+		numBlocks  float32
+	}{
+		{
+			name:       "multi_regional_bucket_2.5_blocks",
+			bucketType: gcs.BucketType{},
+			numBlocks:  2.5,
+		},
+		{
+			name:       "multi_regional_bucket_.5_blocks",
+			bucketType: gcs.BucketType{},
+			numBlocks:  .5,
+		},
+		{
+			name:       "zonal_bucket_2.5_blocks",
+			bucketType: gcs.BucketType{Zonal: true},
+			numBlocks:  2.5,
+		},
+		{
+			name:       "zonal_bucket_.5_blocks",
+			bucketType: gcs.BucketType{Zonal: true},
+			numBlocks:  .5,
+		},
 	}
-	// Write partial block.
-	err = testSuite.bwh.Write(buffer[0:blockSize/2], int64(blockSize*2))
-	require.Nil(testSuite.T(), err)
 
-	// Wait for 3 blocks to upload successfully.
-	err = testSuite.bwh.Sync()
+	for _, tc := range testCases {
+		testSuite.T().Run(tc.name, func(t *testing.T) {
+			testSuite.setupTestWithBucketType(tc.bucketType)
+			buffer, err := operations.GenerateRandomData(int64(blockSize * tc.numBlocks))
+			assert.NoError(testSuite.T(), err)
+			err = testSuite.bwh.Write(buffer, 0)
+			require.Nil(testSuite.T(), err)
 
-	assert.NoError(testSuite.T(), err)
-	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
-	// Current block should also be uploaded.
-	assert.Nil(testSuite.T(), bwhImpl.current)
-	assert.Equal(testSuite.T(), 0, len(bwhImpl.uploadHandler.uploadCh))
-	assert.Equal(testSuite.T(), 0, len(bwhImpl.blockPool.FreeBlocksChannel()))
-	// Read the file from back door. Since the object is not finalized, the object
-	// will not be available on GCS.
-	_, err = storageutil.ReadObject(context.Background(), bwhImpl.uploadHandler.bucket, bwhImpl.uploadHandler.objectName)
-	require.Error(testSuite.T(), err)
-	var notFoundErr *gcs.NotFoundError
-	assert.ErrorAs(testSuite.T(), err, &notFoundErr)
-}
+			// Wait for 3 blocks to upload successfully.
+			err = testSuite.bwh.Sync()
 
-func (testSuite *BufferedWriteTest) TestSyncPartialBlockOnZB() {
-	testSuite.setupTestWithBucketType(gcs.BucketType{Zonal: true})
-	buffer, err := operations.GenerateRandomData(blockSize)
-	assert.NoError(testSuite.T(), err)
-	// Write 2 blocks.
-	for i := 0; i < 2; i++ {
-		err = testSuite.bwh.Write(buffer, int64(blockSize*i))
-		require.Nil(testSuite.T(), err)
+			assert.NoError(t, err)
+			assert.NoError(testSuite.T(), err)
+			bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
+			// Current block should also be uploaded.
+			assert.Nil(testSuite.T(), bwhImpl.current)
+			assert.Equal(testSuite.T(), 0, len(bwhImpl.uploadHandler.uploadCh))
+			assert.Equal(testSuite.T(), 0, len(bwhImpl.blockPool.FreeBlocksChannel()))
+			// Read the object from back door.
+			content, err := storageutil.ReadObject(context.Background(), bwhImpl.uploadHandler.bucket, bwhImpl.uploadHandler.objectName)
+			if tc.bucketType.Zonal {
+				require.NoError(testSuite.T(), err)
+				assert.Equal(testSuite.T(), buffer, content)
+			} else {
+				// Since the object is not finalized, the object will not be available
+				// on GCS for non-zonal buckets.
+				require.Error(t, err)
+				var notFoundErr *gcs.NotFoundError
+				assert.ErrorAs(t, err, &notFoundErr)
+			}
+		})
 	}
-	// Write partial block.
-	err = testSuite.bwh.Write(buffer[0:blockSize/2], int64(blockSize*2))
-	require.Nil(testSuite.T(), err)
-
-	// Wait for 3 blocks to upload successfully.
-	err = testSuite.bwh.Sync()
-
-	assert.NoError(testSuite.T(), err)
-	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
-	// Current block should also be uploaded.
-	assert.Nil(testSuite.T(), bwhImpl.current)
-	assert.Equal(testSuite.T(), 0, len(bwhImpl.uploadHandler.uploadCh))
-	assert.Equal(testSuite.T(), 0, len(bwhImpl.blockPool.FreeBlocksChannel()))
-	// Read the file from back door.
-	content, err := storageutil.ReadObject(context.Background(), bwhImpl.uploadHandler.bucket, bwhImpl.uploadHandler.objectName)
-	require.NoError(testSuite.T(), err)
-	assert.Equal(testSuite.T(), string(buffer)+string(buffer)+string(buffer[0:blockSize/2]), string(content))
 }
 
 func (testSuite *BufferedWriteTest) TestSyncBlocksWithError() {
