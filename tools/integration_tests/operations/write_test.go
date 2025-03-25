@@ -80,7 +80,7 @@ func validateObjectAttributes(attr1, attr2 *storage.ObjectAttrs, t *testing.T) {
 		t.Errorf("Object name mismatch: %s, %s", attr1.Name, attr2.Name)
 	}
 	if attr1.Bucket != attr2.Bucket {
-		t.Errorf("Bucket name mismatch: %s, %s", attr1.Bucket, attr2.Bucket)
+		t.Errorf("bucket name mismatch: %s, %s", attr1.Bucket, attr2.Bucket)
 	}
 	if attr1.EventBasedHold != false || attr2.EventBasedHold != false {
 		t.Errorf("Expected EventBasedHold: false, Got: %v %v", attr1.EventBasedHold, attr2.EventBasedHold)
@@ -137,7 +137,7 @@ func TestWriteAtStartOfFile(t *testing.T) {
 
 	err := operations.WriteFile(fileName, "line 4\n")
 	if err != nil {
-		t.Errorf("WriteString-Start: %v", err)
+		t.Errorf("WriteString-start: %v", err)
 	}
 
 	setup.CompareFileContents(t, fileName, "line 4\nline 2\n")

@@ -38,34 +38,8 @@ type readManager struct {
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
 func NewReadManager(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *gcs_readers.MultiRangeDownloaderWrapper) Reader {
-	var gcsReader gcs_readers.GCSReader
-	var fileCacheReader cache_readers.FileCacheReader
-	gcsReader = gcs_readers.GCSReader{
-		Obj:            o,
-		Bucket:         bucket,
-		TotalReadBytes: 0,
-		RangeReader: gcs_readers.RangeReader{
-			Obj:            o,
-			Bucket:         bucket,
-			Start:          -1,
-			Limit:          -1,
-			Seeks:          0,
-			MetricHandle:   metricHandle,
-			TotalReadBytes: 0,
-		},
-		Mrr: gcs_readers.MultiRangeReader{
-			MrdWrapper:   mrdWrapper,
-			MetricHandle: metricHandle,
-		},
-		SequentialReadSizeMb: sequentialReadSizeMb,
-	}
-	fileCacheReader = cache_readers.FileCacheReader{
-		Obj:                   o,
-		Bucket:                bucket,
-		FileCacheHandler:      fileCacheHandler,
-		CacheFileForRangeRead: cacheFileForRangeRead,
-		MetricHandle:          metricHandle,
-	}
+	gcsReader := gcs_readers.NewGCSReader(o, bucket, metricHandle, mrdWrapper, sequentialReadSizeMb)
+	fileCacheReader := cache_readers.NewFileCacheReader(o, bucket, fileCacheHandler, cacheFileForRangeRead, metricHandle)
 
 	return &readManager{
 		object: o,

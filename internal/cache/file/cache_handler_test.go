@@ -501,7 +501,7 @@ func Test_GetCacheHandle_WithEviction(t *testing.T) {
 	for _, tc := range tbl {
 		t.Run(tc.name, func(t *testing.T) {
 			chTestArgs := initializeCacheHandlerTestArgs(t, &tc.fileCacheConfig, tc.cacheDir)
-			// Start the existing job
+			// start the existing job
 			existingJob := getDownloadJobForTestObject(t, chTestArgs)
 			_, err := existingJob.Download(context.Background(), 1, false)
 			require.NoError(t, err)
@@ -630,7 +630,7 @@ func Test_GetCacheHandle_ConcurrentSameFile(t *testing.T) {
 				assert.Nil(t, cacheHandle.validateCacheHandle())
 			}
 
-			// Start concurrent GetCacheHandle()
+			// start concurrent GetCacheHandle()
 			for i := 0; i < 5; i++ {
 				wg.Add(1)
 				go getCacheHandleTestFun(t)
@@ -666,7 +666,7 @@ func Test_GetCacheHandle_ConcurrentDifferentFiles(t *testing.T) {
 		assert.Nil(t, cacheHandle.validateCacheHandle())
 	}
 
-	// Start concurrent GetCacheHandle()
+	// start concurrent GetCacheHandle()
 	for i := 0; i < 5; i++ {
 		wg.Add(1)
 		go getCacheHandleTestFun(i)
@@ -838,7 +838,7 @@ func Test_InvalidateCache_ConcurrentSameFile(t *testing.T) {
 				assert.False(t, isEntryInFileInfoCache(t, chTestArgs.cache, chTestArgs.object.Name, chTestArgs.bucket.Name()))
 			}
 
-			// Start concurrent GetCacheHandle()
+			// start concurrent GetCacheHandle()
 			for i := 0; i < 5; i++ {
 				wg.Add(1)
 				go invalidateCacheTestFun(t)
@@ -889,7 +889,7 @@ func Test_InvalidateCache_ConcurrentDifferentFiles(t *testing.T) {
 				assert.False(t, isEntryInFileInfoCache(t, chTestArgs.cache, objName, chTestArgs.bucket.Name()))
 			}
 
-			// Start concurrent GetCacheHandle()
+			// start concurrent GetCacheHandle()
 			for i := 0; i < 5; i++ {
 				wg.Add(1)
 				go invalidateCacheTestFun(i)
@@ -950,7 +950,7 @@ func Test_InvalidateCache_GetCacheHandle_Concurrent(t *testing.T) {
 				assert.Nil(t, cacheHandle.validateCacheHandle())
 			}
 
-			// Start concurrent GetCacheHandle()
+			// start concurrent GetCacheHandle()
 			for i := 0; i < 5; i++ {
 				wg.Add(1)
 				go invalidateCacheTestFun(i)

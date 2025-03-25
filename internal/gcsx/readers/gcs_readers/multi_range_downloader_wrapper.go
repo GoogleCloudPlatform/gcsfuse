@@ -56,7 +56,7 @@ type MultiRangeDownloaderWrapper struct {
 	// Holds the object implementing MultiRangeDownloader interface.
 	Wrapped gcs.MultiRangeDownloader
 
-	// Bucket and object details for MultiRangeDownloader.
+	// bucket and object details for MultiRangeDownloader.
 	// Object should not be nil.
 	object *gcs.MinObject
 	bucket gcs.Bucket
@@ -123,7 +123,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) DecrementRefCount() (err error) {
 	if mrdWrapper.refCount == 0 && mrdWrapper.Wrapped != nil {
 		mrdWrapper.Wrapped.Close()
 		mrdWrapper.Wrapped = nil
-		// TODO (b/391508479): Start using cleanup function when MRD recreation is handled
+		// TODO (b/391508479): start using cleanup function when MRD recreation is handled
 		// mrdWrapper.cleanupMultiRangeDownloader()
 	}
 	return

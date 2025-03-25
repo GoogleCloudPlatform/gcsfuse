@@ -258,7 +258,7 @@ func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethodWithoutReadH
 	buf := make([]byte, len(ContentInTestObject))
 	_, err = rd.Read(buf)
 	assert.Nil(testSuite.T(), err)
-	//assert.Equal(testSuite.T(), len(rd.ReadHandle()), 0)
+	//assert.Equal(testSuite.T(), len(rd.readHandle()), 0)
 	assert.Equal(testSuite.T(), ContentInTestObject, string(buf[:]))
 }
 
@@ -279,7 +279,7 @@ func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethodWithReadHand
 	buf := make([]byte, len(ContentInTestObject))
 	_, err = rd.Read(buf)
 	assert.Nil(testSuite.T(), err)
-	//assert.Equal(testSuite.T(), len(rd.ReadHandle()), 0)
+	//assert.Equal(testSuite.T(), len(rd.readHandle()), 0)
 	assert.Equal(testSuite.T(), ContentInTestObject, string(buf[:]))
 }
 

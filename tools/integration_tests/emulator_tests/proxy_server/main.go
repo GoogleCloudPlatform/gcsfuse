@@ -185,7 +185,7 @@ func (ps *ProxyServer) Start() {
 		Handler: ProxyHandler{},
 	}
 
-	// Start the server in a new goroutine
+	// start the server in a new goroutine
 	go func() {
 		if err := ps.server.Serve(listener); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Server error: %v", err)

@@ -645,7 +645,7 @@ func CreateFileOfSize(fileSize int64, filePath string, t testing.TB) {
 	CreateFileWithContent(filePath, FilePermission_0600, string(randomData), t)
 }
 
-// CalculateCRC32 calculates and returns the CRC-32 checksum of the data from the provided Reader.
+// CalculateCRC32 calculates and returns the CRC-32 checksum of the data from the provided reader.
 func CalculateCRC32(src io.Reader) (uint32, error) {
 	crc32Table := crc32.MakeTable(crc32.Castagnoli) // Pre-calculate the table
 	hasher := crc32.New(crc32Table)

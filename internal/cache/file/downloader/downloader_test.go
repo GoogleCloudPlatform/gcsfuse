@@ -236,7 +236,7 @@ func (dt *downloaderTest) Test_InvalidateAndRemoveJob_Existing() {
 	dt.jm.mu.Lock()
 	dt.verifyJob(expectedJob, &dt.object, dt.bucket, dt.jm.sequentialReadSizeMb)
 	dt.jm.mu.Unlock()
-	// Start the job
+	// start the job
 	_, err := expectedJob.Download(context.Background(), 0, false)
 	AssertEq(nil, err)
 
@@ -255,7 +255,7 @@ func (dt *downloaderTest) Test_InvalidateAndRemoveJob_Concurrent() {
 	dt.jm.mu.Lock()
 	dt.verifyJob(expectedJob, &dt.object, dt.bucket, dt.jm.sequentialReadSizeMb)
 	dt.jm.mu.Unlock()
-	// Start the job
+	// start the job
 	_, err := expectedJob.Download(context.Background(), 0, false)
 	AssertEq(nil, err)
 	wg := sync.WaitGroup{}
@@ -289,14 +289,14 @@ func (dt *downloaderTest) Test_Destroy() {
 	dt.initJobTest(objectName2, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize), func() {})
 	object2 := dt.object
 	job2 := dt.jm.CreateJobIfNotExists(&object2, dt.bucket)
-	// Start the job
+	// start the job
 	_, err := job2.Download(context.Background(), 2, false)
 	AssertEq(nil, err)
 	objectName3 := "path/in/gcs/foo3.txt"
 	dt.initJobTest(objectName3, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize), func() {})
 	object3 := dt.object
 	job3 := dt.jm.CreateJobIfNotExists(&object3, dt.bucket)
-	// Start the job
+	// start the job
 	_, err = job3.Download(context.Background(), 2, false)
 	AssertEq(nil, err)
 

@@ -94,7 +94,7 @@ func registerTestSuite(
 		// remembering that the suite implements bucketTestSetUpInterface.
 		var report reqtrace.ReportFunc
 		tf.SetUp = func(*ogletest.TestInfo) {
-			// Start tracing.
+			// start tracing.
 			var testCtx context.Context
 			testCtx, report = reqtrace.Trace(context.Background(), "Overall test")
 

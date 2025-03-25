@@ -70,7 +70,7 @@ func (t *commonFailureTestSuite) SetupSuite() {
 
 func (t *commonFailureTestSuite) setupTest() {
 	t.T().Helper()
-	// Start proxy server for each test to ensure the config is initialized per test.
+	// start proxy server for each test to ensure the config is initialized per test.
 	var err error
 	t.port, t.proxyProcessId, err = emulator_tests.StartProxyServer(t.configPath, setup.CreateProxyServerLogFile(t.T()))
 	require.NoError(t.T(), err)

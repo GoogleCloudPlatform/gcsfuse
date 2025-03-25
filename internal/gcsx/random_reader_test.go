@@ -111,7 +111,7 @@ func rangeStartIs(expected uint64) (m Matcher) {
 		}
 
 		if req.Range.Start != expected {
-			err = fmt.Errorf("which has Start == %d", req.Range.Start)
+			err = fmt.Errorf("which has start == %d", req.Range.Start)
 			return
 		}
 
@@ -131,7 +131,7 @@ func rangeLimitIs(expected uint64) (m Matcher) {
 		}
 
 		if req.Range.Limit != expected {
-			err = fmt.Errorf("which has Limit == %d", req.Range.Limit)
+			err = fmt.Errorf("which has limit == %d", req.Range.Limit)
 			return
 		}
 
@@ -287,7 +287,7 @@ func (t *RandomReaderTest) NewReaderReturnsError() {
 }
 
 func (t *RandomReaderTest) ReaderFails() {
-	// Bucket
+	// bucket
 	r := iotest.OneByteReader(iotest.TimeoutReader(strings.NewReader("xxx")))
 	rc := &fake.FakeReader{ReadCloser: io.NopCloser(r)}
 
@@ -369,7 +369,7 @@ func (t *RandomReaderTest) PropagatesCancellation() {
 	cancelCalled := make(chan struct{})
 	t.rr.wrapped.cancel = func() { close(cancelCalled) }
 
-	// Start a read in the background using a context that we control. It should
+	// start a read in the background using a context that we control. It should
 	// not yet return.
 	readReturned := make(chan struct{})
 	ctx, cancel := context.WithCancel(context.Background())
@@ -534,7 +534,7 @@ func (t *RandomReaderTest) UpgradesSequentialReads_ExistingReader() {
 	ExpectFalse(objectData.CacheHit)
 	AssertEq(nil, err)
 	ExpectEq(1+readSize, t.rr.wrapped.start)
-	// Limit is same as the byteRange of last GCS call made.
+	// limit is same as the byteRange of last GCS call made.
 	ExpectEq(1+sequentialReadSizeInBytes, t.rr.wrapped.limit)
 }
 

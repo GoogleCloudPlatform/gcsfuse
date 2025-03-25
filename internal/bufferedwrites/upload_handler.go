@@ -96,7 +96,7 @@ func (uh *UploadHandler) Upload(block block.Block) error {
 			// handle this error explicitly or fall back to temp file flow.
 			return fmt.Errorf("createObjectWriter failed for object %s: %w", uh.objectName, err)
 		}
-		// Start the uploader goroutine.
+		// start the uploader goroutine.
 		go uh.uploader()
 	}
 

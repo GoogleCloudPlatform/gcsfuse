@@ -166,7 +166,7 @@ func (t *ThrottleTest) TestIntegration() {
 
 		throttle := ratelimit.NewThrottle(tc.limitRateHz, capacity)
 
-		// Start workers.
+		// start workers.
 		var wg sync.WaitGroup
 		var totalProcessed uint64
 

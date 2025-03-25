@@ -86,7 +86,7 @@ func (bh *bucketHandle) NewReaderWithReadHandle(
 		obj = obj.ReadCompressed(true)
 	}
 
-	// Insert ReadHandle into objectHandle if present.
+	// Insert readHandle into objectHandle if present.
 	// Objects that have been opened can be opened again using readHandle at lower latency.
 	// This produces the exact same object and generation and does not check if
 	// the generation is still the newest one.
@@ -94,7 +94,7 @@ func (bh *bucketHandle) NewReaderWithReadHandle(
 		obj = obj.ReadHandle(req.ReadHandle)
 	}
 
-	// NewRangeReader creates a "storage.Reader" object which is also io.ReadCloser since it contains both Read() and Close() methods present in io.ReadCloser interface.
+	// NewRangeReader creates a "storage.reader" object which is also io.ReadCloser since it contains both Read() and Close() methods present in io.ReadCloser interface.
 	reader, err = obj.NewRangeReader(ctx, start, length)
 	return
 }

@@ -69,8 +69,8 @@ type Bucket interface {
 	// Official documentation:
 	//     https://cloud.google.com/storage/docs/json_api/v1/objects/get
 	// Connection is established using the readHandle if not nil.
-	// ReadHandle helps in reducing the latency by eleminating auth/metadata checks when a valid readHandle is passed.
-	// ReadHandle is valid when its not nil, not expired and belongs to the same client.
+	// readHandle helps in reducing the latency by eleminating auth/metadata checks when a valid readHandle is passed.
+	// readHandle is valid when its not nil, not expired and belongs to the same client.
 	NewReaderWithReadHandle(
 		ctx context.Context,
 		req *ReadObjectRequest) (StorageReader, error)

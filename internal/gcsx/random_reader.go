@@ -432,7 +432,7 @@ func (rr *randomReader) Destroy() {
 func (rr *randomReader) readFull(
 	ctx context.Context,
 	p []byte) (n int, err error) {
-	// Start a goroutine that will cancel the read operation we block on below if
+	// start a goroutine that will cancel the read operation we block on below if
 	// the calling context is cancelled, but only if this method has not already
 	// returned (to avoid souring the reader for the next read if this one is
 	// successful, since the calling context will eventually be cancelled).
@@ -510,7 +510,7 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 }
 
 // getReaderInfo determines the readType and provides the range to query GCS.
-// Range here is [start, end]. End is computed using the readType, start offset
+// Range here is [start, end]. end is computed using the readType, start offset
 // and size of the data the callers needs.
 func (rr *randomReader) getReadInfo(
 	start int64,
@@ -594,7 +594,7 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 
 	// Sanity check.
 	if rr.start > rr.limit {
-		err = fmt.Errorf("Reader returned extra bytes: %d", rr.start-rr.limit)
+		err = fmt.Errorf("reader returned extra bytes: %d", rr.start-rr.limit)
 
 		// Don't attempt to reuse the reader when it's behaving wackily.
 		rr.closeReader()
@@ -620,7 +620,7 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 		// if the reader peters out early. That's fine, but it means we should
 		// have hit the limit above.
 		if rr.reader != nil {
-			err = fmt.Errorf("Reader returned early by skipping %d bytes", rr.limit-rr.start)
+			err = fmt.Errorf("reader returned early by skipping %d bytes", rr.limit-rr.start)
 			return
 		}
 

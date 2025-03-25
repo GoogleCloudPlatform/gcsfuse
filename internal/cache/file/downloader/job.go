@@ -305,7 +305,7 @@ func (job *Job) downloadObjectToFile(cacheFile *os.File) (err error) {
 	// Each iteration of this for loop, reads ReadChunkSize size of range of the
 	// backing object from reader into the file handle and updates the file info
 	// cache. In case, reader is not present for reading, it creates a
-	// gcs.Bucket's NewReader with size min(sequentialReadSize, object.Size).
+	// gcs.bucket's NewReader with size min(sequentialReadSize, object.Size).
 	for start < end {
 		if newReader == nil {
 			newReaderLimit = min(start+sequentialReadSize, end)
@@ -343,7 +343,7 @@ func (job *Job) downloadObjectToFile(cacheFile *os.File) (err error) {
 
 		start += maxRead
 		if start == newReaderLimit {
-			// Reader is closed after the data has been read and the error from closure
+			// reader is closed after the data has been read and the error from closure
 			// is not reported as failure of async job, similar to how it's done for
 			// foreground reads: https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/internal/gcsx/random_reader.go#L298.
 			err = newReader.Close()
@@ -485,7 +485,7 @@ func (job *Job) Download(ctx context.Context, offset int64, waitForDownload bool
 		defer job.mu.Unlock()
 		return job.status, nil
 	} else if job.status.Name == NotStarted {
-		// Start the async download
+		// start the async download
 		job.status.Name = Downloading
 		job.cancelCtx, job.cancelFunc = context.WithCancel(context.Background())
 		go job.downloadObjectAsync()

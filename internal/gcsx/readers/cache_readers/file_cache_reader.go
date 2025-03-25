@@ -55,6 +55,16 @@ type FileCacheReader struct {
 	MetricHandle common.MetricHandle
 }
 
+func NewFileCacheReader(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle) FileCacheReader {
+	return FileCacheReader{
+		Obj:                   o,
+		Bucket:                bucket,
+		FileCacheHandler:      fileCacheHandler,
+		CacheFileForRangeRead: cacheFileForRangeRead,
+		MetricHandle:          metricHandle,
+	}
+}
+
 func (fc *FileCacheReader) Object() *gcs.MinObject {
 	return fc.Obj
 }

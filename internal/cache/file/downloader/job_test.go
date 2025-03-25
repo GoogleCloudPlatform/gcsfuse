@@ -360,7 +360,7 @@ func (dt *downloaderTest) Test_downloadObjectToFile() {
 		_ = file.Close()
 	}()
 
-	// Start download
+	// start download
 	err = dt.job.downloadObjectToFile(file)
 
 	AssertEq(nil, err)
@@ -408,7 +408,7 @@ func (dt *downloaderTest) Test_downloadObjectAsync_LessThanSequentialReadSize() 
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(2*objectSize), removeCallback)
 	dt.job.cancelCtx, dt.job.cancelFunc = context.WithCancel(context.Background())
 
-	// Start download
+	// start download
 	dt.job.downloadObjectAsync()
 
 	// Check job completed successfully
@@ -489,7 +489,7 @@ func (dt *downloaderTest) Test_Download_WhenNotStarted() {
 	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(2*objectSize), func() {})
 
-	// Start download
+	// start download
 	offset := int64(8 * util.MiB)
 	jobStatus, err := dt.job.Download(context.Background(), offset, true)
 
@@ -510,7 +510,7 @@ func (dt *downloaderTest) Test_Download_WhenAlreadyDownloading() {
 	objectSize := 50 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(2*objectSize), func() {})
-	// Start download but not wait for download
+	// start download but not wait for download
 	ctx := context.Background()
 	jobStatus, err := dt.job.Download(ctx, 1, false)
 	AssertEq(nil, err)
@@ -700,7 +700,7 @@ func (dt *downloaderTest) Test_Download_Concurrent() {
 		AssertGe(jobStatus.Offset, expectedOffset)
 	}
 
-	// Start concurrent downloads
+	// start concurrent downloads
 	for i, offset := range offsets {
 		wg.Add(1)
 		go downloadFunc(offset, expectedErrs[i])
@@ -724,7 +724,7 @@ func (dt *downloaderTest) Test_GetStatus() {
 	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize*2), func() {})
 	ctx := context.Background()
-	// Start download
+	// start download
 	jobStatus, err := dt.job.Download(ctx, util.MiB, true)
 	AssertEq(nil, err)
 	AssertEq(Downloading, jobStatus.Name)
@@ -747,7 +747,7 @@ func (dt *downloaderTest) Test_Invalidate_WhenDownloading() {
 	removeCallback := func() { callbackExecuted.Store(true) }
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize*2), removeCallback)
 	ctx := context.Background()
-	// Start download without waiting
+	// start download without waiting
 	jobStatus, err := dt.job.Download(ctx, 0, false)
 	AssertEq(nil, err)
 	AssertEq(Downloading, jobStatus.Name)
@@ -788,7 +788,7 @@ func (dt *downloaderTest) Test_Invalidate_WhenAlreadyCompleted() {
 	removeCallback := func() { callbackExecutionCount.Add(1) }
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize*2), removeCallback)
 	ctx := context.Background()
-	// Start download with waiting
+	// start download with waiting
 	_, err := dt.job.Download(ctx, int64(objectSize), true)
 	AssertEq(nil, err)
 	dt.waitForCrcCheckToBeCompleted()
@@ -813,7 +813,7 @@ func (dt *downloaderTest) Test_Invalidate_Concurrent() {
 	removeCallback := func() { callbackExecutionCount.Add(1) }
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize*2), removeCallback)
 	ctx := context.Background()
-	// Start download without waiting
+	// start download without waiting
 	jobStatus, err := dt.job.Download(ctx, 0, false)
 	AssertEq(nil, err)
 	AssertEq(Downloading, jobStatus.Name)
@@ -850,7 +850,7 @@ func (dt *downloaderTest) Test_Invalidate_Download_Concurrent() {
 	downloadFunc := func(offset int64, waitForDownload bool) {
 		defer wg.Done()
 		ctx := context.Background()
-		// Start download without waiting
+		// start download without waiting
 		jobStatus, err := dt.job.Download(ctx, offset, waitForDownload)
 		AssertEq(nil, err)
 		AssertTrue(jobStatus.Name == Downloading || jobStatus.Name == Invalid || jobStatus.Name == Completed)
@@ -868,7 +868,7 @@ func (dt *downloaderTest) Test_Invalidate_Download_Concurrent() {
 		dt.verifyInvalidError(currJobStatus.Err)
 	}
 
-	// Start concurrent invalidate and download
+	// start concurrent invalidate and download
 	offsets := [6]int64{0, util.MiB, 5 * util.MiB, 0, 2 * util.MiB, 10 * util.MiB}
 	for i := 0; i < len(offsets); i++ {
 		wg.Add(2)
@@ -892,7 +892,7 @@ func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCRCIsTrue() 
 	objectSize := 8 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(2*objectSize), func() {})
-	// Start download
+	// start download
 	offset := int64(8 * util.MiB)
 	jobStatus, err := dt.job.Download(context.Background(), offset, true)
 	AssertEq(nil, err)
@@ -925,7 +925,7 @@ func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCRCIsFalse()
 	objectSize := 1 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(2*objectSize), func() {})
-	// Start download
+	// start download
 	offset := int64(1 * util.MiB)
 	jobStatus, err := dt.job.Download(context.Background(), offset, true)
 	AssertEq(nil, err)
@@ -958,7 +958,7 @@ func (dt *downloaderTest) Test_validateCRC_WheContextIsCancelled() {
 	// objectSize := 10 * util.MiB
 	// objectContent := testutil.GenerateRandomBytes(objectSize)
 	// dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(2*objectSize), func() {})
-	// // Start download
+	// // start download
 	// offset := int64(10 * util.MiB)
 	// _, err := dt.job.Download(context.Background(), offset, true)
 	// AssertEq(nil, err)

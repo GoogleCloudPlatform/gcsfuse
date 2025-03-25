@@ -79,7 +79,7 @@ func validate(expected *Expected, logEntry *read_logs.StructuredReadLogEntry, is
 		t.Errorf("start time in logs %d less than actual start time %d.", logEntry.StartTimeSeconds, expected.StartTimeStampSeconds)
 	}
 	if logEntry.BucketName != expected.BucketName {
-		t.Errorf("Bucket names don't match! Expected: %s, Got from logs: %s",
+		t.Errorf("bucket names don't match! Expected: %s, Got from logs: %s",
 			expected.BucketName, logEntry.BucketName)
 	}
 	if logEntry.ObjectName != expected.ObjectName {

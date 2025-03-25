@@ -13,10 +13,10 @@
 // limitations under the License.
 
 // Test list, delete, move, copy, and create operations on managed folders with the following permissions:
-// 1. Bucket with Admin permission and folders with nil permission
-// 2. Bucket with Admin permission and folders with admin permission
-// 3. Bucket with View permission and folders with admin permission
-// 4. Bucket with Admin permission and folders with view permission
+// 1. bucket with Admin permission and folders with nil permission
+// 2. bucket with Admin permission and folders with admin permission
+// 3. bucket with View permission and folders with admin permission
+// 4. bucket with Admin permission and folders with view permission
 package managed_folders
 
 import (
@@ -213,7 +213,7 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	defer setup.UnmountGCSFuse(rootDir)
 	setup.SetMntDir(mountDir)
 
-	// Run tests on given {Bucket permission, Managed folder permission}.
+	// Run tests on given {bucket permission, Managed folder permission}.
 	permissions := [][]string{{AdminPermission, "nil"}, {AdminPermission, IAMRoleForViewPermission}, {AdminPermission, IAMRoleForAdminPermission}, {ViewPermission, IAMRoleForAdminPermission}}
 
 	for i := 0; i < len(permissions); i++ {

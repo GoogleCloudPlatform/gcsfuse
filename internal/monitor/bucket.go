@@ -240,6 +240,6 @@ func (mrc *monitoringReadCloser) Close() (err error) {
 
 func (mrc *monitoringReadCloser) ReadHandle() (rh storagev2.ReadHandle) {
 	rh = mrc.wrapped.ReadHandle()
-	recordReader(mrc.ctx, mrc.metricHandle, "ReadHandle")
+	recordReader(mrc.ctx, mrc.metricHandle, "readHandle")
 	return
 }

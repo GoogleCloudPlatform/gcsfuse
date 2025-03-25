@@ -110,7 +110,7 @@ func (t *JobTestifyTest) Test_downloadObjectToFile_WithReadHandle() {
 	readObjectReq2 := gcs.ReadObjectRequest{Name: objectName, Generation: 0, Range: &gcs.ByteRange{Start: 5 * util.MiB, Limit: 10 * util.MiB}, ReadCompressed: false, ReadHandle: []byte("opaque-handle")}
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, &readObjectReq2).Return(rd, nil)
 
-	// Start download
+	// start download
 	err = t.job.downloadObjectToFile(file)
 
 	t.mockBucket.AssertExpectations(t.T())

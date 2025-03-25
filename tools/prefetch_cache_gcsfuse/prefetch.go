@@ -106,7 +106,7 @@ func prefetchCache(cacheDir, bucketName, prefix string) (err error) {
 				break
 			}
 			if err != nil {
-				log.Printf("Bucket(%q).Objects: %v", bucketName, err)
+				log.Printf("bucket(%q).Objects: %v", bucketName, err)
 				break
 			}
 			filesAttempted++

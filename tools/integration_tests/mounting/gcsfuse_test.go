@@ -448,7 +448,7 @@ func (t *GcsfuseTest) OnlyDir_WithImplicitDir() {
 }
 
 func (t *GcsfuseTest) RelativeMountPoint() {
-	// Start gcsfuse with a relative mount point.
+	// start gcsfuse with a relative mount point.
 	cmd := t.gcsfuseCommand([]string{
 		canned.FakeBucketName,
 		path.Base(t.dir),
@@ -470,7 +470,7 @@ func (t *GcsfuseTest) RelativeMountPoint() {
 }
 
 func (t *GcsfuseTest) ForegroundMode() {
-	// Start gcsfuse, writing stderr to a pipe.
+	// start gcsfuse, writing stderr to a pipe.
 	// Here --log-file=/proc/self/fd/2 represents stderr
 	cmd := t.gcsfuseCommand([]string{
 		"--foreground",

@@ -29,16 +29,23 @@ import (
 const TimeoutForMultiRangeRead = time.Hour
 
 type MultiRangeReader struct {
-	End int64
+	end int64
 	// mrdWrapper points to the wrapper object within inode.
-	MrdWrapper *MultiRangeDownloaderWrapper
+	mrdWrapper *MultiRangeDownloaderWrapper
 
 	// boolean variable to determine if MRD is being used or not.
 	isMRDInUse bool
 
-	MetricHandle common.MetricHandle
+	metricHandle common.MetricHandle
 
-	TotalReadBytes uint64
+	totalReadBytes uint64
+}
+
+func NewMultiRangeReader(metricHandle common.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper) MultiRangeReader {
+	return MultiRangeReader{
+		metricHandle: metricHandle,
+		mrdWrapper:   mrdWrapper,
+	}
 }
 
 func (mrd *MultiRangeReader) Object() *gcs.MinObject {
@@ -49,17 +56,17 @@ func (mrd *MultiRangeReader) CheckInvariants() {
 }
 
 func (mrd *MultiRangeReader) readFromMultiRangeReader(ctx context.Context, p []byte, offset, end int64, timeout time.Duration) (bytesRead int, err error) {
-	if mrd.MrdWrapper == nil {
+	if mrd.mrdWrapper == nil {
 		return 0, fmt.Errorf("readFromMultiRangeReader: Invalid MultiRangeDownloaderWrapper")
 	}
 
 	if !mrd.isMRDInUse {
 		mrd.isMRDInUse = true
-		mrd.MrdWrapper.IncrementRefCount()
+		mrd.mrdWrapper.IncrementRefCount()
 	}
 
-	bytesRead, err = mrd.MrdWrapper.Read(ctx, p, offset, end, timeout, mrd.MetricHandle)
-	mrd.TotalReadBytes += uint64(bytesRead)
+	bytesRead, err = mrd.mrdWrapper.Read(ctx, p, offset, end, timeout, mrd.metricHandle)
+	mrd.totalReadBytes += uint64(bytesRead)
 	return
 }
 
@@ -71,17 +78,21 @@ func (mrd *MultiRangeReader) ReadAt(ctx context.Context, p []byte, offset int64)
 	}
 	var err error
 
-	o.Size, err = mrd.readFromMultiRangeReader(ctx, p, offset, mrd.End, TimeoutForMultiRangeRead)
+	o.Size, err = mrd.readFromMultiRangeReader(ctx, p, offset, mrd.end, TimeoutForMultiRangeRead)
 
 	return o, err
 }
 
 func (mrd *MultiRangeReader) Destroy() {
 	if mrd.isMRDInUse {
-		err := mrd.MrdWrapper.DecrementRefCount()
+		err := mrd.mrdWrapper.DecrementRefCount()
 		if err != nil {
 			logger.Errorf("randomReader::Destroy:%v", err)
 		}
 		mrd.isMRDInUse = false
 	}
+}
+
+func (mrr *MultiRangeReader) SetEnd(end int64) {
+	mrr.end = end
 }

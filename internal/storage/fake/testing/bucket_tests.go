@@ -4735,7 +4735,7 @@ type cancellationTest struct {
 	bucketTest
 }
 
-// A Reader that slowly returns junk, forever. A channel is closed after 1 MiB
+// A reader that slowly returns junk, forever. A channel is closed after 1 MiB
 // has been read.
 type bottomlessReader struct {
 	OneMegRead chan struct{}

@@ -94,14 +94,14 @@ func ApplyPermissionToServiceAccount(ctx context.Context, storageClient *storage
 	bucketHandle := storageClient.Bucket(bucket)
 	policy, err := bucketHandle.IAM().Policy(ctx)
 	if err != nil {
-		setup.LogAndExit(fmt.Sprintf("Error fetching: Bucket(%q).IAM().Policy: %v", bucket, err))
+		setup.LogAndExit(fmt.Sprintf("Error fetching: bucket(%q).IAM().Policy: %v", bucket, err))
 	}
 	identity := fmt.Sprintf("serviceAccount:%s", serviceAccount)
 	role := iam.RoleName(fmt.Sprintf("roles/storage.%s", permission))
 
 	policy.Add(identity, role)
 	if err := bucketHandle.IAM().SetPolicy(ctx, policy); err != nil {
-		setup.LogAndExit(fmt.Sprintf("Error applying permission to service account: Bucket(%q).IAM().SetPolicy: %v", bucket, err))
+		setup.LogAndExit(fmt.Sprintf("Error applying permission to service account: bucket(%q).IAM().SetPolicy: %v", bucket, err))
 	}
 	// Waiting for 2 minutes as it usually takes within 2 minutes for policy
 	// changes to propagate: https://cloud.google.com/iam/docs/access-change-propagation
@@ -113,14 +113,14 @@ func RevokePermission(ctx context.Context, storageClient *storage.Client, servic
 	bucketHandle := storageClient.Bucket(bucket)
 	policy, err := bucketHandle.IAM().Policy(ctx)
 	if err != nil {
-		setup.LogAndExit(fmt.Sprintf("Error fetching: Bucket(%q).IAM().Policy: %v", bucket, err))
+		setup.LogAndExit(fmt.Sprintf("Error fetching: bucket(%q).IAM().Policy: %v", bucket, err))
 	}
 	identity := fmt.Sprintf("serviceAccount:%s", serviceAccount)
 	role := iam.RoleName(fmt.Sprintf("roles/storage.%s", permission))
 
 	policy.Remove(identity, role)
 	if err := bucketHandle.IAM().SetPolicy(ctx, policy); err != nil {
-		setup.LogAndExit(fmt.Sprintf("Error applying permission to service account: Bucket(%q).IAM().SetPolicy: %v", bucket, err))
+		setup.LogAndExit(fmt.Sprintf("Error applying permission to service account: bucket(%q).IAM().SetPolicy: %v", bucket, err))
 	}
 }
 
