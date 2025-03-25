@@ -18,12 +18,21 @@ set -x
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
-# Extract the metadata parameters passed
-# First , we need to extract the GCE VM Zone.
+# Extract the metadata parameters passed, for which we need the zone of the GCE VM 
+# on which the tests are supposed to run.
 ZONE=$(curl -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/zone)
+# The format for the above extracted zone is projects/{project-id}/zones/{zone}, thus, from this
+# need extracted zone name.
 ZONE_NAME=$(basename $ZONE)
-RUN_E2E_TESTS_FOR_ZB_ONLY=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.run-on-zb-only)')
-echo "Running tests for zonal buckets only? : $RUN_E2E_TESTS_FOR_ZB_ONLY"
+# This parameter is passed as the GCE VM metadata at the time of creation.(Logic is handled in louhi stage script)
+RUN_ON_ZB_ONLY=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.run-on-zb-only)')
+
+# Logging the tests being run on the active GCE VM
+if [[ "$RUN_ON_ZB_ONLY" == "true" ]]; then
+  echo "Running integration tests for Zonal bucket only..."
+else
+  echo "Running integration tests for Flat buckets..."
+fi
 
 #details.txt file contains the release version and commit hash of the current release.
 gsutil cp  gs://gcsfuse-release-packages/version-detail/details.txt .
@@ -47,20 +56,28 @@ set -e
 # Print commands and their arguments as they are executed.
 set -x
 
+# Export the RUN_E2E_TESTS_FOR_ZB_ONLY variable so that it is available in the environment of the 'starterscriptuser' user.
+# Since we are running the subsequent script as 'starterscriptuser' using sudo, the environment of 'starterscriptuser' 
+# would not automatically have access to the environment variables set by the original user (i.e. $RUN_E2E_TESTS_FOR_ZB_ONLY).
+# By exporting this variable, we ensure that the value of RUN_E2E_TESTS_FOR_ZB_ONLY is passed into the 'starterscriptuser' script 
+# and can be used for conditional logic or decisions within that script.
+export RUN_E2E_TESTS_FOR_ZB_ONLY='$RUN_ON_ZB_ONLY'
+
 #Copy details.txt to starterscriptuser home directory and create logs.txt
 cd ~/
 cp /details.txt .
 touch logs.txt
 touch logs-hns.txt
 touch logs-zonal.txt
+GENERIC_LOG_FILE='logs.txt'
 
 if [[ "$RUN_E2E_TESTS_FOR_ZB_ONLY" == "true" ]]; then
-  echo User: $USER &>> ~/logs-zonal.txt
-  echo Current Working Directory: $(pwd)  &>> ~/logs-zonal.txt
-else 
-  echo User: $USER &>> ~/logs.txt
-  echo Current Working Directory: $(pwd)  &>> ~/logs.txt
+  GENERIC_LOG_FILE='logs-zonal.txt'
 fi
+  
+echo User: $USER &>> ~/${GENERIC_LOG_FILE}
+echo Current Working Directory: $(pwd)  &>> ~/${GENERIC_LOG_FILE}
+
 
 # Based on the os type in detail.txt, run the following commands for setup
 
@@ -77,7 +94,7 @@ then
 
     # download and install gcsfuse deb package
     gsutil cp gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/gcsfuse_$(sed -n 1p details.txt)_${architecture}.deb .
-    sudo dpkg -i gcsfuse_$(sed -n 1p details.txt)_${architecture}.deb |& tee -a ~/logs.txt
+    sudo dpkg -i gcsfuse_$(sed -n 1p details.txt)_${architecture}.deb |& tee -a ~/${GENERIC_LOG_FILE}
 
     # install wget
     sudo apt install -y wget
@@ -129,12 +146,12 @@ wget -O go_tar.tar.gz https://go.dev/dl/go1.24.0.linux-${architecture}.tar.gz
 sudo tar -C /usr/local -xzf go_tar.tar.gz
 export PATH=${PATH}:/usr/local/go/bin
 #Write gcsfuse and go version to log file
-gcsfuse --version |& tee -a ~/logs.txt
-go version |& tee -a ~/logs.txt
+gcsfuse --version |& tee -a ~/${GENERIC_LOG_FILE}
+go version |& tee -a ~/${GENERIC_LOG_FILE}
 
 # Clone and checkout gcsfuse repo
 export PATH=${PATH}:/usr/local/go/bin
-git clone https://github.com/googlecloudplatform/gcsfuse |& tee -a ~/logs.txt
+git clone https://github.com/googlecloudplatform/gcsfuse |& tee -a ~/${GENERIC_LOG_FILE}
 cd gcsfuse
 
 # Installation of crcmod is working through pip only on rhel and centos.
@@ -149,7 +166,7 @@ then
     pip3 install --require-hashes -r tools/cd_scripts/requirements.txt --user
 fi
 
-git checkout $(sed -n 2p ~/details.txt) |& tee -a ~/logs.txt
+git checkout $(sed -n 2p ~/details.txt) |& tee -a ~/${GENERIC_LOG_FILE}
 
 #run tests with testbucket flag
 set +e
@@ -188,33 +205,33 @@ TEST_DIR_NON_PARALLEL=(
 
 # For Zonal buckets : Test directory arrays
 TEST_DIR_PARALLEL_ZONAL=(
-  #"local_file"
-  "log_rotation"
-  #"mounting"
-  #"read_cache"
-  #"gzip"
-  #"write_large_files"
-  #"rename_dir_limit"
-  #"read_large_files"
-  #"explicit_dir"
-  #"implicit_dir"
-  #"interrupt"
-  #"operations"
-  #"log_content"
-  #"kernel_list_cache"
-  #"concurrent_operations"
-  "mount_timeout"
-  #"stale_handle"
-  #"negative_stat_cache"
-  #"streaming_writes"
-  #"list_large_dir"
+  gzip
+  interrupt
+  kernel_list_cache
+  local_file
+  log_rotation
+  mounting
+  mount_timeout
+  negative_stat_cache
+  read_cache
+  read_large_files
+  rename_dir_limit
+  stale_handle
+  write_large_files
+  #concurrent_operations
+  #explicit_dir
+  #implicit_dir
+  #list_large_dir
+  #log_content
+  #operations
+  #streaming_writes
 )
 
 #For Zonal Buckets :  These tests never become parallel as they are changing bucket permissions.
 TEST_DIR_NON_PARALLEL_ZONAL=(
-  #"readonly"
-  #"managed_folders"
-  #"readonly_creds"
+  "managed_folders"
+  "readonly"
+  "readonly_creds"
 )
 
 # Create a temporary file to store the log file name.
@@ -250,23 +267,16 @@ function run_parallel_tests() {
   local BUCKET_NAME=$2
   local zonal=$3
   local pids=()
-  local benchmark_flags=""
 
   for test_dir_p in "${test_array[@]}"
   do
-    # Unlike regular tests,benchmark tests are not executed by default when using go test .
-    # The -bench flag yells go test to run the benchmark tests and report their results by
-    # enabling the benchmarking framework.
-    if [ $test_dir_p == "benchmarking" ]; then
-        benchmark_flags="-bench=."
-    fi
     test_path_parallel="./tools/integration_tests/$test_dir_p"
     # To make it clear whether tests are running on a flat or HNS bucket, We kept the log file naming
     # convention to include the bucket name as a suffix (e.g., package_name_bucket_name).
     local log_file="/tmp/${test_dir_p}_${BUCKET_NAME}.log"
     echo $log_file >> $TEST_LOGS_FILE
     # Executing integration tests
-    GODEBUG=asyncpreemptoff=1 go test $test_path_parallel $benchmark_flags -p 1 --zonal=${zonal} --integrationTest -v --testbucket=$BUCKET_NAME --testInstalledPackage=true -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1 &
+    GODEBUG=asyncpreemptoff=1 go test $test_path_parallel -p 1 --zonal=${zonal} --integrationTest -v --testbucket=$BUCKET_NAME --testInstalledPackage=true -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1 &
     pid=$!  # Store the PID of the background process
     pids+=("$pid")  # Optionally add the PID to an array for later
   done
@@ -458,5 +468,5 @@ else
 
   gsutil cp ~/logs-emulator.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
 fi
-  
-'
+
+' 
