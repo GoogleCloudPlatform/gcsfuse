@@ -52,7 +52,7 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 		return nil, err
 	}
 	defer func() {
-		// reader is closed after the data has been read and the error from closure
+		// Reader is closed after the data has been read and the error from closure
 		// is not reported as failure of async job, similar to how it's done for
 		// foreground reads: https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/internal/gcsx/random_reader.go#L298.
 		closeErr := newReader.Close()
@@ -222,7 +222,7 @@ func (job *Job) parallelDownloadObjectToFile(cacheFile *os.File) (err error) {
 	downloadChunkSize := job.fileCacheConfig.DownloadChunkSizeMb * cacheutil.MiB
 	downloadErrGroup, downloadErrGroupCtx := errgroup.WithContext(job.cancelCtx)
 
-	// start the goroutines as per the config and the availability.
+	// Start the goroutines as per the config and the availability.
 	for numGoRoutines = 0; (numGoRoutines < job.fileCacheConfig.ParallelDownloadsPerFile) && (start < int64(job.object.Size)); numGoRoutines++ {
 		// Respect max download parallelism only beyond first go routine.
 		if numGoRoutines > 0 && !job.maxParallelismSem.TryAcquire(1) {

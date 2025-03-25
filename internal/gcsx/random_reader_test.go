@@ -369,7 +369,7 @@ func (t *RandomReaderTest) PropagatesCancellation() {
 	cancelCalled := make(chan struct{})
 	t.rr.wrapped.cancel = func() { close(cancelCalled) }
 
-	// start a read in the background using a context that we control. It should
+	// Start a read in the background using a context that we control. It should
 	// not yet return.
 	readReturned := make(chan struct{})
 	ctx, cancel := context.WithCancel(context.Background())

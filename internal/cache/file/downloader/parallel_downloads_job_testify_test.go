@@ -90,7 +90,7 @@ func (t *ParallelDownloaderJobTestifyTest) Test_ParallelDownloadObjectToFile_New
 	readObjectReq4 := gcs.ReadObjectRequest{Name: objectName, Range: &gcs.ByteRange{Start: 9 * util.MiB, Limit: 10 * util.MiB}, ReadHandle: handle}
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, &readObjectReq4).Return(rd4, nil).Times(1)
 
-	// start download
+	// Start download
 	err = t.job.parallelDownloadObjectToFile(file)
 
 	t.mockBucket.AssertExpectations(t.T())

@@ -63,7 +63,7 @@ func registerTerminatingSignalHandler(mountPoint string, c *cfg.Config) {
 		signal.Notify(signalChan, unix.SIGTERM)
 	}
 
-	// start a goroutine that will unmount when the signal is received.
+	// Start a goroutine that will unmount when the signal is received.
 	go func() {
 		for {
 			sig := <-signalChan
@@ -266,7 +266,7 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 		}
 	}
 
-	logger.Infof("start gcsfuse/%s for app %q using mount point: %s\n", common.GetVersion(), newConfig.AppName, mountPoint)
+	logger.Infof("Start gcsfuse/%s for app %q using mount point: %s\n", common.GetVersion(), newConfig.AppName, mountPoint)
 
 	// Log mount-config and the CLI flags in the log-file.
 	// If there is no log-file, then log these to stdout.

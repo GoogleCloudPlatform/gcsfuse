@@ -937,7 +937,7 @@ func (cht *cacheHandleTest) Test_RandomRead_CacheForRangeReadFalse_And_ParallelD
 		common.NewNoopMetrics(),
 	)
 
-	// Since, it's a random read, download job will not start.
+	// Since, it's a random read, download job will not Start.
 	n, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
 
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()

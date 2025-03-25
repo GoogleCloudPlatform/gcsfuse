@@ -432,7 +432,7 @@ func (rr *randomReader) Destroy() {
 func (rr *randomReader) readFull(
 	ctx context.Context,
 	p []byte) (n int, err error) {
-	// start a goroutine that will cancel the read operation we block on below if
+	// Start a goroutine that will cancel the read operation we block on below if
 	// the calling context is cancelled, but only if this method has not already
 	// returned (to avoid souring the reader for the next read if this one is
 	// successful, since the calling context will eventually be cancelled).

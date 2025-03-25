@@ -123,7 +123,7 @@ func (dt *parallelDownloaderTest) Test_parallelDownloadObjectToFile() {
 		_ = file.Close()
 	}()
 
-	// start download
+	// Start download
 	err = dt.job.parallelDownloadObjectToFile(file)
 
 	AssertEq(nil, err)

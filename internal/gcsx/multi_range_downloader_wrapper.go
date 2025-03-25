@@ -1,7 +1,7 @@
 // Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
+// you may not use this file exceprt in compliance with the License.
 // You may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/LICENSE-2.0
@@ -60,7 +60,7 @@ type MultiRangeDownloaderWrapper struct {
 	// Holds the object implementing MultiRangeDownloader interface.
 	Wrapped gcs.MultiRangeDownloader
 
-	// bucket and object details for MultiRangeDownloader.
+	// Bucket and object details for MultiRangeDownloader.
 	// Object should not be nil.
 	object *gcs.MinObject
 	bucket gcs.Bucket
@@ -127,7 +127,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) DecrementRefCount() (err error) {
 	if mrdWrapper.refCount == 0 && mrdWrapper.Wrapped != nil {
 		mrdWrapper.Wrapped.Close()
 		mrdWrapper.Wrapped = nil
-		// TODO (b/391508479): start using cleanup function when MRD recreation is handled
+		// TODO (b/391508479): Start using cleanup function when MRD recreation is handled
 		// mrdWrapper.cleanupMultiRangeDownloader()
 	}
 	return

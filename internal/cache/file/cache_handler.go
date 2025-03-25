@@ -60,7 +60,7 @@ func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager
 		cacheDir:      cacheDir,
 		filePerm:      filePerm,
 		dirPerm:       dirPerm,
-		mu:            locker.New("FileCacheHandler", func() {}),
+		mu:            locker.New("fileCacheHandler", func() {}),
 	}
 }
 

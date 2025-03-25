@@ -382,6 +382,6 @@ func (bm *fakeBucketManager) SetUpBucket(
 		)
 		return
 	}
-	err = fmt.Errorf("bucket %q does not exist", name)
+	err = fmt.Errorf("Bucket %q does not exist", name)
 	return
 }

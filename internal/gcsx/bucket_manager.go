@@ -182,7 +182,7 @@ func (bm *bucketManager) SetUpBucket(
 	// Enable gcs logs.
 	b = storage.NewDebugBucket(b)
 
-	// limit to a requested prefix of the bucket, if any.
+	// Limit to a requested prefix of the bucket, if any.
 	if bm.config.OnlyDir != "" {
 		b, err = NewPrefixBucket(path.Clean(bm.config.OnlyDir)+"/", b)
 		if err != nil {
