@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/go-viper/mapstructure/v2"
@@ -83,14 +82,6 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 		},
 		); cfgErr != nil {
 			return
-		}
-		if configObj.MachineType != "" {
-			rootCmd.PersistentFlags().VisitAll(func(f *pflag.Flag) {
-				if f.Name == "implicit-dirs" {
-					p := true
-					f.Value = newBoolValue(p, &p)
-				}
-			})
 		}
 		if cfgErr = cfg.ValidateConfig(v, &configObj); cfgErr != nil {
 			return
@@ -164,30 +155,4 @@ var ExecuteMountCmd = func() {
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatalf("Error occurred during command execution: %v", err)
 	}
-}
-
-// -- bool Value
-type boolValue bool
-
-func newBoolValue(val bool, p *bool) *boolValue {
-	*p = val
-	return (*boolValue)(p)
-}
-
-func (b *boolValue) Set(s string) error {
-	v, err := strconv.ParseBool(s)
-	*b = boolValue(v)
-	return err
-}
-
-func (b *boolValue) Type() string {
-	return "bool"
-}
-
-func (b *boolValue) String() string { return strconv.FormatBool(bool(*b)) }
-
-func (b *boolValue) IsBoolFlag() bool { return true }
-
-func boolConv(sval string) (interface{}, error) {
-	return strconv.ParseBool(sval)
 }
