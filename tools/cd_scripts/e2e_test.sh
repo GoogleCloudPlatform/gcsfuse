@@ -21,21 +21,23 @@ set -e
 # Extract the metadata parameters passed, for which we need the zone of the GCE VM 
 # on which the tests are supposed to run.
 ZONE=$(curl -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/zone)
+echo "Got ZONE=\"${ZONE}\" from metadata server."
 # The format for the above extracted zone is projects/{project-id}/zones/{zone}, thus, from this
 # need extracted zone name.
 ZONE_NAME=$(basename $ZONE)
 # This parameter is passed as the GCE VM metadata at the time of creation.(Logic is handled in louhi stage script)
 RUN_ON_ZB_ONLY=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.run-on-zb-only)')
+echo "RUN_ON_ZB_ONLY flag set to : \"${RUN_ON_ZB_ONLY}\""
 
 # Logging the tests being run on the active GCE VM
-if [[ "$RUN_ON_ZB_ONLY" == "true" ]]; then
+if [[ "$RUN_ON_ZB_ONLY" == "false" ]]; then
   echo "Running integration tests for Zonal bucket only..."
 else
-  echo "Running integration tests for Flat buckets..."
+  echo "Running integration tests for non-zonal buckets only..."
 fi
 
 #details.txt file contains the release version and commit hash of the current release.
-gsutil cp  gs://gcsfuse-release-packages/version-detail/details.txt .
+gcloud storage cp  gs://gcsfuse-release-packages/version-detail/details.txt .
 # Writing VM instance name to details.txt (Format: release-test-<os-name>)
 curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google" >> details.txt
 
@@ -69,14 +71,14 @@ cp /details.txt .
 touch logs.txt
 touch logs-hns.txt
 touch logs-zonal.txt
-GENERIC_LOG_FILE='logs.txt'
+GENERIC_LOG_FILE='~/logs.txt'
 
 if [[ "$RUN_E2E_TESTS_FOR_ZB_ONLY" == "true" ]]; then
-  GENERIC_LOG_FILE='logs-zonal.txt'
+  GENERIC_LOG_FILE='~/logs-zonal.txt'
 fi
   
-echo User: $USER &>> ~/${GENERIC_LOG_FILE}
-echo Current Working Directory: $(pwd)  &>> ~/${GENERIC_LOG_FILE}
+echo "User: $USER" &>> ${GENERIC_LOG_FILE}
+echo "Current Working Directory: $(pwd)"  &>> ${GENERIC_LOG_FILE}
 
 
 # Based on the os type in detail.txt, run the following commands for setup
@@ -93,8 +95,8 @@ then
     sudo apt install -y fuse
 
     # download and install gcsfuse deb package
-    gsutil cp gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/gcsfuse_$(sed -n 1p details.txt)_${architecture}.deb .
-    sudo dpkg -i gcsfuse_$(sed -n 1p details.txt)_${architecture}.deb |& tee -a ~/${GENERIC_LOG_FILE}
+    gcloud storage cp gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/gcsfuse_$(sed -n 1p details.txt)_${architecture}.deb .
+    sudo dpkg -i gcsfuse_$(sed -n 1p details.txt)_${architecture}.deb |& tee -a ${GENERIC_LOG_FILE}
 
     # install wget
     sudo apt install -y wget
@@ -128,7 +130,7 @@ else
     sudo yum -y install fuse
 
     #download and install gcsfuse rpm package
-    gsutil cp gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/gcsfuse-$(sed -n 1p details.txt)-1.${uname}.rpm .
+    gcloud storage cp gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/gcsfuse-$(sed -n 1p details.txt)-1.${uname}.rpm .
     sudo yum -y localinstall gcsfuse-$(sed -n 1p details.txt)-1.${uname}.rpm
 
     #install wget
@@ -146,12 +148,12 @@ wget -O go_tar.tar.gz https://go.dev/dl/go1.24.0.linux-${architecture}.tar.gz
 sudo tar -C /usr/local -xzf go_tar.tar.gz
 export PATH=${PATH}:/usr/local/go/bin
 #Write gcsfuse and go version to log file
-gcsfuse --version |& tee -a ~/${GENERIC_LOG_FILE}
-go version |& tee -a ~/${GENERIC_LOG_FILE}
+gcsfuse --version |& tee -a ${GENERIC_LOG_FILE}
+go version |& tee -a ${GENERIC_LOG_FILE}
 
 # Clone and checkout gcsfuse repo
 export PATH=${PATH}:/usr/local/go/bin
-git clone https://github.com/googlecloudplatform/gcsfuse |& tee -a ~/${GENERIC_LOG_FILE}
+git clone https://github.com/googlecloudplatform/gcsfuse |& tee -a ${GENERIC_LOG_FILE}
 cd gcsfuse
 
 # Installation of crcmod is working through pip only on rhel and centos.
@@ -166,7 +168,7 @@ then
     pip3 install --require-hashes -r tools/cd_scripts/requirements.txt --user
 fi
 
-git checkout $(sed -n 2p ~/details.txt) |& tee -a ~/${GENERIC_LOG_FILE}
+git checkout $(sed -n 2p ~/details.txt) |& tee -a ${GENERIC_LOG_FILE}
 
 #run tests with testbucket flag
 set +e
@@ -312,11 +314,9 @@ function run_e2e_tests_for_flat_bucket() {
  wait $non_parallel_tests_pid
  non_parallel_tests_exit_code=$?
 
- if [ $non_parallel_tests_exit_code != 0 ] || [ $parallel_tests_exit_code != 0 ];
- then
+ if [ $non_parallel_tests_exit_code != 0 ] || [ $parallel_tests_exit_code != 0 ]; then
    return 1
  fi
- return 0
 }
 
 function run_e2e_tests_for_hns_bucket(){
@@ -338,11 +338,9 @@ function run_e2e_tests_for_hns_bucket(){
    wait $non_parallel_tests_hns_group_pid
    non_parallel_tests_hns_group_exit_code=$?
 
-   if [ $parallel_tests_hns_group_exit_code != 0 ] || [ $non_parallel_tests_hns_group_exit_code != 0 ];
-   then
+   if [ $parallel_tests_hns_group_exit_code != 0 ] || [ $non_parallel_tests_hns_group_exit_code != 0 ]; then
     return 1
    fi
-   return 0
 }
 
 function run_e2e_tests_for_zonal_bucket(){
@@ -364,11 +362,9 @@ function run_e2e_tests_for_zonal_bucket(){
   wait $non_parallel_tests_zonal_group_pid
   non_parallel_tests_zonal_group_exit_code=$?
 
-  if [ $parallel_tests_zonal_group_exit_code != 0 ] || [ $non_parallel_tests_zonal_group_exit_code != 0 ];
-  then
+  if [ $parallel_tests_zonal_group_exit_code != 0 ] || [ $non_parallel_tests_zonal_group_exit_code != 0 ]; then
   return 1
   fi
-  return 0
 }
 
 
@@ -399,7 +395,7 @@ function gather_test_logs() {
 }
 
 if [[ "$RUN_E2E_TESTS_FOR_ZB_ONLY" == "true" ]]; then
-  echo "Running integration tests for Zonal bucket only..."
+  echo "Started integration tests for Zonal bucket ..."
   run_e2e_tests_for_zonal_bucket &
   e2e_tests_zonal_bucket_pid=$!
 
@@ -413,19 +409,20 @@ if [[ "$RUN_E2E_TESTS_FOR_ZB_ONLY" == "true" ]]; then
       echo "Test failures detected in Zonal bucket." &>> ~/logs-zonal.txt
   else
       touch success-zonal.txt
-      gsutil cp success-zonal.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
+      gcloud storage cp success-zonal.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
   fi
 
-  gsutil cp ~/logs-zonal.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
+  gcloud storage cp ~/logs-zonal.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
 else
-  echo "Running integration tests for HNS bucket..."
+  echo "Started integration tests for HNS bucket..."
   run_e2e_tests_for_hns_bucket &
   e2e_tests_hns_bucket_pid=$!
 
-  echo "Running integration tests for FLAT bucket..."
+  echo "Started integration tests for FLAT bucket..."
   run_e2e_tests_for_flat_bucket &
   e2e_tests_flat_bucket_pid=$!
 
+  echo "Started emulator tests..."
   run_e2e_tests_for_emulator &
   e2e_tests_emulator_pid=$!
 
@@ -445,28 +442,28 @@ else
       echo "Test failures detected in FLAT bucket." &>> ~/logs.txt
   else
       touch success.txt
-      gsutil cp success.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
+      gcloud storage cp success.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
   fi
-  gsutil cp ~/logs.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
+  gcloud storage cp ~/logs.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
 
   if [ $e2e_tests_hns_bucket_status != 0 ];
   then
       echo "Test failures detected in HNS bucket." &>> ~/logs-hns.txt
   else
       touch success-hns.txt
-      gsutil cp success-hns.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
+      gcloud storage cp success-hns.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
   fi
-  gsutil cp ~/logs-hns.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
+  gcloud storage cp ~/logs-hns.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
 
   if [ $e2e_tests_emulator_status != 0 ];
   then
       echo "Test failures detected in emulator based tests." &>> ~/logs-emulator.txt
   else
       touch success-emulator.txt
-      gsutil cp success-emulator.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
+      gcloud storage cp success-emulator.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
   fi
 
-  gsutil cp ~/logs-emulator.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
+  gcloud storage cp ~/logs-emulator.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
 fi
 
 ' 
