@@ -15,6 +15,7 @@
 package bufferedwrites
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -22,6 +23,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
@@ -44,7 +46,12 @@ func TestBufferedWriteTestSuite(t *testing.T) {
 }
 
 func (testSuite *BufferedWriteTest) SetupTest() {
-	bucket := fake.NewFakeBucket(timeutil.RealClock(), "FakeBucketName", gcs.BucketType{})
+	bucketType := gcs.BucketType{}
+	testSuite.setupTestWithBucketType(bucketType)
+}
+
+func (testSuite *BufferedWriteTest) setupTestWithBucketType(bucketType gcs.BucketType) {
+	bucket := fake.NewFakeBucket(timeutil.RealClock(), "FakeBucketName", bucketType)
 	bwh, err := NewBWHandler(&CreateBWHandlerRequest{
 		Object:                   nil,
 		ObjectName:               "testObject",
@@ -287,6 +294,68 @@ func (testSuite *BufferedWriteTest) TestSync5InProgressBlocks() {
 	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
 	assert.Equal(testSuite.T(), 0, len(bwhImpl.uploadHandler.uploadCh))
 	assert.Equal(testSuite.T(), 0, len(bwhImpl.blockPool.FreeBlocksChannel()))
+}
+
+func (testSuite *BufferedWriteTest) TestSyncPartialBlockTableDriven() {
+	testCases := []struct {
+		name       string
+		bucketType gcs.BucketType
+		numBlocks  float32
+	}{
+		{
+			name:       "multi_regional_bucket_2.5_blocks",
+			bucketType: gcs.BucketType{},
+			numBlocks:  2.5,
+		},
+		{
+			name:       "multi_regional_bucket_.5_blocks",
+			bucketType: gcs.BucketType{},
+			numBlocks:  .5,
+		},
+		{
+			name:       "zonal_bucket_2.5_blocks",
+			bucketType: gcs.BucketType{Zonal: true},
+			numBlocks:  2.5,
+		},
+		{
+			name:       "zonal_bucket_.5_blocks",
+			bucketType: gcs.BucketType{Zonal: true},
+			numBlocks:  .5,
+		},
+	}
+
+	for _, tc := range testCases {
+		testSuite.T().Run(tc.name, func(t *testing.T) {
+			testSuite.setupTestWithBucketType(tc.bucketType)
+			buffer, err := operations.GenerateRandomData(int64(blockSize * tc.numBlocks))
+			assert.NoError(testSuite.T(), err)
+			err = testSuite.bwh.Write(buffer, 0)
+			require.Nil(testSuite.T(), err)
+
+			// Wait for 3 blocks to upload successfully.
+			err = testSuite.bwh.Sync()
+
+			assert.NoError(t, err)
+			assert.NoError(testSuite.T(), err)
+			bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
+			// Current block should also be uploaded.
+			assert.Nil(testSuite.T(), bwhImpl.current)
+			assert.Equal(testSuite.T(), 0, len(bwhImpl.uploadHandler.uploadCh))
+			assert.Equal(testSuite.T(), 0, len(bwhImpl.blockPool.FreeBlocksChannel()))
+			// Read the object from back door.
+			content, err := storageutil.ReadObject(context.Background(), bwhImpl.uploadHandler.bucket, bwhImpl.uploadHandler.objectName)
+			if tc.bucketType.Zonal {
+				require.NoError(testSuite.T(), err)
+				assert.Equal(testSuite.T(), buffer, content)
+			} else {
+				// Since the object is not finalized, the object will not be available
+				// on GCS for non-zonal buckets.
+				require.Error(t, err)
+				var notFoundErr *gcs.NotFoundError
+				assert.ErrorAs(t, err, &notFoundErr)
+			}
+		})
+	}
 }
 
 func (testSuite *BufferedWriteTest) TestSyncBlocksWithError() {
