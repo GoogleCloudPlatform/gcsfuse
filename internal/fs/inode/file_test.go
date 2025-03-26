@@ -178,7 +178,7 @@ func (t *FileTest) TestSourceGenerationIsAuthoritativeReturnsTrue() {
 }
 
 func (t *FileTest) TestSourceGenerationIsAuthoritativeReturnsFalseAfterWrite() {
-	t.in.Write(t.ctx, []byte("taco"), 0)
+	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("taco"), 0))
 
 	assert.False(t.T(), t.in.SourceGenerationIsAuthoritative())
 }

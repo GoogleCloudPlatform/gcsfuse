@@ -160,13 +160,13 @@ func (t *FileStreamingWritesTest) TestSourceGenerationIsAuthoritativeReturnsFals
 }
 
 func (t *FileStreamingWritesTest) TestSourceGenerationIsAuthoritativeReturnsFalseAfterWriteForNonZonalBuckets() {
-	t.in.Write(t.ctx, []byte("taco"), 0)
+	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("taco"), 0))
 
 	assert.False(t.T(), t.in.SourceGenerationIsAuthoritative())
 }
 
 func (t *FileStreamingWritesTest) TestSyncUsingBufferedWritesForNonZonalBuckets() {
-	t.in.Write(t.ctx, []byte("taco"), 0)
+	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("taco"), 0))
 
 	assert.NoError(t.T(), t.in.SyncUsingBufferedWriteHandler())
 	operations.ValidateObjectNotFoundErr(t.ctx, t.T(), t.bucket, t.in.Name().GcsObjectName())
@@ -177,13 +177,13 @@ func (t *FileStreamingWritesZonalBucketTest) TestSourceGenerationIsAuthoritative
 }
 
 func (t *FileStreamingWritesZonalBucketTest) TestSourceGenerationIsAuthoritativeReturnsTrueAfterWriteForZonalBuckets() {
-	t.in.Write(t.ctx, []byte("taco"), 0)
+	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("taco"), 0))
 
 	assert.False(t.T(), t.in.SourceGenerationIsAuthoritative())
 }
 
 func (t *FileStreamingWritesZonalBucketTest) TestSyncUsingBufferedWritesForZonalBuckets() {
-	t.in.Write(t.ctx, []byte("taco"), 0)
+	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("pizza"), 0))
 
 	assert.NoError(t.T(), t.in.SyncUsingBufferedWriteHandler())
 	_, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
