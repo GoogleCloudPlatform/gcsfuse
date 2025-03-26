@@ -183,10 +183,17 @@ func (t *FileTest) TestSourceGenerationIsAuthoritativeReturnsFalseAfterWrite() {
 	assert.False(t.T(), t.in.SourceGenerationIsAuthoritative())
 }
 
-func (t *FileTest) TestSyncUsingBufferedWriteHandlerReturnsNilForNonStreamingWrites() {
-	t.in.Write(t.ctx, []byte("taco"), 0)
+func (t *FileTest) TestSyncUsingBufferedWriteHandlerReturnsNilAndNoOpForNonStreamingWrites() {
+	contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
+	assert.Equal(t.T(), t.initialContents, string(contents))
+	assert.Nil(t.T(), err)
 
+	t.in.Write(t.ctx, []byte("bar"), 0)
 	assert.NoError(t.T(), t.in.SyncUsingBufferedWriteHandler())
+
+	contents, err = storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
+	assert.Equal(t.T(), t.initialContents, string(contents))
+	assert.Nil(t.T(), err)
 }
 
 func (t *FileTest) TestInitialAttributes() {
