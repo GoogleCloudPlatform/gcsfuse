@@ -186,8 +186,9 @@ func (t *FileStreamingWritesZonalBucketTest) TestSyncUsingBufferedWritesForZonal
 	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("pizza"), 0))
 
 	assert.NoError(t.T(), t.in.SyncUsingBufferedWriteHandler())
-	_, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
+	content, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
 	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), "pizza", string(content))
 }
 
 func (t *FileStreamingWritesTest) TestOutOfOrderWritesToLocalFileFallBackToTempFile() {
