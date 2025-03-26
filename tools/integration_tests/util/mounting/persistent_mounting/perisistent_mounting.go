@@ -43,7 +43,7 @@ func mountGcsfuseWithPersistentMounting(flags []string) (err error) {
 	defaultArg := []string{setup.TestBucket(),
 		setup.MntDir(),
 		"-o",
-		"--log-severity=trace",
+		"log_severity=trace",
 		"-o",
 		"log_file=" + setup.LogFile(),
 	}
