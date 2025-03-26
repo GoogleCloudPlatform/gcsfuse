@@ -51,19 +51,32 @@ type FileStreamingWritesTest struct {
 	in         *FileInode
 }
 
+type FileStreamingWritesZonalBucketTest struct {
+	FileStreamingWritesTest
+}
+
 func TestFileStreamingWritesTestSuite(t *testing.T) {
 	suite.Run(t, new(FileStreamingWritesTest))
 }
 
-func (t *FileStreamingWritesTest) SetupTest() {
+func (t *FileStreamingWritesTest) setupTest() {
 	// Enabling invariant check for all tests.
 	syncutil.EnableInvariantChecking()
 	t.ctx = context.Background()
-	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
-	t.bucket = fake.NewFakeBucket(&t.clock, "some_bucket", gcs.BucketType{})
-
 	// Create the inode.
 	t.createInode(fileName, localFile)
+}
+
+func (t *FileStreamingWritesZonalBucketTest) SetupTest() {
+	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
+	t.bucket = fake.NewFakeBucket(&t.clock, "some_bucket", gcs.BucketType{Zonal: true})
+	t.setupTest()
+}
+
+func (t *FileStreamingWritesTest) SetupTest() {
+	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
+	t.bucket = fake.NewFakeBucket(&t.clock, "some_bucket", gcs.BucketType{Zonal: false})
+	t.setupTest()
 }
 
 func (t *FileStreamingWritesTest) TearDownTest() {
@@ -141,6 +154,41 @@ func (t *FileStreamingWritesTest) createInode(fileName string, fileType string) 
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
+
+func (t *FileStreamingWritesTest) TestSourceGenerationIsAuthoritativeReturnsFalseForNonZonalBuckets() {
+	assert.False(t.T(), t.in.SourceGenerationIsAuthoritative())
+}
+
+func (t *FileStreamingWritesTest) TestSourceGenerationIsAuthoritativeReturnsFalseAfterWriteForNonZonalBuckets() {
+	t.in.Write(t.ctx, []byte("taco"), 0)
+
+	assert.False(t.T(), t.in.SourceGenerationIsAuthoritative())
+}
+
+func (t *FileStreamingWritesTest) TestSyncUsingBufferedWritesForNonZonalBuckets() {
+	t.in.Write(t.ctx, []byte("taco"), 0)
+
+	assert.NoError(t.T(), t.in.SyncUsingBufferedWriteHandler())
+	operations.ValidateObjectNotFoundErr(t.ctx, t.T(), t.bucket, t.in.Name().GcsObjectName())
+}
+
+func (t *FileStreamingWritesZonalBucketTest) TestSourceGenerationIsAuthoritativeReturnsTrueForZonalBuckets() {
+	assert.True(t.T(), t.in.SourceGenerationIsAuthoritative())
+}
+
+func (t *FileStreamingWritesZonalBucketTest) TestSourceGenerationIsAuthoritativeReturnsTrueAfterWriteForZonalBuckets() {
+	t.in.Write(t.ctx, []byte("taco"), 0)
+
+	assert.False(t.T(), t.in.SourceGenerationIsAuthoritative())
+}
+
+func (t *FileStreamingWritesZonalBucketTest) TestSyncUsingBufferedWritesForZonalBuckets() {
+	t.in.Write(t.ctx, []byte("taco"), 0)
+
+	assert.NoError(t.T(), t.in.SyncUsingBufferedWriteHandler())
+	_, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
+	assert.NoError(t.T(), err)
+}
 
 func (t *FileStreamingWritesTest) TestOutOfOrderWritesToLocalFileFallBackToTempFile() {
 	testCases := []struct {

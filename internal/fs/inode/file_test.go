@@ -173,6 +173,22 @@ func (t *FileTest) TestInitialSourceGeneration() {
 	assert.Equal(t.T(), t.backingObj.MetaGeneration, sg.Metadata)
 }
 
+func (t *FileTest) TestSourceGenerationIsAuthoritativeReturnsTrue() {
+	assert.True(t.T(), t.in.SourceGenerationIsAuthoritative())
+}
+
+func (t *FileTest) TestSourceGenerationIsAuthoritativeReturnsFalseAfterWrite() {
+	t.in.Write(t.ctx, []byte("taco"), 0)
+
+	assert.False(t.T(), t.in.SourceGenerationIsAuthoritative())
+}
+
+func (t *FileTest) TestSyncUsingBufferedWriteHandlerReturnsNilForNonStreamingWrites() {
+	t.in.Write(t.ctx, []byte("taco"), 0)
+
+	assert.NoError(t.T(), t.in.SyncUsingBufferedWriteHandler())
+}
+
 func (t *FileTest) TestInitialAttributes() {
 	attrs, err := t.in.Attributes(t.ctx)
 	assert.Nil(t.T(), err)
