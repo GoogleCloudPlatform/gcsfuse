@@ -24,15 +24,15 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
-// make e.g --debug_gcs in debug_gcs
+// Change e.g --log_severity=trace to log_severity=trace
 func makePersistentMountingArgs(flags []string) (args []string, err error) {
 	var s string
 	for i := range flags {
 		// We are already passing flags with -o flag.
 		s = strings.Replace(flags[i], "--o=", "", -1)
-		// e.g. Convert --debug_gcs to __debug_gcs
+		// e.g. Convert --log-severity=trace to __log_severity=trace
 		s = strings.Replace(s, "-", "_", -1)
-		// e.g. Convert __debug_gcs to debug_gcs
+		// e.g. Convert __log_severity=trace to log_severity=trace
 		s = strings.Replace(s, "__", "", -1)
 		args = append(args, s)
 	}
@@ -43,11 +43,7 @@ func mountGcsfuseWithPersistentMounting(flags []string) (err error) {
 	defaultArg := []string{setup.TestBucket(),
 		setup.MntDir(),
 		"-o",
-		"debug_gcs",
-		"-o",
-		"debug_fs",
-		"-o",
-		"debug_fuse",
+		"log_severity=trace",
 		"-o",
 		"log_file=" + setup.LogFile(),
 	}
