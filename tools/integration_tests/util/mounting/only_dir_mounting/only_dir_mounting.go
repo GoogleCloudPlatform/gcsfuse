@@ -28,9 +28,7 @@ import (
 func MountGcsfuseWithOnlyDir(flags []string) (err error) {
 	defaultArg := []string{"--only-dir",
 		setup.OnlyDirMounted(),
-		"--debug_gcs",
-		"--debug_fs",
-		"--debug_fuse",
+		"--log-severity=trace",
 		"--log-file=" + setup.LogFile(),
 		setup.TestBucket(),
 		setup.MntDir()}
