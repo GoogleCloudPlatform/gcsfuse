@@ -89,8 +89,8 @@ type Generation struct {
 
 // Compare returns -1, 0, or 1 according to whether src is less than, equal to,
 // or greater than existing.
-// Here latest represents object's latest generation and current represents
-// inode cached object's current generation.
+// Note: Ordering matters here, latest represents object's latest generation and
+// current represents inode cached object's current generation.
 func (latest Generation) Compare(current Generation) int {
 	// Compare first on object generation number.
 	if latest.Object != current.Object {
