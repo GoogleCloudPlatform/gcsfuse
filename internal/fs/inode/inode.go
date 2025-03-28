@@ -84,28 +84,37 @@ type GenerationBackedInode interface {
 type Generation struct {
 	Object   int64
 	Metadata int64
+	Size     uint64
 }
 
-// Compare returns -1, 0, or 1 according to whether g is less than, equal to, or greater
-// than other.
-func (g Generation) Compare(other Generation) int {
+// Compare returns -1, 0, or 1 according to whether src is less than, equal to,
+// or greater than existing.
+// Note: Ordering matters here, latest represents object's latest generation and
+// current represents inode cached object's current generation.
+func (latest Generation) Compare(current Generation) int {
 	// Compare first on object generation number.
-	switch {
-	case g.Object < other.Object:
-		return -1
-
-	case g.Object > other.Object:
+	if latest.Object != current.Object {
 		return 1
 	}
 
 	// Break ties on meta-generation.
 	switch {
-	case g.Metadata < other.Metadata:
+	case latest.Metadata < current.Metadata:
 		return -1
 
-	case g.Metadata > other.Metadata:
+	case latest.Metadata > current.Metadata:
 		return 1
 	}
+
+	// Break ties on object size.
+	// Because objects in zonal buckets can be appended without altering their
+	// generation or metageneration, the following case applies exclusively to
+	// zonal buckets.
+	if latest.Size > current.Size {
+		return 1
+	}
+	// We ignore latest.Size < current.Size case as little staleness is expected
+	// on the latest object's size.
 
 	return 0
 }

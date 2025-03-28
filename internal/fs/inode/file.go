@@ -239,8 +239,8 @@ func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool, inclu
 	}
 
 	// We are clobbered iff the generation doesn't match our source generation.
-	oGen := Generation{o.Generation, o.MetaGeneration}
-	b = f.SourceGeneration().Compare(oGen) != 0
+	oGen := Generation{o.Generation, o.MetaGeneration, o.Size}
+	b = oGen.Compare(f.SourceGeneration()) != 0
 
 	return
 }
@@ -385,8 +385,17 @@ func (f *FileInode) SourceGenerationIsAuthoritative() bool {
 //
 // LOCKS_REQUIRED(f)
 func (f *FileInode) SourceGeneration() (g Generation) {
+	g.Size = f.src.Size
 	g.Object = f.src.Generation
 	g.Metadata = f.src.MetaGeneration
+	// If bwh is not nil, it's size takes precedence as that is being actively
+	// written to GCS.
+	// Since temporary file does not write to GCS on the go, it's size is not
+	// used as source object's size.
+	if f.bwh != nil {
+		writeFileInfo := f.bwh.WriteFileInfo()
+		g.Size = uint64(writeFileInfo.TotalSize)
+	}
 	return
 }
 
