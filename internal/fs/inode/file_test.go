@@ -173,6 +173,29 @@ func (t *FileTest) TestInitialSourceGeneration() {
 	assert.Equal(t.T(), t.backingObj.MetaGeneration, sg.Metadata)
 }
 
+func (t *FileTest) TestSourceGenerationIsAuthoritativeReturnsTrue() {
+	assert.True(t.T(), t.in.SourceGenerationIsAuthoritative())
+}
+
+func (t *FileTest) TestSourceGenerationIsAuthoritativeReturnsFalseAfterWrite() {
+	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("taco"), 0))
+
+	assert.False(t.T(), t.in.SourceGenerationIsAuthoritative())
+}
+
+func (t *FileTest) TestSyncPendingBufferedWritesReturnsNilAndNoOpForNonStreamingWrites() {
+	contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
+	assert.Equal(t.T(), t.initialContents, string(contents))
+	assert.Nil(t.T(), err)
+
+	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("bar"), 0))
+	assert.NoError(t.T(), t.in.SyncPendingBufferedWrites())
+
+	contents, err = storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
+	assert.Equal(t.T(), t.initialContents, string(contents))
+	assert.Nil(t.T(), err)
+}
+
 func (t *FileTest) TestInitialAttributes() {
 	attrs, err := t.in.Attributes(t.ctx)
 	assert.Nil(t.T(), err)

@@ -108,6 +108,13 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 	// state, or clear fh.reader if it's not possible to create one (probably
 	// because the inode is dirty).
 	fh.inode.Lock()
+	// Ensure all pending writes to Zonal Buckets are flushed before issuing a read.
+	err = fh.inode.SyncPendingBufferedWrites()
+	if err != nil {
+		fh.inode.Unlock()
+		err = fmt.Errorf("fh.inode.SyncPendingBufferedWrites: %w", err)
+		return
+	}
 	err = fh.tryEnsureReader(ctx, sequentialReadSizeMb)
 	if err != nil {
 		fh.inode.Unlock()

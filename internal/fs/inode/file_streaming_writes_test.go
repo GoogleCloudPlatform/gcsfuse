@@ -42,7 +42,11 @@ import (
 const localFile = "local"
 const emptyGCSFile = "emptyGCS"
 
-type FileStreamingWritesTest struct {
+////////////////////////////////////////////////////////////////////////
+// Boilerplate
+////////////////////////////////////////////////////////////////////////
+
+type FileStreamingWritesCommon struct {
 	suite.Suite
 	ctx        context.Context
 	bucket     gcs.Bucket
@@ -50,23 +54,39 @@ type FileStreamingWritesTest struct {
 	backingObj *gcs.MinObject
 	in         *FileInode
 }
-
-func TestFileStreamingWritesTestSuite(t *testing.T) {
-	suite.Run(t, new(FileStreamingWritesTest))
+type FileStreamingWritesTest struct {
+	FileStreamingWritesCommon
 }
 
-func (t *FileStreamingWritesTest) SetupTest() {
+type FileStreamingWritesZonalBucketTest struct {
+	FileStreamingWritesCommon
+}
+
+////////////////////////////////////////////////////////////////////////
+// Helper
+////////////////////////////////////////////////////////////////////////
+
+func (t *FileStreamingWritesCommon) setupTest() {
 	// Enabling invariant check for all tests.
 	syncutil.EnableInvariantChecking()
 	t.ctx = context.Background()
-	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
-	t.bucket = fake.NewFakeBucket(&t.clock, "some_bucket", gcs.BucketType{})
-
 	// Create the inode.
 	t.createInode(fileName, localFile)
 }
 
-func (t *FileStreamingWritesTest) TearDownTest() {
+func (t *FileStreamingWritesZonalBucketTest) SetupTest() {
+	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
+	t.bucket = fake.NewFakeBucket(&t.clock, "some_bucket", gcs.BucketType{Zonal: true})
+	t.setupTest()
+}
+
+func (t *FileStreamingWritesTest) SetupTest() {
+	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
+	t.bucket = fake.NewFakeBucket(&t.clock, "some_bucket", gcs.BucketType{Zonal: false})
+	t.setupTest()
+}
+
+func (t *FileStreamingWritesCommon) TearDownTest() {
 	t.in.Unlock()
 }
 
@@ -74,7 +94,7 @@ func (t *FileStreamingWritesTest) SetupSubTest() {
 	t.SetupTest()
 }
 
-func (t *FileStreamingWritesTest) createInode(fileName string, fileType string) {
+func (t *FileStreamingWritesCommon) createInode(fileName string, fileType string) {
 	if fileType != emptyGCSFile && fileType != localFile {
 		t.T().Errorf("fileType should be either local or empty")
 	}
@@ -131,16 +151,60 @@ func (t *FileStreamingWritesTest) createInode(fileName string, fileType string) 
 		GlobalMaxBlocks:       10,
 	}}
 
-	// Create write handler for the local inode created above.
-	err := t.in.CreateBufferedOrTempWriter(t.ctx)
-	assert.Nil(t.T(), err)
-
 	t.in.Lock()
 }
 
 ////////////////////////////////////////////////////////////////////////
-// Tests
+// Tests (Zonal Bucket)
 ////////////////////////////////////////////////////////////////////////
+
+func TestFileStreamingWritesWithZonalBucketTestSuite(t *testing.T) {
+	suite.Run(t, new(FileStreamingWritesZonalBucketTest))
+}
+
+func (t *FileStreamingWritesZonalBucketTest) TestSourceGenerationIsAuthoritativeReturnsTrueForZonalBuckets() {
+	assert.True(t.T(), t.in.SourceGenerationIsAuthoritative())
+}
+
+func (t *FileStreamingWritesZonalBucketTest) TestSourceGenerationIsAuthoritativeReturnsTrueAfterWriteForZonalBuckets() {
+	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("taco"), 0))
+
+	assert.True(t.T(), t.in.SourceGenerationIsAuthoritative())
+}
+
+func (t *FileStreamingWritesZonalBucketTest) TestSyncPendingBufferedWritesForZonalBuckets() {
+	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("pizza"), 0))
+
+	assert.NoError(t.T(), t.in.SyncPendingBufferedWrites())
+	content, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), "pizza", string(content))
+}
+
+// //////////////////////////////////////////////////////////////////////
+// Tests (Non Zonal Bucket)
+// //////////////////////////////////////////////////////////////////////
+
+func TestFileStreamingWritesTestSuite(t *testing.T) {
+	suite.Run(t, new(FileStreamingWritesTest))
+}
+
+func (t *FileStreamingWritesTest) TestSourceGenerationIsAuthoritativeReturnsTrueForNonZonalBuckets() {
+	assert.True(t.T(), t.in.SourceGenerationIsAuthoritative())
+}
+
+func (t *FileStreamingWritesTest) TestSourceGenerationIsAuthoritativeReturnsFalseAfterWriteForNonZonalBuckets() {
+	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("taco"), 0))
+
+	assert.False(t.T(), t.in.SourceGenerationIsAuthoritative())
+}
+
+func (t *FileStreamingWritesTest) TestSyncPendingBufferedWritesForNonZonalBuckets() {
+	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("taco"), 0))
+
+	assert.NoError(t.T(), t.in.SyncPendingBufferedWrites())
+	operations.ValidateObjectNotFoundErr(t.ctx, t.T(), t.bucket, t.in.Name().GcsObjectName())
+}
 
 func (t *FileStreamingWritesTest) TestOutOfOrderWritesToLocalFileFallBackToTempFile() {
 	testCases := []struct {
@@ -167,11 +231,13 @@ func (t *FileStreamingWritesTest) TestOutOfOrderWritesToLocalFileFallBackToTempF
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
+			err := t.in.CreateBufferedOrTempWriter(t.ctx)
+			assert.Nil(t.T(), err)
 			assert.True(t.T(), t.in.IsLocal())
 			createTime := t.clock.Now()
 			t.clock.AdvanceTime(15 * time.Minute)
 			// Sequential Write at offset 0
-			err := t.in.Write(t.ctx, []byte("taco"), 0)
+			err = t.in.Write(t.ctx, []byte("taco"), 0)
 			require.Nil(t.T(), err)
 			require.NotNil(t.T(), t.in.bwh)
 			// validate attributes.
@@ -206,11 +272,13 @@ func (t *FileStreamingWritesTest) TestOutOfOrderWritesToLocalFileFallBackToTempF
 }
 
 func (t *FileStreamingWritesTest) TestOutOfOrderWriteFollowedByOrderedWrite() {
+	err := t.in.CreateBufferedOrTempWriter(t.ctx)
+	assert.Nil(t.T(), err)
 	assert.True(t.T(), t.in.IsLocal())
 	createTime := t.in.mtimeClock.Now()
 	require.NotNil(t.T(), t.in.bwh)
 	// Out of order write.
-	err := t.in.Write(t.ctx, []byte("taco"), 6)
+	err = t.in.Write(t.ctx, []byte("taco"), 6)
 	require.Nil(t.T(), err)
 	// Ensure bwh cleared and temp file created.
 	assert.Nil(t.T(), t.in.bwh)
@@ -386,8 +454,10 @@ func (t *FileStreamingWritesTest) TestFlushEmptyFile() {
 				assert.False(t.T(), t.in.IsLocal())
 			}
 			t.clock.AdvanceTime(10 * time.Second)
+			err := t.in.CreateBufferedOrTempWriter(t.ctx)
+			assert.NoError(t.T(), err)
 
-			err := t.in.Flush(t.ctx)
+			err = t.in.Flush(t.ctx)
 
 			require.Nil(t.T(), err)
 			// Ensure bwh cleared.
@@ -442,6 +512,8 @@ func (t *FileStreamingWritesTest) TestFlushClobberedFile() {
 				t.createInode(fileName, emptyGCSFile)
 				assert.False(t.T(), t.in.IsLocal())
 			}
+			err := t.in.CreateBufferedOrTempWriter(t.ctx)
+			assert.NoError(t.T(), err)
 			t.clock.AdvanceTime(10 * time.Second)
 			// Clobber the file.
 			objWritten, err := storageutil.CreateObject(t.ctx, t.bucket, fileName, []byte("taco"))
@@ -513,10 +585,12 @@ func (t *FileStreamingWritesTest) TestWriteToFileAndSync() {
 }
 
 func (t *FileStreamingWritesTest) TestTruncateOnFileUsingTempFileDoesNotRecreatesBWH() {
+	err := t.in.CreateBufferedOrTempWriter(t.ctx)
+	assert.NoError(t.T(), err)
 	assert.True(t.T(), t.in.IsLocal())
 	require.NotNil(t.T(), t.in.bwh)
 	// Out of order write.
-	err := t.in.Write(t.ctx, []byte("taco"), 2)
+	err = t.in.Write(t.ctx, []byte("taco"), 2)
 	require.Nil(t.T(), err)
 	// Ensure bwh cleared and temp file created.
 	assert.Nil(t.T(), t.in.bwh)
@@ -625,6 +699,8 @@ func (t *FakeBufferedWriteHandler) Destroy() error         { return nil }
 func (t *FakeBufferedWriteHandler) Unlink()                {}
 
 func (t *FileStreamingWritesTest) TestWriteUsingBufferedWritesFails() {
+	err := t.in.CreateBufferedOrTempWriter(t.ctx)
+	assert.NoError(t.T(), err)
 	assert.True(t.T(), t.in.IsLocal())
 	require.NotNil(t.T(), t.in.bwh)
 	writeErr := errors.New("write error")
@@ -634,7 +710,7 @@ func (t *FileStreamingWritesTest) TestWriteUsingBufferedWritesFails() {
 		},
 	}
 
-	err := t.in.Write(context.Background(), []byte("hello"), 0)
+	err = t.in.Write(context.Background(), []byte("hello"), 0)
 
 	require.Error(t.T(), err)
 	assert.Regexp(t.T(), writeErr.Error(), err.Error())
