@@ -4,8 +4,8 @@ set -e
 
 export CGO_ENABLED=0
 export KOKORO_ARTIFACTS_DIR=$HOME
-BUCKET_NAME="ashmeen-streaming-writes"
-SPREADSHEET_ID="1TD6ds2ipkRsU6megYO2AEXHYGeh5phLWjFPKnTc7A88"
+BUCKET_NAME="mohitkyadav-streaming-writes"
+SPREADSHEET_ID="1u1Z2KqctC78B0h20t7NfLbl8Y9DOYVNiEndDCx2Rvkc"
 mkdir -p $HOME/gcs
 MOUNT_POINT=$HOME/gcs
 
@@ -35,7 +35,7 @@ for i in $(seq 0 $((config_length - 1))); do
 
         echo Installing requirements..
         pip install --require-hashes -r ../requirements.txt
-        gsutil cp gs://ashmeen-perf-tests/creds.json gsheet/creds.json
+        gsutil cp gs://mohitkyadav-creds-for-sa/mohitkyadav-gsheet-editor.json.json gsheet/creds.json
         echo Fetching results to sheet..
         START_TIME_BUILD=$(date +%s)
         UPLOAD_FLAGS="--upload_gs --start_time_build $START_TIME_BUILD --spreadsheet_id=$SPREADSHEET_ID"
