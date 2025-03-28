@@ -273,36 +273,36 @@ function printRunParameters() {
 function installDependencies() {
   printf "\nInstalling dependencies ...\n\n"
   # Refresh software repositories.
-  sudo apt-get update
+  sudo apt-get update >/dev/null
   # Get some common software dependencies.
-  sudo apt-get install -y apt-transport-https ca-certificates gnupg curl
+  sudo apt-get install -y apt-transport-https ca-certificates gnupg curl >/dev/null
   # Ensure that realpath is installed.
-  which realpath
+  which realpath >/dev/null
   # Ensure that make is installed.
-  which make || ( sudo apt-get install -y make time && which make )
+  which make >/dev/null || ( sudo apt-get install -y make time >/dev/null && which make >/dev/null )
   # Ensure that go is installed.
   which go || (version=1.22.4 && wget -O go_tar.tar.gz https://go.dev/dl/go${version}.linux-amd64.tar.gz 1>/dev/null && sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz 1>/dev/null && sudo mv go /usr/local && echo $PATH && export PATH=$PATH:/usr/local/go/bin && echo $PATH && echo 'export PATH=$PATH:/usr/local/go/bin'>>~/.bashrc && go version)
   # for some reason, the above is unable to update the value of $PATH, so doing it explicitly below.
   export PATH=$PATH:/usr/local/go/bin
-  which go
+  which go >/dev/null
   # Ensure that python3 is installed.
-  which python3 || ( sudo apt-get install -y python3 && which python3 )
+  which python3 || ( sudo apt-get install -y python3 >/dev/null && which python3 >/dev/null )
   # Install more python tools.
-  sudo apt-get -y install python3-dev python3-venv python3-pip
+  sudo apt-get -y install python3-dev python3-venv python3-pip >/dev/null
   # Enable python virtual environment.
   python3 -m venv .venv
   source .venv/bin/activate
   # Ensure that pip is installed.
-  sudo apt-get install -y pip
+  sudo apt-get install -y pip >/dev/null
   # python3 -m pip install --upgrade pip
   # python3 -m pip --version
   # Ensure that python-absl is installed.
-  pip install absl-py
+  pip install absl-py >/dev/null
   # Ensure that helm is installed
   which helm || (cd "${src_dir}" && (test -d "./helm" || git clone https://github.com/helm/helm.git) && cd helm && make && ls -lh bin/ && mkdir -pv ~/bin && cp -fv bin/helm ~/bin/ && chmod +x ~/bin/helm && export PATH=$PATH:$HOME/bin && echo $PATH && which helm && cd - && cd -)
   # for some reason, the above is unable to update the value of $PATH, so doing it explicitly below.
   export PATH=$PATH:$HOME/bin
-  which helm
+  which helm >/dev/null
   # Ensure that kubectl is installed
   if ! which kubectl; then
     # Install the latest gcloud cli. Find full instructions at https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl .
@@ -311,34 +311,34 @@ function installDependencies() {
     # Add the gcloud CLI distribution URI as a package source (Debian 9+ or Ubuntu 18.04+)
     echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
     # Update and install the gcloud CLI
-    sudo apt-get update
-    sudo apt-get install -y google-cloud-cli
+    sudo apt-get update >/dev/null
+    sudo apt-get install -y google-cloud-cli >/dev/null
     # install kubectl
-    gcloud components install kubectl || sudo apt-get install -y kubectl
+    gcloud components install kubectl >/dev/null || sudo apt-get install -y kubectl >/dev/null
     kubectl version --client
   fi
   # Ensure that gke-gcloud-auth-plugin is installed.
-  gke-gcloud-auth-plugin --version || ((gcloud components install gke-gcloud-auth-plugin || sudo apt-get install -y google-cloud-cli-gke-gcloud-auth-plugin) && gke-gcloud-auth-plugin --version)
+  gke-gcloud-auth-plugin --version || ((gcloud components install gke-gcloud-auth-plugin >/dev/null || sudo apt-get install -y google-cloud-cli-gke-gcloud-auth-plugin >/dev/null) && gke-gcloud-auth-plugin --version)
   # Ensure that docker is installed.
   if ! which docker ; then
-    sudo apt install apt-transport-https ca-certificates curl software-properties-common -y
+    sudo apt install apt-transport-https ca-certificates curl software-properties-common -y >/dev/null
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
     sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable"
     apt-cache policy docker-ce
-    sudo apt install docker-ce -y
+    sudo apt install docker-ce -y >/dev/null
   fi
   # Install mash, as it is needed for fetching cpu/memory values for test runs
   # in cloudtop. Even if mash install fails, don't panic, go ahead and install
   # google-cloud-monitoring as an alternative.
-  which mash || sudo apt-get install -y monarch-tools || true
+  which mash || sudo apt-get install -y monarch-tools >/dev/null || true
   # Ensure that gcloud monitoring tools are installed. This is alternative to
   # mash on gce vm.
   # pip install --upgrade google-cloud-storage
   # pip install --ignore-installed --upgrade google-api-python-client
   # pip install --ignore-installed --upgrade google-cloud
-  pip install --upgrade google-cloud-monitoring
+  pip install --upgrade google-cloud-monitoring >/dev/null
   # Ensure that jq is installed.
-  which jq || sudo apt-get install -y jq
+  which jq || sudo apt-get install -y jq >/dev/null
   # Ensure sudoless docker is installed.
   if ! docker ps 1>/dev/null ; then
     echoerror "sudoless docker is not installed on this machine ($(hostname)). Please install sudoless-docker using the following commands and re-run this script ($0)"
