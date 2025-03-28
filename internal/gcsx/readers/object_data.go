@@ -20,8 +20,4 @@ type ObjectData struct {
 	DataBuf []byte
 	// Size of the data returned.
 	Size int
-	// Specified whether data is served from cache or not.
-	CacheHit bool
-
-	FallBackToAnotherReader bool
 }

@@ -72,9 +72,8 @@ func (rr *RangeReader) CheckInvariants() {
 
 func (rr *RangeReader) ReadAt(ctx context.Context, p []byte, offset int64) (readers.ObjectData, error) {
 	objectData := readers.ObjectData{
-		DataBuf:  p,
-		CacheHit: false,
-		Size:     0,
+		DataBuf: p,
+		Size:    0,
 	}
 	var err error
 	objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, rr.end, rr.readerType)

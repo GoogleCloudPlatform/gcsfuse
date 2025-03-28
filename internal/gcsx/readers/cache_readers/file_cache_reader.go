@@ -75,10 +75,8 @@ func (fc *FileCacheReader) CheckInvariants() {
 func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (readers.ObjectData, error) {
 	var err error
 	o := readers.ObjectData{
-		DataBuf:                 p,
-		CacheHit:                false,
-		Size:                    0,
-		FallBackToAnotherReader: true,
+		DataBuf: p,
+		Size:    0,
 	}
 
 	// Note: If we are reading the file for the first time and read type is sequential
@@ -92,9 +90,7 @@ func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (
 	}
 	// Data was served from cache.
 	if cacheHit || n == len(p) || (n < len(p) && uint64(offset)+uint64(n) == fc.obj.Size) {
-		o.CacheHit = cacheHit
 		o.Size = n
-		o.FallBackToAnotherReader = false
 		return o, nil
 	}
 

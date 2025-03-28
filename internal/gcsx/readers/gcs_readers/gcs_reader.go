@@ -69,7 +69,7 @@ type GCSReader struct {
 	// This will be used while making the new connection to bypass auth and metadata
 	// checks.
 	readHandle []byte
-	readerType string
+	readType   string
 
 	sequentialReadSizeMb int32
 }
@@ -93,10 +93,8 @@ func (gr *GCSReader) CheckInvariants() {
 
 func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (readers.ObjectData, error) {
 	objectData := readers.ObjectData{
-		DataBuf:                 p,
-		CacheHit:                false,
-		Size:                    0,
-		FallBackToAnotherReader: false,
+		DataBuf: p,
+		Size:    0,
 	}
 	var err error
 	gr.rangeReader.SkipBytes(offset)
@@ -118,7 +116,7 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (reader
 	gr.rangeReader.SetEnd(end)
 	gr.mrr.SetEnd(end)
 
-	readerType := gr.getReaderType(gr.readerType, offset, end, gr.bucket.BucketType())
+	readerType := gr.getReaderType(offset, end, gr.bucket.BucketType())
 	if readerType == RangeReaderType {
 		objectData, err = gr.rangeReader.ReadAt(ctx, p, offset)
 		return objectData, err
@@ -133,9 +131,9 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (reader
 }
 
 // readerType specifies the go-sdk interface to use for reads.
-func (gr *GCSReader) getReaderType(readType string, start int64, end int64, bucketType gcs.BucketType) ReaderType {
+func (gr *GCSReader) getReaderType(start int64, end int64, bucketType gcs.BucketType) ReaderType {
 	bytesToBeRead := end - start
-	if readType == util.Random && bytesToBeRead < maxReadSize && bucketType.Zonal {
+	if gr.readType == util.Random && bytesToBeRead < maxReadSize && bucketType.Zonal {
 		return MultiRangeReaderType
 	}
 	return RangeReaderType
@@ -168,7 +166,7 @@ func (gr *GCSReader) getReadInfo(start int64, size int64) (int64, error) {
 	// (average read size in bytes rounded up to the next MB).
 	end := int64(gr.obj.Size)
 	if gr.rangeReader.GetSeeks() >= minSeeksForRandom {
-		gr.readerType = util.Random
+		gr.readType = util.Random
 		averageReadBytes := gr.rangeReader.GetTotalBytes() / gr.rangeReader.GetSeeks()
 		if averageReadBytes < maxReadSize {
 			randomReadSize := int64(((averageReadBytes / MB) + 1) * MB)
