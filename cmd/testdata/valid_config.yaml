@@ -1,4 +1,6 @@
 app-name: hello
+read:
+  optimize-random-read: false
 write:
   create-empty-file: true
   enable-streaming-writes: true
