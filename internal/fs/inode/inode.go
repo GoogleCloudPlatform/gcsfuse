@@ -107,14 +107,14 @@ func (latest Generation) Compare(current Generation) int {
 	}
 
 	// Break ties on object size.
-	switch {
-	case latest.Size > current.Size:
+	// Because objects in zonal buckets can be appended without altering their
+	// generation or metageneration, the following case applies exclusively to
+	// zonal buckets.
+	if latest.Size > current.Size {
 		return 1
-	case latest.Size < current.Size:
-		// We ignore this case as little staleness is expected on the latest
-		// object's size.
-		return 0
 	}
+	// We ignore latest.Size < current.Size case as little staleness is expected
+	// on the latest object's size.
 
 	return 0
 }
