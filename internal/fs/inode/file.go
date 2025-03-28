@@ -372,15 +372,16 @@ func (f *FileInode) Source() *gcs.MinObject {
 // If true, it is safe to serve reads directly from the object given by
 // f.Source(), rather than calling f.ReadAt. Doing so may be more efficient,
 // because f.ReadAt may cause the entire object to be faulted in and requires
-// the inode to be locked during the read.
+// the inode to be locked during the read. SourceGenerationAuthoritative requires
+// SyncPendingBufferedWrites method has been called on f within same inode lock for
+// streaming writes with zonal bucket.
+// TODO(b/406160290): Check if this can be improved.
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) SourceGenerationIsAuthoritative() bool {
 	// Source generation is authoritative if:
 	//   1.  No pending writes exists on the inode (both content and bwh are nil).
-	//   2.  The bucket is zonal with non-streaming writes and there is no pending content write.
-	//   3.  The bucket is zonal with streaming writes and SyncUsingBufferedWriteHandler has been called on f within same Inode lock.
-	// TODO(b/406160290): Check if this can be improved.
+	//   2.  The bucket is zonal and there are no pending writes in the temporary file.
 	return (f.content == nil && f.bwh == nil) || (f.bucket.BucketType().Zonal && f.content == nil)
 }
 
@@ -645,11 +646,11 @@ func (f *FileInode) flushUsingBufferedWriteHandler() error {
 	return nil
 }
 
-// Helper function to sync buffered writes, for zonal buckets it flushes the writer
-// for writes to be available for read. This operation is no-op when BWH is nil.
+// SyncPendingBufferedWrites flushed any pending writes on the bwh to GCS.
+// It is a no-op when bwh is nil.
 //
-// LOCKS_REQUIRED(f.mu)
-func (f *FileInode) SyncUsingBufferedWriteHandler() error {
+// LOCKS_REQUIRED((f.mu)
+func (f *FileInode) SyncPendingBufferedWrites() error {
 	if f.bwh == nil {
 		return nil
 	}
@@ -797,9 +798,9 @@ func (f *FileInode) Sync(ctx context.Context) (gcsSynced bool, err error) {
 	}
 
 	if f.bwh != nil {
-		// SyncUsingBufferedWriteHandler does not finalize the upload,
+		// SyncPendingBufferedWrites does not finalize the upload,
 		// so return gcsSynced as false.
-		err = f.SyncUsingBufferedWriteHandler()
+		err = f.SyncPendingBufferedWrites()
 		if err != nil {
 			err = fmt.Errorf("could not sync what has been written so far: %w", err)
 		}
