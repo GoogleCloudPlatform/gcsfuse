@@ -339,10 +339,11 @@ if __name__ == "__main__":
   args = parse_arguments()
   ensure_directory_exists(_LOCAL_LOGS_LOCATION)
 
-  fioWorkloads = fio_workload.ParseTestConfigForFioWorkloads(
-      args.workload_config
-  )
-  downloadFioOutputs(fioWorkloads, args.instance_id)
+  if not args.predownloaded_output_files:
+    fioWorkloads = fio_workload.ParseTestConfigForFioWorkloads(
+        args.workload_config
+    )
+    downloadFioOutputs(fioWorkloads, args.instance_id)
 
   mash_installed = is_mash_installed()
   if not mash_installed:
