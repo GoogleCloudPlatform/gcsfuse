@@ -18,6 +18,7 @@ package fs_test
 
 import (
 	"context"
+	"fmt"
 	"path"
 	"testing"
 
@@ -25,6 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -38,7 +40,7 @@ type AppendsZBTest struct {
 func (t *AppendsZBTest) SetupSuite() {
 	t.serverCfg.NewConfig = &cfg.Config{
 		Write: cfg.WriteConfig{
-			BlockSizeMb:           1,
+			BlockSizeMb:           util.MiB,
 			CreateEmptyFile:       false,
 			EnableStreamingWrites: true,
 			GlobalMaxBlocks:       5,
@@ -87,19 +89,46 @@ func (t *AppendsZBTest) TestUnFinalizedObjectsCanBeLookedUp() gcs.Writer {
 
 func (t *AppendsZBTest) TestUnFinalizedObjectsSizeChangeIsReflected() {
 	writer := t.TestUnFinalizedObjectsCanBeLookedUp()
-	var dataLength int64 = util.MiB * 3.5
-	content, err := operations.GenerateRandomData(dataLength)
-	require.NoError(t.T(), err)
-	offset, err := writer.Write(content)
+	var dataLength int = util.MiB * 3.5
+	fmt.Println("start appending")
+	offset, err := writer.Write([]byte(setup.GenerateRandomString(dataLength)))
 	require.NoError(t.T(), err)
 	assert.EqualValues(t.T(), dataLength, offset)
 	flushOffset, err := bucket.FlushPendingWrites(ctx, writer)
 	require.NoError(t.T(), err)
-	require.Equal(t.T(), dataLength, flushOffset)
+	require.EqualValues(t.T(), dataLength, flushOffset)
 
 	statRes, err := operations.StatFile(path.Join(mntDir, fileName))
 
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), fileName, (*statRes).Name())
-	assert.Equal(t.T(), dataLength, (*statRes).Size())
+	assert.EqualValues(t.T(), dataLength, (*statRes).Size())
+}
+
+func (t *AppendsZBTest) TestUnFinalizedObjectOverwriteAndLookup() {
+	_ = t.TestUnFinalizedObjectsCanBeLookedUp()
+	fh := operations.OpenFile(path.Join(mntDir, fileName), t.T())
+	// Overwrite un-finalized object with a new un-finalized object.
+	_, err := fh.WriteAt([]byte(generateRandomString(2*util.MiB)), 0)
+	require.NoError(t.T(), err)
+	err = fh.Sync()
+	require.NoError(t.T(), err)
+
+	statRes, err := operations.StatFile(path.Join(mntDir, fileName))
+
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), fileName, (*statRes).Name())
+	assert.EqualValues(t.T(), 2*util.MiB, (*statRes).Size())
+}
+
+func (t *AppendsZBTest) TestUnFinalizedObjectLookupFromSameMount() {
+	fh := operations.CreateFile(path.Join(mntDir, fileName), setup.FilePermission_0600, t.T())
+	_, err := fh.WriteAt([]byte(generateRandomString(2*util.MiB)), 0)
+	require.NoError(t.T(), err)
+
+	statRes, err := operations.StatFile(path.Join(mntDir, fileName))
+
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), fileName, (*statRes).Name())
+	assert.EqualValues(t.T(), 2*util.MiB, (*statRes).Size())
 }
