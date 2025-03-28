@@ -394,8 +394,12 @@ func (rr *randomReader) ReadAt(
 	// don't read from that.
 	if !rr.randReadOptimizerState.isDisabled() {
 		if rr.randReadOptimizerState.isFirstRead() {
-			objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, offset+int64(len(p)), util.Random)
-			rr.randReadOptimizerState = randReadOptimizerState(offset + int64(len(p)))
+			offsetLimit := offset + int64(len(p))
+			if offsetLimit > int64(rr.object.Size) {
+				offsetLimit = int64(rr.object.Size)
+			}
+			objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, offsetLimit, util.Random)
+			rr.randReadOptimizerState = randReadOptimizerState(offset + int64(objectData.Size))
 			return
 		} else if rr.randReadOptimizerState.isSecondRead() {
 			if rr.randReadOptimizerState.isRandom(offset) {
@@ -646,6 +650,7 @@ func readerType(readType string, start int64, end int64, bucketType gcs.BucketTy
 
 // readFromRangeReader reads using the NewReader interface of go-sdk. Its uses
 // the existing reader if available, otherwise makes a call to GCS.
+// Throws error: in case provided range is out of object range.
 func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offset int64, end int64, readType string) (n int, err error) {
 	// If we don't have a reader, start a read operation.
 	if rr.reader == nil {

@@ -1058,3 +1058,36 @@ func (t *RandomReaderWithFirstReadOptimizationTest) Test_RandomFlow() {
 	assert.NotNil(t.T(), t.rr.wrapped.reader)
 	assert.True(t.T(), t.rr.wrapped.randReadOptimizerState.isDisabled())
 }
+
+func (t *RandomReaderWithFirstReadOptimizationTest) Test_RequestLastGreaterThanObjectSize() {
+	t.object.Size = 16
+	assert.True(t.T(), t.rr.wrapped.randReadOptimizerState.isFirstRead())
+
+	// First read of 50 bytes - [5, 55).
+	start := 5
+	firstRequestSize := 50
+	readObjectRequest := &gcs.ReadObjectRequest{
+		Name:       t.rr.wrapped.object.Name,
+		Generation: t.rr.wrapped.object.Generation,
+		Range: &gcs.ByteRange{
+			Start: uint64(start),
+			Limit: uint64(int(t.object.Size)),
+		},
+		ReadCompressed: t.rr.wrapped.object.HasContentEncodingGzip(),
+		ReadHandle:     t.rr.wrapped.readHandle,
+	}
+	r := strings.NewReader(strings.Repeat("x", int(int(t.object.Size)-start)))
+	rc := &fake.FakeReader{ReadCloser: io.NopCloser(r)}
+	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).Return(rc, nil)
+	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(1)
+	buf := make([]byte, firstRequestSize)
+
+	data, err := t.rr.ReadAt(buf, int64(start))
+
+	require.Nil(t.T(), err)
+	require.Nil(t.T(), t.rr.wrapped.reader)
+	require.Greater(t.T(), firstRequestSize, data.Size)
+	require.Equal(t.T(), "xxxxxxxxxxx", string(buf[:data.Size]))
+	assert.Greater(t.T(), uint64(firstRequestSize), t.rr.wrapped.totalReadBytes)
+	assert.True(t.T(), t.rr.wrapped.randReadOptimizerState.isSecondRead())
+}
