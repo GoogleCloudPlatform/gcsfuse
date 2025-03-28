@@ -117,9 +117,12 @@ func getMachineType(isSet isValueSet) (string, error) {
 		}
 	}
 	client := http.Client{Timeout: httpTimeout}
-
+	var avoidRetriesEndpoints = make(map[string]bool)
 	for retry := 0; retry < maxRetries; retry++ {
 		for _, endpoint := range metadataEndpoints {
+			if avoidRetriesEndpoints[endpoint] {
+				continue // Skip this endpoint.
+			}
 			req, err := http.NewRequest(http.MethodGet, endpoint, nil)
 			if err != nil {
 				return "", fmt.Errorf("failed to create request for %s: %w", endpoint, err)
@@ -132,12 +135,15 @@ func getMachineType(isSet isValueSet) (string, error) {
 			}
 			defer resp.Body.Close()
 
+			// Retry logic is broadly based on https://github.com/googleapis/google-cloud-go/blob/47146f16a3689736d64dfc553f48cf130bb4fc18/compute/metadata/retry.go#L94
+			if 500 <= resp.StatusCode && resp.StatusCode <= 599 {
+				continue // Try the next endpoint.
+			}
+
 			if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusTooManyRequests {
-				if retry < maxRetries {
-					break // Retry the request.
-				} else {
-					return "", fmt.Errorf("metadata server %s returned quota error: %d, max retries reached", endpoint, resp.StatusCode)
-				}
+				// Should not retry for client error of forbidden endpoint or quota errors
+				avoidRetriesEndpoints[endpoint] = true
+				continue
 			}
 
 			if resp.StatusCode != http.StatusOK {

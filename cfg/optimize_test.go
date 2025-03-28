@@ -155,11 +155,11 @@ func TestGetMachineType_QuotaError(t *testing.T) {
 	metadataEndpoints = []string{server.URL}
 
 	machineType, err := getMachineType(&mockIsValueSet{})
-	if err != nil {
-		t.Fatalf("getMachineType failed: %v", err)
+	if machineType == "n1-standard-1" {
+		t.Errorf("getMachineType returned machine type: %s but it should have retried after quota error", machineType)
 	}
-	if machineType != "n1-standard-1" {
-		t.Errorf("getMachineType returned unexpected machine type: %s", machineType)
+	if err == nil {
+		t.Fatalf("getMachineType should have failed after quota error")
 	}
 }
 func TestOptimize_DisableAutoConfig(t *testing.T) {
