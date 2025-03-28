@@ -55,7 +55,7 @@ const (
 
 func TestFS(t *testing.T) { RunTests(t) }
 
-var fDebug = flag.Bool("debug_fuse", true, "Print debugging output.")
+var fDebug = flag.Bool("debug_fuse", false, "Print debugging output.")
 
 // Install a SIGINT handler that exits gracefully once the current test is
 // finished. It's not safe to exit in the middle of a test because closing any
@@ -195,7 +195,7 @@ func (t *fsTest) SetUpTestSuite() {
 	}
 
 	if *fDebug {
-		mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelInfo, "fuse: ")
+		mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelDebug, "fuse: ")
 	}
 
 	mfs, err = fuse.Mount(mntDir, server, &mountCfg)
