@@ -89,8 +89,8 @@ type Generation struct {
 
 // Compare returns -1, 0, or 1 according to whether src is less than, equal to,
 // or greater than existing.
-// Note: Ordering matters here, latest represents object's latest generation and
-// current represents inode cached object's current generation.
+// Note: Ordering matters here, latest represents the object fetched from GCS
+// and current represents inode cached object's generation.
 func (latest Generation) Compare(current Generation) int {
 	// Compare first on object generation number.
 	switch {
@@ -118,7 +118,7 @@ func (latest Generation) Compare(current Generation) int {
 		return 1
 	}
 	// We ignore latest.Size < current.Size case as little staleness is expected
-	// on the latest object's size.
+	// on the GCS object's size.
 
 	return 0
 }
