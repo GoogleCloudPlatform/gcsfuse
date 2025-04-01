@@ -45,7 +45,7 @@ type RangeReader struct {
 	reader         gcs.StorageReader
 	totalReadBytes uint64
 
-	readerType string
+	readType string
 
 	// Stores the handle associated with the previously closed newReader instance.
 	// This will be used while making the new connection to bypass auth and metadata
@@ -76,7 +76,7 @@ func (rr *RangeReader) ReadAt(ctx context.Context, p []byte, offset int64) (read
 		Size:    0,
 	}
 	var err error
-	objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, rr.end, rr.readerType)
+	objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, rr.end, rr.readType)
 	return objectData, err
 }
 
