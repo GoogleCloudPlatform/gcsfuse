@@ -19,6 +19,7 @@ package fs_test
 import (
 	"context"
 	"fmt"
+	"os"
 	"path"
 	"testing"
 
@@ -53,6 +54,7 @@ func (t *AppendsZBTest) SetupSuite() {
 }
 
 func (t *AppendsZBTest) TearDownSuite() {
+	bucketType = gcs.BucketType{}
 	t.fsTest.TearDownTestSuite()
 }
 func (t *AppendsZBTest) SetupTest() {
@@ -108,6 +110,10 @@ func (t *AppendsZBTest) TestUnFinalizedObjectsSizeChangeIsReflected() {
 func (t *AppendsZBTest) TestUnFinalizedObjectOverwriteAndLookup() {
 	_ = t.TestUnFinalizedObjectsCanBeLookedUp()
 	fh := operations.OpenFile(path.Join(mntDir, fileName), t.T())
+	defer func(fh *os.File) {
+		err := fh.Close()
+		assert.NoError(t.T(), err)
+	}(fh)
 	// Overwrite un-finalized object with a new un-finalized object.
 	_, err := fh.WriteAt([]byte(generateRandomString(2*util.MiB)), 0)
 	require.NoError(t.T(), err)
@@ -123,6 +129,10 @@ func (t *AppendsZBTest) TestUnFinalizedObjectOverwriteAndLookup() {
 
 func (t *AppendsZBTest) TestUnFinalizedObjectLookupFromSameMount() {
 	fh := operations.CreateFile(path.Join(mntDir, fileName), setup.FilePermission_0600, t.T())
+	defer func(fh *os.File) {
+		err := fh.Close()
+		assert.NoError(t.T(), err)
+	}(fh)
 	_, err := fh.WriteAt([]byte(generateRandomString(2*util.MiB)), 0)
 	require.NoError(t.T(), err)
 
