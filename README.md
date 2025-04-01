@@ -7,8 +7,16 @@ Starting with V1.0, Cloud Storage FUSE is Generally Available and supported by G
 Cloud Storage FUSE is open source software, released under the 
 [Apache license](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/LICENSE).
 
-## _New_ Cloud Storage FUSE V2
-Cloud Storage FUSE V2 provides important stability, functionality, and performance enhancements, including the introduction of a file cache that allows repeat file reads to be served from a local, faster cache storage of choice, such as a Local SSD, Persistent Disk, or even in-memory /tmpfs. The Cloud Storage FUSE file cache makes AI/ML training faster and more cost-effective by reducing the time spent waiting for data, with up to _**2.3x faster training time and 3.4x higher throughput**_ observed in training runs. This is especially valuable for multi epoch training and can serve small and random I/O operations significantly faster. The file cache feature is disabled by default and is enabled by passing a directory to 'cache-dir'. See [overview of caching](https://cloud.google.com/storage/docs/gcsfuse-cache) for more details. 
+## _New_ Cloud Storage FUSE V2.x features
+Cloud Storage FUSE V2 provides important stability, functionality, and performance enhancements.
+### File Cache
+The file cache allows repeat file reads to be served from a local, faster cache storage of choice, such as a Local SSD, Persistent Disk, or even in-memory /tmpfs. The Cloud Storage FUSE file cache makes AI/ML training faster and more cost-effective by reducing the time spent waiting for data, with up to _**2.3x faster training time and 3.4x higher throughput**_ observed in training runs. This is especially valuable for multi epoch training and can serve small and random I/O operations significantly faster. The file cache feature is disabled by default and is enabled by passing a directory to 'cache-dir'. See [overview of caching](https://cloud.google.com/storage/docs/gcsfuse-cache) for more details. 
+
+### Parallel Downloads
+Parallel downloads uses multiple workers to download a file in parallel using the file cache directory as a prefetch buffer. We recommend using parallel downloads for single-threaded read scenarios that load large files such as model serving and checkpoint restores, with up to _**9x faster model load times**_ . See [Using Parallel Downloads](https://cloud.google.com/storage/docs/cloud-storage-fuse/file-caching#configure-parallel-downloads) for more details. 
+
+### Streaming Writes
+Streaming writes is a new write path that uploads data directly to Google Cloud Storage (GCS) as it's written. The previous, and currently default write path temporarily stages the entire write in a local directory, uploading to GCS on close/fsync. This reduces both latency and disk space usage, making it particularly beneficial for large, sequential writes such as checkpoints which are up to _**40% faster with streaming writes.**_ observed in training runs. See [streaming wrties](https://github.com/GoogleCloudPlatform/gcsfuse/releases/tag/v2.9.1) for more details. 
 
 # ABOUT
 ## What is Cloud Storage FUSE?
