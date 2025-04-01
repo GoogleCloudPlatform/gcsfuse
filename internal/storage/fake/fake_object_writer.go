@@ -21,7 +21,6 @@ package fake
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 
 	"cloud.google.com/go/storage"
@@ -56,7 +55,7 @@ func (w *FakeObjectWriter) Close() error {
 		return err
 	}
 
-	o, err := createOrUpdateFakeObject(true, w.bkt, w.req, contents)
+	o, err := createOrUpdateFakeObject(w.bkt, w.req, contents)
 	if err == nil {
 		w.Object = storageutil.ConvertObjToMinObject(o)
 	}
@@ -65,19 +64,10 @@ func (w *FakeObjectWriter) Close() error {
 }
 
 func (w *FakeObjectWriter) Flush() (int64, error) {
-	if !w.bkt.BucketType().Zonal {
-		return 0, fmt.Errorf("flush is not supported on non zonal buckets")
-	}
-	contents := w.buf.Bytes()
-	// Validate for preconditions.
-	if err := preconditionChecks(w.bkt, w.req, contents); err != nil {
-		return 0, err
-	}
-	o, err := createOrUpdateFakeObject(false, w.bkt, w.req, contents)
+	err := w.Close()
 	if err != nil {
 		return 0, err
 	}
-	w.Object = storageutil.ConvertObjToMinObject(o)
 	return int64(w.buf.Len()), nil
 }
 

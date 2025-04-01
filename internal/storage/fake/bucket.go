@@ -49,9 +49,8 @@ func NewFakeBucket(clock timeutil.Clock, name string, bucketType gcs.BucketType)
 ////////////////////////////////////////////////////////////////////////
 
 type fakeObject struct {
-	metadata  gcs.Object
-	data      []byte
-	finalized bool
+	metadata gcs.Object
+	data     []byte
 }
 
 // A slice of objects compared by name.
@@ -392,31 +391,13 @@ func preconditionChecks(b *bucket, req *gcs.CreateObjectRequest, contents []byte
 	return
 }
 
-func createOrUpdateFakeObject(finalize bool, b *bucket, req *gcs.CreateObjectRequest, contents []byte) (o *gcs.Object, err error) {
-	existingIndex := b.objects.find(req.Name)
-	var existingObj *fakeObject
-	if existingIndex < len(b.objects) {
-		existingObj = &b.objects[existingIndex]
-	}
-	// Handling append use case specifically.
-	if b.BucketType().Zonal {
-		// Validate if it is an append use case.
-		if existingObj != nil && !existingObj.finalized && bytes.Equal(existingObj.data, contents[0:len(existingObj.data)]) {
-			existingObj.data = contents
-			existingObj.metadata.Size = uint64(len(contents))
-			if finalize {
-				existingObj.finalized = true
-			}
-			return &existingObj.metadata, nil
-		}
-	}
-
-	// Otherwise create new object and overwrite.
+func createOrUpdateFakeObject(b *bucket, req *gcs.CreateObjectRequest, contents []byte) (o *gcs.Object, err error) {
 	// Create an object record from the given attributes.
 	var fo fakeObject = b.mintObject(req, contents)
 	o = copyObject(&fo.metadata)
 
 	// Replace an entry in or add an entry to our list of objects.
+	existingIndex := b.objects.find(req.Name)
 	if existingIndex < len(b.objects) {
 		b.objects[existingIndex] = fo
 	} else {
@@ -448,7 +429,7 @@ func (b *bucket) createObjectLocked(
 	if err != nil {
 		return nil, err
 	}
-	return createOrUpdateFakeObject(true, b, req, contents)
+	return createOrUpdateFakeObject(b, req, contents)
 }
 
 // Create a reader based on the supplied request, also returning the index
