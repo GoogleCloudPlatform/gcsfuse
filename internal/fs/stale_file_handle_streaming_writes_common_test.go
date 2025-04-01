@@ -15,12 +15,6 @@
 package fs_test
 
 import (
-	"os"
-	"path"
-	"syscall"
-	"testing"
-
-	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/stretchr/testify/assert"
@@ -31,7 +25,7 @@ import (
 // Boilerplate
 // //////////////////////////////////////////////////////////////////////
 
-type staleFileHandleCommon struct {
+type staleFileHandleStreamingWritesCommon struct {
 	// fsTest has f1 *osFile and f2 *osFile which we will reuse here.
 	fsTest
 	suite.Suite
@@ -41,53 +35,24 @@ type staleFileHandleCommon struct {
 // Helpers
 // //////////////////////////////////////////////////////////////////////
 
-func commonServerConfig() *cfg.Config {
-	return &cfg.Config{
-		FileSystem: cfg.FileSystemConfig{
-			PreconditionErrors: true,
-		},
-		MetadataCache: cfg.MetadataCacheConfig{
-			TtlSecs: 0,
-		},
-	}
+func (t *staleFileHandleStreamingWritesCommon) SetupSuite() {
+	serverCfg := commonServerConfig()
+	serverCfg.Write.EnableStreamingWrites = true
+	serverCfg.Write.BlockSizeMb = operations.MiB
+	serverCfg.Write.MaxBlocksPerFile = 1
 
-}
+	t.serverCfg.NewConfig = serverCfg
+	t.mountCfg.DisableWritebackCaching = true
 
-func clobberFile(t *testing.T, fileName, content string) {
-	t.Helper()
-	_, err := storageutil.CreateObject(
-		ctx,
-		bucket,
-		fileName,
-		[]byte(content))
-	assert.NoError(t, err)
-}
-
-func createGCSObject(t *testing.T, fileName, content string) *os.File {
-	t.Helper()
-	_, err := storageutil.CreateObject(
-		ctx,
-		bucket,
-		fileName,
-		[]byte(content))
-	assert.NoError(t, err)
-	// Open file handle to read or write.
-	fh, err := os.OpenFile(path.Join(mntDir, fileName), os.O_RDWR|syscall.O_DIRECT, filePerms)
-	assert.NoError(t, err)
-	return fh
-}
-
-func (t *staleFileHandleCommon) SetupSuite() {
-	t.serverCfg.NewConfig = commonServerConfig()
 	t.fsTest.SetUpTestSuite()
 }
 
-func (t *staleFileHandleCommon) TearDownTest() {
+func (t *staleFileHandleStreamingWritesCommon) TearDownTest() {
 	// fsTest Cleanups to clean up mntDir and close t.f1 and t.f2.
 	t.fsTest.TearDown()
 }
 
-func (t *staleFileHandleCommon) TearDownSuite() {
+func (t *staleFileHandleStreamingWritesCommon) TearDownSuite() {
 	t.fsTest.TearDownTestSuite()
 }
 
@@ -95,18 +60,19 @@ func (t *staleFileHandleCommon) TearDownSuite() {
 // Tests
 // //////////////////////////////////////////////////////////////////////
 
-func (t *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHandleError() {
+func (t *staleFileHandleStreamingWritesCommon) TestWriteFileSyncFileClobberedFlushThrowsStaleFileHandleError() {
 	// Dirty the file by giving it some contents.
-	n, err := t.f1.Write([]byte("taco"))
+	data, err := operations.GenerateRandomData(operations.MiB * 4)
 	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), 4, n)
+	_, err = t.f1.WriteAt(data, 0)
+	assert.NoError(t.T(), err)
+	err = t.f1.Sync()
+	assert.NoError(t.T(), err)
 	// Replace the underlying object with a new generation.
 	clobberFile(t.T(), "foo", "foobar")
 
-	err = t.f1.Sync()
-
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
 	err = t.f1.Close()
+
 	operations.ValidateStaleNFSFileHandleError(t.T(), err)
 	// Make f1 nil, so that another attempt is not taken in TearDown to close the
 	// file.
@@ -115,28 +81,4 @@ func (t *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHand
 	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), "foobar", string(contents))
-}
-
-func (t *staleFileHandleCommon) TestFileDeletedLocallySyncAndCloseDoNotThrowError() {
-	// Dirty the file by giving it some contents.
-	n, err := t.f1.Write([]byte("foobar"))
-	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), 6, n)
-	// Unlink the file.
-	err = os.Remove(t.f1.Name())
-	// Verify unlink operation succeeds.
-	assert.NoError(t.T(), err)
-	operations.ValidateNoFileOrDirError(t.T(), path.Join(mntDir, "foo"))
-	// Attempt to write to file should not give any error.
-	n, err = t.f1.Write([]byte("taco"))
-	assert.Equal(t.T(), 4, n)
-	assert.NoError(t.T(), err)
-
-	operations.SyncFile(t.f1, t.T())
-	operations.CloseFile(t.f1)
-
-	// Make f1 nil, so that another attempt is not taken in TearDown to close the
-	// file.
-	t.f1 = nil
-	operations.ValidateObjectNotFoundErr(ctx, t.T(), bucket, "foo")
 }

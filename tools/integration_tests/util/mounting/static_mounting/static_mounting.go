@@ -30,9 +30,7 @@ func MountGcsfuseWithStaticMounting(flags []string) (err error) {
 			"--key-file=/tmp/sa.key.json")
 	}
 
-	defaultArg = append(defaultArg, "--debug_gcs",
-		"--debug_fs",
-		"--debug_fuse",
+	defaultArg = append(defaultArg, "--log-severity=trace",
 		"--log-file="+setup.LogFile(),
 		setup.TestBucket(),
 		setup.MntDir())

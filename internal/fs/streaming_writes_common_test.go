@@ -19,6 +19,8 @@ package fs_test
 
 import (
 	"os"
+	"path"
+	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/stretchr/testify/assert"
@@ -54,4 +56,24 @@ func (t *StreamingWritesCommonTest) TestUnlinkAfterWrite() {
 	assert.NoError(t.T(), err)
 
 	t.TestUnlinkBeforeWrite()
+}
+
+func (t *StreamingWritesCommonTest) TestRenameFileWithPendingWrites() {
+	_, err := t.f1.Write([]byte("tacos"))
+	assert.NoError(t.T(), err)
+	newFilePath := path.Join(mntDir, "test.txt")
+	// Check that new file doesn't exist.
+	_, err = os.Stat(newFilePath)
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+
+	err = os.Rename(t.f1.Name(), newFilePath)
+
+	assert.NoError(t.T(), err)
+	_, err = os.Stat(t.f1.Name())
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+	content, err := os.ReadFile(newFilePath)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), "tacos", string(content))
 }

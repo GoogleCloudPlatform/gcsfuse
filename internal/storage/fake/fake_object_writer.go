@@ -39,6 +39,11 @@ type FakeObjectWriter struct {
 }
 
 func (w *FakeObjectWriter) Write(p []byte) (n int, err error) {
+	contents := w.buf.Bytes()
+	// Validate for preconditions.
+	if err := preconditionChecks(w.bkt, w.req, contents); err != nil {
+		return 0, err
+	}
 	return w.buf.Write(p)
 }
 
@@ -56,6 +61,14 @@ func (w *FakeObjectWriter) Close() error {
 	}
 
 	return err
+}
+
+func (w *FakeObjectWriter) Flush() (int64, error) {
+	err := w.Close()
+	if err != nil {
+		return 0, err
+	}
+	return int64(w.buf.Len()), nil
 }
 
 func (w *FakeObjectWriter) ObjectName() string {

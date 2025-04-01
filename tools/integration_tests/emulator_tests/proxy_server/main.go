@@ -35,8 +35,9 @@ const PortAndProxyProcessIdInfoLogFormat = "Listening Proxy Server On Port [%s] 
 var (
 	// Flag to accept config-file path.
 	fConfigPath = flag.String("config-path", "configs/config.yaml", "Path to the file")
-	// Flag to turn on fDebug logs.
-	fDebug       = flag.Bool("debug", false, "Enable proxy server fDebug logs.")
+	// Flag to turn on/off fDebug logs.
+	fDebug = flag.Bool("debug", true, "Enable proxy server fDebug logs.")
+	// Log file to write proxy server logs.
 	fLogFilePath = flag.String("log-file", "", "Path to the log file")
 	// Initialized before the server gets started.
 	gConfig    *Config
@@ -232,7 +233,7 @@ func main() {
 	log.SetOutput(logFile)
 
 	if *fDebug {
-		log.Printf("%+v\n", gConfig)
+		printConfig(*gConfig)
 	}
 
 	gOpManager = NewOperationManager(*gConfig)

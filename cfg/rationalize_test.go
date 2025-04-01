@@ -430,3 +430,60 @@ func TestRationalizeMetricsConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestRationalize_ParallelDownloadsConfig(t *testing.T) {
+	testCases := []struct {
+		name                      string
+		flags                     flagSet
+		config                    *Config
+		expectedParallelDownloads bool
+	}{
+		{
+			name: "valid_config_file_cache_enabled",
+			config: &Config{
+				CacheDir: ResolvedPath("/some-path"),
+				FileCache: FileCacheConfig{
+					MaxSizeMb: 500,
+				},
+			},
+			expectedParallelDownloads: true,
+		},
+		{
+			name:                      "valid_config_file_cache_disabled",
+			config:                    &Config{},
+			expectedParallelDownloads: false,
+		},
+		{
+			name: "valid_config_cache_dir_not_set_and_max_size_mb_set",
+			config: &Config{
+				FileCache: FileCacheConfig{
+					MaxSizeMb: 500,
+				},
+			},
+			expectedParallelDownloads: false,
+		},
+		{
+			name: "valid_config_parallel_download_explicit_false",
+			// flagset here is representing viper config, value true is not actual value of the flag
+			// it just means flag is SET by the user
+			flags: flagSet{"file-cache.enable-parallel-downloads": true},
+			config: &Config{
+				CacheDir: ResolvedPath("/some-path"),
+				FileCache: FileCacheConfig{
+					MaxSizeMb: 500,
+				},
+			},
+			expectedParallelDownloads: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := Rationalize(tc.flags, tc.config)
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedParallelDownloads, tc.config.FileCache.EnableParallelDownloads)
+			}
+		})
+	}
+}

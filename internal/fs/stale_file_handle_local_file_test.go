@@ -17,7 +17,6 @@ package fs_test
 import (
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/stretchr/testify/suite"
 )
@@ -30,32 +29,20 @@ type staleFileHandleLocalFile struct {
 	staleFileHandleCommon
 }
 
-func TestStaleFileHandleLocalFile(t *testing.T) {
-	suite.Run(t, new(staleFileHandleLocalFile))
-}
-
-func (t *staleFileHandleLocalFile) SetupSuite() {
-	t.serverCfg.NewConfig = &cfg.Config{
-		FileSystem: cfg.FileSystemConfig{
-			PreconditionErrors: true,
-		},
-		MetadataCache: cfg.MetadataCacheConfig{
-			TtlSecs: 0,
-		},
-	}
-	t.fsTest.SetUpTestSuite()
-}
-
-func (t *staleFileHandleLocalFile) TearDownSuite() {
-	t.fsTest.TearDownTestSuite()
-}
+// //////////////////////////////////////////////////////////////////////
+// Helpers
+// //////////////////////////////////////////////////////////////////////
 
 func (t *staleFileHandleLocalFile) SetupTest() {
 	// Create a local file.
 	_, t.f1 = operations.CreateLocalFile(ctx, t.T(), mntDir, bucket, "foo")
 }
 
-func (t *staleFileHandleLocalFile) TearDownTest() {
-	// fsTest Cleanups to clean up mntDir and close t.f1 and t.f2.
-	t.fsTest.TearDown()
+// //////////////////////////////////////////////////////////////////////
+// Tests
+// //////////////////////////////////////////////////////////////////////
+
+// Executes all stale handle tests for local files.
+func TestStaleFileHandleLocalFile(t *testing.T) {
+	suite.Run(t, new(staleFileHandleLocalFile))
 }

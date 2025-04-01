@@ -105,8 +105,7 @@ class DlioWorkload:
   (essentially the data needed to create a job file for DLIO run).
 
   Members:
-  1. scenario (string): One of "local-ssd", "gcsfuse-generic",
-  "gcsfuse-file-cache" and "gcsfuse-no-file-cache".
+  1. scenario (string): One of "local-ssd", "gcsfuse-generic".
   2. numFilesTrain (int): DLIO numFilesTrain argument e.g. 500000 etc.
   3. recordLength (int): DLIO recordLength argument e.g. 100, 1000000 etc.
   4. bucket (str): Name of a GCS bucket to read input files from.

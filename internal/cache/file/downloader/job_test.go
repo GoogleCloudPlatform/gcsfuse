@@ -954,23 +954,23 @@ func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCRCIsFalse()
 }
 
 func (dt *downloaderTest) Test_validateCRC_WheContextIsCancelled() {
-	// objectName := "path/in/gcs/file2.txt"
-	// objectSize := 10 * util.MiB
-	// objectContent := testutil.GenerateRandomBytes(objectSize)
-	// dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(2*objectSize), func() {})
-	// // Start download
-	// offset := int64(10 * util.MiB)
-	// _, err := dt.job.Download(context.Background(), offset, true)
-	// AssertEq(nil, err)
-	// AssertTrue((dt.job.status.Name == Downloading) || (dt.job.status.Name == Completed), fmt.Sprintf("got job status: %v", dt.job.status.Name))
-	// AssertEq(nil, dt.job.status.Err)
-	// AssertGe(dt.job.status.Offset, offset)
+	objectName := "path/in/gcs/file2.txt"
+	objectSize := 10 * util.MiB
+	objectContent := testutil.GenerateRandomBytes(objectSize)
+	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(2*objectSize), func() {})
+	// Start download
+	offset := int64(10 * util.MiB)
+	_, err := dt.job.Download(context.Background(), offset, true)
+	AssertEq(nil, err)
+	AssertTrue((dt.job.status.Name == Downloading) || (dt.job.status.Name == Completed), fmt.Sprintf("got job status: %v", dt.job.status.Name))
+	AssertEq(nil, dt.job.status.Err)
+	AssertGe(dt.job.status.Offset, offset)
 
-	// dt.job.cancelFunc()
-	// dt.waitForCrcCheckToBeCompleted()
+	dt.job.cancelFunc()
+	dt.waitForCrcCheckToBeCompleted()
 
-	// AssertEq(Invalid, dt.job.status.Name)
-	// dt.verifyInvalidError(dt.job.status.Err)
+	AssertEq(Invalid, dt.job.status.Name)
+	dt.verifyInvalidError(dt.job.status.Err)
 }
 
 func (dt *downloaderTest) Test_handleError_SetStatusAsInvalidWhenContextIsCancelled() {
@@ -1023,7 +1023,7 @@ func (dt *downloaderTest) Test_When_Parallel_Download_Is_Disabled() {
 	AssertFalse(result)
 }
 
-func (dt *downloaderTest) Test_When_Experimental_Default_Parallel_Download_On() {
+func (dt *downloaderTest) Test_When_Experimental_Default_Parallel_Download_Explicitly_Set_On() {
 	//Arrange - initJobTest is being called in setup of downloader.go
 	dt.job.fileCacheConfig.ExperimentalParallelDownloadsDefaultOn = true
 
@@ -1032,11 +1032,11 @@ func (dt *downloaderTest) Test_When_Experimental_Default_Parallel_Download_On() 
 	AssertTrue(result)
 }
 
-func (dt *downloaderTest) Test_When_Experimental_Default_Parallel_Download_Off() {
+func (dt *downloaderTest) Test_When_Experimental_Default_Parallel_Download_On() {
 
 	result := dt.job.IsExperimentalParallelDownloadsDefaultOn()
 
-	AssertFalse(result)
+	AssertTrue(result)
 }
 
 func (dt *downloaderTest) Test_createCacheFile_WhenNonParallelDownloads() {

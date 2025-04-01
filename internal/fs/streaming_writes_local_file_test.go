@@ -47,6 +47,7 @@ func (t *StreamingWritesLocalFileTest) SetupSuite() {
 		},
 		MetadataCache: cfg.MetadataCacheConfig{TtlSecs: 0},
 	}
+	t.mountCfg.DisableWritebackCaching = true
 	t.fsTest.SetUpTestSuite()
 }
 
