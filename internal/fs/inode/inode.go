@@ -93,7 +93,11 @@ type Generation struct {
 // current represents inode cached object's current generation.
 func (latest Generation) Compare(current Generation) int {
 	// Compare first on object generation number.
-	if latest.Object != current.Object {
+	switch {
+	case latest.Object < current.Object:
+		return -1
+
+	case latest.Object > current.Object:
 		return 1
 	}
 

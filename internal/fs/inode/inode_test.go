@@ -38,7 +38,7 @@ func TestGenerationCompare(t *testing.T) {
 			name:     "latest.Object < current.Object",
 			latest:   inode.Generation{Object: 1, Metadata: 1, Size: 100},
 			current:  inode.Generation{Object: 2, Metadata: 1, Size: 100},
-			expected: 1, // change in object generation should always be treated like a new object.
+			expected: -1,
 		},
 		{
 			name:     "latest.Object == current.Object, latest.Metadata < current.Metadata",
