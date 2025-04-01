@@ -758,6 +758,22 @@ function downloadFioOutputsFromAllBucketsInWorkloadConfig() {
   rm -rf ${mountpath}
 }
 
+function areThereAnyDLIOWorkloads() {
+  lines=$(cat ${workload_config} | jq 'select(.TestConfig.workloadConfig.workloads[].dlioWorkload != null)' | jq -r '.TestConfig.workloadConfig.workloads[] | [.bucket, .dlioWorkload.numFilesTrain, .dlioWorkload.recordLength] | @csv' | grep -v " " | sort | uniq)
+  while read bucket_numFilesTrain_recordLength_combo; do
+    workload_bucket=$(echo ${bucket_numFilesTrain_recordLength_combo} | cut -d, -f1 | tr -d \")
+    workload_numFileTrain=$(echo ${bucket_numFilesTrain_recordLength_combo} | cut -d, -f2 | tr -d \")
+    workload_recordLength=$(echo ${bucket_numFilesTrain_recordLength_combo} | cut -d, -f3 | tr -d \")
+    if [[ "${workload_bucket}" != "" && "${workload_numFileTrain}" != "" && "${workload_recordLength}" != "" ]]; then
+      return 0
+    fi
+  done <<< "${lines}" # It's necessary to pass lines this way to while
+  # to avoid creating a subshell for while-execution, to 
+  # ensure that the above return statement works in the same shell.
+
+  return 1
+}
+
 function fetchAndParseFioOutputs() {
   printf "\nFetching and parsing fio outputs ...\n\n"
   cd "${gke_testing_dir}"/examples/fio
@@ -783,6 +799,10 @@ installDependencies
 # if only_parse is not set or is set as false, then
 if test -z ${only_parse} || ! ${only_parse} ; then
   validateMachineConfig ${machine_type} ${num_nodes} ${num_ssd}
+
+  if ${zonal} && $(areThereAnyDLIOWorkloads); then
+    exitWithError "DLIO workloads are not supported with zona buckets as of now."
+  fi
 
   # GCP configuration
   ensureGcpAuthsAndConfig
