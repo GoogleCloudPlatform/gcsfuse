@@ -97,7 +97,7 @@ function printHelp() {
   echo "workload_config=<path/to/workload/configuration/file e.g. /a/b/c.json >"
   echo "output_dir=</absolute/path/to/output/dir, output files will be written at output_dir/fio/output.csv and output_dir/dlio/output.csv>"
   echo "force_update_gcsfuse_code=<true|false, to force-update the gcsfuse-code to given branch if gcsfuse_src_dir has been set. Default=\"${DEFAULT_FORCE_UPDATE_GCSFUSE_CODE}\">"
-  echo "zonal=<true|false, to convey that at least some of the buckets in the given workload configuration are zonal buckets which can't be read/written using gcloud. Default=\"${DEFAULT_ZONAL}\"> "
+  echo "zonal=<true|false, to convey that at least one of the buckets in the given workload configuration is a zonal bucket which can't be read/written using gcloud. Default=\"${DEFAULT_ZONAL}\"> "
   echo ""
   echo ""
   echo ""
@@ -726,6 +726,8 @@ function downloadFioOutputsFromZonalBucket() {
         echo "Mounting \"${bucket}\" ... "
         cd $gcsfuse_src_dir
         if ! go run $gcsfuse_src_dir --implicit-dirs --log-severity=trace --log-file=$mountpath.log --log-format=text --metadata-cache-ttl-secs=-1 --stat-cache-max-size-mb=-1 --type-cache-max-size-mb=-1 --enable-nonexistent-type-cache=false $bucket $mountpath > /dev/null ; then
+            cd - >/dev/null
+
             exitWithError "Failed to mount bucket ${bucket} to ${mountpath}."
         else
             cd - >/dev/null
