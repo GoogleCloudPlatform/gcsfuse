@@ -241,6 +241,9 @@ func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool, inclu
 	// We are clobbered iff the generation doesn't match our source generation.
 	oGen := Generation{o.Generation, o.MetaGeneration, o.Size}
 	b = oGen.Compare(f.SourceGeneration()) != 0
+	if b == true {
+		logger.Errorf("For object %s, cached generation: %v, GCS Gen: %v", f.Name(), f.SourceGeneration(), oGen)
+	}
 
 	return
 }
