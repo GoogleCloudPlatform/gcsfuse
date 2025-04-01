@@ -114,7 +114,6 @@ def parse_arguments() -> object:
   )
   parser.add_argument(
       "--predownloaded-output-files",
-      # metavar="Whether the output files have already been downloaded",
       help="If true, output files will not be downloaded. False by default.",
       required=False,
       default=False,

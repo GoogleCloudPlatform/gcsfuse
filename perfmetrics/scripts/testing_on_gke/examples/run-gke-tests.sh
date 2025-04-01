@@ -626,14 +626,14 @@ function createCustomCsiDriverIfNeeded() {
 }
 
 function deleteAllHelmCharts() {
-  printf "\nDeleting all existing helm charts ...\n\n"
+  printf "Deleting all existing helm charts ...\n\n"
   helm ls --namespace=${appnamespace} | tr -s '\t' ' ' | cut -d' ' -f1 | tail -n +2 | while read helmchart; do helm uninstall ${helmchart} --namespace=${appnamespace}; done
 }
 
 function deleteAllPods() {
   deleteAllHelmCharts
 
-  printf "\nDeleting all existing pods ...\n\n"
+  printf "Deleting all existing pods ...\n\n"
   kubectl get pods --namespace=${appnamespace}  | tail -n +2 | cut -d' ' -f1 | while read podname; do kubectl delete pods/${podname} --namespace=${appnamespace} --grace-period=0 --force || true; done
 }
 
@@ -716,40 +716,42 @@ function waitTillAllPodsComplete() {
   done
 }
 
-function downloadFioOutputsFromZonalBucket() {
-        local bucket=$1
-        local fileSize=$2
-        local mountpath=$3
+function downloadFioOutputsFromBucket() {
+  local bucket=$1
+  local fileSize=$2
+  local mountpath=$3
 
-        mkdir -pv $mountpath
-        fusermount -uz $mountpath 2>/dev/null || true
-        echo "Mounting \"${bucket}\" ... "
-        cd $gcsfuse_src_dir
-        if ! go run $gcsfuse_src_dir --implicit-dirs --log-severity=trace --log-file=$mountpath.log --log-format=text --metadata-cache-ttl-secs=-1 --stat-cache-max-size-mb=-1 --type-cache-max-size-mb=-1 --enable-nonexistent-type-cache=false $bucket $mountpath > /dev/null ; then
-            cd - >/dev/null
+  mkdir -pv $mountpath
+  fusermount -uz $mountpath 2>/dev/null || true
+  echo "Mounting bucket \"${bucket}\" to ${mountpath} ... "
+  cd $gcsfuse_src_dir
+  if ! go run $gcsfuse_src_dir --implicit-dirs --log-severity=trace --log-file=$mountpath.log --log-format=text --metadata-cache-ttl-secs=-1 --stat-cache-max-size-mb=-1 --type-cache-max-size-mb=-1 --enable-nonexistent-type-cache=false $bucket $mountpath > /dev/null ; then
+    # Return to original directory before exiting..
+    cd - >/dev/null
 
-            exitWithError "Failed to mount bucket ${bucket} to ${mountpath}."
-        else
-            cd - >/dev/null
+    exitWithError "Failed to mount bucket ${bucket} to ${mountpath}."
+  fi
+  
+  # Return to original directory.
+  cd - >/dev/null
 
-            if test -d $mountpath/fio-output/$instance_id ; then
-                mkdir -pv $gcsfuse_src_dir/perfmetrics/scripts/testing_on_gke/bin/fio-logs/$instance_id/$fileSize
-                echo "Copying files from \"${bucket}/fio-output/${instance_id} to $gcsfuse_src_dir/perfmetrics/scripts/testing_on_gke/bin/fio-logs/$instance_id/$fileSize/\" ... "
-                cp -rfv $mountpath/fio-output/$instance_id/* $gcsfuse_src_dir/perfmetrics/scripts/testing_on_gke/bin/fio-logs/$instance_id/$fileSize/
-            fi
+  if test -d $mountpath/fio-output/$instance_id ; then
+    mkdir -pv $gcsfuse_src_dir/perfmetrics/scripts/testing_on_gke/bin/fio-logs/$instance_id/$fileSize
+    echo "Copying files from \"${bucket}/fio-output/${instance_id} to $gcsfuse_src_dir/perfmetrics/scripts/testing_on_gke/bin/fio-logs/$instance_id/$fileSize/\" ... "
+    cp -rfv $mountpath/fio-output/$instance_id/* $gcsfuse_src_dir/perfmetrics/scripts/testing_on_gke/bin/fio-logs/$instance_id/$fileSize/
+  fi
 
-            echo "Unmounting \"${bucket}\" ... "
-            fusermount -uz $mountpath || true
-        fi
+  echo "  Unmounting \"${bucket}\" from ${mountpath} ... "
+  fusermount -uz $mountpath || true
 }
 
-function downloadFioOutputsFromZonalBuckets() {
+function downloadFioOutputsFromAllBucketsInWorkloadConfig() {
   local mountpath=$(realpath mounted)
   cat ${workload_config} | jq 'select(.TestConfig.workloadConfig.workloads[].fioWorkload != null)' | jq -r '.TestConfig.workloadConfig.workloads[] | [.bucket, .fioWorkload.fileSize] | @csv' | grep -v " " | sort | uniq | while read bucket_size_combo; do
     workload_bucket=$(echo ${bucket_size_combo} | cut -d, -f1 | tr -d \")
     workload_filesize=$(echo ${bucket_size_combo} | cut -d, -f2 | tr -d \")
     if [[ "${workload_bucket}" != "" && "${workload_filesize}" != "" ]]; then
-       downloadFioOutputsFromZonalBucket ${workload_bucket} ${workload_filesize} ${mountpath}
+       downloadFioOutputsFromBucket ${workload_bucket} ${workload_filesize} ${mountpath}
     fi
   done
   fusermount -uz ${mountpath} || true
@@ -808,10 +810,10 @@ waitTillAllPodsComplete
 # clean-up after run
 deleteAllPods
 
-# download outputs for zonal buckets because zonal buckets don't work with
-# gcloud storage cp.
+#  Download fio outputs from all buckets using gcsfuse because zonal buckets don't work with gcloud storage cp.
 if ${zonal}; then
-  downloadFioOutputsFromZonalBuckets
+  printf "\nDownloading all fio outputs using gcsfuse mount as there are zonal buckets involved ...\n\n"
+  downloadFioOutputsFromAllBucketsInWorkloadConfig
 fi
 
 # parse outputs
