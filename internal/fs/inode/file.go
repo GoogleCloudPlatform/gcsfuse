@@ -646,10 +646,10 @@ func (f *FileInode) flushUsingBufferedWriteHandler() error {
 	return nil
 }
 
-// SyncPendingBufferedWrites flushed any pending writes on the bwh to GCS.
+// SyncPendingBufferedWrites flushes any pending writes on the bwh to GCS.
 // It is a no-op when bwh is nil.
 //
-// LOCKS_REQUIRED((f.mu)
+// LOCKS_REQUIRED(f.mu)
 func (f *FileInode) SyncPendingBufferedWrites() error {
 	if f.bwh == nil {
 		return nil
