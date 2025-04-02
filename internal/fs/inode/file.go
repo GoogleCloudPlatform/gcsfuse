@@ -372,13 +372,17 @@ func (f *FileInode) Source() *gcs.MinObject {
 // If true, it is safe to serve reads directly from the object given by
 // f.Source(), rather than calling f.ReadAt. Doing so may be more efficient,
 // because f.ReadAt may cause the entire object to be faulted in and requires
-// the inode to be locked during the read.
+// the inode to be locked during the read. SourceGenerationAuthoritative requires
+// SyncPendingBufferedWrites method has been called on f within same inode lock for
+// streaming writes with zonal bucket.
+// TODO(b/406160290): Check if this can be improved.
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) SourceGenerationIsAuthoritative() bool {
-	// When streaming writes are enabled, writes are done via bufferedWritesHandler(bwh).
-	// Hence checking both f.content & f.bwh to be nil
-	return f.content == nil && f.bwh == nil
+	// Source generation is authoritative if:
+	//   1.  No pending writes exists on the inode (both content and bwh are nil).
+	//   2.  The bucket is zonal and there are no pending writes in the temporary file.
+	return (f.content == nil && f.bwh == nil) || (f.bucket.BucketType().Zonal && f.content == nil)
 }
 
 // Equivalent to the generation returned by f.Source().
@@ -651,6 +655,27 @@ func (f *FileInode) flushUsingBufferedWriteHandler() error {
 	return nil
 }
 
+// SyncPendingBufferedWrites flushes any pending writes on the bwh to GCS.
+// It is a no-op when bwh is nil.
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) SyncPendingBufferedWrites() error {
+	if f.bwh == nil {
+		return nil
+	}
+	err := f.bwh.Sync()
+	var preconditionErr *gcs.PreconditionError
+	if errors.As(err, &preconditionErr) {
+		return &gcsfuse_errors.FileClobberedError{
+			Err: fmt.Errorf("f.bwh.Sync(): %w", err),
+		}
+	}
+	if err != nil {
+		return fmt.Errorf("f.bwh.Sync(): %w", err)
+	}
+	return nil
+}
+
 // Set the mtime for this file. May involve a round trip to GCS.
 //
 // LOCKS_REQUIRED(f.mu)
@@ -782,13 +807,11 @@ func (f *FileInode) Sync(ctx context.Context) (gcsSynced bool, err error) {
 	}
 
 	if f.bwh != nil {
-		// bwh.Sync does not finalize the upload, so return gcsSynced as false.
-		err = f.bwh.Sync()
-		var preconditionErr *gcs.PreconditionError
-		if errors.As(err, &preconditionErr) {
-			return false, &gcsfuse_errors.FileClobberedError{
-				Err: fmt.Errorf("f.bwh.Sync(): %w", err),
-			}
+		// SyncPendingBufferedWrites does not finalize the upload,
+		// so return gcsSynced as false.
+		err = f.SyncPendingBufferedWrites()
+		if err != nil {
+			err = fmt.Errorf("could not sync what has been written so far: %w", err)
 		}
 		return
 	}
