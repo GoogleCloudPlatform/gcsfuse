@@ -72,7 +72,7 @@ func (fc *FileCacheReader) Object() *gcs.MinObject {
 func (fc *FileCacheReader) CheckInvariants() {
 }
 
-func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (readers.ObjectData, error) {
+func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset, end int64) (readers.ObjectData, error) {
 	var err error
 	o := readers.ObjectData{
 		DataBuf:                 p,

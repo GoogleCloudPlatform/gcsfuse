@@ -61,7 +61,7 @@ func (rr *readManager) CheckInvariants() {
 	}
 }
 
-func (rr *readManager) ReadAt(ctx context.Context, p []byte, offset int64) (readers.ObjectData, error) {
+func (rr *readManager) ReadAt(ctx context.Context, p []byte, offset, end int64) (readers.ObjectData, error) {
 	var err error
 	objectData := readers.ObjectData{
 		DataBuf: p,
@@ -74,7 +74,7 @@ func (rr *readManager) ReadAt(ctx context.Context, p []byte, offset int64) (read
 	}
 
 	for _, r := range rr.readers {
-		objectData, err = r.ReadAt(ctx, p, offset)
+		objectData, err = r.ReadAt(ctx, p, offset, -1)
 		if err != nil || objectData.Size == len(p) {
 			return objectData, err
 		}

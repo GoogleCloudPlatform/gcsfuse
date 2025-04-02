@@ -131,7 +131,7 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 		fh.inode.Unlock()
 
 		var objectData readers.ObjectData
-		objectData, err = fh.reader.ReadAt(ctx, dst, offset)
+		objectData, err = fh.reader.ReadAt(ctx, dst, offset, -1)
 		switch {
 		case errors.Is(err, io.EOF):
 			err = io.EOF

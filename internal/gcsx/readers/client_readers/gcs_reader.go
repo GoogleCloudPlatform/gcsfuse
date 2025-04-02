@@ -93,7 +93,7 @@ func (gr *GCSReader) Object() *gcs.MinObject {
 func (gr *GCSReader) CheckInvariants() {
 }
 
-func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (readers.ObjectData, error) {
+func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset, end int64) (readers.ObjectData, error) {
 	objectData := readers.ObjectData{
 		DataBuf: p,
 		Size:    0,
@@ -112,7 +112,7 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (reader
 	}
 
 	// If we don't have a reader, determine whether to read from NewReader or Mgr.
-	end, err := gr.getReadInfo(offset, int64(len(p)))
+	end, err = gr.getReadInfo(offset, int64(len(p)))
 	if err != nil {
 		err = fmt.Errorf("ReadAt: getReaderInfo: %w", err)
 		return objectData, err
