@@ -801,7 +801,7 @@ if test -z ${only_parse} || ! ${only_parse} ; then
   validateMachineConfig ${machine_type} ${num_nodes} ${num_ssd}
 
   if ${zonal} && $(areThereAnyDLIOWorkloads); then
-    exitWithError "DLIO workloads are not supported with zona buckets as of now."
+    exitWithError "DLIO workloads are not supported with zonal buckets as of now."
   fi
 
   # GCP configuration
