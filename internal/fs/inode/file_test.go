@@ -32,6 +32,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
@@ -171,6 +172,17 @@ func (t *FileTest) TestInitialSourceGeneration() {
 	sg := t.in.SourceGeneration()
 	assert.Equal(t.T(), t.backingObj.Generation, sg.Object)
 	assert.Equal(t.T(), t.backingObj.MetaGeneration, sg.Metadata)
+	assert.Equal(t.T(), t.backingObj.Size, sg.Size)
+}
+
+func (t *FileTest) TestSourceGenerationSizeAfterWriteDoesNotChange() {
+	err := t.in.Write(context.Background(), []byte(setup.GenerateRandomString(5)), 0)
+	require.NoError(t.T(), err)
+
+	sg := t.in.SourceGeneration()
+	assert.Equal(t.T(), t.backingObj.Generation, sg.Object)
+	assert.Equal(t.T(), t.backingObj.MetaGeneration, sg.Metadata)
+	assert.Equal(t.T(), t.backingObj.Size, sg.Size)
 }
 
 func (t *FileTest) TestInitialAttributes() {
@@ -418,6 +430,7 @@ func (t *FileTest) TestWriteThenSync() {
 			assert.NotNil(t.T(), m)
 			assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
 			assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
+			assert.Equal(t.T(), t.in.SourceGeneration().Size, m.Size)
 			assert.Equal(t.T(), uint64(len("paco")), m.Size)
 			assert.Equal(t.T(),
 				writeTime.UTC().Format(time.RFC3339Nano),
@@ -488,6 +501,7 @@ func (t *FileTest) TestWriteToLocalFileThenSync() {
 			assert.NotNil(t.T(), m)
 			assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
 			assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
+			assert.Equal(t.T(), t.in.SourceGeneration().Size, m.Size)
 			assert.Equal(t.T(), uint64(len("tacos")), m.Size)
 			assert.Equal(t.T(),
 				writeTime.UTC().Format(time.RFC3339Nano),
@@ -551,6 +565,7 @@ func (t *FileTest) TestSyncEmptyLocalFile() {
 			assert.NotNil(t.T(), m)
 			assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
 			assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
+			assert.Equal(t.T(), t.in.SourceGeneration().Size, m.Size)
 			assert.Equal(t.T(), uint64(0), m.Size)
 			// Validate MinObject in MRDWrapper is same as the MinObject in inode.
 			assert.Same(t.T(), &t.in.src, t.in.MRDWrapper.GetMinObject())
@@ -622,6 +637,7 @@ func (t *FileTest) TestAppendThenSync() {
 			assert.NotNil(t.T(), m)
 			assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
 			assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
+			assert.Equal(t.T(), t.in.SourceGeneration().Size, m.Size)
 			assert.Equal(t.T(), uint64(len("tacoburrito")), m.Size)
 			assert.Equal(t.T(),
 				writeTime.UTC().Format(time.RFC3339Nano),
@@ -697,6 +713,7 @@ func (t *FileTest) TestTruncateDownwardThenSync() {
 			assert.NotNil(t.T(), m)
 			assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
 			assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
+			assert.Equal(t.T(), t.in.SourceGeneration().Size, m.Size)
 			assert.Equal(t.T(), uint64(2), m.Size)
 			assert.Equal(t.T(),
 				truncateTime.UTC().Format(time.RFC3339Nano),
@@ -769,6 +786,7 @@ func (t *FileTest) TestTruncateUpwardThenFlush() {
 			assert.NotNil(t.T(), m)
 			assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
 			assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
+			assert.Equal(t.T(), t.in.SourceGeneration().Size, m.Size)
 			assert.Equal(t.T(), uint64(6), m.Size)
 
 			// Check attributes.
@@ -1055,6 +1073,7 @@ func (t *FileTest) TestSyncFlush_Clobbered() {
 			assert.True(t.T(), errors.As(err, &fcErr), "expected FileClobberedError but got %v", err)
 			assert.Equal(t.T(), t.backingObj.Generation, t.in.SourceGeneration().Object)
 			assert.Equal(t.T(), t.backingObj.MetaGeneration, t.in.SourceGeneration().Metadata)
+			assert.Equal(t.T(), t.backingObj.Size, t.in.SourceGeneration().Size)
 
 			// The object in the bucket should not have been changed.
 			statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}

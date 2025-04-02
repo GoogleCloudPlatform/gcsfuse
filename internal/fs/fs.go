@@ -901,6 +901,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 	oGen := inode.Generation{
 		Object:   ic.MinObject.Generation,
 		Metadata: ic.MinObject.MetaGeneration,
+		Size:     ic.MinObject.Size,
 	}
 
 	// Retry loop for the stale index entry case below. On entry, we hold fs.mu
