@@ -193,3 +193,6 @@ func (fc *FileCacheReader) captureFileCacheMetrics(ctx context.Context, metricHa
 	metricHandle.FileCacheReadBytesCount(ctx, int64(readDataSize), []common.MetricAttr{{Key: common.ReadType, Value: readType}})
 	metricHandle.FileCacheReadLatency(ctx, float64(readLatency.Microseconds()), []common.MetricAttr{{Key: common.CacheHit, Value: strconv.FormatBool(cacheHit)}})
 }
+
+func (fc *FileCacheReader) CheckInvariants() {
+}

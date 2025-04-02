@@ -64,11 +64,7 @@ type GCSReader struct {
 
 	rangeReader RangeReader
 	mrr         MultiRangeReader
-	// Stores the handle associated with the previously closed newReader instance.
-	// This will be used while making the new connection to bypass auth and metadata
-	// checks.
-	readHandle []byte
-	readType   string
+	readType    string
 
 	sequentialReadSizeMb int32
 
@@ -190,5 +186,10 @@ func (gr *GCSReader) limitToEnd(start int64, end int64) int64 {
 }
 
 func (gr *GCSReader) Destroy() {
+	gr.mrr.Destroy()
+	gr.rangeReader.Destroy()
+}
 
+func (gr *GCSReader) CheckInvariants() {
+	gr.rangeReader.CheckInvariants()
 }

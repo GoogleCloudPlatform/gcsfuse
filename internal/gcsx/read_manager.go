@@ -16,7 +16,6 @@ package gcsx
 
 import (
 	"context"
-	"fmt"
 	"io"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
@@ -28,22 +27,19 @@ import (
 )
 
 type readManager struct {
-	object *gcs.MinObject
-	reader gcs.StorageReader
-	cancel func()
-
-	readers []DataReader
+	object  *gcs.MinObject
+	readers []Reader
 }
 
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
-func NewReadManager(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *client_readers.MultiRangeDownloaderWrapper) Reader {
+func NewReadManager(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *client_readers.MultiRangeDownloaderWrapper) ReadManager {
 	gcsReader := client_readers.NewGCSReader(o, bucket, metricHandle, mrdWrapper, sequentialReadSizeMb)
 	fileCacheReader := cache_readers.NewFileCacheReader(o, bucket, fileCacheHandler, cacheFileForRangeRead, metricHandle)
 
 	return &readManager{
 		object: o,
-		readers: []DataReader{
+		readers: []Reader{
 			&fileCacheReader,
 			&gcsReader,
 		},
@@ -55,9 +51,8 @@ func (rr *readManager) Object() (o *gcs.MinObject) {
 }
 
 func (rr *readManager) CheckInvariants() {
-	// INVARIANT: (reader == nil) == (cancel == nil)
-	if (rr.reader == nil) != (rr.cancel == nil) {
-		panic(fmt.Sprintf("Mismatch: %v vs. %v", rr.reader == nil, rr.cancel == nil))
+	for _, r := range rr.readers {
+		r.CheckInvariants()
 	}
 }
 
@@ -84,4 +79,7 @@ func (rr *readManager) ReadAt(ctx context.Context, p []byte, offset int64) (read
 }
 
 func (rr *readManager) Destroy() {
+	for _, r := range rr.readers {
+		r.Destroy()
+	}
 }
