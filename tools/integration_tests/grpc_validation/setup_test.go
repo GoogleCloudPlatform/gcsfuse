@@ -26,7 +26,6 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/util"
 	"go.opentelemetry.io/contrib/detectors/gcp"
 	"go.opentelemetry.io/otel/sdk/resource"
 )
@@ -54,11 +53,11 @@ var multi_regions = []string{
 	"eu",
 }
 var gcp_project = "gcs-fuse-test"
-var logFilePrefix = "grpc_validation_mnt_log"
-
-// A directory containing outputs created by build_gcsfuse, set up and deleted
-// in TestMain.
-var gBuildDir string
+var (
+	ctx context.Context
+	client *storage.Client
+	testRegion string
+)
 
 // Since gRPC directpath does not work over cloudtop, so these validation tests will be skipped
 // when run on cloudtop.
@@ -73,7 +72,7 @@ var cloudtopProd = "cloudtop-prod"
 func findTestExecutionEnvironment(ctx context.Context) (string, error) {
 	detectedAttrs, err := resource.New(ctx, resource.WithDetectors(gcp.NewDetector()))
 	if err != nil {
-		log.Printf("Error fetching the test environment.All tests will be skipped.")
+		log.Printf("Error fetching the test environment.All tests will be skipped. Error : %v", err)
 		return "", err
 	}
 	attrs := detectedAttrs.Set()
@@ -83,7 +82,7 @@ func findTestExecutionEnvironment(ctx context.Context) (string, error) {
 	if v, exists := attrs.Value("cloud.region"); exists {
 		return v.AsString(), nil
 	}
-	return cloudtopProd, nil
+	return "", nil
 }
 
 // For testing with single region buckets, we need to find the region for success case.
@@ -118,6 +117,7 @@ func pickFailureRegionFromListOfRegions(successRegion string, regions []string) 
 	return ""
 }
 
+// Creating test bucket name with unique suffix.
 func createTestBucketName(region string) string {
 	epoch := time.Now().UnixNano() // Get the current Unix epoch time
 	return fmt.Sprintf("grpc_validation_%s_%d", region, epoch)
@@ -126,13 +126,12 @@ func createTestBucketName(region string) string {
 // Based on the test case, we need to create the bucket in/out of region with the test VM.
 // This has to be done dynamically at the time of test setup.
 // Based on what region we pass, the test bucket will be multi region or single region.
-func createTestBucket(ctx context.Context, client *storage.Client, testBucketRegion, testBucketName string) (err error) {
+func createTestBucket(testBucketRegion, testBucketName string) (err error) {
 	bucket := client.Bucket(testBucketName)
 	if err = bucket.Create(ctx, gcp_project, &storage.BucketAttrs{Location: testBucketRegion}); err != nil {
-		log.Printf("Error while creating bucket")
+		log.Printf("Error while creating bucket, error: %v",err)
 		return err
 	}
-
 	return nil
 }
 
@@ -144,46 +143,37 @@ func DeleteBucket(ctx context.Context, client *storage.Client, testBucketName st
 
 	bucket := client.Bucket(testBucketName)
 	if err = bucket.Delete(ctx); err != nil {
-		log.Printf("Error while deleting bucket : %s", testBucketName)
+		log.Printf("Error while deleting bucket : %s, error: %v", testBucketName,err)
 		return err
 	}
-
 	return nil
 }
 
 func TestMain(m *testing.M) {
 	// Parse flags from the setup.
 	setup.ParseSetUpFlags()
+	setup.SetUpTestDir()
 
+	// Creating a common storage client for the test
 	var err error
-
-	if setup.TestInstalledPackage() {
-		// when testInstalledPackage flag is set, gcsfuse is preinstalled on the
-		// machine. Hence, here we are overwriting gBuildDir to /.
-		gBuildDir = "/"
-		code := m.Run()
-		os.Exit(code)
+	ctx = context.Background()
+	if client, err = storage.NewClient(ctx); err != nil {
+		log.Fatalf("Creation of storage client failed with error : %v",err)
 	}
+	defer client.Close()
 
-	// To test locally built package
-	// Set up a directory into which we will build.
-	gBuildDir, err = os.MkdirTemp("", "gcsfuse_integration_tests")
-	if err != nil {
-		log.Fatalf("TempDir: %p", err)
-		return
-	}
+	testRegion, err := findTestExecutionEnvironment(ctx)
+    if err != nil {
+        log.Fatalf("Failed to retrieve test VM region: %v", err)
+    }
 
-	// Build into that directory.
-	err = util.BuildGcsfuse(gBuildDir)
-	if err != nil {
-		log.Fatalf("buildGcsfuse: %p", err)
-		return
-	}
+    if testRegion == cloudtopProd {
+        log.Println("Skipping tests due to cloudtop environment.")
+        os.Exit(0)
+    }
 
 	// Run tests.
 	code := m.Run()
-
-	// Clean up and exit.
-	os.RemoveAll(gBuildDir)
+	// Exit.
 	os.Exit(code)
 }
