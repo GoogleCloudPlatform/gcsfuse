@@ -363,7 +363,7 @@ function run_e2e_tests_for_zonal_bucket(){
   non_parallel_tests_zonal_group_exit_code=$?
 
   if [ $parallel_tests_zonal_group_exit_code != 0 ] || [ $non_parallel_tests_zonal_group_exit_code != 0 ]; then
-  return 1
+    return 1
   fi
 }
 
