@@ -177,7 +177,7 @@ func (t *FileStreamingWritesZonalBucketTest) TestSyncPendingBufferedWritesForZon
 
 	assert.NoError(t.T(), t.in.SyncPendingBufferedWrites())
 	content, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
-	assert.NoError(t.T(), err)
+	require.NoError(t.T(), err)
 	assert.Equal(t.T(), "pizza", string(content))
 }
 
@@ -307,7 +307,7 @@ func (t *FileStreamingWritesTest) TestOutOfOrderWriteFollowedByOrderedWrite() {
 	assert.True(t.T(), gcsSynced)
 	// Read the object's contents.
 	contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
-	assert.Nil(t.T(), err)
+	require.NoError(t.T(), err)
 	assert.Equal(t.T(), "hello\x00taco", string(contents))
 }
 
@@ -328,7 +328,7 @@ func (t *FileStreamingWritesTest) TestOutOfOrderWritesOnClobberedFileThrowsError
 	// Validate Object on GCS not updated.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	objGot, _, err := t.bucket.StatObject(t.ctx, statReq)
-	assert.Nil(t.T(), err)
+	require.NoError(t.T(), err)
 	assert.Equal(t.T(), storageutil.ConvertObjToMinObject(objWritten), objGot)
 }
 
@@ -410,13 +410,13 @@ func (t *FileStreamingWritesTest) TestWriteToFileAndFlush() {
 			assert.False(t.T(), t.in.IsLocal())
 			// Check attributes.
 			attrs, err := t.in.Attributes(t.ctx)
-			assert.Nil(t.T(), err)
+			require.NoError(t.T(), err)
 			assert.Equal(t.T(), uint64(len("tacos")), attrs.Size)
 			assert.Equal(t.T(), t.clock.Now().UTC(), attrs.Mtime.UTC())
 			// Validate Object on GCS.
 			statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 			m, _, err := t.bucket.StatObject(t.ctx, statReq)
-			assert.Nil(t.T(), err)
+			require.NoError(t.T(), err)
 			assert.NotNil(t.T(), m)
 			assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
 			assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
@@ -424,7 +424,7 @@ func (t *FileStreamingWritesTest) TestWriteToFileAndFlush() {
 			// Mtime metadata is not written for buffered writes.
 			assert.Equal(t.T(), "", m.Metadata["gcsfuse_mtime"])
 			contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
-			assert.Nil(t.T(), err)
+			require.NoError(t.T(), err)
 			assert.Equal(t.T(), "tacos", string(contents))
 		})
 	}
@@ -466,7 +466,7 @@ func (t *FileStreamingWritesTest) TestFlushEmptyFile() {
 			assert.False(t.T(), t.in.IsLocal())
 			// Check attributes.
 			attrs, err := t.in.Attributes(t.ctx)
-			assert.Nil(t.T(), err)
+			require.NoError(t.T(), err)
 			assert.Equal(t.T(), uint64(0), attrs.Size)
 			// For synced file, mtime is updated by SetInodeAttributes call.
 			if tc.isLocal {
@@ -475,7 +475,7 @@ func (t *FileStreamingWritesTest) TestFlushEmptyFile() {
 			// Validate Object on GCS.
 			statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 			m, _, err := t.bucket.StatObject(t.ctx, statReq)
-			assert.Nil(t.T(), err)
+			require.NoError(t.T(), err)
 			assert.NotNil(t.T(), m)
 			assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
 			assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
@@ -483,7 +483,7 @@ func (t *FileStreamingWritesTest) TestFlushEmptyFile() {
 			// Mtime metadata is not written for buffered writes.
 			assert.Equal(t.T(), "", m.Metadata["gcsfuse_mtime"])
 			contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
-			assert.Nil(t.T(), err)
+			require.NoError(t.T(), err)
 			assert.Equal(t.T(), "", string(contents))
 		})
 	}
@@ -576,7 +576,7 @@ func (t *FileStreamingWritesTest) TestWriteToFileAndSync() {
 				var notFoundErr *gcs.NotFoundError
 				assert.ErrorAs(t.T(), err, &notFoundErr)
 			} else {
-				assert.NoError(t.T(), err)
+				require.NoError(t.T(), err)
 				assert.NotNil(t.T(), m)
 				assert.Equal(t.T(), uint64(0), m.Size)
 			}
@@ -611,7 +611,7 @@ func (t *FileStreamingWritesTest) TestTruncateOnFileUsingTempFileDoesNotRecreate
 	assert.True(t.T(), gcsSynced)
 	// Read the object's contents.
 	contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
-	assert.Nil(t.T(), err)
+	require.NoError(t.T(), err)
 	assert.Equal(t.T(), "\x00\x00taco\x00\x00\x00\x00", string(contents))
 }
 
