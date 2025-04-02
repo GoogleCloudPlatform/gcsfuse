@@ -255,7 +255,7 @@ func (rr *RangeReader) startRead(start int64, end int64) (err error) {
 	return
 }
 
-func (rr *RangeReader) SkipBytes(offset int64) {
+func (rr *RangeReader) skipBytes(offset int64) {
 	// Check first if we can read using existing reader. if not, determine which
 	// api to use and call gcs accordingly.
 
@@ -273,7 +273,7 @@ func (rr *RangeReader) SkipBytes(offset int64) {
 	}
 }
 
-func (rr *RangeReader) DiscardReader(offset int64, p []byte) bool {
+func (rr *RangeReader) discardReader(offset int64, p []byte) bool {
 	// If we have an existing reader, but it's positioned at the wrong place,
 	// clean it up and throw it away.
 	// We will also clean up the existing reader if it can't serve the entire request.
@@ -289,4 +289,20 @@ func (rr *RangeReader) DiscardReader(offset int64, p []byte) bool {
 		}
 	}
 	return false
+}
+
+func (rr *RangeReader) readFromExistingReader(ctx context.Context, p []byte, offset, end int64) (readers.ObjectData, error) {
+	objectData := readers.ObjectData{
+		DataBuf:                 p,
+		Size:                    0,
+		FallBackToAnotherReader: true,
+	}
+	var err error
+
+	if rr.reader != nil {
+		objectData, err = rr.ReadAt(ctx, p, offset, end)
+		objectData.FallBackToAnotherReader = false
+	}
+
+	return objectData, err
 }

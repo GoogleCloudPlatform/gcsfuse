@@ -99,15 +99,14 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset, end int64) (r
 		Size:    0,
 	}
 	var err error
-	gr.rangeReader.SkipBytes(offset)
+	gr.rangeReader.skipBytes(offset)
 
-	if gr.rangeReader.DiscardReader(offset, p) {
+	if gr.rangeReader.discardReader(offset, p) {
 		gr.seeks++
 	}
 
-	if gr.rangeReader.reader != nil {
-		objectData, err = gr.rangeReader.ReadAt(ctx, p, offset, -1)
-
+	objectData, err = gr.rangeReader.readFromExistingReader(ctx, p, offset, -1)
+	if err != nil || !objectData.FallBackToAnotherReader {
 		return objectData, err
 	}
 
