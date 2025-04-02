@@ -17,7 +17,6 @@ package client_readers
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/readers"
@@ -144,31 +143,30 @@ func (gr *GCSReader) getReaderType(start int64, end int64, bucketType gcs.Bucket
 	return RangeReaderType
 }
 
-// getReaderInfo determines the readType and provides the range to query GCS.
+// getReadInfo determines the readType and provides the range to query GCS.
 // Range here is [start, end]. end is computed using the readType, start offset
 // and size of the data the callers needs.
 func (gr *GCSReader) getReadInfo(start int64, size int64) (int64, error) {
 	// Make sure start and size are legal.
 	if start < 0 || uint64(start) > gr.obj.Size || size < 0 {
-		err := fmt.Errorf(
+		return 0, fmt.Errorf(
 			"range [%d, %d) is illegal for %d-byte object",
 			start,
 			start+size,
 			gr.obj.Size)
-		return 0, err
 	}
 
-	// GCS requests are expensive. Prefer to issue read requests defined by
-	// sequentialReadSizeMb flag. Sequential reads will simply sip from the fire house
-	// with each call to ReadAt. In practice, GCS will fill the TCP buffers
-	// with about 6 MB of data. Requests from outside GCP will be charged
-	// about 6MB of egress data, even if less data is read. Inside GCP
-	// regions, GCS egress is free. This logic should limit the number of
-	// GCS read requests, which are not free.
+	// Determine end based on read pattern.
+	end := gr.determineEnd(start)
 
-	// But if we notice random read patterns after a minimum number of seeks,
-	// optimise for random reads. Random reads will read data in chunks of
-	// (average read size in bytes rounded up to the next MB).
+	// Limit end to sequentialReadSizeMb.
+	end = gr.limitToEnd(start, end)
+
+	return end, nil
+}
+
+// determineEnd determines the end of the read based on the read pattern.
+func (gr *GCSReader) determineEnd(start int64) int64 {
 	end := int64(gr.obj.Size)
 	if gr.seeks >= minSeeksForRandom {
 		gr.readType = util.Random
@@ -187,17 +185,16 @@ func (gr *GCSReader) getReadInfo(start int64, size int64) (int64, error) {
 	if end > int64(gr.obj.Size) {
 		end = int64(gr.obj.Size)
 	}
+	return end
+}
 
-	// To avoid overloading GCS and to have reasonable latencies, we will only
-	// fetch data of max size defined by sequentialReadSizeMb.
+// limitToEnd limits the end of the read to sequentialReadSizeMb.
+func (gr *GCSReader) limitToEnd(start int64, end int64) int64 {
 	maxSizeToReadFromGCS := int64(gr.sequentialReadSizeMb * MB)
-	log.Println("end-start", end-start)
-	log.Println("maxSizeToReadFromGCS", maxSizeToReadFromGCS)
 	if end-start > maxSizeToReadFromGCS {
 		end = start + maxSizeToReadFromGCS
 	}
-
-	return end, nil
+	return end
 }
 
 func (gr *GCSReader) Destroy() {

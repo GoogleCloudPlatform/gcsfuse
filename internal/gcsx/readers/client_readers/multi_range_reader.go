@@ -35,8 +35,6 @@ type MultiRangeReader struct {
 	isMRDInUse bool
 
 	metricHandle common.MetricHandle
-
-	totalReadBytes uint64
 }
 
 func NewMultiRangeReader(metricHandle common.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper) MultiRangeReader {
