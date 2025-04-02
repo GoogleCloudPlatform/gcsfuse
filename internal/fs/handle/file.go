@@ -39,7 +39,7 @@ type FileHandle struct {
 	// INVARIANT: If reader != nil, reader.CheckInvariants() doesn't panic.
 	//
 	// GUARDED_BY(mu)
-	reader gcsx.ObjectReader
+	reader gcsx.ReadManager
 
 	// fileCacheHandler is used to get file cache handle and read happens using that.
 	// This will be nil if the file cache is disabled.
