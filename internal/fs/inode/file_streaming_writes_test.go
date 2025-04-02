@@ -30,6 +30,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
@@ -510,6 +511,30 @@ func (t *FileStreamingWritesTest) TestWriteToFileAndSync() {
 			}
 		})
 	}
+}
+
+func (t *FileStreamingWritesTest) TestSourceGenerationSizeForLocalFileIsReflected() {
+	assert.True(t.T(), t.in.IsLocal())
+	err := t.in.Write(context.Background(), []byte(setup.GenerateRandomString(5)), 0)
+	require.NoError(t.T(), err)
+
+	sg := t.in.SourceGeneration()
+	assert.Nil(t.T(), t.backingObj)
+	assert.EqualValues(t.T(), 0, sg.Object)
+	assert.EqualValues(t.T(), 0, sg.Metadata)
+	assert.EqualValues(t.T(), 5, sg.Size)
+}
+
+func (t *FileStreamingWritesTest) TestSourceGenerationSizeForSyncedFileIsReflected() {
+	t.createInode(fileName, emptyGCSFile)
+	assert.False(t.T(), t.in.IsLocal())
+	err := t.in.Write(context.Background(), []byte(setup.GenerateRandomString(5)), 0)
+	require.NoError(t.T(), err)
+
+	sg := t.in.SourceGeneration()
+	assert.EqualValues(t.T(), t.backingObj.Generation, sg.Object)
+	assert.EqualValues(t.T(), t.backingObj.MetaGeneration, sg.Metadata)
+	assert.EqualValues(t.T(), 5, sg.Size)
 }
 
 func (t *FileStreamingWritesTest) TestTruncateOnFileUsingTempFileDoesNotRecreatesBWH() {
