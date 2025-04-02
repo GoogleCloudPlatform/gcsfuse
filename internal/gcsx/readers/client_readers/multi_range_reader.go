@@ -44,9 +44,6 @@ func NewMultiRangeReader(metricHandle common.MetricHandle, mrdWrapper *MultiRang
 	}
 }
 
-func (mrd *MultiRangeReader) CheckInvariants() {
-}
-
 func (mrd *MultiRangeReader) readFromMultiRangeReader(ctx context.Context, p []byte, offset, end int64, timeout time.Duration) (bytesRead int, err error) {
 	if mrd.mrdWrapper == nil {
 		return 0, fmt.Errorf("readFromMultiRangeReader: Invalid MultiRangeDownloaderWrapper")

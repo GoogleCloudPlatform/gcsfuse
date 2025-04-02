@@ -32,7 +32,7 @@ type readManager struct {
 	reader gcs.StorageReader
 	cancel func()
 
-	readers []Reader
+	readers []DataReader
 }
 
 // NewRandomReader create a random reader for the supplied object record that
@@ -43,7 +43,7 @@ func NewReadManager(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb in
 
 	return &readManager{
 		object: o,
-		readers: []Reader{
+		readers: []DataReader{
 			&fileCacheReader,
 			&gcsReader,
 		},
@@ -61,7 +61,7 @@ func (rr *readManager) CheckInvariants() {
 	}
 }
 
-func (rr *readManager) ReadAt(ctx context.Context, p []byte, offset, end int64) (readers.ObjectData, error) {
+func (rr *readManager) ReadAt(ctx context.Context, p []byte, offset int64) (readers.ObjectData, error) {
 	var err error
 	objectData := readers.ObjectData{
 		DataBuf: p,
@@ -74,7 +74,7 @@ func (rr *readManager) ReadAt(ctx context.Context, p []byte, offset, end int64) 
 	}
 
 	for _, r := range rr.readers {
-		objectData, err = r.ReadAt(ctx, p, offset, -1)
+		objectData, err = r.ReadAt(ctx, p, offset)
 		if err != nil || !objectData.FallBackToAnotherReader {
 			return objectData, err
 		}
