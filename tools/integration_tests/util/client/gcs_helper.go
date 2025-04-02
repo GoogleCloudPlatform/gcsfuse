@@ -26,6 +26,8 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -162,4 +164,19 @@ func GetCRCFromGCS(objectPath string, ctx context.Context, storageClient *storag
 		return 0, fmt.Errorf("failed to fetch object attributes: %v", err)
 	}
 	return attr.CRC32C, nil
+}
+
+func CreateUnfinalizedObject(ctx context.Context, t *testing.T, client *storage.Client, object string, size int64) *storage.Writer {
+	writer, err := AppendableWriter(ctx, client, object, storage.Conditions{})
+	require.NoError(t, err)
+
+	writeOffset, err := writer.Write([]byte(setup.GenerateRandomString(int(size))))
+	require.NoError(t, err)
+	assert.EqualValues(t, size, writeOffset)
+
+	flushOffset, err := writer.Flush()
+	require.NoError(t, err)
+	assert.Equal(t, size, flushOffset)
+
+	return writer
 }
