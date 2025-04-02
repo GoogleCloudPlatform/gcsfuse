@@ -27,10 +27,10 @@ import (
 )
 
 var (
-	mountFunc     func([]string) error
+	mountFunc     func([]string, string, string) error
 	storageClient *storage.Client
 	ctx           context.Context
-	flagsSet      [][]string
+	flagsSetMap   map[string][]string
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -51,22 +51,22 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
-	// If Mounted Directory flag is set, run tests for mounted directory.
-	setup.RunTestsForMountedDirectoryFlag(m)
-	// Else run tests for testBucket.
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()
-	log.Println("LogFile: " + setup.LogFile())
 	// Define flag set to run the tests.
-	flagsSet = [][]string{
-		{"--metadata-cache-ttl-secs=0", "--precondition-errors=true"},
-		{"--metadata-cache-ttl-secs=0", "--precondition-errors=true", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=1"},
+	flagsSetMap = map[string][]string{
+
+		"Default":             {"--metadata-cache-ttl-secs=0", "--precondition-errors=true"},
+		"DefaultGrpc":         {"--metadata-cache-ttl-secs=0", "--precondition-errors=true", "--client-protocol=grpc"},
+		"StreamingWrites":     {"--metadata-cache-ttl-secs=0", "--precondition-errors=true", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=1"},
+		"StreamingWritesGrpc": {"--metadata-cache-ttl-secs=0", "--precondition-errors=true", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=1", "--client-protocol=grpc"},
 	}
-	// Run all tests for GRPC.
-	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--client-protocol=grpc", "")
 
 	log.Println("Running static mounting tests...")
-	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
-
-	os.Exit(m.Run())
+	mountFunc = static_mounting.MountGcsfuseWithStaticMountingMntDirAndLogFile
+	successCode := m.Run()
+	if err := setup.UnMountAllMountsWithPrefix(setup.TestDir()); err != nil {
+		successCode = 1
+	}
+	os.Exit(successCode)
 }

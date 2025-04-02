@@ -24,6 +24,10 @@ import (
 )
 
 func MountGcsfuseWithStaticMounting(flags []string) (err error) {
+	return MountGcsfuseWithStaticMountingMntDirAndLogFile(flags, setup.MntDir(), setup.LogFile())
+}
+
+func MountGcsfuseWithStaticMountingMntDirAndLogFile(flags []string, mntDir, logFile string) (err error) {
 	var defaultArg []string
 	if setup.TestOnTPCEndPoint() {
 		defaultArg = append(defaultArg, "--custom-endpoint=storage.apis-tpczero.goog:443",
@@ -33,7 +37,7 @@ func MountGcsfuseWithStaticMounting(flags []string) (err error) {
 	defaultArg = append(defaultArg, "--log-severity=trace",
 		"--log-file="+setup.LogFile(),
 		setup.TestBucket(),
-		setup.MntDir())
+		mntDir)
 
 	for i := 0; i < len(defaultArg); i++ {
 		flags = append(flags, defaultArg[i])
