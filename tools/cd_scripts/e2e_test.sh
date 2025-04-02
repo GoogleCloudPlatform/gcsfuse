@@ -30,7 +30,7 @@ RUN_ON_ZB_ONLY=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAM
 echo "RUN_ON_ZB_ONLY flag set to : \"${RUN_ON_ZB_ONLY}\""
 
 # Logging the tests being run on the active GCE VM
-if [[ "$RUN_ON_ZB_ONLY" == "false" ]]; then
+if [[ "$RUN_ON_ZB_ONLY" == "true" ]]; then
   echo "Running integration tests for Zonal bucket only..."
 else
   echo "Running integration tests for non-zonal buckets only..."
@@ -58,12 +58,12 @@ set -e
 # Print commands and their arguments as they are executed.
 set -x
 
-# Export the RUN_E2E_TESTS_FOR_ZB_ONLY variable so that it is available in the environment of the 'starterscriptuser' user.
+# Export the RUN_ON_ZB_ONLY variable so that it is available in the environment of the 'starterscriptuser' user.
 # Since we are running the subsequent script as 'starterscriptuser' using sudo, the environment of 'starterscriptuser' 
-# would not automatically have access to the environment variables set by the original user (i.e. $RUN_E2E_TESTS_FOR_ZB_ONLY).
-# By exporting this variable, we ensure that the value of RUN_E2E_TESTS_FOR_ZB_ONLY is passed into the 'starterscriptuser' script 
+# would not automatically have access to the environment variables set by the original user (i.e. $RUN_ON_ZB_ONLY).
+# By exporting this variable, we ensure that the value of RUN_ON_ZB_ONLY is passed into the 'starterscriptuser' script 
 # and can be used for conditional logic or decisions within that script.
-export RUN_E2E_TESTS_FOR_ZB_ONLY='$RUN_ON_ZB_ONLY'
+export RUN_ON_ZB_ONLY='$RUN_ON_ZB_ONLY'
 
 #Copy details.txt to starterscriptuser home directory and create logs.txt
 cd ~/
@@ -73,7 +73,7 @@ touch logs-hns.txt
 touch logs-zonal.txt
 GENERIC_LOG_FILE='~/logs.txt'
 
-if [[ "$RUN_E2E_TESTS_FOR_ZB_ONLY" == "true" ]]; then
+if [[ "$RUN_ON_ZB_ONLY" == "true" ]]; then
   GENERIC_LOG_FILE='~/logs-zonal.txt'
 fi
   
@@ -394,7 +394,7 @@ function gather_test_logs() {
   done
 }
 
-if [[ "$RUN_E2E_TESTS_FOR_ZB_ONLY" == "true" ]]; then
+if [[ "$RUN_ON_ZB_ONLY" == "true" ]]; then
   echo "Started integration tests for Zonal bucket ..."
   run_e2e_tests_for_zonal_bucket &
   e2e_tests_zonal_bucket_pid=$!
