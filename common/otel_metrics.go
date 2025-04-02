@@ -20,7 +20,28 @@ import (
 	"sync/atomic"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
+)
+
+const (
+	// IOMethod annotates the event that opens or closes a connection or file.
+	IOMethod = "io_method"
+
+	// GCSMethod annotates the method called in the GCS client library.
+	GCSMethod = "gcs_method"
+
+	// FSOp annotates the file system op processed.
+	FSOp = "fs_op"
+
+	// FSErrCategory reduces the cardinality of FSError by grouping errors together.
+	FSErrCategory = "fs_error_category"
+
+	// ReadType annotates the read operation with the type - Sequential/Random
+	ReadType = "read_type"
+
+	// CacheHit annotates the read operation from file cache with true or false.
+	CacheHit = "cache_hit"
 )
 
 var (
@@ -45,6 +66,22 @@ type otelMetrics struct {
 	fileCacheReadCount      metric.Int64Counter
 	fileCacheReadBytesCount metric.Int64Counter
 	fileCacheReadLatency    metric.Float64Histogram
+}
+
+func attrsToRecordOption(attrs []MetricAttr) []metric.RecordOption {
+	otelOptions := make([]metric.RecordOption, 0, len(attrs))
+	for _, attr := range attrs {
+		otelOptions = append(otelOptions, metric.WithAttributes(attribute.String(attr.Key, attr.Value)))
+	}
+	return otelOptions
+}
+
+func attrsToAddOption(attrs []MetricAttr) []metric.AddOption {
+	otelOptions := make([]metric.AddOption, 0, len(attrs))
+	for _, attr := range attrs {
+		otelOptions = append(otelOptions, metric.WithAttributes(attribute.String(attr.Key, attr.Value)))
+	}
+	return otelOptions
 }
 
 func (o *otelMetrics) GCSReadBytesCount(_ context.Context, inc int64) {

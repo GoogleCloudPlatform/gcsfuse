@@ -380,16 +380,9 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	var metricExporterShutdownFn common.ShutdownFn
 	metricHandle := common.NewNoopMetrics()
 	if cfg.IsMetricsEnabled(&newConfig.Metrics) {
-		if newConfig.Metrics.EnableOtel {
-			metricExporterShutdownFn = monitor.SetupOTelMetricExporters(ctx, newConfig)
-			if metricHandle, err = common.NewOTelMetrics(); err != nil {
-				metricHandle = common.NewNoopMetrics()
-			}
-		} else {
-			metricExporterShutdownFn = monitor.SetupOpenCensusExporters(newConfig)
-			if metricHandle, err = common.NewOCMetrics(); err != nil {
-				metricHandle = common.NewNoopMetrics()
-			}
+		metricExporterShutdownFn = monitor.SetupOTelMetricExporters(ctx, newConfig)
+		if metricHandle, err = common.NewOTelMetrics(); err != nil {
+			metricHandle = common.NewNoopMetrics()
 		}
 	}
 	shutdownTracingFn := monitor.SetupTracing(ctx, newConfig)
