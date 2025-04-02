@@ -186,10 +186,10 @@ func (gr *GCSReader) limitToEnd(start int64, end int64) int64 {
 }
 
 func (gr *GCSReader) Destroy() {
-	gr.mrr.Destroy()
-	gr.rangeReader.Destroy()
+	gr.mrr.destroy()
+	gr.rangeReader.destroy()
 }
 
 func (gr *GCSReader) CheckInvariants() {
-	gr.rangeReader.CheckInvariants()
+	gr.rangeReader.checkInvariants()
 }

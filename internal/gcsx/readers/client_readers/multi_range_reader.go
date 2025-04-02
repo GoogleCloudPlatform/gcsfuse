@@ -70,7 +70,7 @@ func (mrd *MultiRangeReader) ReadAt(ctx context.Context, p []byte, offset, end i
 	return o, err
 }
 
-func (mrd *MultiRangeReader) Destroy() {
+func (mrd *MultiRangeReader) destroy() {
 	if mrd.isMRDInUse {
 		err := mrd.mrdWrapper.DecrementRefCount()
 		if err != nil {
