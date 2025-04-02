@@ -36,10 +36,11 @@ import (
 type staleFileHandleCommon struct {
 	f1          *os.File
 	data        string
+	testDirName string
 	testDirPath string
-	// Directory to unmount for the suite.
-	suiteRootDir string
-	flags        []string
+	// Directory to unmount.
+	mntDir string
+	flags  []string
 	suite.Suite
 }
 
@@ -50,16 +51,23 @@ type staleFileHandleCommon struct {
 func getTestName(t *testing.T) string {
 	return strings.ReplaceAll(t.Name(), "/", "_")
 }
+
 func (s *staleFileHandleCommon) SetupSuite() {
-	s.suiteRootDir = path.Join(setup.TestDir(), "mnt", getTestName(s.T()))
-	setup.SetMntDir(s.suiteRootDir)
-	operations.CreateDirectory(s.suiteRootDir, s.T())
-	setup.MountGCSFuseWithGivenMountFunc(s.flags, mountFunc)
+	operations.CreateDirectory(path.Join(setup.TestDir(), getTestName(s.T())), s.T())
+	s.mntDir = path.Join(setup.TestDir(), getTestName(s.T()), "mnt")
+	operations.CreateDirectory(s.mntDir, s.T())
+	setup.MountGCSFuseWithGivenMountFuncMntDirAndLogFile(s.flags, s.mntDir, path.Join(setup.TestDir(), getTestName(s.T()), "gcsfuse.log"), mountFunc)
+	s.testDirName = getTestName(s.T())
+	s.testDirPath = setup.SetupTestDirectoryOnMntDir(s.mntDir, s.testDirName)
 }
 
 func (s *staleFileHandleCommon) TearDownSuite() {
-	setup.UnmountGCSFuse(s.suiteRootDir)
-	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
+	operations.RemoveDir(s.testDirPath)
+	setup.SaveGCSFuseLogFileInCaseOfFailureGivenLogFile(s.T(), path.Join(setup.TestDir(), getTestName(s.T()), "gcsfuse.log"))
+}
+
+func (s *staleFileHandleCommon) TearDownTest() {
+	setup.CleanupDirectoryOnGCS(ctx, storageClient, s.testDirName)
 }
 
 func (s *staleFileHandleCommon) streamingWritesEnabled() bool {
@@ -86,7 +94,7 @@ func (s *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHand
 	_, err := s.f1.WriteAt([]byte(s.data), 0)
 	assert.NoError(s.T(), err)
 	// Clobber file by replacing the underlying object with a new generation.
-	err = WriteToObject(ctx, storageClient, path.Join(getTestName(s.T()), FileName1), FileContents, storage.Conditions{})
+	err = WriteToObject(ctx, storageClient, path.Join(s.testDirName, FileName1), FileContents, storage.Conditions{})
 	assert.NoError(s.T(), err)
 
 	err = s.f1.Sync()

@@ -15,6 +15,7 @@
 package setup
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
@@ -211,6 +212,45 @@ func UnMount() error {
 	return nil
 }
 
+func UnMountAllMountsWithPrefix(mntPrefix string) error {
+	fusermount, err := exec.LookPath("fusermount")
+	if err != nil {
+		return fmt.Errorf("cannot find fusermount: %w", err)
+	}
+
+	mountCmd := exec.Command("mount")
+	output, err := mountCmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to get mount list: %w", err)
+	}
+
+	mountLines := bytes.SplitSeq(output, []byte{'\n'})
+	errored := false
+	for line := range mountLines {
+		mountInfo := string(line)
+		if strings.Contains(mountInfo, "fuse") && strings.Contains(mountInfo, mntPrefix) {
+			// Extract the mount point.
+			parts := strings.Fields(mountInfo)
+			if len(parts) >= 3 {
+				currMntDir := parts[2] // The mount point is usually the third field.
+
+				unmountCmd := exec.Command(fusermount, "-uz", currMntDir)
+				if _, err := unmountCmd.CombinedOutput(); err != nil {
+					errored = true
+					fmt.Printf("Warning: failed to unmount %s: %v\n", currMntDir, err) // Print a warning instead of returning an error, to continue to unmount other mounts.
+				} else {
+					fmt.Printf("Unmounted %s\n", currMntDir)
+				}
+
+			}
+		}
+	}
+	if errored {
+		return fmt.Errorf("unable to unmount all mounts with given prefix, please check logs for more details")
+	}
+	return nil
+}
+
 func ExecuteTest(m *testing.M) (successCode int) {
 	successCode = m.Run()
 
@@ -263,6 +303,16 @@ func SaveGCSFuseLogFileInCaseOfFailure(tb testing.TB) {
 		return
 	}
 	SaveLogFileAsArtifact(LogFile(), GCSFuseLogFilePrefix+strings.ReplaceAll(tb.Name(), "/", "_")+GenerateRandomString(5))
+}
+
+// In case of test failure saves GCSFuse log file to
+// KOKORO artifacts directory if test ran on KOKORO
+// or saves to TestDir if test ran on local.
+func SaveGCSFuseLogFileInCaseOfFailureGivenLogFile(tb testing.TB, logFile string) {
+	if !tb.Failed() {
+		return
+	}
+	SaveLogFileAsArtifact(logFile, GCSFuseLogFilePrefix+strings.ReplaceAll(tb.Name(), "/", "_")+GenerateRandomString(5))
 }
 
 // In case of test failure saves ProxyServerLogFile to
@@ -428,6 +478,20 @@ func SetupTestDirectory(testDirName string) string {
 	return testDirPath
 }
 
+// Copy---
+// SetupTestDirectory creates a test directory hierarchy in the mounted directory,
+// cleaning up any content present. It takes a testDirName which can include
+// slashes to create nested directories (e.g., "a/b/c").
+func SetupTestDirectoryOnMntDir(mntDir, testDirName string) string {
+	testDirPath := path.Join(mntDir, testDirName)
+	err := os.MkdirAll(testDirPath, DirPermission_0755)
+	if err != nil && !strings.Contains(err.Error(), "file exists") {
+		log.Printf("Error while setting up directory %s for testing: %v", testDirPath, err)
+	}
+	CleanUpDir(testDirPath)
+	return testDirPath
+}
+
 // SetupTestDirectoryRecursive recursively creates a testDirectory in the mounted directory and cleans up
 // any content present in it.
 func SetupTestDirectoryRecursive(testDirName string) string {
@@ -526,6 +590,15 @@ func MountGCSFuseWithGivenMountFunc(flags []string, mountFunc func([]string) err
 	if *mountedDirectory == "" {
 		// Mount GCSFuse only when tests are not running on mounted directory.
 		if err := mountFunc(flags); err != nil {
+			LogAndExit(fmt.Sprintf("Failed to mount GCSFuse: %v", err))
+		}
+	}
+}
+
+func MountGCSFuseWithGivenMountFuncMntDirAndLogFile(flags []string, mntDir, logFile string, mountFunc func([]string, string, string) error) {
+	if *mountedDirectory == "" {
+		// Mount GCSFuse only when tests are not running on mounted directory.
+		if err := mountFunc(flags, mntDir, logFile); err != nil {
 			LogAndExit(fmt.Sprintf("Failed to mount GCSFuse: %v", err))
 		}
 	}

@@ -19,19 +19,31 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
+
+func extractLogFile(flags []string) (string, error) {
+	for _, flag := range flags {
+		if strings.HasPrefix(flag, "--log-file=") {
+			return strings.TrimPrefix(flag, "--log-file="), nil
+		}
+	}
+	return "", fmt.Errorf("cannot find log file")
+}
 
 func MountGcsfuse(binaryFile string, flags []string) error {
 	mountCmd := exec.Command(
 		binaryFile,
 		flags...,
 	)
-
+	logFile, err := extractLogFile(flags)
+	if err != nil {
+		return err
+	}
 	// Adding mount command in LogFile
-	file, err := os.OpenFile(setup.LogFile(), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	file, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Println("Could not open logfile")
 	}
@@ -47,7 +59,7 @@ func MountGcsfuse(binaryFile string, flags []string) error {
 	if err != nil {
 		log.Println(mountCmd.String())
 		log.Println("Error: ", string(output))
-		return fmt.Errorf("cannot mount gcsfuse: %w\n", err)
+		return fmt.Errorf("cannot mount gcsfuse: %w", err)
 	}
 	return nil
 }
