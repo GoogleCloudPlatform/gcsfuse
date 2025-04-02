@@ -175,7 +175,7 @@ func (t *CommonLocalFileTestSuite) TestReadDirWithSameNameLocalAndGCSFile() {
 
 	// Validate closing local file throws error.
 	err = fh1.Close()
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
+	operations.ValidateESTALEError(t.T(), err)
 }
 
 func (t *CommonLocalFileTestSuite) TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError() {
