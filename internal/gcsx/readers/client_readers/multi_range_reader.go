@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/readers"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"golang.org/x/net/context"
@@ -28,6 +29,7 @@ import (
 const TimeoutForMultiRangeRead = time.Hour
 
 type MultiRangeReader struct {
+	gcsx.DataReaderWithPosition
 	// mrdWrapper points to the wrapper object within inode.
 	mrdWrapper *MultiRangeDownloaderWrapper
 

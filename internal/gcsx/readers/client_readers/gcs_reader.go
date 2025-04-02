@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/readers"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
@@ -59,6 +60,7 @@ const (
 )
 
 type GCSReader struct {
+	gcsx.Reader
 	obj    *gcs.MinObject
 	bucket gcs.Bucket
 

@@ -26,6 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	cacheutil "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/readers"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -37,6 +38,7 @@ import (
 const ReadOp = "readOp"
 
 type FileCacheReader struct {
+	gcsx.Reader
 	obj    *gcs.MinObject
 	bucket gcs.Bucket
 

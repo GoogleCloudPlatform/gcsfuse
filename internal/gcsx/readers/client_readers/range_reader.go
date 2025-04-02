@@ -23,6 +23,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/readers"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -31,6 +32,7 @@ import (
 )
 
 type RangeReader struct {
+	gcsx.DataReaderWithPosition
 	obj    *gcs.MinObject
 	bucket gcs.Bucket
 

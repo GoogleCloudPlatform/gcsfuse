@@ -29,6 +29,7 @@ import (
 type readManager struct {
 	object  *gcs.MinObject
 	readers []Reader
+	ReadManager
 }
 
 // NewRandomReader create a random reader for the supplied object record that
