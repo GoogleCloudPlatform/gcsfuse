@@ -90,8 +90,14 @@ func TestBigFileUploadLog(t *testing.T) {
 func TestSmallFileUploadLog(t *testing.T) {
 	logString := uploadFileAndReturnLogs(t, DirForSmallFileUploadLogTest, SmallFileSize)
 
-	// The file being uploaded is too small (<16 MB) for progress logs
-	// to be printed.
-	unexpectedLogSubstrings := []string{"bytes uploaded so far"}
-	operations.VerifyUnexpectedSubstrings(t, logString, unexpectedLogSubstrings)
+	if !setup.IsZonalBucketRun() {
+		// The file being uploaded is too small (<16 MB) for progress logs
+		// to be printed.
+		unexpectedLogSubstrings := []string{"bytes uploaded so far"}
+		operations.VerifyUnexpectedSubstrings(t, logString, unexpectedLogSubstrings)
+	} else {
+		// For zonal buckets, a single log for the full file-size will come.
+		expectedSubstrings := []string{fmt.Sprintf("%d bytes uploaded so far", SmallFileSize)}
+		operations.VerifyExpectedSubstrings(t, logString, expectedSubstrings)
+	}
 }
