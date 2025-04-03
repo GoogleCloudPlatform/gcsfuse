@@ -144,10 +144,7 @@ func getMachineType(isSet isValueSet) (string, error) {
 
 			machineType := string(body)
 			parts := strings.Split(machineType, "/")
-			if len(parts) > 0 {
-				return parts[len(parts)-1], nil
-			}
-			return machineType, nil
+			return parts[len(parts)-1], nil
 		}
 	}
 
