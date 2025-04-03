@@ -100,6 +100,8 @@ type FileSystemConfig struct {
 
 	DisableParallelDirops bool `yaml:"disable-parallel-dirops"`
 
+	ExperimentalEnableSymlinkCache bool `yaml:"experimental-enable-symlink-cache"`
+
 	FileMode Octal `yaml:"file-mode"`
 
 	FuseOptions []string `yaml:"fuse-options"`
@@ -358,6 +360,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	if err := flagSet.MarkDeprecated("experimental-enable-json-read", "Experimental flag: could be dropped even in a minor release."); err != nil {
 		return err
 	}
+
+	flagSet.BoolP("experimental-enable-symlink-cache", "", false, "Allow kernel to cache symlink targets")
 
 	flagSet.IntP("experimental-grpc-conn-pool-size", "", 1, "The number of gRPC channel in grpc client.")
 
@@ -677,6 +681,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("gcs-connection.experimental-enable-json-read", flagSet.Lookup("experimental-enable-json-read")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.experimental-enable-symlink-cache", flagSet.Lookup("experimental-enable-symlink-cache")); err != nil {
 		return err
 	}
 
