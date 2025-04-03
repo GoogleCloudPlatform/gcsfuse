@@ -15,11 +15,15 @@
 package implicit_and_explicit_dir_setup
 
 import (
+	"context"
 	"log"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
+	storage "cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/persistent_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
@@ -74,6 +78,31 @@ func RemoveAndCheckIfDirIsDeleted(dirPath string, dirName string, t *testing.T) 
 	}
 }
 
+// testDir contains the bucket name as well i.e. it is of the form <bucket>/<object-name>, which needs to be removed from it.
+func createTestdataObjectsUsingStorageClient(ctx context.Context, storageClient *storage.Client, testDir string) (err error) {
+	testDirWithoutBucketName := testDir[strings.Index(testDir, "/")+1:]
+	err = client.CreateObjectOnGCS(ctx, storageClient, path.Join(testDirWithoutBucketName, "implicitDirectory", "fileInImplicitDir1"), "This is from directory fileInImplicitDir1 file implicitDirectory")
+	if err != nil {
+		return err
+	}
+	err = client.CreateObjectOnGCS(ctx, storageClient, path.Join(testDirWithoutBucketName, "implicitDirectory/implicitSubDirectory", "fileInImplicitDir2"), "This is from directory implicitDirectory/implicitSubDirectory file fileInImplicitDir2")
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func CreateImplicitDirectoryStructureUsingStorageClient(ctx context.Context, storageClient *storage.Client, testDir string) error {
+	// Implicit Directory Structure
+	// testBucket/testDir/implicitDirectory                                                  -- Dir
+	// testBucket/testDir/implicitDirectory/fileInImplicitDir1                               -- File
+	// testBucket/testDir/implicitDirectory/implicitSubDirectory                             -- Dir
+	// testBucket/testDir/implicitDirectory/implicitSubDirectory/fileInImplicitDir2          -- File
+
+	// Create implicit directory in bucket for testing.
+	return createTestdataObjectsUsingStorageClient(ctx, storageClient, path.Join(setup.TestBucket(), testDir))
+}
+
 func CreateImplicitDirectoryStructure(testDir string) {
 	// Implicit Directory Structure
 	// testBucket/testDir/implicitDirectory                                                  -- Dir
@@ -117,4 +146,19 @@ func CreateImplicitDirectoryInExplicitDirectoryStructure(testDir string, t *test
 	CreateExplicitDirectoryStructure(testDir, t)
 	dirPathInBucket := path.Join(setup.TestBucket(), testDir, ExplicitDirectory)
 	setup.RunScriptForTestData("../util/setup/implicit_and_explicit_dir_setup/testdata/create_objects.sh", dirPathInBucket)
+}
+
+func CreateImplicitDirectoryInExplicitDirectoryStructureUsingStorageClient(ctx context.Context, storageClient *storage.Client, testDir string, t *testing.T) error {
+	// testBucket/testDir/explicitDirectory                                                                   -- Dir
+	// testBucket/testDir/explictFile                                                                         -- File
+	// testBucket/testDir/explicitDirectory/fileInExplicitDir1                                                -- File
+	// testBucket/testDir/explicitDirectory/fileInExplicitDir2                                                -- File
+	// testBucket/testDir/explicitDirectory/implicitDirectory                                                 -- Dir
+	// testBucket/testDir/explicitDirectory/implicitDirectory/fileInImplicitDir1                              -- File
+	// testBucket/testDir/explicitDirectory/implicitDirectory/implicitSubDirectory                            -- Dir
+	// testBucket/testDir/explicitDirectory/implicitDirectory/implicitSubDirectory/fileInImplicitDir2         -- File
+
+	CreateExplicitDirectoryStructure(testDir, t)
+	dirPathInBucket := path.Join(setup.TestBucket(), testDir, ExplicitDirectory)
+	return createTestdataObjectsUsingStorageClient(ctx, storageClient, path.Join(setup.TestBucket(), dirPathInBucket))
 }
