@@ -473,7 +473,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("log-severity", "", "info", "Specifies the logging severity expressed as one of [trace, debug, info, warning, error, off]")
 
-	flagSet.StringP("machine-type", "", "", "Type of the machine on which gcsfuse is being run for e.g. a3-highgpu-4g")
+	flagSet.StringP("machine-type", "", "", "Type of the machine on which gcsfuse is being run e.g. a3-highgpu-4g")
 
 	if err := flagSet.MarkHidden("machine-type"); err != nil {
 		return err

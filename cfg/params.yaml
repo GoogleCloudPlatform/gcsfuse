@@ -503,7 +503,7 @@
 - config-path: "machine-type"
   flag-name: "machine-type"
   type: "string"
-  usage: "Type of the machine on which gcsfuse is being run for e.g. a3-highgpu-4g"
+  usage: "Type of the machine on which gcsfuse is being run e.g. a3-highgpu-4g"
   default: ""
   hide-flag: true
 
