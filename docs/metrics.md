@@ -42,14 +42,14 @@ Note: Both request_count and request_latencies allows grouping by gcs method typ
   gcsfuse --cloud-metrics-export-interval-secs=60 <bucket_name> <directory_name>
   ```
 
-2. Cloud monitoring api has to be [enabled](https://cloud.google.com/monitoring/api/enable-api) on the Google cloud project.
+2. Cloud monitoring API has to be [enabled](https://cloud.google.com/monitoring/api/enable-api) on the Google cloud project.
+
 3. Service account with which the GCSFuse is running should have **monitoring.metricsDescriptors.create** permission.
 4. For viewing the metrics:
 
   1. In the Google cloud console, go to **Metrics Explorer** page within **Monitoring**.
-  2. In the toolbar, select the **Explorer** tab.
-  3. Expand the **Select a metric** menu. All the GCSFuse metrics will be under **VM Instance > Custom > metric name**
-  4. Example graph for fs/ops_count ![fs/ops_count](https://github.com/user-attachments/assets/eaff86eb-4530-4a35-b9f9-7c6844c12484)
+  2. Expand the **Select a metric** menu. All the GCSFuse metrics will be under **VM Instance > Custom > metric name**
+  3. Example graph for fs/ops_count ![fs/ops_count](https://github.com/user-attachments/assets/eaff86eb-4530-4a35-b9f9-7c6844c12484)
 
 ## Prometheus metrics
 
@@ -67,8 +67,7 @@ Or, use the cli flag:
 ```bash
 gcsfuse --prometheus-port 8080 <bucket_name> <directory_name>
 ```
-
-1. Run the following command to validate the Prometheus metrics endpoint is available.
+2. Run the following command to validate the Prometheus metrics endpoint is available.
 
 ```bash
 curl http://localhost:8080/metrics
@@ -130,8 +129,7 @@ gcs_download_bytes_count{read_type="Sequential"} 2.0971528e+08
 # TYPE gcs_read_count counter
 gcs_read_count{read_type="Sequential"} 5
 ```
-
-1. Please refer to [this documentation](https://cloud.google.com/stackdriver/docs/managed-prometheus#gmp-data-collection) to scrape metrics from the Prometheus endpoint.
+3. Please refer to [this documentation](https://cloud.google.com/stackdriver/docs/managed-prometheus#gmp-data-collection) to scrape metrics from the Prometheus endpoint.
 
 ## References:
 
