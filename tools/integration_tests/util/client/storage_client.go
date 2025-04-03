@@ -381,3 +381,19 @@ func CopyFileInBucket(ctx context.Context, storageClient *storage.Client, srcfil
 		log.Fatalf("Error while copying file in bucket: %v", err)
 	}
 }
+
+func AppendableWriter(ctx context.Context, client *storage.Client, object string, precondition storage.Conditions) (*storage.Writer, error) {
+	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(object)
+
+	o := client.Bucket(bucket).Object(object)
+	if !reflect.DeepEqual(precondition, storage.Conditions{}) {
+		o = o.If(precondition)
+	}
+
+	// Upload an object with storage.Writer.
+	wc, err := NewWriter(ctx, o, client)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to open writer for object %q: %w", o.ObjectName(), err)
+	}
+	return wc, nil
+}

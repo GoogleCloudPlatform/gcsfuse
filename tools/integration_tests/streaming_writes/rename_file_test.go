@@ -79,7 +79,7 @@ func (t *defaultMountCommonTest) TestAfterRenameWriteFailsWithStaleNFSFileHandle
 
 	_, err = t.f1.WriteAt(data, operations.MiB*4)
 
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
+	operations.ValidateESTALEError(t.T(), err)
 	// Verify the new object contents.
 	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, newFile, string(data), t.T())
 	require.NoError(t.T(), t.f1.Close())
