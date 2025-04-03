@@ -1,9 +1,11 @@
 # GCSFuse Metrics
 GCSFuse supports exporting custom metrics to Google Cloud monitoring. 
-Metrics are collected using OpenTelemetry and exported via Cloud Monitoring exporter.
+Metrics are collected using OpenTelemetry. The metrics can be
+*  pushed directly to Google Cloud monitoring using the google-cloud-exporter
+*  pulled from the Prometheus endpoint
 
-As of today, GCSFuse exports following metrics related to filesystem and
-gcs calls.
+As of today, GCSFuse exports the following metrics related to filesystem,
+GCS calls and file-cache usage.
 
 ## File system metrics:
 * **fs/ops_count:** Cumulative number of operations processed by file system. It allows
@@ -40,29 +42,27 @@ along with type - Sequential/Random and cache hit - true/false.
 
 # Usage
 
-## Stackdriver exporter
+## Google Cloud Exporter
 
-1. We need to set **stackdriver-export-interval** flag to enable exporting metrics to 
+1. We need to set **cloud-metrics-export-interval-secs** flag to enable exporting metrics to 
 Google cloud monitoring. The value of this flag represents the interval with 
 which data will be exported.
 
    Example command for exporting metrics every 60sec:
 ```angular2html
- gcsfuse --stackdriver-export-interval=60s <bucket_name> <directory_name>
+ gcsfuse --cloud-metrics-export-interval-secs=60 <bucket_name> <directory_name>
 ```
 2. Cloud monitoring api has to be [enabled](https://cloud.google.com/monitoring/api/enable-api) 
 on the Google cloud project.
 3. Service account with which the GCSFuse is running should have 
 **monitoring.metricsDescriptors.create** permission.
-4. Install the [Ops agent](https://cloud.google.com/monitoring/agent/ops-agent/install-index) on the VM.
-5. For viewing the metrics:
+4. For viewing the metrics:
     1. In the Google cloud console, go to **Metrics Explorer** page within **Monitoring**.
     2. In the toolbar, select the **Explorer** tab.
-    3. Select the **configuration** tab.
-    4. Expand the **Select a metric** menu. All the GCSFuse metrics will be under
-   **Global > Custom > metric name**
-    5. Example graph for fs/ops_count
-![fs/ops_count](https://user-images.githubusercontent.com/101323867/188802087-6423f4f1-2aa6-4501-8db6-3d1997986f68.png)
+    3. Expand the **Select a metric** menu. All the GCSFuse metrics will be under
+   **VM Instance > Custom > metric name**
+    4. Example graph for fs/ops_count
+![fs/ops_count](https://github.com/user-attachments/assets/eaff86eb-4530-4a35-b9f9-7c6844c12484)
 
 ## Prometheus metrics
 
@@ -144,8 +144,7 @@ gcs_download_bytes_count{read_type="Sequential"} 2.0971528e+08
 gcs_read_count{read_type="Sequential"} 5
 ```
 
-3. Follow [Prometheus documentation](https://prometheus.io/docs/introduction/first_steps/#configuring-prometheus)
-to specify the target Prometheus metric endpoint under the `scrape_configs` section in the Prometheus configuration file.
+3. Please refer to [this documentation](https://cloud.google.com/stackdriver/docs/managed-prometheus#gmp-data-collection) to scrape metrics from the Prometheus endpoint.
 
 ## References:
 * More details around adding custom metrics using OpenTelemetry can be found [here](https://cloud.google.com/monitoring/custom-metrics/open-telemetry)
