@@ -217,11 +217,11 @@ func TestApplyMachineTypeOptimizations_MatchingMachineType(t *testing.T) {
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 
-	config := DefaultOptimizationConfig
+	config := defaultOptimizationConfig
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	optimizedFlags, err := ApplyMachineTypeOptimizations(&config, cfg, isSet)
+	optimizedFlags, err := applyMachineTypeOptimizations(&config, cfg, isSet)
 	if err != nil {
 		t.Fatalf("ApplyMachineTypeOptimizations failed: %v", err)
 	}
@@ -260,11 +260,11 @@ func TestApplyMachineTypeOptimizations_NonMatchingMachineType(t *testing.T) {
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 
-	config := DefaultOptimizationConfig
+	config := defaultOptimizationConfig
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	optimizedFlags, err := ApplyMachineTypeOptimizations(&config, cfg, isSet)
+	optimizedFlags, err := applyMachineTypeOptimizations(&config, cfg, isSet)
 	if err != nil {
 		t.Fatalf("ApplyMachineTypeOptimizations failed: %v", err)
 	}
@@ -291,13 +291,13 @@ func TestApplyMachineTypeOptimizations_UserSetFlag(t *testing.T) {
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 
-	config := DefaultOptimizationConfig
+	config := defaultOptimizationConfig
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{"file-system.rename-dir-limit": true}}
 	// Simulate setting config value by user
 	cfg.FileSystem.RenameDirLimit = 10000
 
-	optimizedFlags, err := ApplyMachineTypeOptimizations(&config, cfg, isSet)
+	optimizedFlags, err := applyMachineTypeOptimizations(&config, cfg, isSet)
 	if err != nil {
 		t.Fatalf("ApplyMachineTypeOptimizations failed: %v", err)
 	}
@@ -337,19 +337,19 @@ func TestApplyMachineTypeOptimizations_MissingFlagOverrideSet(t *testing.T) {
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 
-	config := OptimizationConfig{
-		FlagOverrideSets: []FlagOverrideSet{}, // Empty FlagOverrideSets.
-		MachineTypes: []MachineType{
+	config := optimizationConfig{
+		flagOverrideSets: []flagOverrideSet{}, // Empty FlagOverrideSets.
+		machineTypes: []machineType{
 			{
-				Names:               []string{"a3-highgpu-8g"},
-				FlagOverrideSetName: "high-performance",
+				names:               []string{"a3-highgpu-8g"},
+				flagOverrideSetName: "high-performance",
 			},
 		},
 	}
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	_, err := ApplyMachineTypeOptimizations(&config, cfg, isSet)
+	_, err := applyMachineTypeOptimizations(&config, cfg, isSet)
 	if err != nil {
 		t.Fatalf("ApplyMachineTypeOptimizations failed: %v", err)
 	}
@@ -366,11 +366,11 @@ func TestApplyMachineTypeOptimizations_GetMachineTypeError(t *testing.T) {
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 
-	config := DefaultOptimizationConfig
+	config := defaultOptimizationConfig
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	_, err := ApplyMachineTypeOptimizations(&config, cfg, isSet)
+	_, err := applyMachineTypeOptimizations(&config, cfg, isSet)
 	if err != nil {
 		t.Fatalf("ApplyMachineTypeOptimizations failed: %v", err)
 	}
@@ -388,11 +388,11 @@ func TestApplyMachineTypeOptimizations_NoError(t *testing.T) {
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 
-	config := DefaultOptimizationConfig
+	config := defaultOptimizationConfig
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	_, err := ApplyMachineTypeOptimizations(&config, cfg, isSet)
+	_, err := applyMachineTypeOptimizations(&config, cfg, isSet)
 	if err != nil {
 		t.Fatalf("ApplyMachineTypeOptimizations failed: %v", err)
 	}
@@ -401,7 +401,7 @@ func TestApplyMachineTypeOptimizations_NoError(t *testing.T) {
 func TestSetFlagValue_Bool(t *testing.T) {
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
-	err := setFlagValue(cfg, "implicit-dirs", FlagOverride{NewValue: true}, isSet)
+	err := setFlagValue(cfg, "implicit-dirs", flagOverride{newValue: true}, isSet)
 	if err != nil {
 		t.Fatalf("setFlagValue failed: %v", err)
 	}
@@ -413,7 +413,7 @@ func TestSetFlagValue_Bool(t *testing.T) {
 func TestSetFlagValue_String(t *testing.T) {
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
-	err := setFlagValue(cfg, "app-name", FlagOverride{NewValue: "optimal_gcsfuse"}, isSet)
+	err := setFlagValue(cfg, "app-name", flagOverride{newValue: "optimal_gcsfuse"}, isSet)
 	if err != nil {
 		t.Fatalf("setFlagValue failed: %v", err)
 	}
@@ -425,7 +425,7 @@ func TestSetFlagValue_String(t *testing.T) {
 func TestSetFlagValue_Int(t *testing.T) {
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
-	err := setFlagValue(cfg, "metadata-cache.stat-cache-max-size-mb", FlagOverride{NewValue: 1024}, isSet)
+	err := setFlagValue(cfg, "metadata-cache.stat-cache-max-size-mb", flagOverride{newValue: 1024}, isSet)
 	if err != nil {
 		t.Fatalf("setFlagValue failed: %v", err)
 	}
@@ -437,7 +437,7 @@ func TestSetFlagValue_Int(t *testing.T) {
 func TestSetFlagValue_InvalidFlagName(t *testing.T) {
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
-	err := setFlagValue(cfg, "invalid-flag", FlagOverride{NewValue: true}, isSet)
+	err := setFlagValue(cfg, "invalid-flag", flagOverride{newValue: true}, isSet)
 	if err == nil {
 		t.Fatalf("setFlagValue should have failed")
 	}
@@ -455,29 +455,29 @@ func TestApplyMachineTypeOptimizations_NoMachineTypes(t *testing.T) {
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 
-	config := OptimizationConfig{
-		FlagOverrideSets: []FlagOverrideSet{
+	config := optimizationConfig{
+		flagOverrideSets: []flagOverrideSet{
 			{
-				Name: "high-performance",
-				Overrides: map[string]FlagOverride{
-					"write.enable-streaming-writes":         {NewValue: true},
-					"write.max-concurrency":                 {NewValue: 128},
-					"metadata-cache.negative-ttl-secs":      {NewValue: 0},
-					"metadata-cache.ttl-secs":               {NewValue: -1},
-					"metadata-cache.stat-cache-max-size-mb": {NewValue: 1024},
-					"metadata-cache.type-cache-max-size-mb": {NewValue: 128},
-					"implicit-dirs":                         {NewValue: true},
-					"file-system.rename-dir-limit":          {NewValue: 200000},
-					"file-system.gid":                       {NewValue: "1000"},
+				name: "high-performance",
+				overrides: map[string]flagOverride{
+					"write.enable-streaming-writes":         {newValue: true},
+					"write.max-concurrency":                 {newValue: 128},
+					"metadata-cache.negative-ttl-secs":      {newValue: 0},
+					"metadata-cache.ttl-secs":               {newValue: -1},
+					"metadata-cache.stat-cache-max-size-mb": {newValue: 1024},
+					"metadata-cache.type-cache-max-size-mb": {newValue: 128},
+					"implicit-dirs":                         {newValue: true},
+					"file-system.rename-dir-limit":          {newValue: 200000},
+					"file-system.gid":                       {newValue: "1000"},
 				},
 			},
 		},
-		MachineTypes: []MachineType{},
+		machineTypes: []machineType{},
 	}
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	_, err := ApplyMachineTypeOptimizations(&config, cfg, isSet)
+	_, err := applyMachineTypeOptimizations(&config, cfg, isSet)
 	if err != nil {
 		t.Fatalf("ApplyMachineTypeOptimizations failed: %v", err)
 	}

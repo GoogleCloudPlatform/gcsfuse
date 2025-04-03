@@ -27,9 +27,9 @@ import (
 ////////////////////////////////////////////////////////////////////////
 
 const (
-	maxRetries  = 2
-	httpTimeout = 50 * time.Millisecond
-	machineType = "machine-type"
+	maxRetries     = 2
+	httpTimeout    = 50 * time.Millisecond
+	machineTypeFlg = "machine-type"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -42,27 +42,27 @@ type isValueSet interface {
 	GetBool(string) bool
 }
 
-// FlagOverride represents a flag override with its new value.
-type FlagOverride struct {
-	NewValue interface{} `json:"newValue"`
+// flagOverride represents a flag override with its new value.
+type flagOverride struct {
+	newValue interface{}
 }
 
-// FlagOverrideSet represents a named set of flag overrides.
-type FlagOverrideSet struct {
-	Name      string                  `json:"name"`
-	Overrides map[string]FlagOverride `json:"overrides"`
+// flagOverrideSet represents a named set of flag overrides.
+type flagOverrideSet struct {
+	name      string
+	overrides map[string]flagOverride
 }
 
-// MachineType represents a specific machine type with associated flag overrides.
-type MachineType struct {
-	Names               []string `json:"names"`
-	FlagOverrideSetName string   `json:"flagOverrideSetName"`
+// machineType represents a specific machine type with associated flag overrides.
+type machineType struct {
+	names               []string
+	flagOverrideSetName string
 }
 
-// OptimizationConfig holds the configuration for machine-specific optimizations.
-type OptimizationConfig struct {
-	FlagOverrideSets []FlagOverrideSet `json:"flagOverrideSets"`
-	MachineTypes     []MachineType     `json:"machineTypes"`
+// optimizationConfig holds the configuration for machine-specific optimizations.
+type optimizationConfig struct {
+	flagOverrideSets []flagOverrideSet
+	machineTypes     []machineType
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -70,28 +70,28 @@ type OptimizationConfig struct {
 ////////////////////////////////////////////////////////////////////////
 
 var (
-	// DefaultOptimizationConfig provides a default configuration for optimizations.
-	DefaultOptimizationConfig = OptimizationConfig{
-		FlagOverrideSets: []FlagOverrideSet{
+	// defaultOptimizationConfig provides a default configuration for optimizations.
+	defaultOptimizationConfig = optimizationConfig{
+		flagOverrideSets: []flagOverrideSet{
 			{
-				Name: "high-performance",
-				Overrides: map[string]FlagOverride{
-					"write.enable-streaming-writes":         {NewValue: true},
-					"metadata-cache.negative-ttl-secs":      {NewValue: 0},
-					"metadata-cache.ttl-secs":               {NewValue: -1},
-					"metadata-cache.stat-cache-max-size-mb": {NewValue: 1024},
-					"metadata-cache.type-cache-max-size-mb": {NewValue: 128},
-					"implicit-dirs":                         {NewValue: true},
-					"file-system.rename-dir-limit":          {NewValue: 200000},
+				name: "high-performance",
+				overrides: map[string]flagOverride{
+					"write.enable-streaming-writes":         {newValue: true},
+					"metadata-cache.negative-ttl-secs":      {newValue: 0},
+					"metadata-cache.ttl-secs":               {newValue: -1},
+					"metadata-cache.stat-cache-max-size-mb": {newValue: 1024},
+					"metadata-cache.type-cache-max-size-mb": {newValue: 128},
+					"implicit-dirs":                         {newValue: true},
+					"file-system.rename-dir-limit":          {newValue: 200000},
 				},
 			},
 		},
-		MachineTypes: []MachineType{
+		machineTypes: []machineType{
 			{
-				Names: []string{
+				names: []string{
 					"a2-megagpu-16g", "a2-ultragpu-8g", "a3-edgegpu-8g", "a3-highgpu-8g", "a3-megagpu-8g", "a3-ultragpu-8g", "a4-highgpu-8g-lowmem",
 					"ct5l-hightpu-8t", "ct5lp-hightpu-8t", "ct5p-hightpu-4t", "ct5p-hightpu-4t-tpu", "ct6e-standard-4t", "ct6e-standard-4t-tpu", "ct6e-standard-8t", "ct6e-standard-8t-tpu"},
-				FlagOverrideSetName: "high-performance",
+				flagOverrideSetName: "high-performance",
 			},
 			// Add more machine types here as needed.
 		},
@@ -111,8 +111,8 @@ var (
 // getMachineType fetches the machine type from the metadata server.
 func getMachineType(isSet isValueSet) (string, error) {
 	// Check if the machine-type flag is set and not empty.
-	if isSet.IsSet(machineType) {
-		machineType := isSet.GetString(machineType)
+	if isSet.IsSet(machineTypeFlg) {
+		machineType := isSet.GetString(machineTypeFlg)
 		if machineType != "" {
 			return machineType, nil
 		}
@@ -154,30 +154,30 @@ func getMachineType(isSet isValueSet) (string, error) {
 	return "", fmt.Errorf("failed to get machine type from any metadata endpoint after retries")
 }
 
-// ApplyMachineTypeOptimizations applies optimizations based on the detected machine type.
-func ApplyMachineTypeOptimizations(config *OptimizationConfig, cfg *Config, isSet isValueSet) ([]string, error) {
+// applyMachineTypeOptimizations applies optimizations based on the detected machine type.
+func applyMachineTypeOptimizations(config *optimizationConfig, cfg *Config, isSet isValueSet) ([]string, error) {
 	machineType, err := getMachineType(isSet)
 	if err != nil {
 		return []string{}, nil // Non-fatal error, continue with default settings.
 	}
 	var optimizedFlags []string
-	for _, mt := range config.MachineTypes {
-		for _, name := range mt.Names {
+	for _, mt := range config.machineTypes {
+		for _, name := range mt.names {
 			if strings.HasPrefix(machineType, name) {
 				// Find the FlagOverrideSet.
-				var flagOverrideSet *FlagOverrideSet
-				for _, flgOverrideSet := range config.FlagOverrideSets {
-					if flgOverrideSet.Name == mt.FlagOverrideSetName {
-						flagOverrideSet = &flgOverrideSet
+				var flgOvrrideSet *flagOverrideSet
+				for _, flgOverrideSet := range config.flagOverrideSets {
+					if flgOverrideSet.name == mt.flagOverrideSetName {
+						flgOvrrideSet = &flgOverrideSet
 						break
 					}
 				}
 
-				if flagOverrideSet == nil {
+				if flgOvrrideSet == nil {
 					continue
 				}
 
-				for flag, override := range flagOverrideSet.Overrides {
+				for flag, override := range flgOvrrideSet.overrides {
 					// Use reflection to find the field in ServerConfig.
 					err := setFlagValue(cfg, flag, override, isSet)
 					if err == nil {
@@ -198,7 +198,7 @@ func Optimize(cfg *Config, isSet isValueSet) ([]string, error) {
 	if isSet.GetBool("disable-autoconfig") {
 		return []string{}, nil
 	}
-	optimizedFlags, err := ApplyMachineTypeOptimizations(&DefaultOptimizationConfig, cfg, isSet)
+	optimizedFlags, err := applyMachineTypeOptimizations(&defaultOptimizationConfig, cfg, isSet)
 	return optimizedFlags, err
 }
 
@@ -224,7 +224,7 @@ func convertToCamelCase(input string) string {
 }
 
 // setFlagValue uses reflection to set the value of a flag in ServerConfig.
-func setFlagValue(cfg *Config, flag string, override FlagOverride, isSet isValueSet) error {
+func setFlagValue(cfg *Config, flag string, override flagOverride, isSet isValueSet) error {
 	// Split the flag name into parts to traverse nested structs.
 	parts := strings.Split(flag, ".")
 	if len(parts) == 0 {
@@ -262,21 +262,21 @@ func setFlagValue(cfg *Config, flag string, override FlagOverride, isSet isValue
 
 		switch field.Kind() {
 		case reflect.Bool:
-			boolValue, ok := override.NewValue.(bool)
+			boolValue, ok := override.newValue.(bool)
 			if !ok {
-				return fmt.Errorf("invalid boolean value for flag %s: %v", flag, override.NewValue)
+				return fmt.Errorf("invalid boolean value for flag %s: %v", flag, override.newValue)
 			}
 			field.SetBool(boolValue)
 		case reflect.Int, reflect.Int64:
-			intValue, ok := override.NewValue.(int)
+			intValue, ok := override.newValue.(int)
 			if !ok {
-				return fmt.Errorf("invalid integer value for flag %s: %v", flag, override.NewValue)
+				return fmt.Errorf("invalid integer value for flag %s: %v", flag, override.newValue)
 			}
 			field.SetInt(int64(intValue))
 		case reflect.String:
-			stringValue, ok := override.NewValue.(string)
+			stringValue, ok := override.newValue.(string)
 			if !ok {
-				return fmt.Errorf("invalid string value for flag %s: %v", flag, override.NewValue)
+				return fmt.Errorf("invalid string value for flag %s: %v", flag, override.newValue)
 			}
 			field.SetString(stringValue)
 		default:
