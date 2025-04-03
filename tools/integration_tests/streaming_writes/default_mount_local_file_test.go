@@ -15,11 +15,16 @@
 package streaming_writes
 
 import (
+	"os"
+	"path"
+	"syscall"
 	"testing"
 
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/local_file"
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -39,8 +44,11 @@ func (t *defaultMountLocalFile) SetupSubTest() {
 
 func (t *defaultMountLocalFile) createLocalFile() {
 	t.fileName = FileName1 + setup.GenerateRandomString(5)
+	t.filePath = path.Join(testDirPath, t.fileName)
 	// Create a local file.
-	t.filePath, t.f1 = CreateLocalFileInTestDir(ctx, storageClient, testDirPath, t.fileName, t.T())
+	var err error
+	t.f1, err = os.OpenFile(path.Join(testDirPath, t.fileName), os.O_RDWR|os.O_CREATE|os.O_TRUNC|syscall.O_DIRECT, operations.FilePermission_0600)
+	require.NoError(t.T(), err)
 }
 
 // Executes all tests that run with single streamingWrites configuration for localFiles.
