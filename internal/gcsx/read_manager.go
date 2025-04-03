@@ -59,10 +59,7 @@ func (rr *readManager) CheckInvariants() {
 
 func (rr *readManager) ReadAt(ctx context.Context, p []byte, offset int64) (readers.ObjectData, error) {
 	var err error
-	objectData := readers.ObjectData{
-		DataBuf: p,
-		Size:    0,
-	}
+	var objectData readers.ObjectData
 
 	if offset >= int64(rr.object.Size) {
 		err = io.EOF
@@ -74,7 +71,7 @@ func (rr *readManager) ReadAt(ctx context.Context, p []byte, offset int64) (read
 		if err != nil && err != readers.ErrNoFallbackReader {
 			return objectData, err
 		}
-	
+
 		if err == readers.ErrNoFallbackReader {
 			return objectData, nil
 		}

@@ -14,9 +14,14 @@
 
 package readers
 
-import "errors"
+type NoFallbackReaderError struct{}
 
-var ErrNoFallbackReader = errors.New("Don't fallback to another reader")
+func (e *NoFallbackReaderError) Error() string {
+	return "fallback to another reader is not allowed"
+}
+
+// Usage
+var ErrNoFallbackReader = &NoFallbackReaderError{}
 
 type GCSReaderReq struct {
 	Buffer      []byte

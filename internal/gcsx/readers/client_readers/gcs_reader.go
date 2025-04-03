@@ -16,6 +16,7 @@ package client_readers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
@@ -83,10 +84,7 @@ func NewGCSReader(obj *gcs.MinObject, bucket gcs.Bucket, metricHandle common.Met
 }
 
 func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (readers.ObjectData, error) {
-	objectData := readers.ObjectData{
-		DataBuf: p,
-		Size:    0,
-	}
+	var objectData readers.ObjectData
 	readReq := &readers.GCSReaderReq{
 		Buffer:      p,
 		Offset:      offset,
@@ -99,11 +97,11 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (reader
 	}
 
 	objectData, err = gr.rangeReader.readFromExistingReader(ctx, readReq)
-	if err != nil && err != readers.ErrNoFallbackReader {
+	if err != nil && !errors.As(err, &readers.ErrNoFallbackReader) {
 		return objectData, err
 	}
 
-	if err == readers.ErrNoFallbackReader {
+	if errors.As(err, &readers.ErrNoFallbackReader) {
 		return objectData, nil
 	}
 
