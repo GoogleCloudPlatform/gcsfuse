@@ -291,7 +291,7 @@ func (rr *RangeReader) discardReader(offset int64, p []byte) bool {
 	return false
 }
 
-func (rr *RangeReader) readFromExistingReader(ctx context.Context, p []byte, offset, end int64) (readers.ObjectData, error) {
+func (rr *RangeReader) readFromExistingReader(ctx context.Context, p []byte, offset int64) (readers.ObjectData, error) {
 	objectData := readers.ObjectData{
 		DataBuf:                 p,
 		Size:                    0,
@@ -300,7 +300,7 @@ func (rr *RangeReader) readFromExistingReader(ctx context.Context, p []byte, off
 	var err error
 
 	if rr.reader != nil {
-		objectData, err = rr.ReadAt(ctx, p, offset, end)
+		objectData, err = rr.ReadAt(ctx, p, offset, -1)
 		objectData.FallBackToAnotherReader = false
 	}
 
