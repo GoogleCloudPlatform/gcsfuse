@@ -93,7 +93,6 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (reader
 		EndPosition: -1,
 	}
 	var err error
-	gr.rangeReader.skipBytes(offset)
 
 	if gr.rangeReader.discardReader(offset, p) {
 		gr.seeks++

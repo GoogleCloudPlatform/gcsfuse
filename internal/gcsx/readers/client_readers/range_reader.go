@@ -274,6 +274,8 @@ func (rr *RangeReader) skipBytes(offset int64) {
 }
 
 func (rr *RangeReader) discardReader(offset int64, p []byte) bool {
+	rr.skipBytes(offset)
+
 	// If we have an existing reader, but it's positioned at the wrong place,
 	// clean it up and throw it away.
 	// We will also clean up the existing reader if it can't serve the entire request.
