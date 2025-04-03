@@ -78,7 +78,6 @@ func RemoveAndCheckIfDirIsDeleted(dirPath string, dirName string, t *testing.T) 
 	}
 }
 
-// createTestdataObjectsUsingStorageClient is equivalent of the script tools/integration_tests/util/setup/implicit_and_explicit_dir_setup/testdata/create_objects.sh .
 // That script uses gcloud, but this function instead uses go client library.
 // Note: testDirWithBucketName is of the form <bucket>/<object-name>.
 func createTestdataObjectsUsingStorageClient(ctx context.Context, t *testing.T, storageClient *storage.Client, testDirWithBucketName string) {
@@ -115,17 +114,6 @@ func CreateImplicitDirectoryStructureUsingStorageClient(ctx context.Context, t *
 
 	// Create implicit directory in bucket for testing.
 	createTestdataObjectsUsingStorageClient(ctx, t, storageClient, path.Join(setup.TestBucket(), testDir))
-}
-
-func CreateImplicitDirectoryStructure(testDir string) {
-	// Implicit Directory Structure
-	// testBucket/testDir/implicitDirectory                                                  -- Dir
-	// testBucket/testDir/implicitDirectory/fileInImplicitDir1                               -- File
-	// testBucket/testDir/implicitDirectory/implicitSubDirectory                             -- Dir
-	// testBucket/testDir/implicitDirectory/implicitSubDirectory/fileInImplicitDir2          -- File
-
-	// Create implicit directory in bucket for testing.
-	setup.RunScriptForTestData("../util/setup/implicit_and_explicit_dir_setup/testdata/create_objects.sh", path.Join(setup.TestBucket(), testDir))
 }
 
 func CreateExplicitDirectoryStructure(testDir string, t *testing.T) {
