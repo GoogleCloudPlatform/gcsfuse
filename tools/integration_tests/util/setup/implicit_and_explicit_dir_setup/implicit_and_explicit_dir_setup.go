@@ -93,15 +93,13 @@ func createTestdataObjectsUsingStorageClient(ctx context.Context, storageClient 
 	objectName := path.Join(testDirWithoutBucketName, "implicitDirectory", "fileInImplicitDir1")
 	err = client.CreateObjectOnGCS(ctx, storageClient, objectName, "This is from directory fileInImplicitDir1 file implicitDirectory")
 	if err != nil {
-		t.Errorf("Failed to create GCS object %q in bucket %q: %v", objectName, bucketName, err)
-		t.FailNow()
+		t.Fatalf("Failed to create GCS object %q in bucket %q: %v", objectName, bucketName, err)
 	}
 
 	objectName = path.Join(testDirWithoutBucketName, "implicitDirectory/implicitSubDirectory", "fileInImplicitDir2")
 	err = client.CreateObjectOnGCS(ctx, storageClient, objectName, "This is from directory implicitDirectory/implicitSubDirectory file fileInImplicitDir2")
 	if err != nil {
-		t.Errorf("Failed to create GCS object %q in bucket %q: %v", objectName, bucketName, err)
-		t.FailNow()
+		t.Fatalf("Failed to create GCS object %q in bucket %q: %v", objectName, bucketName, err)
 	}
 }
 
