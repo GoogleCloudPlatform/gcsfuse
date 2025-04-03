@@ -16,7 +16,7 @@ package readers
 
 import "errors"
 
-var DontErrFallbackToAnotherReader = errors.New("Don't fallback to another reader")
+var ErrNoFallbackReader = errors.New("Don't fallback to another reader")
 
 type GCSReaderReq struct {
 	Buffer      []byte

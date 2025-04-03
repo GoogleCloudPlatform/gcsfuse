@@ -303,7 +303,7 @@ func (rr *RangeReader) readFromExistingReader(ctx context.Context, req *readers.
 		if err != nil {
 			return objectData, err
 		}
-		err = readers.DontErrFallbackToAnotherReader
+		err = readers.ErrNoFallbackReader
 	}
 
 	return objectData, err
