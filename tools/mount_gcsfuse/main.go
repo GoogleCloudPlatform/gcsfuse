@@ -111,8 +111,6 @@ func makeGcsfuseArgs(
 		return s == "o"
 	})
 	nonBoolFlags = append(nonBoolFlags, cfg.ConfigFileFlagName)
-	// TODO: Clean this up after we gain enough confidence on CLI-Config Parity changes.
-	boolFlags = append(boolFlags, "disable-viper-config")
 	noopOptions := []string{"user", "nouser", "auto", "noauto", "_netdev", "no_netdev"}
 
 	// Deal with options.

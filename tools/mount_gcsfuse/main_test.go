@@ -43,7 +43,7 @@ func TestMakeGcsfuseArgs(t *testing.T) {
 				"ignore_interrupts":             "",
 				"anonymous_access":              "false",
 				"log_rotate_compress":           "false",
-				"disable_viper_config":          "true"},
+			},
 			expectedFlags: []string{"--implicit-dirs=true",
 				"--foreground=true",
 				"--reuse-token-from-url=false",
@@ -53,7 +53,7 @@ func TestMakeGcsfuseArgs(t *testing.T) {
 				"--ignore-interrupts=true",
 				"--anonymous-access=false",
 				"--log-rotate-compress=false",
-				"--disable-viper-config=true"},
+			},
 		},
 
 		{
