@@ -109,6 +109,17 @@ const (
 	MultiRangeReader
 )
 
+type activityType int
+
+const (
+	resetTimer activityType = iota
+	closeMonitor
+)
+
+type activity struct {
+	activityType activityType
+}
+
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
 func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper) RandomReader {
@@ -180,6 +191,9 @@ type randomReader struct {
 	isMRDInUse bool
 
 	metricHandle common.MetricHandle
+
+	// Channel to signal activity on the reader.
+	activity chan activity
 }
 
 func (rr *randomReader) CheckInvariants() {
@@ -435,6 +449,10 @@ func (rr *randomReader) Destroy() {
 func (rr *randomReader) readFull(
 	ctx context.Context,
 	p []byte) (n int, err error) {
+
+	// Signal the monitoring routine to reset the reader.
+	rr.activity <- activity{activityType: resetTimer}
+
 	// Start a goroutine that will cancel the read operation we block on below if
 	// the calling context is cancelled, but only if this method has not already
 	// returned (to avoid souring the reader for the next read if this one is
@@ -483,6 +501,9 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 			ReadCompressed: rr.object.HasContentEncodingGzip(),
 			ReadHandle:     rr.readHandle,
 		})
+
+	rr.activity = make(chan activity)
+	go rr.monitorTimeout()
 
 	// If a file handle is open locally, but the corresponding object doesn't exist
 	// in GCS, it indicates a file clobbering scenario. This likely occurred because:
@@ -662,9 +683,52 @@ func (rr *randomReader) readFromMultiRangeReader(ctx context.Context, p []byte, 
 
 // closeReader fetches the readHandle before closing the reader instance.
 func (rr *randomReader) closeReader() {
+	if rr.reader == nil {
+		return
+	}
+
+	rr.activity <- activity{activityType: closeMonitor}
+
 	rr.readHandle = rr.reader.ReadHandle()
 	err := rr.reader.Close()
 	if err != nil {
 		logger.Warnf("error while closing reader: %v", err)
+	}
+}
+
+func (rr *randomReader) monitorTimeout() {
+	timeout := time.NewTimer(2 * time.Second)
+	defer timeout.Stop()
+
+	for {
+		select {
+		case activity := <-rr.activity:
+			switch activity.activityType {
+			case closeMonitor:
+				return
+
+			case resetTimer:
+				if !timeout.Stop() {
+					<-timeout.C
+				}
+				timeout.Reset(2 * time.Second)
+			}
+		case <-timeout.C:
+			select {
+			case <-rr.activity:
+				if !timeout.Stop() {
+					<-timeout.C
+				}
+				timeout.Reset(2 * time.Second)
+
+			default:
+				logger.Warnf("Reader timed out for object: %s/%s", rr.bucket.Name(), rr.object.Name)
+				rr.closeReader()
+				rr.reader = nil
+				rr.cancel = nil
+				return
+
+			}
+		}
 	}
 }
