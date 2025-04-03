@@ -58,10 +58,7 @@ const (
 func registerTerminatingSignalHandler(mountPoint string, c *cfg.Config) {
 	// Register for SIGINT.
 	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
-	if c.FileSystem.HandleSigterm {
-		signal.Notify(signalChan, unix.SIGTERM)
-	}
+	signal.Notify(signalChan, os.Interrupt, unix.SIGTERM)
 
 	// Start a goroutine that will unmount when the signal is received.
 	go func() {
