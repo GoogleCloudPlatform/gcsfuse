@@ -71,7 +71,7 @@ func (rr *readManager) ReadAt(ctx context.Context, p []byte, offset int64) (read
 
 	for _, r := range rr.readers {
 		objectData, err = r.ReadAt(ctx, p, offset)
-		if err != nil || !objectData.FallBackToAnotherReader {
+		if err != nil || err == readers.DontErrFallbackToAnotherReader {
 			return objectData, err
 		}
 	}

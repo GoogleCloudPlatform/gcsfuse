@@ -79,13 +79,13 @@ func (rr *RangeReader) checkInvariants() {
 	}
 }
 
-func (rr *RangeReader) ReadAt(ctx context.Context, p []byte, offset, end int64) (readers.ObjectData, error) {
+func (rr *RangeReader) ReadAt(ctx context.Context, req *readers.GCSReaderReq) (readers.ObjectData, error) {
 	objectData := readers.ObjectData{
-		DataBuf: p,
+		DataBuf: req.Buffer,
 		Size:    0,
 	}
 	var err error
-	objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, end, rr.readType)
+	objectData.Size, err = rr.readFromRangeReader(ctx, req.Buffer, req.Offset, req.EndPosition, rr.readType)
 	return objectData, err
 }
 
@@ -291,17 +291,19 @@ func (rr *RangeReader) discardReader(offset int64, p []byte) bool {
 	return false
 }
 
-func (rr *RangeReader) readFromExistingReader(ctx context.Context, p []byte, offset int64) (readers.ObjectData, error) {
+func (rr *RangeReader) readFromExistingReader(ctx context.Context, req *readers.GCSReaderReq) (readers.ObjectData, error) {
 	objectData := readers.ObjectData{
-		DataBuf:                 p,
-		Size:                    0,
-		FallBackToAnotherReader: true,
+		DataBuf: req.Buffer,
+		Size:    0,
 	}
 	var err error
 
 	if rr.reader != nil {
-		objectData, err = rr.ReadAt(ctx, p, offset, -1)
-		objectData.FallBackToAnotherReader = false
+		objectData, err = rr.ReadAt(ctx, req)
+		if err != nil {
+			return objectData, err
+		}
+		err = readers.DontErrFallbackToAnotherReader
 	}
 
 	return objectData, err

@@ -87,6 +87,11 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (reader
 		DataBuf: p,
 		Size:    0,
 	}
+	readReq := &readers.GCSReaderReq{
+		Buffer:      p,
+		Offset:      offset,
+		EndPosition: -1,
+	}
 	var err error
 	gr.rangeReader.skipBytes(offset)
 
@@ -94,8 +99,8 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (reader
 		gr.seeks++
 	}
 
-	objectData, err = gr.rangeReader.readFromExistingReader(ctx, p, offset)
-	if err != nil || !objectData.FallBackToAnotherReader {
+	objectData, err = gr.rangeReader.readFromExistingReader(ctx, readReq)
+	if err != nil || err == readers.DontErrFallbackToAnotherReader {
 		return objectData, err
 	}
 
@@ -106,14 +111,15 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (reader
 		return objectData, err
 	}
 
+	readReq.EndPosition = end
 	readerType := gr.getReaderType(offset, end, gr.bucket.BucketType())
 	if readerType == RangeReaderType {
-		objectData, err = gr.rangeReader.ReadAt(ctx, p, offset, end)
+		objectData, err = gr.rangeReader.ReadAt(ctx, readReq)
 		gr.totalReadBytes += uint64(objectData.Size)
 		return objectData, err
 	}
 
-	objectData, err = gr.mrr.ReadAt(ctx, p, offset, end)
+	objectData, err = gr.mrr.ReadAt(ctx, readReq)
 	gr.totalReadBytes += uint64(objectData.Size)
 	if err != nil {
 		return objectData, err

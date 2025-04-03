@@ -68,9 +68,8 @@ func NewFileCacheReader(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler *f
 func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (readers.ObjectData, error) {
 	var err error
 	o := readers.ObjectData{
-		DataBuf:                 p,
-		Size:                    0,
-		FallBackToAnotherReader: true,
+		DataBuf: p,
+		Size:    0,
 	}
 
 	// Note: If we are reading the file for the first time and read type is sequential
@@ -80,14 +79,13 @@ func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (
 	n, cacheHit, err := fc.tryReadingFromFileCache(ctx, p, offset)
 	if err != nil {
 		err = fmt.Errorf("ReadAt: while reading from cache: %w", err)
-		o.FallBackToAnotherReader = false
 		return o, err
 	}
 	// Data was served from cache.
 	if cacheHit || n == len(p) || (n < len(p) && uint64(offset)+uint64(n) == fc.obj.Size) {
 		o.Size = n
-		o.FallBackToAnotherReader = false
-		return o, nil
+		err = readers.DontErrFallbackToAnotherReader
+		return o, err
 	}
 
 	return o, err

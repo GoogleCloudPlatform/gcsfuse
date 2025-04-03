@@ -14,12 +14,20 @@
 
 package readers
 
+import "errors"
+
+var DontErrFallbackToAnotherReader = errors.New("Don't fallback to another reader")
+
+type GCSReaderReq struct {
+	Buffer      []byte
+	Offset      int64
+	EndPosition int64
+}
+
 // ObjectData specifies the response returned as part of ReadAt call.
 type ObjectData struct {
 	// Byte array populated with the requested data.
 	DataBuf []byte
 	// Size of the data returned.
 	Size int
-	// Fall back to another reader.
-	FallBackToAnotherReader bool
 }
