@@ -28,7 +28,7 @@ func (t *defaultMountCommonTest) TestCreateSymlinkForLocalFileReadFails() {
 	// Create Symlink.
 	symlink := path.Join(testDirPath, setup.GenerateRandomString(5))
 	operations.CreateSymLink(t.filePath, symlink, t.T())
-	_, err := t.f1.WriteAt([]byte(FileContents), 0)
+	_, err := t.f1.WriteAt([]byte(t.data), 0)
 	assert.NoError(t.T(), err)
 	// Verify read link.
 	operations.VerifyReadLink(t.filePath, symlink, t.T())
@@ -38,14 +38,14 @@ func (t *defaultMountCommonTest) TestCreateSymlinkForLocalFileReadFails() {
 
 	assert.Error(t.T(), err)
 	// Close the file and validate that the file is created on GCS.
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, FileContents, t.T())
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, t.data, t.T())
 }
 
 func (t *defaultMountCommonTest) TestReadSymlinkForDeletedLocalFileFails() {
 	// Create Symlink.
 	symlink := path.Join(testDirPath, setup.GenerateRandomString(5))
 	operations.CreateSymLink(t.filePath, symlink, t.T())
-	_, err := t.f1.WriteAt([]byte(FileContents), 0)
+	_, err := t.f1.WriteAt([]byte(t.data), 0)
 	assert.NoError(t.T(), err)
 	// Verify read link.
 	operations.VerifyReadLink(t.filePath, symlink, t.T())
