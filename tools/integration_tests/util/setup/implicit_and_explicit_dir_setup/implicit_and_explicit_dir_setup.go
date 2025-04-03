@@ -154,7 +154,9 @@ func CreateImplicitDirectoryInExplicitDirectoryStructure(testDir string, t *test
 	// testBucket/testDir/explicitDirectory/implicitDirectory/implicitSubDirectory                            -- Dir
 	// testBucket/testDir/explicitDirectory/implicitDirectory/implicitSubDirectory/fileInImplicitDir2         -- File
 
+	// CreateExplicitDirectoryStructure writes files using GCSFuse.
 	CreateExplicitDirectoryStructure(testDir, t)
+
 	dirPathInBucket := path.Join(setup.TestBucket(), testDir, ExplicitDirectory)
 	setup.RunScriptForTestData("../util/setup/implicit_and_explicit_dir_setup/testdata/create_objects.sh", dirPathInBucket)
 }
@@ -169,7 +171,9 @@ func CreateImplicitDirectoryInExplicitDirectoryStructureUsingStorageClient(ctx c
 	// testBucket/testDir/explicitDirectory/implicitDirectory/implicitSubDirectory                            -- Dir
 	// testBucket/testDir/explicitDirectory/implicitDirectory/implicitSubDirectory/fileInImplicitDir2         -- File
 
+	// CreateExplicitDirectoryStructure writes files using GCSFuse.
 	CreateExplicitDirectoryStructure(testDir, t)
+
 	dirPathInBucket := path.Join(setup.TestBucket(), testDir, ExplicitDirectory)
 	createTestdataObjectsUsingStorageClient(ctx, storageClient, path.Join(setup.TestBucket(), dirPathInBucket), t)
 }

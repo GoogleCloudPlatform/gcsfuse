@@ -1,4 +1,4 @@
-// Copyright 2023 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@ func TestListOnlyExplicitObjectsFromBucket(t *testing.T) {
 	// testBucket/dirForExplicitDirTests/explicitDirectory/fileInExplicitDir1                               -- File
 	// testBucket/dirForExplicitDirTests/explicitDirectory/fileInExplicitDir2                               -- File
 
-	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructureUsingStorageClient(ctx, storageClient, DirForExplicitDirTests)
+	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructureUsingStorageClient(ctx, storageClient, DirForExplicitDirTests, t)
 	implicit_and_explicit_dir_setup.CreateExplicitDirectoryStructure(DirForExplicitDirTests, t)
 
 	err := filepath.WalkDir(testDir, func(path string, dir fs.DirEntry, err error) error {
