@@ -78,7 +78,6 @@ func RemoveAndCheckIfDirIsDeleted(dirPath string, dirName string, t *testing.T) 
 	}
 }
 
-// createTestdataObjectsUsingStorageClient is equivalent of the script tools/integration_tests/util/setup/implicit_and_explicit_dir_setup/testdata/create_objects.sh .
 // That script uses gcloud, but this function instead uses go client library.
 // Note: testDir is of the form <bucket>/<object-name>.
 func createTestdataObjectsUsingStorageClient(ctx context.Context, storageClient *storage.Client, testDir string, t *testing.T) {
@@ -114,17 +113,6 @@ func CreateImplicitDirectoryStructureUsingStorageClient(ctx context.Context, sto
 	createTestdataObjectsUsingStorageClient(ctx, storageClient, path.Join(setup.TestBucket(), testDir), t)
 }
 
-func CreateImplicitDirectoryStructure(testDir string) {
-	// Implicit Directory Structure
-	// testBucket/testDir/implicitDirectory                                                  -- Dir
-	// testBucket/testDir/implicitDirectory/fileInImplicitDir1                               -- File
-	// testBucket/testDir/implicitDirectory/implicitSubDirectory                             -- Dir
-	// testBucket/testDir/implicitDirectory/implicitSubDirectory/fileInImplicitDir2          -- File
-
-	// Create implicit directory in bucket for testing.
-	setup.RunScriptForTestData("../util/setup/implicit_and_explicit_dir_setup/testdata/create_objects.sh", path.Join(setup.TestBucket(), testDir))
-}
-
 func CreateExplicitDirectoryStructure(testDir string, t *testing.T) {
 	// Explicit Directory structure
 	// testBucket/testDir/explicitDirectory                            -- Dir
@@ -142,23 +130,6 @@ func CreateExplicitDirectoryStructure(testDir string, t *testing.T) {
 
 	// Closing file at the end.
 	defer operations.CloseFile(file)
-}
-
-func CreateImplicitDirectoryInExplicitDirectoryStructure(testDir string, t *testing.T) {
-	// testBucket/testDir/explicitDirectory                                                                   -- Dir
-	// testBucket/testDir/explictFile                                                                         -- File
-	// testBucket/testDir/explicitDirectory/fileInExplicitDir1                                                -- File
-	// testBucket/testDir/explicitDirectory/fileInExplicitDir2                                                -- File
-	// testBucket/testDir/explicitDirectory/implicitDirectory                                                 -- Dir
-	// testBucket/testDir/explicitDirectory/implicitDirectory/fileInImplicitDir1                              -- File
-	// testBucket/testDir/explicitDirectory/implicitDirectory/implicitSubDirectory                            -- Dir
-	// testBucket/testDir/explicitDirectory/implicitDirectory/implicitSubDirectory/fileInImplicitDir2         -- File
-
-	// CreateExplicitDirectoryStructure writes files using GCSFuse.
-	CreateExplicitDirectoryStructure(testDir, t)
-
-	dirPathInBucket := path.Join(setup.TestBucket(), testDir, ExplicitDirectory)
-	setup.RunScriptForTestData("../util/setup/implicit_and_explicit_dir_setup/testdata/create_objects.sh", dirPathInBucket)
 }
 
 func CreateImplicitDirectoryInExplicitDirectoryStructureUsingStorageClient(ctx context.Context, storageClient *storage.Client, testDir string, t *testing.T) {
