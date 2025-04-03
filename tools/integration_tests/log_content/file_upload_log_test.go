@@ -36,7 +36,7 @@ const (
 func uploadFile(t *testing.T, dirNamePrefix string, fileSize int64) {
 	testDir, err := os.MkdirTemp(setup.MntDir(), dirNamePrefix+"-*")
 	if err != nil || testDir == "" {
-		t.Fatalf("Error in creating test-directory:%v", err)
+		t.Fatalf("Error in creating test-directory: %v", err)
 	}
 	// Clean up.
 	defer operations.RemoveDir(testDir)
