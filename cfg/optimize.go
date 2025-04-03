@@ -29,6 +29,7 @@ import (
 const (
 	maxRetries  = 2
 	httpTimeout = 50 * time.Millisecond
+	machineType = "machine-type"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -110,8 +111,8 @@ var (
 // getMachineType fetches the machine type from the metadata server.
 func getMachineType(isSet isValueSet) (string, error) {
 	// Check if the machine-type flag is set and not empty.
-	if isSet.IsSet("machine-type") {
-		machineType := isSet.GetString("machine-type")
+	if isSet.IsSet(machineType) {
+		machineType := isSet.GetString(machineType)
 		if machineType != "" {
 			return machineType, nil
 		}
