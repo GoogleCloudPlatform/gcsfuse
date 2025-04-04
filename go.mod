@@ -1,7 +1,6 @@
 module github.com/googlecloudplatform/gcsfuse/v2
 
 go 1.24.0
-
 require (
 	cloud.google.com/go/compute/metadata v0.6.0
 	cloud.google.com/go/iam v1.4.2
@@ -49,7 +48,7 @@ require (
 	golang.org/x/time v0.11.0
 	google.golang.org/api v0.226.0
 	google.golang.org/grpc v1.71.0
-	google.golang.org/protobuf v1.36.5
+	google.golang.org/protobuf v1.36.6
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/yaml.v3 v3.0.1
 )
