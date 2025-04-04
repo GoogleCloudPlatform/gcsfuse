@@ -82,7 +82,7 @@ to GCS on close/fsync.
 * VM Type: c4-standard-96
 * VM location: us-south1
 * Networking: gVNIC+  tier_1 networking (200Gbps)
-* Hyperdisk balanced 
+* Disk Type: Hyperdisk balanced 
 * GCS Bucket location: us-south1
 
 ### Sequential Reads
@@ -125,7 +125,7 @@ to GCS on close/fsync.
 * VM Type: n2-standard-96
 * VM location: us-south1
 * Networking: gVNIC+  tier_1 networking (100Gbps)
-* SSD persistent disk  
+* Disk Type: SSD persistent disk  
 * GCS Bucket location: us-south1
 ### Sequential Reads
 | File Size | BlockSize | nrfiles |Bandwidth in (MiB/sec) | IOPs |  Avg Latency (msec)  |
