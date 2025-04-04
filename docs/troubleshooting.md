@@ -152,3 +152,16 @@ The Writes in GCSFuse are staged locally before they are uploaded to GCS buckets
 The path can be configured by using the mount flag [--temp-dir](https://cloud.google.com/storage/docs/cloud-storage-fuse/cli-options) to a path which has the disk space if available. By default, it takes the `/tmp` directory of the machine. (sometimes may be limited depending on the machine ).
 
 Alternatively, from [GCSFuse version 2.9.1](https://github.com/GoogleCloudPlatform/gcsfuse/releases/tag/v2.9.1) onwards, writes can be configured with streaming writes feature ( which doesnt involve staging the file locally ) with the help of `--enable-streaming-writes` flag
+
+### Permission Denied When Accessing a Mounted File or Directory
+
+By default, GCSFuse assigns file-mode 0644 and dir-mode 0755 for mounted files and directories. As a result, other users (such as third-party clients or the root user) may not have the necessary permissions to access the mounted file system. To resolve this issue, you can modify the permissions using the following options:
+
+- **Adjust File and Directory Permissions:**
+Use the `--file-mode` and `--dir-mode` flags to set the appropriate file and directory permissions when mounting.
+- **Allow Access for Other Users:**
+Add the `allow_other` flag to grant access to users beyond the default owner.
+- **Set User and Group IDs:**
+Use the `--uid` and `--gid` flags to specify the correct user and group IDs for access.
+
+Please note that GCSFuse does not support using chmod or similar commands to manage file access. For more detailed information, refer to the [Permissions and Ownership](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#permissions-and-ownership).
