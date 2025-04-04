@@ -17,6 +17,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 // Mock IsValueSet for testing.
@@ -92,12 +94,10 @@ func TestGetMachineType_Success(t *testing.T) {
 	metadataEndpoints = []string{server.URL}
 
 	machineType, err := getMachineType(&mockIsValueSet{})
-	if err != nil {
-		t.Fatalf("getMachineType failed: %v", err)
+	if !assert.NoError(t, err) {
+		return
 	}
-	if machineType != "n1-standard-1" {
-		t.Errorf("getMachineType returned unexpected machine type: %s", machineType)
-	}
+	assert.Equal(t, "n1-standard-1", machineType)
 }
 
 func TestGetMachineType_Failure(t *testing.T) {
@@ -112,9 +112,7 @@ func TestGetMachineType_Failure(t *testing.T) {
 	metadataEndpoints = []string{server.URL}
 
 	_, err := getMachineType(&mockIsValueSet{})
-	if err == nil {
-		t.Fatalf("getMachineType should have failed")
-	}
+	assert.Error(t, err)
 }
 
 // Add a test wherein machine-type is set by the flag
@@ -128,12 +126,10 @@ func TestGetMachineType_FlagIsSet(t *testing.T) {
 	}
 
 	machineType, err := getMachineType(isSet)
-	if err != nil {
-		t.Fatalf("getMachineType failed: %v", err)
+	if !assert.NoError(t, err) {
+		return
 	}
-	if machineType != "test-machine-type" {
-		t.Errorf("getMachineType returned unexpected machine type: %s", machineType)
-	}
+	assert.Equal(t, "test-machine-type", machineType)
 }
 
 func TestGetMachineType_QuotaError(t *testing.T) {
@@ -155,12 +151,10 @@ func TestGetMachineType_QuotaError(t *testing.T) {
 	metadataEndpoints = []string{server.URL}
 
 	machineType, err := getMachineType(&mockIsValueSet{})
-	if err != nil {
-		t.Fatalf("getMachineType failed: %v", err)
+	if !assert.NoError(t, err) {
+		return
 	}
-	if machineType != "n1-standard-1" {
-		t.Errorf("getMachineType returned unexpected machine type: %s", machineType)
-	}
+	assert.Equal(t, "n1-standard-1", machineType)
 }
 func TestOptimize_DisableAutoConfig(t *testing.T) {
 	resetMetadataEndpoints(t)
@@ -178,31 +172,17 @@ func TestOptimize_DisableAutoConfig(t *testing.T) {
 	isSet := &mockIsValueSet{setFlags: map[string]bool{"disable-autoconfig": true}, boolFlags: map[string]bool{"disable-autoconfig": true}}
 
 	_, err := Optimize(cfg, isSet)
-	if err != nil {
-		t.Fatalf("Optimize failed: %v", err)
+	if !assert.NoError(t, err) {
+		return
 	}
 
-	if cfg.Write.EnableStreamingWrites {
-		t.Errorf("Expected EnableStreamingWrites to be false")
-	}
-	if cfg.MetadataCache.NegativeTtlSecs != 0 {
-		t.Errorf("Expected NegativeTTLSecs to be 0, got %d", cfg.MetadataCache.NegativeTtlSecs)
-	}
-	if cfg.MetadataCache.TtlSecs != 0 {
-		t.Errorf("Expected TTLSecs to be 0, got %d", cfg.MetadataCache.TtlSecs)
-	}
-	if cfg.MetadataCache.StatCacheMaxSizeMb != 0 {
-		t.Errorf("Expected StatCacheMaxSizeMb to be 0, got %d", cfg.MetadataCache.StatCacheMaxSizeMb)
-	}
-	if cfg.MetadataCache.TypeCacheMaxSizeMb != 0 {
-		t.Errorf("Expected TypeCacheMaxSizeMb to be 0, got %d", cfg.MetadataCache.TypeCacheMaxSizeMb)
-	}
-	if cfg.ImplicitDirs {
-		t.Errorf("Expected ImplicitDirs to be false")
-	}
-	if cfg.FileSystem.RenameDirLimit != 0 {
-		t.Errorf("Expected RenameDirLimit to be 0, got %d", cfg.FileSystem.RenameDirLimit)
-	}
+	assert.False(t, cfg.Write.EnableStreamingWrites)
+	assert.EqualValues(t, 0, cfg.MetadataCache.NegativeTtlSecs)
+	assert.EqualValues(t, 0, cfg.MetadataCache.TtlSecs)
+	assert.EqualValues(t, 0, cfg.MetadataCache.StatCacheMaxSizeMb)
+	assert.EqualValues(t, 0, cfg.MetadataCache.TypeCacheMaxSizeMb)
+	assert.False(t, cfg.ImplicitDirs)
+	assert.EqualValues(t, 0, cfg.FileSystem.RenameDirLimit)
 }
 
 func TestApplyMachineTypeOptimizations_MatchingMachineType(t *testing.T) {
@@ -222,30 +202,16 @@ func TestApplyMachineTypeOptimizations_MatchingMachineType(t *testing.T) {
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
 	optimizedFlags, err := applyMachineTypeOptimizations(&config, cfg, isSet)
-	if err != nil {
-		t.Fatalf("ApplyMachineTypeOptimizations failed: %v", err)
+	if !assert.NoError(t, err) {
+		return
 	}
-	if len(optimizedFlags) == 0 {
-		t.Errorf("Expected optimization to be applied")
-	}
-	if cfg.MetadataCache.NegativeTtlSecs != 0 {
-		t.Errorf("Expected NegativeTTLSecs to be 0, got %d", cfg.MetadataCache.NegativeTtlSecs)
-	}
-	if cfg.MetadataCache.TtlSecs != -1 {
-		t.Errorf("Expected TTLSecs to be -1, got %d", cfg.MetadataCache.TtlSecs)
-	}
-	if cfg.MetadataCache.StatCacheMaxSizeMb != 1024 {
-		t.Errorf("Expected StatCacheMaxSizeMb to be 1024, got %d", cfg.MetadataCache.StatCacheMaxSizeMb)
-	}
-	if cfg.MetadataCache.TypeCacheMaxSizeMb != 128 {
-		t.Errorf("Expected TypeCacheMaxSizeMb to be 128, got %d", cfg.MetadataCache.TypeCacheMaxSizeMb)
-	}
-	if !cfg.ImplicitDirs {
-		t.Errorf("Expected ImplicitDirs to be true")
-	}
-	if cfg.FileSystem.RenameDirLimit != 200000 {
-		t.Errorf("Expected RenameDirLimit to be 200000, got %d", cfg.FileSystem.RenameDirLimit)
-	}
+	assert.NotEmpty(t, optimizedFlags)
+	assert.EqualValues(t, 0, cfg.MetadataCache.NegativeTtlSecs)
+	assert.EqualValues(t, -1, cfg.MetadataCache.TtlSecs)
+	assert.EqualValues(t, 1024, cfg.MetadataCache.StatCacheMaxSizeMb)
+	assert.EqualValues(t, 128, cfg.MetadataCache.TypeCacheMaxSizeMb)
+	assert.True(t, cfg.ImplicitDirs)
+	assert.EqualValues(t, 200000, cfg.FileSystem.RenameDirLimit)
 }
 
 func TestApplyMachineTypeOptimizations_NonMatchingMachineType(t *testing.T) {
@@ -265,18 +231,12 @@ func TestApplyMachineTypeOptimizations_NonMatchingMachineType(t *testing.T) {
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
 	optimizedFlags, err := applyMachineTypeOptimizations(&config, cfg, isSet)
-	if err != nil {
-		t.Fatalf("ApplyMachineTypeOptimizations failed: %v", err)
+	if !assert.NoError(t, err) {
+		return
 	}
 
-	if len(optimizedFlags) != 0 {
-		t.Errorf("Expected optimizedFlags to be empty")
-	}
-
-	// Check that no optimizations were applied.
-	if cfg.Write.EnableStreamingWrites {
-		t.Errorf("Expected EnableStreamingWrites to be false")
-	}
+	assert.Empty(t, optimizedFlags)
+	assert.False(t, cfg.Write.EnableStreamingWrites)
 }
 
 func TestApplyMachineTypeOptimizations_UserSetFlag(t *testing.T) {
@@ -298,31 +258,17 @@ func TestApplyMachineTypeOptimizations_UserSetFlag(t *testing.T) {
 	cfg.FileSystem.RenameDirLimit = 10000
 
 	optimizedFlags, err := applyMachineTypeOptimizations(&config, cfg, isSet)
-	if err != nil {
-		t.Fatalf("ApplyMachineTypeOptimizations failed: %v", err)
+	if !assert.NoError(t, err) {
+		return
 	}
-	if len(optimizedFlags) == 0 {
-		t.Errorf("Expected optimizedFlags to be non empty")
-	}
+	assert.NotEmpty(t, optimizedFlags)
 
-	if cfg.MetadataCache.NegativeTtlSecs != 0 {
-		t.Errorf("Expected NegativeTTLSecs to be 0, got %d", cfg.MetadataCache.NegativeTtlSecs)
-	}
-	if cfg.MetadataCache.TtlSecs != -1 {
-		t.Errorf("Expected TTLSecs to be -1, got %d", cfg.MetadataCache.TtlSecs)
-	}
-	if cfg.MetadataCache.StatCacheMaxSizeMb != 1024 {
-		t.Errorf("Expected StatCacheMaxSizeMb to be 1024, got %d", cfg.MetadataCache.StatCacheMaxSizeMb)
-	}
-	if cfg.MetadataCache.TypeCacheMaxSizeMb != 128 {
-		t.Errorf("Expected TypeCacheMaxSizeMb to be 128, got %d", cfg.MetadataCache.TypeCacheMaxSizeMb)
-	}
-	if !cfg.ImplicitDirs {
-		t.Errorf("Expected ImplicitDirs to be true")
-	}
-	if cfg.FileSystem.RenameDirLimit != 10000 {
-		t.Errorf("Expected RenameDirLimit to be 10000, got %d", cfg.FileSystem.RenameDirLimit)
-	}
+	assert.EqualValues(t, 0, cfg.MetadataCache.NegativeTtlSecs)
+	assert.EqualValues(t, -1, cfg.MetadataCache.TtlSecs)
+	assert.EqualValues(t, 1024, cfg.MetadataCache.StatCacheMaxSizeMb)
+	assert.EqualValues(t, 128, cfg.MetadataCache.TypeCacheMaxSizeMb)
+	assert.True(t, cfg.ImplicitDirs)
+	assert.EqualValues(t, 10000, cfg.FileSystem.RenameDirLimit)
 }
 
 func TestApplyMachineTypeOptimizations_MissingFlagOverrideSet(t *testing.T) {
@@ -350,9 +296,7 @@ func TestApplyMachineTypeOptimizations_MissingFlagOverrideSet(t *testing.T) {
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
 	_, err := applyMachineTypeOptimizations(&config, cfg, isSet)
-	if err != nil {
-		t.Fatalf("ApplyMachineTypeOptimizations failed: %v", err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestApplyMachineTypeOptimizations_GetMachineTypeError(t *testing.T) {
@@ -371,9 +315,7 @@ func TestApplyMachineTypeOptimizations_GetMachineTypeError(t *testing.T) {
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
 	_, err := applyMachineTypeOptimizations(&config, cfg, isSet)
-	if err != nil {
-		t.Fatalf("ApplyMachineTypeOptimizations failed: %v", err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestApplyMachineTypeOptimizations_NoError(t *testing.T) {
@@ -393,54 +335,44 @@ func TestApplyMachineTypeOptimizations_NoError(t *testing.T) {
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
 	_, err := applyMachineTypeOptimizations(&config, cfg, isSet)
-	if err != nil {
-		t.Fatalf("ApplyMachineTypeOptimizations failed: %v", err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestSetFlagValue_Bool(t *testing.T) {
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 	err := setFlagValue(cfg, "implicit-dirs", flagOverride{newValue: true}, isSet)
-	if err != nil {
-		t.Fatalf("setFlagValue failed: %v", err)
+	if !assert.NoError(t, err) {
+		return
 	}
-	if !cfg.ImplicitDirs {
-		t.Errorf("Expected ImplicitDirs to be true")
-	}
+	assert.True(t, cfg.ImplicitDirs)
 }
 
 func TestSetFlagValue_String(t *testing.T) {
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 	err := setFlagValue(cfg, "app-name", flagOverride{newValue: "optimal_gcsfuse"}, isSet)
-	if err != nil {
-		t.Fatalf("setFlagValue failed: %v", err)
+	if !assert.NoError(t, err) {
+		return
 	}
-	if cfg.AppName != "optimal_gcsfuse" {
-		t.Errorf("Expected AppName to be optimal_gcsfuse, got %s", cfg.AppName)
-	}
+	assert.Equal(t, "optimal_gcsfuse", cfg.AppName)
 }
 
 func TestSetFlagValue_Int(t *testing.T) {
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 	err := setFlagValue(cfg, "metadata-cache.stat-cache-max-size-mb", flagOverride{newValue: 1024}, isSet)
-	if err != nil {
-		t.Fatalf("setFlagValue failed: %v", err)
+	if !assert.NoError(t, err) {
+		return
 	}
-	if cfg.MetadataCache.StatCacheMaxSizeMb != 1024 {
-		t.Errorf("Expected stat cache max size to be 1024, got %d", cfg.MetadataCache.StatCacheMaxSizeMb)
-	}
+	assert.EqualValues(t, 1024, cfg.MetadataCache.StatCacheMaxSizeMb)
 }
 
 func TestSetFlagValue_InvalidFlagName(t *testing.T) {
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 	err := setFlagValue(cfg, "invalid-flag", flagOverride{newValue: true}, isSet)
-	if err == nil {
-		t.Fatalf("setFlagValue should have failed")
-	}
+	assert.Error(t, err)
 }
 
 func TestApplyMachineTypeOptimizations_NoMachineTypes(t *testing.T) {
@@ -478,13 +410,11 @@ func TestApplyMachineTypeOptimizations_NoMachineTypes(t *testing.T) {
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
 	_, err := applyMachineTypeOptimizations(&config, cfg, isSet)
-	if err != nil {
-		t.Fatalf("ApplyMachineTypeOptimizations failed: %v", err)
+	if !assert.NoError(t, err) {
+		return
 	}
 	// Check that no optimizations were applied as no machine mapping is set.
-	if cfg.Write.EnableStreamingWrites {
-		t.Errorf("Expected EnableStreamingWrites to be false")
-	}
+	assert.False(t, cfg.Write.EnableStreamingWrites)
 }
 
 func TestOptimize_Success(t *testing.T) {
@@ -503,29 +433,16 @@ func TestOptimize_Success(t *testing.T) {
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
 	optimizedFlags, err := Optimize(cfg, isSet)
-	if err != nil {
-		t.Fatalf("Optimize failed: %v", err)
+	if !assert.NoError(t, err) {
+		return
 	}
 
-	if !cfg.Write.EnableStreamingWrites || !isFlagPresent(optimizedFlags, "write.enable-streaming-writes") {
-		t.Errorf("Expected EnableStreamingWrites to be true")
-	}
-	if cfg.MetadataCache.NegativeTtlSecs != 0 {
-		t.Errorf("Expected NegativeTTLSecs to be 0, got %d", cfg.MetadataCache.NegativeTtlSecs)
-	}
-	if cfg.MetadataCache.TtlSecs != -1 {
-		t.Errorf("Expected TTLSecs to be -1, got %d", cfg.MetadataCache.TtlSecs)
-	}
-	if cfg.MetadataCache.StatCacheMaxSizeMb != 1024 {
-		t.Errorf("Expected StatCacheMaxSizeMb to be 1024, got %d", cfg.MetadataCache.StatCacheMaxSizeMb)
-	}
-	if cfg.MetadataCache.TypeCacheMaxSizeMb != 128 {
-		t.Errorf("Expected TypeCacheMaxSizeMb to be 128, got %d", cfg.MetadataCache.TypeCacheMaxSizeMb)
-	}
-	if !cfg.ImplicitDirs {
-		t.Errorf("Expected ImplicitDirs to be true")
-	}
-	if cfg.FileSystem.RenameDirLimit != 200000 {
-		t.Errorf("Expected RenameDirLimit to be 200000, got %d", cfg.FileSystem.RenameDirLimit)
-	}
+	assert.True(t, cfg.Write.EnableStreamingWrites)
+	assert.True(t, isFlagPresent(optimizedFlags, "write.enable-streaming-writes"))
+	assert.EqualValues(t, 0, cfg.MetadataCache.NegativeTtlSecs)
+	assert.EqualValues(t, -1, cfg.MetadataCache.TtlSecs)
+	assert.EqualValues(t, 1024, cfg.MetadataCache.StatCacheMaxSizeMb)
+	assert.EqualValues(t, 128, cfg.MetadataCache.TypeCacheMaxSizeMb)
+	assert.True(t, cfg.ImplicitDirs)
+	assert.EqualValues(t, 200000, cfg.FileSystem.RenameDirLimit)
 }
