@@ -925,6 +925,14 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 				EnableOtel:                     true,
 			},
 		},
+		{
+			name: "use_new_metric_names",
+			args: []string{"gcsfuse", "--metrics-use-new-names=true", "abc", "pqr"},
+			expected: &cfg.MetricsConfig{
+				EnableOtel:  true,
+				UseNewNames: true,
+			},
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
