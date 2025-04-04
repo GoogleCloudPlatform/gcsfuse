@@ -84,7 +84,7 @@ func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (
 	// Data was served from cache.
 	if cacheHit || n == len(p) || (n < len(p) && uint64(offset)+uint64(n) == fc.obj.Size) {
 		o.Size = n
-		return o, err
+		return o, nil
 	}
 
 	err = readers.FallbackToAnotherReader
