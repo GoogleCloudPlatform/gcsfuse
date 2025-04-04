@@ -140,7 +140,7 @@ func getMachineType(isSet isValueSet) (string, error) {
 
 			body, err := io.ReadAll(resp.Body)
 			if err != nil {
-				return "", fmt.Errorf("failed to read response body from %s: %w", endpoint, err)
+				continue
 			}
 
 			currentMachineType := string(body)
