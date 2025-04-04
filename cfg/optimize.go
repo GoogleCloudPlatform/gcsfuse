@@ -113,9 +113,9 @@ var (
 func getMachineType(isSet isValueSet) (string, error) {
 	// Check if the machine-type flag is set and not empty.
 	if isSet.IsSet(machineTypeFlg) {
-		machineType := isSet.GetString(machineTypeFlg)
-		if machineType != "" {
-			return machineType, nil
+		currentMachineType := isSet.GetString(machineTypeFlg)
+		if currentMachineType != "" {
+			return currentMachineType, nil
 		}
 	}
 	client := http.Client{Timeout: httpTimeout}
@@ -143,8 +143,8 @@ func getMachineType(isSet isValueSet) (string, error) {
 				return "", fmt.Errorf("failed to read response body from %s: %w", endpoint, err)
 			}
 
-			machineType := string(body)
-			parts := strings.Split(machineType, "/")
+			currentMachineType := string(body)
+			parts := strings.Split(currentMachineType, "/")
 			return parts[len(parts)-1], nil
 		}
 	}
