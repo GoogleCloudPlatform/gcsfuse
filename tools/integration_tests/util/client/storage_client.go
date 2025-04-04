@@ -381,3 +381,32 @@ func CopyFileInBucket(ctx context.Context, storageClient *storage.Client, srcfil
 		log.Fatalf("Error while copying file in bucket: %v", err)
 	}
 }
+
+func DeleteBucket(ctx context.Context, client *storage.Client, bucketName string) error {
+	bucket := client.Bucket(bucketName)
+
+	// Iterate through objects and delete them
+	query := &storage.Query{}
+	it := bucket.Objects(ctx, query)
+	for {
+		objAttrs, err := it.Next()
+		if err == iterator.Done {
+			break // No more objects
+		}
+		if err != nil {
+			log.Fatalf("Error iterating through objects: %v", err)
+		}
+
+		obj := bucket.Object(objAttrs.Name)
+		err = obj.Delete(ctx)
+		if err != nil {
+			log.Fatalf("Failed to delete object %s: %v", objAttrs.Name, err)
+		}
+	}
+
+	if err := bucket.Delete(ctx); err != nil {
+		log.Printf("Bucket(%q).Delete: %v", bucketName, err)
+		return err
+	}
+	return nil
+}
