@@ -242,8 +242,9 @@ function run_non_parallel_tests() {
     if [ $exit_code_non_parallel != 0 ]; then
       exit_code=$exit_code_non_parallel
       echo "test fail in non parallel on package (with zonal=${zonal}): " $test_dir_np
+    else
+      echo "Passed test package in non-parallel (with zonal=${zonal}): " $test_dir_np
     fi
-    echo "Passed test package in non-parallel (with zonal=${zonal}): ${test_dir_np} ..."
   done
   return $exit_code
 }
@@ -291,8 +292,9 @@ function run_parallel_tests() {
     if [ $exit_code_parallel != 0 ]; then
       exit_code=$exit_code_parallel
       echo "test fail in parallel on package (with zonal=${zonal}): " $package_name
+    else
+      echo "Passed test package in parallel (with zonal=${zonal}): " $package_name
     fi
-    echo "Passed test package in parallel (with zonal=${zonal}): ${package_name} ."
   done
   return $exit_code
 }
