@@ -17,6 +17,7 @@ import (
 	"io"
 	"net/http"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -152,40 +153,45 @@ func getMachineType(isSet isValueSet) (string, error) {
 }
 
 // applyMachineTypeOptimizations applies optimizations based on the detected machine type.
+// applyMachineTypeOptimizations applies optimizations based on the detected machine type.
 func applyMachineTypeOptimizations(config *optimizationConfig, cfg *Config, isSet isValueSet) ([]string, error) {
-	machineType, err := getMachineType(isSet)
+	currentMachineType, err := getMachineType(isSet)
 	if err != nil {
 		return []string{}, nil // Non-fatal error, continue with default settings.
 	}
 	var optimizedFlags []string
-	for _, mt := range config.machineTypes {
-		for _, name := range mt.names {
-			if strings.HasPrefix(machineType, name) {
-				// Find the FlagOverrideSet.
-				var flgOvrrideSet *flagOverrideSet
-				for _, overrideSet := range config.flagOverrideSets {
-					if overrideSet.name == mt.flagOverrideSetName {
-						flgOvrrideSet = &overrideSet
-						break
-					}
-				}
 
-				if flgOvrrideSet == nil {
-					continue
-				}
+	// Find the matching machine type.
+	mtIndex := slices.IndexFunc(config.machineTypes, func(mt machineType) bool {
+		return slices.ContainsFunc(mt.names, func(name string) bool {
+			return strings.HasPrefix(currentMachineType, name)
+		})
+	})
 
-				for flag, override := range flgOvrrideSet.overrides {
-					// Use reflection to find the field in ServerConfig.
-					err := setFlagValue(cfg, flag, override, isSet)
-					if err == nil {
-						optimizedFlags = append(optimizedFlags, flag)
-					}
-				}
-				return optimizedFlags, nil // Applied optimizations, no need to check other machine types.
-			}
+	// If no matching machine type is found, return.
+	if mtIndex == -1 {
+		return optimizedFlags, nil
+	}
+	mt := &config.machineTypes[mtIndex]
+
+	// Find the corresponding flag override set.
+	flgOverrideSetIndex := slices.IndexFunc(config.flagOverrideSets, func(fos flagOverrideSet) bool {
+		return fos.name == mt.flagOverrideSetName
+	})
+
+	// If no matching flag override set is found, return.
+	if flgOverrideSetIndex == -1 {
+		return optimizedFlags, nil
+	}
+	flgOverrideSet := &config.flagOverrideSets[flgOverrideSetIndex]
+
+	// Apply all overrides from the set.
+	for flag, override := range flgOverrideSet.overrides {
+		err := setFlagValue(cfg, flag, override, isSet)
+		if err == nil {
+			optimizedFlags = append(optimizedFlags, flag)
 		}
 	}
-
 	return optimizedFlags, nil
 }
 
@@ -228,7 +234,7 @@ func setFlagValue(cfg *Config, flag string, override flagOverride, isSet isValue
 		return fmt.Errorf("invalid flag name: %s", flag)
 	}
 
-	// Start with the ServerConfig.
+	// Start with the Config.
 	v := reflect.ValueOf(cfg).Elem()
 	var field reflect.Value
 	// Traverse nested structs.
@@ -285,10 +291,5 @@ func setFlagValue(cfg *Config, flag string, override flagOverride, isSet isValue
 }
 
 func isFlagPresent(flags []string, flag string) bool {
-	for _, v := range flags {
-		if v == flag {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(flags, flag)
 }
