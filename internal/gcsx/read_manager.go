@@ -16,6 +16,7 @@ package gcsx
 
 import (
 	"context"
+	"errors"
 	"io"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
@@ -68,11 +69,11 @@ func (rr *readManager) ReadAt(ctx context.Context, p []byte, offset int64) (read
 
 	for _, r := range rr.readers {
 		objectData, err = r.ReadAt(ctx, p, offset)
-		if err != nil && err != readers.ErrNoFallbackReader {
+		if err != nil && !errors.As(err, &readers.ErrNoFallbackReader) {
 			return objectData, err
 		}
 
-		if err == readers.ErrNoFallbackReader {
+		if errors.As(err, &readers.ErrNoFallbackReader) {
 			return objectData, nil
 		}
 
