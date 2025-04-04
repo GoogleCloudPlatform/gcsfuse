@@ -27,18 +27,22 @@ ioengine=libaio
 invalidate=1
 numjobs=128
 openfiles=1
-rw=<read/randread> 
+# Change this to randread to test random reads.
+rw=read 
 thread=1
 filename_format=$jobname.$jobnum/$filenum
 
 [experiment]
 stonewall
 directory=${DIR}
+# Update the block size value from the table for different experiments.
 bs=128K
+# Update the file size value from table(file size) for different experiments.
 filesize=128K
+# Set nrfiles per thread in such a way that the test runs for 1-2 min.
 nrfiles=30
   ```
-**Note:** Please note an update to our FIO read workload. This change accounts for the difference between the updated and existing n2 benchmarks.
+**Note:** Please note an update to our FIO read workload. This change accounts for the bandwidth difference between the current and [previous](https://github.com/GoogleCloudPlatform/gcsfuse/blob/26bc07f3dd210e05a7030954bb3e6070e957bfca/docs/benchmarks.md#sequential-read) n2 benchmarks.
 ### Writes
 ```
 [global]
@@ -52,9 +56,6 @@ group_reporting=1
 iodepth=64
 ioengine=sync
 invalidate=1
-# Every file is written only once. Set nrfiles per thread in such a way that the test runs for 1-2 min. 
-# This will vary based on file size. 
-nrfiles=2
 numjobs=112
 openfiles=1
 rw=write
@@ -67,8 +68,12 @@ filename_format=$jobname.$jobnum.$filenum
 [experiment]
 stonewall
 directory=${DIR}
+# Every file is written only once. Set nrfiles per thread in such a way that the test runs for 1-2 min. 
+# This will vary based on file size. 
 nrfiles=30
+# Update the file size value from table(file size) for different experiments.
 filesize=256K
+# Update the block size value from the table for different experiments.
 bs=16K
 ```
 **Note:** Benchmarking is done by writing out new files to GCS. Performance
