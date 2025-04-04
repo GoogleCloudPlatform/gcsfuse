@@ -54,12 +54,12 @@ func (s *staleFileHandleLocalFile) SetupTest() {
 ////////////////////////////////////////////////////////////////////////
 
 func TestStaleFileHandleLocalFileTest(t *testing.T) {
-	// t.Parallel()
+	t.Parallel()
 	for scenario, flags := range flagsSetMap {
 		ts := new(staleFileHandleLocalFile)
 		ts.flags = flags
 		t.Run(scenario, func(t *testing.T) {
-			// t.Parallel()
+			t.Parallel()
 			suite.Run(t, ts)
 		})
 	}
