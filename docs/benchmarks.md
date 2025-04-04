@@ -121,7 +121,7 @@ to GCS on close/fsync.
 | 100M |1M | 10 | 4549 | 4549 | 7.04 |
 | 1G | 1M | 2 | 2398 | 2398 | 37.07  |
 
-## Benchmarking on n2 machine-type
+## GCSFuse Benchmarking on n2 machine-type
 * VM Type: n2-standard-96
 * VM location: us-south1
 * Networking: gVNIC+  tier_1 networking (100Gbps)
