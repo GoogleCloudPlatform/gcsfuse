@@ -109,6 +109,32 @@ var (
 // Helper Functions
 ////////////////////////////////////////////////////////////////////////
 
+// getMetadata fetches metadata from a given endpoint.
+func getMetadata(client *http.Client, endpoint string) ([]byte, error) {
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request for %s: %w", endpoint, err)
+	}
+	req.Header.Add("Metadata-Flavor", "Google")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("request to %s failed: %w", endpoint, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("request to %s returned non-OK status: %d", endpoint, resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body from %s: %w", endpoint, err)
+	}
+
+	return body, nil
+}
+
 // getMachineType fetches the machine type from the metadata server.
 func getMachineType(isSet isValueSet) (string, error) {
 	// Check if the machine-type flag is set and not empty.
@@ -121,24 +147,7 @@ func getMachineType(isSet isValueSet) (string, error) {
 	client := http.Client{Timeout: httpTimeout}
 	for retry := 0; retry < maxRetries; retry++ {
 		for _, endpoint := range metadataEndpoints {
-
-			req, err := http.NewRequest(http.MethodGet, endpoint, nil)
-			if err != nil {
-				return "", fmt.Errorf("failed to create request for %s: %w", endpoint, err)
-			}
-			req.Header.Add("Metadata-Flavor", "Google")
-
-			resp, err := client.Do(req)
-			if err != nil {
-				continue // Try the next endpoint.
-			}
-			defer resp.Body.Close()
-
-			if resp.StatusCode != http.StatusOK {
-				continue
-			}
-
-			body, err := io.ReadAll(resp.Body)
+			body, err := getMetadata(&client, endpoint)
 			if err != nil {
 				continue
 			}
@@ -152,7 +161,6 @@ func getMachineType(isSet isValueSet) (string, error) {
 	return "", fmt.Errorf("failed to get machine type from any metadata endpoint after retries")
 }
 
-// applyMachineTypeOptimizations applies optimizations based on the detected machine type.
 // applyMachineTypeOptimizations applies optimizations based on the detected machine type.
 func applyMachineTypeOptimizations(config *optimizationConfig, cfg *Config, isSet isValueSet) ([]string, error) {
 	currentMachineType, err := getMachineType(isSet)
