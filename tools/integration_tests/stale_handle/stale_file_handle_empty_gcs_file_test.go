@@ -134,12 +134,12 @@ func (s *staleFileHandleEmptyGcsFile) TestFileDeletedRemotelySyncAndCloseThrowsS
 ////////////////////////////////////////////////////////////////////////
 
 func TestStaleFileHandleEmptyGcsFileTest(t *testing.T) {
-	// t.Parallel()
+	t.Parallel()
 	for scenario, flags := range flagsSetMap {
 		ts := new(staleFileHandleEmptyGcsFile)
 		ts.flags = flags
 		t.Run(scenario, func(t *testing.T) {
-			// t.Parallel()
+			t.Parallel()
 			suite.Run(t, ts)
 		})
 	}
