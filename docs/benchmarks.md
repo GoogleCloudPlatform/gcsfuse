@@ -197,7 +197,7 @@ to GCS on close/fsync.
 8. Run the FIO test using following command.
 
     ```
-    fio samplejobspec.fio
+    DIR=<path-to-mount-point> fio samplejobspec.fio
     ```
 
 9. Metrics will be displayed on the terminal after test is completed.
