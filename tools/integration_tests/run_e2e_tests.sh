@@ -449,9 +449,9 @@ function clean_up() {
 function main(){
   set -e
 
-  upgrade_gcloud_version
-
-  install_packages
+  # upgrade_gcloud_version
+# 
+  # install_packages
 
   set +e
 
