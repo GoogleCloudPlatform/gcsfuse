@@ -92,17 +92,16 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (reader
 	}
 	var err error
 
-	if gr.rangeReader.discardReader(offset, p) {
+	if gr.rangeReader.invalidateReaderIfMisalignedOrTooSmall(offset, p) {
 		gr.seeks++
 	}
 
 	objectData, err = gr.rangeReader.readFromExistingReader(ctx, readReq)
-	if err != nil && !errors.As(err, &readers.ErrNoFallbackReader) {
-		return objectData, err
-	}
-
-	if errors.As(err, &readers.ErrNoFallbackReader) {
+	if err == nil {
 		return objectData, nil
+	}
+	if !errors.As(err, &readers.FallbackToAnotherReader) {
+		return objectData, err
 	}
 
 	// If we don't have a reader, determine whether to read from NewReader or Mgr.

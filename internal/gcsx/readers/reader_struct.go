@@ -14,14 +14,14 @@
 
 package readers
 
-type NoFallbackReaderError struct{}
+type FallbackToAnotherReaderError struct{}
 
-func (e *NoFallbackReaderError) Error() string {
+func (e *FallbackToAnotherReaderError) Error() string {
 	return "fallback to another reader is not allowed"
 }
 
 // Usage
-var ErrNoFallbackReader = &NoFallbackReaderError{}
+var FallbackToAnotherReader = &FallbackToAnotherReaderError{}
 
 type GCSReaderReq struct {
 	Buffer      []byte

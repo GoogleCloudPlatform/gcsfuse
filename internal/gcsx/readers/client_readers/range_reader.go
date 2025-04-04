@@ -273,7 +273,7 @@ func (rr *RangeReader) skipBytes(offset int64) {
 	}
 }
 
-func (rr *RangeReader) discardReader(offset int64, p []byte) bool {
+func (rr *RangeReader) invalidateReaderIfMisalignedOrTooSmall(offset int64, p []byte) bool {
 	rr.skipBytes(offset)
 
 	// If we have an existing reader, but it's positioned at the wrong place,
@@ -293,6 +293,9 @@ func (rr *RangeReader) discardReader(offset int64, p []byte) bool {
 	return false
 }
 
+// readFromExistingReader attempts to read data from an existing reader if one is available.
+// If a reader exists and the read is successful, the data is returned.
+// Otherwise, it returns an error indicating that a fallback to another reader is needed.
 func (rr *RangeReader) readFromExistingReader(ctx context.Context, req *readers.GCSReaderReq) (readers.ObjectData, error) {
 	objectData := readers.ObjectData{
 		DataBuf: req.Buffer,
@@ -302,11 +305,9 @@ func (rr *RangeReader) readFromExistingReader(ctx context.Context, req *readers.
 
 	if rr.reader != nil {
 		objectData, err = rr.ReadAt(ctx, req)
-		if err != nil {
-			return objectData, err
-		}
-		err = readers.ErrNoFallbackReader
+		return objectData, err
 	}
 
+	err = readers.FallbackToAnotherReader
 	return objectData, err
 }
