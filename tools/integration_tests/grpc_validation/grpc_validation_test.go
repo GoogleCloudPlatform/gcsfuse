@@ -151,7 +151,7 @@ func (g *gRPCValidation) TestGRPCDirectPathConnections() {
 				os.Remove(logFile)
 			}()
 			success := operations.CheckLogFileForMessage(g.T(), tc.expectedLogSubstring, logFile)
-			require.Equal(t,true,success)
+			require.Equal(t, true, success)
 		})
 	}
 }
