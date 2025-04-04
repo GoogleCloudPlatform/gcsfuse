@@ -96,7 +96,9 @@ func TestSmallFileUploadLog(t *testing.T) {
 		unexpectedLogSubstrings := []string{"bytes uploaded so far"}
 		operations.VerifyUnexpectedSubstrings(t, logString, unexpectedLogSubstrings)
 	} else {
-		// For zonal buckets, a single log for the full file-size will come.
+		// For zonal buckets, for file-size too small (<16 MB), a single progress log for the
+		// full file-size will come. This is because of a known difference in
+		// implementation of object-write in GCS for zonal buckets.
 		expectedSubstrings := []string{fmt.Sprintf("%d bytes uploaded so far", SmallFileSize)}
 		operations.VerifyExpectedSubstrings(t, logString, expectedSubstrings)
 	}
