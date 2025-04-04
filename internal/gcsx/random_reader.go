@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"math"
 	"strconv"
 	"strings"
@@ -387,6 +388,7 @@ func (rr *randomReader) ReadAt(
 	}
 
 	readerType := readerType(rr.readType, offset, end, rr.bucket.BucketType())
+	log.Println("Reader Type: ", readerType)
 	if readerType == RangeReader {
 		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, end, rr.readType)
 		return
