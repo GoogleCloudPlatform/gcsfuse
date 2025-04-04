@@ -16,7 +16,6 @@ package grpc_validation
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -54,8 +53,8 @@ var multi_regions = []string{
 }
 var gcp_project = "gcs-fuse-test"
 var (
-	ctx context.Context
-	client *storage.Client
+	ctx        context.Context
+	client     *storage.Client
 	testRegion string
 )
 
@@ -129,21 +128,7 @@ func createTestBucketName(region string) string {
 func createTestBucket(testBucketRegion, testBucketName string) (err error) {
 	bucket := client.Bucket(testBucketName)
 	if err = bucket.Create(ctx, gcp_project, &storage.BucketAttrs{Location: testBucketRegion}); err != nil {
-		log.Printf("Error while creating bucket, error: %v",err)
-		return err
-	}
-	return nil
-}
-
-// Delete the test bucket after the test is complete.
-func DeleteBucket(ctx context.Context, client *storage.Client, testBucketName string) (err error) {
-	if testBucketName == "" {
-		return errors.New("Bucket Name must not be empty!")
-	}
-
-	bucket := client.Bucket(testBucketName)
-	if err = bucket.Delete(ctx); err != nil {
-		log.Printf("Error while deleting bucket : %s, error: %v", testBucketName,err)
+		log.Printf("Error while creating bucket, error: %v", err)
 		return err
 	}
 	return nil
@@ -151,26 +136,28 @@ func DeleteBucket(ctx context.Context, client *storage.Client, testBucketName st
 
 func TestMain(m *testing.M) {
 	// Parse flags from the setup.
+	var err error
 	setup.ParseSetUpFlags()
-	setup.SetUpTestDir()
+	if err := setup.SetUpTestDir(); err != nil {
+		log.Fatalf("Failed to setup GCSFuse package. Error: %v", err)
+	}
 
 	// Creating a common storage client for the test
-	var err error
 	ctx = context.Background()
 	if client, err = storage.NewClient(ctx); err != nil {
-		log.Fatalf("Creation of storage client failed with error : %v",err)
+		log.Fatalf("Creation of storage client failed with error : %v", err)
 	}
 	defer client.Close()
 
 	testRegion, err := findTestExecutionEnvironment(ctx)
-    if err != nil {
-        log.Fatalf("Failed to retrieve test VM region: %v", err)
-    }
+	if err != nil {
+		log.Fatalf("Failed to retrieve test VM region: %v", err)
+	}
 
-    if testRegion == cloudtopProd {
-        log.Println("Skipping tests due to cloudtop environment.")
-        os.Exit(0)
-    }
+	if testRegion == cloudtopProd {
+		log.Println("Skipping tests due to cloudtop environment.")
+		os.Exit(0)
+	}
 
 	// Run tests.
 	code := m.Run()

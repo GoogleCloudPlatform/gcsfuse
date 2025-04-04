@@ -781,12 +781,12 @@ func CloseLocalFile(t *testing.T, f **os.File) error {
 	return err
 }
 
-func CheckLogFileForMessage(t *testing.T,expectedLog, logFile string) bool {
-	fmt.Printf("logmessage: %s",expectedLog)
+func CheckLogFileForMessage(t *testing.T, expectedLog, logFile string) bool {
+	fmt.Printf("logmessage: %s", expectedLog)
 	file, err := os.Open(logFile)
 	require.NoError(t, err, "Failed to open log file")
 	defer file.Close()
-	t.Logf("logfile name %s expectedLog %s",logFile,expectedLog)
+	t.Logf("logfile name %s expectedLog %s", logFile, expectedLog)
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		if strings.Contains(scanner.Text(), expectedLog) {

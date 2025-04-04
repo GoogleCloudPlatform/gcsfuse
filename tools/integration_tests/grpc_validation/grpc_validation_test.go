@@ -20,9 +20,10 @@ import (
 	"testing"
 	"time"
 
+	client_util "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -85,7 +86,7 @@ func (g *gRPCValidation) TearDownSuite() {
 		g.multiRegionBucketForGRPCFailure,
 	}
 	for _, bucket := range bucketsToDelete {
-		if err := DeleteBucket(ctx, client, bucket); err != nil {
+		if err := client_util.DeleteBucket(ctx, client, bucket); err != nil {
 			g.T().Logf("Failed to delete bucket %s: %v", bucket, err)
 		}
 	}
@@ -98,7 +99,6 @@ func TestGRPCValidationSuite(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
-
 
 func (g *gRPCValidation) TestGRPCDirectPathConnections() {
 	testCases := []struct {
@@ -151,8 +151,7 @@ func (g *gRPCValidation) TestGRPCDirectPathConnections() {
 				os.Remove(logFile)
 			}()
 			success := operations.CheckLogFileForMessage(g.T(), tc.expectedLogSubstring, logFile)
-			t.Logf("success : %t", success)
-			require.Equal(t, true, success, fmt.Sprintf("Expected success: %t, but got: %t", tc.expectedSuccess, success))
+			require.Equal(t,true,success)
 		})
 	}
 }
