@@ -52,16 +52,23 @@ type FileHandle struct {
 	// as we are not doing anything special for append. When required we will
 	// define an enum instead of boolean to hold the type of open.
 	readOnly bool
+
+	// So far, GCSFuse starts the reader with large prefetch assuming the read as sequential.
+	// More prefetching leads to more server side processing, which can be avoided for random
+	// reads. If true, then first gcs request is made of the same size as read-size received
+	// from the kernel.
+	optimizeRandomRead bool
 }
 
 // LOCKS_REQUIRED(fh.inode.mu)
-func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, readOnly bool) (fh *FileHandle) {
+func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, readOnly bool, optimizeRandomRead bool) (fh *FileHandle) {
 	fh = &FileHandle{
 		inode:                 inode,
 		fileCacheHandler:      fileCacheHandler,
 		cacheFileForRangeRead: cacheFileForRangeRead,
 		metricHandle:          metricHandle,
 		readOnly:              readOnly,
+		optimizeRandomRead:    optimizeRandomRead,
 	}
 
 	fh.inode.RegisterFileHandle(fh.readOnly)
@@ -201,7 +208,7 @@ func (fh *FileHandle) tryEnsureReader(ctx context.Context, sequentialReadSizeMb 
 	}
 
 	// Attempt to create an appropriate reader.
-	rr := gcsx.NewRandomReader(fh.inode.Source(), fh.inode.Bucket(), sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, &fh.inode.MRDWrapper)
+	rr := gcsx.NewRandomReader(fh.inode.Source(), fh.inode.Bucket(), sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, &fh.inode.MRDWrapper, fh.optimizeRandomRead)
 
 	fh.reader = rr
 	return
