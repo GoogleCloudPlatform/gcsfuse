@@ -160,8 +160,10 @@ By default, GCSFuse assigns file-mode 0644 and dir-mode 0755 for mounted files a
 - **Adjust File and Directory Permissions:**
 Use the `--file-mode` and `--dir-mode` flags to set the appropriate file and directory permissions when mounting.
 - **Allow Access for Other Users:**
-Add the `allow_other` flag to grant access to users beyond the default owner.
+To allow users other than the one who mounted the bucket to access it, use the `-o allow_other` flag during the mount process. Additionally, the `user_allow_other` option must be enabled in the `/etc/fuse.conf` file for this to work.
+**Note:** Be aware that allowing access to other users can introduce potential [security risks](https://github.com/torvalds/linux/blob/a33f32244d8550da8b4a26e277ce07d5c6d158b5/Documentation/filesystems/fuse.txt#L218-L310). Therefore, it should be done with caution.
+
 - **Set User and Group IDs:**
 Use the `--uid` and `--gid` flags to specify the correct user and group IDs for access.
 
-Please note that GCSFuse does not support using chmod or similar commands to manage file access. For more detailed information, refer to the [Permissions and Ownership](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#permissions-and-ownership).
+Please note that GCSFuse does not support using `chmod` or similar commands to manage file access. For more detailed information, refer to the [Permissions and Ownership](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#permissions-and-ownership).
