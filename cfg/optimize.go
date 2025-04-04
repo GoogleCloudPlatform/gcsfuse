@@ -163,9 +163,9 @@ func applyMachineTypeOptimizations(config *optimizationConfig, cfg *Config, isSe
 			if strings.HasPrefix(machineType, name) {
 				// Find the FlagOverrideSet.
 				var flgOvrrideSet *flagOverrideSet
-				for _, flgOverrideSet := range config.flagOverrideSets {
-					if flgOverrideSet.name == mt.flagOverrideSetName {
-						flgOvrrideSet = &flgOverrideSet
+				for _, overrideSet := range config.flagOverrideSets {
+					if overrideSet.name == mt.flagOverrideSetName {
+						flgOvrrideSet = &overrideSet
 						break
 					}
 				}
