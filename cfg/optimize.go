@@ -139,8 +139,7 @@ func getMetadata(client *http.Client, endpoint string) ([]byte, error) {
 func getMachineType(isSet isValueSet) (string, error) {
 	// Check if the machine-type flag is set and not empty.
 	if isSet.IsSet(machineTypeFlg) {
-		currentMachineType := isSet.GetString(machineTypeFlg)
-		if currentMachineType != "" {
+		if currentMachineType := isSet.GetString(machineTypeFlg); currentMachineType != "" {
 			return currentMachineType, nil
 		}
 	}
