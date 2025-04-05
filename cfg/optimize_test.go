@@ -86,7 +86,6 @@ func TestGetMachineType_Success(t *testing.T) {
 	resetMetadataEndpoints(t)
 	// Create a test server that returns a machine type.
 	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Metadata-Flavor", "Google")
 		fmt.Fprint(w, "zones/us-central1-a/machineTypes/n1-standard-1")
 	})
 	defer closeTestServer(t, server)
@@ -139,7 +138,6 @@ func TestGetMachineType_QuotaError(t *testing.T) {
 		if retryCount < maxRetries {
 			w.WriteHeader(http.StatusTooManyRequests)
 		} else {
-			w.Header().Set("Metadata-Flavor", "Google")
 			fmt.Fprint(w, "zones/us-central1-a/machineTypes/n1-standard-1")
 		}
 	})
@@ -156,7 +154,6 @@ func TestOptimize_DisableAutoConfig(t *testing.T) {
 	resetMetadataEndpoints(t)
 	// Create a test server that returns a matching machine type.
 	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Metadata-Flavor", "Google")
 		fmt.Fprint(w, "zones/us-central1-a/machineTypes/a3-highgpu-8g")
 	})
 	defer closeTestServer(t, server)
@@ -181,7 +178,6 @@ func TestApplyMachineTypeOptimizations_MatchingMachineType(t *testing.T) {
 	resetMetadataEndpoints(t)
 	// Create a test server that returns a matching machine type.
 	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Metadata-Flavor", "Google")
 		fmt.Fprint(w, "zones/us-central1-a/machineTypes/a3-highgpu-8g")
 	})
 	defer closeTestServer(t, server)
@@ -207,7 +203,6 @@ func TestApplyMachineTypeOptimizations_NonMatchingMachineType(t *testing.T) {
 	resetMetadataEndpoints(t)
 	// Create a test server that returns a non-matching machine type.
 	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Metadata-Flavor", "Google")
 		fmt.Fprint(w, "zones/us-central1-a/machineTypes/n1-standard-1")
 	})
 	defer closeTestServer(t, server)
@@ -228,7 +223,6 @@ func TestApplyMachineTypeOptimizations_UserSetFlag(t *testing.T) {
 	resetMetadataEndpoints(t)
 	// Create a test server that returns a matching machine type.
 	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Metadata-Flavor", "Google")
 		fmt.Fprint(w, "zones/us-central1-a/machineTypes/a3-highgpu-8g")
 	})
 	defer closeTestServer(t, server)
@@ -256,7 +250,6 @@ func TestApplyMachineTypeOptimizations_MissingFlagOverrideSet(t *testing.T) {
 	resetMetadataEndpoints(t)
 	// Create a test server that returns a machine type with a missing FlagOverrideSet.
 	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Metadata-Flavor", "Google")
 		fmt.Fprint(w, "zones/us-central1-a/machineTypes/a3-highgpu-8g")
 	})
 	defer closeTestServer(t, server)
@@ -301,7 +294,6 @@ func TestApplyMachineTypeOptimizations_NoError(t *testing.T) {
 	resetMetadataEndpoints(t)
 	// Create a test server that returns a matching machine type.
 	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Metadata-Flavor", "Google")
 		fmt.Fprint(w, "zones/us-central1-a/machineTypes/a3-highgpu-8g")
 	})
 	defer closeTestServer(t, server)
@@ -359,7 +351,6 @@ func TestApplyMachineTypeOptimizations_NoMachineTypes(t *testing.T) {
 	resetMetadataEndpoints(t)
 	// Create a test server that returns a matching machine type.
 	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Metadata-Flavor", "Google")
 		fmt.Fprint(w, "zones/us-central1-a/machineTypes/a3-highgpu-8g")
 	})
 	defer closeTestServer(t, server)
@@ -398,7 +389,6 @@ func TestOptimize_Success(t *testing.T) {
 	resetMetadataEndpoints(t)
 	// Create a test server that returns a matching machine type.
 	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Metadata-Flavor", "Google")
 		fmt.Fprint(w, "zones/us-central1-a/machineTypes/a3-highgpu-8g")
 	})
 	defer closeTestServer(t, server)
