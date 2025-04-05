@@ -245,8 +245,8 @@ func setFlagValue(cfg *Config, flag string, override flagOverride, isSet isValue
 	v := reflect.ValueOf(cfg).Elem()
 	var field reflect.Value
 	// Traverse nested structs.
-	for i := 0; i < len(parts); i++ {
-		field = v.FieldByName(convertToCamelCase(parts[i]))
+	for _, part := range parts {
+		field = v.FieldByName(convertToCamelCase(part))
 		if !field.IsValid() {
 			return fmt.Errorf("invalid flag name: %s", flag)
 		}
