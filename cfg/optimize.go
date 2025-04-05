@@ -161,7 +161,6 @@ func getMachineType(isSet isValueSet) (string, error) {
 	return "", fmt.Errorf("failed to get machine type from any metadata endpoint after retries")
 }
 
-// applyMachineTypeOptimizations applies optimizations based on the detected machine type.
 func applyMachineTypeOptimizations(config *optimizationConfig, cfg *Config, isSet isValueSet) ([]string, error) {
 	currentMachineType, err := getMachineType(isSet)
 	if err != nil {
