@@ -36,7 +36,7 @@ const (
 func uploadFile(t *testing.T, dirNamePrefix string, fileSize int64) {
 	testDir, err := os.MkdirTemp(setup.MntDir(), dirNamePrefix+"-*")
 	if err != nil || testDir == "" {
-		t.Fatalf("Error in creating test-directory:%v", err)
+		t.Fatalf("Error in creating test-directory: %v", err)
 	}
 	// Clean up.
 	defer operations.RemoveDir(testDir)
@@ -90,8 +90,16 @@ func TestBigFileUploadLog(t *testing.T) {
 func TestSmallFileUploadLog(t *testing.T) {
 	logString := uploadFileAndReturnLogs(t, DirForSmallFileUploadLogTest, SmallFileSize)
 
-	// The file being uploaded is too small (<16 MB) for progress logs
-	// to be printed.
-	unexpectedLogSubstrings := []string{"bytes uploaded so far"}
-	operations.VerifyUnexpectedSubstrings(t, logString, unexpectedLogSubstrings)
+	if !setup.IsZonalBucketRun() {
+		// The file being uploaded is too small (<16 MB) for progress logs
+		// to be printed.
+		unexpectedLogSubstrings := []string{"bytes uploaded so far"}
+		operations.VerifyUnexpectedSubstrings(t, logString, unexpectedLogSubstrings)
+	} else {
+		// For zonal buckets, for file-size too small (<16 MB), a single progress log for the
+		// full file-size will come. This is because of a known difference in
+		// implementation of object-write in GCS for zonal buckets.
+		expectedSubstrings := []string{fmt.Sprintf("%d bytes uploaded so far", SmallFileSize)}
+		operations.VerifyExpectedSubstrings(t, logString, expectedSubstrings)
+	}
 }
