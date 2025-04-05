@@ -19,7 +19,7 @@ sudo apt-get update
 # Kokoro machine's outdated gcloud version prevents the use of the "gcloud storage" feature.
 gcloud version
 wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
-sudo tar xzf gcloud.tar.gz && sudo cp -r google-cloud-sdk /usr/local && sudo rm -r google-cloud-sdk
+sudo tar xzf gcloud.tar.gz && sudo mv google-cloud-sdk /usr/local
 sudo /usr/local/google-cloud-sdk/install.sh
 export PATH=/usr/local/google-cloud-sdk/bin:$PATH
 echo 'export PATH=/usr/local/google-cloud-sdk/bin:$PATH' >> ~/.bashrc
