@@ -410,7 +410,6 @@ func TestOptimize_Success(t *testing.T) {
 		fmt.Fprint(w, "zones/us-central1-a/machineTypes/a3-highgpu-8g")
 	})
 	defer closeTestServer(t, server)
-
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 	cfg := &Config{}
