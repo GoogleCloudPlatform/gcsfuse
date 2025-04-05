@@ -90,9 +90,9 @@ func TestGetMachineType_Success(t *testing.T) {
 		fmt.Fprint(w, "zones/us-central1-a/machineTypes/n1-standard-1")
 	})
 	defer closeTestServer(t, server)
-
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
+
 	machineType, err := getMachineType(&mockIsValueSet{})
 
 	require.NoError(t, err)
@@ -106,9 +106,9 @@ func TestGetMachineType_Failure(t *testing.T) {
 		w.WriteHeader(http.StatusInternalServerError)
 	})
 	defer closeTestServer(t, server)
-
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
+
 	_, err := getMachineType(&mockIsValueSet{})
 
 	assert.Error(t, err)
@@ -144,9 +144,9 @@ func TestGetMachineType_QuotaError(t *testing.T) {
 		}
 	})
 	defer closeTestServer(t, server)
-
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
+
 	machineType, err := getMachineType(&mockIsValueSet{})
 
 	require.NoError(t, err)
@@ -160,7 +160,6 @@ func TestOptimize_DisableAutoConfig(t *testing.T) {
 		fmt.Fprint(w, "zones/us-central1-a/machineTypes/a3-highgpu-8g")
 	})
 	defer closeTestServer(t, server)
-
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 	cfg := &Config{}
@@ -186,7 +185,6 @@ func TestApplyMachineTypeOptimizations_MatchingMachineType(t *testing.T) {
 		fmt.Fprint(w, "zones/us-central1-a/machineTypes/a3-highgpu-8g")
 	})
 	defer closeTestServer(t, server)
-
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 	config := defaultOptimizationConfig
@@ -213,13 +211,12 @@ func TestApplyMachineTypeOptimizations_NonMatchingMachineType(t *testing.T) {
 		fmt.Fprint(w, "zones/us-central1-a/machineTypes/n1-standard-1")
 	})
 	defer closeTestServer(t, server)
-
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
-
 	config := defaultOptimizationConfig
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
+
 	optimizedFlags, err := applyMachineTypeOptimizations(&config, cfg, isSet)
 
 	require.NoError(t, err)
@@ -235,7 +232,6 @@ func TestApplyMachineTypeOptimizations_UserSetFlag(t *testing.T) {
 		fmt.Fprint(w, "zones/us-central1-a/machineTypes/a3-highgpu-8g")
 	})
 	defer closeTestServer(t, server)
-
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 	config := defaultOptimizationConfig
@@ -264,7 +260,6 @@ func TestApplyMachineTypeOptimizations_MissingFlagOverrideSet(t *testing.T) {
 		fmt.Fprint(w, "zones/us-central1-a/machineTypes/a3-highgpu-8g")
 	})
 	defer closeTestServer(t, server)
-
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 	config := optimizationConfig{
@@ -278,6 +273,7 @@ func TestApplyMachineTypeOptimizations_MissingFlagOverrideSet(t *testing.T) {
 	}
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
+
 	_, err := applyMachineTypeOptimizations(&config, cfg, isSet)
 
 	require.NoError(t, err)
@@ -290,7 +286,6 @@ func TestApplyMachineTypeOptimizations_GetMachineTypeError(t *testing.T) {
 		w.WriteHeader(http.StatusInternalServerError)
 	})
 	defer closeTestServer(t, server)
-
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 	config := defaultOptimizationConfig
@@ -310,7 +305,6 @@ func TestApplyMachineTypeOptimizations_NoError(t *testing.T) {
 		fmt.Fprint(w, "zones/us-central1-a/machineTypes/a3-highgpu-8g")
 	})
 	defer closeTestServer(t, server)
-
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 	config := defaultOptimizationConfig
@@ -371,7 +365,6 @@ func TestApplyMachineTypeOptimizations_NoMachineTypes(t *testing.T) {
 	defer closeTestServer(t, server)
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
-
 	config := optimizationConfig{
 		flagOverrideSets: []flagOverrideSet{
 			{
