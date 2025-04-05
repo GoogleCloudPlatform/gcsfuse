@@ -83,10 +83,16 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 		); cfgErr != nil {
 			return
 		}
+
 		if cfgErr = cfg.ValidateConfig(v, &configObj); cfgErr != nil {
 			return
 		}
-		if cfgErr = cfg.Rationalize(v, &configObj); cfgErr != nil {
+		var optimizedFlags []string
+		if optimizedFlags, cfgErr = cfg.Optimize(&configObj, v); cfgErr != nil {
+			return
+		}
+
+		if cfgErr = cfg.Rationalize(v, &configObj, optimizedFlags); cfgErr != nil {
 			return
 		}
 	}
