@@ -60,6 +60,8 @@ type Config struct {
 
 	OnlyDir string `yaml:"only-dir"`
 
+	Read ReadConfig `yaml:"read"`
+
 	Write WriteConfig `yaml:"write"`
 }
 
@@ -227,6 +229,10 @@ type MonitoringConfig struct {
 	ExperimentalTracingSamplingRatio float64 `yaml:"experimental-tracing-sampling-ratio"`
 }
 
+type ReadConfig struct {
+	EnableAdaptiveReadSize bool `yaml:"enable-adaptive-read-size"`
+}
+
 type ReadStallGcsRetriesConfig struct {
 	Enable bool `yaml:"enable"`
 
@@ -316,6 +322,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("disable-parallel-dirops", "", false, "Specifies whether to allow parallel dir operations (lookups and readers)")
 
 	if err := flagSet.MarkHidden("disable-parallel-dirops"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("enable-adaptive-read-size", "", false, "If enabled, random reader will make adaptive read requests, starts from 1 MiB increaseing the size in case of sequential read. In case of random read, it resets the read-size back to 1MiB.")
+
+	if err := flagSet.MarkHidden("enable-adaptive-read-size"); err != nil {
 		return err
 	}
 
@@ -645,6 +657,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.disable-parallel-dirops", flagSet.Lookup("disable-parallel-dirops")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("read.enable-adaptive-read-size", flagSet.Lookup("enable-adaptive-read-size")); err != nil {
 		return err
 	}
 
