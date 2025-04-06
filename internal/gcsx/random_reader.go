@@ -33,6 +33,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/jacobsa/fuse/fuseops"
+	"github.com/jonboulle/clockwork"
 	"golang.org/x/net/context"
 )
 
@@ -113,16 +114,19 @@ type activityType int
 
 const (
 	resetTimer activityType = iota
-	closeMonitor
+	pauseTimer
 )
 
 type activity struct {
 	activityType activityType
 }
 
+const pauseTimerTimeout = 2 * time.Second
+const inactiveRangeReaderTimeout = 2 * time.Second
+
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
-func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper) RandomReader {
+func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper, clock clockwork.Clock) RandomReader {
 	return &randomReader{
 		object:                o,
 		bucket:                bucket,
@@ -136,6 +140,8 @@ func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb i
 		cacheFileForRangeRead: cacheFileForRangeRead,
 		mrdWrapper:            mrdWrapper,
 		metricHandle:          metricHandle,
+		clock: clock,
+		timeout: inactiveRangeReaderTimeout,
 	}
 }
 
@@ -192,14 +198,21 @@ type randomReader struct {
 
 	metricHandle common.MetricHandle
 
-	// Channel to signal activity on the reader.
+	/** Attributes requires to support timeout for inactive range reader */
 	activity chan activity
+	clock    clockwork.Clock
+	timeout  time.Duration
 }
 
 func (rr *randomReader) CheckInvariants() {
 	// INVARIANT: (reader == nil) == (cancel == nil)
 	if (rr.reader == nil) != (rr.cancel == nil) {
 		panic(fmt.Sprintf("Mismatch: %v vs. %v", rr.reader == nil, rr.cancel == nil))
+	}
+
+	// INVARIANT: (reader == nil) == (activity == nil)
+	if (rr.reader == nil) != (rr.activity == nil) {
+		panic(fmt.Sprintf("Mismatch: %v vs. %v", rr.reader == nil, rr.activity == nil))
 	}
 
 	// INVARIANT: start <= limit
@@ -450,9 +463,6 @@ func (rr *randomReader) readFull(
 	ctx context.Context,
 	p []byte) (n int, err error) {
 
-	// Signal the monitoring routine to reset the reader.
-	rr.activity <- activity{activityType: resetTimer}
-
 	// Start a goroutine that will cancel the read operation we block on below if
 	// the calling context is cancelled, but only if this method has not already
 	// returned (to avoid souring the reader for the next read if this one is
@@ -479,6 +489,8 @@ func (rr *randomReader) readFull(
 	// Call through.
 	n, err = io.ReadFull(rr.reader, p)
 
+	// Reset the timer after the active read.
+	rr.activity <- activity{activityType: resetTimer}
 	return
 }
 
@@ -502,9 +514,6 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 			ReadHandle:     rr.readHandle,
 		})
 
-	rr.activity = make(chan activity)
-	go rr.monitorTimeout()
-
 	// If a file handle is open locally, but the corresponding object doesn't exist
 	// in GCS, it indicates a file clobbering scenario. This likely occurred because:
 	//  - The file was deleted in GCS while a local handle was still open.
@@ -526,6 +535,10 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 	rr.cancel = cancel
 	rr.start = start
 	rr.limit = end
+
+	// Create the activity channel and background routine for the newly created reader.
+	rr.activity = make(chan activity)
+	go rr.monitorTimeout(rr.activity)
 
 	requestedDataSize := end - start
 	common.CaptureGCSReadMetrics(ctx, rr.metricHandle, util.Sequential, requestedDataSize)
@@ -614,6 +627,9 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 		}
 	}
 
+	// Pause the timer before actual read operation.
+	rr.activity <- activity{activityType: pauseTimer}
+
 	// Now we have a reader positioned at the correct place. Consume as much from
 	// it as possible.
 	n, err = rr.readFull(ctx, p)
@@ -686,9 +702,8 @@ func (rr *randomReader) closeReader() {
 	if rr.reader == nil {
 		return
 	}
-
-	rr.activity <- activity{activityType: closeMonitor}
-
+	close(rr.activity)
+	rr.activity = nil
 	rr.readHandle = rr.reader.ReadHandle()
 	err := rr.reader.Close()
 	if err != nil {
@@ -696,38 +711,60 @@ func (rr *randomReader) closeReader() {
 	}
 }
 
-func (rr *randomReader) monitorTimeout() {
-	timeout := time.NewTimer(2 * time.Second)
-	defer timeout.Stop()
+// Go routine to track the open range reader stream.
+// Routine runs until provided activityChan is not closed.
+func (rr *randomReader) monitorTimeout(activityChan <-chan activity) {
+	logger.Infof("top %s.", rr.object.Name)
+	tt := rr.clock.NewTimer(rr.timeout)
+	defer tt.Stop()
 
 	for {
 		select {
-		case activity := <-rr.activity:
-			switch activity.activityType {
-			case closeMonitor:
+		case activity, ok := <-activityChan:
+			if !ok {
+				logger.Infof("activity closed %s.", rr.object.Name)
 				return
-
-			case resetTimer:
-				if !timeout.Stop() {
-					<-timeout.C
-				}
-				timeout.Reset(2 * time.Second)
 			}
-		case <-timeout.C:
+			switch activity.activityType {
+			case pauseTimer:
+				// if !tt.Stop() {
+				// 	<-tt.Chan()
+				// }
+				logger.Infof("activity pause %s.", rr.object.Name)
+				tt.Reset(pauseTimerTimeout)
+			case resetTimer:
+				// if !tt.Stop() {
+				// 	<-tt.Chan()
+				// }
+				logger.Infof("activity reset %s.", rr.object.Name)
+				tt.Reset(rr.timeout)
+			}
+		case <-tt.Chan():
+			logger.Infof("expired %s.", rr.object.Name)
 			select {
-			case <-rr.activity:
-				if !timeout.Stop() {
-					<-timeout.C
+			case activity, ok := <-activityChan:
+				if !ok {
+					return
 				}
-				timeout.Reset(2 * time.Second)
-
+				switch activity.activityType {
+				case pauseTimer:
+					if !tt.Stop() {
+						<-tt.Chan()
+					}
+					
+					tt.Reset(pauseTimerTimeout)
+				case resetTimer:
+					if !tt.Stop() {
+						<-tt.Chan()
+					}
+					tt.Reset(rr.timeout)
+				}
 			default:
-				logger.Warnf("Reader timed out for object: %s/%s", rr.bucket.Name(), rr.object.Name)
+				logger.Infof("Closing inactive reader connection of %s object.", rr.object.Name)
 				rr.closeReader()
 				rr.reader = nil
 				rr.cancel = nil
 				return
-
 			}
 		}
 	}

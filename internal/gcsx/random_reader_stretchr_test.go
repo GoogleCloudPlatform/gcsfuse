@@ -32,10 +32,12 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/clock"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	testutil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	"github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -52,6 +54,7 @@ type RandomReaderStretchrTest struct {
 	cacheDir     string
 	jobManager   *downloader.JobManager
 	cacheHandler *file.CacheHandler
+	fakeClock    *clockwork.FakeClock
 }
 
 func TestRandomReaderStretchrTestSuite(t *testing.T) {
@@ -59,6 +62,7 @@ func TestRandomReaderStretchrTestSuite(t *testing.T) {
 }
 
 func (t *RandomReaderStretchrTest) SetupTest() {
+	t.fakeClock = clockwork.NewFakeClock()
 	t.rr.ctx = context.Background()
 
 	// Manufacture an object record.
@@ -79,8 +83,9 @@ func (t *RandomReaderStretchrTest) SetupTest() {
 	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm)
 
 	// Set up the reader.
-	rr := NewRandomReader(t.object, t.mockBucket, sequentialReadSizeInMb, nil, false, common.NewNoopMetrics(), nil)
+	rr := NewRandomReader(t.object, t.mockBucket, sequentialReadSizeInMb, nil, false, common.NewNoopMetrics(), nil, t.fakeClock)
 	t.rr.wrapped = rr.(*randomReader)
+
 }
 
 func (t *RandomReaderStretchrTest) TearDownTest() {
@@ -301,6 +306,8 @@ func (t *RandomReaderStretchrTest) Test_ReadFromRangeReader_WhenExistingReaderIs
 	testContent := testutil.GenerateRandomBytes(int(t.object.Size))
 	rc := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.rr.wrapped.reader = rc
+	t.rr.wrapped.activity = make(chan activity)
+	go t.rr.wrapped.monitorTimeout(t.rr.wrapped.activity)
 	t.rr.wrapped.cancel = func() {}
 	buf := make([]byte, dataSize)
 
@@ -344,6 +351,8 @@ func (t *RandomReaderStretchrTest) Test_ReadFromRangeReader_WhenAllDataFromReade
 				Handle:     tc.readHandle,
 			}
 			t.rr.wrapped.reader = rc
+			t.rr.wrapped.activity = make(chan activity)
+			go t.rr.wrapped.monitorTimeout(t.rr.wrapped.activity)
 			t.rr.wrapped.cancel = func() {}
 			buf := make([]byte, dataSize)
 
@@ -391,6 +400,8 @@ func (t *RandomReaderStretchrTest) Test_ReadFromRangeReader_WhenReaderHasLessDat
 			}
 			t.rr.wrapped.reader = rc
 			t.rr.wrapped.cancel = func() {}
+			t.rr.wrapped.activity = make(chan activity)
+			go t.rr.wrapped.monitorTimeout(t.rr.wrapped.activity)
 			buf := make([]byte, 10)
 
 			n, err := t.rr.wrapped.readFromRangeReader(t.rr.ctx, buf, 0, 10, "unhandled")
@@ -437,6 +448,8 @@ func (t *RandomReaderStretchrTest) Test_ReadFromRangeReader_WhenReaderReturnedMo
 			}
 			t.rr.wrapped.reader = rc
 			t.rr.wrapped.cancel = func() {}
+			t.rr.wrapped.activity = make(chan activity)
+			go t.rr.wrapped.monitorTimeout(t.rr.wrapped.activity)
 			buf := make([]byte, 10)
 
 			_, err := t.rr.wrapped.readFromRangeReader(t.rr.ctx, buf, 0, 10, "unhandled")
@@ -461,6 +474,8 @@ func (t *RandomReaderStretchrTest) Test_ReadFromRangeReader_WhenReaderReturnedEO
 	rc := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.rr.wrapped.reader = rc
 	t.rr.wrapped.cancel = func() {}
+	t.rr.wrapped.activity = make(chan activity)
+	go t.rr.wrapped.monitorTimeout(t.rr.wrapped.activity)
 	buf := make([]byte, 10)
 
 	_, err := t.rr.wrapped.readFromRangeReader(t.rr.ctx, buf, 0, 10, "unhandled")
@@ -491,6 +506,8 @@ func (t *RandomReaderStretchrTest) Test_ExistingReader_WrongOffset() {
 				ReadCloser: io.NopCloser(strings.NewReader("xxx")),
 				Handle:     tc.readHandle,
 			}
+			t.rr.wrapped.activity = make(chan activity)
+			go t.rr.wrapped.monitorTimeout(t.rr.wrapped.activity)
 			t.rr.wrapped.cancel = func() {}
 			t.rr.wrapped.start = 2
 			t.rr.wrapped.limit = 5
@@ -524,6 +541,8 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_ExistingReaderLimitIsLessThanRequ
 	t.object.Size = 10
 	// Simulate an existing reader.
 	t.rr.wrapped.reader = &fake.FakeReader{ReadCloser: getReadCloser([]byte("xxx")), Handle: []byte("fake")}
+	t.rr.wrapped.activity = make(chan activity)
+	go t.rr.wrapped.monitorTimeout(t.rr.wrapped.activity)
 	t.rr.wrapped.cancel = func() {}
 	t.rr.wrapped.start = 2
 	t.rr.wrapped.limit = 5
@@ -558,6 +577,8 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_ExistingReaderLimitIsLessThanRequ
 	t.object.Size = 5
 	// Simulate an existing reader
 	t.rr.wrapped.reader = &fake.FakeReader{ReadCloser: getReadCloser([]byte("xxx")), Handle: []byte("fake")}
+	t.rr.wrapped.activity = make(chan activity)
+	go t.rr.wrapped.monitorTimeout(t.rr.wrapped.activity)
 	t.rr.wrapped.cancel = func() {}
 	t.rr.wrapped.start = 0
 	t.rr.wrapped.limit = 3
@@ -862,4 +883,53 @@ func (t *RandomReaderStretchrTest) Test_ReadFromMultiRangeReader_ValidateTimeout
 			assert.ErrorContains(t.T(), err, tc.expectedErrKeyword)
 		})
 	}
+}
+
+// Somehow not working as expected, seems some bug in the fakeClockTimer in reset.
+// Let's debug it later.
+func (t *RandomReaderStretchrTest) Test_ReadAt_InactiveReaderClosedAfterTimeout() {
+	t.rr.wrapped.readHandle = []byte("fake-handle")
+	t.rr.wrapped.reader = nil
+	t.rr.wrapped.start = 0
+	t.rr.wrapped.limit = 5
+	t.object.Size = 5
+	dataSize := 5
+	testContent := testutil.GenerateRandomBytes(int(t.object.Size))
+	rc := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
+	readObjectRequest := &gcs.ReadObjectRequest{
+		Name:       t.rr.wrapped.object.Name,
+		Generation: t.rr.wrapped.object.Generation,
+		Range: &gcs.ByteRange{
+			Start: uint64(0),
+			Limit: t.object.Size,
+		},
+		ReadCompressed: t.rr.wrapped.object.HasContentEncodingGzip(),
+		ReadHandle:     t.rr.wrapped.readHandle,
+	}
+	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).Return(rc, nil).Times(1)
+	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: false}).Once()
+	// Read slightly less than the reader length to keep the reader alive.
+	buf := make([]byte, dataSize-2)
+	objData, err := t.rr.ReadAt(buf, 0)
+	assert.Equal(t.T(), err, nil)
+	assert.Equal(t.T(), dataSize-2, objData.Size)
+	assert.NotNil(t.T(), t.rr.wrapped.reader)
+	assert.NotNil(t.T(), t.rr.wrapped.cancel)
+	assert.Equal(t.T(), int64(3), t.rr.wrapped.start)
+	assert.Equal(t.T(), int64(5), t.rr.wrapped.limit)
+	assert.Equal(t.T(), uint64(3), t.rr.wrapped.totalReadBytes)
+
+	// t.fakeClock.BlockUntilContext(t.rr.ctx, 1)
+	t.fakeClock.BlockUntilContext(t.rr.ctx, 1)
+	t.fakeClock.Advance(inactiveRangeReaderTimeout + time.Second)
+
+	time.Sleep(1 * time.Second)
+	logger.Debugf("Testing...")
+
+	assert.Nil(t.T(), t.rr.wrapped.reader)
+	assert.Nil(t.T(), t.rr.wrapped.cancel)
+	assert.Equal(t.T(), int64(3), t.rr.wrapped.start)
+	assert.Equal(t.T(), int64(5), t.rr.wrapped.limit)
+	assert.Equal(t.T(), uint64(3), t.rr.wrapped.totalReadBytes)
+	// assert.Equal(t.T(), tc.inputReadHandle, t.rr.wrapped.readHandle)
 }
