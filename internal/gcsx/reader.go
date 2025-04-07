@@ -17,9 +17,31 @@ package gcsx
 import (
 	"context"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/readers"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 )
+
+// FallbackToAnotherReaderError is returned when data could not be retrieved
+// from the current reader, indicating that the caller should attempt to fall back
+// to an alternative reader.
+type FallbackToAnotherReaderError struct{}
+
+func (e *FallbackToAnotherReaderError) Error() string {
+	return "fallback to another reader is required."
+}
+
+var FallbackToAnotherReader = &FallbackToAnotherReaderError{}
+
+// GCSReaderReq represents the request parameters needed to read a data from a GCS object.
+type GCSReaderReq struct {
+	// Buffer is provided by jacobsa/fuse and should be filled with data from the object.
+	Buffer []byte
+
+	// Offset specifies the starting position in the object from where data should be read.
+	Offset int64
+
+	// The end offset that needs to be fetched from GCS.
+	EndOffset int64
+}
 
 // Reader is the base interface for all logical readers.
 type Reader interface {
@@ -27,8 +49,8 @@ type Reader interface {
 	CheckInvariants()
 
 	// ReadAt reads data into the provided byte slice starting at the given offset.
-	// Returns an ObjectData struct with the actual data read and size.
-	ReadAt(ctx context.Context, p []byte, offset int64) (readers.ObjectData, error)
+	// Returns an ObjectRead struct with the actual data read and size.
+	ReadAt(ctx context.Context, p []byte, offset int64) (ObjectRead, error)
 
 	// Destroy is called to release any resources held by the reader.
 	Destroy()
@@ -48,6 +70,16 @@ type ReadManager interface {
 // This interface is intended for lower-level interactions with GCS readers.
 type GCSReader interface {
 	// ReadAt reads data into the provided request buffer, starting from the specified offset and ending at the specified end offset.
-	// It returns an ObjectData response containing the data read and any error encountered.
-	ReadAt(ctx context.Context, req *readers.GCSReaderReq) (readers.ObjectData, error)
+	// It returns an ObjectRead response containing the data read and any error encountered.
+	ReadAt(ctx context.Context, req *GCSReaderReq) (ObjectRead, error)
+}
+
+// ObjectRead represents the response returned as part of a ReadAt call.
+// It includes the actual data read and its size.
+type ObjectRead struct {
+	// DataBuf contains the bytes read from the object.
+	DataBuf []byte
+
+	// Size indicates how many bytes were read into DataBuf.
+	Size int
 }
