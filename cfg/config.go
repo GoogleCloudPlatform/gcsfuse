@@ -34,6 +34,8 @@ type Config struct {
 
 	EnableHns bool `yaml:"enable-hns"`
 
+	EnableNewReader bool `yaml:"enable-new-reader"`
+
 	FileCache FileCacheConfig `yaml:"file-cache"`
 
 	FileSystem FileSystemConfig `yaml:"file-system"`
@@ -332,6 +334,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("enable-hns", "", true, "Enables support for HNS buckets")
 
 	if err := flagSet.MarkHidden("enable-hns"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("enable-new-reader", "", false, "Enables support for new reader implementation.")
+
+	if err := flagSet.MarkHidden("enable-new-reader"); err != nil {
 		return err
 	}
 
@@ -649,6 +657,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("enable-hns", flagSet.Lookup("enable-hns")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("enable-new-reader", flagSet.Lookup("enable-new-reader")); err != nil {
 		return err
 	}
 
