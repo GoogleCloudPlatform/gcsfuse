@@ -34,8 +34,9 @@ type Reader interface {
 	Destroy()
 }
 
-// ReadManager extends the base Reader interface with an Object method.
-// This is typically used in higher-level components that need access to object metadata.
+// The ReadManager interface extends the base Reader interface with an Object method.
+// This is generally used in higher-level components that need access to object metadata.
+// File handle will contain a ReadManager instance and will handle read operations.
 type ReadManager interface {
 	Reader
 

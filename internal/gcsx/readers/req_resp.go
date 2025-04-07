@@ -28,9 +28,9 @@ var FallbackToAnotherReader = &FallbackToAnotherReaderError{}
 // GCSReaderReq represents the request parameters needed to read a data from a GCS object.
 type GCSReaderReq struct {
 	// Buffer is provided by jacobsa/fuse and should be filled with data from the object.
- 	Buffer []byte
+	Buffer []byte
 
-    // Offset specifies the starting position in the object from where data should be read.  
+	// Offset specifies the starting position in the object from where data should be read.
 	Offset int64
 
 	// The end offset that needs to be fetched from GCS.
