@@ -876,14 +876,14 @@ func TestArgsParsing_EnableAtomicRenameObjectFlag(t *testing.T) {
 
 func TestArgsParsing_EnableNewReaderFlag(t *testing.T) {
 	tests := []struct {
-		name                      string
-		args                      []string
-		expectedEnabledNewReaders bool
+		name                     string
+		args                     []string
+		expectedEnableNewReaders bool
 	}{
 		{
-			name:                      "normal",
-			args:                      []string{"gcsfuse", "--enable-new-reader=true", "abc", "pqr"},
-			expectedEnabledNewReaders: true,
+			name:                     "normal",
+			args:                     []string{"gcsfuse", "--enable-new-reader=true", "abc", "pqr"},
+			expectedEnableNewReaders: true,
 		},
 	}
 
@@ -900,7 +900,7 @@ func TestArgsParsing_EnableNewReaderFlag(t *testing.T) {
 			err = cmd.Execute()
 
 			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expectedEnabledNewReaders, gotEnableNewReader)
+				assert.Equal(t, tc.expectedEnableNewReaders, gotEnableNewReader)
 			}
 		})
 	}
