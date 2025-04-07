@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package client_readers
+package gcsx
 
 import (
 	"errors"
@@ -23,7 +23,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/readers"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
@@ -79,8 +79,8 @@ func (rr *RangeReader) checkInvariants() {
 	}
 }
 
-func (rr *RangeReader) ReadAt(ctx context.Context, req *readers.GCSReaderReq) (readers.ObjectData, error) {
-	objectData := readers.ObjectData{
+func (rr *RangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderReq) (gcsx.ObjectData, error) {
+	objectData := gcsx.ObjectData{
 		DataBuf: req.Buffer,
 		Size:    0,
 	}
@@ -296,8 +296,8 @@ func (rr *RangeReader) invalidateReaderIfMisalignedOrTooSmall(offset int64, p []
 // readFromExistingReader attempts to read data from an existing reader if one is available.
 // If a reader exists and the read is successful, the data is returned.
 // Otherwise, it returns an error indicating that a fallback to another reader is needed.
-func (rr *RangeReader) readFromExistingReader(ctx context.Context, req *readers.GCSReaderReq) (readers.ObjectData, error) {
-	objectData := readers.ObjectData{
+func (rr *RangeReader) readFromExistingReader(ctx context.Context, req *gcsx.GCSReaderReq) (gcsx.ObjectData, error) {
+	objectData := gcsx.ObjectData{
 		DataBuf: req.Buffer,
 		Size:    0,
 	}
@@ -308,6 +308,6 @@ func (rr *RangeReader) readFromExistingReader(ctx context.Context, req *readers.
 		return objectData, err
 	}
 
-	err = readers.FallbackToAnotherReader
+	err = gcsx.FallbackToAnotherReader
 	return objectData, err
 }

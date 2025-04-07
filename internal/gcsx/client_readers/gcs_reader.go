@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package client_readers
+package gcsx
 
 import (
 	"context"
@@ -20,12 +20,12 @@ import (
 	"fmt"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/readers"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 )
 
-// ReaderType represents different types of go-sdk gcs readers.
+// ReaderType represents different types of go-sdk gcs gcsx.
 // For eg: NewReader and MRD both point to bidi read api. This enum specifies
 // the go-sdk type.
 type ReaderType int
@@ -73,7 +73,7 @@ type GCSReader struct {
 	totalReadBytes uint64
 }
 
-func NewGCSReader(obj *gcs.MinObject, bucket gcs.Bucket, metricHandle common.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper, sequentialReadSizeMb int32) GCSReader {
+func NewGCSReader(obj *gcs.MinObject, bucket gcs.Bucket, metricHandle common.MetricHandle, mrdWrapper *gcsx.MultiRangeDownloaderWrapper, sequentialReadSizeMb int32) GCSReader {
 	return GCSReader{
 		obj:                  obj,
 		bucket:               bucket,
@@ -83,9 +83,9 @@ func NewGCSReader(obj *gcs.MinObject, bucket gcs.Bucket, metricHandle common.Met
 	}
 }
 
-func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (readers.ObjectData, error) {
-	var objectData readers.ObjectData
-	readReq := &readers.GCSReaderReq{
+func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.ObjectData, error) {
+	var objectData gcsx.ObjectData
+	readReq := &gcsx.GCSReaderReq{
 		Buffer:      p,
 		Offset:      offset,
 		EndPosition: -1,
@@ -100,7 +100,7 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (reader
 	if err == nil {
 		return objectData, nil
 	}
-	if !errors.As(err, &readers.FallbackToAnotherReader) {
+	if !errors.As(err, &gcsx.FallbackToAnotherReader) {
 		return objectData, err
 	}
 
