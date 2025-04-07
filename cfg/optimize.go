@@ -163,7 +163,7 @@ func getMachineType(isSet isValueSet) (string, error) {
 func applyMachineTypeOptimizations(config *optimizationConfig, cfg *Config, isSet isValueSet) ([]string, error) {
 	currentMachineType, err := getMachineType(isSet)
 	if err != nil {
-		return []string{}, nil // Non-fatal error, continue with default settings.
+		return nil, nil // Non-fatal error, continue with default settings.
 	}
 	var optimizedFlags []string
 
@@ -201,11 +201,11 @@ func applyMachineTypeOptimizations(config *optimizationConfig, cfg *Config, isSe
 	return optimizedFlags, nil
 }
 
-// Optimize applies machine type optimizations using the default configuration.
+// Optimize applies machine-type specific optimizations.
 func Optimize(cfg *Config, isSet isValueSet) ([]string, error) {
 	// Check if disable-autoconfig is set to true.
 	if isSet.GetBool("disable-autoconfig") {
-		return []string{}, nil
+		return nil, nil
 	}
 	optimizedFlags, err := applyMachineTypeOptimizations(&defaultOptimizationConfig, cfg, isSet)
 	return optimizedFlags, err
