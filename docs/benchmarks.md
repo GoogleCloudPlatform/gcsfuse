@@ -76,10 +76,11 @@ filesize=256K
 # Update the block size value from the table for different experiments.
 bs=16K
 ```
-**Note:** Benchmarking is done by writing out new files to GCS. Performance
+**Note:** 
+* Benchmarking is done by writing out new files to GCS. Performance
 numbers will be different for edits/appends to existing files.
 
-**Note:** Random writes and sequential write performance will generally be the same, as
+* Random writes and sequential write performance will generally be the same, as
 all writes are first staged to a local temporary directory before being written
 to GCS on close/fsync.
 
