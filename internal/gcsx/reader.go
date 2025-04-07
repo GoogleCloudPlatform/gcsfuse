@@ -43,6 +43,16 @@ type GCSReaderReq struct {
 	EndOffset int64
 }
 
+// ObjectRead represents the response returned as part of a ReadAt call.
+// It includes the actual data read and its size.
+type ObjectRead struct {
+	// DataBuf contains the bytes read from the object.
+	DataBuf []byte
+
+	// Size indicates how many bytes were read into DataBuf.
+	Size int
+}
+
 // Reader is the base interface for all logical readers.
 type Reader interface {
 	// CheckInvariants performs internal consistency checks on the reader state.
@@ -72,14 +82,4 @@ type GCSReader interface {
 	// ReadAt reads data into the provided request buffer, starting from the specified offset and ending at the specified end offset.
 	// It returns an ObjectRead response containing the data read and any error encountered.
 	ReadAt(ctx context.Context, req *GCSReaderReq) (ObjectRead, error)
-}
-
-// ObjectRead represents the response returned as part of a ReadAt call.
-// It includes the actual data read and its size.
-type ObjectRead struct {
-	// DataBuf contains the bytes read from the object.
-	DataBuf []byte
-
-	// Size indicates how many bytes were read into DataBuf.
-	Size int
 }
