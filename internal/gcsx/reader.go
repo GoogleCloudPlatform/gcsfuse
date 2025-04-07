@@ -44,8 +44,8 @@ type ReadManager interface {
 	Object() *gcs.MinObject
 }
 
-// GCSReader defines an interface for reading data from a GCS object at a specific offset.
-// It is intended for lower-level interactions with GCS-based readers.
+// GCSReader defines an interface for reading data from a GCS object.
+// This interface is intended for lower-level interactions with GCS readers.
 type GCSReader interface {
 	// ReadAt reads data into the provided request buffer, starting from the specified offset and ending at the specified end offset.
 	// It returns an ObjectData response containing the data read and any error encountered.
