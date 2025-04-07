@@ -12,7 +12,7 @@ workloads for the given test setup:
 * GCSFuse version: 2.11.1
 
 ## FIO workloads
-
+Please read the details about the FIO specification [here](https://fio.readthedocs.io/en/latest/).
 ### Reads 
   ```
 [global]
@@ -27,7 +27,7 @@ ioengine=libaio
 invalidate=1
 numjobs=128
 openfiles=1
-# Change this to randread to test random reads.
+# Change "read" to "randread" to test random reads.
 rw=read 
 thread=1
 filename_format=$jobname.$jobnum/$filenum
@@ -192,10 +192,8 @@ to GCS on close/fsync.
     gcsfuse <bucket-name> <path-to-mount-point>
     ```
 
-7. Create a FIO job spec file.
-   The FIO content referred to above. Please read the details about the FIO
-   specification
-   [here](https://fio.readthedocs.io/en/latest/).
+7. Create a FIO job spec file.\
+   The fio workload files can be found [above](#fio-workloads). 
     ```
     vi samplejobspec.fio
     ```
