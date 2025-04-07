@@ -899,9 +899,8 @@ func TestArgsParsing_EnableNewReaderFlag(t *testing.T) {
 
 			err = cmd.Execute()
 
-			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expectedEnableNewReader, gotEnableNewReader)
-			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedEnableNewReader, gotEnableNewReader)
 		})
 	}
 }
