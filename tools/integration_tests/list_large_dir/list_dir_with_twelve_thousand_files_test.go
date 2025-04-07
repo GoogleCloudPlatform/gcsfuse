@@ -171,8 +171,11 @@ func listDirTime(t *testing.T, dirPath string, expectExplicitDirs bool, expectIm
 	return firstListTime, minSecondListTime
 }
 
-func testdataCreateImplicitDirUsingStorageClient(ctx context.Context, storageClient *storge.Client, testBucket, prefixImplicitDirInLargeDirListTest string, numberOfImplicitDirsInDirectory int, t *testing.T) {
+func testdataCreateImplicitDirUsingStorageClient(ctx context.Context, storageClient *storage.Client, testBucket, prefixImplicitDirInLargeDirListTest string, numberOfImplicitDirsInDirectory int, t *testing.T) {
 	testFile, err := operations.CreateLocalTempFile("", false)
+	if err != nil {
+		t.Fatalf("Failed to local file for creating copies ...")
+	}
 	for a := 1; a <= numberOfImplicitDirsInDirectory; a++ {
 		client.CopyFileInBucket(ctx, storageClient, testFile, testBucket, path.Join(prefixExplicitDirInLargeDirListTest, fmt.Sprintf("%d", a)))
 	}
@@ -198,7 +201,7 @@ func prepareTestDirectory(t *testing.T, withExplicitDirs bool, withImplicitDirs 
 
 	if withImplicitDirs {
 		if setup.IsZonalBucketRun() {
-			testdataCreateImplicitDirUsingStorageClient(testDirPathOnBucket, prefixImplicitDirInLargeDirListTest, strconv.Itoa(numberOfImplicitDirsInDirectoryWithTwelveThousandFiles))
+			testdataCreateImplicitDirUsingStorageClient(ctx, storageClient, testDirPathOnBucket, prefixImplicitDirInLargeDirListTest, numberOfImplicitDirsInDirectoryWithTwelveThousandFiles, t)
 		} else {
 			setup.RunScriptForTestData("testdata/create_implicit_dir.sh", testDirPathOnBucket, prefixImplicitDirInLargeDirListTest, strconv.Itoa(numberOfImplicitDirsInDirectoryWithTwelveThousandFiles))
 		}
