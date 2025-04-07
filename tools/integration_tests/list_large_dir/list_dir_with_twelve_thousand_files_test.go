@@ -15,6 +15,7 @@
 package list_large_dir
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"os"
@@ -24,6 +25,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
@@ -150,6 +152,13 @@ func listDirTime(t *testing.T, dirPath string, expectExplicitDirs bool, expectIm
 	return firstListTime, minSecondListTime
 }
 
+func testdataCreateImplicitDirUsingStorageClient(ctx context.Context, storageClient *storge.Client, testBucket, prefixImplicitDirInLargeDirListTest string, numberOfImplicitDirsInDirectory int, t *testing.T) {
+	testFile, err := operations.CreateLocalTempFile("", false)
+	for a := 1; a <= numberOfImplicitDirsInDirectory; a++ {
+		client.CopyFileInBucket(ctx, storageClient, testFile, testBucket, path.Join(prefixExplicitDirInLargeDirListTest, fmt.Sprintf("%d", a)))
+	}
+}
+
 // prepareTestDirectory sets up a test directory with files and required explicit and implicit directories.
 func prepareTestDirectory(t *testing.T, withExplicitDirs bool, withImplicitDirs bool) string {
 	t.Helper()
@@ -169,7 +178,11 @@ func prepareTestDirectory(t *testing.T, withExplicitDirs bool, withImplicitDirs 
 	}
 
 	if withImplicitDirs {
-		setup.RunScriptForTestData("testdata/create_implicit_dir.sh", testDirPathOnBucket, prefixImplicitDirInLargeDirListTest, strconv.Itoa(numberOfImplicitDirsInDirectoryWithTwelveThousandFiles))
+		if setup.IsZonalBucketRun() {
+			testdataCreateImplicitDirUsingStorageClient(testDirPathOnBucket, prefixImplicitDirInLargeDirListTest, strconv.Itoa(numberOfImplicitDirsInDirectoryWithTwelveThousandFiles))
+		} else {
+			setup.RunScriptForTestData("testdata/create_implicit_dir.sh", testDirPathOnBucket, prefixImplicitDirInLargeDirListTest, strconv.Itoa(numberOfImplicitDirsInDirectoryWithTwelveThousandFiles))
+		}
 	}
 
 	return testDirPath
