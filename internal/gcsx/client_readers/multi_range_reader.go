@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package client_readers
+package gcsx
 
 import (
 	"fmt"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/readers"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"golang.org/x/net/context"
 )
@@ -29,7 +29,7 @@ const TimeoutForMultiRangeRead = time.Hour
 
 type MultiRangeReader struct {
 	// mrdWrapper points to the wrapper object within inode.
-	mrdWrapper *MultiRangeDownloaderWrapper
+	mrdWrapper *gcsx.MultiRangeDownloaderWrapper
 
 	// boolean variable to determine if MRD is being used or not.
 	isMRDInUse bool
@@ -37,7 +37,7 @@ type MultiRangeReader struct {
 	metricHandle common.MetricHandle
 }
 
-func NewMultiRangeReader(metricHandle common.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper) MultiRangeReader {
+func NewMultiRangeReader(metricHandle common.MetricHandle, mrdWrapper *gcsx.MultiRangeDownloaderWrapper) MultiRangeReader {
 	return MultiRangeReader{
 		metricHandle: metricHandle,
 		mrdWrapper:   mrdWrapper,
@@ -58,8 +58,8 @@ func (mrd *MultiRangeReader) readFromMultiRangeReader(ctx context.Context, p []b
 	return
 }
 
-func (mrd *MultiRangeReader) ReadAt(ctx context.Context, req *readers.GCSReaderReq) (readers.ObjectData, error) {
-	o := readers.ObjectData{
+func (mrd *MultiRangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderReq) (gcsx.ObjectData, error) {
+	o := gcsx.ObjectData{
 		DataBuf: req.Buffer,
 		Size:    0,
 	}

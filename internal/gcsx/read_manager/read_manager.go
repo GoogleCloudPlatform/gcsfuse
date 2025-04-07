@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcsx
+package read_manager
 
 import (
 	"context"
@@ -21,27 +21,26 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/readers"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/readers/cache_readers"
-	client_readers "github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/readers/client_readers"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
+	client_readers2 "github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/client_readers"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 )
 
 type readManager struct {
 	object  *gcs.MinObject
-	readers []Reader
-	ReadManager
+	readers []gcsx.Reader
+	gcsx.ReadManager
 }
 
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
-func NewReadManager(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *client_readers.MultiRangeDownloaderWrapper) ReadManager {
-	gcsReader := client_readers.NewGCSReader(o, bucket, metricHandle, mrdWrapper, sequentialReadSizeMb)
-	fileCacheReader := cache_readers.NewFileCacheReader(o, bucket, fileCacheHandler, cacheFileForRangeRead, metricHandle)
+func NewReadManager(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *gcsx.MultiRangeDownloaderWrapper) gcsx.ReadManager {
+	gcsReader := client_readers2.NewGCSReader(o, bucket, metricHandle, mrdWrapper, sequentialReadSizeMb)
+	fileCacheReader := gcsx.NewFileCacheReader(o, bucket, fileCacheHandler, cacheFileForRangeRead, metricHandle)
 
 	return &readManager{
 		object: o,
-		readers: []Reader{
+		readers: []gcsx.Reader{
 			&fileCacheReader,
 			&gcsReader,
 		},
@@ -58,9 +57,9 @@ func (rr *readManager) CheckInvariants() {
 	}
 }
 
-func (rr *readManager) ReadAt(ctx context.Context, p []byte, offset int64) (readers.ObjectData, error) {
+func (rr *readManager) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.ObjectData, error) {
 	var err error
-	var objectData readers.ObjectData
+	var objectData gcsx.ObjectData
 
 	if offset >= int64(rr.object.Size) {
 		err = io.EOF
@@ -72,7 +71,7 @@ func (rr *readManager) ReadAt(ctx context.Context, p []byte, offset int64) (read
 		if err == nil {
 			return objectData, nil
 		}
-		if !errors.As(err, &readers.FallbackToAnotherReader) {
+		if !errors.As(err, &gcsx.FallbackToAnotherReader) {
 			return objectData, err
 		}
 	}

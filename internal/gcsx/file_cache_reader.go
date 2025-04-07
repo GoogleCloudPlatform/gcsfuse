@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cache_readers
+package gcsx
 
 import (
 	"context"
@@ -26,15 +26,11 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	cacheutil "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/readers"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/jacobsa/fuse/fuseops"
 )
-
-// "readOp" is the value used in read context to store pointer to the read operation.
-const ReadOp = "readOp"
 
 type FileCacheReader struct {
 	obj    *gcs.MinObject
@@ -65,9 +61,9 @@ func NewFileCacheReader(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler *f
 	}
 }
 
-func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (readers.ObjectData, error) {
+func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (ObjectData, error) {
 	var err error
-	o := readers.ObjectData{
+	o := ObjectData{
 		DataBuf: p,
 		Size:    0,
 	}
@@ -87,7 +83,7 @@ func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (
 		return o, nil
 	}
 
-	err = readers.FallbackToAnotherReader
+	err = FallbackToAnotherReader
 	return o, err
 }
 

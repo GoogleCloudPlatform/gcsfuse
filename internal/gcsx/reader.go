@@ -17,19 +17,18 @@ package gcsx
 import (
 	"context"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/readers"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 )
 
 // Provides methods to read data at a specific offset
 type GCSReader interface {
-	ReadAt(ctx context.Context, req *readers.GCSReaderReq) (objectData readers.ObjectData, err error)
+	ReadAt(ctx context.Context, req *GCSReaderReq) (objectData ObjectData, err error)
 }
 
 // Base reader interface without Object()
 type Reader interface {
 	CheckInvariants()
-	ReadAt(ctx context.Context, p []byte, offset int64) (objectData readers.ObjectData, err error)
+	ReadAt(ctx context.Context, p []byte, offset int64) (objectData ObjectData, err error)
 	Destroy()
 }
 
@@ -37,4 +36,19 @@ type Reader interface {
 type ReadManager interface {
 	Reader
 	Object() (o *gcs.MinObject)
+}
+
+type FallbackToAnotherReaderError struct{}
+
+func (e *FallbackToAnotherReaderError) Error() string {
+	return "fallback to another reader is not allowed"
+}
+
+// Usage
+var FallbackToAnotherReader = &FallbackToAnotherReaderError{}
+
+type GCSReaderReq struct {
+	Buffer      []byte
+	Offset      int64
+	EndPosition int64
 }
