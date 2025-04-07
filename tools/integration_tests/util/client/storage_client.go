@@ -30,6 +30,7 @@ import (
 	"cloud.google.com/go/storage"
 	"cloud.google.com/go/storage/experimental"
 	"github.com/googleapis/gax-go/v2"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
@@ -146,6 +147,49 @@ func NewWriter(ctx context.Context, o *storage.ObjectHandle, client *storage.Cli
 		} else {
 			return nil, fmt.Errorf("found zonal bucket %q in non-zonal e2e test run (--zonal=false)", o.BucketName())
 		}
+	}
+
+	return
+}
+
+// MoveObject is a one-shot wrapper over storage-client functionalities to move a
+// GCS object to another object-name which works for zonal buckets and for non-zonal hierarchical buckets.
+func MoveObject(ctx context.Context, client *storage.Client, srcObject, dstObject string) (err error) {
+	defer func() {
+		err = gcs.GetGCSError(err)
+	}()
+
+	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(srcObject)
+
+	o := client.Bucket(bucket).Object(object)
+
+	// Fail for non-zonal and non-hierarchial buckets.
+	var attrs *storage.BucketAttrs
+	attrs, err = client.Bucket(o.BucketName()).Attrs(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get attributes for bucket %q: %w", o.BucketName(), err)
+	}
+	if attrs.StorageClass == "RAPID" {
+		if !setup.IsZonalBucketRun() {
+			return fmt.Errorf("found zonal bucket %q in non-zonal e2e test run (--zonal=false)", o.BucketName())
+		} else {
+			fmt.Printf("Received request for moving object in zonal bucket gs://%s/%s to %s\n", bucket.BucketName(), object.ObjectName(), dstObject)
+		}
+	} else if !attrs.HierarchicalNamespace.Enabled {
+		return fmt.Errorf("Move not support for non-zonal non-hierarchical bucket %q", o.BucketName())
+	} else {
+		fmt.Printf("Received request for moving object in HNS bucket gs://%s/%s to %s\n", bucket.BucketName(), object.ObjectName(), dstObject)
+	}
+
+	dstMoveObject := storage.MoveObjectDestination{
+		Object:     dstObject,
+		Conditions: nil,
+	}
+
+	_, err = o.Move(ctx, dstMoveObject)
+	if err != nil {
+		err = fmt.Errorf("error in moving object %q to %q in bucket %q: %w", o.ObjectName(), dstObject, o.BucketName(), err)
+		return
 	}
 
 	return
