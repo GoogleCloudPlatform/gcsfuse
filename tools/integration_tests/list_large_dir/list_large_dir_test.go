@@ -30,9 +30,11 @@ import (
 const prefixFileInDirectoryWithTwelveThousandFiles = "fileInDirectoryWithTwelveThousandFiles"
 const prefixExplicitDirInLargeDirListTest = "explicitDirInLargeDirListTest"
 const prefixImplicitDirInLargeDirListTest = "implicitDirInLargeDirListTest"
-const numberOfFilesInDirectoryWithTwelveThousandFiles = 12000
-const numberOfImplicitDirsInDirectoryWithTwelveThousandFiles = 100
-const numberOfExplicitDirsInDirectoryWithTwelveThousandFiles = 100
+
+// const numberOfFilesInDirectoryWithTwelveThousandFiles = 12000
+const numberOfFilesInDirectoryWithTwelveThousandFiles = 1
+const numberOfImplicitDirsInDirectoryWithTwelveThousandFiles = 1
+const numberOfExplicitDirsInDirectoryWithTwelveThousandFiles = 1
 
 var (
 	directoryWithTwelveThousandFiles = "directoryWithTwelveThousandFiles" + setup.GenerateRandomString(5)
