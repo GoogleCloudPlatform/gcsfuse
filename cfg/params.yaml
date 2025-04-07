@@ -85,6 +85,13 @@
   default: true
   hide-flag: true
 
+- config-path: "enable-new-reader"
+  flag-name: "enable-new-reader"
+  type: "bool"
+  usage: "Enables support for new reader implementation."
+  default: false
+  hide-flag: true
+
 - config-path: "file-cache.cache-file-for-range-read"
   flag-name: "file-cache-cache-file-for-range-read"
   type: "bool"
