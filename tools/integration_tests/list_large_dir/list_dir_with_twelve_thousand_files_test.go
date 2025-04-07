@@ -20,11 +20,13 @@ import (
 	"math"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
@@ -101,6 +103,19 @@ func checkIfObjNameIsCorrect(t *testing.T, objName string, prefix string, maxNum
 	}
 }
 
+func testdataUploadFilesToBucket(ctx context.Context, storageClient *storage.Client, testBucket, dirWithTwelveThousandFiles, filesPrefix string, t *testing.T) {
+	t.Helper()
+	filepath.Walk(path.Join(dirWithTwelveThousandFiles, filesPrefix), func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return fmt.Errorf("Failed to walk at path=%q: %w", path, err)
+		}
+		fmt.Printf("Need to copy file %q to gs://%s/", path, testBucket)
+		return nil
+	})
+	fmt.Printf("Going to rm -rf %q ...\n", path.Join(dirWithTwelveThousandFiles, filesPrefix))
+	//os.RemoveAll(path.Join(dirWithTwelveThousandFiles, filesPrefix))
+}
+
 // createFilesAndUpload generates files and uploads them to the specified directory.
 func createFilesAndUpload(t *testing.T, dirPath string) {
 	t.Helper()
@@ -108,7 +123,11 @@ func createFilesAndUpload(t *testing.T, dirPath string) {
 	localDirPath := path.Join(os.Getenv("HOME"), directoryWithTwelveThousandFiles)
 	operations.CreateDirectoryWithNFiles(numberOfFilesInDirectoryWithTwelveThousandFiles, localDirPath, prefixFileInDirectoryWithTwelveThousandFiles, t)
 
-	setup.RunScriptForTestData("testdata/upload_files_to_bucket.sh", dirPath, localDirPath, prefixFileInDirectoryWithTwelveThousandFiles)
+	if setup.IsZonalBucketRun() {
+		testdataUploadFilesToBucket(ctx, storageClient, dirPath, localDirPath, prefixFileInDirectoryWithTwelveThousandFiles, t)
+	} else {
+		setup.RunScriptForTestData("testdata/upload_files_to_bucket.sh", dirPath, localDirPath, prefixFileInDirectoryWithTwelveThousandFiles)
+	}
 }
 
 // createExplicitDirs creates empty explicit directories in the specified directory.
