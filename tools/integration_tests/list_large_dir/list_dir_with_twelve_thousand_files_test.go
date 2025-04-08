@@ -118,12 +118,12 @@ func testdataUploadFilesToBucket(ctx context.Context, storageClient *storage.Cli
 			return fmt.Errorf("Failed to walk at path=%q: %w", path, err)
 		}
 		if !d.IsDir() && strings.HasPrefix(path, dirWithTwelveThousandFilesFullPathPrefix) {
-			fmt.Printf("Copying file %q to gs://%s/%s/%s ...\n", path, bucketName, testDirWithoutBucketName, d.Name())
+			//fmt.Printf("Copying file %q to gs://%s/%s/%s ...\n", path, bucketName, testDirWithoutBucketName, d.Name())
 			client.CopyFileInBucket(ctx, storageClient, path, filepath.Join(testDirWithoutBucketName, d.Name()), bucketName)
 		}
 		return nil
 	})
-	fmt.Printf("Going to rm -rf %q ...\n", dirWithTwelveThousandFiles)
+	//fmt.Printf("Going to rm -rf %q ...\n", dirWithTwelveThousandFiles)
 	os.RemoveAll(dirWithTwelveThousandFiles)
 }
 
