@@ -21,7 +21,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 )
 
-// FallbackToAnotherReaderError is returned when data could not be retrieved
+// FallbackToAnotherReader is returned when data could not be retrieved
 // from the current reader, indicating that the caller should attempt to fall back
 // to an alternative reader.
 var FallbackToAnotherReader = errors.New("fallback to another reader is required.")
