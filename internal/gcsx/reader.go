@@ -16,6 +16,7 @@ package gcsx
 
 import (
 	"context"
+	"errors"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 )
@@ -23,13 +24,7 @@ import (
 // FallbackToAnotherReaderError is returned when data could not be retrieved
 // from the current reader, indicating that the caller should attempt to fall back
 // to an alternative reader.
-type FallbackToAnotherReaderError struct{}
-
-func (e *FallbackToAnotherReaderError) Error() string {
-	return "fallback to another reader is required."
-}
-
-var FallbackToAnotherReader = &FallbackToAnotherReaderError{}
+var FallbackToAnotherReader = errors.New("fallback to another reader is required.")
 
 // GCSReaderReq represents the request parameters needed to read a data from a GCS object.
 type GCSReaderReq struct {
@@ -53,13 +48,14 @@ type ObjectRead struct {
 	Size int
 }
 
-// Reader is the base interface for all logical readers.
 type Reader interface {
 	// CheckInvariants performs internal consistency checks on the reader state.
 	CheckInvariants()
 
-	// ReadAt reads data into the provided byte slice starting at the given offset.
-	// Returns an ObjectRead struct with the actual data read and size.
+	// ReadAt reads data into the provided byte slice starting from the specified offset.
+	// It returns an ObjectRead containing the data read and the number of bytes read.
+	// To indicate that the operation should be handled by an alternative reader, return
+	// the error FallbackToAnotherReader.
 	ReadAt(ctx context.Context, p []byte, offset int64) (ObjectRead, error)
 
 	// Destroy is called to release any resources held by the reader.
