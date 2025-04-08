@@ -354,12 +354,13 @@ func (t *mrdWrapperTest) Test_EnsureMultiRangeDownloader() {
 				err := t.mrdWrapper.ensureMultiRangeDownloader()
 				if tc.statusErr == nil {
 					assert.NoError(t.T(),err)
-					t.mockBucket.AssertNotCalled(t.T(), "NewMultiRangeDownloader", mock.Anything, mock.Anything)
+					assert.NotNil(t.T(), t.mrdWrapper.Wrapped)
+					t.mockBucket.AssertNotCalled(t.T(), "NewMultiRangeDownloader")
 				}else{
 					t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond))
 					assert.NoError(t.T(),err)
-					assert.Nil(t.T(), t.mrdWrapper.Wrapped)
-					t.mockBucket.AssertExpectations(t.T())``
+					assert.NotNil(t.T(), t.mrdWrapper.Wrapped)
+					t.mockBucket.AssertExpectations(t.T())
 				}
 			}
 		})
