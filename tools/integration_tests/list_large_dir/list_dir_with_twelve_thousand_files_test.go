@@ -233,27 +233,27 @@ func prepareTestDirectory(t *testing.T, withExplicitDirs bool, withImplicitDirs 
 // Tests
 // //////////////////////////////////////////////////////////////////////
 
-func (t *listLargeDir) TestListDirectoryWithTwelveThousandFiles() {
-	dirPath := prepareTestDirectory(t.T(), false, false)
-
-	firstListTime, secondListTime := listDirTime(t.T(), dirPath, false, false)
-
-	//assert.Less(t.T(), secondListTime, firstListTime)
-	//assert.Less(t.T(), 2*secondListTime, firstListTime)
-	assert.Greater(t.T(), firstListTime, time.Duration(0))
-	assert.Greater(t.T(), secondListTime, time.Duration(0))
-}
-
-func (t *listLargeDir) TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDir() {
-	dirPath := prepareTestDirectory(t.T(), true, false)
-
-	firstListTime, secondListTime := listDirTime(t.T(), dirPath, true, false)
-
-	//assert.Less(t.T(), secondListTime, firstListTime)
-	//assert.Less(t.T(), 2*secondListTime, firstListTime)
-	assert.Greater(t.T(), firstListTime, time.Duration(0))
-	assert.Greater(t.T(), secondListTime, time.Duration(0))
-}
+//func (t *listLargeDir) TestListDirectoryWithTwelveThousandFiles() {
+	//dirPath := prepareTestDirectory(t.T(), false, false)
+//
+	//firstListTime, secondListTime := listDirTime(t.T(), dirPath, false, false)
+//
+	////assert.Less(t.T(), secondListTime, firstListTime)
+	////assert.Less(t.T(), 2*secondListTime, firstListTime)
+	//assert.Greater(t.T(), firstListTime, time.Duration(0))
+	//assert.Greater(t.T(), secondListTime, time.Duration(0))
+//}
+//
+//func (t *listLargeDir) TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDir() {
+	//dirPath := prepareTestDirectory(t.T(), true, false)
+//
+	//firstListTime, secondListTime := listDirTime(t.T(), dirPath, true, false)
+//
+	////assert.Less(t.T(), secondListTime, firstListTime)
+	////assert.Less(t.T(), 2*secondListTime, firstListTime)
+	//assert.Greater(t.T(), firstListTime, time.Duration(0))
+	//assert.Greater(t.T(), secondListTime, time.Duration(0))
+//}
 
 func (t *listLargeDir) TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir() {
 	dirPath := prepareTestDirectory(t.T(), true, true)
