@@ -118,7 +118,7 @@ func testdataUploadFilesToBucket(ctx context.Context, storageClient *storage.Cli
 		t.Fatalf("Failed to get files of pattern %s*: %v", dirWithTwelveThousandFilesFullPathPrefix, err)
 	}
 	for _, match := range matches {
-		_,fileName:=filepath.Split(match)
+		_, fileName := filepath.Split(match)
 		if len(fileName) > 0 {
 			client.CopyFileInBucket(ctx, storageClient, match, filepath.Join(dirPathInBucket, fileName), bucketName)
 		}
