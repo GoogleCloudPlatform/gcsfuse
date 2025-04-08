@@ -104,21 +104,27 @@ func checkIfObjNameIsCorrect(t *testing.T, objName string, prefix string, maxNum
 	}
 }
 
-func testdataUploadFilesToBucket(ctx context.Context, storageClient *storage.Client, testBucket, dirWithTwelveThousandFiles, filesPrefix string, t *testing.T) {
+func testdataUploadFilesToBucket(ctx context.Context, storageClient *storage.Client, bucketNameWithDirPath, dirWithTwelveThousandFiles, filesPrefix string, t *testing.T) {
 	t.Helper()
-	//filepath.Walk(path.Join(dirWithTwelveThousandFiles, filesPrefix), func(path string, info os.FileInfo, err error) error {
-	//filepath.Walk(dirWithTwelveThousandFiles, func(path string, info os.FileInfo, err error) error {
-	filepath.WalkDir(dirWithTwelveThousandFiles, func(path string, d DirEntry, err error) error {
+	idx := strings.Index(bucketNameWithDirPath, "/")
+	if idx <= 0 {
+		t.Errorf("Unexpected bucketNameWithDirPath: %q. Expected form: <bucket>/<object-name>", bucketNameWithDirPath)
+	}
+	bucketName := bucketNameWithDirPath[:idx]
+	testDirWithoutBucketName := bucketNameWithDirPath[idx+1:]
+	dirWithTwelveThousandFilesFullPathPrefix := filepath.Join(dirWithTwelveThousandFiles, filesPrefix)
+	filepath.WalkDir(dirWithTwelveThousandFiles, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return fmt.Errorf("Failed to walk at path=%q: %w", path, err)
 		}
-		if strings.HasPrefix(path, filesPrefix) {
-			fmt.Printf("Need to copy file %q to gs://%s/", path, testBucket)
+		if !d.IsDir() && strings.HasPrefix(path, dirWithTwelveThousandFilesFullPathPrefix) {
+			fmt.Printf("Copying file %q to gs://%s/%s/%s ...\n", path, bucketName, testDirWithoutBucketName, d.Name())
+			client.CopyFileInBucket(ctx, storageClient, path, filepath.Join(testDirWithoutBucketName, d.Name()), bucketName)
 		}
 		return nil
 	})
-	fmt.Printf("Going to rm -rf %q ...\n", path.Join(dirWithTwelveThousandFiles, filesPrefix))
-	//os.RemoveAll(path.Join(dirWithTwelveThousandFiles, filesPrefix))
+	fmt.Printf("Going to rm -rf %q ...\n", dirWithTwelveThousandFiles)
+	os.RemoveAll(dirWithTwelveThousandFiles)
 }
 
 // createFilesAndUpload generates files and uploads them to the specified directory.
