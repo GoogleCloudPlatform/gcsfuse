@@ -17,7 +17,6 @@ package list_large_dir
 import (
 	"context"
 	"fmt"
-	"io/fs"
 	"math"
 	"os"
 	"path"
@@ -114,17 +113,21 @@ func testdataUploadFilesToBucket(ctx context.Context, storageClient *storage.Cli
 	dirPathInBucket := bucketNameWithDirPath[idx+1:]
 	dirWithTwelveThousandFilesFullPathPrefix := filepath.Join(dirWithTwelveThousandFiles, filesPrefix)
 	fmt.Printf("Copying files from %q to gs://%s/%s/ ...\n", dirWithTwelveThousandFiles, bucketName, dirPathInBucket)
-	err := filepath.WalkDir(dirWithTwelveThousandFiles, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return fmt.Errorf("Failed to walk at path=%q: %w", path, err)
-		}
-		if !d.IsDir() && strings.HasPrefix(path, dirWithTwelveThousandFilesFullPathPrefix) {
-			client.CopyFileInBucket(ctx, storageClient, path, filepath.Join(dirPathInBucket, d.Name()), bucketName)
-		}
-		return nil
-	})
+	matches, err := filepath.Glob(dirWithTwelveThousandFilesFullPathPrefix + "*")
 	if err != nil {
-		t.Fatalf("Fail to copy all relevant files to gs:/%s from %q", bucketNameWithDirPath, dirWithTwelveThousandFiles)
+		t.Fatalf("Failed to get files of pattern %s*: %v", dirWithTwelveThousandFilesFullPathPrefix, err)
+	}
+	counter := 0
+	start := time.Now()
+	for _, match := range matches {
+		_,fileName:=filepath.Split(match)
+		if len(fileName)>0 {
+			client.CopyFileInBucket(ctx, storageClient, match, filepath.Join(dirPathInBucket,fileName), bucketName)
+			counter++
+			if counter%100 == 0 {
+				fmt.Printf("Completed copying %d objects. Time taken so far = %v\n", counter, time.Since(start))
+			}
+		}
 	}
 }
 
