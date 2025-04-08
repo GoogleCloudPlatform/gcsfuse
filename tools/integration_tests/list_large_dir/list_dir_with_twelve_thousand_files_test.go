@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -117,12 +118,42 @@ func testdataUploadFilesToBucket(ctx context.Context, storageClient *storage.Cli
 	if err != nil {
 		t.Fatalf("Failed to get files of pattern %s*: %v", dirWithTwelveThousandFilesFullPathPrefix, err)
 	}
+
+	type copyRequest struct {
+		srcLocalFilePath string
+		dstGcsObjectPath string
+	}
+	numChannels := 16
+	channels := make([]chan copyRequest, numChannels)
+	counter := 0
+	perChannelCapacity:=int(math.Ceil(float64(numberOfFilesInDirectoryWithTwelveThousandFiles)/float64(numChannels)))
+	for i := 0; i < numChannels; i++ {
+		channels[i] = make(chan copyRequest, perChannelCapacity)
+	}
+
 	for _, match := range matches {
 		_, fileName := filepath.Split(match)
 		if len(fileName) > 0 {
-			client.CopyFileInBucket(ctx, storageClient, match, filepath.Join(dirPathInBucket, fileName), bucketName)
+			chanIndex := counter % numChannels
+			channels[chanIndex] <- copyRequest{srcLocalFilePath: match, dstGcsObjectPath: filepath.Join(dirPathInBucket, fileName)}
+			counter++
 		}
 	}
+
+	wg := sync.WaitGroup{}
+	for chanIndex := 0; chanIndex < numChannels; chanIndex++ {
+		wg.Add(1)
+		close(channels[chanIndex])
+		go func() {
+			for metadata := range channels[chanIndex] {
+				//fmt.Printf("Copying %q to gs:/%s/%s ...\n", metadata.srcLocalFilePath, bucketName, metadata.dstGcsObjectPath)
+				client.CopyFileInBucket(ctx, storageClient, metadata.srcLocalFilePath, metadata.dstGcsObjectPath, bucketName)
+				//fmt.Printf("... Finished copying %q to gs:/%s/%s\n", metadata.srcLocalFilePath, bucketName, metadata.dstGcsObjectPath)
+			}
+			wg.Done()
+		}()
+	}
+	wg.Wait()
 }
 
 // createFilesAndUpload generates files and uploads them to the specified directory.
