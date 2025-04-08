@@ -162,17 +162,22 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader() (err
 	if mrdWrapper.object == nil || mrdWrapper.bucket == nil {
 		return fmt.Errorf("ensureMultiRangeDownloader error: Missing minObject or bucket")
 	}
-
-	if mrdWrapper.Wrapped == nil {
-		var mrd gcs.MultiRangeDownloader
-		mrd, err = mrdWrapper.bucket.NewMultiRangeDownloader(context.Background(), &gcs.MultiRangeDownloaderRequest{
-			Name:           mrdWrapper.object.Name,
-			Generation:     mrdWrapper.object.Generation,
-			ReadCompressed: mrdWrapper.object.HasContentEncodingGzip(),
-		})
-		if err == nil {
-			// Updating mrdWrapper.Wrapped only when MRD creation was successful.
-			mrdWrapper.Wrapped = mrd
+	// Create the MRD if it does not exist.
+	// Incase the existing MRD is unusable due to closed stream, recreate the MRD.
+	if mrdWrapper.Wrapped == nil || mrdWrapper.Wrapped.Error() != nil {
+		mrdWrapper.mu.Lock()
+		defer mrdWrapper.mu.Unlock()
+		if mrdWrapper.Wrapped == nil || mrdWrapper.Wrapped.Error() != nil {
+			var mrd gcs.MultiRangeDownloader
+			mrd, err = mrdWrapper.bucket.NewMultiRangeDownloader(context.Background(), &gcs.MultiRangeDownloaderRequest{
+				Name:           mrdWrapper.object.Name,
+				Generation:     mrdWrapper.object.Generation,
+				ReadCompressed: mrdWrapper.object.HasContentEncodingGzip(),
+			})
+			if err == nil {
+				// Updating mrdWrapper.Wrapped only when MRD creation was successful.
+				mrdWrapper.Wrapped = mrd
+			}
 		}
 	}
 	return
