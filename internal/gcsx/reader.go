@@ -24,7 +24,7 @@ import (
 // FallbackToAnotherReader is returned when data could not be retrieved
 // from the current reader, indicating that the caller should attempt to fall back
 // to an alternative reader.
-var FallbackToAnotherReader = errors.New("fallback to another reader is required.")
+var FallbackToAnotherReader = errors.New("fallback to another reader is required")
 
 // GCSReaderReq represents the request parameters needed to read a data from a GCS object.
 type GCSReaderReq struct {
