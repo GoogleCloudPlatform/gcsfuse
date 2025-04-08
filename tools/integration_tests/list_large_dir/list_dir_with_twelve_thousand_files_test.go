@@ -113,6 +113,7 @@ func testdataUploadFilesToBucket(ctx context.Context, storageClient *storage.Cli
 	bucketName := bucketNameWithDirPath[:idx]
 	dirPathInBucket := bucketNameWithDirPath[idx+1:]
 	dirWithTwelveThousandFilesFullPathPrefix := filepath.Join(dirWithTwelveThousandFiles, filesPrefix)
+	fmt.Printf("Copying files from %q to gs://%s/%s/ ...\n", dirWithTwelveThousandFiles, bucketName, dirPathInBucket)
 	err := filepath.WalkDir(dirWithTwelveThousandFiles, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return fmt.Errorf("Failed to walk at path=%q: %w", path, err)
@@ -132,6 +133,7 @@ func createFilesAndUpload(t *testing.T, dirPath string) {
 	t.Helper()
 
 	localDirPath := path.Join(os.Getenv("HOME"), directoryWithTwelveThousandFiles)
+	fmt.Printf("Creating %d files in %q with prefix %q ...\n", numberOfFilesInDirectoryWithTwelveThousandFiles, localDirPath, prefixFileInDirectoryWithTwelveThousandFiles)
 	operations.CreateDirectoryWithNFiles(numberOfFilesInDirectoryWithTwelveThousandFiles, localDirPath, prefixFileInDirectoryWithTwelveThousandFiles, t)
 	defer os.RemoveAll(localDirPath)
 
