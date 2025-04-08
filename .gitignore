@@ -39,7 +39,7 @@ _testmain.go
 
 # Editors
 .idea/
-.vscode/
+.vscode
 
 # External folders
 vendor/
