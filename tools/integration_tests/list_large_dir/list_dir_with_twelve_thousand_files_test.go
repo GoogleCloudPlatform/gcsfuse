@@ -216,7 +216,7 @@ func listDirTime(t *testing.T, dirPath string, expectExplicitDirs bool, expectIm
 	return firstListTime, minSecondListTime
 }
 
-func testdataCreateImplicitDirUsingStorageClient(ctx context.Context, storageClient *storage.Client, bucketNameWithDirPath, prefixImplicitDirInLargeDirListTest string, numberOfImplicitDirsInDirectory int, t *testing.T) {
+func testdataCreateImplicitDir(ctx context.Context, storageClient *storage.Client, bucketNameWithDirPath, prefixImplicitDirInLargeDirListTest string, numberOfImplicitDirsInDirectory int, t *testing.T) {
 	t.Helper()
 
 	bucketName, dirPathInBucket := splitBucketNameAndDirPath(bucketNameWithDirPath, t)
@@ -250,7 +250,7 @@ func prepareTestDirectory(t *testing.T, withExplicitDirs bool, withImplicitDirs 
 
 	if withImplicitDirs {
 		if setup.IsZonalBucketRun() {
-			testdataCreateImplicitDirUsingStorageClient(ctx, storageClient, testDirPathOnBucket, prefixImplicitDirInLargeDirListTest, numberOfImplicitDirsInDirectoryWithTwelveThousandFiles, t)
+			testdataCreateImplicitDir(ctx, storageClient, testDirPathOnBucket, prefixImplicitDirInLargeDirListTest, numberOfImplicitDirsInDirectoryWithTwelveThousandFiles, t)
 		} else {
 			setup.RunScriptForTestData("testdata/create_implicit_dir.sh", testDirPathOnBucket, prefixImplicitDirInLargeDirListTest, strconv.Itoa(numberOfImplicitDirsInDirectoryWithTwelveThousandFiles))
 		}
