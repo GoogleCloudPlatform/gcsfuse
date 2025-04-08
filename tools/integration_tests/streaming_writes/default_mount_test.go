@@ -15,12 +15,14 @@
 package streaming_writes
 
 import (
+	"log"
 	"os"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/local_file"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_suite"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -40,6 +42,7 @@ func (t *defaultMountCommonTest) SetupSuite() {
 	SetTestDirName(testDirName)
 
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
+	log.Println("LogFile: " + setup.LogFile())
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	t.data = setup.GenerateRandomString(5 * util.MiB)
 }
@@ -48,10 +51,12 @@ func (t *defaultMountCommonTest) TearDownSuite() {
 	setup.UnmountGCSFuse(rootDir)
 }
 
-func (t *defaultMountCommonTest) validateReadSucceedsForZB(err error) {
-	if setup.IsZonalBucketRun() {
-		require.NoError(t.T(), err)
-	} else {
+func (t *defaultMountCommonTest) readFileSucceedsForZonalBucket(filePath, expectedData string) {
+	actualData, err := os.ReadFile(filePath)
+	if !setup.IsZonalBucketRun() {
 		require.Error(t.T(), err)
+	} else {
+		require.NoError(t.T(), err)
+		assert.Equal(t.T(), expectedData, string(actualData))
 	}
 }
