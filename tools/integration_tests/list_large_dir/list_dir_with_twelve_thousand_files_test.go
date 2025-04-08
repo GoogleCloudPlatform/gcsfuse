@@ -106,12 +106,14 @@ func checkIfObjNameIsCorrect(t *testing.T, objName string, prefix string, maxNum
 
 func splitBucketNameAndDirPath(bucketNameWithDirPath string, t *testing.T) (bucketName, dirPathInBucket string) {
 	t.Helper()
+
 	idx := strings.Index(bucketNameWithDirPath, "/")
 	if idx <= 0 {
 		t.Errorf("Unexpected bucketNameWithDirPath: %q. Expected form: <bucket>/<object-name>", bucketNameWithDirPath)
 	}
 	bucketName = bucketNameWithDirPath[:idx]
 	dirPathInBucket = bucketNameWithDirPath[idx+1:]
+	return
 }
 
 func testdataUploadFilesToBucket(ctx context.Context, storageClient *storage.Client, bucketNameWithDirPath, dirWithTwelveThousandFiles, filesPrefix string, t *testing.T) {
