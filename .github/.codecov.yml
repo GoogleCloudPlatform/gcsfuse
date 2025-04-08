@@ -1,6 +1,7 @@
 ignore:
   - "tools"
   - "benchmarks"
+  - "cfg/config.go"
 coverage:
   round: down
   precision: 2
