@@ -71,14 +71,14 @@ cp /details.txt .
 touch logs.txt
 touch logs-hns.txt
 touch logs-zonal.txt
-GENERIC_LOG_FILE='~/logs.txt'
+LOG_FILE='~/logs.txt'
 
 if [[ "$RUN_ON_ZB_ONLY" == "true" ]]; then
-  GENERIC_LOG_FILE='~/logs-zonal.txt'
+  LOG_FILE='~/logs-zonal.txt'
 fi
   
-echo "User: $USER" &>> ${GENERIC_LOG_FILE}
-echo "Current Working Directory: $(pwd)"  &>> ${GENERIC_LOG_FILE}
+echo "User: $USER" &>> ${LOG_FILE}
+echo "Current Working Directory: $(pwd)"  &>> ${LOG_FILE}
 
 
 # Based on the os type in detail.txt, run the following commands for setup
@@ -96,7 +96,7 @@ then
 
     # download and install gcsfuse deb package
     gcloud storage cp gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/gcsfuse_$(sed -n 1p details.txt)_${architecture}.deb .
-    sudo dpkg -i gcsfuse_$(sed -n 1p details.txt)_${architecture}.deb |& tee -a ${GENERIC_LOG_FILE}
+    sudo dpkg -i gcsfuse_$(sed -n 1p details.txt)_${architecture}.deb |& tee -a ${LOG_FILE}
 
     # install wget
     sudo apt install -y wget
@@ -148,12 +148,12 @@ wget -O go_tar.tar.gz https://go.dev/dl/go1.24.0.linux-${architecture}.tar.gz
 sudo tar -C /usr/local -xzf go_tar.tar.gz
 export PATH=${PATH}:/usr/local/go/bin
 #Write gcsfuse and go version to log file
-gcsfuse --version |& tee -a ${GENERIC_LOG_FILE}
-go version |& tee -a ${GENERIC_LOG_FILE}
+gcsfuse --version |& tee -a ${LOG_FILE}
+go version |& tee -a ${LOG_FILE}
 
 # Clone and checkout gcsfuse repo
 export PATH=${PATH}:/usr/local/go/bin
-git clone https://github.com/googlecloudplatform/gcsfuse |& tee -a ${GENERIC_LOG_FILE}
+git clone https://github.com/googlecloudplatform/gcsfuse |& tee -a ${LOG_FILE}
 cd gcsfuse
 
 # Installation of crcmod is working through pip only on rhel and centos.
@@ -168,7 +168,7 @@ then
     pip3 install --require-hashes -r tools/cd_scripts/requirements.txt --user
 fi
 
-git checkout $(sed -n 2p ~/details.txt) |& tee -a ${GENERIC_LOG_FILE}
+git checkout $(sed -n 2p ~/details.txt) |& tee -a ${LOG_FILE}
 
 #run tests with testbucket flag
 set +e
