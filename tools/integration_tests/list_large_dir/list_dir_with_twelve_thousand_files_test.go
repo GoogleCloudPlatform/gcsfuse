@@ -111,19 +111,17 @@ func testdataUploadFilesToBucket(ctx context.Context, storageClient *storage.Cli
 		t.Errorf("Unexpected bucketNameWithDirPath: %q. Expected form: <bucket>/<object-name>", bucketNameWithDirPath)
 	}
 	bucketName := bucketNameWithDirPath[:idx]
-	testDirWithoutBucketName := bucketNameWithDirPath[idx+1:]
+	dirPathInBucket := bucketNameWithDirPath[idx+1:]
 	dirWithTwelveThousandFilesFullPathPrefix := filepath.Join(dirWithTwelveThousandFiles, filesPrefix)
 	filepath.WalkDir(dirWithTwelveThousandFiles, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return fmt.Errorf("Failed to walk at path=%q: %w", path, err)
 		}
 		if !d.IsDir() && strings.HasPrefix(path, dirWithTwelveThousandFilesFullPathPrefix) {
-			//fmt.Printf("Copying file %q to gs://%s/%s/%s ...\n", path, bucketName, testDirWithoutBucketName, d.Name())
-			client.CopyFileInBucket(ctx, storageClient, path, filepath.Join(testDirWithoutBucketName, d.Name()), bucketName)
+			client.CopyFileInBucket(ctx, storageClient, path, filepath.Join(dirPathInBucket, d.Name()), bucketName)
 		}
 		return nil
 	})
-	//fmt.Printf("Going to rm -rf %q ...\n", dirWithTwelveThousandFiles)
 	os.RemoveAll(dirWithTwelveThousandFiles)
 }
 
@@ -189,14 +187,13 @@ func testdataCreateImplicitDirUsingStorageClient(ctx context.Context, storageCli
 		t.Errorf("Unexpected bucketNameWithDirPath: %q. Expected form: <bucket>/<object-name>", bucketNameWithDirPath)
 	}
 	bucketName := bucketNameWithDirPath[:idx]
-	testDirWithoutBucketName := bucketNameWithDirPath[idx+1:]
+	dirPathInBucket := bucketNameWithDirPath[idx+1:]
 	testFile, err := operations.CreateLocalTempFile("", false)
 	if err != nil {
 		t.Fatalf("Failed to local file for creating copies ...")
 	}
 	for a := 1; a <= numberOfImplicitDirsInDirectory; a++ {
-		//fmt.Printf("Copying %q to %q in gs://%s ...\n",  testFile, path.Join(testDirWithoutBucketName, prefixImplicitDirInLargeDirListTest+fmt.Sprintf("%d", a), testFile), bucketName)
-		client.CopyFileInBucket(ctx, storageClient, testFile, path.Join(testDirWithoutBucketName, prefixImplicitDirInLargeDirListTest+fmt.Sprintf("%d", a), testFile), bucketName)
+		client.CopyFileInBucket(ctx, storageClient, testFile, path.Join(dirPathInBucket, prefixImplicitDirInLargeDirListTest+fmt.Sprintf("%d", a), testFile), bucketName)
 	}
 }
 

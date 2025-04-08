@@ -30,9 +30,7 @@ import (
 const prefixFileInDirectoryWithTwelveThousandFiles = "fileInDirectoryWithTwelveThousandFiles"
 const prefixExplicitDirInLargeDirListTest = "explicitDirInLargeDirListTest"
 const prefixImplicitDirInLargeDirListTest = "implicitDirInLargeDirListTest"
-
 const numberOfFilesInDirectoryWithTwelveThousandFiles = 12000
-//const numberOfFilesInDirectoryWithTwelveThousandFiles = 5
 const numberOfImplicitDirsInDirectoryWithTwelveThousandFiles = 100
 const numberOfExplicitDirsInDirectoryWithTwelveThousandFiles = 100
 
