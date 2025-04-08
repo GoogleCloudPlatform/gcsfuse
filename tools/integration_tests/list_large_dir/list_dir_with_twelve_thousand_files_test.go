@@ -104,14 +104,21 @@ func checkIfObjNameIsCorrect(t *testing.T, objName string, prefix string, maxNum
 	}
 }
 
-func testdataUploadFilesToBucket(ctx context.Context, storageClient *storage.Client, bucketNameWithDirPath, dirWithTwelveThousandFiles, filesPrefix string, t *testing.T) {
+func splitBucketNameAndDirPath(bucketNameWithDirPath string, t *testing.T) (bucketName, dirPathInBucket string) {
 	t.Helper()
 	idx := strings.Index(bucketNameWithDirPath, "/")
 	if idx <= 0 {
 		t.Errorf("Unexpected bucketNameWithDirPath: %q. Expected form: <bucket>/<object-name>", bucketNameWithDirPath)
 	}
-	bucketName := bucketNameWithDirPath[:idx]
-	dirPathInBucket := bucketNameWithDirPath[idx+1:]
+	bucketName = bucketNameWithDirPath[:idx]
+	dirPathInBucket = bucketNameWithDirPath[idx+1:]
+}
+
+func testdataUploadFilesToBucket(ctx context.Context, storageClient *storage.Client, bucketNameWithDirPath, dirWithTwelveThousandFiles, filesPrefix string, t *testing.T) {
+	t.Helper()
+
+	bucketName, dirPathInBucket := splitBucketNameAndDirPath(bucketNameWithDirPath, t)
+
 	dirWithTwelveThousandFilesFullPathPrefix := filepath.Join(dirWithTwelveThousandFiles, filesPrefix)
 	fmt.Printf("Copying files from %q to gs://%s/%s/ ...\n", dirWithTwelveThousandFiles, bucketName, dirPathInBucket)
 	matches, err := filepath.Glob(dirWithTwelveThousandFilesFullPathPrefix + "*")
@@ -215,12 +222,9 @@ func listDirTime(t *testing.T, dirPath string, expectExplicitDirs bool, expectIm
 
 func testdataCreateImplicitDirUsingStorageClient(ctx context.Context, storageClient *storage.Client, bucketNameWithDirPath, prefixImplicitDirInLargeDirListTest string, numberOfImplicitDirsInDirectory int, t *testing.T) {
 	t.Helper()
-	idx := strings.Index(bucketNameWithDirPath, "/")
-	if idx <= 0 {
-		t.Errorf("Unexpected bucketNameWithDirPath: %q. Expected form: <bucket>/<object-name>", bucketNameWithDirPath)
-	}
-	bucketName := bucketNameWithDirPath[:idx]
-	dirPathInBucket := bucketNameWithDirPath[idx+1:]
+
+	bucketName, dirPathInBucket := splitBucketNameAndDirPath(bucketNameWithDirPath, t)
+
 	testFile, err := operations.CreateLocalTempFile("", false)
 	if err != nil {
 		t.Fatalf("Failed to local file for creating copies ...")
