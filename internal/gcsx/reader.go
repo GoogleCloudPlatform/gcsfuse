@@ -34,7 +34,7 @@ type GCSReaderReq struct {
 	// Offset specifies the starting position in the object from where data should be read.
 	Offset int64
 
-	// The end offset that needs to be fetched from GCS.
+	// This determines GCS range request.
 	EndOffset int64
 }
 
@@ -62,8 +62,7 @@ type Reader interface {
 	Destroy()
 }
 
-// The ReadManager interface extends the base Reader interface with an Object method.
-// This is generally used in higher-level components that need access to object metadata.
+// ReadManager is generally used in higher-level components that need access to object metadata.
 // File handle will contain a ReadManager instance and will handle read operations.
 type ReadManager interface {
 	Reader
