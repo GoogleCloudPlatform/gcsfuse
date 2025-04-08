@@ -122,7 +122,6 @@ func testdataUploadFilesToBucket(ctx context.Context, storageClient *storage.Cli
 	bucketName, dirPathInBucket := splitBucketNameAndDirPath(bucketNameWithDirPath, t)
 
 	dirWithTwelveThousandFilesFullPathPrefix := filepath.Join(dirWithTwelveThousandFiles, filesPrefix)
-	fmt.Printf("Copying files from %q to gs://%s/%s/ ...\n", dirWithTwelveThousandFiles, bucketName, dirPathInBucket)
 	matches, err := filepath.Glob(dirWithTwelveThousandFilesFullPathPrefix + "*")
 	if err != nil {
 		t.Fatalf("Failed to get files of pattern %s*: %v", dirWithTwelveThousandFilesFullPathPrefix, err)
@@ -166,7 +165,6 @@ func createFilesAndUpload(t *testing.T, dirPath string) {
 	t.Helper()
 
 	localDirPath := path.Join(os.Getenv("HOME"), directoryWithTwelveThousandFiles)
-	fmt.Printf("Creating %d files in %q with prefix %q ...\n", numberOfFilesInDirectoryWithTwelveThousandFiles, localDirPath, prefixFileInDirectoryWithTwelveThousandFiles)
 	operations.CreateDirectoryWithNFiles(numberOfFilesInDirectoryWithTwelveThousandFiles, localDirPath, prefixFileInDirectoryWithTwelveThousandFiles, t)
 	defer os.RemoveAll(localDirPath)
 
