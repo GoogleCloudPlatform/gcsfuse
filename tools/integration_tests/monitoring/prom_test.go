@@ -78,8 +78,6 @@ type PromTest struct {
 	// A temporary directory into which a file system may be mounted. Removed in
 	// TearDown.
 	mountPoint string
-
-	enableOTEL bool
 }
 
 // isHNSTestRun returns true if the bucket is an HNS bucket.
@@ -128,11 +126,6 @@ func (testSuite *PromTest) mount(bucketName string) error {
 	testSuite.T().Cleanup(func() { _ = os.RemoveAll(cacheDir) })
 
 	flags := []string{fmt.Sprintf("--prometheus-port=%d", prometheusPort), "--cache-dir", cacheDir}
-	if testSuite.enableOTEL {
-		flags = append(flags, "--enable-otel=true")
-	} else {
-		flags = append(flags, "--enable-otel=false")
-	}
 	args := append(flags, bucketName, testSuite.mountPoint)
 
 	if err := mounting.MountGcsfuse(testSuite.gcsfusePath, args); err != nil {
@@ -254,10 +247,6 @@ func (testSuite *PromTest) TestReadMetrics() {
 	//TODO: file_cache_read_bytes_count should be added once with waitForDownload is true same as sequential for default pd,
 }
 
-func TestPromOCSuite(t *testing.T) {
-	suite.Run(t, &PromTest{enableOTEL: false})
-}
-
 func TestPromOTELSuite(t *testing.T) {
-	suite.Run(t, &PromTest{enableOTEL: true})
+	suite.Run(t, new(PromTest))
 }
