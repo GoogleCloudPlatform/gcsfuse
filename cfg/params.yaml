@@ -629,14 +629,6 @@
   deprecated: true
   deprecation-warning: "Please use --cloud-metrics-export-interval-secs instead."
 
-- config-path: "monitoring.experimental-opentelemetry-collector-address"
-  flag-name: "experimental-opentelemetry-collector-address"
-  type: "string"
-  usage: "Experimental: Export metrics to the OpenTelemetry collector at this address."
-  default: ""
-  deprecated: true
-  deprecation-warning: "Experimental flag: could be dropped even in a minor release."
-
 - config-path: "monitoring.experimental-tracing-mode"
   flag-name: "experimental-tracing-mode"
   type: "string"
