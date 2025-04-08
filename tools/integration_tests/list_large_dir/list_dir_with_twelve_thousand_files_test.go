@@ -238,10 +238,8 @@ func (t *listLargeDir) TestListDirectoryWithTwelveThousandFiles() {
 
 	firstListTime, secondListTime := listDirTime(t.T(), dirPath, false, false)
 
-	//assert.Less(t.T(), secondListTime, firstListTime)
-	//assert.Less(t.T(), 2*secondListTime, firstListTime)
-	assert.Greater(t.T(), firstListTime, time.Duration(0))
-	assert.Greater(t.T(), secondListTime, time.Duration(0))
+	assert.Less(t.T(), secondListTime, firstListTime)
+	assert.Less(t.T(), 2*secondListTime, firstListTime)
 }
 
 func (t *listLargeDir) TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDir() {
@@ -249,10 +247,8 @@ func (t *listLargeDir) TestListDirectoryWithTwelveThousandFilesAndHundredExplici
 
 	firstListTime, secondListTime := listDirTime(t.T(), dirPath, true, false)
 
-	//assert.Less(t.T(), secondListTime, firstListTime)
-	//assert.Less(t.T(), 2*secondListTime, firstListTime)
-	assert.Greater(t.T(), firstListTime, time.Duration(0))
-	assert.Greater(t.T(), secondListTime, time.Duration(0))
+	assert.Less(t.T(), secondListTime, firstListTime)
+	assert.Less(t.T(), 2*secondListTime, firstListTime)
 }
 
 func (t *listLargeDir) TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir() {
@@ -260,10 +256,8 @@ func (t *listLargeDir) TestListDirectoryWithTwelveThousandFilesAndHundredExplici
 
 	firstListTime, secondListTime := listDirTime(t.T(), dirPath, true, true)
 
-	//assert.Less(t.T(), secondListTime, firstListTime)
-	//assert.Less(t.T(), 2*secondListTime, firstListTime)
-	assert.Greater(t.T(), firstListTime, time.Duration(0))
-	assert.Greater(t.T(), secondListTime, time.Duration(0))
+	assert.Less(t.T(), secondListTime, firstListTime)
+	assert.Less(t.T(), 2*secondListTime, firstListTime)
 }
 
 ////////////////////////////////////////////////////////////////////////
