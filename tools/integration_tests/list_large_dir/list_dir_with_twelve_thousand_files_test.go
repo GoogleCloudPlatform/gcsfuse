@@ -117,16 +117,10 @@ func testdataUploadFilesToBucket(ctx context.Context, storageClient *storage.Cli
 	if err != nil {
 		t.Fatalf("Failed to get files of pattern %s*: %v", dirWithTwelveThousandFilesFullPathPrefix, err)
 	}
-	counter := 0
-	start := time.Now()
 	for _, match := range matches {
 		_,fileName:=filepath.Split(match)
-		if len(fileName)>0 {
-			client.CopyFileInBucket(ctx, storageClient, match, filepath.Join(dirPathInBucket,fileName), bucketName)
-			counter++
-			if counter%100 == 0 {
-				fmt.Printf("Completed copying %d objects. Time taken so far = %v\n", counter, time.Since(start))
-			}
+		if len(fileName) > 0 {
+			client.CopyFileInBucket(ctx, storageClient, match, filepath.Join(dirPathInBucket, fileName), bucketName)
 		}
 	}
 }
