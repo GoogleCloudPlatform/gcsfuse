@@ -126,7 +126,7 @@ func testdataUploadFilesToBucket(ctx context.Context, storageClient *storage.Cli
 	numChannels := 16
 	channels := make([]chan copyRequest, numChannels)
 	counter := 0
-	perChannelCapacity:=int(math.Ceil(float64(numberOfFilesInDirectoryWithTwelveThousandFiles)/float64(numChannels)))
+	perChannelCapacity := int(math.Ceil(float64(numberOfFilesInDirectoryWithTwelveThousandFiles) / float64(numChannels)))
 	for i := 0; i < numChannels; i++ {
 		channels[i] = make(chan copyRequest, perChannelCapacity)
 	}
