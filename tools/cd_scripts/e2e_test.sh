@@ -155,7 +155,6 @@ TEST_DIR_PARALLEL=(
   "implicit_dir"
   "interrupt"
   "operations"
-  "log_content"
   "kernel_list_cache"
   "concurrent_operations"
   "mount_timeout"
