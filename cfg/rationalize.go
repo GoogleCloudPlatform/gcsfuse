@@ -55,7 +55,7 @@ func resolveMetadataCacheTTL(v isSet, c *MetadataCacheConfig, optimizedFlags []s
 	// else if optimization not applied set default value
 	// otherwise optimization would have applied so mutate accordingly
 	optimizationAppliedToMetadataCacheTTL := isFlagPresent(optimizedFlags, MetadataCacheTTLConfigKey)
-	if v.IsSet(MetadataCacheTTLConfigKey) || v.IsSet(MetadataCacheStatCacheTTLKey) || v.IsSet(MetadataCacheTypeCacheTTLKey) {
+	if v.IsSet(MetadataCacheTTLConfigKey) || v.IsSet(MetadataCacheStatCacheTTLConfigKey) || v.IsSet(MetadataCacheTypeCacheTTLConfigKey) {
 		if v.IsSet(MetadataCacheTTLConfigKey) {
 			if c.TtlSecs == -1 {
 				c.TtlSecs = maxSupportedTTLInSeconds
@@ -82,7 +82,7 @@ func resolveStatCacheMaxSizeMB(v isSet, c *MetadataCacheConfig, optimizedFlags [
 	// else if optimization not applied set default value
 	// otherwise optimization would have been applied so mutate accordingly
 	optimizationAppliedToStatCacheMaxSize := isFlagPresent(optimizedFlags, StatCacheMaxSizeConfigKey)
-	if v.IsSet(StatCacheMaxSizeConfigKey) || v.IsSet(MetadataCacheStatCacheCapacityKey) {
+	if v.IsSet(StatCacheMaxSizeConfigKey) || v.IsSet(MetadataCacheStatCacheCapacityConfigKey) {
 		if v.IsSet(StatCacheMaxSizeConfigKey) {
 			if c.StatCacheMaxSizeMb == -1 {
 				c.StatCacheMaxSizeMb = int64(maxSupportedStatCacheMaxSizeMB)
