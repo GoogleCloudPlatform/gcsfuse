@@ -130,32 +130,28 @@ func testdataUploadFilesToBucket(ctx context.Context, storageClient *storage.Cli
 		srcLocalFilePath string
 		dstGcsObjectPath string
 	}
-	numChannels := 16
-	channels := make([]chan copyRequest, numChannels)
-	counter := 0
-	perChannelCapacity := int(math.Ceil(float64(numberOfFilesInDirectoryWithTwelveThousandFiles) / float64(numChannels)))
-	for i := 0; i < numChannels; i++ {
-		channels[i] = make(chan copyRequest, perChannelCapacity)
+	numCopyGoroutines := 16
+	copyGoroutines := make([][]copyRequest, numCopyGoroutines)
+	copyRequestCounter := 0
+	for i := 0; i < numCopyGoroutines; i++ {
+		copyGoroutines[i] = []copyRequest{}
 	}
 
 	for _, match := range matches {
 		_, fileName := filepath.Split(match)
 		if len(fileName) > 0 {
-			chanIndex := counter % numChannels
-			channels[chanIndex] <- copyRequest{srcLocalFilePath: match, dstGcsObjectPath: filepath.Join(dirPathInBucket, fileName)}
-			counter++
+			copyGoroutineIndex := copyRequestCounter % numCopyGoroutines
+			copyGoroutines[copyGoroutineIndex] = append(copyGoroutines[copyGoroutineIndex], copyRequest{srcLocalFilePath: match, dstGcsObjectPath: filepath.Join(dirPathInBucket, fileName)})
+			copyRequestCounter++
 		}
 	}
 
 	wg := sync.WaitGroup{}
-	for chanIndex := 0; chanIndex < numChannels; chanIndex++ {
+	for _, copyGoroutine := range copyGoroutines {
 		wg.Add(1)
-		close(channels[chanIndex])
 		go func() {
-			for metadata := range channels[chanIndex] {
-				//fmt.Printf("Copying %q to gs:/%s/%s ...\n", metadata.srcLocalFilePath, bucketName, metadata.dstGcsObjectPath)
-				client.CopyFileInBucket(ctx, storageClient, metadata.srcLocalFilePath, metadata.dstGcsObjectPath, bucketName)
-				//fmt.Printf("... Finished copying %q to gs:/%s/%s\n", metadata.srcLocalFilePath, bucketName, metadata.dstGcsObjectPath)
+			for _, copyRequest := range copyGoroutine {
+				client.CopyFileInBucket(ctx, storageClient, copyRequest.srcLocalFilePath, copyRequest.dstGcsObjectPath, bucketName)
 			}
 			wg.Done()
 		}()
