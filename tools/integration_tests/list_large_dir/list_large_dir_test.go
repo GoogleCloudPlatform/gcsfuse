@@ -32,7 +32,7 @@ const prefixExplicitDirInLargeDirListTest = "explicitDirInLargeDirListTest"
 const prefixImplicitDirInLargeDirListTest = "implicitDirInLargeDirListTest"
 
 // const numberOfFilesInDirectoryWithTwelveThousandFiles = 12000
-const numberOfFilesInDirectoryWithTwelveThousandFiles = 1
+const numberOfFilesInDirectoryWithTwelveThousandFiles = 5
 const numberOfImplicitDirsInDirectoryWithTwelveThousandFiles = 1
 const numberOfExplicitDirsInDirectoryWithTwelveThousandFiles = 1
 
