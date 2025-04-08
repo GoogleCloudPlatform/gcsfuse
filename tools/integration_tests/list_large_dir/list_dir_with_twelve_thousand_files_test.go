@@ -182,13 +182,21 @@ func listDirTime(t *testing.T, dirPath string, expectExplicitDirs bool, expectIm
 	return firstListTime, minSecondListTime
 }
 
-func testdataCreateImplicitDirUsingStorageClient(ctx context.Context, storageClient *storage.Client, testBucket, prefixImplicitDirInLargeDirListTest string, numberOfImplicitDirsInDirectory int, t *testing.T) {
+func testdataCreateImplicitDirUsingStorageClient(ctx context.Context, storageClient *storage.Client, bucketNameWithDirPath, prefixImplicitDirInLargeDirListTest string, numberOfImplicitDirsInDirectory int, t *testing.T) {
+	t.Helper()
+	idx := strings.Index(bucketNameWithDirPath, "/")
+	if idx <= 0 {
+		t.Errorf("Unexpected bucketNameWithDirPath: %q. Expected form: <bucket>/<object-name>", bucketNameWithDirPath)
+	}
+	bucketName := bucketNameWithDirPath[:idx]
+	testDirWithoutBucketName := bucketNameWithDirPath[idx+1:]
 	testFile, err := operations.CreateLocalTempFile("", false)
 	if err != nil {
 		t.Fatalf("Failed to local file for creating copies ...")
 	}
 	for a := 1; a <= numberOfImplicitDirsInDirectory; a++ {
-		client.CopyFileInBucket(ctx, storageClient, testFile, testBucket, path.Join(prefixExplicitDirInLargeDirListTest, fmt.Sprintf("%d", a)))
+		//fmt.Printf("Copying %q to %q in gs://%s ...\n",  testFile, path.Join(testDirWithoutBucketName, prefixImplicitDirInLargeDirListTest+fmt.Sprintf("%d", a), testFile), bucketName)
+		client.CopyFileInBucket(ctx, storageClient, testFile, path.Join(testDirWithoutBucketName, prefixImplicitDirInLargeDirListTest+fmt.Sprintf("%d", a), testFile), bucketName)
 	}
 }
 
