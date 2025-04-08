@@ -31,6 +31,7 @@ type fakeMultiRangeDownloader struct {
 	wg         sync.WaitGroup
 	err        error
 	defaultErr error
+	statusErr  error
 	sleepTime  time.Duration // Sleep time to simulate real-world.
 }
 
@@ -56,6 +57,16 @@ func NewFakeMultiRangeDownloaderWithSleepAndDefaultError(obj *gcs.MinObject, dat
 		obj:        &fakeObj,
 		sleepTime:  sleepTime,
 		defaultErr: err,
+	}
+}
+
+func NewFakeMultiRangeDownloaderWithStatusError(obj *gcs.MinObject, data []byte, err error) gcs.MultiRangeDownloader{
+	fakeObj := createFakeObject(obj, data)
+	return &fakeMultiRangeDownloader{
+		obj:        &fakeObj,
+		sleepTime:  0,
+		defaultErr: nil,
+		statusErr: err,
 	}
 }
 
@@ -122,4 +133,8 @@ func (fmrd *fakeMultiRangeDownloader) Close() error {
 
 func (fmrd *fakeMultiRangeDownloader) Wait() {
 	fmrd.wg.Wait()
+}
+
+func (fmrd *fakeMultiRangeDownloader) Error() error {
+	return fmrd.statusErr
 }
