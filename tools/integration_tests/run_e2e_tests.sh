@@ -515,10 +515,10 @@ function main(){
 
   set -e
 
-  upgrade_gcloud_version
-
-  install_packages
-
+  # upgrade_gcloud_version
+# 
+  # install_packages
+# 
   set +e
 
   # Decide whether to build GCSFuse based on RUN_E2E_TESTS_ON_PACKAGE
