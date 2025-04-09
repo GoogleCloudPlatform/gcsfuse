@@ -279,16 +279,16 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	// GetStorageLayout API is not supported for storage-testbench and for TPC, both of which are identified by non-nil custom-endpoint.
 	// Change this check once TPC(custom-endpoint) supports gRPC.
 	// TODO: Enable creation of control-client for preprod endpoint.
-	if clientConfig.EnableHNS && clientConfig.CustomEndpoint == "" {
-		clientOpts, err = createClientOptionForGRPCClient(&clientConfig, false)
-		if err != nil {
-			return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
-		}
-		controlClient, err = storageutil.CreateGRPCControlClient(ctx, clientOpts, &clientConfig)
-		if err != nil {
-			return nil, fmt.Errorf("could not create StorageControl Client: %w", err)
-		}
-	}
+	//if clientConfig.EnableHNS && clientConfig.CustomEndpoint == "" {
+	//	clientOpts, err = createClientOptionForGRPCClient(&clientConfig, false)
+	//	if err != nil {
+	//		return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
+	//	}
+	//	controlClient, err = storageutil.CreateGRPCControlClient(ctx, clientOpts, &clientConfig)
+	//	if err != nil {
+	//		return nil, fmt.Errorf("could not create StorageControl Client: %w", err)
+	//	}
+	//}
 
 	sh = &storageClient{
 		storageControlClient: controlClient,
