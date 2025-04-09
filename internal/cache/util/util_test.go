@@ -242,13 +242,13 @@ func (ut *utilTest) Test_IsCacheHandleValid_True() {
 }
 
 func (ut *utilTest) Test_IsCacheHandleValid_False() {
-	errMessages := []string{
-		ErrFallbackToGCS.Error() + "test",
-		"random error message",
+	errs := []error{
+		fmt.Errorf("%w: %s", ErrFallbackToGCS, "test"),
+		fmt.Errorf("random error message"),
 	}
 
-	for _, errMsg := range errMessages {
-		ExpectFalse(IsCacheHandleInvalid(errors.New(errMsg)))
+	for _, err := range errs {
+		ExpectFalse(IsCacheHandleInvalid(err))
 	}
 }
 
