@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	client_util "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"go.opentelemetry.io/contrib/detectors/gcp"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -144,7 +145,7 @@ func TestMain(m *testing.M) {
 
 	// Creating a common storage client for the test
 	ctx = context.Background()
-	if client, err = storage.NewClient(ctx); err != nil {
+	if client, err = client_util.CreateStorageClient(ctx); err != nil {
 		log.Fatalf("Creation of storage client failed with error : %v", err)
 	}
 	defer client.Close()

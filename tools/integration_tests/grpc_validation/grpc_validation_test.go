@@ -148,7 +148,12 @@ func (g *gRPCValidation) TestGRPCDirectPathConnections() {
 					t.Logf("Warning: unmount failed: %v", err)
 				}
 				os.Remove(mountPoint)
-				os.Remove(logFile)
+				// Only remove the log file if the test succeeded
+				if t.Failed() {
+					t.Logf("Test failed, log file '%s' will not be deleted for inspection.", logFile)
+				} else {
+					os.Remove(logFile)
+				}
 			}()
 			success := operations.CheckLogFileForMessage(g.T(), tc.expectedLogSubstring, logFile)
 			require.Equal(t, true, success)
