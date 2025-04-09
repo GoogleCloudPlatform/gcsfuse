@@ -23,6 +23,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/auth"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 )
@@ -121,6 +122,7 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 // It creates the token-source from the provided
 // key-file or using ADC search order (https://cloud.google.com/docs/authentication/application-default-credentials#order).
 func CreateTokenSource(storageClientConfig *StorageClientConfig) (tokenSrc oauth2.TokenSource, domain string, err error) {
+	logger.Infof("Domain: ", domain)
 	return auth.GetTokenSource(context.Background(), storageClientConfig.KeyFile, storageClientConfig.TokenUrl, storageClientConfig.ReuseTokenFromUrl)
 }
 
