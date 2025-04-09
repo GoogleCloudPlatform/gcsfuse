@@ -108,8 +108,7 @@ func splitBucketNameAndDirPath(t *testing.T, bucketNameWithDirPath string) (buck
 	t.Helper()
 
 	var found bool
-	bucketName, dirPathInBucket, found = strings.Cut(bucketNameWithDirPath, "/")
-	if !found {
+	if bucketName, dirPathInBucket, found = strings.Cut(bucketNameWithDirPath, "/"); !found {
 		t.Fatalf("Unexpected bucketNameWithDirPath: %q. Expected form: <bucket>/<object-name>", bucketNameWithDirPath)
 	}
 	return
@@ -150,7 +149,7 @@ func testdataUploadFilesToBucket(ctx context.Context, t *testing.T, storageClien
 	// Copy request consumers.
 	numCopyGoroutines := 16
 	var wg sync.WaitGroup
-	for copyGoroutine := 0; copyGoroutine < numCopyGoroutines; copyGoroutine++ {
+	for range numCopyGoroutines {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
