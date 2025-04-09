@@ -181,9 +181,9 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	}
 
 	logger.Infof("Domain: %s", domain)
-	endpoint := fmt.Sprintf("https://storage.%s/storage/v1/.", domain)
-	logger.Infof("Endpoint: %s", endpoint)
-	clientOpts = append(clientOpts, option.WithEndpoint(endpoint))
+	//endpoint := fmt.Sprintf("https://storage.%s/storage/v1/.", domain)
+	//logger.Infof("Endpoint: %s", endpoint)
+	clientOpts = append(clientOpts, option.WithUniverseDomain(domain))
 	clientOpts = append(clientOpts, option.WithHTTPClient(httpClient))
 
 	if clientConfig.AnonymousAccess {
