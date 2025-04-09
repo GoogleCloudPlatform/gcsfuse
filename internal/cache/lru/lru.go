@@ -24,7 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
 )
 
-// Predefined error messages returned by the Cache.
+// Predefined errors returned by the Cache.
 var (
 	ErrInvalidEntrySize       = errors.New("size of the entry is more than the cache's maxSize")
 	ErrInvalidEntry           = errors.New("nil values are not supported")
