@@ -222,8 +222,6 @@ type MetricsConfig struct {
 }
 
 type MonitoringConfig struct {
-	ExperimentalOpentelemetryCollectorAddress string `yaml:"experimental-opentelemetry-collector-address"`
-
 	ExperimentalTracingMode string `yaml:"experimental-tracing-mode"`
 
 	ExperimentalTracingSamplingRatio float64 `yaml:"experimental-tracing-sampling-ratio"`
@@ -376,12 +374,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.StringP("experimental-metadata-prefetch-on-mount", "", "disabled", "Experimental: This indicates whether or not to prefetch the metadata (prefilling of metadata caches and creation of inodes) of the mounted bucket at the time of mounting the bucket. Supported values: \"disabled\", \"sync\" and \"async\". Any other values will return error on mounting. This is applicable only to static mounting, and not to dynamic mounting.")
 
 	if err := flagSet.MarkDeprecated("experimental-metadata-prefetch-on-mount", "Experimental flag: could be removed even in a minor release."); err != nil {
-		return err
-	}
-
-	flagSet.StringP("experimental-opentelemetry-collector-address", "", "", "Experimental: Export metrics to the OpenTelemetry collector at this address.")
-
-	if err := flagSet.MarkDeprecated("experimental-opentelemetry-collector-address", "Experimental flag: could be dropped even in a minor release."); err != nil {
 		return err
 	}
 
@@ -697,10 +689,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metadata-cache.experimental-metadata-prefetch-on-mount", flagSet.Lookup("experimental-metadata-prefetch-on-mount")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("monitoring.experimental-opentelemetry-collector-address", flagSet.Lookup("experimental-opentelemetry-collector-address")); err != nil {
 		return err
 	}
 
