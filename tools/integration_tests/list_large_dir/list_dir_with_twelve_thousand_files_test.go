@@ -15,15 +15,20 @@
 package list_large_dir
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
@@ -99,14 +104,80 @@ func checkIfObjNameIsCorrect(t *testing.T, objName string, prefix string, maxNum
 	}
 }
 
+func splitBucketNameAndDirPath(t *testing.T, bucketNameWithDirPath string) (bucketName, dirPathInBucket string) {
+	t.Helper()
+
+	var found bool
+	if bucketName, dirPathInBucket, found = strings.Cut(bucketNameWithDirPath, "/"); !found {
+		t.Fatalf("Unexpected bucketNameWithDirPath: %q. Expected form: <bucket>/<object-name>", bucketNameWithDirPath)
+	}
+	return
+}
+
+// This function is equivalent to testdata/upload_files_to_bucket.sh to replace gcloud with storage-client
+// This is needed for ZB which is not supported by gcloud storage cp command yet.
+func testdataUploadFilesToBucket(ctx context.Context, t *testing.T, storageClient *storage.Client, bucketNameWithDirPath, dirWith12KFiles, filesPrefix string) {
+	t.Helper()
+
+	bucketName, dirPathInBucket := splitBucketNameAndDirPath(t, bucketNameWithDirPath)
+
+	dirWith12KFilesFullPathPrefix := filepath.Join(dirWith12KFiles, filesPrefix)
+	matches, err := filepath.Glob(dirWith12KFilesFullPathPrefix + "*")
+	if err != nil {
+		t.Fatalf("Failed to get files of pattern %s*: %v", dirWith12KFilesFullPathPrefix, err)
+	}
+
+	type copyRequest struct {
+		srcLocalFilePath string
+		dstGCSObjectPath string
+	}
+	channel := make(chan copyRequest)
+
+	// Copy request producer.
+	go func() {
+		for _, match := range matches {
+			_, fileName := filepath.Split(match)
+			if len(fileName) > 0 {
+				req := copyRequest{srcLocalFilePath: match, dstGCSObjectPath: filepath.Join(dirPathInBucket, fileName)}
+				channel <- req
+			}
+		}
+		// close the channel to let the go-routines know that there is no more object to be copied.
+		close(channel)
+	}()
+
+	// Copy request consumers.
+	numCopyGoroutines := 16
+	var wg sync.WaitGroup
+	for range numCopyGoroutines {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				copyRequest, ok := <-channel
+				if !ok {
+					break
+				}
+				client.CopyFileInBucket(ctx, storageClient, copyRequest.srcLocalFilePath, copyRequest.dstGCSObjectPath, bucketName)
+			}
+		}()
+	}
+	wg.Wait()
+}
+
 // createFilesAndUpload generates files and uploads them to the specified directory.
 func createFilesAndUpload(t *testing.T, dirPath string) {
 	t.Helper()
 
 	localDirPath := path.Join(os.Getenv("HOME"), directoryWithTwelveThousandFiles)
 	operations.CreateDirectoryWithNFiles(numberOfFilesInDirectoryWithTwelveThousandFiles, localDirPath, prefixFileInDirectoryWithTwelveThousandFiles, t)
+	defer os.RemoveAll(localDirPath)
 
-	setup.RunScriptForTestData("testdata/upload_files_to_bucket.sh", dirPath, localDirPath, prefixFileInDirectoryWithTwelveThousandFiles)
+	if setup.IsZonalBucketRun() {
+		testdataUploadFilesToBucket(ctx, t, storageClient, dirPath, localDirPath, prefixFileInDirectoryWithTwelveThousandFiles)
+	} else {
+		setup.RunScriptForTestData("testdata/upload_files_to_bucket.sh", dirPath, localDirPath, prefixFileInDirectoryWithTwelveThousandFiles)
+	}
 }
 
 // createExplicitDirs creates empty explicit directories in the specified directory.
@@ -150,6 +221,22 @@ func listDirTime(t *testing.T, dirPath string, expectExplicitDirs bool, expectIm
 	return firstListTime, minSecondListTime
 }
 
+// This function is equivalent to testdata/create_implicit_dir.sh to replace gcloud with storage-client
+// This is needed for ZB which is not supported by gcloud storage cp command yet.
+func testdataCreateImplicitDir(ctx context.Context, t *testing.T, storageClient *storage.Client, bucketNameWithDirPath, prefixImplicitDirInLargeDirListTest string, numberOfImplicitDirsInDirectory int) {
+	t.Helper()
+
+	bucketName, dirPathInBucket := splitBucketNameAndDirPath(t, bucketNameWithDirPath)
+
+	testFile, err := operations.CreateLocalTempFile("", false)
+	if err != nil {
+		t.Fatalf("Failed to create local file for creating copies ...")
+	}
+	for suffix := 1; suffix <= numberOfImplicitDirsInDirectory; suffix++ {
+		client.CopyFileInBucket(ctx, storageClient, testFile, path.Join(dirPathInBucket, fmt.Sprintf("%s%d", prefixImplicitDirInLargeDirListTest, suffix), testFile), bucketName)
+	}
+}
+
 // prepareTestDirectory sets up a test directory with files and required explicit and implicit directories.
 func prepareTestDirectory(t *testing.T, withExplicitDirs bool, withImplicitDirs bool) string {
 	t.Helper()
@@ -169,7 +256,11 @@ func prepareTestDirectory(t *testing.T, withExplicitDirs bool, withImplicitDirs 
 	}
 
 	if withImplicitDirs {
-		setup.RunScriptForTestData("testdata/create_implicit_dir.sh", testDirPathOnBucket, prefixImplicitDirInLargeDirListTest, strconv.Itoa(numberOfImplicitDirsInDirectoryWithTwelveThousandFiles))
+		if setup.IsZonalBucketRun() {
+			testdataCreateImplicitDir(ctx, t, storageClient, testDirPathOnBucket, prefixImplicitDirInLargeDirListTest, numberOfImplicitDirsInDirectoryWithTwelveThousandFiles)
+		} else {
+			setup.RunScriptForTestData("testdata/create_implicit_dir.sh", testDirPathOnBucket, prefixImplicitDirInLargeDirListTest, strconv.Itoa(numberOfImplicitDirsInDirectoryWithTwelveThousandFiles))
+		}
 	}
 
 	return testDirPath

@@ -54,7 +54,9 @@ func TestMain(m *testing.M) {
 	}()
 
 	flags := [][]string{{"--implicit-dirs", "--stat-cache-ttl=0", "--kernel-list-cache-ttl-secs=-1"}}
-	if !testing.Short() {
+	// Don't run for grpc if -short flat is passed.
+	// Don't run for grpc for zonal bucket as zonal buckets by default use grpc.
+	if !testing.Short() && !setup.IsZonalBucketRun() {
 		flags = append(flags, []string{"--client-protocol=grpc", "--implicit-dirs=true", "--stat-cache-ttl=0", "--kernel-list-cache-ttl-secs=-1"})
 	}
 
