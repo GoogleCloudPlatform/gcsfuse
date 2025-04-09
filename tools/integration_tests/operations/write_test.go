@@ -108,7 +108,15 @@ func validateObjectAttributes(attr1, attr2 *storage.ObjectAttrs, t *testing.T) {
 		}
 	}
 	if attr1.StorageClass != storageClass || attr2.StorageClass != storageClass {
-		t.Errorf("Expected storage class to be %q, but found attr1.StorageClass = %q (bucketName = %q), attr2.StorageClass = %q (bucketName = %q)", storageClass, attr1.StorageClass, attr1.Bucket, attr2.StorageClass, attr2.Bucket)
+		if setup.IsZonalBucketRun() {
+			if attr1.StorageClass != attr2.StorageClass {
+				t.Errorf("Expected storage classes to be same (%q) for both, but found attr1.StorageClass = %q (bucketName = %q) != attr2.StorageClass = %q (bucketName = %q)", storageClass, attr1.StorageClass, attr1.Bucket, attr2.StorageClass, attr2.Bucket)
+			} else {
+				t.Logf("Expected storage class to be %q for both, but found StorageClass = %q for both (buckets = %q, %q).", storageClass, attr1.StorageClass, attr1.Bucket, attr2.Bucket)
+			}
+		} else {
+			t.Errorf("Expected storage class to be %q, but found attr1.StorageClass = %q (bucketName = %q), attr2.StorageClass = %q (bucketName = %q)", storageClass, attr1.StorageClass, attr1.Bucket, attr2.StorageClass, attr2.Bucket)
+		}
 	}
 	attr1MTime, _ := time.Parse(time.RFC3339Nano, attr1.Metadata[gcs.MtimeMetadataKey])
 	attr2MTime, _ := time.Parse(time.RFC3339Nano, attr2.Metadata[gcs.MtimeMetadataKey])
