@@ -180,8 +180,8 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		return
 	}
 
-	logger.Infof("Domain: ", domain)
-	endpoint := fmt.Sprintf("https://storage.", domain, "/storage/v1/.")
+	logger.Infof("Domain: %s", domain)
+	endpoint := fmt.Sprintf("https://storage.%s/storage/v1/.", domain)
 	logger.Infof("Endpoint: ", endpoint)
 	clientOpts = append(clientOpts, option.WithEndpoint(endpoint))
 	clientOpts = append(clientOpts, option.WithHTTPClient(httpClient))
