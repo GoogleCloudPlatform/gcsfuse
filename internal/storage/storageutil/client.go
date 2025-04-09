@@ -102,6 +102,8 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 			return
 		}
 
+		logger.Infof("Domain: ", domain)
+
 		// Custom http client for Go Client.
 		httpClient = &http.Client{
 			Transport: &oauth2.Transport{
@@ -122,7 +124,6 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 // It creates the token-source from the provided
 // key-file or using ADC search order (https://cloud.google.com/docs/authentication/application-default-credentials#order).
 func CreateTokenSource(storageClientConfig *StorageClientConfig) (tokenSrc oauth2.TokenSource, domain string, err error) {
-	logger.Infof("Domain: ", domain)
 	return auth.GetTokenSource(context.Background(), storageClientConfig.KeyFile, storageClientConfig.TokenUrl, storageClientConfig.ReuseTokenFromUrl)
 }
 
