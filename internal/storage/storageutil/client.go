@@ -18,6 +18,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -99,6 +100,7 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 		logger.Infof("Hellooooo I am hereee")
 		tokenSrc, domain, err = CreateTokenSource(storageClientConfig)
 		logger.Infof("Domain: ", domain)
+		logger.Infof("ENV var: ", os.Getenv("GOOGLE_CLOUD_UNIVERSE_DOMAIN"))
 		if err != nil {
 			err = fmt.Errorf("while fetching tokenSource: %w", err)
 			return
