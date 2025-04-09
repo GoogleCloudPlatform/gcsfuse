@@ -109,7 +109,7 @@ func TestMakeGcsfuseArgs(t *testing.T) {
 		// Test ignored options
 		{
 			name:          "TestMakeGcsfuseArgs with IgnoredOptions",
-			opts:          map[string]string{"user": "nobody", "_netdev": ""},
+			opts:          map[string]string{"user": "nobody", "_netdev": "", "rw": ""},
 			expectedFlags: []string{},
 		},
 
