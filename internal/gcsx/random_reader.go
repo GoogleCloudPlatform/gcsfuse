@@ -288,7 +288,7 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 			logger.Warnf("tryReadingFromFileCache: while closing fileCacheHandle: %v", err)
 		}
 		rr.fileCacheHandle = nil
-	} else if !errors.Is(err, cacheutil.ErrFallbackToGCS) {
+	} else if errors.Is(err, cacheutil.ErrFallbackToGCS) {
 		err = fmt.Errorf("tryReadingFromFileCache: while reading via cache: %w", err)
 		return
 	}

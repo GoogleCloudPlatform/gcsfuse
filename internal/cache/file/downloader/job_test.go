@@ -581,7 +581,7 @@ func (dt *downloaderTest) Test_Download_WhenAsyncFails() {
 	// Verify that jobStatus is failed
 	AssertEq(Failed, jobStatus.Name)
 	AssertGe(jobStatus.Offset, 0)
-	AssertTrue(errors.Is(err, lru.ErrInvalidUpdateEntrySize))
+	AssertTrue(errors.Is(jobStatus.Err, lru.ErrInvalidUpdateEntrySize))
 	// Verify callback is executed
 	AssertTrue(callbackExecuted.Load())
 }
