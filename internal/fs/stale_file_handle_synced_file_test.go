@@ -53,7 +53,7 @@ func (t *staleFileHandleSyncedFile) TestClobberedFileReadThrowsStaleFileHandleEr
 	buffer := make([]byte, 6)
 	_, err := t.f1.Read(buffer)
 
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
+	operations.ValidateESTALEError(t.T(), err)
 	// Validate that object is updated with new content.
 	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
 	assert.NoError(t.T(), err)
@@ -66,7 +66,7 @@ func (t *staleFileHandleSyncedFile) TestClobberedFileFirstWriteThrowsStaleFileHa
 
 	_, err := t.f1.Write([]byte("taco"))
 
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
+	operations.ValidateESTALEError(t.T(), err)
 	// Attempt to sync to file should not result in error as we first check if the
 	// content has been dirtied before clobbered check in Sync flow.
 	err = t.f1.Sync()
@@ -92,9 +92,9 @@ func (t *staleFileHandleSyncedFile) TestRenamedFileSyncThrowsStaleFileHandleErro
 
 	err = t.f1.Sync()
 
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
+	operations.ValidateESTALEError(t.T(), err)
 	err = t.f1.Close()
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
+	operations.ValidateESTALEError(t.T(), err)
 	// Make f1 nil, so that another attempt is not taken in TearDown to close the
 	// file.
 	t.f1 = nil
@@ -118,9 +118,9 @@ func (t *staleFileHandleSyncedFile) TestFileDeletedRemotelySyncAndCloseThrowsSta
 
 	err = t.f1.Sync()
 
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
+	operations.ValidateESTALEError(t.T(), err)
 	err = t.f1.Close()
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
+	operations.ValidateESTALEError(t.T(), err)
 	// Make f1 nil, so that another attempt is not taken in TearDown to close the
 	// file.
 	t.f1 = nil

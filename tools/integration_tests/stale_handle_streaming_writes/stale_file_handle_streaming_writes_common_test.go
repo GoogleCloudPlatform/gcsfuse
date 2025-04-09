@@ -86,6 +86,6 @@ func (t *staleFileHandleStreamingWritesCommon) TestClosingFileHandleForClobbered
 	// Closing the file/writer returns stale NFS file handle error.
 	err = t.f1.Close()
 
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
+	operations.ValidateESTALEError(t.T(), err)
 	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, t.fileName, FileContents, t.T())
 }

@@ -60,7 +60,7 @@ func (s *staleFileHandleSyncedFile) TestClobberedFileReadThrowsStaleFileHandleEr
 	buffer := make([]byte, GCSFileSize)
 	_, err = s.f1.Read(buffer)
 
-	operations.ValidateStaleNFSFileHandleError(s.T(), err)
+	operations.ValidateESTALEError(s.T(), err)
 }
 
 func (s *staleFileHandleSyncedFile) TestClobberedFileFirstWriteThrowsStaleFileHandleError() {
@@ -70,7 +70,7 @@ func (s *staleFileHandleSyncedFile) TestClobberedFileFirstWriteThrowsStaleFileHa
 
 	_, err = s.f1.WriteString(Content)
 
-	operations.ValidateStaleNFSFileHandleError(s.T(), err)
+	operations.ValidateESTALEError(s.T(), err)
 	// Attempt to sync to file should not result in error as we first check if the
 	// content has been dirtied before clobbered check in Sync flow.
 	operations.SyncFile(s.f1, s.T())
@@ -88,9 +88,9 @@ func (s *staleFileHandleSyncedFile) TestRenamedFileSyncAndCloseThrowsStaleFileHa
 
 	err = s.f1.Sync()
 
-	operations.ValidateStaleNFSFileHandleError(s.T(), err)
+	operations.ValidateESTALEError(s.T(), err)
 	err = s.f1.Close()
-	operations.ValidateStaleNFSFileHandleError(s.T(), err)
+	operations.ValidateESTALEError(s.T(), err)
 }
 
 func (s *staleFileHandleSyncedFile) TestFileDeletedRemotelySyncAndCloseThrowsStaleFileHandleError() {
@@ -107,9 +107,9 @@ func (s *staleFileHandleSyncedFile) TestFileDeletedRemotelySyncAndCloseThrowsSta
 
 	err = s.f1.Sync()
 
-	operations.ValidateStaleNFSFileHandleError(s.T(), err)
+	operations.ValidateESTALEError(s.T(), err)
 	err = s.f1.Close()
-	operations.ValidateStaleNFSFileHandleError(s.T(), err)
+	operations.ValidateESTALEError(s.T(), err)
 }
 
 ////////////////////////////////////////////////////////////////////////
