@@ -73,6 +73,12 @@ func resolveMetadataCacheTTL(v isSet, c *MetadataCacheConfig, optimizedFlags []s
 // resolveStatCacheMaxSizeMB returns the stat-cache size in MiBs based on the
 // user old and new flags/configs.
 func resolveStatCacheMaxSizeMB(v isSet, c *MetadataCacheConfig, optimizedFlags []string) {
+	// Local function to calculate size based on deprecated capacity.
+	calculateSizeFromCapacity := func(capacity int64) int64 {
+		avgTotalStatCacheEntrySize := AverageSizeOfPositiveStatCacheEntry + AverageSizeOfNegativeStatCacheEntry
+		return int64(util.BytesToHigherMiBs(uint64(capacity) * avgTotalStatCacheEntrySize))
+	}
+
 	// If metadata-cache:stat-cache-size-mb has been set, then it overrides
 	// stat-cache-capacity.
 
@@ -89,11 +95,9 @@ func resolveStatCacheMaxSizeMB(v isSet, c *MetadataCacheConfig, optimizedFlags [
 			}
 			return
 		}
-		avgTotalStatCacheEntrySize := AverageSizeOfPositiveStatCacheEntry + AverageSizeOfNegativeStatCacheEntry
-		c.StatCacheMaxSizeMb = int64(util.BytesToHigherMiBs(uint64(c.DeprecatedStatCacheCapacity) * avgTotalStatCacheEntrySize))
+		c.StatCacheMaxSizeMb = calculateSizeFromCapacity(c.DeprecatedStatCacheCapacity)
 	} else if !optimizationAppliedToStatCacheMaxSize {
-		avgTotalStatCacheEntrySize := AverageSizeOfPositiveStatCacheEntry + AverageSizeOfNegativeStatCacheEntry
-		c.StatCacheMaxSizeMb = int64(util.BytesToHigherMiBs(uint64(c.DeprecatedStatCacheCapacity) * avgTotalStatCacheEntrySize))
+		c.StatCacheMaxSizeMb = calculateSizeFromCapacity(c.DeprecatedStatCacheCapacity)
 	} else if c.StatCacheMaxSizeMb == -1 {
 		c.StatCacheMaxSizeMb = int64(maxSupportedStatCacheMaxSizeMB)
 	}
