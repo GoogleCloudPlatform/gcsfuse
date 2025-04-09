@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	storagev1 "google.golang.org/api/storage/v1"
@@ -78,6 +79,7 @@ func newTokenSourceFromPath(ctx context.Context, path string, scope string) (oau
 			return nil, domain, err
 		}
 	}
+	logger.Infof("Domain in auth: %v", domain)
 	return ts, domain, err
 }
 
