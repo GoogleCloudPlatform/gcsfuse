@@ -170,6 +170,7 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig) (sc *storage.Client, err error) {
 	var clientOpts []option.ClientOption
 
+	logger.Infof("Hello from createHTTPClientHandle")
 	// Add WithHttpClient option.
 	var httpClient *http.Client
 	var domain string

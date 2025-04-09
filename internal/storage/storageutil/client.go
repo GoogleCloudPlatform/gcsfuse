@@ -96,13 +96,13 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 		}
 	} else {
 		var tokenSrc oauth2.TokenSource
+		logger.Infof("Hellooooo I am hereee")
 		tokenSrc, domain, err = CreateTokenSource(storageClientConfig)
+		logger.Infof("Domain: ", domain)
 		if err != nil {
 			err = fmt.Errorf("while fetching tokenSource: %w", err)
 			return
 		}
-
-		logger.Infof("Domain: ", domain)
 
 		// Custom http client for Go Client.
 		httpClient = &http.Client{
