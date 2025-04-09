@@ -38,7 +38,11 @@ func TestListOnlyExplicitObjectsFromBucket(t *testing.T) {
 	// testBucket/dirForExplicitDirTests/explicitDirectory/fileInExplicitDir1                               -- File
 	// testBucket/dirForExplicitDirTests/explicitDirectory/fileInExplicitDir2                               -- File
 
-	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructureUsingStorageClient(ctx, storageClient, DirForExplicitDirTests, t)
+	if setup.IsZonalBucketRun() {
+		implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructureUsingStorageClient(ctx, t, storageClient, DirForExplicitDirTests)
+	} else {
+		implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure(DirForExplicitDirTests)
+	}
 	implicit_and_explicit_dir_setup.CreateExplicitDirectoryStructure(DirForExplicitDirTests, t)
 
 	err := filepath.WalkDir(testDir, func(path string, dir fs.DirEntry, err error) error {
