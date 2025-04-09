@@ -128,7 +128,7 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 		filePath := util.GetDownloadPath(chr.cacheDir, util.GetObjectPath(bucket.Name(), object.Name))
 		_, err := os.Stat(filePath)
 		if err != nil && os.IsNotExist(err) {
-			return fmt.Errorf("addFileInfoEntryAndCreateDownloadJob: %s: %s", util.ErrFileNotPresentInCache.Error(), filePath)
+			return fmt.Errorf("addFileInfoEntryAndCreateDownloadJob: %w: %s", util.ErrFileNotPresentInCache, filePath)
 		}
 
 		// Evict object in cache if the generation of object in cache is different

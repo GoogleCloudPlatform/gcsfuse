@@ -192,7 +192,7 @@ func (cht *cacheHandleTest) Test_validateCacheHandle_WithNilFileInfoCache() {
 
 	err := cht.cacheHandle.validateCacheHandle()
 
-	assert.True(cht.T(), errors.Is(err, util.ErrInvalidFileHandle))
+	assert.True(cht.T(), errors.Is(err, util.ErrInvalidFileInfoCache))
 }
 
 func (cht *cacheHandleTest) Test_validateCacheHandle_WithNonNilMemberAttributes() {
@@ -389,7 +389,7 @@ func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_FileInfoNotPresent
 	_ = cht.cache.Erase(fileInfoKeyName)
 	err = cht.cacheHandle.validateEntryInFileInfoCache(cht.bucket, cht.object, 0, false)
 
-	expectedErr := fmt.Errorf("%w: no entry found in file info cache for key %v", util.ErrInvalidFileHandle, fileInfoKeyName)
+	expectedErr := fmt.Errorf("%w: no entry found in file info cache for key %v", util.ErrInvalidFileInfoCache, fileInfoKeyName)
 	assert.True(cht.T(), strings.Contains(err.Error(), expectedErr.Error()))
 }
 
