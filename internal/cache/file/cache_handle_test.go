@@ -192,7 +192,7 @@ func (cht *cacheHandleTest) Test_validateCacheHandle_WithNilFileInfoCache() {
 
 	err := cht.cacheHandle.validateCacheHandle()
 
-	assert.True(cht.T(), errors.Is(util.ErrInvalidFileHandle, err))
+	assert.True(cht.T(), errors.Is(err, util.ErrInvalidFileHandle))
 }
 
 func (cht *cacheHandleTest) Test_validateCacheHandle_WithNonNilMemberAttributes() {
@@ -274,7 +274,7 @@ func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobStateIsNotStarted() 
 	err := cht.cacheHandle.shouldReadFromCache(&jobStatus, requiredOffset)
 
 	assert.NotNil(cht.T(), err)
-	assert.True(cht.T(), errors.Is(util.ErrFallbackToGCS, err))
+	assert.True(cht.T(), errors.Is(err, util.ErrFallbackToGCS))
 }
 
 func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobStateIsFailed() {
@@ -285,7 +285,7 @@ func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobStateIsFailed() {
 	err := cht.cacheHandle.shouldReadFromCache(&jobStatus, requiredOffset)
 
 	assert.NotNil(cht.T(), err)
-	assert.True(cht.T(), errors.Is(util.ErrInvalidFileDownloadJob, err))
+	assert.True(cht.T(), errors.Is(err, util.ErrInvalidFileDownloadJob))
 }
 
 func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobStateIsInvalid() {
