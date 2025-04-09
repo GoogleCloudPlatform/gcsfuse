@@ -42,6 +42,7 @@ import (
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
+	"github.com/jonboulle/clockwork"
 	"golang.org/x/net/context"
 )
 
@@ -62,6 +63,9 @@ func (rr *checkingRandomReader) ReadAt(p []byte, offset int64) (ObjectData, erro
 	rr.wrapped.CheckInvariants()
 	defer rr.wrapped.CheckInvariants()
 	return rr.wrapped.ReadAt(rr.ctx, p, offset)
+	
+	
+	
 }
 
 func (rr *checkingRandomReader) Destroy() {
@@ -157,6 +161,7 @@ type RandomReaderTest struct {
 	cacheDir     string
 	jobManager   *downloader.JobManager
 	cacheHandler *file.CacheHandler
+	fakeClock    clockwork.Clock
 }
 
 func init() { RegisterTestSuite(&RandomReaderTest{}) }
@@ -165,6 +170,7 @@ var _ SetUpInterface = &RandomReaderTest{}
 var _ TearDownInterface = &RandomReaderTest{}
 
 func (t *RandomReaderTest) SetUp(ti *TestInfo) {
+	t.fakeClock = clockwork.NewFakeClock()
 	readOp := fuseops.ReadFileOp{Handle: 1}
 	t.rr.ctx = context.WithValue(ti.Ctx, ReadOp, &readOp)
 
@@ -186,7 +192,7 @@ func (t *RandomReaderTest) SetUp(ti *TestInfo) {
 	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm)
 
 	// Set up the reader.
-	rr := NewRandomReader(t.object, t.bucket, sequentialReadSizeInMb, nil, false, common.NewNoopMetrics(), nil)
+	rr := NewRandomReader(t.object, t.bucket, sequentialReadSizeInMb, nil, false, common.NewNoopMetrics(), nil, t.fakeClock)
 	t.rr.wrapped = rr.(*randomReader)
 }
 
@@ -260,6 +266,8 @@ func (t *RandomReaderTest) ExistingReader_ReadAtOffsetAfterTheReaderPosition() {
 	// Simulate an existing reader.
 	nopCloser := io.NopCloser(strings.NewReader(strings.Repeat("x", int(readerLimit))))
 	rc := &fake.FakeReader{ReadCloser: nopCloser}
+	t.rr.wrapped.activity = make(chan activity)
+	go t.rr.wrapped.monitorTimeout(t.rr.wrapped.activity)
 	t.rr.wrapped.reader = rc
 	t.rr.wrapped.cancel = func() {}
 	t.rr.wrapped.start = currentStartOffset
@@ -311,6 +319,8 @@ func (t *RandomReaderTest) ReaderNotExhausted() {
 	rc := &fake.FakeReader{ReadCloser: cc}
 
 	t.rr.wrapped.reader = rc
+	t.rr.wrapped.activity = make(chan activity)
+	go t.rr.wrapped.monitorTimeout(t.rr.wrapped.activity)
 	t.rr.wrapped.cancel = func() {}
 	t.rr.wrapped.start = 1
 	t.rr.wrapped.limit = 4
@@ -338,6 +348,8 @@ func (t *RandomReaderTest) ReaderExhausted_ReadFinished() {
 
 	t.rr.wrapped.reader = &fake.FakeReader{ReadCloser: rc}
 	t.rr.wrapped.cancel = func() {}
+	t.rr.wrapped.activity = make(chan activity)
+	go t.rr.wrapped.monitorTimeout(t.rr.wrapped.activity)
 	t.rr.wrapped.start = 1
 	t.rr.wrapped.limit = 4
 
@@ -362,6 +374,8 @@ func (t *RandomReaderTest) PropagatesCancellation() {
 	rc := io.NopCloser(&blockingReader{finishRead})
 
 	t.rr.wrapped.reader = &fake.FakeReader{ReadCloser: rc}
+	t.rr.wrapped.activity = make(chan activity)
+	go t.rr.wrapped.monitorTimeout(t.rr.wrapped.activity)
 	t.rr.wrapped.start = 1
 	t.rr.wrapped.limit = 4
 
@@ -400,6 +414,8 @@ func (t *RandomReaderTest) PropagatesCancellation() {
 func (t *RandomReaderTest) DoesntPropagateCancellationAfterReturning() {
 	// Set up a reader that will return three bytes.
 	t.rr.wrapped.reader = &fake.FakeReader{ReadCloser: getReadCloser([]byte("xxx"))}
+	t.rr.wrapped.activity = make(chan activity)
+	go t.rr.wrapped.monitorTimeout(t.rr.wrapped.activity)
 	t.rr.wrapped.start = 1
 	t.rr.wrapped.limit = 4
 
@@ -437,6 +453,8 @@ func (t *RandomReaderTest) UpgradesReadsToObjectSize() {
 	// Simulate an existing reader at a mismatched offset.
 	t.rr.wrapped.reader = &fake.FakeReader{ReadCloser: getReadCloser([]byte("xxx"))}
 	t.rr.wrapped.cancel = func() {}
+	t.rr.wrapped.activity = make(chan activity)
+	go t.rr.wrapped.monitorTimeout(t.rr.wrapped.activity)
 	t.rr.wrapped.start = 2
 	t.rr.wrapped.limit = 5
 
@@ -476,6 +494,8 @@ func (t *RandomReaderTest) UpgradeReadsToAverageSize() {
 	t.rr.wrapped.seeks = numReads
 	t.rr.wrapped.totalReadBytes = totalReadBytes
 	t.rr.wrapped.reader = &fake.FakeReader{ReadCloser: getReadCloser([]byte("xxx"))}
+	t.rr.wrapped.activity = make(chan activity)
+	go t.rr.wrapped.monitorTimeout(t.rr.wrapped.activity)
 	t.rr.wrapped.cancel = func() {}
 	t.rr.wrapped.start = 2
 	t.rr.wrapped.limit = 5
@@ -513,6 +533,8 @@ func (t *RandomReaderTest) UpgradesSequentialReads_ExistingReader() {
 
 	t.rr.wrapped.reader = &fake.FakeReader{ReadCloser: io.NopCloser(r)}
 	t.rr.wrapped.cancel = func() {}
+	t.rr.wrapped.activity = make(chan activity)
+	go t.rr.wrapped.monitorTimeout(t.rr.wrapped.activity)
 	t.rr.wrapped.start = 1
 	t.rr.wrapped.limit = 1 + existingSize
 
@@ -542,7 +564,7 @@ func (t *RandomReaderTest) UpgradesSequentialReads_NoExistingReader() {
 	t.object.Size = 1 << 40
 	const readSize = 1 * MB
 	// Set up the custom randomReader.
-	rr := NewRandomReader(t.object, t.bucket, readSize/MB, nil, false, common.NewNoopMetrics(), nil)
+	rr := NewRandomReader(t.object, t.bucket, readSize/MB, nil, false, common.NewNoopMetrics(), nil, t.fakeClock)
 	t.rr.wrapped = rr.(*randomReader)
 
 	// Simulate a previous exhausted reader that ended at the offset from which

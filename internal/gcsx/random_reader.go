@@ -29,10 +29,12 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	cacheutil "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/jacobsa/fuse/fuseops"
+	"github.com/jonboulle/clockwork"
 	"golang.org/x/net/context"
 )
 
@@ -109,9 +111,22 @@ const (
 	MultiRangeReader
 )
 
+type activityType int
+
+const (
+	resetTimer activityType = iota
+	pauseTimer
+)
+
+type activity struct {
+	activityType activityType
+}
+
+const inactiveRangeReaderTimeout = 2 * time.Second
+
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
-func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper) RandomReader {
+func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper, clock clockwork.Clock) RandomReader {
 	return &randomReader{
 		object:                o,
 		bucket:                bucket,
@@ -125,6 +140,9 @@ func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb i
 		cacheFileForRangeRead: cacheFileForRangeRead,
 		mrdWrapper:            mrdWrapper,
 		metricHandle:          metricHandle,
+		clock:                 clock,
+		timeout:               inactiveRangeReaderTimeout,
+		mu:                    locker.New("Randomreader lock for: "+o.Name, func() {}),
 	}
 }
 
@@ -137,6 +155,10 @@ type randomReader struct {
 	// INVARIANT: (reader == nil) == (cancel == nil)
 	reader gcs.StorageReader
 	cancel func()
+
+	// To guard reader resource, as it can be accessed simultaneously with the
+	// background monitorTimeout routine and main routine.
+	mu locker.Locker
 
 	// The range of the object that we expect reader to yield, when reader is
 	// non-nil. When reader is nil, limit is the limit of the previous read
@@ -180,12 +202,25 @@ type randomReader struct {
 	isMRDInUse bool
 
 	metricHandle common.MetricHandle
+
+	/** Attributes requires to support timeout for inactive range reader */
+	activity chan activity
+	clock    clockwork.Clock
+	timeout  time.Duration
 }
 
 func (rr *randomReader) CheckInvariants() {
+	rr.mu.Lock()
+	defer rr.mu.Unlock()
+
 	// INVARIANT: (reader == nil) == (cancel == nil)
 	if (rr.reader == nil) != (rr.cancel == nil) {
 		panic(fmt.Sprintf("Mismatch: %v vs. %v", rr.reader == nil, rr.cancel == nil))
+	}
+
+	// INVARIANT: (reader == nil) == (activity == nil)
+	if (rr.reader == nil) != (rr.activity == nil) {
+		panic(fmt.Sprintf("Mismatch: %v vs. %v", rr.reader == nil, rr.activity == nil))
 	}
 
 	// INVARIANT: start <= limit
@@ -339,6 +374,10 @@ func (rr *randomReader) ReadAt(
 		return
 	}
 
+	// Safely take lock, as ReadAt method is executed only by the main routine.
+	rr.mu.Lock()
+	defer rr.mu.Unlock()
+
 	// Check first if we can read using existing reader. if not, determine which
 	// api to use and call gcs accordingly.
 
@@ -412,6 +451,9 @@ func (rr *randomReader) Destroy() {
 		}
 	}()
 
+	rr.mu.Lock()
+	defer rr.mu.Unlock()
+
 	// Close out the reader, if we have one.
 	if rr.reader != nil {
 		rr.closeReader()
@@ -435,6 +477,7 @@ func (rr *randomReader) Destroy() {
 func (rr *randomReader) readFull(
 	ctx context.Context,
 	p []byte) (n int, err error) {
+
 	// Start a goroutine that will cancel the read operation we block on below if
 	// the calling context is cancelled, but only if this method has not already
 	// returned (to avoid souring the reader for the next read if this one is
@@ -460,7 +503,6 @@ func (rr *randomReader) readFull(
 
 	// Call through.
 	n, err = io.ReadFull(rr.reader, p)
-
 	return
 }
 
@@ -505,6 +547,10 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 	rr.cancel = cancel
 	rr.start = start
 	rr.limit = end
+
+	// Create the activity channel and background routine for the newly created reader.
+	rr.activity = make(chan activity)
+	go rr.monitorTimeout(rr.activity)
 
 	requestedDataSize := end - start
 	common.CaptureGCSReadMetrics(ctx, rr.metricHandle, util.Sequential, requestedDataSize)
@@ -593,6 +639,17 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 		}
 	}
 
+	defer func() {
+		// Reset the timer after the active read.
+		if rr.activity != nil { // rr.activity can be closed before.
+			rr.activity <- activity{activityType: resetTimer}
+		}
+	}()
+
+	// Pause the timer before actual read operation.
+	// Non-nil reader, ensures non-nil activity channel.
+	rr.activity <- activity{activityType: pauseTimer}
+
 	// Now we have a reader positioned at the correct place. Consume as much from
 	// it as possible.
 	n, err = rr.readFull(ctx, p)
@@ -662,9 +719,58 @@ func (rr *randomReader) readFromMultiRangeReader(ctx context.Context, p []byte, 
 
 // closeReader fetches the readHandle before closing the reader instance.
 func (rr *randomReader) closeReader() {
+	if rr.reader == nil {
+		return
+	}
+	close(rr.activity)
+	rr.activity = nil
 	rr.readHandle = rr.reader.ReadHandle()
 	err := rr.reader.Close()
 	if err != nil {
 		logger.Warnf("error while closing reader: %v", err)
+	}
+}
+
+// Background routine method to track the open range reader stream.
+// Routine runs until provided activityChan is not closed.
+func (rr *randomReader) monitorTimeout(activityChan <-chan activity) {
+	tt := rr.clock.NewTimer(rr.timeout)
+	defer tt.Stop()
+
+	for {
+		select {
+		case activity, ok := <-activityChan:
+			if !ok {
+				return
+			}
+			switch activity.activityType {
+			case pauseTimer:
+				tt.Stop()
+			case resetTimer:
+				tt.Reset(rr.timeout)
+			}
+		case <-tt.Chan():
+			select {
+			case activity, ok := <-activityChan:
+				if !ok {
+					return
+				}
+				switch activity.activityType {
+				case pauseTimer:
+					tt.Stop()
+				case resetTimer:
+					tt.Reset(rr.timeout)
+				}
+			default:
+				logger.Infof("Closing inactive reader connection of %s object.", rr.object.Name)
+				// Safely take lock, as only executed by the background routine.
+				rr.mu.Lock()
+				defer rr.mu.Unlock()
+				rr.closeReader()
+				rr.reader = nil
+				rr.cancel = nil
+				return
+			}
+		}
 	}
 }
