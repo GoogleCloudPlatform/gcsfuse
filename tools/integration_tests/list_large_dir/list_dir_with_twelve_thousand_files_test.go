@@ -132,29 +132,39 @@ func testdataUploadFilesToBucket(ctx context.Context, t *testing.T, storageClien
 		srcLocalFilePath string
 		dstGCSObjectPath string
 	}
-	numCopyGoroutines := 16
-	copyGoroutines := make([][]copyRequest, numCopyGoroutines)
-	copyRequestCounter := 0
-	for i := 0; i < numCopyGoroutines; i++ {
-		copyGoroutines[i] = []copyRequest{}
-	}
+	channel := make(chan copyRequest)
 
-	for _, match := range matches {
-		_, fileName := filepath.Split(match)
-		if len(fileName) > 0 {
-			copyGoroutineIndex := copyRequestCounter % numCopyGoroutines
-			copyGoroutines[copyGoroutineIndex] = append(copyGoroutines[copyGoroutineIndex], copyRequest{srcLocalFilePath: match, dstGCSObjectPath: filepath.Join(dirPathInBucket, fileName)})
-			copyRequestCounter++
+	// Copy request producer.
+	go func() {
+		for _, match := range matches {
+			_, fileName := filepath.Split(match)
+			if len(fileName) > 0 {
+				req := copyRequest{srcLocalFilePath: match, dstGCSObjectPath: filepath.Join(dirPathInBucket, fileName)}
+				channel <- req
+			}
 		}
-	}
+		// close the channel to let the go-routines know that there is no more object to be copied.
+		close(channel)
+	}()
 
+	// Copy request consumers.
+	numCopyGoroutines := 16
 	var wg sync.WaitGroup
-	for _, copyGoroutine := range copyGoroutines {
+	for copyGoroutine := 0; copyGoroutine < numCopyGoroutines; copyGoroutine++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for _, copyRequest := range copyGoroutine {
-				client.CopyFileInBucket(ctx, storageClient, copyRequest.srcLocalFilePath, copyRequest.dstGCSObjectPath, bucketName)
+			// It is needed to have an explicit variable to break out from this for-loop as the break statement inside
+			// the select statement applies only to the select statement, and not to the surrounding for-loop.
+			for stop := false; !stop; {
+				select {
+				case copyRequest, ok := <-channel:
+					if !ok {
+						stop = true
+						break
+					}
+					client.CopyFileInBucket(ctx, storageClient, copyRequest.srcLocalFilePath, copyRequest.dstGCSObjectPath, bucketName)
+				}
 			}
 		}()
 	}
