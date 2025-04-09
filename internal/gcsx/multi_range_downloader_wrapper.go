@@ -163,7 +163,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader() (err
 		return fmt.Errorf("ensureMultiRangeDownloader error: Missing minObject or bucket")
 	}
 	// Create the MRD if it does not exist.
-	// Incase the existing MRD is unusable due to closed stream, recreate the MRD.
+	// In case the existing MRD is unusable due to closed stream, recreate the MRD.
 	if mrdWrapper.Wrapped == nil || mrdWrapper.Wrapped.Error() != nil {
 		mrdWrapper.mu.Lock()
 		defer mrdWrapper.mu.Unlock()
