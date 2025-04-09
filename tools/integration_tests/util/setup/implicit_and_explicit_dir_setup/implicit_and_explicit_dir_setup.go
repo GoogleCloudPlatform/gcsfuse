@@ -176,5 +176,5 @@ func CreateImplicitDirectoryInExplicitDirectoryStructureUsingStorageClient(ctx c
 
 	CreateExplicitDirectoryStructure(testDir, t)
 	dirPathInBucket := path.Join(setup.TestBucket(), testDir, ExplicitDirectory)
-	createTestdataObjectsUsingStorageClient(ctx, storageClient, path.Join(setup.TestBucket(), dirPathInBucket), t)
+	createTestdataObjectsUsingStorageClient(ctx, storageClient, dirPathInBucket, t)
 }
