@@ -32,7 +32,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/clock"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -888,7 +887,6 @@ func (t *RandomReaderStretchrTest) Test_ReadFromMultiRangeReader_ValidateTimeout
 // Somehow not working as expected, seems some bug in the fakeClockTimer in reset.
 // Let's debug it later.
 func (t *RandomReaderStretchrTest) Test_ReadAt_InactiveReaderClosedAfterTimeout() {
-	t.rr.wrapped.readHandle = []byte("fake-handle")
 	t.rr.wrapped.reader = nil
 	t.rr.wrapped.start = 0
 	t.rr.wrapped.limit = 5
@@ -904,7 +902,6 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_InactiveReaderClosedAfterTimeout(
 			Limit: t.object.Size,
 		},
 		ReadCompressed: t.rr.wrapped.object.HasContentEncodingGzip(),
-		ReadHandle:     t.rr.wrapped.readHandle,
 	}
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).Return(rc, nil).Times(1)
 	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: false}).Once()
@@ -919,17 +916,110 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_InactiveReaderClosedAfterTimeout(
 	assert.Equal(t.T(), int64(5), t.rr.wrapped.limit)
 	assert.Equal(t.T(), uint64(3), t.rr.wrapped.totalReadBytes)
 
-	// t.fakeClock.BlockUntilContext(t.rr.ctx, 1)
 	t.fakeClock.BlockUntilContext(t.rr.ctx, 1)
-	t.fakeClock.Advance(inactiveRangeReaderTimeout + time.Second)
+	t.fakeClock.Advance(inactiveRangeReaderTimeout + time.Microsecond)
 
-	time.Sleep(1 * time.Second)
-	logger.Debugf("Testing...")
+	// Allow some time to monitoring routine to close the reader.
+	time.Sleep(100 * time.Millisecond)
 
 	assert.Nil(t.T(), t.rr.wrapped.reader)
 	assert.Nil(t.T(), t.rr.wrapped.cancel)
 	assert.Equal(t.T(), int64(3), t.rr.wrapped.start)
 	assert.Equal(t.T(), int64(5), t.rr.wrapped.limit)
 	assert.Equal(t.T(), uint64(3), t.rr.wrapped.totalReadBytes)
-	// assert.Equal(t.T(), tc.inputReadHandle, t.rr.wrapped.readHandle)
+}
+
+func (t *RandomReaderStretchrTest) Test_ReadAt_InactiveReaderClosedBeforeTimeout() {
+	t.rr.wrapped.reader = nil
+	t.rr.wrapped.start = 0
+	t.rr.wrapped.limit = 5
+	t.object.Size = 5
+	dataSize := 5
+	testContent := testutil.GenerateRandomBytes(int(t.object.Size))
+	rc := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
+	readObjectRequest := &gcs.ReadObjectRequest{
+		Name:       t.rr.wrapped.object.Name,
+		Generation: t.rr.wrapped.object.Generation,
+		Range: &gcs.ByteRange{
+			Start: uint64(0),
+			Limit: t.object.Size,
+		},
+		ReadCompressed: t.rr.wrapped.object.HasContentEncodingGzip(),
+	}
+	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).Return(rc, nil).Times(1)
+	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: false}).Once()
+	// Read slightly less than the reader length to keep the reader alive.
+	buf := make([]byte, dataSize-2)
+	objData, err := t.rr.ReadAt(buf, 0)
+	assert.Equal(t.T(), err, nil)
+	assert.Equal(t.T(), dataSize-2, objData.Size)
+	assert.NotNil(t.T(), t.rr.wrapped.reader)
+	assert.NotNil(t.T(), t.rr.wrapped.cancel)
+	assert.Equal(t.T(), int64(3), t.rr.wrapped.start)
+	assert.Equal(t.T(), int64(5), t.rr.wrapped.limit)
+	assert.Equal(t.T(), uint64(3), t.rr.wrapped.totalReadBytes)
+
+	t.fakeClock.BlockUntilContext(t.rr.ctx, 1)
+	t.fakeClock.Advance(inactiveRangeReaderTimeout - time.Millisecond)
+
+	// Allow some time to monitoring routine to close the reader.
+	time.Sleep(100 * time.Millisecond)
+
+	assert.NotNil(t.T(), t.rr.wrapped.reader)
+	assert.NotNil(t.T(), t.rr.wrapped.cancel)
+	assert.Equal(t.T(), int64(3), t.rr.wrapped.start)
+	assert.Equal(t.T(), int64(5), t.rr.wrapped.limit)
+	assert.Equal(t.T(), uint64(3), t.rr.wrapped.totalReadBytes)
+}
+
+func (t *RandomReaderStretchrTest) Test_ReadAt_ActualReadTimeShouldNotBeCountedInTimeout() {
+	t.rr.wrapped.reader = nil
+	t.rr.wrapped.start = 0
+	t.rr.wrapped.limit = 5
+	t.object.Size = 5
+	dataSize := 5
+	testContent := testutil.GenerateRandomBytes(int(t.object.Size))
+	rc := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
+	readObjectRequest := &gcs.ReadObjectRequest{
+		Name:       t.rr.wrapped.object.Name,
+		Generation: t.rr.wrapped.object.Generation,
+		Range: &gcs.ByteRange{
+			Start: uint64(0),
+			Limit: t.object.Size,
+		},
+		ReadCompressed: t.rr.wrapped.object.HasContentEncodingGzip(),
+	}
+	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).Return(rc, nil).Times(1)
+	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: false}).Once()
+	// Read slightly less than the reader length to keep the reader alive.
+	buf := make([]byte, dataSize-2)
+	objData, err := t.rr.ReadAt(buf, 0)
+	assert.Equal(t.T(), err, nil)
+	assert.Equal(t.T(), dataSize-2, objData.Size)
+	assert.NotNil(t.T(), t.rr.wrapped.reader)
+	assert.NotNil(t.T(), t.rr.wrapped.cancel)
+	assert.Equal(t.T(), int64(3), t.rr.wrapped.start)
+	assert.Equal(t.T(), int64(5), t.rr.wrapped.limit)
+	assert.Equal(t.T(), uint64(3), t.rr.wrapped.totalReadBytes)
+
+	t.fakeClock.BlockUntilContext(t.rr.ctx, 1)
+	t.fakeClock.Advance(inactiveRangeReaderTimeout - time.Millisecond)
+
+	// Allow some time to monitoring routine to close the reader.
+	time.Sleep(100 * time.Millisecond)
+
+	assert.NotNil(t.T(), t.rr.wrapped.reader)
+	assert.NotNil(t.T(), t.rr.wrapped.cancel)
+	assert.Equal(t.T(), int64(3), t.rr.wrapped.start)
+	assert.Equal(t.T(), int64(5), t.rr.wrapped.limit)
+	assert.Equal(t.T(), uint64(3), t.rr.wrapped.totalReadBytes)
+}
+
+// To ensure background routine (with activity channel) are created and destroyed correctly.
+func (t *RandomReaderStretchrTest) Test_Repeated_RangeReaderCreation() {
+
+}
+
+func (t *RandomReaderStretchrTest) Test_ReadAt_NoDataRaceForReader() {
+
 }

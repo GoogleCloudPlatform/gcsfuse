@@ -29,6 +29,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	cacheutil "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
@@ -121,7 +122,6 @@ type activity struct {
 	activityType activityType
 }
 
-const pauseTimerTimeout = 2 * time.Second
 const inactiveRangeReaderTimeout = 2 * time.Second
 
 // NewRandomReader create a random reader for the supplied object record that
@@ -140,8 +140,9 @@ func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb i
 		cacheFileForRangeRead: cacheFileForRangeRead,
 		mrdWrapper:            mrdWrapper,
 		metricHandle:          metricHandle,
-		clock: clock,
-		timeout: inactiveRangeReaderTimeout,
+		clock:                 clock,
+		timeout:               inactiveRangeReaderTimeout,
+		mu:                    locker.New("Randomreader lock for: "+o.Name, func() {}),
 	}
 }
 
@@ -154,6 +155,10 @@ type randomReader struct {
 	// INVARIANT: (reader == nil) == (cancel == nil)
 	reader gcs.StorageReader
 	cancel func()
+
+	// To guard reader resource, as it can be accessed simultaneously with the
+	// background monitorTimeout routine and main routine.
+	mu locker.Locker
 
 	// The range of the object that we expect reader to yield, when reader is
 	// non-nil. When reader is nil, limit is the limit of the previous read
@@ -366,6 +371,10 @@ func (rr *randomReader) ReadAt(
 		return
 	}
 
+	// Safely take lock, as ReadAt method is executed only by the main routine.
+	rr.mu.Lock()
+	defer rr.mu.Unlock()
+
 	// Check first if we can read using existing reader. if not, determine which
 	// api to use and call gcs accordingly.
 
@@ -488,9 +497,6 @@ func (rr *randomReader) readFull(
 
 	// Call through.
 	n, err = io.ReadFull(rr.reader, p)
-
-	// Reset the timer after the active read.
-	rr.activity <- activity{activityType: resetTimer}
 	return
 }
 
@@ -627,7 +633,15 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 		}
 	}
 
+	defer func() {
+		// Reset the timer after the active read.
+		if rr.activity != nil { // rr.activity can be closed before.
+			rr.activity <- activity{activityType: resetTimer}
+		}
+	}()
+
 	// Pause the timer before actual read operation.
+	// Non-nil reader, ensures non-nil activity channel.
 	rr.activity <- activity{activityType: pauseTimer}
 
 	// Now we have a reader positioned at the correct place. Consume as much from
@@ -711,7 +725,7 @@ func (rr *randomReader) closeReader() {
 	}
 }
 
-// Go routine to track the open range reader stream.
+// Background routine method to track the open range reader stream.
 // Routine runs until provided activityChan is not closed.
 func (rr *randomReader) monitorTimeout(activityChan <-chan activity) {
 	logger.Infof("top %s.", rr.object.Name)
@@ -722,25 +736,15 @@ func (rr *randomReader) monitorTimeout(activityChan <-chan activity) {
 		select {
 		case activity, ok := <-activityChan:
 			if !ok {
-				logger.Infof("activity closed %s.", rr.object.Name)
 				return
 			}
 			switch activity.activityType {
 			case pauseTimer:
-				// if !tt.Stop() {
-				// 	<-tt.Chan()
-				// }
-				logger.Infof("activity pause %s.", rr.object.Name)
-				tt.Reset(pauseTimerTimeout)
+				tt.Stop()
 			case resetTimer:
-				// if !tt.Stop() {
-				// 	<-tt.Chan()
-				// }
-				logger.Infof("activity reset %s.", rr.object.Name)
 				tt.Reset(rr.timeout)
 			}
 		case <-tt.Chan():
-			logger.Infof("expired %s.", rr.object.Name)
 			select {
 			case activity, ok := <-activityChan:
 				if !ok {
@@ -748,19 +752,15 @@ func (rr *randomReader) monitorTimeout(activityChan <-chan activity) {
 				}
 				switch activity.activityType {
 				case pauseTimer:
-					if !tt.Stop() {
-						<-tt.Chan()
-					}
-					
-					tt.Reset(pauseTimerTimeout)
+					tt.Stop()
 				case resetTimer:
-					if !tt.Stop() {
-						<-tt.Chan()
-					}
 					tt.Reset(rr.timeout)
 				}
 			default:
 				logger.Infof("Closing inactive reader connection of %s object.", rr.object.Name)
+				// Safely take lock, as only executed by the background routine.
+				rr.mu.Lock()
+				defer rr.mu.Unlock()
 				rr.closeReader()
 				rr.reader = nil
 				rr.cancel = nil
