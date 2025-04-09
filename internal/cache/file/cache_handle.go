@@ -82,7 +82,7 @@ func (fch *CacheHandle) shouldReadFromCache(jobStatus *downloader.JobStatus, req
 	if jobStatus.Err != nil ||
 		jobStatus.Name == downloader.Invalid ||
 		jobStatus.Name == downloader.Failed {
-		err := fmt.Errorf("%s: jobStatus: %s jobError: %w", util.ErrInvalidFileDownloadJob, jobStatus.Name, jobStatus.Err)
+		err := fmt.Errorf("%s: jobStatus: %s jobError: %w", util.ErrInvalidFileDownloadJob.Error(), jobStatus.Name, jobStatus.Err)
 		return err
 	} else if jobStatus.Offset < requiredOffset {
 		err := fmt.Errorf("%s: jobOffset: %d is less than required offset: %d", util.ErrFallbackToGCS.Error(), jobStatus.Offset, requiredOffset)
@@ -122,7 +122,7 @@ func (fch *CacheHandle) validateEntryInFileInfoCache(bucket gcs.Bucket, object *
 	// from local cached file to `dst` buffer.
 	fileInfoData := fileInfo.(data.FileInfo)
 	if fileInfoData.ObjectGeneration != object.Generation {
-		err = fmt.Errorf("%v: generation of cached object: %v is different from required generation: %v", util.ErrInvalidFileInfoCache, fileInfoData.ObjectGeneration, object.Generation)
+		err = fmt.Errorf("%v: generation of cached object: %v is different from required generation: %v", util.ErrInvalidFileInfoCache.Error(), fileInfoData.ObjectGeneration, object.Generation)
 		return err
 	}
 	if fileInfoData.Offset < requiredOffset {

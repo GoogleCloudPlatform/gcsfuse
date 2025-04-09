@@ -333,7 +333,7 @@ func Test_addFileInfoEntryAndCreateDownloadJob_IfLocalFileGetsDeleted(t *testing
 	// Hence, this will return error containing util.FileNotPresentInCacheErrMsg.
 	err = chTestArgs.cacheHandler.addFileInfoEntryAndCreateDownloadJob(chTestArgs.object, chTestArgs.bucket)
 
-	assert.ErrorContains(t, err, util.ErrFileNotPresentInCache.Error())
+	assert.True(t, errors.Is(err, util.ErrFileNotPresentInCache))
 }
 
 func Test_addFileInfoEntryAndCreateDownloadJob_WhenJobHasCompleted(t *testing.T) {
