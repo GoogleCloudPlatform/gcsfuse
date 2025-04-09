@@ -324,7 +324,7 @@ func (t *mrdWrapperTest) Test_EnsureMultiRangeDownloader() {
 			statusErr: fmt.Errorf("MRD status is unusable"),
 		},
 		{
-			name:   "UsableExistingMRDPreventsMRDRecreatione",
+			name:   "UsableExistingMRDPreventsMRDRecreation",
 			obj:    t.object,
 			bucket: t.mockBucket,
 			mrd: 	fake.NewFakeMultiRangeDownloaderWithStatusError(t.object,t.objectData,nil),
