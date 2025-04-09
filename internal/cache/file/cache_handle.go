@@ -66,11 +66,11 @@ func NewCacheHandle(localFileHandle *os.File, fileDownloadJob *downloader.Job,
 
 func (fch *CacheHandle) validateCacheHandle() error {
 	if fch.fileHandle == nil {
-		return errors.New(util.InvalidFileHandleErrMsg)
+		return util.ErrInvalidFileHandle
 	}
 
 	if fch.fileInfoCache == nil {
-		return errors.New(util.InvalidFileInfoCacheErrMsg)
+		return util.ErrInvalidFileInfoCache
 	}
 
 	return nil
@@ -82,10 +82,10 @@ func (fch *CacheHandle) shouldReadFromCache(jobStatus *downloader.JobStatus, req
 	if jobStatus.Err != nil ||
 		jobStatus.Name == downloader.Invalid ||
 		jobStatus.Name == downloader.Failed {
-		err := fmt.Errorf("%s: jobStatus: %s jobError: %w", util.InvalidFileDownloadJobErrMsg, jobStatus.Name, jobStatus.Err)
+		err := fmt.Errorf("%s: jobStatus: %s jobError: %w", util.ErrInvalidFileDownloadJob, jobStatus.Name, jobStatus.Err)
 		return err
 	} else if jobStatus.Offset < requiredOffset {
-		err := fmt.Errorf("%s: jobOffset: %d is less than required offset: %d", util.FallbackToGCSErrMsg, jobStatus.Offset, requiredOffset)
+		err := fmt.Errorf("%s: jobOffset: %d is less than required offset: %d", util.ErrFallbackToGCS.Error(), jobStatus.Offset, requiredOffset)
 		return err
 	}
 	return err
@@ -113,7 +113,7 @@ func (fch *CacheHandle) validateEntryInFileInfoCache(bucket gcs.Bucket, object *
 		fileInfo = fch.fileInfoCache.LookUpWithoutChangingOrder(fileInfoKeyName)
 	}
 	if fileInfo == nil {
-		err = fmt.Errorf("%v: no entry found in file info cache for key %v", util.InvalidFileInfoCacheErrMsg, fileInfoKeyName)
+		err = fmt.Errorf("%v: no entry found in file info cache for key %v", util.ErrInvalidFileInfoCache.Error(), fileInfoKeyName)
 		return err
 	}
 
@@ -122,11 +122,11 @@ func (fch *CacheHandle) validateEntryInFileInfoCache(bucket gcs.Bucket, object *
 	// from local cached file to `dst` buffer.
 	fileInfoData := fileInfo.(data.FileInfo)
 	if fileInfoData.ObjectGeneration != object.Generation {
-		err = fmt.Errorf("%v: generation of cached object: %v is different from required generation: %v", util.InvalidFileInfoCacheErrMsg, fileInfoData.ObjectGeneration, object.Generation)
+		err = fmt.Errorf("%v: generation of cached object: %v is different from required generation: %v", util.ErrInvalidFileInfoCache, fileInfoData.ObjectGeneration, object.Generation)
 		return err
 	}
 	if fileInfoData.Offset < requiredOffset {
-		err = fmt.Errorf("%v offset of cached object: %v is less than required offset %v", util.InvalidFileInfoCacheErrMsg, fileInfoData.Offset, requiredOffset)
+		err = fmt.Errorf("%v offset of cached object: %v is less than required offset %v", util.ErrInvalidFileInfoCache.Error(), fileInfoData.Offset, requiredOffset)
 		return err
 	}
 
@@ -222,13 +222,13 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 			// Ensure that the number of bytes read into dst buffer is equal to what is
 			// requested. It will also help catch cases where file in cache is truncated
 			// externally to size offset + x where x < requestedNumBytes.
-			errMsg := fmt.Sprintf("%s, number of bytes read from file in cache: %v are not equal to requested: %v", util.ErrInReadingFileHandleMsg, n, requestedNumBytes)
+			errMsg := fmt.Sprintf("%s, number of bytes read from file in cache: %v are not equal to requested: %v", util.ErrInReadingFileHandle.Error(), n, requestedNumBytes)
 			return 0, false, errors.New(errMsg)
 		}
 		err = nil
 	}
 	if err != nil {
-		err = fmt.Errorf("%s: while reading from %d offset of the local file: %w", util.ErrInReadingFileHandleMsg, offset, err)
+		err = fmt.Errorf("%s: while reading from %d offset of the local file: %w", util.ErrInReadingFileHandle.Error(), offset, err)
 		return 0, false, err
 	}
 

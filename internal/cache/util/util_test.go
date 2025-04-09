@@ -229,11 +229,11 @@ func (ut *utilTest) Test_getDownloadPath() {
 
 func (ut *utilTest) Test_IsCacheHandleValid_True() {
 	errMessages := []string{
-		InvalidFileHandleErrMsg + "test",
-		InvalidFileDownloadJobErrMsg + "test",
-		InvalidFileInfoCacheErrMsg + "test",
-		ErrInSeekingFileHandleMsg + "test",
-		ErrInReadingFileHandleMsg + "test",
+		ErrInvalidFileHandle.Error() + "test",
+		ErrInvalidFileDownloadJob.Error() + "test",
+		ErrInvalidFileInfoCache.Error() + "test",
+		ErrInSeekingFileHandle.Error() + "test",
+		ErrInReadingFileHandle.Error() + "test",
 	}
 
 	for _, errMsg := range errMessages {
@@ -243,7 +243,7 @@ func (ut *utilTest) Test_IsCacheHandleValid_True() {
 
 func (ut *utilTest) Test_IsCacheHandleValid_False() {
 	errMessages := []string{
-		FallbackToGCSErrMsg + "test",
+		ErrFallbackToGCS.Error() + "test",
 		"random error message",
 	}
 

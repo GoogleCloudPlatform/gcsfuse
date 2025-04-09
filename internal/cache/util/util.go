@@ -23,7 +23,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 	"unsafe"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
@@ -31,15 +30,15 @@ import (
 	"github.com/jacobsa/fuse/fsutil"
 )
 
-const (
-	InvalidFileHandleErrMsg                   = "invalid file handle"
-	InvalidFileDownloadJobErrMsg              = "invalid download job"
-	InvalidFileInfoCacheErrMsg                = "invalid file info cache"
-	ErrInSeekingFileHandleMsg                 = "error while seeking file handle"
-	ErrInReadingFileHandleMsg                 = "error while reading file handle"
-	FallbackToGCSErrMsg                       = "read via gcs"
-	FileNotPresentInCacheErrMsg               = "file is not present in cache"
-	CacheHandleNotRequiredForRandomReadErrMsg = "cacheFileForRangeRead is false, read type random read and fileInfo entry is absent"
+var (
+	ErrInvalidFileHandle                   = errors.New("invalid file handle")
+	ErrInvalidFileDownloadJob              = errors.New("invalid download job")
+	ErrInvalidFileInfoCache                = errors.New("invalid file info cache")
+	ErrInSeekingFileHandle                 = errors.New("error while seeking file handle")
+	ErrInReadingFileHandle                 = errors.New("error while reading file handle")
+	ErrFallbackToGCS                       = errors.New("read via gcs")
+	ErrFileNotPresentInCache               = errors.New("file is not present in cache")
+	ErrCacheHandleNotRequiredForRandomRead = errors.New("cacheFileForRangeRead is false, read type random read and fileInfo entry is absent")
 )
 
 const (
@@ -99,11 +98,11 @@ func GetDownloadPath(cacheDir string, objectPath string) string {
 // If it's invalid then we should close that cacheHandle and create new cacheHandle
 // for next call onwards.
 func IsCacheHandleInvalid(readErr error) bool {
-	return strings.Contains(readErr.Error(), InvalidFileHandleErrMsg) ||
-		strings.Contains(readErr.Error(), InvalidFileDownloadJobErrMsg) ||
-		strings.Contains(readErr.Error(), InvalidFileInfoCacheErrMsg) ||
-		strings.Contains(readErr.Error(), ErrInSeekingFileHandleMsg) ||
-		strings.Contains(readErr.Error(), ErrInReadingFileHandleMsg)
+	return errors.Is(readErr, ErrInvalidFileHandle) ||
+		errors.Is(readErr, ErrInvalidFileDownloadJob) ||
+		errors.Is(readErr, ErrInvalidFileInfoCache) ||
+		errors.Is(readErr, ErrInSeekingFileHandle) ||
+		errors.Is(readErr, ErrInReadingFileHandle)
 }
 
 // CreateCacheDirectoryIfNotPresentAt Creates directory at given path with

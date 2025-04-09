@@ -20,7 +20,6 @@ import (
 	"io"
 	"math"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -260,10 +259,10 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 		rr.fileCacheHandle, err = rr.fileCacheHandler.GetCacheHandle(rr.object, rr.bucket, rr.cacheFileForRangeRead, offset)
 		if err != nil {
 			// We fall back to GCS if file size is greater than the cache size
-			if strings.Contains(err.Error(), lru.InvalidEntrySizeErrorMsg) {
+			if errors.Is(err, lru.ErrInvalidEntrySize) {
 				logger.Warnf("tryReadingFromFileCache: while creating CacheHandle: %v", err)
 				return 0, false, nil
-			} else if strings.Contains(err.Error(), cacheutil.CacheHandleNotRequiredForRandomReadErrMsg) {
+			} else if errors.Is(err, cacheutil.ErrCacheHandleNotRequiredForRandomRead) {
 				// Fall back to GCS if it is a random read, cacheFileForRangeRead is
 				// False and there doesn't already exist file in cache.
 				isSeq = false
@@ -289,7 +288,7 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 			logger.Warnf("tryReadingFromFileCache: while closing fileCacheHandle: %v", err)
 		}
 		rr.fileCacheHandle = nil
-	} else if !strings.Contains(err.Error(), cacheutil.FallbackToGCSErrMsg) {
+	} else if errors.Is(err, cacheutil.ErrFallbackToGCS) {
 		err = fmt.Errorf("tryReadingFromFileCache: while reading via cache: %w", err)
 		return
 	}

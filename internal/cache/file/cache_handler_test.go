@@ -17,6 +17,7 @@ package file
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"os"
 	"path"
 	"strconv"
@@ -332,7 +333,7 @@ func Test_addFileInfoEntryAndCreateDownloadJob_IfLocalFileGetsDeleted(t *testing
 	// Hence, this will return error containing util.FileNotPresentInCacheErrMsg.
 	err = chTestArgs.cacheHandler.addFileInfoEntryAndCreateDownloadJob(chTestArgs.object, chTestArgs.bucket)
 
-	assert.ErrorContains(t, err, util.FileNotPresentInCacheErrMsg)
+	assert.ErrorContains(t, err, util.ErrFileNotPresentInCache.Error())
 }
 
 func Test_addFileInfoEntryAndCreateDownloadJob_WhenJobHasCompleted(t *testing.T) {
@@ -530,7 +531,7 @@ func Test_GetCacheHandle_IfLocalFileGetsDeleted(t *testing.T) {
 
 	cacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(chTestArgs.object, chTestArgs.bucket, false, 0)
 
-	assert.ErrorContains(t, err, util.FileNotPresentInCacheErrMsg)
+	assert.True(t, errors.Is(err, util.ErrFileNotPresentInCache))
 	assert.Nil(t, cacheHandle)
 	// Check file info and download job are not removed
 	assert.True(t, isEntryInFileInfoCache(t, chTestArgs.cache, chTestArgs.object.Name, chTestArgs.bucket.Name()))
@@ -577,7 +578,7 @@ func Test_GetCacheHandle_CacheForRangeRead(t *testing.T) {
 
 			assert.NoError(t, err1)
 			assert.Nil(t, cacheHandle1.validateCacheHandle())
-			assert.ErrorContains(t, err2, util.CacheHandleNotRequiredForRandomReadErrMsg)
+			assert.True(t, errors.Is(err2, util.ErrCacheHandleNotRequiredForRandomRead))
 			assert.Nil(t, cacheHandle2)
 			assert.NoError(t, err3)
 			assert.Nil(t, cacheHandle3.validateCacheHandle())

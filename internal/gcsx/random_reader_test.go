@@ -907,7 +907,7 @@ func (t *RandomReaderTest) Test_ReadAt_IfCacheFileGetsDeleted() {
 	_, err = t.rr.ReadAt(buf, 0)
 
 	AssertNe(nil, err)
-	ExpectTrue(strings.Contains(err.Error(), util.FileNotPresentInCacheErrMsg))
+	AssertTrue(errors.Is(err, util.ErrFileNotPresentInCache))
 }
 
 func (t *RandomReaderTest) Test_ReadAt_IfCacheFileGetsDeletedWithCacheHandleOpen() {
