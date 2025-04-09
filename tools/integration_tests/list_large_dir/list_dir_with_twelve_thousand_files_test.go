@@ -110,7 +110,7 @@ func splitBucketNameAndDirPath(t *testing.T, bucketNameWithDirPath string) (buck
 	var found bool
 	bucketName, dirPathInBucket, found = strings.Cut(bucketNameWithDirPath, "/")
 	if !found {
-		t.Errorf("Unexpected bucketNameWithDirPath: %q. Expected form: <bucket>/<object-name>", bucketNameWithDirPath)
+		t.Fatalf("Unexpected bucketNameWithDirPath: %q. Expected form: <bucket>/<object-name>", bucketNameWithDirPath)
 	}
 	return
 }
