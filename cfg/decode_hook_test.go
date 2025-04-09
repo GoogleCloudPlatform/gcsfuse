@@ -34,6 +34,7 @@ func bindFlag(t *testing.T, v *viper.Viper, key string, f *flag.Flag) {
 }
 
 func TestParsingSuccess(t *testing.T) {
+	t.Parallel()
 	type TestConfig struct {
 		OctalParam       Octal
 		BoolParam        bool
@@ -215,6 +216,7 @@ func TestParsingSuccess(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			if tc.setupFn != nil {
@@ -240,6 +242,7 @@ func TestParsingSuccess(t *testing.T) {
 }
 
 func TestParsingError(t *testing.T) {
+	t.Parallel()
 	type TestConfig struct {
 		OctalParam       Octal
 		LogSeverityParam LogSeverity
@@ -282,6 +285,7 @@ func TestParsingError(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			fs := declareFlags()
