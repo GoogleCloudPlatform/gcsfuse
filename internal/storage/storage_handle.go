@@ -92,7 +92,7 @@ func createClientOptionForGRPCClient(clientConfig *storageutil.StorageClientConf
 	if clientConfig.AnonymousAccess {
 		clientOpts = append(clientOpts, option.WithoutAuthentication())
 	} else {
-		tokenSrc, tokenCreationErr := storageutil.CreateTokenSource(clientConfig)
+		tokenSrc, _, tokenCreationErr := storageutil.CreateTokenSource(clientConfig)
 		if tokenCreationErr != nil {
 			err = fmt.Errorf("while fetching tokenSource: %w", tokenCreationErr)
 			return
@@ -172,12 +172,16 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 
 	// Add WithHttpClient option.
 	var httpClient *http.Client
-	httpClient, err = storageutil.CreateHttpClient(clientConfig)
+	var domain string
+	httpClient, domain, err = storageutil.CreateHttpClient(clientConfig)
 	if err != nil {
 		err = fmt.Errorf("while creating http endpoint: %w", err)
 		return
 	}
 
+	if domain == "apis-tpczero.goog" {
+		clientOpts = append(clientOpts, option.WithEndpoint("https://storage.apis-tpczero.goog/storage/v1/."))
+	}
 	clientOpts = append(clientOpts, option.WithHTTPClient(httpClient))
 
 	if clientConfig.AnonymousAccess {
