@@ -58,7 +58,10 @@ func TestWritesWithDifferentConfig(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			setup.MountGCSFuseWithGivenMountFunc(tc.flags, mountFunc)
-			defer setup.UnmountGCSFuse(rootDir)
+			defer func() {
+				setup.UnmountGCSFuse(rootDir)
+				setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+			}()
 			testDirPath = setup.SetupTestDirectory(testDirName)
 			// Create a local file.
 			_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)

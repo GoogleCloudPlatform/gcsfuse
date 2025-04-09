@@ -49,14 +49,17 @@ func (t *defaultMountCommonTest) SetupSuite() {
 
 func (t *defaultMountCommonTest) TearDownSuite() {
 	setup.UnmountGCSFuse(rootDir)
+	setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
 }
 
 func (t *defaultMountCommonTest) readFileSucceedsForZonalBucket(filePath, expectedData string) {
 	actualData, err := os.ReadFile(filePath)
-	if !setup.IsZonalBucketRun() {
-		require.Error(t.T(), err)
-	} else {
+	if setup.IsZonalBucketRun() {
 		require.NoError(t.T(), err)
 		assert.Equal(t.T(), expectedData, string(actualData))
+
+	} else {
+		require.Error(t.T(), err)
+
 	}
 }

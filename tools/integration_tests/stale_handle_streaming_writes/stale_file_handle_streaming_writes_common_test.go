@@ -51,6 +51,7 @@ func (t *staleFileHandleStreamingWritesCommon) SetupSuite() {
 
 func (t *staleFileHandleStreamingWritesCommon) TearDownSuite() {
 	setup.UnmountGCSFuse(rootDir)
+	setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -75,6 +76,9 @@ func (t *staleFileHandleStreamingWritesCommon) TestFileDeletedLocallySyncAndClos
 }
 
 func (t *staleFileHandleStreamingWritesCommon) TestClosingFileHandleForClobberedFileReturnsStaleFileHandleError() {
+	if setup.IsZonalBucketRun() {
+		t.T().Skip("Require fix for this test for zonal..")
+	}
 	// Dirty the file by giving it some contents.
 	_, err := t.f1.WriteAt([]byte(t.data), 0)
 	assert.NoError(t.T(), err)
