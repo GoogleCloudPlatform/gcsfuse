@@ -210,6 +210,9 @@ type randomReader struct {
 }
 
 func (rr *randomReader) CheckInvariants() {
+	rr.mu.Lock()
+	defer rr.mu.Unlock()
+
 	// INVARIANT: (reader == nil) == (cancel == nil)
 	if (rr.reader == nil) != (rr.cancel == nil) {
 		panic(fmt.Sprintf("Mismatch: %v vs. %v", rr.reader == nil, rr.cancel == nil))
@@ -447,6 +450,9 @@ func (rr *randomReader) Destroy() {
 			rr.isMRDInUse = false
 		}
 	}()
+
+	rr.mu.Lock()
+	defer rr.mu.Unlock()
 
 	// Close out the reader, if we have one.
 	if rr.reader != nil {
@@ -728,7 +734,6 @@ func (rr *randomReader) closeReader() {
 // Background routine method to track the open range reader stream.
 // Routine runs until provided activityChan is not closed.
 func (rr *randomReader) monitorTimeout(activityChan <-chan activity) {
-	logger.Infof("top %s.", rr.object.Name)
 	tt := rr.clock.NewTimer(rr.timeout)
 	defer tt.Stop()
 

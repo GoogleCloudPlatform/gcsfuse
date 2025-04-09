@@ -41,6 +41,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"sync"
 )
 
 const TestTimeoutForMultiRangeRead = time.Second
@@ -920,7 +921,11 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_InactiveReaderClosedAfterTimeout(
 	t.fakeClock.Advance(inactiveRangeReaderTimeout + time.Microsecond)
 
 	// Allow some time to monitoring routine to close the reader.
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(time.Millisecond)
+
+	// Ensure lock before accessing the reader.
+	t.rr.wrapped.mu.Lock()
+	defer t.rr.wrapped.mu.Unlock()
 
 	assert.Nil(t.T(), t.rr.wrapped.reader)
 	assert.Nil(t.T(), t.rr.wrapped.cancel)
@@ -1017,9 +1022,206 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_ActualReadTimeShouldNotBeCountedI
 
 // To ensure background routine (with activity channel) are created and destroyed correctly.
 func (t *RandomReaderStretchrTest) Test_Repeated_RangeReaderCreation() {
+	t.rr.wrapped.reader = nil
+	t.rr.wrapped.start = -1 // Ensure no initial reader state
+	t.rr.wrapped.limit = -1
+	t.object.Size = 20
+	testContent := testutil.GenerateRandomBytes(int(t.object.Size))
 
+	// --- First Read (Partial) ---
+	// This should create the reader, cancel func, activity chan, and monitor goroutine.
+	firstReadSize := 10
+	firstReadOffset := int64(0)
+	buf1 := make([]byte, firstReadSize)
+	rc1 := &fake.FakeReader{ReadCloser: getReadCloser(testContent), Handle: []byte("handle1")}
+
+	readObjectRequest1 := &gcs.ReadObjectRequest{
+		Name:       t.rr.wrapped.object.Name,
+		Generation: t.rr.wrapped.object.Generation,
+		Range: &gcs.ByteRange{
+			Start: uint64(firstReadOffset),
+			Limit: t.object.Size, // Expecting sequential read size logic
+		},
+		ReadCompressed: t.rr.wrapped.object.HasContentEncodingGzip(),
+		ReadHandle:     nil, // First read, no handle yet
+	}
+	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest1).Return(rc1, nil).Once()
+	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: false}).Once() // Called during the first ReadAt
+
+	objData1, err1 := t.rr.ReadAt(buf1, firstReadOffset)
+	require.NoError(t.T(), err1)
+	require.Equal(t.T(), firstReadSize, objData1.Size)
+	require.Equal(t.T(), testContent[:firstReadSize], buf1)
+
+	// Verify state after first partial read
+	t.rr.wrapped.mu.Lock()
+	require.NotNil(t.T(), t.rr.wrapped.reader, "Reader should be active after first partial read")
+	require.NotNil(t.T(), t.rr.wrapped.cancel, "Cancel func should exist after first partial read")
+	require.NotNil(t.T(), t.rr.wrapped.activity, "Activity channel should exist after first partial read")
+	require.Equal(t.T(), int64(firstReadSize), t.rr.wrapped.start) // Start should be advanced
+	require.Equal(t.T(), int64(t.object.Size), t.rr.wrapped.limit) // Limit determined by getReadInfo
+	firstActivityChan := t.rr.wrapped.activity
+	t.rr.wrapped.mu.Unlock()
+
+	// --- Second Read (Completes the first reader) ---
+	// This should read the rest of the data from the existing reader and close it.
+	secondReadSize := int(t.object.Size) - firstReadSize
+	secondReadOffset := int64(firstReadSize)
+	buf2 := make([]byte, secondReadSize)
+
+	// No NewReaderWithReadHandle mock needed here, should use existing reader
+
+	objData2, err2 := t.rr.ReadAt(buf2, secondReadOffset)
+	require.NoError(t.T(), err2)
+	require.Equal(t.T(), secondReadSize, objData2.Size)
+	require.Equal(t.T(), testContent[firstReadSize:], buf2)
+
+	// Verify state after reader is exhausted and closed
+	t.rr.wrapped.mu.Lock()
+	require.Nil(t.T(), t.rr.wrapped.reader, "Reader should be nil after being fully read")
+	require.Nil(t.T(), t.rr.wrapped.cancel, "Cancel func should be nil after reader closed")
+	require.Nil(t.T(), t.rr.wrapped.activity, "Activity channel should be nil after reader closed")
+	require.Equal(t.T(), int64(t.object.Size), t.rr.wrapped.start) // Start should be at the end
+	require.Equal(t.T(), int64(t.object.Size), t.rr.wrapped.limit) // Limit remains from previous read info
+	require.Equal(t.T(), []byte("handle1"), t.rr.wrapped.readHandle, "Read handle should be saved")
+	t.rr.wrapped.mu.Unlock()
+
+	// Check if the activity channel was actually closed (monitor goroutine should exit)
+	select {
+	case _, ok := <-firstActivityChan:
+		require.False(t.T(), ok, "Activity channel should be closed")
+	case <-time.After(100 * time.Millisecond): // Timeout to prevent test hanging
+		t.T().Fatal("Activity channel was not closed")
+	}
+
+	// --- Third Read (Starts a new reader) ---
+	// This should create a new reader, cancel func, activity chan, and monitor goroutine.
+	thirdReadSize := 5
+	thirdReadOffset := int64(0) // Read from the beginning again
+	buf3 := make([]byte, thirdReadSize)
+	rc2 := &fake.FakeReader{ReadCloser: getReadCloser(testContent), Handle: []byte("handle2")}
+
+	readObjectRequest2 := &gcs.ReadObjectRequest{
+		Name:       t.rr.wrapped.object.Name,
+		Generation: t.rr.wrapped.object.Generation,
+		Range: &gcs.ByteRange{
+			Start: uint64(thirdReadOffset),
+			Limit: t.object.Size, // Expecting sequential read size logic again
+		},
+		ReadCompressed: t.rr.wrapped.object.HasContentEncodingGzip(),
+		ReadHandle:     []byte("handle1"), // Should use the saved handle
+	}
+	// Expect a new reader call because the previous one was closed
+	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest2).Return(rc2, nil).Once()
+	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: false}).Once() // Called again for the new read
+
+	objData3, err3 := t.rr.ReadAt(buf3, thirdReadOffset)
+	require.NoError(t.T(), err3)
+	require.Equal(t.T(), thirdReadSize, objData3.Size)
+	require.Equal(t.T(), testContent[:thirdReadSize], buf3)
+
+	// Verify state after third partial read (new reader)
+	t.rr.wrapped.mu.Lock()
+	require.NotNil(t.T(), t.rr.wrapped.reader, "Reader should be active again")
+	require.NotNil(t.T(), t.rr.wrapped.cancel, "Cancel func should exist again")
+	require.NotNil(t.T(), t.rr.wrapped.activity, "Activity channel should exist again")
+	require.NotEqual(t.T(), firstActivityChan, t.rr.wrapped.activity, "Should be a new activity channel")
+	require.Equal(t.T(), int64(thirdReadSize), t.rr.wrapped.start) // Start advanced by the third read
+	require.Equal(t.T(), int64(t.object.Size), t.rr.wrapped.limit) // Limit from the new getReadInfo
+	t.rr.wrapped.mu.Unlock()
+
+	// Final check on mocks
+	t.mockBucket.AssertExpectations(t.T())
 }
 
+// Add this test function to the RandomReaderStretchrTest suite in random_reader_stretchr_test.go
 func (t *RandomReaderStretchrTest) Test_ReadAt_NoDataRaceForReader() {
+	t.rr.wrapped.reader = nil
+	t.rr.wrapped.start = 0
+	t.rr.wrapped.limit = 5
+	t.object.Size = 5
+	dataSize := 5
+	testContent := testutil.GenerateRandomBytes(int(t.object.Size))
+	rc1 := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
+	rc2 := &fake.FakeReader{ReadCloser: getReadCloser(testContent[dataSize-2:])} // Reader for the second read if the first is closed
 
+	// Mock the first read call
+	readObjectRequest1 := &gcs.ReadObjectRequest{
+		Name:       t.rr.wrapped.object.Name,
+		Generation: t.rr.wrapped.object.Generation,
+		Range: &gcs.ByteRange{
+			Start: uint64(0),
+			Limit: t.object.Size,
+		},
+		ReadCompressed: t.rr.wrapped.object.HasContentEncodingGzip(),
+	}
+	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest1).Return(rc1, nil).Once()
+	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: false}).Once() // Called during the first ReadAt
+
+	// Perform the first read (partial) to activate the reader and monitor
+	firstReadSize := dataSize - 2
+	buf1 := make([]byte, firstReadSize)
+	objData, err := t.rr.ReadAt(buf1, 0)
+	require.NoError(t.T(), err)
+	require.Equal(t.T(), firstReadSize, objData.Size)
+	require.NotNil(t.T(), t.rr.wrapped.reader, "Reader should be active after first partial read")
+	require.NotNil(t.T(), t.rr.wrapped.cancel, "Cancel func should exist after first partial read")
+	require.NotNil(t.T(), t.rr.wrapped.activity, "Activity channel should exist after first partial read")
+
+	// Mock the potential second read call (if the monitor closes the first reader)
+	// The offset will be where the first read left off.
+	// The end will be determined by getReadInfo logic again.
+	expectedSecondReadOffset := int64(firstReadSize)
+	expectedEnd, err := t.rr.wrapped.getReadInfo(expectedSecondReadOffset, int64(dataSize-firstReadSize))
+	require.NoError(t.T(), err)
+	readObjectRequest2 := &gcs.ReadObjectRequest{
+		Name:       t.rr.wrapped.object.Name,
+		Generation: t.rr.wrapped.object.Generation,
+		Range: &gcs.ByteRange{
+			Start: uint64(expectedSecondReadOffset),
+			Limit: uint64(expectedEnd), // Use the calculated end
+		},
+		ReadCompressed: t.rr.wrapped.object.HasContentEncodingGzip(),
+		ReadHandle:     t.rr.wrapped.readHandle, // May or may not have a handle depending on rc1
+	}
+	// This mock might be called if the timeout routine closes the reader before the second ReadAt acquires the lock.
+	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest2).Return(rc2, nil).Maybe()
+	// BucketType might be called again if a new reader is created.
+	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: false}).Maybe()
+
+	// Wait until the monitor goroutine is definitely waiting on the timer
+	t.fakeClock.BlockUntilContext(t.rr.ctx, 1)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	// Goroutine to advance time and trigger the monitor timeout
+	go func() {
+		defer wg.Done()
+		t.fakeClock.Advance(inactiveRangeReaderTimeout + time.Millisecond)
+		// Give a very short time for the monitor to potentially wake up and contend for the lock
+		time.Sleep(5 * time.Millisecond)
+	}()
+
+	// Goroutine to perform the second read concurrently
+	var secondReadErr error
+	var objData2 ObjectData
+	buf2 := make([]byte, dataSize-firstReadSize)
+	go func() {
+		defer wg.Done()
+		// Small sleep to increase the chance of racing with the monitor timeout goroutine
+		time.Sleep(1 * time.Millisecond)
+		objData2, secondReadErr = t.rr.ReadAt(buf2, int64(firstReadSize))
+	}()
+
+	wg.Wait()
+
+	// Assertions: The primary goal is that `go test -race` passes.
+	// The exact state after the race depends on timing, but the second read should eventually succeed.
+	assert.NoError(t.T(), secondReadErr, "Second read should succeed eventually")
+	assert.Equal(t.T(), dataSize-firstReadSize, objData2.Size, "Second read should return correct number of bytes")
+	assert.Equal(t.T(), testContent[firstReadSize:], buf2[:objData2.Size], "Second read should return correct data")
+
+	// Clean up mocks that might not have been called
+	t.mockBucket.AssertExpectations(t.T())
 }
