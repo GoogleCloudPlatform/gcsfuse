@@ -83,6 +83,9 @@ type RandomReader interface {
 	// Clean up any resources associated with the reader, which must not be used
 	// again.
 	Destroy()
+
+	// Returns true if random reader is stale.
+	IsStale() bool
 }
 
 // ObjectData specifies the response returned as part of ReadAt call.
@@ -113,6 +116,7 @@ const (
 func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper) RandomReader {
 	return &randomReader{
 		object:                o,
+		readerGeneration:      o.Generation,
 		bucket:                bucket,
 		start:                 -1,
 		limit:                 -1,
@@ -130,6 +134,8 @@ func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb i
 type randomReader struct {
 	object *gcs.MinObject
 	bucket gcs.Bucket
+	// Generation to which random reader is bound to...
+	readerGeneration int64
 
 	// If non-nil, an in-flight read request and a function for cancelling it.
 	//
@@ -426,6 +432,10 @@ func (rr *randomReader) Destroy() {
 		}
 		rr.fileCacheHandle = nil
 	}
+}
+
+func (rr *randomReader) IsStale() bool {
+	return rr.object.Generation != rr.readerGeneration
 }
 
 // Like io.ReadFull, but deals with the cancellation issues.

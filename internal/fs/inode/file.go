@@ -364,9 +364,7 @@ func (f *FileInode) Unlink() {
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Source() *gcs.MinObject {
-	// Make a copy, since we modify f.src.
-	o := f.src
-	return &o
+	return &f.src
 }
 
 // If true, it is safe to serve reads directly from the object given by
@@ -740,8 +738,12 @@ func (f *FileInode) SetMtime(
 		if minObjPtr != nil {
 			minObj = *minObjPtr
 		}
+		before := &f.src
 		f.src = minObj
-		f.updateMRDWrapper()
+		after := &f.src
+		if after != before {
+			logger.Fatal("This must not happen..")
+		}
 		return
 	}
 
@@ -883,9 +885,12 @@ func (f *FileInode) Flush(ctx context.Context) (err error) {
 
 func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 	if minObj != nil && !f.localFileCache {
+		before := &f.src
 		f.src = *minObj
-		// Update MRDWrapper
-		f.updateMRDWrapper()
+		after := &f.src
+		if before != after {
+			logger.Fatal("This must not happen..")
+		}
 		// Convert localFile to nonLocalFile after it is synced to GCS.
 		if f.IsLocal() {
 			f.local = false
@@ -900,15 +905,6 @@ func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 	}
 
 	return
-}
-
-// Updates the min object stored in MRDWrapper corresponding to the inode.
-// Should be called when minObject associated with inode is updated.
-func (f *FileInode) updateMRDWrapper() {
-	err := f.MRDWrapper.SetMinObject(&f.src)
-	if err != nil {
-		logger.Errorf("FileInode::updateMRDWrapper Error in setting minObject %v", err)
-	}
 }
 
 // Truncate the file to the specified size.
