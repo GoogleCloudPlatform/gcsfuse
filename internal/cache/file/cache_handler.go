@@ -217,7 +217,7 @@ func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket
 
 		fileInfo := chr.fileInfoCache.LookUpWithoutChangingOrder(fileInfoKeyName)
 		if fileInfo == nil {
-			return nil, fmt.Errorf("addFileInfoEntryAndCreateDownloadJob: %s", util.ErrCacheHandleNotRequiredForRandomRead.Error())
+			return nil, fmt.Errorf("addFileInfoEntryAndCreateDownloadJob: %w", util.ErrCacheHandleNotRequiredForRandomRead)
 		}
 	}
 

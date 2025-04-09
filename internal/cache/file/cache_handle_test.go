@@ -389,7 +389,7 @@ func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_FileInfoNotPresent
 	_ = cht.cache.Erase(fileInfoKeyName)
 	err = cht.cacheHandle.validateEntryInFileInfoCache(cht.bucket, cht.object, 0, false)
 
-	expectedErr := fmt.Errorf("%v: no entry found in file info cache for key %v", util.ErrInvalidFileHandle.Error(), fileInfoKeyName)
+	expectedErr := fmt.Errorf("%w: no entry found in file info cache for key %v", util.ErrInvalidFileHandle, fileInfoKeyName)
 	assert.True(cht.T(), strings.Contains(err.Error(), expectedErr.Error()))
 }
 
@@ -411,7 +411,7 @@ func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_FileInfoGeneration
 
 	err = cht.cacheHandle.validateEntryInFileInfoCache(cht.bucket, cht.object, cht.object.Size-1, true)
 
-	expectedErr := fmt.Errorf("%v: generation of cached object: %v is different from required generation: ", util.ErrInvalidFileInfoCache.Error(), fileInfo.ObjectGeneration)
+	expectedErr := fmt.Errorf("%w: generation of cached object: %v is different from required generation: ", util.ErrInvalidFileInfoCache, fileInfo.ObjectGeneration)
 	assert.True(cht.T(), strings.Contains(err.Error(), expectedErr.Error()))
 }
 
@@ -434,7 +434,7 @@ func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_FileInfoOffsetLess
 	err = cht.cacheHandle.validateEntryInFileInfoCache(cht.bucket, cht.object, 11, true)
 
 	assert.NotNil(cht.T(), err)
-	expectedErr := fmt.Errorf("%v offset of cached object: %v is less than required offset %v", util.ErrInvalidFileInfoCache.Error(), 10, 11)
+	expectedErr := fmt.Errorf("%w offset of cached object: %v is less than required offset %v", util.ErrInvalidFileInfoCache, 10, 11)
 	assert.Equal(cht.T(), expectedErr.Error(), err.Error())
 }
 
@@ -782,7 +782,7 @@ func (cht *cacheHandleTest) Test_Read_FileInfoRemoved() {
 	_, cacheHit, err = cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, 0, dst)
 
 	assert.NotNil(cht.T(), err)
-	expectedErr := fmt.Errorf("%v: no entry found in file info cache for key %v", util.ErrInvalidFileInfoCache.Error(), fileInfoKeyName)
+	expectedErr := fmt.Errorf("%w: no entry found in file info cache for key %v", util.ErrInvalidFileInfoCache, fileInfoKeyName)
 	assert.True(cht.T(), strings.Contains(err.Error(), expectedErr.Error()))
 	assert.False(cht.T(), cacheHit)
 }
@@ -814,7 +814,7 @@ func (cht *cacheHandleTest) Test_Read_FileInfoGenerationChanged() {
 	_, cacheHit, err = cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, 0, dst)
 
 	assert.NotNil(cht.T(), err)
-	expectedErr := fmt.Errorf("%v: generation of cached object: %v is different from required generation: ", util.ErrInvalidFileInfoCache.Error(), fileInfoData.ObjectGeneration)
+	expectedErr := fmt.Errorf("%w: generation of cached object: %v is different from required generation: ", util.ErrInvalidFileInfoCache, fileInfoData.ObjectGeneration)
 	assert.True(cht.T(), strings.Contains(err.Error(), expectedErr.Error()))
 	assert.False(cht.T(), cacheHit)
 }
