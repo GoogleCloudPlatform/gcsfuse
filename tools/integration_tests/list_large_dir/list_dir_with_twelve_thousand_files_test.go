@@ -154,17 +154,12 @@ func testdataUploadFilesToBucket(ctx context.Context, t *testing.T, storageClien
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			// It is needed to have an explicit variable to break out from this for-loop as the break statement inside
-			// the select statement applies only to the select statement, and not to the surrounding for-loop.
-			for stop := false; !stop; {
-				select {
-				case copyRequest, ok := <-channel:
-					if !ok {
-						stop = true
-						break
-					}
-					client.CopyFileInBucket(ctx, storageClient, copyRequest.srcLocalFilePath, copyRequest.dstGCSObjectPath, bucketName)
+			for {
+				copyRequest, ok := <-channel
+				if !ok {
+					break
 				}
+				client.CopyFileInBucket(ctx, storageClient, copyRequest.srcLocalFilePath, copyRequest.dstGCSObjectPath, bucketName)
 			}
 		}()
 	}
