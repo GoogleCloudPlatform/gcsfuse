@@ -179,8 +179,9 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		return
 	}
 
+	logger.Infof("Domain: ", domain)
 	if domain == "apis-tpczero.goog" {
-		clientOpts = append(clientOpts, option.WithEndpoint("https://storage.apis-tpczero.goog/storage/v1/."))
+		clientOpts = append(clientOpts, option.WithEndpoint(fmt.Sprintf("https://storage.", domain, "/storage/v1/.")))
 	}
 	clientOpts = append(clientOpts, option.WithHTTPClient(httpClient))
 
