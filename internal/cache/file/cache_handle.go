@@ -16,7 +16,6 @@ package file
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -222,8 +221,8 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 			// Ensure that the number of bytes read into dst buffer is equal to what is
 			// requested. It will also help catch cases where file in cache is truncated
 			// externally to size offset + x where x < requestedNumBytes.
-			errMsg := fmt.Sprintf("%w, number of bytes read from file in cache: %v are not equal to requested: %v", util.ErrInReadingFileHandle, n, requestedNumBytes)
-			return 0, false, errors.New(errMsg)
+			err = fmt.Errorf("%w, number of bytes read from file in cache: %v are not equal to requested: %v", util.ErrInReadingFileHandle, n, requestedNumBytes)
+			return 0, false, err
 		}
 		err = nil
 	}
