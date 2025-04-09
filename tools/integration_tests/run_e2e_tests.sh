@@ -134,7 +134,7 @@ TEST_DIR_PARALLEL_FOR_ZB=(
   "mount_timeout"
   "mounting"
   "negative_stat_cache"
-  # "operations"
+  "operations"
   "read_cache"
   "read_large_files"
   "rename_dir_limit"
