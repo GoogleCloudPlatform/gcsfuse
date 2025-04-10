@@ -49,19 +49,19 @@ func resolveMetadataCacheTTL(v isSet, c *MetadataCacheConfig, optimizedFlags []s
 			c.NegativeTtlSecs = maxSupportedTTLInSeconds
 		}
 	}
-	// if any of three TTL flags are set then
-	// 	if MetadataCacheTTLConfigKey is set then use that
-	// 	else use other two values
-	// else if optimization not applied set default value
-	// otherwise optimization would have applied so mutate accordingly
+
+	// Here is order of precedence for setting TTL seconds
+	// 1. If metadata-cache:ttl-secs has been set, then it has highest precedence
+	// 2. If metadata-cache:stat-cache-ttl or metadata-cache:type-cache-ttl has been set, then it has second highest precedence
+	// 3. If no optimization not applied then calculate and assign default value
+	// 4. Optimization is applied (implicit) and take care of special case of -1
 	optimizationAppliedToMetadataCacheTTL := isFlagPresent(optimizedFlags, MetadataCacheTTLConfigKey)
-	if v.IsSet(MetadataCacheTTLConfigKey) || v.IsSet(MetadataCacheStatCacheTTLConfigKey) || v.IsSet(MetadataCacheTypeCacheTTLConfigKey) {
-		if v.IsSet(MetadataCacheTTLConfigKey) {
-			if c.TtlSecs == -1 {
-				c.TtlSecs = maxSupportedTTLInSeconds
-			}
-			return
+	if v.IsSet(MetadataCacheTTLConfigKey) {
+		if c.TtlSecs == -1 {
+			c.TtlSecs = maxSupportedTTLInSeconds
 		}
+
+	} else if v.IsSet(MetadataCacheStatCacheTTLConfigKey) || v.IsSet(MetadataCacheTypeCacheTTLConfigKey) {
 		c.TtlSecs = int64(math.Ceil(math.Min(c.DeprecatedStatCacheTtl.Seconds(), c.DeprecatedTypeCacheTtl.Seconds())))
 	} else if !optimizationAppliedToMetadataCacheTTL {
 		c.TtlSecs = int64(math.Ceil(math.Min(c.DeprecatedStatCacheTtl.Seconds(), c.DeprecatedTypeCacheTtl.Seconds())))
