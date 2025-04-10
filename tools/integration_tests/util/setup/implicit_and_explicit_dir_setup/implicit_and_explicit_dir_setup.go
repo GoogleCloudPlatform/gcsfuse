@@ -85,13 +85,13 @@ func testdataCreateObjects(ctx context.Context, t *testing.T, storageClient *sto
 
 	bucketName, testDirWithoutBucketName := operations.SplitBucketNameAndDirPath(t, testDirWithBucketName)
 
-	objectName := path.Join(testDirWithoutBucketName, "implicitDirectory", "fileInImplicitDir1")
+	objectName := path.Join(testDirWithoutBucketName, ImplicitDirectory, FileInImplicitDirectory)
 	err := client.CreateObjectOnGCS(ctx, storageClient, objectName, "This is from directory fileInImplicitDir1 file implicitDirectory")
 	if err != nil {
 		t.Fatalf("Failed to create GCS object %q in bucket %q: %v", objectName, bucketName, err)
 	}
 
-	objectName = path.Join(testDirWithoutBucketName, "implicitDirectory/implicitSubDirectory", "fileInImplicitDir2")
+	objectName = path.Join(testDirWithoutBucketName, path.Join(ImplicitDirectory, ImplicitSubDirectory), FileInImplicitSubDirectory)
 	err = client.CreateObjectOnGCS(ctx, storageClient, objectName, "This is from directory implicitDirectory/implicitSubDirectory file fileInImplicitDir2")
 	if err != nil {
 		t.Fatalf("Failed to create GCS object %q in bucket %q: %v", objectName, bucketName, err)
