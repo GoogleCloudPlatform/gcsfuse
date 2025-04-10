@@ -121,7 +121,7 @@ TEST_DIR_NON_PARALLEL=(
 # pass for zonal buckets.
 TEST_DIR_PARALLEL_FOR_ZB=(
   "benchmarking"
-  # "concurrent_operations"
+  "concurrent_operations"
   # "explicit_dir"
   "gzip"
   # "implicit_dir"
