@@ -55,16 +55,14 @@ func (t *FileCacheReaderTest) SetupTestSuite() {
 	t.mockBucket = new(storage.TestifyMockBucket)
 	t.cacheDir = path.Join(os.Getenv("HOME"), "test_cache_dir")
 	lruCache := lru.NewCache(CacheMaxSize)
-	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, sequentialReadSizeInMb, &cfg.FileCacheConfig{
-		EnableCrc: false, // Disable CRC for simplicity in this test
-	}, nil)
+	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, sequentialReadSizeInMb, &cfg.FileCacheConfig{EnableCrc: false}, nil)
 	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm)
 }
 
 func (t *FileCacheReaderTest) TearDownSuite() {
 	err := os.RemoveAll(t.cacheDir)
 	if err != nil {
-		t.T().Logf("Warning: Failed to clean up test cache directory '%s': %v", t.cacheDir, err)
+		t.T().Logf("Failed to clean up test cache directory '%s': %v", t.cacheDir, err)
 	}
 }
 
