@@ -61,7 +61,7 @@ type MultiRangeDownloaderWrapper struct {
 	Wrapped gcs.MultiRangeDownloader
 
 	// FileInode Source object for MultiRangeDownloader.
-	// src shoud be not nil.
+	// src shoud not be nil.
 	src    *gcs.MinObject
 	bucket gcs.Bucket
 
