@@ -27,6 +27,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/jacobsa/fuse/fsutil"
 )
 
@@ -42,12 +43,14 @@ var (
 )
 
 const (
-	MiB              = 1024 * 1024
-	KiB              = 1024
-	DefaultFilePerm  = os.FileMode(0600)
-	DefaultDirPerm   = os.FileMode(0700)
-	FileCache        = "gcsfuse-file-cache"
-	BufferSizeForCRC = 65536
+	MiB                    = 1024 * 1024
+	KiB                    = 1024
+	DefaultFilePerm        = os.FileMode(0600)
+	DefaultDirPerm         = os.FileMode(0700)
+	FileCache              = "gcsfuse-file-cache"
+	BufferSizeForCRC       = 65536
+	SequentialReadSizeInMb = 22
+	CacheMaxSize           = 2 * SequentialReadSizeInMb * util.MiB
 )
 
 // CreateFile creates file with given file spec i.e. permissions and returns

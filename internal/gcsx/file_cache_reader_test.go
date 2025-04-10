@@ -58,8 +58,8 @@ func (t *FileCacheReaderTest) SetupTestSuite() {
 	}
 	t.mockBucket = new(storage.TestifyMockBucket)
 	t.cacheDir = path.Join(os.Getenv("HOME"), "test_cache_dir")
-	lruCache := lru.NewCache(CacheMaxSize)
-	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, sequentialReadSizeInMb, &cfg.FileCacheConfig{EnableCrc: false}, nil)
+	lruCache := lru.NewCache(util.CacheMaxSize)
+	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, util.SequentialReadSizeInMb, &cfg.FileCacheConfig{EnableCrc: false}, nil)
 	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm)
 }
 
