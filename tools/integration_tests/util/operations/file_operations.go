@@ -785,7 +785,6 @@ func CheckLogFileForMessage(t *testing.T, expectedLog, logFile string) bool {
 	file, err := os.Open(logFile)
 	require.NoError(t, err, "Failed to open log file")
 	defer file.Close()
-	t.Logf("logfile name %s expectedLog %s", logFile, expectedLog)
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		if strings.Contains(scanner.Text(), expectedLog) {
