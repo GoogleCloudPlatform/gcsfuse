@@ -35,7 +35,7 @@ const TestObject = "testObject"
 type FileCacheReaderTest struct {
 	suite.Suite
 	object       *gcs.MinObject
-	mockBucket   *storage.TestifyMockBucket // Use the fake bucket for better control
+	mockBucket   *storage.TestifyMockBucket
 	cacheDir     string
 	jobManager   *downloader.JobManager
 	cacheHandler *file.CacheHandler
