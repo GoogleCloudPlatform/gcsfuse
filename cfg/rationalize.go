@@ -64,7 +64,7 @@ func resolveMetadataCacheTTL(v isSet, c *MetadataCacheConfig, optimizedFlags []s
 	}
 }
 
-// resolveStatCacheMaxSizeMB returns the stat-cache size in MiBs based on the
+// resolveStatCacheMaxSizeMB caculates the stat-cache size in MiBs based on the
 // machine-type default override, user's old and new flags/configs.
 func resolveStatCacheMaxSizeMB(v isSet, c *MetadataCacheConfig, optimizedFlags []string) {
 	// Local function to calculate size based on deprecated capacity.
