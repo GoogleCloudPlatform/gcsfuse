@@ -45,3 +45,13 @@ func GetRandomName(t *testing.T) string {
 	}
 	return id.String()
 }
+
+func SplitBucketNameAndDirPath(t *testing.T, bucketNameWithDirPath string) (bucketName, dirPathInBucket string) {
+	t.Helper()
+
+	var found bool
+	if bucketName, dirPathInBucket, found = strings.Cut(bucketNameWithDirPath, "/"); !found {
+		t.Fatalf("Unexpected bucketNameWithDirPath: %q. Expected form: <bucket>/<object-name>", bucketNameWithDirPath)
+	}
+	return
+}

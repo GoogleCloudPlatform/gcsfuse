@@ -19,7 +19,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"strings"
 	"testing"
 
 	storage "cloud.google.com/go/storage"
@@ -78,18 +77,13 @@ func RemoveAndCheckIfDirIsDeleted(dirPath string, dirName string, t *testing.T) 
 	}
 }
 
-// createTestdataObjectsUsingStorageClient is equivalent of the script tools/integration_tests/util/setup/implicit_and_explicit_dir_setup/testdata/create_objects.sh .
+// testdataCreateObjects is equivalent of the script tools/integration_tests/util/setup/implicit_and_explicit_dir_setup/testdata/create_objects.sh .
 // That script uses gcloud, but this function instead uses go client library.
 // Note: testDirWithBucketName is of the form <bucket>/<object-name>.
-func createTestdataObjectsUsingStorageClient(ctx context.Context, t *testing.T, storageClient *storage.Client, testDirWithBucketName string) {
+func testdataCreateObjects(ctx context.Context, t *testing.T, storageClient *storage.Client, testDirWithBucketName string) {
 	t.Helper()
 
-	idx := strings.Index(testDirWithBucketName, "/")
-	if idx <= 0 {
-		t.Fatalf("Unexpected testDirWithBucketName: %q. Expected form: <bucket>/<object-name>", testDirWithBucketName)
-	}
-	bucketName := testDirWithBucketName[:idx]
-	testDirWithoutBucketName := testDirWithBucketName[idx+1:]
+	bucketName, testDirWithoutBucketName := operations.SplitBucketNameAndDirPath(t, testDirWithBucketName)
 
 	objectName := path.Join(testDirWithoutBucketName, "implicitDirectory", "fileInImplicitDir1")
 	err := client.CreateObjectOnGCS(ctx, storageClient, objectName, "This is from directory fileInImplicitDir1 file implicitDirectory")
@@ -114,7 +108,7 @@ func CreateImplicitDirectoryStructureUsingStorageClient(ctx context.Context, t *
 	// testBucket/testDir/implicitDirectory/implicitSubDirectory/fileInImplicitDir2          -- File
 
 	// Create implicit directory in bucket for testing.
-	createTestdataObjectsUsingStorageClient(ctx, t, storageClient, path.Join(setup.TestBucket(), testDir))
+	testdataCreateObjects(ctx, t, storageClient, path.Join(setup.TestBucket(), testDir))
 }
 
 func CreateImplicitDirectoryStructure(testDir string) {
@@ -180,5 +174,5 @@ func CreateImplicitDirectoryInExplicitDirectoryStructureUsingStorageClient(ctx c
 	CreateExplicitDirectoryStructure(testDir, t)
 
 	dirPathInBucket := path.Join(setup.TestBucket(), testDir, ExplicitDirectory)
-	createTestdataObjectsUsingStorageClient(ctx, t, storageClient, dirPathInBucket)
+	testdataCreateObjects(ctx, t, storageClient, dirPathInBucket)
 }

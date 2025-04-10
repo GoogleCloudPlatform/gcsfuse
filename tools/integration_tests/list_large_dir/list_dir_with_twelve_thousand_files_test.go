@@ -104,22 +104,11 @@ func checkIfObjNameIsCorrect(t *testing.T, objName string, prefix string, maxNum
 	}
 }
 
-func splitBucketNameAndDirPath(t *testing.T, bucketNameWithDirPath string) (bucketName, dirPathInBucket string) {
-	t.Helper()
-
-	var found bool
-	if bucketName, dirPathInBucket, found = strings.Cut(bucketNameWithDirPath, "/"); !found {
-		t.Fatalf("Unexpected bucketNameWithDirPath: %q. Expected form: <bucket>/<object-name>", bucketNameWithDirPath)
-	}
-	return
-}
-
-// This function is equivalent to testdata/upload_files_to_bucket.sh to replace gcloud with storage-client
 // This is needed for ZB which is not supported by gcloud storage cp command yet.
 func testdataUploadFilesToBucket(ctx context.Context, t *testing.T, storageClient *storage.Client, bucketNameWithDirPath, dirWith12KFiles, filesPrefix string) {
 	t.Helper()
 
-	bucketName, dirPathInBucket := splitBucketNameAndDirPath(t, bucketNameWithDirPath)
+	bucketName, dirPathInBucket := operations.SplitBucketNameAndDirPath(t, bucketNameWithDirPath)
 
 	dirWith12KFilesFullPathPrefix := filepath.Join(dirWith12KFiles, filesPrefix)
 	matches, err := filepath.Glob(dirWith12KFilesFullPathPrefix + "*")
@@ -226,7 +215,7 @@ func listDirTime(t *testing.T, dirPath string, expectExplicitDirs bool, expectIm
 func testdataCreateImplicitDir(ctx context.Context, t *testing.T, storageClient *storage.Client, bucketNameWithDirPath, prefixImplicitDirInLargeDirListTest string, numberOfImplicitDirsInDirectory int) {
 	t.Helper()
 
-	bucketName, dirPathInBucket := splitBucketNameAndDirPath(t, bucketNameWithDirPath)
+	bucketName, dirPathInBucket := operations.SplitBucketNameAndDirPath(t, bucketNameWithDirPath)
 
 	testFile, err := operations.CreateLocalTempFile("", false)
 	if err != nil {
