@@ -311,6 +311,9 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 			return err
 		}
 
+		if f.config.Write.EnableStreamingWrites {
+			logger.Infof("Falling back to staged write for '%s'. Streaming write is limited to sequential writes on new/empty files.", f.name)
+		}
 		tf, err := f.contentCache.NewTempFile(rc)
 		if err != nil {
 			err = fmt.Errorf("NewTempFile: %w", err)
