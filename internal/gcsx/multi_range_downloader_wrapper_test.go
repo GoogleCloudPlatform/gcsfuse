@@ -49,10 +49,10 @@ func TestMRDWrapperTestSuite(t *testing.T) {
 func (t *mrdWrapperTest) SetupTest() {
 	var err error
 	t.object = &gcs.MinObject{
-		Name:       "foo",
-		Size:       100,
-		Generation: 1234,
+		Name: "foo",
+		Size: 100,
 	}
+	gcs.SetGenerationForTesting(t.object, 1234)
 	t.objectData = testutil.GenerateRandomBytes(int(t.object.Size))
 	// Create the bucket.
 	t.mockBucket = new(storage.TestifyMockBucket)
@@ -312,7 +312,7 @@ func (t *mrdWrapperTest) Test_EnsureMultiRangeDownloader() {
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
 			t.mrdWrapper.bucket = tc.bucket
-			t.mrdWrapper.object = tc.obj
+			t.mrdWrapper.src = tc.obj
 			t.mrdWrapper.Wrapped = nil
 			t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond))
 			err := t.mrdWrapper.ensureMultiRangeDownloader()
