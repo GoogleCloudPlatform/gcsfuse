@@ -671,6 +671,10 @@ func (f *FileInode) SyncPendingBufferedWrites() error {
 	if err != nil {
 		return fmt.Errorf("f.bwh.Sync(): %w", err)
 	}
+	// Update the f.src.Size to the current Size of object
+	// on GCS for current generation.
+	writeFileInfo := f.bwh.WriteFileInfo()
+	f.src.Size = uint64(writeFileInfo.TotalSize)
 	return nil
 }
 
@@ -738,12 +742,7 @@ func (f *FileInode) SetMtime(
 		if minObjPtr != nil {
 			minObj = *minObjPtr
 		}
-		before := &f.src
 		f.src = minObj
-		after := &f.src
-		if after != before {
-			logger.Fatal("This must not happen..")
-		}
 		return
 	}
 
@@ -885,12 +884,7 @@ func (f *FileInode) Flush(ctx context.Context) (err error) {
 
 func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 	if minObj != nil && !f.localFileCache {
-		before := &f.src
 		f.src = *minObj
-		after := &f.src
-		if before != after {
-			logger.Fatal("This must not happen..")
-		}
 		// Convert localFile to nonLocalFile after it is synced to GCS.
 		if f.IsLocal() {
 			f.local = false
