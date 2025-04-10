@@ -18,7 +18,6 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
-	"fmt"
 	"io"
 	"math"
 	"os"
@@ -176,7 +175,7 @@ func (cht *cacheHandleTest) Test_validateCacheHandle_WithNilFileHandle() {
 
 	err := cht.cacheHandle.validateCacheHandle()
 
-	assert.Equal(cht.T(), util.InvalidFileHandleErrMsg, err.Error())
+	assert.True(cht.T(), errors.Is(err, util.ErrInvalidFileHandle))
 }
 
 func (cht *cacheHandleTest) Test_validateCacheHandle_WithNilFileDownloadJob() {
@@ -192,7 +191,7 @@ func (cht *cacheHandleTest) Test_validateCacheHandle_WithNilFileInfoCache() {
 
 	err := cht.cacheHandle.validateCacheHandle()
 
-	assert.Equal(cht.T(), util.InvalidFileInfoCacheErrMsg, err.Error())
+	assert.True(cht.T(), errors.Is(err, util.ErrInvalidFileInfoCache))
 }
 
 func (cht *cacheHandleTest) Test_validateCacheHandle_WithNonNilMemberAttributes() {
@@ -274,7 +273,7 @@ func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobStateIsNotStarted() 
 	err := cht.cacheHandle.shouldReadFromCache(&jobStatus, requiredOffset)
 
 	assert.NotNil(cht.T(), err)
-	assert.True(cht.T(), strings.Contains(err.Error(), util.FallbackToGCSErrMsg))
+	assert.True(cht.T(), errors.Is(err, util.ErrFallbackToGCS))
 }
 
 func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobStateIsFailed() {
@@ -285,7 +284,7 @@ func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobStateIsFailed() {
 	err := cht.cacheHandle.shouldReadFromCache(&jobStatus, requiredOffset)
 
 	assert.NotNil(cht.T(), err)
-	assert.True(cht.T(), strings.Contains(err.Error(), util.InvalidFileDownloadJobErrMsg))
+	assert.True(cht.T(), errors.Is(err, util.ErrInvalidFileDownloadJob))
 }
 
 func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobStateIsInvalid() {
@@ -296,7 +295,7 @@ func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobStateIsInvalid() {
 	err := cht.cacheHandle.shouldReadFromCache(&jobStatus, requiredOffset)
 
 	assert.NotNil(cht.T(), err)
-	assert.True(cht.T(), strings.Contains(err.Error(), util.InvalidFileDownloadJobErrMsg))
+	assert.True(cht.T(), errors.Is(err, util.ErrInvalidFileDownloadJob))
 }
 
 func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobStateIsCompleted() {
@@ -319,7 +318,7 @@ func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobDownloadedOffsetIsLe
 	err := cht.cacheHandle.shouldReadFromCache(&jobStatus, requiredOffset)
 
 	assert.NotNil(cht.T(), err)
-	assert.True(cht.T(), strings.Contains(err.Error(), util.FallbackToGCSErrMsg))
+	assert.True(cht.T(), errors.Is(err, util.ErrFallbackToGCS))
 }
 
 func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobDownloadedOffsetSameAsRequiredOffset() {
@@ -354,7 +353,7 @@ func (cht *cacheHandleTest) Test_shouldReadFromCache_WithNonNilJobStatusErr() {
 	err := cht.cacheHandle.shouldReadFromCache(&jobStatus, requiredOffset)
 
 	assert.NotNil(cht.T(), err)
-	assert.True(cht.T(), strings.Contains(err.Error(), util.InvalidFileDownloadJobErrMsg))
+	assert.True(cht.T(), errors.Is(err, util.ErrInvalidFileDownloadJob))
 }
 
 func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_FileInfoPresent() {
@@ -389,8 +388,7 @@ func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_FileInfoNotPresent
 	_ = cht.cache.Erase(fileInfoKeyName)
 	err = cht.cacheHandle.validateEntryInFileInfoCache(cht.bucket, cht.object, 0, false)
 
-	expectedErr := fmt.Errorf("%v: no entry found in file info cache for key %v", util.InvalidFileInfoCacheErrMsg, fileInfoKeyName)
-	assert.True(cht.T(), strings.Contains(err.Error(), expectedErr.Error()))
+	assert.True(cht.T(), errors.Is(err, util.ErrInvalidFileInfoCache))
 }
 
 func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_FileInfoGenerationChanged() {
@@ -411,8 +409,7 @@ func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_FileInfoGeneration
 
 	err = cht.cacheHandle.validateEntryInFileInfoCache(cht.bucket, cht.object, cht.object.Size-1, true)
 
-	expectedErr := fmt.Errorf("%v: generation of cached object: %v is different from required generation: ", util.InvalidFileInfoCacheErrMsg, fileInfo.ObjectGeneration)
-	assert.True(cht.T(), strings.Contains(err.Error(), expectedErr.Error()))
+	assert.True(cht.T(), errors.Is(err, util.ErrInvalidFileInfoCache))
 }
 
 func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_FileInfoOffsetLessThanRequired() {
@@ -434,8 +431,7 @@ func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_FileInfoOffsetLess
 	err = cht.cacheHandle.validateEntryInFileInfoCache(cht.bucket, cht.object, 11, true)
 
 	assert.NotNil(cht.T(), err)
-	expectedErr := fmt.Errorf("%v offset of cached object: %v is less than required offset %v", util.InvalidFileInfoCacheErrMsg, 10, 11)
-	assert.Equal(cht.T(), expectedErr.Error(), err.Error())
+	assert.True(cht.T(), errors.Is(err, util.ErrInvalidFileInfoCache))
 }
 
 func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_changeCacheOrderIsTrue() {
@@ -549,7 +545,7 @@ func (cht *cacheHandleTest) Test_Read_WithNilFileHandle() {
 	assert.NotNil(cht.T(), err)
 	assert.Equal(cht.T(), 0, n)
 	assert.False(cht.T(), cacheHit)
-	assert.Equal(cht.T(), util.InvalidFileHandleErrMsg, err.Error())
+	assert.True(cht.T(), errors.Is(err, util.ErrInvalidFileHandle))
 }
 
 func (cht *cacheHandleTest) Test_Read_WithNilFileDownloadJobAndCacheMiss() {
@@ -565,7 +561,7 @@ func (cht *cacheHandleTest) Test_Read_WithNilFileDownloadJobAndCacheMiss() {
 	assert.NotNil(cht.T(), err)
 	assert.Equal(cht.T(), 0, n)
 	assert.False(cht.T(), cacheHit)
-	assert.True(cht.T(), strings.Contains(err.Error(), util.InvalidFileInfoCacheErrMsg))
+	assert.True(cht.T(), errors.Is(err, util.ErrInvalidFileInfoCache))
 }
 
 func (cht *cacheHandleTest) Test_Read_WithNilFileDownloadJobAndCacheHit() {
@@ -604,7 +600,7 @@ func (cht *cacheHandleTest) Test_RandomRead() {
 	assert.Equal(cht.T(), 0, n)
 	assert.False(cht.T(), cacheHit)
 	assert.NotNil(cht.T(), err)
-	assert.True(cht.T(), strings.Contains(err.Error(), util.FallbackToGCSErrMsg))
+	assert.True(cht.T(), errors.Is(err, util.ErrFallbackToGCS))
 }
 
 func (cht *cacheHandleTest) Test_RandomRead_CacheForRangeReadFalse() {
@@ -621,7 +617,7 @@ func (cht *cacheHandleTest) Test_RandomRead_CacheForRangeReadFalse() {
 	assert.Equal(cht.T(), n, 0)
 	assert.False(cht.T(), cacheHit)
 	assert.NotNil(cht.T(), err)
-	assert.True(cht.T(), strings.Contains(err.Error(), util.FallbackToGCSErrMsg))
+	assert.True(cht.T(), errors.Is(err, util.ErrFallbackToGCS))
 }
 
 func (cht *cacheHandleTest) Test_RandomRead_CacheForRangeReadFalseButCacheHit() {
@@ -733,7 +729,7 @@ func (cht *cacheHandleTest) Test_SequentialReadToRandom() {
 	_, cacheHit, err = cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, secondReqOffset, dst)
 
 	assert.NotNil(cht.T(), err)
-	assert.True(cht.T(), strings.Contains(err.Error(), util.FallbackToGCSErrMsg))
+	assert.True(cht.T(), errors.Is(err, util.ErrFallbackToGCS))
 	assert.False(cht.T(), cacheHit)
 	assert.False(cht.T(), cht.cacheHandle.isSequential)
 	jobStatus = cht.cacheHandle.fileDownloadJob.GetStatus()
@@ -782,8 +778,7 @@ func (cht *cacheHandleTest) Test_Read_FileInfoRemoved() {
 	_, cacheHit, err = cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, 0, dst)
 
 	assert.NotNil(cht.T(), err)
-	expectedErr := fmt.Errorf("%v: no entry found in file info cache for key %v", util.InvalidFileInfoCacheErrMsg, fileInfoKeyName)
-	assert.True(cht.T(), strings.Contains(err.Error(), expectedErr.Error()))
+	assert.True(cht.T(), errors.Is(err, util.ErrInvalidFileInfoCache))
 	assert.False(cht.T(), cacheHit)
 }
 
@@ -814,8 +809,7 @@ func (cht *cacheHandleTest) Test_Read_FileInfoGenerationChanged() {
 	_, cacheHit, err = cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, 0, dst)
 
 	assert.NotNil(cht.T(), err)
-	expectedErr := fmt.Errorf("%v: generation of cached object: %v is different from required generation: ", util.InvalidFileInfoCacheErrMsg, fileInfoData.ObjectGeneration)
-	assert.True(cht.T(), strings.Contains(err.Error(), expectedErr.Error()))
+	assert.True(cht.T(), errors.Is(err, util.ErrInvalidFileInfoCache))
 	assert.False(cht.T(), cacheHit)
 }
 
@@ -875,7 +869,7 @@ func (cht *cacheHandleTest) Test_SequentialRead_Parallel_Download_True() {
 	assert.Equal(cht.T(), downloader.Downloading, jobStatus.Name)
 	assert.Equal(cht.T(), 0, n)
 	assert.False(cht.T(), cacheHit)
-	assert.ErrorContains(cht.T(), err, util.FallbackToGCSErrMsg)
+	assert.True(cht.T(), errors.Is(err, util.ErrFallbackToGCS))
 }
 
 func (cht *cacheHandleTest) Test_RandomRead_Parallel_Download_True() {
@@ -910,7 +904,7 @@ func (cht *cacheHandleTest) Test_RandomRead_Parallel_Download_True() {
 	assert.Equal(cht.T(), downloader.Downloading, jobStatus.Name)
 	assert.Equal(cht.T(), 0, n)
 	assert.False(cht.T(), cacheHit)
-	assert.ErrorContains(cht.T(), err, util.FallbackToGCSErrMsg)
+	assert.True(cht.T(), errors.Is(err, util.ErrFallbackToGCS))
 }
 
 func (cht *cacheHandleTest) Test_RandomRead_CacheForRangeReadFalse_And_ParallelDownloadsEnabled() {
@@ -945,5 +939,5 @@ func (cht *cacheHandleTest) Test_RandomRead_CacheForRangeReadFalse_And_ParallelD
 	assert.Less(cht.T(), jobStatus.Offset, offset)
 	assert.Equal(cht.T(), n, 0)
 	assert.False(cht.T(), cacheHit)
-	assert.ErrorContains(cht.T(), err, util.FallbackToGCSErrMsg)
+	assert.True(cht.T(), errors.Is(err, util.ErrFallbackToGCS))
 }

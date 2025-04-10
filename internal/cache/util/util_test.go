@@ -228,27 +228,27 @@ func (ut *utilTest) Test_getDownloadPath() {
 }
 
 func (ut *utilTest) Test_IsCacheHandleValid_True() {
-	errMessages := []string{
-		InvalidFileHandleErrMsg + "test",
-		InvalidFileDownloadJobErrMsg + "test",
-		InvalidFileInfoCacheErrMsg + "test",
-		ErrInSeekingFileHandleMsg + "test",
-		ErrInReadingFileHandleMsg + "test",
+	errs := []error{
+		fmt.Errorf("%w: %s", ErrInvalidFileHandle, "test"),
+		fmt.Errorf("%w: %s", ErrInvalidFileDownloadJob, "test"),
+		fmt.Errorf("%w: %s", ErrInvalidFileInfoCache, "test"),
+		fmt.Errorf("%w: %s", ErrInSeekingFileHandle, "test"),
+		fmt.Errorf("%w: %s", ErrInReadingFileHandle, "test"),
 	}
 
-	for _, errMsg := range errMessages {
-		ExpectTrue(IsCacheHandleInvalid(errors.New(errMsg)))
+	for _, err := range errs {
+		ExpectTrue(IsCacheHandleInvalid(err))
 	}
 }
 
 func (ut *utilTest) Test_IsCacheHandleValid_False() {
-	errMessages := []string{
-		FallbackToGCSErrMsg + "test",
-		"random error message",
+	errs := []error{
+		fmt.Errorf("%w: %s", ErrFallbackToGCS, "test"),
+		fmt.Errorf("random error message"),
 	}
 
-	for _, errMsg := range errMessages {
-		ExpectFalse(IsCacheHandleInvalid(errors.New(errMsg)))
+	for _, err := range errs {
+		ExpectFalse(IsCacheHandleInvalid(err))
 	}
 }
 
