@@ -521,7 +521,7 @@ func copyMinObject(o *gcs.Object) *gcs.MinObject {
 	var copy gcs.MinObject
 	copy.Name = o.Name
 	copy.Size = o.Size
-	copy.Generation = o.Generation
+	gcs.SetGenerationForTesting(&copy, o.Generation)
 	copy.MetaGeneration = o.MetaGeneration
 	copy.Updated = o.Updated
 	copy.Metadata = copyMetadata(o.Metadata)

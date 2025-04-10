@@ -138,7 +138,7 @@ func addTestFileInfoEntryInCache(t *testing.T, cache *lru.Cache, object *gcs.Min
 	}
 	fileInfo := data.FileInfo{
 		Key:              fileInfoKey,
-		ObjectGeneration: object.Generation,
+		ObjectGeneration: object.Generation(),
 		FileSize:         object.Size,
 		Offset:           0,
 	}
@@ -285,7 +285,7 @@ func Test_addFileInfoEntryAndCreateDownloadJob_GenerationChanged(t *testing.T) {
 	cacheDir := path.Join(os.Getenv("HOME"), "CacheHandlerTest/dir")
 	chTestArgs := initializeCacheHandlerTestArgs(t, &cfg.FileCacheConfig{EnableCrc: true}, cacheDir)
 	existingJob := getDownloadJobForTestObject(t, chTestArgs)
-	chTestArgs.object.Generation = chTestArgs.object.Generation + 1
+	gcs.SetGenerationForTesting(chTestArgs.object, chTestArgs.object.Generation()+1)
 
 	err := chTestArgs.cacheHandler.addFileInfoEntryAndCreateDownloadJob(chTestArgs.object, chTestArgs.bucket)
 
@@ -409,8 +409,7 @@ func Test_GetCacheHandle_WhenCacheHasDifferentGeneration(t *testing.T) {
 	require.NotNil(t, existingJob)
 	require.Equal(t, downloader.NotStarted, existingJob.GetStatus().Name)
 	// Change the version of the object, but cache still keeps old generation
-	chTestArgs.object.Generation = chTestArgs.object.Generation + 1
-
+	gcs.SetGenerationForTesting(chTestArgs.object, chTestArgs.object.Generation()+1)
 	newCacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(chTestArgs.object, chTestArgs.bucket, false, 0)
 
 	assert.NoError(t, err)

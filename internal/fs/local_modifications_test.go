@@ -1535,7 +1535,7 @@ func validateObjectAttributes(extendedAttr1, extendedAttr2 *gcs.ExtendedObjectAt
 	ExpectEq(minObject1.Name, minObject2.Name)
 	ExpectEq(0, minObject1.Size)
 	ExpectEq(FileContentsSize, minObject2.Size)
-	ExpectNe(minObject1.Generation, minObject2.Generation)
+	ExpectNe(minObject1.Generation(), minObject2.Generation())
 	ExpectTrue(minObject1.Updated.Before(minObject2.Updated))
 	attr1MTime, _ := time.Parse(time.RFC3339Nano, minObject1.Metadata[gcs.MtimeMetadataKey])
 	attr2MTime, _ := time.Parse(time.RFC3339Nano, minObject2.Metadata[gcs.MtimeMetadataKey])
@@ -2151,7 +2151,7 @@ func (t *FileTest) Sync_NotDirty() {
 	m2, _, err := bucket.StatObject(ctx, statReq)
 	AssertEq(nil, err)
 	AssertNe(nil, m2)
-	ExpectEq(m1.Generation, m2.Generation)
+	ExpectEq(m1.Generation(), m2.Generation())
 }
 
 func (t *FileTest) Sync_Clobbered() {

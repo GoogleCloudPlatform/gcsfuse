@@ -63,10 +63,10 @@ func (t *RandomReaderStretchrTest) SetupTest() {
 
 	// Manufacture an object record.
 	t.object = &gcs.MinObject{
-		Name:       "foo",
-		Size:       17,
-		Generation: 1234,
+		Name: "foo",
+		Size: 17,
 	}
+	gcs.SetGenerationForTesting(t.object, 1234)
 
 	// Create the bucket.
 	t.mockBucket = new(storage.TestifyMockBucket)
@@ -265,13 +265,13 @@ func (t *RandomReaderStretchrTest) Test_ReadFromRangeReader_WhenExistingReaderIs
 			testContent := testutil.GenerateRandomBytes(int(t.object.Size))
 			rc := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 			readObjectRequest := &gcs.ReadObjectRequest{
-				Name:       t.rr.wrapped.object.Name,
-				Generation: t.rr.wrapped.object.Generation,
+				Name:       t.rr.wrapped.src.Name,
+				Generation: t.rr.wrapped.src.Generation(),
 				Range: &gcs.ByteRange{
 					Start: uint64(0),
 					Limit: t.object.Size,
 				},
-				ReadCompressed: t.rr.wrapped.object.HasContentEncodingGzip(),
+				ReadCompressed: t.rr.wrapped.src.HasContentEncodingGzip(),
 				ReadHandle:     t.rr.wrapped.readHandle,
 			}
 			t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).Return(rc, nil).Times(1)
@@ -495,13 +495,13 @@ func (t *RandomReaderStretchrTest) Test_ExistingReader_WrongOffset() {
 			t.rr.wrapped.start = 2
 			t.rr.wrapped.limit = 5
 			readObjectRequest := &gcs.ReadObjectRequest{
-				Name:       t.rr.wrapped.object.Name,
-				Generation: t.rr.wrapped.object.Generation,
+				Name:       t.rr.wrapped.src.Name,
+				Generation: t.rr.wrapped.src.Generation(),
 				Range: &gcs.ByteRange{
 					Start: uint64(0),
 					Limit: t.object.Size,
 				},
-				ReadCompressed: t.rr.wrapped.object.HasContentEncodingGzip(),
+				ReadCompressed: t.rr.wrapped.src.HasContentEncodingGzip(),
 				ReadHandle:     t.rr.wrapped.readHandle,
 			}
 			t.mockBucket.
@@ -530,13 +530,13 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_ExistingReaderLimitIsLessThanRequ
 	rc := &fake.FakeReader{ReadCloser: getReadCloser([]byte("abcdefgh"))}
 	expectedHandleInRequest := []byte(t.rr.wrapped.reader.ReadHandle())
 	readObjectRequest := &gcs.ReadObjectRequest{
-		Name:       t.rr.wrapped.object.Name,
-		Generation: t.rr.wrapped.object.Generation,
+		Name:       t.rr.wrapped.src.Name,
+		Generation: t.rr.wrapped.src.Generation(),
 		Range: &gcs.ByteRange{
 			Start: uint64(2),
 			Limit: t.object.Size,
 		},
-		ReadCompressed: t.rr.wrapped.object.HasContentEncodingGzip(),
+		ReadCompressed: t.rr.wrapped.src.HasContentEncodingGzip(),
 		ReadHandle:     expectedHandleInRequest,
 	}
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).Return(rc, nil)
@@ -564,13 +564,13 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_ExistingReaderLimitIsLessThanRequ
 	rc := &fake.FakeReader{ReadCloser: getReadCloser([]byte("abcde"))}
 	expectedHandleInRequest := t.rr.wrapped.reader.ReadHandle()
 	readObjectRequest := &gcs.ReadObjectRequest{
-		Name:       t.rr.wrapped.object.Name,
-		Generation: t.rr.wrapped.object.Generation,
+		Name:       t.rr.wrapped.src.Name,
+		Generation: t.rr.wrapped.src.Generation(),
 		Range: &gcs.ByteRange{
 			Start: uint64(0),
 			Limit: t.object.Size,
 		},
-		ReadCompressed: t.rr.wrapped.object.HasContentEncodingGzip(),
+		ReadCompressed: t.rr.wrapped.src.HasContentEncodingGzip(),
 		ReadHandle:     expectedHandleInRequest,
 	}
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).Return(rc, nil)

@@ -170,10 +170,10 @@ func (t *RandomReaderTest) SetUp(ti *TestInfo) {
 
 	// Manufacture an object record.
 	t.object = &gcs.MinObject{
-		Name:       "foo",
-		Size:       17,
-		Generation: 1234,
+		Name: "foo",
+		Size: 17,
 	}
+	gcs.SetGenerationForTesting(t.object, 1234)
 
 	// Create the bucket.
 	t.bucket = storage.NewMockBucket(ti.MockController, "bucket")
