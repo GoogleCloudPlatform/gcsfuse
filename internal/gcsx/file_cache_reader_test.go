@@ -34,7 +34,6 @@ const TestObject = "testObject"
 
 type FileCacheReaderTest struct {
 	suite.Suite
-	wrapped      *Reader
 	object       *gcs.MinObject
 	mockBucket   *storage.TestifyMockBucket // Use the fake bucket for better control
 	cacheDir     string
@@ -69,6 +68,7 @@ func (t *FileCacheReaderTest) TearDownSuite() {
 func (t *FileCacheReaderTest) TestNewFileCacheReaderInitialization() {
 	reader := NewFileCacheReader(t.object, t.mockBucket, t.cacheHandler, true, nil)
 
+	assert.NotNil(t.T(), reader)
 	assert.Equal(t.T(), t.object, reader.obj)
 	assert.Equal(t.T(), t.mockBucket, reader.bucket)
 	assert.Equal(t.T(), t.cacheHandler, reader.fileCacheHandler)
