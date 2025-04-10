@@ -37,7 +37,7 @@ func decodeURL(u string) (string, error) {
 	return decodedURL.String(), nil
 }
 
-// resolveMetadataCacheTTL returns the ttl to be used for stat/type cache based
+// resolveMetadataCacheTTL calculates the ttl to be used for stat/type cache based
 // on the user flags/configs or machine type based optimizations.
 func resolveMetadataCacheTTL(v isSet, c *MetadataCacheConfig, optimizedFlags []string) {
 	optimizationAppliedToNegativeCacheTTL := isFlagPresent(optimizedFlags, MetadataNegativeCacheTTLConfigKey)
