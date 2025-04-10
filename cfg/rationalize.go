@@ -48,20 +48,16 @@ func resolveMetadataCacheTTL(v isSet, c *MetadataCacheConfig, optimizedFlags []s
 		}
 	}
 
-	// Here is order of precedence for setting TTL seconds
+	// Order of precedence for setting TTL seconds
 	// 1. If metadata-cache:ttl-secs has been set, then it has highest precedence
-	// 2. If metadata-cache:stat-cache-ttl or metadata-cache:type-cache-ttl has been set, then it has second highest precedence
-	// 3. If no optimization not applied then calculate and assign default value
-	// 4. Optimization is applied (implicit) and take care of special case of -1
+	// 2. If metadata-cache:stat-cache-ttl or metadata-cache:type-cache-ttl has been set or no optimization applied, then it has second highest precedence
+	// 3. Optimization is applied (implicit) and take care of special case of -1 which can occur even in defaults
 	optimizationAppliedToMetadataCacheTTL := isFlagPresent(optimizedFlags, MetadataCacheTTLConfigKey)
 	if v.IsSet(MetadataCacheTTLConfigKey) {
 		if c.TtlSecs == -1 {
 			c.TtlSecs = maxSupportedTTLInSeconds
 		}
-
-	} else if v.IsSet(MetadataCacheStatCacheTTLConfigKey) || v.IsSet(MetadataCacheTypeCacheTTLConfigKey) {
-		c.TtlSecs = int64(math.Ceil(math.Min(c.DeprecatedStatCacheTtl.Seconds(), c.DeprecatedTypeCacheTtl.Seconds())))
-	} else if !optimizationAppliedToMetadataCacheTTL {
+	} else if (v.IsSet(MetadataCacheStatCacheTTLConfigKey) || v.IsSet(MetadataCacheTypeCacheTTLConfigKey)) || (!optimizationAppliedToMetadataCacheTTL) {
 		c.TtlSecs = int64(math.Ceil(math.Min(c.DeprecatedStatCacheTtl.Seconds(), c.DeprecatedTypeCacheTtl.Seconds())))
 	} else if c.TtlSecs == -1 {
 		c.TtlSecs = maxSupportedTTLInSeconds
@@ -69,7 +65,7 @@ func resolveMetadataCacheTTL(v isSet, c *MetadataCacheConfig, optimizedFlags []s
 }
 
 // resolveStatCacheMaxSizeMB returns the stat-cache size in MiBs based on the
-// machine-type default override, user old and new flags/configs.
+// machine-type default override, user's old and new flags/configs.
 func resolveStatCacheMaxSizeMB(v isSet, c *MetadataCacheConfig, optimizedFlags []string) {
 	// Local function to calculate size based on deprecated capacity.
 	calculateSizeFromCapacity := func(capacity int64) int64 {
@@ -77,22 +73,16 @@ func resolveStatCacheMaxSizeMB(v isSet, c *MetadataCacheConfig, optimizedFlags [
 		return int64(util.BytesToHigherMiBs(uint64(capacity) * avgTotalStatCacheEntrySize))
 	}
 
-	// If metadata-cache:stat-cache-size-mb has been set, then it overrides
-	// stat-cache-capacity.
-
 	// Order of precedence for setting stat cache size
 	// 1. If metadata-cache:stat-cache-size-mb is set it has the highest precedence
-	// 2. if stat-cache-capacity is set then use it to calculate stat cache size
-	// 3. If optimization is not applied assign default value
-	// 4. Else handle special case of -1
+	// 2. If stat-cache-capacity is set or optimization is not applied then use it to calculate stat cache size
+	// 3. Else handle special case of -1 for both optimized or possible default value
 	optimizationAppliedToStatCacheMaxSize := isFlagPresent(optimizedFlags, StatCacheMaxSizeConfigKey)
 	if v.IsSet(StatCacheMaxSizeConfigKey) {
 		if c.StatCacheMaxSizeMb == -1 {
 			c.StatCacheMaxSizeMb = int64(maxSupportedStatCacheMaxSizeMB)
 		}
-	} else if v.IsSet(MetadataCacheStatCacheCapacityConfigKey) {
-		c.StatCacheMaxSizeMb = calculateSizeFromCapacity(c.DeprecatedStatCacheCapacity)
-	} else if !optimizationAppliedToStatCacheMaxSize {
+	} else if v.IsSet(MetadataCacheStatCacheCapacityConfigKey) || (!optimizationAppliedToStatCacheMaxSize) {
 		c.StatCacheMaxSizeMb = calculateSizeFromCapacity(c.DeprecatedStatCacheCapacity)
 	} else if c.StatCacheMaxSizeMb == -1 {
 		c.StatCacheMaxSizeMb = int64(maxSupportedStatCacheMaxSizeMB)
