@@ -49,9 +49,9 @@ func (s *infiniteKernelListCacheDeleteDirTest) TestKernelListCache_ListAndDelete
 	operations.CreateDirectory(targetDir, t)
 	// Create test data
 	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, t)
-	operations.CloseFile(f1)
+	operations.CloseFileShouldNotThrowError(t, f1)
 	f2 := operations.CreateFile(path.Join(targetDir, "file2.txt"), setup.FilePermission_0600, t)
-	operations.CloseFile(f2)
+	operations.CloseFileShouldNotThrowError(t, f2)
 
 	// (a) First read served from GCS, kernel will cache the dir response.
 	f, err := os.Open(targetDir)
@@ -77,9 +77,9 @@ func (s *infiniteKernelListCacheDeleteDirTest) TestKernelListCache_DeleteAndList
 	operations.CreateDirectory(targetDir, t)
 	// Create test data
 	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, t)
-	operations.CloseFile(f1)
+	operations.CloseFileShouldNotThrowError(t, f1)
 	f2 := operations.CreateFile(path.Join(targetDir, "file2.txt"), setup.FilePermission_0600, t)
-	operations.CloseFile(f2)
+	operations.CloseFileShouldNotThrowError(t, f2)
 
 	err := os.RemoveAll(targetDir)
 	assert.NoError(t, err)

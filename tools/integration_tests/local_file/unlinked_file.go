@@ -34,7 +34,7 @@ func (t *CommonLocalFileTestSuite) TestStatOnUnlinkedLocalFile() {
 	operations.ValidateNoFileOrDirError(t.T(), path.Join(testDirPath, FileName1))
 
 	// Close the file and validate that file is not created on GCS.
-	operations.CloseFileShouldNotThrowError(fh, t.T())
+	operations.CloseFileShouldNotThrowError(t.T(), fh)
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
 }
 
@@ -60,7 +60,7 @@ func (t *CommonLocalFileTestSuite) TestReadDirContainingUnlinkedLocalFiles() {
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh2, testDirName,
 		FileName2, "", t.T())
 	// Verify unlinked file is not written to GCS.
-	operations.CloseFileShouldNotThrowError(fh3, t.T())
+	operations.CloseFileShouldNotThrowError(t.T(), fh3)
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName3, t.T())
 }
 
@@ -76,7 +76,7 @@ func (t *CommonLocalFileTestSuite) TestWriteOnUnlinkedLocalFileSucceeds() {
 	operations.WriteWithoutClose(fh, FileContents, t.T())
 
 	// Validate flush file does not throw error.
-	operations.CloseFileShouldNotThrowError(fh, t.T())
+	operations.CloseFileShouldNotThrowError(t.T(), fh)
 	// Validate unlinked file is not written to GCS.
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
 }
@@ -95,7 +95,7 @@ func (t *CommonLocalFileTestSuite) TestSyncOnUnlinkedLocalFile() {
 	operations.SyncFile(fh, t.T())
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
 	// Close the local file and validate it is not present on GCS.
-	operations.CloseFileShouldNotThrowError(fh, t.T())
+	operations.CloseFileShouldNotThrowError(t.T(), fh)
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
 }
 

@@ -48,7 +48,7 @@ func createFile(filePath string, t *testing.T) {
 	}
 
 	// Closing file at the end
-	operations.CloseFile(file)
+	operations.CloseFileShouldNotThrowError(t, file)
 }
 
 // Remove testBucket/A.txt

@@ -213,7 +213,7 @@ func DownloadObjectFromGCS(gcsFile string, destFileName string, t *testing.T) er
 		}
 	}()
 	f := operations.CreateFile(destFileName, setup.FilePermission_0600, t)
-	defer operations.CloseFile(f)
+	defer operations.CloseFileShouldNotThrowError(t, f)
 
 	rc, err := storageClient.Bucket(bucket).Object(gcsFile).NewReader(ctx)
 	if err != nil {

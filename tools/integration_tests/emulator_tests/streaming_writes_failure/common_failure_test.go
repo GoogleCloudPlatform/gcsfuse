@@ -275,7 +275,7 @@ func (t *commonFailureTestSuite) TestStreamingWritesBwhResetsWhenFileHandlesAreO
 	operations.CloseFileShouldThrowError(t.T(), t.fh1)
 	// Opening new file handle and writing to file succeeds when file handles in O_RDONLY mode are open.
 	t.writingAfterBwhReinitializationSucceeds()
-	operations.CloseFileShouldNotThrowError(fh2, t.T())
+	operations.CloseFileShouldNotThrowError(t.T(), fh2)
 	// Close and validate object content found on GCS.
 	CloseFileAndValidateContentFromGCS(t.ctx, t.storageClient, t.fh1, testDirName, FileName1, string(t.data), t.T())
 }

@@ -180,6 +180,7 @@ func CloseFiles(t *testing.T, files []*os.File) {
 	}
 }
 
+// Deprecated: please use CloseFileShouldNotThrowError instead.
 func CloseFile(file *os.File) {
 	if err := file.Close(); err != nil {
 		log.Fatalf("error in closing: %v", err)
@@ -601,10 +602,9 @@ func WriteAt(content string, offset int64, fh *os.File, t testing.TB) {
 	}
 }
 
-func CloseFileShouldNotThrowError(file *os.File, t *testing.T) {
-	if err := file.Close(); err != nil {
-		t.Fatalf("file.Close() for file %s: %v", file.Name(), err)
-	}
+func CloseFileShouldNotThrowError(t testing.TB, file *os.File) {
+	err := file.Close()
+	assert.NoError(t, err)
 }
 
 func CloseFileShouldThrowError(t *testing.T, file *os.File) {
@@ -630,11 +630,10 @@ func SyncFileShouldThrowError(t *testing.T, file *os.File) {
 	}
 }
 
-func CreateFileWithContent(filePath string, filePerms os.FileMode,
-	content string, t testing.TB) {
+func CreateFileWithContent(filePath string, filePerms os.FileMode, content string, t testing.TB) {
 	fh := CreateFile(filePath, filePerms, t)
 	WriteAt(content, 0, fh, t)
-	CloseFile(fh)
+	CloseFileShouldNotThrowError(t, fh)
 }
 
 // CreateFileOfSize creates a file of given size with random data.

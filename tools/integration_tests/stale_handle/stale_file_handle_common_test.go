@@ -64,5 +64,5 @@ func (s *staleFileHandleCommon) TestFileDeletedLocallySyncAndCloseDoNotThrowErro
 	operations.WriteWithoutClose(s.f1, Content2, s.T())
 
 	operations.SyncFile(s.f1, s.T())
-	operations.CloseFile(s.f1)
+	operations.CloseFileShouldNotThrowError(s.T(), s.f1)
 }

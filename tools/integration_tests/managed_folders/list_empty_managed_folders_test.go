@@ -73,7 +73,7 @@ func createDirectoryStructureForEmptyManagedFoldersTest(t *testing.T) {
 	client.CreateManagedFoldersInBucket(ctx, controlClient, path.Join(testDir, EmptyManagedFolder2), bucket)
 	operations.CreateDirectory(path.Join(setup.MntDir(), TestDirForEmptyManagedFoldersTest, SimulatedFolder), t)
 	f := operations.CreateFile(path.Join(setup.MntDir(), TestDirForEmptyManagedFoldersTest, File), setup.FilePermission_0600, t)
-	operations.CloseFile(f)
+	operations.CloseFileShouldNotThrowError(t, f)
 }
 
 ////////////////////////////////////////////////////////////////////////

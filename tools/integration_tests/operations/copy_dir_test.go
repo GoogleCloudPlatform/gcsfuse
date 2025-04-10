@@ -59,7 +59,7 @@ func createSrcDirectoryWithObjects(dirPath string, t *testing.T) string {
 	}
 
 	// Closing file at the end
-	defer operations.CloseFile(file)
+	defer operations.CloseFileShouldNotThrowError(t, file)
 
 	return dirPath
 }
