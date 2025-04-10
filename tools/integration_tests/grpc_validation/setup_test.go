@@ -79,7 +79,7 @@ func findTestExecutionEnvironment(ctx context.Context) (string, error) {
 	if v, exists := attrs.Value("gcp.gce.instance.hostname"); exists && strings.Contains(strings.ToLower(v.AsString()), cloudtopProd) {
 		return cloudtopProd, nil
 	}
-	if v, exists := attrs.Value("cloud.region"); exists {
+	if v, exists := attrs.Value("cloud.availability_zone"); exists {
 		return v.AsString(), nil
 	}
 	return "", nil
@@ -154,7 +154,7 @@ func TestMain(m *testing.M) {
 	}
 	defer client.Close()
 
-	testRegion, err := findTestExecutionEnvironment(ctx)
+	testRegion, err = findTestExecutionEnvironment(ctx)
 	if err != nil {
 		log.Fatalf("Failed to retrieve test VM region: %v", err)
 	}
