@@ -271,7 +271,7 @@ func (t *mrdWrapperTest) Test_SetMinObject() {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
-			err := t.mrdWrapper.SetMinObject(tc.obj)
+			err := t.mrdWrapper.SetMinObjectForTesting(tc.obj)
 			if tc.err == nil {
 				assert.NoError(t.T(), err)
 			} else {
@@ -312,7 +312,7 @@ func (t *mrdWrapperTest) Test_EnsureMultiRangeDownloader() {
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
 			t.mrdWrapper.bucket = tc.bucket
-			t.mrdWrapper.object = tc.obj
+			t.mrdWrapper.src = tc.obj
 			t.mrdWrapper.Wrapped = nil
 			t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond))
 			err := t.mrdWrapper.ensureMultiRangeDownloader()
