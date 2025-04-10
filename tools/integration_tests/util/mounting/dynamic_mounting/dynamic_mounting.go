@@ -112,6 +112,16 @@ func CreateTestBucketForDynamicMounting(ctx context.Context, client *storage.Cli
 		Location: "us-west1",
 	}
 
+	if setup.IsZonalBucketRun() {
+		storageClassAndLocation.LocationType = "zonal"
+		storageClassAndLocation.StorageClass = "RAPID"
+		if setup.IsPresubmitRun() {
+			storageClassAndLocation.Location = "us-west4-a"
+		} else {
+			storageClassAndLocation.Location = "us-central1-a"
+		}
+	}
+
 	bucket := client.Bucket(testBucketForDynamicMounting)
 	if err := bucket.Create(ctx, projectID, storageClassAndLocation); err != nil {
 		log.Fatalf("DynamicBucket(%q).Create: %v", testBucketForDynamicMounting, err)
