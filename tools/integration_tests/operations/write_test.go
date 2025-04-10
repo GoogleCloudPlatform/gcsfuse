@@ -228,7 +228,7 @@ func TestWriteAtFileOperationsDoesNotChangeObjectAttributes(t *testing.T) {
 	// Over-write the file.
 	fh, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_DIRECT, operations.FilePermission_0600)
 	if err != nil {
-		t.Errorf("Could not open file %s after creation.", fileName)
+		t.Fatalf("Could not open file %s after creation.", fileName)
 	}
 	operations.WriteAt(tempFileContent+appendContent, 0, fh, t)
 	operations.CloseFileShouldNotThrowError(t, fh)
