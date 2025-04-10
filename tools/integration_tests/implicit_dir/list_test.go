@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
 )
 
@@ -39,7 +40,11 @@ func TestListImplicitObjectsFromBucket(t *testing.T) {
 	// testBucket/dirForImplicitDirTests/testDir/explicitDirectory/fileInExplicitDir1                               -- File
 	// testBucket/dirForImplicitDirTests/testDir/explicitDirectory/fileInExplicitDir2                               -- File
 
-	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure(path.Join(DirForImplicitDirTests, testDirName))
+	if setup.IsZonalBucketRun() {
+		implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructureUsingStorageClient(ctx, t, storageClient, path.Join(DirForImplicitDirTests, testDirName))
+	} else {
+		implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure(path.Join(DirForImplicitDirTests, testDirName))
+	}
 	implicit_and_explicit_dir_setup.CreateExplicitDirectoryStructure(path.Join(DirForImplicitDirTests, testDirName), t)
 
 	err := filepath.WalkDir(testDirPath, func(path string, dir fs.DirEntry, err error) error {

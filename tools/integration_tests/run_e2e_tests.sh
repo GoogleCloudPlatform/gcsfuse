@@ -124,7 +124,7 @@ TEST_DIR_PARALLEL_FOR_ZB=(
   # "concurrent_operations"
   # "explicit_dir"
   "gzip"
-  # "implicit_dir"
+  "implicit_dir"
   "interrupt"
   "kernel_list_cache"
   "list_large_dir"
