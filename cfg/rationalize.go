@@ -40,8 +40,6 @@ func decodeURL(u string) (string, error) {
 // resolveMetadataCacheTTL returns the ttl to be used for stat/type cache based
 // on the user flags/configs.
 func resolveMetadataCacheTTL(v isSet, c *MetadataCacheConfig, optimizedFlags []string) {
-	// If metadata-cache:ttl-secs has been set, then it overrides both
-	// stat-cache-ttl, type-cache-tll and negative cache ttl.
 	optimizationAppliedToNegativeCacheTTL := isFlagPresent(optimizedFlags, MetadataNegativeCacheTTLConfigKey)
 
 	if v.IsSet(MetadataNegativeCacheTTLConfigKey) || optimizationAppliedToNegativeCacheTTL {
@@ -71,7 +69,7 @@ func resolveMetadataCacheTTL(v isSet, c *MetadataCacheConfig, optimizedFlags []s
 }
 
 // resolveStatCacheMaxSizeMB returns the stat-cache size in MiBs based on the
-// user old and new flags/configs.
+// machine-type default override, user old and new flags/configs.
 func resolveStatCacheMaxSizeMB(v isSet, c *MetadataCacheConfig, optimizedFlags []string) {
 	// Local function to calculate size based on deprecated capacity.
 	calculateSizeFromCapacity := func(capacity int64) int64 {
@@ -82,19 +80,17 @@ func resolveStatCacheMaxSizeMB(v isSet, c *MetadataCacheConfig, optimizedFlags [
 	// If metadata-cache:stat-cache-size-mb has been set, then it overrides
 	// stat-cache-capacity.
 
-	// if any of two (StatCacheMaxSizeConfigKey, MetadataCacheStatCacheCapacityKey) are set then ->
-	// 	if StatCacheMaxSizeConfigKey is set then use that
-	// 	else use DeprecatedStatCacheCapacity
-	// else if optimization not applied set default value
-	// otherwise optimization would have been applied so mutate accordingly
+	// Order of precedence for setting stat cache size
+	// 1. If metadata-cache:stat-cache-size-mb is set it has the highest precedence
+	// 2. if stat-cache-capacity is set then use it to calculate stat cache size
+	// 3. If optimization is not applied assign default value
+	// 4. Else handle special case of -1
 	optimizationAppliedToStatCacheMaxSize := isFlagPresent(optimizedFlags, StatCacheMaxSizeConfigKey)
-	if v.IsSet(StatCacheMaxSizeConfigKey) || v.IsSet(MetadataCacheStatCacheCapacityConfigKey) {
-		if v.IsSet(StatCacheMaxSizeConfigKey) {
-			if c.StatCacheMaxSizeMb == -1 {
-				c.StatCacheMaxSizeMb = int64(maxSupportedStatCacheMaxSizeMB)
-			}
-			return
+	if v.IsSet(StatCacheMaxSizeConfigKey) {
+		if c.StatCacheMaxSizeMb == -1 {
+			c.StatCacheMaxSizeMb = int64(maxSupportedStatCacheMaxSizeMB)
 		}
+	} else if v.IsSet(MetadataCacheStatCacheCapacityConfigKey) {
 		c.StatCacheMaxSizeMb = calculateSizeFromCapacity(c.DeprecatedStatCacheCapacity)
 	} else if !optimizationAppliedToStatCacheMaxSize {
 		c.StatCacheMaxSizeMb = calculateSizeFromCapacity(c.DeprecatedStatCacheCapacity)
