@@ -40,7 +40,7 @@ import (
 // Example case: Test Region : us-central1 , Failure Test Region : europe-west4
 //
 //	Test Region : us-west1, Failure test Region : us-central1
-var single_regions = []string{
+var singleRegions = []string{
 	"us-central1",
 	"europe-west4",
 }
@@ -48,11 +48,11 @@ var single_regions = []string{
 // gRPC is now supported for multi region buckets as well.
 // Same logic, if the test VM is in us, then failure region = eu
 // If the test VM is in non-US, then failure region = us
-var multi_regions = []string{
+var multiRegions = []string{
 	"us",
 	"eu",
 }
-var gcp_project = "gcs-fuse-test"
+var gcpProject = "gcs-fuse-test"
 var (
 	ctx        context.Context
 	client     *storage.Client
@@ -69,6 +69,7 @@ var cloudtopProd = "cloudtop-prod"
 
 // For both multi region buckets and single region buckets test, we need to decide failure case
 // region based on the region of the VM on which the test is running.
+// Reference for the GCP resource attribute: https://opentelemetry.io/docs/specs/semconv/attributes-registry/cloud/#cloud-availability-zone
 func findTestExecutionEnvironment(ctx context.Context) (string, error) {
 	detectedAttrs, err := resource.New(ctx, resource.WithDetectors(gcp.NewDetector()))
 	if err != nil {
@@ -79,7 +80,7 @@ func findTestExecutionEnvironment(ctx context.Context) (string, error) {
 	if v, exists := attrs.Value("gcp.gce.instance.hostname"); exists && strings.Contains(strings.ToLower(v.AsString()), cloudtopProd) {
 		return cloudtopProd, nil
 	}
-	if v, exists := attrs.Value("cloud.region"); exists {
+	if v, exists := attrs.Value("cloud.availability_zone"); exists {
 		return v.AsString(), nil
 	}
 	return "", nil
@@ -128,7 +129,7 @@ func createTestBucketName(region string) string {
 // Based on what region we pass, the test bucket will be multi region or single region.
 func createTestBucket(testBucketRegion, testBucketName string) (err error) {
 	bucket := client.Bucket(testBucketName)
-	if err = bucket.Create(ctx, gcp_project, &storage.BucketAttrs{Location: testBucketRegion}); err != nil {
+	if err = bucket.Create(ctx, gcpProject, &storage.BucketAttrs{Location: testBucketRegion}); err != nil {
 		log.Printf("Error while creating bucket, error: %v", err)
 		return err
 	}
@@ -154,7 +155,7 @@ func TestMain(m *testing.M) {
 	}
 	defer client.Close()
 
-	testRegion, err := findTestExecutionEnvironment(ctx)
+	testRegion, err = findTestExecutionEnvironment(ctx)
 	if err != nil {
 		log.Fatalf("Failed to retrieve test VM region: %v", err)
 	}
