@@ -137,12 +137,12 @@ func createTestBucket(testBucketRegion, testBucketName string) (err error) {
 
 func TestMain(m *testing.M) {
 	// Parse flags from the setup.
+	var err error
+	setup.ParseSetUpFlags()
 	if setup.IsPresubmitRun() {
 		log.Println("Skipping test package : grpc_validation since this is a presubmit test run")
 		os.Exit(0)
 	}
-	var err error
-	setup.ParseSetUpFlags()
 	if err := setup.SetUpTestDir(); err != nil {
 		log.Fatalf("Failed to setup GCSFuse package. Error: %v", err)
 	}
