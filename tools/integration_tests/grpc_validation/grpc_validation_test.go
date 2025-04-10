@@ -52,9 +52,9 @@ func (g *gRPCValidation) SetupSuite() {
 	// Based on the test region which is initialized in the TestMain() function,
 	// we will pick out the test region for:
 	singleRegionForGRPCSuccess := findSingleRegionForGRPCDirectPathSuccessCase(testRegion)
-	singleRegionForGRPCFailure := pickFailureRegionFromListOfRegions(singleRegionForGRPCSuccess, single_regions)
+	singleRegionForGRPCFailure := pickFailureRegionFromListOfRegions(singleRegionForGRPCSuccess, singleRegions)
 	multiRegionForGRPCSuccess := findMultiRegionForGRPCDirectPathSuccessCase(testRegion)
-	multiRegionForGRPCFailure := pickFailureRegionFromListOfRegions(multiRegionForGRPCSuccess, multi_regions)
+	multiRegionForGRPCFailure := pickFailureRegionFromListOfRegions(multiRegionForGRPCSuccess, multiRegions)
 
 	// Set the test bucket names with unique suffix
 	g.singleRegionBucketForGRPCSuccess = createTestBucketName(singleRegionForGRPCSuccess)
