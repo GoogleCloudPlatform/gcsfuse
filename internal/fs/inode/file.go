@@ -251,7 +251,7 @@ func (f *FileInode) openReader(ctx context.Context) (io.ReadCloser, error) {
 		ctx,
 		&gcs.ReadObjectRequest{
 			Name:           f.src.Name,
-			Generation:     f.src.Generation,
+			Generation:     f.src.Generation(),
 			ReadCompressed: f.src.HasContentEncodingGzip(),
 		})
 	// If the object with requested generation doesn't exist in GCS, it indicates
@@ -278,7 +278,7 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 		// Generation validation first occurs at inode creation/destruction
 		cacheObjectKey := &contentcache.CacheObjectKey{BucketName: f.bucket.Name(), ObjectName: f.name.objectName}
 		if cacheObject, exists := f.contentCache.Get(cacheObjectKey); exists {
-			if cacheObject.ValidateGeneration(f.src.Generation, f.src.MetaGeneration) {
+			if cacheObject.ValidateGeneration(f.src.Generation(), f.src.MetaGeneration) {
 				f.content = cacheObject.CacheFile
 				return
 			}
@@ -291,7 +291,7 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 		}
 
 		// Insert object into content cache
-		tf, err := f.contentCache.AddOrReplace(cacheObjectKey, f.src.Generation, f.src.MetaGeneration, rc)
+		tf, err := f.contentCache.AddOrReplace(cacheObjectKey, f.src.Generation(), f.src.MetaGeneration, rc)
 		if err != nil {
 			err = fmt.Errorf("AddOrReplace cache error: %w", err)
 			return err
@@ -388,7 +388,7 @@ func (f *FileInode) SourceGenerationIsAuthoritative() bool {
 // LOCKS_REQUIRED(f)
 func (f *FileInode) SourceGeneration() (g Generation) {
 	g.Size = f.src.Size
-	g.Object = f.src.Generation
+	g.Object = f.src.Generation()
 	g.Metadata = f.src.MetaGeneration
 	// If bwh is not nil, it's size takes precedence as that is being actively
 	// written to GCS.

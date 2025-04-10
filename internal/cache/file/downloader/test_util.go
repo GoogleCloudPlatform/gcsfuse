@@ -69,7 +69,7 @@ func verifyCompleteFile(t *testing.T, spec data.FileSpec, content []byte) {
 func verifyFileInfoEntry(t *testing.T, mockBucket *storage.TestifyMockBucket, object gcs.MinObject, cache *lru.Cache, offset uint64) {
 	fileInfo := getFileInfo(t, mockBucket, object, cache)
 	assert.True(t, fileInfo != nil)
-	assert.Equal(t, object.Generation, fileInfo.(data.FileInfo).ObjectGeneration)
+	assert.Equal(t, object.Generation(), fileInfo.(data.FileInfo).ObjectGeneration)
 	assert.LessOrEqual(t, offset, fileInfo.(data.FileInfo).Offset)
 	assert.Equal(t, object.Size, fileInfo.(data.FileInfo).Size())
 }

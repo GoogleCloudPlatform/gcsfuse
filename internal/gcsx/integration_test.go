@@ -138,7 +138,7 @@ func (t *IntegrationTest) objectGeneration(name string) (gen int64) {
 		panic(err)
 	}
 
-	gen = m.Generation
+	gen = m.Generation()
 	return
 }
 

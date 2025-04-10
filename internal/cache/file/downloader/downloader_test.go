@@ -100,7 +100,7 @@ func (dt *downloaderTest) waitForCrcCheckToBeCompleted() {
 func (dt *downloaderTest) verifyJob(job *Job, object *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32) {
 	job.mu.Lock()
 	defer job.mu.Unlock()
-	ExpectEq(object.Generation, job.object.Generation)
+	ExpectEq(object.Generation(), job.object.Generation())
 	ExpectEq(object.Name, job.object.Name)
 	ExpectEq(bucket.Name(), job.bucket.Name())
 	downloadPath := util.GetDownloadPath(dt.jm.cacheDir, util.GetObjectPath(bucket.Name(), object.Name))

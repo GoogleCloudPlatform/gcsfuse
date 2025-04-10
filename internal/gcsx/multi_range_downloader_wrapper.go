@@ -167,7 +167,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader() (err
 		var mrd gcs.MultiRangeDownloader
 		mrd, err = mrdWrapper.bucket.NewMultiRangeDownloader(context.Background(), &gcs.MultiRangeDownloaderRequest{
 			Name:           mrdWrapper.object.Name,
-			Generation:     mrdWrapper.object.Generation,
+			Generation:     mrdWrapper.object.Generation(),
 			ReadCompressed: mrdWrapper.object.HasContentEncodingGzip(),
 		})
 		if err == nil {

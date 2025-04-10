@@ -83,7 +83,7 @@ type Object struct {
 type MinObject struct {
 	Name            string
 	Size            uint64
-	Generation      int64
+	generation      int64
 	MetaGeneration  int64
 	Updated         time.Time
 	Metadata        map[string]string
@@ -110,4 +110,38 @@ type ExtendedObjectAttributes struct {
 
 func (mo MinObject) HasContentEncodingGzip() bool {
 	return mo.ContentEncoding == ContentEncodingGzip
+}
+
+func (o *Object) MinObject() *MinObject {
+	return &MinObject{
+		Name:            o.Name,
+		Size:            o.Size,
+		generation:      o.Generation,
+		MetaGeneration:  o.MetaGeneration,
+		Updated:         o.Updated,
+		Metadata:        o.Metadata,
+		ContentEncoding: o.ContentEncoding,
+		CRC32C:          o.CRC32C,
+	}
+}
+
+func (m *MinObject) Object() *Object {
+	return &Object{
+		Name:            m.Name,
+		Size:            m.Size,
+		Generation:      m.Generation(),
+		MetaGeneration:  m.MetaGeneration,
+		Updated:         m.Updated,
+		Metadata:        m.Metadata,
+		ContentEncoding: m.ContentEncoding,
+		CRC32C:          m.CRC32C,
+	}
+}
+
+func (m *MinObject) Generation() int64 {
+	return m.generation
+}
+
+func SetGenerationForTesting(m *MinObject, generation int64) {
+	m.generation = generation
 }

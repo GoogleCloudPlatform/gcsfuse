@@ -229,8 +229,10 @@ func (t *StatCacheTest) Test_ExpiresLeastRecentlyUsed() {
 }
 
 func (t *StatCacheTest) Test_Overwrite_NewerGeneration() {
-	m0 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5}
-	m1 := &gcs.MinObject{Name: "taco", Generation: 19, MetaGeneration: 1}
+	m0 := &gcs.MinObject{Name: "taco", MetaGeneration: 5}
+	m1 := &gcs.MinObject{Name: "taco", MetaGeneration: 1}
+	gcs.SetGenerationForTesting(m0, 17)
+	gcs.SetGenerationForTesting(m1, 19)
 
 	t.cache.Insert(m0, expiration)
 	t.cache.Insert(m1, expiration)
@@ -249,8 +251,10 @@ func (t *StatCacheTest) Test_Overwrite_NewerGeneration() {
 }
 
 func (t *StatCacheTest) Test_Overwrite_SameGeneration_NewerMetadataGen() {
-	m0 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5}
-	m1 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 7}
+	m0 := &gcs.MinObject{Name: "taco", MetaGeneration: 5}
+	m1 := &gcs.MinObject{Name: "taco", MetaGeneration: 7}
+	gcs.SetGenerationForTesting(m0, 17)
+	gcs.SetGenerationForTesting(m1, 17)
 
 	t.cache.Insert(m0, expiration)
 	t.cache.Insert(m1, expiration)
@@ -269,8 +273,10 @@ func (t *StatCacheTest) Test_Overwrite_SameGeneration_NewerMetadataGen() {
 }
 
 func (t *StatCacheTest) Test_Overwrite_SameGeneration_SameMetadataGen() {
-	m0 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5}
-	m1 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5}
+	m0 := &gcs.MinObject{Name: "taco", MetaGeneration: 5}
+	m1 := &gcs.MinObject{Name: "taco", MetaGeneration: 5}
+	gcs.SetGenerationForTesting(m0, 17)
+	gcs.SetGenerationForTesting(m1, 17)
 
 	t.cache.Insert(m0, expiration)
 	t.cache.Insert(m1, expiration)
@@ -279,8 +285,10 @@ func (t *StatCacheTest) Test_Overwrite_SameGeneration_SameMetadataGen() {
 }
 
 func (t *StatCacheTest) Test_Overwrite_SameGeneration_OlderMetadataGen() {
-	m0 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5}
-	m1 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 3}
+	m0 := &gcs.MinObject{Name: "taco", MetaGeneration: 5}
+	m1 := &gcs.MinObject{Name: "taco", MetaGeneration: 3}
+	gcs.SetGenerationForTesting(m0, 17)
+	gcs.SetGenerationForTesting(m1, 17)
 
 	t.cache.Insert(m0, expiration)
 	t.cache.Insert(m1, expiration)
@@ -289,8 +297,10 @@ func (t *StatCacheTest) Test_Overwrite_SameGeneration_OlderMetadataGen() {
 }
 
 func (t *StatCacheTest) Test_Overwrite_OlderGeneration() {
-	m0 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5}
-	m1 := &gcs.MinObject{Name: "taco", Generation: 13, MetaGeneration: 7}
+	m0 := &gcs.MinObject{Name: "taco", MetaGeneration: 5}
+	m1 := &gcs.MinObject{Name: "taco", MetaGeneration: 7}
+	gcs.SetGenerationForTesting(m0, 17)
+	gcs.SetGenerationForTesting(m1, 13)
 
 	t.cache.Insert(m0, expiration)
 	t.cache.Insert(m1, expiration)
@@ -300,7 +310,8 @@ func (t *StatCacheTest) Test_Overwrite_OlderGeneration() {
 
 func (t *StatCacheTest) Test_Overwrite_NegativeWithPositive() {
 	const name = "taco"
-	m1 := &gcs.MinObject{Name: name, Generation: 13, MetaGeneration: 7}
+	m1 := &gcs.MinObject{Name: name, MetaGeneration: 7}
+	gcs.SetGenerationForTesting(m1, 13)
 
 	t.cache.AddNegativeEntry(name, expiration)
 	t.cache.Insert(m1, expiration)
@@ -310,7 +321,8 @@ func (t *StatCacheTest) Test_Overwrite_NegativeWithPositive() {
 
 func (t *StatCacheTest) Test_Overwrite_PositiveWithNegative() {
 	const name = "taco"
-	m0 := &gcs.MinObject{Name: name, Generation: 13, MetaGeneration: 7}
+	m0 := &gcs.MinObject{Name: name, MetaGeneration: 7}
+	gcs.SetGenerationForTesting(m0, 13)
 
 	t.cache.Insert(m0, expiration)
 	t.cache.AddNegativeEntry(name, expiration)

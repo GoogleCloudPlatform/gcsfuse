@@ -116,7 +116,7 @@ const (
 func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper) RandomReader {
 	return &randomReader{
 		object:                o,
-		readerGeneration:      o.Generation,
+		readerGeneration:      o.Generation(),
 		bucket:                bucket,
 		start:                 -1,
 		limit:                 -1,
@@ -435,7 +435,7 @@ func (rr *randomReader) Destroy() {
 }
 
 func (rr *randomReader) IsStale() bool {
-	return rr.object.Generation != rr.readerGeneration
+	return rr.object.Generation() != rr.readerGeneration
 }
 
 // Like io.ReadFull, but deals with the cancellation issues.
@@ -484,7 +484,7 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 		ctx,
 		&gcs.ReadObjectRequest{
 			Name:       rr.object.Name,
-			Generation: rr.object.Generation,
+			Generation: rr.object.Generation(),
 			Range: &gcs.ByteRange{
 				Start: uint64(start),
 				Limit: uint64(end),

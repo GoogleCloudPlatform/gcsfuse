@@ -70,7 +70,7 @@ func (dt *downloaderTest) initJobTest(objectName string, objectContent []byte, s
 	}
 	fileInfo := data.FileInfo{
 		Key:              fileInfoKey,
-		ObjectGeneration: dt.object.Generation,
+		ObjectGeneration: dt.object.Generation(),
 		FileSize:         dt.object.Size,
 		Offset:           0,
 	}
@@ -99,7 +99,7 @@ func (dt *downloaderTest) verifyFile(content []byte) {
 func (dt *downloaderTest) verifyFileInfoEntry(offset uint64) {
 	fileInfo := dt.getFileInfo()
 	AssertTrue(fileInfo != nil)
-	AssertEq(dt.object.Generation, fileInfo.(data.FileInfo).ObjectGeneration)
+	AssertEq(dt.object.Generation(), fileInfo.(data.FileInfo).ObjectGeneration)
 	AssertLe(offset, fileInfo.(data.FileInfo).Offset)
 	AssertEq(dt.object.Size, fileInfo.(data.FileInfo).Size())
 }
@@ -242,7 +242,7 @@ func (dt *downloaderTest) Test_updateStatusOffset_UpdateEntry() {
 	}
 	fileInfo := data.FileInfo{
 		Key:              fileInfoKey,
-		ObjectGeneration: dt.job.object.Generation,
+		ObjectGeneration: dt.job.object.Generation(),
 		FileSize:         dt.job.object.Size,
 		Offset:           0,
 	}
@@ -263,7 +263,7 @@ func (dt *downloaderTest) Test_updateStatusOffset_UpdateEntry() {
 	AssertFalse(lookupResult == nil)
 	fileInfo = lookupResult.(data.FileInfo)
 	AssertEq(10, fileInfo.Offset)
-	AssertEq(dt.job.object.Generation, fileInfo.ObjectGeneration)
+	AssertEq(dt.job.object.Generation(), fileInfo.ObjectGeneration)
 	AssertEq(dt.job.object.Size, fileInfo.FileSize)
 	// Confirm job's status offset
 	AssertEq(10, dt.job.status.Offset)
@@ -299,7 +299,7 @@ func (dt *downloaderTest) Test_updateStatusOffset_Fail() {
 	}
 	fileInfo := data.FileInfo{
 		Key:              fileInfoKey,
-		ObjectGeneration: dt.job.object.Generation,
+		ObjectGeneration: dt.job.object.Generation(),
 		FileSize:         dt.job.object.Size,
 		Offset:           0,
 	}

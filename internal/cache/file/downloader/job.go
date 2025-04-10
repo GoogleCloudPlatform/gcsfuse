@@ -274,7 +274,7 @@ func (job *Job) updateStatusOffset(downloadedOffset int64) (err error) {
 	}
 
 	updatedFileInfo := data.FileInfo{
-		Key: fileInfoKey, ObjectGeneration: job.object.Generation,
+		Key: fileInfoKey, ObjectGeneration: job.object.Generation(),
 		FileSize: job.object.Size, Offset: uint64(downloadedOffset),
 	}
 
@@ -312,7 +312,7 @@ func (job *Job) downloadObjectToFile(cacheFile *os.File) (err error) {
 				job.cancelCtx,
 				&gcs.ReadObjectRequest{
 					Name:       job.object.Name,
-					Generation: job.object.Generation,
+					Generation: job.object.Generation(),
 					Range: &gcs.ByteRange{
 						Start: uint64(start),
 						Limit: uint64(newReaderLimit),

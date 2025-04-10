@@ -251,7 +251,7 @@ func (t objectAttrsTest) Test_ConvertObjToMinObject_WithValidObject() {
 	AssertNe(nil, gcsMinObject)
 	ExpectEq(name, gcsMinObject.Name)
 	ExpectEq(size, gcsMinObject.Size)
-	ExpectEq(generation, gcsMinObject.Generation)
+	ExpectEq(generation, gcsMinObject.Generation())
 	ExpectEq(metaGeneration, gcsMinObject.MetaGeneration)
 	ExpectTrue(currentTime.Equal(gcsMinObject.Updated))
 	ExpectEq(contentEncode, gcsMinObject.ContentEncoding)
@@ -342,12 +342,13 @@ func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithNonNilMin
 	minObject := &gcs.MinObject{
 		Name:            "test",
 		Size:            uint64(36),
-		Generation:      int64(444),
 		MetaGeneration:  int64(555),
 		Updated:         timeAttr,
 		Metadata:        map[string]string{"test_key": "test_value"},
 		ContentEncoding: "test_encoding",
 	}
+	gcs.SetGenerationForTesting(minObject, 444)
+
 	extendedObjAttr := &gcs.ExtendedObjectAttributes{
 		ContentType:        "ContentType",
 		ContentLanguage:    "ContentLanguage",
@@ -369,7 +370,7 @@ func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithNonNilMin
 	AssertNe(nil, gcsObject)
 	ExpectEq(gcsObject.Name, minObject.Name)
 	ExpectEq(gcsObject.Size, minObject.Size)
-	ExpectEq(gcsObject.Generation, minObject.Generation)
+	ExpectEq(gcsObject.Generation, minObject.Generation())
 	ExpectEq(gcsObject.MetaGeneration, minObject.MetaGeneration)
 	ExpectEq(0, gcsObject.Updated.Compare(minObject.Updated))
 	ExpectEq(gcsObject.Metadata, minObject.Metadata)
@@ -404,20 +405,20 @@ func (t objectAttrsTest) Test_ConvertMinObjectToObject_WithNonNilMinObject() {
 	minObject := &gcs.MinObject{
 		Name:            "test",
 		Size:            uint64(36),
-		Generation:      int64(444),
 		MetaGeneration:  int64(555),
 		Updated:         timeAttr,
 		Metadata:        map[string]string{"test_key": "test_value"},
 		ContentEncoding: "test_encoding",
 		CRC32C:          &crc32C,
 	}
+	gcs.SetGenerationForTesting(minObject, 444)
 
 	gcsObject := ConvertMinObjectToObject(minObject)
 
 	AssertNe(nil, gcsObject)
 	ExpectEq(gcsObject.Name, minObject.Name)
 	ExpectEq(gcsObject.Size, minObject.Size)
-	ExpectEq(gcsObject.Generation, minObject.Generation)
+	ExpectEq(gcsObject.Generation, minObject.Generation())
 	ExpectEq(gcsObject.MetaGeneration, minObject.MetaGeneration)
 	ExpectEq(0, gcsObject.Updated.Compare(minObject.Updated))
 	ExpectEq(gcsObject.Metadata, minObject.Metadata)

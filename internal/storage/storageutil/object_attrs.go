@@ -105,24 +105,12 @@ func ObjectAttrsToBucketObject(attrs *storage.ObjectAttrs) *gcs.Object {
 }
 
 func ObjectAttrsToMinObject(attrs *storage.ObjectAttrs) *gcs.MinObject {
+
 	if attrs == nil {
 		return nil
 	}
-
-	// Making a local copy of crc to avoid keeping a reference to attrs instance.
-	crc := attrs.CRC32C
-
-	// Setting the parameters in MinObject and doing conversions as necessary.
-	return &gcs.MinObject{
-		Name:            attrs.Name,
-		Size:            uint64(attrs.Size),
-		ContentEncoding: attrs.ContentEncoding,
-		CRC32C:          &crc,
-		Metadata:        attrs.Metadata,
-		Generation:      attrs.Generation,
-		MetaGeneration:  attrs.Metageneration,
-		Updated:         attrs.Updated,
-	}
+	o := ObjectAttrsToBucketObject(attrs)
+	return o.MinObject()
 }
 
 // SetAttrsInWriter - for setting object-attributes filed in storage.Writer object.
@@ -163,16 +151,7 @@ func ConvertObjToMinObject(o *gcs.Object) *gcs.MinObject {
 		return nil
 	}
 
-	return &gcs.MinObject{
-		Name:            o.Name,
-		Size:            o.Size,
-		Generation:      o.Generation,
-		MetaGeneration:  o.MetaGeneration,
-		Updated:         o.Updated,
-		Metadata:        o.Metadata,
-		ContentEncoding: o.ContentEncoding,
-		CRC32C:          o.CRC32C,
-	}
+	return o.MinObject()
 }
 
 func ConvertObjToExtendedObjectAttributes(o *gcs.Object) *gcs.ExtendedObjectAttributes {
@@ -206,7 +185,7 @@ func ConvertMinObjectAndExtendedObjectAttributesToObject(m *gcs.MinObject,
 	return &gcs.Object{
 		Name:               m.Name,
 		Size:               m.Size,
-		Generation:         m.Generation,
+		Generation:         m.Generation(),
 		MetaGeneration:     m.MetaGeneration,
 		Updated:            m.Updated,
 		Metadata:           m.Metadata,
@@ -232,15 +211,5 @@ func ConvertMinObjectToObject(m *gcs.MinObject) *gcs.Object {
 	if m == nil {
 		return nil
 	}
-
-	return &gcs.Object{
-		Name:            m.Name,
-		Size:            m.Size,
-		Generation:      m.Generation,
-		MetaGeneration:  m.MetaGeneration,
-		Updated:         m.Updated,
-		Metadata:        m.Metadata,
-		ContentEncoding: m.ContentEncoding,
-		CRC32C:          m.CRC32C,
-	}
+	return m.Object()
 }
