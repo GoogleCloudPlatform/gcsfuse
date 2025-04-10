@@ -65,7 +65,7 @@ func (t *FileCacheReaderTest) TearDownSuite() {
 	}
 }
 
-func (t *FileCacheReaderTest) TestNewFileCacheReaderInitialization() {
+func (t *FileCacheReaderTest) TestNewFileCacheReader() {
 	reader := NewFileCacheReader(t.object, t.mockBucket, t.cacheHandler, true, nil)
 
 	assert.NotNil(t.T(), reader)
