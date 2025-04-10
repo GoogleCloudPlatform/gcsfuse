@@ -747,7 +747,7 @@ func CreateLocalTempFile(content string, gzipCompress bool) (string, error) {
 // ReadAndCompare reads content from the given file paths and compares them.
 func ReadAndCompare(t *testing.T, filePathInMntDir string, filePathInLocalDisk string, offset int64, chunkSize int64) {
 	t.Helper()
-	mountContents, err := ReadChunkFromFile(filePathInMntDir, chunkSize, offset, os.O_RDONLY)
+	mountContents, err := ReadChunkFromFile(filePathInMntDir, chunkSize, offset, os.O_RDONLY|syscall.O_DIRECT)
 	if err != nil {
 		t.Fatalf("error in read file from mounted directory :%d", err)
 	}
