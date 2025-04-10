@@ -75,8 +75,8 @@ type MultiRangeDownloaderWrapper struct {
 	clock clock.Clock
 }
 
-// Sets the gcs.MinObject stored in the wrapper to passed value, Used only for unit testing.
-func (mrdWrapper *MultiRangeDownloaderWrapper) SetMinObjectForTesting(minObj *gcs.MinObject) error {
+// Sets the gcs.MinObject stored in the wrapper to passed value, only if it's non nil.
+func (mrdWrapper *MultiRangeDownloaderWrapper) SetMinObject(minObj *gcs.MinObject) error {
 	if minObj == nil {
 		return fmt.Errorf("MultiRangeDownloaderWrapper::SetMinObject: Missing MinObject")
 	}

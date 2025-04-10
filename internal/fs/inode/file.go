@@ -742,6 +742,8 @@ func (f *FileInode) SetMtime(
 		if minObjPtr != nil {
 			minObj = *minObjPtr
 		}
+		// Update MRDWrapper
+		f.updateMRDWrapper()
 		f.src = minObj
 		return
 	}
@@ -859,6 +861,15 @@ func (f *FileInode) syncUsingContent(ctx context.Context) error {
 	return nil
 }
 
+// Updates the min object stored in MRDWrapper corresponding to the inode.
+// Should be called when minObject associated with inode is updated.
+func (f *FileInode) updateMRDWrapper() {
+	err := f.MRDWrapper.SetMinObject(&f.src)
+	if err != nil {
+		logger.Errorf("FileInode::updateMRDWrapper Error in setting minObject %v", err)
+	}
+}
+
 // Flush writes out contents to GCS. If this fails due to the generation
 // having been clobbered, failure is propagated back to the calling
 // function as an error.
@@ -884,6 +895,8 @@ func (f *FileInode) Flush(ctx context.Context) (err error) {
 
 func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 	if minObj != nil && !f.localFileCache {
+		// Update MRDWrapper
+		f.updateMRDWrapper()
 		f.src = *minObj
 		// Convert localFile to nonLocalFile after it is synced to GCS.
 		if f.IsLocal() {

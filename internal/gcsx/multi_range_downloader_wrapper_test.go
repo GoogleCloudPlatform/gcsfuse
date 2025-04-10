@@ -271,7 +271,7 @@ func (t *mrdWrapperTest) Test_SetMinObject() {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
-			err := t.mrdWrapper.SetMinObjectForTesting(tc.obj)
+			err := t.mrdWrapper.SetMinObject(tc.obj)
 			if tc.err == nil {
 				assert.NoError(t.T(), err)
 			} else {
