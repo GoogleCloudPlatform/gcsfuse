@@ -305,11 +305,11 @@ func (t *SizeofTest) TestNestedSizeOfGcsMinObject() {
 		Size:            100,
 		ContentEncoding: contentEncoding,
 		Metadata:        customMetadataFields,
-		Generation:      generation,
 		MetaGeneration:  metaGeneration,
 		Updated:         updated,
 		CRC32C:          &crc32,
 	}
+	gcs.SetGenerationForTesting(&m, generation)
 
 	var expectedSize int = sizeOfEmptyMinObject
 	expectedSize += len(name) + len(contentEncoding) + sizeOfUInt32

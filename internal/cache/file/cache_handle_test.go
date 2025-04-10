@@ -75,7 +75,7 @@ func (cht *cacheHandleTest) addTestFileInfoEntryInCache() {
 	}
 	fileInfo := data.FileInfo{
 		Key:              fileInfoKey,
-		ObjectGeneration: cht.object.Generation,
+		ObjectGeneration: cht.object.Generation(),
 		FileSize:         cht.object.Size,
 		Offset:           0,
 	}
@@ -365,7 +365,7 @@ func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_FileInfoPresent() 
 	assert.Nil(cht.T(), err)
 	fileInfo := data.FileInfo{
 		Key:              fileInfoKey,
-		ObjectGeneration: cht.object.Generation,
+		ObjectGeneration: cht.object.Generation(),
 		FileSize:         cht.object.Size,
 		Offset:           cht.object.Size,
 	}
@@ -400,7 +400,7 @@ func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_FileInfoGeneration
 	assert.Nil(cht.T(), err)
 	fileInfo := data.FileInfo{
 		Key:              fileInfoKey,
-		ObjectGeneration: cht.object.Generation + 1,
+		ObjectGeneration: cht.object.Generation() + 1,
 		FileSize:         cht.object.Size,
 		Offset:           cht.object.Size,
 	}
@@ -421,7 +421,7 @@ func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_FileInfoOffsetLess
 	assert.Nil(cht.T(), err)
 	fileInfo := data.FileInfo{
 		Key:              fileInfoKey,
-		ObjectGeneration: cht.object.Generation,
+		ObjectGeneration: cht.object.Generation(),
 		FileSize:         cht.object.Size,
 		Offset:           10, // Insert offset less than required
 	}

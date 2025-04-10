@@ -899,7 +899,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 	}
 
 	oGen := inode.Generation{
-		Object:   ic.MinObject.Generation,
+		Object:   ic.MinObject.Generation(),
 		Metadata: ic.MinObject.MetaGeneration,
 		Size:     ic.MinObject.Size,
 	}
@@ -2135,7 +2135,7 @@ func (fs *fileSystem) renameNonHierarchicalFile(
 	err = oldParent.DeleteChildFile(
 		ctx,
 		oldName,
-		oldObject.Generation,
+		oldObject.Generation(),
 		&oldObject.MetaGeneration)
 
 	if err := fs.invalidateChildFileCacheIfExist(oldParent, oldObject.Name); err != nil {
@@ -2325,7 +2325,7 @@ func (fs *fileSystem) renameNonHierarchicalDir(
 		if _, err := newDir.CloneToChildFile(ctx, nameDiff, o); err != nil {
 			return fmt.Errorf("copy file %q: %w", o.Name, err)
 		}
-		if err := oldDir.DeleteChildFile(ctx, nameDiff, o.Generation, &o.MetaGeneration); err != nil {
+		if err := oldDir.DeleteChildFile(ctx, nameDiff, o.Generation(), &o.MetaGeneration); err != nil {
 			return fmt.Errorf("delete file %q: %w", o.Name, err)
 		}
 

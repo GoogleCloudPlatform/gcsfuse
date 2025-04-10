@@ -83,7 +83,7 @@ type Object struct {
 type MinObject struct {
 	Name            string
 	Size            uint64
-	Generation      int64
+	generation      int64
 	MetaGeneration  int64
 	Updated         time.Time
 	Metadata        map[string]string
@@ -108,6 +108,30 @@ type ExtendedObjectAttributes struct {
 	Acl                []*storagev1.ObjectAccessControl
 }
 
+func NewMinObject(name string, size uint64, generation int64,
+	metaGeneration int64, updated time.Time, metadata map[string]string,
+	contentEncoding string, crc32c *uint32) *MinObject {
+	localCrc32c := *crc32c // Make a copy to not reference caller's crc32c memory.
+	return &MinObject{
+		Name:            name,
+		Size:            size,
+		generation:      generation,
+		MetaGeneration:  metaGeneration,
+		Updated:         updated,
+		Metadata:        metadata,
+		ContentEncoding: contentEncoding,
+		CRC32C:          &localCrc32c,
+	}
+}
+
 func (mo MinObject) HasContentEncodingGzip() bool {
 	return mo.ContentEncoding == ContentEncodingGzip
+}
+
+func (m *MinObject) Generation() int64 {
+	return m.generation
+}
+
+func SetGenerationForTesting(m *MinObject, generation int64) {
+	m.generation = generation
 }

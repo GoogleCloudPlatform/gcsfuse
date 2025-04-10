@@ -251,7 +251,7 @@ func (f *FileInode) openReader(ctx context.Context) (io.ReadCloser, error) {
 		ctx,
 		&gcs.ReadObjectRequest{
 			Name:           f.src.Name,
-			Generation:     f.src.Generation,
+			Generation:     f.src.Generation(),
 			ReadCompressed: f.src.HasContentEncodingGzip(),
 		})
 	// If the object with requested generation doesn't exist in GCS, it indicates
@@ -278,7 +278,7 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 		// Generation validation first occurs at inode creation/destruction
 		cacheObjectKey := &contentcache.CacheObjectKey{BucketName: f.bucket.Name(), ObjectName: f.name.objectName}
 		if cacheObject, exists := f.contentCache.Get(cacheObjectKey); exists {
-			if cacheObject.ValidateGeneration(f.src.Generation, f.src.MetaGeneration) {
+			if cacheObject.ValidateGeneration(f.src.Generation(), f.src.MetaGeneration) {
 				f.content = cacheObject.CacheFile
 				return
 			}
@@ -291,7 +291,7 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 		}
 
 		// Insert object into content cache
-		tf, err := f.contentCache.AddOrReplace(cacheObjectKey, f.src.Generation, f.src.MetaGeneration, rc)
+		tf, err := f.contentCache.AddOrReplace(cacheObjectKey, f.src.Generation(), f.src.MetaGeneration, rc)
 		if err != nil {
 			err = fmt.Errorf("AddOrReplace cache error: %w", err)
 			return err
@@ -364,9 +364,7 @@ func (f *FileInode) Unlink() {
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Source() *gcs.MinObject {
-	// Make a copy, since we modify f.src.
-	o := f.src
-	return &o
+	return &f.src
 }
 
 // If true, it is safe to serve reads directly from the object given by
@@ -387,10 +385,10 @@ func (f *FileInode) SourceGenerationIsAuthoritative() bool {
 
 // Equivalent to the generation returned by f.Source().
 //
-// LOCKS_REQUIRED(f)
+// LOCKS_REQUIRED(f.mu)
 func (f *FileInode) SourceGeneration() (g Generation) {
 	g.Size = f.src.Size
-	g.Object = f.src.Generation
+	g.Object = f.src.Generation()
 	g.Metadata = f.src.MetaGeneration
 	// If bwh is not nil, it's size takes precedence as that is being actively
 	// written to GCS.
@@ -673,6 +671,10 @@ func (f *FileInode) SyncPendingBufferedWrites() error {
 	if err != nil {
 		return fmt.Errorf("f.bwh.Sync(): %w", err)
 	}
+	// Update the f.src.Size to the current Size of object
+	// on GCS for current generation.
+	writeFileInfo := f.bwh.WriteFileInfo()
+	f.src.Size = uint64(writeFileInfo.TotalSize)
 	return nil
 }
 
@@ -740,8 +742,9 @@ func (f *FileInode) SetMtime(
 		if minObjPtr != nil {
 			minObj = *minObjPtr
 		}
-		f.src = minObj
+		// Update MRDWrapper
 		f.updateMRDWrapper()
+		f.src = minObj
 		return
 	}
 
@@ -858,6 +861,15 @@ func (f *FileInode) syncUsingContent(ctx context.Context) error {
 	return nil
 }
 
+// Updates the min object stored in MRDWrapper corresponding to the inode.
+// Should be called when minObject associated with inode is updated.
+func (f *FileInode) updateMRDWrapper() {
+	err := f.MRDWrapper.SetMinObject(&f.src)
+	if err != nil {
+		logger.Errorf("FileInode::updateMRDWrapper Error in setting minObject %v", err)
+	}
+}
+
 // Flush writes out contents to GCS. If this fails due to the generation
 // having been clobbered, failure is propagated back to the calling
 // function as an error.
@@ -883,9 +895,9 @@ func (f *FileInode) Flush(ctx context.Context) (err error) {
 
 func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 	if minObj != nil && !f.localFileCache {
-		f.src = *minObj
 		// Update MRDWrapper
 		f.updateMRDWrapper()
+		f.src = *minObj
 		// Convert localFile to nonLocalFile after it is synced to GCS.
 		if f.IsLocal() {
 			f.local = false
@@ -900,15 +912,6 @@ func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 	}
 
 	return
-}
-
-// Updates the min object stored in MRDWrapper corresponding to the inode.
-// Should be called when minObject associated with inode is updated.
-func (f *FileInode) updateMRDWrapper() {
-	err := f.MRDWrapper.SetMinObject(&f.src)
-	if err != nil {
-		logger.Errorf("FileInode::updateMRDWrapper Error in setting minObject %v", err)
-	}
 }
 
 // Truncate the file to the specified size.
