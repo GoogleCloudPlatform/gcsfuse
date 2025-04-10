@@ -21,6 +21,7 @@ import (
 )
 
 type FileCacheReader struct {
+	Reader
 	obj    *gcs.MinObject
 	bucket gcs.Bucket
 

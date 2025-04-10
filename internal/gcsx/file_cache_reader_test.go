@@ -15,38 +15,66 @@
 package gcsx
 
 import (
+	"os"
+	"path"
 	"testing"
-	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/common"
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file/downloader"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
 
 const TestObject = "testObject"
 
-func TestNewFileCacheReader(t *testing.T) {
-	obj := &gcs.MinObject{
-		Name:            TestObject,
-		Size:            10,
-		Generation:      0,
-		MetaGeneration:  -1,
-		Updated:         time.Time{},
-		Metadata:        nil,
-		ContentEncoding: "",
-		CRC32C:          nil,
+type FileCacheReaderTest struct {
+	suite.Suite
+	wrapped      *Reader
+	object       *gcs.MinObject
+	mockBucket   *storage.TestifyMockBucket // Use the fake bucket for better control
+	cacheDir     string
+	jobManager   *downloader.JobManager
+	cacheHandler *file.CacheHandler
+}
+
+func TestFileCacheReaderTestSuite(t *testing.T) {
+	suite.Run(t, new(FileCacheReaderTest))
+}
+
+func (t *FileCacheReaderTest) SetupTestSuite() {
+	t.object = &gcs.MinObject{
+		Name:       TestObject,
+		Size:       17,
+		Generation: 1234,
 	}
-	var bucket gcs.Bucket
-	cacheHandler := &file.CacheHandler{}
-	var metricHandle common.MetricHandle
+	t.mockBucket = new(storage.TestifyMockBucket)
+	t.cacheDir = path.Join(os.Getenv("HOME"), "test_cache_dir")
+	lruCache := lru.NewCache(CacheMaxSize)
+	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, sequentialReadSizeInMb, &cfg.FileCacheConfig{
+		EnableCrc: false, // Disable CRC for simplicity in this test
+	}, nil)
+	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm)
+}
 
-	reader := NewFileCacheReader(obj, bucket, cacheHandler, true, metricHandle)
+func (t *FileCacheReaderTest) TearDownSuite() {
+	err := os.RemoveAll(t.cacheDir)
+	if err != nil {
+		t.T().Logf("Warning: Failed to clean up test cache directory '%s': %v", t.cacheDir, err)
+	}
+}
 
-	assert.Equal(t, obj, reader.obj)
-	assert.Equal(t, bucket, reader.bucket)
-	assert.Equal(t, cacheHandler, reader.fileCacheHandler)
-	assert.True(t, reader.cacheFileForRangeRead)
-	assert.Equal(t, metricHandle, reader.metricHandle)
-	assert.Nil(t, reader.fileCacheHandle) // Initially nil
+func (t *FileCacheReaderTest) TestNewFileCacheReaderInitialization() {
+	reader := NewFileCacheReader(t.object, t.mockBucket, t.cacheHandler, true, nil)
+
+	assert.Equal(t.T(), t.object, reader.obj)
+	assert.Equal(t.T(), t.mockBucket, reader.bucket)
+	assert.Equal(t.T(), t.cacheHandler, reader.fileCacheHandler)
+	assert.True(t.T(), reader.cacheFileForRangeRead)
+	assert.Nil(t.T(), reader.metricHandle)
+	assert.Nil(t.T(), reader.fileCacheHandle)
 }
