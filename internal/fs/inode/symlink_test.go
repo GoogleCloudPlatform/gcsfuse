@@ -19,7 +19,9 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/jacobsa/fuse/fuseops"
 	. "github.com/jacobsa/ogletest"
+	"golang.org/x/net/context"
 )
 
 func TestSymlink(t *testing.T) { RunTests(t) }
@@ -28,13 +30,27 @@ func TestSymlink(t *testing.T) { RunTests(t) }
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
+const uid = 123
+const gid = 456
+
+const fileInodeID = 17
+
 type SymlinkTest struct {
+	ctx context.Context
 }
 
 var _ SetUpInterface = &CoreTest{}
 var _ TearDownInterface = &CoreTest{}
 
 func init() { RegisterTestSuite(&SymlinkTest{}) }
+
+func (t *SymlinkTest) SetupSubTest() {
+	t.SetupTest()
+}
+
+func (t *SymlinkTest) SetupTest() {
+	t.ctx = context.Background()
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
@@ -62,4 +78,29 @@ func (t *SymlinkTest) TestIsSymLinkWhenMetadataKeyIsNotPresent() {
 
 func (t *SymlinkTest) TestIsSymLinkForNilObject() {
 	AssertEq(false, inode.IsSymlink(nil))
+}
+
+func (t *SymlinkTest) TestSymlinkSize() {
+	metadata := map[string]string{
+		inode.SymlinkMetadataKey: "target",
+	}
+	m := gcs.MinObject{
+		Name:     "test",
+		Metadata: metadata,
+	}
+	name := inode.NewFileName(inode.NewRootName(""), "test")
+	inode := inode.NewSymlinkInode(
+		fileInodeID,
+		name,
+		&m,
+		fuseops.InodeAttributes{
+			Uid:  uid,
+			Gid:  gid,
+			Mode: 0o777,
+		},
+	)
+
+	attrs, err := inode.Attributes(t.ctx)
+	AssertEq(nil, err)
+	AssertEq(attrs.Size, uint64(len("target")))
 }
