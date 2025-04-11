@@ -24,24 +24,6 @@ import (
 	storagev1 "google.golang.org/api/storage/v1"
 )
 
-const universeDomainDefault = "googleapis.com"
-
-func getUniverseDomain(ctx context.Context, contents []byte, scope string) (string, error) {
-	creds, err := google.CredentialsFromJSON(ctx, contents, scope)
-	if err != nil {
-		err = fmt.Errorf("CredentialsFromJSON(): %w", err)
-		return "", err
-	}
-
-	domain, err := creds.GetUniverseDomain()
-	if err != nil {
-		err = fmt.Errorf("GetUniverseDomain(): %w", err)
-		return "", err
-	}
-
-	return domain, nil
-}
-
 // Create token source from the JSON file at the supplide path.
 func newTokenSourceFromPath(ctx context.Context, path string, scope string) (oauth2.TokenSource, error) {
 	// Read the file.
