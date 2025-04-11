@@ -123,6 +123,7 @@ type MultiBucketStatCacheTest struct {
 func (t *StatCacheTest) CreateTestMinObject(name string, generation, metaGeneration int64) *gcs.MinObject {
 	return gcs.NewMinObject(name, 1024, generation, metaGeneration, time.Now(), map[string]string{"fake_key": "fake_value"}, "fake_testEncoding", nil)
 }
+
 func (t *StatCacheTest) SetupTest() {
 	cache := lru.NewCache(uint64((cfg.AverageSizeOfPositiveStatCacheEntry + cfg.AverageSizeOfNegativeStatCacheEntry) * capacity))
 	t.cache.wrapped = metadata.NewStatCacheBucketView(cache, "") // this demonstrates
