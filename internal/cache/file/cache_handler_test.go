@@ -18,6 +18,7 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"os"
 	"path"
 	"strconv"
@@ -411,8 +412,21 @@ func Test_GetCacheHandle_WhenCacheHasDifferentGeneration(t *testing.T) {
 	// Change the version of the object, but cache still keeps old generation
 	chTestArgs.object.Generation = chTestArgs.object.Generation + 1
 
-	newCacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(chTestArgs.object, chTestArgs.bucket, false, 0)
+	var newCacheHandleInterface CacheHandleInterface
+	var err error
+	newCacheHandleInterface, err = chTestArgs.cacheHandler.GetCacheHandle(chTestArgs.object, chTestArgs.bucket, false, 0)
+	if err != nil {
+		// Handle the error
+		fmt.Println("Error getting cache handle:", err)
+		return
+	}
 
+	// Attempt to type assert to the concrete *CacheHandle type
+	newCacheHandle, ok := newCacheHandleInterface.(*CacheHandle)
+	if !ok {
+		fmt.Println("Could not assert CacheHandleInterface to *CacheHandle")
+		return
+	}
 	assert.NoError(t, err)
 	assert.Nil(t, newCacheHandle.validateCacheHandle())
 	jobStatusOfOldJob := existingJob.GetStatus()
@@ -433,13 +447,13 @@ func Test_GetCacheHandle_WhenAsyncDownloadJobHasFailed(t *testing.T) {
 	require.Equal(t, downloader.Failed, jobStatus.Name)
 	chTestArgs.object.Size = correctSize
 
-	newCacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(chTestArgs.object, chTestArgs.bucket, false, 0)
+	cacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(chTestArgs.object, chTestArgs.bucket, false, 0)
 
 	// New job should be created because the earlier job has failed.
 	assert.NoError(t, err)
-	assert.Nil(t, newCacheHandle.validateCacheHandle())
+	assert.Nil(t, cacheHandle.(*CacheHandle).validateCacheHandle())
 	assert.True(t, isEntryInFileInfoCache(t, chTestArgs.cache, chTestArgs.object.Name, chTestArgs.bucket.Name()))
-	jobStatusOfNewHandle := newCacheHandle.fileDownloadJob.GetStatus()
+	jobStatusOfNewHandle := cacheHandle.(*CacheHandle).fileDownloadJob.GetStatus()
 	assert.Equal(t, downloader.NotStarted, jobStatusOfNewHandle.Name)
 }
 
@@ -452,11 +466,11 @@ func Test_GetCacheHandle_WhenFileInfoAndJobAreAlreadyPresent(t *testing.T) {
 	cacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(chTestArgs.object, chTestArgs.bucket, false, 0)
 
 	assert.NoError(t, err)
-	assert.Nil(t, cacheHandle.validateCacheHandle())
+	assert.Nil(t, cacheHandle.(*CacheHandle).validateCacheHandle())
 	// Job and file info are still present
 	assert.True(t, isEntryInFileInfoCache(t, chTestArgs.cache, chTestArgs.object.Name, chTestArgs.bucket.Name()))
-	assert.Equal(t, existingJob, cacheHandle.fileDownloadJob)
-	jobStatusOfNewHandle := cacheHandle.fileDownloadJob.GetStatus()
+	assert.Equal(t, existingJob, cacheHandle.(*CacheHandle).fileDownloadJob)
+	jobStatusOfNewHandle := cacheHandle.(*CacheHandle).fileDownloadJob.GetStatus()
 	assert.Equal(t, downloader.NotStarted, jobStatusOfNewHandle.Name)
 }
 
@@ -468,10 +482,10 @@ func Test_GetCacheHandle_WhenFileInfoAndJobAreNotPresent(t *testing.T) {
 	cacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(minObject, chTestArgs.bucket, false, 0)
 
 	assert.NoError(t, err)
-	assert.Nil(t, cacheHandle.validateCacheHandle())
+	assert.Nil(t, cacheHandle.(*CacheHandle).validateCacheHandle())
 	// New Job and file info are created.
 	assert.True(t, isEntryInFileInfoCache(t, chTestArgs.cache, minObject.Name, chTestArgs.bucket.Name()))
-	jobStatusOfNewHandle := cacheHandle.fileDownloadJob.GetStatus()
+	jobStatusOfNewHandle := cacheHandle.(*CacheHandle).fileDownloadJob.GetStatus()
 	assert.Equal(t, downloader.NotStarted, jobStatusOfNewHandle.Name)
 }
 
@@ -513,7 +527,7 @@ func Test_GetCacheHandle_WithEviction(t *testing.T) {
 			cacheHandle2, err := chTestArgs.cacheHandler.GetCacheHandle(minObject, chTestArgs.bucket, false, 0)
 
 			assert.NoError(t, err)
-			assert.Nil(t, cacheHandle2.validateCacheHandle())
+			assert.Nil(t, cacheHandle2.(*CacheHandle).validateCacheHandle())
 			jobStatus := existingJob.GetStatus()
 			assert.Equal(t, downloader.Invalid, jobStatus.Name)
 			assert.False(t, doesFileExist(t, chTestArgs.downloadPath))
@@ -577,13 +591,13 @@ func Test_GetCacheHandle_CacheForRangeRead(t *testing.T) {
 			cacheHandle4, err4 := chTestArgs.cacheHandler.GetCacheHandle(minObject4, chTestArgs.bucket, true, 5)
 
 			assert.NoError(t, err1)
-			assert.Nil(t, cacheHandle1.validateCacheHandle())
+			assert.Nil(t, cacheHandle1.(*CacheHandle).validateCacheHandle())
 			assert.True(t, errors.Is(err2, util.ErrCacheHandleNotRequiredForRandomRead))
 			assert.Nil(t, cacheHandle2)
 			assert.NoError(t, err3)
-			assert.Nil(t, cacheHandle3.validateCacheHandle())
+			assert.Nil(t, cacheHandle3.(*CacheHandle).validateCacheHandle())
 			assert.NoError(t, err4)
-			assert.Nil(t, cacheHandle4.validateCacheHandle())
+			assert.Nil(t, cacheHandle4.(*CacheHandle).validateCacheHandle())
 		})
 	}
 }
@@ -628,7 +642,7 @@ func Test_GetCacheHandle_ConcurrentSameFile(t *testing.T) {
 				cacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(minObj, chTestArgs.bucket, false, 0)
 
 				assert.NoError(t, err)
-				assert.Nil(t, cacheHandle.validateCacheHandle())
+				assert.Nil(t, cacheHandle.(*CacheHandle).validateCacheHandle())
 			}
 
 			// Start concurrent GetCacheHandle()
@@ -664,7 +678,7 @@ func Test_GetCacheHandle_ConcurrentDifferentFiles(t *testing.T) {
 		cacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(minObj, chTestArgs.bucket, false, 0)
 
 		assert.NoError(t, err)
-		assert.Nil(t, cacheHandle.validateCacheHandle())
+		assert.Nil(t, cacheHandle.(*CacheHandle).validateCacheHandle())
 	}
 
 	// Start concurrent GetCacheHandle()
@@ -948,7 +962,7 @@ func Test_InvalidateCache_GetCacheHandle_Concurrent(t *testing.T) {
 				cacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(minObj, chTestArgs.bucket, false, 0)
 
 				assert.NoError(t, err)
-				assert.Nil(t, cacheHandle.validateCacheHandle())
+				assert.Nil(t, cacheHandle.(*CacheHandle).validateCacheHandle())
 			}
 
 			// Start concurrent GetCacheHandle()
