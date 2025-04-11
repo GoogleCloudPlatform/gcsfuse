@@ -24,7 +24,7 @@ import (
 	"cloud.google.com/go/compute/metadata"
 	"cloud.google.com/go/storage"
 
-	client_util "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
+	//client_util "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 )
@@ -145,9 +145,9 @@ func RunTests(ctx context.Context, client *storage.Client, flags [][]string, m *
 
 	log.Printf("Test log: %s\n", setup.LogFile())
 
-	if err := client_util.DeleteBucket(ctx, client, createdBucket); err != nil {
-		log.Fatalf("Failed to delete the created bucket for dynamic mounting test: %s. Error: %v", createdBucket, err)
-	}
+	//if err := client_util.DeleteBucket(ctx, client, createdBucket); err != nil {
+	//log.Fatalf("Failed to delete the created bucket for dynamic mounting test: %s. Error: %v", createdBucket, err)
+	//}
 
 	return successCode
 }
