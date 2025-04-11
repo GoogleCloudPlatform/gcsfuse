@@ -191,18 +191,13 @@ func (fh *FileHandle) tryEnsureReader(ctx context.Context, sequentialReadSizeMb 
 	}
 
 	// If we already have a reader, and it's at the appropriate generation, we
-	// can use it. Otherwise we must throw it away.
+	// can use it. Otherwise we must throw away stale reader and create a new reader.
 	if fh.reader != nil {
-		if !fh.reader.IsStale() {
-			return
+		if fh.reader.IsStale() {
+			fh.reader.Destroy()
+			// Attempt to create an appropriate reader.
+			fh.reader = gcsx.NewRandomReader(fh.inode.Source(), fh.inode.Bucket(), sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, &fh.inode.MRDWrapper)
 		}
-		fh.reader.Destroy()
-		fh.reader = nil
 	}
-
-	// Attempt to create an appropriate reader.
-	rr := gcsx.NewRandomReader(fh.inode.Source(), fh.inode.Bucket(), sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, &fh.inode.MRDWrapper)
-
-	fh.reader = rr
 	return
 }
