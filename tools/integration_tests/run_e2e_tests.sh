@@ -468,9 +468,9 @@ function run_e2e_tests_for_emulator() {
 function main(){
   set -e
 
-  upgrade_gcloud_version
-
-  install_packages
+  # upgrade_gcloud_version
+# 
+  # install_packages
 
   set +e
 
