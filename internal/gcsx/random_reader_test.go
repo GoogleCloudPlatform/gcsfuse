@@ -170,6 +170,7 @@ func (t *RandomReaderTest) SetUp(ti *TestInfo) {
 		Size:       17,
 		Generation: 1234,
 	}
+
 	// Create the bucket.
 	t.bucket = storage.NewMockBucket(ti.MockController, "bucket")
 
