@@ -27,7 +27,7 @@ type FileCacheReader struct {
 
 	// fileCacheHandler is used to get file cache handle and read happens using that.
 	// This will be nil if the file cache is disabled.
-	fileCacheHandler *file.CacheHandler
+	fileCacheHandler file.CacheHandlerInterface
 
 	// cacheFileForRangeRead is also valid for cache workflow, if true, object content
 	// will be downloaded for random reads as well too.
@@ -35,12 +35,12 @@ type FileCacheReader struct {
 
 	// fileCacheHandle is used to read from the cached location. It is created on the fly
 	// using fileCacheHandler for the given object and bucket.
-	fileCacheHandle *file.CacheHandle
+	fileCacheHandle file.CacheHandlerInterface
 
 	metricHandle common.MetricHandle
 }
 
-func NewFileCacheReader(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle) FileCacheReader {
+func NewFileCacheReader(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler file.CacheHandlerInterface, cacheFileForRangeRead bool, metricHandle common.MetricHandle) FileCacheReader {
 	return FileCacheReader{
 		obj:                   o,
 		bucket:                bucket,

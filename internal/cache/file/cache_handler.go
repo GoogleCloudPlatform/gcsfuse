@@ -27,6 +27,12 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 )
 
+type CacheHandlerInterface interface {
+	GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket, cacheForRangeRead bool, initialOffset int64) (*CacheHandle, error)
+	InvalidateCache(objectName string, bucketName string) error
+	Destroy() (err error)
+}
+
 // CacheHandler is responsible for creating CacheHandle and invalidating file cache
 // for a given object in the bucket. CacheHandle contains reference to download job and
 // file handle to file in cache.

@@ -27,6 +27,12 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 )
 
+type CacheHandleInterface interface {
+	Read(ctx context.Context, bucket gcs.Bucket, object *gcs.MinObject, offset int64, dst []byte) (n int, cacheHit bool, err error)
+	IsSequential(currentOffset int64) bool
+	Close() (err error)
+}
+
 type CacheHandle struct {
 	// fileHandle to a local file which contains locally downloaded data.
 	fileHandle *os.File
