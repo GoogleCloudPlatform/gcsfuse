@@ -300,11 +300,20 @@ func (t *SizeofTest) TestNestedSizeOfGcsMinObject() {
 	customMetadataFields := map[string]string{customMetadaField1: customMetadaValue1, customMetadaField2: customMetadaValue2}
 	customMetadataFieldsContentSize := emptyStringSize + contentSizeOfString(&customMetadaField1) + emptyStringSize + contentSizeOfString(&customMetadaValue1) + emptyStringSize + contentSizeOfString(&customMetadaField2) + emptyStringSize + contentSizeOfString(&customMetadaValue2)
 
-	m := gcs.NewMinObject(name, 100, generation, metaGeneration, updated, customMetadataFields, contentEncoding, &crc32)
+	m := gcs.MinObject{
+		Name:            name,
+		Size:            100,
+		ContentEncoding: contentEncoding,
+		Metadata:        customMetadataFields,
+		Generation:      generation,
+		MetaGeneration:  metaGeneration,
+		Updated:         updated,
+		CRC32C:          &crc32,
+	}
 
 	var expectedSize int = sizeOfEmptyMinObject
 	expectedSize += len(name) + len(contentEncoding) + sizeOfUInt32
 	expectedSize += customMetadataFieldsContentSize
 
-	assert.Equal(t.T(), expectedSize, NestedSizeOfGcsMinObject(m))
+	assert.Equal(t.T(), expectedSize, NestedSizeOfGcsMinObject(&m))
 }
