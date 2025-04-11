@@ -170,28 +170,28 @@ function clean_up_bucket() {
 	fi
 }
 
-# Delete contents of the given bucket names, and then the buckets themselves.
-# Args: <bucket1> <bucket2> <bucket3> ...
-function clean_up_buckets() {
-	local buckets="${@}"
-	if test -f "${buckets}"; then
-		cat "${buckets}" | while read bucket; do
+# Delete contents of the buckets (and then the buckets themselves) whose names are in the passed file.
+# Args: <bucket-names-file>
+function clean_up_buckets_in_file() {
+	local bucketNamesFile="${@}"
+	if test -f "${bucketNamesFile}"; then
+		cat "${bucketNamesFile}" | while read bucket; do
 			clean_up_bucket ${bucket}
 		done
-		rm "${buckets}"
+		rm "${bucketNamesFile}"
 	else
-		echo "file ${buckets} not found !"
+		echo "file ${bucketNamesFile} not found !"
 	fi
 }
 
-# A variable to hold all the buckets to be cleaned-up while exiting this
-# program.
-buckets_to_be_cleaned_up=$(realpath ./buckets-to-be-cleaned-up)"-"$(tr -dc 'a-z0-9' < /dev/urandom | head -c $RANDOM_STRING_LENGTH)
+# The name of a file containing the names of all the 
+# buckets to be cleaned-up while exiting this program.
+bucketNamesFile=$(realpath ./bucketNames)"-"$(tr -dc 'a-z0-9' < /dev/urandom | head -c $RANDOM_STRING_LENGTH)
 
 # Clean-up for this program, which is called whenever this program exits.
 # Args: None.
 function clean_up() {
-	clean_up_buckets "${buckets_to_be_cleaned_up}"
+	clean_up_buckets_in_file "${bucketNamesFile}"
 }
 trap clean_up EXIT
 
@@ -358,12 +358,12 @@ function run_e2e_tests_for_flat_bucket() {
   bucketPrefix="golang-grpc-test-gcsfuse-np-e2e-tests-"
   bucket_name_non_parallel=$(create_bucket $bucketPrefix)
   echo "Bucket name for non parallel tests: "$bucket_name_non_parallel
-  echo ${bucket_name_non_parallel}>>"${buckets_to_be_cleaned_up}"
+  echo ${bucket_name_non_parallel}>>"${bucketNamesFile}"
 
   bucketPrefix="golang-grpc-test-gcsfuse-p-e2e-tests-"
   bucket_name_parallel=$(create_bucket $bucketPrefix)
   echo "Bucket name for parallel tests: "$bucket_name_parallel
-  echo ${bucket_name_parallel}>>"${buckets_to_be_cleaned_up}"
+  echo ${bucket_name_parallel}>>"${bucketNamesFile}"
 
   echo "Running parallel tests..."
   run_parallel_tests TEST_DIR_PARALLEL $bucket_name_parallel &
@@ -389,11 +389,11 @@ function run_e2e_tests_for_flat_bucket() {
 function run_e2e_tests_for_hns_bucket(){
    hns_bucket_name_parallel_group=$(create_hns_bucket)
    echo "Hns Bucket Created: "$hns_bucket_name_parallel_group
-   echo ${hns_bucket_name_parallel_group}>>"${buckets_to_be_cleaned_up}"
+   echo ${hns_bucket_name_parallel_group}>>"${bucketNamesFile}"
 
    hns_bucket_name_non_parallel_group=$(create_hns_bucket)
    echo "Hns Bucket Created: "$hns_bucket_name_non_parallel_group
-   echo ${hns_bucket_name_non_parallel_group}>>"${buckets_to_be_cleaned_up}"
+   echo ${hns_bucket_name_non_parallel_group}>>"${bucketNamesFile}"
 
    echo "Running tests for HNS bucket"
    run_parallel_tests TEST_DIR_PARALLEL "$hns_bucket_name_parallel_group" &
@@ -417,11 +417,11 @@ function run_e2e_tests_for_hns_bucket(){
 function run_e2e_tests_for_zonal_bucket(){
    zonal_bucket_name_parallel_group=$(create_zonal_bucket)
    echo "Zonal Bucket Created for parallel tests: "$zonal_bucket_name_parallel_group
-   echo ${zonal_bucket_name_parallel_group}>>"${buckets_to_be_cleaned_up}"
+   echo ${zonal_bucket_name_parallel_group}>>"${bucketNamesFile}"
 
    zonal_bucket_name_non_parallel_group=$(create_zonal_bucket)
    echo "Zonal Bucket Created for non-parallel tests: "$zonal_bucket_name_non_parallel_group
-   echo ${zonal_bucket_name_non_parallel_group}>>"${buckets_to_be_cleaned_up}"
+   echo ${zonal_bucket_name_non_parallel_group}>>"${bucketNamesFile}"
 
    echo "Running tests for ZONAL bucket"
    run_parallel_tests TEST_DIR_PARALLEL_FOR_ZB "$zonal_bucket_name_parallel_group" true &
