@@ -81,7 +81,7 @@ type RandomReader interface {
 	// again.
 	Destroy()
 
-	// Updates reader object size to f.src object's size.
+	// Updates reader object size to f.src object size.
 	// It can only be called when reader is not stale.
 	UpdateReaderObjectSizeToSrcSize(srcSize uint64)
 
