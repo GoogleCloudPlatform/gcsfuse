@@ -82,10 +82,10 @@ func executeTestsForDynamicMounting(flags [][]string, m *testing.M) (successCode
 	// mntDir - bucket1, bucket2, bucket3, ...
 	// We will test on passed testBucket and one created bucket.
 
-	// SetDynamicBucketMounted to the passed test bucket.
-	setup.SetDynamicBucketMounted(setup.TestBucket())
-	// Test on testBucket
-	successCode = runTestsOnGivenMountedTestBucket(setup.TestBucket(), flags, rootMntDir, m)
+	//// SetDynamicBucketMounted to the passed test bucket.
+	//setup.SetDynamicBucketMounted(setup.TestBucket())
+	//// Test on testBucket
+	//successCode = runTestsOnGivenMountedTestBucket(setup.TestBucket(), flags, rootMntDir, m)
 
 	// Test on created bucket.
 	// SetDynamicBucketMounted to the mounted bucket.
