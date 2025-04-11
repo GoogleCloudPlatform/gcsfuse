@@ -177,7 +177,7 @@ func TestWriteAtRandom(t *testing.T) {
 		t.Errorf("WriteString-Random: %v", err)
 	}
 	// Closing file at the end
-	operations.CloseFile(f)
+	operations.CloseFileShouldNotThrowError(t, f)
 
 	setup.CompareFileContents(t, fileName, "line 1\nline 5\n")
 	// Validate that extended object attributes are non nil/ non-empty.
@@ -231,7 +231,7 @@ func TestWriteAtFileOperationsDoesNotChangeObjectAttributes(t *testing.T) {
 		t.Errorf("Could not open file %s after creation.", fileName)
 	}
 	operations.WriteAt(tempFileContent+appendContent, 0, fh, t)
-	operations.CloseFile(fh)
+	operations.CloseFileShouldNotThrowError(t, fh)
 	attr2 := validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), t)
 
 	// Validate object attributes are as expected.

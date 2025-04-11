@@ -54,9 +54,9 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_AlwaysCacheHit(t *test
 	operations.CreateDirectory(targetDir, t)
 	// Create test data
 	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, t)
-	operations.CloseFile(f1)
+	operations.CloseFileShouldNotThrowError(t, f1)
 	f2 := operations.CreateFile(path.Join(targetDir, "file2.txt"), setup.FilePermission_0600, t)
-	operations.CloseFile(f2)
+	operations.CloseFileShouldNotThrowError(t, f2)
 
 	// First read, kernel will cache the dir response.
 	f, err := os.Open(targetDir)
@@ -96,9 +96,9 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnAdditionOfF
 	operations.CreateDirectory(targetDir, t)
 	// Create test data
 	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, t)
-	operations.CloseFile(f1)
+	operations.CloseFileShouldNotThrowError(t, f1)
 	f2 := operations.CreateFile(path.Join(targetDir, "file2.txt"), setup.FilePermission_0600, t)
-	operations.CloseFile(f2)
+	operations.CloseFileShouldNotThrowError(t, f2)
 
 	// First read, kernel will cache the dir response.
 	f, err := os.Open(targetDir)
@@ -147,9 +147,9 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnDeletionOfF
 	operations.CreateDirectory(targetDir, t)
 	// Create test data
 	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, t)
-	operations.CloseFile(f1)
+	operations.CloseFileShouldNotThrowError(t, f1)
 	f2 := operations.CreateFile(path.Join(targetDir, "file2.txt"), setup.FilePermission_0600, t)
-	operations.CloseFile(f2)
+	operations.CloseFileShouldNotThrowError(t, f2)
 
 	// First read, kernel will cache the dir response.
 	f, err := os.Open(targetDir)
@@ -191,9 +191,9 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnFileRename(
 	operations.CreateDirectory(targetDir, t)
 	// Create test data
 	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, t)
-	operations.CloseFile(f1)
+	operations.CloseFileShouldNotThrowError(t, f1)
 	f2 := operations.CreateFile(path.Join(targetDir, "file2.txt"), setup.FilePermission_0600, t)
-	operations.CloseFile(f2)
+	operations.CloseFileShouldNotThrowError(t, f2)
 
 	// First read, kernel will cache the dir response.
 	f, err := os.Open(targetDir)
@@ -257,11 +257,11 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_EvictCacheEntryOfOnlyD
 	operations.CreateDirectory(subDir, t)
 	// Create test files
 	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, t)
-	operations.CloseFile(f1)
+	operations.CloseFileShouldNotThrowError(t, f1)
 	f2 := operations.CreateFile(path.Join(subDir, "file2.txt"), setup.FilePermission_0600, t)
-	operations.CloseFile(f2)
+	operations.CloseFileShouldNotThrowError(t, f2)
 	f3 := operations.CreateFile(path.Join(subDir, "file3.txt"), setup.FilePermission_0600, t)
-	operations.CloseFile(f3)
+	operations.CloseFileShouldNotThrowError(t, f3)
 	// Initial read of parent directory (caches results)
 	f, err := os.Open(targetDir)
 	require.NoError(t, err)
@@ -324,9 +324,9 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnAdditionOfD
 	operations.CreateDirectory(targetDir, t)
 	// Create test data
 	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, t)
-	operations.CloseFile(f1)
+	operations.CloseFileShouldNotThrowError(t, f1)
 	f2 := operations.CreateFile(path.Join(targetDir, "file2.txt"), setup.FilePermission_0600, t)
-	operations.CloseFile(f2)
+	operations.CloseFileShouldNotThrowError(t, f2)
 	// First read, kernel will cache the dir response.
 	f, err := os.Open(targetDir)
 	require.NoError(t, err)
@@ -367,9 +367,9 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnDeletionOfD
 	operations.CreateDirectory(targetDir, t)
 	// Create test data
 	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, t)
-	operations.CloseFile(f1)
+	operations.CloseFileShouldNotThrowError(t, f1)
 	f2 := operations.CreateFile(path.Join(targetDir, "file2.txt"), setup.FilePermission_0600, t)
-	operations.CloseFile(f2)
+	operations.CloseFileShouldNotThrowError(t, f2)
 	err := os.Mkdir(path.Join(targetDir, "sub_dir"), setup.DirPermission_0755)
 	require.NoError(t, err)
 	// First read, kernel will cache the dir response.
@@ -412,9 +412,9 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnDirectoryRe
 	operations.CreateDirectory(targetDir, t)
 	// Create test data
 	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, t)
-	operations.CloseFile(f1)
+	operations.CloseFileShouldNotThrowError(t, f1)
 	f2 := operations.CreateFile(path.Join(targetDir, "file2.txt"), setup.FilePermission_0600, t)
-	operations.CloseFile(f2)
+	operations.CloseFileShouldNotThrowError(t, f2)
 	err := os.Mkdir(path.Join(targetDir, "sub_dir"), setup.DirPermission_0755)
 	require.NoError(t, err)
 	// First read, kernel will cache the dir response.

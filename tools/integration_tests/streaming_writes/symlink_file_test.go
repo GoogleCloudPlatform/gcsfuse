@@ -56,7 +56,7 @@ func (t *defaultMountCommonTest) TestReadSymlinkForDeletedLocalFileFails() {
 	assert.Error(t.T(), err)
 	// Remove filePath and then close the fileHandle to avoid syncing to GCS.
 	operations.RemoveFile(t.filePath)
-	operations.CloseFileShouldNotThrowError(t.f1, t.T())
+	operations.CloseFileShouldNotThrowError(t.T(), t.f1)
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, t.fileName, t.T())
 	// Reading symlink should fail.
 	_, err = os.Stat(symlink)

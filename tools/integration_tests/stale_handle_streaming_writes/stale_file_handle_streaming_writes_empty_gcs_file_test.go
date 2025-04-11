@@ -61,7 +61,7 @@ func (t *staleFileHandleStreamingWritesEmptyGcsFile) TestFirstWriteToClobberedFi
 
 	operations.ValidateStaleNFSFileHandleError(t.T(), err)
 	operations.SyncFile(t.f1, t.T())
-	operations.CloseFileShouldNotThrowError(t.f1, t.T())
+	operations.CloseFileShouldNotThrowError(t.T(), t.f1)
 }
 
 func (t *staleFileHandleStreamingWritesEmptyGcsFile) TestWriteOnRenamedFileThrowsStaleFileHandleError() {
@@ -78,7 +78,7 @@ func (t *staleFileHandleStreamingWritesEmptyGcsFile) TestWriteOnRenamedFileThrow
 	operations.ValidateStaleNFSFileHandleError(t.T(), err)
 	// Sync and Close succeeds.
 	operations.SyncFile(t.f1, t.T())
-	operations.CloseFileShouldNotThrowError(t.f1, t.T())
+	operations.CloseFileShouldNotThrowError(t.T(), t.f1)
 	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, newFile, t.data, t.T())
 }
 

@@ -78,7 +78,7 @@ func createSrcDirectoryWithObjectsForMoveDirTest(dirPath string, t *testing.T) {
 	}
 
 	// Closing file at the end
-	defer operations.CloseFile(file)
+	defer operations.CloseFileShouldNotThrowError(t, file)
 
 	err = operations.WriteFile(file.Name(), SrcMoveFileContent)
 	if err != nil {

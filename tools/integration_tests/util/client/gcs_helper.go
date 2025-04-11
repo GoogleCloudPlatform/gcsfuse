@@ -96,7 +96,7 @@ func ValidateObjectChunkFromGCS(ctx context.Context, storageClient *storage.Clie
 
 func CloseFileAndValidateContentFromGCS(ctx context.Context, storageClient *storage.Client,
 	fh *os.File, testDirName, fileName, content string, t *testing.T) {
-	operations.CloseFileShouldNotThrowError(fh, t)
+	operations.CloseFileShouldNotThrowError(t, fh)
 	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, fileName, content, t)
 }
 

@@ -133,7 +133,7 @@ func (t *staleFileHandleCommon) TestFileDeletedLocallySyncAndCloseDoNotThrowErro
 	assert.NoError(t.T(), err)
 
 	operations.SyncFile(t.f1, t.T())
-	operations.CloseFile(t.f1)
+	operations.CloseFileShouldNotThrowError(t.T(), t.f1)
 
 	// Make f1 nil, so that another attempt is not taken in TearDown to close the
 	// file.

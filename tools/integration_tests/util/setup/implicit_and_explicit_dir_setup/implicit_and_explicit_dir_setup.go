@@ -138,7 +138,7 @@ func CreateExplicitDirectoryStructure(testDir string, t *testing.T) {
 	}
 
 	// Closing file at the end.
-	defer operations.CloseFile(file)
+	defer operations.CloseFileShouldNotThrowError(t, file)
 }
 
 func CreateImplicitDirectoryInExplicitDirectoryStructure(testDir string, t *testing.T) {

@@ -71,7 +71,7 @@ func (t *staleFileHandleStreamingWritesCommon) TestFileDeletedLocallySyncAndClos
 
 	assert.NoError(t.T(), err)
 	operations.SyncFile(t.f1, t.T())
-	operations.CloseFileShouldNotThrowError(t.f1, t.T())
+	operations.CloseFileShouldNotThrowError(t.T(), t.f1)
 }
 
 func (t *staleFileHandleStreamingWritesCommon) TestClosingFileHandleForClobberedFileReturnsStaleFileHandleError() {
