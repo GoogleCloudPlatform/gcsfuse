@@ -121,11 +121,6 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 		return n, cacheHit, nil
 	}
 
-	n, cacheHit, err = fc.fileCacheHandle.Read(ctx, fc.bucket, fc.obj, offset, p)
-	if err == nil {
-		return n, cacheHit, nil
-	}
-
 	cacheHit = false
 	n = 0
 

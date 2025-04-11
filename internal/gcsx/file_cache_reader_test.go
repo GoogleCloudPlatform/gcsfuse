@@ -15,18 +15,23 @@
 package gcsx
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"path"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/jacobsa/fuse/fuseops"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -43,14 +48,26 @@ type FileCacheReaderTest struct {
 	mockBucket   *storage.TestifyMockBucket
 	cacheDir     string
 	jobManager   *downloader.JobManager
-	cacheHandler file.CacheHandlerInterface
+	cacheHandler *MockFileCacheHandler
+	metricHandle *MockFileCacheHandler
+}
+
+// MockFileCacheHandler is a mock type for the FileCacheMetricHandle type
+type MockFileCacheHandler struct {
+	mock.Mock
+}
+
+func (m *MockFileCacheHandler) GetCacheHandle(obj *gcs.MinObject, bucket gcs.Bucket, cacheFileForRangeRead bool, initialOffset int64) (*file.CacheHandle, error) {
+	args := m.Called(obj, bucket, cacheFileForRangeRead, initialOffset)
+	handle, _ := args.Get(0).(*file.CacheHandle) // Allow returning nil handle
+	return handle, args.Error(1)
 }
 
 func TestFileCacheReaderTestSuite(t *testing.T) {
 	suite.Run(t, new(FileCacheReaderTest))
 }
 
-func (t *FileCacheReaderTest) SetupTestSuite() {
+func (t *FileCacheReaderTest) SetupTest() {
 	t.object = &gcs.MinObject{
 		Name:       TestObject,
 		Size:       17,
@@ -60,10 +77,10 @@ func (t *FileCacheReaderTest) SetupTestSuite() {
 	t.cacheDir = path.Join(os.Getenv("HOME"), "test_cache_dir")
 	lruCache := lru.NewCache(util.CacheMaxSize)
 	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, util.SequentialReadSizeInMb, &cfg.FileCacheConfig{EnableCrc: false}, nil)
-	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm)
+	t.cacheHandler = new(MockFileCacheHandler)
 }
 
-func (t *FileCacheReaderTest) TearDownSuite() {
+func (t *FileCacheReaderTest) TearDown() {
 	err := os.RemoveAll(t.cacheDir)
 	if err != nil {
 		t.T().Logf("Failed to clean up test cache directory '%s': %v", t.cacheDir, err)
@@ -80,4 +97,81 @@ func (t *FileCacheReaderTest) TestNewFileCacheReader() {
 	assert.True(t.T(), reader.cacheFileForRangeRead)
 	assert.Nil(t.T(), reader.metricHandle)
 	assert.Nil(t.T(), reader.fileCacheHandle)
+}
+
+func (t *FileCacheReaderTest) TestTryReadingFromFileCache_NilHandler() {
+	reader := NewFileCacheReader(t.object, t.mockBucket, nil, true, nil)
+	n, hit, err := reader.tryReadingFromFileCache(context.Background(), make([]byte, 10), 0)
+	assert.NoError(t.T(), err)
+	assert.Zero(t.T(), n)
+	assert.False(t.T(), hit)
+}
+
+func (t *FileCacheReaderTest) TestTryReadingFromFileCache_ErrorScenarios() {
+	type testCase struct {
+		name        string
+		mockErr     error
+		expectedErr bool
+		expectedHit bool
+		expectedN   int
+	}
+
+	cases := []testCase{
+		{
+			name:        "InvalidEntrySize - should skip cache read",
+			mockErr:     lru.ErrInvalidEntrySize,
+			expectedErr: false,
+			expectedHit: false,
+			expectedN:   0,
+		},
+		{
+			name:        "CacheHandleNotRequiredForRandomRead - should skip cache read",
+			mockErr:     util.ErrCacheHandleNotRequiredForRandomRead,
+			expectedErr: false,
+			expectedHit: false,
+			expectedN:   0,
+		},
+		{
+			name:        "Generic handle creation error - should return error",
+			mockErr:     fmt.Errorf("mock creation error"),
+			expectedErr: true,
+			expectedHit: false,
+			expectedN:   0,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func() {
+			readOp := &fuseops.ReadFileOp{
+				Handle: fuseops.HandleID(123),
+				Offset: 0,
+				Size:   10,
+			}
+			ctx := context.WithValue(context.Background(), ReadOp, readOp)
+
+			mockHandler := new(MockFileCacheHandler)
+			mockHandler.On("GetCacheHandle", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+				Return(nil, tc.mockErr)
+
+			mockBucket := new(storage.TestifyMockBucket)
+			mockBucket.On("Name").Return("test-bucket")
+
+			mockMetricHandle := new(common.MockMetricHandle)
+			mockMetricHandle.On("FileCacheReadCount", mock.Anything, int64(1), mock.Anything).Return()
+			mockMetricHandle.On("FileCacheReadBytesCount", mock.Anything, mock.AnythingOfType("int64"), mock.Anything).Return()
+			mockMetricHandle.On("FileCacheReadLatency", mock.Anything, mock.AnythingOfType("float64"), mock.Anything).Return()
+
+			reader := NewFileCacheReader(t.object, mockBucket, mockHandler, true, mockMetricHandle)
+
+			n, hit, err := reader.tryReadingFromFileCache(ctx, make([]byte, 10), 0)
+
+			if tc.expectedErr {
+				assert.Error(t.T(), err)
+			} else {
+				assert.NoError(t.T(), err)
+			}
+			assert.Equal(t.T(), tc.expectedHit, hit)
+			assert.Equal(t.T(), tc.expectedN, n)
+		})
+	}
 }
