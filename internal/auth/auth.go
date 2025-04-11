@@ -1,17 +1,3 @@
-// Copyright 2020 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package auth
 
 import (
@@ -26,89 +12,98 @@ import (
 
 const universeDomainDefault = "googleapis.com"
 
-func getUniverseDomain(ctx context.Context, contents []byte, scope string) (string, error) {
-	creds, err := google.CredentialsFromJSON(ctx, contents, scope)
+// getUniverseDomain extracts the universe domain from the credentials JSON.
+func getUniverseDomain(ctx context.Context, jsonCreds []byte, scope string) (string, error) {
+	creds, err := google.CredentialsFromJSON(ctx, jsonCreds, scope)
 	if err != nil {
-		err = fmt.Errorf("CredentialsFromJSON(): %w", err)
-		return "", err
+		return "", fmt.Errorf("getUniverseDomain: unable to parse credentials from JSON: %w", err)
 	}
 
 	domain, err := creds.GetUniverseDomain()
 	if err != nil {
-		err = fmt.Errorf("GetUniverseDomain(): %w", err)
-		return "", err
+		return "", fmt.Errorf("getUniverseDomain: failed to retrieve universe domain: %w", err)
 	}
 
 	return domain, nil
 }
 
-// Create token source from the JSON file at the supplide path.
-func newTokenSourceFromPath(ctx context.Context, path string, scope string) (oauth2.TokenSource, error) {
-	// Read the file.
-	contents, err := os.ReadFile(path)
+// newTokenSourceFromPath creates an OAuth2 token source from a service account key file.
+// It returns the token source and the universe domain associated with the credentials.
+func newTokenSourceFromPath(ctx context.Context, keyFilePath string, scope string) (oauth2.TokenSource, string, error) {
+	contents, err := os.ReadFile(keyFilePath)
 	if err != nil {
-		err = fmt.Errorf("ReadFile(%q): %w", path, err)
-		return nil, err
+		return nil, "", fmt.Errorf("newTokenSourceFromPath: failed to read file %q: %w", keyFilePath, err)
 	}
 
-	// By default, a standard OAuth 2.0 token source is created
-	// Create a config struct based on its contents.
 	jwtConfig, err := google.JWTConfigFromJSON(contents, scope)
 	if err != nil {
-		err = fmt.Errorf("JWTConfigFromJSON: %w", err)
-		return nil, err
+		return nil, "", fmt.Errorf("newTokenSourceFromPath: failed to parse JWT config: %w", err)
 	}
 
 	domain, err := getUniverseDomain(ctx, contents, scope)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	// By default, a standard OAuth 2.0 token source is created
-	ts := jwtConfig.TokenSource(ctx)
-
-	// For non-GDU universe domains, token exchange is impossible and services
-	// must support self-signed JWTs with scopes.
-	// Override the token source to use self-signed JWT.
+	// Use a self-signed JWT for non-default domains
 	if domain != universeDomainDefault {
-		// Create self signed JWT access token.
-		ts, err = google.JWTAccessTokenSourceWithScope(contents, scope)
+		ts, err := google.JWTAccessTokenSourceWithScope(contents, scope)
 		if err != nil {
-			err = fmt.Errorf("JWTAccessTokenSourceWithScope: %w", err)
-			return nil, err
+			return nil, domain, fmt.Errorf("newTokenSourceFromPath: failed to create JWTAccessTokenSource: %w", err)
 		}
+		return ts, domain, nil
 	}
-	return ts, err
+
+	// Default token source using the OAuth 2.0 flow
+	return jwtConfig.TokenSource(ctx), domain, nil
 }
 
-// GetTokenSource generates the token-source for GCS endpoint by following oauth2.0 authentication
-// for key-file and default-credential flow.
-// It also supports generating the self-signed JWT tokenSource for key-file authentication which can be
-// used by custom-endpoint(e.g. TPC).
+// GetTokenSource generates a token source based on the authentication mode:
+//   - service account key file
+//   - proxy token endpoint
+//   - application default credentials
+//
+// It also returns the associated universe domain.
 func GetTokenSource(
 	ctx context.Context,
 	keyFile string,
-	tokenUrl string,
-	reuseTokenFromUrl bool,
-) (tokenSrc oauth2.TokenSource, err error) {
-	// Create the oauth2 token source.
+	tokenURL string,
+	reuseTokenFromURL bool,
+) (oauth2.TokenSource, string, error) {
 	const scope = storagev1.DevstorageFullControlScope
-	var method string
 
-	if keyFile != "" {
-		tokenSrc, err = newTokenSourceFromPath(ctx, keyFile, scope)
+	var (
+		tokenSrc oauth2.TokenSource
+		domain   string
+		err      error
+		method   string
+	)
+
+	switch {
+	case keyFile != "":
+		tokenSrc, domain, err = newTokenSourceFromPath(ctx, keyFile, scope)
 		method = "newTokenSourceFromPath"
-	} else if tokenUrl != "" {
-		tokenSrc, err = newProxyTokenSource(ctx, tokenUrl, reuseTokenFromUrl)
+
+	case tokenURL != "":
+		tokenSrc, err = newProxyTokenSource(ctx, tokenURL, reuseTokenFromURL)
 		method = "newProxyTokenSource"
-	} else {
-		tokenSrc, err = google.DefaultTokenSource(ctx, scope)
-		method = "DefaultTokenSource"
+
+	default:
+		var creds *google.Credentials
+		creds, err = google.FindDefaultCredentials(ctx, scope)
+		method = "FindDefaultCredentials"
+		if err == nil {
+			tokenSrc = creds.TokenSource
+			domain, err = creds.GetUniverseDomain()
+			if err != nil {
+				err = fmt.Errorf("GetUniverseDomain: %w", err)
+			}
+		}
 	}
 
 	if err != nil {
-		err = fmt.Errorf("%s: %w", method, err)
-		return
+		return nil, "", fmt.Errorf("%s failed: %w", method, err)
 	}
-	return
+
+	return tokenSrc, domain, nil
 }

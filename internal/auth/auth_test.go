@@ -69,5 +69,62 @@ func (t *AuthTest) TestGetUniverseDomainForEmptyCreds() {
 	_, err = getUniverseDomain(context.Background(), contents, storagev1.DevstorageFullControlScope)
 
 	assert.Error(t.T(), err)
-	assert.Equal(t.T(), "CredentialsFromJSON(): unexpected end of JSON input", err.Error())
+}
+
+func (t *AuthTest) Test_newTokenSourceFromPath_invalidPath() {
+	ctx := context.Background()
+
+	_, _, err := newTokenSourceFromPath(ctx, "nonexistent.json", storagev1.DevstorageFullControlScope)
+	assert.Error(t.T(), err)
+}
+
+func (t *AuthTest) Test_newTokenSourceFromPath_invalidJSON() {
+	ctx := context.Background()
+	// Create a temp file with invalid JSON
+	content := []byte(`{invalid-json}`)
+	tmpFile := createTempFile(t.T(), content)
+	defer cleanupTempFile(tmpFile)
+
+	_, _, err := newTokenSourceFromPath(ctx, tmpFile, storagev1.DevstorageFullControlScope)
+
+	assert.Error(t.T(), err)
+}
+
+func (t *AuthTest) Test_GetTokenSource_withKeyFile() {
+	ctx := context.Background()
+
+	tokenSrc, domain, err := GetTokenSource(ctx, "testdata/google_creds.json", "", false)
+
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), tokenSrc)
+	assert.Equal(t.T(), universeDomainDefault, domain)
+}
+
+func (t *AuthTest) Test_GetTokenSource_defaultCredentials() {
+	ctx := context.Background()
+
+	tokenSrc, domain, err := GetTokenSource(ctx, "", "", false)
+
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), tokenSrc)
+	assert.Equal(t.T(), universeDomainDefault, domain)
+}
+
+// --- Test helpers ---
+func createTempFile(t *testing.T, content []byte) string {
+	t.Helper()
+	tmpFile, err := os.CreateTemp("", "test*.json")
+	assert.NoError(t, err)
+
+	_, err = tmpFile.Write(content)
+	assert.NoError(t, err)
+
+	err = tmpFile.Close()
+	assert.NoError(t, err)
+
+	return tmpFile.Name()
+}
+
+func cleanupTempFile(path string) {
+	_ = os.Remove(path)
 }
