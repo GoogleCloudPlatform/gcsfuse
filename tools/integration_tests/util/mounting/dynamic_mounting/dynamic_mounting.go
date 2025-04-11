@@ -109,7 +109,6 @@ func CreateTestBucketForDynamicMounting(ctx context.Context, client *storage.Cli
 	}
 
 	if setup.IsZonalBucketRun() {
-		//storageClassAndLocation.LocationType = "zonal"
 		storageClassAndLocation.StorageClass = "RAPID"
 		if setup.IsPresubmitRun() {
 			storageClassAndLocation.Location = "us-west4"
