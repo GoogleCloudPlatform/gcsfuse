@@ -27,6 +27,7 @@ import (
 	"cloud.google.com/go/storage/experimental"
 	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
@@ -79,7 +80,7 @@ func (pd *gRPCDirectPathDetector) isDirectPathPossible(ctx context.Context, buck
 }
 
 // Return clientOpts for both gRPC client and control client.
-func createClientOptionForGRPCClient(clientConfig *storageutil.StorageClientConfig, enableBidiConfig bool) (clientOpts []option.ClientOption, err error) {
+func createClientOptionForGRPCClient(clientConfig *storageutil.StorageClientConfig, TokenProvider *auth.TokenProvider, enableBidiConfig bool) (clientOpts []option.ClientOption, err error) {
 	// Add Custom endpoint option.
 	if clientConfig.CustomEndpoint != "" {
 		clientOpts = append(clientOpts, option.WithEndpoint(storageutil.StripScheme(clientConfig.CustomEndpoint)))
@@ -92,12 +93,7 @@ func createClientOptionForGRPCClient(clientConfig *storageutil.StorageClientConf
 	if clientConfig.AnonymousAccess {
 		clientOpts = append(clientOpts, option.WithoutAuthentication())
 	} else {
-		tokenSrc, tokenCreationErr := storageutil.CreateTokenSource(clientConfig)
-		if tokenCreationErr != nil {
-			err = fmt.Errorf("while fetching tokenSource: %w", tokenCreationErr)
-			return
-		}
-		clientOpts = append(clientOpts, option.WithTokenSource(tokenSrc))
+		clientOpts = append(clientOpts, option.WithTokenSource(TokenProvider.TokenSource()), option.WithUniverseDomain(TokenProvider.Domain()))
 	}
 
 	if enableBidiConfig {
@@ -140,14 +136,14 @@ func setRetryConfig(sc *storage.Client, clientConfig *storageutil.StorageClientC
 }
 
 // Followed https://pkg.go.dev/cloud.google.com/go/storage#hdr-Experimental_gRPC_API to create the gRPC client.
-func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig, enableBidiConfig bool) (sc *storage.Client, err error) {
+func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig, TokenProvider *auth.TokenProvider, enableBidiConfig bool) (sc *storage.Client, err error) {
 
 	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
 		logger.Fatal("error setting direct path env var: %v", err)
 	}
 
 	var clientOpts []option.ClientOption
-	clientOpts, err = createClientOptionForGRPCClient(clientConfig, enableBidiConfig)
+	clientOpts, err = createClientOptionForGRPCClient(clientConfig, TokenProvider, enableBidiConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
 	}
@@ -167,18 +163,19 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	return
 }
 
-func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig) (sc *storage.Client, err error) {
+func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig, tokenProvider *auth.TokenProvider) (sc *storage.Client, err error) {
 	var clientOpts []option.ClientOption
 
 	// Add WithHttpClient option.
 	var httpClient *http.Client
-	httpClient, err = storageutil.CreateHttpClient(clientConfig)
+	httpClient, err = storageutil.CreateHttpClient(clientConfig, tokenProvider)
 	if err != nil {
 		err = fmt.Errorf("while creating http endpoint: %w", err)
 		return
 	}
 
 	clientOpts = append(clientOpts, option.WithHTTPClient(httpClient))
+	clientOpts = append(clientOpts, option.WithUniverseDomain(tokenProvider.Domain()))
 
 	if clientConfig.AnonymousAccess {
 		clientOpts = append(clientOpts, option.WithoutAuthentication())
@@ -268,13 +265,19 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	var controlClient *control.StorageControlClient
 	var clientOpts []option.ClientOption
 
+	TokenProvider, tokentokenProviderErr := storageutil.CreateTokenProvider(&clientConfig)
+	if tokentokenProviderErr != nil {
+		err = fmt.Errorf("while fetching tokenSource: %w", tokentokenProviderErr)
+		return nil, err
+	}
+
 	// TODO: We will implement an additional check for the HTTP control client protocol once the Go SDK supports HTTP.
 	// Control-client is needed for folder APIs and for getting storage-layout of the bucket.
 	// GetStorageLayout API is not supported for storage-testbench and for TPC, both of which are identified by non-nil custom-endpoint.
 	// Change this check once TPC(custom-endpoint) supports gRPC.
 	// TODO: Enable creation of control-client for preprod endpoint.
 	if clientConfig.EnableHNS && clientConfig.CustomEndpoint == "" {
-		clientOpts, err = createClientOptionForGRPCClient(&clientConfig, false)
+		clientOpts, err = createClientOptionForGRPCClient(&clientConfig, TokenProvider, false)
 		if err != nil {
 			return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
 		}
@@ -294,23 +297,30 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 
 func (sh *storageClient) getClient(ctx context.Context, isbucketZonal bool) (*storage.Client, error) {
 	var err error
+
+	TokenProvider, tokenProviderErr := storageutil.CreateTokenProvider(&sh.clientConfig)
+	if tokenProviderErr != nil {
+		err = fmt.Errorf("while fetching tokenSource: %w", tokenProviderErr)
+		return nil, err
+	}
+
 	if isbucketZonal {
 		if sh.grpcClientWithBidiConfig == nil {
-			sh.grpcClientWithBidiConfig, err = createGRPCClientHandle(ctx, &sh.clientConfig, true)
+			sh.grpcClientWithBidiConfig, err = createGRPCClientHandle(ctx, &sh.clientConfig, TokenProvider, true)
 		}
 		return sh.grpcClientWithBidiConfig, err
 	}
 
 	if sh.clientConfig.ClientProtocol == cfg.GRPC {
 		if sh.grpcClient == nil {
-			sh.grpcClient, err = createGRPCClientHandle(ctx, &sh.clientConfig, false)
+			sh.grpcClient, err = createGRPCClientHandle(ctx, &sh.clientConfig, TokenProvider, false)
 		}
 		return sh.grpcClient, err
 	}
 
 	if sh.clientConfig.ClientProtocol == cfg.HTTP1 || sh.clientConfig.ClientProtocol == cfg.HTTP2 {
 		if sh.httpClient == nil {
-			sh.httpClient, err = createHTTPClientHandle(ctx, &sh.clientConfig)
+			sh.httpClient, err = createHTTPClientHandle(ctx, &sh.clientConfig, TokenProvider)
 		}
 		return sh.httpClient, err
 	}
