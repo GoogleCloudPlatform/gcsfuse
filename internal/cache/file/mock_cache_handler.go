@@ -24,9 +24,9 @@ type MockFileCacheHandler struct {
 	mock.Mock
 }
 
-func (m *MockFileCacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket, cacheForRangeRead bool, initialOffset int64) (*CacheHandleInterface, error) {
+func (m *MockFileCacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket, cacheForRangeRead bool, initialOffset int64) (CacheHandleInterface, error) {
 	args := m.Called(object, bucket, cacheForRangeRead, initialOffset)
-	if ch, ok := args.Get(0).(*CacheHandleInterface); ok {
+	if ch, ok := args.Get(0).(CacheHandleInterface); ok {
 		return ch, args.Error(1)
 	}
 	return nil, args.Error(1)
