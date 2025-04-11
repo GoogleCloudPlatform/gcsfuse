@@ -387,7 +387,7 @@ func (f *FileInode) SourceGenerationIsAuthoritative() bool {
 
 // Equivalent to the generation returned by f.Source().
 //
-// LOCKS_REQUIRED(f)
+// LOCKS_REQUIRED(f.mu)
 func (f *FileInode) SourceGeneration() (g Generation) {
 	g.Size = f.src.Size
 	g.Object = f.src.Generation
@@ -672,6 +672,11 @@ func (f *FileInode) SyncPendingBufferedWrites() error {
 	}
 	if err != nil {
 		return fmt.Errorf("f.bwh.Sync(): %w", err)
+	}
+	// Update the f.src.Size to the current Size of object
+	// on GCS after flushing pending buffers for Zonal Buckets.
+	if f.bucket.BucketType().Zonal {
+		f.src.Size = uint64(f.bwh.WriteFileInfo().TotalSize)
 	}
 	return nil
 }
