@@ -1,4 +1,4 @@
-// Copyright 2023 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,6 +26,12 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 )
+
+type CacheHandlerInterface interface {
+	GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket, cacheForRangeRead bool, initialOffset int64) (CacheHandleInterface, error)
+	InvalidateCache(objectName string, bucketName string) error
+	Destroy() (err error)
+}
 
 // CacheHandler is responsible for creating CacheHandle and invalidating file cache
 // for a given object in the bucket. CacheHandle contains reference to download job and
@@ -198,7 +204,7 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 // fileInfoCache then no need to create file in cache.
 //
 // Acquires and releases LOCK(CacheHandler.mu)
-func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket, cacheForRangeRead bool, initialOffset int64) (*CacheHandle, error) {
+func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket, cacheForRangeRead bool, initialOffset int64) (CacheHandleInterface, error) {
 	chr.mu.Lock()
 	defer chr.mu.Unlock()
 

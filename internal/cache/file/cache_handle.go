@@ -1,4 +1,4 @@
-// Copyright 2023 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,6 +26,12 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 )
+
+type CacheHandleInterface interface {
+	Read(ctx context.Context, bucket gcs.Bucket, object *gcs.MinObject, offset int64, dst []byte) (n int, cacheHit bool, err error)
+	IsSequential(currentOffset int64) bool
+	Close() (err error)
+}
 
 type CacheHandle struct {
 	// fileHandle to a local file which contains locally downloaded data.

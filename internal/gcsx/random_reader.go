@@ -110,7 +110,7 @@ const (
 
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
-func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper) RandomReader {
+func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler file.CacheHandlerInterface, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper) RandomReader {
 	return &randomReader{
 		object:                o,
 		bucket:                bucket,
@@ -157,7 +157,7 @@ type randomReader struct {
 
 	// fileCacheHandler is used to get file cache handle and read happens using that.
 	// This will be nil if the file cache is disabled.
-	fileCacheHandler *file.CacheHandler
+	fileCacheHandler file.CacheHandlerInterface
 
 	// cacheFileForRangeRead is also valid for cache workflow, if true, object content
 	// will be downloaded for random reads as well too.
@@ -165,7 +165,7 @@ type randomReader struct {
 
 	// fileCacheHandle is used to read from the cached location. It is created on the fly
 	// using fileCacheHandler for the given object and bucket.
-	fileCacheHandle *file.CacheHandle
+	fileCacheHandle file.CacheHandleInterface
 
 	// Stores the handle associated with the previously closed newReader instance.
 	// This will be used while making the new connection to bypass auth and metadata
