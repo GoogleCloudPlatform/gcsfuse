@@ -1033,7 +1033,6 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 			name: "use_new_metric_names",
 			args: []string{"gcsfuse", "--metrics-use-new-names=true", "abc", "pqr"},
 			expected: &cfg.MetricsConfig{
-				EnableOtel:  true,
 				UseNewNames: true,
 			},
 		},
