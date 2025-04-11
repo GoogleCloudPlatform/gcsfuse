@@ -18,7 +18,6 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
-	"fmt"
 	"os"
 	"path"
 	"strconv"
@@ -412,26 +411,13 @@ func Test_GetCacheHandle_WhenCacheHasDifferentGeneration(t *testing.T) {
 	// Change the version of the object, but cache still keeps old generation
 	chTestArgs.object.Generation = chTestArgs.object.Generation + 1
 
-	var newCacheHandleInterface CacheHandleInterface
-	var err error
-	newCacheHandleInterface, err = chTestArgs.cacheHandler.GetCacheHandle(chTestArgs.object, chTestArgs.bucket, false, 0)
-	if err != nil {
-		// Handle the error
-		fmt.Println("Error getting cache handle:", err)
-		return
-	}
+	cacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(chTestArgs.object, chTestArgs.bucket, false, 0)
 
-	// Attempt to type assert to the concrete *CacheHandle type
-	newCacheHandle, ok := newCacheHandleInterface.(*CacheHandle)
-	if !ok {
-		fmt.Println("Could not assert CacheHandleInterface to *CacheHandle")
-		return
-	}
 	assert.NoError(t, err)
-	assert.Nil(t, newCacheHandle.validateCacheHandle())
+	assert.Nil(t, cacheHandle.(*CacheHandle).validateCacheHandle())
 	jobStatusOfOldJob := existingJob.GetStatus()
 	assert.Equal(t, downloader.Invalid, jobStatusOfOldJob.Name)
-	jobStatusOfNewHandle := newCacheHandle.fileDownloadJob.GetStatus()
+	jobStatusOfNewHandle := cacheHandle.(*CacheHandle).fileDownloadJob.GetStatus()
 	assert.Equal(t, downloader.NotStarted, jobStatusOfNewHandle.Name)
 }
 
