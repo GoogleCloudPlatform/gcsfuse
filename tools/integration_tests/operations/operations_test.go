@@ -25,11 +25,10 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
-
-	//"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/creds_tests"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/creds_tests"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/dynamic_mounting"
-	//"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/only_dir_mounting"
-	//"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/persistent_mounting"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/only_dir_mounting"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/persistent_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 )
@@ -174,24 +173,24 @@ func TestMain(m *testing.M) {
 	// Note: We are not testing specifically for implicit-dirs because they are covered as part of the other flags.
 	flagsSet := [][]string{{"--enable-atomic-rename-object=true"}}
 
-	//// Enable experimental-enable-json-read=true case, but for non-presubmit runs only.
-	//if !setup.IsPresubmitRun() {
-	//flagsSet = append(flagsSet, []string{
-	//// By default, creating emptyFile is disabled.
-	//"--experimental-enable-json-read=true"})
-	//}
-	//
-	//// gRPC tests will not run in TPC environment
-	//if !testing.Short() && !setup.TestOnTPCEndPoint() {
-	//flagsSet = append(flagsSet, []string{"--client-protocol=grpc", "--implicit-dirs=true", "--enable-atomic-rename-object=true"})
-	//}
-	//
-	//// HNS tests utilize the gRPC protocol, which is not supported by TPC.
-	//if !setup.TestOnTPCEndPoint() {
-	//if setup.IsHierarchicalBucket(ctx, storageClient) {
-	//flagsSet = [][]string{{"--experimental-enable-json-read=true", "--enable-atomic-rename-object=true"}}
-	//}
-	//}
+	// Enable experimental-enable-json-read=true case, but for non-presubmit runs only.
+	if !setup.IsPresubmitRun() {
+		flagsSet = append(flagsSet, []string{
+			// By default, creating emptyFile is disabled.
+			"--experimental-enable-json-read=true"})
+	}
+
+	// gRPC tests will not run in TPC environment
+	if !testing.Short() && !setup.TestOnTPCEndPoint() {
+		flagsSet = append(flagsSet, []string{"--client-protocol=grpc", "--implicit-dirs=true", "--enable-atomic-rename-object=true"})
+	}
+
+	// HNS tests utilize the gRPC protocol, which is not supported by TPC.
+	if !setup.TestOnTPCEndPoint() {
+		if setup.IsHierarchicalBucket(ctx, storageClient) {
+			flagsSet = [][]string{{"--experimental-enable-json-read=true", "--enable-atomic-rename-object=true"}}
+		}
+	}
 
 	mountConfigFlags := createMountConfigsAndEquivalentFlags()
 	flagsSet = append(flagsSet, mountConfigFlags...)
@@ -202,26 +201,24 @@ func TestMain(m *testing.M) {
 		os.Exit(successCodeTPC)
 	}
 
-	successCode := 0
+	successCode := static_mounting.RunTests(flagsSet, m)
 
-	//successCode := static_mounting.RunTests(flagsSet, m)
-	//
-	//if successCode == 0 {
-	//successCode = only_dir_mounting.RunTests(flagsSet, onlyDirMounted, m)
-	//}
-	//
-	//if successCode == 0 {
-	//successCode = persistent_mounting.RunTests(flagsSet, m)
-	//}
+	if successCode == 0 {
+		successCode = only_dir_mounting.RunTests(flagsSet, onlyDirMounted, m)
+	}
+
+	if successCode == 0 {
+		successCode = persistent_mounting.RunTests(flagsSet, m)
+	}
 
 	if successCode == 0 {
 		successCode = dynamic_mounting.RunTests(ctx, storageClient, flagsSet, m)
 	}
 
-	//if successCode == 0 {
-	//// Test for admin permission on test bucket.
-	//successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(ctx, storageClient, flagsSet, "objectAdmin", m)
-	//}
+	if successCode == 0 {
+		// Test for admin permission on test bucket.
+		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(ctx, storageClient, flagsSet, "objectAdmin", m)
+	}
 
 	os.Exit(successCode)
 }
