@@ -16,7 +16,6 @@ package storageutil
 
 import (
 	"crypto/md5"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -256,7 +255,7 @@ func (t objectAttrsTest) Test_ConvertObjToMinObject_WithValidObject() {
 	ExpectEq(metaGeneration, gcsMinObject.MetaGeneration)
 	ExpectTrue(currentTime.Equal(gcsMinObject.Updated))
 	ExpectEq(contentEncode, gcsMinObject.ContentEncoding)
-	ExpectTrue(reflect.DeepEqual(metadata, gcsMinObject.Metadata))
+	ExpectEq(metadata, gcsMinObject.Metadata)
 	ExpectEq(crc32C, *gcsMinObject.CRC32C)
 }
 
@@ -421,7 +420,7 @@ func (t objectAttrsTest) Test_ConvertMinObjectToObject_WithNonNilMinObject() {
 	ExpectEq(gcsObject.Generation, minObject.Generation)
 	ExpectEq(gcsObject.MetaGeneration, minObject.MetaGeneration)
 	ExpectEq(0, gcsObject.Updated.Compare(minObject.Updated))
-	ExpectTrue(reflect.DeepEqual(gcsObject.Metadata, minObject.Metadata))
+	ExpectEq(gcsObject.Metadata, minObject.Metadata)
 	ExpectEq(gcsObject.ContentEncoding, minObject.ContentEncoding)
 	ExpectEq(gcsObject.ContentType, "")
 	ExpectEq(gcsObject.ContentLanguage, "")
