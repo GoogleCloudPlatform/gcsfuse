@@ -62,7 +62,10 @@ func NewFileCacheReader(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler fi
 	}
 }
 
-func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte, offset int64) (n int, cacheHit bool, err error) {
+func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte, offset int64) (int, bool, error) {
+	var n int
+	var err error
+	var cacheHit bool
 	if fc.fileCacheHandler == nil {
 		return 0, false, nil
 	}

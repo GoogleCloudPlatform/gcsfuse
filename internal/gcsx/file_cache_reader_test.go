@@ -44,12 +44,39 @@ const (
 
 type FileCacheReaderTest struct {
 	suite.Suite
-	object       *gcs.MinObject
-	mockBucket   *storage.TestifyMockBucket
-	cacheDir     string
-	jobManager   *downloader.JobManager
-	cacheHandler *MockFileCacheHandler
-	metricHandle *MockFileCacheHandler
+	ctx             context.Context
+	object          *gcs.MinObject
+	mockBucket      *storage.TestifyMockBucket
+	cacheDir        string
+	jobManager      *downloader.JobManager
+	cacheHandler    *MockFileCacheHandler
+	mockCacheHandle *MockFileCacheHandle
+	metricHandle    *common.MockMetricHandle
+}
+
+// MockFileCacheHandle is a mock type for the FileCacheMetricHandle type
+type MockFileCacheHandle struct {
+	mock.Mock
+}
+
+func (m *MockFileCacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs.MinObject, offset int64, dst []byte) (int, bool, error) {
+	args := m.Called(ctx, bucket, object, offset, dst)
+
+	n := args.Int(0)
+	cacheHit := args.Bool(1)
+	err := args.Error(2)
+
+	return n, cacheHit, err
+}
+
+func (m *MockFileCacheHandle) IsSequential(currentOffset int64) bool {
+	args := m.Called(currentOffset)
+	return args.Bool(0)
+}
+
+func (m *MockFileCacheHandle) Close() error {
+	args := m.Called()
+	return args.Error(0)
 }
 
 // MockFileCacheHandler is a mock type for the FileCacheMetricHandle type
@@ -57,10 +84,15 @@ type MockFileCacheHandler struct {
 	mock.Mock
 }
 
-func (m *MockFileCacheHandler) GetCacheHandle(obj *gcs.MinObject, bucket gcs.Bucket, cacheFileForRangeRead bool, initialOffset int64) (*file.CacheHandle, error) {
+func (m *MockFileCacheHandler) GetCacheHandle(obj *gcs.MinObject, bucket gcs.Bucket, cacheFileForRangeRead bool, initialOffset int64) (file.CacheHandleInterface, error) {
 	args := m.Called(obj, bucket, cacheFileForRangeRead, initialOffset)
-	handle, _ := args.Get(0).(*file.CacheHandle) // Allow returning nil handle
+	handle, _ := args.Get(0).(file.CacheHandleInterface) // Allow returning nil handle
 	return handle, args.Error(1)
+}
+
+func (m *MockFileCacheHandler) InvalidateCache(objectName string, bucketName string) error {
+	args := m.Called(objectName, bucketName)
+	return args.Error(0)
 }
 
 func TestFileCacheReaderTestSuite(t *testing.T) {
@@ -78,6 +110,12 @@ func (t *FileCacheReaderTest) SetupTest() {
 	lruCache := lru.NewCache(util.CacheMaxSize)
 	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, util.SequentialReadSizeInMb, &cfg.FileCacheConfig{EnableCrc: false}, nil)
 	t.cacheHandler = new(MockFileCacheHandler)
+	readOp := &fuseops.ReadFileOp{
+		Handle: fuseops.HandleID(123),
+		Offset: 0,
+		Size:   10,
+	}
+	t.ctx = context.WithValue(context.Background(), ReadOp, readOp)
 }
 
 func (t *FileCacheReaderTest) TearDown() {
@@ -142,28 +180,17 @@ func (t *FileCacheReaderTest) TestTryReadingFromFileCache_ErrorScenarios() {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func() {
-			readOp := &fuseops.ReadFileOp{
-				Handle: fuseops.HandleID(123),
-				Offset: 0,
-				Size:   10,
-			}
-			ctx := context.WithValue(context.Background(), ReadOp, readOp)
-
-			mockHandler := new(MockFileCacheHandler)
-			mockHandler.On("GetCacheHandle", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-				Return(nil, tc.mockErr)
-
+			mockCacheHandler := new(MockFileCacheHandler)
+			mockCacheHandler.On("GetCacheHandle", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, tc.mockErr)
 			mockBucket := new(storage.TestifyMockBucket)
 			mockBucket.On("Name").Return("test-bucket")
-
 			mockMetricHandle := new(common.MockMetricHandle)
 			mockMetricHandle.On("FileCacheReadCount", mock.Anything, int64(1), mock.Anything).Return()
 			mockMetricHandle.On("FileCacheReadBytesCount", mock.Anything, mock.AnythingOfType("int64"), mock.Anything).Return()
 			mockMetricHandle.On("FileCacheReadLatency", mock.Anything, mock.AnythingOfType("float64"), mock.Anything).Return()
+			reader := NewFileCacheReader(t.object, mockBucket, mockCacheHandler, true, mockMetricHandle)
 
-			reader := NewFileCacheReader(t.object, mockBucket, mockHandler, true, mockMetricHandle)
-
-			n, hit, err := reader.tryReadingFromFileCache(ctx, make([]byte, 10), 0)
+			n, hit, err := reader.tryReadingFromFileCache(t.ctx, make([]byte, 10), 0)
 
 			if tc.expectedErr {
 				assert.Error(t.T(), err)
@@ -172,6 +199,53 @@ func (t *FileCacheReaderTest) TestTryReadingFromFileCache_ErrorScenarios() {
 			}
 			assert.Equal(t.T(), tc.expectedHit, hit)
 			assert.Equal(t.T(), tc.expectedN, n)
+
+			// Verify mocks
+			mockCacheHandler.AssertExpectations(t.T())
+			mockBucket.AssertExpectations(t.T())
+			mockMetricHandle.AssertExpectations(t.T())
 		})
 	}
+}
+
+func (t *FileCacheReaderTest) TestReadFail() {
+	// Arrange
+	p1 := make([]byte, 100)
+	offset1 := int64(0)
+
+	// Bucket
+	mockBucket := new(storage.TestifyMockBucket)
+	mockBucket.On("Name").Return("test-bucket")
+
+	// Cache Handle
+	mockCacheHandle := new(MockFileCacheHandle)
+	mockCacheHandle.On("Read", mock.Anything, mock.Anything, mock.Anything, offset1, p1).
+		Return(0, false, util.ErrFallbackToGCS).Once()
+
+	// Cache Handler
+	mockCacheHandler := new(MockFileCacheHandler)
+	mockCacheHandler.On("GetCacheHandle", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(mockCacheHandle, nil)
+
+	// Metric Handle
+	mockMetricHandle := new(common.MockMetricHandle)
+	mockMetricHandle.On("FileCacheReadCount", mock.Anything, int64(1), mock.Anything).Return()
+	mockMetricHandle.On("FileCacheReadBytesCount", mock.Anything, mock.AnythingOfType("int64"), mock.Anything).Return()
+	mockMetricHandle.On("FileCacheReadLatency", mock.Anything, mock.AnythingOfType("float64"), mock.Anything).Return()
+
+	// Reader
+	reader := NewFileCacheReader(t.object, mockBucket, mockCacheHandler, true, mockMetricHandle)
+
+	// Act - first read
+	n1, hit1, err1 := reader.tryReadingFromFileCache(t.ctx, p1, offset1)
+
+	// Assert - first read
+	assert.NoError(t.T(), err1)
+	assert.Equal(t.T(), 0, n1)
+	assert.False(t.T(), hit1)
+
+	mockCacheHandle.AssertExpectations(t.T())
+	mockCacheHandler.AssertExpectations(t.T())
+	mockMetricHandle.AssertExpectations(t.T())
+	mockBucket.AssertExpectations(t.T())
 }
