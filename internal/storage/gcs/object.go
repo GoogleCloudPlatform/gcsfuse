@@ -18,8 +18,6 @@ import (
 	"crypto/md5"
 	"time"
 
-	"maps"
-
 	storagev1 "google.golang.org/api/storage/v1"
 )
 
@@ -85,7 +83,7 @@ type Object struct {
 type MinObject struct {
 	Name            string
 	Size            uint64
-	generation      int64
+	Generation      int64
 	MetaGeneration  int64
 	Updated         time.Time
 	Metadata        map[string]string
@@ -110,39 +108,6 @@ type ExtendedObjectAttributes struct {
 	Acl                []*storagev1.ObjectAccessControl
 }
 
-func CopyMetadata(in map[string]string) (out map[string]string) {
-	if in == nil {
-		return
-	}
-	out = make(map[string]string, len(in))
-	maps.Copy(out, in)
-	return
-}
-
-func NewMinObject(name string, size uint64, generation int64,
-	metaGeneration int64, updated time.Time, metadata map[string]string,
-	contentEncoding string, crc32c *uint32) *MinObject {
-	// Make a copy of crc32c to not reference callers crc32c.
-	if crc32c != nil {
-		copyCrc32c := *crc32c
-		crc32c = &copyCrc32c
-	}
-	return &MinObject{
-		Name:            name,
-		Size:            size,
-		generation:      generation,
-		MetaGeneration:  metaGeneration,
-		Updated:         updated,
-		Metadata:        CopyMetadata(metadata),
-		ContentEncoding: contentEncoding,
-		CRC32C:          crc32c,
-	}
-}
-
 func (mo MinObject) HasContentEncodingGzip() bool {
 	return mo.ContentEncoding == ContentEncodingGzip
-}
-
-func (m *MinObject) Generation() int64 {
-	return m.generation
 }

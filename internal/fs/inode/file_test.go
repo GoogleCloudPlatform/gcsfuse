@@ -170,7 +170,7 @@ func (t *FileTest) TestName() {
 
 func (t *FileTest) TestInitialSourceGeneration() {
 	sg := t.in.SourceGeneration()
-	assert.Equal(t.T(), t.backingObj.Generation(), sg.Object)
+	assert.Equal(t.T(), t.backingObj.Generation, sg.Object)
 	assert.Equal(t.T(), t.backingObj.MetaGeneration, sg.Metadata)
 	assert.Equal(t.T(), t.backingObj.Size, sg.Size)
 }
@@ -180,7 +180,7 @@ func (t *FileTest) TestSourceGenerationSizeAfterWriteDoesNotChange() {
 	require.NoError(t.T(), err)
 
 	sg := t.in.SourceGeneration()
-	assert.Equal(t.T(), t.backingObj.Generation(), sg.Object)
+	assert.Equal(t.T(), t.backingObj.Generation, sg.Object)
 	assert.Equal(t.T(), t.backingObj.MetaGeneration, sg.Metadata)
 	assert.Equal(t.T(), t.backingObj.Size, sg.Size)
 }
@@ -440,7 +440,7 @@ func (t *FileTest) TestWriteThenSync() {
 			}
 
 			// The generation should have advanced.
-			assert.Less(t.T(), t.backingObj.Generation(), t.in.SourceGeneration().Object)
+			assert.Less(t.T(), t.backingObj.Generation, t.in.SourceGeneration().Object)
 
 			// Validate MinObject in MRDWrapper is same as the MinObject in inode.
 			assert.Same(t.T(), &t.in.src, t.in.MRDWrapper.GetMinObjectForTesting())
@@ -451,7 +451,7 @@ func (t *FileTest) TestWriteThenSync() {
 
 			require.NoError(t.T(), err)
 			assert.NotNil(t.T(), m)
-			assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation())
+			assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
 			assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
 			assert.Equal(t.T(), t.in.SourceGeneration().Size, m.Size)
 			assert.Equal(t.T(), uint64(len("paco")), m.Size)
@@ -522,7 +522,7 @@ func (t *FileTest) TestWriteToLocalFileThenSync() {
 			m, _, err := t.bucket.StatObject(t.ctx, statReq)
 			require.NoError(t.T(), err)
 			assert.NotNil(t.T(), m)
-			assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation())
+			assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
 			assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
 			assert.Equal(t.T(), t.in.SourceGeneration().Size, m.Size)
 			assert.Equal(t.T(), uint64(len("tacos")), m.Size)
@@ -586,7 +586,7 @@ func (t *FileTest) TestSyncEmptyLocalFile() {
 			m, _, err := t.bucket.StatObject(t.ctx, statReq)
 			require.NoError(t.T(), err)
 			assert.NotNil(t.T(), m)
-			assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation())
+			assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
 			assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
 			assert.Equal(t.T(), t.in.SourceGeneration().Size, m.Size)
 			assert.Equal(t.T(), uint64(0), m.Size)
@@ -650,7 +650,7 @@ func (t *FileTest) TestAppendThenSync() {
 			}
 
 			// The generation should have advanced.
-			assert.Less(t.T(), t.backingObj.Generation(), t.in.SourceGeneration().Object)
+			assert.Less(t.T(), t.backingObj.Generation, t.in.SourceGeneration().Object)
 
 			// Stat the current object in the bucket.
 			statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
@@ -658,7 +658,7 @@ func (t *FileTest) TestAppendThenSync() {
 
 			require.NoError(t.T(), err)
 			assert.NotNil(t.T(), m)
-			assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation())
+			assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
 			assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
 			assert.Equal(t.T(), t.in.SourceGeneration().Size, m.Size)
 			assert.Equal(t.T(), uint64(len("tacoburrito")), m.Size)
@@ -723,7 +723,7 @@ func (t *FileTest) TestTruncateDownwardThenSync() {
 			}
 
 			// The generation should have advanced.
-			assert.Less(t.T(), t.backingObj.Generation(), t.in.SourceGeneration().Object)
+			assert.Less(t.T(), t.backingObj.Generation, t.in.SourceGeneration().Object)
 
 			// Validate MinObject in MRDWrapper is same as the MinObject in inode.
 			assert.Same(t.T(), &t.in.src, t.in.MRDWrapper.GetMinObjectForTesting())
@@ -734,7 +734,7 @@ func (t *FileTest) TestTruncateDownwardThenSync() {
 
 			require.NoError(t.T(), err)
 			assert.NotNil(t.T(), m)
-			assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation())
+			assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
 			assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
 			assert.Equal(t.T(), t.in.SourceGeneration().Size, m.Size)
 			assert.Equal(t.T(), uint64(2), m.Size)
@@ -793,7 +793,7 @@ func (t *FileTest) TestTruncateUpwardThenFlush() {
 			}
 
 			// The generation should have advanced.
-			assert.Less(t.T(), t.backingObj.Generation(), t.in.SourceGeneration().Object)
+			assert.Less(t.T(), t.backingObj.Generation, t.in.SourceGeneration().Object)
 
 			// Validate MinObject in MRDWrapper is same as the MinObject in inode.
 			assert.Same(t.T(), &t.in.src, t.in.MRDWrapper.GetMinObjectForTesting())
@@ -807,7 +807,7 @@ func (t *FileTest) TestTruncateUpwardThenFlush() {
 			assert.Equal(t.T(),
 				truncateTime.UTC().Format(time.RFC3339Nano),
 				m.Metadata["gcsfuse_mtime"])
-			assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation())
+			assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
 			assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
 			assert.Equal(t.T(), t.in.SourceGeneration().Size, m.Size)
 			assert.Equal(t.T(), uint64(6), m.Size)
@@ -1095,7 +1095,7 @@ func (t *FileTest) TestSyncFlush_Clobbered() {
 			// Check if the error is a FileClobberedError
 			var fcErr *gcsfuse_errors.FileClobberedError
 			assert.True(t.T(), errors.As(err, &fcErr), "expected FileClobberedError but got %v", err)
-			assert.Equal(t.T(), t.backingObj.Generation(), t.in.SourceGeneration().Object)
+			assert.Equal(t.T(), t.backingObj.Generation, t.in.SourceGeneration().Object)
 			assert.Equal(t.T(), t.backingObj.MetaGeneration, t.in.SourceGeneration().Metadata)
 			assert.Equal(t.T(), t.backingObj.Size, t.in.SourceGeneration().Size)
 
@@ -1105,7 +1105,7 @@ func (t *FileTest) TestSyncFlush_Clobbered() {
 
 			require.NoError(t.T(), err)
 			assert.NotNil(t.T(), m)
-			assert.Equal(t.T(), newObj.Generation, m.Generation())
+			assert.Equal(t.T(), newObj.Generation, m.Generation)
 			assert.Equal(t.T(), newObj.Size, m.Size)
 		})
 	}
@@ -1250,7 +1250,7 @@ func (t *FileTest) TestSetMtime_SourceObjectGenerationChanged() {
 
 	require.NoError(t.T(), err)
 	assert.NotNil(t.T(), m)
-	assert.Equal(t.T(), newObj.Generation, m.Generation())
+	assert.Equal(t.T(), newObj.Generation, m.Generation)
 	assert.Equal(t.T(), 0, len(m.Metadata))
 }
 
@@ -1279,7 +1279,7 @@ func (t *FileTest) TestSetMtime_SourceObjectMetaGenerationChanged() {
 
 	require.NoError(t.T(), err)
 	assert.NotNil(t.T(), m)
-	assert.Equal(t.T(), newObj.Generation, m.Generation())
+	assert.Equal(t.T(), newObj.Generation, m.Generation)
 	assert.Equal(t.T(), newObj.MetaGeneration, m.MetaGeneration)
 }
 

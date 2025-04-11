@@ -73,7 +73,7 @@ func NewSymlinkInode(
 		id:   id,
 		name: name,
 		sourceGeneration: Generation{
-			Object:   m.Generation(),
+			Object:   m.Generation,
 			Metadata: m.MetaGeneration,
 			Size:     m.Size,
 		},

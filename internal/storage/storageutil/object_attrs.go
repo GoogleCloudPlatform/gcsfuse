@@ -108,8 +108,21 @@ func ObjectAttrsToMinObject(attrs *storage.ObjectAttrs) *gcs.MinObject {
 	if attrs == nil {
 		return nil
 	}
-	return gcs.NewMinObject(attrs.Name, uint64(attrs.Size), attrs.Generation, attrs.Metageneration,
-		attrs.Updated, attrs.Metadata, attrs.ContentEncoding, &attrs.CRC32C)
+
+	// Making a local copy of crc to avoid keeping a reference to attrs instance.
+	crc := attrs.CRC32C
+
+	// Setting the parameters in MinObject and doing conversions as necessary.
+	return &gcs.MinObject{
+		Name:            attrs.Name,
+		Size:            uint64(attrs.Size),
+		ContentEncoding: attrs.ContentEncoding,
+		CRC32C:          &crc,
+		Metadata:        attrs.Metadata,
+		Generation:      attrs.Generation,
+		MetaGeneration:  attrs.Metageneration,
+		Updated:         attrs.Updated,
+	}
 }
 
 // SetAttrsInWriter - for setting object-attributes filed in storage.Writer object.
@@ -149,7 +162,17 @@ func ConvertObjToMinObject(o *gcs.Object) *gcs.MinObject {
 	if o == nil {
 		return nil
 	}
-	return gcs.NewMinObject(o.Name, o.Size, o.Generation, o.MetaGeneration, o.Updated, o.Metadata, o.ContentEncoding, o.CRC32C)
+
+	return &gcs.MinObject{
+		Name:            o.Name,
+		Size:            o.Size,
+		Generation:      o.Generation,
+		MetaGeneration:  o.MetaGeneration,
+		Updated:         o.Updated,
+		Metadata:        o.Metadata,
+		ContentEncoding: o.ContentEncoding,
+		CRC32C:          o.CRC32C,
+	}
 }
 
 func ConvertObjToExtendedObjectAttributes(o *gcs.Object) *gcs.ExtendedObjectAttributes {
@@ -183,7 +206,7 @@ func ConvertMinObjectAndExtendedObjectAttributesToObject(m *gcs.MinObject,
 	return &gcs.Object{
 		Name:               m.Name,
 		Size:               m.Size,
-		Generation:         m.Generation(),
+		Generation:         m.Generation,
 		MetaGeneration:     m.MetaGeneration,
 		Updated:            m.Updated,
 		Metadata:           m.Metadata,
@@ -209,19 +232,15 @@ func ConvertMinObjectToObject(m *gcs.MinObject) *gcs.Object {
 	if m == nil {
 		return nil
 	}
-	localCrc32c := m.CRC32C
-	if localCrc32c != nil {
-		copyCrc32c := *m.CRC32C // Make a copy to not reference minObjects crc32c.
-		localCrc32c = &copyCrc32c
-	}
+
 	return &gcs.Object{
 		Name:            m.Name,
 		Size:            m.Size,
-		Generation:      m.Generation(),
+		Generation:      m.Generation,
 		MetaGeneration:  m.MetaGeneration,
 		Updated:         m.Updated,
-		Metadata:        gcs.CopyMetadata(m.Metadata),
+		Metadata:        m.Metadata,
 		ContentEncoding: m.ContentEncoding,
-		CRC32C:          localCrc32c,
+		CRC32C:          m.CRC32C,
 	}
 }

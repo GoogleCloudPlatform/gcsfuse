@@ -117,8 +117,8 @@ func (fch *CacheHandle) validateEntryInFileInfoCache(bucket gcs.Bucket, object *
 	// being read is evicted from cache during or after reading the required offset
 	// from local cached file to `dst` buffer.
 	fileInfoData := fileInfo.(data.FileInfo)
-	if fileInfoData.ObjectGeneration != object.Generation() {
-		return fmt.Errorf("%w: generation of cached object: %v is different from required generation: %v", util.ErrInvalidFileInfoCache, fileInfoData.ObjectGeneration, object.Generation())
+	if fileInfoData.ObjectGeneration != object.Generation {
+		return fmt.Errorf("%w: generation of cached object: %v is different from required generation: %v", util.ErrInvalidFileInfoCache, fileInfoData.ObjectGeneration, object.Generation)
 	}
 	if fileInfoData.Offset < requiredOffset {
 		return fmt.Errorf("%w offset of cached object: %v is less than required offset %v", util.ErrInvalidFileInfoCache, fileInfoData.Offset, requiredOffset)

@@ -435,7 +435,7 @@ func (rr *randomReader) Destroy() {
 }
 
 func (rr *randomReader) IsStale(srcGeneration int64) bool {
-	return srcGeneration != rr.object.Generation()
+	return srcGeneration != rr.object.Generation
 }
 
 // Like io.ReadFull, but deals with the cancellation issues.
@@ -484,7 +484,7 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 		ctx,
 		&gcs.ReadObjectRequest{
 			Name:       rr.object.Name,
-			Generation: rr.object.Generation(),
+			Generation: rr.object.Generation,
 			Range: &gcs.ByteRange{
 				Start: uint64(start),
 				Limit: uint64(end),

@@ -72,7 +72,7 @@ func (t *JobTestifyTest) initReadCacheTestifyTest(objectName string, objectConte
 	}
 	fileInfo := data.FileInfo{
 		Key:              fileInfoKey,
-		ObjectGeneration: t.object.Generation(),
+		ObjectGeneration: t.object.Generation,
 		FileSize:         t.object.Size,
 		Offset:           0,
 	}

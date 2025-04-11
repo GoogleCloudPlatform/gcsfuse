@@ -276,7 +276,7 @@ func (t *DirTest) LookUpChild_FileOnly() {
 
 	ExpectEq(objName, result.FullName.GcsObjectName())
 	ExpectEq(objName, result.MinObject.Name)
-	ExpectEq(createObj.Generation, result.MinObject.Generation())
+	ExpectEq(createObj.Generation, result.MinObject.Generation)
 	ExpectEq(createObj.Size, result.MinObject.Size)
 
 	// A conflict marker name shouldn't work.
@@ -305,7 +305,7 @@ func (t *DirTest) LookUpChild_DirOnly() {
 
 	ExpectEq(objName, result.FullName.GcsObjectName())
 	ExpectEq(objName, result.MinObject.Name)
-	ExpectEq(createObj.Generation, result.MinObject.Generation())
+	ExpectEq(createObj.Generation, result.MinObject.Generation)
 	ExpectEq(createObj.Size, result.MinObject.Size)
 
 	// A conflict marker name shouldn't work.
@@ -391,7 +391,7 @@ func (t *DirTest) LookUpChild_FileAndDir() {
 
 	ExpectEq(dirObjName, result.FullName.GcsObjectName())
 	ExpectEq(dirObjName, result.MinObject.Name)
-	ExpectEq(dirObj.Generation, result.MinObject.Generation())
+	ExpectEq(dirObj.Generation, result.MinObject.Generation)
 	ExpectEq(dirObj.Size, result.MinObject.Size)
 
 	// Look up with the conflict marker name.
@@ -403,7 +403,7 @@ func (t *DirTest) LookUpChild_FileAndDir() {
 
 	ExpectEq(fileObjName, result.FullName.GcsObjectName())
 	ExpectEq(fileObjName, result.MinObject.Name)
-	ExpectEq(fileObj.Generation, result.MinObject.Generation())
+	ExpectEq(fileObj.Generation, result.MinObject.Generation)
 	ExpectEq(fileObj.Size, result.MinObject.Size)
 }
 
@@ -440,7 +440,7 @@ func (t *DirTest) LookUpChild_SymlinkAndDir() {
 
 	ExpectEq(dirObjName, result.FullName.GcsObjectName())
 	ExpectEq(dirObjName, result.MinObject.Name)
-	ExpectEq(dirObj.Generation, result.MinObject.Generation())
+	ExpectEq(dirObj.Generation, result.MinObject.Generation)
 	ExpectEq(dirObj.Size, result.MinObject.Size)
 
 	// Look up with the conflict marker name.
@@ -452,7 +452,7 @@ func (t *DirTest) LookUpChild_SymlinkAndDir() {
 
 	ExpectEq(linkObjName, result.FullName.GcsObjectName())
 	ExpectEq(linkObjName, result.MinObject.Name)
-	ExpectEq(linkObj.Generation, result.MinObject.Generation())
+	ExpectEq(linkObj.Generation, result.MinObject.Generation)
 	ExpectEq(linkObj.Size, result.MinObject.Size)
 }
 
@@ -485,7 +485,7 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Disabled() {
 
 	ExpectEq(dirObjName, result.FullName.GcsObjectName())
 	ExpectEq(dirObjName, result.MinObject.Name)
-	ExpectEq(dirObj.Generation, result.MinObject.Generation())
+	ExpectEq(dirObj.Generation, result.MinObject.Generation)
 	ExpectEq(dirObj.Size, result.MinObject.Size)
 
 	// Look up with the conflict marker name.
@@ -496,7 +496,7 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Disabled() {
 
 	ExpectEq(fileObjName, result.FullName.GcsObjectName())
 	ExpectEq(fileObjName, result.MinObject.Name)
-	ExpectEq(fileObj.Generation, result.MinObject.Generation())
+	ExpectEq(fileObj.Generation, result.MinObject.Generation)
 	ExpectEq(fileObj.Size, result.MinObject.Size)
 }
 
@@ -532,7 +532,7 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Enabled() {
 
 	ExpectEq(dirObjName, result.FullName.GcsObjectName())
 	ExpectEq(dirObjName, result.MinObject.Name)
-	ExpectEq(dirObj.Generation, result.MinObject.Generation())
+	ExpectEq(dirObj.Generation, result.MinObject.Generation)
 	ExpectEq(dirObj.Size, result.MinObject.Size)
 
 	// Look up with the conflict marker name.
@@ -544,7 +544,7 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Enabled() {
 
 	ExpectEq(fileObjName, result.FullName.GcsObjectName())
 	ExpectEq(fileObjName, result.MinObject.Name)
-	ExpectEq(fileObj.Generation, result.MinObject.Generation())
+	ExpectEq(fileObj.Generation, result.MinObject.Generation)
 	ExpectEq(fileObj.Size, result.MinObject.Size)
 }
 
@@ -630,7 +630,7 @@ func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsDisabled() {
 
 	ExpectEq(objName, result.FullName.GcsObjectName())
 	ExpectEq(objName, result.MinObject.Name)
-	ExpectEq(createObj.Generation, result.MinObject.Generation())
+	ExpectEq(createObj.Generation, result.MinObject.Generation)
 	ExpectEq(createObj.Size, result.MinObject.Size)
 }
 

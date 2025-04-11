@@ -149,8 +149,8 @@ func shouldReplace(m *gcs.MinObject, existing entry) bool {
 	}
 
 	// Compare first on generation.
-	if m.Generation() != existing.m.Generation() {
-		return m.Generation() > existing.m.Generation()
+	if m.Generation != existing.m.Generation {
+		return m.Generation > existing.m.Generation
 	}
 
 	// Break ties on metadata generation.

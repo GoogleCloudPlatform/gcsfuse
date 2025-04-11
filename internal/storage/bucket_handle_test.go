@@ -734,7 +734,7 @@ func (testSuite *BucketHandleTest) TestListObjectMethodWithPrefixObjectExist() {
 
 	assert.Nil(testSuite.T(), err)
 	assert.Equal(testSuite.T(), []string{TestObjectRootFolderName, TestObjectSubRootFolderName, TestObjectName, TestGzipObjectName}, minObjectsToMinObjectNames(obj.MinObjects))
-	assert.Equal(testSuite.T(), TestObjectGeneration, obj.MinObjects[0].Generation())
+	assert.Equal(testSuite.T(), TestObjectGeneration, obj.MinObjects[0].Generation)
 	assert.Equal(testSuite.T(), []string{TestObjectSubRootFolderName}, obj.CollapsedRuns)
 }
 
@@ -784,7 +784,7 @@ func (testSuite *BucketHandleTest) TestListObjectMethodWithEmptyDelimiter() {
 
 	assert.Nil(testSuite.T(), err)
 	assert.Equal(testSuite.T(), []string{TestObjectRootFolderName, TestObjectSubRootFolderName, TestSubObjectName, TestObjectName, TestGzipObjectName}, minObjectsToMinObjectNames(obj.MinObjects))
-	assert.Equal(testSuite.T(), TestObjectGeneration, obj.MinObjects[0].Generation())
+	assert.Equal(testSuite.T(), TestObjectGeneration, obj.MinObjects[0].Generation)
 	assert.Nil(testSuite.T(), obj.CollapsedRuns)
 }
 
@@ -1395,7 +1395,7 @@ func (testSuite *BucketHandleTest) TestComposeObjectMethodWithOneSrcObjectIsDstO
 	// Note: fake-gcs-server doesn'testSuite respect precondition checks but still adding
 	// to make sure that it works when precondition checks are supported or we
 	// shift to different testing storage.
-	var preCond int64 = srcMinObj1.Generation()
+	var preCond int64 = srcMinObj1.Generation
 	// Compose srcObj1 and srcObj2 back into srcObj1
 	composedObj, err := testSuite.bucketHandle.ComposeObjects(context.Background(),
 		&gcs.ComposeObjectsRequest{

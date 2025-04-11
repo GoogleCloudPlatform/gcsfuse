@@ -145,7 +145,7 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 			existingJobStatus := existingJob.GetStatus().Name
 			shouldInvalidate = (existingJobStatus == downloader.Failed) || (existingJobStatus == downloader.Invalid)
 		}
-		if (fileInfoData.ObjectGeneration != object.Generation()) || shouldInvalidate {
+		if (fileInfoData.ObjectGeneration != object.Generation) || shouldInvalidate {
 			erasedVal := chr.fileInfoCache.Erase(fileInfoKeyName)
 			if erasedVal != nil {
 				erasedFileInfo := erasedVal.(data.FileInfo)
@@ -161,7 +161,7 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 	if addEntryToCache {
 		fileInfo = data.FileInfo{
 			Key:              fileInfoKey,
-			ObjectGeneration: object.Generation(),
+			ObjectGeneration: object.Generation,
 			Offset:           0,
 			FileSize:         object.Size,
 		}

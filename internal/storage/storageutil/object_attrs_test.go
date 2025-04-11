@@ -252,7 +252,7 @@ func (t objectAttrsTest) Test_ConvertObjToMinObject_WithValidObject() {
 	AssertNe(nil, gcsMinObject)
 	ExpectEq(name, gcsMinObject.Name)
 	ExpectEq(size, gcsMinObject.Size)
-	ExpectEq(generation, gcsMinObject.Generation())
+	ExpectEq(generation, gcsMinObject.Generation)
 	ExpectEq(metaGeneration, gcsMinObject.MetaGeneration)
 	ExpectTrue(currentTime.Equal(gcsMinObject.Updated))
 	ExpectEq(contentEncode, gcsMinObject.ContentEncoding)
@@ -340,8 +340,15 @@ func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithNonNilMin
 func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithNonNilMinObjectAndNonNilAttributes() {
 	var attrMd5 *[16]byte
 	timeAttr := time.Now()
-	minObject := gcs.NewMinObject("test", uint64(36), 444, 555, timeAttr, map[string]string{"test_key": "test_value"}, "test_encoding", nil)
-
+	minObject := &gcs.MinObject{
+		Name:            "test",
+		Size:            uint64(36),
+		Generation:      int64(444),
+		MetaGeneration:  int64(555),
+		Updated:         timeAttr,
+		Metadata:        map[string]string{"test_key": "test_value"},
+		ContentEncoding: "test_encoding",
+	}
 	extendedObjAttr := &gcs.ExtendedObjectAttributes{
 		ContentType:        "ContentType",
 		ContentLanguage:    "ContentLanguage",
@@ -363,7 +370,7 @@ func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithNonNilMin
 	AssertNe(nil, gcsObject)
 	ExpectEq(gcsObject.Name, minObject.Name)
 	ExpectEq(gcsObject.Size, minObject.Size)
-	ExpectEq(gcsObject.Generation, minObject.Generation())
+	ExpectEq(gcsObject.Generation, minObject.Generation)
 	ExpectEq(gcsObject.MetaGeneration, minObject.MetaGeneration)
 	ExpectEq(0, gcsObject.Updated.Compare(minObject.Updated))
 	ExpectEq(gcsObject.Metadata, minObject.Metadata)
@@ -395,14 +402,23 @@ func (t objectAttrsTest) Test_ConvertMinObjectToObject_WithNonNilMinObject() {
 	var attrMd5 *[16]byte
 	var crc32C uint32 = 1234
 	timeAttr := time.Now()
-	minObject := gcs.NewMinObject("test", uint64(36), 444, 555, timeAttr, map[string]string{"test_key": "test_value"}, "test_encoding", &crc32C)
+	minObject := &gcs.MinObject{
+		Name:            "test",
+		Size:            uint64(36),
+		Generation:      int64(444),
+		MetaGeneration:  int64(555),
+		Updated:         timeAttr,
+		Metadata:        map[string]string{"test_key": "test_value"},
+		ContentEncoding: "test_encoding",
+		CRC32C:          &crc32C,
+	}
 
 	gcsObject := ConvertMinObjectToObject(minObject)
 
 	AssertNe(nil, gcsObject)
 	ExpectEq(gcsObject.Name, minObject.Name)
 	ExpectEq(gcsObject.Size, minObject.Size)
-	ExpectEq(gcsObject.Generation, minObject.Generation())
+	ExpectEq(gcsObject.Generation, minObject.Generation)
 	ExpectEq(gcsObject.MetaGeneration, minObject.MetaGeneration)
 	ExpectEq(0, gcsObject.Updated.Compare(minObject.Updated))
 	ExpectTrue(reflect.DeepEqual(gcsObject.Metadata, minObject.Metadata))

@@ -852,7 +852,7 @@ func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.M
 		ctx,
 		&gcs.CopyObjectRequest{
 			SrcName:                       src.Name,
-			SrcGeneration:                 src.Generation(),
+			SrcGeneration:                 src.Generation,
 			SrcMetaGenerationPrecondition: &src.MetaGeneration,
 			DstName:                       fullName.GcsObjectName(),
 		})
@@ -1047,7 +1047,7 @@ func (d *dirInode) RenameFile(ctx context.Context, fileToRename *gcs.MinObject, 
 	req := &gcs.MoveObjectRequest{
 		SrcName:                       fileToRename.Name,
 		DstName:                       destinationFileName,
-		SrcGeneration:                 fileToRename.Generation(),
+		SrcGeneration:                 fileToRename.Generation,
 		SrcMetaGenerationPrecondition: &fileToRename.MetaGeneration,
 	}
 
