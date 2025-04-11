@@ -111,7 +111,11 @@ type ExtendedObjectAttributes struct {
 func NewMinObject(name string, size uint64, generation int64,
 	metaGeneration int64, updated time.Time, metadata map[string]string,
 	contentEncoding string, crc32c *uint32) *MinObject {
-	localCrc32c := *crc32c // Make a copy to not reference caller's crc32c memory.
+	// Make a copy of crc32c to not reference callers crc32c.
+	if crc32c != nil {
+		copyCrc32c := *crc32c
+		crc32c = &copyCrc32c
+	}
 	return &MinObject{
 		Name:            name,
 		Size:            size,
@@ -120,7 +124,7 @@ func NewMinObject(name string, size uint64, generation int64,
 		Updated:         updated,
 		Metadata:        metadata,
 		ContentEncoding: contentEncoding,
-		CRC32C:          &localCrc32c,
+		CRC32C:          crc32c,
 	}
 }
 
