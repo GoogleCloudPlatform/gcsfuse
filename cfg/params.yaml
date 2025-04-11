@@ -629,6 +629,13 @@
   deprecated: true
   deprecation-warning: "Please use --cloud-metrics-export-interval-secs instead."
 
+- config-path: "metrics.use-new-names"
+  flag-name: "metrics-use-new-names"
+  type: "bool"
+  usage: "Use the new metric names."
+  default: false
+  hide-flag: true
+
 - config-path: "monitoring.experimental-tracing-mode"
   flag-name: "experimental-tracing-mode"
   type: "string"

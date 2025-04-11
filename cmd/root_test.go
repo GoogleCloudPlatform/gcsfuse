@@ -1029,6 +1029,13 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 				StackdriverExportInterval:      time.Duration(10) * time.Hour,
 			},
 		},
+		{
+			name: "use_new_metric_names",
+			args: []string{"gcsfuse", "--metrics-use-new-names=true", "abc", "pqr"},
+			expected: &cfg.MetricsConfig{
+				UseNewNames: true,
+			},
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
