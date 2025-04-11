@@ -146,10 +146,6 @@ func rangeLimitIs(expected uint64) (m Matcher) {
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-const sequentialReadSizeInMb = 22
-const sequentialReadSizeInBytes = sequentialReadSizeInMb * MB
-const CacheMaxSize = 2 * sequentialReadSizeInMb * util.MiB
-
 type RandomReaderTest struct {
 	object       *gcs.MinObject
 	bucket       storage.MockBucket

@@ -26,8 +26,8 @@ import (
 // to an alternative reader.
 var FallbackToAnotherReader = errors.New("fallback to another reader is required")
 
-// GCSReaderReq represents the request parameters needed to read a data from a GCS object.
-type GCSReaderReq struct {
+// GCSReaderRequest represents the request parameters needed to read a data from a GCS object.
+type GCSReaderRequest struct {
 	// Buffer is provided by jacobsa/fuse and should be filled with data from the object.
 	Buffer []byte
 
@@ -38,9 +38,9 @@ type GCSReaderReq struct {
 	EndOffset int64
 }
 
-// ObjectRead represents the response returned as part of a ReadAt call.
+// ReaderResponse represents the response returned as part of a ReadAt call.
 // It includes the actual data read and its size.
-type ObjectRead struct {
+type ReaderResponse struct {
 	// DataBuf contains the bytes read from the object.
 	DataBuf []byte
 
@@ -53,10 +53,10 @@ type Reader interface {
 	CheckInvariants()
 
 	// ReadAt reads data into the provided byte slice starting from the specified offset.
-	// It returns an ObjectRead containing the data read and the number of bytes read.
+	// It returns an ReaderResponse containing the data read and the number of bytes read.
 	// To indicate that the operation should be handled by an alternative reader, return
 	// the error FallbackToAnotherReader.
-	ReadAt(ctx context.Context, p []byte, offset int64) (ObjectRead, error)
+	ReadAt(ctx context.Context, p []byte, offset int64) (ReaderResponse, error)
 
 	// Destroy is called to release any resources held by the reader.
 	Destroy()
@@ -75,6 +75,6 @@ type ReadManager interface {
 // This interface is intended for lower-level interactions with GCS readers.
 type GCSReader interface {
 	// ReadAt reads data into the provided request buffer, starting from the specified offset and ending at the specified end offset.
-	// It returns an ObjectRead response containing the data read and any error encountered.
-	ReadAt(ctx context.Context, req *GCSReaderReq) (ObjectRead, error)
+	// It returns an ReaderResponse response containing the data read and any error encountered.
+	ReadAt(ctx context.Context, req *GCSReaderRequest) (ReaderResponse, error)
 }
