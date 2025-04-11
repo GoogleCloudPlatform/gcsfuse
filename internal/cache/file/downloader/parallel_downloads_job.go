@@ -39,7 +39,7 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 		ctx,
 		&gcs.ReadObjectRequest{
 			Name:       job.object.Name,
-			Generation: job.object.Generation(),
+			Generation: job.object.Generation,
 			Range: &gcs.ByteRange{
 				Start: uint64(start),
 				Limit: uint64(end),

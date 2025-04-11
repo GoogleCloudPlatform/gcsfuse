@@ -500,7 +500,7 @@ func (t *bucketTest) matchesStartTime(start time.Time) Matcher {
 func (t *bucketTest) assertOnObjectAttributes(expectedMinObj *gcs.MinObject, expectedExtendedAttr *gcs.ExtendedObjectAttributes, o *gcs.Object) {
 	ExpectThat(expectedMinObj.Name, Equals(o.Name))
 	ExpectThat(expectedMinObj.Size, Equals(o.Size))
-	ExpectThat(expectedMinObj.Generation(), Equals(o.Generation))
+	ExpectThat(expectedMinObj.Generation, Equals(o.Generation))
 	ExpectThat(expectedMinObj.MetaGeneration, Equals(o.MetaGeneration))
 	ExpectThat(expectedMinObj.Updated, DeepEquals(o.Updated))
 	ExpectThat(expectedMinObj.Metadata, DeepEquals(o.Metadata))
@@ -1002,7 +1002,7 @@ func (t *createTest) GenerationPrecondition_Zero_Unsatisfied() {
 
 	AssertEq(1, len(listing.MinObjects))
 	AssertEq("foo", listing.MinObjects[0].Name)
-	ExpectEq(o.Generation, listing.MinObjects[0].Generation())
+	ExpectEq(o.Generation, listing.MinObjects[0].Generation)
 	ExpectEq(len("taco"), listing.MinObjects[0].Size)
 
 	// We should see the old contents when we read.
@@ -1036,7 +1036,7 @@ func (t *createTest) GenerationPrecondition_Zero_Satisfied() {
 
 	AssertEq(1, len(listing.MinObjects))
 	AssertEq("foo", listing.MinObjects[0].Name)
-	ExpectEq(o.Generation, listing.MinObjects[0].Generation())
+	ExpectEq(o.Generation, listing.MinObjects[0].Generation)
 	ExpectEq(len("burrito"), listing.MinObjects[0].Size)
 
 	// We should see the new contents when we read.
@@ -1102,7 +1102,7 @@ func (t *createTest) GenerationPrecondition_NonZero_Unsatisfied_Present() {
 
 	AssertEq(1, len(listing.MinObjects))
 	AssertEq("foo", listing.MinObjects[0].Name)
-	ExpectEq(o.Generation, listing.MinObjects[0].Generation())
+	ExpectEq(o.Generation, listing.MinObjects[0].Generation)
 	ExpectEq(len("taco"), listing.MinObjects[0].Size)
 
 	// We should see the old contents when we read.
@@ -1146,7 +1146,7 @@ func (t *createTest) GenerationPrecondition_NonZero_Satisfied() {
 
 	AssertEq(1, len(listing.MinObjects))
 	AssertEq("foo", listing.MinObjects[0].Name)
-	ExpectEq(o.Generation, listing.MinObjects[0].Generation())
+	ExpectEq(o.Generation, listing.MinObjects[0].Generation)
 	ExpectEq(len("burrito"), listing.MinObjects[0].Size)
 
 	// We should see the new contents when we read.
@@ -1214,7 +1214,7 @@ func (t *createTest) MetaGenerationPrecondition_Unsatisfied_ObjectExists() {
 
 	AssertEq(1, len(listing.MinObjects))
 	AssertEq("foo", listing.MinObjects[0].Name)
-	ExpectEq(o.Generation, listing.MinObjects[0].Generation())
+	ExpectEq(o.Generation, listing.MinObjects[0].Generation)
 	ExpectEq(o.MetaGeneration, listing.MinObjects[0].MetaGeneration)
 	ExpectEq(len("taco"), listing.MinObjects[0].Size)
 
@@ -1257,7 +1257,7 @@ func (t *createTest) MetaGenerationPrecondition_Satisfied() {
 
 	AssertEq(1, len(listing.MinObjects))
 	AssertEq("foo", listing.MinObjects[0].Name)
-	ExpectEq(o.Generation, listing.MinObjects[0].Generation())
+	ExpectEq(o.Generation, listing.MinObjects[0].Generation)
 	ExpectEq(o.MetaGeneration, listing.MinObjects[0].MetaGeneration)
 	ExpectEq(len("burrito"), listing.MinObjects[0].Size)
 
@@ -2388,7 +2388,7 @@ func (t *composeTest) DestinationExists_GenerationPreconditionNotSatisfied() {
 		&gcs.StatObjectRequest{Name: sources[0].Name})
 
 	AssertEq(nil, err)
-	ExpectEq(sources[0].Generation, m.Generation())
+	ExpectEq(sources[0].Generation, m.Generation)
 	ExpectEq(len("taco"), m.Size)
 }
 
@@ -2428,7 +2428,7 @@ func (t *composeTest) DestinationExists_MetaGenerationPreconditionNotSatisfied()
 		&gcs.StatObjectRequest{Name: sources[0].Name})
 
 	AssertEq(nil, err)
-	ExpectEq(sources[0].Generation, m.Generation())
+	ExpectEq(sources[0].Generation, m.Generation)
 	ExpectEq(sources[0].MetaGeneration, m.MetaGeneration)
 	ExpectEq(len("taco"), m.Size)
 }
@@ -3472,7 +3472,7 @@ func (t *statTest) StatAfterCreating() {
 	AssertNe(nil, e)
 
 	ExpectEq("foo", m.Name)
-	ExpectEq(orig.Generation, m.Generation())
+	ExpectEq(orig.Generation, m.Generation)
 	ExpectEq(len("taco"), m.Size)
 	ExpectThat(e.Deleted, timeutil.TimeEq(time.Time{}))
 	ExpectThat(m.Updated, timeutil.TimeEq(orig.Updated))
@@ -3508,7 +3508,7 @@ func (t *statTest) StatAfterOverwriting() {
 	AssertNe(nil, e)
 
 	ExpectEq("foo", m.Name)
-	ExpectEq(o2.Generation, m.Generation())
+	ExpectEq(o2.Generation, m.Generation)
 	ExpectEq(len("burrito"), m.Size)
 	ExpectThat(e.Deleted, timeutil.TimeEq(time.Time{}))
 	ExpectThat(m.Updated, timeutil.TimeEq(o2.Updated))
@@ -3560,7 +3560,7 @@ func (t *statTest) StatAfterUpdating() {
 	AssertNe(nil, e)
 
 	ExpectEq("foo", m.Name)
-	ExpectEq(o2.Generation, m.Generation())
+	ExpectEq(o2.Generation, m.Generation)
 	ExpectEq(o2.MetaGeneration, m.MetaGeneration)
 	ExpectEq(len("taco"), m.Size)
 	ExpectThat(e.Deleted, timeutil.TimeEq(time.Time{}))

@@ -66,7 +66,7 @@ func NewExplicitDirInode(
 
 	if m != nil {
 		dirInode.generation = Generation{
-			Object:   m.Generation(),
+			Object:   m.Generation,
 			Metadata: m.MetaGeneration,
 			Size:     m.Size,
 		}

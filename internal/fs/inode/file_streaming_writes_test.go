@@ -419,7 +419,7 @@ func (t *FileStreamingWritesTest) TestWriteToFileAndFlush() {
 			m, _, err := t.bucket.StatObject(t.ctx, statReq)
 			require.NoError(t.T(), err)
 			assert.NotNil(t.T(), m)
-			assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation())
+			assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
 			assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
 			assert.Equal(t.T(), uint64(len("tacos")), m.Size)
 			// Mtime metadata is not written for buffered writes.
@@ -478,7 +478,7 @@ func (t *FileStreamingWritesTest) TestFlushEmptyFile() {
 			m, _, err := t.bucket.StatObject(t.ctx, statReq)
 			require.NoError(t.T(), err)
 			assert.NotNil(t.T(), m)
-			assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation())
+			assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
 			assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
 			assert.Equal(t.T(), uint64(0), m.Size)
 			// Mtime metadata is not written for buffered writes.
@@ -604,7 +604,7 @@ func (t *FileStreamingWritesTest) TestSourceGenerationSizeForSyncedFileIsReflect
 	require.NoError(t.T(), err)
 
 	sg := t.in.SourceGeneration()
-	assert.EqualValues(t.T(), t.backingObj.Generation(), sg.Object)
+	assert.EqualValues(t.T(), t.backingObj.Generation, sg.Object)
 	assert.EqualValues(t.T(), t.backingObj.MetaGeneration, sg.Metadata)
 	assert.EqualValues(t.T(), 5, sg.Size)
 }

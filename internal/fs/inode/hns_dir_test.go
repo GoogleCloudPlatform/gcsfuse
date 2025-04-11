@@ -242,7 +242,11 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsRegularF
 	const name = "file_type"
 	fileName := path.Join(dirInodeName, name)
 	// mock stat object call
-	minObject := gcs.NewMinObject(fileName, 1024, 2, 1, time.Now(), map[string]string{"fake_key": "fake_value"}, "fake_testEncoding", nil)
+	minObject := &gcs.MinObject{
+		Name:           fileName,
+		MetaGeneration: int64(1),
+		Generation:     int64(2),
+	}
 	attrs := &gcs.ExtendedObjectAttributes{
 		ContentType:  "plain/text",
 		StorageClass: "DEFAULT",
@@ -257,7 +261,7 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsRegularF
 	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), fileName, result.FullName.GcsObjectName())
 	assert.Equal(t.T(), fileName, result.MinObject.Name)
-	assert.Equal(t.T(), int64(2), result.MinObject.Generation())
+	assert.Equal(t.T(), int64(2), result.MinObject.Generation)
 	assert.Equal(t.T(), int64(1), result.MinObject.MetaGeneration)
 	assert.Equal(t.T(), metadata.RegularFileType, t.typeCache.Get(t.fixedTime.Now(), name))
 }
@@ -266,7 +270,12 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsSymlinkT
 	const name = "file_type"
 	fileName := path.Join(dirInodeName, name)
 	// mock stat object call
-	minObject := gcs.NewMinObject(fileName, 1024, 2, 1, time.Now(), map[string]string{"gcsfuse_symlink_target": "link"}, "fake_testEncoding", nil)
+	minObject := &gcs.MinObject{
+		Name:           fileName,
+		MetaGeneration: int64(1),
+		Generation:     int64(2),
+		Metadata:       map[string]string{"gcsfuse_symlink_target": "link"},
+	}
 	attrs := &gcs.ExtendedObjectAttributes{
 		ContentType:  "plain/text",
 		StorageClass: "DEFAULT",
@@ -280,7 +289,7 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsSymlinkT
 	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), fileName, result.FullName.GcsObjectName())
 	assert.Equal(t.T(), fileName, result.MinObject.Name)
-	assert.Equal(t.T(), int64(2), result.MinObject.Generation())
+	assert.Equal(t.T(), int64(2), result.MinObject.Generation)
 	assert.Equal(t.T(), int64(1), result.MinObject.MetaGeneration)
 	assert.Equal(t.T(), metadata.SymlinkType, t.typeCache.Get(t.fixedTime.Now(), name))
 }
