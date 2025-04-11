@@ -62,11 +62,7 @@ func (t *RandomReaderStretchrTest) SetupTest() {
 	t.rr.ctx = context.Background()
 
 	// Manufacture an object record.
-	t.object = &gcs.MinObject{
-		Name: "foo",
-		Size: 17,
-	}
-	gcs.SetGenerationForTesting(t.object, 1234)
+	t.object = gcs.NewMinObject("foo", 17, 1234, 1, time.Now(), map[string]string{"fake_key": "fake_value"}, "fake_contentEncoding", nil)
 
 	// Create the bucket.
 	t.mockBucket = new(storage.TestifyMockBucket)

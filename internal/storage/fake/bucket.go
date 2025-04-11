@@ -518,16 +518,7 @@ func copyObject(o *gcs.Object) *gcs.Object {
 }
 
 func copyMinObject(o *gcs.Object) *gcs.MinObject {
-	var copy gcs.MinObject
-	copy.Name = o.Name
-	copy.Size = o.Size
-	gcs.SetGenerationForTesting(&copy, o.Generation)
-	copy.MetaGeneration = o.MetaGeneration
-	copy.Updated = o.Updated
-	copy.Metadata = copyMetadata(o.Metadata)
-	copy.ContentEncoding = o.ContentEncoding
-	copy.CRC32C = o.CRC32C
-	return &copy
+	return gcs.NewMinObject(o.Name, o.Size, o.Generation, o.MetaGeneration, o.Updated, o.Metadata, o.ContentEncoding, o.CRC32C)
 }
 
 ////////////////////////////////////////////////////////////////////////

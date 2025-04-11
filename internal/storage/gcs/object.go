@@ -18,6 +18,8 @@ import (
 	"crypto/md5"
 	"time"
 
+	"maps"
+
 	storagev1 "google.golang.org/api/storage/v1"
 )
 
@@ -108,6 +110,15 @@ type ExtendedObjectAttributes struct {
 	Acl                []*storagev1.ObjectAccessControl
 }
 
+func CopyMetadata(in map[string]string) (out map[string]string) {
+	if in == nil {
+		return
+	}
+	out = make(map[string]string, len(in))
+	maps.Copy(out, in)
+	return
+}
+
 func NewMinObject(name string, size uint64, generation int64,
 	metaGeneration int64, updated time.Time, metadata map[string]string,
 	contentEncoding string, crc32c *uint32) *MinObject {
@@ -122,7 +133,7 @@ func NewMinObject(name string, size uint64, generation int64,
 		generation:      generation,
 		MetaGeneration:  metaGeneration,
 		Updated:         updated,
-		Metadata:        metadata,
+		Metadata:        CopyMetadata(metadata),
 		ContentEncoding: contentEncoding,
 		CRC32C:          crc32c,
 	}
@@ -134,9 +145,4 @@ func (mo MinObject) HasContentEncodingGzip() bool {
 
 func (m *MinObject) Generation() int64 {
 	return m.generation
-}
-
-// This method is used to update the generation of minObject and it's only used for testing.
-func SetGenerationForTesting(m *MinObject, generation int64) {
-	m.generation = generation
 }
