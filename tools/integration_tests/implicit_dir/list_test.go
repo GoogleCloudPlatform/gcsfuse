@@ -40,6 +40,7 @@ func TestListImplicitObjectsFromBucket(t *testing.T) {
 	// testBucket/dirForImplicitDirTests/testDir/explicitDirectory/fileInExplicitDir1                               -- File
 	// testBucket/dirForImplicitDirTests/testDir/explicitDirectory/fileInExplicitDir2                               -- File
 
+	// TODO: Remove the condition and keep the storage-client flow for non-ZB too.
 	if setup.IsZonalBucketRun() {
 		implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructureUsingStorageClient(ctx, t, storageClient, path.Join(DirForImplicitDirTests, testDirName))
 	} else {

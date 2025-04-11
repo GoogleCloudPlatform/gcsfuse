@@ -122,7 +122,7 @@ TEST_DIR_NON_PARALLEL=(
 TEST_DIR_PARALLEL_FOR_ZB=(
   "benchmarking"
   "concurrent_operations"
-  # "explicit_dir"
+  "explicit_dir"
   "gzip"
   "implicit_dir"
   "interrupt"
