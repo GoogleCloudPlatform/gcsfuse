@@ -83,10 +83,6 @@ func executeTestsForDynamicMounting(flags [][]string, createdBucket string, m *t
 	// Test on testBucket
 	successCode = runTestsOnGivenMountedTestBucket(setup.TestBucket(), flags, rootMntDir, m)
 
-	if setup.IsZonalBucketRun() {
-		testBucketForDynamicMounting = PrefixBucketForDynamicMountingTest + "zb-" + setup.GenerateRandomString(5)
-	}
-
 	// Test on created bucket.
 	// SetDynamicBucketMounted to the mounted bucket.
 	setup.SetDynamicBucketMounted(createdBucket)
