@@ -75,8 +75,11 @@ const (
 	AverageSizeOfNegativeStatCacheEntry uint64 = 240
 	// MetadataCacheTTLConfigKey is the Viper configuration key for the metadata
 	//cache's time-to-live (TTL) in seconds.
-	MetadataCacheTTLConfigKey         = "metadata-cache.ttl-secs"
-	MetadataNegativeCacheTTLConfigKey = "metadata-cache.negative-ttl-secs"
+	MetadataCacheTTLConfigKey               = "metadata-cache.ttl-secs"
+	MetadataCacheStatCacheTTLConfigKey      = "metadata-cache.deprecated-stat-cache-ttl"
+	MetadataCacheTypeCacheTTLConfigKey      = "metadata-cache.deprecated-type-cache-ttl"
+	MetadataCacheStatCacheCapacityConfigKey = "metadata-cache.deprecated-stat-cache-capacity"
+	MetadataNegativeCacheTTLConfigKey       = "metadata-cache.negative-ttl-secs"
 	// StatCacheMaxSizeConfigKey is the Viper configuration key for the maximum
 	//size of the metadata stat cache in megabytes.
 	StatCacheMaxSizeConfigKey = "metadata-cache.stat-cache-max-size-mb"
