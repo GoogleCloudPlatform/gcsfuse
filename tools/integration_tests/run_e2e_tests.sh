@@ -156,6 +156,26 @@ TEST_DIR_NON_PARALLEL_FOR_ZB=(
 # Create a temporary file to store the log file name.
 TEST_LOGS_FILE=$(mktemp)
 
+function clean_up_bucket() {
+	local bucketName=${1}
+	echo "Cleaning up bucket ${bucketName} ..."
+	gcloud -q -no-user-output-enabled storage rm -r gs://${bucket}/*
+	gcloud -q -no-user-output-enabled storage buckets delete gs://${bucket}
+}
+
+function clean_up_buckets() {
+	local buckets="${@}"
+	for bucket in ${buckets}; do
+		clean_up_bucket ${bucket}
+	done
+}
+
+buckets_to_be_cleaned_up=
+function clean_up() {
+	clean_up_buckets "${buckets_to_be_cleaned_up}"
+}
+trap clean_up EXIT
+
 function upgrade_gcloud_version() {
   sudo apt-get update
   # Upgrade gcloud version.
@@ -319,41 +339,45 @@ function run_e2e_tests_for_flat_bucket() {
   bucketPrefix="golang-grpc-test-gcsfuse-np-e2e-tests-"
   bucket_name_non_parallel=$(create_bucket $bucketPrefix)
   echo "Bucket name for non parallel tests: "$bucket_name_non_parallel
+  buckets_to_be_cleaned_up+=" ${bucket_name_non_parallel}"
 
   bucketPrefix="golang-grpc-test-gcsfuse-p-e2e-tests-"
   bucket_name_parallel=$(create_bucket $bucketPrefix)
   echo "Bucket name for parallel tests: "$bucket_name_parallel
+  buckets_to_be_cleaned_up+=" ${bucket_name_parallel}"
 
   echo "Running parallel tests..."
   run_parallel_tests TEST_DIR_PARALLEL $bucket_name_parallel &
   parallel_tests_pid=$!
 
- echo "Running non parallel tests ..."
- run_non_parallel_tests TEST_DIR_NON_PARALLEL $bucket_name_non_parallel &
- non_parallel_tests_pid=$!
+  echo "Running non parallel tests ..."
+  run_non_parallel_tests TEST_DIR_NON_PARALLEL $bucket_name_non_parallel &
+  non_parallel_tests_pid=$!
 
- # Wait for all tests to complete.
- wait $parallel_tests_pid
- parallel_tests_exit_code=$?
- wait $non_parallel_tests_pid
- non_parallel_tests_exit_code=$?
+  # Wait for all tests to complete.
+  wait $parallel_tests_pid
+  parallel_tests_exit_code=$?
+  wait $non_parallel_tests_pid
+  non_parallel_tests_exit_code=$?
 
- flat_buckets=("$bucket_name_parallel" "$bucket_name_non_parallel")
- clean_up flat_buckets
+  flat_buckets=("$bucket_name_parallel" "$bucket_name_non_parallel")
+  clean_up flat_buckets
 
- if [ $non_parallel_tests_exit_code != 0 ] || [ $parallel_tests_exit_code != 0 ];
- then
-   return 1
- fi
- return 0
+  if [ $non_parallel_tests_exit_code != 0 ] || [ $parallel_tests_exit_code != 0 ];
+  then
+    return 1
+  fi
+  return 0
 }
 
 function run_e2e_tests_for_hns_bucket(){
    hns_bucket_name_parallel_group=$(create_hns_bucket)
    echo "Hns Bucket Created: "$hns_bucket_name_parallel_group
+   buckets_to_be_cleaned_up+=" ${hns_bucket_name_parallel_group}"
 
    hns_bucket_name_non_parallel_group=$(create_hns_bucket)
    echo "Hns Bucket Created: "$hns_bucket_name_non_parallel_group
+   buckets_to_be_cleaned_up+=" ${hns_bucket_name_non_parallel_group}"
 
    echo "Running tests for HNS bucket"
    run_parallel_tests TEST_DIR_PARALLEL "$hns_bucket_name_parallel_group" &
@@ -380,9 +404,11 @@ function run_e2e_tests_for_hns_bucket(){
 function run_e2e_tests_for_zonal_bucket(){
    zonal_bucket_name_parallel_group=$(create_zonal_bucket)
    echo "Zonal Bucket Created for parallel tests: "$zonal_bucket_name_parallel_group
+   buckets_to_be_cleaned_up+=" ${zonal_bucket_name_parallel_group}"
 
    zonal_bucket_name_non_parallel_group=$(create_zonal_bucket)
    echo "Zonal Bucket Created for non-parallel tests: "$zonal_bucket_name_non_parallel_group
+   buckets_to_be_cleaned_up+=" ${zonal_bucket_name_non_parallel_group}"
 
    echo "Running tests for ZONAL bucket"
    run_parallel_tests TEST_DIR_PARALLEL_FOR_ZB "$zonal_bucket_name_parallel_group" true &
