@@ -31,9 +31,11 @@ import (
 )
 
 const (
-	TestObject             = "testObject"
-	SequentialReadSizeInMb = 22
-	CacheMaxSize           = 2 * sequentialReadSizeInMb * util.MiB
+	TestObject                = "testObject"
+	SequentialReadSizeInMb    = 22
+	sequentialReadSizeInMb    = 22
+	sequentialReadSizeInBytes = sequentialReadSizeInMb * MB
+	CacheMaxSize              = 2 * sequentialReadSizeInMb * util.MiB
 )
 
 type FileCacheReaderTest struct {
