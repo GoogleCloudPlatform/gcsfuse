@@ -193,8 +193,8 @@ func TestMain(m *testing.M) {
 	//}
 	//}
 
-	//mountConfigFlags := createMountConfigsAndEquivalentFlags()
-	//flagsSet = append(flagsSet, mountConfigFlags...)
+	mountConfigFlags := createMountConfigsAndEquivalentFlags()
+	flagsSet = append(flagsSet, mountConfigFlags...)
 
 	// Only running static_mounting test for TPC.
 	if setup.TestOnTPCEndPoint() {
