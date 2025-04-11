@@ -156,6 +156,8 @@ TEST_DIR_NON_PARALLEL_FOR_ZB=(
 # Create a temporary file to store the log file name.
 TEST_LOGS_FILE=$(mktemp)
 
+# Delete contents of the bucket, and then the bucket itself.
+# Args: <bucket>
 function clean_up_bucket() {
 	local bucketName=${1}
 	echo "Cleaning up bucket ${bucketName} ..."
@@ -163,6 +165,8 @@ function clean_up_bucket() {
 	gcloud -q -no-user-output-enabled storage buckets delete gs://${bucket}
 }
 
+# Delete contents of the given bucket names, and then the buckets themselves.
+# Args: <bucket1> <bucket2> <bucket3> ...
 function clean_up_buckets() {
 	local buckets="${@}"
 	for bucket in ${buckets}; do
@@ -170,7 +174,12 @@ function clean_up_buckets() {
 	done
 }
 
+# A variable to hold all the buckets to be cleaned-up while exiting this
+# program.
 buckets_to_be_cleaned_up=
+
+# Clean-up for this program, which is called whenever this program exits.
+# Args: None.
 function clean_up() {
 	clean_up_buckets "${buckets_to_be_cleaned_up}"
 }
