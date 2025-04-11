@@ -162,10 +162,10 @@ function clean_up_bucket() {
 	local bucket=${1}
 	if test -n "${bucket}"; then
 		echo "Cleaning contents of bucket ${bucket} ..."
-		>&2 gcloud -q --no-user-output-enabled storage rm -r --verbosity=none gs://${bucket}/* || true
+		gcloud -q --no-user-output-enabled storage rm -r --verbosity=none gs://${bucket}/* || true
 		echo "Deleting bucket ${bucket} ..."
 		if ! gcloud -q --no-user-output-enabled storage buckets delete gs://${bucket}; then
-			>&2 echo "... Failed to delete bucket {bucket}"
+			>&2 echo "Failed to delete bucket ${bucket} !"
 		fi
 	fi
 }
