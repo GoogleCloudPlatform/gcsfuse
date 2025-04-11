@@ -224,16 +224,20 @@ func TestWriteAtFileOperationsDoesNotChangeObjectAttributes(t *testing.T) {
 	fileName := path.Join(testDir, tempFileName)
 
 	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, t)
+	//time.Sleep(5*time.Second)
 	attr1 := validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), t)
 	// Over-write the file.
+	//time.Sleep(5*time.Second)
 	fh, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_DIRECT, operations.FilePermission_0600)
 	if err != nil {
 		t.Fatalf("Could not open file %s after creation.", fileName)
 	}
 	operations.WriteAt(tempFileContent+appendContent, 0, fh, t)
+	//time.Sleep(5*time.Second)
 	operations.CloseFileShouldNotThrowError(t, fh)
 	attr2 := validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), t)
 
 	// Validate object attributes are as expected.
+	//time.Sleep(5*time.Second)
 	validateObjectAttributes(attr1, attr2, t)
 }
