@@ -198,10 +198,10 @@ func (fh *FileHandle) tryEnsureReader(ctx context.Context, sequentialReadSizeMb 
 			fh.reader.Destroy()
 			fh.reader = nil
 		} else {
-			// Ensure the reader's object size is same as fh.inode.Source().Size.
-			// fh.inode.Source().Size changes only for Zonal bucket with streaming writes
-			// when generation of GCS object is same.
-			fh.reader.SetUpdatedSizeToReaderObject(srcGen.Size)
+			// If we know the reader is not stale, we should update the reader's object
+			// size to f.src.Size. For Zonal Objects with streaming writes f.src.Size changes
+			// even when generation of Object is same.
+			fh.reader.UpdateReaderObjectSizeToSrcSize(srcGen.Size)
 			return
 		}
 	}

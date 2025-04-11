@@ -81,9 +81,9 @@ type RandomReader interface {
 	// again.
 	Destroy()
 
-	// Sets the updated src.Size to readers object.
-	// This must be only called when reader is not stale.
-	SetUpdatedSizeToReaderObject(srcSize uint64)
+	// Updates reader object size to f.src object's size.
+	// It can only be called when reader is not stale.
+	UpdateReaderObjectSizeToSrcSize(srcSize uint64)
 
 	// Returns true if reader is stale and we should discard it.
 	IsStale(srcGeneration int64) bool
@@ -399,7 +399,7 @@ func (rr *randomReader) ReadAt(
 	return
 }
 
-func (rr *randomReader) SetUpdatedSizeToReaderObject(srcSize uint64) {
+func (rr *randomReader) UpdateReaderObjectSizeToSrcSize(srcSize uint64) {
 	if rr == nil || rr.object == nil {
 		return
 	}
