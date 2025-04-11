@@ -92,12 +92,12 @@ func createClientOptionForGRPCClient(clientConfig *storageutil.StorageClientConf
 	if clientConfig.AnonymousAccess {
 		clientOpts = append(clientOpts, option.WithoutAuthentication())
 	} else {
-		tokenSrc, tokenCreationErr := storageutil.CreateTokenSource(clientConfig)
+		tokenSrc, universeDomain, tokenCreationErr := storageutil.CreateTokenSource(clientConfig)
 		if tokenCreationErr != nil {
 			err = fmt.Errorf("while fetching tokenSource: %w", tokenCreationErr)
 			return
 		}
-		clientOpts = append(clientOpts, option.WithTokenSource(tokenSrc))
+		clientOpts = append(clientOpts, option.WithTokenSource(tokenSrc), option.WithUniverseDomain(universeDomain))
 	}
 
 	if enableBidiConfig {
@@ -172,13 +172,14 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 
 	// Add WithHttpClient option.
 	var httpClient *http.Client
-	httpClient, err = storageutil.CreateHttpClient(clientConfig)
+	httpClient, universeDomain, err := storageutil.CreateHttpClient(clientConfig)
 	if err != nil {
 		err = fmt.Errorf("while creating http endpoint: %w", err)
 		return
 	}
 
 	clientOpts = append(clientOpts, option.WithHTTPClient(httpClient))
+	clientOpts = append(clientOpts, option.WithUniverseDomain(universeDomain))
 
 	if clientConfig.AnonymousAccess {
 		clientOpts = append(clientOpts, option.WithoutAuthentication())
