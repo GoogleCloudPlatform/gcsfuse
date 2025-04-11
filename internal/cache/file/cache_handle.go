@@ -29,9 +29,7 @@ import (
 
 type CacheHandleInterface interface {
 	Read(ctx context.Context, bucket gcs.Bucket, object *gcs.MinObject, offset int64, dst []byte) (n int, cacheHit bool, err error)
-
 	IsSequential(currentOffset int64) bool
-
 	Close() (err error)
 }
 
@@ -60,7 +58,7 @@ type CacheHandle struct {
 }
 
 func NewCacheHandle(localFileHandle *os.File, fileDownloadJob *downloader.Job,
-		fileInfoCache *lru.Cache, cacheFileForRangeRead bool, initialOffset int64) *CacheHandle {
+	fileInfoCache *lru.Cache, cacheFileForRangeRead bool, initialOffset int64) *CacheHandle {
 	return &CacheHandle{
 		fileHandle:            localFileHandle,
 		fileDownloadJob:       fileDownloadJob,
@@ -87,8 +85,8 @@ func (fch *CacheHandle) validateCacheHandle() error {
 // downloaded cache file. Otherwise, it returns an appropriate error message.
 func (fch *CacheHandle) shouldReadFromCache(jobStatus *downloader.JobStatus, requiredOffset int64) (err error) {
 	if jobStatus.Err != nil ||
-			jobStatus.Name == downloader.Invalid ||
-			jobStatus.Name == downloader.Failed {
+		jobStatus.Name == downloader.Invalid ||
+		jobStatus.Name == downloader.Failed {
 		return fmt.Errorf("%w: jobStatus: %s jobError: %w", util.ErrInvalidFileDownloadJob, jobStatus.Name, jobStatus.Err)
 	} else if jobStatus.Offset < requiredOffset {
 		return fmt.Errorf("%w: jobOffset: %d is less than required offset: %d", util.ErrFallbackToGCS, jobStatus.Offset, requiredOffset)

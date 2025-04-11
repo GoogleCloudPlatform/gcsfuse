@@ -29,9 +29,7 @@ import (
 
 type CacheHandlerInterface interface {
 	GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket, cacheForRangeRead bool, initialOffset int64) (CacheHandleInterface, error)
-
 	InvalidateCache(objectName string, bucketName string) error
-	
 	Destroy() (err error)
 }
 
