@@ -360,9 +360,6 @@ function run_e2e_tests_for_flat_bucket() {
   wait $non_parallel_tests_pid
   non_parallel_tests_exit_code=$?
 
-  flat_buckets=("$bucket_name_parallel" "$bucket_name_non_parallel")
-  clean_up flat_buckets
-
   if [ $non_parallel_tests_exit_code != 0 ] || [ $parallel_tests_exit_code != 0 ];
   then
     return 1
@@ -391,9 +388,6 @@ function run_e2e_tests_for_hns_bucket(){
    wait $non_parallel_tests_hns_group_pid
    non_parallel_tests_hns_group_exit_code=$?
 
-   hns_buckets=("$hns_bucket_name_parallel_group" "$hns_bucket_name_non_parallel_group")
-   clean_up hns_buckets
-
    if [ $parallel_tests_hns_group_exit_code != 0 ] || [ $non_parallel_tests_hns_group_exit_code != 0 ];
    then
     return 1
@@ -421,9 +415,6 @@ function run_e2e_tests_for_zonal_bucket(){
    parallel_tests_zonal_group_exit_code=$?
    wait $non_parallel_tests_zonal_group_pid
    non_parallel_tests_zonal_group_exit_code=$?
-
-   zonal_buckets=("$zonal_bucket_name_parallel_group" "$zonal_bucket_name_non_parallel_group")
-   clean_up zonal_buckets
 
    if [ $parallel_tests_zonal_group_exit_code != 0 ] || [ $non_parallel_tests_zonal_group_exit_code != 0 ];
    then
@@ -454,23 +445,6 @@ function run_e2e_tests_for_tpc_and_exit() {
 
 function run_e2e_tests_for_emulator() {
   ./tools/integration_tests/emulator_tests/emulator_tests.sh $RUN_E2E_TESTS_ON_PACKAGE
-}
-
-#commenting it so cleanup and failure check happens for both
-#set -e
-
-function clean_up() {
-  # Cleanup
-  # Delete bucket after testing.
-  local -n buckets=$1
-  for bucket in "${buckets[@]}"
-    do
-      # Empty bucket name may cause deletions of all the buckets.
-      if [ "$bucket" != "" ];
-      then
-        gcloud alpha storage rm --recursive gs://$bucket 2>&1 | grep "ERROR"
-      fi
-    done
 }
 
 function main(){
