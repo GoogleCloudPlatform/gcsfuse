@@ -101,7 +101,6 @@ func validateObjectAttributes(attr1, attr2 *storage.ObjectAttrs, t *testing.T) {
 		t.Error("Expected CRC32 attributes to be non 0")
 	}
 	if attr1.MediaLink == "" || attr2.MediaLink == "" {
-		// TODO: simplify this test and keep only if the if-case even for non-ZB.
 		if setup.IsZonalBucketRun() {
 			t.Logf("media link is empty, but it is a known limitation in RAPID/zonal buckets.")
 		} else {
