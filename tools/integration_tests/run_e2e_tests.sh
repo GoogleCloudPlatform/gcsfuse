@@ -159,24 +159,34 @@ TEST_LOGS_FILE=$(mktemp)
 # Delete contents of the bucket, and then the bucket itself.
 # Args: <bucket>
 function clean_up_bucket() {
-	local bucketName=${1}
-	echo "Cleaning up bucket ${bucketName} ..."
-	gcloud -q -no-user-output-enabled storage rm -r gs://${bucket}/*
-	gcloud -q -no-user-output-enabled storage buckets delete gs://${bucket}
+	local bucket=${1}
+	if test -n "${bucket}"; then
+		echo "Cleaning contents of bucket ${bucket} ..."
+		>&2 gcloud -q --no-user-output-enabled storage rm -r --verbosity=none gs://${bucket}/* || true
+		echo "Deleting bucket ${bucket} ..."
+		if ! gcloud -q --no-user-output-enabled storage buckets delete gs://${bucket}; then
+			>&2 echo "... Failed to delete bucket {bucket}"
+		fi
+	fi
 }
 
 # Delete contents of the given bucket names, and then the buckets themselves.
 # Args: <bucket1> <bucket2> <bucket3> ...
 function clean_up_buckets() {
 	local buckets="${@}"
-	for bucket in ${buckets}; do
-		clean_up_bucket ${bucket}
-	done
+	if test -f "${buckets}"; then
+		cat "${buckets}" | while read bucket; do
+			clean_up_bucket ${bucket}
+		done
+		rm "${buckets}"
+	else
+		echo "file ${buckets} not found !"
+	fi
 }
 
 # A variable to hold all the buckets to be cleaned-up while exiting this
 # program.
-buckets_to_be_cleaned_up=
+buckets_to_be_cleaned_up=$(realpath ./buckets-to-be-cleaned-up)"-"$(tr -dc 'a-z0-9' < /dev/urandom | head -c $RANDOM_STRING_LENGTH)
 
 # Clean-up for this program, which is called whenever this program exits.
 # Args: None.
@@ -348,12 +358,12 @@ function run_e2e_tests_for_flat_bucket() {
   bucketPrefix="golang-grpc-test-gcsfuse-np-e2e-tests-"
   bucket_name_non_parallel=$(create_bucket $bucketPrefix)
   echo "Bucket name for non parallel tests: "$bucket_name_non_parallel
-  buckets_to_be_cleaned_up+=" ${bucket_name_non_parallel}"
+  echo ${bucket_name_non_parallel}>>"${buckets_to_be_cleaned_up}"
 
   bucketPrefix="golang-grpc-test-gcsfuse-p-e2e-tests-"
   bucket_name_parallel=$(create_bucket $bucketPrefix)
   echo "Bucket name for parallel tests: "$bucket_name_parallel
-  buckets_to_be_cleaned_up+=" ${bucket_name_parallel}"
+  echo ${bucket_name_parallel}>>"${buckets_to_be_cleaned_up}"
 
   echo "Running parallel tests..."
   run_parallel_tests TEST_DIR_PARALLEL $bucket_name_parallel &
@@ -379,11 +389,11 @@ function run_e2e_tests_for_flat_bucket() {
 function run_e2e_tests_for_hns_bucket(){
    hns_bucket_name_parallel_group=$(create_hns_bucket)
    echo "Hns Bucket Created: "$hns_bucket_name_parallel_group
-   buckets_to_be_cleaned_up+=" ${hns_bucket_name_parallel_group}"
+   echo ${hns_bucket_name_parallel_group}>>"${buckets_to_be_cleaned_up}"
 
    hns_bucket_name_non_parallel_group=$(create_hns_bucket)
    echo "Hns Bucket Created: "$hns_bucket_name_non_parallel_group
-   buckets_to_be_cleaned_up+=" ${hns_bucket_name_non_parallel_group}"
+   echo ${hns_bucket_name_non_parallel_group}>>"${buckets_to_be_cleaned_up}"
 
    echo "Running tests for HNS bucket"
    run_parallel_tests TEST_DIR_PARALLEL "$hns_bucket_name_parallel_group" &
@@ -407,11 +417,11 @@ function run_e2e_tests_for_hns_bucket(){
 function run_e2e_tests_for_zonal_bucket(){
    zonal_bucket_name_parallel_group=$(create_zonal_bucket)
    echo "Zonal Bucket Created for parallel tests: "$zonal_bucket_name_parallel_group
-   buckets_to_be_cleaned_up+=" ${zonal_bucket_name_parallel_group}"
+   echo ${zonal_bucket_name_parallel_group}>>"${buckets_to_be_cleaned_up}"
 
    zonal_bucket_name_non_parallel_group=$(create_zonal_bucket)
    echo "Zonal Bucket Created for non-parallel tests: "$zonal_bucket_name_non_parallel_group
-   buckets_to_be_cleaned_up+=" ${zonal_bucket_name_non_parallel_group}"
+   echo ${zonal_bucket_name_non_parallel_group}>>"${buckets_to_be_cleaned_up}"
 
    echo "Running tests for ZONAL bucket"
    run_parallel_tests TEST_DIR_PARALLEL_FOR_ZB "$zonal_bucket_name_parallel_group" true &
