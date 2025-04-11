@@ -285,7 +285,7 @@ func Test_addFileInfoEntryAndCreateDownloadJob_GenerationChanged(t *testing.T) {
 	cacheDir := path.Join(os.Getenv("HOME"), "CacheHandlerTest/dir")
 	chTestArgs := initializeCacheHandlerTestArgs(t, &cfg.FileCacheConfig{EnableCrc: true}, cacheDir)
 	existingJob := getDownloadJobForTestObject(t, chTestArgs)
-	gcs.SetGenerationForTesting(chTestArgs.object, chTestArgs.object.Generation()+1)
+	*chTestArgs.object = *gcs.NewMinObject(chTestArgs.object.Name, chTestArgs.object.Size, chTestArgs.object.Generation()+1, chTestArgs.object.MetaGeneration, chTestArgs.object.Updated, chTestArgs.object.Metadata, chTestArgs.object.ContentEncoding, chTestArgs.object.CRC32C)
 
 	err := chTestArgs.cacheHandler.addFileInfoEntryAndCreateDownloadJob(chTestArgs.object, chTestArgs.bucket)
 
@@ -409,7 +409,7 @@ func Test_GetCacheHandle_WhenCacheHasDifferentGeneration(t *testing.T) {
 	require.NotNil(t, existingJob)
 	require.Equal(t, downloader.NotStarted, existingJob.GetStatus().Name)
 	// Change the version of the object, but cache still keeps old generation
-	gcs.SetGenerationForTesting(chTestArgs.object, chTestArgs.object.Generation()+1)
+	*chTestArgs.object = *gcs.NewMinObject(chTestArgs.object.Name, chTestArgs.object.Size, chTestArgs.object.Generation()+1, chTestArgs.object.MetaGeneration, chTestArgs.object.Updated, chTestArgs.object.Metadata, chTestArgs.object.ContentEncoding, chTestArgs.object.CRC32C)
 	newCacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(chTestArgs.object, chTestArgs.bucket, false, 0)
 
 	assert.NoError(t, err)

@@ -165,11 +165,7 @@ func (t *RandomReaderTest) SetUp(ti *TestInfo) {
 	t.rr.ctx = context.WithValue(ti.Ctx, ReadOp, &readOp)
 
 	// Manufacture an object record.
-	t.object = &gcs.MinObject{
-		Name: "foo",
-		Size: 17,
-	}
-	gcs.SetGenerationForTesting(t.object, 1234)
+	t.object = gcs.NewMinObject("foo", 17, 1234, 12345, time.Now(), map[string]string{"fake_key": "fake_value"}, "test_encoding", nil)
 
 	// Create the bucket.
 	t.bucket = storage.NewMockBucket(ti.MockController, "bucket")

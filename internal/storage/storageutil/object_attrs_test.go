@@ -16,6 +16,7 @@ package storageutil
 
 import (
 	"crypto/md5"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -255,7 +256,7 @@ func (t objectAttrsTest) Test_ConvertObjToMinObject_WithValidObject() {
 	ExpectEq(metaGeneration, gcsMinObject.MetaGeneration)
 	ExpectTrue(currentTime.Equal(gcsMinObject.Updated))
 	ExpectEq(contentEncode, gcsMinObject.ContentEncoding)
-	ExpectEq(metadata, gcsMinObject.Metadata)
+	ExpectTrue(reflect.DeepEqual(metadata, gcsMinObject.Metadata))
 	ExpectEq(crc32C, *gcsMinObject.CRC32C)
 }
 
@@ -339,15 +340,7 @@ func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithNonNilMin
 func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithNonNilMinObjectAndNonNilAttributes() {
 	var attrMd5 *[16]byte
 	timeAttr := time.Now()
-	minObject := &gcs.MinObject{
-		Name:            "test",
-		Size:            uint64(36),
-		MetaGeneration:  int64(555),
-		Updated:         timeAttr,
-		Metadata:        map[string]string{"test_key": "test_value"},
-		ContentEncoding: "test_encoding",
-	}
-	gcs.SetGenerationForTesting(minObject, 444)
+	minObject := gcs.NewMinObject("test", uint64(36), 444, 555, timeAttr, map[string]string{"test_key": "test_value"}, "test_encoding", nil)
 
 	extendedObjAttr := &gcs.ExtendedObjectAttributes{
 		ContentType:        "ContentType",
@@ -402,16 +395,7 @@ func (t objectAttrsTest) Test_ConvertMinObjectToObject_WithNonNilMinObject() {
 	var attrMd5 *[16]byte
 	var crc32C uint32 = 1234
 	timeAttr := time.Now()
-	minObject := &gcs.MinObject{
-		Name:            "test",
-		Size:            uint64(36),
-		MetaGeneration:  int64(555),
-		Updated:         timeAttr,
-		Metadata:        map[string]string{"test_key": "test_value"},
-		ContentEncoding: "test_encoding",
-		CRC32C:          &crc32C,
-	}
-	gcs.SetGenerationForTesting(minObject, 444)
+	minObject := gcs.NewMinObject("test", uint64(36), 444, 555, timeAttr, map[string]string{"test_key": "test_value"}, "test_encoding", &crc32C)
 
 	gcsObject := ConvertMinObjectToObject(minObject)
 
@@ -421,7 +405,7 @@ func (t objectAttrsTest) Test_ConvertMinObjectToObject_WithNonNilMinObject() {
 	ExpectEq(gcsObject.Generation, minObject.Generation())
 	ExpectEq(gcsObject.MetaGeneration, minObject.MetaGeneration)
 	ExpectEq(0, gcsObject.Updated.Compare(minObject.Updated))
-	ExpectEq(gcsObject.Metadata, minObject.Metadata)
+	ExpectTrue(reflect.DeepEqual(gcsObject.Metadata, minObject.Metadata))
 	ExpectEq(gcsObject.ContentEncoding, minObject.ContentEncoding)
 	ExpectEq(gcsObject.ContentType, "")
 	ExpectEq(gcsObject.ContentLanguage, "")

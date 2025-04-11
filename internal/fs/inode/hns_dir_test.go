@@ -242,11 +242,7 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsRegularF
 	const name = "file_type"
 	fileName := path.Join(dirInodeName, name)
 	// mock stat object call
-	minObject := &gcs.MinObject{
-		Name:           fileName,
-		MetaGeneration: int64(1),
-	}
-	gcs.SetGenerationForTesting(minObject, 2)
+	minObject := gcs.NewMinObject(fileName, 1024, 2, 1, time.Now(), map[string]string{"fake_key": "fake_value"}, "fake_testEncoding", nil)
 	attrs := &gcs.ExtendedObjectAttributes{
 		ContentType:  "plain/text",
 		StorageClass: "DEFAULT",
@@ -270,12 +266,7 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsSymlinkT
 	const name = "file_type"
 	fileName := path.Join(dirInodeName, name)
 	// mock stat object call
-	minObject := &gcs.MinObject{
-		Name:           fileName,
-		MetaGeneration: int64(1),
-		Metadata:       map[string]string{"gcsfuse_symlink_target": "link"},
-	}
-	gcs.SetGenerationForTesting(minObject, 2)
+	minObject := gcs.NewMinObject(fileName, 1024, 2, 1, time.Now(), map[string]string{"gcsfuse_symlink_target": "link"}, "fake_testEncoding", nil)
 	attrs := &gcs.ExtendedObjectAttributes{
 		ContentType:  "plain/text",
 		StorageClass: "DEFAULT",

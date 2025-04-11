@@ -209,15 +209,19 @@ func ConvertMinObjectToObject(m *gcs.MinObject) *gcs.Object {
 	if m == nil {
 		return nil
 	}
-	localCrc32c := *m.CRC32C // Make a copy to not reference minObjects crc32c
+	localCrc32c := m.CRC32C
+	if localCrc32c != nil {
+		copyCrc32c := *m.CRC32C // Make a copy to not reference minObjects crc32c.
+		localCrc32c = &copyCrc32c
+	}
 	return &gcs.Object{
 		Name:            m.Name,
 		Size:            m.Size,
 		Generation:      m.Generation(),
 		MetaGeneration:  m.MetaGeneration,
 		Updated:         m.Updated,
-		Metadata:        m.Metadata,
+		Metadata:        gcs.CopyMetadata(m.Metadata),
 		ContentEncoding: m.ContentEncoding,
-		CRC32C:          &localCrc32c,
+		CRC32C:          localCrc32c,
 	}
 }
