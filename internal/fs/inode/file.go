@@ -672,9 +672,10 @@ func (f *FileInode) SyncPendingBufferedWrites() error {
 		return fmt.Errorf("f.bwh.Sync(): %w", err)
 	}
 	// Update the f.src.Size to the current Size of object
-	// on GCS for current generation.
-	writeFileInfo := f.bwh.WriteFileInfo()
-	f.src.Size = uint64(writeFileInfo.TotalSize)
+	// on GCS after flushing pending buffers for Zonal Buckets.
+	if f.bucket.BucketType().Zonal {
+		f.src.Size = uint64(f.bwh.WriteFileInfo().TotalSize)
+	}
 	return nil
 }
 
@@ -742,9 +743,8 @@ func (f *FileInode) SetMtime(
 		if minObjPtr != nil {
 			minObj = *minObjPtr
 		}
-		// Update MRDWrapper
-		f.updateMRDWrapper()
 		f.src = minObj
+		f.updateMRDWrapper()
 		return
 	}
 
