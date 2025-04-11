@@ -18,7 +18,6 @@ import (
 	"os"
 	"path"
 	"testing"
-	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
@@ -52,8 +51,11 @@ func TestFileCacheReaderTestSuite(t *testing.T) {
 }
 
 func (t *FileCacheReaderTest) SetupTestSuite() {
-	t.object = gcs.NewMinObject(TestObject, 17, 1234, 1, time.Now(), map[string]string{"fake_key": "fake_value"}, "fake_testEncoding", nil)
-
+	t.object = &gcs.MinObject{
+		Name:       TestObject,
+		Size:       17,
+		Generation: 1234,
+	}
 	t.mockBucket = new(storage.TestifyMockBucket)
 	t.cacheDir = path.Join(os.Getenv("HOME"), "test_cache_dir")
 	lruCache := lru.NewCache(CacheMaxSize)

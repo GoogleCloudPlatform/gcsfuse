@@ -116,14 +116,6 @@ type MultiBucketStatCacheTest struct {
 	multiBucketCache testMultiBucketCacheHelper
 }
 
-////////////////////////////////////////////////////////////////////////
-// Helpers
-////////////////////////////////////////////////////////////////////////
-
-func (t *StatCacheTest) CreateTestMinObject(name string, generation, metaGeneration int64) *gcs.MinObject {
-	return gcs.NewMinObject(name, 1024, generation, metaGeneration, time.Now(), map[string]string{"fake_key": "fake_value"}, "fake_testEncoding", nil)
-}
-
 func (t *StatCacheTest) SetupTest() {
 	cache := lru.NewCache(uint64((cfg.AverageSizeOfPositiveStatCacheEntry + cfg.AverageSizeOfNegativeStatCacheEntry) * capacity))
 	t.cache.wrapped = metadata.NewStatCacheBucketView(cache, "") // this demonstrates
@@ -237,8 +229,8 @@ func (t *StatCacheTest) Test_ExpiresLeastRecentlyUsed() {
 }
 
 func (t *StatCacheTest) Test_Overwrite_NewerGeneration() {
-	m0 := t.CreateTestMinObject("taco", 17, 5)
-	m1 := t.CreateTestMinObject("taco", 19, 1)
+	m0 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5}
+	m1 := &gcs.MinObject{Name: "taco", Generation: 19, MetaGeneration: 1}
 
 	t.cache.Insert(m0, expiration)
 	t.cache.Insert(m1, expiration)
@@ -257,8 +249,8 @@ func (t *StatCacheTest) Test_Overwrite_NewerGeneration() {
 }
 
 func (t *StatCacheTest) Test_Overwrite_SameGeneration_NewerMetadataGen() {
-	m0 := t.CreateTestMinObject("taco", 17, 5)
-	m1 := t.CreateTestMinObject("taco", 17, 7)
+	m0 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5}
+	m1 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 7}
 
 	t.cache.Insert(m0, expiration)
 	t.cache.Insert(m1, expiration)
@@ -277,8 +269,8 @@ func (t *StatCacheTest) Test_Overwrite_SameGeneration_NewerMetadataGen() {
 }
 
 func (t *StatCacheTest) Test_Overwrite_SameGeneration_SameMetadataGen() {
-	m0 := t.CreateTestMinObject("taco", 17, 5)
-	m1 := t.CreateTestMinObject("taco", 17, 5)
+	m0 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5}
+	m1 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5}
 
 	t.cache.Insert(m0, expiration)
 	t.cache.Insert(m1, expiration)
@@ -287,8 +279,8 @@ func (t *StatCacheTest) Test_Overwrite_SameGeneration_SameMetadataGen() {
 }
 
 func (t *StatCacheTest) Test_Overwrite_SameGeneration_OlderMetadataGen() {
-	m0 := t.CreateTestMinObject("taco", 17, 5)
-	m1 := t.CreateTestMinObject("taco", 17, 3)
+	m0 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5}
+	m1 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 3}
 
 	t.cache.Insert(m0, expiration)
 	t.cache.Insert(m1, expiration)
@@ -297,8 +289,8 @@ func (t *StatCacheTest) Test_Overwrite_SameGeneration_OlderMetadataGen() {
 }
 
 func (t *StatCacheTest) Test_Overwrite_OlderGeneration() {
-	m0 := t.CreateTestMinObject("taco", 17, 5)
-	m1 := t.CreateTestMinObject("taco", 13, 7)
+	m0 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5}
+	m1 := &gcs.MinObject{Name: "taco", Generation: 13, MetaGeneration: 7}
 
 	t.cache.Insert(m0, expiration)
 	t.cache.Insert(m1, expiration)
@@ -308,7 +300,7 @@ func (t *StatCacheTest) Test_Overwrite_OlderGeneration() {
 
 func (t *StatCacheTest) Test_Overwrite_NegativeWithPositive() {
 	const name = "taco"
-	m1 := t.CreateTestMinObject(name, 13, 7)
+	m1 := &gcs.MinObject{Name: name, Generation: 13, MetaGeneration: 7}
 
 	t.cache.AddNegativeEntry(name, expiration)
 	t.cache.Insert(m1, expiration)
@@ -318,7 +310,7 @@ func (t *StatCacheTest) Test_Overwrite_NegativeWithPositive() {
 
 func (t *StatCacheTest) Test_Overwrite_PositiveWithNegative() {
 	const name = "taco"
-	m0 := t.CreateTestMinObject(name, 13, 7)
+	m0 := &gcs.MinObject{Name: name, Generation: 13, MetaGeneration: 7}
 
 	t.cache.Insert(m0, expiration)
 	t.cache.AddNegativeEntry(name, expiration)

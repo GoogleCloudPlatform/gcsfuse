@@ -48,7 +48,11 @@ func TestMRDWrapperTestSuite(t *testing.T) {
 
 func (t *mrdWrapperTest) SetupTest() {
 	var err error
-	t.object = gcs.NewMinObject("foo", 100, 1234, 1, time.Now(), map[string]string{"fake_key": "fake_value"}, "fake_encoding", nil)
+	t.object = &gcs.MinObject{
+		Name:       "foo",
+		Size:       100,
+		Generation: 1234,
+	}
 	t.objectData = testutil.GenerateRandomBytes(int(t.object.Size))
 	// Create the bucket.
 	t.mockBucket = new(storage.TestifyMockBucket)
