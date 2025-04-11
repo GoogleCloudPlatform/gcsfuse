@@ -364,7 +364,8 @@ func (f *FileInode) Unlink() {
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Source() *gcs.MinObject {
-	return &f.src
+	// Make a copy, since we modify f.src.
+	return gcs.NewMinObject(f.src.Name, f.src.Size, f.src.Generation(), f.src.MetaGeneration, f.src.Updated, f.src.Metadata, f.src.ContentEncoding, f.src.CRC32C)
 }
 
 // If true, it is safe to serve reads directly from the object given by
@@ -886,9 +887,9 @@ func (f *FileInode) Flush(ctx context.Context) (err error) {
 
 func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 	if minObj != nil && !f.localFileCache {
+		f.src = *minObj
 		// Update MRDWrapper
 		f.updateMRDWrapper()
-		f.src = *minObj
 		// Convert localFile to nonLocalFile after it is synced to GCS.
 		if f.IsLocal() {
 			f.local = false
