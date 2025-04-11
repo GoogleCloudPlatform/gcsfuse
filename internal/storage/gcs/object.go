@@ -136,6 +136,7 @@ func (m *MinObject) Generation() int64 {
 	return m.generation
 }
 
+// This method is used to update the generation of minObject and it's only used for testing.
 func SetGenerationForTesting(m *MinObject, generation int64) {
 	m.generation = generation
 }
