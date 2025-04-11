@@ -26,8 +26,8 @@ import (
 // to an alternative reader.
 var FallbackToAnotherReader = errors.New("fallback to another reader is required")
 
-// GCSReaderReq represents the request parameters needed to read a data from a GCS object.
-type GCSReaderReq struct {
+// GCSReaderRequest represents the request parameters needed to read a data from a GCS object.
+type GCSReaderRequest struct {
 	// Buffer is provided by jacobsa/fuse and should be filled with data from the object.
 	Buffer []byte
 
@@ -76,5 +76,5 @@ type ReadManager interface {
 type GCSReader interface {
 	// ReadAt reads data into the provided request buffer, starting from the specified offset and ending at the specified end offset.
 	// It returns an ObjectRead response containing the data read and any error encountered.
-	ReadAt(ctx context.Context, req *GCSReaderReq) (ObjectRead, error)
+	ReadAt(ctx context.Context, req *GCSReaderRequest) (ObjectRead, error)
 }
