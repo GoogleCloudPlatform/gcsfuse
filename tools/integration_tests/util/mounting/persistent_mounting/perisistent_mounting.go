@@ -40,12 +40,16 @@ func makePersistentMountingArgs(flags []string) (args []string, err error) {
 }
 
 func mountGcsfuseWithPersistentMounting(flags []string) (err error) {
+	return mountGcsfuseWithPersistentMountingMntDirLogFile(flags, setup.MntDir(), setup.LogFile())
+}
+
+func mountGcsfuseWithPersistentMountingMntDirLogFile(flags []string, mntDir, logFile string) (err error) {
 	defaultArg := []string{setup.TestBucket(),
-		setup.MntDir(),
+		mntDir,
 		"-o",
 		"log_severity=trace",
 		"-o",
-		"log_file=" + setup.LogFile(),
+		"log_file=" + logFile,
 	}
 
 	persistentMountingArgs, err := makePersistentMountingArgs(flags)
