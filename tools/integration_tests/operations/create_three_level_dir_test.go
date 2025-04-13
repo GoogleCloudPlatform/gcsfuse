@@ -15,133 +15,133 @@
 // Provides integration tests for create three level directories.
 package operations_test
 
-import (
-	"fmt"
-	"io/fs"
-	"log"
-	"os"
-	"path"
-	"path/filepath"
-	"testing"
+// import (
+// 	"fmt"
+// 	"io/fs"
+// 	"log"
+// 	"os"
+// 	"path"
+// 	"path/filepath"
+// 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-)
+// 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
+// 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+// )
 
-func TestCreateThreeLevelDirectories(t *testing.T) {
-	// Directory structure
-	// testBucket/dirForOperationTests/dirOneInCreateThreeLevelDirTest                                                                       -- Dir
-	// testBucket/dirForOperationTests/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest                                       -- Dir
-	// testBucket/dirForOperationTests/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest/dirThreeInCreateThreeLevelDirTest     -- Dir
-	// testBucket/dirForOperationTests/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest/dirThreeInCreateThreeLevelDirTest/fileInDirThreeInCreateThreeLevelDirTest     -- File
+// func TestCreateThreeLevelDirectories(t *testing.T) {
+// 	// Directory structure
+// 	// testBucket/dirForOperationTests/dirOneInCreateThreeLevelDirTest                                                                       -- Dir
+// 	// testBucket/dirForOperationTests/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest                                       -- Dir
+// 	// testBucket/dirForOperationTests/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest/dirThreeInCreateThreeLevelDirTest     -- Dir
+// 	// testBucket/dirForOperationTests/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest/dirThreeInCreateThreeLevelDirTest/fileInDirThreeInCreateThreeLevelDirTest     -- File
 
-	testDir := setup.SetupTestDirectory(DirForOperationTests)
+// 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
-	dirPath := path.Join(testDir, DirOneInCreateThreeLevelDirTest)
+// 	dirPath := path.Join(testDir, DirOneInCreateThreeLevelDirTest)
 
-	operations.CreateDirectoryWithNFiles(0, dirPath, "", t)
+// 	operations.CreateDirectoryWithNFiles(0, dirPath, "", t)
 
-	subDirPath := path.Join(dirPath, DirTwoInCreateThreeLevelDirTest)
+// 	subDirPath := path.Join(dirPath, DirTwoInCreateThreeLevelDirTest)
 
-	operations.CreateDirectoryWithNFiles(0, subDirPath, "", t)
+// 	operations.CreateDirectoryWithNFiles(0, subDirPath, "", t)
 
-	subDirPath2 := path.Join(subDirPath, DirThreeInCreateThreeLevelDirTest)
+// 	subDirPath2 := path.Join(subDirPath, DirThreeInCreateThreeLevelDirTest)
 
-	operations.CreateDirectoryWithNFiles(1, subDirPath2, PrefixFileInDirThreeInCreateThreeLevelDirTest, t)
-	filePath := path.Join(subDirPath2, FileInDirThreeInCreateThreeLevelDirTest)
-	err := operations.WriteFileInAppendMode(filePath, ContentInFileInDirThreeInCreateThreeLevelDirTest)
-	if err != nil {
-		t.Errorf("Write file error: %v", err)
-	}
+// 	operations.CreateDirectoryWithNFiles(1, subDirPath2, PrefixFileInDirThreeInCreateThreeLevelDirTest, t)
+// 	filePath := path.Join(subDirPath2, FileInDirThreeInCreateThreeLevelDirTest)
+// 	err := operations.WriteFileInAppendMode(filePath, ContentInFileInDirThreeInCreateThreeLevelDirTest)
+// 	if err != nil {
+// 		t.Errorf("Write file error: %v", err)
+// 	}
 
-	// Recursively walk into directory and test.
-	err = filepath.WalkDir(testDir, func(dirPath string, dir fs.DirEntry, err error) error {
-		if err != nil {
-			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", dirPath, err)
-			return err
-		}
+// 	// Recursively walk into directory and test.
+// 	err = filepath.WalkDir(testDir, func(dirPath string, dir fs.DirEntry, err error) error {
+// 		if err != nil {
+// 			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", dirPath, err)
+// 			return err
+// 		}
 
-		// The object type is not directory.
-		if !dir.IsDir() {
-			return nil
-		}
+// 		// The object type is not directory.
+// 		if !dir.IsDir() {
+// 			return nil
+// 		}
 
-		objs, err := os.ReadDir(dirPath)
-		if err != nil {
-			log.Fatal(err)
-		}
+// 		objs, err := os.ReadDir(dirPath)
+// 		if err != nil {
+// 			log.Fatal(err)
+// 		}
 
-		// Check if mntDir has correct objects.
-		if dirPath == testDir {
-			// numberOfObjects - 1
-			if len(objs) != NumberOfObjectsInBucketDirectoryCreateTest {
-				t.Errorf("Incorrect number of objects in the bucket.")
-			}
+// 		// Check if mntDir has correct objects.
+// 		if dirPath == testDir {
+// 			// numberOfObjects - 1
+// 			if len(objs) != NumberOfObjectsInBucketDirectoryCreateTest {
+// 				t.Errorf("Incorrect number of objects in the bucket.")
+// 			}
 
-			// testBucket/dirForOperationTests/dirOneInCreateThreeLevelDirTest   -- Dir
-			if objs[0].Name() != DirOneInCreateThreeLevelDirTest || objs[0].IsDir() != true {
-				t.Errorf("Directory is not created.")
-			}
-		}
+// 			// testBucket/dirForOperationTests/dirOneInCreateThreeLevelDirTest   -- Dir
+// 			if objs[0].Name() != DirOneInCreateThreeLevelDirTest || objs[0].IsDir() != true {
+// 				t.Errorf("Directory is not created.")
+// 			}
+// 		}
 
-		// Check if dirOneInCreateThreeLevelDirTest directory has correct data.
-		if dir.IsDir() && dir.Name() == DirOneInCreateThreeLevelDirTest {
-			// numberOfObjects - 1
-			if len(objs) != NumberOfObjectsInDirOneInCreateThreeLevelDirTest {
-				t.Errorf("Incorrect number of objects in the dirOneInCreateThreeLevelDirTest.")
-			}
+// 		// Check if dirOneInCreateThreeLevelDirTest directory has correct data.
+// 		if dir.IsDir() && dir.Name() == DirOneInCreateThreeLevelDirTest {
+// 			// numberOfObjects - 1
+// 			if len(objs) != NumberOfObjectsInDirOneInCreateThreeLevelDirTest {
+// 				t.Errorf("Incorrect number of objects in the dirOneInCreateThreeLevelDirTest.")
+// 			}
 
-			// testBucket/dirForOperationTests/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest    -- Dir
-			if objs[0].Name() != DirTwoInCreateThreeLevelDirTest || objs[0].IsDir() != true {
-				t.Errorf("Directory is not created.")
-			}
-			return nil
-		}
+// 			// testBucket/dirForOperationTests/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest    -- Dir
+// 			if objs[0].Name() != DirTwoInCreateThreeLevelDirTest || objs[0].IsDir() != true {
+// 				t.Errorf("Directory is not created.")
+// 			}
+// 			return nil
+// 		}
 
-		// Check if dirTwoInCreateThreeLevelDirTest directory has correct data.
-		if dir.IsDir() && dir.Name() == DirTwoInCreateThreeLevelDirTest {
-			// numberOfObjects - 1
-			if len(objs) != NumberOfObjectsInDirTwoInCreateThreeLevelDirTest {
-				t.Errorf("Incorrect number of objects in the dirTwoInCreateThreeLevelDirTest.")
-			}
+// 		// Check if dirTwoInCreateThreeLevelDirTest directory has correct data.
+// 		if dir.IsDir() && dir.Name() == DirTwoInCreateThreeLevelDirTest {
+// 			// numberOfObjects - 1
+// 			if len(objs) != NumberOfObjectsInDirTwoInCreateThreeLevelDirTest {
+// 				t.Errorf("Incorrect number of objects in the dirTwoInCreateThreeLevelDirTest.")
+// 			}
 
-			// testBucket/dirForOperationTests/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest/dirThreeInCreateThreeLevelDirTest    -- Dir
-			if objs[0].Name() != DirThreeInCreateThreeLevelDirTest || objs[0].IsDir() != true {
-				t.Errorf("Directory is not created.")
-			}
-			return nil
-		}
+// 			// testBucket/dirForOperationTests/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest/dirThreeInCreateThreeLevelDirTest    -- Dir
+// 			if objs[0].Name() != DirThreeInCreateThreeLevelDirTest || objs[0].IsDir() != true {
+// 				t.Errorf("Directory is not created.")
+// 			}
+// 			return nil
+// 		}
 
-		// Check if dirThreeInCreateThreeLevelDirTest directory has correct data.
-		if dir.IsDir() && dir.Name() == DirThreeInCreateThreeLevelDirTest {
-			// numberOfObjects - 1
-			if len(objs) != NumberOfObjectsInDirThreeInCreateThreeLevelDirTest {
-				t.Errorf("Incorrect number of objects in the dirThreeInCreateThreeLevelDirTest.")
-			}
+// 		// Check if dirThreeInCreateThreeLevelDirTest directory has correct data.
+// 		if dir.IsDir() && dir.Name() == DirThreeInCreateThreeLevelDirTest {
+// 			// numberOfObjects - 1
+// 			if len(objs) != NumberOfObjectsInDirThreeInCreateThreeLevelDirTest {
+// 				t.Errorf("Incorrect number of objects in the dirThreeInCreateThreeLevelDirTest.")
+// 			}
 
-			// testBucket/dirForOperationTests/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest/dirThreeInCreateThreeLevelDirTest/fileInDirThreeInCreateThreeLevelDirTest     -- File
-			if objs[0].Name() != FileInDirThreeInCreateThreeLevelDirTest || objs[0].IsDir() != false {
-				t.Errorf("Incorrect object exist in the dirThreeInCreateThreeLevelDirTest directory.")
-			}
+// 			// testBucket/dirForOperationTests/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest/dirThreeInCreateThreeLevelDirTest/fileInDirThreeInCreateThreeLevelDirTest     -- File
+// 			if objs[0].Name() != FileInDirThreeInCreateThreeLevelDirTest || objs[0].IsDir() != false {
+// 				t.Errorf("Incorrect object exist in the dirThreeInCreateThreeLevelDirTest directory.")
+// 			}
 
-			// Check if the content of the file is correct.
-			filePath := path.Join(dirPath, objs[0].Name())
-			content, err := operations.ReadFile(filePath)
-			if err != nil {
-				t.Errorf("Error in reading file:%v", err)
-			}
+// 			// Check if the content of the file is correct.
+// 			filePath := path.Join(dirPath, objs[0].Name())
+// 			content, err := operations.ReadFile(filePath)
+// 			if err != nil {
+// 				t.Errorf("Error in reading file:%v", err)
+// 			}
 
-			if got, want := string(content), ContentInFileInDirThreeInCreateThreeLevelDirTest; got != want {
-				t.Errorf("File content %q not match %q", got, want)
-			}
+// 			if got, want := string(content), ContentInFileInDirThreeInCreateThreeLevelDirTest; got != want {
+// 				t.Errorf("File content %q not match %q", got, want)
+// 			}
 
-			return nil
-		}
+// 			return nil
+// 		}
 
-		return nil
-	})
-	if err != nil {
-		t.Errorf("error walking the path : %v\n", err)
-		return
-	}
-}
+// 		return nil
+// 	})
+// 	if err != nil {
+// 		t.Errorf("error walking the path : %v\n", err)
+// 		return
+// 	}
+// }

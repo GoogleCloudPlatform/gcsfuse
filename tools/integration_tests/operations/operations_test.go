@@ -22,6 +22,7 @@ import (
 	"path"
 	"strconv"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
@@ -198,23 +199,43 @@ func TestMain(m *testing.M) {
 		os.Exit(successCodeTPC)
 	}
 
+	var now = time.Now()
+	log.Println("Starting static_mounting tests....")
 	successCode := static_mounting.RunTests(flagsSet, m)
+	log.Println("Finished static_mounting tests...")
+	log.Printf("Took time: %v Minutes", time.Since(now).Minutes())
 
 	if successCode == 0 {
+		var now = time.Now()
+		log.Println("Starting only_dir_mounting tests....")
 		successCode = only_dir_mounting.RunTests(flagsSet, onlyDirMounted, m)
+		log.Println("Finished only_dir_mounting tests...")
+		log.Printf("Took time: %v Minutes", time.Since(now).Minutes())
 	}
 
 	if successCode == 0 {
+		var now = time.Now()
+		log.Println("Starting persistent_mounting tests....")
 		successCode = persistent_mounting.RunTests(flagsSet, m)
+		log.Println("Finished persistent_mounting tests...")
+		log.Printf("Took time: %v Minutes", time.Since(now).Minutes())
 	}
 
 	if successCode == 0 {
+		var now = time.Now()
+		log.Println("Starting dynamic_mounting tests....")
 		successCode = dynamic_mounting.RunTests(ctx, storageClient, flagsSet, m)
+		log.Println("Finished dynamic_mounting tests...")
+		log.Printf("Took time: %v Minutes", time.Since(now).Minutes())
 	}
 
 	if successCode == 0 {
+		var now = time.Now()
+		log.Println("Starting creds_tests tests....")
 		// Test for admin permission on test bucket.
 		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(ctx, storageClient, flagsSet, "objectAdmin", m)
+		log.Println("Finished creds_tests tests...")
+		log.Printf("Took time: %v Minutes", time.Since(now).Minutes())
 	}
 
 	os.Exit(successCode)
