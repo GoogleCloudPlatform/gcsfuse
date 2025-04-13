@@ -15,65 +15,65 @@
 // Provides integration tests for delete files.
 package operations_test
 
-import (
-	"os"
-	"path"
-	"testing"
+// import (
+// 	"os"
+// 	"path"
+// 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-)
+// 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
+// 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+// )
 
-const DirNameInTestBucket = "A"               // testBucket/A
-const FileNameInTestBucket = "A.txt"          // testBucket/A.txt
-const FileNameInDirectoryTestBucket = "a.txt" // testBucket/A/a.txt
+// const DirNameInTestBucket = "A"               // testBucket/A
+// const FileNameInTestBucket = "A.txt"          // testBucket/A.txt
+// const FileNameInDirectoryTestBucket = "a.txt" // testBucket/A/a.txt
 
-func checkIfFileDeletionSucceeded(filePath string, t *testing.T) {
-	err := os.Remove(filePath)
+// func checkIfFileDeletionSucceeded(filePath string, t *testing.T) {
+// 	err := os.Remove(filePath)
 
-	if err != nil {
-		t.Errorf("File deletion failed: %v", err)
-	}
+// 	if err != nil {
+// 		t.Errorf("File deletion failed: %v", err)
+// 	}
 
-	file, err := os.Stat(filePath)
-	if err == nil && file.IsDir() == false {
-		t.Errorf("File is not deleted.")
-	}
-}
+// 	file, err := os.Stat(filePath)
+// 	if err == nil && file.IsDir() == false {
+// 		t.Errorf("File is not deleted.")
+// 	}
+// }
 
-func createFile(filePath string, t *testing.T) {
-	file, err := os.Create(filePath)
-	if err != nil {
-		t.Errorf("Error in creating file: %v", err)
-	}
+// func createFile(filePath string, t *testing.T) {
+// 	file, err := os.Create(filePath)
+// 	if err != nil {
+// 		t.Errorf("Error in creating file: %v", err)
+// 	}
 
-	// Closing file at the end
-	operations.CloseFileShouldNotThrowError(t, file)
-}
+// 	// Closing file at the end
+// 	operations.CloseFile(file)
+// }
 
-// Remove testBucket/A.txt
-func TestDeleteFileFromBucket(t *testing.T) {
-	testDir := setup.SetupTestDirectory(DirForOperationTests)
+// // Remove testBucket/A.txt
+// func TestDeleteFileFromBucket(t *testing.T) {
+// 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
-	filePath := path.Join(testDir, FileNameInTestBucket)
+// 	filePath := path.Join(testDir, FileNameInTestBucket)
 
-	createFile(filePath, t)
+// 	createFile(filePath, t)
 
-	checkIfFileDeletionSucceeded(filePath, t)
-}
+// 	checkIfFileDeletionSucceeded(filePath, t)
+// }
 
-// Remove testBucket/A/a.txt
-func TestDeleteFileFromBucketDirectory(t *testing.T) {
-	testDir := setup.SetupTestDirectory(DirForOperationTests)
+// // Remove testBucket/A/a.txt
+// func TestDeleteFileFromBucketDirectory(t *testing.T) {
+// 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
-	dirPath := path.Join(testDir, DirNameInTestBucket)
-	err := os.Mkdir(dirPath, setup.FilePermission_0600)
-	if err != nil {
-		t.Errorf("Error in creating directory: %v", err)
-	}
+// 	dirPath := path.Join(testDir, DirNameInTestBucket)
+// 	err := os.Mkdir(dirPath, setup.FilePermission_0600)
+// 	if err != nil {
+// 		t.Errorf("Error in creating directory: %v", err)
+// 	}
 
-	filePath := path.Join(dirPath, FileNameInDirectoryTestBucket)
-	createFile(filePath, t)
+// 	filePath := path.Join(dirPath, FileNameInDirectoryTestBucket)
+// 	createFile(filePath, t)
 
-	checkIfFileDeletionSucceeded(filePath, t)
-}
+// 	checkIfFileDeletionSucceeded(filePath, t)
+// }

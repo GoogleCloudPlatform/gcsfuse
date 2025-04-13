@@ -30,6 +30,11 @@ func extractLogFile(flags []string) (string, error) {
 			return strings.TrimPrefix(flag, "--log-file="), nil
 		}
 	}
+	for _, flag := range flags {
+		if strings.HasPrefix(flag, "log_file=") {
+			return strings.TrimPrefix(flag, "log_file="), nil
+		}
+	}
 	return "", fmt.Errorf("cannot find log file")
 }
 
