@@ -77,7 +77,6 @@ func (t *FileCacheReaderTest) TestNewFileCacheReader() {
 	assert.NotNil(t.T(), reader)
 	assert.Equal(t.T(), t.object, reader.obj)
 	assert.Equal(t.T(), t.mockBucket, reader.bucket)
-	assert.Equal(t.T(), t.cacheHandler, reader.fileCacheHandler)
 	assert.True(t.T(), reader.cacheFileForRangeRead)
 	assert.Nil(t.T(), reader.metricHandle)
 	assert.Nil(t.T(), reader.fileCacheHandle)

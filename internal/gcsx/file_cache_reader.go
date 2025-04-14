@@ -31,10 +31,6 @@ type FileCacheReader struct {
 	obj    *gcs.MinObject
 	bucket gcs.Bucket
 
-	// fileCacheHandler is used to get file cache handle and read happens using that.
-	// This will be nil if the file cache is disabled.
-	fileCacheHandler file.CacheHandlerInterface
-
 	// cacheFileForRangeRead is also valid for cache workflow, if true, object content
 	// will be downloaded for random reads as well too.
 	cacheFileForRangeRead bool
@@ -46,12 +42,13 @@ type FileCacheReader struct {
 	metricHandle common.MetricHandle
 }
 
-func NewFileCacheReader(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler file.CacheHandlerInterface, cacheFileForRangeRead bool, metricHandle common.MetricHandle, offset int64) (FileCacheReader, error) {
-	fileCacheHandle, err := GetCacheHandle(o, bucket, fileCacheHandler, cacheFileForRangeRead, offset)
+func NewFileCacheReader(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler file.CacheHandlerInterface, cacheFileForRangeRead bool, metricHandle common.MetricHandle, offset int64) (*FileCacheReader, error) {
+	fileCacheHandle, err := getCacheHandle(o, bucket, fileCacheHandler, cacheFileForRangeRead, offset)
 	if err != nil {
 		return nil, err
 	}
-	return FileCacheReader{
+
+	return &FileCacheReader{
 		obj:                   o,
 		bucket:                bucket,
 		fileCacheHandle:       fileCacheHandle,
@@ -60,7 +57,7 @@ func NewFileCacheReader(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler fi
 	}, nil
 }
 
-func GetCacheHandle(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler file.CacheHandlerInterface, cacheFileForRangeRead bool, offset int64) (file.CacheHandleInterface, error) {
+func getCacheHandle(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler file.CacheHandlerInterface, cacheFileForRangeRead bool, offset int64) (file.CacheHandleInterface, error) {
 	fileCacheHandle, err := fileCacheHandler.GetCacheHandle(o, bucket, cacheFileForRangeRead, offset)
 	if err != nil {
 		// We fall back to GCS if file size is greater than the cache size
