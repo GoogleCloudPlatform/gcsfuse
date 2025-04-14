@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
-	"log"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -697,7 +696,6 @@ func (b *bucket) FlushPendingWrites(ctx context.Context, w gcs.Writer) (int64, e
 	defer b.mu.Unlock()
 
 	offset, err := w.Flush()
-	log.Println("FlushPendingWrites called from fake bucket", "offset", offset, "err", err)
 	if err != nil {
 		return 0, err
 	}
