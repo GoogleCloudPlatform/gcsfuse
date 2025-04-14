@@ -61,7 +61,7 @@ func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config) (shutdownFn co
 		options = append(options, metric.WithResource(res))
 	}
 
-	views := make([]metric.View, 10)
+	views := make([]metric.View, 0, 10)
 	views = append(views, dropDisallowedMetricsView)
 	if c.Metrics.UseNewNames {
 		views = append(views, renameMetricsViews()...)
