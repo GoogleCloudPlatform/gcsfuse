@@ -21,7 +21,6 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
@@ -43,7 +42,6 @@ type FileCacheReaderTest struct {
 	object             *gcs.MinObject
 	mockBucket         *storage.TestifyMockBucket
 	cacheDir           string
-	jobManager         *downloader.JobManager
 	mockCacheHandler   *file.MockCacheHandler
 	mockCacheHandle    *file.MockCacheHandle
 	mockMetricsHandler *common.MockMetricHandle
@@ -75,7 +73,7 @@ func (t *FileCacheReaderTest) TearDown() {
 func (t *FileCacheReaderTest) TestNewFileCacheReader_Success() {
 	t.mockCacheHandler.On("GetCacheHandle", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(t.mockCacheHandle, nil)
 
-	reader, err := NewFileCacheReader(t.object, t.mockBucket, t.mockCacheHandler, true, nil, 0)
+	reader, err := NewFileCacheReader(t.object, t.mockBucket, t.mockCacheHandler, true, t.mockMetricsHandler, 0)
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), reader)
