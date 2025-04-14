@@ -19,12 +19,12 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// MockFileCacheHandler is a testify mock for the FileCacheHandler interface
-type MockFileCacheHandler struct {
+// MockCacheHandler is a testify mock for the FileCacheHandler interface
+type MockCacheHandler struct {
 	mock.Mock
 }
 
-func (m *MockFileCacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket, cacheForRangeRead bool, initialOffset int64) (CacheHandleInterface, error) {
+func (m *MockCacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket, cacheForRangeRead bool, initialOffset int64) (CacheHandleInterface, error) {
 	args := m.Called(object, bucket, cacheForRangeRead, initialOffset)
 	if ch, ok := args.Get(0).(CacheHandleInterface); ok {
 		return ch, nil
@@ -32,12 +32,12 @@ func (m *MockFileCacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.
 	return nil, args.Error(1)
 }
 
-func (m *MockFileCacheHandler) InvalidateCache(objectName string, bucketName string) error {
+func (m *MockCacheHandler) InvalidateCache(objectName string, bucketName string) error {
 	args := m.Called(objectName, bucketName)
 	return args.Error(0)
 }
 
-func (m *MockFileCacheHandler) Destroy() error {
+func (m *MockCacheHandler) Destroy() error {
 	args := m.Called()
 	return args.Error(0)
 }
