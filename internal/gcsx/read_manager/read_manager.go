@@ -44,7 +44,7 @@ func NewReadManager(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb in
 	return &readManager{
 		object: o,
 		readers: []gcsx.Reader{
-			&fileCacheReader,
+			fileCacheReader,
 			&gcsReader,
 		},
 	}, nil
