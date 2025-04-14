@@ -17,10 +17,13 @@ package gcsx
 import (
 	"fmt"
 	"os"
+	"path"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
@@ -42,6 +45,8 @@ type FileCacheReaderTest struct {
 	object             *gcs.MinObject
 	mockBucket         *storage.TestifyMockBucket
 	cacheDir           string
+	jobManager         *downloader.JobManager
+	cacheHandler       file.CacheHandlerInterface
 	mockCacheHandler   *file.MockCacheHandler
 	mockCacheHandle    *file.MockCacheHandle
 	mockMetricsHandler *common.MockMetricHandle
@@ -58,6 +63,10 @@ func (t *FileCacheReaderTest) SetupTest() {
 		Generation: 1234,
 	}
 	t.mockBucket = new(storage.TestifyMockBucket)
+	t.cacheDir = path.Join(os.Getenv("HOME"), "test_cache_dir")
+	lruCache := lru.NewCache(CacheMaxSize)
+	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, sequentialReadSizeInMb, &cfg.FileCacheConfig{EnableCrc: false}, nil)
+	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm)
 	t.mockCacheHandler = new(file.MockCacheHandler)
 	t.mockCacheHandle = new(file.MockCacheHandle)
 	t.mockMetricsHandler = new(common.MockMetricHandle)
@@ -70,7 +79,7 @@ func (t *FileCacheReaderTest) TearDown() {
 	}
 }
 
-func (t *FileCacheReaderTest) TestNewFileCacheReader_Success() {
+func (t *FileCacheReaderTest) TestNewFileCacheReaderSuccess() {
 	t.mockCacheHandler.On("GetCacheHandle", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(t.mockCacheHandle, nil)
 
 	reader, err := NewFileCacheReader(t.object, t.mockBucket, t.mockCacheHandler, true, t.mockMetricsHandler, 0)
