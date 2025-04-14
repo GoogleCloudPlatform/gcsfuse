@@ -15,15 +15,12 @@
 package streaming_writes
 
 import (
-	"os"
 	"path"
-	"syscall"
 	"testing"
 
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -46,9 +43,7 @@ func (t *defaultMountEmptyGCSFile) createEmptyGCSFile() {
 	CreateObjectInGCSTestDir(ctx, storageClient, testDirName, t.fileName, "", t.T())
 	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, t.fileName, "", t.T())
 	t.filePath = path.Join(testDirPath, t.fileName)
-	var err error
-	t.f1, err = os.OpenFile(path.Join(testDirPath, t.fileName), os.O_RDWR|syscall.O_DIRECT, operations.FilePermission_0600)
-	require.NoError(t.T(), err)
+	t.f1 = operations.OpenFileWithODirect(t.T(), t.filePath)
 }
 
 // Executes all tests that run with single streamingWrites configuration for empty GCS Files.

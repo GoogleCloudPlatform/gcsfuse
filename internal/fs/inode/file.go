@@ -366,14 +366,6 @@ func (f *FileInode) Unlink() {
 func (f *FileInode) Source() *gcs.MinObject {
 	// Make a copy, since we modify f.src.
 	o := f.src
-	// Use bwh size if it's not nil as f.src.Size is not updated.
-	if f.bwh != nil {
-		writeFileInfo := f.bwh.WriteFileInfo()
-		o.Size = uint64(writeFileInfo.TotalSize)
-		if f.bucket.BucketType().Zonal && f.local && o.Size > 0 {
-			o.Name = f.Name().objectName
-		}
-	}
 	return &o
 }
 
