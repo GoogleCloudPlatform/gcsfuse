@@ -156,7 +156,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 
 	// Create file cache handler if cache is enabled by user. Cache is considered
 	// enabled only if cache-dir is not empty and file-cache:max-size-mb is non 0.
-	var fileCacheHandler *file.CacheHandler
+	var fileCacheHandler file.CacheHandlerInterface
 	if cfg.IsFileCacheEnabled(serverCfg.NewConfig) {
 		var err error
 		fileCacheHandler, err = createFileCacheHandler(serverCfg)
@@ -223,7 +223,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 	return fs, nil
 }
 
-func createFileCacheHandler(serverCfg *ServerConfig) (fileCacheHandler *file.CacheHandler, err error) {
+func createFileCacheHandler(serverCfg *ServerConfig) (fileCacheHandler file.CacheHandlerInterface, err error) {
 	var sizeInBytes uint64
 	// -1 means unlimited size for cache, the underlying LRU cache doesn't handle
 	// -1 explicitly, hence we pass MaxUint64 as capacity in that case.
@@ -479,7 +479,7 @@ type fileSystem struct {
 
 	// fileCacheHandler manages read only file cache. It is non-nil only when
 	// file cache is enabled at the time of mounting.
-	fileCacheHandler *file.CacheHandler
+	fileCacheHandler file.CacheHandlerInterface
 
 	// cacheFileForRangeRead when true downloads file into cache even for
 	// random file access.
