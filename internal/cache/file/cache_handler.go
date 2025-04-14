@@ -33,13 +33,13 @@ type CacheHandlerInterface interface {
 	Destroy() (err error)
 }
 
-// CacheHandler is responsible for creating CacheHandle and invalidating file cache
-// for a given object in the bucket. CacheHandle contains reference to download job and
+// cacheHandler is responsible for creating cacheHandle and invalidating file cache
+// for a given object in the bucket. cacheHandle contains reference to download job and
 // file handle to file in cache.
-// Additionally, while creating the CacheHandle, it ensures that the file info entry
+// Additionally, while creating the cacheHandle, it ensures that the file info entry
 // is present in the fileInfoCache and a file is present in cache inside the appropriate
 // directory.
-type CacheHandler struct {
+type cacheHandler struct {
 	// fileInfoCache contains the reference of fileInfo cache.
 	fileInfoCache *lru.Cache
 
@@ -60,7 +60,7 @@ type CacheHandler struct {
 }
 
 func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheDir string, filePerm os.FileMode, dirPerm os.FileMode) CacheHandlerInterface {
-	return &CacheHandler{
+	return &cacheHandler{
 		fileInfoCache: fileInfoCache,
 		jobManager:    jobManager,
 		cacheDir:      cacheDir,
@@ -70,7 +70,7 @@ func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager
 	}
 }
 
-func (chr *CacheHandler) createLocalFileReadHandle(objectName string, bucketName string) (*os.File, error) {
+func (chr *cacheHandler) createLocalFileReadHandle(objectName string, bucketName string) (*os.File, error) {
 	fileSpec := data.FileSpec{
 		Path:     util.GetDownloadPath(chr.cacheDir, util.GetObjectPath(bucketName, objectName)),
 		FilePerm: chr.filePerm,
@@ -83,7 +83,7 @@ func (chr *CacheHandler) createLocalFileReadHandle(objectName string, bucketName
 // cleanUpEvictedFile is a utility method called for the evicted/deleted fileInfo.
 // As part of execution, it (a) stops and removes the download job (b) truncates
 // and deletes the file in cache.
-func (chr *CacheHandler) cleanUpEvictedFile(fileInfo *data.FileInfo) error {
+func (chr *cacheHandler) cleanUpEvictedFile(fileInfo *data.FileInfo) error {
 	key := fileInfo.Key
 	_, err := key.Key()
 	if err != nil {
@@ -114,7 +114,7 @@ func (chr *CacheHandler) cleanUpEvictedFile(fileInfo *data.FileInfo) error {
 // job with the given generation to the cache.
 //
 // Requires Lock(chr.mu)
-func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObject, bucket gcs.Bucket) error {
+func (chr *cacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObject, bucket gcs.Bucket) error {
 	fileInfoKey := data.FileInfoKey{
 		BucketName: bucket.Name(),
 		ObjectName: object.Name,
@@ -196,15 +196,15 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 // GetCacheHandle creates an entry in fileInfoCache if it does not already exist. It
 // creates downloader.Job if not already exis and requiredt. Also, creates local
 // file into which the download job downloads the object content. Finally, it
-// returns a CacheHandle that contains the reference to downloader.Job and the
+// returns a cacheHandle that contains the reference to downloader.Job and the
 // local file handle. This method is atomic, that means all the above-mentioned
-// tasks are completed in one uninterrupted sequence guarded by (CacheHandler.mu).
+// tasks are completed in one uninterrupted sequence guarded by (cacheHandler.mu).
 // Note: It returns nil if cacheForRangeRead is set to False, initialOffset is
 // non-zero (i.e. random read) and entry for file doesn't already exist in
 // fileInfoCache then no need to create file in cache.
 //
-// Acquires and releases LOCK(CacheHandler.mu)
-func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket, cacheForRangeRead bool, initialOffset int64) (CacheHandleInterface, error) {
+// Acquires and releases LOCK(cacheHandler.mu)
+func (chr *cacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket, cacheForRangeRead bool, initialOffset int64) (CacheHandleInterface, error) {
 	chr.mu.Lock()
 	defer chr.mu.Unlock()
 
@@ -243,8 +243,8 @@ func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket
 // InvalidateCache removes the file entry from the fileInfoCache and performs clean
 // up for the removed entry.
 //
-// Acquires and releases LOCK(CacheHandler.mu)
-func (chr *CacheHandler) InvalidateCache(objectName string, bucketName string) error {
+// Acquires and releases LOCK(cacheHandler.mu)
+func (chr *cacheHandler) InvalidateCache(objectName string, bucketName string) error {
 	fileInfoKey := data.FileInfoKey{
 		BucketName: bucketName,
 		ObjectName: objectName,
@@ -273,7 +273,7 @@ func (chr *CacheHandler) InvalidateCache(objectName string, bucketName string) e
 // because file info cache is in-memory, it is not required to destroy it.
 //
 // Acquires and releases Lock(chr.mu)
-func (chr *CacheHandler) Destroy() (err error) {
+func (chr *cacheHandler) Destroy() (err error) {
 	chr.mu.Lock()
 	defer chr.mu.Unlock()
 

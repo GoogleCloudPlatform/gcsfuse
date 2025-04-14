@@ -1080,5 +1080,5 @@ func (t *RandomReaderTest) TestNewReader_FileClobbered() {
 }
 
 // TODO (raj-prince) - to add unit tests for failed scenario while reading via cache.
-// This requires mocking CacheHandle object, whose read method will return some unexpected
+// This requires mocking cacheHandle object, whose read method will return some unexpected
 // error.

@@ -88,11 +88,11 @@ func initializeCacheHandlerTestArgs(t *testing.T, fileCacheConfig *cfg.FileCache
 		util.DefaultDirPerm, cacheDir, DefaultSequentialReadSizeMb, fileCacheConfig, common.NewNoopMetrics())
 
 	// Mocked cached handler object.
-	cacheHandler := NewCacheHandler(cache, jobManager, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm)
+	ch := NewCacheHandler(cache, jobManager, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm)
 
 	// Follow consistency, local-cache file, entry in fileInfo cache and job should exist initially.
 	fileInfoKeyName := addTestFileInfoEntryInCache(t, cache, object, storage.TestBucketName)
-	downloadPath := util.GetDownloadPath(cacheHandler.(*CacheHandler).cacheDir, util.GetObjectPath(bucket.Name(), object.Name))
+	downloadPath := util.GetDownloadPath(ch.(*cacheHandler).cacheDir, util.GetObjectPath(bucket.Name(), object.Name))
 	_, err = util.CreateFile(data.FileSpec{Path: downloadPath, FilePerm: util.DefaultFilePerm, DirPerm: util.DefaultDirPerm}, os.O_RDONLY)
 	t.Cleanup(func() {
 		operations.RemoveDir(cacheDir)
@@ -108,16 +108,16 @@ func initializeCacheHandlerTestArgs(t *testing.T, fileCacheConfig *cfg.FileCache
 		fakeStorage:     fakeStorage,
 		object:          object,
 		cache:           cache,
-		cacheHandler:    cacheHandler,
+		cacheHandler:    ch,
 		downloadPath:    downloadPath,
 		fileInfoKeyName: fileInfoKeyName,
 		cacheDir:        cacheDir,
 	}
 }
 
-func mustBeCacheHandle(t *testing.T, h any) *CacheHandle {
-	handle, ok := h.(*CacheHandle)
-	require.True(t, ok, "expected value to be of type *CacheHandle, got %T", h)
+func mustBeCacheHandle(t *testing.T, h any) *cacheHandle {
+	handle, ok := h.(*cacheHandle)
+	require.True(t, ok, "expected value to be of type *cacheHandle, got %T", h)
 	return handle
 }
 
@@ -194,7 +194,7 @@ func Test_createLocalFileReadHandle_OnlyForRead(t *testing.T) {
 	cacheDir := path.Join(os.Getenv("HOME"), "CacheHandlerTest/dir")
 	chTestArgs := initializeCacheHandlerTestArgs(t, &cfg.FileCacheConfig{EnableCrc: true}, cacheDir)
 
-	readFileHandle, err := chTestArgs.cacheHandler.(*CacheHandler).createLocalFileReadHandle(chTestArgs.object.Name, chTestArgs.bucket.Name())
+	readFileHandle, err := chTestArgs.cacheHandler.(*cacheHandler).createLocalFileReadHandle(chTestArgs.object.Name, chTestArgs.bucket.Name())
 
 	assert.NoError(t, err)
 	_, err = readFileHandle.Write([]byte("test"))
@@ -237,7 +237,7 @@ func Test_cleanUpEvictedFile(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, downloader.Downloading, jobStatusBefore.Name)
 
-			err = chTestArgs.cacheHandler.(*CacheHandler).cleanUpEvictedFile(&fileInfoData)
+			err = chTestArgs.cacheHandler.(*cacheHandler).cleanUpEvictedFile(&fileInfoData)
 
 			assert.NoError(t, err)
 			jobStatusAfter := fileDownloadJob.GetStatus()
@@ -263,7 +263,7 @@ func Test_cleanUpEvictedFile_WhenLocalFileNotExist(t *testing.T) {
 	err = os.Remove(chTestArgs.downloadPath)
 	require.NoError(t, err)
 
-	err = chTestArgs.cacheHandler.(*CacheHandler).cleanUpEvictedFile(&fileInfoData)
+	err = chTestArgs.cacheHandler.(*cacheHandler).cleanUpEvictedFile(&fileInfoData)
 
 	assert.NoError(t, err)
 	jobStatusAfter := fileDownloadJob.GetStatus()
@@ -278,7 +278,7 @@ func Test_addFileInfoEntryAndCreateDownloadJob_IfAlready(t *testing.T) {
 	chTestArgs := initializeCacheHandlerTestArgs(t, &cfg.FileCacheConfig{EnableCrc: true}, cacheDir)
 	existingJob := getDownloadJobForTestObject(t, chTestArgs)
 
-	err := chTestArgs.cacheHandler.(*CacheHandler).addFileInfoEntryAndCreateDownloadJob(chTestArgs.object, chTestArgs.bucket)
+	err := chTestArgs.cacheHandler.(*cacheHandler).addFileInfoEntryAndCreateDownloadJob(chTestArgs.object, chTestArgs.bucket)
 
 	assert.NoError(t, err)
 	assert.True(t, isEntryInFileInfoCache(t, chTestArgs.cache, chTestArgs.object.Name, chTestArgs.bucket.Name()))
@@ -293,7 +293,7 @@ func Test_addFileInfoEntryAndCreateDownloadJob_GenerationChanged(t *testing.T) {
 	existingJob := getDownloadJobForTestObject(t, chTestArgs)
 	chTestArgs.object.Generation = chTestArgs.object.Generation + 1
 
-	err := chTestArgs.cacheHandler.(*CacheHandler).addFileInfoEntryAndCreateDownloadJob(chTestArgs.object, chTestArgs.bucket)
+	err := chTestArgs.cacheHandler.(*cacheHandler).addFileInfoEntryAndCreateDownloadJob(chTestArgs.object, chTestArgs.bucket)
 
 	assert.NoError(t, err)
 	assert.True(t, isEntryInFileInfoCache(t, chTestArgs.cache, chTestArgs.object.Name, chTestArgs.bucket.Name()))
@@ -315,7 +315,7 @@ func Test_addFileInfoEntryAndCreateDownloadJob_IfNotAlready(t *testing.T) {
 	require.Nil(t, existingJob)
 
 	// Insertion will happen and that leads to eviction.
-	err := chTestArgs.cacheHandler.(*CacheHandler).addFileInfoEntryAndCreateDownloadJob(minObject, chTestArgs.bucket)
+	err := chTestArgs.cacheHandler.(*cacheHandler).addFileInfoEntryAndCreateDownloadJob(minObject, chTestArgs.bucket)
 
 	assert.NoError(t, err)
 	assert.True(t, isEntryInFileInfoCache(t, chTestArgs.cache, minObject.Name, chTestArgs.bucket.Name()))
@@ -337,7 +337,7 @@ func Test_addFileInfoEntryAndCreateDownloadJob_IfLocalFileGetsDeleted(t *testing
 
 	// There is a fileInfoEntry in the fileInfoCache but the corresponding local file doesn't exist.
 	// Hence, this will return error containing util.FileNotPresentInCacheErrMsg.
-	err = chTestArgs.cacheHandler.(*CacheHandler).addFileInfoEntryAndCreateDownloadJob(chTestArgs.object, chTestArgs.bucket)
+	err = chTestArgs.cacheHandler.(*cacheHandler).addFileInfoEntryAndCreateDownloadJob(chTestArgs.object, chTestArgs.bucket)
 
 	assert.True(t, errors.Is(err, util.ErrFileNotPresentInCache))
 }
@@ -355,7 +355,7 @@ func Test_addFileInfoEntryAndCreateDownloadJob_WhenJobHasCompleted(t *testing.T)
 	actualJob := chTestArgs.jobManager.GetJob(chTestArgs.object.Name, chTestArgs.bucket.Name())
 	require.Nil(t, actualJob)
 
-	err = chTestArgs.cacheHandler.(*CacheHandler).addFileInfoEntryAndCreateDownloadJob(chTestArgs.object, chTestArgs.bucket)
+	err = chTestArgs.cacheHandler.(*cacheHandler).addFileInfoEntryAndCreateDownloadJob(chTestArgs.object, chTestArgs.bucket)
 
 	assert.NoError(t, err)
 	assert.True(t, isEntryInFileInfoCache(t, chTestArgs.cache, chTestArgs.object.Name, chTestArgs.bucket.Name()))
@@ -373,7 +373,7 @@ func Test_addFileInfoEntryAndCreateDownloadJob_WhenJobIsInvalidatedAndRemoved(t 
 
 	// Because the job has been removed and file info entry is still present, new
 	// file info entry and job should be created.
-	err := chTestArgs.cacheHandler.(*CacheHandler).addFileInfoEntryAndCreateDownloadJob(chTestArgs.object, chTestArgs.bucket)
+	err := chTestArgs.cacheHandler.(*cacheHandler).addFileInfoEntryAndCreateDownloadJob(chTestArgs.object, chTestArgs.bucket)
 
 	assert.NoError(t, err)
 	assert.True(t, isEntryInFileInfoCache(t, chTestArgs.cache, chTestArgs.object.Name, chTestArgs.bucket.Name()))
@@ -398,7 +398,7 @@ func Test_addFileInfoEntryAndCreateDownloadJob_WhenJobHasFailed(t *testing.T) {
 	// Because the job has been failed and file info entry is still present with
 	// size less than the object's size (because the async job failed), new job
 	// should be created
-	err = chTestArgs.cacheHandler.(*CacheHandler).addFileInfoEntryAndCreateDownloadJob(chTestArgs.object, chTestArgs.bucket)
+	err = chTestArgs.cacheHandler.(*cacheHandler).addFileInfoEntryAndCreateDownloadJob(chTestArgs.object, chTestArgs.bucket)
 
 	assert.NoError(t, err)
 	assert.True(t, isEntryInFileInfoCache(t, chTestArgs.cache, chTestArgs.object.Name, chTestArgs.bucket.Name()))

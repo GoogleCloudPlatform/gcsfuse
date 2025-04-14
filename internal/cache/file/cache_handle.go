@@ -33,7 +33,7 @@ type CacheHandleInterface interface {
 	Close() (err error)
 }
 
-type CacheHandle struct {
+type cacheHandle struct {
 	// fileHandle to a local file which contains locally downloaded data.
 	fileHandle *os.File
 
@@ -58,8 +58,8 @@ type CacheHandle struct {
 }
 
 func NewCacheHandle(localFileHandle *os.File, fileDownloadJob *downloader.Job,
-	fileInfoCache *lru.Cache, cacheFileForRangeRead bool, initialOffset int64) *CacheHandle {
-	return &CacheHandle{
+	fileInfoCache *lru.Cache, cacheFileForRangeRead bool, initialOffset int64) *cacheHandle {
+	return &cacheHandle{
 		fileHandle:            localFileHandle,
 		fileDownloadJob:       fileDownloadJob,
 		fileInfoCache:         fileInfoCache,
@@ -69,7 +69,7 @@ func NewCacheHandle(localFileHandle *os.File, fileDownloadJob *downloader.Job,
 	}
 }
 
-func (fch *CacheHandle) validateCacheHandle() error {
+func (fch *cacheHandle) validateCacheHandle() error {
 	if fch.fileHandle == nil {
 		return util.ErrInvalidFileHandle
 	}
@@ -83,7 +83,7 @@ func (fch *CacheHandle) validateCacheHandle() error {
 
 // shouldReadFromCache returns nil if the data should be read from the locally
 // downloaded cache file. Otherwise, it returns an appropriate error message.
-func (fch *CacheHandle) shouldReadFromCache(jobStatus *downloader.JobStatus, requiredOffset int64) (err error) {
+func (fch *cacheHandle) shouldReadFromCache(jobStatus *downloader.JobStatus, requiredOffset int64) (err error) {
 	if jobStatus.Err != nil ||
 		jobStatus.Name == downloader.Invalid ||
 		jobStatus.Name == downloader.Failed {
@@ -99,7 +99,7 @@ func (fch *CacheHandle) shouldReadFromCache(jobStatus *downloader.JobStatus, req
 // It returns nil if entry is present, otherwise returns an appropriate error.
 // Whether to change the order in cache while lookup is controlled via
 // changeCacheOrder.
-func (fch *CacheHandle) validateEntryInFileInfoCache(bucket gcs.Bucket, object *gcs.MinObject, requiredOffset uint64, changeCacheOrder bool) error {
+func (fch *cacheHandle) validateEntryInFileInfoCache(bucket gcs.Bucket, object *gcs.MinObject, requiredOffset uint64, changeCacheOrder bool) error {
 	fileInfoKey := data.FileInfoKey{
 		BucketName: bucket.Name(),
 		ObjectName: object.Name,
@@ -138,7 +138,7 @@ func (fch *CacheHandle) validateEntryInFileInfoCache(bucket gcs.Bucket, object *
 // if it is not already present. For random reads, it does not wait for
 // download. Additionally, for random reads, the download will not be
 // initiated if fch.cacheFileForRangeRead is false.
-func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs.MinObject, offset int64, dst []byte) (n int, cacheHit bool, err error) {
+func (fch *cacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs.MinObject, offset int64, dst []byte) (n int, cacheHit bool, err error) {
 	err = fch.validateCacheHandle()
 	if err != nil {
 		return
@@ -243,7 +243,7 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 
 // IsSequential returns true if the sequential read is being performed, false for
 // random read.
-func (fch *CacheHandle) IsSequential(currentOffset int64) bool {
+func (fch *cacheHandle) IsSequential(currentOffset int64) bool {
 	if !fch.isSequential {
 		return false
 	}
@@ -260,7 +260,7 @@ func (fch *CacheHandle) IsSequential(currentOffset int64) bool {
 }
 
 // Close closes the underlying fileHandle pointing to locally downloaded cache file.
-func (fch *CacheHandle) Close() (err error) {
+func (fch *cacheHandle) Close() (err error) {
 	if fch.fileHandle != nil {
 		err = fch.fileHandle.Close()
 		if err != nil {

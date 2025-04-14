@@ -21,7 +21,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// MockCacheHandle is a testify mock for the CacheHandle interface
+// MockCacheHandle is a testify mock for the cacheHandle interface
 type MockCacheHandle struct {
 	mock.Mock
 }
