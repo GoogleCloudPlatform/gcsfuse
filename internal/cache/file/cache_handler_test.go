@@ -115,6 +115,12 @@ func initializeCacheHandlerTestArgs(t *testing.T, fileCacheConfig *cfg.FileCache
 	}
 }
 
+func mustBeCacheHandle(t *testing.T, h any) *CacheHandle {
+	handle, ok := h.(*CacheHandle)
+	require.True(t, ok, "expected value to be of type *CacheHandle, got %T", h)
+	return handle
+}
+
 func createObject(t *testing.T, bucket gcs.Bucket, objName string, objContent []byte) *gcs.MinObject {
 	t.Helper()
 	ctx := context.Background()
@@ -414,8 +420,7 @@ func Test_GetCacheHandle_WhenCacheHasDifferentGeneration(t *testing.T) {
 	newCacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(chTestArgs.object, chTestArgs.bucket, false, 0)
 
 	assert.NoError(t, err)
-	handle, ok := newCacheHandle.(*CacheHandle)
-	require.True(t, ok, "expected newCacheHandle to be of type *CacheHandle")
+	handle := mustBeCacheHandle(t, newCacheHandle)
 	assert.Nil(t, handle.validateCacheHandle())
 	jobStatusOfOldJob := existingJob.GetStatus()
 	assert.Equal(t, downloader.Invalid, jobStatusOfOldJob.Name)
@@ -439,8 +444,7 @@ func Test_GetCacheHandle_WhenAsyncDownloadJobHasFailed(t *testing.T) {
 
 	// New job should be created because the earlier job has failed.
 	assert.NoError(t, err)
-	handle, ok := newCacheHandle.(*CacheHandle)
-	require.True(t, ok, "expected newCacheHandle to be of type *CacheHandle")
+	handle := mustBeCacheHandle(t, newCacheHandle)
 	assert.Nil(t, handle.validateCacheHandle())
 	assert.True(t, isEntryInFileInfoCache(t, chTestArgs.cache, chTestArgs.object.Name, chTestArgs.bucket.Name()))
 	jobStatusOfNewHandle := handle.fileDownloadJob.GetStatus()
@@ -456,8 +460,7 @@ func Test_GetCacheHandle_WhenFileInfoAndJobAreAlreadyPresent(t *testing.T) {
 	cacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(chTestArgs.object, chTestArgs.bucket, false, 0)
 
 	assert.NoError(t, err)
-	handle, ok := cacheHandle.(*CacheHandle)
-	require.True(t, ok, "expected cacheHandle to be of type *CacheHandle")
+	handle := mustBeCacheHandle(t, cacheHandle)
 	assert.Nil(t, handle.validateCacheHandle())
 	// Job and file info are still present
 	assert.True(t, isEntryInFileInfoCache(t, chTestArgs.cache, chTestArgs.object.Name, chTestArgs.bucket.Name()))
@@ -474,8 +477,7 @@ func Test_GetCacheHandle_WhenFileInfoAndJobAreNotPresent(t *testing.T) {
 	cacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(minObject, chTestArgs.bucket, false, 0)
 
 	assert.NoError(t, err)
-	handle, ok := cacheHandle.(*CacheHandle)
-	require.True(t, ok, "expected cacheHandle to be of type *CacheHandle")
+	handle := mustBeCacheHandle(t, cacheHandle)
 	assert.Nil(t, handle.validateCacheHandle())
 	// New Job and file info are created.
 	assert.True(t, isEntryInFileInfoCache(t, chTestArgs.cache, minObject.Name, chTestArgs.bucket.Name()))
@@ -521,8 +523,7 @@ func Test_GetCacheHandle_WithEviction(t *testing.T) {
 			cacheHandle2, err := chTestArgs.cacheHandler.GetCacheHandle(minObject, chTestArgs.bucket, false, 0)
 
 			assert.NoError(t, err)
-			handle, ok := cacheHandle2.(*CacheHandle)
-			require.True(t, ok, "expected cacheHandle2 to be of type *CacheHandle")
+			handle := mustBeCacheHandle(t, cacheHandle2)
 			assert.Nil(t, handle.validateCacheHandle())
 			jobStatus := existingJob.GetStatus()
 			assert.Equal(t, downloader.Invalid, jobStatus.Name)
@@ -587,18 +588,15 @@ func Test_GetCacheHandle_CacheForRangeRead(t *testing.T) {
 			cacheHandle4, err4 := chTestArgs.cacheHandler.GetCacheHandle(minObject4, chTestArgs.bucket, true, 5)
 
 			assert.NoError(t, err1)
-			handle, ok := cacheHandle1.(*CacheHandle)
-			require.True(t, ok, "expected cacheHandle1 to be of type *CacheHandle")
+			handle := mustBeCacheHandle(t, cacheHandle1)
 			assert.Nil(t, handle.validateCacheHandle())
 			assert.True(t, errors.Is(err2, util.ErrCacheHandleNotRequiredForRandomRead))
 			assert.Nil(t, cacheHandle2)
 			assert.NoError(t, err3)
-			handle, ok = cacheHandle3.(*CacheHandle)
-			require.True(t, ok, "expected cacheHandle3 to be of type *CacheHandle")
+			handle = mustBeCacheHandle(t, cacheHandle3)
 			assert.Nil(t, handle.validateCacheHandle())
 			assert.NoError(t, err4)
-			handle, ok = cacheHandle4.(*CacheHandle)
-			require.True(t, ok, "expected cacheHandle4 to be of type *CacheHandle")
+			handle = mustBeCacheHandle(t, cacheHandle4)
 			assert.Nil(t, handle.validateCacheHandle())
 		})
 	}
@@ -644,8 +642,7 @@ func Test_GetCacheHandle_ConcurrentSameFile(t *testing.T) {
 				cacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(minObj, chTestArgs.bucket, false, 0)
 
 				assert.NoError(t, err)
-				handle, ok := cacheHandle.(*CacheHandle)
-				require.True(t, ok, "expected cacheHandle to be of type *CacheHandle")
+				handle := mustBeCacheHandle(t, cacheHandle)
 				assert.Nil(t, handle.validateCacheHandle())
 			}
 
@@ -682,8 +679,7 @@ func Test_GetCacheHandle_ConcurrentDifferentFiles(t *testing.T) {
 		cacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(minObj, chTestArgs.bucket, false, 0)
 
 		assert.NoError(t, err)
-		handle, ok := cacheHandle.(*CacheHandle)
-		require.True(t, ok, "expected cacheHandle to be of type *CacheHandle")
+		handle := mustBeCacheHandle(t, cacheHandle)
 		assert.Nil(t, handle.validateCacheHandle())
 	}
 
@@ -968,8 +964,7 @@ func Test_InvalidateCache_GetCacheHandle_Concurrent(t *testing.T) {
 				cacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(minObj, chTestArgs.bucket, false, 0)
 
 				assert.NoError(t, err)
-				handle, ok := cacheHandle.(*CacheHandle)
-				require.True(t, ok, "expected cacheHandle to be of type *CacheHandle")
+				handle := mustBeCacheHandle(t, cacheHandle)
 				assert.Nil(t, handle.validateCacheHandle())
 			}
 
