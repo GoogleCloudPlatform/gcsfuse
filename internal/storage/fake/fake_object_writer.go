@@ -22,6 +22,7 @@ package fake
 import (
 	"bytes"
 	"io"
+	"log"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -42,6 +43,7 @@ func (w *FakeObjectWriter) Write(p []byte) (n int, err error) {
 	contents := w.buf.Bytes()
 	// Validate for preconditions.
 	if err := preconditionChecks(w.bkt, w.req, contents); err != nil {
+		log.Printf("Error from Write")
 		return 0, err
 	}
 	return w.buf.Write(p)

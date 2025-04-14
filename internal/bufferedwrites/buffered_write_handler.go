@@ -17,6 +17,7 @@ package bufferedwrites
 import (
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"time"
 
@@ -195,6 +196,7 @@ func (wh *bufferedWriteHandlerImpl) Sync() (err error) {
 	// This functionality is exclusively supported on zonal buckets.
 	if wh.uploadHandler.bucket.BucketType().Zonal {
 		n, err := wh.uploadHandler.FlushPendingWrites()
+		log.Println("n: ", n, "err:", err)
 		if err != nil {
 			return err
 		}
