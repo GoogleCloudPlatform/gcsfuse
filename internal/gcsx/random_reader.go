@@ -265,7 +265,7 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 			} else if errors.Is(err, cacheutil.ErrCacheHandleNotRequiredForRandomRead) {
 				// Fall back to GCS if it is a random read, cacheFileForRangeRead is
 				// False and there doesn't already exist file in cache.
-				isSeq = false
+				//isSeq = false
 				return 0, false, nil
 			}
 

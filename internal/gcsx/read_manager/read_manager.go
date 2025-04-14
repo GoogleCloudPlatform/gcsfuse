@@ -34,9 +34,12 @@ type readManager struct {
 
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
-func NewReadManager(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *gcsx.MultiRangeDownloaderWrapper) gcsx.ReadManager {
+func NewReadManager(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *gcsx.MultiRangeDownloaderWrapper, offset int64) (gcsx.ReadManager, error) {
 	gcsReader := client_readers2.NewGCSReader(o, bucket, metricHandle, mrdWrapper, sequentialReadSizeMb)
-	fileCacheReader := gcsx.NewFileCacheReader(o, bucket, fileCacheHandler, cacheFileForRangeRead, metricHandle)
+	fileCacheReader, err := gcsx.NewFileCacheReader(o, bucket, fileCacheHandler, cacheFileForRangeRead, metricHandle, offset)
+	if err != nil {
+		return nil, err
+	}
 
 	return &readManager{
 		object: o,
@@ -44,7 +47,7 @@ func NewReadManager(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb in
 			&fileCacheReader,
 			&gcsReader,
 		},
-	}
+	}, nil
 }
 
 func (rr *readManager) Object() (o *gcs.MinObject) {
