@@ -1011,3 +1011,10 @@ func (f *FileInode) initBufferedWriteHandlerIfEligible(ctx context.Context) erro
 
 	return nil
 }
+
+// Returns true if fileInode is using buffered write handler.
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) IsUsingBWH() bool {
+	return f.bwh != nil
+}
