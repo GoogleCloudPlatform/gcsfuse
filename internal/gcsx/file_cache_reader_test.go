@@ -55,7 +55,7 @@ func TestFileCacheReaderTestSuite(t *testing.T) {
 	suite.Run(t, new(FileCacheReaderTest))
 }
 
-func (t *FileCacheReaderTest) SetupTestSuite() {
+func (t *FileCacheReaderTest) SetupTest() {
 	t.object = &gcs.MinObject{
 		Name:       TestObject,
 		Size:       17,
@@ -70,7 +70,7 @@ func (t *FileCacheReaderTest) SetupTestSuite() {
 	t.mockMetricsHandler = new(common.MockMetricHandle)
 }
 
-func (t *FileCacheReaderTest) TearDownSuite() {
+func (t *FileCacheReaderTest) TearDown() {
 	err := os.RemoveAll(t.cacheDir)
 	if err != nil {
 		t.T().Logf("Failed to clean up test cache directory '%s': %v", t.cacheDir, err)
@@ -80,8 +80,7 @@ func (t *FileCacheReaderTest) TearDownSuite() {
 func (t *FileCacheReaderTest) TestNewFileCacheReader_Success() {
 	// Define a mock CacheHandle to be returned by the mock CacheHandler
 	mockFileCacheHandler := new(file.MockFileCacheHandler)
-	mockCacheHandle := new(file.MockCacheHandle)
-	mockFileCacheHandler.On("GetCacheHandle", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mockCacheHandle, nil)
+	mockFileCacheHandler.On("GetCacheHandle", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(t.mockCacheHandle, nil)
 
 	reader, err := NewFileCacheReader(t.object, t.mockBucket, mockFileCacheHandler, true, nil, 0)
 
@@ -126,12 +125,17 @@ func (t *FileCacheReaderTest) Test_NewFileCacheReader_GetCacheHandleErrors() {
 	for _, tc := range cases {
 		t.Run(tc.name, func() {
 			mockCacheHandler := new(file.MockFileCacheHandler)
-			mockCacheHandler.On("GetCacheHandle", t.object, t.mockBucket, true, int64(0)).Return(nil, tc.mockErr)
+			mockCacheHandler.On("GetCacheHandle", t.object, t.mockBucket, tc.cacheForRangeRead, int64(0)).Return(nil, tc.mockErr)
 
 			reader, err := NewFileCacheReader(t.object, t.mockBucket, mockCacheHandler, tc.cacheForRangeRead, t.mockMetricsHandler, 0)
 
-			assert.Error(t.T(), err)
-			assert.Nil(t.T(), reader)
+			if tc.expectedErr {
+				assert.Error(t.T(), err)
+				assert.Nil(t.T(), reader)
+			} else {
+				assert.NoError(t.T(), err)
+				assert.NotNil(t.T(), reader)
+			}
 			// Verify mocks
 			mockCacheHandler.AssertExpectations(t.T())
 		})
