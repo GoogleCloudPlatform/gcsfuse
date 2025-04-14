@@ -129,7 +129,6 @@ func (t *FileCacheReaderTest) Test_NewFileCacheReader_GetCacheHandleErrors() {
 				assert.NoError(t.T(), err)
 				assert.NotNil(t.T(), reader)
 			}
-			// Verify mocks
 			t.mockCacheHandler.AssertExpectations(t.T())
 		})
 	}
