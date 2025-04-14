@@ -51,7 +51,7 @@ type RandomReaderStretchrTest struct {
 	rr           checkingRandomReader
 	cacheDir     string
 	jobManager   *downloader.JobManager
-	cacheHandler *file.CacheHandler
+	cacheHandler file.CacheHandlerInterface
 }
 
 func TestRandomReaderStretchrTestSuite(t *testing.T) {

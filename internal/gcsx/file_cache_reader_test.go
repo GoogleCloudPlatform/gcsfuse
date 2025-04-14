@@ -43,7 +43,7 @@ type FileCacheReaderTest struct {
 	mockBucket   *storage.TestifyMockBucket
 	cacheDir     string
 	jobManager   *downloader.JobManager
-	cacheHandler *file.CacheHandler
+	cacheHandler file.CacheHandlerInterface
 }
 
 func TestFileCacheReaderTestSuite(t *testing.T) {

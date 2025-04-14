@@ -411,13 +411,13 @@ func Test_GetCacheHandle_WhenCacheHasDifferentGeneration(t *testing.T) {
 	// Change the version of the object, but cache still keeps old generation
 	chTestArgs.object.Generation = chTestArgs.object.Generation + 1
 
-	cacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(chTestArgs.object, chTestArgs.bucket, false, 0)
+	newCacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(chTestArgs.object, chTestArgs.bucket, false, 0)
 
 	assert.NoError(t, err)
-	assert.Nil(t, cacheHandle.(*CacheHandle).validateCacheHandle())
+	assert.Nil(t, newCacheHandle.(*CacheHandle).validateCacheHandle())
 	jobStatusOfOldJob := existingJob.GetStatus()
 	assert.Equal(t, downloader.Invalid, jobStatusOfOldJob.Name)
-	jobStatusOfNewHandle := cacheHandle.(*CacheHandle).fileDownloadJob.GetStatus()
+	jobStatusOfNewHandle := newCacheHandle.(*CacheHandle).fileDownloadJob.GetStatus()
 	assert.Equal(t, downloader.NotStarted, jobStatusOfNewHandle.Name)
 }
 
@@ -433,13 +433,13 @@ func Test_GetCacheHandle_WhenAsyncDownloadJobHasFailed(t *testing.T) {
 	require.Equal(t, downloader.Failed, jobStatus.Name)
 	chTestArgs.object.Size = correctSize
 
-	cacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(chTestArgs.object, chTestArgs.bucket, false, 0)
+	newCacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(chTestArgs.object, chTestArgs.bucket, false, 0)
 
 	// New job should be created because the earlier job has failed.
 	assert.NoError(t, err)
-	assert.Nil(t, cacheHandle.(*CacheHandle).validateCacheHandle())
+	assert.Nil(t, newCacheHandle.(*CacheHandle).validateCacheHandle())
 	assert.True(t, isEntryInFileInfoCache(t, chTestArgs.cache, chTestArgs.object.Name, chTestArgs.bucket.Name()))
-	jobStatusOfNewHandle := cacheHandle.(*CacheHandle).fileDownloadJob.GetStatus()
+	jobStatusOfNewHandle := newCacheHandle.(*CacheHandle).fileDownloadJob.GetStatus()
 	assert.Equal(t, downloader.NotStarted, jobStatusOfNewHandle.Name)
 }
 

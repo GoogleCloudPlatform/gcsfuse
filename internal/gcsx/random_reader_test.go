@@ -152,7 +152,7 @@ type RandomReaderTest struct {
 	rr           checkingRandomReader
 	cacheDir     string
 	jobManager   *downloader.JobManager
-	cacheHandler *file.CacheHandler
+	cacheHandler file.CacheHandlerInterface
 }
 
 func init() { RegisterTestSuite(&RandomReaderTest{}) }
