@@ -15,8 +15,14 @@
 package gcsx
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
+	cacheutil "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 )
 
@@ -40,12 +46,31 @@ type FileCacheReader struct {
 	metricHandle common.MetricHandle
 }
 
-func NewFileCacheReader(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler file.CacheHandlerInterface, cacheFileForRangeRead bool, metricHandle common.MetricHandle) FileCacheReader {
+func NewFileCacheReader(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler file.CacheHandlerInterface, cacheFileForRangeRead bool, metricHandle common.MetricHandle, offset int64) (FileCacheReader, error) {
+	fileCacheHandle, err := GetCacheHandle(o, bucket, fileCacheHandler, cacheFileForRangeRead, offset)
+	if err != nil {
+		return nil, err
+	}
 	return FileCacheReader{
 		obj:                   o,
 		bucket:                bucket,
-		fileCacheHandler:      fileCacheHandler,
+		fileCacheHandle:       fileCacheHandle,
 		cacheFileForRangeRead: cacheFileForRangeRead,
 		metricHandle:          metricHandle,
+	}, nil
+}
+
+func GetCacheHandle(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler file.CacheHandlerInterface, cacheFileForRangeRead bool, offset int64) (file.CacheHandleInterface, error) {
+	fileCacheHandle, err := fileCacheHandler.GetCacheHandle(o, bucket, cacheFileForRangeRead, offset)
+	if err != nil {
+		// We fall back to GCS if file size is greater than the cache size
+		if errors.Is(err, lru.ErrInvalidEntrySize) {
+			logger.Warnf("tryReadingFromFileCache: while creating CacheHandle: %v", err)
+			return nil, nil
+		} else if errors.Is(err, cacheutil.ErrCacheHandleNotRequiredForRandomRead) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("tryReadingFromFileCache: while creating CacheHandle instance: %w", err)
 	}
+	return fileCacheHandle, nil
 }

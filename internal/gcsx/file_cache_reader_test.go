@@ -71,8 +71,9 @@ func (t *FileCacheReaderTest) TearDownSuite() {
 }
 
 func (t *FileCacheReaderTest) TestNewFileCacheReader() {
-	reader := NewFileCacheReader(t.object, t.mockBucket, t.cacheHandler, true, nil)
+	reader, err := NewFileCacheReader(t.object, t.mockBucket, t.cacheHandler, true, nil, 0)
 
+	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), reader)
 	assert.Equal(t.T(), t.object, reader.obj)
 	assert.Equal(t.T(), t.mockBucket, reader.bucket)
