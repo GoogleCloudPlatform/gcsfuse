@@ -35,7 +35,7 @@ type FileCacheReader struct {
 
 	// fileCacheHandle is used to read from the cached location. It is created on the fly
 	// using fileCacheHandler for the given object and bucket.
-	fileCacheHandle file.CacheHandlerInterface
+	fileCacheHandle file.CacheHandleInterface
 
 	metricHandle common.MetricHandle
 }
