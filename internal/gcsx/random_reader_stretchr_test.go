@@ -123,6 +123,41 @@ func (t *RandomReaderStretchrTest) Test_ReadInfo() {
 	}
 }
 
+func (t *RandomReaderStretchrTest) Test_IsStale() {
+	t.object.Generation = 1234
+	testCases := []struct {
+		name          string
+		srcGeneration int64
+		res           bool
+	}{
+		{
+			name:          "ReaderIsStale",
+			srcGeneration: 1235,
+			res:           true,
+		},
+		{
+			name:          "ReaderIsNotStale",
+			srcGeneration: 1234,
+			res:           false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			assert.Equal(t.T(), tc.res, t.rr.wrapped.IsStale(tc.srcGeneration))
+		})
+	}
+}
+
+func (t *RandomReaderStretchrTest) Test_UpdateReaderObjectSizeToSrcSizeReturnsCorrectSizeOnReaderObject() {
+	t.object.Size = 1024
+	newSize := 2048
+
+	t.rr.wrapped.UpdateReaderObjectSizeToSrcSize(uint64(newSize))
+
+	assert.Equal(t.T(), uint64(newSize), t.rr.wrapped.object.Size)
+}
+
 func (t *RandomReaderStretchrTest) Test_ReadInfo_Sequential() {
 	var testCases = []struct {
 		testName    string
