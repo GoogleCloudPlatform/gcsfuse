@@ -17,10 +17,8 @@ package gcsx
 import (
 	"fmt"
 	"os"
-	"path"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file/downloader"
@@ -46,9 +44,9 @@ type FileCacheReaderTest struct {
 	mockBucket         *storage.TestifyMockBucket
 	cacheDir           string
 	jobManager         *downloader.JobManager
-	mockCacheHandler   file.CacheHandlerInterface
-	mockCacheHandle    file.CacheHandleInterface
-	mockMetricsHandler common.MetricHandle
+	mockCacheHandler   *file.MockCacheHandler
+	mockCacheHandle    *file.MockCacheHandle
+	mockMetricsHandler *common.MockMetricHandle
 }
 
 func TestFileCacheReaderTestSuite(t *testing.T) {
@@ -62,10 +60,7 @@ func (t *FileCacheReaderTest) SetupTest() {
 		Generation: 1234,
 	}
 	t.mockBucket = new(storage.TestifyMockBucket)
-	t.cacheDir = path.Join(os.Getenv("HOME"), "test_cache_dir")
-	lruCache := lru.NewCache(CacheMaxSize)
-	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, sequentialReadSizeInMb, &cfg.FileCacheConfig{EnableCrc: false}, nil)
-	t.mockCacheHandler = new(file.MockFileCacheHandler)
+	t.mockCacheHandler = new(file.MockCacheHandler)
 	t.mockCacheHandle = new(file.MockCacheHandle)
 	t.mockMetricsHandler = new(common.MockMetricHandle)
 }
@@ -78,11 +73,9 @@ func (t *FileCacheReaderTest) TearDown() {
 }
 
 func (t *FileCacheReaderTest) TestNewFileCacheReader_Success() {
-	// Define a mock CacheHandle to be returned by the mock CacheHandler
-	mockFileCacheHandler := new(file.MockFileCacheHandler)
-	mockFileCacheHandler.On("GetCacheHandle", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(t.mockCacheHandle, nil)
+	t.mockCacheHandler.On("GetCacheHandle", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(t.mockCacheHandle, nil)
 
-	reader, err := NewFileCacheReader(t.object, t.mockBucket, mockFileCacheHandler, true, nil, 0)
+	reader, err := NewFileCacheReader(t.object, t.mockBucket, t.mockCacheHandler, true, nil, 0)
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), reader)
@@ -124,10 +117,10 @@ func (t *FileCacheReaderTest) Test_NewFileCacheReader_GetCacheHandleErrors() {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func() {
-			mockCacheHandler := new(file.MockFileCacheHandler)
-			mockCacheHandler.On("GetCacheHandle", t.object, t.mockBucket, tc.cacheForRangeRead, int64(0)).Return(nil, tc.mockErr)
+			t.SetupTest()
+			t.mockCacheHandler.On("GetCacheHandle", t.object, t.mockBucket, tc.cacheForRangeRead, int64(0)).Return(nil, tc.mockErr)
 
-			reader, err := NewFileCacheReader(t.object, t.mockBucket, mockCacheHandler, tc.cacheForRangeRead, t.mockMetricsHandler, 0)
+			reader, err := NewFileCacheReader(t.object, t.mockBucket, t.mockCacheHandler, tc.cacheForRangeRead, t.mockMetricsHandler, 0)
 
 			if tc.expectedErr {
 				assert.Error(t.T(), err)
@@ -137,7 +130,7 @@ func (t *FileCacheReaderTest) Test_NewFileCacheReader_GetCacheHandleErrors() {
 				assert.NotNil(t.T(), reader)
 			}
 			// Verify mocks
-			mockCacheHandler.AssertExpectations(t.T())
+			t.mockCacheHandler.AssertExpectations(t.T())
 		})
 	}
 }
