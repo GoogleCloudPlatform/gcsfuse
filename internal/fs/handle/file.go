@@ -197,11 +197,13 @@ func (fh *FileHandle) tryEnsureReader(ctx context.Context, sequentialReadSizeMb 
 		if fh.reader.IsStale(srcGen.Object) {
 			fh.reader.Destroy()
 			fh.reader = nil
-		} else if fh.inode.Bucket().BucketType().Zonal && fh.inode.IsUsingBWH() {
+		} else {
 			// If we know the reader is not stale, we should update the reader's object
 			// size to f.src.Size. For Zonal Objects with streaming writes f.src.Size changes
 			// even when generation of Object doesn't change.
-			fh.reader.UpdateReaderObjectSizeToSrcSize(srcGen.Size)
+			if fh.inode.Bucket().BucketType().Zonal && fh.inode.IsUsingBWH() {
+				fh.reader.UpdateReaderObjectSizeToSrcSize(srcGen.Size)
+			}
 			return
 		}
 	}
