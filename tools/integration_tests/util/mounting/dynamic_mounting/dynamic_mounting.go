@@ -129,6 +129,7 @@ func CreateTestBucketForDynamicMounting(ctx context.Context, client *storage.Cli
 		}
 	}
 
+	fmt.Printf("Creating ZB %q for testing in location %q ...\n", testBucketForDynamicMounting, storageClassAndLocation.Location) 
 	bucket := client.Bucket(testBucketForDynamicMounting)
 	if err := bucket.Create(ctx, projectID, storageClassAndLocation); err != nil {
 		log.Fatalf("DynamicBucket(%q).Create: %v", testBucketForDynamicMounting, err)
