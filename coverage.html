@@ -1,0 +1,1026 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>gcsx: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">/usr/local/google/home/tulsishah/gcsfuse/internal/gcsx/multi_range_downloader_wrapper.go (83.3%)</option>
+				
+				<option value="file1">/usr/local/google/home/tulsishah/gcsfuse/internal/gcsx/random_reader.go (91.7%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package gcsx
+
+import (
+        "bytes"
+        "fmt"
+        "io"
+        "sync"
+        "time"
+
+        "github.com/google/uuid"
+        "github.com/googlecloudplatform/gcsfuse/v2/common"
+        "github.com/googlecloudplatform/gcsfuse/v2/internal/clock"
+        "github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
+        "github.com/googlecloudplatform/gcsfuse/v2/internal/monitor"
+        "github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+        "golang.org/x/net/context"
+)
+
+// Timeout value which determines when the MultiRangeDownloader will be closed after
+// it's refcount reaches 0.
+const multiRangeDownloaderTimeout = 60 * time.Second
+
+func NewMultiRangeDownloaderWrapper(bucket gcs.Bucket, object *gcs.MinObject) (MultiRangeDownloaderWrapper, error) <span class="cov8" title="1">{
+        return NewMultiRangeDownloaderWrapperWithClock(bucket, object, clock.RealClock{})
+}</span>
+
+func NewMultiRangeDownloaderWrapperWithClock(bucket gcs.Bucket, object *gcs.MinObject, clock clock.Clock) (MultiRangeDownloaderWrapper, error) <span class="cov8" title="1">{
+        if object == nil </span><span class="cov8" title="1">{
+                return MultiRangeDownloaderWrapper{}, fmt.Errorf("NewMultiRangeDownloaderWrapperWithClock: Missing MinObject")
+        }</span>
+        // In case of a local inode, MRDWrapper would be created with an empty minObject (i.e. with a minObject without any information)
+        // and when the object is actually created, MRDWrapper would be updated using SetMinObject method.
+        <span class="cov8" title="1">return MultiRangeDownloaderWrapper{
+                clock:  clock,
+                bucket: bucket,
+                object: object,
+        }, nil</span>
+}
+
+type readResult struct {
+        bytesRead int
+        err       error
+}
+
+type MultiRangeDownloaderWrapper struct {
+        // Holds the object implementing MultiRangeDownloader interface.
+        Wrapped gcs.MultiRangeDownloader
+
+        // Bucket and object details for MultiRangeDownloader.
+        // Object should not be nil.
+        object *gcs.MinObject
+        bucket gcs.Bucket
+
+        // Refcount is used to determine when to close the MultiRangeDownloader.
+        refCount int
+        // Mutex is used to synchronize access over refCount.
+        mu sync.Mutex
+        // Holds the cancel function, which can be called to cancel the cleanup function.
+        cancelCleanup context.CancelFunc
+        // Used for waiting for timeout (helps us in mocking the functionality).
+        clock clock.Clock
+}
+
+// Sets the gcs.MinObject stored in the wrapper to passed value, only if it's non nil.
+func (mrdWrapper *MultiRangeDownloaderWrapper) SetMinObject(minObj *gcs.MinObject) error <span class="cov8" title="1">{
+        if minObj == nil </span><span class="cov8" title="1">{
+                return fmt.Errorf("MultiRangeDownloaderWrapper::SetMinObject: Missing MinObject")
+        }</span>
+        <span class="cov8" title="1">mrdWrapper.object = minObj
+        return nil</span>
+}
+
+// Returns the minObject stored in MultiRangeDownloaderWrapper. Used only for unit testing.
+func (mrdWrapper *MultiRangeDownloaderWrapper) GetMinObject() *gcs.MinObject <span class="cov0" title="0">{
+        return mrdWrapper.object
+}</span>
+
+// Returns current refcount.
+func (mrdWrapper *MultiRangeDownloaderWrapper) GetRefCount() int <span class="cov8" title="1">{
+        mrdWrapper.mu.Lock()
+        defer mrdWrapper.mu.Unlock()
+        return mrdWrapper.refCount
+}</span>
+
+// Increment the refcount and cancel any running cleanup function.
+// This method should be called exactly once per user of this wrapper.
+// It has to be called before using the MultiRangeDownloader.
+func (mrdWrapper *MultiRangeDownloaderWrapper) IncrementRefCount() <span class="cov8" title="1">{
+        mrdWrapper.mu.Lock()
+        defer mrdWrapper.mu.Unlock()
+
+        mrdWrapper.refCount++
+        if mrdWrapper.cancelCleanup != nil </span><span class="cov0" title="0">{
+                mrdWrapper.cancelCleanup()
+                mrdWrapper.cancelCleanup = nil
+        }</span>
+}
+
+// Decrement the refcount. In case refcount reaches 0, cleanup the MRD.
+// Returns error on invalid usage.
+// This method should be called exactly once per user of this wrapper
+// when MultiRangeDownloader is no longer needed &amp; can be cleaned up.
+func (mrdWrapper *MultiRangeDownloaderWrapper) DecrementRefCount() (err error) <span class="cov8" title="1">{
+        mrdWrapper.mu.Lock()
+        defer mrdWrapper.mu.Unlock()
+
+        if mrdWrapper.refCount &lt;= 0 </span><span class="cov8" title="1">{
+                err = fmt.Errorf("MultiRangeDownloaderWrapper DecrementRefCount: Refcount cannot be negative")
+                return
+        }</span>
+
+        <span class="cov8" title="1">mrdWrapper.refCount--
+        if mrdWrapper.refCount == 0 &amp;&amp; mrdWrapper.Wrapped != nil </span><span class="cov8" title="1">{
+                mrdWrapper.Wrapped.Close()
+                mrdWrapper.Wrapped = nil
+                // TODO (b/391508479): Start using cleanup function when MRD recreation is handled
+                // mrdWrapper.cleanupMultiRangeDownloader()
+        }</span>
+        <span class="cov8" title="1">return</span>
+}
+
+// Spawns a cancellable go routine to close the MRD after the timeout.
+// Always call after taking MultiRangeDownloaderWrapper's mutex lock.
+func (mrdWrapper *MultiRangeDownloaderWrapper) cleanupMultiRangeDownloader() <span class="cov0" title="0">{
+        closeMRD := func(ctx context.Context) </span><span class="cov0" title="0">{
+                select </span>{
+                case &lt;-mrdWrapper.clock.After(multiRangeDownloaderTimeout):<span class="cov0" title="0">
+                        mrdWrapper.mu.Lock()
+                        defer mrdWrapper.mu.Unlock()
+
+                        if mrdWrapper.refCount == 0 &amp;&amp; mrdWrapper.Wrapped != nil </span><span class="cov0" title="0">{
+                                mrdWrapper.Wrapped.Close()
+                                mrdWrapper.Wrapped = nil
+                                mrdWrapper.cancelCleanup = nil
+                        }</span>
+                case &lt;-ctx.Done():<span class="cov0" title="0">
+                        return</span>
+                }
+        }
+
+        <span class="cov0" title="0">ctx, cancel := context.WithCancel(context.Background())
+        mrdWrapper.cancelCleanup = cancel
+        go closeMRD(ctx)</span>
+}
+
+// Ensures that MultiRangeDownloader exists, creating it if it does not exist.
+func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader() (err error) <span class="cov8" title="1">{
+        if mrdWrapper.object == nil || mrdWrapper.bucket == nil </span><span class="cov8" title="1">{
+                return fmt.Errorf("ensureMultiRangeDownloader error: Missing minObject or bucket")
+        }</span>
+
+        <span class="cov8" title="1">if mrdWrapper.Wrapped == nil </span><span class="cov8" title="1">{
+                var mrd gcs.MultiRangeDownloader
+                mrd, err = mrdWrapper.bucket.NewMultiRangeDownloader(context.Background(), &amp;gcs.MultiRangeDownloaderRequest{
+                        Name:           mrdWrapper.object.Name,
+                        Generation:     mrdWrapper.object.Generation,
+                        ReadCompressed: mrdWrapper.object.HasContentEncodingGzip(),
+                })
+                if err == nil </span><span class="cov8" title="1">{
+                        // Updating mrdWrapper.Wrapped only when MRD creation was successful.
+                        mrdWrapper.Wrapped = mrd
+                }</span>
+        }
+        <span class="cov8" title="1">return</span>
+}
+
+// Reads the data using MultiRangeDownloader.
+func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []byte,
+        startOffset int64, endOffset int64, timeout time.Duration, metricHandle common.MetricHandle) (bytesRead int, err error) <span class="cov8" title="1">{
+        // Bidi Api with 0 as read_limit means no limit whereas we do not want to read anything with empty buffer.
+        // Hence, handling it separately.
+        if len(buf) == 0 </span><span class="cov8" title="1">{
+                return 0, nil
+        }</span>
+
+        <span class="cov8" title="1">err = mrdWrapper.ensureMultiRangeDownloader()
+        if err != nil </span><span class="cov8" title="1">{
+                err = fmt.Errorf("MultiRangeDownloaderWrapper::Read: Error in creating MultiRangeDownloader:  %v", err)
+                return
+        }</span>
+
+        // We will only read what is requested by the client. Hence, capping end to the requested value.
+        <span class="cov8" title="1">if endOffset &gt; startOffset+int64(len(buf)) </span><span class="cov8" title="1">{
+                endOffset = startOffset + int64(len(buf))
+        }</span>
+
+        <span class="cov8" title="1">buffer := bytes.NewBuffer(buf)
+        buffer.Reset()
+        done := make(chan readResult, 1)
+
+        mu := sync.Mutex{}
+        defer func() </span><span class="cov8" title="1">{
+                mu.Lock()
+                close(done)
+                done = nil
+                mu.Unlock()
+        }</span>()
+
+        <span class="cov8" title="1">requestId := uuid.New()
+        logger.Tracef("%.13v &lt;- MultiRangeDownloader::Add (%s, [%d, %d))", requestId, mrdWrapper.object.Name, startOffset, endOffset)
+        start := time.Now()
+        mrdWrapper.Wrapped.Add(buffer, startOffset, endOffset-startOffset, func(offsetAddCallback int64, bytesReadAddCallback int64, e error) </span><span class="cov8" title="1">{
+                defer func() </span><span class="cov8" title="1">{
+                        mu.Lock()
+                        if done != nil </span><span class="cov8" title="1">{
+                                done &lt;- readResult{bytesRead: int(bytesReadAddCallback), err: e}
+                        }</span>
+                        <span class="cov8" title="1">mu.Unlock()</span>
+                }()
+
+                <span class="cov8" title="1">if e != nil &amp;&amp; e != io.EOF </span><span class="cov8" title="1">{
+                        e = fmt.Errorf("Error in Add Call: %w", e)
+                }</span>
+        })
+
+        <span class="cov8" title="1">select </span>{
+        case &lt;-time.After(timeout):<span class="cov8" title="1">
+                err = fmt.Errorf("Timeout")</span>
+        case &lt;-ctx.Done():<span class="cov8" title="1">
+                err = fmt.Errorf("Context Cancelled: %w", ctx.Err())</span>
+        case res := &lt;-done:<span class="cov8" title="1">
+                bytesRead = res.bytesRead
+                err = res.err</span>
+        }
+        <span class="cov8" title="1">duration := time.Since(start)
+        monitor.CaptureMultiRangeDownloaderMetrics(ctx, metricHandle, "MultiRangeDownloader::Add", start)
+        errDesc := "OK"
+        if err != nil </span><span class="cov8" title="1">{
+                errDesc = err.Error()
+                err = fmt.Errorf("MultiRangeDownloaderWrapper::Read: %w", err)
+                logger.Errorf("%v", err)
+        }</span>
+        <span class="cov8" title="1">logger.Tracef("%.13v -&gt; MultiRangeDownloader::Add (%s, [%d, %d)) (%v): %v", requestId, mrdWrapper.object.Name, startOffset, endOffset, duration, errDesc)
+        return</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">// Copyright 2015 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package gcsx
+
+import (
+        "errors"
+        "fmt"
+        "io"
+        "math"
+        "strconv"
+        "strings"
+        "time"
+
+        "github.com/google/uuid"
+        "github.com/googlecloudplatform/gcsfuse/v2/common"
+        "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
+        "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
+        cacheutil "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
+        "github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
+        "github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
+        "github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+        "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+        "github.com/jacobsa/fuse/fuseops"
+        "golang.org/x/net/context"
+)
+
+// MB is 1 Megabyte. (Silly comment to make the lint warning go away)
+const MB = 1 &lt;&lt; 20
+
+// Min read size in bytes for random reads.
+// We will not send a request to GCS for less than this many bytes (unless the
+// end of the object comes first).
+const minReadSize = MB
+
+// Max read size in bytes for random reads.
+// If the average read size (between seeks) is below this number, reads will
+// optimised for random access.
+// We will skip forwards in a GCS response at most this many bytes.
+// About 6 MB of data is buffered anyway, so 8 MB seems like a good round number.
+const maxReadSize = 8 * MB
+
+// Minimum number of seeks before evaluating if the read pattern is random.
+const minSeeksForRandom = 2
+
+// "readOp" is the value used in read context to store pointer to the read operation.
+const ReadOp = "readOp"
+
+// TODO(b/385826024): Revert timeout to an appropriate value
+const TimeoutForMultiRangeRead = time.Hour
+
+// RandomReader is an object that knows how to read ranges within a particular
+// generation of a particular GCS object. Optimised for (large) sequential reads.
+//
+// Not safe for concurrent access.
+//
+// TODO - (raj-prince) - Rename this with appropriate name as it also started
+// fulfilling the responsibility of reading object's content from cache.
+type RandomReader interface {
+        // Panic if any internal invariants are violated.
+        CheckInvariants()
+
+        // ReadAt returns the data from the requested offset and upto the size of input
+        // byte array. It either populates input array i.e., p or returns a different
+        // byte array. In case input array is populated, the same array will be returned
+        // as part of response. Hence the callers should use the byte array returned
+        // as part of response always.
+        ReadAt(ctx context.Context, p []byte, offset int64) (objectData ObjectData, err error)
+
+        // Return the record for the object to which the reader is bound.
+        Object() (o *gcs.MinObject)
+
+        // Clean up any resources associated with the reader, which must not be used
+        // again.
+        Destroy()
+}
+
+// ObjectData specifies the response returned as part of ReadAt call.
+type ObjectData struct {
+        // Byte array populated with the requested data.
+        DataBuf []byte
+        // Size of the data returned.
+        Size int
+        // Specified whether data is served from cache or not.
+        CacheHit bool
+}
+
+// ReaderType represents different types of go-sdk gcs readers.
+// For eg: NewReader and MRD both point to bidi read api. This enum specifies
+// the go-sdk type.
+type ReaderType int
+
+// ReaderType enum values.
+const (
+        // RangeReader corresponds to NewReader method in bucket_handle.go
+        RangeReader ReaderType = iota
+        // MultiRangeReader corresponds to NewMultiRangeDownloader method in bucket_handle.go
+        MultiRangeReader
+)
+
+// NewRandomReader create a random reader for the supplied object record that
+// reads using the given bucket.
+func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper) RandomReader <span class="cov8" title="1">{
+        return &amp;randomReader{
+                object:                o,
+                bucket:                bucket,
+                start:                 -1,
+                limit:                 -1,
+                seeks:                 0,
+                totalReadBytes:        0,
+                readType:              util.Sequential,
+                sequentialReadSizeMb:  sequentialReadSizeMb,
+                fileCacheHandler:      fileCacheHandler,
+                cacheFileForRangeRead: cacheFileForRangeRead,
+                mrdWrapper:            mrdWrapper,
+                metricHandle:          metricHandle,
+        }
+}</span>
+
+type randomReader struct {
+        object *gcs.MinObject
+        bucket gcs.Bucket
+
+        // If non-nil, an in-flight read request and a function for cancelling it.
+        //
+        // INVARIANT: (reader == nil) == (cancel == nil)
+        reader gcs.StorageReader
+        cancel func()
+
+        // The range of the object that we expect reader to yield, when reader is
+        // non-nil. When reader is nil, limit is the limit of the previous read
+        // operation, or -1 if there has never been one.
+        //
+        // INVARIANT: start &lt;= limit
+        // INVARIANT: limit &lt; 0 implies reader != nil
+        // All these properties will be used only in case of GCS reads and not for
+        // reads from cache.
+        start          int64
+        limit          int64
+        seeks          uint64
+        totalReadBytes uint64
+
+        // ReadType of the reader. Will be sequential by default.
+        readType string
+
+        sequentialReadSizeMb int32
+
+        // fileCacheHandler is used to get file cache handle and read happens using that.
+        // This will be nil if the file cache is disabled.
+        fileCacheHandler *file.CacheHandler
+
+        // cacheFileForRangeRead is also valid for cache workflow, if true, object content
+        // will be downloaded for random reads as well too.
+        cacheFileForRangeRead bool
+
+        // fileCacheHandle is used to read from the cached location. It is created on the fly
+        // using fileCacheHandler for the given object and bucket.
+        fileCacheHandle *file.CacheHandle
+
+        // Stores the handle associated with the previously closed newReader instance.
+        // This will be used while making the new connection to bypass auth and metadata
+        // checks.
+        readHandle []byte
+
+        // mrdWrapper points to the wrapper object within inode.
+        mrdWrapper *MultiRangeDownloaderWrapper
+
+        // boolean variable to determine if MRD is being used or not.
+        isMRDInUse bool
+
+        metricHandle common.MetricHandle
+}
+
+func (rr *randomReader) CheckInvariants() <span class="cov8" title="1">{
+        // INVARIANT: (reader == nil) == (cancel == nil)
+        if (rr.reader == nil) != (rr.cancel == nil) </span><span class="cov0" title="0">{
+                panic(fmt.Sprintf("Mismatch: %v vs. %v", rr.reader == nil, rr.cancel == nil))</span>
+        }
+
+        // INVARIANT: start &lt;= limit
+        <span class="cov8" title="1">if !(rr.start &lt;= rr.limit) </span><span class="cov0" title="0">{
+                panic(fmt.Sprintf("Unexpected range: [%d, %d)", rr.start, rr.limit))</span>
+        }
+
+        // INVARIANT: limit &lt; 0 implies reader != nil
+        <span class="cov8" title="1">if rr.limit &lt; 0 &amp;&amp; rr.reader != nil </span><span class="cov0" title="0">{
+                panic(fmt.Sprintf("Unexpected non-nil reader with limit == %d", rr.limit))</span>
+        }
+}
+
+// tryReadingFromFileCache creates the cache handle first if it doesn't exist already
+// and then use that handle to read object's content which is cached in local file.
+// For the successful read, it returns number of bytes read, and a boolean representing
+// cacheHit as true.
+// For unsuccessful read, returns cacheHit as false, in this case content
+// should be read from GCS.
+// And it returns non-nil error in case something unexpected happens during the execution.
+// In this case, we must abort the Read operation.
+//
+// Important: What happens if the file in cache deleted externally?
+// That means, we have fileInfo entry in the fileInfoCache for that deleted file.
+// (a) If a new fileCacheHandle is created in that case it will return FileNotPresentInCache
+// error, given by fileCacheHandler.GetCacheHandle().
+// (b) If there is already an open fileCacheHandle then it means there is an open
+// fileHandle to file in cache. So, we will get the correct data from fileHandle
+// because Linux does not delete a file until open fileHandle count for a file is zero.
+func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
+        p []byte,
+        offset int64) (n int, cacheHit bool, err error) <span class="cov8" title="1">{
+
+        if rr.fileCacheHandler == nil </span><span class="cov8" title="1">{
+                return
+        }</span>
+
+        // By default, consider read type random if the offset is non-zero.
+        <span class="cov8" title="1">isSeq := offset == 0
+
+        // Request log and start the execution timer.
+        requestId := uuid.New()
+        readOp := ctx.Value(ReadOp).(*fuseops.ReadFileOp)
+        logger.Tracef("%.13v &lt;- FileCache(%s:/%s, offset: %d, size: %d handle: %d)", requestId, rr.bucket.Name(), rr.object.Name, offset, len(p), readOp.Handle)
+        startTime := time.Now()
+
+        // Response log
+        defer func() </span><span class="cov8" title="1">{
+                executionTime := time.Since(startTime)
+                var requestOutput string
+                if err != nil </span><span class="cov8" title="1">{
+                        requestOutput = fmt.Sprintf("err: %v (%v)", err, executionTime)
+                }</span> else<span class="cov8" title="1"> {
+                        if rr.fileCacheHandle != nil </span><span class="cov8" title="1">{
+                                isSeq = rr.fileCacheHandle.IsSequential(offset)
+                        }</span>
+                        <span class="cov8" title="1">requestOutput = fmt.Sprintf("OK (isSeq: %t, hit: %t) (%v)", isSeq, cacheHit, executionTime)</span>
+                }
+
+                // Here rr.fileCacheHandle will not be nil since we return from the above in those cases.
+                <span class="cov8" title="1">logger.Tracef("%.13v -&gt; %s", requestId, requestOutput)
+
+                readType := util.Random
+                if isSeq </span><span class="cov8" title="1">{
+                        readType = util.Sequential
+                }</span>
+                <span class="cov8" title="1">captureFileCacheMetrics(ctx, rr.metricHandle, readType, n, cacheHit, executionTime)</span>
+        }()
+
+        // Create fileCacheHandle if not already.
+        <span class="cov8" title="1">if rr.fileCacheHandle == nil </span><span class="cov8" title="1">{
+                rr.fileCacheHandle, err = rr.fileCacheHandler.GetCacheHandle(rr.object, rr.bucket, rr.cacheFileForRangeRead, offset)
+                if err != nil </span><span class="cov8" title="1">{
+                        // We fall back to GCS if file size is greater than the cache size
+                        if strings.Contains(err.Error(), lru.InvalidEntrySizeErrorMsg) </span><span class="cov0" title="0">{
+                                logger.Warnf("tryReadingFromFileCache: while creating CacheHandle: %v", err)
+                                return 0, false, nil
+                        }</span> else<span class="cov8" title="1"> if strings.Contains(err.Error(), cacheutil.CacheHandleNotRequiredForRandomReadErrMsg) </span><span class="cov8" title="1">{
+                                // Fall back to GCS if it is a random read, cacheFileForRangeRead is
+                                // False and there doesn't already exist file in cache.
+                                //isSeq = false
+                                return 0, false, nil
+                        }</span>
+
+                        <span class="cov8" title="1">return 0, false, fmt.Errorf("tryReadingFromFileCache: while creating CacheHandle instance: %w", err)</span>
+                }
+        }
+
+        <span class="cov8" title="1">n, cacheHit, err = rr.fileCacheHandle.Read(ctx, rr.bucket, rr.object, offset, p)
+        if err == nil </span><span class="cov8" title="1">{
+                return
+        }</span>
+
+        <span class="cov8" title="1">cacheHit = false
+        n = 0
+
+        if cacheutil.IsCacheHandleInvalid(err) </span><span class="cov8" title="1">{
+                logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", rr.fileCacheHandle, rr.bucket.Name(), rr.object.Name)
+                err = rr.fileCacheHandle.Close()
+                if err != nil </span><span class="cov0" title="0">{
+                        logger.Warnf("tryReadingFromFileCache: while closing fileCacheHandle: %v", err)
+                }</span>
+                <span class="cov8" title="1">rr.fileCacheHandle = nil</span>
+        } else<span class="cov8" title="1"> if !strings.Contains(err.Error(), cacheutil.FallbackToGCSErrMsg) </span><span class="cov0" title="0">{
+                err = fmt.Errorf("tryReadingFromFileCache: while reading via cache: %w", err)
+                return
+        }</span>
+        <span class="cov8" title="1">err = nil
+
+        return</span>
+}
+
+func captureFileCacheMetrics(ctx context.Context, metricHandle common.MetricHandle, readType string, readDataSize int, cacheHit bool, readLatency time.Duration) <span class="cov8" title="1">{
+        metricHandle.FileCacheReadCount(ctx, 1, []common.MetricAttr{
+                {Key: common.ReadType, Value: readType},
+                {Key: common.CacheHit, Value: strconv.FormatBool(cacheHit)},
+        })
+
+        metricHandle.FileCacheReadBytesCount(ctx, int64(readDataSize), []common.MetricAttr{{Key: common.ReadType, Value: readType}})
+        metricHandle.FileCacheReadLatency(ctx, float64(readLatency.Microseconds()), []common.MetricAttr{{Key: common.CacheHit, Value: strconv.FormatBool(cacheHit)}})
+}</span>
+
+func (rr *randomReader) ReadAt(
+        ctx context.Context,
+        p []byte,
+        offset int64) (objectData ObjectData, err error) <span class="cov8" title="1">{
+        objectData = ObjectData{
+                DataBuf:  p,
+                CacheHit: false,
+                Size:     0,
+        }
+
+        if offset &gt;= int64(rr.object.Size) </span><span class="cov8" title="1">{
+                err = io.EOF
+                return
+        }</span>
+
+        // Note: If we are reading the file for the first time and read type is sequential
+        // then the file cache behavior is write-through i.e. data is first read from
+        // GCS, cached in file and then served from that file. But the cacheHit is
+        // false in that case.
+        <span class="cov8" title="1">n, cacheHit, err := rr.tryReadingFromFileCache(ctx, p, offset)
+        if err != nil </span><span class="cov8" title="1">{
+                err = fmt.Errorf("ReadAt: while reading from cache: %w", err)
+                return
+        }</span>
+        // Data was served from cache.
+        <span class="cov8" title="1">if cacheHit || n == len(p) || (n &lt; len(p) &amp;&amp; uint64(offset)+uint64(n) == rr.object.Size) </span><span class="cov8" title="1">{
+                objectData.CacheHit = cacheHit
+                objectData.Size = n
+                return
+        }</span>
+
+        // Check first if we can read using existing reader. if not, determine which
+        // api to use and call gcs accordingly.
+
+        // When the offset is AFTER the reader position, try to seek forward, within reason.
+        // This happens when the kernel page cache serves some data. It's very common for
+        // concurrent reads, often by only a few 128kB fuse read requests. The aim is to
+        // re-use GCS connection and avoid throwing away already read data.
+        // For parallel sequential reads to a single file, not throwing away the connections
+        // is a 15-20x improvement in throughput: 150-200 MB/s instead of 10 MB/s.
+        <span class="cov8" title="1">if rr.reader != nil &amp;&amp; rr.start &lt; offset &amp;&amp; offset-rr.start &lt; maxReadSize </span><span class="cov8" title="1">{
+                bytesToSkip := offset - rr.start
+                discardedBytes, copyError := io.CopyN(io.Discard, rr.reader, int64(bytesToSkip))
+                // io.EOF is expected if the reader is shorter than the requested offset to read.
+                if copyError != nil &amp;&amp; !errors.Is(copyError, io.EOF) </span><span class="cov0" title="0">{
+                        logger.Warnf("Error while skipping reader bytes: %v", copyError)
+                }</span>
+                <span class="cov8" title="1">rr.start += discardedBytes</span>
+        }
+
+        // If we have an existing reader, but it's positioned at the wrong place,
+        // clean it up and throw it away.
+        // We will also clean up the existing reader if it can't serve the entire request.
+        <span class="cov8" title="1">dataToRead := math.Min(float64(offset+int64(len(p))), float64(rr.object.Size))
+        if rr.reader != nil &amp;&amp; (rr.start != offset || int64(dataToRead) &gt; rr.limit) </span><span class="cov8" title="1">{
+                rr.closeReader()
+                rr.reader = nil
+                rr.cancel = nil
+                if rr.start != offset </span><span class="cov8" title="1">{
+                        // We should only increase the seek count if we have to discard the reader when it's
+                        // positioned at wrong place. Discarding it if can't serve the entire request would
+                        // result in reader size not growing for random reads scenario.
+                        rr.seeks++
+                }</span>
+        }
+
+        <span class="cov8" title="1">if rr.reader != nil </span><span class="cov8" title="1">{
+                objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, -1, rr.readType)
+                return
+        }</span>
+
+        // If we don't have a reader, determine whether to read from NewReader or MRR.
+        <span class="cov8" title="1">end, err := rr.getReadInfo(offset, int64(len(p)))
+        if err != nil </span><span class="cov8" title="1">{
+                err = fmt.Errorf("ReadAt: getReaderInfo: %w", err)
+                return
+        }</span>
+
+        <span class="cov8" title="1">readerType := readerType(rr.readType, offset, end, rr.bucket.BucketType())
+        if readerType == RangeReader </span><span class="cov8" title="1">{
+                objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, end, rr.readType)
+                return
+        }</span>
+
+        <span class="cov8" title="1">objectData.Size, err = rr.readFromMultiRangeReader(ctx, p, offset, end, TimeoutForMultiRangeRead)
+        return</span>
+}
+
+func (rr *randomReader) Object() (o *gcs.MinObject) <span class="cov0" title="0">{
+        o = rr.object
+        return
+}</span>
+
+func (rr *randomReader) Destroy() <span class="cov8" title="1">{
+        defer func() </span><span class="cov8" title="1">{
+                if rr.isMRDInUse </span><span class="cov8" title="1">{
+                        err := rr.mrdWrapper.DecrementRefCount()
+                        if err != nil </span><span class="cov0" title="0">{
+                                logger.Errorf("randomReader::Destroy:%v", err)
+                        }</span>
+                        <span class="cov8" title="1">rr.isMRDInUse = false</span>
+                }
+        }()
+
+        // Close out the reader, if we have one.
+        <span class="cov8" title="1">if rr.reader != nil </span><span class="cov8" title="1">{
+                rr.closeReader()
+                rr.reader = nil
+                rr.cancel = nil
+        }</span>
+
+        <span class="cov8" title="1">if rr.fileCacheHandle != nil </span><span class="cov8" title="1">{
+                logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", rr.fileCacheHandle, rr.bucket.Name(), rr.object.Name)
+                err := rr.fileCacheHandle.Close()
+                if err != nil </span><span class="cov0" title="0">{
+                        logger.Warnf("rr.Destroy(): while closing cacheFileHandle: %v", err)
+                }</span>
+                <span class="cov8" title="1">rr.fileCacheHandle = nil</span>
+        }
+}
+
+// Like io.ReadFull, but deals with the cancellation issues.
+//
+// REQUIRES: rr.reader != nil
+func (rr *randomReader) readFull(
+        ctx context.Context,
+        p []byte) (n int, err error) <span class="cov8" title="1">{
+        // Start a goroutine that will cancel the read operation we block on below if
+        // the calling context is cancelled, but only if this method has not already
+        // returned (to avoid souring the reader for the next read if this one is
+        // successful, since the calling context will eventually be cancelled).
+        readDone := make(chan struct{})
+        defer close(readDone)
+
+        go func() </span><span class="cov8" title="1">{
+                select </span>{
+                case &lt;-readDone:<span class="cov8" title="1">
+                        return</span>
+
+                case &lt;-ctx.Done():<span class="cov8" title="1">
+                        select </span>{
+                        case &lt;-readDone:<span class="cov8" title="1">
+                                return</span>
+
+                        default:<span class="cov8" title="1">
+                                rr.cancel()</span>
+                        }
+                }
+        }()
+
+        // Call through.
+        <span class="cov8" title="1">n, err = io.ReadFull(rr.reader, p)
+
+        return</span>
+}
+
+// Ensure that rr.reader is set up for a range for which [start, start+size) is
+// a prefix. Irrespective of the size requested, we try to fetch more data
+// from GCS defined by sequentialReadSizeMb flag to serve future read requests.
+func (rr *randomReader) startRead(start int64, end int64) (err error) <span class="cov8" title="1">{
+        // Begin the read.
+        ctx, cancel := context.WithCancel(context.Background())
+
+        rc, err := rr.bucket.NewReaderWithReadHandle(
+                ctx,
+                &amp;gcs.ReadObjectRequest{
+                        Name:       rr.object.Name,
+                        Generation: rr.object.Generation,
+                        Range: &amp;gcs.ByteRange{
+                                Start: uint64(start),
+                                Limit: uint64(end),
+                        },
+                        ReadCompressed: rr.object.HasContentEncodingGzip(),
+                        ReadHandle:     rr.readHandle,
+                })
+
+        // If a file handle is open locally, but the corresponding object doesn't exist
+        // in GCS, it indicates a file clobbering scenario. This likely occurred because:
+        //  - The file was deleted in GCS while a local handle was still open.
+        //  - The file content was modified leading to different generation number.
+        var notFoundError *gcs.NotFoundError
+        if errors.As(err, &amp;notFoundError) </span><span class="cov8" title="1">{
+                err = &amp;gcsfuse_errors.FileClobberedError{
+                        Err: fmt.Errorf("NewReader: %w", err),
+                }
+                return
+        }</span>
+
+        <span class="cov8" title="1">if err != nil </span><span class="cov8" title="1">{
+                err = fmt.Errorf("NewReaderWithReadHandle: %w", err)
+                return
+        }</span>
+
+        <span class="cov8" title="1">rr.reader = rc
+        rr.cancel = cancel
+        rr.start = start
+        rr.limit = end
+
+        requestedDataSize := end - start
+        common.CaptureGCSReadMetrics(ctx, rr.metricHandle, util.Sequential, requestedDataSize)
+
+        return</span>
+}
+
+// getReaderInfo determines the readType and provides the range to query GCS.
+// Range here is [start, end]. End is computed using the readType, start offset
+// and size of the data the callers needs.
+func (rr *randomReader) getReadInfo(
+        start int64,
+        size int64) (end int64, err error) <span class="cov8" title="1">{
+        // Make sure start and size are legal.
+        if start &lt; 0 || uint64(start) &gt; rr.object.Size || size &lt; 0 </span><span class="cov8" title="1">{
+                err = fmt.Errorf(
+                        "range [%d, %d) is illegal for %d-byte object",
+                        start,
+                        start+size,
+                        rr.object.Size)
+                return
+        }</span>
+
+        <span class="cov8" title="1">if err != nil </span><span class="cov0" title="0">{
+                return
+        }</span>
+
+        // GCS requests are expensive. Prefer to issue read requests defined by
+        // sequentialReadSizeMb flag. Sequential reads will simply sip from the fire house
+        // with each call to ReadAt. In practice, GCS will fill the TCP buffers
+        // with about 6 MB of data. Requests from outside GCP will be charged
+        // about 6MB of egress data, even if less data is read. Inside GCP
+        // regions, GCS egress is free. This logic should limit the number of
+        // GCS read requests, which are not free.
+
+        // But if we notice random read patterns after a minimum number of seeks,
+        // optimise for random reads. Random reads will read data in chunks of
+        // (average read size in bytes rounded up to the next MB).
+        <span class="cov8" title="1">end = int64(rr.object.Size)
+        if rr.seeks &gt;= minSeeksForRandom </span><span class="cov8" title="1">{
+                rr.readType = util.Random
+                averageReadBytes := rr.totalReadBytes / rr.seeks
+                if averageReadBytes &lt; maxReadSize </span><span class="cov8" title="1">{
+                        randomReadSize := int64(((averageReadBytes / MB) + 1) * MB)
+                        if randomReadSize &lt; minReadSize </span><span class="cov0" title="0">{
+                                randomReadSize = minReadSize
+                        }</span>
+                        <span class="cov8" title="1">if randomReadSize &gt; maxReadSize </span><span class="cov0" title="0">{
+                                randomReadSize = maxReadSize
+                        }</span>
+                        <span class="cov8" title="1">end = start + randomReadSize</span>
+                }
+        }
+        <span class="cov8" title="1">if end &gt; int64(rr.object.Size) </span><span class="cov8" title="1">{
+                end = int64(rr.object.Size)
+        }</span>
+
+        // To avoid overloading GCS and to have reasonable latencies, we will only
+        // fetch data of max size defined by sequentialReadSizeMb.
+        <span class="cov8" title="1">maxSizeToReadFromGCS := int64(rr.sequentialReadSizeMb * MB)
+        if end-start &gt; maxSizeToReadFromGCS </span><span class="cov8" title="1">{
+                end = start + maxSizeToReadFromGCS
+        }</span>
+
+        <span class="cov8" title="1">return</span>
+}
+
+// readerType specifies the go-sdk interface to use for reads.
+func readerType(readType string, start int64, end int64, bucketType gcs.BucketType) ReaderType <span class="cov8" title="1">{
+        bytesToBeRead := end - start
+        if readType == util.Random &amp;&amp; bytesToBeRead &lt; maxReadSize &amp;&amp; bucketType.Zonal </span><span class="cov8" title="1">{
+                return MultiRangeReader
+        }</span>
+        <span class="cov8" title="1">return RangeReader</span>
+}
+
+// readFromRangeReader reads using the NewReader interface of go-sdk. Its uses
+// the existing reader if available, otherwise makes a call to GCS.
+func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offset int64, end int64, readType string) (n int, err error) <span class="cov8" title="1">{
+        // If we don't have a reader, start a read operation.
+        if rr.reader == nil </span><span class="cov8" title="1">{
+                err = rr.startRead(offset, end)
+                if err != nil </span><span class="cov8" title="1">{
+                        err = fmt.Errorf("startRead: %w", err)
+                        return
+                }</span>
+        }
+
+        // Now we have a reader positioned at the correct place. Consume as much from
+        // it as possible.
+        <span class="cov8" title="1">n, err = rr.readFull(ctx, p)
+        rr.start += int64(n)
+        rr.totalReadBytes += uint64(n)
+
+        // Sanity check.
+        if rr.start &gt; rr.limit </span><span class="cov8" title="1">{
+                err = fmt.Errorf("Reader returned extra bytes: %d", rr.start-rr.limit)
+
+                // Don't attempt to reuse the reader when it's behaving wackily.
+                rr.closeReader()
+                rr.reader = nil
+                rr.cancel = nil
+                rr.start = -1
+                rr.limit = -1
+
+                return
+        }</span>
+
+        // Are we finished with this reader now?
+        <span class="cov8" title="1">if rr.start == rr.limit </span><span class="cov8" title="1">{
+                rr.closeReader()
+                rr.reader = nil
+                rr.cancel = nil
+        }</span>
+
+        // Handle errors.
+        <span class="cov8" title="1">switch </span>{
+        case err == io.EOF || err == io.ErrUnexpectedEOF:<span class="cov8" title="1">
+                // For a non-empty buffer, ReadFull returns EOF or ErrUnexpectedEOF only
+                // if the reader peters out early. That's fine, but it means we should
+                // have hit the limit above.
+                if rr.reader != nil </span><span class="cov8" title="1">{
+                        err = fmt.Errorf("Reader returned early by skipping %d bytes", rr.limit-rr.start)
+                        return
+                }</span>
+
+                <span class="cov8" title="1">err = nil</span>
+
+        case err != nil:<span class="cov8" title="1">
+                // Propagate other errors.
+                err = fmt.Errorf("readFull: %w", err)
+                return</span>
+        }
+
+        <span class="cov8" title="1">requestedDataSize := end - offset
+        common.CaptureGCSReadMetrics(ctx, rr.metricHandle, readType, requestedDataSize)
+
+        return</span>
+}
+
+func (rr *randomReader) readFromMultiRangeReader(ctx context.Context, p []byte, offset, end int64, timeout time.Duration) (bytesRead int, err error) <span class="cov8" title="1">{
+        if rr.mrdWrapper == nil </span><span class="cov8" title="1">{
+                return 0, fmt.Errorf("readFromMultiRangeReader: Invalid MultiRangeDownloaderWrapper")
+        }</span>
+
+        <span class="cov8" title="1">if !rr.isMRDInUse </span><span class="cov8" title="1">{
+                rr.isMRDInUse = true
+                rr.mrdWrapper.IncrementRefCount()
+        }</span>
+
+        <span class="cov8" title="1">bytesRead, err = rr.mrdWrapper.Read(ctx, p, offset, end, timeout, rr.metricHandle)
+        rr.totalReadBytes += uint64(bytesRead)
+        return</span>
+}
+
+// closeReader fetches the readHandle before closing the reader instance.
+func (rr *randomReader) closeReader() <span class="cov8" title="1">{
+        rr.readHandle = rr.reader.ReadHandle()
+        err := rr.reader.Close()
+        if err != nil </span><span class="cov0" title="0">{
+                logger.Warnf("error while closing reader: %v", err)
+        }</span>
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

@@ -55,7 +55,7 @@
 			<div id="nav">
 				<select id="files">
 				
-				<option value="file0">/usr/local/google/home/tulsishah/gcsfuse/internal/gcsx/file_cache_reader.go (98.0%)</option>
+				<option value="file0">/usr/local/google/home/tulsishah/gcsfuse/internal/gcsx/file_cache_reader.go (98.4%)</option>
 				
 				</select>
 			</div>
@@ -191,7 +191,7 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
                                 return 0, false, nil</span>
                         case errors.Is(err, cacheutil.ErrCacheHandleNotRequiredForRandomRead):<span class="cov8" title="1">
                                 return 0, false, nil</span>
-                        default:<span class="cov8" title="1">
+                        default:<span class="cov0" title="0">
                                 return 0, false, fmt.Errorf("tryReadingFromFileCache: getCacheHandle failed: %w", err)</span>
                         }
                 }
@@ -210,7 +210,7 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
                         fc.fileCacheHandle, fc.bucket.Name(), fc.obj.Name)
 
                 closeErr := fc.fileCacheHandle.Close()
-                if closeErr != nil </span><span class="cov0" title="0">{
+                if closeErr != nil </span><span class="cov8" title="1">{
                         logger.Warnf("tryReadingFromFileCache: close cacheHandle error: %v", closeErr)
                 }</span>
                 <span class="cov8" title="1">fc.fileCacheHandle = nil</span>
@@ -220,6 +220,32 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
         <span class="cov8" title="1">err = nil
 
         return 0, false, nil</span>
+}
+
+func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (ReaderResponse, error) <span class="cov8" title="1">{
+        var err error
+        o := ReaderResponse{
+                DataBuf: p,
+                Size:    0,
+        }
+
+        // Note: If we are reading the file for the first time and read type is sequential
+        // then the file cache behavior is write-through i.e. data is first read from
+        // GCS, cached in file and then served from that file. But the cacheHit is
+        // false in that case.
+        n, cacheHit, err := fc.tryReadingFromFileCache(ctx, p, offset)
+        if err != nil </span><span class="cov8" title="1">{
+                err = fmt.Errorf("ReadAt: while reading from cache: %w", err)
+                return o, err
+        }</span>
+        // Data was served from cache.
+        <span class="cov8" title="1">if cacheHit || n == len(p) || (n &lt; len(p) &amp;&amp; uint64(offset)+uint64(n) == fc.obj.Size) </span><span class="cov8" title="1">{
+                o.Size = n
+                return o, nil
+        }</span>
+
+        <span class="cov8" title="1">err = FallbackToAnotherReader
+        return o, err</span>
 }
 
 func (fc *FileCacheReader) captureFileCacheMetrics(ctx context.Context, metricHandle common.MetricHandle, readType string, readDataSize int, cacheHit bool, readLatency time.Duration) <span class="cov8" title="1">{

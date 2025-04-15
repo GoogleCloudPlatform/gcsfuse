@@ -27,4 +27,9 @@ mode: set
 /usr/local/google/home/tulsishah/gcsfuse/internal/gcsx/file_cache_reader.go:146.8,146.56 1 1
 /usr/local/google/home/tulsishah/gcsfuse/internal/gcsx/file_cache_reader.go:146.56,148.3 1 1
 /usr/local/google/home/tulsishah/gcsfuse/internal/gcsx/file_cache_reader.go:149.2,151.22 2 1
-/usr/local/google/home/tulsishah/gcsfuse/internal/gcsx/file_cache_reader.go:154.184,162.2 3 1
+/usr/local/google/home/tulsishah/gcsfuse/internal/gcsx/file_cache_reader.go:154.104,166.16 4 1
+/usr/local/google/home/tulsishah/gcsfuse/internal/gcsx/file_cache_reader.go:166.16,169.3 2 1
+/usr/local/google/home/tulsishah/gcsfuse/internal/gcsx/file_cache_reader.go:171.2,171.88 1 1
+/usr/local/google/home/tulsishah/gcsfuse/internal/gcsx/file_cache_reader.go:171.88,174.3 2 1
+/usr/local/google/home/tulsishah/gcsfuse/internal/gcsx/file_cache_reader.go:176.2,177.15 2 1
+/usr/local/google/home/tulsishah/gcsfuse/internal/gcsx/file_cache_reader.go:180.184,188.2 3 1

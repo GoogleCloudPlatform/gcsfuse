@@ -16,6 +16,7 @@ package gcsx
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -97,36 +98,49 @@ func (t *FileCacheReaderTest) TestNewFileCacheReader() {
 	assert.Nil(t.T(), reader.fileCacheHandle)
 }
 
-func (t *FileCacheReaderTest) TestTryReadingFromFileCache_NilHandler() {
+func (t *FileCacheReaderTest) TestTReadAt_ryReadingFromFileCache_NilHandler() {
 	reader := NewFileCacheReader(t.object, t.mockBucket, nil, true, nil)
-	n, hit, err := reader.tryReadingFromFileCache(context.Background(), make([]byte, 10), 0)
-	assert.NoError(t.T(), err)
-	assert.Zero(t.T(), n)
-	assert.False(t.T(), hit)
+	readerResponse, err := reader.ReadAt(t.ctx, make([]byte, 10), 0)
+
+	assert.True(t.T(), errors.Is(err, FallbackToAnotherReader))
+	assert.Zero(t.T(), readerResponse.Size)
 }
 
-func (t *FileCacheReaderTest) TestTryReadingFromFileCache_ErrorScenarios() {
+func (t *FileCacheReaderTest) TestReadAt_TryReadingFromFileCache_NotAbleToCreateCacheHandle() {
+	t.mockCacheHandler.On("GetCacheHandle", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("mock error"))
+	t.mockBucket.On("Name").Return("test-bucket")
+	t.mockMetricHandle.On("FileCacheReadCount", mock.Anything, int64(1), mock.Anything).Return()
+	t.mockMetricHandle.On("FileCacheReadBytesCount", mock.Anything, mock.AnythingOfType("int64"), mock.Anything).Return()
+	t.mockMetricHandle.On("FileCacheReadLatency", mock.Anything, mock.AnythingOfType("float64"), mock.Anything).Return()
+	reader := NewFileCacheReader(t.object, t.mockBucket, t.mockCacheHandler, true, t.mockMetricHandle)
+
+	readerResponse, err := reader.ReadAt(t.ctx, make([]byte, 10), 0)
+
+	assert.Error(t.T(), err)
+	assert.Zero(t.T(), readerResponse.Size)
+	// Verify mocks
+	t.mockCacheHandle.AssertExpectations(t.T())
+	t.mockBucket.AssertExpectations(t.T())
+	t.mockCacheHandler.AssertExpectations(t.T())
+}
+
+func (t *FileCacheReaderTest) TestReadAt_TryReadingFromFileCache_ErrorScenarios() {
 	type testCase struct {
 		name        string
 		mockErr     error
-		expectedErr bool
+		expectedErr error
 	}
 
 	cases := []testCase{
 		{
 			name:        "InvalidEntrySize - should skip cache read",
 			mockErr:     lru.ErrInvalidEntrySize,
-			expectedErr: false,
+			expectedErr: FallbackToAnotherReader,
 		},
 		{
 			name:        "CacheHandleNotRequiredForRandomRead - should skip cache read",
 			mockErr:     util.ErrCacheHandleNotRequiredForRandomRead,
-			expectedErr: false,
-		},
-		{
-			name:        "Generic handle creation error - should return error",
-			mockErr:     fmt.Errorf("mock creation error"),
-			expectedErr: true,
+			expectedErr: FallbackToAnotherReader,
 		},
 	}
 
@@ -140,15 +154,10 @@ func (t *FileCacheReaderTest) TestTryReadingFromFileCache_ErrorScenarios() {
 			t.mockMetricHandle.On("FileCacheReadLatency", mock.Anything, mock.AnythingOfType("float64"), mock.Anything).Return()
 			reader := NewFileCacheReader(t.object, t.mockBucket, t.mockCacheHandler, true, t.mockMetricHandle)
 
-			n, hit, err := reader.tryReadingFromFileCache(t.ctx, make([]byte, 10), 0)
+			readerResponse, err := reader.ReadAt(t.ctx, make([]byte, 10), 0)
 
-			if tc.expectedErr {
-				assert.Error(t.T(), err)
-			} else {
-				assert.NoError(t.T(), err)
-			}
-			assert.False(t.T(), hit)
-			assert.Zero(t.T(), n)
+			assert.Equal(t.T(), tc.expectedErr, err)
+			assert.Zero(t.T(), readerResponse.Size)
 			// Verify mocks
 			t.mockCacheHandle.AssertExpectations(t.T())
 			t.mockBucket.AssertExpectations(t.T())
@@ -157,7 +166,7 @@ func (t *FileCacheReaderTest) TestTryReadingFromFileCache_ErrorScenarios() {
 	}
 }
 
-func (t *FileCacheReaderTest) Test_TryReadingFromFileCache_fallsBackToGCS() {
+func (t *FileCacheReaderTest) Test_ReadAt_TryReadingFromFileCache_fallsBackToGCS() {
 	p1 := make([]byte, 100)
 	offset1 := int64(0)
 	t.mockBucket.On("Name").Return("test-bucket")
@@ -169,11 +178,10 @@ func (t *FileCacheReaderTest) Test_TryReadingFromFileCache_fallsBackToGCS() {
 	t.mockMetricHandle.On("FileCacheReadLatency", mock.Anything, mock.AnythingOfType("float64"), mock.Anything).Return()
 	reader := NewFileCacheReader(t.object, t.mockBucket, t.mockCacheHandler, true, t.mockMetricHandle)
 
-	n, hit, err := reader.tryReadingFromFileCache(t.ctx, p1, offset1)
+	readerResponse, err := reader.ReadAt(t.ctx, p1, offset1)
 
-	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), 0, n)
-	assert.False(t.T(), hit)
+	assert.True(t.T(), errors.Is(err, FallbackToAnotherReader))
+	assert.Zero(t.T(), readerResponse.Size)
 	// Verify mocks
 	t.mockCacheHandle.AssertExpectations(t.T())
 	t.mockCacheHandler.AssertExpectations(t.T())
@@ -181,7 +189,7 @@ func (t *FileCacheReaderTest) Test_TryReadingFromFileCache_fallsBackToGCS() {
 	t.mockBucket.AssertExpectations(t.T())
 }
 
-func (t *FileCacheReaderTest) Test_TryReadingFromFileCache_NotfallsBackToGCS() {
+func (t *FileCacheReaderTest) Test_ReadAt_TryReadingFromFileCache_NotFallsBackToGCS() {
 	p1 := make([]byte, 100)
 	offset1 := int64(0)
 	t.mockBucket.On("Name").Return("test-bucket")
@@ -193,11 +201,10 @@ func (t *FileCacheReaderTest) Test_TryReadingFromFileCache_NotfallsBackToGCS() {
 	t.mockMetricHandle.On("FileCacheReadLatency", mock.Anything, mock.AnythingOfType("float64"), mock.Anything).Return()
 	reader := NewFileCacheReader(t.object, t.mockBucket, t.mockCacheHandler, true, t.mockMetricHandle)
 
-	n, hit, err := reader.tryReadingFromFileCache(t.ctx, p1, offset1)
+	readerResponse, err := reader.ReadAt(t.ctx, p1, offset1)
 
 	assert.Error(t.T(), err)
-	assert.Equal(t.T(), 0, n)
-	assert.False(t.T(), hit)
+	assert.Zero(t.T(), readerResponse.Size)
 	// Verify mocks
 	t.mockCacheHandle.AssertExpectations(t.T())
 	t.mockCacheHandler.AssertExpectations(t.T())
@@ -205,7 +212,7 @@ func (t *FileCacheReaderTest) Test_TryReadingFromFileCache_NotfallsBackToGCS() {
 	t.mockBucket.AssertExpectations(t.T())
 }
 
-func (t *FileCacheReaderTest) Test_TryReadingFromFileCache_HandleInvalidStatesGracefully() {
+func (t *FileCacheReaderTest) Test_ReadAt_TryReadingFromFileCache_HandleInvalidStatesGracefully() {
 	type testCase struct {
 		name            string
 		readErr         error
@@ -255,11 +262,10 @@ func (t *FileCacheReaderTest) Test_TryReadingFromFileCache_HandleInvalidStatesGr
 			t.mockMetricHandle.On("FileCacheReadLatency", mock.Anything, mock.AnythingOfType("float64"), mock.Anything).Return()
 			reader := NewFileCacheReader(t.object, t.mockBucket, t.mockCacheHandler, true, t.mockMetricHandle)
 
-			n, hit, err := reader.tryReadingFromFileCache(t.ctx, buffer, offset)
+			readerResponse, err := reader.ReadAt(t.ctx, buffer, offset)
 
-			assert.NoError(t.T(), err)
-			assert.False(t.T(), hit)
-			assert.Zero(t.T(), n)
+			assert.True(t.T(), errors.Is(err, FallbackToAnotherReader))
+			assert.Zero(t.T(), readerResponse.Size)
 			assert.Nil(t.T(), reader.fileCacheHandle)
 			// Verify mocks
 			t.mockCacheHandle.AssertExpectations(t.T())
@@ -269,7 +275,7 @@ func (t *FileCacheReaderTest) Test_TryReadingFromFileCache_HandleInvalidStatesGr
 	}
 }
 
-func (t *FileCacheReaderTest) Test_TryReadingFromFileCache_ReadSuccessfully() {
+func (t *FileCacheReaderTest) Test_ReadAt_Success() {
 	type testCase struct {
 		name   string
 		offset int64
@@ -303,11 +309,10 @@ func (t *FileCacheReaderTest) Test_TryReadingFromFileCache_ReadSuccessfully() {
 			t.mockMetricHandle.On("FileCacheReadLatency", mock.Anything, mock.AnythingOfType("float64"), mock.Anything).Return()
 			reader := NewFileCacheReader(t.object, t.mockBucket, t.mockCacheHandler, true, t.mockMetricHandle)
 
-			n, hit, err := reader.tryReadingFromFileCache(t.ctx, buffer, tc.offset)
+			readerResponse, err := reader.ReadAt(t.ctx, buffer, tc.offset)
 
 			assert.NoError(t.T(), err)
-			assert.Equal(t.T(), len(buffer), n)
-			assert.True(t.T(), hit)
+			assert.Equal(t.T(), readerResponse.Size, len(buffer))
 			assert.NotNil(t.T(), reader.fileCacheHandle)
 			t.mockCacheHandle.AssertExpectations(t.T())
 			t.mockBucket.AssertExpectations(t.T())
