@@ -139,7 +139,7 @@ TEST_DIR_PARALLEL_FOR_ZB=(
   "read_large_files"
   "rename_dir_limit"
   "stale_handle"
-  # "streaming_writes"
+  "streaming_writes"
   "write_large_files"
 )
 
