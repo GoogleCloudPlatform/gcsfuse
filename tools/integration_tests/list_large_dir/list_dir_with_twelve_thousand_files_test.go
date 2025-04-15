@@ -106,7 +106,7 @@ func checkIfObjNameIsCorrect(t *testing.T, objName string, prefix string, maxNum
 	}
 }
 
-// testdataUploadFilesToBucket verifies that the object name starts with the expected prefix and ends with a valid number in range [1, maxNumber].
+// testdataUploadFilesToBucket uploads matching files from a local directory to a specified path in a GCS bucket.
 func testdataUploadFilesToBucket(ctx context.Context, t *testing.T, storageClient *storage.Client, bucketNameWithDirPath, dirWith12KFiles, filesPrefix string) {
 	t.Helper()
 
