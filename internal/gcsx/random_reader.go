@@ -35,9 +35,6 @@ import (
 	"golang.org/x/net/context"
 )
 
-// MB is 1 Megabyte. (Silly comment to make the lint warning go away)
-const MB = 1 << 20
-
 // Min read size in bytes for random reads.
 // We will not send a request to GCS for less than this many bytes (unless the
 // end of the object comes first).
@@ -52,9 +49,6 @@ const maxReadSize = 8 * MB
 
 // Minimum number of seeks before evaluating if the read pattern is random.
 const minSeeksForRandom = 2
-
-// "readOp" is the value used in read context to store pointer to the read operation.
-const ReadOp = "readOp"
 
 // TODO(b/385826024): Revert timeout to an appropriate value
 const TimeoutForMultiRangeRead = time.Hour

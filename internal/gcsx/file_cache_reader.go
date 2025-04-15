@@ -32,6 +32,13 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 )
 
+// "readOp" is the value used in read context to store pointer to the read operation.
+const (
+	ReadOp = "readOp"
+	// MB is 1 Megabyte. (Silly comment to make the lint warning go away)
+	MB = 1 << 20
+)
+
 type FileCacheReader struct {
 	Reader
 	obj    *gcs.MinObject
@@ -63,79 +70,83 @@ func NewFileCacheReader(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler fi
 }
 
 func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte, offset int64) (int, bool, error) {
-	var n int
-	var err error
-	var cacheHit bool
 	if fc.fileCacheHandler == nil {
 		return 0, false, nil
 	}
 
-	// By default, consider read type random if the offset is non-zero.
-	isSeq := offset == 0
+	isSequential := offset == 0
+	requestID := uuid.New()
 
-	// Request log and start the execution timer.
-	requestId := uuid.New()
-	readOp := ctx.Value(ReadOp).(*fuseops.ReadFileOp)
-	logger.Tracef("%.13v <- FileCache(%s:/%s, offset: %d, size: %d handle: %d)", requestId, fc.bucket.Name(), fc.obj.Name, offset, len(p), readOp.Handle)
-	startTime := time.Now()
+	var handleID uint64
+	if readOp, ok := ctx.Value(ReadOp).(*fuseops.ReadFileOp); ok {
+		handleID = uint64(readOp.Handle)
+	}
 
-	// Response log
+	logger.Tracef("%.13v <- FileCache(%s:/%s, offset: %d, size: %d, handle: %d)", requestID, fc.bucket.Name(), fc.obj.Name, offset, len(p), handleID)
+
+	start := time.Now()
+	var bytesRead int
+	var hit bool
+	var err error
+
 	defer func() {
-		executionTime := time.Since(startTime)
-		var requestOutput string
-		if err != nil {
-			requestOutput = fmt.Sprintf("err: %v (%v)", err, executionTime)
-		} else {
-			if fc.fileCacheHandle != nil {
-				isSeq = fc.fileCacheHandle.IsSequential(offset)
-			}
-			requestOutput = fmt.Sprintf("OK (isSeq: %t, hit: %t) (%v)", isSeq, cacheHit, executionTime)
-		}
+		duration := time.Since(start)
 
-		// Here rr.fileCacheHandle will not be nil since we return from the above in those cases.
-		logger.Tracef("%.13v -> %s", requestId, requestOutput)
+		if fc.fileCacheHandle != nil {
+			isSequential = fc.fileCacheHandle.IsSequential(offset)
+		}
 
 		readType := util.Random
-		if isSeq {
+		if isSequential {
 			readType = util.Sequential
 		}
-		fc.captureFileCacheMetrics(ctx, fc.metricHandle, readType, n, cacheHit, executionTime)
+
+		result := fmt.Sprintf("OK (isSeq: %t, hit: %t)", isSequential, hit)
+		if err != nil {
+			result = fmt.Sprintf("err: %v", err)
+		}
+
+		logger.Tracef("%.13v -> %s (%v)", requestID, result, duration)
+		fc.captureFileCacheMetrics(ctx, fc.metricHandle, readType, bytesRead, hit, duration)
 	}()
 
-	// Create fileCacheHandle if not already.
+	// Lazy handle creation
 	if fc.fileCacheHandle == nil {
 		fc.fileCacheHandle, err = fc.fileCacheHandler.GetCacheHandle(fc.obj, fc.bucket, fc.cacheFileForRangeRead, offset)
 		if err != nil {
 			switch {
 			case errors.Is(err, lru.ErrInvalidEntrySize):
-				logger.Warnf("CacheHandle creation failed due to size constraints: %v", err)
+				logger.Warnf("cache handle creation failed due to size constraints: %v", err)
 				return 0, false, nil
 			case errors.Is(err, cacheutil.ErrCacheHandleNotRequiredForRandomRead):
-				isSeq = false
 				return 0, false, nil
 			default:
-				return 0, false, fmt.Errorf("failed to create CacheHandle: %w", err)
+				return 0, false, fmt.Errorf("tryReadingFromFileCache: getCacheHandle failed: %w", err)
 			}
 		}
 	}
 
-	n, cacheHit, err = fc.fileCacheHandle.Read(ctx, fc.bucket, fc.obj, offset, p)
+	bytesRead, hit, err = fc.fileCacheHandle.Read(ctx, fc.bucket, fc.obj, offset, p)
 	if err == nil {
-		return n, cacheHit, nil
+		return bytesRead, hit, nil
 	}
 
-	cacheHit = false
-	n = 0
-
+	bytesRead = 0
+	hit = false
+	// On read error
 	if cacheutil.IsCacheHandleInvalid(err) {
-		logger.Tracef("Invalidating cacheHandle:%p for object: %s:/%s", fc.fileCacheHandle, fc.bucket.Name(), fc.obj.Name)
-		if err = fc.fileCacheHandle.Close(); err != nil {
-			logger.Warnf("error closing cacheHandle: %v", err)
+		logger.Tracef("invalidating cacheHandle:%p for object: %s:/%s",
+			fc.fileCacheHandle, fc.bucket.Name(), fc.obj.Name)
+
+		closeErr := fc.fileCacheHandle.Close()
+		if closeErr != nil {
+			logger.Warnf("tryReadingFromFileCache: close cacheHandle error: %v", closeErr)
 		}
 		fc.fileCacheHandle = nil
 	} else if !errors.Is(err, cacheutil.ErrFallbackToGCS) {
-		return 0, false, fmt.Errorf("read from cache failed: %w", err)
+		return 0, false, fmt.Errorf("tryReadingFromFileCache: read failed: %w", err)
 	}
+	err = nil
 
 	return 0, false, nil
 }
