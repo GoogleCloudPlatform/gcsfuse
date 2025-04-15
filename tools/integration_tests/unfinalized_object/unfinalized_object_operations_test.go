@@ -39,11 +39,13 @@ type unfinalizedObjectOperations struct {
 	storageClient *storage.Client
 	ctx           context.Context
 	testDirPath   string
+	fileName      string
 	suite.Suite
 }
 
 func (t *unfinalizedObjectOperations) SetupTest() {
 	t.testDirPath = client.SetupTestDirectory(t.ctx, t.storageClient, testDirName)
+	t.fileName = path.Base(t.T().Name()) + setup.GenerateRandomString(5)
 }
 
 func (t *unfinalizedObjectOperations) TeardownTest() {}
@@ -53,51 +55,48 @@ func (t *unfinalizedObjectOperations) TeardownTest() {}
 ////////////////////////////////////////////////////////////////////////
 
 func (t *unfinalizedObjectOperations) TestUnfinalizedObjectCreatedOutsideOfMountReports0Size() {
-	fileName := path.Base(t.T().Name()) + setup.GenerateRandomString(5)
 	var size int64 = operations.MiB
-	writer := client.CreateUnfinalizedObject(t.ctx, t.T(), t.storageClient, path.Join(testDirName, fileName), size)
+	writer := client.CreateUnfinalizedObject(t.ctx, t.T(), t.storageClient, path.Join(testDirName, t.fileName), size)
 
-	statRes, err := operations.StatFile(path.Join(t.testDirPath, fileName))
+	statRes, err := operations.StatFile(path.Join(t.testDirPath, t.fileName))
 
 	require.NoError(t.T(), err)
-	assert.Equal(t.T(), fileName, (*statRes).Name())
+	assert.Equal(t.T(), t.fileName, (*statRes).Name())
 	assert.EqualValues(t.T(), 0, (*statRes).Size())
 	// After object is finalized, correct size should be reported.
 	err = writer.Close()
 	require.NoError(t.T(), err)
-	statRes, err = operations.StatFile(path.Join(t.testDirPath, fileName))
+	statRes, err = operations.StatFile(path.Join(t.testDirPath, t.fileName))
 	require.NoError(t.T(), err)
 	assert.EqualValues(t.T(), size, (*statRes).Size())
 }
 
 func (t *unfinalizedObjectOperations) TestUnfinalizedObjectCreatedFromSameMountReportsCorrectSize() {
-	fileName := path.Base(t.T().Name()) + setup.GenerateRandomString(5)
 	size := operations.MiB
 	// Create un-finalized object via same mount.
-	fh := operations.CreateFile(path.Join(t.testDirPath, fileName), setup.FilePermission_0600, t.T())
+	fh := operations.CreateFile(path.Join(t.testDirPath, t.fileName), setup.FilePermission_0600, t.T())
 	operations.WriteWithoutClose(fh, setup.GenerateRandomString(size), t.T())
 	operations.SyncFile(fh, t.T())
 
-	statRes, err := operations.StatFile(path.Join(t.testDirPath, fileName))
+	statRes, err := operations.StatFile(path.Join(t.testDirPath, t.fileName))
 
 	require.NoError(t.T(), err)
-	assert.Equal(t.T(), fileName, (*statRes).Name())
+	assert.Equal(t.T(), t.fileName, (*statRes).Name())
 	assert.EqualValues(t.T(), size, (*statRes).Size())
 	// Write more data to the object and finalize.
 	operations.WriteWithoutClose(fh, setup.GenerateRandomString(size), t.T())
 	err = fh.Close()
 	require.NoError(t.T(), err)
 	// After object is finalized, correct size should be reported.
-	statRes, err = operations.StatFile(path.Join(t.testDirPath, fileName))
+	statRes, err = operations.StatFile(path.Join(t.testDirPath, t.fileName))
 	require.NoError(t.T(), err)
 	assert.EqualValues(t.T(), 2*size, (*statRes).Size())
 }
 
 func (t *unfinalizedObjectOperations) TestOverWritingUnfinalizedObjectsReturnsESTALE() {
-	fileName := path.Base(t.T().Name()) + setup.GenerateRandomString(5)
 	var size int64 = operations.MiB
-	_ = client.CreateUnfinalizedObject(t.ctx, t.T(), t.storageClient, path.Join(testDirName, fileName), size)
-	fh := operations.OpenFile(path.Join(t.testDirPath, fileName), t.T())
+	_ = client.CreateUnfinalizedObject(t.ctx, t.T(), t.storageClient, path.Join(testDirName, t.fileName), size)
+	fh := operations.OpenFile(path.Join(t.testDirPath, t.fileName), t.T())
 
 	// Overwrite unfinalized object.
 	operations.WriteWithoutClose(fh, setup.GenerateRandomString(int(size)), t.T())
@@ -107,19 +106,18 @@ func (t *unfinalizedObjectOperations) TestOverWritingUnfinalizedObjectsReturnsES
 }
 
 func (t *unfinalizedObjectOperations) TestUnfinalizedObjectCanBeRenamedIfCreatedFromSameMount() {
-	fileName := path.Base(t.T().Name()) + setup.GenerateRandomString(5)
 	size := operations.MiB
 	content := setup.GenerateRandomString(size)
-	newFileName := "new" + fileName
+	newFileName := "new" + t.fileName
 	// Create un-finalized object via same mount.
-	fh := operations.CreateFile(path.Join(t.testDirPath, fileName), setup.FilePermission_0600, t.T())
+	fh := operations.CreateFile(path.Join(t.testDirPath, t.fileName), setup.FilePermission_0600, t.T())
 	operations.WriteWithoutClose(fh, content, t.T())
 	operations.SyncFile(fh, t.T())
 
-	err := operations.RenameFile(path.Join(t.testDirPath, fileName), path.Join(t.testDirPath, newFileName))
+	err := operations.RenameFile(path.Join(t.testDirPath, t.fileName), path.Join(t.testDirPath, newFileName))
 
 	require.NoError(t.T(), err)
-	client.ValidateObjectNotFoundErrOnGCS(t.ctx, t.storageClient, testDirName, fileName, t.T())
+	client.ValidateObjectNotFoundErrOnGCS(t.ctx, t.storageClient, testDirName, t.fileName, t.T())
 	client.ValidateObjectContentsFromGCS(t.ctx, t.storageClient, testDirName, newFileName, content, t.T())
 	// validate writing to the renamed file via stale file handle returns ESTALE error.
 	_, err = fh.Write([]byte(content))
@@ -127,12 +125,11 @@ func (t *unfinalizedObjectOperations) TestUnfinalizedObjectCanBeRenamedIfCreated
 }
 
 func (t *unfinalizedObjectOperations) TestUnfinalizedObjectCantBeRenamedIfCreatedFromDifferentMount() {
-	fileName := path.Base(t.T().Name()) + setup.GenerateRandomString(5)
 	var size int64 = operations.MiB
-	_ = client.CreateUnfinalizedObject(t.ctx, t.T(), t.storageClient, path.Join(testDirName, fileName), size)
+	_ = client.CreateUnfinalizedObject(t.ctx, t.T(), t.storageClient, path.Join(testDirName, t.fileName), size)
 
 	// Overwrite unfinalized object.
-	err := operations.RenameFile(path.Join(t.testDirPath, fileName), path.Join(t.testDirPath, "New"+fileName))
+	err := operations.RenameFile(path.Join(t.testDirPath, t.fileName), path.Join(t.testDirPath, "New"+t.fileName))
 
 	require.Error(t.T(), err)
 	assert.ErrorContains(t.T(), err, syscall.EIO.Error())

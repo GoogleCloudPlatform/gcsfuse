@@ -24,8 +24,7 @@ import (
 )
 
 const (
-	testDirName    = "UnfinalizedObjectTest"
-	onlyDirMounted = "OnlyDirMountedUnfinalizedObject"
+	testDirName = "UnfinalizedObjectTest"
 )
 
 var (

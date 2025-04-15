@@ -170,9 +170,9 @@ func CreateUnfinalizedObject(ctx context.Context, t *testing.T, client *storage.
 	writer, err := AppendableWriter(ctx, client, object, storage.Conditions{})
 	require.NoError(t, err)
 
-	writeOffset, err := writer.Write([]byte(setup.GenerateRandomString(int(size))))
+	bytesWritten, err := writer.Write([]byte(setup.GenerateRandomString(int(size))))
 	require.NoError(t, err)
-	assert.EqualValues(t, size, writeOffset)
+	assert.EqualValues(t, size, bytesWritten)
 
 	flushOffset, err := writer.Flush()
 	require.NoError(t, err)

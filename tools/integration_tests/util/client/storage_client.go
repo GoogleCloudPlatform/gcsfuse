@@ -422,7 +422,7 @@ func AppendableWriter(ctx context.Context, client *storage.Client, object string
 	// Upload an object with storage.Writer.
 	wc, err := NewWriter(ctx, o, client)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to open writer for object %q: %w", o.ObjectName(), err)
+		return nil, fmt.Errorf("failed to open writer for object %q: %w", o.ObjectName(), err)
 	}
 	return wc, nil
 }
