@@ -22,6 +22,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file/downloader"
@@ -44,6 +45,7 @@ const (
 
 type FileCacheReaderTest struct {
 	suite.Suite
+	reader           FileCacheReader
 	ctx              context.Context
 	object           *gcs.MinObject
 	mockBucket       *storage.TestifyMockBucket
@@ -51,6 +53,7 @@ type FileCacheReaderTest struct {
 	jobManager       *downloader.JobManager
 	mockCacheHandler *file.MockCacheHandler
 	mockCacheHandle  *file.MockCacheHandle
+	cacheHandler     file.CacheHandlerInterface
 	mockMetricHandle *common.MockMetricHandle
 }
 
@@ -66,8 +69,8 @@ func (t *FileCacheReaderTest) SetupTest() {
 	}
 	t.mockBucket = new(storage.TestifyMockBucket)
 	t.cacheDir = path.Join(os.Getenv("HOME"), "test_cache_dir")
-	//lruCache := lru.NewCache(util.CacheMaxSize)
-	//t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, util.SequentialReadSizeInMb, &cfg.FileCacheConfig{EnableCrc: false}, nil)
+	lruCache := lru.NewCache(util.CacheMaxSize)
+	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, util.SequentialReadSizeInMb, &cfg.FileCacheConfig{EnableCrc: false}, nil)
 	t.mockCacheHandler = new(file.MockCacheHandler)
 	readOp := &fuseops.ReadFileOp{
 		Handle: fuseops.HandleID(123),
@@ -75,8 +78,9 @@ func (t *FileCacheReaderTest) SetupTest() {
 		Size:   10,
 	}
 	t.mockCacheHandle = new(file.MockCacheHandle)
-	t.mockMetricHandle = new(common.MockMetricHandle)
+	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm)
 	t.ctx = context.WithValue(context.Background(), ReadOp, readOp)
+	t.reader = NewFileCacheReader(t.object, t.mockBucket, t.cacheHandler, true, nil)
 }
 
 func (t *FileCacheReaderTest) TearDown() {
@@ -94,7 +98,6 @@ func (t *FileCacheReaderTest) TestNewFileCacheReader() {
 	assert.Equal(t.T(), t.mockBucket, reader.bucket)
 	assert.Equal(t.T(), t.mockCacheHandler, reader.fileCacheHandler)
 	assert.True(t.T(), reader.cacheFileForRangeRead)
-	assert.Nil(t.T(), reader.metricHandle)
 	assert.Nil(t.T(), reader.fileCacheHandle)
 }
 
@@ -106,13 +109,35 @@ func (t *FileCacheReaderTest) TestTReadAt_ryReadingFromFileCache_NilHandler() {
 	assert.Zero(t.T(), readerResponse.Size)
 }
 
+//func (t *FileCacheReaderTest) mockNewReaderWithHandleCallForTestBucket(start uint64, limit uint64, rd gcs.StorageReader) {
+//	ExpectCall(t.mockBucket, "NewReaderWithReadHandle")(
+//		Any(), AllOf(rangeStartIs(start), rangeLimitIs(limit))).
+//		WillRepeatedly(Return(rd, nil))
+//}
+
+//func (t *FileCacheReaderTest) Test_ReadAt_SequentialRangeRead() {
+//	t.reader.fileCacheHandler = t.cacheHandler
+//	objectSize := t.object.Size
+//	testContent := testutil.GenerateRandomBytes(int(objectSize))
+//	//rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
+//	//t.mockNewReaderWithHandleCallForTestBucket(0, objectSize, rd)
+//	t.mockBucket.On("Name").Return("test-bucket")
+//	start := 0
+//	end := 10 // not included
+//	AssertLt(end, objectSize)
+//	buf := make([]byte, end-start)
+//
+//	objectData, err := t.rr.ReadAt(buf, int64(start))
+//
+//	ExpectFalse(objectData.CacheHit)
+//	ExpectEq(nil, err)
+//	ExpectTrue(reflect.DeepEqual(testContent[start:end], buf))
+//}
+
 func (t *FileCacheReaderTest) TestReadAt_TryReadingFromFileCache_NotAbleToCreateCacheHandle() {
 	t.mockCacheHandler.On("GetCacheHandle", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("mock error"))
 	t.mockBucket.On("Name").Return("test-bucket")
-	t.mockMetricHandle.On("FileCacheReadCount", mock.Anything, int64(1), mock.Anything).Return()
-	t.mockMetricHandle.On("FileCacheReadBytesCount", mock.Anything, mock.AnythingOfType("int64"), mock.Anything).Return()
-	t.mockMetricHandle.On("FileCacheReadLatency", mock.Anything, mock.AnythingOfType("float64"), mock.Anything).Return()
-	reader := NewFileCacheReader(t.object, t.mockBucket, t.mockCacheHandler, true, t.mockMetricHandle)
+	reader := NewFileCacheReader(t.object, t.mockBucket, t.mockCacheHandler, true, common.NewNoopMetrics())
 
 	readerResponse, err := reader.ReadAt(t.ctx, make([]byte, 10), 0)
 
@@ -149,10 +174,7 @@ func (t *FileCacheReaderTest) TestReadAt_TryReadingFromFileCache_ErrorScenarios(
 			t.SetupTest()
 			t.mockCacheHandler.On("GetCacheHandle", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, tc.mockErr)
 			t.mockBucket.On("Name").Return("test-bucket")
-			t.mockMetricHandle.On("FileCacheReadCount", mock.Anything, int64(1), mock.Anything).Return()
-			t.mockMetricHandle.On("FileCacheReadBytesCount", mock.Anything, mock.AnythingOfType("int64"), mock.Anything).Return()
-			t.mockMetricHandle.On("FileCacheReadLatency", mock.Anything, mock.AnythingOfType("float64"), mock.Anything).Return()
-			reader := NewFileCacheReader(t.object, t.mockBucket, t.mockCacheHandler, true, t.mockMetricHandle)
+			reader := NewFileCacheReader(t.object, t.mockBucket, t.mockCacheHandler, true, common.NewNoopMetrics())
 
 			readerResponse, err := reader.ReadAt(t.ctx, make([]byte, 10), 0)
 
@@ -173,10 +195,7 @@ func (t *FileCacheReaderTest) Test_ReadAt_TryReadingFromFileCache_fallsBackToGCS
 	t.mockCacheHandle.On("Read", mock.Anything, mock.Anything, mock.Anything, offset1, p1).Return(0, false, util.ErrFallbackToGCS).Once()
 	t.mockCacheHandle.On("IsSequential", offset1).Return(true)
 	t.mockCacheHandler.On("GetCacheHandle", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(t.mockCacheHandle, nil)
-	t.mockMetricHandle.On("FileCacheReadCount", mock.Anything, int64(1), mock.Anything).Return()
-	t.mockMetricHandle.On("FileCacheReadBytesCount", mock.Anything, mock.AnythingOfType("int64"), mock.Anything).Return()
-	t.mockMetricHandle.On("FileCacheReadLatency", mock.Anything, mock.AnythingOfType("float64"), mock.Anything).Return()
-	reader := NewFileCacheReader(t.object, t.mockBucket, t.mockCacheHandler, true, t.mockMetricHandle)
+	reader := NewFileCacheReader(t.object, t.mockBucket, t.mockCacheHandler, true, common.NewNoopMetrics())
 
 	readerResponse, err := reader.ReadAt(t.ctx, p1, offset1)
 
@@ -185,7 +204,6 @@ func (t *FileCacheReaderTest) Test_ReadAt_TryReadingFromFileCache_fallsBackToGCS
 	// Verify mocks
 	t.mockCacheHandle.AssertExpectations(t.T())
 	t.mockCacheHandler.AssertExpectations(t.T())
-	t.mockMetricHandle.AssertExpectations(t.T())
 	t.mockBucket.AssertExpectations(t.T())
 }
 
@@ -196,10 +214,7 @@ func (t *FileCacheReaderTest) Test_ReadAt_TryReadingFromFileCache_NotFallsBackTo
 	t.mockCacheHandle.On("Read", mock.Anything, mock.Anything, mock.Anything, offset1, p1).Return(0, false, fmt.Errorf("mock error")).Once()
 	t.mockCacheHandle.On("IsSequential", offset1).Return(true)
 	t.mockCacheHandler.On("GetCacheHandle", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(t.mockCacheHandle, nil)
-	t.mockMetricHandle.On("FileCacheReadCount", mock.Anything, int64(1), mock.Anything).Return()
-	t.mockMetricHandle.On("FileCacheReadBytesCount", mock.Anything, mock.AnythingOfType("int64"), mock.Anything).Return()
-	t.mockMetricHandle.On("FileCacheReadLatency", mock.Anything, mock.AnythingOfType("float64"), mock.Anything).Return()
-	reader := NewFileCacheReader(t.object, t.mockBucket, t.mockCacheHandler, true, t.mockMetricHandle)
+	reader := NewFileCacheReader(t.object, t.mockBucket, t.mockCacheHandler, true, common.NewNoopMetrics())
 
 	readerResponse, err := reader.ReadAt(t.ctx, p1, offset1)
 
@@ -208,7 +223,6 @@ func (t *FileCacheReaderTest) Test_ReadAt_TryReadingFromFileCache_NotFallsBackTo
 	// Verify mocks
 	t.mockCacheHandle.AssertExpectations(t.T())
 	t.mockCacheHandler.AssertExpectations(t.T())
-	t.mockMetricHandle.AssertExpectations(t.T())
 	t.mockBucket.AssertExpectations(t.T())
 }
 
@@ -257,10 +271,7 @@ func (t *FileCacheReaderTest) Test_ReadAt_TryReadingFromFileCache_HandleInvalidS
 			t.mockCacheHandler.On("GetCacheHandle", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(t.mockCacheHandle, nil)
 			t.mockCacheHandle.On("Read", mock.Anything, mock.Anything, mock.Anything, offset, buffer).Return(0, false, tc.readErr).Once()
 			t.mockCacheHandle.On("Close").Return(tc.closeFileHandle)
-			t.mockMetricHandle.On("FileCacheReadCount", mock.Anything, int64(1), mock.Anything).Return()
-			t.mockMetricHandle.On("FileCacheReadBytesCount", mock.Anything, mock.AnythingOfType("int64"), mock.Anything).Return()
-			t.mockMetricHandle.On("FileCacheReadLatency", mock.Anything, mock.AnythingOfType("float64"), mock.Anything).Return()
-			reader := NewFileCacheReader(t.object, t.mockBucket, t.mockCacheHandler, true, t.mockMetricHandle)
+			reader := NewFileCacheReader(t.object, t.mockBucket, t.mockCacheHandler, true, common.NewNoopMetrics())
 
 			readerResponse, err := reader.ReadAt(t.ctx, buffer, offset)
 
@@ -304,10 +315,7 @@ func (t *FileCacheReaderTest) Test_ReadAt_Success() {
 			t.mockCacheHandler.On("GetCacheHandle", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(t.mockCacheHandle, nil)
 			t.mockCacheHandle.On("Read", mock.Anything, mock.Anything, mock.Anything, tc.offset, buffer).Return(len(buffer), true, nil).Once()
 			t.mockCacheHandle.On("IsSequential", tc.offset).Return(true)
-			t.mockMetricHandle.On("FileCacheReadCount", mock.Anything, int64(1), mock.Anything).Return()
-			t.mockMetricHandle.On("FileCacheReadBytesCount", mock.Anything, mock.AnythingOfType("int64"), mock.Anything).Return()
-			t.mockMetricHandle.On("FileCacheReadLatency", mock.Anything, mock.AnythingOfType("float64"), mock.Anything).Return()
-			reader := NewFileCacheReader(t.object, t.mockBucket, t.mockCacheHandler, true, t.mockMetricHandle)
+			reader := NewFileCacheReader(t.object, t.mockBucket, t.mockCacheHandler, true, common.NewNoopMetrics())
 
 			readerResponse, err := reader.ReadAt(t.ctx, buffer, tc.offset)
 
