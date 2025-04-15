@@ -52,6 +52,7 @@ func (t *defaultMountCommonTest) TearDownSuite() {
 func (t *defaultMountCommonTest) validateReadSucceedsForZB(filePath, expectedContent string) {
 	readContent, err := os.ReadFile(filePath)
 	if setup.IsZonalBucketRun() {
+		// TODO(b/410698332): Remove skip condition once reads start working.
 		t.T().Skip("Skipping Zonal Bucket Read tests.")
 		require.NoError(t.T(), err)
 		assert.Equal(t.T(), expectedContent, string(readContent))
