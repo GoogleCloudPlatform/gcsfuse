@@ -33,10 +33,9 @@ func (t *defaultMountCommonTest) TestCreateSymlinkForLocalFileReadFails() {
 	// Verify read link.
 	operations.VerifyReadLink(t.filePath, symlink, t.T())
 
-	// Reading file from symlink fails.
-	_, err = os.ReadFile(symlink)
+	// Reading file from symlink succeeds for ZB.
+	t.validateReadSucceedsForZB(symlink, t.data)
 
-	assert.Error(t.T(), err)
 	// Close the file and validate that the file is created on GCS.
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, t.data, t.T())
 }
@@ -50,10 +49,9 @@ func (t *defaultMountCommonTest) TestReadSymlinkForDeletedLocalFileFails() {
 	// Verify read link.
 	operations.VerifyReadLink(t.filePath, symlink, t.T())
 
-	// Reading the file from symlink fails.
-	_, err = os.ReadFile(symlink)
+	// Reading file from symlink succeeds for ZB.
+	t.validateReadSucceedsForZB(symlink, t.data)
 
-	assert.Error(t.T(), err)
 	// Remove filePath and then close the fileHandle to avoid syncing to GCS.
 	operations.RemoveFile(t.filePath)
 	operations.CloseFileShouldNotThrowError(t.T(), t.f1)
