@@ -77,30 +77,31 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 
 	logger.Tracef("%.13v <- FileCache(%s:/%s, offset: %d, size: %d, handle: %d)", requestID, fc.bucket.Name(), fc.obj.Name, offset, len(p), handleID)
 
-	start := time.Now()
+	startTime := time.Now()
 	var bytesRead int
 	var hit bool
 	var err error
 
 	defer func() {
-		duration := time.Since(start)
-
-		if fc.fileCacheHandle != nil {
-			isSequential = fc.fileCacheHandle.IsSequential(offset)
+		executionTime := time.Since(startTime)
+		var requestOutput string
+		if err != nil {
+			requestOutput = fmt.Sprintf("err: %v (%v)", err, executionTime)
+		} else {
+			if fc.fileCacheHandle != nil {
+				isSequential = fc.fileCacheHandle.IsSequential(offset)
+			}
+			requestOutput = fmt.Sprintf("OK (isSeq: %t, hit: %t) (%v)", isSequential, hit, executionTime)
 		}
+
+		// Here rr.fileCacheHandle will not be nil since we return from the above in those cases.
+		logger.Tracef("%.13v -> %s", requestID, requestOutput)
 
 		readType := util.Random
 		if isSequential {
 			readType = util.Sequential
 		}
-
-		result := fmt.Sprintf("OK (isSeq: %t, hit: %t)", isSequential, hit)
-		if err != nil {
-			result = fmt.Sprintf("err: %v", err)
-		}
-
-		logger.Tracef("%.13v -> %s (%v)", requestID, result, duration)
-		fc.captureFileCacheMetrics(ctx, fc.metricHandle, readType, bytesRead, hit, duration)
+		captureFileCacheMetrics(ctx, fc.metricHandle, readType, bytesRead, hit, executionTime)
 	}()
 
 	// Lazy handle creation
