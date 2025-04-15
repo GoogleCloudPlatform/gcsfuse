@@ -127,6 +127,9 @@ func CreateTestBucketForDynamicMounting(ctx context.Context, client *storage.Cli
 
 	bucketName = PrefixBucketForDynamicMountingTest + setup.GenerateRandomString(5)
 	bucket := client.Bucket(bucketName)
+
+	fmt.Printf("Creating ZB %q for testing in location %q ...\n", bucketName, storageClassAndLocation.Location)
+
 	if err := bucket.Create(ctx, projectID, storageClassAndLocation); err != nil {
 		return "", fmt.Errorf("failed to create bucket: %v", err)
 	}
