@@ -70,8 +70,8 @@ func (t *FileCacheReaderTest) SetupTest() {
 	t.cacheDir = path.Join(os.Getenv("HOME"), "test_cache_dir")
 	lruCache := lru.NewCache(CacheMaxSize)
 	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, sequentialReadSizeInMb, &cfg.FileCacheConfig{EnableCrc: false}, common.NewNoopMetrics())
+	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm)
 	t.reader = NewFileCacheReader(t.object, t.mockBucket, t.cacheHandler, true, common.NewNoopMetrics())
-	t.reader.fileCacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm)
 	readOp := &fuseops.ReadFileOp{
 		Handle: fuseops.HandleID(123),
 		Offset: 0,
@@ -303,6 +303,7 @@ func (t *FileCacheReaderTest) Test_ReadAt_SequentialToRandomSubsequentReadOffset
 }
 
 func (t *FileCacheReaderTest) Test_ReadAt_CacheMissDueToInvalidJob() {
+
 	testContent := testutil.GenerateRandomBytes(int(t.object.Size))
 	rc1 := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, t.object.Size, rc1)
