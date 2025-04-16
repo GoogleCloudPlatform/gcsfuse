@@ -32,7 +32,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	testutil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
-	"github.com/jacobsa/fuse/fuseops"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -72,12 +71,7 @@ func (t *FileCacheReaderTest) SetupTest() {
 	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, sequentialReadSizeInMb, &cfg.FileCacheConfig{EnableCrc: false}, common.NewNoopMetrics())
 	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm)
 	t.reader = NewFileCacheReader(t.object, t.mockBucket, t.cacheHandler, true, common.NewNoopMetrics())
-	readOp := &fuseops.ReadFileOp{
-		Handle: fuseops.HandleID(123),
-		Offset: 0,
-		Size:   10,
-	}
-	t.ctx = context.WithValue(context.Background(), ReadOp, readOp)
+	t.ctx = context.Background()
 }
 
 func (t *FileCacheReaderTest) TearDown() {
@@ -135,7 +129,6 @@ func (t *FileCacheReaderTest) Test_tryReadingFromFileCache_CacheHit() {
 }
 
 func (t *FileCacheReaderTest) Test_ReadAt_SequentialFullObject() {
-
 	testContent := testutil.GenerateRandomBytes(int(t.object.Size))
 	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, t.object.Size, rd)
@@ -155,9 +148,7 @@ func (t *FileCacheReaderTest) Test_ReadAt_SequentialFullObject() {
 }
 
 func (t *FileCacheReaderTest) Test_ReadAt_SequentialSubsequentReadOffsetLessThanReadChunkSize() {
-
 	t.object.Size = 20 * util.MiB
-
 	testContent := testutil.GenerateRandomBytes(int(t.object.Size))
 	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, t.object.Size, rd)
@@ -303,7 +294,6 @@ func (t *FileCacheReaderTest) Test_ReadAt_SequentialToRandomSubsequentReadOffset
 }
 
 func (t *FileCacheReaderTest) Test_ReadAt_CacheMissDueToInvalidJob() {
-
 	testContent := testutil.GenerateRandomBytes(int(t.object.Size))
 	rc1 := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, t.object.Size, rc1)
