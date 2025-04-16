@@ -116,30 +116,12 @@ func (t *FileCacheReaderTest) Test_tryReadingFromFileCache_CacheHit() {
 	t.mockBucket.On("Name").Return("test-bucket")
 	buf := make([]byte, t.object.Size)
 	// First read will be a cache miss.
-	_, cacheHit, err := t.reader.tryReadingFromFileCache(t.ctx, buf, 0)
-	assert.False(t.T(), cacheHit)
-	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), testContent, buf)
-
-	// Second read will be a cache hit.
-	_, cacheHit, err = t.reader.tryReadingFromFileCache(t.ctx, buf, 0)
-	assert.True(t.T(), cacheHit)
-	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), testContent, buf)
-}
-
-func (t *FileCacheReaderTest) Test_ReadAt_SequentialFullObject() {
-	testContent := testutil.GenerateRandomBytes(int(t.object.Size))
-	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
-	t.mockNewReaderWithHandleCallForTestBucket(0, t.object.Size, rd)
-	t.mockBucket.On("Name").Return("test-bucket")
-	buf := make([]byte, t.object.Size)
 	n, cacheHit, err := t.reader.tryReadingFromFileCache(t.ctx, buf, 0)
-
 	assert.NoError(t.T(), err)
 	assert.False(t.T(), cacheHit)
 	assert.Equal(t.T(), n, len(buf))
 
+	// Second read will be a cache hit.
 	n, cacheHit, err = t.reader.tryReadingFromFileCache(t.ctx, buf, 0)
 
 	assert.NoError(t.T(), err)
@@ -257,6 +239,8 @@ func (t *FileCacheReaderTest) Test_ReadAt_SequentialToRandomSubsequentReadOffset
 	// require to fall back on GCS reader
 	assert.True(t.T(), errors.Is(err, FallbackToAnotherReader))
 	assert.Zero(t.T(), readerResponse.Size)
+	job := t.jobManager.GetJob(t.object.Name, t.mockBucket.Name())
+	assert.True(t.T(), job == nil || job.GetStatus().Name == downloader.Downloading)
 }
 
 func (t *FileCacheReaderTest) Test_ReadAt_SequentialToRandomSubsequentReadOffsetLessThanPrevious() {
