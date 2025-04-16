@@ -236,8 +236,7 @@ func (t *FileCacheReaderTest) Test_ReadAt_SequentialToRandomSubsequentReadOffset
 
 	readerResponse, err = t.reader.ReadAt(t.ctx, buf2, int64(start2))
 
-	// Assuming start2 offset download in progress
-	// require to fall back on GCS reader
+	// Assuming a download with a start offset of start2 is in progress, a fallback to another reader will be required.
 	assert.True(t.T(), errors.Is(err, FallbackToAnotherReader))
 	assert.Zero(t.T(), readerResponse.Size)
 	job := t.jobManager.GetJob(t.object.Name, t.mockBucket.Name())

@@ -96,7 +96,7 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 
 	startTime := time.Now()
 	var bytesRead int
-	var hit bool
+	var cacheHit bool
 	var err error
 
 	defer func() {
@@ -108,7 +108,7 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 			if fc.fileCacheHandle != nil {
 				isSequential = fc.fileCacheHandle.IsSequential(offset)
 			}
-			requestOutput = fmt.Sprintf("OK (isSeq: %t, hit: %t) (%v)", isSequential, hit, executionTime)
+			requestOutput = fmt.Sprintf("OK (isSeq: %t, cacheHit: %t) (%v)", isSequential, cacheHit, executionTime)
 		}
 
 		logger.Tracef("%.13v -> %s", requestID, requestOutput)
@@ -117,7 +117,7 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 		if isSequential {
 			readType = util.Sequential
 		}
-		fc.captureFileCacheMetrics(ctx, fc.metricHandle, readType, bytesRead, hit, executionTime)
+		fc.captureFileCacheMetrics(ctx, fc.metricHandle, readType, bytesRead, cacheHit, executionTime)
 	}()
 
 	// Create fileCacheHandle if not already.
@@ -130,7 +130,7 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 				return 0, false, nil
 			case errors.Is(err, cacheUtil.ErrCacheHandleNotRequiredForRandomRead):
 				// Fall back to GCS if it is a random read, cacheFileForRangeRead is
-				// False and there doesn't already exist file in cache.
+				// false and there doesn't already exist file in cache.
 				isSequential = false
 				return 0, false, nil
 			default:
@@ -139,13 +139,13 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 		}
 	}
 
-	bytesRead, hit, err = fc.fileCacheHandle.Read(ctx, fc.bucket, fc.obj, offset, p)
+	bytesRead, cacheHit, err = fc.fileCacheHandle.Read(ctx, fc.bucket, fc.obj, offset, p)
 	if err == nil {
-		return bytesRead, hit, nil
+		return bytesRead, cacheHit, nil
 	}
 
 	bytesRead = 0
-	hit = false
+	cacheHit = false
 
 	if cacheUtil.IsCacheHandleInvalid(err) {
 		logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", fc.fileCacheHandle, fc.bucket.Name(), fc.obj.Name)
