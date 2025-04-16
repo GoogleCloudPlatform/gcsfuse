@@ -27,8 +27,12 @@ import (
 )
 
 var (
+	mountFunc func([]string) error
+	// root directory is the directory to be unmounted.
+	rootDir       string
 	storageClient *storage.Client
 	ctx           context.Context
+	flags         []string
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -54,15 +58,27 @@ func TestMain(m *testing.M) {
 	// Else run tests for testBucket.
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()
+	rootDir = setup.MntDir()
 
 	// Define flag set to run the tests.
 	flagsSet := [][]string{
 		{"--metadata-cache-ttl-secs=0", "--precondition-errors=true"},
+		{"--metadata-cache-ttl-secs=0", "--precondition-errors=true", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=1"},
 	}
 	// Run all tests for GRPC.
 	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--client-protocol=grpc", "")
 
-	successCode := static_mounting.RunTests(flagsSet, m)
+	log.Println("Running static mounting tests...")
+	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
 
+	var successCode int
+	for i := range flagsSet {
+		log.Printf("Running tests with flags: %v", flagsSet[i])
+		flags = flagsSet[i]
+		successCode = m.Run()
+		if successCode != 0 {
+			break
+		}
+	}
 	os.Exit(successCode)
 }
