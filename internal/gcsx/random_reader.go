@@ -18,7 +18,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"math"
 	"strconv"
 	"time"
@@ -216,13 +215,12 @@ func (rr *randomReader) CheckInvariants() {
 // fileHandle to file in cache. So, we will get the correct data from fileHandle
 // because Linux does not delete a file until open fileHandle count for a file is zero.
 func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
-	p []byte,
-	offset int64) (n int, cacheHit bool, err error) {
+		p []byte,
+		offset int64) (n int, cacheHit bool, err error) {
+
 	if rr.fileCacheHandler == nil {
 		return
 	}
-
-	log.Println("In tryReadingFromFileCache")
 
 	// By default, consider read type random if the offset is non-zero.
 	isSeq := offset == 0
@@ -310,9 +308,9 @@ func captureFileCacheMetrics(ctx context.Context, metricHandle common.MetricHand
 }
 
 func (rr *randomReader) ReadAt(
-	ctx context.Context,
-	p []byte,
-	offset int64) (objectData ObjectData, err error) {
+		ctx context.Context,
+		p []byte,
+		offset int64) (objectData ObjectData, err error) {
 	objectData = ObjectData{
 		DataBuf:  p,
 		CacheHit: false,
@@ -434,8 +432,8 @@ func (rr *randomReader) Destroy() {
 //
 // REQUIRES: rr.reader != nil
 func (rr *randomReader) readFull(
-	ctx context.Context,
-	p []byte) (n int, err error) {
+		ctx context.Context,
+		p []byte) (n int, err error) {
 	// Start a goroutine that will cancel the read operation we block on below if
 	// the calling context is cancelled, but only if this method has not already
 	// returned (to avoid souring the reader for the next read if this one is
@@ -517,8 +515,8 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 // Range here is [start, end]. End is computed using the readType, start offset
 // and size of the data the callers needs.
 func (rr *randomReader) getReadInfo(
-	start int64,
-	size int64) (end int64, err error) {
+		start int64,
+		size int64) (end int64, err error) {
 	// Make sure start and size are legal.
 	if start < 0 || uint64(start) > rr.object.Size || size < 0 {
 		err = fmt.Errorf(

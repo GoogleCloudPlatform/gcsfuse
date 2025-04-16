@@ -129,6 +129,9 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 				logger.Warnf("cache handle creation failed due to size constraints: %v", err)
 				return 0, false, nil
 			case errors.Is(err, cacheutil.ErrCacheHandleNotRequiredForRandomRead):
+				// Fall back to GCS if it is a random read, cacheFileForRangeRead is
+				// False and there doesn't already exist file in cache.
+				isSequential = false
 				return 0, false, nil
 			default:
 				return 0, false, fmt.Errorf("tryReadingFromFileCache: getCacheHandle failed: %w", err)
@@ -191,6 +194,7 @@ func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (
 		return o, nil
 	}
 
+	// The cache is unable to serve data and requires a fallback to another reader.
 	err = FallbackToAnotherReader
 	return o, err
 }
