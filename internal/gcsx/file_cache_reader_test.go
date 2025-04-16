@@ -264,9 +264,8 @@ func (t *FileCacheReaderTest) Test_ReadAt_SequentialToRandomSubsequentReadOffset
 	start2 := 16*util.MiB + 4
 	end2 := start2 + util.MiB
 	buf2 := make([]byte, end2-start2)
-	// Assuming start2 offset download in progress
+	// Assuming a download with a start offset of start2 is in progress, a fallback to another reader will be required.
 	readerResponse, err = t.reader.ReadAt(t.ctx, buf2, int64(start2))
-	// Need to get served from another reader
 	assert.True(t.T(), errors.Is(err, FallbackToAnotherReader))
 	assert.Zero(t.T(), readerResponse.Size)
 	// Assuming start3 offset is downloaded
