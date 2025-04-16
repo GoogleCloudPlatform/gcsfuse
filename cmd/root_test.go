@@ -216,8 +216,13 @@ func TestArgsParsing_ImplicitDirsFlag(t *testing.T) {
 			expectedImplicit: false,
 		},
 		{
-			name:             "default true on high performance machine",
-			args:             []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "abc", "pqr"},
+			name:             "default false on high performance machine with autoconfig disabled",
+			args:             []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=true", "abc", "pqr"},
+			expectedImplicit: false,
+		},
+		{
+			name:             "default true on high performance machine with autoconfig enabled",
+			args:             []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "abc", "pqr"},
 			expectedImplicit: true,
 		},
 		{
@@ -328,11 +333,20 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedWriteMaxBlocksPerFile: 10,
 		},
 		{
-			name:                          "Test high performance config values.",
-			args:                          []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "abc", "pqr"},
+			name:                          "Test high performance config values with autoconfig enabled.",
+			args:                          []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "abc", "pqr"},
 			expectedEnableStreamingWrites: true,
 			expectedWriteBlockSizeMB:      32 * util.MiB,
 			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
+		},
+		{
+			name:                          "Test high performance config values with autoconfig disabled.",
+			args:                          []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=true", "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: false,
+			expectedWriteBlockSizeMB:      32 * util.MiB,
+			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
+			expectedWriteMaxBlocksPerFile: 1,
 		},
 		{
 			name:                          "Test high performance config values with enable-streaming-writes flag overriden.",
@@ -750,8 +764,8 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			},
 		},
 		{
-			name: "high performance defaults with rename dir options",
-			args: []string{"gcsfuse", "--dir-mode=777", "--machine-type=a3-highgpu-8g", "--file-mode=666", "abc", "pqr"},
+			name: "high performance defaults with rename dir options with autoconfig enabled",
+			args: []string{"gcsfuse", "--dir-mode=777", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "--file-mode=666", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
 					DirMode:                0777,
@@ -769,8 +783,27 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			},
 		},
 		{
+			name: "high performance defaults with rename dir options with autoconfig disabled",
+			args: []string{"gcsfuse", "--dir-mode=777", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=true", "--file-mode=666", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					DirMode:                0777,
+					DisableParallelDirops:  false,
+					FileMode:               0666,
+					FuseOptions:            []string{},
+					Gid:                    -1,
+					IgnoreInterrupts:       true,
+					KernelListCacheTtlSecs: 0,
+					RenameDirLimit:         0,
+					TempDir:                "",
+					PreconditionErrors:     true,
+					Uid:                    -1,
+				},
+			},
+		},
+		{
 			name: "high performance defaults with overriden rename dir options",
-			args: []string{"gcsfuse", "--dir-mode=777", "--machine-type=a3-highgpu-8g", "--rename-dir-limit=15000", "--file-mode=666", "abc", "pqr"},
+			args: []string{"gcsfuse", "--dir-mode=777", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "--rename-dir-limit=15000", "--file-mode=666", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
 					DirMode:                0777,
@@ -1141,8 +1174,25 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 			},
 		},
 		{
-			name: "high performance default config values",
-			args: []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "abc", "pqr"},
+			name: "high performance default config values with autoconfig disabled",
+			args: []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=true", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				MetadataCache: cfg.MetadataCacheConfig{
+					DeprecatedStatCacheCapacity:         20460,
+					DeprecatedStatCacheTtl:              60 * time.Second,
+					DeprecatedTypeCacheTtl:              60 * time.Second,
+					EnableNonexistentTypeCache:          false,
+					ExperimentalMetadataPrefetchOnMount: "disabled",
+					StatCacheMaxSizeMb:                  32,
+					TtlSecs:                             60,
+					NegativeTtlSecs:                     5,
+					TypeCacheMaxSizeMb:                  4,
+				},
+			},
+		},
+		{
+			name: "high performance default config values with autoconfig enabled",
+			args: []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				MetadataCache: cfg.MetadataCacheConfig{
 					DeprecatedStatCacheCapacity:         20460,
@@ -1159,7 +1209,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 		},
 		{
 			name: "high performance default config values obey customer flags",
-			args: []string{"gcsfuse", "--stat-cache-capacity=2000", "--stat-cache-ttl=2m", "--type-cache-ttl=1m20s", "--enable-nonexistent-type-cache", "--experimental-metadata-prefetch-on-mount=async", "--stat-cache-max-size-mb=15", "--metadata-cache-ttl-secs=25", "--metadata-cache-negative-ttl-secs=20", "--type-cache-max-size-mb=30", "abc", "pqr"},
+			args: []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "--stat-cache-capacity=2000", "--stat-cache-ttl=2m", "--type-cache-ttl=1m20s", "--enable-nonexistent-type-cache", "--experimental-metadata-prefetch-on-mount=async", "--stat-cache-max-size-mb=15", "--metadata-cache-ttl-secs=25", "--metadata-cache-negative-ttl-secs=20", "--type-cache-max-size-mb=30", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				MetadataCache: cfg.MetadataCacheConfig{
 					DeprecatedStatCacheCapacity:         2000,
@@ -1176,7 +1226,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 		},
 		{
 			name: "high performance default config values use deprecated flags",
-			args: []string{"gcsfuse", "--stat-cache-capacity=2000", "--stat-cache-ttl=2m", "--type-cache-ttl=4m", "--enable-nonexistent-type-cache", "--experimental-metadata-prefetch-on-mount=async", "--metadata-cache-negative-ttl-secs=20", "--type-cache-max-size-mb=30", "abc", "pqr"},
+			args: []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "--stat-cache-capacity=2000", "--stat-cache-ttl=2m", "--type-cache-ttl=4m", "--enable-nonexistent-type-cache", "--experimental-metadata-prefetch-on-mount=async", "--metadata-cache-negative-ttl-secs=20", "--type-cache-max-size-mb=30", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				MetadataCache: cfg.MetadataCacheConfig{
 					DeprecatedStatCacheCapacity:         2000,
