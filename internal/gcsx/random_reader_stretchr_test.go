@@ -137,14 +137,14 @@ func (t *RandomReaderStretchrTest) Test_IsValid() {
 			name:          "ReaderIsNotValidAndObjectSizeRemainsSame",
 			srcGeneration: 12345,
 			srcSize:       2000,
-			res:           true,
+			res:           false,
 			objectSize:    1000,
 		},
 		{
 			name:          "ReaderIsValidAndObjectSizeIsUpdated",
 			srcGeneration: 1234,
 			srcSize:       3000,
-			res:           false,
+			res:           true,
 			objectSize:    3000,
 		},
 	}
