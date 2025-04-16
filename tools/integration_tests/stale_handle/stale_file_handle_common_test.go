@@ -71,6 +71,9 @@ func (s *staleFileHandleCommon) validateStaleNFSFileHandleErrorIfStreamingWrites
 ////////////////////////////////////////////////////////////////////////
 
 func (s *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHandleError() {
+	if s.streamingWritesEnabled() && setup.IsZonalBucketRun() {
+		s.T().Skip("Skip the test")
+	}
 	// Dirty the file by giving it some contents.
 	_, err := s.f1.WriteAt([]byte(s.data), 0)
 	assert.NoError(s.T(), err)

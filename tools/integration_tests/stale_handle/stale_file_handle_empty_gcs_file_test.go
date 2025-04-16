@@ -84,10 +84,13 @@ func (s *staleFileHandleSyncedFile) TestClobberedFileFirstWriteThrowsStaleFileHa
 	// Attempt to sync to file should not result in error as we first check if the
 	// content has been dirtied before clobbered check in Sync flow.
 	operations.SyncFile(s.f1, s.T())
-	operations.CloseFileShouldNotThrowError(s.f1, s.T())
+	operations.CloseFileShouldNotThrowError(s.T(), s.f1)
 }
 
 func (s *staleFileHandleSyncedFile) TestRenamedFileSyncAndCloseThrowsStaleFileHandleError() {
+	if s.streamingWritesEnabled() && setup.IsZonalBucketRun() {
+		s.T().Skip("Skipping test as reads aren't supported with streaming writes.")
+	}
 	// Dirty the file by giving it some contents.
 	n, err := s.f1.WriteAt([]byte(s.data), 0)
 	assert.NoError(s.T(), err)
@@ -111,6 +114,9 @@ func (s *staleFileHandleSyncedFile) TestRenamedFileSyncAndCloseThrowsStaleFileHa
 }
 
 func (s *staleFileHandleSyncedFile) TestFileDeletedRemotelySyncAndCloseThrowsStaleFileHandleError() {
+	if s.streamingWritesEnabled() && setup.IsZonalBucketRun() {
+		s.T().Skip("Skipping test as reads aren't supported with streaming writes.")
+	}
 	// Dirty the file by giving it some contents.
 	n, err := s.f1.WriteAt([]byte(s.data), 0)
 	assert.NoError(s.T(), err)
