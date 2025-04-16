@@ -86,21 +86,27 @@ source .venv/bin/activate
 # Install JAX dependencies.
 pip install -r ./perfmetrics/scripts/ml_tests/checkpoint/Jax/requirements.txt
 
-# Run tests in parallel on flat and hns bucket.
+ZONE=$(curl -s -H "Metadata-Flavor: Google" http://metadata/computeMetadata/v1/instance/zone | cut -d'/' -f4)
+# Run tests in parallel on flat, hns and zonal bucket.
 FLAT_BUCKET_NAME="jax-emulated-checkpoint-flat-${architecture}"
 HNS_BUCKET_NAME="jax-emulated-checkpoint-hns-${architecture}"
+ZONAL_BUCKET_NAME="jax-emulated-checkpoint-zonal-${ZONE}-${architecture}"
 mount_gcsfuse_and_run_test "${FLAT_BUCKET_NAME}" &
 flat_pid=$!
 mount_gcsfuse_and_run_test "${HNS_BUCKET_NAME}" &
 hns_pid=$!
+mount_gcsfuse_and_run_test "${ZONAL_BUCKET_NAME}" &
+zonal_pid=$!
 
-# Wait for both processes to finish and check exit codes
+# Wait for all processes to finish and check exit codes
 wait "$flat_pid"
 flat_status=$?
 wait "$hns_pid"
 hns_status=$?
+wait "$zonal_pid"
+zonal_status=$?
 
-if [[ "$flat_status" -ne 0 ]] || [[ "$hns_status" -ne 0 ]]; then
+if [[ "$flat_status" -ne 0 ]] || [[ "$hns_status" -ne 0 ]] || [[ "$zonal_status" -ne 0 ]]; then
   echo "Checkpoint tests failed"
   exit 1
 else
