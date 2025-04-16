@@ -191,14 +191,6 @@ func (t *FileStreamingWritesZonalBucketTest) TestSyncPendingBufferedWritesForZon
 	assert.Equal(t.T(), uint64(6), t.in.src.Size)
 }
 
-func (t *FileStreamingWritesZonalBucketTest) TestIsUsingBWHReturnsTrueIfBWHInitialized() {
-	assert.False(t.T(), t.in.IsUsingBWH())
-
-	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("pizza"), 0))
-
-	assert.True(t.T(), t.in.IsUsingBWH())
-}
-
 // //////////////////////////////////////////////////////////////////////
 // Tests (Non Zonal Bucket)
 // //////////////////////////////////////////////////////////////////////
@@ -231,14 +223,6 @@ func (t *FileStreamingWritesTest) TestSyncPendingBufferedWritesForNonZonalBucket
 	assert.NoError(t.T(), t.in.SyncPendingBufferedWrites())
 
 	assert.Equal(t.T(), uint64(0), t.in.src.Size)
-}
-
-func (t *FileStreamingWritesTest) TestIsUsingBWHReturnsTrueIfBWHInitialized() {
-	assert.False(t.T(), t.in.IsUsingBWH())
-
-	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("pizza"), 0))
-
-	assert.True(t.T(), t.in.IsUsingBWH())
 }
 
 func (t *FileStreamingWritesTest) TestOutOfOrderWritesToLocalFileFallBackToTempFile() {

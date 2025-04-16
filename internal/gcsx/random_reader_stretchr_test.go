@@ -123,39 +123,38 @@ func (t *RandomReaderStretchrTest) Test_ReadInfo() {
 	}
 }
 
-func (t *RandomReaderStretchrTest) Test_IsStale() {
+func (t *RandomReaderStretchrTest) Test_IsValid() {
 	t.object.Generation = 1234
+	t.object.Size = 1000
 	testCases := []struct {
 		name          string
 		srcGeneration int64
+		srcSize       uint64
 		res           bool
+		objectSize    uint64
 	}{
 		{
-			name:          "ReaderIsStale",
-			srcGeneration: 1235,
+			name:          "ReaderIsNotValidAndObjectSizeRemainsSame",
+			srcGeneration: 12345,
+			srcSize:       2000,
 			res:           true,
+			objectSize:    1000,
 		},
 		{
-			name:          "ReaderIsNotStale",
+			name:          "ReaderIsValidAndObjectSizeIsUpdated",
 			srcGeneration: 1234,
+			srcSize:       3000,
 			res:           false,
+			objectSize:    3000,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
-			assert.Equal(t.T(), tc.res, t.rr.wrapped.IsStale(tc.srcGeneration))
+			assert.Equal(t.T(), tc.res, t.rr.wrapped.IsValid(tc.srcGeneration, tc.srcSize))
+			assert.Equal(t.T(), tc.objectSize, t.object.Size)
 		})
 	}
-}
-
-func (t *RandomReaderStretchrTest) Test_UpdateReaderObjectSizeToSrcSizeReturnsCorrectSizeOnReaderObject() {
-	t.object.Size = 1024
-	newSize := 2048
-
-	t.rr.wrapped.UpdateReaderObjectSizeToSrcSize(uint64(newSize))
-
-	assert.Equal(t.T(), uint64(newSize), t.rr.wrapped.object.Size)
 }
 
 func (t *RandomReaderStretchrTest) Test_ReadInfo_Sequential() {

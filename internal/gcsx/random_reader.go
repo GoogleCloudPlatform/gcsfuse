@@ -74,12 +74,9 @@ type RandomReader interface {
 	// again.
 	Destroy()
 
-	// Updates reader object size to f.src object size.
-	// It can only be called when reader is not stale.
-	UpdateReaderObjectSizeToSrcSize(srcSize uint64)
-
-	// Returns true if reader is stale and we should discard it.
-	IsStale(srcGeneration int64) bool
+	// IsValid returns true if reader generation is same as srcGeneration and
+	// also updates object size to given srcSize for valid reader.
+	IsValid(srcGeneration int64, srcSize uint64) bool
 }
 
 // ObjectData specifies the response returned as part of ReadAt call.
@@ -382,13 +379,6 @@ func (rr *randomReader) ReadAt(
 	return
 }
 
-func (rr *randomReader) UpdateReaderObjectSizeToSrcSize(srcSize uint64) {
-	if rr == nil || rr.object == nil {
-		return
-	}
-	rr.object.Size = srcSize
-}
-
 func (rr *randomReader) Destroy() {
 	defer func() {
 		if rr.isMRDInUse {
@@ -417,8 +407,13 @@ func (rr *randomReader) Destroy() {
 	}
 }
 
-func (rr *randomReader) IsStale(srcGeneration int64) bool {
-	return srcGeneration != rr.object.Generation
+func (rr *randomReader) IsValid(srcGeneration int64, srcSize uint64) bool {
+	if rr.object.Generation == srcGeneration {
+		// Update object size for valid reader.
+		rr.object.Size = srcSize
+		return true
+	}
+	return false
 }
 
 // Like io.ReadFull, but deals with the cancellation issues.

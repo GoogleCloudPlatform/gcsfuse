@@ -677,10 +677,8 @@ func (f *FileInode) SyncPendingBufferedWrites() error {
 		return fmt.Errorf("f.bwh.Sync(): %w", err)
 	}
 	// Update the f.src.Size to the current Size of object
-	// on GCS after flushing pending buffers for Zonal Buckets.
-	if f.bucket.BucketType().Zonal {
-		f.src.Size = uint64(f.bwh.WriteFileInfo().TotalSize)
-	}
+	// on GCS after flushing pending buffers.
+	f.src.Size = uint64(f.bwh.WriteFileInfo().TotalSize)
 	return nil
 }
 
@@ -1013,11 +1011,4 @@ func (f *FileInode) initBufferedWriteHandlerIfEligible(ctx context.Context) erro
 	}
 
 	return nil
-}
-
-// Returns true if fileInode is using buffered write handler.
-//
-// LOCKS_REQUIRED(f.mu)
-func (f *FileInode) IsUsingBWH() bool {
-	return f.bwh != nil
 }
