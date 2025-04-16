@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"math"
 	"strconv"
 	"time"
@@ -217,10 +218,11 @@ func (rr *randomReader) CheckInvariants() {
 func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 	p []byte,
 	offset int64) (n int, cacheHit bool, err error) {
-
 	if rr.fileCacheHandler == nil {
 		return
 	}
+
+	log.Println("In tryReadingFromFileCache")
 
 	// By default, consider read type random if the offset is non-zero.
 	isSeq := offset == 0

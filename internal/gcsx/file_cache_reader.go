@@ -168,3 +168,29 @@ func (fc *FileCacheReader) captureFileCacheMetrics(ctx context.Context, metricHa
 	metricHandle.FileCacheReadBytesCount(ctx, int64(readDataSize), []common.MetricAttr{{Key: common.ReadType, Value: readType}})
 	metricHandle.FileCacheReadLatency(ctx, float64(readLatency.Microseconds()), []common.MetricAttr{{Key: common.CacheHit, Value: strconv.FormatBool(cacheHit)}})
 }
+
+func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (ReaderResponse, error) {
+	var err error
+	o := ReaderResponse{
+		DataBuf: p,
+		Size:    0,
+	}
+
+	// Note: If we are reading the file for the first time and read type is sequential
+	// then the file cache behavior is write-through i.e. data is first read from
+	// GCS, cached in file and then served from that file. But the cacheHit is
+	// false in that case.
+	n, cacheHit, err := fc.tryReadingFromFileCache(ctx, p, offset)
+	if err != nil {
+		err = fmt.Errorf("ReadAt: while reading from cache: %w", err)
+		return o, err
+	}
+	// Data was served from cache.
+	if cacheHit || n == len(p) || (n < len(p) && uint64(offset)+uint64(n) == fc.obj.Size) {
+		o.Size = n
+		return o, nil
+	}
+
+	err = FallbackToAnotherReader
+	return o, err
+}
