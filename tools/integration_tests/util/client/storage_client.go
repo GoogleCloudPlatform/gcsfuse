@@ -143,6 +143,7 @@ func NewWriter(ctx context.Context, o *storage.ObjectHandle, client *storage.Cli
 		if setup.IsZonalBucketRun() {
 			// Zonal bucket writers require append-flag to be set.
 			wc.Append = true
+			wc.FinalizeOnClose = true
 		} else {
 			return nil, fmt.Errorf("found zonal bucket %q in non-zonal e2e test run (--zonal=false)", o.BucketName())
 		}
