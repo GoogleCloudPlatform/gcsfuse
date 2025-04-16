@@ -126,7 +126,7 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 		if err != nil {
 			switch {
 			case errors.Is(err, lru.ErrInvalidEntrySize):
-				logger.Warnf("cache handle creation failed due to size constraints: %v", err)
+				logger.Warnf("tryReadingFromFileCache: while creating CacheHandle: %v", err)
 				return 0, false, nil
 			case errors.Is(err, cacheutil.ErrCacheHandleNotRequiredForRandomRead):
 				// Fall back to GCS if it is a random read, cacheFileForRangeRead is
@@ -155,7 +155,7 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 		}
 		fc.fileCacheHandle = nil
 	} else if !errors.Is(err, cacheutil.ErrFallbackToGCS) {
-		return 0, false, fmt.Errorf("tryReadingFromFileCache: read failed: %w", err)
+		return 0, false, fmt.Errorf("tryReadingFromFileCache: while reading via cache: %w", err)
 	}
 	err = nil
 
