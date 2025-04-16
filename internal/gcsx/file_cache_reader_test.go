@@ -104,7 +104,7 @@ func (t *FileCacheReaderTest) TestReadWithNilFileCacheHandler() {
 
 	readerResponse, err := reader.ReadAt(t.ctx, make([]byte, 10), 0)
 
-	assert.Error(t.T(), err)
+	assert.True(t.T(), errors.Is(err, FallbackToAnotherReader))
 	assert.Zero(t.T(), readerResponse.Size)
 }
 
@@ -137,7 +137,7 @@ func (t *FileCacheReaderTest) Test_ReadAt_SequentialSubsequentReadOffsetLessThan
 	t.mockNewReaderWithHandleCallForTestBucket(0, t.object.Size, rd)
 	t.mockBucket.On("Name").Return("test-bucket")
 	start1 := 0
-	end1 := util.MiB // not included
+	end1 := util.MiB
 	assert.Less(t.T(), end1, int(t.object.Size))
 	// First call from offset 0 - sequential read
 	buf := make([]byte, end1-start1)
@@ -177,7 +177,7 @@ func (t *FileCacheReaderTest) Test_ReadAt_SequentialRangeRead() {
 func (t *FileCacheReaderTest) Test_ReadAt_RandomReadNotStartWithZeroOffsetWhenCacheForRangeReadIsFalse() {
 	t.reader.cacheFileForRangeRead = false
 	start := 5
-	end := 10 // not included
+	end := 10
 	t.mockBucket.On("Name").Return("test-bucket")
 	t.mockBucket.On("BucketType").Return(gcs.BucketType{})
 	buf := make([]byte, end-start)
@@ -198,7 +198,7 @@ func (t *FileCacheReaderTest) Test_ReadAt_RandomReadNotStartWithZeroOffsetWhenCa
 	t.reader.cacheFileForRangeRead = true
 	testContent := testutil.GenerateRandomBytes(int(t.object.Size))
 	start := 5
-	end := 10 // not included
+	end := 10
 	rd1 := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	// Mock for download job's NewReader call
 	t.mockNewReaderWithHandleCallForTestBucket(0, t.object.Size, rd1)
@@ -223,7 +223,7 @@ func (t *FileCacheReaderTest) Test_ReadAt_SequentialToRandomSubsequentReadOffset
 	t.mockBucket.On("Name").Return("test-bucket")
 	t.mockBucket.On("BucketType").Return(gcs.BucketType{})
 	start1 := 0
-	end1 := util.MiB // not included
+	end1 := util.MiB
 	assert.Less(t.T(), end1, int(t.object.Size))
 	// First call from offset 0 - sequential read
 	buf := make([]byte, end1-start1)
@@ -253,7 +253,7 @@ func (t *FileCacheReaderTest) Test_ReadAt_SequentialToRandomSubsequentReadOffset
 	t.mockBucket.On("Name").Return("test-bucket")
 	t.mockBucket.On("BucketType").Return(gcs.BucketType{})
 	start1 := 0
-	end1 := util.MiB // not included
+	end1 := util.MiB
 	assert.Less(t.T(), end1, int(t.object.Size))
 	// First call from offset 0 - sequential read
 	buf := make([]byte, end1-start1)
