@@ -175,7 +175,7 @@ func (t *RandomReaderTest) SetUp(ti *TestInfo) {
 	t.bucket = storage.NewMockBucket(ti.MockController, "bucket")
 
 	t.cacheDir = path.Join(os.Getenv("HOME"), "cache/dir")
-	lruCache := lru.NewCache(CacheMaxSize)
+	lruCache := lru.NewCache(cacheMaxSize)
 	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, sequentialReadSizeInMb, &cfg.FileCacheConfig{
 		EnableCrc: false,
 	}, common.NewNoopMetrics())
