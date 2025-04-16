@@ -194,18 +194,12 @@ func (fh *FileHandle) tryEnsureReader(ctx context.Context, sequentialReadSizeMb 
 	// can use it. Otherwise we must throw it away.
 	if fh.reader != nil {
 		srcGen := fh.inode.SourceGeneration()
-		if fh.reader.IsStale(srcGen.Object) {
-			fh.reader.Destroy()
-			fh.reader = nil
-		} else {
-			// If we know the reader is not stale, we should update the reader's object
-			// size to f.src.Size. For Zonal Objects with streaming writes f.src.Size changes
-			// even when generation of Object doesn't change.
-			if fh.inode.Bucket().BucketType().Zonal && fh.inode.IsUsingBWH() {
-				fh.reader.UpdateReaderObjectSizeToSrcSize(srcGen.Size)
-			}
+		if fh.reader.IsValid(srcGen.Object, srcGen.Size) {
 			return
 		}
+		fh.reader.Destroy()
+		fh.reader = nil
+
 	}
 	// Attempt to create an appropriate reader.
 	rr := gcsx.NewRandomReader(fh.inode.Source(), fh.inode.Bucket(), sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, &fh.inode.MRDWrapper)
