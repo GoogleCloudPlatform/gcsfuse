@@ -130,7 +130,7 @@ func (t *FileCacheReaderTest) Test_tryReadingFromFileCache_CacheHit() {
 }
 
 // Writing unit tests on tryReadingFromFileCache to check if cache hit is getting populated correctly.
-func (t *FileCacheReaderTest) Test_ReadAt_SequentialSubsequentReadOffsetLessThanReadChunkSize() {
+func (t *FileCacheReaderTest) Test_tryReadingFromFileCache_SequentialSubsequentReadOffsetLessThanReadChunkSize() {
 	t.object.Size = 20 * util.MiB
 	testContent := testutil.GenerateRandomBytes(int(t.object.Size))
 	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
@@ -157,7 +157,6 @@ func (t *FileCacheReaderTest) Test_ReadAt_SequentialSubsequentReadOffsetLessThan
 	assert.Equal(t.T(), buf2, testContent[start2:end2])
 }
 
-// Writing unit tests on tryReadingFromFileCache to check if cache hit is getting populated correctly.
 func (t *FileCacheReaderTest) Test_ReadAt_SequentialRangeRead() {
 	testContent := testutil.GenerateRandomBytes(int(t.object.Size))
 	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
@@ -266,9 +265,10 @@ func (t *FileCacheReaderTest) Test_ReadAt_SequentialToRandomSubsequentReadOffset
 	buf2 := make([]byte, end2-start2)
 	// Assuming start2 offset download in progress
 	readerResponse, err = t.reader.ReadAt(t.ctx, buf2, int64(start2))
-	// Need to get served from GCS reader
+	// Need to get served from another reader
 	assert.True(t.T(), errors.Is(err, FallbackToAnotherReader))
 	assert.Zero(t.T(), readerResponse.Size)
+	// Assuming start3 offset is downloaded
 	start3 := 4 * util.MiB
 	end3 := start3 + util.MiB
 	buf3 := make([]byte, end3-start3)

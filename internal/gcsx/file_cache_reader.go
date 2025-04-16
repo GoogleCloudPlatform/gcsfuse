@@ -25,7 +25,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
-	cacheutil "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
+	cacheUtil "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
@@ -128,7 +128,7 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 			case errors.Is(err, lru.ErrInvalidEntrySize):
 				logger.Warnf("tryReadingFromFileCache: while creating CacheHandle: %v", err)
 				return 0, false, nil
-			case errors.Is(err, cacheutil.ErrCacheHandleNotRequiredForRandomRead):
+			case errors.Is(err, cacheUtil.ErrCacheHandleNotRequiredForRandomRead):
 				// Fall back to GCS if it is a random read, cacheFileForRangeRead is
 				// False and there doesn't already exist file in cache.
 				isSequential = false
@@ -147,14 +147,14 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 	bytesRead = 0
 	hit = false
 
-	if cacheutil.IsCacheHandleInvalid(err) {
+	if cacheUtil.IsCacheHandleInvalid(err) {
 		logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", fc.fileCacheHandle, fc.bucket.Name(), fc.obj.Name)
 		closeErr := fc.fileCacheHandle.Close()
 		if closeErr != nil {
 			logger.Warnf("tryReadingFromFileCache: close cacheHandle error: %v", closeErr)
 		}
 		fc.fileCacheHandle = nil
-	} else if !errors.Is(err, cacheutil.ErrFallbackToGCS) {
+	} else if !errors.Is(err, cacheUtil.ErrFallbackToGCS) {
 		return 0, false, fmt.Errorf("tryReadingFromFileCache: while reading via cache: %w", err)
 	}
 	err = nil
