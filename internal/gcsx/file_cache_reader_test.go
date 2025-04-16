@@ -52,7 +52,7 @@ type fileCacheReaderTest struct {
 	cacheDir     string
 	jobManager   *downloader.JobManager
 	cacheHandler *file.CacheHandler
-	reader       FileCacheReader
+	reader       *FileCacheReader
 }
 
 func TestFileCacheReaderTestSuite(t *testing.T) {
