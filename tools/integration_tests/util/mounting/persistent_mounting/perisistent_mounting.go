@@ -39,11 +39,11 @@ func makePersistentMountingArgs(flags []string) (args []string, err error) {
 	return
 }
 
-func mountGcsfuseWithPersistentMounting(flags []string) (err error) {
-	return mountGcsfuseWithPersistentMountingMntDirLogFile(flags, setup.MntDir(), setup.LogFile())
+func MountGcsfuseWithPersistentMounting(flags []string) (err error) {
+	return MountGcsfuseWithPersistentMountingMntDirLogFile(flags, setup.MntDir(), setup.LogFile())
 }
 
-func mountGcsfuseWithPersistentMountingMntDirLogFile(flags []string, mntDir, logFile string) (err error) {
+func MountGcsfuseWithPersistentMountingMntDirLogFile(flags []string, mntDir, logFile string) (err error) {
 	defaultArg := []string{setup.TestBucket(),
 		mntDir,
 		"-o",
@@ -71,7 +71,7 @@ func executeTestsForPersistentMounting(flagsSet [][]string, m *testing.M) (succe
 	var err error
 
 	for i := 0; i < len(flagsSet); i++ {
-		if err = mountGcsfuseWithPersistentMounting(flagsSet[i]); err != nil {
+		if err = MountGcsfuseWithPersistentMounting(flagsSet[i]); err != nil {
 			setup.LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
 		}
 		log.Printf("Running persistent mounting tests with flags: %s", flagsSet[i])

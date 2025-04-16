@@ -26,14 +26,14 @@ import (
 )
 
 func MountGcsfuseWithOnlyDir(flags []string) (err error) {
-	return MountGcsfuseWithOnlyDirMntDirLogFile(flags, setup.MntDir(), setup.LogFile())
+	return MountGcsfuseWithOnlyDirMntDirLogFile(flags, setup.MntDir(), setup.LogFile(), setup.OnlyDirMounted())
 }
 
-func MountGcsfuseWithOnlyDirMntDirLogFile(flags []string, mntDir, logFile string) (err error) {
+func MountGcsfuseWithOnlyDirMntDirLogFile(flags []string, mntDir, logFile, onlyDir string) (err error) {
 	defaultArg := []string{"--only-dir",
-		setup.OnlyDirMounted(),
+		onlyDir,
 		"--log-severity=trace",
-		"--log-file=" + setup.LogFile(),
+		"--log-file=" + logFile,
 		setup.TestBucket(),
 		mntDir}
 

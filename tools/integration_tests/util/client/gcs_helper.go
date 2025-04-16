@@ -137,8 +137,12 @@ func SetupFileInTestDirectory(ctx context.Context, storageClient *storage.Client
 }
 
 func SetupTestDirectory(ctx context.Context, storageClient *storage.Client, testDirName string) string {
-	testDirPath := path.Join(setup.MntDir(), testDirName)
-	err := DeleteAllObjectsWithPrefix(ctx, storageClient, path.Join(setup.OnlyDirMounted(), testDirName))
+	return SetupTestDirectoryMntDirOnlyDir(ctx, storageClient, testDirName, setup.MntDir(), setup.OnlyDirMounted())
+}
+
+func SetupTestDirectoryMntDirOnlyDir(ctx context.Context, storageClient *storage.Client, testDirName, mntDir, onlyDir string) string {
+	testDirPath := path.Join(mntDir, testDirName)
+	err := DeleteAllObjectsWithPrefix(ctx, storageClient, path.Join(onlyDir, testDirName))
 	if err != nil {
 		log.Printf("Failed to clean up test directory: %v", err)
 	}
