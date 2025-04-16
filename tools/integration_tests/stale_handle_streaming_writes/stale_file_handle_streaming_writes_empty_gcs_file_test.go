@@ -59,7 +59,7 @@ func (t *staleFileHandleStreamingWritesEmptyGcsFile) TestFirstWriteToClobberedFi
 	// Attempt first write to the file.
 	_, err = t.f1.WriteAt([]byte(t.data), 0)
 
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
+	operations.ValidateESTALEError(t.T(), err)
 	operations.SyncFile(t.f1, t.T())
 	operations.CloseFileShouldNotThrowError(t.T(), t.f1)
 }
@@ -75,7 +75,7 @@ func (t *staleFileHandleStreamingWritesEmptyGcsFile) TestWriteOnRenamedFileThrow
 	// Attempt to write to file should give stale NFS file handle erorr.
 	_, err = t.f1.WriteAt([]byte(t.data), int64(n))
 
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
+	operations.ValidateESTALEError(t.T(), err)
 	// Sync and Close succeeds.
 	operations.SyncFile(t.f1, t.T())
 	operations.CloseFileShouldNotThrowError(t.T(), t.f1)
@@ -98,7 +98,7 @@ func (t *staleFileHandleStreamingWritesEmptyGcsFile) TestFileDeletedRemotelyWrit
 	// Closing the file/writer returns stale NFS file handle error.
 	err = t.f1.Close()
 
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
+	operations.ValidateESTALEError(t.T(), err)
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, t.fileName, t.T())
 }
 

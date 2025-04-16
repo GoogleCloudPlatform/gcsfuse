@@ -55,7 +55,7 @@ func (t *staleFileHandleStreamingWritesSyncedFile) TestWriteToClobberedFileThrow
 
 	_, err = t.f1.WriteAt(data, 0)
 
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
+	operations.ValidateESTALEError(t.T(), err)
 	err = t.f1.Sync()
 	assert.NoError(t.T(), err)
 	err = t.f1.Close()
@@ -79,7 +79,7 @@ func (t *staleFileHandleStreamingWritesSyncedFile) TestRenameFileWriteThrowsStal
 
 	_, err = t.f1.WriteAt(data, 0)
 
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
+	operations.ValidateESTALEError(t.T(), err)
 	err = t.f1.Sync()
 	assert.NoError(t.T(), err)
 	err = t.f1.Close()

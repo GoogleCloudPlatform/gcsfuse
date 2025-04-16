@@ -410,3 +410,19 @@ func DeleteBucket(ctx context.Context, client *storage.Client, bucketName string
 	}
 	return nil
 }
+
+func AppendableWriter(ctx context.Context, client *storage.Client, object string, precondition storage.Conditions) (*storage.Writer, error) {
+	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(object)
+
+	o := client.Bucket(bucket).Object(object)
+	if !reflect.DeepEqual(precondition, storage.Conditions{}) {
+		o = o.If(precondition)
+	}
+
+	// Upload an object with storage.Writer.
+	wc, err := NewWriter(ctx, o, client)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open writer for object %q: %w", o.ObjectName(), err)
+	}
+	return wc, nil
+}
