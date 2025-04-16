@@ -117,7 +117,7 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 		if isSequential {
 			readType = util.Sequential
 		}
-		captureFileCacheMetrics(ctx, fc.metricHandle, readType, bytesRead, hit, executionTime)
+		fc.captureFileCacheMetrics(ctx, fc.metricHandle, readType, bytesRead, hit, executionTime)
 	}()
 
 	// Create fileCacheHandle if not already.
