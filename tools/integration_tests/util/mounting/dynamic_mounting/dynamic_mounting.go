@@ -36,9 +36,13 @@ const PrefixBucketForDynamicMountingTest = "golang-grpc-test-gcsfuse-dynamic-mou
 var testBucketForDynamicMounting = PrefixBucketForDynamicMountingTest + setup.GenerateRandomString(5)
 
 func MountGcsfuseWithDynamicMounting(flags []string) (err error) {
+	return MountGcsfuseWithDynamicMountingMntDirLogFile(flags, setup.MntDir(), setup.LogFile())
+}
+
+func MountGcsfuseWithDynamicMountingMntDirLogFile(flags []string, mntDir, logFile string) (err error) {
 	defaultArg := []string{"--log-severity=trace",
-		"--log-file=" + setup.LogFile(),
-		setup.MntDir()}
+		"--log-file=" + logFile,
+		mntDir}
 
 	for i := 0; i < len(defaultArg); i++ {
 		flags = append(flags, defaultArg[i])

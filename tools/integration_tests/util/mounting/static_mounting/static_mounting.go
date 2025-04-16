@@ -35,7 +35,7 @@ func MountGcsfuseWithStaticMountingMntDirAndLogFile(flags []string, mntDir, logF
 	}
 
 	defaultArg = append(defaultArg, "--log-severity=trace",
-		"--log-file="+setup.LogFile(),
+		"--log-file="+logFile,
 		setup.TestBucket(),
 		mntDir)
 
