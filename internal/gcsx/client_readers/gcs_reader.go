@@ -83,8 +83,8 @@ func NewGCSReader(obj *gcs.MinObject, bucket gcs.Bucket, metricHandle common.Met
 	}
 }
 
-func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.ObjectData, error) {
-	var objectData gcsx.ObjectData
+func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (*gcsx.ObjectData, error) {
+	var objectData *gcsx.ObjectData
 	readReq := &gcsx.GCSReaderReq{
 		Buffer:      p,
 		Offset:      offset,

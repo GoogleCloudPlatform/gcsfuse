@@ -15,9 +15,21 @@
 package gcsx
 
 import (
+	"context"
+	"errors"
+	"fmt"
+	"log"
+	"strconv"
+	"time"
+
+	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
+	cacheutil "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	"github.com/jacobsa/fuse/fuseops"
 )
 
 type FileCacheReader struct {
@@ -40,12 +52,146 @@ type FileCacheReader struct {
 	metricHandle common.MetricHandle
 }
 
-func NewFileCacheReader(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle) FileCacheReader {
-	return FileCacheReader{
+func NewFileCacheReader(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle) *FileCacheReader {
+	return &FileCacheReader{
 		obj:                   o,
 		bucket:                bucket,
 		fileCacheHandler:      fileCacheHandler,
 		cacheFileForRangeRead: cacheFileForRangeRead,
 		metricHandle:          metricHandle,
 	}
+}
+
+func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (*ObjectData, error) {
+	var err error
+	o := &ObjectData{
+		DataBuf: p,
+		Size:    0,
+	}
+
+	log.Println("Cache handle in read at: ", fc.fileCacheHandle)
+
+	// Note: If we are reading the file for the first time and read type is sequential
+	// then the file cache behavior is write-through i.e. data is first read from
+	// GCS, cached in file and then served from that file. But the cacheHit is
+	// false in that case.
+	n, cacheHit, err := fc.tryReadingFromFileCache(ctx, p, offset)
+	if err != nil {
+		err = fmt.Errorf("ReadAt: while reading from cache: %w", err)
+		return o, err
+	}
+	// Data was served from cache.
+	if cacheHit || n == len(p) || (n < len(p) && uint64(offset)+uint64(n) == fc.obj.Size) {
+		o.Size = n
+		return o, nil
+	}
+
+	err = FallbackToAnotherReader
+	return o, err
+}
+
+func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte, offset int64) (n int, cacheHit bool, err error) {
+	// By default, consider read type random if the offset is non-zero.
+	isSeq := offset == 0
+
+	// Request log and start the execution timer.
+	requestId := uuid.New()
+	readOp := ctx.Value(ReadOp).(*fuseops.ReadFileOp)
+	logger.Tracef("%.13v <- FileCache(%s:/%s, offset: %d, size: %d handle: %d)", requestId, fc.bucket.Name(), fc.obj.Name, offset, len(p), readOp.Handle)
+	startTime := time.Now()
+
+	// Response log
+	defer func() {
+		executionTime := time.Since(startTime)
+		var requestOutput string
+		if err != nil {
+			requestOutput = fmt.Sprintf("err: %v (%v)", err, executionTime)
+		} else {
+			if fc.fileCacheHandle != nil {
+				isSeq = fc.fileCacheHandle.IsSequential(offset)
+			}
+			requestOutput = fmt.Sprintf("OK (isSeq: %t, hit: %t) (%v)", isSeq, cacheHit, executionTime)
+		}
+
+		// Here rr.fileCacheHandle will not be nil since we return from the above in those cases.
+		logger.Tracef("%.13v -> %s", requestId, requestOutput)
+
+		readType := util.Random
+		if isSeq {
+			readType = util.Sequential
+		}
+		fc.captureFileCacheMetrics(ctx, fc.metricHandle, readType, n, cacheHit, executionTime)
+	}()
+
+	log.Println("File cache handle: ", fc.fileCacheHandle)
+
+	if fc.fileCacheHandle == nil {
+		return 0, false, nil
+	}
+
+	// Create fileCacheHandle if not already.
+	//if fc.fileCacheHandle == nil {
+	//	fc.fileCacheHandle, err = fc.fileCacheHandler.GetCacheHandle(fc.obj, fc.bucket, fc.cacheFileForRangeRead, offset)
+	//	if err != nil {
+	//		// We fall back to GCS if file size is greater than the cache size
+	//		if strings.Contains(err.Error(), lru.InvalidEntrySizeErrorMsg) {
+	//			logger.Warnf("tryReadingFromFileCache: while creating CacheHandle: %v", err)
+	//			return 0, false, nil
+	//		} else if strings.Contains(err.Error(), cacheutil.CacheHandleNotRequiredForRandomReadErrMsg) {
+	//			// Fall back to GCS if it is a random read, cacheFileForRangeRead is
+	//			// False and there doesn't already exist file in cache.
+	//			isSeq = false
+	//			return 0, false, nil
+	//		}
+	//
+	//		return 0, false, fmt.Errorf("tryReadingFromFileCache: while creating CacheHandle instance: %w", err)
+	//	}
+	//}
+
+	n, cacheHit, err = fc.fileCacheHandle.Read(ctx, fc.bucket, fc.obj, offset, p)
+	if err == nil {
+		return n, cacheHit, nil
+	}
+
+	cacheHit = false
+	n = 0
+
+	if cacheutil.IsCacheHandleInvalid(err) {
+		logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", fc.fileCacheHandle, fc.bucket.Name(), fc.obj.Name)
+		err = fc.fileCacheHandle.Close()
+		if err != nil {
+			logger.Warnf("tryReadingFromFileCache: while closing fileCacheHandle: %v", err)
+		}
+		fc.fileCacheHandle = nil
+	} else if !errors.Is(err, FallbackToAnotherReader) {
+		err = fmt.Errorf("tryReadingFromFileCache: while reading via cache: %w", err)
+		return n, cacheHit, err
+	}
+	err = nil
+
+	return n, cacheHit, err
+}
+
+func (fc *FileCacheReader) Destroy() {
+	if fc.fileCacheHandle != nil {
+		logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", fc.fileCacheHandle, fc.bucket.Name(), fc.obj.Name)
+		err := fc.fileCacheHandle.Close()
+		if err != nil {
+			logger.Warnf("rr.Destroy(): while closing cacheFileHandle: %v", err)
+		}
+		fc.fileCacheHandle = nil
+	}
+}
+
+func (fc *FileCacheReader) captureFileCacheMetrics(ctx context.Context, metricHandle common.MetricHandle, readType string, readDataSize int, cacheHit bool, readLatency time.Duration) {
+	metricHandle.FileCacheReadCount(ctx, 1, []common.MetricAttr{
+		{Key: common.ReadType, Value: readType},
+		{Key: common.CacheHit, Value: strconv.FormatBool(cacheHit)},
+	})
+
+	metricHandle.FileCacheReadBytesCount(ctx, int64(readDataSize), []common.MetricAttr{{Key: common.ReadType, Value: readType}})
+	metricHandle.FileCacheReadLatency(ctx, float64(readLatency.Microseconds()), []common.MetricAttr{{Key: common.CacheHit, Value: strconv.FormatBool(cacheHit)}})
+}
+
+func (fc *FileCacheReader) CheckInvariants() {
 }

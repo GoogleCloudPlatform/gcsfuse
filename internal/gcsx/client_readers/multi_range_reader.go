@@ -58,8 +58,8 @@ func (mrd *MultiRangeReader) readFromMultiRangeReader(ctx context.Context, p []b
 	return
 }
 
-func (mrd *MultiRangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderReq) (gcsx.ObjectData, error) {
-	o := gcsx.ObjectData{
+func (mrd *MultiRangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderReq) (*gcsx.ObjectData, error) {
+	o := &gcsx.ObjectData{
 		DataBuf: req.Buffer,
 		Size:    0,
 	}

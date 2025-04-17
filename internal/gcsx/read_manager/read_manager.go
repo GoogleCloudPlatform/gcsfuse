@@ -34,12 +34,9 @@ type readManager struct {
 
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
-func NewReadManager(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *gcsx.MultiRangeDownloaderWrapper, offset int64) (gcsx.ReadManager, error) {
+func NewReadManager(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *gcsx.MultiRangeDownloaderWrapper) gcsx.ReadManager {
 	gcsReader := client_readers2.NewGCSReader(o, bucket, metricHandle, mrdWrapper, sequentialReadSizeMb)
-	fileCacheReader, err := gcsx.NewFileCacheReader(o, bucket, fileCacheHandler, cacheFileForRangeRead, metricHandle, offset)
-	if err != nil {
-		return nil, err
-	}
+	fileCacheReader := gcsx.NewFileCacheReader(o, bucket, fileCacheHandler, cacheFileForRangeRead, metricHandle)
 
 	return &readManager{
 		object: o,
@@ -47,7 +44,7 @@ func NewReadManager(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb in
 			fileCacheReader,
 			&gcsReader,
 		},
-	}, nil
+	}
 }
 
 func (rr *readManager) Object() (o *gcs.MinObject) {
@@ -60,9 +57,9 @@ func (rr *readManager) CheckInvariants() {
 	}
 }
 
-func (rr *readManager) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.ObjectData, error) {
+func (rr *readManager) ReadAt(ctx context.Context, p []byte, offset int64) (*gcsx.ObjectData, error) {
 	var err error
-	var objectData gcsx.ObjectData
+	var objectData *gcsx.ObjectData
 
 	if offset >= int64(rr.object.Size) {
 		err = io.EOF

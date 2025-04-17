@@ -79,8 +79,8 @@ func (rr *RangeReader) checkInvariants() {
 	}
 }
 
-func (rr *RangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderReq) (gcsx.ObjectData, error) {
-	objectData := gcsx.ObjectData{
+func (rr *RangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderReq) (*gcsx.ObjectData, error) {
+	objectData := &gcsx.ObjectData{
 		DataBuf: req.Buffer,
 		Size:    0,
 	}
@@ -296,8 +296,8 @@ func (rr *RangeReader) invalidateReaderIfMisalignedOrTooSmall(offset int64, p []
 // readFromExistingReader attempts to read data from an existing reader if one is available.
 // If a reader exists and the read is successful, the data is returned.
 // Otherwise, it returns an error indicating that a fallback to another reader is needed.
-func (rr *RangeReader) readFromExistingReader(ctx context.Context, req *gcsx.GCSReaderReq) (gcsx.ObjectData, error) {
-	objectData := gcsx.ObjectData{
+func (rr *RangeReader) readFromExistingReader(ctx context.Context, req *gcsx.GCSReaderReq) (*gcsx.ObjectData, error) {
+	objectData := &gcsx.ObjectData{
 		DataBuf: req.Buffer,
 		Size:    0,
 	}
