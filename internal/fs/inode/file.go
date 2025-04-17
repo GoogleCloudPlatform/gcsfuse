@@ -160,7 +160,7 @@ func NewFileInode(
 		globalMaxWriteBlocksSem: globalMaxBlocksSem,
 	}
 	var err error
-	f.MRDWrapper, err = gcsx.NewMultiRangeDownloaderWrapper(bucket, &f.src)
+	f.MRDWrapper, err = gcsx.NewMultiRangeDownloaderWrapper(bucket, &minObj)
 	if err != nil {
 		logger.Errorf("NewFileInode: Error in creating MRDWrapper %v", err)
 	}
@@ -905,7 +905,7 @@ func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 // Updates the min object stored in MRDWrapper corresponding to the inode.
 // Should be called when minObject associated with inode is updated.
 func (f *FileInode) updateMRDWrapper() {
-	err := f.MRDWrapper.SetMinObject(&f.src)
+	err := f.MRDWrapper.SetMinObject(f.Source())
 	if err != nil {
 		logger.Errorf("FileInode::updateMRDWrapper Error in setting minObject %v", err)
 	}
