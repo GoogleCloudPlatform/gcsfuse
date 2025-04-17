@@ -48,7 +48,7 @@ func (t *defaultMountCommonTest) TearDownSuite() {
 	setup.UnmountGCSFuse(rootDir)
 }
 
-func (t *defaultMountCommonTest) validateReadSucceedsForZB(filePath string) {
+func (t *defaultMountCommonTest) validateReadCall(filePath string) {
 	_, err := os.ReadFile(filePath)
 	if setup.IsZonalBucketRun() {
 		// TODO(b/410698332): Remove skip condition once reads start working.

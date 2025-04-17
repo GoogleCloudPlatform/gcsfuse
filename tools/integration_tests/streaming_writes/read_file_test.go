@@ -23,14 +23,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func (t *defaultMountCommonTest) TestReadFileSucceedsForZB() {
+func (t *defaultMountCommonTest) TestReadFileAfterSync() {
 	// Write some content to the file.
 	_, err := t.f1.WriteAt([]byte(t.data), 0)
 	assert.NoError(t.T(), err)
 	// Sync File to ensure buffers are flushed to GCS.
 	operations.SyncFile(t.f1, t.T())
 
-	t.validateReadSucceedsForZB(t.f1.Name())
+	t.validateReadCall(t.f1.Name())
 
 	// Close the file and validate that the file is created on GCS.
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, t.data, t.T())

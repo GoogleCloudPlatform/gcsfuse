@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func (t *defaultMountCommonTest) TestCreateSymlinkForLocalFileReadFileSucceedsForZB() {
+func (t *defaultMountCommonTest) TestCreateSymlinkForLocalFileAndReadFromSymlink() {
 	// Create Symlink.
 	symlink := path.Join(testDirPath, setup.GenerateRandomString(5))
 	operations.CreateSymLink(t.filePath, symlink, t.T())
@@ -33,14 +33,14 @@ func (t *defaultMountCommonTest) TestCreateSymlinkForLocalFileReadFileSucceedsFo
 	// Verify read link.
 	operations.VerifyReadLink(t.filePath, symlink, t.T())
 
-	// Reading file from symlink succeeds for ZB.
-	t.validateReadSucceedsForZB(symlink)
+	// Validate read file from symlink.
+	t.validateReadCall(symlink)
 
 	// Close the file and validate that the file is created on GCS.
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, t.data, t.T())
 }
 
-func (t *defaultMountCommonTest) TestReadSymlinkForDeletedLocalFileFileReadFileSucceedsForZB() {
+func (t *defaultMountCommonTest) TestReadingFromSymlinkForDeletedLocalFile() {
 	// Create Symlink.
 	symlink := path.Join(testDirPath, setup.GenerateRandomString(5))
 	operations.CreateSymLink(t.filePath, symlink, t.T())
@@ -49,8 +49,8 @@ func (t *defaultMountCommonTest) TestReadSymlinkForDeletedLocalFileFileReadFileS
 	// Verify read link.
 	operations.VerifyReadLink(t.filePath, symlink, t.T())
 
-	// Reading file from symlink succeeds for ZB.
-	t.validateReadSucceedsForZB(symlink)
+	// Validate read from symlink.
+	t.validateReadCall(symlink)
 
 	// Remove filePath and then close the fileHandle to avoid syncing to GCS.
 	operations.RemoveFile(t.filePath)
