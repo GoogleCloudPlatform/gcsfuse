@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"strconv"
 	"time"
 
@@ -34,7 +35,7 @@ import (
 
 type FileCacheReader struct {
 	Reader
-	obj    *gcs.MinObject
+	object *gcs.MinObject
 	bucket gcs.Bucket
 
 	// fileCacheHandler is used to get file cache handle and read happens using that.
@@ -54,7 +55,7 @@ type FileCacheReader struct {
 
 func NewFileCacheReader(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle) *FileCacheReader {
 	return &FileCacheReader{
-		obj:                   o,
+		object:                o,
 		bucket:                bucket,
 		fileCacheHandler:      fileCacheHandler,
 		cacheFileForRangeRead: cacheFileForRangeRead,
@@ -91,7 +92,7 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 		handleID = uint64(readOp.Handle)
 	}
 	requestID := uuid.New()
-	logger.Tracef("%.13v <- FileCache(%s:/%s, offset: %d, size: %d, handle: %d)", requestID, fc.bucket.Name(), fc.obj.Name, offset, len(p), handleID)
+	logger.Tracef("%.13v <- FileCache(%s:/%s, offset: %d, size: %d, handle: %d)", requestID, fc.bucket.Name(), fc.object.Name, offset, len(p), handleID)
 
 	startTime := time.Now()
 	var bytesRead int
@@ -116,12 +117,12 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 		if isSequential {
 			readType = util.Sequential
 		}
-		fc.captureFileCacheMetrics(ctx, fc.metricHandle, readType, bytesRead, cacheHit, executionTime)
+		captureFileCacheMetrics(ctx, fc.metricHandle, readType, bytesRead, cacheHit, executionTime)
 	}()
 
 	// Create fileCacheHandle if not already.
 	if fc.fileCacheHandle == nil {
-		fc.fileCacheHandle, err = fc.fileCacheHandler.GetCacheHandle(fc.obj, fc.bucket, fc.cacheFileForRangeRead, offset)
+		fc.fileCacheHandle, err = fc.fileCacheHandler.GetCacheHandle(fc.object, fc.bucket, fc.cacheFileForRangeRead, offset)
 		if err != nil {
 			switch {
 			case errors.Is(err, lru.ErrInvalidEntrySize):
@@ -138,7 +139,7 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 		}
 	}
 
-	bytesRead, cacheHit, err = fc.fileCacheHandle.Read(ctx, fc.bucket, fc.obj, offset, p)
+	bytesRead, cacheHit, err = fc.fileCacheHandle.Read(ctx, fc.bucket, fc.object, offset, p)
 	if err == nil {
 		return bytesRead, cacheHit, nil
 	}
@@ -147,7 +148,7 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 	cacheHit = false
 
 	if cacheUtil.IsCacheHandleInvalid(err) {
-		logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", fc.fileCacheHandle, fc.bucket.Name(), fc.obj.Name)
+		logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", fc.fileCacheHandle, fc.bucket.Name(), fc.object.Name)
 		closeErr := fc.fileCacheHandle.Close()
 		if closeErr != nil {
 			logger.Warnf("tryReadingFromFileCache: close cacheHandle error: %v", closeErr)
@@ -161,7 +162,7 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 	return 0, false, nil
 }
 
-func (fc *FileCacheReader) captureFileCacheMetrics(ctx context.Context, metricHandle common.MetricHandle, readType string, readDataSize int, cacheHit bool, readLatency time.Duration) {
+func captureFileCacheMetrics(ctx context.Context, metricHandle common.MetricHandle, readType string, readDataSize int, cacheHit bool, readLatency time.Duration) {
 	metricHandle.FileCacheReadCount(ctx, 1, []common.MetricAttr{
 		{Key: common.ReadType, Value: readType},
 		{Key: common.CacheHit, Value: strconv.FormatBool(cacheHit)},
@@ -178,6 +179,11 @@ func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (
 		Size:    0,
 	}
 
+	if offset >= int64(fc.object.Size) {
+		err = io.EOF
+		return readerResponse, err
+	}
+
 	// Note: If we are reading the file for the first time and read type is sequential
 	// then the file cache behavior is write-through i.e. data is first read from
 	// GCS, cached in file and then served from that file. But the cacheHit is
@@ -188,7 +194,7 @@ func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (
 		return readerResponse, err
 	}
 	// Data was served from cache.
-	if cacheHit || bytesRead == len(p) || (bytesRead < len(p) && uint64(offset)+uint64(bytesRead) == fc.obj.Size) {
+	if cacheHit || bytesRead == len(p) || (bytesRead < len(p) && uint64(offset)+uint64(bytesRead) == fc.object.Size) {
 		readerResponse.Size = bytesRead
 		return readerResponse, nil
 	}

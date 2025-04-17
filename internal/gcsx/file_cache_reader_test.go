@@ -34,6 +34,7 @@ import (
 	testutil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -91,7 +92,7 @@ func (t *fileCacheReaderTest) TestNewFileCacheReader() {
 	reader := NewFileCacheReader(t.object, t.mockBucket, t.cacheHandler, true, nil)
 
 	assert.NotNil(t.T(), reader)
-	assert.Equal(t.T(), t.object, reader.obj)
+	assert.Equal(t.T(), t.object, reader.object)
 	assert.Equal(t.T(), t.mockBucket, reader.bucket)
 	assert.Equal(t.T(), t.cacheHandler, reader.fileCacheHandler)
 	assert.True(t.T(), reader.cacheFileForRangeRead)
@@ -108,7 +109,6 @@ func (t *fileCacheReaderTest) Test_ReadAt_NilFileCacheHandlerThrowFallBackError(
 	assert.Zero(t.T(), readerResponse.Size)
 }
 
-// Writing unit tests on tryReadingFromFileCache to check if cache hit is getting populated correctly.
 func (t *fileCacheReaderTest) Test_tryReadingFromFileCache_CacheHit() {
 	testContent := testutil.GenerateRandomBytes(int(t.object.Size))
 	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
@@ -130,7 +130,6 @@ func (t *fileCacheReaderTest) Test_tryReadingFromFileCache_CacheHit() {
 	t.mockBucket.AssertExpectations(t.T())
 }
 
-// Writing unit tests on tryReadingFromFileCache to check if cache hit is getting populated correctly.
 func (t *fileCacheReaderTest) Test_tryReadingFromFileCache_SequentialSubsequentReadOffsetLessThanReadChunkSize() {
 	t.object.Size = 20 * util.MiB
 	testContent := testutil.GenerateRandomBytes(int(t.object.Size))
@@ -139,7 +138,7 @@ func (t *fileCacheReaderTest) Test_tryReadingFromFileCache_SequentialSubsequentR
 	t.mockBucket.On("Name").Return("test-bucket")
 	start1 := 0
 	end1 := util.MiB
-	assert.Less(t.T(), end1, int(t.object.Size))
+	require.Less(t.T(), end1, int(t.object.Size))
 	// First call from offset 0 - sequential read
 	buf := make([]byte, end1-start1)
 	_, cacheHit, err := t.reader.tryReadingFromFileCache(t.ctx, buf, int64(start1))
@@ -166,7 +165,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_SequentialRangeRead() {
 	t.mockBucket.On("Name").Return("test-bucket")
 	start := 0
 	end := 10
-	assert.Less(t.T(), end, int(t.object.Size))
+	require.Less(t.T(), end, int(t.object.Size))
 	buf := make([]byte, end-start)
 
 	readerResponse, err := t.reader.ReadAt(t.ctx, buf, int64(start))
@@ -225,7 +224,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_SequentialToRandomSubsequentReadOffset
 	t.mockBucket.On("Name").Return("test-bucket")
 	start1 := 0
 	end1 := util.MiB
-	assert.Less(t.T(), end1, int(t.object.Size))
+	require.Less(t.T(), end1, int(t.object.Size))
 	// First call from offset 0 - sequential read
 	buf := make([]byte, end1-start1)
 	readerResponse, err := t.reader.ReadAt(t.ctx, buf, int64(start1))
@@ -243,6 +242,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_SequentialToRandomSubsequentReadOffset
 	assert.Zero(t.T(), readerResponse.Size)
 	job := t.jobManager.GetJob(t.object.Name, t.mockBucket.Name())
 	assert.True(t.T(), job == nil || job.GetStatus().Name == downloader.Downloading)
+	assert.NotNil(t.T(), t.reader.fileCacheHandle)
 	t.mockBucket.AssertExpectations(t.T())
 }
 
@@ -254,7 +254,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_SequentialToRandomSubsequentReadOffset
 	t.mockBucket.On("Name").Return("test-bucket")
 	start1 := 0
 	end1 := util.MiB
-	assert.Less(t.T(), end1, int(t.object.Size))
+	require.Less(t.T(), end1, int(t.object.Size))
 	// First call from offset 0 - sequential read
 	buf := make([]byte, end1-start1)
 	readerResponse, err := t.reader.ReadAt(t.ctx, buf, int64(start1))
@@ -294,11 +294,11 @@ func (t *fileCacheReaderTest) Test_ReadAt_CacheMissDueToInvalidJob() {
 		jobStatus := job.GetStatus().Name
 		assert.True(t.T(), jobStatus == downloader.Downloading || jobStatus == downloader.Completed, fmt.Sprintf("the actual status is %v", jobStatus))
 	}
-
 	err = t.reader.fileCacheHandler.InvalidateCache(t.object.Name, t.mockBucket.Name())
 	assert.NoError(t.T(), err)
 
 	readerResponse, err = t.reader.ReadAt(t.ctx, buf, 0)
+
 	// As job is invalidated Need to get served from GCS reader
 	assert.True(t.T(), errors.Is(err, FallbackToAnotherReader))
 	assert.Zero(t.T(), readerResponse.Size)
