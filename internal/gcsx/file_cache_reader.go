@@ -162,16 +162,6 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 	return 0, false, nil
 }
 
-func captureFileCacheMetrics(ctx context.Context, metricHandle common.MetricHandle, readType string, readDataSize int, cacheHit bool, readLatency time.Duration) {
-	metricHandle.FileCacheReadCount(ctx, 1, []common.MetricAttr{
-		{Key: common.ReadType, Value: readType},
-		{Key: common.CacheHit, Value: strconv.FormatBool(cacheHit)},
-	})
-
-	metricHandle.FileCacheReadBytesCount(ctx, int64(readDataSize), []common.MetricAttr{{Key: common.ReadType, Value: readType}})
-	metricHandle.FileCacheReadLatency(ctx, float64(readLatency.Microseconds()), []common.MetricAttr{{Key: common.CacheHit, Value: strconv.FormatBool(cacheHit)}})
-}
-
 func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (ReaderResponse, error) {
 	var err error
 	readerResponse := ReaderResponse{
@@ -202,4 +192,14 @@ func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (
 	// The cache is unable to serve data and requires a fallback to another reader.
 	err = FallbackToAnotherReader
 	return readerResponse, err
+}
+
+func captureFileCacheMetrics(ctx context.Context, metricHandle common.MetricHandle, readType string, readDataSize int, cacheHit bool, readLatency time.Duration) {
+	metricHandle.FileCacheReadCount(ctx, 1, []common.MetricAttr{
+		{Key: common.ReadType, Value: readType},
+		{Key: common.CacheHit, Value: strconv.FormatBool(cacheHit)},
+	})
+
+	metricHandle.FileCacheReadBytesCount(ctx, int64(readDataSize), []common.MetricAttr{{Key: common.ReadType, Value: readType}})
+	metricHandle.FileCacheReadLatency(ctx, float64(readLatency.Microseconds()), []common.MetricAttr{{Key: common.CacheHit, Value: strconv.FormatBool(cacheHit)}})
 }
