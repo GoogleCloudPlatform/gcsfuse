@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -295,16 +294,6 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 	err = nil
 
 	return
-}
-
-func captureFileCacheMetrics(ctx context.Context, metricHandle common.MetricHandle, readType string, readDataSize int, cacheHit bool, readLatency time.Duration) {
-	metricHandle.FileCacheReadCount(ctx, 1, []common.MetricAttr{
-		{Key: common.ReadType, Value: readType},
-		{Key: common.CacheHit, Value: strconv.FormatBool(cacheHit)},
-	})
-
-	metricHandle.FileCacheReadBytesCount(ctx, int64(readDataSize), []common.MetricAttr{{Key: common.ReadType, Value: readType}})
-	metricHandle.FileCacheReadLatency(ctx, float64(readLatency.Microseconds()), []common.MetricAttr{{Key: common.CacheHit, Value: strconv.FormatBool(cacheHit)}})
 }
 
 func (rr *randomReader) ReadAt(

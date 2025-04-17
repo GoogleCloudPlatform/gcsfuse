@@ -72,7 +72,7 @@ func (t *RandomReaderStretchrTest) SetupTest() {
 	t.mockBucket = new(storage.TestifyMockBucket)
 
 	t.cacheDir = path.Join(os.Getenv("HOME"), "cache/dir")
-	lruCache := lru.NewCache(CacheMaxSize)
+	lruCache := lru.NewCache(cacheMaxSize)
 	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, sequentialReadSizeInMb, &cfg.FileCacheConfig{
 		EnableCrc: false,
 	}, nil)
