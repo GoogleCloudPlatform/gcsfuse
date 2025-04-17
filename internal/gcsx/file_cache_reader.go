@@ -85,13 +85,12 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 
 	// By default, consider read type random if the offset is non-zero.
 	isSequential := offset == 0
-	requestID := uuid.New()
 
 	var handleID uint64
 	if readOp, ok := ctx.Value(ReadOp).(*fuseops.ReadFileOp); ok {
 		handleID = uint64(readOp.Handle)
 	}
-
+	requestID := uuid.New()
 	logger.Tracef("%.13v <- FileCache(%s:/%s, offset: %d, size: %d, handle: %d)", requestID, fc.bucket.Name(), fc.obj.Name, offset, len(p), handleID)
 
 	startTime := time.Now()
@@ -134,7 +133,7 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 				isSequential = false
 				return 0, false, nil
 			default:
-				return 0, false, fmt.Errorf("tryReadingFromFileCache: getCacheHandle failed: %w", err)
+				return 0, false, fmt.Errorf("tryReadingFromFileCache: GetCacheHandle failed: %w", err)
 			}
 		}
 	}

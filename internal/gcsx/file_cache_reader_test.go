@@ -99,7 +99,7 @@ func (t *fileCacheReaderTest) TestNewFileCacheReader() {
 	assert.Nil(t.T(), reader.fileCacheHandle)
 }
 
-func (t *fileCacheReaderTest) TestReadWithNilFileCacheHandler() {
+func (t *fileCacheReaderTest) Test_ReadAt_NilFileCacheHandlerThrowFallBackError() {
 	reader := NewFileCacheReader(t.object, t.mockBucket, nil, true, nil)
 
 	readerResponse, err := reader.ReadAt(t.ctx, make([]byte, 10), 0)
