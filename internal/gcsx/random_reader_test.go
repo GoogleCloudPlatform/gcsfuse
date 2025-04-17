@@ -426,6 +426,7 @@ func (t *RandomReaderTest) DoesntPropagateCancellationAfterReturning() {
 func (t *RandomReaderTest) UpgradesReadsToObjectSize() {
 	const objectSize = 2 * MB
 	t.object.Size = objectSize
+	t.rr.wrapped.sizeProvider.(*randomReaderReadSizeProvider).objectSize = objectSize
 
 	const readSize = 10
 	AssertLt(readSize, objectSize)
@@ -695,6 +696,7 @@ func (t *RandomReaderTest) Test_ReadAt_RandomReadNotStartWithZeroOffsetWhenCache
 func (t *RandomReaderTest) Test_ReadAt_SequentialToRandomSubsequentReadOffsetMoreThanReadChunkSize() {
 	t.rr.wrapped.fileCacheHandler = t.cacheHandler
 	t.object.Size = 20 * util.MiB
+	t.rr.wrapped.sizeProvider.(*randomReaderReadSizeProvider).objectSize = 20 * util.MiB
 	objectSize := t.object.Size
 	testContent := testutil.GenerateRandomBytes(int(objectSize))
 	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
