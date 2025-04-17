@@ -519,6 +519,16 @@ func OpenFile(filePath string, t *testing.T) (f *os.File) {
 	return
 }
 
+func OpenFileWithODirect(t *testing.T, filePath string) (f *os.File) {
+	t.Helper()
+	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC|syscall.O_DIRECT, FilePermission_0600)
+	if err != nil {
+		require.NoError(t, err)
+	}
+	return
+
+}
+
 func CreateSymLink(filePath, symlink string, t *testing.T) {
 	err := os.Symlink(filePath, symlink)
 
