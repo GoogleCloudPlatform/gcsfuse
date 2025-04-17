@@ -17,6 +17,7 @@ package wrappers
 import (
 	"context"
 	"errors"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"net/http"
 	"strings"
 	"syscall"
@@ -60,7 +61,8 @@ func errno(err error, preconditionErrCfg bool) error {
 		return nil
 	}
 
-	if errors.Is(err, storage.ErrObjectNotExist) {
+	var notFoundError *gcs.NotFoundError
+	if errors.Is(err, storage.ErrObjectNotExist) || errors.As(err, &notFoundError) {
 		return syscall.ENOENT
 	}
 
