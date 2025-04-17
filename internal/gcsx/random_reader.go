@@ -281,6 +281,7 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 	n = 0
 
 	if cacheutil.IsCacheHandleInvalid(err) {
+		fmt.Println("Error: ", err)
 		logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", rr.fileCacheHandle, rr.bucket.Name(), rr.object.Name)
 		err = rr.fileCacheHandle.Close()
 		if err != nil {

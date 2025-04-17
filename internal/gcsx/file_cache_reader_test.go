@@ -18,9 +18,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
@@ -85,7 +87,7 @@ func (t *fileCacheReaderTest) TearDown() {
 func (t *fileCacheReaderTest) mockNewReaderWithHandleCallForTestBucket(start uint64, limit uint64, rd gcs.StorageReader) {
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(rg *gcs.ReadObjectRequest) bool {
 		return rg != nil && (*rg.Range).Start == start && (*rg.Range).Limit == limit
-	})).Return(rd, nil).Maybe()
+	})).Return(rd, nil)
 }
 
 func (t *fileCacheReaderTest) TestNewFileCacheReader() {
@@ -106,6 +108,25 @@ func (t *fileCacheReaderTest) Test_ReadAt_NilFileCacheHandlerThrowFallBackError(
 	readerResponse, err := reader.ReadAt(t.ctx, make([]byte, 10), 0)
 
 	assert.True(t.T(), errors.Is(err, FallbackToAnotherReader))
+	assert.Zero(t.T(), readerResponse.Size)
+}
+
+func (t *fileCacheReaderTest) Test_ReadAt_FileSizeIsGreaterThanCacheSize() {
+	t.reader.object.Size = 45 * MB
+	t.mockBucket.On("Name").Return("test-bucket")
+
+	readerResponse, err := t.reader.ReadAt(t.ctx, make([]byte, t.reader.object.Size), 0)
+
+	assert.True(t.T(), errors.Is(err, FallbackToAnotherReader))
+	assert.Zero(t.T(), readerResponse.Size)
+}
+
+func (t *fileCacheReaderTest) Test_ReadAt_OffsetGreaterThanFileSizeWillReturnEOF() {
+	offset := t.reader.object.Size + 10
+
+	readerResponse, err := t.reader.ReadAt(t.ctx, make([]byte, 10), int64(offset))
+
+	assert.True(t.T(), errors.Is(err, io.EOF), "expected %v error got %v", io.EOF, err)
 	assert.Zero(t.T(), readerResponse.Size)
 }
 
@@ -303,5 +324,158 @@ func (t *fileCacheReaderTest) Test_ReadAt_CacheMissDueToInvalidJob() {
 	// As job is invalidated Need to get served from GCS reader
 	assert.True(t.T(), errors.Is(err, FallbackToAnotherReader))
 	assert.Zero(t.T(), readerResponse.Size)
+	t.mockBucket.AssertExpectations(t.T())
+}
+
+func (t *fileCacheReaderTest) Test_ReadAt_CachePopulatedAndThenCacheMissDueToInvalidJob() {
+	testContent := testutil.GenerateRandomBytes(int(t.object.Size))
+	rd1 := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
+	t.mockNewReaderWithHandleCallForTestBucket(0, t.object.Size, rd1)
+	t.mockBucket.On("Name").Return("test-bucket")
+	buf := make([]byte, t.object.Size)
+	readerResponse, err := t.reader.ReadAt(t.ctx, buf, 0)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), readerResponse.DataBuf, testContent)
+	job := t.jobManager.GetJob(t.object.Name, t.mockBucket.Name())
+	if job != nil {
+		jobStatus := job.GetStatus().Name
+		assert.True(t.T(), jobStatus == downloader.Downloading || jobStatus == downloader.Completed, fmt.Sprintf("the actual status is %v", jobStatus))
+	}
+	assert.NotNil(t.T(), t.reader.fileCacheHandle)
+	err = t.reader.fileCacheHandler.InvalidateCache(t.object.Name, t.mockBucket.Name())
+	assert.NoError(t.T(), err)
+	// Second reader (rc2) is required, since first reader (rc) is completely read.
+	// Reading again will return EOF.
+	fmt.Println("Invalidated")
+	readerResponse, err = t.reader.ReadAt(t.ctx, buf, 0)
+	// As job is invalidated Need to get served from GCS reader
+	assert.True(t.T(), errors.Is(err, FallbackToAnotherReader))
+	assert.Zero(t.T(), readerResponse.Size)
+	assert.Nil(t.T(), t.reader.fileCacheHandle)
+	fmt.Println("Invalidated22")
+	rd1 = &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
+	t.mockNewReaderWithHandleCallForTestBucket(0, t.object.Size, rd1)
+
+	readerResponse, err = t.reader.ReadAt(t.ctx, buf, 0)
+
+	time.Sleep(2 * time.Second)
+	// As job is invalidated Need to get served from GCS reader
+	assert.True(t.T(), errors.Is(err, FallbackToAnotherReader))
+	assert.Zero(t.T(), readerResponse.Size)
+	//if job != nil {
+	//	jobStatus := job.GetStatus().Name
+	//	assert.True(t.T(), jobStatus == downloader.Downloading, fmt.Sprintf("the actual status is %v", jobStatus))
+	//}
+	assert.NotNil(t.T(), t.reader.fileCacheHandle)
+	t.mockBucket.AssertExpectations(t.T())
+}
+
+func (t *fileCacheReaderTest) Test_ReadAt_CachePopulatedAndThenCacheMissDueToInvalidFileHandle() {
+	objectSize := t.object.Size
+	testContent := testutil.GenerateRandomBytes(int(objectSize))
+	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
+	t.mockNewReaderWithHandleCallForTestBucket(0, objectSize, rd)
+	t.mockBucket.On("Name").Return("test-bucket")
+	buf := make([]byte, objectSize)
+	readerResponse, err := t.reader.ReadAt(t.ctx, buf, 0)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), readerResponse.DataBuf, testContent)
+	assert.NotNil(t.T(), t.reader.fileCacheHandle)
+	err = t.reader.fileCacheHandle.Close()
+	assert.NoError(t.T(), err)
+	readerResponse, err = t.reader.ReadAt(t.ctx, buf, 0)
+	assert.True(t.T(), errors.Is(err, FallbackToAnotherReader))
+	assert.Zero(t.T(), readerResponse.Size)
+	assert.Nil(t.T(), t.reader.fileCacheHandle)
+	rc3 := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
+	t.mockNewReaderWithHandleCallForTestBucket(0, objectSize, rc3)
+
+	readerResponse, err = t.reader.ReadAt(t.ctx, buf, 0)
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), readerResponse.DataBuf, testContent)
+	assert.NotNil(t.T(), t.reader.fileCacheHandle)
+	t.mockBucket.AssertExpectations(t.T())
+}
+
+func (t *fileCacheReaderTest) Test_ReadAt_IfCacheFileGetsDeleted() {
+	objectSize := t.object.Size
+	testContent := testutil.GenerateRandomBytes(int(objectSize))
+	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
+	t.mockNewReaderWithHandleCallForTestBucket(0, objectSize, rd)
+	t.mockBucket.On("Name").Return("test-bucket")
+	buf := make([]byte, objectSize)
+	readerResponse, err := t.reader.ReadAt(t.ctx, buf, 0)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), readerResponse.DataBuf, testContent)
+	assert.NotNil(t.T(), t.reader.fileCacheHandle)
+	err = t.reader.fileCacheHandle.Close()
+	assert.NoError(t.T(), err)
+	t.reader.fileCacheHandle = nil
+	// Delete the local cache file.
+	filePath := util.GetDownloadPath(t.cacheDir, util.GetObjectPath(t.mockBucket.Name(), t.object.Name))
+	err = os.Remove(filePath)
+	assert.NoError(t.T(), err)
+
+	readerResponse, err = t.reader.ReadAt(t.ctx, buf, 0)
+
+	assert.True(t.T(), errors.Is(err, util.ErrFileNotPresentInCache))
+	assert.Zero(t.T(), readerResponse.Size)
+}
+
+func (t *fileCacheReaderTest) Test_ReadAt_IfCacheFileGetsDeletedWithCacheHandleOpen() {
+	objectSize := t.object.Size
+	testContent := testutil.GenerateRandomBytes(int(objectSize))
+	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
+	t.mockNewReaderWithHandleCallForTestBucket(0, objectSize, rd)
+	t.mockBucket.On("Name").Return("test-bucket")
+	buf := make([]byte, objectSize)
+	readerResponse, err := t.reader.ReadAt(t.ctx, buf, 0)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), readerResponse.DataBuf, testContent)
+	assert.NotNil(t.T(), t.reader.fileCacheHandle)
+	// Delete the local cache file.
+	filePath := util.GetDownloadPath(t.cacheDir, util.GetObjectPath(t.mockBucket.Name(), t.object.Name))
+	err = os.Remove(filePath)
+	assert.NoError(nil, err)
+
+	// Read via cache only, as we have old fileHandle open and linux
+	// doesn't delete the file until the fileHandle count for the file is zero.
+	readerResponse, err = t.reader.ReadAt(t.ctx, buf, 0)
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), readerResponse.DataBuf, testContent)
+	t.mockBucket.AssertExpectations(t.T())
+}
+
+func (t *fileCacheReaderTest) Test_ReadAt_FailedJobRestartAndCacheHit() {
+	objectSize := t.object.Size
+	testContent := testutil.GenerateRandomBytes(int(objectSize))
+	//rc := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
+	// First call goes to file cache succeeded by next call to random reader.
+	// First NewReaderWithReadHandle-call throws error, hence async job fails.
+	// Later NewReader-call returns a valid readCloser object hence fallback to
+	// GCS read will succeed.
+	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(nil, errors.New(""))
+	t.mockBucket.On("Name").Return("test-bucket")
+	buf := make([]byte, objectSize)
+	readerResponse, err := t.reader.ReadAt(t.ctx, buf, 0)
+	assert.True(t.T(), errors.Is(err, FallbackToAnotherReader))
+	assert.Zero(t.T(), readerResponse.Size)
+	job := t.jobManager.GetJob(t.object.Name, t.mockBucket.Name())
+	assert.True(t.T(), job == nil || job.GetStatus().Name == downloader.Failed)
+	// This call will populate the cache again.
+	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
+	t.mockNewReaderWithHandleCallForTestBucket(0, objectSize, rd)
+	readerResponse, err = t.reader.ReadAt(t.ctx, buf, 0)
+	assert.True(t.T(), errors.Is(err, FallbackToAnotherReader))
+	assert.Zero(t.T(), readerResponse.Size)
+	assert.Nil(t.T(), t.reader.fileCacheHandle)
+
+	readerResponse, err = t.reader.ReadAt(t.ctx, buf, 0)
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), readerResponse.DataBuf, testContent)
+	assert.NotNil(t.T(), t.reader.fileCacheHandle)
 	t.mockBucket.AssertExpectations(t.T())
 }

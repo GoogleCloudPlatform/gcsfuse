@@ -148,6 +148,7 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 	cacheHit = false
 
 	if cacheUtil.IsCacheHandleInvalid(err) {
+		fmt.Println("Error: ", err)
 		logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", fc.fileCacheHandle, fc.bucket.Name(), fc.object.Name)
 		closeErr := fc.fileCacheHandle.Close()
 		if closeErr != nil {
