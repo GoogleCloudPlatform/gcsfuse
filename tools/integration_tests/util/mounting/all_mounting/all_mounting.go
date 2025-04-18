@@ -29,6 +29,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/persistent_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
 // MountingType represents the different types of GCSFuse mounting.
@@ -43,6 +44,10 @@ const (
 	PersistentMounting
 	// OnlyDirMounting represents mounting only a specific directory within a bucket.
 	OnlyDirMounting
+)
+
+const (
+	onlyDirMountTestPrefix = "onlyDirMountTest-"
 )
 
 type TestMountConfiguration struct {
@@ -70,6 +75,10 @@ func (t *TestMountConfiguration) MntDir() string {
 		os.Exit(1)
 	}
 	return t.mntDir
+}
+
+func (t *TestMountConfiguration) MountType() MountingType {
+	return t.mountType
 }
 
 func (t *TestMountConfiguration) Mount(tb testing.TB, mntTestDirPrefix string, storageClient *storage.Client) (err error) {
@@ -126,7 +135,7 @@ func (t *TestMountConfiguration) Unmount() error {
 
 }
 
-func GenerateTestMountConfigurations(mountTypes []MountingType, flagsSet [][]string, baseTestDir, onlyDir string) []TestMountConfiguration {
+func GenerateTestMountConfigurations(mountTypes []MountingType, flagsSet [][]string, baseTestDir string) []TestMountConfiguration {
 	var testMountConfigurations []TestMountConfiguration
 	for _, mountType := range mountTypes {
 		for _, flags := range flagsSet {
@@ -136,10 +145,11 @@ func GenerateTestMountConfigurations(mountTypes []MountingType, flagsSet [][]str
 				basePackageTestDir: baseTestDir,
 			}
 			if mountType == OnlyDirMounting {
-				testMountConfiguration.onlyDir = onlyDir
+				testMountConfiguration.onlyDir = onlyDirMountTestPrefix + setup.GenerateRandomString(5)
 				testMountConfiguration.onlyDirExistsOnBucket = true
 				dup := testMountConfiguration
 				dup.onlyDirExistsOnBucket = false
+				dup.onlyDir = onlyDirMountTestPrefix + setup.GenerateRandomString(5)
 				testMountConfigurations = append(testMountConfigurations, dup)
 			}
 			testMountConfigurations = append(testMountConfigurations, testMountConfiguration)
@@ -148,10 +158,21 @@ func GenerateTestMountConfigurations(mountTypes []MountingType, flagsSet [][]str
 	return testMountConfigurations
 }
 
-func UnmountAll(mountConfiguration []TestMountConfiguration) error {
+func UnmountAll(mountConfiguration []TestMountConfiguration, storageClient *storage.Client) error {
 	cnt := 0
 	for _, testMountConfiguration := range mountConfiguration {
 		if testMountConfiguration.mntDir != "" {
+			log.Println("Unmounting, mntDir: ", testMountConfiguration.mntDir, "mountType: ", testMountConfiguration.mountType)
+			if testMountConfiguration.mountType == OnlyDirMounting {
+				log.Println("OnlyDir: ", testMountConfiguration.onlyDir)
+				ctx := context.Background()
+				err := client.DeleteObjectOnGCS(ctx, storageClient, testMountConfiguration.onlyDir+"/")
+				if err != nil {
+					log.Printf("Unable to delete onlyDir: %s, err: %v", testMountConfiguration.onlyDir, err)
+				} else {
+					log.Printf("Successfully deleted onlyDir: %s", testMountConfiguration.onlyDir)
+				}
+			}
 			err := testMountConfiguration.Unmount()
 			if err != nil {
 				cnt++

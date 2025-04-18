@@ -39,16 +39,16 @@ func (s *OperationSuite) SetupSuite() {
 }
 
 func (s *OperationSuite) TestStatWithTrailingNewline() {
-	//s.T().Logf("mountConfiguration: %p", s.mountConfiguration)
+	s.T().Logf("mountConfiguration: %p", s.mountConfiguration)
 	//s.T().Logf("mountConfiguration: %#v", s.mountConfiguration)
 }
 
 func TestOperationsSuite(t *testing.T) {
 	t.Parallel()
-	for _, testMountConfiguration := range configurations {
+	for i := range configurations {
 		t.Run(setup.GenerateRandomString(5), func(t *testing.T) {
 			t.Parallel()
-			suite.Run(t, &OperationSuite{mountConfiguration: &testMountConfiguration})
+			suite.Run(t, &OperationSuite{mountConfiguration: &configurations[i]})
 		})
 	}
 }

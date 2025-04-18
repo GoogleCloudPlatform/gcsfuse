@@ -197,8 +197,11 @@ func TestMain(m *testing.M) {
 		successCodeTPC := static_mounting.RunTests(flagsSet, m)
 		os.Exit(successCodeTPC)
 	}
-	configurations = all_mounting.GenerateTestMountConfigurations(mountTypes, flagsSet, setup.TestDir(), onlyDirMounted)
+	configurations = all_mounting.GenerateTestMountConfigurations(mountTypes, flagsSet, setup.TestDir())
+	for _, testMountConfiguration := range configurations {
+		log.Println("MountType: ", testMountConfiguration.MountType())
+	}
 	successCode := m.Run()
-	all_mounting.UnmountAll(configurations)
+	all_mounting.UnmountAll(configurations, storageClient)
 	os.Exit(successCode)
 }
