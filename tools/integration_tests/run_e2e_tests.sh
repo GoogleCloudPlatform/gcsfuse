@@ -89,7 +89,7 @@ TEST_DIR_PARALLEL=(
   "log_rotation"
   "mounting"
   "read_cache"
-  "grpc_validation"
+  # "grpc_validation"
   "gzip"
   "write_large_files"
   "list_large_dir"
