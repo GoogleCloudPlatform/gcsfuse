@@ -112,6 +112,23 @@ func CreateTestBucketForDynamicMounting(ctx context.Context, client *storage.Cli
 		Location: "us-west1",
 	}
 
+	if setup.IsZonalBucketRun() {
+		storageClassAndLocation.StorageClass = "RAPID"
+		if setup.IsPresubmitRun() {
+			storageClassAndLocation.Location = "us-west4"
+			storageClassAndLocation.CustomPlacementConfig = &storage.CustomPlacementConfig{DataLocations: []string{"us-west4-a"}}
+		} else {
+			storageClassAndLocation.Location = "us-central1"
+			storageClassAndLocation.CustomPlacementConfig = &storage.CustomPlacementConfig{DataLocations: []string{"us-central1-a"}}
+		}
+		storageClassAndLocation.HierarchicalNamespace = &storage.HierarchicalNamespace{
+			Enabled: true,
+		}
+		storageClassAndLocation.UniformBucketLevelAccess = storage.UniformBucketLevelAccess{
+			Enabled: true,
+		}
+	}
+
 	bucket := client.Bucket(testBucketForDynamicMounting)
 	if err := bucket.Create(ctx, projectID, storageClassAndLocation); err != nil {
 		log.Fatalf("DynamicBucket(%q).Create: %v", testBucketForDynamicMounting, err)
