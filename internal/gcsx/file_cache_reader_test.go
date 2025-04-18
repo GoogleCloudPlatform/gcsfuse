@@ -118,17 +118,17 @@ func (t *fileCacheReaderTest) Test_ReadAt_NilFileCacheHandlerThrowFallBackError(
 }
 
 func (t *fileCacheReaderTest) Test_ReadAt_FileSizeIsGreaterThanCacheSize() {
-	t.reader.object.Size = 45 * MiB
+	t.object.Size = cacheMaxSize + 5
 	t.mockBucket.On("Name").Return("test-bucket")
 
-	readerResponse, err := t.reader.ReadAt(t.ctx, make([]byte, t.reader.object.Size), 0)
+	readerResponse, err := t.reader.ReadAt(t.ctx, make([]byte, t.object.Size), 0)
 
 	assert.True(t.T(), errors.Is(err, FallbackToAnotherReader), "expected %v error got %v", FallbackToAnotherReader, err)
 	assert.Zero(t.T(), readerResponse.Size)
 }
 
 func (t *fileCacheReaderTest) Test_ReadAt_OffsetGreaterThanFileSizeWillReturnEOF() {
-	offset := t.reader.object.Size + 10
+	offset := t.object.Size + 10
 
 	readerResponse, err := t.reader.ReadAt(t.ctx, make([]byte, 10), int64(offset))
 
