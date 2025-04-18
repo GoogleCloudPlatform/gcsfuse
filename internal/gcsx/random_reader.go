@@ -70,13 +70,12 @@ type RandomReader interface {
 	// as part of response always.
 	ReadAt(ctx context.Context, p []byte, offset int64) (objectData ObjectData, err error)
 
+	// Return the record for the object to which the reader is bound.
+	Object() (o *gcs.MinObject)
+
 	// Clean up any resources associated with the reader, which must not be used
 	// again.
 	Destroy()
-
-	// IsValid returns true if reader generation is same as srcGeneration and
-	// also updates object size to given srcSize for valid reader.
-	IsValid(srcGeneration int64, srcSize uint64) bool
 }
 
 // ObjectData specifies the response returned as part of ReadAt call.
@@ -379,6 +378,11 @@ func (rr *randomReader) ReadAt(
 	return
 }
 
+func (rr *randomReader) Object() (o *gcs.MinObject) {
+	o = rr.object
+	return
+}
+
 func (rr *randomReader) Destroy() {
 	defer func() {
 		if rr.isMRDInUse {
@@ -405,15 +409,6 @@ func (rr *randomReader) Destroy() {
 		}
 		rr.fileCacheHandle = nil
 	}
-}
-
-func (rr *randomReader) IsValid(srcGeneration int64, srcSize uint64) bool {
-	if rr.object.Generation == srcGeneration {
-		// Update object size for valid reader.
-		rr.object.Size = srcSize
-		return true
-	}
-	return false
 }
 
 // Like io.ReadFull, but deals with the cancellation issues.
