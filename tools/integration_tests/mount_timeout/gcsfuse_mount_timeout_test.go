@@ -48,7 +48,6 @@ func TestMountTimeout(t *testing.T) {
 			}
 			t.Log("Running tests with region based timeout values since the GCE VM is located in us-central...\n")
 			suite.Run(t, &ZBMountTimeoutTest{config: config})
-			break
 		case testEnvZoneGCEUSWEST4A:
 			// Set strict zone-based config values.
 			config := ZBMountTimeoutTestCaseConfig{
@@ -59,7 +58,6 @@ func TestMountTimeout(t *testing.T) {
 			}
 			t.Logf("Running tests with relaxed timeout of %f sec for all scenarios since the GCE VM is not located in us-central...\n", relaxedExpectedMountTime.Seconds())
 			suite.Run(t, &ZBMountTimeoutTest{config: config})
-			break
 		default:
 			// Skip the tests if the testing environment is not GCE VM.
 			t.Logf("Skipping tests since the testing environment (%q) is not a ZB supported region...\n", zone)
