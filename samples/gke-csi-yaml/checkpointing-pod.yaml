@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: gcs-fuse-csi-example-pod
+  namespace: <customer-namespace>
+  annotations:
+    gke-gcsfuse/volumes: "true"
+
+spec:
+  containers:
+    # Add your workload container spec
+    ...
+    volumeMounts:
+    - name: checkpoint-bucket-vol
+      mountPath: /checkpoint-data
+  serviceAccountName: <YOUR_K8S_SA>
+  volumes:
+  #RAM disk file cache if L-SSD not available. Uncomment out to use#
+  #   - name: gke-gcsfuse-cache # gcsfuse file cache backed by RAM Disk
+  #     emptyDir:
+  #       medium: Memory
+  - name: checkpoint-bucket-vol
+    persistentVolumeClaim:
+      claimName: checkpoint-bucket-pvc
