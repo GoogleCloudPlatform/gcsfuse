@@ -9,7 +9,7 @@ For JAX Jit Cache workflows, use the Checkpointing workflow yaml configs.
 
 For e.g. To set up the serving workload.
 
-First, deploy the PVC/PV first (this is required because the GKE pod webhook inspect the PV volume attributes for additional optimizations like injection of additional containers)
+Deploy the PVC/PV first (this is required because the GKE pod webhook inspects the PV volume attributes for additional optimizations like injection of additional containers)
 e.g.
 ``` 
 kubectl apply -f serving-pv.yaml

@@ -15,7 +15,7 @@ spec:
       mountPath: /serving-data
   serviceAccountName: <YOUR_K8S_SA>
   volumes:
-  #RAM disk file cache for best performance of Parallel Download. Can use L-SSD if not available memory
+  # RAM disk file cache for best performance of Parallel Download. Can use L-SSD if not available memory
   - name: gke-gcsfuse-cache # gcsfuse file cache backed by RAM Disk
     emptyDir:
       medium: Memory

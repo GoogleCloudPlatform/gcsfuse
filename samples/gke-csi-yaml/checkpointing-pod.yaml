@@ -15,7 +15,7 @@ spec:
       mountPath: /checkpoint-data
   serviceAccountName: <YOUR_K8S_SA>
   volumes:
-  #RAM disk file cache if L-SSD not available. Uncomment out to use#
+  # RAM disk file cache if L-SSD not available. Uncomment to use
   #   - name: gke-gcsfuse-cache # gcsfuse file cache backed by RAM Disk
   #     emptyDir:
   #       medium: Memory
