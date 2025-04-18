@@ -173,6 +173,7 @@ func (testSuite *MountTimeoutTest) mountOrTimeout(bucketName, mountDir, clientPr
 			return err
 		}
 		mountTime := time.Since(start)
+		fmt.Println("time taken to mount bucket ", bucketName, ": ", mountTime)
 
 		minMountTime = time.Duration(math.Min(float64(minMountTime), float64(mountTime)))
 
