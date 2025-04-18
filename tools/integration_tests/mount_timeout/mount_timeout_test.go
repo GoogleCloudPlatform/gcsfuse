@@ -40,6 +40,7 @@ var gBuildDir string
 var gFusermountPath string
 
 const (
+	// Constants specific to non-ZB E2E runs.
 	testEnvGCEUSCentral                    string        = "gce-us-central"
 	testEnvGCENonUSCentral                 string        = "gce-non-us-central"
 	testEnvNonGCE                          string        = "non-gce"
@@ -55,8 +56,16 @@ const (
 	dualRegionUSExpectedMountTime          time.Duration = 4500 * time.Millisecond
 	dualRegionAsiaExpectedMountTime        time.Duration = 6250 * time.Millisecond
 	singleRegionUSCentralExpectedMountTime time.Duration = 2500 * time.Millisecond
-	relaxedExpectedMountTime               time.Duration = 8000 * time.Millisecond
-	logfilePathPrefix                      string        = "/tmp/gcsfuse_mount_timeout_"
+	// Constants specific to ZB E2E runs.
+	testEnvZoneGCEUSCentral1A      string        = "gce-zone-us-central1-a"
+	testEnvZoneGCEUSWEST4A         string        = "gce-zone-us-west4a-a"
+	testEnvZoneGCEOther            string        = "gce-zone-other"
+	zonalUSCentral1ABucket         string        = "mount_timeout_test_bucket_zb_usc1a"
+	zonalUSWest4ABucket            string        = "mount_timeout_test_bucket_zb_usw4a"
+	zonalSameZoneExpectedMountTime time.Duration = 2500 * time.Millisecond
+	// Commont constants.
+	relaxedExpectedMountTime time.Duration = 8000 * time.Millisecond
+	logfilePathPrefix        string        = "/tmp/gcsfuse_mount_timeout_"
 )
 
 // findTestExecutionEnvironment determines the environment in which the tests are running.
@@ -69,7 +78,7 @@ const (
 // Otherwise, if running in any other region, it returns gce-non-us-central.
 //
 // For all other cases, it returns non-gce.
-func findTestExecutionEnvironment(ctx context.Context) string {
+func findTestExecutionEnvironment(ctx context.Context) (string, string) {
 	detectedAttrs, err := resource.New(ctx, resource.WithDetectors(gcp.NewDetector()))
 	if err != nil {
 		log.Printf("Error fetching the test environment.All tests will be skipped.")
@@ -79,10 +88,18 @@ func findTestExecutionEnvironment(ctx context.Context) string {
 		return testEnvNonGCE
 	}
 	if v, exists := attrs.Value("cloud.region"); exists {
-		if strings.Contains(strings.ToLower(v.AsString()), "us-central") {
-			return testEnvGCEUSCentral
-		} else {
-			return testEnvGCENonUSCentral
+		zone := strings.ToLower(v.AsString())
+		switch zone {
+		case "us-central1-a":
+			return testEnvGCEUSCentral, testEnvZoneGCEUSCentral1A
+		case "us-west4-a":
+			return testEnvGCENonUSCentral, testEnvZoneGCEUSWEST4A
+		default:
+			if strings.Contains(strings.ToLower(v.AsString()), "us-central") {
+				return testEnvGCEUSCentral, testEnvZoneGCEOther
+			} else {
+				return testEnvGCENonUSCentral, testEnvZoneGCEOther
+			}
 		}
 	}
 	return testEnvNonGCE
@@ -101,8 +118,13 @@ func TestMain(m *testing.M) {
 			log.Fatalf("LookPath(fusermount): %p", err)
 		}
 	}
-	testEnv := findTestExecutionEnvironment(context.Background())
+	testEnv, testEnvZone := findTestExecutionEnvironment(context.Background())
 	err = os.Setenv("TEST_ENV", testEnv)
+	if err != nil {
+		fmt.Println("Error setting environment variable:", err)
+		return
+	}
+	err = os.Setenv("TEST_ENV_ZONE", testEnvZone)
 	if err != nil {
 		fmt.Println("Error setting environment variable:", err)
 		return

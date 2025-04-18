@@ -35,34 +35,66 @@ const (
 )
 
 func TestMountTimeout(t *testing.T) {
-	if os.Getenv("TEST_ENV") == testEnvGCEUSCentral {
-		// Set strict region based timeout values if testing environment is GCE VM in us-central.
-		timeout := RegionWiseTimeouts{
-			multiRegionUSTimeout:         multiRegionUSExpectedMountTime,
-			multiRegionAsiaTimeout:       multiRegionAsiaExpectedMountTime,
-			dualRegionUSTimeout:          dualRegionUSExpectedMountTime,
-			dualRegionAsiaTimeout:        dualRegionAsiaExpectedMountTime,
-			singleRegionUSCentralTimeout: singleRegionUSCentralExpectedMountTime,
-			singleRegionAsiaEastTimeout:  singleRegionAsiaEastExpectedMountTime,
+	if setup.IsZonalBucketRun() {
+		zone := os.Getenv("TEST_ENV_ZONE")
+		switch zone {
+		case testEnvZoneGCEUSCentral1A:
+			// Set strict zone-based config values.
+			config := ZBMountTimeoutTestCaseConfig{
+				sameZoneBucket: zonalUSCentral1ABucket
+				crossZoneBucket: zonalUSWest4ABucket
+				sameZoneTimeout:  zonalSameZoneExpectedMountTime,
+				zonalCrossZoneTimeout: relaxedExpectedMountTime,
+			}
+			t.Log("Running tests with zone %q ...\n", zone)
+			suite.Run(t, &ZBMountTimeoutTest{config: config})
+			break
+		case testEnvZoneGCEUSWEST4A:
+			// Set strict zone-based config values.
+			config := ZBMountTimeoutTestCaseConfig{
+				sameZoneBucket: zonalUSWest4ABucket
+				crossZoneBucket: zonalUSCentral1ABucket
+				sameZoneTimeout:  relaxedExpectedMountTime,
+				zonalCrossZoneTimeout: relaxedExpectedMountTime,
+			}
+			t.Log("Running tests with zone %q ...\n", zone)
+			suite.Run(t, &ZBMountTimeoutTest{config: config})
+			break
+		default:
+			// Skip the tests if the testing environment is not GCE VM.
+			t.Log("Skipping tests since the testing environment zone (%q) is not a ZB supported zone...\n", zone)
+			t.Skip()
 		}
-		t.Log("Running tests with region based timeout values since the GCE VM is located in us-central...\n")
-		suite.Run(t, &MountTimeoutTest{timeouts: timeout})
-	} else if os.Getenv("TEST_ENV") == testEnvGCENonUSCentral {
-		// Set common relaxed timeout values if testing environment is GCE VM not in us-central.
-		timeout := RegionWiseTimeouts{
-			multiRegionUSTimeout:         relaxedExpectedMountTime,
-			multiRegionAsiaTimeout:       relaxedExpectedMountTime,
-			dualRegionUSTimeout:          relaxedExpectedMountTime,
-			dualRegionAsiaTimeout:        relaxedExpectedMountTime,
-			singleRegionUSCentralTimeout: relaxedExpectedMountTime,
-			singleRegionAsiaEastTimeout:  relaxedExpectedMountTime,
-		}
-		t.Logf("Running tests with relaxed timeout of %f sec for all scenarios since the GCE VM is not located in us-central...\n", relaxedExpectedMountTime.Seconds())
-		suite.Run(t, &MountTimeoutTest{timeouts: timeout})
 	} else {
-		// Skip the tests if the testing environment is not GCE VM.
-		t.Log("Skipping tests since the testing environment is not GCE VM...\n")
-		t.Skip()
+		if os.Getenv("TEST_ENV") == testEnvGCEUSCentral {
+			// Set strict region based timeout values if testing environment is GCE VM in us-central.
+			timeout := RegionWiseTimeouts{
+				multiRegionUSTimeout:         multiRegionUSExpectedMountTime,
+				multiRegionAsiaTimeout:       multiRegionAsiaExpectedMountTime,
+				dualRegionUSTimeout:          dualRegionUSExpectedMountTime,
+				dualRegionAsiaTimeout:        dualRegionAsiaExpectedMountTime,
+				singleRegionUSCentralTimeout: singleRegionUSCentralExpectedMountTime,
+				singleRegionAsiaEastTimeout:  singleRegionAsiaEastExpectedMountTime,
+			}
+			t.Log("Running tests with region based timeout values since the GCE VM is located in us-central...\n")
+			suite.Run(t, &NonZBMountTimeoutTest{timeouts: timeout})
+		} else if os.Getenv("TEST_ENV") == testEnvGCENonUSCentral {
+			// Set common relaxed timeout values if testing environment is GCE VM not in us-central.
+			timeout := RegionWiseTimeouts{
+				multiRegionUSTimeout:         relaxedExpectedMountTime,
+				multiRegionAsiaTimeout:       relaxedExpectedMountTime,
+				dualRegionUSTimeout:          relaxedExpectedMountTime,
+				dualRegionAsiaTimeout:        relaxedExpectedMountTime,
+				singleRegionUSCentralTimeout: relaxedExpectedMountTime,
+				singleRegionAsiaEastTimeout:  relaxedExpectedMountTime,
+			}
+			t.Logf("Running tests with relaxed timeout of %f sec for all scenarios since the GCE VM is not located in us-central...\n", relaxedExpectedMountTime.Seconds())
+			suite.Run(t, &NonZBMountTimeoutTest{timeouts: timeout})
+		} else {
+			// Skip the tests if the testing environment is not GCE VM.
+			t.Log("Skipping tests since the testing environment is not GCE VM...\n")
+			t.Skip()
+		}
 	}
 }
 
@@ -75,6 +107,13 @@ type RegionWiseTimeouts struct {
 	singleRegionAsiaEastTimeout  time.Duration
 }
 
+type ZBMountTimeoutTestCaseConfig struct {
+	sameZoneBucket string
+	crossZoneBucket string
+	sameZoneTimeout  time.Duration
+	zonalCrossZoneTimeout time.Duration
+}
+
 type MountTimeoutTest struct {
 	suite.Suite
 	// Path to the gcsfuse binary.
@@ -82,8 +121,17 @@ type MountTimeoutTest struct {
 
 	// A temporary directory into which a file system may be mounted. Removed in
 	// TearDown.
-	dir      string
+	dir string
+}
+
+type NonZBMountTimeoutTest struct {
+	MountTimeoutTest
 	timeouts RegionWiseTimeouts
+}
+
+type ZBMountTimeoutTest struct {
+	MountTimeoutTest
+	config ZBMountTimeoutTestCaseConfig
 }
 
 func (testSuite *MountTimeoutTest) SetupTest() {
@@ -97,6 +145,19 @@ func (testSuite *MountTimeoutTest) SetupTest() {
 func (testSuite *MountTimeoutTest) TearDownTest() {
 	err := os.Remove(testSuite.dir)
 	assert.NoError(testSuite.T(), err)
+}
+
+func (testSuite *NonZBMountTimeoutTest) SetupTest() {
+	testSuite.MountTimeoutTest.SetupTest()
+}
+func (testSuite *NonZBMountTimeoutTest) TearDownTest() {
+	testSuite.MountTimeoutTest.TearDownTest()
+}
+func (testSuite *ZBMountTimeoutTest) SetupTest() {
+	testSuite.MountTimeoutTest.SetupTest()
+}
+func (testSuite *ZBMountTimeoutTest) TearDownTest() {
+	testSuite.MountTimeoutTest.TearDownTest()
 }
 
 // mountOrTimeout mounts the bucket with the given client protocol. If the time taken
@@ -127,7 +188,7 @@ func (testSuite *MountTimeoutTest) mountOrTimeout(bucketName, mountDir, clientPr
 	return nil
 }
 
-func (testSuite *MountTimeoutTest) TestMountMultiRegionUSBucketWithTimeout() {
+func (testSuite *NonZBMountTimeoutTest) TestMountMultiRegionUSBucketWithTimeout() {
 	testCases := []struct {
 		name           string
 		clientProtocol cfg.Protocol
@@ -153,7 +214,7 @@ func (testSuite *MountTimeoutTest) TestMountMultiRegionUSBucketWithTimeout() {
 	}
 }
 
-func (testSuite *MountTimeoutTest) TestMountMultiRegionAsiaBucketWithTimeout() {
+func (testSuite *NonZBMountTimeoutTest) TestMountMultiRegionAsiaBucketWithTimeout() {
 	testCases := []struct {
 		name           string
 		clientProtocol cfg.Protocol
@@ -179,7 +240,7 @@ func (testSuite *MountTimeoutTest) TestMountMultiRegionAsiaBucketWithTimeout() {
 	}
 }
 
-func (testSuite *MountTimeoutTest) TestMountDualRegionUSBucketWithTimeout() {
+func (testSuite *NonZBMountTimeoutTest) TestMountDualRegionUSBucketWithTimeout() {
 	testCases := []struct {
 		name           string
 		clientProtocol cfg.Protocol
@@ -205,7 +266,7 @@ func (testSuite *MountTimeoutTest) TestMountDualRegionUSBucketWithTimeout() {
 	}
 }
 
-func (testSuite *MountTimeoutTest) TestMountDualRegionAsiaBucketWithTimeout() {
+func (testSuite *NonZBMountTimeoutTest) TestMountDualRegionAsiaBucketWithTimeout() {
 	testCases := []struct {
 		name           string
 		clientProtocol cfg.Protocol
@@ -231,7 +292,7 @@ func (testSuite *MountTimeoutTest) TestMountDualRegionAsiaBucketWithTimeout() {
 	}
 }
 
-func (testSuite *MountTimeoutTest) TestMountSingleRegionUSBucketWithTimeout() {
+func (testSuite *NonZBMountTimeoutTest) TestMountSingleRegionUSBucketWithTimeout() {
 	testCases := []struct {
 		name           string
 		clientProtocol cfg.Protocol
@@ -257,7 +318,7 @@ func (testSuite *MountTimeoutTest) TestMountSingleRegionUSBucketWithTimeout() {
 	}
 }
 
-func (testSuite *MountTimeoutTest) TestMountSingleRegionAsiaBucketWithTimeout() {
+func (testSuite *NonZBMountTimeoutTest) TestMountSingleRegionAsiaBucketWithTimeout() {
 	testCases := []struct {
 		name           string
 		clientProtocol cfg.Protocol
@@ -279,6 +340,38 @@ func (testSuite *MountTimeoutTest) TestMountSingleRegionAsiaBucketWithTimeout() 
 		setup.SetLogFile(fmt.Sprintf("%s%s.txt", logfilePathPrefix, tc.name))
 
 		err := testSuite.mountOrTimeout(singleRegionAsiaEastBucket, testSuite.dir, string(tc.clientProtocol), testSuite.timeouts.singleRegionAsiaEastTimeout)
+		assert.NoError(testSuite.T(), err)
+	}
+}
+
+func (testSuite *ZBMountTimeoutTest) TestMountSameZoneBucketWithTimeout() {
+	testCases := []struct {
+		name           string
+	}{
+		{
+			name:           "sameZoneBucket",
+		},
+	}
+	for _, tc := range testCases {
+		setup.SetLogFile(fmt.Sprintf("%s%s.txt", logfilePathPrefix, tc.name))
+
+		err := testSuite.mountOrTimeout(testSuite.config.sameZoneBucket, testSuite.dir, string(tc.clientProtocol), testSuite.config.sameZoneTimeout)
+		assert.NoError(testSuite.T(), err)
+	}
+}
+
+func (testSuite *ZBMountTimeoutTest) TestMountCrossZoneBucketWithTimeout() {
+	testCases := []struct {
+		name           string
+	}{
+		{
+			name:           "crossZoneBucket",
+		},
+	}
+	for _, tc := range testCases {
+		setup.SetLogFile(fmt.Sprintf("%s%s.txt", logfilePathPrefix, tc.name))
+
+		err := testSuite.mountOrTimeout(testSuite.config.crossZoneBucket, testSuite.dir, config.GRC, testSuite.config.crossZoneTimeout)
 		assert.NoError(testSuite.T(), err)
 	}
 }
