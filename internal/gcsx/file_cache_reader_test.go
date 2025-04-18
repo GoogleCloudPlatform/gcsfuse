@@ -41,7 +41,6 @@ import (
 )
 
 const (
-	MiB                       = 1024 * 1024
 	testObject                = "testObject"
 	sequentialReadSizeInMb    = 22
 	sequentialReadSizeInBytes = sequentialReadSizeInMb * MiB
@@ -352,7 +351,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_CachePopulatedAndThenCacheMissDueToInv
 	// Invalidate the cache to simulate cache miss
 	err = t.reader.fileCacheHandler.InvalidateCache(t.object.Name, t.mockBucket.Name())
 	assert.NoError(t.T(), err)
-	// Next read should fallback due to invalidated job (simulate cache miss)
+	// Next read should fall back due to invalidated job (simulate cache miss)
 	buf2 := make([]byte, t.object.Size)
 	readerResponse, err = t.reader.ReadAt(t.ctx, buf2, 0)
 	assert.True(t.T(), errors.Is(err, FallbackToAnotherReader))

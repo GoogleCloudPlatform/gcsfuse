@@ -371,7 +371,6 @@ func (m *mockBucket) BucketType() (o0 gcs.BucketType) {
 
 func (m *mockBucket) NewReaderWithReadHandle(p0 context.Context, p1 *gcs.ReadObjectRequest) (o0 gcs.StorageReader, o1 error) {
 	// Get a file name and line number for the caller.
-	fmt.Println("In mock NewReaderWithReadHandle")
 	_, file, line, _ := runtime.Caller(1)
 
 	// Hand the call off to the controller, which does most of the work.

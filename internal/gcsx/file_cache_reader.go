@@ -33,8 +33,11 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 )
 
-// "readOp" is the value used in read context to store pointer to the read operation.
-const ReadOp = "readOp"
+const (
+	// ReadOp ("readOp") is the value used in read context to store pointer to the read operation.
+	ReadOp = "readOp"
+	MiB    = 1 << 20
+)
 
 type FileCacheReader struct {
 	Reader
