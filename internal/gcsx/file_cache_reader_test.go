@@ -365,7 +365,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_CachePopulatedAndThenCacheMissDueToInv
 	t.mockBucket.AssertExpectations(t.T())
 }
 
-func (t *fileCacheReaderTest) Test_ReadAt_CachePopulatedAndThenCacheMissDueToInvalidFileHandle() {
+func (t *fileCacheReaderTest) Test_ReadAt_CachePopulatedAndThenCacheMissDueToInvalidFileHandleAfterThanCacheHitWithNewFileCacheHanlde() {
 	testContent := testutil.GenerateRandomBytes(int(t.object.Size))
 	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, t.object.Size, rd)
@@ -383,7 +383,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_CachePopulatedAndThenCacheMissDueToInv
 
 	readerResponse, err = t.reader.ReadAt(t.ctx, make([]byte, t.object.Size), 0)
 
-	// Reading from cache as file cache.
+	// Reading from file cache with new file cache handle.
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), readerResponse.DataBuf, testContent)
 	assert.NotNil(t.T(), t.reader.fileCacheHandle)
@@ -464,18 +464,6 @@ func (t *fileCacheReaderTest) Test_ReadAt_FailedJobRestartAndCacheHit() {
 	assert.Equal(t.T(), readerResponse.DataBuf, testContent)
 	assert.NotNil(t.T(), t.reader.fileCacheHandle)
 	t.mockBucket.AssertExpectations(t.T())
-}
-
-func (t *fileCacheReaderTest) Test_tryReadingFromFileCache_CacheMiss() {
-	t.reader.cacheFileForRangeRead = false
-	start := 5
-	end := 10
-	t.mockBucket.On("Name").Return("test-bucket")
-
-	_, cacheHit, err := t.reader.tryReadingFromFileCache(t.ctx, make([]byte, end-start), int64(start))
-
-	assert.False(t.T(), cacheHit)
-	assert.NoError(t.T(), err)
 }
 
 func (t *fileCacheReaderTest) Test_ReadAt_NegativeOffsetShouldThrowError() {
