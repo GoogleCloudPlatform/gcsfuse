@@ -178,13 +178,6 @@ function delete_buckets_listed_in_file() {
 	fi
 }
 
-# Clean-up for this program, which is called whenever this program exits.
-# Args: None.
-function clean_up() {
-	local bucketNamesFile=${1}
-	delete_buckets_listed_in_file "${bucketNamesFile}"
-}
-
 function upgrade_gcloud_version() {
   sudo apt-get update
   # Upgrade gcloud version.
@@ -461,7 +454,7 @@ function main(){
   # buckets to be cleaned-up while exiting this program.
   bucketNamesFile=$(realpath ./bucketNames)"-"$(tr -dc 'a-z0-9' < /dev/urandom | head -c $RANDOM_STRING_LENGTH)
   # Delete all these buckets when the program exits.
-  trap "clean_up ${bucketNamesFile}" EXIT
+  trap "delete_buckets_listed_in_file ${bucketNamesFile}" EXIT
 
   set -e
 
