@@ -156,28 +156,22 @@ TEST_DIR_NON_PARALLEL_FOR_ZB=(
 # Create a temporary file to store the log file name.
 TEST_LOGS_FILE=$(mktemp)
 
-# Delete contents of the bucket, and then the bucket itself.
-# Args: <bucket>
-function clean_up_bucket() {
-	local bucket=${1}
-	if test -n "${bucket}"; then
-		echo "Cleaning contents of bucket ${bucket} ..."
-		gcloud -q --no-user-output-enabled storage rm -r --verbosity=none gs://${bucket}/* || true
-		echo "Deleting bucket ${bucket} ..."
-		if ! gcloud -q --no-user-output-enabled storage buckets delete gs://${bucket}; then
-			>&2 echo "Failed to delete bucket ${bucket} !"
-		fi
-	fi
-}
-
 # Delete contents of the buckets (and then the buckets themselves) whose names are in the passed file.
 # Args: <bucket-names-file>
 function clean_up_buckets_in_file() {
 	local bucketNamesFile="${@}"
 	if test -f "${bucketNamesFile}"; then
 		cat "${bucketNamesFile}" | while read bucket; do
-			clean_up_bucket ${bucket}
+			# Only if bucket-name is non-empty and contains
+			# something other than spaces.
+			if [ -n "${bucket}" ] && [ -n "${bucket// }" ]; then
+				# Delete the bucket and its contents.
+				if ! gcloud -q storage rm -r --verbosity=none gs://${bucket} ; then
+					>&2 echo "Failed to delete bucket ${bucket} !"
+				fi
+			fi
 		done
+		# At the end, delete the bucket-names file itself.
 		rm "${bucketNamesFile}"
 	else
 		echo "file ${bucketNamesFile} not found !"
