@@ -96,6 +96,12 @@ type debugReader struct {
 	wrapped   io.ReadCloser
 }
 
+func (dr *debugReader) WriteTo(w io.Writer) (int64, error) {
+	//TODO implement me
+	panic("implement me")
+
+}
+
 func (dr *debugReader) Read(p []byte) (n int, err error) {
 	n, err = dr.wrapped.Read(p)
 
@@ -144,16 +150,17 @@ func setupReader(ctx context.Context, b *debugBucket, req *gcs.ReadObjectRequest
 		b.finishRequest(id, desc, start, &err)
 		return rc, err
 	}
-
-	// Return a special reader that prings debug info.
-	rc = &debugReader{
-		bucket:    b,
-		requestID: id,
-		desc:      desc,
-		startTime: start,
-		wrapped:   rc,
-	}
 	return rc, err
+	/*
+		// Return a special reader that prings debug info.
+		rc = &debugReader{
+			bucket:    b,
+			requestID: id,
+			desc:      desc,
+			startTime: start,
+			wrapped:   rc,
+		}
+		return rc, err*/
 }
 
 func (b *debugBucket) NewReaderWithReadHandle(

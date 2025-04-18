@@ -29,3 +29,7 @@ type FakeReader struct {
 func (fr *FakeReader) ReadHandle() storagev2.ReadHandle {
 	return fr.Handle
 }
+
+func (fr *FakeReader) WriteTo(w io.Writer) (int64, error) {
+	panic("hi")
+}

@@ -63,13 +63,30 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 
 	common.CaptureGCSReadMetrics(ctx, job.metricsHandle, util.Parallel, end-start)
 
+	_, ok := newReader.(io.WriterTo)
+	if !ok {
+		logger.Errorf("invlaid reader")
+	}
+	// Similarly, if the writer has a ReadFrom method, use it to do the copy.
+	_, ok = dstWriter.(io.ReaderFrom)
+	if !ok {
+		logger.Errorf("invlaid writer")
+	} else {
+		logger.Errorf("valid writer")
+	}
+
 	// Use standard copy function if O_DIRECT is disabled and memory aligned
 	// buffer otherwise.
 	if !job.fileCacheConfig.EnableODirect {
 		if job.IsExperimentalParallelDownloadsDefaultOn() {
 			for start < end {
 				writeSize := min(end-start, ReadChunkSize)
-				_, err = io.CopyN(dstWriter, newReader, writeSize)
+
+				n, err := io.CopyN(dstWriter, newReader, writeSize)
+				if n != writeSize {
+					err = fmt.Errorf("error in copy. start %d, end %d, n %d err %v", start, end, n, err)
+					return newReader.ReadHandle(), err
+				}
 				if err != nil {
 					err = fmt.Errorf("downloadRange: error at the time of copying content to cache file %w", err)
 					return newReader.ReadHandle(), err

@@ -26,6 +26,11 @@ type gcsFullReadCloser struct {
 	wrapped gcs.StorageReader
 }
 
+func (frc gcsFullReadCloser) WriteTo(w io.Writer) (int64, error) {
+	//TODO i
+	return frc.WriteTo(w)
+}
+
 func newGCSFullReadCloser(reader gcs.StorageReader) gcs.StorageReader {
 	return gcsFullReadCloser{wrapped: reader}
 }

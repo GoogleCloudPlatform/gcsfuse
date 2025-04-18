@@ -295,6 +295,11 @@ type throttledGCSReader struct {
 	Closer gcs.StorageReader
 }
 
+func (rc *throttledGCSReader) WriteTo(w io.Writer) (int64, error) {
+	return rc.Closer.WriteTo(w)
+	//TODO implement me
+}
+
 func (rc *throttledGCSReader) Read(p []byte) (n int, err error) {
 	n, err = rc.Reader.Read(p)
 	return

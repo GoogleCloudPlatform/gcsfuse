@@ -17,6 +17,7 @@ package monitor
 import (
 	"context"
 	"fmt"
+	"io"
 	"time"
 
 	storagev2 "cloud.google.com/go/storage"
@@ -228,6 +229,11 @@ type monitoringReadCloser struct {
 	object       string
 	wrapped      gcs.StorageReader
 	metricHandle common.MetricHandle
+}
+
+func (mrc *monitoringReadCloser) WriteTo(w io.Writer) (int64, error) {
+	return mrc.wrapped.WriteTo(w)
+	//TODO implement me
 }
 
 func (mrc *monitoringReadCloser) Read(p []byte) (n int, err error) {
