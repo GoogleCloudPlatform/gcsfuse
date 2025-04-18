@@ -178,16 +178,12 @@ function clean_up_buckets_in_file() {
 	fi
 }
 
-# The name of a file containing the names of all the 
-# buckets to be cleaned-up while exiting this program.
-bucketNamesFile=$(realpath ./bucketNames)"-"$(tr -dc 'a-z0-9' < /dev/urandom | head -c $RANDOM_STRING_LENGTH)
-
 # Clean-up for this program, which is called whenever this program exits.
 # Args: None.
 function clean_up() {
+	local bucketNamesFile=${1}
 	clean_up_buckets_in_file "${bucketNamesFile}"
 }
-trap clean_up EXIT
 
 function upgrade_gcloud_version() {
   sudo apt-get update
@@ -461,6 +457,12 @@ function run_e2e_tests_for_emulator() {
 }
 
 function main(){
+  # The name of a file containing the names of all the
+  # buckets to be cleaned-up while exiting this program.
+  bucketNamesFile=$(realpath ./bucketNames)"-"$(tr -dc 'a-z0-9' < /dev/urandom | head -c $RANDOM_STRING_LENGTH)
+  # Delete all these buckets when the program exits.
+  trap "clean_up ${bucketNamesFile}" EXIT
+
   set -e
 
   upgrade_gcloud_version
