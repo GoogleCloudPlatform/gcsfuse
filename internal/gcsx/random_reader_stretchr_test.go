@@ -123,40 +123,6 @@ func (t *RandomReaderStretchrTest) Test_ReadInfo() {
 	}
 }
 
-func (t *RandomReaderStretchrTest) Test_IsValid() {
-	t.object.Generation = 1234
-	t.object.Size = 1000
-	testCases := []struct {
-		name          string
-		srcGeneration int64
-		srcSize       uint64
-		res           bool
-		objectSize    uint64
-	}{
-		{
-			name:          "ReaderIsNotValidAndObjectSizeRemainsSame",
-			srcGeneration: 12345,
-			srcSize:       2000,
-			res:           false,
-			objectSize:    1000,
-		},
-		{
-			name:          "ReaderIsValidAndObjectSizeIsUpdated",
-			srcGeneration: 1234,
-			srcSize:       3000,
-			res:           true,
-			objectSize:    3000,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func() {
-			assert.Equal(t.T(), tc.res, t.rr.wrapped.IsValid(tc.srcGeneration, tc.srcSize))
-			assert.Equal(t.T(), tc.objectSize, t.object.Size)
-		})
-	}
-}
-
 func (t *RandomReaderStretchrTest) Test_ReadInfo_Sequential() {
 	var testCases = []struct {
 		testName    string

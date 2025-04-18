@@ -193,8 +193,8 @@ func (fh *FileHandle) tryEnsureReader(ctx context.Context, sequentialReadSizeMb 
 	// If we already have a reader, and it's at the appropriate generation, we
 	// can use it. Otherwise we must throw it away.
 	if fh.reader != nil {
-		srcGen := fh.inode.SourceGeneration()
-		if fh.reader.IsValid(srcGen.Object, srcGen.Size) {
+		if fh.reader.Object().Generation == fh.inode.SourceGeneration().Object {
+			fh.reader.Object().Size = fh.inode.SourceGeneration().Size
 			return
 		}
 		fh.reader.Destroy()
