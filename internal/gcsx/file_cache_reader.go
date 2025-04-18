@@ -33,6 +33,9 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 )
 
+// "readOp" is the value used in read context to store pointer to the read operation.
+const ReadOp = "readOp"
+
 type FileCacheReader struct {
 	Reader
 	object *gcs.MinObject
@@ -148,7 +151,6 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 	cacheHit = false
 
 	if cacheUtil.IsCacheHandleInvalid(err) {
-		fmt.Println("Error: ", err)
 		logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", fc.fileCacheHandle, fc.bucket.Name(), fc.object.Name)
 		closeErr := fc.fileCacheHandle.Close()
 		if closeErr != nil {

@@ -15,7 +15,6 @@
 package gcsx
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -188,12 +187,6 @@ func (t *RandomReaderTest) SetUp(ti *TestInfo) {
 
 func (t *RandomReaderTest) TearDown() {
 	t.rr.Destroy()
-}
-
-func getReadCloser(content []byte) io.ReadCloser {
-	r := bytes.NewReader(content)
-	rc := io.NopCloser(r)
-	return rc
 }
 
 func (t *RandomReaderTest) mockNewReaderWithHandleCallForTestBucket(start uint64, limit uint64, rd gcs.StorageReader) {

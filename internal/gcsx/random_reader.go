@@ -52,9 +52,6 @@ const maxReadSize = 8 * MB
 // Minimum number of seeks before evaluating if the read pattern is random.
 const minSeeksForRandom = 2
 
-// "readOp" is the value used in read context to store pointer to the read operation.
-const ReadOp = "readOp"
-
 // TODO(b/385826024): Revert timeout to an appropriate value
 const TimeoutForMultiRangeRead = time.Hour
 
