@@ -41,8 +41,8 @@ func TestMountTimeout(t *testing.T) {
 		case testEnvZoneGCEUSCentral1A:
 			// Set strict zone-based config values.
 			config := ZBMountTimeoutTestCaseConfig{
-				sameZoneBucket: zonalUSCentral1ABucket
-				crossZoneBucket: zonalUSWest4ABucket
+				sameZoneBucket: zonalUSCentral1ABucket,
+				crossZoneBucket: zonalUSWest4ABucket,
 				sameZoneTimeout:  zonalSameZoneExpectedMountTime,
 				zonalCrossZoneTimeout: relaxedExpectedMountTime,
 			}
@@ -52,8 +52,8 @@ func TestMountTimeout(t *testing.T) {
 		case testEnvZoneGCEUSWEST4A:
 			// Set strict zone-based config values.
 			config := ZBMountTimeoutTestCaseConfig{
-				sameZoneBucket: zonalUSWest4ABucket
-				crossZoneBucket: zonalUSCentral1ABucket
+				sameZoneBucket: zonalUSWest4ABucket,
+				crossZoneBucket: zonalUSCentral1ABucket,
 				sameZoneTimeout:  relaxedExpectedMountTime,
 				zonalCrossZoneTimeout: relaxedExpectedMountTime,
 			}
@@ -186,6 +186,13 @@ func (testSuite *MountTimeoutTest) mountOrTimeout(bucketName, mountDir, clientPr
 		return fmt.Errorf("[Client Protocol: %s] Mounting failed due to timeout (exceeding %f seconds). Time taken for mounting %s: %f sec", clientProtocol, expectedMountTime.Seconds(), bucketName, minMountTime.Seconds())
 	}
 	return nil
+}
+
+func (testSuite *NonZBMountTimeoutTest) mountOrTimeout(bucketName, mountDir, clientProtocol string, expectedMountTime time.Duration) error {
+	return testSuite.MountTimeoutTest.mountOrTimeout(bucketName, mountDir, clientProtocol, expectedMountTime)
+}
+func (testSuite *ZBMountTimeoutTest) mountOrTimeout(bucketName, mountDir, clientProtocol string, expectedMountTime time.Duration) error {
+	return testSuite.MountTimeoutTest.mountOrTimeout(bucketName, mountDir, clientProtocol, expectedMountTime)
 }
 
 func (testSuite *NonZBMountTimeoutTest) TestMountMultiRegionUSBucketWithTimeout() {
