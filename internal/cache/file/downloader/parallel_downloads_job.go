@@ -63,7 +63,7 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 
 	common.CaptureGCSReadMetrics(ctx, job.metricsHandle, util.Parallel, end-start)
 
-	_, ok := newReader.(io.WriterTo)
+	/*_, ok := newReader.(io.WriterTo)
 	if !ok {
 		logger.Errorf("invlaid reader")
 	}
@@ -73,7 +73,7 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 		logger.Errorf("invlaid writer")
 	} else {
 		logger.Errorf("valid writer")
-	}
+	}*/
 
 	// Use standard copy function if O_DIRECT is disabled and memory aligned
 	// buffer otherwise.
