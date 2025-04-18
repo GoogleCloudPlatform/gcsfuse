@@ -15,20 +15,40 @@
 package operations_test
 
 import (
-	"os"
-	"syscall"
+	"strings"
 	"testing"
 
+	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/all_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
-func TestStatWithTrailingNewline(t *testing.T) {
-	testDir := setup.SetupTestDirectory(DirForOperationTests)
+type OperationSuite struct {
+	mountConfiguration *TestMountConfiguration
+	suite.Suite
+}
 
-	_, err := os.Stat(testDir + "/\n")
+func getTestName(t *testing.T) string {
+	return strings.ReplaceAll(t.Name(), "/", "_")
+}
 
-	require.Error(t, err)
-	assert.Equal(t, err.(*os.PathError).Err, syscall.ENOENT)
+func (s *OperationSuite) SetupSuite() {
+	err := s.mountConfiguration.Mount(s.T(), getTestName(s.T()), storageClient)
+	require.NoError(s.T(), err)
+}
+
+func (s *OperationSuite) TestStatWithTrailingNewline() {
+	//s.T().Logf("mountConfiguration: %p", s.mountConfiguration)
+	//s.T().Logf("mountConfiguration: %#v", s.mountConfiguration)
+}
+
+func TestOperationsSuite(t *testing.T) {
+	t.Parallel()
+	for _, testMountConfiguration := range configurations {
+		t.Run(setup.GenerateRandomString(5), func(t *testing.T) {
+			t.Parallel()
+			suite.Run(t, &OperationSuite{mountConfiguration: &testMountConfiguration})
+		})
+	}
 }

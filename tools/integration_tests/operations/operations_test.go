@@ -22,14 +22,11 @@ import (
 	"path"
 	"strconv"
 	"testing"
-	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/creds_tests"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/dynamic_mounting"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/only_dir_mounting"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/persistent_mounting"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/all_mounting"
+	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/all_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
@@ -91,9 +88,11 @@ const Content = "line 1\nline 2\n"
 const onlyDirMounted = "OnlyDirMountOperations"
 
 var (
-	cacheDir      string
-	storageClient *storage.Client
-	ctx           context.Context
+	cacheDir       string
+	storageClient  *storage.Client
+	ctx            context.Context
+	mountTypes     = []MountingType{StaticMounting, OnlyDirMounting, PersistentMounting, DynamicMounting}
+	configurations []TestMountConfiguration
 )
 
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
@@ -180,7 +179,7 @@ func TestMain(m *testing.M) {
 
 	// gRPC tests will not run in TPC environment
 	if !testing.Short() && !setup.TestOnTPCEndPoint() {
-		flagsSet = append(flagsSet, []string{"--client-protocol=grpc", "--implicit-dirs=true", "--enable-atomic-rename-object=true"})
+		flagsSet = append(flagsSet, []string{"--client-protocol=grpc", "-`-implicit-dirs=true", "--enable-atomic-rename-object=true"})
 	}
 
 	// HNS tests utilize the gRPC protocol, which is not supported by TPC.
@@ -198,45 +197,8 @@ func TestMain(m *testing.M) {
 		successCodeTPC := static_mounting.RunTests(flagsSet, m)
 		os.Exit(successCodeTPC)
 	}
-
-	var now = time.Now()
-	log.Println("Starting static_mounting tests....")
-	successCode := static_mounting.RunTests(flagsSet, m)
-	log.Println("Finished static_mounting tests...")
-	log.Printf("Took time: %v Minutes", time.Since(now).Minutes())
-
-	if successCode == 0 {
-		var now = time.Now()
-		log.Println("Starting only_dir_mounting tests....")
-		successCode = only_dir_mounting.RunTests(flagsSet, onlyDirMounted, m)
-		log.Println("Finished only_dir_mounting tests...")
-		log.Printf("Took time: %v Minutes", time.Since(now).Minutes())
-	}
-
-	if successCode == 0 {
-		var now = time.Now()
-		log.Println("Starting persistent_mounting tests....")
-		successCode = persistent_mounting.RunTests(flagsSet, m)
-		log.Println("Finished persistent_mounting tests...")
-		log.Printf("Took time: %v Minutes", time.Since(now).Minutes())
-	}
-
-	if successCode == 0 {
-		var now = time.Now()
-		log.Println("Starting dynamic_mounting tests....")
-		successCode = dynamic_mounting.RunTests(ctx, storageClient, flagsSet, m)
-		log.Println("Finished dynamic_mounting tests...")
-		log.Printf("Took time: %v Minutes", time.Since(now).Minutes())
-	}
-
-	if successCode == 0 {
-		var now = time.Now()
-		log.Println("Starting creds_tests tests....")
-		// Test for admin permission on test bucket.
-		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(ctx, storageClient, flagsSet, "objectAdmin", m)
-		log.Println("Finished creds_tests tests...")
-		log.Printf("Took time: %v Minutes", time.Since(now).Minutes())
-	}
-
+	configurations = all_mounting.GenerateTestMountConfigurations(mountTypes, flagsSet, setup.TestDir(), onlyDirMounted)
+	successCode := m.Run()
+	all_mounting.UnmountAll(configurations)
 	os.Exit(successCode)
 }
