@@ -453,18 +453,19 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 	// Begin the read.
 	ctx, cancel := context.WithCancel(context.Background())
 
-	rc, err := rr.bucket.NewReaderWithReadHandle(
-		ctx,
-		&gcs.ReadObjectRequest{
-			Name:       rr.object.Name,
-			Generation: rr.object.Generation,
-			Range: &gcs.ByteRange{
-				Start: uint64(start),
-				Limit: uint64(end),
-			},
-			ReadCompressed: rr.object.HasContentEncodingGzip(),
-			ReadHandle:     rr.readHandle,
-		})
+	// rc, err := rr.bucket.NewReaderWithReadHandle(
+	// 	ctx,
+	// 	&gcs.ReadObjectRequest{
+	// 		Name:       rr.object.Name,
+	// 		Generation: rr.object.Generation,
+	// 		Range: &gcs.ByteRange{
+	// 			Start: uint64(start),
+	// 			Limit: uint64(end),
+	// 		},
+	// 		ReadCompressed: rr.object.HasContentEncodingGzip(),
+	// 		ReadHandle:     rr.readHandle,
+	// 	})
+	rc, err := NewStorageReaderWithInactiveTimeout(ctx, rr.bucket, rr.object, rr.readHandle, start, end, 2 * time.Second)
 
 	// If a file handle is open locally, but the corresponding object doesn't exist
 	// in GCS, it indicates a file clobbering scenario. This likely occurred because:
