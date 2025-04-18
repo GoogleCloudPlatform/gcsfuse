@@ -46,7 +46,7 @@ func TestMountTimeout(t *testing.T) {
 				sameZoneTimeout:  zonalSameZoneExpectedMountTime,
 				crossZoneTimeout: zonalCrossZoneExpectedMountTime,
 			}
-			t.Logf("Running tests with zone %q ...\n", zone)
+			t.Log("Running tests with region based timeout values since the GCE VM is located in us-central...\n")
 			suite.Run(t, &ZBMountTimeoutTest{config: config})
 			break
 		case testEnvZoneGCEUSWEST4A:
@@ -57,12 +57,12 @@ func TestMountTimeout(t *testing.T) {
 				sameZoneTimeout:  relaxedExpectedMountTime,
 				crossZoneTimeout: relaxedExpectedMountTime,
 			}
-			t.Logf("Running tests with zone %q ...\n", zone)
+			t.Logf("Running tests with relaxed timeout of %f sec for all scenarios since the GCE VM is not located in us-central...\n", relaxedExpectedMountTime.Seconds())
 			suite.Run(t, &ZBMountTimeoutTest{config: config})
 			break
 		default:
 			// Skip the tests if the testing environment is not GCE VM.
-			t.Logf("Skipping tests since the testing environment zone (%q) is not a ZB supported zone...\n", zone)
+			t.Logf("Skipping tests since the testing environment (%q) is not a ZB supported region...\n", zone)
 			t.Skip()
 		}
 	} else {
@@ -173,7 +173,6 @@ func (testSuite *MountTimeoutTest) mountOrTimeout(bucketName, mountDir, clientPr
 			return err
 		}
 		mountTime := time.Since(start)
-		fmt.Println("time taken to mount bucket ", bucketName, ": ", mountTime)
 
 		minMountTime = time.Duration(math.Min(float64(minMountTime), float64(mountTime)))
 
@@ -352,12 +351,12 @@ func (testSuite *NonZBMountTimeoutTest) TestMountSingleRegionAsiaBucketWithTimeo
 	}
 }
 
-func (testSuite *ZBMountTimeoutTest) TestMountSameZoneBucketWithTimeout() {
+func (testSuite *ZBMountTimeoutTest) TestMountSameRegionZonalBucketWithTimeout() {
 	testCases := []struct {
 		name string
 	}{
 		{
-			name: "sameZoneBucket",
+			name: "sameRegionZonalBucket",
 		},
 	}
 	for _, tc := range testCases {
@@ -368,12 +367,12 @@ func (testSuite *ZBMountTimeoutTest) TestMountSameZoneBucketWithTimeout() {
 	}
 }
 
-func (testSuite *ZBMountTimeoutTest) TestMountCrossZoneBucketWithTimeout() {
+func (testSuite *ZBMountTimeoutTest) TestMountCrossRegionZonalBucketWithTimeout() {
 	testCases := []struct {
 		name string
 	}{
 		{
-			name: "crossZoneBucket",
+			name: "crossRegionZonalBucket",
 		},
 	}
 	for _, tc := range testCases {
