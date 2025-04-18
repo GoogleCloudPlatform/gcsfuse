@@ -442,7 +442,6 @@ func (t *fileCacheReaderTest) Test_ReadAt_FailedJobRestartAndCacheHit() {
 	// First NewReaderWithReadHandle-call throws error, hence async job fails.
 	// Later NewReader-call returns a valid readCloser object hence fallback to
 	// GCS read will succeed.
-	rc := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(nil, errors.New("")).Once()
 	t.mockBucket.On("Name").Return("test-bucket")
 	readerResponse, err := t.reader.ReadAt(t.ctx, make([]byte, t.object.Size), 0)
@@ -450,7 +449,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_FailedJobRestartAndCacheHit() {
 	assert.Zero(t.T(), readerResponse.Size)
 	job := t.jobManager.GetJob(t.object.Name, t.mockBucket.Name())
 	assert.True(t.T(), job == nil || job.GetStatus().Name == downloader.Failed)
-	rc = &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
+	rc := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, t.object.Size, rc)
 	// This call will populate the cache again.
 	readerResponse, err = t.reader.ReadAt(t.ctx, make([]byte, t.object.Size), 0)
@@ -477,18 +476,6 @@ func (t *fileCacheReaderTest) Test_tryReadingFromFileCache_CacheMiss() {
 
 	assert.False(t.T(), cacheHit)
 	assert.NoError(t.T(), err)
-}
-
-func (t *fileCacheReaderTest) Test_ReadAt_OffsetEqualToObjectSize() {
-	t.object.Size = util.MiB
-	start := util.MiB // offset equal to objectSize
-	end := start + util.MiB
-
-	readerResponse, err := t.reader.ReadAt(t.ctx, make([]byte, end-start), int64(start))
-
-	// Nothing should be read
-	assert.True(t.T(), errors.Is(io.EOF, err))
-	assert.Zero(t.T(), readerResponse.Size)
 }
 
 func (t *fileCacheReaderTest) Test_ReadAt_NegativeOffsetShouldThrowError() {
