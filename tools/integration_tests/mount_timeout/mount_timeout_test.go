@@ -63,19 +63,24 @@ const (
 	zonalUSCentral1ABucket         string        = "mount_timeout_test_bucket_zb_usc1a"
 	zonalUSWest4ABucket            string        = "mount_timeout_test_bucket_zb_usw4a"
 	zonalSameZoneExpectedMountTime time.Duration = 2500 * time.Millisecond
+	zonalCrossZoneExpectedMountTime time.Duration = 5000 * time.Millisecond
 	// Commont constants.
 	relaxedExpectedMountTime time.Duration = 8000 * time.Millisecond
 	logfilePathPrefix        string        = "/tmp/gcsfuse_mount_timeout_"
 )
 
-// findTestExecutionEnvironment determines the environment in which the tests are running.
+// findTestExecutionEnvironment determines the environment (region, zone) in which the tests are running.
 // It uses the GCP resource detector to identify the environment.
 //
 // If the tests are running on a GCE instance with a hostname containing non-gce.
 // it returns testEnvNonGCE since it implies that the tests are being run on cloudtop.
 //
-// If the tests are running on a VM in the "us-central" region, it returns gce-us-central .
+// If the tests are running on a VM in the "us-central" region, it returns gce-us-central.
 // Otherwise, if running in any other region, it returns gce-non-us-central.
+///
+// If the tests are specifically running in us-central1, it returns zone as gce-zone-us-central1-a.
+// If the tests are specifically running in us-west4, it returns zone as gce-zone-us-west4-a.
+// Otherwise, if running in any other region, it returns zone as gce-zone-other.
 //
 // For all other cases, it returns non-gce.
 func findTestExecutionEnvironment(ctx context.Context) (string, string) {
@@ -89,7 +94,7 @@ func findTestExecutionEnvironment(ctx context.Context) (string, string) {
 	}
 	if v, exists := attrs.Value("cloud.region"); exists {
 		region := strings.ToLower(v.AsString())
-		// The above method only returns region of the VM, and not the zone. So, assuming here that when region is us-central1, then zone is us-central1-a, which may not be true always.
+		// The above method only ever returns region of the VM, and not the zone. So, I am assuming that when region is us-central1, then zone is us-central1-a, which may not be true always.
 		switch region {
 		case "us-central1":
 			return testEnvGCEUSCentral, testEnvZoneGCEUSCentral1A
