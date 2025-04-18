@@ -55,8 +55,9 @@ func (s *staleFileHandleSyncedFile) SetupTest() {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *staleFileHandleSyncedFile) TestClobberedFileReadThrowsStaleFileHandleError() {
+	// TODO(b/410698332): Modify skip condition to run tests for zonal objects when ready.
 	if s.streamingWritesEnabled() {
-		s.T().Skip("Skipping test as reads aren't supported with streaming writes.")
+		s.T().Skip("Skipping test as reads aren't supported with streaming writes for zonal/non zonal objects.")
 	}
 	// Dirty the file by giving it some contents.
 	_, err := s.f1.WriteAt([]byte(s.data), 0)
