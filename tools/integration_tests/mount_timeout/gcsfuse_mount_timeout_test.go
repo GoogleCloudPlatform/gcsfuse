@@ -41,10 +41,10 @@ func TestMountTimeout(t *testing.T) {
 		case testEnvZoneGCEUSCentral1A:
 			// Set strict zone-based config values.
 			config := ZBMountTimeoutTestCaseConfig{
-				sameZoneBucket:   zonalUSCentral1ABucket,
-				crossZoneBucket:  zonalUSWest4ABucket,
-				sameZoneTimeout:  zonalSameZoneExpectedMountTime,
-				crossZoneTimeout: zonalCrossZoneExpectedMountTime,
+				sameRegionZonalBucket:   zonalUSCentral1ABucket,
+				crossRegionZonalBucket:  zonalUSWest4ABucket,
+				sameRegionMountTimeout:  zonalSameRegionExpectedMountTime,
+				crossRegionMountTimeout: zonalCrossRegionExpectedMountTime,
 			}
 			t.Log("Running tests with region based timeout values since the GCE VM is located in us-central...\n")
 			suite.Run(t, &ZBMountTimeoutTest{config: config})
@@ -52,10 +52,10 @@ func TestMountTimeout(t *testing.T) {
 		case testEnvZoneGCEUSWEST4A:
 			// Set strict zone-based config values.
 			config := ZBMountTimeoutTestCaseConfig{
-				sameZoneBucket:   zonalUSWest4ABucket,
-				crossZoneBucket:  zonalUSCentral1ABucket,
-				sameZoneTimeout:  relaxedExpectedMountTime,
-				crossZoneTimeout: relaxedExpectedMountTime,
+				sameRegionZonalBucket:   zonalUSWest4ABucket,
+				crossRegionZonalBucket:  zonalUSCentral1ABucket,
+				sameRegionMountTimeout:  relaxedExpectedMountTime,
+				crossRegionMountTimeout: relaxedExpectedMountTime,
 			}
 			t.Logf("Running tests with relaxed timeout of %f sec for all scenarios since the GCE VM is not located in us-central...\n", relaxedExpectedMountTime.Seconds())
 			suite.Run(t, &ZBMountTimeoutTest{config: config})
@@ -108,10 +108,10 @@ type RegionWiseTimeouts struct {
 }
 
 type ZBMountTimeoutTestCaseConfig struct {
-	sameZoneBucket   string
-	crossZoneBucket  string
-	sameZoneTimeout  time.Duration
-	crossZoneTimeout time.Duration
+	sameRegionZonalBucket   string
+	crossRegionZonalBucket  string
+	sameRegionMountTimeout  time.Duration
+	crossRegionMountTimeout time.Duration
 }
 
 type MountTimeoutTest struct {
@@ -352,33 +352,15 @@ func (testSuite *NonZBMountTimeoutTest) TestMountSingleRegionAsiaBucketWithTimeo
 }
 
 func (testSuite *ZBMountTimeoutTest) TestMountSameRegionZonalBucketWithTimeout() {
-	testCases := []struct {
-		name string
-	}{
-		{
-			name: "sameRegionZonalBucket",
-		},
-	}
-	for _, tc := range testCases {
-		setup.SetLogFile(fmt.Sprintf("%s%s.txt", logfilePathPrefix, tc.name))
+	setup.SetLogFile(fmt.Sprintf("%s%s.txt", logfilePathPrefix, "SameRegionZonalBucket"))
 
-		err := testSuite.mountOrTimeout(testSuite.config.sameZoneBucket, testSuite.dir, cfg.GRPC, testSuite.config.sameZoneTimeout)
-		assert.NoError(testSuite.T(), err)
-	}
+	err := testSuite.mountOrTimeout(testSuite.config.sameRegionZonalBucket, testSuite.dir, cfg.GRPC, testSuite.config.sameRegionMountTimeout)
+	assert.NoError(testSuite.T(), err)
 }
 
 func (testSuite *ZBMountTimeoutTest) TestMountCrossRegionZonalBucketWithTimeout() {
-	testCases := []struct {
-		name string
-	}{
-		{
-			name: "crossRegionZonalBucket",
-		},
-	}
-	for _, tc := range testCases {
-		setup.SetLogFile(fmt.Sprintf("%s%s.txt", logfilePathPrefix, tc.name))
+	setup.SetLogFile(fmt.Sprintf("%s%s.txt", logfilePathPrefix, "CrossRegionZonalBucket"))
 
-		err := testSuite.mountOrTimeout(testSuite.config.crossZoneBucket, testSuite.dir, cfg.GRPC, testSuite.config.crossZoneTimeout)
-		assert.NoError(testSuite.T(), err)
-	}
+	err := testSuite.mountOrTimeout(testSuite.config.crossRegionZonalBucket, testSuite.dir, cfg.GRPC, testSuite.config.crossRegionMountTimeout)
+	assert.NoError(testSuite.T(), err)
 }

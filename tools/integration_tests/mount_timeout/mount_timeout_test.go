@@ -57,13 +57,13 @@ const (
 	dualRegionAsiaExpectedMountTime        time.Duration = 6250 * time.Millisecond
 	singleRegionUSCentralExpectedMountTime time.Duration = 2500 * time.Millisecond
 	// Constants specific to ZB E2E runs.
-	testEnvZoneGCEUSCentral1A      string        = "gce-zone-us-central1-a"
-	testEnvZoneGCEUSWEST4A         string        = "gce-zone-us-west4a-a"
-	testEnvZoneGCEOther            string        = "gce-zone-other"
-	zonalUSCentral1ABucket         string        = "mount_timeout_test_bucket_zb_usc1a"
-	zonalUSWest4ABucket            string        = "mount_timeout_test_bucket_zb_usw4a"
-	zonalSameZoneExpectedMountTime time.Duration = 2500 * time.Millisecond
-	zonalCrossZoneExpectedMountTime time.Duration = 5000 * time.Millisecond
+	testEnvZoneGCEUSCentral1A         string        = "gce-zone-us-central1-a"
+	testEnvZoneGCEUSWEST4A            string        = "gce-zone-us-west4a-a"
+	testEnvZoneGCEOther               string        = "gce-zone-other"
+	zonalUSCentral1ABucket            string        = "mount_timeout_test_bucket_zb_usc1a"
+	zonalUSWest4ABucket               string        = "mount_timeout_test_bucket_zb_usw4a"
+	zonalSameRegionExpectedMountTime  time.Duration = 2500 * time.Millisecond
+	zonalCrossRegionExpectedMountTime time.Duration = 5000 * time.Millisecond
 	// Commont constants.
 	relaxedExpectedMountTime time.Duration = 8000 * time.Millisecond
 	logfilePathPrefix        string        = "/tmp/gcsfuse_mount_timeout_"
@@ -77,7 +77,7 @@ const (
 //
 // If the tests are running on a VM in the "us-central" region, it returns gce-us-central.
 // Otherwise, if running in any other region, it returns gce-non-us-central.
-///
+// /
 // If the tests are specifically running in us-central1, it returns zone as gce-zone-us-central1-a.
 // If the tests are specifically running in us-west4, it returns zone as gce-zone-us-west4-a.
 // Otherwise, if running in any other region, it returns zone as gce-zone-other.
