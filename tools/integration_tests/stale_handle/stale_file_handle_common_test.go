@@ -71,8 +71,9 @@ func (s *staleFileHandleCommon) validateStaleNFSFileHandleErrorIfStreamingWrites
 ////////////////////////////////////////////////////////////////////////
 
 func (s *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHandleError() {
+	// TODO(b/410698332): Remove skip condition once takeover support is ready.
 	if s.streamingWritesEnabled() && setup.IsZonalBucketRun() {
-		s.T().Skip("Skip the test")
+		s.T().Skip("Skip the test as takeover support is required to overwrite the zonal objects.")
 	}
 	// Dirty the file by giving it some contents.
 	_, err := s.f1.WriteAt([]byte(s.data), 0)
@@ -89,9 +90,14 @@ func (s *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHand
 }
 
 func (s *staleFileHandleCommon) TestFileDeletedLocallySyncAndCloseDoNotThrowError() {
+	// TODO(b/410698332): Remove skip condition once takeover support is ready.
+	if s.streamingWritesEnabled() && setup.IsZonalBucketRun() {
+		s.T().Skip("Skip the test as generation issue is present empty gcs file for zonal buckets.")
+	}
 	// Dirty the file by giving it some contents.
 	bytesWrote, err := s.f1.WriteAt([]byte(s.data), 0)
 	assert.NoError(s.T(), err)
+	operations.SyncFile(s.f1, s.T())
 	// Delete the file.
 	operations.RemoveFile(s.f1.Name())
 	// Verify unlink operation succeeds.
