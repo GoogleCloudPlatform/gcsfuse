@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path"
 	"testing"
 
@@ -112,6 +113,19 @@ func (t *TestMountConfiguration) Mount(tb testing.TB, mntTestDirPrefix string, s
 	return
 }
 
+func (t *TestMountConfiguration) Unmount() error {
+	fusermount, err := exec.LookPath("fusermount")
+	if err != nil {
+		return fmt.Errorf("cannot find fusermount: %w", err)
+	}
+	cmd := exec.Command(fusermount, "-uz", t.mntDir)
+	if _, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("fusermount error: %w", err)
+	}
+	return nil
+
+}
+
 func GenerateTestMountConfigurations(mountTypes []MountingType, flagsSet [][]string, baseTestDir, onlyDir string) []TestMountConfiguration {
 	var testMountConfigurations []TestMountConfiguration
 	for _, mountType := range mountTypes {
@@ -132,4 +146,23 @@ func GenerateTestMountConfigurations(mountTypes []MountingType, flagsSet [][]str
 		}
 	}
 	return testMountConfigurations
+}
+
+func UnmountAll(mountConfiguration []TestMountConfiguration) error {
+	cnt := 0
+	for _, testMountConfiguration := range mountConfiguration {
+		if testMountConfiguration.mntDir != "" {
+			err := testMountConfiguration.Unmount()
+			if err != nil {
+				cnt++
+				log.Printf("Unable to unmount mntDir: %s, err: %v", testMountConfiguration.mntDir, err)
+			} else {
+				log.Printf("Successfully unmounted mntDir: %s", testMountConfiguration.mntDir)
+			}
+		}
+	}
+	if cnt > 0 {
+		return fmt.Errorf("failed to unmount %d configurations", cnt)
+	}
+	return nil
 }
