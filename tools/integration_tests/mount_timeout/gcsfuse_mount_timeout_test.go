@@ -44,9 +44,9 @@ func TestMountTimeout(t *testing.T) {
 				sameZoneBucket:   zonalUSCentral1ABucket,
 				crossZoneBucket:  zonalUSWest4ABucket,
 				sameZoneTimeout:  zonalSameZoneExpectedMountTime,
-				crossZoneTimeout: relaxedExpectedMountTime,
+				crossZoneTimeout: zonalCrossZoneExpectedMountTime,
 			}
-			t.Log("Running tests with zone %q ...\n", zone)
+			t.Logf("Running tests with zone %q ...\n", zone)
 			suite.Run(t, &ZBMountTimeoutTest{config: config})
 			break
 		case testEnvZoneGCEUSWEST4A:
@@ -57,12 +57,12 @@ func TestMountTimeout(t *testing.T) {
 				sameZoneTimeout:  relaxedExpectedMountTime,
 				crossZoneTimeout: relaxedExpectedMountTime,
 			}
-			t.Log("Running tests with zone %q ...\n", zone)
+			t.Logf("Running tests with zone %q ...\n", zone)
 			suite.Run(t, &ZBMountTimeoutTest{config: config})
 			break
 		default:
 			// Skip the tests if the testing environment is not GCE VM.
-			t.Log("Skipping tests since the testing environment zone (%q) is not a ZB supported zone...\n", zone)
+			t.Logf("Skipping tests since the testing environment zone (%q) is not a ZB supported zone...\n", zone)
 			t.Skip()
 		}
 	} else {
