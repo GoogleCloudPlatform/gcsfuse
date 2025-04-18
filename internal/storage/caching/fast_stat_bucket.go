@@ -277,7 +277,8 @@ func (b *fastStatBucket) FlushPendingWrites(ctx context.Context, writer gcs.Writ
 func (b *fastStatBucket) CopyObject(
 	ctx context.Context,
 	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
-	// Throw away any existing record for the destination name.
+	// Throw away any existing record for the source & destination name.
+	b.invalidate(req.SrcName)
 	b.invalidate(req.DstName)
 
 	// Copy the object.
@@ -497,13 +498,14 @@ func (b *fastStatBucket) CreateFolder(ctx context.Context, folderName string) (f
 }
 
 func (b *fastStatBucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (*gcs.Folder, error) {
+	// Invalidate cache for old directory.
+	b.eraseEntriesWithGivenPrefix(folderName)
+
 	f, err := b.wrapped.RenameFolder(ctx, folderName, destinationFolderId)
 	if err != nil {
 		return nil, err
 	}
 
-	// Invalidate cache for old directory.
-	b.eraseEntriesWithGivenPrefix(folderName)
 	// Insert destination folder.
 	b.insertFolder(f)
 

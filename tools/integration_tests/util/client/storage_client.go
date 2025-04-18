@@ -179,6 +179,11 @@ func CreateObjectOnGCS(ctx context.Context, client *storage.Client, object, cont
 	return WriteToObject(ctx, client, object, content, storage.Conditions{DoesNotExist: true})
 }
 
+// OverwriteObjectOnGCS overwrites an object with given name and content on GCS.
+func OverwriteObjectOnGCS(ctx context.Context, client *storage.Client, object, content string) error {
+	return WriteToObject(ctx, client, object, content, storage.Conditions{})
+}
+
 // CreateStorageClientWithCancel creates a new storage client with a cancelable context and returns a function that can be used to cancel the client's operations
 func CreateStorageClientWithCancel(ctx *context.Context, storageClient **storage.Client) func() error {
 	var err error
