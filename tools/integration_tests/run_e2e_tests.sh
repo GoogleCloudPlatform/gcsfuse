@@ -158,7 +158,7 @@ TEST_LOGS_FILE=$(mktemp)
 
 # Delete contents of the buckets (and then the buckets themselves) whose names are in the passed file.
 # Args: <bucket-names-file>
-function clean_up_buckets_in_file() {
+function delete_buckets_listed_in_file() {
 	local bucketNamesFile="${@}"
 	if test -f "${bucketNamesFile}"; then
 		cat "${bucketNamesFile}" | while read bucket; do
@@ -182,7 +182,7 @@ function clean_up_buckets_in_file() {
 # Args: None.
 function clean_up() {
 	local bucketNamesFile=${1}
-	clean_up_buckets_in_file "${bucketNamesFile}"
+	delete_buckets_listed_in_file "${bucketNamesFile}"
 }
 
 function upgrade_gcloud_version() {
