@@ -66,6 +66,7 @@ metadata-cache:
   stat-cache-max-size-mb: 40
   ttl-secs: 100
   type-cache-max-size-mb: 10
-
+read:
+  inactive-stream-timeout: 10s
 metrics:
   cloud-metrics-export-interval-secs: 10
