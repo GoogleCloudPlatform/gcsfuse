@@ -655,6 +655,16 @@
   usage: "Mount only a specific directory within the bucket. See docs/mounting for more information"
   default: ""
 
+- config-path: "read.inactive-stream-timeout"
+  flag-name: "inactive-read-stream-timeout"
+  type: "duration"
+  usage: >-
+    The timeout duration for inactive reader stream, triggered when application keeps the fileHandle open
+    and unused after reader few bytes. 0s indicates no timeout. Currently only applicable for gRPC
+    client-protocol.
+  default: "0s"
+  hide-flag: true
+
 - config-path: "write.block-size-mb"
   flag-name: "write-block-size-mb"
   type: "int"

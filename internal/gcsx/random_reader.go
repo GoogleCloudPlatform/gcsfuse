@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
@@ -103,7 +104,7 @@ const (
 
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
-func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper) RandomReader {
+func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper, readConfig *cfg.ReadConfig) RandomReader {
 	return &randomReader{
 		object:                o,
 		bucket:                bucket,
@@ -117,6 +118,7 @@ func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb i
 		cacheFileForRangeRead: cacheFileForRangeRead,
 		mrdWrapper:            mrdWrapper,
 		metricHandle:          metricHandle,
+		readConfig:            readConfig,
 	}
 }
 
@@ -172,6 +174,8 @@ type randomReader struct {
 	isMRDInUse bool
 
 	metricHandle common.MetricHandle
+
+	readConfig *cfg.ReadConfig
 }
 
 func (rr *randomReader) CheckInvariants() {
@@ -453,19 +457,22 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 	// Begin the read.
 	ctx, cancel := context.WithCancel(context.Background())
 
-	// rc, err := rr.bucket.NewReaderWithReadHandle(
-	// 	ctx,
-	// 	&gcs.ReadObjectRequest{
-	// 		Name:       rr.object.Name,
-	// 		Generation: rr.object.Generation,
-	// 		Range: &gcs.ByteRange{
-	// 			Start: uint64(start),
-	// 			Limit: uint64(end),
-	// 		},
-	// 		ReadCompressed: rr.object.HasContentEncodingGzip(),
-	// 		ReadHandle:     rr.readHandle,
-	// 	})
-	rc, err := NewStorageReaderWithInactiveTimeout(ctx, rr.bucket, rr.object, rr.readHandle, start, end, 2 * time.Second)
+	if rr.readConfig.InactiveStreamTimeout == time.Duration(0) {
+		rr.reader, err = rr.bucket.NewReaderWithReadHandle(
+			ctx,
+			&gcs.ReadObjectRequest{
+				Name:       rr.object.Name,
+				Generation: rr.object.Generation,
+				Range: &gcs.ByteRange{
+					Start: uint64(start),
+					Limit: uint64(end),
+				},
+				ReadCompressed: rr.object.HasContentEncodingGzip(),
+				ReadHandle:     rr.readHandle,
+			})
+	} else {
+		rr.reader, err = NewStorageReaderWithInactiveTimeout(ctx, rr.bucket, rr.object, rr.readHandle, start, end, 2*time.Second)
+	}
 
 	// If a file handle is open locally, but the corresponding object doesn't exist
 	// in GCS, it indicates a file clobbering scenario. This likely occurred because:
@@ -484,7 +491,6 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 		return
 	}
 
-	rr.reader = rc
 	rr.cancel = cancel
 	rr.start = start
 	rr.limit = end

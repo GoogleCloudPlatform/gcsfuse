@@ -17,6 +17,7 @@ package cfg
 import (
 	"math"
 	"net/url"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 )
@@ -107,6 +108,12 @@ func resolveStreamingWriteConfig(w *WriteConfig) {
 	}
 }
 
+func resolveReadconfig(c *Config, r *ReadConfig) {
+	if c.GcsConnection.ClientProtocol != GRPC {
+		r.InactiveStreamTimeout = time.Duration(0 * time.Second)
+	}
+}
+
 func resolveCloudMetricsUploadIntervalSecs(m *MetricsConfig) {
 	if m.CloudMetricsExportIntervalSecs == 0 {
 		m.CloudMetricsExportIntervalSecs = int64(m.StackdriverExportInterval.Seconds())
@@ -141,6 +148,7 @@ func Rationalize(v isSet, c *Config, optimizedFlags []string) error {
 	resolveStatCacheMaxSizeMB(v, &c.MetadataCache, optimizedFlags)
 	resolveCloudMetricsUploadIntervalSecs(&c.Metrics)
 	resolveParallelDownloadsValue(v, &c.FileCache, c)
+	resolveReadconfig(c, &c.Read)
 
 	return nil
 }
