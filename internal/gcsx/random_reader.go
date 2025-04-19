@@ -58,6 +58,36 @@ const ReadOp = "readOp"
 // TODO(b/385826024): Revert timeout to an appropriate value
 const TimeoutForMultiRangeRead = time.Hour
 
+// gRandomReadThreshold decides if the read is random or sequential, relative to previous
+// read content.
+// If gap b/w current read start and previously read content is greater than gRandomReadThreshold,
+// read is assumed as random read.
+const gRandomReadThreshold = 1 * MB
+const gDisabled = randReadOptimizerState(-2)
+const gFirstRead = randReadOptimizerState(-1)
+
+type randReadOptimizerState int64
+
+func (h randReadOptimizerState) offset() int64 {
+	return int64(h)
+}
+
+func (h randReadOptimizerState) isFirstRead() bool {
+	return h == gFirstRead
+}
+
+func (h randReadOptimizerState) isSecondRead() bool {
+	return h.offset() >= 0
+}
+
+func (h randReadOptimizerState) isDisabled() bool {
+	return h == gDisabled
+}
+
+func (h randReadOptimizerState) isRandom(offset int64) bool {
+	return offset < int64(h) || (offset-int64(h) > gRandomReadThreshold)
+}
+
 // RandomReader is an object that knows how to read ranges within a particular
 // generation of a particular GCS object. Optimised for (large) sequential reads.
 //
@@ -109,21 +139,27 @@ const (
 
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
-func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper) RandomReader {
-	return &randomReader{
-		object:                o,
-		bucket:                bucket,
-		start:                 -1,
-		limit:                 -1,
-		seeks:                 0,
-		totalReadBytes:        0,
-		readType:              util.Sequential,
-		sequentialReadSizeMb:  sequentialReadSizeMb,
-		fileCacheHandler:      fileCacheHandler,
-		cacheFileForRangeRead: cacheFileForRangeRead,
-		mrdWrapper:            mrdWrapper,
-		metricHandle:          metricHandle,
+func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper, optimizeRandomRead bool) RandomReader {
+	rr := &randomReader{
+		object:                 o,
+		bucket:                 bucket,
+		start:                  -1,
+		limit:                  -1,
+		seeks:                  0,
+		totalReadBytes:         0,
+		readType:               util.Sequential,
+		sequentialReadSizeMb:   sequentialReadSizeMb,
+		fileCacheHandler:       fileCacheHandler,
+		cacheFileForRangeRead:  cacheFileForRangeRead,
+		mrdWrapper:             mrdWrapper,
+		metricHandle:           metricHandle,
+		randReadOptimizerState: gDisabled,
 	}
+
+	if optimizeRandomRead {
+		rr.randReadOptimizerState = gFirstRead
+	}
+	return rr
 }
 
 type randomReader struct {
@@ -178,6 +214,12 @@ type randomReader struct {
 	isMRDInUse bool
 
 	metricHandle common.MetricHandle
+
+	// Stores three read-states:
+	// -1 represents the 1st read, to make the gcs request size GCSFuse receives from kernel.
+	// non-negative offset represents the 2nd read, used to decide the read-pattern relative to the 1st read.
+	// -2 represents the 3rd read (or disabled state), to disable this logic.
+	randReadOptimizerState randReadOptimizerState
 }
 
 func (rr *randomReader) CheckInvariants() {
@@ -306,6 +348,11 @@ func (rr *randomReader) ReadAt(
 		Size:     0,
 	}
 
+	if offset < 0 {
+		err = fmt.Errorf("ReadAt: negative offset: %d", offset)
+		return
+	}
+
 	if offset >= int64(rr.object.Size) {
 		err = io.EOF
 		return
@@ -325,6 +372,29 @@ func (rr *randomReader) ReadAt(
 		objectData.CacheHit = cacheHit
 		objectData.Size = n
 		return
+	}
+
+	// Special optimization for random read flow:
+	// Instead of starting a sequential read upto 200MiB, make a gcs request of size GCSFuse receives from kernel.
+	// This stops -
+	// (a) spamming the server because of large 200 MiB request (prefetch).
+	// (b) Head of line blocking issue for gRPC in case multiple reader creates a 200 MiB reader connection and
+	// don't read from that.
+	if !rr.randReadOptimizerState.isDisabled() {
+		if rr.randReadOptimizerState.isFirstRead() {
+			offsetLimit := offset + int64(len(p))
+			if offsetLimit > int64(rr.object.Size) {
+				offsetLimit = int64(rr.object.Size)
+			}
+			objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, offsetLimit, util.Random)
+			rr.randReadOptimizerState = randReadOptimizerState(offset + int64(objectData.Size))
+			return
+		} else if rr.randReadOptimizerState.isSecondRead() {
+			if rr.randReadOptimizerState.isRandom(offset) {
+				rr.seeks = minSeeksForRandom // Mark the current and onwards read as random.
+			}
+			rr.randReadOptimizerState = gDisabled // Not execute the logic for further read.
+		}
 	}
 
 	// Check first if we can read using existing reader. if not, determine which
@@ -571,6 +641,7 @@ func readerType(readType string, start int64, end int64, bucketType gcs.BucketTy
 
 // readFromRangeReader reads using the NewReader interface of go-sdk. Its uses
 // the existing reader if available, otherwise makes a call to GCS.
+// Throws error: in case provided range is out of object range.
 func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offset int64, end int64, readType string) (n int, err error) {
 	// If we don't have a reader, start a read operation.
 	if rr.reader == nil {

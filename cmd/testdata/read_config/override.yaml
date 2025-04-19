@@ -1,0 +1,2 @@
+read:
+  optimize-random-read: true
