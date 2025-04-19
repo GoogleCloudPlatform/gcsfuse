@@ -19,8 +19,8 @@ import (
 	"io"
 	"time"
 
-	"golang.org/x/net/context"
 	"errors"
+	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -28,13 +28,12 @@ import (
 
 // One PrefetchTask to be scheduled
 type PrefetchTask struct {
-	ctx      context.Context
 	object   *gcs.MinObject
 	bucket   gcs.Bucket
 	block    *Block // Block to hold data for this item
 	prefetch bool   // Flag marking this is a prefetch request or not
-	blockId  int64  // BlockId of the block
 	failCnt  int
+	ctx      context.Context
 }
 
 /**
@@ -42,20 +41,23 @@ type PrefetchTask struct {
 * This method is used by the thread-pool scheduler.
  */
 func Download(task *PrefetchTask) {
-	logger.Infof("Download: <- block (%s, %v).", task.object.Name, task.blockId)
+	blockId := task.block.id
+	logger.Infof("Download: <- block (%s, %v).", task.object.Name, blockId)
 	stime := time.Now()
 
 	var err error
 	defer func() {
 		if err != nil {
-			logger.Infof("Download: -> block (%s, %v) failed with error: %v.", task.object.Name, task.blockId, err)
+			logger.Infof("Download: -> block (%s, %v) failed with error: %v.", task.object.Name, blockId, err)
 		} else {
-			logger.Infof("Download: -> block (%s, %v): %v completed.", task.object.Name, task.blockId, time.Since(stime))
+			logger.Infof("Download: -> block (%s, %v): %v completed.", task.object.Name, blockId, time.Since(stime))
 		}
 	}()
 
 	start := uint64(task.block.offset)
 	end := task.block.offset + GetBlockSize(task.block, uint64(len(task.block.data)), task.object.Size)
+
+	logger.Infof("Start downloading block (%s, %v) from %d to %d.", task.object.Name, blockId, start, end)
 
 	newReader, err := task.bucket.NewReaderWithReadHandle(
 		task.ctx,
@@ -72,12 +74,10 @@ func Download(task *PrefetchTask) {
 
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
-			logger.Warnf("Download block (%s, %v): %v failed with context cancelled.", task.object.Name, task.blockId, err)
-			task.block.Failed()
+			logger.Warnf("Download block (%s, %v): %v failed with context cancelled.", task.object.Name, blockId, err)
 			task.block.Ready(BlockStatusDownloadCancelled)
 		} else {
 			err = fmt.Errorf("downloadRange: error in creating reader(%d, %d), error: %v", start, end, err)
-			task.block.Failed()
 			task.block.Ready(BlockStatusDownloadFailed)
 		}
 		return
@@ -86,12 +86,10 @@ func Download(task *PrefetchTask) {
 	_, err = io.CopyN(task.block, newReader, int64(end-start))
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
-			logger.Warnf("Download block (%s, %v): %v failed with context cancelled.", task.object.Name, task.blockId, err)
-			task.block.Failed()
+			logger.Warnf("Download block (%s, %v): %v failed with context cancelled.", task.object.Name, blockId, err)
 			task.block.Ready(BlockStatusDownloadCancelled)
 		} else {
 			err = fmt.Errorf("downloadRange: error copying the content to block: %v", err)
-			task.block.Failed()
 			task.block.Ready(BlockStatusDownloadFailed)
 		}
 		return

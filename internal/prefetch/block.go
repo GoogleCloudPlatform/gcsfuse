@@ -15,51 +15,29 @@
 package prefetch
 
 import (
-	"container/list"
+	"context"
 	"fmt"
 	"syscall"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 )
 
-// State of the block.
+// Status of the download.
 const (
-	BlockFlagFresh       uint16 = iota
-	BlockFlagDownloading        // Block is being downloaded
-	BlockFlagFailed             // Block upload/download has failed
+	BlockStatusDownloaded        int = iota + 1 // Download of this block is complete
+	BlockStatusDownloadFailed                   // Download of this block has failed
+	BlockStatusDownloadCancelled                // Download of this block has been cancelled
 )
-
-// State of the download.
-const (
-	BlockStatusDownloaded     int = iota + 1 // Download of this block is complete
-	BlockStatusDownloadFailed                // Download of this block has failed
-	BlockStatusDownloadCancelled             // Download of this block has been cancelled
-)
-
-type BitMap16 uint16
-
-// IsSet : Check whether the given bit is set or not
-func (bm BitMap16) IsSet(bit uint16) bool { return (bm & (1 << bit)) != 0 }
-
-// Set : Set the given bit in bitmap
-func (bm *BitMap16) Set(bit uint16) { *bm |= (1 << bit) }
-
-// Clear : Clear the given bit from bitmap
-func (bm *BitMap16) Clear(bit uint16) { *bm &= ^(1 << bit) }
-
-// Reset : Reset the whole bitmap by setting it to 0
-func (bm *BitMap16) Reset() { *bm = 0 }
 
 // Block is a memory mapped buffer with its state to hold data
 type Block struct {
-	offset uint64        // Start offset of the data this block holds
-	id     int64         // Id of the block i.e. (offset / block size)
-	state  chan int      // Channel depicting data has been read for this block or not
-	flags  BitMap16      // Various states of the block
-	data   []byte        // Data read from blob
-	node   *list.Element // node representation of this block in the list inside prefetcher
+	offset uint64   // Start offset of the data this block holds
+	id     int64    // Id of the block i.e. (offset / block size)
+	status chan int // used to pass status of major download event.
+	data   []byte   // Data read from blob
 
-	endOffset uint64 // End offset of the data this block holds
+	endOffset  uint64 // End offset of the data this block holds
+	cancelFunc context.CancelFunc
 }
 
 // AllocateBlock creates a new memory mapped buffer for the given size
@@ -76,16 +54,13 @@ func AllocateBlock(size uint64) (*Block, error) {
 	}
 
 	block := &Block{
-		data:  addr,
-		state: nil,
-		id:    -1,
-		node:  nil,
+		data:   addr,
+		status: nil,
+		id:     -1,
 	}
 
 	// we do not create channel here, as that will be created when buffer is retrieved
 	// reinit will always be called before use and that will create the channel as well.
-	block.flags.Reset()
-	block.flags.Set(BlockFlagFresh)
 	return block, nil
 }
 
@@ -127,15 +102,20 @@ func (b *Block) ReUse() {
 	b.id = -1
 	b.offset = 0
 	b.endOffset = 0
-	b.flags.Reset()
-	b.flags.Set(BlockFlagFresh)
-	b.state = make(chan int, 1)
+	b.status = make(chan int, 1)
+}
+
+func (b *Block) Cancel() {
+	if b.cancelFunc != nil {
+		b.cancelFunc()
+		b.cancelFunc = nil
+	}
 }
 
 // Ready marks this Block is now ready for reading by its first reader (data download completed)
 func (b *Block) Ready(val int) {
 	select {
-	case b.state <- val:
+	case b.status <- val:
 		break
 	default:
 		break
@@ -144,15 +124,5 @@ func (b *Block) Ready(val int) {
 
 // Unblock marks this Block is ready to be read in parllel now
 func (b *Block) Unblock() {
-	close(b.state)
-}
-
-// Mark this block as failed
-func (b *Block) Failed() {
-	b.flags.Set(BlockFlagFailed)
-}
-
-// Check this block as failed
-func (b *Block) IsFailed() bool {
-	return b.flags.IsSet(BlockFlagFailed)
+	close(b.status)
 }

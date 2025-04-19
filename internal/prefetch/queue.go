@@ -70,3 +70,50 @@ func (q *Queue) Pop() interface{} {
 	q.length--
 	return n.value
 }
+
+// Len returns the number of item in the queue.
+func (q *Queue) Len() uint64 {
+	return q.length
+}
+
+type BlockQueue struct {
+	q *Queue
+}
+
+func NewBlockQueue() *BlockQueue {
+	return &BlockQueue{
+		q: NewQueue(),
+	}
+}
+
+func (bq *BlockQueue) IsEmpty() bool {
+	return bq.q.IsEmpty()
+}
+
+func (bq *BlockQueue) Push(block *Block) {
+	bq.q.Push(block)
+}
+
+func (bq *BlockQueue) Pop() *Block {
+	val := bq.q.Pop()
+	if val == nil {
+		return nil
+	}
+	block, ok := val.(*Block)
+	if !ok {
+		panic("Block expected")
+	}
+	return block
+}
+
+func (bq *BlockQueue) Peek() *Block {
+	val := bq.q.Peek()
+	if val == nil {
+		return nil
+	}
+	block, ok := val.(*Block)
+	if !ok {
+		panic("Block expected")
+	}
+	return block
+}
