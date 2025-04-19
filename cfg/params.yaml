@@ -176,6 +176,12 @@
   default: false
   hide-flag: true
 
+- config-path: "file-system.experimental-enable-symlink-cache"
+  flag-name: "experimental-enable-symlink-cache"
+  type: "bool"
+  usage: "Allow kernel to cache symlink targets"
+  default: false
+
 - config-path: "file-system.file-mode"
   flag-name: "file-mode"
   type: "octal"
