@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
@@ -213,6 +214,8 @@ func (job *Job) downloadOffsets(ctx context.Context, goroutineIndex int64, cache
 // into given file handle using multiple NewReader method of gcs.Bucket running
 // in parallel. This function is canceled if job.cancelCtx is canceled.
 func (job *Job) parallelDownloadObjectToFile(cacheFile *os.File) (err error) {
+	startTime := time.Now()
+	logger.Errorf("start downloading file %s", job.object.Name)
 	rangeMap := make(map[int64]int64)
 	// Trying to keep the channel size greater than ParallelDownloadsPerFile to ensure
 	// that there is no goroutine waiting for data(nextRange) to be published to channel.
@@ -255,7 +258,9 @@ func (job *Job) parallelDownloadObjectToFile(cacheFile *os.File) (err error) {
 		}
 	}
 
-	return job.handleJobCompletion(downloadErrGroupCtx, downloadErrGroup)
+	err = job.handleJobCompletion(downloadErrGroupCtx, downloadErrGroup)
+	logger.Errorf("Download time for file %s, time: %s", job.object.Name, time.Since(startTime))
+	return err
 }
 
 // Job can be success or failure. This method will handle all the scenarios and
