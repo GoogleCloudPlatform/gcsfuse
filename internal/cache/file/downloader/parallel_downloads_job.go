@@ -140,7 +140,7 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 func (job *Job) updateRangeMap(rangeMap map[int64]int64, offsetStart int64, offsetEnd int64) error {
 	// Check if the chunk downloaded completes a range [0, R) and find that
 	// R.
-	job.mu.Lock()
+	/*job.mu.Lock()
 	defer job.mu.Unlock()
 
 	finalStart := offsetStart
@@ -169,7 +169,7 @@ func (job *Job) updateRangeMap(rangeMap map[int64]int64, offsetStart int64, offs
 		if updateErr := job.updateStatusOffset(finalEnd); updateErr != nil {
 			return updateErr
 		}
-	}
+	}*/
 
 	return nil
 }
