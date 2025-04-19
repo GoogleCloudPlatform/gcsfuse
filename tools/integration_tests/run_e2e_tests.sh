@@ -121,13 +121,11 @@ TEST_DIR_NON_PARALLEL=(
 # pass for zonal buckets.
 TEST_DIR_PARALLEL_FOR_ZB=(
   "benchmarking"
-  "concurrent_operations"
   "explicit_dir"
   "gzip"
   "implicit_dir"
   "interrupt"
   "kernel_list_cache"
-  "list_large_dir"
   "local_file"
   "log_rotation"
   "monitoring"
@@ -148,8 +146,10 @@ TEST_DIR_PARALLEL_FOR_ZB=(
 # but only those tests which currently
 # pass for zonal buckets.
 TEST_DIR_NON_PARALLEL_FOR_ZB=(
-  "readonly"
+  "concurrent_operations"
+  "list_large_dir"
   "managed_folders"
+  "readonly"
   "readonly_creds"
 )
 
