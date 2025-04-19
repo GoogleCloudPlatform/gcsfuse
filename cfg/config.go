@@ -66,6 +66,8 @@ type Config struct {
 
 	OnlyDir string `yaml:"only-dir"`
 
+	Read ReadConfig `yaml:"read"`
+
 	Write WriteConfig `yaml:"write"`
 }
 
@@ -227,6 +229,10 @@ type MonitoringConfig struct {
 	ExperimentalTracingMode string `yaml:"experimental-tracing-mode"`
 
 	ExperimentalTracingSamplingRatio float64 `yaml:"experimental-tracing-sampling-ratio"`
+}
+
+type ReadConfig struct {
+	InactiveStreamTimeout time.Duration `yaml:"inactive-stream-timeout"`
 }
 
 type ReadStallGcsRetriesConfig struct {
@@ -438,6 +444,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("ignore-interrupts", "", true, "Instructs gcsfuse to ignore system interrupt signals (like SIGINT, triggered by Ctrl+C). This prevents those signals from immediately terminating gcsfuse inflight operations.")
 
 	flagSet.BoolP("implicit-dirs", "", false, "Implicitly define directories based on content. See files and directories in docs/semantics for more information")
+
+	flagSet.DurationP("inactive-read-stream-timeout", "", 0*time.Nanosecond, "The timeout duration for inactive reader stream, triggered when application keeps the fileHandle open and unused after reader few bytes. 0s indicates no timeout. Currently only applicable for gRPC client-protocol.")
+
+	if err := flagSet.MarkHidden("inactive-read-stream-timeout"); err != nil {
+		return err
+	}
 
 	flagSet.IntP("kernel-list-cache-ttl-secs", "", 0, "How long the directory listing (output of ls <dir>) should be cached in the kernel page cache. If a particular directory cache entry is kept by kernel for longer than TTL, then it will be sent for invalidation by gcsfuse on next opendir (comes in the start, as part of next listing) call. 0 means no caching. Use -1 to cache for lifetime (no ttl). Negative value other than -1 will throw error.")
 
@@ -769,6 +781,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("implicit-dirs", flagSet.Lookup("implicit-dirs")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("read.inactive-stream-timeout", flagSet.Lookup("inactive-read-stream-timeout")); err != nil {
 		return err
 	}
 
