@@ -134,19 +134,20 @@ func (p *PrefetchReader) ReadAt(ctx context.Context, inputBuffer []byte, offset 
 				cur.ReUse()
 				p.blockPool.Release(cur)
 				continue
+			} else {
+				break
 			}
 		}
 
-		var block *Block
 		if p.blockQueue.IsEmpty() {
 			p.freshStart(offset)
 			prefetchHappened = true
 		}
 
-		cur := p.blockQueue.Peek()
-		t, ok := <-cur.status
+		block := p.blockQueue.Peek()
+		t, ok := <-block.status
 		if ok {
-			cur.Unblock() // close the status signal
+			block.Unblock() // close the status signal
 
 			switch t {
 			case BlockStatusDownloaded:
@@ -237,7 +238,7 @@ func (p *PrefetchReader) scheduleNextBlock(prefetch bool) error {
 		return fmt.Errorf("unable to allocate block")
 	}
 
-	p.scheduleBlockWithIndex(block, p.nextBlockToPrefetch, false)
+	p.scheduleBlockWithIndex(block, p.nextBlockToPrefetch, prefetch)
 	p.nextBlockToPrefetch++
 
 	return nil
@@ -264,6 +265,7 @@ func (p *PrefetchReader) scheduleBlockWithIndex(block *Block, blockIndex int64, 
 func (p *PrefetchReader) prepareBlock(blockIndex int64, block *Block) {
 	block.id = blockIndex
 	block.offset = uint64(blockIndex * p.PrefetchConfig.PrefetchChunkSize)
+	block.writeSeek = 0
 	block.endOffset = min(block.offset+p.blockPool.blockSize, uint64(p.object.Size))
 }
 

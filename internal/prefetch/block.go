@@ -37,6 +37,7 @@ type Block struct {
 	data   []byte   // Data read from blob
 
 	endOffset  uint64 // End offset of the data this block holds
+	writeSeek  uint64
 	cancelFunc context.CancelFunc
 }
 
@@ -81,19 +82,19 @@ func (b *Block) Delete() error {
 }
 
 func (b *Block) Write(bytes []byte) (n int, err error) {
-	if b.endOffset+uint64(len(bytes)) > uint64(cap(b.data)) {
+	if b.writeSeek+uint64(len(bytes)) > uint64(cap(b.data)) {
 		// Add info log to print above value, just info log
-		logger.Infof("Write: b.endOffset: %d, b.offset: %d, len(bytes): %d, cap(b.data): %d", b.endOffset, b.offset, len(bytes), cap(b.data))
+		logger.Infof("Write: b.writeSeek: %d, b.offset: %d, len(bytes): %d, cap(b.data): %d", b.writeSeek, b.offset, len(bytes), cap(b.data))
 
 		return 0, fmt.Errorf("received data more than capacity of the block")
 	}
 
-	n = copy(b.data[b.endOffset:], bytes)
+	n = copy(b.data[b.writeSeek:], bytes)
 	if n != len(bytes) {
 		return 0, fmt.Errorf("error in copying the data to block. Expected %d, got %d", len(bytes), n)
 	}
 
-	b.endOffset += uint64(len(bytes))
+	b.writeSeek += uint64(len(bytes))
 	return n, nil
 }
 
@@ -102,6 +103,7 @@ func (b *Block) ReUse() {
 	b.id = -1
 	b.offset = 0
 	b.endOffset = 0
+	b.writeSeek = 0
 	b.status = make(chan int, 1)
 }
 
