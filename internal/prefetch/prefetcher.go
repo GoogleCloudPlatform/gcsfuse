@@ -15,7 +15,6 @@
 package prefetch
 
 import (
-	"container/list"
 	"fmt"
 	"io"
 	"time"
@@ -32,14 +31,18 @@ const (
 )
 
 type PrefetchConfig struct {
-	PrefetchCount     int64
-	PrefetchChunkSize int64
+	PrefetchCount           int64
+	PrefetchChunkSize       int64
+	InitialPrefetchBlockCnt int64
+	PrefetchMultiplier      int64
 }
 
 func getDefaultPrefetchConfig() *PrefetchConfig {
 	return &PrefetchConfig{
-		PrefetchCount:     6,
-		PrefetchChunkSize: 8 * int64(_1MB),
+		PrefetchCount:           6,
+		PrefetchChunkSize:       10 * int64(_1MB),
+		InitialPrefetchBlockCnt: 1,
+		PrefetchMultiplier:      2,
 	}
 }
 
@@ -50,10 +53,11 @@ type PrefetchReader struct {
 	lastReadOffset      int64
 	nextBlockToPrefetch int64
 
-	randomSeekCount int64
+	randomSeekCount   int64
+	lastPrefetchCount int64
 
-	blockIndexMap map[int64]*Block
-	blockQueue    *Queue
+	// blockIndexMap map[int64]*Block
+	blockQueue *BlockQueue
 
 	readHandle []byte // For zonal bucket.
 
@@ -62,9 +66,9 @@ type PrefetchReader struct {
 
 	metricHandle common.MetricHandle
 
-	// Create a cancellable context and cancellable function 
+	// Create a cancellable context and cancellable function
 	cancelFunc context.CancelFunc
-	ctx context.Context
+	ctx        context.Context
 }
 
 func (p *PrefetchReader) Close() error {
@@ -81,18 +85,15 @@ func NewPrefetchReader(object *gcs.MinObject, bucket gcs.Bucket, PrefetchConfig 
 		lastReadOffset:      -1,
 		nextBlockToPrefetch: 0,
 		randomSeekCount:     0,
-		blockQueue:          NewQueue(),
-		blockIndexMap:       make(map[int64]*Block),
+		blockQueue:          NewBlockQueue(),
 		blockPool:           blockPool,
 		threadPool:          threadPool,
 		metricHandle:        nil,
-		
 	}
 
 	prefetchReader.ctx, prefetchReader.cancelFunc = context.WithCancel(context.Background())
 	return prefetchReader
 }
-
 
 /**
  * ReadAt reads the data from the object at the given offset.
@@ -120,14 +121,42 @@ func (p *PrefetchReader) ReadAt(ctx context.Context, inputBuffer []byte, offset 
 		err = io.EOF
 		return
 	}
+	prefetchHappened := false
 
 	dataRead := int(0)
-	for 
 	for dataRead < len(inputBuffer) {
+		for !p.blockQueue.IsEmpty() {
+			cur := p.blockQueue.Peek()
+			if cur.offset > uint64(offset) || cur.endOffset <= uint64(offset) {
+				cur = p.blockQueue.Pop()
+				cur.Cancel()
+				<-cur.status
+				cur.ReUse()
+				p.blockPool.Release(cur)
+				continue
+			}
+		}
+
 		var block *Block
-		block, err = p.findBlock(ctx, offset)
-		if err != nil {
-			return n, err
+		if p.blockQueue.IsEmpty() {
+			p.freshStart(offset)
+			prefetchHappened = true
+		}
+
+		cur := p.blockQueue.Peek()
+		t, ok := <-cur.status
+		if ok {
+			cur.Unblock() // close the status signal
+
+			switch t {
+			case BlockStatusDownloaded:
+				break
+			case BlockStatusDownloadFailed:
+				return 0, fmt.Errorf("Block download failed")
+			case BlockStatusDownloadCancelled:
+				return 0, fmt.Errorf("Block download unexpected cancelled")
+			default:
+			}
 		}
 
 		readOffset := uint64(offset) - block.offset
@@ -148,224 +177,151 @@ func (p *PrefetchReader) ReadAt(ctx context.Context, inputBuffer []byte, offset 
 			n = int64(dataRead)
 			return n, io.EOF
 		}
+
+		// needs access over next block
+		if dataRead < len(inputBuffer) && !prefetchHappened {
+			prefetchHappened = true
+			err = p.prefetch()
+			if err != nil {
+				return
+			}
+		}
 	}
 	n = int64(dataRead)
 	return
 }
 
-/**
- * findBlock finds the block containing the given offset.
- * It first checks if the block is already in the cache.
- * If it is, it returns the block.
- * If it is not, it downloads the block from GCS and then returns.
- */
-func (p *PrefetchReader) findBlock(ctx context.Context, offset int64) (*Block, error) {
-	blockIndex := offset / p.PrefetchConfig.PrefetchChunkSize
-	logger.Tracef("findBlock: <- (%s, %d)", p.object.Name, offset)
-
-	if p.blockQueue.IsEmpty() {
-		p.blockQueue.Push(blockIndex)
-	} else {
-			
+func (p *PrefetchReader) prefetch() error {
+	nextPrefetchCount := p.PrefetchConfig.PrefetchMultiplier * p.lastPrefetchCount
+	if nextPrefetchCount < p.PrefetchConfig.PrefetchCount {
+		nextPrefetchCount = p.PrefetchConfig.PrefetchCount
 	}
-	entry, ok := p.blockIndexMap[blockIndex]
-	if !ok {
-		if p.lastReadOffset == -1 { // First read.
-			err := p.fetch(ctx, blockIndex, false)
-			if err != nil && err != io.EOF {
-				return nil, err
-			}
-		} else { // random read.
-			p.randomSeekCount++
-			err := p.fetch(ctx, blockIndex, false)
-			if err != nil && err != io.EOF {
-				return nil, err
-			}
-		}
 
-		entry, ok = p.blockIndexMap[blockIndex]
-		if !ok {
-			logger.Errorf("findBlock: not able to find block after scheduling")
-			return nil, io.EOF
+	p.lastPrefetchCount = nextPrefetchCount
+
+	for i := 0; i < int(nextPrefetchCount) && p.nextBlockToPrefetch < p.maxBlockCount(); i++ {
+		err := p.scheduleNextBlock(true)
+		if err != nil {
+			return err
 		}
 	}
 
-	block := entry
-
-	// Wait for this block to complete the download.
-	t, ok := <-block.state
-	if ok {
-		block.Unblock()
-
-		switch t {
-		case BlockStatusDownloaded:
-			block.flags.Clear(BlockFlagDownloading)
-			p.addToCookedBlocks(block)
-			if p.randomSeekCount < 2 {
-				if uint64(p.nextBlockToPrefetch*p.PrefetchConfig.PrefetchChunkSize) < p.object.Size {
-					err := p.fetch(ctx, p.nextBlockToPrefetch, true)
-					if err != nil && err != io.EOF {
-						return nil, err
-					}
-
-				}
-			}
-		case BlockStatusDownloadFailed:
-			block.flags.Set(BlockFlagFailed)
-			return nil, fmt.Errorf("findBlock: failed to download block (%s, %v, %d).", p.object.Name, block.id, offset)
-
-		case BlockStatusDownloadCancelled:
-			block.flags.Set(BlockFlagFailed)
-			return nil, fmt.Errorf("findBlock: download cancelled for block (%s, %v, %d).", p.object.Name, block.id, offset)
-		default:
-			logger.Errorf("findBlock: unknown status %d for block (%s, %v, %d)", t, p.object.Name, block.id, offset)
-		}
-	}
-	return block, nil
-}
-
-func (p *PrefetchReader) fetch(ctx context.Context, blockIndex int64, prefetch bool) (err error) {
-	logger.Tracef("fetch: <- block (%s, %d, %v)", p.object.Name, blockIndex, prefetch)
-
-	currentBlockCnt := p.cookingBlocks.Len() + p.cookedBlocks.Len()
-	newlyCreatedBlockCnt := int(0)
-
-	for ; currentBlockCnt < int(p.PrefetchConfig.PrefetchCount) && newlyCreatedBlockCnt < min_prefetch; currentBlockCnt++ {
-		block := p.blockPool.MustGet()
-		if block != nil {
-			block.node = p.cookedBlocks.PushFront(block)
-			newlyCreatedBlockCnt++
-		}
-	}
-
-	// If no buffers were allocated then we have all the buffers allocated to this prefetcher.
-	// So, re-use the buffer in the sliding window faship.
-	if newlyCreatedBlockCnt == 0 {
-		logger.Infof("fetch (%s, %d) moved into sliding window mode.", p.object.Name, blockIndex)
-		newlyCreatedBlockCnt = 1
-	}
-
-	for i := 0; i < newlyCreatedBlockCnt; i++ {
-		_, ok := p.blockIndexMap[blockIndex]
-		if !ok {
-			err = p.refreshBlock(ctx, blockIndex, prefetch || i > 0)
-			if err != nil {
-				return
-			}
-			blockIndex++
-		} else {
-			logger.Warnf("Not expected")
-		}
-	}
-
-	return
-}
-
-// refreshBlock refreshes a block by scheduling the block to thread-pool to download.
-func (p *PrefetchReader) refreshBlock(ctx context.Context, blockIndex int64, prefetch bool) error {
-	offset := blockIndex * p.PrefetchConfig.PrefetchChunkSize
-	if uint64(offset) >= p.object.Size {
-		return io.EOF
-	}
-
-	nodeList := p.cookedBlocks
-	if nodeList.Len() == 0 && !prefetch {
-		block := p.blockPool.MustGet()
-		if block == nil {
-			return fmt.Errorf("unable to allocate block")
-		}
-
-		block.node = p.cookedBlocks.PushFront(block)
-	}
-
-	node := nodeList.Front()
-	if node != nil {
-		block := node.Value.(*Block)
-
-		if block.id != -1 {
-			delete(p.blockIndexMap, block.id)
-		}
-
-		block.ReUse()
-		block.id = int64(blockIndex)
-		block.offset = uint64(offset)
-		p.blockIndexMap[blockIndex] = block
-		p.nextBlockToPrefetch = blockIndex + 1
-
-		p.scheduleBlock(ctx, block, prefetch)
-	}
 	return nil
 }
 
-/**
- * scheduleBlock schedules a block for download
- */
-func (p *PrefetchReader) scheduleBlock(ctx context.Context, block *Block, prefetch bool) {
+// freshStart to start from a given offset.
+func (p *PrefetchReader) freshStart(currentSeek int64) error {
+	p.resetPrefetcher()
+	blockIndex := currentSeek / p.PrefetchConfig.PrefetchChunkSize
+	p.nextBlockToPrefetch = blockIndex
+
+	err := p.scheduleNextBlock(false)
+	if err != nil {
+		return err
+	}
+
+	for i := 0; i < int(p.PrefetchConfig.InitialPrefetchBlockCnt) && p.nextBlockToPrefetch < p.maxBlockCount(); i++ {
+		err := p.scheduleNextBlock(true)
+		if err != nil {
+			return err
+		}
+	}
+
+	p.lastPrefetchCount = 1
+	return nil
+}
+
+func (p *PrefetchReader) scheduleNextBlock(prefetch bool) error {
+	block := p.blockPool.MustGet()
+	if block == nil {
+		return fmt.Errorf("unable to allocate block")
+	}
+
+	p.scheduleBlockWithIndex(block, p.nextBlockToPrefetch, false)
+	p.nextBlockToPrefetch++
+
+	return nil
+}
+
+// scheduleBlock create a prefetch task for the given block and schedule it to thread-pool.
+func (p *PrefetchReader) scheduleBlockWithIndex(block *Block, blockIndex int64, prefetch bool) {
+	p.prepareBlock(blockIndex, block)
 	task := &PrefetchTask{
 		ctx:      p.ctx,
 		object:   p.object,
 		bucket:   p.bucket,
 		block:    block,
 		prefetch: prefetch,
-		blockId:  block.id,
 	}
 
 	logger.Infof("Scheduling block (%s, %d, %v).", p.object.Name, block.id, prefetch)
 
-	// Add to cooking block.
-	p.addToCookingBlocks(block)
-	block.flags.Set(BlockFlagDownloading)
-
+	p.blockQueue.Push(block)
 	p.threadPool.Schedule(!prefetch, task)
 }
 
-func (p *PrefetchReader) addToCookedBlocks(block *Block) {
-	if block.node != nil {
-		p.cookedBlocks.Remove(block.node)
-		p.cookingBlocks.Remove(block.node)
-	}
-
-	block.node = p.cookedBlocks.PushBack(block)
+// prepareBlock initializes block-state according to blockIndex.
+func (p *PrefetchReader) prepareBlock(blockIndex int64, block *Block) {
+	block.id = blockIndex
+	block.offset = uint64(blockIndex * p.PrefetchConfig.PrefetchChunkSize)
+	block.endOffset = min(block.offset+p.blockPool.blockSize, uint64(p.object.Size))
 }
 
-func (p *PrefetchReader) addToCookingBlocks(block *Block) {
-	if block.node != nil {
-		_ = p.cookedBlocks.Remove(block.node)
-		_ = p.cookingBlocks.Remove(block.node)
+// scheduleBlock create a prefetch task for the given block and schedule it to thread-pool.
+func (p *PrefetchReader) scheduleBlock(block *Block, prefetch bool) {
+	blockCtx, cancel := context.WithCancel(p.ctx)
+
+	task := &PrefetchTask{
+		ctx:      blockCtx,
+		object:   p.object,
+		bucket:   p.bucket,
+		block:    block,
+		prefetch: prefetch,
 	}
 
-	block.node = p.cookingBlocks.PushBack(block)
+	logger.Infof("Scheduling block (%s, %d, %v).", p.object.Name, block.id, prefetch)
+
+	// Queue has always a right cancel function.
+	block.cancelFunc = cancel
+
+	p.blockQueue.Push(block)
+	p.threadPool.Schedule(!prefetch, task)
 }
 
+// Destroy cancels/discards the blocks in the blockQueue.
 func (p *PrefetchReader) Destroy() {
 	if p.cancelFunc != nil {
 		p.cancelFunc()
 		p.cancelFunc = nil
 	}
 
-	// Release the buffers which are still under download after they have been written
-	blockList := p.cookingBlocks
-	node := blockList.Front()
-	for ; node != nil; node = blockList.Front() {
-		block := blockList.Remove(node).(*Block)
+	// Cancel all the processed or in process queue in the queue.
+	for !p.blockQueue.IsEmpty() {
+		block := p.blockQueue.Pop()
+		block.Cancel()
 
 		// Wait for download to complete and then free up this block
-		<-block.state
-		block.node = nil
+		<-block.status
 		block.ReUse()
 		p.blockPool.Release(block)
 	}
-	p.cookingBlocks = nil
 
-	// Release the blocks that are ready to be reused
-	blockList = p.cookedBlocks
-	node = blockList.Front()
-	for ; node != nil; node = blockList.Front() {
-		block := blockList.Remove(node).(*Block)
-		// block.Unblock()
-		block.node = nil
+	p.blockPool = nil
+}
+
+func (p *PrefetchReader) resetPrefetcher() {
+	// Cancel all the processed or in process queue in the queue.
+	for !p.blockQueue.IsEmpty() {
+		block := p.blockQueue.Pop()
+		block.Cancel()
+
+		// Wait for download to complete and then free up this block
+		<-block.status
 		block.ReUse()
 		p.blockPool.Release(block)
 	}
-	p.cookedBlocks = nil
+}
+
+func (p *PrefetchReader) maxBlockCount() int64 {
+	return (int64(p.object.Size) + p.PrefetchConfig.PrefetchChunkSize - 1) / p.PrefetchConfig.PrefetchChunkSize
 }
