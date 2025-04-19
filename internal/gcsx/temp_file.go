@@ -326,7 +326,7 @@ func minInt64(a int64, b int64) int64 {
 }
 
 const (
-	minCopyLength = 64 * 1024 * 1024 // 64 MB
+	minCopyLength = 64 * 1024 * 1024 // 64 MiB
 )
 
 func (tf *tempFile) ensure(limit int64) error {

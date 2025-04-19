@@ -88,7 +88,7 @@ func (t *RandomReaderStretchrTest) TearDownTest() {
 }
 
 func (t *RandomReaderStretchrTest) Test_ReadInfo() {
-	t.object.Size = 10 * MB
+	t.object.Size = 10 * MiB
 	testCases := []struct {
 		name  string
 		start int64
@@ -130,9 +130,9 @@ func (t *RandomReaderStretchrTest) Test_ReadInfo_Sequential() {
 		start       int64
 		objectSize  uint64
 	}{
-		{"10MBObject", 10 * MB, 0, 10 * MB},
-		{"ReadSizeGreaterThanObjectSize", 10 * MB, int64(t.object.Size - 1), 10 * MB},
-		{"ObjectSizeGreaterThanReadSize", int64(sequentialReadSizeInBytes), 0, 50 * MB},
+		{"10MBObject", 10 * MiB, 0, 10 * MiB},
+		{"ReadSizeGreaterThanObjectSize", 10 * MiB, int64(t.object.Size - 1), 10 * MiB},
+		{"ObjectSizeGreaterThanReadSize", int64(sequentialReadSizeInBytes), 0, 50 * MiB},
 	}
 
 	for _, tc := range testCases {
@@ -157,14 +157,14 @@ func (t *RandomReaderStretchrTest) Test_ReadInfo_Random() {
 		totalReadBytes uint64
 	}{
 		// TotalReadByte is 10MB, so average is 10/2 = 5MB >1MB and <8MB
-		{"RangeBetween1And8MB", 6 * MB, 0, 50 * MB, 10 * MB},
+		{"RangeBetween1And8MB", 6 * MiB, 0, 50 * MiB, 10 * MiB},
 		// TotalReadByte is 1MB, so average is 1/2 = 0.5MB which is <1MB
-		{"ReadSizeLessThan1MB", minReadSize, 0, 50 * MB, 1 * MB},
+		{"ReadSizeLessThan1MB", minReadSize, 0, 50 * MiB, 1 * MiB},
 		// TotalReadByte is 1MB, so average is 10/2 = 5MB which is <8MB
-		{"ReadSizeLessThan8MB", 6 * MB, 0, 50 * MB, 10 * MB},
+		{"ReadSizeLessThan8MB", 6 * MiB, 0, 50 * MiB, 10 * MiB},
 		// TotalReadByte is 1MB, so average is 20/2 = 10MB which is >8MB
-		{"ReadSizeGreaterThan8MB", sequentialReadSizeInBytes, 0, 50 * MB, 20 * MB},
-		{"ReadSizeGreaterThanObjectSize", 5 * MB, 5*MB - 1, 5 * MB, 2 * MB},
+		{"ReadSizeGreaterThan8MB", sequentialReadSizeInBytes, 0, 50 * MiB, 20 * MiB},
+		{"ReadSizeGreaterThanObjectSize", 5 * MiB, 5*MiB - 1, 5 * MiB, 2 * MiB},
 	}
 
 	for _, tc := range testCases {
@@ -201,7 +201,7 @@ func (t *RandomReaderStretchrTest) Test_ReaderType() {
 			name:       "ZonalBucketRandomReadLargerThan8MB",
 			readType:   testutil.Random,
 			start:      0,
-			end:        9 * MB,
+			end:        9 * MiB,
 			bucketType: gcs.BucketType{Zonal: true},
 			readerType: RangeReader,
 		},

@@ -33,6 +33,12 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 )
 
+const (
+	// ReadOp ("readOp") is the value used in read context to store pointer to the read operation.
+	ReadOp = "readOp"
+	MiB    = 1 << 20
+)
+
 type FileCacheReader struct {
 	Reader
 	object *gcs.MinObject

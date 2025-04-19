@@ -34,7 +34,6 @@ var (
 	ErrInvalidFileHandle                   = errors.New("invalid file handle")
 	ErrInvalidFileDownloadJob              = errors.New("invalid download job")
 	ErrInvalidFileInfoCache                = errors.New("invalid file info cache")
-	ErrInSeekingFileHandle                 = errors.New("error while seeking file handle")
 	ErrInReadingFileHandle                 = errors.New("error while reading file handle")
 	ErrFallbackToGCS                       = errors.New("read via gcs")
 	ErrFileNotPresentInCache               = errors.New("file is not present in cache")
@@ -101,7 +100,6 @@ func IsCacheHandleInvalid(readErr error) bool {
 	return errors.Is(readErr, ErrInvalidFileHandle) ||
 		errors.Is(readErr, ErrInvalidFileDownloadJob) ||
 		errors.Is(readErr, ErrInvalidFileInfoCache) ||
-		errors.Is(readErr, ErrInSeekingFileHandle) ||
 		errors.Is(readErr, ErrInReadingFileHandle)
 }
 

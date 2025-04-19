@@ -15,7 +15,6 @@
 package gcsx
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -188,12 +187,6 @@ func (t *RandomReaderTest) SetUp(ti *TestInfo) {
 
 func (t *RandomReaderTest) TearDown() {
 	t.rr.Destroy()
-}
-
-func getReadCloser(content []byte) io.ReadCloser {
-	r := bytes.NewReader(content)
-	rc := io.NopCloser(r)
-	return rc
 }
 
 func (t *RandomReaderTest) mockNewReaderWithHandleCallForTestBucket(start uint64, limit uint64, rd gcs.StorageReader) {
@@ -424,7 +417,7 @@ func (t *RandomReaderTest) DoesntPropagateCancellationAfterReturning() {
 }
 
 func (t *RandomReaderTest) UpgradesReadsToObjectSize() {
-	const objectSize = 2 * MB
+	const objectSize = 2 * MiB
 	t.object.Size = objectSize
 
 	const readSize = 10
@@ -460,7 +453,7 @@ func (t *RandomReaderTest) UpgradesReadsToObjectSize() {
 
 func (t *RandomReaderTest) UpgradeReadsToAverageSize() {
 	t.object.Size = 1 << 40
-	const totalReadBytes = 6 * MB
+	const totalReadBytes = 6 * MiB
 	const numReads = 2
 	const avgReadBytes = totalReadBytes / numReads
 
@@ -536,9 +529,9 @@ func (t *RandomReaderTest) UpgradesSequentialReads_ExistingReader() {
 
 func (t *RandomReaderTest) UpgradesSequentialReads_NoExistingReader() {
 	t.object.Size = 1 << 40
-	const readSize = 1 * MB
+	const readSize = 1 * MiB
 	// Set up the custom randomReader.
-	rr := NewRandomReader(t.object, t.bucket, readSize/MB, nil, false, common.NewNoopMetrics(), nil)
+	rr := NewRandomReader(t.object, t.bucket, readSize/MiB, nil, false, common.NewNoopMetrics(), nil)
 	t.rr.wrapped = rr.(*randomReader)
 
 	// Simulate a previous exhausted reader that ended at the offset from which

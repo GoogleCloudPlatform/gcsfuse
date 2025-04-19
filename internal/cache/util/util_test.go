@@ -232,7 +232,6 @@ func (ut *utilTest) Test_IsCacheHandleValid_True() {
 		fmt.Errorf("%w: %s", ErrInvalidFileHandle, "test"),
 		fmt.Errorf("%w: %s", ErrInvalidFileDownloadJob, "test"),
 		fmt.Errorf("%w: %s", ErrInvalidFileInfoCache, "test"),
-		fmt.Errorf("%w: %s", ErrInSeekingFileHandle, "test"),
 		fmt.Errorf("%w: %s", ErrInReadingFileHandle, "test"),
 	}
 
