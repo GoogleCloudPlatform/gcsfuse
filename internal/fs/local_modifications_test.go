@@ -1526,7 +1526,7 @@ func (t *FileTest) WriteAtDoesntChangeOffset_AppendMode() {
 }
 
 func validateObjectAttributes(extendedAttr1, extendedAttr2 *gcs.ExtendedObjectAttributes,
-		minObject1, minObject2 *gcs.MinObject) {
+	minObject1, minObject2 *gcs.MinObject) {
 	AssertNe(nil, extendedAttr1)
 	AssertNe(nil, extendedAttr2)
 	AssertNe(nil, minObject1)

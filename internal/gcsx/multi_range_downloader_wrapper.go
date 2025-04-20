@@ -16,6 +16,7 @@ package gcsx
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"sync"
