@@ -62,6 +62,7 @@ func NewBlockPool(blockSize uint64, memSize uint64) *BlockPool {
 		blockSize:    blockSize,
 	}
 
+	logger.Infof("Allocating %d number of %d MiB blocks", blockCount, blockSize/(_1MB))
 	// Preallocate all blocks so that during runtime we do not spend CPU cycles on this
 	for i := (uint32)(0); i < blockCount; i++ {
 		b, err := AllocateBlock(blockSize)
@@ -152,6 +153,16 @@ func (pool *BlockPool) TryGet() *Block {
 
 // Release back the Block to the pool
 func (pool *BlockPool) Release(b *Block) {
+	select {
+	case pool.blocksCh <- b:
+		break
+	default:
+		_ = b.Delete()
+	}
+}
+
+// Release back the Block to the pool
+func (pool *BlockPool) ReleaseForReset(b *Block) {
 	select {
 	case pool.resetBlockCh <- b:
 		break

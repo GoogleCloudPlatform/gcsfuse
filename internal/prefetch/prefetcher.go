@@ -252,33 +252,9 @@ func (p *PrefetchReader) scheduleNextBlock(prefetch bool) error {
 
 // scheduleBlock create a prefetch task for the given block and schedule it to thread-pool.
 func (p *PrefetchReader) scheduleBlockWithIndex(block *Block, blockIndex int64, prefetch bool) {
-	p.prepareBlock(blockIndex, block)
-	task := &PrefetchTask{
-		ctx:      p.ctx,
-		object:   p.object,
-		bucket:   p.bucket,
-		block:    block,
-		prefetch: prefetch,
-	}
-
-	logger.Tracef("Scheduling block (%s, %d, %v).", p.object.Name, block.id, prefetch)
-
-	p.blockQueue.Push(block)
-	p.threadPool.Schedule(!prefetch, task)
-}
-
-// prepareBlock initializes block-state according to blockIndex.
-func (p *PrefetchReader) prepareBlock(blockIndex int64, block *Block) {
-	block.id = blockIndex
-	block.offset = uint64(blockIndex * p.PrefetchConfig.PrefetchChunkSize)
-	block.writeSeek = 0
-	block.endOffset = min(block.offset+p.blockPool.blockSize, uint64(p.object.Size))
-}
-
-// scheduleBlock create a prefetch task for the given block and schedule it to thread-pool.
-func (p *PrefetchReader) scheduleBlock(block *Block, prefetch bool) {
 	blockCtx, cancel := context.WithCancel(p.ctx)
 
+	p.prepareBlock(blockIndex, block)
 	task := &PrefetchTask{
 		ctx:      blockCtx,
 		object:   p.object,
@@ -294,6 +270,14 @@ func (p *PrefetchReader) scheduleBlock(block *Block, prefetch bool) {
 
 	p.blockQueue.Push(block)
 	p.threadPool.Schedule(!prefetch, task)
+}
+
+// prepareBlock initializes block-state according to blockIndex.
+func (p *PrefetchReader) prepareBlock(blockIndex int64, block *Block) {
+	block.id = blockIndex
+	block.offset = uint64(blockIndex * p.PrefetchConfig.PrefetchChunkSize)
+	block.writeSeek = 0
+	block.endOffset = min(block.offset+p.blockPool.blockSize, uint64(p.object.Size))
 }
 
 // Destroy cancels/discards the blocks in the blockQueue.
