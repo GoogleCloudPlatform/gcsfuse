@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"errors"
+
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
@@ -42,22 +43,20 @@ type PrefetchTask struct {
  */
 func Download(task *PrefetchTask) {
 	blockId := task.block.id
-	logger.Infof("Download: <- block (%s, %v).", task.object.Name, blockId)
+	logger.Tracef("Download: <- block (%s, %v).", task.object.Name, blockId)
 	stime := time.Now()
 
 	var err error
 	defer func() {
 		if err != nil {
-			logger.Infof("Download: -> block (%s, %v) failed with error: %v.", task.object.Name, blockId, err)
+			logger.Tracef("Download: -> block (%s, %v) failed with error: %v.", task.object.Name, blockId, err)
 		} else {
-			logger.Infof("Download: -> block (%s, %v): %v completed.", task.object.Name, blockId, time.Since(stime))
+			logger.Tracef("Download: -> block (%s, %v): %v completed.", task.object.Name, blockId, time.Since(stime))
 		}
 	}()
 
 	start := uint64(task.block.offset)
 	end := task.block.offset + GetBlockSize(task.block, uint64(len(task.block.data)), task.object.Size)
-
-	logger.Infof("Start downloading block (%s, %v) from %d to %d.", task.object.Name, blockId, start, end)
 
 	newReader, err := task.bucket.NewReaderWithReadHandle(
 		task.ctx,

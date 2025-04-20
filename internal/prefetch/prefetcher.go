@@ -107,13 +107,13 @@ func (p *PrefetchReader) ReadAt(ctx context.Context, inputBuffer []byte, offset 
 	stime := time.Now()
 	blockIndex := offset / p.PrefetchConfig.PrefetchChunkSize
 
-	logger.Infof("%.10v <- ReadAt(%d, %d, %d).", requestId, offset, len(inputBuffer), blockIndex)
+	logger.Tracef("%.10v <- ReadAt(%d, %d, %d).", requestId, offset, len(inputBuffer), blockIndex)
 
 	defer func() {
 		if err != nil && err != io.EOF {
 			logger.Errorf("%.10v -> ReadAt(%d, %d, %d) with error: %v", requestId, offset, len(inputBuffer), blockIndex, err)
 		} else {
-			logger.Infof("%.10v -> ReadAt(%d, %d, %d): ok(%v)", requestId, offset, len(inputBuffer), blockIndex, time.Since(stime))
+			logger.Tracef("%.10v -> ReadAt(%d, %d, %d): ok(%v)", requestId, offset, len(inputBuffer), blockIndex, time.Since(stime))
 		}
 	}()
 
@@ -162,9 +162,7 @@ func (p *PrefetchReader) ReadAt(ctx context.Context, inputBuffer []byte, offset 
 
 		readOffset := uint64(offset) - block.offset
 		blockSize := GetBlockSize(block, uint64(p.PrefetchConfig.PrefetchChunkSize), uint64(p.object.Size))
-
 		bytesRead := copy(inputBuffer[dataRead:], block.data[readOffset:blockSize])
-
 		dataRead += bytesRead
 		offset += int64(bytesRead)
 
@@ -179,13 +177,21 @@ func (p *PrefetchReader) ReadAt(ctx context.Context, inputBuffer []byte, offset 
 			return n, io.EOF
 		}
 
-		// needs access over next block
-		if dataRead < len(inputBuffer) && !prefetchHappened {
-			prefetchHappened = true
-			err = p.prefetch()
-			if err != nil {
-				return
+		if dataRead < len(inputBuffer) || (dataRead == len(inputBuffer) && offset == int64(block.endOffset)) {
+			if !prefetchHappened {
+				tmp := p.blockQueue.Pop()
+				tmp.Cancel()
+				<-tmp.status
+				tmp.ReUse()
+				p.blockPool.Release(tmp)
+
+				prefetchHappened = true
+				err = p.prefetch()
+				if err != nil {
+					return
+				}
 			}
+
 		}
 	}
 	n = int64(dataRead)
@@ -255,7 +261,7 @@ func (p *PrefetchReader) scheduleBlockWithIndex(block *Block, blockIndex int64, 
 		prefetch: prefetch,
 	}
 
-	logger.Infof("Scheduling block (%s, %d, %v).", p.object.Name, block.id, prefetch)
+	logger.Tracef("Scheduling block (%s, %d, %v).", p.object.Name, block.id, prefetch)
 
 	p.blockQueue.Push(block)
 	p.threadPool.Schedule(!prefetch, task)
@@ -281,7 +287,7 @@ func (p *PrefetchReader) scheduleBlock(block *Block, prefetch bool) {
 		prefetch: prefetch,
 	}
 
-	logger.Infof("Scheduling block (%s, %d, %v).", p.object.Name, block.id, prefetch)
+	logger.Tracef("Scheduling block (%s, %d, %v).", p.object.Name, block.id, prefetch)
 
 	// Queue has always a right cancel function.
 	block.cancelFunc = cancel

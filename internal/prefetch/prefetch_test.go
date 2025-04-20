@@ -10,6 +10,7 @@ import (
 
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
@@ -45,15 +46,17 @@ func getMinObject(objectName string, bucket gcs.Bucket) gcs.MinObject {
 }
 
 func (ps *prefetchTestSuite) SetupSuite() {
+	// logger.SetLogLevel("TRACE")
+
 	stime := time.Now()
 	ps.assert = assert.New(ps.T())
 
 	// Thread pool.
-	ps.threadPool = NewThreadPool(4, Download)
+	ps.threadPool = NewThreadPool(20, Download)
 	ps.threadPool.Start()
 
 	// Block pool.
-	ps.blockPool = NewBlockPool(10*_1MB, 1024*_1MB)
+	ps.blockPool = NewBlockPool(uint64(getDefaultPrefetchConfig().PrefetchChunkSize), 3024*_1MB)
 
 	// Storage, bucket and object.
 	mockClient := new(storage.MockStorageControlClient)
@@ -68,7 +71,7 @@ func (ps *prefetchTestSuite) SetupSuite() {
 	ps.object = getMinObject(storage.TestObjectName, ps.bucket)
 	ps.assert.NoError(err)
 
-	fmt.Printf("Total setup time: %v\n", time.Since(stime))
+	logger.Infof("Total setup time: %v\n", time.Since(stime))
 
 }
 
@@ -77,7 +80,7 @@ func (ps *prefetchTestSuite) TearDownSuite() {
 	ps.threadPool.Stop()
 	ps.blockPool.Terminate()
 	ps.fakeStorage.ShutDown()
-	fmt.Printf("Total teardown time: %v\n", time.Since(stime))
+	logger.Infof("Total teardown time: %v\n", time.Since(stime))
 }
 
 func (ps *prefetchTestSuite) TestNewPrefetchReader() {
@@ -110,12 +113,31 @@ func (ps *prefetchTestSuite) TestSequentialRead() {
 
 	buffer := make([]byte, _1MB)
 	offset := int64(0)
-	for offset = int64(0); offset < int64(100*_1MB); offset += int64(len(buffer)) {
+	timerS := time.Now()
+	for offset = int64(0); offset < int64(200*_1MB); offset += int64(len(buffer)) {
 		n, err := PrefetchReader.ReadAt(context.Background(), buffer, offset)
 		ps.assert.True(err == nil || err == io.EOF)
 		ps.assert.Equal(len(buffer), int(n))
 	}
-	ps.assert.Equal(offset, int64(100*_1MB))
+	logger.Infof("Total read time: %v\n", time.Since(timerS))
+	ps.assert.Equal(offset, int64(200*_1MB))
+}
+
+func (ps *prefetchTestSuite) TestSequentialReadWithHighInitialPrefetch() {
+	defaultConfig := getDefaultPrefetchConfig()
+	defaultConfig.InitialPrefetchBlockCnt = 100
+	PrefetchReader := NewPrefetchReader(&ps.object, ps.bucket, defaultConfig, ps.blockPool, ps.threadPool)
+
+	timerS := time.Now()
+	buffer := make([]byte, _1MB)
+	offset := int64(0)
+	for offset = int64(0); offset < int64(200*_1MB); offset += int64(len(buffer)) {
+		n, err := PrefetchReader.ReadAt(context.Background(), buffer, offset)
+		ps.assert.True(err == nil || err == io.EOF)
+		ps.assert.Equal(len(buffer), int(n))
+	}
+	logger.Infof("Total read time: %v\n", time.Since(timerS))
+	ps.assert.Equal(offset, int64(200*_1MB))
 }
 
 func TestPrefetchSuite(t *testing.T) {

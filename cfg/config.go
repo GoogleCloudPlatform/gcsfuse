@@ -232,13 +232,13 @@ type PrefetchConfig struct {
 
 	Enable bool `yaml:"enable"`
 
+	InitialPrefetchBlocks int64 `yaml:"initial-prefetch-blocks"`
+
 	MaxParallelism int64 `yaml:"max-parallelism"`
 
 	MaxPrefetchBlocks int64 `yaml:"max-prefetch-blocks"`
 
 	MaxPrefetchSizeMb int64 `yaml:"max-prefetch-size-mb"`
-
-	MinPrefetchBlocks int64 `yaml:"min-prefetch-blocks"`
 }
 
 type ReadStallGcsRetriesConfig struct {
@@ -505,15 +505,15 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("prefetch-block-size-mb", "", 8, "Part size for the non-file-cache flow.")
+	flagSet.IntP("prefetch-block-size-mb", "", 16, "Part size for the non-file-cache flow.")
+
+	flagSet.IntP("prefetch-initial-prefetch-blocks", "", 4, "Per file initial number of blocks to be prefetched.")
 
 	flagSet.IntP("prefetch-max-parallelism", "", 100, "Upper limit of overall parallelism.")
 
-	flagSet.IntP("prefetch-max-prefetch-blocks", "", 10, "Per file max number of blocks to be prefetched.")
+	flagSet.IntP("prefetch-max-prefetch-blocks", "", 20, "Per file max number of blocks to be prefetched.")
 
 	flagSet.IntP("prefetch-max-prefetch-size-mb", "", 1024, "Total cap over memory used for prefetch.")
-
-	flagSet.IntP("prefetch-min-prefetch-blocks", "", 4, "Per file min number of blocks to be prefetched.")
 
 	flagSet.IntP("prometheus-port", "", 0, "Expose Prometheus metrics endpoint on this port and a path of /metrics.")
 
@@ -876,6 +876,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("prefetch.initial-prefetch-blocks", flagSet.Lookup("prefetch-initial-prefetch-blocks")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("prefetch.max-parallelism", flagSet.Lookup("prefetch-max-parallelism")); err != nil {
 		return err
 	}
@@ -885,10 +889,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("prefetch.max-prefetch-size-mb", flagSet.Lookup("prefetch-max-prefetch-size-mb")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("prefetch.min-prefetch-blocks", flagSet.Lookup("prefetch-min-prefetch-blocks")); err != nil {
 		return err
 	}
 

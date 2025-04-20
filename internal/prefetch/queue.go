@@ -1,6 +1,9 @@
 package prefetch
 
-import "github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
+import (
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
+)
 
 type entry struct {
 	value interface{}
@@ -91,6 +94,7 @@ func (bq *BlockQueue) IsEmpty() bool {
 }
 
 func (bq *BlockQueue) Push(block *Block) {
+	logger.Tracef("Pushed block %d\n", block.id)
 	bq.q.Push(block)
 }
 
@@ -103,6 +107,7 @@ func (bq *BlockQueue) Pop() *Block {
 	if !ok {
 		panic("Block expected")
 	}
+	logger.Tracef("Popped block %d\n", block.id)
 	return block
 }
 

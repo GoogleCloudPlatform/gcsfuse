@@ -651,13 +651,19 @@
   flag-name: "prefetch-block-size-mb"
   type: "int"
   usage: "Part size for the non-file-cache flow."
-  default: 8
+  default: 16
 
 - config-path: "prefetch.enable"
   flag-name: "enable-prefetch"
   type: "bool"
   usage: "Part size for the non-file-cache flow."
   default: false
+
+- config-path: "prefetch.initial-prefetch-blocks"
+  flag-name: "prefetch-initial-prefetch-blocks"
+  type: "int"
+  usage: "Per file initial number of blocks to be prefetched."
+  default: 4
 
 - config-path: "prefetch.max-parallelism"
   flag-name: "prefetch-max-parallelism"
@@ -669,19 +675,13 @@
   flag-name: "prefetch-max-prefetch-blocks"
   type: "int"
   usage: "Per file max number of blocks to be prefetched."
-  default: 10
+  default: 20
 
 - config-path: "prefetch.max-prefetch-size-mb"
   flag-name: "prefetch-max-prefetch-size-mb"
   type: "int"
   usage: "Total cap over memory used for prefetch."
   default: 1024
-
-- config-path: "prefetch.min-prefetch-blocks"
-  flag-name: "prefetch-min-prefetch-blocks"
-  type: "int"
-  usage: "Per file min number of blocks to be prefetched."
-  default: 4
 
 - config-path: "write.block-size-mb"
   flag-name: "write-block-size-mb"
