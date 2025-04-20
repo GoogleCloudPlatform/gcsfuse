@@ -166,7 +166,7 @@ func (t *IntegrationTest) ReadThenSync() {
 	buf := make([]byte, 1024)
 	n, err := t.tf.ReadAt(buf, 0)
 
-	AssertThat(err, AnyOf(io.EOF, nil))
+	AssertTrue(errors.Is(err, io.EOF) || err == nil)
 	ExpectEq(len("taco"), n)
 	ExpectEq("taco", string(buf[:n]))
 
@@ -539,7 +539,7 @@ func (t *IntegrationTest) MultipleInteractions() {
 		// Read the contents of the temp file.
 		_, err = t.tf.ReadAt(buf, 0)
 
-		AssertThat(err, AnyOf(nil, io.EOF))
+		AssertTrue(errors.Is(err, io.EOF) || err == nil)
 		if !bytes.Equal(buf, expectedContents) {
 			AddFailure("Contents mismatch for %s", desc)
 			AbortTest()
@@ -564,7 +564,7 @@ func (t *IntegrationTest) MultipleInteractions() {
 		// Compare contents again.
 		_, err = t.tf.ReadAt(buf, 0)
 
-		AssertThat(err, AnyOf(nil, io.EOF))
+		AssertTrue(errors.Is(err, io.EOF) || err == nil)
 		if !bytes.Equal(buf, expectedContents) {
 			AddFailure("Contents mismatch for %s", desc)
 			AbortTest()
@@ -589,7 +589,7 @@ func (t *IntegrationTest) MultipleInteractions() {
 		// Compare contents again.
 		_, err = t.tf.ReadAt(buf, 0)
 
-		AssertThat(err, AnyOf(nil, io.EOF))
+		AssertTrue(errors.Is(err, io.EOF) || err == nil)
 		if !bytes.Equal(buf, expectedContents) {
 			AddFailure("Contents mismatch for %s", desc)
 			AbortTest()
@@ -606,7 +606,7 @@ func (t *IntegrationTest) MultipleInteractions() {
 		// Compare contents again.
 		_, err = t.tf.ReadAt(buf, 0)
 
-		AssertThat(err, AnyOf(nil, io.EOF))
+		AssertTrue(errors.Is(err, io.EOF) || err == nil)
 		if !bytes.Equal(buf, expectedContents) {
 			AddFailure("Contents mismatch for %s", desc)
 			AbortTest()

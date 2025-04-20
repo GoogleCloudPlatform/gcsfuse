@@ -142,10 +142,10 @@ func calculateCRC32(ctx context.Context, reader io.Reader) (uint32, error) {
 		case <-ctx.Done():
 			return 0, fmt.Errorf("CRC computation is cancelled: %w", ctx.Err())
 		default:
-			switch n, err := reader.Read(buf); err {
-			case nil:
+			switch n, err := reader.Read(buf); {
+			case err == nil:
 				checksum = crc32.Update(checksum, table, buf[:n])
-			case io.EOF:
+			case errors.Is(err, io.EOF):
 				return checksum, nil
 			default:
 				return 0, err

@@ -222,7 +222,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 			mu.Unlock()
 		}()
 
-		if e != nil && e != io.EOF {
+		if e != nil && !errors.Is(err, io.EOF) {
 			e = fmt.Errorf("Error in Add Call: %w", e)
 		}
 	})

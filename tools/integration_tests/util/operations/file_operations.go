@@ -207,7 +207,7 @@ func ReadFileSequentially(filePath string, chunkSize int64) (content []byte, err
 	// Closing the file at the end.
 	defer CloseFile(file)
 
-	for err != io.EOF {
+	for !errors.Is(err, io.EOF) {
 		var numberOfBytes int
 
 		// Reading 200 MB chunk sequentially from the file.

@@ -222,7 +222,7 @@ func (t *RandomReaderTest) ReadAtEndOfObject() {
 	objectData, err := t.rr.ReadAt(buf, int64(t.object.Size))
 
 	ExpectEq(0, objectData.Size)
-	ExpectEq(io.EOF, err)
+	ExpectTrue(errors.Is(err, io.EOF))
 }
 
 func (t *RandomReaderTest) ReadPastEndOfObject() {
@@ -232,7 +232,7 @@ func (t *RandomReaderTest) ReadPastEndOfObject() {
 
 	ExpectFalse(objectData.CacheHit)
 	ExpectEq(0, objectData.Size)
-	ExpectEq(io.EOF, err)
+	ExpectTrue(errors.Is(err, io.EOF))
 }
 
 func (t *RandomReaderTest) NoExistingReader() {
@@ -1035,7 +1035,7 @@ func (t *RandomReaderTest) Test_ReadAt_OffsetEqualToObjectSize() {
 
 	// nothing should be read
 	ExpectFalse(objectData.CacheHit)
-	ExpectEq(io.EOF, err)
+	ExpectTrue(errors.Is(err, io.EOF))
 	ExpectEq(0, objectData.Size)
 }
 

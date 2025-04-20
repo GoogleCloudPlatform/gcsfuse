@@ -767,7 +767,7 @@ func (t *ModesTest) AppendMode_SeekAndWrite() {
 	buf := make([]byte, 1024)
 	n, err := t.f1.ReadAt(buf, 0)
 
-	AssertEq(io.EOF, err)
+	AssertTrue(errors.Is(err, io.EOF))
 	ExpectEq(contents+"222", string(buf[:n]))
 
 	// Read the full contents with another file handle.
@@ -815,7 +815,7 @@ func (t *ModesTest) AppendMode_WriteAt() {
 	buf := make([]byte, 1024)
 	n, err := t.f1.ReadAt(buf, 0)
 
-	AssertEq(io.EOF, err)
+	AssertTrue(errors.Is(err, io.EOF))
 	ExpectEq("taco111ritoenchilada", string(buf[:n]))
 
 	// Read the full contents with another file handle.
@@ -1526,7 +1526,7 @@ func (t *FileTest) WriteAtDoesntChangeOffset_AppendMode() {
 }
 
 func validateObjectAttributes(extendedAttr1, extendedAttr2 *gcs.ExtendedObjectAttributes,
-	minObject1, minObject2 *gcs.MinObject) {
+		minObject1, minObject2 *gcs.MinObject) {
 	AssertNe(nil, extendedAttr1)
 	AssertNe(nil, extendedAttr2)
 	AssertNe(nil, minObject1)
@@ -1625,19 +1625,19 @@ func (t *FileTest) ReadsPastEndOfFile() {
 
 	// Read a range overlapping EOF.
 	n, err = t.f1.ReadAt(buf[:4], 2)
-	AssertEq(io.EOF, err)
+	AssertTrue(errors.Is(err, io.EOF))
 	ExpectEq(2, n)
 	ExpectEq("co", string(buf[:n]))
 
 	// Read a range starting at EOF.
 	n, err = t.f1.ReadAt(buf[:4], 4)
-	AssertEq(io.EOF, err)
+	AssertTrue(errors.Is(err, io.EOF))
 	ExpectEq(0, n)
 	ExpectEq("", string(buf[:n]))
 
 	// Read a range starting past EOF.
 	n, err = t.f1.ReadAt(buf[:4], 100)
-	AssertEq(io.EOF, err)
+	AssertTrue(errors.Is(err, io.EOF))
 	ExpectEq(0, n)
 	ExpectEq("", string(buf[:n]))
 }
@@ -1748,7 +1748,7 @@ func (t *FileTest) Seek() {
 
 	// Read full the contents of the file.
 	n, err = t.f1.ReadAt(buf, 0)
-	AssertEq(io.EOF, err)
+	AssertTrue(errors.Is(err, io.EOF))
 	ExpectEq("txxo", string(buf[:n]))
 }
 
@@ -1903,7 +1903,7 @@ func (t *FileTest) UnlinkFile_StillOpen() {
 	buf := make([]byte, 1024)
 	n, err = f.ReadAt(buf, 0)
 
-	AssertEq(io.EOF, err)
+	AssertTrue(errors.Is(err, io.EOF))
 	AssertEq(4, n)
 	ExpectEq("taco", string(buf[:4]))
 

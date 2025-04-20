@@ -612,7 +612,7 @@ func Test_CopyUsingMemoryAlignedBuffer(t *testing.T) {
 					_ = readFile.Close()
 				})
 				_, err = readFile.ReadAt(buf, tc.writeOffset)
-				if err != nil && err != io.EOF {
+				if err != nil && errors.Is(err, io.EOF) {
 					t.Errorf("error (%v) while reading contents at the time of assertion for: %v", err, tc.name)
 				}
 				assert.True(t, reflect.DeepEqual(string(content[:sizeToMatch]), string(buf)))
