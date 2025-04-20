@@ -19,6 +19,7 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"hash/crc32"
 	"io"
@@ -212,7 +213,7 @@ func ReadFileSequentially(filePath string, chunkSize int64) (content []byte, err
 		// Reading 200 MB chunk sequentially from the file.
 		numberOfBytes, err = file.ReadAt(chunk, offset)
 		// If the file reaches the end, write the remaining content in the buffer and return.
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 
 			for i := offset; i < offset+int64(numberOfBytes); i++ {
 				// Adding remaining bytes.
@@ -303,7 +304,7 @@ func ReadChunkFromFile(filePath string, chunkSize int64, offset int64, flag int)
 
 	// Reading chunk size randomly from the file.
 	numberOfBytes, err = file.ReadAt(chunk, offset)
-	if err == io.EOF {
+	if errors.Is(err, io.EOF) {
 		err = nil
 	}
 	if err != nil {
@@ -327,7 +328,7 @@ func ReadFileBetweenOffset(t *testing.T, file *os.File, startOffset, endOffset, 
 		readSize := min(chunkSize, endOffset-startOffset)
 
 		n, err := file.ReadAt(chunk[:readSize], startOffset)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			readData = append(readData, chunk[:n]...)
 			break
 		} else if err != nil {

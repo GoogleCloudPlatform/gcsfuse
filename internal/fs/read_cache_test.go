@@ -16,6 +16,7 @@
 package fs_test
 
 import (
+	"errors"
 	"io"
 	"os"
 	"path"
@@ -498,7 +499,7 @@ func (t *FileCacheTest) ConcurrentReadsFromSameFileHandle() {
 		_, err := file.Seek(offset, 0)
 		ExpectEq(nil, err)
 		_, err = file.Read(buf)
-		ExpectTrue(err == nil || err == io.EOF)
+		ExpectTrue(err == nil || errors.Is(err, io.EOF))
 		// we can't compare the data as seek is of same file and can be changed by
 		// concurrent go routines.
 	}

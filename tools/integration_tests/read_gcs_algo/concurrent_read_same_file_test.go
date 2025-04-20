@@ -16,6 +16,7 @@ package read_gcs_algo
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"math/rand/v2"
 	"os"
@@ -61,7 +62,7 @@ func readAndCompare(t *testing.T, filePathInMntDir string, filePathInLocalDisk s
 		mountContents := make([]byte, chunkSize)
 		// Reading chunk size randomly from the file.
 		_, err = mountedFile.ReadAt(mountContents, offset)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			err = nil
 		}
 		if err != nil {

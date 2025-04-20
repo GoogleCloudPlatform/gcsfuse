@@ -16,6 +16,7 @@ package file
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -211,7 +212,7 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 	// dst buffer has fixed size of 1 MiB even when the offset is such that
 	// offset + 1 MiB > object size. In that case, io.ErrUnexpectedEOF is thrown
 	// which should be ignored.
-	if err == io.EOF || err == io.ErrUnexpectedEOF {
+	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
 		if n != requestedNumBytes {
 			// Ensure that the number of bytes read into dst buffer is equal to what is
 			// requested. It will also help catch cases where file in cache is truncated

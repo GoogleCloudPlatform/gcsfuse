@@ -610,7 +610,7 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 
 	// Handle errors.
 	switch {
-	case err == io.EOF || err == io.ErrUnexpectedEOF:
+	case errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF):
 		// For a non-empty buffer, ReadFull returns EOF or ErrUnexpectedEOF only
 		// if the reader peters out early. That's fine, but it means we should
 		// have hit the limit above.
