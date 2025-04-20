@@ -74,6 +74,8 @@ func (s *benchmarkStatTest) Benchmark_Stat(b *testing.B) {
 ////////////////////////////////////////////////////////////////////////
 
 func Benchmark_Stat(b *testing.B) {
+	setup.IgnoreTestIfPresubmitFlagIsSet(b)
+
 	ts := &benchmarkStatTest{}
 	flagsSet := [][]string{
 		{"--stat-cache-ttl=0"}, {"--client-protocol=grpc", "--stat-cache-ttl=0"},

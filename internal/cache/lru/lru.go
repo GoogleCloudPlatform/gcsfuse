@@ -24,12 +24,12 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
 )
 
-// Predefined error messages returned by the Cache.
-const (
-	InvalidEntrySizeErrorMsg       = "size of the entry is more than the cache's maxSize"
-	InvalidEntryErrorMsg           = "nil values are not supported"
-	InvalidUpdateEntrySizeErrorMsg = "size of entry to be updated is not same as existing size"
-	EntryNotExistErrMsg            = "entry with given key does not exist"
+// Predefined errors returned by the Cache.
+var (
+	ErrInvalidEntrySize       = errors.New("size of the entry is more than the cache's maxSize")
+	ErrInvalidEntry           = errors.New("nil values are not supported")
+	ErrInvalidUpdateEntrySize = errors.New("size of entry to be updated is not same as existing size")
+	ErrEntryNotExist          = errors.New("entry with given key does not exist")
 )
 
 // Cache is a LRU cache for any lru.ValueType indexed by string keys.
@@ -149,12 +149,12 @@ func (c *Cache) Insert(
 	key string,
 	value ValueType) ([]ValueType, error) {
 	if value == nil {
-		return nil, errors.New(InvalidEntryErrorMsg)
+		return nil, ErrInvalidEntry
 	}
 
 	valueSize := value.Size()
 	if valueSize > c.maxSize {
-		return nil, errors.New(InvalidEntrySizeErrorMsg)
+		return nil, ErrInvalidEntrySize
 	}
 
 	c.mu.Lock()
@@ -248,7 +248,7 @@ func (c *Cache) UpdateWithoutChangingOrder(
 	key string,
 	value ValueType) error {
 	if value == nil {
-		return errors.New(InvalidEntryErrorMsg)
+		return ErrInvalidEntry
 	}
 
 	c.mu.Lock()
@@ -256,11 +256,11 @@ func (c *Cache) UpdateWithoutChangingOrder(
 
 	e, ok := c.index[key]
 	if !ok {
-		return errors.New(EntryNotExistErrMsg)
+		return ErrEntryNotExist
 	}
 
 	if value.Size() != e.Value.(entry).Value.Size() {
-		return errors.New(InvalidUpdateEntrySizeErrorMsg)
+		return ErrInvalidUpdateEntrySize
 	}
 
 	e.Value = entry{key, value}

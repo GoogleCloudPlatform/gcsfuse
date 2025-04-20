@@ -16,57 +16,42 @@ package write_large_files
 
 import (
 	rand2 "math/rand"
-	"os"
 	"path"
-	"syscall"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
 	NumberOfRandomWriteCalls = 20
 	DirForRandomWrite        = "dirForRandomWrite"
-	MaxWritableByteFromFile  = 500 * OneMiB
+	MaxFileOffset            = 500 * OneMiB
 )
 
-var FiveHundredMBFileForRandomWriteInLocalSystem string = "fiveHundredMBFileForRandomWriteInLocalSystem" + setup.GenerateRandomString(5)
-
 func TestWriteLargeFileRandomly(t *testing.T) {
-	randomWriteDir := path.Join(setup.MntDir(), DirForRandomWrite)
-	setup.SetupTestDirectory(DirForRandomWrite)
-	filePath := path.Join(randomWriteDir, FiveHundredMBFile)
-
-	// Clean up.
-	defer operations.RemoveDir(randomWriteDir)
-
-	f, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, WritePermission_0200)
-	if err != nil {
-		t.Fatalf("Open file for write at start: %v", err)
-	}
-
-	defer operations.CloseFile(f)
+	// Setup Test directory and files to write to.
+	randomWriteDir := setup.SetupTestDirectory(DirForRandomWrite)
+	mountedDirFilePath := path.Join(randomWriteDir, FiveHundredMBFile)
+	localFilePath := path.Join(TmpDir, setup.GenerateRandomString(5))
+	t.Cleanup(func() { operations.RemoveFile(localFilePath) })
+	// Open local file and mounted directory file for writing.
+	filesToWrite := operations.OpenFiles(t, []string{localFilePath, mountedDirFilePath})
 
 	for i := 0; i < NumberOfRandomWriteCalls; i++ {
-		offset := rand2.Int63n(MaxWritableByteFromFile)
-
-		// Generate chunk with random data.
-		chunkSize := ChunkSize
-		if offset+ChunkSize > MaxWritableByteFromFile {
-			chunkSize = int(MaxWritableByteFromFile - offset)
-		}
-
-		err := operations.WriteChunkOfRandomBytesToFile(f, chunkSize, offset)
-		if err != nil {
-			t.Fatalf("Error: %v", err)
-		}
-
-		filePathInGcsBucket := path.Join(DirForRandomWrite, FiveHundredMBFile)
-		localFilePath := path.Join(TmpDir, FiveHundredMBFileForRandomWriteInLocalSystem)
-		err = compareFileFromGCSBucketAndMntDir(filePathInGcsBucket, filePath, localFilePath, t)
-		if err != nil {
-			t.Fatalf("Error: %v", err)
-		}
+		offset := rand2.Int63n(MaxFileOffset - ChunkSize)
+		// Aligning to 4KiB page boundaries is required for O_DIRECT writes to local files.
+		offset = offset - offset%(4*util.KiB)
+		// Write chunk of random data to both local and mounted directory file.
+		err := operations.WriteChunkOfRandomBytesToFiles(filesToWrite, ChunkSize, offset)
+		require.NoError(t, err)
 	}
+
+	operations.CloseFiles(t, filesToWrite)
+	identical, err := operations.AreFilesIdentical(mountedDirFilePath, localFilePath)
+	require.NoError(t, err)
+	assert.True(t, identical)
 }

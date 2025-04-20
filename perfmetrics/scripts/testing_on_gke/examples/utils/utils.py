@@ -265,27 +265,36 @@ def get_memory_from_monitoring_api(
           namespace_name,
       )
   ]
-  return round(
-      min(
-          min(
-              (point.value.int64_value if point.value.int64_value >= 0 else 0)
-              for point in result.points
-          )
-          for result in relevant_results
-      )
-      / 2**20,  # convert to MiB/s
-      0,  # round to integer.
-  ), round(
-      max(
-          max(
-              (point.value.int64_value if point.value.int64_value > 0 else 0)
-              for point in result.points
-          )
-          for result in relevant_results
-      )
-      / 2**20,  # convert to MiB/s
-      0,  # round to integer.
-  )
+  if len(relevant_results) > 0:
+    return round(
+        min(
+            min(
+                (point.value.int64_value if point.value.int64_value >= 0 else 0)
+                for point in result.points
+            )
+            for result in relevant_results
+        )
+        / 2**20,  # convert to MiB/s
+        0,  # round to integer.
+    ), round(
+        max(
+            max(
+                (point.value.int64_value if point.value.int64_value > 0 else 0)
+                for point in result.points
+            )
+            for result in relevant_results
+        )
+        / 2**20,  # convert to MiB/s
+        0,  # round to integer.
+    )
+  else:
+    print(
+        f"Warning: No memory data found for epoch in time-range [{start_epoch},"
+        f" {end_epoch}) in namespace={namespace_name}, cluster={cluster_name},"
+        f" pod={pod_name}, so marking -1,-1 for"
+        " it !"
+    )
+    return -1, -1
 
 
 def get_cpu_from_monitoring_api(
@@ -335,30 +344,39 @@ def get_cpu_from_monitoring_api(
           namespace_name,
       )
   ]
-  return round(
-      min(
-          min(
-              (
-                  point.value.double_value
-                  if point.value.double_value != math.nan
-                  else 0
-              )
-              for point in result.points
-          )
-          for result in relevant_results
-      ),
-      5,  # round up to 5 decimal places.
-  ), round(
-      max(
-          max(
-              (
-                  point.value.double_value
-                  if point.value.double_value != math.nan
-                  else 0
-              )
-              for point in result.points
-          )
-          for result in relevant_results
-      ),
-      5,  # round up to 5 decimal places.
-  )
+  if len(relevant_results) > 0:
+    return round(
+        min(
+            min(
+                (
+                    point.value.double_value
+                    if point.value.double_value != math.nan
+                    else 0
+                )
+                for point in result.points
+            )
+            for result in relevant_results
+        ),
+        5,  # round up to 5 decimal places.
+    ), round(
+        max(
+            max(
+                (
+                    point.value.double_value
+                    if point.value.double_value != math.nan
+                    else 0
+                )
+                for point in result.points
+            )
+            for result in relevant_results
+        ),
+        5,  # round up to 5 decimal places.
+    )
+  else:
+    print(
+        f"Warning: No cpu data found for epoch in time-range [{start_epoch},"
+        f" {end_epoch}) in namespace={namespace_name}, cluster={cluster_name},"
+        f" pod={pod_name}, so marking -1,-1 for"
+        " it !"
+    )
+    return -1, -1

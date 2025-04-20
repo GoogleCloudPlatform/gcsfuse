@@ -160,7 +160,7 @@ func NewFileInode(
 		globalMaxWriteBlocksSem: globalMaxBlocksSem,
 	}
 	var err error
-	f.MRDWrapper, err = gcsx.NewMultiRangeDownloaderWrapper(bucket, &f.src)
+	f.MRDWrapper, err = gcsx.NewMultiRangeDownloaderWrapper(bucket, &minObj)
 	if err != nil {
 		logger.Errorf("NewFileInode: Error in creating MRDWrapper %v", err)
 	}
@@ -239,15 +239,15 @@ func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool, inclu
 	}
 
 	// We are clobbered iff the generation doesn't match our source generation.
-	oGen := Generation{o.Generation, o.MetaGeneration}
-	b = f.SourceGeneration().Compare(oGen) != 0
+	oGen := Generation{o.Generation, o.MetaGeneration, o.Size}
+	b = oGen.Compare(f.SourceGeneration()) != 0
 
 	return
 }
 
 // Open a reader for the generation of object we care about.
 func (f *FileInode) openReader(ctx context.Context) (io.ReadCloser, error) {
-	rc, err := f.bucket.NewReader(
+	rc, err := f.bucket.NewReaderWithReadHandle(
 		ctx,
 		&gcs.ReadObjectRequest{
 			Name:           f.src.Name,
@@ -311,6 +311,9 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 			return err
 		}
 
+		if f.config.Write.EnableStreamingWrites {
+			logger.Infof("Falling back to staged write for '%s'. Streaming write is limited to sequential writes on new/empty files.", f.name)
+		}
 		tf, err := f.contentCache.NewTempFile(rc)
 		if err != nil {
 			err = fmt.Errorf("NewTempFile: %w", err)
@@ -372,21 +375,34 @@ func (f *FileInode) Source() *gcs.MinObject {
 // If true, it is safe to serve reads directly from the object given by
 // f.Source(), rather than calling f.ReadAt. Doing so may be more efficient,
 // because f.ReadAt may cause the entire object to be faulted in and requires
-// the inode to be locked during the read.
+// the inode to be locked during the read. SourceGenerationAuthoritative requires
+// SyncPendingBufferedWrites method has been called on f within same inode lock for
+// streaming writes with zonal bucket.
+// TODO(b/406160290): Check if this can be improved.
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) SourceGenerationIsAuthoritative() bool {
-	// When streaming writes are enabled, writes are done via bufferedWritesHandler(bwh).
-	// Hence checking both f.content & f.bwh to be nil
-	return f.content == nil && f.bwh == nil
+	// Source generation is authoritative if:
+	//   1.  No pending writes exists on the inode (both content and bwh are nil).
+	//   2.  The bucket is zonal and there are no pending writes in the temporary file.
+	return (f.content == nil && f.bwh == nil) || (f.bucket.BucketType().Zonal && f.content == nil)
 }
 
 // Equivalent to the generation returned by f.Source().
 //
 // LOCKS_REQUIRED(f)
 func (f *FileInode) SourceGeneration() (g Generation) {
+	g.Size = f.src.Size
 	g.Object = f.src.Generation
 	g.Metadata = f.src.MetaGeneration
+	// If bwh is not nil, it's size takes precedence as that is being actively
+	// written to GCS.
+	// Since temporary file does not write to GCS on the go, it's size is not
+	// used as source object's size.
+	if f.bwh != nil {
+		writeFileInfo := f.bwh.WriteFileInfo()
+		g.Size = uint64(writeFileInfo.TotalSize)
+	}
 	return
 }
 
@@ -598,6 +614,12 @@ func (f *FileInode) writeUsingTempFile(ctx context.Context, data []byte, offset 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, offset int64) error {
 	err := f.bwh.Write(data, offset)
+	var preconditionErr *gcs.PreconditionError
+	if errors.As(err, &preconditionErr) {
+		return &gcsfuse_errors.FileClobberedError{
+			Err: fmt.Errorf("f.bwh.Write(): %w", err),
+		}
+	}
 	if err != nil && !errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
 		return fmt.Errorf("write to buffered write handler failed: %w", err)
 	}
@@ -633,6 +655,27 @@ func (f *FileInode) flushUsingBufferedWriteHandler() error {
 	}
 
 	f.updateInodeStateAfterSync(obj)
+	return nil
+}
+
+// SyncPendingBufferedWrites flushes any pending writes on the bwh to GCS.
+// It is a no-op when bwh is nil.
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) SyncPendingBufferedWrites() error {
+	if f.bwh == nil {
+		return nil
+	}
+	err := f.bwh.Sync()
+	var preconditionErr *gcs.PreconditionError
+	if errors.As(err, &preconditionErr) {
+		return &gcsfuse_errors.FileClobberedError{
+			Err: fmt.Errorf("f.bwh.Sync(): %w", err),
+		}
+	}
+	if err != nil {
+		return fmt.Errorf("f.bwh.Sync(): %w", err)
+	}
 	return nil
 }
 
@@ -767,8 +810,13 @@ func (f *FileInode) Sync(ctx context.Context) (gcsSynced bool, err error) {
 	}
 
 	if f.bwh != nil {
-		// bwh.Sync does not finalize the upload, so return gcsSynced as false.
-		return false, f.bwh.Sync()
+		// SyncPendingBufferedWrites does not finalize the upload,
+		// so return gcsSynced as false.
+		err = f.SyncPendingBufferedWrites()
+		if err != nil {
+			err = fmt.Errorf("could not sync what has been written so far: %w", err)
+		}
+		return
 	}
 	err = f.syncUsingContent(ctx)
 	if err != nil {
@@ -781,10 +829,14 @@ func (f *FileInode) Sync(ctx context.Context) (gcsSynced bool, err error) {
 // object, syncs the content and updates the inode state.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) syncUsingContent(ctx context.Context) (err error) {
-	latestGcsObj, err := f.fetchLatestGcsObject(ctx)
-	if err != nil {
-		return
+func (f *FileInode) syncUsingContent(ctx context.Context) error {
+	var latestGcsObj *gcs.Object
+	if !f.local {
+		var err error
+		latestGcsObj, err = f.fetchLatestGcsObject(ctx)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Write out the contents if they are dirty.
@@ -794,21 +846,19 @@ func (f *FileInode) syncUsingContent(ctx context.Context) (err error) {
 
 	var preconditionErr *gcs.PreconditionError
 	if errors.As(err, &preconditionErr) {
-		err = &gcsfuse_errors.FileClobberedError{
+		return &gcsfuse_errors.FileClobberedError{
 			Err: fmt.Errorf("SyncObject: %w", err),
 		}
-		return
 	}
 
 	// Propagate other errors.
 	if err != nil {
-		err = fmt.Errorf("SyncObject: %w", err)
-		return
+		return fmt.Errorf("SyncObject: %w", err)
 	}
 	minObj := storageutil.ConvertObjToMinObject(newObj)
 	// If we wrote out a new object, we need to update our state.
 	f.updateInodeStateAfterSync(minObj)
-	return
+	return nil
 }
 
 // Flush writes out contents to GCS. If this fails due to the generation
@@ -858,7 +908,7 @@ func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 // Updates the min object stored in MRDWrapper corresponding to the inode.
 // Should be called when minObject associated with inode is updated.
 func (f *FileInode) updateMRDWrapper() {
-	err := f.MRDWrapper.SetMinObject(&f.src)
+	err := f.MRDWrapper.SetMinObject(f.Source())
 	if err != nil {
 		logger.Errorf("FileInode::updateMRDWrapper Error in setting minObject %v", err)
 	}

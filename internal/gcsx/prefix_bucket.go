@@ -16,7 +16,6 @@ package gcsx
 
 import (
 	"errors"
-	"io"
 	"strings"
 	"unicode/utf8"
 
@@ -65,13 +64,6 @@ func (b *prefixBucket) Name() string {
 
 func (b *prefixBucket) BucketType() gcs.BucketType {
 	return b.wrapped.BucketType()
-}
-
-func (b *prefixBucket) NewReader(
-	ctx context.Context,
-	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
-	rc, err = b.NewReaderWithReadHandle(ctx, req)
-	return
 }
 
 func (b *prefixBucket) NewReaderWithReadHandle(
@@ -125,6 +117,10 @@ func (b *prefixBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gcs
 		o.Name = b.localName(o.Name)
 	}
 	return
+}
+
+func (b *prefixBucket) FlushPendingWrites(ctx context.Context, w gcs.Writer) (offset int64, err error) {
+	return b.wrapped.FlushPendingWrites(ctx, w)
 }
 
 func (b *prefixBucket) CopyObject(

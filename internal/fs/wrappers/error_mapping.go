@@ -396,3 +396,12 @@ func (em *errorMapping) Fallocate(
 	err := em.wrapped.Fallocate(ctx, op)
 	return em.mapError("Fallocate", err)
 }
+
+func (em *errorMapping) SyncFS(
+	ctx context.Context,
+	op *fuseops.SyncFSOp) error {
+	defer em.handlePanic()
+
+	err := em.wrapped.SyncFS(ctx, op)
+	return em.mapError("SyncFS", err)
+}

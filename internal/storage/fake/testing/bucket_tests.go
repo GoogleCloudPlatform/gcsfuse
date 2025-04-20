@@ -271,7 +271,7 @@ func readMultiple(
 		}()
 
 		// Open a reader.
-		rc, err := bucket.NewReader(ctx, reqs[i])
+		rc, err := bucket.NewReaderWithReadHandle(ctx, reqs[i])
 		if err != nil {
 			err = fmt.Errorf("NewReader: %v", err)
 			return
@@ -449,7 +449,7 @@ func (t *bucketTest) readObject(objectName string) (contents string, err error) 
 		Name: objectName,
 	}
 
-	reader, err := t.bucket.NewReader(t.ctx, req)
+	reader, err := t.bucket.NewReaderWithReadHandle(t.ctx, req)
 	if err != nil {
 		return
 	}
@@ -2751,7 +2751,7 @@ func (t *readTest) ObjectNameDoesntExist() {
 		Name: "foobar",
 	}
 
-	rc, err := t.bucket.NewReader(t.ctx, req)
+	rc, err := t.bucket.NewReaderWithReadHandle(t.ctx, req)
 	if err == nil {
 		defer rc.Close()
 		_, err = rc.Read(make([]byte, 1))
@@ -2770,7 +2770,7 @@ func (t *readTest) EmptyObject() {
 		Name: "foo",
 	}
 
-	r, err := t.bucket.NewReader(t.ctx, req)
+	r, err := t.bucket.NewReaderWithReadHandle(t.ctx, req)
 	AssertEq(nil, err)
 
 	contents, err := io.ReadAll(r)
@@ -2790,7 +2790,7 @@ func (t *readTest) NonEmptyObject() {
 		Name: "foo",
 	}
 
-	r, err := t.bucket.NewReader(t.ctx, req)
+	r, err := t.bucket.NewReaderWithReadHandle(t.ctx, req)
 	AssertEq(nil, err)
 
 	contents, err := io.ReadAll(r)
@@ -2818,7 +2818,7 @@ func (t *readTest) ParticularGeneration_NeverExisted() {
 		Generation: o.Generation + 1,
 	}
 
-	rc, err := t.bucket.NewReader(t.ctx, req)
+	rc, err := t.bucket.NewReaderWithReadHandle(t.ctx, req)
 	if err == nil {
 		defer rc.Close()
 		_, err = rc.Read(make([]byte, 1))
@@ -2854,7 +2854,7 @@ func (t *readTest) ParticularGeneration_HasBeenDeleted() {
 		Generation: o.Generation,
 	}
 
-	rc, err := t.bucket.NewReader(t.ctx, req)
+	rc, err := t.bucket.NewReaderWithReadHandle(t.ctx, req)
 	if err == nil {
 		defer rc.Close()
 		_, err = rc.Read(make([]byte, 1))
@@ -2881,7 +2881,7 @@ func (t *readTest) ParticularGeneration_Exists() {
 		Generation: o.Generation,
 	}
 
-	r, err := t.bucket.NewReader(t.ctx, req)
+	r, err := t.bucket.NewReaderWithReadHandle(t.ctx, req)
 	AssertEq(nil, err)
 
 	contents, err := io.ReadAll(r)
@@ -2920,7 +2920,7 @@ func (t *readTest) ParticularGeneration_ObjectHasBeenOverwritten() {
 		Generation: o.Generation,
 	}
 
-	rc, err := t.bucket.NewReader(t.ctx, req)
+	rc, err := t.bucket.NewReaderWithReadHandle(t.ctx, req)
 	if err == nil {
 		defer rc.Close()
 		_, err = rc.Read(make([]byte, 1))
@@ -2932,7 +2932,7 @@ func (t *readTest) ParticularGeneration_ObjectHasBeenOverwritten() {
 	// Reading by the new generation should work.
 	req.Generation = o2.Generation
 
-	rc, err = t.bucket.NewReader(t.ctx, req)
+	rc, err = t.bucket.NewReaderWithReadHandle(t.ctx, req)
 	AssertEq(nil, err)
 
 	contents, err := io.ReadAll(rc)
@@ -4069,7 +4069,7 @@ func (t *deleteTest) NoParticularGeneration_Successful() {
 		Name: "a",
 	}
 
-	rc, err := t.bucket.NewReader(t.ctx, req)
+	rc, err := t.bucket.NewReaderWithReadHandle(t.ctx, req)
 	if err == nil {
 		defer rc.Close()
 		_, err = rc.Read(make([]byte, 1))
@@ -4854,7 +4854,7 @@ func (t *cancellationTest) ReadObject() {
 
 	// Create a reader for the object using a cancellable context.
 	ctx, cancel := context.WithCancel(t.ctx)
-	rc, err := t.bucket.NewReader(
+	rc, err := t.bucket.NewReaderWithReadHandle(
 		ctx,
 		&gcs.ReadObjectRequest{
 			Name: name,

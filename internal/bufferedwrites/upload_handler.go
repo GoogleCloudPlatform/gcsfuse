@@ -19,9 +19,11 @@ package bufferedwrites
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"sync"
+	"sync/atomic"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
@@ -43,10 +45,8 @@ type UploadHandler struct {
 	// writer to resumable upload the blocks to GCS.
 	writer gcs.Writer
 
-	// signalUploadFailure channel will propagate the upload error to file
-	// inode. This signals permanent failure in the buffered write job.
-	signalUploadFailure chan error
-
+	// uploadError stores atomic pointer to the error seen by uploader.
+	uploadError atomic.Pointer[error]
 	// CancelFunc persisted to cancel the uploads in case of unlink operation.
 	cancelFunc context.CancelFunc
 
@@ -78,7 +78,6 @@ func newUploadHandler(req *CreateUploadHandlerRequest) *UploadHandler {
 		objectName:           req.ObjectName,
 		obj:                  req.Object,
 		blockSize:            req.BlockSize,
-		signalUploadFailure:  make(chan error, 1),
 		chunkTransferTimeout: req.ChunkTransferTimeoutSecs,
 	}
 	return uh
@@ -116,17 +115,31 @@ func (uh *UploadHandler) createObjectWriter() (err error) {
 	return
 }
 
+func (uh *UploadHandler) UploadError() (err error) {
+	if uploadError := uh.uploadError.Load(); uploadError != nil {
+		err = *uploadError
+	}
+	return
+}
+
 // uploader is the single-threaded goroutine that uploads blocks.
 func (uh *UploadHandler) uploader() {
 	for currBlock := range uh.uploadCh {
-		select {
-		case <-uh.signalUploadFailure:
-		default:
-			_, err := io.Copy(uh.writer, currBlock.Reader())
-			if err != nil {
-				logger.Errorf("buffered write upload failed for object %s: error in io.Copy: %v", uh.objectName, err)
-				uh.closeUploadFailureChannel()
-			}
+		if uh.UploadError() != nil {
+			uh.wg.Done()
+			continue
+		}
+		_, err := io.Copy(uh.writer, currBlock.Reader())
+		if errors.Is(err, context.Canceled) {
+			// Context canceled error indicates that the file was deleted from the
+			// same mount. In this case, we suppress the error to match local
+			// filesystem behavior.
+			err = nil
+		}
+		if err != nil {
+			logger.Errorf("buffered write upload failed for object %s: error in io.Copy: %v", uh.objectName, err)
+			err = gcs.GetGCSError(err)
+			uh.uploadError.Store(&err)
 		}
 		// Put back the uploaded block on the freeBlocksChannel for re-use.
 		uh.freeBlocksCh <- currBlock
@@ -139,21 +152,52 @@ func (uh *UploadHandler) Finalize() (*gcs.MinObject, error) {
 	uh.wg.Wait()
 	close(uh.uploadCh)
 
-	if uh.writer == nil {
-		// Writer may not have been created for empty file creation flow or for very
-		// small writes of size less than 1 block.
-		err := uh.createObjectWriter()
-		if err != nil {
-			return nil, fmt.Errorf("createObjectWriter failed for object %s: %w", uh.objectName, err)
-		}
+	// Writer may not have been created for empty file creation flow or for very
+	// small writes of size less than 1 block.
+	err := uh.ensureWriter()
+	if err != nil {
+		return nil, fmt.Errorf("uh.ensureWriter() failed: %v", err)
 	}
 
 	obj, err := uh.bucket.FinalizeUpload(context.Background(), uh.writer)
 	if err != nil {
-		uh.closeUploadFailureChannel()
-		return nil, fmt.Errorf("FinalizeUpload failed for object %s: %w", uh.objectName, err)
+		// FinalizeUpload already returns GCSerror so no need to convert again.
+		uh.uploadError.Store(&err)
+		logger.Errorf("FinalizeUpload failed for object %s: %v", uh.objectName, err)
+		return nil, err
 	}
 	return obj, nil
+}
+
+func (uh *UploadHandler) ensureWriter() error {
+	if uh.writer == nil {
+		err := uh.createObjectWriter()
+		if err != nil {
+			return fmt.Errorf("createObjectWriter failed for object %s: %w", uh.objectName, err)
+		}
+	}
+	return nil
+}
+
+// FlushPendingWrites uploads any data in the write buffer.
+func (uh *UploadHandler) FlushPendingWrites() (int64, error) {
+	uh.wg.Wait()
+
+	// Writer may not have been created for empty file creation flow or for very
+	// small writes of size less than 1 block.
+	err := uh.ensureWriter()
+	if err != nil {
+		return 0, fmt.Errorf("uh.ensureWriter() failed: %v", err)
+	}
+
+	offset, err := uh.bucket.FlushPendingWrites(context.Background(), uh.writer)
+	if err != nil {
+		// FlushUpload already returns GCS error so no need to convert again.
+		uh.uploadError.Store(&err)
+		logger.Errorf("FlushUpload failed for object %s: %v", uh.objectName, err)
+		return 0, err
+	}
+	return offset, nil
 }
 
 func (uh *UploadHandler) CancelUpload() {
@@ -163,10 +207,6 @@ func (uh *UploadHandler) CancelUpload() {
 	}
 	// Wait for all in progress buffers to be added to the free channel.
 	uh.wg.Wait()
-}
-
-func (uh *UploadHandler) SignalUploadFailure() chan error {
-	return uh.signalUploadFailure
 }
 
 func (uh *UploadHandler) AwaitBlocksUpload() {
@@ -190,15 +230,5 @@ func (uh *UploadHandler) Destroy() {
 			close(uh.uploadCh)
 			return
 		}
-	}
-}
-
-// Closes the channel if not already closed to signal upload failure.
-func (uh *UploadHandler) closeUploadFailureChannel() {
-	select {
-	case <-uh.signalUploadFailure:
-		break
-	default:
-		close(uh.signalUploadFailure)
 	}
 }

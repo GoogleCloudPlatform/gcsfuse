@@ -145,3 +145,26 @@ If it's running on GKE, the issue could be caused by an Out-of-Memory (OOM) erro
 **Solution:** This happens when the mounting bucket contains an object with suffix `/\n` like, `gs://gcs-bkt/a/\n`
 You need to find such objects and replace them with any other valid gcs object names. - [How](https://github.com/GoogleCloudPlatform/gcsfuse/discussions/2894)?
 
+### OSError [ErrNo 28] No space left on device
+
+The Writes in GCSFuse are staged locally before they are uploaded to GCS buckets. It takes up disk space equivalent to the size of the files that are being uploaded concurrently and deleted locally once they are uploaded. During this time, since the disk is used, this error may come up.
+
+The path can be configured by using the mount flag [--temp-dir](https://cloud.google.com/storage/docs/cloud-storage-fuse/cli-options) to a path which has the disk space if available. By default, it takes the `/tmp` directory of the machine. (sometimes may be limited depending on the machine ).
+
+Alternatively, from [GCSFuse version 2.9.1](https://github.com/GoogleCloudPlatform/gcsfuse/releases/tag/v2.9.1) onwards, writes can be configured with streaming writes feature ( which doesnt involve staging the file locally ) with the help of `--enable-streaming-writes` flag
+
+### Permission Denied When Accessing a Mounted File or Directory
+
+By default, GCSFuse assigns file-mode 0644 and dir-mode 0755 for mounted files and directories. As a result, other users (such as third-party clients or the root user) may not have the necessary permissions to access the mounted file system. To resolve this issue, you can modify the permissions using the following options:
+
+- **Adjust File and Directory Permissions:**
+Use the `--file-mode` and `--dir-mode` flags to set the appropriate file and directory permissions when mounting.
+- **Allow Access for Other Users:**
+To allow users other than the mounting user to access the bucket, use the `-o allow_other` flag during the mount process. Additionally, for this flag to function, the `user_allow_other` option must be enabled in the `/etc/fuse.conf` file, or the gcsfuse command must be run as the root user.
+
+**Note:** Be aware that allowing access to other users can introduce potential [security risks](https://github.com/torvalds/linux/blob/a33f32244d8550da8b4a26e277ce07d5c6d158b5/Documentation/filesystems/fuse.txt#L218-L310). Therefore, it should be done with caution.
+
+- **Set User and Group IDs:**
+Use the `--uid` and `--gid` flags to specify the correct user and group IDs for access.
+
+Please note that GCSFuse does not support using `chmod` or similar commands to manage file access. For more detailed information, refer to the [Permissions and Ownership](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#permissions-and-ownership).

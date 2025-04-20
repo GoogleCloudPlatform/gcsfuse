@@ -22,7 +22,6 @@ import (
 	"io/fs"
 	"os"
 	"reflect"
-	"strings"
 	"syscall"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
@@ -293,7 +292,7 @@ func (job *Job) updateStatusOffset(downloadedOffset int64) (err error) {
 }
 
 // downloadObjectToFile downloads the backing object from GCS into the given
-// file and updates the file info cache. It uses gcs.Bucket's NewReader method
+// file and updates the file info cache. It uses gcs.Bucket's NewReaderWithReadHandle method
 // to download the object.
 func (job *Job) downloadObjectToFile(cacheFile *os.File) (err error) {
 	var newReader gcs.StorageReader
@@ -440,7 +439,7 @@ func (job *Job) downloadObjectAsync() {
 		// downloading. If the entry is deleted in between which is expected
 		// to happen at the time of eviction, then the job should be
 		// marked Invalid instead of Failed.
-		if strings.Contains(err.Error(), lru.EntryNotExistErrMsg) {
+		if errors.Is(err, lru.ErrEntryNotExist) {
 			job.updateStatusAndNotifySubscribers(Invalid, err)
 			return
 		}
@@ -579,6 +578,13 @@ func (job *Job) handleError(err error) {
 
 func (job *Job) IsParallelDownloadsEnabled() bool {
 	if job.fileCacheConfig != nil && job.fileCacheConfig.EnableParallelDownloads {
+		return true
+	}
+	return false
+}
+
+func (job *Job) IsExperimentalParallelDownloadsDefaultOn() bool {
+	if job.fileCacheConfig != nil && job.fileCacheConfig.ExperimentalParallelDownloadsDefaultOn {
 		return true
 	}
 	return false

@@ -111,9 +111,10 @@ func makeGcsfuseArgs(
 		return s == "o"
 	})
 	nonBoolFlags = append(nonBoolFlags, cfg.ConfigFileFlagName)
-	// TODO: Clean this up after we gain enough confidence on CLI-Config Parity changes.
-	boolFlags = append(boolFlags, "disable-viper-config")
-	noopOptions := []string{"user", "nouser", "auto", "noauto", "_netdev", "no_netdev"}
+	// 'rw' mount option is implicitly passed as CLI parameter by /etc/fstab
+	// entries and overrides mount options in config file. Ignoring is safe, as
+	// 'rw' is default, so that config file mount options take effect.
+	noopOptions := []string{"rw", "user", "nouser", "auto", "noauto", "_netdev", "no_netdev"}
 
 	// Deal with options.
 	for name, value := range opts {

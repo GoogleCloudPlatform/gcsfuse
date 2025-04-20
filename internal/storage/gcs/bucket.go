@@ -41,6 +41,7 @@ const (
 // purposes, such as the fake implementation in fake/bucket.go.
 type Writer interface {
 	io.WriteCloser
+	Flush() (int64, error)
 	ObjectName() string
 	Attrs() *storage.ObjectAttrs
 }
@@ -68,11 +69,7 @@ type Bucket interface {
 	//
 	// Official documentation:
 	//     https://cloud.google.com/storage/docs/json_api/v1/objects/get
-	NewReader(
-		ctx context.Context,
-		req *ReadObjectRequest) (io.ReadCloser, error)
-
-	// Similar to NewReader. But establishes connection using the readHandle if not nil.
+	// Connection is established using the readHandle if not nil.
 	// ReadHandle helps in reducing the latency by eleminating auth/metadata checks when a valid readHandle is passed.
 	// ReadHandle is valid when its not nil, not expired and belongs to the same client.
 	NewReaderWithReadHandle(
@@ -108,6 +105,10 @@ type Bucket interface {
 	// FinalizeUpload closes the storage.Writer which completes the write
 	// operation and creates an object on GCS.
 	FinalizeUpload(ctx context.Context, writer Writer) (*MinObject, error)
+
+	// FlushPendingWrites is used for zonal buckets to flush any pending data in
+	// the writer buffer. The object is not finalized and can be appended further.
+	FlushPendingWrites(ctx context.Context, writer Writer) (int64, error)
 
 	// Copy an object to a new name, preserving all metadata. Any existing
 	// generation of the destination name will be overwritten.

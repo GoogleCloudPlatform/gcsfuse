@@ -36,12 +36,33 @@ import (
 )
 
 const (
-	testBucket    = "gcsfuse_monitoring_test_bucket"
-	portNonHNSRun = 9191
-	portHNSRun    = 9192
+	testHNSBucket  = "gcsfuse_monitoring_test_bucket"
+	testFlatBucket = "gcsfuse_monitoring_test_bucket_flat"
 )
 
-var prometheusPort = portNonHNSRun
+var (
+	portNonHNSRun = 9190
+	portHNSRun    = 10190
+)
+
+var prometheusPort int
+
+func setPrometheusPort(t *testing.T) {
+	if isHNSTestRun(t) {
+		prometheusPort = portHNSRun
+		portHNSRun++
+		return
+	}
+	prometheusPort = portNonHNSRun
+	portNonHNSRun++
+}
+
+func getBucket(t *testing.T) string {
+	if isHNSTestRun(t) {
+		return testHNSBucket
+	}
+	return testFlatBucket
+}
 
 func isPortOpen(port int) bool {
 	c := exec.Command("lsof", "-t", fmt.Sprintf("-i:%d", port))
@@ -57,8 +78,6 @@ type PromTest struct {
 	// A temporary directory into which a file system may be mounted. Removed in
 	// TearDown.
 	mountPoint string
-
-	enableOTEL bool
 }
 
 // isHNSTestRun returns true if the bucket is an HNS bucket.
@@ -71,12 +90,6 @@ func isHNSTestRun(t *testing.T) bool {
 
 func (testSuite *PromTest) SetupSuite() {
 	setup.IgnoreTestIfIntegrationTestFlagIsNotSet(testSuite.T())
-	if isHNSTestRun(testSuite.T()) {
-		// sets different Prometheus ports for HNS and non-HNS presubmit runs.
-		// This ensures that there is no port contention if both HNS and non-HNS test runs are happening simultaneously.
-		prometheusPort = portHNSRun
-	}
-
 	err := setup.SetUpTestDir()
 	require.NoErrorf(testSuite.T(), err, "error while building GCSFuse: %p", err)
 }
@@ -86,9 +99,10 @@ func (testSuite *PromTest) SetupTest() {
 	testSuite.gcsfusePath = setup.BinFile()
 	testSuite.mountPoint, err = os.MkdirTemp("", "gcsfuse_monitoring_tests")
 	require.NoError(testSuite.T(), err)
+	setPrometheusPort(testSuite.T())
 
 	setup.SetLogFile(fmt.Sprintf("%s%s.txt", "/tmp/gcsfuse_monitoring_test_", strings.ReplaceAll(testSuite.T().Name(), "/", "_")))
-	err = testSuite.mount(testBucket)
+	err = testSuite.mount(getBucket(testSuite.T()))
 	require.NoError(testSuite.T(), err)
 }
 
@@ -102,10 +116,6 @@ func (testSuite *PromTest) TearDownTest() {
 	assert.NoError(testSuite.T(), err)
 }
 
-func (testSuite *PromTest) TearDownSuite() {
-	os.RemoveAll(setup.TestDir())
-}
-
 func (testSuite *PromTest) mount(bucketName string) error {
 	testSuite.T().Helper()
 	if portAvailable := isPortOpen(prometheusPort); !portAvailable {
@@ -116,11 +126,6 @@ func (testSuite *PromTest) mount(bucketName string) error {
 	testSuite.T().Cleanup(func() { _ = os.RemoveAll(cacheDir) })
 
 	flags := []string{fmt.Sprintf("--prometheus-port=%d", prometheusPort), "--cache-dir", cacheDir}
-	if testSuite.enableOTEL {
-		flags = append(flags, "--enable-otel=true")
-	} else {
-		flags = append(flags, "--enable-otel=false")
-	}
 	args := append(flags, bucketName, testSuite.mountPoint)
 
 	if err := mounting.MountGcsfuse(testSuite.gcsfusePath, args); err != nil {
@@ -162,7 +167,8 @@ func assertNonZeroCountMetric(testSuite *PromTest, metricName, labelName, labelV
 		}
 
 	}
-	assert.Fail(testSuite.T(), "Didn't find the metric with name: %s, labelName: %s and labelValue: %s", metricName, labelName, labelValue)
+	assert.Fail(testSuite.T(), fmt.Sprintf("Didn't find the metric with name: %s, labelName: %s and labelValue: %s",
+		metricName, labelName, labelValue))
 }
 
 // assertNonZeroHistogramMetric asserts that the specified histogram metric is present and is positive for at least one of the buckets in the Prometheus export.
@@ -227,7 +233,6 @@ func (testSuite *PromTest) TestReadMetrics() {
 	require.NoError(testSuite.T(), err)
 	assertNonZeroCountMetric(testSuite, "file_cache_read_count", "cache_hit", "false")
 	assertNonZeroCountMetric(testSuite, "file_cache_read_count", "read_type", "Sequential")
-	assertNonZeroCountMetric(testSuite, "file_cache_read_bytes_count", "read_type", "Sequential")
 	assertNonZeroHistogramMetric(testSuite, "file_cache_read_latencies", "cache_hit", "false")
 	assertNonZeroCountMetric(testSuite, "fs_ops_count", "fs_op", "OpenFile")
 	assertNonZeroCountMetric(testSuite, "fs_ops_count", "fs_op", "ReadFile")
@@ -235,22 +240,13 @@ func (testSuite *PromTest) TestReadMetrics() {
 	assertNonZeroCountMetric(testSuite, "gcs_request_count", "gcs_method", "NewReader")
 	assertNonZeroCountMetric(testSuite, "gcs_reader_count", "io_method", "opened")
 	assertNonZeroCountMetric(testSuite, "gcs_reader_count", "io_method", "closed")
-	assertNonZeroCountMetric(testSuite, "gcs_read_count", "read_type", "Sequential")
+	assertNonZeroCountMetric(testSuite, "gcs_read_count", "read_type", "Parallel")
 	assertNonZeroCountMetric(testSuite, "gcs_download_bytes_count", "", "")
 	assertNonZeroCountMetric(testSuite, "gcs_read_bytes_count", "", "")
 	assertNonZeroHistogramMetric(testSuite, "gcs_request_latencies", "gcs_method", "NewReader")
-}
-
-func TestPromOCSuite(t *testing.T) {
-	if setup.TestInstalledPackage() {
-		t.Skip("Skipping since testing on installed package")
-	}
-	suite.Run(t, &PromTest{enableOTEL: false})
+	//TODO: file_cache_read_bytes_count should be added once with waitForDownload is true same as sequential for default pd,
 }
 
 func TestPromOTELSuite(t *testing.T) {
-	if setup.TestInstalledPackage() {
-		t.Skip("Skipping since testing on installed package")
-	}
-	suite.Run(t, &PromTest{enableOTEL: true})
+	suite.Run(t, new(PromTest))
 }

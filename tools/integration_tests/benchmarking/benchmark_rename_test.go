@@ -65,6 +65,8 @@ func (s *benchmarkRenameTest) Benchmark_Rename(b *testing.B) {
 ////////////////////////////////////////////////////////////////////////
 
 func Benchmark_Rename(b *testing.B) {
+	setup.IgnoreTestIfPresubmitFlagIsSet(b)
+
 	ts := &benchmarkRenameTest{}
 	flagsSet := [][]string{
 		{"--stat-cache-ttl=0", "--enable-atomic-rename-object=true"}, {"--client-protocol=grpc", "--stat-cache-ttl=0", "--enable-atomic-rename-object=true"},

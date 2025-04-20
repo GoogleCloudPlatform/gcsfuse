@@ -30,9 +30,13 @@ type Config struct {
 
 	Debug DebugConfig `yaml:"debug"`
 
+	DisableAutoconfig bool `yaml:"disable-autoconfig"`
+
 	EnableAtomicRenameObject bool `yaml:"enable-atomic-rename-object"`
 
 	EnableHns bool `yaml:"enable-hns"`
+
+	EnableNewReader bool `yaml:"enable-new-reader"`
 
 	FileCache FileCacheConfig `yaml:"file-cache"`
 
@@ -51,6 +55,8 @@ type Config struct {
 	List ListConfig `yaml:"list"`
 
 	Logging LoggingConfig `yaml:"logging"`
+
+	MachineType string `yaml:"machine-type"`
 
 	MetadataCache MetadataCacheConfig `yaml:"metadata-cache"`
 
@@ -86,6 +92,8 @@ type FileCacheConfig struct {
 
 	EnableParallelDownloads bool `yaml:"enable-parallel-downloads"`
 
+	ExperimentalParallelDownloadsDefaultOn bool `yaml:"experimental-parallel-downloads-default-on"`
+
 	MaxParallelDownloads int64 `yaml:"max-parallel-downloads"`
 
 	MaxSizeMb int64 `yaml:"max-size-mb"`
@@ -105,8 +113,6 @@ type FileSystemConfig struct {
 	FuseOptions []string `yaml:"fuse-options"`
 
 	Gid int64 `yaml:"gid"`
-
-	HandleSigterm bool `yaml:"handle-sigterm"`
 
 	IgnoreInterrupts bool `yaml:"ignore-interrupts"`
 
@@ -212,16 +218,14 @@ type MetadataCacheConfig struct {
 type MetricsConfig struct {
 	CloudMetricsExportIntervalSecs int64 `yaml:"cloud-metrics-export-interval-secs"`
 
-	EnableOtel bool `yaml:"enable-otel"`
-
 	PrometheusPort int64 `yaml:"prometheus-port"`
 
 	StackdriverExportInterval time.Duration `yaml:"stackdriver-export-interval"`
+
+	UseNewNames bool `yaml:"use-new-names"`
 }
 
 type MonitoringConfig struct {
-	ExperimentalOpentelemetryCollectorAddress string `yaml:"experimental-opentelemetry-collector-address"`
-
 	ExperimentalTracingMode string `yaml:"experimental-tracing-mode"`
 
 	ExperimentalTracingSamplingRatio float64 `yaml:"experimental-tracing-sampling-ratio"`
@@ -269,15 +273,15 @@ type WriteConfig struct {
 
 func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
-	flagSet.BoolP("anonymous-access", "", false, "Authentication is enabled by default. This flag disables authentication")
+	flagSet.BoolP("anonymous-access", "", false, "This flag disables authentication.")
 
 	flagSet.StringP("app-name", "", "", "The application name of this mount.")
 
-	flagSet.StringP("billing-project", "", "", "Project to use for billing when accessing a bucket enabled with \"Requester Pays\". (The default is none)")
+	flagSet.StringP("billing-project", "", "", "Project to use for billing when accessing a bucket enabled with \"Requester Pays\".")
 
 	flagSet.StringP("cache-dir", "", "", "Enables file-caching. Specifies the directory to use for file-cache.")
 
-	flagSet.IntP("chunk-transfer-timeout-secs", "", 10, "We send larger file uploads in 16 MiB chunks. This flag controls the duration  that the HTTP client will wait for a response after making a request to upload a chunk.  The default value of 10s indicates that the client will wait 10 seconds for upload completion;  otherwise, it cancels the request and retries for that chunk till chunkRetryDeadline(32s). 0 means no timeout.")
+	flagSet.IntP("chunk-transfer-timeout-secs", "", 10, "We send larger file uploads in 16 MiB chunks. This flag controls the duration  that the HTTP client will wait for a response after making a request to upload a chunk.  As an example, a value of 10 indicates that the client will wait 10 seconds for upload completion;  otherwise, it cancels the request and retries for that chunk till chunkRetryDeadline(32s). 0 means no timeout.")
 
 	if err := flagSet.MarkHidden("chunk-transfer-timeout-secs"); err != nil {
 		return err
@@ -327,6 +331,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("dir-mode", "", "0755", "Permissions bits for directories, in octal.")
 
+	flagSet.BoolP("disable-autoconfig", "", true, "Disable optimizing configuration automatically for a machine")
+
+	if err := flagSet.MarkHidden("disable-autoconfig"); err != nil {
+		return err
+	}
+
 	flagSet.BoolP("disable-parallel-dirops", "", false, "Specifies whether to allow parallel dir operations (lookups and readers)")
 
 	if err := flagSet.MarkHidden("disable-parallel-dirops"); err != nil {
@@ -351,17 +361,17 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("enable-nonexistent-type-cache", "", false, "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType will be created. This also means new file/dir created might not be seen. For example, if this flag is set, and metadata-cache-ttl-secs is set, then if we create the same file/node in the meantime using the same mount, since we are not refreshing the cache, it will still return nil.")
+	flagSet.BoolP("enable-new-reader", "", false, "Enables support for new reader implementation.")
 
-	flagSet.BoolP("enable-otel", "", true, "Specifies whether to use OpenTelemetry for capturing and exporting metrics. If false, use OpenCensus.")
-
-	if err := flagSet.MarkHidden("enable-otel"); err != nil {
+	if err := flagSet.MarkHidden("enable-new-reader"); err != nil {
 		return err
 	}
 
+	flagSet.BoolP("enable-nonexistent-type-cache", "", false, "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType will be created. This also means new file/dir created might not be seen. For example, if this flag is set, and metadata-cache-ttl-secs is set, then if we create the same file/node in the meantime using the same mount, since we are not refreshing the cache, it will still return nil.")
+
 	flagSet.BoolP("enable-prefetch", "", false, "Part size for the non-file-cache flow.")
 
-	flagSet.BoolP("enable-read-stall-retry", "", false, "To turn on/off retries for stalled read requests. This is based on a timeout that changes depending on how long similar requests took in the past.")
+	flagSet.BoolP("enable-read-stall-retry", "", true, "To turn on/off retries for stalled read requests. This is based on a timeout that changes depending on how long similar requests took in the past.")
 
 	if err := flagSet.MarkHidden("enable-read-stall-retry"); err != nil {
 		return err
@@ -387,12 +397,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.StringP("experimental-opentelemetry-collector-address", "", "", "Experimental: Export metrics to the OpenTelemetry collector at this address.")
-
-	if err := flagSet.MarkDeprecated("experimental-opentelemetry-collector-address", "Experimental flag: could be dropped even in a minor release."); err != nil {
-		return err
-	}
-
 	flagSet.StringP("experimental-tracing-mode", "", "", "Experimental: specify tracing mode")
 
 	if err := flagSet.MarkHidden("experimental-tracing-mode"); err != nil {
@@ -407,7 +411,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("file-cache-cache-file-for-range-read", "", false, "Whether to cache file for range reads.")
 
-	flagSet.IntP("file-cache-download-chunk-size-mb", "", 50, "Size of chunks in MiB that each concurrent request downloads.")
+	flagSet.IntP("file-cache-download-chunk-size-mb", "", 200, "Size of chunks in MiB that each concurrent request downloads.")
 
 	flagSet.BoolP("file-cache-enable-crc", "", false, "Performs CRC to ensure that file is correctly downloaded into cache.")
 
@@ -422,6 +426,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	}
 
 	flagSet.BoolP("file-cache-enable-parallel-downloads", "", false, "Enable parallel downloads.")
+
+	flagSet.BoolP("file-cache-experimental-parallel-downloads-default-on", "", true, "Enable parallel downloads by default on experimental basis.")
+
+	if err := flagSet.MarkHidden("file-cache-experimental-parallel-downloads-default-on"); err != nil {
+		return err
+	}
 
 	flagSet.IntP("file-cache-max-parallel-downloads", "", 100, "Sets an uber limit of number of concurrent file download requests that are made across all files.")
 
@@ -441,21 +451,15 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("gid", "", -1, "GID owner of all inodes.")
 
-	flagSet.BoolP("handle-sigterm", "", true, "Instructs gcsfuse to handle SIGTERM to gracefully shutdown")
+	flagSet.DurationP("http-client-timeout", "", 0*time.Nanosecond, "The time duration that http client will wait to get response from the server. A value of 0 indicates no timeout.")
 
-	if err := flagSet.MarkHidden("handle-sigterm"); err != nil {
-		return err
-	}
-
-	flagSet.DurationP("http-client-timeout", "", 0*time.Nanosecond, "The time duration that http client will wait to get response from the server. The default value 0 indicates no timeout.")
-
-	flagSet.BoolP("ignore-interrupts", "", true, "Instructs gcsfuse to ignore system interrupt signals (like SIGINT, triggered by Ctrl+C). This prevents those signals from immediately terminating gcsfuse inflight operations. (default: true)")
+	flagSet.BoolP("ignore-interrupts", "", true, "Instructs gcsfuse to ignore system interrupt signals (like SIGINT, triggered by Ctrl+C). This prevents those signals from immediately terminating gcsfuse inflight operations.")
 
 	flagSet.BoolP("implicit-dirs", "", false, "Implicitly define directories based on content. See files and directories in docs/semantics for more information")
 
 	flagSet.IntP("kernel-list-cache-ttl-secs", "", 0, "How long the directory listing (output of ls <dir>) should be cached in the kernel page cache. If a particular directory cache entry is kept by kernel for longer than TTL, then it will be sent for invalidation by gcsfuse on next opendir (comes in the start, as part of next listing) call. 0 means no caching. Use -1 to cache for lifetime (no ttl). Negative value other than -1 will throw error.")
 
-	flagSet.StringP("key-file", "", "", "Absolute path to JSON key file for use with GCS. (The default is none, Google application default credentials used)")
+	flagSet.StringP("key-file", "", "", "Absolute path to JSON key file for use with GCS. If this flag is left unset, Google application default credentials are used.")
 
 	flagSet.Float64P("limit-bytes-per-sec", "", -1, "Bandwidth limit for reading data, measured over a 30-second window. (use -1 for no limit)")
 
@@ -465,7 +469,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("log-format", "", "json", "The format of the log file: 'text' or 'json'.")
 
-	flagSet.IntP("log-rotate-backup-file-count", "", 10, "The maximum number of backup log files to retain after they have been rotated. The default value is 10. When value is set to 0, all backup files are retained.")
+	flagSet.IntP("log-rotate-backup-file-count", "", 10, "The maximum number of backup log files to retain after they have been rotated. A value of 0 indicates all backup files are retained.")
 
 	flagSet.BoolP("log-rotate-compress", "", true, "Controls whether the rotated log files should be compressed using gzip.")
 
@@ -473,11 +477,17 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("log-severity", "", "info", "Specifies the logging severity expressed as one of [trace, debug, info, warning, error, off]")
 
-	flagSet.IntP("max-conns-per-host", "", 0, "The max number of TCP connections allowed per server. This is effective when client-protocol is set to 'http1'. The default value 0 indicates no limit on TCP connections (limited by the machine specifications).")
+	flagSet.StringP("machine-type", "", "", "Type of the machine on which gcsfuse is being run e.g. a3-highgpu-4g")
+
+	if err := flagSet.MarkHidden("machine-type"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("max-conns-per-host", "", 0, "The max number of TCP connections allowed per server. This is effective when client-protocol is set to 'http1'. A value of 0 indicates no limit on TCP connections (limited by the machine specifications).")
 
 	flagSet.IntP("max-idle-conns-per-host", "", 100, "The number of maximum idle connections allowed per server.")
 
-	flagSet.IntP("max-retry-attempts", "", 0, "It sets a limit on the number of times an operation will be retried if it fails, preventing endless retry loops. The default value 0 indicates no limit.")
+	flagSet.IntP("max-retry-attempts", "", 0, "It sets a limit on the number of times an operation will be retried if it fails, preventing endless retry loops. A value of 0 indicates no limit.")
 
 	flagSet.DurationP("max-retry-duration", "", 0*time.Nanosecond, "This is currently unused.")
 
@@ -489,11 +499,13 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("metadata-cache-negative-ttl-secs", "", 5, "The negative-ttl-secs value in seconds to be used for expiring negative entries in metadata-cache. It can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled negative entries in metadata-cache. Any value set below -1 will throw an error.")
 
-	if err := flagSet.MarkHidden("metadata-cache-negative-ttl-secs"); err != nil {
+	flagSet.IntP("metadata-cache-ttl-secs", "", 60, "The ttl value in seconds to be used for expiring items in metadata-cache. It can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled metadata-cache. Any value set below -1 will throw an error.")
+
+	flagSet.BoolP("metrics-use-new-names", "", false, "Use the new metric names.")
+
+	if err := flagSet.MarkHidden("metrics-use-new-names"); err != nil {
 		return err
 	}
-
-	flagSet.IntP("metadata-cache-ttl-secs", "", 60, "The ttl value in seconds to be used for expiring items in metadata-cache. It can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled metadata-cache. Any value set below -1 will throw an error.")
 
 	flagSet.StringSliceP("o", "", []string{}, "Additional system-specific mount options. Multiple options can be passed as comma separated. For readonly, use --o ro")
 
@@ -516,10 +528,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.IntP("prefetch-max-prefetch-size-mb", "", 1024, "Total cap over memory used for prefetch.")
 
 	flagSet.IntP("prometheus-port", "", 0, "Expose Prometheus metrics endpoint on this port and a path of /metrics.")
-
-	if err := flagSet.MarkHidden("prometheus-port"); err != nil {
-		return err
-	}
 
 	flagSet.DurationP("read-stall-initial-req-timeout", "", 20000000000*time.Nanosecond, "Initial value of the read-request dynamic timeout.")
 
@@ -559,7 +567,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("sequential-read-size-mb", "", 200, "File chunk size to read from GCS in one call. Need to specify the value in MB. ChunkSize less than 1MB is not supported")
 
-	flagSet.DurationP("stackdriver-export-interval", "", 0*time.Nanosecond, "Export metrics to stackdriver with this interval. The default value 0 indicates no exporting.")
+	flagSet.DurationP("stackdriver-export-interval", "", 0*time.Nanosecond, "Export metrics to stackdriver with this interval. A value of 0 indicates no exporting.")
 
 	if err := flagSet.MarkDeprecated("stackdriver-export-interval", "Please use --cloud-metrics-export-interval-secs instead."); err != nil {
 		return err
@@ -672,6 +680,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("disable-autoconfig", flagSet.Lookup("disable-autoconfig")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("file-system.disable-parallel-dirops", flagSet.Lookup("disable-parallel-dirops")); err != nil {
 		return err
 	}
@@ -688,11 +700,11 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("metadata-cache.enable-nonexistent-type-cache", flagSet.Lookup("enable-nonexistent-type-cache")); err != nil {
+	if err := v.BindPFlag("enable-new-reader", flagSet.Lookup("enable-new-reader")); err != nil {
 		return err
 	}
 
-	if err := v.BindPFlag("metrics.enable-otel", flagSet.Lookup("enable-otel")); err != nil {
+	if err := v.BindPFlag("metadata-cache.enable-nonexistent-type-cache", flagSet.Lookup("enable-nonexistent-type-cache")); err != nil {
 		return err
 	}
 
@@ -717,10 +729,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metadata-cache.experimental-metadata-prefetch-on-mount", flagSet.Lookup("experimental-metadata-prefetch-on-mount")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("monitoring.experimental-opentelemetry-collector-address", flagSet.Lookup("experimental-opentelemetry-collector-address")); err != nil {
 		return err
 	}
 
@@ -752,6 +760,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("file-cache.experimental-parallel-downloads-default-on", flagSet.Lookup("file-cache-experimental-parallel-downloads-default-on")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("file-cache.max-parallel-downloads", flagSet.Lookup("file-cache-max-parallel-downloads")); err != nil {
 		return err
 	}
@@ -777,10 +789,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.gid", flagSet.Lookup("gid")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("file-system.handle-sigterm", flagSet.Lookup("handle-sigterm")); err != nil {
 		return err
 	}
 
@@ -836,6 +844,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("machine-type", flagSet.Lookup("machine-type")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("gcs-connection.max-conns-per-host", flagSet.Lookup("max-conns-per-host")); err != nil {
 		return err
 	}
@@ -857,6 +869,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metadata-cache.ttl-secs", flagSet.Lookup("metadata-cache-ttl-secs")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("metrics.use-new-names", flagSet.Lookup("metrics-use-new-names")); err != nil {
 		return err
 	}
 

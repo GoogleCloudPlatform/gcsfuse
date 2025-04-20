@@ -3,7 +3,7 @@ name: "Shadow reviews"
 on:
   pull_request:
     types: 
-    - review_requested
+    - opened
     branches:
       - master
 

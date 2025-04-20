@@ -106,7 +106,7 @@ func CreateDirectoryWithNFiles(numberOfFiles int, dirPath string, prefix string,
 		}
 
 		// Closing file at the end.
-		CloseFile(file)
+		CloseFileShouldNotThrowError(t, file)
 	}
 }
 

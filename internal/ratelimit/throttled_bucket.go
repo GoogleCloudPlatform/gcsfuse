@@ -54,14 +54,6 @@ func (b *throttledBucket) Name() string {
 func (b *throttledBucket) BucketType() gcs.BucketType {
 	return b.wrapped.BucketType()
 }
-
-func (b *throttledBucket) NewReader(
-	ctx context.Context,
-	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
-	rc, err = b.NewReaderWithReadHandle(ctx, req)
-	return
-}
-
 func (b *throttledBucket) NewReaderWithReadHandle(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (rd gcs.StorageReader, err error) {
@@ -121,6 +113,14 @@ func (b *throttledBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gc
 	// Note: CreateObjectChunkWriter, a prerequisite for FinalizeUpload,
 	// is throttled.
 	return b.wrapped.FinalizeUpload(ctx, w)
+}
+
+func (b *throttledBucket) FlushPendingWrites(ctx context.Context, w gcs.Writer) (int64, error) {
+	// FlushPendingWrites is not throttled to prevent permanent data loss in case the
+	// limiter's burst size is exceeded.
+	// Note: CreateObjectChunkWriter, a prerequisite for FlushPendingWrites,
+	// is throttled.
+	return b.wrapped.FlushPendingWrites(ctx, w)
 }
 
 func (b *throttledBucket) CopyObject(

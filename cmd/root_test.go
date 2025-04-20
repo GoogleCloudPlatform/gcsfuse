@@ -193,6 +193,63 @@ func TestArgsParsing_MountOptions(t *testing.T) {
 	}
 }
 
+// Lets test for ImplicitDirs which is goverened by implicit-dirs flags
+func TestArgsParsing_ImplicitDirsFlag(t *testing.T) {
+	tests := []struct {
+		name             string
+		args             []string
+		expectedImplicit bool
+	}{
+		{
+			name:             "normal",
+			args:             []string{"gcsfuse", "--implicit-dirs", "abc", "pqr"},
+			expectedImplicit: true,
+		},
+		{
+			name:             "default",
+			args:             []string{"gcsfuse", "abc", "pqr"},
+			expectedImplicit: false,
+		},
+		{
+			name:             "normal_false",
+			args:             []string{"gcsfuse", "--implicit-dirs=false", "abc", "pqr"},
+			expectedImplicit: false,
+		},
+		{
+			name:             "default false on high performance machine with autoconfig disabled",
+			args:             []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=true", "abc", "pqr"},
+			expectedImplicit: false,
+		},
+		{
+			name:             "default true on high performance machine with autoconfig enabled",
+			args:             []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "abc", "pqr"},
+			expectedImplicit: true,
+		},
+		{
+			name:             "default overriden on high performance machine",
+			args:             []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--implicit-dirs=false", "abc", "pqr"},
+			expectedImplicit: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotImplicit bool
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+				gotImplicit = cfg.ImplicitDirs
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedImplicit, gotImplicit)
+			}
+		})
+	}
+}
 func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 	tests := []struct {
 		name                          string
@@ -275,6 +332,31 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
 			expectedWriteMaxBlocksPerFile: 10,
 		},
+		{
+			name:                          "Test high performance config values with autoconfig enabled.",
+			args:                          []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "abc", "pqr"},
+			expectedEnableStreamingWrites: true,
+			expectedWriteBlockSizeMB:      32 * util.MiB,
+			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
+		},
+		{
+			name:                          "Test high performance config values with autoconfig disabled.",
+			args:                          []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=true", "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: false,
+			expectedWriteBlockSizeMB:      32 * util.MiB,
+			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
+			expectedWriteMaxBlocksPerFile: 1,
+		},
+		{
+			name:                          "Test high performance config values with enable-streaming-writes flag overriden.",
+			args:                          []string{"gcsfuse", "--enable-streaming-writes=false", "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: false,
+			expectedWriteBlockSizeMB:      32 * util.MiB,
+			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
+			expectedWriteMaxBlocksPerFile: 1,
+		},
 	}
 
 	for _, tc := range tests {
@@ -311,15 +393,16 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 			expectedConfig: &cfg.Config{
 				CacheDir: "/some/valid/dir",
 				FileCache: cfg.FileCacheConfig{
-					CacheFileForRangeRead:    true,
-					DownloadChunkSizeMb:      20,
-					EnableCrc:                true,
-					EnableParallelDownloads:  true,
-					MaxParallelDownloads:     40,
-					MaxSizeMb:                100,
-					ParallelDownloadsPerFile: 2,
-					WriteBufferSize:          4 * 1024 * 1024,
-					EnableODirect:            false,
+					CacheFileForRangeRead:                  true,
+					DownloadChunkSizeMb:                    20,
+					EnableCrc:                              true,
+					EnableParallelDownloads:                true,
+					ExperimentalParallelDownloadsDefaultOn: true,
+					MaxParallelDownloads:                   40,
+					MaxSizeMb:                              100,
+					ParallelDownloadsPerFile:               2,
+					WriteBufferSize:                        4 * 1024 * 1024,
+					EnableODirect:                          false,
 				},
 			},
 		},
@@ -328,15 +411,16 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 			args: []string{"gcsfuse", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileCache: cfg.FileCacheConfig{
-					CacheFileForRangeRead:    false,
-					DownloadChunkSizeMb:      50,
-					EnableCrc:                false,
-					EnableParallelDownloads:  false,
-					MaxParallelDownloads:     int64(max(16, 2*runtime.NumCPU())),
-					MaxSizeMb:                -1,
-					ParallelDownloadsPerFile: 16,
-					WriteBufferSize:          4 * 1024 * 1024,
-					EnableODirect:            false,
+					CacheFileForRangeRead:                  false,
+					DownloadChunkSizeMb:                    200,
+					EnableCrc:                              false,
+					EnableParallelDownloads:                false,
+					ExperimentalParallelDownloadsDefaultOn: true,
+					MaxParallelDownloads:                   int64(max(16, 2*runtime.NumCPU())),
+					MaxSizeMb:                              -1,
+					ParallelDownloadsPerFile:               16,
+					WriteBufferSize:                        4 * 1024 * 1024,
+					EnableODirect:                          false,
 				},
 			},
 		},
@@ -657,7 +741,6 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					TempDir:                cfg.ResolvedPath(path.Join(hd, "temp")),
 					PreconditionErrors:     false,
 					Uid:                    8,
-					HandleSigterm:          true,
 				},
 			},
 		},
@@ -677,7 +760,63 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					TempDir:                "",
 					PreconditionErrors:     true,
 					Uid:                    -1,
-					HandleSigterm:          true,
+				},
+			},
+		},
+		{
+			name: "high performance defaults with rename dir options with autoconfig enabled",
+			args: []string{"gcsfuse", "--dir-mode=777", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "--file-mode=666", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					DirMode:                0777,
+					DisableParallelDirops:  false,
+					FileMode:               0666,
+					FuseOptions:            []string{},
+					Gid:                    -1,
+					IgnoreInterrupts:       true,
+					KernelListCacheTtlSecs: 0,
+					RenameDirLimit:         200000,
+					TempDir:                "",
+					PreconditionErrors:     true,
+					Uid:                    -1,
+				},
+			},
+		},
+		{
+			name: "high performance defaults with rename dir options with autoconfig disabled",
+			args: []string{"gcsfuse", "--dir-mode=777", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=true", "--file-mode=666", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					DirMode:                0777,
+					DisableParallelDirops:  false,
+					FileMode:               0666,
+					FuseOptions:            []string{},
+					Gid:                    -1,
+					IgnoreInterrupts:       true,
+					KernelListCacheTtlSecs: 0,
+					RenameDirLimit:         0,
+					TempDir:                "",
+					PreconditionErrors:     true,
+					Uid:                    -1,
+				},
+			},
+		},
+		{
+			name: "high performance defaults with overriden rename dir options",
+			args: []string{"gcsfuse", "--dir-mode=777", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "--rename-dir-limit=15000", "--file-mode=666", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					DirMode:                0777,
+					DisableParallelDirops:  false,
+					FileMode:               0666,
+					FuseOptions:            []string{},
+					Gid:                    -1,
+					IgnoreInterrupts:       true,
+					KernelListCacheTtlSecs: 0,
+					RenameDirLimit:         15000,
+					TempDir:                "",
+					PreconditionErrors:     true,
+					Uid:                    -1,
 				},
 			},
 		},
@@ -697,7 +836,6 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					TempDir:                "",
 					PreconditionErrors:     true,
 					Uid:                    -1,
-					HandleSigterm:          true,
 				},
 			},
 		},
@@ -872,6 +1010,37 @@ func TestArgsParsing_EnableAtomicRenameObjectFlag(t *testing.T) {
 	}
 }
 
+func TestArgsParsing_EnableNewReaderFlag(t *testing.T) {
+	tests := []struct {
+		name                    string
+		args                    []string
+		expectedEnableNewReader bool
+	}{
+		{
+			name:                    "normal",
+			args:                    []string{"gcsfuse", "--enable-new-reader=true", "abc", "pqr"},
+			expectedEnableNewReader: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotEnableNewReader bool
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+				gotEnableNewReader = cfg.EnableNewReader
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+
+			err = cmd.Execute()
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedEnableNewReader, gotEnableNewReader)
+		})
+	}
+}
+
 func TestArgsParsing_MetricsFlags(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -879,39 +1048,10 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 		expected *cfg.MetricsConfig
 	}{
 		{
-			name: "default",
-			args: []string{"gcsfuse", "abc", "pqr"},
-			expected: &cfg.MetricsConfig{
-				EnableOtel: true,
-			},
-		},
-		{
-			name: "enable_otel_normal",
-			args: []string{"gcsfuse", "--enable-otel", "abc", "pqr"},
-			expected: &cfg.MetricsConfig{
-				EnableOtel: true,
-			},
-		},
-		{
-			name: "enable_otel_false",
-			args: []string{"gcsfuse", "--enable-otel=false", "abc", "pqr"},
-			expected: &cfg.MetricsConfig{
-				EnableOtel: false,
-			},
-		},
-		{
-			name: "enable_otel_false",
-			args: []string{"gcsfuse", "--enable-otel=true", "abc", "pqr"},
-			expected: &cfg.MetricsConfig{
-				EnableOtel: true,
-			},
-		},
-		{
 			name: "cloud-metrics-export-interval-secs-positive",
 			args: []string{"gcsfuse", "--cloud-metrics-export-interval-secs=10", "abc", "pqr"},
 			expected: &cfg.MetricsConfig{
 				CloudMetricsExportIntervalSecs: 10,
-				EnableOtel:                     true,
 			},
 		},
 		{
@@ -920,7 +1060,13 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 			expected: &cfg.MetricsConfig{
 				CloudMetricsExportIntervalSecs: 10 * 3600,
 				StackdriverExportInterval:      time.Duration(10) * time.Hour,
-				EnableOtel:                     true,
+			},
+		},
+		{
+			name: "use_new_metric_names",
+			args: []string{"gcsfuse", "--metrics-use-new-names=true", "abc", "pqr"},
+			expected: &cfg.MetricsConfig{
+				UseNewNames: true,
 			},
 		},
 	}
@@ -950,30 +1096,14 @@ func TestArgsParsing_MetricsViewConfig(t *testing.T) {
 		expected *cfg.MetricsConfig
 	}{
 		{
-			name:    "default",
-			cfgFile: "empty.yml",
-			expected: &cfg.MetricsConfig{
-				EnableOtel: true,
-			},
-		},
-		{
-			name:    "enable_otel_true",
-			cfgFile: "enable_otel_true.yml",
-			expected: &cfg.MetricsConfig{
-				EnableOtel: true,
-			},
-		},
-		{
-			name:    "enable_otel_false",
-			cfgFile: "enable_otel_false.yml",
-			expected: &cfg.MetricsConfig{
-				EnableOtel: false,
-			},
+			name:     "default",
+			cfgFile:  "empty.yml",
+			expected: &cfg.MetricsConfig{},
 		},
 		{
 			name:     "cloud-metrics-export-interval-secs-positive",
 			cfgFile:  "metrics_export_interval_positive.yml",
-			expected: &cfg.MetricsConfig{CloudMetricsExportIntervalSecs: 100, EnableOtel: true},
+			expected: &cfg.MetricsConfig{CloudMetricsExportIntervalSecs: 100},
 		},
 		{
 			name:    "stackdriver-export-interval-positive",
@@ -981,7 +1111,6 @@ func TestArgsParsing_MetricsViewConfig(t *testing.T) {
 			expected: &cfg.MetricsConfig{
 				CloudMetricsExportIntervalSecs: 12 * 3600,
 				StackdriverExportInterval:      12 * time.Hour,
-				EnableOtel:                     true,
 			},
 		},
 	}
@@ -1044,6 +1173,74 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "high performance default config values with autoconfig disabled",
+			args: []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=true", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				MetadataCache: cfg.MetadataCacheConfig{
+					DeprecatedStatCacheCapacity:         20460,
+					DeprecatedStatCacheTtl:              60 * time.Second,
+					DeprecatedTypeCacheTtl:              60 * time.Second,
+					EnableNonexistentTypeCache:          false,
+					ExperimentalMetadataPrefetchOnMount: "disabled",
+					StatCacheMaxSizeMb:                  32,
+					TtlSecs:                             60,
+					NegativeTtlSecs:                     5,
+					TypeCacheMaxSizeMb:                  4,
+				},
+			},
+		},
+		{
+			name: "high performance default config values with autoconfig enabled",
+			args: []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				MetadataCache: cfg.MetadataCacheConfig{
+					DeprecatedStatCacheCapacity:         20460,
+					DeprecatedStatCacheTtl:              60 * time.Second,
+					DeprecatedTypeCacheTtl:              60 * time.Second,
+					EnableNonexistentTypeCache:          false,
+					ExperimentalMetadataPrefetchOnMount: "disabled",
+					StatCacheMaxSizeMb:                  1024,
+					TtlSecs:                             9223372036,
+					NegativeTtlSecs:                     0,
+					TypeCacheMaxSizeMb:                  128,
+				},
+			},
+		},
+		{
+			name: "high performance default config values obey customer flags",
+			args: []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "--stat-cache-capacity=2000", "--stat-cache-ttl=2m", "--type-cache-ttl=1m20s", "--enable-nonexistent-type-cache", "--experimental-metadata-prefetch-on-mount=async", "--stat-cache-max-size-mb=15", "--metadata-cache-ttl-secs=25", "--metadata-cache-negative-ttl-secs=20", "--type-cache-max-size-mb=30", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				MetadataCache: cfg.MetadataCacheConfig{
+					DeprecatedStatCacheCapacity:         2000,
+					DeprecatedStatCacheTtl:              2 * time.Minute,
+					DeprecatedTypeCacheTtl:              80 * time.Second,
+					EnableNonexistentTypeCache:          true,
+					ExperimentalMetadataPrefetchOnMount: "async",
+					StatCacheMaxSizeMb:                  15,
+					TtlSecs:                             25,
+					NegativeTtlSecs:                     20,
+					TypeCacheMaxSizeMb:                  30,
+				},
+			},
+		},
+		{
+			name: "high performance default config values use deprecated flags",
+			args: []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "--stat-cache-capacity=2000", "--stat-cache-ttl=2m", "--type-cache-ttl=4m", "--enable-nonexistent-type-cache", "--experimental-metadata-prefetch-on-mount=async", "--metadata-cache-negative-ttl-secs=20", "--type-cache-max-size-mb=30", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				MetadataCache: cfg.MetadataCacheConfig{
+					DeprecatedStatCacheCapacity:         2000,
+					DeprecatedStatCacheTtl:              2 * time.Minute,
+					DeprecatedTypeCacheTtl:              4 * time.Minute,
+					EnableNonexistentTypeCache:          true,
+					ExperimentalMetadataPrefetchOnMount: "async",
+					StatCacheMaxSizeMb:                  4,
+					TtlSecs:                             120,
+					NegativeTtlSecs:                     20,
+					TypeCacheMaxSizeMb:                  30,
+				},
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -1081,7 +1278,7 @@ func TestArgParsing_GCSRetries(t *testing.T) {
 					MaxRetrySleep:            30 * time.Second,
 					Multiplier:               2,
 					ReadStall: cfg.ReadStallGcsRetriesConfig{
-						Enable:              false,
+						Enable:              true,
 						InitialReqTimeout:   20 * time.Second,
 						MinReqTimeout:       1500 * time.Millisecond,
 						MaxReqTimeout:       1200 * time.Second,

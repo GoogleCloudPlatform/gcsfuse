@@ -73,8 +73,8 @@ func readFileAndGetExpectedOutcome(testDirPath, fileName string, readFullFile bo
 	return expected
 }
 
-func validate(expected *Expected, logEntry *read_logs.StructuredReadLogEntry,
-	isSeq, cacheHit bool, chunkCount int, t *testing.T) {
+func validate(expected *Expected, logEntry *read_logs.StructuredReadLogEntry, isSeq, cacheHit bool, chunkCount int, t *testing.T) {
+	t.Helper()
 	if logEntry.StartTimeSeconds < expected.StartTimeStampSeconds {
 		t.Errorf("start time in logs %d less than actual start time %d.", logEntry.StartTimeSeconds, expected.StartTimeStampSeconds)
 	}

@@ -16,7 +16,6 @@ package caching
 
 import (
 	"fmt"
-	"io"
 	"strings"
 	"sync"
 	"time"
@@ -211,13 +210,6 @@ func (b *fastStatBucket) BucketType() gcs.BucketType {
 	return b.wrapped.BucketType()
 }
 
-func (b *fastStatBucket) NewReader(
-	ctx context.Context,
-	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
-	rc, err = b.wrapped.NewReader(ctx, req)
-	return
-}
-
 func (b *fastStatBucket) NewReaderWithReadHandle(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (rd gcs.StorageReader, err error) {
@@ -261,6 +253,24 @@ func (b *fastStatBucket) FinalizeUpload(ctx context.Context, writer gcs.Writer) 
 	}
 
 	return o, err
+}
+
+func (b *fastStatBucket) FlushPendingWrites(ctx context.Context, writer gcs.Writer) (int64, error) {
+	name := writer.ObjectName()
+	hit, o := b.cache.LookUp(name, b.clock.Now())
+	if hit {
+		// Throw away any existing record for this object.
+		b.invalidate(name)
+	}
+
+	offset, err := b.wrapped.FlushPendingWrites(ctx, writer)
+
+	// Record the new object if err is nil.
+	if err == nil && hit && o != nil {
+		o.Size = uint64(offset)
+		b.insertMinObject(o)
+	}
+	return offset, err
 }
 
 // LOCKS_EXCLUDED(b.mu)

@@ -1,0 +1,43 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+absl-py==2.1.0
+chex==0.1.89
+etils==1.12.0
+flax==0.10.4
+fsspec==2025.2.0
+humanize==4.12.1
+importlib_resources==6.5.2
+jax==0.5.1
+jaxlib==0.5.1
+markdown-it-py==3.0.0
+mdurl==0.1.2
+ml_dtypes==0.5.1
+msgpack==1.1.0
+nest-asyncio==1.6.0
+numpy==2.2.3
+opt_einsum==3.4.0
+optax==0.2.4
+orbax-checkpoint==0.11.6
+protobuf==5.29.3
+Pygments==2.19.1
+PyYAML==6.0.2
+rich==13.9.4
+scipy==1.15.2
+simplejson==3.20.1
+tensorstore==0.1.72
+toolz==1.0.0
+treescope==0.1.9
+typing_extensions==4.12.2
+zipp==3.21.0

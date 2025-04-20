@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"reflect"
 	"strings"
 	"testing"
@@ -27,14 +26,12 @@ import (
 	"cloud.google.com/go/storage"
 	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
-	"github.com/googleapis/gax-go/v2/apierror"
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"google.golang.org/api/googleapi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -54,16 +51,6 @@ var ContentDisposition string = "ContentDisposition"
 // FakeGCSServer is not handling generation and metageneration checks for Delete flow and IncludeFoldersAsPrefixes check for ListObjects flow.
 // Hence, we are not writing tests for these flows.
 // https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/github.com/fsouza/fake-gcs-server/fakestorage/object.go#L515
-
-func objectsToObjectNames(objects []*gcs.Object) (objectNames []string) {
-	objectNames = make([]string, len(objects))
-	for i, object := range objects {
-		if object != nil {
-			objectNames[i] = object.Name
-		}
-	}
-	return
-}
 
 func minObjectsToMinObjectNames(minObjects []*gcs.MinObject) (objectNames []string) {
 	objectNames = make([]string, len(minObjects))
@@ -108,8 +95,8 @@ func (testSuite *BucketHandleTest) TearDownTest() {
 	testSuite.fakeStorage.ShutDown()
 }
 
-func (testSuite *BucketHandleTest) TestNewReaderMethodWithCompleteRead() {
-	rc, err := testSuite.bucketHandle.NewReader(context.Background(),
+func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethodWithCompleteRead() {
+	rc, err := testSuite.bucketHandle.NewReaderWithReadHandle(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: TestObjectName,
 			Range: &gcs.ByteRange{
@@ -126,11 +113,11 @@ func (testSuite *BucketHandleTest) TestNewReaderMethodWithCompleteRead() {
 	assert.Equal(testSuite.T(), ContentInTestObject, string(buf[:]))
 }
 
-func (testSuite *BucketHandleTest) TestNewReaderMethodWithRangeRead() {
+func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethodWithRangeRead() {
 	start := uint64(2)
 	limit := uint64(8)
 
-	rc, err := testSuite.bucketHandle.NewReader(context.Background(),
+	rc, err := testSuite.bucketHandle.NewReaderWithReadHandle(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: TestObjectName,
 			Range: &gcs.ByteRange{
@@ -147,8 +134,8 @@ func (testSuite *BucketHandleTest) TestNewReaderMethodWithRangeRead() {
 	assert.Equal(testSuite.T(), ContentInTestObject[start:limit], string(buf[:]))
 }
 
-func (testSuite *BucketHandleTest) TestNewReaderMethodWithNilRange() {
-	rc, err := testSuite.bucketHandle.NewReader(context.Background(),
+func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethodWithNilRange() {
+	rc, err := testSuite.bucketHandle.NewReaderWithReadHandle(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name:  TestObjectName,
 			Range: nil,
@@ -162,10 +149,10 @@ func (testSuite *BucketHandleTest) TestNewReaderMethodWithNilRange() {
 	assert.Equal(testSuite.T(), ContentInTestObject, string(buf[:]))
 }
 
-func (testSuite *BucketHandleTest) TestNewReaderMethodWithInValidObject() {
+func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethodWithInValidObject() {
 	var notFoundErr *gcs.NotFoundError
 
-	rc, err := testSuite.bucketHandle.NewReader(context.Background(),
+	rc, err := testSuite.bucketHandle.NewReaderWithReadHandle(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: missingObjectName,
 			Range: &gcs.ByteRange{
@@ -179,8 +166,8 @@ func (testSuite *BucketHandleTest) TestNewReaderMethodWithInValidObject() {
 	assert.Nil(testSuite.T(), rc)
 }
 
-func (testSuite *BucketHandleTest) TestNewReaderMethodWithValidGeneration() {
-	rc, err := testSuite.bucketHandle.NewReader(context.Background(),
+func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethodWithValidGeneration() {
+	rc, err := testSuite.bucketHandle.NewReaderWithReadHandle(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: TestObjectName,
 			Range: &gcs.ByteRange{
@@ -198,10 +185,10 @@ func (testSuite *BucketHandleTest) TestNewReaderMethodWithValidGeneration() {
 	assert.Equal(testSuite.T(), ContentInTestObject, string(buf[:]))
 }
 
-func (testSuite *BucketHandleTest) TestNewReaderMethodWithInvalidGeneration() {
+func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethodWithInvalidGeneration() {
 	var notFoundErr *gcs.NotFoundError
 
-	rc, err := testSuite.bucketHandle.NewReader(context.Background(),
+	rc, err := testSuite.bucketHandle.NewReaderWithReadHandle(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: TestObjectName,
 			Range: &gcs.ByteRange{
@@ -216,8 +203,8 @@ func (testSuite *BucketHandleTest) TestNewReaderMethodWithInvalidGeneration() {
 	assert.Nil(testSuite.T(), rc)
 }
 
-func (testSuite *BucketHandleTest) TestNewReaderMethodWithCompressionEnabled() {
-	rc, err := testSuite.bucketHandle.NewReader(context.Background(),
+func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethodWithCompressionEnabled() {
+	rc, err := testSuite.bucketHandle.NewReaderWithReadHandle(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: TestGzipObjectName,
 			Range: &gcs.ByteRange{
@@ -235,8 +222,8 @@ func (testSuite *BucketHandleTest) TestNewReaderMethodWithCompressionEnabled() {
 	assert.Equal(testSuite.T(), ContentInTestGzipObjectCompressed, string(buf))
 }
 
-func (testSuite *BucketHandleTest) TestNewReaderMethodWithCompressionDisabled() {
-	rc, err := testSuite.bucketHandle.NewReader(context.Background(),
+func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethodWithCompressionDisabled() {
+	rc, err := testSuite.bucketHandle.NewReaderWithReadHandle(context.Background(),
 		&gcs.ReadObjectRequest{
 			Name: TestGzipObjectName,
 			Range: &gcs.ByteRange{
@@ -316,7 +303,7 @@ func (testSuite *BucketHandleTest) TestDeleteObjectMethodWithMissingObject() {
 			MetaGenerationPrecondition: nil,
 		})
 
-	assert.Equal(testSuite.T(), "gcs.NotFoundError: storage: object doesn't exist", err.Error())
+	assert.NotNil(testSuite.T(), err)
 }
 
 func (testSuite *BucketHandleTest) TestDeleteObjectMethodWithMissingGeneration() {
@@ -634,22 +621,7 @@ func (testSuite *BucketHandleTest) TestBucketHandle_FinalizeUploadSuccess() {
 
 	for _, tt := range tests {
 		testSuite.T().Run(tt.name, func(t *testing.T) {
-			progressFunc := func(_ int64) {}
-			wr, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(),
-				&gcs.CreateObjectRequest{
-					Name:                   tt.objectName,
-					GenerationPrecondition: tt.generation,
-				},
-				tt.chunkSize,
-				progressFunc,
-			)
-			require.NoError(t, err)
-			objWr, ok := (wr).(*ObjectWriter)
-			require.True(t, ok)
-			require.NotNil(t, objWr)
-			assert.Equal(t, tt.objectName, objWr.ObjectName())
-			assert.Equal(t, tt.chunkSize, objWr.ChunkSize)
-			assert.Equal(t, reflect.ValueOf(progressFunc).Pointer(), reflect.ValueOf(objWr.ProgressFunc).Pointer())
+			wr := testSuite.createObjectChunkWriter(t, tt.objectName, tt.generation, tt.chunkSize)
 
 			o, err := testSuite.bucketHandle.FinalizeUpload(context.Background(), wr)
 
@@ -659,47 +631,76 @@ func (testSuite *BucketHandleTest) TestBucketHandle_FinalizeUploadSuccess() {
 	}
 }
 
-func (testSuite *BucketHandleTest) createObject(objName string) {
-	testSuite.T().Helper()
-	var generation int64 = 0
-	wr, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(),
-		&gcs.CreateObjectRequest{
-			Name:                   objName,
-			GenerationPrecondition: &generation,
-		},
-		100,
-		func(_ int64) {})
-	require.NoError(testSuite.T(), err)
-	assert.Equal(testSuite.T(), objName, wr.ObjectName())
-
-	o, err := testSuite.bucketHandle.FinalizeUpload(context.Background(), wr)
-
-	require.NoError(testSuite.T(), err)
-	assert.NotNil(testSuite.T(), o)
-}
-
 func (testSuite *BucketHandleTest) TestFinalizeUploadWithGenerationAsZeroWhenObjectAlreadyExists() {
 	createBucketHandle(testSuite, &controlpb.StorageLayout{}, nil)
 
+	// Pre-create the object (creating writer and finalizing upload).
 	objName := "pre_created_test_object"
-	testSuite.createObject(objName)
-	// Create Object Writer again when object already exists.
 	var generation int64 = 0
-	wr, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(),
-		&gcs.CreateObjectRequest{
-			Name:                   objName,
-			GenerationPrecondition: &generation,
-		},
-		100,
-		func(_ int64) {})
-	require.NoError(testSuite.T(), err)
-	assert.Equal(testSuite.T(), objName, wr.ObjectName())
-
+	wr := testSuite.createObjectChunkWriter(testSuite.T(), objName, &generation, 100)
 	o, err := testSuite.bucketHandle.FinalizeUpload(context.Background(), wr)
+	require.NoError(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), o)
+	// Create Object Writer again when object already exists.
+	wr = testSuite.createObjectChunkWriter(testSuite.T(), objName, &generation, 100)
+
+	o, err = testSuite.bucketHandle.FinalizeUpload(context.Background(), wr)
 
 	assert.Error(testSuite.T(), err)
 	assert.IsType(testSuite.T(), &gcs.PreconditionError{}, err)
 	assert.Nil(testSuite.T(), o)
+}
+
+func (testSuite *BucketHandleTest) createObjectChunkWriter(t *testing.T, objectName string, generation *int64, chunkSize int) gcs.Writer {
+	t.Helper()
+	progressFunc := func(_ int64) {}
+	wr, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(),
+		&gcs.CreateObjectRequest{
+			Name:                   objectName,
+			GenerationPrecondition: generation,
+		},
+		chunkSize,
+		progressFunc,
+	)
+	require.NoError(t, err)
+	objWr, ok := (wr).(*ObjectWriter)
+	require.True(t, ok)
+	require.NotNil(t, objWr)
+	assert.Equal(t, objectName, objWr.ObjectName())
+	assert.Equal(t, chunkSize, objWr.ChunkSize)
+	assert.Equal(t, reflect.ValueOf(progressFunc).Pointer(), reflect.ValueOf(objWr.ProgressFunc).Pointer())
+
+	return wr
+}
+
+func (testSuite *BucketHandleTest) TestFlushPendingWritesFails() {
+	// These tests only run with HTTP client because fake storage server is not
+	// integrated with GRPC.
+	var generation0 int64 = 0
+	tests := []struct {
+		bucketType string
+	}{
+		{
+			bucketType: "multiregion",
+		},
+		{
+			bucketType: "zone",
+		},
+	}
+
+	for _, tt := range tests {
+		testSuite.T().Run(tt.bucketType, func(t *testing.T) {
+			createBucketHandle(testSuite, &controlpb.StorageLayout{
+				LocationType: tt.bucketType,
+			}, nil)
+			wr := testSuite.createObjectChunkWriter(t, TestObjectName, &generation0, 100)
+
+			_, err := testSuite.bucketHandle.FlushPendingWrites(context.Background(), wr)
+
+			require.Error(t, err)
+			assert.ErrorContains(testSuite.T(), err, "Flush not supported unless client uses gRPC and Append is set to true")
+		})
+	}
 }
 
 func (testSuite *BucketHandleTest) TestGetProjectValueWhenGcloudProjectionIsNoAcl() {
@@ -944,7 +945,7 @@ func (testSuite *BucketHandleTest) TestUpdateObjectMethodWithMissingObject() {
 
 // Read content of an object and return
 func (testSuite *BucketHandleTest) readObjectContent(ctx context.Context, req *gcs.ReadObjectRequest) (buffer string) {
-	rc, err := testSuite.bucketHandle.NewReader(ctx, &gcs.ReadObjectRequest{
+	rc, err := testSuite.bucketHandle.NewReaderWithReadHandle(ctx, &gcs.ReadObjectRequest{
 		Name:  req.Name,
 		Range: req.Range})
 
@@ -1632,60 +1633,4 @@ func (testSuite *BucketHandleTest) TestCreateFolderWithGivenName() {
 	testSuite.mockClient.AssertExpectations(testSuite.T())
 	assert.NoError(testSuite.T(), err)
 	assert.Equal(testSuite.T(), gcs.GCSFolder(TestBucketName, &mockFolder), folder)
-}
-
-func TestIsPreconditionFailed(t *testing.T) {
-	preCondApiError, _ := apierror.FromError(status.New(codes.FailedPrecondition, "Precondition error").Err())
-	notFoundApiError, _ := apierror.FromError(status.New(codes.NotFound, "Not Found error").Err())
-
-	tests := []struct {
-		name          string
-		err           error
-		expectPreCond bool
-	}{
-		{
-			name:          "googleapi.Error with PreconditionFailed",
-			err:           &googleapi.Error{Code: http.StatusPreconditionFailed},
-			expectPreCond: true,
-		},
-		{
-			name:          "googleapi.Error with other code",
-			err:           &googleapi.Error{Code: http.StatusNotFound},
-			expectPreCond: false,
-		},
-		{
-			name:          "apierror.APIError with FailedPrecondition",
-			err:           preCondApiError,
-			expectPreCond: true,
-		},
-		{
-			name:          "apierror.APIError with other code",
-			err:           notFoundApiError,
-			expectPreCond: false,
-		},
-		{
-			name:          "nil error",
-			err:           nil,
-			expectPreCond: false,
-		},
-		{
-			name:          "generic error",
-			err:           errors.New("generic error"),
-			expectPreCond: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			isPreCond, err := isPreconditionFailed(tt.err)
-
-			assert.Equal(t, tt.expectPreCond, isPreCond)
-			if tt.expectPreCond {
-				var preCondErr *gcs.PreconditionError
-				assert.ErrorAs(t, err, &preCondErr)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
 }

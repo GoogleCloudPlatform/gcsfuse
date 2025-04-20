@@ -17,7 +17,6 @@ package lru_test
 import (
 	"errors"
 	"math/rand"
-	"strings"
 	"sync"
 	"testing"
 
@@ -81,7 +80,7 @@ func (t *CacheTest) LookUpInEmptyCache() {
 }
 
 func (t *CacheTest) InsertNilValue() {
-	t.insertAndAssert("taco", nil, []int64{}, errors.New(lru.InvalidEntryErrorMsg))
+	t.insertAndAssert("taco", nil, []int64{}, lru.ErrInvalidEntry)
 }
 
 func (t *CacheTest) LookUpUnknownKey() {
@@ -155,7 +154,7 @@ func (t *CacheTest) TestWhenEntrySizeMoreThanCacheMaxSize() {
 	t.insertAndAssert("burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
 
 	// Insert entry with size greater than maxSize of cache.
-	t.insertAndAssert("taco", testData{Value: 26, DataSize: MaxSize + 1}, []int64{}, errors.New(lru.InvalidEntrySizeErrorMsg))
+	t.insertAndAssert("taco", testData{Value: 26, DataSize: MaxSize + 1}, []int64{}, lru.ErrInvalidEntrySize)
 
 	ExpectEq(23, t.cache.LookUp("burrito").(testData).Value)
 }
@@ -242,7 +241,7 @@ func (t *CacheTest) TestUpdateWhenKeyNotPresent() {
 	err := t.cache.UpdateWithoutChangingOrder(key, data)
 
 	ExpectNe(nil, err)
-	ExpectTrue(strings.Contains(err.Error(), lru.EntryNotExistErrMsg))
+	ExpectTrue(errors.Is(err, lru.ErrEntryNotExist))
 }
 
 func (t *CacheTest) TestUpdateWhenSizeIsDifferent() {
@@ -254,7 +253,7 @@ func (t *CacheTest) TestUpdateWhenSizeIsDifferent() {
 	err := t.cache.UpdateWithoutChangingOrder(key, newData)
 
 	ExpectNe(nil, err)
-	ExpectTrue(strings.Contains(err.Error(), lru.InvalidUpdateEntrySizeErrorMsg))
+	ExpectTrue(errors.Is(err, lru.ErrInvalidUpdateEntrySize))
 }
 
 func (t *CacheTest) TestUpdateNotChangeOrder() {

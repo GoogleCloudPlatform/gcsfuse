@@ -14,7 +14,16 @@
 
 package gcs
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+	"net/http"
+
+	"cloud.google.com/go/storage"
+	"google.golang.org/api/googleapi"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+)
 
 // A *NotFoundError value is an error that indicates an object name or a
 // particular generation for that name were not found.
@@ -34,4 +43,41 @@ type PreconditionError struct {
 // Returns pe.Err.Error().
 func (pe *PreconditionError) Error() string {
 	return fmt.Sprintf("gcs.PreconditionError: %v", pe.Err)
+}
+
+// GetGCSError converts an error returned by go-sdk into gcsfuse specific common gcs error.
+func GetGCSError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	// Http client error.
+	var gErr *googleapi.Error
+	if errors.As(err, &gErr) {
+		switch gErr.Code {
+		case http.StatusNotFound:
+			return &NotFoundError{Err: err}
+		case http.StatusPreconditionFailed:
+			return &PreconditionError{Err: err}
+		}
+	}
+
+	// RPC error (all gRPC client including control client).
+	if rpcErr, ok := status.FromError(err); ok {
+		switch rpcErr.Code() {
+		case codes.NotFound:
+			return &NotFoundError{Err: err}
+		case codes.FailedPrecondition:
+			return &PreconditionError{Err: err}
+		}
+	}
+
+	// If storage object doesn't exist, go-sdk returns as ErrObjectNotExist.
+	// Important to note: currently go-sdk doesn't format/convert error coming from the control-client.
+	// Ref: http://shortn/_CY9Jyqf2wF
+	if errors.Is(err, storage.ErrObjectNotExist) {
+		return &NotFoundError{Err: err}
+	}
+
+	return err
 }

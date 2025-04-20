@@ -15,10 +15,12 @@
 package streaming_writes
 
 import (
+	"path"
 	"testing"
 
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/local_file"
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/suite"
 )
@@ -39,8 +41,9 @@ func (t *defaultMountLocalFile) SetupSubTest() {
 
 func (t *defaultMountLocalFile) createLocalFile() {
 	t.fileName = FileName1 + setup.GenerateRandomString(5)
-	// Create a local file.
-	t.filePath, t.f1 = CreateLocalFileInTestDir(ctx, storageClient, testDirPath, t.fileName, t.T())
+	t.filePath = path.Join(testDirPath, t.fileName)
+	// Create a local file with O_DIRECT.
+	t.f1 = operations.OpenFileWithODirect(t.T(), t.filePath)
 }
 
 // Executes all tests that run with single streamingWrites configuration for localFiles.

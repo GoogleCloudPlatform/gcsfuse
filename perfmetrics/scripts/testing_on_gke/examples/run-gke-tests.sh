@@ -36,8 +36,9 @@ fi
 # Utilities
 function exitWithSuccess() { exit 0; }
 function exitWithFailure() { exit 1; }
-function echoerror()  { >&2 echo "Error: "$@; }
-function exitWithError()  { echoerror $@ ; exitWithFailure ; }
+function echoerror()  { >&2 echo "Error: "$@ ; }
+function exitWithError()  { echoerror "$@" ; exitWithFailure ; }
+function returnWithError()  { echoerror "$@" ; return 1 ; }
 
 # Default values, to be used for parameters in case user does not specify them.
 # GCP related
@@ -50,6 +51,7 @@ readonly DEFAULT_NUM_SSD=16
 readonly DEFAULT_APPNAMESPACE=default
 readonly DEFAULT_KSA=default
 readonly DEFAULT_USE_CUSTOM_CSI_DRIVER=true
+readonly DEFAULT_CUSTOM_CSI_DRIVER=
 # GCSFuse/GKE GCSFuse CSI Driver source code related
 readonly DEFAULT_SRC_DIR="$(realpath .)/src"
 readonly csi_driver_github_path=https://github.com/googlecloudplatform/gcs-fuse-csi-driver
@@ -80,6 +82,7 @@ function printHelp() {
   echo "machine_type=<machine-type default=\"${DEFAULT_MACHINE_TYPE}\">"
   echo "num_nodes=<number from 1-8, default=\"${DEFAULT_NUM_NODES}\">"
   echo "num_ssd=<number from 0-16, default=\"${DEFAULT_NUM_SSD}\">"
+  echo "custom_csi_driver=<string representing the full path of the csi-driver image hash e.g. gcr.io/<registry-name>:<hash>, default=\"${DEFAULT_CUSTOM_CSI_DRIVER}\". If it is non-empty, then use_custom_csi_driver is assumed true, but a custom driver is not built and the given custom csi driver is used instead. >"
   echo "use_custom_csi_driver=<true|false, true means build and use a new custom csi driver using gcsfuse code, default=\"${DEFAULT_USE_CUSTOM_CSI_DRIVER}\">"
   # GCSFuse/GKE GCSFuse CSI Driver source code related
   echo "src_dir=<\"directory/to/clone/github/repos/if/needed\", used for locally cloning in case gcsfuse_src_dir or csi_src_dir are not passed, default=\"${DEFAULT_SRC_DIR}\">"
@@ -108,6 +111,17 @@ if ([ $# -gt 0 ] && ([ "$1" == "-help" ] || [ "$1" == "--help" ] || [ "$1" == "-
   exitWithSuccess
 fi
 
+verify_csi_driver_image() {
+  if [[ $# < 1 ]]; then
+    returnWithError "No arguments passed to verify_csi_driver_image. Expected: \$1=<csi-driver-image> ."
+  fi
+  local csi_driver_image=${1}
+  echo "Checking ${csi_driver_image} ..."
+  if ! gcloud -q container images describe ${csi_driver_image} >/dev/null; then
+    returnWithError "${csi_driver_image} is not a valid GCSFuse csi driver image.  !!! Please check if you missed adding /gcs-fuse-csi-driver-sidecar-mounter before the hash. !!!"
+  fi
+}
+
 # Set environment variables.
 # GCP related
 if test -z "${project_id}"; then
@@ -129,7 +143,34 @@ test -n "${num_ssd}" || export num_ssd=${DEFAULT_NUM_SSD}
 export appnamespace=${DEFAULT_APPNAMESPACE}
 # test -n "${ksa}" ||
 export ksa=${DEFAULT_KSA}
-test -n "${use_custom_csi_driver}" || export use_custom_csi_driver="${DEFAULT_USE_CUSTOM_CSI_DRIVER}"
+
+applied_custom_csi_driver=
+if test -z "${custom_csi_driver}"; then
+  echo "custom_csi_driver has not been set, so assuming \"${DEFAULT_CUSTOM_CSI_DRIVER}\" for it ..."
+  export custom_csi_driver="${DEFAULT_CUSTOM_CSI_DRIVER}"
+  if test -z "${use_custom_csi_driver}"; then
+    echo "use_custom_csi_driver has not been set, so assuming \"${DEFAULT_USE_CUSTOM_CSI_DRIVER}\" for it ..."
+    export use_custom_csi_driver="${DEFAULT_USE_CUSTOM_CSI_DRIVER}"
+  elif [[ ${use_custom_csi_driver} = "true" ]]; then
+    echo "User has enabled use_custom_csi_driver, without passing a custom_csi_driver, so a custom driver will be built in this run."
+  elif [[ ${use_custom_csi_driver} != "false" ]]; then
+    exitWithError "Unsupported value passed for use_custom_csi_driver: ${use_custom_csi_driver}. Supported values: true/false ."
+  fi
+else
+  echo "User passed custom_csi_driver=${custom_csi_driver}. This will be used this run."
+  printf "\nVerifying that ${custom_csi_driver} is a valid GCSFuse csi driver image ...\n\n"
+  verify_csi_driver_image ${custom_csi_driver}
+  if test -z "${use_custom_csi_driver}"; then
+    echo "use_custom_csi_driver has not been set, so setting it to true as custom_csi_driver has been set to \"${custom_csi_driver}\""
+    export use_custom_csi_driver=true
+  elif [[ ${use_custom_csi_driver} = "false" ]]; then
+    exitWithError "User has disabled use_custom_csi_driver, while passing a custom_csi_driver. This is unsupported."
+  elif [[ ${use_custom_csi_driver} != "true" ]]; then
+    exitWithError "Unsupported value passed for use_custom_csi_driver: ${use_custom_csi_driver}. Supported values: true or false ."
+  fi
+  applied_custom_csi_driver=${custom_csi_driver}
+fi
+
 test -n "${gcsfuse_branch}" || export gcsfuse_branch="${DEFAULT_GCSFUSE_BRANCH}"
 
 # GCSFuse/GKE GCSFuse CSI Driver source code related
@@ -210,6 +251,7 @@ function printRunParameters() {
   echo "appnamespace=\"${appnamespace}\""
   echo "ksa=\"${ksa}\""
   echo "use_custom_csi_driver=\"${use_custom_csi_driver}\""
+  echo "custom_csi_driver=\"${custom_csi_driver}\""
   # GCSFuse/GKE GCSFuse CSI Driver source code related
   echo "src_dir=\"${src_dir}\""
   echo "gcsfuse_src_dir=\"${gcsfuse_src_dir}\""
@@ -231,36 +273,36 @@ function printRunParameters() {
 function installDependencies() {
   printf "\nInstalling dependencies ...\n\n"
   # Refresh software repositories.
-  sudo apt-get update
+  sudo apt-get update >/dev/null
   # Get some common software dependencies.
-  sudo apt-get install -y apt-transport-https ca-certificates gnupg curl
+  sudo apt-get install -y apt-transport-https ca-certificates gnupg curl >/dev/null
   # Ensure that realpath is installed.
-  which realpath
+  which realpath >/dev/null
   # Ensure that make is installed.
-  which make || ( sudo apt-get install -y make time && which make )
+  which make >/dev/null || ( sudo apt-get install -y make time >/dev/null && which make >/dev/null )
   # Ensure that go is installed.
   which go || (version=1.22.4 && wget -O go_tar.tar.gz https://go.dev/dl/go${version}.linux-amd64.tar.gz 1>/dev/null && sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz 1>/dev/null && sudo mv go /usr/local && echo $PATH && export PATH=$PATH:/usr/local/go/bin && echo $PATH && echo 'export PATH=$PATH:/usr/local/go/bin'>>~/.bashrc && go version)
   # for some reason, the above is unable to update the value of $PATH, so doing it explicitly below.
   export PATH=$PATH:/usr/local/go/bin
-  which go
+  which go >/dev/null
   # Ensure that python3 is installed.
-  which python3 || ( sudo apt-get install -y python3 && which python3 )
+  which python3 || ( sudo apt-get install -y python3 >/dev/null && which python3 >/dev/null )
   # Install more python tools.
-  sudo apt-get -y install python3-dev python3-venv python3-pip
+  sudo apt-get -y install python3-dev python3-venv python3-pip >/dev/null
   # Enable python virtual environment.
   python3 -m venv .venv
   source .venv/bin/activate
   # Ensure that pip is installed.
-  sudo apt-get install -y pip
+  sudo apt-get install -y pip >/dev/null
   # python3 -m pip install --upgrade pip
   # python3 -m pip --version
   # Ensure that python-absl is installed.
-  pip install absl-py
+  pip install absl-py >/dev/null
   # Ensure that helm is installed
   which helm || (cd "${src_dir}" && (test -d "./helm" || git clone https://github.com/helm/helm.git) && cd helm && make && ls -lh bin/ && mkdir -pv ~/bin && cp -fv bin/helm ~/bin/ && chmod +x ~/bin/helm && export PATH=$PATH:$HOME/bin && echo $PATH && which helm && cd - && cd -)
   # for some reason, the above is unable to update the value of $PATH, so doing it explicitly below.
   export PATH=$PATH:$HOME/bin
-  which helm
+  which helm >/dev/null
   # Ensure that kubectl is installed
   if ! which kubectl; then
     # Install the latest gcloud cli. Find full instructions at https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl .
@@ -269,42 +311,40 @@ function installDependencies() {
     # Add the gcloud CLI distribution URI as a package source (Debian 9+ or Ubuntu 18.04+)
     echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
     # Update and install the gcloud CLI
-    sudo apt-get update
-    sudo apt-get install -y google-cloud-cli
+    sudo apt-get update >/dev/null
+    sudo apt-get install -y google-cloud-cli >/dev/null
     # install kubectl
-    gcloud components install kubectl || sudo apt-get install -y kubectl
+    gcloud components install kubectl >/dev/null || sudo apt-get install -y kubectl >/dev/null
     kubectl version --client
   fi
   # Ensure that gke-gcloud-auth-plugin is installed.
-  gke-gcloud-auth-plugin --version || ((gcloud components install gke-gcloud-auth-plugin || sudo apt-get install -y google-cloud-cli-gke-gcloud-auth-plugin) && gke-gcloud-auth-plugin --version)
+  gke-gcloud-auth-plugin --version || ((gcloud components install gke-gcloud-auth-plugin >/dev/null || sudo apt-get install -y google-cloud-cli-gke-gcloud-auth-plugin >/dev/null) && gke-gcloud-auth-plugin --version)
   # Ensure that docker is installed.
   if ! which docker ; then
-    sudo apt install apt-transport-https ca-certificates curl software-properties-common -y
+    sudo apt install apt-transport-https ca-certificates curl software-properties-common -y >/dev/null
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
     sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable"
     apt-cache policy docker-ce
-    sudo apt install docker-ce -y
+    sudo apt install docker-ce -y >/dev/null
   fi
   # Install mash, as it is needed for fetching cpu/memory values for test runs
   # in cloudtop. Even if mash install fails, don't panic, go ahead and install
   # google-cloud-monitoring as an alternative.
-  which mash || sudo apt-get install -y monarch-tools || true
+  which mash || sudo apt-get install -y monarch-tools >/dev/null || true
   # Ensure that gcloud monitoring tools are installed. This is alternative to
   # mash on gce vm.
   # pip install --upgrade google-cloud-storage
   # pip install --ignore-installed --upgrade google-api-python-client
   # pip install --ignore-installed --upgrade google-cloud
-  pip install --upgrade google-cloud-monitoring
+  pip install --upgrade google-cloud-monitoring >/dev/null
   # Ensure that jq is installed.
-  which jq || sudo apt-get install -y jq
+  which jq || sudo apt-get install -y jq >/dev/null
   # Ensure sudoless docker is installed.
   if ! docker ps 1>/dev/null ; then
     echoerror "sudoless docker is not installed on this machine ($(hostname)). Please install sudoless-docker using the following commands and re-run this script ($0)"
     echoerror "sudo addgroup docker && sudo usermod -aG docker $USER && newgrp docker"
     return 1
   fi
-  # Install python modules for gsheet.
-  python3 -m pip install google-api-python-client
 }
 
 # Make sure you have access to the necessary GCP resources. The easiest way to enable it is to use <your-ldap>@google.com as active auth.
@@ -462,20 +502,12 @@ function ensureRequiredNodePoolConfiguration() {
   fi
 }
 
-function enableManagedCsiDriverIfNeeded() {
-  if ${use_custom_csi_driver}; then
-    printf "\nDisabling csi add-on ...\n\n"
-    gcloud -q container clusters update ${cluster_name} \
+function enableManagedCsiDriver() {
+  printf "\nEnabling csi add-on ...\n\n"
+  gcloud -q container clusters update ${cluster_name} \
     --project=${project_id} \
-    --update-addons GcsFuseCsiDriver=DISABLED \
+    --update-addons GcsFuseCsiDriver=ENABLED \
     --location=${zone}
-  else
-    printf "\nEnabling csi add-on ...\n\n"
-    gcloud -q container clusters update ${cluster_name} \
-      --project=${project_id} \
-      --update-addons GcsFuseCsiDriver=ENABLED \
-      --location=${zone}
-  fi
 }
 
 function activateCluster() {
@@ -518,10 +550,7 @@ uuid() {
 }
 
 function createCustomCsiDriverIfNeeded() {
-  if ${use_custom_csi_driver}; then
-    echo "Disabling managed CSI driver ..."
-    gcloud -q container clusters update ${cluster_name} --project=${project_id} --update-addons GcsFuseCsiDriver=DISABLED --location=${zone}
-
+  if ${use_custom_csi_driver} && test -z "${applied_custom_csi_driver}"; then
     printf "\nCreating a new custom CSI driver ...\n\n"
 
     # Create a bucket (if needed) for storing GCSFuse binaries.
@@ -554,7 +583,6 @@ function createCustomCsiDriverIfNeeded() {
     # Build and install csi driver
     ensureGcsFuseCsiDriverCode
     cd "${csi_src_dir}"
-    make uninstall || true
     make generate-spec-yaml
     printf "\nBuilding a new custom CSI driver using the above GCSFuse binary ...\n\n"
     registry=gcr.io/${project_id}/${USER}/${cluster_name}
@@ -566,20 +594,17 @@ function createCustomCsiDriverIfNeeded() {
     fi
     stagingversion=$(uuid)
     make build-image-and-push-multi-arch REGISTRY=${registry} GCSFUSE_PATH=gs://${package_bucket} STAGINGVERSION=${stagingversion}
-    printf "\nInstalling the new custom CSI driver built above ...\n\n"
-    make install PROJECT=${project_id} REGISTRY=${registry} STAGINGVERSION=${stagingversion}
-    cd -
 
-    # Wait some time after csi driver installation before deploying pods
-    # to avoid failures caused by 'the webhook failed to inject the
-    # sidecar container into the Pod spec' error.
-    printf "\nSleeping 30 seconds after csi custom driver installation before deploying pods ...\n\n"
+    readonly subregistry=gcs-fuse-csi-driver-sidecar-mounter
+    applied_custom_csi_driver=${registry}/${subregistry}:${stagingversion}
+    printf "\n\nCreated custom csi driver \" ${applied_custom_csi_driver} \" . To use it in future runs, please pass environment variable \" custom_csi_driver=${applied_custom_csi_driver} \" .\n\n"
+
+    # Verify that the csi-driver image is a good image to use..
+    printf "\nVerifying that ${applied_custom_csi_driver} is a valid GCSFuse csi driver image ...\n\n"
     sleep 30
+    verify_csi_driver_image ${applied_custom_csi_driver}
 
-  else
-    echo ""
-    echo "Enabling managed CSI driver ..."
-    gcloud -q container clusters update ${cluster_name} --project=${project_id} --update-addons GcsFuseCsiDriver=ENABLED --location=${zone}
+    cd -
   fi
 }
 
@@ -597,12 +622,17 @@ function deleteAllPods() {
 
 function deployAllFioHelmCharts() {
   printf "\nDeploying all fio helm charts ...\n\n"
-  cd "${gke_testing_dir}"/examples/fio && python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" --project-id=${project_id} --project-number=${project_number} --namespace=${appnamespace} --ksa=${ksa} && cd -
+  cd "${gke_testing_dir}"/examples/fio
+  python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" --project-id=${project_id} --project-number=${project_number} --namespace=${appnamespace} --ksa=${ksa} --custom-csi-driver=${applied_custom_csi_driver}
+  cd -
 }
 
 function deployAllDlioHelmCharts() {
   printf "\nDeploying all dlio helm charts ...\n\n"
-  cd "${gke_testing_dir}"/examples/dlio && python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" --project-id=${project_id} --project-number=${project_number} --namespace=${appnamespace} --ksa=${ksa} && cd -
+  cd "${gke_testing_dir}"/examples/dlio
+  python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" --project-id=${project_id} --project-number=${project_number} --namespace=${appnamespace} --ksa=${ksa} --custom-csi-driver=${applied_custom_csi_driver}
+
+  cd -
 }
 
 function waitTillAllPodsComplete() {
@@ -638,25 +668,30 @@ function waitTillAllPodsComplete() {
       printf "\nAll pods have completed.\n\n"
       break
     else
-      printf "\n${num_noncompleted_pods} pod(s) is/are still pending/running (time till timeout=${time_till_timeout} seconds). Will check again in "${pod_wait_time_in_seconds}" seconds. Sleeping for now.\n\n"
-      printf "\nYou can take a break too if you want. Just kill this run and connect back to it later, for fetching and parsing outputs, using the following command: \n"
-      printf "   only_parse=true instance_id=${instance_id} project_id=${project_id} project_number=${project_number} zone=${zone} machine_type=${machine_type} use_custom_csi_driver=${use_custom_csi_driver} gcsfuse_src_dir=\"${gcsfuse_src_dir}\" "
-      if test -d "${csi_src_dir}"; then
-        printf "csi_src_dir=\"${csi_src_dir}\" "
+      message="\n${num_noncompleted_pods} pod(s) is/are still pending/running (time till timeout=${time_till_timeout} seconds). Will check again in "${pod_wait_time_in_seconds}" seconds. Sleeping for now.\n\n"
+      message+="\nYou can take a break too if you want. Just kill this run and connect back to it later, for fetching and parsing outputs, using the following command: \n\n"
+      message+="   only_parse=true instance_id=${instance_id} project_id=${project_id} project_number=${project_number} zone=${zone} machine_type=${machine_type}"
+      message+=" use_custom_csi_driver=${use_custom_csi_driver}"
+      if test -n "${custom_csi_driver}"; then
+        message+=" custom_csi_driver=${custom_csi_driver}"
       fi
-      printf "pod_wait_time_in_seconds=${pod_wait_time_in_seconds} pod_timeout_in_seconds=${pod_timeout_in_seconds} workload_config=\"${workload_config}\" cluster_name=${cluster_name} output_dir=\"${output_dir}\" output_gsheet_id=\"${output_gsheet_id}\" output_gsheet_keyfile=\"${output_gsheet_keyfile}\" $0 \n"
-      printf "\nbut remember that this will reset the start-timer for pod timeout.\n\n"
-      printf "\nTo ssh to any specific pod, use the following command: \n"
-      printf "  gcloud container clusters get-credentials ${cluster_name} --location=${zone}\n"
-      printf "  kubectl config set-context --current --namespace=${appnamespace}\n"
-      printf "  kubectl exec -it pods/<podname> [-c {gke-gcsfuse-sidecar|fio-tester|dlio-tester}] --namespace=${appnamespace} -- /bin/bash \n"
-      printf "\nTo view cpu/memory usage of different pods/containers: \n"
-      printf "  kubectl top pod [<podname>] --namespace=${appnamespace} [--containers] \n"
-      printf "\nTo view the latest status of all the pods in this cluster/namespace: \n"
-      printf "  kubectl get pods --namespace=${appnamespace} [-o wide] [--watch] \n"
-      printf "\nTo output the configuration of all or one of the pods in this cluster/namespace (useful for debugging): \n"
-      printf "  kubectl get [pods or pods/<podname>] --namespace=${appnamespace} -o yaml \n"
-      printf "\n\n\n"
+      message+=" gcsfuse_src_dir=\"${gcsfuse_src_dir}\" "
+      if test -d "${csi_src_dir}"; then
+        message+="csi_src_dir=\"${csi_src_dir}\" "
+      fi
+      message+="pod_wait_time_in_seconds=${pod_wait_time_in_seconds} pod_timeout_in_seconds=${pod_timeout_in_seconds} workload_config=\"${workload_config}\" cluster_name=${cluster_name} output_dir=\"${output_dir}\" $0 \n"
+      message+="\nbut remember that this will reset the start-timer for pod timeout.\n\n"
+      message+="\nTo ssh to any specific pod, use the following command: \n"
+      message+="  gcloud container clusters get-credentials ${cluster_name} --location=${zone}\n"
+      message+="  kubectl config set-context --current --namespace=${appnamespace}\n"
+      message+="  kubectl exec -it pods/<podname> [-c {gke-gcsfuse-sidecar|fio-tester|dlio-tester}] --namespace=${appnamespace} -- /bin/bash \n"
+      message+="\nTo view cpu/memory usage of different pods/containers: \n"
+      message+="  kubectl top pod [<podname>] --namespace=${appnamespace} [--containers] \n"
+      message+="\nTo view the latest status of all the pods in this cluster/namespace: \n"
+      message+="  kubectl get pods --namespace=${appnamespace} [-o wide] [--watch] \n"
+      message+="\nTo output the configuration of all or one of the pods in this cluster/namespace (useful for debugging): \n"
+      message+="  kubectl get [pods or pods/<podname>] --namespace=${appnamespace} -o yaml \n"
+      printf "${message}\n\n\n"
     fi
     sleep ${pod_wait_time_in_seconds}
     unset podslist # necessary to update the value of podslist every iteration
@@ -689,7 +724,7 @@ if test -z ${only_parse} || ! ${only_parse} ; then
   ensureGcpAuthsAndConfig
   ensureGkeCluster
   # ensureRequiredNodePoolConfiguration
-  enableManagedCsiDriverIfNeeded
+  enableManagedCsiDriver
   activateCluster
   createKubernetesServiceAccountForCluster
 
@@ -714,3 +749,7 @@ deleteAllPods
 # parse outputs
 fetchAndParseFioOutputs
 fetchAndParseDlioOutputs
+
+if test -z "${custom_csi_driver}" && test -n "${applied_custom_csi_driver}"; then
+  printf "\nTo reuse this custom CSI driver in future runs, pass environment variable \" custom_csi_driver=${applied_custom_csi_driver} \" .\n\n"
+fi

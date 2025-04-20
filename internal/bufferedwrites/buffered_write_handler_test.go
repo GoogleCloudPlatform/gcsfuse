@@ -15,12 +15,15 @@
 package bufferedwrites
 
 import (
+	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
@@ -30,6 +33,8 @@ import (
 )
 
 const chunkTransferTimeoutSecs int64 = 10
+
+var errUploadFailure = errors.New("error while uploading object to GCS")
 
 type BufferedWriteTest struct {
 	bwh BufferedWriteHandler
@@ -41,7 +46,12 @@ func TestBufferedWriteTestSuite(t *testing.T) {
 }
 
 func (testSuite *BufferedWriteTest) SetupTest() {
-	bucket := fake.NewFakeBucket(timeutil.RealClock(), "FakeBucketName", gcs.BucketType{})
+	bucketType := gcs.BucketType{}
+	testSuite.setupTestWithBucketType(bucketType)
+}
+
+func (testSuite *BufferedWriteTest) setupTestWithBucketType(bucketType gcs.BucketType) {
+	bucket := fake.NewFakeBucket(timeutil.RealClock(), "FakeBucketName", bucketType)
 	bwh, err := NewBWHandler(&CreateBWHandlerRequest{
 		Object:                   nil,
 		ObjectName:               "testObject",
@@ -161,12 +171,12 @@ func (testSuite *BufferedWriteTest) TestWriteWithSignalUploadFailureInBetween() 
 	assert.Equal(testSuite.T(), bwhImpl.mtime, fileInfo.Mtime)
 	assert.Equal(testSuite.T(), int64(5), fileInfo.TotalSize)
 
-	// Close the channel to simulate failure in uploader.
-	close(bwhImpl.uploadHandler.SignalUploadFailure())
+	// Set an error to simulate failure in uploader.
+	bwhImpl.uploadHandler.uploadError.Store(&errUploadFailure)
 
 	err = testSuite.bwh.Write([]byte("hello"), 5)
 	require.Error(testSuite.T(), err)
-	assert.Equal(testSuite.T(), err, ErrUploadFailure)
+	assert.Equal(testSuite.T(), err, errUploadFailure)
 }
 
 func (testSuite *BufferedWriteTest) TestWriteAtTruncatedOffset() {
@@ -237,12 +247,12 @@ func (testSuite *BufferedWriteTest) TestFlushWithSignalUploadFailureDuringWrite(
 	require.Nil(testSuite.T(), err)
 	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
 
-	// Close the channel to simulate failure in uploader.
-	close(bwhImpl.uploadHandler.SignalUploadFailure())
+	// Set an error to simulate failure in uploader.
+	bwhImpl.uploadHandler.uploadError.Store(&errUploadFailure)
 
 	obj, err := testSuite.bwh.Flush()
 	require.Error(testSuite.T(), err)
-	assert.Equal(testSuite.T(), err, ErrUploadFailure)
+	assert.Equal(testSuite.T(), err, errUploadFailure)
 	assert.Nil(testSuite.T(), obj)
 }
 
@@ -251,20 +261,20 @@ func (testSuite *BufferedWriteTest) TestFlushWithMultiBlockWritesAndSignalUpload
 	assert.NoError(testSuite.T(), err)
 	// Upload and sync 5 blocks.
 	testSuite.TestSync5InProgressBlocks()
-	// Close the channel to simulate failure in uploader.
+	// Set an error to simulate failure in uploader.
 	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
-	close(bwhImpl.uploadHandler.SignalUploadFailure())
+	bwhImpl.uploadHandler.uploadError.Store(&errUploadFailure)
 	// Write 5 more blocks.
 	for i := 0; i < 5; i++ {
 		err := testSuite.bwh.Write(buffer, int64(blockSize*(i+5)))
 		require.Error(testSuite.T(), err)
-		assert.Equal(testSuite.T(), ErrUploadFailure, err)
+		assert.Equal(testSuite.T(), errUploadFailure, err)
 	}
 
 	obj, err := testSuite.bwh.Flush()
 
 	require.Error(testSuite.T(), err)
-	assert.Equal(testSuite.T(), err, ErrUploadFailure)
+	assert.Equal(testSuite.T(), err, errUploadFailure)
 	assert.Nil(testSuite.T(), obj)
 }
 
@@ -286,6 +296,68 @@ func (testSuite *BufferedWriteTest) TestSync5InProgressBlocks() {
 	assert.Equal(testSuite.T(), 0, len(bwhImpl.blockPool.FreeBlocksChannel()))
 }
 
+func (testSuite *BufferedWriteTest) TestSyncPartialBlockTableDriven() {
+	testCases := []struct {
+		name       string
+		bucketType gcs.BucketType
+		numBlocks  float32
+	}{
+		{
+			name:       "multi_regional_bucket_2.5_blocks",
+			bucketType: gcs.BucketType{},
+			numBlocks:  2.5,
+		},
+		{
+			name:       "multi_regional_bucket_.5_blocks",
+			bucketType: gcs.BucketType{},
+			numBlocks:  .5,
+		},
+		{
+			name:       "zonal_bucket_2.5_blocks",
+			bucketType: gcs.BucketType{Zonal: true},
+			numBlocks:  2.5,
+		},
+		{
+			name:       "zonal_bucket_.5_blocks",
+			bucketType: gcs.BucketType{Zonal: true},
+			numBlocks:  .5,
+		},
+	}
+
+	for _, tc := range testCases {
+		testSuite.T().Run(tc.name, func(t *testing.T) {
+			testSuite.setupTestWithBucketType(tc.bucketType)
+			buffer, err := operations.GenerateRandomData(int64(blockSize * tc.numBlocks))
+			assert.NoError(testSuite.T(), err)
+			err = testSuite.bwh.Write(buffer, 0)
+			require.Nil(testSuite.T(), err)
+
+			// Wait for 3 blocks to upload successfully.
+			err = testSuite.bwh.Sync()
+
+			assert.NoError(t, err)
+			assert.NoError(testSuite.T(), err)
+			bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
+			// Current block should also be uploaded.
+			assert.Nil(testSuite.T(), bwhImpl.current)
+			assert.Equal(testSuite.T(), 0, len(bwhImpl.uploadHandler.uploadCh))
+			assert.Equal(testSuite.T(), 0, len(bwhImpl.blockPool.FreeBlocksChannel()))
+			// Read the object from back door.
+			content, err := storageutil.ReadObject(context.Background(), bwhImpl.uploadHandler.bucket, bwhImpl.uploadHandler.objectName)
+			if tc.bucketType.Zonal {
+				require.NoError(testSuite.T(), err)
+				assert.Equal(testSuite.T(), buffer, content)
+			} else {
+				// Since the object is not finalized, the object will not be available
+				// on GCS for non-zonal buckets.
+				require.Error(t, err)
+				var notFoundErr *gcs.NotFoundError
+				assert.ErrorAs(t, err, &notFoundErr)
+			}
+		})
+	}
+}
+
 func (testSuite *BufferedWriteTest) TestSyncBlocksWithError() {
 	buffer, err := operations.GenerateRandomData(blockSize)
 	assert.NoError(testSuite.T(), err)
@@ -294,14 +366,14 @@ func (testSuite *BufferedWriteTest) TestSyncBlocksWithError() {
 		err = testSuite.bwh.Write(buffer, int64(blockSize*i))
 		require.Nil(testSuite.T(), err)
 	}
-	// Close the channel to simulate failure in uploader.
+	// Set an error to simulate failure in uploader.
 	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
-	close(bwhImpl.uploadHandler.SignalUploadFailure())
+	bwhImpl.uploadHandler.uploadError.Store(&errUploadFailure)
 
 	err = testSuite.bwh.Sync()
 
 	assert.Error(testSuite.T(), err)
-	assert.Equal(testSuite.T(), ErrUploadFailure, err)
+	assert.Equal(testSuite.T(), errUploadFailure, err)
 }
 
 func (testSuite *BufferedWriteTest) TestFlushWithNonZeroTruncatedLengthForEmptyObject() {
@@ -415,5 +487,5 @@ func (testSuite *BufferedWriteTest) TestReFlushAfterUploadFails() {
 
 	require.Error(testSuite.T(), err)
 	assert.Nil(testSuite.T(), obj)
-	assert.ErrorContains(testSuite.T(), err, ErrUploadFailure.Error())
+	assert.ErrorContains(testSuite.T(), err, errUploadFailure.Error())
 }

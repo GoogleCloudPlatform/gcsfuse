@@ -24,11 +24,15 @@ metadata:
   {{- end }}
 spec:
   restartPolicy: Never
-  activeDeadlineSeconds: 5000
+  activeDeadlineSeconds: 15000
   nodeSelector:
     cloud.google.com/gke-ephemeral-storage-local-ssd: "true"
     node.kubernetes.io/instance-type: {{ .Values.nodeType }}
   containers:
+  {{- if not (eq .Values.gcsfuse.customCSIDriver "")  }}
+  - name: gke-gcsfuse-sidecar
+    image: {{ .Values.gcsfuse.customCSIDriver }}
+  {{- end }}
   - name: dlio-tester
     image: {{ .Values.image }}
     ports:
@@ -88,7 +92,7 @@ spec:
         echo "Testing {{ .Values.scenario }}"
         mpirun -np 8 dlio_benchmark workload=unet3d_a100 \
         ++workload.workflow.generate_data=True \
-        ++workload.train.epochs=4 \
+        ++workload.train.epochs={{ .Values.numEpochs }} \
         ++workload.workflow.profiling=True \
         ++workload.profiling.profiler=iostat \
         ++workload.profiling.iostat_devices=[md0] \
@@ -127,26 +131,4 @@ spec:
       volumeAttributes:
         bucketName: {{ .Values.bucketName }}
         mountOptions: "{{ .Values.gcsfuse.mountOptions }}"
-  {{- else if eq .Values.scenario "gcsfuse-file-cache" }}
-    csi:
-      driver: gcsfuse.csi.storage.gke.io
-      volumeAttributes:
-        bucketName: {{ .Values.bucketName }}
-        metadataCacheTTLSeconds: "{{ .Values.gcsfuse.metadataCacheTTLSeconds }}"
-        metadataTypeCacheCapacity: "{{ .Values.gcsfuse.metadataTypeCacheCapacity }}"
-        metadataStatCacheCapacity: "{{ .Values.gcsfuse.metadataStatCacheCapacity }}"
-        fileCacheCapacity: "{{ .Values.gcsfuse.fileCacheCapacity }}"
-        fileCacheForRangeRead: "{{ .Values.gcsfuse.fileCacheForRangeRead }}"
-        gcsfuseLoggingSeverity: "debug"
-        mountOptions: implicit-dirs
-  {{- else }}
-    csi:
-      driver: gcsfuse.csi.storage.gke.io
-      volumeAttributes:
-        bucketName: {{ .Values.bucketName }}
-        metadataCacheTTLSeconds: "{{ .Values.gcsfuse.metadataCacheTTLSeconds }}"
-        metadataTypeCacheCapacity: "{{ .Values.gcsfuse.metadataTypeCacheCapacity }}"
-        metadataStatCacheCapacity: "{{ .Values.gcsfuse.metadataStatCacheCapacity }}"
-        gcsfuseLoggingSeverity: "debug"
-        mountOptions: implicit-dirs
   {{- end }}

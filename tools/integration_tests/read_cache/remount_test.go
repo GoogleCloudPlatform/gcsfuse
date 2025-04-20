@@ -18,7 +18,6 @@ import (
 	"context"
 	"log"
 	"path"
-	"strings"
 	"testing"
 	"time"
 
@@ -48,9 +47,7 @@ func (s *remountTest) Setup(t *testing.T) {
 }
 
 func (s *remountTest) Teardown(t *testing.T) {
-	if t.Failed() {
-		setup.SaveLogFileToKOKOROArtifact("gcsfuse-failed-integration-test-logs-" + strings.Replace(t.Name(), "/", "-", -1))
-	}
+	setup.SaveGCSFuseLogFileInCaseOfFailure(t)
 	setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 }
 
@@ -96,7 +93,11 @@ func (s *remountTest) TestCacheIsNotReusedOnDynamicRemount(t *testing.T) {
 	testBucket1 := setup.TestBucket()
 	testFileName1 := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 	testBucket2 := dynamic_mounting.CreateTestBucketForDynamicMounting(ctx, storageClient)
-	defer dynamic_mounting.DeleteTestBucketForDynamicMounting(ctx, storageClient, testBucket2)
+	defer func() {
+		if err := client.DeleteBucket(ctx, storageClient, testBucket2); err != nil {
+			t.Logf("Failed to delete test bucket %s.Error : %v", testBucket1, err)
+		}
+	}()
 	setup.SetDynamicBucketMounted(testBucket2)
 	defer setup.SetDynamicBucketMounted("")
 	// Introducing a sleep of 10 seconds after bucket creation to address propagation delays.

@@ -95,10 +95,8 @@ def createOutputScenariosFromDownloadedFiles(args: dict) -> dict:
         "num_files_train": str
         "batch_size": str
         "records":
-            "local-ssd": [record1, record2, record3, record4]
-            "gcsfuse-generic": [record1, record2, record3, record4]
-            "gcsfuse-file-cache": [record1, record2, record3, record4]
-            "gcsfuse-no-file-cache": [record1, record2, record3, record4]
+            "local-ssd": [record1, record2, record3, ...]
+            "gcsfuse-generic": [record1, record2, record3, ...]
   """
 
   output = {}
@@ -145,8 +143,6 @@ def createOutputScenariosFromDownloadedFiles(args: dict) -> dict:
               "records": {
                   "local-ssd": [],
                   "gcsfuse-generic": [],
-                  "gcsfuse-file-cache": [],
-                  "gcsfuse-no-file-cache": [],
               },
           }
 

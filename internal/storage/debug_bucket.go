@@ -156,13 +156,6 @@ func setupReader(ctx context.Context, b *debugBucket, req *gcs.ReadObjectRequest
 	return rc, err
 }
 
-func (b *debugBucket) NewReader(
-	ctx context.Context,
-	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
-	rc, err = setupReader(ctx, b, req, "Read")
-	return
-}
-
 func (b *debugBucket) NewReaderWithReadHandle(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (rd gcs.StorageReader, err error) {
@@ -193,6 +186,14 @@ func (b *debugBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gcs.
 	defer b.finishRequest(id, desc, start, &err)
 
 	o, err = b.wrapped.FinalizeUpload(ctx, w)
+	return
+}
+
+func (b *debugBucket) FlushPendingWrites(ctx context.Context, w gcs.Writer) (offset int64, err error) {
+	id, desc, start := b.startRequest("FlushPendingWrites(%q)", w.ObjectName())
+	defer b.finishRequest(id, desc, start, &err)
+
+	offset, err = b.wrapped.FlushPendingWrites(ctx, w)
 	return
 }
 

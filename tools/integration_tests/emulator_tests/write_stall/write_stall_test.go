@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package emulator_tests
+package write_stall
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -24,14 +23,11 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
-const port = 8020
-
 var (
 	testDirPath string
 	mountFunc   func([]string) error
 	// root directory is the directory to be unmounted.
-	rootDir       string
-	proxyEndpoint = fmt.Sprintf("http://localhost:%d/storage/v1/b?project=test-project", port)
+	rootDir string
 )
 
 func TestMain(m *testing.M) {

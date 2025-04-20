@@ -17,7 +17,10 @@ package fs_test
 import (
 	"os"
 	"path"
+	"syscall"
+	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/stretchr/testify/assert"
@@ -35,26 +38,76 @@ type staleFileHandleCommon struct {
 }
 
 // //////////////////////////////////////////////////////////////////////
+// Helpers
+// //////////////////////////////////////////////////////////////////////
+
+func commonServerConfig() *cfg.Config {
+	return &cfg.Config{
+		FileSystem: cfg.FileSystemConfig{
+			PreconditionErrors: true,
+		},
+		MetadataCache: cfg.MetadataCacheConfig{
+			TtlSecs: 0,
+		},
+	}
+
+}
+
+func clobberFile(t *testing.T, fileName, content string) {
+	t.Helper()
+	_, err := storageutil.CreateObject(
+		ctx,
+		bucket,
+		fileName,
+		[]byte(content))
+	assert.NoError(t, err)
+}
+
+func createGCSObject(t *testing.T, fileName, content string) *os.File {
+	t.Helper()
+	_, err := storageutil.CreateObject(
+		ctx,
+		bucket,
+		fileName,
+		[]byte(content))
+	assert.NoError(t, err)
+	// Open file handle to read or write.
+	fh, err := os.OpenFile(path.Join(mntDir, fileName), os.O_RDWR|syscall.O_DIRECT, filePerms)
+	assert.NoError(t, err)
+	return fh
+}
+
+func (t *staleFileHandleCommon) SetupSuite() {
+	t.serverCfg.NewConfig = commonServerConfig()
+	t.fsTest.SetUpTestSuite()
+}
+
+func (t *staleFileHandleCommon) TearDownTest() {
+	// fsTest Cleanups to clean up mntDir and close t.f1 and t.f2.
+	t.fsTest.TearDown()
+}
+
+func (t *staleFileHandleCommon) TearDownSuite() {
+	t.fsTest.TearDownTestSuite()
+}
+
+// //////////////////////////////////////////////////////////////////////
 // Tests
 // //////////////////////////////////////////////////////////////////////
+
 func (t *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHandleError() {
 	// Dirty the file by giving it some contents.
 	n, err := t.f1.Write([]byte("taco"))
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), 4, n)
 	// Replace the underlying object with a new generation.
-	_, err = storageutil.CreateObject(
-		ctx,
-		bucket,
-		"foo",
-		[]byte("foobar"))
-	assert.NoError(t.T(), err)
+	clobberFile(t.T(), "foo", "foobar")
 
 	err = t.f1.Sync()
 
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
+	operations.ValidateESTALEError(t.T(), err)
 	err = t.f1.Close()
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
+	operations.ValidateESTALEError(t.T(), err)
 	// Make f1 nil, so that another attempt is not taken in TearDown to close the
 	// file.
 	t.f1 = nil
@@ -80,7 +133,7 @@ func (t *staleFileHandleCommon) TestFileDeletedLocallySyncAndCloseDoNotThrowErro
 	assert.NoError(t.T(), err)
 
 	operations.SyncFile(t.f1, t.T())
-	operations.CloseFile(t.f1)
+	operations.CloseFileShouldNotThrowError(t.T(), t.f1)
 
 	// Make f1 nil, so that another attempt is not taken in TearDown to close the
 	// file.

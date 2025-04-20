@@ -659,22 +659,6 @@ func (b *bucket) ListObjects(
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *bucket) NewReader(
-	ctx context.Context,
-	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	r, _, err := b.newReaderLocked(req)
-	if err != nil {
-		return
-	}
-
-	rc = io.NopCloser(r)
-	return
-}
-
-// LOCKS_EXCLUDED(b.mu)
 func (b *bucket) NewReaderWithReadHandle(ctx context.Context, req *gcs.ReadObjectRequest) (rd gcs.StorageReader, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -705,6 +689,18 @@ func (b *bucket) CreateObject(
 
 func (b *bucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, _ int, _ func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
 	return NewFakeObjectWriter(b, req)
+}
+
+func (b *bucket) FlushPendingWrites(ctx context.Context, w gcs.Writer) (int64, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	offset, err := w.Flush()
+	if err != nil {
+		return 0, err
+	}
+
+	return offset, nil
 }
 
 func (b *bucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.MinObject, error) {

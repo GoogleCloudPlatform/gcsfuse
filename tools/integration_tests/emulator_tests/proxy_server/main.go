@@ -20,31 +20,46 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 )
 
+const PortAndProxyProcessIdInfoLogFormat = "Listening Proxy Server On Port [%s] with Process ID [%d]"
+
 var (
 	// Flag to accept config-file path.
 	fConfigPath = flag.String("config-path", "configs/config.yaml", "Path to the file")
-	// Flag to turn on fDebug logs.
-	// TODO: We can add support for specifying a log path for fDebug logs in a future update.
-	fDebug = flag.Bool("debug", false, "Enable proxy server fDebug logs.")
+	// Flag to turn on/off fDebug logs.
+	fDebug = flag.Bool("debug", true, "Enable proxy server fDebug logs.")
+	// Log file to write proxy server logs.
+	fLogFilePath = flag.String("log-file", "", "Path to the log file")
 	// Initialized before the server gets started.
 	gConfig    *Config
 	gOpManager *OperationManager
+	// Port number assigned to listener.
+	gPort string
 )
-
-// Host address of the proxy server.
-// TODO: Allow this value to be configured via a command-line flag.
-const Port = "8020"
 
 type ProxyHandler struct {
 	http.Handler
+}
+
+// logRequestAndType is used for logging the request on proxy server.
+// More fields can be added or removed as per requirement for debugging purpose.
+func logRequestAndType(req *http.Request, r RequestType) {
+	// Print empty lines to separate each request in log.
+	log.Println("")
+	log.Println("")
+	log.Printf("RequestType: %s\n", r)
+	log.Printf("URL: %s\n", req.URL.String())
+	log.Printf("Content-Length: %s\n", req.Header.Get("Content-Length"))
+	log.Printf("Content-Range: %s\n", req.Header.Get("Content-Range"))
 }
 
 // AddRetryID creates mock error behavior on the target host for specific request types.
@@ -55,6 +70,12 @@ type ProxyHandler struct {
 // This function is used to simulate error scenarios for testing retry mechanisms.
 func AddRetryID(req *http.Request, r RequestTypeAndInstruction) error {
 	plantOp := gOpManager.retrieveOperation(r.RequestType)
+	if *fDebug {
+		logRequestAndType(req, r.RequestType)
+		if plantOp != "" {
+			log.Println("Planting operation: ", plantOp)
+		}
+	}
 	if plantOp != "" {
 		testID, err := CreateRetryTest(gConfig.TargetHost, map[string][]string{r.Instruction: {plantOp}})
 		if err != nil {
@@ -92,7 +113,9 @@ func (ph ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Send the request to the target server
 	client := &http.Client{}
+	start := time.Now()
 	resp, err := client.Do(req)
+	elapsed := time.Since(start)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -110,7 +133,7 @@ func (ph ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		u.Host = "localhost:" + Port
+		u.Host = "localhost:" + gPort
 		resp.Header.Set("Location", u.String())
 	}
 
@@ -129,44 +152,54 @@ func (ph ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Error in coping response body: %v", err)
 	}
+	if *fDebug {
+		log.Printf("Respnse Status: %d\n", resp.StatusCode)
+		log.Printf("Elapsed Time: %.3fs\n", elapsed.Seconds())
+	}
 }
 
 // ProxyServer represents a simple proxy server over GCS storage based API endpoint.
 type ProxyServer struct {
-	port     string
 	server   *http.Server
 	shutdown chan os.Signal
 }
 
 // NewProxyServer creates a new ProxyServer instance
-func NewProxyServer(port string) *ProxyServer {
+func NewProxyServer() *ProxyServer {
 	return &ProxyServer{
-		port:     port,
 		shutdown: make(chan os.Signal, 1),
 	}
 }
 
 // Start starts the proxy server.
 func (ps *ProxyServer) Start() {
+	//  Create a listener on random available port.
+	listener, err := net.Listen("tcp", ":0")
+	if err != nil {
+		log.Fatalf("Error on listening: %v", err)
+	}
+	gPort = strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
+	// Log port number and proxy process Id for the proxy server.
+	log.Printf(PortAndProxyProcessIdInfoLogFormat, gPort, os.Getpid())
 	ps.server = &http.Server{
-		Addr:    ":" + ps.port,
+		Addr:    ":" + gPort,
 		Handler: ProxyHandler{},
 	}
 
 	// Start the server in a new goroutine
 	go func() {
-		log.Printf("Proxy server started on port %s\n", ps.port)
-		if err := ps.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := ps.server.Serve(listener); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Server error: %v", err)
 		}
 	}()
 
 	// Handle graceful shutdown
 	signal.Notify(ps.shutdown, syscall.SIGINT, syscall.SIGTERM)
+	// Blocks until one of the Signal is recieved.
 	<-ps.shutdown
 	log.Println("Shutting down proxy server...")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	if err := ps.server.Shutdown(ctx); err != nil {
@@ -187,12 +220,24 @@ func main() {
 		os.Exit(1)
 	}
 
+	if *fLogFilePath == "" {
+		log.Println("No log file path for proxy server provided.")
+		os.Exit(1)
+	}
+	logFile, err := os.OpenFile(*fLogFilePath, os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		log.Printf("Error opening log file: %v\n", err)
+		os.Exit(1)
+	}
+	defer logFile.Close()
+	log.SetOutput(logFile)
+
 	if *fDebug {
-		log.Printf("%+v\n", gConfig)
+		printConfig(*gConfig)
 	}
 
 	gOpManager = NewOperationManager(*gConfig)
 
-	ps := NewProxyServer(Port)
+	ps := NewProxyServer()
 	ps.Start()
 }

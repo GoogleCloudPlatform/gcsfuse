@@ -55,15 +55,16 @@ func getConfigObjectWithConfigFile(t *testing.T, configFilePath string) (*cfg.Co
 func defaultFileCacheConfig(t *testing.T) cfg.FileCacheConfig {
 	t.Helper()
 	return cfg.FileCacheConfig{
-		CacheFileForRangeRead:    false,
-		DownloadChunkSizeMb:      50,
-		EnableCrc:                false,
-		EnableParallelDownloads:  false,
-		MaxParallelDownloads:     int64(max(16, 2*runtime.NumCPU())),
-		MaxSizeMb:                -1,
-		ParallelDownloadsPerFile: 16,
-		WriteBufferSize:          4 * 1024 * 1024,
-		EnableODirect:            false,
+		CacheFileForRangeRead:                  false,
+		DownloadChunkSizeMb:                    200,
+		EnableCrc:                              false,
+		EnableParallelDownloads:                false,
+		ExperimentalParallelDownloadsDefaultOn: true,
+		MaxParallelDownloads:                   int64(max(16, 2*runtime.NumCPU())),
+		MaxSizeMb:                              -1,
+		ParallelDownloadsPerFile:               16,
+		WriteBufferSize:                        4 * 1024 * 1024,
+		EnableODirect:                          false,
 	}
 }
 
@@ -353,15 +354,16 @@ func TestValidateConfigFile_FileCacheConfigSuccessful(t *testing.T) {
 			configFile: "testdata/valid_config.yaml",
 			expectedConfig: &cfg.Config{
 				FileCache: cfg.FileCacheConfig{
-					CacheFileForRangeRead:    true,
-					DownloadChunkSizeMb:      300,
-					EnableCrc:                true,
-					EnableParallelDownloads:  false,
-					MaxParallelDownloads:     200,
-					MaxSizeMb:                40,
-					ParallelDownloadsPerFile: 10,
-					WriteBufferSize:          8192,
-					EnableODirect:            true,
+					CacheFileForRangeRead:                  true,
+					DownloadChunkSizeMb:                    300,
+					EnableCrc:                              true,
+					EnableParallelDownloads:                false,
+					MaxParallelDownloads:                   200,
+					MaxSizeMb:                              40,
+					ParallelDownloadsPerFile:               10,
+					WriteBufferSize:                        8192,
+					EnableODirect:                          true,
+					ExperimentalParallelDownloadsDefaultOn: true,
 				},
 			},
 		},
@@ -517,7 +519,6 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 					TempDir:                "",
 					PreconditionErrors:     true,
 					Uid:                    -1,
-					HandleSigterm:          true,
 				},
 			},
 		},
@@ -537,7 +538,6 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 					TempDir:                "",
 					PreconditionErrors:     true,
 					Uid:                    -1,
-					HandleSigterm:          true,
 				},
 			},
 		},
@@ -557,7 +557,6 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 					TempDir:                cfg.ResolvedPath(path.Join(hd, "temp")),
 					PreconditionErrors:     false,
 					Uid:                    8,
-					HandleSigterm:          true,
 				},
 			},
 		},
@@ -713,7 +712,7 @@ func TestValidateConfigFile_GCSRetries(t *testing.T) {
 					MaxRetrySleep:            30 * time.Second,
 					Multiplier:               2,
 					ReadStall: cfg.ReadStallGcsRetriesConfig{
-						Enable:              false,
+						Enable:              true,
 						MinReqTimeout:       1500 * time.Millisecond,
 						MaxReqTimeout:       1200 * time.Second,
 						InitialReqTimeout:   20 * time.Second,
@@ -733,7 +732,7 @@ func TestValidateConfigFile_GCSRetries(t *testing.T) {
 					MaxRetrySleep:            30 * time.Second,
 					Multiplier:               2,
 					ReadStall: cfg.ReadStallGcsRetriesConfig{
-						Enable:              true,
+						Enable:              false,
 						MinReqTimeout:       10 * time.Second,
 						MaxReqTimeout:       200 * time.Second,
 						InitialReqTimeout:   20 * time.Second,
@@ -807,7 +806,6 @@ func TestValidateConfigFile_MetricsConfigSuccessful(t *testing.T) {
 				StackdriverExportInterval:      0,
 				CloudMetricsExportIntervalSecs: 0,
 				PrometheusPort:                 0,
-				EnableOtel:                     true,
 			},
 		},
 		{
@@ -815,7 +813,6 @@ func TestValidateConfigFile_MetricsConfigSuccessful(t *testing.T) {
 			configFile: "testdata/valid_config.yaml",
 			expectedConfig: &cfg.MetricsConfig{
 				CloudMetricsExportIntervalSecs: 10,
-				EnableOtel:                     true,
 			},
 		},
 	}

@@ -81,7 +81,7 @@ func (dt *downloaderTest) initJobTest(objectName string, objectContent []byte, s
 }
 
 func (dt *downloaderTest) verifyInvalidError(err error) {
-	AssertTrue((nil == err) || (errors.Is(err, context.Canceled)) || (strings.Contains(err.Error(), lru.EntryNotExistErrMsg)),
+	AssertTrue((nil == err) || (errors.Is(err, context.Canceled)) || errors.Is(err, lru.ErrEntryNotExist),
 		fmt.Sprintf("actual error:%v is not as expected", err))
 }
 
@@ -287,7 +287,7 @@ func (dt *downloaderTest) Test_updateStatusOffset_InsertNew() {
 	err = dt.job.updateStatusOffset(10)
 
 	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(), lru.EntryNotExistErrMsg))
+	AssertTrue(errors.Is(err, lru.ErrEntryNotExist))
 	// Confirm job's status offset
 	AssertEq(0, dt.job.status.Offset)
 }
@@ -313,7 +313,7 @@ func (dt *downloaderTest) Test_updateStatusOffset_Fail() {
 	err = dt.job.updateStatusOffset(15)
 
 	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(), lru.InvalidUpdateEntrySizeErrorMsg))
+	AssertTrue(errors.Is(err, lru.ErrInvalidUpdateEntrySize))
 	// Confirm job's status offset
 	AssertEq(0, dt.job.status.Offset)
 }
@@ -581,7 +581,7 @@ func (dt *downloaderTest) Test_Download_WhenAsyncFails() {
 	// Verify that jobStatus is failed
 	AssertEq(Failed, jobStatus.Name)
 	AssertGe(jobStatus.Offset, 0)
-	AssertTrue(strings.Contains(jobStatus.Err.Error(), lru.InvalidUpdateEntrySizeErrorMsg))
+	AssertTrue(errors.Is(jobStatus.Err, lru.ErrInvalidUpdateEntrySize))
 	// Verify callback is executed
 	AssertTrue(callbackExecuted.Load())
 }
@@ -592,7 +592,7 @@ func (dt *downloaderTest) Test_Download_AlreadyFailed() {
 	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize), func() {})
 	dt.job.mu.Lock()
-	dt.job.status = JobStatus{Failed, fmt.Errorf(lru.InvalidUpdateEntrySizeErrorMsg), 8}
+	dt.job.status = JobStatus{Failed, lru.ErrInvalidUpdateEntrySize, 8}
 	dt.job.mu.Unlock()
 
 	// Requesting again from download job which is in failed state
@@ -600,7 +600,7 @@ func (dt *downloaderTest) Test_Download_AlreadyFailed() {
 
 	AssertEq(nil, err)
 	AssertEq(Failed, jobStatus.Name)
-	AssertTrue(strings.Contains(jobStatus.Err.Error(), lru.InvalidUpdateEntrySizeErrorMsg))
+	AssertTrue(errors.Is(jobStatus.Err, lru.ErrInvalidUpdateEntrySize))
 }
 
 func (dt *downloaderTest) Test_Download_AlreadyInvalid() {
@@ -954,23 +954,23 @@ func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCRCIsFalse()
 }
 
 func (dt *downloaderTest) Test_validateCRC_WheContextIsCancelled() {
-	// objectName := "path/in/gcs/file2.txt"
-	// objectSize := 10 * util.MiB
-	// objectContent := testutil.GenerateRandomBytes(objectSize)
-	// dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(2*objectSize), func() {})
-	// // Start download
-	// offset := int64(10 * util.MiB)
-	// _, err := dt.job.Download(context.Background(), offset, true)
-	// AssertEq(nil, err)
-	// AssertTrue((dt.job.status.Name == Downloading) || (dt.job.status.Name == Completed), fmt.Sprintf("got job status: %v", dt.job.status.Name))
-	// AssertEq(nil, dt.job.status.Err)
-	// AssertGe(dt.job.status.Offset, offset)
+	objectName := "path/in/gcs/file2.txt"
+	objectSize := 10 * util.MiB
+	objectContent := testutil.GenerateRandomBytes(objectSize)
+	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(2*objectSize), func() {})
+	// Start download
+	offset := int64(10 * util.MiB)
+	_, err := dt.job.Download(context.Background(), offset, true)
+	AssertEq(nil, err)
+	AssertTrue((dt.job.status.Name == Downloading) || (dt.job.status.Name == Completed), fmt.Sprintf("got job status: %v", dt.job.status.Name))
+	AssertEq(nil, dt.job.status.Err)
+	AssertGe(dt.job.status.Offset, offset)
 
-	// dt.job.cancelFunc()
-	// dt.waitForCrcCheckToBeCompleted()
+	dt.job.cancelFunc()
+	dt.waitForCrcCheckToBeCompleted()
 
-	// AssertEq(Invalid, dt.job.status.Name)
-	// dt.verifyInvalidError(dt.job.status.Err)
+	AssertEq(Invalid, dt.job.status.Name)
+	dt.verifyInvalidError(dt.job.status.Err)
 }
 
 func (dt *downloaderTest) Test_handleError_SetStatusAsInvalidWhenContextIsCancelled() {
@@ -1021,6 +1021,22 @@ func (dt *downloaderTest) Test_When_Parallel_Download_Is_Disabled() {
 	result := dt.job.IsParallelDownloadsEnabled()
 
 	AssertFalse(result)
+}
+
+func (dt *downloaderTest) Test_When_Experimental_Default_Parallel_Download_Explicitly_Set_On() {
+	//Arrange - initJobTest is being called in setup of downloader.go
+	dt.job.fileCacheConfig.ExperimentalParallelDownloadsDefaultOn = true
+
+	result := dt.job.IsExperimentalParallelDownloadsDefaultOn()
+
+	AssertTrue(result)
+}
+
+func (dt *downloaderTest) Test_When_Experimental_Default_Parallel_Download_On() {
+
+	result := dt.job.IsExperimentalParallelDownloadsDefaultOn()
+
+	AssertTrue(result)
 }
 
 func (dt *downloaderTest) Test_createCacheFile_WhenNonParallelDownloads() {

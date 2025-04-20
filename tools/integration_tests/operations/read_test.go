@@ -39,7 +39,7 @@ func TestReadAfterWrite(t *testing.T) {
 		}
 
 		// Closing file at the end
-		operations.CloseFile(tmpFile)
+		operations.CloseFileShouldNotThrowError(t, tmpFile)
 
 		fileName := tmpFile.Name()
 

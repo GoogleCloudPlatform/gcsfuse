@@ -53,7 +53,7 @@ func readAndCompare(t *testing.T, filePathInMntDir string, filePathInLocalDisk s
 	if err != nil {
 		t.Fatalf("error in opening file from mounted directory :%d", err)
 	}
-	defer operations.CloseFile(mountedFile)
+	defer operations.CloseFileShouldNotThrowError(t, mountedFile)
 
 	// Perform 5 reads on each file.
 	numberOfReads := 5

@@ -15,6 +15,7 @@
 package handle
 
 import (
+	"errors"
 	"fmt"
 	"io"
 
@@ -116,6 +117,13 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 	// state, or clear fh.reader if it's not possible to create one (probably
 	// because the inode is dirty).
 	fh.inode.Lock()
+	// Ensure all pending writes to Zonal Buckets are flushed before issuing a read.
+	err = fh.inode.SyncPendingBufferedWrites()
+	if err != nil {
+		fh.inode.Unlock()
+		err = fmt.Errorf("fh.inode.SyncPendingBufferedWrites: %w", err)
+		return
+	}
 	err = fh.tryEnsureReader(ctx, sequentialReadSizeMb)
 	if err != nil {
 		fh.inode.Unlock()
@@ -133,7 +141,8 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 		var objectData gcsx.ObjectData
 		objectData, err = fh.reader.ReadAt(ctx, dst, offset)
 		switch {
-		case err == io.EOF:
+		case errors.Is(err, io.EOF):
+			err = io.EOF
 			return
 
 		case err != nil:

@@ -17,9 +17,11 @@ package streaming_writes
 import (
 	"os"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/local_file"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_suite"
+	"github.com/stretchr/testify/require"
 )
 
 type defaultMountCommonTest struct {
@@ -27,6 +29,7 @@ type defaultMountCommonTest struct {
 	fileName string
 	// filePath of the above file in the mounted directory.
 	filePath string
+	data     string
 	test_suite.TestifySuite
 }
 
@@ -36,11 +39,22 @@ func (t *defaultMountCommonTest) SetupSuite() {
 	SetStorageClient(storageClient)
 	SetTestDirName(testDirName)
 
-	flags := []string{"--rename-dir-limit=3", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=2"}
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 	testDirPath = setup.SetupTestDirectory(testDirName)
+	t.data = setup.GenerateRandomString(5 * util.MiB)
 }
 
 func (t *defaultMountCommonTest) TearDownSuite() {
 	setup.UnmountGCSFuse(rootDir)
+}
+
+func (t *defaultMountCommonTest) validateReadCall(filePath string) {
+	_, err := os.ReadFile(filePath)
+	if setup.IsZonalBucketRun() {
+		// TODO(b/410698332): Remove skip condition once reads start working.
+		t.T().Skip("Skipping Zonal Bucket Read tests.")
+		require.NoError(t.T(), err)
+	} else {
+		require.Error(t.T(), err)
+	}
 }

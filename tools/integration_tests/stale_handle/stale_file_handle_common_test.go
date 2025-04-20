@@ -47,9 +47,9 @@ func (s *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHand
 
 	err = s.f1.Sync()
 
-	operations.ValidateStaleNFSFileHandleError(s.T(), err)
+	operations.ValidateESTALEError(s.T(), err)
 	err = s.f1.Close()
-	operations.ValidateStaleNFSFileHandleError(s.T(), err)
+	operations.ValidateESTALEError(s.T(), err)
 }
 
 func (s *staleFileHandleCommon) TestFileDeletedLocallySyncAndCloseDoNotThrowError() {
@@ -64,5 +64,5 @@ func (s *staleFileHandleCommon) TestFileDeletedLocallySyncAndCloseDoNotThrowErro
 	operations.WriteWithoutClose(s.f1, Content2, s.T())
 
 	operations.SyncFile(s.f1, s.T())
-	operations.CloseFile(s.f1)
+	operations.CloseFileShouldNotThrowError(s.T(), s.f1)
 }

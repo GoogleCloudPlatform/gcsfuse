@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	"cloud.google.com/go/storage/experimental"
 	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
@@ -50,7 +51,11 @@ func CreateStorageClient(ctx context.Context) (client *storage.Client, err error
 		}
 		client, err = storage.NewClient(ctx, option.WithEndpoint("storage.apis-tpczero.goog:443"), option.WithTokenSource(ts))
 	} else {
-		client, err = storage.NewClient(ctx)
+		if setup.IsZonalBucketRun() {
+			client, err = storage.NewGRPCClient(ctx, experimental.WithGRPCBidiReads())
+		} else {
+			client, err = storage.NewClient(ctx)
+		}
 	}
 	if err != nil {
 		return nil, fmt.Errorf("storage.NewClient: %w", err)
@@ -123,6 +128,29 @@ func ReadChunkFromGCS(ctx context.Context, client *storage.Client, object string
 	return string(content), nil
 }
 
+// NewWriter is a wrapper over storage.NewWriter which
+// extends support to zonal buckets.
+func NewWriter(ctx context.Context, o *storage.ObjectHandle, client *storage.Client) (wc *storage.Writer, err error) {
+	wc = o.NewWriter(ctx)
+
+	// Changes specific to zonal bucket
+	var attrs *storage.BucketAttrs
+	attrs, err = client.Bucket(o.BucketName()).Attrs(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get attributes for bucket %q: %w", o.BucketName(), err)
+	}
+	if attrs.StorageClass == "RAPID" {
+		if setup.IsZonalBucketRun() {
+			// Zonal bucket writers require append-flag to be set.
+			wc.Append = true
+		} else {
+			return nil, fmt.Errorf("found zonal bucket %q in non-zonal e2e test run (--zonal=false)", o.BucketName())
+		}
+	}
+
+	return
+}
+
 func WriteToObject(ctx context.Context, client *storage.Client, object, content string, precondition storage.Conditions) error {
 	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(object)
 
@@ -132,7 +160,10 @@ func WriteToObject(ctx context.Context, client *storage.Client, object, content 
 	}
 
 	// Upload an object with storage.Writer.
-	wc := o.NewWriter(ctx)
+	wc, err := NewWriter(ctx, o, client)
+	if err != nil {
+		return fmt.Errorf("Failed to open writer for object %q: %w", o.ObjectName(), err)
+	}
 	if _, err := io.WriteString(wc, content); err != nil {
 		return fmt.Errorf("io.WriteSTring: %w", err)
 	}
@@ -182,7 +213,7 @@ func DownloadObjectFromGCS(gcsFile string, destFileName string, t *testing.T) er
 		}
 	}()
 	f := operations.CreateFile(destFileName, setup.FilePermission_0600, t)
-	defer operations.CloseFile(f)
+	defer operations.CloseFileShouldNotThrowError(t, f)
 
 	rc, err := storageClient.Bucket(bucket).Object(gcsFile).NewReader(ctx)
 	if err != nil {
@@ -279,7 +310,10 @@ func StatObject(ctx context.Context, client *storage.Client, object string) (*st
 func UploadGcsObject(ctx context.Context, client *storage.Client, localPath, bucketName, objectName string, uploadGzipEncoded bool) error {
 	// Create a writer to upload the object.
 	obj := client.Bucket(bucketName).Object(objectName)
-	w := obj.NewWriter(ctx)
+	w, err := NewWriter(ctx, obj, client)
+	if err != nil {
+		return fmt.Errorf("Failed to open writer for GCS object gs://%s/%s: %w", bucketName, objectName, err)
+	}
 	defer func() {
 		if err := w.Close(); err != nil {
 			log.Printf("Failed to close GCS object gs://%s/%s: %v", bucketName, objectName, err)
@@ -344,6 +378,51 @@ func ClearCacheControlOnGcsObject(ctx context.Context, client *storage.Client, o
 func CopyFileInBucket(ctx context.Context, storageClient *storage.Client, srcfilePath, destFilePath, bucket string) {
 	err := UploadGcsObject(ctx, storageClient, srcfilePath, bucket, destFilePath, false)
 	if err != nil {
-		log.Fatalf("Error while copying file in bucket: %v", err)
+		log.Fatalf("Error while copying file %q to GCS object \"gs://%s/%s\" : %v", srcfilePath, bucket, destFilePath, err)
 	}
+}
+
+func DeleteBucket(ctx context.Context, client *storage.Client, bucketName string) error {
+	bucket := client.Bucket(bucketName)
+
+	// Iterate through objects and delete them
+	query := &storage.Query{}
+	it := bucket.Objects(ctx, query)
+	for {
+		objAttrs, err := it.Next()
+		if err == iterator.Done {
+			break // No more objects
+		}
+		if err != nil {
+			log.Fatalf("Error iterating through objects: %v", err)
+		}
+
+		obj := bucket.Object(objAttrs.Name)
+		err = obj.Delete(ctx)
+		if err != nil {
+			log.Fatalf("Failed to delete object %s: %v", objAttrs.Name, err)
+		}
+	}
+
+	if err := bucket.Delete(ctx); err != nil {
+		log.Printf("Bucket(%q).Delete: %v", bucketName, err)
+		return err
+	}
+	return nil
+}
+
+func AppendableWriter(ctx context.Context, client *storage.Client, object string, precondition storage.Conditions) (*storage.Writer, error) {
+	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(object)
+
+	o := client.Bucket(bucket).Object(object)
+	if !reflect.DeepEqual(precondition, storage.Conditions{}) {
+		o = o.If(precondition)
+	}
+
+	// Upload an object with storage.Writer.
+	wc, err := NewWriter(ctx, o, client)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open writer for object %q: %w", o.ObjectName(), err)
+	}
+	return wc, nil
 }

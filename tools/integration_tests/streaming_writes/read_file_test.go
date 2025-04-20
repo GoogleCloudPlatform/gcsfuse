@@ -15,20 +15,54 @@
 package streaming_writes
 
 import (
+	"path"
+
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func (t *defaultMountCommonTest) TestReadLocalFileFails() {
-	// Write some content to local file.
-	_, err := t.f1.WriteAt([]byte(FileContents), 0)
+func (t *defaultMountCommonTest) TestReadFileAfterSync() {
+	// Write some content to the file.
+	_, err := t.f1.WriteAt([]byte(t.data), 0)
 	assert.NoError(t.T(), err)
+	// Sync File to ensure buffers are flushed to GCS.
+	operations.SyncFile(t.f1, t.T())
 
-	// Reading the local file content fails.
-	buf := make([]byte, len(FileContents))
-	_, err = t.f1.ReadAt(buf, 0)
-	assert.Error(t.T(), err)
+	t.validateReadCall(t.f1.Name())
 
 	// Close the file and validate that the file is created on GCS.
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, FileContents, t.T())
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, t.data, t.T())
+}
+
+func (t *defaultMountCommonTest) TestReadBeforeFileIsFlushed() {
+	// Write data to file.
+	operations.WriteAt(t.data, 0, t.f1, t.T())
+
+	// Try to read the file.
+	_, err := t.f1.Seek(0, 0)
+	require.NoError(t.T(), err)
+	buf := make([]byte, len(t.data))
+	_, err = t.f1.Read(buf)
+
+	require.Error(t.T(), err, "input/output error")
+	// Validate if correct content is uploaded to GCS after read error.
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, t.data, t.T())
+}
+
+func (t *defaultMountCommonTest) TestReadAfterFlush() {
+	// Write data to file and flush.
+	operations.WriteAt(t.data, 0, t.f1, t.T())
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, t.data, t.T())
+
+	// Perform read and validate the contents.
+	var err error
+	t.f1, err = operations.OpenFileAsReadonly(path.Join(testDirPath, t.fileName))
+	require.NoError(t.T(), err)
+	buf := make([]byte, len(t.data))
+	_, err = t.f1.Read(buf)
+
+	require.NoError(t.T(), err)
+	require.Equal(t.T(), string(buf), t.data)
 }

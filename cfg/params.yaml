@@ -71,6 +71,13 @@
   usage: "Print debug messages when a mutex is held too long."
   default: false
 
+- config-path: "disable-autoconfig"
+  flag-name: "disable-autoconfig"
+  type: "bool"
+  usage: "Disable optimizing configuration automatically for a machine"
+  default: true
+  hide-flag: true
+
 - config-path: "enable-atomic-rename-object"
   flag-name: "enable-atomic-rename-object"
   type: "bool"
@@ -85,6 +92,13 @@
   default: true
   hide-flag: true
 
+- config-path: "enable-new-reader"
+  flag-name: "enable-new-reader"
+  type: "bool"
+  usage: "Enables support for new reader implementation."
+  default: false
+  hide-flag: true
+
 - config-path: "file-cache.cache-file-for-range-read"
   flag-name: "file-cache-cache-file-for-range-read"
   type: "bool"
@@ -95,7 +109,7 @@
   flag-name: "file-cache-download-chunk-size-mb"
   type: "int"
   usage: "Size of chunks in MiB that each concurrent request downloads."
-  default: "50"
+  default: "200"
 
 - config-path: "file-cache.enable-crc"
   flag-name: "file-cache-enable-crc"
@@ -116,6 +130,13 @@
   type: "bool"
   usage: "Enable parallel downloads."
   default: false
+
+- config-path: "file-cache.experimental-parallel-downloads-default-on"
+  flag-name: "file-cache-experimental-parallel-downloads-default-on"
+  type: "bool"
+  usage: "Enable parallel downloads by default on experimental basis."
+  default: true
+  hide-flag: true
 
 - config-path: "file-cache.max-parallel-downloads"
   flag-name: "file-cache-max-parallel-downloads"
@@ -172,21 +193,13 @@
   default: -1
   usage: "GID owner of all inodes."
 
-- config-path: "file-system.handle-sigterm"
-  flag-name: "handle-sigterm"
-  type: "bool"
-  usage: >-
-    Instructs gcsfuse to handle SIGTERM to gracefully shutdown
-  default: true
-  hide-flag: true
-
 - config-path: "file-system.ignore-interrupts"
   flag-name: "ignore-interrupts"
   type: "bool"
   usage: >-
     Instructs gcsfuse to ignore system interrupt signals (like SIGINT, triggered
     by Ctrl+C). This prevents those signals from immediately terminating gcsfuse
-    inflight operations. (default: true)
+    inflight operations.
   default: true
 
 - config-path: "file-system.kernel-list-cache-ttl-secs"
@@ -240,13 +253,13 @@
 - config-path: "gcs-auth.anonymous-access"
   flag-name: "anonymous-access"
   type: "bool"
-  usage: "Authentication is enabled by default. This flag disables authentication"
+  usage: "This flag disables authentication."
   default: false
 
 - config-path: "gcs-auth.key-file"
   flag-name: "key-file"
   type: "resolvedPath"
-  usage: "Absolute path to JSON key file for use with GCS. (The default is none, Google application default credentials used)"
+  usage: "Absolute path to JSON key file for use with GCS. If this flag is left unset, Google application default credentials are used."
 
 - config-path: "gcs-auth.reuse-token-from-url"
   flag-name: "reuse-token-from-url"
@@ -265,7 +278,7 @@
   type: "string"
   usage: >-
     Project to use for billing when accessing a bucket enabled with "Requester
-    Pays". (The default is none)
+    Pays".
   default: ""
 
 - config-path: "gcs-connection.client-protocol"
@@ -312,7 +325,7 @@
   type: "duration"
   usage: >-
     The time duration that http client will wait to get response from the
-    server. The default value 0 indicates no timeout.
+    server. A value of 0 indicates no timeout.
   default: "0s"
 
 - config-path: "gcs-connection.limit-bytes-per-sec"
@@ -332,7 +345,7 @@
   type: "int"
   usage: >-
     The max number of TCP connections allowed per server. This is effective when
-    client-protocol is set to 'http1'. The default value 0 indicates no limit on
+    client-protocol is set to 'http1'. A value of 0 indicates no limit on
     TCP connections (limited by the machine specifications).
   default: "0"
 
@@ -354,7 +367,7 @@
   usage: >-
     We send larger file uploads in 16 MiB chunks. This flag controls the duration 
     that the HTTP client will wait for a response after making a request to upload a chunk. 
-    The default value of 10s indicates that the client will wait 10 seconds for upload completion; 
+    As an example, a value of 10 indicates that the client will wait 10 seconds for upload completion; 
     otherwise, it cancels the request and retries for that chunk till chunkRetryDeadline(32s). 0 means no timeout.
   default: "10"
   hide-flag: true
@@ -364,7 +377,7 @@
   type: "int"
   usage: >-
     It sets a limit on the number of times an operation will be retried if it
-    fails, preventing endless retry loops. The default value 0 indicates no limit.
+    fails, preventing endless retry loops. A value of 0 indicates no limit.
   default: "0"
 
 - config-path: "gcs-retries.max-retry-sleep"
@@ -388,7 +401,7 @@
   usage: >-
     To turn on/off retries for stalled read requests. This is based on a timeout
     that changes depending on how long similar requests took in the past.
-  default: false
+  default: true
   hide-flag: true
 
 - config-path: "gcs-retries.read-stall.initial-req-timeout"
@@ -465,8 +478,7 @@
   type: "int"
   usage: >-
     The maximum number of backup log files to retain after they have been
-    rotated. The default value is 10. When value is set to 0, all backup files are
-    retained.
+    rotated. A value of 0 indicates all backup files are retained.
   default: "10"
 
 - config-path: "logging.log-rotate.compress"
@@ -486,6 +498,13 @@
   type: "logSeverity"
   usage: "Specifies the logging severity expressed as one of [trace, debug, info, warning, error, off]"
   default: "info"
+
+- config-path: "machine-type"
+  flag-name: "machine-type"
+  type: "string"
+  usage: "Type of the machine on which gcsfuse is being run e.g. a3-highgpu-4g"
+  default: ""
+  hide-flag: true
 
 - config-path: "metadata-cache.deprecated-stat-cache-capacity"
   flag-name: "stat-cache-capacity"
@@ -564,7 +583,6 @@
     can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled
     negative entries in metadata-cache. Any value set below -1 will throw an error.
   default: "5"
-  hide-flag: true
 
 - config-path: "metadata-cache.stat-cache-max-size-mb"
   flag-name: "stat-cache-max-size-mb"
@@ -595,37 +613,28 @@
   usage: "Specifies the interval at which the metrics are uploaded to cloud monitoring"
   default: 0
 
-- config-path: "metrics.enable-otel"
-  flag-name: "enable-otel"
-  type: "bool"
-  usage: "Specifies whether to use OpenTelemetry for capturing and exporting metrics. If false, use OpenCensus."
-  default: true
-  hide-flag: true
-
 - config-path: "metrics.prometheus-port"
   flag-name: "prometheus-port"
   type: "int"
   usage: "Expose Prometheus metrics endpoint on this port and a path of /metrics."
   default: "0"
-  hide-flag: true
 
 - config-path: "metrics.stackdriver-export-interval"
   flag-name: "stackdriver-export-interval"
   type: "duration"
   usage: >-
-    Export metrics to stackdriver with this interval. The default value 0
+    Export metrics to stackdriver with this interval. A value of 0
     indicates no exporting.
   default: "0s"
   deprecated: true
   deprecation-warning: "Please use --cloud-metrics-export-interval-secs instead."
 
-- config-path: "monitoring.experimental-opentelemetry-collector-address"
-  flag-name: "experimental-opentelemetry-collector-address"
-  type: "string"
-  usage: "Experimental: Export metrics to the OpenTelemetry collector at this address."
-  default: ""
-  deprecated: true
-  deprecation-warning: "Experimental flag: could be dropped even in a minor release."
+- config-path: "metrics.use-new-names"
+  flag-name: "metrics-use-new-names"
+  type: "bool"
+  usage: "Use the new metric names."
+  default: false
+  hide-flag: true
 
 - config-path: "monitoring.experimental-tracing-mode"
   flag-name: "experimental-tracing-mode"

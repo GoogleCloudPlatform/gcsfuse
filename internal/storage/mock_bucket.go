@@ -8,7 +8,6 @@ package storage
 
 import (
 	fmt "fmt"
-	io "io"
 	runtime "runtime"
 	unsafe "unsafe"
 
@@ -189,6 +188,34 @@ func (m *mockBucket) FinalizeUpload(p0 context.Context, p1 gcs.Writer) (o0 *gcs.
 	return
 }
 
+func (m *mockBucket) FlushPendingWrites(p0 context.Context, p1 gcs.Writer) (o0 int64, o1 error) {
+	// Get a file name and line number for the caller.
+	_, file, line, _ := runtime.Caller(1)
+
+	// Hand the call off to the controller, which does most of the work.
+	retVals := m.controller.HandleMethodCall(
+		m,
+		"FlushPendingWrites",
+		file,
+		line,
+		[]interface{}{p0, p1})
+
+	if len(retVals) != 2 {
+		panic(fmt.Sprintf("mockBucket.FlushPendingWrites: invalid return values: %v", retVals))
+	}
+
+	// o0 int64 (offset)
+	if retVals[0] != nil {
+		o0 = retVals[0].(int64)
+	}
+	// o1 error
+	if retVals[1] != nil {
+		o1 = retVals[1].(error)
+	}
+
+	return
+}
+
 func (m *mockBucket) DeleteObject(p0 context.Context, p1 *gcs.DeleteObjectRequest) (o0 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
@@ -337,35 +364,6 @@ func (m *mockBucket) BucketType() (o0 gcs.BucketType) {
 	// o0 string
 	if retVals[0] != nil {
 		o0 = retVals[0].(gcs.BucketType)
-	}
-
-	return
-}
-
-func (m *mockBucket) NewReader(p0 context.Context, p1 *gcs.ReadObjectRequest) (o0 io.ReadCloser, o1 error) {
-	// Get a file name and line number for the caller.
-	_, file, line, _ := runtime.Caller(1)
-
-	// Hand the call off to the controller, which does most of the work.
-	retVals := m.controller.HandleMethodCall(
-		m,
-		"NewReader",
-		file,
-		line,
-		[]interface{}{p0, p1})
-
-	if len(retVals) != 2 {
-		panic(fmt.Sprintf("mockBucket.NewReader: invalid return values: %v", retVals))
-	}
-
-	// o0 io.ReadCloser
-	if retVals[0] != nil {
-		o0 = retVals[0].(io.ReadCloser)
-	}
-
-	// o1 error
-	if retVals[1] != nil {
-		o1 = retVals[1].(error)
 	}
 
 	return

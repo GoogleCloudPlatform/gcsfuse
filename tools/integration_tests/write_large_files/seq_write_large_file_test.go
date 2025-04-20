@@ -20,6 +20,8 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -28,29 +30,18 @@ const (
 	DirForSeqWrite = "dirForSeqWrite"
 )
 
-var FiveHundredMBFile string = "fiveHundredMBFile" + setup.GenerateRandomString(5) + ".txt"
-var FiveHundredMBFileForSeqWriteInLocalSystem string = "fiveHundredMBFileForSeqWriteInLocalSystem" + setup.GenerateRandomString(5)
+var FiveHundredMBFile = "fiveHundredMBFile" + setup.GenerateRandomString(5) + ".txt"
 
 func TestWriteLargeFileSequentially(t *testing.T) {
-	seqWriteDir := path.Join(setup.MntDir(), DirForSeqWrite)
-	setup.SetupTestDirectory(DirForSeqWrite)
-	filePath := path.Join(seqWriteDir, FiveHundredMBFile)
+	seqWriteDir := setup.SetupTestDirectory(DirForSeqWrite)
+	mountedDirFilePath := path.Join(seqWriteDir, FiveHundredMBFile)
+	localFilePath := path.Join(TmpDir, setup.GenerateRandomString(5))
+	t.Cleanup(func() { operations.RemoveFile(localFilePath) })
 
-	// Clean up.
-	defer operations.RemoveDir(seqWriteDir)
+	// Write sequentially to local and mounted directory file.
+	operations.WriteFilesSequentially(t, []string{localFilePath, mountedDirFilePath}, FiveHundredMB, ChunkSize)
 
-	// Sequentially write the data in file.
-	err := operations.WriteFileSequentially(filePath, FiveHundredMB, ChunkSize)
-	if err != nil {
-		t.Fatalf("Error in writing file: %v", err)
-	}
-
-	// Download the file from a bucket in which we write the content and compare with
-	// the file content we wrote in mntDir.
-	filePathInGcsBucket := path.Join(DirForSeqWrite, FiveHundredMBFile)
-	localFilePath := path.Join(TmpDir, FiveHundredMBFileForSeqWriteInLocalSystem)
-	err = compareFileFromGCSBucketAndMntDir(filePathInGcsBucket, filePath, localFilePath, t)
-	if err != nil {
-		t.Fatalf("Error:%v", err)
-	}
+	identical, err := operations.AreFilesIdentical(mountedDirFilePath, localFilePath)
+	require.NoError(t, err)
+	assert.True(t, identical)
 }

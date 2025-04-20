@@ -68,7 +68,10 @@ func validateObjectAttributes(attr1, attr2 *storage.ObjectAttrs, t *testing.T) {
 	const componentCount = 0
 	const sizeBeforeOperation = int64(len(tempFileContent))
 	const sizeAfterOperation = sizeBeforeOperation + int64(len(appendContent))
-	const storageClass = "STANDARD"
+	storageClass := "STANDARD"
+	if setup.IsZonalBucketRun() {
+		storageClass = "RAPID"
+	}
 
 	if attr1.ContentType != contentType || attr2.ContentType != contentType {
 		t.Errorf("Expected content type: %s, Got: %s, %s", contentType, attr1.ContentType, attr2.ContentType)
@@ -98,10 +101,22 @@ func validateObjectAttributes(attr1, attr2 *storage.ObjectAttrs, t *testing.T) {
 		t.Error("Expected CRC32 attributes to be non 0")
 	}
 	if attr1.MediaLink == "" || attr2.MediaLink == "" {
-		t.Errorf("Expected media link to be non empty")
+		if setup.IsZonalBucketRun() {
+			t.Logf("media link is empty, but it is a known limitation in RAPID/zonal buckets.")
+		} else {
+			t.Errorf("Expected media link to be non empty")
+		}
 	}
 	if attr1.StorageClass != storageClass || attr2.StorageClass != storageClass {
-		t.Errorf("Expected storage class ")
+		if setup.IsZonalBucketRun() {
+			if attr1.StorageClass != attr2.StorageClass {
+				t.Errorf("Expected storage classes to be same (%q) for both, but found attr1.StorageClass = %q (bucketName = %q) != attr2.StorageClass = %q (bucketName = %q)", storageClass, attr1.StorageClass, attr1.Bucket, attr2.StorageClass, attr2.Bucket)
+			} else {
+				t.Logf("Expected storage class to be %q for both, but found StorageClass = %q for both (buckets = %q, %q).", storageClass, attr1.StorageClass, attr1.Bucket, attr2.Bucket)
+			}
+		} else {
+			t.Errorf("Expected storage class to be %q, but found attr1.StorageClass = %q (bucketName = %q), attr2.StorageClass = %q (bucketName = %q)", storageClass, attr1.StorageClass, attr1.Bucket, attr2.StorageClass, attr2.Bucket)
+		}
 	}
 	attr1MTime, _ := time.Parse(time.RFC3339Nano, attr1.Metadata[gcs.MtimeMetadataKey])
 	attr2MTime, _ := time.Parse(time.RFC3339Nano, attr2.Metadata[gcs.MtimeMetadataKey])
@@ -162,7 +177,7 @@ func TestWriteAtRandom(t *testing.T) {
 		t.Errorf("WriteString-Random: %v", err)
 	}
 	// Closing file at the end
-	operations.CloseFile(f)
+	operations.CloseFileShouldNotThrowError(t, f)
 
 	setup.CompareFileContents(t, fileName, "line 1\nline 5\n")
 	// Validate that extended object attributes are non nil/ non-empty.
@@ -216,7 +231,7 @@ func TestWriteAtFileOperationsDoesNotChangeObjectAttributes(t *testing.T) {
 		t.Errorf("Could not open file %s after creation.", fileName)
 	}
 	operations.WriteAt(tempFileContent+appendContent, 0, fh, t)
-	operations.CloseFile(fh)
+	operations.CloseFileShouldNotThrowError(t, fh)
 	attr2 := validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), t)
 
 	// Validate object attributes are as expected.

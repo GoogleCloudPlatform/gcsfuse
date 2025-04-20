@@ -19,8 +19,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -263,10 +261,10 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 		rr.fileCacheHandle, err = rr.fileCacheHandler.GetCacheHandle(rr.object, rr.bucket, rr.cacheFileForRangeRead, offset)
 		if err != nil {
 			// We fall back to GCS if file size is greater than the cache size
-			if strings.Contains(err.Error(), lru.InvalidEntrySizeErrorMsg) {
+			if errors.Is(err, lru.ErrInvalidEntrySize) {
 				logger.Warnf("tryReadingFromFileCache: while creating CacheHandle: %v", err)
 				return 0, false, nil
-			} else if strings.Contains(err.Error(), cacheutil.CacheHandleNotRequiredForRandomReadErrMsg) {
+			} else if errors.Is(err, cacheutil.ErrCacheHandleNotRequiredForRandomRead) {
 				// Fall back to GCS if it is a random read, cacheFileForRangeRead is
 				// False and there doesn't already exist file in cache.
 				isSeq = false
@@ -292,23 +290,13 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 			logger.Warnf("tryReadingFromFileCache: while closing fileCacheHandle: %v", err)
 		}
 		rr.fileCacheHandle = nil
-	} else if !strings.Contains(err.Error(), cacheutil.FallbackToGCSErrMsg) {
+	} else if !errors.Is(err, cacheutil.ErrFallbackToGCS) {
 		err = fmt.Errorf("tryReadingFromFileCache: while reading via cache: %w", err)
 		return
 	}
 	err = nil
 
 	return
-}
-
-func captureFileCacheMetrics(ctx context.Context, metricHandle common.MetricHandle, readType string, readDataSize int, cacheHit bool, readLatency time.Duration) {
-	metricHandle.FileCacheReadCount(ctx, 1, []common.MetricAttr{
-		{Key: common.ReadType, Value: readType},
-		{Key: common.CacheHit, Value: strconv.FormatBool(cacheHit)},
-	})
-
-	metricHandle.FileCacheReadBytesCount(ctx, int64(readDataSize), []common.MetricAttr{{Key: common.ReadType, Value: readType}})
-	metricHandle.FileCacheReadLatency(ctx, float64(readLatency.Microseconds()), []common.MetricAttr{{Key: common.CacheHit, Value: strconv.FormatBool(cacheHit)}})
 }
 
 func (rr *randomReader) ReadAt(
@@ -365,9 +353,12 @@ func (rr *randomReader) ReadAt(
 	// is a 15-20x improvement in throughput: 150-200 MB/s instead of 10 MB/s.
 	if rr.reader != nil && rr.start < offset && offset-rr.start < maxReadSize {
 		bytesToSkip := offset - rr.start
-		p := make([]byte, bytesToSkip)
-		n, _ := io.ReadFull(rr.reader, p)
-		rr.start += int64(n)
+		discardedBytes, copyError := io.CopyN(io.Discard, rr.reader, int64(bytesToSkip))
+		// io.EOF is expected if the reader is shorter than the requested offset to read.
+		if copyError != nil && !errors.Is(copyError, io.EOF) {
+			logger.Warnf("Error while skipping reader bytes: %v", copyError)
+		}
+		rr.start += discardedBytes
 	}
 
 	// If we have an existing reader, but it's positioned at the wrong place,

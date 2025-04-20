@@ -21,6 +21,9 @@ test-config file for a list of them.
 import json
 
 
+DefaultNumEpochs = 4
+
+
 def validateFioWorkload(workload: dict, name: str):
   """Validates the given json workload object."""
   for requiredWorkloadAttribute, expectedType in {
@@ -39,6 +42,17 @@ def validateFioWorkload(workload: dict, name: str):
       return False
     if expectedType == str and ' ' in workload[requiredWorkloadAttribute]:
       print(f"{name} has space in the value of '{requiredWorkloadAttribute}'")
+      return False
+
+  if 'numEpochs' in workload:
+    if not type(workload['numEpochs']) is int:
+      print(
+          f"In {name}, the type of workload['numEpochs'] is of type"
+          f" {type(workload['numEpochs'])}, not {int}"
+      )
+      return False
+    if int(workload['numEpochs']) < 0:
+      print(f"In {name}, the value of workload['numEpochs'] < 0, expected: >=0")
       return False
 
   if 'dlioWorkload' in workload:
@@ -96,8 +110,7 @@ class FioWorkload:
   (essentially the data needed to create a job file for FIO run).
 
   Members:
-  1. scenario (string): One of "local-ssd", "gcsfuse-generic",
-  "gcsfuse-file-cache" and "gcsfuse-no-file-cache".
+  1. scenario (string): One of "local-ssd", "gcsfuse-generic".
   2. fileSize (string): fio filesize field in string format e.g. '100', '10K',
   '10M' etc.
   3. blockSize (string): equivalent of bs field in fio job file e.g. '8K',
@@ -117,6 +130,8 @@ class FioWorkload:
   "<config>[:<subconfig>[:<subsubconfig>[...]]]:<value>". For example, a legal
   value would be:
   "implicit-dirs,file_mode=777,file-cache:enable-parallel-downloads:true,metadata-cache:ttl-secs:true".
+  9. numEpochs: Number of runs of the fio workload. Default is DefaultNumEpochs
+  if missing.
   """
 
   def __init__(
@@ -129,6 +144,7 @@ class FioWorkload:
       bucket: str,
       readTypes: list,
       gcsfuseMountOptions: str,
+      numEpochs: int = DefaultNumEpochs,
   ):
     self.scenario = scenario
     self.fileSize = fileSize
@@ -138,6 +154,7 @@ class FioWorkload:
     self.bucket = bucket
     self.readTypes = set(readTypes)
     self.gcsfuseMountOptions = gcsfuseMountOptions
+    self.numEpochs = numEpochs
 
   def PPrint(self):
     print(
@@ -145,7 +162,7 @@ class FioWorkload:
         f' blockSize:{self.blockSize}, filesPerThread:{self.filesPerThread},'
         f' numThreads:{self.numThreads}, bucket:{self.bucket},'
         f' readTypes:{self.readTypes}, gcsfuseMountOptions:'
-        f' {gcsfuseMountOptions}'
+        f' {gcsfuseMountOptions}, numEpochs: {self.numEpochs}'
     )
 
 
@@ -184,6 +201,11 @@ def ParseTestConfigForFioWorkloads(fioTestConfigFile: str):
                       else ['read', 'randread']
                   ),
                   workload['gcsfuseMountOptions'],
+                  numEpochs=(
+                      workload['numEpochs']
+                      if 'numEpochs' in workload
+                      else DefaultNumEpochs
+                  ),
               )
           )
   return fioWorkloads

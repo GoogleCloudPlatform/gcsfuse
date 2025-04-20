@@ -17,10 +17,8 @@ package fs_test
 import (
 	"os"
 	"path"
-	"syscall"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/stretchr/testify/assert"
@@ -35,59 +33,27 @@ type staleFileHandleSyncedFile struct {
 	staleFileHandleCommon
 }
 
-func TestStaleFileHandleSyncedFile(t *testing.T) {
-	suite.Run(t, new(staleFileHandleSyncedFile))
-}
+// //////////////////////////////////////////////////////////////////////
+// Helpers
+// //////////////////////////////////////////////////////////////////////
 
-func (t *staleFileHandleSyncedFile) SetupSuite() {
-	t.serverCfg.NewConfig = &cfg.Config{
-		FileSystem: cfg.FileSystemConfig{
-			PreconditionErrors: true,
-		},
-		MetadataCache: cfg.MetadataCacheConfig{
-			TtlSecs: 0,
-		},
-	}
-	t.fsTest.SetUpTestSuite()
-}
-
-func (t *staleFileHandleSyncedFile) TearDownSuite() {
-	t.fsTest.TearDownTestSuite()
-}
 func (t *staleFileHandleSyncedFile) SetupTest() {
 	// Create an object on bucket.
-	_, err := storageutil.CreateObject(
-		ctx,
-		bucket,
-		"foo",
-		[]byte("bar"))
-	assert.NoError(t.T(), err)
-	// Open file handle to read or write.
-	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_RDWR|syscall.O_DIRECT, filePerms)
-	assert.NoError(t.T(), err)
-}
-
-func (t *staleFileHandleSyncedFile) TearDownTest() {
-	// fsTest Cleanups to clean up mntDir and close t.f1 and t.f2.
-	t.fsTest.TearDown()
+	t.f1 = createGCSObject(t.T(), "foo", "bar")
 }
 
 // //////////////////////////////////////////////////////////////////////
 // Tests
 // //////////////////////////////////////////////////////////////////////
+
 func (t *staleFileHandleSyncedFile) TestClobberedFileReadThrowsStaleFileHandleError() {
 	// Replace the underlying object with a new generation.
-	_, err := storageutil.CreateObject(
-		ctx,
-		bucket,
-		"foo",
-		[]byte("foobar"))
-	assert.NoError(t.T(), err)
+	clobberFile(t.T(), "foo", "foobar")
 
 	buffer := make([]byte, 6)
-	_, err = t.f1.Read(buffer)
+	_, err := t.f1.Read(buffer)
 
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
+	operations.ValidateESTALEError(t.T(), err)
 	// Validate that object is updated with new content.
 	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
 	assert.NoError(t.T(), err)
@@ -96,16 +62,11 @@ func (t *staleFileHandleSyncedFile) TestClobberedFileReadThrowsStaleFileHandleEr
 
 func (t *staleFileHandleSyncedFile) TestClobberedFileFirstWriteThrowsStaleFileHandleError() {
 	// Replace the underlying object with a new generation.
-	_, err := storageutil.CreateObject(
-		ctx,
-		bucket,
-		"foo",
-		[]byte("foobar"))
-	assert.NoError(t.T(), err)
+	clobberFile(t.T(), "foo", "foobar")
 
-	_, err = t.f1.Write([]byte("taco"))
+	_, err := t.f1.Write([]byte("taco"))
 
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
+	operations.ValidateESTALEError(t.T(), err)
 	// Attempt to sync to file should not result in error as we first check if the
 	// content has been dirtied before clobbered check in Sync flow.
 	err = t.f1.Sync()
@@ -131,9 +92,9 @@ func (t *staleFileHandleSyncedFile) TestRenamedFileSyncThrowsStaleFileHandleErro
 
 	err = t.f1.Sync()
 
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
+	operations.ValidateESTALEError(t.T(), err)
 	err = t.f1.Close()
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
+	operations.ValidateESTALEError(t.T(), err)
 	// Make f1 nil, so that another attempt is not taken in TearDown to close the
 	// file.
 	t.f1 = nil
@@ -157,10 +118,15 @@ func (t *staleFileHandleSyncedFile) TestFileDeletedRemotelySyncAndCloseThrowsSta
 
 	err = t.f1.Sync()
 
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
+	operations.ValidateESTALEError(t.T(), err)
 	err = t.f1.Close()
-	operations.ValidateStaleNFSFileHandleError(t.T(), err)
+	operations.ValidateESTALEError(t.T(), err)
 	// Make f1 nil, so that another attempt is not taken in TearDown to close the
 	// file.
 	t.f1 = nil
+}
+
+// Executes all stale handle tests for gcs synced files.
+func TestStaleFileHandleSyncedFile(t *testing.T) {
+	suite.Run(t, new(staleFileHandleSyncedFile))
 }

@@ -1,4 +1,4 @@
-// Copyright 2023 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,18 +29,22 @@ import (
 
 const DirForExplicitDirTests = "dirForExplicitDirTests"
 
+var (
+	storageClient *storage.Client
+	ctx           context.Context
+)
+
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
-	var storageClient *storage.Client
 	// Create storage client before running tests.
-	ctx := context.Background()
-	storageClient, err := client.CreateStorageClient(ctx)
-	if err != nil {
-		log.Printf("Error creating storage client: %v\n", err)
-		os.Exit(1)
-	}
-
-	defer storageClient.Close()
+	ctx = context.Background()
+	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
+	defer func() {
+		err := closeStorageClient()
+		if err != nil {
+			log.Fatalf("closeStorageClient failed: %v", err)
+		}
+	}()
 
 	// These tests will not run on HNS buckets because the "--implicit-dirs=false" flag does not function similarly to how it does on FLAT buckets.
 	// Note that HNS buckets do not have the concept of implicit directories.

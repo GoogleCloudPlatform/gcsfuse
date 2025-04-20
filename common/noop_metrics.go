@@ -23,7 +23,7 @@ func NewNoopMetrics() MetricHandle {
 
 type noopMetrics struct{}
 
-func (*noopMetrics) GCSReadBytesCount(_ context.Context, _ int64, _ []MetricAttr)       {}
+func (*noopMetrics) GCSReadBytesCount(_ context.Context, _ int64)                       {}
 func (*noopMetrics) GCSReaderCount(_ context.Context, _ int64, _ []MetricAttr)          {}
 func (*noopMetrics) GCSRequestCount(_ context.Context, _ int64, _ []MetricAttr)         {}
 func (*noopMetrics) GCSRequestLatency(_ context.Context, value float64, _ []MetricAttr) {}

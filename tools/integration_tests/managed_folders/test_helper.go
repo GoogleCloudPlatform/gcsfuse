@@ -117,7 +117,7 @@ func createDirectoryStructureForNonEmptyManagedFolders(ctx context.Context, stor
 		log.Fatalf("Failed to clean up test directory: %v", err)
 	}
 	f := operations.CreateFile(path.Join("/tmp", FileInNonEmptyManagedFoldersTest), setup.FilePermission_0600, t)
-	defer operations.CloseFile(f)
+	defer operations.CloseFileShouldNotThrowError(t, f)
 	managedFolder1 := path.Join(testDir, ManagedFolder1)
 	managedFolder2 := path.Join(testDir, ManagedFolder2)
 	simulatedFolderNonEmptyManagedFoldersTest := path.Join(testDir, SimulatedFolderNonEmptyManagedFoldersTest)
@@ -254,7 +254,7 @@ func moveAndCheckErrForViewPermission(src, dest string, t *testing.T) {
 
 func createFileForTest(filePath string, t *testing.T) {
 	file, err := os.Create(filePath)
-	defer operations.CloseFile(file)
+	defer operations.CloseFileShouldNotThrowError(t, file)
 	if err != nil {
 		t.Errorf("Error in creating local file, %v", err)
 	}

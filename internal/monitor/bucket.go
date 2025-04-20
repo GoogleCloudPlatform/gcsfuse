@@ -17,7 +17,6 @@ package monitor
 import (
 	"context"
 	"fmt"
-	"io"
 	"time"
 
 	storagev2 "cloud.google.com/go/storage"
@@ -63,19 +62,14 @@ func setupReader(ctx context.Context, mb *monitoringBucket, req *gcs.ReadObjectR
 	startTime := time.Now()
 
 	rc, err := mb.wrapped.NewReaderWithReadHandle(ctx, req)
+
 	if err == nil {
+		rc = newGCSFullReadCloser(rc)
 		rc = newMonitoringReadCloser(ctx, req.Name, rc, mb.metricHandle)
 	}
 
 	recordRequest(ctx, mb.metricHandle, method, startTime)
 	return rc, err
-}
-
-func (mb *monitoringBucket) NewReader(
-	ctx context.Context,
-	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
-	rc, err = setupReader(ctx, mb, req, "NewReader")
-	return
 }
 
 func (mb *monitoringBucket) NewReaderWithReadHandle(
@@ -107,6 +101,13 @@ func (mb *monitoringBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*
 	o, err := mb.wrapped.FinalizeUpload(ctx, w)
 	recordRequest(ctx, mb.metricHandle, "FinalizeUpload", startTime)
 	return o, err
+}
+
+func (mb *monitoringBucket) FlushPendingWrites(ctx context.Context, w gcs.Writer) (int64, error) {
+	startTime := time.Now()
+	offset, err := mb.wrapped.FlushPendingWrites(ctx, w)
+	recordRequest(ctx, mb.metricHandle, "FlushPendingWrites", startTime)
+	return offset, err
 }
 
 func (mb *monitoringBucket) CopyObject(
@@ -231,9 +232,7 @@ type monitoringReadCloser struct {
 
 func (mrc *monitoringReadCloser) Read(p []byte) (n int, err error) {
 	n, err = mrc.wrapped.Read(p)
-	if err == nil || err == io.EOF {
-		mrc.metricHandle.GCSReadBytesCount(mrc.ctx, int64(n), nil)
-	}
+	mrc.metricHandle.GCSReadBytesCount(mrc.ctx, int64(n))
 	return
 }
 

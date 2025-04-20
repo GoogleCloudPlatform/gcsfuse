@@ -22,23 +22,62 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// os.Rename can't be invoked over local files. It's failing with file not found error.
-// Hence running this test only for empty GCS file.
-func (t *defaultMountEmptyGCSFile) TestRenameBeforeFileIsFlushed() {
-	operations.WriteWithoutClose(t.f1, FileContents, t.T())
-	operations.WriteWithoutClose(t.f1, FileContents, t.T())
-	operations.VerifyStatFile(t.filePath, int64(2*len(FileContents)), FilePerms, t.T())
+func (t *defaultMountCommonTest) TestRenameBeforeFileIsFlushed() {
+	operations.WriteWithoutClose(t.f1, t.data, t.T())
+	operations.WriteWithoutClose(t.f1, t.data, t.T())
+	operations.VerifyStatFile(t.filePath, int64(2*len(t.data)), FilePerms, t.T())
 	err := t.f1.Sync()
 	require.NoError(t.T(), err)
 
-	newFile := "newFile.txt"
+	newFile := "new" + t.fileName
 	destDirPath := path.Join(testDirPath, newFile)
 	err = operations.RenameFile(t.filePath, destDirPath)
 
 	// Validate that move didn't throw any error.
 	require.NoError(t.T(), err)
 	// Verify the new object contents.
-	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, newFile, FileContents+FileContents, t.T())
+	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, newFile, t.data+t.data, t.T())
+	require.NoError(t.T(), t.f1.Close())
+	// Check if old object is deleted.
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, t.fileName, t.T())
+}
+
+func (t *defaultMountCommonTest) TestSyncAfterRenameSucceeds() {
+	_, err := t.f1.WriteAt([]byte(t.data), 0)
+	require.NoError(t.T(), err)
+	operations.VerifyStatFile(t.filePath, int64(len(t.data)), FilePerms, t.T())
+	err = t.f1.Sync()
+	require.NoError(t.T(), err)
+	newFile := "new" + t.fileName
+	err = operations.RenameFile(t.filePath, path.Join(testDirPath, newFile))
+	require.NoError(t.T(), err)
+
+	err = t.f1.Sync()
+
+	// Verify that sync succeeds after rename.
+	require.NoError(t.T(), err)
+	// Verify the new object contents.
+	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, newFile, string(t.data), t.T())
+	require.NoError(t.T(), t.f1.Close())
+	// Check if old object is deleted.
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, t.fileName, t.T())
+}
+
+func (t *defaultMountCommonTest) TestAfterRenameWriteFailsWithStaleNFSFileHandleError() {
+	_, err := t.f1.WriteAt([]byte(t.data), 0)
+	require.NoError(t.T(), err)
+	operations.VerifyStatFile(t.filePath, int64(len(t.data)), FilePerms, t.T())
+	err = t.f1.Sync()
+	require.NoError(t.T(), err)
+	newFile := "new" + t.fileName
+	err = operations.RenameFile(t.filePath, path.Join(testDirPath, newFile))
+	require.NoError(t.T(), err)
+
+	_, err = t.f1.WriteAt([]byte(t.data), int64(len(t.data)))
+
+	operations.ValidateESTALEError(t.T(), err)
+	// Verify the new object contents.
+	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, newFile, string(t.data), t.T())
 	require.NoError(t.T(), t.f1.Close())
 	// Check if old object is deleted.
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, t.fileName, t.T())

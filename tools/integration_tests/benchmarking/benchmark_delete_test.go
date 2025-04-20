@@ -65,6 +65,8 @@ func (s *benchmarkDeleteTest) Benchmark_Delete(b *testing.B) {
 ////////////////////////////////////////////////////////////////////////
 
 func Benchmark_Delete(b *testing.B) {
+	setup.IgnoreTestIfPresubmitFlagIsSet(b)
+
 	ts := &benchmarkDeleteTest{}
 
 	flagsSet := [][]string{

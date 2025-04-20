@@ -16,9 +16,9 @@
 package operations
 
 import (
+	"bufio"
 	"bytes"
 	"compress/gzip"
-	"crypto/rand"
 	"fmt"
 	"hash/crc32"
 	"io"
@@ -34,6 +34,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 )
 
@@ -171,6 +172,15 @@ func WriteFile(fileName string, content string) (err error) {
 	return
 }
 
+func CloseFiles(t *testing.T, files []*os.File) {
+	t.Helper()
+	for _, file := range files {
+		err := file.Close()
+		assert.NoError(t, err)
+	}
+}
+
+// Deprecated: please use CloseFileShouldNotThrowError instead.
 func CloseFile(file *os.File) {
 	if err := file.Close(); err != nil {
 		log.Fatalf("error in closing: %v", err)
@@ -228,55 +238,44 @@ func ReadFileSequentially(filePath string, chunkSize int64) (content []byte, err
 	return
 }
 
-// Write data of chunkSize in file at given offset.
-func WriteChunkOfRandomBytesToFile(file *os.File, chunkSize int, offset int64) error {
+func WriteChunkOfRandomBytesToFiles(files []*os.File, chunkSize int, offset int64) error {
 	// Generate random data of chunk size.
-	chunk := make([]byte, chunkSize)
-	_, err := rand.Read(chunk)
+	chunk, err := GenerateRandomData(int64(chunkSize))
 	if err != nil {
-		return fmt.Errorf("error while generating random string: %v", err)
+		return fmt.Errorf("error in generating random data: %v", err)
 	}
 
-	// Write data in the file.
-	n, err := file.WriteAt(chunk, offset)
-	if err != nil {
-		return fmt.Errorf("error in writing randomly in file: %v", err)
-	}
+	for _, file := range files {
+		// Write data in the file.
+		n, err := file.WriteAt(chunk, offset)
+		if err != nil {
+			return fmt.Errorf("error in writing randomly in file: %s, %v", file.Name(), err)
+		}
 
-	if n != chunkSize {
-		return fmt.Errorf("incorrect number of bytes written in the file actual %d, expected %d", n, chunkSize)
-	}
+		if n != chunkSize {
+			return fmt.Errorf("incorrect number of bytes written in the file %s actual %d, expected %d", file.Name(), n, chunkSize)
+		}
 
-	err = file.Sync()
-	if err != nil {
-		return fmt.Errorf("error in syncing file: %v", err)
+		err = file.Sync()
+		if err != nil {
+			return fmt.Errorf("error in syncing file: %v", err)
+		}
 	}
 
 	return nil
 }
 
-func WriteFileSequentially(filePath string, fileSize int64, chunkSize int64) (err error) {
-	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT|os.O_CREATE, FilePermission_0600)
-	if err != nil {
-		log.Fatalf("Error in opening file: %v", err)
-	}
-
-	// Closing file at the end.
-	defer CloseFile(file)
+func WriteFilesSequentially(t *testing.T, filePaths []string, fileSize int64, chunkSize int64) {
+	t.Helper()
+	files := OpenFiles(t, filePaths)
+	defer CloseFiles(t, files)
 
 	var offset int64 = 0
-
 	for offset < fileSize {
-		// Get random chunkSize or remaining filesize data into chunk.
-		if (fileSize - offset) < chunkSize {
-			chunkSize = fileSize - offset
-		}
-
-		err := WriteChunkOfRandomBytesToFile(file, int(chunkSize), offset)
-		if err != nil {
-			log.Fatalf("Error in writing chunk: %v", err)
-		}
-
+		// Reduce chunk size to remaining file size in case chunk size is larger.
+		chunkSize = min(chunkSize, fileSize-offset)
+		err := WriteChunkOfRandomBytesToFiles(files, int(chunkSize), offset)
+		assert.NoError(t, err)
 		offset = offset + chunkSize
 	}
 	return
@@ -317,6 +316,29 @@ func ReadChunkFromFile(filePath string, chunkSize int64, offset int64, flag int)
 	}
 
 	return
+}
+
+func ReadFileBetweenOffset(t *testing.T, file *os.File, startOffset, endOffset, chunkSize int64) string {
+	t.Helper()
+	chunk := make([]byte, chunkSize)
+	var readData []byte
+
+	for startOffset < endOffset {
+		readSize := min(chunkSize, endOffset-startOffset)
+
+		n, err := file.ReadAt(chunk[:readSize], startOffset)
+		if err == io.EOF {
+			readData = append(readData, chunk[:n]...)
+			break
+		} else if err != nil {
+			t.Errorf("Failed to read file chunk at offset %d: %v", startOffset, err)
+			return ""
+		}
+		readData = append(readData, chunk[:n]...)
+		startOffset += int64(n)
+	}
+
+	return string(readData)
 }
 
 // Returns the stats of a file.
@@ -476,12 +498,35 @@ func CreateFile(filePath string, filePerms os.FileMode, t testing.TB) (f *os.Fil
 	return
 }
 
-func OpenFile(filePath string, t testing.TB) (f *os.File) {
+func OpenFiles(t *testing.T, filePaths []string) []*os.File {
+	t.Helper()
+	var files []*os.File
+
+	// Open all files.
+	for _, filePath := range filePaths {
+		file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT|os.O_CREATE, FilePermission_0600)
+		require.NoError(t, err)
+		files = append(files, file)
+	}
+	return files
+}
+
+func OpenFile(filePath string, t *testing.T) (f *os.File) {
 	f, err := os.OpenFile(filePath, os.O_RDWR, FilePermission_0777)
 	if err != nil {
 		t.Fatalf("OpenFile(%s): %v", filePath, err)
 	}
 	return
+}
+
+func OpenFileWithODirect(t *testing.T, filePath string) (f *os.File) {
+	t.Helper()
+	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC|syscall.O_DIRECT, FilePermission_0600)
+	if err != nil {
+		require.NoError(t, err)
+	}
+	return
+
 }
 
 func CreateSymLink(filePath, symlink string, t *testing.T) {
@@ -567,9 +612,15 @@ func WriteAt(content string, offset int64, fh *os.File, t testing.TB) {
 	}
 }
 
-func CloseFileShouldNotThrowError(file *os.File, t *testing.T) {
-	if err := file.Close(); err != nil {
-		t.Fatalf("file.Close() for file %s: %v", file.Name(), err)
+func CloseFileShouldNotThrowError(t testing.TB, file *os.File) {
+	err := file.Close()
+	assert.NoError(t, err)
+}
+
+func CloseFileShouldThrowError(t *testing.T, file *os.File) {
+	t.Helper()
+	if err := file.Close(); err == nil {
+		t.Fatalf("file.Close() for file %s should throw an error: %v", file.Name(), err)
 	}
 }
 
@@ -582,11 +633,17 @@ func SyncFile(fh *os.File, t *testing.T) {
 	}
 }
 
-func CreateFileWithContent(filePath string, filePerms os.FileMode,
-	content string, t testing.TB) {
+func SyncFileShouldThrowError(t *testing.T, file *os.File) {
+	t.Helper()
+	if err := file.Sync(); err == nil {
+		t.Fatalf("file.Close() for file %s should throw an error: %v", file.Name(), err)
+	}
+}
+
+func CreateFileWithContent(filePath string, filePerms os.FileMode, content string, t testing.TB) {
 	fh := CreateFile(filePath, filePerms, t)
 	WriteAt(content, 0, fh, t)
-	CloseFile(fh)
+	CloseFileShouldNotThrowError(t, fh)
 }
 
 // CreateFileOfSize creates a file of given size with random data.
@@ -699,7 +756,7 @@ func CreateLocalTempFile(content string, gzipCompress bool) (string, error) {
 // ReadAndCompare reads content from the given file paths and compares them.
 func ReadAndCompare(t *testing.T, filePathInMntDir string, filePathInLocalDisk string, offset int64, chunkSize int64) {
 	t.Helper()
-	mountContents, err := ReadChunkFromFile(filePathInMntDir, chunkSize, offset, os.O_RDONLY)
+	mountContents, err := ReadChunkFromFile(filePathInMntDir, chunkSize, offset, os.O_RDONLY|syscall.O_DIRECT)
 	if err != nil {
 		t.Fatalf("error in read file from mounted directory :%d", err)
 	}
@@ -731,4 +788,17 @@ func CloseLocalFile(t *testing.T, f **os.File) error {
 	err := (*f).Close()
 	*f = nil
 	return err
+}
+
+func CheckLogFileForMessage(t *testing.T, expectedLog, logFile string) bool {
+	file, err := os.Open(logFile)
+	require.NoError(t, err, "Failed to open log file")
+	defer file.Close()
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		if strings.Contains(scanner.Text(), expectedLog) {
+			return true
+		}
+	}
+	return false
 }

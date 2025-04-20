@@ -15,14 +15,13 @@
 package write_large_files
 
 import (
-	"fmt"
-	"os"
 	"path"
-	"syscall"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -30,58 +29,34 @@ const (
 	DirForConcurrentWrite = "dirForConcurrentWrite"
 )
 
-var FileOne = "fileOne" + setup.GenerateRandomString(5) + ".txt"
-var FileTwo = "fileTwo" + setup.GenerateRandomString(5) + ".txt"
-var FileThree = "fileThree" + setup.GenerateRandomString(5) + ".txt"
-
-func writeFile(filePath string, fileSize int64) error {
-	f, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, WritePermission_0200)
-	if err != nil {
-		return fmt.Errorf("Open file for write at start: %v", err)
-	}
-
-	// Closing file at the end.
-	defer operations.CloseFile(f)
-	return operations.WriteChunkOfRandomBytesToFile(f, int(fileSize), 0)
-}
-
-func validateFileContents(fileName string, mntFilePath string, t *testing.T) error {
-	filePathInGcsBucket := path.Join(DirForConcurrentWrite, fileName)
-	localFilePath := path.Join(TmpDir, fileName)
-	return compareFileFromGCSBucketAndMntDir(filePathInGcsBucket, mntFilePath, localFilePath, t)
-}
-
-func TestMultipleFilesAtSameTime(t *testing.T) {
-	concurrentWriteDir := path.Join(setup.MntDir(), DirForConcurrentWrite)
-	setup.SetupTestDirectory(DirForConcurrentWrite)
-
-	// Clean up.
-	defer operations.RemoveDir(concurrentWriteDir)
-
+func TestWriteMultipleFilesConcurrently(t *testing.T) {
+	concurrentWriteDir := setup.SetupTestDirectory(DirForConcurrentWrite)
+	var FileOne = "fileOne" + setup.GenerateRandomString(5) + ".txt"
+	var FileTwo = "fileTwo" + setup.GenerateRandomString(5) + ".txt"
+	var FileThree = "fileThree" + setup.GenerateRandomString(5) + ".txt"
 	files := []string{FileOne, FileTwo, FileThree}
-
 	var eG errgroup.Group
 
-	// Concurrently write three files.
+	// Concurrently write three different files.
 	for i := range files {
 		// Copy the current value of i into a local variable to avoid data races.
 		fileIndex := i
 
 		// Thread to write the current file.
 		eG.Go(func() error {
-			mntFilePath := path.Join(setup.MntDir(), DirForConcurrentWrite, files[fileIndex])
-			err := writeFile(mntFilePath, FiveHundredMB)
-			if err != nil {
-				return fmt.Errorf("WriteError: %v", err)
-			}
+			mountedDirFilePath := path.Join(concurrentWriteDir, files[fileIndex])
+			localFilePath := path.Join(TmpDir, setup.GenerateRandomString(5))
+			t.Cleanup(func() { operations.RemoveFile(localFilePath) })
 
-			return validateFileContents(files[fileIndex], mntFilePath, t)
+			operations.WriteFilesSequentially(t, []string{localFilePath, mountedDirFilePath}, FiveHundredMB, ChunkSize)
+
+			identical, err := operations.AreFilesIdentical(mountedDirFilePath, localFilePath)
+			require.NoError(t, err)
+			assert.True(t, identical)
+			return nil
 		})
 	}
 
 	// Wait on threads to end.
-	err := eG.Wait()
-	if err != nil {
-		t.Fatalf("Error: %v", err)
-	}
+	_ = eG.Wait()
 }
