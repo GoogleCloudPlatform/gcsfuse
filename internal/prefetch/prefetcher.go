@@ -200,9 +200,7 @@ func (p *PrefetchReader) ReadAt(ctx context.Context, inputBuffer []byte, offset 
 
 func (p *PrefetchReader) prefetch() error {
 	nextPrefetchCount := p.PrefetchConfig.PrefetchMultiplier * p.lastPrefetchCount
-	if nextPrefetchCount < p.PrefetchConfig.PrefetchCount {
-		nextPrefetchCount = p.PrefetchConfig.PrefetchCount
-	}
+	nextPrefetchCount = min(nextPrefetchCount, p.PrefetchConfig.PrefetchCount-int64(p.blockQueue.Len()))
 
 	p.lastPrefetchCount = nextPrefetchCount
 
