@@ -1860,9 +1860,17 @@ func (fs *fileSystem) CreateFile(
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
+	// Get prefetch config from the mount config.
+	prefetchConfig := &prefetch.PrefetchConfig{
+		PrefetchCount: fs.newConfig.Prefetch.MaxPrefetchBlocks, 
+		PrefetchChunkSize: fs.newConfig.Prefetch.BlockSizeMb * 1024 * 1024,
+		PrefetchMultiplier: 2,
+		InitialPrefetchBlockCnt: fs.newConfig.Prefetch.InitialPrefetchBlocks,
+	}
+
 	// CreateFile() invoked to create new files, can be safely considered as filehandle
 	// opened in append mode.
-	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, util.Append, &fs.newConfig.Read, fs.threadPool, fs.blockPool, &prefetch.PrefetchConfig{PrefetchCount: fs.newConfig.Prefetch.MaxPrefetchBlocks, PrefetchChunkSize: fs.newConfig.Prefetch.BlockSizeMb * 1024 * 1024})
+	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, util.Append, &fs.newConfig.Read, fs.threadPool, fs.blockPool, prefetchConfig)
 	op.Handle = handleID
 
 	fs.mu.Unlock()
@@ -2587,6 +2595,15 @@ func (fs *fileSystem) OpenFile(
 	// Figure out the mode in which the file is being opened.
 	openMode := util.FileOpenMode(op)
 	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, openMode, &fs.newConfig.Read, fs.threadPool, fs.blockPool, &prefetch.PrefetchConfig{PrefetchCount: fs.newConfig.Prefetch.MaxPrefetchBlocks, PrefetchChunkSize: fs.newConfig.Prefetch.BlockSizeMb * 1024 * 1024})
+	// Get prefetch config from the mount config.
+	prefetchConfig := &prefetch.PrefetchConfig{
+		PrefetchCount: fs.newConfig.Prefetch.MaxPrefetchBlocks, 
+		PrefetchChunkSize: fs.newConfig.Prefetch.BlockSizeMb * 1024 * 1024,
+		PrefetchMultiplier: 2,
+		InitialPrefetchBlockCnt: fs.newConfig.Prefetch.InitialPrefetchBlocks,
+	}
+
+	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, op.OpenFlags.IsReadOnly(), fs.threadPool, fs.blockPool, prefetchConfig)
 	logger.Info("Handle created with ")
 	op.Handle = handleID
 
