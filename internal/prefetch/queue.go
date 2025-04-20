@@ -94,7 +94,7 @@ func (bq *BlockQueue) IsEmpty() bool {
 }
 
 func (bq *BlockQueue) Push(block *Block) {
-	logger.Tracef("Pushed block %d\n", block.id)
+	logger.Tracef("Pushed block in queue %d\n", block.id)
 	bq.q.Push(block)
 }
 
@@ -107,7 +107,7 @@ func (bq *BlockQueue) Pop() *Block {
 	if !ok {
 		panic("Block expected")
 	}
-	logger.Tracef("Popped block %d\n", block.id)
+	logger.Tracef("Popped block from queue %d\n", block.id)
 	return block
 }
 
@@ -121,4 +121,8 @@ func (bq *BlockQueue) Peek() *Block {
 		panic("Block expected")
 	}
 	return block
+}
+
+func (bq *BlockQueue) Len() int {
+	return int(bq.q.Len())
 }
