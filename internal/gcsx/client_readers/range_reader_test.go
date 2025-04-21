@@ -20,7 +20,6 @@ import (
 	"io"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
 	testutil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/stretchr/testify/assert"
@@ -47,7 +46,7 @@ func getReadCloser(content []byte) io.ReadCloser {
 }
 
 func (t *rangeReaderTest) TestRangeReader_Destroy_NonNilReader() {
-	testContent := testutil.GenerateRandomBytes(2 * gcsx.MiB)
+	testContent := testutil.GenerateRandomBytes(2)
 	rc := &fake.FakeReader{
 		ReadCloser: getReadCloser(testContent),
 		Handle:     []byte("fake-handle"),
