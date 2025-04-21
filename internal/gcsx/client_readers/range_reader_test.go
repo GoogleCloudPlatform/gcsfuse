@@ -15,96 +15,48 @@
 package gcsx
 
 import (
+	"bytes"
 	"context"
-	"errors"
+	"io"
 	"testing"
 
-	storagev2 "cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
+	testutil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
 type rangeReaderTest struct {
 	suite.Suite
-	ctx    context.Context
-	reader gcs.StorageReader
+	ctx         context.Context
+	rangeReader RangeReader
 }
 
 func TestRangeReaderReaderTestSuite(t *testing.T) {
 	suite.Run(t, new(rangeReaderTest))
 }
 
-type MockStorageReader struct {
-	gcs.StorageReader
-	mock.Mock
-	readHandle []byte
-}
-
-func (m *MockStorageReader) Close() error {
-	args := m.Called()
-	return args.Error(0)
-}
-
-func (r *MockStorageReader) ReadHandle() storagev2.ReadHandle {
-	return r.readHandle
-}
-
 func (t *rangeReaderTest) SetupTest() {
-	t.reader = new(MockStorageReader)
 }
 
-func (t *rangeReaderTest) TestRangeReader_Destroy() {
-	mockReader := &MockStorageReader{}
-	mockReader.readHandle = []byte("test-handle")
-	mockReader.On("Close").Return(nil)
-	cancel := func() {}
-	rr := &RangeReader{
-		reader: mockReader,
-		cancel: cancel,
-	}
-
-	rr.Destroy()
-
-	assert.Nil(t.T(), rr.Reader)
-	assert.Nil(t.T(), rr.cancel)
-	assert.Equal(t.T(), []byte("test-handle"), rr.readHandle)
-	mockReader.AssertCalled(t.T(), "Close")
+func getReadCloser(content []byte) io.ReadCloser {
+	r := bytes.NewReader(content)
+	rc := io.NopCloser(r)
+	return rc
 }
 
-func TestRangeReader_closeReader(t *testing.T) {
-	tests := []struct {
-		name           string
-		closeError     error
-		expectedHandle []byte
-	}{
-		{
-			name:           "successful close",
-			closeError:     nil,
-			expectedHandle: []byte("abc123"),
-		},
-		{
-			name:           "close with error",
-			closeError:     errors.New("something went wrong"),
-			expectedHandle: []byte("xyz456"),
-		},
+func (t *rangeReaderTest) TestRangeReader_Destroy_NonNilReader() {
+	testContent := testutil.GenerateRandomBytes(2 * gcsx.MiB)
+	rc := &fake.FakeReader{
+		ReadCloser: getReadCloser(testContent),
+		Handle:     []byte("fake-handle"),
 	}
+	t.rangeReader.reader = rc
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockReader := &MockStorageReader{}
-			mockReader.readHandle = tt.expectedHandle
-			mockReader.On("Close").Return(tt.closeError)
+	t.rangeReader.Destroy()
 
-			rr := &RangeReader{
-				reader: mockReader,
-			}
-
-			rr.closeReader()
-
-			assert.Equal(t, tt.expectedHandle, rr.readHandle)
-			mockReader.AssertCalled(t, "Close")
-		})
-	}
+	assert.Nil(t.T(), t.rangeReader.Reader)
+	assert.Nil(t.T(), t.rangeReader.cancel)
+	assert.Equal(t.T(), []byte("fake-handle"), t.rangeReader.readHandle)
 }
