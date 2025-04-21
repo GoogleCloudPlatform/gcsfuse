@@ -93,7 +93,7 @@ func (ps *prefetchTestSuite) TestNewPrefetchReader() {
 	// Assert that the object, bucket, and prefetch config are set correctly
 	ps.assert.Equal(PrefetchReader.object, &ps.object)
 	ps.assert.Equal(PrefetchReader.bucket, ps.bucket)
-	ps.assert.NotNil(PrefetchReader.PrefetchConfig)
+	ps.assert.NotNil(PrefetchReader.config)
 
 	// Assert that the other fields are initialized correctly
 	ps.assert.Equal(PrefetchReader.lastReadOffset, int64(-1))
