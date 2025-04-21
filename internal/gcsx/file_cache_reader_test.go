@@ -493,7 +493,7 @@ func (t *fileCacheReaderTest) Test_Destroy_NonNilCacheHandle() {
 }
 
 func (t *fileCacheReaderTest) Test_Destroy_NilCacheHandle() {
-	t.reader.fileCacheHandler = t.cacheHandler
+	t.reader.fileCacheHandler = nil
 
 	t.reader.Destroy()
 
