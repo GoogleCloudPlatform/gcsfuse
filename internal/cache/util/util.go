@@ -27,6 +27,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/jacobsa/fuse/fsutil"
 )
 
@@ -84,28 +85,29 @@ func CreateFile(fileSpec data.FileSpec, flag int) (file *os.File, err error) {
 
 func CreateFile2(fileSpec data.FileSpec, param string, flag int) (file *os.File, err error) {
 	// Create directory structure if not present
-	fileDir := filepath.Dir(fileSpec.Path)
-	err = os.MkdirAll(fileSpec.Path, fileSpec.DirPerm)
+	directoryPath := fileSpec.Path + "1"
+	//fileDir := filepath.Dir(directoryPath)
+	err = os.MkdirAll(directoryPath, fileSpec.DirPerm)
 	if err != nil {
-		err = fmt.Errorf("error in creating directory structure %s: %w", fileDir, err)
+		err = fmt.Errorf("error in creating directory structure %s: %w", directoryPath, err)
 		return
 	}
 
 	// Create file if not present.
-	fullPath := path.Join(fileSpec.Path, param)
-	fmt.Println(fullPath)
+	fullPath := path.Join(directoryPath, param)
+	logger.Errorf("file name %s", fullPath)
 	_, err = os.Stat(fullPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			flag = flag | os.O_CREATE
 		} else {
-			err = fmt.Errorf("error in stating file %s: %w", fileSpec.Path, err)
+			err = fmt.Errorf("error in stating file %s: %w", fullPath, err)
 			return
 		}
 	}
 	file, err = os.OpenFile(fullPath, flag, fileSpec.FilePerm)
 	if err != nil {
-		err = fmt.Errorf("error in creating file %s: %w", fileSpec.Path, err)
+		err = fmt.Errorf("error in creating file %s: %w", fullPath, err)
 		return
 	}
 	return
