@@ -16,7 +16,6 @@ package gcsx
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"testing"
 
@@ -28,7 +27,6 @@ import (
 
 type rangeReaderTest struct {
 	suite.Suite
-	ctx         context.Context
 	rangeReader RangeReader
 }
 
@@ -37,6 +35,9 @@ func TestRangeReaderReaderTestSuite(t *testing.T) {
 }
 
 func (t *rangeReaderTest) SetupTest() {
+}
+
+func (t *rangeReaderTest) TearDown() {
 }
 
 func getReadCloser(content []byte) io.ReadCloser {
