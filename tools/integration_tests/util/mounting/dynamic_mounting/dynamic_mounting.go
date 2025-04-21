@@ -87,6 +87,7 @@ func executeTestsForDynamicMounting(flags [][]string, createdBucket string, m *t
 	// Test on testBucket
 	successCode = runTestsOnGivenMountedTestBucket(setup.TestBucket(), flags, rootMntDir, m)
 
+	testBucketForDynamicMounting := CreateTestBucketForDynamicMounting(ctx, client)
 	// Test on created bucket.
 	// SetDynamicBucketMounted to the mounted bucket.
 	setup.SetDynamicBucketMounted(createdBucket)
@@ -98,6 +99,9 @@ func executeTestsForDynamicMounting(flags [][]string, createdBucket string, m *t
 
 	// Setting back the original mntDir after testing.
 	setup.SetMntDir(rootMntDir)
+	if err := client_util.DeleteBucket(ctx, client, testBucketForDynamicMounting); err != nil {
+		log.Fatalf("Failed to delete the bucket : %s. Error: %v", testBucketForDynamicMounting, err)
+	}
 	return
 }
 

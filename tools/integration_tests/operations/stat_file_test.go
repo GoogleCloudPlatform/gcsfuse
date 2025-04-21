@@ -15,11 +15,14 @@
 package operations_test
 
 import (
+	"os"
 	"strings"
+	"syscall"
 	"testing"
 
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/all_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -39,8 +42,12 @@ func (s *OperationSuite) SetupSuite() {
 }
 
 func (s *OperationSuite) TestStatWithTrailingNewline() {
-	s.T().Logf("mountConfiguration: %p", s.mountConfiguration)
-	//s.T().Logf("mountConfiguration: %#v", s.mountConfiguration)
+	testDir := setup.SetupTestDirectoryOnMntDir(s.mountConfiguration.MntDir(), getTestName(s.T()))
+
+	_, err := os.Stat(testDir + "/\n")
+
+	require.Error(s.T(), err)
+	assert.Equal(s.T(), err.(*os.PathError).Err, syscall.ENOENT)
 }
 
 func TestOperationsSuite(t *testing.T) {

@@ -51,14 +51,17 @@ const (
 )
 
 type TestMountConfiguration struct {
-	basePackageTestDir    string
-	randomMountTestDir    string
-	flags                 []string
-	mountType             MountingType
-	logFile               string
-	mntDir                string
-	onlyDir               string // represents onlyDir if it's OnlyDirMounting.
-	onlyDirExistsOnBucket bool   // scenario when onlyDir exists on testBucket.
+	basePackageTestDir                 string
+	namedTestDir                       string
+	flags                              []string
+	mountType                          MountingType
+	logFile                            string
+	rootMntDir                         string
+	onlyDirExistsOnBucket              bool   // scenario when onlyDir exists on testBucket.
+	onlyDir                            string // represents onlyDir if it's OnlyDirMounting.
+	useCreatedBucketForDynamicMounting bool   // Use createdBucket for dynamic Mounting.
+	createdBucket                      string
+	dynmaincMntDir                     string // MntDir for dynamic mounting.
 }
 
 func (t *TestMountConfiguration) LogFile() string {
@@ -70,56 +73,72 @@ func (t *TestMountConfiguration) LogFile() string {
 }
 
 func (t *TestMountConfiguration) MntDir() string {
-	if t.mntDir == "" {
+	if t.dynmaincMntDir != "" {
+		return t.dynmaincMntDir
+	}
+	if t.rootMntDir == "" {
 		log.Println("MntDir is not set up yet. Ensure Mount() has been invoked successfully before calling MntDir().")
 		os.Exit(1)
 	}
-	return t.mntDir
+	return t.rootMntDir
 }
 
 func (t *TestMountConfiguration) MountType() MountingType {
 	return t.mountType
 }
 
-func (t *TestMountConfiguration) Mount(tb testing.TB, mntTestDirPrefix string, storageClient *storage.Client) (err error) {
-	t.randomMountTestDir, err = os.MkdirTemp(t.basePackageTestDir, mntTestDirPrefix+"_")
+func (t *TestMountConfiguration) Mount(tb testing.TB, testName string, storageClient *storage.Client) error {
+	t.namedTestDir = path.Join(t.basePackageTestDir, testName)
+	err := os.Mkdir(t.namedTestDir, 0755)
 	if err != nil {
-		return fmt.Errorf("failed to create random directory with pattern '%s{random_number}' inside base Dir '%s': %w", mntTestDirPrefix+"_", t.basePackageTestDir, err)
+		return fmt.Errorf("failed to create test named directory '%s': %w", t.namedTestDir, err)
 	}
-	mntDir := path.Join(t.randomMountTestDir, "mnt")
-	err = os.Mkdir(mntDir, 0755)
+	rootMntDir := path.Join(t.namedTestDir, "mnt")
+	err = os.Mkdir(rootMntDir, 0755)
 	if err != nil {
-		return fmt.Errorf("failed to create 'mnt' directory inside '%s': %w", t.randomMountTestDir, err)
+		return fmt.Errorf("failed to create 'mnt' directory inside '%s': %w", t.namedTestDir, err)
 	}
 
-	t.logFile = path.Join(t.randomMountTestDir, "gcsfuse.log")
+	t.logFile = path.Join(t.namedTestDir, "gcsfuse.log")
 
 	switch t.mountType {
 	case StaticMounting:
-		err = static_mounting.MountGcsfuseWithStaticMountingMntDirAndLogFile(t.flags, mntDir, t.logFile)
+		err = static_mounting.MountGcsfuseWithStaticMountingMntDirAndLogFile(t.flags, rootMntDir, t.logFile)
 	case PersistentMounting:
-		err = persistent_mounting.MountGcsfuseWithPersistentMountingMntDirLogFile(t.flags, mntDir, t.logFile)
+		err = persistent_mounting.MountGcsfuseWithPersistentMountingMntDirLogFile(t.flags, rootMntDir, t.logFile)
 	case DynamicMounting:
-		err = dynamic_mounting.MountGcsfuseWithDynamicMountingMntDirLogFile(t.flags, mntDir, t.logFile)
+		ctx := context.Background()
+		if t.useCreatedBucketForDynamicMounting {
+			t.createdBucket = dynamic_mounting.CreateTestBucketForDynamicMounting(ctx, storageClient)
+		}
+		err = dynamic_mounting.MountGcsfuseWithDynamicMountingMntDirLogFile(t.flags, rootMntDir, t.logFile)
 	case OnlyDirMounting:
 		ctx := context.Background()
+		t.onlyDir = onlyDirMountTestPrefix + setup.GenerateRandomString(5)
 		if t.onlyDirExistsOnBucket {
-			_ = client.SetupTestDirectoryMntDirOnlyDir(ctx, storageClient, t.onlyDir, mntDir, t.onlyDir)
+			_ = client.SetupTestDirectoryMntDirOnlyDir(ctx, storageClient, t.onlyDir, rootMntDir, t.onlyDir)
 		} else {
 			err = client.DeleteAllObjectsWithPrefix(ctx, storageClient, t.onlyDir)
 			if err != nil {
 				return fmt.Errorf("failed to clean up Objects with prefix %s for only directory mounting: %w", t.onlyDir, err)
 			}
 		}
-		err = only_dir_mounting.MountGcsfuseWithOnlyDirMntDirLogFile(t.flags, mntDir, t.logFile, t.onlyDir)
+		err = only_dir_mounting.MountGcsfuseWithOnlyDirMntDirLogFile(t.flags, rootMntDir, t.logFile, t.onlyDir)
 	default:
 		return fmt.Errorf("unknown mount type: %v", t.mountType)
 	}
 	if err != nil {
 		return fmt.Errorf("failed to mount GCSFuse for mountType: %v, err: %w", t.mountType, err)
 	}
-	t.mntDir = mntDir
-	return
+	t.rootMntDir = rootMntDir
+	if t.mountType == DynamicMounting {
+		if t.useCreatedBucketForDynamicMounting {
+			t.dynmaincMntDir = path.Join(rootMntDir, t.createdBucket)
+		} else {
+			t.dynmaincMntDir = path.Join(rootMntDir, setup.TestBucket())
+		}
+	}
+	return nil
 }
 
 func (t *TestMountConfiguration) Unmount() error {
@@ -127,7 +146,7 @@ func (t *TestMountConfiguration) Unmount() error {
 	if err != nil {
 		return fmt.Errorf("cannot find fusermount: %w", err)
 	}
-	cmd := exec.Command(fusermount, "-uz", t.mntDir)
+	cmd := exec.Command(fusermount, "-uz", t.rootMntDir)
 	if _, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("fusermount error: %w", err)
 	}
@@ -145,11 +164,13 @@ func GenerateTestMountConfigurations(mountTypes []MountingType, flagsSet [][]str
 				basePackageTestDir: baseTestDir,
 			}
 			if mountType == OnlyDirMounting {
-				testMountConfiguration.onlyDir = onlyDirMountTestPrefix + setup.GenerateRandomString(5)
-				testMountConfiguration.onlyDirExistsOnBucket = true
 				dup := testMountConfiguration
-				dup.onlyDirExistsOnBucket = false
-				dup.onlyDir = onlyDirMountTestPrefix + setup.GenerateRandomString(5)
+				dup.onlyDirExistsOnBucket = true
+				testMountConfigurations = append(testMountConfigurations, dup)
+			}
+			if mountType == DynamicMounting {
+				dup := testMountConfiguration
+				dup.useCreatedBucketForDynamicMounting = true
 				testMountConfigurations = append(testMountConfigurations, dup)
 			}
 			testMountConfigurations = append(testMountConfigurations, testMountConfiguration)
@@ -161,24 +182,21 @@ func GenerateTestMountConfigurations(mountTypes []MountingType, flagsSet [][]str
 func UnmountAll(mountConfiguration []TestMountConfiguration, storageClient *storage.Client) error {
 	cnt := 0
 	for _, testMountConfiguration := range mountConfiguration {
-		if testMountConfiguration.mntDir != "" {
-			log.Println("Unmounting, mntDir: ", testMountConfiguration.mntDir, "mountType: ", testMountConfiguration.mountType)
-			if testMountConfiguration.mountType == OnlyDirMounting {
-				log.Println("OnlyDir: ", testMountConfiguration.onlyDir)
-				ctx := context.Background()
-				err := client.DeleteObjectOnGCS(ctx, storageClient, testMountConfiguration.onlyDir+"/")
-				if err != nil {
-					log.Printf("Unable to delete onlyDir: %s, err: %v", testMountConfiguration.onlyDir, err)
-				} else {
-					log.Printf("Successfully deleted onlyDir: %s", testMountConfiguration.onlyDir)
-				}
-			}
+		if testMountConfiguration.rootMntDir != "" {
 			err := testMountConfiguration.Unmount()
 			if err != nil {
 				cnt++
-				log.Printf("Unable to unmount mntDir: %s, err: %v", testMountConfiguration.mntDir, err)
+				log.Printf("Unable to unmount mntDir: %s, err: %v", testMountConfiguration.rootMntDir, err)
 			} else {
-				log.Printf("Successfully unmounted mntDir: %s", testMountConfiguration.mntDir)
+				log.Printf("Successfully unmounted mntDir: %s", testMountConfiguration.rootMntDir)
+			}
+			if testMountConfiguration.mountType == DynamicMounting && testMountConfiguration.useCreatedBucketForDynamicMounting {
+				err := client.DeleteBucket(context.Background(), storageClient, testMountConfiguration.createdBucket)
+				if err != nil {
+					log.Printf("Unable to delete bucket: %s, err: %v", testMountConfiguration.createdBucket, err)
+				} else {
+					log.Printf("Successfully deleted bucket: %s", testMountConfiguration.createdBucket)
+				}
 			}
 		}
 	}

@@ -247,10 +247,25 @@ func DeleteObjectOnGCS(ctx context.Context, client *storage.Client, objectName s
 // It concurrently iterates through objects with the given prefix and deletes them using multiple goroutines,
 // leveraging the number of CPU cores for optimal performance.
 func DeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, prefix string) error {
+	query := &storage.Query{Prefix: prefix}
+	return DeleteAllObjectsWithQuery(ctx, client, prefix, query)
+}
+
+// DeleteAllObjectsWithPrefix deletes all objects with the specified prefix in a GCS bucket.
+// It concurrently iterates through objects with the given prefix and deletes them using multiple goroutines,
+// leveraging the number of CPU cores for optimal performance.
+func DeleteEverythingWithPrefix(ctx context.Context, client *storage.Client, prefix string) error {
+	query := &storage.Query{Prefix: prefix, Delimiter: "/", IncludeFoldersAsPrefixes: true}
+	return DeleteAllObjectsWithQuery(ctx, client, prefix, query)
+}
+
+// DeleteAllObjectsWithPrefix deletes all objects with the specified prefix in a GCS bucket.
+// It concurrently iterates through objects with the given prefix and deletes them using multiple goroutines,
+// leveraging the number of CPU cores for optimal performance.
+func DeleteAllObjectsWithQuery(ctx context.Context, client *storage.Client, prefix string, query *storage.Query) error {
 	bucket, _ := setup.GetBucketAndObjectBasedOnTypeOfMount("")
 
 	// Get an object iterator
-	query := &storage.Query{Prefix: prefix}
 	objectItr := client.Bucket(bucket).Objects(ctx, query)
 
 	// Create a buffered channel to receive errors from goroutines

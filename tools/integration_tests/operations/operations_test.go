@@ -91,7 +91,7 @@ var (
 	cacheDir       string
 	storageClient  *storage.Client
 	ctx            context.Context
-	mountTypes     = []MountingType{StaticMounting, OnlyDirMounting, PersistentMounting, DynamicMounting}
+	mountTypes     = []MountingType{StaticMounting, OnlyDirMounting, DynamicMounting, PersistentMounting}
 	configurations []TestMountConfiguration
 )
 
@@ -198,9 +198,6 @@ func TestMain(m *testing.M) {
 		os.Exit(successCodeTPC)
 	}
 	configurations = all_mounting.GenerateTestMountConfigurations(mountTypes, flagsSet, setup.TestDir())
-	for _, testMountConfiguration := range configurations {
-		log.Println("MountType: ", testMountConfiguration.MountType())
-	}
 	successCode := m.Run()
 	all_mounting.UnmountAll(configurations, storageClient)
 	os.Exit(successCode)
