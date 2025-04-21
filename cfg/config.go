@@ -66,6 +66,8 @@ type Config struct {
 
 	OnlyDir string `yaml:"only-dir"`
 
+	Prefetch PrefetchConfig `yaml:"prefetch"`
+
 	Write WriteConfig `yaml:"write"`
 }
 
@@ -229,6 +231,20 @@ type MonitoringConfig struct {
 	ExperimentalTracingSamplingRatio float64 `yaml:"experimental-tracing-sampling-ratio"`
 }
 
+type PrefetchConfig struct {
+	BlockSizeMb int64 `yaml:"block-size-mb"`
+
+	Enable bool `yaml:"enable"`
+
+	InitialPrefetchBlocks int64 `yaml:"initial-prefetch-blocks"`
+
+	MaxParallelism int64 `yaml:"max-parallelism"`
+
+	MaxPrefetchBlocks int64 `yaml:"max-prefetch-blocks"`
+
+	MaxPrefetchSizeMb int64 `yaml:"max-prefetch-size-mb"`
+}
+
 type ReadStallGcsRetriesConfig struct {
 	Enable bool `yaml:"enable"`
 
@@ -353,6 +369,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("enable-nonexistent-type-cache", "", false, "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType will be created. This also means new file/dir created might not be seen. For example, if this flag is set, and metadata-cache-ttl-secs is set, then if we create the same file/node in the meantime using the same mount, since we are not refreshing the cache, it will still return nil.")
 
+	flagSet.BoolP("enable-prefetch", "", false, "Part size for the non-file-cache flow.")
+
 	flagSet.BoolP("enable-read-stall-retry", "", true, "To turn on/off retries for stalled read requests. This is based on a timeout that changes depending on how long similar requests took in the past.")
 
 	if err := flagSet.MarkHidden("enable-read-stall-retry"); err != nil {
@@ -415,7 +433,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("file-cache-max-parallel-downloads", "", DefaultMaxParallelDownloads(), "Sets an uber limit of number of concurrent file download requests that are made across all files.")
+	flagSet.IntP("file-cache-max-parallel-downloads", "", 100, "Sets an uber limit of number of concurrent file download requests that are made across all files.")
 
 	flagSet.IntP("file-cache-max-size-mb", "", -1, "Maximum size of the file-cache in MiBs")
 
@@ -498,6 +516,16 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	if err := flagSet.MarkHidden("precondition-errors"); err != nil {
 		return err
 	}
+
+	flagSet.IntP("prefetch-block-size-mb", "", 16, "Part size for the non-file-cache flow.")
+
+	flagSet.IntP("prefetch-initial-prefetch-blocks", "", 4, "Per file initial number of blocks to be prefetched.")
+
+	flagSet.IntP("prefetch-max-parallelism", "", 100, "Upper limit of overall parallelism.")
+
+	flagSet.IntP("prefetch-max-prefetch-blocks", "", 20, "Per file max number of blocks to be prefetched.")
+
+	flagSet.IntP("prefetch-max-prefetch-size-mb", "", 1024, "Total cap over memory used for prefetch.")
 
 	flagSet.IntP("prometheus-port", "", 0, "Expose Prometheus metrics endpoint on this port and a path of /metrics.")
 
@@ -680,6 +708,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("prefetch.enable", flagSet.Lookup("enable-prefetch")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("gcs-retries.read-stall.enable", flagSet.Lookup("enable-read-stall-retry")); err != nil {
 		return err
 	}
@@ -853,6 +885,26 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.precondition-errors", flagSet.Lookup("precondition-errors")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("prefetch.block-size-mb", flagSet.Lookup("prefetch-block-size-mb")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("prefetch.initial-prefetch-blocks", flagSet.Lookup("prefetch-initial-prefetch-blocks")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("prefetch.max-parallelism", flagSet.Lookup("prefetch-max-parallelism")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("prefetch.max-prefetch-blocks", flagSet.Lookup("prefetch-max-prefetch-blocks")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("prefetch.max-prefetch-size-mb", flagSet.Lookup("prefetch-max-prefetch-size-mb")); err != nil {
 		return err
 	}
 

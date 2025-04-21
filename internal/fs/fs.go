@@ -42,6 +42,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/prefetch"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/jacobsa/fuse"
@@ -217,6 +218,14 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 	fs.implicitDirInodes[root.Name()] = root
 	fs.folderInodes[root.Name()] = root
 	root.Unlock()
+
+	// Initialize prefetcher block-pool and thread-pool if prefetch is enabled.
+	if serverCfg.NewConfig.Prefetch.Enable {
+		fs.threadPool = prefetch.NewThreadPool(uint32(serverCfg.NewConfig.Prefetch.MaxParallelism), prefetch.Download)
+		fs.threadPool.Start()
+		logger.Infof("Prefetch config: max: %d", serverCfg.NewConfig.Prefetch.MaxPrefetchSizeMb)
+		fs.blockPool = prefetch.NewBlockPool(uint64(serverCfg.NewConfig.Prefetch.BlockSizeMb*1024*1024), uint64(serverCfg.NewConfig.Prefetch.MaxPrefetchSizeMb*1024*1024))
+	}
 
 	// Set up invariant checking.
 	fs.mu = locker.New("FS", fs.checkInvariants)
@@ -492,6 +501,10 @@ type fileSystem struct {
 	// Limits the max number of blocks that can be created across file system when
 	// streaming writes are enabled.
 	globalMaxWriteBlocksSem *semaphore.Weighted
+
+	// Prefetch
+	threadPool *prefetch.ThreadPool
+	blockPool  *prefetch.BlockPool
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -1409,6 +1422,10 @@ func (fs *fileSystem) Destroy() {
 	if fs.fileCacheHandler != nil {
 		_ = fs.fileCacheHandler.Destroy()
 	}
+
+	if fs.threadPool != nil {
+		fs.threadPool.Stop()
+	}
 }
 
 func (fs *fileSystem) StatFS(
@@ -1792,8 +1809,16 @@ func (fs *fileSystem) CreateFile(
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
+	// Get prefetch config from the mount config.
+	prefetchConfig := &prefetch.PrefetchConfig{
+		PrefetchCount:           fs.newConfig.Prefetch.MaxPrefetchBlocks,
+		PrefetchChunkSize:       fs.newConfig.Prefetch.BlockSizeMb * 1024 * 1024,
+		PrefetchMultiplier:      2,
+		InitialPrefetchBlockCnt: fs.newConfig.Prefetch.InitialPrefetchBlocks,
+	}
+
 	// Creating new file is always a write operation, hence passing readOnly as false.
-	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, false)
+	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, false, fs.threadPool, fs.blockPool, prefetchConfig)
 	op.Handle = handleID
 
 	fs.mu.Unlock()
@@ -2515,7 +2540,16 @@ func (fs *fileSystem) OpenFile(
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
-	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, op.OpenFlags.IsReadOnly())
+	// Get prefetch config from the mount config.
+	prefetchConfig := &prefetch.PrefetchConfig{
+		PrefetchCount:           fs.newConfig.Prefetch.MaxPrefetchBlocks,
+		PrefetchChunkSize:       fs.newConfig.Prefetch.BlockSizeMb * 1024 * 1024,
+		PrefetchMultiplier:      2,
+		InitialPrefetchBlockCnt: fs.newConfig.Prefetch.InitialPrefetchBlocks,
+	}
+
+	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, op.OpenFlags.IsReadOnly(), fs.threadPool, fs.blockPool, prefetchConfig)
+	logger.Info("Handle created with ")
 	op.Handle = handleID
 
 	// When we observe object generations that we didn't create, we assign them

@@ -118,6 +118,15 @@ func SetLogFormat(format string) {
 	defaultLogger = defaultLoggerFactory.newLogger(defaultLoggerFactory.level)
 }
 
+// SetLogLevel updates the log level of default logger.
+func SetLogLevel(level string) {
+	if level == defaultLoggerFactory.level {
+		return
+	}
+	defaultLoggerFactory.level = level
+	defaultLogger = defaultLoggerFactory.newLogger(defaultLoggerFactory.level)
+}
+
 // Tracef prints the message with TRACE severity in the specified format.
 func Tracef(format string, v ...interface{}) {
 	defaultLogger.Log(context.Background(), LevelTrace, fmt.Sprintf(format, v...))

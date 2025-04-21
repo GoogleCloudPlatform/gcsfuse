@@ -28,6 +28,7 @@ import (
 	cacheutil "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/prefetch"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/jacobsa/fuse/fuseops"
@@ -109,7 +110,7 @@ const (
 
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
-func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper) RandomReader {
+func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper, prefetcher *prefetch.PrefetchReader) RandomReader {
 	return &randomReader{
 		object:                o,
 		bucket:                bucket,
@@ -123,6 +124,7 @@ func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb i
 		cacheFileForRangeRead: cacheFileForRangeRead,
 		mrdWrapper:            mrdWrapper,
 		metricHandle:          metricHandle,
+		prefetchReader:        prefetcher,
 	}
 }
 
@@ -177,7 +179,8 @@ type randomReader struct {
 	// boolean variable to determine if MRD is being used or not.
 	isMRDInUse bool
 
-	metricHandle common.MetricHandle
+	metricHandle   common.MetricHandle
+	prefetchReader *prefetch.PrefetchReader
 }
 
 func (rr *randomReader) CheckInvariants() {
@@ -327,6 +330,18 @@ func (rr *randomReader) ReadAt(
 		return
 	}
 
+	// Read from pre-fetcher if enabled.
+	if rr.prefetchReader != nil {
+		var nn int64
+		nn, err = rr.prefetchReader.ReadAt(ctx, p, offset)
+		if err != nil && err != io.EOF {
+			err = fmt.Errorf("ReadAt: while reading from pre-fetcher: %w", err)
+			return
+		}
+		objectData.Size = int(nn)
+		return
+	}
+
 	// Check first if we can read using existing reader. if not, determine which
 	// api to use and call gcs accordingly.
 
@@ -414,6 +429,10 @@ func (rr *randomReader) Destroy() {
 			logger.Warnf("rr.Destroy(): while closing cacheFileHandle: %v", err)
 		}
 		rr.fileCacheHandle = nil
+	}
+
+	if rr.prefetchReader != nil {
+		rr.prefetchReader.Destroy()
 	}
 }
 
