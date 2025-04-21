@@ -92,23 +92,27 @@ func findTestExecutionEnvironment(ctx context.Context) (string, string) {
 	if v, exists := attrs.Value("gcp.gce.instance.hostname"); exists && strings.Contains(strings.ToLower(v.AsString()), "cloudtop-prod") {
 		return testEnvNonGCE, testEnvZoneGCEOther
 	}
+	// region is only used for non-ZB e2e tests.
+	// zone is only used for ZB e2e tests.
+	region, zone := testEnvNonGCE, testEnvZoneGCEOther
 	if v, exists := attrs.Value("cloud.region"); exists {
-		region := strings.ToLower(v.AsString())
-		// The above method only ever returns region of the VM, and not the zone. So, I am assuming that when region is us-central1, then zone is us-central1-a, which may not be true always.
-		switch region {
-		case "us-central1":
-			return testEnvGCEUSCentral, testEnvZoneGCEUSCentral1A
-		case "us-west4":
-			return testEnvGCENonUSCentral, testEnvZoneGCEUSWEST4A
-		default:
-			if strings.Contains(strings.ToLower(v.AsString()), "us-central") {
-				return testEnvGCEUSCentral, testEnvZoneGCEOther
-			} else {
-				return testEnvGCENonUSCentral, testEnvZoneGCEOther
-			}
+		if strings.Contains(strings.ToLower(v.AsString()), "us-central") {
+			region = testEnvGCEUSCentral
+		} else {
+			region = testEnvGCENonUSCentral
 		}
 	}
-	return testEnvNonGCE, testEnvZoneGCEOther
+	if v, exists := attrs.Value("cloud.availability_zone"); exists {
+		switch strings.ToLower(v.AsString()) {
+		case "us-central1-a":
+			zone = testEnvZoneGCEUSCentral1A
+		case "us-west4-a":
+			zone = testEnvZoneGCEUSWEST4A
+		default:
+			zone = testEnvZoneGCEOther
+		}
+	}
+	return region, zone
 }
 
 func TestMain(m *testing.M) {
