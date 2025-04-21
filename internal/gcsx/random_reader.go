@@ -436,6 +436,7 @@ func (rr *randomReader) Destroy() {
 	if rr.prefetchReader != nil {
 		rr.prefetchReader.Destroy()
 	}
+	rr.prefetchReader = nil
 }
 
 // Like io.ReadFull, but deals with the cancellation issues.

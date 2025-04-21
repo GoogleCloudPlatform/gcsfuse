@@ -26,10 +26,6 @@ import (
 	"golang.org/x/net/context"
 )
 
-const (
-	min_prefetch = 10
-)
-
 type PrefetchConfig struct {
 	PrefetchCount           int64
 	PrefetchChunkSize       int64
@@ -49,7 +45,7 @@ func getDefaultPrefetchConfig() *PrefetchConfig {
 type PrefetchReader struct {
 	object              *gcs.MinObject
 	bucket              gcs.Bucket
-	PrefetchConfig      *PrefetchConfig
+	config              *PrefetchConfig
 	lastReadOffset      int64
 	nextBlockToPrefetch int64
 
@@ -77,11 +73,11 @@ func (p *PrefetchReader) Close() error {
 
 }
 
-func NewPrefetchReader(object *gcs.MinObject, bucket gcs.Bucket, PrefetchConfig *PrefetchConfig, blockPool *BlockPool, threadPool *ThreadPool) *PrefetchReader {
+func NewPrefetchReader(object *gcs.MinObject, bucket gcs.Bucket, config *PrefetchConfig, blockPool *BlockPool, threadPool *ThreadPool) *PrefetchReader {
 	prefetchReader := &PrefetchReader{
 		object:              object,
 		bucket:              bucket,
-		PrefetchConfig:      PrefetchConfig,
+		config:              config,
 		lastReadOffset:      -1,
 		nextBlockToPrefetch: 0,
 		randomSeekCount:     0,
@@ -105,7 +101,7 @@ func (p *PrefetchReader) ReadAt(ctx context.Context, inputBuffer []byte, offset 
 	// Generate an unique id in the request
 	requestId := uuid.New()
 	stime := time.Now()
-	blockIndex := offset / p.PrefetchConfig.PrefetchChunkSize
+	blockIndex := offset / p.config.PrefetchChunkSize
 
 	logger.Tracef("%.10v <- ReadAt(%d, %d, %d).", requestId, offset, len(inputBuffer), blockIndex)
 
@@ -161,7 +157,7 @@ func (p *PrefetchReader) ReadAt(ctx context.Context, inputBuffer []byte, offset 
 		}
 
 		readOffset := uint64(offset) - block.offset
-		blockSize := GetBlockSize(block, uint64(p.PrefetchConfig.PrefetchChunkSize), uint64(p.object.Size))
+		blockSize := GetBlockSize(block, uint64(p.config.PrefetchChunkSize), uint64(p.object.Size))
 		bytesRead := copy(inputBuffer[dataRead:], block.data[readOffset:blockSize])
 		dataRead += bytesRead
 		offset += int64(bytesRead)
@@ -178,13 +174,11 @@ func (p *PrefetchReader) ReadAt(ctx context.Context, inputBuffer []byte, offset 
 		}
 
 		if dataRead < len(inputBuffer) || (dataRead == len(inputBuffer) && offset == int64(block.endOffset)) {
-			if !prefetchHappened {
-				tmp := p.blockQueue.Pop()
-				tmp.Cancel()
-				<-tmp.status
-				tmp.ReUse()
-				p.blockPool.Release(tmp)
+			consumedBlock := p.blockQueue.Pop()
+			consumedBlock.ReUse()
+			p.blockPool.Release(consumedBlock)
 
+			if !prefetchHappened {
 				prefetchHappened = true
 				err = p.prefetch()
 				if err != nil {
@@ -199,8 +193,8 @@ func (p *PrefetchReader) ReadAt(ctx context.Context, inputBuffer []byte, offset 
 }
 
 func (p *PrefetchReader) prefetch() error {
-	nextPrefetchCount := p.PrefetchConfig.PrefetchMultiplier * p.lastPrefetchCount
-	nextPrefetchCount = min(nextPrefetchCount, p.PrefetchConfig.PrefetchCount-int64(p.blockQueue.Len()))
+	nextPrefetchCount := p.config.PrefetchMultiplier * p.lastPrefetchCount
+	nextPrefetchCount = min(nextPrefetchCount, p.config.PrefetchCount-int64(p.blockQueue.Len()))
 
 	p.lastPrefetchCount = nextPrefetchCount
 
@@ -217,22 +211,21 @@ func (p *PrefetchReader) prefetch() error {
 // freshStart to start from a given offset.
 func (p *PrefetchReader) freshStart(currentSeek int64) error {
 	p.resetPrefetcher()
-	blockIndex := currentSeek / p.PrefetchConfig.PrefetchChunkSize
+	blockIndex := currentSeek / p.config.PrefetchChunkSize
 	p.nextBlockToPrefetch = blockIndex
 
 	err := p.scheduleNextBlock(false)
 	if err != nil {
-		return err
-	}
-
-	for i := 0; i < int(p.PrefetchConfig.InitialPrefetchBlockCnt) && p.nextBlockToPrefetch < p.maxBlockCount(); i++ {
-		err := p.scheduleNextBlock(true)
-		if err != nil {
-			return err
-		}
+		return fmt.Errorf("freshStart: initial scheduling failed with %d", err)
 	}
 
 	p.lastPrefetchCount = 1
+
+	err = p.prefetch()
+	if err != nil {
+		return fmt.Errorf("freshStart: prefetch failed with %d", err)
+	}
+
 	return nil
 }
 
@@ -273,7 +266,7 @@ func (p *PrefetchReader) scheduleBlockWithIndex(block *Block, blockIndex int64, 
 // prepareBlock initializes block-state according to blockIndex.
 func (p *PrefetchReader) prepareBlock(blockIndex int64, block *Block) {
 	block.id = blockIndex
-	block.offset = uint64(blockIndex * p.PrefetchConfig.PrefetchChunkSize)
+	block.offset = uint64(blockIndex * p.config.PrefetchChunkSize)
 	block.writeSeek = 0
 	block.endOffset = min(block.offset+p.blockPool.blockSize, uint64(p.object.Size))
 }
@@ -313,5 +306,5 @@ func (p *PrefetchReader) resetPrefetcher() {
 }
 
 func (p *PrefetchReader) maxBlockCount() int64 {
-	return (int64(p.object.Size) + p.PrefetchConfig.PrefetchChunkSize - 1) / p.PrefetchConfig.PrefetchChunkSize
+	return (int64(p.object.Size) + p.config.PrefetchChunkSize - 1) / p.config.PrefetchChunkSize
 }
