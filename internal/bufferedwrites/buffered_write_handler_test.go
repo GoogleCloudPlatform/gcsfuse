@@ -328,13 +328,12 @@ func (testSuite *BufferedWriteTest) TestSyncPartialBlockTableDriven() {
 		testSuite.T().Run(tc.name, func(t *testing.T) {
 			testSuite.setupTestWithBucketType(tc.bucketType)
 			buffer, err := operations.GenerateRandomData(int64(blockSize * tc.numBlocks))
-			assert.NoError(testSuite.T(), err)
+			assert.NoError(t, err)
 			err = testSuite.bwh.Write(buffer, 0)
-			require.Nil(testSuite.T(), err)
+			require.Nil(t, err)
 
 			// Wait for 3 blocks to upload successfully.
 			err = testSuite.bwh.Sync()
-
 			assert.NoError(t, err)
 			assert.NoError(testSuite.T(), err)
 			bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
@@ -451,12 +450,19 @@ func (testSuite *BufferedWriteTest) TestDestroyShouldClearFreeBlockChannel() {
 	assert.Equal(testSuite.T(), 0, len(bwhImpl.uploadHandler.uploadCh))
 }
 
-func (testSuite *BufferedWriteTest) TestUnlinkBeforeWrite() {
+func (testSuite *BufferedWriteTest) TestUnlinkBeforeAnyWriteThenFurtherWriteSucceds() {
 	testSuite.bwh.Unlink()
-
 	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
-	assert.Nil(testSuite.T(), bwhImpl.uploadHandler.cancelFunc)
-	assert.Equal(testSuite.T(), 0, len(bwhImpl.uploadHandler.uploadCh))
+	assert.NotNil(testSuite.T(), bwhImpl.uploadHandler.cancelFunc)
+	buffer, err := operations.GenerateRandomData(blockSize)
+	assert.NoError(testSuite.T(), err)
+
+	for i := 0; i < 5; i++ {
+		err := testSuite.bwh.Write(buffer, int64(blockSize*i))
+		require.Nil(testSuite.T(), err)
+	}
+
+	assert.Equal(testSuite.T(), 5, len(bwhImpl.uploadHandler.uploadCh))
 	assert.Equal(testSuite.T(), 0, len(bwhImpl.blockPool.FreeBlocksChannel()))
 }
 

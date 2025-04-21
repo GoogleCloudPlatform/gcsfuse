@@ -45,6 +45,8 @@ type UploadHandler struct {
 	// writer to resumable upload the blocks to GCS.
 	writer gcs.Writer
 
+	// Ensures the uploader goroutine is started only once.
+	startUploaderOnce sync.Once
 	// uploadError stores atomic pointer to the error seen by uploader.
 	uploadError atomic.Pointer[error]
 	// CancelFunc persisted to cancel the uploads in case of unlink operation.
@@ -68,8 +70,10 @@ type CreateUploadHandlerRequest struct {
 	ChunkTransferTimeoutSecs int64
 }
 
-// newUploadHandler creates the UploadHandler struct.
-func newUploadHandler(req *CreateUploadHandlerRequest) *UploadHandler {
+// newUploadHandler creates the UploadHandler struct,
+// object writer and flushes the object writer for zonal
+// buckets to create empty unfinalized Object.
+func newUploadHandler(req *CreateUploadHandlerRequest) (*UploadHandler, error) {
 	uh := &UploadHandler{
 		uploadCh:             make(chan block.Block, req.MaxBlocksPerFile),
 		wg:                   sync.WaitGroup{},
@@ -80,30 +84,27 @@ func newUploadHandler(req *CreateUploadHandlerRequest) *UploadHandler {
 		blockSize:            req.BlockSize,
 		chunkTransferTimeout: req.ChunkTransferTimeoutSecs,
 	}
-	return uh
+	err := uh.createObjectWriter()
+	if err != nil {
+		return nil, fmt.Errorf("createObjectWriter: %w", err)
+	}
+	return uh, nil
 }
 
 // Upload adds a block to the upload queue.
-func (uh *UploadHandler) Upload(block block.Block) error {
+func (uh *UploadHandler) Upload(block block.Block) {
 	uh.wg.Add(1)
 
-	if uh.writer == nil {
-		// Lazily create the object writer.
-		err := uh.createObjectWriter()
-		if err != nil {
-			// createObjectWriter can only fail here due to throttling, so we will not
-			// handle this error explicitly or fall back to temp file flow.
-			return fmt.Errorf("createObjectWriter failed for object %s: %w", uh.objectName, err)
-		}
-		// Start the uploader goroutine.
+	// Ensure the uploader goroutine is started, but only once.
+	uh.startUploaderOnce.Do(func() {
+		// Executed only the first time Do is called.
 		go uh.uploader()
-	}
+	})
 
 	uh.uploadCh <- block
-	return nil
 }
 
-// createObjectWriter creates a GCS object writer.
+// createObjectWriter creates a GCS object writer...
 func (uh *UploadHandler) createObjectWriter() (err error) {
 	// TODO: b/381479965: Dynamically set chunkTransferTimeoutSecs based on chunk size. 0 here means no timeout.
 	req := gcs.NewCreateObjectRequest(uh.obj, uh.objectName, nil, 0)
@@ -112,6 +113,15 @@ func (uh *UploadHandler) createObjectWriter() (err error) {
 	var ctx context.Context
 	ctx, uh.cancelFunc = context.WithCancel(context.Background())
 	uh.writer, err = uh.bucket.CreateObjectChunkWriter(ctx, req, int(uh.blockSize), nil)
+	if err != nil {
+		return fmt.Errorf("CreateObjectChunkWriter failed for object %s: %w", uh.objectName, err)
+	}
+	if uh.bucket.BucketType().Zonal {
+		_, err = uh.bucket.FlushPendingWrites(ctx, uh.writer)
+		if err != nil {
+			return fmt.Errorf("FlushPendingWrites failed for object %s: %w", uh.objectName, err)
+		}
+	}
 	return
 }
 
@@ -152,13 +162,6 @@ func (uh *UploadHandler) Finalize() (*gcs.MinObject, error) {
 	uh.wg.Wait()
 	close(uh.uploadCh)
 
-	// Writer may not have been created for empty file creation flow or for very
-	// small writes of size less than 1 block.
-	err := uh.ensureWriter()
-	if err != nil {
-		return nil, fmt.Errorf("uh.ensureWriter() failed: %v", err)
-	}
-
 	obj, err := uh.bucket.FinalizeUpload(context.Background(), uh.writer)
 	if err != nil {
 		// FinalizeUpload already returns GCSerror so no need to convert again.
@@ -169,26 +172,9 @@ func (uh *UploadHandler) Finalize() (*gcs.MinObject, error) {
 	return obj, nil
 }
 
-func (uh *UploadHandler) ensureWriter() error {
-	if uh.writer == nil {
-		err := uh.createObjectWriter()
-		if err != nil {
-			return fmt.Errorf("createObjectWriter failed for object %s: %w", uh.objectName, err)
-		}
-	}
-	return nil
-}
-
 // FlushPendingWrites uploads any data in the write buffer.
 func (uh *UploadHandler) FlushPendingWrites() (int64, error) {
 	uh.wg.Wait()
-
-	// Writer may not have been created for empty file creation flow or for very
-	// small writes of size less than 1 block.
-	err := uh.ensureWriter()
-	if err != nil {
-		return 0, fmt.Errorf("uh.ensureWriter() failed: %v", err)
-	}
 
 	offset, err := uh.bucket.FlushPendingWrites(context.Background(), uh.writer)
 	if err != nil {

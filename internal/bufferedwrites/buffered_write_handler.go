@@ -23,6 +23,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -49,6 +50,10 @@ type BufferedWriteHandler interface {
 	// WriteFileInfo returns the file info i.e, how much data has been buffered so far
 	// and the mtime.
 	WriteFileInfo() WriteFileInfo
+
+	// UploadHanlderUpdatedMinObject returns updated minObject created from
+	// upload handler writer attributes after flushinng empty writer for Zonal Objects.
+	UpdatedMinObjectFromUploadHandler() *gcs.MinObject
 
 	// Destroy destroys the upload handler and then free up the buffers.
 	Destroy() error
@@ -103,22 +108,27 @@ func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err er
 		return
 	}
 
+	uh, err := newUploadHandler(&CreateUploadHandlerRequest{
+		Object:                   req.Object,
+		ObjectName:               req.ObjectName,
+		Bucket:                   req.Bucket,
+		FreeBlocksCh:             bp.FreeBlocksChannel(),
+		MaxBlocksPerFile:         req.MaxBlocksPerFile,
+		BlockSize:                req.BlockSize,
+		ChunkTransferTimeoutSecs: req.ChunkTransferTimeoutSecs,
+	})
+	if err != nil {
+		return
+	}
 	bwh = &bufferedWriteHandlerImpl{
-		current:   nil,
-		blockPool: bp,
-		uploadHandler: newUploadHandler(&CreateUploadHandlerRequest{
-			Object:                   req.Object,
-			ObjectName:               req.ObjectName,
-			Bucket:                   req.Bucket,
-			FreeBlocksCh:             bp.FreeBlocksChannel(),
-			MaxBlocksPerFile:         req.MaxBlocksPerFile,
-			BlockSize:                req.BlockSize,
-			ChunkTransferTimeoutSecs: req.ChunkTransferTimeoutSecs,
-		}),
+		current:       nil,
+		blockPool:     bp,
+		uploadHandler: uh,
 		totalSize:     0,
 		mtime:         time.Now(),
 		truncatedSize: -1,
 	}
+
 	return
 }
 
@@ -166,10 +176,7 @@ func (wh *bufferedWriteHandlerImpl) appendBuffer(data []byte) (err error) {
 		dataWritten += bytesToCopy
 
 		if wh.current.Size() == wh.blockPool.BlockSize() {
-			err := wh.uploadHandler.Upload(wh.current)
-			if err != nil {
-				return err
-			}
+			wh.uploadHandler.Upload(wh.current)
 			wh.current = nil
 		}
 	}
@@ -181,10 +188,7 @@ func (wh *bufferedWriteHandlerImpl) appendBuffer(data []byte) (err error) {
 func (wh *bufferedWriteHandlerImpl) Sync() (err error) {
 	// Upload current block (for both regional and zonal buckets).
 	if wh.current != nil && wh.current.Size() != 0 {
-		err := wh.uploadHandler.Upload(wh.current)
-		if err != nil {
-			return err
-		}
+		wh.uploadHandler.Upload(wh.current)
 		wh.current = nil
 	}
 	// Upload all the pending buffers.
@@ -227,10 +231,7 @@ func (wh *bufferedWriteHandlerImpl) Flush() (*gcs.MinObject, error) {
 	}
 
 	if wh.current != nil {
-		err := wh.uploadHandler.Upload(wh.current)
-		if err != nil {
-			return nil, err
-		}
+		wh.uploadHandler.Upload(wh.current)
 		wh.current = nil
 	}
 
@@ -266,6 +267,13 @@ func (wh *bufferedWriteHandlerImpl) WriteFileInfo() WriteFileInfo {
 		TotalSize: int64(math.Max(float64(wh.totalSize), float64(wh.truncatedSize))),
 		Mtime:     wh.mtime,
 	}
+}
+
+func (wh *bufferedWriteHandlerImpl) UpdatedMinObjectFromUploadHandler() *gcs.MinObject {
+	if wh.uploadHandler.bucket.BucketType().Zonal {
+		return storageutil.ObjectAttrsToMinObject(wh.uploadHandler.writer.Attrs())
+	}
+	return nil
 }
 
 func (wh *bufferedWriteHandlerImpl) Destroy() error {

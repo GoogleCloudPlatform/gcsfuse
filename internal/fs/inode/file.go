@@ -970,6 +970,10 @@ func (f *FileInode) CreateBufferedOrTempWriter(ctx context.Context) (err error) 
 	return
 }
 
+// initBufferedWriteHandlerIfEligible initializes BWH and also flushes the upload handler
+// writer for zonal buckets to create empty unfinalized object on GCS. It also updates the
+// inode state if we create empty unfinalized Object on GCS.
+
 func (f *FileInode) initBufferedWriteHandlerIfEligible(ctx context.Context) error {
 	// bwh already initialized, do nothing.
 	if f.bwh != nil {
@@ -1005,6 +1009,16 @@ func (f *FileInode) initBufferedWriteHandlerIfEligible(ctx context.Context) erro
 			return fmt.Errorf("failed to create bufferedWriteHandler: %w", err)
 		}
 		f.bwh.SetMtime(f.mtimeClock.Now())
+		// update the inode state from writer attributes of upload handler.
+		minObject := f.bwh.UpdatedMinObjectFromUploadHandler()
+		if minObject != nil {
+			f.src = *minObject
+			// Update MRDWrapper
+			f.updateMRDWrapper()
+			if f.IsLocal() {
+				f.local = false
+			}
+		}
 	}
 
 	return nil
