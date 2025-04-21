@@ -36,7 +36,7 @@ const (
 
 func TestMountTimeout(t *testing.T) {
 	if setup.IsZonalBucketRun() {
-		zone := os.Getenv("TEST_ENV_ZONE")
+		zone := os.Getenv("TEST_ENV")
 		switch zone {
 		case testEnvZoneGCEUSCentral1A:
 			// Set strict zone-based config values.
