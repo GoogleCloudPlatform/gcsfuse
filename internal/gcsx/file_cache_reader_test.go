@@ -482,8 +482,7 @@ func (t *fileCacheReaderTest) Test_Destroy_NonNilCacheHandle() {
 	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, t.object.Size, rd)
 	t.mockBucket.On("Name").Return("test-bucket")
-	buf := make([]byte, t.object.Size)
-	readerResponse, err := t.reader.ReadAt(t.ctx, buf, 0)
+	readerResponse, err := t.reader.ReadAt(t.ctx, make([]byte, t.object.Size), 0)
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), readerResponse.DataBuf, testContent)
 	assert.NotNil(t.T(), t.reader.fileCacheHandle)
