@@ -491,3 +491,11 @@ func (t *fileCacheReaderTest) Test_Destroy_NonNilCacheHandle() {
 
 	assert.Nil(t.T(), t.reader.fileCacheHandle)
 }
+
+func (t *fileCacheReaderTest) Test_Destroy_NilCacheHandle() {
+	t.reader.fileCacheHandler = t.cacheHandler
+
+	t.reader.Destroy()
+
+	assert.Nil(nil, t.reader.fileCacheHandle)
+}
