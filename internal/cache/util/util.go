@@ -82,6 +82,34 @@ func CreateFile(fileSpec data.FileSpec, flag int) (file *os.File, err error) {
 	return
 }
 
+func CreateFile2(fileSpec data.FileSpec, param string, flag int) (file *os.File, err error) {
+	// Create directory structure if not present
+	fileDir := filepath.Dir(fileSpec.Path)
+	err = os.MkdirAll(fileDir, fileSpec.DirPerm)
+	if err != nil {
+		err = fmt.Errorf("error in creating directory structure %s: %w", fileDir, err)
+		return
+	}
+
+	// Create file if not present.
+	fullPath := path.Join(fileSpec.Path, param)
+	_, err = os.Stat(fullPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			flag = flag | os.O_CREATE
+		} else {
+			err = fmt.Errorf("error in stating file %s: %w", fileSpec.Path, err)
+			return
+		}
+	}
+	file, err = os.OpenFile(fullPath, flag, fileSpec.FilePerm)
+	if err != nil {
+		err = fmt.Errorf("error in creating file %s: %w", fileSpec.Path, err)
+		return
+	}
+	return
+}
+
 // GetObjectPath gives object path which is concatenation of bucket and object
 // name separated by "/".
 func GetObjectPath(bucketName string, objectName string) string {

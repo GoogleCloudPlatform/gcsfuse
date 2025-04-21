@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
@@ -186,6 +187,12 @@ func (job *Job) downloadOffsets(ctx context.Context, goroutineIndex int64, cache
 		var readHandle []byte
 		var err error
 
+		file, err := cacheutil.CreateFile2(job.fileSpec, strconv.Itoa(int(goroutineIndex)), os.O_TRUNC|os.O_WRONLY)
+
+		if err != nil {
+			return err
+		}
+
 		for {
 			// Read the offset to be downloaded from the channel.
 			objectRange, ok := <-job.rangeChan
@@ -194,7 +201,7 @@ func (job *Job) downloadOffsets(ctx context.Context, goroutineIndex int64, cache
 				return nil
 			}
 
-			offsetWriter := io.NewOffsetWriter(cacheFile, objectRange.Start)
+			offsetWriter := io.NewOffsetWriter(file, objectRange.Start)
 			readHandle, err = job.downloadRange(ctx, offsetWriter, objectRange.Start, objectRange.End, readHandle, rangeMap)
 			if err != nil {
 				return err
