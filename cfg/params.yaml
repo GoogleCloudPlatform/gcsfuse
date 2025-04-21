@@ -293,9 +293,8 @@
   flag-name: "custom-endpoint"
   type: "string"
   usage: >-
-    Specifies an alternative custom endpoint for fetching data.  
-    The custom endpoint must support the equivalent resources
-    and operations as the GCS  JSON endpoint,
+    Specifies an alternative custom endpoint for fetching data. The custom endpoint 
+    must support the equivalent resources and operations as the GCS  JSON endpoint,
     https://storage.googleapis.com/storage/v1. If a custom endpoint is not
     specified,  GCSFuse uses the global GCS JSON API endpoint,
     https://storage.googleapis.com/storage/v1.
