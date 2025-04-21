@@ -188,6 +188,7 @@ func (job *Job) downloadOffsets(ctx context.Context, goroutineIndex int64, cache
 		var err error
 
 		file, err := cacheutil.CreateFile2(job.fileSpec, strconv.Itoa(int(goroutineIndex)), os.O_TRUNC|os.O_WRONLY)
+		defer file.Close()
 
 		if err != nil {
 			return err
