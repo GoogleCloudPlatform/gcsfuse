@@ -62,8 +62,8 @@ const (
 	testEnvZoneGCEOther               string        = "gce-zone-other"
 	zonalUSCentral1ABucket            string        = "mount_timeout_test_bucket_zb_usc1a"
 	zonalUSWest4ABucket               string        = "mount_timeout_test_bucket_zb_usw4a"
-	zonalSameRegionExpectedMountTime  time.Duration = 2500 * time.Millisecond
-	zonalCrossRegionExpectedMountTime time.Duration = 5000 * time.Millisecond
+	zonalSameZoneExpectedMountTime  time.Duration = 2500 * time.Millisecond
+	zonalCrossZoneExpectedMountTime time.Duration = 5000 * time.Millisecond
 	// Commont constants.
 	relaxedExpectedMountTime time.Duration = 8000 * time.Millisecond
 	logfilePathPrefix        string        = "/tmp/gcsfuse_mount_timeout_"
