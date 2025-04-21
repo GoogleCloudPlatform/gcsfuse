@@ -436,7 +436,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_IfCacheFileGetsDeletedWithCacheHandleO
 	t.mockBucket.AssertExpectations(t.T())
 }
 
-func (t *fileCacheReaderTest) Test_ReadAt_FailedJobRestartAndCacheHit() {
+func (t *fileCacheReaderTest) Test_ReadAt_FailedJobNextReadCreatesNewJobAndCacheHit() {
 	testContent := testutil.GenerateRandomBytes(int(t.object.Size))
 	// First NewReaderWithReadHandle call fails, simulating a failed attempt to read from GCS.
 	// This triggers a fallback to GCS reader.
