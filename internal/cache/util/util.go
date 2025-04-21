@@ -85,7 +85,7 @@ func CreateFile(fileSpec data.FileSpec, flag int) (file *os.File, err error) {
 func CreateFile2(fileSpec data.FileSpec, param string, flag int) (file *os.File, err error) {
 	// Create directory structure if not present
 	fileDir := filepath.Dir(fileSpec.Path)
-	err = os.MkdirAll(fileDir, fileSpec.DirPerm)
+	err = os.MkdirAll(fileSpec.Path, fileSpec.DirPerm)
 	if err != nil {
 		err = fmt.Errorf("error in creating directory structure %s: %w", fileDir, err)
 		return
@@ -93,6 +93,7 @@ func CreateFile2(fileSpec data.FileSpec, param string, flag int) (file *os.File,
 
 	// Create file if not present.
 	fullPath := path.Join(fileSpec.Path, param)
+	fmt.Println(fullPath)
 	_, err = os.Stat(fullPath)
 	if err != nil {
 		if os.IsNotExist(err) {
