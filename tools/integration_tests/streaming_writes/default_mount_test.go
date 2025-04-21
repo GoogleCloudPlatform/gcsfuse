@@ -46,6 +46,7 @@ func (t *defaultMountCommonTest) SetupSuite() {
 
 func (t *defaultMountCommonTest) TearDownSuite() {
 	setup.UnmountGCSFuse(rootDir)
+	setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
 }
 
 func (t *defaultMountCommonTest) validateReadCall(filePath string) {
