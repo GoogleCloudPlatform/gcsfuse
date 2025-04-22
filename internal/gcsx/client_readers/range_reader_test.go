@@ -133,7 +133,7 @@ func (t *rangeReaderTest) Test_CheckInvariants() {
 			setup: func() *RangeReader {
 				t.rangeReader.reader = getReader()
 				return &RangeReader{
-					start:  0,
+					start:  -10,
 					limit:  -5,
 					reader: t.rangeReader.reader,
 					cancel: func() {},
@@ -162,5 +162,5 @@ func (t *rangeReaderTest) Test_Destroy_NonNilReader() {
 
 	assert.Nil(t.T(), t.rangeReader.Reader)
 	assert.Nil(t.T(), t.rangeReader.cancel)
-	assert.Equal(t.T(), []byte("fake-handle"), t.rangeReader.readHandle)
+	assert.Equal(t.T(), []byte(fakeHandleData), t.rangeReader.readHandle)
 }

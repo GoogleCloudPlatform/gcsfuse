@@ -23,6 +23,7 @@ import (
 )
 
 type RangeReader struct {
+	// TODO: Add additional fields as needed.
 	gcsx.Reader
 	start int64
 	limit int64
@@ -40,7 +41,6 @@ type RangeReader struct {
 }
 
 func NewRangeReader() *RangeReader {
-	// TODO:add more fields as necessary.
 	return &RangeReader{
 		start: -1,
 		limit: -1,
