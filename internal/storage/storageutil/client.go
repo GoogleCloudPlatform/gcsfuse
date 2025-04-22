@@ -16,7 +16,6 @@ package storageutil
 
 import (
 	"crypto/tls"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -59,7 +58,7 @@ type StorageClientConfig struct {
 	ReadStallRetryConfig cfg.ReadStallGcsRetriesConfig
 }
 
-func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *http.Client, err error) {
+func CreateHttpClient(storageClientConfig *StorageClientConfig, TokenProvider *auth.TokenProvider) (httpClient *http.Client, err error) {
 	var transport *http.Transport
 	// Using http1 makes the client more performant.
 	if storageClientConfig.ClientProtocol == cfg.HTTP1 {
@@ -94,18 +93,11 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 			Timeout: storageClientConfig.HttpClientTimeout,
 		}
 	} else {
-		var tokenSrc oauth2.TokenSource
-		tokenSrc, err = CreateTokenSource(storageClientConfig)
-		if err != nil {
-			err = fmt.Errorf("while fetching tokenSource: %w", err)
-			return
-		}
-
 		// Custom http client for Go Client.
 		httpClient = &http.Client{
 			Transport: &oauth2.Transport{
 				Base:   transport,
-				Source: tokenSrc,
+				Source: TokenProvider.TokenSource(),
 			},
 			Timeout: storageClientConfig.HttpClientTimeout,
 		}
@@ -122,6 +114,12 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 // key-file or using ADC search order (https://cloud.google.com/docs/authentication/application-default-credentials#order).
 func CreateTokenSource(storageClientConfig *StorageClientConfig) (tokenSrc oauth2.TokenSource, err error) {
 	return auth.GetTokenSource(context.Background(), storageClientConfig.KeyFile, storageClientConfig.TokenUrl, storageClientConfig.ReuseTokenFromUrl)
+}
+
+// It creates the token-source from the provided
+// key-file or using ADC search order (https://cloud.google.com/docs/authentication/application-default-credentials#order).
+func CreateTokenProvider(storageClientConfig *StorageClientConfig) (provider *auth.TokenProvider, err error) {
+	return auth.GetTokenProvider(context.Background(), storageClientConfig.KeyFile, storageClientConfig.TokenUrl, storageClientConfig.ReuseTokenFromUrl)
 }
 
 // StripScheme strips the scheme part of given url.
