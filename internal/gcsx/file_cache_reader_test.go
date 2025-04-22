@@ -476,3 +476,26 @@ func (t *fileCacheReaderTest) Test_ReadAt_NegativeOffsetShouldThrowError() {
 	assert.Error(t.T(), err)
 	assert.Zero(t.T(), readerResponse.Size)
 }
+
+func (t *fileCacheReaderTest) Test_Destroy_NonNilCacheHandle() {
+	testContent := testutil.GenerateRandomBytes(int(t.object.Size))
+	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
+	t.mockNewReaderWithHandleCallForTestBucket(0, t.object.Size, rd)
+	t.mockBucket.On("Name").Return("test-bucket")
+	readerResponse, err := t.reader.ReadAt(t.ctx, make([]byte, t.object.Size), 0)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), readerResponse.DataBuf, testContent)
+	assert.NotNil(t.T(), t.reader.fileCacheHandle)
+
+	t.reader.Destroy()
+
+	assert.Nil(t.T(), t.reader.fileCacheHandle)
+}
+
+func (t *fileCacheReaderTest) Test_Destroy_NilCacheHandle() {
+	t.reader.fileCacheHandler = nil
+
+	t.reader.Destroy()
+
+	assert.Nil(nil, t.reader.fileCacheHandle)
+}

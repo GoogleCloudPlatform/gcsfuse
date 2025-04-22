@@ -209,3 +209,14 @@ func captureFileCacheMetrics(ctx context.Context, metricHandle common.MetricHand
 	metricHandle.FileCacheReadBytesCount(ctx, int64(readDataSize), []common.MetricAttr{{Key: common.ReadType, Value: readType}})
 	metricHandle.FileCacheReadLatency(ctx, float64(readLatency.Microseconds()), []common.MetricAttr{{Key: common.CacheHit, Value: strconv.FormatBool(cacheHit)}})
 }
+
+func (fc *FileCacheReader) Destroy() {
+	if fc.fileCacheHandle != nil {
+		logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", fc.fileCacheHandle, fc.bucket.Name(), fc.object.Name)
+		err := fc.fileCacheHandle.Close()
+		if err != nil {
+			logger.Warnf("fc.Destroy(): while closing cacheFileHandle: %v", err)
+		}
+		fc.fileCacheHandle = nil
+	}
+}
