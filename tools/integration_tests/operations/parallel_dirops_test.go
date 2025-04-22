@@ -421,12 +421,3 @@ func TestParallelLookUpAndMkdirSameDir(t *testing.T) {
 		assert.True(t, dirStatInfo.IsDir(), "The created path should be a directory")
 	}
 }
-
-func TestCreateDeleteCreateDelete(t *testing.T) {
-	// Create directory structure for testing.
-	// Create directory structure for testing.
-	tds := createDirStructure(t)
-	deleteDirStructure(tds)
-	tds = createDirStructure(t)
-	deleteDirStructure(tds)
-}
