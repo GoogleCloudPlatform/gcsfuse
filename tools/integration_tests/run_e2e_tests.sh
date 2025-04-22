@@ -497,13 +497,15 @@ function main(){
          if [ $e2e_tests_tpc_flat_bucket_status != 0 ];
          then
             echo "The e2e tests for flat bucket failed.."
-            exit_code=1
+            exit 1
          fi
          if [ $e2e_tests_tpc_hns_bucket_status != 0 ];
          then
              echo "The e2e tests for hns bucket failed.."
-             exit_code=1
+             exit 1
          fi
+         # Exit to prevent the following code from executing for TPC.
+         exit 0
     fi
 
     run_e2e_tests_for_hns_bucket &
