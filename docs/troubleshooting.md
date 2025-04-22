@@ -168,3 +168,14 @@ To allow users other than the mounting user to access the bucket, use the `-o al
 Use the `--uid` and `--gid` flags to specify the correct user and group IDs for access.
 
 Please note that GCSFuse does not support using `chmod` or similar commands to manage file access. For more detailed information, refer to the [Permissions and Ownership](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#permissions-and-ownership).
+
+
+### Cloning github repository inside mounted bucket is extremely slow
+Ensure your GCS bucket mount configuration does not include `o=sync` or `o=dirsync`. \
+During git clone, Git doesn’t just fetch object data—it builds out the entire .git directory structure, including initializing config, refs, hooks, and other internals. As part of this setup:
+
+- Git repeatedly writes and updates .git/config, especially when setting remotes, branches, and defaults.
+- Each update uses Git’s lock-write-rename-delete pattern to ensure consistency.
+
+While using the mount configuration `o=sync,o=dirsync`, all modifications to the config file incur a network call due to enforced synchronous writes, resulting in 
+performance bottleneck.
