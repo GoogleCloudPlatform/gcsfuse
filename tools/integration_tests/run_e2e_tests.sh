@@ -427,7 +427,7 @@ function run_e2e_tests_for_zonal_bucket(){
 
 function run_e2e_tests_for_tpc() {
   local bucket=$1
-  if [ $bucket == "" ];
+  if [ "$bucket" == "" ];
   then
     echo "Bucket name is required"
     return 1
