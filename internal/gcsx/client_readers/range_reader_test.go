@@ -25,16 +25,19 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+const fakeHandleData = "fake-handle"
+
 type rangeReaderTest struct {
 	suite.Suite
-	rangeReader RangeReader
+	rangeReader *RangeReader
 }
 
-func TestRangeReaderReaderTestSuite(t *testing.T) {
+func TestRangeReaderTestSuite(t *testing.T) {
 	suite.Run(t, new(rangeReaderTest))
 }
 
 func (t *rangeReaderTest) SetupTest() {
+	t.rangeReader = NewRangeReader()
 }
 
 func (t *rangeReaderTest) TearDown() {
@@ -46,13 +49,114 @@ func getReadCloser(content []byte) io.ReadCloser {
 	return rc
 }
 
-func (t *rangeReaderTest) TestRangeReader_Destroy_NonNilReader() {
+func getReader() *fake.FakeReader {
 	testContent := testutil.GenerateRandomBytes(2)
-	rc := &fake.FakeReader{
+	return &fake.FakeReader{
 		ReadCloser: getReadCloser(testContent),
-		Handle:     []byte("fake-handle"),
+		Handle:     []byte(fakeHandleData),
 	}
-	t.rangeReader.reader = rc
+}
+
+func (t *rangeReaderTest) Test_NewRangeReader() {
+	assert.Equal(t.T(), int64(-1), t.rangeReader.start)
+	assert.Equal(t.T(), int64(-1), t.rangeReader.limit)
+}
+func (t *rangeReaderTest) Test_CheckInvariants() {
+	tests := []struct {
+		name        string
+		setup       func() *RangeReader
+		shouldPanic bool
+	}{
+		{
+			name: "valid no reader",
+			setup: func() *RangeReader {
+				return &RangeReader{
+					start:  0,
+					limit:  10,
+					reader: nil,
+					cancel: nil,
+				}
+			},
+			shouldPanic: false,
+		},
+		{
+			name: "reader without cancel",
+			setup: func() *RangeReader {
+				t.rangeReader.reader = getReader()
+				return &RangeReader{
+					start:  0,
+					limit:  10,
+					reader: t.rangeReader.reader,
+					cancel: nil,
+				}
+			},
+			shouldPanic: true,
+		},
+		{
+			name: "cancel without reader",
+			setup: func() *RangeReader {
+				return &RangeReader{
+					start:  0,
+					limit:  10,
+					reader: nil,
+					cancel: func() {},
+				}
+			},
+			shouldPanic: true,
+		},
+		{
+			name: "invalid range",
+			setup: func() *RangeReader {
+				return &RangeReader{
+					start:  20,
+					limit:  10,
+					reader: nil,
+					cancel: nil,
+				}
+			},
+			shouldPanic: true,
+		},
+		{
+			name: "negative limit with nil reader",
+			setup: func() *RangeReader {
+				return &RangeReader{
+					start:  0,
+					limit:  -1,
+					reader: nil,
+					cancel: nil,
+				}
+			},
+			shouldPanic: true,
+		},
+		{
+			name: "negative limit with valid reader",
+			setup: func() *RangeReader {
+				t.rangeReader.reader = getReader()
+				return &RangeReader{
+					start:  0,
+					limit:  -5,
+					reader: t.rangeReader.reader,
+					cancel: func() {},
+				}
+			},
+			shouldPanic: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func() {
+			rr := tt.setup()
+			if tt.shouldPanic {
+				assert.Panics(t.T(), func() { rr.CheckInvariants() }, "Expected panic")
+			} else {
+				assert.NotPanics(t.T(), func() { rr.CheckInvariants() }, "Expected no panic")
+			}
+		})
+	}
+}
+
+func (t *rangeReaderTest) Test_Destroy_NonNilReader() {
+	t.rangeReader.reader = getReader()
 
 	t.rangeReader.Destroy()
 

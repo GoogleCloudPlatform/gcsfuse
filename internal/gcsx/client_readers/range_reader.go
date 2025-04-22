@@ -39,6 +39,14 @@ type RangeReader struct {
 	cancel     func()
 }
 
+func NewRangeReader() *RangeReader {
+	// TODO:add more fields as necessary.
+	return &RangeReader{
+		start: -1,
+		limit: -1,
+	}
+}
+
 func (rr *RangeReader) CheckInvariants() {
 	// INVARIANT: (reader == nil) == (cancel == nil)
 	if (rr.reader == nil) != (rr.cancel == nil) {
