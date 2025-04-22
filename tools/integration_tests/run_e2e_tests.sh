@@ -434,16 +434,16 @@ function run_e2e_tests_for_tpc() {
   fi
 
   # Clean bucket before testing.
-  gcloud --verbosity=error storage rm -r gs://$bucket/*
+  gcloud --verbosity=error storage rm -r gs://"$bucket"/*
 
   # Run Operations e2e tests in TPC to validate all the functionality.
-  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/... --testOnTPCEndPoint=$RUN_TEST_ON_TPC_ENDPOINT $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=false -p 1 --integrationTest -v --testbucket=$bucket --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT
+  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/... --testOnTPCEndPoint=$RUN_TEST_ON_TPC_ENDPOINT $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=false -p 1 --integrationTest -v --testbucket="$bucket" --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT
   exit_code=$?
 
   set -e
 
   # Delete data after testing.
-  gcloud --verbosity=error storage rm -r gs://$bucket/*
+  gcloud --verbosity=error storage rm -r gs://"$bucket"/*
 
   if [ $exit_code != 0 ];
    then
