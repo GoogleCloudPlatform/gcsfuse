@@ -40,6 +40,7 @@ var gBuildDir string
 var gFusermountPath string
 
 const (
+	// Constants specific to non-ZB E2E runs.
 	testEnvGCEUSCentral                    string        = "gce-us-central"
 	testEnvGCENonUSCentral                 string        = "gce-non-us-central"
 	testEnvNonGCE                          string        = "non-gce"
@@ -55,8 +56,17 @@ const (
 	dualRegionUSExpectedMountTime          time.Duration = 4500 * time.Millisecond
 	dualRegionAsiaExpectedMountTime        time.Duration = 6250 * time.Millisecond
 	singleRegionUSCentralExpectedMountTime time.Duration = 2500 * time.Millisecond
-	relaxedExpectedMountTime               time.Duration = 8000 * time.Millisecond
-	logfilePathPrefix                      string        = "/tmp/gcsfuse_mount_timeout_"
+	// Constants specific to ZB E2E runs.
+	testEnvZoneGCEUSCentral1A       string        = "gce-zone-us-central1-a"
+	testEnvZoneGCEUSWEST4A          string        = "gce-zone-us-west4a-a"
+	testEnvZoneGCEOther             string        = "gce-zone-other"
+	zonalUSCentral1ABucket          string        = "mount_timeout_test_bucket_zb_usc1a"
+	zonalUSWest4ABucket             string        = "mount_timeout_test_bucket_zb_usw4a"
+	zonalSameZoneExpectedMountTime  time.Duration = 2500 * time.Millisecond
+	zonalCrossZoneExpectedMountTime time.Duration = 5000 * time.Millisecond
+	// Commont constants.
+	relaxedExpectedMountTime time.Duration = 8000 * time.Millisecond
+	logfilePathPrefix        string        = "/tmp/gcsfuse_mount_timeout_"
 )
 
 // findTestExecutionEnvironment determines the environment in which the tests are running.
@@ -76,16 +86,34 @@ func findTestExecutionEnvironment(ctx context.Context) string {
 	}
 	attrs := detectedAttrs.Set()
 	if v, exists := attrs.Value("gcp.gce.instance.hostname"); exists && strings.Contains(strings.ToLower(v.AsString()), "cloudtop-prod") {
-		return testEnvNonGCE
-	}
-	if v, exists := attrs.Value("cloud.region"); exists {
-		if strings.Contains(strings.ToLower(v.AsString()), "us-central") {
-			return testEnvGCEUSCentral
+		if !setup.IsZonalBucketRun() {
+			return testEnvNonGCE
 		} else {
-			return testEnvGCENonUSCentral
+			return testEnvZoneGCEOther
 		}
 	}
-	return testEnvNonGCE
+	if !setup.IsZonalBucketRun() {
+		if v, exists := attrs.Value("cloud.region"); exists {
+			if strings.Contains(strings.ToLower(v.AsString()), "us-central") {
+				return testEnvGCEUSCentral
+			} else {
+				return testEnvGCENonUSCentral
+			}
+		}
+		return testEnvNonGCE
+	} else {
+		if v, exists := attrs.Value("cloud.availability_zone"); exists {
+			switch strings.ToLower(v.AsString()) {
+			case "us-central1-a":
+				return testEnvZoneGCEUSCentral1A
+			case "us-west4-a":
+				return testEnvZoneGCEUSWEST4A
+			default:
+				return testEnvZoneGCEOther
+			}
+		}
+		return testEnvZoneGCEOther
+	}
 }
 
 func TestMain(m *testing.M) {
