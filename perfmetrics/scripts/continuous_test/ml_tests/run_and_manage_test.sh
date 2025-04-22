@@ -39,26 +39,26 @@ function initialize_ssh_key () {
     delay=1
     max_delay=10
     attempt=1
-    retries=5
-    while [ $attempt -le $retries ]; do
+    max_attempts=5
+    while true; do
         echo "Attempting SSH connection (attempt $attempt)..."
-        # Requires running ssh command with --quiet option to initialize keys.
+        # Requires running first ssh command with --quiet option to initialize keys.
         # Otherwise it prompts for yes or no.
         if sudo gcloud compute ssh "$VM_NAME" --zone "$ZONE_NAME" --internal-ip --quiet --command "echo 'Running from VM'"; then
-            echo "SSH connection successful."
             return 0
-        else
-            echo "SSH connection failed. Waiting $delay seconds before retrying..."
-            sleep $delay
-            delay=$((delay * 2)) # Exponential backoff
-            if [ "$delay" -gt "$max_delay" ]; then
-                delay="$max_delay" # Cap the delay
-            fi
-            attempt=$((attempt + 1))
         fi
+        if [ "$attempt" -ge "$max_attempts" ]; then
+            echo "All SSH connection attempts failed."
+            exit 1
+        fi
+        echo "SSH connection failed. Waiting $delay seconds before retrying..."
+        sleep $delay
+        delay=$((delay * 2))
+        if [ "$delay" -gt "$max_delay" ]; then
+            delay="$max_delay"
+        fi
+        attempt=$((attempt + 1))
     done
-    echo "All SSH connection attempts failed."
-    exit 1
 }
 
 function delete_existing_vm_and_create_new () {
