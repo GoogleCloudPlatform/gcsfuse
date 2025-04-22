@@ -254,7 +254,7 @@ func UnMountBucket() {
 
 func SaveLogFileInCaseOfFailure(successCode int) {
 	if successCode != 0 {
-		SaveLogFileAsArtifact(LogFile(), GCSFuseLogFilePrefix + operations.GenerateRandomString(5))
+		SaveLogFileAsArtifact(LogFile(), GCSFuseLogFilePrefix+operations.GenerateRandomString(5))
 	}
 }
 
@@ -281,7 +281,7 @@ func SaveGCSFuseLogFileInCaseOfFailure(tb testing.TB) {
 	if !tb.Failed() || MountedDirectory() != "" {
 		return
 	}
-	SaveLogFileAsArtifact(LogFile(), GCSFuseLogFilePrefix+strings.ReplaceAll(tb.Name(), "/", "_") + operations.GenerateRandomString(5))
+	SaveLogFileAsArtifact(LogFile(), GCSFuseLogFilePrefix+strings.ReplaceAll(tb.Name(), "/", "_")+operations.GenerateRandomString(5))
 }
 
 // In case of test failure saves ProxyServerLogFile to
