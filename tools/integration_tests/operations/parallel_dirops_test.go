@@ -54,12 +54,12 @@ type testFs struct {
 // Also returns the path to test directory.
 func createDirectoryStructureForParallelDiropsTest(t *testing.T) testFs {
 	var tfs testFs
-	tfs.testDir := setup.SetupTestDirectory(DirForOperationTests)
+	tfs.testDir = setup.SetupTestDirectory(DirForOperationTests)
 	setup.CleanUpDir(tfs.testDir)
 
 	// Create explicitDir1 structure
 	tfs.explicitDir1Name = "explicitDir1-" + setup.GenerateRandomString(5)
-	explicitDir1 := path.Join(testDir, tfs.explicitDir1Name)
+	explicitDir1 := path.Join(tfs.testDir, tfs.explicitDir1Name)
 	operations.CreateDirectory(explicitDir1, t)
 	tfs.file1InExplicitDir1Name = "file1-" + setup.GenerateRandomString(5) + ".txt"
 	filePath1 := path.Join(explicitDir1, tfs.file1InExplicitDir1Name)
@@ -70,17 +70,17 @@ func createDirectoryStructureForParallelDiropsTest(t *testing.T) testFs {
 
 	// Create explicitDir2 structure
 	tfs.explicitDir2Name = "explicitDir2-" + setup.GenerateRandomString(5)
-	explicitDir2 := path.Join(testDir, tfs.explicitDir2Name)
+	explicitDir2 := path.Join(tfs.testDir, tfs.explicitDir2Name)
 	operations.CreateDirectory(explicitDir2, t)
 	tfs.file1InExplicitDir2Name = "file1-" + setup.GenerateRandomString(5) + ".txt"
 	filePath1 = path.Join(explicitDir2, tfs.file1InExplicitDir2Name)
 	operations.CreateFileOfSize(11, filePath1, t)
 
 	tfs.file1Name = "file1-" + setup.GenerateRandomString(5) + ".txt"
-	filePath1 = path.Join(testDir, tfs.file1Name)
+	filePath1 = path.Join(tfs.testDir, tfs.file1Name)
 	operations.CreateFileOfSize(5, filePath1, t)
 	tfs.file2Name = "file2-" + setup.GenerateRandomString(5) + ".txt"
-	filePath2 = path.Join(testDir, tfs.file2Name)
+	filePath2 = path.Join(tfs.testDir, tfs.file2Name)
 	operations.CreateFileOfSize(3, filePath2, t)
 
 	return tfs
