@@ -130,6 +130,18 @@ func (t *rangeReaderTest) Test_CheckInvariants() {
 			},
 			shouldPanic: true,
 		},
+		{
+			name: "negative limit with nil reader",
+			setup: func() *RangeReader {
+				return &RangeReader{
+					start:  -10,
+					limit:  -5,
+					reader: nil,
+					cancel: nil,
+				}
+			},
+			shouldPanic: false,
+		},
 	}
 
 	for _, tt := range tests {
