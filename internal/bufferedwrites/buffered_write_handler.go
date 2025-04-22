@@ -34,9 +34,10 @@ type BufferedWriteHandler interface {
 	// the capacity is available otherwise writes to a new buffer.
 	Write(data []byte, offset int64) (err error)
 
-	// Sync uploads all the pending full buffers to GCS. For zonal buckets, Sync
-	// returns the un-finalized object created on GCS. Nil object is returned for
-	// non-zonal buckets.
+	// Sync uploads all the pending buffers to GCS.
+	// Sync returns
+	// 1. un-finalized object created on GCS for zonal buckets.
+	// 2. nil object for non-zonal buckets.
 	Sync() (*gcs.MinObject, error)
 
 	// Flush finalizes the upload.
