@@ -59,7 +59,7 @@ func getReader() *fake.FakeReader {
 }
 
 func (t *rangeReaderTest) Test_NewRangeReader() {
-	// rangeReader is instantiated in setup.
+	// rangeReader with NewRangeReader is instantiated in setup.
 	assert.Equal(t.T(), int64(-1), t.rangeReader.start)
 	assert.Equal(t.T(), int64(-1), t.rangeReader.limit)
 }
