@@ -281,7 +281,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 			return nil, fmt.Errorf("could not create StorageControl Client: %w", err)
 		}
 	} else {
-		logger.Infof("Skipping storage control client creation as control client support is assumed to be unavailable on the local host. This is likely because a custom endpoint for a testbench server (which doesn't support control client) was provided.")
+		logger.Infof("Skipping storage control client creation because custom-endpoint %q was passed, which is assumed to be a storage testbench server because of 'localhost' in it.", clientConfig.CustomEndpoint)
 	}
 
 	sh = &storageClient{
