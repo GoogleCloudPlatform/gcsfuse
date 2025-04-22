@@ -425,12 +425,13 @@ function run_e2e_tests_for_zonal_bucket(){
    return 0
 }
 
-function run_e2e_tests_for_tpc_and_exit() {
+function run_e2e_tests_for_tpc() {
+  bucket=$1
   # Clean bucket before testing.
   gcloud storage rm -r gs://gcsfuse-e2e-tests-tpc/**
 
   # Run Operations e2e tests in TPC to validate all the functionality.
-  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/... --testOnTPCEndPoint=$RUN_TEST_ON_TPC_ENDPOINT $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=false -p 1 --integrationTest -v --testbucket=gcsfuse-e2e-tests-tpc --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT
+  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/... --testOnTPCEndPoint=$RUN_TEST_ON_TPC_ENDPOINT $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=false -p 1 --integrationTest -v --testbucket=$bucket --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT
   exit_code=$?
 
   set -e
@@ -442,7 +443,7 @@ function run_e2e_tests_for_tpc_and_exit() {
    then
      echo "The tests failed."
   fi
-  exit $exit_code
+  return $exit_code
 }
 
 function run_e2e_tests_for_emulator() {
@@ -479,8 +480,30 @@ function main(){
     fi
   else
     # Run tpc test and exit in case RUN_TEST_ON_TPC_ENDPOINT is true.
-    if [ $RUN_TEST_ON_TPC_ENDPOINT == true ]; then
-         run_e2e_tests_for_tpc_and_exit
+    if [ "$RUN_TEST_ON_TPC_ENDPOINT" == true ]; then
+         # Run tests for flat bucket
+         run_e2e_tests_for_tpc gcsfuse-e2e-tests-tpc &
+         e2e_tests_tpc_flat_bucket_pid=$!
+         # Run tests for hns bucket
+         run_e2e_tests_for_tpc gcsfuse-e2e-tests-tpc-hns &
+         e2e_tests_tpc_hns_bucket_pid=$!
+
+         wait $e2e_tests_tpc_flat_bucket_pid
+         e2e_tests_tpc_flat_bucket_status=$?
+
+         wait $e2e_tests_tpc_hns_bucket_pid
+         e2e_tests_tpc_hns_bucket_status=$?
+
+         if [ $e2e_tests_tpc_flat_bucket_status != 0 ];
+         then
+            echo "The e2e tests for flat bucket failed.."
+            exit_code=1
+         fi
+         if [ $e2e_tests_tpc_hns_bucket_status != 0 ];
+         then
+             echo "The e2e tests for hns bucket failed.."
+             exit_code=1
+         fi
     fi
 
     run_e2e_tests_for_hns_bucket &
