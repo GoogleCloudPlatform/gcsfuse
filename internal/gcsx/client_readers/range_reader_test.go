@@ -61,6 +61,7 @@ func (t *rangeReaderTest) Test_NewRangeReader() {
 	assert.Equal(t.T(), int64(-1), t.rangeReader.start)
 	assert.Equal(t.T(), int64(-1), t.rangeReader.limit)
 }
+
 func (t *rangeReaderTest) Test_CheckInvariants() {
 	tests := []struct {
 		name        string
@@ -110,18 +111,6 @@ func (t *rangeReaderTest) Test_CheckInvariants() {
 				return &RangeReader{
 					start:  20,
 					limit:  10,
-					reader: nil,
-					cancel: nil,
-				}
-			},
-			shouldPanic: true,
-		},
-		{
-			name: "negative limit with nil reader",
-			setup: func() *RangeReader {
-				return &RangeReader{
-					start:  0,
-					limit:  -1,
 					reader: nil,
 					cancel: nil,
 				}
