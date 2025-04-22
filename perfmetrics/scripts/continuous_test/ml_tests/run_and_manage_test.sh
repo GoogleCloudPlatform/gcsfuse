@@ -42,7 +42,7 @@ function initialize_ssh_key () {
     retries=5
     while [ $attempt -le $retries ]; do
         echo "Attempting SSH connection (attempt $attempt)..."
-        # Requires running first ssh command with --quiet option to initialize keys.
+        # Requires running ssh command with --quiet option to initialize keys.
         # Otherwise it prompts for yes and no.
         if sudo gcloud compute ssh "$VM_NAME" --zone "$ZONE_NAME" --internal-ip --quiet --command "echo 'Running from VM'"; then
             echo "SSH connection successful."
