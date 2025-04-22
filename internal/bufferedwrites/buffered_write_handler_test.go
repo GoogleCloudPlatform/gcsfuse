@@ -328,12 +328,13 @@ func (testSuite *BufferedWriteTest) TestSyncPartialBlockTableDriven() {
 		testSuite.T().Run(tc.name, func(t *testing.T) {
 			testSuite.setupTestWithBucketType(tc.bucketType)
 			buffer, err := operations.GenerateRandomData(int64(blockSize * tc.numBlocks))
-			assert.NoError(t, err)
+			assert.NoError(testSuite.T(), err)
 			err = testSuite.bwh.Write(buffer, 0)
-			require.Nil(t, err)
+			require.Nil(testSuite.T(), err)
 
 			// Wait for 3 blocks to upload successfully.
 			err = testSuite.bwh.Sync()
+
 			assert.NoError(t, err)
 			assert.NoError(testSuite.T(), err)
 			bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)

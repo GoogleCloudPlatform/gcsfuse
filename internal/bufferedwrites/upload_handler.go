@@ -84,6 +84,8 @@ func newUploadHandler(req *CreateUploadHandlerRequest) (*UploadHandler, error) {
 		blockSize:            req.BlockSize,
 		chunkTransferTimeout: req.ChunkTransferTimeoutSecs,
 	}
+	// createObjectWriter can only fail here due to throttling, so we will not
+	// handle this error explicitly or fall back to temp file flow.
 	err := uh.createObjectWriter()
 	if err != nil {
 		return nil, fmt.Errorf("createObjectWriter: %w", err)
@@ -104,7 +106,7 @@ func (uh *UploadHandler) Upload(block block.Block) {
 	uh.uploadCh <- block
 }
 
-// createObjectWriter creates a GCS object writer...
+// createObjectWriter creates a GCS object writer.
 func (uh *UploadHandler) createObjectWriter() (err error) {
 	// TODO: b/381479965: Dynamically set chunkTransferTimeoutSecs based on chunk size. 0 here means no timeout.
 	req := gcs.NewCreateObjectRequest(uh.obj, uh.objectName, nil, 0)
