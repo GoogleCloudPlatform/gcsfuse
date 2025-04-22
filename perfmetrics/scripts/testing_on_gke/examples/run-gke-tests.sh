@@ -477,16 +477,18 @@ function ensureGkeCluster() {
       echo "Internally changing machine-type from ${machine_type} to ${existing_machine_type} ..."
       machine_type=${existing_machine_type}
     fi
-    gcloud container clusters update ${cluster_name} --project=${project_id} --location=${zone} --workload-pool=${project_id}.svc.id.goog
+    cluster_updation_command="gcloud container clusters update ${cluster_name} --project=${project_id} --location=${zone}"
+    ${cluster_updation_command} --workload-pool=${project_id}.svc.id.goog
     if ${zonal}; then
-      gcloud container clusters update ${cluster_name} --project=${project_id} --location=${zone} --private-ipv6-google-access-type=bidirectional
+      ${cluster_updation_command} --private-ipv6-google-access-type=bidirectional
     fi
   else
+    # Create a new cluster
+    cluster_creation_args="--project=${project_id} --zone \"${zone}\" --workload-pool=${project_id}.svc.id.goog --machine-type \"${machine_type}\" --image-type \"COS_CONTAINERD\" --num-nodes ${num_nodes} --ephemeral-storage-local-ssd count=${num_ssd} --network-performance-configs=total-egress-bandwidth-tier=TIER_1 --workload-metadata=GKE_METADATA --enable-gvnic \"${extra_args_for_cluster_creation}\""
     if ${zonal}; then
-      gcloud container clusters create ${cluster_name} --project=${project_id} --zone "${zone}" --workload-pool=${project_id}.svc.id.goog --machine-type "${machine_type}" --image-type "COS_CONTAINERD" --num-nodes ${num_nodes} --ephemeral-storage-local-ssd count=${num_ssd} --network-performance-configs=total-egress-bandwidth-tier=TIER_1 --workload-metadata=GKE_METADATA --enable-gvnic --private-ipv6-google-access-type=bidirectional
-    else
-      gcloud container clusters create ${cluster_name} --project=${project_id} --zone "${zone}" --workload-pool=${project_id}.svc.id.goog --machine-type "${machine_type}" --image-type "COS_CONTAINERD" --num-nodes ${num_nodes} --ephemeral-storage-local-ssd count=${num_ssd} --network-performance-configs=total-egress-bandwidth-tier=TIER_1 --workload-metadata=GKE_METADATA --enable-gvnic
+      cluster_creation_args+=" --private-ipv6-google-access-type=bidirectional"
     fi
+    gcloud container clusters create ${cluster_name} ${cluster_creation_args}
   fi
 }
 
@@ -716,6 +718,8 @@ function waitTillAllPodsComplete() {
   done
 }
 
+# Download all the fio workload outputs for the current instance-id from the
+# given bucket and file-size.
 function downloadFioOutputsFromBucket() {
   local bucket=$1
   local fileSize=$2
@@ -724,29 +728,37 @@ function downloadFioOutputsFromBucket() {
   mkdir -pv $mountpath
   fusermount -uz $mountpath 2>/dev/null || true
   echo "Mounting bucket \"${bucket}\" to ${mountpath} ... "
+
   cd $gcsfuse_src_dir
-  if ! go run $gcsfuse_src_dir --implicit-dirs --log-severity=trace --log-file=$mountpath.log --log-format=text --metadata-cache-ttl-secs=-1 --stat-cache-max-size-mb=-1 --type-cache-max-size-mb=-1 --enable-nonexistent-type-cache=false $bucket $mountpath > /dev/null ; then
+  if ! go run $gcsfuse_src_dir --implicit-dirs $bucket $mountpath > /dev/null ; then
+    # If fails to mount this bucket,
     # Return to original directory before exiting..
     cd - >/dev/null
 
     exitWithError "Failed to mount bucket ${bucket} to ${mountpath}."
   fi
-  
+
   # Return to original directory.
   cd - >/dev/null
 
-  if test -d $mountpath/fio-output/$instance_id ; then
-    mkdir -pv $gcsfuse_src_dir/perfmetrics/scripts/testing_on_gke/bin/fio-logs/$instance_id/$fileSize
-    echo "Copying files from \"${bucket}/fio-output/${instance_id} to $gcsfuse_src_dir/perfmetrics/scripts/testing_on_gke/bin/fio-logs/$instance_id/$fileSize/\" ... "
-    cp -rfv $mountpath/fio-output/$instance_id/* $gcsfuse_src_dir/perfmetrics/scripts/testing_on_gke/bin/fio-logs/$instance_id/$fileSize/
+  # If the given bucket has the fio outputs for the given instance-id, then
+  # copy/download them locally to the appropriate folder.
+  src_dir="${mountpath}/fio-output/${instance_id}"
+  dst_dir="${gcsfuse_src_dir}/perfmetrics/scripts/testing_on_gke/bin/fio-logs/${instance_id}/${fileSize}"
+  if test -d "${src_dir}" ; then
+    mkdir -pv "${dst_dir}"
+    echo "Copying files from \"${src_dir}\" to \"${dst_dir}/\" ... "
+    cp -rfv "${src_dir}"/* "${dst_dir}"/
   fi
 
-  echo "  Unmounting \"${bucket}\" from ${mountpath} ... "
-  fusermount -uz $mountpath || true
+  echo "  Unmounting \"${bucket}\" from \"${mountpath}\" ... "
+  fusermount -uz "${mountpath}" || true
 }
 
 function downloadFioOutputsFromAllBucketsInWorkloadConfig() {
   local mountpath=$(realpath mounted)
+  # Using jquery, find out all the relevant buckets for non-disabled fio
+  # workloads in the workload-config file and download fio outputs for them all.
   cat ${workload_config} | jq 'select(.TestConfig.workloadConfig.workloads[].fioWorkload != null)' | jq -r '.TestConfig.workloadConfig.workloads[] | [.bucket, .fioWorkload.fileSize] | @csv' | grep -v " " | sort | uniq | while read bucket_size_combo; do
     workload_bucket=$(echo ${bucket_size_combo} | cut -d, -f1 | tr -d \")
     workload_filesize=$(echo ${bucket_size_combo} | cut -d, -f2 | tr -d \")
@@ -754,6 +766,7 @@ function downloadFioOutputsFromAllBucketsInWorkloadConfig() {
        downloadFioOutputsFromBucket ${workload_bucket} ${workload_filesize} ${mountpath}
     fi
   done
+  # Clean-up
   fusermount -uz ${mountpath} || true
   rm -rf ${mountpath}
 }
@@ -768,7 +781,7 @@ function areThereAnyDLIOWorkloads() {
       return 0
     fi
   done <<< "${lines}" # It's necessary to pass lines this way to while
-  # to avoid creating a subshell for while-execution, to 
+  # to avoid creating a subshell for while-execution, to
   # ensure that the above return statement works in the same shell.
 
   return 1
@@ -777,10 +790,11 @@ function areThereAnyDLIOWorkloads() {
 function fetchAndParseFioOutputs() {
   printf "\nFetching and parsing fio outputs ...\n\n"
   cd "${gke_testing_dir}"/examples/fio
+  parse_logs_args="--project-number=${project_number} --workload-config \"${workload_config}\" --instance-id ${instance_id} --output-file \"${output_dir}/fio/output.csv\" --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace}"
   if ${zonal}; then
-    python3 parse_logs.py --project-number=${project_number} --workload-config "${workload_config}" --instance-id ${instance_id} --output-file "${output_dir}"/fio/output.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace} --predownloaded-output-files
+    python3 parse_logs.py ${parse_logs_args} --predownloaded-output-files
   else
-    python3 parse_logs.py --project-number=${project_number} --workload-config "${workload_config}" --instance-id ${instance_id} --output-file "${output_dir}"/fio/output.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace}
+    python3 parse_logs.py ${parse_logs_args}
   fi
   cd -
 }
