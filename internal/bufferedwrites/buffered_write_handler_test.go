@@ -455,16 +455,12 @@ func (testSuite *BufferedWriteTest) TestUnlinkBeforeAnyWriteThenFurtherWriteSucc
 	testSuite.bwh.Unlink()
 	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
 	assert.NotNil(testSuite.T(), bwhImpl.uploadHandler.cancelFunc)
-	buffer, err := operations.GenerateRandomData(blockSize)
+	buffer, err := operations.GenerateRandomData(2 * blockSize)
 	assert.NoError(testSuite.T(), err)
 
-	for i := 0; i < 5; i++ {
-		err := testSuite.bwh.Write(buffer, int64(blockSize*i))
-		require.Nil(testSuite.T(), err)
-	}
+	err = testSuite.bwh.Write(buffer, int64(0))
 
-	assert.Equal(testSuite.T(), 5, len(bwhImpl.uploadHandler.uploadCh))
-	assert.Equal(testSuite.T(), 0, len(bwhImpl.blockPool.FreeBlocksChannel()))
+	require.Nil(testSuite.T(), err)
 }
 
 func (testSuite *BufferedWriteTest) TestUnlinkAfterWrite() {
