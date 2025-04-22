@@ -215,7 +215,7 @@ func (fc *FileCacheReader) Destroy() {
 		logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", fc.fileCacheHandle, fc.bucket.Name(), fc.object.Name)
 		err := fc.fileCacheHandle.Close()
 		if err != nil {
-			logger.Warnf("rr.Destroy(): while closing cacheFileHandle: %v", err)
+			logger.Warnf("fc.Destroy(): while closing cacheFileHandle: %v", err)
 		}
 		fc.fileCacheHandle = nil
 	}
