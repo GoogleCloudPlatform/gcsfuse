@@ -20,13 +20,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
 	cacheutil "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -34,99 +32,169 @@ import (
 // GCS into given destination writer.
 //
 // This function doesn't take locks and can be executed parallely.
-func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, end int64, readHandle []byte, rangeMap map[int64]int64) ([]byte, error) {
-	newReader, err := job.bucket.NewReaderWithReadHandle(
-		ctx,
-		&gcs.ReadObjectRequest{
-			Name:       job.object.Name,
-			Generation: job.object.Generation,
-			Range: &gcs.ByteRange{
-				Start: uint64(start),
-				Limit: uint64(end),
-			},
-			ReadCompressed: job.object.HasContentEncodingGzip(),
-			ReadHandle:     readHandle,
-		})
+func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, end int64, dummyFilePath string, rangeMap map[int64]int64) error {
+	// Open the dummy file for reading.
+	dummyFile, err := os.Open(dummyFilePath)
 	if err != nil {
-		err = fmt.Errorf("downloadRange: error in creating NewReader with start %d and limit %d: %w", start, end, err)
-		return nil, err
+		return fmt.Errorf("downloadRange: error opening dummy file %s: %w", dummyFilePath, err)
 	}
-	defer func() {
-		// Reader is closed after the data has been read and the error from closure
-		// is not reported as failure of async job, similar to how it's done for
-		// foreground reads: https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/internal/gcsx/random_reader.go#L298.
-		closeErr := newReader.Close()
-		if closeErr != nil {
-			logger.Warnf("Job:%p (%s:/%s) error while closing reader: %v", job, job.bucket.Name(), job.object.Name, closeErr)
-		}
-	}()
+	defer dummyFile.Close()
 
-	common.CaptureGCSReadMetrics(ctx, job.metricsHandle, util.Parallel, end-start)
+	// Get dummy file info to know its size.
+	dummyFileInfo, err := dummyFile.Stat()
+	if err != nil {
+		return fmt.Errorf("downloadRange: error stating dummy file %s: %w", dummyFilePath, err)
+	}
+	dummyFileSize := dummyFileInfo.Size()
+
+	// Create a reader for the dummy file. We will read repeatedly from the start.
+	// Use io.SectionReader to simulate reading a specific part if the dummy file
+	// represented the whole object content, but the request implies *repeatedly* reading
+	// the chunk-sized dummy file. So, we'll seek to start and limit the read.
+
+	// Simulate reading the range [start, end) from the potentially repeating dummy data.
+	totalBytesToRead := end - start
+	bytesReadSoFar := int64(0)
+
+	// Common metrics capture - kept for structure, but might need adjustment for simulation context.
+	// common.CaptureGCSReadMetrics(ctx, job.metricsHandle, util.Parallel, totalBytesToRead)
 
 	// Use standard copy function if O_DIRECT is disabled and memory aligned
 	// buffer otherwise.
 	if !job.fileCacheConfig.EnableODirect {
 		if job.IsExperimentalParallelDownloadsDefaultOn() {
-			for start < end {
-				writeSize := min(end-start, ReadChunkSize)
-				_, err = io.CopyN(dstWriter, newReader, writeSize)
+			currentOffset := start
+			for bytesReadSoFar < totalBytesToRead {
+				// Seek to the beginning of the dummy file for each chunk read to simulate repetition.
+				_, err = dummyFile.Seek(0, io.SeekStart)
 				if err != nil {
-					err = fmt.Errorf("downloadRange: error at the time of copying content to cache file %w", err)
-					return newReader.ReadHandle(), err
+					return fmt.Errorf("downloadRange: error seeking dummy file: %w", err)
 				}
 
-				err = job.updateRangeMap(rangeMap, start, start+writeSize)
-				if err != nil {
-					// should return existing read handle with error
-					return newReader.ReadHandle(), err
+				chunkSize := min(totalBytesToRead-bytesReadSoFar, ReadChunkSize)
+				// Ensure we don't read past the dummy file's actual size in one go.
+				readSize := min(chunkSize, dummyFileSize)
+				// Wrap the dummy file reader with a LimitedReader for this chunk.
+				chunkReader := io.LimitReader(dummyFile, readSize)
+
+				_, err = io.CopyN(dstWriter, chunkReader, readSize) // Read only 'readSize' from dummy file
+				if err != nil && err != io.EOF {                    // EOF is expected if readSize < chunkSize, but CopyN handles this
+					return fmt.Errorf("downloadRange: error copying dummy content to cache file: %w", err)
 				}
 
-				start = start + writeSize
+				err = job.updateRangeMap(rangeMap, currentOffset, currentOffset+readSize)
+				if err != nil {
+					return err
+				}
+				bytesReadSoFar += readSize
+				currentOffset += readSize
 			}
 		} else {
-			_, err = io.CopyN(dstWriter, newReader, end-start)
+			// Original logic for non-experimental or O_DIRECT disabled - needs adaptation
+			// Seek to the beginning of the dummy file.
+			_, err = dummyFile.Seek(0, io.SeekStart)
+			if err != nil {
+				return fmt.Errorf("downloadRange: error seeking dummy file: %w", err)
+			}
+			// Read repeatedly up to totalBytesToRead
+			bytesCopied := int64(0)
+			for bytesCopied < totalBytesToRead {
+				_, err = dummyFile.Seek(0, io.SeekStart) // Seek back to start for repetition
+				if err != nil {
+					return fmt.Errorf("downloadRange: error seeking dummy file: %w", err)
+				}
+				toCopy := min(totalBytesToRead-bytesCopied, dummyFileSize)
+				n, err := io.CopyN(dstWriter, dummyFile, toCopy)
+				bytesCopied += n
+				if err != nil && err != io.EOF { // EOF is ok if toCopy == dummyFileSize
+					return fmt.Errorf("downloadRange: error copying dummy content (non-experimental): %w", err)
+				}
+				if err == io.EOF {
+					break // Should not happen if totalBytesToRead > 0 and dummyFileSize > 0 unless totalBytesToRead is multiple of dummyFileSize
+				}
+			}
 		}
-	} else {
+	} else { // O_DIRECT enabled
 		if job.IsExperimentalParallelDownloadsDefaultOn() {
-			for start < end {
-				writeSize := min(end-start, ReadChunkSize)
-				_, err = cacheutil.CopyUsingMemoryAlignedBuffer(ctx, newReader, dstWriter, writeSize,
+			currentOffset := start
+			for bytesReadSoFar < totalBytesToRead {
+				// Seek to the beginning of the dummy file for each chunk read.
+				_, err = dummyFile.Seek(0, io.SeekStart)
+				if err != nil {
+					return fmt.Errorf("downloadRange: error seeking dummy file (O_DIRECT): %w", err)
+				}
+
+				chunkSize := min(totalBytesToRead-bytesReadSoFar, ReadChunkSize)
+				readSize := min(chunkSize, dummyFileSize)
+				// Wrap the dummy file reader with a LimitedReader for this chunk.
+				chunkReader := io.LimitReader(dummyFile, readSize)
+
+				_, err = cacheutil.CopyUsingMemoryAlignedBuffer(ctx, chunkReader, dstWriter, readSize,
 					job.fileCacheConfig.WriteBufferSize)
-				// If context is canceled while reading/writing in CopyUsingMemoryAlignedBuffer
-				// then it returns error different from context cancelled (invalid argument),
-				// and we need to report that error as context cancelled.
+
+				// Context cancellation check
 				if !errors.Is(err, context.Canceled) && errors.Is(ctx.Err(), context.Canceled) {
 					err = errors.Join(err, ctx.Err())
-					return newReader.ReadHandle(), err
+					return err
 				}
-				if err != nil {
-					err = fmt.Errorf("downloadRange: error at the time of copying content to cache file %w", err)
-					return newReader.ReadHandle(), err
+				if err != nil && err != io.EOF { // EOF is expected if readSize < chunkSize
+					return fmt.Errorf("downloadRange: error copying dummy content (O_DIRECT): %w", err)
 				}
 
-				err = job.updateRangeMap(rangeMap, start, start+writeSize)
+				err = job.updateRangeMap(rangeMap, currentOffset, currentOffset+readSize)
 				if err != nil {
-					// should return existing read handle with error
-					return newReader.ReadHandle(), err
+					return err
 				}
-				start = start + writeSize
+
+				bytesReadSoFar += readSize
+				currentOffset += readSize
 			}
 		} else {
-			_, err = cacheutil.CopyUsingMemoryAlignedBuffer(ctx, newReader, dstWriter, end-start,
-				job.fileCacheConfig.WriteBufferSize)
-			// If context is canceled while reading/writing in CopyUsingMemoryAlignedBuffer
-			// then it returns error different from context cancelled (invalid argument),
-			// and we need to report that error as context cancelled.
+			// Original logic for non-experimental or O_DIRECT enabled - needs adaptation
+			// Seek to the beginning of the dummy file.
+			_, err = dummyFile.Seek(0, io.SeekStart)
+			if err != nil {
+				return fmt.Errorf("downloadRange: error seeking dummy file (O_DIRECT non-experimental): %w", err)
+			}
+			// Read repeatedly up to totalBytesToRead
+			bytesCopied := int64(0)
+			for bytesCopied < totalBytesToRead {
+				_, err = dummyFile.Seek(0, io.SeekStart) // Seek back to start for repetition
+				if err != nil {
+					return fmt.Errorf("downloadRange: error seeking dummy file (O_DIRECT non-experimental): %w", err)
+				}
+				toCopy := min(totalBytesToRead-bytesCopied, dummyFileSize)
+
+				// Use CopyUsingMemoryAlignedBuffer repeatedly
+				nCopied, err := cacheutil.CopyUsingMemoryAlignedBuffer(ctx, dummyFile, dstWriter, toCopy,
+					job.fileCacheConfig.WriteBufferSize)
+
+				bytesCopied += nCopied
+				// Context cancellation check
+				if !errors.Is(err, context.Canceled) && errors.Is(ctx.Err(), context.Canceled) {
+					err = errors.Join(err, ctx.Err())
+				}
+				if err != nil && err != io.EOF { // EOF is ok if toCopy == dummyFileSize
+					return fmt.Errorf("downloadRange: error copying dummy content (O_DIRECT non-experimental): %w", err)
+				}
+				if err == io.EOF {
+					break // Should not happen if totalBytesToRead > 0 and dummyFileSize > 0 unless totalBytesToRead is multiple of dummyFileSize
+				}
+			}
+			// Check context error after loop if original logic did
 			if !errors.Is(err, context.Canceled) && errors.Is(ctx.Err(), context.Canceled) {
 				err = errors.Join(err, ctx.Err())
 			}
 		}
 	}
 
-	if err != nil {
-		err = fmt.Errorf("downloadRange: error at the time of copying content to cache file %w", err)
+	// Final error check based on original logic (which checked 'err' after copy)
+	if err != nil && err != io.EOF { // Allow EOF as it signifies end of dummy chunk read potentially
+		return fmt.Errorf("downloadRange: error copying dummy content to cache file: %w", err)
 	}
-	return newReader.ReadHandle(), err
+
+	// Return success (nil error). Removed ReadHandle return.
+	return nil
 }
 
 // RangeMap maintains the ranges downloaded by the different goroutines. This
@@ -175,14 +243,14 @@ func (job *Job) updateRangeMap(rangeMap map[int64]int64, offsetStart int64, offs
 
 // Reads the range input from the range channel continuously and downloads that
 // range from the GCS. If the range channel is closed, it will exit.
-func (job *Job) downloadOffsets(ctx context.Context, goroutineIndex int64, cacheFile *os.File, rangeMap map[int64]int64) func() error {
+func (job *Job) downloadOffsets(ctx context.Context, goroutineIndex int64, cacheFile *os.File, dummyFilePath string, rangeMap map[int64]int64) func() error {
 	return func() error {
 		// Since we keep a goroutine for each job irrespective of the maxParallelism,
 		// not releasing the default goroutine to the pool.
 		if goroutineIndex > 0 {
 			defer job.maxParallelismSem.Release(1)
 		}
-		var readHandle []byte
+		// Removed GCS specific 'readHandle'
 		var err error
 
 		for {
@@ -194,11 +262,13 @@ func (job *Job) downloadOffsets(ctx context.Context, goroutineIndex int64, cache
 			}
 
 			offsetWriter := io.NewOffsetWriter(cacheFile, objectRange.Start)
-			readHandle, err = job.downloadRange(ctx, offsetWriter, objectRange.Start, objectRange.End, readHandle, rangeMap)
+			// Call modified downloadRange, passing dummyFilePath instead of readHandle
+			err = job.downloadRange(ctx, offsetWriter, objectRange.Start, objectRange.End, dummyFilePath, rangeMap)
 			if err != nil {
-				return err
+				return err // Return error from downloadRange
 			}
 
+			// Update range map logic (original placement if not experimental)
 			if !job.IsExperimentalParallelDownloadsDefaultOn() {
 				err = job.updateRangeMap(rangeMap, objectRange.Start, objectRange.End)
 				if err != nil {
@@ -209,45 +279,97 @@ func (job *Job) downloadOffsets(ctx context.Context, goroutineIndex int64, cache
 	}
 }
 
+// createDummyFile creates a dummy file in /tmp with the specified size.
+func createDummyFile(size int64) (string, error) {
+	// Create a temporary file in /tmp
+	dummyFile, err := os.CreateTemp("/tmp", "gcsfuse-dummy-download-*.bin")
+	if err != nil {
+		return "", fmt.Errorf("createDummyFile: failed to create temp file: %w", err)
+	}
+	defer dummyFile.Close()
+
+	// Write dummy data (zero bytes or a pattern) to the file until it reaches the desired size.
+	// Using a simple loop with Write is often clearer than CopyN from /dev/zero for this purpose.
+	// Alternatively, use Truncate and potentially fallocate if performance is critical for setup.
+	// For simplicity, let's write in chunks.
+	const bufferSize = 4 * 1024 * 1024 // 4 MiB buffer
+	buffer := make([]byte, bufferSize)
+	// Fill buffer with dummy data if needed, default is zero bytes.
+	// for i := range buffer {
+	// 	buffer[i] = dummyDataByte
+	// }
+
+	written := int64(0)
+	for written < size {
+		bytesToWrite := min(size-written, int64(len(buffer)))
+		n, err := dummyFile.Write(buffer[:bytesToWrite])
+		if err != nil {
+			os.Remove(dummyFile.Name()) // Clean up on error
+			return "", fmt.Errorf("createDummyFile: failed to write to temp file: %w", err)
+		}
+		written += int64(n)
+	}
+
+	err = dummyFile.Sync()
+	if err != nil {
+		os.Remove(dummyFile.Name())
+		return "", fmt.Errorf("createDummyFile: failed to sync temp file: %w", err)
+	}
+
+	logger.Debugf("Created dummy file %s of size %d bytes", dummyFile.Name(), size)
+	return dummyFile.Name(), nil
+}
+
 // parallelDownloadObjectToFile does parallel download of the backing GCS object
 // into given file handle using multiple NewReader method of gcs.Bucket running
 // in parallel. This function is canceled if job.cancelCtx is canceled.
 func (job *Job) parallelDownloadObjectToFile(cacheFile *os.File) (err error) {
+	// Create the dummy file
+	downloadChunkSize := job.fileCacheConfig.DownloadChunkSizeMb * cacheutil.MiB
+	dummyFilePath, err := createDummyFile(downloadChunkSize)
+	if err != nil {
+		return fmt.Errorf("parallelDownloadObjectToFile: failed to create dummy file: %w", err)
+	}
+	// Ensure dummy file is removed when the function returns
+	defer func() {
+		removeErr := os.Remove(dummyFilePath)
+		if removeErr != nil {
+			logger.Warnf("parallelDownloadObjectToFile: failed to remove dummy file %s: %v", dummyFilePath, removeErr)
+		}
+	}()
+
+	startTime := time.Now()
+	logger.Errorf("start downloading file %s", job.object.Name)
 	rangeMap := make(map[int64]int64)
 	// Trying to keep the channel size greater than ParallelDownloadsPerFile to ensure
 	// that there is no goroutine waiting for data(nextRange) to be published to channel.
 	job.rangeChan = make(chan data.ObjectRange, 2*job.fileCacheConfig.ParallelDownloadsPerFile)
 	var numGoRoutines int64
 	var start int64
-	downloadChunkSize := job.fileCacheConfig.DownloadChunkSizeMb * cacheutil.MiB
 	downloadErrGroup, downloadErrGroupCtx := errgroup.WithContext(job.cancelCtx)
 
-	// Start the goroutines as per the config and the availability.
 	for numGoRoutines = 0; (numGoRoutines < job.fileCacheConfig.ParallelDownloadsPerFile) && (start < int64(job.object.Size)); numGoRoutines++ {
 		// Respect max download parallelism only beyond first go routine.
 		if numGoRoutines > 0 && !job.maxParallelismSem.TryAcquire(1) {
 			break
 		}
 
-		downloadErrGroup.Go(job.downloadOffsets(downloadErrGroupCtx, numGoRoutines, cacheFile, rangeMap))
-		start = start + downloadChunkSize
+		downloadErrGroup.Go(job.downloadOffsets(downloadErrGroupCtx, numGoRoutines, cacheFile, dummyFilePath, rangeMap))
+		start = start + downloadChunkSize // Increment start based on chunk size for goroutine distribution logic
 	}
 
 	for start = 0; start < int64(job.object.Size); {
 		nextRange := data.ObjectRange{
 			Start: start,
-			End:   min(int64(job.object.Size), start+downloadChunkSize),
+			End:   min(int64(job.object.Size), start+downloadChunkSize), // Ranges still based on object size and chunk size
 		}
 
 		select {
 		case job.rangeChan <- nextRange:
 			start = nextRange.End
-			// In case we haven't started the goroutines as per the config, checking
-			// if any goroutines are available now.
-			// This may not be the ideal way, but since we don't have any way of
-			// listening if goroutines from other jobs have freed up, checking it here.
+			// Start more goroutines if available
 			for numGoRoutines < job.fileCacheConfig.ParallelDownloadsPerFile && job.maxParallelismSem.TryAcquire(1) {
-				downloadErrGroup.Go(job.downloadOffsets(downloadErrGroupCtx, numGoRoutines, cacheFile, rangeMap))
+				downloadErrGroup.Go(job.downloadOffsets(downloadErrGroupCtx, numGoRoutines, cacheFile, dummyFilePath, rangeMap))
 				numGoRoutines++
 			}
 		case <-downloadErrGroupCtx.Done():
@@ -255,7 +377,9 @@ func (job *Job) parallelDownloadObjectToFile(cacheFile *os.File) (err error) {
 		}
 	}
 
-	return job.handleJobCompletion(downloadErrGroupCtx, downloadErrGroup)
+	err = job.handleJobCompletion(downloadErrGroupCtx, downloadErrGroup)
+	logger.Errorf("Download time for file %s, time: %s", job.object.Name, time.Since(startTime))
+	return err
 }
 
 // Job can be success or failure. This method will handle all the scenarios and
