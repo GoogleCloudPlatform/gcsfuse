@@ -172,7 +172,7 @@ Please note that GCSFuse does not support using `chmod` or similar commands to m
 
 ### Cloning github repository inside mounted bucket is extremely slow
 Ensure your GCS bucket mount configuration does not include `o=sync` or `o=dirsync`. \
-During git clone, Git doesn’t just fetch object data—it builds out the entire .git directory structure, including initializing config, refs, hooks, and other internals. As part of this setup:
+During a Git clone, Git doesn’t just fetch object data—it builds out the entire .git directory structure, including initializing config, refs, hooks, and other internals. As part of this setup:
 
 - Git repeatedly writes and updates .git/config, especially when setting remotes, branches, and defaults.
 - Each update uses Git’s lock-write-rename-delete pattern to ensure consistency.
