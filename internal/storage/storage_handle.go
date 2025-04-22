@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -268,12 +269,9 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	var controlClient *control.StorageControlClient
 	var clientOpts []option.ClientOption
 
-	// TODO: We will implement an additional check for the HTTP control client protocol once the Go SDK supports HTTP.
 	// Control-client is needed for folder APIs and for getting storage-layout of the bucket.
-	// GetStorageLayout API is not supported for storage-testbench and for TPC, both of which are identified by non-nil custom-endpoint.
-	// Change this check once TPC(custom-endpoint) supports gRPC.
-	// TODO: Enable creation of control-client for preprod endpoint.
-	if clientConfig.EnableHNS && clientConfig.CustomEndpoint == "" {
+	// GetStorageLayout API is not supported for storage-testbench, which are identified by custom-endpoint containing localhost.
+	if clientConfig.EnableHNS && !strings.Contains(clientConfig.CustomEndpoint, "localhost") {
 		clientOpts, err = createClientOptionForGRPCClient(&clientConfig, false)
 		if err != nil {
 			return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
@@ -282,6 +280,8 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		if err != nil {
 			return nil, fmt.Errorf("could not create StorageControl Client: %w", err)
 		}
+	} else {
+		logger.Infof("Skipping storage control client creation because custom-endpoint %q was passed, which is assumed to be a storage testbench server because of 'localhost' in it.", clientConfig.CustomEndpoint)
 	}
 
 	sh = &storageClient{
