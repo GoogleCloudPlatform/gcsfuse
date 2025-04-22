@@ -19,7 +19,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"math/rand"
 	"os"
 	"os/exec"
 	"path"
@@ -28,7 +27,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
@@ -49,7 +47,6 @@ var profileLabelForMountedDirTest = flag.String("profile_label", "", "To pass pr
 const (
 	FilePermission_0600      = 0600
 	DirPermission_0755       = 0755
-	Charset                  = "abcdefghijklmnopqrstuvwxyz0123456789"
 	PathEnvVariable          = "PATH"
 	GCSFuseLogFilePrefix     = "gcsfuse-failed-integration-test-logs-"
 	ProxyServerLogFilePrefix = "proxy-server-failed-integration-test-logs-"
@@ -246,15 +243,6 @@ func ExecuteTest(m *testing.M) (successCode int) {
 	successCode = m.Run()
 
 	return successCode
-}
-
-func GenerateRandomString(length int) string {
-	seededRand := rand.New(rand.NewSource(time.Now().UnixNano()))
-	b := make([]byte, length)
-	for i := range b {
-		b[i] = Charset[seededRand.Intn(len(Charset))]
-	}
-	return string(b)
 }
 
 func UnMountBucket() {
