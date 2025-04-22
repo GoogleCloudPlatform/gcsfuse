@@ -35,7 +35,7 @@ Handling race scenario (internal implementation):
   - Read() execution happens after closeReaderDueToInactivity().
   - No issues, closeReaderDueToInactivity will close the reader and Read() will create a new one.
 */
-type storageReaderWithInactiveTimeout struct {
+type timedStorageReader struct {
 	object    *gcs.MinObject
 	bucket    gcs.Bucket
 	gcsReader gcs.StorageReader
@@ -46,12 +46,10 @@ type storageReaderWithInactiveTimeout struct {
 
 	readHandle    []byte
 	parentContext context.Context
-	timer         *time.Timer
-	timeDuration  time.Duration
 
-	discardInactivityCallbackOnce bool
-
-	mu locker.Locker
+	mu       locker.Locker
+	isActive bool
+	stopChan chan struct{}
 }
 
 var (
@@ -64,19 +62,20 @@ func NewStorageReaderWithInactiveTimeout(ctx context.Context, bucket gcs.Bucket,
 		return nil, DontUseErr
 	}
 
-	srwit := &storageReaderWithInactiveTimeout{
+	tsr := &timedStorageReader{
 		object:        object,
 		bucket:        bucket,
 		start:         start,
 		end:           end,
 		parentContext: ctx,
 		readHandle:    readHandle,
-		timeDuration:  timeout,
 		mu:            locker.New("StorageReaderWithInactiveTimeout: "+object.Name, func() {}),
+		isActive:      false,
+		stopChan:      make(chan struct{}),
 	}
 
 	var err error
-	srwit.gcsReader, err = bucket.NewReaderWithReadHandle(
+	tsr.gcsReader, err = bucket.NewReaderWithReadHandle(
 		ctx,
 		&gcs.ReadObjectRequest{
 			Name:       object.Name,
@@ -89,27 +88,28 @@ func NewStorageReaderWithInactiveTimeout(ctx context.Context, bucket gcs.Bucket,
 			ReadHandle:     readHandle,
 		})
 
-	srwit.timer = time.AfterFunc(srwit.timeDuration, srwit.closeReaderDueToInactivity)
-	return srwit, err
+	go tsr.monitor(timeout)
+	return tsr, err
 }
 
-func (srwit *storageReaderWithInactiveTimeout) Read(p []byte) (n int, err error) {
-	srwit.mu.Lock()
-	defer srwit.mu.Unlock()
+func (tsr *timedStorageReader) Read(p []byte) (n int, err error) {
+	tsr.mu.Lock()
+	defer tsr.mu.Unlock()
 
-	srwit.timer.Stop()
-	if srwit.gcsReader == nil {
-		srwit.gcsReader, err = srwit.bucket.NewReaderWithReadHandle(
-			srwit.parentContext,
+	tsr.isActive = true
+
+	if tsr.gcsReader == nil {
+		tsr.gcsReader, err = tsr.bucket.NewReaderWithReadHandle(
+			tsr.parentContext,
 			&gcs.ReadObjectRequest{
-				Name:       srwit.object.Name,
-				Generation: srwit.object.Generation,
+				Name:       tsr.object.Name,
+				Generation: tsr.object.Generation,
 				Range: &gcs.ByteRange{
-					Start: uint64(srwit.start + srwit.seen),
-					Limit: uint64(srwit.end),
+					Start: uint64(tsr.start + tsr.seen),
+					Limit: uint64(tsr.end),
 				},
-				ReadCompressed: srwit.object.HasContentEncodingGzip(),
-				ReadHandle:     srwit.readHandle,
+				ReadCompressed: tsr.object.HasContentEncodingGzip(),
+				ReadHandle:     tsr.readHandle,
 			})
 
 		if err != nil {
@@ -118,61 +118,61 @@ func (srwit *storageReaderWithInactiveTimeout) Read(p []byte) (n int, err error)
 		}
 	}
 
-	n, err = srwit.gcsReader.Read(p)
-	if !srwit.timer.Reset(srwit.timeDuration) {
-		srwit.discardInactivityCallbackOnce = true
-	}
-	srwit.seen += int64(n)
+	n, err = tsr.gcsReader.Read(p)
+	tsr.seen += int64(n)
 	return
 }
 
-func (srwit *storageReaderWithInactiveTimeout) Close() (err error) {
-	srwit.mu.Lock()
-	defer srwit.mu.Unlock()
+func (tsr *timedStorageReader) Close() (err error) {
+	tsr.mu.Lock()
+	defer tsr.mu.Unlock()
 
-	srwit.timer.Stop()
-	if srwit.gcsReader == nil {
-		return
-	}
-
-	err = srwit.gcsReader.Close()
+	close(tsr.stopChan) // Close background monitoring routine.
+	err = tsr.gcsReader.Close()
 	if err != nil {
 		return fmt.Errorf("close reader: %w", err)
 	}
 	return
 }
 
-func (srwit *storageReaderWithInactiveTimeout) ReadHandle() (rh storagev2.ReadHandle) {
-	srwit.mu.Lock()
-	defer srwit.mu.Unlock()
+func (tsr *timedStorageReader) ReadHandle() (rh storagev2.ReadHandle) {
+	tsr.mu.Lock()
+	defer tsr.mu.Unlock()
 
-	if srwit.gcsReader == nil {
-		return srwit.readHandle
+	if tsr.gcsReader == nil {
+		return tsr.readHandle
 	}
 
-	return srwit.gcsReader.ReadHandle()
+	return tsr.gcsReader.ReadHandle()
 }
 
-func (srwit *storageReaderWithInactiveTimeout) closeReaderDueToInactivity() {
-	srwit.mu.Lock()
-	defer srwit.mu.Unlock()
+func (tsr *timedStorageReader) monitor(timeout time.Duration) {
+	var done bool
+	timer := time.After(timeout)
+	for !done {
+		select {
+		case <-timer:
+			tsr.mu.Lock()
+			if tsr.isActive {
+				tsr.isActive = false
+				timer = time.After(timeout)
+			} else {
+				if tsr.gcsReader != nil {
+					logger.Infof("Closing the reader (%s) due to inactivity for %0.1fs.\n", tsr.object.Name, timeout.Seconds())
+					tsr.readHandle = tsr.gcsReader.ReadHandle()
+					err := tsr.gcsReader.Close()
+					if err != nil {
+						logger.Warnf("error while closing reader: %v", err)
+					}
+					tsr.gcsReader = nil
+				}
+			}
+			tsr.mu.Unlock()
+		case <-tsr.parentContext.Done():
+			done = true
 
-	// Discard the execution if there are two floating execution of the function.
-	if srwit.discardInactivityCallbackOnce {
-		srwit.discardInactivityCallbackOnce = false
+		case <-tsr.stopChan:
+			done = true
+		}
 	}
-
-	if srwit.gcsReader == nil {
-		return
-	}
-
-	// Update the readHandle before closing reader, keep the behavior similar to random_reader.go
-	srwit.readHandle = srwit.gcsReader.ReadHandle()
-
-	logger.Infof("Closing the reader (%s) due to inactivity for %0.1fs.\n", srwit.object.Name, srwit.timeDuration.Seconds())
-	err := srwit.gcsReader.Close()
-	if err != nil {
-		logger.Warnf("error while closing reader: %v", err)
-	}
-	srwit.gcsReader = nil
 }
