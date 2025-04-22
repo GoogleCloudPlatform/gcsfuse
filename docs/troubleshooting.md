@@ -170,7 +170,7 @@ Use the `--uid` and `--gid` flags to specify the correct user and group IDs for 
 Please note that GCSFuse does not support using `chmod` or similar commands to manage file access. For more detailed information, refer to the [Permissions and Ownership](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#permissions-and-ownership).
 
 
-### Cloning github repository inside mounted bucket is extremely slow
+### Cloning GitHub repository inside mounted bucket is extremely slow
 Ensure your GCS bucket mount configuration does not include `o=sync` or `o=dirsync`. \
 During a Git clone, Git doesn’t just fetch object data—it builds out the entire .git directory structure, including initializing config, refs, hooks, and other internals. As part of this setup:
 
