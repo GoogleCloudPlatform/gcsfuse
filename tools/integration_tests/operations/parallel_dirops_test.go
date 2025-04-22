@@ -54,31 +54,31 @@ type testDirStrucure struct {
 // Also returns the path to test directory.
 func createDirStructure(t *testing.T) testDirStrucure {
 	var tds testDirStrucure
-	tds.testDir = setup.SetupTestDirectory(DirForOperationTests + "-" + setup.GenerateRandomString(5))
+	tds.testDir = setup.SetupTestDirectory(setup.GenerateRandomDirName(DirForOperationTests))
 
 	// Create explicitDir1 structure
-	tds.explicitDir1Name = "explicitDir1-" + setup.GenerateRandomString(5)
+	tds.explicitDir1Name = setup.GenerateRandomDirName("explicitDir1")
 	explicitDir1 := path.Join(tds.testDir, tds.explicitDir1Name)
 	operations.CreateDirectory(explicitDir1, t)
-	tds.file1InExplicitDir1Name = "file1-" + setup.GenerateRandomString(5) + ".txt"
+	tds.file1InExplicitDir1Name = setup.GenerateRandomFileName("file1")
 	filePath1 := path.Join(explicitDir1, tds.file1InExplicitDir1Name)
 	operations.CreateFileOfSize(5, filePath1, t)
-	tds.file2InExplicitDir1Name = "file2-" + setup.GenerateRandomString(5) + ".txt"
+	tds.file2InExplicitDir1Name = setup.GenerateRandomFileName("file2")
 	filePath2 := path.Join(explicitDir1, tds.file2InExplicitDir1Name)
 	operations.CreateFileOfSize(10, filePath2, t)
 
 	// Create explicitDir2 structure
-	tds.explicitDir2Name = "explicitDir2-" + setup.GenerateRandomString(5)
+	tds.explicitDir2Name = setup.GenerateRandomDirName("explicitDir2")
 	explicitDir2 := path.Join(tds.testDir, tds.explicitDir2Name)
 	operations.CreateDirectory(explicitDir2, t)
-	tds.file1InExplicitDir2Name = "file1-" + setup.GenerateRandomString(5) + ".txt"
+	tds.file1InExplicitDir2Name = setup.GenerateRandomFileName("file1")
 	filePath1 = path.Join(explicitDir2, tds.file1InExplicitDir2Name)
 	operations.CreateFileOfSize(11, filePath1, t)
 
-	tds.file1Name = "file1-" + setup.GenerateRandomString(5) + ".txt"
+	tds.file1Name = setup.GenerateRandomFileName("file1")
 	filePath1 = path.Join(tds.testDir, tds.file1Name)
 	operations.CreateFileOfSize(5, filePath1, t)
-	tds.file2Name = "file2-" + setup.GenerateRandomString(5) + ".txt"
+	tds.file2Name = setup.GenerateRandomFileName("file2")
 	filePath2 = path.Join(tds.testDir, tds.file2Name)
 	operations.CreateFileOfSize(3, filePath2, t)
 
