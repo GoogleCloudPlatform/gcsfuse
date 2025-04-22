@@ -288,12 +288,13 @@ func (testSuite *BufferedWriteTest) TestSync5InProgressBlocks() {
 	}
 
 	// Wait for 5 blocks to upload successfully.
-	_, err = testSuite.bwh.Sync()
+	o, err := testSuite.bwh.Sync()
 
 	assert.NoError(testSuite.T(), err)
 	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
 	assert.Equal(testSuite.T(), 0, len(bwhImpl.uploadHandler.uploadCh))
 	assert.Equal(testSuite.T(), 0, len(bwhImpl.blockPool.FreeBlocksChannel()))
+	assert.Nil(testSuite.T(), o)
 }
 
 func (testSuite *BufferedWriteTest) TestSyncPartialBlockTableDriven() {
@@ -325,7 +326,7 @@ func (testSuite *BufferedWriteTest) TestSyncPartialBlockTableDriven() {
 	}
 
 	for _, tc := range testCases {
-		testSuite.T().Run(tc.name, func(t *testing.T) {
+		testSuite.Run(tc.name, func() {
 			testSuite.setupTestWithBucketType(tc.bucketType)
 			buffer, err := operations.GenerateRandomData(int64(blockSize * tc.numBlocks))
 			assert.NoError(testSuite.T(), err)
@@ -333,10 +334,9 @@ func (testSuite *BufferedWriteTest) TestSyncPartialBlockTableDriven() {
 			require.Nil(testSuite.T(), err)
 
 			// Wait for 3 blocks to upload successfully.
-			_, err = testSuite.bwh.Sync()
+			o, err := testSuite.bwh.Sync()
 
-			assert.NoError(t, err)
-			assert.NoError(testSuite.T(), err)
+			require.NoError(testSuite.T(), err)
 			bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
 			// Current block should also be uploaded.
 			assert.Nil(testSuite.T(), bwhImpl.current)
@@ -345,14 +345,17 @@ func (testSuite *BufferedWriteTest) TestSyncPartialBlockTableDriven() {
 			// Read the object from back door.
 			content, err := storageutil.ReadObject(context.Background(), bwhImpl.uploadHandler.bucket, bwhImpl.uploadHandler.objectName)
 			if tc.bucketType.Zonal {
+				require.NotNil(testSuite.T(), o)
+				assert.EqualValues(testSuite.T(), int64(blockSize*tc.numBlocks), o.Size)
 				require.NoError(testSuite.T(), err)
 				assert.Equal(testSuite.T(), buffer, content)
 			} else {
+				require.Nil(testSuite.T(), o)
 				// Since the object is not finalized, the object will not be available
 				// on GCS for non-zonal buckets.
-				require.Error(t, err)
+				require.Error(testSuite.T(), err)
 				var notFoundErr *gcs.NotFoundError
-				assert.ErrorAs(t, err, &notFoundErr)
+				assert.ErrorAs(testSuite.T(), err, &notFoundErr)
 			}
 		})
 	}
@@ -370,10 +373,11 @@ func (testSuite *BufferedWriteTest) TestSyncBlocksWithError() {
 	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
 	bwhImpl.uploadHandler.uploadError.Store(&errUploadFailure)
 
-	_, err = testSuite.bwh.Sync()
+	o, err := testSuite.bwh.Sync()
 
 	assert.Error(testSuite.T(), err)
 	assert.Equal(testSuite.T(), errUploadFailure, err)
+	assert.Nil(testSuite.T(), o)
 }
 
 func (testSuite *BufferedWriteTest) TestFlushWithNonZeroTruncatedLengthForEmptyObject() {
