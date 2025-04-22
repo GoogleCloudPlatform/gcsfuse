@@ -42,7 +42,7 @@ func (t *StreamingWritesSuite) SetupSuite() {
 	}
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 	testDirPath = setup.SetupTestDirectory(testDirName)
-	t.data = setup.GenerateRandomString(5 * util.MiB)
+	t.data = operations.GenerateRandomString(5 * util.MiB)
 }
 
 func (t *StreamingWritesSuite) TearDownSuite() {

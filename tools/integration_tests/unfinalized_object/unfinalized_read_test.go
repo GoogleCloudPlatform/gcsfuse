@@ -46,7 +46,7 @@ type unfinalizedObjectReads struct {
 
 func (t *unfinalizedObjectReads) SetupTest() {
 	t.testDirPath = client.SetupTestDirectory(t.ctx, t.storageClient, testDirName)
-	t.fileName = path.Base(t.T().Name()) + setup.GenerateRandomString(5)
+	t.fileName = path.Base(t.T().Name()) + operations.GenerateRandomString(5)
 }
 
 func (t *unfinalizedObjectReads) TeardownTest() {}
@@ -59,7 +59,7 @@ func (t *unfinalizedObjectReads) TestUnfinalizedObjectsCantBeRead() {
 	var size int = operations.MiB
 	// Create un-finalized object via same mount.
 	fh := operations.CreateFile(path.Join(t.testDirPath, t.fileName), setup.FilePermission_0600, t.T())
-	operations.WriteWithoutClose(fh, setup.GenerateRandomString(size), t.T())
+	operations.WriteWithoutClose(fh, operations.GenerateRandomString(size), t.T())
 	defer operations.CloseFileShouldNotThrowError(t.T(), fh)
 
 	// Read un-finalized object.

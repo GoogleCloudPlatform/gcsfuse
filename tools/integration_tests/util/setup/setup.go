@@ -254,7 +254,7 @@ func UnMountBucket() {
 
 func SaveLogFileInCaseOfFailure(successCode int) {
 	if successCode != 0 {
-		SaveLogFileAsArtifact(LogFile(), GCSFuseLogFilePrefix+GenerateRandomString(5))
+		SaveLogFileAsArtifact(LogFile(), GCSFuseLogFilePrefix + operations.GenerateRandomString(5))
 	}
 }
 
@@ -281,7 +281,7 @@ func SaveGCSFuseLogFileInCaseOfFailure(tb testing.TB) {
 	if !tb.Failed() || MountedDirectory() != "" {
 		return
 	}
-	SaveLogFileAsArtifact(LogFile(), GCSFuseLogFilePrefix+strings.ReplaceAll(tb.Name(), "/", "_")+GenerateRandomString(5))
+	SaveLogFileAsArtifact(LogFile(), GCSFuseLogFilePrefix+strings.ReplaceAll(tb.Name(), "/", "_") + operations.GenerateRandomString(5))
 }
 
 // In case of test failure saves ProxyServerLogFile to
@@ -291,7 +291,7 @@ func SaveProxyServerLogFileInCaseOfFailure(proxyServerLogFile string, tb testing
 	if !tb.Failed() {
 		return
 	}
-	SaveLogFileAsArtifact(proxyServerLogFile, ProxyServerLogFilePrefix+strings.ReplaceAll(tb.Name(), "/", "_")+GenerateRandomString(5))
+	SaveLogFileAsArtifact(proxyServerLogFile, ProxyServerLogFilePrefix+strings.ReplaceAll(tb.Name(), "/", "_")+operations.GenerateRandomString(5))
 }
 
 func UnMountAndThrowErrorInFailure(flags []string, successCode int) {
@@ -602,7 +602,7 @@ func AppendFlagsToAllFlagsInTheFlagsSet(flagsSet *[][]string, newFlags ...string
 // The same file will be copied to the mounted directory as well.
 func CreateFileAndCopyToMntDir(t *testing.T, fileSize int, dirName string) (string, string) {
 	testDir := SetupTestDirectory(dirName)
-	fileInLocalDisk := "test_file" + GenerateRandomString(5) + ".txt"
+	fileInLocalDisk := "test_file" + operations.GenerateRandomString(5) + ".txt"
 	filePathInLocalDisk := path.Join(os.TempDir(), fileInLocalDisk)
 	filePathInMntDir := path.Join(testDir, fileInLocalDisk)
 	CreateFileOnDiskAndCopyToMntDir(t, filePathInLocalDisk, filePathInMntDir, fileSize)
@@ -619,7 +619,7 @@ func CreateFileOnDiskAndCopyToMntDir(t *testing.T, filePathInLocalDisk string, f
 }
 
 func CreateProxyServerLogFile(t *testing.T) string {
-	proxyServerLogFile := path.Join(TestDir(), "proxy-server-log-"+GenerateRandomString(5))
+	proxyServerLogFile := path.Join(TestDir(), "proxy-server-log-"+operations.GenerateRandomString(5))
 	_, err := os.Create(proxyServerLogFile)
 	if err != nil {
 		t.Fatalf("Error in creating log file for proxy server: %v", err)

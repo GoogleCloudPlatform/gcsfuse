@@ -40,7 +40,7 @@ const DirForReadLargeFilesTests = "dirForReadLargeFilesTests"
 var (
 	storageClient     *storage.Client
 	ctx               context.Context
-	FiveHundredMBFile = "fiveHundredMBFile" + setup.GenerateRandomString(5) + ".txt"
+	FiveHundredMBFile = "fiveHundredMBFile" + operations.GenerateRandomString(5) + ".txt"
 	cacheDir          string
 )
 

@@ -26,10 +26,13 @@ import (
 
 	client_util "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 )
 
 const PrefixBucketForDynamicMountingTest = "gcsfuse-dynamic-mounting-test-"
+
+var testBucketForDynamicMounting = PrefixBucketForDynamicMountingTest + operations.GenerateRandomString(5)
 
 func MountGcsfuseWithDynamicMounting(flags []string) (err error) {
 	defaultArg := []string{"--log-severity=trace",
@@ -108,7 +111,7 @@ func CreateTestBucketForDynamicMounting(ctx context.Context, client *storage.Cli
 		Location: "us-west1",
 	}
 
-	bucketName = PrefixBucketForDynamicMountingTest + setup.GenerateRandomString(5)
+	bucketName = PrefixBucketForDynamicMountingTest + operations.GenerateRandomString(5)
 	bucket := client.Bucket(bucketName)
 	if err := bucket.Create(ctx, projectID, storageClassAndLocation); err != nil {
 		return "", fmt.Errorf("failed to create bucket: %v", err)

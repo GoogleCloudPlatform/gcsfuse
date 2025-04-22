@@ -39,7 +39,7 @@ type staleFileHandleLocalFile struct {
 
 func (s *staleFileHandleLocalFile) SetupTest() {
 	// Create a local file.
-	s.fileName = path.Base(s.T().Name()) + setup.GenerateRandomString(5)
+	s.fileName = path.Base(s.T().Name()) + operations.GenerateRandomString(5)
 	s.f1 = operations.OpenFileWithODirect(s.T(), path.Join(s.testDirPath, s.fileName))
 	s.isLocal = true
 }

@@ -41,7 +41,7 @@ type staleFileHandleEmptyGcsFile struct {
 
 func (s *staleFileHandleEmptyGcsFile) SetupTest() {
 	// Create an empty object on GCS.
-	s.fileName = path.Base(s.T().Name()) + setup.GenerateRandomString(5)
+	s.fileName = path.Base(s.T().Name()) + operations.GenerateRandomString(5)
 	err := CreateObjectOnGCS(ctx, storageClient, path.Join(testDirName, s.fileName), "")
 	assert.NoError(s.T(), err)
 	s.f1 = operations.OpenFileWithODirect(s.T(), path.Join(s.testDirPath, s.fileName))

@@ -66,7 +66,7 @@ func TestDeleteAndRecreateNonEmptyExplicitDir(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
 	// Create a directory with random name to isolate it from parallel invocations of the same test.
-	dirPath := path.Join(testDir, setup.GenerateRandomDirName(NonEmptyExplicitDirectoryForDeleteTest))
+	dirPath := path.Join(testDir, operations.GenerateRandomDirName(NonEmptyExplicitDirectoryForDeleteTest))
 	operations.CreateDirectoryWithNFiles(NumberOfFilesInNonEmptyExplicitDirectoryForDeleteTest, dirPath, PrefixFilesInNonEmptyExplicitDirectoryForDeleteTest, t)
 
 	// Delete this directory.

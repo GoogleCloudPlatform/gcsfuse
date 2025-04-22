@@ -83,7 +83,7 @@ func TestDeleteAndRecreateFile(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
 	// Create a file with random name to isolate it from other parallel invocations of the same test.
-	fileName := setup.GenerateRandomFileName("fileBeingDeletedAndRecreated")
+	fileName := operations.GenerateRandomFileName("fileBeingDeletedAndRecreated")
 	filePath := path.Join(testDir, fileName)
 
 	createFile(filePath, t)

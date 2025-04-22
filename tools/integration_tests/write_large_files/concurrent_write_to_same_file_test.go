@@ -30,8 +30,8 @@ import (
 func TestWriteToSameFileConcurrently(t *testing.T) {
 	// Setup Test directory and files to write to.
 	seqWriteDir := setup.SetupTestDirectory(DirForSeqWrite)
-	mountedDirFilePath := path.Join(seqWriteDir, setup.GenerateRandomString(5))
-	localFilePath := path.Join(TmpDir, setup.GenerateRandomString(5))
+	mountedDirFilePath := path.Join(seqWriteDir, operations.GenerateRandomString(5))
+	localFilePath := path.Join(TmpDir, operations.GenerateRandomString(5))
 	t.Cleanup(func() { operations.RemoveFile(localFilePath) })
 	// We will have x numbers of concurrent writers trying to write to the same file.
 	// Every thread will start at offset = writer_index * (fileSize/thread_count).

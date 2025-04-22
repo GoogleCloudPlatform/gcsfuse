@@ -31,9 +31,9 @@ const (
 
 func TestWriteMultipleFilesConcurrently(t *testing.T) {
 	concurrentWriteDir := setup.SetupTestDirectory(DirForConcurrentWrite)
-	var FileOne = "fileOne" + setup.GenerateRandomString(5) + ".txt"
-	var FileTwo = "fileTwo" + setup.GenerateRandomString(5) + ".txt"
-	var FileThree = "fileThree" + setup.GenerateRandomString(5) + ".txt"
+	var FileOne = "fileOne" + operations.GenerateRandomString(5) + ".txt"
+	var FileTwo = "fileTwo" + operations.GenerateRandomString(5) + ".txt"
+	var FileThree = "fileThree" + operations.GenerateRandomString(5) + ".txt"
 	files := []string{FileOne, FileTwo, FileThree}
 	var eG errgroup.Group
 
@@ -45,7 +45,7 @@ func TestWriteMultipleFilesConcurrently(t *testing.T) {
 		// Thread to write the current file.
 		eG.Go(func() error {
 			mountedDirFilePath := path.Join(concurrentWriteDir, files[fileIndex])
-			localFilePath := path.Join(TmpDir, setup.GenerateRandomString(5))
+			localFilePath := path.Join(TmpDir, operations.GenerateRandomString(5))
 			t.Cleanup(func() { operations.RemoveFile(localFilePath) })
 
 			operations.WriteFilesSequentially(t, []string{localFilePath, mountedDirFilePath}, FiveHundredMB, ChunkSize)
