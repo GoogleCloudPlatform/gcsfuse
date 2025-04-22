@@ -57,11 +57,11 @@ const (
 	dualRegionAsiaExpectedMountTime        time.Duration = 6250 * time.Millisecond
 	singleRegionUSCentralExpectedMountTime time.Duration = 2500 * time.Millisecond
 	// Constants specific to ZB E2E runs.
-	testEnvZoneGCEUSCentral1A         string        = "gce-zone-us-central1-a"
-	testEnvZoneGCEUSWEST4A            string        = "gce-zone-us-west4a-a"
-	testEnvZoneGCEOther               string        = "gce-zone-other"
-	zonalUSCentral1ABucket            string        = "mount_timeout_test_bucket_zb_usc1a"
-	zonalUSWest4ABucket               string        = "mount_timeout_test_bucket_zb_usw4a"
+	testEnvZoneGCEUSCentral1A       string        = "gce-zone-us-central1-a"
+	testEnvZoneGCEUSWEST4A          string        = "gce-zone-us-west4a-a"
+	testEnvZoneGCEOther             string        = "gce-zone-other"
+	zonalUSCentral1ABucket          string        = "mount_timeout_test_bucket_zb_usc1a"
+	zonalUSWest4ABucket             string        = "mount_timeout_test_bucket_zb_usw4a"
 	zonalSameZoneExpectedMountTime  time.Duration = 2500 * time.Millisecond
 	zonalCrossZoneExpectedMountTime time.Duration = 5000 * time.Millisecond
 	// Commont constants.
