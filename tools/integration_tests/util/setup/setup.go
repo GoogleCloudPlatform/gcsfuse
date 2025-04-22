@@ -611,3 +611,13 @@ func CreateProxyServerLogFile(t *testing.T) string {
 func AppendProxyEndpointToFlagSet(flagSet *[]string, port int) {
 	*flagSet = append(*flagSet, "--custom-endpoint="+fmt.Sprintf("http://localhost:%d/storage/v1/", port))
 }
+
+// GenerateRandomDirName returns a random directory name with the given prefix.
+func GenerateRandomDirName(prefix string) string {
+	return prefix + "-" + GenerateRandomString(5)
+}
+
+// GenerateRandomFileName returns a random directory name with the given prefix and .txt extension added.
+func GenerateRandomFileName(prefix string) string {
+	return prefix + "-" + GenerateRandomString(5) + ".txt"
+}
