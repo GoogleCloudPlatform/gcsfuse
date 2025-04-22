@@ -38,7 +38,7 @@ func (t *defaultMountEmptyGCSFile) SetupSubTest() {
 }
 
 func (t *defaultMountEmptyGCSFile) createEmptyGCSFile() {
-	t.fileName = FileName1 + setup.GenerateRandomString(5)
+	t.fileName = FileName1 + operations.GenerateRandomString(5)
 	// Create an empty file on GCS.
 	CreateObjectInGCSTestDir(ctx, storageClient, testDirName, t.fileName, "", t.T())
 	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, t.fileName, "", t.T())

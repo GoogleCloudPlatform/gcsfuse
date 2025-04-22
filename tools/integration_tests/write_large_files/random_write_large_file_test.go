@@ -36,7 +36,7 @@ func TestWriteLargeFileRandomly(t *testing.T) {
 	// Setup Test directory and files to write to.
 	randomWriteDir := setup.SetupTestDirectory(DirForRandomWrite)
 	mountedDirFilePath := path.Join(randomWriteDir, FiveHundredMBFile)
-	localFilePath := path.Join(TmpDir, setup.GenerateRandomString(5))
+	localFilePath := path.Join(TmpDir, operations.GenerateRandomString(5))
 	t.Cleanup(func() { operations.RemoveFile(localFilePath) })
 	// Open local file and mounted directory file for writing.
 	filesToWrite := operations.OpenFiles(t, []string{localFilePath, mountedDirFilePath})

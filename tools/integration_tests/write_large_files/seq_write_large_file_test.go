@@ -30,12 +30,12 @@ const (
 	DirForSeqWrite = "dirForSeqWrite"
 )
 
-var FiveHundredMBFile = "fiveHundredMBFile" + setup.GenerateRandomString(5) + ".txt"
+var FiveHundredMBFile = "fiveHundredMBFile" + operations.GenerateRandomString(5) + ".txt"
 
 func TestWriteLargeFileSequentially(t *testing.T) {
 	seqWriteDir := setup.SetupTestDirectory(DirForSeqWrite)
 	mountedDirFilePath := path.Join(seqWriteDir, FiveHundredMBFile)
-	localFilePath := path.Join(TmpDir, setup.GenerateRandomString(5))
+	localFilePath := path.Join(TmpDir, operations.GenerateRandomString(5))
 	t.Cleanup(func() { operations.RemoveFile(localFilePath) })
 
 	// Write sequentially to local and mounted directory file.

@@ -150,7 +150,7 @@ func TestChunkTransferTimeout(t *testing.T) {
 						setup.SaveProxyServerLogFileInCaseOfFailure(proxyServerLogFile, t)
 					}()
 
-					testDir := scenario.name + setup.GenerateRandomString(3)
+					testDir := scenario.name + operations.GenerateRandomString(3)
 					testDirPath = setup.SetupTestDirectory(testDir)
 					filePath := path.Join(testDirPath, "file.txt")
 

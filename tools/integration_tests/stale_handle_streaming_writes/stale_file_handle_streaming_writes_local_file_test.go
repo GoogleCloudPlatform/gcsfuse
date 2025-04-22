@@ -35,7 +35,7 @@ type staleFileHandleStreamingWritesLocalFile struct {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *staleFileHandleStreamingWritesLocalFile) SetupTest() {
-	t.fileName = setup.GenerateRandomString(5)
+	t.fileName = operations.GenerateRandomString(5)
 	// Create a local file.
 	t.filePath, t.f1 = CreateLocalFileInTestDir(ctx, storageClient, t.testDirPath, t.fileName, t.T())
 }

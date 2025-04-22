@@ -35,7 +35,7 @@ const numberOfImplicitDirsInDirectoryWithTwelveThousandFiles = 100
 const numberOfExplicitDirsInDirectoryWithTwelveThousandFiles = 100
 
 var (
-	directoryWithTwelveThousandFiles = "directoryWithTwelveThousandFiles" + setup.GenerateRandomString(5)
+	directoryWithTwelveThousandFiles = "directoryWithTwelveThousandFiles" + operations.GenerateRandomString(5)
 	storageClient                    *storage.Client
 	ctx                              context.Context
 )

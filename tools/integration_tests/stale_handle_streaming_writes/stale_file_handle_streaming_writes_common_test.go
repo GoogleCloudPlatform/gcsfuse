@@ -46,7 +46,7 @@ type staleFileHandleStreamingWritesCommon struct {
 func (t *staleFileHandleStreamingWritesCommon) SetupSuite() {
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 	t.testDirPath = setup.SetupTestDirectory(testDirName)
-	t.data = setup.GenerateRandomString(operations.MiB * 5)
+	t.data = operations.GenerateRandomString(operations.MiB * 5)
 }
 
 func (t *staleFileHandleStreamingWritesCommon) TearDownSuite() {

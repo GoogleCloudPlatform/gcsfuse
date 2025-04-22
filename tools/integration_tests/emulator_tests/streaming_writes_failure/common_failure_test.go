@@ -82,7 +82,7 @@ func (t *commonFailureTestSuite) setupTest() {
 	t.closeStorageClient = CreateStorageClientWithCancel(&t.ctx, &t.storageClient)
 	setup.MountGCSFuseWithGivenMountFunc(t.flags, mountFunc)
 	// Setup random testDirName.
-	testDirName = testDirNamePrefix + setup.GenerateRandomString(5)
+	testDirName = testDirNamePrefix + operations.GenerateRandomString(5)
 	// Setup test directory for testing.
 	t.testDirPath = setup.SetupTestDirectory(testDirName)
 }

@@ -46,7 +46,7 @@ func (t *defaultMountCommonLocalFile) SetupSubTest() {
 }
 
 func (t *defaultMountCommonLocalFile) createLocalFile() {
-	t.fileName = FileName1 + setup.GenerateRandomString(5)
+	t.fileName = FileName1 + operations.GenerateRandomString(5)
 	t.filePath = path.Join(testDirPath, t.fileName)
 	// Create a local file with O_DIRECT.
 	t.f1 = operations.OpenFileWithODirect(t.T(), t.filePath)
