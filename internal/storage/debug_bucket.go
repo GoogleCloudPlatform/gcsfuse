@@ -189,11 +189,11 @@ func (b *debugBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gcs.
 	return
 }
 
-func (b *debugBucket) FlushPendingWrites(ctx context.Context, w gcs.Writer) (offset int64, err error) {
+func (b *debugBucket) FlushPendingWrites(ctx context.Context, w gcs.Writer) (o *gcs.MinObject, err error) {
 	id, desc, start := b.startRequest("FlushPendingWrites(%q)", w.ObjectName())
 	defer b.finishRequest(id, desc, start, &err)
 
-	offset, err = b.wrapped.FlushPendingWrites(ctx, w)
+	o, err = b.wrapped.FlushPendingWrites(ctx, w)
 	return
 }
 

@@ -293,50 +293,45 @@ func (t *FlushPendingWritesTest) WrappedFails() {
 	writer := &storage.ObjectWriter{
 		Writer: &gostorage.Writer{ObjectAttrs: gostorage.ObjectAttrs{Name: name}},
 	}
-	// Expect cache Lookup.
-	ExpectCall(t.cache, "LookUp")(name, timeutil.TimeEq(t.clock.Now())).
-		WillOnce(Return(true, &gcs.MinObject{}))
 	// Expect cache Erase.
 	ExpectCall(t.cache, "Erase")(name)
 	// Expect call to Wrapped method.
 	var wrappedWriter gcs.Writer
+	mockObject := &gcs.MinObject{Size: 10}
 	ExpectCall(t.wrapped, "FlushPendingWrites")(Any(), Any()).
-		WillOnce(DoAll(SaveArg(1, &wrappedWriter), Return(10, errors.New("taco"))))
+		WillOnce(DoAll(SaveArg(1, &wrappedWriter), Return(mockObject, errors.New("taco"))))
 
 	// Call.
-	gotOffset, err := t.bucket.FlushPendingWrites(context.TODO(), writer)
+	gotObject, err := t.bucket.FlushPendingWrites(context.TODO(), writer)
 
 	ExpectEq(writer, wrappedWriter)
-	ExpectEq(10, gotOffset)
+	ExpectEq(mockObject, gotObject)
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
 func (t *FlushPendingWritesTest) WrappedSucceeds() {
 	const name = "taco"
-	minObject := &gcs.MinObject{}
 	writer := &storage.ObjectWriter{
 		Writer: &gostorage.Writer{ObjectAttrs: gostorage.ObjectAttrs{Name: name}},
 	}
 	var err error
-	// Expect cache Lookup.
-	ExpectCall(t.cache, "LookUp")(name, timeutil.TimeEq(t.clock.Now())).
-		WillOnce(Return(true, minObject))
 	// Expect cache Erase.
 	ExpectCall(t.cache, "Erase")(name)
 	// Wrapped.
+	mockObject := &gcs.MinObject{Size: 10}
 	ExpectCall(t.wrapped, "FlushPendingWrites")(Any(), Any()).
-		WillOnce(Return(10, nil))
+		WillOnce(Return(mockObject, nil))
 	// Insert.
 	var cachedMinObject *gcs.MinObject
 	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(primaryCacheTTL))).
 		WillOnce(DoAll(SaveArg(0, &cachedMinObject)))
 
 	// Call
-	offset, err := t.bucket.FlushPendingWrites(context.TODO(), writer)
+	gotObject, err := t.bucket.FlushPendingWrites(context.TODO(), writer)
 
 	AssertEq(nil, err)
-	ExpectEq(10, offset)
-	ExpectEq(10, cachedMinObject.Size)
+	ExpectEq(mockObject, gotObject)
+	ExpectEq(mockObject.Size, cachedMinObject.Size)
 }
 
 ////////////////////////////////////////////////////////////////////////

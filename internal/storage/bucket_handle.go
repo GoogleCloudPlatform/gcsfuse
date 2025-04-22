@@ -255,18 +255,22 @@ func (bh *bucketHandle) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gc
 	return
 }
 
-func (bh *bucketHandle) FlushPendingWrites(ctx context.Context, w gcs.Writer) (offset int64, err error) {
+func (bh *bucketHandle) FlushPendingWrites(ctx context.Context, w gcs.Writer) (o *gcs.MinObject, err error) {
 	defer func() {
 		err = gcs.GetGCSError(err)
 	}()
 
-	offset, err = w.Flush()
+	offset, err := w.Flush()
 	if err != nil {
 		err = fmt.Errorf("error in FlushPendingWrites : %w", err)
 		return
 	}
 
-	return offset, err
+	attrs := w.Attrs() // Retrieving the attributes of the created object.
+	// Converting attrs to type *MinObject.
+	o = storageutil.ObjectAttrsToMinObject(attrs)
+	o.Size = uint64(offset)
+	return
 }
 
 func (bh *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {

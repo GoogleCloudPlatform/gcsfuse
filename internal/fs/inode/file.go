@@ -666,7 +666,7 @@ func (f *FileInode) SyncPendingBufferedWrites() error {
 	if f.bwh == nil {
 		return nil
 	}
-	err := f.bwh.Sync()
+	_, err := f.bwh.Sync()
 	var preconditionErr *gcs.PreconditionError
 	if errors.As(err, &preconditionErr) {
 		return &gcsfuse_errors.FileClobberedError{

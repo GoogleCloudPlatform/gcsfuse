@@ -288,7 +288,7 @@ func (testSuite *BufferedWriteTest) TestSync5InProgressBlocks() {
 	}
 
 	// Wait for 5 blocks to upload successfully.
-	err = testSuite.bwh.Sync()
+	_, err = testSuite.bwh.Sync()
 
 	assert.NoError(testSuite.T(), err)
 	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
@@ -333,7 +333,7 @@ func (testSuite *BufferedWriteTest) TestSyncPartialBlockTableDriven() {
 			require.Nil(testSuite.T(), err)
 
 			// Wait for 3 blocks to upload successfully.
-			err = testSuite.bwh.Sync()
+			_, err = testSuite.bwh.Sync()
 
 			assert.NoError(t, err)
 			assert.NoError(testSuite.T(), err)
@@ -370,7 +370,7 @@ func (testSuite *BufferedWriteTest) TestSyncBlocksWithError() {
 	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
 	bwhImpl.uploadHandler.uploadError.Store(&errUploadFailure)
 
-	err = testSuite.bwh.Sync()
+	_, err = testSuite.bwh.Sync()
 
 	assert.Error(testSuite.T(), err)
 	assert.Equal(testSuite.T(), errUploadFailure, err)

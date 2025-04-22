@@ -180,24 +180,24 @@ func (uh *UploadHandler) ensureWriter() error {
 }
 
 // FlushPendingWrites uploads any data in the write buffer.
-func (uh *UploadHandler) FlushPendingWrites() (int64, error) {
+func (uh *UploadHandler) FlushPendingWrites() (*gcs.MinObject, error) {
 	uh.wg.Wait()
 
 	// Writer may not have been created for empty file creation flow or for very
 	// small writes of size less than 1 block.
 	err := uh.ensureWriter()
 	if err != nil {
-		return 0, fmt.Errorf("uh.ensureWriter() failed: %v", err)
+		return nil, fmt.Errorf("uh.ensureWriter() failed: %v", err)
 	}
 
-	offset, err := uh.bucket.FlushPendingWrites(context.Background(), uh.writer)
+	o, err := uh.bucket.FlushPendingWrites(context.Background(), uh.writer)
 	if err != nil {
 		// FlushUpload already returns GCS error so no need to convert again.
 		uh.uploadError.Store(&err)
 		logger.Errorf("FlushUpload failed for object %s: %v", uh.objectName, err)
-		return 0, err
+		return nil, err
 	}
-	return offset, nil
+	return o, nil
 }
 
 func (uh *UploadHandler) CancelUpload() {
