@@ -77,3 +77,23 @@ func TestDeleteFileFromBucketDirectory(t *testing.T) {
 
 	checkIfFileDeletionSucceeded(filePath, t)
 }
+
+// Remove testBucket/A.txt
+func TestDeleteAndRecreateFile(t *testing.T) {
+	testDir := setup.SetupTestDirectory(DirForOperationTests)
+
+	// Random file-name to isolate it from other parallel invocations of the same test.
+	fileName := "fileBeingDeletedAndRecreated-" + setup.GenerateRandomString(5) + ".txt"
+	filePath := path.Join(testDir, fileName)
+
+	createFile(filePath, t)
+
+	// Delete file.
+	checkIfFileDeletionSucceeded(filePath, t)
+
+	// Recreate file.
+	createFile(filePath, t)
+
+	// clean-up
+	checkIfFileDeletionSucceeded(filePath, t)
+}
