@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go/compute/metadata v0.6.0
 	cloud.google.com/go/iam v1.5.0
 	cloud.google.com/go/secretmanager v1.14.6
-	cloud.google.com/go/storage v1.51.1-0.20250421140406-6217f8fd3cd8
+	cloud.google.com/go/storage v1.51.1-0.20250421214828-8e56f745e7f2
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.51.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.27.0
 	github.com/fsouza/fake-gcs-server v1.52.2
