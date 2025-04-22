@@ -1318,14 +1318,14 @@ func TestArgsParsing_ReadInactiveTimeoutConfig(t *testing.T) {
 			name:    "default",
 			cfgFile: "empty.yaml",
 			expected: &cfg.ReadConfig{
-				InactiveStreamTimeout: time.Duration(0),
+				InactivityTimeout: time.Duration(0),
 			},
 		},
 		{
 			name:    "override_default",
 			cfgFile: "override.yaml",
 			expected: &cfg.ReadConfig{
-				InactiveStreamTimeout: 60 * time.Second,
+				InactivityTimeout: 60 * time.Second,
 			},
 		},
 	}
@@ -1342,7 +1342,7 @@ func TestArgsParsing_ReadInactiveTimeoutConfig(t *testing.T) {
 			err = cmd.Execute()
 
 			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expected, gotConfig.Read.InactiveStreamTimeout)
+				assert.Equal(t, tc.expected, gotConfig.Read.InactivityTimeout)
 			}
 		})
 	}

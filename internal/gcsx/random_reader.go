@@ -457,7 +457,7 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 	// Begin the read.
 	ctx, cancel := context.WithCancel(context.Background())
 
-	if rr.readConfig.InactiveStreamTimeout == time.Duration(0) {
+	if rr.readConfig.InactivityTimeout == time.Duration(0) {
 		rr.reader, err = rr.bucket.NewReaderWithReadHandle(
 			ctx,
 			&gcs.ReadObjectRequest{
@@ -471,7 +471,7 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 				ReadHandle:     rr.readHandle,
 			})
 	} else {
-		rr.reader, err = NewStorageReaderWithInactiveTimeout(ctx, rr.bucket, rr.object, rr.readHandle, start, end, 2*time.Second)
+		rr.reader, err = NewInactiveTimeoutReader(ctx, rr.bucket, rr.object, rr.readHandle, start, end, 2*time.Second)
 	}
 
 	// If a file handle is open locally, but the corresponding object doesn't exist

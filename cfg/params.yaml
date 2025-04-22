@@ -655,13 +655,14 @@
   usage: "Mount only a specific directory within the bucket. See docs/mounting for more information"
   default: ""
 
-- config-path: "read.inactive-stream-timeout"
-  flag-name: "inactive-read-stream-timeout"
+- config-path: "read.inactivity-timeout"
+  flag-name: "read-inactivity-timeout"
   type: "duration"
   usage: >-
-    The timeout duration for inactive reader stream, triggered when application keeps the fileHandle open
-    and unused after reader few bytes. 0s indicates no timeout. Currently only applicable for gRPC
-    client-protocol.
+    Duration of inactivity after which an open GCS read stream is automatically closed.
+    This helps conserve resources when a file handle remains open without active Read calls.
+    A value of '0s' disables this timeout.
+    Note: Currently only applies when using the 'grpc' client-protocol.
   default: "0s"
   hide-flag: true
 

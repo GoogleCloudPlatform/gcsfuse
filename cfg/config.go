@@ -232,7 +232,7 @@ type MonitoringConfig struct {
 }
 
 type ReadConfig struct {
-	InactiveStreamTimeout time.Duration `yaml:"inactive-stream-timeout"`
+	InactivityTimeout time.Duration `yaml:"inactivity-timeout"`
 }
 
 type ReadStallGcsRetriesConfig struct {
@@ -445,12 +445,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("implicit-dirs", "", false, "Implicitly define directories based on content. See files and directories in docs/semantics for more information")
 
-	flagSet.DurationP("inactive-read-stream-timeout", "", 0*time.Nanosecond, "The timeout duration for inactive reader stream, triggered when application keeps the fileHandle open and unused after reader few bytes. 0s indicates no timeout. Currently only applicable for gRPC client-protocol.")
-
-	if err := flagSet.MarkHidden("inactive-read-stream-timeout"); err != nil {
-		return err
-	}
-
 	flagSet.IntP("kernel-list-cache-ttl-secs", "", 0, "How long the directory listing (output of ls <dir>) should be cached in the kernel page cache. If a particular directory cache entry is kept by kernel for longer than TTL, then it will be sent for invalidation by gcsfuse on next opendir (comes in the start, as part of next listing) call. 0 means no caching. Use -1 to cache for lifetime (no ttl). Negative value other than -1 will throw error.")
 
 	flagSet.StringP("key-file", "", "", "Absolute path to JSON key file for use with GCS. If this flag is left unset, Google application default credentials are used.")
@@ -512,6 +506,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	}
 
 	flagSet.IntP("prometheus-port", "", 0, "Expose Prometheus metrics endpoint on this port and a path of /metrics.")
+
+	flagSet.DurationP("read-inactivity-timeout", "", 0*time.Nanosecond, "Duration of inactivity after which an open GCS read stream is automatically closed. This helps conserve resources when a file handle remains open without active Read calls. A value of '0s' disables this timeout. Note: Currently only applies when using the 'grpc' client-protocol.")
+
+	if err := flagSet.MarkHidden("read-inactivity-timeout"); err != nil {
+		return err
+	}
 
 	flagSet.DurationP("read-stall-initial-req-timeout", "", 20000000000*time.Nanosecond, "Initial value of the read-request dynamic timeout.")
 
@@ -784,10 +784,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("read.inactive-stream-timeout", flagSet.Lookup("inactive-read-stream-timeout")); err != nil {
-		return err
-	}
-
 	if err := v.BindPFlag("file-system.kernel-list-cache-ttl-secs", flagSet.Lookup("kernel-list-cache-ttl-secs")); err != nil {
 		return err
 	}
@@ -873,6 +869,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metrics.prometheus-port", flagSet.Lookup("prometheus-port")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("read.inactivity-timeout", flagSet.Lookup("read-inactivity-timeout")); err != nil {
 		return err
 	}
 

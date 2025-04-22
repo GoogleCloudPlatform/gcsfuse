@@ -110,7 +110,7 @@ func resolveStreamingWriteConfig(w *WriteConfig) {
 
 func resolveReadconfig(c *Config, r *ReadConfig) {
 	if c.GcsConnection.ClientProtocol != GRPC {
-		r.InactiveStreamTimeout = time.Duration(0 * time.Second)
+		r.InactivityTimeout = time.Duration(0 * time.Second)
 	}
 }
 
