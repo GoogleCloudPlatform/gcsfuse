@@ -428,7 +428,7 @@ function run_e2e_tests_for_zonal_bucket(){
 function run_e2e_tests_for_tpc() {
   bucket=$1
   # Clean bucket before testing.
-  gcloud storage rm -r gs://$bucket/**
+  gcloud storage rm -r gs://$bucket/*
 
   # Run Operations e2e tests in TPC to validate all the functionality.
   GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/... --testOnTPCEndPoint=$RUN_TEST_ON_TPC_ENDPOINT $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=false -p 1 --integrationTest -v --testbucket=$bucket --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT
@@ -437,7 +437,7 @@ function run_e2e_tests_for_tpc() {
   set -e
 
   # Delete data after testing.
-  gcloud storage rm -r gs://$bucket/**
+  gcloud storage rm -r gs://$bucket/*
 
   if [ $exit_code != 0 ];
    then
