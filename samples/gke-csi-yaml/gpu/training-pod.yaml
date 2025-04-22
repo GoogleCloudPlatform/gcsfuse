@@ -14,8 +14,8 @@ spec:
       mountPath: /training-data
   serviceAccountName: <YOUR_K8S_SA>
   volumes:
-  # RAM disk file cache if L-SSD not available. Uncomment to use
-  #   - name: gke-gcsfuse-cache # gcsfuse file cache backed by RAM Disk
+  # file cache backed by RAM Disk if available. Uncomment to use
+  #   - name: gke-gcsfuse-cache
   #     emptyDir:
   #       medium: Memory
   - name: training-bucket-vol
