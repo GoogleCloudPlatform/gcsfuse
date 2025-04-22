@@ -259,7 +259,7 @@ func SaveLogFileAsArtifact(logFile, artifactName string) {
 // KOKORO artifacts directory if test ran on KOKORO
 // or saves to TestDir if test ran on local.
 func SaveGCSFuseLogFileInCaseOfFailure(tb testing.TB) {
-	if !tb.Failed() {
+	if !tb.Failed() || MountedDirectory() != "" {
 		return
 	}
 	SaveLogFileAsArtifact(LogFile(), GCSFuseLogFilePrefix+strings.ReplaceAll(tb.Name(), "/", "_")+GenerateRandomString(5))
