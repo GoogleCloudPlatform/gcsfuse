@@ -269,6 +269,9 @@ func (bh *bucketHandle) FlushPendingWrites(ctx context.Context, w gcs.Writer) (o
 	attrs := w.Attrs() // Retrieving the attributes of the created object.
 	// Converting attrs to type *MinObject.
 	o = storageutil.ObjectAttrsToMinObject(attrs)
+	if o == nil {
+		return nil, fmt.Errorf("FlushPendingWrites: nil object returned after w.Flush()")
+	}
 	o.Size = uint64(offset)
 	return
 }
