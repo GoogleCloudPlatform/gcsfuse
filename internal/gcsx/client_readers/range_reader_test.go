@@ -231,20 +231,6 @@ func (t *rangeReaderTest) Test_ReadAt_ReadFailsWithTimeoutError() {
 	t.mockBucket.AssertExpectations(t.T())
 }
 
-func (t *rangeReaderTest) Test_ReadAt_TestSuccessfulSingleRead() {
-	content := []byte("hello world")
-	t.object.Size = uint64(len(content))
-	r := &fake.FakeReader{ReadCloser: getReadCloser(content)}
-	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(r, nil).Once()
-
-	resp, err := t.ReadAt(0, int64(t.object.Size))
-
-	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), content, resp.DataBuf)
-	assert.Equal(t.T(), len(content), resp.Size)
-	t.mockBucket.AssertExpectations(t.T())
-}
-
 func (t *rangeReaderTest) TestReadAt_SuccessfulRead() {
 	offset := int64(0)
 	size := int64(5)
@@ -297,4 +283,45 @@ func (t *rangeReaderTest) TestReadAt_StartReadUnexpectedError() {
 	assert.Error(t.T(), err)
 	assert.Zero(t.T(), resp.Size)
 	t.mockBucket.AssertExpectations(t.T())
+}
+
+func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenReaderReturnedMoreData() {
+	testCases := []struct {
+		name       string
+		readHandle []byte
+	}{
+		{
+			name:       "GCSReturnedReadHandle",
+			readHandle: []byte("fake-handle"),
+		},
+		{
+			name:       "GCSReturnedNoReadHandle",
+			readHandle: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			t.rangeReader.start = 0
+			t.rangeReader.limit = 6
+			testContent := testutil.GenerateRandomBytes(8)
+			rc := &fake.FakeReader{
+				ReadCloser: getReadCloser(testContent),
+				Handle:     tc.readHandle,
+			}
+			t.rangeReader.reader = rc
+			t.rangeReader.cancel = func() {}
+
+			_, err := t.rangeReader.readFromRangeReader(t.ctx, make([]byte, 10), 0, 10, "unhandled")
+
+			assert.Error(t.T(), err)
+			assert.True(t.T(), strings.Contains(err.Error(), "extra bytes: 2"))
+			assert.Nil(t.T(), t.rangeReader.reader)
+			assert.Nil(t.T(), t.rangeReader.reader)
+			assert.Equal(t.T(), int64(-1), t.rangeReader.start)
+			assert.Equal(t.T(), int64(-1), t.rangeReader.limit)
+			expectedReadHandle := tc.readHandle
+			assert.Equal(t.T(), expectedReadHandle, t.rangeReader.readHandle)
+		})
+	}
 }
