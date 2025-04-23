@@ -790,7 +790,7 @@ function areThereAnyDLIOWorkloads() {
 function fetchAndParseFioOutputs() {
   printf "\nFetching and parsing fio outputs ...\n\n"
   cd "${gke_testing_dir}"/examples/fio
-  parse_logs_args="--project-number=${project_number} --workload-config \"${workload_config}\" --instance-id ${instance_id} --output-file \"${output_dir}/fio/output.csv\" --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace}"
+  parse_logs_args="--project-number=${project_number} --workload-config ${workload_config} --instance-id ${instance_id} --output-file ${output_dir}/fio/output.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace}"
   if ${zonal}; then
     python3 parse_logs.py ${parse_logs_args} --predownloaded-output-files
   else
