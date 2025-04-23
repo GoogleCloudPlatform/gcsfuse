@@ -182,6 +182,15 @@ func (t *FileStreamingWritesZonalBucketTest) TestSyncPendingBufferedWritesForZon
 	assert.Equal(t.T(), "pizza", string(content))
 }
 
+func (t *FileStreamingWritesZonalBucketTest) TestSyncPendingBufferedWritesForZonalBucketsUpdatesSrcSize() {
+	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("foobar"), 0))
+	assert.Equal(t.T(), uint64(0), t.in.src.Size)
+
+	assert.NoError(t.T(), t.in.SyncPendingBufferedWrites())
+
+	assert.Equal(t.T(), uint64(6), t.in.src.Size)
+}
+
 // //////////////////////////////////////////////////////////////////////
 // Tests (Non Zonal Bucket)
 // //////////////////////////////////////////////////////////////////////
@@ -205,6 +214,15 @@ func (t *FileStreamingWritesTest) TestSyncPendingBufferedWritesForNonZonalBucket
 
 	assert.NoError(t.T(), t.in.SyncPendingBufferedWrites())
 	operations.ValidateObjectNotFoundErr(t.ctx, t.T(), t.bucket, t.in.Name().GcsObjectName())
+}
+
+func (t *FileStreamingWritesTest) TestSyncPendingBufferedWritesForNonZonalBucketsDoesUpdateSrcSize() {
+	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("foobar"), 0))
+	assert.Equal(t.T(), uint64(0), t.in.src.Size)
+
+	assert.NoError(t.T(), t.in.SyncPendingBufferedWrites())
+
+	assert.Equal(t.T(), uint64(6), t.in.src.Size)
 }
 
 func (t *FileStreamingWritesTest) TestOutOfOrderWritesToLocalFileFallBackToTempFile() {
