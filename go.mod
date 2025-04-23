@@ -4,7 +4,7 @@ go 1.24.0
 
 require (
 	cloud.google.com/go/compute/metadata v0.6.0
-	cloud.google.com/go/iam v1.5.0
+	cloud.google.com/go/iam v1.5.2
 	cloud.google.com/go/secretmanager v1.14.6
 	cloud.google.com/go/storage v1.52.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.51.0
