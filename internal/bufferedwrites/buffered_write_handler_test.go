@@ -451,13 +451,16 @@ func (testSuite *BufferedWriteTest) TestDestroyShouldClearFreeBlockChannel() {
 	assert.Equal(testSuite.T(), 0, len(bwhImpl.uploadHandler.uploadCh))
 }
 
-func (testSuite *BufferedWriteTest) TestUnlinkBeforeWrite() {
+func (testSuite *BufferedWriteTest) TestUnlinkBeforeAnyWriteThenFurtherWriteSucceds() {
 	testSuite.bwh.Unlink()
-
 	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
-	assert.Nil(testSuite.T(), bwhImpl.uploadHandler.cancelFunc)
-	assert.Equal(testSuite.T(), 0, len(bwhImpl.uploadHandler.uploadCh))
-	assert.Equal(testSuite.T(), 0, len(bwhImpl.blockPool.FreeBlocksChannel()))
+	assert.NotNil(testSuite.T(), bwhImpl.uploadHandler.cancelFunc)
+	buffer, err := operations.GenerateRandomData(2 * blockSize)
+	assert.NoError(testSuite.T(), err)
+
+	err = testSuite.bwh.Write(buffer, int64(0))
+
+	require.Nil(testSuite.T(), err)
 }
 
 func (testSuite *BufferedWriteTest) TestUnlinkAfterWrite() {

@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/block"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	storagemock "github.com/googlecloudplatform/gcsfuse/v2/internal/storage/mock"
 	"github.com/stretchr/testify/assert"
@@ -31,28 +32,82 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
+////////////////////////////////////////////////////////////////////////
+// Constants
+////////////////////////////////////////////////////////////////////////
+
 const (
 	blockSize       = 1024
 	maxBlocks int64 = 5
 )
 
+////////////////////////////////////////////////////////////////////////
+// Boilerplate
+////////////////////////////////////////////////////////////////////////
+
 type UploadHandlerTest struct {
+	writer     *storagemock.Writer
 	uh         *UploadHandler
 	blockPool  *block.BlockPool
 	mockBucket *storagemock.TestifyMockBucket
 	suite.Suite
 }
 
-func TestUploadHandlerTestSuite(t *testing.T) {
-	suite.Run(t, new(UploadHandlerTest))
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+func (t *UploadHandlerTest) assertUploadFailureError() {
+	t.T().Helper()
+	for {
+		select {
+		case <-time.After(200 * time.Millisecond):
+			t.T().Error("Expected an error in uploader")
+		default:
+			if t.uh.UploadError() != nil {
+				return
+			}
+		}
+	}
+}
+
+func (t *UploadHandlerTest) assertAllBlocksProcessed() {
+	t.T().Helper()
+
+	// All blocks for upload should have been processed.
+	done := make(chan struct{})
+	go func() {
+		t.uh.wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(100 * time.Millisecond):
+		t.T().Error("Timeout waiting for WaitGroup")
+	}
+}
+
+func (t *UploadHandlerTest) createBlocks(count int) []block.Block {
+	var blocks []block.Block
+	for i := 0; i < count; i++ {
+		b, err := t.blockPool.Get()
+		require.NoError(t.T(), err)
+		blocks = append(blocks, b)
+	}
+
+	return blocks
 }
 
 func (t *UploadHandlerTest) SetupTest() {
+	t.writer = &storagemock.Writer{}
 	t.mockBucket = new(storagemock.TestifyMockBucket)
+	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(t.writer, nil).Once()
+	t.mockBucket.On("BucketType").Return(gcs.BucketType{Zonal: true})
+	t.mockBucket.On("FlushPendingWrites", mock.Anything, t.writer).Return(0, nil).Once()
 	var err error
 	t.blockPool, err = block.NewBlockPool(blockSize, maxBlocks, semaphore.NewWeighted(maxBlocks))
 	require.NoError(t.T(), err)
-	t.uh = newUploadHandler(&CreateUploadHandlerRequest{
+	t.uh, err = newUploadHandler(&CreateUploadHandlerRequest{
 		Object:                   nil,
 		ObjectName:               "testObject",
 		Bucket:                   t.mockBucket,
@@ -61,24 +116,26 @@ func (t *UploadHandlerTest) SetupTest() {
 		BlockSize:                blockSize,
 		ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
 	})
+	require.NoError(t.T(), err)
+	assert.NotNil(t.T(), t.uh.writer)
 }
 
 func (t *UploadHandlerTest) SetupSubTest() {
 	t.SetupTest()
 }
 
+// //////////////////////////////////////////////////////////////////////
+// Tests
+// //////////////////////////////////////////////////////////////////////
+
 func (t *UploadHandlerTest) TestMultipleBlockUpload() {
-	// CreateObjectChunkWriter -- should be called once.
-	writer := &storagemock.Writer{}
 	mockObj := &gcs.MinObject{}
-	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
-	t.mockBucket.On("FinalizeUpload", mock.Anything, writer).Return(mockObj, nil)
+	t.mockBucket.On("FinalizeUpload", mock.Anything, t.uh.writer).Return(mockObj, nil)
 
 	// Upload the blocks.
 	blocks := t.createBlocks(5)
 	for _, b := range blocks {
-		err := t.uh.Upload(b)
-		require.NoError(t.T(), err)
+		t.uh.Upload(b)
 	}
 
 	// Finalize.
@@ -91,29 +148,12 @@ func (t *UploadHandlerTest) TestMultipleBlockUpload() {
 		got := <-t.uh.freeBlocksCh
 		assert.Equal(t.T(), expect, got)
 	}
-	assertAllBlocksProcessed(t.T(), t.uh)
-}
-
-func (t *UploadHandlerTest) TestUploadWhenCreateObjectWriterFails() {
-	// Create a block.
-	b, err := t.blockPool.Get()
-	require.NoError(t.T(), err)
-	// CreateObjectChunkWriter -- should be called once.
-	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("taco"))
-
-	// Upload the block.
-	err = t.uh.Upload(b)
-
-	require.Error(t.T(), err)
-	assert.ErrorContains(t.T(), err, "createObjectWriter")
-	assert.ErrorContains(t.T(), err, "taco")
+	t.assertAllBlocksProcessed()
 }
 
 func (t *UploadHandlerTest) TestFinalizeWithWriterAlreadyPresent() {
-	writer := &storagemock.Writer{}
 	mockObj := &gcs.MinObject{}
-	t.mockBucket.On("FinalizeUpload", mock.Anything, writer).Return(mockObj, nil)
-	t.uh.writer = writer
+	t.mockBucket.On("FinalizeUpload", mock.Anything, t.uh.writer).Return(mockObj, nil)
 
 	obj, err := t.uh.Finalize()
 
@@ -123,11 +163,8 @@ func (t *UploadHandlerTest) TestFinalizeWithWriterAlreadyPresent() {
 }
 
 func (t *UploadHandlerTest) TestFinalizeWithNoWriter() {
-	writer := &storagemock.Writer{}
-	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
-	assert.Nil(t.T(), t.uh.writer)
 	mockObj := &gcs.MinObject{}
-	t.mockBucket.On("FinalizeUpload", mock.Anything, writer).Return(mockObj, nil)
+	t.mockBucket.On("FinalizeUpload", mock.Anything, t.uh.writer).Return(mockObj, nil)
 
 	obj, err := t.uh.Finalize()
 
@@ -136,103 +173,53 @@ func (t *UploadHandlerTest) TestFinalizeWithNoWriter() {
 	assert.Equal(t.T(), mockObj, obj)
 }
 
-func (t *UploadHandlerTest) TestFinalizeWithNoWriterWhenCreateObjectWriterFails() {
-	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("taco"))
-	assert.Nil(t.T(), t.uh.writer)
-
-	obj, err := t.uh.Finalize()
-
-	require.Error(t.T(), err)
-	assert.ErrorContains(t.T(), err, "taco")
-	assert.ErrorContains(t.T(), err, "createObjectWriter")
-	assert.Nil(t.T(), obj)
-}
-
 func (t *UploadHandlerTest) TestFinalizeWhenFinalizeUploadFails() {
-	writer := &storagemock.Writer{}
-	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
-	assert.Nil(t.T(), t.uh.writer)
 	mockObj := &gcs.MinObject{}
-	t.mockBucket.On("FinalizeUpload", mock.Anything, writer).Return(mockObj, fmt.Errorf("taco"))
+	t.mockBucket.On("FinalizeUpload", mock.Anything, t.writer).Return(mockObj, fmt.Errorf("taco"))
 
 	obj, err := t.uh.Finalize()
 
 	require.Error(t.T(), err)
 	assert.Nil(t.T(), obj)
 	assert.ErrorContains(t.T(), err, "taco")
-	assertUploadFailureError(t.T(), t.uh)
+	t.assertUploadFailureError()
 }
 
 func (t *UploadHandlerTest) TestFlushWithWriterAlreadyPresent() {
-	writer := &storagemock.Writer{}
 	mockOffset := 10
-	t.mockBucket.On("FlushPendingWrites", mock.Anything, writer).Return(mockOffset, nil)
-	t.uh.writer = writer
+	t.mockBucket.On("FlushPendingWrites", mock.Anything, t.writer).Return(mockOffset, nil)
 
 	offset, err := t.uh.FlushPendingWrites()
 
 	require.NoError(t.T(), err)
 	assert.EqualValues(t.T(), mockOffset, offset)
-}
-
-func (t *UploadHandlerTest) TestFlushWithNoWriter() {
-	writer := &storagemock.Writer{}
-	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
-	assert.Nil(t.T(), t.uh.writer)
-	mockOffset := 10
-	t.mockBucket.On("FlushPendingWrites", mock.Anything, writer).Return(mockOffset, nil)
-
-	offset, err := t.uh.FlushPendingWrites()
-
-	require.NoError(t.T(), err)
-	assert.EqualValues(t.T(), mockOffset, offset)
-}
-
-func (t *UploadHandlerTest) TestFlushWithNoWriterWhenCreateObjectWriterFails() {
-	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("taco"))
-	assert.Nil(t.T(), t.uh.writer)
-
-	offset, err := t.uh.FlushPendingWrites()
-
-	require.Error(t.T(), err)
-	assert.ErrorContains(t.T(), err, "taco")
-	assert.ErrorContains(t.T(), err, "createObjectWriter")
-	assert.EqualValues(t.T(), 0, offset)
 }
 
 func (t *UploadHandlerTest) TestFlushWhenFlushPendingWritesFails() {
-	writer := &storagemock.Writer{}
-	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
-	assert.Nil(t.T(), t.uh.writer)
-	t.mockBucket.On("FlushPendingWrites", mock.Anything, writer).Return(0, fmt.Errorf("taco"))
+	t.mockBucket.On("FlushPendingWrites", mock.Anything, t.writer).Return(0, fmt.Errorf("taco"))
 
 	offset, err := t.uh.FlushPendingWrites()
 
 	require.Error(t.T(), err)
 	assert.EqualValues(t.T(), 0, offset)
 	assert.ErrorContains(t.T(), err, "taco")
-	assertUploadFailureError(t.T(), t.uh)
+	t.assertUploadFailureError()
 }
 
 func (t *UploadHandlerTest) TestUploadSingleBlockThrowsErrorInCopy() {
 	// Create a block with test data.
 	b, err := t.blockPool.Get()
 	require.NoError(t.T(), err)
+	t.writer.On("Write", mock.Anything).Return(0, fmt.Errorf("taco")).Once()
 	err = b.Write([]byte("test data"))
 	require.NoError(t.T(), err)
-	// CreateObjectChunkWriter -- should be called once.
-	writer := &storagemock.Writer{}
-	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
-	// First write will be an error and Close will be successful.
-	writer.On("Write", mock.Anything).Return(0, fmt.Errorf("taco")).Once()
 
 	// Upload the block.
-	err = t.uh.Upload(b)
+	t.uh.Upload(b)
 
-	require.NoError(t.T(), err)
 	// Expect an error on upload due to error while copying content to GCS writer.
-	assertUploadFailureError(t.T(), t.uh)
-	assertAllBlocksProcessed(t.T(), t.uh)
+	t.assertUploadFailureError()
+	t.assertAllBlocksProcessed()
 	assert.Equal(t.T(), 1, len(t.uh.freeBlocksCh))
 }
 
@@ -243,81 +230,25 @@ func (t *UploadHandlerTest) TestUploadMultipleBlocksThrowsErrorInCopy() {
 		err := blocks[i].Write([]byte("testdata" + strconv.Itoa(i) + " "))
 		require.NoError(t.T(), err)
 	}
-	// CreateObjectChunkWriter -- should be called once.
-	writer := &storagemock.Writer{}
-	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
 	// Second write will be an error and rest of the operations will be successful.
-	writer.
+	t.writer.
 		On("Write", mock.Anything).Return(10, nil).Once().
 		On("Write", mock.Anything).Return(0, fmt.Errorf("taco"))
 
 	// Upload the blocks.
 	for _, b := range blocks {
-		err := t.uh.Upload(b)
-		require.NoError(t.T(), err)
+		t.uh.Upload(b)
 	}
 
-	assertUploadFailureError(t.T(), t.uh)
-	assertAllBlocksProcessed(t.T(), t.uh)
+	t.assertUploadFailureError()
+	t.assertAllBlocksProcessed()
 	assert.Equal(t.T(), 2, len(t.uh.freeBlocksCh))
 }
 
-func assertUploadFailureError(t *testing.T, handler *UploadHandler) {
-	t.Helper()
-	for {
-		select {
-		case <-time.After(200 * time.Millisecond):
-			t.Error("Expected an error in uploader")
-		default:
-			if handler.UploadError() != nil {
-				return
-			}
-		}
-	}
-}
-
-func assertAllBlocksProcessed(t *testing.T, handler *UploadHandler) {
-	t.Helper()
-
-	// All blocks for upload should have been processed.
-	done := make(chan struct{})
-	go func() {
-		handler.wg.Wait()
-		close(done)
-	}()
-	select {
-	case <-done:
-	case <-time.After(100 * time.Millisecond):
-		t.Error("Timeout waiting for WaitGroup")
-	}
-}
-
-func TestUploadErrorReturnsError(t *testing.T) {
-	mockUploadError := fmt.Errorf("error")
-	uploadHandler := &UploadHandler{}
-	uploadHandler.uploadError.Store(&mockUploadError)
-
-	actualUploadError := uploadHandler.UploadError()
-
-	assert.Equal(t, mockUploadError, actualUploadError)
-}
-
-func TestUploadErrorReturnsNil(t *testing.T) {
-	uploadHandler := &UploadHandler{}
-
-	actualUploadError := uploadHandler.UploadError()
-
-	assert.Nil(t, actualUploadError)
-}
-
 func (t *UploadHandlerTest) TestMultipleBlockAwaitBlocksUpload() {
-	// CreateObjectChunkWriter -- should be called once.
-	writer := &storagemock.Writer{}
-	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
 	// Upload the blocks.
 	for _, b := range t.createBlocks(5) {
-		err := t.uh.Upload(b)
-		require.NoError(t.T(), err)
+		t.uh.Upload(b)
 	}
 
 	// AwaitBlocksUpload.
@@ -325,7 +256,7 @@ func (t *UploadHandlerTest) TestMultipleBlockAwaitBlocksUpload() {
 
 	assert.Equal(t.T(), 5, len(t.uh.freeBlocksCh))
 	assert.Equal(t.T(), 0, len(t.uh.uploadCh))
-	assertAllBlocksProcessed(t.T(), t.uh)
+	t.assertAllBlocksProcessed()
 }
 
 func (t *UploadHandlerTest) TestUploadHandlerCancelUpload() {
@@ -337,66 +268,21 @@ func (t *UploadHandlerTest) TestUploadHandlerCancelUpload() {
 	assert.True(t.T(), cancelCalled)
 }
 
-func (t *UploadHandlerTest) TestCreateObjectChunkWriterIsCalledWithCorrectRequestParametersForEmptyGCSObject() {
-	t.uh.obj = &gcs.Object{
-		Name:            t.uh.objectName,
-		ContentType:     "image/png",
-		Size:            0,
-		ContentEncoding: "gzip",
-		Generation:      10,
-		MetaGeneration:  20,
-		Acl:             nil,
+func (t *UploadHandlerTest) TestUploadHandlerAfterCancelUploadBlocksGetProcessed() {
+	// Upload the blocks.
+	for _, b := range t.createBlocks(2) {
+		t.uh.Upload(b)
+	}
+	t.uh.AwaitBlocksUpload()
+	t.uh.CancelUpload()
+
+	// Upload the blocks after context cancelled.
+	for _, b := range t.createBlocks(2) {
+		t.uh.Upload(b)
 	}
 
-	// CreateObjectChunkWriter -- should be called once with correct request parameters.
-	writer := &storagemock.Writer{}
-	mockObj := &gcs.Object{}
-	t.mockBucket.On("CreateObjectChunkWriter",
-		mock.Anything,
-		mock.MatchedBy(func(req *gcs.CreateObjectRequest) bool {
-			return req.Name == t.uh.objectName &&
-				*req.GenerationPrecondition == t.uh.obj.Generation &&
-				*req.MetaGenerationPrecondition == t.uh.obj.MetaGeneration &&
-				req.ContentEncoding == t.uh.obj.ContentEncoding &&
-				req.ContentType == t.uh.obj.ContentType &&
-				req.ChunkTransferTimeoutSecs == 0
-		}),
-		mock.Anything,
-		mock.Anything).Return(writer, nil)
-	t.mockBucket.On("FinalizeUpload", mock.Anything, writer).Return(mockObj, nil)
-
-	// Create a block.
-	b, err := t.blockPool.Get()
-	require.NoError(t.T(), err)
-	// Upload the block.
-	err = t.uh.Upload(b)
-	require.NoError(t.T(), err)
-}
-
-func (t *UploadHandlerTest) TestCreateObjectChunkWriterIsCalledWithCorrectRequestParametersForLocalInode() {
-	assert.Nil(t.T(), t.uh.obj)
-
-	// CreateObjectChunkWriter -- should be called once with correct request parameters.
-	writer := &storagemock.Writer{}
-	mockObj := &gcs.Object{}
-	t.mockBucket.On("CreateObjectChunkWriter",
-		mock.Anything,
-		mock.MatchedBy(func(req *gcs.CreateObjectRequest) bool {
-			return req.Name == t.uh.objectName &&
-				*req.GenerationPrecondition == 0 &&
-				req.MetaGenerationPrecondition == nil &&
-				req.ChunkTransferTimeoutSecs == 0
-		}),
-		mock.Anything,
-		mock.Anything).Return(writer, nil)
-	t.mockBucket.On("FinalizeUpload", mock.Anything, writer).Return(mockObj, nil)
-
-	// Create a block.
-	b, err := t.blockPool.Get()
-	require.NoError(t.T(), err)
-	// Upload the block.
-	err = t.uh.Upload(b)
-	require.NoError(t.T(), err)
+	assert.Nil(t.T(), t.uh.UploadError())
+	t.assertAllBlocksProcessed()
 }
 
 func (t *UploadHandlerTest) TestDestroy() {
@@ -427,7 +313,7 @@ func (t *UploadHandlerTest) TestDestroy() {
 
 			t.uh.Destroy()
 
-			assertAllBlocksProcessed(t.T(), t.uh)
+			t.assertAllBlocksProcessed()
 			assert.Equal(t.T(), 5, len(t.uh.freeBlocksCh))
 			assert.Equal(t.T(), 0, len(t.uh.uploadCh))
 			// Check if uploadCh is closed.
@@ -440,13 +326,163 @@ func (t *UploadHandlerTest) TestDestroy() {
 	}
 }
 
-func (t *UploadHandlerTest) createBlocks(count int) []block.Block {
-	var blocks []block.Block
-	for i := 0; i < count; i++ {
-		b, err := t.blockPool.Get()
-		require.NoError(t.T(), err)
-		blocks = append(blocks, b)
-	}
+func TestUploadHandlerTestSuite(t *testing.T) {
+	suite.Run(t, new(UploadHandlerTest))
+}
 
-	return blocks
+func TestUploadErrorReturnsError(t *testing.T) {
+	mockUploadError := fmt.Errorf("error")
+	uploadHandler := &UploadHandler{}
+	uploadHandler.uploadError.Store(&mockUploadError)
+
+	actualUploadError := uploadHandler.UploadError()
+
+	assert.Equal(t, mockUploadError, actualUploadError)
+}
+
+func TestUploadErrorReturnsNil(t *testing.T) {
+	uploadHandler := &UploadHandler{}
+
+	actualUploadError := uploadHandler.UploadError()
+
+	assert.Nil(t, actualUploadError)
+}
+
+func TestCreatingUploadHandlerWhenCreateObjectWriterFails(t *testing.T) {
+	mockBucket := new(storagemock.TestifyMockBucket)
+	blockPool, err := block.NewBlockPool(blockSize, maxBlocks, semaphore.NewWeighted(maxBlocks))
+	require.NoError(t, err)
+	mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("taco"))
+
+	_, err = newUploadHandler(&CreateUploadHandlerRequest{
+		Object:                   nil,
+		ObjectName:               "testObject",
+		Bucket:                   mockBucket,
+		FreeBlocksCh:             blockPool.FreeBlocksChannel(),
+		MaxBlocksPerFile:         maxBlocks,
+		BlockSize:                blockSize,
+		ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
+	})
+
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "CreateObjectChunkWriter")
+	assert.ErrorContains(t, err, "taco")
+}
+
+func TestCreatingUploadHandlerWhenFlushPendingWritesFails(t *testing.T) {
+	writer := &storagemock.Writer{}
+	mockBucket := new(storagemock.TestifyMockBucket)
+	// CreateObjectChunkWriter -- should be called once.
+	mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
+	// Return BucketType Zonal for flushing the writer.
+	mockBucket.On("BucketType").Return(gcs.BucketType{Zonal: true})
+	blockPool, err := block.NewBlockPool(blockSize, maxBlocks, semaphore.NewWeighted(maxBlocks))
+	require.NoError(t, err)
+	mockBucket.On("FlushPendingWrites", mock.Anything, mock.Anything).Return(0, errors.New("taco"))
+
+	_, err = newUploadHandler(&CreateUploadHandlerRequest{
+		Object:                   nil,
+		ObjectName:               "testObject",
+		Bucket:                   mockBucket,
+		FreeBlocksCh:             blockPool.FreeBlocksChannel(),
+		MaxBlocksPerFile:         maxBlocks,
+		BlockSize:                blockSize,
+		ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
+	})
+
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "FlushPendingWrites")
+	assert.ErrorContains(t, err, "taco")
+}
+
+func TestCreateObjectChunkWriterIsCalledWithCorrectRequestParametersForLocalInode(t *testing.T) {
+	// CreateObjectChunkWriter -- should be called once with correct request parameters.
+	writer := &storagemock.Writer{}
+	mockObj := &gcs.Object{}
+	mockBucket := new(storage.TestifyMockBucket)
+	blockPool, err := block.NewBlockPool(blockSize, maxBlocks, semaphore.NewWeighted(maxBlocks))
+	require.NoError(t, err)
+	mockBucket.On("CreateObjectChunkWriter",
+		mock.Anything,
+		mock.MatchedBy(func(req *gcs.CreateObjectRequest) bool {
+			return req.Name == "testObject" &&
+				*req.GenerationPrecondition == 0 &&
+				req.MetaGenerationPrecondition == nil &&
+				req.ChunkTransferTimeoutSecs == 0
+		}),
+		mock.Anything,
+		mock.Anything).Return(writer, nil)
+	// Return BucketType Zonal for flushing the writer.
+	mockBucket.On("BucketType").Return(gcs.BucketType{Zonal: true})
+	mockBucket.On("FlushPendingWrites", mock.Anything, writer).Return(int64(0), nil)
+	uh, err := newUploadHandler(&CreateUploadHandlerRequest{
+		Object:                   nil,
+		ObjectName:               "testObject",
+		Bucket:                   mockBucket,
+		FreeBlocksCh:             blockPool.FreeBlocksChannel(),
+		MaxBlocksPerFile:         maxBlocks,
+		BlockSize:                blockSize,
+		ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, uh.writer)
+	mockBucket.On("FinalizeUpload", mock.Anything, writer).Return(mockObj, nil)
+
+	// Create a block.
+	b, err := blockPool.Get()
+	require.NoError(t, err)
+	// Upload the block.
+	uh.Upload(b)
+
+}
+
+func TestCreateObjectChunkWriterIsCalledWithCorrectRequestParametersForEmptyGCSObject(t *testing.T) {
+	obj := &gcs.Object{
+		Name:            "emptyGCSObject",
+		ContentType:     "image/png",
+		Size:            0,
+		ContentEncoding: "gzip",
+		Generation:      10,
+		MetaGeneration:  20,
+		Acl:             nil,
+	}
+	// CreateObjectChunkWriter -- should be called once with correct request parameters.
+	writer := &storagemock.Writer{}
+	mockObj := &gcs.Object{}
+	mockBucket := new(storage.TestifyMockBucket)
+	blockPool, err := block.NewBlockPool(blockSize, maxBlocks, semaphore.NewWeighted(maxBlocks))
+	require.NoError(t, err)
+	mockBucket.On("CreateObjectChunkWriter",
+		mock.Anything,
+		mock.MatchedBy(func(req *gcs.CreateObjectRequest) bool {
+			return req.Name == obj.Name &&
+				*req.GenerationPrecondition == obj.Generation &&
+				*req.MetaGenerationPrecondition == obj.MetaGeneration &&
+				req.ContentEncoding == obj.ContentEncoding &&
+				req.ContentType == obj.ContentType &&
+				req.ChunkTransferTimeoutSecs == 0
+		}),
+		mock.Anything,
+		mock.Anything).Return(writer, nil).Once()
+	// Return BucketType Zonal for flushing the writer.
+	mockBucket.On("BucketType").Return(gcs.BucketType{Zonal: true})
+	mockBucket.On("FlushPendingWrites", mock.Anything, writer).Return(int64(0), nil)
+	uh, err := newUploadHandler(&CreateUploadHandlerRequest{
+		Object:                   obj,
+		ObjectName:               obj.Name,
+		Bucket:                   mockBucket,
+		FreeBlocksCh:             blockPool.FreeBlocksChannel(),
+		MaxBlocksPerFile:         maxBlocks,
+		BlockSize:                blockSize,
+		ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, uh.writer)
+	mockBucket.On("FinalizeUpload", mock.Anything, writer).Return(mockObj, nil)
+
+	// Create a block.
+	b, err := blockPool.Get()
+	require.NoError(t, err)
+	// Upload the block.
+	uh.Upload(b)
 }
