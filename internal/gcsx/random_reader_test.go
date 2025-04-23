@@ -288,7 +288,6 @@ func (t *RandomReaderTest) ReaderFails() {
 	buf := make([]byte, 3)
 	_, err := t.rr.ReadAt(buf, 0)
 
-	fmt.Println("Error: ", err)
 	ExpectThat(err, Error(HasSubstr("readFull")))
 	ExpectThat(err, Error(HasSubstr(iotest.ErrTimeout.Error())))
 }
