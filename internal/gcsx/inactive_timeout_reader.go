@@ -90,22 +90,27 @@ func NewInactiveTimeoutReader(ctx context.Context, bucket gcs.Bucket, object *gc
 	}
 
 	var err error
-	tsr.gcsReader, err = bucket.NewReaderWithReadHandle(
-		ctx,
-		&gcs.ReadObjectRequest{
-			Name:       object.Name,
-			Generation: object.Generation,
-			Range: &gcs.ByteRange{
-				Start: uint64(start),
-				Limit: uint64(end),
-			},
-			ReadCompressed: object.HasContentEncodingGzip(),
-			ReadHandle:     readHandle,
-		})
+	tsr.gcsReader, err = tsr.createGCSReader()
 	if err == nil {
 		go tsr.monitor(timeout)
 	}
 	return tsr, err
+}
+
+// createGCSReader is a helper method to create the underlined reader from tsr.start + tsr.seen offset.
+func (tsr *inactiveTimeoutReader) createGCSReader() (gcs.StorageReader, error) {
+	return tsr.bucket.NewReaderWithReadHandle(
+		tsr.parentContext,
+		&gcs.ReadObjectRequest{
+			Name:       tsr.object.Name,
+			Generation: tsr.object.Generation,
+			Range: &gcs.ByteRange{
+				Start: uint64(tsr.start + tsr.seen),
+				Limit: uint64(tsr.end),
+			},
+			ReadCompressed: tsr.object.HasContentEncodingGzip(),
+			ReadHandle:     tsr.readHandle,
+		})
 }
 
 // Read implements io.Reader interface.
@@ -126,18 +131,7 @@ func (tsr *inactiveTimeoutReader) Read(p []byte) (n int, err error) {
 	tsr.isActive = true
 
 	if tsr.gcsReader == nil {
-		tsr.gcsReader, err = tsr.bucket.NewReaderWithReadHandle(
-			tsr.parentContext,
-			&gcs.ReadObjectRequest{
-				Name:       tsr.object.Name,
-				Generation: tsr.object.Generation,
-				Range: &gcs.ByteRange{
-					Start: uint64(tsr.start + tsr.seen),
-					Limit: uint64(tsr.end),
-				},
-				ReadCompressed: tsr.object.HasContentEncodingGzip(),
-				ReadHandle:     tsr.readHandle,
-			})
+		tsr.gcsReader, err = tsr.createGCSReader()
 
 		if err != nil {
 			err = fmt.Errorf("NewReaderWithReadHandle: %w", err)
