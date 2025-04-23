@@ -101,11 +101,13 @@ func (rr *RangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (
 		Size:    0,
 	}
 	var err error
+
 	readerResponse.Size, err = rr.readFromRangeReader(ctx, req.Buffer, req.Offset, req.EndOffset, rr.readType)
+
 	return readerResponse, err
 }
 
-// readFromRangeReader reads using the NewRangeReader interface of go-sdk. Its uses
+// readFromRangeReader reads using the NewReader interface of go-sdk. Its uses
 // the existing reader if available, otherwise makes a call to GCS.
 func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset int64, end int64, readType string) (int, error) {
 	var err error
@@ -207,9 +209,9 @@ func (rr *RangeReader) readFull(ctx context.Context, p []byte) (int, error) {
 // a prefix. Irrespective of the size requested, we try to fetch more data
 // from GCS defined by sequentialReadSizeMb flag to serve future read requests.
 func (rr *RangeReader) startRead(start int64, end int64) error {
-	// Begin the read.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
 	rc, err := rr.bucket.NewReaderWithReadHandle(
 		ctx,
 		&gcs.ReadObjectRequest{

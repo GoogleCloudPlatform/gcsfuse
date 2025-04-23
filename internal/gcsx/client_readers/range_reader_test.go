@@ -24,6 +24,7 @@ import (
 	"testing/iotest"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
@@ -216,17 +217,18 @@ func (t *rangeReaderTest) Test_ReadAt_NewReaderReturnsError() {
 	_, err := t.ReadAt(0, int64(1))
 
 	assert.Error(t.T(), err)
+	t.mockBucket.AssertExpectations(t.T())
 }
 
 func (t *rangeReaderTest) Test_ReadAt_ReadFailsWithTimeoutError() {
 	r := iotest.OneByteReader(iotest.TimeoutReader(strings.NewReader("xxx")))
 	rc := &fake.FakeReader{ReadCloser: io.NopCloser(r)}
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(rc, nil).Once()
-	t.mockBucket.On("BucketType").Return(gcs.BucketType{}).Once()
 
 	_, err := t.ReadAt(0, int64(3))
 
 	assert.Error(t.T(), err)
+	t.mockBucket.AssertExpectations(t.T())
 }
 
 func (t *rangeReaderTest) Test_ReadAt_TestSuccessfulSingleRead() {
@@ -240,31 +242,59 @@ func (t *rangeReaderTest) Test_ReadAt_TestSuccessfulSingleRead() {
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), content, resp.DataBuf)
 	assert.Equal(t.T(), len(content), resp.Size)
+	t.mockBucket.AssertExpectations(t.T())
 }
 
-func (t *rangeReaderTest) Test_ReadAt_TestSuccessfulMultipleReads() {
-	content := []byte("abcdefghijklmnopq")
-	t.object.Size = uint64(len(content))
-	chunkSize := 5
+func (t *rangeReaderTest) TestReadAt_SuccessfulRead() {
+	offset := int64(0)
+	size := int64(5)
+	content := []byte("hello world")
 	r := &fake.FakeReader{ReadCloser: getReadCloser(content)}
-	// First read
-	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(r, nil).Once()
-	resp1, err := t.ReadAt(0, int64(chunkSize))
-	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), content[:chunkSize], resp1.DataBuf)
-	assert.Equal(t.T(), chunkSize, resp1.Size)
+	t.mockNewReaderWithHandleCallForTestBucket(uint64(offset), uint64(offset+size), r)
 
-	// Second read, should reuse the existing reader
-	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(r, nil).Once()
-	resp2, err := t.ReadAt(int64(chunkSize), int64(chunkSize))
-	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), content[chunkSize:2*chunkSize], resp2.DataBuf)
-	assert.Equal(t.T(), chunkSize, resp2.Size)
+	resp, err := t.ReadAt(offset, size)
 
-	// Third read, should continue with the same reader
-	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(r, nil).Once()
-	resp3, err := t.ReadAt(int64(2*chunkSize), int64(len(content)-2*chunkSize))
 	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), content[2*chunkSize:], resp3.DataBuf)
-	assert.Equal(t.T(), len(content)-2*chunkSize, resp3.Size)
+	assert.Equal(t.T(), int(size), resp.Size)
+	assert.Equal(t.T(), content[:size], resp.DataBuf)
+	t.mockBucket.AssertExpectations(t.T())
+}
+
+func (t *rangeReaderTest) TestReadAt_PartialReadWithEOF() {
+	offset := int64(0)
+	size := int64(10)                                       // shorter than requested
+	partialReader := io.NopCloser(iotest.ErrReader(io.EOF)) // Simulates early EOF
+	r := &fake.FakeReader{ReadCloser: partialReader}
+	t.mockNewReaderWithHandleCallForTestBucket(uint64(offset), uint64(offset+size), r)
+
+	resp, err := t.ReadAt(offset, size)
+
+	assert.Error(t.T(), err)
+	assert.Zero(t.T(), resp.Size)
+	t.mockBucket.AssertExpectations(t.T())
+}
+
+func (t *rangeReaderTest) TestReadAt_StartReadNotFound() {
+	offset := int64(0)
+	size := int64(5)
+	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(nil, &gcs.NotFoundError{}).Once()
+
+	resp, err := t.ReadAt(offset, size)
+
+	var fcErr *gcsfuse_errors.FileClobberedError
+	assert.ErrorAs(t.T(), err, &fcErr)
+	assert.Zero(t.T(), resp.Size)
+	t.mockBucket.AssertExpectations(t.T())
+}
+
+func (t *rangeReaderTest) TestReadAt_StartReadUnexpectedError() {
+	offset := int64(0)
+	size := int64(5)
+	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(nil, errors.New("network error")).Once()
+
+	resp, err := t.ReadAt(offset, size)
+
+	assert.Error(t.T(), err)
+	assert.Zero(t.T(), resp.Size)
+	t.mockBucket.AssertExpectations(t.T())
 }
