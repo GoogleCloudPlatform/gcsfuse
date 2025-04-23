@@ -36,10 +36,29 @@ function initialize_ssh_key () {
     echo "Delete existing ssh keys "
     # This is required to avoid issue: https://github.com/kyma-project/test-infra/issues/93
     for i in $(sudo gcloud compute os-login ssh-keys list | grep -v FINGERPRINT); do sudo gcloud compute os-login ssh-keys remove --key $i; done
-
-    # Requires running first ssh command with --quiet option to initialize keys.
-    # Otherwise it prompts for yes and no.
-    sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --quiet --command "echo 'Running from VM'"
+    delay=1
+    max_delay=10
+    attempt=1
+    max_attempts=5
+    while true; do
+        echo "Attempting SSH connection (attempt $attempt)..."
+        # Requires running first ssh command with --quiet option to initialize keys.
+        # Otherwise it prompts for yes or no.
+        if sudo gcloud compute ssh "$VM_NAME" --zone "$ZONE_NAME" --internal-ip --quiet --command "echo 'Running from VM'"; then
+            return 0
+        fi
+        if [ "$attempt" -ge "$max_attempts" ]; then
+            echo "All SSH connection attempts failed."
+            exit 1
+        fi
+        echo "SSH connection failed. Waiting $delay seconds before retrying..."
+        sleep $delay
+        delay=$((delay * 2))
+        if [ "$delay" -gt "$max_delay" ]; then
+            delay="$max_delay"
+        fi
+        attempt=$((attempt + 1))
+    done
 }
 
 function delete_existing_vm_and_create_new () {
