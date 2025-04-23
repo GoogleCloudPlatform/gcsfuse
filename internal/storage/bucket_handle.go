@@ -197,6 +197,8 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	}
 	// All objects in zonal buckets must be appendable.
 	wc.Append = bh.BucketType().Zonal
+	// FinalizeOnClose should be true for all writes for now.
+	wc.FinalizeOnClose = true
 
 	// Copy the contents to the writer.
 	if _, err = io.Copy(wc, req.Contents); err != nil {
@@ -231,6 +233,8 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 	wc.ProgressFunc = callBack
 	// All objects in zonal buckets must be appendable.
 	wc.Append = bh.BucketType().Zonal
+	// FinalizeOnClose should be true for all writes for now.
+	wc.FinalizeOnClose = true
 
 	return wc, nil
 }

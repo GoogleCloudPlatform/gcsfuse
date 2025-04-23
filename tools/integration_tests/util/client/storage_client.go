@@ -132,6 +132,7 @@ func ReadChunkFromGCS(ctx context.Context, client *storage.Client, object string
 // extends support to zonal buckets.
 func NewWriter(ctx context.Context, o *storage.ObjectHandle, client *storage.Client) (wc *storage.Writer, err error) {
 	wc = o.NewWriter(ctx)
+	wc.FinalizeOnClose = true
 
 	// Changes specific to zonal bucket
 	var attrs *storage.BucketAttrs
