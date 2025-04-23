@@ -479,6 +479,8 @@ function ensureGkeCluster() {
     fi
     cluster_updation_command="gcloud container clusters update ${cluster_name} --project=${project_id} --location=${zone}"
     ${cluster_updation_command} --workload-pool=${project_id}.svc.id.goog
+    # Separating in two update calls as gcloud doesn't support updating these
+    # two fields in a single call.
     if ${zonal}; then
       ${cluster_updation_command} --private-ipv6-google-access-type=bidirectional
     fi
@@ -748,7 +750,7 @@ function downloadFioOutputsFromBucket() {
   if test -d "${src_dir}" ; then
     mkdir -pv "${dst_dir}"
     echo "Copying files from \"${src_dir}\" to \"${dst_dir}/\" ... "
-    cp -rfv "${src_dir}"/* "${dst_dir}"/
+    cp -rfvu "${src_dir}"/* "${dst_dir}"/
   fi
 
   echo "  Unmounting \"${bucket}\" from \"${mountpath}\" ... "
