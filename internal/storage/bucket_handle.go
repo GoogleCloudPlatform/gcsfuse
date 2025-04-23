@@ -260,7 +260,7 @@ func (bh *bucketHandle) FlushPendingWrites(ctx context.Context, w gcs.Writer) (o
 		err = gcs.GetGCSError(err)
 	}()
 
-	offset, err := w.Flush()
+	_, err = w.Flush()
 	if err != nil {
 		err = fmt.Errorf("error in FlushPendingWrites : %w", err)
 		return
@@ -272,7 +272,6 @@ func (bh *bucketHandle) FlushPendingWrites(ctx context.Context, w gcs.Writer) (o
 	if o == nil {
 		return nil, fmt.Errorf("FlushPendingWrites: nil object returned after w.Flush()")
 	}
-	o.Size = uint64(offset)
 	return
 }
 
