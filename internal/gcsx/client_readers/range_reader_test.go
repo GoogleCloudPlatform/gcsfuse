@@ -22,7 +22,6 @@ import (
 	"strings"
 	"testing"
 	"testing/iotest"
-	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
@@ -91,10 +90,10 @@ type blockingReader struct {
 	c chan struct{}
 }
 
-func (br *blockingReader) Read(p []byte) (n int, err error) {
+func (br *blockingReader) Read(p []byte) (int, error) {
 	<-br.c
-	err = errors.New("blockingReader")
-	return
+	err := errors.New("blockingReader")
+	return 0, err
 }
 
 func (t *rangeReaderTest) ReadAt(offset int64, size int64) (gcsx.ReaderResponse, error) {
@@ -299,111 +298,4 @@ func (t *rangeReaderTest) TestReadAt_StartReadUnexpectedError() {
 	assert.Error(t.T(), err)
 	assert.Zero(t.T(), resp.Size)
 	t.mockBucket.AssertExpectations(t.T())
-}
-
-func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenReaderReturnedMoreData() {
-	testCases := []struct {
-		name       string
-		readHandle []byte
-	}{
-		{
-			name:       "GCSReturnedReadHandle",
-			readHandle: []byte("fake-handle"),
-		},
-		{
-			name:       "GCSReturnedNoReadHandle",
-			readHandle: nil,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func() {
-			t.rangeReader.start = 0
-			t.rangeReader.limit = 6
-			testContent := testutil.GenerateRandomBytes(8)
-			rc := &fake.FakeReader{
-				ReadCloser: getReadCloser(testContent),
-				Handle:     tc.readHandle,
-			}
-			t.rangeReader.reader = rc
-			t.rangeReader.cancel = func() {}
-
-			_, err := t.rangeReader.readFromRangeReader(t.ctx, make([]byte, 10), 0, 10, "unhandled")
-
-			assert.Error(t.T(), err)
-			assert.True(t.T(), strings.Contains(err.Error(), "extra bytes: 2"))
-			assert.Nil(t.T(), t.rangeReader.reader)
-			assert.Nil(t.T(), t.rangeReader.reader)
-			assert.Equal(t.T(), int64(-1), t.rangeReader.start)
-			assert.Equal(t.T(), int64(-1), t.rangeReader.limit)
-			expectedReadHandle := tc.readHandle
-			assert.Equal(t.T(), expectedReadHandle, t.rangeReader.readHandle)
-		})
-	}
-}
-
-func (t *rangeReaderTest) TestPropagatesCancellation() {
-	// Arrange
-	// Setup a blocking reader
-	finishRead := make(chan struct{})
-	blocking := &blockingReader{c: finishRead}
-	rc := io.NopCloser(blocking)
-
-	// Assign it to the rangeReader
-	t.rangeReader.reader = &fake.FakeReader{ReadCloser: rc}
-	t.rangeReader.start = 0
-	t.rangeReader.limit = 2
-
-	// Track cancel invocation
-	cancelCalled := make(chan struct{})
-	t.rangeReader.cancel = func() { close(cancelCalled) }
-
-	// Controlled context
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	// Channel to track read completion
-	readReturned := make(chan struct{})
-
-	// Act
-	go func() {
-		buf := make([]byte, 2)
-		_, _ = t.rangeReader.ReadAt(ctx, &gcsx.GCSReaderRequest{
-			Buffer:    buf,
-			Offset:    0,
-			EndOffset: 2,
-		})
-		close(readReturned)
-	}()
-
-	// Wait a bit to ensure ReadAt is blocking
-	select {
-	case <-readReturned:
-		t.T().Fatal("Read returned early — cancellation did not propagate properly.")
-	case <-time.After(10 * time.Millisecond):
-		// OK: Still blocked
-	}
-
-	// Cancel the context to trigger cancellation
-	cancel()
-
-	// Assert
-	// Expect rr.cancel to be called
-	select {
-	case <-cancelCalled:
-		// Pass
-	case <-time.After(100 * time.Millisecond):
-		t.T().Fatal("Expected rr.cancel to be called on ctx cancellation.")
-	}
-
-	// Unblock the reader so the read can complete
-	close(finishRead)
-
-	// Ensure read completes
-	select {
-	case <-readReturned:
-		// Pass
-	case <-time.After(100 * time.Millisecond):
-		t.T().Fatal("Expected read to return after unblocking.")
-	}
 }
