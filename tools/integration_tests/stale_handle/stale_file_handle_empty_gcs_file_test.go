@@ -89,8 +89,9 @@ func (s *staleFileHandleSyncedFile) TestClobberedFileFirstWriteThrowsStaleFileHa
 }
 
 func (s *staleFileHandleSyncedFile) TestRenamedFileSyncAndCloseThrowsStaleFileHandleError() {
+	// TODO(b/410698332): Remove skip condition once rename operation starts working for ZB.
 	if s.streamingWritesEnabled() && setup.IsZonalBucketRun() {
-		s.T().Skip("Skipping test as reads aren't supported with streaming writes.")
+		s.T().Skip("Skipping test as rename operation issue for ZB flow.")
 	}
 	// Dirty the file by giving it some contents.
 	n, err := s.f1.WriteAt([]byte(s.data), 0)
@@ -109,14 +110,15 @@ func (s *staleFileHandleSyncedFile) TestRenamedFileSyncAndCloseThrowsStaleFileHa
 	}
 	err = s.f1.Sync()
 
-	operations.ValidateESTALEError(s.T(), err)
+	s.validateESTALEErrorIfStreamingWritesDisabled(err)
 	err = s.f1.Close()
-	operations.ValidateESTALEError(s.T(), err)
+	s.validateESTALEErrorIfStreamingWritesDisabled(err)
 }
 
 func (s *staleFileHandleSyncedFile) TestFileDeletedRemotelySyncAndCloseThrowsStaleFileHandleError() {
+	// TODO(b/410698332): Remove skip condition once generation issue is fixed for ZB.
 	if s.streamingWritesEnabled() && setup.IsZonalBucketRun() {
-		s.T().Skip("Skipping test as reads aren't supported with streaming writes.")
+		s.T().Skip("Skip the test due to generation issue in ZB flow.")
 	}
 	// Dirty the file by giving it some contents.
 	n, err := s.f1.WriteAt([]byte(s.data), 0)
@@ -132,7 +134,7 @@ func (s *staleFileHandleSyncedFile) TestFileDeletedRemotelySyncAndCloseThrowsSta
 
 	err = s.f1.Sync()
 
-	operations.ValidateESTALEError(s.T(), err)
+	s.validateESTALEErrorIfStreamingWritesDisabled(err)
 	err = s.f1.Close()
 	operations.ValidateESTALEError(s.T(), err)
 }

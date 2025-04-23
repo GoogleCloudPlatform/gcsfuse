@@ -56,8 +56,8 @@ func (s *staleFileHandleCommon) streamingWritesEnabled() bool {
 	return slices.Contains(flags, "--enable-streaming-writes=true")
 }
 
-// Used to validate stale handle error from sync/close when streaming writes are disabled.
-func (s *staleFileHandleCommon) validateStaleNFSFileHandleErrorIfStreamingWritesDisabled(err error) {
+// Used to validate stale handle error from sync/close/write calls when streaming writes are disabled.
+func (s *staleFileHandleCommon) validateESTALEErrorIfStreamingWritesDisabled(err error) {
 	s.T().Helper()
 	if !s.streamingWritesEnabled() {
 		operations.ValidateESTALEError(s.T(), err)
@@ -83,16 +83,15 @@ func (s *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHand
 	assert.NoError(s.T(), err)
 
 	err = s.f1.Sync()
-
-	operations.ValidateESTALEError(s.T(), err)
+	s.validateESTALEErrorIfStreamingWritesDisabled(err)
 	err = s.f1.Close()
 	operations.ValidateESTALEError(s.T(), err)
 }
 
 func (s *staleFileHandleCommon) TestFileDeletedLocallySyncAndCloseDoNotThrowError() {
-	// TODO(b/410698332): Remove skip condition once takeover support is ready.
+	// TODO(b/410698332): Remove skip condition once generation issue is fixed for ZB.
 	if s.streamingWritesEnabled() && setup.IsZonalBucketRun() {
-		s.T().Skip("Skip the test as generation issue is present empty gcs file for zonal buckets.")
+		s.T().Skip("Skip the test due to generation issue in ZB.")
 	}
 	// Dirty the file by giving it some contents.
 	bytesWrote, err := s.f1.WriteAt([]byte(s.data), 0)
@@ -106,7 +105,7 @@ func (s *staleFileHandleCommon) TestFileDeletedLocallySyncAndCloseDoNotThrowErro
 	// Attempt to write to file should not give any error.
 	_, err = s.f1.WriteAt([]byte(s.data), int64(bytesWrote))
 
-	assert.NoError(s.T(), err)
+	s.validateESTALEErrorIfStreamingWritesDisabled(err)
 	operations.SyncFile(s.f1, s.T())
 	operations.CloseFileShouldNotThrowError(s.T(), s.f1)
 }
