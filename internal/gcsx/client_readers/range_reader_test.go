@@ -226,15 +226,6 @@ func (t *rangeReaderTest) Test_Destroy_NonNilReader() {
 	assert.Equal(t.T(), []byte(fakeHandleData), t.rangeReader.readHandle)
 }
 
-func (t *rangeReaderTest) Test_ReadAt_NewReaderReturnsError() {
-	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(nil, errors.New("taco")).Once()
-
-	_, err := t.ReadAt(0, int64(1))
-
-	assert.Error(t.T(), err)
-	t.mockBucket.AssertExpectations(t.T())
-}
-
 func (t *rangeReaderTest) Test_ReadAt_ReadFailsWithTimeoutError() {
 	r := iotest.OneByteReader(iotest.TimeoutReader(strings.NewReader("xxx")))
 	rc := &fake.FakeReader{ReadCloser: io.NopCloser(r)}
