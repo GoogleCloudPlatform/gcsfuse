@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: checkpoint-bucket-pv
+spec:
+  accessModes:
+  - ReadWriteMany
+  capacity:
+    storage: 64Gi
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: gcsfuse-sc # dummy storage class
+  claimRef:
+    namespace: <customer-namespace>
+    name: checkpoint-bucket-pvc
+  mountOptions:
+  - implicit-dirs                       # Create implicit directories locally when accessed
+  - metadata-cache:negative-ttl-secs:0  # Disable caching for lookups of files/dirs that don't exist
+  - metadata-cache:ttl-secs:-1          # Keep cached metadata (file attributes, types) indefinitely time-wise
+  - metadata-cache:stat-cache-max-size-mb:-1 # Allow unlimited size for the file attribute (stat) cache
+  - metadata-cache:type-cache-max-size-mb:-1 # Allow unlimited size for the file/directory type cache
+  - file-cache:max-size-mb:-1           # Allow unlimited size for the file content cache
+  - file-cache:cache-file-for-range-read:true # Cache the entire file when any part is read sequentially
+  - file-cache:enable-parallel-downloads:true # Use multiple streams to download file content faster
+  - read_ahead_kb=1024                  # Increase kernel read-ahead buffer
+  - write:enable-streaming-writes:true  # Enable streaming writes
+  csi:
+    driver: gcsfuse.csi.storage.gke.io
+    volumeHandle: <checkpoint-bucket>   # Name of the GCS bucket to mount
+    volumeAttributes:
+      skipCSIBucketAccessCheck: "true"  # Bypass the CSI Drivers bucket access check
+      gcsfuseMetadataPrefetchOnMount: "true" # Fetch GCS metadata immediately at mount time
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: checkpoint-bucket-pvc
+  namespace: <customer-namespace>
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 64Gi
+  volumeName: checkpoint-bucket-pv
+  storageClassName: gcsfuse-sc # dummy storage class
