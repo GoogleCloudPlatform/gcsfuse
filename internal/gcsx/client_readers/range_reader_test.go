@@ -22,6 +22,7 @@ import (
 	"strings"
 	"testing"
 	"testing/iotest"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
@@ -79,6 +80,21 @@ func getReader() *fake.FakeReader {
 		ReadCloser: getReadCloser(testContent),
 		Handle:     []byte(fakeHandleData),
 	}
+}
+
+////////////////////////////////////////////////////////////////////////
+// Blocking reader
+////////////////////////////////////////////////////////////////////////
+
+// A reader that blocks until a channel is closed, then returns an error.
+type blockingReader struct {
+	c chan struct{}
+}
+
+func (br *blockingReader) Read(p []byte) (n int, err error) {
+	<-br.c
+	err = errors.New("blockingReader")
+	return
 }
 
 func (t *rangeReaderTest) ReadAt(offset int64, size int64) (gcsx.ReaderResponse, error) {
@@ -323,5 +339,71 @@ func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenReaderReturnedMoreData() 
 			expectedReadHandle := tc.readHandle
 			assert.Equal(t.T(), expectedReadHandle, t.rangeReader.readHandle)
 		})
+	}
+}
+
+func (t *rangeReaderTest) TestPropagatesCancellation() {
+	// Arrange
+	// Setup a blocking reader
+	finishRead := make(chan struct{})
+	blocking := &blockingReader{c: finishRead}
+	rc := io.NopCloser(blocking)
+
+	// Assign it to the rangeReader
+	t.rangeReader.reader = &fake.FakeReader{ReadCloser: rc}
+	t.rangeReader.start = 0
+	t.rangeReader.limit = 2
+
+	// Track cancel invocation
+	cancelCalled := make(chan struct{})
+	t.rangeReader.cancel = func() { close(cancelCalled) }
+
+	// Controlled context
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Channel to track read completion
+	readReturned := make(chan struct{})
+
+	// Act
+	go func() {
+		buf := make([]byte, 2)
+		_, _ = t.rangeReader.ReadAt(ctx, &gcsx.GCSReaderRequest{
+			Buffer:    buf,
+			Offset:    0,
+			EndOffset: 2,
+		})
+		close(readReturned)
+	}()
+
+	// Wait a bit to ensure ReadAt is blocking
+	select {
+	case <-readReturned:
+		t.T().Fatal("Read returned early — cancellation did not propagate properly.")
+	case <-time.After(10 * time.Millisecond):
+		// OK: Still blocked
+	}
+
+	// Cancel the context to trigger cancellation
+	cancel()
+
+	// Assert
+	// Expect rr.cancel to be called
+	select {
+	case <-cancelCalled:
+		// Pass
+	case <-time.After(100 * time.Millisecond):
+		t.T().Fatal("Expected rr.cancel to be called on ctx cancellation.")
+	}
+
+	// Unblock the reader so the read can complete
+	close(finishRead)
+
+	// Ensure read completes
+	select {
+	case <-readReturned:
+		// Pass
+	case <-time.After(100 * time.Millisecond):
+		t.T().Fatal("Expected read to return after unblocking.")
 	}
 }
