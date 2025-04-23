@@ -65,6 +65,7 @@ readonly DEFAULT_POD_WAIT_TIME_IN_SECONDS=300
 # 1 week
 readonly DEFAULT_POD_TIMEOUT_IN_SECONDS=604800
 readonly DEFAULT_FORCE_UPDATE_GCSFUSE_CODE=false
+readonly DEFAULT_ZONAL=false
 
 function printHelp() {
   echo "Usage guide: "
@@ -96,6 +97,7 @@ function printHelp() {
   echo "workload_config=<path/to/workload/configuration/file e.g. /a/b/c.json >"
   echo "output_dir=</absolute/path/to/output/dir, output files will be written at output_dir/fio/output.csv and output_dir/dlio/output.csv>"
   echo "force_update_gcsfuse_code=<true|false, to force-update the gcsfuse-code to given branch if gcsfuse_src_dir has been set. Default=\"${DEFAULT_FORCE_UPDATE_GCSFUSE_CODE}\">"
+  echo "zonal=<true|false, to convey that at least one of the buckets in the given workload configuration is a zonal bucket which can't be read/written using gcloud. Default=\"${DEFAULT_ZONAL}\"> "
   echo ""
   echo ""
   echo ""
@@ -235,6 +237,13 @@ else
   export output_dir="${gke_testing_dir}"/examples
 fi
 
+if test -z "${zonal}"; then
+  echo "env var zonal not set, so assuming ${DEFAULT_ZONAL} for it."
+  export zonal=${DEFAULT_ZONAL}
+elif [[ ${zonal} != "true" && "${zonal}" != "false" ]]; then
+  exitWithError "env var zonal should be set as false, or true, but received: ${zonal}"
+fi
+
 function printRunParameters() {
   echo "Running $0 with following parameters:"
   echo ""
@@ -264,6 +273,7 @@ function printRunParameters() {
   echo "workload_config=\"${workload_config}\""
   echo "output_dir=\"${output_dir}\""
   echo "force_update_gcsfuse_code=\"${force_update_gcsfuse_code}\""
+  echo "zonal=\"${zonal}\""
   echo ""
   echo ""
   echo ""
@@ -467,9 +477,20 @@ function ensureGkeCluster() {
       echo "Internally changing machine-type from ${machine_type} to ${existing_machine_type} ..."
       machine_type=${existing_machine_type}
     fi
-    gcloud container clusters update ${cluster_name} --project=${project_id} --location=${zone} --workload-pool=${project_id}.svc.id.goog
+    cluster_updation_command="gcloud container clusters update ${cluster_name} --project=${project_id} --location=${zone}"
+    ${cluster_updation_command} --workload-pool=${project_id}.svc.id.goog
+    # Separating in two update calls as gcloud doesn't support updating these
+    # two fields in a single call.
+    if ${zonal}; then
+      ${cluster_updation_command} --private-ipv6-google-access-type=bidirectional
+    fi
   else
-    gcloud container clusters create ${cluster_name} --project=${project_id} --zone "${zone}" --workload-pool=${project_id}.svc.id.goog --machine-type "${machine_type}" --image-type "COS_CONTAINERD" --num-nodes ${num_nodes} --ephemeral-storage-local-ssd count=${num_ssd} --network-performance-configs=total-egress-bandwidth-tier=TIER_1 --workload-metadata=GKE_METADATA --enable-gvnic
+    # Create a new cluster
+    cluster_creation_args="--project=${project_id} --zone \"${zone}\" --workload-pool=${project_id}.svc.id.goog --machine-type \"${machine_type}\" --image-type \"COS_CONTAINERD\" --num-nodes ${num_nodes} --ephemeral-storage-local-ssd count=${num_ssd} --network-performance-configs=total-egress-bandwidth-tier=TIER_1 --workload-metadata=GKE_METADATA --enable-gvnic \"${extra_args_for_cluster_creation}\""
+    if ${zonal}; then
+      cluster_creation_args+=" --private-ipv6-google-access-type=bidirectional"
+    fi
+    gcloud container clusters create ${cluster_name} ${cluster_creation_args}
   fi
 }
 
@@ -609,14 +630,14 @@ function createCustomCsiDriverIfNeeded() {
 }
 
 function deleteAllHelmCharts() {
-  printf "\nDeleting all existing helm charts ...\n\n"
+  printf "Deleting all existing helm charts ...\n\n"
   helm ls --namespace=${appnamespace} | tr -s '\t' ' ' | cut -d' ' -f1 | tail -n +2 | while read helmchart; do helm uninstall ${helmchart} --namespace=${appnamespace}; done
 }
 
 function deleteAllPods() {
   deleteAllHelmCharts
 
-  printf "\nDeleting all existing pods ...\n\n"
+  printf "Deleting all existing pods ...\n\n"
   kubectl get pods --namespace=${appnamespace}  | tail -n +2 | cut -d' ' -f1 | while read podname; do kubectl delete pods/${podname} --namespace=${appnamespace} --grace-period=0 --force || true; done
 }
 
@@ -679,6 +700,7 @@ function waitTillAllPodsComplete() {
       if test -d "${csi_src_dir}"; then
         message+="csi_src_dir=\"${csi_src_dir}\" "
       fi
+      message+=" zonal=${zonal} "
       message+="pod_wait_time_in_seconds=${pod_wait_time_in_seconds} pod_timeout_in_seconds=${pod_timeout_in_seconds} workload_config=\"${workload_config}\" cluster_name=${cluster_name} output_dir=\"${output_dir}\" $0 \n"
       message+="\nbut remember that this will reset the start-timer for pod timeout.\n\n"
       message+="\nTo ssh to any specific pod, use the following command: \n"
@@ -698,10 +720,84 @@ function waitTillAllPodsComplete() {
   done
 }
 
+# Download all the fio workload outputs for the current instance-id from the
+# given bucket and file-size.
+function downloadFioOutputsFromBucket() {
+  local bucket=$1
+  local fileSize=$2
+  local mountpath=$3
+
+  mkdir -pv $mountpath
+  fusermount -uz $mountpath 2>/dev/null || true
+  echo "Mounting bucket \"${bucket}\" to ${mountpath} ... "
+
+  cd $gcsfuse_src_dir
+  if ! go run $gcsfuse_src_dir --implicit-dirs $bucket $mountpath > /dev/null ; then
+    # If fails to mount this bucket,
+    # Return to original directory before exiting..
+    cd - >/dev/null
+
+    exitWithError "Failed to mount bucket ${bucket} to ${mountpath}."
+  fi
+
+  # Return to original directory.
+  cd - >/dev/null
+
+  # If the given bucket has the fio outputs for the given instance-id, then
+  # copy/download them locally to the appropriate folder.
+  src_dir="${mountpath}/fio-output/${instance_id}"
+  dst_dir="${gcsfuse_src_dir}/perfmetrics/scripts/testing_on_gke/bin/fio-logs/${instance_id}/${fileSize}"
+  if test -d "${src_dir}" ; then
+    mkdir -pv "${dst_dir}"
+    echo "Copying files from \"${src_dir}\" to \"${dst_dir}/\" ... "
+    cp -rfvu "${src_dir}"/* "${dst_dir}"/
+  fi
+
+  echo "  Unmounting \"${bucket}\" from \"${mountpath}\" ... "
+  fusermount -uz "${mountpath}" || true
+}
+
+function downloadFioOutputsFromAllBucketsInWorkloadConfig() {
+  local mountpath=$(realpath mounted)
+  # Using jquery, find out all the relevant buckets for non-disabled fio
+  # workloads in the workload-config file and download fio outputs for them all.
+  cat ${workload_config} | jq 'select(.TestConfig.workloadConfig.workloads[].fioWorkload != null)' | jq -r '.TestConfig.workloadConfig.workloads[] | [.bucket, .fioWorkload.fileSize] | @csv' | grep -v " " | sort | uniq | while read bucket_size_combo; do
+    workload_bucket=$(echo ${bucket_size_combo} | cut -d, -f1 | tr -d \")
+    workload_filesize=$(echo ${bucket_size_combo} | cut -d, -f2 | tr -d \")
+    if [[ "${workload_bucket}" != "" && "${workload_filesize}" != "" ]]; then
+       downloadFioOutputsFromBucket ${workload_bucket} ${workload_filesize} ${mountpath}
+    fi
+  done
+  # Clean-up
+  fusermount -uz ${mountpath} || true
+  rm -rf ${mountpath}
+}
+
+function areThereAnyDLIOWorkloads() {
+  lines=$(cat ${workload_config} | jq 'select(.TestConfig.workloadConfig.workloads[].dlioWorkload != null)' | jq -r '.TestConfig.workloadConfig.workloads[] | [.bucket, .dlioWorkload.numFilesTrain, .dlioWorkload.recordLength] | @csv' | grep -v " " | sort | uniq)
+  while read bucket_numFilesTrain_recordLength_combo; do
+    workload_bucket=$(echo ${bucket_numFilesTrain_recordLength_combo} | cut -d, -f1 | tr -d \")
+    workload_numFileTrain=$(echo ${bucket_numFilesTrain_recordLength_combo} | cut -d, -f2 | tr -d \")
+    workload_recordLength=$(echo ${bucket_numFilesTrain_recordLength_combo} | cut -d, -f3 | tr -d \")
+    if [[ "${workload_bucket}" != "" && "${workload_numFileTrain}" != "" && "${workload_recordLength}" != "" ]]; then
+      return 0
+    fi
+  done <<< "${lines}" # It's necessary to pass lines this way to while
+  # to avoid creating a subshell for while-execution, to
+  # ensure that the above return statement works in the same shell.
+
+  return 1
+}
+
 function fetchAndParseFioOutputs() {
   printf "\nFetching and parsing fio outputs ...\n\n"
   cd "${gke_testing_dir}"/examples/fio
-  python3 parse_logs.py --project-number=${project_number} --workload-config "${workload_config}" --instance-id ${instance_id} --output-file "${output_dir}"/fio/output.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace}
+  parse_logs_args="--project-number=${project_number} --workload-config ${workload_config} --instance-id ${instance_id} --output-file ${output_dir}/fio/output.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace}"
+  if ${zonal}; then
+    python3 parse_logs.py ${parse_logs_args} --predownloaded-output-files
+  else
+    python3 parse_logs.py ${parse_logs_args}
+  fi
   cd -
 }
 
@@ -719,6 +815,10 @@ installDependencies
 # if only_parse is not set or is set as false, then
 if test -z ${only_parse} || ! ${only_parse} ; then
   validateMachineConfig ${machine_type} ${num_nodes} ${num_ssd}
+
+  if ${zonal} && $(areThereAnyDLIOWorkloads); then
+    exitWithError "DLIO workloads are not supported with zonal buckets as of now."
+  fi
 
   # GCP configuration
   ensureGcpAuthsAndConfig
@@ -745,6 +845,12 @@ waitTillAllPodsComplete
 
 # clean-up after run
 deleteAllPods
+
+#  Download fio outputs from all buckets using gcsfuse because zonal buckets don't work with gcloud storage cp.
+if ${zonal}; then
+  printf "\nDownloading all fio outputs using gcsfuse mount as there are zonal buckets involved ...\n\n"
+  downloadFioOutputsFromAllBucketsInWorkloadConfig
+fi
 
 # parse outputs
 fetchAndParseFioOutputs

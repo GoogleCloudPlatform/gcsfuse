@@ -112,4 +112,11 @@ def parse_arguments() -> object:
       help="File path of the output metrics (in CSV format)",
       default="output.csv",
   )
+  parser.add_argument(
+      "--predownloaded-output-files",
+      help="If true, output files will not be downloaded. False by default.",
+      required=False,
+      default=False,
+      action="store_true",
+  )
   return parser.parse_args()
