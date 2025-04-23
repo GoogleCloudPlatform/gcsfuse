@@ -225,7 +225,7 @@ func (s *InactiveTimeoutReaderTestSuite) Test_Read_TimeoutAndSuccessfulReconnect
 	s.Equal("abcdefghij", string(buf[:n]))
 
 	// Arrange - Simulate Timeout and prepare for reconnect
-	time.Sleep(2*s.timeout + time.Millisecond) // Wait long enough for the monitor goroutine to detect inactivity and close the reader.
+	time.Sleep(2*s.timeout + 10*time.Millisecond) // Wait long enough for the monitor goroutine to detect inactivity and close the reader.
 	reconnectReadObjectRequest := &gcs.ReadObjectRequest{
 		Name:       s.object.Name,
 		Generation: s.object.Generation,
