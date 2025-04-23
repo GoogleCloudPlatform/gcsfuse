@@ -29,7 +29,6 @@ import (
 )
 
 type RangeReader struct {
-	// TODO: Add additional fields as needed.
 	gcsx.Reader
 	object *gcs.MinObject
 	bucket gcs.Bucket
@@ -106,10 +105,9 @@ func (rr *RangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (
 	return readerResponse, err
 }
 
-// readFromRangeReader reads using the NewReader interface of go-sdk. Its uses
+// readFromRangeReader reads using the NewRangeReader interface of go-sdk. Its uses
 // the existing reader if available, otherwise makes a call to GCS.
 func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset int64, end int64, readType string) (int, error) {
-	var n int
 	var err error
 	// If we don't have a reader, start a read operation.
 	if rr.reader == nil {
@@ -120,6 +118,7 @@ func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset
 		}
 	}
 
+	var n int
 	// Now we have a reader positioned at the correct place. Consume as much from
 	// it as possible.
 	n, err = rr.readFull(ctx, p)
@@ -129,7 +128,7 @@ func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset
 	if rr.start > rr.limit {
 		err = fmt.Errorf("reader returned extra bytes: %d", rr.start-rr.limit)
 
-		// Don't attempt to reuse the reader when it's behaving wackily.
+		// Don't attempt to reuse the reader when it's malfunctioning.
 		rr.closeReader()
 		rr.reader = nil
 		rr.cancel = nil

@@ -257,14 +257,14 @@ func (t *rangeReaderTest) Test_ReadAt_TestSuccessfulMultipleReads() {
 	// Second read, should reuse the existing reader
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(r, nil).Once()
 	resp2, err := t.ReadAt(int64(chunkSize), int64(chunkSize))
-	t.NoError(err)
+	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), content[chunkSize:2*chunkSize], resp2.DataBuf)
 	assert.Equal(t.T(), chunkSize, resp2.Size)
 
 	// Third read, should continue with the same reader
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(r, nil).Once()
 	resp3, err := t.ReadAt(int64(2*chunkSize), int64(len(content)-2*chunkSize))
-	t.NoError(err)
+	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), content[2*chunkSize:], resp3.DataBuf)
 	assert.Equal(t.T(), len(content)-2*chunkSize, resp3.Size)
 }
