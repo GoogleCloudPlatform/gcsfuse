@@ -56,6 +56,8 @@ record = {
     "e2e_latency_ns_p90": 0,
     "e2e_latency_ns_p99": 0,
     "e2e_latency_ns_p99.9": 0,
+    "machine_type": "",
+    "bucket_name": "",
 }
 
 
@@ -126,13 +128,30 @@ def createOutputScenariosFromDownloadedFiles(args: dict) -> dict:
         gcsfuse_mount_options = f.read().strip()
         print(f"gcsfuse_mount_options={gcsfuse_mount_options}")
 
+    # if directory contains bucket_name file, then parse it.
+    bucket_name = ""
+    bucket_name_file = root + "/bucket_name"
+    if os.path.isfile(bucket_name_file):
+      with open(bucket_name_file) as f:
+        bucket_name = f.read().strip()
+        print(f"bucket_name={bucket_name}")
+
+    # if directory contains machine_type file, then parse it.
+    machine_type = ""
+    machine_type_file = root + "/machine_type"
+    if os.path.isfile(machine_type_file):
+      with open(machine_type_file) as f:
+        machine_type = f.read().strip()
+        print(f"machine_type={machine_type}")
+
     # if directory has files, it must also contain pod_name file,
     # and we should extract pod-name from it in the record.
     pod_name = ""
     pod_name_file = root + "/pod_name"
-    with open(pod_name_file) as f:
-      pod_name = f.read().strip()
-    print(f"pod_name={pod_name}")
+    if os.path.isfile(pod_name_file):
+      with open(pod_name_file) as f:
+        pod_name = f.read().strip()
+        print(f"pod_name={pod_name}")
 
     for file in files:
       # Ignore non-json files to avoid unnecessary failure.
@@ -252,6 +271,8 @@ def createOutputScenariosFromDownloadedFiles(args: dict) -> dict:
           )
 
       r["gcsfuse_mount_options"] = gcsfuse_mount_options
+      r["bucket_name"] = bucket_name
+      r["machine_type"] = machine_type
       r["blockSize"] = bs
       r["filesPerThread"] = nrfiles
       r["numThreads"] = numjobs
@@ -287,8 +308,9 @@ def writeRecordsToCsvOutputFile(output: dict, output_file_path: str):
         " Memory (MB),GCSFuse Highest Memory (MB),GCSFuse Lowest CPU"
         " (core),GCSFuse Highest CPU"
         " (core),Pod,Start,End,GcsfuseMoutOptions,BlockSize,FilesPerThread,NumThreads,InstanceID,"
-        "e2e_latency_ns_max,e2e_latency_ns_p50,e2e_latency_ns_p90,e2e_latency_ns_p99,e2e_latency_ns_p99.9"  #
-        "\n"
+        "e2e_latency_ns_max,e2e_latency_ns_p50,e2e_latency_ns_p90,e2e_latency_ns_p99,e2e_latency_ns_p99.9,"
+        "bucket_name,machine_type"  #
+        "\n",
     )
 
     for key in output:
@@ -329,8 +351,9 @@ def writeRecordsToCsvOutputFile(output: dict, output_file_path: str):
               f"{record_set['mean_file_size']},{record_set['read_type']},{scenario},{r['epoch']},{r['duration']},{r['throughput_mb_per_second']},{r['IOPS']},{r['throughput_over_local_ssd']},{r['lowest_memory']},{r['highest_memory']},{r['lowest_cpu']},{r['highest_cpu']},{r['pod_name']},{r['start']},{r['end']},\"{r['gcsfuse_mount_options']}\",{r['blockSize']},{r['filesPerThread']},{r['numThreads']},{args.instance_id},"
           )
           output_file_fwr.write(
-              f"{r['e2e_latency_ns_max']},{r['e2e_latency_ns_p50']},{r['e2e_latency_ns_p90']},{r['e2e_latency_ns_p99']},{r['e2e_latency_ns_p99.9']}\n"
+              f"{r['e2e_latency_ns_max']},{r['e2e_latency_ns_p50']},{r['e2e_latency_ns_p90']},{r['e2e_latency_ns_p99']},{r['e2e_latency_ns_p99.9']},"
           )
+          output_file_fwr.write(f"{r['bucket_name']},{r['machine_type']}\n")
 
     output_file_fwr.close()
 
