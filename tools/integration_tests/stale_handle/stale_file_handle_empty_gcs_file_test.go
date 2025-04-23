@@ -103,7 +103,7 @@ func (s *staleFileHandleSyncedFile) TestRenamedFileSyncAndCloseThrowsStaleFileHa
 	_, err = s.f1.WriteAt([]byte(s.data), int64(n))
 
 	if s.streamingWritesEnabled() {
-		operations.ValidateStaleNFSFileHandleError(s.T(), err)
+		operations.ValidateESTALEError(s.T(), err)
 	} else {
 		assert.NoError(s.T(), err)
 	}

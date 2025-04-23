@@ -60,7 +60,7 @@ func (s *staleFileHandleCommon) streamingWritesEnabled() bool {
 func (s *staleFileHandleCommon) validateStaleNFSFileHandleErrorIfStreamingWritesDisabled(err error) {
 	s.T().Helper()
 	if !s.streamingWritesEnabled() {
-		operations.ValidateStaleNFSFileHandleError(s.T(), err)
+		operations.ValidateESTALEError(s.T(), err)
 	} else {
 		assert.NoError(s.T(), err)
 	}
