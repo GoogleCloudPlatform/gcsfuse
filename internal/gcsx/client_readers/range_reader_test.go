@@ -40,6 +40,10 @@ const (
 	testObject     = "testObject"
 )
 
+////////////////////////////////////////////////////////////////////////
+// Boilerplate
+////////////////////////////////////////////////////////////////////////
+
 type rangeReaderTest struct {
 	suite.Suite
 	ctx         context.Context
@@ -67,6 +71,10 @@ func (t *rangeReaderTest) TearDown() {
 	t.rangeReader.Destroy()
 }
 
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
 func getReadCloser(content []byte) io.ReadCloser {
 	r := bytes.NewReader(content)
 	rc := io.NopCloser(r)
@@ -79,21 +87,6 @@ func getReader() *fake.FakeReader {
 		ReadCloser: getReadCloser(testContent),
 		Handle:     []byte(fakeHandleData),
 	}
-}
-
-////////////////////////////////////////////////////////////////////////
-// Blocking reader
-////////////////////////////////////////////////////////////////////////
-
-// A reader that blocks until a channel is closed, then returns an error.
-type blockingReader struct {
-	c chan struct{}
-}
-
-func (br *blockingReader) Read(p []byte) (int, error) {
-	<-br.c
-	err := errors.New("blockingReader")
-	return 0, err
 }
 
 func (t *rangeReaderTest) ReadAt(offset int64, size int64) (gcsx.ReaderResponse, error) {
@@ -112,6 +105,10 @@ func (t *rangeReaderTest) mockNewReaderWithHandleCallForTestBucket(start uint64,
 		return rg != nil && (*rg.Range).Start == start && (*rg.Range).Limit == limit
 	})).Return(rd, nil).Once()
 }
+
+////////////////////////////////////////////////////////////////////////
+// Tests
+////////////////////////////////////////////////////////////////////////
 
 func (t *rangeReaderTest) Test_NewRangeReader() {
 	// The setup instantiates rangeReader with NewRangeReader.
