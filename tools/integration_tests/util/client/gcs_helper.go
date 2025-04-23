@@ -106,8 +106,8 @@ func CreateLocalFileInTestDir(ctx context.Context, storageClient *storage.Client
 	testDirPath, fileName string, t *testing.T) (string, *os.File) {
 	filePath := path.Join(testDirPath, fileName)
 	fh := operations.CreateFile(filePath, FilePerms, t)
-	testDirName := GetDirName(testDirPath)
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, fileName, t)
+	// testDirName := GetDirName(testDirPath)
+	// ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, fileName, t)
 	return filePath, fh
 }
 

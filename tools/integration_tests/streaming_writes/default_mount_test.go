@@ -21,6 +21,7 @@ import (
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/local_file"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_suite"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -49,12 +50,11 @@ func (t *defaultMountCommonTest) TearDownSuite() {
 	setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
 }
 
-func (t *defaultMountCommonTest) validateReadCall(filePath string) {
-	_, err := os.ReadFile(filePath)
+func (t *defaultMountCommonTest) validateReadCall(filePath, expectedContent string) {
+	readContent, err := os.ReadFile(filePath)
 	if setup.IsZonalBucketRun() {
-		// TODO(b/410698332): Remove skip condition once reads start working.
-		t.T().Skip("Skipping Zonal Bucket Read tests.")
 		require.NoError(t.T(), err)
+		assert.Equal(t.T(), expectedContent, string(readContent))
 	} else {
 		require.Error(t.T(), err)
 	}
