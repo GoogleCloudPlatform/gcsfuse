@@ -89,7 +89,7 @@ func getReader() *fake.FakeReader {
 	}
 }
 
-func (t *rangeReaderTest) ReadAt(offset int64, size int64) (gcsx.ReaderResponse, error) {
+func (t *rangeReaderTest) readAt(offset int64, size int64) (gcsx.ReaderResponse, error) {
 	req := &gcsx.GCSReaderRequest{
 		Offset:    offset,
 		EndOffset: offset + size,
@@ -228,7 +228,7 @@ func (t *rangeReaderTest) Test_ReadAt_ReadFailsWithTimeoutError() {
 	rc := &fake.FakeReader{ReadCloser: io.NopCloser(r)}
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(rc, nil).Once()
 
-	_, err := t.ReadAt(0, int64(3))
+	_, err := t.readAt(0, int64(3))
 
 	assert.Error(t.T(), err)
 	t.mockBucket.AssertExpectations(t.T())
@@ -241,7 +241,7 @@ func (t *rangeReaderTest) TestReadAt_SuccessfulRead() {
 	r := &fake.FakeReader{ReadCloser: getReadCloser(content)}
 	t.mockNewReaderWithHandleCallForTestBucket(uint64(offset), uint64(offset+size), r)
 
-	resp, err := t.ReadAt(offset, size)
+	resp, err := t.readAt(offset, size)
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), int(size), resp.Size)
@@ -256,7 +256,7 @@ func (t *rangeReaderTest) TestReadAt_PartialReadWithEOF() {
 	r := &fake.FakeReader{ReadCloser: partialReader}
 	t.mockNewReaderWithHandleCallForTestBucket(uint64(offset), uint64(offset+size), r)
 
-	resp, err := t.ReadAt(offset, size)
+	resp, err := t.readAt(offset, size)
 
 	assert.Error(t.T(), err)
 	assert.Zero(t.T(), resp.Size)
@@ -268,7 +268,7 @@ func (t *rangeReaderTest) TestReadAt_StartReadNotFound() {
 	size := int64(5)
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(nil, &gcs.NotFoundError{}).Once()
 
-	resp, err := t.ReadAt(offset, size)
+	resp, err := t.readAt(offset, size)
 
 	var fcErr *gcsfuse_errors.FileClobberedError
 	assert.ErrorAs(t.T(), err, &fcErr)
@@ -281,7 +281,7 @@ func (t *rangeReaderTest) TestReadAt_StartReadUnexpectedError() {
 	size := int64(5)
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(nil, errors.New("network error")).Once()
 
-	resp, err := t.ReadAt(offset, size)
+	resp, err := t.readAt(offset, size)
 
 	assert.Error(t.T(), err)
 	assert.Zero(t.T(), resp.Size)

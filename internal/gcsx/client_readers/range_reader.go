@@ -137,7 +137,7 @@ func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset
 		rr.start = -1
 		rr.limit = -1
 
-		return n, err
+		return 0, err
 	}
 
 	// Are we finished with this reader now?
@@ -199,10 +199,7 @@ func (rr *RangeReader) readFull(ctx context.Context, p []byte) (int, error) {
 		}
 	}()
 
-	// Call through.
-	n, err := io.ReadFull(rr.reader, p)
-
-	return n, err
+	return io.ReadFull(rr.reader, p)
 }
 
 // Ensure that rr.reader is set up for a range for which [start, start+size) is
