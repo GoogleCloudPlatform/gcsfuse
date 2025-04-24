@@ -151,7 +151,7 @@ fi
 test -n "${zone}" || export zone=${DEFAULT_ZONE}
 # GKE cluster related
 if test -z "${cluster_name}"; then
-  exitWithError "${cluster_name} was not set."
+  exitWithError "cluster_name was not set."
 fi
 test -n "${node_pool}" || export node_pool=${DEFAULT_NODE_POOL}
 test -n "${machine_type}" || export machine_type=${DEFAULT_MACHINE_TYPE}
