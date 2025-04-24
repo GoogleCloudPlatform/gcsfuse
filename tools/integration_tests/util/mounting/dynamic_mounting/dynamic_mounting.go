@@ -29,9 +29,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
-// Adding prefix `golang-grpc-test` to white list the bucket for grpc so that
-// we can run the grpc related e2e test.
-const PrefixBucketForDynamicMountingTest = "golang-grpc-test-gcsfuse-dynamic-mounting-test-"
+const PrefixBucketForDynamicMountingTest = "gcsfuse-dynamic-mounting-test-"
 
 func MountGcsfuseWithDynamicMounting(flags []string) (err error) {
 	defaultArg := []string{"--log-severity=trace",
