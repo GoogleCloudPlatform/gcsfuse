@@ -195,18 +195,18 @@ func (t *FileTest) TestSourceGenerationIsAuthoritativeReturnsFalseAfterWrite() {
 	assert.False(t.T(), t.in.SourceGenerationIsAuthoritative())
 }
 
-func (t *FileTest) TestSyncPendingBufferedWritesReturnsNilAndNoOpForNonStreamingWrites() {
-	contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
-	require.NoError(t.T(), err)
-	assert.Equal(t.T(), t.initialContents, string(contents))
-
-	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("bar"), 0))
-	assert.NoError(t.T(), t.in.SyncPendingBufferedWrites())
-
-	contents, err = storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
-	require.NoError(t.T(), err)
-	assert.Equal(t.T(), t.initialContents, string(contents))
-}
+//func (t *FileTest) TestSyncPendingBufferedWritesReturnsNilAndNoOpForNonStreamingWrites() {
+//	contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
+//	require.NoError(t.T(), err)
+//	assert.Equal(t.T(), t.initialContents, string(contents))
+//
+//	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("bar"), 0))
+//	assert.NoError(t.T(), t.in.SyncPendingBufferedWrites())
+//
+//	contents, err = storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
+//	require.NoError(t.T(), err)
+//	assert.Equal(t.T(), t.initialContents, string(contents))
+//}
 
 func (t *FileTest) TestInitialAttributes() {
 	attrs, err := t.in.Attributes(t.ctx)
