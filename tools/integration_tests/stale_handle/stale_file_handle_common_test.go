@@ -104,9 +104,7 @@ func (s *staleFileHandleCommon) TestFileDeletedLocallySyncAndCloseDoNotThrowErro
 	// Verify unlink operation succeeds.
 
 	operations.ValidateNoFileOrDirError(s.T(), s.f1.Name())
-	// Attempt to write to file should not give any error.
 	_, err := s.f1.Write([]byte(s.data))
-
 	s.validator.validate(err)
 
 	operations.SyncFile(s.f1, s.T())
