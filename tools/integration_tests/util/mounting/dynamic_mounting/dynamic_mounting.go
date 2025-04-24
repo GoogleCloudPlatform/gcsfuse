@@ -100,7 +100,7 @@ func executeTestsForDynamicMounting(flags [][]string, createdBucket string, m *t
 }
 
 func CreateTestBucketForDynamicMounting(ctx context.Context, client *storage.Client) (bucketName string) {
-	projectID, err := metadata.ProjectID()
+	projectID, err := metadata.ProjectIDWithContext(ctx)
 	if err != nil {
 		log.Printf("Error in fetching project id: %v", err)
 	}
@@ -128,7 +128,7 @@ func RunTests(ctx context.Context, client *storage.Client, flags [][]string, m *
 	log.Printf("Test log: %s\n", setup.LogFile())
 
 	if err := client_util.DeleteBucket(ctx, client, createdBucket); err != nil {
-		log.Fatalf("Failed to delete the bucket : %s. Error: %v", createdBucket, err)
+		log.Fatalf("Failed to delete the created bucket for dynamic mounting test: %s. Error: %v", createdBucket, err)
 	}
 
 	return successCode
