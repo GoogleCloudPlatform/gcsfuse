@@ -99,10 +99,10 @@ func executeTestsForDynamicMounting(flags [][]string, createdBucket string, m *t
 	return
 }
 
-func CreateTestBucketForDynamicMounting(ctx context.Context, client *storage.Client) (bucketName string) {
+func CreateTestBucketForDynamicMounting(ctx context.Context, client *storage.Client) (bucketName string, err error) {
 	projectID, err := metadata.ProjectIDWithContext(ctx)
 	if err != nil {
-		log.Printf("Error in fetching project id: %v", err)
+		return "", fmt.Errorf("failed to get project ID of instance: %v", err)
 	}
 
 	// Create bucket handle and attributes
@@ -113,7 +113,7 @@ func CreateTestBucketForDynamicMounting(ctx context.Context, client *storage.Cli
 	bucketName = PrefixBucketForDynamicMountingTest + setup.GenerateRandomString(5)
 	bucket := client.Bucket(bucketName)
 	if err := bucket.Create(ctx, projectID, storageClassAndLocation); err != nil {
-		log.Fatalf("DynamicBucket(%q).Create: %v", bucketName, err)
+		return "", fmt.Errorf("failed to create bucket: %v", err)
 	}
 	return
 }
@@ -121,7 +121,10 @@ func CreateTestBucketForDynamicMounting(ctx context.Context, client *storage.Cli
 func RunTests(ctx context.Context, client *storage.Client, flags [][]string, m *testing.M) (successCode int) {
 	log.Println("Running dynamic mounting tests...")
 
-	createdBucket := CreateTestBucketForDynamicMounting(ctx, client)
+	createdBucket, err := CreateTestBucketForDynamicMounting(ctx, client)
+	if err != nil {
+		log.Fatalf("Failed to create bucket for dynamic mounting test: %v", err)
+	}
 
 	successCode = executeTestsForDynamicMounting(flags, createdBucket, m)
 
