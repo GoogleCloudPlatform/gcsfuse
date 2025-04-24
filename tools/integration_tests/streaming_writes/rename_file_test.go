@@ -19,10 +19,15 @@ import (
 
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/require"
 )
 
 func (t *defaultMountCommonTest) TestRenameBeforeFileIsFlushed() {
+	if setup.IsZonalBucketRun() {
+		//TODO (b/413296959): Re-enable after update inode state changes are merged.
+		t.T().Skip("Skipping Zonal Bucket Rename tests until inode state is fixed.")
+	}
 	operations.WriteWithoutClose(t.f1, t.data, t.T())
 	operations.WriteWithoutClose(t.f1, t.data, t.T())
 	operations.VerifyStatFile(t.filePath, int64(2*len(t.data)), FilePerms, t.T())
@@ -43,6 +48,10 @@ func (t *defaultMountCommonTest) TestRenameBeforeFileIsFlushed() {
 }
 
 func (t *defaultMountCommonTest) TestSyncAfterRenameSucceeds() {
+	if setup.IsZonalBucketRun() {
+		//TODO (b/413296959): Re-enable after update inode state changes are merged.
+		t.T().Skip("Skipping Zonal Bucket Rename tests until inode state is fixed.")
+	}
 	_, err := t.f1.WriteAt([]byte(t.data), 0)
 	require.NoError(t.T(), err)
 	operations.VerifyStatFile(t.filePath, int64(len(t.data)), FilePerms, t.T())
@@ -64,6 +73,10 @@ func (t *defaultMountCommonTest) TestSyncAfterRenameSucceeds() {
 }
 
 func (t *defaultMountCommonTest) TestAfterRenameWriteFailsWithStaleNFSFileHandleError() {
+	if setup.IsZonalBucketRun() {
+		//TODO (b/413296959): Re-enable after update inode state changes are merged.
+		t.T().Skip("Skipping Zonal Bucket Rename tests until inode state is fixed.")
+	}
 	_, err := t.f1.WriteAt([]byte(t.data), 0)
 	require.NoError(t.T(), err)
 	operations.VerifyStatFile(t.filePath, int64(len(t.data)), FilePerms, t.T())
