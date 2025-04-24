@@ -15,6 +15,7 @@
 package stale_handle
 
 import (
+	"log"
 	"os"
 	"path"
 	"slices"
@@ -32,18 +33,30 @@ import (
 // //////////////////////////////////////////////////////////////////////
 
 type staleFileHandleCommon struct {
+	flags       []string
 	f1          *os.File
 	data        string
 	testDirPath string
 	suite.Suite
+	validator
+}
+
+// validator validates the error from sync/close/write operation after the file has been clobbered.
+type validator interface {
+	validate(err error)
 }
 
 // //////////////////////////////////////////////////////////////////////
 // Helpers
 // //////////////////////////////////////////////////////////////////////
 
+func (s *staleFileHandleCommon) validate(err error) {
+	operations.ValidateESTALEError(s.T(), err)
+}
+
 func (s *staleFileHandleCommon) SetupSuite() {
-	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
+	log.Printf("Running tests with flag: %v", s.flags)
+	setup.MountGCSFuseWithGivenMountFunc(s.flags, mountFunc)
 }
 
 func (s *staleFileHandleCommon) TearDownSuite() {
@@ -53,17 +66,7 @@ func (s *staleFileHandleCommon) TearDownSuite() {
 
 func (s *staleFileHandleCommon) streamingWritesEnabled() bool {
 	s.T().Helper()
-	return slices.Contains(flags, "--enable-streaming-writes=true")
-}
-
-// Used to validate stale handle error from sync/close/write calls when streaming writes are disabled.
-func (s *staleFileHandleCommon) validateESTALEErrorIfStreamingWritesDisabled(err error) {
-	s.T().Helper()
-	if !s.streamingWritesEnabled() {
-		operations.ValidateESTALEError(s.T(), err)
-	} else {
-		assert.NoError(s.T(), err)
-	}
+	return slices.Contains(s.flags, "--enable-streaming-writes=true")
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -76,14 +79,14 @@ func (s *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHand
 		s.T().Skip("Skip the test as takeover support is required to overwrite the zonal objects.")
 	}
 	// Dirty the file by giving it some contents.
-	_, err := s.f1.WriteAt([]byte(s.data), 0)
-	assert.NoError(s.T(), err)
+	operations.WriteWithoutClose(s.f1, s.data, s.T())
 	// Clobber file by replacing the underlying object with a new generation.
-	err = WriteToObject(ctx, storageClient, path.Join(s.T().Name(), FileName1), FileContents, storage.Conditions{})
+	err := WriteToObject(ctx, storageClient, path.Join(s.T().Name(), FileName1), FileContents, storage.Conditions{})
 	assert.NoError(s.T(), err)
 
 	err = s.f1.Sync()
-	s.validateESTALEErrorIfStreamingWritesDisabled(err)
+	s.validator.validate(err)
+
 	err = s.f1.Close()
 	operations.ValidateESTALEError(s.T(), err)
 }
@@ -94,8 +97,7 @@ func (s *staleFileHandleCommon) TestFileDeletedLocallySyncAndCloseDoNotThrowErro
 		s.T().Skip("Skip the test due to generation issue in ZB.")
 	}
 	// Dirty the file by giving it some contents.
-	bytesWrote, err := s.f1.WriteAt([]byte(s.data), 0)
-	assert.NoError(s.T(), err)
+	operations.WriteWithoutClose(s.f1, s.data, s.T())
 	operations.SyncFile(s.f1, s.T())
 	// Delete the file.
 	operations.RemoveFile(s.f1.Name())
@@ -103,9 +105,10 @@ func (s *staleFileHandleCommon) TestFileDeletedLocallySyncAndCloseDoNotThrowErro
 
 	operations.ValidateNoFileOrDirError(s.T(), s.f1.Name())
 	// Attempt to write to file should not give any error.
-	_, err = s.f1.WriteAt([]byte(s.data), int64(bytesWrote))
+	_, err := s.f1.Write([]byte(s.data))
 
-	s.validateESTALEErrorIfStreamingWritesDisabled(err)
+	s.validator.validate(err)
+
 	operations.SyncFile(s.f1, s.T())
 	operations.CloseFileShouldNotThrowError(s.T(), s.f1)
 }
