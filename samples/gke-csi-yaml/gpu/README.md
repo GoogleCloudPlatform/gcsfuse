@@ -10,6 +10,8 @@ The configurations include recommendations tailored for the following common mac
 
 ## Deployment Instructions
 
+**Note: The sample files are for GCSfuse GKE CSI driver running on GKE clusters of GKE version 1.32.2-gke.1297001 or greater.**
+
 To utilize these sample configurations, follow the specified deployment order. For instance, to set up the serving workload:
 
 1.  **Deploy the PersistentVolume (PV) and PersistentVolumeClaim (PVC):**
