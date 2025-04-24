@@ -226,7 +226,7 @@ func (t *rangeReaderTest) Test_Destroy_NonNilReader() {
 func (t *rangeReaderTest) Test_ReadAt_ReadFailsWithTimeoutError() {
 	r := iotest.OneByteReader(iotest.TimeoutReader(strings.NewReader("xxx")))
 	rc := &fake.FakeReader{ReadCloser: io.NopCloser(r)}
-	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(rc, nil).Once()
+	t.mockNewReaderWithHandleCallForTestBucket(0, 3, rc)
 
 	_, err := t.readAt(0, int64(3))
 
