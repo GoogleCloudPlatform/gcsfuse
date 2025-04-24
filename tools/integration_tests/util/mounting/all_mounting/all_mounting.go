@@ -21,6 +21,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -50,18 +51,37 @@ const (
 	onlyDirMountTestPrefix = "onlyDirMountTest-"
 )
 
+func (t MountingType) String() string {
+	switch t {
+	case StaticMounting:
+		return "StaticMounting"
+	case OnlyDirMounting:
+		return "OnlyDirMounting"
+	case DynamicMounting:
+		return "DynamicMounting"
+	case PersistentMounting:
+		return "PersistentMounting"
+	default:
+		return "Unknown"
+	}
+}
+
 type TestMountConfiguration struct {
-	basePackageTestDir                 string
-	namedTestDir                       string
+	basePackageTestDir                 string // TestDir()
+	namedTestDir                       string // TestDir()/TestName()
 	flags                              []string
 	mountType                          MountingType
-	logFile                            string
-	rootMntDir                         string
+	logFile                            string // TestDir()/TestName()/gcsfuse.log
+	mntDir                             string // TestDir()/TestName()/mnt
 	onlyDirExistsOnBucket              bool   // scenario when onlyDir exists on testBucket.
 	onlyDir                            string // represents onlyDir if it's OnlyDirMounting.
 	useCreatedBucketForDynamicMounting bool   // Use createdBucket for dynamic Mounting.
 	createdBucket                      string
 	dynmaincMntDir                     string // MntDir for dynamic mounting.
+}
+
+func (t *TestMountConfiguration) RootOnBucket() string {
+	return t.onlyDir
 }
 
 func (t *TestMountConfiguration) LogFile() string {
@@ -72,29 +92,33 @@ func (t *TestMountConfiguration) LogFile() string {
 	return t.logFile
 }
 
+func TestDirName(tb testing.TB) string {
+	return strings.ReplaceAll(tb.Name(), "/", "-")
+}
+
 func (t *TestMountConfiguration) MntDir() string {
 	if t.dynmaincMntDir != "" {
 		return t.dynmaincMntDir
 	}
-	if t.rootMntDir == "" {
+	if t.mntDir == "" {
 		log.Println("MntDir is not set up yet. Ensure Mount() has been invoked successfully before calling MntDir().")
 		os.Exit(1)
 	}
-	return t.rootMntDir
+	return t.mntDir
 }
 
 func (t *TestMountConfiguration) MountType() MountingType {
 	return t.mountType
 }
 
-func (t *TestMountConfiguration) Mount(tb testing.TB, testName string, storageClient *storage.Client) error {
-	t.namedTestDir = path.Join(t.basePackageTestDir, testName)
+func (t *TestMountConfiguration) Mount(tb testing.TB, storageClient *storage.Client) error {
+	t.namedTestDir = path.Join(t.basePackageTestDir, TestDirName(tb))
 	err := os.Mkdir(t.namedTestDir, 0755)
 	if err != nil {
 		return fmt.Errorf("failed to create test named directory '%s': %w", t.namedTestDir, err)
 	}
-	rootMntDir := path.Join(t.namedTestDir, "mnt")
-	err = os.Mkdir(rootMntDir, 0755)
+	mntDir := path.Join(t.namedTestDir, "mnt")
+	err = os.Mkdir(mntDir, 0755)
 	if err != nil {
 		return fmt.Errorf("failed to create 'mnt' directory inside '%s': %w", t.namedTestDir, err)
 	}
@@ -103,39 +127,39 @@ func (t *TestMountConfiguration) Mount(tb testing.TB, testName string, storageCl
 
 	switch t.mountType {
 	case StaticMounting:
-		err = static_mounting.MountGcsfuseWithStaticMountingMntDirAndLogFile(t.flags, rootMntDir, t.logFile)
+		err = static_mounting.MountGcsfuseWithStaticMountingMntDirAndLogFile(t.flags, mntDir, t.logFile)
 	case PersistentMounting:
-		err = persistent_mounting.MountGcsfuseWithPersistentMountingMntDirLogFile(t.flags, rootMntDir, t.logFile)
+		err = persistent_mounting.MountGcsfuseWithPersistentMountingMntDirLogFile(t.flags, mntDir, t.logFile)
 	case DynamicMounting:
 		ctx := context.Background()
 		if t.useCreatedBucketForDynamicMounting {
 			t.createdBucket = dynamic_mounting.CreateTestBucketForDynamicMounting(ctx, storageClient)
 		}
-		err = dynamic_mounting.MountGcsfuseWithDynamicMountingMntDirLogFile(t.flags, rootMntDir, t.logFile)
+		err = dynamic_mounting.MountGcsfuseWithDynamicMountingMntDirLogFile(t.flags, mntDir, t.logFile)
 	case OnlyDirMounting:
 		ctx := context.Background()
 		t.onlyDir = onlyDirMountTestPrefix + setup.GenerateRandomString(5)
 		if t.onlyDirExistsOnBucket {
-			_ = client.SetupTestDirectoryMntDirOnlyDir(ctx, storageClient, t.onlyDir, rootMntDir, t.onlyDir)
+			_ = client.SetupTestDirectoryMntDirOnlyDir(ctx, storageClient, TestDirName(tb), mntDir, t.onlyDir)
 		} else {
 			err = client.DeleteAllObjectsWithPrefix(ctx, storageClient, t.onlyDir)
 			if err != nil {
 				return fmt.Errorf("failed to clean up Objects with prefix %s for only directory mounting: %w", t.onlyDir, err)
 			}
 		}
-		err = only_dir_mounting.MountGcsfuseWithOnlyDirMntDirLogFile(t.flags, rootMntDir, t.logFile, t.onlyDir)
+		err = only_dir_mounting.MountGcsfuseWithOnlyDirMntDirLogFile(t.flags, mntDir, t.logFile, t.onlyDir)
 	default:
 		return fmt.Errorf("unknown mount type: %v", t.mountType)
 	}
 	if err != nil {
 		return fmt.Errorf("failed to mount GCSFuse for mountType: %v, err: %w", t.mountType, err)
 	}
-	t.rootMntDir = rootMntDir
+	t.mntDir = mntDir
 	if t.mountType == DynamicMounting {
 		if t.useCreatedBucketForDynamicMounting {
-			t.dynmaincMntDir = path.Join(rootMntDir, t.createdBucket)
+			t.dynmaincMntDir = path.Join(mntDir, t.createdBucket)
 		} else {
-			t.dynmaincMntDir = path.Join(rootMntDir, setup.TestBucket())
+			t.dynmaincMntDir = path.Join(mntDir, setup.TestBucket())
 		}
 	}
 	return nil
@@ -146,7 +170,7 @@ func (t *TestMountConfiguration) Unmount() error {
 	if err != nil {
 		return fmt.Errorf("cannot find fusermount: %w", err)
 	}
-	cmd := exec.Command(fusermount, "-uz", t.rootMntDir)
+	cmd := exec.Command(fusermount, "-uz", t.mntDir)
 	if _, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("fusermount error: %w", err)
 	}
@@ -154,14 +178,14 @@ func (t *TestMountConfiguration) Unmount() error {
 
 }
 
-func GenerateTestMountConfigurations(mountTypes []MountingType, flagsSet [][]string, baseTestDir string) []TestMountConfiguration {
+func GenerateTestMountConfigurations(mountTypes []MountingType, flagsSet [][]string, basePackageTestDir string) []TestMountConfiguration {
 	var testMountConfigurations []TestMountConfiguration
 	for _, mountType := range mountTypes {
 		for _, flags := range flagsSet {
 			testMountConfiguration := TestMountConfiguration{
 				mountType:          mountType,
 				flags:              flags,
-				basePackageTestDir: baseTestDir,
+				basePackageTestDir: basePackageTestDir,
 			}
 			if mountType == OnlyDirMounting {
 				dup := testMountConfiguration
@@ -182,13 +206,13 @@ func GenerateTestMountConfigurations(mountTypes []MountingType, flagsSet [][]str
 func UnmountAll(mountConfiguration []TestMountConfiguration, storageClient *storage.Client) error {
 	cnt := 0
 	for _, testMountConfiguration := range mountConfiguration {
-		if testMountConfiguration.rootMntDir != "" {
+		if testMountConfiguration.mntDir != "" {
 			err := testMountConfiguration.Unmount()
 			if err != nil {
 				cnt++
-				log.Printf("Unable to unmount mntDir: %s, err: %v", testMountConfiguration.rootMntDir, err)
+				log.Printf("Unable to unmount mntDir: %s, err: %v", testMountConfiguration.mntDir, err)
 			} else {
-				log.Printf("Successfully unmounted mntDir: %s", testMountConfiguration.rootMntDir)
+				log.Printf("Successfully unmounted mntDir: %s", testMountConfiguration.mntDir)
 			}
 			if testMountConfiguration.mountType == DynamicMounting && testMountConfiguration.useCreatedBucketForDynamicMounting {
 				err := client.DeleteBucket(context.Background(), storageClient, testMountConfiguration.createdBucket)

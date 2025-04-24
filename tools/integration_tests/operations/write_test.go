@@ -26,6 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
+	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/all_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
@@ -112,7 +113,7 @@ func validateObjectAttributes(attr1, attr2 *storage.ObjectAttrs, t *testing.T) {
 // Tests
 // //////////////////////////////////////////////////////////////////////
 func (s *OperationSuite) TestWriteAtEndOfFile() {
-	testDir := setup.SetupTestDirectoryOnMntDir(s.mountConfiguration.MntDir(), getTestName(s.T()))
+	testDir := setup.SetupTestDirectoryOnMntDir(s.mountConfiguration.MntDir(), TestDirName(s.T()))
 	fileName := path.Join(testDir, tempFileName)
 
 	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, s.T())
@@ -124,7 +125,7 @@ func (s *OperationSuite) TestWriteAtEndOfFile() {
 
 	setup.CompareFileContents(s.T(), fileName, "line 1\nline 2\nline 3\n")
 	// Validate that extended object attributes are non nil/ non-empty.
-	validateExtendedObjectAttributesNonEmpty(path.Join(getTestName(s.T()), tempFileName), s.T())
+	validateExtendedObjectAttributesNonEmpty(path.Join(TestDirName(s.T()), tempFileName), s.T())
 }
 
 // func (s *OperationSuite) TestWriteAtStartOfFile() {

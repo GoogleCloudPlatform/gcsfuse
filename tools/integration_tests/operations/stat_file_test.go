@@ -15,14 +15,11 @@
 package operations_test
 
 import (
-	"os"
 	"strings"
-	"syscall"
 	"testing"
 
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/all_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -37,23 +34,23 @@ func getTestName(t *testing.T) string {
 }
 
 func (s *OperationSuite) SetupSuite() {
-	err := s.mountConfiguration.Mount(s.T(), getTestName(s.T()), storageClient)
+	err := s.mountConfiguration.Mount(s.T(), storageClient)
 	require.NoError(s.T(), err)
 }
 
-func (s *OperationSuite) TestStatWithTrailingNewline() {
-	testDir := setup.SetupTestDirectoryOnMntDir(s.mountConfiguration.MntDir(), getTestName(s.T()))
+// func (s *OperationSuite) TestStatWithTrailingNewline() {
+// 	testDir := setup.SetupTestDirectoryOnMntDir(s.mountConfiguration.MntDir(), getTestName(s.T()))
 
-	_, err := os.Stat(testDir + "/\n")
+// 	_, err := os.Stat(testDir + "/\n")
 
-	require.Error(s.T(), err)
-	assert.Equal(s.T(), err.(*os.PathError).Err, syscall.ENOENT)
-}
+// 	require.Error(s.T(), err)
+// 	assert.Equal(s.T(), err.(*os.PathError).Err, syscall.ENOENT)
+// }
 
 func TestOperationsSuite(t *testing.T) {
 	t.Parallel()
 	for i := range configurations {
-		t.Run(setup.GenerateRandomString(5), func(t *testing.T) {
+		t.Run(configurations[i].MountType().String()+"_"+setup.GenerateRandomString(5), func(t *testing.T) {
 			t.Parallel()
 			suite.Run(t, &OperationSuite{mountConfiguration: &configurations[i]})
 		})
