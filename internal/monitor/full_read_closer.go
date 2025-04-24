@@ -35,7 +35,11 @@ func newGCSFullReadCloser(reader gcs.StorageReader) gcs.StorageReader {
 // 2. EOF only if no bytes were read.
 // 3. n == len(buf) if and only if err == nil.
 func (frc gcsFullReadCloser) Read(buf []byte) (n int, err error) {
-	return io.ReadFull(frc.wrapped, buf)
+	n, err = io.ReadFull(frc.wrapped, buf)
+	if err == io.ErrUnexpectedEOF {
+		err = io.EOF
+	}
+	return n, err
 }
 
 func (frc gcsFullReadCloser) ReadHandle() (rh storagev2.ReadHandle) {
