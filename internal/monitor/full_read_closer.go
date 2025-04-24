@@ -37,6 +37,9 @@ func newGCSFullReadCloser(reader gcs.StorageReader) gcs.StorageReader {
 func (frc gcsFullReadCloser) Read(buf []byte) (n int, err error) {
 	n, err = io.ReadFull(frc.wrapped, buf)
 	if err == io.ErrUnexpectedEOF {
+		// if an EOF is encountered before reading the full length of the buffer,
+		// ReadFull returns an ErrUnexpectedEOF error. This needs to be convered
+		// to EOF in order to have a consistent behavior (error) with and without gcsFullReadCloser.
 		err = io.EOF
 	}
 	return n, err
