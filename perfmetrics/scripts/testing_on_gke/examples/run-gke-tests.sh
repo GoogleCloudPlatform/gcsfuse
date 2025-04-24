@@ -350,6 +350,12 @@ function installDependencies() {
     echoerror "sudo addgroup docker && sudo usermod -aG docker $USER && newgrp docker"
     return 1
   fi
+  # Install python client for bigquery.
+  # TODO: Make this conditional on bigquery export !
+  pip install --require-hashes -r $(dirname ${0})/fio/requirements.txt >/dev/null
+  pip3 install --upgrade google-cloud-bigquery >/dev/null
+  pip3 install --upgrade google-cloud-storage >/dev/null
+  pip install google-api-python-client >/dev/null
 }
 
 # Make sure you have access to the necessary GCP resources. The easiest way to enable it is to use <your-ldap>@google.com as active auth.
