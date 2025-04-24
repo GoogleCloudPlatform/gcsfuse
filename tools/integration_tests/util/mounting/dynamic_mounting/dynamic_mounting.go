@@ -33,8 +33,6 @@ import (
 // we can run the grpc related e2e test.
 const PrefixBucketForDynamicMountingTest = "golang-grpc-test-gcsfuse-dynamic-mounting-test-"
 
-var testBucketForDynamicMounting = PrefixBucketForDynamicMountingTest + setup.GenerateRandomString(5)
-
 func MountGcsfuseWithDynamicMounting(flags []string) (err error) {
 	defaultArg := []string{"--log-severity=trace",
 		"--log-file=" + setup.LogFile(),
@@ -75,7 +73,7 @@ func runTestsOnGivenMountedTestBucket(bucketName string, flags [][]string, rootM
 	return
 }
 
-func executeTestsForDynamicMounting(flags [][]string, m *testing.M) (successCode int) {
+func executeTestsForDynamicMounting(flags [][]string, createdBucket string, m *testing.M) (successCode int) {
 	rootMntDir := setup.MntDir()
 
 	// In dynamic mounting all the buckets mounted in mntDir which user has permission.
@@ -89,9 +87,9 @@ func executeTestsForDynamicMounting(flags [][]string, m *testing.M) (successCode
 
 	// Test on created bucket.
 	// SetDynamicBucketMounted to the mounted bucket.
-	setup.SetDynamicBucketMounted(testBucketForDynamicMounting)
+	setup.SetDynamicBucketMounted(createdBucket)
 	if successCode == 0 {
-		successCode = runTestsOnGivenMountedTestBucket(testBucketForDynamicMounting, flags, rootMntDir, m)
+		successCode = runTestsOnGivenMountedTestBucket(createdBucket, flags, rootMntDir, m)
 	}
 	// Reset SetDynamicBucketMounted to empty after tests are done.
 	setup.SetDynamicBucketMounted("")
@@ -112,24 +110,25 @@ func CreateTestBucketForDynamicMounting(ctx context.Context, client *storage.Cli
 		Location: "us-west1",
 	}
 
-	bucket := client.Bucket(testBucketForDynamicMounting)
+	bucketName = PrefixBucketForDynamicMountingTest + setup.GenerateRandomString(5)
+	bucket := client.Bucket(bucketName)
 	if err := bucket.Create(ctx, projectID, storageClassAndLocation); err != nil {
-		log.Fatalf("DynamicBucket(%q).Create: %v", testBucketForDynamicMounting, err)
+		log.Fatalf("DynamicBucket(%q).Create: %v", bucketName, err)
 	}
-	return testBucketForDynamicMounting
+	return
 }
 
 func RunTests(ctx context.Context, client *storage.Client, flags [][]string, m *testing.M) (successCode int) {
 	log.Println("Running dynamic mounting tests...")
 
-	CreateTestBucketForDynamicMounting(ctx, client)
+	createdBucket := CreateTestBucketForDynamicMounting(ctx, client)
 
-	successCode = executeTestsForDynamicMounting(flags, m)
+	successCode = executeTestsForDynamicMounting(flags, createdBucket, m)
 
 	log.Printf("Test log: %s\n", setup.LogFile())
 
-	if err := client_util.DeleteBucket(ctx, client, testBucketForDynamicMounting); err != nil {
-		log.Fatalf("Failed to delete the bucket : %s. Error: %v", testBucketForDynamicMounting, err)
+	if err := client_util.DeleteBucket(ctx, client, createdBucket); err != nil {
+		log.Fatalf("Failed to delete the bucket : %s. Error: %v", createdBucket, err)
 	}
 
 	return successCode
