@@ -229,9 +229,10 @@ func (t *rangeReaderTest) Test_ReadAt_ReadFailsWithTimeoutError() {
 	rc := &fake.FakeReader{ReadCloser: io.NopCloser(r)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, uint64(len(content)), rc)
 
-	_, err := t.readAt(0, int64(len(content)))
+	readerResponse, err := t.readAt(0, int64(len(content)))
 
 	assert.Error(t.T(), err)
+	assert.Zero(t.T(), readerResponse.Size)
 	t.mockBucket.AssertExpectations(t.T())
 }
 

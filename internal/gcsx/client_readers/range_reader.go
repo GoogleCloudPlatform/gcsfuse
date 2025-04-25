@@ -30,9 +30,7 @@ import (
 )
 
 const (
-	// MiB is 1 Megabyte. (Silly comment to make the lint warning go away)
 	MiB = 1 << 20
-
 	// Max read size in bytes for random reads.
 	// If the average read size (between seeks) is below this number, reads will optimise for random access.
 	// We will skip forwards in a GCS response at most this many bytes.
@@ -44,9 +42,11 @@ type RangeReader struct {
 	gcsx.Reader
 	object *gcs.MinObject
 	bucket gcs.Bucket
-	// start is the starting index for the reader.
+
+	// start is the current read offset of the reader.
 	start int64
-	// limit is the ending index for the reader.
+
+	// limit is the exclusive upper bound up to which the reader can read.
 	limit int64
 
 	// If non-nil, an in-flight read request and a function for cancelling it.
@@ -267,9 +267,6 @@ func (rr *RangeReader) startRead(ctx context.Context, start int64, end int64) er
 // discarding the existing reader. If possible, it reads and discards data to
 // maintain an active GCS connection, improving throughput for sequential reads.
 func (rr *RangeReader) skipBytes(offset int64) {
-	// Check first if we can read using existing reader. if not, determine which
-	// api to use and call gcs accordingly.
-
 	// When the offset is AFTER the reader position, try to seek forward, within reason.
 	// This happens when the kernel page cache serves some data. It's very common for
 	// concurrent reads, often by only a few 128kB fuse read requests. The aim is to
