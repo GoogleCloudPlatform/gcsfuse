@@ -15,48 +15,48 @@
 // Provides integration tests for delete directory.
 package operations_test
 
-// import (
-// 	"os"
-// 	"path"
-// 	"testing"
+import (
+	"os"
+	"path"
 
-// 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-// 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-// )
+	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/all_mounting"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+)
 
-// func TestDeleteEmptyExplicitDir(t *testing.T) {
-// 	testDir := setup.SetupTestDirectory(DirForOperationTests)
+func (s *OperationSuite) TestDeleteEmptyExplicitDir() {
+	testDir := setup.SetupTestDirectoryOnMntDir(s.mountConfiguration.MntDir(), TestDirName(s.T()))
 
-// 	dirPath := path.Join(testDir, EmptyExplicitDirectoryForDeleteTest)
-// 	operations.CreateDirectoryWithNFiles(0, dirPath, "", t)
+	dirPath := path.Join(testDir, EmptyExplicitDirectoryForDeleteTest)
+	operations.CreateDirectoryWithNFiles(0, dirPath, "", s.T())
 
-// 	err := os.RemoveAll(dirPath)
-// 	if err != nil {
-// 		t.Errorf("Error in deleting empty explicit directory.")
-// 	}
+	err := os.RemoveAll(dirPath)
+	if err != nil {
+		s.T().Errorf("Error in deleting empty explicit directory.")
+	}
 
-// 	dir, err := os.Stat(dirPath)
-// 	if err == nil && dir.Name() == EmptyExplicitDirectoryForDeleteTest && dir.IsDir() {
-// 		t.Errorf("Directory is not deleted.")
-// 	}
-// }
+	dir, err := os.Stat(dirPath)
+	if err == nil && dir.Name() == EmptyExplicitDirectoryForDeleteTest && dir.IsDir() {
+		s.T().Errorf("Directory is not deleted.")
+	}
+}
 
-// func TestDeleteNonEmptyExplicitDir(t *testing.T) {
-// 	testDir := setup.SetupTestDirectory(DirForOperationTests)
+func (s *OperationSuite) TestDeleteNonEmptyExplicitDir() {
+	testDir := setup.SetupTestDirectoryOnMntDir(s.mountConfiguration.MntDir(), TestDirName(s.T()))
 
-// 	dirPath := path.Join(testDir, NonEmptyExplicitDirectoryForDeleteTest)
-// 	operations.CreateDirectoryWithNFiles(NumberOfFilesInNonEmptyExplicitDirectoryForDeleteTest, dirPath, PrefixFilesInNonEmptyExplicitDirectoryForDeleteTest, t)
+	dirPath := path.Join(testDir, NonEmptyExplicitDirectoryForDeleteTest)
+	operations.CreateDirectoryWithNFiles(NumberOfFilesInNonEmptyExplicitDirectoryForDeleteTest, dirPath, PrefixFilesInNonEmptyExplicitDirectoryForDeleteTest, s.T())
 
-// 	subDirPath := path.Join(dirPath, NonEmptyExplicitSubDirectoryForDeleteTest)
-// 	operations.CreateDirectoryWithNFiles(NumberOfFilesInNonEmptyExplicitSubDirectoryForDeleteTest, subDirPath, PrefixFilesInNonEmptyExplicitSubDirectoryForDeleteTest, t)
+	subDirPath := path.Join(dirPath, NonEmptyExplicitSubDirectoryForDeleteTest)
+	operations.CreateDirectoryWithNFiles(NumberOfFilesInNonEmptyExplicitSubDirectoryForDeleteTest, subDirPath, PrefixFilesInNonEmptyExplicitSubDirectoryForDeleteTest, s.T())
 
-// 	err := os.RemoveAll(dirPath)
-// 	if err != nil {
-// 		t.Errorf("Error in deleting empty explicit directory.")
-// 	}
+	err := os.RemoveAll(dirPath)
+	if err != nil {
+		s.T().Errorf("Error in deleting empty explicit directory.")
+	}
 
-// 	dir, err := os.Stat(dirPath)
-// 	if err == nil && dir.Name() == NonEmptyExplicitDirectoryForDeleteTest && dir.IsDir() {
-// 		t.Errorf("Directory is not deleted.")
-// 	}
-// }
+	dir, err := os.Stat(dirPath)
+	if err == nil && dir.Name() == NonEmptyExplicitDirectoryForDeleteTest && dir.IsDir() {
+		s.T().Errorf("Directory is not deleted.")
+	}
+}
