@@ -29,7 +29,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	testutil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	testUtil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -81,8 +81,8 @@ func getReadCloser(content []byte) io.ReadCloser {
 	return rc
 }
 
-func getReader() *fake.FakeReader {
-	testContent := testutil.GenerateRandomBytes(2)
+func getReader(size int) *fake.FakeReader {
+	testContent := testUtil.GenerateRandomBytes(size)
 	return &fake.FakeReader{
 		ReadCloser: getReadCloser(testContent),
 		Handle:     []byte(fakeHandleData),
@@ -140,7 +140,7 @@ func (t *rangeReaderTest) Test_CheckInvariants() {
 		{
 			name: "reader without cancel",
 			setup: func() *RangeReader {
-				t.rangeReader.reader = getReader()
+				t.rangeReader.reader = getReader(2)
 				return &RangeReader{
 					start:  0,
 					limit:  10,
@@ -177,7 +177,7 @@ func (t *rangeReaderTest) Test_CheckInvariants() {
 		{
 			name: "negative limit with valid reader",
 			setup: func() *RangeReader {
-				t.rangeReader.reader = getReader()
+				t.rangeReader.reader = getReader(2)
 				return &RangeReader{
 					start:  -10,
 					limit:  -5,
@@ -214,7 +214,7 @@ func (t *rangeReaderTest) Test_CheckInvariants() {
 }
 
 func (t *rangeReaderTest) Test_Destroy_NonNilReader() {
-	t.rangeReader.reader = getReader()
+	t.rangeReader.reader = getReader(2)
 
 	t.rangeReader.Destroy()
 
@@ -287,4 +287,38 @@ func (t *rangeReaderTest) Test_ReadAt_StartReadUnexpectedError() {
 	assert.Error(t.T(), err)
 	assert.Zero(t.T(), resp.Size)
 	t.mockBucket.AssertExpectations(t.T())
+}
+
+func (t *rangeReaderTest) Test_invalidateReaderIfMisalignedOrTooSmall_InvalidateReaderDueToWrongOffset() {
+	t.rangeReader.reader = &fake.FakeReader{ReadCloser: getReader(100)}
+	t.rangeReader.start = 50 // misaligned
+	t.rangeReader.limit = 1000
+
+	result := t.rangeReader.invalidateReaderIfMisalignedOrTooSmall(200, make([]byte, 100))
+
+	assert.True(t.T(), result, "Expected invalidateReaderIfMisalignedOrTooSmall to return true")
+	assert.Nil(t.T(), t.rangeReader.reader, "Expected reader to be nil after invalidation")
+}
+
+func (t *rangeReaderTest) Test_invalidateReaderIfMisalignedOrTooSmall_InvalidateReaderDueToTooSmall() {
+	t.rangeReader.reader = &fake.FakeReader{ReadCloser: getReader(100)}
+	t.rangeReader.start = 200
+	t.rangeReader.limit = 250 // too small to serve full request
+	t.rangeReader.object.Size = 500
+
+	result := t.rangeReader.invalidateReaderIfMisalignedOrTooSmall(200, make([]byte, 100))
+
+	assert.False(t.T(), result, "Expected invalidateReaderIfMisalignedOrTooSmall to return false due to size, not misalignment")
+	assert.Nil(t.T(), t.rangeReader.reader, "Expected reader to be nil after invalidation")
+}
+
+func (t *rangeReaderTest) Test_invalidateReaderIfMisalignedOrTooSmall_KeepReaderIfValid() {
+	t.rangeReader.reader = &fake.FakeReader{ReadCloser: getReader(100)}
+	t.rangeReader.start = 200
+	t.rangeReader.limit = 400
+
+	result := t.rangeReader.invalidateReaderIfMisalignedOrTooSmall(200, make([]byte, 100))
+
+	assert.False(t.T(), result, "Expected reader to be retained")
+	assert.NotNil(t.T(), t.rangeReader.reader, "Expected reader to be intact")
 }

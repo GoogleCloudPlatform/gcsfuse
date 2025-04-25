@@ -301,22 +301,3 @@ func (rr *RangeReader) invalidateReaderIfMisalignedOrTooSmall(offset int64, p []
 	}
 	return false
 }
-
-// readFromExistingReader attempts to read data from an existing reader if one is available.
-// If a reader exists and the read is successful, the data is returned.
-// Otherwise, it returns an error indicating that a fallback to another reader is needed.
-func (rr *RangeReader) readFromExistingReader(ctx context.Context, req *gcsx.GCSReaderRequest) (gcsx.ReaderResponse, error) {
-	readerResponse := gcsx.ReaderResponse{
-		DataBuf: req.Buffer,
-		Size:    0,
-	}
-	var err error
-
-	if rr.reader != nil {
-		readerResponse, err = rr.ReadAt(ctx, req)
-		return readerResponse, err
-	}
-
-	err = gcsx.FallbackToAnotherReader
-	return readerResponse, err
-}
