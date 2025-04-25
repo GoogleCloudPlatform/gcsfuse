@@ -691,16 +691,21 @@ func (b *bucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObj
 	return NewFakeObjectWriter(b, req)
 }
 
-func (b *bucket) FlushPendingWrites(ctx context.Context, w gcs.Writer) (int64, error) {
+func (b *bucket) FlushPendingWrites(ctx context.Context, w gcs.Writer) (*gcs.MinObject, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	offset, err := w.Flush()
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	return offset, nil
+	fakeObjectWriter, ok := w.(*FakeObjectWriter)
+	if !ok {
+		return nil, fmt.Errorf("could not type assert gcs.Writer to FakeObjectWriter")
+	}
+	fakeObjectWriter.Object.Size = uint64(offset)
+	return fakeObjectWriter.Object, nil
 }
 
 func (b *bucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.MinObject, error) {

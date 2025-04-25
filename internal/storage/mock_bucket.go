@@ -188,7 +188,7 @@ func (m *mockBucket) FinalizeUpload(p0 context.Context, p1 gcs.Writer) (o0 *gcs.
 	return
 }
 
-func (m *mockBucket) FlushPendingWrites(p0 context.Context, p1 gcs.Writer) (o0 int64, o1 error) {
+func (m *mockBucket) FlushPendingWrites(p0 context.Context, p1 gcs.Writer) (o0 *gcs.MinObject, o1 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
 
@@ -204,9 +204,9 @@ func (m *mockBucket) FlushPendingWrites(p0 context.Context, p1 gcs.Writer) (o0 i
 		panic(fmt.Sprintf("mockBucket.FlushPendingWrites: invalid return values: %v", retVals))
 	}
 
-	// o0 int64 (offset)
+	// o0 *gcs.MinObject
 	if retVals[0] != nil {
-		o0 = retVals[0].(int64)
+		o0 = retVals[0].(*gcs.MinObject)
 	}
 	// o1 error
 	if retVals[1] != nil {

@@ -119,7 +119,7 @@ func (b *prefixBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gcs
 	return
 }
 
-func (b *prefixBucket) FlushPendingWrites(ctx context.Context, w gcs.Writer) (offset int64, err error) {
+func (b *prefixBucket) FlushPendingWrites(ctx context.Context, w gcs.Writer) (o *gcs.MinObject, err error) {
 	return b.wrapped.FlushPendingWrites(ctx, w)
 }
 

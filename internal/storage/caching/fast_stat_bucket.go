@@ -255,22 +255,18 @@ func (b *fastStatBucket) FinalizeUpload(ctx context.Context, writer gcs.Writer) 
 	return o, err
 }
 
-func (b *fastStatBucket) FlushPendingWrites(ctx context.Context, writer gcs.Writer) (int64, error) {
+func (b *fastStatBucket) FlushPendingWrites(ctx context.Context, writer gcs.Writer) (*gcs.MinObject, error) {
 	name := writer.ObjectName()
-	hit, o := b.cache.LookUp(name, b.clock.Now())
-	if hit {
-		// Throw away any existing record for this object.
-		b.invalidate(name)
-	}
+	// Throw away any existing record for this object.
+	b.invalidate(name)
 
-	offset, err := b.wrapped.FlushPendingWrites(ctx, writer)
+	o, err := b.wrapped.FlushPendingWrites(ctx, writer)
 
 	// Record the new object if err is nil.
-	if err == nil && hit && o != nil {
-		o.Size = uint64(offset)
+	if err == nil {
 		b.insertMinObject(o)
 	}
-	return offset, err
+	return o, err
 }
 
 // LOCKS_EXCLUDED(b.mu)

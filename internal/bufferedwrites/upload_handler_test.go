@@ -165,51 +165,52 @@ func (t *UploadHandlerTest) TestFinalizeWhenFinalizeUploadFails() {
 
 func (t *UploadHandlerTest) TestFlushWithWriterAlreadyPresent() {
 	writer := &storagemock.Writer{}
-	mockOffset := 10
-	t.mockBucket.On("FlushPendingWrites", mock.Anything, writer).Return(mockOffset, nil)
+	mockObject := &gcs.MinObject{Size: 100}
+	t.mockBucket.On("FlushPendingWrites", mock.Anything, writer).Return(mockObject, nil)
 	t.uh.writer = writer
 
-	offset, err := t.uh.FlushPendingWrites()
+	o, err := t.uh.FlushPendingWrites()
 
 	require.NoError(t.T(), err)
-	assert.EqualValues(t.T(), mockOffset, offset)
+	assert.Equal(t.T(), mockObject, o)
 }
 
 func (t *UploadHandlerTest) TestFlushWithNoWriter() {
 	writer := &storagemock.Writer{}
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
 	assert.Nil(t.T(), t.uh.writer)
-	mockOffset := 10
-	t.mockBucket.On("FlushPendingWrites", mock.Anything, writer).Return(mockOffset, nil)
+	mockObject := &gcs.MinObject{Size: 10}
+	t.mockBucket.On("FlushPendingWrites", mock.Anything, writer).Return(mockObject, nil)
 
-	offset, err := t.uh.FlushPendingWrites()
+	o, err := t.uh.FlushPendingWrites()
 
 	require.NoError(t.T(), err)
-	assert.EqualValues(t.T(), mockOffset, offset)
+	assert.Equal(t.T(), mockObject, o)
 }
 
 func (t *UploadHandlerTest) TestFlushWithNoWriterWhenCreateObjectWriterFails() {
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("taco"))
 	assert.Nil(t.T(), t.uh.writer)
 
-	offset, err := t.uh.FlushPendingWrites()
+	o, err := t.uh.FlushPendingWrites()
 
 	require.Error(t.T(), err)
 	assert.ErrorContains(t.T(), err, "taco")
 	assert.ErrorContains(t.T(), err, "createObjectWriter")
-	assert.EqualValues(t.T(), 0, offset)
+	assert.Nil(t.T(), o)
 }
 
 func (t *UploadHandlerTest) TestFlushWhenFlushPendingWritesFails() {
 	writer := &storagemock.Writer{}
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
 	assert.Nil(t.T(), t.uh.writer)
-	t.mockBucket.On("FlushPendingWrites", mock.Anything, writer).Return(0, fmt.Errorf("taco"))
+	var minObj *gcs.MinObject = nil
+	t.mockBucket.On("FlushPendingWrites", mock.Anything, writer).Return(minObj, fmt.Errorf("taco"))
 
-	offset, err := t.uh.FlushPendingWrites()
+	o, err := t.uh.FlushPendingWrites()
 
 	require.Error(t.T(), err)
-	assert.EqualValues(t.T(), 0, offset)
+	assert.Nil(t.T(), nil, o)
 	assert.ErrorContains(t.T(), err, "taco")
 	assertUploadFailureError(t.T(), t.uh)
 }

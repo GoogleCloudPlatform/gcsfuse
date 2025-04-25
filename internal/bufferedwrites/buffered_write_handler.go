@@ -34,8 +34,11 @@ type BufferedWriteHandler interface {
 	// the capacity is available otherwise writes to a new buffer.
 	Write(data []byte, offset int64) (err error)
 
-	// Sync uploads all the pending full buffers to GCS.
-	Sync() (err error)
+	// Sync uploads all the pending buffers to GCS.
+	// Sync returns
+	// 1. un-finalized object created on GCS for zonal buckets.
+	// 2. nil object for non-zonal buckets.
+	Sync() (*gcs.MinObject, error)
 
 	// Flush finalizes the upload.
 	Flush() (*gcs.MinObject, error)
@@ -178,12 +181,12 @@ func (wh *bufferedWriteHandlerImpl) appendBuffer(data []byte) (err error) {
 	return
 }
 
-func (wh *bufferedWriteHandlerImpl) Sync() (err error) {
+func (wh *bufferedWriteHandlerImpl) Sync() (o *gcs.MinObject, err error) {
 	// Upload current block (for both regional and zonal buckets).
 	if wh.current != nil && wh.current.Size() != 0 {
-		err := wh.uploadHandler.Upload(wh.current)
+		err = wh.uploadHandler.Upload(wh.current)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		wh.current = nil
 	}
@@ -194,12 +197,12 @@ func (wh *bufferedWriteHandlerImpl) Sync() (err error) {
 	// other operations like read.
 	// This functionality is exclusively supported on zonal buckets.
 	if wh.uploadHandler.bucket.BucketType().Zonal {
-		n, err := wh.uploadHandler.FlushPendingWrites()
+		o, err = wh.uploadHandler.FlushPendingWrites()
 		if err != nil {
-			return err
+			return nil, err
 		}
-		if n != wh.totalSize {
-			return fmt.Errorf("could not upload entire data, expected offset %d, Got %d", wh.totalSize, n)
+		if o.Size != uint64(wh.totalSize) {
+			return nil, fmt.Errorf("could not upload entire data, expected offset %d, Got %d", wh.totalSize, o.Size)
 		}
 	}
 	// Release memory used by buffers.
@@ -209,7 +212,10 @@ func (wh *bufferedWriteHandlerImpl) Sync() (err error) {
 		logger.Errorf("blockPool.ClearFreeBlockChannel() failed during sync: %v", err)
 	}
 	err = wh.uploadHandler.UploadError()
-	return
+	if err != nil {
+		return nil, err
+	}
+	return o, nil
 }
 
 // Flush finalizes the upload.
