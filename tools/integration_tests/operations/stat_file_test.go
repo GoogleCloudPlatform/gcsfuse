@@ -15,11 +15,15 @@
 package operations_test
 
 import (
-	"strings"
+	"fmt"
+	"os"
+	"path/filepath"
+	"syscall"
 	"testing"
 
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/all_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -29,23 +33,51 @@ type OperationSuite struct {
 	suite.Suite
 }
 
-func getTestName(t *testing.T) string {
-	return strings.ReplaceAll(t.Name(), "/", "_")
-}
-
 func (s *OperationSuite) SetupSuite() {
 	err := s.mountConfiguration.Mount(s.T(), storageClient)
 	require.NoError(s.T(), err)
 }
 
-// func (s *OperationSuite) TestStatWithTrailingNewline() {
-// 	testDir := setup.SetupTestDirectoryOnMntDir(s.mountConfiguration.MntDir(), getTestName(s.T()))
+func removeObjectsDirectories(rootDir string) error {
+	return filepath.WalkDir(rootDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			// Propagate the error upwards, but continue walking if possible
+			// (e.g., permission error on a specific file/dir shouldn't stop everything)
+			fmt.Printf("Error accessing path %q: %v\n", path, err)
+			return nil // or return err to stop walking
+		}
 
-// 	_, err := os.Stat(testDir + "/\n")
+		// Check if it's a directory and its name is "objects"
+		// And ensure it's not the rootDir itself if rootDir is named "objects"
+		if d.IsDir() && d.Name() == "objects" && path != rootDir {
+			fmt.Printf("Removing directory: %s\n", path)
+			err := os.RemoveAll(path)
+			if err != nil {
+				fmt.Printf("Failed to remove directory %q: %v\n", path, err)
+				// Decide if you want to stop or continue on error
+				return err // Stop on error
+				// return nil // Continue on error
+			}
+			// If a directory is removed, skip walking its contents
+			return filepath.SkipDir
+		}
+		return nil
+	})
+}
 
-// 	require.Error(s.T(), err)
-// 	assert.Equal(s.T(), err.(*os.PathError).Err, syscall.ENOENT)
-// }
+func (s *OperationSuite) TearDownTest() {
+	err := removeObjectsDirectories(s.mountConfiguration.MntDir())
+	require.NoError(s.T(), err)
+}
+
+func (s *OperationSuite) TestStatWithTrailingNewline() {
+	testDir := setup.SetupTestDirectoryOnMntDir(s.mountConfiguration.MntDir(), TestDirName(s.T()))
+
+	_, err := os.Stat(testDir + "/\n")
+
+	require.Error(s.T(), err)
+	assert.Equal(s.T(), err.(*os.PathError).Err, syscall.ENOENT)
+}
 
 func TestOperationsSuite(t *testing.T) {
 	t.Parallel()

@@ -142,7 +142,7 @@ func SetupTestDirectory(ctx context.Context, storageClient *storage.Client, test
 
 func SetupTestDirectoryMntDirOnlyDir(ctx context.Context, storageClient *storage.Client, testDirName, mntDir, onlyDir string) string {
 	testDirPath := path.Join(mntDir, testDirName)
-	err := DeleteAllObjectsWithPrefix(ctx, storageClient, path.Join(onlyDir, testDirName))
+	err := DeleteAllObjectsWithPrefix(ctx, storageClient, onlyDir)
 	if err != nil {
 		log.Printf("Failed to clean up test directory: %v", err)
 	}

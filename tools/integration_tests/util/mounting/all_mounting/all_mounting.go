@@ -48,7 +48,7 @@ const (
 )
 
 const (
-	onlyDirMountTestPrefix = "onlyDirMountTest-"
+	OnlyDirMountTestPrefix = "OnlyDirMountTest-"
 )
 
 func (t MountingType) String() string {
@@ -75,13 +75,17 @@ type TestMountConfiguration struct {
 	mntDir                             string // TestDir()/TestName()/mnt
 	onlyDirExistsOnBucket              bool   // scenario when onlyDir exists on testBucket.
 	onlyDir                            string // represents onlyDir if it's OnlyDirMounting.
+	dynamicBucket                      string // Stores whatever bucket dynamic mount tests are running...
 	useCreatedBucketForDynamicMounting bool   // Use createdBucket for dynamic Mounting.
-	createdBucket                      string
 	dynmaincMntDir                     string // MntDir for dynamic mounting.
 }
 
-func (t *TestMountConfiguration) RootOnBucket() string {
+func (t *TestMountConfiguration) OnlyDir() string {
 	return t.onlyDir
+}
+
+func (t *TestMountConfiguration) DynamicBucket() string {
+	return t.dynamicBucket
 }
 
 func (t *TestMountConfiguration) LogFile() string {
@@ -124,7 +128,7 @@ func (t *TestMountConfiguration) Mount(tb testing.TB, storageClient *storage.Cli
 	}
 
 	t.logFile = path.Join(t.namedTestDir, "gcsfuse.log")
-
+	onlyDir := OnlyDirMountTestPrefix + setup.GenerateRandomString(5)
 	switch t.mountType {
 	case StaticMounting:
 		err = static_mounting.MountGcsfuseWithStaticMountingMntDirAndLogFile(t.flags, mntDir, t.logFile)
@@ -133,12 +137,14 @@ func (t *TestMountConfiguration) Mount(tb testing.TB, storageClient *storage.Cli
 	case DynamicMounting:
 		ctx := context.Background()
 		if t.useCreatedBucketForDynamicMounting {
-			t.createdBucket = dynamic_mounting.CreateTestBucketForDynamicMounting(ctx, storageClient)
+			t.dynamicBucket = dynamic_mounting.CreateTestBucketForDynamicMounting(ctx, storageClient)
+		} else {
+			t.dynamicBucket = setup.TestBucket()
 		}
 		err = dynamic_mounting.MountGcsfuseWithDynamicMountingMntDirLogFile(t.flags, mntDir, t.logFile)
 	case OnlyDirMounting:
 		ctx := context.Background()
-		t.onlyDir = onlyDirMountTestPrefix + setup.GenerateRandomString(5)
+		t.onlyDir = OnlyDirMountTestPrefix + setup.GenerateRandomString(5)
 		if t.onlyDirExistsOnBucket {
 			_ = client.SetupTestDirectoryMntDirOnlyDir(ctx, storageClient, TestDirName(tb), mntDir, t.onlyDir)
 		} else {
@@ -147,7 +153,7 @@ func (t *TestMountConfiguration) Mount(tb testing.TB, storageClient *storage.Cli
 				return fmt.Errorf("failed to clean up Objects with prefix %s for only directory mounting: %w", t.onlyDir, err)
 			}
 		}
-		err = only_dir_mounting.MountGcsfuseWithOnlyDirMntDirLogFile(t.flags, mntDir, t.logFile, t.onlyDir)
+		err = only_dir_mounting.MountGcsfuseWithOnlyDirMntDirLogFile(t.flags, mntDir, t.logFile, onlyDir)
 	default:
 		return fmt.Errorf("unknown mount type: %v", t.mountType)
 	}
@@ -155,12 +161,11 @@ func (t *TestMountConfiguration) Mount(tb testing.TB, storageClient *storage.Cli
 		return fmt.Errorf("failed to mount GCSFuse for mountType: %v, err: %w", t.mountType, err)
 	}
 	t.mntDir = mntDir
+	if t.mountType == OnlyDirMounting {
+		t.onlyDir = onlyDir
+	}
 	if t.mountType == DynamicMounting {
-		if t.useCreatedBucketForDynamicMounting {
-			t.dynmaincMntDir = path.Join(mntDir, t.createdBucket)
-		} else {
-			t.dynmaincMntDir = path.Join(mntDir, setup.TestBucket())
-		}
+		t.dynmaincMntDir = path.Join(mntDir, t.dynamicBucket)
 	}
 	return nil
 }
@@ -211,15 +216,11 @@ func UnmountAll(mountConfiguration []TestMountConfiguration, storageClient *stor
 			if err != nil {
 				cnt++
 				log.Printf("Unable to unmount mntDir: %s, err: %v", testMountConfiguration.mntDir, err)
-			} else {
-				log.Printf("Successfully unmounted mntDir: %s", testMountConfiguration.mntDir)
 			}
 			if testMountConfiguration.mountType == DynamicMounting && testMountConfiguration.useCreatedBucketForDynamicMounting {
-				err := client.DeleteBucket(context.Background(), storageClient, testMountConfiguration.createdBucket)
+				err := client.DeleteBucket(context.Background(), storageClient, testMountConfiguration.dynamicBucket)
 				if err != nil {
-					log.Printf("Unable to delete bucket: %s, err: %v", testMountConfiguration.createdBucket, err)
-				} else {
-					log.Printf("Successfully deleted bucket: %s", testMountConfiguration.createdBucket)
+					log.Printf("Unable to delete bucket: %s, err: %v", testMountConfiguration.dynamicBucket, err)
 				}
 			}
 		}

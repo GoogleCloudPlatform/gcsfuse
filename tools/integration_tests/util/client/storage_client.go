@@ -312,7 +312,11 @@ func DeleteAllObjectsWithQuery(ctx context.Context, client *storage.Client, pref
 }
 
 func StatObject(ctx context.Context, client *storage.Client, object string) (*storage.ObjectAttrs, error) {
-	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(object)
+	return StatObjectDynamicOnlyDir(ctx, client, object, setup.DynamicBucketMounted(), setup.OnlyDirMounted())
+}
+
+func StatObjectDynamicOnlyDir(ctx context.Context, client *storage.Client, object, dynamic, onlyDir string) (*storage.ObjectAttrs, error) {
+	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMountDynamicOnlyDir(object, dynamic, onlyDir)
 
 	attrs, err := client.Bucket(bucket).Object(object).Attrs(ctx)
 	if err != nil {

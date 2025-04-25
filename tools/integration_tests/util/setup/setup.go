@@ -90,6 +90,9 @@ func IsIntegrationTest() bool {
 func TestBucket() string {
 	return *testBucket
 }
+func SetTestBucket(b string) {
+	*testBucket = b
+}
 
 func TestInstalledPackage() bool {
 	return *testInstalledPackage
@@ -567,21 +570,25 @@ func separateBucketAndObjectName(bucket, object string) (string, string) {
 }
 
 func GetBucketAndObjectBasedOnTypeOfMount(object string) (string, string) {
+	return GetBucketAndObjectBasedOnTypeOfMountDynamicOnlyDir(object, dynamicBucketMounted, OnlyDirMounted())
+}
+
+func GetBucketAndObjectBasedOnTypeOfMountDynamicOnlyDir(object, dynamicBucket, onlyDir string) (string, string) {
 	bucket := TestBucket()
 	if strings.Contains(TestBucket(), "/") {
 		// This case arises when we run tests on mounted directory and pass
 		// bucket/directory in testbucket flag.
 		bucket, object = separateBucketAndObjectName(bucket, object)
 	}
-	if dynamicBucketMounted != "" {
-		bucket = dynamicBucketMounted
+	if dynamicBucket != "" {
+		bucket = dynamicBucket
 	}
-	if OnlyDirMounted() != "" {
+	if onlyDir != "" {
 		var suffix string
 		if strings.HasSuffix(object, "/") {
 			suffix = "/"
 		}
-		object = path.Join(OnlyDirMounted(), object) + suffix
+		object = path.Join(onlyDir, object) + suffix
 	}
 	return bucket, object
 }

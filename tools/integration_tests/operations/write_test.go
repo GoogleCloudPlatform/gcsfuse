@@ -38,7 +38,7 @@ const tempFileContent = "line 1\nline 2\n"
 // //////////////////////////////////////////////////////////////////////
 // Helpers
 // //////////////////////////////////////////////////////////////////////
-func validateExtendedObjectAttributesNonEmpty(objectName string, t *testing.T) *storage.ObjectAttrs {
+func validateExtendedObjectAttributesNonEmpty(objectName, dynmaicBucket, onlyDir string, t *testing.T) *storage.ObjectAttrs {
 	ctx := context.Background()
 	var storageClient *storage.Client
 	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
@@ -49,7 +49,7 @@ func validateExtendedObjectAttributesNonEmpty(objectName string, t *testing.T) *
 		}
 	}()
 
-	attrs, err := client.StatObject(ctx, storageClient, objectName)
+	attrs, err := client.StatObjectDynamicOnlyDir(ctx, storageClient, objectName, dynmaicBucket, onlyDir)
 	if err != nil {
 		t.Errorf("Could not fetch object attributes: %v", err)
 	}
@@ -125,7 +125,7 @@ func (s *OperationSuite) TestWriteAtEndOfFile() {
 
 	setup.CompareFileContents(s.T(), fileName, "line 1\nline 2\nline 3\n")
 	// Validate that extended object attributes are non nil/ non-empty.
-	validateExtendedObjectAttributesNonEmpty(path.Join(TestDirName(s.T()), tempFileName), s.T())
+	validateExtendedObjectAttributesNonEmpty(path.Join(TestDirName(s.T()), tempFileName), s.mountConfiguration.DynamicBucket(), s.mountConfiguration.OnlyDir(), s.T())
 }
 
 // func (s *OperationSuite) TestWriteAtStartOfFile() {
