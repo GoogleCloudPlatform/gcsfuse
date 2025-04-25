@@ -253,7 +253,7 @@ func (t *rangeReaderTest) Test_ReadAt_SuccessfulRead() {
 
 func (t *rangeReaderTest) Test_ReadAt_PartialReadWithEOF() {
 	offset := int64(0)
-	size := int64(10)                                       // shorter than requested
+	size := int64(10)                                       // Shorter than requested
 	partialReader := io.NopCloser(iotest.ErrReader(io.EOF)) // Simulates early EOF
 	r := &fake.FakeReader{ReadCloser: partialReader}
 	t.mockNewReaderWithHandleCallForTestBucket(uint64(offset), uint64(offset+size), r)

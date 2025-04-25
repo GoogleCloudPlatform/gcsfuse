@@ -123,7 +123,7 @@ func (rr *RangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (
 
 // readFromRangeReader reads using the NewReader interface of go-sdk. It uses
 // the existing reader if available, otherwise makes a call to GCS.
-// Before calling this method we have to  use invalidateReaderIfMisalignedOrTooSmall to get the reader start at the correct position.
+// Before calling this method we have to use invalidateReaderIfMisalignedOrTooSmall to get the reader start at the correct position.
 func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset int64, end int64, readType string) (int, error) {
 	var err error
 	// If we don't have a reader, start a read operation.
@@ -310,7 +310,7 @@ func (rr *RangeReader) invalidateReaderIfMisalignedOrTooSmall(offset int64, p []
 		rr.closeReader()
 		rr.reader = nil
 		if rr.start != offset {
-			// Only increment the seek count when discarding a reader due to incorrect positioning.
+			// Return true to increment the seek count when discarding a reader due to incorrect positioning.
 			// Discarding readers that can't fulfill the entire request without this check would prevent
 			// the reader size from growing appropriately in random read scenarios.
 			return true
