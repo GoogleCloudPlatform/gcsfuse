@@ -226,7 +226,7 @@ func (t *FileStreamingWritesTest) TestSyncPendingBufferedWritesForNonZonalBucket
 	operations.ValidateObjectNotFoundErr(t.ctx, t.T(), t.bucket, t.in.Name().GcsObjectName())
 }
 
-func (t *FileStreamingWritesTest) TestSyncPendingBufferedWritesForNonZonalBucketsDoesUpdateSrcSize() {
+func (t *FileStreamingWritesTest) TestSyncPendingBufferedWritesForNonZonalBucketsDoesNotUpdateSrcSize() {
 	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("foobar"), 0))
 	assert.Equal(t.T(), uint64(0), t.in.src.Size)
 
@@ -234,7 +234,7 @@ func (t *FileStreamingWritesTest) TestSyncPendingBufferedWritesForNonZonalBucket
 
 	require.NoError(t.T(), err)
 	assert.False(t.T(), gcsSynced)
-	assert.Equal(t.T(), uint64(6), t.in.src.Size)
+	assert.Equal(t.T(), uint64(0), t.in.src.Size)
 }
 
 func (t *FileStreamingWritesTest) TestOutOfOrderWritesToLocalFileFallBackToTempFile() {
