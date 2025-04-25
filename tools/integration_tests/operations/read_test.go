@@ -15,45 +15,45 @@
 // Provides integration tests for read flows.
 package operations_test
 
-// import (
-// 	"os"
-// 	"testing"
+import (
+	"os"
 
-// 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-// 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-// )
+	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/all_mounting"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+)
 
-// func TestReadAfterWrite(t *testing.T) {
-// 	testDir := setup.SetupTestDirectory(DirForOperationTests)
+func (s *OperationSuite) TestReadAfterWrite() {
+	testDir := setup.SetupTestDirectoryOnMntDir(s.mountConfiguration.MntDir(), TestDirName(s.T()))
 
-// 	tmpDir, err := os.MkdirTemp(testDir, "tmpDir")
-// 	if err != nil {
-// 		t.Errorf("Mkdir at %q: %v", testDir, err)
-// 		return
-// 	}
-// 	for i := 0; i < 10; i++ {
-// 		tmpFile, err := os.CreateTemp(tmpDir, tempFileName)
-// 		if err != nil {
-// 			t.Errorf("Create file at %q: %v", tmpDir, err)
-// 			return
-// 		}
+	tmpDir, err := os.MkdirTemp(testDir, "tmpDir")
+	if err != nil {
+		s.T().Errorf("Mkdir at %q: %v", testDir, err)
+		return
+	}
+	for i := 0; i < 10; i++ {
+		tmpFile, err := os.CreateTemp(tmpDir, tempFileName)
+		if err != nil {
+			s.T().Errorf("Create file at %q: %v", tmpDir, err)
+			return
+		}
 
-// 		// Closing file at the end
-// 		operations.CloseFile(tmpFile)
+		// Closing file at the end
+		operations.CloseFile(tmpFile)
 
-// 		fileName := tmpFile.Name()
+		fileName := tmpFile.Name()
 
-// 		err = operations.WriteFileInAppendMode(fileName, "line 1\n")
-// 		if err != nil {
-// 			t.Errorf("AppendString: %v", err)
-// 		}
+		err = operations.WriteFileInAppendMode(fileName, "line 1\n")
+		if err != nil {
+			s.T().Errorf("AppendString: %v", err)
+		}
 
-// 		content, err := operations.ReadFile(fileName)
-// 		if err != nil {
-// 			t.Errorf("ReadAll: %v", err)
-// 		}
-// 		if got, want := string(content), "line 1\n"; got != want {
-// 			t.Errorf("File content %q not match %q", got, want)
-// 		}
-// 	}
-// }
+		content, err := operations.ReadFile(fileName)
+		if err != nil {
+			s.T().Errorf("ReadAll: %v", err)
+		}
+		if got, want := string(content), "line 1\n"; got != want {
+			s.T().Errorf("File content %q not match %q", got, want)
+		}
+	}
+}
