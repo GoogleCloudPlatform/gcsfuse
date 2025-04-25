@@ -30,7 +30,6 @@ import (
 )
 
 const (
-
 	// MiB is 1 Megabyte. (Silly comment to make the lint warning go away)
 	MiB = 1 << 20
 
@@ -124,7 +123,7 @@ func (rr *RangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (
 
 // readFromRangeReader reads using the NewReader interface of go-sdk. It uses
 // the existing reader if available, otherwise makes a call to GCS.
-// It will use invalidateReaderIfMisalignedOrTooSmall to get the reader at the correct position.
+// It will use invalidateReaderIfMisalignedOrTooSmall to get the reader start at the correct position.
 func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset int64, end int64, readType string) (int, error) {
 	var err error
 	// If we don't have a reader, start a read operation.
@@ -264,6 +263,9 @@ func (rr *RangeReader) startRead(ctx context.Context, start int64, end int64) er
 	return nil
 }
 
+// skipBytes attempts to advance the reader position to the given offset without
+// discarding the existing reader. If possible, it reads and discards data to
+// maintain an active GCS connection, improving throughput for sequential reads.
 func (rr *RangeReader) skipBytes(offset int64) {
 	// Check first if we can read using existing reader. if not, determine which
 	// api to use and call gcs accordingly.
@@ -276,9 +278,12 @@ func (rr *RangeReader) skipBytes(offset int64) {
 	// is a 15-20x improvement in throughput: 150-200 MiB/s instead of 10 MiB/s.
 	if rr.reader != nil && rr.start < offset && offset-rr.start < maxReadSize {
 		bytesToSkip := offset - rr.start
-		p := make([]byte, bytesToSkip)
-		n, _ := io.ReadFull(rr.reader, p)
-		rr.start += int64(n)
+		discardedBytes, copyError := io.CopyN(io.Discard, rr.reader, bytesToSkip)
+		// io.EOF is expected if the reader is shorter than the requested offset to read.
+		if copyError != nil && !errors.Is(copyError, io.EOF) {
+			logger.Warnf("Error while skipping reader bytes: %v", copyError)
+		}
+		rr.start += discardedBytes
 	}
 }
 
