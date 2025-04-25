@@ -15,38 +15,38 @@
 // Provides integration tests for copy file.
 package operations_test
 
-// import (
-// 	"os"
-// 	"path"
-// 	"testing"
+import (
+	"os"
+	"path"
 
-// 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-// 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-// )
+	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/all_mounting"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+)
 
-// func TestCopyFile(t *testing.T) {
-// 	testDir := setup.SetupTestDirectory(DirForOperationTests)
-// 	fileName := path.Join(testDir, tempFileName)
+func (s *OperationSuite) TestCopyFile() {
+	testDir := setup.SetupTestDirectoryOnMntDir(s.mountConfiguration.MntDir(), TestDirName(s.T()))
+	fileName := path.Join(testDir, tempFileName)
 
-// 	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, t)
+	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, s.T())
 
-// 	content, err := operations.ReadFile(fileName)
-// 	if err != nil {
-// 		t.Errorf("Read: %v", err)
-// 	}
+	content, err := operations.ReadFile(fileName)
+	if err != nil {
+		s.T().Errorf("Read: %v", err)
+	}
 
-// 	newFileName := fileName + "Copy"
-// 	if _, err := os.Stat(newFileName); err == nil {
-// 		t.Errorf("Copied file %s already present", newFileName)
-// 	}
+	newFileName := fileName + "Copy"
+	if _, err := os.Stat(newFileName); err == nil {
+		s.T().Errorf("Copied file %s already present", newFileName)
+	}
 
-// 	err = operations.CopyFile(fileName, newFileName)
-// 	if err != nil {
-// 		t.Errorf("Error : %v", err)
-// 	}
+	err = operations.CopyFile(fileName, newFileName)
+	if err != nil {
+		s.T().Errorf("Error : %v", err)
+	}
 
-// 	// Check if the data in the copied file matches the original file,
-// 	// and the data in original file is unchanged.
-// 	setup.CompareFileContents(t, newFileName, string(content))
-// 	setup.CompareFileContents(t, fileName, string(content))
-// }
+	// Check if the data in the copied file matches the original file,
+	// and the data in original file is unchanged.
+	setup.CompareFileContents(s.T(), newFileName, string(content))
+	setup.CompareFileContents(s.T(), fileName, string(content))
+}
