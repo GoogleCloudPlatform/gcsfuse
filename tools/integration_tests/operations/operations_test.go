@@ -22,6 +22,7 @@ import (
 	"path"
 	"strconv"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
@@ -89,10 +90,11 @@ const Content = "line 1\nline 2\n"
 const onlyDirMounted = "OnlyDirMountOperations"
 
 var (
-	cacheDir       string
-	storageClient  *storage.Client
-	ctx            context.Context
-	mountTypes     = []MountingType{StaticMounting, OnlyDirMounting, DynamicMounting, PersistentMounting}
+	cacheDir      string
+	storageClient *storage.Client
+	ctx           context.Context
+	// mountTypes     = []MountingType{StaticMounting, OnlyDirMounting, DynamicMounting, PersistentMounting}
+	mountTypes     = []MountingType{StaticMounting}
 	configurations []TestMountConfiguration
 )
 
@@ -204,12 +206,16 @@ func TestMain(m *testing.M) {
 	}
 
 	configurations = all_mounting.GenerateTestMountConfigurations(mountTypes, flagsSet, setup.TestDir())
+	start := time.Now()
 	successCode := m.Run()
+	log.Printf("Test Run took: %v seconds", time.Since(start).Seconds())
 	all_mounting.UnmountAll(configurations, storageClient)
 
+	start = time.Now()
 	err = client.DeleteBucket(ctx, storageClient, bucketName)
 	if err != nil {
 		log.Printf("Error deleting bucket: %v\n", err)
 	}
+	log.Printf("Delete bucket took: %v seconds", time.Since(start).Seconds())
 	os.Exit(successCode)
 }

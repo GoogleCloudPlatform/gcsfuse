@@ -23,6 +23,7 @@ import (
 	"path"
 	"strings"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
@@ -209,14 +210,12 @@ func GenerateTestMountConfigurations(mountTypes []MountingType, flagsSet [][]str
 }
 
 func UnmountAll(mountConfiguration []TestMountConfiguration, storageClient *storage.Client) error {
-	cnt := 0
+	start := time.Now()
+	if len(mountConfiguration) == 0 {
+		return nil
+	}
 	for _, testMountConfiguration := range mountConfiguration {
 		if testMountConfiguration.mntDir != "" {
-			err := testMountConfiguration.Unmount()
-			if err != nil {
-				cnt++
-				log.Printf("Unable to unmount mntDir: %s, err: %v", testMountConfiguration.mntDir, err)
-			}
 			if testMountConfiguration.mountType == DynamicMounting && testMountConfiguration.useCreatedBucketForDynamicMounting {
 				err := client.DeleteBucket(context.Background(), storageClient, testMountConfiguration.dynamicBucket)
 				if err != nil {
@@ -225,8 +224,11 @@ func UnmountAll(mountConfiguration []TestMountConfiguration, storageClient *stor
 			}
 		}
 	}
-	if cnt > 0 {
-		return fmt.Errorf("failed to unmount %d configurations", cnt)
+	shellCommand := "mount | grep " + mountConfiguration[0].basePackageTestDir + " | awk '{print $3}' | xargs -n 1 fusermount -u "
+	cmd := exec.Command("bash", "-c", shellCommand)
+	if _, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("fusermount error: %w", err)
 	}
+	log.Printf("Unmounting took: %v seconds", time.Since(start).Seconds())
 	return nil
 }
