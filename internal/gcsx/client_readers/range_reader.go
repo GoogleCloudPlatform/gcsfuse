@@ -123,7 +123,7 @@ func (rr *RangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (
 
 // readFromRangeReader reads using the NewReader interface of go-sdk. It uses
 // the existing reader if available, otherwise makes a call to GCS.
-// It will use invalidateReaderIfMisalignedOrTooSmall to get the reader start at the correct position.
+// Before calling this method we have to  use invalidateReaderIfMisalignedOrTooSmall to get the reader start at the correct position.
 func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset int64, end int64, readType string) (int, error) {
 	var err error
 	// If we don't have a reader, start a read operation.
