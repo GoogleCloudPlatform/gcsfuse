@@ -284,6 +284,21 @@ func (rr *RangeReader) skipBytes(offset int64) {
 	}
 }
 
+// invalidateReaderIfMisalignedOrTooSmall ensures that the existing reader is valid
+// for the requested offset and length. If the reader is misaligned (not at the requested
+// offset) or cannot serve the full request within its limit, it is closed and discarded.
+//
+// It attempts to skip forward to the requested offset if possible to avoid creating
+// a new reader unnecessarily. If the reader is discarded due to misalignment, the method
+// returns true to signal that a seek should be recorded.
+//
+// Parameters:
+//   - offset: the starting byte position of the requested read.
+//   - p: the buffer representing the size of the requested read.
+//
+// Returns:
+//   - true if the reader was discarded due to being misaligned (seek should be counted).
+//   - false otherwise.
 func (rr *RangeReader) invalidateReaderIfMisalignedOrTooSmall(offset int64, p []byte) bool {
 	rr.skipBytes(offset)
 
