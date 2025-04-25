@@ -223,7 +223,6 @@ func (t *FileStreamingWritesTest) TestSyncPendingBufferedWritesForNonZonalBucket
 	require.NoError(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 	assert.True(t.T(), t.in.IsLocal())
-
 	operations.ValidateObjectNotFoundErr(t.ctx, t.T(), t.bucket, t.in.Name().GcsObjectName())
 }
 
