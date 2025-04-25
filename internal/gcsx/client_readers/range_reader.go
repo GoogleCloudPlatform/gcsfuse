@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
@@ -28,12 +29,26 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 )
 
+const (
+
+	// MiB is 1 Megabyte. (Silly comment to make the lint warning go away)
+	MiB = 1 << 20
+
+	// Max read size in bytes for random reads.
+	// If the average read size (between seeks) is below this number, reads will optimise for random access.
+	// We will skip forwards in a GCS response at most this many bytes.
+	// About 6 MiB of data is buffered anyway, so 8 MiB seems like a good round number.
+	maxReadSize = 8 * MiB
+)
+
 type RangeReader struct {
 	gcsx.Reader
 	object *gcs.MinObject
 	bucket gcs.Bucket
-	start  int64
-	limit  int64
+	// start is the starting index for the reader.
+	start int64
+	// limit is the ending index for the reader.
+	limit int64
 
 	// If non-nil, an in-flight read request and a function for cancelling it.
 	//
@@ -107,7 +122,7 @@ func (rr *RangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (
 	return readerResponse, err
 }
 
-// readFromRangeReader reads using the NewReader interface of go-sdk. Its uses
+// readFromRangeReader reads using the NewReader interface of go-sdk. It uses
 // the existing reader if available, otherwise makes a call to GCS.
 func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset int64, end int64, readType string) (int, error) {
 	var err error
@@ -121,8 +136,6 @@ func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset
 	}
 
 	var n int
-	// Now we have a reader positioned at the correct place. Consume as much from
-	// it as possible.
 	n, err = rr.readFull(ctx, p)
 	rr.start += int64(n)
 
@@ -248,4 +261,61 @@ func (rr *RangeReader) startRead(ctx context.Context, start int64, end int64) er
 	common.CaptureGCSReadMetrics(ctx, rr.metricHandle, util.Sequential, requestedDataSize)
 
 	return nil
+}
+
+func (rr *RangeReader) skipBytes(offset int64) {
+	// Check first if we can read using existing reader. if not, determine which
+	// api to use and call gcs accordingly.
+
+	// When the offset is AFTER the reader position, try to seek forward, within reason.
+	// This happens when the kernel page cache serves some data. It's very common for
+	// concurrent reads, often by only a few 128kB fuse read requests. The aim is to
+	// re-use GCS connection and avoid throwing away already read data.
+	// For parallel sequential reads to a single file, not throwing away the connections
+	// is a 15-20x improvement in throughput: 150-200 MiB/s instead of 10 MiB/s.
+	if rr.reader != nil && rr.start < offset && offset-rr.start < maxReadSize {
+		bytesToSkip := offset - rr.start
+		p := make([]byte, bytesToSkip)
+		n, _ := io.ReadFull(rr.reader, p)
+		rr.start += int64(n)
+	}
+}
+
+func (rr *RangeReader) invalidateReaderIfMisalignedOrTooSmall(offset int64, p []byte) bool {
+	rr.skipBytes(offset)
+
+	// If we have an existing reader, but it's positioned at the wrong place,
+	// clean it up and throw it away.
+	// We will also clean up the existing reader if it can't serve the entire request.
+	dataToRead := math.Min(float64(offset+int64(len(p))), float64(rr.object.Size))
+	if rr.reader != nil && (rr.start != offset || int64(dataToRead) > rr.limit) {
+		rr.closeReader()
+		rr.reader = nil
+		if rr.start != offset {
+			// Only increment the seek count when discarding a reader due to incorrect positioning.
+			// Discarding readers that can't fulfill the entire request without this check would prevent
+			// the reader size from growing appropriately in random read scenarios.
+			return true
+		}
+	}
+	return false
+}
+
+// readFromExistingReader attempts to read data from an existing reader if one is available.
+// If a reader exists and the read is successful, the data is returned.
+// Otherwise, it returns an error indicating that a fallback to another reader is needed.
+func (rr *RangeReader) readFromExistingReader(ctx context.Context, req *gcsx.GCSReaderRequest) (gcsx.ReaderResponse, error) {
+	readerResponse := gcsx.ReaderResponse{
+		DataBuf: req.Buffer,
+		Size:    0,
+	}
+	var err error
+
+	if rr.reader != nil {
+		readerResponse, err = rr.ReadAt(ctx, req)
+		return readerResponse, err
+	}
+
+	err = gcsx.FallbackToAnotherReader
+	return readerResponse, err
 }
