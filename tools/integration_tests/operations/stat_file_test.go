@@ -15,9 +15,7 @@
 package operations_test
 
 import (
-	"fmt"
 	"os"
-	"path/filepath"
 	"syscall"
 	"testing"
 
@@ -35,38 +33,6 @@ type OperationSuite struct {
 
 func (s *OperationSuite) SetupSuite() {
 	err := s.mountConfiguration.Mount(s.T(), storageClient)
-	require.NoError(s.T(), err)
-}
-
-func removeObjectsDirectories(rootDir string) error {
-	return filepath.WalkDir(rootDir, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			// Propagate the error upwards, but continue walking if possible
-			// (e.g., permission error on a specific file/dir shouldn't stop everything)
-			fmt.Printf("Error accessing path %q: %v\n", path, err)
-			return nil // or return err to stop walking
-		}
-
-		// Check if it's a directory and its name is "objects"
-		// And ensure it's not the rootDir itself if rootDir is named "objects"
-		if d.IsDir() && d.Name() == "objects" && path != rootDir {
-			fmt.Printf("Removing directory: %s\n", path)
-			err := os.RemoveAll(path)
-			if err != nil {
-				fmt.Printf("Failed to remove directory %q: %v\n", path, err)
-				// Decide if you want to stop or continue on error
-				return err // Stop on error
-				// return nil // Continue on error
-			}
-			// If a directory is removed, skip walking its contents
-			return filepath.SkipDir
-		}
-		return nil
-	})
-}
-
-func (s *OperationSuite) TearDownTest() {
-	err := removeObjectsDirectories(s.mountConfiguration.MntDir())
 	require.NoError(s.T(), err)
 }
 

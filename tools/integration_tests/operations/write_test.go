@@ -17,8 +17,10 @@ package operations_test
 
 import (
 	"context"
+	"os"
 	"path"
 	"reflect"
+	"syscall"
 	"testing"
 	"time"
 
@@ -128,96 +130,96 @@ func (s *OperationSuite) TestWriteAtEndOfFile() {
 	validateExtendedObjectAttributesNonEmpty(path.Join(TestDirName(s.T()), tempFileName), s.mountConfiguration.DynamicBucket(), s.mountConfiguration.OnlyDir(), s.T())
 }
 
-// func (s *OperationSuite) TestWriteAtStartOfFile() {
-// 	testDir := setup.SetupTestDirectory(DirForOperationTests)
-// 	fileName := path.Join(testDir, tempFileName)
+func (s *OperationSuite) TestWriteAtStartOfFile() {
+	testDir := setup.SetupTestDirectoryOnMntDir(s.mountConfiguration.MntDir(), TestDirName(s.T()))
+	fileName := path.Join(testDir, tempFileName)
 
-// 	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, s.T())
+	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, s.T())
 
-// 	err := operations.WriteFile(fileName, "line 4\n")
-// 	if err != nil {
-// 		s.T().Errorf("WriteString-Start: %v", err)
-// 	}
+	err := operations.WriteFile(fileName, "line 4\n")
+	if err != nil {
+		s.T().Errorf("WriteString-Start: %v", err)
+	}
 
-// 	setup.CompareFileContents(s.T(), fileName, "line 4\nline 2\n")
-// 	// Validate that extended object attributes are non nil/ non-empty.
-// 	validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), s.T())
-// }
+	setup.CompareFileContents(s.T(), fileName, "line 4\nline 2\n")
+	// Validate that extended object attributes are non nil/ non-empty.
+	validateExtendedObjectAttributesNonEmpty(path.Join(TestDirName(s.T()), tempFileName), s.mountConfiguration.DynamicBucket(), s.mountConfiguration.OnlyDir(), s.T())
+}
 
-// func (s *OperationSuite) TestWriteAtRandom() {
-// 	testDir := setup.SetupTestDirectory(DirForOperationTests)
-// 	fileName := path.Join(testDir, tempFileName)
+func (s *OperationSuite) TestWriteAtRandom() {
+	testDir := setup.SetupTestDirectoryOnMntDir(s.mountConfiguration.MntDir(), TestDirName(s.T()))
+	fileName := path.Join(testDir, tempFileName)
 
-// 	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, s.T())
+	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, s.T())
 
-// 	f, err := os.OpenFile(fileName, os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission_0600)
-// 	if err != nil {
-// 		s.T().Errorf("Open file for write at random: %v", err)
-// 	}
+	f, err := os.OpenFile(fileName, os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission_0600)
+	if err != nil {
+		s.T().Errorf("Open file for write at random: %v", err)
+	}
 
-// 	// Write at 7th byte which corresponds to the start of 2nd line
-// 	// thus changing line2\n with line5\n.
-// 	if _, err = f.WriteAt([]byte("line 5\n"), 7); err != nil {
-// 		s.T().Errorf("WriteString-Random: %v", err)
-// 	}
-// 	// Closing file at the end
-// 	operations.CloseFile(f)
+	// Write at 7th byte which corresponds to the start of 2nd line
+	// thus changing line2\n with line5\n.
+	if _, err = f.WriteAt([]byte("line 5\n"), 7); err != nil {
+		s.T().Errorf("WriteString-Random: %v", err)
+	}
+	// Closing file at the end
+	operations.CloseFile(f)
 
-// 	setup.CompareFileContents(s.T(), fileName, "line 1\nline 5\n")
-// 	// Validate that extended object attributes are non nil/ non-empty.
-// 	validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), s.T())
-// }
+	setup.CompareFileContents(s.T(), fileName, "line 1\nline 5\n")
+	// Validate that extended object attributes are non nil/ non-empty.
+	validateExtendedObjectAttributesNonEmpty(path.Join(TestDirName(s.T()), tempFileName), s.mountConfiguration.DynamicBucket(), s.mountConfiguration.OnlyDir(), s.T())
+}
 
-// func (s *OperationSuite) TestCreateFile() {
-// 	testDir := setup.SetupTestDirectory(DirForOperationTests)
-// 	fileName := path.Join(testDir, tempFileName)
+func (s *OperationSuite) TestCreateFile() {
+	testDir := setup.SetupTestDirectoryOnMntDir(s.mountConfiguration.MntDir(), TestDirName(s.T()))
+	fileName := path.Join(testDir, tempFileName)
 
-// 	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, s.T())
+	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, s.T())
 
-// 	// Stat the file to check if it exists.
-// 	if _, err := os.Stat(fileName); err != nil {
-// 		s.T().Errorf("File not found, %v", err)
-// 	}
+	// Stat the file to check if it exists.
+	if _, err := os.Stat(fileName); err != nil {
+		s.T().Errorf("File not found, %v", err)
+	}
 
-// 	setup.CompareFileContents(s.T(), fileName, "line 1\nline 2\n")
-// 	// Validate that extended object attributes are non nil/ non-empty.
-// 	validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), s.T())
-// }
+	setup.CompareFileContents(s.T(), fileName, "line 1\nline 2\n")
+	// Validate that extended object attributes are non nil/ non-empty.
+	validateExtendedObjectAttributesNonEmpty(path.Join(TestDirName(s.T()), tempFileName), s.mountConfiguration.DynamicBucket(), s.mountConfiguration.OnlyDir(), s.T())
+}
 
-// func (s *OperationSuite) TestAppendFileOperationsDoesNotChangeObjectAttributes() {
-// 	testDir := setup.SetupTestDirectory(DirForOperationTests)
-// 	// Create file.
-// 	fileName := path.Join(testDir, tempFileName)
+func (s *OperationSuite) TestAppendFileOperationsDoesNotChangeObjectAttributes() {
+	testDir := setup.SetupTestDirectoryOnMntDir(s.mountConfiguration.MntDir(), TestDirName(s.T()))
+	// Create file.
+	fileName := path.Join(testDir, tempFileName)
 
-// 	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, s.T())
-// 	attr1 := validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), s.T())
-// 	// Append to the file.
-// 	err := operations.WriteFileInAppendMode(fileName, appendContent)
-// 	if err != nil {
-// 		s.T().Errorf("Could not append to file: %v", err)
-// 	}
-// 	attr2 := validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), s.T())
+	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, s.T())
+	attr1 := validateExtendedObjectAttributesNonEmpty(path.Join(TestDirName(s.T()), tempFileName), s.mountConfiguration.DynamicBucket(), s.mountConfiguration.OnlyDir(), s.T())
+	// Append to the file.
+	err := operations.WriteFileInAppendMode(fileName, appendContent)
+	if err != nil {
+		s.T().Errorf("Could not append to file: %v", err)
+	}
+	attr2 := validateExtendedObjectAttributesNonEmpty(path.Join(TestDirName(s.T()), tempFileName), s.mountConfiguration.DynamicBucket(), s.mountConfiguration.OnlyDir(), s.T())
 
-// 	// Validate object attributes are as expected.
-// 	validateObjectAttributes(attr1, attr2, s.T())
-// }
+	// Validate object attributes are as expected.
+	validateObjectAttributes(attr1, attr2, s.T())
+}
 
-// func (s *OperationSuite) TestWriteAtFileOperationsDoesNotChangeObjectAttributes() {
-// 	testDir := setup.SetupTestDirectory(DirForOperationTests)
-// 	// Create file.
-// 	fileName := path.Join(testDir, tempFileName)
+func (s *OperationSuite) TestWriteAtFileOperationsDoesNotChangeObjectAttributes() {
+	testDir := setup.SetupTestDirectoryOnMntDir(s.mountConfiguration.MntDir(), TestDirName(s.T()))
+	// Create file.
+	fileName := path.Join(testDir, tempFileName)
 
-// 	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, s.T())
-// 	attr1 := validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), s.T())
-// 	// Over-write the file.
-// 	fh, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_DIRECT, operations.FilePermission_0600)
-// 	if err != nil {
-// 		s.T().Errorf("Could not open file %s after creation.", fileName)
-// 	}
-// 	operations.WriteAt(tempFileContent+appendContent, 0, fh, s.T())
-// 	operations.CloseFile(fh)
-// 	attr2 := validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), s.T())
+	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, s.T())
+	attr1 := validateExtendedObjectAttributesNonEmpty(path.Join(TestDirName(s.T()), tempFileName), s.mountConfiguration.DynamicBucket(), s.mountConfiguration.OnlyDir(), s.T())
+	// Over-write the file.
+	fh, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_DIRECT, operations.FilePermission_0600)
+	if err != nil {
+		s.T().Errorf("Could not open file %s after creation.", fileName)
+	}
+	operations.WriteAt(tempFileContent+appendContent, 0, fh, s.T())
+	operations.CloseFile(fh)
+	attr2 := validateExtendedObjectAttributesNonEmpty(path.Join(TestDirName(s.T()), tempFileName), s.mountConfiguration.DynamicBucket(), s.mountConfiguration.OnlyDir(), s.T())
 
-// 	// Validate object attributes are as expected.
-// 	validateObjectAttributes(attr1, attr2, s.T())
-// }
+	// Validate object attributes are as expected.
+	validateObjectAttributes(attr1, attr2, s.T())
+}
