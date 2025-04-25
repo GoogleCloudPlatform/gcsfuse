@@ -173,10 +173,14 @@ func (t *FileStreamingWritesZonalBucketTest) TestSourceGenerationIsAuthoritative
 	assert.True(t.T(), t.in.SourceGenerationIsAuthoritative())
 }
 
-func (t *FileStreamingWritesZonalBucketTest) TestSyncPendingBufferedWritesForZonalBuckets() {
+func (t *FileStreamingWritesZonalBucketTest) TestSyncPendingBufferedWritesForZonalBucketsPromotesInodeToNonLocal() {
 	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("pizza"), 0))
 
-	assert.NoError(t.T(), t.in.SyncPendingBufferedWrites())
+	gcsSynced, err := t.in.SyncPendingBufferedWrites()
+
+	require.NoError(t.T(), err)
+	assert.True(t.T(), gcsSynced)
+	assert.False(t.T(), t.in.IsLocal())
 	content, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), "pizza", string(content))
@@ -186,8 +190,10 @@ func (t *FileStreamingWritesZonalBucketTest) TestSyncPendingBufferedWritesForZon
 	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("foobar"), 0))
 	assert.Equal(t.T(), uint64(0), t.in.src.Size)
 
-	assert.NoError(t.T(), t.in.SyncPendingBufferedWrites())
+	gcsSynced, err := t.in.SyncPendingBufferedWrites()
 
+	require.NoError(t.T(), err)
+	assert.True(t.T(), gcsSynced)
 	assert.Equal(t.T(), uint64(6), t.in.src.Size)
 }
 
@@ -209,10 +215,15 @@ func (t *FileStreamingWritesTest) TestSourceGenerationIsAuthoritativeReturnsFals
 	assert.False(t.T(), t.in.SourceGenerationIsAuthoritative())
 }
 
-func (t *FileStreamingWritesTest) TestSyncPendingBufferedWritesForNonZonalBuckets() {
+func (t *FileStreamingWritesTest) TestSyncPendingBufferedWritesForNonZonalBucketsDoesNotPromoteInodeToNonLocal() {
 	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("taco"), 0))
 
-	assert.NoError(t.T(), t.in.SyncPendingBufferedWrites())
+	gcsSynced, err := t.in.SyncPendingBufferedWrites()
+
+	require.NoError(t.T(), err)
+	assert.False(t.T(), gcsSynced)
+	assert.True(t.T(), t.in.IsLocal())
+
 	operations.ValidateObjectNotFoundErr(t.ctx, t.T(), t.bucket, t.in.Name().GcsObjectName())
 }
 
@@ -220,8 +231,10 @@ func (t *FileStreamingWritesTest) TestSyncPendingBufferedWritesForNonZonalBucket
 	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("foobar"), 0))
 	assert.Equal(t.T(), uint64(0), t.in.src.Size)
 
-	assert.NoError(t.T(), t.in.SyncPendingBufferedWrites())
+	gcsSynced, err := t.in.SyncPendingBufferedWrites()
 
+	require.NoError(t.T(), err)
+	assert.False(t.T(), gcsSynced)
 	assert.Equal(t.T(), uint64(6), t.in.src.Size)
 }
 
