@@ -235,7 +235,7 @@ func (t *rangeReaderTest) Test_ReadAt_ReadFailsWithTimeoutError() {
 	t.mockBucket.AssertExpectations(t.T())
 }
 
-func (t *rangeReaderTest) TestReadAt_SuccessfulRead() {
+func (t *rangeReaderTest) Test_ReadAt_SuccessfulRead() {
 	offset := int64(0)
 	size := int64(5)
 	content := []byte("hello world")
@@ -250,7 +250,7 @@ func (t *rangeReaderTest) TestReadAt_SuccessfulRead() {
 	t.mockBucket.AssertExpectations(t.T())
 }
 
-func (t *rangeReaderTest) TestReadAt_PartialReadWithEOF() {
+func (t *rangeReaderTest) Test_ReadAt_PartialReadWithEOF() {
 	offset := int64(0)
 	size := int64(10)                                       // shorter than requested
 	partialReader := io.NopCloser(iotest.ErrReader(io.EOF)) // Simulates early EOF
@@ -264,7 +264,7 @@ func (t *rangeReaderTest) TestReadAt_PartialReadWithEOF() {
 	t.mockBucket.AssertExpectations(t.T())
 }
 
-func (t *rangeReaderTest) TestReadAt_StartReadNotFound() {
+func (t *rangeReaderTest) Test_ReadAt_StartReadNotFound() {
 	offset := int64(0)
 	size := int64(5)
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(nil, &gcs.NotFoundError{}).Once()
@@ -277,7 +277,7 @@ func (t *rangeReaderTest) TestReadAt_StartReadNotFound() {
 	t.mockBucket.AssertExpectations(t.T())
 }
 
-func (t *rangeReaderTest) TestReadAt_StartReadUnexpectedError() {
+func (t *rangeReaderTest) Test_ReadAt_StartReadUnexpectedError() {
 	offset := int64(0)
 	size := int64(5)
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(nil, errors.New("network error")).Once()
