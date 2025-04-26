@@ -402,10 +402,16 @@ func CopyFileInBucket(ctx context.Context, storageClient *storage.Client, srcfil
 	}
 }
 
+// DeleteBucket efficiently deletes all objects in a bucket concurrently and then deletes the bucket itself.
 func DeleteBucket(ctx context.Context, client *storage.Client, bucketName string) error {
 	bucket := client.Bucket(bucketName)
 
-	// Iterate through objects and delete them
+	// Define the number of concurrent workers for deleting objects.
+	// You can adjust this value based on your application's needs and the GCS rate limits.
+	const numWorkers = 50 // Example: allow up to 50 concurrent deletions
+
+	// First, list all objects in the bucket.
+	var objectNames []string
 	query := &storage.Query{}
 	it := bucket.Objects(ctx, query)
 	for {
@@ -414,18 +420,50 @@ func DeleteBucket(ctx context.Context, client *storage.Client, bucketName string
 			break // No more objects
 		}
 		if err != nil {
-			log.Fatalf("Error iterating through objects: %v", err)
+			// If listing objects fails, we can't proceed.
+			log.Fatalf("Error iterating through objects to list them: %v", err)
+			return err
 		}
-
-		obj := bucket.Object(objAttrs.Name)
-		err = obj.Delete(ctx)
-		if err != nil {
-			log.Fatalf("Failed to delete object %s: %v", objAttrs.Name, err)
-		}
+		objectNames = append(objectNames, objAttrs.Name)
 	}
 
+	var wg sync.WaitGroup
+	// Create a channel to distribute object names to worker goroutines.
+	// The channel is buffered to avoid blocking the main goroutine if workers are busy.
+	objectNameChan := make(chan string, len(objectNames))
+
+	// Launch worker goroutines.
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go func(workerID int) {
+			defer wg.Done()
+			for objName := range objectNameChan {
+				obj := bucket.Object(objName)
+				if err := obj.Delete(ctx); err != nil {
+					// Log individual object delete errors but continue processing others.
+					// Depending on requirements, you might want to collect these errors.
+					log.Printf("Worker %d: Failed to delete object %s: %v", workerID, objName, err)
+				} else {
+					// Optional: Log successful deletions for tracking.
+					// log.Printf("Worker %d: Successfully deleted object %s", workerID, objName)
+				}
+			}
+		}(i)
+	}
+
+	// Send object names to the workers.
+	for _, name := range objectNames {
+		objectNameChan <- name
+	}
+	log.Println("Deleted: ", len(objectNames), " objects")
+	close(objectNameChan) // Close the channel to signal workers that no more objects will be sent.
+
+	// Wait for all worker goroutines to finish.
+	wg.Wait()
+
+	// After all objects are deleted (or if there were none), delete the bucket itself.
 	if err := bucket.Delete(ctx); err != nil {
-		log.Printf("Bucket(%q).Delete: %v", bucketName, err)
+		log.Printf("Failed to delete bucket %q: %v", bucketName, err)
 		return err
 	}
 	return nil
