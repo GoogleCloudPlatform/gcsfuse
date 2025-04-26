@@ -39,10 +39,15 @@ func extractLogFile(flags []string) (string, error) {
 }
 
 func MountGcsfuse(binaryFile string, flags []string) error {
+	return MountGcsfuseWithEnvOverride(binaryFile, flags, nil)
+}
+
+func MountGcsfuseWithEnvOverride(binaryFile string, flags []string, envOverride []string) error {
 	mountCmd := exec.Command(
 		binaryFile,
 		flags...,
 	)
+	mountCmd.Env = envOverride
 	logFile, err := extractLogFile(flags)
 	if err != nil {
 		return err

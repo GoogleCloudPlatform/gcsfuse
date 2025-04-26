@@ -28,6 +28,10 @@ func MountGcsfuseWithStaticMounting(flags []string) (err error) {
 }
 
 func MountGcsfuseWithStaticMountingMntDirAndLogFile(flags []string, mntDir, logFile string) (err error) {
+	return MountGcsfuseWithStaticMountingMntDirAndLogFileAndEnvOverride(flags, mntDir, logFile, nil)
+}
+
+func MountGcsfuseWithStaticMountingMntDirAndLogFileAndEnvOverride(flags []string, mntDir, logFile string, envOverride []string) (err error) {
 	var defaultArg []string
 	if setup.TestOnTPCEndPoint() {
 		defaultArg = append(defaultArg, "--custom-endpoint=storage.apis-tpczero.goog:443",
@@ -43,7 +47,7 @@ func MountGcsfuseWithStaticMountingMntDirAndLogFile(flags []string, mntDir, logF
 		flags = append(flags, defaultArg[i])
 	}
 
-	err = mounting.MountGcsfuse(setup.BinFile(), flags)
+	err = mounting.MountGcsfuseWithEnvOverride(setup.BinFile(), flags, envOverride)
 
 	return err
 }
