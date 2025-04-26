@@ -214,16 +214,20 @@ func AppendPersistentMountConfigurations(configs []TestMountConfiguration, flags
 }
 
 func GenerateTestMountConfigurations(ctx context.Context, storageClient *storage.Client, mountTypes []MountingType, flagsSet [][]string, basePackageTestDir string, runCredTests bool) []TestMountConfiguration {
-	serviceAccount, localKeyFilePath := creds_tests.CreateCredentials(ctx)
-	creds_tests.ApplyPermissionToServiceAccount(ctx, storageClient, serviceAccount, "objectVeiwer", setup.TestBucket())
+	serviceAccount := ""
+	localKeyFilePath := ""
 	var configs []TestMountConfiguration
 	for _, mountType := range mountTypes {
 		for _, flags := range flagsSet {
 			switch mountType {
 			case StaticMounting:
 				configs = AppendStaticMountConfigurations(configs, flags, basePackageTestDir, runCredTests, localKeyFilePath)
-				flags := append(flags, "--key-file="+localKeyFilePath)
 				if runCredTests {
+					if serviceAccount == "" {
+						serviceAccount, localKeyFilePath = creds_tests.CreateCredentials(ctx)
+						creds_tests.ApplyPermissionToServiceAccount(ctx, storageClient, serviceAccount, "objectAdmin", setup.TestBucket())
+					}
+					flags := append(flags, "--key-file="+localKeyFilePath)
 					configs = AppendStaticMountConfigurations(configs, flags, basePackageTestDir, runCredTests, localKeyFilePath)
 				}
 			case OnlyDirMounting:

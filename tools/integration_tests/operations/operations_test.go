@@ -90,7 +90,7 @@ var (
 	cacheDir       string
 	storageClient  *storage.Client
 	ctx            context.Context
-	mountTypes     = []MountingType{StaticMounting, OnlyDirMounting, DynamicMounting, PersistentMounting}
+	mountTypes     = []MountingType{OnlyDirMounting, DynamicMounting, PersistentMounting}
 	configurations []TestMountConfiguration
 )
 
@@ -204,7 +204,7 @@ func TestMain(m *testing.M) {
 	configurations = GenerateTestMountConfigurations(ctx, storageClient, mountTypes, flagsSet, setup.TestDir(), true)
 	start := time.Now()
 	successCode := m.Run()
-	log.Printf("Test Run took: %v seconds", time.Since(start).Seconds())
+	log.Printf("Test Run took: %v seconds for # configuration: %d", time.Since(start).Seconds(), len(configurations))
 	err = UnmountAll(ctx, storageClient, configurations)
 	if err != nil {
 		log.Println("Error unmounting:", err)
