@@ -25,7 +25,6 @@ import (
 	"testing"
 	"time"
 
-	"cloud.google.com/go/compute/metadata"
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/creds_tests"
@@ -70,18 +69,17 @@ func (t MountingType) String() string {
 }
 
 type TestMountConfiguration struct {
-	basePackageTestDir                 string // TestDir()
-	namedTestDir                       string // TestDir()/TestName()
-	flags                              []string
-	mountType                          MountingType
-	logFile                            string // TestDir()/TestName()/gcsfuse.log
-	mntDir                             string // TestDir()/TestName()/mnt
-	onlyDirExistsOnBucket              bool   // scenario when onlyDir exists on testBucket.
-	onlyDir                            string // represents onlyDir if it's OnlyDirMounting.
-	dynamicBucket                      string // Stores whatever bucket dynamic mount tests are running...
-	useCreatedBucketForDynamicMounting bool   // Use createdBucket for dynamic Mounting.
-	dynmaincMntDir                     string // MntDir for dynamic mounting.
-	envOverride                        []string
+	basePackageTestDir    string // TestDir()
+	namedTestDir          string // TestDir()/TestName()
+	flags                 []string
+	mountType             MountingType
+	logFile               string // TestDir()/TestName()/gcsfuse.log
+	mntDir                string // TestDir()/TestName()/mnt
+	onlyDirExistsOnBucket bool   // scenario when onlyDir exists on testBucket.
+	onlyDir               string // represents onlyDir if it's OnlyDirMounting.
+	dynamicBucket         string // Stores whatever bucket dynamic mount tests are running...
+	dynmaincMntDir        string // MntDir for dynamic mounting.
+	envOverride           []string
 }
 
 func (t *TestMountConfiguration) OnlyDir() string {
@@ -139,12 +137,6 @@ func (t *TestMountConfiguration) Mount(tb testing.TB, storageClient *storage.Cli
 	case PersistentMounting:
 		err = persistent_mounting.MountGcsfuseWithPersistentMountingMntDirLogFile(t.flags, mntDir, t.logFile)
 	case DynamicMounting:
-		ctx := context.Background()
-		if t.useCreatedBucketForDynamicMounting {
-			t.dynamicBucket = dynamic_mounting.CreateTestBucketForDynamicMounting(ctx, storageClient)
-		} else {
-			t.dynamicBucket = setup.TestBucket()
-		}
 		err = dynamic_mounting.MountGcsfuseWithDynamicMountingMntDirLogFile(t.flags, mntDir, t.logFile)
 	case OnlyDirMounting:
 		ctx := context.Background()
@@ -202,9 +194,9 @@ func AppendOnlyDirMountConfigurations(configs []TestMountConfiguration, flags []
 	return configs
 }
 
-func AppendDynamicMountConfigurations(configs []TestMountConfiguration, flags []string, basePackageTestDir string) []TestMountConfiguration {
-	configs = append(configs, TestMountConfiguration{mountType: DynamicMounting, flags: flags, basePackageTestDir: basePackageTestDir, useCreatedBucketForDynamicMounting: false})
-	configs = append(configs, TestMountConfiguration{mountType: DynamicMounting, flags: flags, basePackageTestDir: basePackageTestDir, useCreatedBucketForDynamicMounting: true})
+func AppendDynamicMountConfigurations(configs []TestMountConfiguration, flags []string, basePackageTestDir, dynamicBucket, testBucket string) []TestMountConfiguration {
+	configs = append(configs, TestMountConfiguration{mountType: DynamicMounting, flags: flags, basePackageTestDir: basePackageTestDir, dynamicBucket: dynamicBucket})
+	configs = append(configs, TestMountConfiguration{mountType: DynamicMounting, flags: flags, basePackageTestDir: basePackageTestDir, dynamicBucket: testBucket})
 	return configs
 }
 
@@ -213,10 +205,10 @@ func AppendPersistentMountConfigurations(configs []TestMountConfiguration, flags
 	return configs
 }
 
-func GenerateTestMountConfigurations(ctx context.Context, storageClient *storage.Client, mountTypes []MountingType, flagsSet [][]string, basePackageTestDir string, runCredTests bool) []TestMountConfiguration {
+func GenerateTestMountConfigurations(ctx context.Context, storageClient *storage.Client, mountTypes []MountingType, flagsSet [][]string, basePackageTestDir string, runCredTests bool) (configs []TestMountConfiguration, bucketList []string) {
+	bucketList = append(bucketList, setup.TestBucket())
 	serviceAccount := ""
 	localKeyFilePath := ""
-	var configs []TestMountConfiguration
 	for _, mountType := range mountTypes {
 		for _, flags := range flagsSet {
 			switch mountType {
@@ -233,41 +225,27 @@ func GenerateTestMountConfigurations(ctx context.Context, storageClient *storage
 			case OnlyDirMounting:
 				configs = AppendOnlyDirMountConfigurations(configs, flags, basePackageTestDir)
 			case DynamicMounting:
-				configs = AppendDynamicMountConfigurations(configs, flags, basePackageTestDir)
+				CreatedBucket := dynamic_mounting.CreateTestBucketForDynamicMounting(ctx, storageClient)
+				bucketList = append(bucketList, CreatedBucket)
+				configs = AppendDynamicMountConfigurations(configs, flags, basePackageTestDir, CreatedBucket, setup.TestBucket())
 			case PersistentMounting:
 				configs = AppendPersistentMountConfigurations(configs, flags, basePackageTestDir)
 			}
 		}
 	}
-	return configs
+	return
 }
 
-func UnmountAll(ctx context.Context, storageClient *storage.Client, mountConfiguration []TestMountConfiguration) error {
+func UnmountAll(configs []TestMountConfiguration) error {
 	start := time.Now()
-	if len(mountConfiguration) == 0 {
+	if len(configs) == 0 {
+		log.Printf("Unmounting took: %v seconds", time.Since(start).Seconds())
 		return nil
 	}
-	for _, testMountConfiguration := range mountConfiguration {
-		if testMountConfiguration.mntDir != "" {
-			if testMountConfiguration.mountType == DynamicMounting && testMountConfiguration.useCreatedBucketForDynamicMounting {
-				err := client.DeleteBucket(ctx, storageClient, testMountConfiguration.dynamicBucket)
-				if err != nil {
-					log.Printf("Unable to delete bucket: %s, err: %v", testMountConfiguration.dynamicBucket, err)
-				}
-			}
-		}
-	}
-	projectId, err := metadata.ProjectIDWithContext(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get project ID: %w", err)
-	}
-
-	creds_tests.RevokePermission(ctx, storageClient, creds_tests.NameOfServiceAccount+"@"+projectId+".iam.gserviceaccount.com", "objectViewer", setup.TestBucket())
-	shellCommand := "mount | grep " + mountConfiguration[0].basePackageTestDir + " | awk '{print $3}' | xargs -n 1 fusermount -u "
+	shellCommand := "mount | grep " + configs[0].basePackageTestDir + " | awk '{print $3}' | xargs -n 1 fusermount -u "
 	cmd := exec.Command("bash", "-c", shellCommand)
 	if _, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("fusermount error: %w", err)
 	}
-	log.Printf("Unmounting took: %v seconds", time.Since(start).Seconds())
 	return nil
 }

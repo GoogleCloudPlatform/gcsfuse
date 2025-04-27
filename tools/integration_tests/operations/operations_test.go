@@ -88,11 +88,12 @@ const ContentInFileInDirThreeInCreateThreeLevelDirTest = "Hello world!!"
 const Content = "line 1\nline 2\n"
 
 var (
-	cacheDir       string
-	storageClient  *storage.Client
-	ctx            context.Context
-	mountTypes     = []MountingType{StaticMounting, OnlyDirMounting, DynamicMounting, PersistentMounting}
-	configurations []TestMountConfiguration
+	cacheDir      string
+	storageClient *storage.Client
+	ctx           context.Context
+	mountTypes    = []MountingType{StaticMounting, OnlyDirMounting, DynamicMounting, PersistentMounting}
+	configs       []TestMountConfiguration
+	bucketList    []string
 )
 
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
@@ -202,20 +203,21 @@ func TestMain(m *testing.M) {
 		os.Exit(successCodeTPC)
 	}
 
-	configurations = GenerateTestMountConfigurations(ctx, storageClient, mountTypes, flagsSet, setup.TestDir(), true)
+	configs, bucketList = GenerateTestMountConfigurations(ctx, storageClient, mountTypes, flagsSet, setup.TestDir(), true)
 	start := time.Now()
 	successCode := m.Run()
-	log.Printf("Test Run took: %v seconds for # configuration: %d", time.Since(start).Seconds(), len(configurations))
-	err = UnmountAll(ctx, storageClient, configurations)
+	log.Printf("Test Run took: %v seconds for # configuration: %d", time.Since(start).Seconds(), len(configs))
+	start = time.Now()
+	errMap := client.DeleteBucketsAndContents(ctx, storageClient, bucketList, 50)
+	for bucketName, err := range errMap {
+		log.Printf("Error from bucket %s: %v\n", bucketName, err)
+	}
+	log.Printf("Deletion of buckets took: %v seconds", time.Since(start).Seconds())
+	start = time.Now()
+	err = UnmountAll(configs)
 	if err != nil {
 		log.Println("Error unmounting:", err)
 	}
-
-	start = time.Now()
-	err = client.DeleteBucket(ctx, storageClient, bucketName)
-	if err != nil {
-		log.Printf("Error deleting bucket: %v\n", err)
-	}
-	log.Printf("Delete bucket took: %v seconds", time.Since(start).Seconds())
+	log.Printf("Unmounting took: %v", time.Since(start).Seconds())
 	os.Exit(successCode)
 }

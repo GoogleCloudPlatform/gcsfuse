@@ -47,10 +47,10 @@ func (s *OperationSuite) TestStatWithTrailingNewline() {
 
 func TestOperationsSuite(t *testing.T) {
 	t.Parallel()
-	for i := range configurations {
-		t.Run(configurations[i].MountType().String()+"_"+setup.GenerateRandomString(5), func(t *testing.T) {
+	for i := range configs {
+		t.Run(configs[i].MountType().String()+"_"+setup.GenerateRandomString(5), func(t *testing.T) {
 			t.Parallel()
-			suite.Run(t, &OperationSuite{mountConfiguration: &configurations[i]})
+			suite.Run(t, &OperationSuite{mountConfiguration: &configs[i]})
 		})
 	}
 }
