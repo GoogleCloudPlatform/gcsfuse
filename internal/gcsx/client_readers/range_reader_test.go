@@ -500,13 +500,12 @@ func (t *rangeReaderTest) Test_ReadAt_ContextCancelAfterReadDoneSkipsCancel() {
 }
 
 func (t *rangeReaderTest) Test_ReadAt_EOFWithReaderNilClearsError() {
-	// Create a reader that returns exactly 2 bytes and ErrUnexpectedEOF
 	partialReader := io.NopCloser(iotest.ErrReader(io.ErrUnexpectedEOF)) // Simulates early EOF
 	r := &fake.FakeReader{ReadCloser: partialReader}
 	t.rangeReader.reader = &fake.FakeReader{ReadCloser: r}
 	t.rangeReader.start = 2
-	t.rangeReader.limit = 2          // Exactly 2 bytes expected
-	t.rangeReader.cancel = func() {} // dummy
+	t.rangeReader.limit = 2 // start and limit at same offset to clear reader
+	t.rangeReader.cancel = func() {}
 
 	resp, err := t.readAt(0, 2)
 
