@@ -294,12 +294,12 @@ func (t *rangeReaderTest) Test_ReadAt_StartReadUnexpectedError() {
 
 func (t *rangeReaderTest) Test_invalidateReaderIfMisalignedOrTooSmall() {
 	tests := []struct {
-		name             string
-		readerSetup      func()
-		offset           int64
-		bufferSize       int
-		expectInvalidate bool
-		expectReaderNil  bool
+		name               string
+		readerSetup        func()
+		offset             int64
+		bufferSize         int
+		expectIncreaseSeek bool
+		expectReaderNil    bool
 	}{
 		{
 			name: "InvalidateReaderDueToWrongOffset",
@@ -308,10 +308,10 @@ func (t *rangeReaderTest) Test_invalidateReaderIfMisalignedOrTooSmall() {
 				t.rangeReader.start = 50 // misaligned
 				t.rangeReader.limit = 1000
 			},
-			offset:           200,
-			bufferSize:       100,
-			expectInvalidate: true,
-			expectReaderNil:  true,
+			offset:             200,
+			bufferSize:         100,
+			expectIncreaseSeek: true,
+			expectReaderNil:    true,
 		},
 		{
 			name: "InvalidateReaderDueToTooSmall",
@@ -321,10 +321,10 @@ func (t *rangeReaderTest) Test_invalidateReaderIfMisalignedOrTooSmall() {
 				t.rangeReader.limit = 250 // too small
 				t.rangeReader.object.Size = 500
 			},
-			offset:           200,
-			bufferSize:       100,
-			expectInvalidate: false, // Should be false because of size, not misalignment of reader
-			expectReaderNil:  true,
+			offset:             200,
+			bufferSize:         100,
+			expectIncreaseSeek: false,
+			expectReaderNil:    true,
 		},
 		{
 			name: "KeepReaderIfValid",
@@ -333,10 +333,10 @@ func (t *rangeReaderTest) Test_invalidateReaderIfMisalignedOrTooSmall() {
 				t.rangeReader.start = 200
 				t.rangeReader.limit = 400
 			},
-			offset:           200,
-			bufferSize:       100,
-			expectInvalidate: false,
-			expectReaderNil:  false,
+			offset:             200,
+			bufferSize:         100,
+			expectIncreaseSeek: false,
+			expectReaderNil:    false,
 		},
 	}
 
@@ -346,7 +346,7 @@ func (t *rangeReaderTest) Test_invalidateReaderIfMisalignedOrTooSmall() {
 
 			result := t.rangeReader.invalidateReaderIfMisalignedOrTooSmall(tt.offset, make([]byte, tt.bufferSize))
 
-			assert.Equal(t.T(), tt.expectInvalidate, result, "invalidateReaderIfMisalignedOrTooSmall() result")
+			assert.Equal(t.T(), tt.expectIncreaseSeek, result, "invalidateReaderIfMisalignedOrTooSmall() result")
 			if tt.expectReaderNil {
 				assert.Nil(t.T(), t.rangeReader.reader, "rangeReader.reader should be nil")
 			} else {
