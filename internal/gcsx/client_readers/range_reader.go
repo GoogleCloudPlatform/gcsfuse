@@ -31,10 +31,10 @@ import (
 
 const (
 	MiB = 1 << 20
+
 	// Max read size in bytes for random reads.
 	// If the average read size (between seeks) is below this number, reads will optimise for random access.
 	// We will skip forwards in a GCS response at most this many bytes.
-	// About 6 MiB of data is buffered anyway, so 8 MiB seems like a good round number.
 	maxReadSize = 8 * MiB
 )
 
@@ -128,7 +128,7 @@ func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset
 	var err error
 	// If we don't have a reader, start a read operation.
 	if rr.reader == nil {
-		err = rr.startRead(ctx, offset, end)
+		err = rr.startRead(offset, end)
 		if err != nil {
 			err = fmt.Errorf("startRead: %w", err)
 			return 0, err
@@ -218,8 +218,8 @@ func (rr *RangeReader) readFull(ctx context.Context, p []byte) (int, error) {
 // Ensure that rr.reader is set up for a range for which [start, start+size) is
 // a prefix. Irrespective of the size requested, we try to fetch more data
 // from GCS defined by sequentialReadSizeMb flag to serve future read requests.
-func (rr *RangeReader) startRead(ctx context.Context, start int64, end int64) error {
-	ctx, cancel := context.WithCancel(ctx)
+func (rr *RangeReader) startRead(start int64, end int64) error {
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	rc, err := rr.bucket.NewReaderWithReadHandle(
@@ -309,6 +309,7 @@ func (rr *RangeReader) invalidateReaderIfMisalignedOrTooSmall(offset int64, p []
 	if rr.reader != nil && (rr.start != offset || int64(dataToRead) > rr.limit) {
 		rr.closeReader()
 		rr.reader = nil
+		rr.cancel = nil
 		if rr.start != offset {
 			// Return true to increment the seek count when discarding a reader due to incorrect positioning.
 			// Discarding readers that can't fulfill the entire request without this check would prevent

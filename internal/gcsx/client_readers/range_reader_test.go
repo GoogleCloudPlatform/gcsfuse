@@ -232,6 +232,7 @@ func (t *rangeReaderTest) Test_ReadAt_ReadFailsWithTimeoutError() {
 	readerResponse, err := t.readAt(0, int64(len(content)))
 
 	assert.Error(t.T(), err)
+	assert.Contains(t.T(), err.Error(), "timeout")
 	assert.Zero(t.T(), readerResponse.Size)
 	t.mockBucket.AssertExpectations(t.T())
 }
@@ -261,6 +262,7 @@ func (t *rangeReaderTest) Test_ReadAt_PartialReadWithEOF() {
 	resp, err := t.readAt(offset, size)
 
 	assert.Error(t.T(), err)
+	assert.Contains(t.T(), err.Error(), "reader returned early by skipping")
 	assert.Zero(t.T(), resp.Size)
 	t.mockBucket.AssertExpectations(t.T())
 }
