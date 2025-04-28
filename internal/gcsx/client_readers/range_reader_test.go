@@ -398,9 +398,10 @@ func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenReaderReturnedMoreData() 
 			t.rangeReader.reader = rc
 			t.rangeReader.cancel = func() {}
 
-			_, err := t.rangeReader.readFromRangeReader(t.ctx, make([]byte, 10), 0, 10, "unhandled")
+			n, err := t.rangeReader.readFromRangeReader(t.ctx, make([]byte, 10), 0, 10, "unhandled")
 
 			assert.Error(t.T(), err)
+			assert.Zero(t.T(), n)
 			assert.Nil(t.T(), t.rangeReader.reader)
 			assert.Equal(t.T(), int64(-1), t.rangeReader.start)
 			assert.Equal(t.T(), int64(-1), t.rangeReader.limit)
