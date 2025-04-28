@@ -327,7 +327,7 @@ func (t *rangeReaderTest) Test_invalidateReaderIfMisalignedOrTooSmall() {
 			},
 			offset:           200,
 			bufferSize:       100,
-			expectInvalidate: false, // Important: Should be false because of size, not misalignment
+			expectInvalidate: false, // Should be false because of size, not misalignment of reader
 			expectReaderNil:  true,
 		},
 		{
