@@ -1214,6 +1214,24 @@ func (fs *fileSystem) syncFile(
 	return nil
 }
 
+// Initializes Buffered Write Handler if Eligible and synchronizes the file inode to GCS if initialized succeds.
+//
+// LOCKS_EXCLUDED(fs.mu)
+// LOCKS_REQUIRED(f.mu)
+func (fs *fileSystem) initBufferedWriteHandlerAndSyncFileIfEligible(ctx context.Context, f *inode.FileInode) error {
+	initialized, err := f.InitBufferedWriteHandlerIfEligible(ctx)
+	if err != nil {
+		return err
+	}
+	if initialized {
+		err = fs.syncFile(ctx, f)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Decrement the supplied inode's lookup count, destroying it if the inode says
 // that it has hit zero.
 //
@@ -1528,16 +1546,11 @@ func (fs *fileSystem) SetInodeAttributes(
 
 	// Truncate files.
 	if isFile && op.Size != nil {
-		var initialized bool
-		initialized, err = file.InitBufferedWriteHandlerIfEligible(ctx)
+
+		// Initialize BWH if eligible and Sync file inode.
+		err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, file)
 		if err != nil {
 			return
-		}
-		if initialized {
-			err = fs.syncFile(ctx, file)
-			if err != nil {
-				return
-			}
 		}
 		err = file.Truncate(ctx, int64(*op.Size))
 		if err != nil {
@@ -2618,23 +2631,14 @@ func (fs *fileSystem) WriteFile(
 	in.Lock()
 	defer in.Unlock()
 
-	var initialized bool
-	initialized, err = in.InitBufferedWriteHandlerIfEligible(ctx)
+	// Initialize BWH if eligible and Sync file inode.
+	err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, in)
 	if err != nil {
 		return
 	}
-	if initialized {
-		err = fs.syncFile(ctx, in)
-		if err != nil {
-			return err
-		}
-	}
 
 	// Serve the request.
-	if err := in.Write(ctx, op.Data, op.Offset); err != nil {
-		return err
-	}
-
+	err = in.Write(ctx, op.Data, op.Offset)
 	return
 }
 
