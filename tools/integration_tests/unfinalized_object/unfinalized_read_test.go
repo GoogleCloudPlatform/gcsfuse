@@ -15,8 +15,13 @@
 package unfinalized_object
 
 import (
-	"cloud.google.com/go/storage"
 	"context"
+	"log"
+	"path"
+	"syscall"
+	"testing"
+
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
@@ -24,10 +29,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"log"
-	"path"
-	"syscall"
-	"testing"
 )
 
 ////////////////////////////////////////////////////////////////////////
