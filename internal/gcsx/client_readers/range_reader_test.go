@@ -402,11 +402,9 @@ func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenReaderReturnedMoreData() 
 
 			assert.Error(t.T(), err)
 			assert.Nil(t.T(), t.rangeReader.reader)
-			assert.Nil(t.T(), t.rangeReader.reader)
 			assert.Equal(t.T(), int64(-1), t.rangeReader.start)
 			assert.Equal(t.T(), int64(-1), t.rangeReader.limit)
-			expectedReadHandle := tc.readHandle
-			assert.Equal(t.T(), expectedReadHandle, t.rangeReader.readHandle)
+			assert.Equal(t.T(), tc.readHandle, t.rangeReader.readHandle)
 		})
 	}
 }
