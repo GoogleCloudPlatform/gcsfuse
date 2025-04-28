@@ -28,7 +28,7 @@ import (
 const TimeoutForMultiRangeRead = time.Hour
 
 type MultiRangeReader struct {
-	gcsx.Reader
+	gcsx.GCSReader
 	// mrdWrapper points to the wrapper object within inode.
 	mrdWrapper *gcsx.MultiRangeDownloaderWrapper
 
@@ -38,8 +38,8 @@ type MultiRangeReader struct {
 	metricHandle common.MetricHandle
 }
 
-func NewMultiRangeReader(metricHandle common.MetricHandle, mrdWrapper *gcsx.MultiRangeDownloaderWrapper) MultiRangeReader {
-	return MultiRangeReader{
+func NewMultiRangeReader(metricHandle common.MetricHandle, mrdWrapper *gcsx.MultiRangeDownloaderWrapper) *MultiRangeReader {
+	return &MultiRangeReader{
 		metricHandle: metricHandle,
 		mrdWrapper:   mrdWrapper,
 	}
@@ -71,7 +71,7 @@ func (mrd *MultiRangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequ
 	return o, err
 }
 
-func (mrd *MultiRangeReader) Destroy() {
+func (mrd *MultiRangeReader) destroy() {
 	if mrd.isMRDInUse {
 		err := mrd.mrdWrapper.DecrementRefCount()
 		if err != nil {
