@@ -293,10 +293,6 @@ func (t *rangeReaderTest) Test_ReadAt_StartReadUnexpectedError() {
 }
 
 func (t *rangeReaderTest) Test_invalidateReaderIfMisalignedOrTooSmall() {
-	getReader := func(size int64) io.ReadCloser {
-		return io.NopCloser(strings.NewReader(string(make([]byte, size))))
-	}
-
 	tests := []struct {
 		name             string
 		readerSetup      func()
