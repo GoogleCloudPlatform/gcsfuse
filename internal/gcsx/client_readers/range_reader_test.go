@@ -16,19 +16,39 @@ package gcsx
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"io"
+	"strings"
 	"testing"
+	"testing/iotest"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
-	testutil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	testUtil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
-const fakeHandleData = "fake-handle"
+const (
+	fakeHandleData = "fake-handle"
+	testObject     = "testObject"
+)
+
+////////////////////////////////////////////////////////////////////////
+// Boilerplate
+////////////////////////////////////////////////////////////////////////
 
 type rangeReaderTest struct {
 	suite.Suite
+	ctx         context.Context
+	object      *gcs.MinObject
+	mockBucket  *storage.TestifyMockBucket
 	rangeReader *RangeReader
 }
 
@@ -37,12 +57,23 @@ func TestRangeReaderTestSuite(t *testing.T) {
 }
 
 func (t *rangeReaderTest) SetupTest() {
-	t.rangeReader = NewRangeReader()
+	t.object = &gcs.MinObject{
+		Name:       testObject,
+		Size:       17,
+		Generation: 1234,
+	}
+	t.mockBucket = new(storage.TestifyMockBucket)
+	t.rangeReader = NewRangeReader(t.object, t.mockBucket, common.NewNoopMetrics())
+	t.ctx = context.Background()
 }
 
 func (t *rangeReaderTest) TearDown() {
 	t.rangeReader.Destroy()
 }
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
 
 func getReadCloser(content []byte) io.ReadCloser {
 	r := bytes.NewReader(content)
@@ -50,16 +81,40 @@ func getReadCloser(content []byte) io.ReadCloser {
 	return rc
 }
 
-func getReader() *fake.FakeReader {
-	testContent := testutil.GenerateRandomBytes(2)
+func getReader(size int) *fake.FakeReader {
+	testContent := testUtil.GenerateRandomBytes(size)
 	return &fake.FakeReader{
 		ReadCloser: getReadCloser(testContent),
 		Handle:     []byte(fakeHandleData),
 	}
 }
 
+func (t *rangeReaderTest) readAt(offset int64, size int64) (gcsx.ReaderResponse, error) {
+	req := &gcsx.GCSReaderRequest{
+		Offset:    offset,
+		EndOffset: offset + size,
+		Buffer:    make([]byte, size),
+	}
+	t.rangeReader.CheckInvariants()
+	defer t.rangeReader.CheckInvariants()
+	return t.rangeReader.ReadAt(t.ctx, req)
+}
+
+func (t *rangeReaderTest) mockNewReaderWithHandleCallForTestBucket(start uint64, limit uint64, rd gcs.StorageReader) {
+	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(rg *gcs.ReadObjectRequest) bool {
+		return rg != nil && (*rg.Range).Start == start && (*rg.Range).Limit == limit
+	})).Return(rd, nil).Once()
+}
+
+////////////////////////////////////////////////////////////////////////
+// Tests
+////////////////////////////////////////////////////////////////////////
+
 func (t *rangeReaderTest) Test_NewRangeReader() {
 	// The setup instantiates rangeReader with NewRangeReader.
+	assert.Equal(t.T(), t.object, t.rangeReader.object)
+	assert.Equal(t.T(), t.mockBucket, t.rangeReader.bucket)
+	assert.Equal(t.T(), common.NewNoopMetrics(), t.rangeReader.metricHandle)
 	assert.Equal(t.T(), int64(-1), t.rangeReader.start)
 	assert.Equal(t.T(), int64(-1), t.rangeReader.limit)
 }
@@ -85,7 +140,7 @@ func (t *rangeReaderTest) Test_CheckInvariants() {
 		{
 			name: "reader without cancel",
 			setup: func() *RangeReader {
-				t.rangeReader.reader = getReader()
+				t.rangeReader.reader = getReader(2)
 				return &RangeReader{
 					start:  0,
 					limit:  10,
@@ -122,7 +177,7 @@ func (t *rangeReaderTest) Test_CheckInvariants() {
 		{
 			name: "negative limit with valid reader",
 			setup: func() *RangeReader {
-				t.rangeReader.reader = getReader()
+				t.rangeReader.reader = getReader(2)
 				return &RangeReader{
 					start:  -10,
 					limit:  -5,
@@ -159,11 +214,144 @@ func (t *rangeReaderTest) Test_CheckInvariants() {
 }
 
 func (t *rangeReaderTest) Test_Destroy_NonNilReader() {
-	t.rangeReader.reader = getReader()
+	t.rangeReader.reader = getReader(2)
 
 	t.rangeReader.Destroy()
 
 	assert.Nil(t.T(), t.rangeReader.Reader)
 	assert.Nil(t.T(), t.rangeReader.cancel)
 	assert.Equal(t.T(), []byte(fakeHandleData), t.rangeReader.readHandle)
+}
+
+func (t *rangeReaderTest) Test_ReadAt_ReadFailsWithTimeoutError() {
+	content := "xxx"
+	r := iotest.OneByteReader(iotest.TimeoutReader(strings.NewReader(content)))
+	rc := &fake.FakeReader{ReadCloser: io.NopCloser(r)}
+	t.mockNewReaderWithHandleCallForTestBucket(0, uint64(len(content)), rc)
+
+	readerResponse, err := t.readAt(0, int64(len(content)))
+
+	assert.Error(t.T(), err)
+	assert.Contains(t.T(), err.Error(), "timeout")
+	assert.Zero(t.T(), readerResponse.Size)
+	t.mockBucket.AssertExpectations(t.T())
+}
+
+func (t *rangeReaderTest) Test_ReadAt_SuccessfulRead() {
+	offset := int64(0)
+	size := int64(5)
+	content := []byte("hello world")
+	r := &fake.FakeReader{ReadCloser: getReadCloser(content)}
+	t.mockNewReaderWithHandleCallForTestBucket(uint64(offset), uint64(offset+size), r)
+
+	resp, err := t.readAt(offset, size)
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), int(size), resp.Size)
+	assert.Equal(t.T(), content[:size], resp.DataBuf)
+	t.mockBucket.AssertExpectations(t.T())
+}
+
+func (t *rangeReaderTest) Test_ReadAt_PartialReadWithEOF() {
+	offset := int64(0)
+	size := int64(10)                                       // Shorter than requested
+	partialReader := io.NopCloser(iotest.ErrReader(io.EOF)) // Simulates early EOF
+	r := &fake.FakeReader{ReadCloser: partialReader}
+	t.mockNewReaderWithHandleCallForTestBucket(uint64(offset), uint64(offset+size), r)
+
+	resp, err := t.readAt(offset, size)
+
+	assert.Error(t.T(), err)
+	assert.Contains(t.T(), err.Error(), "reader returned early by skipping")
+	assert.Zero(t.T(), resp.Size)
+	t.mockBucket.AssertExpectations(t.T())
+}
+
+func (t *rangeReaderTest) Test_ReadAt_StartReadNotFound() {
+	offset := int64(0)
+	size := int64(5)
+	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(nil, &gcs.NotFoundError{}).Once()
+
+	resp, err := t.readAt(offset, size)
+
+	var fcErr *gcsfuse_errors.FileClobberedError
+	assert.ErrorAs(t.T(), err, &fcErr)
+	assert.Zero(t.T(), resp.Size)
+	t.mockBucket.AssertExpectations(t.T())
+}
+
+func (t *rangeReaderTest) Test_ReadAt_StartReadUnexpectedError() {
+	offset := int64(0)
+	size := int64(5)
+	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(nil, errors.New("network error")).Once()
+
+	resp, err := t.readAt(offset, size)
+
+	assert.Error(t.T(), err)
+	assert.Zero(t.T(), resp.Size)
+	t.mockBucket.AssertExpectations(t.T())
+}
+
+func (t *rangeReaderTest) Test_invalidateReaderIfMisalignedOrTooSmall() {
+	tests := []struct {
+		name               string
+		readerSetup        func()
+		offset             int64
+		bufferSize         int
+		expectIncreaseSeek bool
+		expectReaderNil    bool
+	}{
+		{
+			name: "InvalidateReaderDueToWrongOffset",
+			readerSetup: func() {
+				t.rangeReader.reader = &fake.FakeReader{ReadCloser: getReader(100)}
+				t.rangeReader.start = 50 // misaligned
+				t.rangeReader.limit = 1000
+			},
+			offset:             200,
+			bufferSize:         100,
+			expectIncreaseSeek: true,
+			expectReaderNil:    true,
+		},
+		{
+			name: "InvalidateReaderDueToTooSmall",
+			readerSetup: func() {
+				t.rangeReader.reader = &fake.FakeReader{ReadCloser: getReader(100)}
+				t.rangeReader.start = 200
+				t.rangeReader.limit = 250 // too small
+				t.rangeReader.object.Size = 500
+			},
+			offset:             200,
+			bufferSize:         100,
+			expectIncreaseSeek: false,
+			expectReaderNil:    true,
+		},
+		{
+			name: "KeepReaderIfValid",
+			readerSetup: func() {
+				t.rangeReader.reader = &fake.FakeReader{ReadCloser: getReader(100)}
+				t.rangeReader.start = 200
+				t.rangeReader.limit = 400
+			},
+			offset:             200,
+			bufferSize:         100,
+			expectIncreaseSeek: false,
+			expectReaderNil:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func() {
+			tt.readerSetup()
+
+			result := t.rangeReader.invalidateReaderIfMisalignedOrTooSmall(tt.offset, make([]byte, tt.bufferSize))
+
+			assert.Equal(t.T(), tt.expectIncreaseSeek, result, "invalidateReaderIfMisalignedOrTooSmall() result")
+			if tt.expectReaderNil {
+				assert.Nil(t.T(), t.rangeReader.reader, "rangeReader.reader should be nil")
+			} else {
+				assert.NotNil(t.T(), t.rangeReader.reader, "rangeReader.reader should not be nil")
+			}
+		})
+	}
 }
