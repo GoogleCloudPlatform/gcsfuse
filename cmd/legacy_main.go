@@ -310,6 +310,13 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 		if p, ok := os.LookupEnv("GOOGLE_APPLICATION_CREDENTIALS"); ok {
 			env = append(env, fmt.Sprintf("GOOGLE_APPLICATION_CREDENTIALS=%s", p))
 		}
+
+		// Pass along GCE_MEATADATA_HOST, since it is supported by google-cloud-go
+		// https://github.com/googleapis/google-cloud-go/blob/main/compute/metadata/metadata.go
+		if p, ok := os.LookupEnv("GCE_METADATA_HOST"); ok {
+			env = append(env, fmt.Sprintf("GCE_METADATA_HOST=%s", p))
+		}
+		
 		// Pass through the https_proxy/http_proxy environment variable,
 		// in case the host requires a proxy server to reach the GCS endpoint.
 		// https_proxy has precedence over http_proxy, in case both are set
