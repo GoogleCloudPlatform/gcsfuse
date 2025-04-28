@@ -128,7 +128,7 @@ func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset
 	var err error
 	// If we don't have a reader, start a read operation.
 	if rr.reader == nil {
-		err = rr.startRead(ctx, offset, end)
+		err = rr.startRead(offset, end)
 		if err != nil {
 			err = fmt.Errorf("startRead: %w", err)
 			return 0, err
@@ -218,9 +218,8 @@ func (rr *RangeReader) readFull(ctx context.Context, p []byte) (int, error) {
 // Ensure that rr.reader is set up for a range for which [start, start+size) is
 // a prefix. Irrespective of the size requested, we try to fetch more data
 // from GCS defined by sequentialReadSizeMb flag to serve future read requests.
-func (rr *RangeReader) startRead(ctx context.Context, start int64, end int64) error {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
+func (rr *RangeReader) startRead(start int64, end int64) error {
+	ctx, cancel := context.WithCancel(context.Background())
 
 	rc, err := rr.bucket.NewReaderWithReadHandle(
 		ctx,
@@ -244,11 +243,13 @@ func (rr *RangeReader) startRead(ctx context.Context, start int64, end int64) er
 		err = &gcsfuse_errors.FileClobberedError{
 			Err: fmt.Errorf("NewReader: %w", err),
 		}
+		cancel()
 		return err
 	}
 
 	if err != nil {
 		err = fmt.Errorf("NewReaderWithReadHandle: %w", err)
+		cancel()
 		return err
 	}
 

@@ -450,8 +450,8 @@ func (rr *randomReader) readFull(
 // a prefix. Irrespective of the size requested, we try to fetch more data
 // from GCS defined by sequentialReadSizeMb flag to serve future read requests.
 func (rr *randomReader) startRead(start int64, end int64) (err error) {
-	// Begin the read.
 	ctx, cancel := context.WithCancel(context.Background())
+	// Begin the read.
 
 	rc, err := rr.bucket.NewReaderWithReadHandle(
 		ctx,
