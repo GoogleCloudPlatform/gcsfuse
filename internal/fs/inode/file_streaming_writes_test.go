@@ -266,7 +266,7 @@ func (t *FileStreamingWritesTest) TestOutOfOrderWritesToLocalFileFallBackToTempF
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
-			_, err := t.in.CreateBufferedOrTempWriter(t.ctx)
+			err := t.in.CreateEmptyTempFile(t.ctx)
 			assert.Nil(t.T(), err)
 			assert.True(t.T(), t.in.IsLocal())
 			createTime := t.clock.Now()
@@ -307,7 +307,7 @@ func (t *FileStreamingWritesTest) TestOutOfOrderWritesToLocalFileFallBackToTempF
 }
 
 func (t *FileStreamingWritesTest) TestOutOfOrderWriteFollowedByOrderedWrite() {
-	_, err := t.in.CreateBufferedOrTempWriter(t.ctx)
+	err := t.in.CreateEmptyTempFile(t.ctx)
 	assert.Nil(t.T(), err)
 	assert.True(t.T(), t.in.IsLocal())
 	createTime := t.in.mtimeClock.Now()
@@ -489,7 +489,7 @@ func (t *FileStreamingWritesTest) TestFlushEmptyFile() {
 				assert.False(t.T(), t.in.IsLocal())
 			}
 			t.clock.AdvanceTime(10 * time.Second)
-			_, err := t.in.CreateBufferedOrTempWriter(t.ctx)
+			err := t.in.CreateEmptyTempFile(t.ctx)
 			assert.NoError(t.T(), err)
 
 			err = t.in.Flush(t.ctx)
@@ -547,7 +547,7 @@ func (t *FileStreamingWritesTest) TestFlushClobberedFile() {
 				t.createInode(fileName, emptyGCSFile)
 				assert.False(t.T(), t.in.IsLocal())
 			}
-			_, err := t.in.CreateBufferedOrTempWriter(t.ctx)
+			err := t.in.CreateEmptyTempFile(t.ctx)
 			assert.NoError(t.T(), err)
 			t.clock.AdvanceTime(10 * time.Second)
 			// Clobber the file.
@@ -644,7 +644,7 @@ func (t *FileStreamingWritesTest) TestSourceGenerationSizeForSyncedFileIsReflect
 }
 
 func (t *FileStreamingWritesTest) TestTruncateOnFileUsingTempFileDoesNotRecreatesBWH() {
-	_, err := t.in.CreateBufferedOrTempWriter(t.ctx)
+	err := t.in.CreateEmptyTempFile(t.ctx)
 	assert.NoError(t.T(), err)
 	assert.True(t.T(), t.in.IsLocal())
 	require.NotNil(t.T(), t.in.bwh)
@@ -758,7 +758,7 @@ func (t *FakeBufferedWriteHandler) Destroy() error                { return nil }
 func (t *FakeBufferedWriteHandler) Unlink()                       {}
 
 func (t *FileStreamingWritesTest) TestWriteUsingBufferedWritesFails() {
-	_, err := t.in.CreateBufferedOrTempWriter(t.ctx)
+	err := t.in.CreateEmptyTempFile(t.ctx)
 	assert.NoError(t.T(), err)
 	assert.True(t.T(), t.in.IsLocal())
 	require.NotNil(t.T(), t.in.bwh)

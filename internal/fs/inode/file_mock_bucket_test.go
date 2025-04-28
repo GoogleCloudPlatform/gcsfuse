@@ -115,7 +115,7 @@ func (t *FileMockBucketTest) createLockedInode(fileName string, fileType string)
 		semaphore.NewWeighted(math.MaxInt64))
 
 	// Create write handler for the local inode created above.
-	_, err := t.in.CreateBufferedOrTempWriter(t.ctx)
+	err := t.in.CreateEmptyTempFile(t.ctx)
 	assert.Nil(t.T(), err)
 
 	t.in.Lock()

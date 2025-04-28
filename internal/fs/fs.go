@@ -1769,20 +1769,19 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 	}
 	child = fs.mintInode(core)
 	fs.localFileInodes[child.Name()] = child
+	fs.mu.Unlock()
 	// Empty file is created to be able to set attributes on the file.
 	fileInode := child.(*inode.FileInode)
-	var initalized bool
-	initalized, err = fileInode.CreateBufferedOrTempWriter(ctx)
+	fileInode.Lock()
+	err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, fileInode)
+	fileInode.Unlock()
 	if err != nil {
+		fs.mu.Lock()
 		return
 	}
-	fs.mu.Unlock()
-	if initalized {
-		fileInode.Lock()
-		err = fs.syncFile(ctx, fileInode)
-		fileInode.Unlock()
-	}
+	err = fileInode.CreateEmptyTempFile(ctx)
 	if err != nil {
+		fs.mu.Lock()
 		return
 	}
 
