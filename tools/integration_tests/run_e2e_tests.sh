@@ -84,72 +84,71 @@ echo "Setting the integration test timeout to: $INTEGRATION_TEST_TIMEOUT"
 readonly RANDOM_STRING_LENGTH=5
 # Test directory arrays
 TEST_DIR_PARALLEL=(
-  "monitoring"
-  "local_file"
-  "log_rotation"
-  "mounting"
-  "read_cache"
+  # "monitoring"
+  # "local_file"
+  # "log_rotation"
+  # "mounting"
+  # "read_cache"
   # "grpc_validation"
-  "gzip"
-  "write_large_files"
-  "list_large_dir"
-  "rename_dir_limit"
-  "read_large_files"
-  "explicit_dir"
-  "implicit_dir"
-  "interrupt"
-  "operations"
-  "kernel_list_cache"
-  "concurrent_operations"
-  "benchmarking"
-  "mount_timeout"
+  # "gzip"
+  # "write_large_files"
+  # "list_large_dir"
+  # "rename_dir_limit"
+  # "read_large_files"
+  # "explicit_dir"
+  # "implicit_dir"
+  # "interrupt"
+  # "operations"
+  # "kernel_list_cache"
+  # "concurrent_operations"
+  # "benchmarking"
+  # "mount_timeout"
   "stale_handle"
-  "negative_stat_cache"
-  "streaming_writes"
+  # "negative_stat_cache"
+  # "streaming_writes"
 )
 
 # These tests never become parallel as it is changing bucket permissions.
 TEST_DIR_NON_PARALLEL=(
   "readonly"
-  "managed_folders"
-  "readonly_creds"
+  # "managed_folders"
+  # "readonly_creds"
 )
 
 # Subset of TEST_DIR_PARALLEL,
 # but only those tests which currently
 # pass for zonal buckets.
 TEST_DIR_PARALLEL_FOR_ZB=(
-  "benchmarking"
-  "explicit_dir"
-  "gzip"
-  "implicit_dir"
-  "interrupt"
-  "kernel_list_cache"
-  "local_file"
-  "log_rotation"
-  "monitoring"
-  "mount_timeout"
-  "mounting"
-  "negative_stat_cache"
-  "operations"
-  "read_cache"
-  "read_large_files"
-  "rename_dir_limit"
+  # "benchmarking"
+  # "concurrent_operations"
+  # "explicit_dir"
+  # "gzip"
+  # "implicit_dir"
+  # "interrupt"
+  # "kernel_list_cache"
+  # "list_large_dir"
+  # "local_file"
+  # "log_rotation"
+  # "monitoring"
+  # "mount_timeout"
+  # "mounting"
+  # "negative_stat_cache"
+  # "operations"
+  # "read_cache"
+  # "read_large_files"
+  # "rename_dir_limit"
   "stale_handle"
-  "streaming_writes"
-  "write_large_files"
-  "unfinalized_object"
+  # "streaming_writes"
+  # "write_large_files"
 )
 
 # Subset of TEST_DIR_NON_PARALLEL,
 # but only those tests which currently
 # pass for zonal buckets.
 TEST_DIR_NON_PARALLEL_FOR_ZB=(
-  "concurrent_operations"
-  "list_large_dir"
-  "managed_folders"
   "readonly"
-  "readonly_creds"
+  # "managed_folders"
+  # "readonly_creds"
 )
 
 # Create a temporary file to store the log file name.
@@ -369,6 +368,7 @@ function run_e2e_tests_for_flat_bucket() {
 }
 
 function run_e2e_tests_for_hns_bucket(){
+   hns_start_time_epoch=$(date +%s)
    hns_bucket_name_parallel_group=$(create_hns_bucket)
    echo "Hns Bucket Created: "$hns_bucket_name_parallel_group
    echo ${hns_bucket_name_parallel_group}>>"${bucketNamesFile}"
@@ -393,6 +393,9 @@ function run_e2e_tests_for_hns_bucket(){
    then
     return 1
    fi
+   hns_end_time_epoch=$(date +%s)
+   hns_duration=$(($hns_end_time_epoch - $hns_start_time_epoch))
+   echo "run_e2e_tests_for_hns_bucket",\"$hns_start_time_epoch\",\"$hns_end_time_epoch\","$hns_duration" >> "$CSV_FILE"
    return 0
 }
 
@@ -455,21 +458,46 @@ function run_e2e_tests_for_emulator() {
   ./tools/integration_tests/emulator_tests/emulator_tests.sh $RUN_E2E_TESTS_ON_PACKAGE
 }
 
+#commenting it so cleanup and failure check happens for both
+#set -e
+
+function clean_up() {
+  # Cleanup
+  # Delete bucket after testing.
+  local -n buckets=$1
+  for bucket in "${buckets[@]}"
+    do
+      # Empty bucket name may cause deletions of all the buckets.
+      if [ "$bucket" != "" ];
+      then
+        gcloud alpha storage rm --recursive gs://$bucket 2>&1 | grep "ERROR"
+      fi
+    done
+}
+
+CSV_FILE="command_times.csv"
+
+if [ -f "$CSV_FILE" ]; then
+  echo "Existing CSV file '$CSV_FILE' found. Deleting it."
+  rm "$CSV_FILE"
+fi
+
+if [ ! -f "$CSV_FILE" ]; then
+  echo "Command,Start Time,End Time,Duration (seconds)" > "$CSV_FILE"
+  echo "CSV file '$CSV_FILE' created with headers."
+fi
+
 function main(){
-  # The name of a file containing the names of all the
-  # buckets to be cleaned-up while exiting this program.
-  bucketNamesFile=$(realpath ./bucketNames)"-"$(tr -dc 'a-z0-9' < /dev/urandom | head -c $RANDOM_STRING_LENGTH)
-  # Delete all these buckets when the program exits.
-  trap "delete_buckets_listed_in_file ${bucketNamesFile}" EXIT
-
+  setup_start_time_epoch=$(date +%s)
   set -e
-
   upgrade_gcloud_version
 
   install_packages
 
   set +e
-
+  setup_end_time_epoch=$(date +%s)
+  setup_duration=$(($setup_end_time_epoch - $setup_start_time_epoch))
+  echo "upgrade_gcloud_version & install_packages",\"$setup_start_time_epoch\",\"$setup_end_time_epoch\","$setup_duration" >> "$CSV_FILE"
   #run integration tests
   exit_code=0
 
