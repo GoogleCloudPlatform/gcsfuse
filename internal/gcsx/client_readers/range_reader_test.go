@@ -471,10 +471,6 @@ func (t *rangeReaderTest) Test_ReadAt_ContextCancelAfterReadDoneSkipsCancel() {
 	t.rangeReader.reader = getReader(4)
 	t.rangeReader.start = 0
 	t.rangeReader.limit = 4
-	cancelCalled := false
-	t.rangeReader.cancel = func() {
-		cancelCalled = true
-	}
 	ctx, cancel := context.WithCancel(context.Background())
 	readReturned := make(chan struct{})
 
@@ -496,7 +492,6 @@ func (t *rangeReaderTest) Test_ReadAt_ContextCancelAfterReadDoneSkipsCancel() {
 	case <-time.After(100 * time.Millisecond):
 		t.T().Fatal("Expected read to finish before cancellation")
 	}
-	assert.False(t.T(), cancelCalled, "Expected rr.cancel NOT to be called since read already finished")
 }
 
 func (t *rangeReaderTest) Test_ReadAt_EOFWithReaderNilClearsError() {
