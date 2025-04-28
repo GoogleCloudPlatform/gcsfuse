@@ -39,7 +39,7 @@ const (
 )
 
 type RangeReader struct {
-	gcsx.Reader
+	gcsx.GCSReader
 	object *gcs.MinObject
 	bucket gcs.Bucket
 
@@ -74,7 +74,7 @@ func NewRangeReader(object *gcs.MinObject, bucket gcs.Bucket, metricHandle commo
 	}
 }
 
-func (rr *RangeReader) CheckInvariants() {
+func (rr *RangeReader) checkInvariants() {
 	// INVARIANT: (reader == nil) == (cancel == nil)
 	if (rr.reader == nil) != (rr.cancel == nil) {
 		panic(fmt.Sprintf("Mismatch: %v vs. %v", rr.reader == nil, rr.cancel == nil))
@@ -91,7 +91,7 @@ func (rr *RangeReader) CheckInvariants() {
 	}
 }
 
-func (rr *RangeReader) Destroy() {
+func (rr *RangeReader) destroy() {
 	// Close out the reader, if we have one.
 	if rr.reader != nil {
 		rr.closeReader()
