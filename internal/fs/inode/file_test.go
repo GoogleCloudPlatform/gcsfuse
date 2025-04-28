@@ -201,8 +201,10 @@ func (t *FileTest) TestSyncPendingBufferedWritesReturnsNilAndNoOpForNonStreaming
 	assert.Equal(t.T(), t.initialContents, string(contents))
 
 	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("bar"), 0))
-	assert.NoError(t.T(), t.in.SyncPendingBufferedWrites())
+	gcsSynced, err := t.in.SyncPendingBufferedWrites()
 
+	require.NoError(t.T(), err)
+	assert.False(t.T(), gcsSynced)
 	contents, err = storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), t.initialContents, string(contents))

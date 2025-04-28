@@ -109,7 +109,9 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 	// because the inode is dirty).
 	fh.inode.Lock()
 	// Ensure all pending writes to Zonal Buckets are flushed before issuing a read.
-	err = fh.inode.SyncPendingBufferedWrites()
+	// Updating inode state is not required here because inode state for Zonal Buckets will
+	// be updated at time of BWH creation.
+	_, err = fh.inode.SyncPendingBufferedWrites()
 	if err != nil {
 		fh.inode.Unlock()
 		err = fmt.Errorf("fh.inode.SyncPendingBufferedWrites: %w", err)

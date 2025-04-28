@@ -653,8 +653,8 @@ func (f *FileInode) flushUsingBufferedWriteHandler() error {
 	if err != nil {
 		return fmt.Errorf("f.bwh.Flush(): %w", err)
 	}
-
-	f.updateInodeStateAfterSync(obj)
+	// If we finalized the object, we need to update our state.
+	f.updateInodeStateAfterFlush(obj)
 	return nil
 }
 
@@ -662,24 +662,28 @@ func (f *FileInode) flushUsingBufferedWriteHandler() error {
 // It is a no-op when bwh is nil.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) SyncPendingBufferedWrites() error {
+func (f *FileInode) SyncPendingBufferedWrites() (gcsSynced bool, err error) {
 	if f.bwh == nil {
-		return nil
+		return
 	}
-	_, err := f.bwh.Sync()
+	minObj, err := f.bwh.Sync()
 	var preconditionErr *gcs.PreconditionError
 	if errors.As(err, &preconditionErr) {
-		return &gcsfuse_errors.FileClobberedError{
+		err = &gcsfuse_errors.FileClobberedError{
 			Err: fmt.Errorf("f.bwh.Sync(): %w", err),
 		}
+		return
 	}
 	if err != nil {
-		return fmt.Errorf("f.bwh.Sync(): %w", err)
+		err = fmt.Errorf("f.bwh.Sync(): %w", err)
+		return
 	}
-	// Update the f.src.Size to the current Size of object
-	// on GCS after flushing pending buffers.
-	f.src.Size = uint64(f.bwh.WriteFileInfo().TotalSize)
-	return nil
+	// We return gcsSynced as true when we get minObject from Sync() for Zonal Buckets.
+	// For Non-Zonal Buckets minObj is always nil.
+	gcsSynced = minObj != nil
+	// If we flushed out object, we need to update our state.
+	f.updateInodeStateAfterSync(minObj)
+	return
 }
 
 // Set the mtime for this file. May involve a round trip to GCS.
@@ -813,9 +817,7 @@ func (f *FileInode) Sync(ctx context.Context) (gcsSynced bool, err error) {
 	}
 
 	if f.bwh != nil {
-		// SyncPendingBufferedWrites does not finalize the upload,
-		// so return gcsSynced as false.
-		err = f.SyncPendingBufferedWrites()
+		gcsSynced, err = f.SyncPendingBufferedWrites()
 		if err != nil {
 			err = fmt.Errorf("could not sync what has been written so far: %w", err)
 		}
@@ -860,7 +862,7 @@ func (f *FileInode) syncUsingContent(ctx context.Context) error {
 	}
 	minObj := storageutil.ConvertObjToMinObject(newObj)
 	// If we wrote out a new object, we need to update our state.
-	f.updateInodeStateAfterSync(minObj)
+	f.updateInodeStateAfterFlush(minObj)
 	return nil
 }
 
@@ -887,6 +889,16 @@ func (f *FileInode) Flush(ctx context.Context) (err error) {
 	return f.syncUsingContent(ctx)
 }
 
+func (f *FileInode) updateInodeStateAfterFlush(minObj *gcs.MinObject) {
+	if minObj != nil && !f.localFileCache {
+		// Set BWH to nil as as object has been finalized.
+		if f.bwh != nil {
+			f.bwh = nil
+		}
+		f.updateInodeStateAfterSync(minObj)
+	}
+}
+
 func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 	if minObj != nil && !f.localFileCache {
 		f.src = *minObj
@@ -900,12 +912,7 @@ func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 			f.content.Destroy()
 			f.content = nil
 		}
-		if f.bwh != nil {
-			f.bwh = nil
-		}
 	}
-
-	return
 }
 
 // Updates the min object stored in MRDWrapper corresponding to the inode.
