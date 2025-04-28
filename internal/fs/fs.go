@@ -1758,21 +1758,20 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 	fs.localFileInodes[child.Name()] = child
 	// Empty file is created to be able to set attributes on the file.
 	fileInode := child.(*inode.FileInode)
-	var initialized bool
-	initialized, err = fileInode.InitBufferedWriteHandlerIfEligible(ctx)
+	var initalized bool
+	initalized, err = fileInode.CreateBufferedOrTempWriter(ctx)
 	if err != nil {
 		return
 	}
-	if initialized {
-		err = fs.syncFile(ctx, fileInode)
-		if err != nil {
-			return
-		}
-	}
-	if err := fileInode.CreateBufferedOrTempWriter(ctx); err != nil {
-		return nil, err
-	}
 	fs.mu.Unlock()
+	if initalized {
+		fileInode.Lock()
+		err = fs.syncFile(ctx, fileInode)
+		fileInode.Unlock()
+	}
+	if err != nil {
+		return
+	}
 
 	parent.Lock()
 	defer parent.Unlock()
@@ -2625,8 +2624,12 @@ func (fs *fileSystem) WriteFile(
 		return
 	}
 	if initialized {
-		fs.syncFile(ctx, in)
+		err = fs.syncFile(ctx, in)
+		if err != nil {
+			return err
+		}
 	}
+
 	// Serve the request.
 	if err := in.Write(ctx, op.Data, op.Offset); err != nil {
 		return err

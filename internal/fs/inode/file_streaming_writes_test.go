@@ -151,8 +151,11 @@ func (t *FileStreamingWritesCommon) createInode(fileName string, fileType string
 		EnableStreamingWrites: true,
 		GlobalMaxBlocks:       10,
 	}}
-	_, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
 	require.NoError(t.T(), err)
+	if initialized {
+		require.NotNil(t.T(), t.in.bwh)
+	}
 	t.in.Lock()
 }
 
@@ -206,8 +209,8 @@ func TestFileStreamingWritesTestSuite(t *testing.T) {
 	suite.Run(t, new(FileStreamingWritesTest))
 }
 
-func (t *FileStreamingWritesTest) TestSourceGenerationIsAuthoritativeReturnsTrueForNonZonalBuckets() {
-	assert.True(t.T(), t.in.SourceGenerationIsAuthoritative())
+func (t *FileStreamingWritesTest) TestSourceGenerationIsAuthoritativeReturnsFalseForNonZonalBuckets() {
+	assert.False(t.T(), t.in.SourceGenerationIsAuthoritative())
 }
 
 func (t *FileStreamingWritesTest) TestSourceGenerationIsAuthoritativeReturnsFalseAfterWriteForNonZonalBuckets() {
@@ -263,7 +266,7 @@ func (t *FileStreamingWritesTest) TestOutOfOrderWritesToLocalFileFallBackToTempF
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
-			err := t.in.CreateBufferedOrTempWriter(t.ctx)
+			_, err := t.in.CreateBufferedOrTempWriter(t.ctx)
 			assert.Nil(t.T(), err)
 			assert.True(t.T(), t.in.IsLocal())
 			createTime := t.clock.Now()
@@ -304,7 +307,7 @@ func (t *FileStreamingWritesTest) TestOutOfOrderWritesToLocalFileFallBackToTempF
 }
 
 func (t *FileStreamingWritesTest) TestOutOfOrderWriteFollowedByOrderedWrite() {
-	err := t.in.CreateBufferedOrTempWriter(t.ctx)
+	_, err := t.in.CreateBufferedOrTempWriter(t.ctx)
 	assert.Nil(t.T(), err)
 	assert.True(t.T(), t.in.IsLocal())
 	createTime := t.in.mtimeClock.Now()
@@ -486,7 +489,7 @@ func (t *FileStreamingWritesTest) TestFlushEmptyFile() {
 				assert.False(t.T(), t.in.IsLocal())
 			}
 			t.clock.AdvanceTime(10 * time.Second)
-			err := t.in.CreateBufferedOrTempWriter(t.ctx)
+			_, err := t.in.CreateBufferedOrTempWriter(t.ctx)
 			assert.NoError(t.T(), err)
 
 			err = t.in.Flush(t.ctx)
@@ -544,7 +547,7 @@ func (t *FileStreamingWritesTest) TestFlushClobberedFile() {
 				t.createInode(fileName, emptyGCSFile)
 				assert.False(t.T(), t.in.IsLocal())
 			}
-			err := t.in.CreateBufferedOrTempWriter(t.ctx)
+			_, err := t.in.CreateBufferedOrTempWriter(t.ctx)
 			assert.NoError(t.T(), err)
 			t.clock.AdvanceTime(10 * time.Second)
 			// Clobber the file.
@@ -641,7 +644,7 @@ func (t *FileStreamingWritesTest) TestSourceGenerationSizeForSyncedFileIsReflect
 }
 
 func (t *FileStreamingWritesTest) TestTruncateOnFileUsingTempFileDoesNotRecreatesBWH() {
-	err := t.in.CreateBufferedOrTempWriter(t.ctx)
+	_, err := t.in.CreateBufferedOrTempWriter(t.ctx)
 	assert.NoError(t.T(), err)
 	assert.True(t.T(), t.in.IsLocal())
 	require.NotNil(t.T(), t.in.bwh)
@@ -755,7 +758,7 @@ func (t *FakeBufferedWriteHandler) Destroy() error                { return nil }
 func (t *FakeBufferedWriteHandler) Unlink()                       {}
 
 func (t *FileStreamingWritesTest) TestWriteUsingBufferedWritesFails() {
-	err := t.in.CreateBufferedOrTempWriter(t.ctx)
+	_, err := t.in.CreateBufferedOrTempWriter(t.ctx)
 	assert.NoError(t.T(), err)
 	assert.True(t.T(), t.in.IsLocal())
 	require.NotNil(t.T(), t.in.bwh)

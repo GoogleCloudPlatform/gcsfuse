@@ -952,7 +952,11 @@ func (f *FileInode) CacheEnsureContent(ctx context.Context) (err error) {
 	return
 }
 
-func (f *FileInode) CreateBufferedOrTempWriter(ctx context.Context) (err error) {
+func (f *FileInode) CreateBufferedOrTempWriter(ctx context.Context) (initialized bool, err error) {
+	initialized, err = f.InitBufferedWriteHandlerIfEligible(ctx)
+	if err != nil {
+		return
+	}
 	// Skip creating empty file when streaming writes are enabled.
 	if f.bwh != nil {
 		return
