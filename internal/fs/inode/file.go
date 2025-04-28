@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"strconv"
 	"strings"
 	"syscall"
@@ -578,12 +579,6 @@ func (f *FileInode) Write(
 	ctx context.Context,
 	data []byte,
 	offset int64) error {
-
-	err := f.initBufferedWriteHandlerIfEligible(ctx)
-	if err != nil {
-		return err
-	}
-
 	if f.bwh != nil {
 		return f.writeUsingBufferedWrites(ctx, data, offset)
 	}
@@ -931,11 +926,6 @@ func (f *FileInode) Truncate(
 	ctx context.Context,
 	size int64) (err error) {
 
-	err = f.initBufferedWriteHandlerIfEligible(ctx)
-	if err != nil {
-		return err
-	}
-
 	if f.bwh != nil {
 		return f.bwh.Truncate(size)
 	}
@@ -963,10 +953,6 @@ func (f *FileInode) CacheEnsureContent(ctx context.Context) (err error) {
 }
 
 func (f *FileInode) CreateBufferedOrTempWriter(ctx context.Context) (err error) {
-	err = f.initBufferedWriteHandlerIfEligible(ctx)
-	if err != nil {
-		return err
-	}
 	// Skip creating empty file when streaming writes are enabled.
 	if f.bwh != nil {
 		return
@@ -980,24 +966,23 @@ func (f *FileInode) CreateBufferedOrTempWriter(ctx context.Context) (err error) 
 	return
 }
 
-func (f *FileInode) initBufferedWriteHandlerIfEligible(ctx context.Context) error {
+func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context) (initalized bool, err error) {
 	// bwh already initialized, do nothing.
 	if f.bwh != nil {
-		return nil
+		return
 	}
 
 	tempFileInUse := f.content != nil
 	if f.src.Size != 0 || !f.config.Write.EnableStreamingWrites || tempFileInUse {
 		// bwh should not be initialized under these conditions.
-		return nil
+		return
 	}
 
 	var latestGcsObj *gcs.Object
-	var err error
 	if !f.local {
 		latestGcsObj, err = f.fetchLatestGcsObject(ctx)
 		if err != nil {
-			return err
+			return
 		}
 	}
 
@@ -1012,10 +997,12 @@ func (f *FileInode) initBufferedWriteHandlerIfEligible(ctx context.Context) erro
 			ChunkTransferTimeoutSecs: f.config.GcsRetries.ChunkTransferTimeoutSecs,
 		})
 		if err != nil {
-			return fmt.Errorf("failed to create bufferedWriteHandler: %w", err)
+			err = fmt.Errorf("failed to create bufferedWriteHandler: %w", err)
+			return
 		}
 		f.bwh.SetMtime(f.mtimeClock.Now())
+		initalized = true
+		return
 	}
-
-	return nil
+	return
 }

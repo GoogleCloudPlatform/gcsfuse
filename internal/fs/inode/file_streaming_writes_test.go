@@ -151,7 +151,8 @@ func (t *FileStreamingWritesCommon) createInode(fileName string, fileType string
 		EnableStreamingWrites: true,
 		GlobalMaxBlocks:       10,
 	}}
-
+	_, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
+	require.NoError(t.T(), err)
 	t.in.Lock()
 }
 
@@ -704,7 +705,7 @@ func (t *FileStreamingWritesTest) TestDeRegisterFileHandle() {
 		t.Run(tc.name, func() {
 			t.in.config = &cfg.Config{Write: *getWriteConfig()}
 			t.in.writeHandleCount = tc.currentVal
-			err := t.in.initBufferedWriteHandlerIfEligible(t.ctx)
+			_, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
 			require.NoError(t.T(), err)
 			require.NotNil(t.T(), t.in.bwh)
 

@@ -1528,6 +1528,17 @@ func (fs *fileSystem) SetInodeAttributes(
 
 	// Truncate files.
 	if isFile && op.Size != nil {
+		var initialized bool
+		initialized, err = file.InitBufferedWriteHandlerIfEligible(ctx)
+		if err != nil {
+			return
+		}
+		if initialized {
+			err = fs.syncFile(ctx, file)
+			if err != nil {
+				return
+			}
+		}
 		err = file.Truncate(ctx, int64(*op.Size))
 		if err != nil {
 			err = fmt.Errorf("truncate: %w", err)
@@ -1747,6 +1758,17 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 	fs.localFileInodes[child.Name()] = child
 	// Empty file is created to be able to set attributes on the file.
 	fileInode := child.(*inode.FileInode)
+	var initialized bool
+	initialized, err = fileInode.InitBufferedWriteHandlerIfEligible(ctx)
+	if err != nil {
+		return
+	}
+	if initialized {
+		err = fs.syncFile(ctx, fileInode)
+		if err != nil {
+			return
+		}
+	}
 	if err := fileInode.CreateBufferedOrTempWriter(ctx); err != nil {
 		return nil, err
 	}
@@ -2597,6 +2619,14 @@ func (fs *fileSystem) WriteFile(
 	in.Lock()
 	defer in.Unlock()
 
+	var initialized bool
+	initialized, err = in.InitBufferedWriteHandlerIfEligible(ctx)
+	if err != nil {
+		return
+	}
+	if initialized {
+		fs.syncFile(ctx, in)
+	}
 	// Serve the request.
 	if err := in.Write(ctx, op.Data, op.Offset); err != nil {
 		return err
