@@ -1253,7 +1253,7 @@ func TestArgParsing_GCSRetries(t *testing.T) {
 					MaxRetrySleep:            30 * time.Second,
 					Multiplier:               2,
 					ReadStall: cfg.ReadStallGcsRetriesConfig{
-						Enable:              true,
+						Enable:              false,
 						InitialReqTimeout:   20 * time.Second,
 						MinReqTimeout:       1500 * time.Millisecond,
 						MaxReqTimeout:       1200 * time.Second,
