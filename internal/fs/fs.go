@@ -1181,6 +1181,36 @@ func (fs *fileSystem) flushFile(
 	return nil
 }
 
+// Flushes the supplied file inode to GCS, updating the index as
+// appropriate.
+//
+// LOCKS_EXCLUDED(fs.mu)
+// LOCKS_REQUIRED(f)
+func (fs *fileSystem) flushBWHFile(
+	ctx context.Context,
+	f *inode.FileInode) error {
+	// FlushFile mirrors the behavior of native filesystems by not returning an error
+	// when file to be synced has been unlinked from the same mount.
+	if f.IsUnlinked() {
+		return nil
+	}
+
+	// Flush the inode.
+	err := f.FlushBWHOnly(ctx)
+	if err != nil {
+		err = fmt.Errorf("FileInode.Sync: %w", err)
+		// If the inode was local file inode, treat it as unlinked.
+		fs.mu.Lock()
+		delete(fs.localFileInodes, f.Name())
+		fs.mu.Unlock()
+		return err
+	}
+
+	// Promote the inode to generationBackedInodes in fs maps.
+	fs.promoteToGenerationBacked(f)
+	return nil
+}
+
 // Synchronizes the supplied file inode to GCS, updating the index as
 // appropriate.
 //
@@ -2083,6 +2113,22 @@ func (fs *fileSystem) flushPendingWrites(ctx context.Context, fileInode *inode.F
 	return
 }
 
+// LOCKS_EXCLUDED(fileInode)
+func (fs *fileSystem) flushPendingBufferedWrites(ctx context.Context, fileInode *inode.FileInode) (minObject *gcs.MinObject, err error) {
+	// We will return modified minObject if flush is done, otherwise the original
+	// minObject is returned. Original minObject is the one passed in the request.
+	fileInode.Lock()
+	defer fileInode.Unlock()
+	minObject = fileInode.Source()
+	if !fs.newConfig.Write.EnableStreamingWrites {
+		return
+	}
+	// Try to flush if there are any pending writes.
+	err = fs.flushBWHFile(ctx, fileInode)
+	minObject = fileInode.Source()
+	return
+}
+
 // LOCKS_EXCLUDED(oldParent)
 // LOCKS_EXCLUDED(newParent)
 func (fs *fileSystem) renameHierarchicalFile(ctx context.Context, oldParent inode.DirInode, oldName string, oldObject *gcs.MinObject, newParent inode.DirInode, newName string) error {
@@ -2548,6 +2594,13 @@ func (fs *fileSystem) ReadFile(
 
 	fh.Lock()
 	defer fh.Unlock()
+
+	fh.Inode().Lock()
+	_, err = fs.flushPendingBufferedWrites(ctx, fh.Inode())
+	if err != nil {
+		fh.Inode().Unlock()
+		return err
+	}
 
 	// Serve the read.
 	op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)

@@ -889,6 +889,15 @@ func (f *FileInode) Flush(ctx context.Context) (err error) {
 	return f.syncUsingContent(ctx)
 }
 
+func (f *FileInode) FlushBWHOnly(ctx context.Context) (err error) {
+	// Flush using the appropriate method based on whether we're using a
+	// buffered write handler.
+	if f.bwh != nil {
+		return f.flushUsingBufferedWriteHandler()
+	}
+	return nil
+}
+
 func (f *FileInode) updateInodeStateAfterFlush(minObj *gcs.MinObject) {
 	if minObj != nil && !f.localFileCache {
 		// Set BWH to nil as as object has been finalized.
