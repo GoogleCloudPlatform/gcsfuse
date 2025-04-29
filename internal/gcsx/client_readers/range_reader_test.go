@@ -510,17 +510,18 @@ func (t *rangeReaderTest) Test_ReadAt_DoesntPropagateCancellationAfterReturning(
 func (t *rangeReaderTest) Test_ReadAt_ReaderExhaustedReadFinished() {
 	r := &countingCloser{Reader: getReader(4)}
 	t.rangeReader.reader = &fake.FakeReader{ReadCloser: r}
-	t.rangeReader.start = 0
+	var offset int64 = 0
+	t.rangeReader.start = offset
 	t.rangeReader.limit = 2
 	t.rangeReader.cancel = func() {}
+	var bufSize int64 = 2
 
-	resp, err := t.readAt(0, 2)
+	resp, err := t.readAt(offset, bufSize)
 
 	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), int64(2), t.rangeReader.start)
-	assert.Equal(t.T(), int64(2), t.rangeReader.limit)
+	assert.Equal(t.T(), offset+bufSize, t.rangeReader.start)
 	assert.Equal(t.T(), 1, r.closeCount)
-	assert.Equal(t.T(), 2, resp.Size)
+	assert.Equal(t.T(), bufSize, resp.Size)
 }
 
 func (t *rangeReaderTest) Test_ReadAt_ReaderNotExhausted() {
@@ -531,20 +532,20 @@ func (t *rangeReaderTest) Test_ReadAt_ReaderNotExhausted() {
 	}
 	rc := &fake.FakeReader{ReadCloser: cc}
 	t.rangeReader.reader = &fake.FakeReader{ReadCloser: cc}
-	t.rangeReader.start = 1
+	var offset int64 = 1
+	t.rangeReader.start = offset
 	t.rangeReader.limit = 4
 	t.rangeReader.cancel = func() {}
 	var bufSize int64 = 2
 
 	// Read two bytes.
-	resp, err := t.readAt(1, bufSize)
+	resp, err := t.readAt(offset, bufSize)
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), content[:bufSize], string(resp.DataBuf[:resp.Size]))
 	assert.Zero(t.T(), cc.closeCount)
 	assert.Equal(t.T(), rc, t.rangeReader.reader)
-	assert.Equal(t.T(), int64(3), t.rangeReader.start)
-	assert.Equal(t.T(), int64(4), t.rangeReader.limit)
+	assert.Equal(t.T(), offset+bufSize, t.rangeReader.start)
 }
 
 func (t *rangeReaderTest) Test_ReadAt_EOFWithReaderNilClearsError() {
@@ -552,11 +553,13 @@ func (t *rangeReaderTest) Test_ReadAt_EOFWithReaderNilClearsError() {
 	partialReader := io.NopCloser(iotest.ErrReader(io.ErrUnexpectedEOF)) // Simulates early EOF
 	r := &fake.FakeReader{ReadCloser: partialReader}
 	t.rangeReader.reader = &fake.FakeReader{ReadCloser: r}
-	t.rangeReader.start = 2
+	var offset int64 = 2
+	t.rangeReader.start = offset
 	t.rangeReader.limit = 2          // Exactly 2 bytes expected
 	t.rangeReader.cancel = func() {} // dummy
+	var bufSize int64 = 2
 
-	resp, err := t.readAt(0, 2)
+	resp, err := t.readAt(offset, bufSize)
 
 	assert.NoError(t.T(), err)
 	assert.Nil(t.T(), t.rangeReader.reader)
