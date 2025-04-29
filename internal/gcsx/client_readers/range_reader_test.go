@@ -122,6 +122,20 @@ func (br *blockingReader) Read([]byte) (int, error) {
 }
 
 ////////////////////////////////////////////////////////////////////////
+// Counting closer
+////////////////////////////////////////////////////////////////////////
+
+type countingCloser struct {
+	io.Reader
+	closeCount int
+}
+
+func (cc *countingCloser) Close() (err error) {
+	cc.closeCount++
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
@@ -582,19 +596,28 @@ func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenReaderHasLessDataThanRequ
 	}
 }
 
-func (t *rangeReaderTest) Test_ReadAt_EOFWithReaderNilClearsError() {
-	partialReader := io.NopCloser(iotest.ErrReader(io.ErrUnexpectedEOF)) // Simulates early EOF
-	t.rangeReader.reader = &fake.FakeReader{ReadCloser: partialReader}
-	var offset int64 = 2
+func (t *rangeReaderTest) Test_ReadAt_ReaderNotExhausted() {
+	// Set up a reader that has three bytes left to give.
+	content := "abc"
+	cc := &countingCloser{
+		Reader: strings.NewReader(content),
+	}
+	rc := &fake.FakeReader{ReadCloser: cc}
+	t.rangeReader.reader = rc
+	var offset int64 = 1
 	t.rangeReader.start = offset
-	t.rangeReader.limit = 2
+	t.rangeReader.limit = 4
 	t.rangeReader.cancel = func() {}
+	var bufSize int64 = 2
 
-	resp, err := t.readAt(offset, 2)
+	// Read two bytes.
+	resp, err := t.readAt(offset, bufSize)
 
 	assert.NoError(t.T(), err)
-	assert.Nil(t.T(), t.rangeReader.reader)
-	assert.Zero(t.T(), resp.Size)
+	assert.Equal(t.T(), content[:bufSize], string(resp.DataBuf[:resp.Size]))
+	assert.Zero(t.T(), cc.closeCount)
+	assert.Equal(t.T(), rc, t.rangeReader.reader)
+	assert.Equal(t.T(), offset+bufSize, t.rangeReader.start)
 }
 
 func (t *rangeReaderTest) Test_ReadAt_InvalidOffset() {
