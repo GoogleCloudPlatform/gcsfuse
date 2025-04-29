@@ -21,7 +21,6 @@ import (
 	"io"
 	"testing"
 	"time"
-	"fmt"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/clock"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
@@ -105,7 +104,7 @@ func (s *InactiveTimeoutReaderTestSuite) setupReader(startOffset int64) {
 	// Use NewInactiveTimeoutReader directly as NewStorageReaderWithInactiveTimeout is deprecated.
 	s.reader, err = gcsx.NewInactiveTimeoutReaderWithClock(s.ctx, s.mockBucket, s.object, s.readHandle, startOffset, int64(s.object.Size), s.timeout, s.simulatedClock)
 	time.Sleep(5 * time.Millisecond) // Allow some time to simulated clock to fire the timer.
-	
+
 	s.Require().NoError(err)
 	s.Require().NotNil(s.reader)
 }
@@ -159,7 +158,8 @@ func (s *InactiveTimeoutReaderTestSuite) Test_Read_SuccessfulWithinTimeout() {
 	s.Equal("hello", string(buf1[:n1]))
 
 	// Arrange - Wait less than timeout
-	time.Sleep(s.timeout / 2)
+	s.simulatedClock.AdvanceTime(s.timeout / 2)
+	time.Sleep(5 * time.Millisecond)
 
 	// Act & Assert - Second Read
 	n2, err2 := s.reader.Read(buf2)
@@ -186,7 +186,12 @@ func (s *InactiveTimeoutReaderTestSuite) Test_Read_ReconnectFails() {
 	s.Require().Equal(5, n)
 
 	// Arrange - Wait for timeout and set up mock for failed reconnect
-	s.simulatedClock.AdvanceTime(2*s.timeout + time.Millisecond)
+	s.simulatedClock.AdvanceTime(s.timeout + time.Millisecond)
+	time.Sleep(5 * time.Millisecond)
+
+	s.simulatedClock.AdvanceTime(s.timeout + time.Millisecond)
+	time.Sleep(5 * time.Millisecond)
+
 	reconnectErr := errors.New("failed to create new reader")
 	expectedReadHandle := s.initialFakeReader.Handle // Handle stored from the initial reader
 	s.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(req *gcs.ReadObjectRequest) bool {
@@ -230,21 +235,18 @@ func (s *InactiveTimeoutReaderTestSuite) Test_Read_TimeoutAndSuccessfulReconnect
 
 	// Act & Assert - First Read
 	n, err := s.reader.Read(buf)
-	fmt.Println("Just after the actual read")
 	s.Require().NoError(err)
 	s.Require().Equal(10, n)
 	s.Equal("abcdefghij", string(buf[:n]))
 
-
 	// Arrange - Simulate Timeout and prepare for reconnect
+	// First timer fire will make the reader inactive
 	s.simulatedClock.AdvanceTime(s.timeout + time.Millisecond) // Wait long enough for the monitor goroutine to detect inactivity and close the reader.
 	time.Sleep(5 * time.Millisecond)
-	// s.simulatedClock.AdvanceTime(s.timeout + time.Millisecond) // Wait long enough for the monitor goroutine to detect inactivity and close the reader.
-	// time.Sleep(50 * time.Millisecond)
 
-
+	// 2nd fire will close the inactive reader
 	s.simulatedClock.AdvanceTime(s.timeout + time.Millisecond)
-	time.Sleep(50 * time.Millisecond) // Allow some time to simulated clock to fire the timer.
+	time.Sleep(5 * time.Millisecond) // Allow some time to simulated clock to fire the timer.
 
 	reconnectReadObjectRequest := &gcs.ReadObjectRequest{
 		Name:       s.object.Name,
