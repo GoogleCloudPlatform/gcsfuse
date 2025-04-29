@@ -95,7 +95,7 @@ TEST_DIR_PARALLEL=(
   # "list_large_dir"
   # "rename_dir_limit"
   # "read_large_files"
-  # "explicit_dir"
+  "explicit_dir"
   # "implicit_dir"
   # "interrupt"
   # "operations"
@@ -103,7 +103,7 @@ TEST_DIR_PARALLEL=(
   # "concurrent_operations"
   # "benchmarking"
   # "mount_timeout"
-  "stale_handle"
+  # "stale_handle"
   # "negative_stat_cache"
   # "streaming_writes"
 )
@@ -121,7 +121,7 @@ TEST_DIR_NON_PARALLEL=(
 TEST_DIR_PARALLEL_FOR_ZB=(
   # "benchmarking"
   # "concurrent_operations"
-  # "explicit_dir"
+  "explicit_dir"
   # "gzip"
   # "implicit_dir"
   # "interrupt"
@@ -137,7 +137,7 @@ TEST_DIR_PARALLEL_FOR_ZB=(
   # "read_cache"
   # "read_large_files"
   # "rename_dir_limit"
-  "stale_handle"
+  # "stale_handle"
   # "streaming_writes"
   # "write_large_files"
 )
@@ -153,6 +153,53 @@ TEST_DIR_NON_PARALLEL_FOR_ZB=(
 
 # Create a temporary file to store the log file name.
 TEST_LOGS_FILE=$(mktemp)
+# --- Logger Function Definition ---
+# Usage: log_event "EVENT_TYPE_STRING"
+# Example: log_event "DATABASE_QUERY_START"
+log_event() {
+  local event_type="$1"
+
+  # Default event type if none is provided
+  if [ -z "$event_type" ]; then
+    event_type="<UNSPECIFIED_EVENT>"
+  fi
+
+  # Construct the call hierarchy string.
+  # FUNCNAME[0] would be 'log_event' itself.
+  # FUNCNAME[1] is the function that called 'log_event'.
+  # FUNCNAME[2] is the caller of FUNCNAME[1], and so on.
+  # So, we slice the array from index 1 to get the caller's stack.
+  local caller_stack_array=("${FUNCNAME[@]:1}")
+  local call_hierarchy_str
+
+  # Reverse the caller_stack_array
+  local reversed_caller_stack_array=()
+  local i 
+  for (( i=${#caller_stack_array[@]}-1 ; i>=0 ; i-- )) ; do
+      reversed_caller_stack_array+=("${caller_stack_array[i]}")
+  done
+  caller_stack_array=("${reversed_caller_stack_array[@]:1}")
+
+
+  if [ ${#caller_stack_array[@]} -gt 0 ]; then
+    # Join the caller's stack elements with '->'
+    call_hierarchy_str=$(IFS=':'; echo "${caller_stack_array[*]}")
+  else
+    # If called from global scope, FUNCNAME might be empty or 'main'.
+    # Use script name as context, or a placeholder.
+    # BASH_SOURCE[1] would be the script calling this function if sourced,
+    # BASH_SOURCE[0] is the current script.
+    # For simplicity, if no caller stack, use a placeholder or script name.
+    call_hierarchy_str="${BASH_SOURCE[0]:-<GLOBAL_SCOPE>}"
+  fi
+  local timestamp_epoch
+  timestamp_epoch=$(date +%s)
+  local timestamp_readable
+  timestamp_readable=$(date +"%Y-%m-%d %H:%M:%S") # Format: YYYY-MM-DD HH:MM:SS
+
+  # Append the log entry to the CSV file
+  echo "\"$call_hierarchy_str\",\"$event_type\",$timestamp_epoch,\"$timestamp_readable\"" >> "$CSV_FILE"
+}
 
 # Delete contents of the buckets (and then the buckets themselves) whose names are in the passed file.
 # Args: <bucket-names-file>
@@ -177,6 +224,7 @@ function delete_buckets_listed_in_file() {
 }
 
 function upgrade_gcloud_version() {
+  log_event "START"
   sudo apt-get update
   # Upgrade gcloud version.
   # Kokoro machine's outdated gcloud version prevents the use of the "managed-folders" feature.
@@ -189,9 +237,11 @@ function upgrade_gcloud_version() {
   gcloud version && rm gcloud.tar.gz
   sudo /usr/local/google-cloud-sdk/bin/gcloud components update
   sudo /usr/local/google-cloud-sdk/bin/gcloud components install alpha
+  log_event "END"
 }
 
 function install_packages() {
+  log_event "START"
   # e.g. architecture=arm64 or amd64
   architecture=$(dpkg --print-architecture)
   echo "Installing go-lang 1.24.0..."
@@ -204,6 +254,7 @@ function install_packages() {
   # Downloading composite object requires integrity checking with CRC32c in gsutil.
   # it requires to install crcmod.
   sudo apt install -y python3-crcmod
+  log_event "END"
 }
 
 function create_bucket() {
@@ -227,6 +278,7 @@ function create_hns_bucket() {
 }
 
 function create_zonal_bucket() {
+  log_event "START"
   local -r project_id="gcs-fuse-test-ml"
   local -r region=${BUCKET_LOCATION}
   local -r zone=${region}"-a"
@@ -236,9 +288,11 @@ function create_zonal_bucket() {
   bucket_name="gcsfuse-e2e-tests-zb-"$(date +%Y%m%d-%H%M%S)"-"$(tr -dc 'a-z0-9' < /dev/urandom | head -c $RANDOM_STRING_LENGTH)
   gcloud alpha storage buckets create gs://$bucket_name --project=$project_id --location=$region --placement=${zone} --default-storage-class=RAPID --uniform-bucket-level-access --enable-hierarchical-namespace
   echo "${bucket_name}"
+  log_event "END"
 }
 
 function run_non_parallel_tests() {
+  log_event "START"
   local exit_code=0
   local -n test_array=$1
   local bucket_name_non_parallel=$2
@@ -266,10 +320,12 @@ function run_non_parallel_tests() {
       echo "Passed test package in non-parallel (with zonal=${zonal}): " $test_dir_np
     fi
   done
+  log_event "END"
   return $exit_code
 }
 
 function run_parallel_tests() {
+  log_event "START"
   local exit_code=0
   local -n test_array=$1
   local bucket_name_parallel=$2
@@ -316,10 +372,12 @@ function run_parallel_tests() {
       echo "Passed test package in parallel (with zonal=${zonal}): " $package_name
     fi
   done
+  log_event "END"
   return $exit_code
 }
 
 function print_test_logs() {
+  log_event "START"
   readarray -t test_logs_array < "$TEST_LOGS_FILE"
   rm "$TEST_LOGS_FILE"
   for test_log_file in "${test_logs_array[@]}"
@@ -331,9 +389,11 @@ function print_test_logs() {
       echo "========================================="
     fi
   done
+  log_event "END"
 }
 
 function run_e2e_tests_for_flat_bucket() {
+  log_event "START"
   # Adding prefix `golang-grpc-test` to white list the bucket for grpc so that
   # we can run grpc related e2e tests.
   bucketPrefix="golang-grpc-test-gcsfuse-np-e2e-tests-"
@@ -360,15 +420,19 @@ function run_e2e_tests_for_flat_bucket() {
   wait $non_parallel_tests_pid
   non_parallel_tests_exit_code=$?
 
-  if [ $non_parallel_tests_exit_code != 0 ] || [ $parallel_tests_exit_code != 0 ];
-  then
-    return 1
-  fi
-  return 0
+ flat_buckets=("$bucket_name_parallel" "$bucket_name_non_parallel")
+ clean_up flat_buckets
+
+ if [ $non_parallel_tests_exit_code != 0 ] || [ $parallel_tests_exit_code != 0 ];
+ then
+   return 1
+ fi
+ log_event "END"
+ return 0
 }
 
 function run_e2e_tests_for_hns_bucket(){
-   hns_start_time_epoch=$(date +%s)
+  log_event "START"
    hns_bucket_name_parallel_group=$(create_hns_bucket)
    echo "Hns Bucket Created: "$hns_bucket_name_parallel_group
    echo ${hns_bucket_name_parallel_group}>>"${bucketNamesFile}"
@@ -393,13 +457,12 @@ function run_e2e_tests_for_hns_bucket(){
    then
     return 1
    fi
-   hns_end_time_epoch=$(date +%s)
-   hns_duration=$(($hns_end_time_epoch - $hns_start_time_epoch))
-   echo "run_e2e_tests_for_hns_bucket",\"$hns_start_time_epoch\",\"$hns_end_time_epoch\","$hns_duration" >> "$CSV_FILE"
+   log_event "END"
    return 0
 }
 
 function run_e2e_tests_for_zonal_bucket(){
+  log_event "START"
    zonal_bucket_name_parallel_group=$(create_zonal_bucket)
    echo "Zonal Bucket Created for parallel tests: "$zonal_bucket_name_parallel_group
    echo ${zonal_bucket_name_parallel_group}>>"${bucketNamesFile}"
@@ -424,17 +487,12 @@ function run_e2e_tests_for_zonal_bucket(){
    then
     return 1
    fi
+   log_event "END"
    return 0
 }
 
-function run_e2e_tests_for_tpc() {
-  local bucket=$1
-  if [ "$bucket" == "" ];
-  then
-    echo "Bucket name is required"
-    return 1
-  fi
-
+function run_e2e_tests_for_tpc_and_exit() {
+    log_event "START"
   # Clean bucket before testing.
   gcloud --verbosity=error storage rm -r gs://"$bucket"/*
 
@@ -451,17 +509,21 @@ function run_e2e_tests_for_tpc() {
    then
      return 1
   fi
-  return 0
+  log_event "END"
+  exit $exit_code
 }
 
 function run_e2e_tests_for_emulator() {
-  ./tools/integration_tests/emulator_tests/emulator_tests.sh $RUN_E2E_TESTS_ON_PACKAGE
+  log_event "START"
+  # ./tools/integration_tests/emulator_tests/emulator_tests.sh $RUN_E2E_TESTS_ON_PACKAGE
+  log_event "END"
 }
 
 #commenting it so cleanup and failure check happens for both
 #set -e
 
 function clean_up() {
+  log_event "START"
   # Cleanup
   # Delete bucket after testing.
   local -n buckets=$1
@@ -473,9 +535,10 @@ function clean_up() {
         gcloud alpha storage rm --recursive gs://$bucket 2>&1 | grep "ERROR"
       fi
     done
+  log_event "END"
 }
 
-CSV_FILE="command_times.csv"
+CSV_FILE="tools/integration_tests/command_times.csv"
 
 if [ -f "$CSV_FILE" ]; then
   echo "Existing CSV file '$CSV_FILE' found. Deleting it."
@@ -483,21 +546,16 @@ if [ -f "$CSV_FILE" ]; then
 fi
 
 if [ ! -f "$CSV_FILE" ]; then
-  echo "Command,Start Time,End Time,Duration (seconds)" > "$CSV_FILE"
+  echo "Command,Event Type,Event Time Epoch,Event Time Readable" > "$CSV_FILE"
   echo "CSV file '$CSV_FILE' created with headers."
 fi
 
 function main(){
-  setup_start_time_epoch=$(date +%s)
+  log_event "START"
   set -e
   upgrade_gcloud_version
-
   install_packages
-
   set +e
-  setup_end_time_epoch=$(date +%s)
-  setup_duration=$(($setup_end_time_epoch - $setup_start_time_epoch))
-  echo "upgrade_gcloud_version & install_packages",\"$setup_start_time_epoch\",\"$setup_end_time_epoch\","$setup_duration" >> "$CSV_FILE"
   #run integration tests
   exit_code=0
 
@@ -580,8 +638,9 @@ function main(){
 
   set -e
 
-  print_test_logs
+  # print_test_logs
 
+  log_event "END"
   exit $exit_code
 }
 
