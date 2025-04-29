@@ -340,12 +340,12 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 
 		// Forward GCE_METADATA_HOST and other related environment variables.
 		for _, envvar := range []string{"GCE_METADATA_HOST"} {
-			if p, ok := os.LookupEnv(envvar); ok {
-				env = append(env, fmt.Sprintf("%s=%s", envvar, p))
+			if envval, ok := os.LookupEnv(envvar); ok {
+				env = append(env, fmt.Sprintf("%s=%s", envvar, envval))
 				fmt.Fprintf(
 					os.Stdout,
 					"Added environment %s: %s\n",
-					envvar, p)
+					envvar, envval)
 			}
 		}
 
