@@ -201,6 +201,31 @@ func (t *FileStreamingWritesZonalBucketTest) TestSyncPendingBufferedWritesForZon
 	assert.Equal(t.T(), uint64(6), t.in.src.Size)
 }
 
+func (t *FileStreamingWritesZonalBucketTest) TestflushUsingBufferedWriteHandlerForZonalBucketsOnZeroSizeRecreatesBwhOnInitAgain() {
+	err := t.in.flushUsingBufferedWriteHandler()
+	require.NoError(t.T(), err)
+	assert.Nil(t.T(), t.in.bwh)
+
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
+
+	require.NoError(t.T(), err)
+	assert.True(t.T(), initialized)
+	assert.NotNil(t.T(), t.in.bwh)
+}
+
+func (t *FileStreamingWritesZonalBucketTest) TestflushUsingBufferedWriteHandlerForZonalBucketsOnNonZeroSizeDoesNotRecreatesBwhOnInitAgain() {
+	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("foobar"), 0))
+	err := t.in.flushUsingBufferedWriteHandler()
+	require.NoError(t.T(), err)
+	assert.Nil(t.T(), t.in.bwh)
+
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
+
+	require.NoError(t.T(), err)
+	assert.False(t.T(), initialized)
+	assert.Nil(t.T(), t.in.bwh)
+}
+
 // //////////////////////////////////////////////////////////////////////
 // Tests (Non Zonal Bucket)
 // //////////////////////////////////////////////////////////////////////
@@ -239,6 +264,31 @@ func (t *FileStreamingWritesTest) TestSyncPendingBufferedWritesForNonZonalBucket
 	require.NoError(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 	assert.Equal(t.T(), uint64(0), t.in.src.Size)
+}
+
+func (t *FileStreamingWritesTest) TestflushUsingBufferedWriteHandlerOnZeroSizeRecreatesBwhOnInitAgain() {
+	err := t.in.flushUsingBufferedWriteHandler()
+	require.NoError(t.T(), err)
+	assert.Nil(t.T(), t.in.bwh)
+
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
+
+	require.NoError(t.T(), err)
+	assert.True(t.T(), initialized)
+	assert.NotNil(t.T(), t.in.bwh)
+}
+
+func (t *FileStreamingWritesTest) TestflushUsingBufferedWriteHandlerOnNonZeroSizeDoesNotRecreatesBwhOnInitAgain() {
+	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("foobar"), 0))
+	err := t.in.flushUsingBufferedWriteHandler()
+	require.NoError(t.T(), err)
+	assert.Nil(t.T(), t.in.bwh)
+
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
+
+	require.NoError(t.T(), err)
+	assert.False(t.T(), initialized)
+	assert.Nil(t.T(), t.in.bwh)
 }
 
 func (t *FileStreamingWritesTest) TestOutOfOrderWritesToLocalFileFallBackToTempFile() {
