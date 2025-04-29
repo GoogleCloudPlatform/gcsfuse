@@ -2595,10 +2595,8 @@ func (fs *fileSystem) ReadFile(
 	fh.Lock()
 	defer fh.Unlock()
 
-	fh.Inode().Lock()
 	_, err = fs.flushPendingBufferedWrites(ctx, fh.Inode())
 	if err != nil {
-		fh.Inode().Unlock()
 		return err
 	}
 
