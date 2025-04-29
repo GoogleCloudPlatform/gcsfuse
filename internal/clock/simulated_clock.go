@@ -1,4 +1,4 @@
-// Copyright 2025 Google Inc. All Rights Reserved.
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -68,8 +68,8 @@ func (sc *SimulatedClock) AdvanceTime(d time.Duration) {
 	sc.processPending()
 }
 
-// After returns a time channel and returns the time over the returned channel after
-// the provided duration.
+// After returns a time channel and the expectedFired time is sent over the returned
+// channel after the provided duration.
 // If the duration is zero or negative, it sends the current simulated time immediately.
 func (sc *SimulatedClock) After(d time.Duration) <-chan time.Time {
 	sc.mu.Lock()
