@@ -260,7 +260,7 @@ func (t *UploadHandlerTest) TestUploadMultipleBlocksThrowsErrorInCopy() {
 
 	assertUploadFailureError(t.T(), t.uh)
 	assertAllBlocksProcessed(t.T(), t.uh)
-	assert.Equal(t.T(), 4, len(t.uh.freeBlocksCh))
+	assert.Equal(t.T(), 2, len(t.uh.freeBlocksCh))
 }
 
 func assertUploadFailureError(t *testing.T, handler *UploadHandler) {

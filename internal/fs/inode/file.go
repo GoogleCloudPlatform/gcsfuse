@@ -969,23 +969,24 @@ func (f *FileInode) CreateEmptyTempFile(ctx context.Context) (err error) {
 
 // Initializes Buffered Write Handler if the file inode is eligible and returns
 // initialized as true when the new instance of buffered writer handler is created.
-func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context) (initalized bool, err error) {
+func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context) (bool, error) {
 	// bwh already initialized, do nothing.
 	if f.bwh != nil {
-		return
+		return false, nil
 	}
 
 	tempFileInUse := f.content != nil
 	if f.src.Size != 0 || !f.config.Write.EnableStreamingWrites || tempFileInUse {
 		// bwh should not be initialized under these conditions.
-		return
+		return false, nil
 	}
 
 	var latestGcsObj *gcs.Object
+	var err error
 	if !f.local {
 		latestGcsObj, err = f.fetchLatestGcsObject(ctx)
 		if err != nil {
-			return
+			return false, err
 		}
 	}
 
@@ -1005,5 +1006,5 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context) (ini
 		f.bwh.SetMtime(f.mtimeClock.Now())
 		return true, nil
 	}
-	return
+	return false, nil
 }

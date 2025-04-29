@@ -1214,7 +1214,7 @@ func (fs *fileSystem) syncFile(
 	return nil
 }
 
-// Initializes Buffered Write Handler if Eligible and synchronizes the file inode to GCS if initialized succeds.
+// Initializes Buffered Write Handler if Eligible and synchronizes the file inode to GCS if initialization succeeds.
 //
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_REQUIRED(f.mu)
@@ -2629,7 +2629,6 @@ func (fs *fileSystem) WriteFile(
 	in.Lock()
 	defer in.Unlock()
 
-	// Initialize BWH if eligible and Sync file inode.
 	err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, in)
 	if err != nil {
 		return
