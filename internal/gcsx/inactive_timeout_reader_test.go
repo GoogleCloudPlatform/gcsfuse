@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcsx_test
+package gcsx
 
 import (
 	"bytes"
@@ -21,19 +21,14 @@ import (
 	"io"
 	"testing"
 	"time"
-	"fmt"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/clock"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-)
-
-var (
-	simulatedClockStartTime = time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC)
 )
 
 type InactiveTimeoutReaderTestSuite struct {
@@ -65,28 +60,24 @@ func (s *InactiveTimeoutReaderTestSuite) SetupTest() {
 	s.object = &gcs.MinObject{Name: "test-object", Generation: 123, Size: uint64(len(s.initialData))}
 	s.reader = nil // Reset reader before each test
 	s.initialFakeReader = nil
-	s.simulatedClock = clock.NewSimulatedClock(simulatedClockStartTime)
+	s.simulatedClock = clock.NewSimulatedClock(time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC))
 }
 
 func (s *InactiveTimeoutReaderTestSuite) TearDownTest() {
 	if s.reader != nil {
+		// Close the wrapper reader, not the potentially nil internal one
 		s.reader.Close()
 		s.reader = nil
 	}
 	s.mockBucket.AssertExpectations(s.T())
 }
 
-// getReadCloser is a helper to create a ReadCloser for fake.NewFakeReader.
-func getReadCloser(content []byte) io.ReadCloser {
-	return io.NopCloser(bytes.NewReader(content))
-}
-
 // setupReader is a helper within the suite to create the reader under test.
 // Tests should call this after setting specific suite properties like initialData or timeout.
 func (s *InactiveTimeoutReaderTestSuite) setupReader(startOffset int64) {
 	s.object.Size = uint64(len(s.initialData)) // Ensure object size matches data
-
-	s.initialFakeReader = &fake.FakeReader{ReadCloser: getReadCloser(s.initialData), Handle: s.readHandle}
+	readCloser := getReadCloser(s.initialData)
+	s.initialFakeReader = &fake.FakeReader{ReadCloser: readCloser, Handle: s.readHandle}
 
 	readObjectRequest := &gcs.ReadObjectRequest{
 		Name:       s.object.Name,
@@ -98,25 +89,21 @@ func (s *InactiveTimeoutReaderTestSuite) setupReader(startOffset int64) {
 		ReadCompressed: s.object.HasContentEncodingGzip(),
 		ReadHandle:     s.readHandle,
 	}
-
 	s.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).Return(s.initialFakeReader, nil).Times(1)
 
 	var err error
 	// Use NewInactiveTimeoutReader directly as NewStorageReaderWithInactiveTimeout is deprecated.
-	s.reader, err = gcsx.NewInactiveTimeoutReaderWithClock(s.ctx, s.mockBucket, s.object, s.readHandle, startOffset, int64(s.object.Size), s.timeout, s.simulatedClock)
-	time.Sleep(5 * time.Millisecond) // Allow some time to simulated clock to fire the timer.
-	
+	s.reader, err = NewInactiveTimeoutReaderWithClock(s.ctx, s.mockBucket, s.object, s.readHandle, startOffset, int64(s.object.Size), s.timeout, s.simulatedClock)
+	time.Sleep(5 * time.Millisecond) // Allow time to schedule and create a timer.
 	s.Require().NoError(err)
 	s.Require().NotNil(s.reader)
 }
 
 func (s *InactiveTimeoutReaderTestSuite) Test_NewInactiveTimeoutReader_InitialReadError() {
-	// Arrange
-	s.initialData = make([]byte, 100) // Size doesn't matter much here
+	s.initialData = make([]byte, 100) // Size doesn't matter here
 	s.object = &gcs.MinObject{Name: "fail-object", Generation: 456, Size: 100}
 	s.timeout = 100 * time.Millisecond
 	initialErr := errors.New("initial connection failed")
-
 	// Expect the initial NewReader call to fail
 	s.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(req *gcs.ReadObjectRequest) bool {
 		return req.Name == s.object.Name &&
@@ -125,162 +112,188 @@ func (s *InactiveTimeoutReaderTestSuite) Test_NewInactiveTimeoutReader_InitialRe
 			req.Range.Limit == 100
 	})).Return(nil, initialErr).Once()
 
-	// Act
-	_, err := gcsx.NewInactiveTimeoutReader(s.ctx, s.mockBucket, s.object, []byte{}, 0, 100, s.timeout)
+	_, err := NewInactiveTimeoutReader(s.ctx, s.mockBucket, s.object, []byte{}, 0, 100, s.timeout)
 
-	// Assert
 	s.Error(err)
-	s.Equal(initialErr, err) // Should be the exact error from the bucket
+	s.ErrorIs(err, initialErr) // Should be the exact error from the bucket
 }
 
 func (s *InactiveTimeoutReaderTestSuite) Test_NewInactiveTimeoutReader_ZeroTimeoutError() {
 	s.initialData = []byte("zero timeout")
 	s.timeout = 0 * time.Millisecond // Zero timeout
 
-	_, err := gcsx.NewInactiveTimeoutReader(s.ctx, s.mockBucket, s.object, []byte{}, 0, 100, s.timeout)
+	_, err := NewInactiveTimeoutReader(s.ctx, s.mockBucket, s.object, []byte{}, 0, 100, s.timeout)
 
 	s.Error(err)
-	s.Equal(gcsx.ErrZeroInactivityTimeout, err)
+	s.Equal(ErrZeroInactivityTimeout, err)
 }
 
 func (s *InactiveTimeoutReaderTestSuite) Test_Read_SuccessfulWithinTimeout() {
-	// Arrange
-	s.initialData = []byte("hello world")
-	s.timeout = 100 * time.Millisecond
-	s.setupReader(0) // Initial read from offset 0
-	buf1 := make([]byte, 5)
-	buf2 := make([]byte, 6)
-	buf3 := make([]byte, 6) // Buffer for EOF read
+	// Test initial read.
+	{
+		s.initialData = []byte("hello world")
+		s.timeout = 100 * time.Millisecond
+		s.setupReader(0) // Initial read from offset 0
+		buf1 := make([]byte, 5)
 
-	// Act & Assert - First Read
-	n1, err1 := s.reader.Read(buf1)
-	s.NoError(err1)
-	s.Equal(5, n1)
-	s.Equal("hello", string(buf1[:n1]))
+		n1, err1 := s.reader.Read(buf1)
 
-	// Arrange - Wait less than timeout
-	time.Sleep(s.timeout / 2)
+		s.NoError(err1)
+		s.Equal(5, n1)
+		s.Equal("hello", string(buf1[:n1]))
+	}
 
-	// Act & Assert - Second Read
-	n2, err2 := s.reader.Read(buf2)
-	s.NoError(err2)
-	s.Equal(6, n2)
-	s.Equal(" world", string(buf2[:n2]))
+	// Test no reader closure within timeout.
+	{
+		buf2 := make([]byte, 6)
+		s.simulatedClock.AdvanceTime(s.timeout / 2)
+		// Allow some time to routine incase timer fired in half timeout.
+		time.Sleep(5 * time.Millisecond)
 
-	// Act & Assert - Read EOF
-	n3, err3 := s.reader.Read(buf3)
-	s.Same(io.EOF, err3)
-	s.Equal(0, n3)
+		n2, err2 := s.reader.Read(buf2)
+
+		inactiveReader := s.reader.(*inactiveTimeoutReader)
+		s.True(inactiveReader.isActive)
+		s.NoError(err2)
+		s.Equal(6, n2)
+		s.Equal(" world", string(buf2[:n2]))
+	}
+
+	// EOF
+	{
+		buf3 := make([]byte, 6)
+
+		n3, err3 := s.reader.Read(buf3)
+
+		s.Same(io.EOF, err3)
+		s.Equal(0, n3)
+	}
 }
 
 func (s *InactiveTimeoutReaderTestSuite) Test_Read_ReconnectFails() {
-	// Arrange
-	s.initialData = []byte("reconnect failure")
-	s.timeout = 50 * time.Millisecond
-	s.setupReader(0)
 	buf := make([]byte, 5)
 
-	// Act & Assert - First Read
-	n, err := s.reader.Read(buf)
-	s.Require().NoError(err)
-	s.Require().Equal(5, n)
+	// Initial read.
+	{
+		s.initialData = []byte("reconnect failure")
+		s.timeout = 50 * time.Millisecond
+		s.setupReader(0)
 
-	// Arrange - Wait for timeout and set up mock for failed reconnect
-	s.simulatedClock.AdvanceTime(2*s.timeout + time.Millisecond)
-	reconnectErr := errors.New("failed to create new reader")
-	expectedReadHandle := s.initialFakeReader.Handle // Handle stored from the initial reader
-	s.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(req *gcs.ReadObjectRequest) bool {
-		return req.Name == s.object.Name &&
-			req.Range.Start == 5 && // Expect reconnect from offset 5
-			bytes.Equal(req.ReadHandle, expectedReadHandle)
-	})).Return(nil, reconnectErr).Times(1) // Expect only one call for the first failed attempt
+		n, err := s.reader.Read(buf)
 
-	// Act - Read After Timeout (should trigger the failed reconnect)
-	nFail1, errFail1 := s.reader.Read(buf)
+		s.Require().NoError(err)
+		s.Require().Equal(5, n)
+	}
 
-	// Assert - First failed reconnect attempt
-	s.Error(errFail1)
-	s.ErrorIs(errFail1, reconnectErr)
-	s.Contains(errFail1.Error(), "NewReaderWithReadHandle:")
-	s.Equal(0, nFail1)
+	// Test fails while re-connect.
+	{
+		// First timeout fire will make the reader inactive.
+		s.simulatedClock.AdvanceTime(s.timeout + time.Millisecond)
+		// Wait for the monitor routine to make the read inactive.
+		require.Eventually(s.T(), func() bool {
+			rr := s.reader.(*inactiveTimeoutReader)
+			return !rr.isActive
+		}, time.Second, 10*time.Millisecond, "Monitor did mark the reader inactive in time")
+		// 2nd fire will close the inactive reader.
+		s.simulatedClock.AdvanceTime(s.timeout + time.Millisecond)
+		// Wait for the monitor routine to close the wrapped reader.
+		require.Eventually(s.T(), func() bool {
+			rr := s.reader.(*inactiveTimeoutReader)
+			return (rr.gcsReader == nil)
+		}, time.Second, 10*time.Millisecond, "Monitor did not close the reader in time")
+		reconnectErr := errors.New("failed to create new reader")
+		expectedReadHandle := s.initialFakeReader.Handle
+		s.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(req *gcs.ReadObjectRequest) bool {
+			return req.Name == s.object.Name &&
+				req.Range.Start == 5 && // Expect reconnect from offset 5
+				bytes.Equal(req.ReadHandle, expectedReadHandle)
+		})).Return(nil, reconnectErr).Times(1) // Expect only one call for the first failed attempt
 
-	// Arrange - Set up mock for second failed reconnect attempt
-	s.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(req *gcs.ReadObjectRequest) bool {
-		return req.Name == s.object.Name &&
-			req.Range.Start == 5 &&
-			bytes.Equal(req.ReadHandle, expectedReadHandle)
-	})).Return(nil, reconnectErr).Times(1) // Expect another call
+		nFail1, errFail1 := s.reader.Read(buf)
 
-	// Act - Subsequent read should also fail trying to reconnect
-	nFail2, errFail2 := s.reader.Read(buf)
-
-	// Assert - Second failed reconnect attempt
-	s.Error(errFail2)
-	s.ErrorIs(errFail2, reconnectErr)
-	s.Contains(errFail2.Error(), "NewReaderWithReadHandle:") // Check wrapping again
-	s.Equal(0, nFail2)
+		// First failed reconnect attempt
+		s.Error(errFail1)
+		s.ErrorIs(errFail1, reconnectErr)
+		s.Contains(errFail1.Error(), "NewReaderWithReadHandle:")
+		s.Equal(0, nFail1)
+	}
 }
 
 func (s *InactiveTimeoutReaderTestSuite) Test_Read_TimeoutAndSuccessfulReconnect() {
-	// Arrange
-	s.initialData = []byte("abcdefghijklmnopqrstuvwxyz")
-	s.timeout = 50 * time.Second
-	s.setupReader(0)
-	buf := make([]byte, 10)
+	// Test the first read.
+	{
+		s.initialData = []byte("abcdefghijklmnopqrstuvwxyz")
+		s.timeout = 50 * time.Second
+		s.setupReader(0)
+		buf := make([]byte, 10)
 
-	// Act & Assert - First Read
-	n, err := s.reader.Read(buf)
-	fmt.Println("Just after the actual read")
-	s.Require().NoError(err)
-	s.Require().Equal(10, n)
-	s.Equal("abcdefghij", string(buf[:n]))
+		n, err := s.reader.Read(buf)
 
-
-	// Arrange - Simulate Timeout and prepare for reconnect
-	s.simulatedClock.AdvanceTime(s.timeout + time.Millisecond) // Wait long enough for the monitor goroutine to detect inactivity and close the reader.
-	time.Sleep(5 * time.Millisecond)
-	// s.simulatedClock.AdvanceTime(s.timeout + time.Millisecond) // Wait long enough for the monitor goroutine to detect inactivity and close the reader.
-	// time.Sleep(50 * time.Millisecond)
-
-
-	s.simulatedClock.AdvanceTime(s.timeout + time.Millisecond)
-	time.Sleep(50 * time.Millisecond) // Allow some time to simulated clock to fire the timer.
-
-	reconnectReadObjectRequest := &gcs.ReadObjectRequest{
-		Name:       s.object.Name,
-		Generation: s.object.Generation,
-		Range: &gcs.ByteRange{
-			Start: uint64(10), // Expect reconnect from offset 10
-			Limit: s.object.Size,
-		},
-		ReadCompressed: s.object.HasContentEncodingGzip(),
-		ReadHandle:     s.readHandle, // Expect the stored handle to be used
+		s.Require().NoError(err)
+		s.Require().Equal(10, n)
+		s.Equal("abcdefghij", string(buf[:n]))
 	}
-	// Use the same initialFakeReader for simplicity, as it tracks the read offset internally.
-	s.mockBucket.On("NewReaderWithReadHandle", mock.Anything, reconnectReadObjectRequest).Return(s.initialFakeReader, nil).Times(1)
-	bufReconnect := make([]byte, 5)
 
-	// Act - Read After Timeout (should trigger reconnect)
-	nReconnect, errReconnect := s.reader.Read(bufReconnect)
+	// Test reconnect after timeout
+	{
+		// First timeout fire will make the reader inactive.
+		s.simulatedClock.AdvanceTime(s.timeout + time.Millisecond)
+		// Wait for the monitor routine to make the read inactive.
+		require.Eventually(s.T(), func() bool {
+			rr := s.reader.(*inactiveTimeoutReader)
+			return !rr.isActive
+		}, time.Second, 10*time.Millisecond, "Monitor did mark the reader inactive in time")
+		// 2nd fire will close the inactive reader.
+		s.simulatedClock.AdvanceTime(s.timeout + time.Millisecond)
+		// Wait for the monitor routine to close the wrapped reader.
+		require.Eventually(s.T(), func() bool {
+			rr := s.reader.(*inactiveTimeoutReader)
+			return (rr.gcsReader == nil)
+		}, time.Second, 10*time.Millisecond, "Monitor did not close the reader in time")
+		expectedReadHandleAfterClose := s.initialFakeReader.Handle // The handle that should be stored after close
+		reconnectReadObjectRequest := &gcs.ReadObjectRequest{
+			Name:       s.object.Name,
+			Generation: s.object.Generation,
+			Range: &gcs.ByteRange{
+				Start: uint64(10), // Expect reconnect from offset 10
+				Limit: s.object.Size,
+			},
+			ReadCompressed: s.object.HasContentEncodingGzip(),
+			ReadHandle:     expectedReadHandleAfterClose, // Expect the stored handle to be used for reconnect
+		}
+		// Use the same initialFakeReader for simplicity, as it tracks the read offset internally.
+		s.mockBucket.On("NewReaderWithReadHandle", mock.Anything, reconnectReadObjectRequest).Return(s.initialFakeReader, nil).Times(1)
+		bufReconnect := make([]byte, 5)
 
-	// Assert - Reconnect and first read after reconnect
-	s.Require().NoError(errReconnect, "Read after timeout failed")
-	s.Require().Equal(5, nReconnect)
-	s.Equal("klmno", string(bufReconnect[:nReconnect])) // Should read from the *reconnect* reader's data
+		// Act - read after timeout (should trigger reconnect)
+		nReconnect, errReconnect := s.reader.Read(bufReconnect)
 
-	// Arrange - Prepare for reading remaining data
-	bufRemaining := make([]byte, 20) // Buffer larger than remaining data
+		// Assert
+		s.Require().NoError(errReconnect, "Read after timeout failed")
+		s.Require().Equal(5, nReconnect)
+		s.Equal("klmno", string(bufReconnect[:nReconnect])) // Should read from the *reconnect* reader's data
+	}
 
-	// Act & Assert - Read remaining data from the new reader
-	nRemaining, errRemaining := s.reader.Read(bufRemaining)
-	s.Require().NoError(errRemaining)
-	s.Equal(11, nRemaining, "Incorrect number of remaining bytes read") // 26 total - 10 initial - 5 reconnect = 11
-	s.Equal("pqrstuvwxyz", string(bufRemaining[:nRemaining]))
+	// Test reading the remaining data
+	{
+		bufRemaining := make([]byte, 20)
 
-	// Act & Assert - Read EOF from the new reader
-	nEOF, errEOF := s.reader.Read(bufRemaining)
-	s.Same(io.EOF, errEOF)
-	s.Equal(0, nEOF)
+		nRemaining, errRemaining := s.reader.Read(bufRemaining)
+
+		s.Require().NoError(errRemaining)
+		s.Equal(11, nRemaining, "Incorrect number of remaining bytes read") // 26 total - 10 initial - 5 reconnect = 11
+		s.Equal("pqrstuvwxyz", string(bufRemaining[:nRemaining]))
+	}
+
+	// Test EOF
+	{
+		buf := make([]byte, 20)
+
+		n, err := s.reader.Read(buf)
+
+		s.Same(io.EOF, err)
+		s.Equal(0, n)
+	}
 }
 
 func (s *InactiveTimeoutReaderTestSuite) Test_Close_ExplicitClose() {
@@ -294,4 +307,4 @@ func (s *InactiveTimeoutReaderTestSuite) Test_Close_ExplicitClose() {
 	s.NoError(err)
 }
 
-// TODO: Add concurrent test
+// TODO: Add concurrent test to make sure thread safety.
