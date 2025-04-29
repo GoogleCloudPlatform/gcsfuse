@@ -487,16 +487,17 @@ func (t *rangeReaderTest) Test_ReadAt_DoesntPropagateCancellationAfterReturning(
 	cancelCalled := make(chan struct{})
 	t.rangeReader.cancel = func() { close(cancelCalled) }
 	ctx, cancel := context.WithCancel(context.Background())
+	var bufSize int64 = 2
 
 	// Successfully read two bytes using a context whose cancellation we control.
 	readerResponse, err := t.rangeReader.ReadAt(ctx, &gcsx.GCSReaderRequest{
-		Buffer:    make([]byte, 2),
+		Buffer:    make([]byte, bufSize),
 		Offset:    0,
 		EndOffset: 2,
 	})
 
 	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), 2, readerResponse.Size)
+	assert.Equal(t.T(), bufSize, readerResponse.Size)
 	// If we cancel the calling context now, it should not cause the underlying
 	// read context to be cancelled.
 	cancel()
