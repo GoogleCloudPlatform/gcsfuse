@@ -951,8 +951,8 @@ func (f *FileInode) CacheEnsureContent(ctx context.Context) (err error) {
 	return
 }
 
-// CreateEmptyTempFile creates an empty file with no contents and skips
-// creating empty file when streaming writes are enabled.
+// CreateEmptyTempFile creates an empty file with no contents when
+// streaming writes are not in enabled.
 func (f *FileInode) CreateEmptyTempFile(ctx context.Context) (err error) {
 	// Skip creating empty file when streaming writes are enabled.
 	if f.bwh != nil {
@@ -968,7 +968,7 @@ func (f *FileInode) CreateEmptyTempFile(ctx context.Context) (err error) {
 }
 
 // Initializes Buffered Write Handler if the file inode is eligible and returns
-// initialized as true if the new instance of buffered writer handler is created.
+// initialized as true when the new instance of buffered writer handler is created.
 func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context) (initalized bool, err error) {
 	// bwh already initialized, do nothing.
 	if f.bwh != nil {
@@ -1000,12 +1000,10 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context) (ini
 			ChunkTransferTimeoutSecs: f.config.GcsRetries.ChunkTransferTimeoutSecs,
 		})
 		if err != nil {
-			err = fmt.Errorf("failed to create bufferedWriteHandler: %w", err)
-			return
+			return false, fmt.Errorf("failed to create bufferedWriteHandler: %w", err)
 		}
 		f.bwh.SetMtime(f.mtimeClock.Now())
-		initalized = true
-		return
+		return true, nil
 	}
 	return
 }

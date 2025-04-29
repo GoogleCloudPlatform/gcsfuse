@@ -967,7 +967,7 @@ func (t *FileTest) TestTruncateUpwardForEmptyGCSFileWhenStreamingWritesAreEnable
 		t.Run(tc.name, func() {
 			t.createInodeWithEmptyObject()
 			t.in.config = &cfg.Config{Write: *getWriteConfig()}
-			// Initialize BWH for local inode created above.
+			// Initialize BWH for inode created above.
 			initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
 			require.NoError(t.T(), err)
 			assert.True(t.T(), initialized)
@@ -1045,7 +1045,7 @@ func (t *FileTest) TestTruncateDownwardWhenStreamingWritesAreEnabled() {
 				t.createInodeWithEmptyObject()
 			}
 			t.in.config = &cfg.Config{Write: *getWriteConfig()}
-			// Initialize BWH for local inode created above.
+			// Initialize BWH for inode created above.
 			initalized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
 			require.NoError(t.T(), err)
 			assert.True(t.T(), initalized)
@@ -1469,18 +1469,7 @@ func (t *FileTest) TestCreateEmptyTempFileShouldNotCreateFileForLocalInodeWhenSt
 	assert.Nil(t.T(), t.in.content)
 }
 
-func (t *FileTest) TestCreateBufferedOrTempWriterShouldNotCreateFileWhenStreamingWritesAreEnabled() {
-	t.createInodeWithLocalParam("test", true)
-	t.in.config = &cfg.Config{Write: *getWriteConfig()}
-	t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
-	err := t.in.CreateEmptyTempFile(t.ctx)
-
-	assert.Nil(t.T(), err)
-	assert.Nil(t.T(), t.in.content)
-	assert.NotNil(t.T(), t.in.bwh)
-}
-
-func (t *FileTest) TestCreateBufferedOrTempWriterShouldCreateFileForNonLocalFilesForStreamingWrites() {
+func (t *FileTest) TestCreateEmptyTempFileShouldCreateFileForNonLocalFilesForStreamingWrites() {
 	// Enabling buffered writes.
 	t.in.config = &cfg.Config{Write: *getWriteConfig()}
 
@@ -1544,6 +1533,7 @@ func (t *FileTest) TestReadFileWhenStreamingWritesAreEnabled() {
 				// Create a local file inode.
 				t.createInodeWithLocalParam("test", true)
 				t.in.config = &cfg.Config{Write: *getWriteConfig()}
+				// Initialize BWH for local inode created above.
 				initalized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
 				require.NoError(t.T(), err)
 				assert.True(t.T(), initalized)
@@ -1553,6 +1543,7 @@ func (t *FileTest) TestReadFileWhenStreamingWritesAreEnabled() {
 			if tc.fileType == EmptyGCSFile {
 				t.createInodeWithEmptyObject()
 				t.in.config = &cfg.Config{Write: *getWriteConfig()}
+				// Initialize BWH for inode created above.
 				initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
 				require.NoError(t.T(), err)
 				assert.True(t.T(), initialized)
@@ -1588,10 +1579,11 @@ func (t *FileTest) TestReadEmptyGCSFileWhenStreamingWritesAreNotInProgress() {
 	assert.Contains(t.T(), err.Error(), "EOF")
 }
 
-func (t *FileTest) TestWriteToLocalFileWithInvalidConfigWhenStreamingWritesAreEnabled() {
+func (t *FileTest) TestInitBufferedWriteHandlerWithInvalidConfigWhenStreamingWritesAreEnabled() {
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
 	t.in.config = &cfg.Config{Write: cfg.WriteConfig{EnableStreamingWrites: true}}
+
 	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
 
 	assert.True(t.T(), strings.Contains(err.Error(), "invalid configuration"))
@@ -1603,6 +1595,7 @@ func (t *FileTest) TestWriteToLocalFileWhenStreamingWritesAreEnabled() {
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
 	t.in.config = &cfg.Config{Write: *getWriteConfig()}
+	// Initialize BWH for local inode created above.
 	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
 	require.NoError(t.T(), err)
 	assert.True(t.T(), initialized)
@@ -1678,6 +1671,7 @@ func (t *FileTest) TestSetMtimeOnEmptyGCSFileWhenStreamingWritesAreEnabled() {
 func (t *FileTest) TestSetMtimeOnEmptyGCSFileAfterWritesWhenStreamingWritesAreEnabled() {
 	t.createInodeWithEmptyObject()
 	t.in.config = &cfg.Config{Write: *getWriteConfig()}
+	// Initialize BWH for inode created above.
 	initalized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
 	require.NoError(t.T(), err)
 	assert.True(t.T(), initalized)

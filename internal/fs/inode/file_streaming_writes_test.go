@@ -151,6 +151,7 @@ func (t *FileStreamingWritesCommon) createInode(fileName string, fileType string
 		EnableStreamingWrites: true,
 		GlobalMaxBlocks:       10,
 	}}
+	// Initialize BWH for inode created above.
 	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
 	require.NoError(t.T(), err)
 	assert.True(t.T(), initialized)
