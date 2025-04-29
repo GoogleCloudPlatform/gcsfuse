@@ -122,6 +122,20 @@ func (br *blockingReader) Read([]byte) (int, error) {
 }
 
 ////////////////////////////////////////////////////////////////////////
+// Counting closer
+////////////////////////////////////////////////////////////////////////
+
+type countingCloser struct {
+	io.Reader
+	closeCount int
+}
+
+func (cc *countingCloser) Close() (err error) {
+	cc.closeCount++
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
@@ -493,13 +507,54 @@ func (t *rangeReaderTest) Test_ReadAt_DoesntPropagateCancellationAfterReturning(
 	}
 }
 
+func (t *rangeReaderTest) Test_ReadAt_ReaderExhaustedReadFinished() {
+	r := &countingCloser{Reader: getReader(4)}
+	t.rangeReader.reader = &fake.FakeReader{ReadCloser: r}
+	t.rangeReader.start = 0
+	t.rangeReader.limit = 2
+	t.rangeReader.cancel = func() {}
+
+	resp, err := t.readAt(0, 2)
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), int64(2), t.rangeReader.start)
+	assert.Equal(t.T(), int64(2), t.rangeReader.limit)
+	assert.Equal(t.T(), 1, r.closeCount)
+	assert.Equal(t.T(), 2, resp.Size)
+}
+
+func (t *rangeReaderTest) Test_ReadAt_ReaderNotExhausted() {
+	// Set up a reader that has three bytes left to give.
+	content := "abc"
+	cc := &countingCloser{
+		Reader: strings.NewReader(content),
+	}
+	rc := &fake.FakeReader{ReadCloser: cc}
+	t.rangeReader.reader = &fake.FakeReader{ReadCloser: cc}
+	t.rangeReader.start = 1
+	t.rangeReader.limit = 4
+	t.rangeReader.cancel = func() {}
+	var bufSize int64 = 2
+
+	// Read two bytes.
+	resp, err := t.readAt(1, bufSize)
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), content[:bufSize], string(resp.DataBuf[:resp.Size]))
+	assert.Zero(t.T(), cc.closeCount)
+	assert.Equal(t.T(), rc, t.rangeReader.reader)
+	assert.Equal(t.T(), int64(3), t.rangeReader.start)
+	assert.Equal(t.T(), int64(4), t.rangeReader.limit)
+}
+
 func (t *rangeReaderTest) Test_ReadAt_EOFWithReaderNilClearsError() {
+	// Create a reader that returns exactly 2 bytes and ErrUnexpectedEOF
 	partialReader := io.NopCloser(iotest.ErrReader(io.ErrUnexpectedEOF)) // Simulates early EOF
 	r := &fake.FakeReader{ReadCloser: partialReader}
 	t.rangeReader.reader = &fake.FakeReader{ReadCloser: r}
 	t.rangeReader.start = 2
-	t.rangeReader.limit = 2 // start and limit at same offset to clear reader
-	t.rangeReader.cancel = func() {}
+	t.rangeReader.limit = 2          // Exactly 2 bytes expected
+	t.rangeReader.cancel = func() {} // dummy
 
 	resp, err := t.readAt(0, 2)
 
