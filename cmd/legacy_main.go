@@ -338,6 +338,17 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 				p)
 		}
 
+		// Forward GCE_METADATA_HOST and other related environment variables.
+		for _, envvar := range []string{"GCE_METADATA_HOST"} {
+			if p, ok := os.LookupEnv(envvar); ok {
+				env = append(env, fmt.Sprintf("%s=%s", envvar, p))
+				fmt.Fprintf(
+					os.Stdout,
+					"Added environment %s: %s\n",
+					envvar, p)
+			}
+		}
+
 		// Pass the parent process working directory to child process via
 		// environment variable. This variable will be used to resolve relative paths.
 		if parentProcessExecutionDir, err := os.Getwd(); err == nil {
