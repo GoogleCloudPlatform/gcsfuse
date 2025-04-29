@@ -322,13 +322,14 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 				p)
 		}
 
-		// Forward GCE_METADATA_HOST and other related environment variables.
-		// Pass along GOOGLE_APPLICATION_CREDENTIALS, since we document in
+		// Forward environment variables.
+		// Forward GOOGLE_APPLICATION_CREDENTIALS, since we document in
 		// mounting.md that it can be used for specifying a key file.
-		// Pass through the no_proxy environment variable. Whenever
+		// Forward the no_proxy environment variable. Whenever
 		// using the http(s)_proxy environment variables. This should
 		// also be included to know for which hosts the use of proxies
 		// should be ignored.
+		// Forward GCE_METADATA_HOST as it is used for mocked metadata services.
 		for _, envvar := range []string{"GOOGLE_APPLICATION_CREDENTIALS", "no_proxy", "GCE_METADATA_HOST"} {
 			if envval, ok := os.LookupEnv(envvar); ok {
 				env = append(env, fmt.Sprintf("%s=%s", envvar, envval))
