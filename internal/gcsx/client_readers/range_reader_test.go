@@ -405,11 +405,10 @@ func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenReaderReturnedMoreData() 
 			t.rangeReader.start = 0
 			t.rangeReader.limit = 6
 			testContent := testUtil.GenerateRandomBytes(8)
-			rc := &fake.FakeReader{
+			t.rangeReader.reader = &fake.FakeReader{
 				ReadCloser: getReadCloser(testContent),
 				Handle:     tc.readHandle,
 			}
-			t.rangeReader.reader = rc
 			t.rangeReader.cancel = func() {}
 
 			n, err := t.rangeReader.readFromRangeReader(t.ctx, make([]byte, 10), 0, 10, "unhandled")
@@ -535,7 +534,7 @@ func (t *rangeReaderTest) Test_ReadAt_ReaderNotExhausted() {
 		Reader: strings.NewReader(content),
 	}
 	rc := &fake.FakeReader{ReadCloser: cc}
-	t.rangeReader.reader = &fake.FakeReader{ReadCloser: cc}
+	t.rangeReader.reader = rc
 	var offset int64 = 1
 	t.rangeReader.start = offset
 	t.rangeReader.limit = 4
