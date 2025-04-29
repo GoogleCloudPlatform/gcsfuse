@@ -167,8 +167,8 @@ func TestFileStreamingWritesWithZonalBucketTestSuite(t *testing.T) {
 	suite.Run(t, new(FileStreamingWritesZonalBucketTest))
 }
 
-func (t *FileStreamingWritesZonalBucketTest) TestSourceGenerationIsAuthoritativeReturnsTrueForZonalBuckets() {
-	assert.True(t.T(), t.in.SourceGenerationIsAuthoritative())
+func (t *FileStreamingWritesZonalBucketTest) TestSourceGenerationIsAuthoritativeReturnsFalseForZonalBuckets() {
+	assert.False(t.T(), t.in.SourceGenerationIsAuthoritative())
 }
 
 func (t *FileStreamingWritesZonalBucketTest) TestSourceGenerationIsAuthoritativeReturnsFalseAfterWriteForZonalBuckets() {
