@@ -47,7 +47,7 @@ func (t *defaultMountCommonTest) TestReadBeforeFileIsFlushed() {
 	_, err = t.f1.Read(buf)
 
 	require.NoError(t.T(), err)
-	assert.Equal(t.T(), t.data, buf)
+	assert.EqualValues(t.T(), t.data, string(buf))
 	// Validate if correct content is uploaded to GCS after read error.
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, t.data, t.T())
 }

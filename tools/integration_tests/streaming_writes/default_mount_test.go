@@ -60,6 +60,6 @@ func (t *defaultMountCommonTest) validateReadCall(filePath string) {
 	//} else {
 
 	require.NoError(t.T(), err)
-	assert.Equal(t.T(), t.data, buf)
+	assert.Equal(t.T(), t.data, string(buf))
 	//}
 }
