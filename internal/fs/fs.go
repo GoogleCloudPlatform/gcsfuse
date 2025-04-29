@@ -1769,28 +1769,26 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 	}
 	child = fs.mintInode(core)
 	fs.localFileInodes[child.Name()] = child
-	fs.mu.Unlock()
-	// Empty file is created to be able to set attributes on the file.
 	fileInode := child.(*inode.FileInode)
+	// Use deferred locking on filesystem so that it is locked before the defer call that unlocks the mutex and it doesn't fail.
+	defer fs.mu.Lock()
+
+	// We need to release the filesystem lock before acquiring the inode lock.
+	fs.mu.Unlock()
 	fileInode.Lock()
 	err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, fileInode)
 	fileInode.Unlock()
 	if err != nil {
-		fs.mu.Lock()
 		return
 	}
 	err = fileInode.CreateEmptyTempFile(ctx)
 	if err != nil {
-		fs.mu.Lock()
 		return
 	}
 
 	parent.Lock()
 	defer parent.Unlock()
 	parent.InsertFileIntoTypeCache(name)
-	// Even though there is no action here that requires locking, adding locking
-	// so that the defer call that unlocks the mutex doesn't fail.
-	fs.mu.Lock()
 	return child, nil
 }
 

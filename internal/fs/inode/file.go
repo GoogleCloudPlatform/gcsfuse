@@ -951,6 +951,8 @@ func (f *FileInode) CacheEnsureContent(ctx context.Context) (err error) {
 	return
 }
 
+// CreateEmptyTempFile creates an empty file with no contents and skips
+// creating empty file when streaming writes are enabled.
 func (f *FileInode) CreateEmptyTempFile(ctx context.Context) (err error) {
 	// Skip creating empty file when streaming writes are enabled.
 	if f.bwh != nil {
@@ -965,6 +967,8 @@ func (f *FileInode) CreateEmptyTempFile(ctx context.Context) (err error) {
 	return
 }
 
+// Initializes Buffered Write Handler if the file inode is eligible and returns
+// initialized as true if the new instance of buffered writer handler is created.
 func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context) (initalized bool, err error) {
 	// bwh already initialized, do nothing.
 	if f.bwh != nil {
