@@ -910,8 +910,9 @@ func (t *FileTest) TestTruncateUpwardForLocalFileWhenStreamingWritesAreEnabled()
 			// Create a local file inode.
 			t.createInodeWithLocalParam("test", true)
 			t.in.config = &cfg.Config{Write: *getWriteConfig()}
-			err := t.in.CreateEmptyTempFile(t.ctx)
+			initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
 			require.NoError(t.T(), err)
+			assert.True(t.T(), initialized)
 			assert.NotNil(t.T(), t.in.bwh)
 
 			// Fetch the attributes and check if the file is empty.
@@ -1040,8 +1041,9 @@ func (t *FileTest) TestTruncateDownwardWhenStreamingWritesAreEnabled() {
 				t.createInodeWithEmptyObject()
 			}
 			t.in.config = &cfg.Config{Write: *getWriteConfig()}
-			err := t.in.CreateEmptyTempFile(t.ctx)
+			initalized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
 			require.NoError(t.T(), err)
+			assert.True(t.T(), initalized)
 			assert.NotNil(t.T(), t.in.bwh)
 			// Fetch the attributes and check if the file is empty.
 			attrs, err := t.in.Attributes(t.ctx)
@@ -1431,7 +1433,7 @@ func (t *FileTest) TestCreateBufferedOrTempWriterShouldCreateEmptyFile() {
 func (t *FileTest) TestCreateBufferedOrTempWriterShouldNotCreateFileWhenStreamingWritesAreEnabled() {
 	t.createInodeWithLocalParam("test", true)
 	t.in.config = &cfg.Config{Write: *getWriteConfig()}
-
+	t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
 	err := t.in.CreateEmptyTempFile(t.ctx)
 
 	assert.Nil(t.T(), err)
@@ -1503,8 +1505,9 @@ func (t *FileTest) TestReadFileWhenStreamingWritesAreEnabled() {
 				// Create a local file inode.
 				t.createInodeWithLocalParam("test", true)
 				t.in.config = &cfg.Config{Write: *getWriteConfig()}
-				err := t.in.CreateEmptyTempFile(t.ctx)
+				initalized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
 				require.NoError(t.T(), err)
+				assert.True(t.T(), initalized)
 				assert.NotNil(t.T(), t.in.bwh)
 			}
 
