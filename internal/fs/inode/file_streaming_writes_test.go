@@ -153,9 +153,8 @@ func (t *FileStreamingWritesCommon) createInode(fileName string, fileType string
 	}}
 	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
 	require.NoError(t.T(), err)
-	if initialized {
-		require.NotNil(t.T(), t.in.bwh)
-	}
+	assert.True(t.T(), initialized)
+	assert.NotNil(t.T(), t.in.bwh)
 	t.in.Lock()
 }
 
@@ -266,13 +265,11 @@ func (t *FileStreamingWritesTest) TestOutOfOrderWritesToLocalFileFallBackToTempF
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
-			err := t.in.CreateEmptyTempFile(t.ctx)
-			assert.Nil(t.T(), err)
 			assert.True(t.T(), t.in.IsLocal())
 			createTime := t.clock.Now()
 			t.clock.AdvanceTime(15 * time.Minute)
 			// Sequential Write at offset 0
-			err = t.in.Write(t.ctx, []byte("taco"), 0)
+			err := t.in.Write(t.ctx, []byte("taco"), 0)
 			require.Nil(t.T(), err)
 			require.NotNil(t.T(), t.in.bwh)
 			// validate attributes.
@@ -307,13 +304,11 @@ func (t *FileStreamingWritesTest) TestOutOfOrderWritesToLocalFileFallBackToTempF
 }
 
 func (t *FileStreamingWritesTest) TestOutOfOrderWriteFollowedByOrderedWrite() {
-	err := t.in.CreateEmptyTempFile(t.ctx)
-	assert.Nil(t.T(), err)
 	assert.True(t.T(), t.in.IsLocal())
 	createTime := t.in.mtimeClock.Now()
 	require.NotNil(t.T(), t.in.bwh)
 	// Out of order write.
-	err = t.in.Write(t.ctx, []byte("taco"), 6)
+	err := t.in.Write(t.ctx, []byte("taco"), 6)
 	require.Nil(t.T(), err)
 	// Ensure bwh cleared and temp file created.
 	assert.Nil(t.T(), t.in.bwh)
@@ -489,12 +484,10 @@ func (t *FileStreamingWritesTest) TestFlushEmptyFile() {
 				assert.False(t.T(), t.in.IsLocal())
 			}
 			t.clock.AdvanceTime(10 * time.Second)
-			err := t.in.CreateEmptyTempFile(t.ctx)
-			assert.NoError(t.T(), err)
 
-			err = t.in.Flush(t.ctx)
+			err := t.in.Flush(t.ctx)
 
-			require.Nil(t.T(), err)
+			require.NoError(t.T(), err)
 			// Ensure bwh cleared.
 			assert.Nil(t.T(), t.in.bwh)
 			// Verify that fileInode is no more local
@@ -547,12 +540,10 @@ func (t *FileStreamingWritesTest) TestFlushClobberedFile() {
 				t.createInode(fileName, emptyGCSFile)
 				assert.False(t.T(), t.in.IsLocal())
 			}
-			err := t.in.CreateEmptyTempFile(t.ctx)
-			assert.NoError(t.T(), err)
 			t.clock.AdvanceTime(10 * time.Second)
 			// Clobber the file.
 			objWritten, err := storageutil.CreateObject(t.ctx, t.bucket, fileName, []byte("taco"))
-			require.Nil(t.T(), err)
+			require.NoError(t.T(), err)
 
 			err = t.in.Flush(t.ctx)
 
@@ -644,20 +635,18 @@ func (t *FileStreamingWritesTest) TestSourceGenerationSizeForSyncedFileIsReflect
 }
 
 func (t *FileStreamingWritesTest) TestTruncateOnFileUsingTempFileDoesNotRecreatesBWH() {
-	err := t.in.CreateEmptyTempFile(t.ctx)
-	assert.NoError(t.T(), err)
 	assert.True(t.T(), t.in.IsLocal())
 	require.NotNil(t.T(), t.in.bwh)
 	// Out of order write.
-	err = t.in.Write(t.ctx, []byte("taco"), 2)
+	err := t.in.Write(t.ctx, []byte("taco"), 2)
 	require.Nil(t.T(), err)
 	// Ensure bwh cleared and temp file created.
 	assert.Nil(t.T(), t.in.bwh)
 	assert.NotNil(t.T(), t.in.content)
 
 	err = t.in.Truncate(t.ctx, 10)
-	require.Nil(t.T(), err)
 
+	require.NoError(t.T(), err)
 	// Ensure bwh not re-created.
 	assert.Nil(t.T(), t.in.bwh)
 	// The inode should agree about the new size.
