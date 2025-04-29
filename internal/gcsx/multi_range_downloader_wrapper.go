@@ -167,6 +167,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader() (err
 	if mrdWrapper.Wrapped == nil || mrdWrapper.Wrapped.Error() != nil {
 		mrdWrapper.mu.Lock()
 		defer mrdWrapper.mu.Unlock()
+		// Checking if the mrdWrapper state is same after taking the lock.
 		if mrdWrapper.Wrapped == nil || mrdWrapper.Wrapped.Error() != nil {
 			var mrd gcs.MultiRangeDownloader
 			mrd, err = mrdWrapper.bucket.NewMultiRangeDownloader(context.Background(), &gcs.MultiRangeDownloaderRequest{
