@@ -287,82 +287,69 @@ func (t *mrdWrapperTest) Test_EnsureMultiRangeDownloader() {
 		name   string
 		obj    *gcs.MinObject
 		bucket gcs.Bucket
-		mrd    gcs.MultiRangeDownloader
-		statusErr error
 		err    error
 	}{
 		{
 			name:   "ValidMinObject",
 			obj:    t.object,
 			bucket: t.mockBucket,
-			mrd: 	nil,
 			err:    nil,
-			statusErr: nil,
 		},
 		{
 			name:   "NilMinObject",
 			obj:    nil,
 			bucket: t.mockBucket,
-			mrd: 	nil,
 			err:    fmt.Errorf("ensureMultiRangeDownloader error: Missing minObject or bucket"),
-			statusErr: nil,
 		},
 		{
 			name:   "NilBucket",
 			obj:    t.object,
 			bucket: nil,
-			mrd: 	nil,
 			err:    fmt.Errorf("ensureMultiRangeDownloader error: Missing minObject or bucket"),
-			statusErr: nil,
 		},
-		{
-			name:   "UnusableExistingMRDTriggersMRDRecreation",
-			obj:    t.object,
-			bucket: t.mockBucket,
-			mrd: 	fake.NewFakeMultiRangeDownloaderWithStatusError(t.object,t.objectData,fmt.Errorf("MRD is unusable...")),
-			err:    nil,
-			statusErr: fmt.Errorf("MRD status is unusable"),
-		},
-		{
-			name:   "UsableExistingMRDPreventsMRDRecreation",
-			obj:    t.object,
-			bucket: t.mockBucket,
-			mrd: 	fake.NewFakeMultiRangeDownloaderWithStatusError(t.object,t.objectData,nil),
-			err:    nil,
-			statusErr: nil,
-		},
-
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
 			t.mrdWrapper.bucket = tc.bucket
 			t.mrdWrapper.object = tc.obj
-			t.mrdWrapper.Wrapped = tc.mrd
-			if t.mrdWrapper.Wrapped == nil {
-				t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond))
-				err := t.mrdWrapper.ensureMultiRangeDownloader()
-				if tc.err == nil {
-					assert.NoError(t.T(), err)
-					assert.NotNil(t.T(), t.mrdWrapper.Wrapped)
-				} else {
-					assert.Error(t.T(), err)
-					assert.EqualError(t.T(), err, tc.err.Error())
-					assert.Nil(t.T(), t.mrdWrapper.Wrapped)
-			}
-			}else{
-				err := t.mrdWrapper.ensureMultiRangeDownloader()
-				if tc.statusErr == nil {
-					assert.NoError(t.T(),err)
-					assert.NotNil(t.T(), t.mrdWrapper.Wrapped)
-					t.mockBucket.AssertNotCalled(t.T(), "NewMultiRangeDownloader")
-				}else{
-					t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond))
-					assert.NoError(t.T(),err)
-					assert.NotNil(t.T(), t.mrdWrapper.Wrapped)
-					t.mockBucket.AssertExpectations(t.T())
-				}
+			t.mrdWrapper.Wrapped = nil
+			t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond))
+			err := t.mrdWrapper.ensureMultiRangeDownloader()
+			if tc.err == nil {
+				assert.NoError(t.T(), err)
+				assert.NotNil(t.T(), t.mrdWrapper.Wrapped)
+			} else {
+				assert.Error(t.T(), err)
+				assert.EqualError(t.T(), err, tc.err.Error())
+				assert.Nil(t.T(), t.mrdWrapper.Wrapped)
 			}
 		})
 	}
+}
+
+func (t *mrdWrapperTest) Test_EnsureMultiRangeDownloader_UnusableExistingMRDTriggersRecreation() {
+	t.mrdWrapper.bucket = t.mockBucket
+	t.mrdWrapper.object = t.object
+	t.mrdWrapper.Wrapped = fake.NewFakeMultiRangeDownloaderWithStatusError(t.object, t.objectData, fmt.Errorf("MRD is unusable..."))
+
+	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond))
+
+	err := t.mrdWrapper.ensureMultiRangeDownloader()
+
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), t.mrdWrapper.Wrapped)
+	t.mockBucket.AssertExpectations(t.T())
+}
+
+func (t *mrdWrapperTest) Test_EnsureMultiRangeDownloader_UsableExistingMRDPreventsRecreation() {
+	t.mrdWrapper.bucket = t.mockBucket
+	t.mrdWrapper.object = t.object
+	t.mrdWrapper.Wrapped = fake.NewFakeMultiRangeDownloaderWithStatusError(t.object, t.objectData, nil)
+
+	err := t.mrdWrapper.ensureMultiRangeDownloader()
+
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), t.mrdWrapper.Wrapped)
+	t.mockBucket.AssertNotCalled(t.T(), "NewMultiRangeDownloader")
 }
