@@ -712,7 +712,7 @@ func TestValidateConfigFile_GCSRetries(t *testing.T) {
 					MaxRetrySleep:            30 * time.Second,
 					Multiplier:               2,
 					ReadStall: cfg.ReadStallGcsRetriesConfig{
-						Enable:              true,
+						Enable:              false,
 						MinReqTimeout:       1500 * time.Millisecond,
 						MaxReqTimeout:       1200 * time.Second,
 						InitialReqTimeout:   20 * time.Second,
@@ -732,7 +732,7 @@ func TestValidateConfigFile_GCSRetries(t *testing.T) {
 					MaxRetrySleep:            30 * time.Second,
 					Multiplier:               2,
 					ReadStall: cfg.ReadStallGcsRetriesConfig{
-						Enable:              false,
+						Enable:              true,
 						MinReqTimeout:       10 * time.Second,
 						MaxReqTimeout:       200 * time.Second,
 						InitialReqTimeout:   20 * time.Second,

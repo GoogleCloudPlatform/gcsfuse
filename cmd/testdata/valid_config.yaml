@@ -35,7 +35,7 @@ gcs-connection:
 gcs-retries:
   chunk-transfer-timeout-secs: 20
   read-stall:
-    enable: false
+    enable: true
     min-req-timeout: 10s
     max-req-timeout: 200s
     initial-req-timeout: 20s

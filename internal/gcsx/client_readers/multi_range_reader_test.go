@@ -17,7 +17,6 @@ package gcsx
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"testing"
 	"time"
@@ -37,7 +36,6 @@ import (
 
 const (
 	TestTimeoutForMultiRangeRead = time.Second
-	//testObject                   = "testObject"
 )
 
 type multiRangeReaderTest struct {
@@ -62,7 +60,6 @@ func TestMultiRangeReaderTestSuite(t *testing.T) {
 }
 
 func (t *multiRangeReaderTest) SetupTest() {
-	fmt.Println("In setup")
 	t.mockBucket = new(storage.TestifyMockBucket)
 	t.ctx = context.Background()
 	t.object = &gcs.MinObject{
@@ -97,7 +94,6 @@ func (t *multiRangeReaderTest) Test_ReadFromMultiRangeReader_ReadFull() {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
-			t.multiRangeReader.reader = nil
 			t.multiRangeReader.isMRDInUse = false
 			t.object.Size = uint64(tc.dataSize)
 			testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
@@ -143,7 +139,7 @@ func (t *multiRangeReaderTest) Test_ReadFromMultiRangeReader_ValidateTimeout() {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
-			t.multiRangeReader.reader = nil
+
 			t.multiRangeReader.isMRDInUse = false
 			t.object.Size = uint64(tc.dataSize)
 			testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
@@ -192,7 +188,6 @@ func (t *multiRangeReaderTest) Test_ReadFromMultiRangeReader_ReadChunk() {
 	}
 
 	for _, tc := range testCases {
-		t.multiRangeReader.reader = nil
 		t.object.Size = uint64(tc.dataSize)
 		testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
 		fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{})
@@ -233,7 +228,6 @@ func (t *multiRangeReaderTest) Test_ReadAt_MRDRead() {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
-			t.multiRangeReader.reader = nil
 			t.multiRangeReader.isMRDInUse = false
 			t.object.Size = uint64(tc.dataSize)
 			testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
@@ -247,7 +241,6 @@ func (t *multiRangeReaderTest) Test_ReadAt_MRDRead() {
 
 			t.mockBucket.AssertNotCalled(t.T(), "NewReaderWithReadHandle", mock.Anything)
 			assert.NoError(t.T(), err)
-			assert.Nil(t.T(), t.multiRangeReader.reader)
 			assert.Equal(t.T(), tc.bytesToRead, objData.Size)
 			assert.Equal(t.T(), testContent[tc.offset:tc.offset+tc.bytesToRead], objData.DataBuf[:objData.Size])
 		})
@@ -260,9 +253,4 @@ func (t *multiRangeReaderTest) Test_ReadAt_InvalidOffset() {
 	_, err := t.readAt(65, int64(t.object.Size))
 
 	assert.True(t.T(), errors.Is(err, io.EOF), "expected %v error got %v", io.EOF, err)
-}
-
-func (t *multiRangeReaderTest) Test_ReadAt_NegativeMrDefCount() {
-	t.multiRangeReader.destroy()
-
 }

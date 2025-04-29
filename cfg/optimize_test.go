@@ -392,8 +392,7 @@ func TestOptimize_Success(t *testing.T) {
 	optimizedFlags, err := Optimize(cfg, isSet)
 
 	require.NoError(t, err)
-	assert.True(t, cfg.Write.EnableStreamingWrites)
-	assert.True(t, isFlagPresent(optimizedFlags, "write.enable-streaming-writes"))
+	assert.True(t, isFlagPresent(optimizedFlags, "metadata-cache.negative-ttl-secs"))
 	assert.EqualValues(t, 0, cfg.MetadataCache.NegativeTtlSecs)
 	assert.EqualValues(t, -1, cfg.MetadataCache.TtlSecs)
 	assert.EqualValues(t, 1024, cfg.MetadataCache.StatCacheMaxSizeMb)

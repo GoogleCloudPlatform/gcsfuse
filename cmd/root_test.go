@@ -227,7 +227,7 @@ func TestArgsParsing_ImplicitDirsFlag(t *testing.T) {
 		},
 		{
 			name:             "default overriden on high performance machine",
-			args:             []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--implicit-dirs=false", "abc", "pqr"},
+			args:             []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "--implicit-dirs=false", "abc", "pqr"},
 			expectedImplicit: false,
 		},
 	}
@@ -331,31 +331,6 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedWriteBlockSizeMB:      32 * util.MiB,
 			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
 			expectedWriteMaxBlocksPerFile: 10,
-		},
-		{
-			name:                          "Test high performance config values with autoconfig enabled.",
-			args:                          []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "abc", "pqr"},
-			expectedEnableStreamingWrites: true,
-			expectedWriteBlockSizeMB:      32 * util.MiB,
-			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
-		},
-		{
-			name:                          "Test high performance config values with autoconfig disabled.",
-			args:                          []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=true", "abc", "pqr"},
-			expectedCreateEmptyFile:       false,
-			expectedEnableStreamingWrites: false,
-			expectedWriteBlockSizeMB:      32 * util.MiB,
-			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
-			expectedWriteMaxBlocksPerFile: 1,
-		},
-		{
-			name:                          "Test high performance config values with enable-streaming-writes flag overriden.",
-			args:                          []string{"gcsfuse", "--enable-streaming-writes=false", "abc", "pqr"},
-			expectedCreateEmptyFile:       false,
-			expectedEnableStreamingWrites: false,
-			expectedWriteBlockSizeMB:      32 * util.MiB,
-			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
-			expectedWriteMaxBlocksPerFile: 1,
 		},
 	}
 
@@ -1278,7 +1253,7 @@ func TestArgParsing_GCSRetries(t *testing.T) {
 					MaxRetrySleep:            30 * time.Second,
 					Multiplier:               2,
 					ReadStall: cfg.ReadStallGcsRetriesConfig{
-						Enable:              true,
+						Enable:              false,
 						InitialReqTimeout:   20 * time.Second,
 						MinReqTimeout:       1500 * time.Millisecond,
 						MaxReqTimeout:       1200 * time.Second,

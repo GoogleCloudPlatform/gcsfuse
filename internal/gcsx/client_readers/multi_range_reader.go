@@ -26,13 +26,16 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 )
 
-// TODO (b/385826024): Revert timeout to an appropriate value
+// TimeoutForMultiRangeRead is the timeout value for multi-range read operations.
+//
+// TODO(b/385826024): Revert timeout to an appropriate value. This value is currently a placeholder and needs to be adjusted.
 const TimeoutForMultiRangeRead = time.Hour
 
 type MultiRangeReader struct {
 	gcsx.GCSReader
+
 	object *gcs.MinObject
-	reader *gcs.StorageReader
+
 	// mrdWrapper points to the wrapper object within inode.
 	mrdWrapper *gcsx.MultiRangeDownloaderWrapper
 
@@ -50,7 +53,24 @@ func NewMultiRangeReader(object *gcs.MinObject, metricHandle common.MetricHandle
 	}
 }
 
-func (mrd *MultiRangeReader) readFromMultiRangeReader(ctx context.Context, p []byte, offset, end int64, timeout time.Duration) (bytesRead int, err error) {
+// readFromMultiRangeReader reads data from the underlying MultiRangeDownloaderWrapper.
+//
+// It increments the reference count of the mrdWrapper if it's not already in use.
+// It then calls the Read method of the mrdWrapper with the provided parameters.
+//
+// Parameters:
+//   - ctx: The context for the read operation. It can be used to cancel the operation or set a timeout.
+//   - p: The byte slice to read data into.
+//   - offset: The starting offset for the read operation.
+//   - end: The ending offset for the read operation.
+//   - timeout: The maximum duration for the read operation.
+//
+// Returns:
+//   - int: The number of bytes read.
+//   - error: An error if the read operation fails. Possible errors include:
+//     1. Invalid MultiRangeDownloaderWrapper: If the mrdWrapper is nil.
+//     2. Errors returned by the mrdWrapper.Read method.
+func (mrd *MultiRangeReader) readFromMultiRangeReader(ctx context.Context, p []byte, offset, end int64, timeout time.Duration) (int, error) {
 	if mrd.mrdWrapper == nil {
 		return 0, fmt.Errorf("readFromMultiRangeReader: Invalid MultiRangeDownloaderWrapper")
 	}
@@ -60,8 +80,7 @@ func (mrd *MultiRangeReader) readFromMultiRangeReader(ctx context.Context, p []b
 		mrd.mrdWrapper.IncrementRefCount()
 	}
 
-	bytesRead, err = mrd.mrdWrapper.Read(ctx, p, offset, end, timeout, mrd.metricHandle)
-	return
+	return mrd.mrdWrapper.Read(ctx, p, offset, end, timeout, mrd.metricHandle)
 }
 
 func (mrd *MultiRangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (gcsx.ReaderResponse, error) {
