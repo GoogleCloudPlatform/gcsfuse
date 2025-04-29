@@ -1773,16 +1773,17 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 	fileInode := child.(*inode.FileInode)
 	// Use deferred locking on filesystem so that it is locked before the defer call that unlocks the mutex and it doesn't fail.
 	defer fs.mu.Lock()
-
+	if !fs.newConfig.Write.EnableStreamingWrites {
+		err = fileInode.CreateEmptyTempFile(ctx)
+		if err != nil {
+			return
+		}
+	}
 	// We need to release the filesystem lock before acquiring the inode lock.
 	fs.mu.Unlock()
 	fileInode.Lock()
 	err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, fileInode)
 	fileInode.Unlock()
-	if err != nil {
-		return
-	}
-	err = fileInode.CreateEmptyTempFile(ctx)
 	if err != nil {
 		return
 	}
