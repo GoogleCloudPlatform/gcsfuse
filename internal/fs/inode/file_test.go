@@ -1370,6 +1370,7 @@ func (t *FileTest) TestSetMtimeForLocalFileWhenStreamingWritesAreEnabled() {
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
 	t.in.config = &cfg.Config{Write: *getWriteConfig()}
+	// Initialize BWH for local inode created above.
 	initalized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
 	require.NoError(t.T(), err)
 	assert.True(t.T(), initalized)
@@ -1427,7 +1428,7 @@ func (t *FileTest) TestTestCheckInvariantsShouldNotThrowExceptionForLocalFiles()
 	assert.NotNil(t.T(), t.in)
 }
 
-func (t *FileTest) TestCreateBufferedOrTempWriterShouldCreateEmptyFile() {
+func (t *FileTest) TestCreateEmptyTempFileShouldCreateFile() {
 	err := t.in.CreateEmptyTempFile(t.ctx)
 
 	assert.Nil(t.T(), err)
@@ -1436,6 +1437,36 @@ func (t *FileTest) TestCreateBufferedOrTempWriterShouldCreateEmptyFile() {
 	sr, err := t.in.content.Stat()
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), int64(0), sr.Size)
+}
+
+func (t *FileTest) TestCreateEmptyTempFileShouldNotCreateFileForInodeWhenStreamingWritesAreEnabled() {
+	t.createInodeWithEmptyObject()
+	t.in.config = &cfg.Config{Write: *getWriteConfig()}
+	// Initialize BWH for inode created above.
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
+	require.NoError(t.T(), err)
+	assert.True(t.T(), initialized)
+	assert.NotNil(t.T(), t.in.bwh)
+
+	err = t.in.CreateEmptyTempFile(t.ctx)
+
+	assert.Nil(t.T(), err)
+	assert.Nil(t.T(), t.in.content)
+}
+
+func (t *FileTest) TestCreateEmptyTempFileShouldNotCreateFileForLocalInodeWhenStreamingWritesAreEnabled() {
+	t.createInodeWithLocalParam("test", true)
+	t.in.config = &cfg.Config{Write: *getWriteConfig()}
+	// Initialize BWH for local inode created above.
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
+	require.NoError(t.T(), err)
+	assert.True(t.T(), initialized)
+	assert.NotNil(t.T(), t.in.bwh)
+
+	err = t.in.CreateEmptyTempFile(t.ctx)
+
+	assert.Nil(t.T(), err)
+	assert.Nil(t.T(), t.in.content)
 }
 
 func (t *FileTest) TestCreateBufferedOrTempWriterShouldNotCreateFileWhenStreamingWritesAreEnabled() {
