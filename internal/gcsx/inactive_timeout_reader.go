@@ -20,6 +20,7 @@ import (
 	"time"
 
 	storagev2 "cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/clock"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -59,6 +60,9 @@ type inactiveTimeoutReader struct {
 	mu       locker.Locker // Mutex protecting internal state (mainily gcsReader & isActive).
 	isActive bool          // Flag set by Read and reset by the monitor goroutine to track activity within the timeout window.
 	stopChan chan struct{} // Channel used to signal the monitor goroutine to stop, typically during Close().
+
+	// Used for waiting for timeout (helps us in mocking the functionality).
+	clock clock.Clock
 }
 
 var (
@@ -77,6 +81,14 @@ func NewInactiveTimeoutReader(ctx context.Context, bucket gcs.Bucket, object *gc
 		return nil, ErrZeroInactivityTimeout
 	}
 
+	return NewInactiveTimeoutReaderWithClock(ctx, bucket, object, readHandle, start, end, timeout, clock.RealClock{})
+}
+
+func NewInactiveTimeoutReaderWithClock(ctx context.Context, bucket gcs.Bucket, object *gcs.MinObject, readHandle []byte, start int64, end int64, timeout time.Duration, clock clock.Clock) (gcs.StorageReader, error) {
+	if timeout == time.Duration(0) {
+		return nil, ErrZeroInactivityTimeout
+	}
+
 	tsr := &inactiveTimeoutReader{
 		object:        object,
 		bucket:        bucket,
@@ -87,6 +99,7 @@ func NewInactiveTimeoutReader(ctx context.Context, bucket gcs.Bucket, object *gc
 		mu:            locker.New("inactiveTimeoutReader: "+object.Name, func() {}),
 		isActive:      false,
 		stopChan:      make(chan struct{}),
+		clock:         clock,
 	}
 
 	var err error
@@ -129,6 +142,7 @@ func (tsr *inactiveTimeoutReader) Read(p []byte) (n int, err error) {
 	defer tsr.mu.Unlock()
 
 	tsr.isActive = true
+	fmt.Println("Making the reader active")
 
 	if tsr.gcsReader == nil {
 		tsr.gcsReader, err = tsr.createGCSReader()
@@ -179,14 +193,14 @@ func (tsr *inactiveTimeoutReader) ReadHandle() (rh storagev2.ReadHandle) {
 
 // monitor runs in a background goroutine, and checks for inactivity.
 func (tsr *inactiveTimeoutReader) monitor(timeout time.Duration) {
-	timer := time.After(timeout)
+	timer := tsr.clock.After(timeout)
 	for {
 		select {
 		case <-timer:
 			tsr.mu.Lock()
 			if tsr.isActive {
 				tsr.isActive = false
-				timer = time.After(timeout)
+				timer = tsr.clock.After(timeout)
 			} else {
 				if tsr.gcsReader != nil {
 					logger.Infof("Closing the reader (%s) due to inactivity for atleast %0.1fs.\n", tsr.object.Name, timeout.Seconds())
