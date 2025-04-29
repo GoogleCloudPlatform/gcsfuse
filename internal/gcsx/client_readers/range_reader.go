@@ -116,6 +116,11 @@ func (rr *RangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (
 	}
 	var err error
 
+	if req.Offset >= int64(rr.object.Size) {
+		err = io.EOF
+		return readerResponse, err
+	}
+
 	readerResponse.Size, err = rr.readFromRangeReader(ctx, req.Buffer, req.Offset, req.EndOffset, rr.readType)
 
 	return readerResponse, err

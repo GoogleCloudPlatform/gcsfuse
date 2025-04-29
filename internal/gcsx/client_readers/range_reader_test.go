@@ -509,46 +509,91 @@ func (t *rangeReaderTest) Test_ReadAt_DoesntPropagateCancellationAfterReturning(
 	}
 }
 
-func (t *rangeReaderTest) Test_ReadAt_ReaderExhaustedReadFinished() {
-	cc := &countingCloser{Reader: getReader(4)}
-	t.rangeReader.reader = &fake.FakeReader{ReadCloser: cc}
-	var offset int64 = 0
-	t.rangeReader.start = offset
-	t.rangeReader.limit = 2
-	t.rangeReader.cancel = func() {}
-	var bufSize int64 = 2
+func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenAllDataFromReaderIsRead() {
+	testCases := []struct {
+		name       string
+		readHandle []byte
+	}{
+		{
+			name:       "GCSReturnedReadHandle",
+			readHandle: []byte("fake-handle"),
+		},
+		{
+			name:       "GCSReturnedNoReadHandle",
+			readHandle: nil,
+		},
+	}
 
-	// The reader's start becomes equal to the limit.
-	resp, err := t.readAt(offset, bufSize)
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			t.rangeReader.start = 4
+			t.rangeReader.limit = 10
+			t.object.Size = 10
+			dataSize := 6
+			testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
+			rc := &fake.FakeReader{
+				ReadCloser: getReadCloser(testContent),
+				Handle:     tc.readHandle,
+			}
+			t.rangeReader.reader = rc
+			t.rangeReader.cancel = func() {}
+			buf := make([]byte, dataSize)
 
-	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), t.rangeReader.limit, t.rangeReader.start)
-	assert.Equal(t.T(), 1, cc.closeCount)
-	assert.Equal(t.T(), int(bufSize), resp.Size)
+			n, err := t.rangeReader.readFromRangeReader(t.ctx, buf, 4, 10, "unhandled")
+
+			assert.NoError(t.T(), err)
+			assert.Equal(t.T(), dataSize, n)
+			// Verify the reader state.
+			assert.Nil(t.T(), t.rangeReader.reader)
+			assert.Nil(t.T(), t.rangeReader.cancel)
+			assert.Equal(t.T(), int64(10), t.rangeReader.start)
+			assert.Equal(t.T(), int64(10), t.rangeReader.limit)
+			assert.Equal(t.T(), tc.readHandle, t.rangeReader.readHandle)
+		})
+	}
 }
 
-func (t *rangeReaderTest) Test_ReadAt_ReaderNotExhausted() {
-	// Set up a reader that has three bytes left to give.
-	content := "abc"
-	cc := &countingCloser{
-		Reader: strings.NewReader(content),
+func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenReaderHasLessDataThanRequested() {
+	testCases := []struct {
+		name       string
+		readHandle []byte
+	}{
+		{
+			name:       "GCSReturnedReadHandle",
+			readHandle: []byte("fake-handle"),
+		},
+		{
+			name:       "GCSReturnedNoReadHandle",
+			readHandle: nil,
+		},
 	}
-	rc := &fake.FakeReader{ReadCloser: cc}
-	t.rangeReader.reader = rc
-	var offset int64 = 1
-	t.rangeReader.start = offset
-	t.rangeReader.limit = 4
-	t.rangeReader.cancel = func() {}
-	var bufSize int64 = 2
 
-	// Read two bytes.
-	resp, err := t.readAt(offset, bufSize)
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			t.rangeReader.start = 0
+			t.rangeReader.limit = 6
+			dataSize := 6
+			testContent := testUtil.GenerateRandomBytes(dataSize)
+			rc := &fake.FakeReader{
+				ReadCloser: getReadCloser(testContent),
+				Handle:     tc.readHandle,
+			}
+			t.rangeReader.reader = rc
+			t.rangeReader.cancel = func() {}
+			buf := make([]byte, 10)
 
-	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), content[:bufSize], string(resp.DataBuf[:resp.Size]))
-	assert.Zero(t.T(), cc.closeCount)
-	assert.Equal(t.T(), rc, t.rangeReader.reader)
-	assert.Equal(t.T(), offset+bufSize, t.rangeReader.start)
+			n, err := t.rangeReader.readFromRangeReader(t.ctx, buf, 0, 10, "unhandled")
+
+			assert.NoError(t.T(), err)
+			assert.Equal(t.T(), dataSize, n)
+			// Verify the reader state.
+			assert.Nil(t.T(), t.rangeReader.reader)
+			assert.Nil(t.T(), t.rangeReader.cancel)
+			assert.Equal(t.T(), int64(dataSize), t.rangeReader.start)
+			assert.Equal(t.T(), int64(dataSize), t.rangeReader.limit)
+			assert.Equal(t.T(), tc.readHandle, t.rangeReader.readHandle)
+		})
+	}
 }
 
 func (t *rangeReaderTest) Test_ReadAt_EOFWithReaderNilClearsError() {
@@ -564,4 +609,12 @@ func (t *rangeReaderTest) Test_ReadAt_EOFWithReaderNilClearsError() {
 	assert.NoError(t.T(), err)
 	assert.Nil(t.T(), t.rangeReader.reader)
 	assert.Zero(t.T(), resp.Size)
+}
+
+func (t *rangeReaderTest) Test_ReadAt_InvalidOffset() {
+	t.object.Size = 50
+
+	_, err := t.readAt(65, int64(t.object.Size))
+
+	assert.Error(t.T(), err)
 }
