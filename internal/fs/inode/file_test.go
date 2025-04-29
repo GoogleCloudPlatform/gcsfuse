@@ -841,6 +841,7 @@ func (t *FileTest) TestTruncateUpwardForLocalFileShouldUpdateLocalFileAttributes
 	var attrs fuseops.InodeAttributes
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
+	// Create a temp file for the local inode created above.
 	err = t.in.CreateEmptyTempFile(t.ctx)
 	assert.Nil(t.T(), err)
 	// Fetch the attributes and check if the file is empty.
@@ -867,6 +868,7 @@ func (t *FileTest) TestTruncateDownwardForLocalFileShouldUpdateLocalFileAttribut
 	var attrs fuseops.InodeAttributes
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
+	// Create a temp file for the local inode created above.
 	err = t.in.CreateEmptyTempFile(t.ctx)
 	assert.Nil(t.T(), err)
 	// Write some data to the local file.
@@ -910,6 +912,7 @@ func (t *FileTest) TestTruncateUpwardForLocalFileWhenStreamingWritesAreEnabled()
 			// Create a local file inode.
 			t.createInodeWithLocalParam("test", true)
 			t.in.config = &cfg.Config{Write: *getWriteConfig()}
+			// Initialize BWH for local inode created above.
 			initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
 			require.NoError(t.T(), err)
 			assert.True(t.T(), initialized)
@@ -964,6 +967,7 @@ func (t *FileTest) TestTruncateUpwardForEmptyGCSFileWhenStreamingWritesAreEnable
 		t.Run(tc.name, func() {
 			t.createInodeWithEmptyObject()
 			t.in.config = &cfg.Config{Write: *getWriteConfig()}
+			// Initialize BWH for local inode created above.
 			initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
 			require.NoError(t.T(), err)
 			assert.True(t.T(), initialized)
@@ -1041,6 +1045,7 @@ func (t *FileTest) TestTruncateDownwardWhenStreamingWritesAreEnabled() {
 				t.createInodeWithEmptyObject()
 			}
 			t.in.config = &cfg.Config{Write: *getWriteConfig()}
+			// Initialize BWH for local inode created above.
 			initalized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
 			require.NoError(t.T(), err)
 			assert.True(t.T(), initalized)
@@ -1332,6 +1337,7 @@ func (t *FileTest) TestTestSetMtimeForLocalFileShouldUpdateLocalFileAttributes()
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
 	createTime := t.in.mtimeClock.Now()
+	// Create a temp file for the local inode created above.
 	err = t.in.CreateEmptyTempFile(t.ctx)
 	assert.Nil(t.T(), err)
 	// Validate the attributes on an empty file.
@@ -1364,8 +1370,10 @@ func (t *FileTest) TestSetMtimeForLocalFileWhenStreamingWritesAreEnabled() {
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
 	t.in.config = &cfg.Config{Write: *getWriteConfig()}
-	err = t.in.CreateEmptyTempFile(t.ctx)
-	assert.Nil(t.T(), err)
+	initalized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
+	require.NoError(t.T(), err)
+	assert.True(t.T(), initalized)
+	assert.NotNil(t.T(), t.in.bwh)
 
 	// Set mtime.
 	mtime := time.Now().UTC().Add(123 * time.Second)
