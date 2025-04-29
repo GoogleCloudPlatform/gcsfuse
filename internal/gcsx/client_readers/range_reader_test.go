@@ -519,10 +519,11 @@ func (t *rangeReaderTest) Test_ReadAt_ReaderExhaustedReadFinished() {
 	t.rangeReader.cancel = func() {}
 	var bufSize int64 = 2
 
+	// The reader's start becomes equal to the limit.
 	resp, err := t.readAt(offset, bufSize)
 
 	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), offset+bufSize, t.rangeReader.start)
+	assert.Equal(t.T(), t.rangeReader.limit, t.rangeReader.start)
 	assert.Equal(t.T(), 1, r.closeCount)
 	assert.Equal(t.T(), int(bufSize), resp.Size)
 }
