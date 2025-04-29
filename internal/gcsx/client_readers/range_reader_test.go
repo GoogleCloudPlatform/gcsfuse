@@ -22,6 +22,7 @@ import (
 	"strings"
 	"testing"
 	"testing/iotest"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
@@ -68,7 +69,7 @@ func (t *rangeReaderTest) SetupTest() {
 }
 
 func (t *rangeReaderTest) TearDown() {
-	t.rangeReader.Destroy()
+	t.rangeReader.destroy()
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -95,8 +96,8 @@ func (t *rangeReaderTest) readAt(offset int64, size int64) (gcsx.ReaderResponse,
 		EndOffset: offset + size,
 		Buffer:    make([]byte, size),
 	}
-	t.rangeReader.CheckInvariants()
-	defer t.rangeReader.CheckInvariants()
+	t.rangeReader.checkInvariants()
+	defer t.rangeReader.checkInvariants()
 	return t.rangeReader.ReadAt(t.ctx, req)
 }
 
@@ -104,6 +105,34 @@ func (t *rangeReaderTest) mockNewReaderWithHandleCallForTestBucket(start uint64,
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(rg *gcs.ReadObjectRequest) bool {
 		return rg != nil && (*rg.Range).Start == start && (*rg.Range).Limit == limit
 	})).Return(rd, nil).Once()
+}
+
+////////////////////////////////////////////////////////////////////////
+// Blocking reader
+////////////////////////////////////////////////////////////////////////
+
+// A reader that blocks until a channel is closed, then returns an error.
+type blockingReader struct {
+	c chan struct{}
+}
+
+func (br *blockingReader) Read([]byte) (int, error) {
+	<-br.c
+	return 0, errors.New("blockingReader")
+}
+
+////////////////////////////////////////////////////////////////////////
+// Counting closer
+////////////////////////////////////////////////////////////////////////
+
+type countingCloser struct {
+	io.Reader
+	closeCount int
+}
+
+func (cc *countingCloser) Close() (err error) {
+	cc.closeCount++
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -205,9 +234,9 @@ func (t *rangeReaderTest) Test_CheckInvariants() {
 		t.Run(tt.name, func() {
 			rr := tt.setup()
 			if tt.shouldPanic {
-				assert.Panics(t.T(), func() { rr.CheckInvariants() }, "Expected panic")
+				assert.Panics(t.T(), func() { rr.checkInvariants() }, "Expected panic")
 			} else {
-				assert.NotPanics(t.T(), func() { rr.CheckInvariants() }, "Expected no panic")
+				assert.NotPanics(t.T(), func() { rr.checkInvariants() }, "Expected no panic")
 			}
 		})
 	}
@@ -216,9 +245,9 @@ func (t *rangeReaderTest) Test_CheckInvariants() {
 func (t *rangeReaderTest) Test_Destroy_NonNilReader() {
 	t.rangeReader.reader = getReader(2)
 
-	t.rangeReader.Destroy()
+	t.rangeReader.destroy()
 
-	assert.Nil(t.T(), t.rangeReader.Reader)
+	assert.Nil(t.T(), t.rangeReader.reader)
 	assert.Nil(t.T(), t.rangeReader.cancel)
 	assert.Equal(t.T(), []byte(fakeHandleData), t.rangeReader.readHandle)
 }
@@ -354,4 +383,247 @@ func (t *rangeReaderTest) Test_invalidateReaderIfMisalignedOrTooSmall() {
 			}
 		})
 	}
+}
+
+func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenReaderReturnedMoreData() {
+	testCases := []struct {
+		name       string
+		readHandle []byte
+	}{
+		{
+			name:       "GCSReturnedReadHandle",
+			readHandle: []byte(fakeHandleData),
+		},
+		{
+			name:       "GCSReturnedNoReadHandle",
+			readHandle: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			t.rangeReader.start = 0
+			t.rangeReader.limit = 6
+			testContent := testUtil.GenerateRandomBytes(8)
+			t.rangeReader.reader = &fake.FakeReader{
+				ReadCloser: getReadCloser(testContent),
+				Handle:     tc.readHandle,
+			}
+			t.rangeReader.cancel = func() {}
+
+			n, err := t.rangeReader.readFromRangeReader(t.ctx, make([]byte, 10), 0, 10, "unhandled")
+
+			assert.Error(t.T(), err)
+			assert.Zero(t.T(), n)
+			assert.Nil(t.T(), t.rangeReader.reader)
+			assert.Equal(t.T(), int64(-1), t.rangeReader.start)
+			assert.Equal(t.T(), int64(-1), t.rangeReader.limit)
+			assert.Equal(t.T(), tc.readHandle, t.rangeReader.readHandle)
+		})
+	}
+}
+
+func (t *rangeReaderTest) Test_ReadAt_PropagatesCancellation() {
+	// Set up a blocking reader
+	finishRead := make(chan struct{})
+	blocking := &blockingReader{c: finishRead}
+	rc := io.NopCloser(blocking)
+	// Assign it to the rangeReader
+	t.rangeReader.reader = &fake.FakeReader{ReadCloser: rc}
+	t.rangeReader.start = 0
+	t.rangeReader.limit = 2
+	// Track cancel invocation
+	cancelCalled := make(chan struct{})
+	t.rangeReader.cancel = func() { close(cancelCalled) }
+	// Controlled context
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	// Channel to track read completion
+	readReturned := make(chan struct{})
+
+	go func() {
+		_, _ = t.rangeReader.ReadAt(ctx, &gcsx.GCSReaderRequest{
+			Buffer:    make([]byte, 2),
+			Offset:    0,
+			EndOffset: 2,
+		})
+		close(readReturned)
+	}()
+
+	// Wait a bit to ensure ReadAt is blocking
+	select {
+	case <-readReturned:
+		t.T().Fatal("Read returned early — cancellation did not propagate properly.")
+	case <-time.After(10 * time.Millisecond):
+		// OK: Still blocked
+	}
+	// Cancel the context to trigger cancellation
+	cancel()
+	// Expect rr.cancel to be called
+	select {
+	case <-cancelCalled:
+		// Pass
+	case <-time.After(100 * time.Millisecond):
+		t.T().Fatal("Expected rr.cancel to be called on ctx cancellation.")
+	}
+	// Unblock the reader so the read can complete
+	close(finishRead)
+	// Ensure read completes
+	select {
+	case <-readReturned:
+		// Pass
+	case <-time.After(100 * time.Millisecond):
+		t.T().Fatal("Expected read to return after unblocking.")
+	}
+}
+
+func (t *rangeReaderTest) Test_ReadAt_DoesntPropagateCancellationAfterReturning() {
+	// Set up a reader that will return three bytes.
+	content := "xyz"
+	t.rangeReader.reader = &fake.FakeReader{ReadCloser: getReadCloser([]byte(content))}
+	t.rangeReader.start = 1
+	t.rangeReader.limit = 4
+	// Snoop on when cancel is called.
+	cancelCalled := make(chan struct{})
+	t.rangeReader.cancel = func() { close(cancelCalled) }
+	ctx, cancel := context.WithCancel(context.Background())
+	bufSize := 2
+
+	// Successfully read two bytes using a context whose cancellation we control.
+	readerResponse, err := t.rangeReader.ReadAt(ctx, &gcsx.GCSReaderRequest{
+		Buffer:    make([]byte, bufSize),
+		Offset:    0,
+		EndOffset: 2,
+	})
+
+	assert.Nil(t.T(), err)
+	assert.Equal(t.T(), bufSize, readerResponse.Size)
+	assert.Equal(t.T(), content[:bufSize], string(readerResponse.DataBuf[:readerResponse.Size]))
+	// If we cancel the calling context now, it should not cause the underlying
+	// read context to be cancelled.
+	cancel()
+	select {
+	case <-time.After(10 * time.Millisecond):
+	case <-cancelCalled:
+		t.T().Fatal("Read context unexpectedly cancelled")
+	}
+}
+
+func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenAllDataFromReaderIsRead() {
+	testCases := []struct {
+		name       string
+		readHandle []byte
+	}{
+		{
+			name:       "GCSReturnedReadHandle",
+			readHandle: []byte(fakeHandleData),
+		},
+		{
+			name:       "GCSReturnedNoReadHandle",
+			readHandle: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			t.rangeReader.start = 4
+			t.rangeReader.limit = 10
+			t.object.Size = 10
+			dataSize := 6
+			testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
+			rc := &fake.FakeReader{
+				ReadCloser: getReadCloser(testContent),
+				Handle:     tc.readHandle,
+			}
+			t.rangeReader.reader = rc
+			t.rangeReader.cancel = func() {}
+			buf := make([]byte, dataSize)
+
+			n, err := t.rangeReader.readFromRangeReader(t.ctx, buf, 4, 10, "unhandled")
+
+			assert.NoError(t.T(), err)
+			assert.Equal(t.T(), dataSize, n)
+			// Verify the reader state.
+			assert.Nil(t.T(), t.rangeReader.reader)
+			assert.Nil(t.T(), t.rangeReader.cancel)
+			assert.Equal(t.T(), int64(10), t.rangeReader.start)
+			assert.Equal(t.T(), int64(10), t.rangeReader.limit)
+			assert.Equal(t.T(), tc.readHandle, t.rangeReader.readHandle)
+		})
+	}
+}
+
+func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenReaderHasLessDataThanRequested() {
+	testCases := []struct {
+		name       string
+		readHandle []byte
+	}{
+		{
+			name:       "GCSReturnedReadHandle",
+			readHandle: []byte(fakeHandleData),
+		},
+		{
+			name:       "GCSReturnedNoReadHandle",
+			readHandle: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			t.rangeReader.start = 0
+			t.rangeReader.limit = 6
+			dataSize := 6
+			testContent := testUtil.GenerateRandomBytes(dataSize)
+			rc := &fake.FakeReader{
+				ReadCloser: getReadCloser(testContent),
+				Handle:     tc.readHandle,
+			}
+			t.rangeReader.reader = rc
+			t.rangeReader.cancel = func() {}
+			buf := make([]byte, 10)
+
+			n, err := t.rangeReader.readFromRangeReader(t.ctx, buf, 0, 10, "unhandled")
+
+			assert.NoError(t.T(), err)
+			assert.Equal(t.T(), dataSize, n)
+			// Verify the reader state.
+			assert.Nil(t.T(), t.rangeReader.reader)
+			assert.Nil(t.T(), t.rangeReader.cancel)
+			assert.Equal(t.T(), int64(dataSize), t.rangeReader.start)
+			assert.Equal(t.T(), int64(dataSize), t.rangeReader.limit)
+			assert.Equal(t.T(), tc.readHandle, t.rangeReader.readHandle)
+		})
+	}
+}
+
+func (t *rangeReaderTest) Test_ReadAt_ReaderNotExhausted() {
+	// Set up a reader that has three bytes left to give.
+	content := "abc"
+	cc := &countingCloser{
+		Reader: strings.NewReader(content),
+	}
+	rc := &fake.FakeReader{ReadCloser: cc}
+	t.rangeReader.reader = rc
+	var offset int64 = 1
+	t.rangeReader.start = offset
+	t.rangeReader.limit = 4
+	t.rangeReader.cancel = func() {}
+	var bufSize int64 = 2
+
+	// Read two bytes.
+	resp, err := t.readAt(offset, bufSize)
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), content[:bufSize], string(resp.DataBuf[:resp.Size]))
+	assert.Zero(t.T(), cc.closeCount)
+	assert.Equal(t.T(), rc, t.rangeReader.reader)
+	assert.Equal(t.T(), offset+bufSize, t.rangeReader.start)
+}
+
+func (t *rangeReaderTest) Test_ReadAt_InvalidOffset() {
+	t.object.Size = 50
+
+	_, err := t.readAt(65, int64(t.object.Size))
+
+	assert.True(t.T(), errors.Is(err, io.EOF), "expected %v error got %v", io.EOF, err)
 }
