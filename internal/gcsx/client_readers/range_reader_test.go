@@ -429,9 +429,8 @@ func (t *rangeReaderTest) Test_ReadAt_PropagatesCancellation() {
 	readReturned := make(chan struct{})
 
 	go func() {
-		buf := make([]byte, 2)
 		_, _ = t.rangeReader.ReadAt(ctx, &gcsx.GCSReaderRequest{
-			Buffer:    buf,
+			Buffer:    make([]byte, 2),
 			Offset:    0,
 			EndOffset: 2,
 		})
@@ -465,32 +464,32 @@ func (t *rangeReaderTest) Test_ReadAt_PropagatesCancellation() {
 	}
 }
 
-// Note that this test triggers a race condition: it might receive readDone first,
-// or it might receive ctx.Done() first from readFull() function.
-func (t *rangeReaderTest) Test_ReadAt_ContextCancelAfterReadDoneSkipsCancel() {
-	t.rangeReader.reader = getReader(4)
-	t.rangeReader.start = 0
+func (t *rangeReaderTest) Test_ReadAt_DoesntPropagateCancellationAfterReturning() {
+	// Set up a reader that will return three bytes.
+	t.rangeReader.reader = &fake.FakeReader{ReadCloser: getReadCloser([]byte("xyz"))}
+	t.rangeReader.start = 1
 	t.rangeReader.limit = 4
+	// Snoop on when cancel is called.
+	cancelCalled := make(chan struct{})
+	t.rangeReader.cancel = func() { close(cancelCalled) }
+	// Successfully read two bytes using a context whose cancellation we control.
 	ctx, cancel := context.WithCancel(context.Background())
-	readReturned := make(chan struct{})
 
-	go func() {
-		_, _ = t.rangeReader.ReadAt(ctx, &gcsx.GCSReaderRequest{
-			Buffer:    make([]byte, 4),
-			Offset:    0,
-			EndOffset: 4,
-		})
-		close(readReturned)
-	}()
-	// Cancel the context to trigger ctx.Done()
-	go cancel()
+	readerResponse, err := t.rangeReader.ReadAt(ctx, &gcsx.GCSReaderRequest{
+		Buffer:    make([]byte, 2),
+		Offset:    0,
+		EndOffset: 2,
+	})
 
-	// Let the read complete
+	assert.Nil(t.T(), err)
+	assert.Equal(t.T(), 2, readerResponse.Size)
+	// If we cancel the calling context now, it should not cause the underlying
+	// read context to be cancelled.
+	cancel()
 	select {
-	case <-readReturned:
-		// Pass
-	case <-time.After(100 * time.Millisecond):
-		t.T().Fatal("Expected read to finish before cancellation")
+	case <-time.After(10 * time.Millisecond):
+	case <-cancelCalled:
+		t.T().Fatal("Read context unexpectedly cancelled")
 	}
 }
 
