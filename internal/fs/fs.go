@@ -1535,6 +1535,13 @@ func (fs *fileSystem) SetInodeAttributes(
 	defer in.Unlock()
 	file, isFile := in.(*inode.FileInode)
 
+	if isFile {
+		// Initialize BWH if eligible and Sync file inode.
+		err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, file)
+		if err != nil {
+			return
+		}
+	}
 	// Set file mtimes.
 	if isFile && op.Mtime != nil {
 		err = file.SetMtime(ctx, *op.Mtime)
@@ -1546,12 +1553,6 @@ func (fs *fileSystem) SetInodeAttributes(
 
 	// Truncate files.
 	if isFile && op.Size != nil {
-
-		// Initialize BWH if eligible and Sync file inode.
-		err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, file)
-		if err != nil {
-			return
-		}
 		err = file.Truncate(ctx, int64(*op.Size))
 		if err != nil {
 			err = fmt.Errorf("truncate: %w", err)
