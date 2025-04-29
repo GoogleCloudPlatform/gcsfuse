@@ -17,6 +17,7 @@ package gcsx
 import (
 	"context"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
@@ -25,11 +26,12 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 )
 
-// TODO(b/385826024): Revert timeout to an appropriate value
+// TODO (b/385826024): Revert timeout to an appropriate value
 const TimeoutForMultiRangeRead = time.Hour
 
 type MultiRangeReader struct {
 	gcsx.GCSReader
+	object *gcs.MinObject
 	reader *gcs.StorageReader
 	// mrdWrapper points to the wrapper object within inode.
 	mrdWrapper *gcsx.MultiRangeDownloaderWrapper
@@ -40,8 +42,9 @@ type MultiRangeReader struct {
 	metricHandle common.MetricHandle
 }
 
-func NewMultiRangeReader(metricHandle common.MetricHandle, mrdWrapper *gcsx.MultiRangeDownloaderWrapper) *MultiRangeReader {
+func NewMultiRangeReader(object *gcs.MinObject, metricHandle common.MetricHandle, mrdWrapper *gcsx.MultiRangeDownloaderWrapper) *MultiRangeReader {
 	return &MultiRangeReader{
+		object:       object,
 		metricHandle: metricHandle,
 		mrdWrapper:   mrdWrapper,
 	}
@@ -62,15 +65,20 @@ func (mrd *MultiRangeReader) readFromMultiRangeReader(ctx context.Context, p []b
 }
 
 func (mrd *MultiRangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (gcsx.ReaderResponse, error) {
-	o := gcsx.ReaderResponse{
+	readerResponse := gcsx.ReaderResponse{
 		DataBuf: req.Buffer,
 		Size:    0,
 	}
 	var err error
 
-	o.Size, err = mrd.readFromMultiRangeReader(ctx, req.Buffer, req.Offset, req.EndOffset, TimeoutForMultiRangeRead)
+	if req.Offset >= int64(mrd.object.Size) {
+		err = io.EOF
+		return readerResponse, err
+	}
 
-	return o, err
+	readerResponse.Size, err = mrd.readFromMultiRangeReader(ctx, req.Buffer, req.Offset, req.EndOffset, TimeoutForMultiRangeRead)
+
+	return readerResponse, err
 }
 
 func (mrd *MultiRangeReader) destroy() {
