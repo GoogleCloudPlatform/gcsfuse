@@ -122,20 +122,6 @@ func (br *blockingReader) Read([]byte) (int, error) {
 }
 
 ////////////////////////////////////////////////////////////////////////
-// Counting closer
-////////////////////////////////////////////////////////////////////////
-
-type countingCloser struct {
-	io.Reader
-	closeCount int
-}
-
-func (cc *countingCloser) Close() (err error) {
-	cc.closeCount++
-	return
-}
-
-////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
@@ -616,5 +602,5 @@ func (t *rangeReaderTest) Test_ReadAt_InvalidOffset() {
 
 	_, err := t.readAt(65, int64(t.object.Size))
 
-	assert.Error(t.T(), err)
+	assert.True(t.T(), errors.Is(err, io.EOF), "expected %v error got %v", io.EOF, err)
 }
