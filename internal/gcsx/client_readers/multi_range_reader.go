@@ -22,6 +22,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 )
 
 // TODO(b/385826024): Revert timeout to an appropriate value
@@ -29,6 +30,7 @@ const TimeoutForMultiRangeRead = time.Hour
 
 type MultiRangeReader struct {
 	gcsx.GCSReader
+	reader *gcs.StorageReader
 	// mrdWrapper points to the wrapper object within inode.
 	mrdWrapper *gcsx.MultiRangeDownloaderWrapper
 
