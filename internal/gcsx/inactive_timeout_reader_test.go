@@ -21,13 +21,19 @@ import (
 	"io"
 	"testing"
 	"time"
+	"fmt"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/clock"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+)
+
+var (
+	simulatedClockStartTime = time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC)
 )
 
 type InactiveTimeoutReaderTestSuite struct {
@@ -42,6 +48,7 @@ type InactiveTimeoutReaderTestSuite struct {
 	readHandle        []byte
 	initialFakeReader *fake.FakeReader
 	timeout           time.Duration
+	simulatedClock    *clock.SimulatedClock
 }
 
 func TestInactiveTimeoutReaderTestSuite(t *testing.T) {
@@ -58,6 +65,7 @@ func (s *InactiveTimeoutReaderTestSuite) SetupTest() {
 	s.object = &gcs.MinObject{Name: "test-object", Generation: 123, Size: uint64(len(s.initialData))}
 	s.reader = nil // Reset reader before each test
 	s.initialFakeReader = nil
+	s.simulatedClock = clock.NewSimulatedClock(simulatedClockStartTime)
 }
 
 func (s *InactiveTimeoutReaderTestSuite) TearDownTest() {
@@ -95,7 +103,9 @@ func (s *InactiveTimeoutReaderTestSuite) setupReader(startOffset int64) {
 
 	var err error
 	// Use NewInactiveTimeoutReader directly as NewStorageReaderWithInactiveTimeout is deprecated.
-	s.reader, err = gcsx.NewInactiveTimeoutReader(s.ctx, s.mockBucket, s.object, s.readHandle, startOffset, int64(s.object.Size), s.timeout)
+	s.reader, err = gcsx.NewInactiveTimeoutReaderWithClock(s.ctx, s.mockBucket, s.object, s.readHandle, startOffset, int64(s.object.Size), s.timeout, s.simulatedClock)
+	time.Sleep(5 * time.Millisecond) // Allow some time to simulated clock to fire the timer.
+	
 	s.Require().NoError(err)
 	s.Require().NotNil(s.reader)
 }
@@ -176,7 +186,7 @@ func (s *InactiveTimeoutReaderTestSuite) Test_Read_ReconnectFails() {
 	s.Require().Equal(5, n)
 
 	// Arrange - Wait for timeout and set up mock for failed reconnect
-	time.Sleep(2*s.timeout + time.Millisecond)
+	s.simulatedClock.AdvanceTime(2*s.timeout + time.Millisecond)
 	reconnectErr := errors.New("failed to create new reader")
 	expectedReadHandle := s.initialFakeReader.Handle // Handle stored from the initial reader
 	s.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(req *gcs.ReadObjectRequest) bool {
@@ -214,18 +224,28 @@ func (s *InactiveTimeoutReaderTestSuite) Test_Read_ReconnectFails() {
 func (s *InactiveTimeoutReaderTestSuite) Test_Read_TimeoutAndSuccessfulReconnect() {
 	// Arrange
 	s.initialData = []byte("abcdefghijklmnopqrstuvwxyz")
-	s.timeout = 50 * time.Millisecond
+	s.timeout = 50 * time.Second
 	s.setupReader(0)
 	buf := make([]byte, 10)
 
 	// Act & Assert - First Read
 	n, err := s.reader.Read(buf)
+	fmt.Println("Just after the actual read")
 	s.Require().NoError(err)
 	s.Require().Equal(10, n)
 	s.Equal("abcdefghij", string(buf[:n]))
 
+
 	// Arrange - Simulate Timeout and prepare for reconnect
-	time.Sleep(2*s.timeout + 10*time.Millisecond) // Wait long enough for the monitor goroutine to detect inactivity and close the reader.
+	s.simulatedClock.AdvanceTime(s.timeout + time.Millisecond) // Wait long enough for the monitor goroutine to detect inactivity and close the reader.
+	time.Sleep(5 * time.Millisecond)
+	// s.simulatedClock.AdvanceTime(s.timeout + time.Millisecond) // Wait long enough for the monitor goroutine to detect inactivity and close the reader.
+	// time.Sleep(50 * time.Millisecond)
+
+
+	s.simulatedClock.AdvanceTime(s.timeout + time.Millisecond)
+	time.Sleep(50 * time.Millisecond) // Allow some time to simulated clock to fire the timer.
+
 	reconnectReadObjectRequest := &gcs.ReadObjectRequest{
 		Name:       s.object.Name,
 		Generation: s.object.Generation,
