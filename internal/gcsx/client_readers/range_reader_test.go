@@ -510,7 +510,7 @@ func (t *rangeReaderTest) Test_ReadAt_DoesntPropagateCancellationAfterReturning(
 }
 
 func (t *rangeReaderTest) Test_ReadAt_ReaderExhaustedReadFinished() {
-	r := &countingCloser{Reader: getReader(4)}
+	cc := &countingCloser{Reader: getReader(4)}
 	t.rangeReader.reader = &fake.FakeReader{ReadCloser: r}
 	var offset int64 = 0
 	t.rangeReader.start = offset
@@ -523,7 +523,7 @@ func (t *rangeReaderTest) Test_ReadAt_ReaderExhaustedReadFinished() {
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), t.rangeReader.limit, t.rangeReader.start)
-	assert.Equal(t.T(), 1, r.closeCount)
+	assert.Equal(t.T(), 1, cc.closeCount)
 	assert.Equal(t.T(), int(bufSize), resp.Size)
 }
 
@@ -553,15 +553,13 @@ func (t *rangeReaderTest) Test_ReadAt_ReaderNotExhausted() {
 
 func (t *rangeReaderTest) Test_ReadAt_EOFWithReaderNilClearsError() {
 	partialReader := io.NopCloser(iotest.ErrReader(io.ErrUnexpectedEOF)) // Simulates early EOF
-	r := &fake.FakeReader{ReadCloser: partialReader}
-	t.rangeReader.reader = &fake.FakeReader{ReadCloser: r}
+	t.rangeReader.reader = &fake.FakeReader{ReadCloser: partialReader}
 	var offset int64 = 2
 	t.rangeReader.start = offset
 	t.rangeReader.limit = 2
 	t.rangeReader.cancel = func() {}
-	var bufSize int64 = 2
 
-	resp, err := t.readAt(offset, bufSize)
+	resp, err := t.readAt(offset, 2)
 
 	assert.NoError(t.T(), err)
 	assert.Nil(t.T(), t.rangeReader.reader)
