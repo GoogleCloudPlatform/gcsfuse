@@ -122,22 +122,19 @@ func (uh *UploadHandler) UploadError() (err error) {
 // uploader is the single-threaded goroutine that uploads blocks.
 func (uh *UploadHandler) uploader() {
 	for currBlock := range uh.uploadCh {
-		if uh.UploadError() != nil {
-			uh.freeBlocksCh <- currBlock
-			uh.wg.Done()
-			continue
-		}
-		_, err := io.Copy(uh.writer, currBlock.Reader())
-		if errors.Is(err, context.Canceled) {
-			// Context canceled error indicates that the file was deleted from the
-			// same mount. In this case, we suppress the error to match local
-			// filesystem behavior.
-			err = nil
-		}
-		if err != nil {
-			logger.Errorf("buffered write upload failed for object %s: error in io.Copy: %v", uh.objectName, err)
-			err = gcs.GetGCSError(err)
-			uh.uploadError.Store(&err)
+		if uh.UploadError() == nil {
+			_, err := io.Copy(uh.writer, currBlock.Reader())
+			if errors.Is(err, context.Canceled) {
+				// Context canceled error indicates that the file was deleted from the
+				// same mount. In this case, we suppress the error to match local
+				// filesystem behavior.
+				err = nil
+			}
+			if err != nil {
+				logger.Errorf("buffered write upload failed for object %s: error in io.Copy: %v", uh.objectName, err)
+				err = gcs.GetGCSError(err)
+				uh.uploadError.Store(&err)
+			}
 		}
 		// Put back the uploaded block on the freeBlocksChannel for re-use.
 		uh.freeBlocksCh <- currBlock
