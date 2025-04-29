@@ -20,6 +20,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
@@ -384,8 +385,7 @@ func (f *FileInode) Source() *gcs.MinObject {
 func (f *FileInode) SourceGenerationIsAuthoritative() bool {
 	// Source generation is authoritative if:
 	//   1.  No pending writes exists on the inode (both content and bwh are nil).
-	//   2.  The bucket is zonal and there are no pending writes in the temporary file.
-	return (f.content == nil && f.bwh == nil) || (f.bucket.BucketType().Zonal && f.content == nil)
+	return f.content == nil && f.bwh == nil
 }
 
 // Equivalent to the generation returned by f.Source().
@@ -546,7 +546,7 @@ func (f *FileInode) Read(
 	// 1. Local file
 	// 2. Empty GCS files and writes are triggered via buffered flow.
 	if f.bwh != nil {
-		err = fmt.Errorf("cannot read a file when upload in progress")
+		err = fmt.Errorf("cannot read a file when upload in progress: %w", syscall.ENOTSUP)
 		return
 	}
 
