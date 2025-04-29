@@ -392,7 +392,7 @@ func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenReaderReturnedMoreData() 
 	}{
 		{
 			name:       "GCSReturnedReadHandle",
-			readHandle: []byte("fake-handle"),
+			readHandle: []byte(fakeHandleData),
 		},
 		{
 			name:       "GCSReturnedNoReadHandle",
@@ -516,7 +516,7 @@ func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenAllDataFromReaderIsRead()
 	}{
 		{
 			name:       "GCSReturnedReadHandle",
-			readHandle: []byte("fake-handle"),
+			readHandle: []byte(fakeHandleData),
 		},
 		{
 			name:       "GCSReturnedNoReadHandle",
@@ -560,7 +560,7 @@ func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenReaderHasLessDataThanRequ
 	}{
 		{
 			name:       "GCSReturnedReadHandle",
-			readHandle: []byte("fake-handle"),
+			readHandle: []byte(fakeHandleData),
 		},
 		{
 			name:       "GCSReturnedNoReadHandle",
