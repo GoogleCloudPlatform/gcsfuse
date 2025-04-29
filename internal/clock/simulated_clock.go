@@ -100,20 +100,18 @@ func (sc *SimulatedClock) After(d time.Duration) <-chan time.Time {
 // This method must be called with sc.mu held.
 func (sc *SimulatedClock) processPending() {
 	var stillPending []*afterRequest
-	fired := false // To help re-slice efficiently if many items fire
 
 	for _, ar := range sc.pending {
 		// If current time sc.t is not before the targetTime (i.e., sc.t >= ar.targetTime)
 		if !sc.t.Before(ar.targetTime) {
 			ar.ch <- ar.targetTime // Send the time it was scheduled to fire
 			// Do not close the channel, to mimic time.After behavior
-			fired = true
 		} else {
 			stillPending = append(stillPending, ar)
 		}
 	}
 
-	if fired || len(stillPending) < len(sc.pending) { // Optimization: only re-slice if necessary
+	if len(stillPending) < len(sc.pending) { // Optimization: only re-slice if necessary
 		sc.pending = stillPending
 	}
 }

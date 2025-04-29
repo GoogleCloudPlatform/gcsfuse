@@ -177,24 +177,21 @@ func TestSimulatedClock_AdvanceTime(t *testing.T) {
 	}
 }
 
-func TestSimulatedClock_After(t *testing.T) {
+func TestSimulatedClock_After_ShouldFire(t *testing.T) {
 	testCases := []struct {
 		name          string
 		afterDuration time.Duration
 		action        func(sc *SimulatedClock) // Action to manipulate the clock after After() is called
-		expectFire    bool
 	}{
 		{
 			name:          "ZeroDuration_FiresImmediately",
 			afterDuration: 0,
 			action:        func(sc *SimulatedClock) { /* No action needed for immediate fire */ },
-			expectFire:    true,
 		},
 		{
 			name:          "NegativeDuration_FiresImmediately",
 			afterDuration: -5 * time.Second,
 			action:        func(sc *SimulatedClock) { /* No action needed for immediate fire */ },
-			expectFire:    true,
 		},
 		{
 			name:          "PositiveDuration_Fires_WhenTimeAdvancedPastDuration",
@@ -202,7 +199,6 @@ func TestSimulatedClock_After(t *testing.T) {
 			action: func(sc *SimulatedClock) {
 				sc.AdvanceTime(15 * time.Second) // Advance well past the duration
 			},
-			expectFire: true,
 		},
 		{
 			name:          "PositiveDuration_Fires_WhenTimeSetPastDuration",
@@ -210,23 +206,6 @@ func TestSimulatedClock_After(t *testing.T) {
 			action: func(sc *SimulatedClock) {
 				sc.SetTime(referenceTime.Add(15 * time.Second)) // Set time well past the duration
 			},
-			expectFire: true,
-		},
-		{
-			name:          "PositiveDuration_DoesNotFire_WhenTimeAdvancedBeforeDuration",
-			afterDuration: 10 * time.Second,
-			action: func(sc *SimulatedClock) {
-				sc.AdvanceTime(5 * time.Second) // Advance, but not enough
-			},
-			expectFire: false,
-		},
-		{
-			name:          "PositiveDuration_DoesNotFire_WhenTimeSetBeforeDuration",
-			afterDuration: 10 * time.Second,
-			action: func(sc *SimulatedClock) {
-				sc.SetTime(referenceTime.Add(5 * time.Second)) // Set time, but not enough
-			},
-			expectFire: false,
 		},
 	}
 
@@ -253,13 +232,48 @@ func TestSimulatedClock_After(t *testing.T) {
 				expectedFireTimeOnChannel = clockTimeAtAfterCall.Add(tc.afterDuration)
 			}
 
-			if tc.expectFire {
-				assertReceivesTime(t, ch, expectedFireTimeOnChannel, fireTestTimeout,
-					"Expected timer to fire with time %v", expectedFireTimeOnChannel)
-			} else {
-				assertNotReceivesTime(t, ch, shortTestTimeout,
-					"Expected timer not to fire")
+			assertReceivesTime(t, ch, expectedFireTimeOnChannel, fireTestTimeout,
+				"Expected timer to fire with time %v", expectedFireTimeOnChannel)
+		})
+	}
+}
+
+func TestSimulatedClock_After_ShouldNotFire(t *testing.T) {
+	testCases := []struct {
+		name          string
+		afterDuration time.Duration
+		action        func(sc *SimulatedClock) // Action to manipulate the clock after After() is called
+	}{
+		{
+			name:          "PositiveDuration_DoesNotFire_WhenTimeAdvancedBeforeDuration",
+			afterDuration: 10 * time.Second,
+			action: func(sc *SimulatedClock) {
+				sc.AdvanceTime(5 * time.Second) // Advance, but not enough
+			},
+		},
+		{
+			name:          "PositiveDuration_DoesNotFire_WhenTimeSetBeforeDuration",
+			afterDuration: 10 * time.Second,
+			action: func(sc *SimulatedClock) {
+				sc.SetTime(referenceTime.Add(5 * time.Second)) // Set time, but not enough
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			clock := NewSimulatedClock(referenceTime)
+
+			ch := clock.After(tc.afterDuration)
+			require.NotNil(t, ch, "Channel should not be nil")
+
+			// Perform the action (if any) that might trigger the timer
+			if tc.action != nil {
+				tc.action(clock)
 			}
+
+			assertNotReceivesTime(t, ch, shortTestTimeout, "Expected timer not to fire")
+
 		})
 	}
 }
