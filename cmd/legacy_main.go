@@ -305,11 +305,6 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 			fmt.Sprintf("PATH=%s", os.Getenv("PATH")),
 		}
 
-		// Pass along GOOGLE_APPLICATION_CREDENTIALS, since we document in
-		// mounting.md that it can be used for specifying a key file.
-		if p, ok := os.LookupEnv("GOOGLE_APPLICATION_CREDENTIALS"); ok {
-			env = append(env, fmt.Sprintf("GOOGLE_APPLICATION_CREDENTIALS=%s", p))
-		}
 		// Pass through the https_proxy/http_proxy environment variable,
 		// in case the host requires a proxy server to reach the GCS endpoint.
 		// https_proxy has precedence over http_proxy, in case both are set
@@ -326,20 +321,15 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 				"Added environment http_proxy: %s\n",
 				p)
 		}
+
+		// Forward GCE_METADATA_HOST and other related environment variables.
+		// Pass along GOOGLE_APPLICATION_CREDENTIALS, since we document in
+		// mounting.md that it can be used for specifying a key file.
 		// Pass through the no_proxy environment variable. Whenever
 		// using the http(s)_proxy environment variables. This should
 		// also be included to know for which hosts the use of proxies
 		// should be ignored.
-		if p, ok := os.LookupEnv("no_proxy"); ok {
-			env = append(env, fmt.Sprintf("no_proxy=%s", p))
-			fmt.Fprintf(
-				os.Stdout,
-				"Added environment no_proxy: %s\n",
-				p)
-		}
-
-		// Forward GCE_METADATA_HOST and other related environment variables.
-		for _, envvar := range []string{"GCE_METADATA_HOST"} {
+		for _, envvar := range []string{"GOOGLE_APPLICATION_CREDENTIALS", "no_proxy", "GCE_METADATA_HOST"} {
 			if envval, ok := os.LookupEnv(envvar); ok {
 				env = append(env, fmt.Sprintf("%s=%s", envvar, envval))
 				fmt.Fprintf(
