@@ -472,9 +472,9 @@ func (t *rangeReaderTest) Test_ReadAt_DoesntPropagateCancellationAfterReturning(
 	// Snoop on when cancel is called.
 	cancelCalled := make(chan struct{})
 	t.rangeReader.cancel = func() { close(cancelCalled) }
-	// Successfully read two bytes using a context whose cancellation we control.
 	ctx, cancel := context.WithCancel(context.Background())
 
+	// Successfully read two bytes using a context whose cancellation we control.
 	readerResponse, err := t.rangeReader.ReadAt(ctx, &gcsx.GCSReaderRequest{
 		Buffer:    make([]byte, 2),
 		Offset:    0,
