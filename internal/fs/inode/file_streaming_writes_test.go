@@ -695,11 +695,7 @@ func (t *FileStreamingWritesTest) TestDeRegisterFileHandle() {
 	}
 	for _, tc := range tbl {
 		t.Run(tc.name, func() {
-			t.in.config = &cfg.Config{Write: *getWriteConfig()}
 			t.in.writeHandleCount = tc.currentVal
-			_, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
-			require.NoError(t.T(), err)
-			require.NotNil(t.T(), t.in.bwh)
 
 			t.in.DeRegisterFileHandle(tc.readonly)
 
@@ -747,8 +743,6 @@ func (t *FakeBufferedWriteHandler) Destroy() error                { return nil }
 func (t *FakeBufferedWriteHandler) Unlink()                       {}
 
 func (t *FileStreamingWritesTest) TestWriteUsingBufferedWritesFails() {
-	err := t.in.CreateEmptyTempFile(t.ctx)
-	assert.NoError(t.T(), err)
 	assert.True(t.T(), t.in.IsLocal())
 	require.NotNil(t.T(), t.in.bwh)
 	writeErr := errors.New("write error")
@@ -758,7 +752,7 @@ func (t *FileStreamingWritesTest) TestWriteUsingBufferedWritesFails() {
 		},
 	}
 
-	err = t.in.Write(context.Background(), []byte("hello"), 0)
+	err := t.in.Write(context.Background(), []byte("hello"), 0)
 
 	require.Error(t.T(), err)
 	assert.Regexp(t.T(), writeErr.Error(), err.Error())
