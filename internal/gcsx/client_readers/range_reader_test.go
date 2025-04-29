@@ -480,14 +480,15 @@ func (t *rangeReaderTest) Test_ReadAt_PropagatesCancellation() {
 
 func (t *rangeReaderTest) Test_ReadAt_DoesntPropagateCancellationAfterReturning() {
 	// Set up a reader that will return three bytes.
-	t.rangeReader.reader = &fake.FakeReader{ReadCloser: getReadCloser([]byte("xyz"))}
+	content := "xyz"
+	t.rangeReader.reader = &fake.FakeReader{ReadCloser: getReadCloser([]byte(content))}
 	t.rangeReader.start = 1
 	t.rangeReader.limit = 4
 	// Snoop on when cancel is called.
 	cancelCalled := make(chan struct{})
 	t.rangeReader.cancel = func() { close(cancelCalled) }
 	ctx, cancel := context.WithCancel(context.Background())
-	var bufSize int64 = 2
+	bufSize := 2
 
 	// Successfully read two bytes using a context whose cancellation we control.
 	readerResponse, err := t.rangeReader.ReadAt(ctx, &gcsx.GCSReaderRequest{
@@ -498,6 +499,7 @@ func (t *rangeReaderTest) Test_ReadAt_DoesntPropagateCancellationAfterReturning(
 
 	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), bufSize, readerResponse.Size)
+	assert.Equal(t.T(), content[:bufSize], string(readerResponse.DataBuf[:readerResponse.Size]))
 	// If we cancel the calling context now, it should not cause the underlying
 	// read context to be cancelled.
 	cancel()
@@ -522,7 +524,7 @@ func (t *rangeReaderTest) Test_ReadAt_ReaderExhaustedReadFinished() {
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), offset+bufSize, t.rangeReader.start)
 	assert.Equal(t.T(), 1, r.closeCount)
-	assert.Equal(t.T(), bufSize, resp.Size)
+	assert.Equal(t.T(), int(bufSize), resp.Size)
 }
 
 func (t *rangeReaderTest) Test_ReadAt_ReaderNotExhausted() {
