@@ -511,7 +511,7 @@ func (t *rangeReaderTest) Test_ReadAt_DoesntPropagateCancellationAfterReturning(
 
 func (t *rangeReaderTest) Test_ReadAt_ReaderExhaustedReadFinished() {
 	cc := &countingCloser{Reader: getReader(4)}
-	t.rangeReader.reader = &fake.FakeReader{ReadCloser: r}
+	t.rangeReader.reader = &fake.FakeReader{ReadCloser: cc}
 	var offset int64 = 0
 	t.rangeReader.start = offset
 	t.rangeReader.limit = 2
