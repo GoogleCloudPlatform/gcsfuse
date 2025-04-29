@@ -18,7 +18,6 @@ import (
 	"path"
 	"testing"
 
-	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/local_file"
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
@@ -27,7 +26,6 @@ import (
 
 type defaultMountLocalFile struct {
 	defaultMountCommonTest
-	CommonLocalFileTestSuite
 	suite.Suite
 }
 
@@ -49,7 +47,6 @@ func (t *defaultMountLocalFile) createLocalFile() {
 // Executes all tests that run with single streamingWrites configuration for localFiles.
 func TestDefaultMountLocalFileTest(t *testing.T) {
 	s := new(defaultMountLocalFile)
-	s.CommonLocalFileTestSuite.TestifySuite = &s.Suite
 	s.defaultMountCommonTest.TestifySuite = &s.Suite
 	suite.Run(t, s)
 }
