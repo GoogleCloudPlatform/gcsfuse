@@ -340,6 +340,11 @@ func (dmrd *debugMultiRangeDownloader) Wait() {
 	dmrd.wrapped.Wait()
 }
 
+func (dmrd *debugMultiRangeDownloader) Error() (err error) {
+	err = dmrd.wrapped.Error()
+	return
+}
+
 func (b *debugBucket) NewMultiRangeDownloader(
 	ctx context.Context, req *gcs.MultiRangeDownloaderRequest) (mrd gcs.MultiRangeDownloader, err error) {
 	id, desc, start := b.startRequest("NewMultiRangeDownloader(%q)", req.Name)
