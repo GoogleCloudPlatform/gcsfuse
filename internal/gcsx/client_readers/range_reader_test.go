@@ -559,5 +559,6 @@ func (t *rangeReaderTest) Test_ReadAt_EOFWithReaderNilClearsError() {
 	resp, err := t.readAt(0, 2)
 
 	assert.NoError(t.T(), err)
+	assert.Nil(t.T(), t.rangeReader.reader)
 	assert.Zero(t.T(), resp.Size)
 }
