@@ -15,6 +15,8 @@
 package streaming_writes
 
 import (
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
+	"github.com/stretchr/testify/assert"
 	"os"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
@@ -50,12 +52,14 @@ func (t *defaultMountCommonTest) TearDownSuite() {
 }
 
 func (t *defaultMountCommonTest) validateReadCall(filePath string) {
-	_, err := os.ReadFile(filePath)
-	if setup.IsZonalBucketRun() {
-		// TODO(b/410698332): Remove skip condition once reads start working.
-		t.T().Skip("Skipping Zonal Bucket Read tests.")
-		require.NoError(t.T(), err)
-	} else {
-		require.Error(t.T(), err)
-	}
+	buf, err := operations.ReadFileSequentially(filePath, util.MiB)
+	//if setup.IsZonalBucketRun() {
+	//	// TODO(b/410698332): Remove skip condition once reads start working.
+	//	t.T().Skip("Skipping Zonal Bucket Read tests.")
+	//	require.NoError(t.T(), err)
+	//} else {
+
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), t.data, buf)
+	//}
 }
