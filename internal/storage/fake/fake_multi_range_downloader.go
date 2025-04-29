@@ -60,13 +60,13 @@ func NewFakeMultiRangeDownloaderWithSleepAndDefaultError(obj *gcs.MinObject, dat
 	}
 }
 
-func NewFakeMultiRangeDownloaderWithStatusError(obj *gcs.MinObject, data []byte, err error) gcs.MultiRangeDownloader{
+func NewFakeMultiRangeDownloaderWithStatusError(obj *gcs.MinObject, data []byte, err error) gcs.MultiRangeDownloader {
 	fakeObj := createFakeObject(obj, data)
 	return &fakeMultiRangeDownloader{
 		obj:        &fakeObj,
 		sleepTime:  0,
 		defaultErr: nil,
-		statusErr: err,
+		statusErr:  err,
 	}
 }
 
