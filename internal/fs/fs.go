@@ -1218,18 +1218,18 @@ func (fs *fileSystem) syncFile(
 //
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_REQUIRED(f.mu)
-func (fs *fileSystem) initBufferedWriteHandlerAndSyncFileIfEligible(ctx context.Context, f *inode.FileInode) error {
+func (fs *fileSystem) initBufferedWriteHandlerAndSyncFileIfEligible(ctx context.Context, f *inode.FileInode) (bool, error) {
 	initialized, err := f.InitBufferedWriteHandlerIfEligible(ctx)
 	if err != nil {
-		return err
+		return initialized, err
 	}
 	if initialized {
 		err = fs.syncFile(ctx, f)
 		if err != nil {
-			return err
+			return initialized, err
 		}
 	}
-	return nil
+	return initialized, nil
 }
 
 // Decrement the supplied inode's lookup count, destroying it if the inode says
@@ -1537,7 +1537,7 @@ func (fs *fileSystem) SetInodeAttributes(
 
 	if isFile {
 		// Initialize BWH if eligible and Sync file inode.
-		err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, file)
+		_, err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, file)
 		if err != nil {
 			return
 		}
@@ -1771,26 +1771,30 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 	child = fs.mintInode(core)
 	fs.localFileInodes[child.Name()] = child
 	fileInode := child.(*inode.FileInode)
-	// Use deferred locking on filesystem so that it is locked before the defer call that unlocks the mutex and it doesn't fail.
-	defer fs.mu.Lock()
-	if !fs.newConfig.Write.EnableStreamingWrites {
+	// We need to release the filesystem lock before acquiring the inode lock.
+	fs.mu.Unlock()
+	fileInode.Lock()
+	var initialized bool
+	initialized, err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, fileInode)
+	fileInode.Unlock()
+	// Acquire filesystem lock again to create emtpy temp file.
+	fs.mu.Lock()
+	if err != nil {
+		return
+	}
+	if !initialized {
 		err = fileInode.CreateEmptyTempFile(ctx)
 		if err != nil {
 			return
 		}
 	}
-	// We need to release the filesystem lock before acquiring the inode lock.
 	fs.mu.Unlock()
-	fileInode.Lock()
-	err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, fileInode)
-	fileInode.Unlock()
-	if err != nil {
-		return
-	}
-
 	parent.Lock()
 	defer parent.Unlock()
 	parent.InsertFileIntoTypeCache(name)
+	// Even though there is no action here that requires locking, adding locking
+	// so that the defer call that unlocks the mutex doesn't fail.
+	fs.mu.Lock()
 	return child, nil
 }
 
@@ -2630,7 +2634,7 @@ func (fs *fileSystem) WriteFile(
 	in.Lock()
 	defer in.Unlock()
 
-	err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, in)
+	_, err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, in)
 	if err != nil {
 		return
 	}
