@@ -68,7 +68,8 @@ func (sccwbp *storageControlClientWithBillingProject) GetFolder(ctx context.Cont
 }
 
 func (sccwbp *storageControlClientWithBillingProject) RenameFolder(ctx context.Context, req *controlpb.RenameFolderRequest, opts ...gax.CallOption) (*control.RenameFolderOperation, error) {
-	return sccwbp.raw.RenameFolder(sccwbp.contextWithBillingProject(ctx), req, opts...)
+	// Don't pass billing-project for LROs as it's not supported.
+	return sccwbp.raw.RenameFolder(ctx, req, opts...)
 }
 
 func (sccwbp *storageControlClientWithBillingProject) CreateFolder(ctx context.Context, req *controlpb.CreateFolderRequest, opts ...gax.CallOption) (*controlpb.Folder, error) {
