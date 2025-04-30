@@ -25,14 +25,11 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 )
 
-// ReaderType represents different types of go-sdk gcs gcsx.
-// For eg: NewReader and MRD both point to bidi read api. This enum specifies
-// the go-sdk type.
+// ReaderType represents different types of go-sdk gcs readers.
 type ReaderType int
 
 // ReaderType enum values.
 const (
-	// MB is 1 Megabyte. (Silly comment to make the lint warning go away)
 	MB = 1 << 20
 
 	// Min read size in bytes for random reads.
@@ -46,9 +43,9 @@ const (
 
 // ReaderType enum values.
 const (
-	// RangeReader corresponds to NewReader method in bucket_handle.go
+	// RangeReaderType corresponds to NewReader method in bucket_handle.go
 	RangeReaderType ReaderType = iota
-	// MultiRangeReader corresponds to NewMultiRangeDownloader method in bucket_handle.go
+	// MultiRangeReaderType corresponds to NewMultiRangeDownloader method in bucket_handle.go
 	MultiRangeReaderType
 )
 
@@ -59,12 +56,13 @@ type GCSReader struct {
 
 	rangeReader *RangeReader
 	mrr         *MultiRangeReader
-	readType    string
+
+	// ReadType of the reader. Will be sequential by default.
+	readType string
 
 	sequentialReadSizeMb int32
-
-	seeks          uint64
-	totalReadBytes uint64
+	seeks                uint64
+	totalReadBytes       uint64
 }
 
 func NewGCSReader(obj *gcs.MinObject, bucket gcs.Bucket, metricHandle common.MetricHandle, mrdWrapper *gcsx.MultiRangeDownloaderWrapper, sequentialReadSizeMb int32) *GCSReader {
@@ -99,7 +97,7 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.R
 		return readerResponse, err
 	}
 
-	// If we don't have a reader, determine whether to read from NewReader or Mgr.
+	// If we don't have a reader, determine whether to read from NewReader or Mrr.
 	end, err := gr.getReadInfo(offset, int64(len(p)))
 	if err != nil {
 		err = fmt.Errorf("ReadAt: getReaderInfo: %w", err)
@@ -138,23 +136,19 @@ func (gr *GCSReader) getReaderType(start int64, end int64, bucketType gcs.Bucket
 func (gr *GCSReader) getReadInfo(start int64, size int64) (int64, error) {
 	// Make sure start and size are legal.
 	if start < 0 || uint64(start) > gr.object.Size || size < 0 {
-		return 0, fmt.Errorf(
-			"range [%d, %d) is illegal for %d-byte object",
-			start,
-			start+size,
-			gr.object.Size)
+		return 0, fmt.Errorf("range [%d, %d) is illegal for %d-byte object", start, start+size, gr.object.Size)
 	}
 
-	// Determine end based on read pattern.
+	// Determine the end position based on the read pattern.
 	end := gr.determineEnd(start)
 
-	// Limit end to sequentialReadSizeMb.
-	end = gr.limitToEnd(start, end)
+	// Limit the end position to sequentialReadSizeMb.
+	end = gr.limitEnd(start, end)
 
 	return end, nil
 }
 
-// determineEnd determines the end of the read based on the read pattern.
+// determineEnd calculates the end position for a read operation based on the current read pattern.
 func (gr *GCSReader) determineEnd(start int64) int64 {
 	end := int64(gr.object.Size)
 	if gr.seeks >= minSeeksForRandom {
@@ -177,13 +171,13 @@ func (gr *GCSReader) determineEnd(start int64) int64 {
 	return end
 }
 
-// limitToEnd limits the end of the read to sequentialReadSizeMb.
-func (gr *GCSReader) limitToEnd(start int64, end int64) int64 {
-	maxSizeToReadFromGCS := int64(gr.sequentialReadSizeMb * MB)
-	if end-start > maxSizeToReadFromGCS {
-		end = start + maxSizeToReadFromGCS
+// Limit the read end to ensure it doesn't exceed the maximum sequential read size.
+func (gr *GCSReader) limitEnd(start, currentEnd int64) int64 {
+	maxSize := int64(gr.sequentialReadSizeMb) * MB
+	if currentEnd-start > maxSize {
+		return start + maxSize
 	}
-	return end
+	return currentEnd
 }
 
 func (gr *GCSReader) Destroy() {

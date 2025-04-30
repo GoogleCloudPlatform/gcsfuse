@@ -321,7 +321,6 @@ func (rr *randomReader) ReadAt(
 		return
 	}
 
-	fmt.Println("In read")
 	// Check first if we can read using existing reader. if not, determine which
 	// api to use and call gcs accordingly.
 
@@ -332,7 +331,6 @@ func (rr *randomReader) ReadAt(
 	// For parallel sequential reads to a single file, not throwing away the connections
 	// is a 15-20x improvement in throughput: 150-200 MiB/s instead of 10 MiB/s.
 	if rr.reader != nil && rr.start < offset && offset-rr.start < maxReadSize {
-		fmt.Println("In condition 1")
 		bytesToSkip := offset - rr.start
 		discardedBytes, copyError := io.CopyN(io.Discard, rr.reader, int64(bytesToSkip))
 		// io.EOF is expected if the reader is shorter than the requested offset to read.
@@ -347,7 +345,6 @@ func (rr *randomReader) ReadAt(
 	// We will also clean up the existing reader if it can't serve the entire request.
 	dataToRead := math.Min(float64(offset+int64(len(p))), float64(rr.object.Size))
 	if rr.reader != nil && (rr.start != offset || int64(dataToRead) > rr.limit) {
-		fmt.Println("In condition 2")
 		rr.closeReader()
 		rr.reader = nil
 		rr.cancel = nil
@@ -360,7 +357,6 @@ func (rr *randomReader) ReadAt(
 	}
 
 	if rr.reader != nil {
-		fmt.Println("In existing readFromRangeReader condition")
 		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, -1, rr.readType)
 		return
 	}
