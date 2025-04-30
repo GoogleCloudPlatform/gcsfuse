@@ -24,7 +24,6 @@ import (
 
 var (
 	// A non-zero reference time for tests
-	referenceTime    = time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC)
 	shortTestTimeout = 10 * time.Millisecond // For non-blocking channel checks
 	fireTestTimeout  = 50 * time.Millisecond // When expecting a channel to fire
 )
@@ -38,28 +37,28 @@ func TestSimulatedClock_Now(t *testing.T) {
 		{
 			name:             "InitialState_IsZeroTime",
 			initialTimeSetup: func(sc *SimulatedClock) {},
-			expectedTime:     time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC), // referenceTime
+			expectedTime:     time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC),
 		},
 		{
 			name: "AfterSetTime_ReturnsSetTime",
 			initialTimeSetup: func(sc *SimulatedClock) {
-				sc.SetTime(referenceTime)
+				sc.SetTime(time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC))
 			},
-			expectedTime: time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC), // referenceTime
+			expectedTime: time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC),
 		},
 		{
 			name: "AfterAdvanceTime_ReturnsAdvancedTime",
 			initialTimeSetup: func(sc *SimulatedClock) {
-				sc.SetTime(referenceTime)
+				sc.SetTime(time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC))
 				sc.AdvanceTime(time.Hour)
 			},
-			expectedTime: time.Date(2020, time.January, 1, 13, 0, 0, 0, time.UTC), // referenceTime + time.Hour
+			expectedTime: time.Date(2020, time.January, 1, 13, 0, 0, 0, time.UTC),
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			clock := NewSimulatedClock(referenceTime)
+			clock := NewSimulatedClock(time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC))
 			tc.initialTimeSetup(clock)
 
 			now := clock.Now()
@@ -79,20 +78,20 @@ func TestSimulatedClock_SetTime(t *testing.T) {
 		{
 			name:             "SetFromZeroTime",
 			initialTimeSetup: func(sc *SimulatedClock) {},
-			timeToSet:        referenceTime,
-			expectedAfter:    time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC), // referenceTime
+			timeToSet:        time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC),
+			expectedAfter:    time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC),
 		},
 		{
 			name: "OverwriteExistingTime",
 			initialTimeSetup: func(sc *SimulatedClock) {
-				sc.SetTime(referenceTime.Add(-time.Hour)) // Start with a different time
+				sc.SetTime(time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC).Add(-time.Hour)) // Start with a different time
 			},
-			timeToSet:     referenceTime,
-			expectedAfter: time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC), // referenceTime - time.Hour
+			timeToSet:     time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC),
+			expectedAfter: time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC),
 		},
 		{
 			name:             "SetToZeroTime",
-			initialTimeSetup: func(sc *SimulatedClock) { sc.SetTime(referenceTime) },
+			initialTimeSetup: func(sc *SimulatedClock) { sc.SetTime(time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC)) },
 			timeToSet:        time.Time{}, // Zero time
 			expectedAfter:    time.Time{},
 		},
@@ -100,7 +99,7 @@ func TestSimulatedClock_SetTime(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			clock := NewSimulatedClock(referenceTime)
+			clock := NewSimulatedClock(time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC))
 			tc.initialTimeSetup(clock)
 
 			clock.SetTime(tc.timeToSet)
@@ -119,21 +118,21 @@ func TestSimulatedClock_AdvanceTime(t *testing.T) {
 	}{
 		{
 			name:         "AdvancePositiveDuration",
-			initialTime:  referenceTime,
+			initialTime:  time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC),
 			advanceBy:    5 * time.Minute,
-			expectedTime: time.Date(2020, time.January, 1, 12, 5, 0, 0, time.UTC), // refereceTime + 5 minutes
+			expectedTime: time.Date(2020, time.January, 1, 12, 5, 0, 0, time.UTC),
 		},
 		{
 			name:         "AdvanceNegativeDuration",
-			initialTime:  referenceTime,
+			initialTime:  time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC),
 			advanceBy:    -2 * time.Hour,
-			expectedTime: time.Date(2020, time.January, 1, 10, 0, 0, 0, time.UTC), // referenceTime - 2 hours
+			expectedTime: time.Date(2020, time.January, 1, 10, 0, 0, 0, time.UTC),
 		},
 		{
 			name:         "AdvanceByZeroDuration",
-			initialTime:  referenceTime,
+			initialTime:  time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC),
 			advanceBy:    0,
-			expectedTime: time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC), // referenceTime
+			expectedTime: time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC),
 		},
 		{
 			name:         "AdvanceFromZeroTime",
@@ -145,7 +144,7 @@ func TestSimulatedClock_AdvanceTime(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			clock := NewSimulatedClock(referenceTime)
+			clock := NewSimulatedClock(time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC))
 			clock.SetTime(tc.initialTime) // Set initial time for the clock
 
 			clock.AdvanceTime(tc.advanceBy)
@@ -175,7 +174,7 @@ func TestSimulatedClock_After_ShouldFireZeroOrNegativeDuration(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			clock := NewSimulatedClock(referenceTime)
+			clock := NewSimulatedClock(time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC))
 			clockTimeAtAfterCall := clock.Now()
 
 			ch := clock.After(tc.afterDuration)
@@ -215,14 +214,14 @@ func TestSimulatedClock_After_ShouldFirePositiveDuration(t *testing.T) {
 			name:          "PositiveDuration_Fires_WhenTimeSetPastDuration",
 			afterDuration: 10 * time.Second,
 			action: func(sc *SimulatedClock) {
-				sc.SetTime(referenceTime.Add(15 * time.Second)) // Set time well past the duration
+				sc.SetTime(time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC).Add(15 * time.Second)) // Set time well past the duration
 			},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			clock := NewSimulatedClock(referenceTime)
+			clock := NewSimulatedClock(time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC))
 			clockTimeAtAfterCall := clock.Now()
 
 			ch := clock.After(tc.afterDuration)
@@ -261,14 +260,14 @@ func TestSimulatedClock_After_ShouldNotFire(t *testing.T) {
 			name:          "PositiveDuration_DoesNotFire_WhenTimeSetBeforeDuration",
 			afterDuration: 10 * time.Second,
 			action: func(sc *SimulatedClock) {
-				sc.SetTime(referenceTime.Add(5 * time.Second)) // Set time, but not enough
+				sc.SetTime(time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC).Add(5 * time.Second)) // Set time, but not enough
 			},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			clock := NewSimulatedClock(referenceTime)
+			clock := NewSimulatedClock(time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC))
 
 			ch := clock.After(tc.afterDuration)
 			require.NotNil(t, ch, "Channel should not be nil")
