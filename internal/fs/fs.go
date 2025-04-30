@@ -2562,6 +2562,7 @@ func (fs *fileSystem) OpenFile(
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
+	// Figure out the mode in which the file is being opened.
 	openMode := fileModeUtil.DetermineFileOpenMode(op)
 	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, openMode, &fs.newConfig.Read)
 	op.Handle = handleID
