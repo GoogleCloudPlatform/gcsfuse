@@ -20,12 +20,13 @@ import (
 	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googleapis/gax-go/v2"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/stretchr/testify/mock"
 )
 
 // MockStorageControlClient creates a mock version of the StorageControlClient.
 type MockStorageControlClient struct {
-	StorageControlClient
+	storageutil.StorageControlClient
 	mock.Mock
 }
 
