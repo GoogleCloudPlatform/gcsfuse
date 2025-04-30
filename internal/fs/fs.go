@@ -1215,6 +1215,23 @@ func (fs *fileSystem) syncFile(
 }
 
 // Initializes Buffered Write Handler if Eligible and synchronizes the file inode to GCS if initialization succeeds.
+// Otherwise creates an empty temp writer if temp file nil.
+//
+// LOCKS_EXCLUDED(fs.mu)
+// LOCKS_REQUIRED(f.mu)
+func (fs *fileSystem) createBufferedWriteHandlerAndSyncOrTempWriter(ctx context.Context, f *inode.FileInode) error {
+	err := fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, f)
+	if err != nil {
+		return err
+	}
+	err = f.CreateEmptyTempFile(ctx)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// Initializes Buffered Write Handler if Eligible and synchronizes the file inode to GCS if initialization succeeds.
 //
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_REQUIRED(f.mu)
@@ -1539,13 +1556,6 @@ func (fs *fileSystem) SetInodeAttributes(
 	defer in.Unlock()
 	file, isFile := in.(*inode.FileInode)
 
-	if isFile && (op.Mode != nil || op.Size != nil) {
-		// Initialize BWH if eligible and Sync file inode.
-		err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, file)
-		if err != nil {
-			return
-		}
-	}
 	// Set file mtimes.
 	if isFile && op.Mtime != nil {
 		err = file.SetMtime(ctx, *op.Mtime)
@@ -1557,6 +1567,11 @@ func (fs *fileSystem) SetInodeAttributes(
 
 	// Truncate files.
 	if isFile && op.Size != nil {
+		// Initialize BWH if eligible and Sync file inode.
+		err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, file)
+		if err != nil {
+			return
+		}
 		err = file.Truncate(ctx, int64(*op.Size))
 		if err != nil {
 			err = fmt.Errorf("truncate: %w", err)
@@ -1780,17 +1795,11 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 	fs.mu.Unlock()
 	defer fs.mu.Lock()
 	fileInode.Lock()
-	err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, fileInode)
-	if err != nil {
-		fileInode.Unlock()
-		return
-	}
-	err = fileInode.CreateEmptyTempFile(ctx)
-	if err != nil {
-		fileInode.Unlock()
-		return
-	}
+	err = fs.createBufferedWriteHandlerAndSyncOrTempWriter(ctx, fileInode)
 	fileInode.Unlock()
+	if err != nil {
+		return
+	}
 
 	parent.Lock()
 	defer parent.Unlock()
