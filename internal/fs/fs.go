@@ -1224,6 +1224,10 @@ func (fs *fileSystem) initBufferedWriteHandlerAndSyncFileIfEligible(ctx context.
 		return err
 	}
 	if initialized {
+		// Calling syncFile is safe here as we have file inode lock and BWH is initialized.
+		// Thus sync method of BWH will be invoked.
+		// 1. In case of zonal bucket it creates unfinalized new generation object.
+		// 2. In case of non zonal bucket it's no-op as we don't have pending buffers to upload.
 		err = fs.syncFile(ctx, f)
 		if err != nil {
 			return err
@@ -1535,7 +1539,7 @@ func (fs *fileSystem) SetInodeAttributes(
 	defer in.Unlock()
 	file, isFile := in.(*inode.FileInode)
 
-	if isFile {
+	if isFile && (op.Mode != nil || op.Size != nil) {
 		// Initialize BWH if eligible and Sync file inode.
 		err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, file)
 		if err != nil {
@@ -1771,13 +1775,12 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 	child = fs.mintInode(core)
 	fs.localFileInodes[child.Name()] = child
 	fileInode := child.(*inode.FileInode)
+	// Use deferred locking on filesystem so that it is locked before the defer call that unlocks the mutex and it doesn't fail.
 	// We need to release the filesystem lock before acquiring the inode lock.
 	fs.mu.Unlock()
+	defer fs.mu.Lock()
 	fileInode.Lock()
 	err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, fileInode)
-	fileInode.Unlock()
-	// Acquire filesystem lock again to create emtpy temp file.
-	fs.mu.Lock()
 	if err != nil {
 		return
 	}
@@ -1785,14 +1788,11 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 	if err != nil {
 		return
 	}
-	fs.mu.Unlock()
+	fileInode.Unlock()
 
 	parent.Lock()
 	defer parent.Unlock()
 	parent.InsertFileIntoTypeCache(name)
-	// Even though there is no action here that requires locking, adding locking
-	// so that the defer call that unlocks the mutex doesn't fail.
-	fs.mu.Lock()
 	return child, nil
 }
 

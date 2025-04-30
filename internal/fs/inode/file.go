@@ -953,9 +953,12 @@ func (f *FileInode) CacheEnsureContent(ctx context.Context) (err error) {
 
 // CreateEmptyTempFile creates an empty file with no contents when
 // streaming writes are not in enabled.
+//
+// LOCKS_REQUIRED(f.mu)
 func (f *FileInode) CreateEmptyTempFile(ctx context.Context) (err error) {
-	// Skip creating empty file when streaming writes are enabled.
-	if f.bwh != nil {
+	// Skip creating empty temp file when streaming writes are enabled
+	// or temp file is already created.
+	if f.bwh != nil || f.content != nil {
 		return
 	}
 
