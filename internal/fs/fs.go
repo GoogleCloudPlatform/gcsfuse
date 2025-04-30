@@ -1782,10 +1782,12 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 	fileInode.Lock()
 	err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, fileInode)
 	if err != nil {
+		fileInode.Unlock()
 		return
 	}
 	err = fileInode.CreateEmptyTempFile(ctx)
 	if err != nil {
+		fileInode.Unlock()
 		return
 	}
 	fileInode.Unlock()
