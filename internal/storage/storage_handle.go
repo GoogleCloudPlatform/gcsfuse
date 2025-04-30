@@ -235,7 +235,7 @@ func (sh *storageClient) lookupBucketType(bucketName, billingProject string) (*g
 	}
 
 	startTime := time.Now()
-	logger.Infof("GetStorageLayout <- (%s)", bucketName)
+	logger.Infof("GetStorageLayout <- (bucket_name=%q, billing_project=%q)", bucketName, billingProject)
 	storageLayout, err := sh.getStorageLayout(bucketName, billingProject)
 	duration := time.Since(startTime)
 
@@ -254,9 +254,7 @@ func (sh *storageClient) lookupBucketType(bucketName, billingProject string) (*g
 func (sh *storageClient) getStorageLayout(bucketName, billingProject string) (*controlpb.StorageLayout, error) {
 	var callOptions []gax.CallOption
 	ctx := context.Background()
-	if len(strings.TrimSpace(billingProject)) > 0 {
-		ctx = metadata.AppendToOutgoingContext(ctx, "x-goog-user-project", billingProject)
-	}
+	ctx = metadata.AppendToOutgoingContext(ctx, "x-goog-user-project", billingProject)
 	stoargeLayout, err := sh.storageControlClient.GetStorageLayout(ctx, &controlpb.GetStorageLayoutRequest{
 		Name:      fmt.Sprintf("projects/_/buckets/%s/storageLayout", bucketName),
 		Prefix:    "",
