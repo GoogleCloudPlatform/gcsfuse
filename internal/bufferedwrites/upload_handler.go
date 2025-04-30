@@ -123,6 +123,7 @@ func (uh *UploadHandler) UploadError() (err error) {
 func (uh *UploadHandler) uploader() {
 	for currBlock := range uh.uploadCh {
 		if uh.UploadError() != nil {
+			uh.freeBlocksCh <- currBlock
 			uh.wg.Done()
 			continue
 		}
