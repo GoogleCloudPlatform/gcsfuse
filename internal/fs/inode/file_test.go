@@ -1433,18 +1433,7 @@ func (t *FileTest) TestCreateEmptyTempFile() {
 	assert.Equal(t.T(), int64(0), sr.Size)
 }
 
-func (t *FileTest) TestCreateEmptyTempFileShouldNotCreateFileForInodeWhenStreamingWritesAreEnabled() {
-	t.createInodeWithEmptyObject()
-	t.in.config = &cfg.Config{Write: *getWriteConfig()}
-	t.createBufferedWriteHandler(true)
-
-	err := t.in.CreateEmptyTempFile(t.ctx)
-
-	assert.Nil(t.T(), err)
-	assert.Nil(t.T(), t.in.content)
-}
-
-func (t *FileTest) TestCreateEmptyTempFileDoesNotWhenBWHIsNotNil() {
+func (t *FileTest) TestCreateEmptyTempFileWhenBWHIsNotNil() {
 	testCases := []struct {
 		name    string
 		isLocal bool
@@ -1475,6 +1464,17 @@ func (t *FileTest) TestCreateEmptyTempFileDoesNotWhenBWHIsNotNil() {
 			assert.Nil(t.T(), t.in.content)
 		})
 	}
+}
+
+func (t *FileTest) TestInitBufferedWriteHandlerIfEligibleShouldNotCreateBWHNonEmptySyncedFile() {
+	// Enabling buffered writes.
+	t.in.config = &cfg.Config{Write: *getWriteConfig()}
+
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
+
+	assert.NoError(t.T(), err)
+	assert.Nil(t.T(), t.in.bwh)
+	assert.False(t.T(), initialized)
 }
 
 func (t *FileTest) TestUnlinkLocalFile() {
