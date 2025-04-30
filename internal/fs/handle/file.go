@@ -22,6 +22,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/inode"
+	fileModeUtil "github.com/googlecloudplatform/gcsfuse/v2/internal/fs/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
@@ -51,20 +52,20 @@ type FileHandle struct {
 	// For now, we will consider the files which are open in append mode also as write,
 	// as we are not doing anything special for append. When required we will
 	// define an enum instead of boolean to hold the type of open.
-	readOnly bool
+	openMode fileModeUtil.OpenMode
 }
 
 // LOCKS_REQUIRED(fh.inode.mu)
-func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, readOnly bool) (fh *FileHandle) {
+func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, openMode fileModeUtil.OpenMode) (fh *FileHandle) {
 	fh = &FileHandle{
 		inode:                 inode,
 		fileCacheHandler:      fileCacheHandler,
 		cacheFileForRangeRead: cacheFileForRangeRead,
 		metricHandle:          metricHandle,
-		readOnly:              readOnly,
+		openMode:              openMode,
 	}
 
-	fh.inode.RegisterFileHandle(fh.readOnly)
+	fh.inode.RegisterFileHandle(fh.openMode == fileModeUtil.Read)
 	fh.mu = syncutil.NewInvariantMutex(fh.checkInvariants)
 
 	return
@@ -78,7 +79,7 @@ func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, 
 func (fh *FileHandle) Destroy() {
 	// Deregister the fileHandle with the inode.
 	fh.inode.Lock()
-	fh.inode.DeRegisterFileHandle(fh.readOnly)
+	fh.inode.DeRegisterFileHandle(fh.openMode == fileModeUtil.Read)
 	fh.inode.Unlock()
 	if fh.reader != nil {
 		fh.reader.Destroy()
