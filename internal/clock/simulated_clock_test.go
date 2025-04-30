@@ -29,28 +29,6 @@ var (
 	fireTestTimeout  = 50 * time.Millisecond // When expecting a channel to fire
 )
 
-// Helper to assert that a channel receives a specific time within a timeout.
-func assertReceivesTime(t *testing.T, ch <-chan time.Time, expectedTime time.Time, timeout time.Duration, msgAndArgs ...interface{}) {
-	t.Helper()
-	select {
-	case actualTime := <-ch:
-		assert.True(t, expectedTime.Equal(actualTime), "Received time %v, expected %v. %s", actualTime, expectedTime, msgAndArgs)
-	case <-time.After(timeout): // Using real time.After for test timeout
-		t.Fatalf("Timeout waiting for time on channel. Expected %v. %s", expectedTime, msgAndArgs)
-	}
-}
-
-// Helper to assert that a channel does NOT receive a time within a short duration.
-func assertNotReceivesTime(t *testing.T, ch <-chan time.Time, timeout time.Duration, msgAndArgs ...interface{}) {
-	t.Helper()
-	select {
-	case receivedTime := <-ch:
-		t.Fatalf("Expected no time on channel, but received %v. %s", receivedTime, msgAndArgs)
-	case <-time.After(timeout): // Using real time.After for test timeout
-		// Success, nothing received
-	}
-}
-
 func TestSimulatedClock_Now(t *testing.T) {
 	testCases := []struct {
 		name             string
@@ -60,14 +38,14 @@ func TestSimulatedClock_Now(t *testing.T) {
 		{
 			name:             "InitialState_IsZeroTime",
 			initialTimeSetup: func(sc *SimulatedClock) {},
-			expectedTime:     referenceTime,
+			expectedTime:     time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC), // referenceTime
 		},
 		{
 			name: "AfterSetTime_ReturnsSetTime",
 			initialTimeSetup: func(sc *SimulatedClock) {
 				sc.SetTime(referenceTime)
 			},
-			expectedTime: referenceTime,
+			expectedTime: time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC), // referenceTime
 		},
 		{
 			name: "AfterAdvanceTime_ReturnsAdvancedTime",
@@ -75,7 +53,7 @@ func TestSimulatedClock_Now(t *testing.T) {
 				sc.SetTime(referenceTime)
 				sc.AdvanceTime(time.Hour)
 			},
-			expectedTime: referenceTime.Add(time.Hour),
+			expectedTime: time.Date(2020, time.January, 1, 13, 0, 0, 0, time.UTC), // referenceTime + time.Hour
 		},
 	}
 
@@ -102,7 +80,7 @@ func TestSimulatedClock_SetTime(t *testing.T) {
 			name:             "SetFromZeroTime",
 			initialTimeSetup: func(sc *SimulatedClock) {},
 			timeToSet:        referenceTime,
-			expectedAfter:    referenceTime,
+			expectedAfter:    time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC), // referenceTime
 		},
 		{
 			name: "OverwriteExistingTime",
@@ -110,7 +88,7 @@ func TestSimulatedClock_SetTime(t *testing.T) {
 				sc.SetTime(referenceTime.Add(-time.Hour)) // Start with a different time
 			},
 			timeToSet:     referenceTime,
-			expectedAfter: referenceTime,
+			expectedAfter: time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC), // referenceTime - time.Hour
 		},
 		{
 			name:             "SetToZeroTime",
@@ -143,25 +121,25 @@ func TestSimulatedClock_AdvanceTime(t *testing.T) {
 			name:         "AdvancePositiveDuration",
 			initialTime:  referenceTime,
 			advanceBy:    5 * time.Minute,
-			expectedTime: referenceTime.Add(5 * time.Minute),
+			expectedTime: time.Date(2020, time.January, 1, 12, 5, 0, 0, time.UTC), // refereceTime + 5 minutes
 		},
 		{
 			name:         "AdvanceNegativeDuration",
 			initialTime:  referenceTime,
 			advanceBy:    -2 * time.Hour,
-			expectedTime: referenceTime.Add(-2 * time.Hour),
+			expectedTime: time.Date(2020, time.January, 1, 10, 0, 0, 0, time.UTC), // referenceTime - 2 hours
 		},
 		{
 			name:         "AdvanceByZeroDuration",
 			initialTime:  referenceTime,
 			advanceBy:    0,
-			expectedTime: referenceTime,
+			expectedTime: time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC), // referenceTime
 		},
 		{
 			name:         "AdvanceFromZeroTime",
 			initialTime:  time.Time{},
 			advanceBy:    time.Hour,
-			expectedTime: (time.Time{}).Add(time.Hour),
+			expectedTime: time.Date(1, time.January, 1, 1, 0, 0, 0, time.UTC), // zeroTime + time.Hour
 		},
 	}
 
@@ -177,7 +155,7 @@ func TestSimulatedClock_AdvanceTime(t *testing.T) {
 	}
 }
 
-func TestSimulatedClock_After_ShouldFire(t *testing.T) {
+func TestSimulatedClock_After_ShouldFireZeroOrNegativeDuration(t *testing.T) {
 	testCases := []struct {
 		name          string
 		afterDuration time.Duration
@@ -193,6 +171,39 @@ func TestSimulatedClock_After_ShouldFire(t *testing.T) {
 			afterDuration: -5 * time.Second,
 			action:        func(sc *SimulatedClock) { /* No action needed for immediate fire */ },
 		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			clock := NewSimulatedClock(referenceTime)
+			clockTimeAtAfterCall := clock.Now()
+
+			ch := clock.After(tc.afterDuration)
+			require.NotNil(t, ch, "Channel should not be nil")
+
+			// Perform the action (if any) that might trigger the timer
+			tc.action(clock)
+
+			// Fires at the same time for zero/negative duration.
+			expectedFireTimeOnChannel := clockTimeAtAfterCall
+
+			select {
+			case actualTime := <-ch:
+				assert.True(t, expectedFireTimeOnChannel.Equal(actualTime), "Received time %v, expected %v", actualTime, expectedFireTimeOnChannel)
+
+			case <-time.After(fireTestTimeout):
+				t.Fatalf("Timeout waiting for time on channel. Expected after %v.", expectedFireTimeOnChannel)
+			}
+		})
+	}
+}
+
+func TestSimulatedClock_After_ShouldFirePositiveDuration(t *testing.T) {
+	testCases := []struct {
+		name          string
+		afterDuration time.Duration
+		action        func(sc *SimulatedClock) // Action to manipulate the clock after After() is called
+	}{
 		{
 			name:          "PositiveDuration_Fires_WhenTimeAdvancedPastDuration",
 			afterDuration: 10 * time.Second,
@@ -218,22 +229,17 @@ func TestSimulatedClock_After_ShouldFire(t *testing.T) {
 			require.NotNil(t, ch, "Channel should not be nil")
 
 			// Perform the action (if any) that might trigger the timer
-			if tc.action != nil {
-				tc.action(clock)
-			}
+			tc.action(clock)
+			// Expected fire time, time + duration.
+			expectedFireTimeOnChannel := clockTimeAtAfterCall.Add(tc.afterDuration)
 
-			// Determine the expected time on the channel if it fires
-			// For zero/negative duration, it's the time After() was called.
-			// For positive, it's that time + duration.
-			var expectedFireTimeOnChannel time.Time
-			if tc.afterDuration <= 0 {
-				expectedFireTimeOnChannel = clockTimeAtAfterCall
-			} else {
-				expectedFireTimeOnChannel = clockTimeAtAfterCall.Add(tc.afterDuration)
-			}
+			select {
+			case actualTime := <-ch:
+				assert.True(t, expectedFireTimeOnChannel.Equal(actualTime), "Received time %v, expected %v", actualTime, expectedFireTimeOnChannel)
 
-			assertReceivesTime(t, ch, expectedFireTimeOnChannel, fireTestTimeout,
-				"Expected timer to fire with time %v", expectedFireTimeOnChannel)
+			case <-time.After(fireTestTimeout):
+				t.Fatalf("Timeout waiting for time on channel. Expected after %v.", expectedFireTimeOnChannel)
+			}
 		})
 	}
 }
@@ -268,12 +274,15 @@ func TestSimulatedClock_After_ShouldNotFire(t *testing.T) {
 			require.NotNil(t, ch, "Channel should not be nil")
 
 			// Perform the action (if any) that might trigger the timer
-			if tc.action != nil {
-				tc.action(clock)
+			tc.action(clock)
+
+			select {
+			case receivedTime := <-ch:
+				t.Fatalf("Expected no time on channel, but received %v.", receivedTime)
+
+			case <-time.After(shortTestTimeout):
+				// Success, nothing received
 			}
-
-			assertNotReceivesTime(t, ch, shortTestTimeout, "Expected timer not to fire")
-
 		})
 	}
 }

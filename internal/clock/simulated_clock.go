@@ -37,7 +37,7 @@ type SimulatedClock struct {
 func NewSimulatedClock(startTime time.Time) *SimulatedClock {
 	return &SimulatedClock{
 		t:       startTime,
-		pending: make([]*afterRequest, 0),
+		pending: nil,
 	}
 }
 
@@ -111,7 +111,5 @@ func (sc *SimulatedClock) processPending() {
 		}
 	}
 
-	if len(stillPending) < len(sc.pending) { // Optimization: only re-slice if necessary
-		sc.pending = stillPending
-	}
+	sc.pending = stillPending
 }
