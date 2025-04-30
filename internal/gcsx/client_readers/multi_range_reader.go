@@ -67,9 +67,7 @@ func NewMultiRangeReader(object *gcs.MinObject, metricHandle common.MetricHandle
 //
 // Returns:
 //   - int: The number of bytes read.
-//   - error: An error if the read operation fails. Possible errors include:
-//     1. Invalid MultiRangeDownloaderWrapper: If the mrdWrapper is nil.
-//     2. Errors returned by the mrdWrapper.Read method.
+//   - error: An error if the read operation fails.
 func (mrd *MultiRangeReader) readFromMultiRangeReader(ctx context.Context, p []byte, offset, end int64, timeout time.Duration) (int, error) {
 	if mrd.mrdWrapper == nil {
 		return 0, fmt.Errorf("readFromMultiRangeReader: Invalid MultiRangeDownloaderWrapper")

@@ -68,7 +68,7 @@ func (t *rangeReaderTest) SetupTest() {
 	t.ctx = context.Background()
 }
 
-func (t *rangeReaderTest) TearDown() {
+func (t *rangeReaderTest) TearDownTest() {
 	t.rangeReader.destroy()
 }
 
