@@ -42,7 +42,7 @@ type bucketHandle struct {
 	bucket        *storage.BucketHandle
 	bucketName    string
 	bucketType    *gcs.BucketType
-	controlClient StorageControlClient
+	controlClient storageutil.StorageControlClient
 }
 
 func (bh *bucketHandle) Name() string {
