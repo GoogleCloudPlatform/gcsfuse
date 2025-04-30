@@ -93,7 +93,16 @@ func createClientOptionForGRPCClient(clientConfig *storageutil.StorageClientConf
 	if clientConfig.AnonymousAccess {
 		clientOpts = append(clientOpts, option.WithoutAuthentication())
 	} else {
-		clientOpts = append(clientOpts, option.WithTokenSource(TokenProvider.TokenSource()), option.WithUniverseDomain(TokenProvider.Domain()))
+		if TokenProvider != nil {
+			clientOpts = append(clientOpts, option.WithTokenSource(TokenProvider.TokenSource()), option.WithUniverseDomain(TokenProvider.Domain()))
+		} else {
+			tokenSrc, tokenCreationErr := storageutil.CreateTokenSource(clientConfig)
+			if tokenCreationErr != nil {
+				err = fmt.Errorf("while fetching tokenSource: %w", tokenCreationErr)
+				return
+			}
+			clientOpts = append(clientOpts, option.WithTokenSource(tokenSrc))
+		}
 	}
 
 	if enableBidiConfig {
@@ -175,7 +184,9 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	}
 
 	clientOpts = append(clientOpts, option.WithHTTPClient(httpClient))
-	clientOpts = append(clientOpts, option.WithUniverseDomain(tokenProvider.Domain()))
+	if tokenProvider != nil {
+		clientOpts = append(clientOpts, option.WithUniverseDomain(tokenProvider.Domain()))
+	}
 
 	if clientConfig.AnonymousAccess {
 		clientOpts = append(clientOpts, option.WithoutAuthentication())
@@ -265,10 +276,14 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	var controlClient *control.StorageControlClient
 	var clientOpts []option.ClientOption
 
-	TokenProvider, tokentokenProviderErr := storageutil.CreateTokenProvider(&clientConfig)
-	if tokentokenProviderErr != nil {
-		err = fmt.Errorf("while fetching tokenSource: %w", tokentokenProviderErr)
-		return nil, err
+	var TokenProvider *auth.TokenProvider
+	var tokenProviderErr error
+	if clientConfig.NewAuth {
+		TokenProvider, tokenProviderErr = storageutil.CreateTokenProvider(&clientConfig)
+		if tokenProviderErr != nil {
+			err = fmt.Errorf("while fetching tokenSource: %w", tokenProviderErr)
+			return nil, err
+		}
 	}
 
 	// TODO: We will implement an additional check for the HTTP control client protocol once the Go SDK supports HTTP.
@@ -298,10 +313,14 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 func (sh *storageClient) getClient(ctx context.Context, isbucketZonal bool) (*storage.Client, error) {
 	var err error
 
-	TokenProvider, tokenProviderErr := storageutil.CreateTokenProvider(&sh.clientConfig)
-	if tokenProviderErr != nil {
-		err = fmt.Errorf("while fetching tokenSource: %w", tokenProviderErr)
-		return nil, err
+	var TokenProvider *auth.TokenProvider
+	var tokenProviderErr error
+	if sh.clientConfig.NewAuth {
+		TokenProvider, tokenProviderErr = storageutil.CreateTokenProvider(&sh.clientConfig)
+		if tokenProviderErr != nil {
+			err = fmt.Errorf("while fetching tokenSource: %w", tokenProviderErr)
+			return nil, err
+		}
 	}
 
 	if isbucketZonal {

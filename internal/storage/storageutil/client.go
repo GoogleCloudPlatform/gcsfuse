@@ -16,6 +16,7 @@ package storageutil
 
 import (
 	"crypto/tls"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -40,6 +41,7 @@ type StorageClientConfig struct {
 	ReuseTokenFromUrl bool
 	MaxRetrySleep     time.Duration
 	RetryMultiplier   float64
+	NewAuth           bool
 
 	/** HTTP client parameters. */
 	MaxConnsPerHost            int
@@ -93,11 +95,22 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, TokenProvider *a
 			Timeout: storageClientConfig.HttpClientTimeout,
 		}
 	} else {
+
+		var tokenSrc oauth2.TokenSource
+		if TokenProvider == nil {
+			tokenSrc, err = CreateTokenSource(storageClientConfig)
+			if err != nil {
+				err = fmt.Errorf("while fetching tokenSource: %w", err)
+				return
+			}
+		} else {
+			tokenSrc = TokenProvider.TokenSource()
+		}
 		// Custom http client for Go Client.
 		httpClient = &http.Client{
 			Transport: &oauth2.Transport{
 				Base:   transport,
-				Source: TokenProvider.TokenSource(),
+				Source: tokenSrc,
 			},
 			Timeout: storageClientConfig.HttpClientTimeout,
 		}
