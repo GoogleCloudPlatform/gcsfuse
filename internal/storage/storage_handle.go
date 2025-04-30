@@ -64,7 +64,7 @@ type storageClient struct {
 	grpcClient               *storage.Client
 	grpcClientWithBidiConfig *storage.Client
 	clientConfig             storageutil.StorageClientConfig
-	storageControlClient     StorageControlClient
+	storageControlClient     storageutil.StorageControlClient
 	directPathDetector       *gRPCDirectPathDetector
 }
 
@@ -263,10 +263,10 @@ func (sh *storageClient) getStorageLayout(bucketName string) (*controlpb.Storage
 
 // NewStorageHandle creates control client and stores client config to allow dynamic
 // creation of http or grpc client.
-func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClientConfig) (sh StorageHandle, err error) {
+func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClientConfig, billingProject string) (sh StorageHandle, err error) {
 	// The default protocol for the Go Storage control client's folders API is gRPC.
 	// gcsfuse will initially mirror this behavior due to the client's lack of HTTP support.
-	var controlClient *control.StorageControlClient
+	var controlClient storageutil.StorageControlClient
 	var clientOpts []option.ClientOption
 
 	// Control-client is needed for folder APIs and for getting storage-layout of the bucket.
@@ -276,7 +276,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		if err != nil {
 			return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
 		}
-		controlClient, err = storageutil.CreateGRPCControlClient(ctx, clientOpts, &clientConfig)
+		controlClient, err = storageutil.CreateGRPCControlClient(ctx, clientOpts, &clientConfig, billingProject)
 		if err != nil {
 			return nil, fmt.Errorf("could not create StorageControl Client: %w", err)
 		}

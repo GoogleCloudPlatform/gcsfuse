@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	control "cloud.google.com/go/storage/control/apiv2"
@@ -53,22 +54,29 @@ func setRetryConfigForFolderAPIs(sc *control.StorageControlClient, clientConfig 
 	sc.CallOptions.DeleteFolder = storageControlClientRetryOptions(clientConfig)
 }
 
-func CreateGRPCControlClient(ctx context.Context, clientOpts []option.ClientOption, clientConfig *StorageClientConfig) (controlClient *control.StorageControlClient, err error) {
+func CreateGRPCControlClient(ctx context.Context, clientOpts []option.ClientOption, clientConfig *StorageClientConfig, billingProject string) (controlClient StorageControlClient, err error) {
 	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
 		logger.Fatal("error setting direct path env var: %v", err)
 	}
 
-	controlClient, err = control.NewStorageControlClient(ctx, clientOpts...)
+	var rawStorageControlClient *control.StorageControlClient
+	rawStorageControlClient, err = control.NewStorageControlClient(ctx, clientOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("NewStorageControlClient: %w", err)
 	}
 
 	// Set retries for control client.
-	setRetryConfigForFolderAPIs(controlClient, clientConfig)
+	setRetryConfigForFolderAPIs(rawStorageControlClient, clientConfig)
 
 	// Unset the environment variable, since it's used only while creation of grpc client.
 	if err := os.Unsetenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS"); err != nil {
 		logger.Fatal("error while unsetting direct path env var: %v", err)
+	}
+
+	if len(strings.TrimSpace(billingProject)) > 0 {
+		controlClient = &storageControlClientWithBillingProject{raw: rawStorageControlClient, billingProject: billingProject}
+	} else {
+		controlClient = rawStorageControlClient
 	}
 
 	return controlClient, err
