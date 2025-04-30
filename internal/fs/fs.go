@@ -1218,18 +1218,18 @@ func (fs *fileSystem) syncFile(
 //
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_REQUIRED(f.mu)
-func (fs *fileSystem) initBufferedWriteHandlerAndSyncFileIfEligible(ctx context.Context, f *inode.FileInode) (bool, error) {
+func (fs *fileSystem) initBufferedWriteHandlerAndSyncFileIfEligible(ctx context.Context, f *inode.FileInode) error {
 	initialized, err := f.InitBufferedWriteHandlerIfEligible(ctx)
 	if err != nil {
-		return initialized, err
+		return err
 	}
 	if initialized {
 		err = fs.syncFile(ctx, f)
 		if err != nil {
-			return initialized, err
+			return err
 		}
 	}
-	return initialized, nil
+	return nil
 }
 
 // Decrement the supplied inode's lookup count, destroying it if the inode says
@@ -1537,7 +1537,7 @@ func (fs *fileSystem) SetInodeAttributes(
 
 	if isFile {
 		// Initialize BWH if eligible and Sync file inode.
-		_, err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, file)
+		err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, file)
 		if err != nil {
 			return
 		}
@@ -1774,21 +1774,19 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 	// We need to release the filesystem lock before acquiring the inode lock.
 	fs.mu.Unlock()
 	fileInode.Lock()
-	var initialized bool
-	initialized, err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, fileInode)
+	err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, fileInode)
 	fileInode.Unlock()
 	// Acquire filesystem lock again to create emtpy temp file.
 	fs.mu.Lock()
 	if err != nil {
 		return
 	}
-	if !initialized {
-		err = fileInode.CreateEmptyTempFile(ctx)
-		if err != nil {
-			return
-		}
+	err = fileInode.CreateEmptyTempFile(ctx)
+	if err != nil {
+		return
 	}
 	fs.mu.Unlock()
+
 	parent.Lock()
 	defer parent.Unlock()
 	parent.InsertFileIntoTypeCache(name)
@@ -2634,7 +2632,7 @@ func (fs *fileSystem) WriteFile(
 	in.Lock()
 	defer in.Unlock()
 
-	_, err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, in)
+	err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, in)
 	if err != nil {
 		return
 	}
