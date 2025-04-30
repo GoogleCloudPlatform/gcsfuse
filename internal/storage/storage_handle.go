@@ -35,7 +35,6 @@ import (
 	option "google.golang.org/api/option"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/metadata"
 
 	// Side effect to run grpc client with direct-path on gcp machine.
 	_ "google.golang.org/grpc/balancer/rls"
@@ -228,15 +227,15 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	return
 }
 
-func (sh *storageClient) lookupBucketType(bucketName, billingProject string) (*gcs.BucketType, error) {
+func (sh *storageClient) lookupBucketType(bucketName string) (*gcs.BucketType, error) {
 	var nilControlClient *control.StorageControlClient = nil
 	if sh.storageControlClient == nilControlClient {
 		return &gcs.BucketType{}, nil // Assume defaults
 	}
 
 	startTime := time.Now()
-	logger.Infof("GetStorageLayout <- (bucket_name=%q, billing_project=%q)", bucketName, billingProject)
-	storageLayout, err := sh.getStorageLayout(bucketName, billingProject)
+	logger.Infof("GetStorageLayout <- (%s)", bucketName)
+	storageLayout, err := sh.getStorageLayout(bucketName)
 	duration := time.Since(startTime)
 
 	if err != nil {
@@ -251,11 +250,9 @@ func (sh *storageClient) lookupBucketType(bucketName, billingProject string) (*g
 	}, nil
 }
 
-func (sh *storageClient) getStorageLayout(bucketName, billingProject string) (*controlpb.StorageLayout, error) {
+func (sh *storageClient) getStorageLayout(bucketName string) (*controlpb.StorageLayout, error) {
 	var callOptions []gax.CallOption
-	ctx := context.Background()
-	ctx = metadata.AppendToOutgoingContext(ctx, "x-goog-user-project", billingProject)
-	stoargeLayout, err := sh.storageControlClient.GetStorageLayout(ctx, &controlpb.GetStorageLayoutRequest{
+	stoargeLayout, err := sh.storageControlClient.GetStorageLayout(context.Background(), &controlpb.GetStorageLayoutRequest{
 		Name:      fmt.Sprintf("projects/_/buckets/%s/storageLayout", bucketName),
 		Prefix:    "",
 		RequestId: "",
@@ -321,9 +318,9 @@ func (sh *storageClient) getClient(ctx context.Context, isbucketZonal bool) (*st
 	return nil, fmt.Errorf("invalid client-protocol requested: %s", sh.clientConfig.ClientProtocol)
 }
 
-func (sh *storageClient) BucketHandle(ctx context.Context, bucketName, billingProject string) (bh *bucketHandle, err error) {
+func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, billingProject string) (bh *bucketHandle, err error) {
 	var client *storage.Client
-	bucketType, err := sh.lookupBucketType(bucketName, billingProject)
+	bucketType, err := sh.lookupBucketType(bucketName)
 	if err != nil {
 		return nil, fmt.Errorf("storageLayout call failed: %s", err)
 	}
