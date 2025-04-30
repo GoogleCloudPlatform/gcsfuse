@@ -50,9 +50,7 @@ type FileHandle struct {
 	// will be downloaded for random reads as well too.
 	cacheFileForRangeRead bool
 	metricHandle          common.MetricHandle
-	// For now, we will consider the files which are open in append mode also as write,
-	// as we are not doing anything special for append. When required we will
-	// define an enum instead of boolean to hold the type of open.
+	// openMode is used to store the mode in which the file is opened.
 	openMode fileModeUtil.OpenMode
 
 	// Read related mounting configuration.
