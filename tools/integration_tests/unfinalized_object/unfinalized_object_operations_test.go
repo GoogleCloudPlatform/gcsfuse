@@ -94,7 +94,7 @@ func (t *unfinalizedObjectOperations) TestUnfinalizedObjectCreatedFromSameMountR
 }
 
 func (t *unfinalizedObjectOperations) TestOverWritingUnfinalizedObjectsReturnsESTALE() {
-	// TODO(b/411333280): Enable the test once flush onn unfinalized Object fix.
+	// TODO(b/411333280): Enable the test once flush on unfinalized Object is fixed.
 	t.T().Skip("Skipping the test due to b/411333280")
 	var size int64 = operations.MiB
 	_ = client.CreateUnfinalizedObject(t.ctx, t.T(), t.storageClient, path.Join(testDirName, t.fileName), size)
