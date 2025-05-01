@@ -15,6 +15,7 @@
 package streaming_writes
 
 import (
+	"path"
 	"testing"
 
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
@@ -62,7 +63,13 @@ func TestWritesWithDifferentConfig(t *testing.T) {
 			defer setup.UnmountGCSFuse(rootDir)
 			testDirPath = setup.SetupTestDirectory(testDirName)
 			// Create a local file.
-			_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
+			fh := operations.CreateFile(path.Join(testDirPath, FileName1), FilePerms, t)
+			testDirName := GetDirName(testDirPath)
+			if setup.IsZonalBucketRun() {
+				ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, FileName1, "", t)
+			} else {
+				ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t)
+			}
 			data, err := operations.GenerateRandomData(tc.fileSize)
 			if err != nil {
 				t.Fatalf("Error in generating data: %v", err)

@@ -48,7 +48,8 @@ type UploadHandler struct {
 	// uploadError stores atomic pointer to the error seen by uploader.
 	uploadError atomic.Pointer[error]
 	// CancelFunc persisted to cancel the uploads in case of unlink operation.
-	cancelFunc context.CancelFunc
+	cancelFunc    context.CancelFunc
+	startUploader sync.Once
 
 	// Parameters required for creating a new GCS chunk writer.
 	bucket               gcs.Bucket
@@ -87,18 +88,14 @@ func newUploadHandler(req *CreateUploadHandlerRequest) *UploadHandler {
 func (uh *UploadHandler) Upload(block block.Block) error {
 	uh.wg.Add(1)
 
-	if uh.writer == nil {
-		// Lazily create the object writer.
-		err := uh.createObjectWriter()
-		if err != nil {
-			// createObjectWriter can only fail here due to throttling, so we will not
-			// handle this error explicitly or fall back to temp file flow.
-			return fmt.Errorf("createObjectWriter failed for object %s: %w", uh.objectName, err)
-		}
-		// Start the uploader goroutine.
-		go uh.uploader()
+	err := uh.ensureWriter()
+	if err != nil {
+		return fmt.Errorf("uh.ensureWriter() failed: %v", err)
 	}
-
+	// Start the uploader goroutine but only once.
+	uh.startUploader.Do(func() {
+		go uh.uploader()
+	})
 	uh.uploadCh <- block
 	return nil
 }
@@ -126,6 +123,7 @@ func (uh *UploadHandler) UploadError() (err error) {
 func (uh *UploadHandler) uploader() {
 	for currBlock := range uh.uploadCh {
 		if uh.UploadError() != nil {
+			uh.freeBlocksCh <- currBlock
 			uh.wg.Done()
 			continue
 		}

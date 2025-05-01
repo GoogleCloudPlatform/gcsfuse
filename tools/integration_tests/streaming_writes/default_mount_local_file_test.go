@@ -22,24 +22,30 @@ import (
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_suite"
 	"github.com/stretchr/testify/suite"
 )
 
-type defaultMountLocalFile struct {
+type defaultMountCommonLocalFile struct {
 	defaultMountCommonTest
-	CommonLocalFileTestSuite
 	suite.Suite
 }
 
-func (t *defaultMountLocalFile) SetupTest() {
+type defaultMountRegionalBucketLocalFile struct {
+	CommonLocalFileTestSuite
+	defaultMountCommonLocalFile
+	test_suite.TestifySuite
+}
+
+func (t *defaultMountCommonLocalFile) SetupTest() {
 	t.createLocalFile()
 }
 
-func (t *defaultMountLocalFile) SetupSubTest() {
+func (t *defaultMountCommonLocalFile) SetupSubTest() {
 	t.createLocalFile()
 }
 
-func (t *defaultMountLocalFile) createLocalFile() {
+func (t *defaultMountCommonLocalFile) createLocalFile() {
 	t.fileName = FileName1 + setup.GenerateRandomString(5)
 	t.filePath = path.Join(testDirPath, t.fileName)
 	// Create a local file with O_DIRECT.
@@ -48,8 +54,15 @@ func (t *defaultMountLocalFile) createLocalFile() {
 
 // Executes all tests that run with single streamingWrites configuration for localFiles.
 func TestDefaultMountLocalFileTest(t *testing.T) {
-	s := new(defaultMountLocalFile)
-	s.CommonLocalFileTestSuite.TestifySuite = &s.Suite
-	s.defaultMountCommonTest.TestifySuite = &s.Suite
-	suite.Run(t, s)
+	if setup.IsZonalBucketRun() {
+		s := new(defaultMountCommonLocalFile)
+		s.defaultMountCommonTest.TestifySuite = &s.Suite
+		suite.Run(t, s)
+	} else {
+		s := new(defaultMountRegionalBucketLocalFile)
+		s.defaultMountCommonTest.TestifySuite = &s.defaultMountCommonLocalFile.Suite
+		s.CommonLocalFileTestSuite.TestifySuite = &s.defaultMountCommonLocalFile.Suite
+		s.TestifySuite = &s.defaultMountCommonLocalFile.Suite
+		suite.Run(t, s)
+	}
 }

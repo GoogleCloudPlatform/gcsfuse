@@ -1214,6 +1214,45 @@ func (fs *fileSystem) syncFile(
 	return nil
 }
 
+// Initializes Buffered Write Handler if Eligible and synchronizes the file inode to GCS if initialization succeeds.
+// Otherwise creates an empty temp writer if temp file nil.
+//
+// LOCKS_EXCLUDED(fs.mu)
+// LOCKS_REQUIRED(f.mu)
+func (fs *fileSystem) createBufferedWriteHandlerAndSyncOrTempWriter(ctx context.Context, f *inode.FileInode) error {
+	err := fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, f)
+	if err != nil {
+		return err
+	}
+	err = f.CreateEmptyTempFile(ctx)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// Initializes Buffered Write Handler if Eligible and synchronizes the file inode to GCS if initialization succeeds.
+//
+// LOCKS_EXCLUDED(fs.mu)
+// LOCKS_REQUIRED(f.mu)
+func (fs *fileSystem) initBufferedWriteHandlerAndSyncFileIfEligible(ctx context.Context, f *inode.FileInode) error {
+	initialized, err := f.InitBufferedWriteHandlerIfEligible(ctx)
+	if err != nil {
+		return err
+	}
+	if initialized {
+		// Calling syncFile is safe here as we have file inode lock and BWH is initialized.
+		// Thus sync method of BWH will be invoked.
+		// 1. In case of zonal bucket it creates unfinalized new generation object.
+		// 2. In case of non zonal bucket it's no-op as we don't have pending buffers to upload.
+		err = fs.syncFile(ctx, f)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Decrement the supplied inode's lookup count, destroying it if the inode says
 // that it has hit zero.
 //
@@ -1528,6 +1567,11 @@ func (fs *fileSystem) SetInodeAttributes(
 
 	// Truncate files.
 	if isFile && op.Size != nil {
+		// Initialize BWH if eligible and Sync file inode.
+		err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, file)
+		if err != nil {
+			return
+		}
 		err = file.Truncate(ctx, int64(*op.Size))
 		if err != nil {
 			err = fmt.Errorf("truncate: %w", err)
@@ -1745,19 +1789,21 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 	}
 	child = fs.mintInode(core)
 	fs.localFileInodes[child.Name()] = child
-	// Empty file is created to be able to set attributes on the file.
 	fileInode := child.(*inode.FileInode)
-	if err := fileInode.CreateBufferedOrTempWriter(ctx); err != nil {
-		return nil, err
-	}
+	// Use deferred locking on filesystem so that it is locked before the defer call that unlocks the mutex and it doesn't fail.
+	// We need to release the filesystem lock before acquiring the inode lock.
 	fs.mu.Unlock()
+	defer fs.mu.Lock()
+	fileInode.Lock()
+	err = fs.createBufferedWriteHandlerAndSyncOrTempWriter(ctx, fileInode)
+	fileInode.Unlock()
+	if err != nil {
+		return
+	}
 
 	parent.Lock()
 	defer parent.Unlock()
 	parent.InsertFileIntoTypeCache(name)
-	// Even though there is no action here that requires locking, adding locking
-	// so that the defer call that unlocks the mutex doesn't fail.
-	fs.mu.Lock()
 	return child, nil
 }
 
@@ -2597,11 +2643,13 @@ func (fs *fileSystem) WriteFile(
 	in.Lock()
 	defer in.Unlock()
 
-	// Serve the request.
-	if err := in.Write(ctx, op.Data, op.Offset); err != nil {
-		return err
+	err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, in)
+	if err != nil {
+		return
 	}
 
+	// Serve the request.
+	err = in.Write(ctx, op.Data, op.Offset)
 	return
 }
 
