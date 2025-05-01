@@ -104,7 +104,7 @@ func TestSimulatedClock_SetTime(t *testing.T) {
 
 			clock.SetTime(tc.timeToSet)
 
-			assert.True(t, clock.Now().Equal(tc.expectedAfter), "After SetTime, clock.Now() was %v, expected %v", clock.Now(), tc.expectedAfter)
+			assert.Equal(t, tc.expectedAfter, clock.Now())
 		})
 	}
 }
@@ -149,7 +149,7 @@ func TestSimulatedClock_AdvanceTime(t *testing.T) {
 
 			clock.AdvanceTime(tc.advanceBy)
 
-			assert.True(t, clock.Now().Equal(tc.expectedTime), "After AdvanceTime, clock.Now() was %v, expected %v", clock.Now(), tc.expectedTime)
+			assert.Equal(t, tc.expectedTime, clock.Now())
 		})
 	}
 }
@@ -188,7 +188,7 @@ func TestSimulatedClock_After_ShouldFireZeroOrNegativeDuration(t *testing.T) {
 
 			select {
 			case actualTime := <-ch:
-				assert.True(t, expectedFireTimeOnChannel.Equal(actualTime), "Received time %v, expected %v", actualTime, expectedFireTimeOnChannel)
+				assert.Equal(t, expectedFireTimeOnChannel, actualTime)
 
 			case <-time.After(fireTestTimeout):
 				t.Fatalf("Timeout waiting for time on channel. Expected after %v.", expectedFireTimeOnChannel)
@@ -234,7 +234,7 @@ func TestSimulatedClock_After_ShouldFirePositiveDuration(t *testing.T) {
 
 			select {
 			case actualTime := <-ch:
-				assert.True(t, expectedFireTimeOnChannel.Equal(actualTime), "Received time %v, expected %v", actualTime, expectedFireTimeOnChannel)
+				assert.Equal(t, expectedFireTimeOnChannel, actualTime)
 
 			case <-time.After(fireTestTimeout):
 				t.Fatalf("Timeout waiting for time on channel. Expected after %v.", expectedFireTimeOnChannel)
