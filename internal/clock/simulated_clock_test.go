@@ -63,7 +63,7 @@ func TestSimulatedClock_Now(t *testing.T) {
 
 			now := clock.Now()
 
-			assert.True(t, now.Equal(tc.expectedTime), "clock.Now() returned %v, expected %v", now, tc.expectedTime)
+			assert.Equal(t, tc.expectedTime, now)
 		})
 	}
 }
@@ -84,7 +84,7 @@ func TestSimulatedClock_SetTime(t *testing.T) {
 		{
 			name: "OverwriteExistingTime",
 			initialTimeSetup: func(sc *SimulatedClock) {
-				sc.SetTime(time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC).Add(-time.Hour)) // Start with a different time
+				sc.SetTime(time.Date(2020, time.January, 1, 11, 0, 0, 0, time.UTC)) // Start with a different time
 			},
 			timeToSet:     time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC),
 			expectedAfter: time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC),
@@ -214,7 +214,7 @@ func TestSimulatedClock_After_ShouldFirePositiveDuration(t *testing.T) {
 			name:          "PositiveDuration_Fires_WhenTimeSetPastDuration",
 			afterDuration: 10 * time.Second,
 			action: func(sc *SimulatedClock) {
-				sc.SetTime(time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC).Add(15 * time.Second)) // Set time well past the duration
+				sc.SetTime(time.Date(2020, time.January, 1, 12, 0, 15, 0, time.UTC)) // Set time well past the duration
 			},
 		},
 	}
@@ -260,7 +260,7 @@ func TestSimulatedClock_After_ShouldNotFire(t *testing.T) {
 			name:          "PositiveDuration_DoesNotFire_WhenTimeSetBeforeDuration",
 			afterDuration: 10 * time.Second,
 			action: func(sc *SimulatedClock) {
-				sc.SetTime(time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC).Add(5 * time.Second)) // Set time, but not enough
+				sc.SetTime(time.Date(2020, time.January, 1, 12, 0, 5, 0, time.UTC)) // Set time, but not enough
 			},
 		},
 	}
