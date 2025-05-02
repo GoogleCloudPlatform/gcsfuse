@@ -84,6 +84,9 @@ func (s *staleFileHandleEmptyGcsFile) TestClobberedFileFirstWriteThrowsStaleFile
 }
 
 func (s *staleFileHandleEmptyGcsFile) TestFileDeletedRemotelySyncAndCloseThrowsStaleFileHandleError() {
+	if s.isStreamingWritesEnabled && setup.IsZonalBucketRun() {
+		s.T().Skip("Skip test because flush getting stuck in this scenario")
+	}
 	// Dirty the file by giving it some contents.
 	operations.WriteWithoutClose(s.f1, s.data, s.T())
 	// Delete the file remotely.

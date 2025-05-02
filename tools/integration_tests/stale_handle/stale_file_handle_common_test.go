@@ -74,9 +74,6 @@ func (s *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHand
 }
 
 func (s *staleFileHandleCommon) TestFileDeletedLocallySyncAndCloseDoNotThrowError() {
-	if s.isStreamingWritesEnabled && setup.IsZonalBucketRun() {
-		s.T().Skip("Skip test because flush getting stuck in this scenario")
-	}
 	// Dirty the file by giving it some contents.
 	operations.WriteWithoutClose(s.f1, s.data, s.T())
 	operations.SyncFile(s.f1, s.T())
