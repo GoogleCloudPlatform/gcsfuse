@@ -15,9 +15,7 @@
 package stale_handle
 
 import (
-	"os"
 	"path"
-	"syscall"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -25,7 +23,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -37,25 +34,16 @@ type staleFileHandleEmptyGcsFile struct {
 	staleFileHandleCommon
 }
 
-type staleFileHandleEmptyGcsFileStreamingWrites struct {
-	staleFileHandleEmptyGcsFile
-}
-
 // //////////////////////////////////////////////////////////////////////
 // Helpers
 // //////////////////////////////////////////////////////////////////////
-
-func (s *staleFileHandleEmptyGcsFileStreamingWrites) validate(err error) {
-	require.NoError(s.T(), err)
-}
 
 func (s *staleFileHandleEmptyGcsFile) SetupTest() {
 	s.testDirPath = setup.SetupTestDirectory(s.T().Name())
 	// Create an empty object on GCS.
 	err := CreateObjectOnGCS(ctx, storageClient, path.Join(s.T().Name(), FileName1), "")
 	assert.NoError(s.T(), err)
-	s.f1, err = os.OpenFile(path.Join(s.testDirPath, FileName1), os.O_RDWR|syscall.O_DIRECT, operations.FilePermission_0600)
-	assert.NoError(s.T(), err)
+	s.f1 = operations.OpenFileWithODirect(s.T(), path.Join(s.testDirPath, FileName1))
 	s.data = setup.GenerateRandomString(operations.MiB * 5)
 }
 
@@ -152,19 +140,5 @@ func (s *staleFileHandleEmptyGcsFile) TestFileDeletedRemotelySyncAndCloseThrowsS
 ////////////////////////////////////////////////////////////////////////
 
 func TestStaleFileHandleEmptyGcsFileTest(t *testing.T) {
-	for _, flags := range flagsSet {
-		ts := new(staleFileHandleEmptyGcsFile)
-		ts.flags = flags
-		ts.validator = ts
-		suite.Run(t, ts)
-	}
-}
-
-func TestStaleFileHandleEmptyGcsFileStreamingWritesTest(t *testing.T) {
-	for _, flags := range flagsSetStreamingWrites {
-		ts := new(staleFileHandleEmptyGcsFileStreamingWrites)
-		ts.flags = flags
-		ts.validator = ts
-		suite.Run(t, ts)
-	}
+	suite.Run(t, new(staleFileHandleEmptyGcsFile))
 }

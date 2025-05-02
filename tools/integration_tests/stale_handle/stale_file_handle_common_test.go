@@ -15,7 +15,6 @@
 package stale_handle
 
 import (
-	"log"
 	"os"
 	"path"
 	"slices"
@@ -52,16 +51,6 @@ type validator interface {
 
 func (s *staleFileHandleCommon) validate(err error) {
 	operations.ValidateESTALEError(s.T(), err)
-}
-
-func (s *staleFileHandleCommon) SetupSuite() {
-	log.Printf("Running tests with flag: %v", s.flags)
-	setup.MountGCSFuseWithGivenMountFunc(s.flags, mountFunc)
-}
-
-func (s *staleFileHandleCommon) TearDownSuite() {
-	setup.UnmountGCSFuse(rootDir)
-	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 }
 
 func (s *staleFileHandleCommon) streamingWritesEnabled() bool {

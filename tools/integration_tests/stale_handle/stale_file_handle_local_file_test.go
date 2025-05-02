@@ -23,7 +23,6 @@ import (
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
@@ -37,17 +36,9 @@ type staleFileHandleLocalFile struct {
 	staleFileHandleCommon
 }
 
-type staleFileHandleLocalFileStreamingWrites struct {
-	staleFileHandleLocalFile
-}
-
 // //////////////////////////////////////////////////////////////////////
 // Helpers
 // //////////////////////////////////////////////////////////////////////
-
-func (s *staleFileHandleLocalFileStreamingWrites) validate(err error) {
-	require.NoError(s.T(), err)
-}
 
 func (s *staleFileHandleLocalFile) SetupTest() {
 	s.testDirPath = setup.SetupTestDirectory(s.T().Name())
@@ -64,19 +55,5 @@ func (s *staleFileHandleLocalFile) SetupTest() {
 ////////////////////////////////////////////////////////////////////////
 
 func TestStaleFileHandleLocalFileTest(t *testing.T) {
-	for _, flags := range flagsSet {
-		ts := new(staleFileHandleLocalFile)
-		ts.validator = ts
-		ts.flags = flags
-		suite.Run(t, ts)
-	}
-}
-
-func TestStaleFileHandleLocalFileStreamingWritesTest(t *testing.T) {
-	for _, flags := range flagsSetStreamingWrites {
-		ts := new(staleFileHandleLocalFileStreamingWrites)
-		ts.validator = ts
-		ts.flags = flags
-		suite.Run(t, ts)
-	}
+	suite.Run(t, new(staleFileHandleLocalFile))
 }

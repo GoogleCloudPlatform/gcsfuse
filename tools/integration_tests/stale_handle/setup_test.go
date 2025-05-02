@@ -27,13 +27,8 @@ import (
 )
 
 var (
-	mountFunc func([]string) error
-	// root directory is the directory to be unmounted.
-	rootDir                 string
-	storageClient           *storage.Client
-	ctx                     context.Context
-	flagsSet                [][]string
-	flagsSetStreamingWrites [][]string
+	storageClient *storage.Client
+	ctx           context.Context
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -59,17 +54,15 @@ func TestMain(m *testing.M) {
 	// Else run tests for testBucket.
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()
-	rootDir = setup.MntDir()
 
 	// Define flag set to run the tests.
-	flagsSet = [][]string{{"--metadata-cache-ttl-secs=0"}}
-	flagsSetStreamingWrites = [][]string{{"--metadata-cache-ttl-secs=0", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=1"}}
+	flagsSet := [][]string{
+		{"--metadata-cache-ttl-secs=0"},
+		{"--metadata-cache-ttl-secs=0", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=1"},
+	}
 	// Run all tests for GRPC.
 	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--client-protocol=grpc", "")
-	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSetStreamingWrites, "--client-protocol=grpc", "")
 
-	log.Println("Running static mounting tests...")
-	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
-	successCode := m.Run()
+	successCode := static_mounting.RunTests(flagsSet, m)
 	os.Exit(successCode)
 }
