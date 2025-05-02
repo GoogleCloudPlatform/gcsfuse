@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package auth
+package auth2
 
 import (
 	"context"
@@ -43,12 +43,12 @@ func getUniverseDomain(ctx context.Context, contents []byte, scope string) (stri
 }
 
 // Create token source from the JSON file at the supplide path.
-func newTokenSourceFromPath(ctx context.Context, path string, scope string) (oauth2.TokenSource, error) {
+func newTokenSourceFromPath(ctx context.Context, path string, scope string) (oauth2.TokenSource, string, error) {
 	// Read the file.
 	contents, err := os.ReadFile(path)
 	if err != nil {
 		err = fmt.Errorf("ReadFile(%q): %w", path, err)
-		return nil, err
+		return nil, "", err
 	}
 
 	// By default, a standard OAuth 2.0 token source is created
@@ -56,12 +56,12 @@ func newTokenSourceFromPath(ctx context.Context, path string, scope string) (oau
 	jwtConfig, err := google.JWTConfigFromJSON(contents, scope)
 	if err != nil {
 		err = fmt.Errorf("JWTConfigFromJSON: %w", err)
-		return nil, err
+		return nil, "", err
 	}
 
 	domain, err := getUniverseDomain(ctx, contents, scope)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	// By default, a standard OAuth 2.0 token source is created
@@ -75,10 +75,10 @@ func newTokenSourceFromPath(ctx context.Context, path string, scope string) (oau
 		ts, err = google.JWTAccessTokenSourceWithScope(contents, scope)
 		if err != nil {
 			err = fmt.Errorf("JWTAccessTokenSourceWithScope: %w", err)
-			return nil, err
+			return nil, domain, err
 		}
 	}
-	return ts, err
+	return ts, domain, err
 }
 
 // GetTokenSource generates the token-source for GCS endpoint by following oauth2.0 authentication
@@ -90,20 +90,28 @@ func GetTokenSource(
 	keyFile string,
 	tokenUrl string,
 	reuseTokenFromUrl bool,
-) (tokenSrc oauth2.TokenSource, err error) {
+) (tokenSrc oauth2.TokenSource, domain string, err error) {
 	// Create the oauth2 token source.
 	const scope = storagev1.DevstorageFullControlScope
 	var method string
 
 	if keyFile != "" {
-		tokenSrc, err = newTokenSourceFromPath(ctx, keyFile, scope)
+		tokenSrc, domain, err = newTokenSourceFromPath(ctx, keyFile, scope)
 		method = "newTokenSourceFromPath"
 	} else if tokenUrl != "" {
 		tokenSrc, err = newProxyTokenSource(ctx, tokenUrl, reuseTokenFromUrl)
 		method = "newProxyTokenSource"
 	} else {
-		tokenSrc, err = google.DefaultTokenSource(ctx, scope)
-		method = "DefaultTokenSource"
+		var creds *google.Credentials
+		creds, err = google.FindDefaultCredentials(ctx, scope)
+		method = "FindDefaultCredentials"
+		if err == nil {
+			tokenSrc = creds.TokenSource
+			domain, err = creds.GetUniverseDomain()
+			if err != nil {
+				err = fmt.Errorf("GetUniverseDomain: %w", err)
+			}
+		}
 	}
 
 	if err != nil {

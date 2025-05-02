@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/auth"
+	auth2 "github.com/googlecloudplatform/gcsfuse/v2/internal/auth"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 )
@@ -59,7 +59,7 @@ type StorageClientConfig struct {
 	ReadStallRetryConfig cfg.ReadStallGcsRetriesConfig
 }
 
-func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *http.Client, err error) {
+func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *http.Client, domain string, err error) {
 	var transport *http.Transport
 	// Using http1 makes the client more performant.
 	if storageClientConfig.ClientProtocol == cfg.HTTP1 {
@@ -95,7 +95,7 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 		}
 	} else {
 		var tokenSrc oauth2.TokenSource
-		tokenSrc, err = CreateTokenSource(storageClientConfig)
+		tokenSrc, domain, err = CreateTokenSource(storageClientConfig)
 		if err != nil {
 			err = fmt.Errorf("while fetching tokenSource: %w", err)
 			return
@@ -115,13 +115,13 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 			UserAgent: storageClientConfig.UserAgent,
 		}
 	}
-	return httpClient, err
+	return httpClient, domain, err
 }
 
 // It creates the token-source from the provided
 // key-file or using ADC search order (https://cloud.google.com/docs/authentication/application-default-credentials#order).
-func CreateTokenSource(storageClientConfig *StorageClientConfig) (tokenSrc oauth2.TokenSource, err error) {
-	return auth.GetTokenSource(context.Background(), storageClientConfig.KeyFile, storageClientConfig.TokenUrl, storageClientConfig.ReuseTokenFromUrl)
+func CreateTokenSource(storageClientConfig *StorageClientConfig) (tokenSrc oauth2.TokenSource, domain string, err error) {
+	return auth2.GetTokenSource2(context.Background(), storageClientConfig.KeyFile, storageClientConfig.TokenUrl, storageClientConfig.ReuseTokenFromUrl)
 }
 
 // StripScheme strips the scheme part of given url.
