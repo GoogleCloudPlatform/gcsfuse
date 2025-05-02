@@ -95,6 +95,7 @@ func (s *staleFileHandleEmptyGcsFile) TestFileDeletedRemotelySyncAndCloseThrowsS
 	operations.WriteWithoutClose(s.f1, s.data, s.T())
 
 	operations.ValidateSyncGivenThatFileIsClobbered(s.T(), s.f1, streamingWrites)
+
 	err = s.f1.Close()
 	operations.ValidateESTALEError(s.T(), err)
 }
