@@ -77,7 +77,7 @@ func (t *fileCacheReaderTest) SetupTest() {
 	t.ctx = context.Background()
 }
 
-func (t *fileCacheReaderTest) TearDown() {
+func (t *fileCacheReaderTest) TearDownTest() {
 	err := os.RemoveAll(t.cacheDir)
 	if err != nil {
 		t.T().Logf("Failed to clean up test cache directory '%s': %v", t.cacheDir, err)
