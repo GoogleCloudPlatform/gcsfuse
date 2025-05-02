@@ -300,7 +300,7 @@ func (b *debugBucket) CreateFolder(ctx context.Context, folderName string) (fold
 }
 
 func (b *debugBucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (o *gcs.Folder, err error) {
-	id, desc, start := b.startRequest("RenameFolder(%q)", folderName)
+	id, desc, start := b.startRequest("RenameFolder(%q, %q)", folderName, destinationFolderId)
 	defer b.finishRequest(id, desc, start, &err)
 
 	o, err = b.wrapped.RenameFolder(ctx, folderName, destinationFolderId)
