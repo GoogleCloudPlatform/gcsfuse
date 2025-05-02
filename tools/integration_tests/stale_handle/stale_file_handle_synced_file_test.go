@@ -52,6 +52,9 @@ func (s *staleFileHandleEmptyGcsFile) SetupTest() {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *staleFileHandleEmptyGcsFile) TestClobberedFileReadThrowsStaleFileHandleError() {
+	if streamingWrites && setup.IsZonalBucketRun() {
+		s.T().Skip("Skip test due to takeover support not available.")
+	}
 	// Dirty the file by giving it some contents.
 	_, err := s.f1.WriteAt([]byte(s.data), 0)
 	assert.NoError(s.T(), err)
@@ -64,6 +67,9 @@ func (s *staleFileHandleEmptyGcsFile) TestClobberedFileReadThrowsStaleFileHandle
 }
 
 func (s *staleFileHandleEmptyGcsFile) TestClobberedFileFirstWriteThrowsStaleFileHandleError() {
+	if streamingWrites && setup.IsZonalBucketRun() {
+		s.T().Skip("Skip test due to takeover support not available.")
+	}
 	// Clobber file by replacing the underlying object with a new generation.
 	err := WriteToObject(ctx, storageClient, path.Join(s.T().Name(), FileName1), FileContents, storage.Conditions{})
 	assert.NoError(s.T(), err)

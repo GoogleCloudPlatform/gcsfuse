@@ -21,6 +21,7 @@ import (
 	"cloud.google.com/go/storage"
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -41,6 +42,9 @@ type staleFileHandleCommon struct {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHandleError() {
+	if streamingWrites && setup.IsZonalBucketRun() {
+		s.T().Skip("Skip test due to takeover support not available.")
+	}
 	// Dirty the file by giving it some contents.
 	operations.WriteWithoutClose(s.f1, s.data, s.T())
 	// Clobber file by replacing the underlying object with a new generation.
