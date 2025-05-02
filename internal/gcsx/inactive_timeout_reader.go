@@ -54,10 +54,10 @@ type inactiveTimeoutReader struct {
 	gcsReader gcs.StorageReader
 
 	// Total number of bytes successfully read so far.
-	seen int64
+	seen uint64
 
 	// Requested range [start, end) from this reader.
-	start, end int64
+	start, end uint64
 
 	// The read handle used for efficient reconnection for zonal bucket.
 	readHandle []byte
@@ -76,6 +76,8 @@ type inactiveTimeoutReader struct {
 
 	// Used for waiting for timeout (helps us in mocking the functionality).
 	clock clock.Clock
+
+	timeout time.Duration
 }
 
 var (
@@ -89,53 +91,53 @@ var (
 //
 // If the timeout duration is zero, it returns (nil, ErrZeroInactivityTimeout) as a zero timeout
 // defeats the purpose of this wrapper.
-func NewInactiveTimeoutReader(ctx context.Context, bucket gcs.Bucket, object *gcs.MinObject, readHandle []byte, start int64, end int64, timeout time.Duration) (gcs.StorageReader, error) {
-	if timeout == time.Duration(0) {
-		return nil, ErrZeroInactivityTimeout
-	}
-
-	return NewInactiveTimeoutReaderWithClock(ctx, bucket, object, readHandle, start, end, timeout, clock.RealClock{})
+func NewInactiveTimeoutReader(ctx context.Context, bucket gcs.Bucket, object *gcs.MinObject, readHandle []byte, byteRange gcs.ByteRange, timeout time.Duration) (gcs.StorageReader, error) {
+	return NewInactiveTimeoutReaderWithClock(ctx, bucket, object, readHandle, byteRange, timeout, clock.RealClock{})
 }
 
-func NewInactiveTimeoutReaderWithClock(ctx context.Context, bucket gcs.Bucket, object *gcs.MinObject, readHandle []byte, start int64, end int64, timeout time.Duration, clock clock.Clock) (gcs.StorageReader, error) {
-	if timeout == time.Duration(0) {
+func NewInactiveTimeoutReaderWithClock(ctx context.Context, bucket gcs.Bucket, object *gcs.MinObject, readHandle []byte, byteRange gcs.ByteRange, timeout time.Duration, clock clock.Clock) (gcs.StorageReader, error) {
+	if timeout == 0 {
 		return nil, ErrZeroInactivityTimeout
 	}
 
-	tsr := &inactiveTimeoutReader{
+	itr := &inactiveTimeoutReader{
 		object:        object,
 		bucket:        bucket,
-		start:         start,
-		end:           end,
+		start:         byteRange.Start,
+		end:           byteRange.Limit,
 		parentContext: ctx,
 		readHandle:    readHandle,
 		mu:            locker.New("inactiveTimeoutReader: "+object.Name, func() {}),
 		isActive:      false,
 		stopChan:      make(chan struct{}),
 		clock:         clock,
+		timeout:       timeout,
 	}
 
 	var err error
-	tsr.gcsReader, err = tsr.createGCSReader()
-	if err == nil {
-		go tsr.monitor(timeout)
+	if itr.gcsReader, err = itr.createGCSReader(); err != nil {
+		return nil, err
 	}
-	return tsr, err
+
+	// Start the background periodic routine.
+	go itr.monitor()
+
+	return itr, err
 }
 
-// createGCSReader is a helper method to create the underlined reader from tsr.start + tsr.seen offset.
-func (tsr *inactiveTimeoutReader) createGCSReader() (gcs.StorageReader, error) {
-	reader, err := tsr.bucket.NewReaderWithReadHandle(
-		tsr.parentContext,
+// createGCSReader is a helper method to create the underlined reader from itr.start + itr.seen offset.
+func (itr *inactiveTimeoutReader) createGCSReader() (gcs.StorageReader, error) {
+	reader, err := itr.bucket.NewReaderWithReadHandle(
+		itr.parentContext,
 		&gcs.ReadObjectRequest{
-			Name:       tsr.object.Name,
-			Generation: tsr.object.Generation,
+			Name:       itr.object.Name,
+			Generation: itr.object.Generation,
 			Range: &gcs.ByteRange{
-				Start: uint64(tsr.start + tsr.seen),
-				Limit: uint64(tsr.end),
+				Start: itr.start + itr.seen,
+				Limit: itr.end,
 			},
-			ReadCompressed: tsr.object.HasContentEncodingGzip(),
-			ReadHandle:     tsr.readHandle,
+			ReadCompressed: itr.object.HasContentEncodingGzip(),
+			ReadHandle:     itr.readHandle,
 		})
 	if err != nil {
 		return nil, fmt.Errorf("NewReaderWithReadHandle: %w", err)
@@ -154,85 +156,101 @@ func (tsr *inactiveTimeoutReader) createGCSReader() (gcs.StorageReader, error) {
 //
 // Calling Read() after explicitly calling Close() is not supported and will
 // lead to undefined behavior.
-func (tsr *inactiveTimeoutReader) Read(p []byte) (n int, err error) {
-	tsr.mu.Lock()
-	defer tsr.mu.Unlock()
+func (itr *inactiveTimeoutReader) Read(p []byte) (n int, err error) {
+	itr.mu.Lock()
+	defer itr.mu.Unlock()
 
-	tsr.isActive = true
+	itr.isActive = true
 
-	if tsr.gcsReader == nil {
-		tsr.gcsReader, err = tsr.createGCSReader()
-
-		if err != nil {
+	if itr.gcsReader == nil {
+		if itr.gcsReader, err = itr.createGCSReader(); err != nil {
 			return 0, err
 		}
 	}
 
-	n, err = tsr.gcsReader.Read(p)
-	tsr.seen += int64(n)
-	return
+	n, err = itr.gcsReader.Read(p)
+	itr.seen += uint64(n)
+	return n, err
 }
 
 // Close explicitly closes the underlying gcs.StorageReader if it's currently open.
 // It also signals the background monitor goroutine to stop.
 // Returns an error if closing the underlying reader fails.
-func (tsr *inactiveTimeoutReader) Close() (err error) {
-	tsr.mu.Lock()
-	defer tsr.mu.Unlock()
+func (itr *inactiveTimeoutReader) Close() (err error) {
+	itr.mu.Lock()
+	defer itr.mu.Unlock()
 
-	close(tsr.stopChan) // Close background monitoring routine.
+	close(itr.stopChan) // Close background monitoring routine.
 
-	if tsr.gcsReader != nil {
-		err = tsr.gcsReader.Close()
-		tsr.gcsReader = nil
+	if itr.gcsReader != nil {
+		err = itr.gcsReader.Close()
+		itr.gcsReader = nil
 		if err != nil {
 			return fmt.Errorf("close reader: %w", err)
 		}
 	}
-	return
+
+	return err
 }
 
 // ReadHandle returns the read handle associated with the underlying GCS reader.
 // If the reader has been closed due to inactivity, it returns the handle
 // stored from the last active reader.
-func (tsr *inactiveTimeoutReader) ReadHandle() (rh storagev2.ReadHandle) {
-	tsr.mu.Lock()
-	defer tsr.mu.Unlock()
+func (itr *inactiveTimeoutReader) ReadHandle() (rh storagev2.ReadHandle) {
+	itr.mu.Lock()
+	defer itr.mu.Unlock()
 
-	if tsr.gcsReader == nil {
-		return tsr.readHandle
+	if itr.gcsReader == nil {
+		return itr.readHandle
 	}
 
-	return tsr.gcsReader.ReadHandle()
+	return itr.gcsReader.ReadHandle()
 }
 
 // monitor runs in a background goroutine, and checks for inactivity.
-func (tsr *inactiveTimeoutReader) monitor(timeout time.Duration) {
-	timer := tsr.clock.After(timeout)
+func (itr *inactiveTimeoutReader) monitor() {
+	timer := itr.clock.After(itr.timeout)
 	for {
 		select {
 		case <-timer:
-			tsr.mu.Lock()
-			if tsr.isActive {
-				tsr.isActive = false
-				timer = tsr.clock.After(timeout)
-			} else {
-				if tsr.gcsReader != nil {
-					logger.Infof("Closing reader for object %q due to inactivity timeout (%v).\n", tsr.object.Name, timeout)
-					tsr.readHandle = tsr.gcsReader.ReadHandle()
-					err := tsr.gcsReader.Close()
-					if err != nil {
-						logger.Warnf("Error closing inactive reader for object %q: %v", tsr.object.Name, err)
-					}
-					tsr.gcsReader = nil
-				}
-			}
-			tsr.mu.Unlock()
-		case <-tsr.parentContext.Done():
+			itr.handleTimeout()
+			timer = itr.clock.After(itr.timeout)
+		case <-itr.parentContext.Done():
 			return
 
-		case <-tsr.stopChan:
+		case <-itr.stopChan:
 			return
 		}
 	}
+}
+
+// handleTimeout is called when the inactivity timer fires. It acquires the
+// reader's lock, checks the activity state, and takes appropriate action.
+// If the reader was marked as active since the last check, it resets the
+// activity flag. If the reader was inactive, it closes the underlying GCS reader.
+// It always returns a new timer channel for the next fire.
+func (itr *inactiveTimeoutReader) handleTimeout() {
+	itr.mu.Lock()
+	defer itr.mu.Unlock()
+
+	if itr.isActive {
+		itr.isActive = false
+	} else {
+		itr.closeGCSReader()
+	}
+}
+
+// closeGCSReader closes the wrapped gcsReader, itr.mu.Lock() should be taken
+// before calling this.
+func (itr *inactiveTimeoutReader) closeGCSReader() {
+	if itr.gcsReader == nil {
+		return
+	}
+
+	logger.Infof("Closing reader for object %q due to inactivity more than timeout (%v).\n", itr.object.Name, itr.timeout)
+	itr.readHandle = itr.gcsReader.ReadHandle()
+	if err := itr.gcsReader.Close(); err != nil {
+		logger.Warnf("Error closing inactive reader for object %q: %v", itr.object.Name, err)
+	}
+	itr.gcsReader = nil
 }
