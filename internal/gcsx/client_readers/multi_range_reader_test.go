@@ -141,7 +141,7 @@ func (t *multiRangeReaderTest) Test_ReadFromMultiRangeReader_TimeoutNotExceeded(
 	fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{})
 	require.NoError(t.T(), err, "Error in creating MRDWrapper")
 	t.multiRangeReader.mrdWrapper = &fakeMRDWrapper
-	sleepTime := 5 * time.Millisecond
+	sleepTime := 2 * time.Millisecond
 	timeout := 5 * time.Millisecond
 	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, testContent, sleepTime)).Once()
 	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: true}).Once()
@@ -149,14 +149,9 @@ func (t *multiRangeReaderTest) Test_ReadFromMultiRangeReader_TimeoutNotExceeded(
 
 	bytesRead, err := t.multiRangeReader.readFromMultiRangeReader(t.ctx, buf, 0, int64(t.object.Size), timeout)
 
-	if bytesRead != 0 {
-		assert.NoError(t.T(), err)
-		assert.Equal(t.T(), dataSize, bytesRead)
-		assert.Equal(t.T(), testContent[:dataSize], buf[:bytesRead])
-	} else {
-		assert.Error(t.T(), err)
-		assert.ErrorContains(t.T(), err, "Timeout")
-	}
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), dataSize, bytesRead)
+	assert.Equal(t.T(), testContent[:dataSize], buf[:bytesRead])
 }
 
 func (t *multiRangeReaderTest) Test_ReadFromMultiRangeReader_NilMRDWrapper() {
