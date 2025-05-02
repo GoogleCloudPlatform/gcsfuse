@@ -52,10 +52,6 @@ func (s *staleFileHandleEmptyGcsFile) SetupTest() {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *staleFileHandleEmptyGcsFile) TestClobberedFileReadThrowsStaleFileHandleError() {
-	// TODO(b/410698332): Modify skip condition to run tests for zonal objects when ready.
-	if s.streamingWritesEnabled() {
-		s.T().Skip("Skipping test as reads aren't supported with streaming writes for zonal/non zonal objects.")
-	}
 	// Dirty the file by giving it some contents.
 	_, err := s.f1.WriteAt([]byte(s.data), 0)
 	assert.NoError(s.T(), err)
@@ -64,10 +60,7 @@ func (s *staleFileHandleEmptyGcsFile) TestClobberedFileReadThrowsStaleFileHandle
 	err = WriteToObject(ctx, storageClient, path.Join(s.T().Name(), FileName1), FileContents, storage.Conditions{})
 	assert.NoError(s.T(), err)
 
-	buffer := make([]byte, len(s.data))
-	_, err = s.f1.Read(buffer)
-
-	operations.ValidateESTALEError(s.T(), err)
+	operations.ValidateReadGivenThatFileIsClobbered(s.T(), s.f1, streamingWrites, s.data)
 }
 
 func (s *staleFileHandleEmptyGcsFile) TestClobberedFileFirstWriteThrowsStaleFileHandleError() {
@@ -78,46 +71,13 @@ func (s *staleFileHandleEmptyGcsFile) TestClobberedFileFirstWriteThrowsStaleFile
 	// Attempt first write to the file should give stale NFS file handle error.
 	_, err = s.f1.Write([]byte(s.data))
 
-	operations.ValidateESTALEError(s.T(), err)
-	// Attempt to sync to file should not result in error as we first check if the
-	// content has been dirtied before clobbered check in Sync flow.
-	operations.SyncFile(s.f1, s.T())
-	operations.CloseFileShouldNotThrowError(s.T(), s.f1)
-}
-
-func (s *staleFileHandleEmptyGcsFile) TestRenamedFileSyncAndCloseThrowsStaleFileHandleError() {
-	// TODO(b/410698332): Remove skip condition once rename operation starts working for ZB.
-	if s.streamingWritesEnabled() && setup.IsZonalBucketRun() {
-		s.T().Skip("Skipping test as rename operation issue for ZB flow.")
-	}
-	// Dirty the file by giving it some contents.
-	operations.WriteWithoutClose(s.f1, s.data, s.T())
-	// Rename the file.)
-	newFile := "new" + FileName1
-	err := operations.RenameFile(s.f1.Name(), path.Join(s.testDirPath, newFile))
 	assert.NoError(s.T(), err)
-
-	// Attempt to write to file should give error iff streaming writes are enabled.
-	_, err = s.f1.Write([]byte(s.data))
-
-	if s.streamingWritesEnabled() {
-		operations.ValidateESTALEError(s.T(), err)
-	} else {
-		assert.NoError(s.T(), err)
-	}
-
-	err = s.f1.Sync()
-	s.validator.validate(err)
-
+	operations.ValidateSyncGivenThatFileIsClobbered(s.T(), s.f1, streamingWrites)
 	err = s.f1.Close()
-	s.validator.validate(err)
+	operations.ValidateESTALEError(s.T(), err)
 }
 
 func (s *staleFileHandleEmptyGcsFile) TestFileDeletedRemotelySyncAndCloseThrowsStaleFileHandleError() {
-	// TODO(b/410698332): Remove skip condition once generation issue is fixed for ZB.
-	if s.streamingWritesEnabled() && setup.IsZonalBucketRun() {
-		s.T().Skip("Skip the test due to generation issue in ZB flow.")
-	}
 	// Dirty the file by giving it some contents.
 	operations.WriteWithoutClose(s.f1, s.data, s.T())
 	// Delete the file remotely.
@@ -128,9 +88,7 @@ func (s *staleFileHandleEmptyGcsFile) TestFileDeletedRemotelySyncAndCloseThrowsS
 	// Attempt to write to file should not give any error.
 	operations.WriteWithoutClose(s.f1, s.data, s.T())
 
-	err = s.f1.Sync()
-	s.validator.validate(err)
-
+	operations.ValidateSyncGivenThatFileIsClobbered(s.T(), s.f1, streamingWrites)
 	err = s.f1.Close()
 	operations.ValidateESTALEError(s.T(), err)
 }

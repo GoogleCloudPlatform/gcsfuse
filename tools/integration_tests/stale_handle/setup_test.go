@@ -27,8 +27,9 @@ import (
 )
 
 var (
-	storageClient *storage.Client
-	ctx           context.Context
+	storageClient   *storage.Client
+	ctx             context.Context
+	streamingWrites bool
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -38,7 +39,10 @@ var (
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
-
+	if setup.MountedDirectory() != "" {
+		log.Printf("These tests will not run with mounted directory..")
+		return
+	}
 	// Create common storage client to be used in test.
 	ctx = context.Background()
 	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
@@ -49,20 +53,24 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
-	// If Mounted Directory flag is set, run tests for mounted directory.
-	setup.RunTestsForMountedDirectoryFlag(m)
-	// Else run tests for testBucket.
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()
 
 	// Define flag set to run the tests.
-	flagsSet := [][]string{
-		{"--metadata-cache-ttl-secs=0"},
-		{"--metadata-cache-ttl-secs=0", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=1"},
-	}
-	// Run all tests for GRPC.
+	flagsSet := [][]string{{"--metadata-cache-ttl-secs=0"}}
+	// Run tests with GRPC.
 	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--client-protocol=grpc", "")
 
 	successCode := static_mounting.RunTests(flagsSet, m)
+
+	// Define flag set to run the tests with streaming writes.
+	flagsSet = [][]string{{"--metadata-cache-ttl-secs=0", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=1"}}
+	// Run tests with GRPC.
+	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--client-protocol=grpc", "")
+
+	if successCode == 0 {
+		streamingWrites = true
+		successCode = static_mounting.RunTests(flagsSet, m)
+	}
 	os.Exit(successCode)
 }

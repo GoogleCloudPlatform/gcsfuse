@@ -17,12 +17,10 @@ package stale_handle
 import (
 	"os"
 	"path"
-	"slices"
 
 	"cloud.google.com/go/storage"
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -32,30 +30,10 @@ import (
 // //////////////////////////////////////////////////////////////////////
 
 type staleFileHandleCommon struct {
-	flags       []string
 	f1          *os.File
 	data        string
 	testDirPath string
 	suite.Suite
-	validator
-}
-
-// validator validates the error from sync/close/write operation after the file has been clobbered.
-type validator interface {
-	validate(err error)
-}
-
-// //////////////////////////////////////////////////////////////////////
-// Helpers
-// //////////////////////////////////////////////////////////////////////
-
-func (s *staleFileHandleCommon) validate(err error) {
-	operations.ValidateESTALEError(s.T(), err)
-}
-
-func (s *staleFileHandleCommon) streamingWritesEnabled() bool {
-	s.T().Helper()
-	return slices.Contains(s.flags, "--enable-streaming-writes=true")
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -63,39 +41,29 @@ func (s *staleFileHandleCommon) streamingWritesEnabled() bool {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHandleError() {
-	// TODO(b/410698332): Remove skip condition once takeover support is ready.
-	if s.streamingWritesEnabled() && setup.IsZonalBucketRun() {
-		s.T().Skip("Skip the test until unfinalized object overwrite is supported.")
-	}
 	// Dirty the file by giving it some contents.
 	operations.WriteWithoutClose(s.f1, s.data, s.T())
 	// Clobber file by replacing the underlying object with a new generation.
 	err := WriteToObject(ctx, storageClient, path.Join(s.T().Name(), FileName1), FileContents, storage.Conditions{})
 	assert.NoError(s.T(), err)
 
-	err = s.f1.Sync()
-	s.validator.validate(err)
+	operations.ValidateSyncGivenThatFileIsClobbered(s.T(), s.f1, streamingWrites)
 
 	err = s.f1.Close()
 	operations.ValidateESTALEError(s.T(), err)
 }
 
 func (s *staleFileHandleCommon) TestFileDeletedLocallySyncAndCloseDoNotThrowError() {
-	// TODO(b/410698332): Remove skip condition once generation issue is fixed for ZB.
-	if s.streamingWritesEnabled() && setup.IsZonalBucketRun() {
-		s.T().Skip("Skip the test due to generation issue in ZB.")
-	}
 	// Dirty the file by giving it some contents.
 	operations.WriteWithoutClose(s.f1, s.data, s.T())
 	operations.SyncFile(s.f1, s.T())
+
 	// Delete the file.
 	operations.RemoveFile(s.f1.Name())
+
 	// Verify unlink operation succeeds.
-
 	operations.ValidateNoFileOrDirError(s.T(), s.f1.Name())
-	_, err := s.f1.Write([]byte(s.data))
-	s.validator.validate(err)
-
+	operations.ValidateWriteGivenThatFileIsDeletedFromSameMount(s.T(), s.f1, streamingWrites, s.data)
 	operations.SyncFile(s.f1, s.T())
 	operations.CloseFileShouldNotThrowError(s.T(), s.f1)
 }

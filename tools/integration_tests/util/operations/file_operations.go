@@ -802,3 +802,36 @@ func CheckLogFileForMessage(t *testing.T, expectedLog, logFile string) bool {
 	}
 	return false
 }
+
+// Following methods validate file operation in various scenarios
+// which differs from normal when streaming writes are enabled.
+func ValidateSyncGivenThatFileIsClobbered(t *testing.T, file *os.File, streamingWrites bool) {
+	t.Helper()
+	err := file.Sync()
+	if streamingWrites {
+		assert.NoError(t, err)
+	} else {
+		ValidateESTALEError(t, err)
+	}
+}
+
+func ValidateWriteGivenThatFileIsDeletedFromSameMount(t *testing.T, file *os.File, streamingWrites bool, content string) {
+	t.Helper()
+	_, err := file.Write([]byte(content))
+	if streamingWrites {
+		assert.NoError(t, err)
+	} else {
+		ValidateESTALEError(t, err)
+	}
+}
+
+func ValidateReadGivenThatFileIsClobbered(t *testing.T, file *os.File, streamingWrites bool, content string) {
+	t.Helper()
+	buffer := make([]byte, len(content))
+	_, err := file.Read(buffer)
+	if streamingWrites {
+		ValidateEOPNOTSUPPError(t, err)
+	} else {
+		ValidateESTALEError(t, err)
+	}
+}
