@@ -341,6 +341,5 @@ func (rr *RangeReader) readFromExistingReader(ctx context.Context, req *gcsx.GCS
 		return readerResponse, err
 	}
 
-	err = gcsx.FallbackToAnotherReader
-	return readerResponse, err
+	return readerResponse, gcsx.FallbackToAnotherReader
 }

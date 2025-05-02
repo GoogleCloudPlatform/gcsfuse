@@ -16,7 +16,6 @@ package gcsx
 
 import (
 	"context"
-	"errors"
 	"io"
 	"strings"
 	"testing"
@@ -128,7 +127,7 @@ func (t *gcsReaderTest) Test_ReadAt_ExistingReaderLimitIsLessThanRequestedObject
 	t.gcsReader.rangeReader.cancel = func() {}
 	t.gcsReader.rangeReader.start = 0
 	t.gcsReader.rangeReader.limit = 3
-	content := "hello"
+	content := "abcde"
 	rc := &fake.FakeReader{ReadCloser: getReadCloser([]byte(content))}
 	expectedHandleInRequest := t.gcsReader.rangeReader.reader.ReadHandle()
 	readObjectRequest := &gcs.ReadObjectRequest{
@@ -171,6 +170,7 @@ func (t *gcsReaderTest) Test_ExistingReader_WrongOffset() {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
+			t.object.Size = 5
 			// Simulate an existing reader.
 			t.gcsReader.rangeReader.readHandle = tc.readHandle
 			t.gcsReader.rangeReader.reader = &fake.FakeReader{
@@ -180,23 +180,20 @@ func (t *gcsReaderTest) Test_ExistingReader_WrongOffset() {
 			t.gcsReader.rangeReader.cancel = func() {}
 			t.gcsReader.rangeReader.start = 2
 			t.gcsReader.rangeReader.limit = 5
-			readObjectRequest := &gcs.ReadObjectRequest{
-				Name:       t.object.Name,
-				Generation: t.gcsReader.rangeReader.object.Generation,
-				Range: &gcs.ByteRange{
-					Start: uint64(0),
-					Limit: t.object.Size,
-				},
-				ReadCompressed: t.gcsReader.rangeReader.object.HasContentEncodingGzip(),
-				ReadHandle:     t.gcsReader.rangeReader.readHandle,
-			}
-			t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).Return(nil, errors.New(string(tc.readHandle))).Times(1)
+			content := "abcde"
+			rc := &fake.FakeReader{ReadCloser: getReadCloser([]byte(content))}
+			t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(rc, nil).Times(1)
 			t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(1)
+			requestSize := 6
 
-			_, err := t.readAt(0, 1)
+			readerResponse, err := t.readAt(0, int64(requestSize))
 
 			t.mockBucket.AssertExpectations(t.T())
-			assert.Error(t.T(), err)
+			assert.NoError(t.T(), err)
+			assert.Nil(t.T(), t.gcsReader.rangeReader.reader)
+			assert.Equal(t.T(), int(t.object.Size), readerResponse.Size)
+			assert.Equal(t.T(), content, string(readerResponse.DataBuf[:readerResponse.Size]))
+			assert.Equal(t.T(), []byte(nil), t.gcsReader.rangeReader.readHandle)
 		})
 	}
 }

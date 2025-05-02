@@ -45,6 +45,7 @@ const (
 const (
 	// RangeReaderType corresponds to NewReader method in bucket_handle.go
 	RangeReaderType ReaderType = iota
+
 	// MultiRangeReaderType corresponds to NewMultiRangeDownloader method in bucket_handle.go
 	MultiRangeReaderType
 )
@@ -77,6 +78,10 @@ func NewGCSReader(obj *gcs.MinObject, bucket gcs.Bucket, metricHandle common.Met
 }
 
 func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.ReaderResponse, error) {
+	if gr.rangeReader.invalidateReaderIfMisalignedOrTooSmall(offset, p) {
+		gr.seeks++
+	}
+
 	var readerResponse gcsx.ReaderResponse
 	readReq := &gcsx.GCSReaderRequest{
 		Buffer:    p,
@@ -84,10 +89,6 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.R
 		EndOffset: -1,
 	}
 	var err error
-
-	if gr.rangeReader.invalidateReaderIfMisalignedOrTooSmall(offset, p) {
-		gr.seeks++
-	}
 
 	readerResponse, err = gr.rangeReader.readFromExistingReader(ctx, readReq)
 	if err == nil {
