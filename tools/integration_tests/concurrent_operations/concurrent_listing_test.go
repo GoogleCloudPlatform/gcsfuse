@@ -601,10 +601,10 @@ func (s *concurrentListingTest) Test_ListWithMoveDir(t *testing.T) {
 		for i := 0; i < iterationsForHeavyOperations; i++ { // Adjust iteration count if needed
 			// Move Dir in the target dir
 			err = operations.Move(path.Join(testDirPath, "move_dir"), path.Join(targetDir, "move_dir"))
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			// Move Dir out of the target dir
 			err = operations.Move(path.Join(targetDir, "move_dir"), path.Join(testDirPath, "move_dir"))
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		}
 	}()
 
