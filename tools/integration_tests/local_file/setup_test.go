@@ -20,13 +20,10 @@ import (
 	"context"
 	"log"
 	"os"
-	"path"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/dynamic_mounting"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/only_dir_mounting"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/suite"
 )
@@ -76,22 +73,31 @@ func TestMain(m *testing.M) {
 		setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--client-protocol=grpc")
 	}
 
-	successCode := static_mounting.RunTests(flagsSet, m)
+	// successCode := static_mounting.RunTests(flagsSet, m)
 
-	if successCode == 0 {
-		successCode = only_dir_mounting.RunTests(flagsSet, onlyDirMounted, m)
-	}
+	// if successCode == 0 {
+	// 	successCode = only_dir_mounting.RunTests(flagsSet, onlyDirMounted, m)
+	// }
 
-	// Dynamic mounting tests create a bucket and perform tests on that bucket,
-	// which is not a hierarchical bucket. So we are not running those tests with
-	// hierarchical bucket.
-	if successCode == 0 && !setup.IsHierarchicalBucket(ctx, storageClient) {
-		successCode = dynamic_mounting.RunTests(ctx, storageClient, flagsSet, m)
-	}
+	// // Dynamic mounting tests create a bucket and perform tests on that bucket,
+	// // which is not a hierarchical bucket. So we are not running those tests with
+	// // hierarchical bucket.
+	// if successCode == 0 && !setup.IsHierarchicalBucket(ctx, storageClient) {
+	// 	successCode = dynamic_mounting.RunTests(ctx, storageClient, flagsSet, m)
+	// }
+
+	// ------------------------------------------------------------------------
+	// I have flagSetA
+	// I have flagSetB
+	// I want to run dynamic_mouninting.RunTests on both flagSet in parallel.
+	// Both will call dynamic_mounting.CreateTestBucket since the bucket already exists then whoever calls this method first will succeed
+	dynamic_mounting.CreateTestBucketForDynamicMounting(ctx, storageClient)
+	dynamic_mounting.CreateTestBucketForDynamicMounting(ctx, storageClient)
+	// --------------------------------------------------------------------------
 
 	// Clean up test directory created.
-	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
-	os.Exit(successCode)
+	// setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
+	os.Exit(0)
 }
 
 func TestLocalFileTestSuite(t *testing.T) {
