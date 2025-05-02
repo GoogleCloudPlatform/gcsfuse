@@ -31,6 +31,7 @@ func newTokenSourceFromPath2(ctx context.Context, path string, scope string) (oa
 	var opts *credentials.DetectOptions
 	opts = &credentials.DetectOptions{
 		CredentialsFile: path,
+		Scopes:          []string{scope},
 	}
 
 	// Detect credentials using the specified options
