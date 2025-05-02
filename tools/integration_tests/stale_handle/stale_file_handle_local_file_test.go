@@ -15,14 +15,11 @@
 package stale_handle
 
 import (
-	"os"
 	"path"
-	"syscall"
 	"testing"
 
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
@@ -43,10 +40,7 @@ type staleFileHandleLocalFile struct {
 func (s *staleFileHandleLocalFile) SetupTest() {
 	s.testDirPath = setup.SetupTestDirectory(s.T().Name())
 	// Create a local file.
-	var err error
-	s.f1, err = os.OpenFile(path.Join(s.testDirPath, FileName1), os.O_RDWR|os.O_CREATE|os.O_TRUNC|syscall.O_DIRECT, operations.FilePermission_0600)
-	assert.NoError(s.T(), err)
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, s.T().Name(), FileName1, s.T())
+	s.f1 = operations.OpenFileWithODirect(s.T(), path.Join(s.testDirPath, FileName1))
 	s.data = setup.GenerateRandomString(operations.MiB * 5)
 }
 
