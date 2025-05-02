@@ -92,7 +92,10 @@ func (s *remountTest) TestCacheIsNotReusedOnDynamicRemount(t *testing.T) {
 	runTestsOnlyForDynamicMount(t)
 	testBucket1 := setup.TestBucket()
 	testFileName1 := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
-	testBucket2 := dynamic_mounting.CreateTestBucketForDynamicMounting(ctx, storageClient)
+	testBucket2, err := dynamic_mounting.CreateTestBucketForDynamicMounting(ctx, storageClient)
+	if err != nil {
+		t.Fatalf("Failed to create bucket for dynamic mounting test: %v", err)
+	}
 	defer func() {
 		if err := client.DeleteBucket(ctx, storageClient, testBucket2); err != nil {
 			t.Logf("Failed to delete test bucket %s.Error : %v", testBucket1, err)
