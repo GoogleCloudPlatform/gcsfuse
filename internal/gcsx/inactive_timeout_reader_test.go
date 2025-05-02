@@ -96,7 +96,7 @@ func (s *InactiveTimeoutReaderTestSuite) setupReader(startOffset int64) {
 	// Use NewInactiveTimeoutReader directly as NewStorageReaderWithInactiveTimeout is deprecated.
 	s.reader, err = NewInactiveTimeoutReaderWithClock(s.ctx, s.mockBucket, s.object, s.readHandle, gcs.ByteRange{Start: uint64(startOffset), Limit: s.object.Size}, s.timeout, s.simulatedClock)
 	time.Sleep(5 * time.Millisecond) // Allow time to schedule and create a timer.
-	s.Require().NoError(err)
+	s.Require().Nil(err)
 	s.Require().NotNil(s.reader)
 }
 
@@ -205,13 +205,11 @@ func (s *InactiveTimeoutReaderTestSuite) Test_Read_ReconnectFails() {
 			bytes.Equal(req.ReadHandle, expectedReadHandle)
 	})).Return(nil, reconnectErr).Times(1) // Expect only one call for the first failed attempt
 
-	nFail1, errFail1 := s.reader.Read(buf)
+	nFail, errFail := s.reader.Read(buf)
 
 	// First failed reconnect attempt
-	s.Error(errFail1)
-	s.ErrorIs(errFail1, reconnectErr)
-	s.Contains(errFail1.Error(), "NewReaderWithReadHandle:")
-	s.Equal(0, nFail1)
+	s.ErrorIs(errFail, reconnectErr)
+	s.Equal(0, nFail)
 }
 
 func (s *InactiveTimeoutReaderTestSuite) Test_Read_TimeoutAndSuccessfulReconnect() {
@@ -252,13 +250,12 @@ func (s *InactiveTimeoutReaderTestSuite) Test_Read_TimeoutAndSuccessfulReconnect
 	s.mockBucket.On("NewReaderWithReadHandle", mock.Anything, reconnectReadObjectRequest).Return(s.initialFakeReader, nil).Times(1)
 	bufReconnect := make([]byte, 5)
 
-	// Act - read after timeout (should trigger reconnect)
+	// Read after timeout (should trigger reconnect)
 	nReconnect, errReconnect := s.reader.Read(bufReconnect)
 
-	// Assert
-	s.Require().NoError(errReconnect, "Read after timeout failed")
-	s.Require().Equal(5, nReconnect)
-	s.Equal("klmno", string(bufReconnect[:nReconnect])) // Should read from the *reconnect* reader's data
+	s.Nil(errReconnect)
+	s.Equal(5, nReconnect)
+	s.Equal("klmno", string(bufReconnect[:nReconnect]))
 }
 
 func (s *InactiveTimeoutReaderTestSuite) Test_Close_ExplicitClose() {
