@@ -327,3 +327,29 @@ func (t *mrdWrapperTest) Test_EnsureMultiRangeDownloader() {
 		})
 	}
 }
+
+func (t *mrdWrapperTest) Test_EnsureMultiRangeDownloader_UnusableExistingMRDTriggersRecreation() {
+	t.mrdWrapper.bucket = t.mockBucket
+	t.mrdWrapper.object = t.object
+	t.mrdWrapper.Wrapped = fake.NewFakeMultiRangeDownloaderWithStatusError(t.object, t.objectData, fmt.Errorf("MRD is unusable..."))
+
+	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond))
+
+	err := t.mrdWrapper.ensureMultiRangeDownloader()
+
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), t.mrdWrapper.Wrapped)
+	t.mockBucket.AssertExpectations(t.T())
+}
+
+func (t *mrdWrapperTest) Test_EnsureMultiRangeDownloader_UsableExistingMRDPreventsRecreation() {
+	t.mrdWrapper.bucket = t.mockBucket
+	t.mrdWrapper.object = t.object
+	t.mrdWrapper.Wrapped = fake.NewFakeMultiRangeDownloaderWithStatusError(t.object, t.objectData, nil)
+
+	err := t.mrdWrapper.ensureMultiRangeDownloader()
+
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), t.mrdWrapper.Wrapped)
+	t.mockBucket.AssertNotCalled(t.T(), "NewMultiRangeDownloader")
+}

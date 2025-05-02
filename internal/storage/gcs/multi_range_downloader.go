@@ -22,4 +22,5 @@ type MultiRangeDownloader interface {
 	Add(output io.Writer, offset, length int64, callback func(int64, int64, error))
 	Close() error
 	Wait()
+	Error() error
 }

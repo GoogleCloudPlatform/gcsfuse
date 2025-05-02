@@ -578,12 +578,6 @@ func (f *FileInode) Write(
 	ctx context.Context,
 	data []byte,
 	offset int64) error {
-
-	err := f.initBufferedWriteHandlerIfEligible(ctx)
-	if err != nil {
-		return err
-	}
-
 	if f.bwh != nil {
 		return f.writeUsingBufferedWrites(ctx, data, offset)
 	}
@@ -931,11 +925,6 @@ func (f *FileInode) Truncate(
 	ctx context.Context,
 	size int64) (err error) {
 
-	err = f.initBufferedWriteHandlerIfEligible(ctx)
-	if err != nil {
-		return err
-	}
-
 	if f.bwh != nil {
 		return f.bwh.Truncate(size)
 	}
@@ -962,13 +951,14 @@ func (f *FileInode) CacheEnsureContent(ctx context.Context) (err error) {
 	return
 }
 
-func (f *FileInode) CreateBufferedOrTempWriter(ctx context.Context) (err error) {
-	err = f.initBufferedWriteHandlerIfEligible(ctx)
-	if err != nil {
-		return err
-	}
-	// Skip creating empty file when streaming writes are enabled.
-	if f.bwh != nil {
+// CreateEmptyTempFile creates an empty file with no contents when
+// streaming writes are not in enabled.
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) CreateEmptyTempFile(ctx context.Context) (err error) {
+	// Skip creating empty temp file when streaming writes are enabled
+	// or temp file is already created.
+	if f.bwh != nil || f.content != nil {
 		return
 	}
 
@@ -980,16 +970,18 @@ func (f *FileInode) CreateBufferedOrTempWriter(ctx context.Context) (err error) 
 	return
 }
 
-func (f *FileInode) initBufferedWriteHandlerIfEligible(ctx context.Context) error {
+// Initializes Buffered Write Handler if the file inode is eligible and returns
+// initialized as true when the new instance of buffered writer handler is created.
+func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context) (bool, error) {
 	// bwh already initialized, do nothing.
 	if f.bwh != nil {
-		return nil
+		return false, nil
 	}
 
 	tempFileInUse := f.content != nil
 	if f.src.Size != 0 || !f.config.Write.EnableStreamingWrites || tempFileInUse {
 		// bwh should not be initialized under these conditions.
-		return nil
+		return false, nil
 	}
 
 	var latestGcsObj *gcs.Object
@@ -997,7 +989,7 @@ func (f *FileInode) initBufferedWriteHandlerIfEligible(ctx context.Context) erro
 	if !f.local {
 		latestGcsObj, err = f.fetchLatestGcsObject(ctx)
 		if err != nil {
-			return err
+			return false, err
 		}
 	}
 
@@ -1012,10 +1004,10 @@ func (f *FileInode) initBufferedWriteHandlerIfEligible(ctx context.Context) erro
 			ChunkTransferTimeoutSecs: f.config.GcsRetries.ChunkTransferTimeoutSecs,
 		})
 		if err != nil {
-			return fmt.Errorf("failed to create bufferedWriteHandler: %w", err)
+			return false, fmt.Errorf("failed to create bufferedWriteHandler: %w", err)
 		}
 		f.bwh.SetMtime(f.mtimeClock.Now())
+		return true, nil
 	}
-
-	return nil
+	return false, nil
 }

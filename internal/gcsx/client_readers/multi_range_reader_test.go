@@ -113,54 +113,45 @@ func (t *multiRangeReaderTest) Test_ReadFromMultiRangeReader_ReadFull() {
 	}
 }
 
-func (t *multiRangeReaderTest) Test_ReadFromMultiRangeReader_ValidateTimeout() {
-	testCases := []struct {
-		name               string
-		dataSize           int
-		timeout            time.Duration
-		sleepTime          time.Duration
-		expectedErrKeyword string
-	}{
-		{
-			name:               "TimeoutPlusFiveMilliSecond",
-			dataSize:           100,
-			timeout:            5 * time.Millisecond,
-			sleepTime:          10 * time.Millisecond,
-			expectedErrKeyword: "Timeout",
-		},
-		{
-			name:               "TimeoutValue",
-			dataSize:           100,
-			timeout:            5 * time.Millisecond,
-			sleepTime:          5 * time.Millisecond,
-			expectedErrKeyword: "Timeout",
-		},
-	}
+func (t *multiRangeReaderTest) Test_ReadFromMultiRangeReader_TimeoutExceeded() {
+	t.multiRangeReader.isMRDInUse = false
+	dataSize := 100
+	t.object.Size = uint64(dataSize)
+	testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
+	fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{})
+	require.NoError(t.T(), err, "Error in creating MRDWrapper")
+	t.multiRangeReader.mrdWrapper = &fakeMRDWrapper
+	sleepTime := 10 * time.Millisecond
+	timeout := 5 * time.Millisecond
+	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, testContent, sleepTime)).Once()
+	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: true}).Once()
+	buf := make([]byte, dataSize)
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func() {
-			t.multiRangeReader.isMRDInUse = false
-			t.object.Size = uint64(tc.dataSize)
-			testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
-			fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{})
-			require.NoError(t.T(), err, "Error in creating MRDWrapper")
-			t.multiRangeReader.mrdWrapper = &fakeMRDWrapper
-			t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, testContent, tc.sleepTime)).Once()
-			t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: true}).Once()
-			buf := make([]byte, tc.dataSize)
+	_, err = t.multiRangeReader.readFromMultiRangeReader(t.ctx, buf, 0, int64(t.object.Size), timeout)
 
-			bytesRead, err := t.multiRangeReader.readFromMultiRangeReader(t.ctx, buf, 0, int64(t.object.Size), tc.timeout)
+	assert.Error(t.T(), err)
+	assert.ErrorContains(t.T(), err, "Timeout")
+}
 
-			if tc.name == "TimeoutValue" && bytesRead != 0 {
-				assert.NoError(t.T(), err)
-				assert.Equal(t.T(), tc.dataSize, bytesRead)
-				assert.Equal(t.T(), testContent[:tc.dataSize], buf[:bytesRead])
-			} else {
-				assert.Error(t.T(), err)
-				assert.ErrorContains(t.T(), err, tc.expectedErrKeyword)
-			}
-		})
-	}
+func (t *multiRangeReaderTest) Test_ReadFromMultiRangeReader_TimeoutNotExceeded() {
+	t.multiRangeReader.isMRDInUse = false
+	dataSize := 100
+	t.object.Size = uint64(dataSize)
+	testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
+	fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{})
+	require.NoError(t.T(), err, "Error in creating MRDWrapper")
+	t.multiRangeReader.mrdWrapper = &fakeMRDWrapper
+	sleepTime := 2 * time.Millisecond
+	timeout := 5 * time.Millisecond
+	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, testContent, sleepTime)).Once()
+	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: true}).Once()
+	buf := make([]byte, dataSize)
+
+	bytesRead, err := t.multiRangeReader.readFromMultiRangeReader(t.ctx, buf, 0, int64(t.object.Size), timeout)
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), dataSize, bytesRead)
+	assert.Equal(t.T(), testContent[:dataSize], buf[:bytesRead])
 }
 
 func (t *multiRangeReaderTest) Test_ReadFromMultiRangeReader_NilMRDWrapper() {
