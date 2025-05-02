@@ -16,6 +16,7 @@ package stale_handle
 
 import (
 	"path"
+	"slices"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -44,7 +45,6 @@ func (s *staleFileHandleEmptyGcsFile) SetupTest() {
 	err := CreateObjectOnGCS(ctx, storageClient, path.Join(s.T().Name(), FileName1), "")
 	assert.NoError(s.T(), err)
 	s.f1 = operations.OpenFileWithODirect(s.T(), path.Join(s.testDirPath, FileName1))
-	s.data = setup.GenerateRandomString(operations.MiB * 5)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -52,7 +52,7 @@ func (s *staleFileHandleEmptyGcsFile) SetupTest() {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *staleFileHandleEmptyGcsFile) TestClobberedFileReadThrowsStaleFileHandleError() {
-	if streamingWrites && setup.IsZonalBucketRun() {
+	if s.isStreamingWritesEnabled && setup.IsZonalBucketRun() {
 		s.T().Skip("Skip test due to takeover support not available.")
 	}
 	// Dirty the file by giving it some contents.
@@ -63,11 +63,11 @@ func (s *staleFileHandleEmptyGcsFile) TestClobberedFileReadThrowsStaleFileHandle
 	err = WriteToObject(ctx, storageClient, path.Join(s.T().Name(), FileName1), FileContents, storage.Conditions{})
 	assert.NoError(s.T(), err)
 
-	operations.ValidateReadGivenThatFileIsClobbered(s.T(), s.f1, streamingWrites, s.data)
+	operations.ValidateReadGivenThatFileIsClobbered(s.T(), s.f1, s.isStreamingWritesEnabled, s.data)
 }
 
 func (s *staleFileHandleEmptyGcsFile) TestClobberedFileFirstWriteThrowsStaleFileHandleError() {
-	if streamingWrites && setup.IsZonalBucketRun() {
+	if s.isStreamingWritesEnabled && setup.IsZonalBucketRun() {
 		s.T().Skip("Skip test due to takeover support not available.")
 	}
 	// Clobber file by replacing the underlying object with a new generation.
@@ -78,7 +78,7 @@ func (s *staleFileHandleEmptyGcsFile) TestClobberedFileFirstWriteThrowsStaleFile
 	_, err = s.f1.Write([]byte(s.data))
 
 	assert.NoError(s.T(), err)
-	operations.ValidateSyncGivenThatFileIsClobbered(s.T(), s.f1, streamingWrites)
+	operations.ValidateSyncGivenThatFileIsClobbered(s.T(), s.f1, s.isStreamingWritesEnabled)
 	err = s.f1.Close()
 	operations.ValidateESTALEError(s.T(), err)
 }
@@ -94,7 +94,7 @@ func (s *staleFileHandleEmptyGcsFile) TestFileDeletedRemotelySyncAndCloseThrowsS
 	// Attempt to write to file should not give any error.
 	operations.WriteWithoutClose(s.f1, s.data, s.T())
 
-	operations.ValidateSyncGivenThatFileIsClobbered(s.T(), s.f1, streamingWrites)
+	operations.ValidateSyncGivenThatFileIsClobbered(s.T(), s.f1, s.isStreamingWritesEnabled)
 
 	err = s.f1.Close()
 	operations.ValidateESTALEError(s.T(), err)
@@ -105,5 +105,10 @@ func (s *staleFileHandleEmptyGcsFile) TestFileDeletedRemotelySyncAndCloseThrowsS
 ////////////////////////////////////////////////////////////////////////
 
 func TestStaleFileHandleEmptyGcsFileTest(t *testing.T) {
-	suite.Run(t, new(staleFileHandleEmptyGcsFile))
+	for _, flags := range flagsSet {
+		s := new(staleFileHandleEmptyGcsFile)
+		s.flags = flags
+		s.isStreamingWritesEnabled = slices.Contains(s.flags, "--enable-streaming-writes=true")
+		suite.Run(t, s)
+	}
 }

@@ -19,6 +19,7 @@ import (
 	"path"
 
 	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
@@ -31,10 +32,25 @@ import (
 // //////////////////////////////////////////////////////////////////////
 
 type staleFileHandleCommon struct {
-	f1          *os.File
-	data        string
-	testDirPath string
+	flags                    []string
+	f1                       *os.File
+	data                     string
+	testDirPath              string
+	isStreamingWritesEnabled bool
 	suite.Suite
+}
+
+// //////////////////////////////////////////////////////////////////////
+// Helpers
+// //////////////////////////////////////////////////////////////////////
+func (s *staleFileHandleCommon) SetupSuite() {
+	setup.MountGCSFuseWithGivenMountFunc(s.flags, mountFunc)
+	s.data = setup.GenerateRandomString(5 * util.MiB)
+}
+
+func (s *staleFileHandleCommon) TearDownSuite() {
+	setup.UnmountGCSFuse(rootDir)
+	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -42,7 +58,7 @@ type staleFileHandleCommon struct {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHandleError() {
-	if streamingWrites && setup.IsZonalBucketRun() {
+	if s.isStreamingWritesEnabled && setup.IsZonalBucketRun() {
 		s.T().Skip("Skip test due to takeover support not available.")
 	}
 	// Dirty the file by giving it some contents.
@@ -51,7 +67,7 @@ func (s *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHand
 	err := WriteToObject(ctx, storageClient, path.Join(s.T().Name(), FileName1), FileContents, storage.Conditions{})
 	assert.NoError(s.T(), err)
 
-	operations.ValidateSyncGivenThatFileIsClobbered(s.T(), s.f1, streamingWrites)
+	operations.ValidateSyncGivenThatFileIsClobbered(s.T(), s.f1, s.isStreamingWritesEnabled)
 
 	err = s.f1.Close()
 	operations.ValidateESTALEError(s.T(), err)
@@ -67,7 +83,7 @@ func (s *staleFileHandleCommon) TestFileDeletedLocallySyncAndCloseDoNotThrowErro
 
 	// Verify unlink operation succeeds.
 	operations.ValidateNoFileOrDirError(s.T(), s.f1.Name())
-	operations.ValidateWriteGivenThatFileIsDeletedFromSameMount(s.T(), s.f1, streamingWrites, s.data)
+	operations.ValidateWriteGivenThatFileIsDeletedFromSameMount(s.T(), s.f1, s.isStreamingWritesEnabled, s.data)
 	operations.SyncFile(s.f1, s.T())
 	operations.CloseFileShouldNotThrowError(s.T(), s.f1)
 }

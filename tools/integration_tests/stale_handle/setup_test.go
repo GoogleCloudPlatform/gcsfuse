@@ -27,9 +27,11 @@ import (
 )
 
 var (
-	storageClient   *storage.Client
-	ctx             context.Context
-	streamingWrites bool
+	storageClient *storage.Client
+	ctx           context.Context
+	rootDir       string
+	mountFunc     func([]string) error
+	flagsSet      [][]string
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -55,22 +57,17 @@ func TestMain(m *testing.M) {
 
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()
+	rootDir = setup.MntDir()
 
-	// Define flag set to run the tests.
-	flagsSet := [][]string{{"--metadata-cache-ttl-secs=0"}}
-	// Run tests with GRPC.
-	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--client-protocol=grpc", "")
-
-	successCode := static_mounting.RunTests(flagsSet, m)
-
-	// Define flag set to run the tests with streaming writes.
-	flagsSet = [][]string{{"--metadata-cache-ttl-secs=0", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=1"}}
-	// Run tests with GRPC.
-	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--client-protocol=grpc", "")
-
-	if successCode == 0 {
-		streamingWrites = true
-		successCode = static_mounting.RunTests(flagsSet, m)
+	flagsSet = [][]string{
+		{"--metadata-cache-ttl-secs=0"},
+		{"--metadata-cache-ttl-secs=0", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=1"},
 	}
+	// Run all tests with GRPC.
+	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--client-protocol=grpc", "")
+
+	log.Println("Running static mounting tests...")
+	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
+	successCode := m.Run()
 	os.Exit(successCode)
 }

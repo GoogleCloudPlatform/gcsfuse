@@ -16,6 +16,7 @@ package stale_handle
 
 import (
 	"path"
+	"slices"
 	"testing"
 
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
@@ -41,7 +42,6 @@ func (s *staleFileHandleLocalFile) SetupTest() {
 	s.testDirPath = setup.SetupTestDirectory(s.T().Name())
 	// Create a local file.
 	s.f1 = operations.OpenFileWithODirect(s.T(), path.Join(s.testDirPath, FileName1))
-	s.data = setup.GenerateRandomString(operations.MiB * 5)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -49,5 +49,10 @@ func (s *staleFileHandleLocalFile) SetupTest() {
 ////////////////////////////////////////////////////////////////////////
 
 func TestStaleFileHandleLocalFileTest(t *testing.T) {
-	suite.Run(t, new(staleFileHandleLocalFile))
+	for _, flags := range flagsSet {
+		s := new(staleFileHandleLocalFile)
+		s.flags = flags
+		s.isStreamingWritesEnabled = slices.Contains(s.flags, "--enable-streaming-writes=true")
+		suite.Run(t, s)
+	}
 }
