@@ -264,9 +264,11 @@ func (s *InactiveTimeoutReaderTestSuite) Test_Close_ExplicitClose() {
 	s.setupReader(0)
 
 	err := s.reader.Close()
-	s.reader = nil // Prevent TearDownTest from closing again
 
 	s.NoError(err)
+	s.Nil(s.reader.(*inactiveTimeoutReader).cancel)
+	s.Nil(s.reader.(*inactiveTimeoutReader).ctx)
+	s.reader = nil // Prevent TearDownTest from closing again
 }
 
 func (s *InactiveTimeoutReaderTestSuite) Test_handleTimeout_InactiveClose() {

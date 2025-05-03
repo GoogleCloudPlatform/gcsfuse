@@ -57,27 +57,20 @@ type inactiveTimeoutReader struct {
 	seen uint64
 
 	// Requested range [start, end) from this reader.
-	start, end uint64
+	reqRange gcs.ByteRange
 
 	// The read handle used for efficient reconnection for zonal bucket.
 	readHandle []byte
 
-	// The parent context, used for creating new readers and monitoring cancellation.
-	parentContext context.Context
+	// Derived from the parent context, used for creating new readers and monitoring cancellation.
+	ctx    context.Context
+	cancel context.CancelFunc
 
-	// Mutex protecting internal state (mainily gcsReader & isActive).
+	// Mutex protecting internal state (mainly gcsReader & isActive).
 	mu locker.Locker
 
 	// Flag set by Read and reset by the monitor goroutine to track activity within the timeout window.
 	isActive bool
-
-	// Channel used to signal the monitor goroutine to stop, typically during Close().
-	stopChan chan struct{}
-
-	// Used for waiting for timeout (helps us in mocking the functionality).
-	clock clock.Clock
-
-	timeout time.Duration
 }
 
 var (
@@ -101,18 +94,14 @@ func NewInactiveTimeoutReaderWithClock(ctx context.Context, bucket gcs.Bucket, o
 	}
 
 	itr := &inactiveTimeoutReader{
-		object:        object,
-		bucket:        bucket,
-		start:         byteRange.Start,
-		end:           byteRange.Limit,
-		parentContext: ctx,
-		readHandle:    readHandle,
-		mu:            locker.New("inactiveTimeoutReader: "+object.Name, func() {}),
-		isActive:      false,
-		stopChan:      make(chan struct{}),
-		clock:         clock,
-		timeout:       timeout,
+		object:     object,
+		bucket:     bucket,
+		reqRange:   byteRange,
+		readHandle: readHandle,
+		mu:         locker.New("inactiveTimeoutReader: "+object.Name, func() {}),
+		isActive:   false,
 	}
+	itr.ctx, itr.cancel = context.WithCancel(ctx)
 
 	var err error
 	if itr.gcsReader, err = itr.createGCSReader(); err != nil {
@@ -120,21 +109,21 @@ func NewInactiveTimeoutReaderWithClock(ctx context.Context, bucket gcs.Bucket, o
 	}
 
 	// Start the background periodic routine.
-	go itr.monitor()
+	go itr.monitor(clock, timeout)
 
-	return itr, err
+	return itr, nil
 }
 
 // createGCSReader is a helper method to create the underlined reader from itr.start + itr.seen offset.
 func (itr *inactiveTimeoutReader) createGCSReader() (gcs.StorageReader, error) {
 	reader, err := itr.bucket.NewReaderWithReadHandle(
-		itr.parentContext,
+		itr.ctx,
 		&gcs.ReadObjectRequest{
 			Name:       itr.object.Name,
 			Generation: itr.object.Generation,
 			Range: &gcs.ByteRange{
-				Start: itr.start + itr.seen,
-				Limit: itr.end,
+				Start: itr.reqRange.Start + itr.seen,
+				Limit: itr.reqRange.Limit,
 			},
 			ReadCompressed: itr.object.HasContentEncodingGzip(),
 			ReadHandle:     itr.readHandle,
@@ -180,16 +169,18 @@ func (itr *inactiveTimeoutReader) Close() (err error) {
 	itr.mu.Lock()
 	defer itr.mu.Unlock()
 
-	close(itr.stopChan) // Close background monitoring routine.
+	itr.cancel = nil
+	itr.ctx = nil
 
-	if itr.gcsReader != nil {
-		err = itr.gcsReader.Close()
-		itr.gcsReader = nil
-		if err != nil {
-			return fmt.Errorf("close reader: %w", err)
-		}
+	if itr.gcsReader == nil {
+		return nil
 	}
 
+	err = itr.gcsReader.Close()
+	itr.gcsReader = nil
+	if err != nil {
+		return fmt.Errorf("close reader: %w", err)
+	}
 	return err
 }
 
@@ -208,17 +199,14 @@ func (itr *inactiveTimeoutReader) ReadHandle() (rh storagev2.ReadHandle) {
 }
 
 // monitor runs in a background goroutine, and checks for inactivity.
-func (itr *inactiveTimeoutReader) monitor() {
-	timer := itr.clock.After(itr.timeout)
+func (itr *inactiveTimeoutReader) monitor(clock clock.Clock, timeout time.Duration) {
+	timer := clock.After(timeout)
 	for {
 		select {
 		case <-timer:
 			itr.handleTimeout()
-			timer = itr.clock.After(itr.timeout)
-		case <-itr.parentContext.Done():
-			return
-
-		case <-itr.stopChan:
+			timer = clock.After(timeout)
+		case <-itr.ctx.Done():
 			return
 		}
 	}
@@ -247,7 +235,8 @@ func (itr *inactiveTimeoutReader) closeGCSReader() {
 		return
 	}
 
-	logger.Infof("Closing reader for object %q due to inactivity more than timeout (%v).\n", itr.object.Name, itr.timeout)
+	// Not printing the timeout explicitly, as can be refer from the code/config.
+	logger.Infof("Closing reader for object %q due to inactivity.\n", itr.object.Name)
 	itr.readHandle = itr.gcsReader.ReadHandle()
 	if err := itr.gcsReader.Close(); err != nil {
 		logger.Warnf("Error closing inactive reader for object %q: %v", itr.object.Name, err)
