@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package stale_handle
+package stale_handle_streaming_writes
 
 import (
 	"context"
@@ -26,7 +26,15 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
+const (
+	testDirName = "StaleHandleStreamingWritesTest"
+)
+
 var (
+	flags     []string
+	mountFunc func([]string) error
+	// root directory is the directory to be unmounted.
+	rootDir       string
 	storageClient *storage.Client
 	ctx           context.Context
 )
@@ -37,9 +45,8 @@ var (
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
-	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
-	// Create common storage client to be used in test.
+	// Create storage client before running tests.
 	ctx = context.Background()
 	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
 	defer func() {
@@ -49,20 +56,34 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
-	// If Mounted Directory flag is set, run tests for mounted directory.
-	setup.RunTestsForMountedDirectoryFlag(m)
-	// Else run tests for testBucket.
+	// To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	// flags to be set, as operations tests validates content from the bucket.
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+		rootDir = setup.MountedDirectory()
+		setup.RunTestsForMountedDirectoryFlag(m)
+	}
+
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()
-
+	rootDir = setup.MntDir()
 	// Define flag set to run the tests.
 	flagsSet := [][]string{
-		{"--metadata-cache-ttl-secs=0", "--precondition-errors=true"},
+		{"--rename-dir-limit=3", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=1"},
 	}
 	// Run all tests for GRPC.
 	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--client-protocol=grpc", "")
 
-	successCode := static_mounting.RunTests(flagsSet, m)
+	log.Println("Running static mounting tests...")
+	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
 
+	var successCode int
+	for i := range flagsSet {
+		log.Printf("Running tests with flags: %v", flagsSet[i])
+		flags = flagsSet[i]
+		successCode = m.Run()
+		if successCode != 0 {
+			break
+		}
+	}
 	os.Exit(successCode)
 }

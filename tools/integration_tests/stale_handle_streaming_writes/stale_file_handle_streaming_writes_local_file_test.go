@@ -12,35 +12,38 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package stale_handle
+package stale_handle_streaming_writes
 
 import (
 	"testing"
 
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
-	"github.com/stretchr/testify/suite"
-
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/suite"
 )
 
 // //////////////////////////////////////////////////////////////////////
 // Boilerplate
 // //////////////////////////////////////////////////////////////////////
 
-type staleFileHandleLocalFile struct {
-	staleFileHandleCommon
+type staleFileHandleStreamingWritesLocalFile struct {
+	staleFileHandleStreamingWritesCommon
 }
 
-func (s *staleFileHandleLocalFile) SetupTest() {
-	testDirPath := setup.SetupTestDirectory(s.T().Name())
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+func (t *staleFileHandleStreamingWritesLocalFile) SetupTest() {
+	t.fileName = setup.GenerateRandomString(5)
 	// Create a local file.
-	_, s.f1 = CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, s.T())
+	t.filePath, t.f1 = CreateLocalFileInTestDir(ctx, storageClient, t.testDirPath, t.fileName, t.T())
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
 
-func TestStaleFileHandleLocalFileTest(t *testing.T) {
-	suite.Run(t, new(staleFileHandleLocalFile))
+func TestStaleFileHandleStreamingWritesLocalFileTest(t *testing.T) {
+	suite.Run(t, new(staleFileHandleStreamingWritesLocalFile))
 }

@@ -17,14 +17,10 @@ package stale_handle
 import (
 	"os"
 	"path"
-	"slices"
-	"strings"
-	"testing"
 
 	"cloud.google.com/go/storage"
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -34,55 +30,8 @@ import (
 // //////////////////////////////////////////////////////////////////////
 
 type staleFileHandleCommon struct {
-	f1          *os.File
-	data        string
-	testDirName string
-	testDirPath string
-	// Directory to unmount.
-	mntDir string
-	flags  []string
+	f1 *os.File
 	suite.Suite
-}
-
-// //////////////////////////////////////////////////////////////////////
-// Helpers
-// //////////////////////////////////////////////////////////////////////
-
-func getTestName(t *testing.T) string {
-	return strings.ReplaceAll(t.Name(), "/", "_")
-}
-
-func (s *staleFileHandleCommon) SetupSuite() {
-	operations.CreateDirectory(path.Join(setup.TestDir(), getTestName(s.T())), s.T())
-	s.mntDir = path.Join(setup.TestDir(), getTestName(s.T()), "mnt")
-	operations.CreateDirectory(s.mntDir, s.T())
-	setup.MountGCSFuseWithGivenMountFuncMntDirAndLogFile(s.flags, s.mntDir, path.Join(setup.TestDir(), getTestName(s.T()), "gcsfuse.log"), mountFunc)
-	s.testDirName = getTestName(s.T())
-	s.testDirPath = setup.SetupTestDirectoryOnMntDir(s.mntDir, s.testDirName)
-}
-
-func (s *staleFileHandleCommon) TearDownSuite() {
-	operations.RemoveDir(s.testDirPath)
-	setup.SaveGCSFuseLogFileInCaseOfFailureGivenLogFile(s.T(), path.Join(setup.TestDir(), getTestName(s.T()), "gcsfuse.log"))
-}
-
-func (s *staleFileHandleCommon) TearDownTest() {
-	setup.CleanupDirectoryOnGCS(ctx, storageClient, s.testDirName)
-}
-
-func (s *staleFileHandleCommon) streamingWritesEnabled() bool {
-	s.T().Helper()
-	return slices.Contains(s.flags, "--enable-streaming-writes=true")
-}
-
-// Used to validate stale handle error from sync/close when streaming writes are disabled.
-func (s *staleFileHandleCommon) validateStaleNFSFileHandleErrorIfStreamingWritesDisabled(err error) {
-	s.T().Helper()
-	if !s.streamingWritesEnabled() {
-		operations.ValidateStaleNFSFileHandleError(s.T(), err)
-	} else {
-		assert.NoError(s.T(), err)
-	}
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -91,10 +40,9 @@ func (s *staleFileHandleCommon) validateStaleNFSFileHandleErrorIfStreamingWrites
 
 func (s *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHandleError() {
 	// Dirty the file by giving it some contents.
-	_, err := s.f1.WriteAt([]byte(s.data), 0)
-	assert.NoError(s.T(), err)
-	// Clobber file by replacing the underlying object with a new generation.
-	err = WriteToObject(ctx, storageClient, path.Join(s.testDirName, FileName1), FileContents, storage.Conditions{})
+	operations.WriteWithoutClose(s.f1, Content, s.T())
+	// Replace the underlying object with a new generation.
+	err := WriteToObject(ctx, storageClient, path.Join(s.T().Name(), FileName1), FileContents, storage.Conditions{})
 	assert.NoError(s.T(), err)
 
 	err = s.f1.Sync()
@@ -106,17 +54,15 @@ func (s *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHand
 
 func (s *staleFileHandleCommon) TestFileDeletedLocallySyncAndCloseDoNotThrowError() {
 	// Dirty the file by giving it some contents.
-	bytesWrote, err := s.f1.WriteAt([]byte(s.data), 0)
+	_, err := s.f1.WriteString(Content)
 	assert.NoError(s.T(), err)
 	// Delete the file.
 	operations.RemoveFile(s.f1.Name())
 	// Verify unlink operation succeeds.
-
 	operations.ValidateNoFileOrDirError(s.T(), s.f1.Name())
 	// Attempt to write to file should not give any error.
-	_, err = s.f1.WriteAt([]byte(s.data), int64(bytesWrote))
+	operations.WriteWithoutClose(s.f1, Content2, s.T())
 
-	assert.NoError(s.T(), err)
 	operations.SyncFile(s.f1, s.T())
 	operations.CloseFileShouldNotThrowError(s.T(), s.f1)
 }
