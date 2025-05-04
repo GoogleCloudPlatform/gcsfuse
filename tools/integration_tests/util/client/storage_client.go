@@ -483,6 +483,8 @@ func AppendableWriter(ctx context.Context, client *storage.Client, object string
 		return nil, fmt.Errorf("failed to open writer for object %q: %w", o.ObjectName(), err)
 	}
 	return wc, nil
+}
+
 // deleteObjectsInBucket handles deleting all objects within a single bucket.
 // It uses a pool of workers for concurrent deletion.
 // Returns the number of objects deleted and an error if a critical step (like listing) fails.
@@ -553,22 +555,17 @@ func deleteObjectsInBucket(ctx context.Context, bucket *storage.BucketHandle, bu
 //   - ctx: The context for the operations.
 //   - client: The GCS storage client.
 //   - bucketNames: A slice of strings containing the names of the buckets to delete.
-//   - numObjectDeleteWorkersPerBucket: The number of concurrent workers for deleting objects within each bucket.
-//     If a non-positive value is provided, a default of 50 will be used.
 //
 // Returns:
 //   - A map where keys are bucket names and values are errors encountered for that bucket.
 //     Returns nil if all operations for all buckets succeed.
-func DeleteBucketsAndContents(ctx context.Context, client *storage.Client, bucketNames []string, numObjectDeleteWorkersPerBucket int) map[string]error {
+func DeleteBucketsAndContents(ctx context.Context, client *storage.Client, bucketNames []string) map[string]error {
 	var wg sync.WaitGroup
 	// errorsMap will store any errors encountered, keyed by bucket name.
 	errorsMap := make(map[string]error)
 	var mu sync.Mutex // Mutex to protect concurrent writes to errorsMap.
 
-	if numObjectDeleteWorkersPerBucket <= 0 {
-		log.Printf("numObjectDeleteWorkersPerBucket was %d, which is invalid. Setting to default of 50.", numObjectDeleteWorkersPerBucket)
-		numObjectDeleteWorkersPerBucket = 50 // Default number of workers for object deletion.
-	}
+	numObjectDeleteWorkersPerBucket := runtime.NumCPU() // Workers to delete object.
 
 	if len(bucketNames) == 0 {
 		log.Println("No bucket names provided. Nothing to do.")
@@ -606,7 +603,6 @@ func DeleteBucketsAndContents(ctx context.Context, client *storage.Client, bucke
 	wg.Wait() // Wait for all bucket processing goroutines to complete.
 
 	if len(errorsMap) == 0 {
-		log.Println("All specified buckets and their contents processed successfully.")
 		return nil // No errors.
 	}
 

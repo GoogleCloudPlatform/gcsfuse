@@ -225,7 +225,10 @@ func GenerateTestMountConfigurations(ctx context.Context, storageClient *storage
 			case OnlyDirMounting:
 				configs = AppendOnlyDirMountConfigurations(configs, flags, basePackageTestDir)
 			case DynamicMounting:
-				CreatedBucket := dynamic_mounting.CreateTestBucketForDynamicMounting(ctx, storageClient)
+				CreatedBucket, err := dynamic_mounting.CreateTestBucketForDynamicMounting(ctx, storageClient)
+				if err != nil {
+					log.Fatalf("Failed to create bucket for dynamic mounting test: %v", err)
+				}
 				bucketList = append(bucketList, CreatedBucket)
 				configs = AppendDynamicMountConfigurations(configs, flags, basePackageTestDir, CreatedBucket, setup.TestBucket())
 			case PersistentMounting:

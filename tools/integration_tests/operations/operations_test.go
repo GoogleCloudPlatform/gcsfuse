@@ -155,7 +155,11 @@ func TestMain(m *testing.M) {
 	}
 	defer storageClient.Close()
 
-	bucketName := dynamic_mounting.CreateTestBucketForDynamicMounting(ctx, storageClient)
+	bucketName, err := dynamic_mounting.CreateTestBucketForDynamicMounting(ctx, storageClient)
+	if err != nil {
+		log.Fatalf("Failed to create bucket for operations test: %v", err)
+	}
+
 	log.Println("Using bucket name for test: ", bucketName)
 	setup.SetTestBucket(bucketName)
 
@@ -206,18 +210,18 @@ func TestMain(m *testing.M) {
 	configs, bucketList = GenerateTestMountConfigurations(ctx, storageClient, mountTypes, flagsSet, setup.TestDir(), true)
 	start := time.Now()
 	successCode := m.Run()
-	log.Printf("Test Run took: %v seconds for # configuration: %d", time.Since(start).Seconds(), len(configs))
+	log.Printf("Test Run took: [[ %v seconds ]] for [[ %d mount configurations ]]", time.Since(start).Seconds(), len(configs))
 	start = time.Now()
-	errMap := client.DeleteBucketsAndContents(ctx, storageClient, bucketList, 50)
+	errMap := client.DeleteBucketsAndContents(ctx, storageClient, bucketList)
 	for bucketName, err := range errMap {
 		log.Printf("Error from bucket %s: %v\n", bucketName, err)
 	}
-	log.Printf("Deletion of buckets took: %v seconds", time.Since(start).Seconds())
+	log.Printf("Deletion of buckets took: [[ %v seconds ]]", time.Since(start).Seconds())
 	start = time.Now()
 	err = UnmountAll(configs)
 	if err != nil {
 		log.Println("Error unmounting:", err)
 	}
-	log.Printf("Unmounting took: %v", time.Since(start).Seconds())
+	log.Printf("Unmounting took: [[ %v seconds ]]", time.Since(start).Seconds())
 	os.Exit(successCode)
 }
