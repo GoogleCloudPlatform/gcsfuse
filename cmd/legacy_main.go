@@ -330,7 +330,7 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 		// also be included to know for which hosts the use of proxies
 		// should be ignored.
 		// Forward GCE_METADATA_HOST as it is used for mocked metadata services.
-		for _, envvar := range []string{"GOOGLE_APPLICATION_CREDENTIALS", "no_proxy", "GCE_METADATA_HOST"} {
+		for _, envvar := range []string{"GOOGLE_APPLICATION_CREDENTIALS", "no_proxy", "GCE_METADATA_HOST", "GCE_METADATA_ROOT", "GCE_METADATA_IP"} {
 			if envval, ok := os.LookupEnv(envvar); ok {
 				env = append(env, fmt.Sprintf("%s=%s", envvar, envval))
 				fmt.Fprintf(
