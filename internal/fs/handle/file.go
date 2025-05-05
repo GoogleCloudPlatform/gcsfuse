@@ -52,16 +52,19 @@ type FileHandle struct {
 	// as we are not doing anything special for append. When required we will
 	// define an enum instead of boolean to hold the type of open.
 	readOnly bool
+
+	enableAdaptiveReadSize bool
 }
 
 // LOCKS_REQUIRED(fh.inode.mu)
-func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, readOnly bool) (fh *FileHandle) {
+func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, readOnly bool, enableAdaptiveReadSize bool) (fh *FileHandle) {
 	fh = &FileHandle{
-		inode:                 inode,
-		fileCacheHandler:      fileCacheHandler,
-		cacheFileForRangeRead: cacheFileForRangeRead,
-		metricHandle:          metricHandle,
-		readOnly:              readOnly,
+		inode:                  inode,
+		fileCacheHandler:       fileCacheHandler,
+		cacheFileForRangeRead:  cacheFileForRangeRead,
+		metricHandle:           metricHandle,
+		readOnly:               readOnly,
+		enableAdaptiveReadSize: enableAdaptiveReadSize,
 	}
 
 	fh.inode.RegisterFileHandle(fh.readOnly)
@@ -205,7 +208,7 @@ func (fh *FileHandle) tryEnsureReader(ctx context.Context, sequentialReadSizeMb 
 	}
 
 	// Attempt to create an appropriate reader.
-	rr := gcsx.NewRandomReader(fh.inode.Source(), fh.inode.Bucket(), sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, &fh.inode.MRDWrapper)
+	rr := gcsx.NewRandomReader(fh.inode.Source(), fh.inode.Bucket(), sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, &fh.inode.MRDWrapper, fh.enableAdaptiveReadSize)
 
 	fh.reader = rr
 	return

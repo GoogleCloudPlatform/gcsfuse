@@ -655,6 +655,15 @@
   usage: "Mount only a specific directory within the bucket. See docs/mounting for more information"
   default: ""
 
+- config-path: "read.enable-adaptive-read-size"
+  flag-name: "enable-adaptive-read-size"
+  type: "bool"
+  usage: >-
+    If enabled, random reader will make adaptive read requests, starts from 1 MiB increaseing the size
+    in case of sequential read. In case of random read, it resets the read-size back to 1MiB.
+  default: false
+  hide-flag: true
+
 - config-path: "write.block-size-mb"
   flag-name: "write-block-size-mb"
   type: "int"
