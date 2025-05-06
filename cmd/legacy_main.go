@@ -249,6 +249,9 @@ func isDynamicMount(bucketName string) bool {
 	return bucketName == "" || bucketName == "_"
 }
 
+// forwardedEnvVars collects and returns all the environment
+// variables which should be sent to the gcsfuse daemon
+// process in case of background run.
 func forwardedEnvVars() []string {
 	// Pass along PATH so that the daemon can find fusermount on Linux.
 	env := []string{
@@ -272,14 +275,13 @@ func forwardedEnvVars() []string {
 			p)
 	}
 
-	// Forward environment variables.
 	// Forward GOOGLE_APPLICATION_CREDENTIALS, since we document in
 	// mounting.md that it can be used for specifying a key file.
 	// Forward the no_proxy environment variable. Whenever
 	// using the http(s)_proxy environment variables. This should
 	// also be included to know for which hosts the use of proxies
 	// should be ignored.
-	// Forward GCE_METADATA_HOST as it is used for mocked metadata services.
+	// Forward GCE_METADATA_HOST, GCE_METADATA_ROOT, GCE_METADATA_IP as these are used for mocked metadata services.
 	for _, envvar := range []string{"GOOGLE_APPLICATION_CREDENTIALS", "no_proxy", "GCE_METADATA_HOST", "GCE_METADATA_ROOT", "GCE_METADATA_IP"} {
 		if envval, ok := os.LookupEnv(envvar); ok {
 			env = append(env, fmt.Sprintf("%s=%s", envvar, envval))
