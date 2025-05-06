@@ -169,8 +169,8 @@ func (itr *inactiveTimeoutReader) Close() (err error) {
 	itr.mu.Lock()
 	defer itr.mu.Unlock()
 
+	// Signal background periodic routine to stop.
 	itr.cancel()
-	itr.cancel = nil
 
 	if itr.gcsReader == nil {
 		return nil

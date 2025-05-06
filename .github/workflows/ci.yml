@@ -45,7 +45,7 @@ jobs:
         build_gcsfuse . /tmp ${GITHUB_SHA}
     - name: Test all
       run: CGO_ENABLED=0 go test -p 1 -count 1 -covermode=atomic -coverprofile=coverage.out -coverpkg=./... -v -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./...`
-    - name: Cache RaceDetector Test
+    - name: RaceDetector Test
       run: go test -p 1 -count 1 -v -race -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` ./internal/cache/... ./internal/gcsx/...
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v4.3.1
