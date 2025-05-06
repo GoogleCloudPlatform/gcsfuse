@@ -381,14 +381,14 @@ func (rr *randomReader) ReadAt(
 		end, err := rr.getReadInfo(offset, int64(len(p)))
 		if err != nil {
 			err = fmt.Errorf("ReadAt: getReaderInfo: %w", err)
-			return
+			return objectData, err
 		}
 
 		readerType := readerType(rr.readType, offset, end, rr.bucket.BucketType())
 		if readerType == RangeReader {
 			logger.Errorf("invoking range reader")
 			objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, end, rr.readType)
-			return
+			return objectData, err
 		}
 	}
 
