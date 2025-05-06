@@ -288,7 +288,7 @@ func (t *MainTest) TestForwardedEnvVars() {
 		forwardedEnvVars := forwardedEnvVars()
 		assert.Subset(t.T(), forwardedEnvVars, input.expectedForwardedEnvVars)
 		assert.Contains(t.T(), forwardedEnvVars, fmt.Sprintf("PATH=%s", os.Getenv("PATH")))
-		for envvar, _ := range input.inputEnvVars {
+		for envvar := range input.inputEnvVars {
 			os.Unsetenv(envvar)
 		}
 	}
