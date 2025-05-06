@@ -219,7 +219,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 	requestId := uuid.New()
 	logger.Tracef("%.13v <- MultiRangeDownloader::Add (%s, [%d, %d))", requestId, mrdWrapper.object.Name, startOffset, endOffset)
 	start := time.Now()
-	mrdWrapper.Wrapped.Add(buffer, startOffset, endOffset-startOffset, func(offsetAddCallback int64, bytesReadAddCallback int64, e error) {
+	mrdWrapper.Wrapped.Add(buffer, startOffset, 1024*1024, func(offsetAddCallback int64, bytesReadAddCallback int64, e error) {
 		defer func() {
 			mu.Lock()
 			if done != nil {

@@ -18,7 +18,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"time"
 
 	"github.com/google/uuid"
@@ -305,7 +304,7 @@ func (rr *randomReader) ReadAt(
 		return
 	}
 
-	// Note: If we are reading the file for the first time and read type is sequential
+	/*// Note: If we are reading the file for the first time and read type is sequential
 	// then the file cache behavior is write-through i.e. data is first read from
 	// GCS, cached in file and then served from that file. But the cacheHit is
 	// false in that case.
@@ -373,8 +372,8 @@ func (rr *randomReader) ReadAt(
 		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, end, rr.readType)
 		return
 	}
-
-	objectData.Size, err = rr.readFromMultiRangeReader(ctx, p, offset, end, TimeoutForMultiRangeRead)
+	*/
+	objectData.Size, err = rr.readFromMultiRangeReader(ctx, p, offset, -1, TimeoutForMultiRangeRead)
 	return
 }
 
