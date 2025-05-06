@@ -387,8 +387,8 @@ func (rr *randomReader) ReadAt(
 	}
 	*/
 
-	objectData.DataBuf = rr.data
-	objectData.Size = len(rr.data)
+	objectData.DataBuf = rr.data[0:len(p)]
+	objectData.Size = len(p)
 	//objectData.Size, err = rr.readFromMultiRangeReader(ctx, p, offset, -1, TimeoutForMultiRangeRead)
 	return
 }
