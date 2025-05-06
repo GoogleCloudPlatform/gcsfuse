@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"time"
 
 	"github.com/google/uuid"
@@ -306,7 +307,7 @@ func (rr *randomReader) ReadAt(
 		return
 	}
 
-	/*// Note: If we are reading the file for the first time and read type is sequential
+	// Note: If we are reading the file for the first time and read type is sequential
 	// then the file cache behavior is write-through i.e. data is first read from
 	// GCS, cached in file and then served from that file. But the cacheHit is
 	// false in that case.
@@ -332,6 +333,7 @@ func (rr *randomReader) ReadAt(
 	// For parallel sequential reads to a single file, not throwing away the connections
 	// is a 15-20x improvement in throughput: 150-200 MiB/s instead of 10 MiB/s.
 	if rr.reader != nil && rr.start < offset && offset-rr.start < maxReadSize {
+		logger.Errorf("Discarding data")
 		bytesToSkip := offset - rr.start
 		discardedBytes, copyError := io.CopyN(io.Discard, rr.reader, int64(bytesToSkip))
 		// io.EOF is expected if the reader is shorter than the requested offset to read.
@@ -346,6 +348,7 @@ func (rr *randomReader) ReadAt(
 	// We will also clean up the existing reader if it can't serve the entire request.
 	dataToRead := math.Min(float64(offset+int64(len(p))), float64(rr.object.Size))
 	if rr.reader != nil && (rr.start != offset || int64(dataToRead) > rr.limit) {
+		logger.Errorf("closing the reader")
 		rr.closeReader()
 		rr.reader = nil
 		rr.cancel = nil
@@ -358,6 +361,7 @@ func (rr *randomReader) ReadAt(
 	}
 
 	if rr.reader != nil {
+		logger.Errorf("Reading from existing range reader")
 		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, -1, rr.readType)
 		return
 	}
@@ -371,25 +375,9 @@ func (rr *randomReader) ReadAt(
 
 	readerType := readerType(rr.readType, offset, end, rr.bucket.BucketType())
 	if readerType == RangeReader {
+		logger.Errorf("Reading from range reader")
 		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, end, rr.readType)
 		return
-	}
-	*/
-
-	if rr.count < 2 {
-		rr.count++
-		end, err := rr.getReadInfo(offset, int64(len(p)))
-		if err != nil {
-			err = fmt.Errorf("ReadAt: getReaderInfo: %w", err)
-			return objectData, err
-		}
-
-		readerType := readerType(rr.readType, offset, end, rr.bucket.BucketType())
-		if readerType == RangeReader {
-			logger.Errorf("invoking range reader")
-			objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, end, rr.readType)
-			return objectData, err
-		}
 	}
 
 	objectData.Size, err = rr.readFromMultiRangeReader(ctx, p, offset, -1, TimeoutForMultiRangeRead)
