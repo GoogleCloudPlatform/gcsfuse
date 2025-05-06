@@ -172,6 +172,8 @@ type randomReader struct {
 	isMRDInUse bool
 
 	metricHandle common.MetricHandle
+	readCount    int64
+	prevOffset   int64
 }
 
 func (rr *randomReader) CheckInvariants() {
@@ -321,6 +323,8 @@ func (rr *randomReader) ReadAt(
 		return
 	}
 
+	rr.readCount++
+
 	// Check first if we can read using existing reader. if not, determine which
 	// api to use and call gcs accordingly.
 
@@ -356,6 +360,15 @@ func (rr *randomReader) ReadAt(
 			// result in reader size not growing for random reads scenario.
 			rr.seeks++
 		}
+	} else if rr.reader == nil {
+		if rr.prevOffset != offset {
+			rr.seeks++
+		}
+	}
+
+	rr.prevOffset = offset + int64(len(p))
+	if rr.prevOffset > int64(rr.object.Size) {
+		rr.prevOffset = int64(rr.object.Size)
 	}
 
 	if rr.reader != nil {
