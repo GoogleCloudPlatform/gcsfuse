@@ -50,7 +50,7 @@ func (testSuite *ControlClientTest) TestStorageControlClient() {
 	clientOpts = append(clientOpts, option.WithoutAuthentication())
 	clientConfig := GetDefaultStorageClientConfig()
 
-	controlClient, err := CreateGRPCControlClient(context.Background(), clientOpts, &clientConfig, "")
+	controlClient, err := CreateGRPCControlClient(context.Background(), clientOpts, &clientConfig)
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), controlClient)
