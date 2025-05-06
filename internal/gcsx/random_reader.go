@@ -103,7 +103,7 @@ const (
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
 func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper) RandomReader {
-	return &randomReader{
+	rr := &randomReader{
 		object:                o,
 		bucket:                bucket,
 		start:                 -1,
@@ -117,7 +117,12 @@ func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb i
 		mrdWrapper:            mrdWrapper,
 		metricHandle:          metricHandle,
 		count:                 0,
+		data:                  make([]byte, 1024*1024),
 	}
+	for i := 0; i < 1024*1024; i++ {
+		rr.data[i] = 'A'
+	}
+	return rr
 }
 
 type randomReader struct {
@@ -169,10 +174,12 @@ type randomReader struct {
 	mrdWrapper *MultiRangeDownloaderWrapper
 
 	// boolean variable to determine if MRD is being used or not.
+	// boolean variable to determine if MRD is being used or not.
 	isMRDInUse bool
 
 	metricHandle common.MetricHandle
 	count        int64
+	data         []byte
 }
 
 func (rr *randomReader) CheckInvariants() {
@@ -379,7 +386,10 @@ func (rr *randomReader) ReadAt(
 		return
 	}
 	*/
-	objectData.Size, err = rr.readFromMultiRangeReader(ctx, p, offset, -1, TimeoutForMultiRangeRead)
+
+	objectData.DataBuf = rr.data
+	objectData.Size = len(rr.data)
+	//objectData.Size, err = rr.readFromMultiRangeReader(ctx, p, offset, -1, TimeoutForMultiRangeRead)
 	return
 }
 
