@@ -20,6 +20,7 @@ import (
 	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googleapis/gax-go/v2"
+	"google.golang.org/grpc/metadata"
 )
 
 type StorageControlClient interface {
@@ -36,4 +37,40 @@ type StorageControlClient interface {
 	RenameFolder(ctx context.Context, req *controlpb.RenameFolderRequest, opts ...gax.CallOption) (*control.RenameFolderOperation, error)
 
 	CreateFolder(ctx context.Context, req *controlpb.CreateFolderRequest, opts ...gax.CallOption) (*controlpb.Folder, error)
+}
+
+// storageControlClientWithBillingProject is a wrapper for an existing
+// StorageControlClient object in that it passes
+// the billing project in every call made through the base StorageControlClient.
+type storageControlClientWithBillingProject struct {
+	raw            StorageControlClient
+	billingProject string
+}
+
+func (sccwbp *storageControlClientWithBillingProject) contextWithBillingProject(ctx context.Context) context.Context {
+	return metadata.AppendToOutgoingContext(ctx, "x-goog-user-project", sccwbp.billingProject)
+}
+
+func (sccwbp *storageControlClientWithBillingProject) GetStorageLayout(ctx context.Context,
+	req *controlpb.GetStorageLayoutRequest,
+	opts ...gax.CallOption) (*controlpb.StorageLayout, error) {
+	return sccwbp.raw.GetStorageLayout(sccwbp.contextWithBillingProject(ctx), req, opts...)
+}
+
+func (sccwbp *storageControlClientWithBillingProject) DeleteFolder(ctx context.Context,
+	req *controlpb.DeleteFolderRequest,
+	opts ...gax.CallOption) error {
+	return sccwbp.raw.DeleteFolder(sccwbp.contextWithBillingProject(ctx), req, opts...)
+}
+
+func (sccwbp *storageControlClientWithBillingProject) GetFolder(ctx context.Context, req *controlpb.GetFolderRequest, opts ...gax.CallOption) (*controlpb.Folder, error) {
+	return sccwbp.raw.GetFolder(sccwbp.contextWithBillingProject(ctx), req, opts...)
+}
+
+func (sccwbp *storageControlClientWithBillingProject) RenameFolder(ctx context.Context, req *controlpb.RenameFolderRequest, opts ...gax.CallOption) (*control.RenameFolderOperation, error) {
+	return sccwbp.raw.RenameFolder(sccwbp.contextWithBillingProject(ctx), req, opts...)
+}
+
+func (sccwbp *storageControlClientWithBillingProject) CreateFolder(ctx context.Context, req *controlpb.CreateFolderRequest, opts ...gax.CallOption) (*controlpb.Folder, error) {
+	return sccwbp.raw.CreateFolder(sccwbp.contextWithBillingProject(ctx), req, opts...)
 }
