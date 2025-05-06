@@ -102,6 +102,14 @@ type Bucket interface {
 	// writer is closed (object is finalised).
 	CreateObjectChunkWriter(ctx context.Context, req *CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (Writer, error)
 
+	// CreateAppendableObjectWriter creates a *storage.Writer to an object which has been
+	// partially flushed to GCS, but not finalized. All bytes written will be appended
+	// continuing from the offset.
+	CreateAppendableObjectWriter(ctx context.Context,
+		req *CreateObjectRequest,
+		opts *storage.AppendableWriterOpts,
+	) (Writer, error)
+
 	// FinalizeUpload closes the storage.Writer which completes the write
 	// operation and creates an object on GCS.
 	FinalizeUpload(ctx context.Context, writer Writer) (*MinObject, error)
