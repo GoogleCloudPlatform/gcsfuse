@@ -387,9 +387,9 @@ func (rr *randomReader) ReadAt(
 	}
 	*/
 
-	objectData.DataBuf = rr.data[0:len(p)]
-	objectData.Size = len(p)
-	//objectData.Size, err = rr.readFromMultiRangeReader(ctx, p, offset, -1, TimeoutForMultiRangeRead)
+	/*objectData.DataBuf = rr.data[0:len(p)]
+	objectData.Size = len(p)*/
+	objectData.Size, err = rr.readFromMultiRangeReader(ctx, p, offset, -1, TimeoutForMultiRangeRead)
 	return
 }
 
@@ -647,10 +647,10 @@ func (rr *randomReader) readFromMultiRangeReader(ctx context.Context, p []byte, 
 		return 0, fmt.Errorf("readFromMultiRangeReader: Invalid MultiRangeDownloaderWrapper")
 	}
 
-	if !rr.isMRDInUse {
+	/*if !rr.isMRDInUse {
 		rr.isMRDInUse = true
 		rr.mrdWrapper.IncrementRefCount()
-	}
+	}*/
 
 	bytesRead, err = rr.mrdWrapper.Read(ctx, p, offset, end, timeout, rr.metricHandle)
 	rr.totalReadBytes += uint64(bytesRead)
