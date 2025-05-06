@@ -276,7 +276,7 @@ func (s *InactiveTimeoutReaderTestSuite) Test_Close_ExplicitClose() {
 	err := s.reader.Close()
 
 	s.NoError(err)
-	s.Nil(s.reader.(*inactiveTimeoutReader).cancel)
+	s.Nil(s.reader.(*inactiveTimeoutReader).gcsReader)
 	s.reader = nil // Prevent TearDownTest from closing again
 }
 
