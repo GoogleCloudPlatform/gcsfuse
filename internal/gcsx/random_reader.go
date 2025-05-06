@@ -116,6 +116,7 @@ func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb i
 		cacheFileForRangeRead: cacheFileForRangeRead,
 		mrdWrapper:            mrdWrapper,
 		metricHandle:          metricHandle,
+		count:                 0,
 	}
 }
 
@@ -171,6 +172,7 @@ type randomReader struct {
 	isMRDInUse bool
 
 	metricHandle common.MetricHandle
+	count        int64
 }
 
 func (rr *randomReader) CheckInvariants() {
@@ -373,6 +375,23 @@ func (rr *randomReader) ReadAt(
 		return
 	}
 	*/
+
+	if rr.count == 0 {
+		rr.count++
+		end, err := rr.getReadInfo(offset, int64(len(p)))
+		if err != nil {
+			err = fmt.Errorf("ReadAt: getReaderInfo: %w", err)
+			return
+		}
+
+		readerType := readerType(rr.readType, offset, end, rr.bucket.BucketType())
+		if readerType == RangeReader {
+			logger.Errorf("invoking range reader")
+			objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, end, rr.readType)
+			return
+		}
+	}
+
 	objectData.Size, err = rr.readFromMultiRangeReader(ctx, p, offset, -1, TimeoutForMultiRangeRead)
 	return
 }
