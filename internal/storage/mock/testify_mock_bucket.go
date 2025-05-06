@@ -17,6 +17,7 @@ package mock
 import (
 	"context"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/stretchr/testify/mock"
 )
@@ -53,6 +54,14 @@ func (m *TestifyMockBucket) CreateObject(ctx context.Context, req *gcs.CreateObj
 }
 
 func (m *TestifyMockBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (wc gcs.Writer, err error) {
+	args := m.Called(ctx, req)
+	if args.Get(1) != nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(gcs.Writer), nil
+}
+
+func (m *TestifyMockBucket) CreateAppendableObjectWriter(ctx context.Context, req *gcs.CreateObjectRequest, opts *storage.AppendableWriterOpts) (wc gcs.Writer, err error) {
 	args := m.Called(ctx, req)
 	if args.Get(1) != nil {
 		return nil, args.Error(1)

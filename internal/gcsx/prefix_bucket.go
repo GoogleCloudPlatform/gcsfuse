@@ -19,6 +19,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
@@ -103,6 +104,20 @@ func (b *prefixBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cre
 	mReq.Name = b.wrappedName(req.Name)
 
 	wc, err := b.wrapped.CreateObjectChunkWriter(ctx, mReq, chunkSize, callBack)
+	if err != nil {
+		return nil, err
+	}
+
+	return wc, err
+}
+
+func (b *prefixBucket) CreateAppendableObjectWriter(ctx context.Context, req *gcs.CreateObjectRequest, opts *storage.AppendableWriterOpts) (gcs.Writer, error) {
+	// Modify the request and call through.
+	mReq := new(gcs.CreateObjectRequest)
+	*mReq = *req
+	mReq.Name = b.wrappedName(req.Name)
+
+	wc, err := b.wrapped.CreateAppendableObjectWriter(ctx, req, opts)
 	if err != nil {
 		return nil, err
 	}

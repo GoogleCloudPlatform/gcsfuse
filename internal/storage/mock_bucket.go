@@ -11,6 +11,7 @@ import (
 	runtime "runtime"
 	unsafe "unsafe"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	oglemock "github.com/jacobsa/oglemock"
 	context "golang.org/x/net/context"
@@ -157,6 +158,10 @@ func (m *mockBucket) CreateObjectChunkWriter(p0 context.Context, p1 *gcs.CreateO
 		o1 = retVals[1].(error)
 	}
 
+	return
+}
+
+func (m *mockBucket) CreateAppendableObjectWriter(p0 context.Context, p1 *gcs.CreateObjectRequest, p2 *storage.AppendableWriterOpts) (o0 gcs.Writer, o1 error) {
 	return
 }
 

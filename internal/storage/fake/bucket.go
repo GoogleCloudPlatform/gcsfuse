@@ -29,6 +29,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/jacobsa/syncutil"
@@ -689,6 +690,11 @@ func (b *bucket) CreateObject(
 
 func (b *bucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, _ int, _ func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
 	return NewFakeObjectWriter(b, req)
+}
+
+func (b *bucket) CreateAppendableObjectWriter(ctx context.Context, req *gcs.CreateObjectRequest, opts *storage.AppendableWriterOpts) (gcs.Writer, error) {
+	//TODO implement it
+	return nil, nil
 }
 
 func (b *bucket) FlushPendingWrites(ctx context.Context, w gcs.Writer) (*gcs.MinObject, error) {
