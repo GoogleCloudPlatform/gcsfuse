@@ -18,7 +18,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"time"
 
 	"github.com/google/uuid"
@@ -332,7 +331,7 @@ func (rr *randomReader) ReadAt(
 	// re-use GCS connection and avoid throwing away already read data.
 	// For parallel sequential reads to a single file, not throwing away the connections
 	// is a 15-20x improvement in throughput: 150-200 MiB/s instead of 10 MiB/s.
-	if rr.reader != nil && rr.start < offset && offset-rr.start < maxReadSize {
+	/*if rr.reader != nil && rr.start < offset && offset-rr.start < maxReadSize {
 		logger.Errorf("Discarding data")
 		bytesToSkip := offset - rr.start
 		discardedBytes, copyError := io.CopyN(io.Discard, rr.reader, int64(bytesToSkip))
@@ -379,7 +378,7 @@ func (rr *randomReader) ReadAt(
 		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, end, rr.readType)
 		return
 	}
-
+	*/
 	objectData.Size, err = rr.readFromMultiRangeReader(ctx, p, offset, -1, TimeoutForMultiRangeRead)
 	return
 }
