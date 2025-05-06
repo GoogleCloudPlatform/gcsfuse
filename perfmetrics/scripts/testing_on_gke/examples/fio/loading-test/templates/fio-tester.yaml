@@ -147,6 +147,8 @@ spec:
         echo "{{ .Values.gcsfuse.mountOptions }}" > ${output_dir}/gcsfuse_mount_options
         {{ end }}
         echo "{{ .Values.podName }}" > ${output_dir}/pod_name
+        echo "{{ .Values.nodeType }}" > ${output_dir}/machine_type
+        echo "{{ .Values.bucketName }}" > ${output_dir}/bucket_name
 
         for i in $(seq $epoch); do
           echo "[Epoch ${i}] start time:" `date +%s`
