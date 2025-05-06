@@ -78,22 +78,22 @@ func TestDeleteFileFromBucketDirectory(t *testing.T) {
 	checkIfFileDeletionSucceeded(filePath, t)
 }
 
-// Remove testBucket/A.txt
+// Tests that deleting and recreating a non-empty file works as expected.
 func TestDeleteAndRecreateFile(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
-	// Random file-name to isolate it from other parallel invocations of the same test.
+	// Create a file with random name to isolate it from other parallel invocations of the same test.
 	fileName := setup.GenerateRandomFileName("fileBeingDeletedAndRecreated")
 	filePath := path.Join(testDir, fileName)
 
 	createFile(filePath, t)
 
-	// Delete file.
+	// Delete it.
 	checkIfFileDeletionSucceeded(filePath, t)
 
-	// Recreate file.
+	// Recreate it.
 	createFile(filePath, t)
 
-	// clean-up
+	// Delete it again.
 	checkIfFileDeletionSucceeded(filePath, t)
 }
