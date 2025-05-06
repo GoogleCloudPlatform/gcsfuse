@@ -376,7 +376,7 @@ func (rr *randomReader) ReadAt(
 	}
 	*/
 
-	if rr.count == 0 {
+	if rr.count < 2 {
 		rr.count++
 		end, err := rr.getReadInfo(offset, int64(len(p)))
 		if err != nil {
