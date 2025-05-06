@@ -249,6 +249,69 @@ func isDynamicMount(bucketName string) bool {
 	return bucketName == "" || bucketName == "_"
 }
 
+// forwardedEnvVars collects and returns all the environment
+// variables which should be sent to the gcsfuse daemon
+// process in case of background run.
+func forwardedEnvVars() []string {
+	// Pass along PATH so that the daemon can find fusermount on Linux.
+	env := []string{
+		fmt.Sprintf("PATH=%s", os.Getenv("PATH")),
+	}
+
+	// Pass through the https_proxy/http_proxy environment variable,
+	// in case the host requires a proxy server to reach the GCS endpoint.
+	// https_proxy has precedence over http_proxy, in case both are set
+	if p, ok := os.LookupEnv("https_proxy"); ok {
+		env = append(env, fmt.Sprintf("https_proxy=%s", p))
+		fmt.Fprintf(
+			os.Stdout,
+			"Added environment https_proxy: %s\n",
+			p)
+	} else if p, ok := os.LookupEnv("http_proxy"); ok {
+		env = append(env, fmt.Sprintf("http_proxy=%s", p))
+		fmt.Fprintf(
+			os.Stdout,
+			"Added environment http_proxy: %s\n",
+			p)
+	}
+
+	// Forward GOOGLE_APPLICATION_CREDENTIALS, since we document in
+	// mounting.md that it can be used for specifying a key file.
+	// Forward the no_proxy environment variable. Whenever
+	// using the http(s)_proxy environment variables. This should
+	// also be included to know for which hosts the use of proxies
+	// should be ignored.
+	// Forward GCE_METADATA_HOST, GCE_METADATA_ROOT, GCE_METADATA_IP as these are used for mocked metadata services.
+	for _, envvar := range []string{"GOOGLE_APPLICATION_CREDENTIALS", "no_proxy", "GCE_METADATA_HOST", "GCE_METADATA_ROOT", "GCE_METADATA_IP"} {
+		if envval, ok := os.LookupEnv(envvar); ok {
+			env = append(env, fmt.Sprintf("%s=%s", envvar, envval))
+			fmt.Fprintf(
+				os.Stdout,
+				"Added environment %s: %s\n",
+				envvar, envval)
+		}
+	}
+
+	// Pass the parent process working directory to child process via
+	// environment variable. This variable will be used to resolve relative paths.
+	if parentProcessExecutionDir, err := os.Getwd(); err == nil {
+		env = append(env, fmt.Sprintf("%s=%s", util.GCSFUSE_PARENT_PROCESS_DIR,
+			parentProcessExecutionDir))
+	}
+
+	// Here, parent process doesn't pass the $HOME to child process implicitly,
+	// hence we need to pass it explicitly.
+	if homeDir, err := os.UserHomeDir(); err == nil {
+		env = append(env, fmt.Sprintf("HOME=%s", homeDir))
+	}
+
+	// This environment variable will be helpful to distinguish b/w the main
+	// process and daemon process. If this environment variable set that means
+	// programme is running as daemon process.
+	env = append(env, fmt.Sprintf("%s=true", logger.GCSFuseInBackgroundMode))
+	return env
+}
+
 func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	// Ideally this call to SetLogFormat (which internally creates a new defaultLogger)
 	// should be set as an else to the 'if flags.Foreground' check below, but currently
@@ -300,61 +363,7 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 		args := append([]string{"--foreground"}, os.Args[1:]...)
 		args[len(args)-1] = mountPoint
 
-		// Pass along PATH so that the daemon can find fusermount on Linux.
-		env := []string{
-			fmt.Sprintf("PATH=%s", os.Getenv("PATH")),
-		}
-
-		// Pass along GOOGLE_APPLICATION_CREDENTIALS, since we document in
-		// mounting.md that it can be used for specifying a key file.
-		if p, ok := os.LookupEnv("GOOGLE_APPLICATION_CREDENTIALS"); ok {
-			env = append(env, fmt.Sprintf("GOOGLE_APPLICATION_CREDENTIALS=%s", p))
-		}
-		// Pass through the https_proxy/http_proxy environment variable,
-		// in case the host requires a proxy server to reach the GCS endpoint.
-		// https_proxy has precedence over http_proxy, in case both are set
-		if p, ok := os.LookupEnv("https_proxy"); ok {
-			env = append(env, fmt.Sprintf("https_proxy=%s", p))
-			fmt.Fprintf(
-				os.Stdout,
-				"Added environment https_proxy: %s\n",
-				p)
-		} else if p, ok := os.LookupEnv("http_proxy"); ok {
-			env = append(env, fmt.Sprintf("http_proxy=%s", p))
-			fmt.Fprintf(
-				os.Stdout,
-				"Added environment http_proxy: %s\n",
-				p)
-		}
-		// Pass through the no_proxy environment variable. Whenever
-		// using the http(s)_proxy environment variables. This should
-		// also be included to know for which hosts the use of proxies
-		// should be ignored.
-		if p, ok := os.LookupEnv("no_proxy"); ok {
-			env = append(env, fmt.Sprintf("no_proxy=%s", p))
-			fmt.Fprintf(
-				os.Stdout,
-				"Added environment no_proxy: %s\n",
-				p)
-		}
-
-		// Pass the parent process working directory to child process via
-		// environment variable. This variable will be used to resolve relative paths.
-		if parentProcessExecutionDir, err := os.Getwd(); err == nil {
-			env = append(env, fmt.Sprintf("%s=%s", util.GCSFUSE_PARENT_PROCESS_DIR,
-				parentProcessExecutionDir))
-		}
-
-		// Here, parent process doesn't pass the $HOME to child process implicitly,
-		// hence we need to pass it explicitly.
-		if homeDir, _ := os.UserHomeDir(); err == nil {
-			env = append(env, fmt.Sprintf("HOME=%s", homeDir))
-		}
-
-		// This environment variable will be helpful to distinguish b/w the main
-		// process and daemon process. If this environment variable set that means
-		// programme is running as daemon process.
-		env = append(env, fmt.Sprintf("%s=true", logger.GCSFuseInBackgroundMode))
+		env := forwardedEnvVars()
 
 		// logfile.stderr will capture the standard error (stderr) output of the gcsfuse background process.
 		var stderrFile *os.File
