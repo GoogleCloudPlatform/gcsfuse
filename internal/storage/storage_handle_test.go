@@ -227,6 +227,15 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWhenJsonReadEnabled() {
 	assert.NotNil(testSuite.T(), handleCreated)
 }
 
+func (testSuite *StorageHandleTest) TestNewStorageHandleWithBillingProject() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+
+	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, projectID)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), handleCreated)
+}
+
 func (testSuite *StorageHandleTest) TestNewStorageHandleWithInvalidClientProtocol() {
 	fakeStorage := NewFakeStorageWithMockClient(testSuite.mockClient, "test-protocol")
 	testSuite.mockStorageLayout(gcs.BucketType{})
