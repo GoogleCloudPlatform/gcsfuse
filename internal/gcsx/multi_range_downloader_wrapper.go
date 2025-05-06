@@ -200,9 +200,10 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 	}
 
 	// We will only read what is requested by the client. Hence, capping end to the requested value.
-	if endOffset > startOffset+int64(len(buf)) {
+	endOffset = startOffset + int64(len(buf))
+	/*if endOffset > startOffset+int64(len(buf)) {
 		endOffset = startOffset + int64(len(buf))
-	}
+	}*/
 
 	buffer := bytes.NewBuffer(buf)
 	buffer.Reset()
@@ -219,7 +220,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 	requestId := uuid.New()
 	logger.Tracef("%.13v <- MultiRangeDownloader::Add (%s, [%d, %d))", requestId, mrdWrapper.object.Name, startOffset, endOffset)
 	start := time.Now()
-	mrdWrapper.Wrapped.Add(buffer, startOffset, 1024*1024, func(offsetAddCallback int64, bytesReadAddCallback int64, e error) {
+	mrdWrapper.Wrapped.Add(buffer, startOffset, endOffset-startOffset, func(offsetAddCallback int64, bytesReadAddCallback int64, e error) {
 		defer func() {
 			mu.Lock()
 			if done != nil {
