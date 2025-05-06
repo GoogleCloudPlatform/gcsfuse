@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
@@ -62,8 +63,12 @@ type GCSReader struct {
 	readType string
 
 	sequentialReadSizeMb int32
-	seeks                uint64
-	totalReadBytes       uint64
+
+	// seeks represents the number of random reads performed by the reader.
+	seeks uint64
+
+	// totalReadBytes is the total number of bytes read by the reader.
+	totalReadBytes uint64
 }
 
 func NewGCSReader(obj *gcs.MinObject, bucket gcs.Bucket, metricHandle common.MetricHandle, mrdWrapper *gcsx.MultiRangeDownloaderWrapper, sequentialReadSizeMb int32) *GCSReader {
@@ -78,19 +83,23 @@ func NewGCSReader(obj *gcs.MinObject, bucket gcs.Bucket, metricHandle common.Met
 }
 
 func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.ReaderResponse, error) {
+	var readerResponse gcsx.ReaderResponse
+
+	if offset >= int64(gr.object.Size) {
+		return readerResponse, io.EOF
+	}
+
 	if gr.rangeReader.invalidateReaderIfMisalignedOrTooSmall(offset, p) {
 		gr.seeks++
 	}
 
-	var readerResponse gcsx.ReaderResponse
 	readReq := &gcsx.GCSReaderRequest{
 		Buffer:    p,
 		Offset:    offset,
 		EndOffset: -1,
 	}
-	var err error
 
-	readerResponse, err = gr.rangeReader.readFromExistingReader(ctx, readReq)
+	readerResponse, err := gr.rangeReader.readFromExistingReader(ctx, readReq)
 	if err == nil {
 		return readerResponse, nil
 	}
@@ -98,7 +107,7 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.R
 		return readerResponse, err
 	}
 
-	// If we don't have a reader, determine whether to read from NewReader or Mrr.
+	// If we don't have a reader, determine whether to read from RangeReader or MultiRangeReader.
 	end, err := gr.getReadInfo(offset, int64(len(p)))
 	if err != nil {
 		err = fmt.Errorf("ReadAt: getReaderInfo: %w", err)
@@ -106,7 +115,7 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.R
 	}
 
 	readReq.EndOffset = end
-	readerType := gr.getReaderType(offset, end, gr.bucket.BucketType())
+	readerType := gr.readerType(offset, end, gr.bucket.BucketType())
 	if readerType == RangeReaderType {
 		readerResponse, err = gr.rangeReader.ReadAt(ctx, readReq)
 		gr.totalReadBytes += uint64(readerResponse.Size)
@@ -115,15 +124,12 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.R
 
 	readerResponse, err = gr.mrr.ReadAt(ctx, readReq)
 	gr.totalReadBytes += uint64(readerResponse.Size)
-	if err != nil {
-		return readerResponse, err
-	}
 
-	return readerResponse, nil
+	return readerResponse, err
 }
 
 // readerType specifies the go-sdk interface to use for reads.
-func (gr *GCSReader) getReaderType(start int64, end int64, bucketType gcs.BucketType) ReaderType {
+func (gr *GCSReader) readerType(start int64, end int64, bucketType gcs.BucketType) ReaderType {
 	bytesToBeRead := end - start
 	if gr.readType == util.Random && bytesToBeRead < maxReadSize && bucketType.Zonal {
 		return MultiRangeReaderType
@@ -133,7 +139,7 @@ func (gr *GCSReader) getReaderType(start int64, end int64, bucketType gcs.Bucket
 
 // getReadInfo determines the readType and provides the range to query GCS.
 // Range here is [start, end]. end is computed using the readType, start offset
-// and size of the data the callers needs.
+// and size of the data the caller needs.
 func (gr *GCSReader) getReadInfo(start int64, size int64) (int64, error) {
 	// Make sure start and size are legal.
 	if start < 0 || uint64(start) > gr.object.Size || size < 0 {
