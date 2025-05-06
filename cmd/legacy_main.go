@@ -301,7 +301,7 @@ func forwardedEnvVars() []string {
 
 	// Here, parent process doesn't pass the $HOME to child process implicitly,
 	// hence we need to pass it explicitly.
-	if homeDir, _ := os.UserHomeDir(); true {
+	if homeDir, err := os.UserHomeDir(); err == nil {
 		env = append(env, fmt.Sprintf("HOME=%s", homeDir))
 	}
 
