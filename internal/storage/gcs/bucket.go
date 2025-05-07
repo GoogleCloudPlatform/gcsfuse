@@ -106,9 +106,7 @@ type Bucket interface {
 	// partially flushed to GCS, but not finalized. All bytes written will be appended
 	// continuing from the offset.
 	CreateAppendableObjectWriter(ctx context.Context,
-		req *CreateObjectRequest,
-		opts *storage.AppendableWriterOpts,
-	) (Writer, error)
+		req *CreateObjectChunkWriterRequest) (Writer, int64, error)
 
 	// FinalizeUpload closes the storage.Writer which completes the write
 	// operation and creates an object on GCS.

@@ -17,7 +17,6 @@ package storage
 import (
 	"context"
 
-	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/stretchr/testify/mock"
 )
@@ -61,12 +60,12 @@ func (m *TestifyMockBucket) CreateObjectChunkWriter(ctx context.Context, req *gc
 	return args.Get(0).(gcs.Writer), nil
 }
 
-func (m *TestifyMockBucket) CreateAppendableObjectWriter(ctx context.Context, req *gcs.CreateObjectRequest, opts *storage.AppendableWriterOpts) (wc gcs.Writer, err error) {
+func (m *TestifyMockBucket) CreateAppendableObjectWriter(ctx context.Context, req *gcs.CreateObjectChunkWriterRequest) (wc gcs.Writer, off int64, err error) {
 	args := m.Called(ctx, req)
 	if args.Get(1) != nil {
-		return nil, args.Error(1)
+		return nil, 0, args.Error(2)
 	}
-	return args.Get(0).(gcs.Writer), nil
+	return args.Get(0).(gcs.Writer), args.Get(1).(int64), nil
 }
 
 func (m *TestifyMockBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.MinObject, error) {

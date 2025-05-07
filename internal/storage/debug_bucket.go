@@ -182,12 +182,11 @@ func (b *debugBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.Crea
 }
 
 func (b *debugBucket) CreateAppendableObjectWriter(ctx context.Context,
-	req *gcs.CreateObjectRequest,
-	opts *storagev2.AppendableWriterOpts) (wc gcs.Writer, err error) {
+	req *gcs.CreateObjectChunkWriterRequest) (wc gcs.Writer, off int64, err error) {
 	id, desc, start := b.startRequest("CreateAppendableObjectWriter(%q)", req.Name)
 	defer b.finishRequest(id, desc, start, &err)
 
-	wc, err = b.wrapped.CreateAppendableObjectWriter(context.WithValue(ctx, gcs.ReqIdField, id), req, opts)
+	wc, off, err = b.wrapped.CreateAppendableObjectWriter(context.WithValue(ctx, gcs.ReqIdField, id), req)
 	return
 }
 
