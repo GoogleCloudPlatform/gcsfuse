@@ -169,8 +169,8 @@ func (itr *inactiveTimeoutReader) Close() (err error) {
 	itr.mu.Lock()
 	defer itr.mu.Unlock()
 
-	itr.cancel = nil
-	itr.ctx = nil
+	// Signal background periodic routine to stop.
+	itr.cancel()
 
 	if itr.gcsReader == nil {
 		return nil
@@ -179,9 +179,9 @@ func (itr *inactiveTimeoutReader) Close() (err error) {
 	err = itr.gcsReader.Close()
 	itr.gcsReader = nil
 	if err != nil {
-		return fmt.Errorf("close reader: %w", err)
+		return fmt.Errorf("Close reader: %w", err)
 	}
-	return err
+	return nil
 }
 
 // ReadHandle returns the read handle associated with the underlying GCS reader.

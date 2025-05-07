@@ -18,6 +18,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -188,6 +190,8 @@ func (s *InactiveTimeoutReaderTestSuite) Test_Read_ReconnectFails() {
 	// Wait for the monitor routine to make the read inactive.
 	require.Eventually(s.T(), func() bool {
 		rr := s.reader.(*inactiveTimeoutReader)
+		rr.mu.Lock()
+		defer rr.mu.Unlock()
 		return !rr.isActive
 	}, time.Second, 10*time.Millisecond, "Monitor did mark the reader inactive in time")
 	// 2nd fire will close the inactive reader.
@@ -195,6 +199,8 @@ func (s *InactiveTimeoutReaderTestSuite) Test_Read_ReconnectFails() {
 	// Wait for the monitor routine to close the wrapped reader.
 	require.Eventually(s.T(), func() bool {
 		rr := s.reader.(*inactiveTimeoutReader)
+		rr.mu.Lock()
+		defer rr.mu.Unlock()
 		return (rr.gcsReader == nil)
 	}, time.Second, 10*time.Millisecond, "Monitor did not close the reader in time")
 	reconnectErr := errors.New("failed to create new reader")
@@ -226,6 +232,8 @@ func (s *InactiveTimeoutReaderTestSuite) Test_Read_TimeoutAndSuccessfulReconnect
 	// Wait for the monitor routine to make the read inactive.
 	require.Eventually(s.T(), func() bool {
 		rr := s.reader.(*inactiveTimeoutReader)
+		rr.mu.Lock()
+		defer rr.mu.Unlock()
 		return !rr.isActive
 	}, time.Second, 10*time.Millisecond, "Monitor did mark the reader inactive in time")
 	// 2nd fire will close the inactive reader.
@@ -233,6 +241,8 @@ func (s *InactiveTimeoutReaderTestSuite) Test_Read_TimeoutAndSuccessfulReconnect
 	// Wait for the monitor routine to close the wrapped reader.
 	require.Eventually(s.T(), func() bool {
 		rr := s.reader.(*inactiveTimeoutReader)
+		rr.mu.Lock()
+		defer rr.mu.Unlock()
 		return (rr.gcsReader == nil)
 	}, time.Second, 10*time.Millisecond, "Monitor did not close the reader in time")
 	expectedReadHandleAfterClose := s.initialFakeReader.Handle // The handle that should be stored after close
@@ -266,8 +276,7 @@ func (s *InactiveTimeoutReaderTestSuite) Test_Close_ExplicitClose() {
 	err := s.reader.Close()
 
 	s.NoError(err)
-	s.Nil(s.reader.(*inactiveTimeoutReader).cancel)
-	s.Nil(s.reader.(*inactiveTimeoutReader).ctx)
+	s.Nil(s.reader.(*inactiveTimeoutReader).gcsReader)
 	s.reader = nil // Prevent TearDownTest from closing again
 }
 
@@ -333,4 +342,37 @@ func (s *InactiveTimeoutReaderTestSuite) Test_closeGCSReader_NonNilReader() {
 	s.Equal(expectedHandleAfterClose, itr.readHandle, "readHandle should be updated from closed reader")
 }
 
-// TODO: Add concurrent test to make sure thread safety.
+func (s *InactiveTimeoutReaderTestSuite) TestRaceCondition() {
+	var wg sync.WaitGroup
+	wg.Add(2)
+	s.initialData = []byte(strings.Repeat("abc", 1000))
+	s.timeout = time.Second
+	s.readHandle = []byte("handle-before-close")
+	s.setupReader(0) // Sets up s.reader and s.initialFakeReader
+
+	// Read()
+	go func() {
+		defer wg.Done()
+		// Read the complete object with buffer size 100.
+		for offset := 0; offset < int(s.object.Size); offset += 100 {
+			rc := &fake.FakeReader{ReadCloser: getReadCloser(s.initialData[offset:])}
+			s.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(rc, nil).Maybe()
+			buf := make([]byte, 100)
+
+			n, err := s.reader.Read(buf)
+
+			s.NoError(err)
+			s.Equal(100, n)
+		}
+	}()
+
+	// Concurrent handleTimeout.
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 1000; i++ {
+			s.reader.(*inactiveTimeoutReader).handleTimeout()
+		}
+	}()
+
+	wg.Wait()
+}
