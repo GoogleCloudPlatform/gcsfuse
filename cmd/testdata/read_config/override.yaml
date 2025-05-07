@@ -1,0 +1,2 @@
+read:
+  inactive-stream-timeout: 30s

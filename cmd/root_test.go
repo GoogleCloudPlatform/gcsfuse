@@ -1282,3 +1282,43 @@ func TestArgParsing_GCSRetries(t *testing.T) {
 		})
 	}
 }
+
+func TestArgsParsing_ReadInactiveTimeoutConfig(t *testing.T) {
+	tests := []struct {
+		name            string
+		cfgFile         string
+		expectedTimeout time.Duration
+	}{
+		{
+			name:            "default",
+			cfgFile:         "empty.yaml",
+			expectedTimeout: 0,
+		},
+		{
+			name:            "override_default",
+			cfgFile:         "override.yaml",
+			expectedTimeout: 0,
+		},
+		{
+			name:            "override_with_grpc",
+			cfgFile:         "override_with_grpc.yaml",
+			expectedTimeout: 30 * time.Second,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotConfig *cfg.Config
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+				gotConfig = cfg
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs([]string{"gcsfuse", fmt.Sprintf("--config-file=testdata/read_config/%s", tc.cfgFile), "abc", "pqr"}, cmd))
+
+			err = cmd.Execute()
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedTimeout, gotConfig.Read.InactiveStreamTimeout)
+		})
+	}
+}

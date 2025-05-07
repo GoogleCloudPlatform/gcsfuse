@@ -66,6 +66,8 @@ type Config struct {
 
 	OnlyDir string `yaml:"only-dir"`
 
+	Read ReadConfig `yaml:"read"`
+
 	Write WriteConfig `yaml:"write"`
 }
 
@@ -227,6 +229,10 @@ type MonitoringConfig struct {
 	ExperimentalTracingMode string `yaml:"experimental-tracing-mode"`
 
 	ExperimentalTracingSamplingRatio float64 `yaml:"experimental-tracing-sampling-ratio"`
+}
+
+type ReadConfig struct {
+	InactiveStreamTimeout time.Duration `yaml:"inactive-stream-timeout"`
 }
 
 type ReadStallGcsRetriesConfig struct {
@@ -500,6 +506,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	}
 
 	flagSet.IntP("prometheus-port", "", 0, "Expose Prometheus metrics endpoint on this port and a path of /metrics.")
+
+	flagSet.DurationP("read-inactive-stream-timeout", "", 0*time.Nanosecond, "Duration of inactivity after which an open GCS read stream is automatically closed. This helps conserve resources when a file handle remains open without active Read calls. A value of '0s' disables this timeout. Note: Currently only applies when using the 'grpc' client-protocol.")
+
+	if err := flagSet.MarkHidden("read-inactive-stream-timeout"); err != nil {
+		return err
+	}
 
 	flagSet.DurationP("read-stall-initial-req-timeout", "", 20000000000*time.Nanosecond, "Initial value of the read-request dynamic timeout.")
 
@@ -857,6 +869,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metrics.prometheus-port", flagSet.Lookup("prometheus-port")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("read.inactive-stream-timeout", flagSet.Lookup("read-inactive-stream-timeout")); err != nil {
 		return err
 	}
 

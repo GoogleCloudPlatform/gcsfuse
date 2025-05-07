@@ -300,7 +300,6 @@
     https://storage.googleapis.com/storage/v1.
   default: ""
 
-
 - config-path: "gcs-connection.experimental-enable-json-read"
   flag-name: "experimental-enable-json-read"
   type: "bool"
@@ -655,6 +654,17 @@
   usage: "Mount only a specific directory within the bucket. See docs/mounting for more information"
   default: ""
 
+- config-path: "read.inactive-stream-timeout"
+  flag-name: "read-inactive-stream-timeout"
+  type: "duration"
+  usage: >-
+    Duration of inactivity after which an open GCS read stream is automatically closed.
+    This helps conserve resources when a file handle remains open without active Read calls.
+    A value of '0s' disables this timeout.
+    Note: Currently only applies when using the 'grpc' client-protocol.
+  default: "0s"
+  hide-flag: true
+
 - config-path: "write.block-size-mb"
   flag-name: "write-block-size-mb"
   type: "int"
@@ -667,8 +677,7 @@
 - config-path: "write.create-empty-file"
   flag-name: "create-empty-file"
   type: "bool"
-  usage: "For a new file, it creates an empty file in Cloud Storage bucket as a
-  hold."
+  usage: "For a new file, it creates an empty file in Cloud Storage bucket as a hold."
   default: false
 
 - config-path: "write.enable-streaming-writes"
