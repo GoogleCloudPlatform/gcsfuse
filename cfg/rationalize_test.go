@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type mockIsSet struct{}
@@ -600,7 +601,7 @@ func TestRationalizeReadInactiveTimeoutConfig(t *testing.T) {
 			expectedTimeout: 0,
 		},
 		{
-			name: "gRPC_client_protocol",
+			name: "grpc_client_protocol",
 			config: &Config{
 				Read: ReadConfig{
 					InactiveStreamTimeout: 60 * time.Second,
@@ -618,9 +619,8 @@ func TestRationalizeReadInactiveTimeoutConfig(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			if assert.NoError(t, Rationalize(&mockIsSet{}, tc.config, []string{})) {
-				assert.EqualValues(t, tc.expectedTimeout, tc.config.Read.InactiveStreamTimeout)
-			}
+			require.NoError(t, Rationalize(&mockIsSet{}, tc.config, []string{}))
+			assert.EqualValues(t, tc.expectedTimeout, tc.config.Read.InactiveStreamTimeout)
 		})
 	}
 }

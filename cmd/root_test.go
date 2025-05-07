@@ -1299,6 +1299,11 @@ func TestArgsParsing_ReadInactiveTimeoutConfig(t *testing.T) {
 			cfgFile:         "override.yaml",
 			expectedTimeout: 0,
 		},
+		{
+			name:            "override_with_grpc",
+			cfgFile:         "override_with_grpc.yaml",
+			expectedTimeout: 30 * time.Second,
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1312,9 +1317,8 @@ func TestArgsParsing_ReadInactiveTimeoutConfig(t *testing.T) {
 
 			err = cmd.Execute()
 
-			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expectedTimeout, gotConfig.Read.InactiveStreamTimeout)
-			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedTimeout, gotConfig.Read.InactiveStreamTimeout)
 		})
 	}
 }

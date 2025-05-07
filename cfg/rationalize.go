@@ -121,7 +121,7 @@ func resolveParallelDownloadsValue(v isSet, fc *FileCacheConfig, c *Config) {
 	}
 }
 
-func resolveReadconfig(c *Config, r *ReadConfig) {
+func resolveReadConfig(c *Config, r *ReadConfig) {
 	// Only enable for GRPC client protocol.
 	if c.GcsConnection.ClientProtocol != GRPC {
 		r.InactiveStreamTimeout = 0
@@ -148,7 +148,7 @@ func Rationalize(v isSet, c *Config, optimizedFlags []string) error {
 	resolveStatCacheMaxSizeMB(v, &c.MetadataCache, optimizedFlags)
 	resolveCloudMetricsUploadIntervalSecs(&c.Metrics)
 	resolveParallelDownloadsValue(v, &c.FileCache, c)
-	resolveReadconfig(c, &c.Read)
+	resolveReadConfig(c, &c.Read)
 
 	return nil
 }
