@@ -26,8 +26,8 @@ import sys
 # local library imports
 sys.path.append("../")
 import dlio_workload
-from utils.parse_logs_common import ensure_directory_exists, download_gcs_objects, parse_arguments, SUPPORTED_SCENARIOS
-from utils.utils import unix_to_timestamp, standard_timestamp, get_memory_from_monitoring_api, get_cpu_from_monitoring_api, timestamp_to_epoch
+from utils.parse_logs_common import ensure_directory_exists, download_gcs_objects, parse_arguments, SUPPORTED_SCENARIOS, fetch_cpu_memory_data
+from utils.utils import unix_to_timestamp, standard_timestamp, timestamp_to_epoch
 
 _LOCAL_LOGS_LOCATION = "../../bin/dlio-logs/logs"
 
@@ -174,28 +174,7 @@ def createOutputScenariosFromDownloadedFiles(args: dict) -> dict:
         )
         r["end"] = standard_timestamp(per_epoch_stats_data[str(i + 1)]["end"])
 
-        def fetch_cpu_memory_data():
-          if r["scenario"] != "local-ssd":
-            r["lowest_memory"], r["highest_memory"] = (
-                get_memory_from_monitoring_api(
-                    pod_name=r["pod_name"],
-                    start_epoch=r["start_epoch"],
-                    end_epoch=r["end_epoch"],
-                    project_id=args.project_id,
-                    cluster_name=args.cluster_name,
-                    namespace_name=args.namespace_name,
-                )
-            )
-            r["lowest_cpu"], r["highest_cpu"] = get_cpu_from_monitoring_api(
-                pod_name=r["pod_name"],
-                start_epoch=r["start_epoch"],
-                end_epoch=r["end_epoch"],
-                project_id=args.project_id,
-                cluster_name=args.cluster_name,
-                namespace_name=args.namespace_name,
-            )
-
-        fetch_cpu_memory_data()
+        fetch_cpu_memory_data(args=args, record=r)
 
         r["gcsfuse_mount_options"] = gcsfuse_mount_options
 
