@@ -3,7 +3,7 @@ on:
   # Enable triggering the workflow manually
   workflow_dispatch:
   push:
-    branches: [ "master" ]
+    branches: ["master"]
 
 jobs:
   flake-detector:
@@ -34,5 +34,5 @@ jobs:
       - name: Test all
         run: CGO_ENABLED=0 go test -p 1 -timeout 75m -count 5 -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./...`
 
-      - name: Cache RaceDetector Test
-        run: CGO_ENABLED=0 go test -p 1 -timeout 75m -count 5 ./internal/cache/...
+      - name: RaceDetector Test
+        run: CGO_ENABLED=0 go test -p 1 -timeout 75m -count 5 ./internal/cache/... ./internal/gcsx/...
