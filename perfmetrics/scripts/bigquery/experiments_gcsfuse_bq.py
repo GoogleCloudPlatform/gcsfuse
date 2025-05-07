@@ -28,9 +28,9 @@ from bigquery import constants
 class ExperimentsGCSFuseBQ:
   """
     Class to create and interact with Bigquery dataset and tables for storing
-  experiments configurations and their results.
+    experiments configurations and their results.
 
-  Attributes:
+    Attributes:
       project_id (str): The GCP project in which dataset and tables will be created
       dataset_id (str): The name of the dataset in the project that will store the tables
       bq_client (Optional[google.cloud.bigquery.client.Client]): The client for interacting with Bigquery.
@@ -150,9 +150,9 @@ class ExperimentsGCSFuseBQ:
     """
     # Create dataset if not exists
     dataset = bigquery.Dataset(f"{self.project_id}.{self.dataset_id}")
-      self.client.create_dataset(dataset, exists_ok=True)
-      # Wait for the dataset to be created and ready to be referenced
-      time.sleep(120)
+    self.client.create_dataset(dataset, exists_ok=True)
+    # Wait for the dataset to be created and ready to be referenced
+    time.sleep(120)
 
     # Query for creating experiment_configuration table if it does not exist
     query_create_table_experiment_configuration = """
@@ -177,7 +177,7 @@ class ExperimentsGCSFuseBQ:
         file_size_kb INT64,
         start_time INT64, 
         end_time INT64, 
-        iops FLOAT64,
+        iops FLOAT64, 
         bandwidth_bytes_per_sec INT64, 
         io_bytes INT64, 
         min_latency FLOAT64, 
@@ -238,7 +238,7 @@ class ExperimentsGCSFuseBQ:
     """.format(self.project_id, self.dataset_id, constants.LS_TABLE_ID, self.dataset_id, constants.CONFIGURATION_TABLE_ID)
 
     self._execute_query(query_create_table_experiment_configuration)
-      self._execute_query(query_create_table_fio_metrics)
+    self._execute_query(query_create_table_fio_metrics)
     self._execute_query(query_create_table_vm_metrics)
     self._execute_query(query_create_table_ls_metrics)
 

@@ -11,7 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Contains constants for bigquery."""
+"""Contains constants for bigquery.
+"""
 
 PROJECT_ID = 'gcs-fuse-test-ml'
 DATASET_ID = 'performance_metrics'
