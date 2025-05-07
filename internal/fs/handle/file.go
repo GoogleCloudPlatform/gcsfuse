@@ -22,8 +22,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/inode"
-	fileModeUtil "github.com/googlecloudplatform/gcsfuse/v2/internal/fs/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
 )
@@ -50,11 +50,11 @@ type FileHandle struct {
 	cacheFileForRangeRead bool
 	metricHandle          common.MetricHandle
 	// openMode is used to store the mode in which the file is opened.
-	openMode fileModeUtil.OpenMode
+	openMode util.OpenMode
 }
 
 // LOCKS_REQUIRED(fh.inode.mu)
-func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, openMode fileModeUtil.OpenMode) (fh *FileHandle) {
+func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, openMode util.OpenMode) (fh *FileHandle) {
 	fh = &FileHandle{
 		inode:                 inode,
 		fileCacheHandler:      fileCacheHandler,
@@ -63,7 +63,7 @@ func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, 
 		openMode:              openMode,
 	}
 
-	fh.inode.RegisterFileHandle(fh.openMode == fileModeUtil.Read)
+	fh.inode.RegisterFileHandle(fh.openMode == util.Read)
 	fh.mu = syncutil.NewInvariantMutex(fh.checkInvariants)
 
 	return
@@ -77,7 +77,7 @@ func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, 
 func (fh *FileHandle) Destroy() {
 	// Deregister the fileHandle with the inode.
 	fh.inode.Lock()
-	fh.inode.DeRegisterFileHandle(fh.openMode == fileModeUtil.Read)
+	fh.inode.DeRegisterFileHandle(fh.openMode == util.Read)
 	fh.inode.Unlock()
 	if fh.reader != nil {
 		fh.reader.Destroy()
