@@ -18,6 +18,7 @@ import (
 	"crypto/md5"
 	"fmt"
 	"io"
+	"time"
 
 	storagev2 "cloud.google.com/go/storage"
 	storagev1 "google.golang.org/api/storage/v1"
@@ -421,4 +422,25 @@ type MoveObjectRequest struct {
 	// If non-nil, the destination object will be created/overwritten only if the
 	// current meta-generation for the source object is equal to the given value.
 	SrcMetaGenerationPrecondition *int64
+}
+
+// CreateObjectChunkWriterRequest represents a request to create a storage.Writer
+// which can either be used for regular writes or appendable object writes via the
+// the CreateObjectChunkWriter or CreateAppendableObjectWriter method respectively.
+type CreateObjectChunkWriterRequest struct {
+	*CreateObjectRequest
+
+	// Maximum number of bytes that writer will attempt to send to server in a
+	// single request. See Writer.ChunkSize
+	ChunkSize int
+
+	// ChunkRetryDeadline sets a per-chunk retry deadline for multi-chunk
+	// resumable uploads. See Writer.ChunkRetryDeadline.
+	ChunkRetryDeadline time.Duration
+
+	// ProgressFunc is used to monitor the progress of large writes.
+	// See Writer.ProgressFunc
+	ProgressFunc func(int64)
+
+	FinalizeOnClose bool // default is false. See Writer.FinalizeOnClose
 }

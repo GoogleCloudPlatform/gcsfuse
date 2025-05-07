@@ -93,11 +93,11 @@ func (mb *monitoringBucket) CreateObjectChunkWriter(ctx context.Context, req *gc
 	return wc, err
 }
 
-func (mb *monitoringBucket) CreateAppendableObjectWriter(ctx context.Context, req *gcs.CreateObjectRequest, opts *storagev2.AppendableWriterOpts) (gcs.Writer, error) {
+func (mb *monitoringBucket) CreateAppendableObjectWriter(ctx context.Context, req *gcs.CreateObjectChunkWriterRequest) (gcs.Writer, int64, error) {
 	startTime := time.Now()
-	wc, err := mb.wrapped.CreateAppendableObjectWriter(ctx, req, opts)
+	wc, off, err := mb.wrapped.CreateAppendableObjectWriter(ctx, req)
 	recordRequest(ctx, mb.metricHandle, "CreateAppendableObjectWriter", startTime)
-	return wc, err
+	return wc, off, err
 }
 
 func (mb *monitoringBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.MinObject, error) {
