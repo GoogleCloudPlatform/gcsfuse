@@ -41,9 +41,6 @@ if [ -f "$ENV_NAME/bin/activate" ]; then
     echo "Virtual environment activated."
 else
     echo "Error: Could not find activate script."
-    echo "Please activate the environment manually by running:"
-    echo "source ./$ENV_NAME/bin/activate  (Linux/macOS)"
-    echo "source ./$ENV_NAME/Scripts/activate  (Windows)"
     exit 1
 fi
 
