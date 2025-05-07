@@ -39,7 +39,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/handle"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/inode"
-	fileModeUtil "github.com/googlecloudplatform/gcsfuse/v2/internal/fs/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
@@ -1840,7 +1839,7 @@ func (fs *fileSystem) CreateFile(
 	fs.nextHandleID++
 
 	// Creating new file is always a write operation, hence passing readOnly as false.
-	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, fileModeUtil.Write, &fs.newConfig.Read)
+	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, util.Write, &fs.newConfig.Read)
 	op.Handle = handleID
 
 	fs.mu.Unlock()
@@ -2563,7 +2562,7 @@ func (fs *fileSystem) OpenFile(
 	fs.nextHandleID++
 
 	// Figure out the mode in which the file is being opened.
-	openMode := fileModeUtil.DetermineFileOpenMode(op)
+	openMode := util.FileOpenMode(op)
 	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, openMode, &fs.newConfig.Read)
 	op.Handle = handleID
 
