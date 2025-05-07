@@ -579,3 +579,48 @@ func TestRationalize_ParallelDownloadsConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestRationalizeReadInactiveTimeoutConfig(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name            string
+		config          *Config
+		expectedTimeout time.Duration
+	}{
+		{
+			name: "http_client_protocol",
+			config: &Config{
+				Read: ReadConfig{
+					InactivityTimeout: 60 * time.Second,
+				},
+				GcsConnection: GcsConnectionConfig{
+					ClientProtocol: HTTP1,
+				},
+			},
+			expectedTimeout: 0,
+		},
+		{
+			name: "gRPC_client_protocol",
+			config: &Config{
+				Read: ReadConfig{
+					InactivityTimeout: 60 * time.Second,
+				},
+				GcsConnection: GcsConnectionConfig{
+					ClientProtocol: GRPC,
+				},
+			},
+			expectedTimeout: 60 * time.Second,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			if assert.NoError(t, Rationalize(&mockIsSet{}, tc.config, []string{})) {
+				assert.EqualValues(t, tc.expectedTimeout, tc.config.Read.InactivityTimeout)
+			}
+		})
+	}
+}

@@ -1,4 +1,6 @@
 app-name: hello
+read:
+  inactive-stream-timeout: 10s
 write:
   create-empty-file: true
   enable-streaming-writes: true
