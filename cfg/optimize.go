@@ -78,7 +78,6 @@ var (
 				name: "high-performance",
 				overrides: map[string]flagOverride{
 					"metadata-cache.negative-ttl-secs":      {newValue: 0},
-					"metadata-cache.ttl-secs":               {newValue: -1},
 					"metadata-cache.stat-cache-max-size-mb": {newValue: 1024},
 					"metadata-cache.type-cache-max-size-mb": {newValue: 128},
 					"implicit-dirs":                         {newValue: true},
