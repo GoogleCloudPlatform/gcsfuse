@@ -440,6 +440,7 @@ func CreateGcsDir(ctx context.Context, client *storage.Client, dirName, bucketNa
 		fullObjectPath += "/"
 	}
 
+	err := WriteToObject(ctx, client, fullObjectPath, "", storage.Conditions{})
 	// Create a writer to upload the object.
 	obj := client.Bucket(bucketName).Object(fullObjectPath)
 	w, err := NewWriter(ctx, obj, client)

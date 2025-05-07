@@ -21,6 +21,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -138,7 +139,7 @@ func testdataUploadFilesToBucket(ctx context.Context, t *testing.T, storageClien
 	}()
 
 	// Copy request consumers.
-	numCopyGoroutines := 16
+	numCopyGoroutines := runtime.NumCPU() / 2
 	var wg sync.WaitGroup
 	for range numCopyGoroutines {
 		wg.Add(1)
@@ -210,7 +211,7 @@ func testdataCreateImplicitDir(t *testing.T, ctx context.Context, storageClient 
 	}
 
 	var wg sync.WaitGroup
-	sem := make(chan struct{}, 16) // Concurrency limiter
+	sem := make(chan struct{}, runtime.NumCPU()/2) // Concurrency limiter
 
 	for suffix := 1; suffix <= numberOfImplicitDirsInDirectoryWithTwelveThousandFiles; suffix++ {
 		objectPath := path.Join(dirPathInBucket, fmt.Sprintf("%s%d", prefixImplicitDirInLargeDirListTest, suffix), localFile)
@@ -235,7 +236,7 @@ func testdataCreateExplicitDir(t *testing.T, ctx context.Context, storageClient 
 	bucketName, dirPathInBucket := operations.SplitBucketNameAndDirPath(t, bucketNameWithDirPath)
 
 	g, ctx := errgroup.WithContext(ctx)
-	g.SetLimit(16) // Concurrency limiter
+	g.SetLimit(runtime.NumCPU()/2) // Concurrency limiter
 
 	for dirIndex := 1; dirIndex <= numberOfExplicitDirsInDirectoryWithTwelveThousandFiles; dirIndex++ {
 		capturedIndex := dirIndex
