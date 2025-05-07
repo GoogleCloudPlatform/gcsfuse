@@ -232,7 +232,7 @@ type MonitoringConfig struct {
 }
 
 type ReadConfig struct {
-	InactivityTimeout time.Duration `yaml:"inactivity-timeout"`
+	InactiveStreamTimeout time.Duration `yaml:"inactive-stream-timeout"`
 }
 
 type ReadStallGcsRetriesConfig struct {
@@ -507,9 +507,9 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("prometheus-port", "", 0, "Expose Prometheus metrics endpoint on this port and a path of /metrics.")
 
-	flagSet.DurationP("read-inactivity-timeout", "", 0*time.Nanosecond, "Duration of inactivity after which an open GCS read stream is automatically closed. This helps conserve resources when a file handle remains open without active Read calls. A value of '0s' disables this timeout. Note: Currently only applies when using the 'grpc' client-protocol.")
+	flagSet.DurationP("read-inactive-stream-timeout", "", 0*time.Nanosecond, "Duration of inactivity after which an open GCS read stream is automatically closed. This helps conserve resources when a file handle remains open without active Read calls. A value of '0s' disables this timeout. Note: Currently only applies when using the 'grpc' client-protocol.")
 
-	if err := flagSet.MarkHidden("read-inactivity-timeout"); err != nil {
+	if err := flagSet.MarkHidden("read-inactive-stream-timeout"); err != nil {
 		return err
 	}
 
@@ -872,7 +872,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("read.inactivity-timeout", flagSet.Lookup("read-inactivity-timeout")); err != nil {
+	if err := v.BindPFlag("read.inactive-stream-timeout", flagSet.Lookup("read-inactive-stream-timeout")); err != nil {
 		return err
 	}
 

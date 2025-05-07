@@ -591,7 +591,7 @@ func TestRationalizeReadInactiveTimeoutConfig(t *testing.T) {
 			name: "http_client_protocol",
 			config: &Config{
 				Read: ReadConfig{
-					InactivityTimeout: 60 * time.Second,
+					InactiveStreamTimeout: 60 * time.Second,
 				},
 				GcsConnection: GcsConnectionConfig{
 					ClientProtocol: HTTP1,
@@ -603,7 +603,7 @@ func TestRationalizeReadInactiveTimeoutConfig(t *testing.T) {
 			name: "gRPC_client_protocol",
 			config: &Config{
 				Read: ReadConfig{
-					InactivityTimeout: 60 * time.Second,
+					InactiveStreamTimeout: 60 * time.Second,
 				},
 				GcsConnection: GcsConnectionConfig{
 					ClientProtocol: GRPC,
@@ -619,7 +619,7 @@ func TestRationalizeReadInactiveTimeoutConfig(t *testing.T) {
 			t.Parallel()
 
 			if assert.NoError(t, Rationalize(&mockIsSet{}, tc.config, []string{})) {
-				assert.EqualValues(t, tc.expectedTimeout, tc.config.Read.InactivityTimeout)
+				assert.EqualValues(t, tc.expectedTimeout, tc.config.Read.InactiveStreamTimeout)
 			}
 		})
 	}

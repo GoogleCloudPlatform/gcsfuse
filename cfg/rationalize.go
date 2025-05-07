@@ -124,7 +124,7 @@ func resolveParallelDownloadsValue(v isSet, fc *FileCacheConfig, c *Config) {
 func resolveReadconfig(c *Config, r *ReadConfig) {
 	// Only enable for GRPC client protocol.
 	if c.GcsConnection.ClientProtocol != GRPC {
-		r.InactivityTimeout = 0
+		r.InactiveStreamTimeout = 0
 	}
 }
 

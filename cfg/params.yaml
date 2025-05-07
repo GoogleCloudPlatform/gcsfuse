@@ -654,8 +654,8 @@
   usage: "Mount only a specific directory within the bucket. See docs/mounting for more information"
   default: ""
 
-- config-path: "read.inactivity-timeout"
-  flag-name: "read-inactivity-timeout"
+- config-path: "read.inactive-stream-timeout"
+  flag-name: "read-inactive-stream-timeout"
   type: "duration"
   usage: >-
     Duration of inactivity after which an open GCS read stream is automatically closed.

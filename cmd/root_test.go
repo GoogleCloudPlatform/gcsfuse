@@ -1313,7 +1313,7 @@ func TestArgsParsing_ReadInactiveTimeoutConfig(t *testing.T) {
 			err = cmd.Execute()
 
 			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expectedTimeout, gotConfig.Read.InactivityTimeout)
+				assert.Equal(t, tc.expectedTimeout, gotConfig.Read.InactiveStreamTimeout)
 			}
 		})
 	}
