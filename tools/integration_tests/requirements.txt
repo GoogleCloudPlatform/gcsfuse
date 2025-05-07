@@ -1,0 +1,2 @@
+# Dependencies for the Gantt Chart generation script
+matplotlib
