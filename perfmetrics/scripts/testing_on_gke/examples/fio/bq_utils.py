@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """Python module for setting up the dataset and tables in BigQuery.
 
 This python module creates the dataset and the table that will store fio
@@ -31,12 +32,11 @@ import uuid
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
 
-from google.api_core.exceptions import NotFound
 from google.cloud import bigquery
 from google.cloud.bigquery import table
 from google.cloud.bigquery.job import QueryJob
 
-"""Contains constants for bigquery table."""
+"""Constants for bigquery table."""
 
 DEFAULT_PROJECT_ID = 'gcs-fuse-test-ml'
 DEFAULT_DATASET_ID = 'gke_test_tool_outputs'
@@ -89,10 +89,12 @@ FIO_TABLE_ROW_SCHEMA = [
 ]
 
 
-"""FioTableRow is a class of objects containing all the fields of the fio bigquery table as elements."""
-
-
 class FioTableRow:
+  """Class containing all the fields of the fio bigquery table as elements.
+
+  This class represents the types and zero-values of all the fields/columns, and
+  will also be handy to send data for inserting rows into this table.
+  """
 
   def __init__(self):
     self.fio_workload_id = str('')
