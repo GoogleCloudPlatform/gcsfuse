@@ -18,7 +18,7 @@ import (
 	"testing"
 
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -35,7 +35,7 @@ type staleFileHandleStreamingWritesLocalFile struct {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *staleFileHandleStreamingWritesLocalFile) SetupTest() {
-	t.fileName = setup.GenerateRandomString(5)
+	t.fileName = operations.GenerateRandomString(5)
 	// Create a local file.
 	t.filePath, t.f1 = CreateLocalFileInTestDir(ctx, storageClient, t.testDirPath, t.fileName, t.T())
 }

@@ -45,7 +45,7 @@ type unfinalizedObjectOperations struct {
 
 func (t *unfinalizedObjectOperations) SetupTest() {
 	t.testDirPath = client.SetupTestDirectory(t.ctx, t.storageClient, testDirName)
-	t.fileName = path.Base(t.T().Name()) + setup.GenerateRandomString(5)
+	t.fileName = path.Base(t.T().Name()) + operations.GenerateRandomString(5)
 }
 
 func (t *unfinalizedObjectOperations) TeardownTest() {}
@@ -75,7 +75,7 @@ func (t *unfinalizedObjectOperations) TestUnfinalizedObjectCreatedFromSameMountR
 	size := operations.MiB
 	// Create un-finalized object via same mount.
 	fh := operations.CreateFile(path.Join(t.testDirPath, t.fileName), setup.FilePermission_0600, t.T())
-	operations.WriteWithoutClose(fh, setup.GenerateRandomString(size), t.T())
+	operations.WriteWithoutClose(fh, operations.GenerateRandomString(size), t.T())
 	operations.SyncFile(fh, t.T())
 
 	statRes, err := operations.StatFile(path.Join(t.testDirPath, t.fileName))
@@ -84,7 +84,7 @@ func (t *unfinalizedObjectOperations) TestUnfinalizedObjectCreatedFromSameMountR
 	assert.Equal(t.T(), t.fileName, (*statRes).Name())
 	assert.EqualValues(t.T(), size, (*statRes).Size())
 	// Write more data to the object and finalize.
-	operations.WriteWithoutClose(fh, setup.GenerateRandomString(size), t.T())
+	operations.WriteWithoutClose(fh, operations.GenerateRandomString(size), t.T())
 	err = fh.Close()
 	require.NoError(t.T(), err)
 	// After object is finalized, correct size should be reported.
@@ -101,7 +101,7 @@ func (t *unfinalizedObjectOperations) TestOverWritingUnfinalizedObjectsReturnsES
 	fh := operations.OpenFile(path.Join(t.testDirPath, t.fileName), t.T())
 
 	// Overwrite unfinalized object.
-	operations.WriteWithoutClose(fh, setup.GenerateRandomString(int(size)), t.T())
+	operations.WriteWithoutClose(fh, operations.GenerateRandomString(int(size)), t.T())
 	err := fh.Close()
 
 	operations.ValidateESTALEError(t.T(), err)
@@ -109,7 +109,7 @@ func (t *unfinalizedObjectOperations) TestOverWritingUnfinalizedObjectsReturnsES
 
 func (t *unfinalizedObjectOperations) TestUnfinalizedObjectCanBeRenamedIfCreatedFromSameMount() {
 	size := operations.MiB
-	content := setup.GenerateRandomString(size)
+	content := operations.GenerateRandomString(size)
 	newFileName := "new" + t.fileName
 	// Create un-finalized object via same mount.
 	fh := operations.CreateFile(path.Join(t.testDirPath, t.fileName), setup.FilePermission_0600, t.T())

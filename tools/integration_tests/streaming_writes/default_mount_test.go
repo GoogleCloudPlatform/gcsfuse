@@ -19,6 +19,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/local_file"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_suite"
 	"github.com/stretchr/testify/require"
@@ -41,7 +42,7 @@ func (t *defaultMountCommonTest) SetupSuite() {
 
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 	testDirPath = setup.SetupTestDirectory(testDirName)
-	t.data = setup.GenerateRandomString(5 * util.MiB)
+	t.data = operations.GenerateRandomString(5 * util.MiB)
 }
 
 func (t *defaultMountCommonTest) TearDownSuite() {

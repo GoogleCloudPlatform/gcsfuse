@@ -20,7 +20,6 @@ import (
 
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -38,7 +37,7 @@ func (t *defaultMountEmptyGCSFile) SetupSubTest() {
 }
 
 func (t *defaultMountEmptyGCSFile) createEmptyGCSFile() {
-	t.fileName = FileName1 + setup.GenerateRandomString(5)
+	t.fileName = FileName1 + operations.GenerateRandomString(5)
 	// Create an empty file on GCS.
 	CreateObjectInGCSTestDir(ctx, storageClient, testDirName, t.fileName, "", t.T())
 	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, t.fileName, "", t.T())
