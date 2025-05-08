@@ -355,34 +355,36 @@ def writeRecordsToBqTable(
       for epoch in range(len(record_set["records"][scenario])):
         r = record_set["records"][scenario][epoch]
         row = FioTableRow()
+        row.experiment_id = experiment_id
+        row.epoch = r["epoch"]
+        row.operation = record_set["read_type"]
         row.file_size = record_set["mean_file_size"]
         row.file_size_in_bytes = convert_size_to_size_in_bytes(row.file_size)
-        row.operation = record_set["read_type"]
-        row.scenario = scenario
-        row.epoch = r["epoch"]
-        row.duration_in_seconds = r["duration"]
-        row.throughput_in_mbps = r["throughput_mb_per_second"]
-        row.iops = r["IOPS"]
-        row.lowest_memory_usage = r["lowest_memory"]
-        row.highest_memory_usage = r["highest_memory"]
-        row.lowest_cpu_usage = r["lowest_cpu"]
-        row.highest_cpu_usage = r["highest_cpu"]
-        row.pod_name = r["pod_name"]
-        row.start_time = Timestamp(r["start"])
-        row.end_time = Timestamp(r["end"])
-        row.gcsfuse_mount_options = r["gcsfuse_mount_options"]
         row.block_size = r["blockSize"]
         row.block_size_in_bytes = convert_size_to_size_in_bytes(row.block_size)
-        row.files_per_thread = r["filesPerThread"]
         row.num_threads = r["numThreads"]
-        row.experiment_id = experiment_id
+        row.files_per_thread = r["filesPerThread"]
+        row.bucket_name = r["bucket_name"]
+        row.machine_type = r["machine_type"]
+        row.gcsfuse_mount_options = r["gcsfuse_mount_options"]
+        row.start_time = Timestamp(r["start"])
+        row.end_time = Timestamp(r["end"])
+        row.start_epoch = r["start_epoch"]
+        row.end_epoch = r["end_epoch"]
+        row.duration_in_seconds = r["duration"]
+        row.lowest_cpu_usage = r["lowest_cpu"]
+        row.highest_cpu_usage = r["highest_cpu"]
+        row.lowest_memory_usage = r["lowest_memory"]
+        row.highest_memory_usage = r["highest_memory"]
+        row.pod_name = r["pod_name"]
+        row.scenario = scenario
         row.e2e_latency_ns_max = r["e2e_latency_ns_max"]
         row.e2e_latency_ns_p50 = r["e2e_latency_ns_p50"]
         row.e2e_latency_ns_p90 = r["e2e_latency_ns_p90"]
         row.e2e_latency_ns_p99 = r["e2e_latency_ns_p99"]
         row.e2e_latency_ns_p99_9 = r["e2e_latency_ns_p99.9"]
-        row.bucket_name = r["bucket_name"]
-        row.machine_type = r["machine_type"]
+        row.iops = r["IOPS"]
+        row.throughput_in_mbps = r["throughput_mb_per_second"]
 
         rows.append(row)
 
