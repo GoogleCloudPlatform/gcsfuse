@@ -171,6 +171,9 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		EnableParallelDirOps: !(newConfig.FileSystem.DisableParallelDirops),
 		// We disable write-back cache when streaming writes are enabled.
 		DisableWritebackCaching: newConfig.Write.EnableStreamingWrites,
+		// Symlink target is not mutable (removing and re-creating would cause a different
+		// inode to be created), so it's safe to enable symlink caching.
+		EnableSymlinkCaching: newConfig.FileSystem.ExperimentalEnableSymlinkCache,
 	}
 
 	mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse: ")
