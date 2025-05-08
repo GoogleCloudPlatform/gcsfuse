@@ -27,8 +27,8 @@ import sys
 sys.path.append("../")
 import fio_workload
 from utils.parse_logs_common import ensure_directory_exists, download_gcs_objects, parse_arguments, SUPPORTED_SCENARIOS, fetch_cpu_memory_data
+from fio.bq_utils import FioBigqueryExporter, FioTableRow, Timestamp
 from utils.utils import unix_to_timestamp
-from fio.bq_utils import FioBigqueryExporter, FioTableRow, FioTableRows
 
 _LOCAL_LOGS_LOCATION = "../../bin/fio-logs"
 
@@ -330,28 +330,11 @@ def writeRecordsToCsvOutputFile(output: dict, output_file_path: str):
 def writeRecordsToBqTable(
     output: dict, bq_project_id: str, bq_dataset_id: str, bq_table_name: str
 ):
-
-  # with open(output_file_path, "a") as output_file_fwr:
-  # # Write a new header.
-  # output_file_fwr.write(
-  # "File Size,Read Type,Scenario,Epoch,Duration"
-  # " (s),Throughput (MB/s),IOPS,Throughput over Local SSD (%),GCSFuse"
-  # " Lowest"
-  # " Memory (MB),GCSFuse Highest Memory (MB),GCSFuse Lowest CPU"
-  # " (core),GCSFuse Highest CPU"
-  # " (core),Pod,Start,End,GcsfuseMoutOptions,BlockSize,FilesPerThread,NumThreads,InstanceID,"
-  # "e2e_latency_ns_max,e2e_latency_ns_p50,e2e_latency_ns_p90,e2e_latency_ns_p99,e2e_latency_ns_p99.9,"
-  # "bucket_name,machine_type"  #
-  # "\n",
-  # )
-
-  # Create a sample table for manual testing.
   fioBqExporter = FioBigqueryExporter(
       args.bq_project_id, args.bq_dataset_id, args.bq_table_id
   )
 
-  # sample append call.
-  rows = FioTableRows()
+  rows = []
 
   for key in output:
     record_set = output[key]
@@ -391,7 +374,7 @@ def writeRecordsToBqTable(
         row.file_size = record_set["mean_file_size"]
         row.operation = record_set["read_type"]
         row.scenario = scenario
-        row.epoch = ["epoch"]
+        row.epoch = r["epoch"]
         row.duration_in_seconds = r["duration"]
         row.throughput_in_mbps = r["throughput_mb_per_second"]
         row.iops = r["IOPS"]
@@ -414,6 +397,8 @@ def writeRecordsToBqTable(
         row.e2e_latency_ns_p99_9 = r["e2e_latency_ns_p99.9"]
         row.bucket_name = r["bucket_name"]
         row.machine_type = r["machine_type"]
+
+        rows.append(row)
 
   # output_file_fwr.close()
   fioBqExporter.append_rows(rows)
