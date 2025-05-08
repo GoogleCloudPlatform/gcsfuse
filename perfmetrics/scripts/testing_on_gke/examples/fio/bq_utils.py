@@ -199,37 +199,14 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
       print(f'Failed to create fio table {self.table_id}: {e}')
       raise
 
-  def _rollback_incomplete_transaction(self, experiment_id: str):
-    """This method deletes all the rows inserted for a given experiment_id.
-
-    Args:
-      experiment_id (str): experiment_id of the experiment for which results
-        should be deleted.
-    """
-    if experiment_id:
-      query_delete_if_row_exists = """
-        DELETE FROM `{}.{}.{}`
-        WHERE experiment_id = '{}'
-      """.format(self.project_id, self.dataset_id, self.table_id, experiment_id)
-      job = self._execute_query(query_delete_if_row_exists)
-
-  def insert_rows(self, fioTableRows: [], experiment_id: str = None):
+  def insert_rows(self, fioTableRows: []):
     """Pass a list of FioTableRow objects to insert into the fio-table.
 
-    This inserts all the given rows of data in a single transaction. If that
-    transaction fails,
-    all the data inserted for the given experiment_id are deleted as a part of
-    rollback, because it is
-    assumed that all the data for a given experiment_id is being inserted in a
-    single
-    insert_rows call.
+    This inserts all the given rows of data in a single transaction.
 
     Arguments:
 
     fioTableRows: a list of FioTableRow objects.
-    experiment_id: Optional string experiment_id of these rows. If experiment_id
-      is missing,
-    the experiment_id of the first row's data is used.
 
     Raises:
       Exception: If some row insertion failed.
@@ -238,8 +215,6 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
     # Edge-case.
     if fioTableRows is None or len(fioTableRows) == 0:
       return
-    if experiment_id is None:
-      experiment_id = fioTableRows[0].experiment_id
 
     # Create a list of tuples from the given list of FioTableRow objects.
     # Each tuple should have the values for each row in the
@@ -260,7 +235,6 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
       if result:
         raise Exception(f'{result}')
     except Exception as e:
-      self._rollback_incomplete_transaction(experiment_id)
       raise Exception(
           'Error inserting data to BigQuery table'
           f' {self.project_id}:{self.dataset_id}.{self.table_id}: {e}'
