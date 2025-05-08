@@ -28,6 +28,7 @@ sys.path.append("../")
 import fio_workload
 from utils.parse_logs_common import ensure_directory_exists, download_gcs_objects, parse_arguments, SUPPORTED_SCENARIOS, fetch_cpu_memory_data
 from utils.utils import unix_to_timestamp
+from fio.bq_utils import FioBigqueryExporter, FioTableRow, FioTableRows
 
 _LOCAL_LOGS_LOCATION = "../../bin/fio-logs"
 
@@ -326,8 +327,100 @@ def writeRecordsToCsvOutputFile(output: dict, output_file_path: str):
     output_file_fwr.close()
 
 
+def writeRecordsToBqTable(
+    output: dict, bq_project_id: str, bq_dataset_id: str, bq_table_name: str
+):
+
+  # with open(output_file_path, "a") as output_file_fwr:
+  # # Write a new header.
+  # output_file_fwr.write(
+  # "File Size,Read Type,Scenario,Epoch,Duration"
+  # " (s),Throughput (MB/s),IOPS,Throughput over Local SSD (%),GCSFuse"
+  # " Lowest"
+  # " Memory (MB),GCSFuse Highest Memory (MB),GCSFuse Lowest CPU"
+  # " (core),GCSFuse Highest CPU"
+  # " (core),Pod,Start,End,GcsfuseMoutOptions,BlockSize,FilesPerThread,NumThreads,InstanceID,"
+  # "e2e_latency_ns_max,e2e_latency_ns_p50,e2e_latency_ns_p90,e2e_latency_ns_p99,e2e_latency_ns_p99.9,"
+  # "bucket_name,machine_type"  #
+  # "\n",
+  # )
+
+  # Create a sample table for manual testing.
+  fioBqExporter = FioBigqueryExporter(
+      args.bq_project_id, args.bq_dataset_id, args.bq_table_id
+  )
+
+  # sample append call.
+  rows = FioTableRows()
+
+  for key in output:
+    record_set = output[key]
+
+    for scenario in record_set["records"]:
+      if scenario not in SUPPORTED_SCENARIOS:
+        print(f"Unknown scenario: {scenario}. Ignoring it...")
+        continue
+
+      for i in range(len(record_set["records"][scenario])):
+        r = record_set["records"][scenario][i]
+        row = FioTableRow()
+
+        try:
+          if ("local-ssd" in record_set["records"]) and (
+              len(record_set["records"]["local-ssd"])
+              == len(record_set["records"][scenario])
+          ):
+            r["throughput_over_local_ssd"] = round(
+                r["throughput_mb_per_second"]
+                / record_set["records"]["local-ssd"][i][
+                    "throughput_mb_per_second"
+                ]
+                * 100,
+                2,
+            )
+          else:
+            r["throughput_over_local_ssd"] = "NA"
+
+        except Exception as e:
+          print(
+              "Error: failed to parse/write record-set for"
+              f" scenario: {scenario}, i: {i}, record: {r}, exception: {e}"
+          )
+          continue
+
+        row.file_size = record_set["mean_file_size"]
+        row.operation = record_set["read_type"]
+        row.scenario = scenario
+        row.epoch = ["epoch"]
+        row.duration_in_seconds = r["duration"]
+        row.throughput_in_mbps = r["throughput_mb_per_second"]
+        row.iops = r["IOPS"]
+        row.lowest_memory_usage = r["lowest_memory"]
+        row.highest_memory_usage = r["highest_memory"]
+        row.lowest_cpu_usage = r["lowest_cpu"]
+        row.highest_cpu_usage = r["highest_cpu"]
+        row.pod_name = r["pod_name"]
+        row.start_time = Timestamp(r["start"])
+        row.end_time = Timestamp(r["end"])
+        row.gcsfuse_mount_options = r["gcsfuse_mount_options"]
+        row.block_size = r["blockSize"]
+        row.files_per_thread = r["filesPerThread"]
+        row.num_threads = r["numThreads"]
+        row.experiment_id = args.instance_id
+        row.e2e_latency_ns_max = r["e2e_latency_ns_max"]
+        row.e2e_latency_ns_p50 = r["e2e_latency_ns_p50"]
+        row.e2e_latency_ns_p90 = r["e2e_latency_ns_p90"]
+        row.e2e_latency_ns_p99 = r["e2e_latency_ns_p99"]
+        row.e2e_latency_ns_p99_9 = r["e2e_latency_ns_p99.9"]
+        row.bucket_name = r["bucket_name"]
+        row.machine_type = r["machine_type"]
+
+  # output_file_fwr.close()
+  fioBqExporter.append_rows(rows)
+
+
 if __name__ == "__main__":
-  args = parse_arguments()
+  args = parse_arguments(add_bq_support=True)
   ensure_directory_exists(_LOCAL_LOGS_LOCATION)
 
   if not args.predownloaded_output_files:
@@ -338,11 +431,14 @@ if __name__ == "__main__":
 
   output = createOutputScenariosFromDownloadedFiles(args)
 
-  output_file_path = args.output_file
+  # output_file_path = args.output_file
   # Create the parent directory of output_file_path if doesn't
   # exist already.
-  ensure_directory_exists(os.path.dirname(output_file_path))
-  writeRecordsToCsvOutputFile(output, output_file_path)
+  # ensure_directory_exists(os.path.dirname(output_file_path))
+  # writeRecordsToCsvOutputFile(output, output_file_path)
+  writeRecordsToBqTable(
+      output, args.bq_project_id, args.bq_dataset_id, args.bq_table_id
+  )
   print(
       "\n\nSuccessfully published outputs of FIO test runs to"
       f" {output_file_path} !!!\n\n"

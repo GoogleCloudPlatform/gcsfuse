@@ -54,7 +54,7 @@ def download_gcs_objects(src: str, dst: str) -> Tuple[int, str]:
   return result.returncode, ""
 
 
-def parse_arguments() -> object:
+def parse_arguments(add_bq_support: bool = False) -> object:
   parser = argparse.ArgumentParser(
       prog="DLIO Unet3d test output parser",
       description=(
@@ -120,6 +120,24 @@ def parse_arguments() -> object:
       default=False,
       action="store_true",
   )
+  if add_bq_support:
+    parser.add_argument(
+        "--bq-project-id",
+        metavar="GCP Project ID/name",
+        help="Bigquery project ID",
+        required=True,
+    )
+    parser.add_argument(
+        "--bq-dataset-id",
+        help="Bigquery dataset id",
+        required=True,
+    )
+    parser.add_argument(
+        "--bq-table-id",
+        help="Bigquery table name",
+        required=True,
+    )
+
   return parser.parse_args()
 
 
