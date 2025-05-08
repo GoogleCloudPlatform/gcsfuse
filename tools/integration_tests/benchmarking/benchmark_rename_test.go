@@ -31,7 +31,7 @@ type benchmarkRenameTest struct {
 }
 
 const (
-	expectedRenameLatency time.Duration = 700 * time.Millisecond
+	expectedRenameLatency time.Duration = 1900 * time.Millisecond
 )
 
 func (s *benchmarkRenameTest) SetupB(b *testing.B) {

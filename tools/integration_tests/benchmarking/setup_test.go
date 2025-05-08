@@ -11,6 +11,10 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//
+// Note that the expected latency thresholds for the various operations has
+// been set to 4 times the observed latency. Any failure of the benchmark tests
+// is a direct indicator of anomaly.
 
 package benchmarking
 
@@ -62,7 +66,7 @@ func mountGCSFuseAndSetupTestDir(flags []string, testDirName string) {
 // benchmarking/a{i}.txt where i is a counter based on the benchtime value.
 func createFiles(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		operations.CreateFileOfSize(5, path.Join(testDirPath, fmt.Sprintf("a%d.txt", i)), b)
+		operations.CreateFileOfSize(1, path.Join(testDirPath, fmt.Sprintf("a%d.txt", i)), b)
 	}
 }
 

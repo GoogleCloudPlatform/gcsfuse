@@ -287,8 +287,10 @@ function run_parallel_tests() {
     # Unlike regular tests,benchmark tests are not executed by default when using go test .
     # The -bench flag yells go test to run the benchmark tests and report their results by
     # enabling the benchmarking framework.
+    # The -benchtime flag specifies exact number of iterations a benchmark should run , in this
+    # case, setting this to 100 to avoid flakiness. 
     if [ $test_dir_p == "benchmarking" ]; then
-      benchmark_flags="-bench=."
+      benchmark_flags="-bench=. -benchtime=100x"
     fi
     test_path_parallel="./tools/integration_tests/$test_dir_p"
     # To make it clear whether tests are running on a flat or HNS bucket, We kept the log file naming

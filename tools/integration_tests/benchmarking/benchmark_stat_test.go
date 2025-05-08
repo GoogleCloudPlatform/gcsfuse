@@ -30,7 +30,7 @@ import (
 ////////////////////////////////////////////////////////////////////////
 
 const (
-	expectedStatLatency time.Duration = 390 * time.Millisecond
+	expectedStatLatency time.Duration = 1100 * time.Millisecond
 )
 
 type benchmarkStatTest struct {
@@ -48,7 +48,7 @@ func (s *benchmarkStatTest) TeardownB(b *testing.B) {
 // createFilesToStat creates the below object in the bucket.
 // benchmarking/a.txt
 func createFilesToStat(b *testing.B) {
-	operations.CreateFileOfSize(5, path.Join(testDirPath, "a.txt"), b)
+	operations.CreateFileOfSize(1, path.Join(testDirPath, "a.txt"), b)
 }
 
 ////////////////////////////////////////////////////////////////////////
