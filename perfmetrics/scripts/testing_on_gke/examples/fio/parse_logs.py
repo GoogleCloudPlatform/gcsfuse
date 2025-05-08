@@ -331,6 +331,10 @@ def writeRecordsToCsvOutputFile(output: dict, output_file_path: str):
     )
 
 
+def fio_workload_id(row: FioTableRow) -> str:
+  return f"fio_{row.start_epoch}_{row.operation}_{row.file_size}_{row.block_size}_{row.num_threads}_{row.files_per_thread}_{row.bucket_name}_{row.machine_type}_{row.experiment_id}_{row.pod_name}"
+
+
 def writeRecordsToBqTable(
     output: dict,
     experiment_id: str,
@@ -385,6 +389,7 @@ def writeRecordsToBqTable(
         row.e2e_latency_ns_p99_9 = r["e2e_latency_ns_p99.9"]
         row.iops = r["IOPS"]
         row.throughput_in_mbps = r["throughput_mb_per_second"]
+        row.fio_workload_id = fio_workload_id(row)
 
         rows.append(row)
 
