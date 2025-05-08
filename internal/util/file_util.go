@@ -35,13 +35,13 @@ const (
 // writes are supported.
 // Since there are certain flows with GCSFuse where the append flow is treated differently
 // than regular writes, this is included. However, no special handling of a vs a+ mode is
-// required, as the differentiating behavior if whether or not reads will be supported is
+// required, as the differentiating behavior of whether or not reads will be supported is
 // implicitly handled by the kernel.
 // We need to distinguish the read-only mode as well since we initialize the writeHandleCount
 // accordingly.
 // All modes where writes are supported , are clubbed into the write mode as we need to
 // differentiate it from the read-only mode. No special handling of w vs w+ vs r+ mode is
-// required, as the differentiating behavior if whether or not reads will be supported is
+// required, as the differentiating behavior of whether or not reads will be supported is
 // implicitly handled by the kernel.
 func FileOpenMode(op *fuseops.OpenFileOp) OpenMode {
 	switch {
