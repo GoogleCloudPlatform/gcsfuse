@@ -332,7 +332,11 @@ def writeRecordsToCsvOutputFile(output: dict, output_file_path: str):
 
 
 def writeRecordsToBqTable(
-    output: dict, bq_project_id: str, bq_dataset_id: str, bq_table_id: str
+    output: dict,
+    experiment_id: str,
+    bq_project_id: str,
+    bq_dataset_id: str,
+    bq_table_id: str,
 ):
   fioBqExporter = FioBigqueryExporter(bq_project_id, bq_dataset_id, bq_table_id)
 
@@ -369,7 +373,7 @@ def writeRecordsToBqTable(
         row.block_size = r["blockSize"]
         row.files_per_thread = r["filesPerThread"]
         row.num_threads = r["numThreads"]
-        row.experiment_id = args.instance_id
+        row.experiment_id = experiment_id
         row.e2e_latency_ns_max = r["e2e_latency_ns_max"]
         row.e2e_latency_ns_p50 = r["e2e_latency_ns_p50"]
         row.e2e_latency_ns_p90 = r["e2e_latency_ns_p90"]
@@ -380,7 +384,7 @@ def writeRecordsToBqTable(
 
         rows.append(row)
 
-  fioBqExporter.append_rows(rows)
+  fioBqExporter.append_rows(rows=rows, experiment_id=experiment_id)
   print(
       "\nSuccessfully exported outputs of FIO test runs to"
       f" BigQuery table {bq_project_id}:{bq_dataset_id}.{bq_table_id} !!!\n"
@@ -415,5 +419,9 @@ if __name__ == "__main__":
       and args.bq_table_id.strip()
   ):
     writeRecordsToBqTable(
-        output, args.bq_project_id, args.bq_dataset_id, args.bq_table_id
+        output=output,
+        bq_project_id=args.bq_project_id,
+        bq_dataset_id=args.bq_dataset_id,
+        bq_table_id=args.bq_table_id,
+        experiment_id=args.instance_id,
     )
