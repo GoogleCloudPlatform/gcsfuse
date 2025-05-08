@@ -125,9 +125,6 @@ class FioTableRow:
     self.throughput_in_mbps = float(0.0)
 
 
-type FioTableRows = list[FioTableRow]
-
-
 def map_type_to_bq_type_str(t) -> str:
   if t == str:
     return 'STRING'
@@ -202,8 +199,8 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
       print(f'Failed to create fio table {self.table_id}: {e}')
       raise
 
-  def _delete_rows_incomplete_transaction(self, experiment_id=None):
-    """Helper function for _insert_row.
+  def _delete_rows_incomplete_transaction(self, experiment_id: str):
+    """Helper function for _insert_rows.
 
     If insertion of some nth row fails, this method deletes (n-1) rows that were
     inserted before
@@ -212,21 +209,21 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
       experiment_id (str): experiment_id of the experiment for which results are
         being uploaded
     """
-    if config_id:
+    if experiment_id:
       query_delete_if_row_exists = """
         DELETE FROM `{}.{}.{}`
         WHERE experiment_id = '{}'
       """.format(self.project_id, self.dataset_id, self.table_id, experiment_id)
       job = self._execute_query(query_delete_if_row_exists)
 
-  def _insert_rows(self, rows_to_insert, experiment_id=None):
+  def _insert_rows(self, rows_to_insert: [], experiment_id: str):
     """Insert rows in table.
 
     If insertion of some nth row fails, delete (n-1) rows that were inserted
     before and raise an exception
 
     Args:
-      rows_to_insert (str): Rows to insert in the table
+      rows_to_insert (str): Rows (list of tuples) to insert in the table
       experiment_id (str): experiment_id of the experiment for which results are
         being uploaded
 
@@ -240,15 +237,22 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
         raise Exception(f'{result}')
     except Exception as e:
       self._delete_rows_incomplete_transaction(self.table_id, experiment_id)
-      raise Exception(f'Error inserting data to BigQuery table: {e}')
+      raise Exception(
+          'Error inserting data to BigQuery table'
+          f' {self.project_id}:{self.dataset_id}.{self.table_id}: {e}'
+      )
 
-  def append_rows(self, rows: FioTableRows):
+  def append_rows(self, rows: []):
     """Pass a list of FioTableRow objects to insert into the fio-table.
 
     Arguments:
 
     rows: a list of FioTableRow objects.
     """
+
+    # Edge-case.
+    if rows is None or len(rows) == 0:
+      return
 
     # Create a list of tuples from the given list of FioTableRow objects.
     # Each tuple should have the values for each row in the
@@ -264,8 +268,6 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
     # Now that the list of tuples is available, insert it
     # into the table.
     self._insert_rows(rows_to_insert, rows[0].experiment_id)
-
-    pass
 
 
 # The functions below this are purely for standalone
