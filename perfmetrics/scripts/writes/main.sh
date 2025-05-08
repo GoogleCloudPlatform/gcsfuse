@@ -22,7 +22,7 @@ for i in $(seq 0 $((config_length - 1))); do
     gcsfuse_flags=${gcsfuse_flags//[\"\']}
 
     # Inner loop for experiments
-    for j in {1..7}; do
+    for j in {1..3}; do
         experiment_dir="${fio_directory}-exp${j}"
         echo "Mounting gcs bucket"
         gcsfuse $gcsfuse_flags --log-severity=TRACE --log-file=$experiment_dir.log $BUCKET_NAME $MOUNT_POINT
