@@ -209,10 +209,8 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
     inserted before
 
     Args:
-      table_id (str): ID of table to which results are being uploaded
-      config_id (str): config_id of the experiment for which results are being
-        uploaded
-      start_time_build (timestamp): Start epoch time of the build
+      experiment_id (str): experiment_id of the experiment for which results are
+        being uploaded
     """
     if config_id:
       query_delete_if_row_exists = """
@@ -228,7 +226,6 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
     before and raise an exception
 
     Args:
-      table (str): Table in which rows are being inserted
       rows_to_insert (str): Rows to insert in the table
       experiment_id (str): experiment_id of the experiment for which results are
         being uploaded
@@ -252,15 +249,21 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
 
     rows: a list of FioTableRow objects.
     """
-    rows_to_be_inserted = []
+
+    # Create a list of tuples from the given list of FioTableRow objects.
+    # Each tuple should have the values for each row in the
+    # same order as in FIO_TABLE_ROW_SCHEMA.
+    rows_to_insert = []
     for row in rows:
+      # Create a temporary list first for appending because tuples are immutable.
       row_to_be_inserted = []
       for field in FIO_TABLE_ROW_SCHEMA:
         row_to_be_inserted.append(str(getattr(row, field)))
-      rows_to_be_inserted.append(tuple(row_to_be_inserted))
-    print(f'Rows to be inserted: {rows_to_be_inserted}')
-    # print('Dummy insertion into the table... needs to be implemented !')
-    self._insert_rows(rows_to_be_inserted, rows[0].experiment_id)
+      rows_to_insert.append(tuple(row_to_be_inserted))
+
+    # Now that the list of tuples is available, insert it
+    # into the table.
+    self._insert_rows(rows_to_insert, rows[0].experiment_id)
 
     pass
 
