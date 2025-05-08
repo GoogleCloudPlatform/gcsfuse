@@ -210,7 +210,7 @@ def parse_arguments() -> object:
   parser.add_argument(
       '--project-id',
       metavar='Optional GCP Project ID/name for Bigquery table',
-      help='Ensure that thie project has BigQuery enabled.',
+      help='Ensure that this project has BigQuery enabled.',
       required=False,
   )
   parser.add_argument(
