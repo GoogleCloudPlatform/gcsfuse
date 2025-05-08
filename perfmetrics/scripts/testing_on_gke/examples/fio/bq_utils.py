@@ -52,6 +52,9 @@ class Timestamp:
   def __init__(self, val: str):
     self.val = val
 
+  def __str__(self):
+    return self.val
+
 
 """FIO_TABLE_ROW_SCHEMA specifies the names of the fields and the order in which they are columns in the BQ table."""
 FIO_TABLE_ROW_SCHEMA = [
@@ -174,7 +177,7 @@ class FioBigqueryExporter:
     """
     return self.client.get_dataset(self.dataset_id)
 
-  def _get_table_from_table_name(self, table_name):
+  def _get_table_from_table_name(self, table_name: str):
     """Gets the table from BigQuery from table ID
 
     Args:
@@ -187,7 +190,7 @@ class FioBigqueryExporter:
     table = self.client.get_table(table_ref)
     return table
 
-  def _execute_query(self, query) -> QueryJob:
+  def _execute_query(self, query: str) -> QueryJob:
     """Executes the query in BigQuery and raises an exception if query
 
        execution could not be completed.
