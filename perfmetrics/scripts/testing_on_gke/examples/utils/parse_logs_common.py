@@ -125,17 +125,17 @@ def parse_arguments(add_bq_support: bool = False) -> object:
         "--bq-project-id",
         metavar="GCP Project ID/name",
         help="Bigquery project ID",
-        required=True,
+        required=False,
     )
     parser.add_argument(
         "--bq-dataset-id",
         help="Bigquery dataset id",
-        required=True,
+        required=False,
     )
     parser.add_argument(
         "--bq-table-id",
         help="Bigquery table name",
-        required=True,
+        required=False,
     )
 
   return parser.parse_args()

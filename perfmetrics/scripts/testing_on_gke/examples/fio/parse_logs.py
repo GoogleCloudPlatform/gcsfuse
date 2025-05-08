@@ -416,15 +416,22 @@ if __name__ == "__main__":
 
   output = createOutputScenariosFromDownloadedFiles(args)
 
-  # output_file_path = args.output_file
-  # Create the parent directory of output_file_path if doesn't
-  # exist already.
-  # ensure_directory_exists(os.path.dirname(output_file_path))
-  # writeRecordsToCsvOutputFile(output, output_file_path)
-  writeRecordsToBqTable(
-      output, args.bq_project_id, args.bq_dataset_id, args.bq_table_id
-  )
+  # Export output dict to CSV.
+  output_file_path = args.output_file
+  # Create the parent directory of output_file_path if doesn't exist already.
+  ensure_directory_exists(os.path.dirname(output_file_path))
+  writeRecordsToCsvOutputFile(output, output_file_path)
   print(
       "\n\nSuccessfully published outputs of FIO test runs to"
       f" {output_file_path} !!!\n\n"
   )
+
+  # Export output dict to bigquery table.
+  if (
+      args.bq_project_id.strip()
+      and args.bq_dataset_id.strip()
+      and args.bq_table_id.strip()
+  ):
+    writeRecordsToBqTable(
+        output, args.bq_project_id, args.bq_dataset_id, args.bq_table_id
+    )
