@@ -28,7 +28,7 @@ sys.path.append("../")
 import fio_workload
 from utils.parse_logs_common import ensure_directory_exists, download_gcs_objects, parse_arguments, SUPPORTED_SCENARIOS, fetch_cpu_memory_data
 from fio.bq_utils import FioBigqueryExporter, FioTableRow, Timestamp
-from utils.utils import unix_to_timestamp
+from utils.utils import unix_to_timestamp, convert_size_to_size_in_bytes
 
 _LOCAL_LOGS_LOCATION = "../../bin/fio-logs"
 
@@ -356,6 +356,7 @@ def writeRecordsToBqTable(
         r = record_set["records"][scenario][epoch]
         row = FioTableRow()
         row.file_size = record_set["mean_file_size"]
+        row.file_size_in_bytes = convert_size_to_size_in_bytes(row.file_size)
         row.operation = record_set["read_type"]
         row.scenario = scenario
         row.epoch = r["epoch"]
@@ -371,6 +372,7 @@ def writeRecordsToBqTable(
         row.end_time = Timestamp(r["end"])
         row.gcsfuse_mount_options = r["gcsfuse_mount_options"]
         row.block_size = r["blockSize"]
+        row.block_size_in_bytes = convert_size_to_size_in_bytes(row.block_size)
         row.files_per_thread = r["filesPerThread"]
         row.num_threads = r["numThreads"]
         row.experiment_id = experiment_id
