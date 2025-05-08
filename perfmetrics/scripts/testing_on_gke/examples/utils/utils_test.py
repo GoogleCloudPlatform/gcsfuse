@@ -104,7 +104,7 @@ class UtilsTest(unittest.TestCase):
       if input['expected_error']:
 
         with self.assertRaises(utils.UnknownMachineTypeError):
-          resource_limits = utils.resource_limits(input['nodeType'])
+          utils.resource_limits(input['nodeType'])
       else:
         resource_limits = utils.resource_limits(input['nodeType'])
 
