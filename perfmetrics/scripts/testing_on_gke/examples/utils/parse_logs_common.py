@@ -54,9 +54,13 @@ def download_gcs_objects(src: str, dst: str) -> Tuple[int, str]:
   return result.returncode, ""
 
 
-def parse_arguments(add_bq_support: bool = False) -> object:
+# Common argument parser for both fio and dlio
+# output parsers.
+def parse_arguments(
+    fio_or_dlio: str = "DLIO", add_bq_support: bool = False
+) -> object:
   parser = argparse.ArgumentParser(
-      prog="DLIO Unet3d test output parser",
+      prog=f"{fio_or_dlio} output parser",
       description=(
           "This program takes in a json workload configuration file and parses"
           " it for valid FIO workloads and the locations of their test outputs"

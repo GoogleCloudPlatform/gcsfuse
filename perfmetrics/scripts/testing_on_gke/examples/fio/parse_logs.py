@@ -413,7 +413,7 @@ def writeRecordsToBqTable(
 
 
 if __name__ == "__main__":
-  args = parse_arguments(add_bq_support=True)
+  args = parse_arguments(fio_or_dlio="FIO", add_bq_support=True)
   ensure_directory_exists(_LOCAL_LOGS_LOCATION)
 
   if not args.predownloaded_output_files:
