@@ -168,12 +168,6 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
     dataset = bigquery.Dataset(f'{self.project_id}.{self.dataset_id}')
     try:
       self.client.create_dataset(dataset, exists_ok=True)
-      print(
-          f'Created dataset {dataset}, now sleeping for sometime to let it'
-          ' reflect ...'
-      )
-      # Wait for the dataset to be created and ready to be referenced
-      time.sleep(120)
     except Exception as e:
       print(f'Failed to create dataset {dataset}: {e}')
       raise
