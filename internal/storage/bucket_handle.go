@@ -250,12 +250,13 @@ func (bh *bucketHandle) CreateAppendableObjectWriter(ctx context.Context,
 	}
 
 	wc, off, err := obj.NewWriterFromAppendableObject(ctx, &opts)
+	w := &ObjectWriter{wc}
 	if err != nil {
 		err = fmt.Errorf("Error while creating appendable object writer : %w", err)
 		return nil, 0, err
 	}
 
-	return &ObjectWriter{wc}, off, err
+	return w, off, err
 }
 
 func (bh *bucketHandle) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gcs.MinObject, err error) {
