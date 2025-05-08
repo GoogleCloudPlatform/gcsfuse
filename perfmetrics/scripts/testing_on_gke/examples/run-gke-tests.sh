@@ -69,7 +69,7 @@ readonly DEFAULT_ZONAL=false
 
 # Config for exporting fio outputs to a Bigquery table.
 readonly DEFAULT_BQ_PROJECT_ID='gcs-fuse-test-ml'
-readonly DEFAULT_BQ_DATASET_ID='gke_test_tool_outputs'
+readonly DEFAULT_BQ_DATASET_ID='gargnitin_test_gke_test_tool_outputs'
 readonly DEFAULT_BQ_TABLE_ID='fio_outputs'
 
 
@@ -358,6 +358,7 @@ function installDependencies() {
   fi
   # Install python client for bigquery.
   # TODO: Make this conditional on bigquery export !
+  # pip install --require-hashes -r $(dirname ${0})/fio/requirements.txt >/dev/null
   pip3 install --upgrade google-cloud-bigquery >/dev/null
   pip3 install --upgrade google-cloud-storage >/dev/null
   pip install google-api-python-client >/dev/null
