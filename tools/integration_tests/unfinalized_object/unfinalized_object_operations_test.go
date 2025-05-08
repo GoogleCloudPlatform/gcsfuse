@@ -130,11 +130,11 @@ func (t *unfinalizedObjectOperations) TestUnfinalizedObjectCantBeRenamedIfCreate
 	var size int64 = operations.MiB
 	_ = client.CreateUnfinalizedObject(t.ctx, t.T(), t.storageClient, path.Join(testDirName, t.fileName), size)
 
-	// Overwrite unfinalized object.
+	// Rename unfinalized object.
 	err := operations.RenameFile(path.Join(t.testDirPath, t.fileName), path.Join(t.testDirPath, "New"+t.fileName))
 
 	require.Error(t.T(), err)
-	assert.ErrorContains(t.T(), err, syscall.EIO.Error())
+	assert.ErrorContains(t.T(), err, syscall.ESTALE.Error())
 }
 
 ////////////////////////////////////////////////////////////////////////
