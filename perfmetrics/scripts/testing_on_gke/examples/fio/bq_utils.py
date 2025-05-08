@@ -200,9 +200,7 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
       raise
 
   def _rollback_incomplete_transaction(self, experiment_id: str):
-    """Helper function for insert_rows.
-
-    This method deletes all data inserted for a given experiment_id.
+    """This method deletes all the rows inserted for a given experiment_id.
 
     Args:
       experiment_id (str): experiment_id of the experiment for which results
@@ -218,8 +216,13 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
   def insert_rows(self, fioTableRows: [], experiment_id: str = None):
     """Pass a list of FioTableRow objects to insert into the fio-table.
 
-    If insertion of some nth row fails, it deletes (n-1) rows that were inserted
-    before and raise an exception.
+    This inserts all the given rows of data in a single transaction. If that
+    transaction fails,
+    all the data inserted for the given experiment_id are deleted as a part of
+    rollback, because it is
+    assumed that all the data for a given experiment_id is being inserted in a
+    single
+    insert_rows call.
 
     Arguments:
 
