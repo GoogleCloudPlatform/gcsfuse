@@ -22,6 +22,7 @@ package storage
 import (
 	"context"
 	"fmt"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"io"
 	"time"
 
@@ -227,7 +228,7 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 	obj := bh.getObjectHandleWithPreconditionsSet(req)
 
 	wc := &ObjectWriter{obj.NewWriter(ctx)}
-	wc.ChunkSize = chunkSize
+	wc.ChunkSize = 16 * util.MiB
 	wc.Writer = storageutil.SetAttrsInWriter(wc.Writer, req)
 	if callBack == nil {
 		callBack = func(bytesUploadedSoFar int64) {
