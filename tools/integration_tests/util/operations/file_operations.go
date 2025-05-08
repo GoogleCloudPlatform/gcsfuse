@@ -803,8 +803,9 @@ func CheckLogFileForMessage(t *testing.T, expectedLog, logFile string) bool {
 	return false
 }
 
-// Following methods validate file operation in various scenarios
-// which differs from normal when streaming writes are enabled.
+// This method validates sync operation on file which has already been clobbered.
+// 1. With Streaming Writes Sync operation only uploads pending buffers and it doesn't return any error.
+// 2. Without streaming writes file is synced with GCS and returns ESTALE error.
 func ValidateSyncGivenThatFileIsClobbered(t *testing.T, file *os.File, streamingWrites bool) {
 	t.Helper()
 	err := file.Sync()
@@ -815,6 +816,9 @@ func ValidateSyncGivenThatFileIsClobbered(t *testing.T, file *os.File, streaming
 	}
 }
 
+// This method validates write operation on file which has been deleted from same mount.
+// 1. With Streaming Writes write operation only write and upload buffers and it doesn't return any error.
+// 2. Without streaming writes file is synced with GCS and returns ESTALE error.
 func ValidateWriteGivenThatFileIsDeletedFromSameMount(t *testing.T, file *os.File, streamingWrites bool, content string) {
 	t.Helper()
 	_, err := file.Write([]byte(content))
@@ -825,6 +829,9 @@ func ValidateWriteGivenThatFileIsDeletedFromSameMount(t *testing.T, file *os.Fil
 	}
 }
 
+// This method validates read operation on file which has already been clobbered.
+// 1. With Streaming Writes read operation is not supported.
+// 2. Without streaming read operation returns ESTALE error encountered during reader creation.
 func ValidateReadGivenThatFileIsClobbered(t *testing.T, file *os.File, streamingWrites bool, content string) {
 	t.Helper()
 	buffer := make([]byte, len(content))
