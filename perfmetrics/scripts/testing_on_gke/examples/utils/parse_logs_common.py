@@ -19,6 +19,7 @@ import argparse
 import os
 import subprocess
 from typing import Tuple
+from utils.utils import get_cpu_from_monitoring_api, get_memory_from_monitoring_api
 
 SUPPORTED_SCENARIOS = [
     "local-ssd",
@@ -120,3 +121,25 @@ def parse_arguments() -> object:
       action="store_true",
   )
   return parser.parse_args()
+
+
+def fetch_cpu_memory_data(args, record):
+  if record["scenario"] != "local-ssd":
+    record["lowest_memory"], record["highest_memory"] = (
+        get_memory_from_monitoring_api(
+            pod_name=record["pod_name"],
+            start_epoch=record["start_epoch"],
+            end_epoch=record["end_epoch"],
+            project_id=args.project_id,
+            cluster_name=args.cluster_name,
+            namespace_name=args.namespace_name,
+        )
+    )
+    record["lowest_cpu"], record["highest_cpu"] = get_cpu_from_monitoring_api(
+        pod_name=record["pod_name"],
+        start_epoch=record["start_epoch"],
+        end_epoch=record["end_epoch"],
+        project_id=args.project_id,
+        cluster_name=args.cluster_name,
+        namespace_name=args.namespace_name,
+    )

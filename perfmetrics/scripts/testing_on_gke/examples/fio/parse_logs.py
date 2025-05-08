@@ -26,8 +26,8 @@ import sys
 # local library imports
 sys.path.append("../")
 import fio_workload
-from utils.utils import get_memory, get_cpu, unix_to_timestamp, is_mash_installed, get_memory_from_monitoring_api, get_cpu_from_monitoring_api
-from utils.parse_logs_common import ensure_directory_exists, download_gcs_objects, parse_arguments, SUPPORTED_SCENARIOS
+from utils.parse_logs_common import ensure_directory_exists, download_gcs_objects, parse_arguments, SUPPORTED_SCENARIOS, fetch_cpu_memory_data
+from utils.utils import unix_to_timestamp
 
 _LOCAL_LOGS_LOCATION = "../../bin/fio-logs"
 
@@ -236,39 +236,7 @@ def createOutputScenariosFromDownloadedFiles(args: dict) -> dict:
       )
       r["end"] = unix_to_timestamp(per_epoch_output_data["timestamp_ms"])
 
-      if r["scenario"] != "local-ssd":
-        if mash_installed:
-          r["lowest_memory"], r["highest_memory"] = get_memory(
-              r["pod_name"],
-              r["start"],
-              r["end"],
-              project_number=args.project_number,
-          )
-          r["lowest_cpu"], r["highest_cpu"] = get_cpu(
-              r["pod_name"],
-              r["start"],
-              r["end"],
-              project_number=args.project_number,
-          )
-        else:
-          r["lowest_memory"], r["highest_memory"] = (
-              get_memory_from_monitoring_api(
-                  pod_name=r["pod_name"],
-                  start_epoch=r["start_epoch"],
-                  end_epoch=r["end_epoch"],
-                  project_id=args.project_id,
-                  cluster_name=args.cluster_name,
-                  namespace_name=args.namespace_name,
-              )
-          )
-          r["lowest_cpu"], r["highest_cpu"] = get_cpu_from_monitoring_api(
-              pod_name=r["pod_name"],
-              start_epoch=r["start_epoch"],
-              end_epoch=r["end_epoch"],
-              project_id=args.project_id,
-              cluster_name=args.cluster_name,
-              namespace_name=args.namespace_name,
-          )
+      fetch_cpu_memory_data(args=args, record=r)
 
       r["gcsfuse_mount_options"] = gcsfuse_mount_options
       r["bucket_name"] = bucket_name
@@ -367,10 +335,6 @@ if __name__ == "__main__":
         args.workload_config
     )
     downloadFioOutputs(fioWorkloads, args.instance_id)
-
-  mash_installed = is_mash_installed()
-  if not mash_installed:
-    print("Mash is not installed, will skip parsing CPU and memory usage.")
 
   output = createOutputScenariosFromDownloadedFiles(args)
 
