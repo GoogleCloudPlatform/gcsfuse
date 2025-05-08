@@ -297,10 +297,12 @@ def parse_arguments() -> object:
 if __name__ == '__main__':
   args = parse_arguments()
 
+  # Create a sample table for manual testing.
   fioBqExporter = FioBigqueryExporter(
       'gcs-fuse-test-ml', 'gke_test_tool_outputs', 'fio_outputs'
   )
 
+  # sample append call.
   rows = []
 
   row = FioTableRow()
