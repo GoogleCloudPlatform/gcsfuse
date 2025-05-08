@@ -35,6 +35,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
 from google.cloud import bigquery
 from google.cloud.bigquery import table
 from google.cloud.bigquery.job import QueryJob
+from bigquery.experiments_gcsfuse_bq import ExperimentsGCSFuseBQ
 
 """Constants for bigquery table."""
 
@@ -146,7 +147,7 @@ def map_type_to_bq_type_str(t) -> str:
     raise Exception(f'Unknown type: {t}')
 
 
-class FioBigqueryExporter:
+class FioBigqueryExporter(ExperimentsGCSFuseBQ):
   """Class to create and interact with create/update Bigquery dataset and table for storing fio workload configurations and their output metrics.
 
   Attributes:
@@ -161,51 +162,10 @@ class FioBigqueryExporter:
   """
 
   def __init__(self, project_id: str, dataset_id: str, table_name: str):
-    self.client = bigquery.Client(project=project_id)
-    self.project_id = project_id
-    self.dataset_id = dataset_id
+    super().__init__(project_id, dataset_id)
     self.table_name = table_name
 
     self._setup_dataset_and_tables()
-
-  @property
-  def dataset_ref(self):
-    """Gets the reference of the dataset
-
-    Returns:
-      google.cloud.bigquery.dataset.Dataset: The retrieved dataset object
-    """
-    return self.client.get_dataset(self.dataset_id)
-
-  def _get_table_from_table_name(self, table_name: str):
-    """Gets the table from BigQuery from table ID
-
-    Args:
-      table_name (str): String representing the ID or name of the table
-
-    Returns:
-      google.cloud.bigquery.table.Table: The table in BigQuery
-    """
-    table_ref = self.dataset_ref.table(table_name)
-    table = self.client.get_table(table_ref)
-    return table
-
-  def _execute_query(self, query: str) -> QueryJob:
-    """Executes the query in BigQuery and raises an exception if query
-
-       execution could not be completed.
-
-    Args:
-      query (str): Query that will be executed in BigQuery.
-
-    Raises:
-      Exception: If query execution failed.
-    """
-    job = self.client.query(query)
-    if job.errors:
-      for error in job.errors:
-        raise Exception(f"Error message: {error['message']}")
-    return job
 
   def _setup_dataset_and_tables(self):
     f"""
