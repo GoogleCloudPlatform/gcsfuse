@@ -76,14 +76,14 @@ func (s *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHand
 func (s *staleFileHandleCommon) TestFileDeletedLocallySyncAndCloseDoNotThrowError() {
 	// Dirty the file by giving it some contents.
 	operations.WriteWithoutClose(s.f1, s.data, s.T())
-	operations.SyncFile(s.f1, s.T())
 
 	// Delete the file.
 	operations.RemoveFile(s.f1.Name())
 
 	// Verify unlink operation succeeds.
 	operations.ValidateNoFileOrDirError(s.T(), s.f1.Name())
-	operations.ValidateWriteGivenThatFileIsDeletedFromSameMount(s.T(), s.f1, s.isStreamingWritesEnabled, s.data)
+	// Attempt to write to file should not give any error.
+	operations.WriteWithoutClose(s.f1, s.data, s.T())
 	operations.SyncFile(s.f1, s.T())
 	operations.CloseFileShouldNotThrowError(s.T(), s.f1)
 }
