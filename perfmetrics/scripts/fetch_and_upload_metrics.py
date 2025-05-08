@@ -100,7 +100,7 @@ if __name__ == '__main__':
   metrics_data = fio_metrics_obj.get_values_to_upload(temp)
 
   if args.upload_gs:
-    gsheet.write_to_google_sheet(FIO_WORKSHEET_NAME, metrics_data,
+    gsheet.append_to_google_sheet(FIO_WORKSHEET_NAME, metrics_data,
                                  args.spreadsheet_id)
 
   if args.upload_bq:
@@ -113,12 +113,13 @@ if __name__ == '__main__':
                                          args.config_id[0],
                                          args.start_time_build[0], metrics_data)
 
-  print('Waiting for 360 seconds for metrics to be updated on VM...')
+  # Removing sleep time as we will fetch vm metrics manually.
+  # print('Waiting for 360 seconds for metrics to be updated on VM...')
   # It takes up to 240 seconds for sampled data to be visible on the VM metrics graph
   # So, waiting for 360 seconds to ensure the returned metrics are not empty.
   # Intermittently custom metrics are not available after 240 seconds, hence
   # waiting for 360 secs instead of 240 secs
-  time.sleep(360)
+  # time.sleep(360)
 
   # Print the start and end time of all the fio-jobs
   # This is just make sure, the total run time of fio jobs are constant over
@@ -152,7 +153,7 @@ if __name__ == '__main__':
       vm_metrics_data.append(row)
 
   if args.upload_gs:
-    gsheet.write_to_google_sheet(VM_WORKSHEET_NAME, vm_metrics_data,
+    gsheet.append_to_google_sheet(VM_WORKSHEET_NAME, vm_metrics_data,
                                  args.spreadsheet_id)
 
   if args.upload_bq:
