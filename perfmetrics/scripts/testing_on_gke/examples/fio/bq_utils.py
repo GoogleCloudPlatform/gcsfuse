@@ -199,15 +199,14 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
       print(f'Failed to create fio table {self.table_id}: {e}')
       raise
 
-  def _delete_rows_incomplete_transaction(self, experiment_id: str):
-    """Helper function for _insert_rows.
+  def _rollback_incomplete_transaction(self, experiment_id: str):
+    """Helper function for insert_rows.
 
-    If insertion of some nth row fails, this method deletes (n-1) rows that were
-    inserted before
+    This method deletes all data inserted for a given experiment_id.
 
     Args:
-      experiment_id (str): experiment_id of the experiment for which results are
-        being uploaded
+      experiment_id (str): experiment_id of the experiment for which results
+        should be deleted.
     """
     if experiment_id:
       query_delete_if_row_exists = """
@@ -216,55 +215,50 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
       """.format(self.project_id, self.dataset_id, self.table_id, experiment_id)
       job = self._execute_query(query_delete_if_row_exists)
 
-  def _insert_rows(self, rows_to_insert: [], experiment_id: str):
-    """Insert rows in table.
+  def insert_rows(self, fioTableRows: [], experiment_id: str = None):
+    """Pass a list of FioTableRow objects to insert into the fio-table.
 
-    If insertion of some nth row fails, delete (n-1) rows that were inserted
-    before and raise an exception
+    If insertion of some nth row fails, it deletes (n-1) rows that were inserted
+    before and raise an exception.
 
-    Args:
-      rows_to_insert (str): Rows (list of tuples) to insert in the table
-      experiment_id (str): experiment_id of the experiment for which results are
-        being uploaded
+    Arguments:
+
+    fioTableRows: a list of FioTableRow objects.
+    experiment_id: Optional string experiment_id of these rows. If experiment_id
+      is missing,
+    the experiment_id of the first row's data is used.
 
     Raises:
       Exception: If some row insertion failed.
     """
+
+    # Edge-case.
+    if fioTableRows is None or len(fioTableRows) == 0:
+      return
+    if experiment_id is None:
+      experiment_id = fioTableRows[0].experiment_id
+
+    # Create a list of tuples from the given list of FioTableRow objects.
+    # Each tuple should have the values for each row in the
+    # same order as in FIO_TABLE_ROW_SCHEMA.
+    rows_to_insert = []
+    for fioTableRow in fioTableRows:
+      # Create a temporary list first for appending because tuples are immutable.
+      row_to_be_inserted = []
+      for field in FIO_TABLE_ROW_SCHEMA:
+        row_to_be_inserted.append(str(getattr(fioTableRow, field)))
+      rows_to_insert.append(tuple(row_to_be_inserted))
+
+    # Now that the list of tuples is available, insert it
+    # into the table.
     table = self._get_table_from_table_id(self.table_id)
     try:
       result = self.client.insert_rows(table, rows_to_insert)
       if result:
         raise Exception(f'{result}')
     except Exception as e:
-      self._delete_rows_incomplete_transaction(self.table_id, experiment_id)
+      self._rollback_incomplete_transaction(experiment_id)
       raise Exception(
           'Error inserting data to BigQuery table'
           f' {self.project_id}:{self.dataset_id}.{self.table_id}: {e}'
       )
-
-  def append_rows(self, rows: []):
-    """Pass a list of FioTableRow objects to insert into the fio-table.
-
-    Arguments:
-
-    rows: a list of FioTableRow objects.
-    """
-
-    # Edge-case.
-    if rows is None or len(rows) == 0:
-      return
-
-    # Create a list of tuples from the given list of FioTableRow objects.
-    # Each tuple should have the values for each row in the
-    # same order as in FIO_TABLE_ROW_SCHEMA.
-    rows_to_insert = []
-    for row in rows:
-      # Create a temporary list first for appending because tuples are immutable.
-      row_to_be_inserted = []
-      for field in FIO_TABLE_ROW_SCHEMA:
-        row_to_be_inserted.append(str(getattr(row, field)))
-      rows_to_insert.append(tuple(row_to_be_inserted))
-
-    # Now that the list of tuples is available, insert it
-    # into the table.
-    self._insert_rows(rows_to_insert, rows[0].experiment_id)
