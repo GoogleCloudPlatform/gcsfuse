@@ -326,18 +326,18 @@ def writeRecordsToCsvOutputFile(output: dict, output_file_path: str):
 
     output_file_fwr.close()
     print(
-        "\n\nSuccessfully published outputs of FIO test runs to"
-        f" {output_file_path} !!!\n\n"
+        "\nSuccessfully published outputs of FIO test runs to"
+        f" {output_file_path} !!!\n"
     )
 
 
 def writeRecordsToBqTable(
-    output: dict, bq_project_id: str, bq_dataset_id: str, bq_table_name: str
+    output: dict, bq_project_id: str, bq_dataset_id: str, bq_table_id: str
 ):
-  fioBqExporter = FioBigqueryExporter(
-      args.bq_project_id, args.bq_dataset_id, args.bq_table_id
-  )
+  fioBqExporter = FioBigqueryExporter(bq_project_id, bq_dataset_id, bq_table_id)
 
+  # list of FioRowTable objects to be populated to be inserted into BigQuery
+  # table using the above exporter.
   rows = []
 
   for key in output:
@@ -348,33 +348,9 @@ def writeRecordsToBqTable(
         print(f"Unknown scenario: {scenario}. Ignoring it...")
         continue
 
-      for i in range(len(record_set["records"][scenario])):
-        r = record_set["records"][scenario][i]
+      for epoch in range(len(record_set["records"][scenario])):
+        r = record_set["records"][scenario][epoch]
         row = FioTableRow()
-
-        try:
-          if ("local-ssd" in record_set["records"]) and (
-              len(record_set["records"]["local-ssd"])
-              == len(record_set["records"][scenario])
-          ):
-            r["throughput_over_local_ssd"] = round(
-                r["throughput_mb_per_second"]
-                / record_set["records"]["local-ssd"][i][
-                    "throughput_mb_per_second"
-                ]
-                * 100,
-                2,
-            )
-          else:
-            r["throughput_over_local_ssd"] = "NA"
-
-        except Exception as e:
-          print(
-              "Error: failed to parse/write record-set for"
-              f" scenario: {scenario}, i: {i}, record: {r}, exception: {e}"
-          )
-          continue
-
         row.file_size = record_set["mean_file_size"]
         row.operation = record_set["read_type"]
         row.scenario = scenario
@@ -404,11 +380,10 @@ def writeRecordsToBqTable(
 
         rows.append(row)
 
-  # output_file_fwr.close()
   fioBqExporter.append_rows(rows)
   print(
-      "\n\nSuccessfully exported outputs of FIO test runs to"
-      f" BigQuery table {bq_project_id}:{bq_dataset_id}.{bq_table_name} !!!\n\n"
+      "\nSuccessfully exported outputs of FIO test runs to"
+      f" BigQuery table {bq_project_id}:{bq_dataset_id}.{bq_table_id} !!!\n"
   )
 
 
