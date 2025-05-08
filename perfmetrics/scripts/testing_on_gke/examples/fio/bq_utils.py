@@ -15,12 +15,8 @@
 """Python module for setting up the dataset and tables in BigQuery.
 
 This python module creates the dataset and the table that will store fio
-workload
-configurations and metrics data in BigQuery. It can also be used to upload data
+workload and metrics data in BigQuery. It can also be used to upload data
 to the tables.
-
-Note:
-  Make sure BigQuery API is enabled for the project
 """
 
 import argparse
@@ -30,18 +26,13 @@ import sys
 import time
 import uuid
 
+# Add relative path ../../../ for class ExperimentsGCSFuseBQ .
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
 
 from google.cloud import bigquery
 from google.cloud.bigquery import table
 from google.cloud.bigquery.job import QueryJob
 from bigquery.experiments_gcsfuse_bq import ExperimentsGCSFuseBQ
-
-"""Constants for bigquery table."""
-
-DEFAULT_PROJECT_ID = 'gcs-fuse-test-ml'
-DEFAULT_DATASET_ID = 'gke_test_tool_outputs'
-DEFAULT_TABLE_ID = 'fio_outputs'
 
 
 """ Timestamp is a new data-type to represent Timestamp
@@ -218,21 +209,18 @@ def parse_arguments() -> object:
   )
   parser.add_argument(
       '--project-id',
-      metavar='GCP Project ID/name',
-      help=(),
-      default=DEFAULT_PROJECT_ID,
+      metavar='Optional GCP Project ID/name for Bigquery table',
+      help='Ensure that thie project has BigQuery enabled.',
       required=False,
   )
   parser.add_argument(
       '--dataset-id',
-      help='',
-      default=DEFAULT_DATASET_ID,
+      help='Optional BigQuery dataset ID',
       required=False,
   )
   parser.add_argument(
       '--table-id',
-      help='Optional table name',
-      default=DEFAULT_TABLE_ID,
+      help='Optional BigQuery table name',
       required=False,
   )
   return parser.parse_args()
@@ -242,5 +230,5 @@ if __name__ == '__main__':
   args = parse_arguments()
 
   fioBqExporter = FioBigqueryExporter(
-      args.project_id, args.dataset_id, args.table_id
+      'gcs-fuse-test-ml', 'gke_test_tool_outputs', 'fio_outputs'
   )
