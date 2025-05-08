@@ -52,6 +52,7 @@ func (s *staleFileHandleEmptyGcsFile) SetupTest() {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *staleFileHandleEmptyGcsFile) TestClobberedFileReadThrowsStaleFileHandleError() {
+	// TODO(b/410698332): Remove skip condition once takeover support is available.
 	if s.isStreamingWritesEnabled && setup.IsZonalBucketRun() {
 		s.T().Skip("Skip test due to takeover support not available.")
 	}
@@ -67,6 +68,7 @@ func (s *staleFileHandleEmptyGcsFile) TestClobberedFileReadThrowsStaleFileHandle
 }
 
 func (s *staleFileHandleEmptyGcsFile) TestClobberedFileFirstWriteThrowsStaleFileHandleError() {
+	// TODO(b/410698332): Remove skip condition once takeover support is available.
 	if s.isStreamingWritesEnabled && setup.IsZonalBucketRun() {
 		s.T().Skip("Skip test due to takeover support not available.")
 	}
@@ -84,8 +86,9 @@ func (s *staleFileHandleEmptyGcsFile) TestClobberedFileFirstWriteThrowsStaleFile
 }
 
 func (s *staleFileHandleEmptyGcsFile) TestFileDeletedRemotelySyncAndCloseThrowsStaleFileHandleError() {
+	// TODO(mohitkyadav): Enable test once fix in b/415713332 is released
 	if s.isStreamingWritesEnabled && setup.IsZonalBucketRun() {
-		s.T().Skip("Skip test because flush getting stuck in this scenario")
+		s.T().Skip("Skip test due to bug (b/415713332) in client.")
 	}
 	// Dirty the file by giving it some contents.
 	operations.WriteWithoutClose(s.f1, s.data, s.T())
