@@ -325,6 +325,10 @@ def writeRecordsToCsvOutputFile(output: dict, output_file_path: str):
           output_file_fwr.write(f"{r['bucket_name']},{r['machine_type']}\n")
 
     output_file_fwr.close()
+    print(
+        "\n\nSuccessfully published outputs of FIO test runs to"
+        f" {output_file_path} !!!\n\n"
+    )
 
 
 def writeRecordsToBqTable(
@@ -402,6 +406,10 @@ def writeRecordsToBqTable(
 
   # output_file_fwr.close()
   fioBqExporter.append_rows(rows)
+  print(
+      "\n\nSuccessfully exported outputs of FIO test runs to"
+      f" BigQuery table {bq_project_id}:{bq_dataset_id}.{bq_table_name} !!!\n\n"
+  )
 
 
 if __name__ == "__main__":
@@ -421,15 +429,14 @@ if __name__ == "__main__":
   # Create the parent directory of output_file_path if doesn't exist already.
   ensure_directory_exists(os.path.dirname(output_file_path))
   writeRecordsToCsvOutputFile(output, output_file_path)
-  print(
-      "\n\nSuccessfully published outputs of FIO test runs to"
-      f" {output_file_path} !!!\n\n"
-  )
 
   # Export output dict to bigquery table.
   if (
-      args.bq_project_id.strip()
+      args.bq_project_id
+      and args.bq_project_id.strip()
+      and args.bq_dataset_id
       and args.bq_dataset_id.strip()
+      and args.bq_table_id
       and args.bq_table_id.strip()
   ):
     writeRecordsToBqTable(
