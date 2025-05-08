@@ -155,15 +155,15 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
       created
     dataset_id (str): The name of the dataset in the project that will store the
       tables
-    table_name (str): The name of the bigquery table configurations and output
+    table_id (str): The name of the bigquery table configurations and output
       metrics will be stored.
     bq_client (google.cloud.bigquery.client.Client): The client for interacting
       with Bigquery. Default value is bigquery.Client(project=project_id).
   """
 
-  def __init__(self, project_id: str, dataset_id: str, table_name: str):
+  def __init__(self, project_id: str, dataset_id: str, table_id: str):
     super().__init__(project_id, dataset_id)
-    self.table_name = table_name
+    self.table_id = table_id
 
     self._setup_dataset_and_tables()
 
@@ -171,7 +171,7 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
     f"""
       Creates the dataset to store the tables and the experiment configuration table
       to store the configuration details and creates the
-      {self.table_name} table to store the metrics.
+      {self.table_id} table to store the metrics.
     """
     # Create dataset if not exists
     dataset = bigquery.Dataset(f'{self.project_id}.{self.dataset_id}')
@@ -192,7 +192,7 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
       CREATE TABLE IF NOT EXISTS {}.{}.{}(""".format(
         self.project_id,
         self.dataset_id,
-        self.table_name,
+        self.table_id,
     )
     fio_table_header = FioTableRow()
     for field in FIO_TABLE_ROW_SCHEMA:
@@ -205,7 +205,7 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
     try:
       self._execute_query(query_create_table_fio_metrics)
     except Exception as e:
-      print(f'Failed to create fio table {self.table_name}: {e}')
+      print(f'Failed to create fio table {self.table_id}: {e}')
       raise
 
 
@@ -230,7 +230,7 @@ def parse_arguments() -> object:
       required=False,
   )
   parser.add_argument(
-      '--table-name',
+      '--table-id',
       help='Optional table name',
       default=DEFAULT_TABLE_ID,
       required=False,
@@ -242,5 +242,5 @@ if __name__ == '__main__':
   args = parse_arguments()
 
   fioBqExporter = FioBigqueryExporter(
-      args.project_id, args.dataset_id, args.table_name
+      args.project_id, args.dataset_id, args.table_id
   )
