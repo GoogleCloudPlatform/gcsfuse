@@ -56,7 +56,7 @@ class Timestamp:
 """FIO_TABLE_ROW_SCHEMA specifies the names of the fields and the order in which they are columns in the BQ table."""
 FIO_TABLE_ROW_SCHEMA = [
     'fio_workload_id',
-    'instance_id',
+    'experiment_id',
     'epoch',
     'operation',
     'file_size',
@@ -98,7 +98,7 @@ class FioTableRow:
 
   def __init__(self):
     self.fio_workload_id = str('')
-    self.instance_id = str('')
+    self.experiment_id = str('')
     self.epoch = int(0)
     self.operation = str('')
     self.file_size = str('')
