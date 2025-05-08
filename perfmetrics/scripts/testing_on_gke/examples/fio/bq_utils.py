@@ -249,9 +249,8 @@ class FioBigqueryExporter:
       raise
 
 
-# The following functions are purely for testing.
-# This file is a library to be used only for
-# exporting the fio workload output metrics to bigquery.
+# The functions below this are purely for standalone
+# manual testing of this utility.
 def parse_arguments() -> object:
   parser = argparse.ArgumentParser(
       prog='',
@@ -272,7 +271,7 @@ def parse_arguments() -> object:
   )
   parser.add_argument(
       '--table-name',
-      help='Optional table name. Default=khregrh',
+      help='Optional table name',
       default=DEFAULT_TABLE_ID,
       required=False,
   )
