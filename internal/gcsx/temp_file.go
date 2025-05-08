@@ -15,6 +15,7 @@
 package gcsx
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -341,7 +342,7 @@ func (tf *tempFile) ensure(limit int64) error {
 			n = minCopyLength
 		}
 		n, err = io.CopyN(tf.f, tf.source, n)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			tf.source.Close()
 			tf.dirtyThreshold = size + n
 			tf.state = fileComplete

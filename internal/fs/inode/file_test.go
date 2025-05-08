@@ -330,7 +330,7 @@ func (t *FileTest) TestRead() {
 		data = data[:n]
 
 		// Ignore EOF.
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			err = nil
 		}
 
@@ -361,7 +361,7 @@ func (t *FileTest) TestWrite() {
 	var buf [1024]byte
 	n, err := t.in.Read(t.ctx, buf[:], 0)
 
-	if err == io.EOF {
+	if errors.Is(err, io.EOF) {
 		err = nil
 	}
 
@@ -395,7 +395,7 @@ func (t *FileTest) TestTruncate() {
 	var buf [1024]byte
 	n, err := t.in.Read(t.ctx, buf[:], 0)
 
-	if err == io.EOF {
+	if errors.Is(err, io.EOF) {
 		err = nil
 	}
 

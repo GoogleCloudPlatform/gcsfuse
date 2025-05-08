@@ -15,6 +15,7 @@
 package gcsx_test
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -174,7 +175,7 @@ func (t *TempFileTest) ReadAt() {
 
 	n, err = t.tf.ReadAt(buf[:], int64(initialContentSize)-1)
 	ExpectEq(1, n)
-	ExpectEq(io.EOF, err)
+	ExpectTrue(errors.Is(err, io.EOF))
 	ExpectEq(
 		initialContent[initialContentSize-1:initialContentSize],
 		string(buf[0:n]),

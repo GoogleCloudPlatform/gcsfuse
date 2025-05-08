@@ -15,6 +15,7 @@
 package storage
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"sync/atomic"
@@ -100,7 +101,7 @@ func (dr *debugReader) Read(p []byte) (n int, err error) {
 	n, err = dr.wrapped.Read(p)
 
 	// Don't log EOF errors, which are par for the course.
-	if err != nil && err != io.EOF {
+	if err != nil && !errors.Is(err, io.EOF) {
 		dr.bucket.requestLogf(dr.requestID, "-> Read error: %v", err)
 	}
 

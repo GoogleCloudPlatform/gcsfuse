@@ -21,6 +21,7 @@ package fs_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"math/rand"
 	"os"
@@ -553,7 +554,7 @@ func (t *ForeignModsTest) ReadFromFile_Large() {
 		size := randSrc.Intn(int(contentLen - offset))
 
 		n, err := f.ReadAt(buf[:size], offset)
-		if offset+int64(size) == contentLen && err == io.EOF {
+		if offset+int64(size) == contentLen && errors.Is(err, io.EOF) {
 			err = nil
 		}
 

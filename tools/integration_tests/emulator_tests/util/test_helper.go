@@ -154,7 +154,7 @@ func ReadFirstByte(t *testing.T, filePath string) (time.Duration, error) {
 
 	startTime := time.Now()
 	_, err = file.Read(buffer)
-	if err != nil && err != io.EOF {
+	if err != nil && !errors.Is(err, io.EOF) {
 		return 0, err
 	}
 

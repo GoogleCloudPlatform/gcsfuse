@@ -560,7 +560,7 @@ func (f *FileInode) Read(
 	// Read from the local content, propagating io.EOF.
 	n, err = f.content.ReadAt(dst, offset)
 	switch {
-	case err == io.EOF:
+	case errors.Is(err, io.EOF):
 		return
 
 	case err != nil:
