@@ -125,6 +125,9 @@ class FioTableRow:
     self.throughput_in_mbps = float(0.0)
 
 
+type FioTableRows = list[FioTableRow]
+
+
 def map_type_to_bq_type_str(t) -> str:
   if t == str:
     return 'STRING'
@@ -199,6 +202,68 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
       print(f'Failed to create fio table {self.table_id}: {e}')
       raise
 
+  def _delete_rows_incomplete_transaction(self, experiment_id=None):
+    """Helper function for _insert_row.
+
+    If insertion of some nth row fails, this method deletes (n-1) rows that were
+    inserted before
+
+    Args:
+      table_id (str): ID of table to which results are being uploaded
+      config_id (str): config_id of the experiment for which results are being
+        uploaded
+      start_time_build (timestamp): Start epoch time of the build
+    """
+    if config_id:
+      query_delete_if_row_exists = """
+        DELETE FROM `{}.{}.{}`
+        WHERE experiment_id = '{}'
+      """.format(self.project_id, self.dataset_id, self.table_id, experiment_id)
+      job = self._execute_query(query_delete_if_row_exists)
+
+  def _insert_rows(self, rows_to_insert, experiment_id=None):
+    """Insert rows in table.
+
+    If insertion of some nth row fails, delete (n-1) rows that were inserted
+    before and raise an exception
+
+    Args:
+      table (str): Table in which rows are being inserted
+      rows_to_insert (str): Rows to insert in the table
+      experiment_id (str): experiment_id of the experiment for which results are
+        being uploaded
+
+    Raises:
+      Exception: If some row insertion failed.
+    """
+    table = self._get_table_from_table_id(self.table_id)
+    try:
+      result = self.client.insert_rows(table, rows_to_insert)
+      if result:
+        raise Exception(f'{result}')
+    except Exception as e:
+      self._delete_rows_incomplete_transaction(self.table_id, experiment_id)
+      raise Exception(f'Error inserting data to BigQuery table: {e}')
+
+  def append_rows(self, rows: FioTableRows):
+    """Pass a list of FioTableRow objects to insert into the fio-table.
+
+    Arguments:
+
+    rows: a list of FioTableRow objects.
+    """
+    rows_to_be_inserted = []
+    for row in rows:
+      row_to_be_inserted = []
+      for field in FIO_TABLE_ROW_SCHEMA:
+        row_to_be_inserted.append(str(getattr(row, field)))
+      rows_to_be_inserted.append(tuple(row_to_be_inserted))
+    print(f'Rows to be inserted: {rows_to_be_inserted}')
+    # print('Dummy insertion into the table... needs to be implemented !')
+    self._insert_rows(rows_to_be_inserted, rows[0].experiment_id)
+
+    pass
+
 
 # The functions below this are purely for standalone
 # manual testing of this utility.
@@ -232,3 +297,41 @@ if __name__ == '__main__':
   fioBqExporter = FioBigqueryExporter(
       'gcs-fuse-test-ml', 'gke_test_tool_outputs', 'fio_outputs'
   )
+
+  rows = []
+
+  row = FioTableRow()
+  row.fio_workload_id = 'fio-workload-id-1'
+  row.experiment_id = 'expt-id-1'
+  row.epoch = 1
+  row.file_size = '1M'
+  row.file_size_in_bytes = 2**20
+  row.block_size = '256K'
+  row.block_size_in_bytes = 2**18
+  row.bucket_name = 'sample-zb-bucket'
+  row.duration_in_seconds = 10
+  row.e2e_latency_ns_max = 100
+  row.e2e_latency_ns_p50 = 50
+  row.e2e_latency_ns_p90 = 90
+  row.e2e_latency_ns_p99 = 99
+  row.e2e_latency_ns_p99_9 = 99.9
+  row.end_epoch = 1746678693
+  row.start_epoch = 1746678683
+  row.files_per_thread = 20000
+  row.gcsfuse_mount_options = 'implicit-dirs'
+  row.highest_cpu_usage = 10.0
+  row.lowest_cpu_usage = 1.0
+  row.highest_memory_usage = 10000
+  row.lowest_memory_usage = 100
+  row.iops = 1000
+  row.machine_type = 'n2-standard-32'
+  row.num_threads = 50
+  row.operation = 'read'
+  row.pod_name = 'sample-pod-name'
+  row.scenario = 'gcsfuse-generic'
+  row.start_time = Timestamp('2025-05-08 04:31:23 UTC')
+  row.end_time = Timestamp('2025-05-08 04:31:33 UTC')
+  row.throughput_in_mbps = 8000
+
+  rows.append(row)
+  fioBqExporter.append_rows(rows)
