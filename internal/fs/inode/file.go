@@ -887,6 +887,10 @@ func (f *FileInode) updateInodeStateAfterFlush(minObj *gcs.MinObject) {
 	if minObj != nil && !f.localFileCache {
 		// Set BWH to nil as as object has been finalized.
 		if f.bwh != nil {
+			err := f.bwh.Destroy()
+			if err != nil {
+				logger.Warnf("Error while destroying the bufferedWritesHandler: %v", err)
+			}
 			f.bwh = nil
 		}
 		f.updateInodeStateAfterSync(minObj)
@@ -992,22 +996,22 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context) (boo
 			return false, err
 		}
 	}
-
-	if f.bwh == nil {
-		f.bwh, err = bufferedwrites.NewBWHandler(&bufferedwrites.CreateBWHandlerRequest{
-			Object:                   latestGcsObj,
-			ObjectName:               f.name.GcsObjectName(),
-			Bucket:                   f.bucket,
-			BlockSize:                f.config.Write.BlockSizeMb,
-			MaxBlocksPerFile:         f.config.Write.MaxBlocksPerFile,
-			GlobalMaxBlocksSem:       f.globalMaxWriteBlocksSem,
-			ChunkTransferTimeoutSecs: f.config.GcsRetries.ChunkTransferTimeoutSecs,
-		})
-		if err != nil {
-			return false, fmt.Errorf("failed to create bufferedWriteHandler: %w", err)
-		}
-		f.bwh.SetMtime(f.mtimeClock.Now())
-		return true, nil
+	// Do not initialize bwh if there are not enough free global max blocks.
+	if !f.globalMaxWriteBlocksSem.TryAcquire(1) {
+		return false, nil
 	}
-	return false, nil
+	f.bwh, err = bufferedwrites.NewBWHandler(&bufferedwrites.CreateBWHandlerRequest{
+		Object:                   latestGcsObj,
+		ObjectName:               f.name.GcsObjectName(),
+		Bucket:                   f.bucket,
+		BlockSize:                f.config.Write.BlockSizeMb,
+		MaxBlocksPerFile:         f.config.Write.MaxBlocksPerFile,
+		GlobalMaxBlocksSem:       f.globalMaxWriteBlocksSem,
+		ChunkTransferTimeoutSecs: f.config.GcsRetries.ChunkTransferTimeoutSecs,
+	})
+	if err != nil {
+		return false, fmt.Errorf("failed to create bufferedWriteHandler: %w", err)
+	}
+	f.bwh.SetMtime(f.mtimeClock.Now())
+	return true, nil
 }

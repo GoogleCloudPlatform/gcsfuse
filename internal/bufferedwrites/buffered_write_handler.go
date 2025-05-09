@@ -275,6 +275,7 @@ func (wh *bufferedWriteHandlerImpl) WriteFileInfo() WriteFileInfo {
 }
 
 func (wh *bufferedWriteHandlerImpl) Destroy() error {
+	// Need to release blockPool Semaphore.
 	wh.uploadHandler.Destroy()
 	return wh.blockPool.ClearFreeBlockChannel()
 }
