@@ -52,7 +52,7 @@ record = {
 }
 
 
-def downloadDlioOutputs(dlioWorkloads: set, instanceId: str) -> int:
+def download_dlio_outputs(dlioWorkloads: set, instanceId: str) -> int:
   """Downloads instanceId-specific dlio outputs for each dlioWorkload locally.
 
   Outputs in the bucket are in the following object naming format
@@ -79,7 +79,7 @@ def downloadDlioOutputs(dlioWorkloads: set, instanceId: str) -> int:
   return 0
 
 
-def createOutputScenariosFromDownloadedFiles(args: dict) -> dict:
+def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
   """Creates output records from the downloaded local files.
 
   The following creates a dict called 'output'
@@ -192,7 +192,7 @@ def createOutputScenariosFromDownloadedFiles(args: dict) -> dict:
   return output
 
 
-def writeRecordsToCsvOutputFile(output: dict, output_file_path: str):
+def write_records_to_csv_output_file(output: dict, output_file_path: str):
   with open(output_file_path, "a") as output_file:
     # Write a new header row.
     output_file.write(
@@ -260,18 +260,18 @@ if __name__ == "__main__":
   args = parse_arguments()
   ensure_directory_exists(_LOCAL_LOGS_LOCATION)
 
-  dlioWorkloads = dlio_workload.ParseTestConfigForDlioWorkloads(
+  dlioWorkloads = dlio_workload.parse_test_config_for_dlio_workloads(
       args.workload_config
   )
-  downloadDlioOutputs(dlioWorkloads, args.instance_id)
+  download_dlio_outputs(dlioWorkloads, args.instance_id)
 
-  output = createOutputScenariosFromDownloadedFiles(args)
+  output = create_output_scenarios_from_downloaded_files(args)
 
   output_file_path = args.output_file
   # Create the parent directory of output_file_path if doesn't
   # exist already.
   ensure_directory_exists(os.path.dirname(output_file_path))
-  writeRecordsToCsvOutputFile(output, output_file_path)
+  write_records_to_csv_output_file(output, output_file_path)
   print(
       "\n\nSuccessfully published outputs of DLIO test runs to"
       f" {output_file_path} !!!\n\n"

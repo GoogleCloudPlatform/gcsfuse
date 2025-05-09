@@ -67,6 +67,12 @@ readonly DEFAULT_POD_TIMEOUT_IN_SECONDS=604800
 readonly DEFAULT_FORCE_UPDATE_GCSFUSE_CODE=false
 readonly DEFAULT_ZONAL=false
 
+# Config for exporting fio outputs to a Bigquery table.
+readonly DEFAULT_BQ_PROJECT_ID='gcs-fuse-test-ml'
+readonly DEFAULT_BQ_DATASET_ID='gke_test_tool_outputs'
+readonly DEFAULT_BQ_TABLE_ID='fio_outputs'
+
+
 function printHelp() {
   echo "Usage guide: "
   echo "[ENV_OPTIONS] "${0}" [ARGS]"
@@ -352,7 +358,6 @@ function installDependencies() {
   fi
   # Install python client for bigquery.
   # TODO: Make this conditional on bigquery export !
-  pip install --require-hashes -r $(dirname ${0})/fio/requirements.txt >/dev/null
   pip3 install --upgrade google-cloud-bigquery >/dev/null
   pip3 install --upgrade google-cloud-storage >/dev/null
   pip install google-api-python-client >/dev/null
@@ -793,7 +798,7 @@ function areThereAnyDLIOWorkloads() {
 function fetchAndParseFioOutputs() {
   printf "\nFetching and parsing fio outputs ...\n\n"
   cd "${gke_testing_dir}"/examples/fio
-  parse_logs_args="--project-number=${project_number} --workload-config ${workload_config} --instance-id ${instance_id} --output-file ${output_dir}/fio/output.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace}"
+  parse_logs_args="--project-number=${project_number} --workload-config ${workload_config} --instance-id ${instance_id} --output-file ${output_dir}/fio/output.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace} --bq-project-id=${DEFAULT_BQ_PROJECT_ID} --bq-dataset-id=${DEFAULT_BQ_DATASET_ID} --bq-table-id=${DEFAULT_BQ_TABLE_ID}"
   if ${zonal}; then
     python3 parse_logs.py ${parse_logs_args} --predownloaded-output-files
   else

@@ -27,7 +27,8 @@ import sys
 sys.path.append("../")
 import fio_workload
 from utils.parse_logs_common import ensure_directory_exists, download_gcs_objects, parse_arguments, SUPPORTED_SCENARIOS, fetch_cpu_memory_data
-from utils.utils import unix_to_timestamp
+from fio.bq_utils import FioBigqueryExporter, FioTableRow, Timestamp
+from utils.utils import unix_to_timestamp, convert_size_to_bytes
 
 _LOCAL_LOGS_LOCATION = "../../bin/fio-logs"
 
@@ -61,7 +62,7 @@ record = {
 }
 
 
-def downloadFioOutputs(fioWorkloads: set, instanceId: str) -> int:
+def download_fio_outputs(fioWorkloads: set, instanceId: str) -> int:
   """Downloads instanceId-specific fio outputs for each fioWorkload locally.
 
   Outputs in the bucket are in the following object naming format
@@ -91,7 +92,7 @@ def downloadFioOutputs(fioWorkloads: set, instanceId: str) -> int:
   return 0
 
 
-def createOutputScenariosFromDownloadedFiles(args: dict) -> dict:
+def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
   """Creates output records from the downloaded local files.
 
   The following creates a dict called 'output'
@@ -266,7 +267,7 @@ def createOutputScenariosFromDownloadedFiles(args: dict) -> dict:
   return output
 
 
-def writeRecordsToCsvOutputFile(output: dict, output_file_path: str):
+def write_records_to_csv_output_file(output: dict, output_file_path: str):
   with open(output_file_path, "a") as output_file_fwr:
     # Write a new header.
     output_file_fwr.write(
@@ -324,26 +325,112 @@ def writeRecordsToCsvOutputFile(output: dict, output_file_path: str):
           output_file_fwr.write(f"{r['bucket_name']},{r['machine_type']}\n")
 
     output_file_fwr.close()
+    print(
+        "\nSuccessfully published outputs of FIO test runs to"
+        f" {output_file_path} !!!\n"
+    )
+
+
+def fio_workload_id(row: FioTableRow) -> str:
+  return f"{row.experiment_id}_{row.operation}_{row.file_size}_{row.block_size}_{row.num_threads}_{row.files_per_thread}_{row.start_epoch}"
+
+
+def write_records_to_bq_table(
+    output: dict,
+    experiment_id: str,
+    bq_project_id: str,
+    bq_dataset_id: str,
+    bq_table_id: str,
+):
+  fioBqExporter = FioBigqueryExporter(bq_project_id, bq_dataset_id, bq_table_id)
+
+  # list of FioRowTable objects to be populated to be inserted into BigQuery
+  # table using the above exporter.
+  rows = []
+
+  for key in output:
+    record_set = output[key]
+
+    for scenario in record_set["records"]:
+      if scenario not in SUPPORTED_SCENARIOS:
+        print(f"Unknown scenario: {scenario}. Ignoring it...")
+        continue
+
+      for epoch in range(len(record_set["records"][scenario])):
+        r = record_set["records"][scenario][epoch]
+        row = FioTableRow()
+        row.experiment_id = experiment_id
+        row.epoch = r["epoch"]
+        row.operation = record_set["read_type"]
+        row.file_size = record_set["mean_file_size"]
+        row.file_size_in_bytes = convert_size_to_bytes(row.file_size)
+        row.block_size = r["blockSize"]
+        row.block_size_in_bytes = convert_size_to_bytes(row.block_size)
+        row.num_threads = r["numThreads"]
+        row.files_per_thread = r["filesPerThread"]
+        row.bucket_name = r["bucket_name"]
+        row.machine_type = r["machine_type"]
+        row.gcsfuse_mount_options = r["gcsfuse_mount_options"]
+        row.start_time = Timestamp(r["start"])
+        row.end_time = Timestamp(r["end"])
+        row.start_epoch = r["start_epoch"]
+        row.end_epoch = r["end_epoch"]
+        row.duration_in_seconds = r["duration"]
+        row.lowest_cpu_usage = r["lowest_cpu"]
+        row.highest_cpu_usage = r["highest_cpu"]
+        row.lowest_memory_usage = r["lowest_memory"]
+        row.highest_memory_usage = r["highest_memory"]
+        row.pod_name = r["pod_name"]
+        row.scenario = scenario
+        row.e2e_latency_ns_max = r["e2e_latency_ns_max"]
+        row.e2e_latency_ns_p50 = r["e2e_latency_ns_p50"]
+        row.e2e_latency_ns_p90 = r["e2e_latency_ns_p90"]
+        row.e2e_latency_ns_p99 = r["e2e_latency_ns_p99"]
+        row.e2e_latency_ns_p99_9 = r["e2e_latency_ns_p99.9"]
+        row.iops = r["IOPS"]
+        row.throughput_in_mbps = r["throughput_mb_per_second"]
+        row.fio_workload_id = fio_workload_id(row)
+
+        rows.append(row)
+
+  fioBqExporter.insert_rows(fioTableRows=rows)
+  print(
+      "\nSuccessfully exported outputs of FIO test runs to"
+      f" BigQuery table {bq_project_id}:{bq_dataset_id}.{bq_table_id} !!!\n"
+  )
 
 
 if __name__ == "__main__":
-  args = parse_arguments()
+  args = parse_arguments(fio_or_dlio="FIO", add_bq_support=True)
   ensure_directory_exists(_LOCAL_LOGS_LOCATION)
 
   if not args.predownloaded_output_files:
-    fioWorkloads = fio_workload.ParseTestConfigForFioWorkloads(
+    fioWorkloads = fio_workload.parse_test_config_for_fio_workloads(
         args.workload_config
     )
-    downloadFioOutputs(fioWorkloads, args.instance_id)
+    download_fio_outputs(fioWorkloads, args.instance_id)
 
-  output = createOutputScenariosFromDownloadedFiles(args)
+  output = create_output_scenarios_from_downloaded_files(args)
 
+  # Export output dict to CSV.
   output_file_path = args.output_file
-  # Create the parent directory of output_file_path if doesn't
-  # exist already.
+  # Create the parent directory of output_file_path if doesn't exist already.
   ensure_directory_exists(os.path.dirname(output_file_path))
-  writeRecordsToCsvOutputFile(output, output_file_path)
-  print(
-      "\n\nSuccessfully published outputs of FIO test runs to"
-      f" {output_file_path} !!!\n\n"
-  )
+  write_records_to_csv_output_file(output, output_file_path)
+
+  # Export output dict to bigquery table.
+  if (
+      args.bq_project_id
+      and args.bq_project_id.strip()
+      and args.bq_dataset_id
+      and args.bq_dataset_id.strip()
+      and args.bq_table_id
+      and args.bq_table_id.strip()
+  ):
+    write_records_to_bq_table(
+        output=output,
+        bq_project_id=args.bq_project_id,
+        bq_dataset_id=args.bq_dataset_id,
+        bq_table_id=args.bq_table_id,
+        experiment_id=args.instance_id,
+    )

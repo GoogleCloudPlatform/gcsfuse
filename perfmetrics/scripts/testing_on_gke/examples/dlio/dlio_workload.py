@@ -142,7 +142,7 @@ class DlioWorkload:
     self.numEpochs = numEpochs
 
 
-def ParseTestConfigForDlioWorkloads(testConfigFileName: str):
+def parse_test_config_for_dlio_workloads(testConfigFileName: str):
   """Parses the given workload test configuration file for DLIO workloads."""
   print(f'Parsing {testConfigFileName} for DLIO workloads ...')
   with open(testConfigFileName) as f:

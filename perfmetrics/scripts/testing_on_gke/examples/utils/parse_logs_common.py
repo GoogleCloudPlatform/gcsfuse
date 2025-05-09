@@ -54,9 +54,13 @@ def download_gcs_objects(src: str, dst: str) -> Tuple[int, str]:
   return result.returncode, ""
 
 
-def parse_arguments() -> object:
+# Common argument parser for both fio and dlio
+# output parsers.
+def parse_arguments(
+    fio_or_dlio: str = "DLIO", add_bq_support: bool = False
+) -> object:
   parser = argparse.ArgumentParser(
-      prog="DLIO Unet3d test output parser",
+      prog=f"{fio_or_dlio} output parser",
       description=(
           "This program takes in a json workload configuration file and parses"
           " it for valid FIO workloads and the locations of their test outputs"
@@ -120,6 +124,24 @@ def parse_arguments() -> object:
       default=False,
       action="store_true",
   )
+  if add_bq_support:
+    parser.add_argument(
+        "--bq-project-id",
+        metavar="GCP Project ID/name",
+        help="Bigquery project ID",
+        required=False,
+    )
+    parser.add_argument(
+        "--bq-dataset-id",
+        help="Bigquery dataset id",
+        required=False,
+    )
+    parser.add_argument(
+        "--bq-table-id",
+        help="Bigquery table name",
+        required=False,
+    )
+
   return parser.parse_args()
 
 

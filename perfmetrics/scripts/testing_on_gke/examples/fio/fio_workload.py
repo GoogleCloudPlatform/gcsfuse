@@ -166,7 +166,7 @@ class FioWorkload:
     )
 
 
-def ParseTestConfigForFioWorkloads(fioTestConfigFile: str):
+def parse_test_config_for_fio_workloads(fioTestConfigFile: str):
   """Parses the given workload test configuration file for FIO workloads."""
   print(f'Parsing {fioTestConfigFile} for FIO workloads ...')
   with open(fioTestConfigFile) as f:

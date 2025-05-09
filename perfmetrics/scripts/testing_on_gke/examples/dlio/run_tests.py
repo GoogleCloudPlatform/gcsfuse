@@ -89,7 +89,7 @@ def createHelmInstallCommands(
 
 
 def main(args) -> None:
-  dlioWorkloads = dlio_workload.ParseTestConfigForDlioWorkloads(
+  dlioWorkloads = dlio_workload.parse_test_config_for_dlio_workloads(
       args.workload_config
   )
   helmInstallCommands = createHelmInstallCommands(

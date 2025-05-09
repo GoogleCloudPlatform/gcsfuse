@@ -273,3 +273,43 @@ def get_cpu_from_monitoring_api(
         " it !"
     )
     return -1, -1
+
+
+def convert_size_to_bytes(size_in_string: str) -> int:
+  """Converts string-form numbers like 1k, 1m, 1g, 1K, 1M, 1G etc.
+
+  to normal numbers i.e. 10^3, 10^6, 10^9, 2^10, 2^20, 2^30 respectively.
+
+  The conversion is based on how FIO represents sizes e.g. small codes i.e.
+  k,m,g for powers of 10, and capital codes i.e. K,M,G for powers of 1024.
+
+  Arguments:
+
+  size_in_string: strings like '1k', '1m', '1g', '1K', '1M', '1G' etc.
+
+  Returns:
+  1000, 1000000, 1000000000 for input '1k','1m','1g' etc. respectively.
+  1024, 1048576 for input '1K', '1M' etc. respectively.
+  """
+  if size_in_string is None:
+    return 0
+
+  # Remove all leading and trailing spaces.
+  size_in_string = size_in_string.strip()
+  if len(size_in_string) == 0:
+    return 0
+  multiplier_char = size_in_string[-1]
+  multiplier_map = {
+      "k": 10**3,
+      "m": 10**6,
+      "g": 10**9,
+      "K": 2**10,
+      "M": 2**20,
+      "G": 2**30,
+  }
+  if multiplier_char in multiplier_map:
+    multiplier = multiplier_map[multiplier_char]
+    base_value = 1 if len(size_in_string) == 1 else int(size_in_string[:-1])
+    return base_value * multiplier
+  else:
+    return int(size_in_string)
