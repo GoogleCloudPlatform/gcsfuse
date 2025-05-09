@@ -199,36 +199,43 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
       print(f'Failed to create fio table {self.table_id}: {e}')
       raise
 
+  def insert_rows(self, fioTableRows: []):
+    """Pass a list of FioTableRow objects to insert into the fio-table.
 
-# The functions below this are purely for standalone
-# manual testing of this utility.
-def parse_arguments() -> object:
-  parser = argparse.ArgumentParser(
-      prog='',
-      description=(),
-  )
-  parser.add_argument(
-      '--project-id',
-      metavar='Optional GCP Project ID/name for Bigquery table',
-      help='Ensure that this project has BigQuery enabled.',
-      required=False,
-  )
-  parser.add_argument(
-      '--dataset-id',
-      help='Optional BigQuery dataset ID',
-      required=False,
-  )
-  parser.add_argument(
-      '--table-id',
-      help='Optional BigQuery table name',
-      required=False,
-  )
-  return parser.parse_args()
+    This inserts all the given rows of data in a single transaction.
 
+    Arguments:
 
-if __name__ == '__main__':
-  args = parse_arguments()
+    fioTableRows: a list of FioTableRow objects.
 
-  fioBqExporter = FioBigqueryExporter(
-      'gcs-fuse-test-ml', 'gke_test_tool_outputs', 'fio_outputs'
-  )
+    Raises:
+      Exception: If some row insertion failed.
+    """
+
+    # Edge-case.
+    if fioTableRows is None or len(fioTableRows) == 0:
+      return
+
+    # Create a list of tuples from the given list of FioTableRow objects.
+    # Each tuple should have the values for each row in the
+    # same order as in FIO_TABLE_ROW_SCHEMA.
+    rows_to_insert = []
+    for fioTableRow in fioTableRows:
+      # Create a temporary list first for appending because tuples are immutable.
+      row_to_be_inserted = []
+      for field in FIO_TABLE_ROW_SCHEMA:
+        row_to_be_inserted.append(str(getattr(fioTableRow, field)))
+      rows_to_insert.append(tuple(row_to_be_inserted))
+
+    # Now that the list of tuples is available, insert it
+    # into the table.
+    table = self._get_table_from_table_id(self.table_id)
+    try:
+      result = self.client.insert_rows(table, rows_to_insert)
+      if result:
+        raise Exception(f'{result}')
+    except Exception as e:
+      raise Exception(
+          'Error inserting data to BigQuery table'
+          f' {self.project_id}:{self.dataset_id}.{self.table_id}: {e}'
+      )
