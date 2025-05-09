@@ -16,8 +16,8 @@ package inactive_read_timeout
 
 import (
 	"context"
-	"io"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"strings"
@@ -33,8 +33,8 @@ import (
 
 func setupFile(ctx context.Context, storageClient *storage.Client, fileName string, fileSize int, t *testing.T) string {
 	t.Helper()
-	client.SetupFileInTestDirectory(ctx, storageClient, testDirName, fileName, int64(fileSize), t)
-	return path.Join(testDirPath, fileName)
+	client.SetupFileInTestDirectory(ctx, storageClient, kTestDirName, fileName, int64(fileSize), t)
+	return path.Join(gTestDirPath, fileName)
 }
 
 func loadLogLines(reader io.Reader) ([]string, error) {
@@ -46,13 +46,12 @@ func loadLogLines(reader io.Reader) ([]string, error) {
 }
 
 // validateInactiveReaderClosedLog checks if the "Closing reader for object ... due to inactivity"
-// log message is present (or absent) for the given objectName.
+// log message is present (or absent) for the given objectName, b/w the [startTime, endTime] interval.
+// Also expects based on the shouldBePresent value.
 func validateInactiveReaderClosedLog(t *testing.T, logFile, objectName string, shouldBePresent bool, startTime, endTime time.Time) {
 	t.Helper()
 	// Be specific about the object name in the expected message.
-	// The actual log message includes quotes around the object name.
 	expectedMsgSubstring := fmt.Sprintf("Closing reader for object %q due to inactivity.", objectName)
-	found := false
 
 	file, err := os.Open(logFile)
 	require.NoError(t, err, "Failed to open log file")
@@ -61,12 +60,12 @@ func validateInactiveReaderClosedLog(t *testing.T, logFile, objectName string, s
 	logLines, err := loadLogLines(file)
 	require.NoError(t, err, "Failed to read log file")
 
-
+	found := false
 	for _, line := range logLines {
 		logEntry, err := read_logs.ParseJsonLogLineIntoLogEntryStruct(line) // Assuming read_logs can parse general log lines too or a more generic parser is available.
 		// If parsing fails, it might be a non-JSON line or a different structured log.
 		// For this specific message, we expect it to be in the "Message" field of a structured log.
-		
+
 		if err == nil && logEntry != nil {
 			// Check if the log entry's timestamp is within the expected window.
 			if (logEntry.Timestamp.After(startTime) || logEntry.Timestamp.Equal(startTime)) &&

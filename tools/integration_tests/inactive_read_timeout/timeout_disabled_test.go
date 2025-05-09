@@ -22,32 +22,26 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
 	"github.com/stretchr/testify/require"
 )
 
-type disabledSuite struct {
+type timeoutDisabledSuite struct {
 	flags         []string
 	storageClient *storage.Client
 	ctx           context.Context
 }
 
-func (s *disabledSuite) Setup(t *testing.T) {
-	if setup.MountedDirectory() != "" {
-		// Assuming log file is already set by TestMain for mounted directory
-	} else {
-		operations.RemoveDir(path.Join(setup.TestDir(), "temp_cache_inactive_read"))
-	}
-	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient, testDirName)
+func (s *timeoutDisabledSuite) Setup(t *testing.T) {
+	mountGCSFuseAndSetupTestDir(s.ctx, s.flags, s.storageClient, kTestDirName)
 }
 
-func (s *disabledSuite) Teardown(t *testing.T) {
+func (s *timeoutDisabledSuite) Teardown(t *testing.T) {
 	setup.SaveGCSFuseLogFileInCaseOfFailure(t)
 	if setup.MountedDirectory() == "" { // Only unmount if not using a pre-mounted directory
-		setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
+		setup.UnmountGCSFuseAndDeleteLogFile(gRootDir)
 	}
 }
 
@@ -55,10 +49,10 @@ func (s *disabledSuite) Teardown(t *testing.T) {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *disabledSuite) TestReaderCloses(t *testing.T) {
-	timeoutDuration := defaultInactiveReadTimeoutInSeconds * time.Second
-	gcsFileName := path.Join(testDirName, testFileName)
-	mountFilePath := setupFile(s.ctx, s.storageClient, testFileName, fileSize, t)
+func (s *timeoutDisabledSuite) TestNoReaderCloser(t *testing.T) {
+	timeoutDuration := kDefaultInactiveReadTimeoutInSeconds * time.Second
+	gcsFileName := path.Join(kTestDirName, kTestFileName)
+	mountFilePath := setupFile(s.ctx, s.storageClient, kTestFileName, kFileSize, t)
 
 	// 1. Open file.
 	fileHandle, err := operations.OpenFileAsReadonly(mountFilePath)
@@ -66,7 +60,7 @@ func (s *disabledSuite) TestReaderCloses(t *testing.T) {
 	defer fileHandle.Close()
 
 	// 2. Read small chunk from 0 offset.
-	buff := make([]byte, chunkSizeToRead)
+	buff := make([]byte, kChunkSizeToRead)
 	_, err = fileHandle.ReadAt(buff, 0)
 	require.NoError(t, err)
 	endTimeRead := time.Now()
@@ -75,7 +69,7 @@ func (s *disabledSuite) TestReaderCloses(t *testing.T) {
 	time.Sleep(2*timeoutDuration + 1*time.Second) // Add buffer
 	endTimeWait := time.Now()
 
-	// 3. Check log for "Closing reader"
+	// 4. Shouldn't be any `Close reader logs...`.
 	validateInactiveReaderClosedLog(t, setup.LogFile(), gcsFileName, false, endTimeRead, endTimeWait)
 }
 
@@ -83,17 +77,8 @@ func (s *disabledSuite) TestReaderCloses(t *testing.T) {
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
 
-func TestDisabledSuite(t *testing.T) {
-	ts := &disabledSuite{ctx: context.Background()}
-
-	// Create storage client before running tests.
-	closeStorageClient := client.CreateStorageClientWithCancel(&ts.ctx, &ts.storageClient)
-	defer func() {
-		err := closeStorageClient()
-		if err != nil {
-			t.Errorf("closeStorageClient failed: %v", err)
-		}
-	}()
+func TestTimeoutDisabledSuite(t *testing.T) {
+	ts := &timeoutDisabledSuite{ctx: context.Background(), storageClient: gStorageClient}
 
 	// Run tests for mounted directory if the flag is set.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
@@ -103,14 +88,14 @@ func TestDisabledSuite(t *testing.T) {
 
 	flagsSet := []gcsfuseTestFlags{
 		{ // Test with timeout enabled and http1 client protocol
-			inactiveReadTimeout: defaultInactiveReadTimeoutInSeconds * time.Second,
-			fileName:            configFileName,
-			clientProtocol:      http1ClientProtocol,
+			inactiveReadTimeout: kDefaultInactiveReadTimeoutInSeconds * time.Second,
+			fileName:            "timeout_with_http.yaml",
+			clientProtocol:      kHTTP1ClientProtocol,
 		},
 		{ // Test with timeout disabled
 			inactiveReadTimeout: 0 * time.Second, // Disable timeout
-			clientProtocol:      http1ClientProtocol,
-			fileName:            configFileName + "_disabled",
+			clientProtocol:      kHTTP1ClientProtocol,
+			fileName:            "zero_timeout.yaml",
 		},
 	}
 

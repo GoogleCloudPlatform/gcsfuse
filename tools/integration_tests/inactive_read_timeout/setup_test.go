@@ -27,30 +27,37 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
 const (
-	testDirName                         = "inactiveReadTimeoutTest"
-	onlyDirMounted                      = "onlyDirInactiveReadTimeout"
-	fileSize                            = 128 * 1024 // 128 KiB
-	chunkSizeToRead                     = 64 * 1024  // 64 KiB
-	testFileName                        = "foo"
-	configFileName                      = "config_inactive_read.yaml"
-	defaultInactiveReadTimeoutInSeconds = 1 // A short timeout for testing
-	logFileNameForMountedDirectoryTests = "/tmp/gcsfuse_inactive_read_timeout_test_logs/log.json"
-	http1ClientProtocol                 = "http1"
-	grpcClientProtocol                  = "grpc"
+	kTestDirName                         = "inactiveReadTimeoutTest"
+	kOnlyDirMounted                      = "onlyDirInactiveReadTimeout"
+	kFileSize                            = 10 * 1024 * 1024 // 10 MiB
+	kChunkSizeToRead                     = 128 * 1024       // 64 KiB
+	kTestFileName                        = "foo"
+	kDefaultInactiveReadTimeoutInSeconds = 1 // A short timeout for testing
+	kLogFileNameForMountedDirectoryTests = "/tmp/gcsfuse_inactive_read_timeout_test_logs/log.json"
+	kHTTP1ClientProtocol                 = "http1"
+	kGRPCClientProtocol                  = "grpc"
 )
 
 var (
-	testDirPath   string // /tmp/**/mnt/inactiveReadTimeout
-	mountFunc     func([]string) error
-	mountDir      string
-	rootDir       string
-	storageClient *storage.Client
-	ctx           context.Context
+	// Stores test directory path in the mounted path.
+	gTestDirPath string
+
+	// Used to run the test for different types of mount by modify this function.
+	gMountFunc func([]string) error
+
+	// Actual mounted directory, for dynamic mount it becomes gRootDir/<bucket_name>
+	gMountDir string
+
+	// Root directory which is mounted by gcsfuse.
+	gRootDir string
+
+	// Clients to create the object in GCS.
+	gStorageClient *storage.Client
+	gCtx           context.Context
 )
 
 type gcsfuseTestFlags struct {
@@ -60,18 +67,14 @@ type gcsfuseTestFlags struct {
 	clientProtocol      string
 }
 
-func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client, testDirName string) {
-	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
-	setup.SetMntDir(mountDir)
-	testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
+func mountGCSFuseAndSetupTestDir(ctx context.Context, flags []string, storageClient *storage.Client, testDirName string) {
+	setup.MountGCSFuseWithGivenMountFunc(flags, gMountFunc)
+	setup.SetMntDir(gMountDir)
+	gTestDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
 }
 
+// createConfigFile generate mount config.yaml.
 func createConfigFile(flags *gcsfuseTestFlags) string {
-	// Create a temporary directory for the cache if needed by other flags, though not directly used by inactive_read_timeout itself.
-	// This makes the config structure similar to other tests.
-	cacheDir := path.Join(setup.TestDir(), "temp_cache_inactive_read")
-	operations.RemoveDir(cacheDir) // Clean up before use
-
 	mountConfig := map[string]interface{}{
 		"read": map[string]interface{}{
 			"inactive-stream-timeout": flags.inactiveReadTimeout.String(),
@@ -79,7 +82,6 @@ func createConfigFile(flags *gcsfuseTestFlags) string {
 		"gcs-connection": map[string]interface{}{
 			"client-protocol": flags.clientProtocol,
 		},
-		// Add other necessary cache/logging configs if your tests depend on them
 		"logging": map[string]interface{}{
 			"file-path": setup.LogFile(),
 			"format":    "json", // Ensure JSON logs for easier parsing
@@ -93,8 +95,8 @@ func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
 	// Create common storage client to be used in test.
-	ctx = context.Background()
-	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
+	gCtx = context.Background()
+	closeStorageClient := client.CreateStorageClientWithCancel(&gCtx, &gStorageClient)
 	defer func() {
 		err := closeStorageClient()
 		if err != nil {
@@ -105,8 +107,8 @@ func TestMain(m *testing.M) {
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
 	if setup.MountedDirectory() != "" {
-		mountDir = setup.MountedDirectory()
-		setup.SetLogFile(logFileNameForMountedDirectoryTests)
+		gMountDir = setup.MountedDirectory()
+		setup.SetLogFile(kLogFileNameForMountedDirectoryTests)
 		// Run tests for mounted directory if the flag is set.
 		os.Exit(m.Run())
 	}
@@ -114,29 +116,29 @@ func TestMain(m *testing.M) {
 	// Else run tests for testBucket.
 	setup.SetUpTestDirForTestBucketFlag()
 
-	mountDir, rootDir = setup.MntDir(), setup.MntDir()
-
 	log.Println("Running static mounting tests...")
-	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
+	// MountDir and RootDir will be same for static mount.
+	gMountDir, gRootDir = setup.MntDir(), setup.MntDir()
+	gMountFunc = static_mounting.MountGcsfuseWithStaticMounting
 	successCode := m.Run()
 
-	disable := true
-	if successCode == 0 && !disable {
+	if successCode == 0 {
 		log.Println("Running dynamic mounting tests...")
-		mountDir = path.Join(setup.MntDir(), setup.TestBucket())
-		mountFunc = dynamic_mounting.MountGcsfuseWithDynamicMounting
+		// For dyanamic mount - gMountDir = gRootDir + <bucket_name>
+		gMountDir = path.Join(setup.MntDir(), setup.TestBucket())
+		gMountFunc = dynamic_mounting.MountGcsfuseWithDynamicMounting
 		successCode = m.Run()
 	}
 
-	if successCode == 0 && !disable {
+	if successCode == 0 {
 		log.Println("Running only dir mounting tests...")
-		setup.SetOnlyDirMounted(onlyDirMounted + "/")
-		mountDir = rootDir
-		mountFunc = only_dir_mounting.MountGcsfuseWithOnlyDir
+		setup.SetOnlyDirMounted(kOnlyDirMounted + "/")
+		gMountDir = gRootDir
+		gMountFunc = only_dir_mounting.MountGcsfuseWithOnlyDir
 		successCode = m.Run()
-		setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), setup.OnlyDirMounted(), testDirName))
+		setup.CleanupDirectoryOnGCS(gCtx, gStorageClient, path.Join(setup.TestBucket(), setup.OnlyDirMounted(), kTestDirName))
 	}
 
-	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
+	setup.CleanupDirectoryOnGCS(gCtx, gStorageClient, path.Join(setup.TestBucket(), kTestDirName))
 	os.Exit(successCode)
 }
