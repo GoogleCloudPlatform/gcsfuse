@@ -70,7 +70,7 @@ class BqUtilsTest(unittest.TestCase):
     row.throughput_in_mbps = 8000
 
     rows.append(row)
-    fioBqExporter.append_rows(rows)
+    fioBqExporter.insert_rows(rows)
 
 
 if __name__ == '__main__':
