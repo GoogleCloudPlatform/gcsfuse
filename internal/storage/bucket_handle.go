@@ -241,8 +241,22 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 
 func (bh *bucketHandle) CreateAppendableObjectWriter(ctx context.Context,
 	req *gcs.CreateObjectChunkWriterRequest) (gcs.Writer, int64, error) {
-	//TODO implement it
-	return nil, 0, nil
+	obj := bh.getObjectHandleWithPreconditionsSet(req.CreateObjectRequest)
+	opts := storage.AppendableWriterOpts{
+		ChunkSize:          req.ChunkSize,
+		ChunkRetryDeadline: req.ChunkRetryDeadline,
+		ProgressFunc:       req.ProgressFunc,
+		FinalizeOnClose:    req.FinalizeOnClose,
+	}
+
+	wc, off, err := obj.NewWriterFromAppendableObject(ctx, &opts)
+	w := &ObjectWriter{wc}
+	if err != nil {
+		err = fmt.Errorf("Error while creating appendable object writer : %w", err)
+		return nil, 0, err
+	}
+
+	return w, off, err
 }
 
 func (bh *bucketHandle) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gcs.MinObject, err error) {
