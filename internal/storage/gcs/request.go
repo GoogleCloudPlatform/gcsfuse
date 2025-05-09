@@ -18,7 +18,6 @@ import (
 	"crypto/md5"
 	"fmt"
 	"io"
-	"time"
 
 	storagev2 "cloud.google.com/go/storage"
 	storagev1 "google.golang.org/api/storage/v1"
@@ -428,19 +427,12 @@ type MoveObjectRequest struct {
 // which can either be used for regular writes or appendable object writes via the
 // the CreateObjectChunkWriter or CreateAppendableObjectWriter method respectively.
 type CreateObjectChunkWriterRequest struct {
-	*CreateObjectRequest
+	CreateObjectRequest
 
-	// Maximum number of bytes that writer will attempt to send to server in a
-	// single request. See Writer.ChunkSize
+	// Size of each chunk to be uploaded to GCS
 	ChunkSize int
 
-	// ChunkRetryDeadline sets a per-chunk retry deadline for multi-chunk
-	// resumable uploads. See Writer.ChunkRetryDeadline.
-	ChunkRetryDeadline time.Duration
-
-	// ProgressFunc is used to monitor the progress of large writes.
-	// See Writer.ProgressFunc
-	ProgressFunc func(int64)
-
-	FinalizeOnClose bool // default is false. See Writer.FinalizeOnClose
+	// Offset from where write has to start. Used only in case of appends flows.
+	// Default value is zero which means its a new object write.
+	Offset int64
 }

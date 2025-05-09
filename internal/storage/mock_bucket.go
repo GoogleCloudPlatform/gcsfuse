@@ -160,7 +160,7 @@ func (m *mockBucket) CreateObjectChunkWriter(p0 context.Context, p1 *gcs.CreateO
 	return
 }
 
-func (m *mockBucket) CreateAppendableObjectWriter(p0 context.Context, p1 *gcs.CreateObjectChunkWriterRequest) (o0 gcs.Writer, o1 int64, o3 error) {
+func (m *mockBucket) CreateAppendableObjectWriter(p0 context.Context, p1 *gcs.CreateObjectChunkWriterRequest) (o0 gcs.Writer, o1 int64, o2 error) {
 	//TODO
 	return
 }
