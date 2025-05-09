@@ -62,7 +62,7 @@ record = {
 }
 
 
-def downloadFioOutputs(fioWorkloads: set, instanceId: str) -> int:
+def download_fio_outputs(fioWorkloads: set, instanceId: str) -> int:
   """Downloads instanceId-specific fio outputs for each fioWorkload locally.
 
   Outputs in the bucket are in the following object naming format
@@ -92,7 +92,7 @@ def downloadFioOutputs(fioWorkloads: set, instanceId: str) -> int:
   return 0
 
 
-def createOutputScenariosFromDownloadedFiles(args: dict) -> dict:
+def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
   """Creates output records from the downloaded local files.
 
   The following creates a dict called 'output'
@@ -267,7 +267,7 @@ def createOutputScenariosFromDownloadedFiles(args: dict) -> dict:
   return output
 
 
-def writeRecordsToCsvOutputFile(output: dict, output_file_path: str):
+def write_records_to_csv_output_file(output: dict, output_file_path: str):
   with open(output_file_path, "a") as output_file_fwr:
     # Write a new header.
     output_file_fwr.write(
@@ -335,7 +335,7 @@ def fio_workload_id(row: FioTableRow) -> str:
   return f"{row.experiment_id}_{row.operation}_{row.file_size}_{row.block_size}_{row.num_threads}_{row.files_per_thread}_{row.start_epoch}"
 
 
-def writeRecordsToBqTable(
+def write_records_to_bq_table(
     output: dict,
     experiment_id: str,
     bq_project_id: str,
@@ -408,15 +408,15 @@ if __name__ == "__main__":
     fioWorkloads = fio_workload.ParseTestConfigForFioWorkloads(
         args.workload_config
     )
-    downloadFioOutputs(fioWorkloads, args.instance_id)
+    download_fio_outputs(fioWorkloads, args.instance_id)
 
-  output = createOutputScenariosFromDownloadedFiles(args)
+  output = create_output_scenarios_from_downloaded_files(args)
 
   # Export output dict to CSV.
   output_file_path = args.output_file
   # Create the parent directory of output_file_path if doesn't exist already.
   ensure_directory_exists(os.path.dirname(output_file_path))
-  writeRecordsToCsvOutputFile(output, output_file_path)
+  write_records_to_csv_output_file(output, output_file_path)
 
   # Export output dict to bigquery table.
   if (
@@ -427,7 +427,7 @@ if __name__ == "__main__":
       and args.bq_table_id
       and args.bq_table_id.strip()
   ):
-    writeRecordsToBqTable(
+    write_records_to_bq_table(
         output=output,
         bq_project_id=args.bq_project_id,
         bq_dataset_id=args.bq_dataset_id,
