@@ -28,7 +28,7 @@ sys.path.append("../")
 import fio_workload
 from utils.parse_logs_common import ensure_directory_exists, download_gcs_objects, parse_arguments, SUPPORTED_SCENARIOS, fetch_cpu_memory_data
 from fio.bq_utils import FioBigqueryExporter, FioTableRow, Timestamp
-from utils.utils import unix_to_timestamp, convert_size_to_size_in_bytes
+from utils.utils import unix_to_timestamp, convert_size_to_bytes
 
 _LOCAL_LOGS_LOCATION = "../../bin/fio-logs"
 
@@ -332,7 +332,7 @@ def writeRecordsToCsvOutputFile(output: dict, output_file_path: str):
 
 
 def fio_workload_id(row: FioTableRow) -> str:
-  return f"fio_{row.start_epoch}_{row.operation}_{row.file_size}_{row.block_size}_{row.num_threads}_{row.files_per_thread}_{row.bucket_name}_{row.machine_type}_{row.experiment_id}_{row.pod_name}"
+  return f"{row.experiment_id}_{row.operation}_{row.file_size}_{row.block_size}_{row.num_threads}_{row.files_per_thread}_{row.start_epoch}"
 
 
 def writeRecordsToBqTable(
@@ -363,9 +363,9 @@ def writeRecordsToBqTable(
         row.epoch = r["epoch"]
         row.operation = record_set["read_type"]
         row.file_size = record_set["mean_file_size"]
-        row.file_size_in_bytes = convert_size_to_size_in_bytes(row.file_size)
+        row.file_size_in_bytes = convert_size_to_bytes(row.file_size)
         row.block_size = r["blockSize"]
-        row.block_size_in_bytes = convert_size_to_size_in_bytes(row.block_size)
+        row.block_size_in_bytes = convert_size_to_bytes(row.block_size)
         row.num_threads = r["numThreads"]
         row.files_per_thread = r["filesPerThread"]
         row.bucket_name = r["bucket_name"]

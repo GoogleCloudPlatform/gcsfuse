@@ -17,7 +17,7 @@
 
 import unittest
 import utils
-from utils import convert_size_to_size_in_bytes, get_cpu_from_monitoring_api, get_memory_from_monitoring_api, timestamp_to_epoch
+from utils import convert_size_to_bytes, get_cpu_from_monitoring_api, get_memory_from_monitoring_api, timestamp_to_epoch
 
 
 class UtilsTest(unittest.TestCase):
@@ -113,7 +113,7 @@ class UtilsTest(unittest.TestCase):
             resource_limits[0]['cpu'],
         )
 
-  def test_convert_size_to_size_in_bytes(self):
+  def test_convert_size_to_bytes(self):
     inputs = {
         '': 0,
         '1': 1,
@@ -140,7 +140,7 @@ class UtilsTest(unittest.TestCase):
     }
     for input, output in inputs.items():
       self.assertEqual(
-          convert_size_to_size_in_bytes(input),
+          convert_size_to_bytes(input),
           output,
           f'Failed to convert for input = "{input}", expected-output ='
           f' {output}',
