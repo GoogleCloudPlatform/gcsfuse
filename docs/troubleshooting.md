@@ -180,3 +180,8 @@ During a Git clone, Git doesn’t just fetch object data, it builds out the enti
 While using the mount configuration `o=sync,o=dirsync`, all modifications to the config file incur a network call due to enforced synchronous writes, resulting in 
 performance bottleneck. \
 **Note** : There is no impact of disabling this mount configuration on the user workflow, since we avoid flushing data to GCS on sync( happens multiple times during the course of a Git clone ) , but only on close(), thus ensuring data persistence.
+
+### Increased CPU Utilization with File Cache after upgrade to version 2.12.0
+Starting with [version 2.12.0](https://github.com/GoogleCloudPlatform/gcsfuse/releases/tag/v2.12.0), you might observe a slight increase in CPU utilization when the file cache is enabled. This occurs because GCSFuse uses parallel threads to download data to the read cache. While this dramatically improves read performance, it may consume slightly more CPU than in previous versions.
+
+If this increased CPU usage negatively impacts your workload's performance, you can disable this behavior by setting the `file-cache:enable-parallel-downloads` configuration option to `false`.
