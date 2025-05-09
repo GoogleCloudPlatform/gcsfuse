@@ -405,7 +405,7 @@ if __name__ == "__main__":
   ensure_directory_exists(_LOCAL_LOGS_LOCATION)
 
   if not args.predownloaded_output_files:
-    fioWorkloads = fio_workload.ParseTestConfigForFioWorkloads(
+    fioWorkloads = fio_workload.parse_test_config_for_fio_workloads(
         args.workload_config
     )
     download_fio_outputs(fioWorkloads, args.instance_id)

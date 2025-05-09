@@ -88,7 +88,7 @@ def createHelmInstallCommands(
 
 
 def main(args) -> None:
-  fioWorkloads = fio_workload.ParseTestConfigForFioWorkloads(
+  fioWorkloads = fio_workload.parse_test_config_for_fio_workloads(
       args.workload_config
   )
   helmInstallCommands = createHelmInstallCommands(

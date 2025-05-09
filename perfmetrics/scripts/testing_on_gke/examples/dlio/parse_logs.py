@@ -52,7 +52,7 @@ record = {
 }
 
 
-def downloadDlioOutputs(dlioWorkloads: set, instanceId: str) -> int:
+def download_dlio_outputs(dlioWorkloads: set, instanceId: str) -> int:
   """Downloads instanceId-specific dlio outputs for each dlioWorkload locally.
 
   Outputs in the bucket are in the following object naming format
@@ -260,10 +260,10 @@ if __name__ == "__main__":
   args = parse_arguments()
   ensure_directory_exists(_LOCAL_LOGS_LOCATION)
 
-  dlioWorkloads = dlio_workload.ParseTestConfigForDlioWorkloads(
+  dlioWorkloads = dlio_workload.parse_test_config_for_dlio_workloads(
       args.workload_config
   )
-  downloadDlioOutputs(dlioWorkloads, args.instance_id)
+  download_dlio_outputs(dlioWorkloads, args.instance_id)
 
   output = create_output_scenarios_from_downloaded_files(args)
 
