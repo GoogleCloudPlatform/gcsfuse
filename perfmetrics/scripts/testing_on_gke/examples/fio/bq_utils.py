@@ -195,6 +195,63 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
       print(f'Failed to create fio table {self.table_id}: {e}')
       raise
 
+  def _insert_rows_with_retry(self, table, rows_to_insert: []):
+    """Inserts given rows to the given table in a single transaction.
+
+    If the transaction fails, it parses the returned result variable, for the
+    rows that failed and the reasons they failed. It then retries inserting
+    the rest of the rows.
+
+    This function is a wrapper over BQ client insert_rows function.
+
+    Arguments:
+
+    table: A BQ table handle.
+    rows_to_insert: A list of tuples to insert rows into the above BQ table.
+
+    Exceptions:
+    When the retry transaction fails too, then it re-throws that exception.
+    """
+    result = self.client.insert_rows(table, rows_to_insert)
+    if result:
+      if isinstance(result, list):
+        failed_row_indices = dict()
+        for result_entry in result:
+          if (
+              isinstance(result_entry, dict)
+              and 'index' in result_entry
+              and 'errors' in result_entry
+              and isinstance(result_entry['errors'], list)
+          ):
+            for result_entry_error in result_entry['errors']:
+              if (
+                  isinstance(result_entry_error, dict)
+                  and 'reason' in result_entry_error
+                  and result_entry_error['reason'] != 'stopped'
+              ):
+                failed_row_indices[result_entry['index']] = result_entry_error[
+                    'message'
+                ]
+                break
+        print(
+            'The following rows failed to insert to BQ table: \n{}'.format([
+                f'Row # {_failed_row_index}:'
+                f' {rows_to_insert[_failed_row_index]}, error message:'
+                f' {failed_row_indices[_failed_row_index]}\n'
+                for _failed_row_index in failed_row_indices
+            ])
+        )
+        print('Going to retry inserting the rest ...')
+        row_indices_to_retry = set(range(len(rows_to_insert))) - (
+            failed_row_indices.keys()
+        )
+        rows_to_retry = [rows_to_insert[i] for i in row_indices_to_retry]
+        result = self.client.insert_rows(table, rows_to_retry)
+        if result:
+          raise Exception(f'{result}')
+      else:
+        raise Exception(f'{result}')
+
   def insert_rows(self, fioTableRows: []):
     """Pass a list of FioTableRow objects to insert into the fio-table.
 
@@ -227,9 +284,7 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
     # into the table.
     table = self._get_table_from_table_id(self.table_id)
     try:
-      result = self.client.insert_rows(table, rows_to_insert)
-      if result:
-        raise Exception(f'{result}')
+      self._insert_rows_with_retry(table, rows_to_insert)
     except Exception as e:
       raise Exception(
           'Error inserting data to BigQuery table'
