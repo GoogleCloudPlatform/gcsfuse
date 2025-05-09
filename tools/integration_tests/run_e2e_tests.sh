@@ -13,8 +13,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This will stop execution when any command will have non-zero status.
+# Exit immediately if a command exits with a non-zero status. Treat unset variables as an error and exit immediately.
+# If any command in a pipeline fails, the entire pipeline's exit status is the status of the last command to exit with a non-zero status.
+set -euo pipefail
 
+display_usage() {
+  echo "Usage: $0 bucketLocation <>"
+  echo "  bucketLocation: Bucket Location for e2e tests. (e.g. us-central1)"
+  echo "  <argument2>: Description of argument 2"
+  exit 1
+}
+
+display_usage
 # true or false to run e2e tests on installedPackage
 RUN_E2E_TESTS_ON_PACKAGE=$1
 
