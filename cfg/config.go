@@ -505,7 +505,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("prometheus-port", "", 0, "Expose Prometheus metrics endpoint on this port and a path of /metrics.")
+	flagSet.IntP("prometheus-port", "", 18080, "Expose Prometheus metrics endpoint on this port and a path of /metrics.")
 
 	flagSet.DurationP("read-inactive-stream-timeout", "", 0*time.Nanosecond, "Duration of inactivity after which an open GCS read stream is automatically closed. This helps conserve resources when a file handle remains open without active Read calls. A value of '0s' disables this timeout. Note: Currently only applies when using the 'grpc' client-protocol.")
 
