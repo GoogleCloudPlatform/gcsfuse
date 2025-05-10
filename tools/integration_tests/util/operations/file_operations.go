@@ -802,3 +802,30 @@ func CheckLogFileForMessage(t *testing.T, expectedLog, logFile string) bool {
 	}
 	return false
 }
+
+// This method validates sync operation on file which has already been clobbered.
+// 1. With Streaming Writes Sync operation only uploads pending buffers and it doesn't return any error.
+// 2. Without streaming writes file is synced with GCS and returns ESTALE error.
+func ValidateSyncGivenThatFileIsClobbered(t *testing.T, file *os.File, streamingWrites bool) {
+	t.Helper()
+	err := file.Sync()
+	if streamingWrites {
+		assert.NoError(t, err)
+	} else {
+		ValidateESTALEError(t, err)
+	}
+}
+
+// This method validates read operation on file which has already been clobbered.
+// 1. With Streaming Writes read operation is not supported.
+// 2. Without streaming read operation returns ESTALE error encountered during reader creation.
+func ValidateReadGivenThatFileIsClobbered(t *testing.T, file *os.File, streamingWrites bool, content string) {
+	t.Helper()
+	buffer := make([]byte, len(content))
+	_, err := file.Read(buffer)
+	if streamingWrites {
+		ValidateEOPNOTSUPPError(t, err)
+	} else {
+		ValidateESTALEError(t, err)
+	}
+}

@@ -191,7 +191,6 @@ TEST_DIR_PARALLEL=(
   "concurrent_operations"
   "mount_timeout"
   "stale_handle"
-  "stale_handle_streaming_writes"
   "negative_stat_cache"
   "streaming_writes"
 )
