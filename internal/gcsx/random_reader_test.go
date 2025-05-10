@@ -181,7 +181,7 @@ func (t *RandomReaderTest) SetUp(ti *TestInfo) {
 	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm)
 
 	// Set up the reader.
-	rr := NewRandomReader(t.object, t.bucket, sequentialReadSizeInMb, nil, false, common.NewNoopMetrics(), nil)
+	rr := NewRandomReader(t.object, t.bucket, sequentialReadSizeInMb, nil, false, common.NewNoopMetrics(), nil, nil)
 	t.rr.wrapped = rr.(*randomReader)
 }
 
@@ -531,7 +531,7 @@ func (t *RandomReaderTest) UpgradesSequentialReads_NoExistingReader() {
 	t.object.Size = 1 << 40
 	const readSize = 1 * MiB
 	// Set up the custom randomReader.
-	rr := NewRandomReader(t.object, t.bucket, readSize/MiB, nil, false, common.NewNoopMetrics(), nil)
+	rr := NewRandomReader(t.object, t.bucket, readSize/MiB, nil, false, common.NewNoopMetrics(), nil, nil)
 	t.rr.wrapped = rr.(*randomReader)
 
 	// Simulate a previous exhausted reader that ended at the offset from which
