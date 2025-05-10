@@ -181,6 +181,15 @@ func (b *debugBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.Crea
 	return
 }
 
+func (b *debugBucket) CreateAppendableObjectWriter(ctx context.Context,
+	req *gcs.CreateObjectChunkWriterRequest) (wc gcs.Writer, off int64, err error) {
+	id, desc, start := b.startRequest("CreateAppendableObjectWriter(%q)", req.Name)
+	defer b.finishRequest(id, desc, start, &err)
+
+	wc, off, err = b.wrapped.CreateAppendableObjectWriter(context.WithValue(ctx, gcs.ReqIdField, id), req)
+	return
+}
+
 func (b *debugBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gcs.MinObject, err error) {
 	id, desc, start := b.startRequest("FinalizeUpload(%q)", w.ObjectName())
 	defer b.finishRequest(id, desc, start, &err)

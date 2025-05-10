@@ -243,6 +243,12 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 	return wc, nil
 }
 
+func (bh *bucketHandle) CreateAppendableObjectWriter(ctx context.Context,
+	req *gcs.CreateObjectChunkWriterRequest) (gcs.Writer, int64, error) {
+	//TODO implement it
+	return nil, 0, nil
+}
+
 func (bh *bucketHandle) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gcs.MinObject, err error) {
 	defer func() {
 		err = gcs.GetGCSError(err)

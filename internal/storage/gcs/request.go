@@ -422,3 +422,17 @@ type MoveObjectRequest struct {
 	// current meta-generation for the source object is equal to the given value.
 	SrcMetaGenerationPrecondition *int64
 }
+
+// CreateObjectChunkWriterRequest represents a request to create a storage.Writer
+// which can either be used for regular writes or appendable object writes via the
+// the CreateObjectChunkWriter or CreateAppendableObjectWriter method respectively.
+type CreateObjectChunkWriterRequest struct {
+	CreateObjectRequest
+
+	// Size of each chunk to be uploaded to GCS
+	ChunkSize int
+
+	// Offset from where write has to start. Used only in case of appends flows.
+	// Default value is zero which means its a new object write.
+	Offset int64
+}
