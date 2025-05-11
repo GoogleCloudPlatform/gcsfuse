@@ -244,8 +244,30 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 
 func (bh *bucketHandle) CreateAppendableObjectWriter(ctx context.Context,
 	req *gcs.CreateObjectChunkWriterRequest) (gcs.Writer, error) {
-	//TODO implement it
-	return nil, nil
+	obj := bh.getObjectHandleWithPreconditionsSet(&req.CreateObjectRequest)
+	callBack := func(bytesUploadedSoFar int64) {
+		logger.Tracef("gcs: Req %#16x: -- UploadBlock(%q): %20v bytes uploaded so far", ctx.Value(gcs.ReqIdField), req.Name, bytesUploadedSoFar)
+	}
+
+	opts := storage.AppendableWriterOpts{
+		ChunkSize:       req.ChunkSize,
+		ProgressFunc:    callBack,
+		FinalizeOnClose: false,
+	}
+
+	tw, off, err := obj.NewWriterFromAppendableObject(ctx, &opts) // Takeover writer tw created from offset off.
+
+	if err != nil {
+		err = fmt.Errorf("Error while creating appendable object writer : %w", err)
+		return nil, err
+	}
+
+	if off != req.Offset {
+		err = fmt.Errorf("takeover offset for the created appendable object writer does not match the requested offset")
+		return nil, err
+	}
+	w := &ObjectWriter{tw}
+	return w, err
 }
 
 func (bh *bucketHandle) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gcs.MinObject, err error) {
