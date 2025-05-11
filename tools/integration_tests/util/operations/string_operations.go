@@ -16,10 +16,16 @@
 package operations
 
 import (
+	"math/rand"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
+)
+
+const (
+	Charset = "abcdefghijklmnopqrstuvwxyz0123456789"
 )
 
 func VerifyExpectedSubstrings(t *testing.T, input string, expectedSubstrings []string) {
@@ -54,4 +60,21 @@ func SplitBucketNameAndDirPath(t *testing.T, bucketNameWithDirPath string) (buck
 		t.Fatalf("Unexpected bucketNameWithDirPath: %q. Expected form: <bucket>/<object-name>", bucketNameWithDirPath)
 	}
 	return
+}
+
+func GenerateRandomString(length int) string {
+	seededRand := rand.New(rand.NewSource(time.Now().UnixNano()))
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = Charset[seededRand.Intn(len(Charset))]
+	}
+	return string(b)
+}
+
+func GenerateRandomDirName(prefix string) string {
+	return prefix + "-" + GenerateRandomString(5)
+}
+
+func GenerateRandomFileName(prefix string) string {
+	return prefix + "-" + GenerateRandomString(5) + ".txt"
 }

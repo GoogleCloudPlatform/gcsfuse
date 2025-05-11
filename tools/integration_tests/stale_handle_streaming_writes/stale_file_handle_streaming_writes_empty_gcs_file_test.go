@@ -21,7 +21,6 @@ import (
 	"cloud.google.com/go/storage"
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -39,7 +38,7 @@ type staleFileHandleStreamingWritesEmptyGcsFile struct {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *staleFileHandleStreamingWritesEmptyGcsFile) SetupTest() {
-	t.fileName = setup.GenerateRandomString(5)
+	t.fileName = operations.GenerateRandomString(5)
 	// Create an empty object on GCS
 	CreateObjectInGCSTestDir(ctx, storageClient, testDirName, t.fileName, "", t.T())
 	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, t.fileName, "", t.T())

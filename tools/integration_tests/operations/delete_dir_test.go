@@ -60,3 +60,27 @@ func TestDeleteNonEmptyExplicitDir(t *testing.T) {
 		t.Errorf("Directory is not deleted.")
 	}
 }
+
+// Tests that deleting and recreating a non-empty explicit directory works as expected.
+func TestDeleteAndRecreateNonEmptyExplicitDir(t *testing.T) {
+	testDir := setup.SetupTestDirectory(DirForOperationTests)
+
+	// Create a directory with random name to isolate it from parallel invocations of the same test.
+	dirPath := path.Join(testDir, setup.GenerateRandomDirName(NonEmptyExplicitDirectoryForDeleteTest))
+	operations.CreateDirectoryWithNFiles(NumberOfFilesInNonEmptyExplicitDirectoryForDeleteTest, dirPath, PrefixFilesInNonEmptyExplicitDirectoryForDeleteTest, t)
+
+	// Delete this directory.
+	err := os.RemoveAll(dirPath)
+	if err != nil {
+		t.Errorf("Error in deleting empty explicit directory %q: %v", dirPath, err)
+	}
+
+	// Recreate deleted directory right away.
+	operations.CreateDirectoryWithNFiles(NumberOfFilesInNonEmptyExplicitDirectoryForDeleteTest, dirPath, PrefixFilesInNonEmptyExplicitDirectoryForDeleteTest, t)
+
+	// Delete it again.
+	err = os.RemoveAll(dirPath)
+	if err != nil {
+		t.Errorf("Error in deleting empty explicit directory %q: %v", dirPath, err)
+	}
+}
