@@ -108,10 +108,5 @@ func (s *staleFileHandleCommon) TestRenamedFileSyncAndCloseThrowsStaleFileHandle
 	assert.NoError(s.T(), err)
 	operations.ValidateWriteGivenThatFileIsRenamed(s.T(), s.f1, s.isStreamingWritesEnabled, s.data)
 	operations.ValidateSyncGivenThatFileIsClobbered(s.T(), s.f1, s.isStreamingWritesEnabled)
-	err = s.f1.Close()
-	if s.isStreamingWritesEnabled {
-		assert.NoError(s.T(), err)
-	} else {
-		operations.ValidateESTALEError(s.T(), err)
-	}
+	operations.ValidateCloseGivenThatFileIsRenamed(s.T(), s.f1, s.isStreamingWritesEnabled)
 }

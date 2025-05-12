@@ -830,8 +830,8 @@ func ValidateReadGivenThatFileIsClobbered(t *testing.T, file *os.File, streaming
 	}
 }
 
-// This method validates write operation on file which has been renamed from same mount.
-// 1. With streaming writes write operation returns ESTALE error as chunk upload fails.
+// This method validates write operation on file which has been renamed.
+// 1. With streaming writes write operation returns ESTALE error as buffer upload fails.
 // 2. Without streaming writes write operation succeeds.
 func ValidateWriteGivenThatFileIsRenamed(t *testing.T, file *os.File, streamingWrites bool, content string) {
 	t.Helper()
@@ -841,5 +841,18 @@ func ValidateWriteGivenThatFileIsRenamed(t *testing.T, file *os.File, streamingW
 	} else {
 		require.NoError(t, err)
 		assert.Equal(t, len(content), n)
+	}
+}
+
+// This method validates close operation on file which has been renamed.
+// 1. With streaming writes close operation succeeds as nothing is written on file after rename.
+// 2. Without streaming writes close operation fails as object not found on GCS.
+func ValidateCloseGivenThatFileIsRenamed(t *testing.T, file *os.File, streamingWrites bool) {
+	t.Helper()
+	err := file.Close()
+	if streamingWrites {
+		require.NoError(t, err)
+	} else {
+		ValidateESTALEError(t, err)
 	}
 }
