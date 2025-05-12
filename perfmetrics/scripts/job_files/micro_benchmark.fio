@@ -1,0 +1,36 @@
+[global]
+ioengine=libaio
+direct=1
+fadvise_hint=0
+verify=0
+iodepth=64
+invalidate=1
+ramp_time=10s
+startdelay=2m
+time_based=1
+nrfiles=1
+thread=1
+openfiles=1
+group_reporting=1
+allrandrepeat=1
+filename_format=$jobname.$jobnum.$filenum
+
+# Job for the read test
+[read_test_15gb]
+stonewall
+rw=read
+runtime=120s
+bs=1M
+directory=gcs/15gb
+filesize=15G
+numjobs=1
+
+# Job for the write test
+[write_test_15gb]
+stonewall
+rw=write
+runtime=10m
+bs=1M
+directory=gcs/15gb
+filesize=15G
+numjobs=1
