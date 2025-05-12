@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"go.opentelemetry.io/otel/metric"
 )
@@ -55,21 +56,21 @@ type GCSMetricHandle interface {
 	GCSReadBytesCount(ctx context.Context, inc int64)
 	GCSReaderCount(ctx context.Context, inc int64, attrs []MetricAttr)
 	GCSRequestCount(ctx context.Context, inc int64, attrs []MetricAttr)
-	GCSRequestLatency(ctx context.Context, value float64, attrs []MetricAttr)
+	GCSRequestLatency(ctx context.Context, latency time.Duration, attrs []MetricAttr)
 	GCSReadCount(ctx context.Context, inc int64, attrs []MetricAttr)
 	GCSDownloadBytesCount(ctx context.Context, inc int64, attrs []MetricAttr)
 }
 
 type OpsMetricHandle interface {
 	OpsCount(ctx context.Context, inc int64, attrs []MetricAttr)
-	OpsLatency(ctx context.Context, value float64, attrs []MetricAttr)
+	OpsLatency(ctx context.Context, latency time.Duration, attrs []MetricAttr)
 	OpsErrorCount(ctx context.Context, inc int64, attrs []MetricAttr)
 }
 
 type FileCacheMetricHandle interface {
 	FileCacheReadCount(ctx context.Context, inc int64, attrs []MetricAttr)
 	FileCacheReadBytesCount(ctx context.Context, inc int64, attrs []MetricAttr)
-	FileCacheReadLatency(ctx context.Context, value float64, attrs []MetricAttr)
+	FileCacheReadLatency(ctx context.Context, latency time.Duration, attrs []MetricAttr)
 }
 type MetricHandle interface {
 	GCSMetricHandle

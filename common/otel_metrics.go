@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"sync/atomic"
+	"time"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -96,8 +97,8 @@ func (o *otelMetrics) GCSRequestCount(ctx context.Context, inc int64, attrs []Me
 	o.gcsRequestCount.Add(ctx, inc, attrsToAddOption(attrs)...)
 }
 
-func (o *otelMetrics) GCSRequestLatency(ctx context.Context, value float64, attrs []MetricAttr) {
-	o.gcsRequestLatency.Record(ctx, value, attrsToRecordOption(attrs)...)
+func (o *otelMetrics) GCSRequestLatency(ctx context.Context, latency time.Duration, attrs []MetricAttr) {
+	o.gcsRequestLatency.Record(ctx, float64(latency.Milliseconds()), attrsToRecordOption(attrs)...)
 }
 
 func (o *otelMetrics) GCSReadCount(ctx context.Context, inc int64, attrs []MetricAttr) {
@@ -112,8 +113,8 @@ func (o *otelMetrics) OpsCount(ctx context.Context, inc int64, attrs []MetricAtt
 	o.fsOpsCount.Add(ctx, inc, attrsToAddOption(attrs)...)
 }
 
-func (o *otelMetrics) OpsLatency(ctx context.Context, value float64, attrs []MetricAttr) {
-	o.fsOpsLatency.Record(ctx, value, attrsToRecordOption(attrs)...)
+func (o *otelMetrics) OpsLatency(ctx context.Context, latency time.Duration, attrs []MetricAttr) {
+	o.fsOpsLatency.Record(ctx, float64(latency.Microseconds()), attrsToRecordOption(attrs)...)
 }
 
 func (o *otelMetrics) OpsErrorCount(ctx context.Context, inc int64, attrs []MetricAttr) {
@@ -128,8 +129,8 @@ func (o *otelMetrics) FileCacheReadBytesCount(ctx context.Context, inc int64, at
 	o.fileCacheReadBytesCount.Add(ctx, inc, attrsToAddOption(attrs)...)
 }
 
-func (o *otelMetrics) FileCacheReadLatency(ctx context.Context, value float64, attrs []MetricAttr) {
-	o.fileCacheReadLatency.Record(ctx, value, attrsToRecordOption(attrs)...)
+func (o *otelMetrics) FileCacheReadLatency(ctx context.Context, latency time.Duration, attrs []MetricAttr) {
+	o.fileCacheReadLatency.Record(ctx, float64(latency.Microseconds()), attrsToRecordOption(attrs)...)
 }
 
 func NewOTelMetrics() (MetricHandle, error) {
