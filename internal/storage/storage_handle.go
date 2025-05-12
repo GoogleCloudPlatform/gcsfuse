@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"cloud.google.com/go/storage/experimental"
 	"github.com/googleapis/gax-go/v2"
@@ -228,8 +227,7 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 }
 
 func (sh *storageClient) lookupBucketType(bucketName string) (*gcs.BucketType, error) {
-	var nilControlClient *control.StorageControlClient = nil
-	if sh.storageControlClient == nilControlClient {
+	if sh.storageControlClient == nil {
 		return &gcs.BucketType{}, nil // Assume defaults
 	}
 
