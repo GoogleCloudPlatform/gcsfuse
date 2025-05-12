@@ -40,6 +40,7 @@ func (t *staleFileHandleStreamingWritesCommon) SetupSuite() {
 	serverCfg.Write.EnableStreamingWrites = true
 	serverCfg.Write.BlockSizeMb = operations.MiB
 	serverCfg.Write.MaxBlocksPerFile = 1
+	serverCfg.Write.GlobalMaxBlocks = 3
 
 	t.serverCfg.NewConfig = serverCfg
 	t.mountCfg.DisableWritebackCaching = true

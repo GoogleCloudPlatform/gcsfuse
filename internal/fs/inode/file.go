@@ -438,6 +438,7 @@ func (f *FileInode) DeRegisterFileHandle(readOnly bool) {
 
 	// All write fileHandles associated with bwh are closed. So safe to set bwh to nil.
 	if f.writeHandleCount == 0 && f.bwh != nil {
+		f.globalMaxWriteBlocksSem.Release(1)
 		err := f.bwh.Destroy()
 		if err != nil {
 			logger.Warnf("Error while destroying the bufferedWritesHandler: %v", err)
@@ -887,6 +888,7 @@ func (f *FileInode) updateInodeStateAfterFlush(minObj *gcs.MinObject) {
 	if minObj != nil && !f.localFileCache {
 		// Set BWH to nil as as object has been finalized.
 		if f.bwh != nil {
+			f.globalMaxWriteBlocksSem.Release(1)
 			err := f.bwh.Destroy()
 			if err != nil {
 				logger.Warnf("Error while destroying the bufferedWritesHandler: %v", err)
@@ -996,8 +998,9 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context) (boo
 			return false, err
 		}
 	}
-	// Do not initialize bwh if there are not enough free global max blocks.
+	// Do not initialize bwh if there are not enough free global blocks.
 	if !f.globalMaxWriteBlocksSem.TryAcquire(1) {
+		logger.Infof("Falling back to staged write for '%s'. Due to not enough global block are available.", f.name)
 		return false, nil
 	}
 	f.bwh, err = bufferedwrites.NewBWHandler(&bufferedwrites.CreateBWHandlerRequest{
