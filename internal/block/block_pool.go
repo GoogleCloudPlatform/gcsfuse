@@ -118,10 +118,11 @@ func (bp *BlockPool) ClearFreeBlockChannel() error {
 				// if we get here, there is likely memory corruption.
 				return fmt.Errorf("munmap error: %v", err)
 			}
-			bp.totalBlocks--
 			if bp.totalBlocks != 0 {
 				bp.globalMaxBlocksSem.Release(1)
 			}
+			bp.totalBlocks--
+
 		default:
 			// Return if there are no more blocks on the channel.
 			return nil
