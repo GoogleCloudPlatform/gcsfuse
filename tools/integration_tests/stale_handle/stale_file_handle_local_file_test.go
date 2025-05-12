@@ -42,6 +42,7 @@ func (s *staleFileHandleLocalFile) SetupTest() {
 	s.testDirPath = setup.SetupTestDirectory(s.T().Name())
 	// Create a local file.
 	s.f1 = operations.OpenFileWithODirect(s.T(), path.Join(s.testDirPath, FileName1))
+	s.isLocal = true
 }
 
 ////////////////////////////////////////////////////////////////////////

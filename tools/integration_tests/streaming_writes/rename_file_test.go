@@ -62,23 +62,3 @@ func (t *defaultMountCommonTest) TestSyncAfterRenameSucceeds() {
 	// Check if old object is deleted.
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, t.fileName, t.T())
 }
-
-func (t *defaultMountCommonTest) TestAfterRenameWriteFailsWithStaleNFSFileHandleError() {
-	_, err := t.f1.WriteAt([]byte(t.data), 0)
-	require.NoError(t.T(), err)
-	operations.VerifyStatFile(t.filePath, int64(len(t.data)), FilePerms, t.T())
-	err = t.f1.Sync()
-	require.NoError(t.T(), err)
-	newFile := "new" + t.fileName
-	err = operations.RenameFile(t.filePath, path.Join(testDirPath, newFile))
-	require.NoError(t.T(), err)
-
-	_, err = t.f1.WriteAt([]byte(t.data), int64(len(t.data)))
-
-	operations.ValidateESTALEError(t.T(), err)
-	// Verify the new object contents.
-	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, newFile, string(t.data), t.T())
-	require.NoError(t.T(), t.f1.Close())
-	// Check if old object is deleted.
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, t.fileName, t.T())
-}
