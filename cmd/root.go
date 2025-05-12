@@ -155,10 +155,10 @@ func convertToPosixArgs(args []string, c *cobra.Command) []string {
 var ExecuteMountCmd = func() {
 	rootCmd, err := newRootCmd(Mount)
 	if err != nil {
-		log.Fatalf("Error occurred while creating the root command on gcsfuse/%s: %v", common.GetVersion(), err)
+		log.Fatalf("Error occurred while creating the root command: %v", err)
 	}
 	rootCmd.SetArgs(convertToPosixArgs(os.Args, rootCmd))
 	if err := rootCmd.Execute(); err != nil {
-		log.Fatalf("Error occurred during command execution on gcsfuse/%s: %v", common.GetVersion(), err)
+		log.Fatalf("Error occurred during command execution: %v", err)
 	}
 }
