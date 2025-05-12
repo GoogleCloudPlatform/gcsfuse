@@ -80,10 +80,17 @@ func (t *gcsReaderTest) TearDownTest() {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *gcsReaderTest) Test_NewGCSReader() {
-	// The setup instantiates gcsReader with NewGCSReader.
-	assert.Equal(t.T(), t.object, t.gcsReader.object)
-	assert.Equal(t.T(), t.mockBucket, t.gcsReader.bucket)
-	assert.Equal(t.T(), testUtil.Sequential, t.gcsReader.readType)
+	object := &gcs.MinObject{
+		Name:       testObject,
+		Size:       30,
+		Generation: 4321,
+	}
+
+	gcsReader := NewGCSReader(object, t.mockBucket, common.NewNoopMetrics(), nil, 200)
+
+	assert.Equal(t.T(), object, gcsReader.object)
+	assert.Equal(t.T(), t.mockBucket, gcsReader.bucket)
+	assert.Equal(t.T(), testUtil.Sequential, gcsReader.readType)
 }
 
 func (t *gcsReaderTest) Test_ReadAt_ExistingReaderLimitIsLessThanRequestedDataSize() {
@@ -100,7 +107,7 @@ func (t *gcsReaderTest) Test_ReadAt_ExistingReaderLimitIsLessThanRequestedDataSi
 		Name:       t.gcsReader.rangeReader.object.Name,
 		Generation: t.gcsReader.rangeReader.object.Generation,
 		Range: &gcs.ByteRange{
-			Start: uint64(2),
+			Start: 2,
 			Limit: t.object.Size,
 		},
 		ReadCompressed: t.gcsReader.rangeReader.object.HasContentEncodingGzip(),
