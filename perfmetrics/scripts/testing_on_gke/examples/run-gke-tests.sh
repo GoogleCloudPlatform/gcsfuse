@@ -755,8 +755,8 @@ function downloadFioOutputsFromBucket() {
   dst_dir="${gcsfuse_src_dir}/perfmetrics/scripts/testing_on_gke/bin/fio-logs/${instance_id}/${fileSize}"
   if test -d "${src_dir}" ; then
     mkdir -pv "${dst_dir}"
-    echo "Copying files from \"${src_dir}\" to \"${dst_dir}/\" ... "
-    cp -rfvu "${src_dir}"/* "${dst_dir}"/
+    echo "Copying files of type ${fileSize}* from \"${src_dir}\" to \"${dst_dir}/\" ... "
+    cp -rfvu "${src_dir}"/${fileSize}* "${dst_dir}"/
   fi
 
   echo "  Unmounting \"${bucket}\" from \"${mountpath}\" ... "
