@@ -34,6 +34,7 @@ import (
 type staleFileHandleCommon struct {
 	flags                    []string
 	f1                       *os.File
+	fileName                 string
 	data                     string
 	testDirPath              string
 	isStreamingWritesEnabled bool
@@ -46,6 +47,7 @@ type staleFileHandleCommon struct {
 // //////////////////////////////////////////////////////////////////////
 func (s *staleFileHandleCommon) SetupSuite() {
 	setup.MountGCSFuseWithGivenMountFunc(s.flags, mountFunc)
+	s.testDirPath = setup.SetupTestDirectory(testDirName)
 	s.data = setup.GenerateRandomString(5 * util.MiB)
 }
 
@@ -66,14 +68,14 @@ func (s *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHand
 	// Dirty the file by giving it some contents.
 	operations.WriteWithoutClose(s.f1, s.data, s.T())
 	// Clobber file by replacing the underlying object with a new generation.
-	err := WriteToObject(ctx, storageClient, path.Join(s.T().Name(), FileName1), FileContents, storage.Conditions{})
+	err := WriteToObject(ctx, storageClient, path.Join(testDirName, s.fileName), FileContents, storage.Conditions{})
 	assert.NoError(s.T(), err)
 
 	operations.ValidateSyncGivenThatFileIsClobbered(s.T(), s.f1, s.isStreamingWritesEnabled)
 
 	err = s.f1.Close()
 	operations.ValidateESTALEError(s.T(), err)
-	ValidateObjectContentsFromGCS(ctx, storageClient, s.T().Name(), FileName1, FileContents, s.T())
+	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, s.fileName, FileContents, s.T())
 }
 
 func (s *staleFileHandleCommon) TestFileDeletedLocallySyncAndCloseDoNotThrowError() {
@@ -89,15 +91,16 @@ func (s *staleFileHandleCommon) TestFileDeletedLocallySyncAndCloseDoNotThrowErro
 	operations.WriteWithoutClose(s.f1, s.data, s.T())
 	operations.SyncFile(s.f1, s.T())
 	operations.CloseFileShouldNotThrowError(s.T(), s.f1)
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, s.T().Name(), FileName1, s.T())
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, s.fileName, s.T())
 }
 
 func (s *staleFileHandleCommon) TestRenamedFileSyncAndCloseThrowsStaleFileHandleError() {
 	// Dirty the file by giving it some contents.
 	_, err := s.f1.WriteString(s.data)
 	assert.NoError(s.T(), err)
+	newFile := "new" + s.fileName
 
-	err = operations.RenameFile(s.f1.Name(), path.Join(setup.MntDir(), s.T().Name(), FileName2))
+	err = operations.RenameFile(s.f1.Name(), path.Join(s.testDirPath, newFile))
 
 	// TODO(b/402335988): Update this test once rename flow is fixed.
 	if s.isLocal && !s.isStreamingWritesEnabled {

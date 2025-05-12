@@ -40,11 +40,11 @@ type staleFileHandleEmptyGcsFile struct {
 // //////////////////////////////////////////////////////////////////////
 
 func (s *staleFileHandleEmptyGcsFile) SetupTest() {
-	s.testDirPath = setup.SetupTestDirectory(s.T().Name())
 	// Create an empty object on GCS.
-	err := CreateObjectOnGCS(ctx, storageClient, path.Join(s.T().Name(), FileName1), "")
+	s.fileName = path.Base(s.T().Name()) + setup.GenerateRandomString(5)
+	err := CreateObjectOnGCS(ctx, storageClient, path.Join(testDirName, s.fileName), "")
 	assert.NoError(s.T(), err)
-	s.f1 = operations.OpenFileWithODirect(s.T(), path.Join(s.testDirPath, FileName1))
+	s.f1 = operations.OpenFileWithODirect(s.T(), path.Join(s.testDirPath, s.fileName))
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -60,10 +60,11 @@ func (s *staleFileHandleEmptyGcsFile) TestClobberedFileReadThrowsStaleFileHandle
 	_, err := s.f1.WriteAt([]byte(s.data), 0)
 	assert.NoError(s.T(), err)
 	operations.SyncFile(s.f1, s.T())
-	// Replace the underlying object with a new generation.
-	err = WriteToObject(ctx, storageClient, path.Join(s.T().Name(), FileName1), FileContents, storage.Conditions{})
-	assert.NoError(s.T(), err)
 
+	// Replace the underlying object with a new generation.
+	err = WriteToObject(ctx, storageClient, path.Join(testDirName, s.fileName), FileContents, storage.Conditions{})
+
+	assert.NoError(s.T(), err)
 	operations.ValidateReadGivenThatFileIsClobbered(s.T(), s.f1, s.isStreamingWritesEnabled, s.data)
 }
 
@@ -73,7 +74,7 @@ func (s *staleFileHandleEmptyGcsFile) TestClobberedFileFirstWriteThrowsStaleFile
 		s.T().Skip("Skip test due to takeover support not available.")
 	}
 	// Clobber file by replacing the underlying object with a new generation.
-	err := WriteToObject(ctx, storageClient, path.Join(s.T().Name(), FileName1), FileContents, storage.Conditions{})
+	err := WriteToObject(ctx, storageClient, path.Join(testDirName, s.fileName), FileContents, storage.Conditions{})
 	assert.NoError(s.T(), err)
 
 	// Attempt first write to the file should give stale NFS file handle error.
@@ -83,7 +84,7 @@ func (s *staleFileHandleEmptyGcsFile) TestClobberedFileFirstWriteThrowsStaleFile
 	operations.ValidateSyncGivenThatFileIsClobbered(s.T(), s.f1, s.isStreamingWritesEnabled)
 	err = s.f1.Close()
 	operations.ValidateESTALEError(s.T(), err)
-	ValidateObjectContentsFromGCS(ctx, storageClient, s.T().Name(), FileName1, FileContents, s.T())
+	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, s.fileName, FileContents, s.T())
 }
 
 func (s *staleFileHandleEmptyGcsFile) TestFileDeletedRemotelySyncAndCloseThrowsStaleFileHandleError() {
@@ -94,10 +95,10 @@ func (s *staleFileHandleEmptyGcsFile) TestFileDeletedRemotelySyncAndCloseThrowsS
 	// Dirty the file by giving it some contents.
 	operations.WriteWithoutClose(s.f1, s.data, s.T())
 	// Delete the file remotely.
-	err := DeleteObjectOnGCS(ctx, storageClient, path.Join(s.T().Name(), FileName1))
+	err := DeleteObjectOnGCS(ctx, storageClient, path.Join(testDirName, s.fileName))
 	assert.NoError(s.T(), err)
 	// Verify unlink operation succeeds.
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, s.T().Name(), FileName1, s.T())
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, s.fileName, s.T())
 	// Attempt to write to file should not give any error.
 	operations.WriteWithoutClose(s.f1, s.data, s.T())
 
@@ -105,7 +106,7 @@ func (s *staleFileHandleEmptyGcsFile) TestFileDeletedRemotelySyncAndCloseThrowsS
 
 	err = s.f1.Close()
 	operations.ValidateESTALEError(s.T(), err)
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, s.T().Name(), FileName1, s.T())
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, s.fileName, s.T())
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -113,6 +114,11 @@ func (s *staleFileHandleEmptyGcsFile) TestFileDeletedRemotelySyncAndCloseThrowsS
 ////////////////////////////////////////////////////////////////////////
 
 func TestStaleFileHandleEmptyGcsFileTest(t *testing.T) {
+	// Run tests for mounted directory if the flag is set and return.
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+		suite.Run(t, new(staleFileHandleEmptyGcsFile))
+		return
+	}
 	for _, flags := range flagsSet {
 		s := new(staleFileHandleEmptyGcsFile)
 		s.flags = flags

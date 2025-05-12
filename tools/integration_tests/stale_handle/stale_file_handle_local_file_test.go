@@ -19,7 +19,6 @@ import (
 	"slices"
 	"testing"
 
-	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/stretchr/testify/suite"
 
@@ -39,9 +38,9 @@ type staleFileHandleLocalFile struct {
 // //////////////////////////////////////////////////////////////////////
 
 func (s *staleFileHandleLocalFile) SetupTest() {
-	s.testDirPath = setup.SetupTestDirectory(s.T().Name())
 	// Create a local file.
-	s.f1 = operations.OpenFileWithODirect(s.T(), path.Join(s.testDirPath, FileName1))
+	s.fileName = path.Base(s.T().Name()) + setup.GenerateRandomString(5)
+	s.f1 = operations.OpenFileWithODirect(s.T(), path.Join(s.testDirPath, s.fileName))
 	s.isLocal = true
 }
 
@@ -50,6 +49,11 @@ func (s *staleFileHandleLocalFile) SetupTest() {
 ////////////////////////////////////////////////////////////////////////
 
 func TestStaleFileHandleLocalFileTest(t *testing.T) {
+	// Run tests for mounted directory if the flag is set and return.
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+		suite.Run(t, new(staleFileHandleLocalFile))
+		return
+	}
 	for _, flags := range flagsSet {
 		s := new(staleFileHandleLocalFile)
 		s.flags = flags

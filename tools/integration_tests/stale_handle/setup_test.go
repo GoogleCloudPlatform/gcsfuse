@@ -26,6 +26,10 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
+const (
+	testDirName = "StaleHandleTest"
+)
+
 var (
 	storageClient *storage.Client
 	ctx           context.Context
@@ -41,10 +45,7 @@ var (
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
-	if setup.MountedDirectory() != "" {
-		log.Printf("These tests will not run with mounted directory..")
-		return
-	}
+
 	// Create common storage client to be used in test.
 	ctx = context.Background()
 	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
@@ -54,6 +55,15 @@ func TestMain(m *testing.M) {
 			log.Fatalf("closeStorageClient failed: %v", err)
 		}
 	}()
+
+	// To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	// flags to be set, as stale handle tests validates content from the bucket.
+	// Note: These tests by default can only be run for non streaming mounts.
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+		rootDir = setup.MountedDirectory()
+		setup.RunTestsForMountedDirectoryFlag(m)
+		return
+	}
 
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()
