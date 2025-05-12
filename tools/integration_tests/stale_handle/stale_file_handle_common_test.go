@@ -58,6 +58,7 @@ func (s *staleFileHandleCommon) TearDownSuite() {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHandleError() {
+	// TODO(b/410698332): Remove skip condition once takeover support is available.
 	if s.isStreamingWritesEnabled && setup.IsZonalBucketRun() {
 		s.T().Skip("Skip test due to takeover support not available.")
 	}
@@ -71,6 +72,7 @@ func (s *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHand
 
 	err = s.f1.Close()
 	operations.ValidateESTALEError(s.T(), err)
+	ValidateObjectContentsFromGCS(ctx, storageClient, s.T().Name(), FileName1, FileContents, s.T())
 }
 
 func (s *staleFileHandleCommon) TestFileDeletedLocallySyncAndCloseDoNotThrowError() {
@@ -86,4 +88,5 @@ func (s *staleFileHandleCommon) TestFileDeletedLocallySyncAndCloseDoNotThrowErro
 	operations.WriteWithoutClose(s.f1, s.data, s.T())
 	operations.SyncFile(s.f1, s.T())
 	operations.CloseFileShouldNotThrowError(s.T(), s.f1)
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, s.T().Name(), FileName1, s.T())
 }

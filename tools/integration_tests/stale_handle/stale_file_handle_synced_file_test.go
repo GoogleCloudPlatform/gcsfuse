@@ -83,6 +83,7 @@ func (s *staleFileHandleEmptyGcsFile) TestClobberedFileFirstWriteThrowsStaleFile
 	operations.ValidateSyncGivenThatFileIsClobbered(s.T(), s.f1, s.isStreamingWritesEnabled)
 	err = s.f1.Close()
 	operations.ValidateESTALEError(s.T(), err)
+	ValidateObjectContentsFromGCS(ctx, storageClient, s.T().Name(), FileName1, FileContents, s.T())
 }
 
 func (s *staleFileHandleEmptyGcsFile) TestFileDeletedRemotelySyncAndCloseThrowsStaleFileHandleError() {
@@ -104,6 +105,7 @@ func (s *staleFileHandleEmptyGcsFile) TestFileDeletedRemotelySyncAndCloseThrowsS
 
 	err = s.f1.Close()
 	operations.ValidateESTALEError(s.T(), err)
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, s.T().Name(), FileName1, s.T())
 }
 
 ////////////////////////////////////////////////////////////////////////
