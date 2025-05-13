@@ -43,6 +43,11 @@ type BufferedWriteHandler interface {
 	// Flush finalizes the upload.
 	Flush() (*gcs.MinObject, error)
 
+	// FinalizeObject finalizes the object writer. Added temporarily since server does not
+	// allow overwriting unfinalized objects.
+	// TODO: Remove this after bug b/398842976 is fixed
+	FinalizeObject() (*gcs.MinObject, error)
+
 	// SetMtime stores the mtime with the bufferedWriteHandler.
 	SetMtime(mtime time.Time)
 
@@ -205,12 +210,6 @@ func (wh *bufferedWriteHandlerImpl) Sync() (o *gcs.MinObject, err error) {
 			return nil, fmt.Errorf("could not upload entire data, expected offset %d, Got %d", wh.totalSize, o.Size)
 		}
 	}
-	// Release memory used by buffers.
-	err = wh.blockPool.ClearFreeBlockChannel()
-	if err != nil {
-		// Only logging an error in case of resource leak as upload succeeded.
-		logger.Errorf("blockPool.ClearFreeBlockChannel() failed during sync: %v", err)
-	}
 	err = wh.uploadHandler.UploadError()
 	if err != nil {
 		return nil, err
@@ -251,6 +250,20 @@ func (wh *bufferedWriteHandlerImpl) Flush() (*gcs.MinObject, error) {
 		logger.Errorf("blockPool.ClearFreeBlockChannel() failed: %v", err)
 	}
 
+	return obj, nil
+}
+
+func (wh *bufferedWriteHandlerImpl) FinalizeObject() (*gcs.MinObject, error) {
+	// Fail early if upload already failed.
+	err := wh.uploadHandler.UploadError()
+	if err != nil {
+		return nil, err
+	}
+
+	obj, err := wh.uploadHandler.Finalize()
+	if err != nil {
+		return nil, fmt.Errorf("BufferedWriteHandler.FinalizeObject(): %w", err)
+	}
 	return obj, nil
 }
 
