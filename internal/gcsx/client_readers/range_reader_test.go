@@ -140,12 +140,19 @@ func (cc *countingCloser) Close() (err error) {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *rangeReaderTest) Test_NewRangeReader() {
-	// The setup instantiates rangeReader with NewRangeReader.
-	assert.Equal(t.T(), t.object, t.rangeReader.object)
-	assert.Equal(t.T(), t.mockBucket, t.rangeReader.bucket)
-	assert.Equal(t.T(), common.NewNoopMetrics(), t.rangeReader.metricHandle)
-	assert.Equal(t.T(), int64(-1), t.rangeReader.start)
-	assert.Equal(t.T(), int64(-1), t.rangeReader.limit)
+	object := &gcs.MinObject{
+		Name:       testObject,
+		Size:       30,
+		Generation: 4321,
+	}
+
+	reader := NewRangeReader(object, t.mockBucket, common.NewNoopMetrics())
+
+	assert.Equal(t.T(), object, reader.object)
+	assert.Equal(t.T(), t.mockBucket, reader.bucket)
+	assert.Equal(t.T(), common.NewNoopMetrics(), reader.metricHandle)
+	assert.Equal(t.T(), int64(-1), reader.start)
+	assert.Equal(t.T(), int64(-1), reader.limit)
 }
 
 func (t *rangeReaderTest) Test_CheckInvariants() {

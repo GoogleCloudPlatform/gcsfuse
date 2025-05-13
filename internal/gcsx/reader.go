@@ -56,6 +56,7 @@ type Reader interface {
 	// It returns an ReaderResponse containing the data read and the number of bytes read.
 	// To indicate that the operation should be handled by an alternative reader, return
 	// the error FallbackToAnotherReader.
+	// If an error occurs, the size in ReaderResponse will be zero.
 	ReadAt(ctx context.Context, p []byte, offset int64) (ReaderResponse, error)
 
 	// Destroy is called to release any resources held by the reader.
