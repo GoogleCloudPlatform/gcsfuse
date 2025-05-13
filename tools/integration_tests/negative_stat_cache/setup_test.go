@@ -35,6 +35,13 @@ const (
 	onlyDirMounted = "OnlyDirMountNegativeStatCache"
 )
 
+// env holds the comprehensive operational environment, configuration, and
+// shared resources for this package.
+//
+// IMPORTANT: To prevent global variable pollution, enhance code clarity,
+// and facilitate easier testing. We strongly suggest that, all new package-level
+// variables (which would otherwise be declared with `var` at the package root) should
+// be added as fields to this 'env' struct instead.
 type env struct {
 	testDirPath string
 	mountFunc   func([]string) error
