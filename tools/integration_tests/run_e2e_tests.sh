@@ -15,7 +15,8 @@
 
 # Required GO version for this script.
 GO_VERSION="go1.24.0"
-PROJECT_ID="gcs-fuse-test"
+PROJECT_ID="gcs-fuse-test-ml"
+HNS_PROJECT_ID="gcs-fuse-test"
 BUCKET_PREFIX="gcs-fuse-e2e-tests"
 
 # --- Default values for optional arguments ---
@@ -24,8 +25,10 @@ RUN_TESTS_WITH_PRESUBMIT_FLAG=false
 RUN_TESTS_WITH_ZONAL_BUCKET=false
 
 # --------- Constants ---------
-INTEGRATION_TEST_PACKAGE_DIR="./tools/integration_tests"
-INTEGRATION_TEST_TIMEOUT_IN_MINS=90
+readonly LOG_LOCK_FILE=$(mktemp /tmp/logging_lock.XXXXXX)
+readonly BUCKET_CREATION_LOCK_FILE=$(mktemp /tmp/bucket_creation_lock.XXXXXX)
+readonly INTEGRATION_TEST_PACKAGE_DIR="./tools/integration_tests"
+readonly INTEGRATION_TEST_TIMEOUT_IN_MINS=90
 
 
 # --- Usage function ---
@@ -156,15 +159,54 @@ SEQUENTIAL_TEST_PACKAGES_FOR_ZB=(
   "readonly_creds"
 )
 
+# --- Locking Functions ---
+
+# acquire_lock: Acquires exclusive lock or exits script on failure.
+# Args: $1 = path to lock file.
+function acquire_lock() {
+  local lock_file="$1"
+  [[ -z "$lock_file" ]] && { echo "acquire_lock: Lock file path is required."; exit 1; }
+  exec 200>"$lock_file" || { echo "Could not open lock file $lock_file."; exit 1; }
+  flock -x 200 || { log_error "Failed to acquire lock on $lock_file."; exit 1; }
+  return 0
+}
+
+# release_lock: Releases lock or exits script on failure.
+# Args: $1 = path to lock file
+function release_lock() {
+  local lock_file="$1"
+  [[ -z "$lock_file" ]] && { echo "release_lock: Lock file path is required."; exit 1; }
+  [[ -e "/proc/self/fd/200" || -L "/proc/self/fd/200" ]] && exec 200>&- || { echo "Lock file descriptor (FD 200) not open for $lock_file. Possible previous error or double release."; exit 1; } # FD not open or close failed
+  return 0
+}
+
+# Function to get current timestamp in a consistent format
+_get_timestamp() {
+  date +"%Y-%m-%d %H:%M:%S"
+}
+
+function log_info() {
+  acquire_lock "$LOG_LOCK_FILE"
+  echo "[INFO] $(_get_timestamp) - $$1"
+  release_lock "$LOG_LOCK_FILE"
+}
+
+function log_error() {
+  acquire_lock "$LOG_LOCK_FILE"
+  echo "[ERROR] $(_get_timestamp) - $1"
+  release_lock "$LOG_LOCK_FILE"
+}
+
 # Stores the names of buckets created using create_bucket function.
 BUCKET_NAMES=()
 
+# shellcheck disable=SC2317
 function create_bucket() {
   local bucket_type="$1"
   local uuid
   uuid=$(uuidgen)
   if [[ -z "$uuid" ]]; then 
-    echo "Error: Unable to generate random UUID for bucket name"
+    log_error "Unable to generate random UUID for bucket name"
     return 1
   fi
   local bucket_name="${BUCKET_PREFIX}-${bucket_type}-${uuid}"
@@ -172,29 +214,45 @@ function create_bucket() {
   if [[ "$bucket_type" == "flat" ]]; then
     cmd="gcloud alpha storage buckets create gs://${bucket_name} --project=${PROJECT_ID} --location=${BUCKET_LOCATION} --uniform-bucket-level-access > /dev/null 2>&1"
   elif [[ "$bucket_type" == "hns" ]]; then
-    cmd="gcloud alpha storage buckets create gs://${bucket_name} --project=${PROJECT_ID} --location=${BUCKET_LOCATION} --uniform-bucket-level-access --enable-hierarchical-namespace > /dev/null 2>&1"
+    cmd="gcloud alpha storage buckets create gs://${bucket_name} --project=${HNS_PROJECT_ID} --location=${BUCKET_LOCATION} --uniform-bucket-level-access --enable-hierarchical-namespace > /dev/null 2>&1"
   elif [[ "$bucket_type" == "zonal" ]]; then 
     cmd="gcloud alpha storage buckets create gs://${bucket_name} --project=${PROJECT_ID} --location=${BUCKET_LOCATION} --placement=${BUCKET_LOCATION}-a --default-storage-class=RAPID --uniform-bucket-level-access --enable-hierarchical-namespace > /dev/null 2>&1"
   else
-    echo "Error: Invalid Bucket Type [${bucket_type}]. Supported Types [flat, hns, zonal]"
+    log_error "Invalid Bucket Type [${bucket_type}]. Supported Types [flat, hns, zonal]"
     return 1
   fi
+  acquire_lock "$BUCKET_CREATION_LOCK_FILE"
   if ! eval "$cmd"; then
-    echo "Error: Unable to create bucket [${bucket_name}]"
+    log_error "Unable to create bucket [${bucket_name}]"
+    sleep 3
+    release_lock "$BUCKET_CREATION_LOCK_FILE"
     return 1
   fi
+  sleep 3
+  release_lock "$BUCKET_CREATION_LOCK_FILE"
   BUCKET_NAMES+=("$bucket_name")
   echo "$bucket_name"
   return 0
 }
 
+# shellcheck disable=SC2317
 function delete_bucket() {
   local bucket="$1"
   if ! gcloud -q storage rm -r "gs://${bucket}"; then
-    echo "Error: Unable to delete bucket [${bucket}]"
+    log_error "Unable to delete bucket [${bucket}]"
     return 1
   fi
   return 0
+}
+
+# shellcheck disable=SC2317
+function delete_buckets() {
+    local buckets=("$@")
+    if ! run_parallel "delete_bucket @" "${buckets[@]}"; then
+      log_error "Failed to delete all buckets"
+    else
+      log_info "Successfully deleted all buckets."
+    fi
 }
 
 # run_parallel: Executes commands in parallel based on a template and substitutes.
@@ -210,16 +268,12 @@ function delete_bucket() {
 #   run_parallel "if [ '@' -eq 0 ]; then echo 'Success: 0'; else exit 1; fi" "0" "1" "0" "2"
 
 function run_parallel() {
-  if [[ $# -le 2 ]]; then 
-    echo "Error: Invalid use: $0 <command template> <arg1> <arg2> ... <argN>"
-    return 1
-  fi
   local cmd_template="$1"
   shift
 
   local tmp_base_dir
   # Create a unique temporary directory for this run
-  tmp_base_dir=$(mktemp -d) || { echo "Error: Could not create temporary directory."; return 1; }
+  tmp_base_dir=$(mktemp -d) || { log_error "Could not create temporary directory."; return 1; }
   # Ensure the temporary directory is removed on script exit or interrupt
   trap "rm -rf '$tmp_base_dir'" EXIT
 
@@ -229,8 +283,8 @@ function run_parallel() {
   # Launch all commands in the background
   for arg in "$@"; do
     local full_cmd="${cmd_template//@/$arg}"
-    local output_file=$(mktemp "${tmp_base_dir}/output.XXXXXX") || { echo "Error: Could not create temporary output file."; rm -rf "$tmp_base_dir"; return 1; }
-    echo "Queuing Command: $full_cmd"
+    local output_file=$(mktemp "${tmp_base_dir}/output.XXXXXX") || { log_error "Could not create temporary output file."; rm -rf "$tmp_base_dir"; return 1; }
+    log_info "Queuing Command: $full_cmd"
     ( eval "$full_cmd" > "$output_file" 2>&1 ) &
     local pid=$!
     pids+=("$pid")
@@ -249,6 +303,7 @@ function run_parallel() {
     wait "$pid"
     local command_status=$?
     if [[ "$command_status" -ne 0 ]]; then
+      acquire_lock "$LOG_LOCK_FILE"
       echo ""
       echo ""
       echo "--- Parallel Run Failed ---"
@@ -258,9 +313,11 @@ function run_parallel() {
       cat "$output_file"
       echo ""
       echo ""
+      release_lock "$LOG_LOCK_FILE"
       overall_exit_code=1 # Set overall exit code to non-zero if any command failed
+    else
+      log_info "Parallel Run Successful: $full_cmd"
     fi
-
     # Clean up temporary files for the processed command
     rm -f "$output_file"
     # Remove the entry from the associative array
@@ -283,16 +340,12 @@ function run_parallel() {
 #   run_sequential "if [ '@' -eq 0 ]; then echo 'Success: 0'; else exit 1; fi" "0" "1" "0" "2"
 
 function run_sequential() {
-    if [[ $# -le 2 ]]; then 
-    echo "Error: Invalid use: $0 <command template> <arg1> <arg2> ... <argN>"
-    return 1
-  fi
   local cmd_template="$1"
   shift
 
   local tmp_base_dir
   # Create a unique temporary directory for this run
-  tmp_base_dir=$(mktemp -d) || { echo "Error: Could not create temporary directory."; return 1; }
+  tmp_base_dir=$(mktemp -d) || { log_error "Could not create temporary directory."; return 1; }
   # Ensure the temporary directory is removed on script exit or interrupt
   # Use a function in trap for robustness, especially if tmp_base_dir could be unset or empty
   trap "rm -rf '$tmp_base_dir'" EXIT
@@ -302,15 +355,15 @@ function run_sequential() {
   # Execute each command sequentially
   for arg in "$@"; do
     local full_cmd="${cmd_template//@/$arg}"
-    local output_file=$(mktemp "${tmp_base_dir}/output.XXXXXX") || { echo "Error: Could not create temporary output file."; rm -rf "$tmp_base_dir"; return 1; }
-    echo "Running Command: $full_cmd"
-
+    local output_file=$(mktemp "${tmp_base_dir}/output.XXXXXX") || { log_error "Could not create temporary output file."; rm -rf "$tmp_base_dir"; return 1; }
+    log_info "Queuing Command: $full_cmd"
     # Execute the command and redirect its output to the temporary file
     # Use eval to correctly handle command substitution and complex commands
     eval "$full_cmd" > "$output_file" 2>&1
     local command_status=$?
 
     if [[ "$command_status" -ne 0 ]]; then
+      acquire_lock "$LOG_LOCK_FILE"
       echo ""
       echo ""
       echo "--- Sequential Run Failed ---"
@@ -320,7 +373,10 @@ function run_sequential() {
       cat "$output_file"
       echo ""
       echo ""
+      release_lock "$LOG_LOCK_FILE"
       overall_exit_code=1 # Set overall exit code to non-zero if any command failed
+    else
+      log_info "Sequential Run Successful: $full_cmd"
     fi
 
     # Clean up temporary file for the processed command
@@ -329,27 +385,63 @@ function run_sequential() {
   return "$overall_exit_code"
 }
 
+# shellcheck disable=SC2317
 function test_package() {
-    local package_name="$1"
-    local zonal="$2"
-    echo "Starting test package in non-parallel (with zonal=${zonal}): ${test_dir_np} ..."
-    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=${zonal} --integrationTest -v --testbucket=$bucket_name_non_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1
-    exit_code_non_parallel=$?
-    if [ $exit_code_non_parallel != 0 ]; then
-      exit_code=$exit_code_non_parallel
-      echo "test fail in non parallel on package (with zonal=${zonal}): " $test_dir_np
-    else
-      echo "Passed test package in non-parallel (with zonal=${zonal}): " $test_dir_np
-    fi
+  local package_name="$1"
+  local bucket_type="$2"
+  local bucket_name
+  bucket_name=$(create_bucket "$bucket_type")
+  # Go Test flags
+  
+  GO_TEST_CMD_PARTS=(
+    "GODEBUG=asyncpreemptoff=1"
+    "go"
+    "test"
+    "-v"
+    "-timeout=${INTEGRATION_TEST_TIMEOUT_IN_MINS}m"
+    "${INTEGRATION_TEST_PACKAGE_DIR}/${package_name}"
+  )
+  if [[ "$SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE" == "true" ]]; then
+    GO_TEST_CMD_PARTS+=("-short")
+  fi
+  if [[ "$package_name" == "benchmarking" ]]; then
+    GO_TEST_CMD_PARTS+=("-bench=.")
+    GO_TEST_CMD_PARTS+=("-benchtime=100x")
+  fi
+  # Test Binary flags after this.
+  GO_TEST_CMD_PARTS+=(
+    "-args"
+    "-integrationTest"
+    "-testbucket=${bucket_name}"
+    "-presubmit=${RUN_TESTS_WITH_PRESUBMIT_FLAG}"
+    "-testInstalledPackage=${TEST_INSTALLED_PACKAGE}"
+  )
+
+  if [[ "$bucket_type" == "zonal" ]]; then
+    GO_TEST_CMD_PARTS+=("-zonal")
+  fi
+
+  # Use printf %q to quote each argument safely for eval
+  # This ensures spaces and special characters within arguments are handled correctly.
+  GO_TEST_CMD=$(printf "%q " "${GO_TEST_CMD_PARTS[@]}")
+
+  if ! eval "$GO_TEST_CMD"; then 
+    return 1
+  else
+    return 0
+  fi
 }
 
-function delete_buckets() {
-    local buckets=("$@")
-    if ! run_parallel "delete_bucket @" "${buckets[@]}"; then
-      echo "Failed to delete all buckets"
-    else
-      echo "Successfully deleted all buckets."
-    fi
+function test_package_hns() {
+  test_package "$1" "hns"
+}
+
+function test_package_flat() {
+  test_package "$1" "flat"
+}
+
+function test_package_zonal() {
+  test_package "$1" "zonal"
 }
 
 function upgrade_gcloud_version() {
@@ -368,7 +460,7 @@ function upgrade_gcloud_version() {
 function install_packages() {
   # e.g. architecture=arm64 or amd64
   architecture=$(dpkg --print-architecture)
-  echo "Installing go-lang version: ${GO_VERSION}"
+  log_info "Installing go-lang version: ${GO_VERSION}"
   wget -O go_tar.tar.gz https://go.dev/dl/${GO_VERSION}.linux-${architecture}.tar.gz -q
   sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
   rm go_tar.tar.gz
@@ -381,16 +473,185 @@ function install_packages() {
   sudo apt install -y python3-crcmod
 }
 
+function run_e2e_tests_for_flat_bucket() {
+  log_info "Started running e2e tests for flat bucket"
+  run_parallel "test_package_flat @" "${PARALLEL_TEST_PACKAGES[@]}" &
+  parallel_tests_flat_group_pid=$!
+
+  run_sequential "test_package_flat @" "${SEQUENTIAL_TEST_PACKAGES[@]}" &
+  non_parallel_tests_flat_group_pid=$!
+
+  # Wait for all tests to complete.
+  wait $parallel_tests_flat_group_pid
+  parallel_tests_flat_group_exit_code=$?
+  wait $non_parallel_tests_flat_group_pid
+  non_parallel_tests_flat_group_exit_code=$?
+
+  if [ $parallel_tests_flat_group_exit_code != 0 ] || [ $non_parallel_tests_flat_group_exit_code != 0 ]; then
+    return 1
+  fi
+  return 0
+}
+
+function run_e2e_tests_for_hns_bucket(){
+  log_info "Started running e2e tests for HNS bucket"
+  run_parallel "test_package_hns @" "${PARALLEL_TEST_PACKAGES[@]}" &
+  parallel_tests_hns_group_pid=$!
+  run_sequential "test_package_hns @" "${SEQUENTIAL_TEST_PACKAGES[@]}" &
+  non_parallel_tests_hns_group_pid=$!
+
+  # Wait for all tests to complete.
+  wait $parallel_tests_hns_group_pid
+  parallel_tests_hns_group_exit_code=$?
+  wait $non_parallel_tests_hns_group_pid
+  non_parallel_tests_hns_group_exit_code=$?
+
+  if [ $parallel_tests_hns_group_exit_code != 0 ] || [ $non_parallel_tests_hns_group_exit_code != 0 ]; then
+    return 1
+  fi
+  return 0
+}
+
+function run_e2e_tests_for_zonal_bucket(){
+  log_info "Started running e2e tests for ZONAL bucket"
+  run_parallel "test_package_zonal @" "${PARALLEL_TEST_PACKAGES_FOR_ZB[@]}" &
+  parallel_tests_zonal_group_pid=$!
+  run_sequential "test_package_zonal @" "${SEQUENTIAL_TEST_PACKAGES_FOR_ZB[@]}" &
+  non_parallel_tests_zonal_group_pid=$!
+
+  # Wait for all tests to complete.
+  wait $parallel_tests_zonal_group_pid
+  parallel_tests_zonal_group_exit_code=$?
+  wait $non_parallel_tests_zonal_group_pid
+  non_parallel_tests_zonal_group_exit_code=$?
+
+  if [ $parallel_tests_zonal_group_exit_code != 0 ] || [ $non_parallel_tests_zonal_group_exit_code != 0 ]; then
+    return 1
+  fi
+  return 0
+}
+
+function run_e2e_tests_for_tpc() {
+  local bucket=$1
+  if [ "$bucket" == "" ];
+  then
+    echo "Bucket name is required"
+    return 1
+  fi
+
+  # Clean bucket before testing.
+  gcloud --verbosity=error storage rm -r gs://"$bucket"/*
+
+  # Run Operations e2e tests in TPC to validate all the functionality.
+  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/... --testOnTPCEndPoint=$RUN_TEST_ON_TPC_ENDPOINT $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=false -p 1 --integrationTest -v --testbucket="$bucket" --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT
+  exit_code=$?
+
+  set -e
+
+  # Delete data after testing.
+  gcloud --verbosity=error storage rm -r gs://"$bucket"/*
+
+  if [ $exit_code != 0 ]; then
+    return 1
+  fi
+  return 0
+}
+
+function run_e2e_tests_for_emulator() {
+  ./tools/integration_tests/emulator_tests/emulator_tests.sh $RUN_E2E_TESTS_ON_PACKAGE
+}
+
 function main(){
   # Delete buckets in parallel if program exits.
   trap 'delete_buckets "${BUCKET_NAMES[@]}"' EXIT
 
+  log_info ""
+  log_info "------ Started Running e2e Tests ------"
+  log_info ""
 
   set -e
+
   upgrade_gcloud_version
+
   install_packages
+
   set +e
 
+  #run integration tests
+  exit_code=0
+
+  if [[ "${RUN_TESTS_WITH_ZONAL_BUCKET}" == "true" ]]; then
+    run_e2e_tests_for_zonal_bucket &
+    e2e_tests_zonal_bucket_pid=$!
+    wait $e2e_tests_zonal_bucket_pid
+    e2e_tests_zonal_bucket_status=$?
+
+    if [[ $e2e_tests_zonal_bucket_status != 0 ]]; then
+      log_error "The e2e tests for zonal bucket failed."
+      exit_code=1
+    fi
+  else
+    # Run tpc test and exit in case RUN_TEST_ON_TPC_ENDPOINT is true.
+    if [[ "${RUN_TEST_ON_TPC_ENDPOINT}" == "true" ]]; then
+        # Run tests for flat bucket
+        run_e2e_tests_for_tpc gcsfuse-e2e-tests-tpc &
+        e2e_tests_tpc_flat_bucket_pid=$!
+        # Run tests for hns bucket
+        run_e2e_tests_for_tpc gcsfuse-e2e-tests-tpc-hns &
+        e2e_tests_tpc_hns_bucket_pid=$!
+
+        wait $e2e_tests_tpc_flat_bucket_pid
+        e2e_tests_tpc_flat_bucket_status=$?
+
+        wait $e2e_tests_tpc_hns_bucket_pid
+        e2e_tests_tpc_hns_bucket_status=$?
+
+        if [[ $e2e_tests_tpc_flat_bucket_status != 0 ]]; then
+            log_error "The e2e tests for flat bucket failed."
+            exit 1
+        fi
+        if [[ $e2e_tests_tpc_hns_bucket_status != 0 ]]; then
+            log_error "The e2e tests for hns bucket failed."
+            exit 1
+        fi
+        # Exit to prevent the following code from executing for TPC.
+        exit 0
+    fi
+
+    run_e2e_tests_for_hns_bucket &
+    e2e_tests_hns_bucket_pid=$!
+
+    run_e2e_tests_for_flat_bucket &
+    e2e_tests_flat_bucket_pid=$!
+
+    run_e2e_tests_for_emulator &
+    e2e_tests_emulator_pid=$!
+
+    wait $e2e_tests_emulator_pid
+    e2e_tests_emulator_status=$?
+
+    wait $e2e_tests_flat_bucket_pid
+    e2e_tests_flat_bucket_status=$?
+
+    wait $e2e_tests_hns_bucket_pid
+    e2e_tests_hns_bucket_status=$?
+
+    if [[ $e2e_tests_flat_bucket_status != 0 ]]; then
+      log_error "The e2e tests for flat bucket failed."
+      exit_code=1
+    fi
+
+    if [ $e2e_tests_hns_bucket_status != 0 ]; then
+      log_error "The e2e tests for hns bucket failed."
+      exit_code=1
+    fi
+
+    if [ $e2e_tests_emulator_status != 0 ]; then
+      log_error "The e2e tests for emulator failed."
+      exit_code=1
+    fi
+  fi
+  exit $exit_code
 }
 
 #Main method to run script
