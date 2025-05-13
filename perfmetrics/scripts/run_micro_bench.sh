@@ -35,7 +35,7 @@ echo Print the time when FIO tests start
 date
 echo Running fio test..
 echo "Overall fio start epoch time:" `date +%s`
-fio job_files/micro_benchmark.fio --lat_percentiles 1 --output-format=json --output="fio-output.json"
+fio job_files/micro_bench.fio --lat_percentiles 1 --output-format=json --output="fio-output.json"
 echo "Overall fio end epoch time:" `date +%s`
 sudo umount $MOUNT_POINT
 
