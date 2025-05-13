@@ -236,7 +236,7 @@ func recordOp(ctx context.Context, metricHandle common.MetricHandle, method stri
 			{Key: common.FSErrCategory, Value: errCategory}},
 		)
 	}
-	metricHandle.OpsLatency(ctx, float64(time.Since(start).Microseconds()), []common.MetricAttr{{Key: common.FSOp, Value: method}})
+	metricHandle.OpsLatency(ctx, time.Since(start), []common.MetricAttr{{Key: common.FSOp, Value: method}})
 }
 
 // WithMonitoring takes a FileSystem, returns a FileSystem with monitoring

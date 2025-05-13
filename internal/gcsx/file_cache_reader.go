@@ -207,7 +207,7 @@ func captureFileCacheMetrics(ctx context.Context, metricHandle common.MetricHand
 	})
 
 	metricHandle.FileCacheReadBytesCount(ctx, int64(readDataSize), []common.MetricAttr{{Key: common.ReadType, Value: readType}})
-	metricHandle.FileCacheReadLatency(ctx, float64(readLatency.Microseconds()), []common.MetricAttr{{Key: common.CacheHit, Value: strconv.FormatBool(cacheHit)}})
+	metricHandle.FileCacheReadLatency(ctx, readLatency, []common.MetricAttr{{Key: common.CacheHit, Value: strconv.FormatBool(cacheHit)}})
 }
 
 func (fc *FileCacheReader) Destroy() {

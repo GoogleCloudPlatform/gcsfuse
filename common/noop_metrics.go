@@ -14,7 +14,10 @@
 
 package common
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 func NewNoopMetrics() MetricHandle {
 	var n noopMetrics
@@ -23,17 +26,17 @@ func NewNoopMetrics() MetricHandle {
 
 type noopMetrics struct{}
 
-func (*noopMetrics) GCSReadBytesCount(_ context.Context, _ int64)                       {}
-func (*noopMetrics) GCSReaderCount(_ context.Context, _ int64, _ []MetricAttr)          {}
-func (*noopMetrics) GCSRequestCount(_ context.Context, _ int64, _ []MetricAttr)         {}
-func (*noopMetrics) GCSRequestLatency(_ context.Context, value float64, _ []MetricAttr) {}
-func (*noopMetrics) GCSReadCount(_ context.Context, _ int64, _ []MetricAttr)            {}
-func (*noopMetrics) GCSDownloadBytesCount(_ context.Context, _ int64, _ []MetricAttr)   {}
+func (*noopMetrics) GCSReadBytesCount(_ context.Context, _ int64)                         {}
+func (*noopMetrics) GCSReaderCount(_ context.Context, _ int64, _ []MetricAttr)            {}
+func (*noopMetrics) GCSRequestCount(_ context.Context, _ int64, _ []MetricAttr)           {}
+func (*noopMetrics) GCSRequestLatency(_ context.Context, _ time.Duration, _ []MetricAttr) {}
+func (*noopMetrics) GCSReadCount(_ context.Context, _ int64, _ []MetricAttr)              {}
+func (*noopMetrics) GCSDownloadBytesCount(_ context.Context, _ int64, _ []MetricAttr)     {}
 
-func (*noopMetrics) OpsCount(_ context.Context, _ int64, _ []MetricAttr)         {}
-func (*noopMetrics) OpsLatency(_ context.Context, value float64, _ []MetricAttr) {}
-func (*noopMetrics) OpsErrorCount(_ context.Context, _ int64, _ []MetricAttr)    {}
+func (*noopMetrics) OpsCount(_ context.Context, _ int64, _ []MetricAttr)           {}
+func (*noopMetrics) OpsLatency(_ context.Context, _ time.Duration, _ []MetricAttr) {}
+func (*noopMetrics) OpsErrorCount(_ context.Context, _ int64, _ []MetricAttr)      {}
 
-func (*noopMetrics) FileCacheReadCount(_ context.Context, _ int64, _ []MetricAttr)         {}
-func (*noopMetrics) FileCacheReadBytesCount(_ context.Context, _ int64, _ []MetricAttr)    {}
-func (*noopMetrics) FileCacheReadLatency(_ context.Context, value float64, _ []MetricAttr) {}
+func (*noopMetrics) FileCacheReadCount(_ context.Context, _ int64, _ []MetricAttr)           {}
+func (*noopMetrics) FileCacheReadBytesCount(_ context.Context, _ int64, _ []MetricAttr)      {}
+func (*noopMetrics) FileCacheReadLatency(_ context.Context, _ time.Duration, _ []MetricAttr) {}
