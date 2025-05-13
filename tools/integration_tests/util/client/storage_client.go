@@ -440,22 +440,11 @@ func CreateGcsDir(ctx context.Context, client *storage.Client, dirName, bucketNa
 		fullObjectPath += "/"
 	}
 
+	// Create an empty object with the directory path
 	err := WriteToObject(ctx, client, fullObjectPath, "", storage.Conditions{})
-	// Create a writer to upload the object.
-	obj := client.Bucket(bucketName).Object(fullObjectPath)
-	w, err := NewWriter(ctx, obj, client)
 	if err != nil {
-		return fmt.Errorf("failed to open writer for GCS object gs://%s/%s: %w", bucketName, fullObjectPath, err)
+		return fmt.Errorf("failed to create GCS directory object %q in bucket %q: %w", fullObjectPath, bucketName, err)
 	}
-	defer func() {
-		if err := w.Close(); err != nil {
-			log.Printf("failed to close GCS object gs://%s/%s: %v", bucketName, fullObjectPath, err)
-		}
-	}()
 
-	// Write zero bytes to simulate a directory placeholder
-	if _, err := w.Write([]byte{}); err != nil {
-		return fmt.Errorf("failed to write to GCS object gs://%s/%s: %w", bucketName, fullObjectPath, err)
-	}
 	return nil
 }
