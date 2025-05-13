@@ -175,9 +175,7 @@ func (bm *bucketManager) SetUpBucket(
 	}
 
 	// Enable monitoring.
-	if bm.config.EnableMonitoring {
-		b = monitor.NewMonitoringBucket(b, metricHandle)
-	}
+	b = monitor.NewMonitoringBucket(b, metricHandle)
 
 	// Enable gcs logs.
 	b = storage.NewDebugBucket(b)
