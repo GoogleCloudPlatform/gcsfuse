@@ -72,6 +72,7 @@ type Object struct {
 	CustomTime         string
 	EventBasedHold     bool
 	Acl                []*storagev1.ObjectAccessControl
+	Finalized          time.Time
 }
 
 // MinObject is a record representing subset of properties of a particular
@@ -106,6 +107,7 @@ type ExtendedObjectAttributes struct {
 	CustomTime         string
 	EventBasedHold     bool
 	Acl                []*storagev1.ObjectAccessControl
+	Finalized          time.Time
 }
 
 func (mo MinObject) HasContentEncodingGzip() bool {
