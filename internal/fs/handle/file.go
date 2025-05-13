@@ -24,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
 )
@@ -140,6 +141,9 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 		objectData, err = fh.reader.ReadAt(ctx, dst, offset)
 		switch {
 		case errors.Is(err, io.EOF):
+			if err != io.EOF {
+				logger.Warnf("Unexpected EOF error encountered while reading, err: %v type: %T ", err, err)
+			}
 			err = io.EOF
 			return
 
