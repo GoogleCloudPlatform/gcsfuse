@@ -26,9 +26,16 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
+const (
+	testDirName = "StaleHandleTest"
+)
+
 var (
 	storageClient *storage.Client
 	ctx           context.Context
+	rootDir       string
+	mountFunc     func([]string) error
+	flagsSet      [][]string
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -49,20 +56,28 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
-	// If Mounted Directory flag is set, run tests for mounted directory.
-	setup.RunTestsForMountedDirectoryFlag(m)
-	// Else run tests for testBucket.
+	// To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	// flags to be set, as stale handle tests validates content from the bucket.
+	// Note: These tests by default can only be run for non streaming mounts.
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+		rootDir = setup.MountedDirectory()
+		setup.RunTestsForMountedDirectoryFlag(m)
+		return
+	}
+
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()
+	rootDir = setup.MntDir()
 
-	// Define flag set to run the tests.
-	flagsSet := [][]string{
-		{"--metadata-cache-ttl-secs=0", "--precondition-errors=true"},
+	flagsSet = [][]string{
+		{"--metadata-cache-ttl-secs=0"},
+		{"--metadata-cache-ttl-secs=0", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=1"},
 	}
-	// Run all tests for GRPC.
+	// Run all tests with GRPC.
 	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--client-protocol=grpc", "")
 
-	successCode := static_mounting.RunTests(flagsSet, m)
-
+	log.Println("Running static mounting tests...")
+	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
+	successCode := m.Run()
 	os.Exit(successCode)
 }
