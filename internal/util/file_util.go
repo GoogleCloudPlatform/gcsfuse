@@ -33,16 +33,10 @@ const (
 //
 // GCSFuse needs to distinguish between the append mode, readonly mode and modes where
 // writes are supported.
-// Since there are certain flows with GCSFuse where the append flow is treated differently
-// than regular writes, this is included. However, no special handling of a vs a+ mode is
-// required, as the differentiating behavior if whether or not reads will be supported is
-// implicitly handled by the kernel.
-// We need to distinguish the read-only mode as well since we initialize the writeHandleCount
-// accordingly.
-// All modes where writes are supported , are clubbed into the write mode as we need to
-// differentiate it from the read-only mode. No special handling of w vs w+ vs r+ mode is
-// required, as the differentiating behavior if whether or not reads will be supported is
-// implicitly handled by the kernel.
+// read vs write is required to initialize the writeHandle count currently in fileHandle.
+// The main difference of r vs (r+, w, w+) is the support for reads which is
+// implicitly handled by kernel. Hence combining r+, w, w+ as writes.
+// Same goes for a vs a+, hence grouped as append.
 func FileOpenMode(op *fuseops.OpenFileOp) OpenMode {
 	switch {
 	case op.OpenFlags.IsAppend():
