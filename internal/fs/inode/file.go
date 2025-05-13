@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/bufferedwrites"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
@@ -614,18 +615,38 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 			Err: fmt.Errorf("f.bwh.Write(): %w", err),
 		}
 	}
-	if err != nil && !errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
+	if err != nil && !errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) && !errors.Is(err, block.CantAllocateAnyBlockError) {
 		return fmt.Errorf("write to buffered write handler failed: %w", err)
 	}
 
 	// Fall back to temp file for Out-Of-Order Writes.
 	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
-		logger.Infof("Out-of-order write detected. Falling back to temporary file on disk.")
+		logger.Infof("Falling back to staged writes on disk for file %s due to err: %v.", f.Name(), err.Error())
 		// Finalize the object.
 		err = f.flushUsingBufferedWriteHandler()
 		if err != nil {
 			return fmt.Errorf("could not finalize what has been written so far: %w", err)
 		}
+		return f.writeUsingTempFile(ctx, data, offset)
+	}
+
+	if errors.Is(err, block.CantAllocateAnyBlockError) {
+		logger.Infof("Falling back to staged writes on disk for file %s due to err: %v.", f.Name(), err.Error())
+		// File may have been truncated to a larger size, so persist the size to set it on temporary file.
+		size := f.bwh.WriteFileInfo().TotalSize
+		// Destroy bwh and create empty temp file.
+		f.bwh = nil
+		err = f.CreateEmptyTempFile(ctx)
+		if err != nil {
+			return fmt.Errorf("could not create temp file: %w", err)
+		}
+		// Set the truncated size. There is no need to set the old mtime on the newly created temp file because current
+		// time will be set as mtime by default.
+		err := f.content.Truncate(size)
+		if err != nil {
+			return fmt.Errorf("could not truncate temp file: %w", err)
+		}
+
 		return f.writeUsingTempFile(ctx, data, offset)
 	}
 

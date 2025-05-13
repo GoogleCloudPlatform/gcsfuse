@@ -69,8 +69,9 @@ func ValidateObjectNotFoundErrOnGCS(ctx context.Context, storageClient *storage.
 	}
 }
 
-func ValidateObjectContentsFromGCS(ctx context.Context, storageClient *storage.Client,
-	testDirName string, fileName string, expectedContent string, t *testing.T) {
+func ValidateObjectContentsFromGCS(ctx context.Context, storageClient *storage.Client, testDirName string, fileName string, expectedContent string, t *testing.T) {
+	t.Helper()
+
 	gotContent, err := ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, fileName))
 	if err != nil {
 		t.Fatalf("Error while reading file from GCS, Err: %v", err)
@@ -96,8 +97,9 @@ func ValidateObjectChunkFromGCS(ctx context.Context, storageClient *storage.Clie
 	}
 }
 
-func CloseFileAndValidateContentFromGCS(ctx context.Context, storageClient *storage.Client,
-	fh *os.File, testDirName, fileName, content string, t *testing.T) {
+func CloseFileAndValidateContentFromGCS(ctx context.Context, storageClient *storage.Client, fh *os.File, testDirName, fileName, content string, t *testing.T) {
+	t.Helper()
+
 	operations.CloseFileShouldNotThrowError(t, fh)
 	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, fileName, content, t)
 }

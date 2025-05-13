@@ -15,10 +15,13 @@
 package block
 
 import (
+	"errors"
 	"fmt"
 
 	"golang.org/x/sync/semaphore"
 )
+
+var CantAllocateAnyBlockError error = errors.New("cant allocate any streaming write block as global max blocks limit is reached")
 
 // BlockPool handles the creation of blocks as per the user configuration.
 type BlockPool struct {
@@ -77,6 +80,11 @@ func (bp *BlockPool) Get() (Block, error) {
 
 				bp.totalBlocks++
 				return b, nil
+			} else {
+				if bp.totalBlocks == 0 {
+					return nil, CantAllocateAnyBlockError
+				}
+				// Else wait for the block to be available on freeBlocksCh for re-use.
 			}
 		}
 	}
@@ -87,11 +95,6 @@ func (bp *BlockPool) canAllocateBlock() bool {
 	// If max blocks limit is reached, then no more blocks can be allocated.
 	if bp.totalBlocks >= bp.maxBlocks {
 		return false
-	}
-
-	// Always allow allocation if this is the first block for the file.
-	if bp.totalBlocks == 0 {
-		return true
 	}
 
 	// Otherwise, check if we can acquire a semaphore.
@@ -119,9 +122,7 @@ func (bp *BlockPool) ClearFreeBlockChannel() error {
 				return fmt.Errorf("munmap error: %v", err)
 			}
 			bp.totalBlocks--
-			if bp.totalBlocks != 0 {
-				bp.globalMaxBlocksSem.Release(1)
-			}
+			bp.globalMaxBlocksSem.Release(1)
 		default:
 			// Return if there are no more blocks on the channel.
 			return nil

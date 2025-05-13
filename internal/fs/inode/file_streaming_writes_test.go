@@ -15,6 +15,7 @@
 package inode
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"math"
@@ -342,6 +343,61 @@ func (t *FileStreamingWritesTest) TestOutOfOrderWritesToLocalFileFallBackToTempF
 			contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
 			assert.Nil(t.T(), err)
 			assert.Equal(t.T(), tc.expectedContent, string(contents))
+		})
+	}
+}
+
+func (t *FileStreamingWritesTest) TestFallBackToTempFileDueToBlockConstraints() {
+	tests := []struct {
+		name                string
+		initialTruncateSize int64
+	}{
+		{
+			name:                "NoTruncate",
+			initialTruncateSize: 0, // No initial truncate
+		},
+		{
+			name:                "Truncate",
+			initialTruncateSize: 1000,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func() {
+			t.in.globalMaxWriteBlocksSem = semaphore.NewWeighted(0)
+			t.createBufferedWriteHandler()
+			assert.True(t.T(), t.in.IsLocal())
+			// Ensure bwh exists and temp file is not there.
+			assert.Nil(t.T(), t.in.content)
+			assert.NotNil(t.T(), t.in.bwh)
+			t.clock.AdvanceTime(15 * time.Minute)
+			mtime := t.clock.Now()
+
+			if tc.initialTruncateSize != 0 {
+				err := t.in.Truncate(t.ctx, tc.initialTruncateSize)
+				require.NoError(t.T(), err)
+			}
+
+			// Sequential Write at truncated offset
+			err := t.in.Write(t.ctx, []byte("taco"), tc.initialTruncateSize)
+			require.NoError(t.T(), err)
+			// Ensure bwh cleared and temp file created.
+			assert.Nil(t.T(), t.in.bwh)
+			assert.NotNil(t.T(), t.in.content)
+			// validate attributes.
+			attrs, err := t.in.Attributes(t.ctx)
+			require.Nil(t.T(), err)
+			assert.WithinDuration(t.T(), attrs.Mtime, mtime, 0)
+			assert.Equal(t.T(), uint64(tc.initialTruncateSize+4), attrs.Size)
+			// sync file and validate content
+			gcsSynced, err := t.in.Sync(t.ctx)
+			require.Nil(t.T(), err)
+			assert.True(t.T(), gcsSynced)
+			// Read the object's contents.
+			contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
+			assert.NoError(t.T(), err)
+			nullBytes := bytes.Repeat([]byte{0}, int(tc.initialTruncateSize))
+			assert.Equal(t.T(), string(nullBytes)+"taco", string(contents))
 		})
 	}
 }
