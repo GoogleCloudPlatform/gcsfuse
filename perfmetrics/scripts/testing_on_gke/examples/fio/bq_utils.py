@@ -20,6 +20,7 @@ to the tables.
 """
 
 import argparse
+from collections.abc import Iterable
 import os
 import socket
 import sys
@@ -212,45 +213,64 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
     Exceptions:
     When the retry transaction fails too, then it re-throws that exception.
     """
+    # Call insert_rows on BQ client. If all goes well, result will be None.
     result = self.client.insert_rows(table, rows_to_insert)
+
+    # if result is not None, it is expected to be of type
+    # Sequence[dict[str,typing.Any]] .
+    # Each entry in the sequence is for each row sent for insertion.
+    # Each entry will be a dict containing an int-value for key 'index' and a list-value
+    # for key 'errors'. The value for 'errors' would be a list of dicts each
+    # representing a metadata of the errors for that row.
+    # In the 'errors' items, the reason for failure is captured in the value for
+    # the key 'reason'. The 'reason' is 'stopped' for rows that
+    # didn't fail themselves and were rolled back
+    # because of other failed rows.
     if result:
-      if isinstance(result, list):
-        failed_row_indices = dict()
+      if isinstance(result, Iterable):
+        failed_rows_metadata = dict()
         for result_entry in result:
           if (
               isinstance(result_entry, dict)
               and 'index' in result_entry
               and 'errors' in result_entry
-              and isinstance(result_entry['errors'], list)
+              and isinstance(result_entry['errors'], Iterable)
           ):
             for result_entry_error in result_entry['errors']:
               if (
                   isinstance(result_entry_error, dict)
                   and 'reason' in result_entry_error
-                  and result_entry_error['reason'] != 'stopped'
               ):
-                failed_row_indices[result_entry['index']] = result_entry_error[
-                    'message'
-                ]
-                break
-        print(
-            'The following rows failed to insert to BQ table: \n{}'.format([
-                f'Row # {_failed_row_index}:'
-                f' {rows_to_insert[_failed_row_index]}, error message:'
-                f' {failed_row_indices[_failed_row_index]}\n'
-                for _failed_row_index in failed_row_indices
-            ])
-        )
-        print('Going to retry inserting the rest ...')
+                if result_entry_error['reason'] != 'stopped':
+                  failed_rows_metadata[result_entry['index']] = (
+                      result_entry_error['message']
+                  )
+                  break
+              else:
+                raise Exception(
+                    'insert_rows returned improper error result for'
+                    f' index={result_entry["index"]}: {result}'
+                )
+          else:
+            raise Exception(
+                f'insert_rows returned improper error result: {result}'
+            )
+        print('The following rows failed to insert to BQ table: ')
+        for failed_row_index in failed_rows_metadata:
+          print(
+              f'{rows_to_insert[failed_row_index]}, error message: '
+              f'{failed_rows_metadata[failed_row_index]}'
+          )
+        print('Going to retry inserting the rest of the rows ...')
         row_indices_to_retry = set(range(len(rows_to_insert))) - (
-            failed_row_indices.keys()
+            failed_rows_metadata.keys()
         )
         rows_to_retry = [rows_to_insert[i] for i in row_indices_to_retry]
         result = self.client.insert_rows(table, rows_to_retry)
         if result:
-          raise Exception(f'{result}')
+          raise Exception(f'insert_rows failed on retry: {result}')
       else:
-        raise Exception(f'{result}')
+        raise Exception(f'insert_rows returned improper error result: {result}')
 
   def insert_rows(self, fioTableRows: []):
     """Pass a list of FioTableRow objects to insert into the fio-table.
