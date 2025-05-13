@@ -23,6 +23,8 @@ RUN_TEST_ON_TPC_ENDPOINT=false
 RUN_TESTS_WITH_PRESUBMIT_FLAG=false
 RUN_TESTS_WITH_ZONAL_BUCKET=false
 
+# --------- Constants ---------
+INTEGRATION_TEST_PACKAGE_DIR="./tools/integration_tests"
 INTEGRATION_TEST_TIMEOUT_IN_MINS=90
 
 
@@ -186,6 +188,15 @@ function create_bucket() {
   return 0
 }
 
+function delete_bucket() {
+  local bucket="$1"
+  if ! gcloud -q storage rm -r "gs://${bucket}"; then
+    echo "Error: Unable to delete bucket [${bucket}]"
+    return 1
+  fi
+  return 0
+}
+
 # run_parallel: Executes commands in parallel based on a template and substitutes.
 #   Only prints output (stdout/stderr) if a command errors out (non-zero exit status).
 #   The function returns a non-zero exit status if any of the parallel commands fail.
@@ -199,6 +210,10 @@ function create_bucket() {
 #   run_parallel "if [ '@' -eq 0 ]; then echo 'Success: 0'; else exit 1; fi" "0" "1" "0" "2"
 
 function run_parallel() {
+  if [[ $# -le 2 ]]; then 
+    echo "Error: Invalid use: $0 <command template> <arg1> <arg2> ... <argN>"
+    return 1
+  fi
   local cmd_template="$1"
   shift
 
@@ -255,9 +270,82 @@ function run_parallel() {
   return "$overall_exit_code"
 }
 
+# run_sequential: Executes commands in sequence based on a template and substitutes.
+#   Only prints output (stdout/stderr) if a command errors out (non-zero exit status).
+#   The function returns a non-zero exit status if any of the sequential commands fail.
+#
+# Usage: run_sequential "command_template_with_@" "substitute1" "substitute2" ...
+#   The '@' in the command_template will be replaced by each substitute argument.
+#
+# Example:
+#   run_sequential "echo 'Processing @' && sleep 1" "itemA" "itemB" "itemC"
+#   run_sequential "ping -c 1 @" "localhost" "nonexistent.domain" "google.com"
+#   run_sequential "if [ '@' -eq 0 ]; then echo 'Success: 0'; else exit 1; fi" "0" "1" "0" "2"
+
+function run_sequential() {
+    if [[ $# -le 2 ]]; then 
+    echo "Error: Invalid use: $0 <command template> <arg1> <arg2> ... <argN>"
+    return 1
+  fi
+  local cmd_template="$1"
+  shift
+
+  local tmp_base_dir
+  # Create a unique temporary directory for this run
+  tmp_base_dir=$(mktemp -d) || { echo "Error: Could not create temporary directory."; return 1; }
+  # Ensure the temporary directory is removed on script exit or interrupt
+  # Use a function in trap for robustness, especially if tmp_base_dir could be unset or empty
+  trap "rm -rf '$tmp_base_dir'" EXIT
+
+  local overall_exit_code=0
+
+  # Execute each command sequentially
+  for arg in "$@"; do
+    local full_cmd="${cmd_template//@/$arg}"
+    local output_file=$(mktemp "${tmp_base_dir}/output.XXXXXX") || { echo "Error: Could not create temporary output file."; rm -rf "$tmp_base_dir"; return 1; }
+    echo "Running Command: $full_cmd"
+
+    # Execute the command and redirect its output to the temporary file
+    # Use eval to correctly handle command substitution and complex commands
+    eval "$full_cmd" > "$output_file" 2>&1
+    local command_status=$?
+
+    if [[ "$command_status" -ne 0 ]]; then
+      echo ""
+      echo ""
+      echo "--- Sequential Run Failed ---"
+      echo "Command: $full_cmd"
+      echo "Exit Status: $command_status"
+      echo "--- Output of the Command ---:"
+      cat "$output_file"
+      echo ""
+      echo ""
+      overall_exit_code=1 # Set overall exit code to non-zero if any command failed
+    fi
+
+    # Clean up temporary file for the processed command
+    rm -f "$output_file"
+  done
+  return "$overall_exit_code"
+}
+
+function test_package() {
+    local package_name="$1"
+    local zonal="$2"
+    echo "Starting test package in non-parallel (with zonal=${zonal}): ${test_dir_np} ..."
+    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=${zonal} --integrationTest -v --testbucket=$bucket_name_non_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1
+    exit_code_non_parallel=$?
+    if [ $exit_code_non_parallel != 0 ]; then
+      exit_code=$exit_code_non_parallel
+      echo "test fail in non parallel on package (with zonal=${zonal}): " $test_dir_np
+    else
+      echo "Passed test package in non-parallel (with zonal=${zonal}): " $test_dir_np
+    fi
+}
+
 function delete_buckets() {
     local buckets=("$@")
-    if ! run_parallel "gcloud -q storage rm -r gs://@" "${buckets[@]}"; then
+    if ! run_parallel "delete_bucket @" "${buckets[@]}"; then
       echo "Failed to delete all buckets"
     else
       echo "Successfully deleted all buckets."
@@ -272,7 +360,6 @@ function upgrade_gcloud_version() {
   wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
   sudo tar xzf gcloud.tar.gz && sudo cp -r google-cloud-sdk /usr/local && sudo rm -r google-cloud-sdk
   sudo /usr/local/google-cloud-sdk/install.sh
-  export PATH=/usr/local/google-cloud-sdk/bin:$PATH
   gcloud version && rm gcloud.tar.gz
   sudo /usr/local/google-cloud-sdk/bin/gcloud components update
   sudo /usr/local/google-cloud-sdk/bin/gcloud components install alpha
@@ -284,6 +371,7 @@ function install_packages() {
   echo "Installing go-lang version: ${GO_VERSION}"
   wget -O go_tar.tar.gz https://go.dev/dl/${GO_VERSION}.linux-${architecture}.tar.gz -q
   sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
+  rm go_tar.tar.gz
   export PATH=$PATH:/usr/local/go/bin
   sudo apt-get install -y python3
   # install python3-setuptools tools.
@@ -294,7 +382,15 @@ function install_packages() {
 }
 
 function main(){
-  delete_buckets "${BUCKET_NAMES[@]}"
+  # Delete buckets in parallel if program exits.
+  trap 'delete_buckets "${BUCKET_NAMES[@]}"' EXIT
+
+
+  set -e
+  upgrade_gcloud_version
+  install_packages
+  set +e
+
 }
 
 #Main method to run script
