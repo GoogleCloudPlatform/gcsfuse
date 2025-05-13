@@ -109,7 +109,7 @@ function printHelp() {
   # Test runtime configuration
   echo "pod_wait_time_in_seconds=<number e.g. 60 for checking pod status every 1 min, default=\"${DEFAULT_POD_WAIT_TIME_IN_SECONDS}\">"
   echo "pod_timeout_in_seconds=<number e.g. 3600 for timing out pod runs, should be more than the value of pod_wait_time_in_seconds, default=\"${DEFAULT_POD_TIMEOUT_IN_SECONDS}\">"
-  echo "instance_id=<description of this particular test-run, it does not need to be unique e.g. \"cache test #43\""
+  echo "instance_id=<Optional description of this particular test-run, it does not need to be unique e.g. \"cache test #43\""
   echo "workload_config=<path/to/workload/configuration/file e.g. /a/b/c.json >"
   echo "output_dir=</absolute/path/to/output/dir, output files will be written at output_dir/fio/output.csv and output_dir/dlio/output.csv>"
   echo "force_update_gcsfuse_code=<true|false, to force-update the gcsfuse-code to given branch if gcsfuse_src_dir has been set. Default=\"${DEFAULT_FORCE_UPDATE_GCSFUSE_CODE}\">"
