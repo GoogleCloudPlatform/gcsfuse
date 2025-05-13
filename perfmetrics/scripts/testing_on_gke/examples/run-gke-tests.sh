@@ -68,8 +68,8 @@ readonly DEFAULT_ZONAL=false
 
 # Config for exporting fio outputs to a Bigquery table.
 readonly DEFAULT_BQ_PROJECT_ID='gcs-fuse-test-ml'
-readonly DEFAULT_BQ_DATASET_ID='gke_test_tool_outputs'
-readonly DEFAULT_BQ_TABLE_ID='fio_outputs'
+readonly DEFAULT_BQ_DATASET_ID='gargnitin_test_gke_test_tool_outputs'
+readonly DEFAULT_BQ_TABLE_ID='fio_outputs2'
 
 # Create and return a unique instance_id taking
 # into account user's passed instance_id.
