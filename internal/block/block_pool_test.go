@@ -130,7 +130,7 @@ func (t *BlockPoolTest) TestBlockSize() {
 }
 
 func (t *BlockPoolTest) TestClearFreeBlockChannel() {
-	bp, err := NewBlockPool(1024, 10, semaphore.NewWeighted(3))
+	bp, err := NewBlockPool(1024, 10, semaphore.NewWeighted(4))
 	require.Nil(t.T(), err)
 	blocks := make([]Block, 4)
 	for i := 0; i < 4; i++ {
@@ -154,25 +154,33 @@ func (t *BlockPoolTest) TestClearFreeBlockChannel() {
 	require.False(t.T(), bp.globalMaxBlocksSem.TryAcquire(1))
 }
 
-func (t *BlockPoolTest) TestFirstBlockIsCreatedWithoutAcquiringGlobalSem() {
-	bp, err := NewBlockPool(1024, 3, semaphore.NewWeighted(0))
+func (t *BlockPoolTest) TestBlockPoolCreationAcquiresGlobalSem() {
+	globalBlocksSem := semaphore.NewWeighted(1)
+
+	bp, err := NewBlockPool(1024, 3, globalBlocksSem)
+
 	require.Nil(t.T(), err)
+	// Validate that semaphore got acquired.
+	acquired := globalBlocksSem.TryAcquire(1)
+	assert.False(t.T(), acquired)
+	// Validate that 1st block can be created as it was reserved.
 	b1, err := bp.Get()
 	require.Nil(t.T(), err)
 	require.NotNil(t.T(), b1)
-	// Adding block to freeBlocksCh
+	// Validate that adding block to freeBlocksCh and clearing it up releases the semaphore
 	bp.freeBlocksCh <- b1
 	require.Equal(t.T(), int64(1), bp.totalBlocks)
-
 	err = bp.ClearFreeBlockChannel()
-
 	require.Nil(t.T(), err)
 	require.Equal(t.T(), int64(0), bp.totalBlocks)
 	require.Nil(t.T(), b1.(*memoryBlock).buffer)
+	// Validate that semaphore can be acquired now.
+	acquired = globalBlocksSem.TryAcquire(1)
+	assert.True(t.T(), acquired)
 }
 
 func (t *BlockPoolTest) TestClearFreeBlockChannelWithMultipleBlockPools() {
-	globalMaxBlocksSem := semaphore.NewWeighted(1)
+	globalMaxBlocksSem := semaphore.NewWeighted(3)
 	bp1, err := NewBlockPool(1024, 3, globalMaxBlocksSem)
 	require.Nil(t.T(), err)
 	bp2, err := NewBlockPool(1024, 3, globalMaxBlocksSem)
@@ -205,27 +213,23 @@ func (t *BlockPoolTest) TestClearFreeBlockChannelWithMultipleBlockPools() {
 	require.Nil(t.T(), b4.(*memoryBlock).buffer)
 }
 
-func (t *BlockPoolTest) TestGetWhenGlobalMaxBlocksIsZero() {
+func (t *BlockPoolTest) TestBlockPoolCreationFailsWhenGlobalMaxBlocksIsZero() {
 	bp, err := NewBlockPool(1024, 10, semaphore.NewWeighted(0))
-	require.Nil(t.T(), err)
 
-	// First block is allowed even with globalMaxBlocks being zero.
-	b1, err := bp.Get()
-	require.Nil(t.T(), err)
-	require.NotNil(t.T(), b1)
-	// We shouldn't be allowed to create another block.
-	t.validateGetBlockIsBlocked(bp)
+	require.Error(t.T(), err)
+	assert.Nil(t.T(), bp)
+	assert.ErrorContains(t.T(), err, CantAllocateAnyBlockError.Error())
 }
 
 func (t *BlockPoolTest) TestGetWhenLimitedByGlobalBlocks() {
 	bp, err := NewBlockPool(1024, 10, semaphore.NewWeighted(2))
 	require.Nil(t.T(), err)
 
-	// 3 blocks can be created.
-	for i := 0; i < 3; i++ {
+	// 2 blocks can be created.
+	for i := 0; i < 2; i++ {
 		_ = t.validateGetBlockIsNotBlocked(bp)
 	}
-	require.Equal(t.T(), int64(3), bp.totalBlocks)
+	require.Equal(t.T(), int64(2), bp.totalBlocks)
 
 	t.validateGetBlockIsBlocked(bp)
 }

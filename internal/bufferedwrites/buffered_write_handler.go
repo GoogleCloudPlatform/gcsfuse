@@ -205,12 +205,6 @@ func (wh *bufferedWriteHandlerImpl) Sync() (o *gcs.MinObject, err error) {
 			return nil, fmt.Errorf("could not upload entire data, expected offset %d, Got %d", wh.totalSize, o.Size)
 		}
 	}
-	// Release memory used by buffers.
-	err = wh.blockPool.ClearFreeBlockChannel()
-	if err != nil {
-		// Only logging an error in case of resource leak as upload succeeded.
-		logger.Errorf("blockPool.ClearFreeBlockChannel() failed during sync: %v", err)
-	}
 	err = wh.uploadHandler.UploadError()
 	if err != nil {
 		return nil, err
