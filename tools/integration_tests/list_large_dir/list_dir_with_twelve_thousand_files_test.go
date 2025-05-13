@@ -205,16 +205,16 @@ func testdataCreateImplicitDir(t *testing.T, ctx context.Context, storageClient 
 
 	bucketName, dirPathInBucket := operations.SplitBucketNameAndDirPath(t, bucketNameWithDirPath)
 
-	localFile, err := operations.CreateLocalTempFile("", false)
+	testFile, err := operations.CreateLocalTempFile("", false)
 	if err != nil {
-		t.Fatalf("Failed to create a temporary file for copying: %v", err)
+		t.Fatalf("Failed to create local file for creating copies ...")
 	}
 
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, runtime.NumCPU()/2) // Concurrency limiter
 
 	for suffix := 1; suffix <= numberOfImplicitDirsInDirectoryWithTwelveThousandFiles; suffix++ {
-		objectPath := path.Join(dirPathInBucket, fmt.Sprintf("%s%d", prefixImplicitDirInLargeDirListTest, suffix), localFile)
+		objectPath := path.Join(dirPathInBucket, fmt.Sprintf("%s%d", prefixImplicitDirInLargeDirListTest, suffix), testFile)
 
 		wg.Add(1)
 		go func(destinationPath string) {
@@ -222,7 +222,7 @@ func testdataCreateImplicitDir(t *testing.T, ctx context.Context, storageClient 
 			sem <- struct{}{}        // acquire semaphore
 			defer func() { <-sem }() // release semaphore
 
-			client.CopyFileInBucket(ctx, storageClient, localFile, destinationPath, bucketName)
+			client.CopyFileInBucket(ctx, storageClient, testFile, destinationPath, bucketName)
 		}(objectPath)
 	}
 
@@ -236,7 +236,7 @@ func testdataCreateExplicitDir(t *testing.T, ctx context.Context, storageClient 
 	bucketName, dirPathInBucket := operations.SplitBucketNameAndDirPath(t, bucketNameWithDirPath)
 
 	g, ctx := errgroup.WithContext(ctx)
-	g.SetLimit(runtime.NumCPU()/2) // Concurrency limiter
+	g.SetLimit(runtime.NumCPU() / 2) // Concurrency limiter
 
 	for dirIndex := 1; dirIndex <= numberOfExplicitDirsInDirectoryWithTwelveThousandFiles; dirIndex++ {
 		capturedIndex := dirIndex
