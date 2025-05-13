@@ -107,6 +107,25 @@ fi
 
 # Tests Packages which can be run in parallel.
 PARALLEL_TEST_PACKAGES=(
+  # "monitoring"
+  # "local_file"
+  # "log_rotation"
+  # "mounting"
+  # "read_cache"
+  # "grpc_validation"
+  # "gzip"
+  # "write_large_files"
+  # "list_large_dir"
+  # "rename_dir_limit"
+  # "read_large_files"
+  # "explicit_dir"
+  # "implicit_dir"
+  # "interrupt"
+  # "operations"
+  # "kernel_list_cache"
+  # "concurrent_operations"
+  # "benchmarking"
+  # "mount_timeout"
   "stale_handle"
   "negative_stat_cache"
   "streaming_writes"
@@ -115,17 +134,41 @@ PARALLEL_TEST_PACKAGES=(
 # These packages which can only be run in sequential.
 SEQUENTIAL_TEST_PACKAGES=(
   "readonly"
+  "managed_folders"
+  "readonly_creds"
 )
 
 # Tests Packages which can be run in parallel on zonal buckets.
 PARALLEL_TEST_PACKAGES_FOR_ZB=(
   "benchmarking"
+  # "explicit_dir"
+  # "gzip"
+  # "implicit_dir"
+  # "interrupt"
+  # "kernel_list_cache"
+  # "local_file"
+  # "log_rotation"
+  # "monitoring"
+  # "mount_timeout"
+  # "mounting"
+  # "negative_stat_cache"
+  # "operations"
+  # "read_cache"
+  # "read_large_files"
+  # "rename_dir_limit"
   "stale_handle"
+  # "streaming_writes"
+  # "write_large_files"
+  "unfinalized_object"
 )
 
 # These packages which can only be run in sequential on zonal buckets.
 SEQUENTIAL_TEST_PACKAGES_FOR_ZB=(
+  # "concurrent_operations"
+  # "list_large_dir"
+  # "managed_folders"
   "readonly"
+  "readonly_creds"
 )
 
 # acquire_lock: Acquires exclusive lock or exits script on failure.
@@ -189,6 +232,7 @@ create_bucket() {
     release_lock "$BUCKET_CREATION_LOCK_FILE"
     return 1
   fi
+  sleep 2
   release_lock "$BUCKET_CREATION_LOCK_FILE"
   BUCKET_NAMES+=("$bucket_name")
   echo "$bucket_name"
@@ -339,7 +383,7 @@ run_sequential() {
   return "$overall_exit_code"
 }
 
-PACKAGE_STATS_FILE=$(mktemp /tmp/bucket_creation_lock.XXXXXX)
+PACKAGE_STATS_FILE=$(mktemp /tmp/package_stats.XXXXXX)
 # shellcheck disable=SC2317
 test_package() {
   local package_name="$1"
@@ -394,16 +438,12 @@ test_package() {
   GO_TEST_CMD=$(printf "%q " "${GO_TEST_CMD_PARTS[@]}")
   local start=$SECONDS
   local exit_code=0
-  # eval "$GO_TEST_CMD"
-  echo "$GO_TEST_CMD"
-  sleep 1
-  exit_code=1
+  eval "$GO_TEST_CMD"
+  exit_code=$?
   local end=$SECONDS
   # Record stats
   wait_reps=$((start / 60))
-  run_reps=$(((end - start) / 60))
-  wait_reps=5
-  run_reps=10
+  run_reps=$(((end - start + 60) / 60))
   # Build the WWW and RRRR strings
   wait_string=""
   for ((i=0; i<wait_reps; i++)); do
@@ -420,12 +460,11 @@ test_package() {
     exit_status="FAIL"
   fi
   combined_time_bar="${wait_string}${run_string}"
-  current_package_stats=$(printf "|%-25s | %-15s | %-10s | %-50s|\n" \
+  current_package_stats=$(printf "| %-25s | %-15s | %-10s | %-50s|\n" \
     "$package_name" \
     "$bucket_type" \
     "$exit_status" \
     "$combined_time_bar")
-  echo "------------------------------------------------------------------------------------------------------------" >> "$PACKAGE_STATS_FILE"
   echo "$current_package_stats" >> "$PACKAGE_STATS_FILE"
   if [[ "$exit_code" -ne 0 ]]; then 
     return 1
@@ -435,7 +474,30 @@ test_package() {
 }
 
 print_package_stats() {
-  cat "$PACKAGE_STATS_FILE"
+  SORTED_PACKAGE_STATS_FILE=$(mktemp /tmp/package_stats.XXXXXX)
+  sort "$PACKAGE_STATS_FILE" > "$SORTED_PACKAGE_STATS_FILE"
+  segment1_hyphens=$(printf '%.s-' {1..27})
+  segment2_hyphens=$(printf '%.s-' {1..17})
+  segment3_hyphens=$(printf '%.s-' {1..12})
+  segment4_hyphens=$(printf '%.s-' {1..51})
+
+  # Concatenate the segments with '+' characters into a single string
+  # and then print that string using printf.
+  separator=$(printf "+%s+%s+%s+%s+\n" \
+    "${segment1_hyphens}" \
+    "${segment2_hyphens}" \
+    "${segment3_hyphens}" \
+    "${segment4_hyphens}")
+  echo ""
+  echo "Timings for the packages."
+  echo "$separator"
+  while IFS= read -r line; do
+    echo "$line"
+    echo "$separator"
+  done < "$SORTED_PACKAGE_STATS_FILE"
+  echo ""
+  rm "$SORTED_PACKAGE_STATS_FILE"
+  rm "$PACKAGE_STATS_FILE"
 }
 
 # shellcheck disable=SC2317
@@ -443,10 +505,12 @@ test_package_hns() {
   test_package "$1" "hns"
 }
 
+# shellcheck disable=SC2317
 test_package_flat() {
   test_package "$1" "flat"
 }
 
+# shellcheck disable=SC2317
 test_package_zonal() {
   test_package "$1" "zonal"
 }
@@ -570,7 +634,7 @@ run_e2e_tests_for_tpc() {
     log_error ""
     log_error ""
     log_error "--- TPC Run Failed for bucket $bucket ---"
-    log_error "--- Stdout/Stderr ---:"
+    log_error "--- Stdout/Stderr ---"
     cat "$tpc_test_log"
     log_error ""
     log_error ""
@@ -614,9 +678,9 @@ main(){
 
   set -e
 
-  # upgrade_gcloud_version
+  upgrade_gcloud_version
 
-  # install_packages
+  install_packages
 
   set +e
 
@@ -629,8 +693,6 @@ main(){
     e2e_tests_zonal_bucket_pid=$!
     wait $e2e_tests_zonal_bucket_pid
     exit_code=$(( exit_code || $? ))
-    echo "${PACKAGE_STATS[@]}"
-    print_package_stats
   else
     # Run tpc test and exit in case RUN_TEST_ON_TPC_ENDPOINT is true.
     if [[ "${RUN_TEST_ON_TPC_ENDPOINT}" == "true" ]]; then
@@ -647,6 +709,7 @@ main(){
         wait $e2e_tests_tpc_hns_bucket_pid
         exit_code=$(( exit_code || $? ))
         # Exit to prevent the following code from executing for TPC.
+        print_package_stats
         exit $exit_code
     fi
 
@@ -668,6 +731,7 @@ main(){
     wait $e2e_tests_hns_bucket_pid
     exit_code=$(( exit_code || $? ))
   fi
+  print_package_stats
   exit $exit_code
 }
 
