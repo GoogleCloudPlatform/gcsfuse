@@ -353,6 +353,8 @@ def write_records_to_bq_table(
     bq_dataset_id: str,
     bq_table_id: str,
 ):
+  fioBqExporter = FioBigqueryExporter(bq_project_id, bq_dataset_id, bq_table_id)
+
   # list of FioRowTable objects to be populated to be inserted into BigQuery
   # table using the above exporter.
   rows = []
@@ -402,13 +404,11 @@ def write_records_to_bq_table(
 
         rows.append(row)
 
-  print(f"Dummy insertion into bigquery table: {rows}")
-  # fioBqExporter = FioBigqueryExporter(bq_project_id, bq_dataset_id, bq_table_id)
-  # fioBqExporter.insert_rows(fioTableRows=rows)
-  # print(
-  # "\nSuccessfully exported outputs of FIO test runs to"
-  # f" BigQuery table {bq_project_id}:{bq_dataset_id}.{bq_table_id} !!!\n"
-  # )
+  fioBqExporter.insert_rows(fioTableRows=rows)
+  print(
+      "\nSuccessfully exported outputs of FIO test runs to"
+      f" BigQuery table {bq_project_id}:{bq_dataset_id}.{bq_table_id} !!!\n"
+  )
 
 
 if __name__ == "__main__":
