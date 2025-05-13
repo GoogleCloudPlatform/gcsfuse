@@ -519,6 +519,7 @@ func (t *bucketTest) assertOnObjectAttributes(expectedMinObj *gcs.MinObject, exp
 	ExpectThat(expectedExtendedAttr.CustomTime, Equals(o.CustomTime))
 	ExpectThat(expectedExtendedAttr.EventBasedHold, Equals(o.EventBasedHold))
 	ExpectThat(expectedExtendedAttr.Acl, DeepEquals(o.Acl))
+	ExpectThat(expectedExtendedAttr.Finalized, DeepEquals(o.Finalized))
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -638,6 +639,7 @@ func (t *createTest) ObjectAttributes_Default() {
 	ExpectEq("STANDARD", o.StorageClass)
 	ExpectThat(o.Deleted, timeutil.TimeEq(time.Time{}))
 	ExpectThat(o.Updated, t.matchesStartTime(createTime))
+	ExpectThat(o.Finalized, timeutil.TimeEq(time.Time{}))
 
 	// Make sure it matches when we stat object.
 	minObj, extendedAttr, err := t.bucket.StatObject(
@@ -1350,6 +1352,7 @@ func (t *copyTest) DestinationDoesntExist() {
 	ExpectThat(dst.Deleted, DeepEquals(time.Time{}))
 	ExpectThat(dst.Deleted, timeutil.TimeEq(time.Time{}))
 	ExpectThat(dst.Updated, t.matchesStartTime(createTime))
+	ExpectThat(dst.Finalized, DeepEquals(time.Time{}))
 
 	// The object should be readable.
 	contents, err := storageutil.ReadObject(t.ctx, t.bucket, "bar")
@@ -1440,6 +1443,7 @@ func (t *copyTest) DestinationExists() {
 	ExpectThat(dst.Deleted, DeepEquals(time.Time{}))
 	ExpectThat(dst.Deleted, timeutil.TimeEq(time.Time{}))
 	ExpectThat(dst.Updated, t.matchesStartTime(createTime))
+	ExpectThat(dst.Finalized, DeepEquals(time.Time{}))
 
 	// The object should be readable.
 	contents, err := storageutil.ReadObject(t.ctx, t.bucket, "bar")
@@ -1513,6 +1517,7 @@ func (t *copyTest) DestinationIsSameName() {
 	ExpectThat(dst.Deleted, DeepEquals(time.Time{}))
 	ExpectThat(dst.Deleted, timeutil.TimeEq(time.Time{}))
 	ExpectThat(dst.Updated, t.matchesStartTime(createTime))
+	ExpectThat(dst.Finalized, DeepEquals(time.Time{}))
 
 	// The object should be readable.
 	contents, err := storageutil.ReadObject(t.ctx, t.bucket, "foo")
@@ -1835,6 +1840,7 @@ func (t *composeTest) OneSimpleSource() {
 	ExpectEq("STANDARD", o.StorageClass)
 	ExpectThat(o.Deleted, timeutil.TimeEq(time.Time{}))
 	ExpectThat(o.Updated, t.matchesStartTime(composeTime))
+	ExpectThat(o.Finalized, DeepEquals(time.Time{}))
 
 	// Check contents.
 	contents, err := storageutil.ReadObject(t.ctx, t.bucket, "foo")
@@ -1894,6 +1900,7 @@ func (t *composeTest) TwoSimpleSources() {
 	ExpectEq("STANDARD", o.StorageClass)
 	ExpectThat(o.Deleted, timeutil.TimeEq(time.Time{}))
 	ExpectThat(o.Updated, t.matchesStartTime(composeTime))
+	ExpectThat(o.Finalized, DeepEquals(time.Time{}))
 
 	// Check contents.
 	contents, err := storageutil.ReadObject(t.ctx, t.bucket, "foo")
@@ -1950,6 +1957,7 @@ func (t *composeTest) ManySimpleSources() {
 	ExpectEq("STANDARD", o.StorageClass)
 	ExpectThat(o.Deleted, timeutil.TimeEq(time.Time{}))
 	ExpectThat(o.Updated, t.matchesStartTime(composeTime))
+	ExpectThat(o.Finalized, DeepEquals(time.Time{}))
 
 	for _, src := range sources {
 		ExpectLt(src.Generation, o.Generation)
@@ -2021,6 +2029,7 @@ func (t *composeTest) RepeatedSources() {
 	ExpectEq("STANDARD", o.StorageClass)
 	ExpectThat(o.Deleted, timeutil.TimeEq(time.Time{}))
 	ExpectThat(o.Updated, t.matchesStartTime(composeTime))
+	ExpectThat(o.Finalized, DeepEquals(time.Time{}))
 
 	// Check contents.
 	contents, err := storageutil.ReadObject(t.ctx, t.bucket, "foo")
@@ -2103,6 +2112,7 @@ func (t *composeTest) CompositeSources() {
 	ExpectEq("STANDARD", o.StorageClass)
 	ExpectThat(o.Deleted, timeutil.TimeEq(time.Time{}))
 	ExpectThat(o.Updated, t.matchesStartTime(composeTime))
+	ExpectThat(o.Finalized, DeepEquals(time.Time{}))
 
 	// Check contents.
 	contents, err := storageutil.ReadObject(t.ctx, t.bucket, "foo")
@@ -3476,6 +3486,7 @@ func (t *statTest) StatAfterCreating() {
 	ExpectEq(len("taco"), m.Size)
 	ExpectThat(e.Deleted, timeutil.TimeEq(time.Time{}))
 	ExpectThat(m.Updated, timeutil.TimeEq(orig.Updated))
+	ExpectThat(e.Finalized, timeutil.TimeEq(time.Time{}))
 }
 
 func (t *statTest) StatAfterOverwriting() {
@@ -3512,6 +3523,7 @@ func (t *statTest) StatAfterOverwriting() {
 	ExpectEq(len("burrito"), m.Size)
 	ExpectThat(e.Deleted, timeutil.TimeEq(time.Time{}))
 	ExpectThat(m.Updated, timeutil.TimeEq(o2.Updated))
+	ExpectThat(e.Finalized, timeutil.TimeEq(time.Time{}))
 }
 
 func (t *statTest) StatAfterUpdating() {
@@ -3565,6 +3577,7 @@ func (t *statTest) StatAfterUpdating() {
 	ExpectEq(len("taco"), m.Size)
 	ExpectThat(e.Deleted, timeutil.TimeEq(time.Time{}))
 	ExpectThat(m.Updated, timeutil.TimeEq(o2.Updated))
+	ExpectThat(e.Finalized, timeutil.TimeEq(time.Time{}))
 }
 
 ////////////////////////////////////////////////////////////////////////
