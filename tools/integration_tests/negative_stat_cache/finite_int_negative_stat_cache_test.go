@@ -37,7 +37,7 @@ func (s *finiteNegativeStatCacheTest) Setup(t *testing.T) {
 }
 
 func (s *finiteNegativeStatCacheTest) Teardown(t *testing.T) {
-	setup.UnmountGCSFuse(rootDir)
+	setup.UnmountGCSFuse(testEnv.rootDir)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -45,7 +45,7 @@ func (s *finiteNegativeStatCacheTest) Teardown(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *finiteNegativeStatCacheTest) TestFiniteNegativeStatCache(t *testing.T) {
-	targetDir := path.Join(testDirPath, "explicit_dir")
+	targetDir := path.Join(testEnv.testDirPath, "explicit_dir")
 	// Create test directory
 	operations.CreateDirectory(targetDir, t)
 	targetFile := path.Join(targetDir, "file1.txt")
@@ -58,7 +58,7 @@ func (s *finiteNegativeStatCacheTest) TestFiniteNegativeStatCache(t *testing.T) 
 	assert.ErrorContains(t, err, "explicit_dir/file1.txt: no such file or directory")
 
 	// Adding the object with same name
-	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join("explicit_dir", "file1.txt"), "some-content", t)
+	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDirName, path.Join("explicit_dir", "file1.txt"), "some-content", t)
 
 	// Error should be returned again, as call will not be served from GCS due to finite gcsfuse stat cache
 	_, err = os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))

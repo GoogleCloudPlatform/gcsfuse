@@ -38,7 +38,7 @@ func (s *infiniteNegativeStatCacheTest) Setup(t *testing.T) {
 }
 
 func (s *infiniteNegativeStatCacheTest) Teardown(t *testing.T) {
-	setup.UnmountGCSFuse(rootDir)
+	setup.UnmountGCSFuse(testEnv.rootDir)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -46,7 +46,7 @@ func (s *infiniteNegativeStatCacheTest) Teardown(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *infiniteNegativeStatCacheTest) TestInfiniteNegativeStatCache(t *testing.T) {
-	targetDir := path.Join(testDirPath, "explicit_dir")
+	targetDir := path.Join(testEnv.testDirPath, "explicit_dir")
 	// Create test directory
 	operations.CreateDirectory(targetDir, t)
 	targetFile := path.Join(targetDir, "file1.txt")
@@ -59,7 +59,7 @@ func (s *infiniteNegativeStatCacheTest) TestInfiniteNegativeStatCache(t *testing
 	assert.ErrorContains(t, err, "explicit_dir/file1.txt: no such file or directory")
 
 	// Adding the object with same name
-	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, "explicit_dir/file1.txt", "some-content", t)
+	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDirName, "explicit_dir/file1.txt", "some-content", t)
 
 	// Error should be returned again, as call will not be served from GCS due to infinite gcsfuse stat cache
 	_, err = os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))
@@ -77,7 +77,7 @@ func (s *infiniteNegativeStatCacheTest) TestInfiniteNegativeStatCache(t *testing
 // leading to an EEXIST error when attempting to create the same folder again.
 func (s *infiniteNegativeStatCacheTest) TestAlreadyExistFolder(t *testing.T) {
 	dirName := "testAlreadyExistFolder"
-	dirPath := path.Join(testDirPath, dirName)
+	dirPath := path.Join(testEnv.testDirPath, dirName)
 	dirPathOnBucket := path.Join(testDirName, dirName)
 	// Stat should return an error because the directory doesn't exist yet,
 	// populating the negative metadata cache.
@@ -85,10 +85,10 @@ func (s *infiniteNegativeStatCacheTest) TestAlreadyExistFolder(t *testing.T) {
 	require.Error(t, err)
 	require.True(t, os.IsNotExist(err))
 	// Create the directory in the bucket using a different client outside of gcsfuse.
-	if setup.IsHierarchicalBucket(ctx, storageClient) {
-		_, err = client.CreateFolderInBucket(ctx, storageControlClient, dirPathOnBucket)
+	if setup.IsHierarchicalBucket(testEnv.ctx, testEnv.storageClient) {
+		_, err = client.CreateFolderInBucket(testEnv.ctx, testEnv.storageControlClient, dirPathOnBucket)
 	} else {
-		err = client.CreateObjectOnGCS(ctx, storageClient, dirPathOnBucket+"/", "")
+		err = client.CreateObjectOnGCS(testEnv.ctx, testEnv.storageClient, dirPathOnBucket+"/", "")
 	}
 	require.NoError(t, err)
 
