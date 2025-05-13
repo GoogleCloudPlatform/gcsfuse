@@ -24,6 +24,7 @@ import (
 	"runtime/debug"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/google/uuid"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
@@ -54,6 +55,8 @@ func InitLogFile(newLogConfig cfg.LoggingConfig) error {
 	var sysWriter *syslog.Writer
 	var fileWriter *lumberjack.Logger
 	var err error
+	instanceID := uuid.New().String()
+
 	if newLogConfig.FilePath != "" {
 		f, err = os.OpenFile(
 			string(newLogConfig.FilePath),
@@ -91,6 +94,7 @@ func InitLogFile(newLogConfig cfg.LoggingConfig) error {
 		format:     newLogConfig.Format,
 		level:      string(newLogConfig.Severity),
 		logRotate:  newLogConfig.LogRotate,
+		instanceUUID: instanceID,
 	}
 	defaultLogger = defaultLoggerFactory.newLogger(string(newLogConfig.Severity))
 
@@ -100,11 +104,13 @@ func InitLogFile(newLogConfig cfg.LoggingConfig) error {
 // init initializes the logger factory to use stdout and stderr.
 func init() {
 	logConfig := cfg.DefaultLoggingConfig()
+	instanceID := uuid.New().String()
 	defaultLoggerFactory = &loggerFactory{
-		file:      nil,
-		format:    logConfig.Format,
-		level:     string(logConfig.Severity), // setting log level to INFO by default
-		logRotate: logConfig.LogRotate,
+		file:         nil,
+		format:       logConfig.Format,
+		level:        string(logConfig.Severity), // setting log level to INFO by default
+		logRotate:    logConfig.LogRotate,
+		instanceUUID: instanceID,
 	}
 	defaultLogger = defaultLoggerFactory.newLogger(cfg.INFO)
 }
@@ -168,17 +174,27 @@ type loggerFactory struct {
 	level      string
 	logRotate  cfg.LogRotateLoggingConfig
 	fileWriter *lumberjack.Logger
+	instanceUUID string
 }
 
 func (f *loggerFactory) newLogger(level string) *slog.Logger {
 	// create a new logger
 	var programLevel = new(slog.LevelVar)
-	logger := slog.New(f.handler(programLevel, ""))
+
+	// Get the base handler (Text or JSON) with configured options.
+	// The prefix argument to f.handler is currently always empty.
+	baseHandler := f.handler(programLevel, "")
+
+	// Add the instance UUID as a permanent attribute to this handler.
+	handlerWithUUID := baseHandler.WithAttrs([]slog.Attr{
+		slog.String("instance_id", f.instanceUUID),
+	})
+
+	logger := slog.New(handlerWithUUID)
 	slog.SetDefault(logger)
 	setLoggingLevel(level, programLevel)
 	return logger
 }
-
 func (f *loggerFactory) createJsonOrTextHandler(writer io.Writer, levelVar *slog.LevelVar, prefix string) slog.Handler {
 	if f.format == textFormat {
 		return slog.NewTextHandler(writer, getHandlerOptions(levelVar, prefix, f.format))

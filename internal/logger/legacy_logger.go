@@ -29,7 +29,16 @@ import (
 // after slog support is added.
 func NewLegacyLogger(level slog.Level, prefix string) *log.Logger {
 	var programLevel = new(slog.LevelVar)
-	logger := slog.NewLogLogger(defaultLoggerFactory.handler(programLevel, prefix), level)
+
+	// Get the base handler (Text or JSON) with configured options.
+	baseHandler := defaultLoggerFactory.handler(programLevel, prefix)
+
+	// Add the instance UUID as a permanent attribute to this handler.
+	handlerWithUUID := baseHandler.WithAttrs([]slog.Attr{
+		slog.String("instance_id", defaultLoggerFactory.instanceUUID),
+	})
+
+	logger := slog.NewLogLogger(handlerWithUUID, level)
 	setLoggingLevel(defaultLoggerFactory.level, programLevel)
 	return logger
 }
