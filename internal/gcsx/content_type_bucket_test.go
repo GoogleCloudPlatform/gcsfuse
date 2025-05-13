@@ -129,6 +129,43 @@ func TestContentTypeBucket_CreateObjectChunkWriter(t *testing.T) {
 	}
 }
 
+func TestContentTypeBucket_CreateAppendableObjectWriter(t *testing.T) {
+	const offset int64 = 100
+	for i, tc := range contentTypeBucketTestCases {
+		// Set up a bucket.
+		bucket := gcsx.NewContentTypeBucket(
+			fake.NewFakeBucket(timeutil.RealClock(), "", gcs.BucketType{}))
+
+		// Create the object.
+		cReq := gcs.CreateObjectRequest{
+			Name:        tc.name,
+			ContentType: tc.request,
+		}
+
+		req := &gcs.CreateObjectChunkWriterRequest{
+			CreateObjectRequest: cReq,
+			Offset:              offset,
+			ChunkSize:           1024,
+		}
+
+		w, off, err := bucket.CreateAppendableObjectWriter(context.Background(), req)
+		if err != nil {
+			t.Fatalf("Test case %d: CreateObjectChunkWriter: %v", i, err)
+		}
+
+		// Check the content type.
+		writerImpl := w.(*fake.FakeObjectWriter)
+		if got, want := writerImpl.ContentType, tc.expected; got != want {
+			t.Errorf("Test case %d: o.ContentType is %q, want %q", i, got, want)
+		}
+
+		// Check the takeover offset
+		if got, want := off, offset; got != want {
+			t.Errorf("Test case %d: Takeover offset is %q, want %q", i, got, want)
+		}
+	}
+}
+
 func TestContentTypeBucket_ComposeObjects(t *testing.T) {
 	var err error
 	ctx := context.Background()
