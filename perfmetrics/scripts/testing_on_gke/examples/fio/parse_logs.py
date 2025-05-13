@@ -38,7 +38,7 @@ record = {
     "scenario": "",
     "duration": 0,
     "IOPS": 0,
-    "throughput_mb_per_second": 0,
+    "throughput_mib_per_second": 0,
     "throughput_over_local_ssd": 0,
     "start_epoch": "",
     "end_epoch": "",
@@ -227,7 +227,7 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
           per_epoch_output_data["jobs"][0]["read"]["runtime"] / 1000
       )
       r["IOPS"] = int(per_epoch_output_data["jobs"][0]["read"]["iops"])
-      r["throughput_mb_per_second"] = int(
+      r["throughput_mib_per_second"] = int(
           per_epoch_output_data["jobs"][0]["read"]["bw_bytes"] / (1024**2)
       )
       r["start_epoch"] = per_epoch_output_data["jobs"][0]["job_start"] // 1000
@@ -272,9 +272,9 @@ def write_records_to_csv_output_file(output: dict, output_file_path: str):
     # Write a new header.
     output_file_fwr.write(
         "File Size,Read Type,Scenario,Epoch,Duration"
-        " (s),Throughput (MB/s),IOPS,Throughput over Local SSD (%),GCSFuse"
+        " (s),Throughput (MiB/s),IOPS,Throughput over Local SSD (%),GCSFuse"
         " Lowest"
-        " Memory (MB),GCSFuse Highest Memory (MB),GCSFuse Lowest CPU"
+        " Memory (MiB),GCSFuse Highest Memory (MiB),GCSFuse Lowest CPU"
         " (core),GCSFuse Highest CPU"
         " (core),Pod,Start,End,GcsfuseMoutOptions,BlockSize,FilesPerThread,NumThreads,InstanceID,"
         "e2e_latency_ns_max,e2e_latency_ns_p50,e2e_latency_ns_p90,e2e_latency_ns_p99,e2e_latency_ns_p99.9,"
@@ -299,9 +299,9 @@ def write_records_to_csv_output_file(output: dict, output_file_path: str):
                 == len(record_set["records"][scenario])
             ):
               r["throughput_over_local_ssd"] = round(
-                  r["throughput_mb_per_second"]
+                  r["throughput_mib_per_second"]
                   / record_set["records"]["local-ssd"][i][
-                      "throughput_mb_per_second"
+                      "throughput_mib_per_second"
                   ]
                   * 100,
                   2,
@@ -317,7 +317,7 @@ def write_records_to_csv_output_file(output: dict, output_file_path: str):
             continue
 
           output_file_fwr.write(
-              f"{record_set['mean_file_size']},{record_set['read_type']},{scenario},{r['epoch']},{r['duration']},{r['throughput_mb_per_second']},{r['IOPS']},{r['throughput_over_local_ssd']},{r['lowest_memory']},{r['highest_memory']},{r['lowest_cpu']},{r['highest_cpu']},{r['pod_name']},{r['start']},{r['end']},\"{r['gcsfuse_mount_options']}\",{r['blockSize']},{r['filesPerThread']},{r['numThreads']},{args.instance_id},"
+              f"{record_set['mean_file_size']},{record_set['read_type']},{scenario},{r['epoch']},{r['duration']},{r['throughput_mib_per_second']},{r['IOPS']},{r['throughput_over_local_ssd']},{r['lowest_memory']},{r['highest_memory']},{r['lowest_cpu']},{r['highest_cpu']},{r['pod_name']},{r['start']},{r['end']},\"{r['gcsfuse_mount_options']}\",{r['blockSize']},{r['filesPerThread']},{r['numThreads']},{args.instance_id},"
           )
           output_file_fwr.write(
               f"{r['e2e_latency_ns_max']},{r['e2e_latency_ns_p50']},{r['e2e_latency_ns_p90']},{r['e2e_latency_ns_p99']},{r['e2e_latency_ns_p99.9']},"
@@ -388,7 +388,7 @@ def write_records_to_bq_table(
         row.e2e_latency_ns_p99 = r["e2e_latency_ns_p99"]
         row.e2e_latency_ns_p99_9 = r["e2e_latency_ns_p99.9"]
         row.iops = r["IOPS"]
-        row.throughput_in_mbps = r["throughput_mb_per_second"]
+        row.throughput_in_mbps = r["throughput_mib_per_second"]
         row.fio_workload_id = fio_workload_id(row)
 
         rows.append(row)
