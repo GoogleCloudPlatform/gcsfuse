@@ -38,7 +38,9 @@ record = {
     "scenario": "",
     "duration": 0,
     "IOPS": 0,
-    "throughput_mib_per_second": 0,
+    "throughput_mib_per_second": 0.0,  # in 1024^2 bytes/second
+    "throughput_bytes_per_second": 0.0,
+    "throughput_mb_per_second": 0.0,  # output metric in 10^6 bytes/second
     "throughput_over_local_ssd": 0,
     "start_epoch": "",
     "end_epoch": "",
@@ -229,8 +231,12 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
       r["scenario"] = scenario
       r["duration"] = int(job0_read_metrics["runtime"] / 1000)
       r["IOPS"] = int(job0_read_metrics["iops"])
-      r["throughput_mib_per_second"] = int(
-          job0_read_metrics["bw_bytes"] / (1024**2)
+      r["throughput_bytes_per_second"] = job0_read_metrics["bw_bytes"]
+      r["throughput_mib_per_second"] = round(
+          (r["throughput_bytes_per_second"] / (1024**2)), 2
+      )
+      r["throughput_mb_per_second"] = round(
+          (r["throughput_bytes_per_second"] / 1e6), 2
       )
       r["start_epoch"] = job0["job_start"] // 1000
       r["end_epoch"] = per_epoch_output_data["timestamp_ms"] // 1000
@@ -278,7 +284,8 @@ def write_records_to_csv_output_file(output: dict, output_file_path: str):
         " (core),GCSFuse Highest CPU"
         " (core),Pod,Start,End,GcsfuseMoutOptions,BlockSize,FilesPerThread,NumThreads,InstanceID,"
         "e2e_latency_ns_max,e2e_latency_ns_p50,e2e_latency_ns_p90,e2e_latency_ns_p99,e2e_latency_ns_p99.9,"
-        "bucket_name,machine_type"  #
+        "bucket_name,machine_type,"  #
+        "Throughput (MB/s)"
         "\n",
     )
 
@@ -322,7 +329,8 @@ def write_records_to_csv_output_file(output: dict, output_file_path: str):
           output_file_fwr.write(
               f"{r['e2e_latency_ns_max']},{r['e2e_latency_ns_p50']},{r['e2e_latency_ns_p90']},{r['e2e_latency_ns_p99']},{r['e2e_latency_ns_p99.9']},"
           )
-          output_file_fwr.write(f"{r['bucket_name']},{r['machine_type']}\n")
+          output_file_fwr.write(f"{r['bucket_name']},{r['machine_type']},")
+          output_file_fwr.write(f"{r['throughput_mb_per_second']}\n")
 
     output_file_fwr.close()
     print(
@@ -388,7 +396,7 @@ def write_records_to_bq_table(
         row.e2e_latency_ns_p99 = r["e2e_latency_ns_p99"]
         row.e2e_latency_ns_p99_9 = r["e2e_latency_ns_p99.9"]
         row.iops = r["IOPS"]
-        row.throughput_in_mbps = r["throughput_mib_per_second"]
+        row.throughput_in_mbps = r["throughput_mb_per_second"]
         row.fio_workload_id = fio_workload_id(row)
 
         rows.append(row)
