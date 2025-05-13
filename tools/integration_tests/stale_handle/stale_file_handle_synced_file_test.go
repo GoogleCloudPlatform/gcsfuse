@@ -37,14 +37,18 @@ const Content2 = "foobar2"
 
 type staleFileHandleSyncedFile struct {
 	staleFileHandleCommon
+	fileName1 string
+	fileName2 string
 }
 
 func (s *staleFileHandleSyncedFile) SetupTest() {
 	testDirPath := setup.SetupTestDirectory(s.T().Name())
+	s.fileName1 = setup.GenerateRandomFileName(FileName1)
+	s.fileName2 = setup.GenerateRandomFileName(FileName2)
 	// Create an object on bucket
-	err := CreateObjectOnGCS(ctx, storageClient, path.Join(s.T().Name(), FileName1), GCSFileContent)
+	err := CreateObjectOnGCS(ctx, storageClient, path.Join(s.T().Name(), s.fileName1), GCSFileContent)
 	assert.NoError(s.T(), err)
-	s.f1, err = os.OpenFile(path.Join(testDirPath, FileName1), os.O_RDWR|syscall.O_DIRECT, operations.FilePermission_0600)
+	s.f1, err = os.OpenFile(path.Join(testDirPath, s.fileName1), os.O_RDWR|syscall.O_DIRECT, operations.FilePermission_0600)
 	assert.NoError(s.T(), err)
 }
 
@@ -54,7 +58,7 @@ func (s *staleFileHandleSyncedFile) SetupTest() {
 
 func (s *staleFileHandleSyncedFile) TestClobberedFileReadThrowsStaleFileHandleError() {
 	// Replace the underlying object with a new generation.
-	err := WriteToObject(ctx, storageClient, path.Join(s.T().Name(), FileName1), FileContents, storage.Conditions{})
+	err := WriteToObject(ctx, storageClient, path.Join(s.T().Name(), s.fileName1), FileContents, storage.Conditions{})
 	assert.NoError(s.T(), err)
 
 	buffer := make([]byte, GCSFileSize)
@@ -65,7 +69,7 @@ func (s *staleFileHandleSyncedFile) TestClobberedFileReadThrowsStaleFileHandleEr
 
 func (s *staleFileHandleSyncedFile) TestClobberedFileFirstWriteThrowsStaleFileHandleError() {
 	// Replace the underlying object with a new generation.
-	err := WriteToObject(ctx, storageClient, path.Join(s.T().Name(), FileName1), FileContents, storage.Conditions{})
+	err := WriteToObject(ctx, storageClient, path.Join(s.T().Name(), s.fileName1), FileContents, storage.Conditions{})
 	assert.NoError(s.T(), err)
 
 	_, err = s.f1.WriteString(Content)
@@ -80,7 +84,7 @@ func (s *staleFileHandleSyncedFile) TestRenamedFileSyncAndCloseThrowsStaleFileHa
 	// Dirty the file by giving it some contents.
 	_, err := s.f1.WriteString(Content)
 	assert.NoError(s.T(), err)
-	err = operations.RenameFile(s.f1.Name(), path.Join(setup.MntDir(), s.T().Name(), FileName2))
+	err = operations.RenameFile(s.f1.Name(), path.Join(setup.MntDir(), s.T().Name(), s.fileName2))
 	assert.NoError(s.T(), err)
 	// Attempt to write to file should not give any error.
 	_, err = s.f1.WriteString(Content2)
@@ -98,10 +102,10 @@ func (s *staleFileHandleSyncedFile) TestFileDeletedRemotelySyncAndCloseThrowsSta
 	_, err := s.f1.WriteString(Content)
 	assert.NoError(s.T(), err)
 	// Delete the file remotely.
-	err = DeleteObjectOnGCS(ctx, storageClient, path.Join(s.T().Name(), FileName1))
+	err = DeleteObjectOnGCS(ctx, storageClient, path.Join(s.T().Name(), s.fileName1))
 	assert.NoError(s.T(), err)
 	// Verify unlink operation succeeds.
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, s.T().Name(), FileName1, s.T())
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, s.T().Name(), s.fileName1, s.T())
 	// Attempt to write to file should not give any error.
 	operations.WriteWithoutClose(s.f1, Content2, s.T())
 
