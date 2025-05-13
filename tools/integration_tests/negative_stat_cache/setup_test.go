@@ -36,7 +36,7 @@ const (
 )
 
 // IMPORTANT: To prevent global variable pollution, enhance code clarity,
-// and facilitate easier testing. We strongly suggest that, all new package-level
+// and avoid inadvertent errors. We strongly suggest that, all new package-level
 // variables (which would otherwise be declared with `var` at the package root) should
 // be added as fields to this 'env' struct instead.
 type env struct {
