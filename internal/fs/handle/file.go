@@ -143,8 +143,8 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 		case errors.Is(err, io.EOF):
 			if err != io.EOF {
 				logger.Warnf("Unexpected EOF error encountered while reading, err: %v type: %T ", err, err)
+				err = io.EOF
 			}
-			err = io.EOF
 			return
 
 		case err != nil:
