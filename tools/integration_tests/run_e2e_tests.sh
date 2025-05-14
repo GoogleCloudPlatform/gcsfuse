@@ -699,7 +699,6 @@ main() {
 
   upgrade_gcloud_version
   install_packages
-  return 0
   set +e
 
   log_info_locked "------ Upgrading gcloud and installing packages took $SECONDS seconds ------"
