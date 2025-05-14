@@ -18,10 +18,15 @@ readonly GO_VERSION="go1.24.0"
 readonly PROJECT_ID="gcs-fuse-test-ml"
 readonly HNS_PROJECT_ID="gcs-fuse-test"
 readonly BUCKET_PREFIX="gcs-fuse-e2e-tests"
-readonly LOG_LOCK_FILE=$(mktemp /tmp/logging_lock.XXXXXX)
-readonly BUCKET_CREATION_LOCK_FILE=$(mktemp /tmp/bucket_creation_lock.XXXXXX)
 readonly INTEGRATION_TEST_PACKAGE_DIR="./tools/integration_tests"
 readonly INTEGRATION_TEST_TIMEOUT_IN_MINS=90
+
+set -e # Fail immediately if any of the below commands fail.
+readonly FIXED_RANDOM_PREFIX=$(head /dev/urandom | tr -dc 'a-z0-9' | head -c 8)
+readonly LOG_LOCK_FILE=$(mktemp "/tmp/${FIXED_RANDOM_PREFIX}_logging_lock.XXXXXX")
+readonly BUCKET_CREATION_LOCK_FILE=$(mktemp "/tmp/${FIXED_RANDOM_PREFIX}_bucket_creation_lock.XXXXXX")
+readonly PACKAGE_STATS_FILE=$(mktemp "/tmp/${FIXED_RANDOM_PREFIX}package_stats.XXXXXX")
+set +e
 
 # Default values for optional arguments
 RUN_TEST_ON_TPC_ENDPOINT=false
@@ -146,17 +151,34 @@ SEQUENTIAL_TEST_PACKAGES_FOR_ZB=(
 # acquire_lock: Acquires exclusive lock or exits script on failure.
 # Args: $1 = path to lock file.
 acquire_lock() {
-  [[ -z "$1" ]] && { log_error "acquire_lock: Lock file path is required."; exit 1; }
-  exec 200>"$1" || { log_error "Could not open lock file $1."; exit 1; }
-  flock -x 200 || { log_error "Failed to acquire lock on $1."; exit 1; }
+  if [[ -z "$1" ]]; then
+    log_error "acquire_lock: Lock file path is required."
+    exit 1
+  fi
+  local lock_file="$1"
+  exec 200>"$lock_file" || {
+    log_error "Could not open lock file $lock_file."
+    exit 1
+  }
+  flock -x 200 || {
+    log_error "Failed to acquire lock on $lock_file."
+    exit 1
+  }
   return 0
 }
 
 # release_lock: Releases lock or exits script on failure.
 # Args: $1 = path to lock file
 release_lock() {
-  [[ -z "$1" ]] && { log_error "release_lock: Lock file path is required."; exit 1; }
-  [[ -e "/proc/self/fd/200" || -L "/proc/self/fd/200" ]] && exec 200>&- || { log_error "Lock file descriptor (FD 200) not open for $1. Possible previous error or double release."; exit 1; } # FD not open or close failed
+  [[ -z "$1" ]] && {
+    log_error "release_lock: Lock file path is required."
+    exit 1
+  }
+  local lock_file="$1"
+  [[ -e "/proc/self/fd/200" || -L "/proc/self/fd/200" ]] && exec 200>&- || {
+    log_error "Lock file descriptor (FD 200) not open for $lock_file. Possible previous error or double release."
+    exit 1
+  } # FD not open or close failed
   return 0
 }
 
@@ -184,7 +206,7 @@ create_bucket() {
   local bucket_type="$1"
   local uuid
   uuid=$(uuidgen)
-  if [[ -z "$uuid" ]]; then 
+  if [[ -z "$uuid" ]]; then
     log_error_locked "Unable to generate random UUID for bucket name"
     return 1
   fi
@@ -194,7 +216,7 @@ create_bucket() {
     cmd="gcloud alpha storage buckets create gs://${bucket_name} --project=${PROJECT_ID} --location=${BUCKET_LOCATION} --uniform-bucket-level-access > /dev/null 2>&1"
   elif [[ "$bucket_type" == "hns" ]]; then
     cmd="gcloud alpha storage buckets create gs://${bucket_name} --project=${HNS_PROJECT_ID} --location=${BUCKET_LOCATION} --uniform-bucket-level-access --enable-hierarchical-namespace > /dev/null 2>&1"
-  elif [[ "$bucket_type" == "zonal" ]]; then 
+  elif [[ "$bucket_type" == "zonal" ]]; then
     cmd="gcloud alpha storage buckets create gs://${bucket_name} --project=${PROJECT_ID} --location=${BUCKET_LOCATION} --placement=${BUCKET_LOCATION}-a --default-storage-class=RAPID --uniform-bucket-level-access --enable-hierarchical-namespace > /dev/null 2>&1"
   else
     log_error_locked "Invalid Bucket Type [${bucket_type}]. Supported Types [flat, hns, zonal]"
@@ -228,16 +250,22 @@ delete_bucket() {
 }
 
 # shellcheck disable=SC2317
-delete_buckets() {
-    if [[ $# -eq 0 ]]; then
-      return 0 # No buckets to delete
-    fi
-    local buckets=("$@")
-    if ! run_parallel "delete_bucket @" "${buckets[@]}"; then
-      log_error_locked "Failed to delete all buckets"
-    else
-      log_info_locked "Successfully deleted all buckets."
-    fi
+clean_up() {
+  # Clean up temp files.
+  if ! rm -rf "tmp/${FIXED_RANDOM_PREFIX}_*"; then 
+    log_error_locked "Failed to temporary files"
+  else 
+    log_info_locked "Successfully cleaned up temporary files"
+  fi
+  if [[ $# -eq 0 ]]; then
+    return 0 # No buckets to delete
+  fi
+  local buckets=("$@")
+  if ! run_parallel "delete_bucket @" "${buckets[@]}"; then
+    log_error_locked "Failed to delete all buckets"
+  else
+    log_info_locked "Successfully deleted all buckets."
+  fi
 }
 
 # run_parallel: Executes commands in parallel based on a template and substitutes.
@@ -259,21 +287,18 @@ run_parallel() {
   local cmd_template="$1"
   shift
 
-  local tmp_base_dir
-  # Create a unique temporary directory for this run
-  tmp_base_dir=$(mktemp -d) || { log_error_locked "Could not create temporary directory."; return 1; }
-  # Ensure the temporary directory is removed on script exit or interrupt
-  trap "rm -rf '$tmp_base_dir'" EXIT
-
   local pids=()
   local -A cmd_info # Associative array: PID -> "output"
 
   # Launch all commands in the background
   for arg in "$@"; do
     local full_cmd="${cmd_template//@/$arg}"
-    local output_file=$(mktemp "${tmp_base_dir}/output.XXXXXX") || { log_error_locked "Could not create temporary output file."; rm -rf "$tmp_base_dir"; return 1; }
+    local output_file=$(mktemp "tmp/${FIXED_RANDOM_PREFIX}_${arg}_output.XXXXXX") || {
+      log_error_locked "Could not create temporary output file."
+      return 1
+    }
     log_info_locked "Queuing Parallel Command: $full_cmd"
-    ( eval "$full_cmd" > "$output_file" 2>&1 ) &
+    (eval "$full_cmd" >"$output_file" 2>&1) &
     local pid=$!
     pids+=("$pid")
     cmd_info["$pid"]="${full_cmd};${output_file}" # Keep pid, full_cmd and output_file in associative array
@@ -285,7 +310,7 @@ run_parallel() {
   for pid in "${pids[@]}"; do
     local -a cmd_info_parts
     # Split the stored info string into an array
-    IFS=';' read -r -a cmd_info_parts <<< "${cmd_info["$pid"]}"
+    IFS=';' read -r -a cmd_info_parts <<<"${cmd_info["$pid"]}"
     local full_cmd="${cmd_info_parts[0]}"
     local output_file="${cmd_info_parts[1]}"
     wait "$pid"
@@ -305,8 +330,6 @@ run_parallel() {
     else
       log_info_locked "Parallel Command Successful: $full_cmd"
     fi
-    # Clean up temporary files for the processed command
-    rm -f "$output_file"
     # Remove the entry from the associative array
     unset 'cmd_info["$pid"]'
   done
@@ -333,23 +356,19 @@ run_sequential() {
   local cmd_template="$1"
   shift
 
-  local tmp_base_dir
-  # Create a unique temporary directory for this run
-  tmp_base_dir=$(mktemp -d) || { log_error_locked "Could not create temporary directory."; return 1; }
-  # Ensure the temporary directory is removed on script exit or interrupt
-  # Use a function in trap for robustness, especially if tmp_base_dir could be unset or empty
-  trap "rm -rf '$tmp_base_dir'" EXIT
-
   local overall_exit_code=0
 
   # Execute each command sequentially
   for arg in "$@"; do
     local full_cmd="${cmd_template//@/$arg}"
-    local output_file=$(mktemp "${tmp_base_dir}/output.XXXXXX") || { log_error_locked "Could not create temporary output file."; rm -rf "$tmp_base_dir"; return 1; }
+    local output_file=$(mktemp "tmp/${FIXED_RANDOM_PREFIX}_${arg}_output.XXXXXX") || {
+      log_error_locked "Could not create temporary output file."
+      return 1
+    }
     log_info_locked "Queuing Sequential Command: $full_cmd"
     # Execute the command and redirect its output to the temporary file
     # Use eval to correctly handle command substitution and complex commands
-    eval "$full_cmd" > "$output_file" 2>&1
+    eval "$full_cmd" >"$output_file" 2>&1
     local command_status=$?
 
     if [[ "$command_status" -ne 0 ]]; then
@@ -368,13 +387,10 @@ run_sequential() {
       log_info_locked "Sequential Command Successful: $full_cmd"
     fi
 
-    # Clean up temporary file for the processed command
-    rm -f "$output_file"
   done
   return "$overall_exit_code"
 }
 
-PACKAGE_STATS_FILE=$(mktemp /tmp/package_stats.XXXXXX)
 # shellcheck disable=SC2317
 test_package() {
   local package_name="$1"
@@ -411,7 +427,7 @@ test_package() {
   if [[ "$TEST_INSTALLED_PACKAGE" == "true" ]]; then
     GO_TEST_CMD_PARTS+=("-testInstalledPackage")
   fi
-  
+
   if [[ "$RUN_TESTS_WITH_PRESUBMIT_FLAG" == "true" ]]; then
     GO_TEST_CMD_PARTS+=("-presubmit")
   fi
@@ -437,12 +453,12 @@ test_package() {
   run_reps=$(((end - start + 60) / 60))
   # Build the WWW and RRRR strings
   wait_string=""
-  for ((i=0; i<wait_reps; i++)); do
+  for ((i = 0; i < wait_reps; i++)); do
     wait_string+=" "
   done
 
   run_string=""
-  for ((i=0; i<run_reps; i++)); do
+  for ((i = 0; i < run_reps; i++)); do
     run_string+=">"
   done
 
@@ -456,8 +472,8 @@ test_package() {
     "$bucket_type" \
     "$exit_status" \
     "$combined_time_bar")
-  echo "$current_package_stats" >> "$PACKAGE_STATS_FILE"
-  if [[ "$exit_code" -ne 0 ]]; then 
+  echo "$current_package_stats" >>"$PACKAGE_STATS_FILE"
+  if [[ "$exit_code" -ne 0 ]]; then
     return 1
   else
     return 0
@@ -465,8 +481,8 @@ test_package() {
 }
 
 print_package_stats() {
-  SORTED_PACKAGE_STATS_FILE=$(mktemp /tmp/package_stats.XXXXXX)
-  sort "$PACKAGE_STATS_FILE" > "$SORTED_PACKAGE_STATS_FILE"
+  # Sorts package stats by package name and bucket type
+  sort -o "$PACKAGE_STATS_FILE" "$PACKAGE_STATS_FILE"
   segment1_hyphens=$(printf '%.s-' {1..27})
   segment2_hyphens=$(printf '%.s-' {1..17})
   segment3_hyphens=$(printf '%.s-' {1..12})
@@ -485,10 +501,8 @@ print_package_stats() {
   while IFS= read -r line; do
     echo "$line"
     echo "$separator"
-  done < "$SORTED_PACKAGE_STATS_FILE"
+  done <"$PACKAGE_STATS_FILE"
   echo ""
-  rm "$SORTED_PACKAGE_STATS_FILE"
-  rm "$PACKAGE_STATS_FILE"
 }
 
 # shellcheck disable=SC2317
@@ -508,14 +522,29 @@ test_package_zonal() {
 
 upgrade_gcloud_version() {
   sudo apt-get update
-  # Upgrade gcloud version.
   # Kokoro machine's outdated gcloud version prevents the use of the "managed-folders" feature.
+  log_info_locked "Existing Gcloud version."
   gcloud version
-  wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
-  sudo tar xzf gcloud.tar.gz && sudo cp -r google-cloud-sdk /usr/local && sudo rm -r google-cloud-sdk
+
+  # Download gcloud.tar.gz to the temporary directory
+  wget -O "tmp/${FIXED_RANDOM_PREFIX}_gcloud.tar.gz" https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
+
+  # Extract gcloud.tar.gz within the temporary directory
+  sudo tar xzf "tmp/${FIXED_RANDOM_PREFIX}_gcloud.tar.gz" -C tmp/google-cloud-sdk
+
+  # Copy the extracted google-cloud-sdk from the temporary directory to /usr/local
+  sudo mv -r tmp/google-cloud-sdk /usr/local
+
+  # Install gcloud
   sudo /usr/local/google-cloud-sdk/install.sh --quiet
-  gcloud version && rm gcloud.tar.gz
+  log_info_locked "Updated Gcloud version."
+  # Verify updated gcloud version
+  gcloud version
+
+  # Update gcloud components
   sudo /usr/local/google-cloud-sdk/bin/gcloud components update
+
+  # Install alpha components
   sudo /usr/local/google-cloud-sdk/bin/gcloud components install alpha
 }
 
@@ -523,9 +552,8 @@ install_packages() {
   # e.g. architecture=arm64 or amd64
   architecture=$(dpkg --print-architecture)
   log_info_locked "Installing go-lang version: ${GO_VERSION}"
-  wget -O go_tar.tar.gz https://go.dev/dl/${GO_VERSION}.linux-${architecture}.tar.gz -q
-  sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
-  rm go_tar.tar.gz
+  wget -O "tmp/${FIXED_RANDOM_PREFIX}_go_tar.tar.gz" https://go.dev/dl/${GO_VERSION}.linux-${architecture}.tar.gz -q
+  sudo rm -rf /usr/local/go && tar -xzf "tmp/${FIXED_RANDOM_PREFIX}_go_tar.tar.gz" -C tmp/go && sudo mv tmp/go /usr/local
   export PATH=$PATH:/usr/local/go/bin
   sudo apt-get install -y python3
   # install python3-setuptools tools.
@@ -557,7 +585,7 @@ run_e2e_tests_for_flat_bucket() {
   return 0
 }
 
-run_e2e_tests_for_hns_bucket(){
+run_e2e_tests_for_hns_bucket() {
   log_info_locked "Started running e2e tests for HNS bucket"
   run_parallel "test_package_hns @" "${PARALLEL_TEST_PACKAGES[@]}" &
   parallel_tests_hns_group_pid=$!
@@ -578,7 +606,7 @@ run_e2e_tests_for_hns_bucket(){
   return 0
 }
 
-run_e2e_tests_for_zonal_bucket(){
+run_e2e_tests_for_zonal_bucket() {
   log_info_locked "Started running e2e tests for ZONAL bucket"
   run_parallel "test_package_zonal @" "${PARALLEL_TEST_PACKAGES_FOR_ZB[@]}" &
   parallel_tests_zonal_group_pid=$!
@@ -610,13 +638,13 @@ run_e2e_tests_for_tpc() {
   emulator_test_log=$(mktemp /tmp/tpc_test_log.XXXXXX)
   trap 'rm "$tpc_test_log"' EXIT
   # Clean bucket before testing.
-  gcloud --verbosity=error storage rm -r gs://"$bucket"/* > "$tpc_test_log"  2>&1
+  gcloud --verbosity=error storage rm -r gs://"$bucket"/* >"$tpc_test_log" 2>&1
 
   # Run Operations e2e tests in TPC to validate all the functionality.
-  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/... --testOnTPCEndPoint="$RUN_TEST_ON_TPC_ENDPOINT" "$GO_TEST_SHORT_FLAG" "$PRESUBMIT_RUN_FLAG" --integrationTest -v --testbucket="$bucket" --testInstalledPackage="$RUN_E2E_TESTS_ON_PACKAGE" -timeout "$INTEGRATION_TEST_TIMEOUT" > "$tpc_test_log" 2>&1
+  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/... --testOnTPCEndPoint="$RUN_TEST_ON_TPC_ENDPOINT" "$GO_TEST_SHORT_FLAG" "$PRESUBMIT_RUN_FLAG" --integrationTest -v --testbucket="$bucket" --testInstalledPackage="$RUN_E2E_TESTS_ON_PACKAGE" -timeout "$INTEGRATION_TEST_TIMEOUT" >"$tpc_test_log" 2>&1
 
   # Delete data after testing.
-  gcloud --verbosity=error storage rm -r gs://"$bucket"/* > "$tpc_test_log"  2>&1
+  gcloud --verbosity=error storage rm -r gs://"$bucket"/* >"$tpc_test_log" 2>&1
 
   exit_code=$?
 
@@ -642,7 +670,7 @@ run_e2e_tests_for_emulator() {
   emulator_test_log=$(mktemp /tmp/emulator_test_log.XXXXXX)
   trap 'rm "$emulator_test_log"' EXIT
 
-  if ! ./tools/integration_tests/emulator_tests/emulator_tests.sh "$TEST_INSTALLED_PACKAGE" > "$emulator_test_log" 2>&1; then 
+  if ! ./tools/integration_tests/emulator_tests/emulator_tests.sh "$TEST_INSTALLED_PACKAGE" >"$emulator_test_log" 2>&1; then
     acquire_lock "$LOG_LOCK_FILE"
     log_error ""
     log_error ""
@@ -659,9 +687,9 @@ run_e2e_tests_for_emulator() {
   return 0
 }
 
-main(){
-  # Delete buckets in parallel if program exits.
-  trap 'delete_buckets "${BUCKET_NAMES[@]}"' EXIT
+main() {
+  # Clean up everything on exit.
+  trap 'clean_up "${BUCKET_NAMES[@]}"' EXIT
 
   log_info_locked ""
   log_info_locked "------ Upgrading gcloud and installing packages ------"
@@ -670,13 +698,12 @@ main(){
   set -e
 
   upgrade_gcloud_version
-
   install_packages
-
+  return 0
   set +e
 
   log_info_locked "------ Upgrading gcloud and installing packages took $SECONDS seconds ------"
-  
+
   log_info_locked ""
   log_info_locked "------ Started running E2E test packages ------"
   log_info_locked ""
