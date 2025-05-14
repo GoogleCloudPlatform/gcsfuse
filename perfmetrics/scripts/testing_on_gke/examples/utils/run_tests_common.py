@@ -36,7 +36,7 @@ def run_command(command: str) -> int:
 
 
 def escape_commas_in_string(unescapedStr: str) -> str:
-  """Returns equivalent string with ',' replaced with '\,' ."""
+  """Returns equivalent string with , replaced with \, ."""
   return unescapedStr.replace(',', '\,')
 
 

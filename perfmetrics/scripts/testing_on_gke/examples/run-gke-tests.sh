@@ -59,7 +59,6 @@ readonly csi_driver_branch=main
 readonly gcsfuse_github_path=https://github.com/googlecloudplatform/gcsfuse
 readonly DEFAULT_GCSFUSE_BRANCH=garnitin/add-gke-load-testing/v1
 # Test runtime configuration
-readonly DEFAULT_INSTANCE_ID=${USER}-$(date +%Y%m%d-%H%M%S)
 # 5 minutes
 readonly DEFAULT_POD_WAIT_TIME_IN_SECONDS=300
 # 1 week
@@ -72,6 +71,19 @@ readonly DEFAULT_BQ_PROJECT_ID='gcs-fuse-test-ml'
 readonly DEFAULT_BQ_DATASET_ID='gke_test_tool_outputs'
 readonly DEFAULT_BQ_TABLE_ID='fio_outputs'
 
+# Create and return a unique instance_id taking
+# into account user's passed instance_id.
+function create_unique_instance_id() {
+  new_uuid=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 4 | head -n 1)
+  local generated_unique_instance_id=${USER}-$(date +%Y%m%d-%H%M%S)-${new_uuid}
+  if [ $# -gt 0 ] && [ -n "${1}" ]; then
+    local user_provided_instance_id="${1}"
+    instance_id=${user_provided_instance_id// /-}"-"${generated_unique_instance_id}
+  else
+    instance_id=${generated_unique_instance_id}
+  fi
+  echo "${instance_id}"
+}
 
 function printHelp() {
   echo "Usage guide: "
@@ -99,7 +111,7 @@ function printHelp() {
   # Test runtime configuration
   echo "pod_wait_time_in_seconds=<number e.g. 60 for checking pod status every 1 min, default=\"${DEFAULT_POD_WAIT_TIME_IN_SECONDS}\">"
   echo "pod_timeout_in_seconds=<number e.g. 3600 for timing out pod runs, should be more than the value of pod_wait_time_in_seconds, default=\"${DEFAULT_POD_TIMEOUT_IN_SECONDS}\">"
-  echo "instance_id=<string, not containing spaces, representing unique id for particular test-run e.g. \"${DEFAULT_INSTANCE_ID}\""
+  echo "instance_id=<Optional description of this particular test-run, it does not need to be unique e.g. \"cache test #43\""
   echo "workload_config=<path/to/workload/configuration/file e.g. /a/b/c.json >"
   echo "output_dir=</absolute/path/to/output/dir, output files will be written at output_dir/fio/output.csv and output_dir/dlio/output.csv>"
   echo "force_update_gcsfuse_code=<true|false, to force-update the gcsfuse-code to given branch if gcsfuse_src_dir has been set. Default=\"${DEFAULT_FORCE_UPDATE_GCSFUSE_CODE}\">"
@@ -141,7 +153,7 @@ fi
 test -n "${zone}" || export zone=${DEFAULT_ZONE}
 # GKE cluster related
 if test -z "${cluster_name}"; then
-  exitWithError "${cluster_name} was not set."
+  exitWithError "cluster_name was not set."
 fi
 test -n "${node_pool}" || export node_pool=${DEFAULT_NODE_POOL}
 test -n "${machine_type}" || export machine_type=${DEFAULT_MACHINE_TYPE}
@@ -219,7 +231,24 @@ fi
 # Test runtime configuration
 test -n "${pod_wait_time_in_seconds}" || export pod_wait_time_in_seconds="${DEFAULT_POD_WAIT_TIME_IN_SECONDS}"
 test -n "${pod_timeout_in_seconds}" || export pod_timeout_in_seconds="${DEFAULT_POD_TIMEOUT_IN_SECONDS}"
-test -n "${instance_id}" || export instance_id="${DEFAULT_INSTANCE_ID}"
+
+if test -z ${only_parse} ; then
+  export only_parse=false
+elif [ "$only_parse" != "true" ] && [ "$only_parse" != "false" ]; then
+  exitWithError "Unexpected value of only_parse: ${only_parse}. Expected: true or false ."
+fi
+
+# If user passes only_parse=true, then expect an instance_id
+# also with it, and use it as it is.
+if ${only_parse}; then
+  if [ -z "${instance_id}" ]; then
+    exitWithError "instance_id not passed with only_parse=true"
+  fi
+else
+  # create a new instance_id
+  export user_passed_instance_id="${instance_id}"
+  export instance_id=$(create_unique_instance_id "${user_passed_instance_id}")
+fi
 
 if [[ ${pod_timeout_in_seconds} -le ${pod_wait_time_in_seconds} ]]; then
   exitWithError "pod_timeout_in_seconds (${pod_timeout_in_seconds}) <= pod_wait_time_in_seconds (${pod_wait_time_in_seconds})"
@@ -275,11 +304,14 @@ function printRunParameters() {
   # Test runtime configuration
   echo "pod_wait_time_in_seconds=\"${pod_wait_time_in_seconds}\""
   echo "pod_timeout_in_seconds=\"${pod_timeout_in_seconds}\""
-  echo "instance_id=\"${instance_id}\""
+  echo "instance_id=User passed: \"${user_passed_instance_id}\", internally created: \"${instance_id}\""
   echo "workload_config=\"${workload_config}\""
   echo "output_dir=\"${output_dir}\""
   echo "force_update_gcsfuse_code=\"${force_update_gcsfuse_code}\""
   echo "zonal=\"${zonal}\""
+  if ${only_parse}; then
+    echo "only_parse=${only_parse}"
+  fi
   echo ""
   echo ""
   echo ""
@@ -818,8 +850,8 @@ function fetchAndParseDlioOutputs() {
 printRunParameters
 installDependencies
 
-# if only_parse is not set or is set as false, then
-if test -z ${only_parse} || ! ${only_parse} ; then
+# if only_parse is false, then
+if ! ${only_parse} ; then
   validateMachineConfig ${machine_type} ${num_nodes} ${num_ssd}
 
   if ${zonal} && $(areThereAnyDLIOWorkloads); then

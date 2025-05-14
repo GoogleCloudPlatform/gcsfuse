@@ -196,10 +196,10 @@ def write_records_to_csv_output_file(output: dict, output_file_path: str):
   with open(output_file_path, "a") as output_file:
     # Write a new header row.
     output_file.write(
-        "File Size,File #,Total Size (GB),Batch Size,Scenario,Epoch,Duration"
+        "File Size,File #,Total Size (GiB),Batch Size,Scenario,Epoch,Duration"
         " (s),GPU Utilization (%),Throughput (sample/s),Throughput"
         " (MB/s),Throughput over Local SSD (%),GCSFuse Lowest Memory"
-        " (MB),GCSFuse Highest Memory (MB),GCSFuse Lowest CPU (core),GCSFuse"
+        " (MiB),GCSFuse Highest Memory (MiB),GCSFuse Lowest CPU (core),GCSFuse"
         " Highest CPU (core),Pod,Start,End,GcsfuseMountOptions,InstanceID\n"
     )
 

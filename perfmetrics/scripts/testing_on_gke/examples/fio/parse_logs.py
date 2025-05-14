@@ -38,7 +38,9 @@ record = {
     "scenario": "",
     "duration": 0,
     "IOPS": 0,
-    "throughput_mb_per_second": 0,
+    "throughput_mib_per_second": 0.0,  # in 1024^2 bytes/second
+    "throughput_bytes_per_second": 0.0,
+    "throughput_mb_per_second": 0.0,  # output metric in 10^6 bytes/second
     "throughput_over_local_ssd": 0,
     "start_epoch": "",
     "end_epoch": "",
@@ -203,7 +205,9 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
       global_options = per_epoch_output_data["global options"]
       nrfiles = int(global_options["nrfiles"])
       numjobs = int(global_options["numjobs"])
-      bs = per_epoch_output_data["jobs"][0]["job options"]["bs"]
+      job0 = per_epoch_output_data["jobs"][0]
+
+      bs = job0["job options"]["bs"]
 
       # If the record for this key has not been added, create a new entry
       # for it.
@@ -217,44 +221,49 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
             },
         }
 
+      job0_read_metrics = job0["read"]
+      bs = job0["job options"]["bs"]
+
       # Create a record for this key.
       r = record.copy()
-      bs = per_epoch_output_data["jobs"][0]["job options"]["bs"]
-      r["pod_name"] = pod_name
-      r["epoch"] = epoch
-      r["scenario"] = scenario
-      r["duration"] = int(
-          per_epoch_output_data["jobs"][0]["read"]["runtime"] / 1000
-      )
-      r["IOPS"] = int(per_epoch_output_data["jobs"][0]["read"]["iops"])
-      r["throughput_mb_per_second"] = int(
-          per_epoch_output_data["jobs"][0]["read"]["bw_bytes"] / (1024**2)
-      )
-      r["start_epoch"] = per_epoch_output_data["jobs"][0]["job_start"] // 1000
-      r["end_epoch"] = per_epoch_output_data["timestamp_ms"] // 1000
-      r["start"] = unix_to_timestamp(
-          per_epoch_output_data["jobs"][0]["job_start"]
-      )
-      r["end"] = unix_to_timestamp(per_epoch_output_data["timestamp_ms"])
+      try:
+        r["pod_name"] = pod_name
+        r["epoch"] = epoch
+        r["scenario"] = scenario
+        r["duration"] = int(job0_read_metrics["runtime"] / 1000)
+        r["IOPS"] = int(job0_read_metrics["iops"])
+        r["throughput_bytes_per_second"] = job0_read_metrics["bw_bytes"]
+        r["throughput_mib_per_second"] = round(
+            (r["throughput_bytes_per_second"] / (1024**2)), 2
+        )
+        r["throughput_mb_per_second"] = round(
+            (r["throughput_bytes_per_second"] / 1e6), 2
+        )
+        r["start_epoch"] = job0["job_start"] // 1000
+        r["end_epoch"] = per_epoch_output_data["timestamp_ms"] // 1000
+        r["start"] = unix_to_timestamp(job0["job_start"])
+        r["end"] = unix_to_timestamp(per_epoch_output_data["timestamp_ms"])
 
-      fetch_cpu_memory_data(args=args, record=r)
+        fetch_cpu_memory_data(args=args, record=r)
 
-      r["gcsfuse_mount_options"] = gcsfuse_mount_options
-      r["bucket_name"] = bucket_name
-      r["machine_type"] = machine_type
-      r["blockSize"] = bs
-      r["filesPerThread"] = nrfiles
-      r["numThreads"] = numjobs
-      clat_ns = per_epoch_output_data["jobs"][0]["read"]["clat_ns"]
-      r["e2e_latency_ns_max"] = clat_ns["max"]
-      clat_ns_percentile = clat_ns["percentile"]
-      r["e2e_latency_ns_p50"] = clat_ns_percentile["50.000000"]
-      r["e2e_latency_ns_p90"] = clat_ns_percentile["90.000000"]
-      r["e2e_latency_ns_p99"] = clat_ns_percentile["99.000000"]
-      r["e2e_latency_ns_p99.9"] = clat_ns_percentile["99.900000"]
-
-      # This print is for debugging in case something goes wrong.
-      pprint.pprint(r)
+        r["gcsfuse_mount_options"] = gcsfuse_mount_options
+        r["bucket_name"] = bucket_name
+        r["machine_type"] = machine_type
+        r["blockSize"] = bs
+        r["filesPerThread"] = nrfiles
+        r["numThreads"] = numjobs
+        clat_ns = job0_read_metrics["clat_ns"]
+        r["e2e_latency_ns_max"] = clat_ns["max"]
+        clat_ns_percentile = clat_ns["percentile"]
+        r["e2e_latency_ns_p50"] = clat_ns_percentile["50.000000"]
+        r["e2e_latency_ns_p90"] = clat_ns_percentile["90.000000"]
+        r["e2e_latency_ns_p99"] = clat_ns_percentile["99.000000"]
+        r["e2e_latency_ns_p99.9"] = clat_ns_percentile["99.900000"]
+      except Exception as e:
+        print(f"Failed to create following record with error: {e}")
+        # This print is for debugging in case something goes wrong.
+        pprint.pprint(r)
+        continue
 
       # If a slot for record for this particular epoch has not been created yet,
       # append enough empty records to make a slot.
@@ -272,13 +281,14 @@ def write_records_to_csv_output_file(output: dict, output_file_path: str):
     # Write a new header.
     output_file_fwr.write(
         "File Size,Read Type,Scenario,Epoch,Duration"
-        " (s),Throughput (MB/s),IOPS,Throughput over Local SSD (%),GCSFuse"
+        " (s),Throughput (MiB/s),IOPS,Throughput over Local SSD (%),GCSFuse"
         " Lowest"
-        " Memory (MB),GCSFuse Highest Memory (MB),GCSFuse Lowest CPU"
+        " Memory (MiB),GCSFuse Highest Memory (MiB),GCSFuse Lowest CPU"
         " (core),GCSFuse Highest CPU"
         " (core),Pod,Start,End,GcsfuseMoutOptions,BlockSize,FilesPerThread,NumThreads,InstanceID,"
         "e2e_latency_ns_max,e2e_latency_ns_p50,e2e_latency_ns_p90,e2e_latency_ns_p99,e2e_latency_ns_p99.9,"
-        "bucket_name,machine_type"  #
+        "bucket_name,machine_type,"  #
+        "Throughput (MB/s)"
         "\n",
     )
 
@@ -299,9 +309,9 @@ def write_records_to_csv_output_file(output: dict, output_file_path: str):
                 == len(record_set["records"][scenario])
             ):
               r["throughput_over_local_ssd"] = round(
-                  r["throughput_mb_per_second"]
+                  r["throughput_mib_per_second"]
                   / record_set["records"]["local-ssd"][i][
-                      "throughput_mb_per_second"
+                      "throughput_mib_per_second"
                   ]
                   * 100,
                   2,
@@ -317,12 +327,13 @@ def write_records_to_csv_output_file(output: dict, output_file_path: str):
             continue
 
           output_file_fwr.write(
-              f"{record_set['mean_file_size']},{record_set['read_type']},{scenario},{r['epoch']},{r['duration']},{r['throughput_mb_per_second']},{r['IOPS']},{r['throughput_over_local_ssd']},{r['lowest_memory']},{r['highest_memory']},{r['lowest_cpu']},{r['highest_cpu']},{r['pod_name']},{r['start']},{r['end']},\"{r['gcsfuse_mount_options']}\",{r['blockSize']},{r['filesPerThread']},{r['numThreads']},{args.instance_id},"
+              f"{record_set['mean_file_size']},{record_set['read_type']},{scenario},{r['epoch']},{r['duration']},{r['throughput_mib_per_second']},{r['IOPS']},{r['throughput_over_local_ssd']},{r['lowest_memory']},{r['highest_memory']},{r['lowest_cpu']},{r['highest_cpu']},{r['pod_name']},{r['start']},{r['end']},\"{r['gcsfuse_mount_options']}\",{r['blockSize']},{r['filesPerThread']},{r['numThreads']},{args.instance_id},"
           )
           output_file_fwr.write(
               f"{r['e2e_latency_ns_max']},{r['e2e_latency_ns_p50']},{r['e2e_latency_ns_p90']},{r['e2e_latency_ns_p99']},{r['e2e_latency_ns_p99.9']},"
           )
-          output_file_fwr.write(f"{r['bucket_name']},{r['machine_type']}\n")
+          output_file_fwr.write(f"{r['bucket_name']},{r['machine_type']},")
+          output_file_fwr.write(f"{r['throughput_mb_per_second']}\n")
 
     output_file_fwr.close()
     print(

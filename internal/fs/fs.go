@@ -1839,7 +1839,7 @@ func (fs *fileSystem) CreateFile(
 	fs.nextHandleID++
 
 	// Creating new file is always a write operation, hence passing readOnly as false.
-	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, false, &fs.newConfig.Read)
+	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, util.Write, &fs.newConfig.Read)
 	op.Handle = handleID
 
 	fs.mu.Unlock()
@@ -2561,7 +2561,9 @@ func (fs *fileSystem) OpenFile(
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
-	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, op.OpenFlags.IsReadOnly(), &fs.newConfig.Read)
+	// Figure out the mode in which the file is being opened.
+	openMode := util.FileOpenMode(op)
+	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, openMode, &fs.newConfig.Read)
 	op.Handle = handleID
 
 	// When we observe object generations that we didn't create, we assign them
