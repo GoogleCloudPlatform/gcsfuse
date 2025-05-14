@@ -148,7 +148,7 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
       tables
     table_id (str): The name of the bigquery table configurations and output
       metrics will be stored.
-    bq_client (google.cloud.bigquery.client.Client): The client for interacting
+    client (google.cloud.bigquery.client.Client): The client for interacting
       with Bigquery. Default value is bigquery.Client(project=project_id).
   """
 
@@ -243,21 +243,36 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
               f'\n   row: {repr(row_to_insert)}\n   Error: {error}'
           )
 
-  def insert_rows(self, fioTableRows: []):
+  def insert_rows(self, fioTableRows: [], experiment_id: str = None):
     """Pass a list of FioTableRow objects to insert into the fio-table.
 
     This inserts all the given rows of data in a single transaction.
+    It is assumed that all the rows being inserted are for
+    a single experiment_id.
 
     Arguments:
 
     fioTableRows: a list of FioTableRow objects.
+    experiment_id: experiment_id associated with all the rows.
+    If experiment_is not passed, it is determined from the
+    first row.
 
     Raises:
       Exception: If some row insertion failed.
     """
 
-    # Edge-case.
+    # Edge-cases.
     if fioTableRows is None or len(fioTableRows) == 0:
+      return
+    if not experiment_id:
+      experiment_id = fioTableRows[0].experiment_id
+    if experiment_id and self._has_experiment_id(experiment_id):
+      print(
+          'Bigquery table'
+          f' {self.project_id}.{self.dataset_id}.{self.table_id} already has'
+          f' the experiment_id {experiment_id}, so skipping inserting rows for'
+          ' it..'
+      )
       return
 
     # Create a list of tuples from the given list of FioTableRow objects.
