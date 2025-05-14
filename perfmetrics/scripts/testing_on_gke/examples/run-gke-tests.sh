@@ -73,12 +73,14 @@ readonly DEFAULT_BQ_TABLE_ID='fio_outputs'
 
 # Create and return a unique instance_id taking
 # into account user's passed instance_id.
-function create_instance_id() {
+function create_unique_instance_id() {
   new_uuid=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 4 | head -n 1)
-  local instance_id=${USER}-$(date +%Y%m%d-%H%M%S)-${new_uuid}
+  local generated_unique_instance_id=${USER}-$(date +%Y%m%d-%H%M%S)-${new_uuid}
   if [ $# -gt 0 ] && [ -n "${1}" ]; then
     local user_provided_instance_id="${1}"
-    instance_id+="-"${user_provided_instance_id// /-}
+    instance_id=${user_provided_instance_id// /-}"-"${generated_unique_instance_id}
+  else
+    instance_id=${generated_unique_instance_id}
   fi
   echo "${instance_id}"
 }
@@ -230,15 +232,22 @@ fi
 test -n "${pod_wait_time_in_seconds}" || export pod_wait_time_in_seconds="${DEFAULT_POD_WAIT_TIME_IN_SECONDS}"
 test -n "${pod_timeout_in_seconds}" || export pod_timeout_in_seconds="${DEFAULT_POD_TIMEOUT_IN_SECONDS}"
 
+if test -z ${only_parse} ; then
+  export only_parse=false
+elif [ "$only_parse" != "true" ] && [ "$only_parse" != "false" ]; then
+  exitWithError "Unexpected value of only_parse: ${only_parse}. Expected: true or false ."
+fi
+
 # If user passes only_parse=true, then expect an instance_id
 # also with it, and use it as it is.
-if [ -n "${only_parse}" ] && [ ${only_parse}="true" ]; then
+if ${only_parse}; then
   if [ -z "${instance_id}" ]; then
     exitWithError "instance_id not passed with only_parse=true"
   fi
 else
-  # otherwise, create a new instance_id
-  export instance_id=$(create_instance_id "${instance_id}")
+  # create a new instance_id
+  export user_passed_instance_id="${instance_id}"
+  export instance_id=$(create_unique_instance_id "${user_passed_instance_id}")
 fi
 
 if [[ ${pod_timeout_in_seconds} -le ${pod_wait_time_in_seconds} ]]; then
@@ -295,11 +304,14 @@ function printRunParameters() {
   # Test runtime configuration
   echo "pod_wait_time_in_seconds=\"${pod_wait_time_in_seconds}\""
   echo "pod_timeout_in_seconds=\"${pod_timeout_in_seconds}\""
-  echo "instance_id=\"${instance_id}\""
+  echo "instance_id=User passed: \"${user_passed_instance_id}\", internally created: \"${instance_id}\""
   echo "workload_config=\"${workload_config}\""
   echo "output_dir=\"${output_dir}\""
   echo "force_update_gcsfuse_code=\"${force_update_gcsfuse_code}\""
   echo "zonal=\"${zonal}\""
+  if ${only_parse}; then
+    echo "only_parse=${only_parse}"
+  fi
   echo ""
   echo ""
   echo ""
@@ -838,8 +850,8 @@ function fetchAndParseDlioOutputs() {
 printRunParameters
 installDependencies
 
-# if only_parse is not set or is set as false, then
-if test -z ${only_parse} || ! ${only_parse} ; then
+# if only_parse is false, then
+if ! ${only_parse} ; then
   validateMachineConfig ${machine_type} ${num_nodes} ${num_ssd}
 
   if ${zonal} && $(areThereAnyDLIOWorkloads); then
