@@ -41,32 +41,25 @@ usage() {
 }
 
 # Logging Helpers
-timestamp() {
-  date +"%Y-%m-%d %H:%M:%S"
-}
-
 log_info() {
-  echo "[INFO] $(timestamp): $1"
+  echo "[INFO] $(date +"%Y-%m-%d %H:%M:%S"): $1"
 }
 
 log_error() {
-  echo "[ERROR] $(timestamp): $1"
+  echo "[ERROR] $(date +"%Y-%m-%d %H:%M:%S"): $1"
 }
 
-# --- Argument Parsing and Assignment using shift ---
-
+# Argument Parsing and Assignments
 # Check for minimum required arguments
 if [ "$#" -lt 3 ]; then
   log_error "Missing required arguments."
   usage
 fi
-
 # Check for maximum number of arguments
 if [ "$#" -gt 6 ]; then
   log_error "Too many arguments."
   usage
 fi
-
 TEST_INSTALLED_PACKAGE="$1"
 shift
 SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE="$1"
