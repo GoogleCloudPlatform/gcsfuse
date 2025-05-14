@@ -116,7 +116,7 @@ func (b *prefixBucket) CreateAppendableObjectWriter(ctx context.Context, req *gc
 	*mReq = *req
 	mReq.Name = b.wrappedName(req.Name)
 
-	wc, off, err := b.wrapped.CreateAppendableObjectWriter(ctx, req)
+	wc, off, err := b.wrapped.CreateAppendableObjectWriter(ctx, mReq)
 	if err != nil {
 		return nil, 0, err
 	}
