@@ -363,15 +363,8 @@ func (rr *randomReader) ReadAt(
 		rr.seeks++
 	}
 
-	// Update the expectedOffset based on the data that gets served.
-	rr.expectedOffset = offset + int64(len(p))
-	if rr.expectedOffset > int64(rr.object.Size) {
-		rr.expectedOffset = int64(rr.object.Size)
-	}
-
 	if rr.reader != nil {
 		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, -1, rr.readType)
-		rr.updateExpectedOffset(offset + int64(objectData.Size))
 		return
 	}
 
