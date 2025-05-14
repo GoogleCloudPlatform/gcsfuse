@@ -50,12 +50,10 @@ log_error() {
 }
 
 # Argument Parsing and Assignments
-# Check for minimum required arguments
 if [ "$#" -lt 3 ]; then
   log_error "Missing required arguments."
   usage
 fi
-# Check for maximum number of arguments
 if [ "$#" -gt 6 ]; then
   log_error "Too many arguments."
   usage
@@ -148,19 +146,17 @@ SEQUENTIAL_TEST_PACKAGES_FOR_ZB=(
 # acquire_lock: Acquires exclusive lock or exits script on failure.
 # Args: $1 = path to lock file.
 acquire_lock() {
-  local lock_file="$1"
-  [[ -z "$lock_file" ]] && { log_error "acquire_lock: Lock file path is required."; exit 1; }
-  exec 200>"$lock_file" || { log_error "Could not open lock file $lock_file."; exit 1; }
-  flock -x 200 || { log_error "Failed to acquire lock on $lock_file."; exit 1; }
+  [[ -z "$1" ]] && { log_error "acquire_lock: Lock file path is required."; exit 1; }
+  exec 200>"$1" || { log_error "Could not open lock file $1."; exit 1; }
+  flock -x 200 || { log_error "Failed to acquire lock on $1."; exit 1; }
   return 0
 }
 
 # release_lock: Releases lock or exits script on failure.
 # Args: $1 = path to lock file
 release_lock() {
-  local lock_file="$1"
-  [[ -z "$lock_file" ]] && { log_error "release_lock: Lock file path is required."; exit 1; }
-  [[ -e "/proc/self/fd/200" || -L "/proc/self/fd/200" ]] && exec 200>&- || { log_error "Lock file descriptor (FD 200) not open for $lock_file. Possible previous error or double release."; exit 1; } # FD not open or close failed
+  [[ -z "$1" ]] && { log_error "release_lock: Lock file path is required."; exit 1; }
+  [[ -e "/proc/self/fd/200" || -L "/proc/self/fd/200" ]] && exec 200>&- || { log_error "Lock file descriptor (FD 200) not open for $1. Possible previous error or double release."; exit 1; } # FD not open or close failed
   return 0
 }
 
@@ -181,6 +177,10 @@ BUCKET_NAMES=()
 
 # shellcheck disable=SC2317
 create_bucket() {
+  if [[ $# -ne 1 ]]; then
+    log_error_locked "create_bucket called with incorrect number of arguments."
+    return 1
+  fi
   local bucket_type="$1"
   local uuid
   uuid=$(uuidgen)
@@ -206,7 +206,7 @@ create_bucket() {
     release_lock "$BUCKET_CREATION_LOCK_FILE"
     return 1
   fi
-  sleep 2
+  sleep 2 # Ensure 2 second gap between creating a new bucket.
   release_lock "$BUCKET_CREATION_LOCK_FILE"
   BUCKET_NAMES+=("$bucket_name")
   echo "$bucket_name"
@@ -215,6 +215,10 @@ create_bucket() {
 
 # shellcheck disable=SC2317
 delete_bucket() {
+  if [[ $# -ne 1 ]]; then
+    log_error_locked "delete_bucket called with incorrect number of arguments."
+    return 1
+  fi
   local bucket="$1"
   if ! gcloud -q storage rm -r "gs://${bucket}"; then
     log_error_locked "Unable to delete bucket [${bucket}]"
@@ -225,6 +229,9 @@ delete_bucket() {
 
 # shellcheck disable=SC2317
 delete_buckets() {
+    if [[ $# -eq 0 ]]; then
+      return 0 # No buckets to delete
+    fi
     local buckets=("$@")
     if ! run_parallel "delete_bucket @" "${buckets[@]}"; then
       log_error_locked "Failed to delete all buckets"
@@ -234,7 +241,8 @@ delete_buckets() {
 }
 
 # run_parallel: Executes commands in parallel based on a template and substitutes.
-#   Only prints output (stdout/stderr) if a command errors out (non-zero exit status).
+#   Prints output (stdout/stderr) if the command errors out.
+#   Prints success message if command succeeds.
 #   The function returns a non-zero exit status if any of the parallel commands fail.
 #
 # Usage: run_parallel "command_template_with_@" "substitute1" "substitute2" ...
@@ -244,6 +252,10 @@ delete_buckets() {
 #   run_parallel "echo 'Processing @' && sleep 1" "itemA" "itemB" "itemC"
 
 run_parallel() {
+  if [[ $# -lt 2 ]]; then
+    log_error_locked "run_parallel called with incorrect number of arguments."
+    return 1
+  fi
   local cmd_template="$1"
   shift
 
@@ -303,7 +315,8 @@ run_parallel() {
 }
 
 # run_sequential: Executes commands in sequence based on a template and substitutes.
-#   Only prints output (stdout/stderr) if a command errors out (non-zero exit status).
+#   Prints output (stdout/stderr) if the command errors out.
+#   Prints success message if command succeeds.
 #   The function returns a non-zero exit status if any of the sequential commands fail.
 #
 # Usage: run_sequential "command_template_with_@" "substitute1" "substitute2" ...
@@ -313,6 +326,10 @@ run_parallel() {
 #   run_sequential "echo 'Processing @' && sleep 1" "itemA" "itemB" "itemC"
 
 run_sequential() {
+  if [[ $# -lt 2 ]]; then
+    log_error_locked "run_sequential called with incorrect number of arguments."
+    return 1
+  fi
   local cmd_template="$1"
   shift
 
@@ -596,7 +613,7 @@ run_e2e_tests_for_tpc() {
   gcloud --verbosity=error storage rm -r gs://"$bucket"/* > "$tpc_test_log"  2>&1
 
   # Run Operations e2e tests in TPC to validate all the functionality.
-  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/... --testOnTPCEndPoint=$RUN_TEST_ON_TPC_ENDPOINT $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=false -p 1 --integrationTest -v --testbucket="$bucket" --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$tpc_test_log" 2>&1
+  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/... --testOnTPCEndPoint="$RUN_TEST_ON_TPC_ENDPOINT" "$GO_TEST_SHORT_FLAG" "$PRESUBMIT_RUN_FLAG" --integrationTest -v --testbucket="$bucket" --testInstalledPackage="$RUN_E2E_TESTS_ON_PACKAGE" -timeout "$INTEGRATION_TEST_TIMEOUT" > "$tpc_test_log" 2>&1
 
   # Delete data after testing.
   gcloud --verbosity=error storage rm -r gs://"$bucket"/* > "$tpc_test_log"  2>&1
@@ -647,7 +664,7 @@ main(){
   trap 'delete_buckets "${BUCKET_NAMES[@]}"' EXIT
 
   log_info_locked ""
-  log_info_locked "------ Starting e2e Test Run ------"
+  log_info_locked "------ Upgrading gcloud and installing packages ------"
   log_info_locked ""
 
   set -e
@@ -658,54 +675,57 @@ main(){
 
   set +e
 
-  #run integration tests
-  exit_code=0
+  log_info_locked "------ Upgrading gcloud and installing packages took $SECONDS seconds ------"
+  
+  log_info_locked ""
+  log_info_locked "------ Started running E2E test packages ------"
+  log_info_locked ""
   # Reset SECONDS to 0
   SECONDS=0
+  # Set exit code of e2e run to 0
+  exit_code=0
   if [[ "${RUN_TESTS_WITH_ZONAL_BUCKET}" == "true" ]]; then
     run_e2e_tests_for_zonal_bucket &
     e2e_tests_zonal_bucket_pid=$!
     wait $e2e_tests_zonal_bucket_pid
-    exit_code=$(( exit_code || $? ))
+    exit_code=$((exit_code || $? != 0))
   else
     # Run tpc test and exit in case RUN_TEST_ON_TPC_ENDPOINT is true.
     if [[ "${RUN_TEST_ON_TPC_ENDPOINT}" == "true" ]]; then
-        # Run tests for flat bucket
-        run_e2e_tests_for_tpc gcsfuse-e2e-tests-tpc &
-        e2e_tests_tpc_flat_bucket_pid=$!
-        # Run tests for hns bucket
-        run_e2e_tests_for_tpc gcsfuse-e2e-tests-tpc-hns &
-        e2e_tests_tpc_hns_bucket_pid=$!
+      # Run tests for flat bucket
+      run_e2e_tests_for_tpc gcsfuse-e2e-tests-tpc &
+      e2e_tests_tpc_flat_bucket_pid=$!
+      # Run tests for hns bucket
+      run_e2e_tests_for_tpc gcsfuse-e2e-tests-tpc-hns &
+      e2e_tests_tpc_hns_bucket_pid=$!
 
-        wait $e2e_tests_tpc_flat_bucket_pid
-        exit_code=$(( exit_code || $? ))
+      wait $e2e_tests_tpc_flat_bucket_pid
+      exit_code=$((exit_code || $? != 0))
 
-        wait $e2e_tests_tpc_hns_bucket_pid
-        exit_code=$(( exit_code || $? ))
-        # Exit to prevent the following code from executing for TPC.
-        print_package_stats
-        exit $exit_code
+      wait $e2e_tests_tpc_hns_bucket_pid
+      exit_code=$((exit_code || $? != 0))
+    else
+      run_e2e_tests_for_hns_bucket &
+      e2e_tests_hns_bucket_pid=$!
+
+      run_e2e_tests_for_flat_bucket &
+      e2e_tests_flat_bucket_pid=$!
+
+      run_e2e_tests_for_emulator &
+      e2e_tests_emulator_pid=$!
+
+      wait $e2e_tests_emulator_pid
+      exit_code=$((exit_code || $? != 0))
+
+      wait $e2e_tests_flat_bucket_pid
+      exit_code=$((exit_code || $? != 0))
+
+      wait $e2e_tests_hns_bucket_pid
+      exit_code=$((exit_code || $? != 0))
     fi
-
-    run_e2e_tests_for_hns_bucket &
-    e2e_tests_hns_bucket_pid=$!
-
-    run_e2e_tests_for_flat_bucket &
-    e2e_tests_flat_bucket_pid=$!
-
-    run_e2e_tests_for_emulator &
-    e2e_tests_emulator_pid=$!
-
-    wait $e2e_tests_emulator_pid
-    exit_code=$(( exit_code || $? ))
-
-    wait $e2e_tests_flat_bucket_pid
-    exit_code=$(( exit_code || $? ))
-
-    wait $e2e_tests_hns_bucket_pid
-    exit_code=$(( exit_code || $? ))
   fi
   print_package_stats
+  log_info_locked "------ E2E test packages complete run took $SECONDS seconds ------"
   exit $exit_code
 }
 
