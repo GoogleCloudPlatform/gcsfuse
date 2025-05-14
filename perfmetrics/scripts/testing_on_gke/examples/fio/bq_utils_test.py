@@ -123,9 +123,12 @@ class BqUtilsTest(unittest.TestCase):
         row.end_time = row.start_time
       rows.append(row)
 
-    # Despite bad row(s), the insert_rows itself will not fail
+    start_time = time.time()
+    # Despite bad rows, the insert_rows itself will not fail
     # because of the fallback in insert_rows.
     self.fioBqExporter.insert_rows(rows)
+    end_time = time.time()
+    print(f'time taken for insert_rows({num_rows} rows)={end_time-start_time}')
 
 
 if __name__ == '__main__':
