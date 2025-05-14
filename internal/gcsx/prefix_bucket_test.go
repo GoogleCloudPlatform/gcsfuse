@@ -364,6 +364,71 @@ func (t *PrefixBucketTest) TestCreateObjectChunkWriterAndFlushPendingWrites() {
 	assert.Equal(t.T(), string(content), string(actual))
 }
 
+func (t *PrefixBucketTest) TestCreateAppendableObjectWriterAndFlush() {
+	var err error
+	suffix := "taco"
+	content := []byte("foobar")
+	const offset int64 = 10
+
+	// Create the object writer.
+	w, off, err := t.bucket.CreateAppendableObjectWriter(
+		t.ctx,
+		&gcs.CreateObjectChunkWriterRequest{
+			CreateObjectRequest: gcs.CreateObjectRequest{
+				Name: suffix,
+			},
+			ChunkSize: 1024,
+			Offset:    offset,
+		})
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), offset, off)
+	assert.NotNil(t.T(), w)
+	_, err = w.Write(content)
+	assert.NoError(t.T(), err)
+	o, err := t.bucket.FlushPendingWrites(t.ctx, w)
+
+	assert.NoError(t.T(), err)
+	assert.EqualValues(t.T(), int64(len(content)), o.Size)
+	// Read it through the back door.
+	actual, err := storageutil.ReadObject(t.ctx, t.wrapped, t.prefix+suffix)
+	assert.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), string(content), string(actual))
+}
+
+func (t *PrefixBucketTest) TestCreateAppendableObjectWriterAndClose() {
+	var err error
+	suffix := "taco"
+	content := []byte("foobar")
+	const offset int64 = 10
+
+	// Create the object writer.
+	w, off, err := t.bucket.CreateAppendableObjectWriter(
+		t.ctx,
+		&gcs.CreateObjectChunkWriterRequest{
+			CreateObjectRequest: gcs.CreateObjectRequest{
+				Name: suffix,
+			},
+			ChunkSize: 1024,
+			Offset:    offset,
+		})
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), offset, off)
+	assert.NotNil(t.T(), w)
+	_, err = w.Write(content)
+	assert.NoError(t.T(), err)
+	o, err := t.bucket.FinalizeUpload(t.ctx, w)
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), suffix, o.Name)
+
+	// Read it through the back door.
+	actual, err := storageutil.ReadObject(t.ctx, t.wrapped, t.prefix+suffix)
+	assert.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), string(content), string(actual))
+}
+
 func (t *PrefixBucketTest) Test_CopyObject() {
 	var err error
 	suffix := "taco"
