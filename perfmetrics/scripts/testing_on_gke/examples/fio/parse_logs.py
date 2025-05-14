@@ -158,7 +158,6 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
       continue
 
     for file in files:
-      # Ignore non-json files to avoid unnecessary failure.
       if not re.search(EPOCH_FILENAME_REGEX, file):
         continue
 
