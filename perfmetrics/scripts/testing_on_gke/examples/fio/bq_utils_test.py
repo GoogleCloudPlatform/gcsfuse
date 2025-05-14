@@ -67,10 +67,10 @@ class BqUtilsTest(unittest.TestCase):
     row.end_epoch = row.start_epoch + row.duration_in_seconds
     row.files_per_thread = 20000
     row.gcsfuse_mount_options = 'implicit-dirs'
-    row.highest_cpu_usage = uniform(row.lowest_cpu_usage, 100.0)
     row.lowest_cpu_usage = uniform(1.0, 100.0)
-    row.highest_memory_usage = uniform(row.lowest_memory_usage, 10000.0)
+    row.highest_cpu_usage = uniform(row.lowest_cpu_usage, 100.0)
     row.lowest_memory_usage = uniform(10.0, 10000.0)
+    row.highest_memory_usage = uniform(row.lowest_memory_usage, 10000.0)
     row.iops = uniform(10.0, 10000.0)
     row.machine_type = 'n2-standard-32'
     row.num_threads = 50
@@ -117,9 +117,9 @@ class BqUtilsTest(unittest.TestCase):
     row.end_time = row.start_time
     rows.append(row)
 
+    # bad row with bad start_time and end_time.
     row = copy.deepcopy(row)
     row.epoch = 2
-    # Bad start_time here should cause this row to fail to insert.
     row.start_time = Timestamp('')
     row.end_time = row.start_time
     rows.append(row)
@@ -131,13 +131,15 @@ class BqUtilsTest(unittest.TestCase):
     row.end_time = row.start_time
     rows.append(row)
 
+    # bad row with bad start_time and end_time.
     row = copy.deepcopy(row)
     row.epoch = 2
-    # Bad start_time here should cause this row to fail to insert.
     row.start_time = Timestamp('')
     row.end_time = row.start_time
     rows.append(row)
 
+    # Despite bad rows, the insert_rows itself will fail
+    # because of the fallback in insert_rows.
     self.fioBqExporter.insert_rows(rows)
 
 
