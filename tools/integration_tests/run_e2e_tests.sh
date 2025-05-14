@@ -13,63 +13,44 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Required GO version for this script.
-GO_VERSION="go1.24.0"
-PROJECT_ID="gcs-fuse-test-ml"
-HNS_PROJECT_ID="gcs-fuse-test"
-BUCKET_PREFIX="gcs-fuse-e2e-tests"
-
-# --- Default values for optional arguments ---
-RUN_TEST_ON_TPC_ENDPOINT=false
-RUN_TESTS_WITH_PRESUBMIT_FLAG=false
-RUN_TESTS_WITH_ZONAL_BUCKET=false
-
-# --------- Constants ---------
+# Constants
+readonly GO_VERSION="go1.24.0"
+readonly PROJECT_ID="gcs-fuse-test-ml"
+readonly HNS_PROJECT_ID="gcs-fuse-test"
+readonly BUCKET_PREFIX="gcs-fuse-e2e-tests"
 readonly LOG_LOCK_FILE=$(mktemp /tmp/logging_lock.XXXXXX)
 readonly BUCKET_CREATION_LOCK_FILE=$(mktemp /tmp/bucket_creation_lock.XXXXXX)
 readonly INTEGRATION_TEST_PACKAGE_DIR="./tools/integration_tests"
 readonly INTEGRATION_TEST_TIMEOUT_IN_MINS=90
 
+# Default values for optional arguments
+RUN_TEST_ON_TPC_ENDPOINT=false
+RUN_TESTS_WITH_PRESUBMIT_FLAG=false
+RUN_TESTS_WITH_ZONAL_BUCKET=false
+
+# Usage Documentation
+usage() {
+  echo "Usage: $0 <TEST_INSTALLED_PACKAGE> <SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE> <BUCKET_LOCATION> [RUN_TESTS_WITH_PRESUBMIT_FLAG] [RUN_TEST_ON_TPC_ENDPOINT] [RUN_TESTS_WITH_ZONAL_BUCKET]"
+  echo "  TEST_INSTALLED_PACKAGE: 'true' or 'false' to test installed gcsfuse package."
+  echo "  SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE: 'true' or 'false' to skip few non-essential tests inside packages."
+  echo "  BUCKET_LOCATION: The Google Cloud Storage bucket location (e.g., 'us-central1')."
+  echo "  RUN_TESTS_WITH_PRESUBMIT_FLAG (optional): 'true' or 'false' to run tests with presubmit flag."
+  echo "  RUN_TEST_ON_TPC_ENDPOINT (optional): 'true' or 'false' to run tests on TPC endpoint."
+  echo "  RUN_TESTS_WITH_ZONAL_BUCKET (optional): 'true' or 'false' to run tests with zonal bucket."
+  exit 1
+}
+
 # Logging Helpers
-_get_timestamp() {
+timestamp() {
   date +"%Y-%m-%d %H:%M:%S"
 }
 
 log_info() {
-  echo "[INFO] $(_get_timestamp): $1"
+  echo "[INFO] $(timestamp): $1"
 }
 
 log_error() {
-  echo "[ERROR] $(_get_timestamp): $1"
-}
-
-# --- Usage Documentation ---
-usage() {
-  echo "Usage: $0 <test_installed_package> <skip_non_essential> <bucket_location> [is_presubmit_run] [run_on_tpc_endpoint] [test_with_zonal_bucket]"
-  echo ""
-  echo "Required Arguments (Positional):"
-  echo "  <test_installed_package>           (Argument 1) Set to 'true' to run e2e tests on the installed GCSFuse package, 'false' otherwise."
-  echo "  <skip_non_essential>               (Argument 2) Set to 'true' to skip non-essential integration tests, 'false' to run all."
-  echo "  <bucket_location>                  (Argument 3) The bucket location for the tests (e.g., 'us-west1')."
-  echo ""                                   
-  echo "Optional Arguments (Positional):"
-  echo "  [is_presubmit_run]                 (Argument 4) Set to 'true' if this is a presubmit run (skips some tests and lowers timeout)."
-  echo "                                     (Default: ${RUN_TESTS_WITH_PRESUBMIT_FLAG})"
-  echo "  [run_on_tpc_endpoint]              (Argument 5) Set to 'true' to run operations e2e tests on TPC endpoint."
-  echo "                                     (Default: ${RUN_TEST_ON_TPC_ENDPOINT})"
-  echo "  [use_zonal_bucket]                 (Argument 6) Set to 'true' to run e2e tests on zonal bucket."
-  echo ""
-  echo "Examples:"
-  echo "  # Run all e2e and integration tests in us-east1 on installed GCSFuse package"
-  echo "  $0 true false us-east1"
-  echo ""
-  echo "  # Run e2e tests, skip non-essential, in us-west1 on installed GCSFuse package"
-  echo "  $0 true true us-west1"
-  echo ""
-  echo "  # Run e2e tests, skip non-essential, in us-central1 for presubmit"
-  echo "  $0 false false us-central1 true"
-  echo ""
-  exit 1
+  echo "[ERROR] $(timestamp): $1"
 }
 
 # --- Argument Parsing and Assignment using shift ---
@@ -80,7 +61,7 @@ if [ "$#" -lt 3 ]; then
   usage
 fi
 
-# Check for total number of arguments
+# Check for maximum number of arguments
 if [ "$#" -gt 6 ]; then
   log_error "Too many arguments."
   usage
@@ -123,7 +104,7 @@ PARALLEL_TEST_PACKAGES=(
   # "interrupt"
   # "operations"
   # "kernel_list_cache"
-  # "concurrent_operations"
+  "concurrent_operations"
   # "benchmarking"
   # "mount_timeout"
   "stale_handle"
@@ -134,7 +115,7 @@ PARALLEL_TEST_PACKAGES=(
 # These packages which can only be run in sequential.
 SEQUENTIAL_TEST_PACKAGES=(
   "readonly"
-  "managed_folders"
+  # "managed_folders"
   "readonly_creds"
 )
 
