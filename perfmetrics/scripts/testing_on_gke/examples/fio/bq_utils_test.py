@@ -83,7 +83,6 @@ class BqUtilsTest(unittest.TestCase):
     return row
 
   def test_insert_multiple_rows(self):
-    # sample append call.
     rows = []
 
     rowCommon = self.create_sample_fio_table_row()
@@ -105,7 +104,6 @@ class BqUtilsTest(unittest.TestCase):
     self.fioBqExporter.insert_rows(rows)
 
   def test_insert_some_bad_rows(self):
-    # sample append call.
     rows = []
 
     rowCommon = self.create_sample_fio_table_row()
@@ -138,7 +136,7 @@ class BqUtilsTest(unittest.TestCase):
     row.end_time = row.start_time
     rows.append(row)
 
-    # Despite bad rows, the insert_rows itself will fail
+    # Despite bad rows, the insert_rows itself will not fail
     # because of the fallback in insert_rows.
     self.fioBqExporter.insert_rows(rows)
 
