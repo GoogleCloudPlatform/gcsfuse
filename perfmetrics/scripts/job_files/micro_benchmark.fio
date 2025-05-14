@@ -21,7 +21,7 @@ stonewall
 rw=read
 runtime=120s
 bs=1M
-directory=gcs/15gb
+directory=gcs/15gb_read
 filesize=15G
 numjobs=1
 
@@ -31,6 +31,6 @@ stonewall
 startdelay=370s
 rw=write
 runtime=10m
-directory=gcs/15gb
+directory=gcs/15gb_write
 filesize=15G
 numjobs=1
