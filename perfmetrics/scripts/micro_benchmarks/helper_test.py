@@ -37,7 +37,7 @@ class TestSetupFunctions(unittest.TestCase):
   @patch("helper.bigquery.Client")  # Only patch bigquery.Client
   def test_log_to_bigquery(self, mock_bq_client):
       duration = 10.0
-      total_bytes = 100 * 1024 * 1024  # 100 MB
+      total_bytes = 100 * 1000 * 1000  # 100 MB
       flags = "--implicit-dirs"
       workload_type = "write"
 
