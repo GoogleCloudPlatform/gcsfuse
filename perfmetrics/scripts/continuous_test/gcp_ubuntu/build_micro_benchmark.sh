@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2023 Google LLC
+# Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -49,14 +49,12 @@ run_load_test_and_fetch_metrics(){
   ./run_micro_benchmark.sh "$gcsfuse_flags" "$UPLOAD_FLAGS" "$bucket_name" "$spreadsheet_id"
 }
 
-COMMON_MOUNT_FLAGS="--debug_fuse --debug_gcs --log-format \"text\""
+COMMON_MOUNT_FLAGS="--log-severity=trace --log-format \"text\""
 
 # Testing for flat bucket.
 LOG_FILE_FIO_TESTS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-fio-flat.txt
-LOG_FILE_LS_TESTS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-ls-flat.txt
-GCSFUSE_FIO_FLAGS="--implicit-dirs --stackdriver-export-interval=30s --log-file $LOG_FILE_FIO_TESTS"
+GCSFUSE_FIO_FLAGS="--implicit-dirs --cloud-metrics-export-interval-secs=30s --log-file $LOG_FILE_FIO_TESTS"
 GCSFUSE_LS_FLAGS="--implicit-dirs --log-file $LOG_FILE_LS_TESTS"
 BUCKET_NAME="periodic-perf-tests"
-SPREADSHEET_ID='fh5hzEbdMa3e_deeg9TRhhqkTB6w9WEQSrSh9Fh-RKE
+SPREADSHEET_ID='1fh5hzEbdMa3e_deeg9TRhhqkTB6w9WEQSrSh9Fh-RKE'
 run_load_test_and_fetch_metrics "$GCSFUSE_FIO_FLAGS" "$BUCKET_NAME" "$SPREADSHEET_ID"
-

@@ -28,9 +28,9 @@ numjobs=1
 # Job for the write test
 [write_test_15gb]
 stonewall
+startdelay=370s
 rw=write
 runtime=10m
-bs=1M
 directory=gcs/15gb
 filesize=15G
 numjobs=1
