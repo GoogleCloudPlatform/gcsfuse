@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from datetime import datetime
+from datetime import datetime, timezone
 from google.cloud import bigquery
 import os
 import subprocess
@@ -22,24 +22,40 @@ PROJECT_ID = "gcs-fuse-test-ml"
 DATASET_ID = "benchmark_results"
 TABLE_ID = "gcsfuse_benchmarks"
 
-def mount_bucket(mount_dir: str, bucket_name: str, flags: str) -> None:
+def mount_bucket(mount_dir: str, bucket_name: str, flags: str) -> bool:
   """
-  Mounts a Google Cloud Storage bucket using gcsfuse.
+  Mounts a Google Cloud Storage (GCS) bucket using gcsfuse.
+
+  This function attempts to create the mount directory (if it doesn't exist),
+  then runs the `gcsfuse` command to mount the specified GCS bucket using the provided flags.
 
   Args:
-      mount_dir (str): The local directory where the bucket will be mounted.
+      mount_dir (str): The local directory where the GCS bucket should be mounted.
       bucket_name (str): The name of the GCS bucket to mount.
-      flags (str): Additional gcsfuse mount options (e.g., "implicit-dirs,custom-endpoint=...").
+      flags (str): Additional flags or options to pass to the `gcsfuse` command
+                   (e.g., "--implicit-dirs").
 
-  Raises:
-      subprocess.CalledProcessError: If the gcsfuse mount command fails.
+  Returns:
+      bool:
+          - True if the mount operation succeeded.
+          - False if the `gcsfuse` command failed (e.g., due to permissions, bucket issues, etc.).
+
+  Prints:
+      Status messages indicating success or failure of the mount operation.
   """
   os.makedirs(mount_dir, exist_ok=True)
   cmd = f"gcsfuse {flags} {bucket_name} {mount_dir}"
   print(f"Mounting: {cmd}")
-  subprocess.run(cmd, shell=True, check=True)
+  try:
+    subprocess.run(cmd, shell=True, check=True)
+    print(f"Successfully mounted {bucket_name} at {mount_dir}")
+    return True
+  except subprocess.CalledProcessError as e:
+    print(f"Failed to mount {bucket_name} at {mount_dir}: {e}")
+    return False
 
-def unmount_gcs_directory(mount_point: str) -> None:
+
+def unmount_gcs_directory(mount_point: str) -> bool:
   """
   Unmounts a GCS bucket that was mounted with gcsfuse.
 
@@ -48,12 +64,20 @@ def unmount_gcs_directory(mount_point: str) -> None:
 
   Prints:
       Success or failure message based on the unmount operation.
+
+   Returns:
+      bool:
+          - True if the mount operation succeeded.
+          - False if the `fusermount` command failed.
   """
   try:
     subprocess.run(["fusermount", "-u", mount_point], check=True)
-    print(f"✅ Successfully unmounted {mount_point}")
-  except subprocess.CalledProcessError:
-    print(f"❌ Failed to unmount {mount_point}. Ensure the directory is correctly mounted.")
+    print(f"Successfully unmounted {mount_point}")
+    return True
+  except subprocess.CalledProcessError as e:
+    print(f"Failed to unmount {mount_point}: {e}. Ensure the directory is correctly mounted.")
+    return False
+
 
 def log_to_bigquery(duration_sec: float, total_bytes: int, gcsfuse_config: str, workload_type: str) -> None:
   """Logs performance metrics to a BigQuery table.
@@ -81,13 +105,13 @@ def log_to_bigquery(duration_sec: float, total_bytes: int, gcsfuse_config: str, 
       Performance metrics and confirmation of successful logging.
   """
   bandwidth_mbps = total_bytes / duration_sec / 1000 / 1000
-  print(f"✅ Duration: {duration_sec:.2f}s | Data: {total_bytes / (1000 ** 3):.2f} GiB | Bandwidth: {bandwidth_mbps:.2f} MB/s")
+  print(f"Duration: {duration_sec:.2f}s | Data: {total_bytes / (1000 ** 3):.2f} GB | Bandwidth: {bandwidth_mbps:.2f} MB/s")
 
   client = bigquery.Client(project=PROJECT_ID)
   table_ref = client.dataset(DATASET_ID).table(TABLE_ID)
 
   df = pd.DataFrame([{
-      "timestamp": datetime.utcnow(),
+      "timestamp": datetime.now(timezone.utc),
       "duration_seconds": duration_sec,
       "bandwidth_mbps": bandwidth_mbps,
       "gcsfuse_config": gcsfuse_config,
@@ -99,4 +123,4 @@ def log_to_bigquery(duration_sec: float, total_bytes: int, gcsfuse_config: str, 
   df['bandwidth_mbps'] = df['bandwidth_mbps'].astype(float)
 
   client.load_table_from_dataframe(df, table_ref).result()
-  print("✅ Successfully logged data to BigQuery.")
+  print("Successfully logged data to BigQuery.")
