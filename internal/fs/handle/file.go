@@ -24,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
 )
@@ -49,27 +50,25 @@ type FileHandle struct {
 	// will be downloaded for random reads as well too.
 	cacheFileForRangeRead bool
 	metricHandle          common.MetricHandle
-	// For now, we will consider the files which are open in append mode also as write,
-	// as we are not doing anything special for append. When required we will
-	// define an enum instead of boolean to hold the type of open.
-	readOnly bool
+	// openMode is used to store the mode in which the file is opened.
+	openMode util.OpenMode
 
 	// Read related mounting configuration.
 	readConfig *cfg.ReadConfig
 }
 
 // LOCKS_REQUIRED(fh.inode.mu)
-func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, readOnly bool, rc *cfg.ReadConfig) (fh *FileHandle) {
+func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, openMode util.OpenMode, rc *cfg.ReadConfig) (fh *FileHandle) {
 	fh = &FileHandle{
 		inode:                 inode,
 		fileCacheHandler:      fileCacheHandler,
 		cacheFileForRangeRead: cacheFileForRangeRead,
 		metricHandle:          metricHandle,
-		readOnly:              readOnly,
+		openMode:              openMode,
 		readConfig:            rc,
 	}
 
-	fh.inode.RegisterFileHandle(fh.readOnly)
+	fh.inode.RegisterFileHandle(fh.openMode == util.Read)
 	fh.mu = syncutil.NewInvariantMutex(fh.checkInvariants)
 
 	return
@@ -83,7 +82,7 @@ func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, 
 func (fh *FileHandle) Destroy() {
 	// Deregister the fileHandle with the inode.
 	fh.inode.Lock()
-	fh.inode.DeRegisterFileHandle(fh.readOnly)
+	fh.inode.DeRegisterFileHandle(fh.openMode == util.Read)
 	fh.inode.Unlock()
 	if fh.reader != nil {
 		fh.reader.Destroy()
