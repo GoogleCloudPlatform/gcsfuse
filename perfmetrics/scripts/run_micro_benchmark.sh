@@ -39,8 +39,8 @@ fio job_files/micro_benchmark.fio --lat_percentiles 1 --output-format=json --out
 echo "Overall fio end epoch time:" `date +%s`
 sudo umount $MOUNT_POINT
 
-echo Installing requirements..
-pip install --require-hashes -r requirements.txt --user
-gsutil cp gs://periodic-perf-tests/creds.json gsheet
+#echo Installing requirements..
+#pip install --require-hashes -r requirements.txt --user
+gsutil cp gs://periodic-perf-tests/creds.json /tmp
 echo Fetching results..
 python3 fetch_and_upload_metrics.py "fio-output.json" $UPLOAD_FLAGS --spreadsheet_id=$SPREADSHEET_ID

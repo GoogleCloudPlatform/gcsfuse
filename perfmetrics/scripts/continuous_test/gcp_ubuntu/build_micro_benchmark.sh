@@ -29,8 +29,8 @@ commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
 # Mounting gcs bucket
 cd "./perfmetrics/scripts/"
 
-echo Installing Bigquery module requirements...
-pip install --require-hashes -r bigquery/requirements.txt --user
+#echo Installing Bigquery module requirements...
+#pip install --require-hashes -r bigquery/requirements.txt --user
 
 # Upload data to the gsheet only when it runs through kokoro.
 UPLOAD_FLAGS=""
@@ -53,7 +53,7 @@ COMMON_MOUNT_FLAGS="--log-severity=trace --log-format \"text\""
 
 # Testing for flat bucket.
 LOG_FILE_FIO_TESTS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-fio-flat.txt
-GCSFUSE_FIO_FLAGS="--implicit-dirs --cloud-metrics-export-interval-secs=30s --log-file $LOG_FILE_FIO_TESTS"
+GCSFUSE_FIO_FLAGS="--implicit-dirs --cloud-metrics-export-interval-secs 30 --log-file $LOG_FILE_FIO_TESTS"
 GCSFUSE_LS_FLAGS="--implicit-dirs --log-file $LOG_FILE_LS_TESTS"
 BUCKET_NAME="periodic-perf-tests"
 SPREADSHEET_ID='1fh5hzEbdMa3e_deeg9TRhhqkTB6w9WEQSrSh9Fh-RKE'
