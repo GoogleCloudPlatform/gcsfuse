@@ -308,7 +308,7 @@ func (t *PrefixBucketTest) Test_CreateObject() {
 	assert.Equal(t.T(), contents, string(actual))
 }
 
-func (t *PrefixBucketTest) CreateObjectChunkWriterAndFinalizeUpload() {
+func (t *PrefixBucketTest) TestCreateObjectChunkWriterAndFinalizeUpload() {
 	var err error
 	suffix := "taco"
 	content := []byte("foobar")
@@ -337,7 +337,7 @@ func (t *PrefixBucketTest) CreateObjectChunkWriterAndFinalizeUpload() {
 	assert.Equal(t.T(), string(content), string(actual))
 }
 
-func (t *PrefixBucketTest) CreateObjectChunkWriterAndFlushPendingWrites() {
+func (t *PrefixBucketTest) TestCreateObjectChunkWriterAndFlushPendingWrites() {
 	var err error
 	suffix := "taco"
 	content := []byte("foobar")
@@ -354,10 +354,10 @@ func (t *PrefixBucketTest) CreateObjectChunkWriterAndFlushPendingWrites() {
 	assert.NoError(t.T(), err)
 	_, err = w.Write(content)
 	assert.NoError(t.T(), err)
-	offset, err := t.bucket.FlushPendingWrites(t.ctx, w)
+	o, err := t.bucket.FlushPendingWrites(t.ctx, w)
 
 	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), int64(len(content)), offset)
+	assert.EqualValues(t.T(), int64(len(content)), o.Size)
 	// Read it through the back door.
 	actual, err := storageutil.ReadObject(t.ctx, t.wrapped, t.prefix+suffix)
 	assert.Equal(t.T(), nil, err)
