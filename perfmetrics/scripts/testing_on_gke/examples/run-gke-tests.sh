@@ -71,6 +71,27 @@ readonly DEFAULT_BQ_PROJECT_ID='gcs-fuse-test-ml'
 readonly DEFAULT_BQ_DATASET_ID='gke_test_tool_outputs'
 readonly DEFAULT_BQ_TABLE_ID='fio_outputs'
 
+# Handle deprecated flags.
+# Maps from deprecated flags to the message to be shown for them.
+declare -A deprecated_flags=(
+  ["instance_id"]="Use experiment_id instead."
+)
+for deprecated_flag in "${!deprecated_flags[@]}" ; do
+  deprecated_flag_value=${!deprecated_flag}
+  if test -n "${deprecated_flag_value}" ; then
+    # Special case handling. If instance_id is set, but experiment_id is not
+    # set, then let this be only an error message and copy the value of
+    # instance_id to experiment_id.
+    if [ "${deprecated_flag}"="instance_id" ] && test -z "${experiment_id}" ; then
+      echoerror "${deprecated_flag} is now deprecated, but passed with value \"${deprecated_flag_value}\". In future, please use experiment_id instead. For now, setting experiment_id=\"${instance_id}\" ."
+      export experiment_id="${instance_id}"
+      unset instance_id
+    else
+      exitWithError "${deprecated_flag} is now deprecated, but passed with value \"${deprecated_flag_value}\". ${deprecated_flags[${deprecated_flag}]}"
+    fi
+  fi
+done
+
 # Create and return a unique experiment_id taking
 # into account user's passed experiment_id.
 function create_unique_experiment_id() {
