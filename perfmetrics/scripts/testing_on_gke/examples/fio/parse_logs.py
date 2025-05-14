@@ -132,8 +132,8 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
       )
       continue
 
-    # if directory contains gcsfuse_mount_options file, then parse gcsfuse
-    # mount options from it in record.
+    # Skip this directory if it is missing any of metadata files
+    # i.e. gcsfuse_mount_options, pod_name, bucket_name, machine_type etc.
     metadata_values = dict()
     skip_this_directory = False
     for metadata in [
