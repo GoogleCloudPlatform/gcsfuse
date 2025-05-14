@@ -141,6 +141,14 @@ class BqUtilsTest(unittest.TestCase):
 
     self.assertEqual(self.fioBqExporter._num_rows(), orig_num_rows + 1)
 
+  def test_has_experiment_id(self):
+    row = self.create_sample_fio_table_row()
+    self.fioBqExporter.insert_rows([row])
+    self.assertTrue(self.fioBqExporter._has_experiment_id(row.experiment_id))
+    self.assertFalse(
+        self.fioBqExporter._has_experiment_id('invalid-experiment-id')
+    )
+
 
 if __name__ == '__main__':
   unittest.main()
