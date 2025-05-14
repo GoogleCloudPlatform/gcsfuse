@@ -34,6 +34,13 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+const (
+	sequential                = "Sequential"
+	random                    = "Random"
+	sequentialReadSizeInMb    = 22
+	sequentialReadSizeInBytes = sequentialReadSizeInMb * MiB
+)
+
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
@@ -67,7 +74,7 @@ func (t *gcsReaderTest) SetupTest() {
 		Generation: 1234,
 	}
 	t.mockBucket = new(storage.TestifyMockBucket)
-	t.gcsReader = NewGCSReader(t.object, t.mockBucket, common.NewNoopMetrics(), nil, 200)
+	t.gcsReader = NewGCSReader(t.object, t.mockBucket, common.NewNoopMetrics(), nil, sequentialReadSizeInMb)
 	t.ctx = context.Background()
 }
 
@@ -91,6 +98,37 @@ func (t *gcsReaderTest) Test_NewGCSReader() {
 	assert.Equal(t.T(), object, gcsReader.object)
 	assert.Equal(t.T(), t.mockBucket, gcsReader.bucket)
 	assert.Equal(t.T(), testUtil.Sequential, gcsReader.readType)
+}
+
+func (t *gcsReaderTest) Test_ReadAt_InvalidOffset() {
+	testCases := []struct {
+		name     string
+		dataSize int
+		start    int
+	}{
+		{
+			name:     "InvalidOffset",
+			dataSize: 50,
+			start:    68,
+		},
+		{
+			name:     "NegativeOffset",
+			dataSize: 100,
+			start:    -50,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			t.gcsReader.rangeReader.reader = nil
+			t.object.Size = uint64(tc.dataSize)
+			buf := make([]byte, tc.dataSize)
+
+			_, err := t.gcsReader.ReadAt(t.ctx, buf, int64(tc.start))
+
+			assert.Error(t.T(), err)
+		})
+	}
 }
 
 func (t *gcsReaderTest) Test_ReadAt_ExistingReaderLimitIsLessThanRequestedDataSize() {
@@ -266,6 +304,187 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateReadType() {
 				assert.NoError(t.T(), err)
 				assert.Equal(t.T(), tc.expectedReadTypes[i], t.gcsReader.readType)
 			}
+		})
+	}
+}
+
+func (t *gcsReaderTest) Test_ReadAt_PropagatesCancellation() {
+	// Set up a blocking reader
+	finishRead := make(chan struct{})
+	blocking := &blockingReader{c: finishRead}
+	rc := io.NopCloser(blocking)
+	// Assign it to the rangeReader
+	t.gcsReader.rangeReader.reader = &fake.FakeReader{ReadCloser: rc}
+	t.gcsReader.rangeReader.start = 0
+	t.gcsReader.rangeReader.limit = 2
+	// Track cancel invocation
+	cancelCalled := make(chan struct{})
+	t.gcsReader.rangeReader.cancel = func() { close(cancelCalled) }
+	// Controlled context
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	// Channel to track read completion
+	readReturned := make(chan struct{})
+	var err error
+
+	go func() {
+		_, err = t.gcsReader.ReadAt(ctx, make([]byte, 2), 0)
+
+		assert.Error(t.T(), err)
+
+		close(readReturned)
+	}()
+
+	// Wait a bit to ensure ReadAt is blocking
+	select {
+	case <-readReturned:
+		t.T().Fatal("Read returned early — cancellation did not propagate properly.")
+	case <-time.After(10 * time.Millisecond):
+		// OK: Still blocked
+	}
+	// Cancel the context to trigger cancellation
+	cancel()
+	// Expect rr.cancel to be called
+	select {
+	case <-cancelCalled:
+		// Pass
+	case <-time.After(100 * time.Millisecond):
+		t.T().Fatal("Expected rr.cancel to be called on ctx cancellation.")
+	}
+	// Unblock the reader so the read can complete
+	close(finishRead)
+	// Ensure read completes
+	select {
+	case <-readReturned:
+		// Pass
+	case <-time.After(100 * time.Millisecond):
+		t.T().Fatal("Expected read to return after unblocking.")
+	}
+}
+
+func (t *gcsReaderTest) Test_ReadInfo() {
+	t.object.Size = 10 * MiB
+	testCases := []struct {
+		name  string
+		start int64
+		size  int64
+	}{
+		{
+			name:  "startLessThanZero",
+			start: -1,
+			size:  10,
+		},
+		{
+			name:  "sizeLessThanZero",
+			start: 0,
+			size:  -1,
+		},
+		{
+			name:  "startGreaterThanObjectSize",
+			start: int64(t.object.Size + 1),
+			size:  int64(t.object.Size),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			_, err := t.gcsReader.getReadInfo(tc.start, tc.size)
+
+			assert.Error(t.T(), err)
+		})
+	}
+}
+
+func (t *gcsReaderTest) Test_ReadInfo_Sequential() {
+	testCases := []struct {
+		name        string
+		start       int64
+		objectSize  uint64
+		expectedEnd int64
+	}{
+		{
+			name:        "ExactSizeRead", // start 0, object = 10MB
+			start:       0,
+			objectSize:  10 * MiB,
+			expectedEnd: 10 * MiB,
+		},
+		{
+			name:        "ReadSizeGreaterThanObjectSize", // start near end, should clamp to objectSize
+			start:       int64(10*MiB - 1),
+			objectSize:  10 * MiB,
+			expectedEnd: 10 * MiB,
+		},
+		{
+			name:        "ObjectSizeGreaterThanReadSize", // default read size applies
+			start:       0,
+			objectSize:  50 * MiB,
+			expectedEnd: int64(sequentialReadSizeInBytes),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			t.SetupTest()
+			t.object.Size = tc.objectSize
+
+			end, err := t.gcsReader.getReadInfo(tc.start, int64(tc.objectSize))
+
+			assert.NoError(t.T(), err)
+			assert.Equal(t.T(), sequential, t.gcsReader.readType)
+			assert.Equal(t.T(), tc.expectedEnd, end)
+		})
+	}
+}
+
+func (t *gcsReaderTest) Test_ReadInfo_Random() {
+	t.gcsReader.seeks = 2
+	testCases := []struct {
+		name           string
+		start          int64
+		objectSize     uint64
+		totalReadBytes uint64
+		expectedEnd    int64
+	}{
+		{
+			name:           "RangeBetween1And8MB",
+			start:          0,
+			objectSize:     50 * MiB,
+			totalReadBytes: 10 * MiB,
+			expectedEnd:    6 * MiB,
+		},
+		{
+			name:           "ReadSizeLessThan1MB",
+			start:          0,
+			objectSize:     50 * MiB,
+			totalReadBytes: 1 * MiB, // avg = 0.5MB
+			expectedEnd:    minReadSize,
+		},
+		{
+			name:           "ReadSizeGreaterThan8MB",
+			start:          0,
+			objectSize:     50 * MiB,
+			totalReadBytes: 20 * MiB,
+			expectedEnd:    int64(sequentialReadSizeInBytes),
+		},
+		{
+			name:           "ReadSizeGreaterThan8MB",
+			start:          5*MiB - 1,
+			objectSize:     5 * MiB,
+			totalReadBytes: 2 * MiB,
+			expectedEnd:    5 * MiB,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			t.object.Size = tc.objectSize
+			t.gcsReader.totalReadBytes = tc.totalReadBytes
+
+			end, err := t.gcsReader.getReadInfo(tc.start, 10)
+
+			assert.NoError(t.T(), err)
+			assert.Equal(t.T(), random, t.gcsReader.readType)
+			assert.Equal(t.T(), tc.expectedEnd, end)
 		})
 	}
 }
