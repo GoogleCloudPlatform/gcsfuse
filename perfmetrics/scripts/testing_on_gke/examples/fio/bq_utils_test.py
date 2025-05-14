@@ -103,40 +103,27 @@ class BqUtilsTest(unittest.TestCase):
 
     self.fioBqExporter.insert_rows(rows)
 
-  def test_insert_some_bad_rows(self):
+  def test_insert_rows_with_one_bad_row(self):
     rows = []
 
     rowCommon = self.create_sample_fio_table_row()
 
     row = copy.deepcopy(rowCommon)
-    row.fio_workload_id = f'fio_workload1_{row.experiment_id}'
-    row.epoch = 1
-    row.start_time = self.cur_timestamp()
-    row.end_time = row.start_time
-    rows.append(row)
+    num_rows = 20
+    for i in range(num_rows):
+      row = copy.deepcopy(row)
+      row.fio_workload_id = f'fio_workload{i}_{row.experiment_id}'
+      row.epoch = 1
+      if i == 0:
+        # First row is bad row because of empty start_time and end_time.
+        row.start_time = Timestamp('')
+        row.end_time = Timestamp('')
+      else:
+        row.start_time = self.cur_timestamp()
+        row.end_time = row.start_time
+      rows.append(row)
 
-    # bad row with bad start_time and end_time.
-    row = copy.deepcopy(row)
-    row.epoch = 2
-    row.start_time = Timestamp('')
-    row.end_time = row.start_time
-    rows.append(row)
-
-    row = copy.deepcopy(row)
-    row.fio_workload_id = f'fio_workload2_{row.experiment_id}'
-    row.epoch = 1
-    row.start_time = self.cur_timestamp()
-    row.end_time = row.start_time
-    rows.append(row)
-
-    # bad row with bad start_time and end_time.
-    row = copy.deepcopy(row)
-    row.epoch = 2
-    row.start_time = Timestamp('')
-    row.end_time = row.start_time
-    rows.append(row)
-
-    # Despite bad rows, the insert_rows itself will not fail
+    # Despite bad row(s), the insert_rows itself will not fail
     # because of the fallback in insert_rows.
     self.fioBqExporter.insert_rows(rows)
 
