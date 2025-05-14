@@ -56,7 +56,7 @@ def parse_args():
       required=True,
   )
   parser.add_argument(
-      '--instance-id',
+      '--experiment-id',
       metavar='A unique string ID to represent the test-run',
       help=(
           'Set to a unique string ID for current test-run. Do not put spaces'
@@ -119,7 +119,7 @@ def parse_args():
 
   args = parser.parse_args()
   for argument in [
-      'instance_id',
+      'experiment_id',
       'machine_type',
       'project_id',
       'namespace',

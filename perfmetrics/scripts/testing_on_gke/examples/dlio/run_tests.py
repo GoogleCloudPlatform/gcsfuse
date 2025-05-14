@@ -38,7 +38,7 @@ import dlio_workload
 
 
 def createHelmInstallCommands(
-    dlioWorkloads: set, instanceId: str, machineType: str, customCSIDriver: str
+    dlioWorkloads: set, experimentID: str, machineType: str, customCSIDriver: str
 ) -> list:
   """Creates helm install commands for the given dlioWorkload objects."""
   helm_commands = []
@@ -57,7 +57,7 @@ def createHelmInstallCommands(
       for batchSize in dlioWorkload.batchSizes:
         chartName, podName, outputDirPrefix = (
             dlio_workload.DlioChartNamePodName(
-                dlioWorkload, instanceId, batchSize
+                dlioWorkload, experimentID, batchSize
             )
         )
         commands = [
@@ -67,7 +67,7 @@ def createHelmInstallCommands(
             f'--set dlio.numFilesTrain={dlioWorkload.numFilesTrain}',
             f'--set dlio.recordLength={dlioWorkload.recordLength}',
             f'--set dlio.batchSize={batchSize}',
-            f'--set instanceId={instanceId}',
+            f'--set experimentID={experimentID}',
             (
                 '--set'
                 f' gcsfuse.mountOptions={escape_commas_in_string(dlioWorkload.gcsfuseMountOptions)}'
@@ -93,7 +93,7 @@ def main(args) -> None:
       args.workload_config
   )
   helmInstallCommands = createHelmInstallCommands(
-      dlioWorkloads, args.instance_id, args.machine_type, args.custom_csi_driver
+      dlioWorkloads, args.experiment_id, args.machine_type, args.custom_csi_driver
   )
   buckets = [dlioWorkload.bucket for dlioWorkload in dlioWorkloads]
   role = 'roles/storage.objectUser'

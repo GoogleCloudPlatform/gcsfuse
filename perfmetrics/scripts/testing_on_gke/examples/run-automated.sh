@@ -63,10 +63,10 @@ if test -z "${gcsfuse_branch}"; then
 fi
 export pod_wait_time_in_seconds=300
 export pod_timeout_in_seconds=64800
-# Pass instance_id from outside to continue previous run, if it got terminated
+# Pass experiment_id from outside to continue previous run, if it got terminated
 # somehow (timeout of ssh etc.)
-if test -z ${instance_id}; then
-  export instance_id=$(echo ${USER} | sed 's/_google//' | sed 's/_com//')-$(date +%Y%m%d-%H%M%S)
+if test -z ${experiment_id}; then
+  export experiment_id=$(echo ${USER} | sed 's/_google//' | sed 's/_com//')-$(date +%Y%m%d-%H%M%S)
 fi
 if test -z "${output_gsheet_id}"; then
   echo "output_gsheet_id has not been set."
@@ -94,7 +94,7 @@ echo "Run started at ${start_time}"
 touch log
 (./run-gke-tests.sh --debug |& tee -a log) || true
 # Use the following if you want to run it in a tmux session instead.
-# tmux new-session -d -s ${instance_id} 'bash -c "(./run-gke-tests.sh --debug |& tee -a log); sleep 604800 "'
+# tmux new-session -d -s ${experiment_id} 'bash -c "(./run-gke-tests.sh --debug |& tee -a log); sleep 604800 "'
 end_time=$(date +%Y-%m-%dT%H:%M:%SZ)
 echo "Run ended at ${end_time}"
 
@@ -114,7 +114,7 @@ if test -z "${output_bucket}"; then
   echo "output_bucket has not been set."
   exit 1
 fi
-output_path_uri=gs://${output_bucket}/outputs/${instance_id}
+output_path_uri=gs://${output_bucket}/outputs/${experiment_id}
 for file in fio/output.csv dlio/output.csv log run-gke-tests.sh workloads.json gcsfuse_commithash gcs_fuse_csi_driver_commithash; do
   if test -f ${file} ; then
     gcloud storage cp --content-type=text/text ${file} ${output_path_uri}/${file}

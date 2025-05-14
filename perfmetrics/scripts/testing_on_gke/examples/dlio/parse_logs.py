@@ -52,23 +52,23 @@ record = {
 }
 
 
-def download_dlio_outputs(dlioWorkloads: set, instanceId: str) -> int:
-  """Downloads instanceId-specific dlio outputs for each dlioWorkload locally.
+def download_dlio_outputs(dlioWorkloads: set, experimentID: str) -> int:
+  """Downloads experimentID-specific dlio outputs for each dlioWorkload locally.
 
   Outputs in the bucket are in the following object naming format
   (details in ./unet3d-loading-test/templates/dlio-tester.yaml).
-    gs://<bucket>/logs/<instanceId>/<numFilesTrain>-<recordLength>-<batchSize>-<hash>/<scenario>/per_epoch_stats.json
-    gs://<bucket>/logs/<instanceId>/<numFilesTrain>-<recordLength>-<batchSize>-<hash>/<scenario>/summary.json
-    gs://<bucket>/logs/<instanceId>/<numFilesTrain>-<recordLength>-<batchSize>-<hash>/gcsfuse-generic/gcsfuse_mount_options
+    gs://<bucket>/logs/<experimentID>/<numFilesTrain>-<recordLength>-<batchSize>-<hash>/<scenario>/per_epoch_stats.json
+    gs://<bucket>/logs/<experimentID>/<numFilesTrain>-<recordLength>-<batchSize>-<hash>/<scenario>/summary.json
+    gs://<bucket>/logs/<experimentID>/<numFilesTrain>-<recordLength>-<batchSize>-<hash>/gcsfuse-generic/gcsfuse_mount_options
 
   These are downloaded locally as:
-    <_LOCAL_LOGS_LOCATION>/<instanceId>/<numFilesTrain>-<recordLength>-<batchSize>-<hash>/<scenario>/per_epoch_stats.json
-    <_LOCAL_LOGS_LOCATION>/<instanceId>/<numFilesTrain>-<recordLength>-<batchSize>-<hash>/<scenario>/summary.json
-    <_LOCAL_LOGS_LOCATION>/<instanceId>/<numFilesTrain>-<recordLength>-<batchSize>-<hash>/gcsfuse-generic/gcsfuse_mount_options
+    <_LOCAL_LOGS_LOCATION>/<experimentID>/<numFilesTrain>-<recordLength>-<batchSize>-<hash>/<scenario>/per_epoch_stats.json
+    <_LOCAL_LOGS_LOCATION>/<experimentID>/<numFilesTrain>-<recordLength>-<batchSize>-<hash>/<scenario>/summary.json
+    <_LOCAL_LOGS_LOCATION>/<experimentID>/<numFilesTrain>-<recordLength>-<batchSize>-<hash>/gcsfuse-generic/gcsfuse_mount_options
   """
 
   for dlioWorkload in dlioWorkloads:
-    srcObjects = f"gs://{dlioWorkload.bucket}/logs/{instanceId}"
+    srcObjects = f"gs://{dlioWorkload.bucket}/logs/{experimentID}"
     print(f"Downloading DLIO logs from the {srcObjects} ...")
     returncode, errorStr = download_gcs_objects(
         srcObjects, _LOCAL_LOGS_LOCATION
@@ -85,9 +85,9 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
   The following creates a dict called 'output'
   from the downloaded dlio output files, which are in the following format.
 
-  <_LOCAL_LOGS_LOCATION>/<instanceId>/<numFilesTrain>-<recordLength>-<batchSize>-<hash>/<scenario>/per_epoch_stats.json
-  <_LOCAL_LOGS_LOCATION>/<instanceId>/<numFilesTrain>-<recordLength>-<batchSize>-<hash>/<scenario>/summary.json
-  <_LOCAL_LOGS_LOCATION>/<instanceId>/<numFilesTrain>-<recordLength>-<batchSize>-<hash>/gcsfuse-generic/gcsfuse_mount_options
+  <_LOCAL_LOGS_LOCATION>/<experimentID>/<numFilesTrain>-<recordLength>-<batchSize>-<hash>/<scenario>/per_epoch_stats.json
+  <_LOCAL_LOGS_LOCATION>/<experimentID>/<numFilesTrain>-<recordLength>-<batchSize>-<hash>/<scenario>/summary.json
+  <_LOCAL_LOGS_LOCATION>/<experimentID>/<numFilesTrain>-<recordLength>-<batchSize>-<hash>/gcsfuse-generic/gcsfuse_mount_options
 
   Output dict structure:
     "{num_files_train}-{mean_file_size}-{batch_size}":
@@ -100,7 +100,9 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
   """
 
   output = {}
-  for root, _, files in os.walk(_LOCAL_LOGS_LOCATION + "/" + args.instance_id):
+  for root, _, files in os.walk(
+      _LOCAL_LOGS_LOCATION + "/" + args.experiment_id
+  ):
     print(f"Parsing directory {root} ...")
     if files:
       # If directory contains gcsfuse_mount_options file, then parse gcsfuse
@@ -200,7 +202,7 @@ def write_records_to_csv_output_file(output: dict, output_file_path: str):
         " (s),GPU Utilization (%),Throughput (sample/s),Throughput"
         " (MB/s),Throughput over Local SSD (%),GCSFuse Lowest Memory"
         " (MiB),GCSFuse Highest Memory (MiB),GCSFuse Lowest CPU (core),GCSFuse"
-        " Highest CPU (core),Pod,Start,End,GcsfuseMountOptions,InstanceID\n"
+        " Highest CPU (core),Pod,Start,End,GcsfuseMountOptions,ExperimentID\n"
     )
 
     for key in output:
@@ -250,7 +252,7 @@ def write_records_to_csv_output_file(output: dict, output_file_path: str):
               f"{record_set['mean_file_size']},{record_set['num_files_train']},{total_size},{record_set['batch_size']},{scenario},"
           )
           output_file.write(
-              f"{r['epoch']},{r['duration']},{r['train_au_percentage']},{r['train_throughput_samples_per_second']},{r['train_throughput_mb_per_second']},{r['throughput_over_local_ssd']},{r['lowest_memory']},{r['highest_memory']},{r['lowest_cpu']},{r['highest_cpu']},{r['pod_name']},{r['start']},{r['end']},\"{r['gcsfuse_mount_options']}\",{args.instance_id}\n"
+              f"{r['epoch']},{r['duration']},{r['train_au_percentage']},{r['train_throughput_samples_per_second']},{r['train_throughput_mb_per_second']},{r['throughput_over_local_ssd']},{r['lowest_memory']},{r['highest_memory']},{r['lowest_cpu']},{r['highest_cpu']},{r['pod_name']},{r['start']},{r['end']},\"{r['gcsfuse_mount_options']}\",{args.experiment_id}\n"
           )
 
     output_file.close()
@@ -263,7 +265,7 @@ if __name__ == "__main__":
   dlioWorkloads = dlio_workload.parse_test_config_for_dlio_workloads(
       args.workload_config
   )
-  download_dlio_outputs(dlioWorkloads, args.instance_id)
+  download_dlio_outputs(dlioWorkloads, args.experiment_id)
 
   output = create_output_scenarios_from_downloaded_files(args)
 
