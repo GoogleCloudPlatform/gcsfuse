@@ -32,7 +32,7 @@ from fio.bq_utils import FioBigqueryExporter, FioTableRow, Timestamp
 from utils.utils import unix_to_timestamp, convert_size_to_bytes
 
 _LOCAL_LOGS_LOCATION = "../../bin/fio-logs"
-EPOCH_FILENAME_REGEX = "^epoch[0-9]+.json$"
+_EPOCH_FILENAME_REGEX = "^epoch[0-9]+.json$"
 
 record = {
     "pod_name": "",
@@ -125,7 +125,7 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
     if not files:
       # ignore intermediate directories.
       continue
-    elif not any(re.search(EPOCH_FILENAME_REGEX, file) for file in files):
+    elif not any(re.search(_EPOCH_FILENAME_REGEX, file) for file in files):
       print(
           f"directory {root} does not have any"
           " epoch[N].json files in it, so skipping it ..."
@@ -158,7 +158,7 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
       continue
 
     for file in files:
-      if not re.search(EPOCH_FILENAME_REGEX, file):
+      if not re.search(_EPOCH_FILENAME_REGEX, file):
         continue
 
       per_epoch_output = root + f"/{file}"
