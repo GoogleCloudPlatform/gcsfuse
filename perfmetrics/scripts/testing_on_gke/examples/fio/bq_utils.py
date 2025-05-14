@@ -195,6 +195,35 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
       print(f'Failed to create fio table {self.table_id}: {e}')
       raise
 
+  def _insert_rows_with_retry(self, table, rows_to_insert: []):
+    """Inserts given rows to the given table in a single transaction.
+
+    If the transaction fails, it tries inserting all the rows in rows_to_insert
+    one by one.
+
+    This function is a wrapper over BQ client insert_rows function.
+
+    Arguments:
+
+    table: A BQ table handle.
+    rows_to_insert: A list of tuples to insert rows into the above BQ table.
+    """
+    # Call insert_rows on BQ client. If all goes well, result will be None.
+    result = self.client.insert_rows(table, rows_to_insert)
+    if result:
+      # As a fallback, try inserting all rows one-by-one.
+      print(
+          'Some rows failed to insert using insert_rows.\nResult:'
+          f' {result}\nWill now try to insert each row one by one.'
+      )
+      for row_to_insert in rows_to_insert:
+        result = self.client.insert_rows(table, [row_to_insert])
+        if result:
+          print(
+              'Warning: Failed to insert the following row even on retry.'
+              f'\n   row: {repr(row_to_insert)}\n   result: {result}'
+          )
+
   def insert_rows(self, fioTableRows: []):
     """Pass a list of FioTableRow objects to insert into the fio-table.
 
@@ -227,9 +256,7 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
     # into the table.
     table = self._get_table_from_table_id(self.table_id)
     try:
-      result = self.client.insert_rows(table, rows_to_insert)
-      if result:
-        raise Exception(f'{result}')
+      self._insert_rows_with_retry(table, rows_to_insert)
     except Exception as e:
       raise Exception(
           'Error inserting data to BigQuery table'
