@@ -14,16 +14,15 @@
 # limitations under the License.
 
 # Constants
-readonly GO_VERSION="go1.24.0"
 readonly PROJECT_ID="gcs-fuse-test-ml"
 readonly BUCKET_PREFIX="gcs-fuse-e2e-tests"
 readonly INTEGRATION_TEST_PACKAGE_DIR="./tools/integration_tests"
 readonly INTEGRATION_TEST_TIMEOUT_IN_MINS=90
-
-readonly FIXED_RANDOM_PREFIX=$(head /dev/urandom | tr -dc 'a-z0-9' | head -c 8)
-readonly LOG_LOCK_FILE=$(mktemp "/tmp/${FIXED_RANDOM_PREFIX}_logging_lock.XXXXXX")
-readonly BUCKET_CREATION_LOCK_FILE=$(mktemp "/tmp/${FIXED_RANDOM_PREFIX}_bucket_creation_lock.XXXXXX")
-readonly PACKAGE_STATS_FILE=$(mktemp "/tmp/${FIXED_RANDOM_PREFIX}package_stats.XXXXXX")
+readonly TMP_PREFIX="gcs-fuse-e2e-"
+readonly LOG_LOCK_FILE=$(mktemp "/tmp/${TMP_PREFIX}_logging_lock.XXXXXX")
+readonly BUCKET_CREATION_LOCK_FILE=$(mktemp "/tmp/${TMP_PREFIX}_bucket_creation_lock.XXXXXX")
+readonly BUCKET_NAMES=$(mktemp "/tmp/${TMP_PREFIX}_bucket_names.XXXXXX")
+readonly PACKAGE_STATS_FILE=$(mktemp "/tmp/${TMP_PREFIX}_package_stats.XXXXXX")
 
 # Default values for optional arguments
 RUN_TEST_ON_TPC_ENDPOINT=false
@@ -81,22 +80,68 @@ fi
 
 # Tests Packages which can be run in parallel.
 PARALLEL_TEST_PACKAGES=(
+  "monitoring"
+  "local_file"
+  "log_rotation"
+  "mounting"
+  "read_cache"
+  # "grpc_validation"
+  "gzip"
+  "write_large_files"
+  "list_large_dir"
+  "rename_dir_limit"
+  "read_large_files"
+  "explicit_dir"
+  "implicit_dir"
+  "interrupt"
+  "operations"
+  "kernel_list_cache"
+  "concurrent_operations"
+  "benchmarking"
+  "mount_timeout"
   "stale_handle"
+  "negative_stat_cache"
+  "streaming_writes"
 )
 
 # These packages which can only be run in sequential.
 SEQUENTIAL_TEST_PACKAGES=(
   "readonly"
+  "managed_folders"
+  "readonly_creds"
 )
 
 # Tests Packages which can be run in parallel on zonal buckets.
 PARALLEL_TEST_PACKAGES_FOR_ZB=(
+  "benchmarking"
+  "explicit_dir"
+  "gzip"
+  "implicit_dir"
+  "interrupt"
+  "kernel_list_cache"
+  "local_file"
+  "log_rotation"
+  "monitoring"
+  "mount_timeout"
+  "mounting"
+  "negative_stat_cache"
+  "operations"
+  "read_cache"
+  "read_large_files"
+  "rename_dir_limit"
   "stale_handle"
+  "streaming_writes"
+  "write_large_files"
+  "unfinalized_object"
 )
 
 # These packages which can only be run in sequential on zonal buckets.
 SEQUENTIAL_TEST_PACKAGES_FOR_ZB=(
+  "concurrent_operations"
+  "list_large_dir"
+  "managed_folders"
   "readonly"
+  "readonly_creds"
 )
 
 # acquire_lock: Acquires exclusive lock or exits script on failure.
@@ -145,16 +190,20 @@ log_error_locked() {
   release_lock "$LOG_LOCK_FILE"
 }
 
-# Stores the names of buckets created using create_bucket.
-BUCKET_NAMES=()
-
 # shellcheck disable=SC2317
-create_bucket() {
+get_bucket() {
   if [[ $# -ne 1 ]]; then
-    log_error_locked "create_bucket called with incorrect number of arguments."
+    log_error_locked "get_bucket() called with incorrect number of arguments."
     return 1
   fi
   local bucket_type="$1"
+  if [[ "$bucket_type" == "tpc_flat" ]]; then
+    echo "gcsfuse-e2e-tests-tpc"
+    return 0
+  elif [[ "$bucket_type" == "tpc_hns" ]]; then
+    echo "gcsfuse-e2e-tests-tpc-hns"
+    return 0
+  fi
   local uuid
   uuid=$(uuidgen)
   if [[ -z "$uuid" ]]; then
@@ -164,11 +213,11 @@ create_bucket() {
   local bucket_name="${BUCKET_PREFIX}-${bucket_type}-${uuid}"
   local cmd
   if [[ "$bucket_type" == "flat" ]]; then
-    cmd="gcloud alpha storage buckets create gs://${bucket_name} --project=${PROJECT_ID} --location=${BUCKET_LOCATION} --uniform-bucket-level-access > /dev/null 2>&1"
+    cmd="gcloud alpha storage buckets create gs://${bucket_name} --project=${PROJECT_ID} --location=${BUCKET_LOCATION} --uniform-bucket-level-access"
   elif [[ "$bucket_type" == "hns" ]]; then
-    cmd="gcloud alpha storage buckets create gs://${bucket_name} --project=${PROJECT_ID} --location=${BUCKET_LOCATION} --uniform-bucket-level-access --enable-hierarchical-namespace > /dev/null 2>&1"
+    cmd="gcloud alpha storage buckets create gs://${bucket_name} --project=${PROJECT_ID} --location=${BUCKET_LOCATION} --uniform-bucket-level-access --enable-hierarchical-namespace"
   elif [[ "$bucket_type" == "zonal" ]]; then
-    cmd="gcloud alpha storage buckets create gs://${bucket_name} --project=${PROJECT_ID} --location=${BUCKET_LOCATION} --placement=${BUCKET_LOCATION}-a --default-storage-class=RAPID --uniform-bucket-level-access --enable-hierarchical-namespace > /dev/null 2>&1"
+    cmd="gcloud alpha storage buckets create gs://${bucket_name} --project=${PROJECT_ID} --location=${BUCKET_LOCATION} --placement=${BUCKET_LOCATION}-a --default-storage-class=RAPID --uniform-bucket-level-access --enable-hierarchical-namespace"
   else
     log_error_locked "Invalid Bucket Type [${bucket_type}]. Supported Types [flat, hns, zonal]"
     return 1
@@ -179,9 +228,9 @@ create_bucket() {
     release_lock "$BUCKET_CREATION_LOCK_FILE"
     return 1
   fi
+  echo "$bucket_name" >> "$BUCKET_NAMES" # Add bucket names to file.
   sleep 2 # Ensure 2 second gap between creating a new bucket.
   release_lock "$BUCKET_CREATION_LOCK_FILE"
-  BUCKET_NAMES+=("$bucket_name")
   echo "$bucket_name"
   return 0
 }
@@ -189,7 +238,7 @@ create_bucket() {
 # shellcheck disable=SC2317
 delete_bucket() {
   if [[ $# -ne 1 ]]; then
-    log_error_locked "delete_bucket called with incorrect number of arguments."
+    log_error_locked "delete_bucket() called with incorrect number of arguments."
     return 1
   fi
   local bucket="$1"
@@ -202,20 +251,24 @@ delete_bucket() {
 
 # shellcheck disable=SC2317
 clean_up() {
-  # Clean up temp files.
-  if ! rm -rf "tmp/${FIXED_RANDOM_PREFIX}_*"; then 
-    log_error_locked "Failed to temporary files"
+  local buckets=()
+  # Read each line from BUCKET_NAMES into buckets array
+  # This ensures each bucket name is treated as a separate item.
+  while IFS= read -r line || [[ -n "$line" ]]; do # Process even if last line has no newline
+    buckets+=("$line")
+  done < "$BUCKET_NAMES"
+  # Clean up buckets if any.
+  if [[ "${#buckets[@]}" -gt 0 ]]; then
+      if ! run_parallel "delete_bucket @" "${buckets[@]}"; then
+        log_error "Failed to delete all buckets"
+      else
+        log_info "Successfully deleted all buckets."
+    fi
+  fi
+  if ! rm -rf /tmp/"${TMP_PREFIX}_"*; then 
+    log_error "Failed to delete temporary files"
   else 
-    log_info_locked "Successfully cleaned up temporary files"
-  fi
-  if [[ $# -eq 0 ]]; then
-    return 0 # No buckets to delete
-  fi
-  local buckets=("$@")
-  if ! run_parallel "delete_bucket @" "${buckets[@]}"; then
-    log_error_locked "Failed to delete all buckets"
-  else
-    log_info_locked "Successfully deleted all buckets."
+    log_info "Successfully cleaned up temporary files"
   fi
 }
 
@@ -232,7 +285,7 @@ clean_up() {
 
 run_parallel() {
   if [[ $# -lt 2 ]]; then
-    log_error_locked "run_parallel called with incorrect number of arguments."
+    log_error_locked "run_parallel() called with incorrect number of arguments."
     return 1
   fi
   local cmd_template="$1"
@@ -244,7 +297,7 @@ run_parallel() {
   # Launch all commands in the background
   for arg in "$@"; do
     local full_cmd="${cmd_template//@/$arg}"
-    local output_file=$(mktemp "tmp/${FIXED_RANDOM_PREFIX}_${arg}_output.XXXXXX") || {
+    local output_file=$(mktemp "/tmp/${TMP_PREFIX}_${arg}_output.XXXXXX") || {
       log_error_locked "Could not create temporary output file."
       return 1
     }
@@ -301,7 +354,7 @@ run_parallel() {
 
 run_sequential() {
   if [[ $# -lt 2 ]]; then
-    log_error_locked "run_sequential called with incorrect number of arguments."
+    log_error_locked "run_sequential() called with incorrect number of arguments."
     return 1
   fi
   local cmd_template="$1"
@@ -312,7 +365,7 @@ run_sequential() {
   # Execute each command sequentially
   for arg in "$@"; do
     local full_cmd="${cmd_template//@/$arg}"
-    local output_file=$(mktemp "tmp/${FIXED_RANDOM_PREFIX}_${arg}_output.XXXXXX") || {
+    local output_file=$(mktemp "/tmp/${TMP_PREFIX}_${arg}_output.XXXXXX") || {
       log_error_locked "Could not create temporary output file."
       return 1
     }
@@ -344,15 +397,18 @@ run_sequential() {
 
 # shellcheck disable=SC2317
 test_package() {
+  if [[ $# -ne 2 ]]; then
+    log_error_locked "test_package() called with incorrect number of arguments."
+    return 1
+  fi
   local package_name="$1"
   local bucket_type="$2"
   local bucket_name
-  bucket_name=$(create_bucket "$bucket_type")
+  bucket_name=$(get_bucket "$bucket_type")
   if [[ -z "$bucket_name" ]]; then
     log_error_locked "Failed to create bucket of type $bucket_type, name $bucket_name, exit_code $?"
     return 1
   fi
-  # Go Test flags
   GO_TEST_CMD_PARTS=(
     "GODEBUG=asyncpreemptoff=1"
     "go"
@@ -396,8 +452,8 @@ test_package() {
   GO_TEST_CMD=$(printf "%q " "${GO_TEST_CMD_PARTS[@]}")
   local start=$SECONDS
   local exit_code=0
-  eval "$GO_TEST_CMD"
-  exit_code=$?
+  echo "eval $GO_TEST_CMD"
+  exit_code=1
   local end=$SECONDS
   # Record stats
   wait_reps=$((start / 60))
@@ -423,7 +479,7 @@ test_package() {
     "$bucket_type" \
     "$exit_status" \
     "$combined_time_bar")
-  echo "$current_package_stats" >>"$PACKAGE_STATS_FILE"
+  echo "$current_package_stats" >> "$PACKAGE_STATS_FILE"
   if [[ "$exit_code" -ne 0 ]]; then
     return 1
   else
@@ -458,53 +514,53 @@ print_package_stats() {
 
 # shellcheck disable=SC2317
 test_package_hns() {
+  if [[ $# -ne 1 ]]; then
+    log_error_locked "test_package_hns() called with incorrect number of arguments."
+    return 1
+  fi
   test_package "$1" "hns"
 }
 
 # shellcheck disable=SC2317
 test_package_flat() {
+  if [[ $# -ne 1 ]]; then
+    log_error_locked "test_package_flat() called with incorrect number of arguments."
+    return 1
+  fi
   test_package "$1" "flat"
 }
 
 # shellcheck disable=SC2317
 test_package_zonal() {
+  if [[ $# -ne 1 ]]; then
+    log_error_locked "test_package_zonal() called with incorrect number of arguments."
+    return 1
+  fi
   test_package "$1" "zonal"
 }
 
 upgrade_gcloud_version() {
   sudo apt-get update
+  # Upgrade gcloud version.
   # Kokoro machine's outdated gcloud version prevents the use of the "managed-folders" feature.
-  log_info_locked "Existing Gcloud version."
   gcloud version
-
-  # Download gcloud.tar.gz to the temporary directory
-  wget -O "/tmp/${FIXED_RANDOM_PREFIX}_gcloud.tar.gz" https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
-
-  # Extract gcloud.tar.gz within the temporary directory
-  sudo tar xzf "/tmp/${FIXED_RANDOM_PREFIX}_gcloud.tar.gz" -C /tmp/google-cloud-sdk
-
-  # Copy the extracted google-cloud-sdk from the temporary directory to /usr/local
-  sudo mv -r /tmp/google-cloud-sdk /usr/local
-
-  # Install gcloud
-  sudo /usr/local/google-cloud-sdk/install.sh --quiet
-  log_info_locked "Updated Gcloud version."
-  # Verify updated gcloud version
-  gcloud version
-
-  # Update gcloud components
+  wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
+  sudo tar xzf gcloud.tar.gz && sudo cp -r google-cloud-sdk /usr/local && sudo rm -r google-cloud-sdk
+  sudo /usr/local/google-cloud-sdk/install.sh -q
+  export PATH=/usr/local/google-cloud-sdk/bin:$PATH
+  echo 'export PATH=/usr/local/google-cloud-sdk/bin:$PATH' >> ~/.bashrc
+  gcloud version && rm gcloud.tar.gz
   sudo /usr/local/google-cloud-sdk/bin/gcloud components update
-
-  # Install alpha components
   sudo /usr/local/google-cloud-sdk/bin/gcloud components install alpha
 }
 
 install_packages() {
   # e.g. architecture=arm64 or amd64
   architecture=$(dpkg --print-architecture)
-  log_info_locked "Installing go-lang version: ${GO_VERSION}"
-  wget -O "/tmp/${FIXED_RANDOM_PREFIX}_go_tar.tar.gz" https://go.dev/dl/${GO_VERSION}.linux-${architecture}.tar.gz -q
-  sudo rm -rf /usr/local/go && tar -xzf "tmp/${FIXED_RANDOM_PREFIX}_go_tar.tar.gz" -C /tmp/go && sudo mv /tmp/go /usr/local
+  echo "Installing go-lang 1.24.0..."
+  wget -O go_tar.tar.gz https://go.dev/dl/go1.24.0.linux-${architecture}.tar.gz -q
+  sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
+  rm -rf go_tar.tar.gz
   export PATH=$PATH:/usr/local/go/bin
   sudo apt-get install -y python3
   # install python3-setuptools tools.
@@ -512,7 +568,6 @@ install_packages() {
   # Downloading composite object requires integrity checking with CRC32c in gsutil.
   # it requires to install crcmod.
   sudo apt install -y python3-crcmod
-  exit 1
 }
 
 run_e2e_tests_for_flat_bucket() {
@@ -580,39 +635,13 @@ run_e2e_tests_for_zonal_bucket() {
 }
 
 run_e2e_tests_for_tpc() {
-  local bucket=$1
-  if [[ "$bucket" == "" ]]; then
-    log_error_locked "Bucket name is required"
+  log_info_locked "Started running TPC e2e tests on operations package"
+  if ! run_parallel "test_package operations @" "tpc_flat" "tpc_hns"; then
+    log_error_locked "TPC e2e tests for operations package failed."
     return 1
+  else
+    log_info_locked "TPC e2e tests for operations package successful."
   fi
-  log_info_locked "Started running e2e tests for tpc for bucket $bucket"
-  local tpc_test_log
-  emulator_test_log=$(mktemp /tmp/tpc_test_log.XXXXXX)
-  trap 'rm "$tpc_test_log"' EXIT
-  # Clean bucket before testing.
-  gcloud --verbosity=error storage rm -r gs://"$bucket"/* >"$tpc_test_log" 2>&1
-
-  # Run Operations e2e tests in TPC to validate all the functionality.
-  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/... --testOnTPCEndPoint="$RUN_TEST_ON_TPC_ENDPOINT" "$GO_TEST_SHORT_FLAG" "$PRESUBMIT_RUN_FLAG" --integrationTest -v --testbucket="$bucket" --testInstalledPackage="$RUN_E2E_TESTS_ON_PACKAGE" -timeout "$INTEGRATION_TEST_TIMEOUT" >"$tpc_test_log" 2>&1
-
-  # Delete data after testing.
-  gcloud --verbosity=error storage rm -r gs://"$bucket"/* >"$tpc_test_log" 2>&1
-
-  exit_code=$?
-
-  if [[ $exit_code != 0 ]]; then
-    acquire_lock "$LOG_LOCK_FILE"
-    log_error ""
-    log_error ""
-    log_error "--- TPC Run Failed for bucket $bucket ---"
-    log_error "--- Stdout/Stderr ---"
-    cat "$tpc_test_log"
-    log_error ""
-    log_error ""
-    release_lock "$LOG_LOCK_FILE"
-    return 1
-  fi
-  log_info_locked "TPC tests for bucket ${bucket} successful."
   return 0
 }
 
@@ -641,18 +670,14 @@ run_e2e_tests_for_emulator() {
 
 main() {
   # Clean up everything on exit.
-  trap 'clean_up "${BUCKET_NAMES[@]}"' EXIT
-
+  trap clean_up EXIT
   log_info_locked ""
   log_info_locked "------ Upgrading gcloud and installing packages ------"
   log_info_locked ""
-
   set -e
-
   upgrade_gcloud_version
   install_packages
   set +e
-
   log_info_locked "------ Upgrading gcloud and installing packages took $SECONDS seconds ------"
 
   log_info_locked ""
@@ -670,17 +695,10 @@ main() {
   else
     # Run tpc test and exit in case RUN_TEST_ON_TPC_ENDPOINT is true.
     if [[ "${RUN_TEST_ON_TPC_ENDPOINT}" == "true" ]]; then
-      # Run tests for flat bucket
-      run_e2e_tests_for_tpc gcsfuse-e2e-tests-tpc &
-      e2e_tests_tpc_flat_bucket_pid=$!
-      # Run tests for hns bucket
-      run_e2e_tests_for_tpc gcsfuse-e2e-tests-tpc-hns &
-      e2e_tests_tpc_hns_bucket_pid=$!
-
-      wait $e2e_tests_tpc_flat_bucket_pid
-      exit_code=$((exit_code || $? != 0))
-
-      wait $e2e_tests_tpc_hns_bucket_pid
+      run_e2e_tests_for_tpc &
+      e2e_tests_tpc_pid=$!
+    
+      wait $e2e_tests_tpc_pid
       exit_code=$((exit_code || $? != 0))
     else
       run_e2e_tests_for_hns_bucket &
