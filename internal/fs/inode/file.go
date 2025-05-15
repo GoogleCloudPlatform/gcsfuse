@@ -621,7 +621,7 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 
 	// Fall back to temp file for Out-Of-Order Writes.
 	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
-		logger.Infof("Falling back to staged writes on disk for file %s due to err: %v.", f.Name(), err.Error())
+		logger.Infof("Falling back to staged writes on disk for file %s (inode %d) due to err: %v.", f.Name(), f.ID(), err.Error())
 		// Finalize the object.
 		err = f.flushUsingBufferedWriteHandler()
 		if err != nil {
@@ -631,7 +631,7 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 	}
 
 	if errors.Is(err, block.CantAllocateAnyBlockError) {
-		logger.Infof("Falling back to staged writes on disk for file %s due to err: %v.", f.Name(), err.Error())
+		logger.Infof("Falling back to staged writes on disk for file %s (inode %d) due to err: %v.", f.Name(), f.ID(), err.Error())
 		// File may have been truncated to a larger size, so persist the size to set it on temporary file.
 		size := f.bwh.WriteFileInfo().TotalSize
 		// Destroy bwh and create empty temp file.
