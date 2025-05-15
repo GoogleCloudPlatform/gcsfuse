@@ -37,6 +37,7 @@ fi
 function exitWithSuccess() { exit 0; }
 function exitWithFailure() { exit 1; }
 function echoerror()  { >&2 echo "Error: "$@ ; }
+function echowarning()  { >&2 echo "Warning: "${@} ; }
 function exitWithError()  { echoerror "$@" ; exitWithFailure ; }
 function returnWithError()  { echoerror "$@" ; return 1 ; }
 
@@ -71,26 +72,22 @@ readonly DEFAULT_BQ_PROJECT_ID='gcs-fuse-test-ml'
 readonly DEFAULT_BQ_DATASET_ID='gke_test_tool_outputs'
 readonly DEFAULT_BQ_TABLE_ID='fio_outputs'
 
-# Handle deprecated flags.
-# Maps from deprecated flags to the message to be shown for them.
-declare -A deprecated_flags=(
-  ["instance_id"]="Use experiment_id instead."
-)
-for deprecated_flag in "${!deprecated_flags[@]}" ; do
-  deprecated_flag_value=${!deprecated_flag}
-  if test -n "${deprecated_flag_value}" ; then
-    # Special case handling. If instance_id is set, but experiment_id is not
-    # set, then let this be only an error message and copy the value of
-    # instance_id to experiment_id.
-    if [ "${deprecated_flag}"="instance_id" ] && test -z "${experiment_id}" ; then
-      echoerror "${deprecated_flag} is now deprecated, but passed with value \"${deprecated_flag_value}\". In future, please use experiment_id instead. For now, setting experiment_id=\"${instance_id}\" ."
-      export experiment_id="${instance_id}"
-      unset instance_id
-    else
-      exitWithError "${deprecated_flag} is now deprecated, but passed with value \"${deprecated_flag_value}\". ${deprecated_flags[${deprecated_flag}]}"
-    fi
+# Handling of deprecated flag instance_id if it has been passed.
+if test -n "${instance_id}" ; then
+  deprecation_message="instance_id flag is now deprecated, but has been passed (with value \"${instance_id}\"). In future, please use experiment_id instead."
+
+  # If instance_id is set, but experiment_id is not
+  # set, then let this be only a warning message and pass the value of
+  # instance_id to experiment_id.
+  if test -z "${experiment_id}" ; then
+    echowarning ${deprecation_message}" For now, setting experiment_id=\"${instance_id}\" ."
+    export experiment_id="${instance_id}"
+    unset instance_id
+  else
+    # Otherwise, halt the run as this is an ambiguous situation.
+    exitWithError "${deprecation_message}"
   fi
-done
+fi
 
 # Create and return a unique experiment_id taking
 # into account user's passed experiment_id.
