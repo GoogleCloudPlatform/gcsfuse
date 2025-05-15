@@ -37,6 +37,7 @@ fi
 function exitWithSuccess() { exit 0; }
 function exitWithFailure() { exit 1; }
 function echoerror()  { >&2 echo "Error: "$@ ; }
+function echowarning()  { >&2 echo "Warning: "${@} ; }
 function exitWithError()  { echoerror "$@" ; exitWithFailure ; }
 function returnWithError()  { echoerror "$@" ; return 1 ; }
 
@@ -71,18 +72,35 @@ readonly DEFAULT_BQ_PROJECT_ID='gcs-fuse-test-ml'
 readonly DEFAULT_BQ_DATASET_ID='gke_test_tool_outputs'
 readonly DEFAULT_BQ_TABLE_ID='fio_outputs'
 
-# Create and return a unique instance_id taking
-# into account user's passed instance_id.
-function create_unique_instance_id() {
-  new_uuid=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 4 | head -n 1)
-  local generated_unique_instance_id=${USER}-$(date +%Y%m%d-%H%M%S)-${new_uuid}
-  if [ $# -gt 0 ] && [ -n "${1}" ]; then
-    local user_provided_instance_id="${1}"
-    instance_id=${user_provided_instance_id// /-}"-"${generated_unique_instance_id}
+# Handling of deprecated flag instance_id if it has been passed.
+if test -n "${instance_id}" ; then
+  deprecation_message="instance_id flag is now deprecated, but has been passed (with value \"${instance_id}\"). In future, please use experiment_id instead."
+
+  # If instance_id is set, but experiment_id is not
+  # set, then let this be only a warning message and pass the value of
+  # instance_id to experiment_id.
+  if test -z "${experiment_id}" ; then
+    echowarning ${deprecation_message}" For now, setting experiment_id=\"${instance_id}\" ."
+    export experiment_id="${instance_id}"
+    unset instance_id
   else
-    instance_id=${generated_unique_instance_id}
+    # Otherwise, halt the run as this is an ambiguous situation.
+    exitWithError "${deprecation_message}"
   fi
-  echo "${instance_id}"
+fi
+
+# Create and return a unique experiment_id taking
+# into account user's passed experiment_id.
+function create_unique_experiment_id() {
+  new_uuid=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 4 | head -n 1)
+  local generated_unique_experiment_id=${USER}-$(date +%Y%m%d-%H%M%S)-${new_uuid}
+  if [ $# -gt 0 ] && [ -n "${1}" ]; then
+    local user_provided_experiment_id="${1}"
+    experiment_id=${user_provided_experiment_id// /-}"-"${generated_unique_experiment_id}
+  else
+    experiment_id=${generated_unique_experiment_id}
+  fi
+  echo "${experiment_id}"
 }
 
 function printHelp() {
@@ -111,7 +129,7 @@ function printHelp() {
   # Test runtime configuration
   echo "pod_wait_time_in_seconds=<number e.g. 60 for checking pod status every 1 min, default=\"${DEFAULT_POD_WAIT_TIME_IN_SECONDS}\">"
   echo "pod_timeout_in_seconds=<number e.g. 3600 for timing out pod runs, should be more than the value of pod_wait_time_in_seconds, default=\"${DEFAULT_POD_TIMEOUT_IN_SECONDS}\">"
-  echo "instance_id=<Optional description of this particular test-run, it does not need to be unique e.g. \"cache test #43\""
+  echo "experiment_id=<Optional description of this particular test-run, it does not need to be unique e.g. \"cache test #43\""
   echo "workload_config=<path/to/workload/configuration/file e.g. /a/b/c.json >"
   echo "output_dir=</absolute/path/to/output/dir, output files will be written at output_dir/fio/output.csv and output_dir/dlio/output.csv>"
   echo "force_update_gcsfuse_code=<true|false, to force-update the gcsfuse-code to given branch if gcsfuse_src_dir has been set. Default=\"${DEFAULT_FORCE_UPDATE_GCSFUSE_CODE}\">"
@@ -238,16 +256,16 @@ elif [ "$only_parse" != "true" ] && [ "$only_parse" != "false" ]; then
   exitWithError "Unexpected value of only_parse: ${only_parse}. Expected: true or false ."
 fi
 
-# If user passes only_parse=true, then expect an instance_id
+# If user passes only_parse=true, then expect an experiment_id
 # also with it, and use it as it is.
 if ${only_parse}; then
-  if [ -z "${instance_id}" ]; then
-    exitWithError "instance_id not passed with only_parse=true"
+  if [ -z "${experiment_id}" ]; then
+    exitWithError "experiment_id not passed with only_parse=true"
   fi
 else
-  # create a new instance_id
-  export user_passed_instance_id="${instance_id}"
-  export instance_id=$(create_unique_instance_id "${user_passed_instance_id}")
+  # create a new experiment_id
+  export user_passed_experiment_id="${experiment_id}"
+  export experiment_id=$(create_unique_experiment_id "${user_passed_experiment_id}")
 fi
 
 if [[ ${pod_timeout_in_seconds} -le ${pod_wait_time_in_seconds} ]]; then
@@ -304,7 +322,7 @@ function printRunParameters() {
   # Test runtime configuration
   echo "pod_wait_time_in_seconds=\"${pod_wait_time_in_seconds}\""
   echo "pod_timeout_in_seconds=\"${pod_timeout_in_seconds}\""
-  echo "instance_id=User passed: \"${user_passed_instance_id}\", internally created: \"${instance_id}\""
+  echo "experiment_id=User passed: \"${user_passed_experiment_id}\", internally created: \"${experiment_id}\""
   echo "workload_config=\"${workload_config}\""
   echo "output_dir=\"${output_dir}\""
   echo "force_update_gcsfuse_code=\"${force_update_gcsfuse_code}\""
@@ -682,14 +700,14 @@ function deleteAllPods() {
 function deployAllFioHelmCharts() {
   printf "\nDeploying all fio helm charts ...\n\n"
   cd "${gke_testing_dir}"/examples/fio
-  python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" --project-id=${project_id} --project-number=${project_number} --namespace=${appnamespace} --ksa=${ksa} --custom-csi-driver=${applied_custom_csi_driver}
+  python3 ./run_tests.py --workload-config "${workload_config}" --experiment-id ${experiment_id} --machine-type="${machine_type}" --project-id=${project_id} --project-number=${project_number} --namespace=${appnamespace} --ksa=${ksa} --custom-csi-driver=${applied_custom_csi_driver}
   cd -
 }
 
 function deployAllDlioHelmCharts() {
   printf "\nDeploying all dlio helm charts ...\n\n"
   cd "${gke_testing_dir}"/examples/dlio
-  python3 ./run_tests.py --workload-config "${workload_config}" --instance-id ${instance_id} --machine-type="${machine_type}" --project-id=${project_id} --project-number=${project_number} --namespace=${appnamespace} --ksa=${ksa} --custom-csi-driver=${applied_custom_csi_driver}
+  python3 ./run_tests.py --workload-config "${workload_config}" --experiment-id ${experiment_id} --machine-type="${machine_type}" --project-id=${project_id} --project-number=${project_number} --namespace=${appnamespace} --ksa=${ksa} --custom-csi-driver=${applied_custom_csi_driver}
 
   cd -
 }
@@ -729,7 +747,7 @@ function waitTillAllPodsComplete() {
     else
       message="\n${num_noncompleted_pods} pod(s) is/are still pending/running (time till timeout=${time_till_timeout} seconds). Will check again in "${pod_wait_time_in_seconds}" seconds. Sleeping for now.\n\n"
       message+="\nYou can take a break too if you want. Just kill this run and connect back to it later, for fetching and parsing outputs, using the following command: \n\n"
-      message+="   only_parse=true instance_id=${instance_id} project_id=${project_id} project_number=${project_number} zone=${zone} machine_type=${machine_type}"
+      message+="   only_parse=true experiment_id=${experiment_id} project_id=${project_id} project_number=${project_number} zone=${zone} machine_type=${machine_type}"
       message+=" use_custom_csi_driver=${use_custom_csi_driver}"
       if test -n "${custom_csi_driver}"; then
         message+=" custom_csi_driver=${custom_csi_driver}"
@@ -758,7 +776,7 @@ function waitTillAllPodsComplete() {
   done
 }
 
-# Download all the fio workload outputs for the current instance-id from the
+# Download all the fio workload outputs for the current experiment-id from the
 # given bucket and file-size.
 function downloadFioOutputsFromBucket() {
   local bucket=$1
@@ -781,10 +799,10 @@ function downloadFioOutputsFromBucket() {
   # Return to original directory.
   cd - >/dev/null
 
-  # If the given bucket has the fio outputs for the given instance-id, then
+  # If the given bucket has the fio outputs for the given experiment-id, then
   # copy/download them locally to the appropriate folder.
-  src_dir="${mountpath}/fio-output/${instance_id}"
-  dst_dir="${gcsfuse_src_dir}/perfmetrics/scripts/testing_on_gke/bin/fio-logs/${instance_id}/${fileSize}"
+  src_dir="${mountpath}/fio-output/${experiment_id}"
+  dst_dir="${gcsfuse_src_dir}/perfmetrics/scripts/testing_on_gke/bin/fio-logs/${experiment_id}/${fileSize}"
   if test -d "${src_dir}" ; then
     mkdir -pv "${dst_dir}"
     echo "Copying files of type ${fileSize}* from \"${src_dir}\" to \"${dst_dir}/\" ... "
@@ -830,7 +848,7 @@ function areThereAnyDLIOWorkloads() {
 function fetchAndParseFioOutputs() {
   printf "\nFetching and parsing fio outputs ...\n\n"
   cd "${gke_testing_dir}"/examples/fio
-  parse_logs_args="--project-number=${project_number} --workload-config ${workload_config} --instance-id ${instance_id} --output-file ${output_dir}/fio/output.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace} --bq-project-id=${DEFAULT_BQ_PROJECT_ID} --bq-dataset-id=${DEFAULT_BQ_DATASET_ID} --bq-table-id=${DEFAULT_BQ_TABLE_ID}"
+  parse_logs_args="--project-number=${project_number} --workload-config ${workload_config} --experiment-id ${experiment_id} --output-file ${output_dir}/fio/output.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace} --bq-project-id=${DEFAULT_BQ_PROJECT_ID} --bq-dataset-id=${DEFAULT_BQ_DATASET_ID} --bq-table-id=${DEFAULT_BQ_TABLE_ID}"
   if ${zonal}; then
     python3 parse_logs.py ${parse_logs_args} --predownloaded-output-files
   else
@@ -842,7 +860,7 @@ function fetchAndParseFioOutputs() {
 function fetchAndParseDlioOutputs() {
   printf "\nFetching and parsing dlio outputs ...\n\n"
   cd "${gke_testing_dir}"/examples/dlio
-  python3 parse_logs.py --project-number=${project_number} --workload-config "${workload_config}" --instance-id ${instance_id} --output-file "${output_dir}"/dlio/output.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace}
+  python3 parse_logs.py --project-number=${project_number} --workload-config "${workload_config}" --experiment-id ${experiment_id} --output-file "${output_dir}"/dlio/output.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace}
   cd -
 }
 

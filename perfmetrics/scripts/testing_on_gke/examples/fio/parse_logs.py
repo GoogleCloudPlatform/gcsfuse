@@ -64,28 +64,28 @@ record = {
 }
 
 
-def download_fio_outputs(fioWorkloads: set, instanceId: str) -> int:
-  """Downloads instanceId-specific fio outputs for each fioWorkload locally.
+def download_fio_outputs(fioWorkloads: set, experimentID: str) -> int:
+  """Downloads experimentID-specific fio outputs for each fioWorkload locally.
 
   Outputs in the bucket are in the following object naming format
   (details in ./loading-test/templates/fio-tester.yaml).
-    gs://<bucket>/fio-output/<instanceId>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/<scenario>/<readType>/epoch[N].json
-    gs://<bucket>/fio-output/<instanceId>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/<scenario>/<readType>/pod_name
-    gs://<bucket>/fio-output/<instanceId>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/gcsfuse-generic/<readType>/gcsfuse_mount_options
+    gs://<bucket>/fio-output/<experimentID>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/<scenario>/<readType>/epoch[N].json
+    gs://<bucket>/fio-output/<experimentID>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/<scenario>/<readType>/pod_name
+    gs://<bucket>/fio-output/<experimentID>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/gcsfuse-generic/<readType>/gcsfuse_mount_options
 
   These are downloaded locally as:
-    <_LOCAL_LOGS_LOCATION>/<instanceId>/<fileSize>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/<scenario>/<readType>/epoch[N].json
-    <_LOCAL_LOGS_LOCATION>/<instanceId>/<fileSize>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/<scenario>/<readType>/pod_name
-    <_LOCAL_LOGS_LOCATION>/<instanceId>/<fileSize>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/gcsfuse-generic/<readType>/gcsfuse_mount_options
+    <_LOCAL_LOGS_LOCATION>/<experimentID>/<fileSize>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/<scenario>/<readType>/epoch[N].json
+    <_LOCAL_LOGS_LOCATION>/<experimentID>/<fileSize>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/<scenario>/<readType>/pod_name
+    <_LOCAL_LOGS_LOCATION>/<experimentID>/<fileSize>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/gcsfuse-generic/<readType>/gcsfuse_mount_options
   """
 
   for fioWorkload in fioWorkloads:
     dstDir = (
-        _LOCAL_LOGS_LOCATION + "/" + instanceId + "/" + fioWorkload.fileSize
+        _LOCAL_LOGS_LOCATION + "/" + experimentID + "/" + fioWorkload.fileSize
     )
     ensure_directory_exists(dstDir)
 
-    srcObjects = f"gs://{fioWorkload.bucket}/fio-output/{instanceId}/*"
+    srcObjects = f"gs://{fioWorkload.bucket}/fio-output/{experimentID}/*"
     print(f"Downloading FIO outputs from {srcObjects} ...")
     returncode, errorStr = download_gcs_objects(srcObjects, dstDir)
     if returncode < 0:
@@ -100,10 +100,10 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
   The following creates a dict called 'output'
   from the downloaded fio output files, which are in the following format.
 
-    <_LOCAL_LOGS_LOCATION>/<instanceId>/<fileSize>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/<scenario>/<readType>/epoch[N].json
+    <_LOCAL_LOGS_LOCATION>/<experimentID>/<fileSize>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/<scenario>/<readType>/epoch[N].json
     where N=1-#epochs
-    <_LOCAL_LOGS_LOCATION>/<instanceId>/<fileSize>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/<scenario>/<readType>/pod_name
-    <_LOCAL_LOGS_LOCATION>/<instanceId>/<fileSize>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/gcsfuse-generic/<readType>/gcsfuse_mount_options
+    <_LOCAL_LOGS_LOCATION>/<experimentID>/<fileSize>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/<scenario>/<readType>/pod_name
+    <_LOCAL_LOGS_LOCATION>/<experimentID>/<fileSize>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/gcsfuse-generic/<readType>/gcsfuse_mount_options
 
     Output dict structure:
     "{read_type}-{mean_file_size}-{bs}-{numjobs}-{nrfiles}":
@@ -115,7 +115,9 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
   """
 
   output = {}
-  for root, _, files in os.walk(_LOCAL_LOGS_LOCATION + "/" + args.instance_id):
+  for root, _, files in os.walk(
+      _LOCAL_LOGS_LOCATION + "/" + args.experiment_id
+  ):
     print(f"Parsing directory {root} ...")
 
     if not files:
@@ -285,7 +287,7 @@ def write_records_to_csv_output_file(output: dict, output_file_path: str):
         " Lowest"
         " Memory (MiB),GCSFuse Highest Memory (MiB),GCSFuse Lowest CPU"
         " (core),GCSFuse Highest CPU"
-        " (core),Pod,Start,End,GcsfuseMoutOptions,BlockSize,FilesPerThread,NumThreads,InstanceID,"
+        " (core),Pod,Start,End,GcsfuseMoutOptions,BlockSize,FilesPerThread,NumThreads,ExperimentID,"
         "e2e_latency_ns_max,e2e_latency_ns_p50,e2e_latency_ns_p90,e2e_latency_ns_p99,e2e_latency_ns_p99.9,"
         "bucket_name,machine_type,"  #
         "Throughput (MB/s)"
@@ -327,7 +329,7 @@ def write_records_to_csv_output_file(output: dict, output_file_path: str):
             continue
 
           output_file_fwr.write(
-              f"{record_set['mean_file_size']},{record_set['read_type']},{scenario},{r['epoch']},{r['duration']},{r['throughput_mib_per_second']},{r['IOPS']},{r['throughput_over_local_ssd']},{r['lowest_memory']},{r['highest_memory']},{r['lowest_cpu']},{r['highest_cpu']},{r['pod_name']},{r['start']},{r['end']},\"{r['gcsfuse_mount_options']}\",{r['blockSize']},{r['filesPerThread']},{r['numThreads']},{args.instance_id},"
+              f"{record_set['mean_file_size']},{record_set['read_type']},{scenario},{r['epoch']},{r['duration']},{r['throughput_mib_per_second']},{r['IOPS']},{r['throughput_over_local_ssd']},{r['lowest_memory']},{r['highest_memory']},{r['lowest_cpu']},{r['highest_cpu']},{r['pod_name']},{r['start']},{r['end']},\"{r['gcsfuse_mount_options']}\",{r['blockSize']},{r['filesPerThread']},{r['numThreads']},{args.experiment_id},"
           )
           output_file_fwr.write(
               f"{r['e2e_latency_ns_max']},{r['e2e_latency_ns_p50']},{r['e2e_latency_ns_p90']},{r['e2e_latency_ns_p99']},{r['e2e_latency_ns_p99.9']},"
@@ -419,7 +421,7 @@ if __name__ == "__main__":
     fioWorkloads = fio_workload.parse_test_config_for_fio_workloads(
         args.workload_config
     )
-    download_fio_outputs(fioWorkloads, args.instance_id)
+    download_fio_outputs(fioWorkloads, args.experiment_id)
 
   output = create_output_scenarios_from_downloaded_files(args)
 
@@ -443,5 +445,5 @@ if __name__ == "__main__":
         bq_project_id=args.bq_project_id,
         bq_dataset_id=args.bq_dataset_id,
         bq_table_id=args.bq_table_id,
-        experiment_id=args.instance_id,
+        experiment_id=args.experiment_id,
     )

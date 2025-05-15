@@ -96,7 +96,7 @@ def parse_arguments(
       required=True,
   )
   parser.add_argument(
-      "--instance-id",
+      "--experiment-id",
       help="unique string ID for current test-run",
       required=True,
   )

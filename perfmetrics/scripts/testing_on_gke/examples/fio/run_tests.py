@@ -37,7 +37,7 @@ import fio_workload
 
 
 def createHelmInstallCommands(
-    fioWorkloads: set, instanceId: str, machineType: str, customCSIDriver: str
+    fioWorkloads: set, experimentID: str, machineType: str, customCSIDriver: str
 ) -> list:
   """Creates helm install commands for the given fioWorkload objects."""
   helm_commands = []
@@ -55,7 +55,7 @@ def createHelmInstallCommands(
     if fioWorkload.numEpochs > 0:
       for readType in fioWorkload.readTypes:
         chartName, podName, outputDirPrefix = fio_workload.FioChartNamePodName(
-            fioWorkload, instanceId, readType
+            fioWorkload, experimentID, readType
         )
         commands = [
             f'helm install {chartName} loading-test',
@@ -66,7 +66,7 @@ def createHelmInstallCommands(
             f'--set fio.blockSize={fioWorkload.blockSize}',
             f'--set fio.filesPerThread={fioWorkload.filesPerThread}',
             f'--set fio.numThreads={fioWorkload.numThreads}',
-            f'--set instanceId={instanceId}',
+            f'--set experimentID={experimentID}',
             (
                 '--set'
                 f' gcsfuse.mountOptions={escape_commas_in_string(fioWorkload.gcsfuseMountOptions)}'
@@ -92,7 +92,7 @@ def main(args) -> None:
       args.workload_config
   )
   helmInstallCommands = createHelmInstallCommands(
-      fioWorkloads, args.instance_id, args.machine_type, args.custom_csi_driver
+      fioWorkloads, args.experiment_id, args.machine_type, args.custom_csi_driver
   )
   buckets = (fioWorkload.bucket for fioWorkload in fioWorkloads)
   role = 'roles/storage.objectUser'

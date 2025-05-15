@@ -182,7 +182,7 @@ def parse_test_config_for_dlio_workloads(testConfigFileName: str):
 
 
 def DlioChartNamePodName(
-    dlioWorkload: DlioWorkload, instanceID: str, batchSize: int
+    dlioWorkload: DlioWorkload, experimentID: str, batchSize: int
 ) -> (str, str, str):
   shortenScenario = {
       'local-ssd': 'ssd',
@@ -194,11 +194,11 @@ def DlioChartNamePodName(
       else 'other'
   )
 
-  hashOfWorkload = str(hash((instanceID, batchSize, dlioWorkload))).replace(
+  hashOfWorkload = str(hash((experimentID, batchSize, dlioWorkload))).replace(
       '-', ''
   )
   return (
       f'dlio-unet3d-{shortForScenario}-{dlioWorkload.recordLength}-{hashOfWorkload}',
       f'dlio-tester-{shortForScenario}-{dlioWorkload.recordLength}-{hashOfWorkload}',
-      f'{instanceID}/{dlioWorkload.numFilesTrain}-{dlioWorkload.recordLength}-{batchSize}-{hashOfWorkload}/{dlioWorkload.scenario}',
+      f'{experimentID}/{dlioWorkload.numFilesTrain}-{dlioWorkload.recordLength}-{batchSize}-{hashOfWorkload}/{dlioWorkload.scenario}',
   )

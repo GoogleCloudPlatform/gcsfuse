@@ -212,7 +212,7 @@ def parse_test_config_for_fio_workloads(fioTestConfigFile: str):
 
 
 def FioChartNamePodName(
-    fioWorkload: FioWorkload, instanceID: str, readType: str
+    fioWorkload: FioWorkload, experimentID: str, readType: str
 ) -> (str, str, str):
   shortenScenario = {
       'local-ssd': 'ssd',
@@ -230,11 +230,11 @@ def FioChartNamePodName(
       else 'ur'
   )
 
-  hashOfWorkload = str(hash((fioWorkload, instanceID, readType))).replace(
+  hashOfWorkload = str(hash((fioWorkload, experimentID, readType))).replace(
       '-', ''
   )
   return (
       f'fio-load-{shortForScenario}-{shortForReadType}-{fioWorkload.fileSize.lower()}-{hashOfWorkload}',
       f'fio-tester-{shortForScenario}-{shortForReadType}-{fioWorkload.fileSize.lower()}-{hashOfWorkload}',
-      f'{instanceID}/{fioWorkload.fileSize}-{fioWorkload.blockSize}-{fioWorkload.numThreads}-{fioWorkload.filesPerThread}-{hashOfWorkload}/{fioWorkload.scenario}/{readType}',
+      f'{experimentID}/{fioWorkload.fileSize}-{fioWorkload.blockSize}-{fioWorkload.numThreads}-{fioWorkload.filesPerThread}-{hashOfWorkload}/{fioWorkload.scenario}/{readType}',
   )
