@@ -23,8 +23,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-
-
 func (t *defaultMountCommonTest) TestReadFileAfterSync() {
 	// Write some content to the file.
 	operations.WriteAt(t.data, 0, t.f1, t.T())
