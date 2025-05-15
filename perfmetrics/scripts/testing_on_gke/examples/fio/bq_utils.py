@@ -208,20 +208,20 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
     table: A BQ table handle.
     rows_to_insert: A list of tuples to insert rows into the above BQ table.
     """
-    # Call insert_rows on BQ client. If all goes well, result will be None.
-    result = self.client.insert_rows(table, rows_to_insert)
-    if result:
+    # Call insert_rows on BQ client. If all goes well, error will be None.
+    error = self.client.insert_rows(table, rows_to_insert)
+    if error:
       # As a fallback, try inserting all rows one-by-one.
       print(
-          'Some rows failed to insert using insert_rows.\nResult:'
-          f' {result}\nWill now try to insert each row one by one.'
+          'Some rows failed to insert using insert_rows.\n  Error:'
+          f' {error}.\n  Will now try to insert each row one by one.'
       )
       for row_to_insert in rows_to_insert:
-        result = self.client.insert_rows(table, [row_to_insert])
-        if result:
+        error = self.client.insert_rows(table, [row_to_insert])
+        if error:
           print(
               'Warning: Failed to insert the following row even on retry.'
-              f'\n   row: {repr(row_to_insert)}\n   result: {result}'
+              f'\n   row: {repr(row_to_insert)}\n   Error: {error}'
           )
 
   def insert_rows(self, fioTableRows: []):
