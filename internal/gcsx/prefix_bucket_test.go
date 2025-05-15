@@ -368,21 +368,19 @@ func (t *PrefixBucketTest) TestCreateAppendableObjectWriterAndFlush() {
 	var err error
 	suffix := "taco"
 	content := []byte("foobar")
-	const offset int64 = 10
 
 	// Create the object writer.
-	w, off, err := t.bucket.CreateAppendableObjectWriter(
+	w, err := t.bucket.CreateAppendableObjectWriter(
 		t.ctx,
 		&gcs.CreateObjectChunkWriterRequest{
 			CreateObjectRequest: gcs.CreateObjectRequest{
 				Name: suffix,
 			},
 			ChunkSize: 1024,
-			Offset:    offset,
+			Offset:    10,
 		})
 
 	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), offset, off)
 	assert.NotNil(t.T(), w)
 	_, err = w.Write(content)
 	assert.NoError(t.T(), err)
@@ -400,21 +398,19 @@ func (t *PrefixBucketTest) TestCreateAppendableObjectWriterAndClose() {
 	var err error
 	suffix := "taco"
 	content := []byte("foobar")
-	const offset int64 = 10
 
 	// Create the object writer.
-	w, off, err := t.bucket.CreateAppendableObjectWriter(
+	w, err := t.bucket.CreateAppendableObjectWriter(
 		t.ctx,
 		&gcs.CreateObjectChunkWriterRequest{
 			CreateObjectRequest: gcs.CreateObjectRequest{
 				Name: suffix,
 			},
 			ChunkSize: 1024,
-			Offset:    offset,
+			Offset:    10,
 		})
 
 	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), offset, off)
 	assert.NotNil(t.T(), w)
 	_, err = w.Write(content)
 	assert.NoError(t.T(), err)

@@ -145,7 +145,7 @@ func TestContentTypeBucket_CreateAppendableObjectWriter(t *testing.T) {
 			ChunkSize: 1024,
 		}
 
-		w, _, err := bucket.CreateAppendableObjectWriter(context.Background(), req)
+		w, err := bucket.CreateAppendableObjectWriter(context.Background(), req)
 		if err != nil {
 			t.Fatalf("Test case %d: CreateObjectChunkWriter: %v", i, err)
 		}
