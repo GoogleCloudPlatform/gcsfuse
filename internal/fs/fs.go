@@ -2594,6 +2594,12 @@ func (fs *fileSystem) ReadFile(
 	fh := fs.handles[op.Handle].(*handle.FileHandle)
 	fs.mu.Unlock()
 
+	// Flush streaming writes files before issuing a read.
+	_, err = fs.flushPendingWrites(ctx, fh.Inode())
+	if err != nil {
+		return
+	}
+
 	fh.Lock()
 	defer fh.Unlock()
 
