@@ -146,8 +146,13 @@ class BqUtilsTest(unittest.TestCase):
 
     self.fioBqExporter.insert_rows([row])
 
+    # _has_experiment_id should return true for an experiment_id
+    # which has already been added to the table.
     self.assertTrue(self.fioBqExporter._has_experiment_id(row.experiment_id))
 
+  def test_has_experiment_id_negative(self):
+    # _has_experiment_id should return false for an experiment_id
+    # which has not been added to the table.
     self.assertFalse(
         self.fioBqExporter._has_experiment_id('invalid-experiment-id')
     )
