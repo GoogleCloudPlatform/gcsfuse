@@ -23,11 +23,10 @@ import helper
 MOUNT_DIR = "gcs"
 FILE_PREFIX = "testfile-read"
 
-# The function to be tested (provided by the user)
 def check_and_create_files(bucket_name: str, total_files: int, file_size_gb: int):
   """
   Ensures that the specified number of files exist in the given GCS bucket.
-  If a file is missing or its size deviates by more than 100 MiB, it is (re)created and uploaded.
+  If a file is missing or its not given size, it is (re)created and uploaded.
 
   Args:
       bucket_name (str): Name of the GCS bucket.
@@ -37,7 +36,6 @@ def check_and_create_files(bucket_name: str, total_files: int, file_size_gb: int
   client = storage.Client()
   bucket = client.get_bucket(bucket_name)
   expected_size = file_size_gb * (10 ** 9)  # Use base-10 GB
-  size_tolerance = 10 * (2**20)  # 10 MiB = 10485760 bytes
 
   print(f"Ensuring all {total_files} files exist in gs://{bucket_name}...")
 
@@ -47,10 +45,10 @@ def check_and_create_files(bucket_name: str, total_files: int, file_size_gb: int
 
     blob_exists = blob.exists()
     # Use a default value for blob.size if it's None (e.g., if blob doesn't exist)
+    blob.reload()
     current_blob_size = blob.size if blob_exists and blob.size is not None else 0
-    size_diff = abs(current_blob_size - expected_size) if blob_exists else None
 
-    if not blob_exists or (size_diff is not None and size_diff > size_tolerance):
+    if not blob_exists or current_blob_size != expected_size:
       if blob_exists:
         print(f"{fname} exists but has size {current_blob_size} bytes (expected ~{expected_size}). Re-uploading...")
 
@@ -59,7 +57,9 @@ def check_and_create_files(bucket_name: str, total_files: int, file_size_gb: int
 
       try:
         # Use subprocess.run to execute fallocate
-        subprocess.run(f"fallocate -l {file_size_gb}G {local_path}", shell=True, check=True)
+        gb_in_bytes = file_size_gb * 10**9
+        subprocess.run(f"fallocate -l {gb_in_bytes} {local_path}", shell=True, check=True)
+
       except subprocess.CalledProcessError as e:
         print(f"Error creating dummy file {local_path}: {e}")
         continue # Skip to the next file if creation fails
@@ -78,34 +78,32 @@ def check_and_create_files(bucket_name: str, total_files: int, file_size_gb: int
 
 def read_all_files(total_files: int) -> int:
   """
-  Reads a specified number of files from a predefined directory
-  and calculates the total number of bytes across all files.
+   Reads a specified number of files from a predefined directory,
+   calculates, and returns the total number of bytes read across all files.
 
-  Args:
-      total_files: The number of files to read.
+   The files are expected to be named with a common prefix and index suffix:
+   {FILE_PREFIX}_{i}.bin, located inside the directory MOUNT_DIR.
 
-  Returns:
-      The total number of bytes read from all files.
-  """
+   Args:
+       total_files (int): The number of files to read.
+
+   Returns:
+       int: The total number of bytes read from all files.
+
+   Raises:
+       RuntimeError: If any error occurs while reading any file, including
+                     file not found, permission issues, or other IO errors.
+   """
   total_bytes = 0
   for i in range(total_files):
-    # Construct the full path to the file
     path = os.path.join(MOUNT_DIR, f"{FILE_PREFIX}_{i}.bin")
     try:
-      # Open the file in binary read mode
       with open(path, "rb") as f:
-        # Read the entire content of the file
-        file_content = f.read()
-        # Add the length of the content to the total bytes
-        total_bytes += len(file_content)
-    except FileNotFoundError:
-      # Handle cases where a file might not be found (optional, but good practice)
-      print(f"Warning: File not found at {path}")
-      continue
-    except IOError as e:
-      # Handle other I/O errors
+        total_bytes += len(f.read())
+    except Exception as e:  # catch all exceptions
       print(f"Error reading file {path}: {e}")
-      continue
+      raise RuntimeError(f"Failed to read file: {path}") from e
+
   return total_bytes
 
 def main():
@@ -124,7 +122,7 @@ def main():
   # Ensure test files exist
   check_and_create_files(args.bucket, args.total_files, args.file_size_gb)
 
-  print(f"📦 Starting read of {args.total_files} files...")
+  print(f"Starting read of {args.total_files} files...")
   start = time.time()
   total_bytes = read_all_files(args.total_files)
   duration = time.time() - start
