@@ -247,14 +247,14 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
     """Pass a list of FioTableRow objects to insert into the fio-table.
 
     This inserts all the given rows of data in a single transaction.
-    It is assumed that all the rows being inserted are for
-    a single experiment_id.
+    It is expected and verified that all the rows being inserted have the same
+    experiment_id.
 
     Arguments:
 
     fioTableRows: a list of FioTableRow objects.
     experiment_id: experiment_id associated with all the rows.
-    If experiment_is not passed, it is determined from the
+    If experiment_id not passed, it is determined from the
     first row.
 
     Raises:
@@ -264,17 +264,27 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
     # Edge-cases.
     if fioTableRows is None or len(fioTableRows) == 0:
       return
+
+    # Confirm that all the rows being inserted have the same experiment_id.
+    # Future improvement: If there are rows with K different experiment_id
+    # values, then divide the rows into K batches each with homogeneous
+    # experiment_id and then insert only those batches whose experiment_id's
+    # are not there in the table already.
     if not experiment_id:
       experiment_id = fioTableRows[0].experiment_id
       if not experiment_id:
         raise Exception('experiment_id is null for first row')
-    # confirm that all the rows for insertion have the correct experiment_id.
+    # Confirm that all the rows for insertion have the correct experiment_id.
     for row in fioTableRows:
       if row.experiment_id != experiment_id:
         raise Exception(
             'There is a mismatch in the experiment_id for a row. Expected:'
             f' {experiment_id}, Got: {row.experiment_id}'
         )
+
+    # If this experiment_id already has rows in the BQ table, then don't insert
+    # the rows passed here to avoid duplicate entries in the
+    # table.
     if self._has_experiment_id(experiment_id):
       print(
           'Bigquery table'
