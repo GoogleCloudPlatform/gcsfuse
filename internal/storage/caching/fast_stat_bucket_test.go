@@ -228,7 +228,7 @@ func (t *CreateAppendableObjectWriterTest) CallsWrappedWithExpectedParameters() 
 	// Wrapped
 	var wrappedReq *gcs.CreateObjectChunkWriterRequest
 	ExpectCall(t.wrapped, "CreateAppendableObjectWriter")(Any(), Any()).
-		WillOnce(DoAll(SaveArg(1, &wrappedReq), Return(nil, 0, errors.New(""))))
+		WillOnce(DoAll(SaveArg(1, &wrappedReq), Return(nil, errors.New(""))))
 	// Call
 	req := &gcs.CreateObjectChunkWriterRequest{
 		CreateObjectRequest: gcs.CreateObjectRequest{
@@ -238,7 +238,7 @@ func (t *CreateAppendableObjectWriterTest) CallsWrappedWithExpectedParameters() 
 		ChunkSize: chunkSize,
 	}
 
-	_, _, _ = t.bucket.CreateAppendableObjectWriter(ctx, req)
+	_, _ = t.bucket.CreateAppendableObjectWriter(ctx, req)
 
 	AssertNe(nil, wrappedReq)
 	ExpectEq(req, wrappedReq)
@@ -250,10 +250,10 @@ func (t *CreateAppendableObjectWriterTest) WrappedFails() {
 	var err error
 	// Wrapped
 	ExpectCall(t.wrapped, "CreateAppendableObjectWriter")(Any(), Any()).
-		WillOnce(Return(nil, 0, errors.New("taco")))
+		WillOnce(Return(nil, errors.New("taco")))
 
 	// Call
-	_, _, err = t.bucket.CreateAppendableObjectWriter(ctx, req)
+	_, err = t.bucket.CreateAppendableObjectWriter(ctx, req)
 
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
@@ -261,21 +261,19 @@ func (t *CreateAppendableObjectWriterTest) WrappedFails() {
 func (t *CreateAppendableObjectWriterTest) WrappedSucceeds() {
 	ctx := context.TODO()
 	req := &gcs.CreateObjectChunkWriterRequest{}
-	offset := 100
 	var err error
 	// Wrapped
 	wr := &storage.ObjectWriter{
 		Writer: &gostorage.Writer{},
 	}
 	ExpectCall(t.wrapped, "CreateAppendableObjectWriter")(Any(), Any()).
-		WillOnce(Return(wr, offset, nil))
+		WillOnce(Return(wr, nil))
 
 	// Call
-	gotWr, off, err := t.bucket.CreateAppendableObjectWriter(ctx, req)
+	gotWr, err := t.bucket.CreateAppendableObjectWriter(ctx, req)
 
 	AssertEq(nil, err)
 	ExpectEq(wr, gotWr)
-	AssertEq(offset, off)
 }
 
 ////////////////////////////////////////////////////////////////////////
