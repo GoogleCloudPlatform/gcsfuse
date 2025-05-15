@@ -16,17 +16,14 @@
 # Constants
 readonly GO_VERSION="go1.24.0"
 readonly PROJECT_ID="gcs-fuse-test-ml"
-readonly HNS_PROJECT_ID="gcs-fuse-test"
 readonly BUCKET_PREFIX="gcs-fuse-e2e-tests"
 readonly INTEGRATION_TEST_PACKAGE_DIR="./tools/integration_tests"
 readonly INTEGRATION_TEST_TIMEOUT_IN_MINS=90
 
-set -e # Fail immediately if any of the below commands fail.
 readonly FIXED_RANDOM_PREFIX=$(head /dev/urandom | tr -dc 'a-z0-9' | head -c 8)
 readonly LOG_LOCK_FILE=$(mktemp "/tmp/${FIXED_RANDOM_PREFIX}_logging_lock.XXXXXX")
 readonly BUCKET_CREATION_LOCK_FILE=$(mktemp "/tmp/${FIXED_RANDOM_PREFIX}_bucket_creation_lock.XXXXXX")
 readonly PACKAGE_STATS_FILE=$(mktemp "/tmp/${FIXED_RANDOM_PREFIX}package_stats.XXXXXX")
-set +e
 
 # Default values for optional arguments
 RUN_TEST_ON_TPC_ENDPOINT=false
@@ -84,68 +81,22 @@ fi
 
 # Tests Packages which can be run in parallel.
 PARALLEL_TEST_PACKAGES=(
-  # "monitoring"
-  # "local_file"
-  # "log_rotation"
-  # "mounting"
-  # "read_cache"
-  # "grpc_validation"
-  # "gzip"
-  # "write_large_files"
-  # "list_large_dir"
-  # "rename_dir_limit"
-  # "read_large_files"
-  # "explicit_dir"
-  # "implicit_dir"
-  # "interrupt"
-  # "operations"
-  # "kernel_list_cache"
-  "concurrent_operations"
-  # "benchmarking"
-  # "mount_timeout"
   "stale_handle"
-  "negative_stat_cache"
-  "streaming_writes"
 )
 
 # These packages which can only be run in sequential.
 SEQUENTIAL_TEST_PACKAGES=(
   "readonly"
-  # "managed_folders"
-  "readonly_creds"
 )
 
 # Tests Packages which can be run in parallel on zonal buckets.
 PARALLEL_TEST_PACKAGES_FOR_ZB=(
-  "benchmarking"
-  # "explicit_dir"
-  # "gzip"
-  # "implicit_dir"
-  # "interrupt"
-  # "kernel_list_cache"
-  # "local_file"
-  # "log_rotation"
-  # "monitoring"
-  # "mount_timeout"
-  # "mounting"
-  # "negative_stat_cache"
-  # "operations"
-  # "read_cache"
-  # "read_large_files"
-  # "rename_dir_limit"
   "stale_handle"
-  # "streaming_writes"
-  # "write_large_files"
-  "unfinalized_object"
 )
 
 # These packages which can only be run in sequential on zonal buckets.
 SEQUENTIAL_TEST_PACKAGES_FOR_ZB=(
-  # "concurrent_operations"
-  # "list_large_dir"
-  # "managed_folders"
   "readonly"
-  "readonly_creds"
 )
 
 # acquire_lock: Acquires exclusive lock or exits script on failure.
@@ -170,10 +121,10 @@ acquire_lock() {
 # release_lock: Releases lock or exits script on failure.
 # Args: $1 = path to lock file
 release_lock() {
-  [[ -z "$1" ]] && {
+  if [[ -z "$1" ]]; then
     log_error "release_lock: Lock file path is required."
     exit 1
-  }
+  fi
   local lock_file="$1"
   [[ -e "/proc/self/fd/200" || -L "/proc/self/fd/200" ]] && exec 200>&- || {
     log_error "Lock file descriptor (FD 200) not open for $lock_file. Possible previous error or double release."
@@ -215,7 +166,7 @@ create_bucket() {
   if [[ "$bucket_type" == "flat" ]]; then
     cmd="gcloud alpha storage buckets create gs://${bucket_name} --project=${PROJECT_ID} --location=${BUCKET_LOCATION} --uniform-bucket-level-access > /dev/null 2>&1"
   elif [[ "$bucket_type" == "hns" ]]; then
-    cmd="gcloud alpha storage buckets create gs://${bucket_name} --project=${HNS_PROJECT_ID} --location=${BUCKET_LOCATION} --uniform-bucket-level-access --enable-hierarchical-namespace > /dev/null 2>&1"
+    cmd="gcloud alpha storage buckets create gs://${bucket_name} --project=${PROJECT_ID} --location=${BUCKET_LOCATION} --uniform-bucket-level-access --enable-hierarchical-namespace > /dev/null 2>&1"
   elif [[ "$bucket_type" == "zonal" ]]; then
     cmd="gcloud alpha storage buckets create gs://${bucket_name} --project=${PROJECT_ID} --location=${BUCKET_LOCATION} --placement=${BUCKET_LOCATION}-a --default-storage-class=RAPID --uniform-bucket-level-access --enable-hierarchical-namespace > /dev/null 2>&1"
   else
@@ -527,13 +478,13 @@ upgrade_gcloud_version() {
   gcloud version
 
   # Download gcloud.tar.gz to the temporary directory
-  wget -O "tmp/${FIXED_RANDOM_PREFIX}_gcloud.tar.gz" https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
+  wget -O "/tmp/${FIXED_RANDOM_PREFIX}_gcloud.tar.gz" https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
 
   # Extract gcloud.tar.gz within the temporary directory
-  sudo tar xzf "tmp/${FIXED_RANDOM_PREFIX}_gcloud.tar.gz" -C tmp/google-cloud-sdk
+  sudo tar xzf "/tmp/${FIXED_RANDOM_PREFIX}_gcloud.tar.gz" -C /tmp/google-cloud-sdk
 
   # Copy the extracted google-cloud-sdk from the temporary directory to /usr/local
-  sudo mv -r tmp/google-cloud-sdk /usr/local
+  sudo mv -r /tmp/google-cloud-sdk /usr/local
 
   # Install gcloud
   sudo /usr/local/google-cloud-sdk/install.sh --quiet
@@ -552,8 +503,8 @@ install_packages() {
   # e.g. architecture=arm64 or amd64
   architecture=$(dpkg --print-architecture)
   log_info_locked "Installing go-lang version: ${GO_VERSION}"
-  wget -O "tmp/${FIXED_RANDOM_PREFIX}_go_tar.tar.gz" https://go.dev/dl/${GO_VERSION}.linux-${architecture}.tar.gz -q
-  sudo rm -rf /usr/local/go && tar -xzf "tmp/${FIXED_RANDOM_PREFIX}_go_tar.tar.gz" -C tmp/go && sudo mv tmp/go /usr/local
+  wget -O "/tmp/${FIXED_RANDOM_PREFIX}_go_tar.tar.gz" https://go.dev/dl/${GO_VERSION}.linux-${architecture}.tar.gz -q
+  sudo rm -rf /usr/local/go && tar -xzf "tmp/${FIXED_RANDOM_PREFIX}_go_tar.tar.gz" -C /tmp/go && sudo mv /tmp/go /usr/local
   export PATH=$PATH:/usr/local/go/bin
   sudo apt-get install -y python3
   # install python3-setuptools tools.
@@ -561,6 +512,7 @@ install_packages() {
   # Downloading composite object requires integrity checking with CRC32c in gsutil.
   # it requires to install crcmod.
   sudo apt install -y python3-crcmod
+  exit 1
 }
 
 run_e2e_tests_for_flat_bucket() {
