@@ -84,6 +84,7 @@ class BqUtilsTest(unittest.TestCase):
 
   def test_insert_multiple_rows(self):
     rows = []
+    orig_num_rows = self.fioBqExporter._num_rows()
 
     rowCommon = self.create_sample_fio_table_row()
 
@@ -102,9 +103,11 @@ class BqUtilsTest(unittest.TestCase):
     rows.append(row)
 
     self.fioBqExporter.insert_rows(rows)
+    self.assertEqual(self.fioBqExporter._num_rows(), orig_num_rows + 2)
 
   def test_insert_rows_with_one_bad_row(self):
     rows = []
+    orig_num_rows = self.fioBqExporter._num_rows()
 
     rowCommon = self.create_sample_fio_table_row()
 
@@ -126,6 +129,17 @@ class BqUtilsTest(unittest.TestCase):
     # Despite bad row(s), the insert_rows itself will not fail
     # because of the fallback in insert_rows.
     self.fioBqExporter.insert_rows(rows)
+    self.assertEqual(
+        self.fioBqExporter._num_rows(), orig_num_rows + num_rows - 1
+    )
+
+  def test_num_rows(self):
+    row = self.create_sample_fio_table_row()
+    orig_num_rows = self.fioBqExporter._num_rows()
+
+    self.fioBqExporter.insert_rows([row])
+
+    self.assertEqual(self.fioBqExporter._num_rows(), orig_num_rows + 1)
 
 
 if __name__ == '__main__':
