@@ -195,6 +195,15 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
       print(f'Failed to create fio table {self.table_id}: {e}')
       raise
 
+  def _num_rows(self) -> int:
+    """Returns total number of rows in the current BQ table."""
+    query = (
+        f'select {FIO_TABLE_ROW_SCHEMA[0]} from'
+        f' {self.project_id}.{self.dataset_id}.{self.table_id}'
+    )
+    results = self.client.query_and_wait(query)
+    return results.total_rows if results else 0
+
   def _insert_rows_with_retry(self, table, rows_to_insert: []):
     """Inserts given rows to the given table in a single transaction.
 
