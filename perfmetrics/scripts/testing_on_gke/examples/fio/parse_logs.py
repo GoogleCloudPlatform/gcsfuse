@@ -122,40 +122,43 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
   ):
     print(f"Parsing directory {root} ...")
 
-    if not files:
-      # ignore intermediate directories.
-      continue
-    elif not any(re.search(_EPOCH_FILENAME_REGEX, file) for file in files):
-      print(
-          f"directory {root} does not have any"
-          " epoch[N].json files in it, so skipping it ..."
-      )
-      continue
-
-    # Skip this directory if it is missing any of metadata files
-    # i.e. gcsfuse_mount_options, pod_name, bucket_name, machine_type etc.
     metadata_values = dict()
-    skip_this_directory = False
-    for metadata in [
-        "gcsfuse_mount_options",
-        "bucket_name",
-        "machine_type",
-        "pod_name",
-    ]:
-      metadata_file = root + f"/{metadata}"
-      if os.path.isfile(metadata_file):
-        with open(metadata_file) as f:
-          metadata_values[metadata] = f.read().strip()
-      else:
-        print(
-            f"{metadata} file not found in directory {root}, so skipping this"
-            " directory ..."
-        )
-        skip_this_directory = True
-        break
-
-    if skip_this_directory:
+    if not files:
+      # Ignore intermediate directories.
+      # Don't combine it with the else or it will lead to a lot of unnecessary
+      # logs.
       continue
+    else:
+      # Skip this directory if doesn't have any epoch[N].json file in it.
+      if not any(re.search(_EPOCH_FILENAME_REGEX, file) for file in files):
+        print(
+            f"Directory {root} does not have any"
+            " epoch[N].json files in it, so skipping it."
+        )
+        continue
+      # Skip this directory if it is missing any of metadata files
+      # i.e. gcsfuse_mount_options, pod_name, bucket_name, machine_type etc.
+      skip_this_directory = False
+      for metadata in [
+          "gcsfuse_mount_options",
+          "bucket_name",
+          "machine_type",
+          "pod_name",
+      ]:
+        metadata_file = root + f"/{metadata}"
+        if os.path.isfile(metadata_file):
+          with open(metadata_file) as f:
+            metadata_values[metadata] = f.read().strip()
+        else:
+          print(
+              f"Error: Directory {root} does not have file {metadata} in it"
+              " as expected, so skipping it."
+          )
+          skip_this_directory = True
+          break
+
+      if skip_this_directory:
+        continue
 
     for file in files:
       if not re.search(_EPOCH_FILENAME_REGEX, file):
