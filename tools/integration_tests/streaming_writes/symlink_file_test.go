@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func (t *defaultMountCommonTest) TestCreateSymlinkForLocalFileAndReadFromSymlink() {
+func (t *StreamingWritesSuite) TestCreateSymlinkForLocalFileAndReadFromSymlink() {
 	// Create Symlink.
 	symlink := path.Join(testDirPath, setup.GenerateRandomString(5))
 	operations.CreateSymLink(t.filePath, symlink, t.T())
@@ -40,7 +40,7 @@ func (t *defaultMountCommonTest) TestCreateSymlinkForLocalFileAndReadFromSymlink
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, t.data, t.T())
 }
 
-func (t *defaultMountCommonTest) TestReadingFromSymlinkForDeletedLocalFile() {
+func (t *StreamingWritesSuite) TestReadingFromSymlinkForDeletedLocalFile() {
 	// Create Symlink.
 	symlink := path.Join(testDirPath, setup.GenerateRandomString(5))
 	operations.CreateSymLink(t.filePath, symlink, t.T())

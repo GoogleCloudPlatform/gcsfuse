@@ -22,7 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func (t *defaultMountCommonTest) TestRenameBeforeFileIsFlushed() {
+func (t *StreamingWritesSuite) TestRenameBeforeFileIsFlushed() {
 	operations.WriteWithoutClose(t.f1, t.data, t.T())
 	operations.WriteWithoutClose(t.f1, t.data, t.T())
 	operations.VerifyStatFile(t.filePath, int64(2*len(t.data)), FilePerms, t.T())
@@ -42,7 +42,7 @@ func (t *defaultMountCommonTest) TestRenameBeforeFileIsFlushed() {
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, t.fileName, t.T())
 }
 
-func (t *defaultMountCommonTest) TestSyncAfterRenameSucceeds() {
+func (t *StreamingWritesSuite) TestSyncAfterRenameSucceeds() {
 	_, err := t.f1.WriteAt([]byte(t.data), 0)
 	require.NoError(t.T(), err)
 	operations.VerifyStatFile(t.filePath, int64(len(t.data)), FilePerms, t.T())
