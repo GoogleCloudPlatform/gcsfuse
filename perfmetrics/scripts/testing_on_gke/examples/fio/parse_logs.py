@@ -20,6 +20,7 @@ import argparse
 import json
 import os
 import pprint
+import re
 import subprocess
 import sys
 
@@ -31,6 +32,7 @@ from fio.bq_utils import FioBigqueryExporter, FioTableRow, Timestamp
 from utils.utils import unix_to_timestamp, convert_size_to_bytes
 
 _LOCAL_LOGS_LOCATION = "../../bin/fio-logs"
+_EPOCH_FILENAME_REGEX = "^epoch[0-9]+.json$"
 
 record = {
     "pod_name": "",
@@ -120,47 +122,46 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
   ):
     print(f"Parsing directory {root} ...")
 
+    metadata_values = dict()
     if not files:
-      # ignore intermediate directories.
+      # Ignore intermediate directories.
+      # Don't combine it with the else or it will lead to a lot of unnecessary
+      # logs.
       continue
+    else:
+      # Skip this directory if doesn't have any epoch[N].json file in it.
+      if not any(re.search(_EPOCH_FILENAME_REGEX, file) for file in files):
+        print(
+            f"Directory {root} does not have any"
+            " epoch[N].json files in it, so skipping it."
+        )
+        continue
+      # Skip this directory if it is missing any of metadata files
+      # i.e. gcsfuse_mount_options, pod_name, bucket_name, machine_type etc.
+      skip_this_directory = False
+      for metadata in [
+          "gcsfuse_mount_options",
+          "bucket_name",
+          "machine_type",
+          "pod_name",
+      ]:
+        metadata_file = root + f"/{metadata}"
+        if os.path.isfile(metadata_file):
+          with open(metadata_file) as f:
+            metadata_values[metadata] = f.read().strip()
+        else:
+          print(
+              f"Error: Directory {root} does not have file {metadata} in it"
+              " as expected, so skipping it."
+          )
+          skip_this_directory = True
+          break
 
-    # if directory contains gcsfuse_mount_options file, then parse gcsfuse
-    # mount options from it in record.
-    gcsfuse_mount_options = ""
-    gcsfuse_mount_options_file = root + "/gcsfuse_mount_options"
-    if os.path.isfile(gcsfuse_mount_options_file):
-      with open(gcsfuse_mount_options_file) as f:
-        gcsfuse_mount_options = f.read().strip()
-        print(f"gcsfuse_mount_options={gcsfuse_mount_options}")
-
-    # if directory contains bucket_name file, then parse it.
-    bucket_name = ""
-    bucket_name_file = root + "/bucket_name"
-    if os.path.isfile(bucket_name_file):
-      with open(bucket_name_file) as f:
-        bucket_name = f.read().strip()
-        print(f"bucket_name={bucket_name}")
-
-    # if directory contains machine_type file, then parse it.
-    machine_type = ""
-    machine_type_file = root + "/machine_type"
-    if os.path.isfile(machine_type_file):
-      with open(machine_type_file) as f:
-        machine_type = f.read().strip()
-        print(f"machine_type={machine_type}")
-
-    # if directory has files, it must also contain pod_name file,
-    # and we should extract pod-name from it in the record.
-    pod_name = ""
-    pod_name_file = root + "/pod_name"
-    if os.path.isfile(pod_name_file):
-      with open(pod_name_file) as f:
-        pod_name = f.read().strip()
-        print(f"pod_name={pod_name}")
+      if skip_this_directory:
+        continue
 
     for file in files:
-      # Ignore non-json files to avoid unnecessary failure.
-      if not file.endswith(".json"):
+      if not re.search(_EPOCH_FILENAME_REGEX, file):
         continue
 
       per_epoch_output = root + f"/{file}"
@@ -229,7 +230,8 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
       # Create a record for this key.
       r = record.copy()
       try:
-        r["pod_name"] = pod_name
+        for metadata, metadata_value in metadata_values.items():
+          r[metadata] = metadata_value
         r["epoch"] = epoch
         r["scenario"] = scenario
         r["duration"] = int(job0_read_metrics["runtime"] / 1000)
@@ -248,9 +250,6 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
 
         fetch_cpu_memory_data(args=args, record=r)
 
-        r["gcsfuse_mount_options"] = gcsfuse_mount_options
-        r["bucket_name"] = bucket_name
-        r["machine_type"] = machine_type
         r["blockSize"] = bs
         r["filesPerThread"] = nrfiles
         r["numThreads"] = numjobs
@@ -262,7 +261,10 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
         r["e2e_latency_ns_p99"] = clat_ns_percentile["99.000000"]
         r["e2e_latency_ns_p99.9"] = clat_ns_percentile["99.900000"]
       except Exception as e:
-        print(f"Failed to create following record with error: {e}")
+        print(
+            f"Failed to create following record with error: {e}, metadata:"
+            f" {repr(metadata_values)}"
+        )
         # This print is for debugging in case something goes wrong.
         pprint.pprint(r)
         continue
@@ -355,8 +357,6 @@ def write_records_to_bq_table(
     bq_dataset_id: str,
     bq_table_id: str,
 ):
-  fioBqExporter = FioBigqueryExporter(bq_project_id, bq_dataset_id, bq_table_id)
-
   # list of FioRowTable objects to be populated to be inserted into BigQuery
   # table using the above exporter.
   rows = []
@@ -406,6 +406,11 @@ def write_records_to_bq_table(
 
         rows.append(row)
 
+  if len(rows) == 0:
+    print("No output rows to insert into the BQ table.")
+    return
+
+  fioBqExporter = FioBigqueryExporter(bq_project_id, bq_dataset_id, bq_table_id)
   fioBqExporter.insert_rows(fioTableRows=rows)
   print(
       "\nSuccessfully exported outputs of FIO test runs to"
