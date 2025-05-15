@@ -411,7 +411,7 @@ def write_records_to_bq_table(
     return
 
   fioBqExporter = FioBigqueryExporter(bq_project_id, bq_dataset_id, bq_table_id)
-  fioBqExporter.insert_rows(fioTableRows=rows, experiment_id=experiment_id)
+  fioBqExporter.insert_rows(fioTableRows=rows)
   print(
       "\nSuccessfully exported outputs of FIO test runs to"
       f" BigQuery table {bq_project_id}:{bq_dataset_id}.{bq_table_id} !!!\n"

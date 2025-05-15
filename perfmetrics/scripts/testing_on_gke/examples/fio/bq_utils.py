@@ -243,19 +243,16 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
               f'\n   row: {repr(row_to_insert)}\n   Error: {error}'
           )
 
-  def insert_rows(self, fioTableRows: [], experiment_id: str = None):
+  def insert_rows(self, fioTableRows: []):
     """Pass a list of FioTableRow objects to insert into the fio-table.
 
     This inserts all the given rows of data in a single transaction.
     It is expected and verified that all the rows being inserted have the same
-    experiment_id.
+    experiment_id (determined from the first row).
 
     Arguments:
 
     fioTableRows: a list of FioTableRow objects.
-    experiment_id: experiment_id associated with all the rows.
-    If experiment_id not passed, it is determined from the
-    first row.
 
     Raises:
       Exception: If some row insertion failed.
@@ -270,10 +267,9 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
     # values, then divide the rows into K batches each with homogeneous
     # experiment_id and then insert only those batches whose experiment_id's
     # are not there in the table already.
+    experiment_id = fioTableRows[0].experiment_id
     if not experiment_id:
-      experiment_id = fioTableRows[0].experiment_id
-      if not experiment_id:
-        raise Exception('experiment_id is null for first row')
+      raise Exception('experiment_id is null for first row')
     # Confirm that all the rows for insertion have the correct experiment_id.
     for row in fioTableRows:
       if row.experiment_id != experiment_id:

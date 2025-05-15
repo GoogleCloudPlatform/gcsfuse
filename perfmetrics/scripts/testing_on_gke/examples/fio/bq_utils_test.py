@@ -157,20 +157,14 @@ class BqUtilsTest(unittest.TestCase):
         self.fioBqExporter._has_experiment_id('invalid-experiment-id')
     )
 
-  def test_insert_rows_with_mismatched_experiment_id_1(self):
+  def test_insert_rows_with_unset_experiment_id(self):
     row = self.create_sample_fio_table_row()
     row.experiment_id = None
 
     with self.assertRaises(Exception):
       self.fioBqExporter.insert_rows([row])
 
-  def test_insert_rows_with_mismatched_experiment_id_2(self):
-    row = self.create_sample_fio_table_row()
-
-    with self.assertRaises(Exception):
-      self.fioBqExporter.insert_rows([row], experiment_id='mismatching-expt-id')
-
-  def test_insert_rows_with_mismatched_experiment_id_3(self):
+  def test_insert_rows_with_mismatched_experiment_ids(self):
     row1 = self.create_sample_fio_table_row()
     row1.experiment_id = 'expt-id-1'
     row2 = copy.deepcopy(row1)
