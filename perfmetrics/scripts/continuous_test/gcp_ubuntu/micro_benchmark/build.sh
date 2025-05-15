@@ -25,7 +25,6 @@ echo "Building and installing gcsfuse"
 commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
 ./perfmetrics/scripts/build_and_install_gcsfuse.sh $commitId
 
-# Mounting gcs bucket
 cd "./perfmetrics/scripts/single_threaded_benchmark"
 
 echo "Installing dependencies..."
@@ -33,15 +32,15 @@ python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 
-echo "Running Python scripts..."
-
-LOG_FILE=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-single-threaded-read-test.txt
+echo "Running Python scripts for hns bucket..."
+FILE_SIZE_READ_GB=15
+LOG_FILE=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-single-threaded-read-${FILE_SIZE_READ_GB}gb-test.txt
 GCSFUSE_READ_FLAGS="--log-file $LOG_FILE"
-# Example running a single script
-python3 read_single_thread.py .py --bucket single-threaded-tests --gcsfuse-config "$GCSFUSE_READ_FLAGS" --total-files 1 --file-size-gb 15
+python3 read_single_thread.py  --bucket single-threaded-tests --gcsfuse-config "$GCSFUSE_READ_FLAGS" --total-files 10 --file-size-gb ${FILE_SIZE_READ_GB}
 
-LOG_FILE=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-single-threaded-write-test.txt
+FILE_SIZE_WRITE_GB=15
+LOG_FILE=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-single-threaded-write-${FILE_SIZE_WRITE_GB}gb-test.txt
 GCSFUSE_WRITE_FLAGS="--log-file $LOG_FILE"
-python3 write_single_thread.py --bucket single-threaded-tests --gcsfuse-config "$GCSFUSE_WRITE_FLAGS" --total-files 1 --file-size-gb 15
+python3 write_single_thread.py --bucket single-threaded-tests --gcsfuse-config "$GCSFUSE_WRITE_FLAGS" --total-files 1 --file-size-gb ${FILE_SIZE_WRITE_GB}
 
 deactivate
