@@ -204,6 +204,16 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
     results = self.client.query_and_wait(query)
     return results.total_rows if results else 0
 
+  def _has_experiment_id(self, experiment_id: str) -> bool:
+    """Returns true if the current BQ table has any rows for the given experiment_id."""
+    query = (
+        'select count(*) as num_rows from'
+        f' {self.project_id}.{self.dataset_id}.{self.table_id} where'
+        f" experiment_id='{experiment_id}' group by experiment_id"
+    )
+    results = self.client.query_and_wait(query)
+    return results and results.total_rows > 0
+
   def _insert_rows_with_retry(self, table, rows_to_insert: []):
     """Inserts given rows to the given table in a single transaction.
 
