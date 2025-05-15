@@ -424,8 +424,8 @@ type MoveObjectRequest struct {
 }
 
 // CreateObjectChunkWriterRequest represents a request to create a storage.Writer
-// which can either be used for regular writes or appendable object writes via the
-// the CreateObjectChunkWriter or CreateAppendableObjectWriter method respectively.
+// which can be used for appendable object writes via the CreateAppendableObjectWriter
+// method.
 type CreateObjectChunkWriterRequest struct {
 	CreateObjectRequest
 
@@ -433,6 +433,6 @@ type CreateObjectChunkWriterRequest struct {
 	ChunkSize int
 
 	// Offset from where write has to start. Used only in case of appends flows.
-	// Default value is zero which means its a new object write.
+	// Default value is zero which means it's a new object write.
 	Offset int64
 }

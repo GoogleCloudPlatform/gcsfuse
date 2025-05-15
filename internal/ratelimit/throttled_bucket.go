@@ -107,7 +107,7 @@ func (b *throttledBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.
 	return
 }
 
-func (b *throttledBucket) CreateAppendableObjectWriter(ctx context.Context, req *gcs.CreateObjectChunkWriterRequest) (wc gcs.Writer, off int64, err error) {
+func (b *throttledBucket) CreateAppendableObjectWriter(ctx context.Context, req *gcs.CreateObjectChunkWriterRequest) (wc gcs.Writer, err error) {
 	// Wait for permission to call through.
 	err = b.opThrottle.Wait(ctx, 1)
 	if err != nil {
@@ -115,7 +115,7 @@ func (b *throttledBucket) CreateAppendableObjectWriter(ctx context.Context, req 
 	}
 
 	// Call through.
-	wc, off, err = b.wrapped.CreateAppendableObjectWriter(ctx, req)
+	wc, err = b.wrapped.CreateAppendableObjectWriter(ctx, req)
 
 	return
 }
