@@ -44,7 +44,8 @@ def check_and_create_files(bucket_name: str, total_files: int, file_size_gb: int
 
     blob_exists = blob.exists()
     # Use a default value for blob.size if it's None (e.g., if blob doesn't exist)
-    blob.reload()
+    if blob_exists:
+      blob.reload()
     current_blob_size = blob.size if blob_exists and blob.size is not None else 0
 
     if not blob_exists or current_blob_size != expected_size:
@@ -75,7 +76,7 @@ def check_and_create_files(bucket_name: str, total_files: int, file_size_gb: int
     else:
       print(f"{fname} already exists with acceptable size.")
 
-def read_all_files(total_files: int) -> int:
+def read_all_files(total_files: int, file_size_gb: int) -> int:
   """
    Reads a specified number of files, calculates, and returns the total number
    of bytes read across all files.
@@ -85,7 +86,7 @@ def read_all_files(total_files: int) -> int:
 
    Args:
        total_files (int): The number of files to read.
-
+       file_size_gb (int): file size in gb
    Returns:
        int: The total number of bytes read from all files.
 
@@ -95,7 +96,7 @@ def read_all_files(total_files: int) -> int:
    """
   total_bytes = 0
   for i in range(total_files):
-    path = os.path.join(MOUNT_DIR, f"{FILE_PREFIX}_{i}.bin")
+    path = os.path.join(MOUNT_DIR, f"{FILE_PREFIX}_{file_size_gb}_{i}.bin")
     try:
       with open(path, "rb") as f:
         total_bytes += len(f.read())
@@ -110,7 +111,7 @@ def main():
   parser.add_argument("--bucket", required=True, help="GCS bucket name")
   parser.add_argument("--gcsfuse-config", default="--implicit-dirs", help="GCSFuse mount flags")
   parser.add_argument("--total-files", type=int, default=10, help="Number of files to read")
-  parser.add_argument("--file-size-gb", type=int, default=15, help="Size of each file in GiB")
+  parser.add_argument("--file-size-gb", type=int, default=15, help="Size of each file in GB")
 
   workflow_type = "READ_{args.total_files}_{args.file_size_gb}GB_SINGLE_THREAD"
   args = parser.parse_args()
@@ -124,8 +125,8 @@ def main():
   print(f"Starting read of {args.total_files} files...")
   start = time.time()
   try:
-    total_bytes_read = read_all_files(args.total_files)
-    print(f"Total bytes read from {args.total_files} files: {total_bytes_read}")
+    total_bytes = read_all_files(args.total_files, args.file_size_gb)
+    print(f"Total bytes read from {args.total_files} files: {total_bytes}")
   except RuntimeError as e:
     print(f"Failed during file read: {e}")
   duration = time.time() - start

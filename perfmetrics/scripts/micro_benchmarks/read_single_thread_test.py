@@ -22,14 +22,15 @@ class TestReadFiles(unittest.TestCase):
   @mock.patch("os.path.join", side_effect=lambda a, b: f"{a}/{b}")
   def test_reads_all_files_success(self, mock_join, mock_file):
     total_files = 3
-    expected_bytes = 3 * len(b"abc")
+    file_size = len(b"abc")
+    expected_bytes = 3 * file_size
 
-    result = read_single_thread.read_all_files(total_files)
+    result = read_single_thread.read_all_files(total_files, file_size)
 
     self.assertEqual(result, expected_bytes)
     actual_calls = mock_file.call_args_list
     expected_calls = [
-        mock.call(f"{read_single_thread.MOUNT_DIR}/{read_single_thread.FILE_PREFIX}_{i}.bin", "rb")
+        mock.call(f"{read_single_thread.MOUNT_DIR}/{read_single_thread.FILE_PREFIX}_{file_size}_{i}.bin", "rb")
         for i in range(total_files)
     ]
     self.assertEqual(actual_calls, expected_calls)
@@ -40,7 +41,7 @@ class TestReadFiles(unittest.TestCase):
     total_files = 1
 
     with self.assertRaises(RuntimeError) as cm:
-      read_single_thread.read_all_files(total_files)
+      read_single_thread.read_all_files(total_files, 0)
 
     self.assertIn("Failed to read file", str(cm.exception))
 
@@ -50,7 +51,7 @@ class TestReadFiles(unittest.TestCase):
     total_files = 1
 
     with self.assertRaises(RuntimeError) as cm:
-      read_single_thread.read_all_files(total_files)
+      read_single_thread.read_all_files(total_files, 0)
 
     self.assertIn("Failed to read file", str(cm.exception))
 
@@ -66,7 +67,7 @@ class TestReadFiles(unittest.TestCase):
     mock_file.side_effect = side_effect
 
     with self.assertRaises(RuntimeError) as cm:
-      read_single_thread.read_all_files(2)
+      read_single_thread.read_all_files(2, 0)
 
     self.assertIn("Failed to read file", str(cm.exception))
     
