@@ -14,7 +14,7 @@
 
 import unittest
 from unittest import mock
-import read
+import read_single_thread
 
 class TestReadFiles(unittest.TestCase):
 
@@ -24,12 +24,12 @@ class TestReadFiles(unittest.TestCase):
     total_files = 3
     expected_bytes = 3 * len(b"abc")
 
-    result = read.read_all_files(total_files)
+    result = read_single_thread.read_all_files(total_files)
 
     self.assertEqual(result, expected_bytes)
     actual_calls = mock_file.call_args_list
     expected_calls = [
-        mock.call(f"{read.MOUNT_DIR}/{read.FILE_PREFIX}_{i}.bin", "rb")
+        mock.call(f"{read_single_thread.MOUNT_DIR}/{read_single_thread.FILE_PREFIX}_{i}.bin", "rb")
         for i in range(total_files)
     ]
     self.assertEqual(actual_calls, expected_calls)
@@ -40,7 +40,7 @@ class TestReadFiles(unittest.TestCase):
     total_files = 1
 
     with self.assertRaises(RuntimeError) as cm:
-      read.read_all_files(total_files)
+      read_single_thread.read_all_files(total_files)
 
     self.assertIn("Failed to read file", str(cm.exception))
 
@@ -50,7 +50,7 @@ class TestReadFiles(unittest.TestCase):
     total_files = 1
 
     with self.assertRaises(RuntimeError) as cm:
-      read.read_all_files(total_files)
+      read_single_thread.read_all_files(total_files)
 
     self.assertIn("Failed to read file", str(cm.exception))
 
@@ -66,7 +66,7 @@ class TestReadFiles(unittest.TestCase):
     mock_file.side_effect = side_effect
 
     with self.assertRaises(RuntimeError) as cm:
-      read.read_all_files(2)
+      read_single_thread.read_all_files(2)
 
     self.assertIn("Failed to read file", str(cm.exception))
     
@@ -92,22 +92,21 @@ class TestReadFiles(unittest.TestCase):
       total_files = 1
       file_size_gb = 1
 
-    read.check_and_create_files(bucket_name, total_files, file_size_gb)
+      read_single_thread.check_and_create_files(bucket_name, total_files, file_size_gb)
 
-    # Assertions
-    mock_subprocess_run.assert_called_once()
-    mock_blob.upload_from_filename.assert_called_once()
-    mock_os_remove.assert_called_once() # Should be called for cleanup
-    mock_print.assert_any_call(mock.ANY) # Check if print was called
-    mock_print.assert_any_call(f"Error uploading {read.FILE_PREFIX}_0.bin to GCS: GCS upload error")
+      # Assertions
+      mock_subprocess_run.assert_called_once()
+      mock_blob.upload_from_filename.assert_called_once()
+      mock_os_remove.assert_called_once() # Should be called for cleanup
 
-  @mock.patch("read.os.remove")
-  @mock.patch("read.os.path.exists", return_value=True)
-  @mock.patch("read.subprocess.run")
-  @mock.patch("read.storage.Client")
-  def test_file_missing_triggers_creation_and_upload(
-      self, mock_storage_client, mock_subprocess_run, mock_path_exists, mock_os_remove
-  ):
+      mock_print.assert_any_call(mock.ANY) # Check if print was called
+      mock_print.assert_any_call(f"Error uploading {read_single_thread.FILE_PREFIX}_{file_size_gb}_0.bin to GCS: GCS upload error")
+
+  @mock.patch("read_single_thread.os.remove")
+  @mock.patch("read_single_thread.os.path.exists", return_value=True)
+  @mock.patch("read_single_thread.subprocess.run")
+  @mock.patch("read_single_thread.storage.Client")
+  def test_file_missing_triggers_creation_and_upload(self, mock_storage_client, mock_subprocess_run, mock_path_exists, mock_os_remove):
     mock_bucket = mock.MagicMock()
     mock_blob = mock.MagicMock()
     mock_blob.exists.return_value = False
@@ -115,19 +114,17 @@ class TestReadFiles(unittest.TestCase):
     mock_bucket.blob.return_value = mock_blob
     mock_storage_client.return_value.get_bucket.return_value = mock_bucket
 
-    read.check_and_create_files("test-bucket", total_files=1, file_size_gb=1)
+    read_single_thread.check_and_create_files("test-bucket", total_files=1, file_size_gb=1)
 
     mock_subprocess_run.assert_called_once()  # fallocate
     mock_blob.upload_from_filename.assert_called_once()
     mock_os_remove.assert_called_once()
 
-  @mock.patch("read.os.remove")
-  @mock.patch("read.os.path.exists", return_value=True)
-  @mock.patch("read.subprocess.run")
-  @mock.patch("read.storage.Client")
-  def test_file_too_small_triggers_upload(
-      self, mock_storage_client, mock_subprocess_run, mock_path_exists, mock_os_remove
-  ):
+  @mock.patch("read_single_thread.os.remove")
+  @mock.patch("read_single_thread.os.path.exists", return_value=True)
+  @mock.patch("read_single_thread.subprocess.run")
+  @mock.patch("read_single_thread.storage.Client")
+  def test_file_too_small_triggers_upload(self, mock_storage_client, mock_subprocess_run, mock_path_exists, mock_os_remove):
     mock_bucket = mock.MagicMock()
     mock_blob = mock.MagicMock()
     mock_blob.exists.return_value = True
@@ -135,7 +132,7 @@ class TestReadFiles(unittest.TestCase):
     mock_bucket.blob.return_value = mock_blob
     mock_storage_client.return_value.get_bucket.return_value = mock_bucket
 
-    read.check_and_create_files("test-bucket", total_files=1, file_size_gb=1)
+    read_single_thread.check_and_create_files("test-bucket", total_files=1, file_size_gb=1)
 
     mock_subprocess_run.assert_called_once()
     mock_blob.upload_from_filename.assert_called_once()

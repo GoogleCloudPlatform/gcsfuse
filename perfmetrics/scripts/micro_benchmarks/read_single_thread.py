@@ -19,9 +19,8 @@ import argparse
 from google.cloud import storage
 import helper
 
-# CONFIG
 MOUNT_DIR = "gcs"
-FILE_PREFIX = "testfile-read"
+FILE_PREFIX = "testfile_read"
 
 def check_and_create_files(bucket_name: str, total_files: int, file_size_gb: int):
   """
@@ -40,7 +39,7 @@ def check_and_create_files(bucket_name: str, total_files: int, file_size_gb: int
   print(f"Ensuring all {total_files} files exist in gs://{bucket_name}...")
 
   for i in range(total_files):
-    fname = f"{FILE_PREFIX}_{i}.bin"
+    fname = f"{FILE_PREFIX}_{file_size_gb}_{i}.bin"
     blob = bucket.blob(fname)
 
     blob_exists = blob.exists()
@@ -78,11 +77,11 @@ def check_and_create_files(bucket_name: str, total_files: int, file_size_gb: int
 
 def read_all_files(total_files: int) -> int:
   """
-   Reads a specified number of files from a predefined directory,
-   calculates, and returns the total number of bytes read across all files.
+   Reads a specified number of files, calculates, and returns the total number
+   of bytes read across all files.
 
    The files are expected to be named with a common prefix and index suffix:
-   {FILE_PREFIX}_{i}.bin, located inside the directory MOUNT_DIR.
+   {FILE_PREFIX}_{file_size_gb}_{i}.bin, located inside the directory MOUNT_DIR.
 
    Args:
        total_files (int): The number of files to read.
@@ -124,7 +123,11 @@ def main():
 
   print(f"Starting read of {args.total_files} files...")
   start = time.time()
-  total_bytes = read_all_files(args.total_files)
+  try:
+    total_bytes_read = read_all_files(args.total_files)
+    print(f"Total bytes read from {args.total_files} files: {total_bytes_read}")
+  except RuntimeError as e:
+    print(f"Failed during file read: {e}")
   duration = time.time() - start
 
   # Unmount after test
