@@ -69,11 +69,6 @@ func (b contentTypeBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs
 }
 
 func (b contentTypeBucket) CreateAppendableObjectWriter(ctx context.Context, req *gcs.CreateObjectChunkWriterRequest) (gcs.Writer, int64, error) {
-	// Guess a content type if necessary.
-	if req.ContentType == "" {
-		req.ContentType = mime.TypeByExtension(path.Ext(req.Name))
-	}
-
-	// Pass on the request.
-	return b.Bucket.CreateAppendableObjectWriter(ctx, req)
+	//TODO: Implementation
+	return nil, 0, nil
 }
