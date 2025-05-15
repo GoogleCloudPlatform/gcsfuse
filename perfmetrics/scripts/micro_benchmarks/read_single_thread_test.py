@@ -85,7 +85,6 @@ class TestReadFiles(unittest.TestCase):
     mock_bucket = mock.MagicMock()
     mock_bucket.blob.return_value = mock_blob
     MockClient.return_value.get_bucket.return_value = mock_bucket
-
     # Mock os.path.exists for the finally block in the function
     with mock.patch('os.path.exists', return_value=True):
       bucket_name = "test-bucket"
@@ -94,11 +93,9 @@ class TestReadFiles(unittest.TestCase):
 
       read_single_thread.check_and_create_files(bucket_name, total_files, file_size_gb)
 
-      # Assertions
       mock_subprocess_run.assert_called_once()
       mock_blob.upload_from_filename.assert_called_once()
       mock_os_remove.assert_called_once() # Should be called for cleanup
-
       mock_print.assert_any_call(mock.ANY) # Check if print was called
       mock_print.assert_any_call(f"Error uploading {read_single_thread.FILE_PREFIX}_{file_size_gb}_0.bin to GCS: GCS upload error")
 
@@ -137,6 +134,29 @@ class TestReadFiles(unittest.TestCase):
     mock_subprocess_run.assert_called_once()
     mock_blob.upload_from_filename.assert_called_once()
     mock_os_remove.assert_called_once()
+
+  @mock.patch("read_single_thread.os.remove")
+  @mock.patch("read_single_thread.os.path.exists", return_value=True)
+  @mock.patch("read_single_thread.subprocess.run")
+  @mock.patch("read_single_thread.storage.Client")
+  def test_file_equal_file_size_not_trigger_upload(self, mock_storage_client, mock_subprocess_run, mock_path_exists, mock_os_remove):
+    mock_bucket = mock.MagicMock()
+    mock_blob = mock.MagicMock()
+    # Simulate blob already existing with correct size (1 GB)
+    mock_blob.exists.return_value = True
+    mock_blob.size = 1 * (10**9)
+    # Setup bucket and blob mocks
+    mock_bucket.blob.return_value = mock_blob
+    mock_storage_client.return_value.get_bucket.return_value = mock_bucket
+
+    # Call function under test
+    read_single_thread.check_and_create_files("test-bucket", total_files=1, file_size_gb=1)
+
+    # Assert that upload was not triggered
+    mock_blob.upload_from_filename.assert_not_called()
+    # subprocess.run should not be called either
+    mock_subprocess_run.assert_not_called()
+
 
 if __name__ == '__main__':
   unittest.main(argv=['first-arg-is-ignored'], exit=False) # For running in environments like notebooks
