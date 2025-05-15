@@ -266,7 +266,16 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
       return
     if not experiment_id:
       experiment_id = fioTableRows[0].experiment_id
-    if experiment_id and self._has_experiment_id(experiment_id):
+      if not experiment_id:
+        raise Exception('experiment_id is null for first row')
+    # confirm that all the rows for insertion have the correct experiment_id.
+    for row in fioTableRows:
+      if row.experiment_id != experiment_id:
+        raise Exception(
+            'There is a mismatch in the experiment_id for a row. Expected:'
+            f' {experiment_id}, Got: {row.experiment_id}'
+        )
+    if self._has_experiment_id(experiment_id):
       print(
           'Bigquery table'
           f' {self.project_id}.{self.dataset_id}.{self.table_id} already has'
