@@ -172,7 +172,7 @@ func (m *mockBucket) CreateAppendableObjectWriter(p0 context.Context, p1 *gcs.Cr
 		line,
 		[]interface{}{p0, p1})
 
-	if len(retVals) != 3 {
+	if len(retVals) != 2 {
 		panic(fmt.Sprintf("mockBucket.CreateAppendableObjectWriter: invalid return values: %v", retVals))
 	}
 
