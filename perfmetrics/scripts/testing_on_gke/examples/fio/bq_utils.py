@@ -287,7 +287,7 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
     # table.
     if self._has_experiment_id(experiment_id):
       print(
-          'Bigquery table'
+          'Warning: Bigquery table'
           f' {self.project_id}.{self.dataset_id}.{self.table_id} already has'
           f' the experiment_id {experiment_id}, so skipping inserting rows for'
           ' it..'
