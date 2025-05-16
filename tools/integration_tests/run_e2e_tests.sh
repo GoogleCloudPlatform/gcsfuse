@@ -88,12 +88,38 @@ fi
 
 # Test packages which can be run in parallel.
 PARALLEL_TEST_PACKAGES=(
+  "monitoring"
+  "local_file"
+  "log_rotation"
+  "mounting"
+  "read_cache"
+  # "grpc_validation"
+  "gzip"
+  "write_large_files"
+  "list_large_dir"
+  "rename_dir_limit"
+  "read_large_files"
+  "explicit_dir"
+  "implicit_dir"
+  "interrupt"
+  "operations"
+  "kernel_list_cache"
+  "concurrent_operations"
+  "benchmarking"
+  "mount_timeout"
   "stale_handle"
+  "negative_stat_cache"
+  "streaming_writes"
+  "readonly"
+  "managed_folders"
+  "readonly_creds"
 )
 
 # Test packages which can only be run in sequential.
 SEQUENTIAL_TEST_PACKAGES=(
   "readonly"
+  "managed_folders"
+  "readonly_creds"
 )
 
 # Test packages which can be run in parallel on zonal buckets.
