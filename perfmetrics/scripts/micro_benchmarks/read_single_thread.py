@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os
+import sys
 import subprocess
 import time
 import argparse
@@ -129,6 +130,8 @@ def main():
     print(f"Total bytes read from {args.total_files} files: {total_bytes}")
   except RuntimeError as e:
     print(f"Failed during file read: {e}")
+    helper.unmount_gcs_directory(MOUNT_DIR)
+    sys.exit(1)  # Exit with error status
   duration = time.time() - start
 
   # Unmount after test
