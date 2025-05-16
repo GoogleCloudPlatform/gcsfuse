@@ -334,7 +334,7 @@ func (job *Job) downloadObjectToFile(cacheFile *os.File) (err error) {
 
 		// Copy the contents from NewReader to cache file.
 		offsetWriter := io.NewOffsetWriter(cacheFile, start)
-		_, err = io.CopyN(offsetWriter, newReader, maxRead)
+		_, err = common.CopyWhole(offsetWriter, newReader, maxRead)
 		if err != nil {
 			err = fmt.Errorf("downloadObjectToFile: error at the time of copying content to cache file %w", err)
 			return err

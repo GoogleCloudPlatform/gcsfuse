@@ -69,7 +69,7 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 		if job.IsExperimentalParallelDownloadsDefaultOn() {
 			for start < end {
 				writeSize := min(end-start, ReadChunkSize)
-				_, err = io.CopyN(dstWriter, newReader, writeSize)
+				_, err = common.CopyWhole(dstWriter, newReader, writeSize)
 				if err != nil {
 					err = fmt.Errorf("downloadRange: error at the time of copying content to cache file %w", err)
 					return newReader.ReadHandle(), err
@@ -84,7 +84,7 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 				start = start + writeSize
 			}
 		} else {
-			_, err = io.CopyN(dstWriter, newReader, end-start)
+			_, err = common.CopyWhole(dstWriter, newReader, end-start)
 		}
 	} else {
 		if job.IsExperimentalParallelDownloadsDefaultOn() {
