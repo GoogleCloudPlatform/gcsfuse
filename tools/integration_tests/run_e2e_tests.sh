@@ -106,6 +106,7 @@ TEST_DIR_PARALLEL=(
   "stale_handle"
   "negative_stat_cache"
   "streaming_writes"
+  "metadata_cache"
 )
 
 # These tests never become parallel as it is changing bucket permissions.
@@ -139,6 +140,7 @@ TEST_DIR_PARALLEL_FOR_ZB=(
   "streaming_writes"
   "write_large_files"
   "unfinalized_object"
+  "metadata_cache"
 )
 
 # Subset of TEST_DIR_NON_PARALLEL,
