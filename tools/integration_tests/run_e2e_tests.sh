@@ -452,8 +452,8 @@ test_package() {
   GO_TEST_CMD=$(printf "%q " "${GO_TEST_CMD_PARTS[@]}")
   local start=$SECONDS
   local exit_code=0
-  echo "eval $GO_TEST_CMD"
-  exit_code=1
+  eval "$GO_TEST_CMD"
+  exit_code=$?
   local end=$SECONDS
   # Record stats
   wait_reps=$((start / 60))
