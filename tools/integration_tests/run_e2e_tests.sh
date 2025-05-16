@@ -31,13 +31,13 @@ RUN_TESTS_WITH_ZONAL_BUCKET=false
 
 # Usage Documentation
 usage() {
-  echo "Usage: $0 <TEST_INSTALLED_PACKAGE> <SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE> <BUCKET_LOCATION> [RUN_TESTS_WITH_PRESUBMIT_FLAG] [RUN_TEST_ON_TPC_ENDPOINT] [RUN_TESTS_WITH_ZONAL_BUCKET]"
+  echo "Usage: $0 <TEST_INSTALLED_PACKAGE> <SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE> <BUCKET_LOCATION> [RUN_TEST_ON_TPC_ENDPOINT] [RUN_TESTS_WITH_PRESUBMIT_FLAG] [RUN_TESTS_WITH_ZONAL_BUCKET]"
   echo "  TEST_INSTALLED_PACKAGE: 'true' or 'false' to test installed gcsfuse package."
   echo "  SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE: 'true' or 'false' to skip few non-essential tests inside packages."
   echo "  BUCKET_LOCATION: The Google Cloud Storage bucket location (e.g., 'us-central1')."
-  echo "  RUN_TESTS_WITH_PRESUBMIT_FLAG (optional): 'true' or 'false' to run tests with presubmit flag."
-  echo "  RUN_TEST_ON_TPC_ENDPOINT (optional): 'true' or 'false' to run tests on TPC endpoint."
-  echo "  RUN_TESTS_WITH_ZONAL_BUCKET (optional): 'true' or 'false' to run tests with zonal bucket."
+  echo "  RUN_TEST_ON_TPC_ENDPOINT (optional): 'true' or 'false' to run tests on TPC endpoint (Default: 'false')."
+  echo "  RUN_TESTS_WITH_PRESUBMIT_FLAG (optional): 'true' or 'false' to run tests with presubmit flag (Default: 'false')."
+  echo "  RUN_TESTS_WITH_ZONAL_BUCKET (optional): 'true' or 'false' to run tests with zonal bucket (Default: 'false')."
   exit 1
 }
 
@@ -66,11 +66,11 @@ shift
 BUCKET_LOCATION="$1"
 shift
 if [ -n "$1" ]; then
-  RUN_TESTS_WITH_PRESUBMIT_FLAG="$1"
+  RUN_TEST_ON_TPC_ENDPOINT="$1"
   shift
 fi
 if [ -n "$1" ]; then
-  RUN_TEST_ON_TPC_ENDPOINT="$1"
+  RUN_TESTS_WITH_PRESUBMIT_FLAG="$1"
   shift
 fi
 if [ -n "$1" ]; then
@@ -671,6 +671,7 @@ run_e2e_tests_for_emulator() {
 main() {
   # Clean up everything on exit.
   trap clean_up EXIT
+
   log_info_locked ""
   log_info_locked "------ Upgrading gcloud and installing packages ------"
   log_info_locked ""
