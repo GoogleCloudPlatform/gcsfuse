@@ -14,6 +14,10 @@
 
 package read_logs
 
+import (
+	"time"
+)
+
 // StructuredReadLogEntry stores the structured format to be created from logs.
 type StructuredReadLogEntry struct {
 	Handle           int64
@@ -63,4 +67,10 @@ type JobData struct {
 type handleAndChunkIndex struct {
 	handle     int64
 	chunkIndex int
+}
+
+// LogEntry struct to match the JSON structure
+type LogEntry struct {
+	Timestamp time.Time `json:"time"`
+	Message   string    `json:"message"`
 }
