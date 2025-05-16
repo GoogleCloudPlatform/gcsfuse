@@ -2103,7 +2103,10 @@ func (fs *fileSystem) Rename(
 // LOCKS_EXCLUDED(oldParent)
 // LOCKS_EXCLUDED(newParent)
 func (fs *fileSystem) renameFile(ctx context.Context, op *fuseops.RenameOp, oldObject *inode.FileInode, oldParent, newParent inode.DirInode) error {
+	oldObject.Lock()
 	updatedMinObject, err := fs.flushPendingWrites(ctx, oldObject)
+	oldObject.Unlock()
+
 	if err != nil {
 		return fmt.Errorf("flushPendingWrites: %w", err)
 	}
@@ -2113,12 +2116,10 @@ func (fs *fileSystem) renameFile(ctx context.Context, op *fuseops.RenameOp, oldO
 	return fs.renameNonHierarchicalFile(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)
 }
 
-// LOCKS_EXCLUDED(fileInode)
+// LOCKS_REQUIRED(fileInode.mu)
 func (fs *fileSystem) flushPendingWrites(ctx context.Context, fileInode *inode.FileInode) (minObject *gcs.MinObject, err error) {
 	// We will return modified minObject if flush is done, otherwise the original
 	// minObject is returned. Original minObject is the one passed in the request.
-	fileInode.Lock()
-	defer fileInode.Unlock()
 	minObject = fileInode.Source()
 	if !fs.newConfig.Write.EnableStreamingWrites {
 		return
@@ -2594,15 +2595,14 @@ func (fs *fileSystem) ReadFile(
 	fh := fs.handles[op.Handle].(*handle.FileHandle)
 	fs.mu.Unlock()
 
-	// Flush streaming writes files before issuing a read.
+	fh.Lock()
+	fh.Inode().Lock()
+	defer fh.Unlock()
+	// Flush Pending writes for streaming writes file and issue read within same inode lock.
 	_, err = fs.flushPendingWrites(ctx, fh.Inode())
 	if err != nil {
-		return
+		return err
 	}
-
-	fh.Lock()
-	defer fh.Unlock()
-
 	// Serve the read.
 	op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
 

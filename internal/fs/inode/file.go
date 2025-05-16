@@ -20,7 +20,6 @@ import (
 	"io"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
@@ -542,13 +541,6 @@ func (f *FileInode) Read(
 	ctx context.Context,
 	dst []byte,
 	offset int64) (n int, err error) {
-	// It is not nil when streaming writes are enabled in 2 scenarios:
-	// 1. Local file
-	// 2. Empty GCS files and writes are triggered via buffered flow.
-	if f.bwh != nil {
-		err = fmt.Errorf("cannot read a file when upload in progress: %w", syscall.ENOTSUP)
-		return
-	}
 
 	// Make sure f.content != nil.
 	err = f.ensureContent(ctx)
