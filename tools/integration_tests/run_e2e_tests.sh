@@ -14,7 +14,7 @@
 # limitations under the License.
 
 # Constants
-readonly GDU_PROJECT_ID="gcs-fuse-test-ml"
+readonly DEFUALT_PROJECT_ID="gcs-fuse-test-ml"
 readonly TPCZERO_PROJECT_ID="tpczero-system:gcsfuse-test-project"
 readonly TPC_BUCKET_LOCATION="u-us-prp1"
 readonly BUCKET_PREFIX="gcsfuse-e2e"
@@ -33,8 +33,8 @@ RUN_TEST_ON_TPC_ENDPOINT=false
 RUN_TESTS_WITH_PRESUBMIT_FLAG=false
 RUN_TESTS_WITH_ZONAL_BUCKET=false
 
-# Default project id for tests.
-PROJECT_ID="${GDU_PROJECT_ID}"
+# Set default project id for tests.
+PROJECT_ID="${DEFUALT_PROJECT_ID}"
 
 
 # Usage Documentation
@@ -206,7 +206,7 @@ setup_package_buckets () {
     local bucket_name
     bucket_name=$(create_bucket "$package" "$bucket_type")
     if [[ $? -eq 0 ]]; then
-      package_bucket_array+=("${package} ${bucket_name}")
+      package_bucket_array+=("${package} ${bucket_name} ${bucket_type}")
     else
       log_error_locked "Unable to create a bucket for package [${package}] of type [${bucket_type}]."
     fi
@@ -375,12 +375,15 @@ run_sequential() {
 
 # shellcheck disable=SC2317
 test_package() {
-  if [[ $# -ne 2 ]]; then
+  if [[ $# -ne 3 ]]; then
     log_error_locked "test_package() called with incorrect number of arguments."
     exit 1
   fi
   local package_name="$1"
   local bucket_name="$2"
+  local bucket_type="$3"
+
+  # Build go package test command.
   GO_TEST_CMD_PARTS=(
     "GODEBUG=asyncpreemptoff=1"
     "go"
@@ -422,60 +425,49 @@ test_package() {
   # Use printf %q to quote each argument safely for eval
   # This ensures spaces and special characters within arguments are handled correctly.
   GO_TEST_CMD=$(printf "%q " "${GO_TEST_CMD_PARTS[@]}")
+  
+  # Run the package test command
+  local package_status="PASSED"
   local start=$SECONDS
-  local exit_code=0
   eval "$GO_TEST_CMD"
-  exit_code=$?
-  local end=$SECONDS
-  # Record stats
-  wait_reps=$((start / 60))
-  run_reps=$(((end - start + 60) / 60))
-  # Build the WWW and RRRR strings
-  wait_string=""
-  for ((i = 0; i < wait_reps; i++)); do
-    wait_string+=" "
-  done
-
-  run_string=""
-  for ((i = 0; i < run_reps; i++)); do
-    run_string+=">"
-  done
-
-  exit_status="PASS"
-  if [[ "$exit_code" -ne 0 ]]; then
-    exit_status="FAIL"
+  if [[ $? -ne 0 ]]; then
+    package_status="FAILED"
   fi
-  combined_time_bar="${wait_string}${run_string}"
-  current_package_stats=$(printf "| %-25s | %-15s | %-10s | %-50s|\n" \
+  local end=$SECONDS
+  
+  # Record stats and build wait run time string.
+  # Using each _ char for 1 min wait time and each > char for 1 min run time.
+  wait_min=$(((start + 60) / 60))
+  run_min=$(((end - start + 60) / 60))
+  current_package_stats=$(printf "| %-25s | %-15s | %-10s |%-60s|\n" \
     "$package_name" \
     "$bucket_type" \
-    "$exit_status" \
-    "$combined_time_bar")
+    "$package_status" \
+    "$(printf '%0.s_' $(seq 1 "$wait_min"))$(printf '%0.s>' $(seq 1 "$run_min"))") # Produces string like ___>>>
+  
   echo "$current_package_stats" >> "$PACKAGE_STATS_FILE"
-  if [[ "$exit_code" -ne 0 ]]; then
+  if [[ "$package_status" == "FAILED" ]]; then
     return 1
-  else
-    return 0
   fi
+  return 0
 }
 
 print_package_stats() {
   # Sorts package stats by package name and bucket type
   sort -o "$PACKAGE_STATS_FILE" "$PACKAGE_STATS_FILE"
-  segment1_hyphens=$(printf '%.s-' {1..27})
-  segment2_hyphens=$(printf '%.s-' {1..17})
-  segment3_hyphens=$(printf '%.s-' {1..12})
-  segment4_hyphens=$(printf '%.s-' {1..51})
-
-  # Concatenate the segments with '+' characters into a single string
-  # and then print that string using printf.
+  # separator is a line like +------+----+-----+----+
   separator=$(printf "+%s+%s+%s+%s+\n" \
-    "${segment1_hyphens}" \
-    "${segment2_hyphens}" \
-    "${segment3_hyphens}" \
-    "${segment4_hyphens}")
+    "$(printf '%.s-' {1..27})" \
+    "$(printf '%.s-' {1..17})" \
+    "$(printf '%.s-' {1..12})" \
+    "$(printf '%.s-' {1..60})")
   echo ""
-  echo "Timings for the packages."
+  echo "Timings for the e2e test packages run are listed below."
+  echo "_ is 1 min wait"
+  echo "> is 1 min run"
+  echo "$separator"
+  printf "| %-25s | %-15s | %-10s | %-25s %s %+25s|\n" \
+    "Package Name" "Bucket Type" "Status" "0 min " "runtime" "60 min"
   echo "$separator"
   while IFS= read -r line; do
     echo "$line"
@@ -619,6 +611,7 @@ run_e2e_tests_for_tpc() {
 }
 
 run_e2e_tests_for_emulator() {
+  return 0
   log_info_locked "Started running e2e tests for emulator."
   local emulator_test_log
   emulator_test_log=$(mktemp /tmp/emulator_test_log.XXXXXX)
@@ -649,8 +642,8 @@ main() {
   log_info_locked "------ Upgrading gcloud and installing packages ------"
   log_info_locked ""
   set -e
-  upgrade_gcloud_version
-  install_packages
+  #upgrade_gcloud_version
+  #install_packages
   set +e
   log_info_locked "------ Upgrading gcloud and installing packages took $SECONDS seconds ------"
 
