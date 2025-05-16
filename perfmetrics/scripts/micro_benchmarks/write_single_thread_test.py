@@ -19,21 +19,44 @@ class TestWriteFiles(unittest.TestCase):
 
   @mock.patch("os.path.exists", return_value=True)
   @mock.patch("os.remove")
-  def test_delete_existing_file(self, mock_remove, mock_exists):
-    delete_existing_file("/tmp/testfile.bin")
+  def test_delete_existing_file_success(self, mock_remove, mock_exists):
+    result = delete_existing_file("/fake/path")
 
-    mock_remove.assert_called_once_with("/tmp/testfile.bin")
+    self.assertTrue(result)
+    mock_remove.assert_called_once_with("/fake/path")
 
-  @mock.patch("os.urandom", return_value=b"x" * 1024)
+  @mock.patch("os.path.exists", return_value=True)
+  @mock.patch("os.remove", side_effect=OSError("Permission denied"))
+  def test_delete_existing_file_failure(self, mock_remove, mock_exists):
+    result = delete_existing_file("/fake/path")
+
+    self.assertFalse(result)
+    mock_remove.assert_called_once_with("/fake/path")
+
+  @mock.patch("os.path.exists", return_value=False)
+  @mock.patch("os.remove")
+  def test_delete_existing_file_file_not_exist(self, mock_remove, mock_exists):
+    # When file doesn't exist, should return True and not call remove
+    result = delete_existing_file("/fake/path")
+
+    self.assertTrue(result)
+    mock_remove.assert_not_called()
+
   @mock.patch("builtins.open", new_callable=mock.mock_open)
-  def test_write_random_file(self, mock_open_file, mock_urandom):
-    file_path = "/tmp/testfile.bin"
-    size = 1024
+  @mock.patch("os.urandom", return_value=b'x' * 10)
+  def test_write_random_file_success(self, mock_urandom, mock_open):
+    result = write_random_file("/fake/file", 10)
 
-    write_random_file(file_path, size)
+    self.assertTrue(result)
+    mock_open.assert_called_once_with("/fake/file", "wb")
+    mock_urandom.assert_called_once_with(10)
 
-    mock_open_file.assert_called_once_with(file_path, 'wb')
-    mock_open_file().write.assert_called_once_with(b"x" * 1024)
+  @mock.patch("builtins.open", side_effect=IOError("Disk full"))
+  def test_write_random_file_failure(self, mock_open):
+    result = write_random_file("/fake/file", 10)
+
+    self.assertFalse(result)
+    mock_open.assert_called_once_with("/fake/file", "wb")
 
   @mock.patch("os.urandom", return_value=b"x" * 10)
   @mock.patch("builtins.open", new_callable=mock.mock_open)
@@ -50,9 +73,11 @@ class TestWriteFiles(unittest.TestCase):
   def test_create_files_failure(self, mock_open_file):
     paths = ["/tmp/file1.bin"]
 
-    total = create_files(paths, file_size_in_gb=1e-8)
+    with self.assertRaises(SystemExit) as cm:
+      create_files(paths, file_size_in_gb=1e-8)
 
-    self.assertIsNone(total)
+    self.assertEqual(cm.exception.code, 1)
+
 
 if __name__ == '__main__':
   unittest.main(argv=['first-arg-is-ignored'], exit=False)

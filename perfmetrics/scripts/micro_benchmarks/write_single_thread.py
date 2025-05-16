@@ -16,6 +16,7 @@ import os
 import argparse
 import time
 import helper
+import sys
 
 MOUNT_DIR = "gcs"
 FILE_PREFIX = "testfile"
@@ -28,11 +29,16 @@ def delete_existing_file(file_path):
       file_path (str): The full path to the file to delete.
 
   Returns:
-      None
+      bool: True if file deleted or didn't exist; False on error.
   """
-  if os.path.exists(file_path):
-    os.remove(file_path)
-    print(f"{file_path} existed and was cleared.")
+  try:
+    if os.path.exists(file_path):
+      os.remove(file_path)
+      print(f"{file_path} existed and was cleared.")
+    return True
+  except Exception as e:
+    print(f"Error deleting file {file_path}: {e}")
+    return False
 
 def write_random_file(file_path, file_size_in_bytes):
   """
@@ -43,11 +49,16 @@ def write_random_file(file_path, file_size_in_bytes):
       file_size_in_bytes (int): The size of the file in bytes.
 
   Returns:
-      None
+      bool: True on success; False on failure.
   """
-  with open(file_path, 'wb') as f:
-    f.write(os.urandom(file_size_in_bytes))
-  print(f"Created {file_path} of size {file_size_in_bytes / (1000 ** 3):.4f} GB")
+  try:
+    with open(file_path, 'wb') as f:
+      f.write(os.urandom(file_size_in_bytes))
+    print(f"Created {file_path} of size {file_size_in_bytes / (1000 ** 3):.4f} GB")
+    return True
+  except Exception as e:
+    print(f"Error writing file {file_path}: {e}")
+    return False
 
 def create_files(file_paths, file_size_in_gb):
   """
@@ -65,7 +76,10 @@ def create_files(file_paths, file_size_in_gb):
 
   for file_path in file_paths:
     try:
-      write_random_file(file_path, file_size_in_bytes)
+      success = write_random_file(file_path, 1000 * 1000 * 1000)
+      if not success:
+        print("Write failed. Exiting.")
+        sys.exit(1)
       total_bytes_written += file_size_in_bytes
     except Exception as e:
       print(f"Error creating file {file_path}: {e}")
@@ -79,7 +93,7 @@ def main():
   parser.add_argument("--bucket", required=True)
   parser.add_argument("--gcsfuse-config", default="--implicit-dirs")
   parser.add_argument("--total-files", type=int, default=1)
-  parser.add_argument("--file-size-gb", type=float)
+  parser.add_argument("--file-size-gb", type=int, default=15, help="Size of each file in GB")
   args = parser.parse_args()
 
   workflow_type = f"WRITE_{args.total_files}_{args.file_size_gb}GB_SINGLE_THREAD"
@@ -93,7 +107,10 @@ def main():
 
   # Delete files if they already exist
   for path in file_paths:
-    delete_existing_file(path)
+    success = delete_existing_file(path)
+    if not success:
+      print("Delete failed. Exiting.")
+      sys.exit(1)
 
   print(f"Starting write of {args.total_files} files...")
   start = time.time()
@@ -101,7 +118,8 @@ def main():
     total_bytes = create_files(file_paths, args.file_size_gb)
   except RuntimeError as e:
     print(f"Failed during file write: {e}")
-    total_bytes = None
+    helper.unmount_gcs_directory(MOUNT_DIR)
+    sys.exit(1)  # Exit with error status
   duration = time.time() - start
 
   helper.unmount_gcs_directory(MOUNT_DIR)
