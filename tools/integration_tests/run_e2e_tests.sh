@@ -14,20 +14,28 @@
 # limitations under the License.
 
 # Constants
-readonly PROJECT_ID="gcs-fuse-test-ml"
-readonly BUCKET_PREFIX="gcs-fuse-e2e-tests"
+readonly GDU_PROJECT_ID="gcs-fuse-test-ml"
+readonly TPCZERO_PROJECT_ID="tpczero-system:gcsfuse-test-project"
+readonly TPC_BUCKET_LOCATION="u-us-prp1"
+readonly BUCKET_PREFIX="gcsfuse-e2e"
 readonly INTEGRATION_TEST_PACKAGE_DIR="./tools/integration_tests"
 readonly INTEGRATION_TEST_TIMEOUT_IN_MINS=90
-readonly TMP_PREFIX="gcs-fuse-e2e-"
+readonly TMP_PREFIX="gcsfuse_e2e"
 readonly LOG_LOCK_FILE=$(mktemp "/tmp/${TMP_PREFIX}_logging_lock.XXXXXX")
 readonly BUCKET_CREATION_LOCK_FILE=$(mktemp "/tmp/${TMP_PREFIX}_bucket_creation_lock.XXXXXX")
 readonly BUCKET_NAMES=$(mktemp "/tmp/${TMP_PREFIX}_bucket_names.XXXXXX")
 readonly PACKAGE_STATS_FILE=$(mktemp "/tmp/${TMP_PREFIX}_package_stats.XXXXXX")
+readonly MAX_BUCKET_NAME_LENGTH=63
+
 
 # Default values for optional arguments
 RUN_TEST_ON_TPC_ENDPOINT=false
 RUN_TESTS_WITH_PRESUBMIT_FLAG=false
 RUN_TESTS_WITH_ZONAL_BUCKET=false
+
+# Default project id for tests.
+PROJECT_ID="${GDU_PROJECT_ID}"
+
 
 # Usage Documentation
 usage() {
@@ -78,70 +86,29 @@ if [ -n "$1" ]; then
   shift
 fi
 
-# Tests Packages which can be run in parallel.
+# Test packages which can be run in parallel.
 PARALLEL_TEST_PACKAGES=(
-  "monitoring"
-  "local_file"
-  "log_rotation"
-  "mounting"
-  "read_cache"
-  # "grpc_validation"
-  "gzip"
-  "write_large_files"
-  "list_large_dir"
-  "rename_dir_limit"
-  "read_large_files"
-  "explicit_dir"
-  "implicit_dir"
-  "interrupt"
-  "operations"
-  "kernel_list_cache"
-  "concurrent_operations"
-  "benchmarking"
-  "mount_timeout"
   "stale_handle"
-  "negative_stat_cache"
-  "streaming_writes"
 )
 
-# These packages which can only be run in sequential.
+# Test packages which can only be run in sequential.
 SEQUENTIAL_TEST_PACKAGES=(
   "readonly"
-  "managed_folders"
-  "readonly_creds"
 )
 
-# Tests Packages which can be run in parallel on zonal buckets.
+# Test packages which can be run in parallel on zonal buckets.
 PARALLEL_TEST_PACKAGES_FOR_ZB=(
-  "benchmarking"
-  "explicit_dir"
-  "gzip"
-  "implicit_dir"
-  "interrupt"
-  "kernel_list_cache"
-  "local_file"
-  "log_rotation"
-  "monitoring"
-  "mount_timeout"
-  "mounting"
-  "negative_stat_cache"
-  "operations"
-  "read_cache"
-  "read_large_files"
-  "rename_dir_limit"
   "stale_handle"
-  "streaming_writes"
-  "write_large_files"
-  "unfinalized_object"
 )
 
-# These packages which can only be run in sequential on zonal buckets.
+# Test packages which can only be run in sequential on zonal buckets.
 SEQUENTIAL_TEST_PACKAGES_FOR_ZB=(
-  "concurrent_operations"
-  "list_large_dir"
-  "managed_folders"
   "readonly"
-  "readonly_creds"
+)
+
+# Test packages which can be run in parallel on TPC universe.
+PARALLEL_TEST_PACKAGES_FOR_TPC=(
+  "operations"
 )
 
 # acquire_lock: Acquires exclusive lock or exits script on failure.
@@ -191,26 +158,21 @@ log_error_locked() {
 }
 
 # shellcheck disable=SC2317
-get_bucket() {
-  if [[ $# -ne 1 ]]; then
-    log_error_locked "get_bucket() called with incorrect number of arguments."
-    return 1
+create_bucket() {
+  if [[ $# -ne 2 ]]; then
+    log_error "create_bucket() called with incorrect number of arguments."
+    exit 1
   fi
-  local bucket_type="$1"
-  if [[ "$bucket_type" == "tpc_flat" ]]; then
-    echo "gcsfuse-e2e-tests-tpc"
-    return 0
-  elif [[ "$bucket_type" == "tpc_hns" ]]; then
-    echo "gcsfuse-e2e-tests-tpc-hns"
-    return 0
-  fi
+  local package="$1"
+  local bucket_type="$2"
   local uuid
   uuid=$(uuidgen)
   if [[ -z "$uuid" ]]; then
-    log_error_locked "Unable to generate random UUID for bucket name"
-    return 1
+    log_error "Unable to generate random UUID for bucket name"
+    exit 1
   fi
-  local bucket_name="${BUCKET_PREFIX}-${bucket_type}-${uuid}"
+  local bucket_name="${BUCKET_PREFIX}-${package}-${bucket_type}-${uuid}"
+  bucket_name="${bucket_name:0:MAX_BUCKET_NAME_LENGTH}" # Trim bucket_name upto MAX_BUCKET_NAME_LENGTH.
   local cmd
   if [[ "$bucket_type" == "flat" ]]; then
     cmd="gcloud alpha storage buckets create gs://${bucket_name} --project=${PROJECT_ID} --location=${BUCKET_LOCATION} --uniform-bucket-level-access"
@@ -219,20 +181,32 @@ get_bucket() {
   elif [[ "$bucket_type" == "zonal" ]]; then
     cmd="gcloud alpha storage buckets create gs://${bucket_name} --project=${PROJECT_ID} --location=${BUCKET_LOCATION} --placement=${BUCKET_LOCATION}-a --default-storage-class=RAPID --uniform-bucket-level-access --enable-hierarchical-namespace"
   else
-    log_error_locked "Invalid Bucket Type [${bucket_type}]. Supported Types [flat, hns, zonal]"
-    return 1
+    log_error "Invalid Bucket Type [${bucket_type}]. Supported Types [flat, hns, zonal]"
+    exit 1
   fi
-  acquire_lock "$BUCKET_CREATION_LOCK_FILE"
+  sleep 4 # Ensure 4 second gap between creating a new bucket.
   if ! eval "$cmd"; then
-    log_error_locked "Unable to create bucket [${bucket_name}]"
-    release_lock "$BUCKET_CREATION_LOCK_FILE"
-    return 1
+    log_error "Unable to create bucket [${bucket_name}]"
+    exit 1
   fi
   echo "$bucket_name" >> "$BUCKET_NAMES" # Add bucket names to file.
-  sleep 2 # Ensure 2 second gap between creating a new bucket.
-  release_lock "$BUCKET_CREATION_LOCK_FILE"
   echo "$bucket_name"
   return 0
+}
+
+setup_package_buckets () {
+  if [[ "$#" -ne 3 ]]; then 
+    log_error "setup_buckets() called with incorrect number of arguments."
+    exit 1
+  fi
+  local -n package_array="$1"
+  local -n package_bucket_array="$2"
+  local bucket_type="$3"
+  for package in "${package_array[@]}"; do
+    local bucket_name
+    bucket_name=$(create_bucket "$package" "$bucket_type")
+    package_bucket_array+=("${package} ${bucket_name}")
+  done
 }
 
 # shellcheck disable=SC2317
@@ -399,16 +373,10 @@ run_sequential() {
 test_package() {
   if [[ $# -ne 2 ]]; then
     log_error_locked "test_package() called with incorrect number of arguments."
-    return 1
+    exit 1
   fi
   local package_name="$1"
-  local bucket_type="$2"
-  local bucket_name
-  bucket_name=$(get_bucket "$bucket_type")
-  if [[ -z "$bucket_name" ]]; then
-    log_error_locked "Failed to create bucket of type $bucket_type, name $bucket_name, exit_code $?"
-    return 1
-  fi
+  local bucket_name="$2"
   GO_TEST_CMD_PARTS=(
     "GODEBUG=asyncpreemptoff=1"
     "go"
@@ -512,33 +480,6 @@ print_package_stats() {
   echo ""
 }
 
-# shellcheck disable=SC2317
-test_package_hns() {
-  if [[ $# -ne 1 ]]; then
-    log_error_locked "test_package_hns() called with incorrect number of arguments."
-    return 1
-  fi
-  test_package "$1" "hns"
-}
-
-# shellcheck disable=SC2317
-test_package_flat() {
-  if [[ $# -ne 1 ]]; then
-    log_error_locked "test_package_flat() called with incorrect number of arguments."
-    return 1
-  fi
-  test_package "$1" "flat"
-}
-
-# shellcheck disable=SC2317
-test_package_zonal() {
-  if [[ $# -ne 1 ]]; then
-    log_error_locked "test_package_zonal() called with incorrect number of arguments."
-    return 1
-  fi
-  test_package "$1" "zonal"
-}
-
 upgrade_gcloud_version() {
   sudo apt-get update
   # Upgrade gcloud version.
@@ -572,19 +513,23 @@ install_packages() {
 
 run_e2e_tests_for_flat_bucket() {
   log_info_locked "Started running e2e tests for flat bucket"
-  run_parallel "test_package_flat @" "${PARALLEL_TEST_PACKAGES[@]}" &
+  parallel_package_bucket=()
+  setup_package_buckets "PARALLEL_TEST_PACKAGES" "parallel_package_bucket" "flat"
+  run_parallel "test_package @" "${parallel_package_bucket[@]}" &
   parallel_tests_flat_group_pid=$!
 
-  run_sequential "test_package_flat @" "${SEQUENTIAL_TEST_PACKAGES[@]}" &
-  non_parallel_tests_flat_group_pid=$!
+  sequential_package_bucket=()
+  setup_package_buckets "SEQUENTIAL_TEST_PACKAGES" "sequential_package_bucket" "flat"
+  run_sequential "test_package @" "${sequential_package_bucket[@]}" &
+  sequential_tests_flat_group_pid=$!
 
   # Wait for all tests to complete.
   wait $parallel_tests_flat_group_pid
   parallel_tests_flat_group_exit_code=$?
-  wait $non_parallel_tests_flat_group_pid
-  non_parallel_tests_flat_group_exit_code=$?
+  wait $sequential_tests_flat_group_pid
+  sequential_tests_flat_group_exit_code=$?
 
-  if [ $parallel_tests_flat_group_exit_code != 0 ] || [ $non_parallel_tests_flat_group_exit_code != 0 ]; then
+  if [ $parallel_tests_flat_group_exit_code != 0 ] || [ $sequential_tests_flat_group_exit_code != 0 ]; then
     log_error_locked "The e2e tests for flat bucket failed."
     return 1
   fi
@@ -594,18 +539,22 @@ run_e2e_tests_for_flat_bucket() {
 
 run_e2e_tests_for_hns_bucket() {
   log_info_locked "Started running e2e tests for HNS bucket"
-  run_parallel "test_package_hns @" "${PARALLEL_TEST_PACKAGES[@]}" &
+  parallel_package_bucket=()
+  setup_package_buckets "PARALLEL_TEST_PACKAGES" "parallel_package_bucket" "hns"
+  run_parallel "test_package @" "${parallel_package_bucket[@]}" &
   parallel_tests_hns_group_pid=$!
-  run_sequential "test_package_hns @" "${SEQUENTIAL_TEST_PACKAGES[@]}" &
-  non_parallel_tests_hns_group_pid=$!
+  sequential_package_bucket=()
+  setup_package_buckets "SEQUENTIAL_TEST_PACKAGES" "sequential_package_bucket" "hns"
+  run_sequential "test_package @" "${sequential_package_bucket[@]}" &
+  sequential_tests_hns_group_pid=$!
 
   # Wait for all tests to complete.
   wait $parallel_tests_hns_group_pid
   parallel_tests_hns_group_exit_code=$?
-  wait $non_parallel_tests_hns_group_pid
-  non_parallel_tests_hns_group_exit_code=$?
+  wait $sequential_tests_hns_group_pid
+  sequential_tests_hns_group_exit_code=$?
 
-  if [ $parallel_tests_hns_group_exit_code != 0 ] || [ $non_parallel_tests_hns_group_exit_code != 0 ]; then
+  if [ $parallel_tests_hns_group_exit_code != 0 ] || [ $sequential_tests_hns_group_exit_code != 0 ]; then
     log_error_locked "The e2e tests for hns bucket failed."
     return 1
   fi
@@ -615,18 +564,22 @@ run_e2e_tests_for_hns_bucket() {
 
 run_e2e_tests_for_zonal_bucket() {
   log_info_locked "Started running e2e tests for ZONAL bucket"
-  run_parallel "test_package_zonal @" "${PARALLEL_TEST_PACKAGES_FOR_ZB[@]}" &
+  parallel_package_bucket=()
+  setup_package_buckets "PARALLEL_TEST_PACKAGES_FOR_ZB" "parallel_package_bucket" "zonal"
+  run_parallel "test_package @" "${parallel_package_bucket[@]}" &
   parallel_tests_zonal_group_pid=$!
-  run_sequential "test_package_zonal @" "${SEQUENTIAL_TEST_PACKAGES_FOR_ZB[@]}" &
-  non_parallel_tests_zonal_group_pid=$!
+  sequential_package_bucket=()
+  setup_package_buckets "SEQUENTIAL_TEST_PACKAGES_FOR_ZB" "sequential_package_bucket" "zonal"
+  run_sequential "test_package @" "${sequential_package_bucket[@]}" &
+  sequential_tests_zonal_group_pid=$!
 
   # Wait for all tests to complete.
   wait $parallel_tests_zonal_group_pid
   parallel_tests_zonal_group_exit_code=$?
-  wait $non_parallel_tests_zonal_group_pid
-  non_parallel_tests_zonal_group_exit_code=$?
+  wait $sequential_tests_zonal_group_pid
+  sequential_tests_zonal_group_exit_code=$?
 
-  if [ $parallel_tests_zonal_group_exit_code != 0 ] || [ $non_parallel_tests_zonal_group_exit_code != 0 ]; then
+  if [ $parallel_tests_zonal_group_exit_code != 0 ] || [ $sequential_tests_zonal_group_exit_code != 0 ]; then
     log_error_locked "The e2e tests for zonal bucket failed."
     return 1
   fi
@@ -635,13 +588,29 @@ run_e2e_tests_for_zonal_bucket() {
 }
 
 run_e2e_tests_for_tpc() {
-  log_info_locked "Started running TPC e2e tests on operations package"
-  if ! run_parallel "test_package operations @" "tpc_flat" "tpc_hns"; then
-    log_error_locked "TPC e2e tests for operations package failed."
+  log_info_locked "Started running e2e tests for TPC bucket"
+
+  parallel_package_bucket_hns=()
+  setup_package_buckets "PARALLEL_TEST_PACKAGES_FOR_TPC" "parallel_package_bucket_hns" "hns"
+  run_parallel "test_package @" "${parallel_package_bucket_hns[@]}" &
+  parallel_tests_hns_group_pid=$!
+
+  parallel_package_bucket_flat=()
+  setup_package_buckets "PARALLEL_TEST_PACKAGES_FOR_TPC" "parallel_package_bucket_flat" "flat"
+  run_parallel "test_package @" "${parallel_package_bucket_flat[@]}" &
+  parallel_tests_flat_group_pid=$!
+
+  # Wait for all tests to complete.
+  wait $parallel_tests_hns_group_pid
+  parallel_tests_hns_group_exit_code=$?
+  wait $parallel_tests_flat_group_pid
+  parallel_tests_flat_group_exit_code=$?
+
+  if [ $parallel_tests_hns_group_exit_code != 0 ] || [ $parallel_tests_flat_group_exit_code != 0 ]; then
+    log_error_locked "The e2e tests for TPC bucket failed."
     return 1
-  else
-    log_info_locked "TPC e2e tests for operations package successful."
   fi
+  log_info_locked "The e2e tests for TPC bucket successful."
   return 0
 }
 
@@ -676,8 +645,8 @@ main() {
   log_info_locked "------ Upgrading gcloud and installing packages ------"
   log_info_locked ""
   set -e
-  upgrade_gcloud_version
-  install_packages
+  #upgrade_gcloud_version
+  #install_packages
   set +e
   log_info_locked "------ Upgrading gcloud and installing packages took $SECONDS seconds ------"
 
@@ -696,6 +665,8 @@ main() {
   else
     # Run tpc test and exit in case RUN_TEST_ON_TPC_ENDPOINT is true.
     if [[ "${RUN_TEST_ON_TPC_ENDPOINT}" == "true" ]]; then
+      BUCKET_LOCATION="$TPC_BUCKET_LOCATION"
+      PROJECT_ID="$TPCZERO_PROJECT_ID"
       run_e2e_tests_for_tpc &
       e2e_tests_tpc_pid=$!
     
