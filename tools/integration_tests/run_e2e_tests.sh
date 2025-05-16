@@ -642,8 +642,8 @@ main() {
   log_info_locked "------ Upgrading gcloud and installing packages ------"
   log_info_locked ""
   set -e
-  #upgrade_gcloud_version
-  #install_packages
+  upgrade_gcloud_version
+  install_packages
   set +e
   log_info_locked "------ Upgrading gcloud and installing packages took $SECONDS seconds ------"
 
