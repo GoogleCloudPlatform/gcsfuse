@@ -13,19 +13,31 @@
 # limitations under the License.
 
 import os
-import time
 import argparse
+import time
 import helper
 
 MOUNT_DIR = "gcs"
-FILE_PREFIX = "testfile_write"
+FILE_PREFIX = "testfile"
 
-def create_files(num_files, file_size_in_gb):
+def delete_existing_file(file_path):
+  """Deletes the file if it exists."""
+  if os.path.exists(file_path):
+    os.remove(file_path)
+    print(f"{file_path} existed and was cleared.")
+
+def write_random_file(file_path, file_size_in_bytes):
+  """Creates a binary file of given size filled with random data."""
+  with open(file_path, 'wb') as f:
+    f.write(os.urandom(file_size_in_bytes))
+  print(f"Created {file_path} of size {file_size_in_bytes / (1000 ** 3):.4f} GB")
+
+def create_files(file_paths, file_size_in_gb):
   """
-  Creates a specified number of binary files with random data of a given size in GB.
+  Writes random data to specified file paths, each of the given size in GB.
 
   Args:
-      num_files (int): Number of files to create.
+      file_paths (list[str]): List of file paths to create.
       file_size_in_gb (float): Size of each file in GB (base 10).
 
   Returns:
@@ -34,27 +46,16 @@ def create_files(num_files, file_size_in_gb):
   total_bytes_written = 0
   file_size_in_bytes = int(file_size_in_gb * (1000 ** 3))
 
-  for i in range(num_files):
-    file_path = os.path.join(MOUNT_DIR, f"{FILE_PREFIX}_{file_size_in_gb}_{i}.bin")
-
+  for file_path in file_paths:
     try:
-      if os.path.exists(file_path):
-        os.remove(file_path)
-        print(f"{file_path} existed and was cleared.")
-
-      with open(file_path, 'wb') as f:
-        f.write(os.urandom(file_size_in_bytes))
-        total_bytes_written += file_size_in_bytes
-
-      print(f"Created {file_path} of size {file_size_in_gb:.4f} GB")
-
+      write_random_file(file_path, file_size_in_bytes)
+      total_bytes_written += file_size_in_bytes
     except Exception as e:
       print(f"Error creating file {file_path}: {e}")
       return None
 
   print(f"Total bytes written: {total_bytes_written / (1000**3):.4f} GB")
   return total_bytes_written
-
 
 def main():
   parser = argparse.ArgumentParser(description="Measure GCS write bandwidth via gcsfuse.")
@@ -64,15 +65,26 @@ def main():
   parser.add_argument("--file-size-gb", type=float)
   args = parser.parse_args()
 
-  workflow_type = "WRITE_{args.total_files}_{args.file_size_gb}GB_SINGLE_THREAD"
+  workflow_type = f"WRITE_{args.total_files}_{args.file_size_gb}GB_SINGLE_THREAD"
   helper.mount_bucket(MOUNT_DIR, args.bucket, args.gcsfuse_config)
+
+  # Prepare file paths
+  file_paths = [
+      os.path.join(MOUNT_DIR, f"{FILE_PREFIX}_{args.file_size_gb}_{i}.bin")
+      for i in range(args.total_files)
+  ]
+
+  # Delete files if they already exist
+  for path in file_paths:
+    delete_existing_file(path)
 
   print(f"Starting write of {args.total_files} files...")
   start = time.time()
   try:
-    total_bytes = create_files(args.total_files, args.file_size_gb)
+    total_bytes = create_files(file_paths, args.file_size_gb)
   except RuntimeError as e:
     print(f"Failed during file write: {e}")
+    total_bytes = None
   duration = time.time() - start
 
   helper.unmount_gcs_directory(MOUNT_DIR)

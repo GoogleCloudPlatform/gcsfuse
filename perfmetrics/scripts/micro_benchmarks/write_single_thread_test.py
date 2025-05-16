@@ -13,40 +13,41 @@
 # limitations under the License.
 import unittest
 from unittest import mock
-from write_single_thread import  create_files
+from write_single_thread import  create_files, delete_existing_file, write_random_file
 
 class TestWriteFiles(unittest.TestCase):
-  @mock.patch("write_single_thread.os.urandom", return_value=b"x" * 100)
-  @mock.patch("write_single_thread.open", new_callable=mock.mock_open)
-  @mock.patch("write_single_thread.os.remove")
-  @mock.patch("write_single_thread.os.path.exists", return_value=False)
-  def test_create_files_success(self, mock_exists, mock_remove, mock_open, mock_urandom):
-    result = create_files(2, 1e-7)  # Small size to avoid memory issues
 
-    self.assertIsInstance(result, int)
-    self.assertGreater(result, 0)
-    self.assertEqual(mock_open.call_count, 2)
-    mock_remove.assert_not_called()  # Because os.path.exists returned False
+  @mock.patch("os.path.exists", return_value=True)
+  @mock.patch("os.remove")
+  def test_delete_existing_file(self, mock_remove, mock_exists):
+    delete_existing_file("/tmp/testfile.bin")
+    mock_remove.assert_called_once_with("/tmp/testfile.bin")
 
-  @mock.patch("write_single_thread.os.urandom", return_value=b"x" * 100)
-  @mock.patch("write_single_thread.open", new_callable=mock.mock_open)
-  @mock.patch("write_single_thread.os.remove", side_effect=PermissionError("Cannot remove"))
-  @mock.patch("write_single_thread.os.path.exists", return_value=True)
-  def test_create_files_remove_failure(self, mock_exists, mock_remove, mock_open, mock_urandom):
-    result = create_files(1, 1e-7)
+  @mock.patch("os.urandom", return_value=b"x" * 1024)
+  @mock.patch("builtins.open", new_callable=mock.mock_open)
+  def test_write_random_file(self, mock_open_file, mock_urandom):
+    file_path = "/tmp/testfile.bin"
+    size = 1024
+    write_random_file(file_path, size)
 
-    self.assertIsNone(result)
-    mock_remove.assert_called_once()
+    mock_open_file.assert_called_once_with(file_path, 'wb')
+    mock_open_file().write.assert_called_once_with(b"x" * 1024)
 
-  @mock.patch("write_single_thread.os.urandom", return_value=b"x" * 100)
-  @mock.patch("write_single_thread.open", side_effect=OSError("Disk full"))
-  @mock.patch("write_single_thread.os.remove")
-  @mock.patch("write_single_thread.os.path.exists", return_value=False)
-  def test_create_files_write_failure(self, mock_exists, mock_remove, mock_open, mock_urandom):
-    result = create_files(1, 1e-7)
+  @mock.patch("os.urandom", return_value=b"x" * 10)
+  @mock.patch("builtins.open", new_callable=mock.mock_open)
+  def test_create_files_success(self, mock_open_file, mock_urandom):
+    paths = ["/tmp/file1.bin", "/tmp/file2.bin"]
+    total = create_files(paths, file_size_in_gb=1e-8)  # ~10 bytes each
+    expected_total = 20  # 2 files * 10 bytes
 
-    self.assertIsNone(result)
-    mock_open.assert_called_once()
+    self.assertEqual(total, expected_total)
+    self.assertEqual(mock_open_file.call_count, 2)
+
+  @mock.patch("builtins.open", side_effect=Exception("write error"))
+  def test_create_files_failure(self, mock_open_file):
+    paths = ["/tmp/file1.bin"]
+    total = create_files(paths, file_size_in_gb=1e-8)
+    self.assertIsNone(total)
 
 if __name__ == '__main__':
   unittest.main(argv=['first-arg-is-ignored'], exit=False)
