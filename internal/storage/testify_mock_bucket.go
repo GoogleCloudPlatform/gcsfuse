@@ -60,6 +60,14 @@ func (m *TestifyMockBucket) CreateObjectChunkWriter(ctx context.Context, req *gc
 	return args.Get(0).(gcs.Writer), nil
 }
 
+func (m *TestifyMockBucket) CreateAppendableObjectWriter(ctx context.Context, req *gcs.CreateObjectChunkWriterRequest) (wc gcs.Writer, err error) {
+	args := m.Called(ctx, req)
+	if args.Get(1) != nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(gcs.Writer), nil
+}
+
 func (m *TestifyMockBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.MinObject, error) {
 	args := m.Called(ctx, w.ObjectName())
 	return args.Get(0).(*gcs.MinObject), args.Error(1)

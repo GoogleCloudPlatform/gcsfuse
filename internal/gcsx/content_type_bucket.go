@@ -67,3 +67,8 @@ func (b contentTypeBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs
 	// Pass on the request.
 	return b.Bucket.CreateObjectChunkWriter(ctx, req, chunkSize, callBack)
 }
+
+func (b contentTypeBucket) CreateAppendableObjectWriter(ctx context.Context, req *gcs.CreateObjectChunkWriterRequest) (gcs.Writer, error) {
+	//TODO: Implementation
+	return nil, nil
+}
