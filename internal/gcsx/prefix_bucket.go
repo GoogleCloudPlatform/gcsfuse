@@ -111,8 +111,17 @@ func (b *prefixBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cre
 }
 
 func (b *prefixBucket) CreateAppendableObjectWriter(ctx context.Context, req *gcs.CreateObjectChunkWriterRequest) (gcs.Writer, error) {
-	//TODO: Implementation
-	return nil, nil
+	// Modify the request and call through.
+	mReq := new(gcs.CreateObjectChunkWriterRequest)
+	*mReq = *req
+	mReq.Name = b.wrappedName(req.Name)
+
+	wc, err := b.wrapped.CreateAppendableObjectWriter(ctx, mReq)
+	if err != nil {
+		return nil, err
+	}
+
+	return wc, err
 }
 
 func (b *prefixBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gcs.MinObject, err error) {

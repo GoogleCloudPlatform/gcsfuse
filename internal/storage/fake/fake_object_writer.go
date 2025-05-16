@@ -97,3 +97,7 @@ func NewFakeObjectWriter(b *bucket, req *gcs.CreateObjectRequest) (w gcs.Writer,
 
 	return wr, nil
 }
+
+func NewFakeAppendableObjectWriter(b *bucket, req *gcs.CreateObjectChunkWriterRequest) (w gcs.Writer, err error) {
+	return NewFakeObjectWriter(b, &req.CreateObjectRequest)
+}
