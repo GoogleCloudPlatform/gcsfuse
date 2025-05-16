@@ -161,7 +161,7 @@ log_error_locked() {
 create_bucket() {
   if [[ $# -ne 2 ]]; then
     log_error "create_bucket() called with incorrect number of arguments."
-    exit 1
+    return 1
   fi
   local package="$1"
   local bucket_type="$2"
@@ -169,7 +169,7 @@ create_bucket() {
   uuid=$(uuidgen)
   if [[ -z "$uuid" ]]; then
     log_error "Unable to generate random UUID for bucket name"
-    exit 1
+    return 1
   fi
   local bucket_name="${BUCKET_PREFIX}-${package}-${bucket_type}-${uuid}"
   bucket_name="${bucket_name:0:MAX_BUCKET_NAME_LENGTH}" # Trim bucket_name upto MAX_BUCKET_NAME_LENGTH.
@@ -182,12 +182,12 @@ create_bucket() {
     cmd="gcloud alpha storage buckets create gs://${bucket_name} --project=${PROJECT_ID} --location=${BUCKET_LOCATION} --placement=${BUCKET_LOCATION}-a --default-storage-class=RAPID --uniform-bucket-level-access --enable-hierarchical-namespace"
   else
     log_error "Invalid Bucket Type [${bucket_type}]. Supported Types [flat, hns, zonal]"
-    exit 1
+    return 1
   fi
   sleep 4 # Ensure 4 second gap between creating a new bucket.
   if ! eval "$cmd"; then
     log_error "Unable to create bucket [${bucket_name}]"
-    exit 1
+    return 1
   fi
   echo "$bucket_name" >> "$BUCKET_NAMES" # Add bucket names to file.
   echo "$bucket_name"
@@ -205,7 +205,11 @@ setup_package_buckets () {
   for package in "${package_array[@]}"; do
     local bucket_name
     bucket_name=$(create_bucket "$package" "$bucket_type")
-    package_bucket_array+=("${package} ${bucket_name}")
+    if [[ $? -eq 0 ]]; then
+      package_bucket_array+=("${package} ${bucket_name}")
+    else
+      log_error_locked "Unable to create a bucket for package [${package}] of type [${bucket_type}]."
+    fi
   done
 }
 
@@ -513,14 +517,14 @@ install_packages() {
 
 run_e2e_tests_for_flat_bucket() {
   log_info_locked "Started running e2e tests for flat bucket"
-  parallel_package_bucket=()
-  setup_package_buckets "PARALLEL_TEST_PACKAGES" "parallel_package_bucket" "flat"
-  run_parallel "test_package @" "${parallel_package_bucket[@]}" &
+  parallel_package_flat_bucket=()
+  setup_package_buckets "PARALLEL_TEST_PACKAGES" "parallel_package_flat_bucket" "flat"
+  run_parallel "test_package @" "${parallel_package_flat_bucket[@]}" &
   parallel_tests_flat_group_pid=$!
 
-  sequential_package_bucket=()
-  setup_package_buckets "SEQUENTIAL_TEST_PACKAGES" "sequential_package_bucket" "flat"
-  run_sequential "test_package @" "${sequential_package_bucket[@]}" &
+  sequential_package_flat_bucket=()
+  setup_package_buckets "SEQUENTIAL_TEST_PACKAGES" "sequential_package_flat_bucket" "flat"
+  run_sequential "test_package @" "${sequential_package_flat_bucket[@]}" &
   sequential_tests_flat_group_pid=$!
 
   # Wait for all tests to complete.
@@ -539,13 +543,13 @@ run_e2e_tests_for_flat_bucket() {
 
 run_e2e_tests_for_hns_bucket() {
   log_info_locked "Started running e2e tests for HNS bucket"
-  parallel_package_bucket=()
-  setup_package_buckets "PARALLEL_TEST_PACKAGES" "parallel_package_bucket" "hns"
-  run_parallel "test_package @" "${parallel_package_bucket[@]}" &
+  parallel_package_hns_bucket=()
+  setup_package_buckets "PARALLEL_TEST_PACKAGES" "parallel_package_hns_bucket" "hns"
+  run_parallel "test_package @" "${parallel_package_hns_bucket[@]}" &
   parallel_tests_hns_group_pid=$!
-  sequential_package_bucket=()
-  setup_package_buckets "SEQUENTIAL_TEST_PACKAGES" "sequential_package_bucket" "hns"
-  run_sequential "test_package @" "${sequential_package_bucket[@]}" &
+  sequential_package_hns_bucket=()
+  setup_package_buckets "SEQUENTIAL_TEST_PACKAGES" "sequential_package_hns_bucket" "hns"
+  run_sequential "test_package @" "${sequential_package_hns_bucket[@]}" &
   sequential_tests_hns_group_pid=$!
 
   # Wait for all tests to complete.
@@ -564,13 +568,13 @@ run_e2e_tests_for_hns_bucket() {
 
 run_e2e_tests_for_zonal_bucket() {
   log_info_locked "Started running e2e tests for ZONAL bucket"
-  parallel_package_bucket=()
-  setup_package_buckets "PARALLEL_TEST_PACKAGES_FOR_ZB" "parallel_package_bucket" "zonal"
-  run_parallel "test_package @" "${parallel_package_bucket[@]}" &
+  parallel_package_zonal_bucket=()
+  setup_package_buckets "PARALLEL_TEST_PACKAGES_FOR_ZB" "parallel_package_zonal_bucket" "zonal"
+  run_parallel "test_package @" "${parallel_package_zonal_bucket[@]}" &
   parallel_tests_zonal_group_pid=$!
-  sequential_package_bucket=()
-  setup_package_buckets "SEQUENTIAL_TEST_PACKAGES_FOR_ZB" "sequential_package_bucket" "zonal"
-  run_sequential "test_package @" "${sequential_package_bucket[@]}" &
+  sequential_package_zonal_bucket=()
+  setup_package_buckets "SEQUENTIAL_TEST_PACKAGES_FOR_ZB" "sequential_package_zonal_bucket" "zonal"
+  run_sequential "test_package @" "${sequential_package_zonal_bucket[@]}" &
   sequential_tests_zonal_group_pid=$!
 
   # Wait for all tests to complete.
@@ -645,8 +649,8 @@ main() {
   log_info_locked "------ Upgrading gcloud and installing packages ------"
   log_info_locked ""
   set -e
-  #upgrade_gcloud_version
-  #install_packages
+  upgrade_gcloud_version
+  install_packages
   set +e
   log_info_locked "------ Upgrading gcloud and installing packages took $SECONDS seconds ------"
 
