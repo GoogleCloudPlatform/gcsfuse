@@ -25,7 +25,7 @@ echo "Building and installing gcsfuse"
 commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
 ./perfmetrics/scripts/build_and_install_gcsfuse.sh $commitId
 
-cd "./perfmetrics/scripts/single_threaded_benchmark"
+cd "./perfmetrics/scripts/micro_benchmarks"
 
 echo "Installing dependencies..."
 python3 -m venv venv

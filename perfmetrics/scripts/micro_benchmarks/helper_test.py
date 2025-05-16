@@ -54,6 +54,7 @@ class TestHelperFunctions(unittest.TestCase):
   @patch("helper.bigquery.Client")  # Only patch bigquery.Client
   def test_log_to_bigquery(self, mock_bq_client):
     duration = 10
+    start_time = 0
     total_bytes = 100 * 1000 * 1000  # 100 MB
     flags = "--implicit-dirs"
     workload_type = "write"
@@ -63,7 +64,7 @@ class TestHelperFunctions(unittest.TestCase):
     mock_dataset = mock_bq_instance.dataset.return_value
     mock_bq_instance.load_table_from_dataframe.return_value.result.return_value = None
 
-    helper.log_to_bigquery(duration, total_bytes, flags, workload_type)
+    helper.log_to_bigquery(start_time, duration, total_bytes, flags, workload_type)
 
     mock_bq_instance.dataset.assert_called_with("benchmark_results")
     mock_dataset.table.assert_called_with("gcsfuse_benchmarks")
@@ -83,6 +84,7 @@ class TestHelperFunctions(unittest.TestCase):
 
     with self.assertRaises(Exception) as context:
       helper.log_to_bigquery(
+          start_time_sec=0,
           duration_sec=10.0,
           total_bytes=100_000_000,
           gcsfuse_config="--implicit-dirs",
