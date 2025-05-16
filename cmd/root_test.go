@@ -16,7 +16,6 @@ package cmd
 
 import (
 	"fmt"
-	"math"
 	"os"
 	"path"
 	"runtime"
@@ -266,7 +265,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedCreateEmptyFile:       true,
 			expectedEnableStreamingWrites: false,
 			expectedWriteBlockSizeMB:      32 * util.MiB,
-			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
+			expectedWriteGlobalMaxBlocks:  4,
 			expectedWriteMaxBlocksPerFile: 1,
 		},
 		{
@@ -275,7 +274,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: false,
 			expectedWriteBlockSizeMB:      32 * util.MiB,
-			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
+			expectedWriteGlobalMaxBlocks:  4,
 			expectedWriteMaxBlocksPerFile: 1,
 		},
 		{
@@ -284,7 +283,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: false,
 			expectedWriteBlockSizeMB:      32 * util.MiB,
-			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
+			expectedWriteGlobalMaxBlocks:  4,
 			expectedWriteMaxBlocksPerFile: 1,
 		},
 		{
@@ -293,7 +292,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: true,
 			expectedWriteBlockSizeMB:      32 * util.MiB,
-			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
+			expectedWriteGlobalMaxBlocks:  4,
 			expectedWriteMaxBlocksPerFile: 1,
 		},
 		{
@@ -302,7 +301,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: false,
 			expectedWriteBlockSizeMB:      32 * util.MiB,
-			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
+			expectedWriteGlobalMaxBlocks:  4,
 			expectedWriteMaxBlocksPerFile: 1,
 		},
 		{
@@ -311,7 +310,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: true,
 			expectedWriteBlockSizeMB:      10 * util.MiB,
-			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
+			expectedWriteGlobalMaxBlocks:  4,
 			expectedWriteMaxBlocksPerFile: 1,
 		},
 		{
@@ -329,8 +328,24 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: true,
 			expectedWriteBlockSizeMB:      32 * util.MiB,
-			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
+			expectedWriteGlobalMaxBlocks:  4,
 			expectedWriteMaxBlocksPerFile: 10,
+		},
+		{
+			name:                          "Test high performance config values.",
+			args:                          []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "abc", "pqr"},
+			expectedEnableStreamingWrites: false,
+			expectedWriteBlockSizeMB:      32 * util.MiB,
+			expectedWriteGlobalMaxBlocks:  1600,
+		},
+		{
+			name:                          "Test high performance config values with --write-global-max-blocks flag overriden.",
+			args:                          []string{"gcsfuse", "--write-global-max-blocks=2000", "--disable-autoconfig=false", "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: false,
+			expectedWriteBlockSizeMB:      32 * util.MiB,
+			expectedWriteGlobalMaxBlocks:  2000,
+			expectedWriteMaxBlocksPerFile: 1,
 		},
 	}
 
