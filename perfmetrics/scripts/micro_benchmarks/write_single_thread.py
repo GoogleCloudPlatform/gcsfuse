@@ -76,7 +76,7 @@ def create_files(file_paths, file_size_in_gb):
 
   for file_path in file_paths:
     try:
-      success = write_random_file(file_path, 1000 * 1000 * 1000)
+      success = write_random_file(file_path, file_size_in_bytes)
       if not success:
         print("Write failed. Exiting.")
         sys.exit(1)
@@ -125,6 +125,7 @@ def main():
   helper.unmount_gcs_directory(MOUNT_DIR)
 
   helper.log_to_bigquery(
+     start_time_sec=start,
       duration_sec=duration,
       total_bytes=total_bytes,
       gcsfuse_config=args.gcsfuse_config,

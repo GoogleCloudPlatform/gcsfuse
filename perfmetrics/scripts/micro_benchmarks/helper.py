@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from datetime import datetime, timezone
-import pytz  # Required for IST
+from datetime import datetime
 from google.cloud import bigquery
 import os
 import subprocess
@@ -89,7 +88,7 @@ def log_to_bigquery(start_time_sec: float, duration_sec: float, total_bytes: int
   this query can be used to create it:
 
   CREATE TABLE `your-project-id.benchmark_results.gcsfuse_benchmarks` (
-      start_time_ist TIMESTAMP,
+      start_time TIMESTAMP,
       duration_seconds FLOAT64,
       bandwidth_mbps FLOAT64,
       gcsfuse_config STRING,
@@ -108,22 +107,18 @@ def log_to_bigquery(start_time_sec: float, duration_sec: float, total_bytes: int
   bandwidth_mbps = total_bytes / duration_sec / 1000 / 1000
   print(f"Duration: {duration_sec:.2f}s | Data: {total_bytes / (1000 ** 3):.2f} GB | Bandwidth: {bandwidth_mbps:.2f} MB/s")
 
-  # Convert timestamp to IST timezone
-  ist = pytz.timezone("Asia/Kolkata")
-  start_time = datetime.fromtimestamp(start_time_sec, tz=timezone.utc).astimezone(ist)
-
   client = bigquery.Client(project=PROJECT_ID)
   table_ref = client.dataset(DATASET_ID).table(TABLE_ID)
 
   df = pd.DataFrame([{
-      "start_time_ist": start_time,
+      "start_time": datetime.fromtimestamp(start_time_sec),
       "duration_seconds": duration_sec,
       "bandwidth_mbps": bandwidth_mbps,
       "gcsfuse_config": gcsfuse_config,
       "workload_type": workload_type,
   }])
 
-  df['timestamp'] = pd.to_datetime(df['timestamp'])
+  df['start_time'] = pd.to_datetime(df['start_time'])
   df['duration_seconds'] = df['duration_seconds'].astype(float)
   df['bandwidth_mbps'] = df['bandwidth_mbps'].astype(float)
 

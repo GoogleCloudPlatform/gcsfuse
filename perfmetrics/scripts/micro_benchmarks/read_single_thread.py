@@ -114,8 +114,8 @@ def main():
   parser.add_argument("--total-files", type=int, default=10, help="Number of files to read")
   parser.add_argument("--file-size-gb", type=int, default=15, help="Size of each file in GB")
 
-  workflow_type = "READ_{args.total_files}_{args.file_size_gb}GB_SINGLE_THREAD"
   args = parser.parse_args()
+  workflow_type = f"READ_{args.total_files}_{args.file_size_gb}GB_SINGLE_THREAD"
 
   # Mount the bucket
   helper.mount_bucket(MOUNT_DIR, args.bucket, args.gcsfuse_config)
@@ -139,6 +139,7 @@ def main():
 
   # Log to BigQuery
   helper.log_to_bigquery(
+    start_time_sec=start,
       duration_sec=duration,
       total_bytes=total_bytes,
       gcsfuse_config=args.gcsfuse_config,

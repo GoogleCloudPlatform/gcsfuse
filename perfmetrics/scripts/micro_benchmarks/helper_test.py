@@ -84,6 +84,7 @@ class TestHelperFunctions(unittest.TestCase):
 
     with self.assertRaises(Exception) as context:
       helper.log_to_bigquery(
+          start_time_sec=0,
           duration_sec=10.0,
           total_bytes=100_000_000,
           gcsfuse_config="--implicit-dirs",
