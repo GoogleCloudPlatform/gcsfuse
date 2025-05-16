@@ -14,9 +14,16 @@
 
 """This file defines tests for functionalities in bq_utils.py"""
 
+import calendar
+import copy
+from random import randrange, uniform
+import sys
+import time
 import unittest
+
+sys.path.append('../')
+from utils.utils import unix_to_timestamp
 from bq_utils import FioBigqueryExporter, FioTableRow, Timestamp
-import utils
 
 
 class BqUtilsTest(unittest.TestCase):
@@ -26,51 +33,113 @@ class BqUtilsTest(unittest.TestCase):
     self.bq_project_id = 'gcs-fuse-test-ml'
     self.bq_dataset_id = 'gargnitin_test_gke_test_tool_outputs'
     self.bq_table_id = 'fio_outputs_test'
-
-  def test_create_bq_table(self):
     # Create a sample table for manual testing.
-    fioBqExporter = FioBigqueryExporter(
+    self.fioBqExporter = FioBigqueryExporter(
         self.bq_project_id, self.bq_dataset_id, self.bq_table_id
     )
 
-    # sample append call.
-    rows = []
+  @classmethod
+  def cur_epoch(self) -> int:
+    return int(calendar.timegm(time.gmtime()))
 
+  @classmethod
+  def cur_timestamp(self) -> Timestamp:
+    return unix_to_timestamp(self.cur_epoch())
+
+  @classmethod
+  def create_sample_fio_table_row(self):
     row = FioTableRow()
-    row.fio_workload_id = 'fio-workload-id-1'
-    row.experiment_id = 'expt-id-1'
+    row.fio_workload_id = 'fio-workload-{randrange(10000000000)}'
+    row.experiment_id = f'expt-{self.cur_epoch()}'
     row.epoch = 1
     row.file_size = '1M'
     row.file_size_in_bytes = 2**20
     row.block_size = '256K'
     row.block_size_in_bytes = 2**18
     row.bucket_name = 'sample-zb-bucket'
-    row.duration_in_seconds = 10
-    row.e2e_latency_ns_max = 100
-    row.e2e_latency_ns_p50 = 50
-    row.e2e_latency_ns_p90 = 90
-    row.e2e_latency_ns_p99 = 99
-    row.e2e_latency_ns_p99_9 = 99.9
-    row.end_epoch = 1746678693
-    row.start_epoch = 1746678683
+    row.e2e_latency_ns_p50 = randrange(1, 1000)
+    row.e2e_latency_ns_p90 = randrange(row.e2e_latency_ns_p50, 10000)
+    row.e2e_latency_ns_p99 = randrange(row.e2e_latency_ns_p90, 100000)
+    row.e2e_latency_ns_p99_9 = randrange(row.e2e_latency_ns_p99, 1000000)
+    row.e2e_latency_ns_max = randrange(row.e2e_latency_ns_p99_9, 10000000)
+    row.start_epoch = self.cur_epoch()
+    row.duration_in_seconds = randrange(1, 60)
+    row.end_epoch = row.start_epoch + row.duration_in_seconds
     row.files_per_thread = 20000
     row.gcsfuse_mount_options = 'implicit-dirs'
-    row.highest_cpu_usage = 10.0
-    row.lowest_cpu_usage = 1.0
-    row.highest_memory_usage = 10000
-    row.lowest_memory_usage = 100
-    row.iops = 1000
+    row.lowest_cpu_usage = uniform(1.0, 100.0)
+    row.highest_cpu_usage = uniform(row.lowest_cpu_usage, 100.0)
+    row.lowest_memory_usage = uniform(10.0, 10000.0)
+    row.highest_memory_usage = uniform(row.lowest_memory_usage, 10000.0)
+    row.iops = uniform(10.0, 10000.0)
     row.machine_type = 'n2-standard-32'
     row.num_threads = 50
     row.operation = 'read'
-    row.pod_name = 'sample-pod-name'
+    row.pod_name = f'sample-pod-name-{randrange(100000000000)}'
     row.scenario = 'gcsfuse-generic'
-    row.start_time = Timestamp('2025-05-08 04:31:23 UTC')
-    row.end_time = Timestamp('2025-05-08 04:31:33 UTC')
-    row.throughput_in_mbps = 8000
+    row.start_time = self.cur_timestamp()
+    row.end_time = row.start_time
+    row.throughput_in_mbps = uniform(1.0, 10000.0)
+    return row
 
+  def test_insert_multiple_rows(self):
+    rows = []
+    orig_num_rows = self.fioBqExporter._num_rows()
+
+    rowCommon = self.create_sample_fio_table_row()
+
+    row = copy.deepcopy(rowCommon)
+    row.fio_workload_id = f'fio_workload1_{row.experiment_id}'
+    row.epoch = 1
+    row.start_time = Timestamp('2025-05-09 08:31 UTC')
+    row.end_time = row.start_time
     rows.append(row)
-    fioBqExporter.insert_rows(rows)
+
+    row = copy.deepcopy(row)
+    row.fio_workload_id = f'fio_workload2_{row.experiment_id}'
+    row.epoch = 1
+    row.start_time = Timestamp('2025-05-09 08:32 UTC')
+    row.end_time = row.start_time
+    rows.append(row)
+
+    self.fioBqExporter.insert_rows(rows)
+    self.assertEqual(self.fioBqExporter._num_rows(), orig_num_rows + 2)
+
+  def test_insert_rows_with_one_bad_row(self):
+    rows = []
+    orig_num_rows = self.fioBqExporter._num_rows()
+
+    rowCommon = self.create_sample_fio_table_row()
+
+    row = copy.deepcopy(rowCommon)
+    num_rows = 20
+    for i in range(num_rows):
+      row = copy.deepcopy(row)
+      row.fio_workload_id = f'fio_workload{i}_{row.experiment_id}'
+      row.epoch = 1
+      if i == 0:
+        # First row is bad row because of empty start_time and end_time.
+        row.start_time = Timestamp('')
+        row.end_time = Timestamp('')
+      else:
+        row.start_time = self.cur_timestamp()
+        row.end_time = row.start_time
+      rows.append(row)
+
+    # Despite bad row(s), the insert_rows itself will not fail
+    # because of the fallback in insert_rows.
+    self.fioBqExporter.insert_rows(rows)
+    self.assertEqual(
+        self.fioBqExporter._num_rows(), orig_num_rows + num_rows - 1
+    )
+
+  def test_num_rows(self):
+    row = self.create_sample_fio_table_row()
+    orig_num_rows = self.fioBqExporter._num_rows()
+
+    self.fioBqExporter.insert_rows([row])
+
+    self.assertEqual(self.fioBqExporter._num_rows(), orig_num_rows + 1)
 
 
 if __name__ == '__main__':
