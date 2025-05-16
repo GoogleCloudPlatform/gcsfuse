@@ -29,7 +29,6 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/jacobsa/syncutil"
@@ -698,10 +697,6 @@ func (b *bucket) CreateAppendableObjectWriter(ctx context.Context, req *gcs.Crea
 		obj := b.objects[index]
 		if obj.metadata.Generation == 0 {
 			return nil, fmt.Errorf("storage: ObjectHandle.Generation must be set to use NewWriterFromAppendableObject")
-		}
-
-		if !obj.metadata.Finalized.IsZero() {
-			return nil, fmt.Errorf("append not supported for finalized objects")
 		}
 	}
 	return NewFakeAppendableObjectWriter(b, req)
