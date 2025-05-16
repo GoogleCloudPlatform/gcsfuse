@@ -21,13 +21,30 @@ MOUNT_DIR = "gcs"
 FILE_PREFIX = "testfile"
 
 def delete_existing_file(file_path):
-  """Deletes the file if it exists."""
+  """
+  Deletes the file at the specified path if it exists.
+
+  Args:
+      file_path (str): The full path to the file to delete.
+
+  Returns:
+      None
+  """
   if os.path.exists(file_path):
     os.remove(file_path)
     print(f"{file_path} existed and was cleared.")
 
 def write_random_file(file_path, file_size_in_bytes):
-  """Creates a binary file of given size filled with random data."""
+  """
+  Creates a binary file filled with random data of the specified size.
+
+  Args:
+      file_path (str): The full path where the file should be created.
+      file_size_in_bytes (int): The size of the file in bytes.
+
+  Returns:
+      None
+  """
   with open(file_path, 'wb') as f:
     f.write(os.urandom(file_size_in_bytes))
   print(f"Created {file_path} of size {file_size_in_bytes / (1000 ** 3):.4f} GB")

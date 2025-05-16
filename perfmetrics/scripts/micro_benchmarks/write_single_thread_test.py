@@ -21,6 +21,7 @@ class TestWriteFiles(unittest.TestCase):
   @mock.patch("os.remove")
   def test_delete_existing_file(self, mock_remove, mock_exists):
     delete_existing_file("/tmp/testfile.bin")
+
     mock_remove.assert_called_once_with("/tmp/testfile.bin")
 
   @mock.patch("os.urandom", return_value=b"x" * 1024)
@@ -28,6 +29,7 @@ class TestWriteFiles(unittest.TestCase):
   def test_write_random_file(self, mock_open_file, mock_urandom):
     file_path = "/tmp/testfile.bin"
     size = 1024
+
     write_random_file(file_path, size)
 
     mock_open_file.assert_called_once_with(file_path, 'wb')
@@ -37,8 +39,9 @@ class TestWriteFiles(unittest.TestCase):
   @mock.patch("builtins.open", new_callable=mock.mock_open)
   def test_create_files_success(self, mock_open_file, mock_urandom):
     paths = ["/tmp/file1.bin", "/tmp/file2.bin"]
-    total = create_files(paths, file_size_in_gb=1e-8)  # ~10 bytes each
     expected_total = 20  # 2 files * 10 bytes
+
+    total = create_files(paths, file_size_in_gb=1e-8)  # ~10 bytes each
 
     self.assertEqual(total, expected_total)
     self.assertEqual(mock_open_file.call_count, 2)
@@ -46,7 +49,9 @@ class TestWriteFiles(unittest.TestCase):
   @mock.patch("builtins.open", side_effect=Exception("write error"))
   def test_create_files_failure(self, mock_open_file):
     paths = ["/tmp/file1.bin"]
+
     total = create_files(paths, file_size_in_gb=1e-8)
+
     self.assertIsNone(total)
 
 if __name__ == '__main__':
