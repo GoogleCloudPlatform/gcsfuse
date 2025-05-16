@@ -21,7 +21,7 @@ class TestWriteFiles(unittest.TestCase):
   @mock.patch("write_single_thread.os.remove")
   @mock.patch("write_single_thread.os.path.exists", return_value=False)
   def test_create_files_success(self, mock_exists, mock_remove, mock_open, mock_urandom):
-    result = create_files(2, 1e-7, file_prefix="test")  # Small size to avoid memory issues
+    result = create_files(2, 1e-7)  # Small size to avoid memory issues
 
     self.assertIsInstance(result, int)
     self.assertGreater(result, 0)
@@ -33,7 +33,7 @@ class TestWriteFiles(unittest.TestCase):
   @mock.patch("write_single_thread.os.remove", side_effect=PermissionError("Cannot remove"))
   @mock.patch("write_single_thread.os.path.exists", return_value=True)
   def test_create_files_remove_failure(self, mock_exists, mock_remove, mock_open, mock_urandom):
-    result = create_files(1, 1e-7, file_prefix="test")
+    result = create_files(1, 1e-7)
 
     self.assertIsNone(result)
     mock_remove.assert_called_once()
@@ -43,7 +43,7 @@ class TestWriteFiles(unittest.TestCase):
   @mock.patch("write_single_thread.os.remove")
   @mock.patch("write_single_thread.os.path.exists", return_value=False)
   def test_create_files_write_failure(self, mock_exists, mock_remove, mock_open, mock_urandom):
-    result = create_files(1, 1e-7, file_prefix="test")
+    result = create_files(1, 1e-7)
 
     self.assertIsNone(result)
     mock_open.assert_called_once()

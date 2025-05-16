@@ -20,14 +20,13 @@ import helper
 MOUNT_DIR = "gcs"
 FILE_PREFIX = "testfile_write"
 
-def create_files(num_files, file_size_in_gb, file_prefix="file"):
+def create_files(num_files, file_size_in_gb):
   """
   Creates a specified number of binary files with random data of a given size in GB.
 
   Args:
       num_files (int): Number of files to create.
       file_size_in_gb (float): Size of each file in GB (base 10).
-      file_prefix (str): Prefix for the filenames.
 
   Returns:
       int | None: Total bytes written on success, None on failure.
@@ -36,7 +35,7 @@ def create_files(num_files, file_size_in_gb, file_prefix="file"):
   file_size_in_bytes = int(file_size_in_gb * (1000 ** 3))
 
   for i in range(num_files):
-    file_path = os.path.join(MOUNT_DIR, f"{file_prefix}_{file_size_in_gb}_{i}.bin")
+    file_path = os.path.join(MOUNT_DIR, f"{FILE_PREFIX}_{file_size_in_gb}_{i}.bin")
 
     try:
       if os.path.exists(file_path):
@@ -71,7 +70,7 @@ def main():
   print(f"Starting write of {args.total_files} files...")
   start = time.time()
   try:
-    total_bytes = create_files(args.total_files, args.file_size_gb, FILE_PREFIX)
+    total_bytes = create_files(args.total_files, args.file_size_gb)
   except RuntimeError as e:
     print(f"Failed during file write: {e}")
   duration = time.time() - start
