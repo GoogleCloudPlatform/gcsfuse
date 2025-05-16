@@ -28,6 +28,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/block"
 	"golang.org/x/sync/semaphore"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
@@ -1221,7 +1222,7 @@ func (fs *fileSystem) syncFile(
 // LOCKS_REQUIRED(f.mu)
 func (fs *fileSystem) createBufferedWriteHandlerAndSyncOrTempWriter(ctx context.Context, f *inode.FileInode) error {
 	err := fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, f)
-	if err != nil {
+	if err != nil && !errors.Is(err, block.CantAllocateAnyBlockError) {
 		return err
 	}
 	err = f.CreateEmptyTempFile(ctx)
@@ -1569,7 +1570,7 @@ func (fs *fileSystem) SetInodeAttributes(
 	if isFile && op.Size != nil {
 		// Initialize BWH if eligible and Sync file inode.
 		err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, file)
-		if err != nil {
+		if err != nil && !errors.Is(err, block.CantAllocateAnyBlockError) {
 			return
 		}
 		err = file.Truncate(ctx, int64(*op.Size))
@@ -2646,7 +2647,7 @@ func (fs *fileSystem) WriteFile(
 	defer in.Unlock()
 
 	err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, in)
-	if err != nil {
+	if err != nil && !errors.Is(err, block.CantAllocateAnyBlockError) {
 		return
 	}
 

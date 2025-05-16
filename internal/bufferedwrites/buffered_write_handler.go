@@ -43,11 +43,6 @@ type BufferedWriteHandler interface {
 	// Flush finalizes the upload.
 	Flush() (*gcs.MinObject, error)
 
-	// FinalizeObject finalizes the object writer. Added temporarily since server does not
-	// allow overwriting unfinalized objects.
-	// TODO: Remove this after bug b/398842976 is fixed
-	FinalizeObject() (*gcs.MinObject, error)
-
 	// SetMtime stores the mtime with the bufferedWriteHandler.
 	SetMtime(mtime time.Time)
 
@@ -127,6 +122,9 @@ func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err er
 		mtime:         time.Now(),
 		truncatedSize: -1,
 	}
+
+	// allocate 1 block.
+	bp.Get()
 	return
 }
 
@@ -250,20 +248,6 @@ func (wh *bufferedWriteHandlerImpl) Flush() (*gcs.MinObject, error) {
 		logger.Errorf("blockPool.ClearFreeBlockChannel() failed: %v", err)
 	}
 
-	return obj, nil
-}
-
-func (wh *bufferedWriteHandlerImpl) FinalizeObject() (*gcs.MinObject, error) {
-	// Fail early if upload already failed.
-	err := wh.uploadHandler.UploadError()
-	if err != nil {
-		return nil, err
-	}
-
-	obj, err := wh.uploadHandler.Finalize()
-	if err != nil {
-		return nil, fmt.Errorf("BufferedWriteHandler.FinalizeObject(): %w", err)
-	}
 	return obj, nil
 }
 

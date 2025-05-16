@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/bufferedwrites"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
@@ -604,54 +603,6 @@ func (f *FileInode) writeUsingTempFile(ctx context.Context, data []byte, offset 
 	return
 }
 
-func (f *FileInode) handleZonalBucketFinalization(ctx context.Context) error {
-	// For zonal buckets, unfinalized object gets created at the time of bwh creation.
-	// Server does not allow overwriting unfinalized objects right now so as an interim fix finalize the object.
-	// TODO: remove this after bug b/398842976 is fixed.
-	if f.Bucket().BucketType().Zonal {
-		_, err := f.bwh.FinalizeObject()
-		if err != nil {
-			return fmt.Errorf("f.bwh.FinalizeObject() failed: %w", err)
-		}
-	}
-	return nil
-}
-
-// initiateStagedWritesFallback sets up the file for staged writes on disk
-// by creating and truncating a temporary file.
-func (f *FileInode) initiateStagedWritesFallback(ctx context.Context, truncatedSize int64) error {
-	f.bwh = nil
-
-	err := f.CreateEmptyTempFile(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to create temporary file for staged writes: %w", err)
-	}
-
-	// Set the truncated size on the newly created temporary file.
-	// Current time will be set as mtime by default, so no need to set old mtime.
-	err = f.content.Truncate(truncatedSize)
-	if err != nil {
-		return fmt.Errorf("failed to truncate temporary file to size %d: %w", truncatedSize, err)
-	}
-
-	return nil
-}
-
-// handleCantAllocateBlockError handles the scenario when no block could be allocated for the file.
-// This typically happens only for the first write/write after truncate/ flush after truncate scenarios and triggers a
-// fallback to staged writes on disk.
-func (f *FileInode) handleCantAllocateBlockError(ctx context.Context) error {
-	logger.Infof("Falling back to staged writes on disk for file %s (inode %d) due to err: %v.", f.Name(), f.ID(), block.CantAllocateAnyBlockError.Error())
-
-	if err := f.handleZonalBucketFinalization(ctx); err != nil {
-		return err
-	}
-
-	// File may have been truncated to a larger size, so persist the size to set it on temporary file.
-	truncateSize := f.bwh.WriteFileInfo().TotalSize
-	return f.initiateStagedWritesFallback(ctx, truncateSize)
-}
-
 // Helper function to serve write for file using buffered writes handler.
 //
 // LOCKS_REQUIRED(f.mu)
@@ -663,7 +614,7 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 			Err: fmt.Errorf("f.bwh.Write(): %w", err),
 		}
 	}
-	if err != nil && !errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) && !errors.Is(err, block.CantAllocateAnyBlockError) {
+	if err != nil && !errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
 		return fmt.Errorf("write to buffered write handler failed: %w", err)
 	}
 
@@ -672,23 +623,8 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 		logger.Infof("Falling back to staged writes on disk for file %s (inode %d) due to err: %v.", f.Name(), f.ID(), err.Error())
 		// Finalize the object.
 		err = f.flushUsingBufferedWriteHandler()
-		if errors.Is(err, block.CantAllocateAnyBlockError) {
-			err = f.handleCantAllocateBlockError(ctx)
-			if err != nil {
-				return fmt.Errorf("error while handling CantAllocateAnyBlockError: %w", err)
-			}
-			return f.writeUsingTempFile(ctx, data, offset)
-		}
 		if err != nil {
 			return fmt.Errorf("could not finalize what has been written so far: %w", err)
-		}
-		return f.writeUsingTempFile(ctx, data, offset)
-	}
-
-	if errors.Is(err, block.CantAllocateAnyBlockError) {
-		err = f.handleCantAllocateBlockError(ctx)
-		if err != nil {
-			return fmt.Errorf("error while handling CantAllocateAnyBlockError: %w", err)
 		}
 		return f.writeUsingTempFile(ctx, data, offset)
 	}
@@ -942,15 +878,7 @@ func (f *FileInode) Flush(ctx context.Context) (err error) {
 	// Flush using the appropriate method based on whether we're using a
 	// buffered write handler.
 	if f.bwh != nil {
-		err = f.flushUsingBufferedWriteHandler()
-		if errors.Is(err, block.CantAllocateAnyBlockError) {
-			err = f.handleCantAllocateBlockError(ctx)
-			if err != nil {
-				return fmt.Errorf("error while handling CantAllocateAnyBlockError: %w", err)
-			}
-			return f.syncUsingContent(ctx)
-		}
-		return err
+		return f.flushUsingBufferedWriteHandler()
 	}
 	return f.syncUsingContent(ctx)
 }

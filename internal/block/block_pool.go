@@ -56,7 +56,12 @@ func NewBlockPool(blockSize int64, maxBlocks int64, globalMaxBlocksSem *semaphor
 		totalBlocks:        0,
 		globalMaxBlocksSem: globalMaxBlocksSem,
 	}
-	return
+	semAcquired := bp.globalMaxBlocksSem.TryAcquire(1)
+	if semAcquired == false {
+		return nil, CantAllocateAnyBlockError
+	}
+
+	return bp, nil
 }
 
 // Get returns a block. It returns an existing block if it's ready for reuse or
@@ -80,11 +85,6 @@ func (bp *BlockPool) Get() (Block, error) {
 
 				bp.totalBlocks++
 				return b, nil
-			} else {
-				if bp.totalBlocks == 0 {
-					return nil, CantAllocateAnyBlockError
-				}
-				// Else wait for the block to be available on freeBlocksCh for re-use.
 			}
 		}
 	}
@@ -95,6 +95,12 @@ func (bp *BlockPool) canAllocateBlock() bool {
 	// If max blocks limit is reached, then no more blocks can be allocated.
 	if bp.totalBlocks >= bp.maxBlocks {
 		return false
+	}
+
+	// Always allow allocation if this is the first block for the file since it has been reserved at
+	// the time of block pool creation.
+	if bp.totalBlocks == 0 {
+		return true
 	}
 
 	// Otherwise, check if we can acquire a semaphore.
