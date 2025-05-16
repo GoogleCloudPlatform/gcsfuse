@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from datetime import datetime, timezone
+import pytz  # Required for IST
 from google.cloud import bigquery
 import os
 import subprocess
@@ -79,7 +80,7 @@ def unmount_gcs_directory(mount_point: str) -> bool:
     return False
 
 
-def log_to_bigquery(duration_sec: float, total_bytes: int, gcsfuse_config: str, workload_type: str) -> None:
+def log_to_bigquery(start_time_sec: float, duration_sec: float, total_bytes: int, gcsfuse_config: str, workload_type: str) -> None:
   """Logs performance metrics to a BigQuery table.
 
   This function calculates bandwidth, creates a pandas DataFrame with the
@@ -88,7 +89,7 @@ def log_to_bigquery(duration_sec: float, total_bytes: int, gcsfuse_config: str, 
   this query can be used to create it:
 
   CREATE TABLE `your-project-id.benchmark_results.gcsfuse_benchmarks` (
-      timestamp TIMESTAMP,
+      start_time_ist TIMESTAMP,
       duration_seconds FLOAT64,
       bandwidth_mbps FLOAT64,
       gcsfuse_config STRING,
@@ -107,11 +108,15 @@ def log_to_bigquery(duration_sec: float, total_bytes: int, gcsfuse_config: str, 
   bandwidth_mbps = total_bytes / duration_sec / 1000 / 1000
   print(f"Duration: {duration_sec:.2f}s | Data: {total_bytes / (1000 ** 3):.2f} GB | Bandwidth: {bandwidth_mbps:.2f} MB/s")
 
+  # Convert timestamp to IST timezone
+  ist = pytz.timezone("Asia/Kolkata")
+  start_time = datetime.fromtimestamp(start_time_sec, tz=timezone.utc).astimezone(ist)
+
   client = bigquery.Client(project=PROJECT_ID)
   table_ref = client.dataset(DATASET_ID).table(TABLE_ID)
 
   df = pd.DataFrame([{
-      "timestamp": datetime.now(timezone.utc),
+      "start_time_ist": start_time,
       "duration_seconds": duration_sec,
       "bandwidth_mbps": bandwidth_mbps,
       "gcsfuse_config": gcsfuse_config,
