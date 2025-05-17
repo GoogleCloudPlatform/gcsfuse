@@ -26,6 +26,8 @@ readonly BUCKET_CREATION_LOCK_FILE=$(mktemp "/tmp/${TMP_PREFIX}_bucket_creation_
 readonly BUCKET_NAMES=$(mktemp "/tmp/${TMP_PREFIX}_bucket_names.XXXXXX")
 readonly BUCKET_CREATION_LOG=$(mktemp "/tmp/${TMP_PREFIX}_bucket_creation.XXXXXX")
 readonly PACKAGE_STATS_FILE=$(mktemp "/tmp/${TMP_PREFIX}_package_stats.XXXXXX")
+readonly VM_USAGE=$(mktemp "/tmp/${TMP_PREFIX}_vm_usage.XXXXXX")
+
 
 
 # Default values for optional arguments
@@ -280,6 +282,7 @@ delete_bucket() {
 
 # shellcheck disable=SC2317
 clean_up() {
+  cat "$VM_USAGE"
   local buckets=()
   # Read each line from BUCKET_NAMES into buckets array
   # This ensures each bucket name is treated as a separate item.
@@ -687,7 +690,9 @@ run_e2e_tests_for_emulator() {
 main() {
   # Clean up everything on exit.
   trap clean_up EXIT
-
+  chmod +x ./tools/integration_tests/monitor_vm_usage.sh
+  ./tools/integration_tests/monitor_vm_usage.sh "$VM_USAGE" &
+  usage_pid=$!
   log_info_locked ""
   log_info_locked "------ Upgrading gcloud and installing packages ------"
   log_info_locked ""
@@ -741,6 +746,8 @@ main() {
   fi
   print_package_stats
   log_info_locked "------ E2E test packages complete run took $((SECONDS / 60)) minutes ------"
+  log_info_locked ""
+  kill -SIGTERM "$usage_pid"
   exit $exit_code
 }
 
