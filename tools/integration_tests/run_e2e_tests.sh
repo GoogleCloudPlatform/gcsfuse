@@ -282,7 +282,6 @@ delete_bucket() {
 
 # shellcheck disable=SC2317
 clean_up() {
-  cat "$VM_USAGE"
   local buckets=()
   # Read each line from BUCKET_NAMES into buckets array
   # This ensures each bucket name is treated as a separate item.
@@ -689,7 +688,7 @@ run_e2e_tests_for_emulator() {
 
 main() {
   # Clean up everything on exit.
-  trap clean_up EXIT
+  trap clean_up EXIT SIGINT SIGTERM
   chmod +x ./tools/integration_tests/monitor_vm_usage.sh
   ./tools/integration_tests/monitor_vm_usage.sh "$VM_USAGE" &
   usage_pid=$!
@@ -748,6 +747,7 @@ main() {
   log_info_locked "------ E2E test packages complete run took $((SECONDS / 60)) minutes ------"
   log_info_locked ""
   kill -SIGTERM "$usage_pid"
+  cat "$VM_USAGE"
   exit $exit_code
 }
 
