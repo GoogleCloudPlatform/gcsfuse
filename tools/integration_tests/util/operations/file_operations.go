@@ -816,20 +816,6 @@ func ValidateSyncGivenThatFileIsClobbered(t *testing.T, file *os.File, streaming
 	}
 }
 
-// This method validates read operation on file which has already been clobbered.
-// 1. With streaming writes read operation is not supported.
-// 2. Without streaming writes read operation returns ESTALE error encountered during reader creation.
-func ValidateReadGivenThatFileIsClobbered(t *testing.T, file *os.File, streamingWrites bool, content string) {
-	t.Helper()
-	buffer := make([]byte, len(content))
-	_, err := file.Read(buffer)
-	if streamingWrites {
-		ValidateEOPNOTSUPPError(t, err)
-	} else {
-		ValidateESTALEError(t, err)
-	}
-}
-
 // This method validates write operation on file which has been renamed.
 // 1. With streaming writes write operation returns ESTALE error as buffer upload fails.
 // 2. Without streaming writes write operation succeeds.
