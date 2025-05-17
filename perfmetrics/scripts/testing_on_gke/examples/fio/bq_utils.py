@@ -148,7 +148,7 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
       tables
     table_id (str): The name of the bigquery table configurations and output
       metrics will be stored.
-    bq_client (google.cloud.bigquery.client.Client): The client for interacting
+    client (google.cloud.bigquery.client.Client): The client for interacting
       with Bigquery. Default value is bigquery.Client(project=project_id).
   """
 
@@ -204,6 +204,16 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
     results = self.client.query_and_wait(query)
     return results.total_rows if results else 0
 
+  def _has_experiment_id(self, experiment_id: str) -> bool:
+    """Returns true if the current BQ table has any rows for the given experiment_id."""
+    query = (
+        'select count(*) as num_rows from'
+        f' {self.project_id}.{self.dataset_id}.{self.table_id} where'
+        f" experiment_id='{experiment_id}' group by experiment_id"
+    )
+    results = self.client.query_and_wait(query)
+    return results and results.total_rows > 0
+
   def _insert_rows_with_retry(self, table, rows_to_insert: []):
     """Inserts given rows to the given table in a single transaction.
 
@@ -237,6 +247,8 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
     """Pass a list of FioTableRow objects to insert into the fio-table.
 
     This inserts all the given rows of data in a single transaction.
+    It is expected and verified that all the rows being inserted have the same
+    experiment_id (determined from the first row).
 
     Arguments:
 
@@ -246,8 +258,36 @@ class FioBigqueryExporter(ExperimentsGCSFuseBQ):
       Exception: If some row insertion failed.
     """
 
-    # Edge-case.
+    # Edge-cases.
     if fioTableRows is None or len(fioTableRows) == 0:
+      return
+
+    # Confirm that all the rows being inserted have the same experiment_id.
+    # Future improvement: If there are rows with K different experiment_id
+    # values, then divide the rows into K batches each with homogeneous
+    # experiment_id and then insert only those batches whose experiment_id's
+    # are not there in the table already.
+    experiment_id = fioTableRows[0].experiment_id
+    if not experiment_id:
+      raise Exception('experiment_id is null for first row')
+    # Confirm that all the rows for insertion have the correct experiment_id.
+    for row in fioTableRows:
+      if row.experiment_id != experiment_id:
+        raise Exception(
+            'There is a mismatch in the experiment_id for a row. Expected:'
+            f' {experiment_id}, Got: {row.experiment_id}'
+        )
+
+    # If this experiment_id already has rows in the BQ table, then don't insert
+    # the rows passed here to avoid duplicate entries in the
+    # table.
+    if self._has_experiment_id(experiment_id):
+      print(
+          'Warning: Bigquery table'
+          f' {self.project_id}.{self.dataset_id}.{self.table_id} already has'
+          f' the experiment_id {experiment_id}, so skipping inserting rows for'
+          ' it..'
+      )
       return
 
     # Create a list of tuples from the given list of FioTableRow objects.

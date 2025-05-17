@@ -141,6 +141,38 @@ class BqUtilsTest(unittest.TestCase):
 
     self.assertEqual(self.fioBqExporter._num_rows(), orig_num_rows + 1)
 
+  def test_has_experiment_id(self):
+    row = self.create_sample_fio_table_row()
+
+    self.fioBqExporter.insert_rows([row])
+
+    # _has_experiment_id should return true for an experiment_id
+    # which has already been added to the table.
+    self.assertTrue(self.fioBqExporter._has_experiment_id(row.experiment_id))
+
+  def test_has_experiment_id_negative(self):
+    # _has_experiment_id should return false for an experiment_id
+    # which has not been added to the table.
+    self.assertFalse(
+        self.fioBqExporter._has_experiment_id('invalid-experiment-id')
+    )
+
+  def test_insert_rows_with_unset_experiment_id(self):
+    row = self.create_sample_fio_table_row()
+    row.experiment_id = None
+
+    with self.assertRaises(Exception):
+      self.fioBqExporter.insert_rows([row])
+
+  def test_insert_rows_with_mismatched_experiment_ids(self):
+    row1 = self.create_sample_fio_table_row()
+    row1.experiment_id = 'expt-id-1'
+    row2 = copy.deepcopy(row1)
+    row2.experiment_id = 'expt-id-2'
+
+    with self.assertRaises(Exception):
+      self.fioBqExporter.insert_rows([row1, row2])
+
 
 if __name__ == '__main__':
   unittest.main()
