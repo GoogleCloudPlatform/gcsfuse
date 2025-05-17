@@ -22,13 +22,9 @@ readonly INTEGRATION_TEST_PACKAGE_DIR="./tools/integration_tests"
 readonly INTEGRATION_TEST_TIMEOUT_IN_MINS=90
 readonly TMP_PREFIX="gcsfuse_e2e"
 readonly LOG_LOCK_FILE=$(mktemp "/tmp/${TMP_PREFIX}_logging_lock.XXXXXX")
-readonly BUCKET_CREATION_LOCK_FILE=$(mktemp "/tmp/${TMP_PREFIX}_bucket_creation_lock.XXXXXX")
 readonly BUCKET_NAMES=$(mktemp "/tmp/${TMP_PREFIX}_bucket_names.XXXXXX")
-readonly BUCKET_CREATION_LOG=$(mktemp "/tmp/${TMP_PREFIX}_bucket_creation.XXXXXX")
 readonly PACKAGE_STATS_FILE=$(mktemp "/tmp/${TMP_PREFIX}_package_stats.XXXXXX")
 readonly VM_USAGE=$(mktemp "/tmp/${TMP_PREFIX}_vm_usage.XXXXXX")
-
-
 
 # Default values for optional arguments
 RUN_TEST_ON_TPC_ENDPOINT=false
@@ -117,42 +113,11 @@ PARALLEL_TEST_PACKAGES=(
   "readonly_creds"
 )
 
-# Test packages which can only be run in sequential.
-SEQUENTIAL_TEST_PACKAGES=(
-)
 
 # Test packages which can be run in parallel on zonal buckets.
-PARALLEL_TEST_PACKAGES_FOR_ZB=(
-  "benchmarking"
-  "explicit_dir"
-  "gzip"
-  "implicit_dir"
-  "interrupt"
-  "kernel_list_cache"
-  "local_file"
-  "log_rotation"
-  "monitoring"
-  "mount_timeout"
-  "mounting"
-  "negative_stat_cache"
-  "operations"
-  "read_cache"
-  "read_large_files"
-  "rename_dir_limit"
-  "stale_handle"
-  "streaming_writes"
-  "write_large_files"
-  "unfinalized_object"
-  "concurrent_operations"
-  "list_large_dir"
-  "managed_folders"
-  "readonly"
-  "readonly_creds"
-)
+PARALLEL_TEST_PACKAGES_FOR_ZB=("${PARALLEL_TEST_PACKAGES[@]}" "unfinalized_object")
 
-# Test packages which can only be run in sequential on zonal buckets.
-SEQUENTIAL_TEST_PACKAGES_FOR_ZB=(
-)
+
 
 # Test packages which can be run in parallel on TPC universe.
 PARALLEL_TEST_PACKAGES_FOR_TPC=(
@@ -236,10 +201,11 @@ create_bucket() {
     return 1
   fi
   local bucket_cmd=$(printf "%q " "${bucket_cmd_parts[@]}")
+  local bucket_cmd_log=$(mktemp "/tmp/${TMP_PREFIX}_bucket_cmd_log.XXXXXX")
   sleep 4 # Ensure 4 second gap between creating a new bucket.
-  if ! eval "$bucket_cmd" > "$BUCKET_CREATION_LOG" 2>&1; then
+  if ! eval "$bucket_cmd" > "$bucket_cmd_log" 2>&1; then
     log_error "Unable to create bucket [${bucket_name}]"
-    cat "$BUCKET_CREATION_LOG"
+    cat "$bucket_cmd_log"
     return 1
   fi
   echo "$bucket_name" >> "$BUCKET_NAMES" # Add bucket names to file.
@@ -289,8 +255,9 @@ clean_up() {
     buckets+=("$line")
   done < "$BUCKET_NAMES"
   # Clean up buckets if any.
+  local clean_up_log=$(mktemp "/tmp/${TMP_PREFIX}_clean_up_log.XXXXXX")
   if [[ "${#buckets[@]}" -gt 0 ]]; then
-      if ! run_parallel "delete_bucket @" "${buckets[@]}"; then
+      if ! run_parallel "delete_bucket @" "${buckets[@]}" > "$clean_up_log" 2>&1; then
         log_error "Failed to delete all buckets"
       else
         log_info "Successfully deleted all buckets."
@@ -369,60 +336,6 @@ run_parallel() {
     unset 'cmd_info["$pid"]'
   done
 
-  return "$overall_exit_code"
-}
-
-# run_sequential: Executes commands in sequence based on a template and substitutes.
-#   Prints output (stdout/stderr) if the command errors out.
-#   Prints success message if command succeeds.
-#   The function returns a non-zero exit status if any of the sequential commands fail.
-#
-# Usage: run_sequential "command_template_with_@" "substitute1" "substitute2" ...
-#   The '@' in the command_template will be replaced by each substitute argument.
-#
-# Example:
-#   run_sequential "echo 'Processing @' && sleep 1" "itemA" "itemB" "itemC"
-
-run_sequential() {
-  if [[ $# -lt 1 ]]; then
-    log_error_locked "run_sequential() called with incorrect number of arguments."
-    return 1
-  fi
-  local cmd_template="$1"
-  shift
-
-  local overall_exit_code=0
-
-  # Execute each command sequentially
-  for arg in "$@"; do
-    local full_cmd="${cmd_template//@/$arg}"
-    local output_file=$(mktemp "/tmp/${TMP_PREFIX}_${arg}_output.XXXXXX") || {
-      log_error_locked "Could not create temporary output file."
-      return 1
-    }
-    log_info_locked "Queuing Sequential Command: $full_cmd"
-    # Execute the command and redirect its output to the temporary file
-    # Use eval to correctly handle command substitution and complex commands
-    eval "$full_cmd" >"$output_file" 2>&1
-    local command_status=$?
-
-    if [[ "$command_status" -ne 0 ]]; then
-      acquire_lock "$LOG_LOCK_FILE"
-      log_error ""
-      log_error ""
-      log_error "--- Sequential Command Failed ---"
-      log_error "Command: $full_cmd"
-      log_error "--- Stdout/Stderr ---:"
-      cat "$output_file"
-      log_error ""
-      log_error ""
-      release_lock "$LOG_LOCK_FILE"
-      overall_exit_code=1 # Set overall exit code to non-zero if any command failed
-    else
-      log_info_locked "Sequential Command Successful: $full_cmd"
-    fi
-
-  done
   return "$overall_exit_code"
 }
 
@@ -567,18 +480,11 @@ run_e2e_tests_for_flat_bucket() {
   run_parallel "test_package @" "${parallel_package_flat_bucket[@]}" &
   parallel_tests_flat_group_pid=$!
 
-  sequential_package_flat_bucket=()
-  setup_package_buckets "SEQUENTIAL_TEST_PACKAGES" "sequential_package_flat_bucket" "flat"
-  run_sequential "test_package @" "${sequential_package_flat_bucket[@]}" &
-  sequential_tests_flat_group_pid=$!
-
   # Wait for all tests to complete.
   wait $parallel_tests_flat_group_pid
   parallel_tests_flat_group_exit_code=$?
-  wait $sequential_tests_flat_group_pid
-  sequential_tests_flat_group_exit_code=$?
 
-  if [ $parallel_tests_flat_group_exit_code != 0 ] || [ $sequential_tests_flat_group_exit_code != 0 ]; then
+  if [ $parallel_tests_flat_group_exit_code != 0 ]; then
     log_error_locked "The e2e tests for flat bucket failed."
     return 1
   fi
@@ -592,18 +498,12 @@ run_e2e_tests_for_hns_bucket() {
   setup_package_buckets "PARALLEL_TEST_PACKAGES" "parallel_package_hns_bucket" "hns"
   run_parallel "test_package @" "${parallel_package_hns_bucket[@]}" &
   parallel_tests_hns_group_pid=$!
-  sequential_package_hns_bucket=()
-  setup_package_buckets "SEQUENTIAL_TEST_PACKAGES" "sequential_package_hns_bucket" "hns"
-  run_sequential "test_package @" "${sequential_package_hns_bucket[@]}" &
-  sequential_tests_hns_group_pid=$!
 
   # Wait for all tests to complete.
   wait $parallel_tests_hns_group_pid
   parallel_tests_hns_group_exit_code=$?
-  wait $sequential_tests_hns_group_pid
-  sequential_tests_hns_group_exit_code=$?
 
-  if [ $parallel_tests_hns_group_exit_code != 0 ] || [ $sequential_tests_hns_group_exit_code != 0 ]; then
+  if [ $parallel_tests_hns_group_exit_code != 0 ]; then
     log_error_locked "The e2e tests for hns bucket failed."
     return 1
   fi
@@ -617,18 +517,12 @@ run_e2e_tests_for_zonal_bucket() {
   setup_package_buckets "PARALLEL_TEST_PACKAGES_FOR_ZB" "parallel_package_zonal_bucket" "zonal"
   run_parallel "test_package @" "${parallel_package_zonal_bucket[@]}" &
   parallel_tests_zonal_group_pid=$!
-  sequential_package_zonal_bucket=()
-  setup_package_buckets "SEQUENTIAL_TEST_PACKAGES_FOR_ZB" "sequential_package_zonal_bucket" "zonal"
-  run_sequential "test_package @" "${sequential_package_zonal_bucket[@]}" &
-  sequential_tests_zonal_group_pid=$!
 
   # Wait for all tests to complete.
   wait $parallel_tests_zonal_group_pid
   parallel_tests_zonal_group_exit_code=$?
-  wait $sequential_tests_zonal_group_pid
-  sequential_tests_zonal_group_exit_code=$?
 
-  if [ $parallel_tests_zonal_group_exit_code != 0 ] || [ $sequential_tests_zonal_group_exit_code != 0 ]; then
+  if [ $parallel_tests_zonal_group_exit_code != 0 ]; then
     log_error_locked "The e2e tests for zonal bucket failed."
     return 1
   fi
@@ -665,17 +559,14 @@ run_e2e_tests_for_tpc() {
 
 run_e2e_tests_for_emulator() {
   log_info_locked "Started running e2e tests for emulator."
-  local emulator_test_log
-  emulator_test_log=$(mktemp /tmp/emulator_test_log.XXXXXX)
-  trap 'rm "$emulator_test_log"' EXIT
-
+  local emulator_test_log=$(mktemp "/tmp/${TMP_PREFIX}_emulator_test_log.XXXXXX")
   if ! ./tools/integration_tests/emulator_tests/emulator_tests.sh "$TEST_INSTALLED_PACKAGE" >"$emulator_test_log" 2>&1; then
     acquire_lock "$LOG_LOCK_FILE"
     log_error ""
     log_error ""
     log_error "--- Emulator Run Failed ---"
     log_error "Command: $full_cmd"
-    log_error "--- Stdout/Stderr ---:"
+    log_error "--- Stdout/Stderr ---"
     cat "$emulator_test_log"
     log_error ""
     log_error ""
