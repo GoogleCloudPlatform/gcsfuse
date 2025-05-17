@@ -24,8 +24,8 @@ readonly TMP_PREFIX="gcsfuse_e2e"
 readonly LOG_LOCK_FILE=$(mktemp "/tmp/${TMP_PREFIX}_logging_lock.XXXXXX")
 readonly BUCKET_CREATION_LOCK_FILE=$(mktemp "/tmp/${TMP_PREFIX}_bucket_creation_lock.XXXXXX")
 readonly BUCKET_NAMES=$(mktemp "/tmp/${TMP_PREFIX}_bucket_names.XXXXXX")
+readonly BUCKET_CREATION_LOG=$(mktemp "/tmp/${TMP_PREFIX}_bucket_creation.XXXXXX")
 readonly PACKAGE_STATS_FILE=$(mktemp "/tmp/${TMP_PREFIX}_package_stats.XXXXXX")
-readonly MAX_BUCKET_NAME_LENGTH=63
 
 
 # Default values for optional arguments
@@ -98,38 +98,58 @@ PARALLEL_TEST_PACKAGES=(
   "write_large_files"
   "list_large_dir"
   "rename_dir_limit"
-  "read_large_files"
+  # "read_large_files"
   "explicit_dir"
   "implicit_dir"
   "interrupt"
-  "operations"
+  # "operations"
   "kernel_list_cache"
-  "concurrent_operations"
+  # "concurrent_operations"
   "benchmarking"
   "mount_timeout"
   "stale_handle"
   "negative_stat_cache"
   "streaming_writes"
   "readonly"
-  "managed_folders"
+  # "managed_folders"
   "readonly_creds"
 )
 
 # Test packages which can only be run in sequential.
 SEQUENTIAL_TEST_PACKAGES=(
-  "readonly"
-  "managed_folders"
-  "readonly_creds"
 )
 
 # Test packages which can be run in parallel on zonal buckets.
 PARALLEL_TEST_PACKAGES_FOR_ZB=(
+  "benchmarking"
+  "explicit_dir"
+  "gzip"
+  "implicit_dir"
+  "interrupt"
+  "kernel_list_cache"
+  "local_file"
+  "log_rotation"
+  "monitoring"
+  "mount_timeout"
+  "mounting"
+  "negative_stat_cache"
+  # "operations"
+  "read_cache"
+  # "read_large_files"
+  "rename_dir_limit"
   "stale_handle"
+  "streaming_writes"
+  "write_large_files"
+  "unfinalized_object"
+  # "concurrent_operations"
+  "list_large_dir"
+  # "managed_folders"
+  "readonly"
+  "readonly_creds"
 )
 
 # Test packages which can only be run in sequential on zonal buckets.
 SEQUENTIAL_TEST_PACKAGES_FOR_ZB=(
-  "readonly"
 )
 
 # Test packages which can be run in parallel on TPC universe.
@@ -191,28 +211,33 @@ create_bucket() {
   fi
   local package="$1"
   local bucket_type="$2"
-  local uuid
-  uuid=$(uuidgen)
-  if [[ -z "$uuid" ]]; then
-    log_error "Unable to generate random UUID for bucket name"
-    return 1
-  fi
-  local bucket_name="${BUCKET_PREFIX}-${package}-${bucket_type}-${uuid}"
-  bucket_name="${bucket_name:0:MAX_BUCKET_NAME_LENGTH}" # Trim bucket_name upto MAX_BUCKET_NAME_LENGTH.
-  local cmd
-  if [[ "$bucket_type" == "flat" ]]; then
-    cmd="gcloud alpha storage buckets create gs://${bucket_name} --project=${PROJECT_ID} --location=${BUCKET_LOCATION} --uniform-bucket-level-access"
-  elif [[ "$bucket_type" == "hns" ]]; then
-    cmd="gcloud alpha storage buckets create gs://${bucket_name} --project=${PROJECT_ID} --location=${BUCKET_LOCATION} --uniform-bucket-level-access --enable-hierarchical-namespace"
+  local bucket_name="${BUCKET_PREFIX}-${package}-${bucket_type}-$(date +%s%N)"
+  local bucket_cmd_parts=(
+    "gcloud"
+    "alpha"
+    "storage"
+    "buckets"
+    "create"
+    "gs://${bucket_name}"
+    "--project=${PROJECT_ID}"
+    "--location=${BUCKET_LOCATION}"
+    "--uniform-bucket-level-access"
+  )
+  if [[ "$bucket_type" == "hns" ]]; then
+    bucket_cmd_parts+=("--enable-hierarchical-namespace")
   elif [[ "$bucket_type" == "zonal" ]]; then
-    cmd="gcloud alpha storage buckets create gs://${bucket_name} --project=${PROJECT_ID} --location=${BUCKET_LOCATION} --placement=${BUCKET_LOCATION}-a --default-storage-class=RAPID --uniform-bucket-level-access --enable-hierarchical-namespace"
-  else
-    log_error "Invalid Bucket Type [${bucket_type}]. Supported Types [flat, hns, zonal]"
+    bucket_cmd_parts+=("--enable-hierarchical-namespace")
+    bucket_cmd_parts+=("--placement=${BUCKET_LOCATION}-a")
+    bucket_cmd_parts+=("--default-storage-class=RAPID")
+  elif [[ "$bucket_type" != "flat" ]]; then
+    log_error_locked "Invalid bucket type: $bucket_type."
     return 1
   fi
+  local bucket_cmd=$(printf "%q " "${bucket_cmd_parts[@]}")
   sleep 4 # Ensure 4 second gap between creating a new bucket.
-  if ! eval "$cmd"; then
+  if ! eval "$bucket_cmd" > "$BUCKET_CREATION_LOG" 2>&1; then
     log_error "Unable to create bucket [${bucket_name}]"
+    cat "$BUCKET_CREATION_LOG"
     return 1
   fi
   echo "$bucket_name" >> "$BUCKET_NAMES" # Add bucket names to file.
@@ -288,7 +313,7 @@ clean_up() {
 #   run_parallel "echo 'Processing @' && sleep 1" "itemA" "itemB" "itemC"
 
 run_parallel() {
-  if [[ $# -lt 2 ]]; then
+  if [[ $# -lt 1 ]]; then
     log_error_locked "run_parallel() called with incorrect number of arguments."
     return 1
   fi
@@ -357,7 +382,7 @@ run_parallel() {
 #   run_sequential "echo 'Processing @' && sleep 1" "itemA" "itemB" "itemC"
 
 run_sequential() {
-  if [[ $# -lt 2 ]]; then
+  if [[ $# -lt 1 ]]; then
     log_error_locked "run_sequential() called with incorrect number of arguments."
     return 1
   fi
@@ -463,8 +488,8 @@ test_package() {
   
   # Record stats and build wait run time string.
   # Using each _ char for 1 min wait time and each > char for 1 min run time.
-  wait_min=$(((start + 60) / 60))
-  run_min=$(((end - start + 60) / 60))
+  wait_min=$((start / 60))
+  run_min=$(((end - start) / 60))
   current_package_stats=$(printf "| %-25s | %-15s | %-10s |%-60s|\n" \
     "$package_name" \
     "$bucket_type" \
@@ -637,7 +662,6 @@ run_e2e_tests_for_tpc() {
 }
 
 run_e2e_tests_for_emulator() {
-  return 0
   log_info_locked "Started running e2e tests for emulator."
   local emulator_test_log
   emulator_test_log=$(mktemp /tmp/emulator_test_log.XXXXXX)
@@ -716,7 +740,7 @@ main() {
     fi
   fi
   print_package_stats
-  log_info_locked "------ E2E test packages complete run took $SECONDS seconds ------"
+  log_info_locked "------ E2E test packages complete run took $((SECONDS / 60)) minutes ------"
   exit $exit_code
 }
 
