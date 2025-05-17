@@ -105,7 +105,7 @@ update_line() {
 }
 
 FILEPATH="$1"
-INTERVAL=30
+INTERVAL=10
 
 echo "CPU UAGE EVERY ${INTERVAL} SECONDS" >> "$FILEPATH"
 
