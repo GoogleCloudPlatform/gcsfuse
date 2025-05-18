@@ -25,6 +25,7 @@ readonly LOG_LOCK_FILE=$(mktemp "/tmp/${TMP_PREFIX}_logging_lock.XXXXXX")
 readonly BUCKET_NAMES=$(mktemp "/tmp/${TMP_PREFIX}_bucket_names.XXXXXX")
 readonly PACKAGE_STATS_FILE=$(mktemp "/tmp/${TMP_PREFIX}_package_stats.XXXXXX")
 readonly VM_USAGE=$(mktemp "/tmp/${TMP_PREFIX}_vm_usage.XXXXXX")
+readonly PARALLELISM=3
 
 # Default values for optional arguments
 RUN_TEST_ON_TPC_ENDPOINT=false
@@ -86,30 +87,30 @@ fi
 
 # Test packages which can be run in parallel.
 PARALLEL_TEST_PACKAGES=(
+  "managed_folders"
+  "operations"
+  "concurrent_operations"
+  "read_large_files"
+  "read_cache"
   "monitoring"
   "local_file"
   "log_rotation"
   "mounting"
-  "read_cache"
   # "grpc_validation"
   "gzip"
   "write_large_files"
   "list_large_dir"
   "rename_dir_limit"
-  "read_large_files"
   "explicit_dir"
   "implicit_dir"
   "interrupt"
-  "operations"
   "kernel_list_cache"
-  "concurrent_operations"
   "benchmarking"
   "mount_timeout"
   "stale_handle"
   "negative_stat_cache"
   "streaming_writes"
   "readonly"
-  "managed_folders"
   "readonly_creds"
 )
 
@@ -234,6 +235,7 @@ setup_package_buckets () {
 
 # shellcheck disable=SC2317
 delete_bucket() {
+  sleep 5
   if [[ $# -ne 1 ]]; then
     log_error_locked "delete_bucket() called with incorrect number of arguments."
     return 1
@@ -257,7 +259,7 @@ clean_up() {
   # Clean up buckets if any.
   local clean_up_log=$(mktemp "/tmp/${TMP_PREFIX}_clean_up_log.XXXXXX")
   if [[ "${#buckets[@]}" -gt 0 ]]; then
-      if ! run_parallel "delete_bucket @" "${buckets[@]}" > "$clean_up_log" 2>&1; then
+      if ! run_parallel "$PARALLELISM" "delete_bucket @" "${buckets[@]}" > "$clean_up_log" 2>&1; then
         log_error "Failed to delete all buckets"
       else
         log_info "Successfully deleted all buckets."
@@ -275,49 +277,38 @@ clean_up() {
 #   Prints success message if command succeeds.
 #   The function returns a non-zero exit status if any of the parallel commands fail.
 #
-# Usage: run_parallel "command_template_with_@" "substitute1" "substitute2" ...
+# Usage: run_parallel "parallelism" "command_template_with_@" "substitute1" "substitute2" ...
 #   The '@' in the command_template will be replaced by each substitute argument.
+#   This first argument is exten of parallelism for this command.
 #
 # Example:
-#   run_parallel "echo 'Processing @' && sleep 1" "itemA" "itemB" "itemC"
+#   run_parallel 2 "echo 'Processing @' && sleep 1" "itemA" "itemB" "itemC"
+# This command will run at max 2 commands in parallel.
 
 run_parallel() {
-  if [[ $# -lt 1 ]]; then
+  if [[ $# -lt 2 ]]; then
     log_error_locked "run_parallel() called with incorrect number of arguments."
     return 1
   fi
+  local parallelism="$1"
+  shift
   local cmd_template="$1"
   shift
-
   local pids=()
   local -A cmd_info # Associative array: PID -> "output"
-
-  # Launch all commands in the background
-  for arg in "$@"; do
-    local full_cmd="${cmd_template//@/$arg}"
-    local output_file=$(mktemp "/tmp/${TMP_PREFIX}_${arg}_output.XXXXXX") || {
-      log_error_locked "Could not create temporary output file."
-      return 1
-    }
-    log_info_locked "Queuing Parallel Command: $full_cmd"
-    (eval "$full_cmd" >"$output_file" 2>&1) &
-    local pid=$!
-    pids+=("$pid")
-    cmd_info["$pid"]="${full_cmd};${output_file}" # Keep pid, full_cmd and output_file in associative array
-  done
-
   local overall_exit_code=0
-
-  # Wait for each background job to finish and process its output
-  for pid in "${pids[@]}"; do
-    local -a cmd_info_parts
-    # Split the stored info string into an array
-    IFS=';' read -r -a cmd_info_parts <<<"${cmd_info["$pid"]}"
+  process_a_pid() {
+    local -n cmd_info_ref="$1"
+    local pid
+    local status
+    wait -n -p pid
+    status=$?
+    IFS=';' read -r -a cmd_info_parts <<< "${cmd_info_ref["$pid"]}"
     local full_cmd="${cmd_info_parts[0]}"
     local output_file="${cmd_info_parts[1]}"
-    wait "$pid"
-    local command_status=$?
-    if [[ "$command_status" -ne 0 ]]; then
+    # Remove the entry from the associative array
+    unset "cmd_info[$pid]"
+    if [[ "$status" -ne 0 ]]; then
       acquire_lock "$LOG_LOCK_FILE"
       log_error ""
       log_error ""
@@ -328,12 +319,34 @@ run_parallel() {
       log_error ""
       log_error ""
       release_lock "$LOG_LOCK_FILE"
-      overall_exit_code=1 # Set overall exit code to non-zero if any command failed
+      return 1 # Return 1 to indicate a failure
     else
       log_info_locked "Parallel Command Successful: $full_cmd"
+      return 0 # Return 0 to indicate success
     fi
-    # Remove the entry from the associative array
-    unset 'cmd_info["$pid"]'
+  }
+  # Launch commands in the background based on parallelism.
+  for arg in "$@"; do
+    local full_cmd="${cmd_template//@/$arg}"
+    local output_file=$(mktemp "/tmp/${TMP_PREFIX}_${arg}_output.XXXXXX") || {
+      log_error_locked "Could not create temporary output file."
+      return 1
+    }
+    log_info_locked "Executing Parallel Command: $full_cmd"
+    (eval "$full_cmd" >"$output_file" 2>&1) &
+    local pid=$!
+    pids+=("$pid")
+    cmd_info["$pid"]="${full_cmd};${output_file}" # Keep pid, full_cmd and output_file in associative array
+    if [[ ${#cmd_info[@]} -eq $parallelism ]]; then
+      process_a_pid "cmd_info"
+      overall_exit_code=$((overall_exit_code || $? != 0))
+    fi
+  done
+  # Process any remaining cmds
+  while [ ${#cmd_info[@]} -gt  0 ]
+  do
+    process_a_pid "cmd_info"
+    overall_exit_code=$((overall_exit_code || $? != 0))
   done
 
   return "$overall_exit_code"
@@ -477,7 +490,7 @@ run_e2e_tests_for_flat_bucket() {
   log_info_locked "Started running e2e tests for flat bucket"
   parallel_package_flat_bucket=()
   setup_package_buckets "PARALLEL_TEST_PACKAGES" "parallel_package_flat_bucket" "flat"
-  run_parallel "test_package @" "${parallel_package_flat_bucket[@]}" &
+  run_parallel "$PARALLELISM" "test_package @" "${parallel_package_flat_bucket[@]}" &
   parallel_tests_flat_group_pid=$!
 
   # Wait for all tests to complete.
@@ -496,7 +509,7 @@ run_e2e_tests_for_hns_bucket() {
   log_info_locked "Started running e2e tests for HNS bucket"
   parallel_package_hns_bucket=()
   setup_package_buckets "PARALLEL_TEST_PACKAGES" "parallel_package_hns_bucket" "hns"
-  run_parallel "test_package @" "${parallel_package_hns_bucket[@]}" &
+  run_parallel "$PARALLELISM" "test_package @" "${parallel_package_hns_bucket[@]}" &
   parallel_tests_hns_group_pid=$!
 
   # Wait for all tests to complete.
@@ -515,7 +528,7 @@ run_e2e_tests_for_zonal_bucket() {
   log_info_locked "Started running e2e tests for ZONAL bucket"
   parallel_package_zonal_bucket=()
   setup_package_buckets "PARALLEL_TEST_PACKAGES_FOR_ZB" "parallel_package_zonal_bucket" "zonal"
-  run_parallel "test_package @" "${parallel_package_zonal_bucket[@]}" &
+  run_parallel "$PARALLELISM" "test_package @" "${parallel_package_zonal_bucket[@]}" &
   parallel_tests_zonal_group_pid=$!
 
   # Wait for all tests to complete.
@@ -535,12 +548,12 @@ run_e2e_tests_for_tpc() {
 
   parallel_package_bucket_hns=()
   setup_package_buckets "PARALLEL_TEST_PACKAGES_FOR_TPC" "parallel_package_bucket_hns" "hns"
-  run_parallel "test_package @" "${parallel_package_bucket_hns[@]}" &
+  run_parallel "$PARALLELISM" "test_package @" "${parallel_package_bucket_hns[@]}" &
   parallel_tests_hns_group_pid=$!
 
   parallel_package_bucket_flat=()
   setup_package_buckets "PARALLEL_TEST_PACKAGES_FOR_TPC" "parallel_package_bucket_flat" "flat"
-  run_parallel "test_package @" "${parallel_package_bucket_flat[@]}" &
+  run_parallel "$PARALLELISM" "test_package @" "${parallel_package_bucket_flat[@]}" &
   parallel_tests_flat_group_pid=$!
 
   # Wait for all tests to complete.
