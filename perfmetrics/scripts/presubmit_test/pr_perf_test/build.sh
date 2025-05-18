@@ -51,7 +51,7 @@ bash --version
 /bin/bash --version
 set -e
 sudo apt-get update
-sudo apt-get upgrade
+sudo apt install --only-upgrade bash
 echo "Bash Version after upgrade:"
 bash --version
 /bin/bash --version
