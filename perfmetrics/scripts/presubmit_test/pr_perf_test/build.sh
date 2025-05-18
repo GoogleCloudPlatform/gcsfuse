@@ -46,13 +46,20 @@ then
   exit 0
 fi
 
-echo "Bash Version before upgrade:"
-bash --version
 set -e
 sudo apt-get update
-sudo apt install --only-upgrade bash
-echo "Bash Version after upgrade:"
-bash --version
+BASH_VER="5.2.37"
+INSTALL_PREFIX="/usr/local"
+wget -q "https://ftp.gnu.org/gnu/bash/bash-${BASH_VER}.tar.gz"
+tar -xzf "bash-${BASH_VER}.tar.gz"
+cd "bash-${BASH_VER}"
+./configure --prefix="${INSTALL_PREFIX}" --enable-readline > /dev/null 2>&1
+make -s -j"$(nproc 2>/dev/null || echo 1)" > /dev/null 2>&1
+sudo make install > /dev/null 2>&1
+echo ""
+echo "Bash ${BASH_VER} installed to ${INSTALL_PREFIX}/bin/bash"
+"${INSTALL_PREFIX}/bin/bash" --version
+echo ""
 echo Installing git
 sudo apt-get install git
 echo Installing go-lang  1.24.0
@@ -125,7 +132,8 @@ then
 
   echo "Running e2e tests on zonal bucket(s) ..."
   # $1 argument is refering to value of testInstalledPackage.
-  ./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $BUCKET_LOCATION $RUN_TEST_ON_TPC_ENDPOINT $RUN_TESTS_WITH_PRESUBMIT_FLAG true
+  "chmod +x ./tools/integration_tests/run_e2e_tests.sh"
+  "${INSTALL_PREFIX}/bin/bash" ./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $BUCKET_LOCATION $RUN_TEST_ON_TPC_ENDPOINT $RUN_TESTS_WITH_PRESUBMIT_FLAG true
 fi
 
 # Execute integration tests on non-zonal bucket(s).
@@ -135,8 +143,9 @@ then
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
   echo "Running e2e tests on non-zonal bucket(s) ..."
+  "chmod +x ./tools/integration_tests/run_e2e_tests.sh"
   # $1 argument is refering to value of testInstalledPackage.
-  ./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $BUCKET_LOCATION $RUN_TEST_ON_TPC_ENDPOINT $RUN_TESTS_WITH_PRESUBMIT_FLAG false
+  "${INSTALL_PREFIX}/bin/bash" ./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $BUCKET_LOCATION $RUN_TEST_ON_TPC_ENDPOINT $RUN_TESTS_WITH_PRESUBMIT_FLAG false
 fi
 
 # Execute package build tests.
