@@ -46,8 +46,16 @@ then
   exit 0
 fi
 
+echo "Bash Version before upgrade:"
+bash --version
+/bin/bash --version
 set -e
 sudo apt-get update
+sudo apt-get upgrade
+echo "Bash Version after upgrade:"
+bash --version
+/bin/bash --version
+exit 0
 echo Installing git
 sudo apt-get install git
 echo Installing go-lang  1.24.0
