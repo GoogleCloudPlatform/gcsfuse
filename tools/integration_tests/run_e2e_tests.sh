@@ -13,6 +13,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# --- Bash Version Check ---
+# This script requires Bash version 4.3 or newer for features like 'local -n' and 'wait -n -p'.
+
+REQUIRED_BASH_MAJOR=4
+REQUIRED_BASH_MINOR=3
+
+# Check if BASH_VERSINFO is available and populated (it should be in any Bash >= 2.0)
+if [[ -z "${BASH_VERSINFO[0]}" ]] || [[ -z "${BASH_VERSINFO[1]}" ]]; then
+  echo "Error: BASH_VERSINFO array is not populated. Are you sure this is Bash?" >&2
+  echo "This script requires Bash version $REQUIRED_BASH_MAJOR.$REQUIRED_BASH_MINOR or newer." >&2
+  exit 1
+fi
+
+CURRENT_BASH_MAJOR="${BASH_VERSINFO[0]}"
+CURRENT_BASH_MINOR="${BASH_VERSINFO[1]}"
+
+if [[ "$CURRENT_BASH_MAJOR" -lt "$REQUIRED_BASH_MAJOR" ]] || \
+    ( [[ "$CURRENT_BASH_MAJOR" -eq "$REQUIRED_BASH_MAJOR" ]] && \
+      [[ "$CURRENT_BASH_MINOR" -lt "$REQUIRED_BASH_MINOR" ]] ); then
+  echo "Error: This script requires Bash version $REQUIRED_BASH_MAJOR.$REQUIRED_BASH_MINOR or newer." >&2
+  echo "Your current Bash version is: $CURRENT_BASH_MAJOR.$CURRENT_BASH_MINOR (Full version: $BASH_VERSION)" >&2
+  echo "Please update Bash to a compatible version and try again." >&2
+  exit 1
+fi
+# --- End Bash Version Check ---
+
 # Constants
 readonly DEFUALT_PROJECT_ID="gcs-fuse-test-ml"
 readonly TPCZERO_PROJECT_ID="tpczero-system:gcsfuse-test-project"
@@ -25,7 +51,7 @@ readonly LOG_LOCK_FILE=$(mktemp "/tmp/${TMP_PREFIX}_logging_lock.XXXXXX")
 readonly BUCKET_NAMES=$(mktemp "/tmp/${TMP_PREFIX}_bucket_names.XXXXXX")
 readonly PACKAGE_STATS_FILE=$(mktemp "/tmp/${TMP_PREFIX}_package_stats.XXXXXX")
 readonly VM_USAGE=$(mktemp "/tmp/${TMP_PREFIX}_vm_usage.XXXXXX")
-readonly PARALLELISM=3
+readonly PARALLELISM=10
 
 # Default values for optional arguments
 RUN_TEST_ON_TPC_ENDPOINT=false
