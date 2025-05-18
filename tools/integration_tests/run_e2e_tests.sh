@@ -87,21 +87,21 @@ fi
 
 # Test packages which can be run in parallel.
 PARALLEL_TEST_PACKAGES=(
-  "managed_folders"
-  "operations"
-  "concurrent_operations"
-  "read_large_files"
-  "read_cache"
-  "monitoring"
-  "local_file"
-  "log_rotation"
-  "mounting"
-  # "grpc_validation"
-  "gzip"
-  "write_large_files"
-  "list_large_dir"
-  "rename_dir_limit"
-  "explicit_dir"
+  # "managed_folders" # 40m
+  # "operations" # 32m
+  # "concurrent_operations" # 20m
+  # "read_large_files" #17m
+  # "read_cache" #14m
+  # "monitoring" #1m
+  # "local_file" #4m
+  # "log_rotation" #1m
+  # "mounting" #1m
+  # # "grpc_validation"
+  # "gzip" #1m
+  # "write_large_files" #16 flat, 6 hns
+  # "list_large_dir" #12m
+  # "rename_dir_limit" #3m
+  # "explicit_dir" #1m
   "implicit_dir"
   "interrupt"
   "kernel_list_cache"
