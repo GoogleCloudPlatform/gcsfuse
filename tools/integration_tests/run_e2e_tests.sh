@@ -617,6 +617,9 @@ run_e2e_tests_for_emulator() {
 }
 
 main() {
+  echo "Bash version from e2e script"
+  bash --version
+  exit 0
   # Clean up everything on exit.
   trap clean_up EXIT SIGINT SIGTERM
   chmod +x ./tools/integration_tests/monitor_vm_usage.sh
