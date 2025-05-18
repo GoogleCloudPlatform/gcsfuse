@@ -25,7 +25,7 @@ readonly LOG_LOCK_FILE=$(mktemp "/tmp/${TMP_PREFIX}_logging_lock.XXXXXX")
 readonly BUCKET_NAMES=$(mktemp "/tmp/${TMP_PREFIX}_bucket_names.XXXXXX")
 readonly PACKAGE_STATS_FILE=$(mktemp "/tmp/${TMP_PREFIX}_package_stats.XXXXXX")
 readonly VM_USAGE=$(mktemp "/tmp/${TMP_PREFIX}_vm_usage.XXXXXX")
-readonly PARALLELISM=10
+readonly PARALLELISM=1
 
 # Default values for optional arguments
 RUN_TEST_ON_TPC_ENDPOINT=false
@@ -327,6 +327,7 @@ run_parallel() {
   }
   # Launch commands in the background based on parallelism.
   for arg in "$@"; do
+    sleep 120
     local full_cmd="${cmd_template//@/$arg}"
     local output_file=$(mktemp "/tmp/${TMP_PREFIX}_${arg}_output.XXXXXX") || {
       log_error_locked "Could not create temporary output file."
