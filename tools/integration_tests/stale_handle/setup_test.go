@@ -70,8 +70,8 @@ func TestMain(m *testing.M) {
 	rootDir = setup.MntDir()
 
 	flagsSet = [][]string{
-		{"--metadata-cache-ttl-secs=0"},
-		{"--metadata-cache-ttl-secs=0", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=1"},
+		{"--metadata-cache-ttl-secs=0", "--enable-streaming-writes=false"},
+		{"--metadata-cache-ttl-secs=0", "--write-block-size-mb=1", "--write-max-blocks-per-file=1"},
 	}
 	// Run all tests with GRPC.
 	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--client-protocol=grpc", "")
