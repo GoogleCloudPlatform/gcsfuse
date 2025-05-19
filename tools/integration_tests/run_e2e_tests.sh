@@ -52,6 +52,16 @@ if [[ $# -ge 6 ]] ; then
   fi
 fi
 
+# 7th parameter is to determine whether we want to disable build by the script
+# and let every test package build its own GCSFuse binary.
+BUILD_BINARY_IN_SCRIPT=true
+if [[ $# -ge 7 ]] ; then
+  if [[ "$7" == "false" ]]; then
+    BUILD_BINARY_IN_SCRIPT=false
+  fi
+fi
+
+
 if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
   if [ "${BUCKET_LOCATION}" != "us-west4" ] && [ "${BUCKET_LOCATION}" != "us-central1" ]; then
     >&2 echo "For enabling zonal bucket run, BUCKET_LOCATION should be one of: us-west4, us-central1; passed: ${BUCKET_LOCATION}"
@@ -154,6 +164,74 @@ TEST_DIR_NON_PARALLEL_FOR_ZB=(
 
 # Create a temporary file to store the log file name.
 TEST_LOGS_FILE=$(mktemp)
+
+# This variable will store the path if the script builds GCSFuse binaries (gcsfuse, mount.gcsfuse)
+BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR=""
+USE_PREBUILT_GCSFUSE_BINARY=""
+# This variable will store the path to the temporary directory holding the build_gcsfuse tool itself
+TEMP_BUILD_TOOL_DIR=""
+
+build_gcsfuse_once() {
+  local build_output_dir # For the final gcsfuse binaries
+  build_output_dir=$(mktemp -d -t gcsfuse_e2e_run_build_XXXXXX)
+  echo "GCSFuse binaries will be built in ${build_output_dir}..."
+
+  TEMP_BUILD_TOOL_DIR=$(mktemp -d -t gcsfuse_e2e_build_tool_XXXXXX)
+  local build_gcsfuse_tool_path="${TEMP_BUILD_TOOL_DIR}/build_gcsfuse"
+  echo "build_gcsfuse helper tool will be built at ${build_gcsfuse_tool_path}"
+
+  local gcsfuse_src_dir
+  # Determine GCSFuse source directory
+  # If this script is in tools/integration_tests, project root is ../../
+  SCRIPT_DIR_REALPATH=$(realpath "$(dirname "${BASH_SOURCE[0]}")")
+  gcsfuse_src_dir=$(realpath "${SCRIPT_DIR_REALPATH}/../../")
+
+  if [[ ! -f "${gcsfuse_src_dir}/go.mod" ]]; then
+    echo "Error: Could not reliably determine GCSFuse project root from ${SCRIPT_DIR_REALPATH}. Expected go.mod at ${gcsfuse_src_dir}" >&2
+    rm -rf "${build_output_dir}"
+    rm -rf "${TEMP_BUILD_TOOL_DIR}"
+    exit 1
+  fi
+  echo "Using GCSFuse source directory: ${gcsfuse_src_dir}"
+
+  # 1. Compile the build_gcsfuse tool to the temporary tool directory
+  echo "Building build_gcsfuse tool..."
+  (cd "${gcsfuse_src_dir}" && go build -o "${build_gcsfuse_tool_path}" ./tools/build_gcsfuse)
+  if [ $? -ne 0 ]; then
+    echo "Error building build_gcsfuse tool at ${build_gcsfuse_tool_path}."
+    rm -rf "${build_output_dir}"
+    rm -rf "${TEMP_BUILD_TOOL_DIR}"
+    exit 1
+  fi
+
+  # 2. Use the compiled build_gcsfuse tool from its temporary path to build GCSFuse binaries
+  # The GCSFuse source directory for the tool is '.', when cd'd into gcsfuse_src_dir.
+  echo "Running build_gcsfuse tool from ${build_gcsfuse_tool_path}..."
+  (cd "${gcsfuse_src_dir}" && "${build_gcsfuse_tool_path}" . "${build_output_dir}" "e2e-$(date +%s)")
+  if [ $? -ne 0 ]; then
+    echo "Error building GCSFuse binaries using build_gcsfuse tool."
+    rm -rf "${build_output_dir}" # Clean up final build dir
+    rm -rf "${TEMP_BUILD_TOOL_DIR}" # Clean up tool dir
+    exit 1
+  fi
+
+  BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR="${build_output_dir}" # Mark for cleanup of final binaries
+  # The TEMP_BUILD_TOOL_DIR will be cleaned up by the trap
+  echo "GCSFuse binaries built by script in: ${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
+  echo "GCSFuse executable: ${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}/bin/gcsfuse"
+}
+
+# Update cleanup_gcsfuse_once to also clean TEMP_BUILD_TOOL_DIR
+cleanup_gcsfuse_once() {
+  if [ -n "${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}" ] && [ -d "${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}" ]; then
+    echo "Cleaning up GCSFuse build directory created by script: ${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
+    rm -rf "${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
+  fi
+  if [ -n "${TEMP_BUILD_TOOL_DIR}" ] && [ -d "${TEMP_BUILD_TOOL_DIR}" ]; then
+    echo "Cleaning up temporary build_gcsfuse tool directory: ${TEMP_BUILD_TOOL_DIR}"
+    rm -rf "${TEMP_BUILD_TOOL_DIR}"
+  fi
+}
 
 # Delete contents of the buckets (and then the buckets themselves) whose names are in the passed file.
 # Args: <bucket-names-file>
@@ -258,7 +336,7 @@ function run_non_parallel_tests() {
 
     # Executing integration tests
     echo "Running test package in non-parallel (with zonal=${zonal}): ${test_dir_np} ..."
-    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=${zonal} --integrationTest -v --testbucket=$bucket_name_non_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1
+    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=${zonal} --integrationTest -v --testbucket=$bucket_name_non_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE $USE_PREBUILT_GCSFUSE_BINARY -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1
     exit_code_non_parallel=$?
     if [ $exit_code_non_parallel != 0 ]; then
       exit_code=$exit_code_non_parallel
@@ -298,7 +376,7 @@ function run_parallel_tests() {
     echo $log_file >> $TEST_LOGS_FILE
     # Executing integration tests
     echo "Queueing up test package in parallel (with zonal=${zonal}): ${test_dir_p} ..."
-    GODEBUG=asyncpreemptoff=1 go test $test_path_parallel $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=${zonal} $benchmark_flags -p 1 --integrationTest -v --testbucket=$bucket_name_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1 &
+    GODEBUG=asyncpreemptoff=1 go test $test_path_parallel $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=${zonal} $benchmark_flags -p 1 --integrationTest -v --testbucket=$bucket_name_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE $USE_PREBUILT_GCSFUSE_BINARY -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1 &
     pid=$!  # Store the PID of the background process
     echo "Queued up test package in parallel (with zonal=${zonal}): ${test_dir_p} with pid=${pid}"
     pids[${test_dir_p}]=${pid} # Optionally add the PID to an array for later
@@ -438,7 +516,7 @@ function run_e2e_tests_for_tpc() {
   gcloud --verbosity=error storage rm -r gs://"$bucket"/*
 
   # Run Operations e2e tests in TPC to validate all the functionality.
-  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/... --testOnTPCEndPoint=$RUN_TEST_ON_TPC_ENDPOINT $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=false -p 1 --integrationTest -v --testbucket="$bucket" --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT
+  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/... --testOnTPCEndPoint=$RUN_TEST_ON_TPC_ENDPOINT $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=false -p 1 --integrationTest -v --testbucket="$bucket" --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE $USE_PREBUILT_GCSFUSE_BINARY -timeout $INTEGRATION_TEST_TIMEOUT
   exit_code=$?
 
   set -e
@@ -462,7 +540,8 @@ function main(){
   # buckets to be cleaned-up while exiting this program.
   bucketNamesFile=$(realpath ./bucketNames)"-"$(tr -dc 'a-z0-9' < /dev/urandom | head -c $RANDOM_STRING_LENGTH)
   # Delete all these buckets when the program exits.
-  trap "delete_buckets_listed_in_file ${bucketNamesFile}" EXIT
+  # Cleanup fuse build folder if created
+  trap "cleanup_gcsfuse_once; delete_buckets_listed_in_file ${bucketNamesFile}" EXIT
 
   set -e
 
@@ -471,6 +550,21 @@ function main(){
   install_packages
 
   set +e
+
+  # Decide whether to build GCSFuse based on RUN_E2E_TESTS_ON_PACKAGE
+  if [ "$RUN_E2E_TESTS_ON_PACKAGE" != "true" ] && [ "$BUILD_BINARY_IN_SCRIPT" == "true" ]; then
+    # If RUN_E2E_TESTS_ON_PACKAGE is "false" or empty/not set, build GCSFuse
+    echo "RUN_E2E_TESTS_ON_PACKAGE is not 'true' (value: '${RUN_E2E_TESTS_ON_PACKAGE}') and BUILD_BINARY_IN_SCRIPT is 'true'. Building GCSFuse..."
+    build_gcsfuse_once
+    if [ $? -ne 0 ]; then
+        echo "build_gcsfuse_once failed. Exiting."
+        # The trap will handle cleanup
+        exit 1
+    fi
+
+    USE_PREBUILT_GCSFUSE_BINARY="--gcsfuse_prebuilt_dir=${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
+    echo "Script built GCSFuse at: ${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
+  fi
 
   #run integration tests
   exit_code=0

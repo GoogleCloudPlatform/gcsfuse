@@ -44,6 +44,9 @@ var integrationTest = flag.Bool("integrationTest", false, "Run tests only when t
 var testInstalledPackage = flag.Bool("testInstalledPackage", false, "[Optional] Run tests on the package pre-installed on the host machine. By default, integration tests build a new package to run the tests.")
 var testOnTPCEndPoint = flag.Bool("testOnTPCEndPoint", false, "Run tests on TPC endpoint only when the flag value is true.")
 
+// New flag for the pre-built GCSFuse directory
+var gcsfusePreBuiltDir = flag.String("gcsfuse_prebuilt_dir", "", "Path to the pre-built GCSFuse directory containing bin/gcsfuse and sbin/mount.gcsfuse.")
+
 const (
 	FilePermission_0600      = 0600
 	DirPermission_0755       = 0755
@@ -168,7 +171,35 @@ func SetUpTestDir() error {
 		return fmt.Errorf("TempDir: %w", err)
 	}
 
-	if !TestInstalledPackage() {
+	// Order of priority to choose GCSFuse installation to run the tests
+	// 1. Installed package if explicitly asked to
+	// 2. Prebuilt GCSFuse dir if the said flag is passed
+	// 3. Build it yourself
+	if TestInstalledPackage() {
+		// when testInstalledPackage flag is set, gcsfuse is preinstalled on the
+		// machine. Hence, here we are overwriting binFile to gcsfuse.
+		log.Printf("Using GCSFuse installed on the target machine")
+		binFile = "gcsfuse"
+		sbinFile = "mount.gcsfuse"
+	} else if *gcsfusePreBuiltDir != "" {
+		prebuiltDir := *gcsfusePreBuiltDir
+		log.Printf("Using GCSFuse from pre-built directory specified by --gcsfuse_prebuilt_dir flag: %s", prebuiltDir)
+		binFile = filepath.Join(prebuiltDir, "bin/gcsfuse")
+		sbinFile = filepath.Join(prebuiltDir, "sbin/mount.gcsfuse")
+
+		if _, statErr := os.Stat(binFile); statErr != nil {
+			return fmt.Errorf("gcsfuse binary from --gcsfuse_prebuilt_dir not found at %s: %w", binFile, statErr)
+		}
+		if _, statErr := os.Stat(sbinFile); statErr != nil {
+			log.Printf("Warning: Mount helper from --gcsfuse_prebuilt_dir not found at %s. Some tests might fail.", sbinFile)
+		}
+		// Set PATH to include the bin directory of the pre-built gcsfuse
+		err = os.Setenv(PathEnvVariable, filepath.Dir(binFile)+string(filepath.ListSeparator)+os.Getenv(PathEnvVariable))
+		if err != nil {
+			log.Printf("Error setting PATH for --gcsfuse_prebuilt_dir: %v", err)
+		}
+	} else {
+		log.Printf("Building GCSFuse from source in the dir: %s ...", testDir)
 		err = util.BuildGcsfuse(testDir)
 		if err != nil {
 			return fmt.Errorf("BuildGcsfuse(%q): %w", TestDir(), err)
@@ -183,12 +214,8 @@ func SetUpTestDir() error {
 		if err != nil {
 			log.Printf("Error in setting PATH environment variable: %v", err.Error())
 		}
-	} else {
-		// when testInstalledPackage flag is set, gcsfuse is preinstalled on the
-		// machine. Hence, here we are overwriting binFile to gcsfuse.
-		binFile = "gcsfuse"
-		sbinFile = "mount.gcsfuse"
 	}
+
 	logFile = path.Join(TestDir(), "gcsfuse.log")
 	mntDir = path.Join(TestDir(), "mnt")
 
