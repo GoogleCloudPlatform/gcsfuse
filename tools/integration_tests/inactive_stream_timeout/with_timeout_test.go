@@ -74,7 +74,7 @@ func (s *timeoutEnabledSuite) TestReaderCloses(t *testing.T) {
 	// 4. "Closing reader" log should be present.
 	validateInactiveReaderClosedLog(t, setup.LogFile(), gcsFileName, true, endTimeRead, endTimeWait)
 
-	// 5. Further reads should work as it is.
+	// 5. Further reads should work as it is, yeah it will create a new reader.
 	_, err = fileHandle.ReadAt(buff, 8)
 	require.NoError(t, err)
 }
@@ -123,7 +123,7 @@ func TestTimeoutEnabledSuite(t *testing.T) {
 	flagsSet := []gcsfuseTestFlags{
 		{ // Test with timeout enabled and grpc client protocol
 			inactiveReadTimeout: kDefaultInactiveReadTimeoutInSeconds * time.Second,
-			fileName:            "no_timeout.yaml",
+			fileName:            "timeout_with_grpc.yaml",
 			clientProtocol:      kGRPCClientProtocol,
 		},
 	}

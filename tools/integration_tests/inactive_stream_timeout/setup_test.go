@@ -42,7 +42,7 @@ const (
 	kChunkSizeToRead                     = 128 * 1024       // 64 KiB
 	kTestFileName                        = "foo"
 	kDefaultInactiveReadTimeoutInSeconds = 1 // A short timeout for testing
-	kLogFileNameForMountedDirectoryTests = "/tmp/gcsfuse_inactive_read_timeout_test_logs/log.json"
+	kLogFileNameForMountedDirectoryTests = "/tmp/inactive_stream_timeout_logs/log.json"
 	kHTTP1ClientProtocol                 = "http1"
 	kGRPCClientProtocol                  = "grpc"
 )
@@ -146,8 +146,7 @@ func createConfigFile(flags *gcsfuseTestFlags) string {
 			"format":    "json", // Ensure JSON logs for easier parsing
 		},
 	}
-	filePath := setup.YAMLConfigFile(mountConfig, flags.fileName)
-	return filePath
+	return setup.YAMLConfigFile(mountConfig, flags.fileName)
 }
 
 func TestMain(m *testing.M) {
