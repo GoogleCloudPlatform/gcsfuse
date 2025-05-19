@@ -687,6 +687,13 @@
   default: false
   hide-flag: false
 
+- config-path: "write.experimental-enable-rapid-appends"
+  flag-name: "write-experimental-enable-rapid-appends"
+  type: "bool"
+  usage: "Enables support for appends to unfinalized object using streaming writes"
+  default: false
+  hide-flag: true
+
 - config-path: "write.global-max-blocks"
   flag-name: "write-global-max-blocks"
   type: "int"
