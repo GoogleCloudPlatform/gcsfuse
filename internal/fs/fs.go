@@ -2601,6 +2601,7 @@ func (fs *fileSystem) ReadFile(
 	// Flush Pending writes for streaming writes file and issue read within same inode lock.
 	_, err = fs.flushPendingWrites(ctx, fh.Inode())
 	if err != nil {
+		fh.Inode().Unlock()
 		return err
 	}
 	// Serve the read.
