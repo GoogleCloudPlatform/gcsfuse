@@ -360,7 +360,7 @@ func (t *UploadHandlerTest) TestCreateObjectChunkWriterIsCalledWithCorrectReques
 				*req.MetaGenerationPrecondition == t.uh.obj.MetaGeneration &&
 				req.ContentEncoding == t.uh.obj.ContentEncoding &&
 				req.ContentType == t.uh.obj.ContentType &&
-				req.ChunkTransferTimeoutSecs == 0
+				req.ChunkTransferTimeoutSecs == chunkTransferTimeoutSecs
 		}),
 		mock.Anything,
 		mock.Anything).Return(writer, nil)
@@ -386,7 +386,7 @@ func (t *UploadHandlerTest) TestCreateObjectChunkWriterIsCalledWithCorrectReques
 			return req.Name == t.uh.objectName &&
 				*req.GenerationPrecondition == 0 &&
 				req.MetaGenerationPrecondition == nil &&
-				req.ChunkTransferTimeoutSecs == 0
+				req.ChunkTransferTimeoutSecs == chunkTransferTimeoutSecs
 		}),
 		mock.Anything,
 		mock.Anything).Return(writer, nil)
