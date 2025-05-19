@@ -85,10 +85,17 @@ install_gcsfuse() {
   echo "Installing GCSFuse at PR: ${pr}"
   git checkout "$pr"
   echo "Building gcsfuse..."
-  go build -o "$GCSFUSE_BINARY_NAME" . || { echo "Go build failed"; exit 1; }
-  echo "Build Successful..."
-  sudo install -m 0755 "$GCSFUSE_BINARY_NAME" "$INSTALL_DIR/" || { echo "Failed to install $GCSFUSE_BINARY_NAME to $INSTALL_DIR"; exit 1; }
-  echo "gcsfuse installed Successfully to $INSTALL_DIR"
+  local src_dir=$(pwd)
+  local dst_dir=$(mktemp -d -t gcsfuse_dst_dir_XXXXXX)
+  go run ./tools/build_gcsfuse.go "$src_dir" "$dst_dir" "${pr}" || { echo "Go build failed"; exit 1; }
+  export PATH="$dst_dir/bin:$dst_dir/sbin:$PATH"
+  whereis gcsfuse
+  which gcsfuse
+  whereis mount.gcsfuse
+  which mount.gcsfuse
+  whereis mount.fuse.gcsfuse
+  which mount.fuse.gcsfuse
+  echo "gcsfuse installed Successfully"
 }
 
 function execute_perf_test() {
