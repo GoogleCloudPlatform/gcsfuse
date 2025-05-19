@@ -20,7 +20,7 @@ readonly EXECUTE_INTEGRATION_TEST_LABEL="execute-integration-tests"
 readonly EXECUTE_INTEGRATION_TEST_LABEL_ON_ZB="execute-integration-tests-on-zb"
 readonly EXECUTE_PACKAGE_BUILD_TEST_LABEL="execute-package-build-tests"
 readonly EXECUTE_CHECKPOINT_TEST_LABEL="execute-checkpoint-test"
-readonly INSTALL_DIR="/usr/local/bin"
+readonly INSTALL_DIR="/bin"
 readonly GCSFUSE_BINARY_NAME="gcsfuse"
 readonly RUN_E2E_TESTS_ON_INSTALLED_PACKAGE=true
 readonly SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=false
@@ -51,7 +51,7 @@ fi
 set -e
 sudo apt-get update
 BASH_VER="5.2.37"
-INSTALL_PREFIX="/bin"
+INSTALL_PREFIX="/usr/local"
 wget -q "https://ftp.gnu.org/gnu/bash/bash-${BASH_VER}.tar.gz"
 tar -xzf "bash-${BASH_VER}.tar.gz"
 cd "bash-${BASH_VER}"
