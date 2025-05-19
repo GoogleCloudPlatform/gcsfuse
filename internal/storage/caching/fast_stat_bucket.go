@@ -240,6 +240,11 @@ func (b *fastStatBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.C
 	return b.wrapped.CreateObjectChunkWriter(ctx, req, chunkSize, callBack)
 }
 
+func (b *fastStatBucket) CreateAppendableObjectWriter(ctx context.Context, req *gcs.CreateObjectChunkWriterRequest) (gcs.Writer, error) {
+	//TODO: implementation
+	return nil, nil
+}
+
 func (b *fastStatBucket) FinalizeUpload(ctx context.Context, writer gcs.Writer) (*gcs.MinObject, error) {
 	name := writer.ObjectName()
 	// Throw away any existing record for this object.

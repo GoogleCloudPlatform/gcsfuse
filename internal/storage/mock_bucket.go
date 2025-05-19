@@ -160,6 +160,11 @@ func (m *mockBucket) CreateObjectChunkWriter(p0 context.Context, p1 *gcs.CreateO
 	return
 }
 
+func (m *mockBucket) CreateAppendableObjectWriter(p0 context.Context, p1 *gcs.CreateObjectChunkWriterRequest) (o0 gcs.Writer, o1 error) {
+	//TODO
+	return
+}
+
 func (m *mockBucket) FinalizeUpload(p0 context.Context, p1 gcs.Writer) (o0 *gcs.MinObject, o1 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
