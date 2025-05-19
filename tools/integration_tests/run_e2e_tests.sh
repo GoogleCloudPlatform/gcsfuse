@@ -553,7 +553,6 @@ function main(){
 
   # Decide whether to build GCSFuse based on RUN_E2E_TESTS_ON_PACKAGE
   if [ "$RUN_E2E_TESTS_ON_PACKAGE" != "true" ] && [ "$BUILD_BINARY_IN_SCRIPT" == "true" ]; then
-    # If RUN_E2E_TESTS_ON_PACKAGE is "false" or empty/not set, build GCSFuse
     echo "RUN_E2E_TESTS_ON_PACKAGE is not 'true' (value: '${RUN_E2E_TESTS_ON_PACKAGE}') and BUILD_BINARY_IN_SCRIPT is 'true'. Building GCSFuse..."
     build_gcsfuse_once
     if [ $? -ne 0 ]; then
