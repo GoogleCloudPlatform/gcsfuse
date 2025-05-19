@@ -25,7 +25,7 @@ readonly LOG_LOCK_FILE=$(mktemp "/tmp/${TMP_PREFIX}_logging_lock.XXXXXX")
 readonly BUCKET_NAMES=$(mktemp "/tmp/${TMP_PREFIX}_bucket_names.XXXXXX")
 readonly PACKAGE_STATS_FILE=$(mktemp "/tmp/${TMP_PREFIX}_package_stats.XXXXXX")
 readonly VM_USAGE=$(mktemp "/tmp/${TMP_PREFIX}_vm_usage.XXXXXX")
-readonly PARALLELISM=1
+readonly PARALLELISM=5
 
 # Default values for optional arguments
 RUN_TEST_ON_TPC_ENDPOINT=false
@@ -87,31 +87,31 @@ fi
 
 # Test packages which can be run in parallel.
 PARALLEL_TEST_PACKAGES=(
-  # "managed_folders" # 40m
-  # "operations" # 32m
-  # "concurrent_operations" # 20m
-  # "read_large_files" #17m
-  # "read_cache" #14m
-  # "monitoring" #1m
-  # "local_file" #4m
-  # "log_rotation" #1m
-  # "mounting" #1m
-  # # "grpc_validation"
-  # "gzip" #1m
-  # "write_large_files" #16 flat, 6 hns
-  # "list_large_dir" #12m
-  # "rename_dir_limit" #3m
-  # "explicit_dir" #1m
-  "implicit_dir"
-  "interrupt"
-  "kernel_list_cache"
-  "benchmarking"
-  "mount_timeout"
-  "stale_handle"
-  "negative_stat_cache"
-  "streaming_writes"
-  "readonly"
-  "readonly_creds"
+  "managed_folders"         # 40m
+  "operations"              # 32m
+  "concurrent_operations"   # 20m
+  "read_large_files"        # 17m
+  "write_large_files"       # 16m flat, 6m hns
+  "read_cache"              # 14m
+  "list_large_dir"          # 12m
+  "interrupt"               # 5m
+  "mount_timeout"           # 4m
+  "local_file"              # 4m
+  "benchmarking"            # 3m
+  "readonly"                # 3m
+  "readonly_creds"          # 3m
+  "rename_dir_limit"        # 3m
+  "implicit_dir"            # 3m
+  "kernel_list_cache"       # 2m
+  "streaming_writes"        # 2m
+  "monitoring"              # 1m
+  "log_rotation"            # 1m
+  "mounting"                # 1m
+  # "grpc_validation"
+  "gzip"                    # 1m
+  "explicit_dir"            # 1m
+  "stale_handle"            # 1m
+  "negative_stat_cache"     # 1m
 )
 
 
