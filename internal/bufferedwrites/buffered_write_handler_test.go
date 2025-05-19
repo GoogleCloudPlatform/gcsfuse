@@ -17,7 +17,6 @@ package bufferedwrites
 import (
 	"context"
 	"errors"
-	"math"
 	"strings"
 	"testing"
 	"time"
@@ -294,8 +293,7 @@ func (testSuite *BufferedWriteTest) TestSync5InProgressBlocks() {
 	assert.NoError(testSuite.T(), err)
 	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
 	assert.Equal(testSuite.T(), 0, len(bwhImpl.uploadHandler.uploadCh))
-	totalBlocks := len(bwhImpl.blockPool.FreeBlocksChannel())
-	assert.True(testSuite.T(), 1 <= totalBlocks && totalBlocks <= 5)
+	assert.Equal(testSuite.T(), 0, len(bwhImpl.blockPool.FreeBlocksChannel()))
 	assert.Nil(testSuite.T(), o)
 }
 
@@ -343,8 +341,7 @@ func (testSuite *BufferedWriteTest) TestSyncPartialBlockTableDriven() {
 			// Current block should also be uploaded.
 			assert.Nil(testSuite.T(), bwhImpl.current)
 			assert.Equal(testSuite.T(), 0, len(bwhImpl.uploadHandler.uploadCh))
-			totalBlocks := len(bwhImpl.blockPool.FreeBlocksChannel())
-			assert.True(testSuite.T(), 1 <= totalBlocks && totalBlocks <= int(math.Ceil(float64(tc.numBlocks))))
+			assert.Equal(testSuite.T(), 0, len(bwhImpl.blockPool.FreeBlocksChannel()))
 			// Read the object from back door.
 			content, err := storageutil.ReadObject(context.Background(), bwhImpl.uploadHandler.bucket, bwhImpl.uploadHandler.objectName)
 			if tc.bucketType.Zonal {

@@ -118,7 +118,7 @@ func (bp *BlockPool) BlockSize() int64 {
 	return bp.blockSize
 }
 
-func (bp *BlockPool) ClearFreeBlockChannel() error {
+func (bp *BlockPool) ClearFreeBlockChannel(releaseLastBlock bool) error {
 	for {
 		select {
 		case b := <-bp.freeBlocksCh:
@@ -128,7 +128,10 @@ func (bp *BlockPool) ClearFreeBlockChannel() error {
 				return fmt.Errorf("munmap error: %v", err)
 			}
 			bp.totalBlocks--
-			bp.globalMaxBlocksSem.Release(1)
+			// Release semaphore for last block iff releaseLastBlock is true.
+			if bp.totalBlocks != 0 || releaseLastBlock {
+				bp.globalMaxBlocksSem.Release(1)
+			}
 		default:
 			// Return if there are no more blocks on the channel.
 			return nil
