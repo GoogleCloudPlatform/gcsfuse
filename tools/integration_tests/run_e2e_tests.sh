@@ -287,7 +287,7 @@ function run_parallel_tests() {
     # The -bench flag yells go test to run the benchmark tests and report their results by
     # enabling the benchmarking framework.
     # The -benchtime flag specifies exact number of iterations a benchmark should run , in this
-    # case, setting this to 100 to avoid flakiness. 
+    # case, setting this to 100 to avoid flakiness.
     if [ $test_dir_p == "benchmarking" ]; then
       benchmark_flags="-bench=. -benchtime=100x"
     fi
@@ -296,9 +296,21 @@ function run_parallel_tests() {
     # convention to include the bucket name as a suffix (e.g., package_name_bucket_name).
     local log_file="/tmp/${test_dir_p}_${bucket_name_parallel}.log"
     echo $log_file >> $TEST_LOGS_FILE
+
+    # Define JUnit report file name
+    local junit_report_file="/tmp/junit_report_${test_dir_p}_${bucket_name_parallel}.xml"
+    local go_test_cmd_prefix="GODEBUG=asyncpreemptoff=1"
+    # Base arguments for go test / gotestsum
+    local test_args="$test_path_parallel $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=${zonal} $benchmark_flags -p 1 --integrationTest -v --testbucket=$bucket_name_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT"
+
     # Executing integration tests
-    echo "Queueing up test package in parallel (with zonal=${zonal}): ${test_dir_p} ..."
-    GODEBUG=asyncpreemptoff=1 go test $test_path_parallel $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=${zonal} $benchmark_flags -p 1 --integrationTest -v --testbucket=$bucket_name_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1 &
+    if [ "$test_dir_p" == "operations" ]; then
+      echo "Queueing up test package in parallel (with zonal=${zonal}) with JUnit output: ${test_dir_p} to ${junit_report_file}..."
+      $go_test_cmd_prefix gotestsum --junitfile "$junit_report_file" -- $test_args > "$log_file" 2>&1 &
+    else
+      echo "Queueing up test package in parallel (with zonal=${zonal}): ${test_dir_p} ..."
+      $go_test_cmd_prefix go test $test_args > "$log_file" 2>&1 &
+    fi
     pid=$!  # Store the PID of the background process
     echo "Queued up test package in parallel (with zonal=${zonal}): ${test_dir_p} with pid=${pid}"
     pids[${test_dir_p}]=${pid} # Optionally add the PID to an array for later
@@ -437,8 +449,12 @@ function run_e2e_tests_for_tpc() {
   # Clean bucket before testing.
   gcloud --verbosity=error storage rm -r gs://"$bucket"/*
 
+  # Define JUnit report file name
+  local junit_report_file="/tmp/junit_report_operations_tpc_${bucket}.xml"
+  echo "Running Operations e2e tests in TPC with JUnit output to ${junit_report_file}..."
+
   # Run Operations e2e tests in TPC to validate all the functionality.
-  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/... --testOnTPCEndPoint=$RUN_TEST_ON_TPC_ENDPOINT $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=false -p 1 --integrationTest -v --testbucket="$bucket" --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT
+  GODEBUG=asyncpreemptoff=1 gotestsum --junitfile "$junit_report_file" -- ./tools/integration_tests/operations/... --testOnTPCEndPoint=$RUN_TEST_ON_TPC_ENDPOINT $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=false -p 1 --integrationTest -v --testbucket="$bucket" --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT
   exit_code=$?
 
   set -e
