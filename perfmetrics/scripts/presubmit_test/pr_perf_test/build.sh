@@ -87,7 +87,7 @@ install_gcsfuse() {
   echo "Building gcsfuse..."
   local src_dir=$(pwd)
   local dst_dir=$(mktemp -d -t gcsfuse_dst_dir_XXXXXX)
-  go run ./tools/build_gcsfuse.go "$src_dir" "$dst_dir" "${pr}" || { echo "Go build failed"; exit 1; }
+  go run ./tools/build_gcsfuse/main.go "$src_dir" "$dst_dir" "${pr}" || { echo "Go build failed"; exit 1; }
   export PATH="$dst_dir/bin:$dst_dir/sbin:$PATH"
   whereis gcsfuse
   which gcsfuse
