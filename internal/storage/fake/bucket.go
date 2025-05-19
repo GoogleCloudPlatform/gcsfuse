@@ -699,7 +699,7 @@ func (b *bucket) CreateAppendableObjectWriter(ctx context.Context, req *gcs.Crea
 			return nil, fmt.Errorf("storage: ObjectHandle.Generation must be set to use NewWriterFromAppendableObject")
 		}
 	}
-	return NewFakeAppendableObjectWriter(b, req)
+	return NewFakeObjectWriter(b, &req.CreateObjectRequest)
 }
 
 func (b *bucket) FlushPendingWrites(ctx context.Context, w gcs.Writer) (*gcs.MinObject, error) {

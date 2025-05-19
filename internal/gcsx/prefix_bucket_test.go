@@ -379,7 +379,6 @@ func (t *PrefixBucketTest) TestCreateAppendableObjectWriterAndFlush() {
 			ChunkSize: 1024,
 			Offset:    10,
 		})
-
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), w)
 	_, err = w.Write(content)
@@ -409,7 +408,6 @@ func (t *PrefixBucketTest) TestCreateAppendableObjectWriterAndClose() {
 			ChunkSize: 1024,
 			Offset:    10,
 		})
-
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), w)
 	_, err = w.Write(content)
