@@ -51,7 +51,7 @@ fi
 set -e
 sudo apt-get update
 BASH_VER="5.2.37"
-INSTALL_PREFIX="/usr/local"
+INSTALL_PREFIX="/bin"
 wget -q "https://ftp.gnu.org/gnu/bash/bash-${BASH_VER}.tar.gz"
 tar -xzf "bash-${BASH_VER}.tar.gz"
 cd "bash-${BASH_VER}"
