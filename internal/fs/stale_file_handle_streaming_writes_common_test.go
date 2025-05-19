@@ -15,6 +15,8 @@
 package fs_test
 
 import (
+	"math"
+
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/stretchr/testify/assert"
@@ -40,6 +42,7 @@ func (t *staleFileHandleStreamingWritesCommon) SetupSuite() {
 	serverCfg.Write.EnableStreamingWrites = true
 	serverCfg.Write.BlockSizeMb = operations.MiB
 	serverCfg.Write.MaxBlocksPerFile = 1
+	serverCfg.Write.GlobalMaxBlocks = math.MaxInt
 
 	t.serverCfg.NewConfig = serverCfg
 	t.mountCfg.DisableWritebackCaching = true

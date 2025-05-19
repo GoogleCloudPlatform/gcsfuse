@@ -15,10 +15,13 @@
 package block
 
 import (
+	"errors"
 	"fmt"
 
 	"golang.org/x/sync/semaphore"
 )
+
+var CantAllocateAnyBlockError error = errors.New("cant allocate any streaming write block as global max blocks limit is reached")
 
 // BlockPool handles the creation of blocks as per the user configuration.
 type BlockPool struct {
@@ -53,7 +56,12 @@ func NewBlockPool(blockSize int64, maxBlocks int64, globalMaxBlocksSem *semaphor
 		totalBlocks:        0,
 		globalMaxBlocksSem: globalMaxBlocksSem,
 	}
-	return
+	semAcquired := bp.globalMaxBlocksSem.TryAcquire(1)
+	if !semAcquired {
+		return nil, CantAllocateAnyBlockError
+	}
+
+	return bp, nil
 }
 
 // Get returns a block. It returns an existing block if it's ready for reuse or
@@ -89,7 +97,8 @@ func (bp *BlockPool) canAllocateBlock() bool {
 		return false
 	}
 
-	// Always allow allocation if this is the first block for the file.
+	// Always allow allocation if this is the first block for the file since it has been reserved at
+	// the time of block pool creation.
 	if bp.totalBlocks == 0 {
 		return true
 	}
@@ -109,7 +118,7 @@ func (bp *BlockPool) BlockSize() int64 {
 	return bp.blockSize
 }
 
-func (bp *BlockPool) ClearFreeBlockChannel() error {
+func (bp *BlockPool) ClearFreeBlockChannel(releaseLastBlock bool) error {
 	for {
 		select {
 		case b := <-bp.freeBlocksCh:
@@ -119,7 +128,8 @@ func (bp *BlockPool) ClearFreeBlockChannel() error {
 				return fmt.Errorf("munmap error: %v", err)
 			}
 			bp.totalBlocks--
-			if bp.totalBlocks != 0 {
+			// Release semaphore for last block iff releaseLastBlock is true.
+			if bp.totalBlocks != 0 || releaseLastBlock {
 				bp.globalMaxBlocksSem.Release(1)
 			}
 		default:

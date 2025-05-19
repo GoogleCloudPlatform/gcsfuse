@@ -206,7 +206,7 @@ func (wh *bufferedWriteHandlerImpl) Sync() (o *gcs.MinObject, err error) {
 		}
 	}
 	// Release memory used by buffers.
-	err = wh.blockPool.ClearFreeBlockChannel()
+	err = wh.blockPool.ClearFreeBlockChannel(false)
 	if err != nil {
 		// Only logging an error in case of resource leak as upload succeeded.
 		logger.Errorf("blockPool.ClearFreeBlockChannel() failed during sync: %v", err)
@@ -245,7 +245,7 @@ func (wh *bufferedWriteHandlerImpl) Flush() (*gcs.MinObject, error) {
 		return nil, fmt.Errorf("BufferedWriteHandler.Flush(): %w", err)
 	}
 
-	err = wh.blockPool.ClearFreeBlockChannel()
+	err = wh.blockPool.ClearFreeBlockChannel(true)
 	if err != nil {
 		// Only logging an error in case of resource leak as upload succeeded.
 		logger.Errorf("blockPool.ClearFreeBlockChannel() failed: %v", err)
@@ -276,7 +276,7 @@ func (wh *bufferedWriteHandlerImpl) WriteFileInfo() WriteFileInfo {
 
 func (wh *bufferedWriteHandlerImpl) Destroy() error {
 	wh.uploadHandler.Destroy()
-	return wh.blockPool.ClearFreeBlockChannel()
+	return wh.blockPool.ClearFreeBlockChannel(true)
 }
 
 func (wh *bufferedWriteHandlerImpl) writeDataForTruncatedSize() error {
@@ -303,7 +303,7 @@ func (wh *bufferedWriteHandlerImpl) writeDataForTruncatedSize() error {
 
 func (wh *bufferedWriteHandlerImpl) Unlink() {
 	wh.uploadHandler.CancelUpload()
-	err := wh.blockPool.ClearFreeBlockChannel()
+	err := wh.blockPool.ClearFreeBlockChannel(true)
 	if err != nil {
 		// Only logging an error in case of resource leak.
 		logger.Errorf("blockPool.ClearFreeBlockChannel() failed: %v", err)

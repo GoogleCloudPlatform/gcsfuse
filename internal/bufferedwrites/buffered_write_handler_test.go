@@ -333,7 +333,7 @@ func (testSuite *BufferedWriteTest) TestSyncPartialBlockTableDriven() {
 			err = testSuite.bwh.Write(buffer, 0)
 			require.Nil(testSuite.T(), err)
 
-			// Wait for 3 blocks to upload successfully.
+			// Wait for blocks to upload successfully.
 			o, err := testSuite.bwh.Sync()
 
 			require.NoError(testSuite.T(), err)
