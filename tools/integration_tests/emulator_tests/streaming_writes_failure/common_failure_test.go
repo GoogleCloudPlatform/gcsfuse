@@ -61,7 +61,7 @@ type gcsObjectValidator interface {
 // //////////////////////////////////////////////////////////////////////
 
 func (t *commonFailureTestSuite) SetupSuite() {
-	t.flags = []string{"--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=1"}
+	t.flags = []string{"--write-block-size-mb=1", "--write-max-blocks-per-file=1"}
 	// Generate 5 MB random data.
 	var err error
 	t.data, err = operations.GenerateRandomData(5 * operations.MiB)

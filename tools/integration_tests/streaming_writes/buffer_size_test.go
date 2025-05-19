@@ -35,23 +35,23 @@ func TestWritesWithDifferentConfig(t *testing.T) {
 	}{
 		{
 			name:     "BlockSizeGreaterThanFileSize",
-			flags:    []string{"--enable-streaming-writes=true", "--write-block-size-mb=5", "--write-max-blocks-per-file=2"},
+			flags:    []string{"--write-block-size-mb=5", "--write-max-blocks-per-file=2"},
 			fileSize: 2 * 1024 * 1024,
 		},
 		{
 			name:     "BlockSizeLessThanFileSize",
-			flags:    []string{"--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=20"},
+			flags:    []string{"--write-block-size-mb=1", "--write-max-blocks-per-file=20"},
 			fileSize: 5 * 1024 * 1024,
 		},
 		{
 			// BlockSize*num_blocks < fileSize
 			name:     "NumberOfBlocksLessThanFileSize",
-			flags:    []string{"--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=2"},
+			flags:    []string{"--write-block-size-mb=1", "--write-max-blocks-per-file=2"},
 			fileSize: 10 * 1024 * 1024,
 		},
 		{
 			name:     "BlockSizeEqualToFileSize",
-			flags:    []string{"--enable-streaming-writes=true", "--write-block-size-mb=5", "--write-max-blocks-per-file=2"},
+			flags:    []string{"--write-block-size-mb=5", "--write-max-blocks-per-file=2"},
 			fileSize: 5 * 1024 * 1024,
 		},
 	}

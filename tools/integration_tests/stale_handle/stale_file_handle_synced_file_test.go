@@ -124,7 +124,7 @@ func TestStaleFileHandleEmptyGcsFileTest(t *testing.T) {
 	for _, flags := range flagsSet {
 		s := new(staleFileHandleEmptyGcsFile)
 		s.flags = flags
-		s.isStreamingWritesEnabled = slices.Contains(s.flags, "--enable-streaming-writes=true")
+		s.isStreamingWritesEnabled = !slices.Contains(s.flags, "--enable-streaming-writes=false")
 		suite.Run(t, s)
 	}
 }
