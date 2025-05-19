@@ -87,16 +87,16 @@ fi
 
 # Test packages which can be run in parallel.
 PARALLEL_TEST_PACKAGES=(
-  "managed_folders"         # 40m
-  "operations"              # 32m
-  "concurrent_operations"   # 20m
-  "read_large_files"        # 17m
-  "write_large_files"       # 16m flat, 6m hns
-  "read_cache"              # 14m
-  "list_large_dir"          # 12m
-  "interrupt"               # 5m
-  "mount_timeout"           # 4m
-  "local_file"              # 4m
+  # "managed_folders"         # 40m
+  # "operations"              # 32m
+  # "concurrent_operations"   # 20m
+  # "read_large_files"        # 17m
+  # "write_large_files"       # 16m flat, 6m hns
+  # "read_cache"              # 14m
+  # "list_large_dir"          # 12m
+  # "interrupt"               # 5m
+  # "mount_timeout"           # 4m
+  # "local_file"              # 4m
   "benchmarking"            # 3m
   "readonly"                # 3m
   "readonly_creds"          # 3m

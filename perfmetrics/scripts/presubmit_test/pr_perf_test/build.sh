@@ -20,7 +20,9 @@ readonly EXECUTE_INTEGRATION_TEST_LABEL="execute-integration-tests"
 readonly EXECUTE_INTEGRATION_TEST_LABEL_ON_ZB="execute-integration-tests-on-zb"
 readonly EXECUTE_PACKAGE_BUILD_TEST_LABEL="execute-package-build-tests"
 readonly EXECUTE_CHECKPOINT_TEST_LABEL="execute-checkpoint-test"
-readonly RUN_E2E_TESTS_ON_INSTALLED_PACKAGE=false
+readonly INSTALL_DIR="/usr/local/bin"
+readonly GCSFUSE_BINARY_NAME="gcsfuse"
+readonly RUN_E2E_TESTS_ON_INSTALLED_PACKAGE=true
 readonly SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=false
 readonly BUCKET_LOCATION=us-west4
 readonly RUN_TEST_ON_TPC_ENDPOINT=false
@@ -72,6 +74,22 @@ cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 echo '[remote "origin"]
          fetch = +refs/pull/*/head:refs/remotes/origin/pr/*' >> .git/config
 git fetch origin -q
+
+install_gcsfuse() {
+  if [[ $# -ne 1 ]]; then
+    echo "Error: install_gcsfuse() called with incorrect number of arguments."
+    echo "Usage: install_gcsfuse <PR>"
+    exit 0
+  fi
+  local pr="$1"
+  echo "Installing GCSFuse at PR: ${pr}"
+  git checkout "$pr"
+  echo "Building gcsfuse..."
+  go build -o "$GCSFUSE_BINARY_NAME" . || { echo "Go build failed"; exit 1; }
+  echo "Build Successful..."
+  sudo install -m 0755 "$GCSFUSE_BINARY_NAME" "$INSTALL_DIR/" || { echo "Failed to install $GCSFUSE_BINARY_NAME to $INSTALL_DIR"; exit 1; }
+  echo "gcsfuse installed Successfully to $INSTALL_DIR"
+}
 
 function execute_perf_test() {
   mkdir -p gcs
@@ -127,6 +145,7 @@ fi
 # Execute integration tests on zonal bucket(s).
 if test -n "${integrationTestsOnZBStr}" ;
 then
+  install_gcsfuse "pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER"
   echo checkout PR branch
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
@@ -138,6 +157,7 @@ fi
 # Execute integration tests on non-zonal bucket(s).
 if test -n "${integrationTestsStr}" ;
 then
+  install_gcsfuse "pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER"
   echo checkout PR branch
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
