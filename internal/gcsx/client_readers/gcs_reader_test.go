@@ -480,7 +480,7 @@ func (t *gcsReaderTest) Test_ReadInfo_Random() {
 			t.object.Size = tc.objectSize
 			t.gcsReader.totalReadBytes = tc.totalReadBytes
 
-			end, err := t.gcsReader.getReadInfo(tc.start, 10)
+			end, err := t.gcsReader.getReadInfo(tc.start, int64(tc.objectSize))
 
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), random, t.gcsReader.readType)
