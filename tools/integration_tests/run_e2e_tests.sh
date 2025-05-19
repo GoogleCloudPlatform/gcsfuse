@@ -84,72 +84,26 @@ echo "Setting the integration test timeout to: $INTEGRATION_TEST_TIMEOUT"
 readonly RANDOM_STRING_LENGTH=5
 # Test directory arrays
 TEST_DIR_PARALLEL=(
-  "monitoring"
-  "local_file"
-  "log_rotation"
-  "mounting"
-  "read_cache"
-  # "grpc_validation"
-  "gzip"
-  "write_large_files"
-  "list_large_dir"
-  "rename_dir_limit"
-  "read_large_files"
-  "explicit_dir"
-  "implicit_dir"
-  "interrupt"
-  "operations"
-  "kernel_list_cache"
-  "concurrent_operations"
-  "benchmarking"
-  "mount_timeout"
   "stale_handle"
-  "negative_stat_cache"
-  "streaming_writes"
 )
 
 # These tests never become parallel as it is changing bucket permissions.
 TEST_DIR_NON_PARALLEL=(
   "readonly"
-  "managed_folders"
-  "readonly_creds"
 )
 
 # Subset of TEST_DIR_PARALLEL,
 # but only those tests which currently
 # pass for zonal buckets.
 TEST_DIR_PARALLEL_FOR_ZB=(
-  "benchmarking"
-  "explicit_dir"
-  "gzip"
-  "implicit_dir"
-  "interrupt"
-  "kernel_list_cache"
-  "local_file"
-  "log_rotation"
-  "monitoring"
-  "mount_timeout"
-  "mounting"
-  "negative_stat_cache"
-  "operations"
-  "read_cache"
-  "read_large_files"
-  "rename_dir_limit"
   "stale_handle"
-  "streaming_writes"
-  "write_large_files"
-  "unfinalized_object"
 )
 
 # Subset of TEST_DIR_NON_PARALLEL,
 # but only those tests which currently
 # pass for zonal buckets.
 TEST_DIR_NON_PARALLEL_FOR_ZB=(
-  "concurrent_operations"
-  "list_large_dir"
-  "managed_folders"
   "readonly"
-  "readonly_creds"
 )
 
 # Create a temporary file to store the log file name.
@@ -205,6 +159,9 @@ function install_packages() {
   # Downloading composite object requires integrity checking with CRC32c in gsutil.
   # it requires to install crcmod.
   sudo apt install -y python3-crcmod
+
+  # Install go-junit-report for xunit output.
+  go install github.com/jstemmer/go-junit-report/v2@latest
 }
 
 function create_bucket() {
@@ -253,12 +210,12 @@ function run_non_parallel_tests() {
     test_path_non_parallel="./tools/integration_tests/$test_dir_np"
     # To make it clear whether tests are running on a flat or HNS bucket, We kept the log file naming
     # convention to include the bucket name as a suffix (e.g., package_name_bucket_name).
-    local log_file="/tmp/${test_dir_np}_${bucket_name_non_parallel}.log"
-    echo $log_file >> $TEST_LOGS_FILE
+    local report_file="/tmp/${test_dir_np}_${bucket_name_non_parallel}_report.xml"
+    echo $report_file >> $TEST_LOGS_FILE
 
-    # Executing integration tests
+    # Executing integration tests and piping output to go-junit-report for xunit XML.
     echo "Running test package in non-parallel (with zonal=${zonal}): ${test_dir_np} ..."
-    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=${zonal} --integrationTest -v --testbucket=$bucket_name_non_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1
+    GODEBUG=asyncpreemptoff=1 go test -v $test_path_non_parallel -p 1 $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=${zonal} --integrationTest -v --testbucket=$bucket_name_non_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT 2>&1 | go-junit-report > "$report_file"
     exit_code_non_parallel=$?
     if [ $exit_code_non_parallel != 0 ]; then
       exit_code=$exit_code_non_parallel
@@ -287,18 +244,18 @@ function run_parallel_tests() {
     # The -bench flag yells go test to run the benchmark tests and report their results by
     # enabling the benchmarking framework.
     # The -benchtime flag specifies exact number of iterations a benchmark should run , in this
-    # case, setting this to 100 to avoid flakiness. 
+    # case, setting this to 100 to avoid flakiness.
     if [ $test_dir_p == "benchmarking" ]; then
       benchmark_flags="-bench=. -benchtime=100x"
     fi
     test_path_parallel="./tools/integration_tests/$test_dir_p"
     # To make it clear whether tests are running on a flat or HNS bucket, We kept the log file naming
     # convention to include the bucket name as a suffix (e.g., package_name_bucket_name).
-    local log_file="/tmp/${test_dir_p}_${bucket_name_parallel}.log"
-    echo $log_file >> $TEST_LOGS_FILE
-    # Executing integration tests
+    local report_file="/tmp/${test_dir_p}_${bucket_name_parallel}_report.xml"
+    echo $report_file >> $TEST_LOGS_FILE
+    # Executing integration tests and piping output to go-junit-report for xunit XML.
     echo "Queueing up test package in parallel (with zonal=${zonal}): ${test_dir_p} ..."
-    GODEBUG=asyncpreemptoff=1 go test $test_path_parallel $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=${zonal} $benchmark_flags -p 1 --integrationTest -v --testbucket=$bucket_name_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1 &
+    GODEBUG=asyncpreemptoff=1 go test -v $test_path_parallel $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=${zonal} $benchmark_flags -p 1 --integrationTest -v --testbucket=$bucket_name_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT 2>&1 | go-junit-report > "$report_file" &
     pid=$!  # Store the PID of the background process
     echo "Queued up test package in parallel (with zonal=${zonal}): ${test_dir_p} with pid=${pid}"
     pids[${test_dir_p}]=${pid} # Optionally add the PID to an array for later
@@ -329,7 +286,7 @@ function print_test_logs() {
   do
     log_file=${test_log_file}
     if [ -f "$log_file" ]; then
-      echo "=== Log for ${test_log_file} ==="
+      echo "=== Xunit Report for ${test_log_file} ==="
       cat "$log_file"
       echo "========================================="
     fi
@@ -438,7 +395,10 @@ function run_e2e_tests_for_tpc() {
   gcloud --verbosity=error storage rm -r gs://"$bucket"/*
 
   # Run Operations e2e tests in TPC to validate all the functionality.
-  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/... --testOnTPCEndPoint=$RUN_TEST_ON_TPC_ENDPOINT $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=false -p 1 --integrationTest -v --testbucket="$bucket" --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT
+  # Pipe the output to go-junit-report for xunit XML.
+  local report_file="/tmp/operations_tpc_${bucket}_report.xml"
+  echo $report_file >> $TEST_LOGS_FILE
+  GODEBUG=asyncpreemptoff=1 go test -v ./tools/integration_tests/operations/... --testOnTPCEndPoint=$RUN_TEST_ON_TPC_ENDPOINT $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=false -p 1 --integrationTest -v --testbucket="$bucket" --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT 2>&1 | go-junit-report > "$report_file"
   exit_code=$?
 
   set -e
