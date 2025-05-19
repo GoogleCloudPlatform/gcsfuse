@@ -132,17 +132,17 @@ func (t *BlockPoolTest) TestBlockSize() {
 func (t *BlockPoolTest) TestClearFreeBlockChannel() {
 	tests := []struct {
 		name                     string
-		clearLastBlock           bool
+		releaseLastBlock         bool
 		possibleSemaphoreAcquire int64
 	}{
 		{
-			name:                     "clear_last_block_true",
-			clearLastBlock:           true,
+			name:                     "release_last_block_true",
+			releaseLastBlock:         true,
 			possibleSemaphoreAcquire: 4,
 		},
 		{
-			name:                     "clear_last_block_false",
-			clearLastBlock:           false,
+			name:                     "release_last_block_false",
+			releaseLastBlock:         false,
 			possibleSemaphoreAcquire: 3,
 		},
 	}
@@ -161,7 +161,7 @@ func (t *BlockPoolTest) TestClearFreeBlockChannel() {
 			}
 			require.Equal(t.T(), int64(4), bp.totalBlocks)
 
-			err = bp.ClearFreeBlockChannel(tt.clearLastBlock)
+			err = bp.ClearFreeBlockChannel(tt.releaseLastBlock)
 
 			require.Nil(t.T(), err)
 			require.EqualValues(t.T(), 0, bp.totalBlocks)

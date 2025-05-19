@@ -57,7 +57,7 @@ func NewBlockPool(blockSize int64, maxBlocks int64, globalMaxBlocksSem *semaphor
 		globalMaxBlocksSem: globalMaxBlocksSem,
 	}
 	semAcquired := bp.globalMaxBlocksSem.TryAcquire(1)
-	if semAcquired == false {
+	if !semAcquired {
 		return nil, CantAllocateAnyBlockError
 	}
 
