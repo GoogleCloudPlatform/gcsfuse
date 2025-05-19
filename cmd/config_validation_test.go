@@ -192,7 +192,7 @@ func TestValidateConfigFile_WriteConfig(t *testing.T) {
 				Write: cfg.WriteConfig{
 					CreateEmptyFile:       false,
 					BlockSizeMb:           32 * util.MiB,
-					EnableStreamingWrites: false,
+					EnableStreamingWrites: true,
 					GlobalMaxBlocks:       4,
 					MaxBlocksPerFile:      1},
 			},
