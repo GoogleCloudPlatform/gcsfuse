@@ -346,7 +346,6 @@ func (rr *randomReader) ReadAt(
 			logger.Warnf("Error while skipping reader bytes: %v", copyError)
 		}
 		rr.start += discardedBytes
-		rr.expectedOffset = rr.start
 	}
 
 	// If we have an existing reader, but it's positioned at the wrong place,
@@ -358,14 +357,16 @@ func (rr *randomReader) ReadAt(
 		rr.reader = nil
 		rr.cancel = nil
 	}
-	// If current offset is not same as expected offset, its a random read.
-	if rr.expectedOffset != 0 && rr.expectedOffset != offset {
-		rr.seeks++
-	}
 
 	if rr.reader != nil {
 		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, -1, rr.readType)
 		return
+	}
+
+	// If the data can't be served from the existing reader, then we need to update the seeks.
+	// If current offset is not same as expected offset, its a random read.
+	if rr.expectedOffset != 0 && rr.expectedOffset != offset {
+		rr.seeks++
 	}
 
 	// If we don't have a reader, determine whether to read from NewReader or MRR.
