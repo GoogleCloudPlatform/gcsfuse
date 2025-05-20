@@ -87,31 +87,31 @@ fi
 
 # Test packages which can be run in parallel.
 PARALLEL_TEST_PACKAGES=(
-  # "managed_folders"         # 40m
-  # "operations"              # 32m
-  # "concurrent_operations"   # 20m
-  # "read_large_files"        # 17m
-  # "write_large_files"       # 16m flat, 6m hns
-  # "read_cache"              # 14m
-  # "list_large_dir"          # 12m
-  # "interrupt"               # 5m
-  # "mount_timeout"           # 4m
-  # "local_file"              # 4m
-  # "benchmarking"            # 3m
-  # "readonly"                # 3m
-  # "readonly_creds"          # 3m
-  # "rename_dir_limit"        # 3m
-  # "implicit_dir"            # 3m
-  # "kernel_list_cache"       # 2m
-  # "streaming_writes"        # 2m
-  # "monitoring"              # 1m
-  # "log_rotation"            # 1m
+  "managed_folders"         # 40m
+  "operations"              # 32m
+  "concurrent_operations"   # 20m
+  "read_large_files"        # 17m
+  "write_large_files"       # 16m flat, 6m hns
+  "read_cache"              # 14m
+  "list_large_dir"          # 12m
+  "interrupt"               # 5m
+  "mount_timeout"           # 4m
+  "local_file"              # 4m
+  "benchmarking"            # 3m
+  "readonly"                # 3m
+  "readonly_creds"          # 3m
+  "rename_dir_limit"        # 3m
+  "implicit_dir"            # 3m
+  "kernel_list_cache"       # 2m
+  "streaming_writes"        # 2m
+  "monitoring"              # 1m
+  "log_rotation"            # 1m
   "mounting"                # 1m
   # "grpc_validation"
-  # "gzip"                    # 1m
-  # "explicit_dir"            # 1m
-  # "stale_handle"            # 1m
-  # "negative_stat_cache"     # 1m
+  "gzip"                    # 1m
+  "explicit_dir"            # 1m
+  "stale_handle"            # 1m
+  "negative_stat_cache"     # 1m
 )
 
 
