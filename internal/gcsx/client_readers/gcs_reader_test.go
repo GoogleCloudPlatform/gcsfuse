@@ -35,10 +35,9 @@ import (
 )
 
 const (
-	sequential                = "Sequential"
-	random                    = "Random"
-	sequentialReadSizeInMb    = 22
-	sequentialReadSizeInBytes = sequentialReadSizeInMb * MiB
+	sequential             = "Sequential"
+	random                 = "Random"
+	sequentialReadSizeInMb = 22
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -102,27 +101,27 @@ func (t *gcsReaderTest) Test_NewGCSReader() {
 
 func (t *gcsReaderTest) Test_ReadAt_InvalidOffset() {
 	testCases := []struct {
-		name     string
-		dataSize int
-		start    int
+		name       string
+		objectSize int
+		start      int
 	}{
 		{
-			name:     "InvalidOffset",
-			dataSize: 50,
-			start:    68,
+			name:       "InvalidOffset",
+			objectSize: 50,
+			start:      68,
 		},
 		{
-			name:     "NegativeOffset",
-			dataSize: 100,
-			start:    -50,
+			name:       "NegativeOffset",
+			objectSize: 100,
+			start:      -50,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
 			t.gcsReader.rangeReader.reader = nil
-			t.object.Size = uint64(tc.dataSize)
-			buf := make([]byte, tc.dataSize)
+			t.object.Size = uint64(tc.objectSize)
+			buf := make([]byte, tc.objectSize)
 
 			_, err := t.gcsReader.ReadAt(t.ctx, buf, int64(tc.start))
 
@@ -339,7 +338,7 @@ func (t *gcsReaderTest) Test_ReadAt_PropagatesCancellation() {
 	select {
 	case <-readReturned:
 		t.T().Fatal("Read returned early — cancellation did not propagate properly.")
-	case <-time.After(10 * time.Millisecond):
+	case <-time.After(100 * time.Millisecond):
 		// OK: Still blocked
 	}
 	// Cancel the context to trigger cancellation
@@ -362,7 +361,7 @@ func (t *gcsReaderTest) Test_ReadAt_PropagatesCancellation() {
 	}
 }
 
-func (t *gcsReaderTest) Test_ReadInfo() {
+func (t *gcsReaderTest) Test_ReadInfo_WithInvalidInput() {
 	t.object.Size = 10 * MiB
 	testCases := []struct {
 		name  string
@@ -418,7 +417,7 @@ func (t *gcsReaderTest) Test_ReadInfo_Sequential() {
 			name:        "ObjectSizeGreaterThanReadSize", // default read size applies
 			start:       0,
 			objectSize:  50 * MiB,
-			expectedEnd: int64(sequentialReadSizeInBytes),
+			expectedEnd: 22 * MB, // equals to sequentialReadSizeInMb
 		},
 	}
 
@@ -457,14 +456,14 @@ func (t *gcsReaderTest) Test_ReadInfo_Random() {
 			start:          0,
 			objectSize:     50 * MiB,
 			totalReadBytes: 1 * MiB, // avg = 0.5MB
-			expectedEnd:    minReadSize,
+			expectedEnd:    MB,      // equals to minReadSize
 		},
 		{
 			name:           "ReadSizeGreaterThan8MB",
 			start:          0,
 			objectSize:     50 * MiB,
 			totalReadBytes: 20 * MiB,
-			expectedEnd:    int64(sequentialReadSizeInBytes),
+			expectedEnd:    22 * MB, // equals to sequentialReadSizeInMb
 		},
 		{
 			name:           "ReadSizeGreaterThan8MB",
