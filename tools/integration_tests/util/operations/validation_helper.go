@@ -48,6 +48,8 @@ func ValidateObjectNotFoundErr(ctx context.Context, t *testing.T, bucket gcs.Buc
 }
 
 func ValidateESTALEError(t *testing.T, err error) {
+	t.Helper()
+
 	require.Error(t, err)
 	assert.Regexp(t, syscall.ESTALE.Error(), err.Error())
 }

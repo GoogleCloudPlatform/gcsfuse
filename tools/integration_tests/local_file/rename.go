@@ -24,6 +24,7 @@ import (
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/require"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -41,7 +42,7 @@ func verifyRenameOperationNotSupported(err error, t *testing.T) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *localFileTestSuite) TestRenameOfLocalFileFails() {
+func (t *localFileTestSuite) TestRenameOfLocalFile() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create local file with some content.
 	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
@@ -52,13 +53,12 @@ func (t *localFileTestSuite) TestRenameOfLocalFileFails() {
 		path.Join(testDirPath, FileName1),
 		path.Join(testDirPath, NewFileName))
 
-	// Verify rename operation fails.
-	verifyRenameOperationNotSupported(err, t.T())
-	// write more content to local file.
-	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, FileName1, t.T())
-	// Close the local file.
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
-		FileName1, FileContents+FileContents, t.T())
+	// Validate that move didn't throw any error.
+	require.NoError(t.T(), err)
+	// Verify the new object contents.
+	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, NewFileName, "", t.T())
+	// Validate old object is deleted.
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
 }
 
 func (t *CommonLocalFileTestSuite) TestRenameOfDirectoryWithLocalFileFails() {
