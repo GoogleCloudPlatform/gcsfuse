@@ -168,17 +168,11 @@ TEST_LOGS_FILE=$(mktemp)
 # This variable will store the path if the script builds GCSFuse binaries (gcsfuse, mount.gcsfuse)
 BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR=""
 USE_PREBUILT_GCSFUSE_BINARY=""
-# This variable will store the path to the temporary directory holding the build_gcsfuse tool itself
-TEMP_BUILD_TOOL_DIR=""
 
 build_gcsfuse_once() {
   local build_output_dir # For the final gcsfuse binaries
   build_output_dir=$(mktemp -d -t gcsfuse_e2e_run_build_XXXXXX)
   echo "GCSFuse binaries will be built in ${build_output_dir}..."
-
-  TEMP_BUILD_TOOL_DIR=$(mktemp -d -t gcsfuse_e2e_build_tool_XXXXXX)
-  local build_gcsfuse_tool_path="${TEMP_BUILD_TOOL_DIR}/build_gcsfuse"
-  echo "build_gcsfuse helper tool will be built at ${build_gcsfuse_tool_path}"
 
   local gcsfuse_src_dir
   # Determine GCSFuse source directory
@@ -189,47 +183,30 @@ build_gcsfuse_once() {
   if [[ ! -f "${gcsfuse_src_dir}/go.mod" ]]; then
     echo "Error: Could not reliably determine GCSFuse project root from ${SCRIPT_DIR_REALPATH}. Expected go.mod at ${gcsfuse_src_dir}" >&2
     rm -rf "${build_output_dir}"
-    rm -rf "${TEMP_BUILD_TOOL_DIR}"
     exit 1
   fi
   echo "Using GCSFuse source directory: ${gcsfuse_src_dir}"
 
-  # 1. Compile the build_gcsfuse tool to the temporary tool directory
-  echo "Building build_gcsfuse tool..."
-  (cd "${gcsfuse_src_dir}" && go build -o "${build_gcsfuse_tool_path}" ./tools/build_gcsfuse)
+  echo "Building GCSFuse using 'go run ./tools/build_gcsfuse/main.go'..."
+  (cd "${gcsfuse_src_dir}" && go run ./tools/build_gcsfuse/main.go . "${build_output_dir}" "e2e-$(date +%s)")
   if [ $? -ne 0 ]; then
-    echo "Error building build_gcsfuse tool at ${build_gcsfuse_tool_path}."
-    rm -rf "${build_output_dir}"
-    rm -rf "${TEMP_BUILD_TOOL_DIR}"
-    exit 1
+    echo "Error building GCSFuse binaries using 'go run ./tools/build_gcsfuse/main.go'."
+    rm -rf "${build_output_dir}" # Clean up created temp dir
+    return 1
   fi
 
-  # 2. Use the compiled build_gcsfuse tool from its temporary path to build GCSFuse binaries
-  # The GCSFuse source directory for the tool is '.', when cd'd into gcsfuse_src_dir.
-  echo "Running build_gcsfuse tool from ${build_gcsfuse_tool_path}..."
-  (cd "${gcsfuse_src_dir}" && "${build_gcsfuse_tool_path}" . "${build_output_dir}" "e2e-$(date +%s)")
-  if [ $? -ne 0 ]; then
-    echo "Error building GCSFuse binaries using build_gcsfuse tool."
-    rm -rf "${build_output_dir}" # Clean up final build dir
-    rm -rf "${TEMP_BUILD_TOOL_DIR}" # Clean up tool dir
-    exit 1
-  fi
-
-  BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR="${build_output_dir}" # Mark for cleanup of final binaries
-  # The TEMP_BUILD_TOOL_DIR will be cleaned up by the trap
+  # Set the directory path for use by the script (to form the go test flag)
+  BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR="${build_output_dir}"
   echo "GCSFuse binaries built by script in: ${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
   echo "GCSFuse executable: ${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}/bin/gcsfuse"
+  return 0
 }
 
-# Update cleanup_gcsfuse_once to also clean TEMP_BUILD_TOOL_DIR
+
 cleanup_gcsfuse_once() {
   if [ -n "${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}" ] && [ -d "${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}" ]; then
     echo "Cleaning up GCSFuse build directory created by script: ${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
     rm -rf "${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
-  fi
-  if [ -n "${TEMP_BUILD_TOOL_DIR}" ] && [ -d "${TEMP_BUILD_TOOL_DIR}" ]; then
-    echo "Cleaning up temporary build_gcsfuse tool directory: ${TEMP_BUILD_TOOL_DIR}"
-    rm -rf "${TEMP_BUILD_TOOL_DIR}"
   fi
 }
 
