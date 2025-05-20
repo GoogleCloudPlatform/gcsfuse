@@ -2289,11 +2289,6 @@ func (fs *fileSystem) renameFile(ctx context.Context, op *fuseops.RenameOp, chil
 
 	switch c := child.(type) {
 	case *inode.FileInode:
-		// TODO(b/402335988): Fix rename flow for local files when streaming writes is disabled.
-		// If object to be renamed is a local file inode and streaming writes are disabled, rename operation is not supported.
-		if c.IsLocal() && !fs.newConfig.Write.EnableStreamingWrites {
-			return fmt.Errorf("cannot rename open file %q: %w", op.OldName, syscall.ENOTSUP)
-		}
 		updatedMinObject, err = fs.flushPendingWrites(ctx, c)
 		if err != nil {
 			return fmt.Errorf("flushPendingWrites: %w", err)
@@ -2316,9 +2311,6 @@ func (fs *fileSystem) flushPendingWrites(ctx context.Context, fileInode *inode.F
 	fileInode.Lock()
 	defer fileInode.Unlock()
 	minObject = fileInode.Source()
-	if !fs.newConfig.Write.EnableStreamingWrites {
-		return
-	}
 	// Try to flush if there are any pending writes.
 	err = fs.flushFile(ctx, fileInode)
 	minObject = fileInode.Source()

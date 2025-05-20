@@ -43,12 +43,12 @@ func createAndVerifySymLink(t *testing.T) (filePath, symlink string, fh *os.File
 	return
 }
 
-func (t *CommonLocalFileTestSuite) TestCreateSymlinkForLocalFile() {
+func (t *LocalFileTestSuite) TestCreateSymlinkForLocalFile() {
 	_, _, fh := createAndVerifySymLink(t.T())
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, FileName1, FileContents, t.T())
 }
 
-func (t *CommonLocalFileTestSuite) TestReadSymlinkForDeletedLocalFile() {
+func (t *LocalFileTestSuite) TestReadSymlinkForDeletedLocalFile() {
 	filePath, symlink, fh := createAndVerifySymLink(t.T())
 	// Remove filePath and then close the fileHandle to avoid syncing to GCS.
 	operations.RemoveFile(filePath)
@@ -62,7 +62,7 @@ func (t *CommonLocalFileTestSuite) TestReadSymlinkForDeletedLocalFile() {
 	assert.True(t.T(), os.IsNotExist(err), "Reading symlink for deleted local file should have failed with 'no such file or directory'. Got: %v", err)
 }
 
-func (t *CommonLocalFileTestSuite) TestRenameSymlinkForLocalFile() {
+func (t *LocalFileTestSuite) TestRenameSymlinkForLocalFile() {
 	filePath, symlinkPath, fh := createAndVerifySymLink(t.T())
 	newSymlinkPath := path.Join(testDirPath, "newSymlink")
 

@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func (t *CommonLocalFileTestSuite) TestEditsToNewlyCreatedFile() {
+func (t *LocalFileTestSuite) TestEditsToNewlyCreatedFile() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
 	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
@@ -45,7 +45,7 @@ func (t *CommonLocalFileTestSuite) TestEditsToNewlyCreatedFile() {
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fhNew, testDirName, FileName1, newContent+FileContents+FileContents, t.T())
 }
 
-func (t *CommonLocalFileTestSuite) TestAppendsToNewlyCreatedFile() {
+func (t *LocalFileTestSuite) TestAppendsToNewlyCreatedFile() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
 	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
