@@ -22,6 +22,8 @@ import (
 	"strings"
 	"time"
 
+	"cloud.google.com/go/auth"
+	"cloud.google.com/go/auth/oauth2adapt"
 	"cloud.google.com/go/storage"
 	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
@@ -32,6 +34,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"golang.org/x/net/context"
+	"golang.org/x/oauth2"
 	option "google.golang.org/api/option"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -93,10 +96,21 @@ func createClientOptionForGRPCClient(clientConfig *storageutil.StorageClientConf
 	if clientConfig.AnonymousAccess {
 		clientOpts = append(clientOpts, option.WithoutAuthentication())
 	} else {
-		tokenSrc, tokenCreationErr := storageutil.CreateTokenSource(clientConfig)
-		if tokenCreationErr != nil {
-			err = fmt.Errorf("while fetching tokenSource: %w", tokenCreationErr)
+		var tokenSrc oauth2.TokenSource
+		var cred *auth.Credentials
+		cred, tokenSrc, err = storageutil.CreateCredentialsOrTokenSource(clientConfig)
+		if err != nil {
+			err = fmt.Errorf("while fetching tokenSource: %w", err)
 			return
+		}
+		if cred != nil {
+			tokenSrc = oauth2adapt.TokenSourceFromTokenProvider(cred.TokenProvider)
+			var domain string
+			domain, err = cred.UniverseDomain(context.Background())
+			if err != nil {
+				return nil, fmt.Errorf("failed to get UniverseDomain: %v", err)
+			}
+			clientOpts = append(clientOpts, option.WithUniverseDomain(domain))
 		}
 		clientOpts = append(clientOpts, option.WithTokenSource(tokenSrc))
 	}
@@ -183,6 +197,21 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 
 	if clientConfig.AnonymousAccess {
 		clientOpts = append(clientOpts, option.WithoutAuthentication())
+	}
+
+	var cred *auth.Credentials
+	cred, _, err = storageutil.CreateCredentialsOrTokenSource(clientConfig)
+	if err != nil {
+		err = fmt.Errorf("while fetching tokenSource: %w", err)
+		return
+	}
+	if cred != nil {
+		var domain string
+		domain, err = cred.UniverseDomain(context.Background())
+		if err != nil {
+			return nil, fmt.Errorf("failed to get UniverseDomain: %v", err)
+		}
+		clientOpts = append(clientOpts, option.WithUniverseDomain(domain))
 	}
 
 	// Create client with JSON read flow, if EnableJasonRead flag is set.
