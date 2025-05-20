@@ -43,8 +43,6 @@ var mountedDirectory = flag.String("mountedDirectory", "", "The GCSFuse mounted 
 var integrationTest = flag.Bool("integrationTest", false, "Run tests only when the flag value is true.")
 var testInstalledPackage = flag.Bool("testInstalledPackage", false, "[Optional] Run tests on the package pre-installed on the host machine. By default, integration tests build a new package to run the tests.")
 var testOnTPCEndPoint = flag.Bool("testOnTPCEndPoint", false, "Run tests on TPC endpoint only when the flag value is true.")
-
-// New flag for the pre-built GCSFuse directory
 var gcsfusePreBuiltDir = flag.String("gcsfuse_prebuilt_dir", "", "Path to the pre-built GCSFuse directory containing bin/gcsfuse and sbin/mount.gcsfuse.")
 
 const (
