@@ -69,10 +69,6 @@ func TestMain(m *testing.M) {
 		{"--implicit-dirs=true", "--rename-dir-limit=3", "--enable-streaming-writes=false"},
 		{"--implicit-dirs=false", "--rename-dir-limit=3", "--enable-streaming-writes=false"}}
 
-	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
-		flagsSet = append(flagsSet, hnsFlagSet)
-	}
-
 	if !testing.Short() {
 		setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--client-protocol=grpc")
 	}
