@@ -87,11 +87,6 @@ func TestTimeoutDisabledSuite(t *testing.T) {
 	}
 
 	flagsSet := []gcsfuseTestFlags{
-		{ // Test with timeout enabled and http1 client protocol
-			inactiveReadTimeout: kDefaultInactiveReadTimeoutInSeconds * time.Second,
-			fileName:            "timeout_with_http.yaml",
-			clientProtocol:      kHTTP1ClientProtocol,
-		},
 		{ // Test with timeout disabled
 			inactiveReadTimeout: 0 * time.Second, // Disable timeout
 			clientProtocol:      kHTTP1ClientProtocol,
