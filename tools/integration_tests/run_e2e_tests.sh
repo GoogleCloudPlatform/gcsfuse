@@ -44,7 +44,7 @@ readonly INTEGRATION_TEST_PACKAGE_DIR="./tools/integration_tests"
 readonly INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS=60 
 readonly TMP_PREFIX="gcsfuse_e2e"
 readonly VM_USAGE_TRACKING_INTERVAL_IN_SECONDS=10 # Controls how frequent VM Usage(CPU, Memory, Disk) are tracked.
-readonly PACKAGE_LEVEL_PARALLELISM=25 # Controls how many test packages are run in parallel for hns, flat or zonal buckets.
+readonly PACKAGE_LEVEL_PARALLELISM=15 # Controls how many test packages are run in parallel for hns, flat or zonal buckets.
 readonly DELETE_BUCKET_PARALLELISM=10 # Controls how many buckets are deleted in parallel.
 
 # Default values for optional arguments.
