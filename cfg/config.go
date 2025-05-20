@@ -256,6 +256,8 @@ type WriteConfig struct {
 
 	EnableStreamingWrites bool `yaml:"enable-streaming-writes"`
 
+	ExperimentalEnableRapidAppends bool `yaml:"experimental-enable-rapid-appends"`
+
 	GlobalMaxBlocks int64 `yaml:"global-max-blocks"`
 
 	MaxBlocksPerFile int64 `yaml:"max-blocks-per-file"`
@@ -588,6 +590,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.IntP("write-block-size-mb", "", 32, "Specifies the block size for streaming writes. The value should be more  than 0.")
 
 	if err := flagSet.MarkHidden("write-block-size-mb"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("write-experimental-enable-rapid-appends", "", false, "Enables support for appends to unfinalized object using streaming writes")
+
+	if err := flagSet.MarkHidden("write-experimental-enable-rapid-appends"); err != nil {
 		return err
 	}
 
@@ -949,6 +957,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("write.block-size-mb", flagSet.Lookup("write-block-size-mb")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("write.experimental-enable-rapid-appends", flagSet.Lookup("write-experimental-enable-rapid-appends")); err != nil {
 		return err
 	}
 
