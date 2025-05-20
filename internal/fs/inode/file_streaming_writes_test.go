@@ -29,6 +29,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/jacobsa/fuse/fuseops"
@@ -182,7 +183,7 @@ func (t *FileStreamingWritesCommon) TestflushUsingBufferedWriteHandlerOnZeroSize
 
 func (t *FileStreamingWritesCommon) TestflushUsingBufferedWriteHandlerOnNonZeroSizeDoesNotRecreatesBwhOnInitAgain() {
 	t.createBufferedWriteHandler()
-	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("foobar"), 0))
+	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("foobar"), 0, util.Write))
 	err := t.in.flushUsingBufferedWriteHandler()
 	require.NoError(t.T(), err)
 	assert.Nil(t.T(), t.in.bwh)
@@ -208,14 +209,14 @@ func (t *FileStreamingWritesZonalBucketTest) TestSourceGenerationIsAuthoritative
 
 func (t *FileStreamingWritesZonalBucketTest) TestSourceGenerationIsAuthoritativeReturnsFalseAfterWriteForZonalBuckets() {
 	t.createBufferedWriteHandler()
-	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("taco"), 0))
+	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("taco"), 0, util.Write))
 
 	assert.False(t.T(), t.in.SourceGenerationIsAuthoritative())
 }
 
 func (t *FileStreamingWritesZonalBucketTest) TestSyncPendingBufferedWritesForZonalBucketsPromotesInodeToNonLocal() {
 	t.createBufferedWriteHandler()
-	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("pizza"), 0))
+	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("pizza"), 0, util.Write))
 
 	gcsSynced, err := t.in.SyncPendingBufferedWrites()
 
@@ -229,7 +230,7 @@ func (t *FileStreamingWritesZonalBucketTest) TestSyncPendingBufferedWritesForZon
 
 func (t *FileStreamingWritesZonalBucketTest) TestSyncPendingBufferedWritesForZonalBucketsUpdatesSrcSize() {
 	t.createBufferedWriteHandler()
-	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("foobar"), 0))
+	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("foobar"), 0, util.Write))
 	assert.Equal(t.T(), uint64(0), t.in.src.Size)
 
 	gcsSynced, err := t.in.SyncPendingBufferedWrites()
@@ -253,14 +254,14 @@ func (t *FileStreamingWritesTest) TestSourceGenerationIsAuthoritativeReturnsTrue
 
 func (t *FileStreamingWritesTest) TestSourceGenerationIsAuthoritativeReturnsFalseAfterWriteForNonZonalBuckets() {
 	t.createBufferedWriteHandler()
-	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("taco"), 0))
+	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("taco"), 0, util.Write))
 
 	assert.False(t.T(), t.in.SourceGenerationIsAuthoritative())
 }
 
 func (t *FileStreamingWritesTest) TestSyncPendingBufferedWritesForNonZonalBucketsDoesNotPromoteInodeToNonLocal() {
 	t.createBufferedWriteHandler()
-	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("taco"), 0))
+	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("taco"), 0, util.Write))
 
 	gcsSynced, err := t.in.SyncPendingBufferedWrites()
 
@@ -272,7 +273,7 @@ func (t *FileStreamingWritesTest) TestSyncPendingBufferedWritesForNonZonalBucket
 
 func (t *FileStreamingWritesTest) TestSyncPendingBufferedWritesForNonZonalBucketsDoesNotUpdateSrcSize() {
 	t.createBufferedWriteHandler()
-	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("foobar"), 0))
+	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("foobar"), 0, util.Write))
 	assert.Equal(t.T(), uint64(0), t.in.src.Size)
 
 	gcsSynced, err := t.in.SyncPendingBufferedWrites()
@@ -312,7 +313,7 @@ func (t *FileStreamingWritesTest) TestOutOfOrderWritesToLocalFileFallBackToTempF
 			createTime := t.clock.Now()
 			t.clock.AdvanceTime(15 * time.Minute)
 			// Sequential Write at offset 0
-			err := t.in.Write(t.ctx, []byte("taco"), 0)
+			err := t.in.Write(t.ctx, []byte("taco"), 0, util.Write)
 			require.Nil(t.T(), err)
 			require.NotNil(t.T(), t.in.bwh)
 			// validate attributes.
@@ -323,7 +324,7 @@ func (t *FileStreamingWritesTest) TestOutOfOrderWritesToLocalFileFallBackToTempF
 
 			// Out of order write.
 			mtime := t.clock.Now()
-			err = t.in.Write(t.ctx, []byte("hello"), tc.offset)
+			err = t.in.Write(t.ctx, []byte("hello"), tc.offset, util.Write)
 			require.Nil(t.T(), err)
 
 			// Ensure bwh cleared and temp file created.
@@ -351,7 +352,7 @@ func (t *FileStreamingWritesTest) TestOutOfOrderWriteFollowedByOrderedWrite() {
 	assert.True(t.T(), t.in.IsLocal())
 	createTime := t.in.mtimeClock.Now()
 	// Out of order write.
-	err := t.in.Write(t.ctx, []byte("taco"), 6)
+	err := t.in.Write(t.ctx, []byte("taco"), 6, util.Write)
 	require.Nil(t.T(), err)
 	// Ensure bwh cleared and temp file created.
 	assert.Nil(t.T(), t.in.bwh)
@@ -364,7 +365,7 @@ func (t *FileStreamingWritesTest) TestOutOfOrderWriteFollowedByOrderedWrite() {
 
 	// Ordered write.
 	mtime := t.clock.Now()
-	err = t.in.Write(t.ctx, []byte("hello"), 0)
+	err = t.in.Write(t.ctx, []byte("hello"), 0, util.Write)
 	require.Nil(t.T(), err)
 
 	// Ensure bwh not re-created.
@@ -386,7 +387,7 @@ func (t *FileStreamingWritesTest) TestOutOfOrderWriteFollowedByOrderedWrite() {
 
 func (t *FileStreamingWritesTest) TestOutOfOrderWritesOnClobberedFileThrowsError() {
 	t.createBufferedWriteHandler()
-	err := t.in.Write(t.ctx, []byte("hi"), 0)
+	err := t.in.Write(t.ctx, []byte("hi"), 0, util.Write)
 	require.Nil(t.T(), err)
 	require.NotNil(t.T(), t.in.bwh)
 	assert.Equal(t.T(), int64(2), t.in.bwh.WriteFileInfo().TotalSize)
@@ -394,7 +395,7 @@ func (t *FileStreamingWritesTest) TestOutOfOrderWritesOnClobberedFileThrowsError
 	objWritten, err := storageutil.CreateObject(t.ctx, t.bucket, fileName, []byte("taco"))
 	require.Nil(t.T(), err)
 
-	err = t.in.Write(t.ctx, []byte("hello"), 10)
+	err = t.in.Write(t.ctx, []byte("hello"), 10, util.Write)
 
 	require.Error(t.T(), err)
 	var fileClobberedError *gcsfuse_errors.FileClobberedError
@@ -421,7 +422,7 @@ func (t *FileStreamingWritesTest) TestUnlinkLocalFileAfterWrite() {
 	assert.True(t.T(), t.in.IsLocal())
 	t.createBufferedWriteHandler()
 	// Write some content.
-	err := t.in.Write(t.ctx, []byte("tacos"), 0)
+	err := t.in.Write(t.ctx, []byte("tacos"), 0, util.Write)
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), t.in.bwh)
 
@@ -438,7 +439,7 @@ func (t *FileStreamingWritesTest) TestUnlinkEmptySyncedFile() {
 	assert.False(t.T(), t.in.IsLocal())
 	t.createBufferedWriteHandler()
 	// Write some content to temp file.
-	err := t.in.Write(t.ctx, []byte("tacos"), 0)
+	err := t.in.Write(t.ctx, []byte("tacos"), 0, util.Write)
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), t.in.bwh)
 
@@ -473,7 +474,7 @@ func (t *FileStreamingWritesTest) TestWriteToFileAndFlush() {
 			}
 			t.createBufferedWriteHandler()
 			// Write some content to temp file.
-			err := t.in.Write(t.ctx, []byte("tacos"), 0)
+			err := t.in.Write(t.ctx, []byte("tacos"), 0, util.Write)
 			assert.Nil(t.T(), err)
 			assert.NotNil(t.T(), t.in.bwh)
 			t.clock.AdvanceTime(10 * time.Second)
@@ -633,7 +634,7 @@ func (t *FileStreamingWritesTest) TestWriteToFileAndSync() {
 			}
 			t.createBufferedWriteHandler()
 			// Write some content to temp file.
-			err := t.in.Write(t.ctx, []byte("tacos"), 0)
+			err := t.in.Write(t.ctx, []byte("tacos"), 0, util.Write)
 			assert.Nil(t.T(), err)
 			assert.NotNil(t.T(), t.in.bwh)
 			t.clock.AdvanceTime(10 * time.Second)
@@ -663,7 +664,7 @@ func (t *FileStreamingWritesTest) TestWriteToFileAndSync() {
 func (t *FileStreamingWritesTest) TestSourceGenerationSizeForLocalFileIsReflected() {
 	t.createBufferedWriteHandler()
 	assert.True(t.T(), t.in.IsLocal())
-	err := t.in.Write(context.Background(), []byte(setup.GenerateRandomString(5)), 0)
+	err := t.in.Write(context.Background(), []byte(setup.GenerateRandomString(5)), 0, util.Write)
 	require.NoError(t.T(), err)
 
 	sg := t.in.SourceGeneration()
@@ -677,7 +678,7 @@ func (t *FileStreamingWritesTest) TestSourceGenerationSizeForSyncedFileIsReflect
 	t.createInode(fileName, emptyGCSFile)
 	assert.False(t.T(), t.in.IsLocal())
 	t.createBufferedWriteHandler()
-	err := t.in.Write(context.Background(), []byte(setup.GenerateRandomString(5)), 0)
+	err := t.in.Write(context.Background(), []byte(setup.GenerateRandomString(5)), 0, util.Write)
 	require.NoError(t.T(), err)
 
 	sg := t.in.SourceGeneration()
@@ -690,7 +691,7 @@ func (t *FileStreamingWritesTest) TestTruncateOnFileUsingTempFileDoesNotRecreate
 	t.createBufferedWriteHandler()
 	assert.True(t.T(), t.in.IsLocal())
 	// Out of order write.
-	err := t.in.Write(t.ctx, []byte("taco"), 2)
+	err := t.in.Write(t.ctx, []byte("taco"), 2, util.Write)
 	require.Nil(t.T(), err)
 	// Ensure bwh cleared and temp file created.
 	assert.Nil(t.T(), t.in.bwh)
@@ -806,7 +807,7 @@ func (t *FileStreamingWritesTest) TestWriteUsingBufferedWritesFails() {
 		},
 	}
 
-	err := t.in.Write(context.Background(), []byte("hello"), 0)
+	err := t.in.Write(context.Background(), []byte("hello"), 0, util.Write)
 
 	require.Error(t.T(), err)
 	assert.Regexp(t.T(), writeErr.Error(), err.Error())
