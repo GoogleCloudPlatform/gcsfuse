@@ -189,7 +189,7 @@ func SetUpTestDir() error {
 			return fmt.Errorf("gcsfuse binary from --gcsfuse_prebuilt_dir not found at %s: %w", binFile, statErr)
 		}
 		if _, statErr := os.Stat(sbinFile); statErr != nil {
-			log.Printf("Warning: Mount helper from --gcsfuse_prebuilt_dir not found at %s. Some tests might fail.", sbinFile)
+			return fmt.Errorf("mount helper from --gcsfuse_prebuilt_dir not found at %s: %w", sbinFile, statErr)
 		}
 		// Set PATH to include the bin directory of the pre-built gcsfuse
 		err = os.Setenv(PathEnvVariable, filepath.Dir(binFile)+string(filepath.ListSeparator)+os.Getenv(PathEnvVariable))
