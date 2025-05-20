@@ -19,13 +19,14 @@ readonly TPCZERO_PROJECT_ID="tpczero-system:gcsfuse-test-project"
 readonly TPC_BUCKET_LOCATION="u-us-prp1"
 readonly BUCKET_PREFIX="gcsfuse-e2e"
 readonly INTEGRATION_TEST_PACKAGE_DIR="./tools/integration_tests"
-readonly INTEGRATION_TEST_TIMEOUT_IN_MINS=90
+readonly INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS=60
 readonly TMP_PREFIX="gcsfuse_e2e"
 readonly LOG_LOCK_FILE=$(mktemp "/tmp/${TMP_PREFIX}_logging_lock.XXXXXX")
 readonly BUCKET_NAMES=$(mktemp "/tmp/${TMP_PREFIX}_bucket_names.XXXXXX")
 readonly PACKAGE_STATS_FILE=$(mktemp "/tmp/${TMP_PREFIX}_package_stats.XXXXXX")
 readonly VM_USAGE=$(mktemp "/tmp/${TMP_PREFIX}_vm_usage.XXXXXX")
-readonly PARALLELISM=10
+readonly PACKAGE_LEVEL_PARALLELISM=10
+readonly DELETE_BUCKET_PARALLELISM=10
 
 # Default values for optional arguments
 RUN_TEST_ON_TPC_ENDPOINT=false
@@ -85,43 +86,40 @@ if [ -n "$1" ]; then
   shift
 fi
 
-# Test packages which can be run in parallel.
-PARALLEL_TEST_PACKAGES=(
-  "managed_folders"         # 40m
-  "operations"              # 32m
-  "concurrent_operations"   # 20m
-  "read_large_files"        # 17m
-  "write_large_files"       # 16m flat, 6m hns
-  "read_cache"              # 14m
-  "list_large_dir"          # 12m
-  "interrupt"               # 5m
-  "mount_timeout"           # 4m
-  "local_file"              # 4m
-  "benchmarking"            # 3m
-  "readonly"                # 3m
-  "readonly_creds"          # 3m
-  "rename_dir_limit"        # 3m
-  "implicit_dir"            # 3m
-  "kernel_list_cache"       # 2m
-  "streaming_writes"        # 2m
-  "monitoring"              # 1m
-  "log_rotation"            # 1m
-  "mounting"                # 1m
+# Test packages for regional buckets.
+TEST_PACKAGES=(
+  "monitoring"
+  "local_file"
+  "log_rotation"
+  "mounting"
+  "read_cache"
   # "grpc_validation"
-  "gzip"                    # 1m
-  "explicit_dir"            # 1m
-  "stale_handle"            # 1m
-  "negative_stat_cache"     # 1m
+  "gzip"
+  "write_large_files"
+  "list_large_dir"
+  "rename_dir_limit"
+  "read_large_files"
+  "explicit_dir"
+  "implicit_dir"
+  "interrupt"
+  "operations"
+  "kernel_list_cache"
+  "concurrent_operations"
+  "benchmarking"
+  "mount_timeout"
+  "stale_handle"
+  "negative_stat_cache"
+  "streaming_writes" 
 )
 
 
-# Test packages which can be run in parallel on zonal buckets.
-PARALLEL_TEST_PACKAGES_FOR_ZB=("${PARALLEL_TEST_PACKAGES[@]}" "unfinalized_object")
+# Test packages for zonal buckets.
+TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES[@]}" "unfinalized_object")
 
 
 
-# Test packages which can be run in parallel on TPC universe.
-PARALLEL_TEST_PACKAGES_FOR_TPC=(
+# Test packages for TPC buckets.
+TEST_PACKAGES_FOR_TPC=(
   "operations"
 )
 
@@ -241,8 +239,12 @@ delete_bucket() {
     return 1
   fi
   local bucket="$1"
-  if ! gcloud -q storage rm -r "gs://${bucket}"; then
-    log_error_locked "Unable to delete bucket [${bucket}]"
+  local delete_bucket_log=$(mktemp "/tmp/${TMP_PREFIX}_${bucket}.XXXXXX")
+  if ! gcloud -q storage rm -r "gs://${bucket}" > "$delete_bucket_log" 2>&1; then
+    acquire_lock "$LOG_LOCK_FILE"
+    log_error "Unable to delete bucket [${bucket}]"
+    cat "$delete_bucket_log"
+    release_lock "$LOG_LOCK_FILE"
     return 1
   fi
   return 0
@@ -257,9 +259,9 @@ clean_up() {
     buckets+=("$line")
   done < "$BUCKET_NAMES"
   # Clean up buckets if any.
-  local clean_up_log=$(mktemp "/tmp/${TMP_PREFIX}_clean_up_log.XXXXXX")
+  
   if [[ "${#buckets[@]}" -gt 0 ]]; then
-      if ! run_parallel "$PARALLELISM" "delete_bucket @" "${buckets[@]}" > "$clean_up_log" 2>&1; then
+      if ! run_parallel "$DELETE_BUCKET_PARALLELISM" "delete_bucket @" "${buckets[@]}"; then
         log_error "Failed to delete all buckets"
       else
         log_info "Successfully deleted all buckets."
@@ -294,31 +296,20 @@ run_parallel() {
   shift
   local cmd_template="$1"
   shift
-  local pids=()
-  local -A cmd_info # Associative array: PID -> "output"
+  local -A cmd_info # Associative array: PID -> "full_cmd"
   local overall_exit_code=0
+
+  # Helper function to process a PID
   process_a_pid() {
-    local -n cmd_info_ref="$1"
-    local pid
+    local full_cmd="$1"
+    local pid="$2"
     local status
-    wait -n -p pid
+    wait "$pid"
     status=$?
-    IFS=';' read -r -a cmd_info_parts <<< "${cmd_info_ref["$pid"]}"
-    local full_cmd="${cmd_info_parts[0]}"
-    local output_file="${cmd_info_parts[1]}"
     # Remove the entry from the associative array
     unset "cmd_info[$pid]"
     if [[ "$status" -ne 0 ]]; then
-      acquire_lock "$LOG_LOCK_FILE"
-      log_error ""
-      log_error ""
-      log_error "--- Parallel Command Failed ---"
-      log_error "Command: $full_cmd"
-      log_error "--- Stdout/Stderr ---:"
-      cat "$output_file"
-      log_error ""
-      log_error ""
-      release_lock "$LOG_LOCK_FILE"
+      log_error_locked "--- Parallel Command Failed: $full_cmd ---"
       return 1 # Return 1 to indicate a failure
     else
       log_info_locked "Parallel Command Successful: $full_cmd"
@@ -328,27 +319,20 @@ run_parallel() {
   # Launch commands in the background based on parallelism.
   for arg in "$@"; do
     local full_cmd="${cmd_template//@/$arg}"
-    local output_file=$(mktemp "/tmp/${TMP_PREFIX}_${arg}_output.XXXXXX") || {
-      log_error_locked "Could not create temporary output file."
-      return 1
-    }
     log_info_locked "Executing Parallel Command: $full_cmd"
-    (eval "$full_cmd" >"$output_file" 2>&1) &
+    eval "$full_cmd" &
     local pid=$!
-    pids+=("$pid")
-    cmd_info["$pid"]="${full_cmd};${output_file}" # Keep pid, full_cmd and output_file in associative array
+    cmd_info["$pid"]="${full_cmd}" # Keep pid, full_cmd in associative array
     if [[ ${#cmd_info[@]} -eq $parallelism ]]; then
-      process_a_pid "cmd_info"
+      process_a_pid "${cmd_info[$pid]}" "$pid"
       overall_exit_code=$((overall_exit_code || $? != 0))
     fi
   done
-  # Process any remaining cmds
-  while [ ${#cmd_info[@]} -gt  0 ]
-  do
-    process_a_pid "cmd_info"
-    overall_exit_code=$((overall_exit_code || $? != 0))
+  # Process any remaining PIDs
+  for pid in "${!cmd_info[@]}"; do
+      process_a_pid "${cmd_info[$pid]}" "$pid"
+      overall_exit_code=$((overall_exit_code || $? != 0))
   done
-
   return "$overall_exit_code"
 }
 
@@ -356,7 +340,7 @@ run_parallel() {
 test_package() {
   if [[ $# -ne 3 ]]; then
     log_error_locked "test_package() called with incorrect number of arguments."
-    exit 1
+    return 1
   fi
   local package_name="$1"
   local bucket_name="$2"
@@ -368,7 +352,7 @@ test_package() {
     "go"
     "test"
     "-v"
-    "-timeout=${INTEGRATION_TEST_TIMEOUT_IN_MINS}m"
+    "-timeout=${INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS}m"
     "${INTEGRATION_TEST_PACKAGE_DIR}/${package_name}"
   )
   if [[ "$SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE" == "true" ]]; then
@@ -408,7 +392,8 @@ test_package() {
   # Run the package test command
   local package_status="PASSED"
   local start=$SECONDS
-  eval "$GO_TEST_CMD"
+  local test_package_output=$(mktemp "/tmp/${TMP_PREFIX}_test_${package_name}_${bucket_type}_output.XXXXXX")
+  eval "$GO_TEST_CMD" > "$test_package_output" 2>&1
   if [[ $? -ne 0 ]]; then
     package_status="FAILED"
   fi
@@ -417,15 +402,22 @@ test_package() {
   # Record stats and build wait run time string.
   # Using each _ char for 1 min wait time and each > char for 1 min run time.
   wait_min=$((start / 60))
-  run_min=$(((end - start) / 60))
-  current_package_stats=$(printf "| %-25s | %-15s | %-10s |%-60s|\n" \
+  run_min=$(((end - start + 60) / 60))
+  current_package_stats=$(printf "| %-25s | %-15s | %-10s | %-10s |%-60s|\n" \
     "$package_name" \
     "$bucket_type" \
     "$package_status" \
+    "${run_min}m" \
     "$(printf '%0.s_' $(seq 1 "$wait_min"))$(printf '%0.s>' $(seq 1 "$run_min"))") # Produces string like ___>>>
   
   echo "$current_package_stats" >> "$PACKAGE_STATS_FILE"
   if [[ "$package_status" == "FAILED" ]]; then
+    acquire_lock "$LOG_LOCK_FILE"
+    echo ""
+    echo "FAIL: test_package ${package_name} ${bucket_type} failed."
+    cat "$test_package_output"
+    echo ""
+    release_lock "$LOG_LOCK_FILE"
     return 1
   fi
   return 0
@@ -434,19 +426,20 @@ test_package() {
 print_package_stats() {
   # Sorts package stats by package name and bucket type
   sort -o "$PACKAGE_STATS_FILE" "$PACKAGE_STATS_FILE"
-  # separator is a line like +------+----+-----+----+
-  separator=$(printf "+%s+%s+%s+%s+\n" \
+  # separator is a line like +------+----+-----+----+---+
+  separator=$(printf "+%s+%s+%s+%s+%s+\n" \
     "$(printf '%.s-' {1..27})" \
     "$(printf '%.s-' {1..17})" \
     "$(printf '%.s-' {1..12})" \
+    "$(printf '%.s-' {1..10})" \
     "$(printf '%.s-' {1..60})")
   echo ""
   echo "Timings for the e2e test packages run are listed below."
   echo "_ is 1 min wait"
   echo "> is 1 min run"
   echo "$separator"
-  printf "| %-25s | %-15s | %-10s | %-25s %s %+25s|\n" \
-    "Package Name" "Bucket Type" "Status" "0 min " "runtime" "60 min"
+  printf "| %-25s | %-15s | %-10s | %-10s | %-25s %s %+25s|\n" \
+    "Package Name" "Bucket Type" "Status" "Total Time" "0 min " "runtime" "60 min"
   echo "$separator"
   while IFS= read -r line; do
     echo "$line"
@@ -487,10 +480,10 @@ install_packages() {
 }
 
 run_e2e_tests_for_flat_bucket() {
-  log_info_locked "Started running e2e tests for flat bucket"
+  log_info_locked "Started running e2e tests for flat bucket."
   parallel_package_flat_bucket=()
-  setup_package_buckets "PARALLEL_TEST_PACKAGES" "parallel_package_flat_bucket" "flat"
-  run_parallel "$PARALLELISM" "test_package @" "${parallel_package_flat_bucket[@]}" &
+  setup_package_buckets "TEST_PACKAGES" "parallel_package_flat_bucket" "flat"
+  run_parallel "$PACKAGE_LEVEL_PARALLELISM" "test_package @" "${parallel_package_flat_bucket[@]}" &
   parallel_tests_flat_group_pid=$!
 
   # Wait for all tests to complete.
@@ -506,10 +499,10 @@ run_e2e_tests_for_flat_bucket() {
 }
 
 run_e2e_tests_for_hns_bucket() {
-  log_info_locked "Started running e2e tests for HNS bucket"
+  log_info_locked "Started running e2e tests for HNS bucket."
   parallel_package_hns_bucket=()
-  setup_package_buckets "PARALLEL_TEST_PACKAGES" "parallel_package_hns_bucket" "hns"
-  run_parallel "$PARALLELISM" "test_package @" "${parallel_package_hns_bucket[@]}" &
+  setup_package_buckets "TEST_PACKAGES" "parallel_package_hns_bucket" "hns"
+  run_parallel "$PACKAGE_LEVEL_PARALLELISM" "test_package @" "${parallel_package_hns_bucket[@]}" &
   parallel_tests_hns_group_pid=$!
 
   # Wait for all tests to complete.
@@ -525,10 +518,10 @@ run_e2e_tests_for_hns_bucket() {
 }
 
 run_e2e_tests_for_zonal_bucket() {
-  log_info_locked "Started running e2e tests for ZONAL bucket"
+  log_info_locked "Started running e2e tests for ZONAL bucket."
   parallel_package_zonal_bucket=()
-  setup_package_buckets "PARALLEL_TEST_PACKAGES_FOR_ZB" "parallel_package_zonal_bucket" "zonal"
-  run_parallel "$PARALLELISM" "test_package @" "${parallel_package_zonal_bucket[@]}" &
+  setup_package_buckets "TEST_PACKAGES_FOR_ZB" "parallel_package_zonal_bucket" "zonal"
+  run_parallel "$PACKAGE_LEVEL_PARALLELISM" "test_package @" "${parallel_package_zonal_bucket[@]}" &
   parallel_tests_zonal_group_pid=$!
 
   # Wait for all tests to complete.
@@ -544,16 +537,16 @@ run_e2e_tests_for_zonal_bucket() {
 }
 
 run_e2e_tests_for_tpc() {
-  log_info_locked "Started running e2e tests for TPC bucket"
+  log_info_locked "Started running e2e tests for TPC bucket."
 
   parallel_package_bucket_hns=()
-  setup_package_buckets "PARALLEL_TEST_PACKAGES_FOR_TPC" "parallel_package_bucket_hns" "hns"
-  run_parallel "$PARALLELISM" "test_package @" "${parallel_package_bucket_hns[@]}" &
+  setup_package_buckets "TEST_PACKAGES_FOR_TPC" "parallel_package_bucket_hns" "hns"
+  run_parallel "$PACKAGE_LEVEL_PARALLELISM" "test_package @" "${parallel_package_bucket_hns[@]}" &
   parallel_tests_hns_group_pid=$!
 
   parallel_package_bucket_flat=()
-  setup_package_buckets "PARALLEL_TEST_PACKAGES_FOR_TPC" "parallel_package_bucket_flat" "flat"
-  run_parallel "$PARALLELISM" "test_package @" "${parallel_package_bucket_flat[@]}" &
+  setup_package_buckets "TEST_PACKAGES_FOR_TPC" "parallel_package_bucket_flat" "flat"
+  run_parallel "$PACKAGE_LEVEL_PARALLELISM" "test_package @" "${parallel_package_bucket_flat[@]}" &
   parallel_tests_flat_group_pid=$!
 
   # Wait for all tests to complete.
@@ -592,10 +585,10 @@ run_e2e_tests_for_emulator() {
 
 main() {
   # Clean up everything on exit.
-  trap clean_up EXIT SIGINT SIGTERM
+  trap clean_up EXIT
   chmod +x ./tools/integration_tests/monitor_vm_usage.sh
   ./tools/integration_tests/monitor_vm_usage.sh "$VM_USAGE" &
-  usage_pid=$!
+  vm_usage_pid=$!
   log_info_locked ""
   log_info_locked "------ Upgrading gcloud and installing packages ------"
   log_info_locked ""
@@ -647,10 +640,10 @@ main() {
       exit_code=$((exit_code || $? != 0))
     fi
   fi
-  print_package_stats
-  log_info_locked "------ E2E test packages complete run took $((SECONDS / 60)) minutes ------"
+  log_info_locked "------ E2E test packages complete run took $((SECONDS + 60 / 60)) minutes ------"
   log_info_locked ""
-  kill -SIGTERM "$usage_pid"
+  print_package_stats
+  kill -SIGTERM "$vm_usage_pid"
   cat "$VM_USAGE"
   exit $exit_code
 }

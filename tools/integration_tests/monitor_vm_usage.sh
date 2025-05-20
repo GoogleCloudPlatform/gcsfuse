@@ -55,7 +55,7 @@ get_mem_usage() {
         parsed_total=$(echo "$mem_info_line" | awk '{print $2}')
         
         if [[ "$parsed_total" =~ ^[0-9]+$ ]] && [ "$parsed_total" -gt 0 ] && \
-           [[ "$parsed_used" =~ ^[0-9]+$ ]]; then
+            [[ "$parsed_used" =~ ^[0-9]+$ ]]; then
             numeric_mem_percentage=$(awk -v used="$parsed_used" -v total="$parsed_total" 'BEGIN {printf "%.0f", (used/total)*100}')
             if [[ "$numeric_mem_percentage" =~ ^[0-9]+$ ]]; then
                 status=0

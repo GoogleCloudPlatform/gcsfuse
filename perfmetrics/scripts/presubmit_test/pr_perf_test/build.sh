@@ -20,9 +20,7 @@ readonly EXECUTE_INTEGRATION_TEST_LABEL="execute-integration-tests"
 readonly EXECUTE_INTEGRATION_TEST_LABEL_ON_ZB="execute-integration-tests-on-zb"
 readonly EXECUTE_PACKAGE_BUILD_TEST_LABEL="execute-package-build-tests"
 readonly EXECUTE_CHECKPOINT_TEST_LABEL="execute-checkpoint-test"
-readonly INSTALL_DIR="/bin"
-readonly GCSFUSE_BINARY_NAME="gcsfuse"
-readonly RUN_E2E_TESTS_ON_INSTALLED_PACKAGE=true
+readonly RUN_E2E_TESTS_ON_INSTALLED_PACKAGE=false
 readonly SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=false
 readonly BUCKET_LOCATION=us-west4
 readonly RUN_TEST_ON_TPC_ENDPOINT=false
@@ -50,18 +48,6 @@ fi
 
 set -e
 sudo apt-get update
-BASH_VER="5.2.37"
-INSTALL_PREFIX="/usr/local"
-wget -q "https://ftp.gnu.org/gnu/bash/bash-${BASH_VER}.tar.gz"
-tar -xzf "bash-${BASH_VER}.tar.gz"
-cd "bash-${BASH_VER}"
-./configure --prefix="${INSTALL_PREFIX}" --enable-readline > /dev/null 2>&1
-make -s -j"$(nproc 2>/dev/null || echo 1)" > /dev/null 2>&1
-sudo make install > /dev/null 2>&1
-echo ""
-echo "Bash ${BASH_VER} installed to ${INSTALL_PREFIX}/bin/bash"
-"${INSTALL_PREFIX}/bin/bash" --version
-echo ""
 echo Installing git
 sudo apt-get install git
 echo Installing go-lang  1.24.0
@@ -74,38 +60,6 @@ cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 echo '[remote "origin"]
          fetch = +refs/pull/*/head:refs/remotes/origin/pr/*' >> .git/config
 git fetch origin -q
-
-install_gcsfuse() {
-  if [[ $# -ne 1 ]]; then
-    echo "Error: install_gcsfuse() called with incorrect number of arguments."
-    echo "Usage: install_gcsfuse <PR>"
-    exit 0
-  fi
-  local pr="$1"
-  echo "Installing GCSFuse at PR: ${pr}"
-  git checkout "$pr"
-  echo "Building gcsfuse..."
-  local src_dir=$(pwd)
-  local dst_dir=$(mktemp -d -t gcsfuse_dst_dir_XXXXXX)
-  go run ./tools/build_gcsfuse/main.go "$src_dir" "$dst_dir" "${pr}" || { echo "Go build failed"; exit 1; }
-  export PATH="$dst_dir/bin:$dst_dir/sbin:$PATH"
-  sudo cp "/$dst_dir/bin/gcsfuse" /bin/
-  sudo cp "/$dst_dir/sbin/mount.gcsfuse" /sbin/
-  sudo cp "/$dst_dir/sbin/mount.fuse.gcsfuse" /sbin/
-  sudo chmod 755 /bin/gcsfuse
-  sudo chmod 755 /sbin/mount.gcsfuse
-  sudo chmod 755 /sbin/mount.fuse.gcsfuse
-  sudo chown root:root /bin/gcsfuse
-  sudo chown root:root /sbin/mount.gcsfuse
-  sudo chown root:root /sbin/mount.fuse.gcsfuse
-  whereis gcsfuse
-  which gcsfuse
-  whereis mount.gcsfuse
-  which mount.gcsfuse
-  whereis mount.fuse.gcsfuse
-  which mount.fuse.gcsfuse
-  echo "gcsfuse installed Successfully"
-}
 
 function execute_perf_test() {
   mkdir -p gcs
@@ -161,25 +115,23 @@ fi
 # Execute integration tests on zonal bucket(s).
 if test -n "${integrationTestsOnZBStr}" ;
 then
-  install_gcsfuse "pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER"
   echo checkout PR branch
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
   echo "Running e2e tests on zonal bucket(s) ..."
   # $1 argument is refering to value of testInstalledPackage.
-  "${INSTALL_PREFIX}/bin/bash" ./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $BUCKET_LOCATION $RUN_TEST_ON_TPC_ENDPOINT $RUN_TESTS_WITH_PRESUBMIT_FLAG true
+  ./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $BUCKET_LOCATION $RUN_TEST_ON_TPC_ENDPOINT $RUN_TESTS_WITH_PRESUBMIT_FLAG true
 fi
 
 # Execute integration tests on non-zonal bucket(s).
 if test -n "${integrationTestsStr}" ;
 then
-  install_gcsfuse "pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER"
   echo checkout PR branch
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
   echo "Running e2e tests on non-zonal bucket(s) ..."
   # $1 argument is refering to value of testInstalledPackage.
-  "${INSTALL_PREFIX}/bin/bash" ./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $BUCKET_LOCATION $RUN_TEST_ON_TPC_ENDPOINT $RUN_TESTS_WITH_PRESUBMIT_FLAG false
+  ./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $BUCKET_LOCATION $RUN_TEST_ON_TPC_ENDPOINT $RUN_TESTS_WITH_PRESUBMIT_FLAG false
 fi
 
 # Execute package build tests.
