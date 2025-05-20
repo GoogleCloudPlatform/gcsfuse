@@ -167,6 +167,7 @@ TEST_LOGS_FILE=$(mktemp)
 
 # This variable will store the path if the script builds GCSFuse binaries (gcsfuse, mount.gcsfuse)
 BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR=""
+# This variable will hold flag and its value to be passed to GCSFuse tests (--gcsfuse_prebuilt_dir=...)
 USE_PREBUILT_GCSFUSE_BINARY=""
 
 build_gcsfuse_once() {
