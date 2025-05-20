@@ -89,9 +89,12 @@ install_gcsfuse() {
   local dst_dir=$(mktemp -d -t gcsfuse_dst_dir_XXXXXX)
   go run ./tools/build_gcsfuse/main.go "$src_dir" "$dst_dir" "${pr}" || { echo "Go build failed"; exit 1; }
   export PATH="$dst_dir/bin:$dst_dir/sbin:$PATH"
-  sudo mv "/$dst_dir/bin/gcsfuse" /bin/gcsfuse
+  sudo cp "/$dst_dir/bin/gcsfuse" /bin/
+  sudo cp "/$dst_dir/sbin/mount.gcsfuse" /sbin/
   sudo chmod 755 /bin/gcsfuse
+  sudo chmod 755 /sbin/mount.gcsfuse
   sudo chown root:root /bin/gcsfuse
+  sudo chown root:root /sbin/mount.gcsfuse
   whereis gcsfuse
   which gcsfuse
   whereis mount.gcsfuse
