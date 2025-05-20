@@ -194,7 +194,7 @@ func SetUpTestDir() error {
 		// Set PATH to include the bin directory of the pre-built gcsfuse
 		err = os.Setenv(PathEnvVariable, filepath.Dir(binFile)+string(filepath.ListSeparator)+os.Getenv(PathEnvVariable))
 		if err != nil {
-			log.Printf("Error setting PATH for --gcsfuse_prebuilt_dir: %v", err)
+			return fmt.Errorf("error setting PATH for --gcsfuse_prebuilt_dir: %v", err.Error())
 		}
 	} else {
 		log.Printf("Building GCSFuse from source in the dir: %s ...", testDir)
@@ -210,7 +210,7 @@ func SetUpTestDir() error {
 		// Setting PATH so that executable is found in test directory.
 		err := os.Setenv(PathEnvVariable, path.Join(TestDir(), "bin")+string(filepath.ListSeparator)+os.Getenv(PathEnvVariable))
 		if err != nil {
-			log.Printf("Error in setting PATH environment variable: %v", err.Error())
+			return fmt.Errorf("error in setting PATH environment variable: %v", err.Error())
 		}
 	}
 
