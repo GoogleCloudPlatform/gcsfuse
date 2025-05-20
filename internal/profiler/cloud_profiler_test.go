@@ -25,17 +25,6 @@ import (
 	"google.golang.org/api/option"
 )
 
-// defaultProfilerSettings provides a base configuration for profiler tests.
-var defaultProfilerSettings = cfg.ProfilingConfig{
-	Enabled:       false,
-	VersionTag:    "test-version",
-	Mutex:         false,
-	Cpu:           false,
-	AllocatedHeap: false,
-	Heap:          false,
-	Goroutines:    false,
-}
-
 func TestSetupCloudProfiler_Disabled(t *testing.T) {
 	// Save and restore the original profilerStart function.
 	originalProfilerStart := profilerStart
