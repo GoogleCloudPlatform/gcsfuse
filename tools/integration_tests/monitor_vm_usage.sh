@@ -13,6 +13,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+#   This script monitors and logs CPU, memory, and disk usage
+#   at specified intervals. The logging is performed by updating lines in a
+#   pre-formatted log file, creating a visual representation of usage over time.
+#   The script will automatically terminate after 60 minutes of execution.
+
+
+if [[ $# -ne 2 ]]; then 
+    echo "Error: $0 called with incorrect number of arguments."
+    echo "Usage: $0 FILEPATH TRACKING_INTERVAL"
+    echo "Example: $0 usage.log 10"
+    echo "This starts logging usage of CPU,MEM,DISK to usage.log every 10 seconds for 60m"
+    exit 1 
+fi
+
+FILEPATH="$1"
+TRACKING_INTERVAL="$2"
+# --- Max Duration ---
+MAX_DURATION_SECONDS=$((60 * 60)) # 60 minutes in seconds
+
 # --- Helper function to get CPU Usage ---
 # Outputs: CPU Usage percentage (numeric, e.g., "56")
 # Returns: 0 on success, 1 on failure (and echoes "0")
@@ -104,10 +123,7 @@ update_line() {
     sed -i "/^${prefix}@${formatted_line_number}/s/.*/&${text_to_append}/" "${filepath}"
 }
 
-FILEPATH="$1"
-INTERVAL=10
-
-echo "CPU UAGE EVERY ${INTERVAL} SECONDS" >> "$FILEPATH"
+echo "CPU UAGE EVERY ${TRACKING_INTERVAL} SECONDS" >> "$FILEPATH"
 
 for i in {1..100}; do
     line=$((100 - $i))
@@ -115,7 +131,7 @@ for i in {1..100}; do
 done
 
 echo "" >> "$FILEPATH"
-echo "MEM USAGE EVERY ${INTERVAL} SECONDS" >> "$FILEPATH"
+echo "MEM USAGE EVERY ${TRACKING_INTERVAL} SECONDS" >> "$FILEPATH"
 
 for i in {1..100}; do
     line=$((100 - $i))
@@ -123,7 +139,7 @@ for i in {1..100}; do
 done
 
 echo "" >> "$FILEPATH"
-echo "DISK USAGE EVERY ${INTERVAL} SECONDS" >> "$FILEPATH"
+echo "DISK USAGE EVERY ${TRACKING_INTERVAL} SECONDS" >> "$FILEPATH"
 
 for i in {1..100}; do
     line=$((100 - $i))
@@ -136,9 +152,12 @@ clean() {
     sleep 20 # Give enough time for file to be updated.
 }
 
-trap clean SIGINT SIGTERM
+trap clean EXIT SIGINT SIGTERM
 
 while $monitor; do
+    if [ "$SECONDS" -ge "$MAX_DURATION_SECONDS" ]; then
+        exit 0 # Exit due to monitoring time limit.
+    fi
     cpu=$(get_cpu_usage)
     mem=$(get_mem_usage)
     disk=$(get_disk_usage)
@@ -160,5 +179,5 @@ while $monitor; do
         update_line "$FILEPATH" "$i" "$m" "MEM"
         update_line "$FILEPATH" "$i" "$d" "DISK"
     done
-    sleep $INTERVAL
+    sleep "$TRACKING_INTERVAL"
 done

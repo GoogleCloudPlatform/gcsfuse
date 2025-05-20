@@ -169,7 +169,6 @@ log_error_locked() {
   release_lock "$LOG_LOCK_FILE"
 }
 
-# shellcheck disable=SC2317
 create_bucket() {
   if [[ $# -ne 2 ]]; then
     log_error "create_bucket() called with incorrect number of arguments."
@@ -231,7 +230,6 @@ setup_package_buckets () {
   done
 }
 
-# shellcheck disable=SC2317
 delete_bucket() {
   sleep 5
   if [[ $# -ne 1 ]]; then
@@ -250,7 +248,6 @@ delete_bucket() {
   return 0
 }
 
-# shellcheck disable=SC2317
 clean_up() {
   local buckets=()
   # Read each line from BUCKET_NAMES into buckets array
@@ -336,7 +333,6 @@ run_parallel() {
   return "$overall_exit_code"
 }
 
-# shellcheck disable=SC2317
 test_package() {
   if [[ $# -ne 3 ]]; then
     log_error_locked "test_package() called with incorrect number of arguments."
