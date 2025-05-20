@@ -23,15 +23,16 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/bufferedwrites"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/block"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/bufferedwrites"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/contentcache"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
@@ -583,7 +584,8 @@ func (f *FileInode) Read(
 func (f *FileInode) Write(
 	ctx context.Context,
 	data []byte,
-	offset int64) error {
+	offset int64,
+	openMode util.OpenMode) error {
 	if f.bwh != nil {
 		return f.writeUsingBufferedWrites(ctx, data, offset)
 	}

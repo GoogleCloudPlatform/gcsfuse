@@ -156,6 +156,17 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 	return
 }
 
+// To propagate the mode in which file has been opened while calling the Write()
+// method on file inode, required as the appends to unfinalized objects in zonal
+// buckets should trigger the streaming writes flow.
+// LOCKS_EXCLUDED(fh.inode)
+func (fh *FileHandle) Write(ctx context.Context, data []byte, offset int64) error {
+	fh.inode.Lock()
+	defer fh.inode.Unlock()
+
+	return fh.inode.Write(ctx, data, offset, fh.openMode)
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
