@@ -16,46 +16,51 @@ package streaming_writes
 
 import (
 	"os"
+	"slices"
+	"syscall"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
-	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/local_file"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_suite"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-type defaultMountCommonTest struct {
+type StreamingWritesSuite struct {
 	f1       *os.File
 	fileName string
 	// filePath of the above file in the mounted directory.
-	filePath string
-	data     string
+	filePath           string
+	data               string
+	fallbackToDiskCase bool
 	test_suite.TestifySuite
 }
 
-func (t *defaultMountCommonTest) SetupSuite() {
-	// TODO(mohitkyadav): Make these part of test suite after refactoring.
-	SetCtx(ctx)
-	SetStorageClient(storageClient)
-	SetTestDirName(testDirName)
-
+func (t *StreamingWritesSuite) SetupSuite() {
+	if slices.Contains(flags, "--write-global-max-blocks=0") {
+		t.fallbackToDiskCase = true
+	}
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	t.data = setup.GenerateRandomString(5 * util.MiB)
 }
 
-func (t *defaultMountCommonTest) TearDownSuite() {
+func (t *StreamingWritesSuite) TearDownSuite() {
 	setup.UnmountGCSFuse(rootDir)
 	setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
 }
 
-func (t *defaultMountCommonTest) validateReadCall(filePath string) {
+func (t *StreamingWritesSuite) validateReadCall(filePath string) {
 	_, err := os.ReadFile(filePath)
 	if setup.IsZonalBucketRun() {
 		// TODO(b/410698332): Remove skip condition once reads start working.
 		t.T().Skip("Skipping Zonal Bucket Read tests.")
 		require.NoError(t.T(), err)
+	}
+	if t.fallbackToDiskCase {
+		require.NoError(t.T(), err)
 	} else {
 		require.Error(t.T(), err)
+		assert.ErrorContains(t.T(), err, syscall.ENOTSUP.Error())
 	}
 }

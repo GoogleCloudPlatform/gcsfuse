@@ -66,10 +66,10 @@ func TestMain(m *testing.M) {
 
 	// Define flag set to run the tests.
 	flagsSet := [][]string{
+		{"--rename-dir-limit=3", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=2", "--write-global-max-blocks=0"},
+		{"--rename-dir-limit=3", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=2", "--client-protocol=grpc"},
 		{"--rename-dir-limit=3", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=2"},
 	}
-	// Run all tests for GRPC.
-	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--client-protocol=grpc", "")
 
 	log.Println("Running static mounting tests...")
 	mountFunc = static_mounting.MountGcsfuseWithStaticMounting

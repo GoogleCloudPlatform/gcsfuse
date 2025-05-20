@@ -93,6 +93,9 @@ func getTokenSrc(path string) (tokenSrc oauth2.TokenSource, err error) {
 func ReadObjectFromGCS(ctx context.Context, client *storage.Client, object string) (string, error) {
 	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(object)
 
+	if client == nil {
+		return "", fmt.Errorf("client is nil")
+	}
 	// Create storage reader to read from GCS.
 	rc, err := client.Bucket(bucket).Object(object).NewReader(ctx)
 	if err != nil {
