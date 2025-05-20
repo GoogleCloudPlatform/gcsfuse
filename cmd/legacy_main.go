@@ -37,6 +37,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/profiler"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
@@ -393,6 +394,9 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	}
 	shutdownTracingFn := monitor.SetupTracing(ctx, newConfig)
 	shutdownFn := common.JoinShutdownFunc(metricExporterShutdownFn, shutdownTracingFn)
+
+	// No-op if profiler config is disabled.
+	profiler.SetupCloudProfiler(&newConfig.Profiler)
 
 	// Mount, writing information about our progress to the writer that package
 	// daemonize gives us and telling it about the outcome.

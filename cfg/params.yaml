@@ -654,6 +654,48 @@
   usage: "Mount only a specific directory within the bucket. See docs/mounting for more information"
   default: ""
 
+- config-path: "profiler.allocated-heap"
+  flag-name: "profile-allocated-heap"
+  type: "bool"
+  usage: "Enable allocated heap (HeapProfileAllocs) profiling."
+  default: false
+
+- config-path: "profiler.cpu"
+  flag-name: "profile-cpu"
+  type: "bool"
+  usage: "Enable CPU profiling."
+  default: false
+
+- config-path: "profiler.enabled"
+  flag-name: "enable-cloud-profiling"
+  type: "bool"
+  usage: "To enable/disable the cloud profiling, by default disabled"
+  default: false
+
+- config-path: "profiler.goroutines"
+  flag-name: "profile-goroutines"
+  type: "bool"
+  usage: "Enable goroutine profiling."
+  default: false
+
+- config-path: "profiler.heap"
+  flag-name: "profile-heap"
+  type: "bool"
+  usage: "Enable heap profiling."
+  default: false
+
+- config-path: "profiler.mutex"
+  flag-name: "profile-mutex"
+  type: "bool"
+  usage: "Enable mutex (contention) profiling."
+  default: false
+
+- config-path: "profiler.version-tag"
+  flag-name: "profile-version-tag"
+  type: "string"
+  usage: "Set the version tag for profiling data."
+  default: ""
+
 - config-path: "read.inactive-stream-timeout"
   flag-name: "read-inactive-stream-timeout"
   type: "duration"

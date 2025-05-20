@@ -66,6 +66,8 @@ type Config struct {
 
 	OnlyDir string `yaml:"only-dir"`
 
+	Profiler ProfilerConfig `yaml:"profiler"`
+
 	Read ReadConfig `yaml:"read"`
 
 	Write WriteConfig `yaml:"write"`
@@ -231,6 +233,22 @@ type MonitoringConfig struct {
 	ExperimentalTracingSamplingRatio float64 `yaml:"experimental-tracing-sampling-ratio"`
 }
 
+type ProfilerConfig struct {
+	AllocatedHeap bool `yaml:"allocated-heap"`
+
+	Cpu bool `yaml:"cpu"`
+
+	Enabled bool `yaml:"enabled"`
+
+	Goroutines bool `yaml:"goroutines"`
+
+	Heap bool `yaml:"heap"`
+
+	Mutex bool `yaml:"mutex"`
+
+	VersionTag string `yaml:"version-tag"`
+}
+
 type ReadConfig struct {
 	InactiveStreamTimeout time.Duration `yaml:"inactive-stream-timeout"`
 }
@@ -340,6 +358,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	if err := flagSet.MarkHidden("enable-atomic-rename-object"); err != nil {
 		return err
 	}
+
+	flagSet.BoolP("enable-cloud-profiling", "", false, "To enable/disable the cloud profiling, by default disabled")
 
 	flagSet.BoolP("enable-empty-managed-folders", "", false, "This handles the corner case in listing managed folders. There are two corner cases (a) empty managed folder (b) nested managed folder which doesn't contain any descendent as object. This flag always works in conjunction with --implicit-dirs flag. (a) If only ImplicitDirectories is true, all managed folders are listed other than above two mentioned cases. (b) If both ImplicitDirectories and EnableEmptyManagedFolders are true, then all the managed folders are listed including the above-mentioned corner case. (c) If ImplicitDirectories is false then no managed folders are listed irrespective of enable-empty-managed-folders flag.")
 
@@ -506,6 +526,18 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	if err := flagSet.MarkHidden("precondition-errors"); err != nil {
 		return err
 	}
+
+	flagSet.BoolP("profile-allocated-heap", "", false, "Enable allocated heap (HeapProfileAllocs) profiling.")
+
+	flagSet.BoolP("profile-cpu", "", false, "Enable CPU profiling.")
+
+	flagSet.BoolP("profile-goroutines", "", false, "Enable goroutine profiling.")
+
+	flagSet.BoolP("profile-heap", "", false, "Enable heap profiling.")
+
+	flagSet.BoolP("profile-mutex", "", false, "Enable mutex (contention) profiling.")
+
+	flagSet.StringP("profile-version-tag", "", "", "Set the version tag for profiling data.")
 
 	flagSet.IntP("prometheus-port", "", 0, "Expose Prometheus metrics endpoint on this port and a path of /metrics.")
 
@@ -681,6 +713,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("enable-atomic-rename-object", flagSet.Lookup("enable-atomic-rename-object")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("profiler.enabled", flagSet.Lookup("enable-cloud-profiling")); err != nil {
 		return err
 	}
 
@@ -873,6 +909,30 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.precondition-errors", flagSet.Lookup("precondition-errors")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("profiler.allocated-heap", flagSet.Lookup("profile-allocated-heap")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("profiler.cpu", flagSet.Lookup("profile-cpu")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("profiler.goroutines", flagSet.Lookup("profile-goroutines")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("profiler.heap", flagSet.Lookup("profile-heap")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("profiler.mutex", flagSet.Lookup("profile-mutex")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("profiler.version-tag", flagSet.Lookup("profile-version-tag")); err != nil {
 		return err
 	}
 
