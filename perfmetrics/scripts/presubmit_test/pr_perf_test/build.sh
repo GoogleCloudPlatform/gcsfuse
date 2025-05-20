@@ -91,10 +91,13 @@ install_gcsfuse() {
   export PATH="$dst_dir/bin:$dst_dir/sbin:$PATH"
   sudo cp "/$dst_dir/bin/gcsfuse" /bin/
   sudo cp "/$dst_dir/sbin/mount.gcsfuse" /sbin/
+  sudo cp "/$dst_dir/sbin/mount.fuse.gcsfuse" /sbin/
   sudo chmod 755 /bin/gcsfuse
   sudo chmod 755 /sbin/mount.gcsfuse
+  sudo chmod 755 /sbin/mount.fuse.gcsfuse
   sudo chown root:root /bin/gcsfuse
   sudo chown root:root /sbin/mount.gcsfuse
+  sudo chown root:root /sbin/mount.fuse.gcsfuse
   whereis gcsfuse
   which gcsfuse
   whereis mount.gcsfuse
