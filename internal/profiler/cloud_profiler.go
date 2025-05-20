@@ -17,7 +17,6 @@ package profiler
 import (
 	cloudprofiler "cloud.google.com/go/profiler"
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 )
 
 // profilerStart is a variable to enable mocking of profiler.Start in tests.
@@ -42,10 +41,5 @@ func SetupCloudProfiler(mpc *cfg.ProfilingConfig) error {
 		AllocForceGC:         true,
 	}
 
-	if err := profilerStart(pConfig); err != nil {
-		logger.Warnf("Unable to start the profiler: %v", err)
-		return err
-	}
-
-	return nil
+	return profilerStart(pConfig)
 }

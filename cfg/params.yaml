@@ -655,45 +655,45 @@
   default: ""
 
 - config-path: "profiling.allocated-heap"
-  flag-name: "profile-allocated-heap"
+  flag-name: "profiling-allocated-heap"
   type: "bool"
-  usage: "Enable allocated heap (HeapProfileAllocs) profiling."
+  usage: "To enable/disable the allocated heap (HeapProfileAllocs) profiling. Only work when profiling is enabled."
   default: false
 
 - config-path: "profiling.cpu"
   flag-name: "profiling-cpu"
   type: "bool"
-  usage: "Enable CPU profiling."
+  usage: "To enable/disable the CPU profiling. Only work when profiling is enabled."
   default: false
 
 - config-path: "profiling.enabled"
   flag-name: "enable-cloud-profiling"
   type: "bool"
-  usage: "To enable/disable the cloud profiling, by default disabled"
+  usage: "To enable/disable the cloud profiling, by default disabled. Only work when profiling is enabled."
   default: false
 
 - config-path: "profiling.goroutines"
   flag-name: "profiling-goroutines"
   type: "bool"
-  usage: "Enable goroutine profiling."
+  usage: "To enable/disable the goroutine profiling. Only work when profiling is enabled."
   default: false
 
 - config-path: "profiling.heap"
   flag-name: "profiling-heap"
   type: "bool"
-  usage: "Enable heap profiling."
+  usage: "To enable/disable the heap profiling. Only work when profiling is enabled."
   default: false
 
 - config-path: "profiling.mutex"
   flag-name: "profiling-mutex"
   type: "bool"
-  usage: "Enable mutex (contention) profiling."
+  usage: "To enable/disable the mutex profiling. Only work when profiling is enabled."
   default: false
 
 - config-path: "profiling.version-tag"
   flag-name: "profiling-version-tag"
   type: "string"
-  usage: "Set the version tag for profiling data."
+  usage: "Set the version tag for profiling data, used to compare b/w two versions. Only work when profiling is enabled."
   default: ""
 
 - config-path: "read.inactive-stream-timeout"

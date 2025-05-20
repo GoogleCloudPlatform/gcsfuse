@@ -27,13 +27,13 @@ import (
 
 // defaultProfilerSettings provides a base configuration for profiler tests.
 var defaultProfilerSettings = cfg.ProfilingConfig{
-	Enabled:       false, // Explicitly set per test
+	Enabled:       false,
 	VersionTag:    "test-version",
-	Mutex:         true,
-	Cpu:           true,
-	AllocatedHeap: true,
-	Heap:          true,
-	Goroutines:    true,
+	Mutex:         false,
+	Cpu:           false,
+	AllocatedHeap: false,
+	Heap:          false,
+	Goroutines:    false,
 }
 
 func TestSetupCloudProfiler_Disabled(t *testing.T) {
@@ -47,10 +47,11 @@ func TestSetupCloudProfiler_Disabled(t *testing.T) {
 		mockProfilerStartCalled = true
 		return nil
 	}
-	profilerConfig := &defaultProfilerSettings // Uses the package-level var
-	profilerConfig.Enabled = false
+	profilingConfig := &cfg.ProfilingConfig{
+		Enabled: false,
+	}
 
-	err := SetupCloudProfiler(profilerConfig)
+	err := SetupCloudProfiler(profilingConfig)
 
 	require.NoError(t, err, "SetupCloudProfiler should not return an error")
 	assert.False(t, mockProfilerStartCalled, "profilerStart should not be called when profiler is disabled")
@@ -62,7 +63,6 @@ func TestSetupCloudProfiler_EnabledSuccess(t *testing.T) {
 	t.Cleanup(func() {
 		profilerStart = originalProfilerStart
 	})
-
 	var capturedProfilerConfig cloudprofiler.Config
 	mockProfilerStartCalled := false
 	profilerStart = func(pcfg cloudprofiler.Config, options ...option.ClientOption) error {
@@ -70,17 +70,17 @@ func TestSetupCloudProfiler_EnabledSuccess(t *testing.T) {
 		capturedProfilerConfig = pcfg
 		return nil
 	}
+	profilingConfig := &cfg.ProfilingConfig{
+		Enabled:       true,
+		VersionTag:    "v1.2.3",
+		Mutex:         true,
+		Cpu:           true,
+		AllocatedHeap: false,
+		Heap:          true,
+		Goroutines:    false,
+	}
 
-	profilerConfig := &defaultProfilerSettings // Uses the package-level var
-	profilerConfig.Enabled = true
-	profilerConfig.VersionTag = "v1.2.3"
-	profilerConfig.Mutex = true
-	profilerConfig.Cpu = true            // NoCPUProfiling = false
-	profilerConfig.AllocatedHeap = false // NoAllocProfiling = true
-	profilerConfig.Heap = true           // NoHeapProfiling = false
-	profilerConfig.Goroutines = false    // NoGoroutineProfiling = true
-
-	err := SetupCloudProfiler(profilerConfig)
+	err := SetupCloudProfiler(profilingConfig)
 
 	require.NoError(t, err, "SetupCloudProfiler should not return an error")
 	require.True(t, mockProfilerStartCalled, "profilerStart should be called")
@@ -102,10 +102,11 @@ func TestSetupCloudProfiler_EnabledStartFails(t *testing.T) {
 	})
 	expectedErr := errors.New("profiler failed to start")
 	profilerStart = func(pcfg cloudprofiler.Config, options ...option.ClientOption) error { return expectedErr }
-	profilerConfig := &defaultProfilerSettings // Uses the package-level var
-	profilerConfig.Enabled = true
+	profilingConfig := &cfg.ProfilingConfig{
+		Enabled: true,
+	}
 
-	err := SetupCloudProfiler(profilerConfig)
+	err := SetupCloudProfiler(profilingConfig)
 
 	assert.EqualError(t, err, expectedErr.Error())
 }

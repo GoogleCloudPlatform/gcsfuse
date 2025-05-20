@@ -395,8 +395,10 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	shutdownTracingFn := monitor.SetupTracing(ctx, newConfig)
 	shutdownFn := common.JoinShutdownFunc(metricExporterShutdownFn, shutdownTracingFn)
 
-	// No-op if profiler config is disabled.
-	profiler.SetupCloudProfiler(&newConfig.Profiling)
+	// No-op if profiler is disabled.
+	if err := profiler.SetupCloudProfiler(&newConfig.Profiling); err != nil {
+		logger.Warnf("Failed to setup cloud profiler: %v", err)
+	}
 
 	// Mount, writing information about our progress to the writer that package
 	// daemonize gives us and telling it about the outcome.
