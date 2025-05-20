@@ -25,10 +25,11 @@ readonly LOG_LOCK_FILE=$(mktemp "/tmp/${TMP_PREFIX}_logging_lock.XXXXXX")
 readonly BUCKET_NAMES=$(mktemp "/tmp/${TMP_PREFIX}_bucket_names.XXXXXX")
 readonly PACKAGE_STATS_FILE=$(mktemp "/tmp/${TMP_PREFIX}_package_stats.XXXXXX")
 readonly VM_USAGE=$(mktemp "/tmp/${TMP_PREFIX}_vm_usage.XXXXXX")
+readonly VM_USAGE_TRACKING_INTERVAL_IN_SECONDS=10
 readonly PACKAGE_LEVEL_PARALLELISM=10
 readonly DELETE_BUCKET_PARALLELISM=10
 
-# Default values for optional arguments
+# Default values for optional arguments.
 RUN_TEST_ON_TPC_ENDPOINT=false
 RUN_TESTS_WITH_PRESUBMIT_FLAG=false
 RUN_TESTS_WITH_ZONAL_BUCKET=false
@@ -87,41 +88,40 @@ if [ -n "$1" ]; then
 fi
 
 # Test packages for regional buckets.
+# Keep sorted in terms of relative run times of test packages.
 TEST_PACKAGES=(
   "monitoring"
-  "local_file"
   "log_rotation"
   "mounting"
-  "read_cache"
   # "grpc_validation"
   "gzip"
-  "write_large_files"
-  "list_large_dir"
-  "rename_dir_limit"
-  "read_large_files"
   "explicit_dir"
-  "implicit_dir"
-  "interrupt"
-  "operations"
-  "kernel_list_cache"
-  "concurrent_operations"
-  "benchmarking"
-  "mount_timeout"
   "stale_handle"
   "negative_stat_cache"
-  "streaming_writes" 
+  "kernel_list_cache"
+  "streaming_writes"
+  "benchmarking"
+  "readonly"
+  "readonly_creds"
+  "rename_dir_limit"
+  "implicit_dir"
+  "mount_timeout"
+  "local_file"
+  "interrupt"
+  "list_large_dir"
+  "read_cache"
+  "write_large_files"
+  "read_large_files"
+  "concurrent_operations"
+  "operations"
+  "managed_folders"
 )
-
 
 # Test packages for zonal buckets.
 TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES[@]}" "unfinalized_object")
 
-
-
 # Test packages for TPC buckets.
-TEST_PACKAGES_FOR_TPC=(
-  "operations"
-)
+TEST_PACKAGES_FOR_TPC=("operations")
 
 # acquire_lock: Acquires exclusive lock or exits script on failure.
 # Args: $1 = path to lock file.
@@ -157,12 +157,14 @@ release_lock() {
   return 0
 }
 
+# logs info to stdout exclusively. used in background commands to ensure logs aren't interleaved.
 log_info_locked() {
   acquire_lock "$LOG_LOCK_FILE"
   log_info "$1"
   release_lock "$LOG_LOCK_FILE"
 }
 
+# logs error to stdout exclusively. Used in background commands to ensure logs aren't interleaved.
 log_error_locked() {
   acquire_lock "$LOG_LOCK_FILE"
   log_error "$1"
@@ -177,17 +179,7 @@ create_bucket() {
   local package="$1"
   local bucket_type="$2"
   local bucket_name="${BUCKET_PREFIX}-${package}-${bucket_type}-$(date +%s%N)"
-  local bucket_cmd_parts=(
-    "gcloud"
-    "alpha"
-    "storage"
-    "buckets"
-    "create"
-    "gs://${bucket_name}"
-    "--project=${PROJECT_ID}"
-    "--location=${BUCKET_LOCATION}"
-    "--uniform-bucket-level-access"
-  )
+  local bucket_cmd_parts=("gcloud" "alpha" "storage" "buckets" "create" "gs://${bucket_name}" "--project=${PROJECT_ID}" "--location=${BUCKET_LOCATION}" "--uniform-bucket-level-access")
   if [[ "$bucket_type" == "hns" ]]; then
     bucket_cmd_parts+=("--enable-hierarchical-namespace")
   elif [[ "$bucket_type" == "zonal" ]]; then
@@ -200,7 +192,7 @@ create_bucket() {
   fi
   local bucket_cmd=$(printf "%q " "${bucket_cmd_parts[@]}")
   local bucket_cmd_log=$(mktemp "/tmp/${TMP_PREFIX}_bucket_cmd_log.XXXXXX")
-  sleep 4 # Ensure 4 second gap between creating a new bucket.
+  sleep 2 # Ensure 2 second gap between creating a new bucket.
   if ! eval "$bucket_cmd" > "$bucket_cmd_log" 2>&1; then
     log_error "Unable to create bucket [${bucket_name}]"
     cat "$bucket_cmd_log"
@@ -256,7 +248,6 @@ clean_up() {
     buckets+=("$line")
   done < "$BUCKET_NAMES"
   # Clean up buckets if any.
-  
   if [[ "${#buckets[@]}" -gt 0 ]]; then
       if ! run_parallel "$DELETE_BUCKET_PARALLELISM" "delete_bucket @" "${buckets[@]}"; then
         log_error "Failed to delete all buckets"
@@ -293,18 +284,17 @@ run_parallel() {
   shift
   local cmd_template="$1"
   shift
-  local -A cmd_info # Associative array: PID -> "full_cmd"
+  local pids=()
+  local -A cmds_by_pid=()
   local overall_exit_code=0
 
   # Helper function to process a PID
   process_a_pid() {
-    local full_cmd="$1"
-    local pid="$2"
+    local pid="$1"
+    local full_cmd="$2"
     local status
     wait "$pid"
     status=$?
-    # Remove the entry from the associative array
-    unset "cmd_info[$pid]"
     if [[ "$status" -ne 0 ]]; then
       log_error_locked "--- Parallel Command Failed: $full_cmd ---"
       return 1 # Return 1 to indicate a failure
@@ -319,16 +309,19 @@ run_parallel() {
     log_info_locked "Executing Parallel Command: $full_cmd"
     eval "$full_cmd" &
     local pid=$!
-    cmd_info["$pid"]="${full_cmd}" # Keep pid, full_cmd in associative array
-    if [[ ${#cmd_info[@]} -eq $parallelism ]]; then
-      process_a_pid "${cmd_info[$pid]}" "$pid"
+    pids+=("$pid")
+    cmds_by_pid["$pid"]="$full_cmd"
+    if [[ ${#pids[@]} -eq $parallelism ]]; then
+      process_a_pid "${pids[0]}" "${cmds_by_pid["${pids[0]}"]}"
       overall_exit_code=$((overall_exit_code || $? != 0))
+      pids=("${pids[@]:1}") # Remove the processed PID.
     fi
   done
   # Process any remaining PIDs
-  for pid in "${!cmd_info[@]}"; do
-      process_a_pid "${cmd_info[$pid]}" "$pid"
+  while [[ ${#pids[@]} -gt 0 ]]; do
+      process_a_pid "${pids[0]}" "${cmds_by_pid["${pids[0]}"]}"
       overall_exit_code=$((overall_exit_code || $? != 0))
+      pids=("${pids[@]:1}") # Remove the processed PID.
   done
   return "$overall_exit_code"
 }
@@ -399,7 +392,7 @@ test_package() {
   # Using each _ char for 1 min wait time and each > char for 1 min run time.
   wait_min=$((start / 60))
   run_min=$(((end - start + 60) / 60))
-  current_package_stats=$(printf "| %-25s | %-15s | %-10s | %-10s |%-60s|\n" \
+  current_package_stats=$(printf "| %-25s | %-15s | %-8s | %-10s |%-60s|\n" \
     "$package_name" \
     "$bucket_type" \
     "$package_status" \
@@ -434,8 +427,8 @@ print_package_stats() {
   echo "_ is 1 min wait"
   echo "> is 1 min run"
   echo "$separator"
-  printf "| %-25s | %-15s | %-10s | %-10s | %-25s %s %+25s|\n" \
-    "Package Name" "Bucket Type" "Status" "Total Time" "0 min " "runtime" "60 min"
+  printf "| %-25s | %-15s | %-10s | %-8s | %-25s %s %+25s|\n" \
+    "Package Name" "Bucket Type" "Status" "Time" "0 min " "runtime" "60 min"
   echo "$separator"
   while IFS= read -r line; do
     echo "$line"
@@ -562,16 +555,11 @@ run_e2e_tests_for_tpc() {
 run_e2e_tests_for_emulator() {
   log_info_locked "Started running e2e tests for emulator."
   local emulator_test_log=$(mktemp "/tmp/${TMP_PREFIX}_emulator_test_log.XXXXXX")
-  if ! ./tools/integration_tests/emulator_tests/emulator_tests.sh "$TEST_INSTALLED_PACKAGE" >"$emulator_test_log" 2>&1; then
+  if ! ./tools/integration_tests/emulator_tests/emulator_tests.sh "$TEST_INSTALLED_PACKAGE" > "$emulator_test_log" 2>&1; then
     acquire_lock "$LOG_LOCK_FILE"
     log_error ""
-    log_error ""
-    log_error "--- Emulator Run Failed ---"
-    log_error "Command: $full_cmd"
-    log_error "--- Stdout/Stderr ---"
+    log_error "--- Emulator Tests Failed ---"
     cat "$emulator_test_log"
-    log_error ""
-    log_error ""
     release_lock "$LOG_LOCK_FILE"
     return 1
   fi
@@ -583,7 +571,7 @@ main() {
   # Clean up everything on exit.
   trap clean_up EXIT
   chmod +x ./tools/integration_tests/monitor_vm_usage.sh
-  ./tools/integration_tests/monitor_vm_usage.sh "$VM_USAGE" &
+  ./tools/integration_tests/monitor_vm_usage.sh "$VM_USAGE" "$VM_USAGE_TRACKING_INTERVAL_IN_SECONDS" &
   vm_usage_pid=$!
   log_info_locked ""
   log_info_locked "------ Upgrading gcloud and installing packages ------"
