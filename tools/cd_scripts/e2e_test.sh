@@ -453,10 +453,10 @@ else
 
         # Wait for PIDs and populate exit_status associative array
         wait $flat_test_pid
-        exit_status["hns"]=$?
+        exit_status["flat"]=$?
 
         wait $hns_test_pid
-        exit_status["flat"]=$?
+        exit_status["hns"]=$?
 
         run_e2e_tests_for_emulator_and_log
     fi
