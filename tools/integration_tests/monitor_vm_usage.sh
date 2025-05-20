@@ -13,11 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#   This script monitors and logs CPU, memory, and disk usage
-#   at specified intervals. The logging is performed by updating lines in a
-#   pre-formatted log file, creating a visual representation of usage over time.
-#   The script will automatically terminate after 60 minutes of execution.
-
+# This script monitors and logs CPU, memory, and disk usage
+# at specified intervals. The logging is performed by updating lines in a
+# pre-formatted log file, creating a visual representation of usage over time.
+# The script will automatically terminate after 60 minutes of execution.
 
 if [[ $# -ne 2 ]]; then 
     echo "Error: $0 called with incorrect number of arguments."
