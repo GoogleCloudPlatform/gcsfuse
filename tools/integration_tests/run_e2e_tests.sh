@@ -98,7 +98,7 @@ TEST_DIR_PARALLEL=(
   "explicit_dir"
   "implicit_dir"
   "interrupt"
-  "operations"
+  "operations" # operations package is here
   "kernel_list_cache"
   "concurrent_operations"
   "benchmarking"
@@ -132,7 +132,7 @@ TEST_DIR_PARALLEL_FOR_ZB=(
   "mount_timeout"
   "mounting"
   "negative_stat_cache"
-  "operations"
+  "operations" # operations package is here
   "read_cache"
   "read_large_files"
   "rename_dir_limit"
@@ -206,6 +206,12 @@ function install_packages() {
   # Downloading composite object requires integrity checking with CRC32c in gsutil.
   # it requires to install crcmod.
   sudo apt install -y python3-crcmod
+  # Install gotestsum for XML output
+  echo "Installing gotestsum..."
+  go install gotest.tools/gotestsum@latest
+  # Ensure gotestsum is in PATH (might require adjusting based on GOPATH/GOBIN)
+  # If GOBIN is not in PATH, this might be needed:
+  export PATH=$(go env GOPATH)/bin:$PATH
 }
 
 function create_bucket() {
@@ -252,313 +258,15 @@ function run_non_parallel_tests() {
   for test_dir_np in "${test_array[@]}"
   do
     test_path_non_parallel="./tools/integration_tests/$test_dir_np"
-    # To make it clear whether tests are running on a flat or HNS bucket, We kept the log file naming
-    # convention to include the bucket name as a suffix (e.g., package_name_bucket_name).
     local log_file="/tmp/${test_dir_np}_${bucket_name_non_parallel}.log"
     echo $log_file >> $TEST_LOGS_FILE
 
-    # Executing integration tests
+    local junit_report_file="/tmp/junit_report_${test_dir_np}_${bucket_name_non_parallel}.xml"
+
     echo "Running test package in non-parallel (with zonal=${zonal}): ${test_dir_np} ..."
-    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=${zonal} --integrationTest -v --testbucket=$bucket_name_non_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1
-    exit_code_non_parallel=$?
-    if [ $exit_code_non_parallel != 0 ]; then
-      exit_code=$exit_code_non_parallel
-      echo "test fail in non parallel on package (with zonal=${zonal}): " $test_dir_np
-    else
-      echo "Passed test package in non-parallel (with zonal=${zonal}): " $test_dir_np
-    fi
-  done
-  return $exit_code
-}
-
-function run_parallel_tests() {
-  local exit_code=0
-  local -n test_array=$1
-  local bucket_name_parallel=$2
-  local zonal=false
-  if [ $# -ge 3 ] && [ "$3" = "true" ] ; then
-    zonal=true
-  fi
-  local benchmark_flags=""
-  declare -A pids
-
-  for test_dir_p in "${test_array[@]}"
-  do
-    # Unlike regular tests,benchmark tests are not executed by default when using go test .
-    # The -bench flag yells go test to run the benchmark tests and report their results by
-    # enabling the benchmarking framework.
-    # The -benchtime flag specifies exact number of iterations a benchmark should run , in this
-    # case, setting this to 100 to avoid flakiness. 
-    if [ $test_dir_p == "benchmarking" ]; then
-      benchmark_flags="-bench=. -benchtime=100x"
-    fi
-    test_path_parallel="./tools/integration_tests/$test_dir_p"
-    # To make it clear whether tests are running on a flat or HNS bucket, We kept the log file naming
-    # convention to include the bucket name as a suffix (e.g., package_name_bucket_name).
-    local log_file="/tmp/${test_dir_p}_${bucket_name_parallel}.log"
-    echo $log_file >> $TEST_LOGS_FILE
-    # Executing integration tests
-    echo "Queueing up test package in parallel (with zonal=${zonal}): ${test_dir_p} ..."
-    GODEBUG=asyncpreemptoff=1 go test $test_path_parallel $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=${zonal} $benchmark_flags -p 1 --integrationTest -v --testbucket=$bucket_name_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1 &
-    pid=$!  # Store the PID of the background process
-    echo "Queued up test package in parallel (with zonal=${zonal}): ${test_dir_p} with pid=${pid}"
-    pids[${test_dir_p}]=${pid} # Optionally add the PID to an array for later
-  done
-
-  # Wait for processes and collect exit codes
-  for package_name in "${!pids[@]}"; do
-    pid="${pids[${package_name}]}"
-    echo "Waiting on test package ${package_name} (with zonal=${zonal}) through pid=${pid} ..."
-    # What if the process for this test package completed long back and its PID got
-    # re-assigned to another process since then ?
-    wait $pid
-    exit_code_parallel=$?
-    if [ $exit_code_parallel != 0 ]; then
-      exit_code=$exit_code_parallel
-      echo "test fail in parallel on package (with zonal=${zonal}): " $package_name
-    else
-      echo "Passed test package in parallel (with zonal=${zonal}): " $package_name
-    fi
-  done
-  return $exit_code
-}
-
-function print_test_logs() {
-  readarray -t test_logs_array < "$TEST_LOGS_FILE"
-  rm "$TEST_LOGS_FILE"
-  for test_log_file in "${test_logs_array[@]}"
-  do
-    log_file=${test_log_file}
-    if [ -f "$log_file" ]; then
-      echo "=== Log for ${test_log_file} ==="
-      cat "$log_file"
-      echo "========================================="
-    fi
-  done
-}
-
-function run_e2e_tests_for_flat_bucket() {
-  # Adding prefix `golang-grpc-test` to white list the bucket for grpc so that
-  # we can run grpc related e2e tests.
-  bucketPrefix="golang-grpc-test-gcsfuse-np-e2e-tests-"
-  bucket_name_non_parallel=$(create_bucket $bucketPrefix)
-  echo "Bucket name for non parallel tests: "$bucket_name_non_parallel
-  echo ${bucket_name_non_parallel}>>"${bucketNamesFile}"
-
-  bucketPrefix="golang-grpc-test-gcsfuse-p-e2e-tests-"
-  bucket_name_parallel=$(create_bucket $bucketPrefix)
-  echo "Bucket name for parallel tests: "$bucket_name_parallel
-  echo ${bucket_name_parallel}>>"${bucketNamesFile}"
-
-  echo "Running parallel tests..."
-  run_parallel_tests TEST_DIR_PARALLEL $bucket_name_parallel &
-  parallel_tests_pid=$!
-
-  echo "Running non parallel tests ..."
-  run_non_parallel_tests TEST_DIR_NON_PARALLEL $bucket_name_non_parallel &
-  non_parallel_tests_pid=$!
-
-  # Wait for all tests to complete.
-  wait $parallel_tests_pid
-  parallel_tests_exit_code=$?
-  wait $non_parallel_tests_pid
-  non_parallel_tests_exit_code=$?
-
-  if [ $non_parallel_tests_exit_code != 0 ] || [ $parallel_tests_exit_code != 0 ];
-  then
-    return 1
-  fi
-  return 0
-}
-
-function run_e2e_tests_for_hns_bucket(){
-   hns_bucket_name_parallel_group=$(create_hns_bucket)
-   echo "Hns Bucket Created: "$hns_bucket_name_parallel_group
-   echo ${hns_bucket_name_parallel_group}>>"${bucketNamesFile}"
-
-   hns_bucket_name_non_parallel_group=$(create_hns_bucket)
-   echo "Hns Bucket Created: "$hns_bucket_name_non_parallel_group
-   echo ${hns_bucket_name_non_parallel_group}>>"${bucketNamesFile}"
-
-   echo "Running tests for HNS bucket"
-   run_parallel_tests TEST_DIR_PARALLEL "$hns_bucket_name_parallel_group" &
-   parallel_tests_hns_group_pid=$!
-   run_non_parallel_tests TEST_DIR_NON_PARALLEL "$hns_bucket_name_non_parallel_group" &
-   non_parallel_tests_hns_group_pid=$!
-
-   # Wait for all tests to complete.
-   wait $parallel_tests_hns_group_pid
-   parallel_tests_hns_group_exit_code=$?
-   wait $non_parallel_tests_hns_group_pid
-   non_parallel_tests_hns_group_exit_code=$?
-
-   if [ $parallel_tests_hns_group_exit_code != 0 ] || [ $non_parallel_tests_hns_group_exit_code != 0 ];
-   then
-    return 1
-   fi
-   return 0
-}
-
-function run_e2e_tests_for_zonal_bucket(){
-   zonal_bucket_name_parallel_group=$(create_zonal_bucket)
-   echo "Zonal Bucket Created for parallel tests: "$zonal_bucket_name_parallel_group
-   echo ${zonal_bucket_name_parallel_group}>>"${bucketNamesFile}"
-
-   zonal_bucket_name_non_parallel_group=$(create_zonal_bucket)
-   echo "Zonal Bucket Created for non-parallel tests: "$zonal_bucket_name_non_parallel_group
-   echo ${zonal_bucket_name_non_parallel_group}>>"${bucketNamesFile}"
-
-   echo "Running tests for ZONAL bucket"
-   run_parallel_tests TEST_DIR_PARALLEL_FOR_ZB "$zonal_bucket_name_parallel_group" true &
-   parallel_tests_zonal_group_pid=$!
-   run_non_parallel_tests TEST_DIR_NON_PARALLEL_FOR_ZB "$zonal_bucket_name_non_parallel_group" true &
-   non_parallel_tests_zonal_group_pid=$!
-
-   # Wait for all tests to complete.
-   wait $parallel_tests_zonal_group_pid
-   parallel_tests_zonal_group_exit_code=$?
-   wait $non_parallel_tests_zonal_group_pid
-   non_parallel_tests_zonal_group_exit_code=$?
-
-   if [ $parallel_tests_zonal_group_exit_code != 0 ] || [ $non_parallel_tests_zonal_group_exit_code != 0 ];
-   then
-    return 1
-   fi
-   return 0
-}
-
-function run_e2e_tests_for_tpc() {
-  local bucket=$1
-  if [ "$bucket" == "" ];
-  then
-    echo "Bucket name is required"
-    return 1
-  fi
-
-  # Clean bucket before testing.
-  gcloud --verbosity=error storage rm -r gs://"$bucket"/*
-
-  # Run Operations e2e tests in TPC to validate all the functionality.
-  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/... --testOnTPCEndPoint=$RUN_TEST_ON_TPC_ENDPOINT $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=false -p 1 --integrationTest -v --testbucket="$bucket" --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT
-  exit_code=$?
-
-  set -e
-
-  # Delete data after testing.
-  gcloud --verbosity=error storage rm -r gs://"$bucket"/*
-
-  if [ $exit_code != 0 ];
-   then
-     return 1
-  fi
-  return 0
-}
-
-function run_e2e_tests_for_emulator() {
-  ./tools/integration_tests/emulator_tests/emulator_tests.sh $RUN_E2E_TESTS_ON_PACKAGE
-}
-
-function main(){
-  # The name of a file containing the names of all the
-  # buckets to be cleaned-up while exiting this program.
-  bucketNamesFile=$(realpath ./bucketNames)"-"$(tr -dc 'a-z0-9' < /dev/urandom | head -c $RANDOM_STRING_LENGTH)
-  # Delete all these buckets when the program exits.
-  trap "delete_buckets_listed_in_file ${bucketNamesFile}" EXIT
-
-  set -e
-
-  upgrade_gcloud_version
-
-  install_packages
-
-  set +e
-
-  #run integration tests
-  exit_code=0
-
-  if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
-    run_e2e_tests_for_zonal_bucket &
-    e2e_tests_zonal_bucket_pid=$!
-    wait $e2e_tests_zonal_bucket_pid
-    e2e_tests_zonal_bucket_status=$?
-
-    if [ $e2e_tests_zonal_bucket_status != 0 ]; then
-      echo "The e2e tests for zonal bucket failed.."
-      exit_code=1
-    fi
-  else
-    # Run tpc test and exit in case RUN_TEST_ON_TPC_ENDPOINT is true.
-    if [ "$RUN_TEST_ON_TPC_ENDPOINT" == true ]; then
-         # Run tests for flat bucket
-         run_e2e_tests_for_tpc gcsfuse-e2e-tests-tpc &
-         e2e_tests_tpc_flat_bucket_pid=$!
-         # Run tests for hns bucket
-         run_e2e_tests_for_tpc gcsfuse-e2e-tests-tpc-hns &
-         e2e_tests_tpc_hns_bucket_pid=$!
-
-         wait $e2e_tests_tpc_flat_bucket_pid
-         e2e_tests_tpc_flat_bucket_status=$?
-
-         wait $e2e_tests_tpc_hns_bucket_pid
-         e2e_tests_tpc_hns_bucket_status=$?
-
-         if [ $e2e_tests_tpc_flat_bucket_status != 0 ];
-         then
-            echo "The e2e tests for flat bucket failed.."
-            exit 1
-         fi
-         if [ $e2e_tests_tpc_hns_bucket_status != 0 ];
-         then
-             echo "The e2e tests for hns bucket failed.."
-             exit 1
-         fi
-         # Exit to prevent the following code from executing for TPC.
-         exit 0
-    fi
-
-    run_e2e_tests_for_hns_bucket &
-    e2e_tests_hns_bucket_pid=$!
-
-    run_e2e_tests_for_flat_bucket &
-    e2e_tests_flat_bucket_pid=$!
-
-    run_e2e_tests_for_emulator &
-    e2e_tests_emulator_pid=$!
-
-    wait $e2e_tests_emulator_pid
-    e2e_tests_emulator_status=$?
-
-    wait $e2e_tests_flat_bucket_pid
-    e2e_tests_flat_bucket_status=$?
-
-    wait $e2e_tests_hns_bucket_pid
-    e2e_tests_hns_bucket_status=$?
-
-    if [ $e2e_tests_flat_bucket_status != 0 ];
-    then
-      echo "The e2e tests for flat bucket failed.."
-      exit_code=1
-    fi
-
-    if [ $e2e_tests_hns_bucket_status != 0 ];
-    then
-      echo "The e2e tests for hns bucket failed.."
-      exit_code=1
-    fi
-
-    if [ $e2e_tests_emulator_status != 0 ];
-    then
-      echo "The e2e tests for emulator failed.."
-      exit_code=1
-    fi
-  fi
-
-  set -e
-
-  print_test_logs
-
-  exit $exit_code
-}
-
-#Main method to run script
-main
+    if [[ "${test_dir_np}" == "operations" && -x "$(command -v gotestsum)" ]]; then
+        echo "Using gotestsum for JUnit report: ${junit_report_file}"
+        GODEBUG=asyncpreemptoff=1 gotestsum --junitfile "${junit_report_file}" -- $test_path_non_parallel -p 1 $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=${zonal} --integrationTest -v --testbucket=$bucket_name_non_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1
+    elif [[ "${test_dir_np}" == "operations" ]]; then
+        echo "Warning: gotestsum not found. Skipping JUnit for ${test_dir_np}."
+        GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=${zonal} --integrationTest -v --testbucket=$bucket_name_non_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGR
