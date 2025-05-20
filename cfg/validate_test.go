@@ -45,6 +45,13 @@ func validFileCacheConfig(t *testing.T) FileCacheConfig {
 	}
 }
 
+func validFileCacheConfigWithExcludeRegex(t *testing.T, r string) FileCacheConfig {
+	t.Helper()
+	cfg := validFileCacheConfig(t)
+	cfg.ExperimentalExcludeRegex = r
+	return cfg
+}
+
 func TestValidateConfigSuccessful(t *testing.T) {
 	testCases := []struct {
 		name   string
@@ -170,6 +177,21 @@ func TestValidateConfigSuccessful(t *testing.T) {
 					MaxSizeMb:                -1,
 					WriteBufferSize:          4 * 1024 * 1024,
 				},
+				GcsConnection: GcsConnectionConfig{
+					CustomEndpoint:       "https://bing.com/search?q=dotnet",
+					SequentialReadSizeMb: 200,
+				},
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "disabled",
+				},
+			},
+		},
+		{
+			name: "valid_file_cache_exclude_config",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				CacheDir:  "/some/valid/path",
+				FileCache: validFileCacheConfigWithExcludeRegex(t, ".*"),
 				GcsConnection: GcsConnectionConfig{
 					CustomEndpoint:       "https://bing.com/search?q=dotnet",
 					SequentialReadSizeMb: 200,
@@ -383,6 +405,13 @@ func TestValidateConfig_ErrorScenarios(t *testing.T) {
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "disabled",
 				},
+			},
+		},
+		{
+			name: "file_cache_exclude_regex",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfigWithExcludeRegex(t, "["),
 			},
 		},
 		{

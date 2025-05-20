@@ -139,6 +139,8 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 				// false and there doesn't already exist file in cache.
 				isSequential = false
 				return 0, false, nil
+			case errors.Is(err, cacheUtil.ErrFileExcludedFromCacheByRegex):
+				return 0, false, nil
 			default:
 				return 0, false, fmt.Errorf("tryReadingFromFileCache: GetCacheHandle failed: %w", err)
 			}

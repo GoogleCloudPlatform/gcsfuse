@@ -17,6 +17,7 @@ package file
 import (
 	"fmt"
 	"os"
+	"regexp"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file/downloader"
@@ -51,9 +52,22 @@ type CacheHandler struct {
 
 	// mu guards the handling of insertion into and eviction from file cache.
 	mu locker.Locker
+
+	// excludeRegex is the compiled regex for excluding files from cache
+	excludeRegex *regexp.Regexp
 }
 
-func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheDir string, filePerm os.FileMode, dirPerm os.FileMode) *CacheHandler {
+func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheDir string, filePerm os.FileMode, dirPerm os.FileMode, excludeRegex string) *CacheHandler {
+	var compiledRegex *regexp.Regexp
+	if excludeRegex != "" {
+		var err error
+		compiledRegex, err = regexp.Compile(excludeRegex)
+		if err != nil {
+			logger.Warnf("Failed to compile exclude regex %q: %v", excludeRegex, err)
+			compiledRegex = nil
+		}
+	}
+
 	return &CacheHandler{
 		fileInfoCache: fileInfoCache,
 		jobManager:    jobManager,
@@ -61,6 +75,7 @@ func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager
 		filePerm:      filePerm,
 		dirPerm:       dirPerm,
 		mu:            locker.New("FileCacheHandler", func() {}),
+		excludeRegex:  compiledRegex,
 	}
 }
 
@@ -198,9 +213,14 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 // fileInfoCache then no need to create file in cache.
 //
 // Acquires and releases LOCK(CacheHandler.mu)
-func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket, cacheForRangeRead bool, initialOffset int64) (*CacheHandle, error) {
+func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket, cacheForRangeRead bool, initialOffset int64) (cacheHandle *CacheHandle, err error) {
 	chr.mu.Lock()
 	defer chr.mu.Unlock()
+
+	// Check if file should be excluded from cache
+	if chr.shouldExcludeFromCache(bucket.Name(), object.Name) {
+		return nil, util.ErrFileExcludedFromCacheByRegex
+	}
 
 	// If cacheForRangeRead is set to False, initialOffset is non-zero (i.e. random read)
 	// and entry for file doesn't already exist in fileInfoCache then no need to
@@ -221,7 +241,7 @@ func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket
 		}
 	}
 
-	err := chr.addFileInfoEntryAndCreateDownloadJob(object, bucket)
+	err = chr.addFileInfoEntryAndCreateDownloadJob(object, bucket)
 	if err != nil {
 		return nil, fmt.Errorf("GetCacheHandle: while adding the entry in the cache: %w", err)
 	}
@@ -273,4 +293,16 @@ func (chr *CacheHandler) Destroy() (err error) {
 
 	chr.jobManager.Destroy()
 	return
+}
+
+// shouldExcludeFromCache checks if the object should be excluded from cache
+// based on the configured regex pattern
+func (chr *CacheHandler) shouldExcludeFromCache(bucketName, objectName string) bool {
+	if chr.excludeRegex == nil {
+		return false
+	}
+
+	// Create the cloud path in the format bucket/object
+	cloudPath := bucketName + "/" + objectName
+	return chr.excludeRegex.MatchString(cloudPath)
 }
