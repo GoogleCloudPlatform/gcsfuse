@@ -58,7 +58,7 @@ func readingDirNTimesShouldNotThrowError(n int, wg *sync.WaitGroup, t *testing.T
 // Tests
 // //////////////////////////////////////////////////////////////////////
 
-func (t *CommonLocalFileTestSuite) TestReadDir() {
+func (t *LocalFileTestSuite) TestReadDir() {
 	// Structure
 	// mntDir/
 	// mntDir/explicit/		    				--- directory
@@ -104,7 +104,7 @@ func (t *CommonLocalFileTestSuite) TestReadDir() {
 		GCSFileContent, t.T())
 }
 
-func (t *CommonLocalFileTestSuite) TestRecursiveListingWithLocalFiles() {
+func (t *LocalFileTestSuite) TestRecursiveListingWithLocalFiles() {
 	// Structure
 	// mntDir/
 	// mntDir/foo1 										--- file
@@ -159,7 +159,7 @@ func (t *CommonLocalFileTestSuite) TestRecursiveListingWithLocalFiles() {
 		path.Join(ExplicitDirName, ExplicitFileName1), "", t.T())
 }
 
-func (t *CommonLocalFileTestSuite) TestReadDirWithSameNameLocalAndGCSFile() {
+func (t *LocalFileTestSuite) TestReadDirWithSameNameLocalAndGCSFile() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create local file.
 	_, fh1 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
@@ -178,7 +178,7 @@ func (t *CommonLocalFileTestSuite) TestReadDirWithSameNameLocalAndGCSFile() {
 	operations.ValidateESTALEError(t.T(), err)
 }
 
-func (t *CommonLocalFileTestSuite) TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError() {
+func (t *LocalFileTestSuite) TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -190,7 +190,7 @@ func (t *CommonLocalFileTestSuite) TestConcurrentReadDirAndCreationOfLocalFiles_
 	wg.Wait()
 }
 
-func (t *CommonLocalFileTestSuite) TestStatLocalFileAfterRecreatingItWithSameName() {
+func (t *LocalFileTestSuite) TestStatLocalFileAfterRecreatingItWithSameName() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	filePath := path.Join(testDirPath, FileName1)
 	operations.CreateFile(filePath, FilePerms, t.T())

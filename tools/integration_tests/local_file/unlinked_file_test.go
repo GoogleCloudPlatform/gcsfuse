@@ -23,7 +23,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 )
 
-func (t *CommonLocalFileTestSuite) TestStatOnUnlinkedLocalFile() {
+func (t *LocalFileTestSuite) TestStatOnUnlinkedLocalFile() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
 	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
@@ -38,7 +38,7 @@ func (t *CommonLocalFileTestSuite) TestStatOnUnlinkedLocalFile() {
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
 }
 
-func (t *CommonLocalFileTestSuite) TestReadDirContainingUnlinkedLocalFiles() {
+func (t *LocalFileTestSuite) TestReadDirContainingUnlinkedLocalFiles() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create local files.
 	_, fh1 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
@@ -64,7 +64,7 @@ func (t *CommonLocalFileTestSuite) TestReadDirContainingUnlinkedLocalFiles() {
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName3, t.T())
 }
 
-func (t *CommonLocalFileTestSuite) TestWriteOnUnlinkedLocalFileSucceeds() {
+func (t *LocalFileTestSuite) TestWriteOnUnlinkedLocalFileSucceeds() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create local file.
 	filepath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
@@ -81,7 +81,7 @@ func (t *CommonLocalFileTestSuite) TestWriteOnUnlinkedLocalFileSucceeds() {
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
 }
 
-func (t *CommonLocalFileTestSuite) TestSyncOnUnlinkedLocalFile() {
+func (t *LocalFileTestSuite) TestSyncOnUnlinkedLocalFile() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create local file.
 	filepath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
@@ -99,7 +99,7 @@ func (t *CommonLocalFileTestSuite) TestSyncOnUnlinkedLocalFile() {
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
 }
 
-func (t *CommonLocalFileTestSuite) TestFileWithSameNameCanBeCreatedWhenDeletedBeforeSync() {
+func (t *LocalFileTestSuite) TestFileWithSameNameCanBeCreatedWhenDeletedBeforeSync() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
 	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
@@ -122,7 +122,7 @@ func (t *CommonLocalFileTestSuite) TestFileWithSameNameCanBeCreatedWhenDeletedBe
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, FileName1, newContents, t.T())
 }
 
-func (t *CommonLocalFileTestSuite) TestFileWithSameNameCanBeCreatedAfterDelete() {
+func (t *LocalFileTestSuite) TestFileWithSameNameCanBeCreatedAfterDelete() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
 	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())

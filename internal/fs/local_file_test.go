@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -93,7 +94,7 @@ func (t *LocalFileTest) createLocalFile(fileName string) (filePath string, f *os
 	t.T().Helper()
 	// Creating a file shouldn't create file on GCS.
 	filePath = path.Join(mntDir, fileName)
-	f, err := os.Create(filePath)
+	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC|syscall.O_DIRECT, 0655)
 
 	require.NoError(t.T(), err)
 	t.validateObjectNotFoundErr(fileName)
@@ -485,23 +486,21 @@ func (t *LocalFileTest) TestRecursiveListingWithLocalFiles() {
 	t.closeFileAndValidateObjectContents(&t.f3, ""+FileName, "")
 }
 
-func (t *LocalFileTest) TestRenameOfLocalFileFails() {
+func (t *LocalFileTest) TestRenameOfLocalFile() {
 	// Create local file with some content.
 	_, t.f1 = t.createLocalFile(FileName)
 	_, err := t.f1.WriteString(FileContents)
 	require.NoError(t.T(), err)
+	newName := "newName"
 
 	// Attempt to rename local file.
-	err = os.Rename(path.Join(mntDir, FileName), path.Join(mntDir, "newName"))
+	err = os.Rename(path.Join(mntDir, FileName), path.Join(mntDir, newName))
 
 	// Verify rename operation fails.
-	require.Error(t.T(), err)
-	assert.True(t.T(), strings.Contains(err.Error(), "operation not supported"))
-	// write more content to local file.
-	_, err = t.f1.WriteString(FileContents)
 	require.NoError(t.T(), err)
 	// Close the local file.
-	t.closeFileAndValidateObjectContents(&t.f1, FileName, FileContents+FileContents)
+	t.validateObjectContents(newName, FileContents)
+	t.validateObjectNotFoundErr(FileName)
 }
 
 func (t *LocalFileTest) TestRenameOfDirectoryWithLocalFileFails() {
@@ -528,18 +527,6 @@ func (t *LocalFileTest) TestRenameOfDirectoryWithLocalFileFails() {
 	require.NoError(t.T(), err)
 	// Close the local file.
 	t.closeFileAndValidateObjectContents(&t.f1, "foo/"+FileName, FileContents+FileContents)
-}
-
-func (t *LocalFileTest) TestRenameOfLocalFileSucceedsAfterSync() {
-	t.TestRenameOfLocalFileFails()
-
-	// Attempt to Rename synced file.
-	err := os.Rename(path.Join(mntDir, FileName), path.Join(mntDir, "newName"))
-
-	// Validate.
-	require.NoError(t.T(), err)
-	t.validateObjectContents("newName", FileContents+FileContents)
-	t.validateObjectNotFoundErr(FileName)
 }
 
 func (t *LocalFileTest) TestRenameOfDirectoryWithLocalFileSucceedsAfterSync() {
