@@ -537,7 +537,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("profiling-mutex", "", false, "To enable/disable the mutex profiling. Only work when profiling is enabled.")
 
-	flagSet.StringP("profiling-version-tag", "", "", "Set the version tag for profiling data, used to compare b/w two versions. Only work when profiling is enabled.")
+	flagSet.StringP("profiling-version-tag", "", "gcsfuse-0.0.0", "Set the version tag for profiling data, used to compare b/w two versions. Only work when profiling is enabled.")
 
 	flagSet.IntP("prometheus-port", "", 0, "Expose Prometheus metrics endpoint on this port and a path of /metrics.")
 

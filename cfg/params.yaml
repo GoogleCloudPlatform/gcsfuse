@@ -694,7 +694,7 @@
   flag-name: "profiling-version-tag"
   type: "string"
   usage: "Set the version tag for profiling data, used to compare b/w two versions. Only work when profiling is enabled."
-  default: ""
+  default: "gcsfuse-0.0.0"
 
 - config-path: "read.inactive-stream-timeout"
   flag-name: "read-inactive-stream-timeout"
