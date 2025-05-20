@@ -359,7 +359,7 @@ func (rr *randomReader) ReadAt(
 		rr.cancel = nil
 	}
 	// If current offset is not same as expected offset, its a random read.
-	if rr.expectedOffset != offset {
+	if rr.expectedOffset != 0 && rr.expectedOffset != offset {
 		rr.seeks++
 	}
 
