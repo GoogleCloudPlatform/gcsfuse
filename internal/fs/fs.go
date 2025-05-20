@@ -28,6 +28,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
 	"golang.org/x/sync/semaphore"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
@@ -2046,6 +2047,18 @@ func (fs *fileSystem) Rename(
 		ctx, cancel = util.IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
+
+	defer func() {
+		// Precondition error during Rename is thrown by zonal buckets when
+		// trying to rename an un-finalized object.
+		var preconditionErr *gcs.PreconditionError
+		if errors.As(err, &preconditionErr) {
+			err = &gcsfuse_errors.FileClobberedError{
+				Err: fmt.Errorf("rename: %w", err),
+			}
+		}
+	}()
+
 	// Find the old and new parents.
 	fs.mu.Lock()
 	oldParent := fs.dirInodeOrDie(op.OldParent)
