@@ -26,7 +26,7 @@ import (
 var profilerStart = cloudprofiler.Start
 
 // SetupCloudProfiler initializes and starts the Cloud Profiler based on the application configuration.
-func SetupCloudProfiler(mpc *cfg.ProfilerConfig) error {
+func SetupCloudProfiler(mpc *cfg.ProfilingConfig) error {
 	if !mpc.Enabled {
 		return nil
 	}

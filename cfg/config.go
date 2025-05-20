@@ -66,7 +66,7 @@ type Config struct {
 
 	OnlyDir string `yaml:"only-dir"`
 
-	Profiler ProfilerConfig `yaml:"profiler"`
+	Profiling ProfilingConfig `yaml:"profiling"`
 
 	Read ReadConfig `yaml:"read"`
 
@@ -233,7 +233,7 @@ type MonitoringConfig struct {
 	ExperimentalTracingSamplingRatio float64 `yaml:"experimental-tracing-sampling-ratio"`
 }
 
-type ProfilerConfig struct {
+type ProfilingConfig struct {
 	AllocatedHeap bool `yaml:"allocated-heap"`
 
 	Cpu bool `yaml:"cpu"`
@@ -529,15 +529,15 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("profile-allocated-heap", "", false, "Enable allocated heap (HeapProfileAllocs) profiling.")
 
-	flagSet.BoolP("profile-cpu", "", false, "Enable CPU profiling.")
+	flagSet.BoolP("profiling-cpu", "", false, "Enable CPU profiling.")
 
-	flagSet.BoolP("profile-goroutines", "", false, "Enable goroutine profiling.")
+	flagSet.BoolP("profiling-goroutines", "", false, "Enable goroutine profiling.")
 
-	flagSet.BoolP("profile-heap", "", false, "Enable heap profiling.")
+	flagSet.BoolP("profiling-heap", "", false, "Enable heap profiling.")
 
-	flagSet.BoolP("profile-mutex", "", false, "Enable mutex (contention) profiling.")
+	flagSet.BoolP("profiling-mutex", "", false, "Enable mutex (contention) profiling.")
 
-	flagSet.StringP("profile-version-tag", "", "", "Set the version tag for profiling data.")
+	flagSet.StringP("profiling-version-tag", "", "", "Set the version tag for profiling data.")
 
 	flagSet.IntP("prometheus-port", "", 0, "Expose Prometheus metrics endpoint on this port and a path of /metrics.")
 
@@ -716,7 +716,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("profiler.enabled", flagSet.Lookup("enable-cloud-profiling")); err != nil {
+	if err := v.BindPFlag("profiling.enabled", flagSet.Lookup("enable-cloud-profiling")); err != nil {
 		return err
 	}
 
@@ -912,27 +912,27 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("profiler.allocated-heap", flagSet.Lookup("profile-allocated-heap")); err != nil {
+	if err := v.BindPFlag("profiling.allocated-heap", flagSet.Lookup("profile-allocated-heap")); err != nil {
 		return err
 	}
 
-	if err := v.BindPFlag("profiler.cpu", flagSet.Lookup("profile-cpu")); err != nil {
+	if err := v.BindPFlag("profiling.cpu", flagSet.Lookup("profiling-cpu")); err != nil {
 		return err
 	}
 
-	if err := v.BindPFlag("profiler.goroutines", flagSet.Lookup("profile-goroutines")); err != nil {
+	if err := v.BindPFlag("profiling.goroutines", flagSet.Lookup("profiling-goroutines")); err != nil {
 		return err
 	}
 
-	if err := v.BindPFlag("profiler.heap", flagSet.Lookup("profile-heap")); err != nil {
+	if err := v.BindPFlag("profiling.heap", flagSet.Lookup("profiling-heap")); err != nil {
 		return err
 	}
 
-	if err := v.BindPFlag("profiler.mutex", flagSet.Lookup("profile-mutex")); err != nil {
+	if err := v.BindPFlag("profiling.mutex", flagSet.Lookup("profiling-mutex")); err != nil {
 		return err
 	}
 
-	if err := v.BindPFlag("profiler.version-tag", flagSet.Lookup("profile-version-tag")); err != nil {
+	if err := v.BindPFlag("profiling.version-tag", flagSet.Lookup("profiling-version-tag")); err != nil {
 		return err
 	}
 

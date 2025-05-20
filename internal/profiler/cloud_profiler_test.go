@@ -26,7 +26,7 @@ import (
 )
 
 // defaultProfilerSettings provides a base configuration for profiler tests.
-var defaultProfilerSettings = cfg.ProfilerConfig{
+var defaultProfilerSettings = cfg.ProfilingConfig{
 	Enabled:       false, // Explicitly set per test
 	VersionTag:    "test-version",
 	Mutex:         true,

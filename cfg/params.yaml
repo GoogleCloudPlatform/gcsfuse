@@ -654,44 +654,44 @@
   usage: "Mount only a specific directory within the bucket. See docs/mounting for more information"
   default: ""
 
-- config-path: "profiler.allocated-heap"
+- config-path: "profiling.allocated-heap"
   flag-name: "profile-allocated-heap"
   type: "bool"
   usage: "Enable allocated heap (HeapProfileAllocs) profiling."
   default: false
 
-- config-path: "profiler.cpu"
-  flag-name: "profile-cpu"
+- config-path: "profiling.cpu"
+  flag-name: "profiling-cpu"
   type: "bool"
   usage: "Enable CPU profiling."
   default: false
 
-- config-path: "profiler.enabled"
+- config-path: "profiling.enabled"
   flag-name: "enable-cloud-profiling"
   type: "bool"
   usage: "To enable/disable the cloud profiling, by default disabled"
   default: false
 
-- config-path: "profiler.goroutines"
-  flag-name: "profile-goroutines"
+- config-path: "profiling.goroutines"
+  flag-name: "profiling-goroutines"
   type: "bool"
   usage: "Enable goroutine profiling."
   default: false
 
-- config-path: "profiler.heap"
-  flag-name: "profile-heap"
+- config-path: "profiling.heap"
+  flag-name: "profiling-heap"
   type: "bool"
   usage: "Enable heap profiling."
   default: false
 
-- config-path: "profiler.mutex"
-  flag-name: "profile-mutex"
+- config-path: "profiling.mutex"
+  flag-name: "profiling-mutex"
   type: "bool"
   usage: "Enable mutex (contention) profiling."
   default: false
 
-- config-path: "profiler.version-tag"
-  flag-name: "profile-version-tag"
+- config-path: "profiling.version-tag"
+  flag-name: "profiling-version-tag"
   type: "string"
   usage: "Set the version tag for profiling data."
   default: ""

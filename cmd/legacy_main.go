@@ -396,7 +396,7 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	shutdownFn := common.JoinShutdownFunc(metricExporterShutdownFn, shutdownTracingFn)
 
 	// No-op if profiler config is disabled.
-	profiler.SetupCloudProfiler(&newConfig.Profiler)
+	profiler.SetupCloudProfiler(&newConfig.Profiling)
 
 	// Mount, writing information about our progress to the writer that package
 	// daemonize gives us and telling it about the outcome.
