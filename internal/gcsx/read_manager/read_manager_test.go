@@ -78,10 +78,9 @@ func (t *readManagerTest) TearDownTest() {
 
 func (t *readManagerTest) Test_ReadAt_EmptyRead() {
 	// Nothing should happen.
-	buf := make([]byte, 0)
 	t.readManager = NewReadManager(t.object, t.mockBucket, sequentialReadSizeInMb, nil, false, common.NewNoopMetrics(), nil)
 
-	readerResponse, err := t.readManager.ReadAt(t.ctx, buf, 0)
+	readerResponse, err := t.readManager.ReadAt(t.ctx, make([]byte, 0), 0)
 
 	assert.NoError(t.T(), err)
 	assert.Zero(t.T(), readerResponse.Size)
@@ -117,9 +116,8 @@ func (t *readManagerTest) Test_ReadAt_NoExistingReader() {
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(nil, errors.New("network error"))
 	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(1)
 	t.mockBucket.On("Name").Return("test-bucket")
-	buf := make([]byte, 1)
 
-	_, err := t.readManager.ReadAt(t.ctx, buf, 0)
+	_, err := t.readManager.ReadAt(t.ctx, make([]byte, 1), 0)
 
 	assert.Error(t.T(), err)
 	t.mockBucket.AssertExpectations(t.T())
@@ -131,9 +129,8 @@ func (t *readManagerTest) Test_ReadAt_ReaderFailsWithTimeout() {
 	rc := &fake.FakeReader{ReadCloser: io.NopCloser(r)}
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(rc, nil).Once()
 	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(1)
-	buf := make([]byte, 3)
 
-	_, err := t.readManager.ReadAt(t.ctx, buf, 0)
+	_, err := t.readManager.ReadAt(t.ctx, make([]byte, 3), 0)
 
 	assert.Error(t.T(), err)
 	assert.Contains(t.T(), err.Error(), "timeout")
@@ -144,9 +141,8 @@ func (t *readManagerTest) Test_ReadAt_FileClobbered() {
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(nil, &gcs.NotFoundError{})
 	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(1)
 	t.mockBucket.On("Name").Return("test-bucket")
-	buf := make([]byte, 3)
 
-	_, err := t.readManager.ReadAt(t.ctx, buf, 1)
+	_, err := t.readManager.ReadAt(t.ctx, make([]byte, 3), 1)
 
 	assert.Error(t.T(), err)
 	var clobberedErr *gcsfuse_errors.FileClobberedError
