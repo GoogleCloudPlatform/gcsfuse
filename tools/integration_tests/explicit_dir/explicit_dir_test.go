@@ -29,16 +29,22 @@ import (
 
 const DirForExplicitDirTests = "dirForExplicitDirTests"
 
-var (
+// IMPORTANT: To prevent global variable pollution, enhance code clarity,
+// and avoid inadvertent errors. We strongly suggest that, all new package-level
+// variables (which would otherwise be declared with `var` at the package root) should
+// be added as fields to this 'env' struct instead.
+type env struct {
 	storageClient *storage.Client
 	ctx           context.Context
-)
+}
+
+var testEnv env
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 	// Create storage client before running tests.
-	ctx = context.Background()
-	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
+	testEnv.ctx = context.Background()
+	closeStorageClient := client.CreateStorageClientWithCancel(&testEnv.ctx, &testEnv.storageClient)
 	defer func() {
 		err := closeStorageClient()
 		if err != nil {
@@ -48,7 +54,7 @@ func TestMain(m *testing.M) {
 
 	// These tests will not run on HNS buckets because the "--implicit-dirs=false" flag does not function similarly to how it does on FLAT buckets.
 	// Note that HNS buckets do not have the concept of implicit directories.
-	if setup.IsHierarchicalBucket(ctx, storageClient) {
+	if setup.IsHierarchicalBucket(testEnv.ctx, testEnv.storageClient) {
 		log.Println("These tests will not run on HNS buckets.")
 		return
 	}
