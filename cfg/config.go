@@ -244,9 +244,9 @@ type ProfilingConfig struct {
 
 	Heap bool `yaml:"heap"`
 
-	Mutex bool `yaml:"mutex"`
+	Label string `yaml:"label"`
 
-	VersionTag string `yaml:"version-tag"`
+	Mutex bool `yaml:"mutex"`
 }
 
 type ReadConfig struct {
@@ -359,7 +359,11 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("enable-cloud-profiling", "", false, "To enable/disable the cloud profiling, by default disabled. Only work when profiling is enabled.")
+	flagSet.BoolP("enable-cloud-profiling", "", false, "Enables cloud profiling, by default disabled.")
+
+	if err := flagSet.MarkHidden("enable-cloud-profiling"); err != nil {
+		return err
+	}
 
 	flagSet.BoolP("enable-empty-managed-folders", "", false, "This handles the corner case in listing managed folders. There are two corner cases (a) empty managed folder (b) nested managed folder which doesn't contain any descendent as object. This flag always works in conjunction with --implicit-dirs flag. (a) If only ImplicitDirectories is true, all managed folders are listed other than above two mentioned cases. (b) If both ImplicitDirectories and EnableEmptyManagedFolders are true, then all the managed folders are listed including the above-mentioned corner case. (c) If ImplicitDirectories is false then no managed folders are listed irrespective of enable-empty-managed-folders flag.")
 
@@ -527,17 +531,41 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("profiling-allocated-heap", "", false, "To enable/disable the allocated heap (HeapProfileAllocs) profiling. Only work when profiling is enabled.")
+	flagSet.BoolP("profiling-allocated-heap", "", true, "To enable/disable the allocated heap (HeapProfileAllocs) profiling. Only work when profiling is enabled.")
 
-	flagSet.BoolP("profiling-cpu", "", false, "To enable/disable the CPU profiling. Only work when profiling is enabled.")
+	if err := flagSet.MarkHidden("profiling-allocated-heap"); err != nil {
+		return err
+	}
 
-	flagSet.BoolP("profiling-goroutines", "", false, "To enable/disable the goroutine profiling. Only work when profiling is enabled.")
+	flagSet.BoolP("profiling-cpu", "", true, "To enable/disable the CPU profiling. Only work when profiling is enabled.")
 
-	flagSet.BoolP("profiling-heap", "", false, "To enable/disable the heap profiling. Only work when profiling is enabled.")
+	if err := flagSet.MarkHidden("profiling-cpu"); err != nil {
+		return err
+	}
 
-	flagSet.BoolP("profiling-mutex", "", false, "To enable/disable the mutex profiling. Only work when profiling is enabled.")
+	flagSet.BoolP("profiling-goroutines", "", false, "Enables goroutines profiling. This only works when --enable-cloud-profiling is set to true.")
 
-	flagSet.StringP("profiling-version-tag", "", "gcsfuse-0.0.0", "Set the version tag for profiling data, used to compare b/w two versions. Only work when profiling is enabled.")
+	if err := flagSet.MarkHidden("profiling-goroutines"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("profiling-heap", "", true, "Enables heap profiling. This only works when --enable-cloud-profiling is set to true.")
+
+	if err := flagSet.MarkHidden("profiling-heap"); err != nil {
+		return err
+	}
+
+	flagSet.StringP("profiling-label", "", "gcsfuse-0.0.0", "Allow setting a profile label to uniquely identify and compare profiling data with other profiles. This only works when --enable-cloud-profiling is set to true.  ")
+
+	if err := flagSet.MarkHidden("profiling-label"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("profiling-mutex", "", false, "Enables mutex profiling. This only works when --enable-cloud-profiling is set to true.")
+
+	if err := flagSet.MarkHidden("profiling-mutex"); err != nil {
+		return err
+	}
 
 	flagSet.IntP("prometheus-port", "", 0, "Expose Prometheus metrics endpoint on this port and a path of /metrics.")
 
@@ -928,11 +956,11 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("profiling.mutex", flagSet.Lookup("profiling-mutex")); err != nil {
+	if err := v.BindPFlag("profiling.label", flagSet.Lookup("profiling-label")); err != nil {
 		return err
 	}
 
-	if err := v.BindPFlag("profiling.version-tag", flagSet.Lookup("profiling-version-tag")); err != nil {
+	if err := v.BindPFlag("profiling.mutex", flagSet.Lookup("profiling-mutex")); err != nil {
 		return err
 	}
 

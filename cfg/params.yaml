@@ -658,43 +658,52 @@
   flag-name: "profiling-allocated-heap"
   type: "bool"
   usage: "To enable/disable the allocated heap (HeapProfileAllocs) profiling. Only work when profiling is enabled."
-  default: false
+  default: true
+  hide-flag: true
 
 - config-path: "profiling.cpu"
   flag-name: "profiling-cpu"
   type: "bool"
   usage: "To enable/disable the CPU profiling. Only work when profiling is enabled."
-  default: false
+  default: true
+  hide-flag: true
 
 - config-path: "profiling.enabled"
   flag-name: "enable-cloud-profiling"
   type: "bool"
-  usage: "To enable/disable the cloud profiling, by default disabled. Only work when profiling is enabled."
+  usage: "Enables cloud profiling, by default disabled."
   default: false
+  hide-flag: true
 
 - config-path: "profiling.goroutines"
   flag-name: "profiling-goroutines"
   type: "bool"
-  usage: "To enable/disable the goroutine profiling. Only work when profiling is enabled."
+  usage: "Enables goroutines profiling. This only works when --enable-cloud-profiling is set to true."
   default: false
+  hide-flag: true
 
 - config-path: "profiling.heap"
   flag-name: "profiling-heap"
   type: "bool"
-  usage: "To enable/disable the heap profiling. Only work when profiling is enabled."
-  default: false
+  usage: "Enables heap profiling. This only works when --enable-cloud-profiling is set to true."
+  default: true
+  hide-flag: true
+
+- config-path: "profiling.label"
+  flag-name: "profiling-label"
+  type: "string"
+  usage: >-
+    Allow setting a profile label to uniquely identify and compare profiling data with other profiles.
+    This only works when --enable-cloud-profiling is set to true.  
+  default: "gcsfuse-0.0.0"
+  hide-flag: true
 
 - config-path: "profiling.mutex"
   flag-name: "profiling-mutex"
   type: "bool"
-  usage: "To enable/disable the mutex profiling. Only work when profiling is enabled."
+  usage: "Enables mutex profiling. This only works when --enable-cloud-profiling is set to true."
   default: false
-
-- config-path: "profiling.version-tag"
-  flag-name: "profiling-version-tag"
-  type: "string"
-  usage: "Set the version tag for profiling data, used to compare b/w two versions. Only work when profiling is enabled."
-  default: "gcsfuse-0.0.0"
+  hide-flag: true
 
 - config-path: "read.inactive-stream-timeout"
   flag-name: "read-inactive-stream-timeout"

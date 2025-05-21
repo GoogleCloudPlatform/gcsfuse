@@ -18,22 +18,26 @@ import (
 	cloudprofiler "cloud.google.com/go/profiler"
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
+	"google.golang.org/api/option"
 )
 
-// profilerStart is a variable to enable mocking of profiler.Start in tests.
-//
-//nolint:gochecknoglobals
-var profilerStart = cloudprofiler.Start
+type startFunctionType func(cloudprofiler.Config, ...option.ClientOption) error
 
 // SetupCloudProfiler initializes and starts the Cloud Profiler based on the application configuration.
 func SetupCloudProfiler(mpc *cfg.ProfilingConfig) error {
+	return setupCloudProfiler(mpc, cloudprofiler.Start)
+}
+
+// setupCloudProfiler is an internal helper function with a configurable start function
+// for testing purposes.
+func setupCloudProfiler(mpc *cfg.ProfilingConfig, startFunc startFunctionType) error {
 	if !mpc.Enabled {
 		return nil
 	}
 
 	pConfig := cloudprofiler.Config{
 		Service:              "gcsfuse",
-		ServiceVersion:       mpc.VersionTag,
+		ServiceVersion:       mpc.Label,
 		MutexProfiling:       mpc.Mutex,
 		NoCPUProfiling:       !mpc.Cpu,
 		NoAllocProfiling:     !mpc.AllocatedHeap,
@@ -42,7 +46,7 @@ func SetupCloudProfiler(mpc *cfg.ProfilingConfig) error {
 		AllocForceGC:         true,
 	}
 
-	if err := profilerStart(pConfig); err != nil {
+	if err := startFunc(pConfig); err != nil {
 		return err
 	}
 

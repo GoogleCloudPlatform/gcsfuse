@@ -1313,11 +1313,11 @@ func TestArgsParsing_ProfilerFlags(t *testing.T) {
 			args: []string{"gcsfuse", "bucket", "mountpoint"},
 			expectedConfig: cfg.ProfilingConfig{
 				Enabled:       false, // Profiler is disabled by default
-				VersionTag:    "",
+				Label:         "gcsfuse-0.0.0",
 				Mutex:         false, // Default for --profiling-mutex
-				Cpu:           false, // Default for --profiling-cpu
-				AllocatedHeap: false, // Default for --profiling-allocated-heap
-				Heap:          false, // Default for --profiling-heap
+				Cpu:           true,  // Default for --profiling-cpu
+				AllocatedHeap: true,  // Default for --profiling-allocated-heap
+				Heap:          true,  // Default for --profiling-heap
 				Goroutines:    false, // Default for --profiling-goroutines
 			},
 		},
@@ -1326,20 +1326,20 @@ func TestArgsParsing_ProfilerFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--enable-cloud-profiling", "bucket", "mountpoint"},
 			expectedConfig: cfg.ProfilingConfig{
 				Enabled:       true,
-				VersionTag:    "",
+				Label:         "gcsfuse-0.0.0",
 				Mutex:         false,
-				Cpu:           false,
-				AllocatedHeap: false,
-				Heap:          false,
+				Cpu:           true,
+				AllocatedHeap: true,
+				Heap:          true,
 				Goroutines:    false,
 			},
 		},
 		{
-			name: "Profiler enabled, all sub-profilers explicitly true and version tag set",
-			args: []string{"gcsfuse", "--enable-cloud-profiling", "--profiling-version-tag=v1.0.0", "--profiling-mutex=true", "--profiling-cpu=true", "--profiling-allocated-heap=true", "--profiling-heap=true", "--profiling-goroutines=true", "bucket", "mountpoint"},
+			name: "Profiler enabled, all sub-profilers explicitly true and label set",
+			args: []string{"gcsfuse", "--enable-cloud-profiling", "--profiling-label=v1.0.0", "--profiling-mutex=true", "--profiling-cpu=true", "--profiling-allocated-heap=true", "--profiling-heap=true", "--profiling-goroutines=true", "bucket", "mountpoint"},
 			expectedConfig: cfg.ProfilingConfig{
 				Enabled:       true,
-				VersionTag:    "v1.0.0",
+				Label:         "v1.0.0",
 				Mutex:         true,
 				Cpu:           true,
 				AllocatedHeap: true,
@@ -1352,7 +1352,7 @@ func TestArgsParsing_ProfilerFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--enable-cloud-profiling", "--profiling-mutex=false", "--profiling-cpu=false", "--profiling-allocated-heap=false", "--profiling-heap=false", "--profiling-goroutines=false", "bucket", "mountpoint"},
 			expectedConfig: cfg.ProfilingConfig{
 				Enabled:       true,
-				VersionTag:    "",
+				Label:         "gcsfuse-0.0.0",
 				Mutex:         false,
 				Cpu:           false,
 				AllocatedHeap: false,
@@ -1365,11 +1365,11 @@ func TestArgsParsing_ProfilerFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--enable-cloud-profiling=false", "--profiling-mutex=true", "--profiling-cpu=false", "bucket", "mountpoint"},
 			expectedConfig: cfg.ProfilingConfig{
 				Enabled:       false, // Master switch is off
-				VersionTag:    "",
+				Label:         "gcsfuse-0.0.0",
 				Mutex:         true,  // Flag was parsed
 				Cpu:           false, // Flag was parsed
-				AllocatedHeap: false, // Default for its flag
-				Heap:          false, // Default for its flag
+				AllocatedHeap: true,  // Default for its flag
+				Heap:          true,  // Default for its flag
 				Goroutines:    false, // Default for its flag
 			},
 		},

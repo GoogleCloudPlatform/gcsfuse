@@ -26,13 +26,8 @@ import (
 )
 
 func TestSetupCloudProfiler_Disabled(t *testing.T) {
-	// Save and restore the original profilerStart function.
-	originalProfilerStart := profilerStart
-	t.Cleanup(func() {
-		profilerStart = originalProfilerStart
-	})
 	mockProfilerStartCalled := false
-	profilerStart = func(cfg cloudprofiler.Config, options ...option.ClientOption) error {
+	profilerStart := func(_ cloudprofiler.Config, _ ...option.ClientOption) error {
 		mockProfilerStartCalled = true
 		return nil
 	}
@@ -40,28 +35,23 @@ func TestSetupCloudProfiler_Disabled(t *testing.T) {
 		Enabled: false,
 	}
 
-	err := SetupCloudProfiler(profilingConfig)
+	err := setupCloudProfiler(profilingConfig, profilerStart)
 
 	require.NoError(t, err, "SetupCloudProfiler should not return an error")
 	assert.False(t, mockProfilerStartCalled, "profilerStart should not be called when profiler is disabled")
 }
 
 func TestSetupCloudProfiler_EnabledSuccess(t *testing.T) {
-	// Save and restore the original profilerStart function.
-	originalProfilerStart := profilerStart
-	t.Cleanup(func() {
-		profilerStart = originalProfilerStart
-	})
 	var capturedProfilerConfig cloudprofiler.Config
 	mockProfilerStartCalled := false
-	profilerStart = func(pcfg cloudprofiler.Config, options ...option.ClientOption) error {
+	profilerStart := func(pcfg cloudprofiler.Config, _ ...option.ClientOption) error {
 		mockProfilerStartCalled = true
 		capturedProfilerConfig = pcfg
 		return nil
 	}
 	profilingConfig := &cfg.ProfilingConfig{
 		Enabled:       true,
-		VersionTag:    "v1.2.3",
+		Label:         "v1.2.3",
 		Mutex:         true,
 		Cpu:           true,
 		AllocatedHeap: false,
@@ -69,11 +59,11 @@ func TestSetupCloudProfiler_EnabledSuccess(t *testing.T) {
 		Goroutines:    false,
 	}
 
-	err := SetupCloudProfiler(profilingConfig)
+	err := setupCloudProfiler(profilingConfig, profilerStart)
 
 	require.NoError(t, err, "SetupCloudProfiler should not return an error")
 	require.True(t, mockProfilerStartCalled, "profilerStart should be called")
-	assert.Equal(t, "GCSFuse", capturedProfilerConfig.Service)
+	assert.Equal(t, "gcsfuse", capturedProfilerConfig.Service)
 	assert.Equal(t, "v1.2.3", capturedProfilerConfig.ServiceVersion)
 	assert.Equal(t, true, capturedProfilerConfig.MutexProfiling)
 	assert.Equal(t, false, capturedProfilerConfig.NoCPUProfiling)
@@ -84,18 +74,13 @@ func TestSetupCloudProfiler_EnabledSuccess(t *testing.T) {
 }
 
 func TestSetupCloudProfiler_EnabledStartFails(t *testing.T) {
-	// Save and restore the original profilerStart function.
-	originalProfilerStart := profilerStart
-	t.Cleanup(func() {
-		profilerStart = originalProfilerStart
-	})
 	expectedErr := errors.New("profiler failed to start")
-	profilerStart = func(pcfg cloudprofiler.Config, options ...option.ClientOption) error { return expectedErr }
+	profilerStart := func(_ cloudprofiler.Config, _ ...option.ClientOption) error { return expectedErr }
 	profilingConfig := &cfg.ProfilingConfig{
 		Enabled: true,
 	}
 
-	err := SetupCloudProfiler(profilingConfig)
+	err := setupCloudProfiler(profilingConfig, profilerStart)
 
 	assert.EqualError(t, err, expectedErr.Error())
 }
