@@ -25,7 +25,7 @@ import (
 )
 
 type defaultMountEmptyGCSFile struct {
-	defaultMountCommonTest
+	StreamingWritesSuite
 	suite.Suite
 }
 
@@ -49,6 +49,6 @@ func (t *defaultMountEmptyGCSFile) createEmptyGCSFile() {
 // Executes all tests that run with single streamingWrites configuration for empty GCS Files.
 func TestDefaultMountEmptyGCSFileTest(t *testing.T) {
 	s := new(defaultMountEmptyGCSFile)
-	s.defaultMountCommonTest.TestifySuite = &s.Suite
+	s.StreamingWritesSuite.TestifySuite = &s.Suite
 	suite.Run(t, s)
 }

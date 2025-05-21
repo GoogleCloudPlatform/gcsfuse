@@ -27,7 +27,7 @@ import (
 )
 
 type defaultMountCommonLocalFile struct {
-	defaultMountCommonTest
+	StreamingWritesSuite
 	suite.Suite
 }
 
@@ -56,11 +56,11 @@ func (t *defaultMountCommonLocalFile) createLocalFile() {
 func TestDefaultMountLocalFileTest(t *testing.T) {
 	if setup.IsZonalBucketRun() {
 		s := new(defaultMountCommonLocalFile)
-		s.defaultMountCommonTest.TestifySuite = &s.Suite
+		s.StreamingWritesSuite.TestifySuite = &s.Suite
 		suite.Run(t, s)
 	} else {
 		s := new(defaultMountRegionalBucketLocalFile)
-		s.defaultMountCommonTest.TestifySuite = &s.defaultMountCommonLocalFile.Suite
+		s.StreamingWritesSuite.TestifySuite = &s.defaultMountCommonLocalFile.Suite
 		s.CommonLocalFileTestSuite.TestifySuite = &s.defaultMountCommonLocalFile.Suite
 		s.TestifySuite = &s.defaultMountCommonLocalFile.Suite
 		suite.Run(t, s)

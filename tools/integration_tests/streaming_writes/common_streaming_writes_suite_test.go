@@ -26,7 +26,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type defaultMountCommonTest struct {
+type StreamingWritesSuite struct {
 	f1       *os.File
 	fileName string
 	// filePath of the above file in the mounted directory.
@@ -35,7 +35,7 @@ type defaultMountCommonTest struct {
 	test_suite.TestifySuite
 }
 
-func (t *defaultMountCommonTest) SetupSuite() {
+func (t *StreamingWritesSuite) SetupSuite() {
 	// TODO(mohitkyadav): Make these part of test suite after refactoring.
 	SetCtx(ctx)
 	SetStorageClient(storageClient)
@@ -46,12 +46,12 @@ func (t *defaultMountCommonTest) SetupSuite() {
 	t.data = setup.GenerateRandomString(5 * util.MiB)
 }
 
-func (t *defaultMountCommonTest) TearDownSuite() {
+func (t *StreamingWritesSuite) TearDownSuite() {
 	setup.UnmountGCSFuse(rootDir)
 	setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
 }
 
-func (t *defaultMountCommonTest) validateReadFromSymlink(filePath, content string) {
+func (t *StreamingWritesSuite) validateReadFromSymlink(filePath, content string) {
 	readContent, err := os.ReadFile(filePath)
 	// TODO(b/410698332): Fix validation once zb reads start working.
 	if setup.IsZonalBucketRun() {
@@ -62,7 +62,7 @@ func (t *defaultMountCommonTest) validateReadFromSymlink(filePath, content strin
 	}
 }
 
-func (t *defaultMountCommonTest) validateReadCall(fh *os.File, content string) {
+func (t *StreamingWritesSuite) validateReadCall(fh *os.File, content string) {
 	readContent := make([]byte, len(content))
 	n, err := fh.Read(readContent)
 	// TODO(b/410698332): Fix validation once zb reads start working.
