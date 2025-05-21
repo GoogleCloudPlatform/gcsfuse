@@ -2113,7 +2113,6 @@ func (fs *fileSystem) Rename(
 // LOCKS_EXCLUDED(newParent)
 func (fs *fileSystem) renameFile(ctx context.Context, op *fuseops.RenameOp, oldObject *inode.FileInode, oldParent, newParent inode.DirInode) error {
 	updatedMinObject, err := fs.flushPendingWrites(ctx, oldObject)
-
 	if err != nil {
 		return fmt.Errorf("flushPendingWrites: %w", err)
 	}
@@ -2123,7 +2122,7 @@ func (fs *fileSystem) renameFile(ctx context.Context, op *fuseops.RenameOp, oldO
 	return fs.renameNonHierarchicalFile(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)
 }
 
-// LOCKS_EXCLUDED(fileInode.mu)
+// LOCKS_EXCLUDED(fileInode)
 func (fs *fileSystem) flushPendingWrites(ctx context.Context, fileInode *inode.FileInode) (minObject *gcs.MinObject, err error) {
 	// We will return modified minObject if flush is done, otherwise the original
 	// minObject is returned. Original minObject is the one passed in the request.
