@@ -18,7 +18,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
@@ -126,7 +125,6 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 	// multiple reads can run concurrently. It's safe because the user can't tell
 	// if a concurrent write started during or after a read.
 	if fh.reader != nil {
-		log.Println("We have a reader for some reson..")
 		fh.inode.Unlock()
 
 		var objectData gcsx.ObjectData

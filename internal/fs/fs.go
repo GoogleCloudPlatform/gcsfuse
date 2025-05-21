@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io"
 	iofs "io/fs"
-	"log"
 	"math"
 	"os"
 	"path"
@@ -1170,7 +1169,6 @@ func (fs *fileSystem) flushFile(
 	var err error
 	// Do not flush for reads if bucket type is zonal.
 	if flushForRead && f.Bucket().BucketType().Zonal {
-		log.Println("Not flushing zonal bucket flush for read...")
 		return nil
 	}
 	if flushForRead {
