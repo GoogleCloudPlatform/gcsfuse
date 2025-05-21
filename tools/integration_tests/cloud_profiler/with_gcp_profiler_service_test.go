@@ -132,8 +132,8 @@ func TestValidateProfilerWithActualService(t *testing.T) {
 	setup.SetupTestDirectory(testDirName)
 	operations.CreateFileWithContent(filePath, 0644, string(randomData), t)
 	// Start Workload and Allow Time for Profiling
-	// performRepeatedRead(t.Context(), t, filePath, 3*time.Minute)
-	// time.Sleep(time.Minute)
+	performRepeatedRead(t.Context(), t, filePath, 3*time.Minute)
+	time.Sleep(time.Minute)
 
 	// 1. Fetch GCP projectID.
 	// 2. Create a profiler service api client.
