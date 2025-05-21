@@ -2653,9 +2653,11 @@ func (fs *fileSystem) WriteFile(
 		fh := fs.handles[op.Handle].(*handle.FileHandle)
 		fs.mu.Unlock()
 
+		//TODO: Initialize BWH before invoking write()
 		if err := fh.Write(ctx, op.Data, op.Offset); err != nil {
 			return err
 		}
+		return
 	}
 	// Find the inode.
 	fs.mu.Lock()

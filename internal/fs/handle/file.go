@@ -156,9 +156,10 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 	return
 }
 
-// To propagate the mode in which file has been opened while calling the Write()
-// method on file inode, required as the appends to unfinalized objects in zonal
-// buckets should trigger the streaming writes flow.
+// Adding the Write() method to fileHandle to be able to pass the fileOpenMode
+// which is used for determining write path. For e.g. in case of append mode for
+// unfinalized objects in zonal buckets, streaming writes is used.
+// Note that the writes are still done at the inode level.
 // LOCKS_EXCLUDED(fh.inode)
 func (fh *FileHandle) Write(ctx context.Context, data []byte, offset int64) error {
 	fh.inode.Lock()
