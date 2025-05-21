@@ -59,6 +59,6 @@ func (t *StreamingWritesSuite) validateReadCall(fh *os.File, content string) {
 	} else {
 		require.NoError(t.T(), err)
 		assert.Equal(t.T(), len(content), n)
-		// assert.Equal(t.T(), content, string(readContent))
+		assert.Equal(t.T(), content, string(readContent))
 	}
 }
