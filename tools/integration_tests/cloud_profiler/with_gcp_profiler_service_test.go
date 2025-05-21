@@ -139,7 +139,8 @@ func TestValidateProfilerWithActualService(t *testing.T) {
 	// 2. Create a profiler service api client.
 	// 3. Make list call to the profiler service api client and fetch the profiles.
 	// 4. Filter and match if the right profile data exists.
-	fetchProjectCtx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	fetchProjectCtx, fetchProjectCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer fetchProjectCancel()
 	projectID, err := metadata.ProjectIDWithContext(fetchProjectCtx) // Reduced timeout, 5s is usually sufficient.
 	if err != nil {
 		t.Logf("metadata.ProjectIDWithContext failed: %v, try fetching from environment variable.", err)
