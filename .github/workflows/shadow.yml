@@ -4,12 +4,15 @@ on:
   pull_request:
     types: 
     - opened
+    - ready_for_review
+    - reopened
     branches:
       - master
 
 jobs:
   shadow-reviewer:
     runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
     timeout-minutes: 15
     steps:
       - name: Add shadow reviewer
