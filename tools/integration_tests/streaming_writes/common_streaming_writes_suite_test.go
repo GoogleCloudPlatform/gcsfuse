@@ -50,21 +50,10 @@ func (t *StreamingWritesSuite) TearDownSuite() {
 	setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
 }
 
-func (t *StreamingWritesSuite) validateReadFromSymlink(filePath, content string) {
-	readContent, err := os.ReadFile(filePath)
-	// TODO(b/410698332): Fix validation once zb reads start working.
-	if setup.IsZonalBucketRun() && !t.fallbackToDiskCase {
-		operations.ValidateEOPNOTSUPPError(t.T(), err)
-	} else {
-		require.NoError(t.T(), err)
-		assert.Equal(t.T(), content, string(readContent))
-	}
-}
-
 func (t *StreamingWritesSuite) validateReadCall(fh *os.File, content string) {
 	readContent := make([]byte, len(content))
 	n, err := fh.ReadAt(readContent, 0)
-	// TODO(b/410698332): Fix validation once zb reads start working.
+	// TODO(b/417136852): Fix validation once zb reads start working.
 	if setup.IsZonalBucketRun() && !t.fallbackToDiskCase {
 		operations.ValidateEOPNOTSUPPError(t.T(), err)
 	} else {

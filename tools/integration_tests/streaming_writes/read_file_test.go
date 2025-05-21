@@ -54,7 +54,6 @@ func (t *StreamingWritesSuite) TestReadBeforeSyncThenWriteAgainAndRead() {
 	t.validateReadCall(t.f1, t.data)
 
 	operations.WriteAt(t.data, int64(len(t.data)), t.f1, t.T())
-
 	t.validateReadCall(t.f1, t.data+t.data)
 	// Validate if correct content is uploaded to GCS after read.
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, t.data+t.data, t.T())
