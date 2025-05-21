@@ -364,6 +364,13 @@ func (f *FileInode) Unlink() {
 	}
 }
 
+// Returns true if the fileInode is using Buffered Write Handler.
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) IsUsingBWH() bool {
+	return f.bwh != nil
+}
+
 // Source returns a record for the GCS object from which this inode is branched. The
 // record is guaranteed not to be modified, and users must not modify it.
 //
@@ -621,7 +628,7 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
 		logger.Infof("Falling back to staged writes on disk for file %s (inode %d) due to err: %v.", f.Name(), f.ID(), err.Error())
 		// Finalize the object.
-		err = f.FlushUsingBufferedWriteHandler()
+		err = f.flushUsingBufferedWriteHandler()
 		if err != nil {
 			return fmt.Errorf("could not finalize what has been written so far: %w", err)
 		}
@@ -631,11 +638,11 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 	return err
 }
 
-// FlushUsingBufferedWriteHandler flushes and finalizes any pending writes on the bwh
+// flushUsingBufferedWriteHandler flushes and finalizes any pending writes on the bwh
 // and updates inode state with new object. It is a no-op when bwh is nil.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) FlushUsingBufferedWriteHandler() error {
+func (f *FileInode) flushUsingBufferedWriteHandler() error {
 	if f.bwh == nil {
 		return nil
 	}
@@ -880,7 +887,7 @@ func (f *FileInode) Flush(ctx context.Context) (err error) {
 	// Flush using the appropriate method based on whether we're using a
 	// buffered write handler.
 	if f.bwh != nil {
-		return f.FlushUsingBufferedWriteHandler()
+		return f.flushUsingBufferedWriteHandler()
 	}
 	return f.syncUsingContent(ctx)
 }

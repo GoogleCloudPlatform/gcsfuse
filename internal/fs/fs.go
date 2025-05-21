@@ -1152,13 +1152,13 @@ func (fs *fileSystem) promoteToGenerationBacked(f *inode.FileInode) {
 }
 
 // Flushes the supplied file inode to GCS, updating the index as
-// appropriate. If flushForRead is true it only flushes streaming writes files for Regional buckets.
+// appropriate.
 //
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_REQUIRED(f)
 func (fs *fileSystem) flushFile(
 	ctx context.Context,
-	f *inode.FileInode, flushForRead bool) error {
+	f *inode.FileInode) error {
 	// FlushFile mirrors the behavior of native filesystems by not returning an error
 	// when file to be synced has been unlinked from the same mount.
 	if f.IsUnlinked() {
@@ -1166,16 +1166,7 @@ func (fs *fileSystem) flushFile(
 	}
 
 	// Flush the inode.
-	var err error
-	// Do not flush for reads if bucket type is zonal.
-	if flushForRead && f.Bucket().BucketType().Zonal {
-		return nil
-	}
-	if flushForRead {
-		err = f.FlushUsingBufferedWriteHandler()
-	} else {
-		err = f.Flush(ctx)
-	}
+	err := f.Flush(ctx)
 	if err != nil {
 		err = fmt.Errorf("FileInode.Sync: %w", err)
 		// If the inode was local file inode, treat it as unlinked.
@@ -2133,7 +2124,7 @@ func (fs *fileSystem) flushPendingWrites(ctx context.Context, fileInode *inode.F
 		return
 	}
 	// Try to flush if there are any pending writes.
-	err = fs.flushFile(ctx, fileInode, false)
+	err = fs.flushFile(ctx, fileInode)
 	minObject = fileInode.Source()
 	return
 }
@@ -2606,11 +2597,13 @@ func (fs *fileSystem) ReadFile(
 	fh.Lock()
 	fh.Inode().Lock()
 	defer fh.Unlock()
-	// Flush Pending streaming writes file and issue read within same inode lock.
-	err = fs.flushFile(ctx, fh.Inode(), true)
-	if err != nil {
-		fh.Inode().Unlock()
-		return err
+	// Flush Pending streaming writes file for regional bucket and issue read within same inode lock.
+	if fh.Inode().IsUsingBWH() && !fh.Inode().Bucket().BucketType().Zonal {
+		err = fs.flushFile(ctx, fh.Inode())
+		if err != nil {
+			fh.Inode().Unlock()
+			return err
+		}
 	}
 	// Serve the read.
 	op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
@@ -2723,7 +2716,7 @@ func (fs *fileSystem) FlushFile(
 	defer in.Unlock()
 
 	// Sync it.
-	if err := fs.flushFile(ctx, in, false); err != nil {
+	if err := fs.flushFile(ctx, in); err != nil {
 		return err
 	}
 
