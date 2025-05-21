@@ -17,9 +17,9 @@ package streaming_writes
 import (
 	"os"
 	"slices"
-	"syscall"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_suite"
 	"github.com/stretchr/testify/assert"
@@ -50,17 +50,26 @@ func (t *StreamingWritesSuite) TearDownSuite() {
 	setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
 }
 
-func (t *StreamingWritesSuite) validateReadCall(filePath string) {
-	_, err := os.ReadFile(filePath)
-	if setup.IsZonalBucketRun() {
-		// TODO(b/410698332): Remove skip condition once reads start working.
-		t.T().Skip("Skipping Zonal Bucket Read tests.")
-		require.NoError(t.T(), err)
-	}
-	if t.fallbackToDiskCase {
-		require.NoError(t.T(), err)
+func (t *StreamingWritesSuite) validateReadFromSymlink(filePath, content string) {
+	readContent, err := os.ReadFile(filePath)
+	// TODO(b/410698332): Fix validation once zb reads start working.
+	if setup.IsZonalBucketRun() && !t.fallbackToDiskCase {
+		operations.ValidateEOPNOTSUPPError(t.T(), err)
 	} else {
-		require.Error(t.T(), err)
-		assert.ErrorContains(t.T(), err, syscall.ENOTSUP.Error())
+		require.NoError(t.T(), err)
+		assert.Equal(t.T(), content, string(readContent))
+	}
+}
+
+func (t *StreamingWritesSuite) validateReadCall(fh *os.File, content string) {
+	readContent := make([]byte, len(content))
+	n, err := fh.Read(readContent)
+	// TODO(b/410698332): Fix validation once zb reads start working.
+	if setup.IsZonalBucketRun() && !t.fallbackToDiskCase {
+		operations.ValidateEOPNOTSUPPError(t.T(), err)
+	} else {
+		require.NoError(t.T(), err)
+		assert.Equal(t.T(), len(content), n)
+		assert.Equal(t.T(), content, string(readContent))
 	}
 }

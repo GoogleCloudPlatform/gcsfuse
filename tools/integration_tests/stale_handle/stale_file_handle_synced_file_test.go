@@ -65,7 +65,9 @@ func (s *staleFileHandleEmptyGcsFile) TestClobberedFileReadThrowsStaleFileHandle
 	err = WriteToObject(ctx, storageClient, path.Join(testDirName, s.fileName), FileContents, storage.Conditions{})
 
 	assert.NoError(s.T(), err)
-	operations.ValidateReadGivenThatFileIsClobbered(s.T(), s.f1, s.isStreamingWritesEnabled, s.data)
+	buffer := make([]byte, len(s.data))
+	_, err = s.f1.Read(buffer)
+	operations.ValidateESTALEError(s.T(), err)
 }
 
 func (s *staleFileHandleEmptyGcsFile) TestClobberedFileFirstWriteThrowsStaleFileHandleError() {

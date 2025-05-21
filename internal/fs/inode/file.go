@@ -543,9 +543,7 @@ func (f *FileInode) Read(
 	ctx context.Context,
 	dst []byte,
 	offset int64) (n int, err error) {
-	// It is not nil when streaming writes are enabled in 2 scenarios:
-	// 1. Local file
-	// 2. Empty GCS files and writes are triggered via buffered flow.
+	// It is not nil when streaming writes are enabled and bucket type is Zonal.
 	if f.bwh != nil {
 		err = fmt.Errorf("cannot read a file when upload in progress: %w", syscall.ENOTSUP)
 		return
@@ -623,7 +621,7 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
 		logger.Infof("Falling back to staged writes on disk for file %s (inode %d) due to err: %v.", f.Name(), f.ID(), err.Error())
 		// Finalize the object.
-		err = f.flushUsingBufferedWriteHandler()
+		err = f.FlushUsingBufferedWriteHandler()
 		if err != nil {
 			return fmt.Errorf("could not finalize what has been written so far: %w", err)
 		}
@@ -633,11 +631,14 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 	return err
 }
 
-// Helper function to flush buffered writes handler and update inode state with
-// new object.
+// FlushUsingBufferedWriteHandler flushes and finalizes any pending writes on the bwh
+// and updates inode state with new object. It is a no-op when bwh is nil.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) flushUsingBufferedWriteHandler() error {
+func (f *FileInode) FlushUsingBufferedWriteHandler() error {
+	if f.bwh == nil {
+		return nil
+	}
 	obj, err := f.bwh.Flush()
 	var preconditionErr *gcs.PreconditionError
 	if errors.As(err, &preconditionErr) {
@@ -653,8 +654,8 @@ func (f *FileInode) flushUsingBufferedWriteHandler() error {
 	return nil
 }
 
-// SyncPendingBufferedWrites flushes any pending writes on the bwh to GCS.
-// It is a no-op when bwh is nil.
+// SyncPendingBufferedWrites flushes any pending writes on the bwh to GCS
+// without finalizing object. It is a no-op when bwh is nil.
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) SyncPendingBufferedWrites() (gcsSynced bool, err error) {
@@ -879,7 +880,7 @@ func (f *FileInode) Flush(ctx context.Context) (err error) {
 	// Flush using the appropriate method based on whether we're using a
 	// buffered write handler.
 	if f.bwh != nil {
-		return f.flushUsingBufferedWriteHandler()
+		return f.FlushUsingBufferedWriteHandler()
 	}
 	return f.syncUsingContent(ctx)
 }
