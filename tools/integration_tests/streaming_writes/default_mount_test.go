@@ -19,8 +19,11 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/local_file"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_suite"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type defaultMountCommonTest struct {
@@ -46,4 +49,28 @@ func (t *defaultMountCommonTest) SetupSuite() {
 func (t *defaultMountCommonTest) TearDownSuite() {
 	setup.UnmountGCSFuse(rootDir)
 	setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
+}
+
+func (t *defaultMountCommonTest) validateReadFromSymlink(filePath, content string) {
+	readContent, err := os.ReadFile(filePath)
+	// TODO(b/410698332): Fix validation once zb reads start working.
+	if setup.IsZonalBucketRun() {
+		operations.ValidateEOPNOTSUPPError(t.T(), err)
+	} else {
+		require.NoError(t.T(), err)
+		assert.Equal(t.T(), content, string(readContent))
+	}
+}
+
+func (t *defaultMountCommonTest) validateReadCall(fh *os.File, content string) {
+	readContent := make([]byte, len(content))
+	n, err := fh.Read(readContent)
+	// TODO(b/410698332): Fix validation once zb reads start working.
+	if setup.IsZonalBucketRun() {
+		operations.ValidateEOPNOTSUPPError(t.T(), err)
+	} else {
+		require.NoError(t.T(), err)
+		assert.Equal(t.T(), len(content), n)
+		assert.Equal(t.T(), content, string(readContent))
+	}
 }

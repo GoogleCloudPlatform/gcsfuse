@@ -22,6 +22,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -1494,6 +1495,60 @@ func (t *FileTest) TestUnlinkLocalFile() {
 	_, _, err = t.bucket.StatObject(t.ctx, statReq)
 	require.Error(t.T(), err)
 	assert.Equal(t.T(), "gcs.NotFoundError: object test not found", err.Error())
+}
+
+func (t *FileTest) TestReadFileWhenStreamingWritesAreEnabled() {
+	tbl := []struct {
+		name         string
+		fileType     string
+		performWrite bool
+	}{
+		{
+			name:         "LocalFileWithWrite",
+			fileType:     LocalFile,
+			performWrite: true,
+		},
+		{
+			name:         "LocalFileWithOutWrite",
+			fileType:     LocalFile,
+			performWrite: false,
+		},
+		{
+			name:         "EmptyGCSFileWithWrite",
+			fileType:     EmptyGCSFile,
+			performWrite: true,
+		},
+	}
+	for _, tc := range tbl {
+		t.Run(tc.name, func() {
+			if tc.fileType == LocalFile {
+				// Create a local file inode.
+				t.createInodeWithLocalParam("test", true)
+				t.in.config = &cfg.Config{Write: *getWriteConfig()}
+				t.createBufferedWriteHandler(true)
+			}
+
+			if tc.fileType == EmptyGCSFile {
+				t.createInodeWithEmptyObject()
+				t.in.config = &cfg.Config{Write: *getWriteConfig()}
+			}
+
+			if tc.performWrite {
+				t.createBufferedWriteHandler(tc.fileType != LocalFile)
+				err := t.in.Write(t.ctx, []byte("hi"), 0)
+				assert.Nil(t.T(), err)
+				assert.Equal(t.T(), int64(2), t.in.bwh.WriteFileInfo().TotalSize)
+			}
+
+			data := make([]byte, 10)
+
+			n, err := t.in.Read(t.ctx, data, 0)
+
+			assert.Equal(t.T(), 0, n)
+			require.Error(t.T(), err)
+			assert.ErrorIs(t.T(), err, syscall.ENOTSUP)
+		})
+	}
 }
 
 func (t *FileTest) TestReadEmptyGCSFileWhenStreamingWritesAreNotInProgress() {

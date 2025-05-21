@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	iofs "io/fs"
+	"log"
 	"math"
 	"os"
 	"path"
@@ -1152,13 +1153,13 @@ func (fs *fileSystem) promoteToGenerationBacked(f *inode.FileInode) {
 }
 
 // Flushes the supplied file inode to GCS, updating the index as
-// appropriate.
+// appropriate. If flushForRead is true it only flushes streaming writes files for Regional buckets.
 //
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_REQUIRED(f)
 func (fs *fileSystem) flushFile(
 	ctx context.Context,
-	f *inode.FileInode) error {
+	f *inode.FileInode, flushForRead bool) error {
 	// FlushFile mirrors the behavior of native filesystems by not returning an error
 	// when file to be synced has been unlinked from the same mount.
 	if f.IsUnlinked() {
@@ -1166,7 +1167,17 @@ func (fs *fileSystem) flushFile(
 	}
 
 	// Flush the inode.
-	err := f.Flush(ctx)
+	var err error
+	// Do not flush for reads if bucket type is zonal.
+	if flushForRead && f.Bucket().BucketType().Zonal {
+		log.Println("Not flushing zonal bucket flush for read...")
+		return nil
+	}
+	if flushForRead {
+		err = f.FlushUsingBufferedWriteHandler()
+	} else {
+		err = f.Flush(ctx)
+	}
 	if err != nil {
 		err = fmt.Errorf("FileInode.Sync: %w", err)
 		// If the inode was local file inode, treat it as unlinked.
@@ -2103,9 +2114,7 @@ func (fs *fileSystem) Rename(
 // LOCKS_EXCLUDED(oldParent)
 // LOCKS_EXCLUDED(newParent)
 func (fs *fileSystem) renameFile(ctx context.Context, op *fuseops.RenameOp, oldObject *inode.FileInode, oldParent, newParent inode.DirInode) error {
-	oldObject.Lock()
 	updatedMinObject, err := fs.flushPendingWrites(ctx, oldObject)
-	oldObject.Unlock()
 
 	if err != nil {
 		return fmt.Errorf("flushPendingWrites: %w", err)
@@ -2116,16 +2125,18 @@ func (fs *fileSystem) renameFile(ctx context.Context, op *fuseops.RenameOp, oldO
 	return fs.renameNonHierarchicalFile(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)
 }
 
-// LOCKS_REQUIRED(fileInode.mu)
+// LOCKS_EXCLUDED(fileInode.mu)
 func (fs *fileSystem) flushPendingWrites(ctx context.Context, fileInode *inode.FileInode) (minObject *gcs.MinObject, err error) {
 	// We will return modified minObject if flush is done, otherwise the original
 	// minObject is returned. Original minObject is the one passed in the request.
+	fileInode.Lock()
+	defer fileInode.Unlock()
 	minObject = fileInode.Source()
 	if !fs.newConfig.Write.EnableStreamingWrites {
 		return
 	}
 	// Try to flush if there are any pending writes.
-	err = fs.flushFile(ctx, fileInode)
+	err = fs.flushFile(ctx, fileInode, false)
 	minObject = fileInode.Source()
 	return
 }
@@ -2598,8 +2609,8 @@ func (fs *fileSystem) ReadFile(
 	fh.Lock()
 	fh.Inode().Lock()
 	defer fh.Unlock()
-	// Flush Pending writes for streaming writes file and issue read within same inode lock.
-	_, err = fs.flushPendingWrites(ctx, fh.Inode())
+	// Flush Pending streaming writes file and issue read within same inode lock.
+	err = fs.flushFile(ctx, fh.Inode(), true)
 	if err != nil {
 		fh.Inode().Unlock()
 		return err
@@ -2715,7 +2726,7 @@ func (fs *fileSystem) FlushFile(
 	defer in.Unlock()
 
 	// Sync it.
-	if err := fs.flushFile(ctx, in); err != nil {
+	if err := fs.flushFile(ctx, in, false); err != nil {
 		return err
 	}
 

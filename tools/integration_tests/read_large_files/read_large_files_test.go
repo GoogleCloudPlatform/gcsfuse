@@ -87,7 +87,7 @@ func TestMain(m *testing.M) {
 	defer storageClient.Close()
 	cacheDir = "cache-dir-read-large-files-hns-" + strconv.FormatBool(setup.IsHierarchicalBucket(ctx, storageClient))
 
-	flags := [][]string{{"--implicit-dirs"}, {"--implicit-dirs", "--enable-streaming-writes=true"}}
+	flags := [][]string{{"--implicit-dirs"}}
 	mountConfigFlags := createMountConfigsAndEquivalentFlags()
 	flags = append(flags, mountConfigFlags...)
 	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flags, "", "--client-protocol=grpc")
