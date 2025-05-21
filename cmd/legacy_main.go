@@ -20,8 +20,10 @@
 package cmd
 
 import (
+	"crypto/rand"
 	"fmt"
 	"io/fs"
+	"math/big"
 	"os"
 	"os/signal"
 	"path"
@@ -87,13 +89,24 @@ func registerTerminatingSignalHandler(mountPoint string, c *cfg.Config) {
 
 func getUserAgent(appName string, config string) string {
 	gcsfuseMetadataImageType := os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE")
+	mountId := getUniqueMountID()
 	if len(gcsfuseMetadataImageType) > 0 {
-		userAgent := fmt.Sprintf("gcsfuse/%s %s (GPN:gcsfuse-%s) (Cfg:%s)", common.GetVersion(), appName, gcsfuseMetadataImageType, config)
+		userAgent := fmt.Sprintf("gcsfuse/%s %s (GPN:gcsfuse-%s) (Cfg:%s) (Id:%s)", common.GetVersion(), appName, gcsfuseMetadataImageType, config, mountId)
 		return strings.Join(strings.Fields(userAgent), " ")
 	} else if len(appName) > 0 {
-		return fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-%s) (Cfg:%s)", common.GetVersion(), appName, config)
+		return fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-%s) (Cfg:%s) (Id:%s)", common.GetVersion(), appName, config, mountId)
 	} else {
-		return fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse) (Cfg:%s)", common.GetVersion(), config)
+		return fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse) (Cfg:%s) (Id:%s)", common.GetVersion(), config, mountId)
+	}
+}
+
+func getUniqueMountID() string {
+	n, err := rand.Int(rand.Reader, big.NewInt(1000000))
+	if err != nil {
+		logger.Infof("Failed to generate an Unique MountID, Defaulting to 0000000. Error: %v", err)
+		return "000000"
+	} else {
+		return fmt.Sprintf("%06d", n.Int64())
 	}
 }
 
