@@ -638,14 +638,11 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 	return err
 }
 
-// flushUsingBufferedWriteHandler flushes and finalizes any pending writes on the bwh
-// and updates inode state with new object. It is a no-op when bwh is nil.
+// Helper function to flush buffered writes handler and update inode state with
+// new object.
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) flushUsingBufferedWriteHandler() error {
-	if f.bwh == nil {
-		return nil
-	}
 	obj, err := f.bwh.Flush()
 	var preconditionErr *gcs.PreconditionError
 	if errors.As(err, &preconditionErr) {
@@ -661,8 +658,8 @@ func (f *FileInode) flushUsingBufferedWriteHandler() error {
 	return nil
 }
 
-// SyncPendingBufferedWrites flushes any pending writes on the bwh to GCS
-// without finalizing object. It is a no-op when bwh is nil.
+// SyncPendingBufferedWrites flushes any pending writes on the bwh to GCS.
+// It is a no-op when bwh is nil.
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) SyncPendingBufferedWrites() (gcsSynced bool, err error) {
