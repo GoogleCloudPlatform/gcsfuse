@@ -531,13 +531,13 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("profiling-allocated-heap", "", true, "To enable/disable the allocated heap (HeapProfileAllocs) profiling. Only work when profiling is enabled.")
+	flagSet.BoolP("profiling-allocated-heap", "", true, "Enables allocated heap (HeapProfileAllocs) profiling. This only works when --enable-cloud-profiling is set to true.")
 
 	if err := flagSet.MarkHidden("profiling-allocated-heap"); err != nil {
 		return err
 	}
 
-	flagSet.BoolP("profiling-cpu", "", true, "To enable/disable the CPU profiling. Only work when profiling is enabled.")
+	flagSet.BoolP("profiling-cpu", "", true, "Enables cpu profiling. This only works when --enable-cloud-profiling is set to true.")
 
 	if err := flagSet.MarkHidden("profiling-cpu"); err != nil {
 		return err

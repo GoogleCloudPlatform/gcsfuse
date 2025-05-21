@@ -657,14 +657,14 @@
 - config-path: "profiling.allocated-heap"
   flag-name: "profiling-allocated-heap"
   type: "bool"
-  usage: "To enable/disable the allocated heap (HeapProfileAllocs) profiling. Only work when profiling is enabled."
+  usage: "Enables allocated heap (HeapProfileAllocs) profiling. This only works when --enable-cloud-profiling is set to true."
   default: true
   hide-flag: true
 
 - config-path: "profiling.cpu"
   flag-name: "profiling-cpu"
   type: "bool"
-  usage: "To enable/disable the CPU profiling. Only work when profiling is enabled."
+  usage: "Enables cpu profiling. This only works when --enable-cloud-profiling is set to true."
   default: true
   hide-flag: true
 
