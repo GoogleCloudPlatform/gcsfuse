@@ -2594,8 +2594,8 @@ func (fs *fileSystem) ReadFile(
 	fh := fs.handles[op.Handle].(*handle.FileHandle)
 	fs.mu.Unlock()
 
-	fh.Lock()
-	defer fh.Unlock()
+	// fh.Lock()
+	// defer fh.Unlock()
 
 	// Serve the read.
 	op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)

@@ -137,6 +137,10 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 		fh.inode.Unlock()
 
 		var objectData gcsx.ObjectData
+		if fh.reader.ReadType() == util.Sequential {
+			fh.mu.Lock()
+			defer fh.mu.Unlock()
+		}
 		objectData, err = fh.reader.ReadAt(ctx, dst, offset)
 		switch {
 		case errors.Is(err, io.EOF):
