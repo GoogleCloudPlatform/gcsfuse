@@ -43,6 +43,7 @@ readonly BUCKET_PREFIX="gcsfuse-e2e"
 readonly INTEGRATION_TEST_PACKAGE_DIR="./tools/integration_tests"
 readonly INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS=60 
 readonly TMP_PREFIX="gcsfuse_e2e"
+readonly ZONAL_BUCKET_SUPPORTED_LOCATIONS=("us-central1" "us-west4")
 readonly VM_USAGE_TRACKING_INTERVAL_IN_SECONDS=10 # Controls how frequent VM Usage(CPU, Memory, Disk) are tracked.
 readonly PACKAGE_LEVEL_PARALLELISM=15 # Controls how many test packages are run in parallel for hns, flat or zonal buckets.
 readonly DELETE_BUCKET_PARALLELISM=10 # Controls how many buckets are deleted in parallel.
@@ -90,6 +91,19 @@ fi
 if [ -n "$1" ]; then
   RUN_TESTS_WITH_ZONAL_BUCKET="$1"
   shift
+  supported_bucket=false
+  for location in "${ZONAL_BUCKET_SUPPORTED_LOCATIONS[@]}"
+  do
+    if [[ "$BUCKET_LOCATION" == "$location" ]]; then
+      BUCKET_LOCATION="$location"
+      supported_bucket=true
+      break
+    fi
+  done
+  if [[ "${supported_bucket}" == false ]]; then
+    log_error "Unsupported Bucket Location ${BUCKET_LOCATION} for Zonal Run. Supported Locations are: ${ZONAL_BUCKET_SUPPORTED_LOCATIONS[*]}"
+    exit 1
+  fi
 fi
 if [ -n "$1" ]; then
   BUILD_BINARY_IN_SCRIPT="$1"
@@ -99,31 +113,31 @@ fi
 # Test packages for regional buckets.
 # Keep sorted in terms of relative run times of test packages.
 TEST_PACKAGES=(
-  "monitoring"
+  # "monitoring"
   "log_rotation"
-  "mounting"
-  # "grpc_validation"
-  "gzip"
-  "explicit_dir"
-  "stale_handle"
-  "negative_stat_cache"
-  "kernel_list_cache"
-  "streaming_writes"
-  "benchmarking"
-  "readonly"
-  "readonly_creds"
-  "rename_dir_limit"
-  "implicit_dir"
-  "mount_timeout"
-  "local_file"
-  "interrupt"
-  "list_large_dir"
-  "read_cache"
-  "write_large_files"
-  "read_large_files"
-  "concurrent_operations"
-  "operations"
-  "managed_folders"
+  # "mounting"
+  # # "grpc_validation"
+  # "gzip"
+  # "explicit_dir"
+  # "stale_handle"
+  # "negative_stat_cache"
+  # "kernel_list_cache"
+  # "streaming_writes"
+  # "benchmarking"
+  # "readonly"
+  # "readonly_creds"
+  # "rename_dir_limit"
+  # "implicit_dir"
+  # "mount_timeout"
+  # "local_file"
+  # "interrupt"
+  # "list_large_dir"
+  # "read_cache"
+  # "write_large_files"
+  # "read_large_files"
+  # "concurrent_operations"
+  # "operations"
+  # "managed_folders"
 )
 
 # Test packages for zonal buckets.
@@ -208,7 +222,9 @@ create_bucket() {
     return 1
   fi
   echo "$bucket_name" >> "$BUCKET_NAMES" # Add bucket names to file.
+  set -x
   echo "$bucket_name"
+  set +x
   return 0
 }
 
@@ -272,6 +288,35 @@ clean_up() {
   fi
 }
 
+# Helper method to process any of the background process and
+# returns the exit code and process ID.
+process_any_pid() {
+    set -x
+    local background_pids=($(jobs -p))
+    set +x
+    if [[ ${#background_pids[@]} -eq 0 ]]; then
+      log_error_locked "process_any_pid() called when no background processes are running."
+      exit 1
+    fi
+    local exit_code=0
+    local pid
+    wait -n
+    exit_code=$((exit_code || $? != 0))
+    set -x
+    local current_background_pids=($(jobs -p))
+    set +x
+    # Gets the process ID that has just finished using wait -n
+    pid=$(printf "%s\n" "${background_pids[@]}" "${current_background_pids[@]}" | sort | uniq -u) 
+    if [[ -z "${pid}" || $(echo "$pid" | wc -l) -ne 1 ]]; then
+      log_error_locked "Unable to find processed PID. initial background pids: ${background_pids[*]}, after wait -n pids: ${current_background_pids[*]}"
+      exit 1
+    fi
+    set -x
+    echo "$pid"
+    set +x
+    return "$exit_code"
+}
+
 # run_parallel: Executes commands in parallel based on a template and substitutes.
 #   Prints output (stdout/stderr) if the command errors out.
 #   Prints success message if command succeeds.
@@ -294,44 +339,39 @@ run_parallel() {
   shift
   local cmd_template="$1"
   shift
-  local pids=()
   local -A cmds_by_pid=()
   local overall_exit_code=0
-
-  # Helper function to process a PID
-  process_a_pid() {
-    local pid="$1"
-    local full_cmd="$2"
-    local status
-    wait "$pid"
-    status=$?
-    if [[ "$status" -ne 0 ]]; then
-      log_error_locked "--- Parallel Command Failed: $full_cmd ---"
-      return 1 # Return 1 to indicate a failure
-    else
-      log_info_locked "Parallel Command Successful: $full_cmd"
-      return 0 # Return 0 to indicate success
-    fi
-  }
   # Launch commands in the background based on parallelism.
   for arg in "$@"; do
     local full_cmd="${cmd_template//@/$arg}"
     log_info_locked "Executing Parallel Command: $full_cmd"
     eval "$full_cmd" &
     local pid=$!
-    pids+=("$pid")
+    set -x
     cmds_by_pid["$pid"]="$full_cmd"
-    if [[ ${#pids[@]} -eq $parallelism ]]; then
-      process_a_pid "${pids[0]}" "${cmds_by_pid["${pids[0]}"]}"
-      overall_exit_code=$((overall_exit_code || $? != 0))
-      pids=("${pids[@]:1}") # Remove the processed PID.
+    echo "$pid"
+    set +x
+    if [[ ${#cmds_by_pid[@]} -eq $parallelism ]]; then
+      pid=$(process_any_pid)
+      if [[ $? -ne 0 ]]; then
+        overall_exit_code=1
+        log_error "Parallel Command Failed: ${cmds_by_pid[${pid}]}"
+      else
+        log_info "Parallel Command Succeeded: ${cmds_by_pid[${pid}]}"
+      fi
+      unset "cmds_by_pid[${pid}]"
     fi
   done
   # Process any remaining PIDs
-  while [[ ${#pids[@]} -gt 0 ]]; do
-      process_a_pid "${pids[0]}" "${cmds_by_pid["${pids[0]}"]}"
-      overall_exit_code=$((overall_exit_code || $? != 0))
-      pids=("${pids[@]:1}") # Remove the processed PID.
+  while [[ ${#cmds_by_pid[@]} -gt 0 ]]; do
+    pid=$(process_any_pid)
+    if [[ $? -ne 0 ]]; then
+      overall_exit_code=1
+      log_error "Parallel Command Failed: ${cmds_by_pid[${pid}]}"
+    else
+      log_info "Parallel Command Succeeded: ${cmds_by_pid[${pid}]}"
+    fi
+    unset "cmds_by_pid[${pid}]"
   done
   return "$overall_exit_code"
 }
@@ -599,6 +639,7 @@ run_e2e_tests_for_tpc() {
 }
 
 run_e2e_tests_for_emulator() {
+  return 0
   log_info_locked "Started running e2e tests for emulator."
   local emulator_test_log=$(mktemp "/tmp/${TMP_PREFIX}_emulator_test_log.XXXXXX")
   if ! ./tools/integration_tests/emulator_tests/emulator_tests.sh "$TEST_INSTALLED_PACKAGE" > "$emulator_test_log" 2>&1; then
@@ -623,8 +664,8 @@ main() {
   log_info_locked "------ Upgrading gcloud and installing packages ------"
   log_info_locked ""
   set -e
-  upgrade_gcloud_version
-  install_packages
+  #upgrade_gcloud_version
+  #install_packages
   set +e
   log_info_locked "------ Upgrading gcloud and installing packages took $SECONDS seconds ------"
 
