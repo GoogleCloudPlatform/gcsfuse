@@ -41,7 +41,6 @@ import (
 
 const (
 	MiB                    = 1024 * 1024
-	testObject             = "testObject"
 	sequentialReadSizeInMb = 22
 	cacheMaxSize           = 2 * sequentialReadSizeInMb * MiB
 )
@@ -60,7 +59,7 @@ func TestReadManagerTestSuite(t *testing.T) {
 
 func (t *readManagerTest) SetupTest() {
 	t.object = &gcs.MinObject{
-		Name:       testObject,
+		Name:       "testObject",
 		Size:       17,
 		Generation: 1234,
 	}
@@ -85,26 +84,32 @@ func (t *readManagerTest) Test_ReadAt_EmptyRead() {
 	readerResponse, err := t.readManager.ReadAt(t.ctx, buf, 0)
 
 	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), 0, readerResponse.Size)
+	assert.Zero(t.T(), readerResponse.Size)
 }
 
-func (t *readManagerTest) Test_ReadAt_ReadAtEndOfObject() {
-	buf := make([]byte, 1)
-	t.mockBucket.On("Name").Return("test-bucket")
+func (t *readManagerTest) Test_ReadAt_InvalidOffset() {
+	tests := []struct {
+		name   string
+		offset int64
+	}{
+		{
+			name:   "ReadAtEndOfObject",
+			offset: int64(t.object.Size),
+		},
+		{
+			name:   "ReadPastEndOfObject",
+			offset: int64(t.object.Size) + 1,
+		},
+	}
 
-	readerResponse, err := t.readManager.ReadAt(t.ctx, buf, int64(t.object.Size))
+	for _, tc := range tests {
+		t.Run(tc.name, func() {
+			readerResponse, err := t.readManager.ReadAt(t.ctx, make([]byte, 1), tc.offset)
 
-	assert.Equal(t.T(), 0, readerResponse.Size)
-	assert.True(t.T(), errors.Is(err, io.EOF), "expected %v error got %v", io.EOF, err)
-}
-
-func (t *readManagerTest) Test_ReadAt_ReadPastEndOfObject() {
-	buf := make([]byte, 1)
-
-	readerResponse, err := t.readManager.ReadAt(t.ctx, buf, int64(t.object.Size)+1)
-
-	assert.Equal(t.T(), 0, readerResponse.Size)
-	assert.True(t.T(), errors.Is(err, io.EOF), "expected %v error got %v", io.EOF, err)
+			assert.Zero(t.T(), readerResponse.Size)
+			assert.True(t.T(), errors.Is(err, io.EOF), "expected %v error got %v", io.EOF, err)
+		})
+	}
 }
 
 func (t *readManagerTest) Test_ReadAt_NoExistingReader() {
@@ -120,23 +125,23 @@ func (t *readManagerTest) Test_ReadAt_NoExistingReader() {
 	t.mockBucket.AssertExpectations(t.T())
 }
 
-func (t *readManagerTest) Test_ReadAt_ReaderFails() {
+func (t *readManagerTest) Test_ReadAt_ReaderFailsWithTimeout() {
+	t.readManager = NewReadManager(t.object, t.mockBucket, sequentialReadSizeInMb, nil, false, common.NewNoopMetrics(), nil)
 	r := iotest.OneByteReader(iotest.TimeoutReader(strings.NewReader("xxx")))
 	rc := &fake.FakeReader{ReadCloser: io.NopCloser(r)}
-	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(rc, nil)
+	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(rc, nil).Once()
 	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(1)
-	t.mockBucket.On("Name").Return("test-bucket")
 	buf := make([]byte, 3)
 
 	_, err := t.readManager.ReadAt(t.ctx, buf, 0)
 
 	assert.Error(t.T(), err)
+	assert.Contains(t.T(), err.Error(), "timeout")
 	t.mockBucket.AssertExpectations(t.T())
 }
 
-func (t *readManagerTest) Test_ReadAt__FileClobbered() {
-	var notFoundError *gcs.NotFoundError
-	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(nil, notFoundError)
+func (t *readManagerTest) Test_ReadAt_FileClobbered() {
+	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(nil, &gcs.NotFoundError{})
 	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(1)
 	t.mockBucket.On("Name").Return("test-bucket")
 	buf := make([]byte, 3)

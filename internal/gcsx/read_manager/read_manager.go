@@ -74,7 +74,6 @@ func (rr *ReadManager) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx
 	for _, r := range rr.readers {
 		readerResponse, err = r.ReadAt(ctx, p, offset)
 		if err == nil {
-			// Successfully read from a reader, return the result.
 			return readerResponse, nil
 		}
 		if !errors.Is(err, gcsx.FallbackToAnotherReader) {
