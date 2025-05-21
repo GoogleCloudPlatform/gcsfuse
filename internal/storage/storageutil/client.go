@@ -16,13 +16,11 @@ package storageutil
 
 import (
 	"crypto/tls"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	"cloud.google.com/go/auth"
-	"cloud.google.com/go/auth/oauth2adapt"
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	auth2 "github.com/googlecloudplatform/gcsfuse/v2/internal/auth"
 	"golang.org/x/net/context"
@@ -61,7 +59,7 @@ type StorageClientConfig struct {
 	ReadStallRetryConfig cfg.ReadStallGcsRetriesConfig
 }
 
-func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *http.Client, err error) {
+func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.TokenSource) (httpClient *http.Client, err error) {
 	var transport *http.Transport
 	// Using http1 makes the client more performant.
 	if storageClientConfig.ClientProtocol == cfg.HTTP1 {
@@ -96,17 +94,6 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 			Timeout: storageClientConfig.HttpClientTimeout,
 		}
 	} else {
-		var tokenSrc oauth2.TokenSource
-		var cred *auth.Credentials
-		cred, tokenSrc, err = CreateCredentialsOrTokenSource(storageClientConfig)
-		if err != nil {
-			err = fmt.Errorf("while fetching tokenSource: %w", err)
-			return
-		}
-		if cred != nil {
-			tokenSrc = oauth2adapt.TokenSourceFromTokenProvider(cred.TokenProvider)
-		}
-
 		// Custom http client for Go Client.
 		httpClient = &http.Client{
 			Transport: &oauth2.Transport{

@@ -104,15 +104,15 @@ func createClientOptionForGRPCClient(clientConfig *storageutil.StorageClientConf
 			return
 		}
 		if cred != nil {
-			tokenSrc = oauth2adapt.TokenSourceFromTokenProvider(cred.TokenProvider)
 			var domain string
 			domain, err = cred.UniverseDomain(context.Background())
 			if err != nil {
 				return nil, fmt.Errorf("failed to get UniverseDomain: %v", err)
 			}
-			clientOpts = append(clientOpts, option.WithUniverseDomain(domain))
+			clientOpts = append(clientOpts, option.WithUniverseDomain(domain), option.WithAuthCredentials(cred))
+		} else {
+			clientOpts = append(clientOpts, option.WithTokenSource(tokenSrc))
 		}
-		clientOpts = append(clientOpts, option.WithTokenSource(tokenSrc))
 	}
 
 	if enableBidiConfig {
@@ -184,23 +184,13 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 
 func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig) (sc *storage.Client, err error) {
 	var clientOpts []option.ClientOption
-
-	// Add WithHttpClient option.
-	var httpClient *http.Client
-	httpClient, err = storageutil.CreateHttpClient(clientConfig)
-	if err != nil {
-		err = fmt.Errorf("while creating http endpoint: %w", err)
-		return
-	}
-
-	clientOpts = append(clientOpts, option.WithHTTPClient(httpClient))
-
 	if clientConfig.AnonymousAccess {
 		clientOpts = append(clientOpts, option.WithoutAuthentication())
 	}
 
+	var tokenSrc oauth2.TokenSource
 	var cred *auth.Credentials
-	cred, _, err = storageutil.CreateCredentialsOrTokenSource(clientConfig)
+	cred, tokenSrc, err = storageutil.CreateCredentialsOrTokenSource(clientConfig)
 	if err != nil {
 		err = fmt.Errorf("while fetching tokenSource: %w", err)
 		return
@@ -211,8 +201,19 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		if err != nil {
 			return nil, fmt.Errorf("failed to get UniverseDomain: %v", err)
 		}
-		clientOpts = append(clientOpts, option.WithUniverseDomain(domain))
+		clientOpts = append(clientOpts, option.WithUniverseDomain(domain), option.WithAuthCredentials(cred))
+		tokenSrc = oauth2adapt.TokenSourceFromTokenProvider(cred.TokenProvider)
 	}
+
+	// Add WithHttpClient option.
+	var httpClient *http.Client
+	httpClient, err = storageutil.CreateHttpClient(clientConfig, tokenSrc)
+	if err != nil {
+		err = fmt.Errorf("while creating http endpoint: %w", err)
+		return
+	}
+
+	clientOpts = append(clientOpts, option.WithHTTPClient(httpClient))
 
 	// Create client with JSON read flow, if EnableJasonRead flag is set.
 	if clientConfig.ExperimentalEnableJsonRead {
