@@ -24,20 +24,20 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type defaultMountEmptyGCSFile struct {
+type streamingWritesEmptyGCSFileTestSuite struct {
 	StreamingWritesSuite
 	suite.Suite
 }
 
-func (t *defaultMountEmptyGCSFile) SetupTest() {
+func (t *streamingWritesEmptyGCSFileTestSuite) SetupTest() {
 	t.createEmptyGCSFile()
 }
 
-func (t *defaultMountEmptyGCSFile) SetupSubTest() {
+func (t *streamingWritesEmptyGCSFileTestSuite) SetupSubTest() {
 	t.createEmptyGCSFile()
 }
 
-func (t *defaultMountEmptyGCSFile) createEmptyGCSFile() {
+func (t *streamingWritesEmptyGCSFileTestSuite) createEmptyGCSFile() {
 	t.fileName = FileName1 + setup.GenerateRandomString(5)
 	// Create an empty file on GCS.
 	CreateObjectInGCSTestDir(ctx, storageClient, testDirName, t.fileName, "", t.T())
@@ -48,7 +48,7 @@ func (t *defaultMountEmptyGCSFile) createEmptyGCSFile() {
 
 // Executes all tests that run with single streamingWrites configuration for empty GCS Files.
 func TestDefaultMountEmptyGCSFileTest(t *testing.T) {
-	s := new(defaultMountEmptyGCSFile)
+	s := new(streamingWritesEmptyGCSFileTestSuite)
 	s.StreamingWritesSuite.TestifySuite = &s.Suite
 	suite.Run(t, s)
 }

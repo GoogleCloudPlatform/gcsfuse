@@ -16,9 +16,9 @@ package streaming_writes
 
 import (
 	"os"
+	"slices"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
-	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/local_file"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_suite"
@@ -30,16 +30,16 @@ type StreamingWritesSuite struct {
 	f1       *os.File
 	fileName string
 	// filePath of the above file in the mounted directory.
-	filePath string
-	data     string
+	filePath           string
+	data               string
+	fallbackToDiskCase bool
 	test_suite.TestifySuite
 }
 
 func (t *StreamingWritesSuite) SetupSuite() {
-	// TODO(mohitkyadav): Make these part of test suite after refactoring.
-	SetCtx(ctx)
-	SetStorageClient(storageClient)
-	SetTestDirName(testDirName)
+	if slices.Contains(flags, "--write-global-max-blocks=0") {
+		t.fallbackToDiskCase = true
+	}
 
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 	testDirPath = setup.SetupTestDirectory(testDirName)
@@ -54,7 +54,7 @@ func (t *StreamingWritesSuite) TearDownSuite() {
 func (t *StreamingWritesSuite) validateReadFromSymlink(filePath, content string) {
 	readContent, err := os.ReadFile(filePath)
 	// TODO(b/410698332): Fix validation once zb reads start working.
-	if setup.IsZonalBucketRun() {
+	if setup.IsZonalBucketRun() && !t.fallbackToDiskCase {
 		operations.ValidateEOPNOTSUPPError(t.T(), err)
 	} else {
 		require.NoError(t.T(), err)
@@ -66,7 +66,7 @@ func (t *StreamingWritesSuite) validateReadCall(fh *os.File, content string) {
 	readContent := make([]byte, len(content))
 	n, err := fh.Read(readContent)
 	// TODO(b/410698332): Fix validation once zb reads start working.
-	if setup.IsZonalBucketRun() {
+	if setup.IsZonalBucketRun() && !t.fallbackToDiskCase {
 		operations.ValidateEOPNOTSUPPError(t.T(), err)
 	} else {
 		require.NoError(t.T(), err)
