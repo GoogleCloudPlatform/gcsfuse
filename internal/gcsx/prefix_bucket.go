@@ -134,7 +134,12 @@ func (b *prefixBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gcs
 }
 
 func (b *prefixBucket) FlushPendingWrites(ctx context.Context, w gcs.Writer) (o *gcs.MinObject, err error) {
-	return b.wrapped.FlushPendingWrites(ctx, w)
+	o, err = b.wrapped.FlushPendingWrites(ctx, w)
+	// Modify the returned object.
+	if o != nil {
+		o.Name = b.localName(o.Name)
+	}
+	return
 }
 
 func (b *prefixBucket) CopyObject(
