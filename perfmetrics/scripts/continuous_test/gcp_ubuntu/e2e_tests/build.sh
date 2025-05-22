@@ -51,7 +51,6 @@ git checkout $commitId
 
 # Get bash version 5.1, existing VM images have outdated bash version.
 install_bash() {
-  set -e
   wget -q https://ftp.gnu.org/gnu/bash/bash-5.1.tar.gz
   tar -xzf "bash-5.1.tar.gz"
   cd bash-5.1
