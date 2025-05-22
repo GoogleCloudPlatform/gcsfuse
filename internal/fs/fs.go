@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"io"
 	iofs "io/fs"
 	"math"
@@ -2517,6 +2518,64 @@ func (fs *fileSystem) ReadDir(
 	defer dh.Mu.Unlock()
 	// Serve the request.
 	if err := dh.ReadDir(ctx, op, localFileEntries); err != nil {
+		return err
+	}
+
+	return
+}
+
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *fileSystem) ReadDirPlus(
+	ctx context.Context,
+	op *fuseops.ReadDirPlusOp) (err error) {
+	if fs.newConfig.FileSystem.IgnoreInterrupts {
+		// When ignore interrupts config is set, we are creating a new context not
+		// cancellable by parent context.
+		var cancel context.CancelFunc
+		ctx, cancel = util.IsolateContextFromParentContext(ctx)
+		defer cancel()
+	}
+	// Find the handle.
+	fs.mu.Lock()
+	dh := fs.handles[op.Handle].(*handle.DirHandle)
+	fs.mu.Unlock()
+
+	dh.Mu.Lock()
+	defer dh.Mu.Unlock()
+	// Serve the request.
+
+	var cores map[inode.Name]*inode.Core
+	cores, err = dh.ReadDirPlusHelper(ctx, op)
+
+	var child inode.Inode
+	var attributes fuseops.InodeAttributes
+	var expiration time.Time
+	var entriesPlus []fuseutil.DirentPlus
+	for fullName, core := range cores {
+		child = fs.lookUpOrCreateInodeIfNotStale(*core)
+		attributes, expiration, err = fs.getAttributes(ctx, child)
+		childInodeEntry := fuseops.ChildInodeEntry{
+			Child:                child.ID(),
+			Attributes:           attributes, // Assuming you have attributes available
+			AttributesExpiration: expiration, // And expiration
+		}
+		entry := fuseutil.DirentPlus{
+			Name:  path.Base(fullName.LocalName()),
+			Type:  fuseutil.DT_Unknown,
+			Entry: childInodeEntry,
+		}
+		switch core.Type() {
+		case metadata.SymlinkType:
+			entry.Type = fuseutil.DT_Link
+		case metadata.RegularFileType:
+			entry.Type = fuseutil.DT_File
+		case metadata.ImplicitDirType, metadata.ExplicitDirType:
+			entry.Type = fuseutil.DT_Directory
+		}
+		entriesPlus = append(entriesPlus, entry)
+	}
+
+	if err := dh.ReadDirPlus(op, entriesPlus); err != nil {
 		return err
 	}
 

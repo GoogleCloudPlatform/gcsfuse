@@ -91,6 +91,10 @@ type DirInode interface {
 		ctx context.Context,
 		tok string) (entries []fuseutil.Dirent, newTok string, err error)
 
+	ReadEntriesPlus(
+		ctx context.Context,
+		tok string) (cores map[Name]*Core, newTok string, err error)
+
 	// Create an empty child file with the supplied (relative) name, failing with
 	// *gcs.PreconditionError if a backing object already exists in GCS.
 	// Return the full name of the child and the GCS object it backs up.
@@ -795,6 +799,20 @@ func (d *dirInode) ReadEntries(
 			entry.Type = fuseutil.DT_Directory
 		}
 		entries = append(entries, entry)
+	}
+
+	d.prevDirListingTimeStamp = d.cacheClock.Now()
+	return
+}
+
+func (d *dirInode) ReadEntriesPlus(
+	ctx context.Context,
+	tok string) (cores map[Name]*Core, newTok string, err error) {
+
+	cores, newTok, err = d.readObjects(ctx, tok)
+	if err != nil {
+		err = fmt.Errorf("read objects: %w", err)
+		return
 	}
 
 	d.prevDirListingTimeStamp = d.cacheClock.Now()

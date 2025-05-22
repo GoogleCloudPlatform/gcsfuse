@@ -46,7 +46,8 @@ type DirHandle struct {
 	// INVARIANT: For each i, entries[i+1].Offset == entries[i].Offset + 1
 	//
 	// GUARDED_BY(Mu)
-	entries []fuseutil.Dirent
+	entries     []fuseutil.Dirent
+	entriesPlus []fuseutil.DirentPlus
 
 	// Has entries yet been populated?
 	//
@@ -239,6 +240,41 @@ func readAllEntries(
 	return
 }
 
+// Read all entries for the directory, fix up conflicting names, and fill in
+// offset fields.
+//
+// LOCKS_REQUIRED(in)
+func readAllEntriesPlus(
+	ctx context.Context,
+	in inode.DirInode) (cores map[inode.Name]*inode.Core, err error) {
+	// Read entries from GCS.
+	// Read one batch at a time.
+	var tok string
+	cores = make(map[inode.Name]*inode.Core)
+	for {
+		// Read a batch from GCS
+		var batch map[inode.Name]*inode.Core
+
+		batch, tok, err = in.ReadEntriesPlus(ctx, tok)
+		if err != nil {
+			err = fmt.Errorf("ReadEntriesPlus: %w", err)
+			return
+		}
+
+		// Accumulate.
+		for name, core := range batch {
+			cores[name] = core
+		}
+
+		// Are we done?
+		if tok == "" {
+			break
+		}
+	}
+
+	return
+}
+
 // LOCKS_REQUIRED(dh.Mu)
 // LOCKS_EXCLUDED(dh.in)
 func (dh *DirHandle) ensureEntries(ctx context.Context, localFileEntries map[string]fuseutil.Dirent) (err error) {
@@ -308,6 +344,59 @@ func (dh *DirHandle) ReadDir(
 
 		op.BytesRead += n
 	}
+
+	return
+}
+
+// LOCKS_REQUIRED(dh.Mu)
+// LOCKS_EXCLUDED(dh.in)
+func (dh *DirHandle) ReadDirPlusHelper(
+	ctx context.Context,
+	op *fuseops.ReadDirPlusOp) (cores map[inode.Name]*inode.Core, err error) {
+
+	if op.Offset == 0 {
+		dh.entriesPlus = nil
+		dh.entriesValid = false
+	}
+
+	if !dh.entriesValid {
+		dh.in.Lock()
+		defer dh.in.Unlock()
+
+		// Read entries.
+		cores, err = readAllEntriesPlus(ctx, dh.in)
+		if err != nil {
+			err = fmt.Errorf("readAllEntriesPlus: %w", err)
+			return
+		}
+	}
+
+	return
+}
+
+func (dh *DirHandle) ReadDirPlus(
+	op *fuseops.ReadDirPlusOp,
+	entriesPlus []fuseutil.DirentPlus) (err error) {
+
+	for i := 0; i < len(entriesPlus); i++ {
+		entriesPlus[i].Offset = fuseops.DirOffset(i) + 1
+	}
+
+	for i := range entriesPlus {
+		entriesPlus[i].Inode = fuseops.RootInodeID + 1
+	}
+
+	dh.entriesPlus = entriesPlus
+	dh.entriesValid = true
+	// Is the offset past the end of what we have buffered? If so, this must be
+	// an invalid seekdir according to posix.
+	index := int(op.Offset)
+	if index > len(dh.entriesPlus) {
+		err = fuse.EINVAL
+		return
+	}
+
+	//TODO WriteDirentPlus
 
 	return
 }
