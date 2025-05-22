@@ -115,6 +115,7 @@ fi
 
 # Get bash version 5.1, existing VM images have outdated bash version.
 install_bash() {
+  set -e
   wget -q https://ftp.gnu.org/gnu/bash/bash-5.1.tar.gz
   tar -xzf
   cd bash-5.1
@@ -122,12 +123,12 @@ install_bash() {
   make -j$(nproc)
   sudo make install
 }
-
+echo "Current changes~"
 echo "Installing bash 5.1 to /usr/local/bin/bash"
-if ( install_bash > "bash_install_log" 2>&1 ); then
-    echo "Bash 5.1 installation failed"
-    cat bash_install_log
-    exit 1
+if ! install_bash > "bash_install_log" 2>&1; then
+  echo "Bash 5.1 installation failed"
+  cat bash_install_log
+  exit 1
 fi
 
 /usr/local/bin/bash --version
