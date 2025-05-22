@@ -29,7 +29,7 @@ fi
 FILEPATH="$1"
 TRACKING_INTERVAL="$2"
 # --- Max Duration ---
-MAX_DURATION_SECONDS=$((60 * 60)) # 60 minutes in seconds
+MAX_DURATION_SECONDS=$((60 * 60 * 3)) # 180 minutes in seconds which is same as kokoro VM timeout.
 
 # --- Helper function to get CPU Usage ---
 # Outputs: CPU Usage percentage (numeric, e.g., "56")
