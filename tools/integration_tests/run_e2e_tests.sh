@@ -35,6 +35,16 @@ log_error() {
   echo "[ERROR] $(date +"%Y-%m-%d %H:%M:%S"): $1"
 }
 
+# Confirm bash version before continuing script.
+REQUIRED_BASH_MAJOR=5
+REQUIRED_BASH_MINOR=1
+if (( BASH_VERSINFO[0] < REQUIRED_BASH_MAJOR || ( BASH_VERSINFO[0] == REQUIRED_BASH_MAJOR && BASH_VERSINFO[1] < REQUIRED_BASH_MINOR ) )); then
+    log_error "This script requires Bash version: ${REQUIRED_BASH_MAJOR}.${REQUIRED_BASH_MINOR} or higher."
+    log_error "You are currently using Bash version: ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"
+    exit 1
+fi
+log_info "Bash version: ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"
+
 # Constants
 readonly DEFUALT_PROJECT_ID="gcs-fuse-test-ml"
 readonly TPCZERO_PROJECT_ID="tpczero-system:gcsfuse-test-project"

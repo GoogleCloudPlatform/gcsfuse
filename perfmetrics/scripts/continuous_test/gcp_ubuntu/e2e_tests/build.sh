@@ -49,6 +49,20 @@ commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
 # To execute tests for a specific commitId, ensure you've checked out from that commitId first.
 git checkout $commitId
 
+# Get bash version 5.1, existing VM images have outdated bash version.
+install_bash() {
+    (wget -qO- https://ftp.gnu.org/gnu/bash/bash-5.1.tar.gz | tar xz) || return 1
+    cd bash-5.1 || return 1
+    ./configure --prefix=/usr/local && make -j$(nproc) && sudo make install || return 1
+    return 0
+}
+echo "Installing bash 5.1 to usr/local/bin/bash"
+if ( install_bash > "bash_install_log" 2>&1 ); then
+    echo "Failed Bash 5.1 installation."
+    cat bash_install_log
+    exit 1
+fi
+
 echo "Running e2e tests on installed package...."
 # $1 argument is refering to value of testInstalledPackage
-./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $BUCKET_LOCATION $RUN_TEST_ON_TPC_ENDPOINT $RUN_TESTS_WITH_PRESUBMIT_FLAG ${ZONAL_BUCKET_ARG}
+/usr/local/bin/bash ./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $BUCKET_LOCATION $RUN_TEST_ON_TPC_ENDPOINT $RUN_TESTS_WITH_PRESUBMIT_FLAG ${ZONAL_BUCKET_ARG}

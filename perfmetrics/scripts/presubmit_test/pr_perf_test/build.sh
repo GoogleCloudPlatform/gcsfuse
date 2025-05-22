@@ -113,6 +113,20 @@ then
  python3 ./perfmetrics/scripts/presubmit/print_results.py
 fi
 
+# Get bash version 5.1, existing VM images have outdated bash version.
+install_bash() {
+    (wget -qO- https://ftp.gnu.org/gnu/bash/bash-5.1.tar.gz | tar xz) || return 1
+    cd bash-5.1 || return 1
+    ./configure --prefix=/usr/local && make -j$(nproc) && sudo make install || return 1
+    return 0
+}
+echo "Installing bash 5.1 to usr/local/bin/bash"
+if ( install_bash > "bash_install_log" 2>&1 ); then
+    echo "Failed Bash 5.1 installation."
+    cat bash_install_log
+    exit 1
+fi
+
 # Execute integration tests on zonal bucket(s).
 if test -n "${integrationTestsOnZBStr}" ;
 then
@@ -121,7 +135,7 @@ then
 
   echo "Running e2e tests on zonal bucket(s) ..."
   # $1 argument is refering to value of testInstalledPackage.
-  ./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $BUCKET_LOCATION $RUN_TEST_ON_TPC_ENDPOINT $RUN_TESTS_WITH_PRESUBMIT_FLAG true $BUILD_BINARY_IN_SCRIPT
+  /usr/local/bin/bash ./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $BUCKET_LOCATION $RUN_TEST_ON_TPC_ENDPOINT $RUN_TESTS_WITH_PRESUBMIT_FLAG true $BUILD_BINARY_IN_SCRIPT
 fi
 
 # Execute integration tests on non-zonal bucket(s).
@@ -132,7 +146,7 @@ then
 
   echo "Running e2e tests on non-zonal bucket(s) ..."
   # $1 argument is refering to value of testInstalledPackage.
-  ./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $BUCKET_LOCATION $RUN_TEST_ON_TPC_ENDPOINT $RUN_TESTS_WITH_PRESUBMIT_FLAG false $BUILD_BINARY_IN_SCRIPT
+  /usr/local/bin/bash ./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $BUCKET_LOCATION $RUN_TEST_ON_TPC_ENDPOINT $RUN_TESTS_WITH_PRESUBMIT_FLAG false $BUILD_BINARY_IN_SCRIPT
 fi
 
 # Execute package build tests.
