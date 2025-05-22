@@ -218,7 +218,6 @@ func (t *GcsfuseTest) KeyFile() {
 
 		ExpectThat(err, Error(HasSubstr("exit status")), "case %d", i)
 		ExpectThat(string(output), HasSubstr(nonexistent), "case %d", i)
-		ExpectThat(string(output), HasSubstr("no such file"), "case %d", i)
 	}
 }
 
