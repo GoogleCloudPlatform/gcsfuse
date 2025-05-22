@@ -31,6 +31,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
+	clientReaders "github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx/client_readers"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -44,6 +46,34 @@ const (
 	sequentialReadSizeInMb = 22
 	cacheMaxSize           = 2 * sequentialReadSizeInMb * MiB
 )
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+func (t *readManagerTest) readManagerConfig(fileCacheEnable bool) *ReadManagerConfig {
+	config := &ReadManagerConfig{
+		Object:                t.object,
+		Bucket:                t.mockBucket,
+		SequentialReadSizeMB:  sequentialReadSizeInMb,
+		CacheFileForRangeRead: false,
+		MetricHandle:          common.NewNoopMetrics(),
+		MrdWrapper:            nil,
+	}
+	if fileCacheEnable {
+		cacheDir := path.Join(os.Getenv("HOME"), "test_cache_dir")
+		lruCache := lru.NewCache(cacheMaxSize)
+		jobManager := downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, sequentialReadSizeInMb, &cfg.FileCacheConfig{EnableCrc: false}, common.NewNoopMetrics())
+		config.FileCacheHandler = file.NewCacheHandler(lruCache, jobManager, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm)
+	} else {
+		config.FileCacheHandler = nil
+	}
+	return config
+}
+
+////////////////////////////////////////////////////////////////////////
+// Boilerplate
+////////////////////////////////////////////////////////////////////////
 
 type readManagerTest struct {
 	suite.Suite
@@ -64,22 +94,43 @@ func (t *readManagerTest) SetupTest() {
 		Generation: 1234,
 	}
 	t.mockBucket = new(storage.TestifyMockBucket)
-	cacheDir := path.Join(os.Getenv("HOME"), "test_cache_dir")
-	lruCache := lru.NewCache(cacheMaxSize)
-	jobManager := downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, sequentialReadSizeInMb, &cfg.FileCacheConfig{EnableCrc: false}, common.NewNoopMetrics())
-	cacheHandler := file.NewCacheHandler(lruCache, jobManager, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm)
 	t.ctx = context.Background()
-	t.readManager = NewReadManager(t.object, t.mockBucket, sequentialReadSizeInMb, cacheHandler, false, common.NewNoopMetrics(), nil)
+	t.readManager = NewReadManager(t.readManagerConfig(true))
 }
 
 func (t *readManagerTest) TearDownTest() {
 	t.readManager.Destroy()
 }
 
+// //////////////////////////////////////////////////////////////////////
+// Tests
+// //////////////////////////////////////////////////////////////////////
+func (t *readManagerTest) Test_NewReadManager_WithFileCacheHandler() {
+	config := t.readManagerConfig(true)
+
+	rm := NewReadManager(config)
+
+	assert.Equal(t.T(), t.object, rm.Object())
+	assert.Len(t.T(), rm.readers, 2)
+	_, ok1 := rm.readers[0].(*gcsx.FileCacheReader)
+	_, ok2 := rm.readers[1].(*clientReaders.GCSReader)
+	assert.True(t.T(), ok1, "First reader should be FileCacheReader")
+	assert.True(t.T(), ok2, "Second reader should be GCSReader")
+}
+
+func (t *readManagerTest) Test_NewReadManager_WithoutFileCacheHandler() {
+	config := t.readManagerConfig(false)
+
+	rm := NewReadManager(config)
+
+	assert.Equal(t.T(), t.object, rm.Object())
+	assert.Len(t.T(), rm.readers, 1)
+	_, ok := rm.readers[0].(*clientReaders.GCSReader)
+	assert.True(t.T(), ok, "Only reader should be GCSReader")
+}
+
 func (t *readManagerTest) Test_ReadAt_EmptyRead() {
 	// Nothing should happen.
-	t.readManager = NewReadManager(t.object, t.mockBucket, sequentialReadSizeInMb, nil, false, common.NewNoopMetrics(), nil)
-
 	readerResponse, err := t.readManager.ReadAt(t.ctx, make([]byte, 0), 0)
 
 	assert.NoError(t.T(), err)
@@ -124,7 +175,7 @@ func (t *readManagerTest) Test_ReadAt_NoExistingReader() {
 }
 
 func (t *readManagerTest) Test_ReadAt_ReaderFailsWithTimeout() {
-	t.readManager = NewReadManager(t.object, t.mockBucket, sequentialReadSizeInMb, nil, false, common.NewNoopMetrics(), nil)
+	t.readManager = NewReadManager(t.readManagerConfig(false))
 	r := iotest.OneByteReader(iotest.TimeoutReader(strings.NewReader("xxx")))
 	rc := &fake.FakeReader{ReadCloser: io.NopCloser(r)}
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(rc, nil).Once()

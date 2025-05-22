@@ -35,19 +35,51 @@ type ReadManager struct {
 	readers []gcsx.Reader
 }
 
-// NewReadManager creates a new ReadManager for the given GCS object.
-// It initializes the manager with a file cache reader and a GCS reader.
-func NewReadManager(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMB int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *gcsx.MultiRangeDownloaderWrapper) *ReadManager {
-	gcsReader := clientReaders.NewGCSReader(o, bucket, metricHandle, mrdWrapper, sequentialReadSizeMB)
-	fileCacheReader := gcsx.NewFileCacheReader(o, bucket, fileCacheHandler, cacheFileForRangeRead, metricHandle)
+// ReadManagerConfig holds the configuration parameters for creating a new ReadManager.
+type ReadManagerConfig struct {
+	Object                *gcs.MinObject
+	Bucket                gcs.Bucket
+	SequentialReadSizeMB  int32
+	FileCacheHandler      *file.CacheHandler
+	CacheFileForRangeRead bool
+	MetricHandle          common.MetricHandle
+	MrdWrapper            *gcsx.MultiRangeDownloaderWrapper
+}
+
+// NewReadManager creates a new ReadManager for the given GCS object,
+// using the provided configuration. It initializes the manager with a
+// file cache reader and a GCS reader, prioritizing the file cache reader if available.
+func NewReadManager(config *ReadManagerConfig) *ReadManager {
+	// Initialize the GCS reader, which is always present.
+	gcsReader := clientReaders.NewGCSReader(
+		config.Object,
+		config.Bucket,
+		config.MetricHandle,
+		config.MrdWrapper,
+		config.SequentialReadSizeMB,
+	)
+
+	// Create a slice to hold all readers. The file cache reader will be added first if it exists.
+	var readers []gcsx.Reader
+
+	// If a file cache handler is provided, initialize the file cache reader and add it to the readers slice first.
+	if config.FileCacheHandler != nil {
+		fileCacheReader := gcsx.NewFileCacheReader(
+			config.Object,
+			config.Bucket,
+			config.FileCacheHandler,
+			config.CacheFileForRangeRead,
+			config.MetricHandle,
+		)
+		readers = append(readers, fileCacheReader) // File cache reader is prioritized.
+	}
+
+	// Add the GCS reader as a fallback.
+	readers = append(readers, gcsReader)
 
 	return &ReadManager{
-		object: o,
-		// Readers are prioritized in this order: file cache first, then GCS.
-		readers: []gcsx.Reader{
-			fileCacheReader,
-			gcsReader,
-		},
+		object:  config.Object,
+		readers: readers, // Readers are prioritized: file cache first, then GCS.
 	}
 }
 
@@ -67,6 +99,11 @@ func (rr *ReadManager) CheckInvariants() {
 func (rr *ReadManager) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.ReaderResponse, error) {
 	if offset >= int64(rr.object.Size) {
 		return gcsx.ReaderResponse{}, io.EOF
+	}
+
+	// empty read
+	if len(p) == 0 {
+		return gcsx.ReaderResponse{}, nil
 	}
 
 	var readerResponse gcsx.ReaderResponse
