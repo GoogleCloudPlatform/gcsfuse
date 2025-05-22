@@ -222,17 +222,25 @@ create_bucket() {
     bucket_cmd_parts+=("--placement=${BUCKET_LOCATION}-a")
     bucket_cmd_parts+=("--default-storage-class=RAPID")
   elif [[ "$bucket_type" != "flat" ]]; then
-    log_error_locked "Invalid bucket type: $bucket_type."
+    log_error "Invalid bucket type: $bucket_type."
     return 1
   fi
-  local bucket_cmd=$(printf "%q " "${bucket_cmd_parts[@]}")
-  local bucket_cmd_log=$(mktemp "/tmp/${TMP_PREFIX}_bucket_cmd_log.XXXXXX")
-  sleep 4 # Ensure 4 second gap between creating a new bucket.
-  if ! eval "$bucket_cmd" > "$bucket_cmd_log" 2>&1; then
-    log_error "Unable to create bucket [${bucket_name}]"
-    cat "$bucket_cmd_log"
-    return 1
-  fi
+  local bucket_cmd bucket_cmd_log attempt=5
+  bucket_cmd=$(printf "%q " "${bucket_cmd_parts[@]}")
+  bucket_cmd_log=$(mktemp "/tmp/${TMP_PREFIX}_bucket_cmd_log.XXXXXX")
+  while : ; do
+    attempt=$((attempt - 1))
+    if [ $attempt -lt 0 ]; then
+      log_error "Unable to create bucket [${bucket_name}] after 5 attempts." 
+      cat "$bucket_cmd_log"
+      return 1
+    fi
+    eval "$bucket_cmd" > "$bucket_cmd_log" 2>&1
+    if [ $? -eq 0 ]; then
+      sleep 6 # have 6 seconds gap between creating buckets. 
+      break
+    fi
+  done
   echo "$bucket_name" >> "$BUCKET_NAMES" # Add bucket names to file.
   echo "$bucket_name"
   return 0
@@ -247,11 +255,17 @@ setup_package_buckets () {
   local -n package_array="$1"
   local -n package_bucket_array="$2"
   local bucket_type="$3"
+  local exit_code=0
   for package in "${package_array[@]}"; do
     local bucket_name
     bucket_name=$(create_bucket "$package" "$bucket_type")
-    package_bucket_array+=("${package} ${bucket_name} ${bucket_type}")
+    if [ $? -eq 0 ]; then
+      package_bucket_array+=("${package} ${bucket_name} ${bucket_type}")
+    else
+      exit_code=1
+    fi
   done
+  return $exit_code
 }
 
 # Helper method to delete the bucket.
@@ -554,12 +568,13 @@ run_e2e_tests_for_flat_bucket() {
   log_info_locked "Started running e2e tests for flat bucket."
   parallel_package_flat_bucket=()
   setup_package_buckets "TEST_PACKAGES_FOR_RB" "parallel_package_flat_bucket" "flat"
+  parallel_tests_flat_group_exit_code=$?
   run_parallel "$PACKAGE_LEVEL_PARALLELISM" "test_package @" "${parallel_package_flat_bucket[@]}" &
   parallel_tests_flat_group_pid=$!
 
   # Wait for all tests to complete.
   wait $parallel_tests_flat_group_pid
-  parallel_tests_flat_group_exit_code=$?
+  parallel_tests_flat_group_exit_code=$((parallel_tests_flat_group_exit_code || $?))
 
   if [ $parallel_tests_flat_group_exit_code != 0 ]; then
     log_error_locked "The e2e tests for flat bucket failed."
@@ -573,12 +588,13 @@ run_e2e_tests_for_hns_bucket() {
   log_info_locked "Started running e2e tests for HNS bucket."
   parallel_package_hns_bucket=()
   setup_package_buckets "TEST_PACKAGES_FOR_RB" "parallel_package_hns_bucket" "hns"
+  parallel_tests_hns_group_exit_code=$?
   run_parallel "$PACKAGE_LEVEL_PARALLELISM" "test_package @" "${parallel_package_hns_bucket[@]}" &
   parallel_tests_hns_group_pid=$!
 
   # Wait for all tests to complete.
   wait $parallel_tests_hns_group_pid
-  parallel_tests_hns_group_exit_code=$?
+  parallel_tests_hns_group_exit_code=$((parallel_tests_hns_group_exit_code || $?))
 
   if [ $parallel_tests_hns_group_exit_code != 0 ]; then
     log_error_locked "The e2e tests for hns bucket failed."
@@ -592,12 +608,13 @@ run_e2e_tests_for_zonal_bucket() {
   log_info_locked "Started running e2e tests for ZONAL bucket."
   parallel_package_zonal_bucket=()
   setup_package_buckets "TEST_PACKAGES_FOR_ZB" "parallel_package_zonal_bucket" "zonal"
+  parallel_tests_zonal_group_exit_code=$?
   run_parallel "$PACKAGE_LEVEL_PARALLELISM" "test_package @" "${parallel_package_zonal_bucket[@]}" &
   parallel_tests_zonal_group_pid=$!
 
   # Wait for all tests to complete.
   wait $parallel_tests_zonal_group_pid
-  parallel_tests_zonal_group_exit_code=$?
+  parallel_tests_zonal_group_exit_code=$((parallel_tests_zonal_group_exit_code || $?))
 
   if [ $parallel_tests_zonal_group_exit_code != 0 ]; then
     log_error_locked "The e2e tests for zonal bucket failed."
@@ -612,19 +629,21 @@ run_e2e_tests_for_tpc() {
 
   parallel_package_bucket_hns=()
   setup_package_buckets "TEST_PACKAGES_FOR_TPC" "parallel_package_bucket_hns" "hns"
+  parallel_tests_hns_group_exit_code=$?
   run_parallel "$PACKAGE_LEVEL_PARALLELISM" "test_package @" "${parallel_package_bucket_hns[@]}" &
   parallel_tests_hns_group_pid=$!
 
   parallel_package_bucket_flat=()
   setup_package_buckets "TEST_PACKAGES_FOR_TPC" "parallel_package_bucket_flat" "flat"
+  parallel_tests_flat_group_exit_code=$?
   run_parallel "$PACKAGE_LEVEL_PARALLELISM" "test_package @" "${parallel_package_bucket_flat[@]}" &
   parallel_tests_flat_group_pid=$!
 
   # Wait for all tests to complete.
   wait $parallel_tests_hns_group_pid
-  parallel_tests_hns_group_exit_code=$?
+  parallel_tests_hns_group_exit_code=$((parallel_tests_hns_group_exit_code || $?))
   wait $parallel_tests_flat_group_pid
-  parallel_tests_flat_group_exit_code=$?
+  parallel_tests_flat_group_exit_code=$((parallel_tests_flat_group_exit_code || $?))
 
   if [ $parallel_tests_hns_group_exit_code != 0 ] || [ $parallel_tests_flat_group_exit_code != 0 ]; then
     log_error_locked "The e2e tests for TPC bucket failed."
