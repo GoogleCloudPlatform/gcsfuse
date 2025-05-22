@@ -468,6 +468,7 @@ func (t *RandomReaderTest) UpgradeReadsToAverageSize() {
 	t.rr.wrapped.cancel = func() {}
 	t.rr.wrapped.start = 2
 	t.rr.wrapped.limit = 5
+	t.rr.wrapped.expectedOffset = 2
 
 	// The bucket should be asked to read expectedBytesToRead bytes.
 	r := strings.NewReader(strings.Repeat("x", expectedBytesToRead))
