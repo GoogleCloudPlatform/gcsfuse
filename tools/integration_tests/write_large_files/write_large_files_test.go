@@ -38,7 +38,7 @@ func TestMain(m *testing.M) {
 	// with this config, we are giving 2 blocks to 2 files and 1 block to other file.
 	flags := [][]string{
 		{"--enable-streaming-writes=false"},
-		{"--enable-streaming-writes=true", "--write-max-blocks-per-file=2", "--write-global-max-blocks=2"}}
+		{"--write-max-blocks-per-file=2", "--write-global-max-blocks=2"}}
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 

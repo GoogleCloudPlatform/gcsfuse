@@ -734,7 +734,7 @@
   flag-name: "enable-streaming-writes"
   type: "bool"
   usage: "Enables streaming uploads during write file operation."
-  default: false
+  default: true
   hide-flag: false
 
 - config-path: "write.experimental-enable-rapid-appends"
@@ -751,8 +751,8 @@
     Specifies the maximum number of blocks to be used by all files for
     streaming writes. The value should be >= 0 (1 block per file is not counted 
     towards this limit) or -1 (for infinite blocks).
-  default: -1
-  hide-flag: true
+  default: 4
+  hide-flag: false
 
 - config-path: "write.max-blocks-per-file"
   flag-name: "write-max-blocks-per-file"

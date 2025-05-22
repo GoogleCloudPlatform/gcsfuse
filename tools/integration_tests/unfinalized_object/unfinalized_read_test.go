@@ -93,7 +93,7 @@ func TestUnfinalizedObjectReadTest(t *testing.T) {
 
 	// Define flag set to run the tests.
 	flagsSet := [][]string{
-		{"--enable-streaming-writes=true", "--metadata-cache-ttl-secs=-1"},
+		{"--metadata-cache-ttl-secs=-1"},
 	}
 
 	// Run tests.

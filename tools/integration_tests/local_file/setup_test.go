@@ -64,13 +64,10 @@ func TestMain(m *testing.M) {
 
 	// Set up flags to run tests on local file test suite.
 	// Not setting config file explicitly with 'create-empty-file: false' as it is default.
+	// Running these tests with streaming writes disabled because local file tests are already running in streaming_writes test package.
 	flagsSet := [][]string{
-		{"--implicit-dirs=true", "--rename-dir-limit=3"},
-		{"--implicit-dirs=false", "--rename-dir-limit=3"}}
-
-	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
-		flagsSet = append(flagsSet, hnsFlagSet)
-	}
+		{"--implicit-dirs=true", "--rename-dir-limit=3", "--enable-streaming-writes=false"},
+		{"--implicit-dirs=false", "--rename-dir-limit=3", "--enable-streaming-writes=false"}}
 
 	if !testing.Short() {
 		setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--client-protocol=grpc")
