@@ -40,33 +40,30 @@ RUN_READ_CACHE_TESTS_ONLY=$(gcloud compute instances describe "$HOSTNAME" --zone
 echo "RUN_ON_ZB_ONLY flag set to : \"${RUN_ON_ZB_ONLY}\""
 echo "RUN_READ_CACHE_TESTS_ONLY flag set to : \"${RUN_READ_CACHE_TESTS_ONLY}\""
 
-
 # Logging the tests being run on the active GCE VM
 if [[ "$RUN_ON_ZB_ONLY" == "true" ]]; then
-  echo "Running integration tests for Zonal bucket only..."
+	echo "Running integration tests for Zonal bucket only..."
 else
-  echo "Running integration tests for non-zonal buckets only..."
+	echo "Running integration tests for non-zonal buckets only..."
 fi
 
 # Logging the tests being run on the active GCE VM
 if [[ "$RUN_READ_CACHE_TESTS_ONLY" == "true" ]]; then
-  echo "Running read cache test only..."
+	echo "Running read cache test only..."
 fi
 
-
 #details.txt file contains the release version and commit hash of the current release.
-gcloud storage cp  gs://gcsfuse-release-packages/version-detail/details.txt .
+gcloud storage cp gs://gcsfuse-release-packages/version-detail/details.txt .
 # Writing VM instance name to details.txt (Format: release-test-<os-name>)
-curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google" >> details.txt
+curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google" >>details.txt
 
 # Based on the os type(from vm instance name) in detail.txt, run the following commands to add starterscriptuser
-if grep -q ubuntu details.txt || grep -q debian details.txt;
-then
-#  For ubuntu and debian os
-    sudo adduser --ingroup google-sudoers --disabled-password --home=/home/starterscriptuser --gecos "" starterscriptuser
+if grep -q ubuntu details.txt || grep -q debian details.txt; then
+	#  For ubuntu and debian os
+	sudo adduser --ingroup google-sudoers --disabled-password --home=/home/starterscriptuser --gecos "" starterscriptuser
 else
-#  For rhel and centos
-    sudo adduser -g google-sudoers --home-dir=/home/starterscriptuser starterscriptuser
+	#  For rhel and centos
+	sudo adduser -g google-sudoers --home-dir=/home/starterscriptuser starterscriptuser
 fi
 
 # Run the following as starterscriptuser
@@ -200,7 +197,6 @@ TEST_DIR_PARALLEL=(
   "local_file"
   "log_rotation"
   "mounting"
-  "read_cache"
   "gzip"
   "write_large_files"
   "rename_dir_limit"
@@ -238,7 +234,6 @@ TEST_DIR_PARALLEL_ZONAL=(
   mounting
   mount_timeout
   negative_stat_cache
-  read_cache
   read_large_files
   rename_dir_limit
   stale_handle
@@ -252,7 +247,7 @@ TEST_DIR_PARALLEL_ZONAL=(
   #streaming_writes
 )
 
-#For Zonal Buckets :  These tests never become parallel as they are changing bucket permissions.
+# For Zonal Buckets :  These tests never become parallel as they are changing bucket permissions.
 TEST_DIR_NON_PARALLEL_ZONAL=(
   "managed_folders"
   "readonly"
@@ -264,19 +259,31 @@ TEST_LOGS_FILE=$(mktemp)
 
 INTEGRATION_TEST_TIMEOUT=240m
 
+# This method runs test packages in sequence.Necessary when the tests involves
+# permissions modification etc.
+# Arguments:
+#   $1: BUCKET_NAME (The name of the GCS bucket to use for tests.)
+#   $2: IS_ZONAL_BUCKET_FLAG (Boolean flag: 'true' if the bucket is zonal, 'false' otherwise.)
+#   $3: NAME_OF_TEST_DIR_ARRAY (The shell variable name of the array containing test directory.)
 function run_non_parallel_tests() {
+  if [ "$#" -ne 3 ]; then
+    echo "Incorrect number of arguments passed, Expecting <BUCKET_NAME>
+    <IS_ZONAL_BUCKET> <TEST_DIR_ARRAY>"
+    exit 1
+  fi
   local exit_code=0 # Initialize to 0 for success
   local BUCKET_NAME=$1
   local zonal=$2
-
   if [[ -z $3 ]]; then
-    return 0
+    return 1 # The name of the test array cannot be empty.
   fi
-  declare -n test_array=$3
+  local -n test_array=$3 # Create a nameref to this array.
 
   for test_dir_np in "${test_array[@]}"
   do
     test_path_non_parallel="./tools/integration_tests/$test_dir_np"
+    # To make it clear whether tests are running on a flat or HNS or zonal bucket, We kept the log file naming
+    # convention to include the bucket name as a suffix (e.g., package_name_bucket_name).
     local log_file="/tmp/${test_dir_np}_${BUCKET_NAME}.log"
     echo "$log_file" >> "$TEST_LOGS_FILE" # Use double quotes for log_file
     GODEBUG=asyncpreemptoff=1 go test "$test_path_non_parallel" -p 1 --zonal="${zonal}" --integrationTest -v --testbucket="$BUCKET_NAME" --testInstalledPackage=true -timeout "$INTEGRATION_TEST_TIMEOUT" > "$log_file" 2>&1
@@ -288,20 +295,31 @@ function run_non_parallel_tests() {
   return $exit_code
 }
 
+#This method runs test packages in parallel.
+# Arguments:
+#   $1: BUCKET_NAME (The name of the GCS bucket to use for tests.)
+#   $2: IS_ZONAL_BUCKET_FLAG (Boolean flag: 'true' if the bucket is zonal, 'false' otherwise.)
+#   $3: NAME_OF_TEST_DIR_ARRAY (The shell variable name of the array containing test directory.)
 function run_parallel_tests() {
+  if [ "$#" -ne 3 ]; then
+    echo "Incorrect number of arguments passed, Expecting <BUCKET_NAME>
+    <IS_ZONAL_BUCKET> <TEST_DIR_ARRAY>"
+    exit 1
+  fi
   local exit_code=0
   local BUCKET_NAME=$1
   local zonal=$2
-  local array_name=$3
-  if [[ -z $array_name ]]; then
-    return 0
+  if [[ -z $3 ]]; then
+    return 1 # The name of the test array cannot be empty.
   fi
-  declare -n test_array=$array_name
+  local -n test_array=$3 # Create a nameref to this array.
   local pids=()
 
   for test_dir_p in "${test_array[@]}"
   do
     test_path_parallel="./tools/integration_tests/$test_dir_p"
+    # To make it clear whether tests are running on a flat or HNS or zonal bucket, We kept the log file naming
+    # convention to include the bucket name as a suffix (e.g., package_name_bucket_name).
     local log_file="/tmp/${test_dir_p}_${BUCKET_NAME}.log"
     echo "$log_file" >> "$TEST_LOGS_FILE"
     GODEBUG=asyncpreemptoff=1 go test "$test_path_parallel" -p 1 --zonal="${zonal}" --integrationTest -v --testbucket="$BUCKET_NAME" --testInstalledPackage=true -timeout "$INTEGRATION_TEST_TIMEOUT" > "$log_file" 2>&1 &
@@ -318,10 +336,22 @@ function run_parallel_tests() {
   return $exit_code
 }
 
+#Common method to invoke e2e tests on different types of buckets: flat, HNS or Zonal
+# Arguments:
+#   $1: BUCKET-TYPE (flat/hns/zonal)
+#   $2: TEST_DIR_PARALLEL (list of test packages that can be run in parallel)
+#   $3: TEST_DIR_NON_PARALLEL (list of test packages that should be run in sequence)
+#   $4: IS_ZONAL_BUCKET_FLAG (Boolean flag: 'true' if the bucket is zonal, 'false' otherwise.)
 function run_e2e_tests() {
+  if [ "$#" -ne 4 ]; then
+    echo "Incorrect number of arguments passed, Expecting <TESTCASE>
+    <NAME_OF_PARALLEL_TEST_DIR_ARRAY> <NAME_OF_PARALLEL_TEST_DIR_ARRAY>
+    <IS_ZONAL_BUCKET_FLAG>"
+    exit 1
+  fi
   local testcase=$1
-  declare -n test_dir_parallel=$2
-  declare -n test_dir_non_parallel=$3
+  local -n test_dir_parallel=$2
+  local -n test_dir_non_parallel=$3
   local is_zonal=$4
   local overall_exit_code=0
 
@@ -337,11 +367,11 @@ function run_e2e_tests() {
   echo "Bucket name to run parallel tests: $bkt_parallel"
 
   echo "Running parallel tests..."
-  run_parallel_tests  "$bkt_parallel" "$is_zonal" "$2" & # Pass the name of the array
+  run_parallel_tests  "$bkt_parallel" "$is_zonal" test_dir_parallel & # Pass the name of the array
   parallel_tests_pid=$!
 
   echo "Running non parallel tests ..."
-  run_non_parallel_tests  "$bkt_non_parallel" "$is_zonal" "$3" & # Pass the name of the array
+  run_non_parallel_tests  "$bkt_non_parallel" "$is_zonal" test_dir_non_parallel & # Pass the name of the array
   non_parallel_tests_pid=$!
 
   wait "$parallel_tests_pid"
@@ -381,7 +411,13 @@ function gather_test_logs() {
   done
 }
 
+# Function to log test results and upload them to GCS based on exit status.
+# Arguments: $1 = name of the associative array containing testcase exit statuses.
 function log_based_on_exit_status() {
+  if [ "$#" -ne 1 ]; then
+    echo "Incorrect number of arguments passed, Expecting <EXIT_STATUS_ARRAY_NAME>"
+    exit 1
+  fi
   gather_test_logs
   local -n exit_status_array=$1
 
@@ -408,6 +444,7 @@ function log_based_on_exit_status() {
 
 }
 
+# Function to run emulator-based E2E tests and log results.
 function run_e2e_tests_for_emulator_and_log() {
   ./tools/integration_tests/emulator_tests/emulator_tests.sh true > ~/logs-emulator.txt
   emulator_test_status=$?
@@ -421,16 +458,14 @@ function run_e2e_tests_for_emulator_and_log() {
     gcloud storage cp ~/logs-emulator.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
 }
 
-function run_e2e_tests_for_emulator() {
-  ./tools/integration_tests/emulator_tests/emulator_tests.sh true > ~/logs-emulator.txt
-}
-
+# Declare an associative array to store the exit status of different test runs.
 declare -A exit_status
 if [[ "$RUN_READ_CACHE_TESTS_ONLY" == "true" ]]; then
     read_cache_test_dir_parallel=() # Empty for read cache tests only
     read_cache_test_dir_non_parallel=("read_cache")
 
-    # Pass the NAMES of the arrays to the functions
+    # Run E2E tests for flat, HNS, and zonal buckets with only read cache tests.
+    # Running sequentially due to known limitations of simultaneous execution.
     run_e2e_tests "flat" read_cache_test_dir_parallel read_cache_test_dir_non_parallel false
     exit_status["flat"]=$?
 
@@ -439,12 +474,14 @@ if [[ "$RUN_READ_CACHE_TESTS_ONLY" == "true" ]]; then
 
     run_e2e_tests "zonal" read_cache_test_dir_parallel read_cache_test_dir_non_parallel true
     exit_status["zonal"]=$?
-
 else
+    # If not running *only* read cache tests, proceed with full test suites.
     if [[ "$RUN_ON_ZB_ONLY" == "true" ]]; then
+        # If only zonal bucket tests are to be run.
         run_e2e_tests "zonal" TEST_DIR_PARALLEL_ZONAL TEST_DIR_NON_PARALLEL_ZONAL true
         exit_status["zonal"]=$?
     else
+        # Run flat and HNS tests concurrently in the background.
         run_e2e_tests "flat" TEST_DIR_PARALLEL TEST_DIR_NON_PARALLEL false &
         flat_test_pid=$!
 
@@ -458,10 +495,12 @@ else
         wait $hns_test_pid
         exit_status["hns"]=$?
 
+        # Run emulator tests and log their results.
         run_e2e_tests_for_emulator_and_log
     fi
 
 fi
+#Log results based on the collected exit statuses.
 log_based_on_exit_status exit_status
 
 '
