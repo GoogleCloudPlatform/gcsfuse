@@ -712,7 +712,6 @@
     Duration of inactivity after which an open GCS read stream is automatically closed.
     This helps conserve resources when a file handle remains open without active Read calls.
     A value of '0s' disables this timeout.
-    Note: Currently only applies when using the 'grpc' client-protocol.
   default: "0s"
   hide-flag: true
 
