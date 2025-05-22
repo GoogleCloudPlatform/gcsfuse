@@ -120,12 +120,14 @@ install_bash() {
     ./configure --prefix=/usr/local && make -j$(nproc) && sudo make install || return 1
     return 0
 }
-echo "Installing bash 5.1 to usr/local/bin/bash"
+echo "Installing bash 5.1 to /usr/local/bin/bash"
 if ( install_bash > "bash_install_log" 2>&1 ); then
     echo "Failed Bash 5.1 installation."
     cat bash_install_log
     exit 1
 fi
+/usr/local/bin/bash --version
+cat "bash_install_log"
 
 # Execute integration tests on zonal bucket(s).
 if test -n "${integrationTestsOnZBStr}" ;
