@@ -126,8 +126,9 @@ if ( install_bash > "bash_install_log" 2>&1 ); then
     cat bash_install_log
     exit 1
 fi
-/usr/local/bin/bash --version
+
 cat "bash_install_log"
+/usr/local/bin/bash --version
 
 # Execute integration tests on zonal bucket(s).
 if test -n "${integrationTestsOnZBStr}" ;
