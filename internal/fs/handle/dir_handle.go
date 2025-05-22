@@ -296,6 +296,21 @@ func (dh *DirHandle) ensureEntries(ctx context.Context, localFileEntries map[str
 	return
 }
 
+// LOCKS_REQUIRED(dh.Mu)
+// LOCKS_EXCLUDED(dh.in)
+func (dh *DirHandle) ensureEntriesPlus(ctx context.Context) (cores map[inode.Name]*inode.Core, err error) {
+	dh.in.Lock()
+	defer dh.in.Unlock()
+
+	cores, err = readAllEntriesPlus(ctx, dh.in)
+	if err != nil {
+		err = fmt.Errorf("readAllEntries: %w", err)
+		return
+	}
+
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
@@ -360,11 +375,7 @@ func (dh *DirHandle) ReadDirPlusHelper(
 	}
 
 	if !dh.entriesValid {
-		dh.in.Lock()
-		defer dh.in.Unlock()
-
-		// Read entries.
-		cores, err = readAllEntriesPlus(ctx, dh.in)
+		cores, err = dh.ensureEntriesPlus(ctx)
 		if err != nil {
 			err = fmt.Errorf("readAllEntriesPlus: %w", err)
 			return
