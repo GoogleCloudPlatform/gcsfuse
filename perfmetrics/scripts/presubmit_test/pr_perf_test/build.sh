@@ -122,6 +122,8 @@ install_bash() {
   ./configure --prefix="/usr/local" --enable-readline 
   make -s -j"$(nproc 2>/dev/null || echo 1)"
   sudo make install
+  cd ..
+  rm -rf bash-5.1.tar.gz bash-5.1
 }
 echo "Installing bash 5.1 to /usr/local/bin/bash"
 if ! install_bash > "bash_install_log" 2>&1; then
