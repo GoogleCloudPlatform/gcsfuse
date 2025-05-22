@@ -37,6 +37,8 @@ _LOCAL_LOGS_LOCATION = "../../bin/fio-logs"
 _EPOCH_FILENAME_REGEX = "^epoch[1-9][0-9]*.json$"
 _EPOCH_NUMBER_MATCH_REGEX = ".*epoch([1-9][0-9]*).json"
 
+_DISABLE_CPU_MEMORY_DATA = True
+
 record = {
     "pod_name": "",
     "epoch": 0,
@@ -301,7 +303,8 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
         r["start"] = unix_to_timestamp(job0_start)
         r["end"] = unix_to_timestamp(timestamp_ms)
 
-        fetch_cpu_memory_data(args=args, record=r)
+        if not _DISABLE_CPU_MEMORY_DATA:
+          fetch_cpu_memory_data(args=args, record=r)
 
         r["blockSize"] = bs
         r["filesPerThread"] = nrfiles
