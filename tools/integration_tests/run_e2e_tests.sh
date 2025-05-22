@@ -74,6 +74,7 @@ LOG_LOCK_FILE=$(mktemp "/tmp/${TMP_PREFIX}_logging_lock.XXXXXX") || { log_error 
 BUCKET_NAMES=$(mktemp "/tmp/${TMP_PREFIX}_bucket_names.XXXXXX") || { log_error "Unable to create bucket names file"; exit 1; }
 PACKAGE_STATS_FILE=$(mktemp "/tmp/${TMP_PREFIX}_package_stats.XXXXXX") || { log_error "Unable to create package stats file"; exit 1; }
 VM_USAGE=$(mktemp "/tmp/${TMP_PREFIX}_vm_usage.XXXXXX") || { log_error "Unable to create vm usage file"; exit 1; }
+VM_USAGE_TRACK_PID=-1
 
 # Argument Parsing and Assignments
 if [ "$#" -lt 3 ]; then
@@ -120,9 +121,9 @@ if [ -n "$1" ]; then
   shift
 fi
 
-# Test packages for regional buckets.
+# Test packages which can be run for both Zonal and Regional buckets.
 # Keep sorted in terms of relative run times of test packages.
-TEST_PACKAGES=(
+TEST_PACKAGES_COMMON=(
   "monitoring"
   "log_rotation"
   "mounting"
@@ -149,10 +150,10 @@ TEST_PACKAGES=(
   "operations"
   "managed_folders"
 )
-
+# Test packages for regional buckets.
+TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}" "inactive_stream_timeout")
 # Test packages for zonal buckets.
-TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES[@]}" "unfinalized_object")
-
+TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}" "unfinalized_object")
 # Test packages for TPC buckets.
 TEST_PACKAGES_FOR_TPC=("operations")
 
@@ -204,6 +205,7 @@ log_error_locked() {
   release_lock "$LOG_LOCK_FILE"
 }
 
+# Helper method to create "flat", "hns" or "zonal" bucket.
 create_bucket() {
   if [[ $# -ne 2 ]]; then
     log_error "create_bucket() called with incorrect number of arguments."
@@ -236,6 +238,7 @@ create_bucket() {
   return 0
 }
 
+# Helper method to create buckets for each of the package.
 setup_package_buckets () {
   if [[ "$#" -ne 3 ]]; then 
     log_error "setup_buckets() called with incorrect number of arguments."
@@ -251,6 +254,7 @@ setup_package_buckets () {
   done
 }
 
+# Helper method to delete the bucket.
 delete_bucket() {
   if [[ $# -ne 1 ]]; then
     log_error_locked "delete_bucket() called with incorrect number of arguments."
@@ -268,7 +272,15 @@ delete_bucket() {
   return 0
 }
 
+# Cleanup ensures each of the buckets created is destroyed and the temp files and
+# vm usage tracking process are cleaned up.
 clean_up() {
+  echo "$VM_USAGE_TRACK_PID"
+  if [[ "$VM_USAGE_TRACK_PID" != "-1" ]]; then
+    echo "$VM_USAGE_TRACK_PID"
+    kill "$VM_USAGE_TRACK_PID" # kill usage tracking process.
+    sleep 4 # To ensure usage tracking process is killed.
+  fi
   if [ -n "${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}" ] && [ -d "${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}" ]; then
     log_info "Cleaning up GCSFuse build directory created by script: ${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
     rm -rf "${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
@@ -348,8 +360,8 @@ run_parallel() {
   # Launch parallel commands in the background based on parallelism.
   for arg in "$@"; do
     parallel_cmd="${cmd_template//@/$arg}"
-    parallel_cmd_output=$(mktemp "/tmp/${TMP_PREFIX}_parallel_cmd_output.XXXXXX")
-    log_info_locked "Executing Parallel Command: $parallel_cmd having output file: $parallel_cmd_output"
+    parallel_cmd_output=$(mktemp "/tmp/${TMP_PREFIX}_{$parallel_cmd}_output.XXXXXX")
+    log_info_locked "Executing Parallel Command: $parallel_cmd"
     eval "$parallel_cmd" > "$parallel_cmd_output" 2>&1 &
     pid=$!
     cmds_by_pid["$pid"]="$parallel_cmd;$parallel_cmd_output"
@@ -541,7 +553,7 @@ install_packages() {
 run_e2e_tests_for_flat_bucket() {
   log_info_locked "Started running e2e tests for flat bucket."
   parallel_package_flat_bucket=()
-  setup_package_buckets "TEST_PACKAGES" "parallel_package_flat_bucket" "flat"
+  setup_package_buckets "TEST_PACKAGES_FOR_RB" "parallel_package_flat_bucket" "flat"
   run_parallel "$PACKAGE_LEVEL_PARALLELISM" "test_package @" "${parallel_package_flat_bucket[@]}" &
   parallel_tests_flat_group_pid=$!
 
@@ -560,7 +572,7 @@ run_e2e_tests_for_flat_bucket() {
 run_e2e_tests_for_hns_bucket() {
   log_info_locked "Started running e2e tests for HNS bucket."
   parallel_package_hns_bucket=()
-  setup_package_buckets "TEST_PACKAGES" "parallel_package_hns_bucket" "hns"
+  setup_package_buckets "TEST_PACKAGES_FOR_RB" "parallel_package_hns_bucket" "hns"
   run_parallel "$PACKAGE_LEVEL_PARALLELISM" "test_package @" "${parallel_package_hns_bucket[@]}" &
   parallel_tests_hns_group_pid=$!
 
@@ -623,7 +635,6 @@ run_e2e_tests_for_tpc() {
 }
 
 run_e2e_tests_for_emulator() {
-  return 0
   log_info_locked "Started running e2e tests for emulator."
   local emulator_test_log=$(mktemp "/tmp/${TMP_PREFIX}_emulator_test_log.XXXXXX")
   if ! ./tools/integration_tests/emulator_tests/emulator_tests.sh "$TEST_INSTALLED_PACKAGE" > "$emulator_test_log" 2>&1; then
@@ -643,7 +654,7 @@ main() {
   trap clean_up EXIT
   chmod +x ./tools/integration_tests/monitor_vm_usage.sh
   ./tools/integration_tests/monitor_vm_usage.sh "$VM_USAGE" "$VM_USAGE_TRACKING_INTERVAL_IN_SECONDS" &
-  vm_usage_pid=$!
+  VM_USAGE_TRACK_PID=$!
   log_info_locked ""
   log_info_locked "------ Upgrading gcloud and installing packages ------"
   log_info_locked ""
@@ -713,7 +724,6 @@ main() {
   log_info_locked "------ E2E test packages complete run took ${elapsed_min} minutes ------"
   log_info_locked ""
   print_package_stats
-  kill "$vm_usage_pid" # kill usage tracking process.
   cat "$VM_USAGE"
   exit $exit_code
 }
