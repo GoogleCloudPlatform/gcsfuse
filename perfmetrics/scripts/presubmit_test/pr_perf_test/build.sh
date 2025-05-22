@@ -115,19 +115,21 @@ fi
 
 # Get bash version 5.1, existing VM images have outdated bash version.
 install_bash() {
-    (wget -qO- https://ftp.gnu.org/gnu/bash/bash-5.1.tar.gz | tar xz) || return 1
-    cd bash-5.1 || return 1
-    ./configure --prefix=/usr/local && make -j$(nproc) && sudo make install || return 1
-    return 0
+  wget -q https://ftp.gnu.org/gnu/bash/bash-5.1.tar.gz
+  tar -xzf
+  cd bash-5.1
+  ./configure --prefix="/usr/local" --enable-readline 
+  make -j$(nproc)
+  sudo make install
 }
+
 echo "Installing bash 5.1 to /usr/local/bin/bash"
 if ( install_bash > "bash_install_log" 2>&1 ); then
-    echo "Failed Bash 5.1 installation."
+    echo "Bash 5.1 installation failed"
     cat bash_install_log
     exit 1
 fi
 
-cat "bash_install_log"
 /usr/local/bin/bash --version
 
 # Execute integration tests on zonal bucket(s).
