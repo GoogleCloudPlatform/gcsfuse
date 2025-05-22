@@ -148,7 +148,7 @@ monitor="true"
 
 clean() {
     monitor="false"
-    sleep 20 # Give enough time for file to be updated.
+    sleep 3 # Give enough time for a single loop to update file.
 }
 
 trap clean EXIT SIGINT SIGTERM

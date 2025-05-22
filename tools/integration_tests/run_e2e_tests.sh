@@ -113,31 +113,31 @@ fi
 # Test packages for regional buckets.
 # Keep sorted in terms of relative run times of test packages.
 TEST_PACKAGES=(
-  # "monitoring"
+  "monitoring"
   "log_rotation"
-  # "mounting"
-  # # "grpc_validation"
-  # "gzip"
-  # "explicit_dir"
-  # "stale_handle"
-  # "negative_stat_cache"
-  # "kernel_list_cache"
-  # "streaming_writes"
-  # "benchmarking"
-  # "readonly"
-  # "readonly_creds"
-  # "rename_dir_limit"
-  # "implicit_dir"
-  # "mount_timeout"
-  # "local_file"
-  # "interrupt"
-  # "list_large_dir"
-  # "read_cache"
-  # "write_large_files"
-  # "read_large_files"
-  # "concurrent_operations"
-  # "operations"
-  # "managed_folders"
+  "mounting"
+  # "grpc_validation"
+  "gzip"
+  "explicit_dir"
+  "stale_handle"
+  "negative_stat_cache"
+  "kernel_list_cache"
+  "streaming_writes"
+  "benchmarking"
+  "readonly"
+  "readonly_creds"
+  "rename_dir_limit"
+  "implicit_dir"
+  "mount_timeout"
+  "local_file"
+  "interrupt"
+  "list_large_dir"
+  "read_cache"
+  "write_large_files"
+  "read_large_files"
+  "concurrent_operations"
+  "operations"
+  "managed_folders"
 )
 
 # Test packages for zonal buckets.
@@ -222,9 +222,7 @@ create_bucket() {
     return 1
   fi
   echo "$bucket_name" >> "$BUCKET_NAMES" # Add bucket names to file.
-  set -x
   echo "$bucket_name"
-  set +x
   return 0
 }
 
@@ -276,7 +274,7 @@ clean_up() {
       local clean_up_log=$(mktemp "/tmp/${TMP_PREFIX}_clean_up.XXXXXX")
       if ! run_parallel "$DELETE_BUCKET_PARALLELISM" "delete_bucket @" "${buckets[@]}" > "$clean_up_log" 2>&1; then
         log_error "Failed to delete all buckets"
-        cat $"$clean_up_log"
+        cat "$clean_up_log"
       else
         log_info "Successfully deleted all buckets."
     fi
@@ -289,32 +287,28 @@ clean_up() {
 }
 
 # Helper method to process any of the background process and
-# returns the exit code and process ID.
+# returns exit status of waited pid.
 process_any_pid() {
-    set -x
-    local background_pids=($(jobs -p))
-    set +x
-    if [[ ${#background_pids[@]} -eq 0 ]]; then
-      log_error_locked "process_any_pid() called when no background processes are running."
-      exit 1
-    fi
-    local exit_code=0
-    local pid
-    wait -n
-    exit_code=$((exit_code || $? != 0))
-    set -x
-    local current_background_pids=($(jobs -p))
-    set +x
-    # Gets the process ID that has just finished using wait -n
-    pid=$(printf "%s\n" "${background_pids[@]}" "${current_background_pids[@]}" | sort | uniq -u) 
-    if [[ -z "${pid}" || $(echo "$pid" | wc -l) -ne 1 ]]; then
-      log_error_locked "Unable to find processed PID. initial background pids: ${background_pids[*]}, after wait -n pids: ${current_background_pids[*]}"
-      exit 1
-    fi
-    set -x
-    echo "$pid"
-    set +x
-    return "$exit_code"
+  local -n cmds_by_pid_ref="$1"
+  local waited_pid
+  local pid_status # To store the exit status of the waited pid
+
+  wait -n -p waited_pid # waited_pid gets the PID, $? gets the status
+  pid_status=$?
+
+  local cmd_and_output_file="${cmds_by_pid_ref[$waited_pid]}"
+  local parallel_cmd_executed="${cmd_and_output_file%%;*}"
+  local output_file="${cmd_and_output_file#*;}"
+  unset "cmds_by_pid_ref[$waited_pid]"
+  if [[ "$pid_status" -ne 0 ]]; then
+    acquire_lock "$LOG_LOCK_FILE"
+    log_error "Parallel Command failed: $parallel_cmd_executed"
+    cat "$output_file"
+    release_lock "$LOG_LOCK_FILE"
+    return 1
+  fi
+  log_info_locked "Parallel Command succeeded: $parallel_cmd_executed"
+  return 0
 }
 
 # run_parallel: Executes commands in parallel based on a template and substitutes.
@@ -340,38 +334,24 @@ run_parallel() {
   local cmd_template="$1"
   shift
   local -A cmds_by_pid=()
-  local overall_exit_code=0
-  # Launch commands in the background based on parallelism.
+  local overall_exit_code parallel_cmd parallel_cmd_output pid
+  # Launch parallel commands in the background based on parallelism.
   for arg in "$@"; do
-    local full_cmd="${cmd_template//@/$arg}"
-    log_info_locked "Executing Parallel Command: $full_cmd"
-    eval "$full_cmd" &
-    local pid=$!
-    set -x
-    cmds_by_pid["$pid"]="$full_cmd"
-    echo "$pid"
-    set +x
+    parallel_cmd="${cmd_template//@/$arg}"
+    parallel_cmd_output=$(mktemp "/tmp/${TMP_PREFIX}_parallel_cmd_output.XXXXXX")
+    log_info_locked "Executing Parallel Command: $parallel_cmd having output file: $parallel_cmd_output"
+    eval "$parallel_cmd" > "$parallel_cmd_output" 2>&1 &
+    pid=$!
+    cmds_by_pid["$pid"]="$parallel_cmd;$parallel_cmd_output"
     if [[ ${#cmds_by_pid[@]} -eq $parallelism ]]; then
-      pid=$(process_any_pid)
-      if [[ $? -ne 0 ]]; then
-        overall_exit_code=1
-        log_error "Parallel Command Failed: ${cmds_by_pid[${pid}]}"
-      else
-        log_info "Parallel Command Succeeded: ${cmds_by_pid[${pid}]}"
-      fi
-      unset "cmds_by_pid[${pid}]"
+      process_any_pid "cmds_by_pid"
+      overall_exit_code=$((overall_exit_code || $? ))
     fi
   done
   # Process any remaining PIDs
   while [[ ${#cmds_by_pid[@]} -gt 0 ]]; do
-    pid=$(process_any_pid)
-    if [[ $? -ne 0 ]]; then
-      overall_exit_code=1
-      log_error "Parallel Command Failed: ${cmds_by_pid[${pid}]}"
-    else
-      log_info "Parallel Command Succeeded: ${cmds_by_pid[${pid}]}"
-    fi
-    unset "cmds_by_pid[${pid}]"
+      process_any_pid "cmds_by_pid"
+      overall_exit_code=$((overall_exit_code || $? ))
   done
   return "$overall_exit_code"
 }
@@ -425,7 +405,7 @@ test_package() {
   fi
 
   if [[ -n "$BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR" ]]; then 
-    GO_TEST_CMD+=("-gcsfuse_prebuilt_dir=${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}")
+    GO_TEST_CMD_PARTS+=("-gcsfuse_prebuilt_dir=${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}")
   fi
   # Use printf %q to quote each argument safely for eval
   # This ensures spaces and special characters within arguments are handled correctly.
@@ -435,7 +415,7 @@ test_package() {
   local package_status="PASSED"
   local start=$SECONDS
   local test_package_output=$(mktemp "/tmp/${TMP_PREFIX}_test_${package_name}_${bucket_type}_output.XXXXXX")
-  eval "$GO_TEST_CMD" > "$test_package_output" 2>&1
+  eval "$GO_TEST_CMD"
   if [[ $? -ne 0 ]]; then
     package_status="FAILED"
   fi
@@ -454,12 +434,6 @@ test_package() {
   
   echo "$current_package_stats" >> "$PACKAGE_STATS_FILE"
   if [[ "$package_status" == "FAILED" ]]; then
-    acquire_lock "$LOG_LOCK_FILE"
-    echo ""
-    echo "FAIL: test_package ${package_name} ${bucket_type} failed."
-    cat "$test_package_output"
-    echo ""
-    release_lock "$LOG_LOCK_FILE"
     return 1
   fi
   return 0
@@ -664,8 +638,8 @@ main() {
   log_info_locked "------ Upgrading gcloud and installing packages ------"
   log_info_locked ""
   set -e
-  #upgrade_gcloud_version
-  #install_packages
+  upgrade_gcloud_version
+  install_packages
   set +e
   log_info_locked "------ Upgrading gcloud and installing packages took $SECONDS seconds ------"
 
