@@ -211,6 +211,72 @@ func (t *CreateObjectChunkWriterTest) WrappedSucceeds() {
 }
 
 ////////////////////////////////////////////////////////////////////////
+// CreateAppendableObjectWriterTest
+////////////////////////////////////////////////////////////////////////
+
+type CreateAppendableObjectWriterTest struct {
+	fastStatBucketTest
+}
+
+func init() { RegisterTestSuite(&CreateAppendableObjectWriterTest{}) }
+
+func (t *CreateAppendableObjectWriterTest) CallsWrappedWithExpectedParameters() {
+	const name = "taco"
+	const offset int64 = 10
+	const chunkSize = 1024
+	ctx := context.TODO()
+	// Wrapped
+	var wrappedReq *gcs.CreateObjectChunkWriterRequest
+	ExpectCall(t.wrapped, "CreateAppendableObjectWriter")(Any(), Any()).
+		WillOnce(DoAll(SaveArg(1, &wrappedReq), Return(nil, errors.New(""))))
+	// Call
+	req := &gcs.CreateObjectChunkWriterRequest{
+		CreateObjectRequest: gcs.CreateObjectRequest{
+			Name: name,
+		},
+		Offset:    offset,
+		ChunkSize: chunkSize,
+	}
+
+	_, _ = t.bucket.CreateAppendableObjectWriter(ctx, req)
+
+	AssertNe(nil, wrappedReq)
+	ExpectEq(req, wrappedReq)
+}
+
+func (t *CreateAppendableObjectWriterTest) WrappedFails() {
+	ctx := context.TODO()
+	req := &gcs.CreateObjectChunkWriterRequest{}
+	var err error
+	// Wrapped
+	ExpectCall(t.wrapped, "CreateAppendableObjectWriter")(Any(), Any()).
+		WillOnce(Return(nil, errors.New("taco")))
+
+	// Call
+	_, err = t.bucket.CreateAppendableObjectWriter(ctx, req)
+
+	ExpectThat(err, Error(HasSubstr("taco")))
+}
+
+func (t *CreateAppendableObjectWriterTest) WrappedSucceeds() {
+	ctx := context.TODO()
+	req := &gcs.CreateObjectChunkWriterRequest{}
+	var err error
+	// Wrapped
+	wr := &storage.ObjectWriter{
+		Writer: &gostorage.Writer{},
+	}
+	ExpectCall(t.wrapped, "CreateAppendableObjectWriter")(Any(), Any()).
+		WillOnce(Return(wr, nil))
+
+	// Call
+	gotWr, err := t.bucket.CreateAppendableObjectWriter(ctx, req)
+
+	AssertEq(nil, err)
+	ExpectEq(wr, gotWr)
+}
+
+////////////////////////////////////////////////////////////////////////
 // FinalizeUpload
 ////////////////////////////////////////////////////////////////////////
 

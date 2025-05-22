@@ -167,6 +167,12 @@ func (t *FileStreamingWritesCommon) createInode(fileName string, fileType string
 // Common Tests
 ////////////////////////////////////////////////////////////////////////
 
+func (t *FileStreamingWritesCommon) TestIsUsingBWH() {
+	assert.False(t.T(), t.in.IsUsingBWH())
+	t.createBufferedWriteHandler()
+	assert.True(t.T(), t.in.IsUsingBWH())
+}
+
 func (t *FileStreamingWritesCommon) TestflushUsingBufferedWriteHandlerOnZeroSizeRecreatesBwhOnInitAgain() {
 	t.createBufferedWriteHandler()
 	err := t.in.flushUsingBufferedWriteHandler()

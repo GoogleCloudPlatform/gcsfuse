@@ -23,35 +23,43 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func (t *defaultMountCommonTest) TestReadFileAfterSync() {
+func (t *StreamingWritesSuite) TestReadFileAfterSync() {
 	// Write some content to the file.
 	_, err := t.f1.WriteAt([]byte(t.data), 0)
 	assert.NoError(t.T(), err)
 	// Sync File to ensure buffers are flushed to GCS.
 	operations.SyncFile(t.f1, t.T())
 
-	t.validateReadCall(t.f1.Name())
+	t.validateReadCall(t.f1, t.data)
 
 	// Close the file and validate that the file is created on GCS.
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, t.data, t.T())
 }
 
-func (t *defaultMountCommonTest) TestReadBeforeFileIsFlushed() {
+func (t *StreamingWritesSuite) TestReadBeforeFileIsFlushed() {
 	// Write data to file.
 	operations.WriteAt(t.data, 0, t.f1, t.T())
 
 	// Try to read the file.
-	_, err := t.f1.Seek(0, 0)
-	require.NoError(t.T(), err)
-	buf := make([]byte, len(t.data))
-	_, err = t.f1.Read(buf)
+	t.validateReadCall(t.f1, t.data)
 
-	require.Error(t.T(), err, "input/output error")
 	// Validate if correct content is uploaded to GCS after read error.
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, t.data, t.T())
 }
 
-func (t *defaultMountCommonTest) TestReadAfterFlush() {
+func (t *StreamingWritesSuite) TestReadBeforeSyncThenWriteAgainAndRead() {
+	// Write data to file.
+	operations.WriteAt(t.data, 0, t.f1, t.T())
+
+	t.validateReadCall(t.f1, t.data)
+
+	operations.WriteAt(t.data, int64(len(t.data)), t.f1, t.T())
+	t.validateReadCall(t.f1, t.data+t.data)
+	// Validate if correct content is uploaded to GCS after read.
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, t.data+t.data, t.T())
+}
+
+func (t *StreamingWritesSuite) TestReadAfterFlush() {
 	// Write data to file and flush.
 	operations.WriteAt(t.data, 0, t.f1, t.T())
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, t.data, t.T())

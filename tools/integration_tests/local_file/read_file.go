@@ -24,7 +24,7 @@ import (
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *localFileTestSuite) TestReadLocalFile() {
+func (t *CommonLocalFileTestSuite) TestReadLocalFile() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
 	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())

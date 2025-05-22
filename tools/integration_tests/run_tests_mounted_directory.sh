@@ -626,3 +626,29 @@ sudo umount $MOUNT_DIR
 gcsfuse --enable-streaming-writes=true  $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/write_large_files/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME ${ZONAL_BUCKET_ARG}
 sudo umount $MOUNT_DIR
+
+# Test package: inactive_stream_timeout
+# Run tests when timeout is disabled.
+log_dir="/tmp/inactive_stream_timeout_logs"
+mkdir -p $log_dir
+log_file="$log_dir/log.json"
+gcsfuse --read-inactive-stream-timeout=0s --log-file $log_file --log-severity=trace --log-format=json $TEST_BUCKET_NAME $MOUNT_DIR
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/inactive_stream_timeout/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME -run "TestTimeoutDisabledSuite"
+sudo umount $MOUNT_DIR
+rm -rf $log_dir
+
+# Run tests when timeout is enabled.
+test_cases=(
+  "TestTimeoutEnabledSuite/TestReaderCloses"
+  "TestTimeoutEnabledSuite/TestReaderStaysOpenWithinTimeout"
+)
+for test_case in "${test_cases[@]}"; do
+  log_dir="/tmp/inactive_stream_timeout_logs"
+  mkdir -p $log_dir
+  log_file="$log_dir/log.json"
+  gcsfuse --read-inactive-stream-timeout=1s  --client-protocol grpc --log-file $log_file --log-severity=trace --log-format=json $TEST_BUCKET_NAME $MOUNT_DIR
+  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/inactive_stream_timeout/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME -run $test_case
+  sudo umount $MOUNT_DIR
+  rm -rf $log_dir
+done
+

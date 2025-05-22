@@ -2595,8 +2595,17 @@ func (fs *fileSystem) ReadFile(
 	fs.mu.Unlock()
 
 	// fh.Lock()
+	fh.Inode().Lock()
 	// defer fh.Unlock()
-
+	// TODO(b/417136852): Remove bucket type check when we start leaving zonal bucket objects unfinalized.
+	// Flush Pending streaming writes file for regional bucket and issue read within same inode lock.
+	if fh.Inode().IsUsingBWH() && !fh.Inode().Bucket().BucketType().Zonal {
+		err = fs.flushFile(ctx, fh.Inode())
+		if err != nil {
+			fh.Inode().Unlock()
+			return err
+		}
+	}
 	// Serve the read.
 	op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
 

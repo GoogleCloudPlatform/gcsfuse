@@ -66,6 +66,8 @@ type Config struct {
 
 	OnlyDir string `yaml:"only-dir"`
 
+	Profiling ProfilingConfig `yaml:"profiling"`
+
 	Read ReadConfig `yaml:"read"`
 
 	Write WriteConfig `yaml:"write"`
@@ -231,6 +233,22 @@ type MonitoringConfig struct {
 	ExperimentalTracingSamplingRatio float64 `yaml:"experimental-tracing-sampling-ratio"`
 }
 
+type ProfilingConfig struct {
+	AllocatedHeap bool `yaml:"allocated-heap"`
+
+	Cpu bool `yaml:"cpu"`
+
+	Enabled bool `yaml:"enabled"`
+
+	Goroutines bool `yaml:"goroutines"`
+
+	Heap bool `yaml:"heap"`
+
+	Label string `yaml:"label"`
+
+	Mutex bool `yaml:"mutex"`
+}
+
 type ReadConfig struct {
 	InactiveStreamTimeout time.Duration `yaml:"inactive-stream-timeout"`
 }
@@ -255,6 +273,8 @@ type WriteConfig struct {
 	CreateEmptyFile bool `yaml:"create-empty-file"`
 
 	EnableStreamingWrites bool `yaml:"enable-streaming-writes"`
+
+	ExperimentalEnableRapidAppends bool `yaml:"experimental-enable-rapid-appends"`
 
 	GlobalMaxBlocks int64 `yaml:"global-max-blocks"`
 
@@ -336,6 +356,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("enable-atomic-rename-object", "", false, "Enables support for atomic rename object operation on HNS bucket.")
 
 	if err := flagSet.MarkHidden("enable-atomic-rename-object"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("enable-cloud-profiling", "", false, "Enables cloud profiling, by default disabled.")
+
+	if err := flagSet.MarkHidden("enable-cloud-profiling"); err != nil {
 		return err
 	}
 
@@ -505,9 +531,45 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.BoolP("profiling-allocated-heap", "", true, "Enables allocated heap (HeapProfileAllocs) profiling. This only works when --enable-cloud-profiling is set to true.")
+
+	if err := flagSet.MarkHidden("profiling-allocated-heap"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("profiling-cpu", "", true, "Enables cpu profiling. This only works when --enable-cloud-profiling is set to true.")
+
+	if err := flagSet.MarkHidden("profiling-cpu"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("profiling-goroutines", "", false, "Enables goroutines profiling. This only works when --enable-cloud-profiling is set to true.")
+
+	if err := flagSet.MarkHidden("profiling-goroutines"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("profiling-heap", "", true, "Enables heap profiling. This only works when --enable-cloud-profiling is set to true.")
+
+	if err := flagSet.MarkHidden("profiling-heap"); err != nil {
+		return err
+	}
+
+	flagSet.StringP("profiling-label", "", "gcsfuse-0.0.0", "Allow setting a profile label to uniquely identify and compare profiling data with other profiles. This only works when --enable-cloud-profiling is set to true.  ")
+
+	if err := flagSet.MarkHidden("profiling-label"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("profiling-mutex", "", false, "Enables mutex profiling. This only works when --enable-cloud-profiling is set to true.")
+
+	if err := flagSet.MarkHidden("profiling-mutex"); err != nil {
+		return err
+	}
+
 	flagSet.IntP("prometheus-port", "", 0, "Expose Prometheus metrics endpoint on this port and a path of /metrics.")
 
-	flagSet.DurationP("read-inactive-stream-timeout", "", 0*time.Nanosecond, "Duration of inactivity after which an open GCS read stream is automatically closed. This helps conserve resources when a file handle remains open without active Read calls. A value of '0s' disables this timeout. Note: Currently only applies when using the 'grpc' client-protocol.")
+	flagSet.DurationP("read-inactive-stream-timeout", "", 0*time.Nanosecond, "Duration of inactivity after which an open GCS read stream is automatically closed. This helps conserve resources when a file handle remains open without active Read calls. A value of '0s' disables this timeout.")
 
 	if err := flagSet.MarkHidden("read-inactive-stream-timeout"); err != nil {
 		return err
@@ -588,6 +650,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.IntP("write-block-size-mb", "", 32, "Specifies the block size for streaming writes. The value should be more  than 0.")
 
 	if err := flagSet.MarkHidden("write-block-size-mb"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("write-experimental-enable-rapid-appends", "", false, "Enables support for appends to unfinalized object using streaming writes")
+
+	if err := flagSet.MarkHidden("write-experimental-enable-rapid-appends"); err != nil {
 		return err
 	}
 
@@ -673,6 +741,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("enable-atomic-rename-object", flagSet.Lookup("enable-atomic-rename-object")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("profiling.enabled", flagSet.Lookup("enable-cloud-profiling")); err != nil {
 		return err
 	}
 
@@ -868,6 +940,30 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("profiling.allocated-heap", flagSet.Lookup("profiling-allocated-heap")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("profiling.cpu", flagSet.Lookup("profiling-cpu")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("profiling.goroutines", flagSet.Lookup("profiling-goroutines")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("profiling.heap", flagSet.Lookup("profiling-heap")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("profiling.label", flagSet.Lookup("profiling-label")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("profiling.mutex", flagSet.Lookup("profiling-mutex")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("metrics.prometheus-port", flagSet.Lookup("prometheus-port")); err != nil {
 		return err
 	}
@@ -949,6 +1045,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("write.block-size-mb", flagSet.Lookup("write-block-size-mb")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("write.experimental-enable-rapid-appends", flagSet.Lookup("write-experimental-enable-rapid-appends")); err != nil {
 		return err
 	}
 

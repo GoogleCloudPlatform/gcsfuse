@@ -161,7 +161,31 @@ func (m *mockBucket) CreateObjectChunkWriter(p0 context.Context, p1 *gcs.CreateO
 }
 
 func (m *mockBucket) CreateAppendableObjectWriter(p0 context.Context, p1 *gcs.CreateObjectChunkWriterRequest) (o0 gcs.Writer, o1 error) {
-	//TODO
+	// Get a file name and line number for the caller.
+	_, file, line, _ := runtime.Caller(1)
+
+	// Hand the call off to the controller, which does most of the work.
+	retVals := m.controller.HandleMethodCall(
+		m,
+		"CreateAppendableObjectWriter",
+		file,
+		line,
+		[]interface{}{p0, p1})
+
+	if len(retVals) != 2 {
+		panic(fmt.Sprintf("mockBucket.CreateAppendableObjectWriter: invalid return values: %v", retVals))
+	}
+
+	// o0 storageWriter
+	if retVals[0] != nil {
+		o0 = retVals[0].(gcs.Writer)
+	}
+
+	// o1 error
+	if retVals[1] != nil {
+		o1 = retVals[1].(error)
+	}
+
 	return
 }
 

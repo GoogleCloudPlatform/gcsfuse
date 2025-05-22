@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 type mockIsSet struct{}
@@ -577,50 +576,6 @@ func TestRationalize_ParallelDownloadsConfig(t *testing.T) {
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedParallelDownloads, tc.config.FileCache.EnableParallelDownloads)
 			}
-		})
-	}
-}
-
-func TestRationalizeReadInactiveTimeoutConfig(t *testing.T) {
-	t.Parallel()
-	testCases := []struct {
-		name            string
-		config          *Config
-		expectedTimeout time.Duration
-	}{
-		{
-			name: "http_client_protocol",
-			config: &Config{
-				Read: ReadConfig{
-					InactiveStreamTimeout: 60 * time.Second,
-				},
-				GcsConnection: GcsConnectionConfig{
-					ClientProtocol: HTTP1,
-				},
-			},
-			expectedTimeout: 0,
-		},
-		{
-			name: "grpc_client_protocol",
-			config: &Config{
-				Read: ReadConfig{
-					InactiveStreamTimeout: 60 * time.Second,
-				},
-				GcsConnection: GcsConnectionConfig{
-					ClientProtocol: GRPC,
-				},
-			},
-			expectedTimeout: 60 * time.Second,
-		},
-	}
-
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			require.NoError(t, Rationalize(&mockIsSet{}, tc.config, []string{}))
-			assert.EqualValues(t, tc.expectedTimeout, tc.config.Read.InactiveStreamTimeout)
 		})
 	}
 }

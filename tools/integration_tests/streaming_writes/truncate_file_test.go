@@ -21,7 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func (t *defaultMountCommonTest) TestTruncate() {
+func (t *StreamingWritesSuite) TestTruncate() {
 	truncateSize := 2 * 1024 * 1024
 
 	err := t.f1.Truncate(int64(truncateSize))
@@ -34,7 +34,7 @@ func (t *defaultMountCommonTest) TestTruncate() {
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, string(data[:]), t.T())
 }
 
-func (t *defaultMountCommonTest) TestWriteAfterTruncate() {
+func (t *StreamingWritesSuite) TestWriteAfterTruncate() {
 	truncateSize := 10
 
 	testCases := []struct {
@@ -83,7 +83,7 @@ func (t *defaultMountCommonTest) TestWriteAfterTruncate() {
 
 }
 
-func (t *defaultMountCommonTest) TestWriteAndTruncate() {
+func (t *StreamingWritesSuite) TestWriteAndTruncate() {
 	var truncateSize int64 = 20
 	operations.WriteWithoutClose(t.f1, FileContents, t.T())
 	operations.VerifyStatFile(t.filePath, int64(len(FileContents)), FilePerms, t.T())
@@ -98,7 +98,7 @@ func (t *defaultMountCommonTest) TestWriteAndTruncate() {
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, FileContents+string(data[:]), t.T())
 }
 
-func (t *defaultMountCommonTest) TestWriteTruncateWrite() {
+func (t *StreamingWritesSuite) TestWriteTruncateWrite() {
 	truncateSize := 30
 
 	// Write
@@ -117,14 +117,18 @@ func (t *defaultMountCommonTest) TestWriteTruncateWrite() {
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, FileContents+FileContents+string(data[:]), t.T())
 }
 
-func (t *defaultMountCommonTest) TestTruncateToLowerSizeAfterWrite() {
+func (t *StreamingWritesSuite) TestTruncateToLowerSizeAfterWrite() {
 	// Write
 	operations.WriteWithoutClose(t.f1, FileContents+FileContents, t.T())
 	operations.VerifyStatFile(t.filePath, int64(2*len(FileContents)), FilePerms, t.T())
 	// Perform truncate
 	err := t.f1.Truncate(int64(5))
 
-	// Truncating to lower size after writes are not allowed.
-	require.Error(t.T(), err)
-	operations.VerifyStatFile(t.filePath, int64(2*len(FileContents)), FilePerms, t.T())
+	if t.fallbackToDiskCase {
+		require.NoError(t.T(), err)
+	} else {
+		// Truncating to lower size after writes are not allowed if buffered writes are used.
+		require.Error(t.T(), err)
+		operations.VerifyStatFile(t.filePath, int64(2*len(FileContents)), FilePerms, t.T())
+	}
 }

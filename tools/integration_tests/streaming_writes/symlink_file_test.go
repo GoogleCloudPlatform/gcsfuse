@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func (t *defaultMountCommonTest) TestCreateSymlinkForLocalFileAndReadFromSymlink() {
+func (t *StreamingWritesSuite) TestCreateSymlinkForLocalFileAndReadFromSymlink() {
 	// Create Symlink.
 	symlink := path.Join(testDirPath, setup.GenerateRandomString(5))
 	operations.CreateSymLink(t.filePath, symlink, t.T())
@@ -34,13 +34,15 @@ func (t *defaultMountCommonTest) TestCreateSymlinkForLocalFileAndReadFromSymlink
 	operations.VerifyReadLink(t.filePath, symlink, t.T())
 
 	// Validate read file from symlink.
-	t.validateReadCall(symlink)
+	symlink_fh := operations.OpenFile(symlink, t.T())
+	defer operations.CloseFileShouldNotThrowError(t.T(), symlink_fh)
+	t.validateReadCall(symlink_fh, t.data)
 
 	// Close the file and validate that the file is created on GCS.
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, t.data, t.T())
 }
 
-func (t *defaultMountCommonTest) TestReadingFromSymlinkForDeletedLocalFile() {
+func (t *StreamingWritesSuite) TestReadingFromSymlinkForDeletedLocalFile() {
 	// Create Symlink.
 	symlink := path.Join(testDirPath, setup.GenerateRandomString(5))
 	operations.CreateSymLink(t.filePath, symlink, t.T())
@@ -50,7 +52,9 @@ func (t *defaultMountCommonTest) TestReadingFromSymlinkForDeletedLocalFile() {
 	operations.VerifyReadLink(t.filePath, symlink, t.T())
 
 	// Validate read from symlink.
-	t.validateReadCall(symlink)
+	symlink_fh := operations.OpenFile(symlink, t.T())
+	defer operations.CloseFileShouldNotThrowError(t.T(), symlink_fh)
+	t.validateReadCall(symlink_fh, t.data)
 
 	// Remove filePath and then close the fileHandle to avoid syncing to GCS.
 	operations.RemoveFile(t.filePath)

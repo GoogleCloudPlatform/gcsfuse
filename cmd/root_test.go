@@ -252,85 +252,104 @@ func TestArgsParsing_ImplicitDirsFlag(t *testing.T) {
 }
 func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 	tests := []struct {
-		name                          string
-		args                          []string
-		expectedCreateEmptyFile       bool
-		expectedEnableStreamingWrites bool
-		expectedWriteBlockSizeMB      int64
-		expectedWriteGlobalMaxBlocks  int64
-		expectedWriteMaxBlocksPerFile int64
+		name                                   string
+		args                                   []string
+		expectedCreateEmptyFile                bool
+		expectedEnableStreamingWrites          bool
+		expectedExperimentalEnableRapidAppends bool
+		expectedWriteBlockSizeMB               int64
+		expectedWriteGlobalMaxBlocks           int64
+		expectedWriteMaxBlocksPerFile          int64
 	}{
 		{
-			name:                          "Test create-empty-file flag true.",
-			args:                          []string{"gcsfuse", "--create-empty-file=true", "abc", "pqr"},
-			expectedCreateEmptyFile:       true,
-			expectedEnableStreamingWrites: false,
-			expectedWriteBlockSizeMB:      32 * util.MiB,
-			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
-			expectedWriteMaxBlocksPerFile: 1,
+			name:                                   "Test create-empty-file flag true.",
+			args:                                   []string{"gcsfuse", "--create-empty-file=true", "abc", "pqr"},
+			expectedCreateEmptyFile:                true,
+			expectedEnableStreamingWrites:          false,
+			expectedExperimentalEnableRapidAppends: false,
+			expectedWriteBlockSizeMB:               32 * util.MiB,
+			expectedWriteGlobalMaxBlocks:           math.MaxInt64,
+			expectedWriteMaxBlocksPerFile:          1,
 		},
 		{
-			name:                          "Test create-empty-file flag false.",
-			args:                          []string{"gcsfuse", "--create-empty-file=false", "abc", "pqr"},
-			expectedCreateEmptyFile:       false,
-			expectedEnableStreamingWrites: false,
-			expectedWriteBlockSizeMB:      32 * util.MiB,
-			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
-			expectedWriteMaxBlocksPerFile: 1,
+			name:                                   "Test create-empty-file flag false.",
+			args:                                   []string{"gcsfuse", "--create-empty-file=false", "abc", "pqr"},
+			expectedCreateEmptyFile:                false,
+			expectedEnableStreamingWrites:          false,
+			expectedExperimentalEnableRapidAppends: false,
+			expectedWriteBlockSizeMB:               32 * util.MiB,
+			expectedWriteGlobalMaxBlocks:           math.MaxInt64,
+			expectedWriteMaxBlocksPerFile:          1,
 		},
 		{
-			name:                          "Test default flags.",
-			args:                          []string{"gcsfuse", "abc", "pqr"},
-			expectedCreateEmptyFile:       false,
-			expectedEnableStreamingWrites: false,
-			expectedWriteBlockSizeMB:      32 * util.MiB,
-			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
-			expectedWriteMaxBlocksPerFile: 1,
+			name:                                   "Test default flags.",
+			args:                                   []string{"gcsfuse", "abc", "pqr"},
+			expectedCreateEmptyFile:                false,
+			expectedEnableStreamingWrites:          false,
+			expectedExperimentalEnableRapidAppends: false,
+			expectedWriteBlockSizeMB:               32 * util.MiB,
+			expectedWriteGlobalMaxBlocks:           math.MaxInt64,
+			expectedWriteMaxBlocksPerFile:          1,
 		},
 		{
-			name:                          "Test enable-streaming-writes flag true.",
-			args:                          []string{"gcsfuse", "--enable-streaming-writes", "abc", "pqr"},
-			expectedCreateEmptyFile:       false,
-			expectedEnableStreamingWrites: true,
-			expectedWriteBlockSizeMB:      32 * util.MiB,
-			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
-			expectedWriteMaxBlocksPerFile: 1,
+			name:                                   "Test enable-streaming-writes flag true.",
+			args:                                   []string{"gcsfuse", "--enable-streaming-writes", "abc", "pqr"},
+			expectedCreateEmptyFile:                false,
+			expectedEnableStreamingWrites:          true,
+			expectedExperimentalEnableRapidAppends: false,
+			expectedWriteBlockSizeMB:               32 * util.MiB,
+			expectedWriteGlobalMaxBlocks:           math.MaxInt64,
+			expectedWriteMaxBlocksPerFile:          1,
 		},
 		{
-			name:                          "Test enable-streaming-writes flag false.",
-			args:                          []string{"gcsfuse", "--enable-streaming-writes=false", "abc", "pqr"},
-			expectedCreateEmptyFile:       false,
-			expectedEnableStreamingWrites: false,
-			expectedWriteBlockSizeMB:      32 * util.MiB,
-			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
-			expectedWriteMaxBlocksPerFile: 1,
+			name:                                   "Test enable-streaming-writes flag false.",
+			args:                                   []string{"gcsfuse", "--enable-streaming-writes=false", "abc", "pqr"},
+			expectedCreateEmptyFile:                false,
+			expectedEnableStreamingWrites:          false,
+			expectedExperimentalEnableRapidAppends: false,
+			expectedWriteBlockSizeMB:               32 * util.MiB,
+			expectedWriteGlobalMaxBlocks:           math.MaxInt64,
+			expectedWriteMaxBlocksPerFile:          1,
 		},
 		{
-			name:                          "Test positive write-block-size-mb flag.",
-			args:                          []string{"gcsfuse", "--enable-streaming-writes", "--write-block-size-mb=10", "abc", "pqr"},
-			expectedCreateEmptyFile:       false,
-			expectedEnableStreamingWrites: true,
-			expectedWriteBlockSizeMB:      10 * util.MiB,
-			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
-			expectedWriteMaxBlocksPerFile: 1,
+			name:                                   "Test experimental-enable-rapid-appends flag true.",
+			args:                                   []string{"gcsfuse", "--write-experimental-enable-rapid-appends", "abc", "pqr"},
+			expectedCreateEmptyFile:                false,
+			expectedEnableStreamingWrites:          false,
+			expectedExperimentalEnableRapidAppends: true,
+			expectedWriteBlockSizeMB:               32 * util.MiB,
+			expectedWriteGlobalMaxBlocks:           math.MaxInt64,
+			expectedWriteMaxBlocksPerFile:          1,
 		},
 		{
-			name:                          "Test positive write-global-max-blocks flag.",
-			args:                          []string{"gcsfuse", "--enable-streaming-writes", "--write-global-max-blocks=10", "abc", "pqr"},
-			expectedCreateEmptyFile:       false,
-			expectedEnableStreamingWrites: true,
-			expectedWriteBlockSizeMB:      32 * util.MiB,
-			expectedWriteGlobalMaxBlocks:  10,
-			expectedWriteMaxBlocksPerFile: 1,
+			name:                                   "Test positive write-block-size-mb flag.",
+			args:                                   []string{"gcsfuse", "--enable-streaming-writes", "--write-block-size-mb=10", "abc", "pqr"},
+			expectedCreateEmptyFile:                false,
+			expectedEnableStreamingWrites:          true,
+			expectedExperimentalEnableRapidAppends: false,
+			expectedWriteBlockSizeMB:               10 * util.MiB,
+			expectedWriteGlobalMaxBlocks:           math.MaxInt64,
+			expectedWriteMaxBlocksPerFile:          1,
 		},
 		{
-			name:                          "Test positive write-max-blocks-per-file flag.",
-			args:                          []string{"gcsfuse", "--enable-streaming-writes", "--write-max-blocks-per-file=10", "abc", "pqr"},
-			expectedCreateEmptyFile:       false,
-			expectedEnableStreamingWrites: true,
-			expectedWriteBlockSizeMB:      32 * util.MiB,
-			expectedWriteGlobalMaxBlocks:  math.MaxInt64,
-			expectedWriteMaxBlocksPerFile: 10,
+			name:                                   "Test positive write-global-max-blocks flag.",
+			args:                                   []string{"gcsfuse", "--enable-streaming-writes", "--write-global-max-blocks=10", "abc", "pqr"},
+			expectedCreateEmptyFile:                false,
+			expectedEnableStreamingWrites:          true,
+			expectedExperimentalEnableRapidAppends: false,
+			expectedWriteBlockSizeMB:               32 * util.MiB,
+			expectedWriteGlobalMaxBlocks:           10,
+			expectedWriteMaxBlocksPerFile:          1,
+		},
+		{
+			name:                                   "Test positive write-max-blocks-per-file flag.",
+			args:                                   []string{"gcsfuse", "--enable-streaming-writes", "--write-max-blocks-per-file=10", "abc", "pqr"},
+			expectedCreateEmptyFile:                false,
+			expectedEnableStreamingWrites:          true,
+			expectedExperimentalEnableRapidAppends: false,
+			expectedWriteBlockSizeMB:               32 * util.MiB,
+			expectedWriteGlobalMaxBlocks:           math.MaxInt64,
+			expectedWriteMaxBlocksPerFile:          10,
 		},
 	}
 
@@ -1283,6 +1302,98 @@ func TestArgParsing_GCSRetries(t *testing.T) {
 	}
 }
 
+func TestArgsParsing_ProfilerFlags(t *testing.T) {
+	tests := []struct {
+		name           string
+		args           []string
+		expectedConfig cfg.ProfilingConfig
+	}{
+		{
+			name: "Default profiler config (disabled)",
+			args: []string{"gcsfuse", "bucket", "mountpoint"},
+			expectedConfig: cfg.ProfilingConfig{
+				Enabled:       false, // Profiler is disabled by default
+				Label:         "gcsfuse-0.0.0",
+				Mutex:         false, // Default for --profiling-mutex
+				Cpu:           true,  // Default for --profiling-cpu
+				AllocatedHeap: true,  // Default for --profiling-allocated-heap
+				Heap:          true,  // Default for --profiling-heap
+				Goroutines:    false, // Default for --profiling-goroutines
+			},
+		},
+		{
+			name: "Profiler enabled, sub-profilers default",
+			args: []string{"gcsfuse", "--enable-cloud-profiling", "bucket", "mountpoint"},
+			expectedConfig: cfg.ProfilingConfig{
+				Enabled:       true,
+				Label:         "gcsfuse-0.0.0",
+				Mutex:         false,
+				Cpu:           true,
+				AllocatedHeap: true,
+				Heap:          true,
+				Goroutines:    false,
+			},
+		},
+		{
+			name: "Profiler enabled, all sub-profilers explicitly true and label set",
+			args: []string{"gcsfuse", "--enable-cloud-profiling", "--profiling-label=v1.0.0", "--profiling-mutex=true", "--profiling-cpu=true", "--profiling-allocated-heap=true", "--profiling-heap=true", "--profiling-goroutines=true", "bucket", "mountpoint"},
+			expectedConfig: cfg.ProfilingConfig{
+				Enabled:       true,
+				Label:         "v1.0.0",
+				Mutex:         true,
+				Cpu:           true,
+				AllocatedHeap: true,
+				Heap:          true,
+				Goroutines:    true,
+			},
+		},
+		{
+			name: "Profiler enabled, all sub-profilers explicitly false",
+			args: []string{"gcsfuse", "--enable-cloud-profiling", "--profiling-mutex=false", "--profiling-cpu=false", "--profiling-allocated-heap=false", "--profiling-heap=false", "--profiling-goroutines=false", "bucket", "mountpoint"},
+			expectedConfig: cfg.ProfilingConfig{
+				Enabled:       true,
+				Label:         "gcsfuse-0.0.0",
+				Mutex:         false,
+				Cpu:           false,
+				AllocatedHeap: false,
+				Heap:          false,
+				Goroutines:    false,
+			},
+		},
+		{
+			name: "Profiler explicitly disabled, some sub-profiler flags set",
+			args: []string{"gcsfuse", "--enable-cloud-profiling=false", "--profiling-mutex=true", "--profiling-cpu=false", "bucket", "mountpoint"},
+			expectedConfig: cfg.ProfilingConfig{
+				Enabled:       false, // Master switch is off
+				Label:         "gcsfuse-0.0.0",
+				Mutex:         true,  // Flag was parsed
+				Cpu:           false, // Flag was parsed
+				AllocatedHeap: true,  // Default for its flag
+				Heap:          true,  // Default for its flag
+				Goroutines:    false, // Default for its flag
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotProfilerConfig cfg.ProfilingConfig
+			cmd, err := newRootCmd(func(c *cfg.Config, _, _ string) error {
+				gotProfilerConfig = c.Profiling
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedConfig, gotProfilerConfig)
+			}
+		})
+	}
+}
+
 func TestArgsParsing_ReadInactiveTimeoutConfig(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -1297,7 +1408,7 @@ func TestArgsParsing_ReadInactiveTimeoutConfig(t *testing.T) {
 		{
 			name:            "override_default",
 			cfgFile:         "override.yaml",
-			expectedTimeout: 0,
+			expectedTimeout: 30 * time.Second,
 		},
 		{
 			name:            "override_with_grpc",

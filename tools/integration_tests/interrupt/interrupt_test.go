@@ -65,7 +65,10 @@ func TestMain(m *testing.M) {
 		{"--implicit-dirs=true"},
 		{"--config-file=" + setup.YAMLConfigFile(yamlContent1, "ignore_interrupts.yaml")},
 		{"--config-file=" + setup.YAMLConfigFile(yamlContent2, "default_ignore_interrupts.yaml")}}
-
+	// TODO(b/417136852): Enable this test for Zonal Bucket also once read start working.
+	if !setup.IsZonalBucketRun() {
+		flags = append(flags, []string{"--enable-streaming-writes=true", "--implicit-dirs=true"})
+	}
 	successCode := static_mounting.RunTests(flags, m)
 
 	// Clean up test directory created.

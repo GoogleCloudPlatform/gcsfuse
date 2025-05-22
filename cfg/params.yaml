@@ -654,6 +654,57 @@
   usage: "Mount only a specific directory within the bucket. See docs/mounting for more information"
   default: ""
 
+- config-path: "profiling.allocated-heap"
+  flag-name: "profiling-allocated-heap"
+  type: "bool"
+  usage: "Enables allocated heap (HeapProfileAllocs) profiling. This only works when --enable-cloud-profiling is set to true."
+  default: true
+  hide-flag: true
+
+- config-path: "profiling.cpu"
+  flag-name: "profiling-cpu"
+  type: "bool"
+  usage: "Enables cpu profiling. This only works when --enable-cloud-profiling is set to true."
+  default: true
+  hide-flag: true
+
+- config-path: "profiling.enabled"
+  flag-name: "enable-cloud-profiling"
+  type: "bool"
+  usage: "Enables cloud profiling, by default disabled."
+  default: false
+  hide-flag: true
+
+- config-path: "profiling.goroutines"
+  flag-name: "profiling-goroutines"
+  type: "bool"
+  usage: "Enables goroutines profiling. This only works when --enable-cloud-profiling is set to true."
+  default: false
+  hide-flag: true
+
+- config-path: "profiling.heap"
+  flag-name: "profiling-heap"
+  type: "bool"
+  usage: "Enables heap profiling. This only works when --enable-cloud-profiling is set to true."
+  default: true
+  hide-flag: true
+
+- config-path: "profiling.label"
+  flag-name: "profiling-label"
+  type: "string"
+  usage: >-
+    Allow setting a profile label to uniquely identify and compare profiling data with other profiles.
+    This only works when --enable-cloud-profiling is set to true.  
+  default: "gcsfuse-0.0.0"
+  hide-flag: true
+
+- config-path: "profiling.mutex"
+  flag-name: "profiling-mutex"
+  type: "bool"
+  usage: "Enables mutex profiling. This only works when --enable-cloud-profiling is set to true."
+  default: false
+  hide-flag: true
+
 - config-path: "read.inactive-stream-timeout"
   flag-name: "read-inactive-stream-timeout"
   type: "duration"
@@ -661,7 +712,6 @@
     Duration of inactivity after which an open GCS read stream is automatically closed.
     This helps conserve resources when a file handle remains open without active Read calls.
     A value of '0s' disables this timeout.
-    Note: Currently only applies when using the 'grpc' client-protocol.
   default: "0s"
   hide-flag: true
 
@@ -686,6 +736,13 @@
   usage: "Enables streaming uploads during write file operation."
   default: false
   hide-flag: false
+
+- config-path: "write.experimental-enable-rapid-appends"
+  flag-name: "write-experimental-enable-rapid-appends"
+  type: "bool"
+  usage: "Enables support for appends to unfinalized object using streaming writes"
+  default: false
+  hide-flag: true
 
 - config-path: "write.global-max-blocks"
   flag-name: "write-global-max-blocks"

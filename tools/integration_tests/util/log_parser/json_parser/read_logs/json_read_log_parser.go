@@ -23,6 +23,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
@@ -148,4 +149,23 @@ func GetStructuredLogsSortedByTimestamp(logFilePath string, t *testing.T) []*Str
 	})
 
 	return structuredReadLogs
+}
+
+func ParseJsonLogLineIntoLogEntryStruct(jsonLogEntry string) (*LogEntry, error) {
+	entry := &LogEntry{}
+	jsonLog := make(map[string]interface{})
+	err := json.Unmarshal([]byte(jsonLogEntry), &jsonLog)
+	if err != nil {
+		return entry, nil
+	}
+
+	// Get timestamp from the jsonLog
+	timestampSeconds := int64(jsonLog["timestamp"].(map[string]interface{})["seconds"].(float64))
+	timestampNanos := int64(jsonLog["timestamp"].(map[string]interface{})["nanos"].(float64))
+	entry.Timestamp = time.Unix(timestampSeconds, timestampNanos)
+
+	// Normalize whitespace in the log message.
+	entry.Message = strings.TrimSpace(regexp.MustCompile(`\s+`).ReplaceAllString(jsonLog["message"].(string), " "))
+
+	return entry, nil
 }
