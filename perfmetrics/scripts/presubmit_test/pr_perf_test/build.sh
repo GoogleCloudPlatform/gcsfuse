@@ -117,21 +117,18 @@ fi
 install_bash() {
   set -e
   wget -q https://ftp.gnu.org/gnu/bash/bash-5.1.tar.gz
-  tar -xzf
+  tar -xzf "bash-5.1.tar.gz"
   cd bash-5.1
   ./configure --prefix="/usr/local" --enable-readline 
-  make -j$(nproc)
+  make -s -j"$(nproc 2>/dev/null || echo 1)"
   sudo make install
 }
-echo "Current changes~"
 echo "Installing bash 5.1 to /usr/local/bin/bash"
 if ! install_bash > "bash_install_log" 2>&1; then
   echo "Bash 5.1 installation failed"
   cat bash_install_log
   exit 1
 fi
-
-/usr/local/bin/bash --version
 
 # Execute integration tests on zonal bucket(s).
 if test -n "${integrationTestsOnZBStr}" ;
