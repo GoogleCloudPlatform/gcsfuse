@@ -77,6 +77,9 @@ type RandomReader interface {
 	// Clean up any resources associated with the reader, which must not be used
 	// again.
 	Destroy()
+
+	// Returns the read type.
+	ReadType() string
 }
 
 // ObjectData specifies the response returned as part of ReadAt call.
@@ -176,6 +179,10 @@ type randomReader struct {
 	metricHandle common.MetricHandle
 
 	config *cfg.ReadConfig
+
+	// Specifies the next expected offset for the reads. Used to distinguish between
+	// sequential and random reads.
+	expectedOffset int64
 }
 
 func (rr *randomReader) CheckInvariants() {
@@ -352,17 +359,17 @@ func (rr *randomReader) ReadAt(
 		rr.closeReader()
 		rr.reader = nil
 		rr.cancel = nil
-		if rr.start != offset {
-			// We should only increase the seek count if we have to discard the reader when it's
-			// positioned at wrong place. Discarding it if can't serve the entire request would
-			// result in reader size not growing for random reads scenario.
-			rr.seeks++
-		}
 	}
 
 	if rr.reader != nil {
 		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, -1, rr.readType)
 		return
+	}
+
+	// If the data can't be served from the existing reader, then we need to update the seeks.
+	// If current offset is not same as expected offset, its a random read.
+	if rr.expectedOffset != 0 && rr.expectedOffset != offset {
+		rr.seeks++
 	}
 
 	// If we don't have a reader, determine whether to read from NewReader or MRR.
@@ -413,6 +420,10 @@ func (rr *randomReader) Destroy() {
 		}
 		rr.fileCacheHandle = nil
 	}
+}
+
+func (rr *randomReader) ReadType() string {
+	return rr.readType
 }
 
 // Like io.ReadFull, but deals with the cancellation issues.
@@ -554,6 +565,8 @@ func (rr *randomReader) getReadInfo(
 				randomReadSize = maxReadSize
 			}
 			end = start + randomReadSize
+		} else {
+			rr.readType = util.Sequential
 		}
 	}
 	if end > int64(rr.object.Size) {
@@ -639,6 +652,7 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 
 	requestedDataSize := end - offset
 	common.CaptureGCSReadMetrics(ctx, rr.metricHandle, readType, requestedDataSize)
+	rr.updateExpectedOffset(offset + int64(n))
 
 	return
 }
@@ -655,6 +669,7 @@ func (rr *randomReader) readFromMultiRangeReader(ctx context.Context, p []byte, 
 
 	bytesRead, err = rr.mrdWrapper.Read(ctx, p, offset, end, timeout, rr.metricHandle)
 	rr.totalReadBytes += uint64(bytesRead)
+	rr.updateExpectedOffset(offset + int64(bytesRead))
 	return
 }
 
@@ -665,4 +680,8 @@ func (rr *randomReader) closeReader() {
 	if err != nil {
 		logger.Warnf("error while closing reader: %v", err)
 	}
+}
+
+func (rr *randomReader) updateExpectedOffset(offset int64) {
+	rr.expectedOffset = offset
 }
