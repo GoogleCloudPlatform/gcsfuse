@@ -264,6 +264,9 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 				// False and there doesn't already exist file in cache.
 				isSeq = false
 				return 0, false, nil
+			} else if errors.Is(err, cacheutil.ErrFileExcludedFromCacheByRegex) {
+				// Fall back to GCS if the file is explicitly excluded from cache.
+				return 0, false, nil
 			}
 
 			return 0, false, fmt.Errorf("tryReadingFromFileCache: while creating CacheHandle instance: %w", err)
