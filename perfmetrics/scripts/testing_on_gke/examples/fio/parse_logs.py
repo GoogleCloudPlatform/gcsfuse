@@ -37,6 +37,8 @@ _LOCAL_LOGS_LOCATION = "../../bin/fio-logs"
 _EPOCH_FILENAME_REGEX = "^epoch[1-9][0-9]*.json$"
 _EPOCH_NUMBER_MATCH_REGEX = ".*epoch([1-9][0-9]*).json"
 
+_DISABLE_EXPORT_TO_CSV = True
+
 _DISABLE_EXPORT_TO_BQ = True
 
 _DISABLE_CPU_MEMORY_DATA = True
@@ -491,11 +493,12 @@ if __name__ == "__main__":
   if len(output) == 0:
     print(f"\nNo FIO outputs found for experiment_id {args.experiment_id} !\n")
   else:
-    # Export output dict to CSV.
-    output_file_path = args.output_file
-    # Create the parent directory of output_file_path if doesn't exist already.
-    ensure_directory_exists(os.path.dirname(output_file_path))
-    write_records_to_csv_output_file(output, output_file_path)
+    if not _DISABLE_EXPORT_TO_CSV:
+      # Export output dict to CSV.
+      output_file_path = args.output_file
+      # Create the parent directory of output_file_path if doesn't exist already.
+      ensure_directory_exists(os.path.dirname(output_file_path))
+      write_records_to_csv_output_file(output, output_file_path)
 
     if not _DISABLE_EXPORT_TO_BQ:
       # Export output dict to bigquery table.
