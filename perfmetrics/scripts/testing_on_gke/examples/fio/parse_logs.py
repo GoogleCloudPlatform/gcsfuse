@@ -219,6 +219,12 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
             " skipping this file."
         )
         continue
+      elif len(jobs) > 1:
+        print(
+            "Warning: More than 1 job found in FIO output file"
+            f" {per_epoch_output}, so skipping this file."
+        )
+        continue
       job0 = jobs[0]
       if not "job options" in job0 or not isinstance(job0["job options"], dict):
         print(
