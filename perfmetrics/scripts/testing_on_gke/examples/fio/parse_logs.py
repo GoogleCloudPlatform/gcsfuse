@@ -477,6 +477,9 @@ if __name__ == "__main__":
     download_fio_outputs(fioWorkloads, args.experiment_id)
 
   output = create_output_scenarios_from_downloaded_files(args)
+  if len(output) == 0:
+    print(f"\nNo FIO outputs found for experiment_id {args.experiment_id} !\n")
+    sys.exit(0)
 
   # Export output dict to CSV.
   output_file_path = args.output_file

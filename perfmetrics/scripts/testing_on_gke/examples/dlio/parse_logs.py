@@ -268,6 +268,9 @@ if __name__ == "__main__":
   download_dlio_outputs(dlioWorkloads, args.experiment_id)
 
   output = create_output_scenarios_from_downloaded_files(args)
+  if len(output) == 0:
+    print(f"\nNo DLIO outputs found for experiment_id {args.experiment_id} !\n")
+    sys.exit(0)
 
   output_file_path = args.output_file
   # Create the parent directory of output_file_path if doesn't
