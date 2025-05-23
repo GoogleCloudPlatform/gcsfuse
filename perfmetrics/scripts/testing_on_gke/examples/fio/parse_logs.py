@@ -153,7 +153,7 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
             metadata_values[metadata] = f.read().strip()
         else:
           print(
-              f"Error: Directory {root} does not have file {metadata} in it"
+              f"Warning: Directory {root} does not have file {metadata} in it"
               " as expected, so skipping it."
           )
           skip_this_directory = True
@@ -202,10 +202,11 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
       global_options = per_epoch_output_data["global options"]
       for attr in {"nrfiles", "numjobs", "ioengine", "direct", "iodepth"}:
         if not attr in global_options:
-          raise Exception(
+          print(
               f"Warning: '{attr}' missing in 'global options' in FIO output"
               f" file {per_epoch_output}"
           )
+          continue
       # Get nrfiles,numjobs from ["global options"].
       nrfiles = int(global_options["nrfiles"])
       numjobs = int(global_options["numjobs"])
