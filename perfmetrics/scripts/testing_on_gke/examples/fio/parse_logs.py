@@ -110,8 +110,8 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
     <_LOCAL_LOGS_LOCATION>/<experimentID>/<fileSize>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/gcsfuse-generic/<readType>/gcsfuse_mount_options
 
     Output dict structure:
-    "{read_type}-{mean_file_size}-{bs}-{numjobs}-{nrfiles}":
-        "mean_file_size": str
+    "{read_type}-{file_size}-{bs}-{numjobs}-{nrfiles}":
+        "file_size": str
         "read_type": str
         "records":
             "local-ssd": [record1, record2, record3, ...]
@@ -235,14 +235,14 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
           continue
 
       bs = job0Options["bs"]
-      mean_file_size = job0Options["filesize"]
+      file_size = job0Options["filesize"]
       read_type = job0Options["rw"]
 
       # If the record for this key has not been added, create a new entry
       # for it.
       if key not in output:
         output[key] = {
-            "mean_file_size": mean_file_size,
+            "file_size": file_size,
             "read_type": read_type,
             "records": {
                 scenario: [],
@@ -356,7 +356,7 @@ def write_records_to_csv_output_file(output: dict, output_file_path: str):
             continue
 
           output_file_fwr.write(
-              f"{record_set['mean_file_size']},{record_set['read_type']},{scenario},{r['epoch']},{r['duration']},{r['throughput_mib_per_second']},{r['IOPS']},{r['throughput_over_local_ssd']},{r['lowest_memory']},{r['highest_memory']},{r['lowest_cpu']},{r['highest_cpu']},{r['pod_name']},{r['start']},{r['end']},\"{r['gcsfuse_mount_options']}\",{r['blockSize']},{r['filesPerThread']},{r['numThreads']},{args.experiment_id},"
+              f"{record_set['file_size']},{record_set['read_type']},{scenario},{r['epoch']},{r['duration']},{r['throughput_mib_per_second']},{r['IOPS']},{r['throughput_over_local_ssd']},{r['lowest_memory']},{r['highest_memory']},{r['lowest_cpu']},{r['highest_cpu']},{r['pod_name']},{r['start']},{r['end']},\"{r['gcsfuse_mount_options']}\",{r['blockSize']},{r['filesPerThread']},{r['numThreads']},{args.experiment_id},"
           )
           output_file_fwr.write(
               f"{r['e2e_latency_ns_max']},{r['e2e_latency_ns_p50']},{r['e2e_latency_ns_p90']},{r['e2e_latency_ns_p99']},{r['e2e_latency_ns_p99.9']},"
@@ -400,7 +400,7 @@ def write_records_to_bq_table(
         row.experiment_id = experiment_id
         row.epoch = r["epoch"]
         row.operation = record_set["read_type"]
-        row.file_size = record_set["mean_file_size"]
+        row.file_size = record_set["file_size"]
         row.file_size_in_bytes = convert_size_to_bytes(row.file_size)
         row.block_size = r["blockSize"]
         row.block_size_in_bytes = convert_size_to_bytes(row.block_size)
