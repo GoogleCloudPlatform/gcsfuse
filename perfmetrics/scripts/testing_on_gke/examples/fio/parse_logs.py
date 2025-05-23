@@ -191,15 +191,17 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
       )
 
       # Confirm that the per_epoch_output_data has all the required attributes.
-      for attr in {"global options", "jobs"}:
+      for attr in {"global options", "jobs", "timestamp_ms"}:
         if not attr in per_epoch_output_data:
           print(
               f"Warning: '{attr}' missing in FIO output file"
               f" {per_epoch_output}, so skipping this file."
           )
           continue
-
       global_options = per_epoch_output_data["global options"]
+      jobs = per_epoch_output_data["jobs"]
+      timestamp_ms = per_epoch_output_data["timestamp_ms"]
+
       for attr in {"nrfiles", "numjobs", "ioengine", "direct", "iodepth"}:
         if not attr in global_options:
           print(
@@ -207,12 +209,9 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
               f" file {per_epoch_output}"
           )
           continue
-      # Get nrfiles,numjobs from ["global options"].
       nrfiles = int(global_options["nrfiles"])
       numjobs = int(global_options["numjobs"])
 
-      # Get blocksize from ["job options"].
-      jobs = per_epoch_output_data["jobs"]
       if not isinstance(jobs, Sequence) or len(jobs) == 0:
         print(
             f"Warning: No jobs found in FIO output file {per_epoch_output}, so"
@@ -226,13 +225,25 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
         )
         continue
       job0 = jobs[0]
-      if not "job options" in job0 or not isinstance(job0["job options"], dict):
+
+      for attr in ["job options", "read", "job_start"]:
+        if not attr in job0:
+          print(
+              f'Warning: Did not find "[jobs][0][{attr}]" in'
+              f" {per_epoch_output}, so ignoring this file."
+          )
+          continue
+      job0Options = job0["job options"]
+      job0_read_metrics = job0["read"]
+      job0_start = job0["job_start"]
+
+      if not isinstance(job0Options, dict):
         print(
-            'Warning: Did not find "[jobs][0][job options]" of type dict in'
+            'Warning: "[jobs][0][job options]" is not of type dict in'
             f" {per_epoch_output}, so ignoring this file"
         )
         continue
-      job0Options = job0["job options"]
+
       for attr in ["bs", "filesize", "rw"]:
         if not attr in job0Options:
           print(
@@ -240,7 +251,6 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
               f" {per_epoch_output}, so ignoring this file"
           )
           continue
-
       bs = job0Options["bs"]
       file_size = job0Options["filesize"]
       read_type = job0Options["rw"]
@@ -256,7 +266,12 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
             },
         }
 
-      job0_read_metrics = job0["read"]
+      if not isinstance(job0_read_metrics, dict):
+        print(
+            "Warning: jobs[0]['read'] is not of type dict in"
+            f" {per_epoch_output}, so skipping this file."
+        )
+        continue
 
       # Create a record for this key.
       r = record.copy()
@@ -274,10 +289,10 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
         r["throughput_mb_per_second"] = round(
             (r["throughput_bytes_per_second"] / 1e6), 2
         )
-        r["start_epoch"] = job0["job_start"] // 1000
-        r["end_epoch"] = per_epoch_output_data["timestamp_ms"] // 1000
-        r["start"] = unix_to_timestamp(job0["job_start"])
-        r["end"] = unix_to_timestamp(per_epoch_output_data["timestamp_ms"])
+        r["start_epoch"] = job0_start // 1000
+        r["end_epoch"] = timestamp_ms // 1000
+        r["start"] = unix_to_timestamp(job0_start)
+        r["end"] = unix_to_timestamp(timestamp_ms)
 
         fetch_cpu_memory_data(args=args, record=r)
 
