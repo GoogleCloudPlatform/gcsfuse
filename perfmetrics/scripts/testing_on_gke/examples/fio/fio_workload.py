@@ -201,51 +201,36 @@ def parse_test_config_for_fio_workloads(fioTestConfigFile: str):
         print(f'workloads#{i} is not a valid FIO workload, so ignoring it.')
       else:
         fioWorkload = workload['fioWorkload']
+        fioWorkloadAttributes = dict()
         if 'jobFile' in fioWorkload:
-          jobFile = fioWorkload['jobFile']
+          fioWorkloadAttributes['jobFile'] = fioWorkload['jobFile']
         else:
-          fileSize = fioWorkload['fileSize']
-          blockSize = fioWorkload['blockSize']
-          filesPerThread = fioWorkload['filesPerThread']
-          numThreads = fioWorkload['numThreads']
-        bucket = workload['bucket']
-        readTypes = (
+          for fioWorkloadAttribute in [
+              'fileSize',
+              'blockSize',
+              'numThreads',
+              'filesPerThread',
+          ]:
+            fioWorkloadAttributes[fioWorkloadAttribute] = fioWorkload[
+                fioWorkloadAttribute
+            ]
+        fioWorkloadAttributes['bucket'] = workload['bucket']
+        fioWorkloadAttributes['readTypes'] = (
             fioWorkload['readTypes']
             if 'readTypes' in fioWorkload
             else ['read', 'randread']
         )
-        gcsfuseMountOptions = workload['gcsfuseMountOptions']
-        numEpochs = (
+        fioWorkloadAttributes['gcsfuseMountOptions'] = workload[
+            'gcsfuseMountOptions'
+        ]
+        fioWorkloadAttributes['numEpochs'] = (
             workload['numEpochs']
             if 'numEpochs' in workload
             else DefaultNumEpochs
         )
         for scenario in scenarios:
-          if not jobFile:
-            fioWorkloads.append(
-                FioWorkload(
-                    scenario=scenario,
-                    fileSize=fileSize,
-                    blockSize=blockSize,
-                    filesPerThread=filesPerThread,
-                    numThreads=numThreads,
-                    bucket=bucket,
-                    readTypes=readTypes,
-                    gcsfuseMountOptions=gcsfuseMountOptions,
-                    numEpochs=numEpochs,
-                )
-            )
-          else:
-            fioWorkloads.append(
-                FioWorkload(
-                    scenario=scenario,
-                    bucket=bucket,
-                    readTypes=readTypes,
-                    gcsfuseMountOptions=gcsfuseMountOptions,
-                    numEpochs=numEpochs,
-                    jobFile=jobFile,
-                )
-            )
+          fioWorkloadAttributes['scenario'] = scenario
+          fioWorkloads.append(FioWorkload(**fioWorkloadAttributes))
   return fioWorkloads
 
 
