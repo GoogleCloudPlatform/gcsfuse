@@ -20,6 +20,7 @@ import argparse
 from collections.abc import Sequence
 import json
 import os
+from os import path
 import pprint
 import re
 import subprocess
@@ -83,13 +84,15 @@ def download_fio_outputs(fioWorkloads: set, experimentID: str) -> int:
     <_LOCAL_LOGS_LOCATION>/<experimentID>/<fileSize>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/gcsfuse-generic/<readType>/gcsfuse_mount_options
   """
 
+  buckets = set()
   for fioWorkload in fioWorkloads:
-    dstDir = (
-        _LOCAL_LOGS_LOCATION + "/" + experimentID + "/" + fioWorkload.fileSize
-    )
+    buckets.add(fioWorkload.bucket)
+
+  for bucket in buckets:
+    dstDir = path.join(_LOCAL_LOGS_LOCATION, experimentID, bucket)
     ensure_directory_exists(dstDir)
 
-    srcObjects = f"gs://{fioWorkload.bucket}/fio-output/{experimentID}/*"
+    srcObjects = f"gs://{bucket}/fio-output/{experimentID}/*"
     print(f"Downloading FIO outputs from {srcObjects} ...")
     returncode, errorStr = download_gcs_objects(srcObjects, dstDir)
     if returncode < 0:
