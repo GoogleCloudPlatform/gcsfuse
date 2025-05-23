@@ -233,11 +233,11 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
               f" {per_epoch_output}, so ignoring this file."
           )
           continue
-      job0Options = job0["job options"]
+      job0_options = job0["job options"]
       job0_read_metrics = job0["read"]
       job0_start = job0["job_start"]
 
-      if not isinstance(job0Options, dict):
+      if not isinstance(job0_options, dict):
         print(
             'Warning: "[jobs][0][job options]" is not of type dict in'
             f" {per_epoch_output}, so ignoring this file"
@@ -245,15 +245,15 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
         continue
 
       for attr in ["bs", "filesize", "rw"]:
-        if not attr in job0Options:
+        if not attr in job0_options:
           print(
               f'Warning: Did not find "[jobs][0][job options][{attr}]" in'
               f" {per_epoch_output}, so ignoring this file"
           )
           continue
-      bs = job0Options["bs"]
-      file_size = job0Options["filesize"]
-      read_type = job0Options["rw"]
+      bs = job0_options["bs"]
+      file_size = job0_options["filesize"]
+      read_type = job0_options["rw"]
 
       # If the record for this key has not been added, create a new entry
       # for it.
