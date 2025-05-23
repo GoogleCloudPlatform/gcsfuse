@@ -37,6 +37,8 @@ _LOCAL_LOGS_LOCATION = "../../bin/fio-logs"
 _EPOCH_FILENAME_REGEX = "^epoch[1-9][0-9]*.json$"
 _EPOCH_NUMBER_MATCH_REGEX = ".*epoch([1-9][0-9]*).json"
 
+_DISABLE_EXPORT_TO_BQ = True
+
 _DISABLE_CPU_MEMORY_DATA = True
 
 record = {
@@ -495,19 +497,20 @@ if __name__ == "__main__":
     ensure_directory_exists(os.path.dirname(output_file_path))
     write_records_to_csv_output_file(output, output_file_path)
 
-    # Export output dict to bigquery table.
-    if (
-        args.bq_project_id
-        and args.bq_project_id.strip()
-        and args.bq_dataset_id
-        and args.bq_dataset_id.strip()
-        and args.bq_table_id
-        and args.bq_table_id.strip()
-    ):
-      write_records_to_bq_table(
-          output=output,
-          bq_project_id=args.bq_project_id,
-          bq_dataset_id=args.bq_dataset_id,
-          bq_table_id=args.bq_table_id,
-          experiment_id=args.experiment_id,
-      )
+    if not _DISABLE_EXPORT_TO_BQ:
+      # Export output dict to bigquery table.
+      if (
+          args.bq_project_id
+          and args.bq_project_id.strip()
+          and args.bq_dataset_id
+          and args.bq_dataset_id.strip()
+          and args.bq_table_id
+          and args.bq_table_id.strip()
+      ):
+        write_records_to_bq_table(
+            output=output,
+            bq_project_id=args.bq_project_id,
+            bq_dataset_id=args.bq_dataset_id,
+            bq_table_id=args.bq_table_id,
+            experiment_id=args.experiment_id,
+        )
