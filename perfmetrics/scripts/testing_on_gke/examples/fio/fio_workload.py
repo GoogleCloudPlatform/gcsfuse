@@ -162,7 +162,7 @@ class FioWorkload:
         f' blockSize:{self.blockSize}, filesPerThread:{self.filesPerThread},'
         f' numThreads:{self.numThreads}, bucket:{self.bucket},'
         f' readTypes:{self.readTypes}, gcsfuseMountOptions:'
-        f' {gcsfuseMountOptions}, numEpochs: {self.numEpochs}'
+        f' {self.gcsfuseMountOptions}, numEpochs: {self.numEpochs}'
     )
 
 

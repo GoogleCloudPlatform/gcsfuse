@@ -780,15 +780,14 @@ function waitTillAllPodsComplete() {
 # given bucket and file-size.
 function downloadFioOutputsFromBucket() {
   local bucket=$1
-  local fileSize=$2
-  local mountpath=$3
+  local mountpath=$2/${bucket}-mount
 
-  mkdir -pv $mountpath
+  mkdir -p $mountpath
   fusermount -uz $mountpath 2>/dev/null || true
-  echo "Mounting bucket \"${bucket}\" to ${mountpath} ... "
+  echo "Searching for FIO outputs for experiment ${experiment_id} in gs://${bucket} ..."
 
   cd $gcsfuse_src_dir
-  if ! go run $gcsfuse_src_dir --implicit-dirs $bucket $mountpath > /dev/null ; then
+  if ! go run $gcsfuse_src_dir --implicit-dirs --o ro $bucket $mountpath > /dev/null ; then
     # If fails to mount this bucket,
     # Return to original directory before exiting..
     cd - >/dev/null
@@ -802,30 +801,27 @@ function downloadFioOutputsFromBucket() {
   # If the given bucket has the fio outputs for the given experiment-id, then
   # copy/download them locally to the appropriate folder.
   src_dir="${mountpath}/fio-output/${experiment_id}"
-  dst_dir="${gcsfuse_src_dir}/perfmetrics/scripts/testing_on_gke/bin/fio-logs/${experiment_id}/${fileSize}"
+  dst_dir="${gcsfuse_src_dir}/perfmetrics/scripts/testing_on_gke/bin/fio-logs/${experiment_id}/${bucket}"
   if test -d "${src_dir}" ; then
-    mkdir -pv "${dst_dir}"
-    echo "Copying files of type ${fileSize}* from \"${src_dir}\" to \"${dst_dir}/\" ... "
-    cp -rfvu "${src_dir}"/${fileSize}* "${dst_dir}"/
+    mkdir -p "${dst_dir}"
+    echo "Copying all files from \"${src_dir}\" to \"${dst_dir}/\" ... "
+    cp -rfu "${src_dir}"/* "${dst_dir}"/
   fi
 
-  echo "  Unmounting \"${bucket}\" from \"${mountpath}\" ... "
   fusermount -uz "${mountpath}" || true
+  rm -rf "${mountpath}"
 }
 
 function downloadFioOutputsFromAllBucketsInWorkloadConfig() {
   local mountpath=$(realpath mounted)
   # Using jquery, find out all the relevant buckets for non-disabled fio
   # workloads in the workload-config file and download fio outputs for them all.
-  cat ${workload_config} | jq 'select(.TestConfig.workloadConfig.workloads[].fioWorkload != null)' | jq -r '.TestConfig.workloadConfig.workloads[] | [.bucket, .fioWorkload.fileSize] | @csv' | grep -v " " | sort | uniq | while read bucket_size_combo; do
-    workload_bucket=$(echo ${bucket_size_combo} | cut -d, -f1 | tr -d \")
-    workload_filesize=$(echo ${bucket_size_combo} | cut -d, -f2 | tr -d \")
-    if [[ "${workload_bucket}" != "" && "${workload_filesize}" != "" ]]; then
-       downloadFioOutputsFromBucket ${workload_bucket} ${workload_filesize} ${mountpath}
+  cat ${workload_config} | jq 'select(.TestConfig.workloadConfig.workloads[].fioWorkload != null)' | jq -r '.TestConfig.workloadConfig.workloads[] | [.bucket] | @csv' | grep -v " " | sort | uniq | while read bucket; do
+    bucket=$(echo ${bucket} | tr -d \" )
+    if [[ "${bucket}" != "" ]]; then
+       downloadFioOutputsFromBucket ${bucket} "${mountpath}"
     fi
   done
-  # Clean-up
-  fusermount -uz ${mountpath} || true
   rm -rf ${mountpath}
 }
 
@@ -850,18 +846,22 @@ function fetchAndParseFioOutputs() {
   cd "${gke_testing_dir}"/examples/fio
   parse_logs_args="--project-number=${project_number} --workload-config ${workload_config} --experiment-id ${experiment_id} --output-file ${output_dir}/fio/output.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace} --bq-project-id=${DEFAULT_BQ_PROJECT_ID} --bq-dataset-id=${DEFAULT_BQ_DATASET_ID} --bq-table-id=${DEFAULT_BQ_TABLE_ID}"
   if ${zonal}; then
+    #  Download fio outputs from all buckets using gcsfuse because zonal buckets don't work with gcloud storage cp.
+    printf "\nDownloading all fio outputs using gcsfuse mount as there are zonal buckets involved ...\n\n"
+    downloadFioOutputsFromAllBucketsInWorkloadConfig
+
     python3 parse_logs.py ${parse_logs_args} --predownloaded-output-files
   else
     python3 parse_logs.py ${parse_logs_args}
   fi
-  cd -
+  cd - >/dev/null
 }
 
 function fetchAndParseDlioOutputs() {
   printf "\nFetching and parsing dlio outputs ...\n\n"
   cd "${gke_testing_dir}"/examples/dlio
   python3 parse_logs.py --project-number=${project_number} --workload-config "${workload_config}" --experiment-id ${experiment_id} --output-file "${output_dir}"/dlio/output.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace}
-  cd -
+  cd - >/dev/null
 }
 
 # prep
@@ -901,12 +901,6 @@ waitTillAllPodsComplete
 
 # clean-up after run
 deleteAllPods
-
-#  Download fio outputs from all buckets using gcsfuse because zonal buckets don't work with gcloud storage cp.
-if ${zonal}; then
-  printf "\nDownloading all fio outputs using gcsfuse mount as there are zonal buckets involved ...\n\n"
-  downloadFioOutputsFromAllBucketsInWorkloadConfig
-fi
 
 # parse outputs
 fetchAndParseFioOutputs
