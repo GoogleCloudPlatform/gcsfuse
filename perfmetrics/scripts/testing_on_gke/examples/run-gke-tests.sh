@@ -866,30 +866,30 @@ function fetchAndParseDlioOutputs() {
 
 # prep
 printRunParameters
-installDependencies
+# installDependencies
 
 # if only_parse is false, then
 if ! ${only_parse} ; then
-  validateMachineConfig ${machine_type} ${num_nodes} ${num_ssd}
+  # validateMachineConfig ${machine_type} ${num_nodes} ${num_ssd}
 
-  if ${zonal} && $(areThereAnyDLIOWorkloads); then
-    exitWithError "DLIO workloads are not supported with zonal buckets as of now."
-  fi
+  # if ${zonal} && $(areThereAnyDLIOWorkloads); then
+    # exitWithError "DLIO workloads are not supported with zonal buckets as of now."
+  # fi
 
-  # GCP configuration
-  ensureGcpAuthsAndConfig
-  ensureGkeCluster
-  # ensureRequiredNodePoolConfiguration
-  enableManagedCsiDriver
-  activateCluster
-  createKubernetesServiceAccountForCluster
+  # # GCP configuration
+  # ensureGcpAuthsAndConfig
+  # ensureGkeCluster
+  # # ensureRequiredNodePoolConfiguration
+  # enableManagedCsiDriver
+  # activateCluster
+  # createKubernetesServiceAccountForCluster
 
-  # GCSFuse driver source code
-  ensureGcsfuseCode
-
-  # GCP/GKE configuration dependent on GCSFuse/CSI driver source code
-  createCustomCsiDriverIfNeeded
-
+  # # GCSFuse driver source code
+  # ensureGcsfuseCode
+# 
+  # # GCP/GKE configuration dependent on GCSFuse/CSI driver source code
+  # createCustomCsiDriverIfNeeded
+# 
   # Run latest workload configuration
   deleteAllPods
   deployAllFioHelmCharts
