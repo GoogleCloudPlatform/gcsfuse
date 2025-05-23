@@ -17,6 +17,7 @@
 
 # standard library imports
 import argparse
+from collections.abc import Sequence
 import json
 import os
 import pprint
@@ -32,7 +33,8 @@ from fio.bq_utils import FioBigqueryExporter, FioTableRow, Timestamp
 from utils.utils import unix_to_timestamp, convert_size_to_bytes
 
 _LOCAL_LOGS_LOCATION = "../../bin/fio-logs"
-_EPOCH_FILENAME_REGEX = "^epoch[0-9]+.json$"
+_EPOCH_FILENAME_REGEX = "^epoch[1-9][0-9]*.json$"
+_EPOCH_NUMBER_MATCH_REGEX = ".*epoch([1-9][0-9]*).json"
 
 record = {
     "pod_name": "",
@@ -168,49 +170,73 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
       with open(per_epoch_output, "r") as f:
         try:
           per_epoch_output_data = json.load(f)
-        except:
-          print(f"failed to json-parse {per_epoch_output}, so skipping it.")
+        except Exception as e:
+          print(
+              f"Warning: failed to json-parse {per_epoch_output}, so skipping"
+              f" it. Error: {e}"
+          )
           continue
-
-      # Confirm that the per_epoch_output_data has ["jobs"][0]["job options"]['"bs"]
-      # for determining blocksize.
-      if (
-          not "jobs" in per_epoch_output_data
-          or not per_epoch_output_data["jobs"]
-          or not "job options" in per_epoch_output_data["jobs"][0]
-          or not "bs" in per_epoch_output_data["jobs"][0]["job options"]
-      ):
-        print(
-            'Did not find "[jobs][0][job options][bs]" in'
-            f" {per_epoch_output}, so ignoring this file"
-        )
-        continue
-      # Confirm that the per_epoch_output_data has ["global options"] for
-      # determining nrfiles and numjobs in it.
-      if "global options" not in per_epoch_output_data:
-        print(f"field: 'global options' missing in {per_epoch_output}")
-        continue
 
       # This print is for debugging in case something goes wrong.
       print(f"Now parsing file {per_epoch_output} ...")
 
-      # Get fileSize, readType, echo number from the file path.
+      # Get epoch number, and key from the file path.
       root_split = root.split("/")
-      mean_file_size = root_split[-4]
       key = root_split[
           -3
-      ]  # key is unique for a given combination of of fileSize,blockSize,numThreads(numjobs),filesPerThread(nrfiles).
+      ]  # key is unique identifier for a single FIO workload.
       scenario = root_split[-2]
-      read_type = root_split[-1]
-      epoch = int(file.split(".")[0][-1])
+      epoch = int(
+          re.match(_EPOCH_NUMBER_MATCH_REGEX, per_epoch_output).group(1)
+      )
 
-      # Get nrfiles,numjobs, blocksize from ["global options"] and ["job options"].
+      # Confirm that the per_epoch_output_data has all the required attributes.
+      for attr in {"global options", "jobs"}:
+        if not attr in per_epoch_output_data:
+          print(
+              f"Warning: '{attr}' missing in FIO output file"
+              f" {per_epoch_output}, so skipping this file."
+          )
+          continue
+
       global_options = per_epoch_output_data["global options"]
+      for attr in {"nrfiles", "numjobs", "ioengine", "direct", "iodepth"}:
+        if not attr in global_options:
+          raise Exception(
+              f"Warning: '{attr}' missing in 'global options' in FIO output"
+              f" file {per_epoch_output}"
+          )
+      # Get nrfiles,numjobs from ["global options"].
       nrfiles = int(global_options["nrfiles"])
       numjobs = int(global_options["numjobs"])
-      job0 = per_epoch_output_data["jobs"][0]
 
-      bs = job0["job options"]["bs"]
+      # Get blocksize from ["job options"].
+      jobs = per_epoch_output_data["jobs"]
+      if not isinstance(jobs, Sequence) or len(jobs) == 0:
+        print(
+            f"Warning: No jobs found in FIO output file {per_epoch_output}, so"
+            " skipping this file."
+        )
+        continue
+      job0 = jobs[0]
+      if not "job options" in job0 or not isinstance(job0["job options"], dict):
+        print(
+            'Warning: Did not find "[jobs][0][job options]" of type dict in'
+            f" {per_epoch_output}, so ignoring this file"
+        )
+        continue
+      job0Options = job0["job options"]
+      for attr in ["bs", "filesize", "rw"]:
+        if not attr in job0Options:
+          print(
+              f'Warning: Did not find "[jobs][0][job options][{attr}]" in'
+              f" {per_epoch_output}, so ignoring this file"
+          )
+          continue
+
+      bs = job0Options["bs"]
+      mean_file_size = job0Options["filesize"]
+      read_type = job0Options["rw"]
 
       # If the record for this key has not been added, create a new entry
       # for it.
@@ -219,13 +245,11 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
             "mean_file_size": mean_file_size,
             "read_type": read_type,
             "records": {
-                "local-ssd": [],
-                "gcsfuse-generic": [],
+                scenario: [],
             },
         }
 
       job0_read_metrics = job0["read"]
-      bs = job0["job options"]["bs"]
 
       # Create a record for this key.
       r = record.copy()
@@ -262,8 +286,9 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
         r["e2e_latency_ns_p99.9"] = clat_ns_percentile["99.900000"]
       except Exception as e:
         print(
-            f"Failed to create following record with error: {e}, metadata:"
-            f" {repr(metadata_values)}"
+            f"Warning: failed to create record for key {key} for FIO output"
+            f" file {per_epoch_output} with error: {e}, metadata:"
+            f" {repr(metadata_values)}, so skipping this file."
         )
         # This print is for debugging in case something goes wrong.
         pprint.pprint(r)
