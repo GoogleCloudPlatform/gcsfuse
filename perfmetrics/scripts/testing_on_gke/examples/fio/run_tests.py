@@ -62,10 +62,6 @@ def createHelmInstallCommands(
             f'--set bucketName={fioWorkload.bucket}',
             f'--set scenario={fioWorkload.scenario}',
             f'--set fio.readType={readType}',
-            f'--set fio.fileSize={fioWorkload.fileSize}',
-            f'--set fio.blockSize={fioWorkload.blockSize}',
-            f'--set fio.filesPerThread={fioWorkload.filesPerThread}',
-            f'--set fio.numThreads={fioWorkload.numThreads}',
             f'--set experimentID={experimentID}',
             (
                 '--set'
@@ -81,6 +77,17 @@ def createHelmInstallCommands(
             f'--set numEpochs={fioWorkload.numEpochs}',
             f'--set gcsfuse.customCSIDriver={customCSIDriver}',
         ]
+        if fioWorkload.jobFile:
+          commands.append(
+              f'--set fio.jobFile={fioWorkload.jobFile}',
+          )
+        else:
+          commands.extend([
+              f'--set fio.fileSize={fioWorkload.fileSize}',
+              f'--set fio.blockSize={fioWorkload.blockSize}',
+              f'--set fio.filesPerThread={fioWorkload.filesPerThread}',
+              f'--set fio.numThreads={fioWorkload.numThreads}',
+          ])
 
         helm_command = ' '.join(commands)
         helm_commands.append(helm_command)
@@ -92,7 +99,10 @@ def main(args) -> None:
       args.workload_config
   )
   helmInstallCommands = createHelmInstallCommands(
-      fioWorkloads, args.experiment_id, args.machine_type, args.custom_csi_driver
+      fioWorkloads,
+      args.experiment_id,
+      args.machine_type,
+      args.custom_csi_driver,
   )
   buckets = {fioWorkload.bucket for fioWorkload in fioWorkloads}
   role = 'roles/storage.objectUser'

@@ -40,6 +40,7 @@ fio:
   blockSize: 64K
   filesPerThread: "20000"
   numThreads: "50"
+  jobFile: ""
 
 gcsfuse:
   metadataCacheTTLSeconds: "6048000"
