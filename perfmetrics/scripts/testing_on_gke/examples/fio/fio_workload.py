@@ -61,11 +61,17 @@ def validate_fio_workload(workload: dict, name: str):
 
   fioWorkload = workload['fioWorkload']
   if 'jobFile' in fioWorkload:
-    jobFile = fioWorkload['jobFile']
-    if len(jobFile.strip()) == 0:
+    jobFile = fioWorkload['jobFile'].strip()
+    if len(jobFile) == 0:
       print(
           '{name} has jobFile attribute in it, but it is empty, so ignoring'
           ' this workload.'
+      )
+      return False
+    elif ' ' in jobFile:
+      print(
+          '{name} has jobFile attribute in it, but it has space (" ") in it, so'
+          ' ignoring this workload.'
       )
       return False
   else:
@@ -205,24 +211,20 @@ def parse_test_config_for_fio_workloads(fioTestConfigFile: str):
         if 'jobFile' in fioWorkload:
           fioWorkloadAttributes['jobFile'] = fioWorkload['jobFile']
         else:
-          for fioWorkloadAttribute in [
+          for attr in [
               'fileSize',
               'blockSize',
               'numThreads',
               'filesPerThread',
           ]:
-            fioWorkloadAttributes[fioWorkloadAttribute] = fioWorkload[
-                fioWorkloadAttribute
-            ]
-        fioWorkloadAttributes['bucket'] = workload['bucket']
+            fioWorkloadAttributes[attr] = fioWorkload[attr]
+        for attr in ['bucket', 'gcsfuseMountOptions']:
+          fioWorkloadAttributes[attr] = workload[attr]
         fioWorkloadAttributes['readTypes'] = (
             fioWorkload['readTypes']
             if 'readTypes' in fioWorkload
             else ['read', 'randread']
         )
-        fioWorkloadAttributes['gcsfuseMountOptions'] = workload[
-            'gcsfuseMountOptions'
-        ]
         fioWorkloadAttributes['numEpochs'] = (
             workload['numEpochs']
             if 'numEpochs' in workload
