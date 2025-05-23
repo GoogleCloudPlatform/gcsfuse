@@ -206,7 +206,7 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
         if not attr in global_options:
           print(
               f"Warning: '{attr}' missing in 'global options' in FIO output"
-              f" file {per_epoch_output}"
+              f" file {per_epoch_output}, so skipping this file."
           )
           continue
       nrfiles = int(global_options["nrfiles"])
@@ -221,7 +221,8 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
       elif len(jobs) > 1:
         print(
             "Warning: More than 1 job found in FIO output file"
-            f" {per_epoch_output}, so skipping this file."
+            f" {per_epoch_output}, which is not supported, so skipping this"
+            " file."
         )
         continue
       job0 = jobs[0]
@@ -230,7 +231,7 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
         if not attr in job0:
           print(
               f'Warning: Did not find "[jobs][0][{attr}]" in'
-              f" {per_epoch_output}, so ignoring this file."
+              f" {per_epoch_output}, so skipping this file."
           )
           continue
       job0_options = job0["job options"]
@@ -240,7 +241,7 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
       if not isinstance(job0_options, dict):
         print(
             'Warning: "[jobs][0][job options]" is not of type dict in'
-            f" {per_epoch_output}, so ignoring this file"
+            f" {per_epoch_output}, so skipping this file"
         )
         continue
 
@@ -248,7 +249,7 @@ def create_output_scenarios_from_downloaded_files(args: dict) -> dict:
         if not attr in job0_options:
           print(
               f'Warning: Did not find "[jobs][0][job options][{attr}]" in'
-              f" {per_epoch_output}, so ignoring this file"
+              f" {per_epoch_output}, so skipping this file"
           )
           continue
       bs = job0_options["bs"]
