@@ -61,7 +61,6 @@ def createHelmInstallCommands(
             f'helm install {chartName} loading-test',
             f'--set bucketName={fioWorkload.bucket}',
             f'--set scenario={fioWorkload.scenario}',
-            f'--set fio.readType={readType}',
             f'--set experimentID={experimentID}',
             (
                 '--set'
@@ -87,6 +86,7 @@ def createHelmInstallCommands(
               f'--set fio.blockSize={fioWorkload.blockSize}',
               f'--set fio.filesPerThread={fioWorkload.filesPerThread}',
               f'--set fio.numThreads={fioWorkload.numThreads}',
+              f'--set fio.readType={readType}',
           ])
 
         helm_command = ' '.join(commands)

@@ -92,29 +92,29 @@ def validate_fio_workload(workload: dict, name: str):
         )
         return False
 
-  if 'readTypes' in fioWorkload:
-    readTypes = fioWorkload['readTypes']
-    if not type(readTypes) is list:
-      print(
-          f"In {name}, fioWorkload['readTypes'] is of type {type(readTypes)},"
-          " not 'list'."
-      )
-      return False
-    for readType in readTypes:
-      if not type(readType) is str:
+    if 'readTypes' in fioWorkload:
+      readTypes = fioWorkload['readTypes']
+      if not type(readTypes) is list:
         print(
-            f'In {name}, one of the values in'
-            f" fioWorkload['readTypes'] is '{readType}', which is of type"
-            f' {type(readType)}, not str'
+            f"In {name}, fioWorkload['readTypes'] is of type {type(readTypes)},"
+            " not 'list'."
         )
         return False
-      if not readType == 'read' and not readType == 'randread':
-        print(
-            f"In {name}, one of the values in fioWorkload['readTypes'] is"
-            f" '{readType}' which is not a supported value. Supported values"
-            ' are read, randread'
-        )
-        return False
+      for readType in readTypes:
+        if not type(readType) is str:
+          print(
+              f'In {name}, one of the values in'
+              f" fioWorkload['readTypes'] is '{readType}', which is of type"
+              f' {type(readType)}, not str'
+          )
+          return False
+        if not readType == 'read' and not readType == 'randread':
+          print(
+              f"In {name}, one of the values in fioWorkload['readTypes'] is"
+              f" '{readType}' which is not a supported value. Supported values"
+              ' are read, randread'
+          )
+          return False
 
   return True
 
@@ -156,13 +156,13 @@ class FioWorkload:
       self,
       scenario: str,
       bucket: str,
-      readTypes: list,
       gcsfuseMountOptions: str,
       numEpochs: int = DefaultNumEpochs,
       fileSize: str = None,
       blockSize: str = None,
       filesPerThread: int = None,
       numThreads: int = None,
+      readTypes: list = None,
       jobFile: str = None,
   ):
     self.scenario = scenario
@@ -218,13 +218,13 @@ def parse_test_config_for_fio_workloads(fioTestConfigFile: str):
               'filesPerThread',
           ]:
             fioWorkloadAttributes[attr] = fioWorkload[attr]
+          fioWorkloadAttributes['readTypes'] = (
+              fioWorkload['readTypes']
+              if 'readTypes' in fioWorkload
+              else ['read', 'randread']
+          )
         for attr in ['bucket', 'gcsfuseMountOptions']:
           fioWorkloadAttributes[attr] = workload[attr]
-        fioWorkloadAttributes['readTypes'] = (
-            fioWorkload['readTypes']
-            if 'readTypes' in fioWorkload
-            else ['read', 'randread']
-        )
         fioWorkloadAttributes['numEpochs'] = (
             workload['numEpochs']
             if 'numEpochs' in workload
@@ -248,26 +248,25 @@ def FioChartNamePodName(
       if fioWorkload.scenario in shortenScenario
       else 'other'
   )
-  readTypeToShortReadType = {'read': 'sr', 'randread': 'rr'}
-  shortForReadType = (
-      readTypeToShortReadType[readType]
-      if readType in readTypeToShortReadType
-      else 'ur'
-  )
 
   hashOfWorkload = str(hash((fioWorkload, experimentID, readType))).replace(
       '-', ''
   )
-  return (
-      (
-          f'fio-load-{shortForScenario}-{shortForReadType}-{fioWorkload.fileSize.lower()}-{hashOfWorkload}',
-          f'fio-tester-{shortForScenario}-{shortForReadType}-{fioWorkload.fileSize.lower()}-{hashOfWorkload}',
-          f'{experimentID}/{fioWorkload.fileSize}-{fioWorkload.blockSize}-{fioWorkload.numThreads}-{fioWorkload.filesPerThread}-{hashOfWorkload}/{fioWorkload.scenario}/{readType}',
-      )
-      if not fioWorkload.jobFile
-      else (
-          f'fio-load-{shortForScenario}-{shortForReadType}-{hashOfWorkload}',
-          f'fio-tester-{shortForScenario}-{shortForReadType}-{hashOfWorkload}',
-          f'{experimentID}/{hashOfWorkload}/{fioWorkload.scenario}/{readType}',
-      )
-  )
+  if not fioWorkload.jobFile:
+    readTypeToShortReadType = {'read': 'sr', 'randread': 'rr'}
+    shortForReadType = (
+        readTypeToShortReadType[readType]
+        if readType in readTypeToShortReadType
+        else 'ur'
+    )
+    return (
+        f'fio-load-{shortForScenario}-{shortForReadType}-{fioWorkload.fileSize.lower()}-{hashOfWorkload}',
+        f'fio-tester-{shortForScenario}-{shortForReadType}-{fioWorkload.fileSize.lower()}-{hashOfWorkload}',
+        f'{experimentID}/{fioWorkload.fileSize}-{fioWorkload.blockSize}-{fioWorkload.numThreads}-{fioWorkload.filesPerThread}-{hashOfWorkload}/{fioWorkload.scenario}/{readType}',
+    )
+  else:
+    return (
+        f'fio-load-{shortForScenario}-{hashOfWorkload}',
+        f'fio-tester-{shortForScenario}-hashOfWorkload}',
+        f'{experimentID}/{hashOfWorkload}/{fioWorkload.scenario}/UnknownOperationType',
+    )
