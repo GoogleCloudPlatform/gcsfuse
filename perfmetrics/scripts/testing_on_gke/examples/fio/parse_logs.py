@@ -482,27 +482,26 @@ if __name__ == "__main__":
   output = create_output_scenarios_from_downloaded_files(args)
   if len(output) == 0:
     print(f"\nNo FIO outputs found for experiment_id {args.experiment_id} !\n")
-    sys.exit(0)
+  else:
+    # Export output dict to CSV.
+    output_file_path = args.output_file
+    # Create the parent directory of output_file_path if doesn't exist already.
+    ensure_directory_exists(os.path.dirname(output_file_path))
+    write_records_to_csv_output_file(output, output_file_path)
 
-  # Export output dict to CSV.
-  output_file_path = args.output_file
-  # Create the parent directory of output_file_path if doesn't exist already.
-  ensure_directory_exists(os.path.dirname(output_file_path))
-  write_records_to_csv_output_file(output, output_file_path)
-
-  # Export output dict to bigquery table.
-  if (
-      args.bq_project_id
-      and args.bq_project_id.strip()
-      and args.bq_dataset_id
-      and args.bq_dataset_id.strip()
-      and args.bq_table_id
-      and args.bq_table_id.strip()
-  ):
-    write_records_to_bq_table(
-        output=output,
-        bq_project_id=args.bq_project_id,
-        bq_dataset_id=args.bq_dataset_id,
-        bq_table_id=args.bq_table_id,
-        experiment_id=args.experiment_id,
-    )
+    # Export output dict to bigquery table.
+    if (
+        args.bq_project_id
+        and args.bq_project_id.strip()
+        and args.bq_dataset_id
+        and args.bq_dataset_id.strip()
+        and args.bq_table_id
+        and args.bq_table_id.strip()
+    ):
+      write_records_to_bq_table(
+          output=output,
+          bq_project_id=args.bq_project_id,
+          bq_dataset_id=args.bq_dataset_id,
+          bq_table_id=args.bq_table_id,
+          experiment_id=args.experiment_id,
+      )
