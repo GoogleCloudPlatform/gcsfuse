@@ -854,14 +854,14 @@ function fetchAndParseFioOutputs() {
   else
     python3 parse_logs.py ${parse_logs_args}
   fi
-  cd -
+  cd - >/dev/null
 }
 
 function fetchAndParseDlioOutputs() {
   printf "\nFetching and parsing dlio outputs ...\n\n"
   cd "${gke_testing_dir}"/examples/dlio
   python3 parse_logs.py --project-number=${project_number} --workload-config "${workload_config}" --experiment-id ${experiment_id} --output-file "${output_dir}"/dlio/output.csv --project-id=${project_id} --cluster-name=${cluster_name} --namespace-name=${appnamespace}
-  cd -
+  cd - >/dev/null
 }
 
 # prep
