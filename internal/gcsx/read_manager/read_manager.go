@@ -37,8 +37,6 @@ type ReadManager struct {
 
 // ReadManagerConfig holds the configuration parameters for creating a new ReadManager.
 type ReadManagerConfig struct {
-	Object                *gcs.MinObject
-	Bucket                gcs.Bucket
 	SequentialReadSizeMB  int32
 	FileCacheHandler      *file.CacheHandler
 	CacheFileForRangeRead bool
@@ -49,24 +47,15 @@ type ReadManagerConfig struct {
 // NewReadManager creates a new ReadManager for the given GCS object,
 // using the provided configuration. It initializes the manager with a
 // file cache reader and a GCS reader, prioritizing the file cache reader if available.
-func NewReadManager(config *ReadManagerConfig) *ReadManager {
-	// Initialize the GCS reader, which is always present.
-	gcsReader := clientReaders.NewGCSReader(
-		config.Object,
-		config.Bucket,
-		config.MetricHandle,
-		config.MrdWrapper,
-		config.SequentialReadSizeMB,
-	)
-
+func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManagerConfig) *ReadManager {
 	// Create a slice to hold all readers. The file cache reader will be added first if it exists.
 	var readers []gcsx.Reader
 
 	// If a file cache handler is provided, initialize the file cache reader and add it to the readers slice first.
 	if config.FileCacheHandler != nil {
 		fileCacheReader := gcsx.NewFileCacheReader(
-			config.Object,
-			config.Bucket,
+			object,
+			bucket,
 			config.FileCacheHandler,
 			config.CacheFileForRangeRead,
 			config.MetricHandle,
@@ -74,11 +63,19 @@ func NewReadManager(config *ReadManagerConfig) *ReadManager {
 		readers = append(readers, fileCacheReader) // File cache reader is prioritized.
 	}
 
+	// Initialize the GCS reader, which is always present.
+	gcsReader := clientReaders.NewGCSReader(
+		object,
+		bucket,
+		config.MetricHandle,
+		config.MrdWrapper,
+		config.SequentialReadSizeMB,
+	)
 	// Add the GCS reader as a fallback.
 	readers = append(readers, gcsReader)
 
 	return &ReadManager{
-		object:  config.Object,
+		object:  object,
 		readers: readers, // Readers are prioritized: file cache first, then GCS.
 	}
 }

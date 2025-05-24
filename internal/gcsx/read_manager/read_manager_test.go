@@ -53,8 +53,6 @@ const (
 
 func (t *readManagerTest) readManagerConfig(fileCacheEnable bool) *ReadManagerConfig {
 	config := &ReadManagerConfig{
-		Object:                t.object,
-		Bucket:                t.mockBucket,
 		SequentialReadSizeMB:  sequentialReadSizeInMb,
 		CacheFileForRangeRead: false,
 		MetricHandle:          common.NewNoopMetrics(),
@@ -95,7 +93,7 @@ func (t *readManagerTest) SetupTest() {
 	}
 	t.mockBucket = new(storage.TestifyMockBucket)
 	t.ctx = context.Background()
-	t.readManager = NewReadManager(t.readManagerConfig(true))
+	t.readManager = NewReadManager(t.object, t.mockBucket, t.readManagerConfig(true))
 }
 
 func (t *readManagerTest) TearDownTest() {
@@ -108,7 +106,7 @@ func (t *readManagerTest) TearDownTest() {
 func (t *readManagerTest) Test_NewReadManager_WithFileCacheHandler() {
 	config := t.readManagerConfig(true)
 
-	rm := NewReadManager(config)
+	rm := NewReadManager(t.object, t.mockBucket, config)
 
 	assert.Equal(t.T(), t.object, rm.Object())
 	assert.Len(t.T(), rm.readers, 2)
@@ -121,7 +119,7 @@ func (t *readManagerTest) Test_NewReadManager_WithFileCacheHandler() {
 func (t *readManagerTest) Test_NewReadManager_WithoutFileCacheHandler() {
 	config := t.readManagerConfig(false)
 
-	rm := NewReadManager(config)
+	rm := NewReadManager(t.object, t.mockBucket, config)
 
 	assert.Equal(t.T(), t.object, rm.Object())
 	assert.Len(t.T(), rm.readers, 1)
@@ -175,7 +173,7 @@ func (t *readManagerTest) Test_ReadAt_NoExistingReader() {
 }
 
 func (t *readManagerTest) Test_ReadAt_ReaderFailsWithTimeout() {
-	t.readManager = NewReadManager(t.readManagerConfig(false))
+	t.readManager = NewReadManager(t.object, t.mockBucket, t.readManagerConfig(false))
 	r := iotest.OneByteReader(iotest.TimeoutReader(strings.NewReader("xxx")))
 	rc := &fake.FakeReader{ReadCloser: io.NopCloser(r)}
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(rc, nil).Once()
