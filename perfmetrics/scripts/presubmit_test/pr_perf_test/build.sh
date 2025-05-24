@@ -24,6 +24,7 @@ readonly RUN_E2E_TESTS_ON_INSTALLED_PACKAGE=false
 readonly SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=false
 readonly BUCKET_LOCATION=us-west4
 readonly RUN_TEST_ON_TPC_ENDPOINT=false
+readonly BUILD_BINARY_IN_SCRIPT=true
 
 # This flag, if set true, will indicate to underlying script to customize for a presubmit run.
 readonly RUN_TESTS_WITH_PRESUBMIT_FLAG=true
@@ -112,6 +113,24 @@ then
  python3 ./perfmetrics/scripts/presubmit/print_results.py
 fi
 
+# Get bash version 5.1, existing VM images have outdated bash version.
+install_bash() {
+  wget -q https://ftp.gnu.org/gnu/bash/bash-5.1.tar.gz
+  tar -xzf "bash-5.1.tar.gz"
+  cd bash-5.1
+  ./configure --prefix="/usr/local" --enable-readline 
+  make -s -j"$(nproc 2>/dev/null || echo 1)"
+  sudo make install
+  cd ..
+  rm -rf bash-5.1.tar.gz bash-5.1
+}
+echo "Installing bash 5.1 to /usr/local/bin/bash"
+if ! install_bash > "bash_install_log" 2>&1; then
+  echo "Bash 5.1 installation failed"
+  cat bash_install_log
+  exit 1
+fi
+
 # Execute integration tests on zonal bucket(s).
 if test -n "${integrationTestsOnZBStr}" ;
 then
@@ -120,7 +139,7 @@ then
 
   echo "Running e2e tests on zonal bucket(s) ..."
   # $1 argument is refering to value of testInstalledPackage.
-  ./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $BUCKET_LOCATION $RUN_TEST_ON_TPC_ENDPOINT $RUN_TESTS_WITH_PRESUBMIT_FLAG true
+  /usr/local/bin/bash ./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $BUCKET_LOCATION $RUN_TEST_ON_TPC_ENDPOINT $RUN_TESTS_WITH_PRESUBMIT_FLAG true $BUILD_BINARY_IN_SCRIPT
 fi
 
 # Execute integration tests on non-zonal bucket(s).
@@ -131,7 +150,7 @@ then
 
   echo "Running e2e tests on non-zonal bucket(s) ..."
   # $1 argument is refering to value of testInstalledPackage.
-  ./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $BUCKET_LOCATION $RUN_TEST_ON_TPC_ENDPOINT $RUN_TESTS_WITH_PRESUBMIT_FLAG false
+  /usr/local/bin/bash ./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $BUCKET_LOCATION $RUN_TEST_ON_TPC_ENDPOINT $RUN_TESTS_WITH_PRESUBMIT_FLAG false $BUILD_BINARY_IN_SCRIPT
 fi
 
 # Execute package build tests.

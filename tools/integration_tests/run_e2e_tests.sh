@@ -13,168 +13,498 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This will stop execution when any command will have non-zero status.
-
-# true or false to run e2e tests on installedPackage
-RUN_E2E_TESTS_ON_PACKAGE=$1
-
-# Pass "true" to skip few non-essential tests.
-# By default, this script runs all the integration tests.
-SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=$2
-
-# e.g. us-west1
-BUCKET_LOCATION=$3
-
-# Pass "true" to run e2e tests on TPC endpoint.
-# The default value will be false.
-RUN_TEST_ON_TPC_ENDPOINT=false
-if [ $4 != "" ]; then
-  RUN_TEST_ON_TPC_ENDPOINT=$4
-fi
-INTEGRATION_TEST_TIMEOUT_IN_MINS=90
-
-RUN_TESTS_WITH_PRESUBMIT_FLAG=false
-if [ $# -ge 5 ] ; then
-  # This parameter is set to true by caller, only for presubmit runs.
-  RUN_TESTS_WITH_PRESUBMIT_FLAG=$5
-fi
-
-# 6th parameter is set to enable/disable run for zonal bucket(s).
-# If it is set to true, then the run will be only on zonal bucket(s),
-# otherwise the run will only on non-zonal bucket(s).
-RUN_TESTS_WITH_ZONAL_BUCKET=false
-if [[ $# -ge 6 ]] ; then
-  if [[ "$6" == "true" ]]; then
-    RUN_TESTS_WITH_ZONAL_BUCKET=true
-  elif [[ "$6" != "false" ]]; then
-    echo "Error: Invalid value for 6th argument: "$6" . Expected: true or false."
-    exit 1
-  fi
-fi
-
-# 7th parameter is to determine whether we want to disable build by the script
-# and let every test package build its own GCSFuse binary.
-BUILD_BINARY_IN_SCRIPT=true
-if [[ $# -ge 7 ]] ; then
-  if [[ "$7" == "false" ]]; then
-    BUILD_BINARY_IN_SCRIPT=false
-  fi
-fi
-
-
-if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
-  if [ "${BUCKET_LOCATION}" != "us-west4" ] && [ "${BUCKET_LOCATION}" != "us-central1" ]; then
-    >&2 echo "For enabling zonal bucket run, BUCKET_LOCATION should be one of: us-west4, us-central1; passed: ${BUCKET_LOCATION}"
-    exit 1
-  fi
-fi
-
-if [ "$#" -lt 3 ]
-then
-  echo "Incorrect number of arguments passed, please refer to the script and pass the three arguments required..."
+# Script Usage Documentation
+usage() {
+  echo "Usage: $0 <TEST_INSTALLED_PACKAGE> <SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE> <BUCKET_LOCATION> [RUN_TEST_ON_TPC_ENDPOINT] [RUN_TESTS_WITH_PRESUBMIT_FLAG] [RUN_TESTS_WITH_ZONAL_BUCKET] [BUILD_BINARY_IN_SCRIPT]"
+  echo "  TEST_INSTALLED_PACKAGE: 'true' or 'false' to test installed gcsfuse package."
+  echo "  SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE: 'true' or 'false' to skip few non-essential tests inside packages."
+  echo "  BUCKET_LOCATION: The Google Cloud Storage bucket location (e.g., 'us-central1')."
+  echo "  RUN_TEST_ON_TPC_ENDPOINT (optional): 'true' or 'false' to run tests on TPC endpoint (Default: 'false')."
+  echo "  RUN_TESTS_WITH_PRESUBMIT_FLAG (optional): 'true' or 'false' to run tests with presubmit flag (Default: 'false')."
+  echo "  RUN_TESTS_WITH_ZONAL_BUCKET (optional): 'true' or 'false' to run tests with zonal bucket (Default: 'false')."
+  echo "  BUILD_BINARY_IN_SCRIPT (optional): 'true' or 'false' to build binary in script (Default: 'true')."
   exit 1
+}
+
+# Logging Helpers
+log_info() {
+  echo "[INFO] $(date +"%Y-%m-%d %H:%M:%S"): $1"
+}
+
+log_error() {
+  echo "[ERROR] $(date +"%Y-%m-%d %H:%M:%S"): $1"
+}
+
+# Confirm bash version before continuing script.
+REQUIRED_BASH_MAJOR=5
+REQUIRED_BASH_MINOR=1
+if (( BASH_VERSINFO[0] < REQUIRED_BASH_MAJOR || ( BASH_VERSINFO[0] == REQUIRED_BASH_MAJOR && BASH_VERSINFO[1] < REQUIRED_BASH_MINOR ) )); then
+    log_error "This script requires Bash version: ${REQUIRED_BASH_MAJOR}.${REQUIRED_BASH_MINOR} or higher."
+    log_error "You are currently using Bash version: ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"
+    exit 1
 fi
+log_info "Bash version: ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"
 
-if [ "$SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE" == true ]; then
-  GO_TEST_SHORT_FLAG="-short"
-  echo "Setting the flag to skip few un-important integration tests."
-  INTEGRATION_TEST_TIMEOUT_IN_MINS=$((INTEGRATION_TEST_TIMEOUT_IN_MINS-20))
-fi
+# Constants
+readonly DEFUALT_PROJECT_ID="gcs-fuse-test-ml"
+readonly TPCZERO_PROJECT_ID="tpczero-system:gcsfuse-test-project"
+readonly TPC_BUCKET_LOCATION="u-us-prp1"
+readonly BUCKET_PREFIX="gcsfuse-e2e"
+readonly INTEGRATION_TEST_PACKAGE_DIR="./tools/integration_tests"
+readonly INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS=60 
+readonly TMP_PREFIX="gcsfuse_e2e"
+readonly ZONAL_BUCKET_SUPPORTED_LOCATIONS=("us-central1" "us-west4")
+readonly VM_USAGE_TRACKING_INTERVAL_IN_SECONDS=10 # Controls how frequent VM Usage(CPU, Memory, Disk) are tracked.
+readonly PACKAGE_LEVEL_PARALLELISM=10 # Controls how many test packages are run in parallel for hns, flat or zonal buckets.
+readonly DELETE_BUCKET_PARALLELISM=10 # Controls how many buckets are deleted in parallel.
 
-# Pass flag "-presubmit" to 'go test' command and lower timeout for presubmit runs.
-if [ "$RUN_TESTS_WITH_PRESUBMIT_FLAG" == true ]; then
-  echo "This is a presubmit-run, which skips some tests."
-  PRESUBMIT_RUN_FLAG="-presubmit"
-  INTEGRATION_TEST_TIMEOUT_IN_MINS=$((INTEGRATION_TEST_TIMEOUT_IN_MINS-10))
-fi
+# Default values for optional arguments.
+RUN_TEST_ON_TPC_ENDPOINT=false
+RUN_TESTS_WITH_PRESUBMIT_FLAG=false
+RUN_TESTS_WITH_ZONAL_BUCKET=false
+BUILD_BINARY_IN_SCRIPT=true
 
-INTEGRATION_TEST_TIMEOUT=""${INTEGRATION_TEST_TIMEOUT_IN_MINS}"m"
-echo "Setting the integration test timeout to: $INTEGRATION_TEST_TIMEOUT"
 
-readonly RANDOM_STRING_LENGTH=5
-# Test directory arrays
-TEST_DIR_PARALLEL=(
-  "monitoring"
-  "local_file"
-  "log_rotation"
-  "mounting"
-  "read_cache"
-  # "grpc_validation"
-  "gzip"
-  "write_large_files"
-  "list_large_dir"
-  "rename_dir_limit"
-  "read_large_files"
-  "explicit_dir"
-  "implicit_dir"
-  "interrupt"
-  "operations"
-  "kernel_list_cache"
-  "concurrent_operations"
-  "benchmarking"
-  "mount_timeout"
-  "stale_handle"
-  "negative_stat_cache"
-  "streaming_writes"
-  "inactive_stream_timeout"
-)
-
-# These tests never become parallel as it is changing bucket permissions.
-TEST_DIR_NON_PARALLEL=(
-  "readonly"
-  "managed_folders"
-  "readonly_creds"
-)
-
-# Subset of TEST_DIR_PARALLEL,
-# but only those tests which currently
-# pass for zonal buckets.
-TEST_DIR_PARALLEL_FOR_ZB=(
-  "benchmarking"
-  "explicit_dir"
-  "gzip"
-  "implicit_dir"
-  "interrupt"
-  "kernel_list_cache"
-  "local_file"
-  "log_rotation"
-  "monitoring"
-  "mount_timeout"
-  "mounting"
-  "negative_stat_cache"
-  "operations"
-  "read_cache"
-  "read_large_files"
-  "rename_dir_limit"
-  "stale_handle"
-  "streaming_writes"
-  "write_large_files"
-  "unfinalized_object"
-)
-
-# Subset of TEST_DIR_NON_PARALLEL,
-# but only those tests which currently
-# pass for zonal buckets.
-TEST_DIR_NON_PARALLEL_FOR_ZB=(
-  "concurrent_operations"
-  "list_large_dir"
-  "managed_folders"
-  "readonly"
-  "readonly_creds"
-)
-
-# Create a temporary file to store the log file name.
-TEST_LOGS_FILE=$(mktemp)
-
+# Set default project id for tests.
+PROJECT_ID="${DEFUALT_PROJECT_ID}"
 # This variable will store the path if the script builds GCSFuse binaries (gcsfuse, mount.gcsfuse)
 BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR=""
-# This variable will hold flag and its value to be passed to GCSFuse tests (--gcsfuse_prebuilt_dir=...)
-USE_PREBUILT_GCSFUSE_BINARY=""
+
+LOG_LOCK_FILE=$(mktemp "/tmp/${TMP_PREFIX}_logging_lock.XXXXXX") || { log_error "Unable to create lock file"; exit 1; }
+BUCKET_NAMES=$(mktemp "/tmp/${TMP_PREFIX}_bucket_names.XXXXXX") || { log_error "Unable to create bucket names file"; exit 1; }
+PACKAGE_STATS_FILE=$(mktemp "/tmp/${TMP_PREFIX}_package_stats.XXXXXX") || { log_error "Unable to create package stats file"; exit 1; }
+VM_USAGE=$(mktemp "/tmp/${TMP_PREFIX}_vm_usage.XXXXXX") || { log_error "Unable to create vm usage file"; exit 1; }
+VM_USAGE_TRACK_PID=-1
+
+# Argument Parsing and Assignments
+if [ "$#" -lt 3 ]; then
+  log_error "Missing required arguments."
+  usage
+fi
+if [ "$#" -gt 7 ]; then
+  log_error "Too many arguments."
+  usage
+fi
+TEST_INSTALLED_PACKAGE="$1"
+shift
+SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE="$1"
+shift
+BUCKET_LOCATION="$1"
+shift
+if [ -n "$1" ]; then
+  RUN_TEST_ON_TPC_ENDPOINT="$1"
+  shift
+fi
+if [ -n "$1" ]; then
+  RUN_TESTS_WITH_PRESUBMIT_FLAG="$1"
+  shift
+fi
+if [ -n "$1" ]; then
+  RUN_TESTS_WITH_ZONAL_BUCKET="$1"
+  shift
+  supported_bucket=false
+  for location in "${ZONAL_BUCKET_SUPPORTED_LOCATIONS[@]}"
+  do
+    if [[ "$BUCKET_LOCATION" == "$location" ]]; then
+      BUCKET_LOCATION="$location"
+      supported_bucket=true
+      break
+    fi
+  done
+  if [[ "${supported_bucket}" == false ]]; then
+    log_error "Unsupported Bucket Location ${BUCKET_LOCATION} for Zonal Run. Supported Locations are: ${ZONAL_BUCKET_SUPPORTED_LOCATIONS[*]}"
+    exit 1
+  fi
+fi
+if [ -n "$1" ]; then
+  BUILD_BINARY_IN_SCRIPT="$1"
+  shift
+fi
+
+# Test packages which can be run for both Zonal and Regional buckets.
+# Sorted list descending run times. (Longest Processing Time first strategy) 
+TEST_PACKAGES_COMMON=(
+  "managed_folders"
+  "operations"
+  "read_large_files"
+  "concurrent_operations"
+  "read_cache"
+  "list_large_dir"
+  "mount_timeout"
+  "write_large_files"
+  "implicit_dir"
+  "interrupt"
+  "local_file"
+  "readonly"
+  "readonly_creds"
+  "rename_dir_limit"
+  "kernel_list_cache"
+  "streaming_writes"
+  "benchmarking"
+  "explicit_dir"
+  "gzip"
+  "log_rotation"
+  "monitoring"
+  "mounting"
+  # "grpc_validation"
+  "negative_stat_cache"
+  "stale_handle"
+)
+
+# Test packages for regional buckets.
+TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}" "inactive_stream_timeout")
+# Test packages for zonal buckets.
+TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}" "unfinalized_object")
+# Test packages for TPC buckets.
+TEST_PACKAGES_FOR_TPC=("operations")
+
+# acquire_lock: Acquires exclusive lock or exits script on failure.
+# Args: $1 = path to lock file.
+acquire_lock() {
+  if [[ -z "$1" ]]; then
+    log_error "acquire_lock: Lock file path is required."
+    exit 1
+  fi
+  local lock_file="$1"
+  exec 200>"$lock_file" || {
+    log_error "Could not open lock file $lock_file."
+    exit 1
+  }
+  flock -x 200 || {
+    log_error "Failed to acquire lock on $lock_file."
+    exit 1
+  }
+  return 0
+}
+
+# release_lock: Releases lock or exits script on failure.
+# Args: $1 = path to lock file
+release_lock() {
+  if [[ -z "$1" ]]; then
+    log_error "release_lock: Lock file path is required."
+    exit 1
+  fi
+  local lock_file="$1"
+  [[ -e "/proc/self/fd/200" || -L "/proc/self/fd/200" ]] && exec 200>&- || {
+    log_error "Lock file descriptor (FD 200) not open for $lock_file. Possible previous error or double release."
+    exit 1
+  } # FD not open or close failed
+  return 0
+}
+
+# logs info to stdout exclusively. used in background commands to ensure logs aren't interleaved.
+log_info_locked() {
+  acquire_lock "$LOG_LOCK_FILE"
+  log_info "$1"
+  release_lock "$LOG_LOCK_FILE"
+}
+
+# logs error to stdout exclusively. Used in background commands to ensure logs aren't interleaved.
+log_error_locked() {
+  acquire_lock "$LOG_LOCK_FILE"
+  log_error "$1"
+  release_lock "$LOG_LOCK_FILE"
+}
+
+# Helper method to create "flat", "hns" or "zonal" bucket.
+create_bucket() {
+  if [[ $# -ne 2 ]]; then
+    log_error "create_bucket() called with incorrect number of arguments."
+    return 1
+  fi
+  local package="$1"
+  local bucket_type="$2"
+  local bucket_name="${BUCKET_PREFIX}-${package}-${bucket_type}-$(date +%s%N)"
+  local bucket_cmd_parts=("gcloud" "alpha" "storage" "buckets" "create" "gs://${bucket_name}" "--project=${PROJECT_ID}" "--location=${BUCKET_LOCATION}" "--uniform-bucket-level-access")
+  if [[ "$bucket_type" == "hns" ]]; then
+    bucket_cmd_parts+=("--enable-hierarchical-namespace")
+  elif [[ "$bucket_type" == "zonal" ]]; then
+    bucket_cmd_parts+=("--enable-hierarchical-namespace")
+    bucket_cmd_parts+=("--placement=${BUCKET_LOCATION}-a")
+    bucket_cmd_parts+=("--default-storage-class=RAPID")
+  elif [[ "$bucket_type" != "flat" ]]; then
+    log_error "Invalid bucket type: $bucket_type."
+    return 1
+  fi
+  local bucket_cmd bucket_cmd_log attempt=5
+  bucket_cmd=$(printf "%q " "${bucket_cmd_parts[@]}")
+  bucket_cmd_log=$(mktemp "/tmp/${TMP_PREFIX}_bucket_cmd_log.XXXXXX")
+  while : ; do
+    attempt=$((attempt - 1))
+    if [ $attempt -lt 0 ]; then
+      log_error "Unable to create bucket [${bucket_name}] after 5 attempts." 
+      cat "$bucket_cmd_log"
+      return 1
+    fi
+    eval "$bucket_cmd" > "$bucket_cmd_log" 2>&1
+    if [ $? -eq 0 ]; then
+      sleep 6 # have 6 seconds gap between creating buckets. 
+      break
+    fi
+  done
+  echo "$bucket_name" >> "$BUCKET_NAMES" # Add bucket names to file.
+  echo "$bucket_name"
+  return 0
+}
+
+# Helper method to create buckets for each of the package.
+setup_package_buckets () {
+  if [[ "$#" -ne 3 ]]; then 
+    log_error "setup_buckets() called with incorrect number of arguments."
+    exit 1
+  fi
+  local -n package_array="$1"
+  local -n package_bucket_array="$2"
+  local bucket_type="$3"
+  local exit_code=0
+  for package in "${package_array[@]}"; do
+    local bucket_name
+    bucket_name=$(create_bucket "$package" "$bucket_type")
+    if [ $? -eq 0 ]; then
+      package_bucket_array+=("${package} ${bucket_name} ${bucket_type}")
+    else
+      exit_code=1
+    fi
+  done
+  return $exit_code
+}
+
+# Helper method to delete the bucket.
+delete_bucket() {
+  if [[ $# -ne 1 ]]; then
+    log_error_locked "delete_bucket() called with incorrect number of arguments."
+    return 1
+  fi
+  local bucket="$1"
+  local delete_bucket_log=$(mktemp "/tmp/${TMP_PREFIX}_${bucket}.XXXXXX")
+  if ! gcloud -q storage rm -r "gs://${bucket}" > "$delete_bucket_log" 2>&1; then
+    acquire_lock "$LOG_LOCK_FILE"
+    log_error "Unable to delete bucket [${bucket}]"
+    cat "$delete_bucket_log"
+    release_lock "$LOG_LOCK_FILE"
+    return 1
+  fi
+  return 0
+}
+
+# Cleanup ensures each of the buckets created is destroyed and the temp files and
+# vm usage tracking process are cleaned up.
+clean_up() {
+  echo "$VM_USAGE_TRACK_PID"
+  if [[ "$VM_USAGE_TRACK_PID" != "-1" ]]; then
+    echo "$VM_USAGE_TRACK_PID"
+    kill "$VM_USAGE_TRACK_PID" # kill usage tracking process.
+    sleep 4 # To ensure usage tracking process is killed.
+  fi
+  if [ -n "${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}" ] && [ -d "${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}" ]; then
+    log_info "Cleaning up GCSFuse build directory created by script: ${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
+    rm -rf "${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
+  fi
+  local buckets=()
+  # Read each line from BUCKET_NAMES into buckets array
+  # This ensures each bucket name is treated as a separate item.
+  while IFS= read -r line || [[ -n "$line" ]]; do # Process even if last line has no newline
+    buckets+=("$line")
+  done < "$BUCKET_NAMES"
+  # Clean up buckets if any.
+  if [[ "${#buckets[@]}" -gt 0 ]]; then
+      local clean_up_log=$(mktemp "/tmp/${TMP_PREFIX}_clean_up.XXXXXX")
+      if ! run_parallel "$DELETE_BUCKET_PARALLELISM" "delete_bucket @" "${buckets[@]}" > "$clean_up_log" 2>&1; then
+        log_error "Failed to delete all buckets"
+        cat "$clean_up_log"
+      else
+        log_info "Successfully deleted all buckets."
+    fi
+  fi
+  if ! rm -rf /tmp/"${TMP_PREFIX}_"*; then 
+    log_error "Failed to delete temporary files"
+  else 
+    log_info "Successfully cleaned up temporary files"
+  fi
+}
+
+# Helper method to process any of the background process and
+# returns exit status of waited pid.
+process_any_pid() {
+  local -n cmds_by_pid_ref="$1"
+  local waited_pid
+  local pid_status # To store the exit status of the waited pid
+
+  wait -n -p waited_pid # waited_pid gets the PID, $? gets the status
+  pid_status=$?
+
+  local cmd_and_output_file="${cmds_by_pid_ref[$waited_pid]}"
+  local parallel_cmd_executed="${cmd_and_output_file%%;*}"
+  local output_file="${cmd_and_output_file#*;}"
+  unset "cmds_by_pid_ref[$waited_pid]"
+  if [[ "$pid_status" -ne 0 ]]; then
+    acquire_lock "$LOG_LOCK_FILE"
+    log_error "Parallel Command failed: $parallel_cmd_executed"
+    cat "$output_file"
+    release_lock "$LOG_LOCK_FILE"
+    return 1
+  fi
+  log_info_locked "Parallel Command succeeded: $parallel_cmd_executed"
+  return 0
+}
+
+# run_parallel: Executes commands in parallel based on a template and substitutes.
+#   Prints output (stdout/stderr) if the command errors out.
+#   Prints success message if command succeeds.
+#   The function returns a non-zero exit status if any of the parallel commands fail.
+#
+# Usage: run_parallel "parallelism" "command_template_with_@" "substitute1" "substitute2" ...
+#   The '@' in the command_template will be replaced by each substitute argument.
+#   This first argument is exten of parallelism for this command.
+#
+# Example:
+#   run_parallel 2 "echo 'Processing @' && sleep 1" "itemA" "itemB" "itemC"
+# This command will run at max 2 commands in parallel.
+
+run_parallel() {
+  if [[ $# -lt 2 ]]; then
+    log_error_locked "run_parallel() called with incorrect number of arguments."
+    return 1
+  fi
+  local parallelism="$1"
+  shift
+  local cmd_template="$1"
+  shift
+  local -A cmds_by_pid=()
+  local overall_exit_code=0 parallel_cmd parallel_cmd_output pid
+  # Launch parallel commands in the background based on parallelism.
+  for arg in "$@"; do
+    parallel_cmd="${cmd_template//@/$arg}"
+    parallel_cmd_output=$(mktemp "/tmp/${TMP_PREFIX}_{$parallel_cmd}_output.XXXXXX")
+    log_info_locked "Executing Parallel Command: $parallel_cmd"
+    eval "$parallel_cmd" > "$parallel_cmd_output" 2>&1 &
+    pid=$!
+    cmds_by_pid["$pid"]="$parallel_cmd;$parallel_cmd_output"
+    if [[ ${#cmds_by_pid[@]} -eq $parallelism ]]; then
+      process_any_pid "cmds_by_pid"
+      overall_exit_code=$((overall_exit_code || $? ))
+    fi
+  done
+  # Process any remaining PIDs
+  while [[ ${#cmds_by_pid[@]} -gt 0 ]]; do
+      process_any_pid "cmds_by_pid"
+      overall_exit_code=$((overall_exit_code || $? ))
+  done
+  return $overall_exit_code
+}
+
+test_package() {
+  if [[ $# -ne 3 ]]; then
+    log_error_locked "test_package() called with incorrect number of arguments."
+    return 1
+  fi
+  local package_name="$1"
+  local bucket_name="$2"
+  local bucket_type="$3"
+
+  # Build go package test command.
+  GO_TEST_CMD_PARTS=(
+    "GODEBUG=asyncpreemptoff=1"
+    "go"
+    "test"
+    "-v"
+    "-timeout=${INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS}m"
+    "${INTEGRATION_TEST_PACKAGE_DIR}/${package_name}"
+  )
+  if [[ "$SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE" == "true" ]]; then
+    GO_TEST_CMD_PARTS+=("-short")
+  fi
+  if [[ "$package_name" == "benchmarking" ]]; then
+    GO_TEST_CMD_PARTS+=("-bench=.")
+    GO_TEST_CMD_PARTS+=("-benchtime=100x")
+  fi
+  # Test Binary flags after this.
+  GO_TEST_CMD_PARTS+=(
+    "-args"
+    "-integrationTest"
+    "-testbucket=${bucket_name}"
+  )
+
+  if [[ "$TEST_INSTALLED_PACKAGE" == "true" ]]; then
+    GO_TEST_CMD_PARTS+=("-testInstalledPackage")
+  fi
+
+  if [[ "$RUN_TESTS_WITH_PRESUBMIT_FLAG" == "true" ]]; then
+    GO_TEST_CMD_PARTS+=("-presubmit")
+  fi
+
+  if [[ "$bucket_type" == "zonal" ]]; then
+    GO_TEST_CMD_PARTS+=("-zonal")
+  fi
+
+  if [[ "$RUN_TEST_ON_TPC_ENDPOINT" == "true" ]]; then
+    GO_TEST_CMD_PARTS+=("-testOnTPCEndPoint")
+  fi
+
+  if [[ -n "$BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR" ]]; then 
+    GO_TEST_CMD_PARTS+=("-gcsfuse_prebuilt_dir=${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}")
+  fi
+  # Use printf %q to quote each argument safely for eval
+  # This ensures spaces and special characters within arguments are handled correctly.
+  GO_TEST_CMD=$(printf "%q " "${GO_TEST_CMD_PARTS[@]}")
+  
+  # Run the package test command
+  local package_status="PASSED"
+  local start=$SECONDS
+  local test_package_output=$(mktemp "/tmp/${TMP_PREFIX}_test_${package_name}_${bucket_type}_output.XXXXXX")
+  eval "$GO_TEST_CMD"
+  if [[ $? -ne 0 ]]; then
+    package_status="FAILED"
+  fi
+  local end=$SECONDS
+  
+  # Record stats and build wait run time string.
+  # Using each _ char for 1 min wait time and each > char for 1 min run time.
+  wait_min=$((start / 60))
+  run_min=$(((end - start + 60) / 60))
+  current_package_stats=$(printf "| %-25s | %-15s | %-10s | %-8s |%-60s|\n" \
+    "$package_name" \
+    "$bucket_type" \
+    "$package_status" \
+    "${run_min}m" \
+    "$(printf '%0.s_' $(seq 1 "$wait_min"))$(printf '%0.s>' $(seq 1 "$run_min"))") # Produces string like ___>>>
+  
+  echo "$current_package_stats" >> "$PACKAGE_STATS_FILE"
+  if [[ "$package_status" == "FAILED" ]]; then
+    return 1
+  fi
+  return 0
+}
+
+print_package_stats() {
+  # Sorts package stats by package name and bucket type
+  sort -o "$PACKAGE_STATS_FILE" "$PACKAGE_STATS_FILE"
+  # separator is a line like +------+----+-----+----+---+
+  separator=$(printf "+%s+%s+%s+%s+%s+\n" \
+    "$(printf '%.s-' {1..27})" \
+    "$(printf '%.s-' {1..17})" \
+    "$(printf '%.s-' {1..12})" \
+    "$(printf '%.s-' {1..10})" \
+    "$(printf '%.s-' {1..60})")
+  echo ""
+  echo "Timings for the e2e test packages run are listed below."
+  echo "_ is 1 min wait"
+  echo "> is 1 min run"
+  echo "$separator"
+  printf "| %-25s | %-15s | %-10s | %-8s | %-25s %s %+25s|\n" \
+    "Package Name" "Bucket Type" "Status" "Time" "0 min " "runtime" "60 min"
+  echo "$separator"
+  while IFS= read -r line; do
+    echo "$line"
+    echo "$separator"
+  done <"$PACKAGE_STATS_FILE"
+  echo ""
+}
 
 build_gcsfuse_once() {
   local build_output_dir # For the final gcsfuse binaries
   build_output_dir=$(mktemp -d -t gcsfuse_e2e_run_build_XXXXXX)
-  echo "GCSFuse binaries will be built in ${build_output_dir}..."
+  log_info "GCSFuse binaries will be built in ${build_output_dir}/"
 
   local gcsfuse_src_dir
   # Determine GCSFuse source directory
@@ -183,65 +513,35 @@ build_gcsfuse_once() {
   gcsfuse_src_dir=$(realpath "${SCRIPT_DIR_REALPATH}/../../")
 
   if [[ ! -f "${gcsfuse_src_dir}/go.mod" ]]; then
-    echo "Error: Could not reliably determine GCSFuse project root from ${SCRIPT_DIR_REALPATH}. Expected go.mod at ${gcsfuse_src_dir}" >&2
+    log_error "Could not reliably determine GCSFuse project root from ${SCRIPT_DIR_REALPATH}. Expected go.mod at ${gcsfuse_src_dir}" >&2
     rm -rf "${build_output_dir}"
     exit 1
   fi
-  echo "Using GCSFuse source directory: ${gcsfuse_src_dir}"
+  log_info "Using GCSFuse source directory: ${gcsfuse_src_dir}"
 
-  echo "Building GCSFuse using 'go run ./tools/build_gcsfuse/main.go'..."
+  log_info "Building GCSFuse using 'go run ./tools/build_gcsfuse/main.go'..."
   (cd "${gcsfuse_src_dir}" && go run ./tools/build_gcsfuse/main.go . "${build_output_dir}" "e2e-$(date +%s)")
   if [ $? -ne 0 ]; then
-    echo "Error building GCSFuse binaries using 'go run ./tools/build_gcsfuse/main.go'."
+    log_error "Building GCSFuse binaries using 'go run ./tools/build_gcsfuse/main.go' failed."
     rm -rf "${build_output_dir}" # Clean up created temp dir
     return 1
   fi
 
   # Set the directory path for use by the script (to form the go test flag)
   BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR="${build_output_dir}"
-  echo "GCSFuse binaries built by script in: ${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
-  echo "GCSFuse executable: ${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}/bin/gcsfuse"
+  log_info "GCSFuse binaries built by script in: ${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
+  log_info "GCSFuse executable: ${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}/bin/gcsfuse"
   return 0
 }
 
-
-cleanup_gcsfuse_once() {
-  if [ -n "${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}" ] && [ -d "${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}" ]; then
-    echo "Cleaning up GCSFuse build directory created by script: ${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
-    rm -rf "${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
-  fi
-}
-
-# Delete contents of the buckets (and then the buckets themselves) whose names are in the passed file.
-# Args: <bucket-names-file>
-function delete_buckets_listed_in_file() {
-	local bucketNamesFile="${@}"
-	if test -f "${bucketNamesFile}"; then
-		cat "${bucketNamesFile}" | while read bucket; do
-			# Only if bucket-name is non-empty and contains
-			# something other than spaces.
-			if [ -n "${bucket}" ] && [ -n "${bucket// }" ]; then
-				# Delete the bucket and its contents.
-				if ! gcloud -q storage rm -r --verbosity=none gs://${bucket} ; then
-					>&2 echo "Failed to delete bucket ${bucket} !"
-				fi
-			fi
-		done
-		# At the end, delete the bucket-names file itself.
-		rm "${bucketNamesFile}"
-	else
-		echo "file ${bucketNamesFile} not found !"
-	fi
-}
-
-function upgrade_gcloud_version() {
+upgrade_gcloud_version() {
   sudo apt-get update
   # Upgrade gcloud version.
   # Kokoro machine's outdated gcloud version prevents the use of the "managed-folders" feature.
   gcloud version
   wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
   sudo tar xzf gcloud.tar.gz && sudo cp -r google-cloud-sdk /usr/local && sudo rm -r google-cloud-sdk
-  sudo /usr/local/google-cloud-sdk/install.sh
+  sudo /usr/local/google-cloud-sdk/install.sh -q
   export PATH=/usr/local/google-cloud-sdk/bin:$PATH
   echo 'export PATH=/usr/local/google-cloud-sdk/bin:$PATH' >> ~/.bashrc
   gcloud version && rm gcloud.tar.gz
@@ -249,12 +549,13 @@ function upgrade_gcloud_version() {
   sudo /usr/local/google-cloud-sdk/bin/gcloud components install alpha
 }
 
-function install_packages() {
+install_packages() {
   # e.g. architecture=arm64 or amd64
   architecture=$(dpkg --print-architecture)
   echo "Installing go-lang 1.24.0..."
   wget -O go_tar.tar.gz https://go.dev/dl/go1.24.0.linux-${architecture}.tar.gz -q
   sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
+  rm -rf go_tar.tar.gz
   export PATH=$PATH:/usr/local/go/bin
   sudo apt-get install -y python3
   # install python3-setuptools tools.
@@ -264,371 +565,106 @@ function install_packages() {
   sudo apt install -y python3-crcmod
 }
 
-function create_bucket() {
-  bucket_prefix=$1
-  local -r project_id="gcs-fuse-test-ml"
-  # Generate bucket name with random string
-  bucket_name=${bucket_prefix}$(date +%Y%m%d-%H%M%S)"-"$(tr -dc 'a-z0-9' < /dev/urandom | head -c $RANDOM_STRING_LENGTH)
-  # We are using gcloud alpha because gcloud storage is giving issues running on Kokoro
-  gcloud alpha storage buckets create gs://$bucket_name --project=$project_id --location=$BUCKET_LOCATION --uniform-bucket-level-access
-  echo $bucket_name
-}
+# Generic function to run a group of E2E tests for a given bucket type.
+# Args:
+#   $1: Descriptive group name (e.g., "FLAT", "HNS", "ZONAL", "TPC HNS", "TPC FLAT")
+#   $2: Name of the array holding test packages (e.g., "TEST_PACKAGES_FOR_RB", "TEST_PACKAGES_FOR_ZB")
+#   $3: Bucket type ("flat", "hns", "zonal")
+run_test_group() {
+  local group_name="$1"
+  local test_packages_var_name="$2"
+  local bucket_type="$3"
+  local packages_for_run=()
+  local group_exit_code=0
+  log_info_locked "Started running e2e tests for ${group_name} group (bucket type: ${bucket_type})."
 
-function create_hns_bucket() {
-  local -r hns_project_id="gcs-fuse-test"
-  # Generate bucket name with random string.
-  # Adding prefix `golang-grpc-test` to white list the bucket for grpc
-  # so that we can run grpc related e2e tests.
-  bucket_name="golang-grpc-test-gcsfuse-e2e-tests-hns-"$(date +%Y%m%d-%H%M%S)"-"$(tr -dc 'a-z0-9' < /dev/urandom | head -c $RANDOM_STRING_LENGTH)
-  gcloud alpha storage buckets create gs://$bucket_name --project=$hns_project_id --location=$BUCKET_LOCATION --uniform-bucket-level-access --enable-hierarchical-namespace
-  echo "$bucket_name"
-}
+  setup_package_buckets "${test_packages_var_name}" "packages_for_run" "${bucket_type}"
+  group_exit_code=$?
 
-function create_zonal_bucket() {
-  local -r project_id="gcs-fuse-test-ml"
-  local -r region=${BUCKET_LOCATION}
-  local -r zone=${region}"-a"
+  run_parallel "$PACKAGE_LEVEL_PARALLELISM" "test_package @" "${packages_for_run[@]}"
+  group_exit_code=$((group_exit_code || $?))
 
-  local -r hns_project_id="gcs-fuse-test"
-  # Generate bucket name with random string.
-  bucket_name="gcsfuse-e2e-tests-zb-"$(date +%Y%m%d-%H%M%S)"-"$(tr -dc 'a-z0-9' < /dev/urandom | head -c $RANDOM_STRING_LENGTH)
-  gcloud alpha storage buckets create gs://$bucket_name --project=$project_id --location=$region --placement=${zone} --default-storage-class=RAPID --uniform-bucket-level-access --enable-hierarchical-namespace
-  echo "${bucket_name}"
-}
-
-function run_non_parallel_tests() {
-  local exit_code=0
-  local -n test_array=$1
-  local bucket_name_non_parallel=$2
-  local zonal=false
-  if [ $# -ge 3 ] && [ "$3" = "true" ] ; then
-    zonal=true
-  fi
-
-  for test_dir_np in "${test_array[@]}"
-  do
-    test_path_non_parallel="./tools/integration_tests/$test_dir_np"
-    # To make it clear whether tests are running on a flat or HNS bucket, We kept the log file naming
-    # convention to include the bucket name as a suffix (e.g., package_name_bucket_name).
-    local log_file="/tmp/${test_dir_np}_${bucket_name_non_parallel}.log"
-    echo $log_file >> $TEST_LOGS_FILE
-
-    # Executing integration tests
-    echo "Running test package in non-parallel (with zonal=${zonal}): ${test_dir_np} ..."
-    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=${zonal} --integrationTest -v --testbucket=$bucket_name_non_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE $USE_PREBUILT_GCSFUSE_BINARY -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1
-    exit_code_non_parallel=$?
-    if [ $exit_code_non_parallel != 0 ]; then
-      exit_code=$exit_code_non_parallel
-      echo "test fail in non parallel on package (with zonal=${zonal}): " $test_dir_np
-    else
-      echo "Passed test package in non-parallel (with zonal=${zonal}): " $test_dir_np
-    fi
-  done
-  return $exit_code
-}
-
-function run_parallel_tests() {
-  local exit_code=0
-  local -n test_array=$1
-  local bucket_name_parallel=$2
-  local zonal=false
-  if [ $# -ge 3 ] && [ "$3" = "true" ] ; then
-    zonal=true
-  fi
-  local benchmark_flags=""
-  declare -A pids
-
-  for test_dir_p in "${test_array[@]}"
-  do
-    # Unlike regular tests,benchmark tests are not executed by default when using go test .
-    # The -bench flag yells go test to run the benchmark tests and report their results by
-    # enabling the benchmarking framework.
-    # The -benchtime flag specifies exact number of iterations a benchmark should run , in this
-    # case, setting this to 100 to avoid flakiness. 
-    if [ $test_dir_p == "benchmarking" ]; then
-      benchmark_flags="-bench=. -benchtime=100x"
-    fi
-    test_path_parallel="./tools/integration_tests/$test_dir_p"
-    # To make it clear whether tests are running on a flat or HNS bucket, We kept the log file naming
-    # convention to include the bucket name as a suffix (e.g., package_name_bucket_name).
-    local log_file="/tmp/${test_dir_p}_${bucket_name_parallel}.log"
-    echo $log_file >> $TEST_LOGS_FILE
-    # Executing integration tests
-    echo "Queueing up test package in parallel (with zonal=${zonal}): ${test_dir_p} ..."
-    GODEBUG=asyncpreemptoff=1 go test $test_path_parallel $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=${zonal} $benchmark_flags -p 1 --integrationTest -v --testbucket=$bucket_name_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE $USE_PREBUILT_GCSFUSE_BINARY -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1 &
-    pid=$!  # Store the PID of the background process
-    echo "Queued up test package in parallel (with zonal=${zonal}): ${test_dir_p} with pid=${pid}"
-    pids[${test_dir_p}]=${pid} # Optionally add the PID to an array for later
-  done
-
-  # Wait for processes and collect exit codes
-  for package_name in "${!pids[@]}"; do
-    pid="${pids[${package_name}]}"
-    echo "Waiting on test package ${package_name} (with zonal=${zonal}) through pid=${pid} ..."
-    # What if the process for this test package completed long back and its PID got
-    # re-assigned to another process since then ?
-    wait $pid
-    exit_code_parallel=$?
-    if [ $exit_code_parallel != 0 ]; then
-      exit_code=$exit_code_parallel
-      echo "test fail in parallel on package (with zonal=${zonal}): " $package_name
-    else
-      echo "Passed test package in parallel (with zonal=${zonal}): " $package_name
-    fi
-  done
-  return $exit_code
-}
-
-function print_test_logs() {
-  readarray -t test_logs_array < "$TEST_LOGS_FILE"
-  rm "$TEST_LOGS_FILE"
-  for test_log_file in "${test_logs_array[@]}"
-  do
-    log_file=${test_log_file}
-    if [ -f "$log_file" ]; then
-      echo "=== Log for ${test_log_file} ==="
-      cat "$log_file"
-      echo "========================================="
-    fi
-  done
-}
-
-function run_e2e_tests_for_flat_bucket() {
-  # Adding prefix `golang-grpc-test` to white list the bucket for grpc so that
-  # we can run grpc related e2e tests.
-  bucketPrefix="golang-grpc-test-gcsfuse-np-e2e-tests-"
-  bucket_name_non_parallel=$(create_bucket $bucketPrefix)
-  echo "Bucket name for non parallel tests: "$bucket_name_non_parallel
-  echo ${bucket_name_non_parallel}>>"${bucketNamesFile}"
-
-  bucketPrefix="golang-grpc-test-gcsfuse-p-e2e-tests-"
-  bucket_name_parallel=$(create_bucket $bucketPrefix)
-  echo "Bucket name for parallel tests: "$bucket_name_parallel
-  echo ${bucket_name_parallel}>>"${bucketNamesFile}"
-
-  echo "Running parallel tests..."
-  run_parallel_tests TEST_DIR_PARALLEL $bucket_name_parallel &
-  parallel_tests_pid=$!
-
-  echo "Running non parallel tests ..."
-  run_non_parallel_tests TEST_DIR_NON_PARALLEL $bucket_name_non_parallel &
-  non_parallel_tests_pid=$!
-
-  # Wait for all tests to complete.
-  wait $parallel_tests_pid
-  parallel_tests_exit_code=$?
-  wait $non_parallel_tests_pid
-  non_parallel_tests_exit_code=$?
-
-  if [ $non_parallel_tests_exit_code != 0 ] || [ $parallel_tests_exit_code != 0 ];
-  then
+  if [ "$group_exit_code" -ne 0 ]; then
+    log_error_locked "The e2e tests for ${group_name} group (bucket type: ${bucket_type}) FAILED."
     return 1
   fi
+  log_info_locked "The e2e tests for ${group_name} group (bucket type: ${bucket_type}) successful."
   return 0
 }
 
-function run_e2e_tests_for_hns_bucket(){
-   hns_bucket_name_parallel_group=$(create_hns_bucket)
-   echo "Hns Bucket Created: "$hns_bucket_name_parallel_group
-   echo ${hns_bucket_name_parallel_group}>>"${bucketNamesFile}"
-
-   hns_bucket_name_non_parallel_group=$(create_hns_bucket)
-   echo "Hns Bucket Created: "$hns_bucket_name_non_parallel_group
-   echo ${hns_bucket_name_non_parallel_group}>>"${bucketNamesFile}"
-
-   echo "Running tests for HNS bucket"
-   run_parallel_tests TEST_DIR_PARALLEL "$hns_bucket_name_parallel_group" &
-   parallel_tests_hns_group_pid=$!
-   run_non_parallel_tests TEST_DIR_NON_PARALLEL "$hns_bucket_name_non_parallel_group" &
-   non_parallel_tests_hns_group_pid=$!
-
-   # Wait for all tests to complete.
-   wait $parallel_tests_hns_group_pid
-   parallel_tests_hns_group_exit_code=$?
-   wait $non_parallel_tests_hns_group_pid
-   non_parallel_tests_hns_group_exit_code=$?
-
-   if [ $parallel_tests_hns_group_exit_code != 0 ] || [ $non_parallel_tests_hns_group_exit_code != 0 ];
-   then
-    return 1
-   fi
-   return 0
-}
-
-function run_e2e_tests_for_zonal_bucket(){
-   zonal_bucket_name_parallel_group=$(create_zonal_bucket)
-   echo "Zonal Bucket Created for parallel tests: "$zonal_bucket_name_parallel_group
-   echo ${zonal_bucket_name_parallel_group}>>"${bucketNamesFile}"
-
-   zonal_bucket_name_non_parallel_group=$(create_zonal_bucket)
-   echo "Zonal Bucket Created for non-parallel tests: "$zonal_bucket_name_non_parallel_group
-   echo ${zonal_bucket_name_non_parallel_group}>>"${bucketNamesFile}"
-
-   echo "Running tests for ZONAL bucket"
-   run_parallel_tests TEST_DIR_PARALLEL_FOR_ZB "$zonal_bucket_name_parallel_group" true &
-   parallel_tests_zonal_group_pid=$!
-   run_non_parallel_tests TEST_DIR_NON_PARALLEL_FOR_ZB "$zonal_bucket_name_non_parallel_group" true &
-   non_parallel_tests_zonal_group_pid=$!
-
-   # Wait for all tests to complete.
-   wait $parallel_tests_zonal_group_pid
-   parallel_tests_zonal_group_exit_code=$?
-   wait $non_parallel_tests_zonal_group_pid
-   non_parallel_tests_zonal_group_exit_code=$?
-
-   if [ $parallel_tests_zonal_group_exit_code != 0 ] || [ $non_parallel_tests_zonal_group_exit_code != 0 ];
-   then
-    return 1
-   fi
-   return 0
-}
-
-function run_e2e_tests_for_tpc() {
-  local bucket=$1
-  if [ "$bucket" == "" ];
-  then
-    echo "Bucket name is required"
+run_e2e_tests_for_emulator() {
+  log_info_locked "Started running e2e tests for emulator."
+  local emulator_test_log=$(mktemp "/tmp/${TMP_PREFIX}_emulator_test_log.XXXXXX")
+  if ! ./tools/integration_tests/emulator_tests/emulator_tests.sh "$TEST_INSTALLED_PACKAGE" > "$emulator_test_log" 2>&1; then
+    acquire_lock "$LOG_LOCK_FILE"
+    log_error ""
+    log_error "--- Emulator Tests Failed ---"
+    cat "$emulator_test_log"
+    release_lock "$LOG_LOCK_FILE"
     return 1
   fi
-
-  # Clean bucket before testing.
-  gcloud --verbosity=error storage rm -r gs://"$bucket"/*
-
-  # Run Operations e2e tests in TPC to validate all the functionality.
-  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/... --testOnTPCEndPoint=$RUN_TEST_ON_TPC_ENDPOINT $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=false -p 1 --integrationTest -v --testbucket="$bucket" --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE $USE_PREBUILT_GCSFUSE_BINARY -timeout $INTEGRATION_TEST_TIMEOUT
-  exit_code=$?
-
-  set -e
-
-  # Delete data after testing.
-  gcloud --verbosity=error storage rm -r gs://"$bucket"/*
-
-  if [ $exit_code != 0 ];
-   then
-     return 1
-  fi
+  log_info_locked "Emulator tests successful."
   return 0
 }
 
-function run_e2e_tests_for_emulator() {
-  ./tools/integration_tests/emulator_tests/emulator_tests.sh $RUN_E2E_TESTS_ON_PACKAGE
-}
-
-function main(){
-  # The name of a file containing the names of all the
-  # buckets to be cleaned-up while exiting this program.
-  bucketNamesFile=$(realpath ./bucketNames)"-"$(tr -dc 'a-z0-9' < /dev/urandom | head -c $RANDOM_STRING_LENGTH)
-  # Delete all these buckets when the program exits.
-  # Cleanup fuse build folder if created
-  trap "cleanup_gcsfuse_once; delete_buckets_listed_in_file ${bucketNamesFile}" EXIT
-
+main() {
+  # Clean up everything on exit.
+  trap clean_up EXIT
+  chmod +x ./tools/integration_tests/monitor_vm_usage.sh
+  ./tools/integration_tests/monitor_vm_usage.sh "$VM_USAGE" "$VM_USAGE_TRACKING_INTERVAL_IN_SECONDS" & VM_USAGE_TRACK_PID=$!
+  log_info ""
+  log_info "------ Upgrading gcloud and installing packages ------"
+  log_info ""
   set -e
-
   upgrade_gcloud_version
-
   install_packages
-
   set +e
+  log_info "------ Upgrading gcloud and installing packages took $SECONDS seconds ------"
+
+  log_info ""
+  log_info "------ Started running E2E test packages ------"
+  log_info ""
 
   # Decide whether to build GCSFuse based on RUN_E2E_TESTS_ON_PACKAGE
-  if [ "$RUN_E2E_TESTS_ON_PACKAGE" != "true" ] && [ "$BUILD_BINARY_IN_SCRIPT" == "true" ]; then
-    echo "RUN_E2E_TESTS_ON_PACKAGE is not 'true' (value: '${RUN_E2E_TESTS_ON_PACKAGE}') and BUILD_BINARY_IN_SCRIPT is 'true'. Building GCSFuse..."
-    build_gcsfuse_once
-    if [ $? -ne 0 ]; then
-        echo "build_gcsfuse_once failed. Exiting."
+  if [ "$TEST_INSTALLED_PACKAGE" != "true" ] && [ "$BUILD_BINARY_IN_SCRIPT" == "true" ]; then
+    log_info "TEST_INSTALLED_PACKAGE is not 'true' (value: '${TEST_INSTALLED_PACKAGE}') and BUILD_BINARY_IN_SCRIPT is 'true'."
+    log_info "Building GCSFuse inside script..."
+    if ! build_gcsfuse_once; then
+        log_error "build_gcsfuse_once failed. Exiting."
         # The trap will handle cleanup
         exit 1
     fi
-
-    USE_PREBUILT_GCSFUSE_BINARY="--gcsfuse_prebuilt_dir=${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
-    echo "Script built GCSFuse at: ${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
+    log_info "Script built GCSFuse at: ${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
   fi
-
-  #run integration tests
-  exit_code=0
-
-  if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
-    run_e2e_tests_for_zonal_bucket &
-    e2e_tests_zonal_bucket_pid=$!
-    wait $e2e_tests_zonal_bucket_pid
-    e2e_tests_zonal_bucket_status=$?
-
-    if [ $e2e_tests_zonal_bucket_status != 0 ]; then
-      echo "The e2e tests for zonal bucket failed.."
-      exit_code=1
-    fi
+    
+  # Reset SECONDS to 0
+  SECONDS=0
+  local pids=()
+  local overall_exit_code=0
+  if [[ "${RUN_TESTS_WITH_ZONAL_BUCKET}" == "true" ]]; then
+    run_test_group "ZONAL" "TEST_PACKAGES_FOR_ZB" "zonal" & pids+=($!)
+  elif [[ "${RUN_TEST_ON_TPC_ENDPOINT}" == "true" ]]; then
+    # Override PROJECT_ID and BUCKET_LOCATION for TPC tests
+    PROJECT_ID="$TPCZERO_PROJECT_ID"
+    BUCKET_LOCATION="$TPC_BUCKET_LOCATION"
+    run_test_group "TPC HNS" "TEST_PACKAGES_FOR_TPC" "hns" & pids+=($!)
+    run_test_group "TPC FLAT" "TEST_PACKAGES_FOR_TPC" "flat" & pids+=($!)
   else
-    # Run tpc test and exit in case RUN_TEST_ON_TPC_ENDPOINT is true.
-    if [ "$RUN_TEST_ON_TPC_ENDPOINT" == true ]; then
-         # Run tests for flat bucket
-         run_e2e_tests_for_tpc gcsfuse-e2e-tests-tpc &
-         e2e_tests_tpc_flat_bucket_pid=$!
-         # Run tests for hns bucket
-         run_e2e_tests_for_tpc gcsfuse-e2e-tests-tpc-hns &
-         e2e_tests_tpc_hns_bucket_pid=$!
-
-         wait $e2e_tests_tpc_flat_bucket_pid
-         e2e_tests_tpc_flat_bucket_status=$?
-
-         wait $e2e_tests_tpc_hns_bucket_pid
-         e2e_tests_tpc_hns_bucket_status=$?
-
-         if [ $e2e_tests_tpc_flat_bucket_status != 0 ];
-         then
-            echo "The e2e tests for flat bucket failed.."
-            exit 1
-         fi
-         if [ $e2e_tests_tpc_hns_bucket_status != 0 ];
-         then
-             echo "The e2e tests for hns bucket failed.."
-             exit 1
-         fi
-         # Exit to prevent the following code from executing for TPC.
-         exit 0
-    fi
-
-    run_e2e_tests_for_hns_bucket &
-    e2e_tests_hns_bucket_pid=$!
-
-    run_e2e_tests_for_flat_bucket &
-    e2e_tests_flat_bucket_pid=$!
-
-    run_e2e_tests_for_emulator &
-    e2e_tests_emulator_pid=$!
-
-    wait $e2e_tests_emulator_pid
-    e2e_tests_emulator_status=$?
-
-    wait $e2e_tests_flat_bucket_pid
-    e2e_tests_flat_bucket_status=$?
-
-    wait $e2e_tests_hns_bucket_pid
-    e2e_tests_hns_bucket_status=$?
-
-    if [ $e2e_tests_flat_bucket_status != 0 ];
-    then
-      echo "The e2e tests for flat bucket failed.."
-      exit_code=1
-    fi
-
-    if [ $e2e_tests_hns_bucket_status != 0 ];
-    then
-      echo "The e2e tests for hns bucket failed.."
-      exit_code=1
-    fi
-
-    if [ $e2e_tests_emulator_status != 0 ];
-    then
-      echo "The e2e tests for emulator failed.."
-      exit_code=1
-    fi
+    run_test_group "HNS" "TEST_PACKAGES_FOR_RB" "hns" & pids+=($!)
+    run_test_group "FLAT" "TEST_PACKAGES_FOR_RB" "flat" & pids+=($!)
+    run_e2e_tests_for_emulator & pids+=($!) # Emulator tests are a separate group
   fi
-
-  set -e
-
-  print_test_logs
-
-  exit $exit_code
+  # Wait for all background processes to complete and aggregate their exit codes
+  for pid in "${pids[@]}"; do
+    wait "$pid"
+    overall_exit_code=$((overall_exit_code || $?))
+  done
+  elapsed_min=$(((SECONDS + 60) / 60))
+  log_info "------ E2E test packages complete run took ${elapsed_min} minutes ------"
+  log_info ""
+  print_package_stats
+  cat "$VM_USAGE"
+  exit $overall_exit_code
 }
 
 #Main method to run script
