@@ -55,7 +55,7 @@ readonly INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS=60
 readonly TMP_PREFIX="gcsfuse_e2e"
 readonly ZONAL_BUCKET_SUPPORTED_LOCATIONS=("us-central1" "us-west4")
 readonly VM_USAGE_TRACKING_INTERVAL_IN_SECONDS=10 # Controls how frequent VM Usage(CPU, Memory, Disk) are tracked.
-readonly PACKAGE_LEVEL_PARALLELISM=7 # Controls how many test packages are run in parallel for hns, flat or zonal buckets.
+readonly PACKAGE_LEVEL_PARALLELISM=10 # Controls how many test packages are run in parallel for hns, flat or zonal buckets.
 readonly DELETE_BUCKET_PARALLELISM=10 # Controls how many buckets are deleted in parallel.
 
 # Default values for optional arguments.
@@ -371,7 +371,7 @@ run_parallel() {
   local cmd_template="$1"
   shift
   local -A cmds_by_pid=()
-  local overall_exit_code parallel_cmd parallel_cmd_output pid
+  local overall_exit_code=0 parallel_cmd parallel_cmd_output pid
   # Launch parallel commands in the background based on parallelism.
   for arg in "$@"; do
     parallel_cmd="${cmd_template//@/$arg}"
@@ -390,7 +390,7 @@ run_parallel() {
       process_any_pid "cmds_by_pid"
       overall_exit_code=$((overall_exit_code || $? ))
   done
-  return "$overall_exit_code"
+  return $overall_exit_code
 }
 
 test_package() {
@@ -565,92 +565,30 @@ install_packages() {
   sudo apt install -y python3-crcmod
 }
 
-run_e2e_tests_for_flat_bucket() {
-  log_info_locked "Started running e2e tests for flat bucket."
-  parallel_package_flat_bucket=()
-  setup_package_buckets "TEST_PACKAGES_FOR_RB" "parallel_package_flat_bucket" "flat"
-  parallel_tests_flat_group_exit_code=$?
-  run_parallel "$PACKAGE_LEVEL_PARALLELISM" "test_package @" "${parallel_package_flat_bucket[@]}" &
-  parallel_tests_flat_group_pid=$!
+# Generic function to run a group of E2E tests for a given bucket type.
+# Args:
+#   $1: Descriptive group name (e.g., "FLAT", "HNS", "ZONAL", "TPC HNS", "TPC FLAT")
+#   $2: Name of the array holding test packages (e.g., "TEST_PACKAGES_FOR_RB", "TEST_PACKAGES_FOR_ZB")
+#   $3: Bucket type ("flat", "hns", "zonal")
+run_test_group() {
+  local group_name="$1"
+  local test_packages_var_name="$2"
+  local bucket_type="$3"
+  local packages_for_run=()
+  local group_exit_code=0
+  log_info_locked "Started running e2e tests for ${group_name} group (bucket type: ${bucket_type})."
 
-  # Wait for all tests to complete.
-  wait $parallel_tests_flat_group_pid
-  parallel_tests_flat_group_exit_code=$((parallel_tests_flat_group_exit_code || $?))
+  setup_package_buckets "${test_packages_var_name}" "packages_for_run" "${bucket_type}"
+  group_exit_code=$?
 
-  if [ $parallel_tests_flat_group_exit_code != 0 ]; then
-    log_error_locked "The e2e tests for flat bucket failed."
+  run_parallel "$PACKAGE_LEVEL_PARALLELISM" "test_package @" "${packages_for_run[@]}"
+  group_exit_code=$((group_exit_code || $?))
+
+  if [ "$group_exit_code" -ne 0 ]; then
+    log_error_locked "The e2e tests for ${group_name} group (bucket type: ${bucket_type}) FAILED."
     return 1
   fi
-  log_info_locked "The e2e tests for flat bucket successful."
-  return 0
-}
-
-run_e2e_tests_for_hns_bucket() {
-  log_info_locked "Started running e2e tests for HNS bucket."
-  parallel_package_hns_bucket=()
-  setup_package_buckets "TEST_PACKAGES_FOR_RB" "parallel_package_hns_bucket" "hns"
-  parallel_tests_hns_group_exit_code=$?
-  run_parallel "$PACKAGE_LEVEL_PARALLELISM" "test_package @" "${parallel_package_hns_bucket[@]}" &
-  parallel_tests_hns_group_pid=$!
-
-  # Wait for all tests to complete.
-  wait $parallel_tests_hns_group_pid
-  parallel_tests_hns_group_exit_code=$((parallel_tests_hns_group_exit_code || $?))
-
-  if [ $parallel_tests_hns_group_exit_code != 0 ]; then
-    log_error_locked "The e2e tests for hns bucket failed."
-    return 1
-  fi
-  log_info_locked "The e2e tests for hns bucket successful."
-  return 0
-}
-
-run_e2e_tests_for_zonal_bucket() {
-  log_info_locked "Started running e2e tests for ZONAL bucket."
-  parallel_package_zonal_bucket=()
-  setup_package_buckets "TEST_PACKAGES_FOR_ZB" "parallel_package_zonal_bucket" "zonal"
-  parallel_tests_zonal_group_exit_code=$?
-  run_parallel "$PACKAGE_LEVEL_PARALLELISM" "test_package @" "${parallel_package_zonal_bucket[@]}" &
-  parallel_tests_zonal_group_pid=$!
-
-  # Wait for all tests to complete.
-  wait $parallel_tests_zonal_group_pid
-  parallel_tests_zonal_group_exit_code=$((parallel_tests_zonal_group_exit_code || $?))
-
-  if [ $parallel_tests_zonal_group_exit_code != 0 ]; then
-    log_error_locked "The e2e tests for zonal bucket failed."
-    return 1
-  fi
-  log_info_locked "The e2e tests for zonal bucket successful."
-  return 0
-}
-
-run_e2e_tests_for_tpc() {
-  log_info_locked "Started running e2e tests for TPC bucket."
-
-  parallel_package_bucket_hns=()
-  setup_package_buckets "TEST_PACKAGES_FOR_TPC" "parallel_package_bucket_hns" "hns"
-  parallel_tests_hns_group_exit_code=$?
-  run_parallel "$PACKAGE_LEVEL_PARALLELISM" "test_package @" "${parallel_package_bucket_hns[@]}" &
-  parallel_tests_hns_group_pid=$!
-
-  parallel_package_bucket_flat=()
-  setup_package_buckets "TEST_PACKAGES_FOR_TPC" "parallel_package_bucket_flat" "flat"
-  parallel_tests_flat_group_exit_code=$?
-  run_parallel "$PACKAGE_LEVEL_PARALLELISM" "test_package @" "${parallel_package_bucket_flat[@]}" &
-  parallel_tests_flat_group_pid=$!
-
-  # Wait for all tests to complete.
-  wait $parallel_tests_hns_group_pid
-  parallel_tests_hns_group_exit_code=$((parallel_tests_hns_group_exit_code || $?))
-  wait $parallel_tests_flat_group_pid
-  parallel_tests_flat_group_exit_code=$((parallel_tests_flat_group_exit_code || $?))
-
-  if [ $parallel_tests_hns_group_exit_code != 0 ] || [ $parallel_tests_flat_group_exit_code != 0 ]; then
-    log_error_locked "The e2e tests for TPC bucket failed."
-    return 1
-  fi
-  log_info_locked "The e2e tests for TPC bucket successful."
+  log_info_locked "The e2e tests for ${group_name} group (bucket type: ${bucket_type}) successful."
   return 0
 }
 
@@ -673,27 +611,25 @@ main() {
   # Clean up everything on exit.
   trap clean_up EXIT
   chmod +x ./tools/integration_tests/monitor_vm_usage.sh
-  ./tools/integration_tests/monitor_vm_usage.sh "$VM_USAGE" "$VM_USAGE_TRACKING_INTERVAL_IN_SECONDS" &
-  VM_USAGE_TRACK_PID=$!
-  log_info_locked ""
-  log_info_locked "------ Upgrading gcloud and installing packages ------"
-  log_info_locked ""
+  ./tools/integration_tests/monitor_vm_usage.sh "$VM_USAGE" "$VM_USAGE_TRACKING_INTERVAL_IN_SECONDS" & VM_USAGE_TRACK_PID=$!
+  log_info ""
+  log_info "------ Upgrading gcloud and installing packages ------"
+  log_info ""
   set -e
   upgrade_gcloud_version
   install_packages
   set +e
-  log_info_locked "------ Upgrading gcloud and installing packages took $SECONDS seconds ------"
+  log_info "------ Upgrading gcloud and installing packages took $SECONDS seconds ------"
 
-  log_info_locked ""
-  log_info_locked "------ Started running E2E test packages ------"
-  log_info_locked ""
+  log_info ""
+  log_info "------ Started running E2E test packages ------"
+  log_info ""
 
   # Decide whether to build GCSFuse based on RUN_E2E_TESTS_ON_PACKAGE
   if [ "$TEST_INSTALLED_PACKAGE" != "true" ] && [ "$BUILD_BINARY_IN_SCRIPT" == "true" ]; then
     log_info "TEST_INSTALLED_PACKAGE is not 'true' (value: '${TEST_INSTALLED_PACKAGE}') and BUILD_BINARY_IN_SCRIPT is 'true'."
     log_info "Building GCSFuse inside script..."
-    build_gcsfuse_once
-    if [ $? -ne 0 ]; then
+    if ! build_gcsfuse_once; then
         log_error "build_gcsfuse_once failed. Exiting."
         # The trap will handle cleanup
         exit 1
@@ -703,49 +639,32 @@ main() {
     
   # Reset SECONDS to 0
   SECONDS=0
-  # Set exit code of e2e run to 0
-  exit_code=0
+  local pids=()
+  local overall_exit_code=0
   if [[ "${RUN_TESTS_WITH_ZONAL_BUCKET}" == "true" ]]; then
-    run_e2e_tests_for_zonal_bucket &
-    e2e_tests_zonal_bucket_pid=$!
-    wait $e2e_tests_zonal_bucket_pid
-    exit_code=$((exit_code || $? != 0))
+    run_test_group "ZONAL" "TEST_PACKAGES_FOR_ZB" "zonal" & pids+=($!)
+  elif [[ "${RUN_TEST_ON_TPC_ENDPOINT}" == "true" ]]; then
+    # Override PROJECT_ID and BUCKET_LOCATION for TPC tests
+    PROJECT_ID="$TPCZERO_PROJECT_ID"
+    BUCKET_LOCATION="$TPC_BUCKET_LOCATION"
+    run_test_group "TPC HNS" "TEST_PACKAGES_FOR_TPC" "hns" & pids+=($!)
+    run_test_group "TPC FLAT" "TEST_PACKAGES_FOR_TPC" "flat" & pids+=($!)
   else
-    # Run tpc test and exit in case RUN_TEST_ON_TPC_ENDPOINT is true.
-    if [[ "${RUN_TEST_ON_TPC_ENDPOINT}" == "true" ]]; then
-      BUCKET_LOCATION="$TPC_BUCKET_LOCATION"
-      PROJECT_ID="$TPCZERO_PROJECT_ID"
-      run_e2e_tests_for_tpc &
-      e2e_tests_tpc_pid=$!
-    
-      wait $e2e_tests_tpc_pid
-      exit_code=$((exit_code || $? != 0))
-    else
-      run_e2e_tests_for_hns_bucket &
-      e2e_tests_hns_bucket_pid=$!
-
-      run_e2e_tests_for_flat_bucket &
-      e2e_tests_flat_bucket_pid=$!
-
-      run_e2e_tests_for_emulator &
-      e2e_tests_emulator_pid=$!
-
-      wait $e2e_tests_emulator_pid
-      exit_code=$((exit_code || $? != 0))
-
-      wait $e2e_tests_flat_bucket_pid
-      exit_code=$((exit_code || $? != 0))
-
-      wait $e2e_tests_hns_bucket_pid
-      exit_code=$((exit_code || $? != 0))
-    fi
+    run_test_group "HNS" "TEST_PACKAGES_FOR_RB" "hns" & pids+=($!)
+    run_test_group "FLAT" "TEST_PACKAGES_FOR_RB" "flat" & pids+=($!)
+    run_e2e_tests_for_emulator & pids+=($!) # Emulator tests are a separate group
   fi
+  # Wait for all background processes to complete and aggregate their exit codes
+  for pid in "${pids[@]}"; do
+    wait "$pid"
+    overall_exit_code=$((overall_exit_code || $?))
+  done
   elapsed_min=$(((SECONDS + 60) / 60))
-  log_info_locked "------ E2E test packages complete run took ${elapsed_min} minutes ------"
-  log_info_locked ""
+  log_info "------ E2E test packages complete run took ${elapsed_min} minutes ------"
+  log_info ""
   print_package_stats
   cat "$VM_USAGE"
-  exit $exit_code
+  exit $overall_exit_code
 }
 
 #Main method to run script
