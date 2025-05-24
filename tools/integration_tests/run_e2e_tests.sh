@@ -55,7 +55,7 @@ readonly INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS=60
 readonly TMP_PREFIX="gcsfuse_e2e"
 readonly ZONAL_BUCKET_SUPPORTED_LOCATIONS=("us-central1" "us-west4")
 readonly VM_USAGE_TRACKING_INTERVAL_IN_SECONDS=10 # Controls how frequent VM Usage(CPU, Memory, Disk) are tracked.
-readonly PACKAGE_LEVEL_PARALLELISM=15 # Controls how many test packages are run in parallel for hns, flat or zonal buckets.
+readonly PACKAGE_LEVEL_PARALLELISM=7 # Controls how many test packages are run in parallel for hns, flat or zonal buckets.
 readonly DELETE_BUCKET_PARALLELISM=10 # Controls how many buckets are deleted in parallel.
 
 # Default values for optional arguments.
@@ -122,34 +122,35 @@ if [ -n "$1" ]; then
 fi
 
 # Test packages which can be run for both Zonal and Regional buckets.
-# Keep sorted in terms of relative run times of test packages.
+# Sorted list descending run times. (Longest Processing Time first strategy) 
 TEST_PACKAGES_COMMON=(
-  "monitoring"
-  "log_rotation"
-  "mounting"
-  # "grpc_validation"
-  "gzip"
-  "explicit_dir"
-  "stale_handle"
-  "negative_stat_cache"
-  "kernel_list_cache"
-  "streaming_writes"
-  "benchmarking"
+  "managed_folders"
+  "operations"
+  "read_large_files"
+  "concurrent_operations"
+  "read_cache"
+  "list_large_dir"
+  "mount_timeout"
+  "write_large_files"
+  "implicit_dir"
+  "interrupt"
+  "local_file"
   "readonly"
   "readonly_creds"
   "rename_dir_limit"
-  "implicit_dir"
-  "mount_timeout"
-  "local_file"
-  "interrupt"
-  "list_large_dir"
-  "read_cache"
-  "write_large_files"
-  "read_large_files"
-  "concurrent_operations"
-  "operations"
-  "managed_folders"
+  "kernel_list_cache"
+  "streaming_writes"
+  "benchmarking"
+  "explicit_dir"
+  "gzip"
+  "log_rotation"
+  "monitoring"
+  "mounting"
+  # "grpc_validation"
+  "negative_stat_cache"
+  "stale_handle"
 )
+
 # Test packages for regional buckets.
 TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}" "inactive_stream_timeout")
 # Test packages for zonal buckets.
