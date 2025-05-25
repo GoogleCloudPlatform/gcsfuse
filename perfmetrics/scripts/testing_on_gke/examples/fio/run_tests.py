@@ -87,23 +87,7 @@ def createHelmInstallCommands(
           f'--set numEpochs={fioWorkload.numEpochs}',
           f'--set gcsfuse.customCSIDriver={customCSIDriver}',
       ]
-      if fioWorkload.jobFile:
-        chartName, podName, outputDirPrefix = fio_workload.FioChartNamePodName(
-            fioWorkload, experimentID
-        )
-        moreHelmValues = [
-            f'--set fio.jobFile={fioWorkload.jobFile}',
-        ]
-        helm_commands.append(
-            _create_helm_command(
-                chartName,
-                podName,
-                outputDirPrefix,
-                commonHelmValues,
-                moreHelmValues,
-            )
-        )
-      else:
+      if not fioWorkload.jobFile:
         for readType in fioWorkload.readTypes:
           chartName, podName, outputDirPrefix = (
               fio_workload.FioChartNamePodName(
@@ -126,6 +110,22 @@ def createHelmInstallCommands(
                   moreHelmValues,
               )
           )
+      else:
+        chartName, podName, outputDirPrefix = fio_workload.FioChartNamePodName(
+            fioWorkload, experimentID
+        )
+        moreHelmValues = [
+            f'--set fio.jobFile={fioWorkload.jobFile}',
+        ]
+        helm_commands.append(
+            _create_helm_command(
+                chartName,
+                podName,
+                outputDirPrefix,
+                commonHelmValues,
+                moreHelmValues,
+            )
+        )
   return helm_commands
 
 
