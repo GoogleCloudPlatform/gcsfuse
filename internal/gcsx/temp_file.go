@@ -21,6 +21,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/jacobsa/fuse/fsutil"
 	"github.com/jacobsa/timeutil"
 )
@@ -340,7 +341,7 @@ func (tf *tempFile) ensure(limit int64) error {
 		if n < minCopyLength {
 			n = minCopyLength
 		}
-		n, err = io.CopyN(tf.f, tf.source, n)
+		n, err = common.CopyWhole(tf.f, tf.source, n)
 		if err == io.EOF {
 			tf.source.Close()
 			tf.dirtyThreshold = size + n
