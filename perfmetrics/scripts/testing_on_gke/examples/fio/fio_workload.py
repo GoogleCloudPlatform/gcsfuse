@@ -36,25 +36,25 @@ def validate_fio_workload(workload: dict, name: str):
       print(f"{name} does not have '{requiredWorkloadAttribute}' key in it.")
       return False
     if not type(workload[requiredWorkloadAttribute]) is expectedType:
-      print(
+      raise Exception(
           f"In {name}, the type of '{requiredWorkloadAttribute}' is of type"
           f" '{type(workload[requiredWorkloadAttribute])}', not {expectedType}"
       )
-      return False
     if expectedType == str and ' ' in workload[requiredWorkloadAttribute]:
-      print(f"{name} has space in the value of '{requiredWorkloadAttribute}'")
-      return False
+      raise Exception(
+          f"{name} has space in the value of '{requiredWorkloadAttribute}'"
+      )
 
   if 'numEpochs' in workload:
     if not type(workload['numEpochs']) is int:
-      print(
+      raise Exception(
           f"In {name}, the type of workload['numEpochs'] is of type"
           f" {type(workload['numEpochs'])}, not {int}"
       )
-      return False
     if int(workload['numEpochs']) < 0:
-      print(f"In {name}, the value of workload['numEpochs'] < 0, expected: >=0")
-      return False
+      raise Exception(
+          f"In {name}, the value of workload['numEpochs'] < 0, expected: >=0"
+      )
 
   if 'dlioWorkload' in workload:
     print(f"{name} has 'dlioWorkload' key in it, which is unexpected.")
@@ -64,17 +64,15 @@ def validate_fio_workload(workload: dict, name: str):
   if 'jobFile' in fioWorkload:
     jobFile = fioWorkload['jobFile'].strip()
     if len(jobFile) == 0:
-      print(
+      raise Exception(
           '{name} has jobFile attribute in it, but it is empty, so ignoring'
           ' this workload.'
       )
-      return False
     elif ' ' in jobFile:
-      print(
+      raise Exception(
           '{name} has jobFile attribute in it, but it has space (" ") in it, so'
           ' ignoring this workload.'
       )
-      return False
   else:
     for requiredAttribute, expectedType in {
         'fileSize': str,
@@ -83,39 +81,36 @@ def validate_fio_workload(workload: dict, name: str):
         'numThreads': int,
     }.items():
       if requiredAttribute not in fioWorkload:
-        print(f'In {name}, fioWorkload does not have {requiredAttribute} in it')
-        return False
+        raise Exception(
+            f'In {name}, fioWorkload does not have {requiredAttribute} in it'
+        )
       if not type(fioWorkload[requiredAttribute]) is expectedType:
-        print(
+        raise Exception(
             f'In {name}, fioWorkload[{requiredAttribute}] is of type'
             f' {type(fioWorkload[requiredAttribute])}, expected:'
             f' {expectedType} '
         )
-        return False
 
     if 'readTypes' in fioWorkload:
       readTypes = fioWorkload['readTypes']
       if not type(readTypes) is list:
-        print(
+        raise Exception(
             f"In {name}, fioWorkload['readTypes'] is of type {type(readTypes)},"
             " not 'list'."
         )
-        return False
       for readType in readTypes:
         if not type(readType) is str:
-          print(
+          raise Exception(
               f'In {name}, one of the values in'
               f" fioWorkload['readTypes'] is '{readType}', which is of type"
               f' {type(readType)}, not str'
           )
-          return False
         if not readType == 'read' and not readType == 'randread':
-          print(
-              f"In {name}, one of the values in fioWorkload['readTypes'] is"
+          raise Exception(
+              f"In {name}, fioWorkload['readTypes'] is"
               f" '{readType}' which is not a supported value. Supported values"
               ' are read, randread'
           )
-          return False
 
   return True
 
