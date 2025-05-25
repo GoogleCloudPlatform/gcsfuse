@@ -60,14 +60,14 @@ def createHelmInstallCommands(
       commonHelmValues: [],
       moreHelmValues: [],
   ) -> str:
-    commands = [
+    command = [
         f'helm install {chartName} loading-test',
         f'--set podName={podName}',
         f'--set outputDirPrefix={outputDirPrefix}',
     ]
-    commands.extend(commonHelmValues)
-    commands.extend(moreHelmValues)
-    return ' '.join(commands)
+    command.extend(commonHelmValues)
+    command.extend(moreHelmValues)
+    return ' '.join(command)
 
   for fioWorkload in fioWorkloads:
     if fioWorkload.numEpochs > 0:
