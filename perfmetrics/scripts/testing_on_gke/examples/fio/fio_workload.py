@@ -22,6 +22,7 @@ import json
 
 
 DefaultNumEpochs = 4
+DefaultReadTypes = ['read', 'randread']
 
 
 def validate_fio_workload(workload: dict, name: str):
@@ -162,7 +163,7 @@ class FioWorkload:
       blockSize: str = None,
       filesPerThread: int = None,
       numThreads: int = None,
-      readTypes: list = None,
+      readTypes: list = DefaultReadTypes,
       jobFile: str = None,
   ):
     self.scenario = scenario
@@ -221,7 +222,7 @@ def parse_test_config_for_fio_workloads(fioTestConfigFile: str):
           fioWorkloadAttributes['readTypes'] = (
               fioWorkload['readTypes']
               if 'readTypes' in fioWorkload
-              else ['read', 'randread']
+              else DefaultReadTypes
           )
         for attr in ['bucket', 'gcsfuseMountOptions']:
           fioWorkloadAttributes[attr] = workload[attr]
