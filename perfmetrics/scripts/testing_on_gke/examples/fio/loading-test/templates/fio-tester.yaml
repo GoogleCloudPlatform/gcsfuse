@@ -135,7 +135,7 @@ spec:
         wget -O $filename https://raw.githubusercontent.com/GoogleCloudPlatform/gcsfuse/master/perfmetrics/scripts/job_files/read_cache_load_test.fio
         {{ end }}
 
-        {{ end }} 
+        {{ end }}
 
         echo "Setup default values..."
         epoch={{ .Values.numEpochs }}
@@ -169,9 +169,9 @@ spec:
         for i in $(seq $epoch); do
           echo "[Epoch ${i}] start time:" `date +%s`
           free -mh # Memory usage before workload start.
-          
+
           {{ if .Values.fio.jobFile }}
-          READ_TYPE=$read_type DIR=$workload_dir fio ${filename} --alloc-size=1048576 --output-format=json --output="${output_dir}/epoch${i}.json"
+          DIR=$workload_dir fio ${filename} --alloc-size=1048576 --output-format=json --output="${output_dir}/epoch${i}.json"
           {{ else }}
           NUMJOBS=$num_of_threads NRFILES=$no_of_files_per_thread FILE_SIZE=$file_size BLOCK_SIZE=$block_size READ_TYPE=$read_type DIR=$workload_dir fio ${filename} --alloc-size=1048576 --output-format=json --output="${output_dir}/epoch${i}.json"
           {{ end }}

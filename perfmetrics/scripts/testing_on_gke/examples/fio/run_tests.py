@@ -51,46 +51,81 @@ def createHelmInstallCommands(
     resourceLimits = {'cpu': 0, 'memory': '0'}
     resourceRequests = resourceLimits
 
+  # Internal function to keep reusable logic
+  # scoped to this function.
+  def _create_helm_command(
+      chartName: str,
+      podName: str,
+      outputDirPrefix: str,
+      commonHelmValues: [],
+      moreHelmValues: [],
+  ) -> str:
+    commands = [
+        f'helm install {chartName} loading-test',
+        f'--set podName={podName}',
+        f'--set outputDirPrefix={outputDirPrefix}',
+    ]
+    commands.extend(commonHelmValues)
+    commands.extend(moreHelmValues)
+    return ' '.join(commands)
+
   for fioWorkload in fioWorkloads:
     if fioWorkload.numEpochs > 0:
-      for readType in fioWorkload.readTypes:
+      commonHelmValues = [
+          f'--set bucketName={fioWorkload.bucket}',
+          f'--set scenario={fioWorkload.scenario}',
+          f'--set experimentID={experimentID}',
+          (
+              '--set'
+              f' gcsfuse.mountOptions={escape_commas_in_string(fioWorkload.gcsfuseMountOptions)}'
+          ),
+          f'--set nodeType={machineType}',
+          f"--set resourceLimits.cpu={resourceLimits['cpu']}",
+          f"--set resourceLimits.memory={resourceLimits['memory']}",
+          f"--set resourceRequests.cpu={resourceRequests['cpu']}",
+          f"--set resourceRequests.memory={resourceRequests['memory']}",
+          f'--set numEpochs={fioWorkload.numEpochs}',
+          f'--set gcsfuse.customCSIDriver={customCSIDriver}',
+      ]
+      if fioWorkload.jobFile:
         chartName, podName, outputDirPrefix = fio_workload.FioChartNamePodName(
-            fioWorkload, experimentID, readType
+            fioWorkload, experimentID
         )
-        commands = [
-            f'helm install {chartName} loading-test',
-            f'--set bucketName={fioWorkload.bucket}',
-            f'--set scenario={fioWorkload.scenario}',
-            f'--set experimentID={experimentID}',
-            (
-                '--set'
-                f' gcsfuse.mountOptions={escape_commas_in_string(fioWorkload.gcsfuseMountOptions)}'
-            ),
-            f'--set nodeType={machineType}',
-            f'--set podName={podName}',
-            f'--set outputDirPrefix={outputDirPrefix}',
-            f"--set resourceLimits.cpu={resourceLimits['cpu']}",
-            f"--set resourceLimits.memory={resourceLimits['memory']}",
-            f"--set resourceRequests.cpu={resourceRequests['cpu']}",
-            f"--set resourceRequests.memory={resourceRequests['memory']}",
-            f'--set numEpochs={fioWorkload.numEpochs}',
-            f'--set gcsfuse.customCSIDriver={customCSIDriver}',
+        moreHelmValues = [
+            f'--set fio.jobFile={fioWorkload.jobFile}',
         ]
-        if fioWorkload.jobFile:
-          commands.append(
-              f'--set fio.jobFile={fioWorkload.jobFile}',
+        helm_commands.append(
+            _create_helm_command(
+                chartName,
+                podName,
+                outputDirPrefix,
+                commonHelmValues,
+                moreHelmValues,
+            )
+        )
+      else:
+        for readType in fioWorkload.readTypes:
+          chartName, podName, outputDirPrefix = (
+              fio_workload.FioChartNamePodName(
+                  fioWorkload, experimentID, readType
+              )
           )
-        else:
-          commands.extend([
+          moreHelmValues = [
               f'--set fio.fileSize={fioWorkload.fileSize}',
               f'--set fio.blockSize={fioWorkload.blockSize}',
               f'--set fio.filesPerThread={fioWorkload.filesPerThread}',
               f'--set fio.numThreads={fioWorkload.numThreads}',
               f'--set fio.readType={readType}',
-          ])
-
-        helm_command = ' '.join(commands)
-        helm_commands.append(helm_command)
+          ]
+          helm_commands.append(
+              _create_helm_command(
+                  chartName,
+                  podName,
+                  outputDirPrefix,
+                  commonHelmValues,
+                  moreHelmValues,
+              )
+          )
   return helm_commands
 
 

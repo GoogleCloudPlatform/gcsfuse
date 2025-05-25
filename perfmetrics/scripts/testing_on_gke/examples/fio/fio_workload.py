@@ -219,13 +219,13 @@ def parse_test_config_for_fio_workloads(fioTestConfigFile: str):
               'filesPerThread',
           ]:
             fioWorkloadAttributes[attr] = fioWorkload[attr]
+        for attr in ['bucket', 'gcsfuseMountOptions']:
+          fioWorkloadAttributes[attr] = workload[attr]
           fioWorkloadAttributes['readTypes'] = (
               fioWorkload['readTypes']
               if 'readTypes' in fioWorkload
               else DefaultReadTypes
           )
-        for attr in ['bucket', 'gcsfuseMountOptions']:
-          fioWorkloadAttributes[attr] = workload[attr]
         fioWorkloadAttributes['numEpochs'] = (
             workload['numEpochs']
             if 'numEpochs' in workload
@@ -238,7 +238,7 @@ def parse_test_config_for_fio_workloads(fioTestConfigFile: str):
 
 
 def FioChartNamePodName(
-    fioWorkload: FioWorkload, experimentID: str, readType: str
+    fioWorkload: FioWorkload, experimentID: str, readType: str = None
 ) -> (str, str, str):
   shortenScenario = {
       'local-ssd': 'ssd',
@@ -250,15 +250,17 @@ def FioChartNamePodName(
       else 'other'
   )
 
-  hashOfWorkload = str(hash((fioWorkload, experimentID, readType))).replace(
-      '-', ''
-  )
   if not fioWorkload.jobFile:
     readTypeToShortReadType = {'read': 'sr', 'randread': 'rr'}
-    shortForReadType = (
-        readTypeToShortReadType[readType]
-        if readType in readTypeToShortReadType
-        else 'ur'
+    if not readType or readType not in readTypeToShortReadType.keys():
+      raise Exception(
+          f'Unexpected scenario. Unsupported rw type {readType} passed for a'
+          ' fioWorkload not containing a jobFile. Expected it to be one out of'
+          f' {readTypeToShortReadType.keys()}'
+      )
+    shortForReadType = readTypeToShortReadType[readType]
+    hashOfWorkload = str(hash((fioWorkload, experimentID, readType))).replace(
+        '-', ''
     )
     return (
         f'fio-load-{shortForScenario}-{shortForReadType}-{fioWorkload.fileSize.lower()}-{hashOfWorkload}',
@@ -266,8 +268,9 @@ def FioChartNamePodName(
         f'{experimentID}/{fioWorkload.fileSize}-{fioWorkload.blockSize}-{fioWorkload.numThreads}-{fioWorkload.filesPerThread}-{hashOfWorkload}/{fioWorkload.scenario}/{readType}',
     )
   else:
+    hashOfWorkload = str(hash((fioWorkload, experimentID))).replace('-', '')
     return (
         f'fio-load-{shortForScenario}-{hashOfWorkload}',
-        f'fio-tester-{shortForScenario}-hashOfWorkload}',
-        f'{experimentID}/{hashOfWorkload}/{fioWorkload.scenario}/UnknownOperationType',
+        f'fio-tester-{shortForScenario}-{hashOfWorkload}',
+        f'{experimentID}/{hashOfWorkload}/{fioWorkload.scenario}/unknown_rw',
     )
