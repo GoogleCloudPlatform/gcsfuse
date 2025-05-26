@@ -89,21 +89,6 @@ func (t *readManagerTest) readAt(offset int64, size int64) (gcsx.ReaderResponse,
 	return t.readManager.ReadAt(t.ctx, make([]byte, size), offset)
 }
 
-type MockReader struct {
-	mock.Mock
-}
-
-func (m *MockReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.ReaderResponse, error) {
-	args := m.Called(ctx, p, offset)
-	return args.Get(0).(gcsx.ReaderResponse), args.Error(1)
-}
-
-func (m *MockReader) Destroy() {
-}
-
-func (m *MockReader) CheckInvariants() {
-}
-
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
@@ -265,14 +250,18 @@ func (t *readManagerTest) Test_ReadAt_R1FailsR2Succeeds() {
 	offset := int64(0)
 	buf := make([]byte, 10)
 	expectedResp := gcsx.ReaderResponse{Size: 10}
-	mockReader1 := new(MockReader)
-	mockReader2 := new(MockReader)
+	mockReader1 := new(gcsx.MockReader)
+	mockReader2 := new(gcsx.MockReader)
 	t.readManager = &ReadManager{
 		object:  t.object,
 		readers: []gcsx.Reader{mockReader1, mockReader2},
 	}
 	mockReader1.On("ReadAt", t.ctx, buf, offset).Return(gcsx.ReaderResponse{}, gcsx.FallbackToAnotherReader).Once()
+	mockReader1.On("CheckInvariants").Maybe()
+	mockReader1.On("Destroy").Maybe()
 	mockReader2.On("ReadAt", t.ctx, buf, offset).Return(expectedResp, nil).Once()
+	mockReader2.On("CheckInvariants").Maybe()
+	mockReader2.On("Destroy").Maybe()
 
 	resp, err := t.readAt(offset, 10)
 
