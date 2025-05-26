@@ -58,14 +58,14 @@ func (s *managedFoldersViewPermission) TestListNonEmptyManagedFolders(t *testing
 
 func (s *managedFoldersViewPermission) TestCreateObjectInManagedFolder(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder2, DestFile)
+
+	// The error must happen either at file creation or file handle close.
 	file, err := os.Create(filePath)
-	if err != nil {
-		t.Errorf("Error in creating file locally.")
-	}
-	t.Cleanup(func() {
+	if file != nil {
 		err = file.Close()
-		operations.CheckErrorForReadOnlyFileSystem(t, err)
-	})
+	}
+
+	operations.CheckErrorForReadOnlyFileSystem(t, err)
 }
 
 func (s *managedFoldersViewPermission) TestDeleteObjectFromManagedFolder(t *testing.T) {
