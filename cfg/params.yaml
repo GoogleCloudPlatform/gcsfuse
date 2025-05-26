@@ -75,7 +75,7 @@
   flag-name: "disable-autoconfig"
   type: "bool"
   usage: "Disable optimizing configuration automatically for a machine"
-  default: true
+  default: false
   hide-flag: true
 
 - config-path: "enable-atomic-rename-object"
