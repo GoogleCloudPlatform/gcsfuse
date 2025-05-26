@@ -43,7 +43,32 @@ import (
 // the format defined by time.RFC3339Nano.
 const FileMtimeMetadataKey = gcs.MtimeMetadataKey
 
-type FileInode struct {
+type FileInode interface {
+	Inode
+	Lock()
+	Unlock()
+	IsLocal() bool
+	IsUnlinked() bool
+
+	Source() *gcs.MinObject
+
+	SourceGenerationIsAuthoritative() bool
+	SourceGeneration() (g Generation)
+	RegisterFileHandle(readOnly bool)
+	DeRegisterFileHandle(readOnly bool)
+	Bucket() *gcsx.SyncerBucket
+	Read(ctx context.Context, dst []byte, offset int64) (n int, err error)
+	Write(ctx context.Context, data []byte, offset int64) error
+	SyncPendingBufferedWrites() (gcsSynced bool, err error)
+	SetMtime(ctx context.Context, mtime time.Time) (err error)
+	Sync(ctx context.Context) (gcsSynced bool, err error)
+	Flush(ctx context.Context) (err error)
+	Truncate(ctx context.Context, size int64) (err error)
+	CacheEnsureContent(ctx context.Context) (err error)
+	CreateEmptyTempFile(ctx context.Context) (err error)
+	InitBufferedWriteHandlerIfEligible(ctx context.Context) (bool, error)
+}
+type fileInode struct {
 	/////////////////////////
 	// Dependencies
 	/////////////////////////
@@ -120,7 +145,7 @@ type FileInode struct {
 	globalMaxWriteBlocksSem *semaphore.Weighted
 }
 
-var _ Inode = &FileInode{}
+var _ Inode = &fileInode{}
 
 // Create a file inode for the given min object in GCS. The initial lookup count is
 // zero.
@@ -141,13 +166,13 @@ func NewFileInode(
 	mtimeClock timeutil.Clock,
 	localFile bool,
 	cfg *cfg.Config,
-	globalMaxBlocksSem *semaphore.Weighted) (f *FileInode) {
+	globalMaxBlocksSem *semaphore.Weighted) *FileInode {
 	// Set up the basic struct.
 	var minObj gcs.MinObject
 	if m != nil {
 		minObj = *m
 	}
-	f = &FileInode{
+	in := fileInode{
 		bucket:                  bucket,
 		mtimeClock:              mtimeClock,
 		id:                      id,
@@ -162,17 +187,19 @@ func NewFileInode(
 		globalMaxWriteBlocksSem: globalMaxBlocksSem,
 	}
 	var err error
-	f.MRDWrapper, err = gcsx.NewMultiRangeDownloaderWrapper(bucket, &minObj)
+	in.MRDWrapper, err = gcsx.NewMultiRangeDownloaderWrapper(bucket, &minObj)
 	if err != nil {
 		logger.Errorf("NewFileInode: Error in creating MRDWrapper %v", err)
 	}
 
-	f.lc.Init(id)
+	in.lc.Init(id)
 
 	// Set up invariant checking.
-	f.mu = syncutil.NewInvariantMutex(f.checkInvariants)
+	in.mu = syncutil.NewInvariantMutex(in.checkInvariants)
 
-	return
+	var f FileInode
+	f = &in
+	return &f
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -180,7 +207,7 @@ func NewFileInode(
 ////////////////////////////////////////////////////////////////////////
 
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) checkInvariants() {
+func (f *fileInode) checkInvariants() {
 	if f.destroyed {
 		return
 	}
@@ -207,7 +234,7 @@ func (f *FileInode) checkInvariants() {
 }
 
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool, includeExtendedObjectAttributes bool) (o *gcs.Object, b bool, err error) {
+func (f *fileInode) clobbered(ctx context.Context, forceFetchFromGcs bool, includeExtendedObjectAttributes bool) (o *gcs.Object, b bool, err error) {
 	// Stat the object in GCS. ForceFetchFromGcs ensures object is fetched from
 	// gcs and not cache.
 	req := &gcs.StatObjectRequest{
@@ -248,7 +275,7 @@ func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool, inclu
 }
 
 // Open a reader for the generation of object we care about.
-func (f *FileInode) openReader(ctx context.Context) (io.ReadCloser, error) {
+func (f *fileInode) openReader(ctx context.Context) (io.ReadCloser, error) {
 	rc, err := f.bucket.NewReaderWithReadHandle(
 		ctx,
 		&gcs.ReadObjectRequest{
@@ -274,7 +301,7 @@ func (f *FileInode) openReader(ctx context.Context) (io.ReadCloser, error) {
 // Ensure that content exists and is not stale
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) ensureContent(ctx context.Context) (err error) {
+func (f *fileInode) ensureContent(ctx context.Context) (err error) {
 	if f.localFileCache {
 		// Fetch content from the cache after validating generation numbers again
 		// Generation validation first occurs at inode creation/destruction
@@ -332,31 +359,31 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 // Public interface
 ////////////////////////////////////////////////////////////////////////
 
-func (f *FileInode) Lock() {
+func (f *fileInode) Lock() {
 	f.mu.Lock()
 }
 
-func (f *FileInode) Unlock() {
+func (f *fileInode) Unlock() {
 	f.mu.Unlock()
 }
 
-func (f *FileInode) ID() fuseops.InodeID {
+func (f *fileInode) ID() fuseops.InodeID {
 	return f.id
 }
 
-func (f *FileInode) Name() Name {
+func (f *fileInode) Name() Name {
 	return f.name
 }
 
-func (f *FileInode) IsLocal() bool {
+func (f *fileInode) IsLocal() bool {
 	return f.local
 }
 
-func (f *FileInode) IsUnlinked() bool {
+func (f *fileInode) IsUnlinked() bool {
 	return f.unlinked
 }
 
-func (f *FileInode) Unlink() {
+func (f *fileInode) Unlink() {
 	f.unlinked = true
 
 	if f.bwh != nil {
@@ -368,7 +395,7 @@ func (f *FileInode) Unlink() {
 // record is guaranteed not to be modified, and users must not modify it.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) Source() *gcs.MinObject {
+func (f *fileInode) Source() *gcs.MinObject {
 	// Make a copy, since we modify f.src.
 	o := f.src
 	return &o
@@ -383,7 +410,7 @@ func (f *FileInode) Source() *gcs.MinObject {
 // TODO(b/406160290): Check if this can be improved.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) SourceGenerationIsAuthoritative() bool {
+func (f *fileInode) SourceGenerationIsAuthoritative() bool {
 	// Source generation is authoritative if:
 	//   1.  No pending writes exists on the inode (both content and bwh are nil).
 	return f.content == nil && f.bwh == nil
@@ -392,7 +419,7 @@ func (f *FileInode) SourceGenerationIsAuthoritative() bool {
 // Equivalent to the generation returned by f.Source().
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) SourceGeneration() (g Generation) {
+func (f *fileInode) SourceGeneration() (g Generation) {
 	g.Size = f.src.Size
 	g.Object = f.src.Generation
 	g.Metadata = f.src.MetaGeneration
@@ -408,25 +435,25 @@ func (f *FileInode) SourceGeneration() (g Generation) {
 }
 
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) IncrementLookupCount() {
+func (f *fileInode) IncrementLookupCount() {
 	f.lc.Inc()
 }
 
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) DecrementLookupCount(n uint64) (destroy bool) {
+func (f *fileInode) DecrementLookupCount(n uint64) (destroy bool) {
 	destroy = f.lc.Dec(n)
 	return
 }
 
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) RegisterFileHandle(readOnly bool) {
+func (f *fileInode) RegisterFileHandle(readOnly bool) {
 	if !readOnly {
 		f.writeHandleCount++
 	}
 }
 
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) DeRegisterFileHandle(readOnly bool) {
+func (f *fileInode) DeRegisterFileHandle(readOnly bool) {
 	if readOnly {
 		return
 	}
@@ -448,7 +475,7 @@ func (f *FileInode) DeRegisterFileHandle(readOnly bool) {
 }
 
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) Destroy() (err error) {
+func (f *fileInode) Destroy() (err error) {
 	f.destroyed = true
 	if f.localFileCache {
 		cacheObjectKey := &contentcache.CacheObjectKey{BucketName: f.bucket.Name(), ObjectName: f.name.objectName}
@@ -460,7 +487,7 @@ func (f *FileInode) Destroy() (err error) {
 }
 
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) Attributes(
+func (f *fileInode) Attributes(
 	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
 	attrs = f.attrs
 
@@ -529,7 +556,7 @@ func (f *FileInode) Attributes(
 	return
 }
 
-func (f *FileInode) Bucket() *gcsx.SyncerBucket {
+func (f *fileInode) Bucket() *gcsx.SyncerBucket {
 	return f.bucket
 }
 
@@ -539,7 +566,7 @@ func (f *FileInode) Bucket() *gcsx.SyncerBucket {
 // f.SourceGenerationIsAuthoritative() is true.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) Read(
+func (f *fileInode) Read(
 	ctx context.Context,
 	dst []byte,
 	offset int64) (n int, err error) {
@@ -575,7 +602,7 @@ func (f *FileInode) Read(
 // Serve a write for this file with semantics matching fuseops.WriteFileOp.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) Write(
+func (f *fileInode) Write(
 	ctx context.Context,
 	data []byte,
 	offset int64) error {
@@ -589,7 +616,7 @@ func (f *FileInode) Write(
 // Helper function to serve write for file using temp file.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) writeUsingTempFile(ctx context.Context, data []byte, offset int64) (err error) {
+func (f *fileInode) writeUsingTempFile(ctx context.Context, data []byte, offset int64) (err error) {
 	// Make sure f.content != nil.
 	err = f.ensureContent(ctx)
 	if err != nil {
@@ -607,7 +634,7 @@ func (f *FileInode) writeUsingTempFile(ctx context.Context, data []byte, offset 
 // Helper function to serve write for file using buffered writes handler.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, offset int64) error {
+func (f *fileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, offset int64) error {
 	err := f.bwh.Write(data, offset)
 	var preconditionErr *gcs.PreconditionError
 	if errors.As(err, &preconditionErr) {
@@ -637,7 +664,7 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 // new object.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) flushUsingBufferedWriteHandler() error {
+func (f *fileInode) flushUsingBufferedWriteHandler() error {
 	obj, err := f.bwh.Flush()
 	var preconditionErr *gcs.PreconditionError
 	if errors.As(err, &preconditionErr) {
@@ -657,7 +684,7 @@ func (f *FileInode) flushUsingBufferedWriteHandler() error {
 // It is a no-op when bwh is nil.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) SyncPendingBufferedWrites() (gcsSynced bool, err error) {
+func (f *fileInode) SyncPendingBufferedWrites() (gcsSynced bool, err error) {
 	if f.bwh == nil {
 		return
 	}
@@ -684,7 +711,7 @@ func (f *FileInode) SyncPendingBufferedWrites() (gcsSynced bool, err error) {
 // Set the mtime for this file. May involve a round trip to GCS.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) SetMtime(
+func (f *fileInode) SetMtime(
 	ctx context.Context,
 	mtime time.Time) (err error) {
 	if f.IsUnlinked() {
@@ -770,7 +797,7 @@ func (f *FileInode) SetMtime(
 	return
 }
 
-func (f *FileInode) fetchLatestGcsObject(ctx context.Context) (*gcs.Object, error) {
+func (f *fileInode) fetchLatestGcsObject(ctx context.Context) (*gcs.Object, error) {
 	// When listObjects call is made, we fetch data with projection set as noAcl
 	// which means acls and owner properties are not returned. So the f.src object
 	// here will not have acl information even though there are acls present on
@@ -805,7 +832,7 @@ func (f *FileInode) fetchLatestGcsObject(ctx context.Context) (*gcs.Object, erro
 // fails, the generation will not change.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) Sync(ctx context.Context) (gcsSynced bool, err error) {
+func (f *fileInode) Sync(ctx context.Context) (gcsSynced bool, err error) {
 	// If we have not been dirtied, there is nothing to do.
 	if f.content == nil && f.bwh == nil {
 		return
@@ -829,7 +856,7 @@ func (f *FileInode) Sync(ctx context.Context) (gcsSynced bool, err error) {
 // object, syncs the content and updates the inode state.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) syncUsingContent(ctx context.Context) error {
+func (f *fileInode) syncUsingContent(ctx context.Context) error {
 	var latestGcsObj *gcs.Object
 	if !f.local {
 		var err error
@@ -870,7 +897,7 @@ func (f *FileInode) syncUsingContent(ctx context.Context) error {
 // fails, the generation will not change.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) Flush(ctx context.Context) (err error) {
+func (f *fileInode) Flush(ctx context.Context) (err error) {
 	// If we have not been dirtied, there is nothing to do.
 	if f.content == nil && f.bwh == nil {
 		return
@@ -884,7 +911,7 @@ func (f *FileInode) Flush(ctx context.Context) (err error) {
 	return f.syncUsingContent(ctx)
 }
 
-func (f *FileInode) updateInodeStateAfterFlush(minObj *gcs.MinObject) {
+func (f *fileInode) updateInodeStateAfterFlush(minObj *gcs.MinObject) {
 	if minObj != nil && !f.localFileCache {
 		// Set BWH to nil as as object has been finalized.
 		if f.bwh != nil {
@@ -894,7 +921,7 @@ func (f *FileInode) updateInodeStateAfterFlush(minObj *gcs.MinObject) {
 	}
 }
 
-func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
+func (f *fileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 	if minObj != nil && !f.localFileCache {
 		f.src = *minObj
 		// Update MRDWrapper
@@ -912,7 +939,7 @@ func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 
 // Updates the min object stored in MRDWrapper corresponding to the inode.
 // Should be called when minObject associated with inode is updated.
-func (f *FileInode) updateMRDWrapper() {
+func (f *fileInode) updateMRDWrapper() {
 	err := f.MRDWrapper.SetMinObject(f.Source())
 	if err != nil {
 		logger.Errorf("FileInode::updateMRDWrapper Error in setting minObject %v", err)
@@ -922,7 +949,7 @@ func (f *FileInode) updateMRDWrapper() {
 // Truncate the file to the specified size.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) Truncate(
+func (f *fileInode) Truncate(
 	ctx context.Context,
 	size int64) (err error) {
 
@@ -944,7 +971,7 @@ func (f *FileInode) Truncate(
 }
 
 // Ensures cache content on read if content cache enabled
-func (f *FileInode) CacheEnsureContent(ctx context.Context) (err error) {
+func (f *fileInode) CacheEnsureContent(ctx context.Context) (err error) {
 	if f.localFileCache {
 		err = f.ensureContent(ctx)
 	}
@@ -956,7 +983,7 @@ func (f *FileInode) CacheEnsureContent(ctx context.Context) (err error) {
 // streaming writes are not in enabled.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) CreateEmptyTempFile(ctx context.Context) (err error) {
+func (f *fileInode) CreateEmptyTempFile(ctx context.Context) (err error) {
 	// Skip creating empty temp file when streaming writes are enabled
 	// or temp file is already created.
 	if f.bwh != nil || f.content != nil {
@@ -973,7 +1000,7 @@ func (f *FileInode) CreateEmptyTempFile(ctx context.Context) (err error) {
 
 // Initializes Buffered Write Handler if the file inode is eligible and returns
 // initialized as true when the new instance of buffered writer handler is created.
-func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context) (bool, error) {
+func (f *fileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context) (bool, error) {
 	// bwh already initialized, do nothing.
 	if f.bwh != nil {
 		return false, nil
