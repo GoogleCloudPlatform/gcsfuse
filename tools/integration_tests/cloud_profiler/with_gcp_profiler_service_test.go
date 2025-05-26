@@ -43,7 +43,7 @@ func getGCPProjectID(t *testing.T) string {
 }
 
 // checkIfProfileExistForServiceAndVersion queries the Cloud Profiler API for profiles
-// returns true in case of the first match, false if no matching profile found.
+// returns true just after the first matching profile, false if no matching profile found.
 // Ref: https://cloud.google.com/profiler/docs/reference/v2/rest
 func checkIfProfileExistForServiceAndVersion(
 	ctx context.Context,
@@ -94,7 +94,7 @@ func checkIfProfileExistForServiceAndVersion(
 func TestValidateProfilerWithActualService(t *testing.T) {
 	// GCSFuse process will be started as part of mount.
 	// Allow some time to export the profile data to GCP profiler service.
-	time.Sleep(time.Minute)
+	time.Sleep(2*time.Minute + 30*time.Second)
 
 	// 1. Fetch GCP projectID.
 	// 2. Create a profiler service api client.
