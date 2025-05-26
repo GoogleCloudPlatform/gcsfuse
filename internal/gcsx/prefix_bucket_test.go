@@ -329,7 +329,6 @@ func (t *PrefixBucketTest) TestCreateObjectChunkWriterAndFinalizeUpload() {
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), suffix, o.Name)
-	//assert.Equal(t.T(), "en-GB", o.ContentLanguage)
 	assert.Equal(t.T(), "gzip", o.ContentEncoding)
 	// Read it through the back door.
 	actual, err := storageutil.ReadObject(t.ctx, t.wrapped, t.prefix+suffix)
@@ -358,6 +357,7 @@ func (t *PrefixBucketTest) TestCreateObjectChunkWriterAndFlushPendingWrites() {
 
 	assert.NoError(t.T(), err)
 	assert.EqualValues(t.T(), int64(len(content)), o.Size)
+	assert.Equal(t.T(), suffix, o.Name)
 	// Read it through the back door.
 	actual, err := storageutil.ReadObject(t.ctx, t.wrapped, t.prefix+suffix)
 	assert.Equal(t.T(), nil, err)
