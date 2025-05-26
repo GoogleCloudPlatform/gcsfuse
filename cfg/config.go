@@ -341,7 +341,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("dir-mode", "", "0755", "Permissions bits for directories, in octal.")
 
-	flagSet.BoolP("disable-autoconfig", "", true, "Disable optimizing configuration automatically for a machine")
+	flagSet.BoolP("disable-autoconfig", "", false, "Disable optimizing configuration automatically for a machine")
 
 	if err := flagSet.MarkHidden("disable-autoconfig"); err != nil {
 		return err
