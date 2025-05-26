@@ -37,7 +37,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	testutil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	testUtil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -219,8 +219,8 @@ func (t *readManagerTest) Test_ReadAt_FileClobbered() {
 	t.mockBucket.AssertExpectations(t.T())
 }
 
-func (t *readManagerTest) Test_ReadAt_SequentialFullObject() {
-	testContent := testutil.GenerateRandomBytes(int(t.object.Size))
+func (t *readManagerTest) Test_ReadAt_SequentialFullObjectFromCache() {
+	testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
 	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, t.object.Size, rd)
 	t.mockBucket.On("Name").Return("test-bucket")
@@ -232,4 +232,28 @@ func (t *readManagerTest) Test_ReadAt_SequentialFullObject() {
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), readerResponse.DataBuf, testContent)
+}
+
+func (t *readManagerTest) Test_ReadAt_UpgradesSequentialReadsNoExistingReader() {
+	t.object.Size = 1 << 40
+	const readSize = 1 * MiB
+	// Set up the custom readManager.
+	t.readManager = NewReadManager(t.object, t.mockBucket, &ReadManagerConfig{
+		SequentialReadSizeMB:  readSize / MiB,
+		FileCacheHandler:      nil,
+		CacheFileForRangeRead: false,
+		MetricHandle:          common.NewNoopMetrics(),
+		MrdWrapper:            nil,
+	})
+	// The bucket should be asked to read up to the end of the object.
+	data := strings.Repeat("x", readSize)
+	rd := &fake.FakeReader{ReadCloser: getReadCloser([]byte(data))}
+	t.mockNewReaderWithHandleCallForTestBucket(1, 1+readSize, rd)
+	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(1)
+
+	readerResponse, err := t.readAt(1, readSize)
+
+	// Check the state now.
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), string(readerResponse.DataBuf), data)
 }
