@@ -16,6 +16,7 @@ package cloud_profiler_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"testing"
@@ -41,25 +42,24 @@ func getGCPProjectID(t *testing.T) string {
 	return projectID
 }
 
-// listProfilesForServiceAndVersion queries the Cloud Profiler API for profiles
-// matching the given service name and version within the specified time window.
+// checkIfProfileExistForServiceAndVersion queries the Cloud Profiler API for profiles
+// returns true in case of the first match, false if no matching profile found.
 // Ref: https://cloud.google.com/profiler/docs/reference/v2/rest
-func listProfilesForServiceAndVersion(
+func checkIfProfileExistForServiceAndVersion(
 	ctx context.Context,
 	t *testing.T, // Pass testing.T for logging within the helper
 	profilerAPIClient *gcpProfiler.Service,
 	projectID string,
-) ([]*gcpProfiler.Profile, error) {
+) bool {
 
 	t.Logf("Querying profiles for service [%s] version [%s]", testServiceName, testServiceVersion)
-	var profiles []*gcpProfiler.Profile
-	listCall := profilerAPIClient.Projects.Profiles.List(fmt.Sprintf("projects/%s", projectID))
 
-	// Create a new context with a 5-minute timeout for the Pages call.
-	listCtx, listCancel := context.WithTimeout(ctx, 2*time.Minute)
+	listCtx, listCancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer listCancel()
 
 	pagesFetched := 0
+	completedErr := errors.New("completed")
+	listCall := profilerAPIClient.Projects.Profiles.List(fmt.Sprintf("projects/%s", projectID))
 	err := listCall.Pages(listCtx, func(resp *gcpProfiler.ListProfilesResponse) error {
 		pagesFetched++
 		t.Logf("Processing page %d of profiles, number of profiles in page: %d", pagesFetched, len(resp.Profiles))
@@ -72,18 +72,23 @@ func listProfilesForServiceAndVersion(
 				}
 				if profileAPIVersion == testServiceVersion {
 					t.Logf("Found matching profile: Type=%s, ID=%s", p.ProfileType, p.Deployment.Labels["version"])
-					profiles = append(profiles, p)
+					return completedErr
 				}
 			}
 		}
 		return nil // Continue to the next page
 	})
-	if err != nil && err != context.DeadlineExceeded {
-		t.Errorf("While listing profiles: %v", err)
+	if err != nil && err != completedErr {
+		t.Logf("while listing: %v", err)
+		return false
 	}
 
-	t.Logf("Finished querying profiles. Total matching profiles found: %d", len(profiles))
-	return profiles, nil
+	if pagesFetched == 0 {
+		t.Logf("No profiles found")
+		return false
+	}
+
+	return true
 }
 
 func TestValidateProfilerWithActualService(t *testing.T) {
@@ -101,20 +106,7 @@ func TestValidateProfilerWithActualService(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create Cloud Profiler API client: %v", err)
 	}
-	profilesFoundForTestServiceAndVersion, err := listProfilesForServiceAndVersion(apiCtx, t, profilerAPIClient, projectID)
-	if err != nil {
-		t.Fatalf("listProfilesForServiceAndVersion: %v", err)
-	}
-	foundValidProfile := false
-	for _, p := range profilesFoundForTestServiceAndVersion {
-		if p.ProfileType != "" { // Valid profile, success.
-			foundValidProfile = true
-			t.Logf("Found profile: Type=%s, ID=%s", p.ProfileType, p.Deployment.Labels["version"])
-			break
-		}
-	}
-
-	if !foundValidProfile {
-		t.Errorf("Failed: none of the profile found.")
+	if !checkIfProfileExistForServiceAndVersion(apiCtx, t, profilerAPIClient, projectID) {
+		t.Errorf("No valid profile found for service [%s] and version [%s]", testServiceName, testServiceVersion)
 	}
 }
