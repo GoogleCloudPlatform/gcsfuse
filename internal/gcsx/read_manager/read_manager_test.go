@@ -15,6 +15,7 @@
 package read_manager
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -36,6 +37,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	testutil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -67,6 +69,24 @@ func (t *readManagerTest) readManagerConfig(fileCacheEnable bool) *ReadManagerCo
 		config.FileCacheHandler = nil
 	}
 	return config
+}
+
+func (t *readManagerTest) mockNewReaderWithHandleCallForTestBucket(start uint64, limit uint64, rd gcs.StorageReader) {
+	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(rg *gcs.ReadObjectRequest) bool {
+		return rg != nil && (*rg.Range).Start == start && (*rg.Range).Limit == limit
+	})).Return(rd, nil).Once()
+}
+
+func getReadCloser(content []byte) io.ReadCloser {
+	r := bytes.NewReader(content)
+	rc := io.NopCloser(r)
+	return rc
+}
+
+func (t *readManagerTest) readAt(offset int64, size int64) (gcsx.ReaderResponse, error) {
+	t.readManager.CheckInvariants()
+	defer t.readManager.CheckInvariants()
+	return t.readManager.ReadAt(t.ctx, make([]byte, size), offset)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -129,7 +149,7 @@ func (t *readManagerTest) Test_NewReadManager_WithoutFileCacheHandler() {
 
 func (t *readManagerTest) Test_ReadAt_EmptyRead() {
 	// Nothing should happen.
-	readerResponse, err := t.readManager.ReadAt(t.ctx, make([]byte, 0), 0)
+	readerResponse, err := t.readAt(0, 0)
 
 	assert.NoError(t.T(), err)
 	assert.Zero(t.T(), readerResponse.Size)
@@ -152,7 +172,7 @@ func (t *readManagerTest) Test_ReadAt_InvalidOffset() {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func() {
-			readerResponse, err := t.readManager.ReadAt(t.ctx, make([]byte, 1), tc.offset)
+			readerResponse, err := t.readAt(tc.offset, 1)
 
 			assert.Zero(t.T(), readerResponse.Size)
 			assert.True(t.T(), errors.Is(err, io.EOF), "expected %v error got %v", io.EOF, err)
@@ -166,7 +186,7 @@ func (t *readManagerTest) Test_ReadAt_NoExistingReader() {
 	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(1)
 	t.mockBucket.On("Name").Return("test-bucket")
 
-	_, err := t.readManager.ReadAt(t.ctx, make([]byte, 1), 0)
+	_, err := t.readAt(0, 1)
 
 	assert.Error(t.T(), err)
 	t.mockBucket.AssertExpectations(t.T())
@@ -179,7 +199,7 @@ func (t *readManagerTest) Test_ReadAt_ReaderFailsWithTimeout() {
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(rc, nil).Once()
 	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(1)
 
-	_, err := t.readManager.ReadAt(t.ctx, make([]byte, 3), 0)
+	_, err := t.readAt(0, 3)
 
 	assert.Error(t.T(), err)
 	assert.Contains(t.T(), err.Error(), "timeout")
@@ -191,10 +211,25 @@ func (t *readManagerTest) Test_ReadAt_FileClobbered() {
 	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(1)
 	t.mockBucket.On("Name").Return("test-bucket")
 
-	_, err := t.readManager.ReadAt(t.ctx, make([]byte, 3), 1)
+	_, err := t.readAt(1, 3)
 
 	assert.Error(t.T(), err)
 	var clobberedErr *gcsfuse_errors.FileClobberedError
 	assert.True(t.T(), errors.As(err, &clobberedErr))
 	t.mockBucket.AssertExpectations(t.T())
+}
+
+func (t *readManagerTest) Test_ReadAt_SequentialFullObject() {
+	testContent := testutil.GenerateRandomBytes(int(t.object.Size))
+	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
+	t.mockNewReaderWithHandleCallForTestBucket(0, t.object.Size, rd)
+	t.mockBucket.On("Name").Return("test-bucket")
+	readerResponse, err := t.readAt(0, int64(t.object.Size))
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), readerResponse.DataBuf, testContent)
+
+	readerResponse, err = t.readAt(0, int64(t.object.Size))
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), readerResponse.DataBuf, testContent)
 }

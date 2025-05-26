@@ -220,3 +220,6 @@ func (fc *FileCacheReader) Destroy() {
 		fc.fileCacheHandle = nil
 	}
 }
+
+func (fc *FileCacheReader) CheckInvariants() {
+}
