@@ -89,6 +89,21 @@ func (t *readManagerTest) readAt(offset int64, size int64) (gcsx.ReaderResponse,
 	return t.readManager.ReadAt(t.ctx, make([]byte, size), offset)
 }
 
+type MockReader struct {
+	mock.Mock
+}
+
+func (m *MockReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.ReaderResponse, error) {
+	args := m.Called(ctx, p, offset)
+	return args.Get(0).(gcsx.ReaderResponse), args.Error(1)
+}
+
+func (m *MockReader) Destroy() {
+}
+
+func (m *MockReader) CheckInvariants() {
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
@@ -219,41 +234,50 @@ func (t *readManagerTest) Test_ReadAt_FileClobbered() {
 	t.mockBucket.AssertExpectations(t.T())
 }
 
-func (t *readManagerTest) Test_ReadAt_SequentialFullObjectFromCache() {
-	testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
-	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
-	t.mockNewReaderWithHandleCallForTestBucket(0, t.object.Size, rd)
-	t.mockBucket.On("Name").Return("test-bucket")
-	readerResponse, err := t.readAt(0, int64(t.object.Size))
-	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), readerResponse.DataBuf, testContent)
+func (t *readManagerTest) Test_ReadAt_FullObjectFromCache() {
+	objectSize := int(t.object.Size)
+	expectedData := testUtil.GenerateRandomBytes(objectSize)
+	fakeReader := &fake.FakeReader{
+		ReadCloser: getReadCloser(expectedData),
+	}
+	// Mock the reader that returns full object data
+	t.mockNewReaderWithHandleCallForTestBucket(0, t.object.Size, fakeReader)
+	t.mockBucket.On("Name").Return("test-bucket").Maybe()
 
-	readerResponse, err = t.readAt(0, int64(t.object.Size))
+	// Act: First read (expected to be served via GCS, populating the cache)
+	firstResp, err := t.readAt(0, int64(objectSize))
 
-	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), readerResponse.DataBuf, testContent)
+	// Assert: First read succeeds and returns expected data
+	assert.NoError(t.T(), err, "First read should not return an error")
+	assert.Equal(t.T(), expectedData, firstResp.DataBuf, "First read should return expected data")
+
+	// Act: Second read (should be served from cache)
+	secondResp, err := t.readAt(0, int64(objectSize))
+
+	// Assert: Second read also succeeds and returns the same cached data
+	assert.NoError(t.T(), err, "Second read (from cache) should not return an error")
+	assert.Equal(t.T(), expectedData, secondResp.DataBuf, "Second read should return cached data")
+	// Verify that bucket mock expectations are met
+	t.mockBucket.AssertExpectations(t.T())
 }
 
-func (t *readManagerTest) Test_ReadAt_UpgradesSequentialReadsNoExistingReader() {
-	t.object.Size = 1 << 40
-	const readSize = 1 * MiB
-	// Set up the custom readManager.
-	t.readManager = NewReadManager(t.object, t.mockBucket, &ReadManagerConfig{
-		SequentialReadSizeMB:  readSize / MiB,
-		FileCacheHandler:      nil,
-		CacheFileForRangeRead: false,
-		MetricHandle:          common.NewNoopMetrics(),
-		MrdWrapper:            nil,
-	})
-	// The bucket should be asked to read up to the end of the object.
-	data := strings.Repeat("x", readSize)
-	rd := &fake.FakeReader{ReadCloser: getReadCloser([]byte(data))}
-	t.mockNewReaderWithHandleCallForTestBucket(1, 1+readSize, rd)
-	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(1)
+func (t *readManagerTest) Test_ReadAt_R1FailsR2Succeeds() {
+	offset := int64(0)
+	buf := make([]byte, 10)
+	expectedResp := gcsx.ReaderResponse{Size: 10}
+	mockReader1 := new(MockReader)
+	mockReader2 := new(MockReader)
+	t.readManager = &ReadManager{
+		object:  t.object,
+		readers: []gcsx.Reader{mockReader1, mockReader2},
+	}
+	mockReader1.On("ReadAt", t.ctx, buf, offset).Return(gcsx.ReaderResponse{}, gcsx.FallbackToAnotherReader).Once()
+	mockReader2.On("ReadAt", t.ctx, buf, offset).Return(expectedResp, nil).Once()
 
-	readerResponse, err := t.readAt(1, readSize)
+	resp, err := t.readAt(offset, 10)
 
-	// Check the state now.
-	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), string(readerResponse.DataBuf), data)
+	assert.NoError(t.T(), err, "expected no error when second reader succeeds")
+	assert.Equal(t.T(), expectedResp, resp, "expected response from second reader")
+	mockReader1.AssertExpectations(t.T())
+	mockReader2.AssertExpectations(t.T())
 }
