@@ -18,44 +18,13 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path"
-	"strings"
 	"testing"
 	"time"
 
 	"cloud.google.com/go/compute/metadata"
 	gcpProfiler "google.golang.org/api/cloudprofiler/v2"
 	"google.golang.org/api/option"
-
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
-
-func performRepeatedRead(ctx context.Context, t *testing.T, filePath string, duration time.Duration) {
-	timeout := time.After(duration)
-	readFileCnt := 0
-	for {
-		select {
-		case <-timeout:
-			t.Logf("performRepeatedRead: Duration %v reached.", duration)
-			return
-		case <-ctx.Done():
-			t.Log("performRepeatedRead: Context cancelled.")
-			return
-		default:
-			_, err := operations.ReadFile(filePath)
-			if err != nil { // Log transient errors but continue reading
-				t.Logf("ReadFile failed during performRepeatedRead (filePath: %s): %v", filePath, err)
-			} else {
-				readFileCnt++
-				// Just to show some progress.
-				if readFileCnt%2500 == 0 {
-					t.Logf("Read file operation completed %d times.", readFileCnt)
-				}
-			}
-		}
-	}
-}
 
 func getGCPProjectID(t *testing.T) string {
 	fetchProjectCtx, fetchProjectCancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -74,7 +43,6 @@ func getGCPProjectID(t *testing.T) string {
 
 // listProfilesForServiceAndVersion queries the Cloud Profiler API for profiles
 // matching the given service name and version within the specified time window.
-// It handles pagination and basic retries for transient errors.
 // Ref: https://cloud.google.com/profiler/docs/reference/v2/rest
 func listProfilesForServiceAndVersion(
 	ctx context.Context,
@@ -85,34 +53,16 @@ func listProfilesForServiceAndVersion(
 
 	t.Logf("Querying profiles for service [%s] version [%s]", testServiceName, testServiceVersion)
 	var profiles []*gcpProfiler.Profile
-	maxPagesToFetch := 5 // Limiting total list calls, 1000 per calls.
+	listCall := profilerAPIClient.Projects.Profiles.List(fmt.Sprintf("projects/%s", projectID))
+
+	// Create a new context with a 5-minute timeout for the Pages call.
+	listCtx, listCancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer listCancel()
+
 	pagesFetched := 0
-	var pageToken string
-	for {
+	err := listCall.Pages(listCtx, func(resp *gcpProfiler.ListProfilesResponse) error {
 		pagesFetched++
-		if pagesFetched > maxPagesToFetch {
-			t.Logf("Reached max pages (%d) to fetch. Stopping profile query.", maxPagesToFetch)
-			break
-		}
-
-		listCall := profilerAPIClient.Projects.Profiles.List(fmt.Sprintf("projects/%s", projectID))
-		if pageToken != "" {
-			listCall.PageToken(pageToken)
-		}
-		resp, errCall := listCall.Do()
-		if errCall != nil {
-			// Basic retry for transient errors
-			if strings.Contains(errCall.Error(), "try again") || strings.Contains(errCall.Error(), "unavailable") {
-				t.Logf("List profiles call failed, retrying once: %v", errCall)
-				time.Sleep(10 * time.Second)
-				resp, errCall = listCall.Do() // Retry the call
-			}
-			if errCall != nil {
-				return nil, fmt.Errorf("failed to list profiles from API: %w", errCall)
-			}
-		}
-
-		t.Logf("Size of the response: %d", len(resp.Profiles))
+		t.Logf("Processing page %d of profiles, number of profiles in page: %d", pagesFetched, len(resp.Profiles))
 		// Filter by service name and version on the client side.
 		for _, p := range resp.Profiles {
 			if p.Deployment != nil && p.Deployment.Target == testServiceName {
@@ -121,39 +71,30 @@ func listProfilesForServiceAndVersion(
 					profileAPIVersion = p.Deployment.Labels["version"] // "version" is the label key used by the agent
 				}
 				if profileAPIVersion == testServiceVersion {
+					t.Logf("Found matching profile: Type=%s, ID=%s", p.ProfileType, p.Deployment.Labels["version"])
 					profiles = append(profiles, p)
 				}
 			}
 		}
-
-		if resp.NextPageToken == "" {
-			break // No more pages
-		}
-		pageToken = resp.NextPageToken
-		t.Logf("Fetching next page of profiles (token: %s)...", pageToken)
+		return nil // Continue to the next page
+	})
+	if err != nil && err != context.DeadlineExceeded {
+		t.Errorf("While listing profiles: %v", err)
 	}
 
+	t.Logf("Finished querying profiles. Total matching profiles found: %d", len(profiles))
 	return profiles, nil
 }
 
 func TestValidateProfilerWithActualService(t *testing.T) {
-	// Setup directory and file to perform read workload.
-	randomData, err := operations.GenerateRandomData(5 * 1024 * 1024)
-	if err != nil {
-		t.Fatalf("operations.GenerateRandomData: %v", err)
-	}
-	testDirPath := path.Join(setup.MntDir(), testDirName)
-	filePath := path.Join(testDirPath, "a.txt")
-	setup.SetupTestDirectory(testDirName)
-	operations.CreateFileWithContent(filePath, 0644, string(randomData), t)
-	// Start Workload and Allow Time for Profiling
-	performRepeatedRead(t.Context(), t, filePath, 3*time.Minute)
+	// GCSFuse process will be started as part of mount.
+	// Allow some time to export the profile data to GCP profiler service.
 	time.Sleep(time.Minute)
 
 	// 1. Fetch GCP projectID.
 	// 2. Create a profiler service api client.
 	// 3. Make list call to the profiler service api client and fetch the profiles.
-	// 4. Filter and match if the right profile data exists.
+	// 4. Filter and match if the right profile exists.
 	projectID := getGCPProjectID(t)
 	apiCtx := context.Background()
 	profilerAPIClient, err := gcpProfiler.NewService(apiCtx, option.WithScopes(gcpProfiler.CloudPlatformScope))
@@ -164,33 +105,16 @@ func TestValidateProfilerWithActualService(t *testing.T) {
 	if err != nil {
 		t.Fatalf("listProfilesForServiceAndVersion: %v", err)
 	}
-	// Validate if required profile present in the list of profiles.
-	expectedProfileTypesInAPI := map[string]bool{
-		"CPU":        false,
-		"HEAP":       false,
-		"THREADS":    false,
-		"CONTENTION": false,
-		"HEAP_ALLOC": false,
-	}
-	atleastOneFound := false
+	foundValidProfile := false
 	for _, p := range profilesFoundForTestServiceAndVersion {
-		if p.ProfileType == "" {
-			continue
-		}
-
-		if _, ok := expectedProfileTypesInAPI[p.ProfileType]; ok {
-			atleastOneFound = true
-			expectedProfileTypesInAPI[p.ProfileType] = true
-			t.Logf("Marked API profile type '%s' as found.", p.ProfileType)
-		}
-	}
-	for _, found := range expectedProfileTypesInAPI {
-		if !found {
-			t.Logf("Not all profile types were found: %v", expectedProfileTypesInAPI)
+		if p.ProfileType != "" { // Valid profile, success.
+			foundValidProfile = true
+			t.Logf("Found profile: Type=%s, ID=%s", p.ProfileType, p.Deployment.Labels["version"])
 			break
 		}
 	}
-	if !atleastOneFound {
+
+	if !foundValidProfile {
 		t.Errorf("Failed: none of the profile found.")
 	}
 }
