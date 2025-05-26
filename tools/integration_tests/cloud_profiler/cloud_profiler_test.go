@@ -67,20 +67,8 @@ func TestMain(m *testing.M) {
 	setup.SetUpTestDirForTestBucketFlag()
 	testServiceVersion = fmt.Sprintf("ve2e0.0.0-%s", strings.ReplaceAll(uuid.New().String(), "-", "")[:8])
 
-	// Set up flags to run tests on.
-	yamlContent := map[string]interface{}{
-		"profiling": map[string]interface{}{
-			"enabled":        true,
-			"cpu":            true,
-			"heap":           true,
-			"goroutines":     true,
-			"mutex":          true,
-			"allocated-heap": true,
-			"label":          testServiceVersion,
-		},
-	}
 	flags := [][]string{
-		{"--config-file=" + setup.YAMLConfigFile(yamlContent, "cloud_profiler_enabled.yaml")},
+		{"--enable-cloud-profiling", "--profiling-cpu", "--profiling-heap", "--profiling-goroutines", "--profiling-mutex", "--profiling-allocated-heap", fmt.Sprintf("--profiling-label=%s", testServiceVersion)},
 	}
 	logger.Infof("Enabling cloud profiler with version tag: %s", testServiceVersion)
 	successCode := static_mounting.RunTests(flags, m)

@@ -57,6 +57,21 @@ func performRepeatedRead(ctx context.Context, t *testing.T, filePath string, dur
 	}
 }
 
+func getGCPProjectID(t *testing.T) string {
+	fetchProjectCtx, fetchProjectCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer fetchProjectCancel()
+
+	projectID, err := metadata.ProjectIDWithContext(fetchProjectCtx) // Reduced timeout, 5s is usually sufficient.
+	if err != nil {
+		t.Logf("metadata.ProjectIDWithContext failed: %v, try fetching from environment variable.", err)
+		projectID := os.Getenv("GOOGLE_CLOUD_PROJECT")
+		if projectID == "" {
+			t.Skip("Not able to fetch project ID from metadata server or GOOGLE_CLOUD_PROJECT environment variable. Skipping integration test.")
+		}
+	}
+	return projectID
+}
+
 // listProfilesForServiceAndVersion queries the Cloud Profiler API for profiles
 // matching the given service name and version within the specified time window.
 // It handles pagination and basic retries for transient errors.
@@ -139,16 +154,7 @@ func TestValidateProfilerWithActualService(t *testing.T) {
 	// 2. Create a profiler service api client.
 	// 3. Make list call to the profiler service api client and fetch the profiles.
 	// 4. Filter and match if the right profile data exists.
-	fetchProjectCtx, fetchProjectCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer fetchProjectCancel()
-	projectID, err := metadata.ProjectIDWithContext(fetchProjectCtx) // Reduced timeout, 5s is usually sufficient.
-	if err != nil {
-		t.Logf("metadata.ProjectIDWithContext failed: %v, try fetching from environment variable.", err)
-		projectID := os.Getenv("GOOGLE_CLOUD_PROJECT")
-		if projectID == "" {
-			t.Skip("Not able to fetch project ID from metadata server or GOOGLE_CLOUD_PROJECT environment variable. Skipping integration test.")
-		}
-	}
+	projectID := getGCPProjectID(t)
 	apiCtx := context.Background()
 	profilerAPIClient, err := gcpProfiler.NewService(apiCtx, option.WithScopes(gcpProfiler.CloudPlatformScope))
 	if err != nil {
@@ -158,8 +164,7 @@ func TestValidateProfilerWithActualService(t *testing.T) {
 	if err != nil {
 		t.Fatalf("listProfilesForServiceAndVersion: %v", err)
 	}
-
-	// Validate the result.
+	// Validate if required profile present in the list of profiles.
 	expectedProfileTypesInAPI := map[string]bool{
 		"CPU":        false,
 		"HEAP":       false,
@@ -167,35 +172,23 @@ func TestValidateProfilerWithActualService(t *testing.T) {
 		"CONTENTION": false,
 		"HEAP_ALLOC": false,
 	}
-	for _, p := range profilesFoundForTestServiceAndVersion {
-		if p.ProfileType != "" {
-			if _, ok := expectedProfileTypesInAPI[p.ProfileType]; ok {
-				expectedProfileTypesInAPI[p.ProfileType] = true
-				t.Logf("Marked API profile type '%s' as found.", p.ProfileType)
-			}
-		}
-	}
 	atleastOneFound := false
-	allExpectedFound := true
-	for typeStr, found := range expectedProfileTypesInAPI {
-		if !found {
-			allExpectedFound = false
-			t.Logf("Expected profile type '%s' was NOT found.", typeStr)
-		} else {
+	for _, p := range profilesFoundForTestServiceAndVersion {
+		if p.ProfileType == "" {
+			continue
+		}
+
+		if _, ok := expectedProfileTypesInAPI[p.ProfileType]; ok {
 			atleastOneFound = true
-			t.Logf("Found profile type '%s'.", typeStr)
+			expectedProfileTypesInAPI[p.ProfileType] = true
+			t.Logf("Marked API profile type '%s' as found.", p.ProfileType)
 		}
 	}
-	if !allExpectedFound {
-		t.Logf("Total profiles found for this service/version during test: %d", len(profilesFoundForTestServiceAndVersion))
-		if len(profilesFoundForTestServiceAndVersion) > 0 {
-			t.Log("Details of profiles found:")
-			for _, p := range profilesFoundForTestServiceAndVersion {
-				t.Logf("  - Name: %s, Type: %s, Labels: %v", p.Name, p.ProfileType, p.Deployment.Labels)
-			}
+	for _, found := range expectedProfileTypesInAPI {
+		if !found {
+			t.Logf("Not all profile types were found: %v", expectedProfileTypesInAPI)
+			break
 		}
-	} else {
-		t.Log("All expected profile types (CPU, HEAP) were successfully found for the test service and version.")
 	}
 	if !atleastOneFound {
 		t.Errorf("Failed: none of the profile found.")
