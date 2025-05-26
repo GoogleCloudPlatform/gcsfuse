@@ -62,12 +62,12 @@ func TestMain(m *testing.M) {
 	}
 	yamlContent2 := map[string]interface{}{} // test default
 	flags := [][]string{
-		{"--implicit-dirs=true"},
-		{"--config-file=" + setup.YAMLConfigFile(yamlContent1, "ignore_interrupts.yaml")},
-		{"--config-file=" + setup.YAMLConfigFile(yamlContent2, "default_ignore_interrupts.yaml")}}
+		{"--implicit-dirs=true", "--enable-streaming-writes=false"},
+		{"--config-file=" + setup.YAMLConfigFile(yamlContent1, "ignore_interrupts.yaml"), "--enable-streaming-writes=false"},
+		{"--config-file=" + setup.YAMLConfigFile(yamlContent2, "default_ignore_interrupts.yaml"), "--enable-streaming-writes=false"}}
 	// TODO(b/417136852): Enable this test for Zonal Bucket also once read start working.
 	if !setup.IsZonalBucketRun() {
-		flags = append(flags, []string{"--enable-streaming-writes=true", "--implicit-dirs=true"})
+		flags = append(flags, []string{"--enable-streaming-writes=true"})
 	}
 	successCode := static_mounting.RunTests(flags, m)
 
