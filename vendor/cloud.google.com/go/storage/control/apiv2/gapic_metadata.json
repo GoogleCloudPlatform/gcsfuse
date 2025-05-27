@@ -1,0 +1,103 @@
+{
+  "schema": "1.0",
+  "comment": "This file maps proto services/RPCs to the corresponding library clients/methods.",
+  "language": "go",
+  "protoPackage": "google.storage.control.v2",
+  "libraryPackage": "cloud.google.com/go/storage/control/apiv2",
+  "services": {
+    "StorageControl": {
+      "clients": {
+        "grpc": {
+          "libraryClient": "StorageControlClient",
+          "rpcs": {
+            "CreateAnywhereCache": {
+              "methods": [
+                "CreateAnywhereCache"
+              ]
+            },
+            "CreateFolder": {
+              "methods": [
+                "CreateFolder"
+              ]
+            },
+            "CreateManagedFolder": {
+              "methods": [
+                "CreateManagedFolder"
+              ]
+            },
+            "DeleteFolder": {
+              "methods": [
+                "DeleteFolder"
+              ]
+            },
+            "DeleteManagedFolder": {
+              "methods": [
+                "DeleteManagedFolder"
+              ]
+            },
+            "DisableAnywhereCache": {
+              "methods": [
+                "DisableAnywhereCache"
+              ]
+            },
+            "GetAnywhereCache": {
+              "methods": [
+                "GetAnywhereCache"
+              ]
+            },
+            "GetFolder": {
+              "methods": [
+                "GetFolder"
+              ]
+            },
+            "GetManagedFolder": {
+              "methods": [
+                "GetManagedFolder"
+              ]
+            },
+            "GetStorageLayout": {
+              "methods": [
+                "GetStorageLayout"
+              ]
+            },
+            "ListAnywhereCaches": {
+              "methods": [
+                "ListAnywhereCaches"
+              ]
+            },
+            "ListFolders": {
+              "methods": [
+                "ListFolders"
+              ]
+            },
+            "ListManagedFolders": {
+              "methods": [
+                "ListManagedFolders"
+              ]
+            },
+            "PauseAnywhereCache": {
+              "methods": [
+                "PauseAnywhereCache"
+              ]
+            },
+            "RenameFolder": {
+              "methods": [
+                "RenameFolder"
+              ]
+            },
+            "ResumeAnywhereCache": {
+              "methods": [
+                "ResumeAnywhereCache"
+              ]
+            },
+            "UpdateAnywhereCache": {
+              "methods": [
+                "UpdateAnywhereCache"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}
