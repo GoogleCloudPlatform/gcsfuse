@@ -24,6 +24,7 @@ from pathlib import Path
 
 DefaultNumEpochs = 4
 DefaultReadTypes = ['read', 'randread']
+UnsupportedCharsInFIOJobFile = [' ', '\t', ';']
 
 
 def validate_fio_workload(workload: dict, name: str):
@@ -163,7 +164,8 @@ class FioWorkload:
 
     which can be passed down as a helm config value to be used in a pod
     configuration.
-    This escapes uncommon characters such as space, tabs, dollar signs etc to
+    This fails for unsupported aracters such as semicolons, spaces, tabs, and
+    escapes required dollar signs etc to
     avoid issues with serialization/deserialization and use in a shell script.
     This encodes all newline characters as ';' as helm doesn't support passing
     multiline config values.
@@ -171,6 +173,13 @@ class FioWorkload:
     with open(jobFile, 'r') as jobFileReader:
       replaceNewlineWith = ';'
       jobFileRawContent = jobFileReader.read()
+
+      for unsupportedChar in UnsupportedCharsInFIOJobFile:
+        if unsupportedChar in jobFileRawContent:
+          raise Exception(
+              f'FIO jobFile {jobFile} has unsupported character'
+              f' "{unsupportedChar}".'
+          )
 
       # Encode newline characters as ';' .
       if replaceNewlineWith in jobFileRawContent:
