@@ -91,6 +91,7 @@ type MinObject struct {
 	Metadata        map[string]string
 	ContentEncoding string
 	CRC32C          *uint32 // Missing for CMEK buckets
+	Finalized       time.Time
 }
 
 // ExtendedObjectAttributes contains the missing attributes of Object which are not present in MinObject.
