@@ -22,10 +22,10 @@ package main
 import (
 	"log"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/cmd"
-	"github.com/googlecloudplatform/gcsfuse/v2/common"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/perf"
+	"github.com/googlecloudplatform/gcsfuse/v3/cmd"
+	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/perf"
 )
 
 func logPanic() {

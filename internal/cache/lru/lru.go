@@ -21,7 +21,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 )
 
 // Predefined errors returned by the Cache.

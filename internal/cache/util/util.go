@@ -25,8 +25,8 @@ import (
 	"path/filepath"
 	"unsafe"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
 	"github.com/jacobsa/fuse/fsutil"
 )
 
