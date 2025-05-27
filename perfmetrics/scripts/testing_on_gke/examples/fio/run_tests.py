@@ -94,7 +94,7 @@ def main(args) -> None:
   helmInstallCommands = createHelmInstallCommands(
       fioWorkloads, args.experiment_id, args.machine_type, args.custom_csi_driver
   )
-  buckets = (fioWorkload.bucket for fioWorkload in fioWorkloads)
+  buckets = {fioWorkload.bucket for fioWorkload in fioWorkloads}
   role = 'roles/storage.objectUser'
   add_iam_role_for_buckets(
       buckets,

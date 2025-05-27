@@ -269,12 +269,15 @@ if __name__ == "__main__":
 
   output = create_output_scenarios_from_downloaded_files(args)
 
-  output_file_path = args.output_file
-  # Create the parent directory of output_file_path if doesn't
-  # exist already.
-  ensure_directory_exists(os.path.dirname(output_file_path))
-  write_records_to_csv_output_file(output, output_file_path)
-  print(
-      "\n\nSuccessfully published outputs of DLIO test runs to"
-      f" {output_file_path} !!!\n\n"
-  )
+  if len(output) == 0:
+    print(f"\nNo DLIO outputs found for experiment_id {args.experiment_id} !\n")
+  else:
+    output_file_path = args.output_file
+    # Create the parent directory of output_file_path if doesn't
+    # exist already.
+    ensure_directory_exists(os.path.dirname(output_file_path))
+    write_records_to_csv_output_file(output, output_file_path)
+    print(
+        "\n\nSuccessfully published outputs of DLIO test runs to"
+        f" {output_file_path} !!!\n\n"
+    )
