@@ -84,6 +84,9 @@ def download_fio_outputs(fioWorkloads: set, experimentID: str) -> int:
     <_LOCAL_LOGS_LOCATION>/<experimentID>/<fileSize>/<fileSize>-<blockSize>-<numThreads>-<filesPerThread>-<hash>/gcsfuse-generic/<readType>/gcsfuse_mount_options
   """
 
+  # Find all the unique set of buckets, and then only
+  # download output files from them to avoid runtime
+  # wastage for multiple workloads using the same bucket.
   buckets = set()
   for fioWorkload in fioWorkloads:
     buckets.add(fioWorkload.bucket)

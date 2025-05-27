@@ -268,6 +268,7 @@ if __name__ == "__main__":
   download_dlio_outputs(dlioWorkloads, args.experiment_id)
 
   output = create_output_scenarios_from_downloaded_files(args)
+
   if len(output) == 0:
     print(f"\nNo DLIO outputs found for experiment_id {args.experiment_id} !\n")
   else:
