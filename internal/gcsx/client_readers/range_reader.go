@@ -62,16 +62,16 @@ type RangeReader struct {
 	cancel     func()
 
 	readType     string
-	config       *cfg.ReadConfig
+	readConfig   *cfg.ReadConfig
 	metricHandle common.MetricHandle
 }
 
-func NewRangeReader(object *gcs.MinObject, bucket gcs.Bucket, config *cfg.ReadConfig, metricHandle common.MetricHandle) *RangeReader {
+func NewRangeReader(object *gcs.MinObject, bucket gcs.Bucket, readConfig *cfg.ReadConfig, metricHandle common.MetricHandle) *RangeReader {
 	return &RangeReader{
 		object:       object,
 		bucket:       bucket,
 		metricHandle: metricHandle,
-		config:       config,
+		readConfig:   readConfig,
 		start:        -1,
 		limit:        -1,
 	}
@@ -225,12 +225,12 @@ func (rr *RangeReader) readFull(ctx context.Context, p []byte) (int, error) {
 
 // Ensure that rr.reader is set up for a range for which [start, start+size) is
 // a prefix. Irrespective of the size requested, we try to fetch more data
-// from GCS defined by sequentialReadSizeMb flag to serve future read requests.
+// from GCS defined by SequentialReadSizeMb flag to serve future read requests.
 func (rr *RangeReader) startRead(start int64, end int64) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	var err error
 
-	if rr.config != nil && rr.config.InactiveStreamTimeout > 0 {
+	if rr.readConfig != nil && rr.readConfig.InactiveStreamTimeout > 0 {
 		rr.reader, err = gcsx.NewInactiveTimeoutReader(
 			ctx,
 			rr.bucket,
@@ -240,7 +240,7 @@ func (rr *RangeReader) startRead(start int64, end int64) error {
 				Start: uint64(start),
 				Limit: uint64(end),
 			},
-			rr.config.InactiveStreamTimeout)
+			rr.readConfig.InactiveStreamTimeout)
 	} else {
 		rr.reader, err = rr.bucket.NewReaderWithReadHandle(
 			ctx,

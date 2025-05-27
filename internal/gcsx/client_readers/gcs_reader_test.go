@@ -74,7 +74,12 @@ func (t *gcsReaderTest) SetupTest() {
 		Generation: 1234,
 	}
 	t.mockBucket = new(storage.TestifyMockBucket)
-	t.gcsReader = NewGCSReader(t.object, t.mockBucket, common.NewNoopMetrics(), nil, sequentialReadSizeInMb, nil)
+	t.gcsReader = NewGCSReader(t.object, t.mockBucket, &GCSReaderConfig{
+		MetricHandle:         common.NewNoopMetrics(),
+		MrdWrapper:           nil,
+		SequentialReadSizeMb: sequentialReadSizeInMb,
+		ReadConfig:           nil,
+	})
 	t.ctx = context.Background()
 }
 
@@ -93,7 +98,12 @@ func (t *gcsReaderTest) Test_NewGCSReader() {
 		Generation: 4321,
 	}
 
-	gcsReader := NewGCSReader(object, t.mockBucket, common.NewNoopMetrics(), nil, 200, nil)
+	gcsReader := NewGCSReader(object, t.mockBucket, &GCSReaderConfig{
+		MetricHandle:         common.NewNoopMetrics(),
+		MrdWrapper:           nil,
+		SequentialReadSizeMb: 200,
+		ReadConfig:           nil,
+	})
 
 	assert.Equal(t.T(), object, gcsReader.object)
 	assert.Equal(t.T(), t.mockBucket, gcsReader.bucket)
@@ -490,8 +500,8 @@ func (t *gcsReaderTest) Test_ReadInfo_Random() {
 }
 
 // Validates:
-// 1. No change in ReadAt behavior based inactiveStreamTimeout config.
-// 2. Valid timeout config creates inactiveTimeoutReader instance of storage.Reader.
+// 1. No change in ReadAt behavior based inactiveStreamTimeout readConfig.
+// 2. Valid timeout readConfig creates inactiveTimeoutReader instance of storage.Reader.
 func (t *gcsReaderTest) Test_ReadAt_WithAndWithoutReadConfig() {
 	testCases := []struct {
 		name                        string
@@ -524,12 +534,12 @@ func (t *gcsReaderTest) Test_ReadAt_WithAndWithoutReadConfig() {
 			t.SetupTest() // Resets mockBucket, rr, etc. for each sub-test
 			defer t.TearDownTest()
 
-			t.gcsReader.rangeReader.config = tc.config
+			t.gcsReader.rangeReader.readConfig = tc.config
 			t.gcsReader.rangeReader.reader = nil // Ensure startRead path is taken in ReadAt
 			t.object.Size = objectSize
 			// Prepare fake content for the GCS object.
 			// startRead will attempt to read the entire object [0, objectSize)
-			// because objectSize is small compared to typical sequentialReadSizeMb.
+			// because objectSize is small compared to typical SequentialReadSizeMb.
 			fakeReaderContent := testUtil.GenerateRandomBytes(int(t.object.Size))
 			rc := &fake.FakeReader{ReadCloser: getReadCloser(fakeReaderContent)}
 			expectedReadObjectRequest := &gcs.ReadObjectRequest{

@@ -72,13 +72,20 @@ type GCSReader struct {
 	totalReadBytes uint64
 }
 
-func NewGCSReader(obj *gcs.MinObject, bucket gcs.Bucket, metricHandle common.MetricHandle, mrdWrapper *gcsx.MultiRangeDownloaderWrapper, sequentialReadSizeMb int32, config *cfg.ReadConfig) *GCSReader {
+type GCSReaderConfig struct {
+	MetricHandle         common.MetricHandle
+	MrdWrapper           *gcsx.MultiRangeDownloaderWrapper
+	SequentialReadSizeMb int32
+	ReadConfig           *cfg.ReadConfig
+}
+
+func NewGCSReader(obj *gcs.MinObject, bucket gcs.Bucket, config *GCSReaderConfig) *GCSReader {
 	return &GCSReader{
 		object:               obj,
 		bucket:               bucket,
-		sequentialReadSizeMb: sequentialReadSizeMb,
-		rangeReader:          NewRangeReader(obj, bucket, config, metricHandle),
-		mrr:                  NewMultiRangeReader(obj, metricHandle, mrdWrapper),
+		sequentialReadSizeMb: config.SequentialReadSizeMb,
+		rangeReader:          NewRangeReader(obj, bucket, config.ReadConfig, config.MetricHandle),
+		mrr:                  NewMultiRangeReader(obj, config.MetricHandle, config.MrdWrapper),
 		readType:             util.Sequential,
 	}
 }
@@ -150,7 +157,7 @@ func (gr *GCSReader) getReadInfo(start int64, size int64) (int64, error) {
 	// Determine the end position based on the read pattern.
 	end := gr.determineEnd(start)
 
-	// Limit the end position to sequentialReadSizeMb.
+	// Limit the end position to SequentialReadSizeMb.
 	end = gr.limitEnd(start, end)
 
 	return end, nil
