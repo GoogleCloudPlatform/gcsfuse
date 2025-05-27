@@ -566,6 +566,8 @@ func (t *gcsReaderTest) Test_ReadAt_WithAndWithoutReadConfig() {
 			assert.NotNil(t.T(), t.gcsReader.rangeReader.cancel)
 			assert.Equal(t.T(), int64(readLength), t.gcsReader.rangeReader.start)
 			assert.Equal(t.T(), int64(t.object.Size), t.gcsReader.rangeReader.limit)
+			_, isInactiveTimeoutReader := t.gcsReader.rangeReader.reader.(*gcsx.InactiveTimeoutReader)
+			assert.Equal(t.T(), tc.expectInactiveTimeoutReader, isInactiveTimeoutReader)
 		})
 	}
 }

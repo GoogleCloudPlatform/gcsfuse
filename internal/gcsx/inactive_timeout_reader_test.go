@@ -158,7 +158,7 @@ func (s *InactiveTimeoutReaderTestSuite) Test_NoReadCloserWithinTimeout() {
 
 	n2, err2 := s.reader.Read(buf)
 
-	inactiveReader := s.reader.(*inactiveTimeoutReader)
+	inactiveReader := s.reader.(*InactiveTimeoutReader)
 	s.True(inactiveReader.isActive)
 	s.NoError(err2)
 	s.Equal(6, n2)
@@ -189,7 +189,7 @@ func (s *InactiveTimeoutReaderTestSuite) Test_Read_ReconnectFails() {
 	s.simulatedClock.AdvanceTime(s.timeout + time.Millisecond)
 	// Wait for the monitor routine to make the read inactive.
 	require.Eventually(s.T(), func() bool {
-		rr := s.reader.(*inactiveTimeoutReader)
+		rr := s.reader.(*InactiveTimeoutReader)
 		rr.mu.Lock()
 		defer rr.mu.Unlock()
 		return !rr.isActive
@@ -198,7 +198,7 @@ func (s *InactiveTimeoutReaderTestSuite) Test_Read_ReconnectFails() {
 	s.simulatedClock.AdvanceTime(s.timeout + time.Millisecond)
 	// Wait for the monitor routine to close the wrapped reader.
 	require.Eventually(s.T(), func() bool {
-		rr := s.reader.(*inactiveTimeoutReader)
+		rr := s.reader.(*InactiveTimeoutReader)
 		rr.mu.Lock()
 		defer rr.mu.Unlock()
 		return (rr.gcsReader == nil)
@@ -231,7 +231,7 @@ func (s *InactiveTimeoutReaderTestSuite) Test_Read_TimeoutAndSuccessfulReconnect
 	s.simulatedClock.AdvanceTime(s.timeout + time.Millisecond)
 	// Wait for the monitor routine to make the read inactive.
 	require.Eventually(s.T(), func() bool {
-		rr := s.reader.(*inactiveTimeoutReader)
+		rr := s.reader.(*InactiveTimeoutReader)
 		rr.mu.Lock()
 		defer rr.mu.Unlock()
 		return !rr.isActive
@@ -240,7 +240,7 @@ func (s *InactiveTimeoutReaderTestSuite) Test_Read_TimeoutAndSuccessfulReconnect
 	s.simulatedClock.AdvanceTime(s.timeout + time.Millisecond)
 	// Wait for the monitor routine to close the wrapped reader.
 	require.Eventually(s.T(), func() bool {
-		rr := s.reader.(*inactiveTimeoutReader)
+		rr := s.reader.(*InactiveTimeoutReader)
 		rr.mu.Lock()
 		defer rr.mu.Unlock()
 		return (rr.gcsReader == nil)
@@ -276,7 +276,7 @@ func (s *InactiveTimeoutReaderTestSuite) Test_Close_ExplicitClose() {
 	err := s.reader.Close()
 
 	s.NoError(err)
-	s.Nil(s.reader.(*inactiveTimeoutReader).gcsReader)
+	s.Nil(s.reader.(*InactiveTimeoutReader).gcsReader)
 	s.reader = nil // Prevent TearDownTest from closing again
 }
 
@@ -287,7 +287,7 @@ func (s *InactiveTimeoutReaderTestSuite) Test_handleTimeout_InactiveClose() {
 	s.setupReader(0) // Sets up s.reader and s.initialFakeReader
 	expectedHandleAfterClose := []byte("handle-after-close")
 	s.initialFakeReader.Handle = expectedHandleAfterClose
-	itr := s.reader.(*inactiveTimeoutReader)
+	itr := s.reader.(*InactiveTimeoutReader)
 	itr.isActive = false // Simulate inactivity
 
 	itr.handleTimeout()
@@ -304,7 +304,7 @@ func (s *InactiveTimeoutReaderTestSuite) Test_handleTimeout_ActiveBecomeInactive
 	s.setupReader(0) // Sets up s.reader and s.initialFakeReader
 	expectedHandleAfterClose := []byte("handle-after-close")
 	s.initialFakeReader.Handle = expectedHandleAfterClose
-	itr := s.reader.(*inactiveTimeoutReader)
+	itr := s.reader.(*InactiveTimeoutReader)
 	itr.isActive = true
 
 	itr.handleTimeout()
@@ -318,7 +318,7 @@ func (s *InactiveTimeoutReaderTestSuite) Test_closeGCSReader_NilReader() {
 	s.timeout = 50 * time.Millisecond
 	s.readHandle = []byte("handle-before-close")
 	s.setupReader(0) // Sets up s.reader and s.initialFakeReader
-	itr := s.reader.(*inactiveTimeoutReader)
+	itr := s.reader.(*InactiveTimeoutReader)
 	itr.gcsReader = nil
 
 	itr.closeGCSReader()
@@ -334,7 +334,7 @@ func (s *InactiveTimeoutReaderTestSuite) Test_closeGCSReader_NonNilReader() {
 	s.setupReader(0) // Sets up s.reader and s.initialFakeReader
 	expectedHandleAfterClose := []byte("handle-after-close")
 	s.initialFakeReader.Handle = expectedHandleAfterClose
-	itr := s.reader.(*inactiveTimeoutReader)
+	itr := s.reader.(*InactiveTimeoutReader)
 
 	itr.closeGCSReader()
 
@@ -370,7 +370,7 @@ func (s *InactiveTimeoutReaderTestSuite) TestRaceCondition() {
 	go func() {
 		defer wg.Done()
 		for i := 0; i < 1000; i++ {
-			s.reader.(*inactiveTimeoutReader).handleTimeout()
+			s.reader.(*InactiveTimeoutReader).handleTimeout()
 		}
 	}()
 
