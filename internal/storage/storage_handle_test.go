@@ -229,11 +229,23 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWhenJsonReadEnabled() {
 
 func (testSuite *StorageHandleTest) TestNewStorageHandleWithBillingProject() {
 	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.EnableHNS = true
 
 	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, projectID)
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), handleCreated)
+	storageClient, ok := handleCreated.(*storageClient)
+	assert.NotNil(testSuite.T(), storageClient)
+	assert.True(testSuite.T(), ok)
+	// Confirm that the returned storage-handle's control-client is of type storageControlClientWithBillingProject
+	// and its billing-project is same as the one passed while
+	// creating the storage-handle.
+	storageControlClient, ok := storageClient.storageControlClient.(*storageControlClientWithBillingProject)
+	assert.NotNil(testSuite.T(), storageControlClient)
+	assert.True(testSuite.T(), ok)
+	assert.Equal(testSuite.T(), storageControlClient.billingProject, projectID)
+	assert.NotNil(testSuite.T(), storageControlClient.raw)
 }
 
 func (testSuite *StorageHandleTest) TestNewStorageHandleWithInvalidClientProtocol() {

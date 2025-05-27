@@ -260,7 +260,7 @@ func (sh *storageClient) getStorageLayout(bucketName string) (*controlpb.Storage
 }
 
 func createStorageControlClientWithBillingProject(controlClient StorageControlClient, billingProject string) StorageControlClient {
-	if len(strings.TrimSpace(billingProject)) > 0 {
+	if billingProject != "" {
 		controlClient = &storageControlClientWithBillingProject{raw: controlClient, billingProject: billingProject}
 	}
 	return controlClient
