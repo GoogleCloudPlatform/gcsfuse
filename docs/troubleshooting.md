@@ -185,3 +185,6 @@ performance bottleneck. \
 Starting with [version 2.12.0](https://github.com/GoogleCloudPlatform/gcsfuse/releases/tag/v2.12.0), you might observe a slight increase in CPU utilization when the file cache is enabled. This occurs because GCSFuse uses parallel threads to download data to the read cache. While this dramatically improves read performance, it may consume slightly more CPU than in previous versions.
 
 If this increased CPU usage negatively impacts your workload's performance, you can disable this behavior by setting the `file-cache:enable-parallel-downloads` configuration option to `false`.
+
+### Potential Stat Consistency Issues with Default TTL
+Starting with [version 3.0.0](https://github.com/GoogleCloudPlatform/gcsfuse/releases/tag/v3.0.0), On high-end machines (add cloud docs link here), gcsfuse will use default to an infinite stat cache TTL, potentially causing stale file/directory information if the bucket is modified externally. If strict consistency is needed, manually set a finite TTL (e.g., --stat-cache-ttl 1m) to ensure metadata reflects recent changes. Consult semantics doc for more details.
