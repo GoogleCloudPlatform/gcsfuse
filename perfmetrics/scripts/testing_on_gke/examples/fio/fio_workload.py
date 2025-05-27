@@ -25,6 +25,7 @@ from pathlib import Path
 DefaultNumEpochs = 4
 DefaultReadTypes = ['read', 'randread']
 UnsupportedCharsInFIOJobFile = [' ', '\t', ';']
+SubstituteForNewlineInFIOJobFile = ';'
 
 
 def validate_fio_workload(workload: dict, name: str):
@@ -171,7 +172,6 @@ class FioWorkload:
     multiline config values.
     """
     with open(jobFile, 'r') as jobFileReader:
-      replaceNewlineWith = ';'
       jobFileRawContent = jobFileReader.read()
 
       for unsupportedChar in UnsupportedCharsInFIOJobFile:
@@ -181,14 +181,9 @@ class FioWorkload:
               f' "{unsupportedChar}".'
           )
 
-      # Encode newline characters as ';' .
-      if replaceNewlineWith in jobFileRawContent:
-        raise Exception(
-            f'FIO jobFile {jobFile} has unsupported character'
-            f' "{replaceNewlineWith}" in it. Full content:'
-            f' "{jobFileRawContent}" .'
-        )
-      jobFileContent = jobFileRawContent.replace('\n', replaceNewlineWith)
+      jobFileContent = jobFileRawContent.replace(
+          '\n', SubstituteForNewlineInFIOJobFile
+      )
 
       # Prepend triple-backslash to any dollar signs (config constants e.g.
       # $FILESIZE) in the FIO job-file content
