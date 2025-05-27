@@ -259,13 +259,6 @@ func (sh *storageClient) getStorageLayout(bucketName string) (*controlpb.Storage
 	return stoargeLayout, err
 }
 
-func createStorageControlClientWithBillingProject(controlClient StorageControlClient, billingProject string) StorageControlClient {
-	if billingProject != "" {
-		controlClient = &storageControlClientWithBillingProject{raw: controlClient, billingProject: billingProject}
-	}
-	return controlClient
-}
-
 // NewStorageHandle creates control client and stores client config to allow dynamic
 // creation of http or grpc client.
 func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClientConfig, billingProject string) (sh StorageHandle, err error) {
@@ -286,7 +279,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 			return nil, fmt.Errorf("could not create StorageControl Client: %w", err)
 		}
 		// special handling for requester-pays buckets and for mounts created with custom billing projects.
-		controlClient = createStorageControlClientWithBillingProject(controlClient, billingProject)
+		controlClient = withBillingProject(controlClient, billingProject)
 	} else {
 		logger.Infof("Skipping storage control client creation because custom-endpoint %q was passed, which is assumed to be a storage testbench server because of 'localhost' in it.", clientConfig.CustomEndpoint)
 	}

@@ -75,3 +75,10 @@ func (sccwbp *storageControlClientWithBillingProject) RenameFolder(ctx context.C
 func (sccwbp *storageControlClientWithBillingProject) CreateFolder(ctx context.Context, req *controlpb.CreateFolderRequest, opts ...gax.CallOption) (*controlpb.Folder, error) {
 	return sccwbp.raw.CreateFolder(sccwbp.contextWithBillingProject(ctx), req, opts...)
 }
+
+func withBillingProject(controlClient StorageControlClient, billingProject string) StorageControlClient {
+	if billingProject != "" {
+		controlClient = &storageControlClientWithBillingProject{raw: controlClient, billingProject: billingProject}
+	}
+	return controlClient
+}
