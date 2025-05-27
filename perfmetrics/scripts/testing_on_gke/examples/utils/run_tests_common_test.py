@@ -14,19 +14,19 @@
 # limitations under the License.
 
 import unittest
-from run_tests_common import escape_commas_in_string
+from run_tests_common import escape_commas_in_helm_value
 
 
 class RunTestsCommonTest(unittest.TestCase):
 
-  def test_escape_commas_in_string(self):
+  def test_escape_commas_in_helm_value(self):
     tcs = [
-        {"input": "a:b,c=d,", "expected_output": "a:b\,c=d\,"},
+        {"input": "a:b,c=d,", "expected_output": r"a:b\,c=d\,"},
         {"input": "", "expected_output": ""},
     ]
     for tc in tcs:
       self.assertEqual(
-          tc["expected_output"], escape_commas_in_string(tc["input"])
+          tc["expected_output"], escape_commas_in_helm_value(tc["input"])
       )
 
 

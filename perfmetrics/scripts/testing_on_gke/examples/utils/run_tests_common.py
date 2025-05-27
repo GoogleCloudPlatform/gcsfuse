@@ -35,9 +35,9 @@ def run_command(command: str) -> int:
   return result.returncode
 
 
-def escape_commas_in_string(unescapedStr: str) -> str:
-  """Returns equivalent string with , replaced with \, ."""
-  return unescapedStr.replace(',', '\,')
+def escape_commas_in_helm_value(unescapedStr: str) -> str:
+  """Returns equivalent string with , replaced with \\, ."""
+  return unescapedStr.replace(',', r'\,')
 
 
 def parse_args():

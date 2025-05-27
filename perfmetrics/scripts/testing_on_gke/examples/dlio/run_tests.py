@@ -30,7 +30,7 @@ import sys
 
 # local imports from other directories
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'utils'))
-from run_tests_common import escape_commas_in_string, parse_args, run_command, add_iam_role_for_buckets
+from run_tests_common import escape_commas_in_helm_value, parse_args, run_command, add_iam_role_for_buckets
 from utils import UnknownMachineTypeError, resource_limits
 
 # local imports from same directory
@@ -70,7 +70,7 @@ def createHelmInstallCommands(
             f'--set experimentID={experimentID}',
             (
                 '--set'
-                f' gcsfuse.mountOptions={escape_commas_in_string(dlioWorkload.gcsfuseMountOptions)}'
+                f' gcsfuse.mountOptions={escape_commas_in_helm_value(dlioWorkload.gcsfuseMountOptions)}'
             ),
             f'--set nodeType={machineType}',
             f'--set podName={podName}',
