@@ -618,12 +618,12 @@ sudo umount $MOUNT_DIR
 
 # Test package: streaming_writes
 # Run streaming_writes tests.
-gcsfuse --rename-dir-limit=3 --enable-streaming-writes=true --write-block-size-mb=1 --write-max-blocks-per-file=2 $TEST_BUCKET_NAME $MOUNT_DIR
+gcsfuse --rename-dir-limit=3 --write-block-size-mb=1 --write-max-blocks-per-file=2 --write-global-max-blocks=-1 $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/streaming_writes/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME ${ZONAL_BUCKET_ARG}
 sudo umount $MOUNT_DIR
 
 # Run write_large_files tests with streaming writes enabled.
-gcsfuse --enable-streaming-writes=true  $TEST_BUCKET_NAME $MOUNT_DIR
+gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/write_large_files/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME ${ZONAL_BUCKET_ARG}
 sudo umount $MOUNT_DIR
 

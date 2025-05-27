@@ -57,7 +57,7 @@ func TestStaleFileHandleLocalFileTest(t *testing.T) {
 	for _, flags := range flagsSet {
 		s := new(staleFileHandleLocalFile)
 		s.flags = flags
-		s.isStreamingWritesEnabled = slices.Contains(s.flags, "--enable-streaming-writes=true")
+		s.isStreamingWritesEnabled = !slices.Contains(s.flags, "--enable-streaming-writes=false")
 		suite.Run(t, s)
 	}
 }

@@ -125,6 +125,9 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 		"metadata-cache": map[string]interface{}{
 			"ttl-secs": 0,
 		},
+		"write": map[string]interface{}{
+			"enable-streaming-writes": false,
+		},
 	}
 	filePath3 := setup.YAMLConfigFile(mountConfig3, "config3.yaml")
 	flags = append(flags, []string{"--config-file=" + filePath3})
