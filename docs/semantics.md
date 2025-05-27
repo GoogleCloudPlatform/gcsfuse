@@ -177,10 +177,12 @@ The behavior of stat cache is controlled by the following flags/config parameter
    
    Positive and negative stat results will be cached for the specified amount of time.
 
-Warning: Using stat caching breaks the consistency guarantees discussed in this document. It is safe only in the following situations:
-- The mounted bucket is never modified.
-- The mounted bucket is only modified on a single machine, via a single Cloud Storage FUSE mount.
-- The mounted bucket is modified by multiple actors, but the user is confident that they don't need the guarantees discussed in this document.
+Warnings: 
+- Using stat caching breaks the consistency guarantees discussed in this document. It is safe only in the following situations:
+  - The mounted bucket is never modified.
+  - The mounted bucket is only modified on a single machine, via a single Cloud Storage FUSE mount.
+  - The mounted bucket is modified by multiple actors, but the user is confident that they don't need the guarantees discussed in this document.
+- On high end machines GCSFuse is setting TTL to infinite by default (link to the cloud doc). Please override it manually if your workload requires consistency guarantees.
 
 ## Type caching
 
