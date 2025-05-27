@@ -15,6 +15,7 @@
 
 import unittest
 from run_tests_common import escape_commas_in_helm_value
+# , escape_dollars_in_helm_value
 
 
 class RunTestsCommonTest(unittest.TestCase):
@@ -28,6 +29,23 @@ class RunTestsCommonTest(unittest.TestCase):
       self.assertEqual(
           tc["expected_output"], escape_commas_in_helm_value(tc["input"])
       )
+
+  # def test_escape_dollars_in_helm_value(self):
+  # tcs = [
+  # {
+  # "input": r"directory=\${DIR}",
+  # "expected_output": r"directory=\\\${DIR}",
+  # },
+  # {
+  # "input": "file_size=${FILE_SIZE}",
+  # "expected_output": r"file_size=\${FILE_SIZE}",
+  # },
+  # {"input": "", "expected_output": ""},
+  # ]
+  # for tc in tcs:
+  # self.assertEqual(
+  # tc["expected_output"], escape_dollars_in_helm_value(tc["input"])
+  # )
 
 
 if __name__ == "__main__":

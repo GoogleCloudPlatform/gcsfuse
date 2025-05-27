@@ -16,6 +16,7 @@
 """Common code for fio/run_tests.py and dlio/run_tests.py"""
 
 import argparse
+# import re
 import subprocess
 import sys
 
@@ -40,6 +41,11 @@ def escape_commas_in_helm_value(unescapedStr: str) -> str:
   return unescapedStr.replace(',', r'\,')
 
 
+# def escape_dollars_in_helm_value(unescapedStr: str) -> str:
+# r"""Returns equivalent string with $ replaced with \$, and \$ with \\\$ ."""
+# return re.sub(r'\$', r'\\\$', unescapedStr)
+#
+#
 def parse_args():
   parser = argparse.ArgumentParser(
       prog='FIO test runner',
