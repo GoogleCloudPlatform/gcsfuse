@@ -748,9 +748,9 @@
   flag-name: "write-global-max-blocks"
   type: "int"
   usage: >-
-    Specifies the maximum number of blocks to be used by all files for
-    streaming writes. The value should be >= 0 (1 block per file is not counted 
-    towards this limit) or -1 (for infinite blocks).
+    Specifies the maximum number of blocks available for streaming writes across all files. 
+    The value should be >= 0 or -1 (for infinite blocks).
+    A value of 0 disables streaming writes.
   default: 4
   hide-flag: false
 
