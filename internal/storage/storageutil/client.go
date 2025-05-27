@@ -16,13 +16,13 @@ package storageutil
 
 import (
 	"crypto/tls"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
+	"cloud.google.com/go/auth"
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/auth"
+	auth2 "github.com/googlecloudplatform/gcsfuse/v2/internal/auth"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 )
@@ -59,7 +59,7 @@ type StorageClientConfig struct {
 	ReadStallRetryConfig cfg.ReadStallGcsRetriesConfig
 }
 
-func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *http.Client, err error) {
+func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.TokenSource) (httpClient *http.Client, err error) {
 	var transport *http.Transport
 	// Using http1 makes the client more performant.
 	if storageClientConfig.ClientProtocol == cfg.HTTP1 {
@@ -94,13 +94,6 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 			Timeout: storageClientConfig.HttpClientTimeout,
 		}
 	} else {
-		var tokenSrc oauth2.TokenSource
-		tokenSrc, err = CreateTokenSource(storageClientConfig)
-		if err != nil {
-			err = fmt.Errorf("while fetching tokenSource: %w", err)
-			return
-		}
-
 		// Custom http client for Go Client.
 		httpClient = &http.Client{
 			Transport: &oauth2.Transport{
@@ -121,7 +114,18 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 // It creates the token-source from the provided
 // key-file or using ADC search order (https://cloud.google.com/docs/authentication/application-default-credentials#order).
 func CreateTokenSource(storageClientConfig *StorageClientConfig) (tokenSrc oauth2.TokenSource, err error) {
-	return auth.GetTokenSource(context.Background(), storageClientConfig.KeyFile, storageClientConfig.TokenUrl, storageClientConfig.ReuseTokenFromUrl)
+	return auth2.GetTokenSource(context.Background(), storageClientConfig.KeyFile, storageClientConfig.TokenUrl, storageClientConfig.ReuseTokenFromUrl)
+}
+
+// It creates the token-source from the provided
+// key-file or using ADC search order (https://cloud.google.com/docs/authentication/application-default-credentials#order).
+func CreateCredentialsOrTokenSource(storageClientConfig *StorageClientConfig) (*auth.Credentials, oauth2.TokenSource, error) {
+	if storageClientConfig.TokenUrl != "" {
+		ts, err := auth2.GetTokenSourceFromTokenUrl(context.Background(), storageClientConfig.TokenUrl, storageClientConfig.ReuseTokenFromUrl)
+		return nil, ts, err
+	}
+	cred, err := auth2.GetCredentials(context.Background(), storageClientConfig.KeyFile)
+	return cred, nil, err
 }
 
 // StripScheme strips the scheme part of given url.
