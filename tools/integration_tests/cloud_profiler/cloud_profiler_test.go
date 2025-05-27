@@ -60,7 +60,13 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
-	setup.RunTestsForMountedDirectoryFlag(m)
+	if setup.MountedDirectory() != "" {
+		if setup.ProfileLabelForMountedDirTest() == "" {
+			log.Fatal("Profile label should have been provided for mounted directory test.")
+		}
+		testServiceVersion = setup.ProfileLabelForMountedDirTest()
+		setup.RunTestsForMountedDirectoryFlag(m)
+	}
 
 	// Else run tests for testBucket.
 	// Set up test directory.
