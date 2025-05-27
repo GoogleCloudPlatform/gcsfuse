@@ -61,7 +61,7 @@ spec:
 
         {{ if .Values.fio.jobFile }}
         job_file={{ .Values.fio.jobFile }}
-        {{ else }}
+        {{ else if not .Values.fio.jobFileContent }}
         no_of_files_per_thread={{ .Values.fio.filesPerThread }}
         block_size={{ .Values.fio.blockSize }}
         file_size={{ .Values.fio.fileSize }}
@@ -100,7 +100,17 @@ spec:
         echo "Preparing fio config file..."
         filename=/fio_loading_test_job.fio
 
-        {{ if .Values.fio.jobFile }}
+        {{ if .Values.fio.jobFileContent }}
+        
+        # Deserialize the FIO jobfile content, replace ';'s with newlines
+        # and put it into a job file.
+        (echo "{{.Values.fio.jobFileContent}}" | tr ';' '\n') > $filename
+
+        # print the contents of the generated file for debugging
+        # in case the deserialization doesn't work as expected.
+        cat ${filename}
+
+        {{ else if .Values.fio.jobFile }}
 
         gcloud storage cp -v {{.Values.fio.jobFile}} $filename
 
@@ -134,12 +144,12 @@ spec:
         {{ else }}
         wget -O $filename https://raw.githubusercontent.com/GoogleCloudPlatform/gcsfuse/master/perfmetrics/scripts/job_files/read_cache_load_test.fio
         {{ end }}
+        read_type={{ .Values.fio.readType }}
 
         {{ end }}
 
         echo "Setup default values..."
         epoch={{ .Values.numEpochs }}
-        read_type={{ .Values.fio.readType }}
         pause_in_seconds=20
         workload_dir=/data
 
@@ -165,12 +175,19 @@ spec:
         echo "{{ .Values.podName }}" > ${output_dir}/pod_name
         echo "{{ .Values.nodeType }}" > ${output_dir}/machine_type
         echo "{{ .Values.bucketName }}" > ${output_dir}/bucket_name
+        {{ if .Values.fio.jobFile }}
+        # Dump the name of the FIO job file into a file in the output directory for this workload.
+        echo "{{ .Values.fio.jobFile }}" > ${output_dir}/jobFile
+        {{ else if .Values.fio.jobFileContent }}
+        # Dump the FIO job file content into a file in the output directory for this workload.
+        echo "{{ .Values.fio.jobFileContent }}" > ${output_dir}/jobFileContent
+        {{ end }}
 
         for i in $(seq $epoch); do
           echo "[Epoch ${i}] start time:" `date +%s`
           free -mh # Memory usage before workload start.
 
-          {{ if .Values.fio.jobFile }}
+          {{ if or .Values.fio.jobFileContent .Values.fio.jobFile }}
           DIR=$workload_dir fio ${filename} --alloc-size=1048576 --output-format=json --output="${output_dir}/epoch${i}.json"
           {{ else }}
           NUMJOBS=$num_of_threads NRFILES=$no_of_files_per_thread FILE_SIZE=$file_size BLOCK_SIZE=$block_size READ_TYPE=$read_type DIR=$workload_dir fio ${filename} --alloc-size=1048576 --output-format=json --output="${output_dir}/epoch${i}.json"

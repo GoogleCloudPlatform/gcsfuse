@@ -19,6 +19,7 @@ test-config file for a list of them.
 """
 
 import json
+from pathlib import Path
 
 
 DefaultNumEpochs = 4
@@ -72,6 +73,12 @@ def validate_fio_workload(workload: dict, name: str):
       raise Exception(
           '{name} has jobFile attribute in it, but it has space (" ") in it, so'
           ' ignoring this workload.'
+      )
+    if not str.startswith(jobFile, 'gs://') and not Path(jobFile).is_file():
+      raise Exception(
+          f'{name} has fio.jobFile={jobFile} which is not a proper jobFile'
+          ' argument. It neither starts with gs://, nor'
+          ' it is a valid file on this machine.'
       )
   else:
     for requiredAttribute, expectedType in {
@@ -145,8 +152,50 @@ class FioWorkload:
   if missing.
   10. jobFile: The path of a FIO job-file . When this is specified, it will
   override the values of
-  fileSize, blockSize, filesPerThreads, numThreads, readTypes.
+  fileSize, blockSize, filesPerThreads, numThreads, readTypes. This will be
+  either of the form gs://<bucket>/<object-name> or a path to an existing
+  file on this machine. If this is a local file, then another attribute
+  jobFileContent is created and stored in this FioWorkload object.
   """
+
+  def _job_file_content_from_job_file(self, jobFile: str) -> str:
+    """Reads, escapes and serializes the content of a given FIO job-file into a single string
+
+    which can be passed down as a helm config value to be used in a pod
+    configuration.
+    This escapes uncommon characters such as space, tabs, dollar signs etc to
+    avoid issues with serialization/deserialization and use in a shell script.
+    This encodes all newline characters as ';' as helm doesn't support passing
+    multiline config values.
+    """
+    with open(jobFile, 'r') as jobFileReader:
+      replaceNewlineWith = ';'
+      jobFileRawContent = jobFileReader.read()
+
+      # Encode newline characters as ';' .
+      if replaceNewlineWith in jobFileRawContent:
+        raise Exception(
+            f'FIO jobFile {jobFile} has unsupported character'
+            f' "{replaceNewlineWith}" in it. Full content:'
+            f' "{jobFileRawContent}" .'
+        )
+      jobFileContent = jobFileRawContent.replace('\n', replaceNewlineWith)
+
+      # Prepend triple-backslash to any dollar signs (config constants e.g.
+      # $FILESIZE) in the FIO job-file content
+      # before passing it through helm to the pod config, to escape them from
+      # helm and shell evaluating them.
+      # One backslash is needed to avoid the shell evaluating these constants.
+      # Then two more backslashes are needed to avoid the helm install command
+      # evaluating added backslash and the slash itself.
+      # As an example, helm install ... --set jobFileContent="filesize=\\\$FILESIZE",
+      # get passed down to pod config as variable jobFileContent with value
+      # "\$FILESIZE". This when dumped by shell into a file becomes
+      # "filesize=$FILESIZE" which is the intended original config.
+      # TODO: handle it through a utility function.
+      jobFileContent = jobFileContent.replace('$', r'\\\$')
+
+      return jobFileContent
 
   def __init__(
       self,
@@ -171,6 +220,14 @@ class FioWorkload:
     self.gcsfuseMountOptions = gcsfuseMountOptions
     self.numEpochs = numEpochs
     self.jobFile = jobFile
+    # If jobFile is a local file, then take its content,
+    # replace all newline characters with ';' and
+    # store it as self.jobFileContent .
+    if (
+        not str.startswith(self.jobFile, 'gs://')
+        and Path(self.jobFile).is_file()
+    ):
+      self.jobFileContent = self._job_file_content_from_job_file(self.jobFile)
 
   def PPrint(self):
     print(

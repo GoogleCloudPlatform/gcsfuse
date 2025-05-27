@@ -41,6 +41,7 @@ fio:
   filesPerThread: "20000"
   numThreads: "50"
   jobFile: ""
+  jobFileContent: ""
 
 gcsfuse:
   metadataCacheTTLSeconds: "6048000"
