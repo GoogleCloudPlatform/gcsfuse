@@ -2,7 +2,8 @@ module github.com/googlecloudplatform/gcsfuse/v2
 
 go 1.24.0
 
-replace github.com/jacobsa/fuse => /usr/local/google/home/aditime/fuse
+replace github.com/jacobsa/fuse => github.com/aditimittal2003/fuse v0.0.0-20250527083950-5af366a5aa3d
+
 require (
 	cloud.google.com/go/compute/metadata v0.6.0
 	cloud.google.com/go/iam v1.5.0

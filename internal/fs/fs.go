@@ -2560,6 +2560,7 @@ func (fs *fileSystem) ReadDirPlus(
 			Child:                child.ID(),
 			Attributes:           attributes, // Assuming you have attributes available
 			AttributesExpiration: expiration, // And expiration
+			//EntryExpiration:      expiration,
 		}
 		entry := fuseutil.DirentPlus{
 			Name:  path.Base(fullName.LocalName()),
@@ -2575,7 +2576,7 @@ func (fs *fileSystem) ReadDirPlus(
 			entry.Type = fuseutil.DT_Directory
 		}
 		entriesPlus = append(entriesPlus, entry)
-		fs.unlockAndDecrementLookupCount(child, 1)
+		fs.unlockAndMaybeDisposeOfInode(child, &err)
 	}
 
 	dh.Mu.Lock()

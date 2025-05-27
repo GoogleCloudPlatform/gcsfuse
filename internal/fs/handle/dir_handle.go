@@ -84,6 +84,12 @@ func (p sortedDirents) Len() int           { return len(p) }
 func (p sortedDirents) Less(i, j int) bool { return p[i].Name < p[j].Name }
 func (p sortedDirents) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
+type sortedDirentsPlus []fuseutil.DirentPlus
+
+func (p sortedDirentsPlus) Len() int           { return len(p) }
+func (p sortedDirentsPlus) Less(i, j int) bool { return p[i].Name < p[j].Name }
+func (p sortedDirentsPlus) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+
 func (dh *DirHandle) checkInvariants() {
 	// INVARIANT: For each i, entries[i+1].Offset == entries[i].Offset + 1
 	for i := 0; i < len(dh.entries)-1; i++ {
@@ -96,8 +102,18 @@ func (dh *DirHandle) checkInvariants() {
 		}
 	}
 
+	for i := 0; i < len(dh.entriesPlus)-1; i++ {
+		if !(dh.entriesPlus[i+1].Offset == dh.entriesPlus[i].Offset+1) {
+			panic(
+				fmt.Sprintf(
+					"Unexpected offset sequence for entriesPlus: %v, %v",
+					dh.entriesPlus[i].Offset,
+					dh.entriesPlus[i+1].Offset))
+		}
+	}
+
 	// INVARIANT: If !entriesValid, then len(entries) == 0
-	if !dh.entriesValid && len(dh.entries) != 0 {
+	if !dh.entriesValid && (len(dh.entries) != 0 || len(dh.entriesPlus) != 0) {
 		panic("Unexpected non-empty entries slice")
 	}
 }
@@ -389,6 +405,7 @@ func (dh *DirHandle) ReadDirPlus(
 	op *fuseops.ReadDirPlusOp,
 	entriesPlus []fuseutil.DirentPlus) (err error) {
 
+	sort.Sort(sortedDirentsPlus(entriesPlus))
 	for i := 0; i < len(entriesPlus); i++ {
 		entriesPlus[i].Offset = fuseops.DirOffset(i) + 1
 	}
@@ -397,7 +414,9 @@ func (dh *DirHandle) ReadDirPlus(
 		entriesPlus[i].Inode = fuseops.RootInodeID + 1
 	}
 
-	dh.entriesPlus = entriesPlus
+	if dh.entriesPlus == nil {
+		dh.entriesPlus = entriesPlus
+	}
 	dh.entriesValid = true
 	// Is the offset past the end of what we have buffered? If so, this must be
 	// an invalid seekdir according to posix.
@@ -407,7 +426,15 @@ func (dh *DirHandle) ReadDirPlus(
 		return
 	}
 
-	//TODO WriteDirentPlus
+	//We copy out entries until we run out of entries or space.
+	for i := index; i < len(dh.entriesPlus); i++ {
+		n := fuseutil.WriteDirentPlus(op.Dst[op.BytesRead:], dh.entriesPlus[i])
+		if n == 0 {
+			break
+		}
+
+		op.BytesRead += n
+	}
 
 	return
 }
