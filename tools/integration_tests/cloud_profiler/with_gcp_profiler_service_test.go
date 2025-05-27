@@ -63,17 +63,15 @@ func checkIfProfileExistForServiceAndVersion(
 	err := listCall.Pages(listCtx, func(resp *gcpProfiler.ListProfilesResponse) error {
 		pagesFetched++
 		t.Logf("Processing page %d of profiles, number of profiles in page: %d", pagesFetched, len(resp.Profiles))
-		// Filter by service name and version on the client side.
 		for _, p := range resp.Profiles {
-			if p.Deployment != nil && p.Deployment.Target == testServiceName {
-				profileAPIVersion := ""
-				if p.Deployment.Labels != nil {
-					profileAPIVersion = p.Deployment.Labels["version"] // "version" is the label key used by the agent
-				}
-				if profileAPIVersion == testServiceVersion {
-					t.Logf("Found matching profile: Type=%s, ID=%s", p.ProfileType, p.Deployment.Labels["version"])
-					return completedErr
-				}
+			if p.Deployment == nil || p.Deployment.Labels == nil {
+				continue
+			}
+
+			// Return if matching profile found.
+			if p.Deployment.Target == testServiceName && p.Deployment.Labels["version"] == testServiceVersion {
+				t.Logf("Found matching profile: Type=%s, ID=%s", p.ProfileType, p.Deployment.Labels["version"])
+				return completedErr
 			}
 		}
 		return nil // Continue to the next page
