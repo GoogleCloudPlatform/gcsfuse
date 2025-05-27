@@ -46,6 +46,7 @@ type Object struct {
 	StorageClass    string
 	Deleted         time.Time
 	Updated         time.Time
+	Finalized       time.Time
 
 	// As of 2015-06-03, the official GCS documentation for this property
 	// (https://tinyurl.com/2zjza2cu) says this:
@@ -89,6 +90,7 @@ type MinObject struct {
 	Metadata        map[string]string
 	ContentEncoding string
 	CRC32C          *uint32 // Missing for CMEK buckets
+	Finalized       time.Time
 }
 
 // ExtendedObjectAttributes contains the missing attributes of Object which are not present in MinObject.
