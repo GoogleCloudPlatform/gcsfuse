@@ -64,7 +64,7 @@ func (t *rangeReaderTest) SetupTest() {
 		Generation: 1234,
 	}
 	t.mockBucket = new(storage.TestifyMockBucket)
-	t.rangeReader = NewRangeReader(t.object, t.mockBucket, common.NewNoopMetrics())
+	t.rangeReader = NewRangeReader(t.object, t.mockBucket, nil, common.NewNoopMetrics())
 	t.ctx = context.Background()
 }
 
@@ -146,7 +146,7 @@ func (t *rangeReaderTest) Test_NewRangeReader() {
 		Generation: 4321,
 	}
 
-	reader := NewRangeReader(object, t.mockBucket, common.NewNoopMetrics())
+	reader := NewRangeReader(object, t.mockBucket, nil, common.NewNoopMetrics())
 
 	assert.Equal(t.T(), object, reader.object)
 	assert.Equal(t.T(), t.mockBucket, reader.bucket)

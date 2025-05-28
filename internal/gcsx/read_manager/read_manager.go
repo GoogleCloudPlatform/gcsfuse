@@ -19,6 +19,7 @@ import (
 	"errors"
 	"io"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
@@ -42,6 +43,7 @@ type ReadManagerConfig struct {
 	CacheFileForRangeRead bool
 	MetricHandle          common.MetricHandle
 	MrdWrapper            *gcsx.MultiRangeDownloaderWrapper
+	ReadConfig            *cfg.ReadConfig
 }
 
 // NewReadManager creates a new ReadManager for the given GCS object,
@@ -67,9 +69,12 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 	gcsReader := clientReaders.NewGCSReader(
 		object,
 		bucket,
-		config.MetricHandle,
-		config.MrdWrapper,
-		config.SequentialReadSizeMB,
+		&clientReaders.GCSReaderConfig{
+			MetricHandle:         config.MetricHandle,
+			MrdWrapper:           config.MrdWrapper,
+			SequentialReadSizeMb: config.SequentialReadSizeMB,
+			ReadConfig:           config.ReadConfig,
+		},
 	)
 	// Add the GCS reader as a fallback.
 	readers = append(readers, gcsReader)

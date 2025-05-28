@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/common"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -71,13 +72,20 @@ type GCSReader struct {
 	totalReadBytes uint64
 }
 
-func NewGCSReader(obj *gcs.MinObject, bucket gcs.Bucket, metricHandle common.MetricHandle, mrdWrapper *gcsx.MultiRangeDownloaderWrapper, sequentialReadSizeMb int32) *GCSReader {
+type GCSReaderConfig struct {
+	MetricHandle         common.MetricHandle
+	MrdWrapper           *gcsx.MultiRangeDownloaderWrapper
+	SequentialReadSizeMb int32
+	ReadConfig           *cfg.ReadConfig
+}
+
+func NewGCSReader(obj *gcs.MinObject, bucket gcs.Bucket, config *GCSReaderConfig) *GCSReader {
 	return &GCSReader{
 		object:               obj,
 		bucket:               bucket,
-		sequentialReadSizeMb: sequentialReadSizeMb,
-		rangeReader:          NewRangeReader(obj, bucket, metricHandle),
-		mrr:                  NewMultiRangeReader(obj, metricHandle, mrdWrapper),
+		sequentialReadSizeMb: config.SequentialReadSizeMb,
+		rangeReader:          NewRangeReader(obj, bucket, config.ReadConfig, config.MetricHandle),
+		mrr:                  NewMultiRangeReader(obj, config.MetricHandle, config.MrdWrapper),
 		readType:             util.Sequential,
 	}
 }

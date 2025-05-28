@@ -930,7 +930,7 @@ func (t *RandomReaderStretchrTest) Test_ReadFromMultiRangeReader_ValidateTimeout
 
 // Validates:
 // 1. No change in ReadAt behavior based inactiveStreamTimeout config.
-// 2. Valid timeout config creates inactiveTimeoutReader instance of storage.Reader.
+// 2. Valid timeout config creates InactiveTimeoutReader instance of storage.Reader.
 func (t *RandomReaderStretchrTest) Test_ReadAt_WithAndWithoutReadConfig() {
 	testCases := []struct {
 		name                        string
@@ -996,7 +996,7 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_WithAndWithoutReadConfig() {
 			assert.NotNil(t.T(), t.rr.wrapped.cancel)
 			assert.Equal(t.T(), int64(readLength), t.rr.wrapped.start)
 			assert.Equal(t.T(), int64(t.object.Size), t.rr.wrapped.limit)
-			_, isInactiveTimeoutReader := t.rr.wrapped.reader.(*inactiveTimeoutReader)
+			_, isInactiveTimeoutReader := t.rr.wrapped.reader.(*InactiveTimeoutReader)
 			assert.Equal(t.T(), tc.expectInactiveTimeoutReader, isInactiveTimeoutReader)
 		})
 	}
