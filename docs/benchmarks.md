@@ -9,7 +9,7 @@ workloads for the given test setup:
 * Infra: GCP VM
 * OS: ubuntu-20.04
 * Framework: FIO (version 3.39)
-* GCSFuse version: 2.11.1
+* GCSFuse version: master
 
 ## FIO workloads
 Please read the details about the FIO specification [here](https://fio.readthedocs.io/en/latest/).
@@ -89,87 +89,88 @@ to GCS on close/fsync.
 ## GCSFuse Benchmarking on c4 machine-type
 * VM Type: c4-standard-96
 * VM location: us-south1
-* Networking: gVNIC+  tier_1 networking (200Gbps)
-* Disk Type: Hyperdisk balanced 
+* Networking: gVNIC+ tier_1 networking (200Gbps)
+* Disk Type: Hyperdisk balanced
 * GCS Bucket location: us-south1
 
 ### Sequential Reads
 | File Size | BlockSize | nrfiles |Bandwidth in (GiB/sec) | IOPs  |  Avg Latency (msec) |
 |---|---|---|---|---|---|
-| 128K | 128K | 30  | 0.45 |  3650 | 30  |
-| 256K  | 128K  | 30  | 0.81 | 6632 | 16 |
-| 1M | 1M | 30 | 2.83 | 2902  | 38 |
-| 5M | 1M  | 20  | 6.72  | 6874 | 17 |
-| 10M | 1M | 20 | 9.33  | 9548 | 15 |
-| 50M | 1M | 20 | 15.6 |15.9k | 14 |
-| 100M |1M | 10 | 13.2 | 13.5k | 33 |
-| 200M  | 1M | 10  | 12.4 |  12.7k| 38 |
-| 1G | 1M | 10 | 14.5 | 14.8k  | 60 |
-
-
+| 128K | 128K | 30 | 0.679 | 5.57K | 17.47ms |
+| 256K | 128K | 30 | 1.479 | 12.11K | 8.92ms |
+| 1MB | 1M | 30 | 5.074 | 5.20K | 21.56ms |
+| 5MB | 1M | 20 | 12.231 | 12.52K | 14.18ms |
+| 10MB | 1M | 20 | 15.244 | 15.61K | 23.39ms |
+| 50MB | 1M | 20 | 17.436 | 17.85K | 134.23ms |
+| 100MB | 1M | 10 | 16.234 | 16.62K | 240.22ms |
+| 200MB | 1M | 10 | 14.998 | 15.36K | 313.32ms |
+| 1GB | 1M | 2 | 12.344 | 12.64K | 473.47ms |
 
 ### Random Reads
-| File Size | BlockSize | nrfiles |Bandwidth in (MiB/sec) | IOPs  |  Avg Latency (msec)  |
+| File Size | BlockSize | nrfiles |Bandwidth in (GiB/sec) | IOPs  |  Avg Latency (msec) |
 |---|---|---|---|---|---|
-| 256K  | 128K  | 30  | 626 | 5009   | 24 |
-| 5M | 1M  | 20  | 4291 | 4290 | 30 |
-| 10M | 1M | 20 | 4138 | 4137 | 37  |
-| 50M | 1M | 20 | 3552 |3552  | 83 |
-| 100M |1M | 10 | 3327 | 3327 | 211 |
-| 200M  | 1M | 10  | 3139 | 3138 | 286 |
-| 1G | 1M | 10 | 3320  | 3320 | 345 |
-
+| 128K | 128K | 30 | 0.636 | 5.21K | 18.74ms |
+| 256K | 128K | 30 | 0.966 | 7.92K | 14.40ms |
+| 1MB | 1M | 30 | 4.967 | 5.09K | 21.46ms |
+| 5MB | 1M | 20 | 5.533 | 5.67K | 40.90ms |
+| 10MB | 1M | 20 | 5.163 | 5.29K | 99.89ms |
+| 50MB | 1M | 20 | 3.608 | 3.69K | 733.98ms |
+| 100MB | 1M | 10 | 3.600 | 3.69K | 1346.87ms |
+| 200MB | 1M | 10 | 2.833 | 2.90K | 2130.03ms |
+| 1GB | 1M | 2 | 2.886 | 2.95K | 2523.21ms |
 
 ### Sequential Writes
-| File Size | BlockSize | nrfiles |Bandwidth in (MiB/sec) | IOPs  |  Avg Latency (msec)  |
+| File Size | BlockSize | nrfiles |Bandwidth in (GiB/sec) | IOPs  |  Avg Latency (msec) |
 |---|---|---|---|---|---|
-| 256K  | 16K  | 30  | 215 | 13.76k | 0.23 |
-| 1M | 1M  | 30  |  718 | 717 | 1.12 |
-| 50M | 1M | 20 | 3592 | 3592 | 2.35 |
-| 100M |1M | 10 | 4549 | 4549 | 7.04 |
-| 1G | 1M | 2 | 2398 | 2398 | 37.07  |
+| 256K | 16K | 30 | 0.019 | 1.25K | 0.06ms |
+| 1M | 1M | 30 | 0.076 | 0.08K | 0.74ms |
+| 50M | 1M | 20 | 3.637 | 3.72K | 0.96ms |
+| 100M | 1M | 10 | 5.051 | 5.17K | 3.03ms |
+| 1G | 1M | 2 | 3.015 | 3.09K | 25.36ms |
 
+ 
 ## GCSFuse Benchmarking on n2 machine-type
 * VM Type: n2-standard-96
 * VM location: us-south1
-* Networking: gVNIC+  tier_1 networking (100Gbps)
-* Disk Type: SSD persistent disk  
+* Networking: gVNIC+ tier_1 networking (100Gbps)
+* Disk Type: SSD persistent disk
 * GCS Bucket location: us-south1
+
 ### Sequential Reads
-| File Size | BlockSize | nrfiles |Bandwidth in (MiB/sec) | IOPs |  Avg Latency (msec)  |
+| File Size | BlockSize | nrfiles |Bandwidth in (GiB/sec) | IOPs  |  Avg Latency (msec) |
 |---|---|---|---|---|---|
-| 128K | 128K | 30  |  443 | 3545 | 29 |
-| 256K  | 128K  | 30  |  821 | 6569 | 16 |
-| 1M | 1M | 30 | 2710 | 2709 | 40 |
-| 5M | 1M  | 20  | 5666 | 5666 | 20 |
-| 10M | 1M | 20 | 5994 | 5993 | 20 |
-| 50M | 1M | 20 | 7986 | 7985 | 28 |
-| 100M |1M | 10 | 6469 | 6468 | 68 |
-| 200M  | 1M | 10  | 6955  | 6954 | 92 |
-| 1G | 1M | 10 | 7470  | 7469 | 131 |
-
-
+| 128K | 128K | 30 | 0.735 | 6.02K | 17.59ms |
+| 256K | 128K | 30 | 1.534 | 12.57K | 8.88ms |
+| 1MB | 1M | 30 | 3.890 | 3.98K | 23.74ms |
+| 5MB | 1M | 20 | 6.514 | 6.67K | 32.94ms |
+| 10MB | 1M | 20 | 6.495 | 6.65K | 71.25ms |
+| 50MB | 1M | 20 | 6.871 | 7.04K | 395.47ms |
+| 100MB | 1M | 10 | 5.971 | 6.11K | 630.02ms |
+| 200MB | 1M | 10 | 6.897 | 7.06K | 875.07ms |
+| 1GB | 1M | 2 | 6.361 | 6.51K | 1051.87ms |
 
 ### Random Reads
-| File Size | BlockSize | nrfiles |Bandwidth in (MiB/sec) | IOPs  |  Avg Latency (msec)  |
+| File Size | BlockSize | nrfiles |Bandwidth in (GiB/sec) | IOPs  |  Avg Latency (msec) |
 |---|---|---|---|---|---|
-| 256K  | 128K  | 30  | 562  | 4499 | 24  |
-| 5M | 1M  | 20  | 3608 | 3607 | 34 |
-| 10M | 1M | 20 | 3185 | 3184  | 45 |
-| 50M | 1M | 20 | 3386  | 3386 | 84 |
-| 100M |1M | 10 | 3297 | 3297 | 207 |
-| 200M  | 1M | 10  | 3150 | 3150 | 279 |
-| 1G | 1M | 10 | 2730 | 2730  | 457  |
-
+| 128K | 128K | 30 | 0.694 | 5.69K | 18.67ms |
+| 256K | 128K | 30 | 0.968 | 7.93K | 14.26ms |
+| 1MB | 1M | 30 | 3.834 | 3.93K | 24.00ms |
+| 5MB | 1M | 20 | 3.841 | 3.93K | 56.43ms |
+| 10MB | 1M | 20 | 2.576 | 2.64K | 158.10ms |
+| 50MB | 1M | 20 | 3.037 | 3.11K | 899.11ms |
+| 100MB | 1M | 10 | 3.064 | 3.14K | 1538.63ms |
+| 200MB | 1M | 10 | 2.737 | 2.80K | 2252.88ms |
+| 1GB | 1M | 2 | 2.735 | 2.80K | 2681.07ms |
 
 ### Sequential Writes
-| File Size | BlockSize | nrfiles |Bandwidth in (MiB/sec) | IOPs  |  Avg Latency (msec)  |
+| File Size | BlockSize | nrfiles |Bandwidth in (GiB/sec) | IOPs  |  Avg Latency (msec) |
 |---|---|---|---|---|---|
-| 256K  | 16K  | 30  | 192 | 12.27k | 0.27 |
-| 1M | 1M  | 30  |  683 | 682 | 1.23 |
-| 50M | 1M | 20 | 3429 | 3429 | 2.88 |
-| 100M |1M | 10 | 3519 | 3518 | 11.83 |
-| 1G | 1M | 2 | 1892 | 1891 | 45.40  |
+| 256K | 16K | 30 | 0.019 | 1.25K | 0.06ms |
+| 1M | 1M | 30 | 0.075 | 0.08K | 0.88ms |
+| 50M | 1M | 20 | 3.516 | 3.60K | 1.08ms |
+| 100M | 1M | 10 | 4.193 | 4.29K | 4.14ms |
+| 1G | 1M | 2 | 0.912 | 0.93K | 103.90ms |
+
 
 <!-- Benchmarks end -->
 
