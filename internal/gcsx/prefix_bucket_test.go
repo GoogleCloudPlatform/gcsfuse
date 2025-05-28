@@ -21,14 +21,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/jacobsa/timeutil"
@@ -329,7 +329,6 @@ func (t *PrefixBucketTest) TestCreateObjectChunkWriterAndFinalizeUpload() {
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), suffix, o.Name)
-	//assert.Equal(t.T(), "en-GB", o.ContentLanguage)
 	assert.Equal(t.T(), "gzip", o.ContentEncoding)
 	// Read it through the back door.
 	actual, err := storageutil.ReadObject(t.ctx, t.wrapped, t.prefix+suffix)
@@ -358,6 +357,7 @@ func (t *PrefixBucketTest) TestCreateObjectChunkWriterAndFlushPendingWrites() {
 
 	assert.NoError(t.T(), err)
 	assert.EqualValues(t.T(), int64(len(content)), o.Size)
+	assert.Equal(t.T(), suffix, o.Name)
 	// Read it through the back door.
 	actual, err := storageutil.ReadObject(t.ctx, t.wrapped, t.prefix+suffix)
 	assert.Equal(t.T(), nil, err)

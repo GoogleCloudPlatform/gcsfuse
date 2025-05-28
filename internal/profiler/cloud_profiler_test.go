@@ -19,7 +19,7 @@ import (
 	"testing"
 
 	cloudprofiler "cloud.google.com/go/profiler"
-	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/option"

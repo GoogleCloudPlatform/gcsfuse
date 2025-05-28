@@ -23,14 +23,13 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"cloud.google.com/go/storage/experimental"
 	"github.com/googleapis/gax-go/v2"
-	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"golang.org/x/net/context"
 	option "google.golang.org/api/option"
 	"google.golang.org/grpc"
@@ -228,8 +227,7 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 }
 
 func (sh *storageClient) lookupBucketType(bucketName string) (*gcs.BucketType, error) {
-	var nilControlClient *control.StorageControlClient = nil
-	if sh.storageControlClient == nilControlClient {
+	if sh.storageControlClient == nil {
 		return &gcs.BucketType{}, nil // Assume defaults
 	}
 
@@ -263,10 +261,10 @@ func (sh *storageClient) getStorageLayout(bucketName string) (*controlpb.Storage
 
 // NewStorageHandle creates control client and stores client config to allow dynamic
 // creation of http or grpc client.
-func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClientConfig) (sh StorageHandle, err error) {
+func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClientConfig, billingProject string) (sh StorageHandle, err error) {
 	// The default protocol for the Go Storage control client's folders API is gRPC.
 	// gcsfuse will initially mirror this behavior due to the client's lack of HTTP support.
-	var controlClient *control.StorageControlClient
+	var controlClient StorageControlClient
 	var clientOpts []option.ClientOption
 
 	// Control-client is needed for folder APIs and for getting storage-layout of the bucket.
@@ -280,6 +278,8 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		if err != nil {
 			return nil, fmt.Errorf("could not create StorageControl Client: %w", err)
 		}
+		// special handling for requester-pays buckets and for mounts created with custom billing projects.
+		controlClient = withBillingProject(controlClient, billingProject)
 	} else {
 		logger.Infof("Skipping storage control client creation because custom-endpoint %q was passed, which is assumed to be a storage testbench server because of 'localhost' in it.", clientConfig.CustomEndpoint)
 	}

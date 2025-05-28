@@ -618,12 +618,12 @@ sudo umount $MOUNT_DIR
 
 # Test package: streaming_writes
 # Run streaming_writes tests.
-gcsfuse --rename-dir-limit=3 --enable-streaming-writes=true --write-block-size-mb=1 --write-max-blocks-per-file=2 $TEST_BUCKET_NAME $MOUNT_DIR
+gcsfuse --rename-dir-limit=3 --write-block-size-mb=1 --write-max-blocks-per-file=2 --write-global-max-blocks=-1 $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/streaming_writes/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME ${ZONAL_BUCKET_ARG}
 sudo umount $MOUNT_DIR
 
 # Run write_large_files tests with streaming writes enabled.
-gcsfuse --enable-streaming-writes=true  $TEST_BUCKET_NAME $MOUNT_DIR
+gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/write_large_files/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME ${ZONAL_BUCKET_ARG}
 sudo umount $MOUNT_DIR
 
@@ -652,3 +652,9 @@ for test_case in "${test_cases[@]}"; do
   rm -rf $log_dir
 done
 
+# Test package: cloud_profiler
+# Run cloud_profiler tests.
+random_profile_label="test"
+gcsfuse --enable-cloud-profiling --profiling-goroutines --profiling-cpu --profiling-heap --profiling-allocated-heap --profiling-mutex --profiling-label $random_profile_label $TEST_BUCKET_NAME $MOUNT_DIR
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/cloud_profiler/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --profile_label=$random_profile_label
+sudo umount $MOUNT_DIR

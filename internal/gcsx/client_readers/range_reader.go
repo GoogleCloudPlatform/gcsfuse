@@ -21,12 +21,13 @@ import (
 	"io"
 	"math"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/common"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 )
 
 const (
@@ -61,14 +62,16 @@ type RangeReader struct {
 	cancel     func()
 
 	readType     string
+	readConfig   *cfg.ReadConfig
 	metricHandle common.MetricHandle
 }
 
-func NewRangeReader(object *gcs.MinObject, bucket gcs.Bucket, metricHandle common.MetricHandle) *RangeReader {
+func NewRangeReader(object *gcs.MinObject, bucket gcs.Bucket, readConfig *cfg.ReadConfig, metricHandle common.MetricHandle) *RangeReader {
 	return &RangeReader{
 		object:       object,
 		bucket:       bucket,
 		metricHandle: metricHandle,
+		readConfig:   readConfig,
 		start:        -1,
 		limit:        -1,
 	}
@@ -222,22 +225,36 @@ func (rr *RangeReader) readFull(ctx context.Context, p []byte) (int, error) {
 
 // Ensure that rr.reader is set up for a range for which [start, start+size) is
 // a prefix. Irrespective of the size requested, we try to fetch more data
-// from GCS defined by sequentialReadSizeMb flag to serve future read requests.
+// from GCS defined by SequentialReadSizeMb flag to serve future read requests.
 func (rr *RangeReader) startRead(start int64, end int64) error {
 	ctx, cancel := context.WithCancel(context.Background())
+	var err error
 
-	rc, err := rr.bucket.NewReaderWithReadHandle(
-		ctx,
-		&gcs.ReadObjectRequest{
-			Name:       rr.object.Name,
-			Generation: rr.object.Generation,
-			Range: &gcs.ByteRange{
+	if rr.readConfig != nil && rr.readConfig.InactiveStreamTimeout > 0 {
+		rr.reader, err = gcsx.NewInactiveTimeoutReader(
+			ctx,
+			rr.bucket,
+			rr.object,
+			rr.readHandle,
+			gcs.ByteRange{
 				Start: uint64(start),
 				Limit: uint64(end),
 			},
-			ReadCompressed: rr.object.HasContentEncodingGzip(),
-			ReadHandle:     rr.readHandle,
-		})
+			rr.readConfig.InactiveStreamTimeout)
+	} else {
+		rr.reader, err = rr.bucket.NewReaderWithReadHandle(
+			ctx,
+			&gcs.ReadObjectRequest{
+				Name:       rr.object.Name,
+				Generation: rr.object.Generation,
+				Range: &gcs.ByteRange{
+					Start: uint64(start),
+					Limit: uint64(end),
+				},
+				ReadCompressed: rr.object.HasContentEncodingGzip(),
+				ReadHandle:     rr.readHandle,
+			})
+	}
 
 	// If a file handle is open locally, but the corresponding object doesn't exist
 	// in GCS, it indicates a file clobbering scenario. This likely occurred because:
@@ -258,7 +275,6 @@ func (rr *RangeReader) startRead(start int64, end int64) error {
 		return err
 	}
 
-	rr.reader = rc
 	rr.cancel = cancel
 	rr.start = start
 	rr.limit = end

@@ -20,14 +20,14 @@ import (
 	"time"
 
 	storagev2 "cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/clock"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/clock"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
 
-// inactiveTimeoutReader is a wrapper over gcs.StorageReader that automatically
+// InactiveTimeoutReader is a wrapper over gcs.StorageReader that automatically
 // closes the wrapped GCS reader connection after a specified period of
 // inactivity (timeout). When a read operation is attempted on an inactive
 // (closed) reader, it automatically attempts to reconnect using the last known
@@ -46,7 +46,7 @@ import (
 //     relative to the background routine wake-up cycle.
 //   - Thread Safety: The reader is safe for concurrent use by multiple goroutines,
 //     protected by an internal mutex.
-type inactiveTimeoutReader struct {
+type InactiveTimeoutReader struct {
 	object *gcs.MinObject
 	bucket gcs.Bucket
 
@@ -93,12 +93,12 @@ func NewInactiveTimeoutReaderWithClock(ctx context.Context, bucket gcs.Bucket, o
 		return nil, ErrZeroInactivityTimeout
 	}
 
-	itr := &inactiveTimeoutReader{
+	itr := &InactiveTimeoutReader{
 		object:     object,
 		bucket:     bucket,
 		reqRange:   byteRange,
 		readHandle: readHandle,
-		mu:         locker.New("inactiveTimeoutReader: "+object.Name, func() {}),
+		mu:         locker.New("InactiveTimeoutReader: "+object.Name, func() {}),
 		isActive:   false,
 	}
 	itr.ctx, itr.cancel = context.WithCancel(ctx)
@@ -115,7 +115,7 @@ func NewInactiveTimeoutReaderWithClock(ctx context.Context, bucket gcs.Bucket, o
 }
 
 // createGCSReader is a helper method to create the underlined reader from itr.start + itr.seen offset.
-func (itr *inactiveTimeoutReader) createGCSReader() (gcs.StorageReader, error) {
+func (itr *InactiveTimeoutReader) createGCSReader() (gcs.StorageReader, error) {
 	reader, err := itr.bucket.NewReaderWithReadHandle(
 		itr.ctx,
 		&gcs.ReadObjectRequest{
@@ -145,7 +145,7 @@ func (itr *inactiveTimeoutReader) createGCSReader() (gcs.StorageReader, error) {
 //
 // Calling Read() after explicitly calling Close() is not supported and will
 // lead to undefined behavior.
-func (itr *inactiveTimeoutReader) Read(p []byte) (n int, err error) {
+func (itr *InactiveTimeoutReader) Read(p []byte) (n int, err error) {
 	itr.mu.Lock()
 	defer itr.mu.Unlock()
 
@@ -165,7 +165,7 @@ func (itr *inactiveTimeoutReader) Read(p []byte) (n int, err error) {
 // Close explicitly closes the underlying gcs.StorageReader if it's currently open.
 // It also signals the background monitor goroutine to stop.
 // Returns an error if closing the underlying reader fails.
-func (itr *inactiveTimeoutReader) Close() (err error) {
+func (itr *InactiveTimeoutReader) Close() (err error) {
 	itr.mu.Lock()
 	defer itr.mu.Unlock()
 
@@ -187,7 +187,7 @@ func (itr *inactiveTimeoutReader) Close() (err error) {
 // ReadHandle returns the read handle associated with the underlying GCS reader.
 // If the reader has been closed due to inactivity, it returns the handle
 // stored from the last active reader.
-func (itr *inactiveTimeoutReader) ReadHandle() (rh storagev2.ReadHandle) {
+func (itr *InactiveTimeoutReader) ReadHandle() (rh storagev2.ReadHandle) {
 	itr.mu.Lock()
 	defer itr.mu.Unlock()
 
@@ -199,7 +199,7 @@ func (itr *inactiveTimeoutReader) ReadHandle() (rh storagev2.ReadHandle) {
 }
 
 // monitor runs in a background goroutine, and checks for inactivity.
-func (itr *inactiveTimeoutReader) monitor(clock clock.Clock, timeout time.Duration) {
+func (itr *InactiveTimeoutReader) monitor(clock clock.Clock, timeout time.Duration) {
 	timer := clock.After(timeout)
 	for {
 		select {
@@ -217,7 +217,7 @@ func (itr *inactiveTimeoutReader) monitor(clock clock.Clock, timeout time.Durati
 // If the reader was marked as active since the last check, it resets the
 // activity flag. If the reader was inactive, it closes the underlying GCS reader.
 // It always returns a new timer channel for the next fire.
-func (itr *inactiveTimeoutReader) handleTimeout() {
+func (itr *InactiveTimeoutReader) handleTimeout() {
 	itr.mu.Lock()
 	defer itr.mu.Unlock()
 
@@ -230,7 +230,7 @@ func (itr *inactiveTimeoutReader) handleTimeout() {
 
 // closeGCSReader closes the wrapped gcsReader, itr.mu.Lock() should be taken
 // before calling this.
-func (itr *inactiveTimeoutReader) closeGCSReader() {
+func (itr *InactiveTimeoutReader) closeGCSReader() {
 	if itr.gcsReader == nil {
 		return
 	}

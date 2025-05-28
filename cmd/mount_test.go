@@ -17,7 +17,7 @@ package cmd
 import (
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/stretchr/testify/assert"
 )
 

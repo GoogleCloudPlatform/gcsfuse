@@ -31,8 +31,8 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/util"
 	"google.golang.org/api/iterator"
 )
 
@@ -44,6 +44,7 @@ var integrationTest = flag.Bool("integrationTest", false, "Run tests only when t
 var testInstalledPackage = flag.Bool("testInstalledPackage", false, "[Optional] Run tests on the package pre-installed on the host machine. By default, integration tests build a new package to run the tests.")
 var testOnTPCEndPoint = flag.Bool("testOnTPCEndPoint", false, "Run tests on TPC endpoint only when the flag value is true.")
 var gcsfusePreBuiltDir = flag.String("gcsfuse_prebuilt_dir", "", "Path to the pre-built GCSFuse directory containing bin/gcsfuse and sbin/mount.gcsfuse.")
+var profileLabelForMountedDirTest = flag.String("profile_label", "", "To pass profile-label for the cloud-profile test.")
 
 const (
 	FilePermission_0600      = 0600
@@ -144,6 +145,11 @@ func SetOnlyDirMounted(onlyDirValue string) {
 // DynamicBucketMounted returns the name of the bucket in case of dynamic mount.
 func DynamicBucketMounted() string {
 	return dynamicBucketMounted
+}
+
+// ProfileLabelForMountedDirTest returns the profile-label required for cloud-profiler test package.
+func ProfileLabelForMountedDirTest() string {
+	return *profileLabelForMountedDirTest
 }
 
 // SetDynamicBucketMounted sets the name of the bucket in case of dynamic mount.

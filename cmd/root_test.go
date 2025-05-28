@@ -16,15 +16,14 @@ package cmd
 
 import (
 	"fmt"
-	"math"
 	"os"
 	"path"
 	"runtime"
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -262,33 +261,33 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 		expectedWriteMaxBlocksPerFile          int64
 	}{
 		{
-			name:                                   "Test create-empty-file flag true.",
-			args:                                   []string{"gcsfuse", "--create-empty-file=true", "abc", "pqr"},
+			name:                                   "Test create-empty-file flag true works when streaming writes are explicitly disabled.",
+			args:                                   []string{"gcsfuse", "--create-empty-file=true", "--enable-streaming-writes=false", "abc", "pqr"},
 			expectedCreateEmptyFile:                true,
 			expectedEnableStreamingWrites:          false,
 			expectedExperimentalEnableRapidAppends: false,
 			expectedWriteBlockSizeMB:               32 * util.MiB,
-			expectedWriteGlobalMaxBlocks:           math.MaxInt64,
+			expectedWriteGlobalMaxBlocks:           4,
 			expectedWriteMaxBlocksPerFile:          1,
 		},
 		{
 			name:                                   "Test create-empty-file flag false.",
 			args:                                   []string{"gcsfuse", "--create-empty-file=false", "abc", "pqr"},
 			expectedCreateEmptyFile:                false,
-			expectedEnableStreamingWrites:          false,
+			expectedEnableStreamingWrites:          true,
 			expectedExperimentalEnableRapidAppends: false,
 			expectedWriteBlockSizeMB:               32 * util.MiB,
-			expectedWriteGlobalMaxBlocks:           math.MaxInt64,
+			expectedWriteGlobalMaxBlocks:           4,
 			expectedWriteMaxBlocksPerFile:          1,
 		},
 		{
 			name:                                   "Test default flags.",
 			args:                                   []string{"gcsfuse", "abc", "pqr"},
 			expectedCreateEmptyFile:                false,
-			expectedEnableStreamingWrites:          false,
+			expectedEnableStreamingWrites:          true,
 			expectedExperimentalEnableRapidAppends: false,
 			expectedWriteBlockSizeMB:               32 * util.MiB,
-			expectedWriteGlobalMaxBlocks:           math.MaxInt64,
+			expectedWriteGlobalMaxBlocks:           4,
 			expectedWriteMaxBlocksPerFile:          1,
 		},
 		{
@@ -298,7 +297,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedEnableStreamingWrites:          true,
 			expectedExperimentalEnableRapidAppends: false,
 			expectedWriteBlockSizeMB:               32 * util.MiB,
-			expectedWriteGlobalMaxBlocks:           math.MaxInt64,
+			expectedWriteGlobalMaxBlocks:           4,
 			expectedWriteMaxBlocksPerFile:          1,
 		},
 		{
@@ -308,17 +307,17 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedEnableStreamingWrites:          false,
 			expectedExperimentalEnableRapidAppends: false,
 			expectedWriteBlockSizeMB:               32 * util.MiB,
-			expectedWriteGlobalMaxBlocks:           math.MaxInt64,
+			expectedWriteGlobalMaxBlocks:           4,
 			expectedWriteMaxBlocksPerFile:          1,
 		},
 		{
 			name:                                   "Test experimental-enable-rapid-appends flag true.",
 			args:                                   []string{"gcsfuse", "--write-experimental-enable-rapid-appends", "abc", "pqr"},
 			expectedCreateEmptyFile:                false,
-			expectedEnableStreamingWrites:          false,
+			expectedEnableStreamingWrites:          true,
 			expectedExperimentalEnableRapidAppends: true,
 			expectedWriteBlockSizeMB:               32 * util.MiB,
-			expectedWriteGlobalMaxBlocks:           math.MaxInt64,
+			expectedWriteGlobalMaxBlocks:           4,
 			expectedWriteMaxBlocksPerFile:          1,
 		},
 		{
@@ -328,7 +327,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedEnableStreamingWrites:          true,
 			expectedExperimentalEnableRapidAppends: false,
 			expectedWriteBlockSizeMB:               10 * util.MiB,
-			expectedWriteGlobalMaxBlocks:           math.MaxInt64,
+			expectedWriteGlobalMaxBlocks:           4,
 			expectedWriteMaxBlocksPerFile:          1,
 		},
 		{
@@ -348,8 +347,26 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedEnableStreamingWrites:          true,
 			expectedExperimentalEnableRapidAppends: false,
 			expectedWriteBlockSizeMB:               32 * util.MiB,
-			expectedWriteGlobalMaxBlocks:           math.MaxInt64,
+			expectedWriteGlobalMaxBlocks:           4,
 			expectedWriteMaxBlocksPerFile:          10,
+		},
+		{
+			name:                                   "Test high performance config values.",
+			args:                                   []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "abc", "pqr"},
+			expectedEnableStreamingWrites:          true,
+			expectedExperimentalEnableRapidAppends: false,
+			expectedWriteBlockSizeMB:               32 * util.MiB,
+			expectedWriteGlobalMaxBlocks:           1600,
+		},
+		{
+			name:                                   "Test high performance config values with --write-global-max-blocks flag overriden.",
+			args:                                   []string{"gcsfuse", "--write-global-max-blocks=2000", "--disable-autoconfig=false", "abc", "pqr"},
+			expectedCreateEmptyFile:                false,
+			expectedEnableStreamingWrites:          true,
+			expectedExperimentalEnableRapidAppends: false,
+			expectedWriteBlockSizeMB:               32 * util.MiB,
+			expectedWriteGlobalMaxBlocks:           2000,
+			expectedWriteMaxBlocksPerFile:          1,
 		},
 	}
 

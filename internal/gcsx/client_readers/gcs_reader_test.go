@@ -21,13 +21,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/common"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/clock"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	testUtil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/clock"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	testUtil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -73,7 +74,12 @@ func (t *gcsReaderTest) SetupTest() {
 		Generation: 1234,
 	}
 	t.mockBucket = new(storage.TestifyMockBucket)
-	t.gcsReader = NewGCSReader(t.object, t.mockBucket, common.NewNoopMetrics(), nil, sequentialReadSizeInMb)
+	t.gcsReader = NewGCSReader(t.object, t.mockBucket, &GCSReaderConfig{
+		MetricHandle:         common.NewNoopMetrics(),
+		MrdWrapper:           nil,
+		SequentialReadSizeMb: sequentialReadSizeInMb,
+		ReadConfig:           nil,
+	})
 	t.ctx = context.Background()
 }
 
@@ -92,7 +98,12 @@ func (t *gcsReaderTest) Test_NewGCSReader() {
 		Generation: 4321,
 	}
 
-	gcsReader := NewGCSReader(object, t.mockBucket, common.NewNoopMetrics(), nil, 200)
+	gcsReader := NewGCSReader(object, t.mockBucket, &GCSReaderConfig{
+		MetricHandle:         common.NewNoopMetrics(),
+		MrdWrapper:           nil,
+		SequentialReadSizeMb: 200,
+		ReadConfig:           nil,
+	})
 
 	assert.Equal(t.T(), object, gcsReader.object)
 	assert.Equal(t.T(), t.mockBucket, gcsReader.bucket)
@@ -484,6 +495,79 @@ func (t *gcsReaderTest) Test_ReadInfo_Random() {
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), random, t.gcsReader.readType)
 			assert.Equal(t.T(), tc.expectedEnd, end)
+		})
+	}
+}
+
+// Validates:
+// 1. No change in ReadAt behavior based inactiveStreamTimeout readConfig.
+// 2. Valid timeout readConfig creates inactiveTimeoutReader instance of storage.Reader.
+func (t *gcsReaderTest) Test_ReadAt_WithAndWithoutReadConfig() {
+	testCases := []struct {
+		name                        string
+		config                      *cfg.ReadConfig
+		expectInactiveTimeoutReader bool
+	}{
+		{
+			name:                        "WithoutReadConfig",
+			config:                      nil,
+			expectInactiveTimeoutReader: false,
+		},
+		{
+			name:                        "WithReadConfigAndZeroTimeout",
+			config:                      &cfg.ReadConfig{InactiveStreamTimeout: 0},
+			expectInactiveTimeoutReader: false,
+		},
+		{
+			name:                        "WithReadConfigAndPositiveTimeout",
+			config:                      &cfg.ReadConfig{InactiveStreamTimeout: 10 * time.Millisecond},
+			expectInactiveTimeoutReader: true,
+		},
+	}
+
+	objectSize := uint64(20)
+	readOffset := int64(0)
+	readLength := 10 // Reading only 10 bytes from the complete object reader.
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			t.SetupTest() // Resets mockBucket, rr, etc. for each sub-test
+			defer t.TearDownTest()
+
+			t.gcsReader.rangeReader.readConfig = tc.config
+			t.gcsReader.rangeReader.reader = nil // Ensure startRead path is taken in ReadAt
+			t.object.Size = objectSize
+			// Prepare fake content for the GCS object.
+			// startRead will attempt to read the entire object [0, objectSize)
+			// because objectSize is small compared to typical SequentialReadSizeMb.
+			fakeReaderContent := testUtil.GenerateRandomBytes(int(t.object.Size))
+			rc := &fake.FakeReader{ReadCloser: getReadCloser(fakeReaderContent)}
+			expectedReadObjectRequest := &gcs.ReadObjectRequest{
+				Name:       t.object.Name,
+				Generation: t.object.Generation,
+				Range: &gcs.ByteRange{
+					Start: uint64(readOffset), // Read from the beginning
+					Limit: t.object.Size,      // getReadInfo will determine this limit
+				},
+				ReadCompressed: t.object.HasContentEncodingGzip(),
+				ReadHandle:     nil, // No existing read handle
+			}
+			t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, expectedReadObjectRequest).Return(rc, nil).Once()
+			// BucketType is called by ReadAt -> getReadInfo -> readerType to determine reader strategy.
+			t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: false}).Once()
+
+			objectData, err := t.readAt(readOffset, int64(readLength))
+
+			t.mockBucket.AssertExpectations(t.T())
+			assert.NoError(t.T(), err)
+			assert.Equal(t.T(), readLength, objectData.Size)
+			assert.Equal(t.T(), fakeReaderContent[:readLength], objectData.DataBuf[:objectData.Size]) // Ensure buffer is populated correctly
+			assert.NotNil(t.T(), t.gcsReader.rangeReader.reader, "Reader should be active as partial data read from the requested range.")
+			assert.NotNil(t.T(), t.gcsReader.rangeReader.cancel)
+			assert.Equal(t.T(), int64(readLength), t.gcsReader.rangeReader.start)
+			assert.Equal(t.T(), int64(t.object.Size), t.gcsReader.rangeReader.limit)
+			_, isInactiveTimeoutReader := t.gcsReader.rangeReader.reader.(*gcsx.InactiveTimeoutReader)
+			assert.Equal(t.T(), tc.expectInactiveTimeoutReader, isInactiveTimeoutReader)
 		})
 	}
 }
