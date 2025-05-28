@@ -29,7 +29,7 @@ import (
 	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/benchmarks/internal/format"
+	"github.com/googlecloudplatform/gcsfuse/v3/benchmarks/internal/format"
 	"github.com/jacobsa/fuse/fsutil"
 )
 
