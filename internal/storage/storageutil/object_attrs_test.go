@@ -98,6 +98,7 @@ func (t objectAttrsTest) TestObjectAttrsToBucketObjectMethod() {
 		Created:                 timeAttr,
 		Deleted:                 timeAttr,
 		Updated:                 timeAttr,
+		Finalized:               timeAttr,
 		CustomerKeySHA256:       "CustomerKeySHA256",
 		KMSKeyName:              "KMSKeyName",
 		Prefix:                  "Prefix",
@@ -133,6 +134,7 @@ func (t objectAttrsTest) TestObjectAttrsToBucketObjectMethod() {
 	ExpectEq(object.MetaGeneration, attrs.Metageneration)
 	ExpectEq(object.StorageClass, attrs.StorageClass)
 	ExpectEq(object.Updated.String(), attrs.Updated.String())
+	ExpectEq(object.Finalized.String(), attrs.Finalized.String())
 	ExpectEq(object.Deleted.String(), attrs.Deleted.String())
 	ExpectEq(object.ContentDisposition, attrs.ContentDisposition)
 	ExpectEq(object.CustomTime, customeTimeExpected)
@@ -241,6 +243,7 @@ func (t objectAttrsTest) Test_ConvertObjToMinObject_WithValidObject() {
 		Generation:      generation,
 		MetaGeneration:  metaGeneration,
 		Updated:         currentTime,
+		Finalized:       currentTime,
 		Metadata:        metadata,
 		ContentEncoding: contentEncode,
 		CRC32C:          &crc32C,
@@ -254,6 +257,7 @@ func (t objectAttrsTest) Test_ConvertObjToMinObject_WithValidObject() {
 	ExpectEq(generation, gcsMinObject.Generation)
 	ExpectEq(metaGeneration, gcsMinObject.MetaGeneration)
 	ExpectTrue(currentTime.Equal(gcsMinObject.Updated))
+	ExpectTrue(currentTime.Equal(gcsMinObject.Finalized))
 	ExpectEq(contentEncode, gcsMinObject.ContentEncoding)
 	ExpectEq(metadata, gcsMinObject.Metadata)
 	ExpectEq(crc32C, *gcsMinObject.CRC32C)
@@ -345,6 +349,7 @@ func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithNonNilMin
 		Generation:      int64(444),
 		MetaGeneration:  int64(555),
 		Updated:         timeAttr,
+		Finalized:       timeAttr,
 		Metadata:        map[string]string{"test_key": "test_value"},
 		ContentEncoding: "test_encoding",
 	}
@@ -372,6 +377,7 @@ func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithNonNilMin
 	ExpectEq(gcsObject.Generation, minObject.Generation)
 	ExpectEq(gcsObject.MetaGeneration, minObject.MetaGeneration)
 	ExpectEq(0, gcsObject.Updated.Compare(minObject.Updated))
+	ExpectEq(0, gcsObject.Finalized.Compare(minObject.Finalized))
 	ExpectEq(gcsObject.Metadata, minObject.Metadata)
 	ExpectEq(gcsObject.ContentEncoding, minObject.ContentEncoding)
 	ExpectEq(gcsObject.ContentType, extendedObjAttr.ContentType)
@@ -407,6 +413,7 @@ func (t objectAttrsTest) Test_ConvertMinObjectToObject_WithNonNilMinObject() {
 		Generation:      int64(444),
 		MetaGeneration:  int64(555),
 		Updated:         timeAttr,
+		Finalized:       timeAttr,
 		Metadata:        map[string]string{"test_key": "test_value"},
 		ContentEncoding: "test_encoding",
 		CRC32C:          &crc32C,
@@ -420,6 +427,7 @@ func (t objectAttrsTest) Test_ConvertMinObjectToObject_WithNonNilMinObject() {
 	ExpectEq(gcsObject.Generation, minObject.Generation)
 	ExpectEq(gcsObject.MetaGeneration, minObject.MetaGeneration)
 	ExpectEq(0, gcsObject.Updated.Compare(minObject.Updated))
+	ExpectEq(0, gcsObject.Finalized.Compare(minObject.Finalized))
 	ExpectEq(gcsObject.Metadata, minObject.Metadata)
 	ExpectEq(gcsObject.ContentEncoding, minObject.ContentEncoding)
 	ExpectEq(gcsObject.ContentType, "")
