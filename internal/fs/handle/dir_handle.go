@@ -54,7 +54,8 @@ type DirHandle struct {
 	// INVARIANT: If !entriesValid, then len(entries) == 0
 	//
 	// GUARDED_BY(Mu)
-	entriesValid bool
+	entriesValid     bool
+	entriesPlusValid bool
 }
 
 // NewDirHandle creates a directory handle that obtains listings from the supplied inode.
@@ -113,7 +114,10 @@ func (dh *DirHandle) checkInvariants() {
 	}
 
 	// INVARIANT: If !entriesValid, then len(entries) == 0
-	if !dh.entriesValid && (len(dh.entries) != 0 || len(dh.entriesPlus) != 0) {
+	if !dh.entriesValid && len(dh.entries) != 0 {
+		panic("Unexpected non-empty entries slice")
+	}
+	if !dh.entriesPlusValid && len(dh.entriesPlus) != 0 {
 		panic("Unexpected non-empty entries slice")
 	}
 }
@@ -154,6 +158,69 @@ func fixConflictingNames(entries []fuseutil.Dirent, localEntries map[string]fuse
 
 		if eIsDir == prevIsDir {
 			if _, ok := localEntries[e.Name]; ok && !eIsDir {
+				// We have found same entry in GCS and local file entries, i.e, the
+				// entry is uploaded to GCS but not yet deleted from local entries.
+				// Do not return the duplicate entry as part of list response.
+				continue
+			} else {
+				err = fmt.Errorf(
+					"weird dirent type pair for name %q: %v, %v",
+					e.Name,
+					e.Type,
+					prev.Type)
+				return
+			}
+		}
+
+		// Repair whichever is not the directory.
+		if eIsDir {
+			prev.Name += inode.ConflictingFileNameSuffix
+		} else {
+			e.Name += inode.ConflictingFileNameSuffix
+		}
+
+		output = append(output, *e)
+	}
+
+	return
+}
+
+// Resolve name conflicts between file objects and directory objects (e.g. the
+// objects "foo/bar" and "foo/bar/") by appending U+000A, which is illegal in
+// GCS object names, to conflicting file names.
+//
+// Input must be sorted by name.
+func fixConflictingNamesPlus(entriesPlus []fuseutil.DirentPlus, localEntriesPlus map[string]fuseutil.DirentPlus) (output []fuseutil.DirentPlus, err error) {
+	// Sanity check.
+	if !sort.IsSorted(sortedDirentsPlus(entriesPlus)) {
+		err = fmt.Errorf("expected sorted input")
+		return
+	}
+
+	// Examine each adjacent pair of names.
+	for i := range entriesPlus {
+		e := &entriesPlus[i]
+
+		// Find the previous entry.
+		if i == 0 {
+			output = append(output, *e)
+			continue
+		}
+
+		prev := &output[len(output)-1]
+
+		// Does the pair have matching names?
+		if e.Name != prev.Name {
+			output = append(output, *e)
+			continue
+		}
+
+		// We expect exactly one to be a directory.
+		eIsDir := e.Type == fuseutil.DT_Directory
+		prevIsDir := prev.Type == fuseutil.DT_Directory
+
+		if eIsDir == prevIsDir {
+			if _, ok := localEntriesPlus[e.Name]; ok && !eIsDir {
 				// We have found same entry in GCS and local file entries, i.e, the
 				// entry is uploaded to GCS but not yet deleted from local entries.
 				// Do not return the duplicate entry as part of list response.
@@ -387,10 +454,10 @@ func (dh *DirHandle) ReadDirPlusHelper(
 
 	if op.Offset == 0 {
 		dh.entriesPlus = nil
-		dh.entriesValid = false
+		dh.entriesPlusValid = false
 	}
 
-	if !dh.entriesValid {
+	if !dh.entriesPlusValid {
 		cores, err = dh.ensureEntriesPlus(ctx)
 		if err != nil {
 			err = fmt.Errorf("readAllEntriesPlus: %w", err)
@@ -403,9 +470,28 @@ func (dh *DirHandle) ReadDirPlusHelper(
 
 func (dh *DirHandle) ReadDirPlus(
 	op *fuseops.ReadDirPlusOp,
-	entriesPlus []fuseutil.DirentPlus) (err error) {
+	entriesPlus []fuseutil.DirentPlus, localFileEntriesPlus map[string]fuseutil.DirentPlus) (err error) {
 
+	// Ensure that the entries are sorted, for use in fixConflictingNames
+	// below.
 	sort.Sort(sortedDirentsPlus(entriesPlus))
+
+	// Fix name conflicts.
+	// When a local file is synced to GCS but not removed from the local file map,
+	// the entries list will have two duplicate entries.
+	// To handle this scenario, we are removing the duplicate entry before
+	// returning the response to kernel.
+	entriesPlus, err = fixConflictingNamesPlus(entriesPlus, localFileEntriesPlus)
+	if err != nil {
+		err = fmt.Errorf("fixConflictingNames: %w", err)
+		return
+	}
+
+	// Append local file entries (not synced to GCS).
+	for _, localEntryPlus := range localFileEntriesPlus {
+		entriesPlus = append(entriesPlus, localEntryPlus)
+	}
+
 	for i := 0; i < len(entriesPlus); i++ {
 		entriesPlus[i].Offset = fuseops.DirOffset(i) + 1
 	}
@@ -417,7 +503,7 @@ func (dh *DirHandle) ReadDirPlus(
 	if dh.entriesPlus == nil {
 		dh.entriesPlus = entriesPlus
 	}
-	dh.entriesValid = true
+	dh.entriesPlusValid = true
 	// Is the offset past the end of what we have buffered? If so, this must be
 	// an invalid seekdir according to posix.
 	index := int(op.Offset)

@@ -1924,17 +1924,17 @@ func (fs *fileSystem) CreateSymlink(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) RmDir(
-// When rm -r or os.RemoveAll call is made, the following calls are made in order
-//	 1. RmDir (only in the case of os.RemoveAll)
-//	 2. Unlink all nested files,
-//	 3. lookupInode call on implicit directory
-//	 4. Rmdir on the directory.
-//
-// When type cache ttl is set, we construct an implicitDir even though one doesn't
-// exist on GCS (https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/internal/fs/inode/dir.go#L452),
-// and thus, we get rmDir call to GCSFuse.
-// Whereas when ttl is zero, lookupInode call itself fails and RmDir is not called
-// because object is not present in GCS.
+	// When rm -r or os.RemoveAll call is made, the following calls are made in order
+	//	 1. RmDir (only in the case of os.RemoveAll)
+	//	 2. Unlink all nested files,
+	//	 3. lookupInode call on implicit directory
+	//	 4. Rmdir on the directory.
+	//
+	// When type cache ttl is set, we construct an implicitDir even though one doesn't
+	// exist on GCS (https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/internal/fs/inode/dir.go#L452),
+	// and thus, we get rmDir call to GCSFuse.
+	// Whereas when ttl is zero, lookupInode call itself fails and RmDir is not called
+	// because object is not present in GCS.
 
 	ctx context.Context,
 	op *fuseops.RmDirOp) (err error) {
@@ -2454,7 +2454,7 @@ func (fs *fileSystem) Unlink(
 	err = parent.DeleteChildFile(
 		ctx,
 		op.Name,
-		0, // Latest generation
+		0,   // Latest generation
 		nil) // No meta-generation precondition
 
 	if err != nil {
@@ -2544,6 +2544,10 @@ func (fs *fileSystem) ReadDirPlus(
 	// Find the handle.
 	fs.mu.Lock()
 	dh := fs.handles[op.Handle].(*handle.DirHandle)
+	in := fs.dirInodeOrDie(op.Inode)
+	// Fetch local file entries beforehand and pass it to directory handle as
+	// we need fs lock to fetch local file entries.
+	localFileEntriesPlus := in.LocalFileEntriesPlus(fs.localFileInodes)
 	fs.mu.Unlock()
 
 	dh.Mu.Lock()
@@ -2551,6 +2555,11 @@ func (fs *fileSystem) ReadDirPlus(
 	var cores map[inode.Name]*inode.Core
 	cores, err = dh.ReadDirPlusHelper(ctx, op)
 
+	if err != nil {
+		err = fmt.Errorf("ReadDirPlusHelper: %w", err)
+		dh.Mu.Unlock()
+		return
+	}
 	dh.Mu.Unlock()
 	var child inode.Inode
 	var attributes fuseops.InodeAttributes
@@ -2562,11 +2571,14 @@ func (fs *fileSystem) ReadDirPlus(
 			continue
 		}
 		attributes, expiration, err = fs.getAttributes(ctx, child)
+		if err != nil {
+			continue
+		}
 		childInodeEntry := fuseops.ChildInodeEntry{
 			Child:                child.ID(),
-			Attributes:           attributes, // Assuming you have attributes available
-			AttributesExpiration: expiration, // And expiration
-			//EntryExpiration:      expiration,
+			Attributes:           attributes,
+			AttributesExpiration: expiration,
+			EntryExpiration:      expiration,
 		}
 		entry := fuseutil.DirentPlus{
 			Name:  path.Base(fullName.LocalName()),
@@ -2581,12 +2593,14 @@ func (fs *fileSystem) ReadDirPlus(
 		case metadata.ImplicitDirType, metadata.ExplicitDirType:
 			entry.Type = fuseutil.DT_Directory
 		}
+
 		entriesPlus = append(entriesPlus, entry)
-		fs.unlockAndMaybeDisposeOfInode(child, &err)
+		//fs.unlockAndMaybeDisposeOfInode(child, &err)
+		child.Unlock()
 	}
 
 	dh.Mu.Lock()
-	if err := dh.ReadDirPlus(op, entriesPlus); err != nil {
+	if err := dh.ReadDirPlus(op, entriesPlus, localFileEntriesPlus); err != nil {
 		return err
 	}
 	dh.Mu.Unlock()
