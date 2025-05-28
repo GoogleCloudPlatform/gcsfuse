@@ -163,7 +163,9 @@ func (t *FileTest) createBufferedWriteHandler(shouldInitialize bool) {
 	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), shouldInitialize, initialized)
-	assert.NotNil(t.T(), t.in.bwh)
+	if shouldInitialize {
+		assert.NotNil(t.T(), t.in.bwh)
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -1010,32 +1012,27 @@ func (t *FileTest) TestTruncateDownwardWhenStreamingWritesAreEnabled() {
 	tbl := []struct {
 		name         string
 		fileType     string
-		performWrite bool
 		truncateSize int64
 	}{
 		{
-			name:         "LocalFileWithWrite",
+			name:         "LocalFileTruncateToNonZero",
 			fileType:     LocalFile,
-			performWrite: true,
 			truncateSize: 2,
 		},
 		{
-			name:         "LocalFileWithOutWrite",
+			name:         "LocalFileTruncateToZero",
 			fileType:     LocalFile,
-			performWrite: false,
-			truncateSize: -1,
+			truncateSize: 0,
 		},
 		{
-			name:         "EmptyGCSFileWithWrite",
+			name:         "EmptyGCSFileTruncateToNonZero",
 			fileType:     EmptyGCSFile,
-			performWrite: true,
 			truncateSize: 2,
 		},
 		{
-			name:         "EmptyGCSFileWithOutWrite",
+			name:         "EmptyGCSFileTruncateToZero",
 			fileType:     EmptyGCSFile,
-			performWrite: false,
-			truncateSize: -1,
+			truncateSize: 0,
 		},
 	}
 	for _, tc := range tbl {
@@ -1052,22 +1049,18 @@ func (t *FileTest) TestTruncateDownwardWhenStreamingWritesAreEnabled() {
 			require.NoError(t.T(), err)
 			assert.Equal(t.T(), uint64(0), attrs.Size)
 
-			if tc.performWrite {
-				t.createBufferedWriteHandler(true)
-				err := t.in.Write(t.ctx, []byte("hihello"), 0, util.Write)
-				assert.Nil(t.T(), err)
-				assert.Equal(t.T(), int64(7), t.in.bwh.WriteFileInfo().TotalSize)
-				// Fetch the attributes and check if the file size reflects the write.
-				attrs, err := t.in.Attributes(t.ctx)
-				require.NoError(t.T(), err)
-				assert.Equal(t.T(), uint64(7), attrs.Size)
-			}
-			t.createBufferedWriteHandler(!tc.performWrite)
-
+			t.createBufferedWriteHandler(true)
+			err = t.in.Write(t.ctx, []byte("hihello"), 0)
+			assert.Nil(t.T(), err)
+			assert.Equal(t.T(), int64(7), t.in.bwh.WriteFileInfo().TotalSize)
+			// Fetch the attributes and check if the file size reflects the write.
+			attrs, err = t.in.Attributes(t.ctx)
+			require.NoError(t.T(), err)
+			assert.Equal(t.T(), uint64(7), attrs.Size)
 			err = t.in.Truncate(t.ctx, tc.truncateSize)
 
-			require.Error(t.T(), err)
-			assert.ErrorContains(t.T(), err, "cannot truncate")
+			require.NoError(t.T(), err)
+			t.createBufferedWriteHandler(false)
 		})
 	}
 }

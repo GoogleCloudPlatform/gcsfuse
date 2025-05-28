@@ -934,7 +934,19 @@ func (f *FileInode) Truncate(
 	size int64) (err error) {
 
 	if f.bwh != nil {
-		return f.bwh.Truncate(size)
+		err = f.bwh.Truncate(size)
+		if err == nil {
+			return
+		}
+		if !errors.Is(err, bufferedwrites.ErrTruncateSizeLessThanFileSize) {
+			return fmt.Errorf("got unexpected error from bwh.Truncate(): %w", err)
+		}
+		logger.Infof("Falling back to staged writes on disk for file %s (inode %d) due to err: %v.", f.Name(), f.ID(), err.Error())
+		// Finalize the object.
+		err = f.flushUsingBufferedWriteHandler()
+		if err != nil {
+			return fmt.Errorf("could not finalize what has been written so far: %w", err)
+		}
 	}
 
 	// Make sure f.content != nil.

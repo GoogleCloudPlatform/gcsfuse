@@ -56,7 +56,7 @@ func (t *CommonLocalFileTestSuite) TestStatOnLocalFileWithConflictingFileNameSuf
 		FileName1, "", t.T())
 }
 
-func (t *localFileTestSuite) TestTruncateLocalFileToSmallerSize() {
+func (t *CommonLocalFileTestSuite) TestTruncateLocalFileToSmallerSize() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
 	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())

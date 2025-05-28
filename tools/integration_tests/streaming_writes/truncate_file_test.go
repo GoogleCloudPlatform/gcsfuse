@@ -124,11 +124,5 @@ func (t *StreamingWritesSuite) TestTruncateToLowerSizeAfterWrite() {
 	// Perform truncate
 	err := t.f1.Truncate(int64(5))
 
-	if t.fallbackToDiskCase {
-		require.NoError(t.T(), err)
-	} else {
-		// Truncating to lower size after writes are not allowed if buffered writes are used.
-		require.Error(t.T(), err)
-		operations.VerifyStatFile(t.filePath, int64(2*len(FileContents)), FilePerms, t.T())
-	}
+	require.NoError(t.T(), err)
 }

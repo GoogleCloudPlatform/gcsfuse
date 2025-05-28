@@ -88,6 +88,7 @@ type WriteFileInfo struct {
 }
 
 var ErrOutOfOrderWrite = errors.New("outOfOrder write detected")
+var ErrTruncateSizeLessThanFileSize = errors.New("truncate size less than file size")
 
 type CreateBWHandlerRequest struct {
 	Object                   *gcs.Object
@@ -260,9 +261,10 @@ func (wh *bufferedWriteHandlerImpl) SetMtime(mtime time.Time) {
 
 func (wh *bufferedWriteHandlerImpl) Truncate(size int64) error {
 	if size < wh.totalSize {
-		return fmt.Errorf("cannot truncate to lesser size when upload is in progress")
+		logger.Errorf("BufferedWriteHandler.TruncateToLowerSizeError for object: %s, file size: %d, truncate size: %d",
+			wh.uploadHandler.objectName, wh.totalSize, size)
+		return ErrTruncateSizeLessThanFileSize
 	}
-
 	wh.truncatedSize = size
 	return nil
 }
