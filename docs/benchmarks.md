@@ -9,7 +9,7 @@ workloads for the given test setup:
 * Infra: GCP VM
 * OS: ubuntu-20.04
 * Framework: FIO (version 3.39)
-* GCSFuse version: PR:change-default-configs-for-streaming-writes
+* GCSFuse version: change-default-configs-for-streaming-writes
 
 ## FIO workloads
 Please read the details about the FIO specification [here](https://fio.readthedocs.io/en/latest/).
