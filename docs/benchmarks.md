@@ -84,6 +84,8 @@ numbers will be different for edits/appends to existing files.
 all writes are first staged to a local temporary directory before being written
 to GCS on close/fsync.
 
+# Benchmarks start
+
 ## GCSFuse Benchmarking on c4 machine-type
 * VM Type: c4-standard-96
 * VM location: us-south1
@@ -169,7 +171,7 @@ to GCS on close/fsync.
 | 100M |1M | 10 | 3519 | 3518 | 11.83 |
 | 1G | 1M | 2 | 1892 | 1891 | 45.40  |
 
-
+# Benchmarks end
 
 ## Steps to benchmark GCSFuse performance
 
