@@ -147,9 +147,8 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		logger.Fatal("error setting direct path env var: %v", err)
 	}
 
-	// Conditionally set the GOOGLE_CLOUD_DISABLE_DIRECT_PATH environment variable.
-	// This variable is set to "true" if the CustomEndpoint does contain "tpc".
-	// TPC does not support Direct path in gRPC.(b/420794069#comment8)
+	// TPC does not support direct path in gRPC.(b/420794069#comment8)
+	// Sets GOOGLE_CLOUD_DISABLE_DIRECT_PATH to "true" if the CustomEndpoint contains "tpc".
 	// TODO: Remove this check once the direct path is available in TPC environment.
 	if strings.Contains(clientConfig.CustomEndpoint, "tpc") {
 		if err := os.Setenv("GOOGLE_CLOUD_DISABLE_DIRECT_PATH", "true"); err != nil {
