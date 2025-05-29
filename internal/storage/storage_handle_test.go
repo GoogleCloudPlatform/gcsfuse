@@ -606,7 +606,10 @@ func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_SetsAndUnsetsEnv_
 	initialValue := "temp"
 	err := os.Setenv(disableDirectPath, initialValue)
 	require.NoError(testSuite.T(), err)
-	defer os.Unsetenv(disableDirectPath)
+	defer func() {
+		err := os.Unsetenv(disableDirectPath)
+		require.NoError(testSuite.T(), err, "failed to unset env var during cleanup")
+	}()
 	clientConfig := storageutil.GetDefaultStorageClientConfig()
 	clientConfig.CustomEndpoint = "tpc-something.apis.com"
 
@@ -620,7 +623,10 @@ func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_SkipsEnvChange_Fo
 	expectedValue := "temp"
 	err := os.Setenv(disableDirectPath, expectedValue)
 	require.NoError(testSuite.T(), err)
-	defer os.Unsetenv(disableDirectPath)
+	defer func() {
+		err := os.Unsetenv(disableDirectPath)
+		require.NoError(testSuite.T(), err, "failed to unset env var during cleanup")
+	}()
 	clientConfig := storageutil.GetDefaultStorageClientConfig()
 	clientConfig.CustomEndpoint = "googleapi.com"
 
