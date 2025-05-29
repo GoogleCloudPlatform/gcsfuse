@@ -128,11 +128,12 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 		fh.inode.Unlock()
 
 		var objectData gcsx.ObjectData
-		if !fh.inode.Bucket().BucketType().Zonal || fh.reader.ReadType() == util.Sequential {
+		readPattern := fh.reader.ReadType()
+		if !fh.inode.Bucket().BucketType().Zonal || readPattern == util.Sequential {
 			fh.mu.Lock()
 			defer fh.mu.Unlock()
 		}
-		objectData, err = fh.reader.ReadAt(ctx, dst, offset)
+		objectData, err = fh.reader.ReadAt(ctx, dst, offset, readPattern)
 		switch {
 		case errors.Is(err, io.EOF):
 			if err != io.EOF {
