@@ -142,18 +142,22 @@ func setRetryConfig(sc *storage.Client, clientConfig *storageutil.StorageClientC
 
 // Followed https://pkg.go.dev/cloud.google.com/go/storage#hdr-Experimental_gRPC_API to create the gRPC client.
 func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig, enableBidiConfig bool) (sc *storage.Client, err error) {
-	// Conditionally set the GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS environment variable.
-	// This variable is set to "true" if the CustomEndpoint does not contain "tpc".
+	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
+		logger.Fatal("error setting direct path env var: %v", err)
+	}
+
+	// Conditionally set the GOOGLE_CLOUD_DISABLE_DIRECT_PATH environment variable.
+	// This variable is set to "true" if the CustomEndpoint does contain "tpc".
 	// TPC does not support Direct path in gRPC.(b/420794069#comment8)
 	// TODO: Remove this check once the direct path is available in TPC environment.
-	if !strings.Contains(clientConfig.CustomEndpoint, "tpc") {
-		if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
+	if strings.Contains(clientConfig.CustomEndpoint, "tpc") {
+		if err := os.Setenv("GOOGLE_CLOUD_DISABLE_DIRECT_PATH", "true"); err != nil {
 			log.Fatalf("error setting direct path env var: %v", err)
 		}
 		// Defer unsetting the environment variable immediately after setting it.
 		// This guarantees it will be unset when the function returns.
 		defer func() {
-			if err := os.Unsetenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS"); err != nil {
+			if err := os.Unsetenv("GOOGLE_CLOUD_DISABLE_DIRECT_PATH"); err != nil {
 				log.Fatalf("error while unsetting direct path env var: %v", err)
 			}
 		}()
@@ -170,6 +174,11 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		err = fmt.Errorf("NewGRPCClient: %w", err)
 	} else {
 		setRetryConfig(sc, clientConfig)
+	}
+
+	// Unset the environment variable, since it's used only while creation of grpc client.
+	if err := os.Unsetenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS"); err != nil {
+		logger.Fatal("error while unsetting direct path env var: %v", err)
 	}
 
 	return
@@ -338,7 +347,8 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 		return nil, err
 	}
 
-	if bucketType.Zonal || sh.clientConfig.ClientProtocol == cfg.GRPC {
+	// TPC does not support direct path validation.
+	if (bucketType.Zonal || sh.clientConfig.ClientProtocol == cfg.GRPC) && !strings.Contains(sh.clientConfig.CustomEndpoint, "tpc") {
 		if sh.directPathDetector != nil {
 			if err := sh.directPathDetector.isDirectPathPossible(ctx, bucketName); err != nil {
 				logger.Warnf("Direct path connectivity unavailable for %s, reason: %v", bucketName, err)

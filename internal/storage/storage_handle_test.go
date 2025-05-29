@@ -34,6 +34,7 @@ import (
 
 const invalidBucketName string = "will-not-be-present-in-fake-server"
 const projectID string = "valid-project-id"
+const disableDirectPath string = "GOOGLE_CLOUD_DISABLE_DIRECT_PATH"
 
 type StorageHandleTest struct {
 	suite.Suite
@@ -601,30 +602,30 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithMaxRetryAttemptsNotZ
 	}
 }
 
-func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_SetsAndUnsetsEnv_ForNonTPC() {
+func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_SetsAndUnsetsEnv_ForTPC() {
 	initialValue := "temp"
-	err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", initialValue)
+	err := os.Setenv(disableDirectPath, initialValue)
 	require.NoError(testSuite.T(), err)
-	defer os.Unsetenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS")
-	clientConfig := storageutil.GetDefaultStorageClientConfig()
-	clientConfig.CustomEndpoint = "googleapi.com"
-
-	_, err = createGRPCClientHandle(nil, &clientConfig, false)
-
-	assert.NoError(testSuite.T(), err)
-	assert.Equal(testSuite.T(), "", os.Getenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS"), "env var should be unset after function execution")
-}
-
-func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_SkipsEnvChange_ForTPC() {
-	expectedValue := "temp"
-	err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", expectedValue)
-	require.NoError(testSuite.T(), err)
-	defer os.Unsetenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS")
+	defer os.Unsetenv(disableDirectPath)
 	clientConfig := storageutil.GetDefaultStorageClientConfig()
 	clientConfig.CustomEndpoint = "tpc-something.apis.com"
 
 	_, err = createGRPCClientHandle(nil, &clientConfig, false)
 
 	assert.NoError(testSuite.T(), err)
-	assert.Equal(testSuite.T(), expectedValue, os.Getenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS"), "env var should remain unchanged for TPC endpoint")
+	assert.Equal(testSuite.T(), "", os.Getenv(disableDirectPath), "env var should be unset after function execution")
+}
+
+func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_SkipsEnvChange_ForNonTPC() {
+	expectedValue := "temp"
+	err := os.Setenv(disableDirectPath, expectedValue)
+	require.NoError(testSuite.T(), err)
+	defer os.Unsetenv(disableDirectPath)
+	clientConfig := storageutil.GetDefaultStorageClientConfig()
+	clientConfig.CustomEndpoint = "googleapi.com"
+
+	_, err = createGRPCClientHandle(nil, &clientConfig, false)
+
+	assert.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), expectedValue, os.Getenv(disableDirectPath), "env var should remain unchanged for non TPC endpoint")
 }
