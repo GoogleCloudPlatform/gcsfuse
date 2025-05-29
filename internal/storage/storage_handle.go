@@ -16,7 +16,6 @@ package storage
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -152,13 +151,13 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	// TODO: Remove this check once the direct path is available in TPC environment.
 	if strings.Contains(clientConfig.CustomEndpoint, "tpc") {
 		if err := os.Setenv("GOOGLE_CLOUD_DISABLE_DIRECT_PATH", "true"); err != nil {
-			log.Fatalf("error setting disable direct path env var: %v", err)
+			logger.Fatal("error setting disable direct path env var: %v", err)
 		}
 		// Defer unsetting the environment variable immediately after setting it.
 		// This guarantees it will be unset when the function returns.
 		defer func() {
 			if err := os.Unsetenv("GOOGLE_CLOUD_DISABLE_DIRECT_PATH"); err != nil {
-				log.Fatalf("error while unsetting disable direct path env var: %v", err)
+				logger.Fatal("error while unsetting disable direct path env var: %v", err)
 			}
 		}()
 	}
