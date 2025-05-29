@@ -61,7 +61,7 @@ func (t *CommonLocalFileTestSuite) TestTruncateLocalFileToSmallerSize() {
 	// Create a local file.
 	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
 	// Writing contents to local file .
-	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, FileName1, t.T())
+	operations.WriteWithoutClose(fh, FileContents, t.T())
 
 	// Stat the file to validate if new contents are written.
 	operations.VerifyStatFile(filePath, SizeOfFileContents, FilePerms, t.T())
@@ -71,8 +71,6 @@ func (t *CommonLocalFileTestSuite) TestTruncateLocalFileToSmallerSize() {
 	if err != nil {
 		t.T().Fatalf("os.Truncate err: %v", err)
 	}
-
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
 
 	// Stat the file to validate if file is truncated correctly.
 	operations.VerifyStatFile(filePath, SmallerSizeTruncate, FilePerms, t.T())

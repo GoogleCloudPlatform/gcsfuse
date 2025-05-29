@@ -1050,7 +1050,7 @@ func (t *FileTest) TestTruncateDownwardWhenStreamingWritesAreEnabled() {
 			assert.Equal(t.T(), uint64(0), attrs.Size)
 
 			t.createBufferedWriteHandler(true)
-			err = t.in.Write(t.ctx, []byte("hihello"), 0)
+			err = t.in.Write(t.ctx, []byte("hihello"), 0, util.Write)
 			assert.Nil(t.T(), err)
 			assert.Equal(t.T(), int64(7), t.in.bwh.WriteFileInfo().TotalSize)
 			// Fetch the attributes and check if the file size reflects the write.

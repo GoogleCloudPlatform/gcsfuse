@@ -84,45 +84,82 @@ func (t *StreamingWritesSuite) TestWriteAfterTruncate() {
 }
 
 func (t *StreamingWritesSuite) TestWriteAndTruncate() {
-	var truncateSize int64 = 20
-	operations.WriteWithoutClose(t.f1, FileContents, t.T())
-	operations.VerifyStatFile(t.filePath, int64(len(FileContents)), FilePerms, t.T())
+	testCases := []struct {
+		name            string
+		intitialContent string
+		truncateSize    int64
+		finalContent    string
+	}{
+		{
+			name:            "WriteTruncateToUpper",
+			intitialContent: "foobar",
+			truncateSize:    9,
+			finalContent:    "foobar\x00\x00\x00",
+		},
+		{
+			name:            "WriteTruncateToLower",
+			intitialContent: "foobar",
+			truncateSize:    3,
+			finalContent:    "foo",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			// Write
+			operations.WriteWithoutClose(t.f1, tc.intitialContent, t.T())
+			operations.VerifyStatFile(t.filePath, int64(len(tc.intitialContent)), FilePerms, t.T())
 
-	err := t.f1.Truncate(truncateSize)
+			// Perform truncate
+			err := t.f1.Truncate(tc.truncateSize)
 
-	require.NoError(t.T(), err)
-	data := make([]byte, 10)
-	// Verify that GCSFuse is returning correct file size before the file is uploaded.
-	operations.VerifyStatFile(t.filePath, truncateSize, FilePerms, t.T())
-	// Close the file and validate that the file is created on GCS.
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, FileContents+string(data[:]), t.T())
+			require.NoError(t.T(), err)
+			operations.VerifyStatFile(t.filePath, tc.truncateSize, FilePerms, t.T())
+			// Close the file and validate that the file is created on GCS.
+			CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, tc.finalContent, t.T())
+		})
+	}
 }
 
 func (t *StreamingWritesSuite) TestWriteTruncateWrite() {
-	truncateSize := 30
+	testCases := []struct {
+		name           string
+		truncateSize   int64
+		initialContent string
+		writeContent   string
+		finalContent   string
+	}{
+		{
+			name:           "WriteTruncateToUpperWrite",
+			truncateSize:   12,
+			initialContent: "foobar",
+			writeContent:   "foo",
+			finalContent:   "foobarfoo\x00\x00\x00",
+		},
+		{
+			name:           "WriteTruncateToLowerWrite",
+			truncateSize:   3,
+			initialContent: "foobar",
+			writeContent:   "foo",
+			finalContent:   "foo\x00\x00\x00foo",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			// Write
+			operations.WriteWithoutClose(t.f1, tc.initialContent, t.T())
+			operations.VerifyStatFile(t.filePath, int64(len(tc.initialContent)), FilePerms, t.T())
+			// Perform truncate
+			// Note: truncate operation does not change the position of the file pointer of file handle.
+			err := t.f1.Truncate(tc.truncateSize)
+			require.NoError(t.T(), err)
+			operations.VerifyStatFile(t.filePath, tc.truncateSize, FilePerms, t.T())
 
-	// Write
-	operations.WriteWithoutClose(t.f1, FileContents, t.T())
-	operations.VerifyStatFile(t.filePath, int64(len(FileContents)), FilePerms, t.T())
-	// Perform truncate
-	err := t.f1.Truncate(int64(truncateSize))
-	require.NoError(t.T(), err)
-	operations.VerifyStatFile(t.filePath, int64(truncateSize), FilePerms, t.T())
-	// Write
-	operations.WriteWithoutClose(t.f1, FileContents, t.T())
-	operations.VerifyStatFile(t.filePath, int64(truncateSize), FilePerms, t.T())
+			// Write again
+			operations.WriteWithoutClose(t.f1, tc.writeContent, t.T())
 
-	data := make([]byte, 10)
-	// Close the file and validate that the file is created on GCS.
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, FileContents+FileContents+string(data[:]), t.T())
-}
-
-func (t *StreamingWritesSuite) TestTruncateToLowerSizeAfterWrite() {
-	// Write
-	operations.WriteWithoutClose(t.f1, FileContents+FileContents, t.T())
-	operations.VerifyStatFile(t.filePath, int64(2*len(FileContents)), FilePerms, t.T())
-	// Perform truncate
-	err := t.f1.Truncate(int64(5))
-
-	require.NoError(t.T(), err)
+			operations.VerifyStatFile(t.filePath, int64(len(tc.finalContent)), FilePerms, t.T())
+			// Close the file and validate that the file is created on GCS.
+			CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, tc.finalContent, t.T())
+		})
+	}
 }

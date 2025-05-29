@@ -261,10 +261,9 @@ func (wh *bufferedWriteHandlerImpl) SetMtime(mtime time.Time) {
 
 func (wh *bufferedWriteHandlerImpl) Truncate(size int64) error {
 	if size < wh.totalSize {
-		logger.Errorf("BufferedWriteHandler.TruncateToLowerSizeError for object: %s, file size: %d, truncate size: %d",
-			wh.uploadHandler.objectName, wh.totalSize, size)
 		return ErrTruncateSizeLessThanFileSize
 	}
+
 	wh.truncatedSize = size
 	return nil
 }
