@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"os"
 	"testing"
 	"time"
 
@@ -598,4 +599,32 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithMaxRetryAttemptsNotZ
 	if assert.NoError(testSuite.T(), err) {
 		assert.NotNil(testSuite.T(), handleCreated)
 	}
+}
+
+func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_SetsAndUnsetsEnv_ForNonTPC() {
+	initialValue := "temp"
+	err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", initialValue)
+	require.NoError(testSuite.T(), err)
+	defer os.Unsetenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS")
+	clientConfig := storageutil.GetDefaultStorageClientConfig()
+	clientConfig.CustomEndpoint = "googleapi.com"
+
+	_, err = createGRPCClientHandle(nil, &clientConfig, false)
+
+	assert.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), "", os.Getenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS"), "env var should be unset after function execution")
+}
+
+func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_SkipsEnvChange_ForTPC() {
+	expectedValue := "temp"
+	err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", expectedValue)
+	require.NoError(testSuite.T(), err)
+	defer os.Unsetenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS")
+	clientConfig := storageutil.GetDefaultStorageClientConfig()
+	clientConfig.CustomEndpoint = "tpc-something.apis.com"
+
+	_, err = createGRPCClientHandle(nil, &clientConfig, false)
+
+	assert.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), expectedValue, os.Getenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS"), "env var should remain unchanged for TPC endpoint")
 }
