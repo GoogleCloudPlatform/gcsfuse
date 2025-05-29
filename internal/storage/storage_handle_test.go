@@ -610,7 +610,7 @@ func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_SetsAndUnsetsEnv_
 	clientConfig := storageutil.GetDefaultStorageClientConfig()
 	clientConfig.CustomEndpoint = "tpc-something.apis.com"
 
-	_, err = createGRPCClientHandle(nil, &clientConfig, false)
+	_, err = createGRPCClientHandle(context.TODO(), &clientConfig, false)
 
 	assert.NoError(testSuite.T(), err)
 	assert.Equal(testSuite.T(), "", os.Getenv(disableDirectPath), "env var should be unset after function execution")
@@ -624,7 +624,7 @@ func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_SkipsEnvChange_Fo
 	clientConfig := storageutil.GetDefaultStorageClientConfig()
 	clientConfig.CustomEndpoint = "googleapi.com"
 
-	_, err = createGRPCClientHandle(nil, &clientConfig, false)
+	_, err = createGRPCClientHandle(context.TODO(), &clientConfig, false)
 
 	assert.NoError(testSuite.T(), err)
 	assert.Equal(testSuite.T(), expectedValue, os.Getenv(disableDirectPath), "env var should remain unchanged for non TPC endpoint")

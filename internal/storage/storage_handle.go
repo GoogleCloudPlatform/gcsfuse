@@ -142,6 +142,7 @@ func setRetryConfig(sc *storage.Client, clientConfig *storageutil.StorageClientC
 
 // Followed https://pkg.go.dev/cloud.google.com/go/storage#hdr-Experimental_gRPC_API to create the gRPC client.
 func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig, enableBidiConfig bool) (sc *storage.Client, err error) {
+
 	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
 		logger.Fatal("error setting direct path env var: %v", err)
 	}
@@ -152,13 +153,13 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	// TODO: Remove this check once the direct path is available in TPC environment.
 	if strings.Contains(clientConfig.CustomEndpoint, "tpc") {
 		if err := os.Setenv("GOOGLE_CLOUD_DISABLE_DIRECT_PATH", "true"); err != nil {
-			log.Fatalf("error setting direct path env var: %v", err)
+			log.Fatalf("error setting disable direct path env var: %v", err)
 		}
 		// Defer unsetting the environment variable immediately after setting it.
 		// This guarantees it will be unset when the function returns.
 		defer func() {
 			if err := os.Unsetenv("GOOGLE_CLOUD_DISABLE_DIRECT_PATH"); err != nil {
-				log.Fatalf("error while unsetting direct path env var: %v", err)
+				log.Fatalf("error while unsetting disable direct path env var: %v", err)
 			}
 		}()
 	}
