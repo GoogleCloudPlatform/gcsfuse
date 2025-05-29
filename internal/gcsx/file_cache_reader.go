@@ -132,15 +132,18 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 		if err != nil {
 			switch {
 			case errors.Is(err, lru.ErrInvalidEntrySize):
+				err = nil
 				logger.Warnf("tryReadingFromFileCache: while creating CacheHandle: %v", err)
 				return 0, false, nil
 			case errors.Is(err, cacheUtil.ErrCacheHandleNotRequiredForRandomRead):
+				err = nil
 				// Fall back to GCS if it is a random read, cacheFileForRangeRead is
 				// false and there doesn't already exist file in cache.
 				isSequential = false
 				return 0, false, nil
 			default:
-				return 0, false, fmt.Errorf("tryReadingFromFileCache: GetCacheHandle failed: %w", err)
+				err = fmt.Errorf("tryReadingFromFileCache: GetCacheHandle failed: %w", err)
+				return 0, false, err
 			}
 		}
 	}
@@ -161,7 +164,8 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 		}
 		fc.fileCacheHandle = nil
 	} else if !errors.Is(err, cacheUtil.ErrFallbackToGCS) {
-		return 0, false, fmt.Errorf("tryReadingFromFileCache: while reading via cache: %w", err)
+		err = fmt.Errorf("tryReadingFromFileCache: while reading via cache: %w", err)
+		return 0, false, err
 	}
 	err = nil
 
