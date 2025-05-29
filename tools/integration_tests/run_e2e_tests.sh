@@ -251,12 +251,9 @@ function upgrade_gcloud_version() {
 }
 
 function install_packages() {
-  # e.g. architecture=arm64 or amd64
-  architecture=$(dpkg --print-architecture)
-  echo "Installing go-lang 1.24.0..."
-  wget -O go_tar.tar.gz https://go.dev/dl/go1.24.0.linux-${architecture}.tar.gz -q
-  sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
-  export PATH=$PATH:/usr/local/go/bin
+  # Install required go version.
+  ./perfmetrics/scripts/install_go.sh "1.24.0"
+  export PATH="/usr/local/go/bin:$PATH"
   sudo apt-get install -y python3
   # install python3-setuptools tools.
   sudo apt-get install -y gcc python3-dev python3-setuptools
