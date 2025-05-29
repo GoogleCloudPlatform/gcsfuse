@@ -32,6 +32,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
@@ -583,7 +584,8 @@ func (f *FileInode) Read(
 func (f *FileInode) Write(
 	ctx context.Context,
 	data []byte,
-	offset int64) error {
+	offset int64,
+	openMode util.OpenMode) error {
 	if f.bwh != nil {
 		return f.writeUsingBufferedWrites(ctx, data, offset)
 	}
@@ -978,7 +980,7 @@ func (f *FileInode) CreateEmptyTempFile(ctx context.Context) (err error) {
 
 // Initializes Buffered Write Handler if the file inode is eligible and returns
 // initialized as true when the new instance of buffered writer handler is created.
-func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context) (bool, error) {
+func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, openMode util.OpenMode) (bool, error) {
 	// bwh already initialized, do nothing.
 	if f.bwh != nil {
 		return false, nil
@@ -997,6 +999,9 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context) (boo
 		if err != nil {
 			return false, err
 		}
+	}
+	if !f.areBufferedWritesSupported(openMode, latestGcsObj) {
+		return false, nil
 	}
 
 	if f.bwh == nil {
@@ -1020,4 +1025,17 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context) (boo
 		return true, nil
 	}
 	return false, nil
+}
+
+func (f *FileInode) areBufferedWritesSupported(openMode util.OpenMode, obj *gcs.Object) bool {
+	// New files & empty gcs files are supported
+	if f.src.Size == 0 {
+		return true
+	}
+
+	// Existing files with the append mode on ZB are supported
+	if f.bucket.BucketType().Zonal && openMode == util.Append && obj.Finalized.IsZero() {
+		return true
+	}
+	return false
 }
