@@ -1838,8 +1838,9 @@ func (fs *fileSystem) CreateFile(
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
-	// Creating new file is always a write operation, hence passing readOnly as false.
-	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, util.Write, &fs.newConfig.Read)
+	// CreateFile() invoked to create new files, can be safely considered as filehandle
+	// opened in append mode.
+	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, util.Append, &fs.newConfig.Read)
 	op.Handle = handleID
 
 	fs.mu.Unlock()
@@ -2646,6 +2647,18 @@ func (fs *fileSystem) WriteFile(
 		ctx, cancel = util.IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
+
+	if fs.newConfig.Write.ExperimentalEnableRapidAppends {
+		fs.mu.Lock()
+		fh := fs.handles[op.Handle].(*handle.FileHandle)
+		fs.mu.Unlock()
+
+		//TODO: Initialize BWH before invoking write()
+		if err := fh.Write(ctx, op.Data, op.Offset); err != nil {
+			return err
+		}
+		return
+	}
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.fileInodeOrDie(op.Inode)
@@ -2660,7 +2673,7 @@ func (fs *fileSystem) WriteFile(
 	}
 
 	// Serve the request.
-	err = in.Write(ctx, op.Data, op.Offset)
+	err = in.Write(ctx, op.Data, op.Offset, util.Write)
 	return
 }
 

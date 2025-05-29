@@ -33,6 +33,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
@@ -185,7 +186,7 @@ func (t *FileTest) TestInitialSourceGeneration() {
 }
 
 func (t *FileTest) TestSourceGenerationSizeAfterWriteDoesNotChange() {
-	err := t.in.Write(context.Background(), []byte(setup.GenerateRandomString(5)), 0)
+	err := t.in.Write(context.Background(), []byte(setup.GenerateRandomString(5)), 0, util.Write)
 	require.NoError(t.T(), err)
 
 	sg := t.in.SourceGeneration()
@@ -199,7 +200,7 @@ func (t *FileTest) TestSourceGenerationIsAuthoritativeReturnsTrue() {
 }
 
 func (t *FileTest) TestSourceGenerationIsAuthoritativeReturnsFalseAfterWrite() {
-	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("taco"), 0))
+	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("taco"), 0, util.Write))
 
 	assert.False(t.T(), t.in.SourceGenerationIsAuthoritative())
 }
@@ -209,7 +210,7 @@ func (t *FileTest) TestSyncPendingBufferedWritesReturnsNilAndNoOpForNonStreaming
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), t.initialContents, string(contents))
 
-	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("bar"), 0))
+	assert.NoError(t.T(), t.in.Write(t.ctx, []byte("bar"), 0, util.Write))
 	gcsSynced, err := t.in.SyncPendingBufferedWrites()
 
 	require.NoError(t.T(), err)
@@ -345,14 +346,14 @@ func (t *FileTest) TestWrite() {
 	assert.Equal(t.T(), "taco", t.initialContents)
 
 	// Overwite a byte.
-	err = t.in.Write(t.ctx, []byte("p"), 0)
+	err = t.in.Write(t.ctx, []byte("p"), 0, util.Write)
 	assert.Nil(t.T(), err)
 
 	// Add some data at the end.
 	t.clock.AdvanceTime(time.Second)
 	writeTime := t.clock.Now()
 
-	err = t.in.Write(t.ctx, []byte("burrito"), 4)
+	err = t.in.Write(t.ctx, []byte("burrito"), 4, util.Write)
 	assert.Nil(t.T(), err)
 
 	t.clock.AdvanceTime(time.Second)
@@ -436,7 +437,7 @@ func (t *FileTest) TestWriteThenSync() {
 			t.clock.AdvanceTime(time.Second)
 			writeTime := t.clock.Now()
 
-			err = t.in.Write(t.ctx, []byte("p"), 0)
+			err = t.in.Write(t.ctx, []byte("p"), 0, util.Write)
 			assert.Nil(t.T(), err)
 
 			t.clock.AdvanceTime(time.Second)
@@ -515,7 +516,7 @@ func (t *FileTest) TestWriteToLocalFileThenSync() {
 			// Write some content to temp file.
 			t.clock.AdvanceTime(time.Second)
 			writeTime := t.clock.Now()
-			err = t.in.Write(t.ctx, []byte("tacos"), 0)
+			err = t.in.Write(t.ctx, []byte("tacos"), 0, util.Write)
 			assert.Nil(t.T(), err)
 			t.clock.AdvanceTime(time.Second)
 
@@ -652,7 +653,7 @@ func (t *FileTest) TestAppendThenSync() {
 			t.clock.AdvanceTime(time.Second)
 			writeTime := t.clock.Now()
 
-			err = t.in.Write(t.ctx, []byte("burrito"), int64(len("taco")))
+			err = t.in.Write(t.ctx, []byte("burrito"), int64(len("taco")), util.Append)
 			assert.Nil(t.T(), err)
 
 			t.clock.AdvanceTime(time.Second)
@@ -880,7 +881,7 @@ func (t *FileTest) TestTruncateDownwardForLocalFileShouldUpdateLocalFileAttribut
 	err = t.in.CreateEmptyTempFile(t.ctx)
 	assert.Nil(t.T(), err)
 	// Write some data to the local file.
-	err = t.in.Write(t.ctx, []byte("burrito"), 0)
+	err = t.in.Write(t.ctx, []byte("burrito"), 0, util.Write)
 	assert.Nil(t.T(), err)
 	// Validate the new data is written correctly.
 	attrs, err = t.in.Attributes(t.ctx)
@@ -927,7 +928,7 @@ func (t *FileTest) TestTruncateUpwardForLocalFileWhenStreamingWritesAreEnabled()
 
 			if tc.performWrite {
 				t.createBufferedWriteHandler(true)
-				err := t.in.Write(t.ctx, []byte("hi"), 0)
+				err := t.in.Write(t.ctx, []byte("hi"), 0, util.Write)
 				assert.Nil(t.T(), err)
 				assert.Equal(t.T(), int64(2), t.in.bwh.WriteFileInfo().TotalSize)
 				// Fetch the attributes and check if the file size reflects the write.
@@ -979,7 +980,7 @@ func (t *FileTest) TestTruncateUpwardForEmptyGCSFileWhenStreamingWritesAreEnable
 
 			if tc.performWrite {
 				t.createBufferedWriteHandler(true)
-				err := t.in.Write(t.ctx, []byte("hi"), 0)
+				err := t.in.Write(t.ctx, []byte("hi"), 0, util.Write)
 				assert.Nil(t.T(), err)
 				assert.Equal(t.T(), int64(2), t.in.bwh.WriteFileInfo().TotalSize)
 				// Fetch the attributes and check if the file size reflects the write.
@@ -1053,7 +1054,7 @@ func (t *FileTest) TestTruncateDownwardWhenStreamingWritesAreEnabled() {
 
 			if tc.performWrite {
 				t.createBufferedWriteHandler(true)
-				err := t.in.Write(t.ctx, []byte("hihello"), 0)
+				err := t.in.Write(t.ctx, []byte("hihello"), 0, util.Write)
 				assert.Nil(t.T(), err)
 				assert.Equal(t.T(), int64(7), t.in.bwh.WriteFileInfo().TotalSize)
 				// Fetch the attributes and check if the file size reflects the write.
@@ -1220,7 +1221,7 @@ func (t *FileTest) TestSetMtime_ContentDirty() {
 	var attrs fuseops.InodeAttributes
 
 	// Dirty the content.
-	err = t.in.Write(t.ctx, []byte("a"), 0)
+	err = t.in.Write(t.ctx, []byte("a"), 0, util.Write)
 	assert.Nil(t.T(), err)
 
 	// Set mtime.
@@ -1535,7 +1536,7 @@ func (t *FileTest) TestReadFileWhenStreamingWritesAreEnabled() {
 
 			if tc.performWrite {
 				t.createBufferedWriteHandler(tc.fileType != LocalFile)
-				err := t.in.Write(t.ctx, []byte("hi"), 0)
+				err := t.in.Write(t.ctx, []byte("hi"), 0, util.Write)
 				assert.Nil(t.T(), err)
 				assert.Equal(t.T(), int64(2), t.in.bwh.WriteFileInfo().TotalSize)
 			}
@@ -1581,7 +1582,7 @@ func (t *FileTest) TestWriteToLocalFileWhenStreamingWritesAreEnabled() {
 	t.in.config = &cfg.Config{Write: *getWriteConfig()}
 	t.createBufferedWriteHandler(true)
 
-	err := t.in.Write(t.ctx, []byte("hi"), 0)
+	err := t.in.Write(t.ctx, []byte("hi"), 0, util.Write)
 
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), t.in.bwh)
@@ -1596,12 +1597,12 @@ func (t *FileTest) TestMultipleWritesToLocalFileWhenStreamingWritesAreEnabled() 
 	t.in.config = &cfg.Config{Write: *getWriteConfig()}
 	t.createBufferedWriteHandler(true)
 
-	err := t.in.Write(t.ctx, []byte("hi"), 0)
+	err := t.in.Write(t.ctx, []byte("hi"), 0, util.Write)
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), t.in.bwh)
 	assert.Equal(t.T(), int64(2), t.in.bwh.WriteFileInfo().TotalSize)
 
-	err = t.in.Write(t.ctx, []byte("hello"), 2)
+	err = t.in.Write(t.ctx, []byte("hello"), 2, util.Write)
 	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), int64(7), t.in.bwh.WriteFileInfo().TotalSize)
 	// The inode should agree about the new mtime.
@@ -1617,7 +1618,7 @@ func (t *FileTest) TestWriteToEmptyGCSFileWhenStreamingWritesAreEnabled() {
 	createTime := t.in.mtimeClock.Now()
 	t.createBufferedWriteHandler(true)
 
-	err := t.in.Write(t.ctx, []byte("hi"), 0)
+	err := t.in.Write(t.ctx, []byte("hi"), 0, util.Write)
 
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), t.in.bwh)
@@ -1647,7 +1648,7 @@ func (t *FileTest) TestSetMtimeOnEmptyGCSFileAfterWritesWhenStreamingWritesAreEn
 	t.in.config = &cfg.Config{Write: *getWriteConfig()}
 	t.createBufferedWriteHandler(true)
 	// Initiate write call.
-	err := t.in.Write(t.ctx, []byte("hi"), 0)
+	err := t.in.Write(t.ctx, []byte("hi"), 0, util.Write)
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), t.in.bwh)
 	writeFileInfo := t.in.bwh.WriteFileInfo()
