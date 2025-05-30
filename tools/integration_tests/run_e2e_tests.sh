@@ -236,24 +236,17 @@ function delete_buckets_listed_in_file() {
 }
 
 function upgrade_gcloud_version() {
-  sudo apt-get update
-  # Upgrade gcloud version.
-  # Kokoro machine's outdated gcloud version prevents the use of the "managed-folders" feature.
-  gcloud version
-  wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
-  sudo tar xzf gcloud.tar.gz && sudo cp -r google-cloud-sdk /usr/local && sudo rm -r google-cloud-sdk
-  sudo /usr/local/google-cloud-sdk/install.sh
-  export PATH=/usr/local/google-cloud-sdk/bin:$PATH
-  echo 'export PATH=/usr/local/google-cloud-sdk/bin:$PATH' >> ~/.bashrc
-  gcloud version && rm gcloud.tar.gz
-  sudo /usr/local/google-cloud-sdk/bin/gcloud components update
-  sudo /usr/local/google-cloud-sdk/bin/gcloud components install alpha
+  # Install latest gcloud.
+  ./perfmetrics/scripts/install_latest_gcloud.sh
+  export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
 }
 
 function install_packages() {
   # Install required go version.
   ./perfmetrics/scripts/install_go.sh "1.24.0"
   export PATH="/usr/local/go/bin:$PATH"
+  
+  sudo apt-get update
   sudo apt-get install -y python3
   # install python3-setuptools tools.
   sudo apt-get install -y gcc python3-dev python3-setuptools
