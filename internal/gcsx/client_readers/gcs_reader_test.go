@@ -566,8 +566,8 @@ func (t *gcsReaderTest) Test_ReadAt_WithAndWithoutReadConfig() {
 			assert.NotNil(t.T(), t.gcsReader.rangeReader.cancel)
 			assert.Equal(t.T(), int64(readLength), t.gcsReader.rangeReader.start)
 			assert.Equal(t.T(), int64(t.object.Size), t.gcsReader.rangeReader.limit)
-			//_, isInactiveTimeoutReader := t.gcsReader.rangeReader.reader.(*gcsx.InactiveTimeoutReader)
-			//assert.Equal(t.T(), tc.expectInactiveTimeoutReader, isInactiveTimeoutReader)
+			_, isInactiveTimeoutReader := t.gcsReader.rangeReader.reader.(*gcsx.InactiveTimeoutReader)
+			assert.Equal(t.T(), tc.expectInactiveTimeoutReader, isInactiveTimeoutReader)
 		})
 	}
 }
@@ -608,8 +608,8 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateZonalRandomReads() {
 		_, err := t.gcsReader.ReadAt(t.ctx, buf, int64(readRange[0]))
 
 		assert.NoError(t.T(), err)
-		assert.Equal(t.T(), testUtil.Random, t.gcsReader.rangeReader.readType)
-		assert.Equal(t.T(), int64(readRange[1]), t.gcsReader.expectedOffset)
 		assert.Equal(t.T(), uint64(seeks), t.gcsReader.seeks)
+		assert.Equal(t.T(), testUtil.Random, t.gcsReader.readType)
+		assert.Equal(t.T(), int64(readRange[1]), t.gcsReader.expectedOffset)
 	}
 }
