@@ -64,7 +64,11 @@ type storageClient struct {
 	grpcClientWithBidiConfig *storage.Client
 	clientConfig             storageutil.StorageClientConfig
 	storageControlClient     StorageControlClient
-	directPathDetector       *gRPCDirectPathDetector
+	directPathDetector       DirectPathDetectorInterface
+}
+
+type DirectPathDetectorInterface interface {
+	isDirectPathPossible(ctx context.Context, bucketName string) error
 }
 
 type gRPCDirectPathDetector struct {

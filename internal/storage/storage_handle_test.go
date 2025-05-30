@@ -635,3 +635,55 @@ func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_SkipsEnvChange_Fo
 	assert.NoError(testSuite.T(), err)
 	assert.Equal(testSuite.T(), expectedValue, os.Getenv(disableDirectPath), "env var should remain unchanged for non TPC endpoint")
 }
+
+type mockDirectPathDetector struct {
+	mock.Mock
+}
+
+func (m *mockDirectPathDetector) isDirectPathPossible(ctx context.Context, bucket string) error {
+	args := m.Called(ctx, bucket)
+	return args.Error(0)
+}
+
+func (testSuite *StorageHandleTest) TestBucketHandle_TPCCondition() {
+	tests := []struct {
+		name           string
+		customEndpoint string
+		expectDPCall   bool
+	}{
+		{
+			name:           "should call isDirectPathPossible when endpoint does not contain tpc",
+			customEndpoint: "https://storage.googleapis.com",
+			expectDPCall:   true,
+		},
+		{
+			name:           "should not call isDirectPathPossible when endpoint contains tpc",
+			customEndpoint: "https://tpc.storage.xxx.com",
+			expectDPCall:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		testSuite.Run(tt.name, func() {
+			mockDetector := new(mockDirectPathDetector)
+			if tt.expectDPCall {
+				mockDetector.On("isDirectPathPossible", mock.Anything, "test-bucket").Return(nil).Once()
+			}
+			mockStorageClient := &storageClient{
+				clientConfig: storageutil.StorageClientConfig{
+					ClientProtocol: cfg.GRPC, // Ensure gRPC to trigger condition
+					CustomEndpoint: tt.customEndpoint,
+				},
+				directPathDetector: mockDetector,
+			}
+
+			_, _ = mockStorageClient.BucketHandle(context.Background(), "test-bucket", "")
+
+			if tt.expectDPCall {
+				mockDetector.AssertCalled(testSuite.T(), "isDirectPathPossible", mock.Anything, "test-bucket")
+			} else {
+				mockDetector.AssertNotCalled(testSuite.T(), "isDirectPathPossible", mock.Anything, "test-bucket")
+			}
+		})
+	}
+}
