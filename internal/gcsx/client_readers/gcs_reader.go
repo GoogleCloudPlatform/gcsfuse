@@ -157,7 +157,7 @@ func (gr *GCSReader) getReadInfo(start int64, size int64) (int64, error) {
 	// Determine the end position based on the read pattern.
 	end := gr.determineEnd(start)
 
-	// Limit the end position to sequentialReadSizeMb.
+	// Limit the end position to SequentialReadSizeMb.
 	end = gr.limitEnd(start, end)
 
 	return end, nil
