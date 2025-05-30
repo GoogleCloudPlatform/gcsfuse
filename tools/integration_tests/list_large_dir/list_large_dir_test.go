@@ -24,6 +24,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 )
 
@@ -35,7 +36,7 @@ const numberOfImplicitDirsInDirectoryWithTwelveThousandFiles = 100
 const numberOfExplicitDirsInDirectoryWithTwelveThousandFiles = 100
 
 var (
-	directoryWithTwelveThousandFiles = "directoryWithTwelveThousandFiles" + setup.GenerateRandomString(5)
+	directoryWithTwelveThousandFiles = "directoryWithTwelveThousandFiles" + operations.GenerateRandomString(5)
 	storageClient                    *storage.Client
 	ctx                              context.Context
 )

@@ -45,7 +45,7 @@ const (
 	IAMRoleForAdminPermission                             = "roles/storage.objectAdmin"
 )
 
-var FileInNonEmptyManagedFoldersTest = "testFileInNonEmptyManagedFoldersTest" + setup.GenerateRandomString(5)
+var FileInNonEmptyManagedFoldersTest = "testFileInNonEmptyManagedFoldersTest" + operations.GenerateRandomString(5)
 
 type IAMPolicy struct {
 	Bindings []struct {

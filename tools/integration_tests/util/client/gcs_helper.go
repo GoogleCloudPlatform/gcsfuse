@@ -151,7 +151,7 @@ func SetupTestDirectory(ctx context.Context, storageClient *storage.Client, test
 
 func CreateNFilesInDir(ctx context.Context, storageClient *storage.Client, numFiles int, fileName string, fileSize int64, dirName string, t *testing.T) (fileNames []string) {
 	for i := 0; i < numFiles; i++ {
-		testFileName := fileName + setup.GenerateRandomString(4)
+		testFileName := fileName + operations.GenerateRandomString(4)
 		fileNames = append(fileNames, testFileName)
 		SetupFileInTestDirectory(ctx, storageClient, dirName, testFileName, fileSize, t)
 	}
@@ -170,7 +170,7 @@ func CreateUnfinalizedObject(ctx context.Context, t *testing.T, client *storage.
 	writer, err := AppendableWriter(ctx, client, object, storage.Conditions{})
 	require.NoError(t, err)
 
-	bytesWritten, err := writer.Write([]byte(setup.GenerateRandomString(int(size))))
+	bytesWritten, err := writer.Write([]byte(operations.GenerateRandomString(int(size))))
 	require.NoError(t, err)
 	assert.EqualValues(t, size, bytesWritten)
 

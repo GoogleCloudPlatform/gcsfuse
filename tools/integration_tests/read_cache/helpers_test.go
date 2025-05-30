@@ -248,7 +248,7 @@ func validateCacheSizeWithinLimit(cacheCapacity int64, t *testing.T) {
 }
 
 func setupFileInTestDir(ctx context.Context, storageClient *storage.Client, testDirName string, fileSize int64, t *testing.T) (fileName string) {
-	testFileName := testFileName + setup.GenerateRandomString(testFileNameSuffixLength)
+	testFileName := testFileName + operations.GenerateRandomString(testFileNameSuffixLength)
 	client.SetupFileInTestDirectory(ctx, storageClient, testDirName, testFileName, fileSize, t)
 
 	return testFileName

@@ -48,7 +48,7 @@ type staleFileHandleCommon struct {
 func (s *staleFileHandleCommon) SetupSuite() {
 	setup.MountGCSFuseWithGivenMountFunc(s.flags, mountFunc)
 	s.testDirPath = setup.SetupTestDirectory(testDirName)
-	s.data = setup.GenerateRandomString(5 * util.MiB)
+	s.data = operations.GenerateRandomString(5 * util.MiB)
 }
 
 func (s *staleFileHandleCommon) TearDownSuite() {

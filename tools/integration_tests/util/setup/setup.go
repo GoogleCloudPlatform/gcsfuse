@@ -19,7 +19,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"math/rand"
 	"os"
 	"os/exec"
 	"path"
@@ -28,7 +27,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
@@ -49,7 +47,6 @@ var profileLabelForMountedDirTest = flag.String("profile_label", "", "To pass pr
 const (
 	FilePermission_0600      = 0600
 	DirPermission_0755       = 0755
-	Charset                  = "abcdefghijklmnopqrstuvwxyz0123456789"
 	PathEnvVariable          = "PATH"
 	GCSFuseLogFilePrefix     = "gcsfuse-failed-integration-test-logs-"
 	ProxyServerLogFilePrefix = "proxy-server-failed-integration-test-logs-"
@@ -248,15 +245,6 @@ func ExecuteTest(m *testing.M) (successCode int) {
 	return successCode
 }
 
-func GenerateRandomString(length int) string {
-	seededRand := rand.New(rand.NewSource(time.Now().UnixNano()))
-	b := make([]byte, length)
-	for i := range b {
-		b[i] = Charset[seededRand.Intn(len(Charset))]
-	}
-	return string(b)
-}
-
 func UnMountBucket() {
 	err := UnMount()
 	if err != nil {
@@ -266,7 +254,7 @@ func UnMountBucket() {
 
 func SaveLogFileInCaseOfFailure(successCode int) {
 	if successCode != 0 {
-		SaveLogFileAsArtifact(LogFile(), GCSFuseLogFilePrefix+GenerateRandomString(5))
+		SaveLogFileAsArtifact(LogFile(), GCSFuseLogFilePrefix+operations.GenerateRandomString(5))
 	}
 }
 
@@ -293,7 +281,7 @@ func SaveGCSFuseLogFileInCaseOfFailure(tb testing.TB) {
 	if !tb.Failed() || MountedDirectory() != "" {
 		return
 	}
-	SaveLogFileAsArtifact(LogFile(), GCSFuseLogFilePrefix+strings.ReplaceAll(tb.Name(), "/", "_")+GenerateRandomString(5))
+	SaveLogFileAsArtifact(LogFile(), GCSFuseLogFilePrefix+strings.ReplaceAll(tb.Name(), "/", "_")+operations.GenerateRandomString(5))
 }
 
 // In case of test failure saves ProxyServerLogFile to
@@ -303,7 +291,7 @@ func SaveProxyServerLogFileInCaseOfFailure(proxyServerLogFile string, tb testing
 	if !tb.Failed() {
 		return
 	}
-	SaveLogFileAsArtifact(proxyServerLogFile, ProxyServerLogFilePrefix+strings.ReplaceAll(tb.Name(), "/", "_")+GenerateRandomString(5))
+	SaveLogFileAsArtifact(proxyServerLogFile, ProxyServerLogFilePrefix+strings.ReplaceAll(tb.Name(), "/", "_")+operations.GenerateRandomString(5))
 }
 
 func UnMountAndThrowErrorInFailure(flags []string, successCode int) {
@@ -614,7 +602,7 @@ func AppendFlagsToAllFlagsInTheFlagsSet(flagsSet *[][]string, newFlags ...string
 // The same file will be copied to the mounted directory as well.
 func CreateFileAndCopyToMntDir(t *testing.T, fileSize int, dirName string) (string, string) {
 	testDir := SetupTestDirectory(dirName)
-	fileInLocalDisk := "test_file" + GenerateRandomString(5) + ".txt"
+	fileInLocalDisk := "test_file" + operations.GenerateRandomString(5) + ".txt"
 	filePathInLocalDisk := path.Join(os.TempDir(), fileInLocalDisk)
 	filePathInMntDir := path.Join(testDir, fileInLocalDisk)
 	CreateFileOnDiskAndCopyToMntDir(t, filePathInLocalDisk, filePathInMntDir, fileSize)
@@ -631,7 +619,7 @@ func CreateFileOnDiskAndCopyToMntDir(t *testing.T, filePathInLocalDisk string, f
 }
 
 func CreateProxyServerLogFile(t *testing.T) string {
-	proxyServerLogFile := path.Join(TestDir(), "proxy-server-log-"+GenerateRandomString(5))
+	proxyServerLogFile := path.Join(TestDir(), "proxy-server-log-"+operations.GenerateRandomString(5))
 	_, err := os.Create(proxyServerLogFile)
 	if err != nil {
 		t.Fatalf("Error in creating log file for proxy server: %v", err)
@@ -641,4 +629,14 @@ func CreateProxyServerLogFile(t *testing.T) string {
 
 func AppendProxyEndpointToFlagSet(flagSet *[]string, port int) {
 	*flagSet = append(*flagSet, "--custom-endpoint="+fmt.Sprintf("http://localhost:%d/storage/v1/", port))
+}
+
+// GenerateRandomDirName returns a random directory name with the given prefix.
+func GenerateRandomDirName(prefix string) string {
+	return prefix + "-" + GenerateRandomString(5)
+}
+
+// GenerateRandomFileName returns a random directory name with the given prefix and .txt extension added.
+func GenerateRandomFileName(prefix string) string {
+	return prefix + "-" + GenerateRandomString(5) + ".txt"
 }

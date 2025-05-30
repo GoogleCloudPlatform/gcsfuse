@@ -20,13 +20,12 @@ import (
 
 	. "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
 )
 
 func (t *StreamingWritesSuite) TestCreateSymlinkForLocalFileAndReadFromSymlink() {
 	// Create Symlink.
-	symlink := path.Join(testDirPath, setup.GenerateRandomString(5))
+	symlink := path.Join(testDirPath, operations.GenerateRandomString(5))
 	operations.CreateSymLink(t.filePath, symlink, t.T())
 	_, err := t.f1.WriteAt([]byte(t.data), 0)
 	assert.NoError(t.T(), err)
@@ -44,7 +43,7 @@ func (t *StreamingWritesSuite) TestCreateSymlinkForLocalFileAndReadFromSymlink()
 
 func (t *StreamingWritesSuite) TestReadingFromSymlinkForDeletedLocalFile() {
 	// Create Symlink.
-	symlink := path.Join(testDirPath, setup.GenerateRandomString(5))
+	symlink := path.Join(testDirPath, operations.GenerateRandomString(5))
 	operations.CreateSymLink(t.filePath, symlink, t.T())
 	_, err := t.f1.WriteAt([]byte(t.data), 0)
 	assert.NoError(t.T(), err)

@@ -22,6 +22,7 @@ import (
 	"time"
 
 	emulator_tests "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/emulator_tests/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_setup"
 	"github.com/stretchr/testify/assert"
@@ -150,7 +151,7 @@ func TestChunkTransferTimeout(t *testing.T) {
 						setup.SaveProxyServerLogFileInCaseOfFailure(proxyServerLogFile, t)
 					}()
 
-					testDir := scenario.name + setup.GenerateRandomString(3)
+					testDir := scenario.name + operations.GenerateRandomString(3)
 					testDirPath = setup.SetupTestDirectory(testDir)
 					filePath := path.Join(testDirPath, "file.txt")
 
