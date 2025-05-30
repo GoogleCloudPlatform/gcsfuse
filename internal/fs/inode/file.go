@@ -939,9 +939,6 @@ func (f *FileInode) Truncate(
 			return
 		}
 	}
-	if !errors.Is(err, bufferedwrites.ErrTruncateSizeLessThanFileSize) {
-		return fmt.Errorf("got unexpected error from bwh.Truncate(): %w", err)
-	}
 	// If truncate size is less than total size, finalize and fall back to temp file.
 	if errors.Is(err, bufferedwrites.ErrTruncateSizeLessThanFileSize) {
 		logger.Warnf("Falling back to staged writes on disk for file %s (inode %d) due to err: %v.", f.Name(), f.ID(), err.Error())
@@ -951,7 +948,9 @@ func (f *FileInode) Truncate(
 			return fmt.Errorf("could not finalize what has been written so far: %w", err)
 		}
 	}
-
+	if err != nil {
+		return fmt.Errorf("got unexpected error from bwh.Truncate(): %w", err)
+	}
 	// Make sure f.content != nil.
 	err = f.ensureContent(ctx)
 	if err != nil {
