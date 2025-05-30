@@ -34,7 +34,6 @@ import (
 
 const invalidBucketName string = "will-not-be-present-in-fake-server"
 const projectID string = "valid-project-id"
-const disableDirectPath string = "GOOGLE_CLOUD_DISABLE_DIRECT_PATH"
 
 type StorageHandleTest struct {
 	suite.Suite

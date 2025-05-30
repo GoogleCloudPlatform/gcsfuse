@@ -46,7 +46,8 @@ const (
 	dynamicReadReqIncreaseRateEnv   = "DYNAMIC_READ_REQ_INCREASE_RATE"
 	dynamicReadReqInitialTimeoutEnv = "DYNAMIC_READ_REQ_INITIAL_TIMEOUT"
 
-	zonalLocationType = "zone"
+	zonalLocationType        = "zone"
+	disableDirectPath string = "GOOGLE_CLOUD_DISABLE_DIRECT_PATH"
 )
 
 type StorageHandle interface {
@@ -154,11 +155,11 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	// Sets GOOGLE_CLOUD_DISABLE_DIRECT_PATH to "true" if the CustomEndpoint contains "tpc".
 	// TODO: Remove this check once the direct path is available in TPC environment.
 	if strings.Contains(clientConfig.CustomEndpoint, "tpc") {
-		if err := os.Setenv("GOOGLE_CLOUD_DISABLE_DIRECT_PATH", "true"); err != nil {
+		if err := os.Setenv(disableDirectPath, "true"); err != nil {
 			logger.Fatal("error setting disable direct path env var: %v", err)
 		}
 		defer func() {
-			if err := os.Unsetenv("GOOGLE_CLOUD_DISABLE_DIRECT_PATH"); err != nil {
+			if err := os.Unsetenv(disableDirectPath); err != nil {
 				logger.Fatal("error while unsetting disable direct path env var: %v", err)
 			}
 		}()
