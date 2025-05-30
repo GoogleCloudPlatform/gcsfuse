@@ -332,12 +332,6 @@ func (rr *RangeReader) invalidateReaderIfMisalignedOrTooSmall(offset int64, p []
 		rr.closeReader()
 		rr.reader = nil
 		rr.cancel = nil
-		if rr.start != offset {
-			// Return true to increment the seek count when discarding a reader due to incorrect positioning.
-			// Discarding readers that can't fulfill the entire request without this check would prevent
-			// the reader size from growing appropriately in random read scenarios.
-			return true
-		}
 	}
 	return false
 }
