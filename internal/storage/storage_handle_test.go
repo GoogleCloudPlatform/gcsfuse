@@ -640,6 +640,7 @@ type mockDirectPathDetector struct {
 }
 
 func (m *mockDirectPathDetector) isDirectPathPossible(ctx context.Context, bucket string) error {
+	fmt.Println("In isDirectPathPossible fun")
 	args := m.Called(ctx, bucket)
 	return args.Error(0)
 }
