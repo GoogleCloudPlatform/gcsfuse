@@ -676,6 +676,8 @@ func (testSuite *StorageHandleTest) TestBucketHandle_TPCCondition() {
 				directPathDetector: mockDetector,
 			}
 
+			fmt.Println("mockStorageClient: ", mockStorageClient)
+
 			_, _ = mockStorageClient.BucketHandle(context.Background(), "test-bucket", "")
 
 			if tt.expectDPCall {
