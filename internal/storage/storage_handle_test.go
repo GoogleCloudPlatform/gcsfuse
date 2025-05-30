@@ -669,6 +669,9 @@ func (testSuite *StorageHandleTest) TestBucketHandle_TPCCondition() {
 			if tt.expectDPCall {
 				mockDetector.On("isDirectPathPossible", mock.Anything, "test-bucket").Return(nil).Once()
 			}
+			//clientConfig := storageutil.GetDefaultStorageClientConfig()
+			//clientConfig.ClientProtocol = cfg.GRPC
+			//clientConfig.CustomEndpoint = tt.customEndpoint
 			mockStorageClient := &storageClient{
 				clientConfig: storageutil.StorageClientConfig{
 					ClientProtocol: cfg.GRPC, // Ensure gRPC to trigger condition
@@ -679,8 +682,9 @@ func (testSuite *StorageHandleTest) TestBucketHandle_TPCCondition() {
 
 			fmt.Println("mockStorageClient: ", mockStorageClient)
 
-			_, _ = mockStorageClient.BucketHandle(context.Background(), "test-bucket", "")
-
+			_, err := mockStorageClient.BucketHandle(context.Background(), "test-bucket", "")
+			fmt.Println("Error: ", err)
+			assert.NoError(testSuite.T(), err)
 			if tt.expectDPCall {
 				mockDetector.AssertCalled(testSuite.T(), "isDirectPathPossible", mock.Anything, "test-bucket")
 			} else {
