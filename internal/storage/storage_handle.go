@@ -349,7 +349,6 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 		return nil, err
 	}
 
-	fmt.Println("in side directPathDetector: ", sh.clientConfig.ClientProtocol, sh.directPathDetector)
 	// TPC does not support direct path validation.
 	if (bucketType.Zonal || sh.clientConfig.ClientProtocol == cfg.GRPC) && !strings.Contains(sh.clientConfig.CustomEndpoint, "tpc") {
 		if sh.directPathDetector != nil {
