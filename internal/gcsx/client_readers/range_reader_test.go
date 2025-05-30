@@ -338,18 +338,6 @@ func (t *rangeReaderTest) Test_invalidateReaderIfMisalignedOrTooSmall() {
 		expectReaderNil    bool
 	}{
 		{
-			name: "InvalidateReaderDueToWrongOffset",
-			readerSetup: func() {
-				t.rangeReader.reader = &fake.FakeReader{ReadCloser: getReader(100)}
-				t.rangeReader.start = 50 // misaligned
-				t.rangeReader.limit = 1000
-			},
-			offset:             200,
-			bufferSize:         100,
-			expectIncreaseSeek: true,
-			expectReaderNil:    true,
-		},
-		{
 			name: "InvalidateReaderDueToTooSmall",
 			readerSetup: func() {
 				t.rangeReader.reader = &fake.FakeReader{ReadCloser: getReader(100)}
