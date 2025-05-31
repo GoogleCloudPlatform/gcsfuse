@@ -116,7 +116,7 @@ func TestFileHandleWrite(t *testing.T) {
 	ctx := context.Background()
 	data := []byte("hello")
 
-	err := fh.Write(ctx, data, 0)
+	_, err := fh.Write(ctx, data, 0)
 
 	assert.Nil(t, err)
 	// Validate that write is successful at inode.

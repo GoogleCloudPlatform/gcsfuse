@@ -1572,7 +1572,10 @@ func (fs *fileSystem) SetInodeAttributes(
 		if err != nil {
 			return
 		}
-		err = file.Truncate(ctx, int64(*op.Size))
+		gcsSynced, err := file.Truncate(ctx, int64(*op.Size))
+		if gcsSynced {
+			fs.promoteToGenerationBacked(file)
+		}
 		if err != nil {
 			err = fmt.Errorf("truncate: %w", err)
 			return err
@@ -2654,7 +2657,7 @@ func (fs *fileSystem) WriteFile(
 		fs.mu.Unlock()
 
 		//TODO: Initialize BWH before invoking write()
-		if err := fh.Write(ctx, op.Data, op.Offset); err != nil {
+		if _, err := fh.Write(ctx, op.Data, op.Offset); err != nil {
 			return err
 		}
 		return
@@ -2673,7 +2676,10 @@ func (fs *fileSystem) WriteFile(
 	}
 
 	// Serve the request.
-	err = in.Write(ctx, op.Data, op.Offset, util.Write)
+	gcsSynced, err := in.Write(ctx, op.Data, op.Offset, util.Write)
+	if gcsSynced {
+		fs.promoteToGenerationBacked(in)
+	}
 	return
 }
 
