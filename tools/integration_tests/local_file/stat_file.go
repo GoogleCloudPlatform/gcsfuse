@@ -59,7 +59,8 @@ func (t *CommonLocalFileTestSuite) TestStatOnLocalFileWithConflictingFileNameSuf
 func (t *CommonLocalFileTestSuite) TestTruncateLocalFileToSmallerSize() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
-	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
+	fileName := FileName1 + setup.GenerateRandomString(5)
+	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t.T())
 	// Writing contents to local file .
 	operations.WriteWithoutClose(fh, FileContents, t.T())
 
@@ -77,5 +78,5 @@ func (t *CommonLocalFileTestSuite) TestTruncateLocalFileToSmallerSize() {
 
 	// Close the file and validate that the file is created on GCS.
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
-		FileName1, FileContents[:SmallerSizeTruncate], t.T())
+		fileName, FileContents[:SmallerSizeTruncate], t.T())
 }

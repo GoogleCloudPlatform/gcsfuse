@@ -15,6 +15,8 @@
 package streaming_writes
 
 import (
+	"os"
+
 	. "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/stretchr/testify/assert"
@@ -162,4 +164,38 @@ func (t *StreamingWritesSuite) TestWriteTruncateWrite() {
 			CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, tc.finalContent, t.T())
 		})
 	}
+}
+
+func (t *StreamingWritesSuite) TestTruncateToLowerSyncsFileToGcsForStreamingWrites() {
+	// Write
+	operations.WriteWithoutClose(t.f1, "foobar", t.T())
+	operations.VerifyStatFile(t.filePath, int64(len("foobar")), FilePerms, t.T())
+
+	// Perform truncate
+	err := t.f1.Truncate(3)
+
+	require.NoError(t.T(), err)
+	operations.VerifyStatFile(t.filePath, 3, FilePerms, t.T())
+	if !t.fallbackToDiskCase {
+		ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, t.fileName, "foobar", t.T())
+	}
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, "foo", t.T())
+}
+
+func (t *StreamingWritesSuite) TestTruncateToLowerSyncsFileToGcsAndDeletingFileDeletsFileFromGcs() {
+	// Write
+	operations.WriteWithoutClose(t.f1, "foobar", t.T())
+	operations.VerifyStatFile(t.filePath, int64(len("foobar")), FilePerms, t.T())
+	// Perform truncate
+	err := t.f1.Truncate(3)
+	require.NoError(t.T(), err)
+	operations.VerifyStatFile(t.filePath, 3, FilePerms, t.T())
+	if !t.fallbackToDiskCase {
+		ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, t.fileName, "foobar", t.T())
+	}
+
+	err = os.Remove(t.filePath)
+
+	require.NoError(t.T(), err)
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, t.fileName, t.T())
 }

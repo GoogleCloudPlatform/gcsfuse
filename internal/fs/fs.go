@@ -1572,7 +1572,12 @@ func (fs *fileSystem) SetInodeAttributes(
 		if err != nil {
 			return
 		}
-		err = file.Truncate(ctx, int64(*op.Size))
+		gcsSynced, err := file.Truncate(ctx, int64(*op.Size))
+		// Sync the inode if finalize during truncate is successful
+		// even if the truncate operation later resulted error.
+		if gcsSynced {
+			fs.promoteToGenerationBacked(file)
+		}
 		if err != nil {
 			err = fmt.Errorf("truncate: %w", err)
 			return err
@@ -2654,7 +2659,7 @@ func (fs *fileSystem) WriteFile(
 		fs.mu.Unlock()
 
 		//TODO: Initialize BWH before invoking write()
-		if err := fh.Write(ctx, op.Data, op.Offset); err != nil {
+		if _, err := fh.Write(ctx, op.Data, op.Offset); err != nil {
 			return err
 		}
 		return
@@ -2673,7 +2678,12 @@ func (fs *fileSystem) WriteFile(
 	}
 
 	// Serve the request.
-	err = in.Write(ctx, op.Data, op.Offset, util.Write)
+	gcsSynced, err := in.Write(ctx, op.Data, op.Offset, util.Write)
+	// Sync the inode if finalize during write is successful
+	// even if the write operation later resulted in error.
+	if gcsSynced {
+		fs.promoteToGenerationBacked(in)
+	}
 	return
 }
 

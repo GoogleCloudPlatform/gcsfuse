@@ -410,6 +410,7 @@ func (testSuite *BufferedWriteTest) TestTruncateWithLesserSize() {
 	err := testSuite.bwh.Truncate(2)
 
 	assert.Error(testSuite.T(), err)
+	assert.Equal(testSuite.T(), ErrOutOfOrderWrite, err)
 }
 
 func (testSuite *BufferedWriteTest) TestTruncateWithSizeGreaterThanCurrentObjectSize() {

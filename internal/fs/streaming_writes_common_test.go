@@ -18,12 +18,16 @@
 package fs_test
 
 import (
+	"errors"
 	"os"
 	"path"
 	"strings"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -76,4 +80,76 @@ func (t *StreamingWritesCommonTest) TestRenameFileWithPendingWrites() {
 	content, err := os.ReadFile(newFilePath)
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), "tacos", string(content))
+}
+
+func (t *StreamingWritesCommonTest) TestTruncateToLowerSizeSyncsFileToGcs() {
+	_, err := t.f1.Write([]byte("foobar"))
+	assert.NoError(t.T(), err)
+
+	err = t.f1.Truncate(3)
+
+	assert.NoError(t.T(), err)
+	content, err := storageutil.ReadObject(ctx, bucket, fileName)
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), "foobar", string(content))
+	err = t.f1.Close()
+	assert.NoError(t.T(), err)
+	content, err = storageutil.ReadObject(ctx, bucket, fileName)
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), "foo", string(content))
+	t.f1 = nil
+}
+
+func (t *StreamingWritesCommonTest) TestTruncateToLowerSizeSyncsFileToGcsAndDeletingFileDeletesFromGcs() {
+	_, err := t.f1.Write([]byte("foobar"))
+	assert.NoError(t.T(), err)
+	err = t.f1.Truncate(3)
+	assert.NoError(t.T(), err)
+	content, err := storageutil.ReadObject(ctx, bucket, fileName)
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), "foobar", string(content))
+
+	err = os.Remove(t.f1.Name())
+
+	assert.NoError(t.T(), err)
+	_, err = storageutil.ReadObject(ctx, bucket, fileName)
+	require.Error(t.T(), err)
+	var notFoundErr *gcs.NotFoundError
+	assert.True(t.T(), errors.As(err, &notFoundErr))
+}
+
+func (t *StreamingWritesCommonTest) TestOutOfOrderWriteSyncsFileToGcs() {
+	_, err := t.f1.Write([]byte("foobar"))
+	assert.NoError(t.T(), err)
+
+	_, err = t.f1.WriteAt([]byte("foo"), 3)
+
+	assert.NoError(t.T(), err)
+	content, err := storageutil.ReadObject(ctx, bucket, fileName)
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), "foobar", string(content))
+	err = t.f1.Close()
+	assert.NoError(t.T(), err)
+	content, err = storageutil.ReadObject(ctx, bucket, fileName)
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), "foofoo", string(content))
+	t.f1 = nil
+}
+
+func (t *StreamingWritesCommonTest) TestOutOfOrderWriteSyncsFileToGcsAndDeletingFileDeletesFromGcs() {
+	_, err := t.f1.Write([]byte("foobar"))
+	assert.NoError(t.T(), err)
+	_, err = t.f1.WriteAt([]byte("foo"), 3)
+	assert.NoError(t.T(), err)
+	content, err := storageutil.ReadObject(ctx, bucket, fileName)
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), "foobar", string(content))
+
+	err = os.Remove(t.f1.Name())
+
+	assert.NoError(t.T(), err)
+	_, err = storageutil.ReadObject(ctx, bucket, fileName)
+	require.Error(t.T(), err)
+	var notFoundErr *gcs.NotFoundError
+	assert.True(t.T(), errors.As(err, &notFoundErr))
 }
