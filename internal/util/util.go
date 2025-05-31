@@ -29,9 +29,9 @@ const (
 	GCSFUSE_PARENT_PROCESS_DIR = "gcsfuse-parent-process-dir"
 
 	// Constants for read types - Sequential/Random
-	Sequential = "Sequential"
-	Random     = "Random"
-	Parallel   = "Parallel"
+	Sequential = 1
+	Random     = 2
+	Parallel   = 3
 
 	MaxMiBsInUint64 uint64 = math.MaxUint64 >> 20
 	MaxMiBsInInt64  int64  = math.MaxInt64 >> 20
@@ -44,6 +44,12 @@ const (
 
 	MaxTimeDuration = time.Duration(math.MaxInt64)
 )
+
+var ReadTypeStringMap = map[int64]string{
+	Sequential: "Sequential",
+	Random:     "Random",
+	Parallel:   "Parallel",
+}
 
 // 1. Returns the same filepath in case of absolute path or empty filename.
 // 2. For child process, it resolves relative path like, ./test.txt, test.txt
