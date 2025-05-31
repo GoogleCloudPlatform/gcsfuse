@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"os"
 	"testing"
 	"time"
 
@@ -597,5 +598,93 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithMaxRetryAttemptsNotZ
 
 	if assert.NoError(testSuite.T(), err) {
 		assert.NotNil(testSuite.T(), handleCreated)
+	}
+}
+
+func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_SetsAndUnsetsEnv_ForTPC() {
+	initialValue := "temp"
+	err := os.Setenv(disableDirectPath, initialValue)
+	require.NoError(testSuite.T(), err)
+	defer func() {
+		err := os.Unsetenv(disableDirectPath)
+		require.NoError(testSuite.T(), err, "failed to unset env var during cleanup")
+	}()
+	clientConfig := storageutil.GetDefaultStorageClientConfig()
+	clientConfig.CustomEndpoint = "tpc-something.apis.com"
+
+	_, err = createGRPCClientHandle(context.TODO(), &clientConfig, false)
+
+	assert.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), "", os.Getenv(disableDirectPath), "env var should be unset after function execution")
+}
+
+func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_SkipsEnvChange_ForNonTPC() {
+	expectedValue := "temp"
+	err := os.Setenv(disableDirectPath, expectedValue)
+	require.NoError(testSuite.T(), err)
+	defer func() {
+		err := os.Unsetenv(disableDirectPath)
+		require.NoError(testSuite.T(), err, "failed to unset env var during cleanup")
+	}()
+	clientConfig := storageutil.GetDefaultStorageClientConfig()
+	clientConfig.CustomEndpoint = "googleapi.com"
+
+	_, err = createGRPCClientHandle(context.TODO(), &clientConfig, false)
+
+	assert.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), expectedValue, os.Getenv(disableDirectPath), "env var should remain unchanged for non TPC endpoint")
+}
+
+type mockDirectPathDetector struct {
+	mock.Mock
+}
+
+func (m *mockDirectPathDetector) isDirectPathPossible(ctx context.Context, bucket string) error {
+	args := m.Called(ctx, bucket)
+	return args.Error(0)
+}
+
+func (testSuite *StorageHandleTest) TestBucketHandle_TPCCondition() {
+	tests := []struct {
+		name           string
+		customEndpoint string
+		expectDPCall   bool
+	}{
+		{
+			name:           "should call isDirectPathPossible when endpoint does not contain tpc",
+			customEndpoint: "https://storage.googleapis.com",
+			expectDPCall:   true,
+		},
+		{
+			name:           "should not call isDirectPathPossible when endpoint contains tpc",
+			customEndpoint: "https://tpc.storage.xxx.com",
+			expectDPCall:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		testSuite.Run(tt.name, func() {
+			mockDetector := new(mockDirectPathDetector)
+			if tt.expectDPCall {
+				mockDetector.On("isDirectPathPossible", mock.Anything, "test-bucket").Return(nil).Once()
+			}
+			mockStorageClient := &storageClient{
+				clientConfig: storageutil.StorageClientConfig{
+					ClientProtocol:  cfg.GRPC, // Ensure gRPC to trigger condition
+					CustomEndpoint:  tt.customEndpoint,
+					AnonymousAccess: true,
+				},
+				directPathDetector: mockDetector,
+			}
+
+			_, err := mockStorageClient.BucketHandle(context.Background(), "test-bucket", "")
+
+			assert.NoError(testSuite.T(), err)
+			if tt.expectDPCall {
+				mockDetector.AssertCalled(testSuite.T(), "isDirectPathPossible", mock.Anything, "test-bucket")
+			} else {
+				mockDetector.AssertNotCalled(testSuite.T(), "isDirectPathPossible", mock.Anything, "test-bucket")
+			}
+		})
 	}
 }

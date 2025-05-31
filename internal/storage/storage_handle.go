@@ -46,7 +46,8 @@ const (
 	dynamicReadReqIncreaseRateEnv   = "DYNAMIC_READ_REQ_INCREASE_RATE"
 	dynamicReadReqInitialTimeoutEnv = "DYNAMIC_READ_REQ_INITIAL_TIMEOUT"
 
-	zonalLocationType = "zone"
+	zonalLocationType        = "zone"
+	disableDirectPath string = "GOOGLE_CLOUD_DISABLE_DIRECT_PATH"
 )
 
 type StorageHandle interface {
@@ -64,7 +65,11 @@ type storageClient struct {
 	grpcClientWithBidiConfig *storage.Client
 	clientConfig             storageutil.StorageClientConfig
 	storageControlClient     StorageControlClient
-	directPathDetector       *gRPCDirectPathDetector
+	directPathDetector       DirectPathDetectorInterface
+}
+
+type DirectPathDetectorInterface interface {
+	isDirectPathPossible(ctx context.Context, bucketName string) error
 }
 
 type gRPCDirectPathDetector struct {
@@ -139,11 +144,29 @@ func setRetryConfig(sc *storage.Client, clientConfig *storageutil.StorageClientC
 	}
 }
 
+func isTPCEnv(endpoint string) bool {
+	return strings.Contains(endpoint, "tpc")
+}
+
 // Followed https://pkg.go.dev/cloud.google.com/go/storage#hdr-Experimental_gRPC_API to create the gRPC client.
 func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig, enableBidiConfig bool) (sc *storage.Client, err error) {
 
 	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
 		logger.Fatal("error setting direct path env var: %v", err)
+	}
+
+	// TPC does not support direct path in gRPC.(b/420794069#comment8)
+	// Sets GOOGLE_CLOUD_DISABLE_DIRECT_PATH to "true" if the CustomEndpoint contains "tpc".
+	// TODO: Remove this check once the direct path is available in TPC environment.
+	if isTPCEnv(clientConfig.CustomEndpoint) {
+		if err := os.Setenv(disableDirectPath, "true"); err != nil {
+			logger.Fatal("error setting disable direct path env var: %v", err)
+		}
+		defer func() {
+			if err := os.Unsetenv(disableDirectPath); err != nil {
+				logger.Fatal("error while unsetting disable direct path env var: %v", err)
+			}
+		}()
 	}
 
 	var clientOpts []option.ClientOption
@@ -330,7 +353,8 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 		return nil, err
 	}
 
-	if bucketType.Zonal || sh.clientConfig.ClientProtocol == cfg.GRPC {
+	// TPC does not support direct path validation.
+	if (bucketType.Zonal || sh.clientConfig.ClientProtocol == cfg.GRPC) && !isTPCEnv(sh.clientConfig.CustomEndpoint) {
 		if sh.directPathDetector != nil {
 			if err := sh.directPathDetector.isDirectPathPossible(ctx, bucketName); err != nil {
 				logger.Warnf("Direct path connectivity unavailable for %s, reason: %v", bucketName, err)
