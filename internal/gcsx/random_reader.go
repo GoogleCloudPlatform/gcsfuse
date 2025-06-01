@@ -379,7 +379,8 @@ func (rr *randomReader) ReadAt(
 
 	// If the data can't be served from the existing reader, then we need to update the seeks.
 	// If current offset is not same as expected offset, its a random read.
-	if rr.expectedOffset.Load() != 0 && rr.expectedOffset.Load() != offset {
+	expOffset := rr.expectedOffset.Load()
+	if expOffset != 0 && expOffset != offset {
 		rr.seeks.Add(1)
 	}
 
@@ -392,7 +393,7 @@ func (rr *randomReader) ReadAt(
 
 	readerType := readerType(readPattern, offset, end, rr.bucket.BucketType())
 	if readerType == RangeReader {
-		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, end, rr.readType.Load())
+		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, end, readPattern)
 		return
 	}
 
@@ -564,9 +565,10 @@ func (rr *randomReader) getReadInfo(
 	// optimise for random reads. Random reads will read data in chunks of
 	// (average read size in bytes rounded up to the next MiB).
 	end = int64(rr.object.Size)
-	if rr.seeks.Load() >= minSeeksForRandom {
-		rr.readType.Store(util.Random)
-		averageReadBytes := rr.totalReadBytes.Load() / rr.seeks.Load()
+	numSeeks := rr.seeks.Load()
+	if numSeeks >= minSeeksForRandom {
+		readType := util.Random
+		averageReadBytes := rr.totalReadBytes.Load() / numSeeks
 		if averageReadBytes < maxReadSize {
 			randomReadSize := int64(((averageReadBytes / MiB) + 1) * MiB)
 			if randomReadSize < minReadSize {
@@ -577,8 +579,9 @@ func (rr *randomReader) getReadInfo(
 			}
 			end = start + randomReadSize
 		} else {
-			rr.readType.Store(util.Sequential)
+			readType = util.Sequential
 		}
+		rr.readType.Store(int64(readType))
 	}
 	if end > int64(rr.object.Size) {
 		end = int64(rr.object.Size)
