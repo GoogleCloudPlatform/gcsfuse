@@ -67,7 +67,9 @@ const (
 	// meant for two purposes.
 	// 1. for conversion from stat-cache-capacity to stat-cache-max-size-mb.
 	// 2. internal testing.
-	AverageSizeOfPositiveStatCacheEntry uint64 = 1464
+	// Please note that with every added attribute of size x bytes, the heapsize
+	// grows by 2x bytes on average. Hence, make sure to update this value by 2x bytes.
+	AverageSizeOfPositiveStatCacheEntry uint64 = 1448
 	// AverageSizeOfNegativeStatCacheEntry is the assumed size of each negative stat-cache-entry,
 	// meant for two purposes.
 	// 1. for conversion from stat-cache-capacity to stat-cache-max-size-mb.
