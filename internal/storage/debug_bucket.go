@@ -68,7 +68,7 @@ func (b *debugBucket) startRequest(
 	desc = fmt.Sprintf(format, v...)
 
 	atomic.AddInt32(&openReader, 1)
-	b.requestLogf(id, "<- %s, streams opened: %d", desc, atomic.LoadInt32(&openReader))
+	b.requestLogf(id, "<- %s, open streams: %d", desc, atomic.LoadInt32(&openReader))
 
 	return
 }
