@@ -313,7 +313,7 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 func (rr *randomReader) ReadAt(
 	ctx context.Context,
 	p []byte,
-	offset int64, readPattern int64) (objectData ObjectData, err error) {
+	offset int64, readType int64) (objectData ObjectData, err error) {
 	objectData = ObjectData{
 		DataBuf:  p,
 		CacheHit: false,
@@ -341,7 +341,8 @@ func (rr *randomReader) ReadAt(
 		return
 	}
 
-	if readPattern == util.Sequential {
+	// This will be guarded due to fileHandle level lock taken for sequential reads.
+	if readType == util.Sequential {
 		// Check first if we can read using existing reader. if not, determine which
 		// api to use and call gcs accordingly.
 
@@ -372,7 +373,7 @@ func (rr *randomReader) ReadAt(
 		}
 
 		if rr.reader != nil {
-			objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, -1, rr.readType.Load())
+			objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, -1, readType)
 			return
 		}
 	}
@@ -391,9 +392,9 @@ func (rr *randomReader) ReadAt(
 		return
 	}
 
-	readerType := readerType(readPattern, offset, end, rr.bucket.BucketType())
+	readerType := readerType(readType, offset, end, rr.bucket.BucketType())
 	if readerType == RangeReader {
-		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, end, readPattern)
+		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, end, readType)
 		return
 	}
 
