@@ -36,6 +36,12 @@ func (t *StreamingWritesSuite) TestTruncate() {
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, string(data[:]), t.T())
 }
 
+func (t *StreamingWritesSuite) TestTruncateNegative() {
+	err := t.f1.Truncate(-1)
+
+	assert.Error(t.T(), err)
+}
+
 func (t *StreamingWritesSuite) TestWriteAfterTruncate() {
 	truncateSize := 10
 
@@ -166,23 +172,7 @@ func (t *StreamingWritesSuite) TestWriteTruncateWrite() {
 	}
 }
 
-func (t *StreamingWritesSuite) TestTruncateToLowerSyncsFileToGcsForStreamingWrites() {
-	// Write
-	operations.WriteWithoutClose(t.f1, "foobar", t.T())
-	operations.VerifyStatFile(t.filePath, int64(len("foobar")), FilePerms, t.T())
-
-	// Perform truncate
-	err := t.f1.Truncate(3)
-
-	require.NoError(t.T(), err)
-	operations.VerifyStatFile(t.filePath, 3, FilePerms, t.T())
-	if !t.fallbackToDiskCase {
-		ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, t.fileName, "foobar", t.T())
-	}
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, "foo", t.T())
-}
-
-func (t *StreamingWritesSuite) TestTruncateToLowerSyncsFileToGcsAndDeletingFileDeletsFileFromGcs() {
+func (t *StreamingWritesSuite) TestTruncateDownAndDeleteFile() {
 	// Write
 	operations.WriteWithoutClose(t.f1, "foobar", t.T())
 	operations.VerifyStatFile(t.filePath, int64(len("foobar")), FilePerms, t.T())

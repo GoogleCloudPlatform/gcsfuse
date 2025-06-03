@@ -203,6 +203,14 @@ func (t *FileStreamingWritesCommon) TestflushUsingBufferedWriteHandlerOnNonZeroS
 	assert.Nil(t.T(), t.in.bwh)
 }
 
+func (t *FileStreamingWritesCommon) TestTruncateNegative() {
+	// Truncate neagtive.
+	gcsSynced, err := t.in.Truncate(t.ctx, -1)
+
+	require.Error(t.T(), err)
+	assert.False(t.T(), gcsSynced)
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Tests (Zonal Bucket)
 ////////////////////////////////////////////////////////////////////////

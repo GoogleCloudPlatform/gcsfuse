@@ -422,6 +422,16 @@ func (t *FileTest) TestTruncate() {
 	assert.Equal(t.T(), attrs.Mtime, truncateTime)
 }
 
+func (t *FileTest) TestTruncateNegative() {
+	assert.Equal(t.T(), "taco", t.initialContents)
+
+	// Truncate neagtive.
+	gcsSynced, err := t.in.Truncate(t.ctx, -1)
+
+	require.Error(t.T(), err)
+	assert.False(t.T(), gcsSynced)
+}
+
 func (t *FileTest) TestWriteThenSync() {
 	testcases := []struct {
 		name     string
