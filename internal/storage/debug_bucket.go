@@ -46,6 +46,8 @@ type debugBucket struct {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
+var openReader int32 = 0
+
 func (b *debugBucket) mintRequestID() (id uint64) {
 	id = atomic.AddUint64(&b.nextRequestID, 1) - 1
 	return
@@ -65,7 +67,9 @@ func (b *debugBucket) startRequest(
 	id = b.mintRequestID()
 	desc = fmt.Sprintf(format, v...)
 
-	b.requestLogf(id, "<- %s", desc)
+	atomic.AddInt32(&openReader, 1)
+	b.requestLogf(id, "<- %s, streams opened: %d", desc, atomic.LoadInt32(&openReader))
+
 	return
 }
 
@@ -80,6 +84,8 @@ func (b *debugBucket) finishRequest(
 	if *err != nil {
 		errDesc = (*err).Error()
 	}
+
+	atomic.AddInt32(&openReader, -1)
 
 	b.requestLogf(id, "-> %s (%v): %s", desc, duration, errDesc)
 }
