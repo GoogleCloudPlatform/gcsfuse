@@ -118,7 +118,8 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.R
 		gr.updateExpectedOffset(offset + int64(readerResponse.Size))
 	}()
 
-	readerResponse, err := gr.rangeReader.readFromExistingReader(ctx, readReq)
+	var err error
+	readerResponse, err = gr.rangeReader.readFromExistingReader(ctx, readReq)
 	if err == nil {
 		return readerResponse, nil
 	}

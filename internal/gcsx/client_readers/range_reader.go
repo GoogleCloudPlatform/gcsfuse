@@ -311,8 +311,7 @@ func (rr *RangeReader) skipBytes(offset int64) {
 // offset) or cannot serve the full request within its limit, it is closed and discarded.
 //
 // It attempts to skip forward to the requested offset if possible to avoid creating
-// a new reader unnecessarily. If the reader is discarded due to misalignment, the method
-// returns true to signal that a seek should be recorded.
+// a new reader unnecessarily.
 //
 // Parameters:
 //   - offset: the starting byte position of the requested read.
