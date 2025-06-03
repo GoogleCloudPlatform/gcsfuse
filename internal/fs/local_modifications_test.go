@@ -1537,7 +1537,6 @@ func validateObjectAttributes(extendedAttr1, extendedAttr2 *gcs.ExtendedObjectAt
 	ExpectEq(FileContentsSize, minObject2.Size)
 	ExpectNe(minObject1.Generation, minObject2.Generation)
 	ExpectTrue(minObject1.Updated.Before(minObject2.Updated))
-	ExpectTrue(minObject1.Finalized.Before(minObject2.Finalized))
 	attr1MTime, _ := time.Parse(time.RFC3339Nano, minObject1.Metadata[gcs.MtimeMetadataKey])
 	attr2MTime, _ := time.Parse(time.RFC3339Nano, minObject2.Metadata[gcs.MtimeMetadataKey])
 	ExpectTrue(attr1MTime.Before(attr2MTime))
@@ -1584,6 +1583,8 @@ func (t *FileTest) AppendFileOperation_ShouldNotChangeObjectAttributes() {
 	minObject2, extendedAttr2, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: fileName, ForceFetchFromGcs: true, ReturnExtendedObjectAttributes: true})
 	AssertEq(nil, err)
 	// Validate object attributes are as expected.
+	// TODO: Validate on Finalized attribute once the default behavior on GCSFuse
+	// side is to never finalize object.
 	validateObjectAttributes(extendedAttr1, extendedAttr2, minObject1, minObject2)
 }
 
@@ -1607,6 +1608,8 @@ func (t *FileTest) WriteAtFileOperation_ShouldNotChangeObjectAttributes() {
 	AssertEq(nil, err)
 
 	// Validate object attributes are as expected.
+	// TODO: Validate on Finalized attribute once the default behavior on GCSFuse
+	// side is to never finalize object.
 	validateObjectAttributes(extendedAttr1, extendedAttr2, minObject1, minObject2)
 }
 
