@@ -2573,6 +2573,8 @@ func (fs *fileSystem) OpenFile(
 	// open to open for a given inode.
 	op.KeepPageCache = true
 
+	op.UseDirectIO = true
+
 	return
 }
 
