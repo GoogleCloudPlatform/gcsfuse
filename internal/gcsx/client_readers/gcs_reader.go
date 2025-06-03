@@ -101,12 +101,10 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.R
 		return readerResponse, io.EOF
 	}
 
-	if gr.rangeReader.invalidateReaderIfMisalignedOrTooSmall(offset, p) {
-		gr.seeks++
-	}
+	gr.rangeReader.invalidateReaderIfMisalignedOrTooSmall(offset, p)
 
 	// If the data can't be served from the existing reader, then we need to update the seeks.
-	// If current offset is not same as expected offset, its a random read.
+	// If current offset is not same as expected offset, it's a random read.
 	if gr.expectedOffset != 0 && gr.expectedOffset != offset {
 		gr.seeks++
 	}
@@ -116,6 +114,9 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.R
 		Offset:    offset,
 		EndOffset: -1,
 	}
+	defer func() {
+		gr.updateExpectedOffset(offset + int64(readerResponse.Size))
+	}()
 
 	readerResponse, err := gr.rangeReader.readFromExistingReader(ctx, readReq)
 	if err == nil {
@@ -137,13 +138,11 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.R
 	if readerType == RangeReaderType {
 		readerResponse, err = gr.rangeReader.ReadAt(ctx, readReq)
 		gr.totalReadBytes += uint64(readerResponse.Size)
-		gr.updateExpectedOffset(offset + int64(readerResponse.Size))
 		return readerResponse, err
 	}
 
 	readerResponse, err = gr.mrr.ReadAt(ctx, readReq)
 	gr.totalReadBytes += uint64(readerResponse.Size)
-	gr.updateExpectedOffset(offset + int64(readerResponse.Size))
 
 	return readerResponse, err
 }

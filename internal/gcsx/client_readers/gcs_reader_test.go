@@ -261,6 +261,7 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateReadType() {
 		bucketType        gcs.BucketType
 		readRanges        [][]int
 		expectedReadTypes []string
+		expectedSeeks     []int
 	}{
 		{
 			name:              "SequentialReadFlat",
@@ -268,6 +269,7 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateReadType() {
 			bucketType:        gcs.BucketType{Zonal: false},
 			readRanges:        [][]int{{0, 10}, {10, 20}, {20, 35}, {35, 50}},
 			expectedReadTypes: []string{testUtil.Sequential, testUtil.Sequential, testUtil.Sequential, testUtil.Sequential},
+			expectedSeeks:     []int{0, 0, 0, 0, 0},
 		},
 		{
 			name:              "SequentialReadZonal",
@@ -275,6 +277,7 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateReadType() {
 			bucketType:        gcs.BucketType{Zonal: true},
 			readRanges:        [][]int{{0, 10}, {10, 20}, {20, 35}, {35, 50}},
 			expectedReadTypes: []string{testUtil.Sequential, testUtil.Sequential, testUtil.Sequential, testUtil.Sequential},
+			expectedSeeks:     []int{0, 0, 0, 0, 0},
 		},
 		{
 			name:              "RandomReadFlat",
@@ -282,6 +285,7 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateReadType() {
 			bucketType:        gcs.BucketType{Zonal: false},
 			readRanges:        [][]int{{0, 50}, {30, 40}, {10, 20}, {20, 30}, {30, 40}},
 			expectedReadTypes: []string{testUtil.Sequential, testUtil.Sequential, testUtil.Random, testUtil.Random, testUtil.Random},
+			expectedSeeks:     []int{0, 1, 2, 2, 2},
 		},
 		{
 			name:              "RandomReadZonal",
@@ -289,6 +293,7 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateReadType() {
 			bucketType:        gcs.BucketType{Zonal: true},
 			readRanges:        [][]int{{0, 50}, {30, 40}, {10, 20}, {20, 30}, {30, 40}},
 			expectedReadTypes: []string{testUtil.Sequential, testUtil.Sequential, testUtil.Random, testUtil.Random, testUtil.Random},
+			expectedSeeks:     []int{0, 1, 2, 2, 2},
 		},
 	}
 
@@ -299,6 +304,7 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateReadType() {
 			t.gcsReader.mrr.isMRDInUse = false
 			t.gcsReader.seeks = 0
 			t.gcsReader.rangeReader.readType = testUtil.Sequential
+			t.gcsReader.expectedOffset = 0
 			t.object.Size = uint64(tc.dataSize)
 			testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
 			fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{})
@@ -314,6 +320,8 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateReadType() {
 
 				assert.NoError(t.T(), err)
 				assert.Equal(t.T(), tc.expectedReadTypes[i], t.gcsReader.readType)
+				assert.Equal(t.T(), int64(readRange[1]), t.gcsReader.expectedOffset)
+				assert.Equal(t.T(), uint64(tc.expectedSeeks[i]), t.gcsReader.seeks)
 			}
 		})
 	}

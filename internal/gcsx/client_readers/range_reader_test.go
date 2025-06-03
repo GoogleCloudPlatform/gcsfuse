@@ -368,9 +368,8 @@ func (t *rangeReaderTest) Test_invalidateReaderIfMisalignedOrTooSmall() {
 		t.Run(tt.name, func() {
 			tt.readerSetup()
 
-			result := t.rangeReader.invalidateReaderIfMisalignedOrTooSmall(tt.offset, make([]byte, tt.bufferSize))
+			t.rangeReader.invalidateReaderIfMisalignedOrTooSmall(tt.offset, make([]byte, tt.bufferSize))
 
-			assert.Equal(t.T(), tt.expectIncreaseSeek, result, "invalidateReaderIfMisalignedOrTooSmall() result")
 			if tt.expectReaderNil {
 				assert.Nil(t.T(), t.rangeReader.reader, "rangeReader.reader should be nil")
 			} else {

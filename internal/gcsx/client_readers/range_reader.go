@@ -317,11 +317,7 @@ func (rr *RangeReader) skipBytes(offset int64) {
 // Parameters:
 //   - offset: the starting byte position of the requested read.
 //   - p: the buffer representing the size of the requested read.
-//
-// Returns:
-//   - true if the reader was discarded due to being misaligned (seek should be counted).
-//   - false otherwise.
-func (rr *RangeReader) invalidateReaderIfMisalignedOrTooSmall(offset int64, p []byte) bool {
+func (rr *RangeReader) invalidateReaderIfMisalignedOrTooSmall(offset int64, p []byte) {
 	rr.skipBytes(offset)
 
 	// If we have an existing reader, but it's positioned at the wrong place,
@@ -333,7 +329,6 @@ func (rr *RangeReader) invalidateReaderIfMisalignedOrTooSmall(offset int64, p []
 		rr.reader = nil
 		rr.cancel = nil
 	}
-	return false
 }
 
 // readFromExistingReader attempts to read data from an existing reader if one is available.
