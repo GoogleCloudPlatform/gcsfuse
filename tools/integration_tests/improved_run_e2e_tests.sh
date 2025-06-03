@@ -331,7 +331,6 @@ process_any_pid() {
 # Example:
 #   run_parallel 2 "echo 'Processing @' && sleep 1" "itemA" "itemB" "itemC"
 # This command will run at max 2 commands in parallel.
-
 run_parallel() {
   if [[ $# -lt 2 ]]; then
     log_error_locked "run_parallel() called with incorrect number of arguments."
