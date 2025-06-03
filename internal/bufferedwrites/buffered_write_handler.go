@@ -260,7 +260,7 @@ func (wh *bufferedWriteHandlerImpl) SetMtime(mtime time.Time) {
 
 func (wh *bufferedWriteHandlerImpl) Truncate(size int64) error {
 	if size < wh.totalSize {
-		return fmt.Errorf("cannot truncate to lesser size when upload is in progress")
+		return ErrOutOfOrderWrite
 	}
 
 	wh.truncatedSize = size

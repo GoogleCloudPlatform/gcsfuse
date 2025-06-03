@@ -161,7 +161,7 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 // unfinalized objects in zonal buckets, streaming writes is used.
 // Note that the writes are still done at the inode level.
 // LOCKS_EXCLUDED(fh.inode)
-func (fh *FileHandle) Write(ctx context.Context, data []byte, offset int64) error {
+func (fh *FileHandle) Write(ctx context.Context, data []byte, offset int64) (bool, error) {
 	fh.inode.Lock()
 	defer fh.inode.Unlock()
 

@@ -25,6 +25,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -50,20 +51,21 @@ func (t *StreamingWritesEmptyGCSObjectTest) TearDownSuite() {
 	t.fsTest.TearDownTestSuite()
 }
 func (t *StreamingWritesEmptyGCSObjectTest) SetupTest() {
-	// Create an object on bucket.
+	// Create an empty object on bucket.
 	_, err := storageutil.CreateObject(
 		ctx,
 		bucket,
 		fileName,
-		[]byte("bar"))
+		[]byte(""))
 	assert.Equal(t.T(), nil, err)
 	// Open file handle to read or write.
 	t.f1, err = os.OpenFile(path.Join(mntDir, fileName), os.O_RDWR|syscall.O_DIRECT, filePerms)
 	assert.Equal(t.T(), nil, err)
 
-	// Validate that file exists on GCS.
-	_, err = storageutil.ReadObject(ctx, bucket, fileName)
-	assert.NoError(t.T(), err)
+	// Validate that empty file exists on GCS.
+	content, err := storageutil.ReadObject(ctx, bucket, fileName)
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), "", string(content))
 }
 
 func (t *StreamingWritesEmptyGCSObjectTest) TearDownTest() {
