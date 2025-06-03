@@ -47,7 +47,7 @@ log_info "Bash version: ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"
 
 # Constants
 readonly GO_VERSION="1.24.0"
-readonly DEFUALT_PROJECT_ID="gcs-fuse-test-ml"
+readonly DEFAULT_PROJECT_ID="gcs-fuse-test-ml"
 readonly TPCZERO_PROJECT_ID="tpczero-system:gcsfuse-test-project"
 readonly TPC_BUCKET_LOCATION="u-us-prp1"
 readonly BUCKET_PREFIX="gcsfuse-e2e"
@@ -57,12 +57,15 @@ readonly TMP_PREFIX="gcsfuse_e2e"
 readonly ZONAL_BUCKET_SUPPORTED_LOCATIONS=("us-central1" "us-west4")
 readonly PACKAGE_LEVEL_PARALLELISM=10 # Controls how many test packages are run in parallel for hns, flat or zonal buckets.
 readonly DELETE_BUCKET_PARALLELISM=10 # Controls how many buckets are deleted in parallel.
+# 6 second delay between creating buckets as both hns and flat runs create buckets in parallel.
+# Ref: https://cloud.google.com/storage/quotas#buckets
+readonly DELAY_BETWEEN_BUCKET_CREATION=6 
 readonly ZONAL="zonal"
 readonly FLAT="flat"
 readonly HNS="hns"
 
 # Set default project id for tests.
-PROJECT_ID="${DEFUALT_PROJECT_ID}"
+PROJECT_ID="${DEFAULT_PROJECT_ID}"
 # This variable will store the path if the script builds GCSFuse binaries (gcsfuse, mount.gcsfuse)
 BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR=""
 
@@ -221,7 +224,7 @@ create_bucket() {
     fi
     eval "$bucket_cmd" > "$bucket_cmd_log" 2>&1
     if [ $? -eq 0 ]; then
-      sleep 6 # have 6 seconds gap between creating buckets. 
+      sleep "$DELAY_BETWEEN_BUCKET_CREATION" # have 6 seconds gap between creating buckets. 
       break
     fi
   done
