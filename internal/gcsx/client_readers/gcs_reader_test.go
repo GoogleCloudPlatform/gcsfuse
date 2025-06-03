@@ -172,6 +172,7 @@ func (t *gcsReaderTest) Test_ReadAt_ExistingReaderLimitIsLessThanRequestedDataSi
 	assert.Equal(t.T(), requestSize, readerResponse.Size)
 	assert.Equal(t.T(), content, string(readerResponse.DataBuf[:readerResponse.Size]))
 	assert.Equal(t.T(), uint64(requestSize), t.gcsReader.totalReadBytes)
+	assert.Equal(t.T(), int64(2+requestSize), t.gcsReader.expectedOffset)
 	assert.Equal(t.T(), expectedHandleInRequest, t.gcsReader.rangeReader.readHandle)
 }
 
