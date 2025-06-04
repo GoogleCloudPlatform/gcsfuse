@@ -442,8 +442,7 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
 	}
 
 	// Put the object in cache.
-	o := storageutil.ConvertMinObjectToObject(m)
-	b.insert(o)
+	b.insertMinObject(m)
 
 	return
 }
