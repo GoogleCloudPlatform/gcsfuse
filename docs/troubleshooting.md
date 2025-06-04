@@ -185,3 +185,16 @@ performance bottleneck. \
 Starting with [version 2.12.0](https://github.com/GoogleCloudPlatform/gcsfuse/releases/tag/v2.12.0), you might observe a slight increase in CPU utilization when the file cache is enabled. This occurs because GCSFuse uses parallel threads to download data to the read cache. While this dramatically improves read performance, it may consume slightly more CPU than in previous versions.
 
 If this increased CPU usage negatively impacts your workload's performance, you can disable this behavior by setting the `file-cache:enable-parallel-downloads` configuration option to `false`.
+
+### Writes still using staged writes even though streaming writes are enabled.
+If you observe that GCSFuse is still utilizing staged writes despite streaming writes being enabled, several factors could be at play.
+
+- **Global Max Blocks Limit Reached:** You might encounter warning logs indicating that streaming write blocks cannot be allocated because the global maximum blocks limit has been reached. In such cases, consider increasing the `--write-global-max-blocks` limit if sufficient memory resources are available.
+
+- **Unsupported Write Operations:** Streaming writes only work for sequential writes to new or empty files. GCSFuse will automatically revert to staged writes for the following scenarios:
+  - Modifying existing files (non-zero size).
+  - Performing out-of-order writes.
+  - Reading from a file while writes are in progress (this action finalizes the object and subsequent writes will fall back).
+  - Truncating a file downwards while writes are in progress (this action also finalizes the object and subsequent writes will fall back).
+
+An informational log message will be emitted by GCSFuse whenever a fallback to staged writes occurs, providing details on the reason.
