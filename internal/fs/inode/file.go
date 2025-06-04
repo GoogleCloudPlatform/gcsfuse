@@ -987,9 +987,19 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 	}
 
 	tempFileInUse := f.content != nil
-	if f.src.Size != 0 || !f.config.Write.EnableStreamingWrites || tempFileInUse {
-		// bwh should not be initialized under these conditions.
-		return false, nil
+	if f.config.Write.ExperimentalEnableRapidAppends {
+
+	}
+	if !f.config.Write.ExperimentalEnableRapidAppends {
+		if f.src.Size != 0 || !f.config.Write.EnableStreamingWrites || tempFileInUse {
+			// bwh should not be initialized under these conditions.
+			return false, nil
+		}
+	} else {
+		if !f.config.Write.EnableStreamingWrites || tempFileInUse {
+			// bwh should not be initialized under these conditions.
+			return false, nil
+		}
 	}
 
 	var latestGcsObj *gcs.Object
@@ -1000,8 +1010,15 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 			return false, err
 		}
 	}
-	if !f.areBufferedWritesSupported(openMode, latestGcsObj) {
-		return false, nil
+	if f.config.Write.ExperimentalEnableRapidAppends {
+		if !f.areBufferedWritesSupported(openMode, latestGcsObj) {
+			return false, nil
+		}
+	}
+
+	var initSize int64
+	if openMode == util.Append {
+		initSize = int64(latestGcsObj.Size)
 	}
 
 	if f.bwh == nil {
@@ -1013,6 +1030,7 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 			MaxBlocksPerFile:         f.config.Write.MaxBlocksPerFile,
 			GlobalMaxBlocksSem:       f.globalMaxWriteBlocksSem,
 			ChunkTransferTimeoutSecs: f.config.GcsRetries.ChunkTransferTimeoutSecs,
+			TotalSize:                initSize,
 		})
 		if errors.Is(err, block.CantAllocateAnyBlockError) {
 			logger.Warnf("writes will fall back to staged writes due to err: %v. Please increase block limit using --write-global-max-blocks mount option.", block.CantAllocateAnyBlockError.Error())

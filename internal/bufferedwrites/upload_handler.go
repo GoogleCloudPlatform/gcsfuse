@@ -57,6 +57,7 @@ type UploadHandler struct {
 	obj                  *gcs.Object
 	chunkTransferTimeout int64
 	blockSize            int64
+	totalSize            int64
 }
 
 type CreateUploadHandlerRequest struct {
@@ -67,6 +68,7 @@ type CreateUploadHandlerRequest struct {
 	MaxBlocksPerFile         int64
 	BlockSize                int64
 	ChunkTransferTimeoutSecs int64
+	TotalSize                int64
 }
 
 // newUploadHandler creates the UploadHandler struct.
@@ -80,6 +82,7 @@ func newUploadHandler(req *CreateUploadHandlerRequest) *UploadHandler {
 		obj:                  req.Object,
 		blockSize:            req.BlockSize,
 		chunkTransferTimeout: req.ChunkTransferTimeoutSecs,
+		totalSize:            req.TotalSize,
 	}
 	return uh
 }
@@ -109,6 +112,18 @@ func (uh *UploadHandler) createObjectWriter() (err error) {
 	ctx, uh.cancelFunc = context.WithCancel(context.Background())
 	uh.writer, err = uh.bucket.CreateObjectChunkWriter(ctx, req, int(uh.blockSize), nil)
 	return
+}
+
+func (uh *UploadHandler) createAppendableObjectWriter() (err error) {
+	creq := gcs.NewCreateObjectRequest(uh.obj, uh.objectName, nil, uh.chunkTransferTimeout)
+	req := gcs.CreateObjectChunkWriterRequest{
+		CreateObjectRequest: *creq,
+		ChunkSize:           int(uh.totalSize),
+	}
+	var ctx context.Context
+	ctx, uh.cancelFunc = context.WithCancel(context.Background())
+	uh.writer, err = uh.bucket.CreateAppendableObjectWriter(ctx, &req)
+	return err
 }
 
 func (uh *UploadHandler) UploadError() (err error) {
@@ -168,7 +183,12 @@ func (uh *UploadHandler) Finalize() (*gcs.MinObject, error) {
 
 func (uh *UploadHandler) ensureWriter() error {
 	if uh.writer == nil {
-		err := uh.createObjectWriter()
+		var err error
+		if uh.totalSize != 0 {
+			err = uh.createAppendableObjectWriter()
+		} else {
+			err = uh.createObjectWriter()
+		}
 		if err != nil {
 			return fmt.Errorf("createObjectWriter failed for object %s: %w", uh.objectName, err)
 		}
