@@ -20,6 +20,7 @@ set -x
 gsutil cp  gs://gcsfuse-release-packages/version-detail/details.txt .
 # Writing VM instance name to details.txt (Format: release-test-<os-name>)
 vm_instance_name=$(curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google")
+# first line of details.txt contains the release version in the format MAJOR.MINOR.PATCH
 to_release_version=$(sed '1q' details.txt | tr -d '\n')
 echo $vm_instance_name >> details.txt
 touch ~/logs.txt
@@ -113,8 +114,15 @@ else
     sudo yum -y upgrade gcsfuse |& tee -a ~/logs.txt
 fi
 
+# Verify that gcsfuse has been upgraded to the to_be_released version using version comparison.
+# This is to ensure that the correct version is installed after the upgrade.
 gcsfuse --version |& tee version.txt
 installed_version=$(echo $(sed -n 1p version.txt) | cut -d' ' -f3)
+# The following command compares the two versions:
+# 1. `printf` outputs to_release_version and installed_version on a new line.
+# 2. `sort -V` sorts them naturally (version sort).
+# 3. `tail -n 1` gets the last line, which is the highest version.
+# The condition is true if installed_version is greater than or equal to to_release_version.
 if [[ "$(printf '%s\n%s\n' "$to_release_version" "$installed_version" | sort -V | tail -n 1)" == "$installed_version" ]]; then
   echo "GCSFuse successfully upgraded to latest version: installed_version ($installed_version), to_release_version: ($to_release_version)" &>> ~/logs.txt
 else
@@ -129,4 +137,3 @@ else
 fi
 
 gsutil cp ~/logs.txt gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/installation-test/$(sed -n 3p details.txt)/
-
