@@ -172,6 +172,7 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		EnableParallelDirOps: !(newConfig.FileSystem.DisableParallelDirops),
 		// We disable write-back cache when streaming writes are enabled.
 		DisableWritebackCaching: newConfig.Write.EnableStreamingWrites,
+		DisableReaddirplus:      newConfig.FileSystem.DisableReaddirplus,
 	}
 
 	mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse: ")

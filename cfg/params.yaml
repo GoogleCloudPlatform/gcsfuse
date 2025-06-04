@@ -176,6 +176,13 @@
   default: false
   hide-flag: true
 
+- config-path: "file-system.disable-readdirplus"
+  flag-name: "disable-readdirplus"
+  type: "bool"
+  usage: "This flag is used to disable ReadDirPlus capability so ReadDir is used instead"
+  default: "true"
+  hide-flag: true
+
 - config-path: "file-system.file-mode"
   flag-name: "file-mode"
   type: "octal"

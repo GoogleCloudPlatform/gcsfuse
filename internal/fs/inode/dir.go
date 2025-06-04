@@ -1072,11 +1072,13 @@ func (d *dirInode) LocalFileEntriesPlus(localFileInodes map[Name]Inode) (localEn
 			}
 
 			entryPlus := fuseutil.DirentPlus{
-				Name:  path.Base(localInodeName.LocalName()),
-				Type:  fuseutil.DT_File,
+				Dirent: fuseutil.Dirent{
+					Name: path.Base(localInodeName.LocalName()),
+					Type: fuseutil.DT_File,
+				},
 				Entry: childInodeEntry,
 			}
-			localEntriesPlus[entryPlus.Name] = entryPlus
+			localEntriesPlus[entryPlus.Dirent.Name] = entryPlus
 		}
 	}
 	return
