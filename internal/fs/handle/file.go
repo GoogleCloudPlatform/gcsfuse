@@ -125,29 +125,21 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 	// If enableReadManager flag is set, we will take new reader implementation.
 	if enableReadManager {
 		err = fh.tryEnsureReadManager(ctx, sequentialReadSizeMb)
+		if err != nil {
+			fh.inode.Unlock()
+			return nil, 0, fmt.Errorf("tryEnsureReadManager: %w", err)
+		}
 	} else {
 		err = fh.tryEnsureReader(ctx, sequentialReadSizeMb)
-	}
-
-	if err != nil {
-		fh.inode.Unlock()
-		return nil, 0, fmt.Errorf("tryEnsureReader: %w", err)
+		if err != nil {
+			fh.inode.Unlock()
+			return nil, 0, fmt.Errorf("tryEnsureReader: %w", err)
+		}
 	}
 
 	// Attempt to use a reader or readManager if available.
 	// We unlock the inode here to allow concurrent reads.
-	if fh.reader != nil {
-		fh.inode.Unlock()
-		objectData, readErr := fh.reader.ReadAt(ctx, dst, offset)
-		if errors.Is(readErr, io.EOF) {
-			logger.Warnf("Unexpected EOF error encountered while reading, err: %v type: %T ", err, err)
-			return nil, 0, io.EOF // Propagate EOF
-		}
-		if readErr != nil {
-			return nil, 0, fmt.Errorf("fh.reader.ReadAt: %w", readErr)
-		}
-		return objectData.DataBuf, objectData.Size, nil
-	} else if fh.readManager != nil {
+	if fh.readManager != nil {
 		fh.inode.Unlock()
 		readerResponse, readErr := fh.readManager.ReadAt(ctx, dst, offset)
 		if errors.Is(readErr, io.EOF) {
@@ -158,6 +150,17 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 			return nil, 0, fmt.Errorf("fh.readManager.ReadAt: %w", readErr)
 		}
 		return readerResponse.DataBuf, readerResponse.Size, nil
+	} else if fh.reader != nil {
+		fh.inode.Unlock()
+		objectData, readErr := fh.reader.ReadAt(ctx, dst, offset)
+		if errors.Is(readErr, io.EOF) {
+			logger.Warnf("Unexpected EOF error encountered while reading, err: %v type: %T ", err, err)
+			return nil, 0, io.EOF // Propagate EOF
+		}
+		if readErr != nil {
+			return nil, 0, fmt.Errorf("fh.reader.ReadAt: %w", readErr)
+		}
+		return objectData.DataBuf, objectData.Size, nil
 	}
 
 	// Otherwise, fall through to the inode.

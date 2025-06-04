@@ -26,6 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx/read_manager"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
@@ -99,7 +100,8 @@ func createFileInode(
 	config *cfg.Config,
 	parent inode.DirInode,
 	objectName string,
-	content []byte) *inode.FileInode {
+	content []byte,
+	localFileCache bool) *inode.FileInode {
 
 	obj := &gcs.MinObject{
 		Name:           objectName,
@@ -124,7 +126,7 @@ func createFileInode(
 		obj,
 		fuseops.InodeAttributes{},
 		bucket,
-		false,
+		localFileCache,
 		contentcache.New("", clock),
 		clock,
 		false,
@@ -140,7 +142,7 @@ func createFileInode(
 func (t *fileTest) TestFileHandleWrite() {
 	parent := createDirInode(&t.bucket, &t.clock, "parentRoot")
 	config := &cfg.Config{Write: cfg.WriteConfig{EnableStreamingWrites: false}}
-	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj", nil)
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj", nil, false)
 	fh := NewFileHandle(in, nil, false, nil, util.Write, &cfg.ReadConfig{})
 	data := []byte("hello")
 
@@ -159,7 +161,7 @@ func (t *fileTest) TestFileHandleWrite() {
 	assert.Equal(t.T(), data, buf)
 }
 
-func (t *fileTest) TestFileHandleRead() {
+func (t *fileTest) Test_Read_Success() {
 	type testCase struct {
 		name              string
 		enableReadManager bool
@@ -186,7 +188,7 @@ func (t *fileTest) TestFileHandleRead() {
 			t.SetupTest()
 			parent := createDirInode(&t.bucket, &t.clock, "parentRoot")
 			objectName := "test_obj_" + tc.name
-			in := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, objectName, tc.expectedData)
+			in := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, objectName, tc.expectedData, false)
 			fh := NewFileHandle(in, nil, false, common.NewNoopMetrics(), util.Read, &cfg.ReadConfig{})
 			buf := make([]byte, len(tc.expectedData))
 			fh.inode.Lock()
@@ -196,6 +198,138 @@ func (t *fileTest) TestFileHandleRead() {
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), len(tc.expectedData), n)
 			assert.Equal(t.T(), tc.expectedData, output)
+		})
+	}
+}
+
+func (t *fileTest) Test_Read_EOFScenarios() {
+	type testCase struct {
+		name             string
+		useReadManager   bool
+		mockSetup        func(*fileTest, []byte) *FileHandle
+		expectedErr      error
+		expectedSize     int
+		expectedResponse []byte
+	}
+
+	dst := make([]byte, 100)
+
+	tests := []testCase{
+		{
+			name:           "EOF via readManager",
+			useReadManager: true,
+			mockSetup: func(t *fileTest, dst []byte) *FileHandle {
+				mockRM := new(read_manager.MockReadManager)
+				mockRM.On("ReadAt", t.ctx, dst, int64(0)).Return(gcsx.ReaderResponse{}, io.EOF)
+				object := gcs.MinObject{Name: "test_obj", Generation: 1}
+				mockRM.On("Object").Return(&object)
+				mockRM.On("Destroy").Return()
+
+				parent := createDirInode(&t.bucket, &t.clock, "parentRoot")
+				in := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, object.Name, []byte("data"), false)
+				fh := NewFileHandle(in, nil, false, common.NewNoopMetrics(), util.Read, &cfg.ReadConfig{})
+				fh.inode.Lock()
+				fh.readManager = mockRM
+				return fh
+			},
+			expectedErr:      io.EOF,
+			expectedSize:     0,
+			expectedResponse: nil,
+		},
+		{
+			name:           "EOF via random reader",
+			useReadManager: false,
+			mockSetup: func(t *fileTest, dst []byte) *FileHandle {
+				mockR := new(gcsx.MockRandomReader)
+				mockR.On("ReadAt", t.ctx, dst, int64(0)).Return(gcsx.ObjectData{}, io.EOF)
+				object := gcs.MinObject{Name: "test_obj", Generation: 1}
+				mockR.On("Object").Return(&object)
+				mockR.On("Destroy").Return()
+
+				parent := createDirInode(&t.bucket, &t.clock, "parentRoot")
+				in := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, object.Name, []byte("data"), false)
+				fh := NewFileHandle(in, nil, false, common.NewNoopMetrics(), util.Read, &cfg.ReadConfig{})
+				fh.inode.Lock()
+				fh.reader = mockR
+				return fh
+			},
+			expectedErr:      io.EOF,
+			expectedSize:     0,
+			expectedResponse: nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func() {
+			fh := tc.mockSetup(t, dst)
+
+			output, n, err := fh.Read(t.ctx, dst, 0, 200, tc.useReadManager)
+
+			assert.Equal(t.T(), tc.expectedErr, err)
+			assert.Equal(t.T(), tc.expectedSize, n)
+			assert.Equal(t.T(), tc.expectedResponse, output)
+		})
+	}
+}
+
+func (t *fileTest) Test_Read_InodeFallback() {
+	type testCase struct {
+		name           string
+		useReadManager bool
+		mockSetup      func(*fileTest, []byte) *FileHandle
+	}
+
+	dst := make([]byte, 100)
+	objectData := []byte("fallback data")
+	tests := []testCase{
+		{
+			name:           "fallback after readManager EOF",
+			useReadManager: true,
+			mockSetup: func(t *fileTest, dst []byte) *FileHandle {
+				mockR := new(read_manager.MockReadManager)
+				mockR.On("ReadAt", t.ctx, dst, int64(0)).Return(gcsx.ObjectData{}, io.EOF)
+				object := gcs.MinObject{Name: "test_obj", Generation: 0}
+				mockR.On("Object").Return(&object)
+				mockR.On("Destroy").Return()
+
+				parent := createDirInode(&t.bucket, &t.clock, "parentRoot")
+				in := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, object.Name, objectData, true)
+				fh := NewFileHandle(in, nil, false, common.NewNoopMetrics(), util.Read, &cfg.ReadConfig{})
+				fh.inode.Lock()
+				fh.readManager = mockR
+				return fh
+			},
+		},
+		{
+			name:           "fallback after reader EOF",
+			useReadManager: false,
+			mockSetup: func(t *fileTest, dst []byte) *FileHandle {
+				mockR := new(gcsx.MockRandomReader)
+				mockR.On("ReadAt", t.ctx, dst, int64(0)).Return(gcsx.ObjectData{}, io.EOF)
+				object := gcs.MinObject{Name: "test_obj", Generation: 0}
+				mockR.On("Object").Return(&object)
+				mockR.On("Destroy").Return()
+
+				parent := createDirInode(&t.bucket, &t.clock, "parentRoot")
+				in := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, object.Name, objectData, true)
+				fh := NewFileHandle(in, nil, false, common.NewNoopMetrics(), util.Read, &cfg.ReadConfig{})
+				fh.inode.Lock()
+				fh.reader = mockR
+				return fh
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func() {
+			t.SetupTest()
+			fh := tc.mockSetup(t, dst)
+
+			output, n, err := fh.Read(t.ctx, dst, 0, 200, tc.useReadManager)
+
+			assert.Equal(t.T(), io.EOF, err)
+			assert.Equal(t.T(), len(objectData), n)
+			assert.Equal(t.T(), objectData, output[:n])
 		})
 	}
 }
