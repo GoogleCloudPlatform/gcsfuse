@@ -65,6 +65,10 @@ type GCSReader struct {
 
 	sequentialReadSizeMb int32
 
+	// Specifies the next expected offset for the reads. Used to distinguish between
+	// sequential and random reads.
+	expectedOffset int64
+
 	// seeks represents the number of random reads performed by the reader.
 	seeks uint64
 
@@ -97,7 +101,11 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.R
 		return readerResponse, io.EOF
 	}
 
-	if gr.rangeReader.invalidateReaderIfMisalignedOrTooSmall(offset, p) {
+	gr.rangeReader.invalidateReaderIfMisalignedOrTooSmall(offset, p)
+
+	// If the data can't be served from the existing reader, then we need to update the seeks.
+	// If current offset is not same as expected offset, it's a random read.
+	if gr.expectedOffset != 0 && gr.expectedOffset != offset {
 		gr.seeks++
 	}
 
@@ -106,8 +114,12 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.R
 		Offset:    offset,
 		EndOffset: -1,
 	}
+	defer func() {
+		gr.updateExpectedOffset(offset + int64(readerResponse.Size))
+	}()
 
-	readerResponse, err := gr.rangeReader.readFromExistingReader(ctx, readReq)
+	var err error
+	readerResponse, err = gr.rangeReader.readFromExistingReader(ctx, readReq)
 	if err == nil {
 		return readerResponse, nil
 	}
@@ -193,6 +205,10 @@ func (gr *GCSReader) limitEnd(start, currentEnd int64) int64 {
 		return start + maxSize
 	}
 	return currentEnd
+}
+
+func (gr *GCSReader) updateExpectedOffset(offset int64) {
+	gr.expectedOffset = offset
 }
 
 func (gr *GCSReader) Destroy() {
