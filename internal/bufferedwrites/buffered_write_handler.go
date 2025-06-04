@@ -46,6 +46,9 @@ type BufferedWriteHandler interface {
 	// SetMtime stores the mtime with the bufferedWriteHandler.
 	SetMtime(mtime time.Time)
 
+	//SetTotalSize sets the bwh's totalsize in case of append flow.
+	SetTotalSize(size int64)
+
 	// Truncate allows truncating the file to a larger size.
 	Truncate(size int64) error
 
@@ -97,6 +100,7 @@ type CreateBWHandlerRequest struct {
 	MaxBlocksPerFile         int64
 	GlobalMaxBlocksSem       *semaphore.Weighted
 	ChunkTransferTimeoutSecs int64
+	TotalSize                int64
 }
 
 // NewBWHandler creates the bufferedWriteHandler struct.
@@ -117,8 +121,9 @@ func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err er
 			MaxBlocksPerFile:         req.MaxBlocksPerFile,
 			BlockSize:                req.BlockSize,
 			ChunkTransferTimeoutSecs: req.ChunkTransferTimeoutSecs,
+			TotalSize:                req.TotalSize,
 		}),
-		totalSize:     0,
+		totalSize:     req.TotalSize,
 		mtime:         time.Now(),
 		truncatedSize: -1,
 	}
@@ -258,6 +263,9 @@ func (wh *bufferedWriteHandlerImpl) SetMtime(mtime time.Time) {
 	wh.mtime = mtime
 }
 
+func (wh *bufferedWriteHandlerImpl) SetTotalSize(size int64) {
+	wh.totalSize = size
+}
 func (wh *bufferedWriteHandlerImpl) Truncate(size int64) error {
 	if size < wh.totalSize {
 		return fmt.Errorf("cannot truncate to lesser size when upload is in progress")

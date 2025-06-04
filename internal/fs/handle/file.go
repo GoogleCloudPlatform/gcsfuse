@@ -168,6 +168,10 @@ func (fh *FileHandle) Write(ctx context.Context, data []byte, offset int64) erro
 	return fh.inode.Write(ctx, data, offset, fh.openMode)
 }
 
+func (fh *FileHandle) OpenMode() util.OpenMode {
+	return fh.openMode
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
