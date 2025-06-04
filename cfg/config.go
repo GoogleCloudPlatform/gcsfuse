@@ -377,7 +377,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("enable-new-reader", "", false, "Enables support for new reader implementation.")
+	flagSet.BoolP("enable-new-reader", "", true, "Enables support for new reader implementation.")
 
 	if err := flagSet.MarkHidden("enable-new-reader"); err != nil {
 		return err

@@ -196,6 +196,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		metricHandle:               serverCfg.MetricHandle,
 		enableAtomicRenameObject:   serverCfg.NewConfig.EnableAtomicRenameObject,
 		globalMaxWriteBlocksSem:    semaphore.NewWeighted(serverCfg.NewConfig.Write.GlobalMaxBlocks),
+		enableNewReader:            serverCfg.NewConfig.EnableNewReader,
 	}
 
 	// Set up root bucket
@@ -492,6 +493,8 @@ type fileSystem struct {
 	// Limits the max number of blocks that can be created across file system when
 	// streaming writes are enabled.
 	globalMaxWriteBlocksSem *semaphore.Weighted
+
+	enableNewReader bool
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -2613,7 +2616,7 @@ func (fs *fileSystem) ReadFile(
 		}
 	}
 	// Serve the read.
-	op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
+	op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb, fs.enableNewReader)
 
 	// As required by fuse, we don't treat EOF as an error.
 	if err == io.EOF {
