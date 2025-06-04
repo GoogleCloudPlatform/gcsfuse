@@ -163,11 +163,8 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 	// Otherwise, fall through to the inode.
 	defer fh.inode.Unlock()
 	n, err = fh.inode.Read(ctx, dst, offset)
-	if err != nil {
-		return nil, 0, err
-	}
 	// Setting dst as output since output is used by the caller to read the data.
-	return dst, n, nil
+	return dst, n, err
 }
 
 // Adding the Write() method to fileHandle to be able to pass the fileOpenMode
