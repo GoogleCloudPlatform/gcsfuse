@@ -108,6 +108,8 @@ type FileSystemConfig struct {
 
 	DisableParallelDirops bool `yaml:"disable-parallel-dirops"`
 
+	DisableReaddirplus bool `yaml:"disable-readdirplus"`
+
 	FileMode Octal `yaml:"file-mode"`
 
 	FuseOptions []string `yaml:"fuse-options"`
@@ -330,6 +332,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("disable-parallel-dirops", "", false, "Specifies whether to allow parallel dir operations (lookups and readers)")
 
 	if err := flagSet.MarkHidden("disable-parallel-dirops"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("disable-readdirplus", "", true, "This flag is used to disable ReadDirPlus capability so ReadDir is used instead")
+
+	if err := flagSet.MarkHidden("disable-readdirplus"); err != nil {
 		return err
 	}
 
@@ -669,6 +677,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.disable-parallel-dirops", flagSet.Lookup("disable-parallel-dirops")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.disable-readdirplus", flagSet.Lookup("disable-readdirplus")); err != nil {
 		return err
 	}
 

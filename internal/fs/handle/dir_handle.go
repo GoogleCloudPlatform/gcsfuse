@@ -46,7 +46,13 @@ type DirHandle struct {
 	// INVARIANT: For each i, entries[i+1].Offset == entries[i].Offset + 1
 	//
 	// GUARDED_BY(Mu)
-	entries     []fuseutil.Dirent
+	entries []fuseutil.Dirent
+
+	// All entries in the directory. Populated the first time we need one.
+	//
+	// INVARIANT: For each i, entriesPlus[i+1].Offset == entriesPlus[i].Offset + 1
+	//
+	// GUARDED_BY(Mu)
 	entriesPlus []fuseutil.DirentPlus
 
 	// Has entries yet been populated?
@@ -54,7 +60,13 @@ type DirHandle struct {
 	// INVARIANT: If !entriesValid, then len(entries) == 0
 	//
 	// GUARDED_BY(Mu)
-	entriesValid     bool
+	entriesValid bool
+
+	// Has entriesPlus yet been populated?
+	//
+	// INVARIANT: If !entriesPlusValid, then len(entriesPlus) == 0
+	//
+	// GUARDED_BY(Mu)
 	entriesPlusValid bool
 }
 
@@ -88,7 +100,7 @@ func (p sortedDirents) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 type sortedDirentsPlus []fuseutil.DirentPlus
 
 func (p sortedDirentsPlus) Len() int           { return len(p) }
-func (p sortedDirentsPlus) Less(i, j int) bool { return p[i].Name < p[j].Name }
+func (p sortedDirentsPlus) Less(i, j int) bool { return p[i].Dirent.Name < p[j].Dirent.Name }
 func (p sortedDirentsPlus) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
 func (dh *DirHandle) checkInvariants() {
@@ -104,12 +116,12 @@ func (dh *DirHandle) checkInvariants() {
 	}
 
 	for i := 0; i < len(dh.entriesPlus)-1; i++ {
-		if !(dh.entriesPlus[i+1].Offset == dh.entriesPlus[i].Offset+1) {
+		if !(dh.entriesPlus[i+1].Dirent.Offset == dh.entriesPlus[i].Dirent.Offset+1) {
 			panic(
 				fmt.Sprintf(
 					"Unexpected offset sequence for entriesPlus: %v, %v",
-					dh.entriesPlus[i].Offset,
-					dh.entriesPlus[i+1].Offset))
+					dh.entriesPlus[i].Dirent.Offset,
+					dh.entriesPlus[i+1].Dirent.Offset))
 		}
 	}
 
@@ -210,17 +222,17 @@ func fixConflictingNamesPlus(entriesPlus []fuseutil.DirentPlus, localEntriesPlus
 		prev := &output[len(output)-1]
 
 		// Does the pair have matching names?
-		if e.Name != prev.Name {
+		if e.Dirent.Name != prev.Dirent.Name {
 			output = append(output, *e)
 			continue
 		}
 
 		// We expect exactly one to be a directory.
-		eIsDir := e.Type == fuseutil.DT_Directory
-		prevIsDir := prev.Type == fuseutil.DT_Directory
+		eIsDir := e.Dirent.Type == fuseutil.DT_Directory
+		prevIsDir := prev.Dirent.Type == fuseutil.DT_Directory
 
 		if eIsDir == prevIsDir {
-			if _, ok := localEntriesPlus[e.Name]; ok && !eIsDir {
+			if _, ok := localEntriesPlus[e.Dirent.Name]; ok && !eIsDir {
 				// We have found same entry in GCS and local file entries, i.e, the
 				// entry is uploaded to GCS but not yet deleted from local entries.
 				// Do not return the duplicate entry as part of list response.
@@ -228,18 +240,18 @@ func fixConflictingNamesPlus(entriesPlus []fuseutil.DirentPlus, localEntriesPlus
 			} else {
 				err = fmt.Errorf(
 					"weird dirent type pair for name %q: %v, %v",
-					e.Name,
-					e.Type,
-					prev.Type)
+					e.Dirent.Name,
+					e.Dirent.Type,
+					prev.Dirent.Type)
 				return
 			}
 		}
 
 		// Repair whichever is not the directory.
 		if eIsDir {
-			prev.Name += inode.ConflictingFileNameSuffix
+			prev.Dirent.Name += inode.ConflictingFileNameSuffix
 		} else {
-			e.Name += inode.ConflictingFileNameSuffix
+			e.Dirent.Name += inode.ConflictingFileNameSuffix
 		}
 
 		output = append(output, *e)
@@ -493,11 +505,11 @@ func (dh *DirHandle) ReadDirPlus(
 	}
 
 	for i := 0; i < len(entriesPlus); i++ {
-		entriesPlus[i].Offset = fuseops.DirOffset(i) + 1
+		entriesPlus[i].Dirent.Offset = fuseops.DirOffset(i) + 1
 	}
 
 	for i := range entriesPlus {
-		entriesPlus[i].Inode = fuseops.RootInodeID + 1
+		entriesPlus[i].Dirent.Inode = fuseops.RootInodeID + 1
 	}
 
 	if dh.entriesPlus == nil {

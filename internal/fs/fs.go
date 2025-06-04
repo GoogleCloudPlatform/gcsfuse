@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"io"
 	iofs "io/fs"
 	"math"
@@ -28,6 +27,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 
 	"golang.org/x/sync/semaphore"
 
@@ -2575,21 +2576,22 @@ func (fs *fileSystem) ReadDirPlus(
 			EntryExpiration:      expiration,
 		}
 		entry := fuseutil.DirentPlus{
-			Name:  path.Base(fullName.LocalName()),
-			Type:  fuseutil.DT_Unknown,
+			Dirent: fuseutil.Dirent{
+				Name: path.Base(fullName.LocalName()),
+				Type: fuseutil.DT_Unknown,
+			},
 			Entry: childInodeEntry,
 		}
 		switch core.Type() {
 		case metadata.SymlinkType:
-			entry.Type = fuseutil.DT_Link
+			entry.Dirent.Type = fuseutil.DT_Link
 		case metadata.RegularFileType:
-			entry.Type = fuseutil.DT_File
+			entry.Dirent.Type = fuseutil.DT_File
 		case metadata.ImplicitDirType, metadata.ExplicitDirType:
-			entry.Type = fuseutil.DT_Directory
+			entry.Dirent.Type = fuseutil.DT_Directory
 		}
 
 		entriesPlus = append(entriesPlus, entry)
-		//fs.unlockAndMaybeDisposeOfInode(child, &err)
 		child.Unlock()
 	}
 
