@@ -9,65 +9,118 @@ on:
       - '*'
 
 jobs:
+  deploy:
+    permissions:
+      contents: read
+      id-token: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Authenticate to Google Cloud (OIDC)
+        uses: google-github-actions/auth@v1
+        with:
+          service_account: github-repo-sa@gohar-internal-test.iam.gserviceaccount.com
+          token_format: access_token
+          workload_identity_provider: projects/1034292053897/locations/global/workloadIdentityPools/action/providers/github
+
+      - name: Set up gcloud CLI
+        uses: google-github-actions/setup-gcloud@v1
+
+      - name: Conditionally enable required GCP APIs
+        run: |
+          enable_api_if_needed() {
+            local api=$1
+            if ! gcloud services list --enabled --project=gohar-internal-test | grep -q "$api"; then
+              echo "Enabling $api..."
+              gcloud services enable "$api" --project=gohar-internal-test
+            else
+              echo "$api is already enabled."
+            fi
+          }
+
+          enable_api_if_needed run.googleapis.com
+          enable_api_if_needed artifactregistry.googleapis.com
+          enable_api_if_needed cloudbuild.googleapis.com
+          enable_api_if_needed iamcredentials.googleapis.com
+          enable_api_if_needed logging.googleapis.com
+          enable_api_if_needed monitoring.googleapis.com
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker us-central1-docker.pkg.dev
+
+      - name: Build and Push Docker Image
+        run: |
+          docker build -t us-central1-docker.pkg.dev/gohar-internal-test/github-repo/gcsfuse-repo/gcsfuse .
+          docker push us-central1-docker.pkg.dev/gohar-internal-test/github-repo/gcsfuse-repo/gcsfuse
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy gcsfuse \
+            --image=us-central1-docker.pkg.dev/gohar-internal-test/github-repo/gcsfuse-repo/gcsfuse \
+            --platform=managed \
+            --region=us-central1 \
+            --allow-unauthenticated
+
   format-test:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+      - name: CodeGen
+        run: go generate ./...
+      - name: Formatting diff
+        run: go fmt ./... && git diff --exit-code --name-only
     timeout-minutes: 5
-    steps:
-    - uses: actions/checkout@v4
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: "1.24"
-    - name: CodeGen
-      run: go generate ./...
-    - name: Formatting diff
-      run: go fmt ./... && git diff --exit-code --name-only
-
-  linux-tests:
-    strategy:
-      matrix:
-        go: [ 1.24.x ]
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-
-    steps:
-    - uses: actions/checkout@v2
-    - name: Set up Go ${{ matrix.go }}
-      uses: actions/setup-go@v2.1.4
-      with:
-        go-version: ${{ matrix.go }}
-    - name: Install fuse
-      run: sudo apt-get update && sudo apt-get install -y fuse3 libfuse-dev
-    - name: Build
-      run: |
-        CGO_ENABLED=0 go build ./...
-        go install ./tools/build_gcsfuse
-        build_gcsfuse . /tmp ${GITHUB_SHA}
-    - name: Test all
-      run: CGO_ENABLED=0 go test -p 1 -count 1 -covermode=atomic -coverprofile=coverage.out -coverpkg=./... -v -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./...`
-    - name: RaceDetector Test
-      run: go test -p 1 -count 1 -v -race -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` ./internal/cache/... ./internal/gcsx/...
-    - name: Upload coverage reports to Codecov
-      uses: codecov/codecov-action@v4.3.1
-      timeout-minutes: 5
-      with:
-        fail_ci_if_error: true
-        token: ${{ secrets.CODECOV_TOKEN }}
-        flags: unittests
 
   lint:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-    - name: Setup Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: "1.24"
-    - name: checkout code
-      uses: actions/checkout@v4
-    - name: golangci-lint
-      uses: golangci/golangci-lint-action@032fa5c5e48499f06cf9d32c02149bfac1284239
-      with:
-        args: -E=goimports --timeout 2m0s
-        only-new-issues: true
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24'
+      - name: checkout code
+        uses: actions/checkout@v4
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@032fa5c5e48499f06cf9d32c02149bfac1284239
+        with:
+          args: -E=goimports --timeout 2m0s
+          only-new-issues: true
 
+  linux-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Go ${{ matrix.go }}
+        uses: actions/setup-go@v2.1.4
+        with:
+          go-version: ${{ matrix.go }}
+      - name: Install fuse
+        run: sudo apt-get update && sudo apt-get install -y fuse3 libfuse-dev
+      - name: Build
+        run: 'CGO_ENABLED=0 go build ./...
+             go install ./tools/build_gcsfuse
+             build_gcsfuse . /tmp ${GITHUB_SHA}'
+      - name: Test all
+        run: CGO_ENABLED=0 go test -p 1 -count 1 -covermode=atomic -coverprofile=coverage.out -coverpkg=./... -v -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./...`
+      - name: RaceDetector Test
+        run: go test -p 1 -count 1 -v -race -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` ./internal/cache/... ./internal/gcsx/...
+      - name: Upload coverage reports to Codecov
+        timeout-minutes: 5
+        uses: codecov/codecov-action@v4.3.1
+        with:
+          fail_ci_if_error: true
+          flags: unittests
+          token: ${{ secrets.CODECOV_TOKEN }}
+    strategy:
+      matrix:
+        go:
+          - 1.24.x
+    timeout-minutes: 20
