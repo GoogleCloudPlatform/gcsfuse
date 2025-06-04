@@ -494,6 +494,7 @@ type fileSystem struct {
 	// streaming writes are enabled.
 	globalMaxWriteBlocksSem *semaphore.Weighted
 
+	// If enableNewReader flag is set, we will take new reader implementation for reading file.
 	enableNewReader bool
 }
 
