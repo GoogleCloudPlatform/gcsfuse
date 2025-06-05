@@ -20,10 +20,10 @@ echo Installing pip and fuse..
 sudo apt-get install fuse -y
 sudo apt-get install pip -y
 echo Installing requirements..
-pip install --require-hashes -r requirements.txt --user
+pip install --require-hashes -r requirements.txt
 echo Running script..
 GCSFUSE_FLAGS=$1
-UPLOAD_FLAGS=$2
-SPREADSHEET_ID=$3
+UPLOAD_FLAGS="--upload_gs"
+SPREADSHEET_ID="1Hbt4AUP3LTcl9EklISkvhGDsx3pajtzcB-j62KTPqtY"
 CONFIG_FILE=$4
-python3 listing_benchmark.py $CONFIG_FILE --gcsfuse_flags "$GCSFUSE_FLAGS" $UPLOAD_FLAGS --command "ls -R" --num_samples 30 --message "Testing CT setup." --spreadsheet_id=$SPREADSHEET_ID
+python3 listing_benchmark.py $CONFIG_FILE --gcsfuse_flags "$GCSFUSE_FLAGS" $UPLOAD_FLAGS --command "ls -l" --num_samples 30 --message "Testing CT setup." --spreadsheet_id=$SPREADSHEET_ID
