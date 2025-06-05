@@ -70,9 +70,9 @@ func (t *fileTest) TearDownTest() {
 // createDirInode helps create the parent directory inode for the file inode
 // which will be used for testing methods defined on the fileHandle.
 func createDirInode(
-		bucket *gcsx.SyncerBucket,
-		clock *timeutil.SimulatedClock,
-		dirName string) inode.DirInode {
+	bucket *gcsx.SyncerBucket,
+	clock *timeutil.SimulatedClock,
+	dirName string) inode.DirInode {
 	return inode.NewDirInode(
 		1,
 		inode.NewDirName(inode.NewRootName(""), dirName),
@@ -95,14 +95,14 @@ func createDirInode(
 
 // createFileInode is a helper to create a FileInode for testing.
 func createFileInode(
-		t *testing.T,
-		bucket *gcsx.SyncerBucket,
-		clock *timeutil.SimulatedClock,
-		config *cfg.Config,
-		parent inode.DirInode,
-		objectName string,
-		content []byte,
-		localFileCache bool) *inode.FileInode {
+	t *testing.T,
+	bucket *gcsx.SyncerBucket,
+	clock *timeutil.SimulatedClock,
+	config *cfg.Config,
+	parent inode.DirInode,
+	objectName string,
+	content []byte,
+	localFileCache bool) *inode.FileInode {
 
 	obj := &gcs.MinObject{
 		Name:           objectName,
@@ -367,7 +367,7 @@ func (t *fileTest) Test_Read_InodeFallback() {
 			useReadManager: true,
 			mockSetup: func(t *fileTest, dst []byte) *FileHandle {
 				mockR := new(read_manager.MockReadManager)
-				mockR.On("ReadAt", t.ctx, dst, int64(0)).Return(gcsx.ObjectData{}, io.EOF)
+				mockR.On("ReadAt", t.ctx, dst, int64(0)).Return(gcsx.ObjectData{}, nil)
 				object := gcs.MinObject{Name: "test_obj", Generation: 0}
 				mockR.On("Object").Return(&object)
 				mockR.On("Destroy").Return()
@@ -384,7 +384,7 @@ func (t *fileTest) Test_Read_InodeFallback() {
 			useReadManager: false,
 			mockSetup: func(t *fileTest, dst []byte) *FileHandle {
 				mockR := new(gcsx.MockRandomReader)
-				mockR.On("ReadAt", t.ctx, dst, int64(0)).Return(gcsx.ObjectData{}, io.EOF)
+				mockR.On("ReadAt", t.ctx, dst, int64(0)).Return(gcsx.ObjectData{}, nil)
 				object := gcs.MinObject{Name: "test_obj", Generation: 0}
 				mockR.On("Object").Return(&object)
 				mockR.On("Destroy").Return()

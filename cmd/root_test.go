@@ -1035,7 +1035,7 @@ func TestArgsParsing_EnableNewReaderFlag(t *testing.T) {
 		{
 			name:                    "default",
 			args:                    []string{"gcsfuse", "abc", "pqr"},
-			expectedEnableNewReader: true,
+			expectedEnableNewReader: false,
 		},
 		{
 			name:                    "normal",
