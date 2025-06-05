@@ -1,5 +1,5 @@
 {
-        "name": "list-benchmark-tests" ,
+        "name": "perftesting-aditime" ,
         "num_folders": 12 ,
         "folders": [
                 {
