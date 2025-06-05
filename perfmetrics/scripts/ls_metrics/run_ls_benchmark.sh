@@ -22,7 +22,7 @@ sudo apt-get install pip -y
 echo Installing requirements..
 pip install --require-hashes -r requirements.txt
 echo Running script..
-GCSFUSE_FLAGS="disable-readdirplus=false --debug_fuse --debug_gcs --log-format \"text\ --implicit-dirs=0"
+GCSFUSE_FLAGS="--disable-readdirplus=false --debug_fuse --debug_gcs --log-format \"text\" --implicit-dirs"
 UPLOAD_FLAGS="--upload_gs"
 SPREADSHEET_ID="1Hbt4AUP3LTcl9EklISkvhGDsx3pajtzcB-j62KTPqtY"
 CONFIG_FILE="config.json"
