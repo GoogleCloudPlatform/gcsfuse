@@ -210,12 +210,10 @@ func (t *fileTest) Test_Read_Success() {
 // when using either readManager or random reader. It validates bytes read, response data, and returned error.
 func (t *fileTest) Test_Read_ErrorScenarios() {
 	type testCase struct {
-		name             string
-		useReadManager   bool
-		mockSetup        func(*fileTest, []byte) *FileHandle
-		expectedErr      error
-		expectedSize     int
-		expectedResponse []byte
+		name           string
+		useReadManager bool
+		mockSetup      func(*fileTest, []byte) *FileHandle
+		expectedErr    error
 	}
 
 	dst := make([]byte, 100)
@@ -237,9 +235,7 @@ func (t *fileTest) Test_Read_ErrorScenarios() {
 				fh.readManager = mockRM
 				return fh
 			},
-			expectedErr:      io.EOF,
-			expectedSize:     0,
-			expectedResponse: nil,
+			expectedErr: io.EOF,
 		},
 		{
 			name:           "EOF via random reader",
@@ -256,9 +252,7 @@ func (t *fileTest) Test_Read_ErrorScenarios() {
 				fh.reader = mockR
 				return fh
 			},
-			expectedErr:      io.EOF,
-			expectedSize:     0,
-			expectedResponse: nil,
+			expectedErr: io.EOF,
 		},
 		{
 			name:           "mock error via readManager",
@@ -275,9 +269,7 @@ func (t *fileTest) Test_Read_ErrorScenarios() {
 				fh.readManager = mockRM
 				return fh
 			},
-			expectedErr:      mockErr,
-			expectedSize:     0,
-			expectedResponse: nil,
+			expectedErr: mockErr,
 		},
 		{
 			name:           "mock error via random reader",
@@ -294,9 +286,7 @@ func (t *fileTest) Test_Read_ErrorScenarios() {
 				fh.reader = mockR
 				return fh
 			},
-			expectedErr:      mockErr,
-			expectedSize:     0,
-			expectedResponse: nil,
+			expectedErr: mockErr,
 		},
 	}
 
@@ -306,8 +296,8 @@ func (t *fileTest) Test_Read_ErrorScenarios() {
 
 			output, n, err := fh.Read(t.ctx, dst, 0, 200, tc.useReadManager)
 
-			assert.Equal(t.T(), tc.expectedSize, n)
-			assert.Equal(t.T(), tc.expectedResponse, output)
+			assert.Zero(t.T(), n)
+			assert.Nil(t.T(), output)
 			assert.True(t.T(), errors.Is(err, tc.expectedErr))
 			// Assert mock expectations
 			if tc.useReadManager {
@@ -333,7 +323,7 @@ func (t *fileTest) Test_Read_InodeFallback() {
 	objectData := []byte("fallback data")
 	tests := []testCase{
 		{
-			name:           "fallback after no valid readManager",
+			name:           "fallback on inode read after no valid readManager",
 			useReadManager: true,
 			mockSetup: func(t *fileTest, dst []byte) *FileHandle {
 				mockR := new(read_manager.MockReadManager)
@@ -348,7 +338,7 @@ func (t *fileTest) Test_Read_InodeFallback() {
 			},
 		},
 		{
-			name:           "fallback after no valid reader",
+			name:           "fallback on inode read after no valid reader",
 			useReadManager: false,
 			mockSetup: func(t *fileTest, dst []byte) *FileHandle {
 				mockR := new(gcsx.MockRandomReader)
